@@ -1,0 +1,150 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use TUSK::Case::Case;
+</%once>
+
+<%attr>
+	no_header 	=> 1
+	use_nav_bar 	=> 0
+	page_footer 	=> 'SELF:footer'
+</%attr>
+
+<%method jsarray>
+% return $m->comp("/management/tmpl/content:jsarray");
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<& /management/tmpl/content:set_globals, page => $args->{page}, action => $args->{action} &>
+</%method>
+
+<%method title>
+%	return $m->comp("/management/tmpl/content:title", args => \%ARGS);
+</%method>
+
+<%perl>
+	my $case_id = $m->comp('/tmpl/url:get_first_path_id');
+	my $case = TUSK::Case::Case->new()->lookupKey($case_id);
+	my $case_folder;
+	my $obj = $m->comp('/tmpl/url:get_type_object');
+	if ($ARGS{'submit_check'} && ($ARGS{'action'} eq 'add' or $ARGS{'page'} eq 'add')){
+		if (ref($obj) eq 'HSDB45::Course'){
+			(my $main_folder) = $obj->child_content("title = 'Case Content'");
+			if ($main_folder or $ARGS{'action'} eq 'add'){
+				unless ($main_folder){
+					$main_folder = HSDB4::SQLRow::Content->new();
+					$main_folder->set_field_values(
+									course_id 	=> $obj->primary_key(),
+									copyright	=> $m->comp('/management/tmpl/content:get_default_copyright'),
+									school		=> $obj->school(),
+									type		=> 'Collection',
+									end_date	=> '0000-00-00',
+									display		=> 0,
+									title		=> 'Case Content',
+								);
+					$main_folder->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+					$main_folder->add_child_user(	$TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, 
+									$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, 
+									$m->session->{'user'}->primary_key(), 
+									10, 
+									'Author');
+					$obj->add_child_content($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, $main_folder->primary_key(), 65535);
+				}	
+	
+				(my $case_title = $case->getCaseTitle()) =~ s/'/\\'/g;
+				($case_folder) = $main_folder->child_content("title = 'Case: " . $case_title . " (" . $case->getPrimaryKeyID() . ")'");	
+
+				unless ($case_folder){
+					if ($ARGS{'action'} eq 'add'){
+						$case_folder = HSDB4::SQLRow::Content->new();
+						$case_folder->set_field_values(
+										copyright	=> $main_folder->field_value('copyright'),
+										course_id 	=> $obj->primary_key(),
+										school		=> $obj->school(),
+										type		=> 'Collection',
+										end_date	=> '0000-00-00',
+										display		=> 0,
+										title		=> "Case: " . $case->getCaseTitle() . " (" . $case->getPrimaryKeyID() . ")",
+									);
+						$case_folder->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+						foreach my $user ($main_folder->child_users()){
+							$case_folder->add_child_user(	$TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, 
+											$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, 
+											$user->primary_key(), 
+											$user->aux_info('sort_order'), 
+											$user->aux_info('roles'));
+						}
+	
+						$main_folder->add_child_content($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, $case_folder->primary_key(), 65535);
+					}else{
+						$case_folder = HSDB4::SQLRow::Content->new();
+					}
+				}
+				
+				$case_folder->field_value('start_date', '');
+				$case_folder->field_value('end_date', '');
+			}
+		}
+	}
+</%perl>
+
+<& /management/tmpl/content:process, args => {%ARGS, 
+							parent_content 	=> $case_folder,
+							table_html 	=> 
+									$m->scomp("/tmpl/element:table", params =>{
+												width 	=> '90%',
+												align	=> 'center',
+												style	=> 'padding-top:7px;padding-bottom:7px;'
+									}) } &>
+<body>
+<& /tmpl/element:table, params => { width => '90%', class => 'tusk', align => 'center', style => 'padding-top:7px;padding-bottom:7px;' } &>
+
+<tr>
+	<td colspan="2">
+		<& /tmpl/prepend:header_bar_table, req => { redHeaderBarText => $m->comp("/management/tmpl/content:title") } &>
+	</td>
+</tr>
+<tr>
+	<td>
+		<& /management/tmpl/content:show_page, course => $obj, args => { %ARGS, buttons => [ $m->scomp("/tmpl/element:close_window_button") ] } &>
+	</td>
+</tr>
+
+</table>
+
+%
+% if ($ARGS{'action'} eq 'add') {
+%
+%	my $layer = $m->comp('/tmpl/url:get_last_path_id');
+% 	my $content = $m->comp('/management/tmpl/content:get_content');
+%	my $title = $content->title();	
+%	$title =~ s/'/\\'/g;
+<script>
+	data = { content_id:'<% $content->primary_key() %>', title:'<% $title %>' };	
+	var msg = parent.opener.layers['<% $layer %>'].adddata(data, 1);
+</script>
+%
+% }
+%
+<%method footer>
+</html>
+</body>
+</%method>

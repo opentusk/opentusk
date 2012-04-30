@@ -1,0 +1,1218 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use TUSK::Content::External::Source;
+	use TUSK::ProcessTracker::ProcessTracker;
+	use Image::ExifTool;
+</%once>
+
+<%method SlideOptions>
+	<%args>
+		$stain => ''
+		$reuseContent => ''
+		$size => 60
+		$multiContentID => ''
+	</%args>
+%	if ($reuseContent){
+		<& /tmpl/element:field_display, params => {
+			label	=> 'Stain',
+			value	=> ($stain) ? $stain : '&nbsp;',
+		}&>
+%	} else {
+%		my $name = 'stain';
+%		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+		<& /tmpl/element:textbox, params => { 
+			name		=> $name,
+			label 		=> 'Stain:', 
+			value 		=> $stain,
+			size 		=> $size, 
+		}&>
+%	}
+</%method>
+
+<%method Slide>
+<%args>
+	$content
+	$args
+</%args>
+
+<& /tmpl/element:flexible_tr, params => { label => 'Slide Preview' } &>
+
+<%perl>
+	print '<img src="';
+
+	if ($content->primary_key()){
+		print "/large/" . $content->primary_key();		
+	}else{
+		print "/temp/" . $args->{filename};
+	}
+
+	print '">';	
+	
+	my $stain = '';
+	if ($content->can('out_stain') && $content->out_stain()){
+		$stain = $content->out_stain();
+	}
+</%perl>
+
+</td></tr>
+
+<& SELF:html_textarea, content => $content, label => 'Text Description:' &>
+<& SELF:SlideOptions, stain => $stain, reuseContent => $content->reuse_content_id() &>
+
+</%method>
+
+<%method Document>
+<%args>
+	$content
+	$args
+</%args>
+
+%
+% if (!$content->primary_key() or !$content->is_xmetal_doc() or $content->reuse_content_id()){
+%
+<%perl>
+	my $label = 'Description:';
+	if ($content->reuse_content_id()){
+		$label .= '<br>(the reused content appears after your description)';
+	}
+
+	my $want_editor = ($content->field_value('style') eq 'minimal')? 0 : 1;
+</%perl>
+
+<%doc>
+This is needed by TUSK::UploadContent::add_content() to ensure 
+that 'minimal' style is applied to this piece of content
+</%doc>
+% if($content->field_value('style') eq 'minimal'){
+<input type="hidden" name="style" value="minimal" />
+% }
+
+<& SELF:html_textarea, content => $content, label => $label, want_editor => $want_editor &>
+
+%
+% }
+%
+
+</%method>
+
+
+
+<%method AudioVideoOptions>
+<%args>
+	$contentType
+	$displayType
+	$reuseContent => 0
+	$width
+	$height
+	$multiContentID => ''
+</%args>
+% unless ($reuseContent){
+
+%	my $name = 'real_change';
+%	if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+<& /tmpl/element:dropdown, params => { 
+					label 		=> 'Media Type:', 
+					selected	=> $contentType,
+					name		=> $name,
+					options		=> 	[
+									{ label => 'Video',			value => 'Video' },
+									{ label => 'Audio',			value => 'Audio' },
+								],
+				} &>
+% } 
+
+%	my $name = 'displaytype';
+%	if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+<& /tmpl/element:dropdown, params => { 
+					label 		=> 'Display Type:', 
+					selected	=> $displayType,
+					name		=> $name,
+					options		=> 	[
+									{ label => 'Stream and Downloadable',	value => 'Both' },
+									{ label => 'Stream Only',		value => 'Stream' },
+									{ label => 'Downloadable Only',		value => 'Downloadable' },
+								],
+				} &>
+
+%
+% if ($contentType eq 'Video') {
+%
+<& SELF:dimensions, width => $width, height => $height, reuseContentID => $reuseContent, multiContentID => $multiContentID &>
+%
+% }
+%
+</%method>
+
+
+<%method AudioVideo>
+<%args>
+	$content
+	$args
+</%args>
+<%perl>
+	my ($width, $height, $display_type);
+	
+	if ($content->primary_key() and $content->body()){
+		my $element = $content->body()->tag_values('realvideo_uri');
+		if ($element){
+			if ($content->type() eq 'Video'){
+				if ($element->get_attribute_values('width')){
+					$width = $element->get_attribute_values('width')->value();
+				}
+				if ($element->get_attribute_values('height')){
+					$height = $element->get_attribute_values('height')->value();
+				}
+			}
+			if ($element->get_attribute_values('display-type')){
+				$display_type = $element->get_attribute_values('display-type')->value();
+			}
+		}
+	} else {
+		my $exifTool = new Image::ExifTool;
+		my $info = $exifTool->ImageInfo("/data/temp/" . $args->{'filename'}, 'ImageHeight', 'ImageWidth');
+
+		$height = $info->{'ImageHeight'};
+		$width  = $info->{'ImageWidth'};
+	}
+</%perl>
+
+<& SELF:html_textarea, content => $content &>
+<& SELF:AudioVideoOptions, contentType => $content->type(), displayType => $display_type, reuseContent => $content->reuse_content_id(), width => $width, height => $height &>
+</%method>
+
+
+
+<%method Video>
+<%args>
+	$content
+	$args
+</%args>
+<& SELF:AudioVideo, content => $content, args => $args &>
+</%method>
+
+<%method Audio>
+<%args>
+	$content
+	$args
+</%args>
+<& SELF:AudioVideo, content => $content, args => $args &>
+</%method>
+
+<%method Collection>
+<%args>
+	$content
+	$args
+</%args>
+
+<& /tmpl/element:dropdown, params => { 
+					label 		=> 'Folder Format:', 
+					selected	=> $content->type(),
+					name		=> 'folderformat',
+					options		=> 	[
+									{ label => 'Standard Folder',	value => 'Collection' },
+									{ label => 'Multidocument',	value => 'Multidocument' },
+								],
+					trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { node => 7066, text => 'About Folder Formats' }), 
+				} &>
+
+<& SELF:html_textarea, content => $content &>
+
+</%method>
+
+<%method Multidocument>
+<%args>
+	$content
+	$args
+</%args>
+<& SELF:Collection, content => $content, args => $args &>
+</%method>
+
+<%method External>
+<%args>
+	$content
+	$args
+</%args>
+<%perl>
+	my $source_name;
+	my $fields = [];
+	if ($content->primary_key()){
+		my $source = $content->get_external_source();
+		$source_name = $source->getName();
+
+		my $links = $content->get_external_content_data();
+		foreach my $link (@$links){
+			my $field = $link->getField();
+			push (@$fields, { name => $field->getName(), value => $link->getValue() });
+		}
+	} else {	
+		my $source = TUSK::Content::External::Source->new()->lookupKey($args->{source_id});
+		if ($source->getPrimaryKeyID()){
+			$source_name = $source->getName();
+		}
+		
+		my $source_fields = $source->getFields();
+
+		if ($args->{source_id} == 1 && $content->{'__accession_number_pmed'}) { 
+			$args->{'external_content_field_1'} = $content->{'__accession_number_pmed'};
+		}
+
+		foreach my $field (@$source_fields){
+			push (@$fields, { name => $field->getName(), value => $args->{"external_content_field_" . $field->getPrimaryKeyID() }, id => $field->getPrimaryKeyID() });
+		}
+	}
+
+	$m->comp('/tmpl/element:hidden_form_element', params => {
+			name 	=> 'source_id',
+			value 	=> $args->{source_id},
+	});
+
+	foreach my $field (@$fields){
+		$m->comp('/tmpl/element:field_display', params => {
+			label => $field->{name},
+			value => ($field->{value}) ? $field->{value}  : 'not available',
+		});
+
+		unless ($content->primary_key()){
+			$m->comp('/tmpl/element:hidden_form_element', params => {
+				name 	=> "external_content_field_" . $field->{id},
+				value 	=> $field->{value},
+			});
+		}
+	}
+</%perl>
+</%method>
+
+<%method URL>
+<%args>
+	$content
+	$args
+</%args>
+
+<& /tmpl/element:textbox, params => { 
+	label 	=> 'URL:', 
+	name	=> 'body',
+	value 	=> 
+		($content->body() && $content->body()->tag_values('external_uri')) 
+		? $content->body()->tag_values('external_uri')->value() 
+		: 'http://',
+	size 		=> 60, 
+} &>
+
+</%method>
+
+<%method PDF>
+<%args>
+	$content
+	$args
+</%args>
+</%method>
+
+<%method Flashpix>
+<%args>
+	$content
+	$args
+</%args>
+<%perl>
+	use TUSK::Core::ServerConfig;
+	my $media_server = &TUSK::Core::ServerConfig::dbFlashPixHost;
+	my $file;
+
+	if ($content->primary_key() and $content->body()){
+		my $element 	= $content->body()->tag_values('flashpix_uri');
+		if ($element) {
+			my $file 	= $element->value();
+			$file 		=~ s#^/?flashpix/##;
+			my $width	= 600;
+			my $height 	= 400;
+
+			$m->comp("/tmpl/element:flexible_tr", params => { label => 'Preview:' } );
+</%perl>
+		<applet code="zoom2dapplet" archive="zoom2dapplet.jar" codeBase="<% $media_server %>/obj=delivery,1.0&cmd=retrieve&fif=servercomponents/code" width="<% $width %>" height="<% $height %>">
+			<param name="url" value="<% $media_server %>/fif=<% $file %>">
+		</applet>		
+	</td>
+</tr>
+<%perl>
+		}
+	}
+</%perl>
+
+<& SELF:html_textarea, content => $content &>
+
+</%method>
+
+<%method TUSKdoc>
+<%args>
+	$content
+	$args
+</%args>
+
+<%perl>
+</%perl>
+</%method>
+
+<%method DownloadableFileOptions>
+	<%args>
+		%params
+		$multiContentID => ''
+	</%args>
+	<%perl>
+		if($TUSK::Constants::PPTServiceEnabled && !$params{contentID} && TUSK::UploadContent::isa_powerpoint($params{extension})) {
+			my $name = 'ppt_change';
+			if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+			$m->comp("/tmpl/element:flexible_tr", params => { label => 'What do you want to do<br>with your presentation?' } );
+			$m->print('<input name="'. $name .'" type="radio" value="1" checked>Convert to Image Collection (can not be undone)<br>');
+        		$m->print('<input name="'. $name .'" type="radio" value="2">Convert to Image Collection and keep a downloadable version (can not be undone)<br>');
+			$m->print('<input name="'. $name .'" type="radio" value="" >Leave as PowerPoint (Downloadable File)<br>');
+			$m->print('</td>');
+			$m->print('</tr>');
+		}
+		if($TUSK::Constants::TUSKdocServiceEnabled && !$params{contentID} && TUSK::UploadContent::isa_worddoc($params{extension})) {
+			my $name = 'doc_change';
+			if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+			$m->comp("/tmpl/element:flexible_tr", params => { label => 'What do you want to do<br>with your document?' } );
+			$m->print('<input name="'. $name .'" type="radio" value="" checked>Leave as Word Document (Downloadable File)<br>');
+			$m->print('<input name="'. $name .'" type="radio" value="1">Convert to TUSKdoc (<strong style="color:red">New!</strong>)' . $m->scomp('/tmpl/element:help_link', params => {content_id => '1251559', text => 'More about TUSKdoc', not_xmetal => 1, class => 'help'}) . '<br>');
+			$m->print('</td>');
+			$m->print('</tr>');
+		}
+	</%perl>
+</%method>
+
+<%method DownloadableFile>
+<%args>
+	$content
+	$args
+</%args>
+%	(my $ext = lc($args->{filename})) =~ s/(.*)\.//;
+	<& SELF:DownloadableFileOptions, params => {
+		'contentID' => "". $content->primary_key(),
+		'extension' => "$ext",
+	 } &>
+</%method>
+
+<%method ShockwaveOptions>
+	<%args>
+		$height		=> 0
+		$width		=> 0
+		$reuseContentId	=> 0
+		$displayType	=> 'Stream'
+		$filename	=> ''
+		$multiContentID => ''
+	</%args>
+	<%perl>
+		if(!$height && !$width && $filename) {
+			my $exifTool = new Image::ExifTool;
+			my $info = $exifTool->ImageInfo($filename, 'ImageHeight', 'ImageWidth');
+			$height = $info->{'ImageHeight'};
+			$width  = $info->{'ImageWidth'};
+		}
+		my $name = 'displaytype';
+		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+	</%perl>
+
+	<& /tmpl/element:dropdown, params => { 
+		label 		=> 'Display Type:', 
+		selected	=> $displayType,
+		name		=> $name,
+		options		=> 	[
+			{ label => 'Stream and Downloadable',	value => 'Both' },
+			{ label => 'Stream Only',		value => 'Stream' },
+			{ label => 'Downloadable Only',		value => 'Downloadable' },
+		],
+	} &>
+
+	<& SELF:dimensions, width => $width, height => $height, reuseContentID => $reuseContentId, multiContentID => $multiContentID &>
+</%method>
+
+
+<%method Shockwave>
+	<%args>
+		$content
+		$args
+	</%args>
+	<%perl>
+		my $shockwave		= HSDB4::SQLRow::Content::Shockwave->new();
+		my $filename		= '/data/temp/' . $args->{filename};
+		my $display_type	= 'Stream';
+		my $width		= 0;
+		my $height		= 0;
+		my $reuseContentId	= 0;
+		if($content && $content->type() and $content->body()) {
+			my $element = $content->body()->tag_values('shockwave_uri');
+			if($element) {
+				$filename	= $element->value();
+				$width		= $element->get_attribute_values('width')->value();
+				$height		= $element->get_attribute_values('height')->value();
+				if( $element->get_attribute_values('display-type') ) {
+					$display_type = $element->get_attribute_values('display-type')->value();
+				}
+			}
+		}
+	</%perl>
+	<& /tmpl/element:flexible_tr, params => { label => 'Preview:'} &>
+			<% $shockwave->make_object_tag($filename, $width, $height, $display_type) %>
+		</td>
+	</tr>
+
+	<& SELF:html_textarea, content => $content &>
+	<& SELF:ShockwaveOptions, height => $height, width => $width, filename => $filename, reuseContentId => $content->reuse_content_id() &>
+</%method>
+
+<%method title>
+<%args>
+	$content
+</%args>
+
+% if ($content->type() eq 'Document' && $content->reuse_content_id()){
+<& /tmpl/element:field_display, params => {
+						label	=> 'Title',
+						value	=> $content->title(),
+					} &>
+% } else {
+<& /tmpl/element:textbox, params => { 
+					label 		=> 'Title:', 
+					name		=> 'title',
+					id		=> 'Title__y',
+					value 		=> $content->title(), 
+					size 		=> 60, 
+				} &>
+% }
+</%method>
+
+<%method actions>
+<%args>
+	$content
+</%args>
+<%perl>
+	my $tuskdoc_lnks = ['preview'];
+
+	my $tracker = TUSK::ProcessTracker::ProcessTracker->getMostRecentTracker(undef, $content->primary_key(), 'tuskdoc');
+	unless (defined $tracker && !$tracker->isCompleted()) {
+		push @$tuskdoc_lnks, 'replace';
+	}
+	push @$tuskdoc_lnks, 'download';
+
+
+
+	my $links = {
+		Collection	 => ['preview'],
+		Multidocument	 => ['preview'],
+		URL          => ['preview'],
+		Slide        => ['preview', 'replace', 'overlay', 'download'],
+		Document     => ['preview', 'replace', 'download'],
+		Video        => ['preview', 'replace', 'download_media'],
+		Audio        => ['preview', 'replace', 'download_media'],
+		Flashpix     => ['preview', 'replace', 'download'],
+		Shockwave    => ['preview', 'replace', 'download'],
+		DownloadableFile => ['preview', 'replace', 'download'],
+		TUSKdoc      => $tuskdoc_lnks,
+		PDF          => ['preview', 'replace', 'download'],
+		External     => ['preview'], 
+	};
+
+	my $actions =	{
+		preview		=> 	{
+			name	=> 'Preview',
+			url	=> '/view/content',
+			target	=> '_blank',
+		},
+		download	=>	{
+			name	=> 'Download #type#',
+			url	=> '/download',
+			target	=> '',
+		},
+		replace		=>	{
+			name	=> 'Replace #type#',
+			comp_url=> 'replace_file',
+			target	=> '',
+			original=> 1,
+		},
+		overlay		=>	{
+			name	=> 'Create Overlay',
+			comp_url=> 'create_overlay',
+			target	=> '',
+			original=> 1,
+		},
+		download_media	=>	{
+			name	=> 'Download #type#',
+			comp_url=> 'audio_video_url',
+			target	=> '',
+		},
+	};
+
+	if ($content->type() && exists $links->{ $content->type() } && scalar(@{$links->{ $content->type() }})){
+		
+		$m->comp("/tmpl/element:flexible_tr", params => { label => 'Actions:' } );
+
+		my @actions_link = ();
+
+		foreach my $link (@{$links->{ $content->type() }}){
+			next if ($actions->{ $link }->{'original'} && $content->reuse_content_id());
+			
+			### when the word-to-xml stuff happens hopefully we will have a new content type and will not need the following line 
+			next if ($content->type() eq 'Document' && $content->conversion_status() == 2 && $link ne 'preview'); 
+
+			my $link_name = $actions->{ $link }->{'name'};
+			my $type = ucfirst($content->type());
+
+			$link_name =~ s/#type#/$type/g;
+			$link_name =~ s/([a-z])([A-Z])/$1 $2/g;
+
+			my $url;
+			if ($actions->{ $link }->{'comp_url'}){
+				$url = $m->comp('SELF:' . $actions->{ $link }->{'comp_url'}, content => $content);
+			} else {
+				$url = $actions->{ $link }->{'url'}. '/' . $content->primary_key();
+			}
+
+			push (@actions_link, '<a class="navsm" target="' . $actions->{ $link }->{'target'} . '" href="' . $url . '">' . $link_name . '</a>');
+		}
+		
+		push (@actions_link, '<a class="navsm" target="_blank" href="/view/content/' . $content->reuse_content_id() . '">Preview Original</a>') if ($content->reuse_content_id());
+
+		print join('&nbsp;|&nbsp;', @actions_link);
+
+		if ($content->type() eq 'External') {
+			print "&nbsp; <span style=\"color:blue;font-size:8pt;\">* If url link cannot be previewed, enter an article url below, save and preview the link.</span>";
+		}
+		print "</td></tr>";
+	}
+</%perl>
+</%method>
+
+<%method replace_file>
+<%args>
+	$content
+</%args>
+<%perl>
+	return $m->comp('/management/tmpl/content:fix_uri', page => 'replace');
+</%perl>
+</%method>
+
+<%method create_overlay>
+<%args>
+	$content
+</%args>
+<%perl>
+	return $m->comp('/management/tmpl/content:fix_uri', page => 'overlay');
+</%perl>
+</%method>
+
+<%method audio_video_url>
+<%args>
+	$content
+</%args>
+<%perl>
+	use TUSK::Core::ServerConfig;
+	my $body = $content->body();
+	my $uri = &TUSK::Core::ServerConfig::dbVideoHost . '/download/';
+	
+	if ($body){
+		my $element = $body->tag_values('realvideo_uri');
+		$uri .= $element->value();
+	}
+	
+	return $uri;
+</%perl>
+</%method>
+
+<%method common>
+<%args>
+	$content
+	$child_users
+	$default_keywords
+	$args
+	$course => undef
+	$addSave => 1
+</%args>
+<%perl>
+	if(defined $course && $course->type() eq 'integrated course') {
+		my $options = [ { label => '', value => '' } ];
+		foreach ( @{$course->get_subcourses()} ) {
+			push @{$options}, { label => $_->title, value => $_->course_id };
+		}
+		
+		my $selected = '';
+		if ( defined( $content->content_id ) ) {
+			my $orig_course = $content->get_originating_course( $course );
+			if ( $orig_course ) {
+				$selected = $orig_course->course_id;
+			}
+		}
+</%perl>
+		<& /tmpl/element:dropdown, params => { 
+						label 		=> 'Originating Course:', 
+						name		=> 'originating_course',
+						selected	=> $selected, 
+						options		=> $options,
+					} &>
+<%perl>
+	}
+	
+	$m->comp('/tmpl/element:flexible_tr', params => { label => 'UMLS Concepts &amp; Keywords:' });
+	if (!$content->primary_key()){
+		unless ($default_keywords) {
+			$m->print("Please save the document first before adding UMLS Concepts &amp; Keywords.");
+		} else {
+			$m->comp('SELF:display_keywords', keywords => $default_keywords, add => 1);
+		}
+	} else {
+		my $ids = $m->comp('/tmpl/url:get_path_ids');
+
+		if ( $m->comp('/tmpl/url:get_type_object')->isa('HSDB4::SQLRow::Content')){
+			shift @$ids;
+		}
+
+		my $UMLSConceptsHREF = '/management/content/umlsconcepts/' . $m->comp('/tmpl/url:get_type_path');
+		my $AuthorDefinedHREF = '/management/content/authordefinedkeywords/' . $m->comp('/tmpl/url:get_type_path');
+
+		if (scalar @$ids){
+			$UMLSConceptsHREF .= '/' . join '/', @$ids;
+			$AuthorDefinedHREF .= '/' . join '/', @$ids;
+		}
+
+		$UMLSConceptsHREF .= '/' . $content->primary_key();
+		$AuthorDefinedHREF .= '/' . $content->primary_key();
+
+		$m->print('<div>');
+
+		$m->comp('/tmpl/element:button',
+						params => {
+								href	=> $UMLSConceptsHREF,
+								label	=> 'Manage UMLS Concepts',
+								name	=> 'UMLSConcepts',
+							} );
+		$m->comp('/tmpl/element:button',
+						params => {
+								href	=> $AuthorDefinedHREF,
+								label	=> 'Manage Keywords',
+								name	=> 'Keywords',
+							} );
+
+		$m->print('</div>');
+
+		my @keywords = ($content->primary_key()) ? $content->keywords() : @$default_keywords;
+		$m->comp('SELF:display_keywords', keywords => \@keywords);	
+	}
+	
+</%perl>
+</td></tr>
+
+% if ($content->field_value('reuse_content_id')){
+
+<& /tmpl/element:field_display, params => {
+						label	=> 'Source',
+						value	=> $content->source(),
+					} &>
+
+% } else {
+
+<& /tmpl/element:textbox, params => { 
+					label 		=> 'Source:', 
+					name		=> 'source',
+					value 		=> $content->source(), 
+					size 		=> 60, 
+					trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { node => 7919, text => 'What is Source?' }), 
+				} &>
+% }
+
+% if ($content->field_value('reuse_content_id')){
+
+<& /tmpl/element:field_display, params => {
+						label	=> 'Contributor',
+						value	=> $content->contributor(),
+					} &>
+% } else {
+
+<& /tmpl/element:textbox, params => { 
+					label 		=> 'Contributor:',
+					name		=> 'contributor', 
+					value 		=> $content->contributor(), 
+					size 		=> 60 
+				} &>
+% }
+
+% if ($content->is_xmetal_doc() or $content->field_value('reuse_content_id')){
+
+<& /tmpl/element:field_display, params => {
+						label	=> 'Copyright',
+						value	=> $content->copyright(),
+					} &>
+% } else {
+
+<& /tmpl/element:textbox, params => { 
+					label 		=> 'Copyright:',
+					name		=> 'copyright', 
+					id		=> 'Copyright__y',
+					value 		=> $content->copyright(), 
+					size 		=> 60, 
+					trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { node => 4143, text => 'Copyright FAQ' }), 
+				} &>
+% }
+
+% if ($content->reuse_content_id()){
+<%perl>
+	my @reuse_child_users = $content->child_users_select(1);
+
+	my @child_users_data = map {
+					{
+						userid		=> $_->primary_key(),
+						name		=> $_->out_lastfirst_name(),
+						role		=> $_->aux_info('roles'),
+					}
+				} @reuse_child_users;	
+</%perl>
+
+<& /tmpl/element:sort_order_box , params =>{
+                	label		=> 'Reuse Authors &amp; Transcribers:',
+			button_label	=> 'Add Names',
+			name 		=> "reuseusers",
+			width		=> '100%',
+			button_onclick	=> "openwindow('reuseauthorsdiv')",
+			help_info	=> {
+						node		=> 9665,
+						text		=> 'More About Authors &amp; Transcribers',
+					   },
+                	layer_info 	=> {
+						empty_message 	=> 'No users associated for this content',
+                        			layer 		=> 'reuseauthorsdiv',
+						scrollrows 	=> 6,
+						editnum		=> -1,
+                        			fields 		=> ['userid','name', 'role'],
+                        			name 		=> 'users',
+                        			sort 		=> { usage => 'Yes', length => 50},
+                        			action 		=> { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete', prompt => 'Yes'} ] },
+                        			display 	=> [
+                                        				{ field => 'name', align => 'left', length => 225,},
+									{ field => 'userid', align => 'left', label => 'UserID', length => 75,},
+									{ field => 'role', length => 100, options => [
+												                        { label => 'Author' },
+															{ label => 'Transcriber', value => 'Editor' },
+												                        { label => 'Contact-Person' },
+                                  				                                                     ], },
+                                                                   ],
+                        			validate 	=> { 
+									usage 	=> 'Yes',
+									form 	=> 'content',
+									element => 'author', 
+								   },
+                        			data 		=> \@child_users_data, 
+					    }
+                } &>
+
+
+% }
+
+<%perl>
+	my @child_users_data = map {
+					{
+						userid		=> $_->primary_key(),
+						name		=> $_->out_lastfirst_name(),
+						role		=> $_->aux_info('roles'),
+					}
+				} @$child_users;
+
+	my $roles = [
+                        { label => 'Author'},
+			{ label => 'Transcriber', value => 'Editor'},
+                        { label => 'Contact-Person'},
+                    ];
+	if ($content->primary_key() and $content->is_xmetal_doc()){
+		push (@$roles,  { label => 'Author / Contact-Person', value => 'Author,Contact-Person'},
+				{ label => 'Transcriber / Contact-Person', value => 'Editor,Contact-Person'} );
+	}
+
+	my $role_hashref;
+	if ($content->reuse_content_id()){
+		$role_hashref = { field => 'role', length => 100 };
+	}else{
+		$role_hashref = { field => 'role', length => 100, options => $roles };
+	}
+
+
+</%perl>
+
+
+% if ($content->type() eq 'External') {
+
+<& /tmpl/element:textarea, params => {
+	name		=> 'abstract',
+	label		=> 'Abstract',
+	value		=> ($args->{metadata}) ? $args->{metadata}->getAbstract() : '', 
+	htmleditor	=> 1,
+	no_onsubmit     => 1,
+} &>
+
+
+<& /tmpl/element:textbox, params => { 
+	label		=> 'Article URL:',
+	name		=> 'url', 
+	value		=> ($args->{metadata}) ? $args->{metadata}->getUrl() : '',
+	size 		=> 60, 
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label		=> 'External Authors:',
+	name		=> 'external_authors', 
+	id		=> 'ExternalAuthors__y',
+	value		=> ($args->{metadata}) ? $args->{metadata}->getAuthor() : '',
+	size 		=> 60, 
+	trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { node => 4143, text => 'External Authors FAQ' }), 
+} &>
+
+% } 
+
+
+<& /tmpl/element:sort_order_box , params =>{
+                	label		=> ($content->reuse_content_id()) ? 'Original ' : '' . 'Authors &amp; Transcribers:',
+			button_label	=> 'Add Names',
+			name 		=> "users",
+			width		=> '100%',
+			no_add_button	=> ($content->reuse_content_id()) ? 1 : 0,
+			button_onclick	=> "openwindow('authorsdiv')",
+			help_info	=> {
+						node		=> 9665,
+						text		=> 'More About Authors &amp; Transcribers',
+					   },
+                	layer_info 	=> {
+						empty_message 	=> 'No users associated for this content',
+                        			layer 		=> 'authorsdiv',
+						scrollrows 	=> 6,
+						editnum		=> -1,
+                        			fields 		=> ['userid','name', 'role'],
+                        			name 		=> 'users',
+                        			sort 		=> { usage => ($content->reuse_content_id()) ? 'No' : 'Yes', length => 50},
+                        			action 		=> { usage => ($content->reuse_content_id()) ? 'No' : 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete', prompt => 'Yes'} ] },
+                        			display 	=> [
+                                        				{ field => 'name', align => 'left', length => 225,},
+									{ field => 'userid', align => 'left', label => 'UserID', length => 75,},
+									$role_hashref,
+                                  				    ],
+                        			validate 	=> { 
+									usage 	=> ($content->reuse_content_id()) ? 'No' : 'Yes',
+									form 	=> 'content',
+									element => 'author', 
+								   },
+                        			data 		=> \@child_users_data, 
+					    }
+                } &>
+
+<%perl>
+	my @objectives = ($content->primary_key()) ? $content->child_objectives() : ();
+	
+	my @objectives_data = map { 
+					{
+						objective_id	=> $_->primary_key(),
+						body	 	=> $_->field_value_esc('body'), 
+					}
+				} @objectives;
+</%perl>
+
+<& /tmpl/element:sort_order_box , params =>{
+                	label		=> 'Objectives:',
+			name 		=> "objectives",
+			button_onclick	=> "openwindow('objectivesdiv')",
+			help_info	=> {
+						content_id => 789685,
+						not_xmetal => 1, 
+						text       => 'Tips for Selecting Objectives',
+					   },
+                	layer_info 	=> {
+						empty_message 	=> 'No objectives associated for this content',
+                        			layer 		=> 'objectivesdiv',
+						scrollrows 	=> 6,
+                        			fields 		=> ['objective_id', 'body'],
+                        			name 		=> 'objectives',
+                        			sort 		=> { usage => 'Yes', length => 50},
+                        			action 		=> { usage => 'Yes', length => 100, functions => 	[ 
+																{func=>'edit', label=>'Edit'},
+																{ func => 'remove', label => 'Delete'} 
+															] },
+                        			display 	=> [
+                                        				{ label => 'Body', field => 'body', align => 'left', length => 450, editsize => 75 },
+                                  				    ],
+                        			validate 	=> { usage => 'No', },
+                        			data 		=> \@objectives_data, 
+					    }
+                } &>
+
+<%perl>
+	my $content_access_trailing_text = ($content->type() eq 'Collection') ? '<i>(all non-folder content within this folder will be changed to this value)</i>' : '';
+
+	my $options = [
+	               { label => 'Unrestricted', 		value => 'Guests' },
+	               { label => 'All ' . $TUSK::Constants::SiteAbbr . ' Users', value => 'HSDB Users' },
+	               { label => 'Course Users',		value => 'Course Users' },
+	               { label => 'Course Faculty',		value => 'Course Faculty' },
+	               { label => 'Content Authors/Editors', 	value => 'Authors'},
+	              ];
+	if(defined $course && $course->type() eq 'group'){
+		splice(@$options, 3, 2);
+		$options->[2]->{label} = 'Group Members';
+	}
+</%perl>
+<& /tmpl/element:dropdown, params => { 
+					label 		=> 'Content Access:', 
+					name		=> 'read_access',
+					selected	=> $content->read_access(), 
+					options		=> $options,
+					trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { content_id => 166258, node => 6221, text => 'More About These Options' }) . $content_access_trailing_text, 
+				} &>
+
+<& /tmpl/element:dropdown, params => { 
+					label 		=> 'Searchable:', 
+					selected	=> $content->display(),
+					name		=> 'display',
+					options		=> 	[
+									{ label => 'Yes',	value => '1' },
+									{ label => 'No',	value => '0' },
+								],
+				} &>
+
+% my $date_trailing_text = ($content->type() eq 'Collection') ? '; all non-folder content within this folder will be changed to this value' : '';
+% if ($content->reuse_content_id()){
+
+<& /tmpl/element:field_display, params => {
+						label	=> 'Display Date:',
+						value	=> ($content->start_date()) ? $content->start_date() : 'No Restriction',
+					} &>
+
+% } else {
+
+<& /tmpl/element:textbox, params =>{ 
+				label         => 'Display Date:',
+				name          => 'start_date',
+				value         => $content->start_date(),
+				size          => 10,
+				maxlength     => 10,
+				calendar      => 1,
+				trailing_text => '<i>(optional; date to display content' . $date_trailing_text . ')</i>',
+			 } &>
+% }
+
+% if ($content->reuse_content_id()){
+
+<& /tmpl/element:field_display, params => {
+						label	=> 'Hide Date:',
+						value	=> ($content->end_date()) ? $content->end_date() : 'No Restriction',
+					} &>
+
+% } else {
+
+<& /tmpl/element:textbox, params =>{ 
+				label 			=> 'Hide Date:',
+                		name 			=> 'end_date',
+                		value 			=> $content->end_date(),
+                		size 			=> 10,
+				maxlength 		=> 10,
+				calendar 		=> 1, 
+				trailing_text		=> '<i>(optional; date to hide content' . $date_trailing_text . ')</i>',
+			} &>
+% }
+
+<%perl>
+# Sometimes '$course' isn't actually a course................
+if ( defined( $course ) && ref( $course ) eq 'HSDB45::Course' ) {
+my $school = $m->comp("/tmpl/url:get_school");
+my $button_text = $m->scomp('/tmpl/element:button', params=>{'name'=>'add_meeting_button',
+                'onclick'=>"openwindow('meetingsdiv',800,500,{school:'" . $school . "', course:'" . $course->course_id . "'});",
+                'label'=>'Find Meetings'} );
+my @class_meetings = $content->parent_class_meetings(1);  # Need to tell this call to ignore the cache
+foreach (@class_meetings) {
+    my $course = HSDB45::Course->new( _school => $_->school, _id => $_->{'course_id'} );
+	$_->{'course_title'} = $course->out_title;
+}
+</%perl>
+<& /tmpl/element:sort_order_box , params =>{
+		no_add_button => 1,
+		label => 'Associate this Content with Course Meetings:',
+		buttons => [ $button_text ],
+		layer_info => {
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+			layer => 'meetingsdiv',
+			empty_message => 'Click "Find Meetings" to look for classes in the course schedule to associate with this piece of content.',
+			fields => ['class_meeting_id', 'course_title', 'title', 'meeting_date','start_time', 'end_time'],
+			name => 'meetings',
+			sort => {usage => 'No'},
+			sortoninsert => {usage => 'Yes', sorton => 'name'},
+			action => {usage => 'Yes', length=>50, functions => [{func=>'remove', label=>'Delete'}]},
+			display => [
+				{field=>'course_title', label=> 'Course', align=>'center', length=>150, },
+				{field=>'title', label=> 'Title', align=>'center', length=>150, },
+				{field=>'meeting_date', label=>'Date', align=>'left', length=>50, },
+				{field=>'starttime', label=> 'Start', align=>'left', length=>50, },
+				{field=>'endtime', label=> 'End', align=>'left', length=>50, },
+				],
+			validate => {
+					usage => 'No',
+				},
+			data => \@class_meetings
+		}
+	} &>
+% }
+
+<& /tmpl/element:parent_links, content => $content &>
+
+% if($addSave) {
+	<& SELF:add_save_button, args => { $args->{'buttons'} } &>
+% }
+</%method>
+
+
+<%method add_save_button>
+<%args>
+        $args
+</%args>
+
+	<& /tmpl/element:save_button, params =>{
+				no_cancel_button	=> 1,
+				label			=> 'Save Changes',
+				name			=> 'Submit',
+				buttons			=> $args->{'buttons'},
+			} &>
+</%method>
+
+
+<%method display_keywords>
+<%args>
+	$keywords
+	$add => undef
+</%args>
+<%perl>
+	my @keywords_data = map { 
+		{
+			id		=> $_->getPrimaryKeyID(),
+			keyword 	=> $_->getKeywordNormalized(), 
+			umls 		=> ($_->isUMLS) ? 'Yes' : 'No',
+		}
+	} @$keywords;
+
+	my $comma_flag = 0;
+	my $hidden_input = '';
+	$m->print('<div style="width:700px;font-size:85%;">');
+
+	if (scalar(@keywords_data)){
+		foreach my $keyword_data (sort { $a->{ keyword } cmp $b->{ keyword } } @keywords_data){
+			if ($comma_flag){
+				$m->print('; ');
+			} else {
+				$comma_flag = 1;
+			}
+			
+			$m->print($keyword_data->{ keyword });
+
+			if ($add) {
+				$hidden_input .= "<input type=\"hidden\" name=\"keyword_id\" value=\"$keyword_data->{id}\"/>\n";
+			}
+		}
+	} else {
+		$m->print('<i>No concepts or keywords associated.</u>');
+	}	
+	
+	$m->print('</div>');
+
+	if ($add && scalar(@keywords_data)) {
+		$m->print($hidden_input);
+	}
+</%perl>
+</%method>
+
+<%method dimensions>
+<%args>
+	$width  => -1
+	$height => -1
+	$reuseContentID
+	$multiContentID => 0
+</%args>
+%
+% unless ($width == -1) {
+%
+% 	if ($reuseContentID){
+
+<& /tmpl/element:field_display, params => {
+						label	=> 'Width:',
+						value	=> $width,
+					} &>
+
+% 	} else {
+%		my $name = 'width';
+%		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+<& /tmpl/element:textbox, params => { 
+					label    => 'Width (px):', 
+					name     => $name,
+					value    => $width, 
+					size     => 10, 
+					onchange => 'confirmDimension(this)', 
+				} &>
+% 	}
+%
+% }
+%
+%
+% unless ($height == -1) {
+%
+%	if ($reuseContentID){
+
+<& /tmpl/element:field_display, params => {
+						label	=> 'Height:',
+						value	=> $height,
+					} &>
+
+%	} else {
+%		my $name = 'height';
+%		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+<& /tmpl/element:textbox, params => { 
+					label    => 'Height (px):', 
+					name     => $name,
+					value    => $height, 
+					size     => 10, 
+					onchange => 'confirmDimension(this)', 
+				} &>
+% 	}
+%
+% }
+%
+</%method>
+
+<%method html_textarea>
+<%args>
+	$content
+	$label => 'Text Description:'
+	$want_editor => 1
+</%args>
+
+<%perl>
+	my $style = '';
+	unless($want_editor){
+		$style = 'width:700px; height:250px;';
+	}
+</%perl>
+
+<& /tmpl/element:textarea, params => {
+					name		=> 'html_body',
+					label		=> $label,
+					value		=> ($content->body() && $content->body()->tag_values('html')) ? $content->body()->tag_values('html')->value() : '',
+					htmleditor	=> $want_editor,
+					no_onsubmit	=> 1,
+					style       => $style,
+				} &>
+
+</%method>

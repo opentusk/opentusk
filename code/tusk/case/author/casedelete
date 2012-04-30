@@ -1,0 +1,94 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+my $course = $m->comp('/tmpl/url:get_type_object');
+my $user = $m->comp('SELF:user');
+my $case_id = $m->comp('/tmpl/url:get_last_path_id');
+my $case = TUSK::Case::Case->lookupKey($case_id);
+</%shared>
+<%method title>
+<%perl>
+my $title = "Delete Case";
+return $title;
+</%perl>
+</%method>
+
+<%method leftnav>
+<%perl>
+return "/tmpl/leftnav/course";
+</%perl>
+</%method>
+
+<%method function_token>
+% return 'delete_case';
+</%method>
+
+<%attr>
+	hintmsg => 'Do you want to delete this case from your course?'
+</%attr>
+
+<%once>
+use TUSK::Case::Case; 
+use TUSK::Case::LinkCourseCase; 
+</%once>
+<%attr>
+no_check_path=>0
+case_ignore_perms=>1
+</%attr>
+<%perl>
+my $typePath = $m->comp('/tmpl/url:get_type_path');
+my $formname = 'casereuse';
+</%perl>
+<& /tmpl/element:form, params => { 
+                method => 'POST',
+                name => $formname,
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+<& /tmpl/element:field_display,params=>{'label'=>'Course Name','value'=>$course->title()} &>
+<& /tmpl/element:field_display,params=>{'label'=>'Case Title ','value'=>$case->getCaseTitle()} &>
+<& /tmpl/element:save_button, params=>{'label'=>'Delete Case', 
+	cancel_onclick=>"go_back('/case/author/caseshow/" . $m->comp('/tmpl/url:get_type_path') ."')",
+
+                'name'=>'remove_submit'} &>
+</table> 
+</form>
+
+<%init>
+my $errmsg;
+my $msgtype = 'errmsg';
+if ($ARGS{'remove_submit'}){
+	my $course_id = $course->course_id;
+	my $school_id = $course->get_school->getPrimaryKeyID();
+	my $link = TUSK::Case::LinkCourseCase->lookupByRelation($course_id,$school_id,$case_id);
+	if (!$link){
+		$errmsg = "That case cannot be found to be deleted.";
+	} else {
+                $link->delete({'user'=>$user});
+		$errmsg = "Case Deleted";
+		$msgtype = 'msg';
+	}
+}
+if ($errmsg){
+	$m->redirect($m->comp("/tmpl/url:construct_back_url", 
+		'base_url' => "/case/author/caseshow", 
+		'msg' => $errmsg, 'msgtype'=>$msgtype));
+}
+
+</%init>

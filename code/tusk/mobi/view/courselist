@@ -1,0 +1,52 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+no_check_path => 1
+</%attr>
+
+
+<%method header_text>
+% return 'My Courses';
+</%method>
+
+<%perl>
+my $user = $m->session->{'user'};
+my $enum_cat = $user->get_enum_cat();
+my @user_stud_courses = $user->user_stud_courses();
+
+my @courses = $user->parent_courses();
+my (@user_auth_courses, @user_committees);
+
+foreach my $course (@courses){
+	if ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
+		push @user_committees, $course;
+	}
+	elsif ($course->type() eq 'community service' or $course->type() eq 'course') {
+		push @user_auth_courses, $course;
+	}  
+}
+</%perl>
+
+<& /tmpl/home:print_courses, 
+                is_mobile         => 1, 
+                enum_cat          => $enum_cat, 
+                user_stud_courses => \@user_stud_courses &>
+
+<& /tmpl/home:print_admin_courses, 
+                is_mobile         => 1, 
+                user              => $user,
+                user_committees   => \@user_committees,
+                user_auth_courses => \@user_auth_courses &>

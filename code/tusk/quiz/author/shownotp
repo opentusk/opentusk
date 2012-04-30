@@ -1,0 +1,95 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Quiz::LinkCourseQuiz;
+</%once>
+
+<%shared>
+	my $typeObj = $m->comp("/tmpl/url:get_type_object");
+	my $typePath = $m->comp("/tmpl/url:get_type_path");
+	my ($links, $quizzes);
+</%shared>
+
+
+<%method title>
+% 	return "Quizzes Without Time Period";
+</%method>
+
+<%method red_header_text>
+% 	return "Quizzes Without Time Period";
+</%method>
+
+<%method feature_id>
+<%perl>
+	my $quiz_ids = [];
+
+	foreach my $link (@$links){
+		my $quiz = $link->getJoinObject('TUSK::Quiz::Quiz');
+		push (@$quiz_ids, $quiz->getPrimaryKeyID());
+	}
+	return $quiz_ids;
+</%perl>
+</%method>
+
+<%init>
+	my $time_period_id = 0;
+
+	if (defined($ARGS{'order'})){
+		my $school_id = TUSK::Core::School->new->getSchoolID($typeObj->school());
+		my $cond = "parent_course_id = " . $typeObj->primary_key() . " and school_id = " . $school_id . " and time_period_id = $time_period_id";
+		my $links = TUSK::Quiz::LinkCourseQuiz->new()->lookup($cond);
+		my ($index, $newindex) = split('-', $ARGS{'order'});
+                $links = TUSK::Quiz::LinkCourseQuiz->updateSortOrders($index, $newindex, $cond, $links);
+        }
+
+	if (ref($typeObj) eq "HSDB45::Course"){
+		$quizzes = TUSK::Quiz::LinkCourseQuiz->new()->getQuizzes($typeObj->school(), $typeObj->primary_key(), "time_period_id = $time_period_id");
+	} else {
+		$m->comp("/tmpl/url:redirect", message => "FAILURE");
+	}
+
+</%init>
+
+<%perl>
+	my $col_fields = [ {'label' => 'Name', 'field' => 'getTitle'},
+                	   {'label' => 'Type', 'field' => 'getFormattedQuizType'},
+                	   {'label' => 'Time Limit', 'field' => 'getFormattedDuration'},
+                	   {'label' => 'Available Date', 'field' => 'getAvailableDate'},
+                	   {'label' => 'Due Date', 'field' => 'getDueDate'},
+			];
+</%perl>
+
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => 'quizshow',
+		onsubmit => undef } &>
+
+<table width="100%">
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box	=> 1,
+	columns 	=> $col_fields,
+	action_columns 	=> [ 
+		{ label =>'Modify', link => '/quiz/author/addedit', function_token => 'edit_quiz', },
+	],
+	feature_token 	=> 'quiz',
+	object_list 	=> $quizzes,
+	type_path 	=> $typePath,
+	name 		=> "quizzes",
+	permissions 	=> $m->comp("/tmpl/permission:get_permissions"),
+} &>
+
+</form>
+

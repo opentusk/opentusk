@@ -1,0 +1,63 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+no_check_path => 1
+</%attr>
+
+<%method header_text>
+% return 'Enter Date';
+</%method>
+
+<%method jsarray>
+% return ['mobi_schedule.js'];
+</%method>
+
+<%method startup>
+% $m->comp("SELF:set_no_cache");
+</%method>
+
+
+<& /tmpl/element:form, params => { name => 'date_form', onsubmit => 'return val_date_form()'} &>
+
+<p id="instructions">Please enter a valid date of the form:<br/> MM/DD/YYYY</p>
+
+<& /tmpl/element:input_textbox, params => { 
+				name => 'month', 
+				size => 2, 
+				maxlength => 2 } &> /
+<& /tmpl/element:input_textbox, params => { 
+				name => 'day', 
+				size => 2, 
+				maxlength => 2 } &> /
+<& /tmpl/element:input_textbox, params => { 
+				name => 'year', 
+				size => 4, 
+				maxlength => 4 } &> 
+
+<br/><br/>
+<& /tmpl/element:submit_button, params => { name => 'submit_btn', label => 'Go' } &>
+
+</form>
+
+
+
+
+<%init>
+if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
+	my $transition = "/mobi/view/schedule/schedule/$ARGS{year}-$ARGS{month}-$ARGS{day}";
+	$m->comp('/tmpl/wizard:do_next', args=>\%ARGS, default_transition => $transition);
+}
+</%init>

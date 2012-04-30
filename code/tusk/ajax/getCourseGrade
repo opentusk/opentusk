@@ -1,0 +1,69 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	no_check_path => 1
+	no_header => 1
+	no_body => 1
+	page_header => undef
+	page_footer => undef
+</%attr>
+
+<%once>
+ 	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::GradeBook::GradeStats;
+	use TUSK::GradeBook::GradeEventEval;
+	use TUSK::Application::GradeBook::GradeBook;
+	use HSDB45::Eval;
+	use HSDB45::Course;
+</%once>
+
+%	my $path_ids = $m->comp( '/tmpl/url:get_path_ids');
+%	my $course   = HSDB45::Course->new( _school => $path_ids->[0])->lookup_key( $path_ids->[1] );
+%
+%	my $events = $m->session->{'user'}->get_course_grades($course);
+%	if(scalar(@{$events})) {
+		<table border="0" width="100%" class="wide">
+			<tr><th align="left">Name</th><th align="left">Grade</th><th align="left">Scaled Grade</th><th align="left">Comments</th></tr>
+
+%		foreach my $event (@{$events}) {
+%			my $grade = '';
+%			my $scaled_grade = '';
+%			my $link = $event->getJoinObject("TUSK::GradeBook::LinkUserGradeEvent");
+%			my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $event->getFieldValue('time_period_id'), user_id => $m->session->{'user'}->user_id });
+%			if(!defined($link)){
+%				$grade = 'No Grade';
+%				$scaled_grade = 'No Grade';
+%			} else {
+%				$grade = $link->getGrade();
+%				$scaled_grade = $gb->getScaledGrade($grade, $event->getGradeEventID);
+%			}
+%
+%			my $eval_link = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $event->getGradeEventID );
+%			my $eval_id   = ($eval_link) ? $eval_link->getEvalID() : 0;
+%			if ( $eval_id && !HSDB45::Eval->new( _school => $path_ids->[0])->lookup_key( $eval_id )->is_user_complete( $m->session->{'user'} ) ) {
+%				$grade = "<a href='/protected/eval/complete/" . $path_ids->[0] . "/" . $eval_id . "'>Pending Eval Completion</a>";
+%			}
+				<tr>
+					<td class="html_row"><% $event->getEventName() %></td>
+					<td class="html_row"><% $grade %></td>
+					<td class="html_row"><% $scaled_grade %></td>
+					<td class="html_row"><% $link->getComments() %></td>
+				</tr>
+%			}
+		</table>
+%	} else {
+	<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => 'You do not have any grades for this course!'}, 'make_table' => 1 &>
+%	}

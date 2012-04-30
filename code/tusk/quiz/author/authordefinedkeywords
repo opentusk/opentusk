@@ -1,0 +1,198 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Core::LinkContentKeyword;
+	use TUSK::Core::QuizQuestionKeyword;
+</%once>
+
+<%shared>
+
+	my $question_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $ids = $m->comp('/tmpl/url:get_path_ids');
+	my $quiz_id = $ids->[0];
+
+    my $linkquestion = TUSK::Quiz::LinkQuizQuizItem->new->lookup("quiz_id = $quiz_id AND quiz_item_id = $question_id ");
+	my $linkquestion_id;
+	if($linkquestion) {
+   		 $linkquestion_id = $linkquestion->[0]->{'_id'}; ##$linkquestion->getPrimaryKeyID();
+	}
+
+	my $back_url;
+	$back_url =$m->comp("/tmpl/url:construct_url", 'base_url'=>"/quiz/author/questionaddedit");
+
+</%shared>
+
+<%method jsarray>
+% return ['layers.js'];
+</%method>
+
+
+<%method title>
+<%perl>
+	return 'Author Defined Keywords';
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	if ($args->{'submit_check'}){
+		$m->comp("SELF:set_msg", msg => "Author Defined Keywords have been updated");
+	}
+</%perl>
+</%method>
+
+<script>
+	function addToLayer(){
+		if (document.keyword_form.keyword.value){
+			layers['keyworddiv'].adddata({keyword_id : '0', keyword : document.keyword_form.keyword.value },0);
+		}
+	}
+</script>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+              onsubmit => undef,
+                  name => 'keyword_form' } &>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+		style => 'padding-top:10px',
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<tr><td style="vertical-align:top;width:40%;">
+	<div style="margin-bottom:5px">
+		<& /tmpl/element:input_textbox, params => { name => 'keyword' } &> 
+		<& /tmpl/element:button, params => {
+								onclick	=> 'addToLayer();',
+								label	=> 'Add Keyword',
+								name	=> 'UMLSConcepts',
+							} &>
+	</div>
+	<& /tmpl/element:sort_order_box , params =>{
+                no_table => 1,
+                no_add_button => 1,
+                layer_info => {
+                        scrollrows => 10,
+                        layer => 'keyworddiv',
+                        fields => ['keyword_id', 'keyword'],
+                        name => 'Keywords',
+                        sort => { usage => 'No' },
+                        action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
+                        display => [
+                                        { label => 'Keyword', field => 'keyword', align => 'left', length => '5' },
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $keywords_data,
+                        }
+                } &>
+
+</td></tr>
+<& /tmpl/element:save_button, params=>{
+				label => 'Save Changes',
+				name  => 'rank_submit',
+				td_class => 'cell-submit-no-padding',
+				one_column => 1,
+				no_cancel_button => 1,
+				buttons	=> [
+					
+					$m->scomp("/tmpl/element:button", params => {
+										label 	=> 'Cancel', 
+										name 	=> 'back_to_content',
+										href	=> $back_url,
+									}),
+				],
+				} &>
+
+</table>
+</form>
+
+<%init>
+
+	# get all keywords for a given linkquizitem (in this case question)
+	my $keyword_links = TUSK::Core::QuizQuestionKeyword->new()->lookup("parent_link_quiz_quiz_item_id =".$linkquestion_id  );
+
+	if ($ARGS{'submit_check'}){
+		my $keyword_links_hash =  { map { $_->getChildKeywordID() => $_ } @$keyword_links };
+
+		my $processed_data = $m->comp('/tmpl/process:process_fields', fields => \%ARGS, filter => '^' . 'keyworddiv');
+
+		foreach my $keyword_data (values %$processed_data){
+			if ($keyword_data->{'pk'}){
+				if ($keyword_links_hash->{ $keyword_data->{'pk'} }){
+					delete($keyword_links_hash->{ $keyword_data->{'pk'} });
+				}
+			} else {
+				my $keyword = TUSK::Core::Keyword->lookupReturnOne("keyword = lower('" . $keyword_data->{'fields'}->{'keyword'} . "')");
+				unless ($keyword){
+					$keyword = TUSK::Core::Keyword->new();
+					$keyword->setKeyword($keyword_data->{'fields'}->{'keyword'});
+					$keyword->save({ user => $m->comp('SELF:user') });
+				}
+	   
+				my $keyword_link = TUSK::Core::QuizQuestionKeyword->new();
+				$keyword_link->setChildKeywordID($keyword->getPrimaryKeyID());
+				$keyword_link->setParentLinkQuizQuizItemID($linkquestion_id) ;
+				$keyword_link->save({user => $m->comp('SELF:user') });
+			}
+		}
+		
+		foreach my $keyword_link (values %$keyword_links_hash){
+			$keyword_link->delete({ user => $m->comp('SELF:user') });
+		}
+
+	    $keyword_links = TUSK::Core::QuizQuestionKeyword->new()->lookup("parent_link_quiz_quiz_item_id =".$linkquestion_id);
+
+	}
+	
+	my $keywords_data = [];
+
+	foreach my $keyword_link (@$keyword_links){
+		push (@$keywords_data, { 
+						keyword_id => $keyword_link->getChildKeywordID(), 
+						keyword => $keyword_link->getKeywordObject()->getKeywordNormalized(), 
+					});
+	}
+
+</%init>
+
+<%method get_nav_bars>
+<%perl>
+		my $nav_bars = $m->comp('PARENT:get_nav_bars');
+		my $allpaths = $m->comp("/tmpl/url:get_full_path");
+        my $quiz_question_object = TUSK::Quiz::Question->new()->lookupKey($question_id);
+
+		my $quiz_object = TUSK::Quiz::Quiz->new()->lookupKey($quiz_id);
+		my $quiz_title = substr($quiz_object->getTitle(),0,27)."...";
+		my @qpath_array = split('/',$allpaths);
+		pop(@qpath_array);
+		my $addedit_quiz_path = join('/',@qpath_array);
+		push (@$nav_bars,{ label => 'Quiz: '.$quiz_title, href => '/quiz/author/addedit/' . $addedit_quiz_path });
+
+		my $body = substr($quiz_question_object->getBody(),0,27)."...";
+		push (@$nav_bars,{ label => $body, href => '/quiz/author/questionaddedit/' . $allpaths });
+
+		return $nav_bars;
+</%perl>
+</%method>

@@ -1,0 +1,75 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Assignment::Assignment;
+</%once>
+
+
+<%shared>
+	my $assignment;
+</%shared>
+
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+
+<%method jsarray>
+% 	return ['assignment.js'];
+</%method>
+
+
+<%method getAssignment>
+% 	return $assignment;
+</%method>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	unless ($m->base_comp->attr_if_exists('skip_creating_assignment')) {
+		my $assignment_id = $m->comp("/tmpl/url:get_first_path_id");
+		unless (defined $assignment_id) {
+			$m->comp("/tmpl/url:redirect", message => "Missing Assignment.");
+		}
+
+		$assignment = TUSK::Assignment::Assignment->new()->lookupKey($assignment_id);
+		unless (defined $assignment) {
+			$m->comp("/tmpl/url:redirect", message => "Invalid Assignment.");
+		}
+	}
+</%perl>
+</%method>
+
+
+<%method footer>
+<%args>
+$obj
+</%args>
+%	return unless defined $obj;
+
+<div style="font-size:75%;color:gray;border-top-style:solid;border-width:2px;border-color:#EEEEEE;" align="right">
+<b>Last Modified:</b> &nbsp; 
+by <i> <% HSDB4::SQLRow::User->new()->lookup_key($obj->getModifiedBy()) %> </i> 
+on <i> <% $obj->getModifiedOn() %> </i>
+</div>
+</%method>
+
+
+<% $m->call_next %>

@@ -1,0 +1,179 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use Forum::ForumKey;
+	use Forum::Board;
+	use TUSK::Manage::Forums;
+	use HSDB45::TimePeriod;
+</%once>
+
+<%shared>
+	my $school               = $m->comp("/tmpl/url:get_school");
+    my $school_id            = TUSK::Core::School->new->getSchoolID($school);
+	my $type_object          = $m->comp("/tmpl/url:get_type_object");
+	my $self_path            = "school/" . $school;
+	my $base_url             = "/management/discussion/";
+	my $is_course_discussion = (ref($type_object) eq "HSDB45::Course");
+	my $course;
+	if ( $is_course_discussion ) {
+		$course         = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+		$self_path      = "course/" . $school . "/" . $type_object->course_id;
+	}
+	my $boardKey;
+
+	my $board_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $board    = Forum::Board->new();
+	if ( $board_id ) {
+		$board->lookupKey( $board_id );
+	}
+	my ($garbage1, $garbage2, $timeperiod_id, $usergroup_id) = split( '-', $board->getBoardkey );
+	if (!$timeperiod_id) {
+		$timeperiod_id = $m->session->{'timeperiod'};
+	}
+</%shared>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit => "return verifyDiscussionAddedit(this)",
+				name => 'addedit' } &>
+
+<& /tmpl/element:table, params => { 
+				width       => "100%",
+				border      =>"0",
+				cellspacing =>"0",
+				cellpadding =>"0" } &>
+
+% if ($is_course_discussion) {
+% my $timeperiod = HSDB45::TimePeriod->new(_school => $school)->lookup_key( $timeperiod_id );
+<& /tmpl/element:field_display, params =>{ 
+				label  => 'Time Period:',
+				value  => $timeperiod->field_value('period') . " (" . $timeperiod->field_value('academic_year') . ")" } &>
+
+<& /tmpl/element:hidden_form_element, params =>{ 
+				name   => 'timeperiod',
+				value  => $timeperiod_id } &>
+% }
+
+% my $edited_title;
+% my $course_title = ($course) ? $course->title : '';
+% $edited_title = $board->getTitle();
+% $edited_title =~ s/^$course_title - //;
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'Title:',
+				name   => 'title',
+				value  => $edited_title,
+				size   => 60,
+				length => 50,
+				trailing_text => "<font color='red'>* </font><span class='xsm'><i>up to 50 characters</i></span>" } &>
+
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'Short Description:',
+				name   => 'shortDesc',
+				value  => $board->getShortDesc(),
+				size   => 80,
+				length => 200,
+				trailing_text => "<span class='xsm'><i>up to 200 characters</i></span>" } &>
+
+<& /tmpl/element:textarea, params=>{ 
+				label => 'Long Description:',
+				name  => 'longDesc',
+				cols  => '80',
+				rows  => '4',
+				value => $board->getLongDesc(),
+				trailing_text => "<span class='xsm'><i>shown on board info page, HTML enabled</i></span>" } &>
+
+<& /tmpl/element:dropdown, params=>{
+				label => 'Make Anonymous:',
+				name  => "anonymous",
+				selected => $board->getAnonymous(),
+				options  => [ { 'label' => 'No', 'value' => 0 }, { 'label' => 'Yes', 'value' => 1 } ],
+				trailing_text => "<span class='xsm'><i>usernames will be hidden</i></span>" } &>
+
+% if ($is_course_discussion) {
+%	my $usergroups = [ { 'label' => 'All ' . $course->title, 'value' => 0 } ];
+%	foreach ( $course->sub_user_groups( $timeperiod_id ) ) {
+%		push @{$usergroups}, { 'label' => $_->label, 'value' => $_->primary_key };
+%	}
+<& /tmpl/element:dropdown, params =>{ 
+				label => 'Display For:',
+				name  => "usergroup",
+				selected => $usergroup_id,
+				options  => $usergroups } &>
+% } else {
+<& /tmpl/element:hidden_form_element, params =>{ 
+				name   => 'usergroup',
+				value  => $TUSK::Constants::Schools{$school}{Groups}{SchoolWideUserGroup} } &>
+% }
+
+<& /tmpl/element:hidden_form_element, params =>{ 
+				name   => 'discussion_id',
+				value  => $board_id } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+				'base_url' => $base_url . "show" ) . "');",
+				name=>'submit'} &>
+
+</table>
+</form>
+
+<%init>
+	if ($ARGS{'submit'}) {
+		# This was done to faciliate the easy transition from embperl to mason.  Because
+		# the discussions are more than a little hairy, the idea was to touch the least
+		# amount of code possible.
+		my %local_req;
+		$local_req{'school'}        = $school;
+		$local_req{'type'}          = ($is_course_discussion) ? 'course' : 'school';
+		$local_req{'course'}        = $course;
+		$local_req{'course_id'}     = ($course) ? $course->course_id : '';
+		$local_req{'user'}          = $m->session->{'user'};
+		$local_req{'discussion_id'} = $ARGS{'discussion_id'};
+	
+		my %local_udat;
+		$local_udat{'_session_id'}  = $m->session->{'_session_id'};
+		$local_udat{'timeperiod'}   = $ARGS{'timeperiod'};
+		$local_udat{'timeperiod_course'} = $school . "-" . $local_req{'course_id'};
+	
+		TUSK::Manage::Forums::addedit_process(\%local_req, \%ARGS, \%local_udat);
+	
+		my $msg;
+		if ($ARGS{'action'} eq "add") {
+			$msg = "Discussion Successfully Added";
+		} else {
+			$msg = "Discussion Successfully Updated";
+		}
+		$m->redirect( $base_url . 'show/' .  $self_path . "?msg=" . $msg );
+	}
+</%init>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+<%perl>
+	my $title = "Create Discussion";
+	if ($board_id) {
+		$title  = "Modify Discussion";
+	}
+	return $title;
+</%perl>
+</%method>
+
+<%method jsarray>
+% return ['discussion.js'];
+</%method>

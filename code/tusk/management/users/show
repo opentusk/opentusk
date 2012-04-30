@@ -1,0 +1,175 @@
+<%once>
+ use TUSK::Manage::User;
+</%once>
+
+<%attr>
+	no_check_path	=> 1
+</%attr>
+
+<br>
+<& /tmpl/element:form, params => {
+		action => '',
+		method => 'POST',
+		class => 'no-padding' } &>
+
+% if ($data->{isAdvanced} ) {
+
+<& /tmpl/element:table, params => {
+		id => 'regularForm',
+		border => '0',
+		style => 'display:none;',
+		
+		 } &>
+
+% } else {
+	
+<& /tmpl/element:table, params => {
+		id => 'regularForm',
+		border => '0'  
+		} &>
+
+% }
+
+		<tr>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Name Contains:',
+	name => 'simpleSearch',
+    size => 30,
+	value => $ARGS{simpleSearch}  }
+	 &>
+
+<td align="left"></td></tr>
+</table>
+<br>
+% if (!$data->{isAdvanced}) {
+	<& /tmpl/element:table, params => {
+		id => 'advancedForm',
+		border => '0',
+		style => 'display:none;'
+		 } &>
+% } else {
+
+	<& /tmpl/element:table, params => {
+		id => 'advancedForm',
+		border => '0'  
+		} &>
+
+% }
+
+<tr>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Last Name:',
+	name => 'lastName',
+    size => 30,
+	value => $ARGS{lastName}  }
+	 &>
+
+</tr><tr>
+		
+<& /tmpl/element:textbox, params => { 
+	label => 'Middle Name:',
+	name => 'middleName',
+    size => 30,
+	value => $ARGS{middleName}  }
+	 &>
+
+</tr><tr>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'First Name:',
+	name => 'firstName',
+    size => 30,
+	value => $ARGS{firstName}  }
+	 &>
+
+</tr>
+</table>
+
+<input type="checkbox" name="advanced" onChange="changeSearch(this.checked);" <% ($data->{isAdvanced})? "checked='checked'" : "" %> >Advanced
+	
+<& /tmpl/element:save_button, params=>{
+	label 			 => 'Search',
+	no_cancel_button => 1,
+	class 			 => 'formbutton',
+	name			 => 'Submit',
+	} 
+&>
+
+<& /tmpl/element:table, params => {
+		width => "100%",
+		cellspacing => "0",
+		border => '0'  
+		} &>
+
+
+% if($ARGS{Submit}) {
+%	 if(!$data->{lookupConditions}) {
+		<tr><td colspan="2" class="layers-left"><font color="red">You must enter some search criteria</font></td></tr>
+%	} else { 
+%		 if (scalar(@{$data->{results}})) {
+		<tr>	
+			<td colspan="2" class="layers-left">
+%				my $endtxt;
+%				if (scalar(@{$data->{results}}) == 1) { $endtxt = "y";} else { $endtxt = "ies" }
+				<% scalar(@{$data->{results}}) %> matching entr<% $endtxt %>:
+			</td>
+		</tr>
+		
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [ 
+		{'label' => 'UserID', 'field' => 'user_id' },
+		{'label' => 'Last Name', 'field' => 'lastname'},
+		{'label' => 'First Name', 'field' => 'firstname'},
+		{'label' => 'Email', 'field' => 'email'}, 
+		{'label' => 'Affiliation', 'field' => 'affiliation'},
+	],
+	action_columns => [ 
+		{ 'label' =>'Modify','link' => '/management/users/addedit' },
+		{ 'label' =>'Course Info','link' => '/management/users/courses' },
+	],
+	action_column_align => 'left',
+	object_list => \@{$data->{results}},
+	type_path => $m->comp("/tmpl/url:get_type_path"),
+	name => "people",
+} &>
+
+%		} else {
+		<tr><td class="cell-left"><i>No users found.</i></td></tr>
+%		}
+%	}
+% }
+<table>
+        	<tr>
+			<td class="xsm">
+				<br>
+				Simple searchs will look for the string you enter in either the first or middle or last name.<br>
+				Advanced search will look for the strings you enter in the first name and the middle name and the last name.
+				In the advanced search, if you do not enter a first middle or last name those fields will not be searched.
+			</td>
+		</tr>
+</table></table>
+</form>
+
+<%init>
+
+	my $data;
+	if($ARGS{Submit}) {
+		$data = TUSK::Manage::User::show_pre_process($r,\%ARGS);
+	}
+
+</%init>
+
+
+<%method jsarray>
+% return ['show_users.js'];
+</%method>
+
+<%method title>
+% return "Find & Modify Users";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>

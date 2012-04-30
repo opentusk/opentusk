@@ -1,0 +1,148 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+        use TUSK::GradeBook::GradeEvent;
+        use TUSK::GradeBook::LinkGradeEventGradeScale;
+	    use Data::Dumper;
+</%once>
+
+<%method jsarray>
+% return ['layers.js', 'element.js'];
+</%method>
+
+
+<& /tmpl/element:form, params => {
+                                method => 'POST',
+                                onsubmit =>'return event_submit(this)',
+                                name => 'eventScale' } &>
+
+
+<%method title>
+%return "Manage Grade Book";
+</%method>
+
+<table><tr><td></td></tr>
+<%perl>
+
+
+my $event_id = $m->comp("/tmpl/url:get_last_path_id");
+my $linkGradeEvScale = TUSK::GradeBook::LinkGradeEventGradeScale->lookup("grade_event_id = $event_id order by numeric_value desc");
+my $event = TUSK::GradeBook::GradeEvent->lookupReturnOne("grade_event_id=$event_id");
+
+my $event_name = $event->getEventName();
+</%perl>
+
+<h2><% $event_name %> </h2>
+<p>
+In some cases, it is possible to have some grades be numbers while others are letters (A-, C+ etc). In order for TUSK to calculate a final grade however, it is necessary to assign a letter grade a corresponding numeric value. For example, for a letter A you may assign a number value of 95, B - 85, C - 75, and so on.  Please do so below.</p>
+
+
+<%perl>
+
+my $scale_array = [];
+
+	foreach my $link_scale (@$linkGradeEvScale){
+		my $scale_hash;
+	    $scale_hash->{'symbolic_value'} = $link_scale->getSymbolicValue();
+		$scale_hash->{'numeric_value'} = $link_scale->getNumericValue();
+	    $scale_hash->{'event_id'} = $event_id;
+		push(@$scale_array,$scale_hash);
+	}
+
+
+  my  $button_text = $m->scomp('/tmpl/element:button',
+               params=>{ onclick=>"addnewdata('scalediv',
+                        { link_grade_event_grade_scale_id:'0',symbolic_value:'',numeric_value:'',event_id:$event_id });",
+               name=>'add',
+               label=>'Add'});
+
+
+$m->comp('/tmpl/element:sort_order_box', params =>{
+	
+		no_add_button=>1,
+		no_label=>1,
+		buttons => [$button_text],
+		layer_info => {
+			layer => 'scalediv',
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			fields => ['link_grade_event_grade_scale_id','symbolic_value', 'numeric_value','event_id'],
+			name => 'scale',
+			sort => {usage => 'No'},
+			action => {usage => 'No'},
+			scrollrows => 10,
+			action => {usage => 'Yes', length=>100,
+                                functions => [
+                                        {func=>'remove', label=>'Delete'} ]},
+			display => [
+				{label=>'Letter', field=>'symbolic_value', align=>'center', length=>50,type=>'textbox'},
+				{label=>'Number',field=>'numeric_value', align=>'center', length=>50, type=>'textbox'},
+				{label=>'EventID' ,field=>'event_id', align=>'right', length=>40 ,type=>'hidden'}	
+			
+			],
+			validate => { usage => 'No', form => 'eventScale'},
+			data => $scale_array }	});
+
+</%perl>
+
+
+<& /tmpl/element:save_button, params=>{
+        label=>'Save Changes',
+        cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+        name=>'save_changes'} &>
+
+
+<%perl>
+
+if ( defined( $ARGS{'submit_check'} )  ) 
+{
+ 
+
+	# first delete old entries for this course
+	my $oldScales = TUSK::GradeBook::LinkGradeEventGradeScale->lookup("grade_event_id = $event_id");
+    foreach my $oldOne (@$oldScales){			
+			$oldOne->delete();
+	}
+	
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^scalediv');
+     
+	
+	$m->comp('/tmpl/process:manipulate_rows',
+			row_type => 'Direct',
+			user => $m->session->{'user'}->user_id(),
+			object_name => 'TUSK::GradeBook::LinkGradeEventGradeScale',
+			fields_data => $rowHash,
+			field_function_map => {'numeric_value'=>'setNumericValue',
+					'symbolic_value'=>'setSymbolicValue',
+					'event_id' =>'setGradeEventID',
+					},
+			display_data => $scale_array );
+
+
+	my $reload_url = $r->uri();
+	my $msgtxt = "Changes successfully saved";
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msgtxt");
+
+}
+
+
+</%perl>
+
+
+
+</table>
+
+
+</form>

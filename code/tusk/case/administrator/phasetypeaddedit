@@ -1,0 +1,98 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+my $id = $m->comp("/tmpl/url:get_first_path_id");
+my $phase_type;
+if (defined($id)){
+        $phase_type = TUSK::Case::PhaseType->new->lookupKey($id);
+} else {
+        $phase_type = TUSK::Case::PhaseType->new();
+}
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $back_url = "/case/administrator/phasetypeshow/$type_path";
+</%shared>
+
+<%once>
+use TUSK::Case::PhaseType;
+</%once>
+<%method title>
+<%perl>
+my $title = "Create Phase Type";
+if (defined($id)){
+        $title = "Modify Phase Type";
+}
+return $title;
+</%perl>
+</%method>
+
+<%method jsarray>
+% return ['layers.js','caseshell.js','object_tree.js'];
+</%method>
+
+<& /tmpl/element:form, params => { 
+                method => 'POST',
+                name => 'phasetypeaddedit',
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Name',
+                name => 'title',
+                value => $phase_type->getTitle(),
+                size => 60,
+                length => 255 } &>
+
+<& /tmpl/element:textbox, params=>{ label => 'Phase Type Object Name',
+                name=>"phase_type_object_name",
+                size => 60,
+                length => 255,
+                value=>$phase_type->getPhaseTypeObjectName()  } &>
+
+<& /tmpl/element:textbox, params=>{ label => 'Default Sort Order',
+                name=>"default_sort_order",
+                size => 60,
+                length => 255,
+                value=>$phase_type->getDefaultSortOrder()  } &>
+
+
+<& /tmpl/element:dropdown, params=>{ label => 'Hide Phase Type?',
+                selected=>$phase_type->getHidePhaseType(),
+                name=>'hide_phase_type',
+                options=>[ {'label'=>'No', value=>'0' },
+		{label=>'Yes', value=>'1'}] } &>
+
+
+<& SELF:footer, obj=>$phase_type &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+		cancel_onclick=>"go_back('$back_url');",
+                name=>'submit'} &>
+</form>
+</table>
+
+<%init>
+if (defined($ARGS{'submit'})){
+	$phase_type->setTitle($ARGS{'title'});	
+	$phase_type->setHidePhaseType($ARGS{'hide_phase_type'});	
+	$phase_type->setPhaseTypeObjectName($ARGS{'phase_type_object_name'});	
+	$phase_type->setDefaultSortOrder($ARGS{'default_sort_order'});	
+	$phase_type->save();
+	$m->redirect($back_url);
+}
+</%init>

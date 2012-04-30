@@ -1,0 +1,129 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+    no_check_path => 1
+	skip_header_bar => 1
+	top_tab_type => 'manage'
+</%attr>
+<%once>
+    use HSDB4::SQLRow::PPTUpload;
+	use TUSK::ProcessTracker::ProcessTracker;
+    use HSDB4::Constants;
+    use TUSK::Session;
+</%once>
+
+<%shared>
+    my $user_id = $m->comp('SELF:user');
+    my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
+</%shared>
+
+<!-- Begin Manage Content Header Table -->
+
+ <table width="99%" border="0" cellpadding="0" cellspacing="0" background="/graphics/bg-redline.gif">
+<tr><td  valign="top"><img src="/graphics/header-managecontent.gif" alt="Manage Content" border="0" vspace="5"></td>
+	<td width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="20" height="20"></td></tr>
+</table>
+<!-- End Manage Content Header Table -->
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<tr>             
+<td width="50%" valign="top" colspan="3">Select a course to manage or add content to:</td>
+	<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+                <td width="50%" valign="top">&nbsp;</td>
+	<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+  </tr>
+   <tr>
+    <td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+                <td width="50%" valign="top">
+
+
+% $m->comp("/management/tmpl/management:display_courses", courses_hashref => $courses_hashref );
+
+<br><br>
+</td><td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
+<td width="50%" valign="top"> 
+
+
+% $m->comp("/management/tmpl/management:display_content_modify");
+
+% $m->comp("/management/tmpl/management:print_recently_modified", recently_modified => \@recently_modified );
+
+% $m->comp("/management/tmpl/management:print_my_groups", group_courses_hashref => $group_courses_hashref );
+
+% $m->comp("/management/tmpl/management:print_thesis_committees", tc_courses_hashref => $tc_courses_hashref );
+
+% $m->comp("/management/tmpl/management:print_conversion_status", ppt_statuses => \@ppt_statuses, tuskdoc_statuses => $tuskdoc_statuses );
+
+
+<table cellspacing="0" cellpadding="0"><tr>
+<td class="cell-left"><br><a href="/management/myfolders/content">My Folders</a></td>
+</tr><tr>
+<td class="cell-left"><a href="/management/mycontent" class="cell-left">Search My Content</a></b></p><br><br>
+</td></tr></table>
+</td></tr></table>
+
+<%init>
+
+   # Fetch user's editable courses...
+   my $courses_hashref=TUSK::Session::cms_user_courses($user);
+   my $group_courses_hashref;
+   my $tc_courses_hashref;
+
+    foreach my $school (keys %{$courses_hashref}){
+	    foreach my $course (sort keys %{$courses_hashref->{$school}}){
+		    if($courses_hashref->{$school}->{$course}->type() ){
+		         if($courses_hashref->{$school}->{$course}->type() eq 'group'){
+			        $group_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
+				    delete $courses_hashref->{$school}->{$course};
+			    }
+			    elsif($courses_hashref->{$school}->{$course}->type() eq 'thesis committee'){
+			        $tc_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
+				    delete $courses_hashref->{$school}->{$course};
+			    }
+			}
+		}
+		# if we have deleted all courses from a school above, delete the school, itself
+		if(!(keys %{$courses_hashref->{$school}})){
+		    delete $courses_hashref->{$school};
+		}
+
+	}
+
+	# What has been recently modified
+	my @recently_modified=$user->recently_modified;
+
+	# Any PPTs we need to know about
+	my @ppt_statuses = HSDB4::SQLRow::PPTUpload->new->lookup_user_ppt($user_id, 14);
+
+	my $tuskdoc_statuses = TUSK::ProcessTracker::ProcessTracker->new()->getDistinctRecentByUser('tuskdoc', $user_id, undef, 14);
+   
+</%init>
+
+<%method leftnav>
+%  if (TUSK::Session::is_admin($user) or TUSK::Session::is_eval_admin($user)){
+% return { component => "/tmpl/leftnav/admin" };
+%   } else {
+%  return { component => "/tmpl/leftnav/admin" ,  school_name => "" };
+% }
+</%method>
+
+<%method title>
+% return "Manage Content";
+</%method>

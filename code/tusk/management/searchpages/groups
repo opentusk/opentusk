@@ -1,0 +1,95 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	no_check_path => 1
+</%attr>
+<%once>
+	use HSDB45::UserGroup;
+	use Data::Dumper;
+</%once>
+
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"5",
+	cellpadding =>"0" } &>
+
+	<tr>
+		<td>
+			<b>Group Name: </b>&nbsp;<input type="text" name="search">&nbsp;&nbsp;<input type="submit" name="action" value="Search" class="formbutton">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+		</td>
+	</tr>
+%	 if ($ARGS{search}) {
+	<tr>	
+		<td><br>
+			<div id="count"><% scalar(@results) %> matching entr<% (scalar(@results) == 1)? "y" : "ies" %><% (scalar(@results))? ":" : "" %></div>
+		</td>
+	</tr>
+%   if (@results) {
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+<%perl>
+	foreach my $group (@results){
+		my $pk = $group->primary_key();
+		push (@resultarray, {group_name => $group->label(), user_group_id => $group->primary_key()});
+	}
+</%perl>
+
+<& /tmpl/layers:create_layer, struct => {
+			layer => 'searchdiv',
+			fields => ['group_name','user_group_id'],
+			name => '',
+			scrollrows => 9,
+			parentlayer => $ARGS{parentlayer},
+			sort => {usage => 'No'},
+			action => {usage => 'Yes', length=>100, functions => [
+									{func=>'add', label=>'Add'}
+								]},
+			display => [
+					{field=>'user_group_id', align=>'left', length=>225, type=>'hidden'},
+					{field=>'group_name', label=>'Group Name', align=>'left', length=>225,},
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => \@resultarray,			
+						}
+&>
+
+		</td>
+
+	</tr>
+%	}
+%	}
+</table>
+
+<%init>
+
+    my $search;	
+	my @results;
+	my @resultarray;
+	if ($ARGS{search} && $ARGS{schl}){
+		($search = $ARGS{search}) =~ s/'/\\'/g;
+		@results = HSDB45::UserGroup->new(_school => $ARGS{schl})->lookup_conditions("label like '\%" . $search . "\%'","order by label");
+	}
+	
+</%init>

@@ -1,0 +1,128 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+no_check_path => 1,
+</%attr>
+
+<%once>
+	use HSDB4::SQLRow::Content;
+	use HSDB4::DateTime;
+	use HSDB4::SQLRow::User;
+</%once>
+
+<%shared>
+	my ($style, $orig_doc);
+	my ($content_id, $history_id) = $m->comp('/tmpl/url:get_path_ids');
+	my ($history_doc, @docs, $user);
+	$orig_doc = HSDB4::SQLRow::Content->new()->lookup_key( $content_id );
+</%shared>
+
+<a name="_top"></a>
+
+% if (!defined($history_doc) || !$history_doc->primary_key()) {
+<a href="/hsdb4/content/<% $orig_doc->primary_key() %>">Return to Original Content Page</A>
+<p>
+Please select history record to view:
+</p>
+%	my $time = HSDB4::DateTime->new;
+%	my $blank_user = HSDB4::SQLRow::User->new();
+<table>
+% foreach my $history_item (@docs) {
+% $time->in_mysql_timestamp($history_item->field_value("modified"));
+% my $history_user = $blank_user->lookup_key($history_item->field_value('modified_by'));
+% my $history_name = sprintf("%s (Record as of %s) Modified By %s",$history_item->field_value('title'),	$time->out_string_date,$history_user->out_full_name()? $history_user->out_full_name : $history_item->field_value('modified_by'));
+<tr><td>
+<a href="/view/content_history/<% $orig_doc->primary_key %>/<% $history_item->primary_key %>">
+<% $history_name %>
+</a>
+% if ($history_item->field_value('modify_note')) {
+ - <span style="font-style:italic"><% $history_item->field_value('modify_note') %></span> 
+% }
+</td></tr>
+% }
+</table>
+% } else {
+<a href="/view/content_history/<% $orig_doc->primary_key() %>">Return to View History Page</A>
+% my $doc = $history_doc->get_content_object;
+% $doc->xsl_stylesheet($ENV{XSL_ROOT}."/Content/Document.xsl");
+% my $body = $doc->out_html_body();
+% if ($doc->error) {
+<div class="error">This document cannot be displayed at this time.  Please email <% $TUSK::Constants::SupportEmail %> if you have a question.</div>
+%        use TUSK::ErrorReport ;
+%        ErrorReport::sendErrorReport($r,{'Msg'=>$doc->error()});
+% } else {
+% my $length = length($body);
+% if ($doc->conversion_status() < 1) {
+<br>
+% }
+<% $body %>
+% }
+% }
+</body>
+</html>
+
+<%init>
+	if (!$orig_doc->primary_key) {
+		$m->redirect("/home?msgtype=errmsg&msg=Content $content_id not found.");
+	} else {
+		$user = $m->session->{'user'};
+
+		unless ($orig_doc->is_user_authorized($user->user_id)){
+			$m->redirect("/home?msgtype=errmsg&msg=Access denied.");
+		}
+
+		if ( $history_id ) {
+			$history_doc = HSDB4::SQLRow::ContentHistory->new()->lookup_key($history_id);
+		} else {
+			@docs = HSDB4::SQLRow::ContentHistory->new()->lookup_conditions("content_id = ".$content_id);
+		}
+
+		if (!scalar(@docs) && !defined($history_doc)) {
+			$m->comp('SELF:set_msg', type => 'hintmsg', msg => "No history found for content $content_id");
+		} elsif (defined($history_doc) && !$history_doc->primary_key()){
+			$m->comp('SELF:set_msg', type => 'hintmsg', msg => "History record not found for content $history_id");
+		}
+
+		if ($orig_doc->field_value('style')) {
+			$style = "/style/".$orig_doc->field_value('style').".css";
+		}
+	}
+</%init>
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+%	return "<b>" . $TUSK::Constants::SiteAbbr . " " . ucfirst $orig_doc->type . ": " . $orig_doc->out_label . "</b>";
+</%method>
+
+<%method title>
+%	return $TUSK::Constants::SiteAbbr . " " . ucfirst $orig_doc->type . ": " . $orig_doc->out_label;
+</%method>
+
+<%method jsarray>
+%	return [ "content.js" ];
+</%method>
+
+<%method stylearray>
+<%perl>
+	my $css = ["/style/style.css"];
+	push @$css, $style;
+	return $css;
+</%perl>
+</%method>
+

@@ -1,0 +1,85 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+no_header=>1
+</%attr>
+
+
+<%method title>
+% return "Content Chooser";
+</%method>
+
+<%init>
+	my $user = $m->comp("SELF:user");
+	my ($settingsStruct,$queryStruct) = $m->comp('tmpl/element:interpretQueryString', args => \%ARGS);
+
+	$settingsStruct->{pageName} = '/search/chooser';
+	$settingsStruct->{skipUMLS} = 1;
+	$settingsStruct->{noLinks} = 1;
+	$settingsStruct->{limitedMediaOptions} = 1;
+	$settingsStruct->{noShowUserQuery} = 1;
+	
+	my $singleContentDisplaySub = sub {
+		my $contentObject = shift;
+		my $hscml = $contentObject->field_value('hscml_body');
+	        my $xml = HSDB4::XML::HSCML->new($hscml);
+		return $xml->parse_body($contentObject->primary_key);
+	};
+
+	my $displaySub = sub {
+		my $contentObject = shift;
+		my ($id,$title) = ($contentObject->primary_key,$contentObject->title);
+		my $displayText =<<EOM;
+	<li><A HREF="chooser?content_id=$id&Search=1">$title</A></li>
+EOM
+	return $displayText;
+};
+
+</%init>
+% my $searchStruct;
+% if ($settingsStruct->{searchExecuted}){
+<%perl>
+        (undef,$settingsStruct->{userQuery}) = $m->comp( 'tmpl/element:executeSearch',
+		query => $queryStruct,
+		settings => $settingsStruct,
+	);
+        if ($queryStruct->{'content_id'}){
+                $displaySub = $singleContentDisplaySub;
+        }
+}
+</%perl>
+<& tmpl/element:entryForm, query => $queryStruct, settings => $settingsStruct &>
+<%doc>
+	pageName=>'/search/chooser',
+	refineSearch=>$refineSearch,
+	userQuery=>$userQuery,
+	advancedView=>$advancedView,
+	resultSetLimit => $resultSetLimit,
+	showMenuLinks=>0,
+	queryFields=>$queryStruct &>
+</%doc>
+% if ($settingsStruct->{searchExecuted}){
+<& tmpl/element:searchResults, query => $queryStruct, settings => $settingsStruct, predefinedResults => [] &>
+<%doc>
+	userQuery=>$userQuery,
+	searchStruct=>$searchStruct,
+	resultSetStart=>$resultSetStart,
+	resultSetLimit=>$resultSetLimit,
+	advancedView=>$advancedView,
+	displaySub => $displaySub,
+	queryFields => $queryStruct &>
+</%doc>	
+% }

@@ -1,0 +1,78 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%flags>
+	inherit => undef
+</%flags>
+
+<%args>
+</%args>
+
+<%init>
+</%init>
+
+<%attr>
+</%attr>
+
+<& /tmpl/prepend:header, title=>"$TUSK::Constants::SiteAbbr Content Notes" &>
+  <script>
+    var seconds = 5;
+    function hideSavedDiv() {
+      seconds--;
+      if(document.getElementById('savedDiv')) {
+        if(seconds == 0) {document.getElementById('savedDiv').style.display='none';}
+        else             {setTimeout(hideSavedDiv, 1000);}
+      }
+    }
+  </script>
+
+  <body onLoad="hideSavedDiv();">
+%  unless($m && $m->session && HSDB4::Constants::is_guest($m->session->{'user'})) {
+    <form name="theForm" method="post" action="">
+      <hidden name="closeAfterSave" value="0">
+%	my $pieceOfContent;
+%	my $content_id = substr($r->path_info(), 1);
+%	my $saved = 0;
+%	if($content_id) {
+%	  my $type_path = "content/" . $content_id;
+%	  eval {$pieceOfContent = HSDB4::SQLRow::Content->new()->lookup_path($content_id);};
+%	  if($@ || !($pieceOfContent->primary_key())) {$m->comp("SELF:printFailure");}
+%  	  else {
+%	    if($ARGS{'saveNotes'}) {$pieceOfContent->make_annotation($m->session->{'user'}, $ARGS{'myNotes'}); $saved=1;}
+      	    <center>
+%           my $notes = '';
+%	    foreach ($pieceOfContent->child_personal_content($m->session->{'user'}->primary_key())) { $notes.=$_->field_value('body'); }
+            <textarea style="border-bottom:1px solid black; width:99%; height:200px; padding:0; background-color:transparent;" name="myNotes"><% $notes %></textarea>
+            <br></center>
+	    <table border="0" width="100%"><tr>
+%	    if($saved) {
+	      <td align="left"><span id="savedDiv"><font style="color:red;">Notes Saved.</font></span></td>
+%	    }
+	      <td align="right"><input type="submit" name="saveNotes" class="formbutton" value="Save Notes"></td>
+	    </tr></table>
+%	  }
+%	} else {$m->comp("SELF:printFailure");}
+    </form>
+% } else {
+    <div style="height:50%; position:relative; ">
+      <p style="text-align:center; position:absolute; bottom:0; width:100%; margin:0;">You must <a href="/">login</a> to use notes.</p>
+    </div>
+% }
+
+<& /tmpl/footer:end_body &>
+
+<%method printFailure>
+	Unable to get the content to attach notes to!
+</%method>

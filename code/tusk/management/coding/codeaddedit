@@ -1,0 +1,125 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Coding::Code;
+	use TUSK::Coding::Category;
+</%once>
+
+<%shared>
+	my $category_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $category = TUSK::Coding::Category->lookupKey($category_id);
+	my $school_obj =  $m->comp("/tmpl/url:get_type_object");
+	my $school_id = $school_obj->getPrimaryKeyID();
+	my $codes_data = [];
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'codeaddedit' } &>
+
+<& /tmpl/element:table, params => { 
+	border		=> "0",
+	cellspacing	=> "0",
+	cellpadding	=> "0",
+} &>
+
+<tr><td class="bold_emphasis_font"><br/>Category: <% $category->getLabel() %></td></tr>
+<& /tmpl/element:sort_order_box, params => {
+	no_label 		=> 1,
+	no_add_button 	=> 0,
+	button_onclick	=> "addnewdata('codediv',{ coding_code_id:'0',code:'',title:'',category_id:'$category_id' });",
+	button_label	=> 'Add Code',
+	layer_info => {
+		layer => 'codediv',
+		context_path => $m->comp("/tmpl/url:get_full_path"),
+		fields => ['coding_code_id','code','title','category_id'],
+		name => 'Code',
+		sort => {usage => 'Yes'},
+		action => {	usage => 'Yes', 
+					length=>100,
+                   	functions => [{func=>'remove', label=>'Delete'} ]},
+		scrollrows => 20,
+		display => 	[ 
+			{label => 'Code', field => 'code', align=>'left', length => 100, type=>'textbox' }, 
+			{label => 'Title', field => 'title', align=>'left', length => 200, type=>'textbox' }, 
+			{field => 'category_id',type=>'hidden' }, 
+		],
+		validate => { usage => 'No', form => 'codeaddedit'},
+		data => $codes_data 
+	}
+} &>
+
+
+<& /tmpl/element:save_button, params => {
+	label 			=> 'Save Changes',
+	name			=> 'save_changes',
+	one_column		=> 1,
+	no_cancel_button => 1,
+} &>
+
+</table>
+</form>
+
+
+<%init>
+	$codes_data = $m->comp('SELF:get_codes_data');
+	if (defined($ARGS{'submit_check'})) {
+		my $row_hash = $m->comp('/tmpl/process:process_fields',fields => \%ARGS, filter => '^codediv');
+=for
+		pre_dump($row_hash);
+		pre_dump($codes_data);
+		exit();
+=cut
+		$m->comp('/tmpl/process:manipulate_rows',
+			row_type => 'Direct',
+			user => $m->session->{'user'}->user_id(),
+			object_name => 'TUSK::Coding::Code',
+			fields_data => $row_hash,
+			field_function_map => {
+				'code'			=> 'setCode',
+				'title'			=> 'setLabel',
+				'category_id' 	=> 'setCodingCategoryID',
+				'sortorder'		=> 'setSortOrder',
+			},
+			display_data => $codes_data );
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/coding/codeaddedit", 'msg' => 'Successfully Saved'));
+	}
+
+</%init>
+
+<%method get_codes_data>
+<%perl>
+	my $codes = TUSK::Coding::Code->lookup("", ['sort_order'], undef, undef, [TUSK::Core::JoinObject->new("TUSK::Coding::Category", { joinkey => 'coding_category_id', alias => 'c', joincond => "c.coding_category_id = $category_id", jointype => 'inner'} )]);
+	my @data = ();
+	foreach my $code (@$codes) {
+		push @data, {coding_code_id => $code->getPrimaryKeyID(), code=> $code->getCode(), title => $code->getLabel(), category_id => $code->getCodingCategoryID()};
+	}
+	return \@data;
+</%perl>
+</%method>
+
+<%method jsarray>
+% 	return ['layers.js', 'element.js', ];
+</%method>
+
+<%method title>
+%	return "Manage Classification Codes";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>

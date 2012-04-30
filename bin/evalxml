@@ -1,0 +1,143 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+BEGIN {
+    sub usage {
+	print "evalxml [-f|--force] [-g|--graphs] [-s|save] [-p|--print] [-e|--eval] [-r|--eval_results] [-m|--eval_merged_results] [-c|--eval_completions] school id\n";
+	print "f: force total regeneration from cache\n";
+	print "g: force regeneration just of bargraphs\n";
+	print "s: save the results to a file\n";
+	print "p: print the results to the stdout\n";
+	print "e: generate xml for an eval object\n";
+	print "r: generate xml for an eval results object\n";
+	print "m: generate xml for an eval merged results object\n";
+	print "c: generate xml for an eval completions object\n";
+	print "** only one of e, r and m may be selected\n";
+	exit(1);
+    }
+
+    use Getopt::Long;
+
+    use constant EVAL => 1;
+    use constant EVAL_RESULTS => 2;
+    use constant EVAL_MERGED_RESULTS => 3;
+    use constant EVAL_COMPLETIONS => 4;
+
+    $ENV{XSL_ROOT} = "../code/XSL" unless $ENV{XSL_ROOT};
+    die "ERROR: XSL_ROOT ($ENV{XSL_ROOT}) is not a valid directory." unless -d $ENV{XSL_ROOT};
+
+    use vars qw($help $force $graphs $save $print $school $id $type $formatter $xml_text);
+
+    Getopt::Long::Configure("bundling");
+    GetOptions('help|h' => \$help,
+	       'force|f' => \$force,
+	       'graphs|g' => \$graphs,
+	       'print|p'  => \$print,
+	       'save|s' => \$save,
+	       'eval|e'  => sub { $type = EVAL },
+	       'eval_results|r' => sub { $type = EVAL_RESULTS },
+	       'eval_merged_results|m' => sub { $type = EVAL_MERGED_RESULTS },
+	       'eval_completions|c'  => sub { $type = EVAL_COMPLETIONS });
+
+    $school = shift(@ARGV);
+    $id     = shift(@ARGV);
+
+    usage() unless($type && $school && $id && not $help);
+}
+
+BEGIN {
+    use HSDB45::Eval;
+    use HSDB45::Eval::Formatter;
+    use HSDB45::Eval::Results;
+    use HSDB45::Eval::Results::Formatter;
+    use HSDB45::Eval::Results::BarGraphCreator;
+    use HSDB45::Eval::MergedResults;
+    use HSDB45::Eval::MergedResults::Formatter;
+    use HSDB45::Eval::MergedResults::BarGraphCreator;
+    use HSDB45::Eval::Completion::Formatter;
+    use MySQL::Password;
+
+
+    # some library or other from above is installing a die 
+    # handler that I find distasteful, and thus...
+    undef $SIG{__DIE__};
+}
+
+HSDB4::Constants::set_user_pw(get_user_pw());
+
+my $eval = HSDB45::Eval->new(_school => $school, _id => $id);
+die "ERROR: no eval with id=$id"
+    unless $type eq EVAL_MERGED_RESULTS or $eval->primary_key();
+
+if($type == EVAL) {
+    $formatter = HSDB45::Eval::Formatter->new($eval);
+    $xml_text = $formatter->get_xml_text($force);
+    $save = 'eval_' . $school . '_' . $id . '.xml' if($save);
+}
+elsif($type == EVAL_RESULTS) {
+    my $results = HSDB45::Eval::Results->new($eval);
+    my $formatter = HSDB45::Eval::Results::Formatter->new($results);
+    $save = 'eval_results_' . $school . '_' . $id . '.xml' if($save);
+
+    if($force) {
+	$xml_text = $formatter->get_xml_text(1);
+    }
+    elsif($graphs) {
+	$xml_text = $formatter->get_xml_text();
+	my $bargraph_creator = HSDB45::Eval::Results::BarGraphCreator->new($school, $id, $xml_text);
+	$bargraph_creator->save_svg_graphs();
+    }
+    else {
+	$xml_text = $formatter->get_xml_text();
+    }
+}
+elsif($type == EVAL_MERGED_RESULTS) {
+    my $results = HSDB45::Eval::MergedResults->new(_school => $school, _id => $id);
+    die "ERROR: no merged eval with id=$id" unless $results->primary_key();
+    $formatter = HSDB45::Eval::MergedResults::Formatter->new($results);
+    $save = 'eval_merged_results_' . $school . '_' . $id . '.xml'  if($save);
+
+    if($force) {
+	$xml_text = $formatter->get_xml_text(1);
+    }
+    elsif($graphs) {
+	$xml_text = $formatter->get_xml_text(0);
+	my $bargraph_creator = HSDB45::Eval::MergedResults::BarGraphCreator->new($school, $id, $xml_text);
+	$bargraph_creator->save_svg_graphs();
+    }
+    else {
+	$xml_text = $formatter->get_xml_text();
+    }
+}
+elsif($type == EVAL_COMPLETIONS) {
+    my $results = HSDB45::Eval::Results->new($eval);
+    my $formatter = HSDB45::Eval::Completion::Formatter->new($results);
+    $xml_text = $formatter->get_xml_text($force);
+    $save = 'eval_completions_' . $school . '_' . $id . '.xml' if($save);
+}
+
+print $xml_text if($print);
+if($save) {
+    open(FILE, '>' .  $save) or die "ERROR: Could not open file " . $save . " for writing ($!)";
+    print FILE $xml_text;
+    close(FILE) or die "ERROR: Could not close file $save ($!)";
+    print "Saved xml in file: " . $save . "\n";
+}

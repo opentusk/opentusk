@@ -1,0 +1,338 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+        use TUSK::GradeBook::LinkCourseGradeEventType;
+	use TUSK::GradeBook::LinkCourseGradeScale;
+	use TUSK::GradeBook::LinkCourseCustomScale;
+	use TUSK::GradeBook::GradeScaleType;
+	use TUSK::Functions;
+        use Data::Dumper;
+</%once>
+
+<%method title>
+%return "Manage Grade Book";
+</%method>
+
+<%attr>
+show_timeperiod_dropdown => 1
+</%attr>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+</%shared>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>'return event_submit(this)',
+				name => 'coursePreferences' } &>
+
+<%perl>
+
+
+
+my $grade_event_types = TUSK::GradeBook::GradeEventType->new->lookup();
+#print Dumper($grade_event_types);
+my $numTypes = scalar (@$grade_event_types);
+#print "num is $numTypes <br>";
+
+</%perl>
+
+
+<table cellspacing="0" width ="50%">
+<tr><td><b> Event Type</b> </td>  <td> <b>Weight Percentage</b> </td>  <td> <b>Drop Lowest Grade?</b> </td> <td><b> Drop Highest Grade?</b></td> </tr>
+
+<%perl>
+       
+
+#getDropLowest
+#getDropHighest
+#getTotalWeight
+
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my $coursepk = $type_object->primary_key;
+my $time_period = $m->comp("SELF:get_timeperiod_id");
+
+for(my $i=0; $i < $numTypes; $i++)
+{
+	my $typeName = @$grade_event_types[$i]->{'_field_values'}->{'grade_event_type_name'};
+	my $typeID = @$grade_event_types[$i]->{'_field_values'}->{'grade_event_type_id'};
+        my $typeWt = 0;
+	my $checkLowest ='';
+	my $checkHighest='';
+
+	print "<tr><td> $typeName</td>"; 
+        
+	my $linkCourseGradeEventType = TUSK::GradeBook::LinkCourseGradeEventType->lookupReturnOne("course_id = $coursepk and grade_event_type_id = $typeID");
+
+	if( defined($linkCourseGradeEventType) )
+	{
+		 $typeWt = $linkCourseGradeEventType->getTotalWeight();
+		 if($linkCourseGradeEventType->getDropLowest() eq "1")
+		 {
+			$checkLowest='checked=true';
+		 } 
+		 if($linkCourseGradeEventType->getDropHighest() eq "1")
+		 {
+			$checkHighest='checked=true';
+		 } 
+		
+        
+		
+	}	
+	print "<td> <input type='text' size='5' name='wt$typeName' value='$typeWt'/> % </td>";
+	print "<td> <input type='checkbox' name='low$typeName' $checkLowest /> </td>";
+	print "<td> <input type='checkbox' name='hi$typeName' $checkHighest/> </td>";
+
+}
+
+my $grade_scale_types = TUSK::GradeBook::GradeScaleType->new->lookup();
+my $num_types = scalar (@$grade_scale_types);
+
+</%perl>
+
+</table><br>
+<br>
+<table cellspacing="4" >
+<tr>
+<td colspan="2" >Grading Scale</td>
+</tr>
+<tr> 
+<td colspan="2" >Please select a grading scale from the list below. </td>
+</tr>
+<tr id="abc-tr"  >
+<td>
+
+<%perl>
+       #my $type_object = $m->comp("/tmpl/url:get_type_object");
+       #my $coursepk = $type_object->primary_key;
+	my $scaleType;
+	my $linkCourseGradeScale = TUSK::GradeBook::LinkCourseGradeScale->lookupReturnOne("course_id = $coursepk");
+	if( defined($linkCourseGradeScale) )
+	{
+		$scaleType = $linkCourseGradeScale->getGradeScaleTypeID();
+	}
+
+
+ if($scaleType eq @$grade_scale_types[0]->{'_field_values'}->{'grade_scale_type_id'}) {
+  print "<input id='abc-radio' type='radio' value='@$grade_scale_types[0]->{'_field_values'}->{'grade_scale_type_id'}' checked='checked' name='gscale' />";
+ }
+ else { print "<input id='abc-radio' type='radio' value='@$grade_scale_types[0]->{'_field_values'}->{'grade_scale_type_id'}' name='gscale' />"; }
+
+</%perl>
+
+<!-- <input id='abc-radio' type='radio' value='@$grade_scale_types[0]->{'_field_values'}->{'grade_scale_type_id'}' name='gscale' /> -->
+ <%@$grade_scale_types[0]->{'_field_values'}->{'grade_scale_name'} %>
+</td>
+<td ><div id="show_grades">
+94%-100% gets an A<br/>
+90%-93% gets an A-<br/>
+87%-89% gets a B+<br/>
+84%-86% gets a B<br/>
+80%-83% gets a B-<br/>
+77%-79% gets a C+<br/>
+74%-76% gets a C<br/>
+70%-73% gets a C-<br/>
+67%-69% gets a D+<br/>
+64%-66% gets a D<br/>
+60%-63% gets a D-<br/>
+0%-59% gets an F<br/></div>
+NOTE: Grades will not be automatically calculated if letter grades used. <br/>
+
+</td>
+</tr>
+
+
+<tr id="per-tr"  >
+<td>
+
+<%perl>
+if($scaleType eq @$grade_scale_types[1]->{'_field_values'}->{'grade_scale_type_id'}) {
+	print "<input type='radio' value='@$grade_scale_types[1]->{'_field_values'}->{'grade_scale_type_id'}' checked='checked' name='gscale' />"; }
+else { print "<input  type='radio' value='@$grade_scale_types[1]->{'_field_values'}->{'grade_scale_type_id'}' name='gscale' />"; }
+</%perl>
+
+
+ <% @$grade_scale_types[1]->{'_field_values'}->{'grade_scale_name'}  %></td>
+<td>Grade = Percentage</td>
+</tr>
+
+<tr id="man-tr"  >
+<td>
+
+<%perl>
+if($scaleType eq @$grade_scale_types[2]->{'_field_values'}->{'grade_scale_type_id'}) {
+	print "<input type='radio' value='@$grade_scale_types[2]->{'_field_values'}->{'grade_scale_type_id'}' checked='checked' name='gscale' />"; }
+else { print "<input  type='radio' value='@$grade_scale_types[2]->{'_field_values'}->{'grade_scale_type_id'}' name='gscale' />"; }
+</%perl>
+
+
+<% @$grade_scale_types[2]->{'_field_values'}->{'grade_scale_name'} %></td>
+<td>Do not automatically calculate students' grades</td>
+</tr>
+
+<tr><td> 
+
+<%perl>
+if($scaleType eq @$grade_scale_types[3]->{'_field_values'}->{'grade_scale_type_id'}) {
+	print "<input type='radio' value='@$grade_scale_types[3]->{'_field_values'}->{'grade_scale_type_id'}' checked='checked' name='gscale' />"; }
+else { print "<input  type='radio' value='@$grade_scale_types[3]->{'_field_values'}->{'grade_scale_type_id'}' name='gscale' />"; }
+</%perl>
+
+
+<% @$grade_scale_types[3]->{'_field_values'}->{'grade_scale_name'} %> </td>
+<td>
+
+<%perl>
+
+# Begin print Custom Scale stuff
+print "Low%     Grade<br>";
+my $linkCourseCustomScale = TUSK::GradeBook::LinkCourseCustomScale->lookup("course_id = $coursepk");
+for(my $i =0 ; $i< 14; $i++)
+{
+
+        if( defined(@$linkCourseCustomScale[$i]) )
+	{
+		my $scalePercent = @$linkCourseCustomScale[$i]->getLowerBound();
+		my $letterGrade = @$linkCourseCustomScale[$i]->getGrade();
+		print "<input type='text' size='5' name='scalePerc$i' value='$scalePercent' \> %    <input type='text' size='5' name='letter$i' value='$letterGrade' \> <br> ";
+		
+	}
+	else 
+	{
+		print "<input type='text' size='5' name='scalePerc$i' \> %    <input type='text' size='5' name='letter$i' \> <br> ";
+	}
+}
+# End Print Custom Scale stuff
+
+if ( defined( $ARGS{'submit_check'} )  ) 
+{
+
+        my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $courseID = $type_object->primary_key;
+        if( defined($ARGS{'gscale'}) )
+	{
+		#if there exists a grade scale for the course, just update it, otherwise create a new link table row
+		my $linkCourseGradeScale = TUSK::GradeBook::LinkCourseGradeScale->lookupReturnOne("course_id = $courseID and time_period_id = $time_period");
+		if( defined($linkCourseGradeScale))
+		{
+			$linkCourseGradeScale->setGradeScaleTypeID($ARGS{'gscale'});
+			$linkCourseGradeScale->setTimePeriodID($time_period);
+			$linkCourseGradeScale->save({'user' => $m->session->{'user'}->user_id()});	
+		}
+		else 
+		{
+			$linkCourseGradeScale = TUSK::GradeBook::LinkCourseGradeScale->new();
+			$linkCourseGradeScale->setCourseID($courseID);
+			$linkCourseGradeScale->setGradeScaleTypeID($ARGS{'gscale'});
+			$linkCourseGradeScale->setTimePeriodID($time_period);
+			$linkCourseGradeScale->save({'user' => $m->session->{'user'}->user_id()});
+		}
+		
+		# if the grading scale is custom, save custom scale to DB
+		if( $ARGS{'gscale'} eq "4" )
+		{
+
+                   # first delete old entries for this course
+		   my $oldScales = TUSK::GradeBook::LinkCourseCustomScale->lookup("course_id = $courseID");
+                   foreach my $oldOne (@$oldScales){			
+			$oldOne->delete();
+		   }
+
+		   my $i=0;
+      		   while( (defined($ARGS{'letter'.$i}) ) &&  (defined( $ARGS{'scalePerc'.$i} )) )
+		   {
+			if( $ARGS{'letter'.$i} ne "" )
+			{
+				my $linkCourseCustomScale = TUSK::GradeBook::LinkCourseCustomScale->new();
+				$linkCourseCustomScale->setLowerBound($ARGS{'scalePerc'.$i});
+				$linkCourseCustomScale->setGrade($ARGS{'letter'.$i});
+				$linkCourseCustomScale->setCourseID($courseID);
+				$linkCourseCustomScale->save({'user' => $m->session->{'user'}->user_id()});
+			}
+			$i++;
+			
+		   }
+
+		}
+	}
+
+# BEGIN Save LinkCourseGradeEventType data
+        for(my $i=0; $i < $numTypes; $i++)
+	{
+
+
+		my $typeName = @$grade_event_types[$i]->{'_field_values'}->{'grade_event_type_name'};
+                my $typeID = @$grade_event_types[$i]->{'_field_values'}->{'grade_event_type_id'};
+		my $linkGradeEventTypeData = TUSK::GradeBook::LinkCourseGradeEventType->lookupReturnOne("course_id = $coursepk and grade_event_type_id = $typeID and time_period_id=$time_period");
+
+		#if there is no entry for this course/eventType combo, create a new entry , add courseID and typeID
+		if( !defined($linkGradeEventTypeData))
+		{
+			$linkGradeEventTypeData = TUSK::GradeBook::LinkCourseGradeEventType->new();
+			$linkGradeEventTypeData->setCourseID($courseID);
+			$linkGradeEventTypeData->setGradeEventTypeID($typeID);
+		}
+	
+		#whether or not an entry exists, we're going to update these following attributes and save
+                if($ARGS{'low'.$typeName} eq "on" )
+		{
+	 		$linkGradeEventTypeData->setDropLowest(1);
+		}
+		else { $linkGradeEventTypeData->setDropLowest(0); }
+		
+		if($ARGS{'hi'.$typeName} eq "on" )
+		{
+	 		$linkGradeEventTypeData->setDropHighest(1);
+		}
+		else { $linkGradeEventTypeData->setDropHighest(0); }
+
+
+	
+		$linkGradeEventTypeData->setTimePeriodID($time_period);
+        	$linkGradeEventTypeData->setTotalWeight($ARGS{'wt'.$typeName});
+		$linkGradeEventTypeData->save({'user' => $m->session->{'user'}->user_id()});
+                
+	} 
+
+# END Save LinkCourseGradeEventType data 
+       
+ 	my $reload_url = $r->uri();
+        my $msgtxt = "Changes successfully saved";
+        $m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msgtxt");
+
+}
+
+
+
+
+</%perl>
+
+</td>
+</tr>
+
+<tr id="cgs-tr" style="cursor:pointer" onclick="cl('cgs')">
+</tr>
+
+</table>
+
+<& /tmpl/element:save_button, params=>{
+        label=>'Save Changes',
+        cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+        name=>'save_changes'} &>
+
+
+</form>

@@ -1,0 +1,324 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Application::GradeBook::GradeBook;
+	use TUSK::GradeBook::GradeMultiple;
+	use TUSK::GradeBook::GradeEventGradeScale;
+	use TUSK::GradeBook::GradeScaleCourse;
+	use Data::Dumper;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $time_period_id = $m->comp('SELF:get_timeperiod_id');
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $school_id = TUSK::Core::School->new()->getSchoolID($school);
+	my $fullpath= $m->comp("/tmpl/url:get_full_path");
+	my $paths = [ split('/', $fullpath) ];
+	my $course_id = $paths->[scalar(@$paths)-1];
+	my $user_id = $m->session()->{user}->user_id();
+	my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id, user_id => $user_id});
+	my $final_grade_event;
+	my $final_grade_records = [];
+	my $final_saved_grades = [];
+	my $total_weight = 0;
+	my $current_scale;
+	my $scale_array = [];
+</%shared>
+
+<div style="margin:5px 0 0 3px;">
+<& SELF:print_gradebook_tools &>
+</div>
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	onsubmit =>'return submitGradeFinal(this);',
+	name => 'gradefinal' } &>
+
+<& /tmpl/element:table, params => { 
+	width 		=> "",
+	border		=> "0",
+	cellspacing	=> "0",
+	cellpadding	=> "0" 
+} &>
+
+<tr><td colspan="2">
+<input type="hidden" name="total_weight" value="<% $total_weight %>" />
+</td></tr>
+% if ($final_grade_event) {
+<tr><td colspan="2">
+<input type="hidden" name="final_grade_event_id" value="<% $final_grade_event->getPrimaryKeyID() %>" />
+</td></tr>
+
+<& SELF:print_buttons &>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Event Name',
+	name => 'event_name',
+	value => $final_grade_event->getEventName(),
+	size => 60,
+	length => 255,
+	onchange => 'updateFinalGradeMetaData(this);',
+} &>
+
+<& /tmpl/element:posted_dropdown, 
+	selected => $final_grade_event->getPublishFlag(),
+	onchange => 'updateFinalGradeMetaData(this);',
+&>
+
+<& /tmpl/element:field_display, params => { 
+	label => 'Total Weight',
+	value => $total_weight,
+} &>
+
+
+% my $show_scale;
+% if (defined($ARGS{scale_id})) { $show_scale = $ARGS{scale_id} ; } 
+% else { $show_scale = $current_scale; }
+
+<& /tmpl/element:dropdown, params => {
+	label => 'Choose a grade scale: ',
+	name  => 'available_scales',
+	tr_style =>"width:10%;",
+	td_style =>"width:10%;",
+	onchange => 'reload_scale(this.options[this.selectedIndex].value)',
+	selected=> (defined($show_scale)) ? $show_scale : '',
+	options=> $scales_dropdown_array_ref,
+	trailing_text => "<a href='/gradebook/author/showscales/".$type_path."'>All Scales</a>",
+	
+} &>
+
+<%perl>
+if($ARGS{scale_id}) {
+	print "<tr><td></td><td><table>";
+	my $chosen_scale_id = $ARGS{scale_id}; 
+	my $bounds = TUSK::GradeBook::GradeScaleBounds->lookup("grade_scale_id = ".$chosen_scale_id." order by lower_bound desc");
+	foreach my $lnk (@$bounds){
+		my $scale_hash;
+	    $scale_hash->{'grade'} = $lnk->getGradeSymbol();
+		$scale_hash->{'number'} = $lnk->getLowerBound();
+		push(@$scale_array,$scale_hash);
+	}
+
+
+	$m->comp('/tmpl/element:sort_order_box', params =>{
+	
+		no_add_button=>1,
+        label=>'Existing Scale',
+		no_label=>1,
+		layer_info => {
+			layer => 'scalediv',
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			fields => ['link_grade_event_scale_id','grade', 'number','course_id','time_period','school_id'],
+			name => 'scale',
+			sort => {usage => 'No'},
+			action => {usage => 'No'},	
+			scrollrows => 10,
+			display => [
+				{label=>'Minimum %', field=>'number', align=>'center', length=>50,type=>'label'},
+				{label=>'Grade',field=>'grade', align=>'center', length=>50, type=>'label'},
+			],
+			validate => { usage => 'No', form => 'coursePreferences'},
+			data => $scale_array }	});
+
+print "</table></td></tr>";
+} ### end if args{scale_id}
+</%perl>
+
+% }
+
+
+<& /tmpl/element:sort_order_box, params => {
+	no_label => 1,
+	no_add_button => 1,
+	buttons => [],
+	layer_info => {
+		layer => 'finalgradesdiv',
+		context_path => $m->comp("/tmpl/url:get_full_path"),
+		fields => ['link_user_grade_event_id', 'name','user_id', 'calc_grade', 'adj_grade'],
+		name => 'calculated final grades',
+		sort => {usage => 'No'},
+		action => {usage => 'No'},
+		scrollrows => 10,
+		display => [
+			{label => 'Name',field => 'name', align=>'left', length => 150 },
+			{label => 'User&nbsp;ID', field => 'user_id', align => 'left', length => 20 },
+			{label => 'Calculated Grade', field=>'calc_grade', align => 'center', length => 25},
+			{label => 'Scaled Grade', field=> 'scaled_grade', align=>'center', length => 40},
+			{label => 'Override Grade', field => 'adj_grade', align=>'center', length => 40, type => 'textbox'},	
+			{label => 'Comments', field => 'comments', align => 'left', length => 300, type => 'textbox' }
+		],
+		validate => { usage => 'No', form => 'finalgrade'},
+		data => $final_grade_records }
+} &>
+
+<& SELF:print_buttons, no_gradebook_tools => 1 &>
+
+</table>
+</form>
+
+<%init>
+
+
+	if ($final_grade_event = $gb->getFinalGradeEvent($ARGS{final_grade_event_id})) {
+		($final_grade_records, $final_saved_grades) = $final_grade_event->getFinalGradeRecords($type_object);
+	}
+
+	my $scales_dropdown_array_ref=[];
+	my $final_grade_event_id;
+
+	if ($final_grade_event) {
+
+		if ($ARGS{final_grade_event_id}) {
+			$final_grade_event_id = $ARGS{final_grade_event_id};
+		} else {
+			$final_grade_event_id = $final_grade_event->getPrimaryKeyID();
+		}
+
+	
+	my $link_scales_course;
+
+	$link_scales_course = TUSK::GradeBook::GradeScaleCourse->lookup("course_id = $course_id AND school_id = $school_id");
+	push(@$scales_dropdown_array_ref, {'label' => '', 'value' => 0 });
+	foreach my $lnk (@$link_scales_course) {
+		my $scale = TUSK::GradeBook::GradeScale->lookupKey($lnk->getGradeScaleID());
+		push(@$scales_dropdown_array_ref, {'label' => $scale->getName(), 'value' => $lnk->getGradeScaleID() });
+	}
+
+	my $old_link_grade_event_scale = TUSK::GradeBook::GradeEventGradeScale->lookupReturnOne("grade_event_id = $final_grade_event_id");	
+		
+	if (defined($old_link_grade_event_scale)){
+		$current_scale = $old_link_grade_event_scale->getGradeScaleID();	
+	}	
+
+	} ### end if final grade_event exists
+
+	my $msg;
+	if ($ARGS{submit_check}) {
+
+		if( defined($final_grade_event_id) ) {
+			my $old_link_grade_event_scale = TUSK::GradeBook::GradeEventGradeScale->lookup("grade_event_id = $final_grade_event_id");
+			foreach my $old_link (@$old_link_grade_event_scale) {
+				$old_link->delete();
+			}
+			my $link_grade_event_scale = TUSK::GradeBook::GradeEventGradeScale->new();
+			$link_grade_event_scale->setGradeScaleID($ARGS{available_scales});
+			$link_grade_event_scale->setGradeEventID($final_grade_event_id);
+			$link_grade_event_scale->save();
+		}
+
+		if ($ARGS{calculate_final_grade}) {
+			$gb->calculateFinalGradeByEvent();
+			$msg = 'Successfully Calculated';
+		} elsif ($ARGS{save_changes}) {
+			if ($final_grade_event) {
+				if ($ARGS{event_name_changed} || $ARGS{publish_flag_changed}) {
+					$final_grade_event->setEventName($ARGS{event_name});
+					$final_grade_event->setPublishFlag($ARGS{publish_flag});
+					$final_grade_event->save({user => $user_id });
+				}
+			}
+
+			my $row_hash = $m->comp('/tmpl/process:process_fields',fields => \%ARGS, filter => '^finalgradesdiv');
+			foreach my $key (keys %$row_hash){
+				if ($row_hash->{$key}{fields}{adj_grade} eq '' && $row_hash->	{$key}{fields}{comments} eq ''){
+					delete($row_hash->{$key});
+				}
+			}
+
+			$m->comp('SELF:save_changes', rows => $row_hash) if $row_hash;
+			$msg = 'Successfully Saved';
+		}
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/gradefinal", 'msg' => $msg));
+	}
+
+	$total_weight += $_->getWeight() foreach (@{$gb->getAllButFinalEvents()});
+
+	foreach my $x (@$final_grade_records) {
+		my $calculated_grade = $x->{'calc_grade'};
+		
+		my $scaled_grade = $gb->getScaledGrade($calculated_grade, $final_grade_event_id); 
+		$x->{'scaled_grade'} = $scaled_grade;
+	}
+	
+
+
+</%init>
+
+<%method print_buttons>
+<%args>
+	$no_gradebook_tools => undef
+</%args>
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Save Changes',
+	cancel_onclick  => "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+	style			=> ($final_grade_event) ? '' : 'display:none;',
+	name			=> 'save_changes',
+	buttons			=>  [ $m->scomp('/tmpl/element:button', params => { label => 'Calculate Final Grades',  name => 'calculate_final_grade', type => 'submit' }), ],
+	one_column		=> 1,
+	colspan			=> 2,
+} &>
+</%method>
+
+<%method save_changes>
+<%args>
+	$rows
+</%args>
+<%perl>
+	my %existing_records = ();
+	if ($final_saved_grades) {
+		%existing_records =	map { $_->getPrimaryKeyID() => $_ } @$final_saved_grades;
+	}
+	foreach my $key (keys %$rows) {
+		my $pk = $rows->{$key}{pk};
+		if (exists $existing_records{$pk}) {
+			$existing_records{$pk}->setGrade($rows->{$key}{fields}{adj_grade});
+			$existing_records{$pk}->setComments($rows->{$key}{fields}{comments});
+			$existing_records{$pk}->save({user => $user_id});
+			
+
+			my $adjusted = $existing_records{$pk}->getJoinObject('adjusted');
+			if (ref $adjusted eq 'TUSK::GradeBook::GradeMultiple') {
+				$adjusted->setGrade($rows->{$key}{fields}{adj_grade});
+				$adjusted->save({user => $user_id});
+			} else {
+				my $multi = TUSK::GradeBook::GradeMultiple->new();
+				$multi->setLinkUserGradeEventID($existing_records{$pk}->getPrimaryKeyID());
+				$multi->setGrade($rows->{$key}{fields}{adj_grade});
+				$multi->setGradeType($TUSK::GradeBook::GradeMultiple::ADJUSTED_FINAL_GRADETYPE);
+				$multi->save({user => $user_id});
+			}
+		} 
+	}
+</%perl>
+</%method>
+
+<%method title>
+%	return "Update Final Grades";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+% 	return ['layers.js', 'element.js','gradebook.js'];
+</%method>
+
+
+
+

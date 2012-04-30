@@ -1,0 +1,94 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Import::GradeBook;
+</%once>
+
+<%shared>
+	my ($grade_event_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $submit_mode = 0;
+	my $import;
+	my $event = TUSK::GradeBook::GradeEvent->new->lookupKey($grade_event_id);
+	my $course = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+<p>Import requires a tab delimited text file of format "UTLN  Grade  Comment".  For example, "student01 100 Excellent".</p>
+
+<& /tmpl/element:form, params=>{enctype=>'multipart/form-data',
+		'method'=>'POST',
+		'name'=>'import_file_form'} &>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display,params=>{'label'=>'Course Title','value'=>$course->title() }  &>
+<& /tmpl/element:field_display,params=>{'label'=>'Grade Event','value'=>$grade_event->getEventName() }  &>
+% if (!$submit_mode){
+<& /tmpl/element:file_upload, params=>{'label'=>'File','name'=>'import_file'} &>
+<& /tmpl/element:tr_tag &><td></td><td class="cell-submit">
+<& /tmpl/element:submit_button,params=>{name=>'file_submit',label=>'Import'} &>
+</td></tr>
+% } else {
+<& /tmpl/element:vertical_spacing,size=>1 &>
+% 	foreach my $err_msg (@{$import->get_err_msgs()}){
+<tr><td></td><td class ="sm"><% $err_msg %></td></tr>	
+%	}
+%	foreach my $log ($import->get_logs){
+<tr><td></td><td class ="sm"><% $log->get_message() %></td></tr>
+%	}
+% }
+</table>
+</form>
+
+
+<%init>
+	if (!defined($grade_event_id)){
+		$m->comp('/tmpl/error',msg=>'There needs to be a Grade Event ID submitted');
+	}
+
+	my $grade_event = TUSK::GradeBook::GradeEvent->lookupKey($grade_event_id);
+	if ($ARGS{'import_file'}){
+		$submit_mode = 1;
+		my $upload = $r->upload();
+		if ($upload){
+			$import = TUSK::Import::GradeBook->new();
+			$import->set_ignore_empty_fields("true");
+			$import->read_filehandle($upload->fh(),"\t");
+			$import->processData($m->comp('SELF:user'),$grade_event,$course);
+			close $upload->fh();
+		}
+	}
+</%init>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::GradeBook::GradeEvent' => $event};
+</%method>
+
+<%method title>
+% return 'Import Course Grades';
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+% return ['layers.js'];
+</%method>
+

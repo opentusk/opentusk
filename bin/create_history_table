@@ -1,0 +1,66 @@
+#!/usr/bin/perl -w 
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+
+use MySQL::Password;
+use DBI;
+use Getopt::Std;
+use strict;
+our ($opt_d,$opt_t);
+
+getopt('dt');
+
+if (!$opt_d or !$opt_t){
+    print <<EOM;
+create_history_table  -d [database] -t [table] 
+-d  -- database
+-t  -- table
+
+EOM
+    exit;
+}
+
+
+my ($u, $p) = get_user_pw ();
+my $dbh = DBI->connect ('dbi:mysql:hsdb45_nut_admin', $u, $p,
+                     { RaiseError => 1 });
+my $query = qq[desc $opt_d.$opt_t];
+
+my $sth = $dbh->prepare($query);
+
+my $arrayref = $dbh->selectall_arrayref($query);
+
+my $out_string = sprintf("CREATE TABLE %s_history ( \n\t`%s_history_id` int(10) unsigned NOT NULL auto_increment, \n",$opt_t,$opt_t);
+
+my $pk_field;
+foreach my $col (@$arrayref){
+	$out_string .= sprintf("\t`%s` %s %s,\n", $$col[0],$$col[1],$$col[2] eq 'YES' ? '' : 'NOT NULL');
+	if ($$col[3] eq 'PRI'){
+		$pk_field = $$col[0];
+	}
+}
+if (!$pk_field){
+	die "No PK found for table";
+}
+$out_string .= "\t`history_action` enum('Insert', 'Update', 'Delete'),\n";
+$out_string .= sprintf("\tPRIMARY KEY (`%s_history_id`)\n", $opt_t);
+$out_string .= ");\n\n";
+
+$out_string .= sprintf("CREATE INDEX %s_history_i01 ON %s_history(%s);\n",$opt_t,$opt_t,$pk_field); 
+print $out_string;

@@ -1,0 +1,148 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::Phase;
+use TUSK::Case::PhaseVisit;
+</%once>
+
+<%shared>
+	my ($case_id, $phase_id) = $m->comp('/tmpl/url:get_path_ids');
+
+	my $phase = TUSK::Case::Phase->lookupKey($phase_id);
+	my $case = TUSK::Case::Case->lookupKey($case_id);
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+
+	if (!$phase || !defined($phase->getPrimaryKeyID())){
+		$m->comp('/tmpl/error',msg=>'Phase could not be found.');	
+	}
+	if (!$case || !defined($case->getPrimaryKeyID())){
+		$m->comp('/tmpl/error',msg=>'Case could not be found.');	
+	}
+	if (!$case->memberPhase($phase)){
+		$m->comp('/tmpl/error',msg=>'Phase is not member of this case.');	
+	}
+	
+	my $title = $phase->getPhaseTitle();
+	$case->setUser($m->comp('SELF:user'));
+	my $report = $case->getReport();
+
+	if($case->isLinearNav() && !$case->prevPhaseVisited($phase)){
+		$m->redirect("/case/casestart/$type_path/$case_id");
+	}
+
+	my %ARGS = $m->request_args();
+
+
+	# only eval rules on first phase visit. once phase has been visited, rules can't keep user out
+	my @msgs;
+	unless ($phase->visited($report)) {
+		my $rules = $phase->getRules();
+		@msgs = $phase->evaluateRules($rules, $report);
+	}
+
+	# we don't want to register a phase visit if entry rules not met
+	unless (scalar @msgs) {
+		my $visit;
+		if (defined $ARGS{'phase_visit_id'}) {
+			$visit = TUSK::Case::PhaseVisit->lookupKey($ARGS{'phase_visit_id'});
+			$phase->setVisit($visit);
+		}
+		else {
+			$visit = $case->visitPhase($phase,$m->comp('SELF:user'));
+			$phase->setVisit($visit)
+		}
+	}
+
+	$title .= $m->comp('SELF:get_preview_text', case => $case);
+
+	if ($ARGS{redirect}){
+		$m->comp('tmpl/element:transition', args => \%ARGS);
+	}
+</%shared>
+
+
+<& /tmpl/element:table &>
+<& tmpl/element:header_bar, label => $title &>
+
+
+% if (scalar @msgs) {
+<%doc>Needed to add following call to transition b/c without it, in global case, we cannot finish a case</%doc>
+<& /case/tmpl/element:transition,args=>\%ARGS &>
+%	my $errmsg = "Unfortunately, you did not meet all of the case author's criteria for entering this phase.<br/>Please see the author's feedback below, then use the case navigation to the left to determine which phase you will visit next.";
+%	my $alert;
+%	foreach my $m (@msgs) {
+%		$alert .= "<p>$m</p>"; 
+%	}
+<tr><td style="padding-top: 5px; padding-bottom: 5px;">
+<& /tmpl/prepend:traffic_light, use_tables => 0, args => {errmsg => $errmsg} &>
+<% $alert %>
+</td></tr>
+% }
+% else {
+
+<%perl>
+my $nav_buttons = $m->scomp('tmpl/' . $phase->getIncludeFile() . ':get_button_nav', phase => $phase, case => $case, args => \%ARGS);
+if ($nav_buttons =~ /\S/) {
+	$nav_buttons = '<tr><td><div class="csNavRow">' . $nav_buttons . '</div></td></tr>';
+} 
+</%perl>
+
+<% $nav_buttons %>
+<tr><td style="padding-top: 5px; padding-bottom: 5px;">
+<& "tmpl/" . $phase->getIncludeFile(), case => $case, phase => $phase, args => \%ARGS &>
+</td></tr>
+<% $nav_buttons %>
+
+<& /tmpl/element:hidden_form_element, params => { 
+		name  => 'phase_visit_id', 
+		value => $phase->getVisit()->getPrimaryKeyID()} 
+&>
+
+% }
+
+</table>
+
+<& /tmpl/wizard:include &>
+</form>
+
+
+
+<%method startup>
+<%args>
+$args => {}
+</%args>
+<%perl>
+$m->comp("SELF:set_unicode");
+$m->comp("SELF:set_no_cache");
+</%perl>
+</%method>
+
+<%method title>
+% return "Phase : ". $title;
+</%method>
+
+<%method form>
+<%perl>
+return $m->scomp('/tmpl/element:form',params=>{method => 'POST',
+                name => 'dophase',
+                onsubmit => undef} );
+</%perl>
+</%method>
+
+<%method leftnav>
+% return { component => '/case/tmpl/leftnav/phase', phase => $phase, case => $case };
+</%method>

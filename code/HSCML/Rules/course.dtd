@@ -1,0 +1,159 @@
+<!--
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+-->
+
+
+<!-- course.dtd
+
+     Information for a course's home page (to make it easy to edit).
+-->
+<!-- Include useful entities. -->
+<!ENTITY % entitiesDTD PUBLIC "-//HSDB//Useful entities for HSCML//EN" "entities.dtd">
+%entitiesDTD;
+
+<!-- Use the XHTML entities -->
+<!ENTITY % HTMLlat1 PUBLIC "-//W3C//ENTITIES Latin 1 for XHTML//EN" "XMLlat1.ent">
+<!ENTITY % HTMLsymbol PUBLIC "-//W3C//ENTITIES Symbols for XHTML//EN" "XMLsymbol.ent">
+<!ENTITY % HTMLspecial PUBLIC "-//W3C//ENTITIES Special for XHTML//EN" "XMLspecial.ent">
+%HTMLlat1;
+%HTMLsymbol;
+%HTMLspecial;
+
+<!-- Include basic inline text elements -->
+<!ENTITY % inlineDTD PUBLIC "-//HSDB//Definition of text elements//EN" "inline.dtd">
+%inlineDTD;
+
+<!-- Include some structure  -->
+<!ENTITY % structureDTD PUBLIC "-//HSDB//Definition of structure//EN" "structure.dtd">
+%structureDTD;
+
+<!-- Descriptions of people -->
+<!ENTITY % personDTD PUBLIC "-//HSDB//Descriptions of people in HSDB//EN" "person.dtd">
+%personDTD;
+
+<!-- Include the information about the bibliography stuff. -->
+<!ENTITY % biblioDTD PUBLIC "-//HSDB//Bibliography information//EN" "biblio.dtd">
+%biblioDTD;
+
+<!-- The course stuff itself.  -->
+<!ELEMENT course (title, abbreviation?, color?, registrar-code, faculty-list, sub-course-list?, teaching-site-list?, learning-objective-list?, content-list, schedule?, attendance-policy, grading-policy, reading-list?, course-description, tutoring-services, course-structure, student-evaluation, equipment-list, course-other)>
+
+<!ELEMENT dbcourse (attendance-policy, grading-policy, reading-list?, course-description, tutoring-services, course-structure, student-evaluation, equipment-list, course-other)>
+<!ATTLIST dbcourse 
+        course-id CDATA #REQUIRED
+	school    CDATA #REQUIRED>
+
+<!-- Generic information about the course -->
+<!ATTLIST course associate-users (Group|Enrollment) "Group"
+	course-id CDATA #REQUIRED
+	school    CDATA #REQUIRED>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT abbreviation (#PCDATA)>
+<!ELEMENT color (#PCDATA)>
+<!ELEMENT registrar-code (#PCDATA)>
+
+<!-- The list of faculty (which includes MERC reps) -->
+<!-- Need to add office hours and the option of person-id instead of user-id -->
+<!ELEMENT faculty-list (course-user+)>
+<!ELEMENT course-user (course-user-role+)>
+<!ATTLIST course-user 
+          user-id CDATA #REQUIRED
+	  name    CDATA #REQUIRED>
+<!ELEMENT course-user-role EMPTY>
+<!ATTLIST course-user-role
+          role (Director|Editor|Author|Lecturer|Instructor|LabInstructor|Librarian|MERCRepresentative) #REQUIRED>
+
+<!-- A list of sub-courses, optional) -->
+<!-- We'll need another form with the ability to query the database to find course-ids -->
+<!ELEMENT sub-course-list (sub-course+)>
+<!ELEMENT sub-course (#PCDATA)>
+<!ATTLIST sub-course
+          course-id CDATA #REQUIRED
+	  school    CDATA #REQUIRED>
+
+<!-- A list of the teaching sites for the course -->
+<!-- Can be either new teaching sites or references to existing ones -->
+<!ELEMENT teaching-site-list (teaching-site+)>
+<!ELEMENT teaching-site (site-name, site-location)>
+<!ATTLIST teaching-site
+          teaching-site-id CDATA #REQUIRED>
+<!ELEMENT site-name (#PCDATA)>
+<!ELEMENT site-location (#PCDATA)>
+
+<!-- A list of the learning objectives -->
+<!-- A list of the course objectives -->
+<!ELEMENT learning-objective-list (objective-ref+)>
+<!ELEMENT objective-ref (#PCDATA)>
+<!ATTLIST objective-ref objective-id CDATA #REQUIRED>
+
+<!-- The description of the attendance policy -->
+<!ELEMENT attendance-policy %Flow;>
+
+<!-- The description of the student evaluation methods -->
+<!ELEMENT student-evaluation %Flow;>
+
+<!-- The description of the grading policy -->
+<!ELEMENT grading-policy (grading-item*)>
+<!ELEMENT grading-item %Inline;>
+<!ATTLIST grading-item
+          weight CDATA #REQUIRED>
+
+
+<!ELEMENT reading-list (reading-item+)>
+<!ELEMENT reading-item %Inline;>
+<!ATTLIST reading-item
+          type       (Textbook|Journal|URL|Medline|Other) #REQUIRED
+          required   (YES|NO) #REQUIRED
+	  on-reserve (YES|NO) "NO"
+	  call-number CDATA #IMPLIED
+	  url CDATA #IMPLIED>
+
+<!-- The description of the course -->
+<!ELEMENT course-description %Flow;>
+
+<!-- The description of the tutoring services -->
+<!ELEMENT tutoring-services %Flow;>
+
+<!ELEMENT course-structure %Flow;>
+
+<!ELEMENT equipment-list (equipment+)>
+<!ELEMENT equipment %Inline;>
+
+<!ELEMENT course-other (course-other-section+)>
+<!ELEMENT course-other-section %Flow;>
+<!ATTLIST course-other-section title CDATA #REQUIRED>
+
+<!ELEMENT schedule (class-meeting+)>
+<!ELEMENT class-meeting (class-meeting-user*)>
+<!ATTLIST class-meeting
+        class-meeting-id CDATA #REQUIRED
+        end-time CDATA #REQUIRED
+        location CDATA #IMPLIED
+        meeting-date CDATA #REQUIRED
+        start-time CDATA #REQUIRED
+        title CDATA #REQUIRED
+        type CDATA #REQUIRED>
+
+<!ELEMENT class-meeting-user EMPTY>
+<!ATTLIST class-meeting-user
+          user-id CDATA #REQUIRED
+          name    CDATA #REQUIRED>
+
+<!-- A list of the associated content at the top level -->
+<!ELEMENT content-list (content-ref+)>
+<!ELEMENT content-ref %Inline;>
+<!ATTLIST content-ref content-id CDATA #REQUIRED
+                      content-type CDATA #REQUIRED
+                      authors CDATA #REQUIRED>

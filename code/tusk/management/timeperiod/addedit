@@ -1,0 +1,124 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB45::TimePeriod;
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use Forum::Board;
+</%once>
+
+<%shared>
+	my $timeperiod_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $is_edit = 0;
+	my $timeperiod;
+	my $school = $m->comp("/tmpl/url:get_school");
+
+	if ($timeperiod_id){
+		$is_edit = 1;
+		$timeperiod = HSDB45::TimePeriod->new(_school => $school)->lookup_key( $timeperiod_id );
+	}else{
+		$timeperiod = HSDB45::TimePeriod->new(_school => $school);
+	}
+</%shared>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>'',
+				name => 'timeperiod' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Label:',
+                name => 'label',
+                value => $timeperiod->field_value('period'),
+                size => 60,
+                length => 64 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Academic Year:',
+                name => 'academic_year',
+                value => $timeperiod->field_value('academic_year') || (localtime)[5] + 1900,
+                size => 10,
+                length => 9 } &>
+
+<%perl>
+my $start_value = 'YYYY-MM-DD';
+$start_value = $timeperiod->field_value('start_date') if $is_edit;
+</%perl>
+<& /tmpl/element:textbox, params =>{ label => 'Start Date:',
+                name => 'start_date',
+                value => $start_value,
+                size => 12,
+                length => 10,
+				calendar => 1 } &>
+
+<%perl>
+my $end_value = 'YYYY-MM-DD';
+$end_value = $timeperiod->field_value('end_date') if $is_edit;
+</%perl>
+<& /tmpl/element:textbox, params =>{ label => 'End Date:',
+                name => 'end_date',
+                value => $end_value,
+                size => 12,
+                length => 10,
+				calendar => 1 } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes', name=>'form_submit', 'no_cancel_button' => 1} &>
+
+</table>
+</form>
+
+<%init>
+	if (defined($ARGS{'form_submit'})){
+		$timeperiod->field_value('period', $ARGS{'label'});
+		$timeperiod->field_value('academic_year', $ARGS{'academic_year'});
+		$timeperiod->field_value('start_date', $ARGS{'start_date'});
+		$timeperiod->field_value('end_date', $ARGS{'end_date'});
+		$timeperiod->save();
+
+		my $school_obj = TUSK::Core::School->new->lookupReturnOne("school_name = lcase('" . $school . "')");
+		my $school_id  = $school_obj->getPrimaryKeyID();
+		my $sql = "update mwforum.boards set start_date = '" . $ARGS{'start_date'} . "', end_date = '" . $ARGS{'end_date'} . "' where boardkey like '" . $school_id . "-%-" . $timeperiod->primary_key() . "-%'";
+		my $dbh = HSDB4::Constants::def_db_handle();
+		my $sth = $dbh->prepare($sql);
+		$sth->execute();
+
+		my $msgtxt;
+		if ($is_edit){
+			$msgtxt = "Time period successfully modified";
+		}else{
+			$msgtxt = "Time period successfully created";
+		}
+	
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/timeperiod/show", 'extra' => '', 'msg' => $msgtxt));
+	}
+</%init>
+
+<%method title>
+<%perl>
+	my $title = "Create New Time Period";
+	if ($is_edit){
+	        $title = "Modify Time Period";
+	}
+	return $title;
+</%perl>
+</%method>
+
+<%method jsarray>
+%	return ['calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>

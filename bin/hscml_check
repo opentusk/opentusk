@@ -1,0 +1,97 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use HSDB4::SQLRow::Content;
+use MySQL::Password;
+use File::Basename;
+use Term::ReadLine;
+use XML::Twig;
+
+# Username and passsword
+HSDB4::Constants::set_user_pw (get_user_pw);
+
+my $term = new Term::ReadLine 'content_in_files';
+my $OUT = $term->OUT;
+
+my $action = shift;
+unless ($action eq 'in' or $action eq 'out') {
+    die "Usage: $0 in|out file1.xml ...\n";
+}
+
+my @filelist;
+if (@ARGV) {
+    push @filelist, @ARGV;
+}
+else {
+    $_ = $term->readline ("Enter .xml files to import: ");
+    push @filelist, split /,?\s/;
+}
+
+sub encode {
+    my $data = shift;
+    my @characters = qw{ \< \> \; \, \/ \? \\ \| \= \+ \) \( \* \& \^ \% \$ \# \@ \! \~ \` \: };
+    my $matches = join("|",@characters); 
+    $data =~ s/($matches)/sprintf("&#%03d;", ord($1))/seg;
+    return $data;
+}
+
+my @success=();
+my $doc = HSDB4::SQLRow::Content->new;
+my $twig = XML::Twig->new( 'PrettyPrint' => 'indented',
+			   'KeepEncoding' => 1,
+			   'NoExpand' => 1,
+			   'EmptyTags' => 'normal' );
+foreach my $filename (@filelist) {
+    my $result = 0;
+    eval {
+	my ($id, $path, $type) = fileparse($filename, '\.(xml)');
+	die "$filename does not have .xml or .html extensions"
+	    unless $type eq '.xml';
+	$doc->lookup_key($id);
+	die "Cannot find content record $id" unless $doc->primary_key == $id;
+
+	if ($action eq 'in') {
+	    die "Cannot read $filename" unless -r $filename;
+	    $twig->parsefile ($filename);
+	    $doc->field_value ('hscml_body', $twig->sprint());
+	    $doc->field_value ('conversion_status', 2);
+
+	    if ($doc->changed_fields) {
+		my $note = $term->readline ("Enter version note: ");
+		my ($user, $pw) = (HSDB4::Constants::db_connect())[1,2];
+		$result = $doc->save_version ($note, $user, $pw);
+	    }
+	    else { 
+		print STDERR "$filename: no changes to record.\n";
+		$result = 1;
+	    }
+	}
+	elsif ($action eq 'out') {
+	    open FH, ">$filename" 
+		or die "Could not open $filename for writing.";
+	    $twig->parse( $doc->field_value( 'hscml_body' ) );
+	    $twig->print(\*FH, 'nice');
+	    close FH;
+	}
+    };
+    print $OUT $@ if $@;
+}
+
+1;

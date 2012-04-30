@@ -1,0 +1,65 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	show_tp_dropdown_no_cache => 1
+	top_tab_type => 'manage'
+</%attr>
+
+<%shared>
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+<table>
+<& /tmpl/element:vertical_spacing, size=>1 &>
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	columns => $col_fields,
+	action_columns => [ 
+		{ 'label'=>'Modify','link' => '/management/schedule/addedit' }
+	], 
+	object_list => \@class_meetings,
+	type_path => $type_path,
+	name => "schedule",
+} &>
+</table>
+
+<%init>
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+	unless ($time_period_id) {
+		my $msg = TUSK::Core::SessionTimePeriod::course_time_periods($m->comp("/tmpl/url:get_type_object"), undef, $m->session);
+	 	$time_period_id = $m->comp("SELF:get_timeperiod_id");
+	}
+	return unless $time_period_id;
+
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my @class_meetings = $type_object->class_meetings(HSDB45::TimePeriod->new(_school => $type_object->school())->lookup_key($time_period_id));
+	my $col_fields = [ {'label' => 'Title', 'field' => 'title'},
+                     {'label' => 'Room', 'field' => 'location'},
+                     {'label' => 'Type', 'field' => 'type', use_field_func => 1},
+                     {'label' => 'Mandatory', 'field' => 'is_mandatory_answer', use_field_func => 1},
+                     {'label' => 'Date', 'field' => 'meeting_date'},
+                     {'label' => 'Start Time', 'field' => 'starttime'},
+                     {'label' => 'End Time', 'field' => 'endtime'},
+	];
+</%init>
+
+<%method title>
+% 	return 'Schedule';
+</%method>
+
+<%method right_header_text>
+%	 return [ {txt => 'Preview', url => "/view/$type_path/schedule" } ];
+</%method>

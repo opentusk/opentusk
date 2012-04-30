@@ -1,0 +1,186 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+
+use TUSK::Constants;
+
+#use MySQL::Password;
+#HSDB4::Constants::set_user_pw (get_user_pw);
+
+#
+## Some path variables
+my $r = shift; 
+
+$xml_path = "/data/html/fop-xml";
+$xsl_path = $r->server_root_relative("code/XSL")."/PDF";
+$pdf_path = "/data/html/fop-pdf"; 
+
+use HSDB4::SQLRow::Content;
+use Apache2::Const qw(REDIRECT);
+
+# append fop path to ENV{PATH}
+($env_path) = $ENV{PATH} =~m/(.*)/; # untaint $ENV{PATH}
+$ENV{PATH}="$env_path:$fop_path";
+
+# this shouldn't have to be here, but just in case
+$ENV{JAVA_HOME}="/usr/java" unless ($ENV{JAVA_HOME});
+
+# grab the user_id
+$user_id = $r->user;
+
+############
+## here are the different pdf formats
+############
+$pdf_formats{"full"}=1;
+$pdf_formats{"text"}=1;
+############
+
+# get the path
+$path = $ENV{PATH_INFO};
+
+
+$path =~m/(http:\/\/[^\/]*?)\//;
+$domain = "http://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}" ;
+
+$path=~s/\/(\w*)\/?$/\//;
+$format = $1;
+
+&html_error("Invalid Call") unless ($format);
+
+$format = "full" unless ($pdf_formats{$format});
+
+# create the collection object
+$doc = HSDB4::SQLRow::Content->new()->lookup_path ($path);
+
+# check to see if a collection was returned
+&html_error("Invalid Document") unless ($doc);
+
+# check to make sure this is a collection
+&html_error("Invalid Document") unless ($doc->field_value("type") eq "Document");
+
+# check to make sure this user can access the content
+&html_error("Access denied") unless $doc->is_user_authorized($user_id);
+
+# get the xml content from the database
+$xml = &generate_xml;
+
+&html_error("Document has no data") unless ($xml);
+
+
+# get the content id
+$id = $doc->field_value("content_id");
+
+($id) = $id  =~ m/(.*)/; # one way to untaint a var
+
+# check to make sure there is a returned id
+&html_error("Invalid Document") unless ($id);
+
+undef $/;
+
+# we need to convert any & chars which aren't already entities
+$xml =~ s/\&\ /\&amp;\ /gm;
+
+# set flags
+$generate_pdf = 1;
+$update_xml = 1;
+
+if (-e "$xml_path/$id.xml"){
+	
+	# get the xml content and compare from the database
+	open(XML_OLD,"$xml_path/$id.xml") or &html_error("Error accessing XML file");
+	$xml_old=<XML_OLD>;
+	close(XML_OLD);
+
+	# update flags	
+	$update_xml = 0 if ($xml eq $xml_old);
+	&remove_pdfs($id) unless ($xml eq $xml_old);
+	
+	$generate_pdf = 0 if (-e "$pdf_path/$format-$id.pdf");
+}
+
+# if update_xml = 1 then update the xml that is used with fop
+if ($update_xml){
+	open(XML,">$xml_path/$id.xml") or &html_error("Error accessing XML file");
+	print XML $xml;
+	close(XML);
+	chmod(0664,"$xml_path/$id.xml");
+	$generate_pdf = 1; # if we updated the xml we must regenerate the pdf file
+}
+
+# if generate_pdf = 1 then run fop and generate the new pdf file
+if ($generate_pdf){
+    # store output in variable...we can do more with this later
+    $output = `$TUSK::Constants::fopCmd -c /usr/local/fop/conf/userconfig.xml -xml $xml_path/$id.xml -xsl $xsl_path/$format-content.xsl -pdf $pdf_path/$format-$id.pdf`;	
+
+    chmod(0664,"$pdf_path/$format-$id.pdf");
+    #&html_error($TUSK::Constants::fopCmd . " -c /usr/local/fop/conf/userconfig.xml -xml $xml_path/$id.xml -xsl $xsl_path/$format-content.xsl -pdf $pdf_path/$format-$id.pdf");	
+    #&html_error("$output");
+}
+
+## show the pdf file to the browser
+
+$r->content_type ('application/pdf'); 
+$r->send_http_header; 
+
+open(PDF,"$pdf_path/$format-$id.pdf") or &html_error("Error accessing PDF file: $!");
+print <PDF>;
+close(PDF);
+
+sub generate_xml{
+	my $xml = $doc->field_value("hscml_body");
+
+	return unless ($xml);
+	
+	$xml=~s/<\/?t(head|body)>//g;
+	my $course_title=$doc->course->field_value("title");
+	my $content_title=$doc->field_value("title");
+	
+	$xml_start ="\n<db-content course=\"$course_title\" title=\"$content_title\">";
+	$xml=~s/<db-content[^>]*>/$xml_start/gis;
+
+	my $path = $r->server_root_relative("code/HSCML")."/Rules/";
+
+	$xml=~s/<!DOCTYPE content SYSTEM "/<!DOCTYPE content SYSTEM "$path/;
+	$xml=~s/hscml.dtd/hscmlpdf.dtd/;
+	$xml=~s/\r//g;
+	$xml=~s/([\x80-\xff])/sprintf("\&#%d;",ord($1))/eg;
+	$xml=~s/[\x00-\x09\x0b-\x1f]//g; # get rid of all char that aren't printable except for new line
+	
+	my $temp="\&#8203;";
+	
+	$xml=~s/,/,$temp/g;
+	$xml=~s/\)/\)$temp/g;
+	$xml=~s/\(/$temp\(/g;
+	
+	#&html_error($xml);	
+	
+	return $xml;
+}
+
+# this function removes all pdf files for an id (we need this when the collection's contents has changed
+sub remove_pdfs{
+	my $id = shift;
+	foreach $key (keys %pdf_formats){
+		unlink "$pdf_path/$key-$id.pdf" if (-e "$pdf_path/$key-$id.pdf");
+	}
+}
+
+# html error sub...maybe should make a little better template for this in the future :p
+sub html_error{
+	my $html_error = shift;
+	print "<h1>" . $html_error . "</h1>";
+	exit;
+}

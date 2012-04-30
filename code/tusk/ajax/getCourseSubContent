@@ -1,0 +1,45 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+</%args>
+
+<%attr>
+        top_tab_type            => 'none'
+	displayLittleUserNavBar => '1'
+	default_path_type	=> 'course'
+	no_header		=> '1'
+	page_header		=> undef
+	page_footer		=> undef
+	allow_guests		=> '1'
+</%attr>
+
+% use TUSK::Functions ;
+
+<%shared>
+	my $document = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+% $m->clear_buffer();
+% $r->content_type('text/xml');
+% $r->no_cache(1);
+<?xml version="1.0" encoding="UTF-8"?>
+<content>
+<%perl>
+	$m->session->{$document->course_id . '_filter'} = $ARGS{'view_by'};
+	my @subContent = $document->active_child_content();
+	if(@subContent > 0) {$m->comp('/tmpl/content:printContentXML', contentArray => \@subContent, course => $document, integrated_course => ($document->type eq 'integrated course'), filter_course => $ARGS{'view_by'});}
+</%perl>
+</content>

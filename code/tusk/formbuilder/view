@@ -1,0 +1,384 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+	$args
+	$date_label => ''
+	$show_user_image => ''
+	$dynamic_components => []
+	$button_component => undef
+	$redirect_submit_url => undef
+	$has_save_button => undef
+	$form => $m->comp("/formbuilder/util:get_form")
+</%args>
+
+<%once>
+	use HSDB4::DateTime;
+	use HSDB45::TimePeriod;
+	use TUSK::FormBuilder::Form;
+	use TUSK::FormBuilder::FieldItem;
+	use TUSK::FormBuilder::Entry;
+	use TUSK::FormBuilder::EntryGrade;
+	use TUSK::Application::FormBuilder::DynamicList;
+	use TUSK::FormBuilder::Form::AttributeItem;
+	use TUSK::FormBuilder::FieldComment;
+	use TUSK::FormBuilder::Constants;
+</%once>
+
+<%shared>
+	my $entry;
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'myform' } &>
+<input type="hidden" name="check_required" id="check_required" value="1" class="no-padding" />
+<div style="margin:5px 5px 5px 10px;">
+% if ($form->getFormDescription()){
+<div style="margin:10px 5px 15px 5px;font-size:10pt;"><% $form->getFormDescription() %></div>
+% }
+
+% if ($entry && $entry->getCompleteDate()) {
+
+<input type="hidden" id="disable_form" name="disable_form" value="1" />
+%	push @$dynamic_components, '/formbuilder/view:displayCompleteDate';
+% }
+
+<% $show_user_image %>
+
+<table width="75%">
+% foreach my $comp (@$dynamic_components){
+%	$m->comp($comp, form => $form, args => $args);
+% }
+
+% if ($date_label and !$args->{hide_required}) {
+<& /formbuilder/util:displayTimePeriod, entry => $entry &>
+<& /formbuilder/util:displayDate, entry => $entry, date_label => $date_label &>
+% }
+</table>
+
+<table style="clear:left;">
+% foreach my $field (@$fields) {
+%	next if (!$field->getDefaultReport() and $args->{hide_required});
+%	my $response = (exists($response_hash->{ $field->getPrimaryKeyID() })) ? $response_hash->{ $field->getPrimaryKeyID() } : [];
+<tr>
+<td colspan="2">
+<br/>
+<span id="field_name_id_<% $field->getPrimaryKeyID() %>" class="med"><% $question_count++ . '. ' . $field->getFieldName() %></span>
+%	my $fid = $field->getPrimaryKeyID();
+%	if ($field->getWeight()) {
+&nbsp; <span align="rght" class="xsm">(weight: <% $field->getWeight() %>%)</span>
+<input type="hidden" id="weight_<% $fid %>" name="weight_<% $fid %>" value="<% $field->getWeight() %>" />
+% 	}
+&nbsp;
+<label for="id_<% $fid %>" class="field-error">Required</label>
+</td>
+</tr>
+<& 'SELF:' . $field->getFieldTypeToken(), 
+	field => $field, 
+	response =>  $response, 
+	%{$args->{$field->getFieldTypeToken()}} &>
+% }
+
+
+% if ($args->{show_final_comment}) {
+% my $comment_text = $args->{summary_comment_text} ? $args->{summary_comment_text} : $entry_grade->getComments();
+<tr><td colspan="2" style="margin:5px;">
+<br/>
+<div class="med"><% $question_count++ %>. Summary Comments</div>
+<& /tmpl/element:input_textarea, params =>{ 
+	name => 'final_comment',
+	value => $comment_text,
+	cols => 120, 
+	rows => 5,} &>
+</td></tr>
+% }
+
+
+% if ($button_component) {
+<& $button_component &>
+% } else {
+<& /tmpl/element:save_button, params => {
+	label 		=> 'Submit', 
+	name		=> 'form_submit', 
+	onmouseup	=> 'this.blur();', 
+	'no_cancel_button' => 1,
+} &>
+%	}
+</table>
+</div>
+</form>
+
+<%init>
+	my $response_hash = {};
+	my $read_access = 0;
+	my $entry_grade = TUSK::FormBuilder::EntryGrade->lookupReturnOne("entry_id = $args->{entry_id}") if ($args->{entry_id});
+	$entry_grade = TUSK::FormBuilder::EntryGrade->new() unless ($entry_grade);
+
+	if ($args->{submit_check}) {
+		my $new_entry_id = $m->comp("/formbuilder/process:entry", args => $args, form => $form, user_id => $m->session->{'user'}->user_id(), date => $args->{'encounter_date'}, entry_id => $args->{'entry_id'}, entry_grade => $entry_grade);
+
+		my $extra = (!defined($args->{entry_id}) && $new_entry_id) ? $new_entry_id : '';
+		if ($has_save_button) {
+			if ($args->{save_submit}) { 	
+				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Successfully Saved'));
+			} elsif ($args->{form_submit}) {  
+				$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra));
+			}
+		} else {
+			if ($args->{form_submit}) { 
+				if ($args->{entry_id}){    
+					$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Entry Updated'));
+				} else {      
+					$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra));
+				}
+			}
+		}
+	}
+
+	my $fields = $form->getFields();
+	my $question_count = 1;
+
+	if ($args->{entry_id}){
+		$entry = TUSK::FormBuilder::Entry->new()->lookupKey($args->{entry_id});
+		if (!$entry || !$entry->getPrimaryKeyID() || ($read_access && $entry->getUserID() ne $m->session->{'user'}->user_id())){
+			$m->comp("/tmpl/url:redirect",message => "You do not have access to that entry.");
+		}
+		
+		my $responses = $entry->getFullResponses();
+
+		foreach my $response (@$responses){
+			push (@{$response_hash->{ $response->getFieldID() }}, $response);
+		}
+		$args->{time_period_id} = $entry->getTimePeriodID() unless $args->{time_period_id};
+	}
+</%init>
+
+
+<%method displayCompleteDate>
+<& /tmpl/element:field_display, params => { 
+	label => 'Submit Date & Time',
+	value => $entry->getCompleteDate(),
+} &>
+</%method>
+
+<%method Scaling>
+<%args>
+	$field
+	$response => []
+	$rubrics => {}
+	$score_display => 1   ## score_display for the form
+	$show_scale => 1  ## display numeric scale
+	$show_grade => undef   ## diplay graded point as text
+	$colspan => 2
+	$show_field_name => 1
+	$additional_comments => undef
+	$unable_to_assess => undef
+</%args>
+% my $field_rubrics = $rubrics->{$field->getPrimaryKeyID()} || [];
+% my $comment_required_check = 0;
+% my ($comment, $resp_score, $resp_item_id);
+% if (scalar(@$response)) {
+% 	$comment = $response->[0]->getText();
+%	$resp_score = $response->[0]->getScore();
+%	$resp_item_id = $response->[0]->getItemID();
+% }
+% my $fid = $field->getPrimaryKeyID();
+<tr>
+<td colspan="<% $colspan %>"  style="margin:5px;" >
+
+% if (scalar @$field_rubrics) {
+<table width="100%" border="0" cellspadding="4" cellspacing="0">
+%	my $max_score;
+% 	if ($score_display && $show_scale) {
+<tr>
+% 		foreach (@$field_rubrics) {
+%			my $fafi = $_->getJoinObject('TUSK::FormBuilder::Form::AttributeFieldItem');
+%			next unless $fafi;
+<td>
+%			my $item_id = $fafi->getFieldItemID();
+<span><input type="radio" class="<% ($field->getRequired())? 'required' : '' %>"  name="id_<% $fid %>" value="<% $item_id . '_' . $_->getMinValue() %>" <% ($_->getMinValue() == $resp_score) ? 'CHECKED' : '' %> /> <% $_->getMinValue() %> &nbsp;</span>
+% 			if ($max_score = $_->getMaxValue()) {
+% 				foreach my $i ($_->getMinValue() + 1 .. $max_score) {
+<span><input type="radio" class="<% ($field->getRequired())? 'required' : '' %>"  name="id_<% $fid %>" value="<% $item_id . '_' .  $i %>" <% ($i == $resp_score) ? 'CHECKED' : '' %> /> <% $i %> &nbsp;</span>
+%				}
+%			if ($fafi->getCommentRequired()) {
+<input type="hidden" name="comment_required_item_<% $item_id %>" value="1" />
+%				$comment_required_check = 1;
+%			}
+</td> 
+% 			}
+%		}
+% 		if ($unable_to_assess) {
+<td rowspan="2" valign="top" align="center" NOWRAP>
+<span><input type="radio" name="id_<% $fid %>" value="0_0" <% (defined $resp_score && $resp_score == 0) ? 'CHECKED' : '' %> /> N/A &nbsp;</span>
+</td>
+% 		}
+</tr>
+%	} ## show_score && show_scale
+<tr class=""> <%doc> style="background-color:#EFEFEF;padding:10px;"></%doc>
+% 	my $col_width = int(100 / scalar @$field_rubrics);
+% 	foreach (@$field_rubrics) {
+<td valign="top" width="<% $col_width %>%">
+<div class="level-title">
+
+%		unless ($score_display) {
+<span style="margin-right: 3px;">
+%			my $item_id = $_->getJoinObject('TUSK::FormBuilder::FieldItem')->getPrimaryKeyID();
+<input type="radio" class="<% ($field->getRequired()) ? 'required' : '' %>" name="id_<% $fid %>" value="<% $item_id %>" <% ($item_id == $resp_item_id) ? 'CHECKED' : '' %> />
+%			if (my $fafi = $_->getJoinObject('TUSK::FormBuilder::Form::AttributeFieldItem')) {
+%				if ($fafi->getCommentRequired()) {
+<input type="hidden" name="comment_required_item_<% $item_id %>" value="1" />
+%					$comment_required_check = 1;
+%				}
+%			}
+</span>
+%		}
+%		$m->print(uc($_->getTitle()));
+%		if ($score_display) {
+%			unless  ($show_scale) {
+%				$m->print('&nbsp; (' .  $_->getMinValue() . (($_->getMaxValue()) ? ' - ' . $_->getMaxValue() : '') . ')');
+%			}
+%		}
+&nbsp;&nbsp;
+
+</div>
+<div style="padding:0 20px 0 0;"><% $_->getJoinObject('TUSK::FormBuilder::FieldItem')->getItemName() %></div>
+% if ($max_score) {
+<input type="hidden" id="maxval_<% $fid %>" name="maxval_<% $fid %>" value="<% $max_score %>" />
+% }
+</td>
+% 	} ## @$field_rubrics
+%	if ($show_grade) {
+<th align="left" valign="top" NOWRAP>Score: <% (defined $resp_score) ? (($resp_score) ? $resp_score : 'N/A') : '-' %></th>
+%	} else {
+% 		if ($unable_to_assess && !$score_display) {
+<td valign="top" align="center" NOWRAP>
+<span><input type="radio" name="id_<% $fid %>" value="0" <% (defined $resp_item_id && $resp_item_id == 0) ? 'CHECKED' : '' %> /> <span class="level-title">N/A</span> &nbsp;</span>
+</td>
+% 		}
+%	}
+</tr>
+</table>
+% } ## if $field_rubrics
+
+% if ($field->getShowComment()) {
+% 	my $comments = TUSK::FormBuilder::FieldComment->lookup('field_id = ' . $field->getPrimaryKeyID(), ['sort_order']);
+<div style="margin:5px;">
+<span style="font-weight:bold;color:#565051;">Comments:</span>
+%	if ($comment_required_check) {
+ &nbsp;&nbsp; <input type="hidden" name="comment_required_field" value="<% $fid %>" />
+<label for="comment_<% $fid %>" class="field-error">Required Comments</label>
+%	}
+<br/>
+<& SELF:displayCommentBox, key => $fid, comments => $comments, additional_comments => $additional_comments, comment => $comment &>
+% } ## if show comment
+</div>
+</td></tr>
+<!-- SCALING END -->
+</%method>
+
+<%method displayCommentBox>
+<%args>
+	$key
+	$comments => []
+	$additional_comments => ''
+	$comment => ''
+</%args>
+<div id="container_<% $key %>" class="comment">
+<div class="comment_section" style="margin-left: 5px">
+%		if (scalar @$comments) {
+<div class="xsm">Predefined Comments</div>
+<ul class="gArrow" >
+% 			foreach (@$comments) {
+<li><span class="placeholder_<% $key %> gPointer"><% $_->getComment %> </span></li>
+% 			}
+</ul>
+%		}
+<% $additional_comments %>
+</div>
+</div>
+<& '/tmpl/element:input_textarea', params => { name => "comment_$key", id => "comment_$key", rows => 5, cols => '120', value => $comment } &>
+<div id="pseudodroppable_<% $key %>" class="dragdrop" title="<% $key %>"></div>
+</%method>
+
+<%method SingleSelect>
+<%doc>
+<%args>
+	$field
+	$response
+	$extra_trailing_text => ''
+</%args>
+<%perl>
+	my ($selected, $response_text);
+
+	if (scalar(@$response)){
+		if ($field->getFieldTypeToken() eq 'SingleSelect'){
+			$selected = $response->[0]->getItemID() . '#0';  # need to figure out what to do if there is a "other" value selected for a single select box
+		} else {
+			$response_text = '<table style="width:500px;border-collapse: collapse;margin-bottom:5px;">';
+			foreach my $res (@$response){
+				my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
+				my $extra = ($res->getText()) ? '&nbsp;(' . $res->getText() . ')' : '';
+				$response_text .= '<tr><td class="sm" style="border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td><td class="sm" align="right" style="border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>Delete</td></tr>';
+			}
+			$response_text .= '</table>';
+		}
+	}
+</%perl>
+
+<& "field_dropdown", field => $field,
+	selected => $selected,
+	style => 'vertical-align:middle;',
+    trailing_text => '<input name="text_id_' . $field->getPrimaryKeyID() . '" id="text_id_' . $field->getPrimaryKeyID() . '" type="text" class="textareawhite" style="margin-left:10px; vertical-align:middle;">' . $extra_trailing_text . '<script>textbox_display(document.getElementById(\'id_' . $field->getPrimaryKeyID() . '\'));</script></span>', 
+	before_text => $response_text . '<span id="singleselect_' . $field->getPrimaryKeyID() . '">',
+	value_method => 'getSingleDropDownValue',
+	onchange => 'textbox_display(this)' &>
+</%doc>
+</%method>
+
+
+<%method ScalingWithSubFields>
+<%args>
+	$field
+	$response
+</%args>
+</%method>
+
+
+<%method SingleSelectWithSubFields>
+<%args>
+	$field
+	$response
+</%args>
+
+</%method>
+
+
+<%method Essay>
+<%args>
+	$field
+	$response
+</%args>
+<%perl>
+	my $value = (scalar(@$response)) ? $response->[0]->getText() : ''; 
+</%perl>
+<& /tmpl/element:textarea, params =>{ label => $field->getFieldDescription(),
+	name => 'id_' . $field->getPrimaryKeyID(),
+	value => $value,
+	trailing_text => '&nbsp;' . $field->getTrailingText(),
+	cols => 120, 
+	rows => 7,} &>
+</%method>

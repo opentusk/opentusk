@@ -1,0 +1,65 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+	$form_label
+	$form_type_id
+	$app_path
+	$action_columns
+	$buttons => []
+</%args>
+
+<%once>
+	use TUSK::FormBuilder::Form;
+	use HSDB45::Course;
+</%once>
+
+
+<%perl>
+	my $type_obj = $m->comp("/tmpl/url:get_type_object");
+	my $forms = TUSK::FormBuilder::Form->new()->getCourseForms($type_obj, $form_type_id);
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+</%perl>
+
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+              {display_txt => "New $form_label",
+               link_txt    => "/$app_path/author/addedit/$type_path"},
+			   @$buttons,
+	         ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	columns => [
+	   {'label' => 'Name', 'field' => 'getFormName'},
+	   {'label' => 'Description', 'field' => 'getFormDescription'},
+	   {'label' => 'Posted', 'field' => 'getPublishFlagSpelledOut', align => 'center'}
+	],
+	action_columns => $action_columns,
+	object_list => $forms,
+	type_path => $type_path,
+	name => $form_label,
+	nobutton => 0,
+	action_dropdown => 1,
+
+} &>
+
+
+
+
+
+

@@ -1,0 +1,919 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB45::TeachingSite;
+	use HSDB45::TimePeriod;
+	use TUSK::FormBuilder::FieldItem;
+	use HSDB4::DateTime;
+	use Spreadsheet::WriteExcel;
+</%once>
+
+<%shared>
+	my ($workbook);
+</%shared>
+
+<%method get_workbook>
+% return $workbook;
+</%method>
+
+<%method open_workbook>
+<%args>
+$handle
+</%args>
+%  $workbook  = Spreadsheet::WriteExcel->new($handle);
+</%method>
+
+<%method close_workbook>
+%  $workbook->close();
+</%method>
+
+<%method submit>
+<%args>
+$field_count => 0
+</%args>
+
+<%doc>
+	### for now we disable advanced feature ie attributes
+my $buttons = [];
+if ($field_count){
+
+	
+	$buttons = [ $m->scomp('/tmpl/element:button',
+			               params=>{ onclick => "show_trs(" . $field_count .", this, 'Advanced', 'advanced_item_id')",
+			               name=>'advanced_button',
+			               label=>'Show Advanced' })
+			];
+	
+}
+</%doc>
+
+
+<& /tmpl/element:save_button, params=>{label=>'Show Report', name=>'form_submit', 'no_cancel_button' => 1, buttons => [] } &>
+</%method>
+
+<%method default_reports_nav_bar>
+<%args>
+$default_report => 0
+</%args>
+<%perl>
+	my $form = $m->comp("/formbuilder/util:get_form");
+	my $fields = $form->getFields("default_report = 1");
+	my $type_path  = $m->comp("/tmpl/url:get_type_path");
+	my $nav_bar = [{label => 'Reports'}];
+	$ENV{SCRIPT_NAME} =~ m/(\/[^\/]*)\//;
+	my $prefix = $1;
+	my $href;
+
+	foreach my $field (@$fields){
+		my $title = ($field->getShortName() ne $field->getFieldName()) ? $field->getFieldName() : "";
+		if ($default_report and ($ENV{QUERY_STRING} !~ /fields=/)){
+			$href = "";
+			$default_report = 0;
+		}else{
+			$href =  ($ENV{QUERY_STRING} ne "fields=" . $field->getPrimaryKeyID()) ? $prefix . '/report/' . $type_path . "?fields=" . $field->getPrimaryKeyID(): "";
+		}
+		push (@$nav_bar, { href => $href, label => $field->getShortName(), title => $title });
+	}
+
+	$href = ($ENV{SCRIPT_NAME} !~ /customreports/) ? $prefix . '/customreports/'  . $type_path : "";
+	push (@$nav_bar, { href => $href, label => 'Custom Reports'});
+	return $m->comp("/tmpl/nav", 'initial_nav_bar' => $nav_bar, 'hierarchy' => { $ENV{SCRIPT_NAME} => [] });
+</%perl>
+</%method>
+
+<%method fields>
+<%args>
+$form
+</%args>
+<%perl>
+	my $options = [];
+	my $fields = $form->getAllFormFields("token != 'FillIn' and token != 'Essay'");
+	foreach my $field (@$fields){
+		if ($field->isMultiSelectWithAttributes()){
+			my $attributes = $field->getAttributes();
+			foreach my $attribute (@$attributes){
+				push (@$options, { 'label' => $field->getFieldName() . '&nbsp;(' . $attribute->getAttributeName() . ')', 	
+							'value' => $field->getPrimaryKeyID() . ':' . $attribute->getPrimaryKeyID() });
+			}
+		}else{
+			push (@$options, { 'label' => $field->getFieldName(), 'value' => $field->getPrimaryKeyID() } );
+		}
+	}
+</%perl>
+<& /tmpl/element:dropdown, params=>{ label => "Report Field(s)",
+		multiple => 1,
+		name=> "fields",
+		options => $options
+} &>
+</%method>
+
+
+<%method advanced>
+<%args>
+$form
+</%args>
+<%perl>
+	my $count = 0;
+	my $fields = $form->getFields("token != 'FillIn' and token != 'Essay'");
+	foreach my $field (@$fields){
+		my $item = TUSK::FormBuilder::FieldItem->new();
+		$item->setItemName('All');
+		my $items = [ $item ];
+
+		push (@$items, @{$field->getNonCatItems()});
+
+		$count++;
+
+		$m->comp("/tmpl/element:dropdown", params => {
+				name => "advanced_item_id",
+				tr_name => "advanced_item_id" . $count,
+				tr_style => "display:none;",
+				label => $field->getFieldName(),
+				options => $m->comp("/tmpl/element:make_dropdown_options", arrayref => $items, label => "getItemName", value => "getPrimaryKeyID")});
+	}
+</%perl>
+</%method>
+
+<%method teaching_sites>
+<%args>
+$course
+</%args>
+<%perl>
+	# make a default teaching site object so that the All will be in the dropdown
+	my $default_teaching_site = HSDB45::TeachingSite->new(_school=>'hsdb');
+	$default_teaching_site->field_value('site_name', 'All');
+	my @teaching_sites = ($default_teaching_site);
+	push(@teaching_sites, $course->child_teaching_sites());
+</%perl>
+<& /tmpl/element:dropdown, params=>{ label => "Teaching Sites",
+                name=> "teaching_site_id",
+                options => $m->comp("/tmpl/element:make_dropdown_options", arrayref => \@teaching_sites, label => "site_name", value => "site_id")
+} &>
+</%method>
+
+<%method time_periods>
+<%args>
+	$course
+	$start_date => ''
+	$default_all_time_periods => undef
+	$multiple_select => 1
+</%args>
+<%perl>
+	my $time_periods = [];
+	my $start_date_obj =  HSDB4::DateTime->new()->in_mysql_date($start_date) if ($start_date);
+	my $cur_date = HSDB4::DateTime->new()->in_unix_time(time());
+	foreach my $course_tp_id ($course->get_time_periods_for_enrollment()){
+		my $course_tp = HSDB45::TimePeriod->new(_school => $course->school())->lookup_key($course_tp_id);
+		if (!$start_date or $course_tp->start_date() >= $start_date_obj){
+			push(@$time_periods, $course_tp) if ($course_tp->start_date() < $cur_date);
+		}
+	}
+
+	my @reverse_time_periods = reverse @$time_periods;
+
+	if ($default_all_time_periods) {
+		# make a default teaching site object so that the All will be in the dropdown
+		my $default_time_period = HSDB45::TimePeriod->new(_school=>'hsdb');
+		$default_time_period->field_value('period', 'All');
+		$default_time_period->field_value('time_period_id', 0);
+		@reverse_time_periods = ($default_time_period, @reverse_time_periods);		
+	}
+
+
+</%perl>
+<& /tmpl/element:dropdown, params=>{ label => "Time Periods",
+                name=> "tpid",
+				multiple => $multiple_select,
+                options => $m->comp("/tmpl/element:make_dropdown_options", arrayref => \@reverse_time_periods, label => "out_display", value => "primary_key")
+} &>
+</%method>
+
+<%method display>
+<%args>
+$args
+</%args>
+<%perl>
+	$args->{report_type} = "horizontal" unless ($args->{report_type});	
+
+	if ($args->{report_type} eq "vertical"){
+		$m->comp("/tmpl/element:table", params => { width => "100%", border =>"0",cellspacing =>"5",cellpadding =>"0" });
+		print "<tr>\n";
+	}
+
+
+	foreach my $result (@{$args->{results}->{dataset}}){
+		my $width = (defined($result->{width})) ? $result->{width} : "";
+		print "<td valign=\"top\" align=\"left\">" if ($args->{report_type} eq "vertical");
+
+		unless ($args->{report_type} eq "download-csv" or $args->{report_type} eq "download-xls"){
+			$m->comp("/tmpl/element:table", params => { width => $width, border =>"0",cellspacing =>"0",cellpadding =>"0" });
+
+			if ($result->{header}){
+				$m->comp("/tmpl/element:section_header_row", label => $result->{header});
+			}else{
+				my $label =  $result->{field}->getFieldName();
+
+				if ($result->{'title_append'}){
+					$label .= '&nbsp;' . $result->{title_append};
+				}
+
+				if ($args->{title_append}){
+					$label .= '&nbsp;' . $args->{title_append};
+				}
+
+				$label =~s/ /\&nbsp;/g;
+
+				$m->comp("/tmpl/element:section_header_row", label => $label) unless ($args->{no_header});
+			}
+			print "<tr><td class=\"no-button\">\n";
+		}
+
+		my $field_id = ($result->{field}) ? $result->{field}->getPrimaryKeyID() : "";
+		my $label = ($result->{field}) ? $result->{field}->getFieldName() : "";
+		$m->comp($args->{results}->{type}, args => {%$args, label => $label, result => $result->{data}, link => $args->{link}, field_id => $field_id, report_type => $args->{report_type} });
+		print "</td></tr></table>\n" unless ($args->{report_type} eq "download-csv" or $args->{report_type} eq "download-xls");
+		print "</td>" if ($args->{report_type} eq "vertical");
+		print "\n" if ($args->{report_type} eq "download-csv");
+	}
+
+	print "</tr></table>\n" if ($args->{report_type} eq "vertical");
+</%perl>
+</%method>
+
+<%def FieldperPerson>
+<%args>
+$args
+</%args>
+<& "result", args => $args, key_name => 'Fullname', key => 'user_id' &>
+</%def>
+
+<%def FieldperTeachingSite>
+<%args>
+$args
+</%args>
+<& "result", args => $args, key_name => 'Sitename', key => 'teaching_site_id' &>
+</%def>
+
+<%def FieldperTimePeriod>
+<%args>
+$args
+</%args>
+<& "result", args => $args, key_name => 'Time Period', key => 'time_period_id' &>
+</%def>
+
+<%def result>
+<%args>
+$args
+$key_name
+$key
+$result_field => 'count'
+$attribute_name => 'attribute_name'
+$attribute_id => 'attribute_id'
+$field_name => 'item_name'
+$field_name_id => 'item_id'
+$abbreviation_name => 'abbreviation'
+$abbreviation_attribute_name => 'attribute_abbreviation'
+$allow_other => 'allow_other'
+</%args>
+<%perl>
+	my ($id, $index, $cur_field_name_id, $attribute_index);
+	my $result_array = [];
+	my $field_order = [];
+	my $field_check = {};
+	my $attribute_order = [];
+	my $attribute_check = {};
+	my $show_total = 0;
+
+	foreach my $result_text (@{$args->{result}}){
+		if ($id ne $result_text->{$key}){
+			$index++;
+			$attribute_index = 0;
+			$id = $result_text->{$key};
+			push (@$result_array, { id =>$result_text->{$key_name}, data => [], attributes => [], pkey => $result_text->{$key}, pkey_name => $key });
+		}
+		
+		unless ($field_check->{$result_text->{$field_name_id}}){
+			next if ($result_text->{'token'} ne 'Item' && $args->{report_type} ne 'vertical');
+			$field_check->{$result_text->{$field_name_id}} = 1;
+			push (@$field_order, { name => $result_text->{$field_name}, abbreviation => $result_text->{$abbreviation_name}, allow_other => $result_text->{$allow_other}, id => $result_text->{$field_name_id}, content_id => $result_text->{content_id}, 'token' => $result_text->{'token'}});
+		}
+
+		if ($result_text->{$attribute_id}){
+			unless ($attribute_check->{$result_text->{$attribute_id}}){
+				$attribute_check->{$result_text->{$attribute_id}} = 1;
+				push (@$attribute_order, { name => $result_text->{$attribute_name}, abbreviation => $result_text->{$abbreviation_attribute_name} });
+			}
+		}
+
+		if ($cur_field_name_id != $result_text->{$field_name_id}){
+			push (@{$result_array->[$index - 1]->{'data'}}, $result_text->{$result_field} );
+			push (@{$result_array->[$index - 1]->{'attributes'}}, [] );
+			$attribute_index++;
+			$cur_field_name_id = $result_text->{$field_name_id};
+		}
+
+		if (defined($result_text->{$attribute_id})){
+			push (@{$result_array->[$index - 1]->{'attributes'}->[$attribute_index - 1]}, $result_text->{$result_field} );
+
+#			if you wanted to have a running total use the below line...currently we don't use it
+#			$result_array->[$index - 1]->{'data'}->[-1] += $result_text->{$result_field} if (scalar(@{$result_array->[$index - 1]->{'attributes'}}));
+		}
+	}
+	unless ($index){
+		print "No results<br>";
+		return;
+	}
+</%perl>
+<& $args->{report_type} . "_report", args => {%$args, attribute_order => $attribute_order, field_order => $field_order, result_array => $result_array, key_name => $key_name, show_total => $show_total} &>
+</%def>
+
+<%def download-csv_report>
+<%args>
+$args
+</%args>
+<%perl>
+	# this used to be used by the patient logs and might come in handy in the *future*
+	my $row =  [ $args->{key_name} ];
+	for(my $int=0; $int<scalar(@{$args->{field_order}}); $int++){
+		if (scalar(@{$args->{attribute_order}})){
+			for (my $y=0; $y<scalar(@{$args->{attribute_order}}); $y++){
+				push (@$row, $args->{field_order}->[$int]->{'name'} . " (" . $args->{attribute_order}->[$y]->{'name'} . ")" );	
+			}
+			push (@$row, $args->{field_order}->[$int]->{'name'} . " (Total)" ) if ($args->{show_total});	
+		}else{
+			push (@$row, $args->{field_order}->[$int]->{'name'});
+		}
+	}
+	print join(",", @$row) . "\n";
+
+	foreach my $result_set (@{$args->{result_array}}){
+		my $row = [];
+		my $cur_index = 0;
+		push (@$row, $result_set->{'id'});
+		foreach my $field_data (@{$result_set->{'data'}}){
+			if (scalar(@{$args->{attribute_order}})){
+				foreach my $attribute_data (@{$result_set->{attributes}->[$cur_index]}){
+					push (@$row, $attribute_data);
+				}
+			}
+			if ($args->{show_total} || scalar(@{$args->{attribute_order}}) == 0){
+				push (@$row, $field_data);
+			}
+			$cur_index++;
+		}
+		print join(",", @$row) . "\n";
+	}
+</%perl>
+</%def>
+
+<%def download-xls_report>
+<%args>
+$args
+</%args>
+<%perl>
+
+	my $row = 0;
+	my $col = 0;
+	my $label = (length($args->{label}) < 30) ? $args->{label} : substr($args->{label}, 0, 27) . "...";
+	$label =~ s/[\[\]\:\*\?\/\\]//g; # remove chars that cause xls rendering to fail
+	my $worksheet = $workbook->add_worksheet($label);
+	$worksheet->set_column(0, 0,  25);
+
+	my $itemname_format = $workbook->add_format();
+	$itemname_format->set_rotation(90);
+
+	my $item_format = $workbook->add_format();
+	$item_format->set_align('left');
+
+	$worksheet->write($row, $col++, $args->{key_name});
+
+	for(my $int=0; $int<scalar(@{$args->{field_order}}); $int++){
+		if (scalar(@{$args->{attribute_order}})){
+			for (my $y=0; $y<scalar(@{$args->{attribute_order}}); $y++){
+				$worksheet->write($row, $col++, $args->{field_order}->[$int]->{'name'} . " (" . $args->{attribute_order}->[$y]->{'name'} . ")", $itemname_format);	
+			}
+			$worksheet->write($row, $col++, $args->{field_order}->[$int]->{'name'} . " (Total)", $itemname_format) if ($args->{show_total});	
+		}else{
+			$worksheet->write($row, $col++, $args->{field_order}->[$int]->{'name'}, $itemname_format);
+		}
+	}
+
+	foreach my $result_set (@{$args->{result_array}}){
+		$row++;
+		$col = 0;
+		my $cur_index = 0;
+		$worksheet->write($row, $col++, $result_set->{'id'});
+		foreach my $field_data (@{$result_set->{'data'}}){
+			if (scalar(@{$args->{attribute_order}})){
+				foreach my $attribute_data (@{$result_set->{attributes}->[$cur_index]}){
+					$worksheet->write($row, $col++, $attribute_data, $item_format);
+				}
+			}
+			if ($args->{show_total} || scalar(@{$args->{attribute_order}}) == 0){
+				$worksheet->write($row, $col++, $field_data, $item_format);
+			}
+			$cur_index++;
+		}
+	}
+</%perl>
+</%def>
+
+<%def horizontal_report>
+<%args>
+$args
+$next_page => 1
+</%args>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+		class => "tusk",
+                cellpadding =>"0" } &>
+<tr class="header">
+<%perl>
+	my $rowspan = (scalar(@{$args->{attribute_order}})) ? 2 : 1;
+	print "<td nowrap class=\"header-left-small\" rowspan=\"" . $rowspan . "\">" . $args->{key_name} . "</td>\n";
+	print $args->{advanced_search};
+	foreach my $field_name (@{$args->{field_order}}){
+		my $href = "";
+		if ($field_name->{'allow_other'} and $m->comp("SELF:check_for_advanced", link => $args->{link}) == 0){
+			my $other_link = {%{$args->{link}}};
+			delete($other_link->{'fields'});
+			$href = "href=\"". $ENV{SCRIPT_URL} . "?" . $m->comp("SELF:make_link", link => $other_link) . "\&type=Other\&fields=" . $args->{field_id} . "\&item_id=" . $field_name->{id} . "\"";
+		}
+		if ($field_name->{'abbreviation'}){
+			$field_name->{'name'} = "<a $href title=\"" . $field_name->{'name'} . "\">" . $field_name->{'abbreviation'} . "</a>";
+		}elsif (length($field_name->{'name'}) > 20){
+			$field_name->{'name'} = "<a $href title=\"" . $field_name->{'name'} . "\">" . substr($field_name->{'name'}, 0, 18) . "...</a>";
+		}elsif($href){
+			$field_name->{'name'} = "<a $href>" . $field_name->{'name'} . "</a>";
+		}
+
+		my $colspan = scalar(@{$args->{attribute_order}});
+		$colspan++ if ($args->{show_total});
+		$colspan = 1 unless $colspan;
+		print "<td class=\"header-center-small\" colspan=\"" . $colspan . "\">" . $field_name->{'name'} . "</td>\n";
+	}
+</%perl>
+</tr>
+<%perl>
+	if (scalar(@{$args->{attribute_order}})){
+		print "<tr class=\"header\">\n";
+		for my $int (1..scalar(@{$args->{field_order}})){
+			foreach my $attribute_name (@{$args->{attribute_order}}){
+				if ($int == 1){
+					if ($attribute_name->{'abbreviation'}){
+						$attribute_name->{'name'} = "<a title=\"" . $attribute_name->{'name'} . "\">" . $attribute_name->{'abbreviation'} . "</a>";
+					}elsif (length($attribute_name->{'name'}) > 10){
+						$attribute_name->{'name'} = "<a title=\"" . $attribute_name->{'name'} . "\">" . substr($attribute_name->{'name'}, 0, 7) . "...</a>";
+					}
+				}			
+				print "<td nowrap class=\"header-center-small\">" . $attribute_name->{'name'} . "</td>\n";
+			}
+	
+			print "<td nowrap class=\"header-center-small\">Total</td>\n" if ($args->{show_total});
+		}
+		print "</tr>\n";
+	}
+</%perl>
+<%perl>
+	my $class= "even";
+	my $level = 0;
+
+	foreach my $result_set (@{$args->{result_array}}){
+		my $cur_index = 0;		
+		$class = ($class eq "even") ? "odd" : "even";
+	
+		print "<tr class=\"" . $class . "\">\n";
+		my $id_text;
+		if ($next_page){
+			my $next_page_link = {%{$args->{link}}};
+			$next_page_link->{$result_set->{'pkey_name'}} = $result_set->{'pkey'};
+			$id_text = "<a href=\"" . $ENV{SCRIPT_URL} . "?" . $m->comp("SELF:make_link", link => $next_page_link) . "\">" . $result_set->{'id'} . "</a>";
+		}else{
+			$id_text = $result_set->{'id'};
+		}
+		print "<td nowrap class=\"layers-left\">" . $id_text . "</td>\n";
+		foreach my $field_data (@{$result_set->{'data'}}){
+			$field_data = 0 unless ($field_data);
+			if (scalar(@{$args->{attribute_order}})){
+				foreach my $attribute_data (@{$result_set->{attributes}->[$cur_index]}){
+					print "<td class=\"layers-center\">" . $attribute_data . "</td>\n";
+				}
+			}
+
+			if($args->{show_total} || scalar(@{$args->{attribute_order}}) == 0){
+				print "<td class=\"layers-center\">" . $field_data . "</td>\n";
+			}
+			$cur_index++;		
+		}
+
+		print "</tr>\n";
+
+	}
+</%perl>
+</table>
+</%def>
+
+<%method get_field_name>
+<%args>
+$name
+$abbreviation
+$size
+$link_flag => 0
+$link_params => {}
+$link_text => ''
+$content_id => 0
+$is_mobi => 0
+</%args>
+<%perl>	
+	my $href = "";
+	my ($html, $append_html, $link_href);
+
+	if ($link_flag){
+		$link_href = "href=\"". $ENV{SCRIPT_URL} . "?" . $m->comp("SELF:make_link", link => $link_params) . "\"";
+	}
+
+	if ($content_id){
+		my $mobi = $is_mobi == 1 ? "/mobi" : "";
+		$href = "href=\"$mobi/view/content/" . $content_id . "\" target=\"content\"";
+	}
+	
+	if ($link_text and $link_flag){
+		$append_html = "\&nbsp;<a $link_href>" . $link_text . "</a>";		
+	}
+
+
+	if ($abbreviation){
+		$html = "<a $href title=\"" . $name . "\">" . $abbreviation . "</a>";
+	}elsif (length($name) > $size){
+		$html = "<a $href title=\"" . $name . "\">" . substr($name, 0, ($size - 3)) . "...</a>";
+	}elsif($href){
+		$html = "<a $href>" . $name . "</a>";
+	}else{
+		$html = $name;
+	}
+
+	return $html . $append_html;
+</%perl>
+</%method>
+
+<%def vertical_report>
+<%args>
+$args
+</%args>
+<& /tmpl/element:table, params => { width => "",
+                border =>"0",
+                cellspacing =>"0",
+		class => "tusk",
+                cellpadding =>"0" } &>
+<%perl>
+	my $class= "even";
+	print "<tr class=\"header\">\n";
+	my $colspan = scalar(@{$args->{attribute_order}}) ? 2 : 1;
+	my $title = ($args->{no_header}) ? $args->{label} : "Selection";
+
+	print "<td class=\"header-left\" nowrap colspan=\"" . $colspan . "\">" . $title . "</td>\n";
+	foreach my $result_set (@{$args->{result_array}}){
+		print "<td class=\"header-left\" nowrap>" . $result_set->{'id'} . "</td>\n";
+	}
+
+	my $level = 0;
+
+	for (my $int = 0; $int < scalar(@{$args->{field_order}}); $int++){
+
+		$level = 0 if ($level < 0);
+
+		$class = ($class eq "even") ? "odd" : "even";
+		my $rowspan = scalar(@{$args->{attribute_order}});
+		$rowspan++ if ($args->{show_total});
+		$rowspan++ unless $rowspan;
+
+		print "<tr class=\"" . $class . "\">\n";
+
+		if ($args->{field_order}->[$int]->{'token'} eq "CatEnd"){
+			$level--;
+			next;
+		}
+
+		my $other_link;
+		my $link_flag = 0;
+		unless ($m->comp("SELF:check_for_advanced", link => $args->{link})){
+			$other_link = $args->{link};
+			delete($other_link->{'fields'});
+			$other_link->{'type'} = "Other";
+			$other_link->{'fields'} = $args->{field_id};
+			$other_link->{'item_id'} = $args->{field_order}->[$int]->{id};
+			$link_flag = $args->{field_order}->[$int]->{'allow_other'};
+		}
+		print "<td nowrap class=\"header-left\" rowspan=\"" . $rowspan . "\">" . '&nbsp;&nbsp;&nbsp;' x $level . $m->comp("SELF:get_field_name", link_flag => $link_flag,
+							is_mobi => $args->{is_mobi},
+							link_params => $other_link,
+							link_text => '(Show Other)',
+							content_id => $args->{field_order}->[$int]->{'content_id'},
+							name => $args->{field_order}->[$int]->{'name'},
+							abbreviation => $args->{field_order}->[$int]->{'abbreviation'},
+							size => 20) . "</td>\n";
+		if (scalar(@{$args->{attribute_order}})){
+			for (my $j=0; $j<scalar(@{$args->{attribute_order}}); $j++){
+				print "<tr class=\"" . $class . "\">\n" if ($j>0);
+				print "<td nowrap class=\"header-left\">" . $m->comp("SELF:get_field_name", name => $args->{attribute_order}->[$j]->{'name'},
+													  is_mobi => $args->{is_mobi},
+												      abbreviation => $args->{attribute_order}->[$j]->{'abbreviation'},
+												      size => 10) . "</td>\n";
+				foreach my $result_set (@{$args->{result_array}}){
+					my $display = $result_set->{'attributes'}->[$int]->[$j] ? $result_set->{'attributes'}->[$int]->[$j] : 0;
+					$display = '&nbsp;' if ($args->{field_order}->[$int]->{'token'} eq "CatStart");
+					print "<td class=\"layers-center\">" . $display . "</td>\n";	
+				}
+				print "</tr>\n";
+			}
+			
+			print "<tr class=\"" . $class . "\"><td nowrap class=\"header-left\">Total</td>\n" if ($args->{show_total});	
+		}
+
+		if ($args->{show_total} || scalar(@{$args->{attribute_order}}) == 0){
+			foreach my $result_set (@{$args->{result_array}}){
+				my $display = $result_set->{'data'}->[$int] ? $result_set->{'data'}->[$int] : 0;
+				$display = '&nbsp;' if ($args->{field_order}->[$int]->{'token'} eq "CatStart");
+				print "<td class=\"layers-center\">" . $display . "</td>\n";
+			}
+		}
+
+		print "</tr>\n";
+
+		$level++ if ($args->{field_order}->[$int]->{'token'} eq "CatStart");
+	}
+
+</%perl>
+</table>
+</%def>
+
+<%method process>
+<%args>
+$args
+$type
+$report_obj
+$fields_hashref
+$header => ''
+$width => ''
+$link => ''
+$course => undef
+</%args>
+<%perl>
+	my $results = {type => $type, dataset => []};
+	my @students = ($course) ? $course->child_students("child_user_id = '" . $m->session->{'user'}->user_id() . "'") : ();
+
+	if ($args->{'type'} eq 'History'){
+		if (scalar @students > 1) {
+			my $data = [];
+			foreach my $student (@students) {
+				push @$data, @{$report_obj->HistoryperPerson($student->aux_info('time_period_id'), $student->aux_info('teaching_site_id'))};
+			}
+			push (@{$results->{dataset}}, { data => $data, header => $header, width => $width, link => $link } );				
+		} else {
+			push (@{$results->{dataset}}, { data => $report_obj->HistoryperPerson($args->{'time_period_id'}, $args->{'teaching_site_id'}), header => $header, width => $width, link => $link } );
+		}
+	}elsif ($args->{'item_id'}){
+		push (@{$results->{dataset}}, { data => $report_obj->$type($args), field => $fields_hashref->{$args->{'fields'}}, attribute => undef, header => $header, width => $width, title_append => '(Show user defined values)' } );
+	}else{
+		$args->{'fields'} = [ $args->{'fields'} ] unless (ref($args->{'fields'}) eq "ARRAY");
+		foreach my $field_input_id (@{$args->{'fields'}}){
+			($args->{field_id}, $args->{attribute_id}) = split(':', $field_input_id);
+			my $attribute;
+			$attribute = TUSK::FormBuilder::Attribute->new()->lookupKey($args->{attribute_id}) if ($args->{attribute_id});
+			my $advanced_search = (ref($args->{advanced_item_ids}) eq 'ARRAY' and scalar(@{$args->{advanced_item_id}})) ? 1 : 0;
+
+			if (scalar @students > 1) {
+				$args->{teaching_site_id} = [];
+				$args->{time_period_id} = [];
+				foreach my $student (@students) {
+					push @{$args->{teaching_site_id}}, $student->aux_info('teaching_site_id');
+					push @{$args->{time_period_id}}, $student->aux_info('time_period_id');
+				}
+			}
+			push (@{$results->{dataset}}, { data => $report_obj->$type($args), field => $fields_hashref->{$args->{field_id}}, attribute => $attribute, header => $header, width => $width, link => $link} );
+		}
+	}
+	return $results;
+</%perl>
+</%method>
+
+
+<%def OtherperPerson>
+<%args>
+$args
+</%args>
+<& otherresult, args => {%$args, key_id => 'user_id', key_field => 'Fullname' } &>
+</%def>
+
+<%def OtherperTimePeriod>
+<%args>
+$args
+</%args>
+<& otherresult, args => {%$args, key_id => 'time_period_id', key_field => 'Time Period' } &>
+</%def>
+
+<%def OtherperTeachingSite>
+<%args>
+$args
+</%args>
+<& otherresult, args => {%$args, key_id => 'teaching_site_id', key_field => 'Sitename' } &>
+</%def>
+
+<%def otherresult>
+<%args>
+$args
+$item_name => 'item_name'
+$other_field => 'text'
+</%args>
+<%perl>
+	unless (scalar(@{$args->{result}})){
+		print "No results.";
+		return;
+	}
+	
+	my $skip_key_field = ($args->{key_field} eq 'Fullname' and $args->{result}->[0]->{'user_id'} eq $m->session->{'user'}->user_id()) ? 1 : 0;
+</%perl>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+		class => "tusk",
+                cellpadding =>"0" } &>
+<tr class="header">
+<%perl>
+		print "<td class=\"header-left\">" . $args->{key_field} . "</td>\n" unless ($skip_key_field);
+		print "<td class=\"header-left\">" . $args->{result}->[0]->{$item_name} . "</td>\n";
+
+</%perl>
+</tr>
+<%perl>
+	my $class= "even";
+	my $cur_key = 0;
+	foreach my $result_text (@{$args->{result}}){
+		my $key_string = "&nbsp;";
+		# need to use ne since user_ids are strings
+		if ($result_text->{$args->{key_id}} ne $cur_key){
+			$class = ($class eq "even") ? "odd" : "even";
+			$cur_key = $result_text->{$args->{key_id}};
+			$key_string = $result_text->{$args->{key_field}};
+		}
+
+		print "<tr class=\"" . $class . "\">\n";
+		print "<td class=\"layers-left\">" . $key_string . "</td>\n" unless ($skip_key_field);
+		print "<td class=\"layers-left\">" . $result_text->{$other_field} . "</td>\n";	
+		print "</tr>\n";
+	}
+</%perl>
+</%def>
+
+
+<%def HistoryperPerson>
+<%args>
+$args
+</%args>
+<%perl>
+	my $result = $args->{result};
+	unless ($result->[0]->{'date'}){
+		print "No Records.";
+		return;
+	}
+</%perl>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+		class => "tusk",
+                cellpadding =>"0" } &>
+<tr class="header">
+<td class="header-left" width="10%">Date</td>
+<td class="header-left" width="40%">Field</td>
+<td class="header-left" width="40%">Response</td>
+</tr>
+<%perl>
+	my $class = "even";
+	my $cur_entry_id = 0;
+	my ($prev_field, $form_link);
+	my @form_links;
+
+	foreach my $result_text (@$result){
+		my $value = "";
+		my $extra = [];
+		my $field = '&nbsp;';
+
+		if ($result_text->{item_id}){
+			$value = $result_text->{item_name};
+			if ($result_text->{attribute_id}){
+				push (@$extra, $result_text->{attribute_name});
+			}
+			if ($result_text->{text}){
+				push (@$extra, $result_text->{text});
+			}
+
+			$value .= "&nbsp;(" . join(', ', @$extra) . ")" if (scalar(@$extra));
+		}else{
+			$value = $result_text->{text};
+		}
+
+		next unless ($value);
+	
+		unless ($result_text->{active_flag}){
+			$value = "<span class=\"strike\">" . $value . "</span>";
+		}
+
+		my $date_string = "&nbsp;";
+
+		if ($result_text->{entry_id} != $cur_entry_id){
+			if ($form_link){
+				# in case we are using form links and this record had only one entry...it could happen
+				$m->comp("SELF:make_history_row", date_string => $form_link, field => '&nbsp;', class => $class, value => '&nbsp');
+			}
+			$class = ($class eq "even") ? "odd" : "even";
+			$cur_entry_id = $result_text->{entry_id};
+			$date_string = $result_text->{date};
+			$prev_field = "";
+			@form_links = @{$args->{form_link}} if (exists($args->{form_link}));
+		}
+
+		unless ($prev_field eq $result_text->{field_name}){
+			$field = $result_text->{field_name};
+			$prev_field = $result_text->{field_name};
+		}
+		
+		if ($date_string eq '&nbsp;'){
+			if (scalar(@form_links)){
+				my $form_link_hash = shift(@form_links);
+				$date_string = '[<a href="' . $form_link_hash->{href} . '?entry_id=' . $result_text->{entry_id} . '">' . $form_link_hash->{text} . '</a>]';
+			}			
+		}
+		$value =~ s/\n/<br\/>/g;
+		$m->comp("SELF:make_history_row", date_string => $date_string, field => $field, class => $class, value => $value);
+	}
+</%perl>
+</table>
+</%def>
+
+<%method make_history_row>
+<%args>
+$date_string
+$field
+$value
+$class
+</%args>
+<%perl>
+	print "<tr class=\"" . $class . "\">\n";
+	print "<td class=\"layers-left-less-padding\" nowrap>" . $date_string . "</td>\n";
+	print "<td class=\"layers-left-less-padding\">" . $field . "</td>\n";
+
+	print "<td class=\"layers-left-less-padding\">" . $value . "</td>\n";
+	print "</tr>\n";
+</%perl>
+</%method>
+
+<%method make_link>
+<%args>
+$link => {}
+</%args>
+<%perl>
+	my $link_text;
+	my $link_array = [];
+	foreach my $key (keys(%$link)){
+		if (ref($link->{$key}) eq "ARRAY"){
+			foreach my $subkey (@{$link->{$key}}){
+				next unless ($subkey);
+				$link_text .= '&' if ($link_text);
+				$link_text .= $key . "=" . $subkey;
+			}
+		}else{
+			$link_text .= '&' if ($link_text);
+			$link_text .= $key . "=" . $link->{$key};
+		}
+	}
+
+	return $link_text;
+</%perl>
+</%method>
+
+<%method check_for_advanced>
+<%args>
+$link
+</%args>
+<%perl>
+	return 0 if (!defined($link->{advanced_item_id}) or ref($link->{advanced_item_id}) ne 'ARRAY');
+	foreach my $item (@{$link->{advanced_item_id}}){
+		return 1  if ($item);
+	}
+	return 0;
+</%perl>
+</%method>

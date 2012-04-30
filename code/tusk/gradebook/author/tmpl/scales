@@ -1,0 +1,64 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method show_linked_events>
+<%args>
+	$type_path
+	$link_scale_events
+	$school
+</%args>
+
+<%perl>
+my $link_scale_events_arrayhash;
+
+foreach my $link (@$link_scale_events) {
+		my $event = TUSK::GradeBook::GradeEvent->lookupKey($link->getGradeEventID());
+		my $tp_obj = HSDB45::TimePeriod->new( _school => $school)->lookup_key($event->getTimePeriodID());
+		push(@$link_scale_events_arrayhash,{'name'=>$event->getEventName(), 'id'=>$event->getPrimaryKeyID(), 'timeperiod'=>$tp_obj->out_label()});
+}	
+
+</%perl>
+
+<div><b> This scale is currently linked to <% scalar(@$link_scale_events) %> Grade Event<% (scalar(@$link_scale_events) > 1) ? "s":"" %>. </b> </div> <br>
+<div id="showlink"><a href="javascript:" onclick="showHideDiv('linkedevents');showHideDiv('showlink');showHideDiv('hidelink');" class="navsm">Show Linked Events</a></div>
+<div id="hidelink" style="display:none;"><a href="javascript:" onclick="showHideDiv('linkedevents');showHideDiv('showlink');showHideDiv('hidelink');" class="navsm">Hide Linked Events</a></div>
+
+<br>
+<div id="linkedevents" style="display:none;">
+<table><tr><td></td><td>
+<%perl>
+
+$m->comp("/tmpl/element:object_selection_box", params => { 
+	sort_box => 0,
+	columns => [ 
+		{'label' => 'Name', 'field' => 'name'},
+		{'label' => 'Time Period', 'field' => 'timeperiod', 'align'=>'center'},
+	],
+	action_columns => [ 
+		{ 'label' =>'Modify','link' => '/gradebook/author/addedit' },
+	],
+
+	action_column_align => 'left',
+	rows => $link_scale_events_arrayhash,
+	type_path => $type_path,
+	name => "scales",});
+
+
+</%perl>
+</td></tr></table>
+<br>
+</div>
+
+</%method>

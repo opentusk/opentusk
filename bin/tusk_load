@@ -1,0 +1,117 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use Data::Dumper;
+use HSDB4::Constants;
+use HSDB4::SQLRow::Content;
+use MySQL::Password;
+use XML::Twig;
+use XML::LibXML;
+use Getopt::Long;
+
+my ($course_id,$school,$dump_dir,$exclude_type,$commit,$data_dir);
+
+GetOptions("course_id=s"=> \$course_id,
+	   "school=s"=> \$school,
+	   "dump_dir=s" => \$dump_dir,
+	   "data_dir=s" => \$data_dir,
+	   "commit" => \$commit,
+	   "exclude_type=s" => \$exclude_type);
+
+unless ($school && $course_id && $dump_dir && $data_dir) {
+    die "Usage: tusk_dump --course_id=<course_id> --school=<school> --dump_dir=<dir for dump> --exclude_type=<type>,<type>,... --commit --data_dir=<location for data files>\n";
+}
+
+my $db = HSDB4::Constants::get_school_db($school);
+die "Can't find database for $school" unless $db;
+
+HSDB4::Constants::set_user_pw (get_user_pw);
+my ($user_id,$password) = get_user_pw;
+
+open DUMP_XML, "$dump_dir/tusk_dump.xml" or die "Can't find $dump_dir/tusk_dump.xml";
+undef $/;
+my $dump_xml = <DUMP_XML>;
+close DUMP_XML;
+$dump_xml =~ s/]]/############/g;
+my $twig = XML::Twig->new(pretty_print => 'indented');
+$twig->parse($dump_xml);
+
+## process self, get content_id - process children
+my $root = $twig->root;
+my $course = $root->first_child('course');
+my @content = $course->children('content');
+
+foreach my $content_elt ($course->children('content')) {
+    &add_course_content($content_elt,$course_id,$school);
+}
+
+sub add_course_content {
+    my ($content_elt,$course_id,$school) = @_;
+    my $label = $content_elt->att("label");
+    my $sort_order = $content_elt->att("sort_order");
+    my $content = &add_content($content_elt);
+    my $course = HSDB45::Course->new(_id => $course_id, _school => $school);
+    $course->add_child_content($user_id,$password,$content->primary_key,$sort_order) if ($commit);
+    foreach my $child_content ($content_elt->children('content')) {
+	&add_content_content($child_content,$content->primary_key);
+    }
+}
+
+sub add_content_content {
+    my ($content_elt,$parent_content_id) = @_;
+    my $label = $content_elt->att("label");
+    my $sort_order = $content_elt->att("sort_order");
+    my $content = &add_content($content_elt);
+    my $parent_content = HSDB4::SQLRow::Content->new->lookup_key($parent_content_id);
+    $parent_content->add_child_content($user_id,$password,$content->primary_key,$sort_order,$label) if ($commit);
+    foreach my $child_content ($content_elt->children('content')) {
+	&add_content_content($child_content,$content->primary_key);
+    }    
+}
+
+sub add_content {
+	my $elt = shift;
+	my $content = HSDB4::SQLRow::Content->new();
+	my %content_fields;
+	foreach my $value_elt ($elt->children("!content")) {	    
+	    $content_fields{$value_elt->gi} = $value_elt->text;
+	}
+	$content_fields{body} =~ s/############/]]/g;
+	$content->set_field_values(%content_fields);
+	$content->set_field_values(course_id => $course_id,school => $school);
+	$content->save($user_id,$password) if ($commit);
+	my $new_id = $content->primary_key;
+	if ($content->field_value("type") =~ /PDF/ && $commit) {
+	    my $old_id = $elt->att("existing_content_id");
+	    my $command = "cp $dump_dir/files/$old_id.pdf $data_dir/web-auth/pdf/$new_id.pdf";
+	    system($command);
+	    $content_fields{body} =~ s/$old_id/$new_id/s;
+	}
+	if ($content->field_value("type") =~ /DownloadableFile/ && $commit) {
+	    my $filename = $elt->att("filename");
+	    my ($old_id,$ext) = split('\.',$filename);
+	    my $command = "cp $dump_dir/files/$filename $data_dir/downloadable_file/$new_id.".$ext;
+	    system($command);
+	    $content_fields{body} =~ s/$old_id/$new_id/s;
+	}
+	$content->set_field_values(body => $content_fields{body});
+	$content->save($user_id,$password) if ($commit);
+	return $content;	
+}

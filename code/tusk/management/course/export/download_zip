@@ -1,0 +1,55 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use CGI;
+</%once>
+<%attr>
+	default_path_type    => 'course'
+	must_be_school_admin => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+<%init>
+# extra chars were getting inserted.
+# this really should prob be a perlhandler, not a mason page, but we'll have to change that later.
+# to avoid extra chars, we clear_buffer and abort() per:
+# http://www.masonhq.com/?FAQ:Components#h-why_does_my_output_have_extra_newlines_whitespace_and_how_can_i_get_rid_of_it_
+my $zip = $m->comp('/tmpl/url:get_last_path_id');
+
+if($zip =~ /\.\.\// || $zip !~ /\.zip$/){
+	$m->comp('/tmpl/url:redirect', message => 'Invalid file name.', msg_type => 'errmsg', always_homepage => 1);
+}
+
+my $file = "/data/temp/$zip";
+my $fileSize = -s $file;
+
+my $upload_file;
+unless($upload_file = open($file)) {
+	$m->comp('/tmpl/url:redirect', message => 'Unable to open file.', msg_type => 'errmsg', always_homepage => 1);
+}
+$m->clear_buffer();
+$m->autoflush(1);
+$r->content_type('application/octet-stream');
+$r->headers_out->set("Accept-Ranges", "bytes");
+$r->headers_out->set("Content-Length", $fileSize);
+$r->headers_out->set("Content-disposition","attachment; filename=". $zip);
+$r->no_cache(1);
+$r->send_http_header;
+$r->send_fd($upload_file);
+close $upload_file;
+$m->autoflush(0);
+$m->abort();
+</%init>

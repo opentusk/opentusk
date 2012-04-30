@@ -1,0 +1,55 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	top_tab_type => 'home'
+</%attr>
+
+<%method get_nav_bars>
+<%perl>
+	my ($course, $initial_nav_bars);
+
+	unless ($m->base_comp->attr('no_check_path')) {
+		$course = $m->comp("/tmpl/url:get_type_object");
+	}
+
+	if ($course) {
+		my $path = $course->school() . "/" . $course->course_id();
+		$initial_nav_bars = [ 
+			{ href => '/assessment/student/home', label => 'Assessments Homepage'},
+		];
+	}
+
+	return $m->comp("/tmpl/nav", 
+		objects =>  $m->comp("SELF:get_nav_bar_objects"), 
+		type_path => ($m->base_comp->attr('no_check_path')) ? '' : undef,
+		prefix => '/assessment/student',
+		hierarchy => {	
+			'home' => [],
+			'entry' => [],
+		},
+		nav_entities_dependency => {},
+		title_func => { 'TUSK::FormBuilder::Form' => 'getFormName', },
+		initial_nav_bar =>  $initial_nav_bars,
+	);
+</%perl>
+</%method>
+
+<%method red_header_class>
+% 	return 'blueHeaderBar';
+</%method>
+
+<% $m->call_next %>
+

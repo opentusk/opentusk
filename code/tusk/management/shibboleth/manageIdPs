@@ -1,0 +1,372 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	check_cms_permissions	=> 0
+	must_be_school_admin	=> 1
+	must_be_tusk_admin	=> 1
+	top_tab_type		=> 'manage'
+</%attr>
+
+<%once>
+	use TUSK::Shibboleth::User;
+	use TUSK::Course::CourseSharing;
+	use TUSK::Constants;
+</%once>
+
+<%method title>
+%	return $title;
+</%method>
+
+<%method red_header_text>
+%	return $title;
+</%method>
+
+<%method leftnav>
+%	return { component => "/tmpl/leftnav/admin", school_name => $schoolName };
+</%method>
+
+<%method get_nav_bars>
+  <%perl>
+	return [
+		{ href => '/management/home', label => 'CMS Home'},
+		{ href => $baseScript, label => $TUSK::Constants::SiteAbbr  . ' Shibboleth IdPs'},
+	];
+  </%perl>
+</%method>
+
+<%shared>
+	my $genScript = $ENV{SCRIPT_NAME};
+	$genScript =~ s/manageIdPs/generateShibbolethXML/;
+	my $genButtontext = "Generate Shibboleth Files";
+	my $schoolName = $m->comp("/tmpl/url:get_school");
+	my ($action, $userID) = $m->comp("/tmpl/url:get_path_ids");
+	my $title = 'Set In Startup';
+	my $baseScript = "$ENV{SCRIPT_NAME}/school/$schoolName";
+</%shared>
+
+<%method startup>
+  <%args>
+    $args => {}
+  </%args>
+
+  <%perl>
+        $title = $TUSK::Constants::SiteAbbr . " Shibboleth IdPs";
+        if(($action eq 'add') || ($action eq 'modify')) {
+                $title = ucfirst($action) . " Shib IdP for " . $TUSK::Constants::SiteAbbr;
+        	if(${$args}{do_action}) {
+			if( ${$args}{'user_name'} && ${$args}{'enabled'} && ${$args}{'institution_name'}) {
+				my $tempShibIdP;
+				my $message;
+				if($action eq 'modify')	{
+					$tempShibIdP = TUSK::Shibboleth::User->new()->lookupKey($userID);
+					unless($tempShibIdP->getPrimaryKeyID()) {
+						${$args}{errmsg} = 'Unable to modify Shib IdP, specified user could not be found!';
+					}
+					$message = 'Shib user modified successfully';
+				} else {
+					$tempShibIdP = TUSK::Shibboleth::User->new();
+					$message = 'Shib user added successfully';
+				}
+
+				unless(${$args}{errmsg}) {
+					$tempShibIdP->setShibbolethInstitutionName(${$args}{'institution_name'});
+					$tempShibIdP->setUserGreeting(${$args}{'user_name'});
+					$tempShibIdP->setEnabled(${$args}{'enabled'});
+					$tempShibIdP->setLogoutPage(${$args}{'logout_page'});
+					if(${$args}{IdPXML}) {$tempShibIdP->setIdPXML(${$args}{IdPXML});}
+
+					if($tempShibIdP->save()) {
+						${$args}{msg} = 'Shib IdP ' . ucfirst($action);
+						# The user was added correctly, lets re-direct to the main sharing page with a message.
+						$m->redirect(
+							$m->comp("/tmpl/url:construct_url",
+								'base_url' => "$baseScript",
+								'msg'      => $message,
+								'msgtype'  => 'msg',
+								'extra'    => '',
+							)
+						);
+					} else {
+						${$args}{errmsg} = 'Shib IdP ' . $action . ' Failed!';
+					}
+				}
+			} else {
+				${$args}{errmsg} = 'Action failed, missing input';
+			}
+		}
+	} elsif($action eq 'delete') {
+		$title = "Delete Shib IdP";
+		if(${$args}{do_action}) {
+			my $tempShibIdP = TUSK::Shibboleth::User->new()->lookupKey($userID);
+			unless($tempShibIdP->getPrimaryKeyID()) {
+				${$args}{errmsg} = 'Unable to delete Shib IdP, specified user could not be found!';
+			} else {
+				eval {$tempShibIdP->delete();};
+				unless($@) {
+					# The user was deleted correctly, lets re-direct to the main sharing page with a message.
+					$m->redirect(
+						$m->comp("/tmpl/url:construct_url",
+							'base_url' => "$baseScript",
+							'msg'      => "Shib IdP successfully deleted",
+							'msgtype'  => 'msg',
+							'extra'    => '',
+						)
+					);
+				} else {
+					${$args}{errmsg} = "The shib user could not be deleted, check and see if there are course shares related to this user!";
+				}
+			}
+		}
+	} elsif($action eq 'view_shares') {
+		$title = "View " . $TUSK::Constants::SiteAbbr . " Course Shares";
+	}
+  </%perl>
+</%method>
+
+
+
+<& /tmpl/element:form, params => {
+	name => 'theForm',
+	method => 'POST',
+	onsubmit =>undef,
+} &>
+<%perl>
+	if(($action eq 'add') || $ARGS{add_shib_user}) {
+		$m->comp('SELF:newShibIdP', args => \%ARGS);
+	} elsif($action eq 'delete') {
+		my $user = TUSK::Shibboleth::User->new->lookupKey($userID);
+		$m->comp('SELF:deleteShibIdP', user => $user);
+	} elsif($action eq 'modify') {
+		my $user = TUSK::Shibboleth::User->new->lookupKey($userID);
+		$m->comp('SELF:newShibIdP', args => {
+			institution_name	=> $user->getShibbolethInstitutionName(),
+			user_name 		=> $user->getUserGreeting(),
+			enabled 		=> $user->isEnabled(),
+			logout_page 		=> $user->getLogoutPage(),
+			IdPXML 			=> $user->getIdPXML(),
+		});
+	} elsif($action eq 'view_shares') {
+		$m->comp('SELF:viewShares');
+	} else {
+		$m->comp('SELF:default');
+	}
+</%perl>
+
+
+</form>
+
+
+<%method default>
+%	my $shibIdPs = TUSK::Shibboleth::User->new()->lookup();
+	<br>
+	<& /tmpl/element:button, params => {
+		name  => 'new_shib_user',
+		label => 'Add Shibboleth IdP',
+		onclick => "document.location='$baseScript/add';",
+	}&>
+	<& /tmpl/element:button, params => {
+		name  => 'gen_files',
+		label => $genButtontext,
+		onclick => "document.location='" . $genScript . "';",
+	}&>
+	<& /tmpl/element:button, params => {
+		name  => 'view_shib_shares',
+		label => 'View Course Shares',
+		onclick => "document.location='$baseScript/view_shares';",
+	}&>
+	<br><br>
+	<center>
+	<& /tmpl/element:object_selection_box, params => {
+		sort_box => 0,
+		columns => [
+			{'label' => 'Institution Name', 'field' => 'getShibbolethInstitutionName'},
+			{'label' => 'User Greeting', 'field' => 'getUserGreeting'},
+			{'label' => 'Enabled', 'field' => 'isEnabled'},
+			{'label' => 'Is Out Of Date', 'field' => 'needsRegen'},
+		],
+		modify_link => "$baseScript/modify",
+		delete_link => "$baseScript/delete",
+		object_list => $shibIdPs,
+		type_path => $m->comp("/tmpl/url:get_type_path"),
+		name => "shibboleth users",
+	} &>
+	<br><br>
+%	my $printWarning = 0;
+%	my $plural = ' is';
+%	for(@{$shibIdPs}) {
+%		if($_->needsRegen() eq 'Y') {$printWarning++;}
+%		if($printWarning > 1) {$plural = "s are";}
+%	}
+%	if($printWarning) {
+			<font color="red"><b>
+				<% $printWarning %> IdP<% $plural %> out of date!<br>
+				Please use the "<% $genButtontext %>" button above to fix this.
+			</b></font>
+%	}
+	</center>
+</%method> 
+
+
+
+
+<%method viewShares>
+%	my $courseShares = TUSK::Course::CourseSharing->new()->lookup("1 = 1");();
+	<br>
+	<center>
+%	my $courseSorted;
+	<table class="tusk" cellspacing="0" width="100%">
+	<tbody>
+		<tr class="header">
+			<td colspan="5" class="header-left">Course Title</td>
+			<td class="header-right">Action</td>
+		</tr>
+		<tr class="header">
+			<td class="header-left" style="border-top: 1px grey solid"></td>
+			<td class="header-left" style="border-top: 1px grey solid">Shared With</td>
+			<td class="header-left" style="border-top: 1px grey solid">Avaliable Date</td>
+			<td class="header-left" style="border-top: 1px grey solid">End Date</td>
+			<td class="header-left" style="border-top: 1px grey solid" colspan="2">Shared Note</td>
+		</tr>
+
+%	my $lastCourse;
+%	my %shibIdPs;
+%	foreach my $share (@{$courseShares}) {
+%		my $course;
+%		#Look up the shib user names and keep them in a hash for reference
+%		unless(exists($shibIdPs{ $share->getSharedWith() })) {
+%			$shibIdPs{ $share->getSharedWith() } = TUSK::Shibboleth::User->new()->lookupKey($share->getSharedWith())->getShibbolethInstitutionName();
+%		}
+%		if($lastCourse != $share->getCourseID()) {
+%			$course = TUSK::Course->new()->lookupKey($share->getCourseID())->getHSDB45CourseFromTuskID();
+			<tr class="odd">
+				<td colspan="5" class="header-left"><% $course->title() %></td>
+				<td class="layers-right"><a href="/management/course/sharing/<% $course->school() %>/<% $course->primary_key() %>" class="navsm">View</a>
+			</tr>
+%			$lastCourse = $share->getCourseID();
+%		}
+%		my $style = 'style="color:grey;"';
+%		if($share->isCurrent()) {$style='';}
+		<tr class="even">
+			<td width="10px" class="layers-left"></td>
+			<td class="layers-left" <% $style %>><% $shibIdPs{ $share->getSharedWith() } %></td>
+			<td class="layers-left" <% $style %>><% $share->getAvaliableFrom() %></td>
+			<td class="layers-left" <% $style %>><% $share->getAvaliableTo() %></td>
+			<td class="layers-left" colspan="2" <% $style %>><% $share->getAuthorizingNote() %></td>
+		</tr>
+%	}
+	</table>
+
+	</center>
+</%method> 
+
+
+<%method newShibIdP>
+	<%args>
+		$args => {}
+	</%args>
+
+	<& /tmpl/element:table, params => {
+		width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0",
+	} &>
+	<& /tmpl/element:textbox, params => {
+		label => 'Institution Name',
+		value => "${$args}{institution_name}",
+		name => 'institution_name',
+	} &>
+	<& /tmpl/element:textbox, params => {
+		label => 'User Display Name',
+		value => "${$args}{user_name}",
+		name => 'user_name',
+	} &>
+	<& /tmpl/element:dropdown, params => {
+		label => 'Enabled',
+		name => 'enabled',
+		options => [
+			{ label => 'Yes', value => 'Yes' },
+			{ label => 'No', value => 'No' },
+		],
+		selected => "${$args}{enabled}",
+	} &>
+	<& /tmpl/element:textbox, params => {
+		label => 'Logout Page',
+		value => "${$args}{logout_page}",
+		name => 'logout_page',
+	} &>
+	<& /tmpl/element:textarea, params => {
+		label => 'IdP XML',
+		value => "${$args}{IdPXML}",
+		name => 'IdPXML',
+		cols => 80,
+		rows => 20,
+	} &>
+	<& /tmpl/element:save_button, params => {
+		name => 'do_action',
+		label => ucfirst($action) . ' Shibboleth IdP',
+		cancel_onclick => "document.location='$baseScript?msg=Shib+IdP+Modification+Delete+Canceled';",
+	} &>
+	</table>
+</%method>
+
+
+<%method deleteShibIdP>
+	<%args>
+		$user => {}
+	</%args>
+
+	<& /tmpl/element:table, params => {
+		width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0",
+	} &>
+	<& /tmpl/element:field_display, params => {
+		label => 'Institution Name',
+		value => $user->getShibbolethInstitutionName(),
+	} &>
+	<& /tmpl/element:field_display, params => {
+		label => 'User Display Name',
+		value => $user->getUserGreeting(),
+	} &>
+	<& /tmpl/element:field_display, params => {
+		label => 'Enabled',
+		value => $user->isEnabled(),
+	} &>
+	<& /tmpl/element:field_display, params => {
+		label => 'Logout Page',
+		value => $user->getLogoutPage(),
+	} &>
+%	my $courseShares = TUSK::Course::CourseSharing->new->lookup("shared_with='" . $user->getPrimaryKeyID() . "'");
+%	if(scalar(@{$courseShares}) > 0) {
+		<tr><td>&nbsp;</td><td>
+		<& /tmpl/element:button, params => {
+			name => 'cancel',
+			label => 'Cancel',
+			onclick => "document.location='$baseScript?msg=Delete+Shib+IdP+Canceled';",
+		} &>
+		</td><tr>
+		</table><br>
+		<b><center>This Shib IdP can not be deleted because there are course shares related to the user.</center></b>
+%	} else {
+		<& /tmpl/element:save_button, params => {
+			name => 'do_action',
+			label => 'Delete',
+			cancel_onclick => "document.location='$baseScript?msg=Delete+Shib+IdP+Canceled';",
+		} &>
+%	}
+</%method>

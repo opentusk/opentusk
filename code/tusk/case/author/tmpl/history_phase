@@ -1,0 +1,134 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+my $get_questions = sub {
+	my $phase = shift or die "phase needs to be passed";
+	my @questionarray = map { {'history_phase_question_id'=>$_->getPrimaryKeyID(),
+					'question'=>$_->getQuestion(),
+					'answer'=>$_->getAnswer()}  }
+				@{$phase->getChildHistoryQuestions()};
+	return \@questionarray;
+};
+</%once>
+
+
+
+<!--- History Phase Info --->
+
+<%perl>
+my $phase = $ARGS{'phase'};
+my $phase_type = $phase->getPhaseType();
+my ($phase_title,$phase_name) = $m->comp("sections:get_phase_info",'phase'=>$phase);
+my $phase_id = $phase->getPrimaryKeyID();
+my $questionarray;
+if ($phase_id){
+	$questionarray = $get_questions->($phase);
+} else {
+	$questionarray = [];
+}
+
+my $case = $ARGS{'case'};
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $patient_type = $case->getPatientType();
+
+</%perl>
+
+<& /tmpl/element:top_header_row, label=>$phase_title &>
+
+<& /tmpl/element:textarea, params=>{ label => 'History Narrative',
+        name=>"main_text",
+        cols=>"60",
+        rows=>"4",
+        value=>$phase->getMainText(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120'} &>
+
+<%perl>
+      my  $button_text = $m->scomp('/tmpl/element:button',
+               params=>{ onclick=>"addnewdata('qandadiv',
+			{ history_phase_question_id:'0',question:'',answer:'' });",
+               name=>'addanswer',
+               label=>'Create Question'});
+</%perl>
+<& /tmpl/element:sort_order_box , params =>{
+                label=>'Questions/Answers',
+                no_add_button=>1,
+                buttons => [$button_text],
+                layer_info => {
+                        layer => 'qandadiv',
+                        fields => ['history_phase_question_id','question','answer'],
+                        name => 'questions',
+                        sort => {usage => 'Yes', length=>50},
+                        action => {usage => 'Yes', length=>100,
+                                functions => [
+					{func=>'remove', label=>'Delete'} ]},
+                        display => [
+				{label=>'question',field=>'question', align=>'left', length=>310,type=>'textarea', htmleditor => '1'},
+				{label=>'answer',field=>'answer', align=>'left', length=>310,type=>'textarea', htmleditor => '1'}
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data =>$questionarray,
+                        }
+                } &>
+
+<& sections:diagnostic_studies, case=>$case, phase=>$phase,patient_type=>$patient_type, type_path=>$type_path &>
+
+<!--- End History Phase Info --->
+
+
+<%method process_args>
+<%args>
+$phase
+$user_id
+%params 
+</%args>
+<%perl>
+	my $args = \%params;
+	my $questionarray = $get_questions->($phase);
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^qandadiv');
+	my $pk = $phase->getPrimaryKeyID();
+	$m->comp('/tmpl/process:manipulate_rows',
+                row_type => 'Direct',
+                user => $user_id,
+                object_name => 'TUSK::Case::Phase::History::Question',
+                fields_data => $rowHash,
+                default_field_data=>{'phase_id'=>$pk },
+                field_function_map => {
+				'phase_id'=>'setPhaseID',
+				'sortorder' => 'setSortOrder',
+                                'question'=>'setQuestion',
+                                'answer'=>'setAnswer' },
+                display_data => $questionarray );
+</%perl>
+
+% my $case = $ARGS{'case'};
+% my $patient_type = $case->getPatientType();
+<& sections:process_diagnostic_studies, user_id=>$user_id,phase=>$phase,
+			patient_type=>$patient_type,args=>\%params &>
+
+</%method>
+
+<%method phaseReport>
+<%args>
+$phase
+$case
+$case_report
+</%args>
+<& sections:batteryPhaseReport, case_report=>$case_report, case=>$case,phase=>$phase &>
+</%method>
+

@@ -1,0 +1,100 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+my $course = $m->comp('/tmpl/url:get_type_object');
+my $user = $m->comp('SELF:user');
+</%shared>
+<%method title>
+<%perl>
+my $title = "Reuse Case";
+return $title;
+</%perl>
+</%method>
+
+<%method leftnav>
+<%perl>
+return "/tmpl/leftnav/course";
+</%perl>
+</%method>
+
+<%once>
+use TUSK::Case::Case; 
+use TUSK::Case::LinkCourseCase; 
+</%once>
+<%attr>
+no_check_path=>0
+</%attr>
+<%perl>
+my $typePath = $m->comp('/tmpl/url:get_type_path');
+my $formname = 'casereuse';
+</%perl>
+<& /tmpl/element:form, params => { 
+                method => 'POST',
+                name => $formname,
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+<& /tmpl/element:vertical_spacing,size=>1 &>
+<& /tmpl/element:textbox,  params =>{ label => 'Case ID to Reuse',
+                name => 'reuse_case_id',
+                value => undef,
+                size => 10,
+                length => 15 } &>
+<& /tmpl/element:tr_tag &><td colspan="2">
+<& tmpl/element:case_search_link,input_field_name=>'reuse_case_id',
+				formname=>$formname &>
+</td>
+</tr>
+<& /tmpl/element:save_button, params=>{'label'=>'Reuse Case',
+		'name'=>'reuse_submit'} &>
+<& /tmpl/element:vertical_spacing, size=>1 &>
+</table> 
+</form>
+
+<%init>
+my $errmsg;
+my $msgtype = 'errmsg';
+if ($ARGS{'reuse_submit'}){
+	my $course_id = $course->course_id;
+	my $case = TUSK::Case::Case->lookupKey($ARGS{'reuse_case_id'});
+	if (!$case){
+		$errmsg = "The case ID ".$ARGS{'reuse_case_id'}." is not valid please try again ";
+	} elsif (!$case->getShareCase){
+		$errmsg = "The case ID ".$ARGS{'reuse_case_id'}." is not being shared."
+		. " It is unavailable to use." ;
+	} elsif (TUSK::Case::LinkCourseCase->exists(" parent_course_id = $course_id and child_case_id = ".$case->getPrimaryKeyID)){
+		$errmsg = "That case is already linked to this course";
+	} else {
+                my $link = TUSK::Case::LinkCourseCase->new();
+                $link->setParentCourseID($course_id);
+                $link->setChildCaseID($case->getPrimaryKeyID());
+                $link->setSchoolID($course->get_school->getPrimaryKeyID());
+                $link->save({'user'=>$user});
+		$errmsg = "Case Reused.";
+		$msgtype = 'msg';
+	}
+
+}
+if ($errmsg){
+	$m->redirect($m->comp("/tmpl/url:construct_url", 
+		'base_url' => "/case/author/caseshow", 
+		'msg' => $errmsg, 'msgtype'=>$msgtype));
+}
+
+</%init>

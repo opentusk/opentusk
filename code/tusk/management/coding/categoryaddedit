@@ -1,0 +1,128 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Coding::Category;
+	use TUSK::Coding::Type;
+</%once>
+
+<%shared>
+	my $school_obj =  $m->comp("/tmpl/url:get_type_object");
+	my $school_id = $school_obj->getPrimaryKeyID();
+	my $categories_data = [];
+	### we hard code this for now but could be expanded to other types of codes in the future
+	my $coding_type = TUSK::Coding::Type->new()->lookupReturnOne("token = 'procedure'");
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'categoryaddedit' } &>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { 
+	border		=> "0",
+	cellspacing	=> "0",
+	cellpadding	=> "0",
+} &>
+
+<& /tmpl/element:sort_order_box, params => {
+	no_label 		=> 1,
+	no_add_button 	=> 0,
+	button_onclick	=> "addnewdata('categorydiv',{ coding_category_id:'0', name:'', school_id:'$school_id', type_id:'" . $coding_type->getPrimaryKeyID() . "' });",
+	button_label	=> 'Add Category',
+	layer_info => {
+		layer => 'categorydiv',
+		context_path => $m->comp("/tmpl/url:get_full_path"),
+		base_path => $m->comp("/formbuilder/util:get_base_dir"),
+		fields => ['coding_category_id', 'name', 'school_id', 'type_id'],
+		name => 'category',
+		sort => {usage => 'Yes'},
+		action => {	usage => 'Yes', 
+					length=> 150,
+                   	functions => [
+						{func=>'remove', label=>'Delete'},
+						{func=>'codes_modify', label=>'Manage Codes'},			
+					]
+		},
+		scrollrows => 15,
+		display => 	[ 
+			{label => 'Category Name', field => 'name', align=>'left', length => 200, type=>'textbox' }, 
+			{field => 'school_id', type=>'hidden' }, 
+			{field => 'type_id', type=>'hidden' }, 
+		],
+		validate => { usage => 'No', form => 'categoryaddedit'},
+		data => $categories_data 
+	}
+} &>
+
+
+<& /tmpl/element:save_button, params => {
+	label 			=> 'Save Changes',
+	name			=> 'save_changes',
+	one_column		=> 1,
+	no_cancel_button => 1,
+} &>
+
+</table>
+</form>
+
+
+<%init>
+	$categories_data = $m->comp('SELF:get_categories_data');
+	if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)) {
+		my $row_hash = $m->comp('/tmpl/process:process_fields',fields => \%ARGS, filter => '^categorydiv');
+
+		$m->comp('/tmpl/process:manipulate_rows',
+			row_type => 'Direct',
+			user => $m->session->{'user'}->user_id(),
+			object_name => 'TUSK::Coding::Category',
+			fields_data => $row_hash,
+			field_function_map => {
+				'name'		=> 'setLabel',
+				'school_id' => 'setSchoolID',
+				'type_id'	=> 'setCodingTypeID',
+				'sortorder' => 'setSortOrder',
+			},
+			display_data => $categories_data );
+
+		$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msg' => 'Successfully saved'));
+	}
+</%init>
+
+<%method get_categories_data>
+<%perl>
+	my $categories = TUSK::Coding::Category->lookup("school_id = $school_id", ['sort_order']);
+	my @data = ();
+	foreach my $cat (@$categories) {
+		push @data, {coding_category_id => $cat->getPrimaryKeyID(), name => $cat->getLabel(), school_id => $school_id, type_id => $cat->getCodingTypeID()};
+	}
+	return \@data;
+</%perl>
+</%method>
+
+<%method jsarray>
+% 	return ['layers.js', 'element.js', 'coding.js' ];
+</%method>
+
+<%method title>
+%	return "Manage Classification Categories";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+

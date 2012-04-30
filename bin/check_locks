@@ -1,0 +1,147 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use strict;
+use TUSK::Core::ServerConfig;
+use MySQL::Password;
+use DBI;
+use Fcntl;
+use Term::ReadKey;
+use IO::Handle;
+autoflush STDOUT 1;
+autoflush STDIN 1;
+
+
+# set STDIN to do non-blocking read
+my $flags = '';
+fcntl(STDIN, F_GETFL, $flags) or die "Couldn't get flags for STDIN : $!\n";
+$flags |= O_NONBLOCK;
+fcntl(STDIN, F_SETFL, $flags) or die "Couldn't set flags for STDIN: $!\n";
+
+my $clear = `clear`;
+
+my $timeThreshold = 10;   #Number of seconds before we care about a lock;
+my $sleepTime = 1;	  #Default seconds to sleep between queries;
+
+if(!defined($ENV{DATABASE_ADDRESS})) {$ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbReadHost;}
+die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
+my $dbh = DBI->connect ("dbi:mysql:tusk:$ENV{DATABASE_ADDRESS}", get_user_pw(), { RaiseError => 1 });
+my $sth = $dbh->prepare("show processlist;");
+unless($sth) {die "Could not prepare show process list for the database!\n";}
+
+print $clear;
+
+
+ReadMode 'cbreak';
+my $userInput = '';
+my $lastMessage = "Press h to show command help\n";
+my $keepLooping = 1;
+while($keepLooping) {
+	unless($sth->execute()) {die "Could not execute sql to get process list! $!\n";}
+	my @lastLocked;
+	my %lockedSessionIds;
+	my %numProcessesPerMachine;
+	my $counter = 0;
+	my $numLocks = 0;
+	my @locksArray;
+	while(my $row = $sth->fetchrow_hashref) {
+		my $machineName = $row->{'Host'};
+		$machineName =~ s/\:.*$//;
+		$numProcessesPerMachine{$machineName}++;
+		$counter++;
+		if($row->{'Info'} =~ /GET_LOCK.*Apache-Session-([^']*)/) {
+			$lockedSessionIds{$1}++;
+			if($row->{'Time'} >= $timeThreshold) {push @lastLocked, $row->{'Id'};}
+			$numLocks++;
+			push @locksArray, "\t" . $row->{'Id'} . "\t" . $row->{'User'} . "\@" . $row->{'Host'} . "\t" . $row->{'Db'} . "\t" . $row->{'Command'} . "\t" . $row->{'Time'} . "\t" . $row->{'State'} . "\t" . $row->{'Info'} . "\n";
+		}
+	}
+
+	print $clear;
+	print "Number of connections : ", $counter, "\n";
+	foreach (keys %numProcessesPerMachine) {print " \t$_: $numProcessesPerMachine{$_}\n";}
+	print "Current Locks:\n";
+	if(scalar(@locksArray > 0)) {  foreach (@locksArray) {print $_;}  }
+	else                        {print "\tNo Current Locks\n";}
+
+	my $killCommand = '';
+	if($#lastLocked >= 0) {
+		print "", $numLocks , " locked connections\n";
+		foreach(sort keys %lockedSessionIds) {print "\t$_ : $lockedSessionIds{$_}\n";}
+		
+		foreach (@lastLocked) {$killCommand .= "kill $_; ";}
+		print "mysql -e \"$killCommand\"\n";
+	}
+	$userInput .= <STDIN>;
+
+	print "\n";
+print "The kill command is $killCommand\n";
+	if($userInput =~ /q/i) {
+		$lastMessage = "Quitting...\n";
+		$keepLooping = 0;
+		$userInput = '';
+	} elsif($userInput =~ /^h/i) {
+		$lastMessage = "Commands :\n";
+		$lastMessage.= "\tq\t\tquit\n";
+#		$lastMessage.= "\tk\t\tExecute the kill statement\n";
+#		$lastMessage.= "\ta\t\tAuto-kill DB locks\n";
+		$lastMessage.= "\ti<number>\tset new interval time\n";
+		$lastMessage.= "\tt<number>\tChange the threshold of when a process is locked\n";
+		$userInput = '';
+#	} elsif($userInput =~ /^a/i) {
+#		if($killCommand) {
+#			$lastMessage = "Executing mysql kill\n";
+#		} else {
+#			$lastMessage = "No locks to kill\n";
+#		}
+#		$userInput = '';
+#	} elsif($userInput =~ /^k/i) {
+#		if($killCommand) {
+#			$lastMessage = "Executing mysql kill\n";
+#		} else {
+#			$lastMessage = "No locks to kill\n";
+#		}
+#		$userInput = '';
+	} elsif($userInput =~ /^i/i) {
+		if($userInput =~ /^i(\d*)/) {
+			my $tempTime = $1;
+			if($tempTime != 0) {
+				$sleepTime = $tempTime;
+				$lastMessage = "New sleep time $sleepTime\n";
+				$userInput = '';
+			}
+		}
+	} elsif($userInput =~ /^t/i) {
+		if($userInput =~ /^t(\d*)/) {
+			my $tempThreshold = $1;
+			if($tempThreshold != 0) {
+				$timeThreshold = $tempThreshold;
+				$lastMessage = "New threshold time $timeThreshold\n";
+				$userInput = '';
+			}
+		}
+	} elsif($userInput) {
+		$lastMessage = "Unknown command : $userInput\n";
+		$lastMessage.= "Press h to show command help\n";
+		$userInput = '';
+	}
+	print "$lastMessage";
+	sleep($sleepTime);
+}
+
+$dbh->disconnect;

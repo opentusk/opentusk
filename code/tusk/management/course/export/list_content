@@ -1,0 +1,170 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Manage::Course::Export;
+	use HSDB4::SQLRow::Content;
+	use HSDB4::DateTime;
+</%once>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	default_path_type => 'course'
+</%attr>
+
+
+<%shared>
+	$m->comp("/tmpl/url:check_path", default_path_type => $m->base_comp->attr('default_path_type'));
+	my $course = $m->comp('/tmpl/url:get_type_object');
+
+	my $course_users = TUSK::Manage::Course::Export::getCourseUsers($course);
+
+	my %seen_collections;
+	my $count = 0;
+</%shared>
+
+<%init>
+	my $today = HSDB4::DateTime->new();
+	my $start = ($ARGS{start})? $ARGS{start} : $today->out_mysql_date();
+	my $end = ($ARGS{end})? $ARGS{end} : $today->out_mysql_date();
+
+	my @content = $course->active_child_content_during_span($start, $end);
+</%init>
+
+
+
+<script type="text/javascript">
+<%perl>
+my $multi_collections = 'false';
+
+foreach my $c_id (keys %seen_collections){
+	if($seen_collections{$c_id} > 1){
+		$multi_collections = 'true';
+		last;
+	}
+}
+</%perl>
+
+
+// if a collection is present in more than one place, param 'repeat_collections'
+// will be set to true and we will display the warning message.
+function collectionWarning(repeat_collections){
+	var warning = parent.document.getElementById('exportWarning');
+
+	if(repeat_collections){
+		var html_str = 'At least one collection or multidocument in this course is included in more than one place. Each corresponding example will be exported as a unique piece of content.';
+		warning.innerHTML = html_str;
+	}	
+	else {
+		var form = parent.document.getElementById('export_course');
+		form.removeChild(warning);
+	}
+}
+
+
+var multi_collections = <% $multi_collections %>;
+collectionWarning(multi_collections);
+
+window.onload = function(){
+	var elt = parent.document.getElementById('contentListContainer');
+	var myBody = document.getElementById('mainContent');
+
+	elt.innerHTML = myBody.innerHTML
+	
+	var btn = parent.document.getElementById('submit_export');
+	btn.style.display = 'block';
+};
+
+</script>
+
+
+
+<div id="mainContent">
+<h3 class="subhead">Select Course Content</h3>
+<div id='courseList' class="clearfix">
+<ul class="category_list clearfix">
+	<li class="hdrRow"><input id="toggleAll" type="checkbox" id="dd" name="dd" value="1" checked="checked" onclick="excludeContent(this)"/><h2>Content Title</h2><h2 class="rightHdr">Action</h2>
+	<ul class="contentList clearfix" style="clear:both;">
+<& build_li, content => \@content, parent_chain => '', start => $start, end => $end &>
+	</ul>
+	</li>
+</ul>
+</div>
+</div>
+
+
+
+<%def build_li>
+<%args>
+	@content
+	$parent_chain => ''
+	$start
+	$end
+</%args>
+% foreach my $c (@content){
+%   $count++;
+%	my $id = $c->primary_key();
+%	unless($c->type() =~ /Collection|Multidocument/ && $parent_chain =~ /$id/){
+%	  my $content_chain = ($parent_chain)? $parent_chain . '-' . $id : $id;
+%	  $seen_collections{$c->primary_key()}++ if($c->type() eq 'Collection');
+	<li class="category_item included">
+%	  my $class_name = (TUSK::Manage::Course::Export::isNativeContent($c, $course_users))? 'native' : 'foreign';
+		<input type="checkbox" id="<% $content_chain %>" name="<% $content_chain %>" class="<% $class_name %>" value="1" checked="checked" onclick="excludeContent(this, event)"/>
+%	  if($c->type() =~ /multidocument|collection/i){
+		<span class="collectionLnkClosed" href="#toggle_cat" onclick="hideShowSubContent(this)"><% $c->title() %></span>
+%	  }
+%	  elsif($c->type() =~ /document|tuskdoc/i){
+		<span class="documentTitle"><% $c->title() %></span>
+%	  }
+%	  else {
+		<span class="contentTitle"><% $c->title() %></span>
+%	  }
+		<a class="previewLnk navsm" href="#toggle_cat" onclick="previewContent(<% $c->primary_key() %>)">preview</a>
+%	  my @child_c = $c->active_child_content_during_span($start, $end);
+%	  if($c->type() =~ /Collection|Multidocument/ && scalar @child_c){ 
+		<ul class="hiddenSubContent">
+			<& build_li, content => \@child_c, parent_chain => $content_chain, start => $start, end => $end &>
+		</ul>
+%	  }
+
+%	  if($c->type() =~ /document|tuskdoc/i){
+%		my $html = $c->out_html_body();
+
+%		my (@ids_array) = $html =~ m#src="/.*?/(\d+)"#g;
+%		my (@tmp_array) = $html =~ m#/view/content/(\d+)#g;
+%		push @ids_array, @tmp_array;
+
+%		my $c_array = [];
+%		my $length = scalar(@ids_array);
+%		if($length){
+%			for(my $i=0; $i < $length; $i++){
+%				$c_array->[$i] = HSDB4::SQLRow::Content->new()->lookup_key(int $ids_array[$i]);
+%			}
+		<ul class="documentContent">
+			<& build_li, content => $c_array, parent_chain => $content_chain, start => $start, end => $end &>
+		</ul>
+%		}
+%	  }
+	</li>	
+%	}
+% }
+
+% unless($count % 10){
+%	$m->flush_buffer;
+% }
+</%def>

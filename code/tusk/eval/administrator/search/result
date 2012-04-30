@@ -1,0 +1,138 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%doc>
+	search criteria passed in @search_by argument
+		aw => 'all_words',     
+		sg => 'small_group',
+		nrq => 'numeric_ranking question',
+		pw => 'partial_word', 
+		nr => 'no_response',
+</%doc>
+
+
+<%shared>
+	my %args = $m->request_args;
+	my %search_criteria = (ref($args{search_by}) eq 'ARRAY') ? map { $_ => '' } @{$args{search_by}} : $args{search_by};
+	my @search_strings = split(/\s+/, lc $args{search_string});
+	$args{school} = $m->comp('SELF:schoolname');
+</%shared>
+
+
+%	my $form = $m->scomp('/eval/administrator/search/formEntry/', 
+%		params => {   
+%			search_string  			=> $args{search_string},
+%			eval_title     			=> $args{eval_title},
+%			course_name    			=> $args{course_name},
+%			start_time_period_id	=> $args{start_time_period_id},
+%			end_time_period_id		=> $args{end_time_period_id},
+%			start_available_date	=> $args{start_available_date},
+%			end_available_date		=> $args{end_available_date},
+%			start_due_date			=> $args{start_due_date},
+%			end_due_date			=> $args{end_due_date},
+%			search_by				=> $args{search_by},
+%			include					=> $args{include},
+%		  },
+%		school => $args{school}  );
+
+	<table id="searchForm" width="100%">
+	<tr><td nowrap="nowrap">
+	<a style="font-size:90%;text-decoration:none;font-weight:bold;" href="javascript:showHide('switchContent')" style="cursor:hand;cursor:pointer">Show/Hide Search Entry</a> 
+        &nbsp;|&nbsp;
+	<a style="font-size:90%;text-decoration:none;font-weight:bold;" href="#" onClick="javascript:exportContent('<% $args{search_string} %>','<% $args{school} %>')" style="cursor:hand;cursor:pointer">Export</a> 
+	</td></tr>
+	<tr><td nowrap="nowrap">
+	<div id="switchContent" style="display:none;"><% $form %></div>
+        </td></tr>
+	</table>
+
+<& SELF:printResults &>
+
+
+<%method args2string>
+<%perl>
+	my @paramStrings = ();
+	foreach my $key (keys %args) {
+		if (ref($args{$key}) eq 'ARRAY') {
+			foreach (@{$args{$key}}) {
+				push @paramStrings, "$key=$_";
+			}
+		} else {
+			push @paramStrings, "$key=$args{$key}";
+		}
+	}
+
+	return join('&', @paramStrings);
+</%perl>
+</%method>
+
+<%method startup>
+%      $m->comp("SELF:set_no_cache");
+%      $m->comp("SELF:set_unicode");
+</%method>
+
+<%method jsarray>
+%	return ['showEvalSearchResults.js', 'element.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
+</%method>
+
+
+<%method printResults>
+
+<%perl>
+	my @paramStrings = ();
+	foreach my $key (keys %args) {
+		if (ref($args{$key}) eq 'ARRAY') {
+			foreach (@{$args{$key}}) {
+				push @paramStrings, "$key=$_";
+			}
+		} else {
+			push @paramStrings, "$key=$args{$key}";
+		}
+	}
+
+	my $paramString = join('&', @paramStrings);
+
+</%perl>
+	<div id="loadingDiv" style="display:none; position:absolute; top:0px; left:0px;" onClick="this.style.display='none';">
+          <table border="0" cellspacing="0" cellpadding="0">
+            <tr><td><img id="theLoadingImage" src="/graphics/pleasewait.gif"></td></tr>
+          </table>
+	</div>
+
+	<table border="0" cellspacing="0" cellpadding="3" id="theTable">
+	<tr><td colspan="2">
+        </td></tr>
+	</table>
+
+	<script>
+		requestEvalSearch('/eval/administrator/search/resultsXml', "<% $paramString %>");
+	</script>
+
+</%method>
+
+<%method title>
+%	return "Evaluation Search Result: &nbsp;&nbsp;$args{search_string}";
+</%method>
+
+<%method red_header_text>
+%	return "Evaluation Search Result: &nbsp;&nbsp;<span class=\"sm\">$args{search_string}</span>";
+</%method>
+
+
+<%method stylearray>
+%	return ["/style/style.css", "/style/calendar-blue.css"];
+</%method>
+
+

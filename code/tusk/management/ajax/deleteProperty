@@ -1,0 +1,106 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+	$idToDelete
+	$parentCourseID
+</%args>
+
+<%flags>
+  inherit => undef
+</%flags>
+
+<%shared>
+  my $numDeleted = 0;
+  my $numFailed = 0;
+</%shared>
+
+<%attr>
+</%attr>
+
+
+% $m->clear_buffer();
+% $r->content_type('text/xml');
+<?xml version="1.0" encoding="UTF-8"?>
+
+<theResponse>
+<%perl>
+  #Build the course from the tusk id number.
+  my $tuskCourse = TUSK::Course->lookupKey($parentCourseID);
+  my $course = $tuskCourse->getHSDB45CourseFromTuskID();
+
+  if(exists($m->session->{'user'})) {
+    if($course->primary_key()) {
+      if($m->comp("/autohandler:check_course_permissions", token => 'DIRECTOR', typeObj => $course, school => $course->school())) {
+        use TUSK::Course::CourseMetadata;
+#print "<debug>i got $idToDelete as the id to kill</debug>\n";
+        $m->comp("SELF:deleteItems", idToDelete => $m->comp("SELF:getEmptyParents", idToDelete => $idToDelete));
+        $m->print("<itemsdeleted>$numDeleted</itemsdeleted>");
+        $m->print("<itemsFailed>$numFailed</itemsFailed>");
+      } else {
+        $m->print("<itemsFailed>-1</itemsFailed>");
+      }
+    } else {
+      $m->print("<itemsFailed>-2</itemFailed>");
+    }
+  } else {
+    $m->print("<itemsFailed>-3</itemsFailed>");
+  }
+</%perl>
+</theResponse>
+
+
+<%method getEmptyParents>
+  <%args>
+    $idToDelete
+  </%args>
+
+  <%perl>
+#print "<debug>In the function</debug>\n";
+    if($idToDelete) {
+      my $objectToDelete = TUSK::Course::CourseMetadata->new()->lookupKey($idToDelete);
+      if($objectToDelete->getParent() =~ /\d+/) {
+#print "<debug>The parent of this item is ", $objectToDelete->getParent(), "</debug>\n";
+        my $condition = "parent='" . $objectToDelete->getParent() . "'";
+        #Now we have a parent ID. If there are no db objects who share my parent then call this function again with my parent.
+        my $brothersAndSisters = TUSK::Course::CourseMetadata->lookup($condition, undef, undef);
+#print "<debug>This parent has ", scalar(@{$brothersAndSisters}), " other children</debug>\n";
+        if(scalar(@{$brothersAndSisters}) > 1) {return $idToDelete;}
+        else                                   {$idToDelete = $m->comp("SELF:getEmptyParents", idToDelete => $objectToDelete->getParent());}
+      }
+      return ($idToDelete);
+    }
+  </%perl>
+</%method>
+
+
+<%method deleteItems>
+  <%args>
+    $idToDelete
+  </%args>
+
+  <%perl>
+#print "<debug>Id to delete is $idToDelete</debug>\n";
+    if($idToDelete) {
+      my $objectToDelete = TUSK::Course::CourseMetadata->new()->lookupKey($idToDelete);
+      my $childObjects = TUSK::Course::CourseMetadata->lookup("parent=$idToDelete", undef, undef);
+      foreach (@{$childObjects}) {
+        $m->comp("SELF:deleteItems", idToDelete => $_->getPrimaryKeyID());
+      }
+      $objectToDelete->setUser( $m->session->{'user'}->primary_key() );
+      if($objectToDelete->delete()) {$numDeleted++;} else {$numFailed++;}
+    }
+  </%perl>
+</%method>

@@ -1,0 +1,55 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	no_check_path	=> 1
+</%attr>
+
+<%method leftnav>
+% return undef;
+</%method>
+
+
+<%method title>
+% return '';
+</%method>
+
+<%shared>
+	my $content_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $content = HSDB4::SQLRow::Content->new->lookup_key($content_id);
+	if ($content->type() eq 'PDF' or $content->type() eq 'DownloadableFile'){
+		$m->redirect('/hsdb4/content/' . $content->primary_key()); # this is a short term solution...probably want something more inline in the future
+	}
+</%shared>
+
+<& /tmpl/element:table, params => { style => 'padding:10px' } &>
+<tr><td>
+<% $content->out_html_body(%ARGS, zoom => 1) %>
+</td></tr>
+<& tmpl/element:divider_bar &>
+<%perl>
+	my @content = $content->active_child_content();
+	if (scalar(@content)){
+		print '<TABLE CLASS="wide"><TR><TH ALIGN=LEFT>Type</TH><TH COLSPAN=2 ALIGN=LEFT>Document</TH><TH ALIGN=LEFT>Authors</TH></TR>';
+		foreach my $child_content (@content){
+			print $child_content->out_html_row('content-link' => '/case/showcontent/' . $m->comp("/tmpl/url:get_first_path_id"));
+		}
+		print '</table><br>';
+	}
+</%perl>
+<tr><td style="padding-left:4px; text-align:left;">
+<& /tmpl/element:close_window_button &>
+</tr></td>
+</table>

@@ -1,0 +1,83 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%once>
+	use HSDB45::TimePeriod;
+	use TUSK::Tracking;
+</%once>
+
+<%perl>
+	my $course   = $m->comp("/tmpl/url:get_type_object");
+	my $school   = $m->comp("/tmpl/url:get_school");
+	my @tracking = TUSK::Tracking->new(_school => $school)->lookup_conditions( "course_id = " . $course->course_id . " and time_period_id = " . $m->comp("SELF:get_timeperiod_id") . " order by sort_order" );
+
+	my $buttons = [ 
+					{ link_txt    => '/perl/export_tracking/course/' . $school . '/' . $course->course_id,
+					  display_txt => 'Export Data' } 
+				  ];
+	if ( $m->comp("SELF:check_course_permissions", token => 'DIRECTOR') ) {
+		unshift @$buttons, { link_txt    => '/management/tracking/addedit/course/' . $school . '/' . $course->course_id,
+		                     display_txt => 'New Report' };
+	}
+
+	if ($ARGS{'order'}) {
+    	my ($index, $insert) = split('-', $ARGS{'order'});
+	
+	    splice(@tracking, ($insert-1), 0, splice(@tracking, ($index-1),1));
+    
+    	for(my $i=0; $i < scalar(@tracking); $i++){
+			$tracking[$i]->set_field_values( sort_order=>10*($i+1));
+			$tracking[$i]->save();
+		}
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit => undef, 
+        name => 'tracking' } 
+&>
+
+<& /tmpl/element:cms_button_row, 
+    links => $buttons
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+				sort_box => 1,
+				columns => [ {'label' => 'Type',     'field' => 'type', 'align' => 'center' },
+				             {'label' => 'Title',    'field' => 'full_title', 'link' => '/management/tracking/addedit/course/'.$school.'/'.$course->course_id},
+                             {'label' => 'Views',    'field' => 'page_views', 'align' => 'center' },
+                             {'label' => 'Visitors', 'field' => 'unique_visitors', 'align' => 'center' }
+					],
+				action_columns => [ 
+							{ 'label' => 'Modify', 'link' => '/management/tracking/addedit' },
+							{ 'label' => 'Delete', 'link' => '/management/tracking/delete' } 
+			  			], 
+				object_list => \@tracking,
+				type_path => $m->comp("/tmpl/url:get_type_path"),
+				name => "tracking",
+				empty_message => "Course has no tracking reports.",
+				}
+&>
+
+</form>
+
+<%method title>
+% return "Tracking & Statistics";
+</%method>

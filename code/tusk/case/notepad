@@ -1,0 +1,72 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	no_check_path => 1
+	page_header   => undef
+	page_footer   => undef
+</%attr>
+
+<%once>
+use TUSK::Case::CaseReport;
+
+sub print_failure{
+	$m->print('Notes retrieval failed.');
+	$m->abort;
+}
+</%once>
+
+<%doc>
+this textarea does not have a name b/c we don't want it to submit its
+value if the form is posted. we only want to post its value via ajax.
+not a big deal if the value were posted, with the page on a submit,
+but for tidiness, we would prefer it not to.
+</%doc>
+<textarea class="textareawhite" id="casenotes" cols="22" rows="8" ><% $notes %></textarea>
+
+% if ($report_open) {
+<br>
+<& /tmpl/element:button, params => {
+		name  => 'note_submit',
+		label => 'Save Notes',
+		onclick => 'postNotes(' . $report->getPrimaryKeyID() . ');',
+		}
+&>
+% }
+
+
+
+
+
+
+<%init>
+my $r_id = $m->comp('/tmpl/url:get_last_path_id');
+
+my $report = TUSK::Case::CaseReport->lookupKey($r_id);
+print_failure() unless defined $report;
+
+my $u_id = $m->comp('SELF:user');
+print_failure() unless ($u_id eq $report->getUserID());
+
+my $report_open = ($report->getEndDate())? 0 : 1;
+
+if (exists $ARGS{casenotes} && $report_open) {
+	$report->setNotes($ARGS{casenotes});
+	$report->save({'user' => $u_id});
+}
+
+my $notes = $report->getNotes();
+
+</%init>

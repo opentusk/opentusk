@@ -1,0 +1,116 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+    use HSDB4::Constants;
+    use HSDB45::Eval::MergedResults;
+    use HSDB45::Eval::Authoring;
+</%once>
+
+<%shared>
+	my $school = $m->comp('SELF:schoolname');
+	my $eval_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $eval = HSDB45::Eval::MergedResults->new( _school => $school, _id => $eval_id );
+	my @secondary_eval_array;
+	foreach my $sec_eval ($eval->secondary_eval_ids()) {
+		my $this_eval = HSDB45::Eval->new( _school => $school, _id => $sec_eval );
+		push @secondary_eval_array, { 'id' => $sec_eval, 'title' => $this_eval->title };
+	}
+
+	if ( !$eval->primary_key && $eval_id ) {
+		$m->redirect( '/protected/eval/administrator/merged_admin/' . $school . "?errmsg=Eval not found." );
+	}
+</%shared>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				name   => 'merged_eval_edit' } &>
+
+<& /tmpl/element:table, params => { 
+				border      =>"0",
+				cellspacing =>"0",
+				cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'Title:',
+				name   => 'title',
+				value  => ($eval) ? $eval->title : '',
+				size   => 60,
+				length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'Primary Eval:',
+				name   => 'primary_eval',
+				value  => ($eval) ? $eval->primary_eval_id : '',
+				size   => 20,
+				length => 20 } &>
+
+<& /tmpl/element:textarea, params =>{ 
+				label  => 'Secondary Evals:',
+				name   => 'secondary_evals',
+				value  => ($eval) ? join(",",$eval->secondary_eval_ids()) : '',
+				cols   => 60,
+				rows   => 5 } &>
+
+<& /tmpl/element:field_display, params => {
+				label  => 'Secondary Eval Titles:',
+				value  => $m->scomp('/tmpl/element:object_selection_box', params => {
+					'norows-message'  => 'No secondary evaluations.',
+					sort_box          => 0,
+					no_add_button     => 1,
+					no_action_columns => 1,
+					columns => [ 
+						{'label' => 'ID', 'field' => 'id'},
+						{'label' => 'Title', 'field' => 'title'},
+					],
+					rows => \@secondary_eval_array,
+				} )
+} &>
+
+<& /tmpl/element:save_button, params=>{ 
+				cancel_onclick=>"go_back('/protected/eval/administrator/merged_admin/$school');",
+				label => 'Save Changes',
+				name  => 'submit' } &>
+
+</table>
+</form>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	if ( $args->{'submit'} ) {
+		my ($result,$msg) = $eval->edit_merged_eval( $school, $args );
+		if ($result) {
+			$m->comp("SELF:set_msg", type => 'err', msg => $msg );
+
+			$eval->primary_eval_id($args->{primary_eval});
+			$eval->secondary_eval_ids($args->{secondary_evals});
+			$eval->title($args->{title});
+		} else {
+			$m->redirect( '/protected/eval/administrator/merged_eval_edit/' . $school . "/" . $eval->primary_key . "?msg=Merged evaluation saved." );
+		}
+	}
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . " Merged Evaluation Editing";
+</%method>

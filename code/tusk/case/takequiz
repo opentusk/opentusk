@@ -1,0 +1,189 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Case::LinkCaseReportQuizResult;
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Result;
+	use TUSK::Case::Case;
+</%once>
+
+<%shared>
+	my $quiz_previously_completed = 0;
+	my ($case_id, $phase_id, $quiz_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $phase = TUSK::Case::Phase->lookupKey($phase_id);
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my $case = TUSK::Case::Case->lookupKey($case_id);
+	my $user_id = $m->comp('SELF:user');
+	my $preview_text = $m->comp('SELF:get_preview_text', case => $case);
+	my $report = $case->getReport();
+	my $report_id = $report->getPrimaryKeyID();
+
+	if($case->isLinearNav() && !$phase->isLastPhaseVisited($report)){
+		my $type_path = $m->comp('/tmpl/url:get_type_path');
+		$m->redirect("/case/dophase/$type_path/$case_id/$phase_id");
+	}
+
+	my %ARGS = $m->request_args();
+
+	my $quiz_submitted = 0;  
+	my $result = $report->getOpenQuiz($quiz_id);
+	my $has_result = $report->getCompletedQuiz($quiz_id);
+	if (defined($ARGS{'submitquiz'})){
+		if (defined($result)){
+			my $quizItemHash = {};
+			my $quiz_items = $quiz->getQuizItems();
+			foreach my $quiz_item (@{$quiz_items}){
+				$quizItemHash->{($quiz_item->getPrimaryKeyID())} = $quiz_item;
+			}
+			$result->createResponses($user_id, $quizItemHash, \%ARGS);
+			$result->setEndDate();
+			$result->save({ user => $user_id }); 
+			my $link = TUSK::Case::LinkCaseReportQuizResult->new();
+			$link->setParentCaseReportID($report_id);
+			$link->setChildQuizResultID($result->getPrimaryKeyID());
+
+			my $visit = $phase->getMostRecentVisit($report);
+			$link->setPhaseVisitID($visit->getPrimaryKeyID());
+
+			$link->save({ user => $user_id });
+			$quiz_submitted = 1;
+		}
+	} 
+
+	if (defined($has_result) && (!defined($ARGS{'retake_quiz'}) || !$phase->getQuizLink()->getAllowResubmit()) ){
+		# user has already completed this quiz, and is only going to see result b/c they either didn't
+		# supply a param to retake the quiz, or the quiz is not permitted for retaking
+		$quiz_previously_completed = 1;
+		$result = $has_result;
+	} elsif (!defined($result)){
+		$result = TUSK::Quiz::Result->new();
+		$result->setUserID($user_id);
+		$result->setQuizID($quiz_id);
+		$result->setStartDate();
+		$result->save({ user => $user_id });
+	} 
+</%shared>
+
+
+
+<& tmpl/element:transition,args => \%ARGS &>
+
+<& /tmpl/element:table &>
+
+<& tmpl/element:header_bar, label => $quiz->getTitle() . $preview_text &>
+
+% if (!$case->isTest() or (!$quiz_previously_completed and !$quiz_submitted)){
+	<tr>
+		<td>
+			<table>
+				<tr>
+					</td>
+<%perl>
+	if ($quiz_submitted or $quiz_previously_completed){
+		$m->comp("/quiz/tmpl/quizdisplay:display_responses", quiz => $quiz, result => $result, show_title => 0);
+	}
+	else {
+		$m->comp("/quiz/tmpl/quizdisplay:display_quiz", quiz_id => $quiz_id, show_title => 0);
+	}
+</%perl>
+
+</td>
+</tr>
+	<& tmpl/element:divider_bar &>
+% }
+
+% if (!$quiz_submitted and !$quiz_previously_completed){
+	<& /tmpl/element:save_button, params=>{
+			no_cancel_button => 1, 
+			one_column => 1, 
+			label => 'Submit Quiz',
+			name => 'submitquiz',
+			td_class => '',
+			} 
+	&>
+% } else {
+	<tr>
+	<td class="no-button">
+%	if ($phase->getQuizLink()->getAllowResubmit()) {
+%		$m->comp('/tmpl/element:button', params=>{ 
+%			label => 'Retake Quiz', 
+%			onclick => "retake_quiz('takequiz');"
+%		} );
+%	}
+%	if ($case->isLinearNav()) {
+%		$m->comp('tmpl/element:transition_button', no_quiz => 1, no_submit => 1, case => $case, phase => $phase, args => \%ARGS, formname => 'takequiz');
+%	}
+	</td>
+	</tr>
+% }
+% # need to call 'wizard:include' so that we have a "next_page" input element on the page for the 
+% # "complete_phase()" js function
+% $m->comp('/tmpl/wizard:include');
+
+</table>
+</form>
+
+% # check_quiz() calls clickSubmit(). This was introduced to full implementation of quiz, but not 
+% # used in case. just adding an empty function so that check_quiz is not broken.
+<script>
+function clickSubmit() { return; }
+</script>
+
+
+<%method jsarray>
+%return ['element.js', 'caseshell.js', 'quiz.js'];
+</%method>
+
+<%method leftnav>
+% return { component=>'/case/tmpl/leftnav/phase', 'phase'=>$phase, 'case'=>$case };
+</%method>
+
+<%method title>
+% return $quiz->getTitle() . $preview_text;
+</%method>
+
+<%method form>
+<%perl>
+	return $m->scomp('/tmpl/element:form', params => {
+						                method 		=> 'POST',
+						                name 		=> 'takequiz',
+						                onsubmit 	=> (!$quiz_submitted) ? "return check_quiz(this)" : undef,
+							});
+</%perl>
+</%method>
+
+<%method startup>
+<%perl>
+	$m->comp("SELF:set_no_cache");
+	if ($quiz_submitted){
+		if (!$case->isTest()){
+			$m->comp('SELF:set_msg', msg => 'Your quiz has been submitted, please review your answers');
+		}
+		else{
+			$m->comp('SELF:set_msg', msg => 'The quiz has been submitted');
+		}
+	} 
+	elsif ($quiz_previously_completed){
+		if (!$case->isTest()){
+			$m->comp('SELF:set_msg', msg => 'You have already submitted this quiz.<br/>Your responses are below.');
+		}
+		else{
+			$m->comp('SELF:set_msg', msg => 'You have already submitted this quiz', type => 'errmsg');
+		}
+	}
+
+</%perl>
+</%method>

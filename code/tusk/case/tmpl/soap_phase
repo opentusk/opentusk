@@ -1,0 +1,168 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Case::PhaseOptionSelection;
+</%once>
+
+<%shared>
+my @SectionArray = ('Subjective','Objective','Assessment','Plan');
+my %SectionLabels = ( 'Subjective' => 'Subjective Findings',
+                        'Objective'=> 'Objective Findings',
+                        'Assessment'=> 'Assessment of Patient Condition',
+                        'Plan'=> 'Treatment Plan' );
+</%shared>
+<%perl>
+my $phase = $ARGS{'phase'};
+my $case = $ARGS{'case'};
+my $args = $ARGS{'args'};
+my $submit_mode = 0;
+if ($m->comp('/tmpl/wizard:submitted',args=>$args)){
+	$submit_mode = 1;
+}
+$m->comp('element:transition',args=>$args);
+</%perl>
+<!-- Begin SOAP Phase -->
+<& /tmpl/element:table &>
+<& /tmpl/element:tr_tag &>
+<td>
+% if (!$submit_mode){
+<div class="text2"><% $phase->getInstructions() %></div>
+% } 
+
+<& /tmpl/element:table &>
+<%perl>
+my %existing_selection;
+my $phase_option;
+my ($selections,$selection);
+my $func;
+foreach my $section (@SectionArray) {
+	$func  = 'get'.$section.'Option';
+	$phase_option = $phase->$func;
+
+	if ($submit_mode){
+		my $visit = $phase->getVisit();
+		$selections = TUSK::Case::PhaseOptionSelection->getVisitSelection($visit,$phase_option);
+		if (!scalar(@{$selections})){
+			next unless ($args->{$section});
+			$selection = TUSK::Case::PhaseOptionSelection->new();
+			$selection->setCaseReportID($case->getReport->getPrimaryKeyID());
+			$selection->setPhaseID($phase->getPrimaryKeyID());
+			$selection->setPhaseVisitID($visit->getPrimaryKeyID());
+			$selection->setPhaseOptionID($phase_option->getPrimaryKeyID());
+			$selection->setAnswerText($args->{$section});
+			$selection->setOptionText($phase_option->getOptionText());
+			$selection->save({user=>$m->comp('SELF:user')});
+		}
+		else {
+			$selection = pop @{$selections};
+		}		
+	}
+	else { 		
+		my $visit = $phase->getLastVisitWithSelections($case->getReport());
+		if (defined $visit) {
+			$selections = TUSK::Case::PhaseOptionSelection->getVisitSelection($visit,$phase_option);
+			$selection = pop @{$selections};
+			$selection = TUSK::Case::PhaseOptionSelection->new() if (!defined $selection);
+		}
+		else {
+			$selection = TUSK::Case::PhaseOptionSelection->new();
+		}
+	}
+	$existing_selection{$section} = $selection;
+}
+</%perl>
+% if ($submit_mode) {
+% if ($case->isTest()){
+	 <& element:transition,args=>$args &>
+% }
+% 	foreach my $section (@SectionArray) {
+%		$func  = 'get'.$section.'Option';
+%		$phase_option = $phase->$func;
+<tr><td class ="highlight-text"><% $SectionLabels{$section} %></td></tr>
+<tr><td class="subhead1">My Answer:</td></tr>
+<tr><td class="text1"><% $args->{$section} %></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="subhead1">Expert Answer:</td></tr>
+<tr><td class="text1"><% $phase_option->getOptionText() %></td></tr>
+<tr><td>&nbsp;</td></tr>
+% 	}
+% } else { # not submit_mode
+% 	foreach my $section (@SectionArray) {
+%		$selection = $existing_selection{$section};
+%		if (!defined($selection)){
+			Section not found <% $section %><br>			
+%			next;
+% }
+<tr><td>&nbsp;</td></tr>
+<tr><td class="highlight-text"><% $SectionLabels{$section} %></td></tr>
+<tr><td><& /tmpl/element:input_textarea, params=>{'rows'=>8,'cols'=>60,
+		'value'=>$selection->getAnswerText(),
+		'name'=>$section } &>
+%	}
+% } # end of if ($submit_mode) 
+</table>
+<& element:content_display,phase=>$phase &>
+</td></tr>
+<& element:divider_bar &>
+</table>
+<!-- End SOAP Phase -->
+
+<%method chartInfo>
+<%args>
+$case
+$phase
+$visit => undef
+</%args>
+<%perl>
+my $text = '<span class="smTextTwo">'.$phase->getMainText().'</span>';
+$text .= '<table cellpadding="0" cellspacing="0" border="0">';
+
+my %selections;
+if (defined $visit) {
+	%selections = map {($_->getPhaseOptionID(), $_ ) } 
+				@{TUSK::Case::PhaseOptionSelection->getPhaseVisitSelections($visit)};
+}
+else {
+	%selections = map {($_->getPhaseOptionID(), $_ ) } 
+				@{TUSK::Case::PhaseOptionSelection->getLatestPhaseSelections($phase,$case->getReport)};
+}
+
+if (scalar keys %selections) {
+	my ($phase_option, $sel,$func);
+	foreach my $section (@SectionArray) {
+		$func  = 'get'.$section.'Option';
+		$phase_option = $phase->$func;
+		$sel = $selections{$phase_option->getPrimaryKeyID()} or next;
+		$text .= '<tr><td class="smHighlight2">'.$section
+		      .  '</td><td style="padding-left:8px" class="smHighlight2">'.$sel->getAnswerText.'</tr>';
+	}
+}
+else {
+	$text .= '<tr><td class="smHighlight2"><em>Nothing to report</em></td></tr>';
+}
+$text .= '</table>';
+return $text;
+</%perl>
+</%method> 
+
+<%method get_button_nav>
+<%args>
+$case
+$phase 
+$args
+</%args>
+<& sections:get_button_nav_option_phase, phase=>$phase,case=>$case,args=>$args &>
+</%method>

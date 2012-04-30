@@ -1,0 +1,84 @@
+<!--
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+-->
+
+
+<!-- Include useful entities. -->
+<!ENTITY % entitiesDTD PUBLIC "-//HSDB//Useful entities for HSCML//EN" "entities.dtd">
+%entitiesDTD;
+
+<!-- Use the XHTML entities -->
+<!ENTITY % HTMLlat1 PUBLIC "-//W3C//ENTITIES Latin 1 for XHTML//EN" "XMLlat1.ent">
+<!ENTITY % HTMLsymbol PUBLIC "-//W3C//ENTITIES Symbols for XHTML//EN" "XMLsymbol.ent">
+<!ENTITY % HTMLspecial PUBLIC "-//W3C//ENTITIES Special for XHTML//EN" "XMLspecial.ent">
+%HTMLlat1;
+%HTMLsymbol;
+%HTMLspecial;
+
+<!-- Include basic inline text elements -->
+<!ENTITY % entitiesDTD PUBLIC "-//HSDB//Definition of useful entities//EN" "entities.dtd">
+%entitiesDTD;
+<!-- Include basic inline text elements -->
+<!ENTITY % inlineDTD PUBLIC "-//HSDB//Definition of text elements//EN" "inline.dtd">
+%inlineDTD;
+
+<!-- Overall structure: Eval_Results is root element-->
+<!ELEMENT Eval_Results (Enrollment, Question_Results+)>
+<!ATTLIST Eval_Results 
+        eval_id CDATA #REQUIRED
+        school %Schools; #REQUIRED>
+
+<!ELEMENT Enrollment (CompleteUsers, IncompleteUsers, CompletionTokenDeficit?, ExcessCompletions?)>
+<!ATTLIST Enrollment count CDATA #REQUIRED>
+<!ELEMENT CompleteUsers (user-ref*)>
+<!ATTLIST CompleteUsers 
+        count CDATA #REQUIRED
+        percent CDATA #IMPLIED>
+<!ELEMENT IncompleteUsers (user-ref*)>
+<!ATTLIST IncompleteUsers 
+        count CDATA #REQUIRED
+        percent CDATA #REQUIRED>
+<!ELEMENT CompletionTokenDeficit (#PCDATA)>
+<!ELEMENT ExcessCompletions (#PCDATA)>
+
+<!-- Results of an individual question -->
+<!ELEMENT Question_Results (ResponseGroup?, Categorization*)>
+<!ATTLIST Question_Results eval_question_id CDATA #REQUIRED>
+<!-- Statistics for the responses -->
+<!ELEMENT ResponseStatistics (response_count, no_response_count, na_response_count?, 
+        Histogram?, mean?, standard_deviation?)>
+<!ELEMENT response_count (#PCDATA)>
+<!ELEMENT no_response_count (#PCDATA)>
+<!ELEMENT na_response_count (#PCDATA)>
+<!ELEMENT Histogram (HistogramBin+, Range?)>
+<!ELEMENT HistogramBin (#PCDATA)>
+<!ATTLIST HistogramBin count CDATA #REQUIRED>
+<!ELEMENT Range EMPTY>
+<!ATTLIST Range 
+        min CDATA #REQUIRED
+        max CDATA #REQUIRED>
+<!ELEMENT mean (#PCDATA)>
+<!ELEMENT standard_deviation (#PCDATA)>
+<!-- A group of responses (either all or split according to the results -->
+<!ELEMENT ResponseGroup (grouping_value?, ResponseStatistics, Response*)>
+<!ELEMENT grouping_value (#PCDATA)>
+<!ELEMENT Response (#PCDATA)>
+<!ATTLIST Response 
+        user_token CDATA #REQUIRED
+        pretty_user_label CDATA #IMPLIED
+        >
+<!ELEMENT Categorization (ResponseGroup+)>
+<!ATTLIST Categorization
+        group_by_question_id CDATA #REQUIRED>

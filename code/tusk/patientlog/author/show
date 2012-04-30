@@ -1,0 +1,58 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my $path = 'patientlog';
+	my $form_type = $m->comp('/formbuilder/util:getFormType', token => 'PatientLog');
+	my $form_type_label = $form_type->getLabel();
+	my $course = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+<%perl>
+	my $action_columns = [
+		{ label => 'Modify', link => "/$path/author/addedit" },
+		{ label => 'Preview', link => "/$path/preview" },
+	];
+
+	if ($course->get_time_periods_for_enrollment()) {
+		push @$action_columns, (
+			{ label => 'Reports', link => undef },
+		 	{ label => ' &nbsp;&nbsp;-Default', link => "/$path/director/report" },
+			{ label => ' &nbsp;&nbsp;-Custom', link => "/$path/director/customreports" },
+			{ label => 'Email', link => "/$path/author/email" },
+		);
+	}
+
+	push @$action_columns, { label => 'Delete', link => "/$path/author/delete" };
+</%perl>
+
+<& /formbuilder/author/show, 
+	form_type_id => $form_type->getPrimaryKeyID(),
+	form_label => $form_type->getLabel(),
+	app_path => $path,
+	action_columns => $action_columns,
+&>
+
+<%method right_header_images>
+%	return [];
+</%method>
+
+<%method title>
+% 	return "Manage $form_type_label"; 
+</%method>
+
+<%method red_header_text>
+% 	return "Manage $form_type_label";
+</%method>

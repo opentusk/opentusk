@@ -1,0 +1,733 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::Form;
+	use TUSK::FormBuilder::FieldItem;
+	use TUSK::FormBuilder::Entry;
+	use HSDB4::DateTime;
+	use TUSK::Application::FormBuilder::DynamicList;
+</%once>
+
+
+<%method jsarray>
+<%args>
+	$js_files => []
+</%args>
+<%perl>
+	my $files = ['layers.js', 'formbuilder.js', 'element.js', 'dynamiclist.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js', 'getElementsByClassName.js'];
+	push @$files, @$js_files if (defined $js_files);
+ 	return $files;
+</%perl>
+</%method>
+
+
+<%method redirect>
+<%args>
+	$url => undef
+	$msg
+	$extra
+</%args>
+<%perl>
+	if ($url) { 
+		$m->redirect($url . "?msg=$msg");
+	} else {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => $msg));
+	}
+</%perl>
+</%method>
+
+
+<%method page>
+<%args>
+	$args
+	$onsubmit => undef
+	$date_label => ''
+	$dynamic_components => []
+	$button_component => undef
+	$extra_actions => {}
+	$redirect_submit_url => undef
+	$has_save_button => undef
+</%args>
+
+<%perl>
+	my $form = $m->comp("/formbuilder/util:get_form");
+	if ($args->{submit_check}) {
+
+		my $new_entry_id = $m->comp("/formbuilder/process:entry", args => $args, form => $form, user_id => $m->session->{'user'}->user_id(), date => $args->{'encounter_date'}, entry_id => $args->{'entry_id'});
+
+		my $extra;			
+		if (!defined($args->{entry_id}) && $new_entry_id && $extra_actions->{new_entry}) {
+			$extra = $new_entry_id;
+			$m->comp($extra_actions->{new_entry}, entry_id => $new_entry_id);
+		}
+
+		if ($has_save_button) {
+			if ($args->{save_submit}) { 	
+				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Successfully Saved'));
+			} elsif ($args->{form_submit}) {  
+				if ($args->{err_process_msg}) {
+					$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, msgtype => 'errmsg', msg => join('<br/>', @{$args->{err_process_msg}})));
+				} else {
+					$m->comp('SELF:redirect', url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra);
+				}
+			}
+		} else {
+			if ($args->{form_submit}) { 
+				if ($args->{entry_id}){  
+					my $eidmsg; 
+					if (ref($args->{entry_id}) eq 'ARRAY') {
+						$eidmsg = "Entry Updated&entry_id=".$args->{entry_id}[0]; 
+					} else {
+						$eidmsg = "Entry Updated&entry_id=".$args->{entry_id}; 
+					}
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => $eidmsg ));
+				} else {      
+					if ($args->{err_proces_msg}) {
+						$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, msgtype => 'errmsg',  msg => join('<br/>', @{$args->{err_process_msg}})));
+					} else {
+						$m->comp('SELF:redirect', url => $redirect_submit_url, msg => "Successfully Submitted&entry_id=$new_entry_id", extra => $extra);
+					}
+				}
+			}
+		}
+
+	}
+
+	$m->comp("SELF:showform", args => $args, form => $form, date_label => $date_label, dynamic_components => $dynamic_components, button_component => $button_component, onsubmit => $onsubmit);
+</%perl>
+</%method>
+
+
+<%method showform>
+<%args>
+	$args
+	$form
+	$date_label => ''
+	$dynamic_components => []
+	$button_component => undef
+	$onsubmit => ""
+	$read_access => 0
+</%args>
+
+<%perl>
+	my $fields = $form->getFields();
+	my $js_arrayref = [];
+
+	foreach my $field (@$fields) {
+		next if ($field->getRequired() and $args->{hide_required});
+		if ($field->getFieldTypeToken() eq "SingleSelect"  || $field->getFieldTypeToken() eq "CheckList") {
+			if ($field->getRequired()) {
+				my $message = $field->getFieldName();
+				$message =~ s/'/\\'/g;
+				if ($field->getFieldTypeToken() eq "SingleSelect") {
+					push (@$js_arrayref, "{id:'id_" . $field->getPrimaryKeyID() . "', message:'" . $message . "'}");
+				} elsif ($field->getFieldTypeToken() eq "CheckList") {
+					push (@$js_arrayref, "{id:'checklist_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");
+				}
+			}
+		} elsif ($field->getFieldTypeToken() eq 'SingleSelectAllowMulti') {
+			my $message = $field->getFieldName();
+			$message =~ s/'/\\'/g;
+			push (@$js_arrayref, "{id:'text_id_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");			
+	
+		} elsif ($field->getFieldTypeToken() eq 'MultiSelectWithAttributes') {
+			my $message = $field->getFieldName();
+			$message =~ s/'/\\'/g;
+			push (@$js_arrayref, "{id:'multiwithattr_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");			
+		}
+	}
+
+	my $jsoutput = join(", ", @$js_arrayref);
+	$onsubmit = "check_required_fields" unless ($onsubmit);
+	$onsubmit = "return " . $onsubmit . "(this, [$jsoutput])";
+
+	my $entry;
+	my $response_hash = {};
+
+	if ($args->{entry_id}){
+		$entry = TUSK::FormBuilder::Entry->new()->lookupKey($args->{entry_id});
+		if (!$entry || !$entry->getPrimaryKeyID() || ($read_access && $entry->getUserID() ne $m->session->{'user'}->user_id())){
+			$m->comp("/tmpl/url:redirect",message => "You do not have access to that entry.");
+		}
+		
+		my $responses = $entry->getFullResponses();
+
+		foreach my $response (@$responses){
+			push (@{$response_hash->{ $response->getFieldID() }}, $response);
+		}
+		$args->{selected_time_period_id} = $entry->getTimePeriodID();		
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	onsubmit => $onsubmit,
+	name => 'myform' } &>
+<input type="hidden" name="check_required" id="check_required" value="1" class="no-padding">
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+% if ($form->getFormDescription()){
+<tr> 
+<td colspan="2" class="no-button">
+<span class="sm"><% $form->getFormDescription() %><br><br></span>
+</td>
+</tr>
+% }
+
+%	foreach my $comp (@$dynamic_components){
+%		$m->comp($comp, form => $form, args => $args);
+%	}
+
+% 	if ($date_label and !$args->{hide_required}) {
+<& /tmpl/element:textbox, params =>{ 
+		label 		=> $date_label,
+		name        => 'encounter_date',
+		value       => ($args->{entry_id}) ? $entry->getDate() : HSDB4::DateTime->new()->out_mysql_date(),
+		size        => 10,
+		maxlength   => 10,
+		calendar    => 1,
+} &>
+% 	}
+
+<& "/formbuilder/display:fields", fields => $fields, hide_required => $args->{hide_required}, response_hash => $response_hash &>
+
+% 	if ($button_component) {
+<& $button_component &>
+% } else {
+<& /tmpl/element:save_button, params => {
+	label 		=> 'Submit', 
+	name		=> 'form_submit', 
+	onmouseup	=> 'this.blur();', 
+	'no_cancel_button' => 1,
+} &>
+% 	}
+
+</table>
+</form>
+</%method>
+
+<%method show_time_periods>
+<%args>
+	$form
+	$args
+</%args>
+<%perl>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my @students = $course->child_students("child_user_id = '" . $m->session->{'user'}->user_id() . "'");
+	return unless scalar @students > 1;
+
+	my %periods_sites = map { $_->aux_info('time_period_id') => $_->aux_info('teaching_site_id') } @students;
+
+	my @time_periods = HSDB45::TimePeriod->new(_school => $course->school())->lookup_conditions("time_period_id in (" . join(',', keys %periods_sites) . ") and start_date <= now()", "order by start_date asc");
+	my %sites = map { $_->primary_key() => $_ } HSDB45::TeachingSite->new(_school => $course->school())->lookup_conditions('teaching_site_id in (' . join(', ', values %periods_sites) . ')');
+
+	my $options = [];
+	push @$options, { label => 'Select', value => 0 };
+    if (%sites) {
+		foreach my $tp (@time_periods) {
+			push @$options, {
+				label => (($sites{$periods_sites{$tp->primary_key()}}) ? $sites{$periods_sites{$tp->primary_key()}}->site_name() : ' No Site ') . ' &nbsp;[' . $tp->out_display() . ']',
+				value => $tp->primary_key(),
+			};		
+		}
+	}
+</%perl>
+
+<script type="text/javascript">
+	var checkTimePeriod = 1;
+</script>
+
+<& /tmpl/element:dropdown, params => { 
+	label => 'Site and Time Period',
+	selected => $args->{selected_time_period_id},
+	name => 'time_period_id',
+	options => $options,
+} &>
+</%method>
+
+<%method fields>
+<%args>
+	$fields
+	$hide_required => 0
+	$response_hash => {}
+</%args>
+
+% foreach my $field (@$fields){
+%	next if (!$field->getDefaultReport() and $hide_required);
+
+%	if ($field->getFieldTypeToken() eq 'DynamicList') {
+<%doc>
+	 we pass all response and let the function figure out which reponses it want to use as there are more than one fields involved.
+</%doc>
+<& 'DynamicList', field => $field, response_hash => $response_hash &>
+% 	} else {
+%		my $response = (exists($response_hash->{ $field->getPrimaryKeyID() })) ? $response_hash->{ $field->getPrimaryKeyID() } : [];
+<& $field->getFieldTypeToken(), field => $field, response =>  $response &>
+%	}
+
+% }
+</%method>
+
+<%def FillIn>
+<%args>
+	$field
+	$response
+</%args>
+<%perl>
+	my $size = ($field->getFillinSize()) ? $field->getFillinSize() : 60;
+	my $value = (scalar(@$response)) ? $response->[0]->getText() : ''; 
+</%perl>
+<& /tmpl/element:textbox, params =>{ label => $field->getFieldName(),
+	name => 'id_' . $field->getPrimaryKeyID(),
+	value => $value,
+	trailing_text => '&nbsp;' . $field->getTrailingText(),
+	size => $size,
+	length => $size,
+	maxlength => $size } &>
+</%def>
+
+
+<%def Heading>
+<%args>
+	$field
+</%args>
+<tr><td style="font-size:110%;padding-top:12px;font-weight:bold;" colspan="2"><% $field->getFieldName() %> </td></tr>
+</%def>
+
+
+<%def Essay>
+<%args>
+	$field
+	$response
+</%args>
+<%perl>
+	my $value = (scalar(@$response)) ? $response->[0]->getText() : ''; 
+</%perl>
+<& /tmpl/element:textarea, params =>{ label => $field->getFieldName(),
+	name => 'id_' . $field->getPrimaryKeyID(),
+	value => $value,
+	trailing_text => '&nbsp;' . $field->getTrailingText(),
+	cols => 70, 
+	rows => 7,} &>
+</%def>
+
+<%def RadioSelect>
+<%args>
+	$field
+	$response
+</%args>
+<& "/tmpl/element:flexible_tr", params => {label => $field->getFieldName(), name => 'id_' . $field->getPrimaryKeyID() } &>
+<table>
+<%perl>
+	my $items = $field->getItems();
+	my $selected = 1;
+	my $item_selected_id = (scalar(@$response)) ? $response->[0]->getItemID() : undef;
+
+	foreach my $item (@$items){
+		print "<td>";
+		print "<input type=\"radio\" name=\"id_" . $field->getPrimaryKeyID() . "\"";
+		if ($selected and (!defined($item_selected_id) or ($item_selected_id == $item->getPrimaryKeyID()))){
+			print "checked";
+			$selected = 0;
+		}
+		print " value=\"" . $item->getPrimaryKeyID() . "\">" . $item->getItemName();
+		print "</td>";
+	}
+</%perl>
+</table>
+% print  '&nbsp;' . $field->getTrailingText() if ($field->getTrailingText());
+</td>
+</tr>
+</%def>
+
+<%def SingleSelect>
+<%args>
+	$field
+	$response
+	$extra_trailing_text => ''
+</%args>
+<%perl>
+	my ($selected, $response_text);
+
+	if (scalar(@$response)){
+		if ($field->getFieldTypeToken() eq 'SingleSelect'){
+			$selected = $response->[0]->getItemID() . '#0';  # need to figure out what to do if there is a "other" value selected for a single select box
+		} else {
+			$response_text = '<table id="f' . $field->getPrimaryKeyID . '" style="table-layout:fixed;width:500px;border-collapse: collapse;margin-bottom:5px;">';
+			foreach my $res (@$response){
+				my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
+			    my $cid = $item->getContentID(); 
+				my $extra = ($res->getText()) ? '&nbsp;(' . $res->getText() . ')' : '';
+
+				$response_text .= '<tr valign="top" id ="tr' . $cid . '">
+					<td id="td' . $cid . '" class="sm" style="width:60%;border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td>';
+
+					if($cid > 0) {
+						$response_text .= '<td align="right" style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"><a href="" class="navsm" id="a' . $cid . '" onClick="toggle_links(' . $field->getPrimaryKeyID . ',' . $cid . ');return false;">Show Links</a></td>';
+					} else {
+						$response_text .= '<td style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"></td>';
+					}
+
+					$response_text .= '<td class="sm" align="right" style="width:15%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '-' . $res->getPrimaryKeyID() . '"/>Delete</td></tr>';
+
+			} # end foreach
+
+			$response_text .= '</table>';
+		}
+	}
+</%perl>
+
+<& "field_dropdown", field => $field,
+	selected => $selected,
+	style => 'vertical-align:middle;',
+    trailing_text => '<input name="text_id_' . $field->getPrimaryKeyID() . '" id="text_id_' . $field->getPrimaryKeyID() . '" type="text" class="textareawhite" style="margin-left:10px; vertical-align:middle;">' . $extra_trailing_text . '<script>textbox_display(document.getElementById(\'id_' . $field->getPrimaryKeyID() . '\'));</script></span>', 
+	before_text => $response_text . '<span id="singleselect_' . $field->getPrimaryKeyID() . '">',
+	value_method => 'getSingleDropDownValue',
+	onchange => 'textbox_display(this)' &>
+</%def>
+
+<%def SingleSelectAllowMulti>
+<%args>
+	$field
+	$response
+</%args>
+% my $abbreviation = ($field->getAbbreviation()) ? '&nbsp;' . $field->getAbbreviation() : "";
+<& "SingleSelect", field => $field, response => $response, extra_trailing_text => '<span id="dont_copy" style="margin-left:10px;vertical-align:middle;"><a href="javascript:" class="navsm" onclick="return add(\'singleselect_' . $field->getPrimaryKeyID() . '\');">Add Another' . $abbreviation . '</a></span>' &>
+</%def>
+
+<%def MultiSelect>
+<%args>
+	$field
+	$response
+</%args>
+<& "field_dropdown", field => $field, multiple => 1, size => 6, selected => { map { $_->getItemID() => 1 } @$response } &>
+</%def>
+
+<%def CheckList>
+<%args>
+	$field
+	$response
+</%args>
+% my $required = ($field->getRequired()) ? ' &nbsp;<span style="font-size:80%;color:red">(required)</span>' : '';
+<& /tmpl/element:flexible_tr, params => { 
+	label => $field->getFieldName() . $required } &>
+<div class="checklistdiv">
+<table width="100%" cellspacing="0" cellpadding="5">
+<%perl>
+	my %responses;
+
+	foreach my $resp (@$response) {
+		my $attrs = $resp->getResponseAttributes();
+		if ($attrs->[0]->isa('TUSK::FormBuilder::ResponseAttribute')) {
+			my $key = $resp->getFieldID() . '_' . $resp->getItemID() . '_' . $attrs->[0]->getAttributeID();
+			$responses{$key} = $attrs->[0]->getAttributeItemID();
+		}
+	}
+
+	my $attributes = $field->getAttributes();
+	return unless (defined $attributes);
+
+	my $items = $field->getItems();
+	my $i = 1; my $k = 65;  my $unchecked = 0;
+	my $attrs_span = scalar @$attributes + 2 ;
+	my $field_id = $field->getPrimaryKeyID();
+
+	foreach my $item (@$items) {
+		my $item_id = $field_id . "_" . $item->getPrimaryKeyID();
+		print "<tr>\n";
+		if ($item->isCatStart()) {
+			print "<td class=\"line-left\" bgcolor=\"#EEEFFF\" colspan=\"$attrs_span\" style=\"font-size:9pt;font-weight:bold;\">" . chr($k++) . '. ' . $item->getItemName() . "</td></tr>";
+			next;
+		}
+
+		print "<td class=\"line-left\" valign=\"top\" style=\"font-size:9pt;\" width=\"60%\">" . $i++ . '. ' . $item->getItemName() . "</td>\n";
+		my $attribute_count = 1;
+		my $checked_attribute_items = 0;
+
+		foreach my $attribute (@$attributes) {
+			my $attribute_form_name = $item_id . "_" . $attribute->getPrimaryKeyID();
+			my $attribute_id = $item_id . '_' . $attribute_count;
+			print "<td class=\"line-left\" valign=\"top\" nowrap>";
+			if ($attribute->getAttributeTypeToken() eq 'DropDown') {
+				if (my @attribute_items = @{$attribute->getItems()}) {
+					print "<select class=\"smallfont\" name=\"" . $attribute_form_name . "\">";
+					print "<option class=\"smallfont\" value=\"\">select</option>" unless (exists $responses{$attribute_form_name});
+					foreach my $attribute_item (@attribute_items){
+						my $selected = '';
+						if (exists $responses{$attribute_form_name} && $responses{$attribute_form_name} == $attribute_item->getPrimaryKeyID()) {
+						 	$selected =  "SELECTED";
+							$checked_attribute_items++;
+						}
+						print "<option class=\"smallfont\" value=\"" . $attribute_item->getPrimaryKeyID() . "\" $selected>" . $attribute_item->getItemName() . "</option>\n";
+					}
+					print "</select>\n";
+				}
+			} elsif ($attribute->getAttributeTypeToken() eq 'RadioSelect') {
+				foreach my $attribute_item (@{$attribute->getItems()}) {
+					my $checked = '';
+					if ($responses{$attribute_form_name} == $attribute_item->getPrimaryKeyID()) {
+						$checked = 'CHECKED';
+						$checked_attribute_items++;
+					}
+					print "<input type=\"radio\" name=\"$attribute_form_name\" value=\"" . $attribute_item->getPrimaryKeyID() . "\" onclick=\"updateRequiredItem('$item_id', '$field_id');\"  $checked/>" . $attribute_item->getItemName() . "\&nbsp;\n";
+				}
+			}
+			print "</td>\n";	
+			$attribute_count++;
+		}
+
+		print "<td class=\"line-right\">";
+		if ($field->getRequired()) {
+			my $reddot = '';;
+			if ($checked_attribute_items == scalar @$attributes) {
+				$reddot = 'display:none';
+			} else {
+				$unchecked++;
+			}
+
+			print "<span align=\"right\" id=\"id_$item_id\" style=\"$reddot\"><img src=\"/icons/reddot.gif\"></span>";
+		}
+		print "</td>\n</tr>\n";
+	}
+	print "<input type=\"hidden\" id=\"checklist_$field_id\" name=\"num_items_in_checklist\" value=\"$unchecked\">\n";
+</%perl>
+</table>
+</div>
+% print  $field->getTrailingText() if ($field->getTrailingText());
+</td>
+</tr>
+</%def>
+
+
+<%def MultiSelectWithAttributes>
+<%args>
+	$field
+	$response
+</%args>
+<& /tmpl/element:flexible_tr, params => { label => $field->getFieldName() } &>
+<%perl>
+	my $response_text = '<table style="width:500px;border-collapse: collapse;margin-bottom:5px;">';
+			foreach my $res (@$response){
+				my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
+				my $attributes = $res->getJoinObjects('TUSK::FormBuilder::AttributeItem');
+
+				my @attribute_values = map { $_->getItemName() } @$attributes;
+				push (@attribute_values, $res->getText()) if ($res->getText());
+				
+				my $extra = '';
+				if (scalar(@attribute_values)){
+					$extra = '&nbsp;(' . join(', ', @attribute_values) . ')';
+				}
+				
+				my $cid = $item->getContentID(); 
+
+				$response_text .= '<tr valign="top" id ="tr' . $cid . '">
+				<td id="td' . $cid . '" class="sm" style="width:60%;border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td>';
+
+				if($cid > 0) {
+						$response_text .= '<td align="right" style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"><a href="" class="navsm" id="a' . $cid . '" onClick="toggle_links(' . $field->getPrimaryKeyID . ',' . $cid . ');return false;">Show Links</a></td>';
+				}else {
+						$response_text .= '<td style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"></td>';
+				}
+
+				$response_text .= '<td class="sm" align="right" style="width:15%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>Delete</td></tr>';
+
+			}
+			$response_text .= '</table>';
+			print $response_text;
+
+	## set height of field dynamically if it's less than 5 items
+	my $items = $field->getItems();
+	my $height;
+	if (scalar @$items < 5) {
+		$height = (scalar @$items) * 24;
+	}
+</%perl>
+<div class="multiselectdiv"<% ($height) ? ' style="height:' . $height . 'px"' : '' %>>
+%	my $attributes = $field->getAttributes();
+%	my $field_id = $field->getPrimaryKeyID();
+<input type="hidden" id="attributes_<% $field_id %>" name="attributes_$field_id" value="<% scalar @$attributes %>">
+<table width="99%" cellspacing="0" cellpadding="5">
+<%perl>
+	foreach my $item (@$items){
+		my $field_item_id = $field_id . "_" . $item->getPrimaryKeyID();
+		print "<tr class=\"unselected\" id=\"" . $field_item_id . "\">";
+		print "<input type=\"hidden\" class=\"no-padding multiwithattr_" . $field_id . "\" name=\"multiwithattr_" . $field_item_id . "_selected" ."\" id=\"multiwithattr_" . $field_item_id . "_selected" . "\" value=\"0\">";
+		my $colspan = ($item->getAllowUserDefinedValue()) ? 1 : 2;
+		print "<td style=\"width:100%\" colspan=\"" . $colspan . "\" onmousedown=\"change_style('" . $field_item_id . "', " . scalar(@$attributes) . ");\" onmouseup=\"change_focus('" . $field_item_id . "', " . scalar(@$attributes) . ");\" nowrap>";
+		print "<span class=\"smallfont\">" . $item->getItemName() . "</span>";
+		if ($item->getAllowUserDefinedValue()){
+			print "</td><td class=\"formbuilder-multiselect-other-td\" nowrap>\n";
+			print "<input class=\"smallfont\" name=\"" . $field_item_id . "_user_defined\" id=\"" . $field_item_id . "_user_defined\" class=\"textareawhite\"  type=\"text\" style=\"display:none;margin-right:5px\">\n";
+		}
+		print "</td>\n";
+		my $attribute_count = 1;
+		foreach my $attribute (@$attributes){
+			my $attribute_form_name = $field_item_id . "_" . $attribute->getPrimaryKeyID();
+			my $attribute_index = $field_item_id . "_select_" . $attribute_count;
+			print "<td class=\"formbuilder-attribute-dropdown-td\" nowrap>";
+			if ($attribute->getAttributeTypeToken() eq 'DropDown'){
+				print "<select class=\"smallfont formbuilder-attribute-dropdown attribute-item_$attribute_index\" style=\"display:none;\" name=\"" . $attribute_form_name . "\" id=\"" . $attribute_index . "\">";
+					print "<option value=\"\"></option>";
+				foreach my $attribute_item (@{$attribute->getItems()}){
+					print "<option class=\"smallfont\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "</option>";
+				}
+				print "</select>";
+			} elsif ($attribute->getAttributeTypeToken() eq 'RadioSelect') {
+				print "<div style=\"display:none;\" class=\"formbuilder-attribute-radio\" id=\"" . $attribute_index . "\">";
+				foreach my $attribute_item (@{$attribute->getItems()}){
+					print "<input type=\"radio\" class=\"attribute-item_$attribute_index\" name=\"" . $attribute_form_name . "\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "\&nbsp;";
+				}
+				print "</div>";
+			}
+			
+			print "</td>\n";
+			$attribute_count++;
+		}
+		print "</tr>\n";
+	}
+</%perl>
+</table>
+</div>
+% print  $field->getTrailingText() if ($field->getTrailingText());
+</td>
+</tr>
+</%def>
+
+<%def field_dropdown>
+<%args>
+	$field
+	$trailing_text => ''
+	$before_text => ''
+	$multiple => ''
+	$onchange => ''
+	$value_method => 'getPrimaryKeyID'
+	$style => ''
+	$size => ''
+	$selected => ''
+</%args>
+<%perl>
+
+	my $items = [];
+
+	unless($multiple) {
+		my $item = TUSK::FormBuilder::FieldItem->new();
+		$item->setItemName('Select');	
+		push (@$items, $item);
+	}
+
+	my $field_items = $field->getItems();
+	my $level = 0;
+
+	foreach my $item (@$field_items){
+		$item->setItemName($item->getItemName());
+		$item->setLevel($level);
+		if ($item->getItemTypeToken() eq 'CatStart'){
+			$level++;
+			$item->setPrimaryKeyID(-1);
+		}
+
+		$level-- if ($item->getItemTypeToken() eq 'CatEnd');
+		$level = 0 if ($level < 0);
+	}
+
+	push (@$items,   grep ($_->getItemTypeToken() ne 'CatEnd', @$field_items));
+</%perl>
+<& /tmpl/element:dropdown, params=>{ label => $field->getFieldName(),
+		size => $size,
+		selected => $selected,
+		multiple => $multiple,
+		trailing_text => $trailing_text . '&nbsp;' . $field->getTrailingText(),,
+		style => $style,
+		before_text => $before_text,
+		onchange => $onchange,
+        name => 'id_' . $field->getPrimaryKeyID(),
+        options => $m->comp("/tmpl/element:make_dropdown_options", arrayref => $items, label => "getItemName", value => $value_method, level => 'getLevel', cat => 'isCatStart')
+} &>
+</%def>
+
+
+<%def DynamicList>
+<%args>
+	$field
+	$response_hash
+</%args>
+
+<%perl>
+	my $field_id = $field->getPrimaryKeyID();
+	my $dla = TUSK::Application::FormBuilder::DynamicList->new({root_field_id => $field_id});
+	my $link_fields = $dla->getChildFieldsWithItems();
+	my $parent_items = $field->getItems();
+	my @parent_item_ids = map { $_->getPrimaryKeyID() } @$parent_items;
+	my $dlist = "dlist_$field_id";
+	my $select_label = TUSK::FormBuilder::FieldItem->new();
+	$select_label->setItemName('Select');	
+
+	return unless scalar @$link_fields;  ### stop here if dynamiclist are not created correctly
+
+	foreach my $link_field (@$link_fields) { ### one more check if fields don't have items
+		return unless (%{$link_field->{items}});
+	}
+</%perl>
+
+<script type="text/javascript">
+	var <% $dlist %> = new DynamicOptionList();	// create a dynamic list object
+	<% $dlist %>.addDependentFields('id_<% $link_fields->[0]{parent_field_id} %>', <% join(", ", map { "'id_" . $_ . "'" } @{$link_fields->[0]{child_field_ids}}) %>);
+
+%	my $i = 1;
+%	foreach my $child_field_id (@{$link_fields->[0]{child_field_ids}}) {
+% 		if ($response_hash->{$child_field_id}[0]) {
+ 	<% $dlist %>.forField('id_<% $child_field_id %>').setValues('<% $response_hash->{$child_field_id}[0]->getItemID() %>');
+% 		}
+%	}
+
+% foreach my $link_field (@$link_fields) {
+% 	foreach my $item_id (sort {$link_field->{parent_items}{$a} cmp $link_field->{parent_items}{$b} }  %{$link_field->{parent_items}}) {
+%		foreach my $item (@{$link_field->{items}{$item_id}{children}}) {
+%			my $parent_items = '';
+%			foreach my $parent_item_id (@{$link_field->{items}{$item_id}{parent}}) {
+%				$parent_items .= ".forValue('$parent_item_id')";
+%			}
+%			$item->[0] =~ s/\'/\\'/g;
+	<% $dlist %><% $parent_items %>.forValue('<% $item_id %>').addOptionsTextValue('<% $item->[0] %>','<% $item->[1] %>');
+%		}
+%	}
+% }
+</script>
+
+<& /tmpl/element:dropdown, params=>{ label => $field->getFieldName(),
+	selected => ($response_hash->{$link_fields->[0]{parent_field_id}}) ? $response_hash->{$link_fields->[0]{parent_field_id}}[0]->getItemID() : '',
+	onchange => "; $dlist.change(this);",
+	style => 'vertical-align:middle;',
+	name => "id_" . $field->getPrimaryKeyID(),
+	id => "id_" . $field->getPrimaryKeyID(),
+	options => $m->comp("/tmpl/element:make_dropdown_options", arrayref => [$select_label, @$parent_items], label => "getItemName", value => 'getPrimaryKeyID')
+} &>
+
+
+% foreach my $link_field (@$link_fields) {
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> $link_field->{child_field_name} . ':',
+	value 	=> qq(<select name="id_$link_field->{child_field_id}" id="id_$link_field->{child_field_id}">\n<script type="text/javascript">$dlist.printOptions("id_$link_field->{child_field_id}")</script> </select>),
+} &>
+% }
+</%def>
+
+
+

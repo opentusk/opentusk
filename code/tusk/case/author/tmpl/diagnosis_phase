@@ -1,0 +1,76 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<!--- Diagnosis Phase Info --->
+
+<%perl>
+my $phase = $ARGS{'phase'};
+my $form_name = $ARGS{'form_name'};
+if (!defined($form_name)){
+	$m->comp('error',msg=>'No form_name passed to page');
+}
+my ($phase_title,$phase_name) = $m->comp("sections:get_phase_info",'phase'=>$phase);
+
+</%perl>
+
+<script language="JavaScript">
+function addDefaultData(layername){
+
+addnewdata(layername,{ phase_option_id:'',option_text:'',correct:'',feedback:'' });
+}
+</script>
+<%perl>
+my ($optionType,$selectedType) = ($phase->getPhaseOptionType(),undef);
+if ($optionType eq 'LikelyUnlikely') {
+        $selectedType = 'likely_tr'
+} elsif ($optionType eq 'Free Text'){
+        $selectedType = 'free_text_tr'
+}
+</%perl>
+
+<& sections:phase_option_type, params=>{ label => 'Diagnosis Method',
+		phase=>$phase,
+		phase_title => $phase_title,
+                selected=>$selectedType,
+		submit_form_button=>$form_name,
+                options=>[
+			{label=>'Selection',
+			value =>'likely_tr'},
+			{label=>'Free Text',
+                         value=>'free_text_tr'}]} &>
+
+
+<!--- End Diagnosis Phase Info --->
+
+<%method process_args>
+<%args>
+$phase
+$user_id
+%params
+</%args>
+% $m->print ("PHASE PK  2 :   ".$phase->getPrimaryKeyID());
+
+<& sections:phase_option_process, phase=>$phase,
+                user_id=>$user_id,params=>\%params &>
+</%method>
+
+<%method phaseReport>
+<%args>
+$case
+$phase
+$case_report
+</%args>
+<& sections:phaseOptionReport, case_report=>$case_report, case=>$case, phase=>$phase &>
+</%method>

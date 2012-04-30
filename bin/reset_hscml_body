@@ -1,0 +1,94 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+#
+# reset_hscml_body
+#
+# HSDB program to remove existing hscml_body from the content table and replace it with a bare-bones structure
+# that is able to be checked out of the database. This program is only for working around problems that arise
+# as the XMetaL customizations are in testing.
+
+# First pass: 2002-03-29, Mike Kruckenberg <mike@kruckenberg.com>
+
+use MySQL::Password;
+use HSDB4::Constants qw(:school);
+use HSDB4::SQLRow::User;
+use Getopt::Long;
+use DBI;
+
+my $content_id;
+my $all;
+GetOptions( "content-id=i" => \$content_id,
+	    "all!" => \$all);
+
+# Make sure we have arguments
+unless ($content_id) {
+    print "Usage: reset_hscml_body --content-id=<contentid>\n";
+    exit;
+}
+
+# Get username and password
+my ($un, $pw) = get_user_pw ();
+# Set the username and password for HSDB4 module lookups
+HSDB4::Constants::set_user_pw ($un, $pw);
+
+# Get the user object
+my $content = HSDB4::SQLRow::Content->new->lookup_key($content_id);
+
+# And move on if we can't do that
+unless ($content->primary_key) {
+    print "Cannot find content $content_id\n";
+    exit;
+}
+my $backup_file = $content_id."-backup.xml";
+my $new_body = <<BODY;
+<body><section-level-1 id="_5409"><section-title>Empty Title</section-title><para id="_4169">Empty Paragraph</para></section-level-1></body>
+BODY
+
+my $new_hscml = <<HSCML;
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>
+<!DOCTYPE content SYSTEM "hscml.dtd">
+<db-content><brief-header><mime-type>text/xml</mime-type><copyright><copyright-structure><copyright-owner friendly-name="MICHAEL KRUCKENBERG"><user-identifier user-id="mkruck01"/></copyright-owner><copyright-years>2002</copyright-years></copyright-structure></copyright></brief-header><body><section-level-1 id="_5409"><section-title>Sample Title</section-title><para id="_4169">Sample Paragraph</para></section-level-1></body></db-content>
+HSCML
+
+my $old_hscml = $content->field_value("hscml_body");
+$old_hscml =~ s/(.+)(\<body\>.*\<\/body\>)(.+)/$2/s;
+my $message = "structure";
+if (!$all) {
+    $message = "body";
+    $new_hscml = $1.$new_body.$3;
+}
+open FILE, ">$backup_file";
+print FILE $old_hscml;
+close FILE;
+
+$content->field_value("hscml_body",$new_hscml);
+$content->field_value("conversion_status",2);
+$content->save($un,$pw);
+print "Existing HSCML body copied to ".$backup_file.", replaced with empty HSCML $message.\n";
+1;
+
+__END__
+
+
+
+
+
+
+

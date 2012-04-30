@@ -1,0 +1,163 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	no_check_path => 1
+</%attr>
+<%once>
+	use HSDB4::SQLRow::User;
+</%once>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"5",
+	cellpadding =>"0" } &>
+
+	<tr>
+		<td>
+			<table id="regularForm" border="0" style="display:<% ($localUserSearchIsAdvanced)? "none" : "" %>;">
+				<tr>
+					<td align="right"><b>Name Contains:</b></td>
+					<td align="left"><input type="text" name="simpleSearch" value="<% $ARGS{simpleSearch} %>"></td>
+				</tr>
+			</table>
+			<table id="advancedForm" border="0" style="display:<% (!$localUserSearchIsAdvanced)? "none": "" %>;">
+				<tr>
+					<td align="right"><b>Last Name:</b></td>
+					<td align="left"><input type="text" name="lastName" value="<% $ARGS{lastName} %>"></td>
+				</tr>
+				<tr>
+					<td align="right"><b>Middle Name:</b></td>
+					<td align-"left"><input type="text" name="middleName" value="<% $ARGS{middleName} %>"></td>
+				</tr>
+				<tr>
+					<td align="right"><b>First Name:</b></td>
+					<td align="left"><input type="text" name="firstName" value="<% $ARGS{firstName} %>"></td>
+				</tr>
+			</table>
+			<input type="checkbox" name="advanced" onChange="changeSearch(this.checked);"<% ($localUserSearchIsAdvanced)? "checked='checked'": ""%> >Advanced
+			<input type="submit" name="action" value="Search" class="formbutton">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+
+		
+		</td>
+	</tr>
+%	 if ($ARGS{action}) {
+	<tr>	
+		<td><br>
+			<div id="count">
+%				 if(!$lookupConditions) {
+					<font color="red">You must enter some search criteria</font>
+%				} else {
+					<% scalar(@results) %> matching entr<% (scalar(@results) == 1)? "y": "ies" %><% (scalar(@results))? ":" : "" %>
+%				}
+			</div>
+		</td>
+	</tr>
+%	 if (@results) {
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+<%perl>
+	foreach my $user (@results){
+		my $pk = $user->primary_key();
+		push (@resultarray, {userid => $pk, name => $user->out_lastfirst_name, affiliation => $user->field_value('affiliation'),role => $user->aux_info('roles')});
+	}
+</%perl>
+
+<& /tmpl/layers:create_layer, struct => {
+			layer => 'searchdiv',
+			fields => ['userid','name','role', 'affiliation'],
+			name => '',
+			scrollrows => 9,
+			parentlayer => $ARGS{parentlayer},
+			sort => {usage => 'No'},
+			action => {usage => 'Yes', length=>100, functions => [
+									{func=>'add', label=>'Add'}
+								]},
+			display => [
+					{field=>'name', align=>'left', length=>225,},
+					{field=>'userid', label=> 'UserID', align=>'left', length=>75,},
+					{field=>'affiliation', label=> 'Affiliation', align=>'center', length=>75,}
+
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => \@resultarray,
+			}
+&>
+
+		</td>
+
+	</tr>
+%	}
+%	}
+	<tr>
+		<td class="xsm">
+			<br>
+			Simple searchs will look for the string you enter in either the first or middle or last name.<br>
+			Advanced search will look for the strings you enter in the first name and the middle name and the last name.
+			In the advanced search, if you do not enter a first middle or last name those fields will not be searched.
+		</td>
+	</tr>
+</table>
+
+</form>
+
+
+<%init>
+	
+	my $localUserSearchIsAdvanced = 0;
+	my $lookupConditions;
+	my ($last,$middle,$first);
+	my $search;
+	my @results;
+	my @resultarray;
+	if ($ARGS{action}){
+		$lookupConditions = "";
+		if($ARGS{advanced}) {
+			$localUserSearchIsAdvanced = 1;
+			($last = $ARGS{lastName}) =~ s/'/\\'/g;
+			($middle = $ARGS{middleName}) =~ s/'/\\'/g;
+			($first = $ARGS{firstName}) =~ s/'/\\'/g;
+			if($first || $middle || $last) {
+				if($last) {$lookupConditions .= "lastname like '\%" . $last . "\%'";}
+				if($middle) {
+					if($lookupConditions) {$lookupConditions .= " AND ";}
+					$lookupConditions.= "midname like '\%" . $middle . "\%'";
+				}
+				if($first) {
+					if($lookupConditions) {$lookupConditions .= " AND ";}
+					$lookupConditions.= "firstname like '\%" . $first . "\%'";
+				}
+			}
+		} else {
+			($search = $ARGS{simpleSearch}) =~ s/'/\\'/g;
+			if($search) {
+				$lookupConditions = "firstname like '\%$search\%' OR midname like '\%$search\%' OR lastname like '\%$search\%'";
+			}
+		}
+		if($lookupConditions) {
+			@results = HSDB4::SQLRow::User->new->lookup_conditions($lookupConditions,"order by lastname, firstname");
+		}
+	}
+
+</%init>
+

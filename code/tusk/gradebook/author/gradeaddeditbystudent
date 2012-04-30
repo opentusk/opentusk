@@ -1,0 +1,424 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use TUSK::GradeBook::GradeCategory;
+	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::GradeBook::GradeMultiple;
+	use TUSK::GradeBook::GradeCategoryCodingCode;
+	use TUSK::Application::GradeBook::GradeBook;
+	
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my ($student_id, $category_id) = $m->comp("/tmpl/url:get_path_ids");
+	my ($category, $saved_grades_by_event, $events_by_category, $show_multi_site);
+	my $student = HSDB4::SQLRow::User->new()->lookup_key($student_id);
+	my $has_categories = 0;
+	my @grade_rows = ();
+	my @display_grade_data = (); ## we use this only for deletion as we don't really use sort_order_box 
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+	my $user_id = $m->session->{'user'}->user_id();
+	my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id}, user_id => $user_id );
+	my $root_category  = $gb->getRootCategory();
+	my $filter = 'gradediv';
+	my $set = 0;
+	my $link_user_grade_events = {};  ### list for getting failed grades
+	my $link_events = {};
+	my $has_code_options = 0;
+</%shared>
+
+<table>
+<tr><td>
+<table width="100%">
+<tr>
+<td class="med">Name: <% $student->out_full_name() %> </td>
+<td align="right">
+% if ($category) {
+<& SELF:get_categories_dropdown &>
+% }
+</td></tr>
+</table>
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'gradeaddeeditbystudent' } &>
+</td></tr>
+
+% if (scalar @grade_rows) {
+<tr><td>
+<& /tmpl/element:table, params => { 
+	width 		=> "100%",
+	border		=> "0",
+	cellspacing	=> "0",
+	cellpadding	=> "0" 
+} &>
+<tr class="header">
+<th>Title</th>
+<th>Grade</th>
+% if ($show_multi_site) {
+<th>Site</th>
+% }
+<th>
+% if ($has_code_options) {
+Code
+% }
+</th>
+<th>Scaled Grade</th>
+<th>Max Possible Points</th>
+<th>Comments</th>
+
+</tr>
+% foreach my $row (@grade_rows) {
+<tr>
+<td style="padding-right:10px;"><% $row->{title} %></td>
+<td><% $row->{grade} %></td>
+% if ($row->{site}) {
+<td><% $row->{site} %></td>
+% }
+<td align="center">
+% if ($row->{coding_code}) {
+%	$m->print($row->{coding_code});
+% }
+</td>
+<td> <% $row->{scaled_grade} %>  </td>
+<td> <% $row->{max_possible_points} %> </td>
+<td><% $row->{comments} %>
+<% $row->{eventid} . ' ' . $row->{userid} %></td>
+
+</tr>
+% }
+</table>
+</td></tr>
+<& /tmpl/element:save_button, params=>{
+	label			=> 'Save Changes',
+	cancel_onclick	=> "go_back('/gradebook/author/gradelistbystudent/$type_path');",
+	name			=> 'save_changes',
+	one_column		=> 1,
+	td_class		=> 'cell-right',
+} &>
+</form>
+% } else {
+<tr><td align="center"><br/><em>No grade events associated.</em></td></tr>
+% }
+</table>
+
+<& SELF:print_failed_grades &>
+
+<%init>
+	if (defined($ARGS{'submit_check'})) {
+		if ($ARGS{save_grade_date}) {
+			if ($ARGS{failed_grade_changed}) {
+				if (ref $ARGS{failed_grade_changed} eq 'ARRAY') {
+					foreach my $link_id (@{$ARGS{failed_grade_changed}}) {
+						if (my $f = TUSK::GradeBook::GradeMultiple->new()->lookupKey($link_id)) {
+							$f->setGradeDate($ARGS{'grade_date_' . $link_id});
+							$f->save({user => $user_id});
+						}
+					}
+				} else {
+					if (my $f = TUSK::GradeBook::GradeMultiple->new()->lookupKey($ARGS{failed_grade_changed})) {
+						$f->setGradeDate($ARGS{'grade_date_' . $f->getPrimaryKeyID()});
+						$f->save({user => $user_id});
+					}
+				}
+			}
+		} else {
+			my $row_hash = $m->comp('/tmpl/process:process_fields',fields => \%ARGS, filter => '^' . $filter);
+			foreach my $key (keys %$row_hash){
+				if ($row_hash->{$key}->{fields}->{grade} eq ''){
+					delete($row_hash->{$key});
+				} 
+			}
+
+			foreach my $key (keys %$row_hash) {
+				next unless ($row_hash->{$key}{elementchanged});
+				my $link = ($row_hash->{$key}{pk}) 
+					? TUSK::GradeBook::LinkUserGradeEvent->lookupKey($row_hash->{$key}{pk})
+					: TUSK::GradeBook::LinkUserGradeEvent->new();
+
+				$link->setParentUserID($row_hash->{$key}{fields}{userid});
+				$link->setChildGradeEventID($row_hash->{$key}{fields}{eventid});
+				$link->setGrade($row_hash->{$key}{fields}{grade});
+				$link->setComments($row_hash->{$key}{fields}{comments});
+				$link->setTeachingSiteID($row_hash->{$key}{fields}{site_id});
+				$link->setCodingCodeID($row_hash->{$key}{fields}{coding_code_id});
+				$link->save({user => $user_id});
+				$link->setFailedGrade($user_id);
+			}
+		}
+
+		$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $r->uri() . "?msg=Successfully saved");
+	}
+
+	($saved_grades_by_event, $events_by_category) = $gb->getStudentGradeRecords($student);
+	if ($category_id) {
+		$category = TUSK::GradeBook::GradeCategory->lookupKey($category_id);
+		if ($category) {
+			$show_multi_site = $category->showMultiSite();
+		}
+	}
+	$m->comp('SELF:update_grade_rows');
+</%init>
+
+<%method update_grade_rows>
+<%perl>
+	my $cond = ($category_id) ? "lineage like '/" . $root_category->getPrimaryKeyID() . "/$category_id/%' or grade_category_id = $category_id" : '';
+
+	my $categories = $gb->getSortedCategories($cond);
+	if (@$categories) {
+		$has_categories = 1;
+		foreach my $cat(@$categories) {
+			my $spaces = ($cat->getDepth() > 1) ? '&nbsp;' x (($cat->getDepth()-1)*2) : '';
+			push @grade_rows, {
+				title => $spaces . '<span class="bigtext">' . $cat->getGradeCategoryName() . '</span> ',
+				grade => undef,
+				comments => undef,
+				max_possible_points => undef,
+				scaled_grade =>undef,
+			};
+			$m->comp('SELF:update_grade_event_rows', cat_id => $cat->getPrimaryKeyID(), events => $events_by_category->{$cat->getPrimaryKeyID()}, grades_data => $saved_grades_by_event, spaces => '&nbsp;' x (($cat->getDepth()) * 2));			
+		}
+
+		return if $category_id;
+		if ($events_by_category->{$root_category->getPrimaryKeyID()} && scalar @{$events_by_category->{$root_category->getPrimaryKeyID()}}) {
+			push @grade_rows, {
+				title => '<span class="bigtext">Uncategorized</span>',
+			};
+			$m->comp('SELF:update_grade_event_rows', events => $events_by_category->{$root_category->getPrimaryKeyID()}, grades_data => $saved_grades_by_event, spaces => '&nbsp;' x 2);			
+		}
+	} else {  ## NO CATEGORY
+		return if $category_id;
+		my $events = $gb->getAllButFinalEvents();
+		if (defined($ARGS{'order'})){
+			$events = TUSK::GradeBook::GradeEvent->updateSortOrders($type_object->school, $type_object->primary_key, $m->comp("SELF:get_timeperiod_id"), $ARGS{'order'}, $events);
+		}
+		$m->comp('SELF:update_grade_event_rows', events => $events_by_category->{$root_category->getPrimaryKeyID()}, grades_data => $saved_grades_by_event);			
+	}
+</%perl>
+</%method>
+
+<%method update_grade_event_rows>
+<%args>
+	$cat_id => undef
+	$events
+	$grades_data
+	$spaces => ''
+</%args>
+<%perl>
+	return unless $events && scalar @$events;
+
+	my $code_options;
+	$code_options =  $m->comp('SELF:get_code_options', cat_id => $cat_id) if $cat_id;
+
+	foreach my $event (@$events) {
+		my $event_id = $event->getPrimaryKeyID();
+		my $gevent = TUSK::GradeBook::GradeEvent->new()->lookupReturnOne("grade_event_id = $event_id");
+		my $gray = ($has_categories) ? 'gray' : '';
+		my $grade_record = $grades_data->{$event->getPrimaryKeyID()};
+		my $max_possible_points = $gevent->getMaxPossiblePoints();
+		my $scaled_grade;
+
+		my ($pk, $grade, $comments, $site_id, $code_id) = ('', '', '', '', '');
+		if (ref $grade_record eq 'TUSK::GradeBook::LinkUserGradeEvent') { 
+			$pk = $grade_record->getPrimaryKeyID();
+			$grade = $grade_record->getGrade();
+			$comments = $grade_record->getComments();
+			$site_id = $grade_record->getTeachingSiteID();
+			$code_id = $grade_record->getCodingCodeID();
+			push @{$link_user_grade_events->{$event_id}{id}}, $pk;
+			$link_user_grade_events->{$event_id}{name} = $event->getEventName();
+			$link_user_grade_events->{$event_id}{passgrade} = $event->getPassGrade();
+			$link_events->{$pk} = $event_id;
+		    $scaled_grade = $gb->getScaledGrade($grade, $event_id); 
+		
+		}
+
+		push @grade_rows, {
+			title => $spaces . "<span class=\"$gray\">" . $event->getEventName() . "</span>",
+			eventid => "<input type=\"hidden\" name=\"$filter\__$pk\__eventid\__$set\" value=\"$event_id\"/>",
+			userid => "<input type=\"hidden\" name=\"$filter\__$pk\__userid\__$set\" value=\"" . $student_id . "\"/>",
+			grade => "<input style=\"text-align:center;\" type=\"text\" name=\"$filter\__$pk\__grade\__$set\" value=\"$grade\" size=\"3\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" style=\"text-align:right;\" size=\"15\"  />",
+			comments => "<input style=\"text-align:left;\" type=\"text\" name=\"$filter\__$pk\__comments\__$set\" value=\"$comments\" size=\"30\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" />",
+			scaled_grade => "<input disabled style=\"text-align:center;font-weight:bold;\" type=\"text\" name=\"$filter\__$pk\__scaled_grade\__$set\" value=\"$scaled_grade\" size=\"12\"  />",
+			max_possible_points => "<input disabled style=\"text-align:center;font-weight:bold;\" type=\"text\" name=\"$filter\__$pk\__max_possible_points\__$set\" value=\"$max_possible_points\" size=\"20\"  />",
+			site => ($show_multi_site) ? $m->scomp('SELF:get_sites_dropdown', pk => $pk, set => $set, site_id => $site_id ) : undef,
+			coding_code => ($code_options && scalar @$code_options) 
+				? $m->scomp('/tmpl/element:dropdown', params => { 
+					name 		=> "$filter\__$pk\__coding_code_id\__$set",
+					class		=> 'navsm',
+					selected 	=> $code_id,
+					options 	=> $code_options,
+					onchange 	=> "updateGradeStatus('$filter\__$pk\__elementchanged\__$set');"})
+				: (($has_code_options) ? 'N/A' : undef),
+		};
+		push @display_grade_data, {	link_user_grade_event_id => $pk };
+		$set++;
+	}
+</%perl>
+</%method>
+
+<%method get_categories_dropdown>
+<& /tmpl/element:dropdown, params => { 
+	onchange => 'forward(this);',
+	options => [
+		{ label => 'select catagory', value => undef, },
+		@{ $m->comp('SELF:get_category_options', gb => $gb, root_category => , $root_category, no_root_option => 1)},
+	],
+} &>
+</%method>
+
+<%method get_sites_dropdown>
+<%args>
+	$pk
+	$set
+	$site_id
+</%args>
+<%perl>
+	my $site_options = [];
+	my @sites = $type_object->child_teaching_sites();
+	push (@$site_options, {'label' => '', 'value' => undef});
+	foreach my $site (@sites){
+		push (@$site_options, {
+			label => $site->site_name(), 
+			value => $site->getPrimaryKeyID(),
+			class => 'navsm',
+		});
+	}
+</%perl>
+
+<& /tmpl/element:dropdown, params => { 
+	name 		=> "$filter\__$pk\__site_id\__$set",
+	selected 	=> $site_id,
+	options 	=> $site_options,
+	onchange 	=> "updateGradeStatus('$filter\__$pk\__elementchanged\__$set');",
+	class		=> 'navsm',
+} &>
+</%method>
+
+<%method should_display_site>
+<%perl>
+	if (my $top_level_cat = $category->getFirstGenerationParent()) {
+		return $top_level_cat->getMultiSite();
+	}
+</%perl>
+</%method>
+
+<%method get_code_options>
+<%args>
+	$cat_id
+</%args>
+<%perl>
+	my $cat_codes = TUSK::GradeBook::GradeCategoryCodingCode->new()->lookup("grade_category_id = $cat_id", undef, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Coding::Code", {joinkey => 'coding_code_id', jointype => 'inner'})] );
+
+	return undef unless ($cat_codes && scalar @$cat_codes > 0);
+	$has_code_options = 1;
+	my $code_options = [];
+	push (@$code_options, {'label' => '', 'value' => undef});
+	foreach my $cat_code (@$cat_codes){
+		push (@$code_options, {
+			label => $cat_code->getCodingObject()->getLabel() . ' (' . $cat_code->getCodingObject()->getCode() . ')',
+			value => $cat_code->getCodingCodeID(),
+			class => 'navsm',
+		});
+	}
+	return $code_options;
+</%perl>
+</%method>
+
+<%method get_category_id>
+% 	return $category_id;
+</%method>
+
+<%method print_failed_grades>
+<%perl>
+	return unless ($link_user_grade_events && keys %$link_user_grade_events);
+	my @link_ids = ();
+	foreach my $eid (keys %$link_user_grade_events) {
+		push @link_ids,  @{$link_user_grade_events->{$eid}{id}};  
+	}
+
+	my $failed_grades = TUSK::GradeBook::GradeMultiple->lookup("grade_type = $TUSK::GradeBook::GradeMultiple::FAILED_GRADETYPE AND link_user_grade_event_id in (" . join(',', @link_ids) . ')', ['link_user_grade_event_id', 'sort_order DESC']);
+
+	return unless (scalar @$failed_grades);
+	my $fgrades = {};
+	foreach my $f (@$failed_grades) {
+		push @{$fgrades->{$link_events->{$f->getLinkUserGradeEventID()}}}, $f;
+	}
+</%perl>
+
+<br/><br/>
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'gradefail' } &>
+<table>
+<tr><td>
+<table width="100%">
+<tr><td class="med">Failures:</td>
+<td align="right">
+<& /tmpl/element:button, params => { label => 'Save Failed Grade Dates',  name => 'save_grade_date', type => 'submit' } &>
+</td>
+</tr>
+</table>
+</td></tr>
+<tr><td>
+<table>
+<tr class="header"><th>Title</th><th>Grade To Pass</th><th>Failed Grade</th><th>Date</th></tr>
+
+%	my $prev_id = 0;
+%	foreach my $eid (keys %$fgrades) {
+%		my $title = $link_user_grade_events->{$eid}{name};
+%		foreach my $link (@{$fgrades->{$eid}}) {
+%			my $pk = $link->getPrimaryKeyID();
+%			my $grade_date = HSDB4::DateTime->new()->in_mysql_date($link->getGradeDate())->out_mysql_date();
+<tr>
+<td class="line-left" style="padding-right:30px;"><% $title %></td>
+<td class="line-right" style="padding-right:5px;"><% $link_user_grade_events->{$eid}{passgrade} %></td>
+<td class="line-right" style="padding-right:5px;"><% $link->getGrade() %></td>
+<td class="line-center">
+<& /tmpl/element:input_calendar, params =>{ 
+	name        => 'grade_date_' . $pk,
+	value       => $grade_date,
+	size        => 10,
+	maxlength   => 10,
+	calendar    => 1,
+	onchange	=> "changeFailedGrade('$pk');",
+} &>
+</td>
+</tr>
+%			$title = "<span class=\"gray\" style=\"font-size:85%;\">$link_user_grade_events->{$eid}{name}</span>";
+%		}
+%	}
+</table>
+</td></tr>
+</table>
+</form>
+</%method>
+
+<%method title>
+% 	return "View/Edit Student Grades";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+% 	return ['gradebook.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js',];
+</%method>
+
+

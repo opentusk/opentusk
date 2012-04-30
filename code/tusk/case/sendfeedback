@@ -1,0 +1,101 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use Mail::Sendmail;
+	use TUSK::Constants;
+</%once>
+
+<%attr>
+no_header=>1
+</%attr>
+
+<%method leftnav>
+% return undef;
+</%method>
+
+<%method title>
+% return '';
+</%method>
+
+<%shared>
+my $case_id = $m->comp('/tmpl/url:get_first_path_id');
+my $case = TUSK::Case::Case->new()->lookupKey($case_id);
+</%shared>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"10",
+		cellpadding =>"0" } &>
+<tr>
+	<td>
+
+<%perl>
+	if ($ARGS{'submit_check'}){
+		my $name = ($ARGS{'name'}) ? $ARGS{'name'} : "Anonymous";
+		my $email = ($ARGS{'email'}) ? $ARGS{'email'} : "Anonymous";
+
+		my %mail = (
+				To => $case->getFeedbackEmail(),
+				From => $TUSK::Constants::SupportEmail,
+				Subject => "Case Feedback: " . $case->getCaseTitle(),
+				Message => "The following has been submitted as feedback to your case\n\nName: " . $name . "\nEmail: " . $email . "\n" . $ARGS{'feedback'},
+				);
+		if (Mail::Sendmail::sendmail(%mail)) {
+			$m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => 'Your feedback has been sent'});
+		}else{
+			$m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => 'Your feedback has been sent'});
+		}
+	}
+</%perl>
+
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+<& tmpl/element:header_bar, label=>"Send Feedback" &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Your Name',
+                name => 'name',
+                size => 30,
+		trailing_text => '<i>(Optional)</i>',
+                length => 255 } &>
+<& /tmpl/element:textbox, params =>{ label => 'Your Email',
+                name => 'email',
+                size => 30,
+		trailing_text => '<i>(Optional)</i>',
+                length => 255 } &>
+<& /tmpl/element:textarea, params=>{ label => 'Feedback',
+		name=>"feedback",
+		cols=>"40",
+		rows=>"2",
+  } &>
+	
+<& /tmpl/element:save_button,params=>{label=>'Send Feedback',
+			no_cancel_button => 1,
+			close_window_button => 1,
+			name=>'case_submit'} &>
+
+</table>
+</form>
+
+</td>
+</tr>
+</table>

@@ -1,0 +1,68 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+    use TUSK::Quiz::Quiz;
+</%once>
+
+
+<%method jsarray>
+%   return ['quiz.js'];
+</%method>
+
+<%method check_quiz_permission>
+<%args>
+	$quiz_id
+	$user_id
+	$auto_finish => 0
+</%args>
+
+<%perl>
+	my $typeObj = $m->comp("/tmpl/url:get_type_object");
+	my $quiz;
+
+	if (ref($typeObj) eq "HSDB45::Course"){
+		my $quizzes = TUSK::Quiz::LinkCourseQuiz->new->getQuizzes($typeObj->school, $typeObj->primary_key, "quiz_id = " . TUSK::Core::SQLRow::sql_escape($quiz_id) );
+		$quiz = @$quizzes[0];
+
+		my $url = '/view/' . $m->comp("/tmpl/url:get_type_path") . '/quizzes';
+
+		unless ($quiz) {
+			$m->comp("/tmpl/url:redirect",message => "Invalid Quiz",destination => $url) 
+		}
+
+		if ($quiz->isOverDue() && !($auto_finish)) {
+			$m->comp("/tmpl/url:redirect",message => "Quiz has expired",destination => $url);
+		}
+
+		if ($quiz->isOverTimeLimit($user_id) && !($auto_finish)) {
+			$m->comp("/tmpl/url:redirect",message => "Quiz time has expired!",destination => $url);
+		}
+
+		if ($quiz->getQuizType eq 'Quiz'){
+			my $tp_id = $quiz->getTimePeriodID();
+			if (!$tp_id || !$typeObj->is_user_registered($user_id, $tp_id)) {
+				$m->comp("/tmpl/url:redirect",message => "Invalid Quiz Permissions",destination => $url);
+			}
+		}
+	}
+
+	return $quiz;
+</%perl>
+</%method>
+
+<% $m->call_next %>
+
+    

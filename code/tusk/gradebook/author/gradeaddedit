@@ -1,0 +1,159 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::Application::GradeBook::GradeBook;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $event_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $event = TUSK::GradeBook::GradeEvent->new->lookupKey($event_id);
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $school = $type_object->get_school()->getSchoolName();
+	my ($grades_data, $saved_grades) = $event->getGradeRecords($type_object);
+	my $time_period_id = $m->comp('SELF:get_timeperiod_id');
+</%shared>
+
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'gradeaddedit' } &>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { 
+	width 		=> "100%",
+	border		=> "0",
+	cellspacing	=> "0",
+	cellpadding	=> "0" 
+} &>
+
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Save Changes',
+	cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+	name			=> 'save_changes',
+	one_column		=> 1,
+} &>
+
+% my ($fields, $fields_display) = $m->comp('SELF:get_columns');
+
+<& /tmpl/element:sort_order_box, params =>{
+	no_label 		=> 1,
+	no_add_button 	=> 1,
+	buttons => [],
+	layer_info => {
+		layer => 'gradesdiv',
+		context_path => $m->comp("/tmpl/url:get_full_path"),
+		fields => $fields,
+		name => 'grades',
+		sort => {usage => 'No'},
+		action => {usage => 'No'},
+		scrollrows => 10,
+		display => $fields_display,
+		validate => { usage => 'No', form => 'gradeaddedit'},
+		data => $grades_data }
+	} &>
+
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Save Changes',
+	cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+	name			=> 'save_changes',
+	one_column		=> 1,
+} &>
+
+</table>
+</form>
+
+</table>
+
+<%init>
+	if ($ARGS{'submit_check'}) {
+		my $row_hash = $m->comp('/tmpl/process:process_fields',fields => \%ARGS, filter => '^gradesdiv');
+		foreach my $key (keys %$row_hash){
+			if ($row_hash->{$key}->{fields}->{grade} eq ''){
+				delete($row_hash->{$key});
+			} else {
+				$row_hash->{$key}->{fields}->{event_id} = $event_id;
+				$row_hash->{$key}->{fields}->{modifier_id} = $m->session->{'user'}->user_id();
+			}
+		}
+		
+		$m->comp('/tmpl/process:manipulate_rows',
+			row_type => 'Direct',
+			user => $m->session->{'user'}->user_id(),
+			object_name => 'TUSK::GradeBook::LinkUserGradeEvent',
+			fields_data => $row_hash,
+			field_function_map => {
+				'grade'		=> 'setGrade',
+				'comments'	=> 'setComments',
+				'user_id'	=> 'setParentUserID',
+				'event_id' 	=> 'setChildGradeEventID',
+				'modifier_id' => 'setFailedGrade',
+			},
+			display_data => $grades_data );
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/gradeaddedit", 'msg' => 'Successfully Saved'));
+	}
+
+
+my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id, user_id => $m->session->{'user'}->user_id()});
+
+foreach my $x (@$grades_data) {
+		my $calculated_grade = $x->{'grade'};
+		my $scaled_grade = $gb->getScaledGrade($calculated_grade, $event_id); 
+		$x->{'scaled_grade'} = $scaled_grade;
+	}
+
+
+</%init>
+
+
+<%method get_columns>
+<%perl>
+	return ( 
+		['link_user_grade_event_id', 'name', 'grade', 'comments', 'user_id'],
+		[
+			{label => 'Name',field => 'name', align=>'left', length => 150 },
+			{label => 'User&nbsp;ID', field => 'user_id', align => 'left', length => 20 },
+			{label => 'Grade', field=>'grade', align => 'center', length => 40, type => 'textbox'},
+			{label => 'Scaled Grade', field=>'scaled_grade', align => 'center', length => 40, type => 'label'},
+			{label => 'Comments', field => 'comments', align => 'left', length => 300, type => 'textbox' }
+		]
+	);
+
+</%perl>
+</%method>
+
+
+<%method get_nav_bar_objects>
+% 	return {'TUSK::GradeBook::GradeEvent' => $event};
+</%method>
+
+
+<%method jsarray>
+% 	return ['layers.js', 'element.js', 'gradebook.js'];
+</%method>
+
+<%method title>
+%	return 'Add/Edit Grade: ' . $event->getEventName();
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+

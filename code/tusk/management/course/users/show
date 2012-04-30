@@ -1,0 +1,215 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	top_tab_type            => 'manage'
+	check_cms_permissions	=> 1
+    default_path_type	=> 'course'
+</%attr>
+
+<%once>
+	use TUSK::Manage::Course::Users;
+	use Data::Dumper;
+</%once>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+% if ($is_director_nonstudent) {
+<tr>
+	<td class="button-left">
+% if($is_group_course) {
+	<div class="gCMSButtonRow">
+		<a href="/management/course/users/addedit/<% $selfpath %>">Add Individual Members</a>
+		<a href="/management/course/users/addgroupmembers/course/<% $selfpath %>">Add Members By User Group</a>
+	</div>
+% } elsif($is_thesis_comm) {
+	<div class="gCMSButtonRow">
+		<a href="/management/course/users/addedit/<% $selfpath %>">Add Members</a>
+	</div>
+% } else {
+
+	<& /tmpl/element:cms_button_row, links => [
+						{ link_txt    => '/management/course/users/addedit/' . $selfpath,
+                          display_txt => 'New Faculty &amp; Staff'
+                        } ]
+	&>
+
+% }
+
+</td></tr>
+<tr><td>
+
+% } else {
+	<tr><td class="no-button">
+% }
+
+% if ($data->{usercount}) {
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	name => 'users' } 
+
+&>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	class =>"tusk",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<tr class="header">
+
+<%perl>
+# THESE ARE OLD COMMENTS, I'M JUST GOING TO LEAVE THEM HERE FOR NOW...... (SCORDE01 2/2/2010)
+# group courses can have huge rosters (1k members!), and the sort order column takes minutes 
+# to generate. while it might make sense to change the sort functionality when the list
+# gets that long, we don't think we are likely to encounter another situation like this outside
+# of group courses. since we don't need to really sort this list in a group course, we are 
+# just removing the column for them.
+</%perl>
+
+% my @rows;
+% foreach my $i (0..($data->{usercount}-1)) {
+% my $usr = $data->{users}->[$i];
+% my $rolesWithSpace;
+% ($rolesWithSpace = $usr->aux_info('roles'))=~s/,/, /g;
+% if($is_thesis_comm) {
+%		$rolesWithSpace =~ s/director/Advisor/i;
+%		$rolesWithSpace =~ s/author/Committee Member/i;
+% }
+% $rows[$i] = { 
+%				'id' => $usr->field_value('user_id'), 
+%				'name' => $usr->field_value('lastname') . ", " . $usr->field_value('firstname'),
+%				'roles' => $rolesWithSpace,
+%				'affiliation' => $usr->field_value('affiliation') };
+% }
+
+% if ($is_director_nonstudent && !$is_group_course) {
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 1,
+	columns => [ 
+		{'label' => 'UserID', 'field' => 'id' },
+		{'label' => 'Name', 'field' => 'name'},
+		{'label' => 'Role(s)', 'field' => 'roles'}, 
+		{'label' => 'Affiliation', 'field' => 'affiliation'},
+	],
+	action_columns => [ 
+		{ 'label' =>'Modify','link' => '/management/course/users/addedit' },
+		{ 'label' =>'Delete','link' => '/management/course/users/delete' },
+	],
+	action_column_align => 'left',
+	rows => \@rows,
+	type_path => $m->comp("/tmpl/url:get_type_path"),
+	name => "people",
+} &>
+
+% } else {
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [ 
+		{'label' => 'UserID', 'field' => 'id' },
+		{'label' => 'Name', 'field' => 'name'},
+		{'label' => 'Role(s)', 'field' => 'roles'}, 
+		{'label' => 'Affiliation', 'field' => 'affiliation'},
+	],
+    action_columns => [ 
+		{ 'label' =>'Modify','link' => '/management/course/users/addedit' },
+		{ 'label' =>'Delete','link' => '/management/course/users/delete' },
+	],
+	rows => \@rows,
+	type_path => $m->comp("/tmpl/url:get_type_path"),
+	name => "people",
+} &>
+
+% }
+
+% if ( $data->{subusercount} ) {
+
+% my @subrows;
+% foreach my $key ( sort keys %{$data->{subusers}} )  {
+% 		foreach my $usr (@{$data->{subusers}->{$key}})	{
+%
+% my $rolesWithSpace;
+% ($rolesWithSpace = $usr->aux_info('roles'))=~s/,/, /g;
+% if($is_thesis_comm) {
+%		$rolesWithSpace =~ s/director/Advisor/i;
+%		$rolesWithSpace =~ s/author/Committee Member/i;
+% }
+% push (@subrows , { 
+%				'id' => $usr->primary_key, 
+%				'name' => $usr->field_value('lastname') . ", " . $usr->field_value('firstname'),
+%				'roles' => $rolesWithSpace,
+%				'course' => $key } );
+% 	} # foreach usr
+% } # foreach key
+
+<h2 style="color: #CC3300; padding: 25px 0 1px 0; margin: 0;">Subcourse Faculty</h2>
+
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [ 
+		{'label' => 'UserID', 'field' => 'id' },
+		{'label' => 'Name', 'field' => 'name'},
+		{'label' => 'Course', 'field' => 'course'},
+		{'label' => 'Role(s)', 'field' => 'roles'}, 
+	],
+	rows => \@subrows,
+	type_path => $m->comp("/tmpl/url:get_type_path"),
+	name => "subpeople",
+} &>
+
+% } # if subusercount
+
+% } # if usercount
+
+</form>
+</td>
+</tr>
+</table>
+
+<%init>
+	my $selfpath = $m->comp("/tmpl/url:get_full_path");
+	my $type_object =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $time_period = $m->comp("SELF:get_timeperiod_id");
+	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+    my @usergroups =  $course->sub_user_groups($time_period); 
+
+	my	$data = TUSK::Manage::Course::Users::show_pre_process($r, $ARGS{timeperiod}, $type_object->course_id, $school);
+	my ($rval, $msg); 	
+
+	my $is_group_course = ($course->type() eq 'group')? 1 : 0;
+	my $is_thesis_comm = ($course->type() eq 'thesis committee')? 1 : 0;
+
+	my $is_director_nonstudent = $m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT');
+
+	if (defined($ARGS{order})) {
+		($rval, $msg) = TUSK::Manage::Course::Users::change_order($r, $ARGS{order}, $type_object->course_id, $school, $data->{users});
+		delete($ARGS{order});
+	}
+</%init>
+
+<%method title>
+% return "Manage Faculty and Staff";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+

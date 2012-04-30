@@ -1,0 +1,67 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB45::Eval::MergedResults::BarGraph
+	use HSDB45::Eval::MergedResults::Formatter;
+</%once>
+
+<%attr>
+	no_header	=> 1
+	docType		=> 'simpleType4'
+</%attr>
+
+
+<%method stylearray>
+%	return '/style/grapher.css';
+</%method>
+
+<%method title>
+%       return 'Eval Graph';
+</%method>
+
+<%method return_page_footer>
+%	return undef;
+</%method>
+
+<%shared>
+	my @pathIDs = $m->comp('/tmpl/url:get_path_ids');
+	my $school = $m->comp('/tmpl/url:get_school');
+	my $evalID = $pathIDs[0];
+	my $questionID = $pathIDs[1];
+	my $bar = HSDB45::Eval::MergedResults::BarGraph->new_from_variables($school,$evalID, $questionID);
+	# I don't think we want to do this but (if we wanted) we could provide an icon to force a generation of the graphic and then gen the graphic
+#	unless ($bar->primary_key) {
+#		# Extract the school and eval_id from the URL
+#		my $formatter = HSDB45::Eval::MergedResults::Formatter->new_from_path("$school/$evalID/$questionID");
+#		if ($formatter->is_cache_valid()) {
+#			my $bar_graph_creator = HSDB45::Eval::MergedResults::BarGraphCreator->new($formatter->school(), $formatter->object_id(), $formatter->get_xml_text());
+#			$bar_graph_creator->save_svg_graphs();
+#		} else {
+#			$formatter->get_xml_text();
+#		}
+#		# Now, reload the bar graph object
+#		$bar = HSDB45::Eval::MergedResults::BarGraph->new_from_path("$school/$evalID/$questionID");
+#	}
+</%shared>
+
+<body>
+% unless($bar->primary_key) {
+	<font color="red">Sorry, this graph is currently unavailable.</font>
+% } else {
+	<% $bar->get_graphic() %>
+% }
+</body>
+</html>

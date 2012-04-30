@@ -1,0 +1,275 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%doc>
+	if it submit page, caller needs to 
+	 a. use attributes to skip header 
+	 b. declare some libs 
+	(see sp/author/export)
+</%doc>
+
+<%shared>
+	my $form = $m->comp("/formbuilder/util:get_form");
+	my $entry_checklist = {
+##		entry_completer_name => 'Form Completer Name',
+##		entry_completer_id => 'Form Completer ID',
+		entry_date => 'Entry Date',
+		start_date => 'Start Date',
+		complete_date => 'Complete Date',
+		entry_duration => 'Completion Duration (in seconds)',
+		show_timeperiod => 'Time Period',
+	};
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my ($row, $col) = (0, 0);  ### for generating data in worksheet
+	my $worksheet;
+	my $resultset;
+</%shared>
+
+
+<%method printForm>
+<%args>
+    $args
+	$submit_page 
+	$entry_target_user => undef
+</%args>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	onsubmit => '',
+	name => 'myform',
+	action => $submit_page,
+} &>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border => "0",
+	cellspacing => "0",
+	cellpadding => "0" 
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label 	=> 'Name',
+	value 	=> $form->getFormName(),
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label 	=> 'Description',
+	value 	=> $form->getFormDescription(),
+} &>
+
+<& /formbuilder/report:time_periods, course => $m->comp('/tmpl/url:get_type_object') &>
+
+<%perl>
+	my $general_checkboxes = '';
+
+	if ($entry_target_user) {
+		$general_checkboxes = qq(
+<input type="checkbox" name="target_user" CHECKED DISABLED> $entry_target_user Name<br/>
+<input type="hidden" name="entry_target_user_name" value="1"/>
+);
+	}
+
+	foreach my $key (keys %$entry_checklist) {
+		$general_checkboxes .= "<input type=\"checkbox\" name=\"$key\"> $entry_checklist->{$key}<br/>";
+	}
+
+	my $field_checkboxes = '';
+	## for now we handle only checklist and Essay
+	## exclude 'MultiSelect', 'MultiSelectWithAttributes', 'DynamicList', 'Heading', 'SingleSelect', 'Fillin'
+	my $fields = $form->getFields("token in ('CheckList', 'Essay')");
+	foreach my $field (@$fields) {
+		$field_checkboxes .= '<input type="checkbox" name="field_id" value="' . $field->getPrimaryKeyID() . "\"/>" . $field->getFieldName() . " <span style=\"font-size:85%\">(" . $field->getFieldTypeToken() . ")</span><br/>\n";
+	}
+</%perl>
+
+<& /tmpl/element:field_display, params => { 
+	label 	=> 'Entry data to be included',
+	value 	=> $general_checkboxes,
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label 	=> 'Fields to be included',
+	value 	=> $field_checkboxes,
+} &>
+
+<& /tmpl/element:save_button, params => {
+	label 		=> 'Export', 
+	name		=> 'form_submit', 
+	onmouseup	=> 'this.blur();', 
+	'no_cancel_button' => 1,
+} &>
+
+</table>
+</form>
+</%method>
+
+
+<%method printSpreadsheet>
+<%doc> 
+	For SP, student userid is in form_builder_entry_association as s/he is being evaluated by SP
+</%doc>
+<%args>
+    $args
+	$is_evaluated => 0  
+</%args>
+
+<%perl>
+	my $fh = IO::File::new_tmpfile;
+	my $startpos = $fh->getpos();
+	my $workbook = Spreadsheet::WriteExcel->new($fh);
+
+	$m->comp('SELF:generateWorksheet', args => $args, workbook => $workbook, is_evaluated => $is_evaluated);
+	$workbook->close();
+
+	if (defined($fh) && !$args->{break}){
+        $m->clear_buffer();
+		$fh->setpos($startpos);
+		$r->content_type( 'application/vnd.ms-excel' );
+		$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="' . $m->comp('SELF:getFileName') . '"'); 
+		$r->send_http_header();
+		binmode( $fh );
+		binmode( STDOUT );
+   		while (read $fh, my $buf, 16384) { 
+			print STDOUT $buf; 
+		}
+   		close $fh;
+        $m->abort();
+	} else {
+		$m->comp("/tmpl/error_display:displayError", message => "Sorry, there was an error generating the report.");
+	}
+</%perl>
+</%method>
+
+
+<%method generateWorksheet>
+<%args>
+	$args
+	$workbook
+	$is_evaluated
+</%args>
+
+<%perl>
+	$worksheet = $workbook->add_worksheet();
+	my $header_format = $workbook->add_format();
+    $header_format->set_bold();
+
+	my $export = TUSK::Application::FormBuilder::Export->new($form->getPrimaryKeyID(), $m->comp('/tmpl/url:get_type_object'), $args->{tpid});
+
+	my ($entry_data, $students, $student_entries, $fields) = $export->getEntries($args->{field_id}, $is_evaluated);
+
+	$worksheet->write($row, $col++, 'Student');  
+	$worksheet->write($row, $col++, 'Entry ID');  
+	$worksheet->write($row, $col++, 'Entry Date') if $args->{entry_date};
+	$worksheet->write($row, $col++, 'Start Date') if $args->{start_date};
+	$worksheet->write($row, $col++, 'Complete Date') if $args->{complete_date};
+	$worksheet->write($row, $col++, 'Entry Duration') if $args->{entry_duration};
+	$worksheet->write($row, $col++, 'Time Period') if $args->{show_timeperiod};
+
+	foreach my $field (@$fields) {
+		my $token = $field->getFieldTypeToken();
+		$m->comp($token . 'Heading', field => $field);
+	}
+
+	$row++;
+	$col = 0;
+
+	foreach my $field (@$fields) {
+		my $token = $field->getFieldTypeToken();
+		my $func = 'get' . $token;
+		$resultset->{$token}{$field->getPrimaryKeyID()} = $export->$func($field->getPrimaryKeyID());
+	}
+
+	my %time_periods;
+	foreach my $time_period (@{$course->get_time_periods()}) {
+		$time_periods{$time_period->primary_key()} = $time_period->out_display();
+	}
+
+	foreach my $student (@$students) {
+		foreach my $entry_id (@{$student_entries->{$student->primary_key}}) {
+			$worksheet->write($row, $col++, $student->out_lastfirst_name());  
+			$worksheet->write($row, $col++, $entry_id);  
+			$worksheet->write($row, $col++, $entry_data->{$entry_id}{entry_date}) if $args->{entry_date};
+			$worksheet->write($row, $col++, $entry_data->{$entry_id}{start_date}) if $args->{start_date};
+			$worksheet->write($row, $col++, $entry_data->{$entry_id}{complete_date}) if $args->{complete_date};
+			$worksheet->write($row, $col++, $entry_data->{$entry_id}{entry_duration}) if $args->{entry_duration};
+			$worksheet->write($row, $col++, $time_periods{$entry_data->{$entry_id}{time_period}}) if $args->{show_timeperiod};
+			foreach my $field (@$fields) {
+				$m->comp($field->getFieldTypeToken(), entry_id => $entry_id, field => $field);
+			}
+			$col = 0; $row++;   
+		}
+	}
+</%perl>
+</%method>
+
+
+<%def CheckListHeading>
+<%args>
+	$field
+</%args>
+<%perl>
+	foreach my $item (@{$field->getItems()}) {
+		next if $item->isCatStart();
+		$worksheet->write($row, $col++, $item->getItemName());  
+	}
+</%perl>
+</%def>
+
+
+<%def CheckList>
+<%args>
+	$field
+	$entry_id
+</%args>
+<%perl>
+	foreach my $item (@{$field->getItems()}) {
+		next if $item->isCatStart();
+		$worksheet->write($row, $col++, $resultset->{CheckList}{$field->getPrimaryKeyID()}{$entry_id}{$item->getPrimaryKeyID()});  
+	}
+</%perl>
+</%def>
+
+
+<%def EssayHeading>
+<%args>
+	$field
+</%args>
+<%perl>
+	$worksheet->write($row, $col++, $field->getFieldName());
+</%perl>
+</%def>
+
+
+<%def Essay>
+<%args>
+	$field
+	$entry_id
+</%args>
+<%perl>
+	$worksheet->write($row, $col++, $resultset->{Essay}{$field->getPrimaryKeyID()}{$entry_id});
+</%perl>
+</%def>
+
+
+<%method getFileName>
+%	my $title = $form->getFormName();
+%	$title =~ s/\s+/_/g;
+%	return $title . '.xls';
+</%method>
+
+
+
+
+

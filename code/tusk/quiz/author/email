@@ -1,0 +1,97 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use Data::Dumper;
+</%once>
+
+
+<%shared>
+	my $course      =  $m->comp('/tmpl/url:get_type_object');
+	my $school_name =  $course->get_school()->getSchoolName();
+	my $quiz_id     =  $m->comp('/tmpl/url:get_last_path_id');
+	my $quiz		=  TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my ($completed, $not_completed, $not_begun) = $m->comp('/quiz/author/completion:getCompletionLists');
+	my ($subject, $body);
+</%shared>
+
+
+
+% if ($not_completed or $not_begun) {
+%	$ARGS{to} = $m->comp('SELF:fixRecipientsList', recipients => $ARGS{to}) if ($ARGS{to});
+%	$ARGS{email_list} = 1;
+ 	<& /tmpl/email,
+		args 					=> { %ARGS, subject => $subject, body => $body, school => $school_name },
+		recipients_checkboxes 	=> { 'Started but Not Completed' => $not_completed, 'Not Begun' => $not_begun },
+		cancel_url				=> "/quiz/author/completion/course/$school_name/".$course->primary_key()."/$quiz_id",
+		sendself				=> 1
+	&>
+% }
+
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	##Grab the lists of recipients from the checkboxes submitted, and build them into
+	##an array for email processing via a recipient list.
+	my $recipients = $m->comp('SELF:fixRecipientsList', recipients => $args->{to});
+	$args->{to} = $recipients;
+	$args->{email_list} = 1; 
+
+ 	$m->comp('/tmpl/email:startup', args => $args) if (defined $args->{submit_check});
+
+	$subject = "Please complete this Quiz";
+	$body = ($args->{body}) ? $args->{body} : "Please complete quiz '" . $quiz->getTitle() . "', which can be found at https://" . $ENV{'HTTP_HOST'} . "/quiz/quizstart/course/" . $school_name .'/' . $course->primary_key() . '/' . $quiz_id;
+</%perl>
+</%method>
+
+
+<%doc>
+Build the "to" list into a list of users. This is done because the recipient checkboxes
+on this view have as a value a string representing to the list, rather than a proper list.
+</%doc>
+<%method fixRecipientsList>
+<%args>
+$recipients
+</%args>
+<%perl>
+	my $fixed_recipients;
+	$recipients = [split(/\,/, $recipients)] unless (ref($recipients) eq 'ARRAY');
+	map { push @$fixed_recipients, split(/\,/, $_) } @$recipients;
+	return $fixed_recipients;
+</%perl>
+</%method>
+
+
+<%method function_token>
+% return 'quiz_completion';
+</%method>
+
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+
+<%method title>
+% return "Quiz Completion Email";
+</%method>
+
+<%method jsarray>
+% return ['jquery/jquery.min.js', 'email.js'];
+</%method>

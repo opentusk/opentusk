@@ -1,0 +1,93 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Email::Template;	
+</%once>
+
+<%shared>
+	my ($eval_id, $email_tmpl_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $school = $m->comp('SELF:schoolname');
+	my $eval = HSDB45::Eval->new(_school => $school, _id => $eval_id);
+	my $user = $m->session->{'user'};
+	my ($subject, $body);
+</%shared>
+
+
+% if (my $students = $m->comp('SELF:get_incompletes')) {
+<& /tmpl/email,
+	args 					=> { %ARGS, subject => $subject, body => $body, school => $m->comp('SELF:schoolname') },
+	recipients_checkboxes 	=> $students,
+	cancel_url				=> "/eval/administrator/completion/show/$school",
+	sendself				=> 1,
+&>
+% } else {
+<br/>
+<em>No students assoicated</em>
+% }
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+ 	$m->comp('/tmpl/email:startup', args => $args) if (defined $args->{submit_check});
+
+	if ($email_tmpl_id) {
+		my $email_tmpl = TUSK::Email::Template->lookupKey($email_tmpl_id);
+		$subject = $email_tmpl->getSubject();
+		$body = ($args->{body}) ? $args->{body} : $email_tmpl->getBody();
+	} else {
+		$subject = "Please complete this Evaluation";
+		$body = ($args->{body}) ? $args->{body} : "Please complete the course evaluation for:" . $eval->field_value('title') . " which can be found at http://" . $TUSK::Constants::Domain . "/protected/eval/complete/" . $eval->school() . '/' . $eval->field_value('eval_id');
+	}
+</%perl>
+</%method>
+
+
+<%method get_incompletes>
+<%perl>
+	my @incomplete_students = $eval->incomplete_users();
+	my $list = (scalar @incomplete_students > 1) ? "&nbsp;<input type=\"checkbox\" name=\"checkall\"/><span class=\"xsm\">select/deselect all</span><br/>" : '';
+	my $i = 1;
+	$list .= '<input type="hidden" name="email_list" value="1"/>';
+	$list .= "<table><tr>\n";
+	foreach my $user (@incomplete_students) {
+		$list .=  "<td><input type=\"checkbox\" name=\"to\" value=\"" . $user->user_id() . "\"><span class=\"xsm\">" . $user->out_lastfirst_name() . "</span></td>";
+		$list .= "</tr>\n<tr>" if $i % 3 == 0;
+		$i++;
+	}
+	$list .= "</tr></table>\n";
+	return $list;
+</%perl>
+</%method>
+
+
+<%method get_nav_bar_objects>
+% 	return {'site' => $eval};
+</%method>
+
+
+<%method title>
+%	return 'Send email to students';
+</%method>
+
+
+<%method jsarray>
+% 	return [ 'jquery/jquery.min.js', 'email.js' ];
+</%method>
+
+

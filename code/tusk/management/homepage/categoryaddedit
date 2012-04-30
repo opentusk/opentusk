@@ -1,0 +1,118 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::HomepageCategory;
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use HSDB45::UserGroup;
+</%once>
+
+<%shared>
+	my $category_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $is_edit = 0;
+	my $category;
+	my $school = $m->comp("/tmpl/url:get_school");
+
+	if ($category_id){
+		$is_edit = 1;
+		$category    = TUSK::HomepageCategory->new(_school => $school)->lookup_key( $category_id );
+	}else{
+		$category    = TUSK::HomepageCategory->new(_school => $school);
+	}
+</%shared>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>'',
+				name => 'category' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Label:',
+                name => 'label',
+                value => $category->get_label(),
+                size => 20,
+                length => 100 } &>
+
+<%perl>
+	my $usergroups = [ HSDB45::UserGroup->new(_school => $school)->lookup_conditions("order by label") ];
+	my $options = [ { 'label' => 'none', 'value' => '' } ];
+	foreach my $ug (@{$usergroups}) {
+	    push @{$options}, { 'label' => $ug->out_label, 'value' => $ug->primary_key };
+	}
+</%perl>
+<& /tmpl/element:dropdown, params =>{ label => 'Primary User Group:',
+				name => 'primary_user_group_id',
+                options => $options,
+				selected => $category->get_primary_user_group_id } &>
+
+<& /tmpl/element:dropdown, params =>{ label => 'Secondary User Group:',
+				name => 'secondary_user_group_id',
+                options => $options,
+				selected => $category->get_secondary_user_group_id } &>
+
+<& /tmpl/element:radio_buttons, params =>{ label => 'Schedule Link:',
+                name => 'schedule',
+				nobreak => '1',
+        		buttons => [
+					{ value => "1", text => "On", 
+ 			  		checked => $category->get_schedule,
+					},
+	        		{ value => "0", text => "Off", 
+			  		checked => !$category->get_schedule,
+					} 
+	   			], } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes', name=>'form_submit', 'no_cancel_button' => 1} &>
+
+</table>
+</form>
+
+<%init>
+	if (defined($ARGS{'form_submit'})){
+		$category->field_value('label', $ARGS{'label'} );
+		$category->field_value('primary_user_group_id', $ARGS{'primary_user_group_id'} );
+		$category->field_value('secondary_user_group_id', $ARGS{'secondary_user_group_id'} );
+		$category->field_value('schedule', $ARGS{'schedule'} );
+    	$category->save();
+
+		my $msgtxt;
+		if ($is_edit){
+			$msgtxt = "Category updated";
+		}else{
+			$msgtxt = "Category added";
+		}
+	
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/homepage/categoryshow", 'msg' => $msgtxt));
+	}
+</%init>
+
+<%method title>
+<%perl>
+	my $title = "Add Category";
+	if ($is_edit){
+	        $title = "Modify Category";
+	}
+	return $title;
+</%perl>
+</%method>
+
+<%method jsarray>
+%	return ['calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>

@@ -1,0 +1,115 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+my ($quiz_id,$grade_event_id) = $m->comp("/tmpl/url:get_path_ids");
+my $no_grade_event = 0;
+if (!defined($grade_event_id)){
+	$m->comp('/tmpl/error',msg=>'No Grade Event ID Passed');
+}
+my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+</%shared>
+<%once>
+use TUSK::Quiz::Quiz;
+</%once>
+
+<%method function_token>
+% return 'export_quiz';
+</%method>
+
+<%method title>
+<%perl>
+return 'Export to Grade Book';
+</%perl>
+</%method>
+
+<%method jsarray>
+% return ['layers.js','quiz.js','element.js','object_tree.js'];
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'quiz'=>$quiz};
+</%method>
+
+<%method leftnav>
+<%perl>
+my $typeObj = $m->comp('/tmpl/url:get_type_object');
+if (ref($typeObj) eq "HSDB45::Course"){
+        return "/tmpl/leftnav/course";
+}
+</%perl>
+</%method>
+
+<%init>
+$quiz->setUser($m->session->{user}->user_id);
+my $export = $ARGS{'export'};
+my $no_grade_event = 0;
+my $course = $m->comp('/tmpl/url:get_type_object');
+my ($msg,$grade_event);
+$grade_event = TUSK::GradeBook::GradeEvent->lookupKey($grade_event_id);
+my $commit = 1;
+if ($ARGS{'export_submit'}){
+	$msg = $quiz->exportToGradeBook($grade_event,$commit);	
+} elsif ($ARGS{'preview_submit'}){
+	$commit = 0;
+	$msg = $quiz->exportToGradeBook($grade_event,$commit);	
+}
+</%init>
+
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                onsubmit =>undef,
+                name => 'export' } &>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{'label'=>'Grade Event','value'=>$grade_event->getEventName()} &>
+<& /tmpl/element:field_display, params=>{'label'=>'Quiz Title','value'=>$quiz->getTitle()} &>
+% if ($export && $commit) {
+<& /tmpl/element:vertical_spacing, size=>1 &>
+% } elsif ($export) {
+<input type="hidden" value="1" name="export" />
+<& /tmpl/element:save_button, params=>{'label'=>'Export to Grade Book',
+			'name'=>'export_submit',
+			'cancel_onclick'=>"window.location='/quiz/author/showexport/"
+				.$m->comp('/tmpl/url:get_type_path')."/$quiz_id'"} &>
+% } else {
+<input type="hidden" value="1" name="export" />
+<& /tmpl/element:save_button, params=>{'label'=>'Preview Export',
+			'name'=>'preview_submit',
+			'cancel_onclick'=>'window.history.back()'} &>
+
+% }
+
+<& show_msg, msg=>$msg &>
+</form>
+</table>
+
+<%def show_msg>
+<%args>
+$msg
+</%args>
+<%perl>
+unless ($msg) {
+	return;
+}
+my @lines = split /\n/,$msg;
+$m->print (join('',map { '<tr><td></td><td class="sm">'.$_.'</td></tr>' } @lines));
+</%perl>
+
+</%def>

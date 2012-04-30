@@ -1,0 +1,122 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Case::Case;
+	use TUSK::Case::TestSelection;
+	use TUSK::GradeBook::GradeEvent;
+</%once>
+
+<%shared>
+	my ($case_id, $case_report_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $case = TUSK::Case::Case->lookupKey($case_id);
+	my $user_id = $m->comp('SELF:user');
+
+	my $report = TUSK::Case::CaseReport->lookupKey($case_report_id);
+
+	if ($report->getUserID() ne $user_id) {
+		warn "User with id $user_id cannot see this page. Reason: not owner of case report.";
+		$m->comp('/tmpl/error', msg => "$user_id cannot see the requested report because the report is owned by a different user.");
+	}
+
+	$case->setUser($user_id);
+
+	if (!defined $report) {
+		$m->comp('/tmpl/error', msg=>'Invalid Case Report ID passed');
+	}
+	else {
+		my $last_phase = $case->getLastPhase();
+
+		if ($case->isGlobalNav() || $last_phase->visited($report)) {
+			$case->setReport($report);
+			if(!$case->isReportComplete($report)){
+				$case->completeReport($user_id);
+				$case->emailReceipt($user_id, $course, $report);	
+			}
+
+			if($case->getGradeEventID()){
+				my $grade_event_id = $case->getGradeEventID();
+				$case->saveGradeEvent($grade_event_id, $user_id);
+			}
+		}
+		else {
+			$m->redirect("/case/casestart/$type_path/$case_id");
+		}
+	}
+
+	my $preview_text = $m->comp('SELF:get_preview_text', case => $case);
+</%shared>
+
+
+
+<& /tmpl/element:table &>
+
+<& tmpl/element:header_bar, label=>'Summary' . $preview_text &>
+
+% # my $score = $case->getScore($report);
+% my $objectives = $case->getObjectives();
+
+<tr><td class="text1">You have completed this case.</td></tr>
+
+
+% if (scalar(@{$objectives})){
+<tr><td class="text1" style="padding-top:10px; padding-bottom:10px;">Take a minute to review the goals and objectives to summarize the important points
+of this case:</td></tr>
+<tr><td class="subhead1" >Objectives</td></tr>
+
+% my $objective_string ;
+% 	foreach my $objective (@{$objectives}){
+%      		$objective_string .= '<li>' . $objective->getBody() . "</li>";
+% 	}
+<tr><td class="text1"><ul><% $objective_string %></ul></td></tr>
+% }
+
+% if (my $feedback = $case->getFeedbackEmail()){
+<tr><td class="subhead1" >Feedback</td></tr>
+<tr><td class="text1">You can send feedback about this case to:</td></tr>
+<tr><td class="text1"><a href="mailto:<% $feedback %>"><% $feedback %></a></td></tr>
+% } 
+<tr><td>
+<& printview:printcase, report => $report, case => $case &>
+</td></tr>
+<& tmpl/element:divider_bar &>
+<& /tmpl/element:tr_tag &><td>
+% if ($report){
+<& /tmpl/element:button, params=>{'onclick'=>'show_print_version('.$case_id.','.$case_report_id.');',
+	name=>'print','label'=>'View Printable Case Summary' } &>
+% } 
+% my $type_object = $m->comp("/tmpl/url:get_type_object");
+% if ($type_object and ref($type_object) eq 'HSDB45::Course') {
+<& /tmpl/element:button, params=>{'href'=>'/hsdb45/course/' . $type_object->school() . '/' . $type_object->course_id(),
+	name=>'course_exit','label'=> 'Course Home' } &>
+% }
+<& /tmpl/element:button, params=>{'href'=>'/home',
+	name=>'home_exit','label'=>$TUSK::Constants::SiteAbbr . ' Home' } &>
+</td></tr>
+</table>
+
+
+
+<%method leftnav>
+% return { component => '/case/tmpl/leftnav/phase', case => $case };
+</%method>
+
+<%method title>
+% return "Case Finished" . $preview_text;
+</%method>
+
+

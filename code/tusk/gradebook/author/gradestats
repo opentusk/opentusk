@@ -1,0 +1,108 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use TUSK::GradeBook::GradeStats;
+	use TUSK::Application::GradeBook::GradeBook;
+    use POSIX;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $event_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my ($event, $numOfGrades, $standardDeviation, $mean);
+	my $nogrades = 0;	 ### student with no grades
+	my $is_final_grade_event = 0; 
+	my ($grades_data, $saved_grades);
+</%shared>
+
+% if ($is_final_grade_event) {
+<br/>
+<div align="left">
+<& SELF:print_gradebook_tools &>
+</div>
+% }
+<br/>
+% if (ref $event eq 'TUSK::GradeBook::GradeEvent') {	
+<div class="med"> <% $event->getEventName() %> </div>
+% 	if ($saved_grades && scalar @$saved_grades) {
+<br><img src='/gradebook/author/graphgradeevent/<% $type_path . '/' . $event_id %>' alt='graph' />
+<table cellspacing="8" width="90%">
+<tr ><td class='labelgray'>Mean: </td> <td> <% sprintf("%4.2f", $mean) %> </td></tr>
+<tr><td class='labelgray' >Standard Deviation: </td> <td><% sprintf("%4.2f", $standardDeviation) %> </td></tr>
+</table>
+%		 if ($nogrades > 0) {
+<div style='color:#cc3300;font-size:1.3em;'>WARNING: <% $nogrades %> students have no grades for this event</div>
+% 		}
+% 		for (my $i=0; $i< 10 ; $i++) {
+%			print "<input type='hidden' id='v$i' value='@$numOfGrades[$i]'>\n";
+% 		}
+% 	} else {
+<br/><em>No statistics available for this grade event.</em>
+%	}
+% } else {
+<em>No grade event.</em>
+% }
+
+
+<%init>
+	if (defined($event_id)) {
+		$event = TUSK::GradeBook::GradeEvent->new->lookupKey($event_id);
+	} else {
+		my $time_period_id = $m->comp('SELF:get_timeperiod_id');
+		my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id});
+		if ($event = $gb->getFinalGradeEvent()) {
+			$event_id = $event->getPrimaryKeyID();
+			$is_final_grade_event = 1;
+		}
+	}
+
+	my @grades = ();
+	if ($event) {
+		($grades_data, $saved_grades) = $event->getGradeRecords($type_object);
+		foreach my $grade_record (@$grades_data) {
+			my $grade = $grade_record->{'grade'};
+			if (defined($grade))  {
+				push(@grades,$grade);	
+				my $j=0;
+				while ($j < 11) {
+					my $mod = floor($grade / 10);
+					if ($mod == $j  || ($j==9 && $grade eq "100")) {
+						if(!defined(@$numOfGrades[$j])) { @$numOfGrades[$j]=0;}
+							@$numOfGrades[$j]++;
+						$j=12;
+					}
+					$j++;
+				}
+			 } else {
+				$nogrades++;
+			 }
+		}
+		if (scalar @grades) {
+		 	$mean = TUSK::GradeBook::GradeStats->getMean(@grades);
+			$standardDeviation = TUSK::GradeBook::GradeStats->getStandardDeviation($mean,@grades);
+		}
+	}
+</%init>
+
+<%method title>
+%	return "Grade Statistics";
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>

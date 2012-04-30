@@ -1,0 +1,78 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%perl>
+	my $school    = $m->comp("/tmpl/url:get_school");
+	my $school_id = TUSK::Core::School->new->getSchoolID($school);
+	my $types     = TUSK::Core::CompetencyType->new()->lookup("school_id = $school_id");
+</%perl>
+
+<%perl>
+	my $data = [ map { id => $_->getCompetencyTypeID, description => $_->getDescription }, @{$types} ];
+</%perl>
+
+<br />
+<& /tmpl/element:jquery_sort_list, params =>{
+				width => "100%",
+				label => 'Competency Types',
+				no_table => 1,
+				container => 'competency_type_container',
+				name => 'competency_types',
+				sort => 0,
+				button_label => 'Add Competency Type',
+				no_top_add_button => 1,
+				action_width => 110,
+				action_columns => [ 
+							{ 'label' => 'Modify', 'onclick' => 'editRow( this, params );' },
+							{ 'label' => 'Delete', 'onclick' => 'deleteRow( this, params );' } 
+			  			], 
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => 'Type', field => 'description', head_align => 'left', align => 'left', edit =>
+						{ type      => 'text',
+						  classname => 'textareawhite',
+						  size      => 30,
+						  maxlength => 255 }
+					},
+				],
+				data => $data, 
+				post_to => '/management/competency/ajaxUpdateType/' . $school,
+				empty_message => "No competency types exist."
+} &>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js" 
+			];
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return "Manage Competency Types";
+</%method>
+

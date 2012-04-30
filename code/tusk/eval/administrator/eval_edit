@@ -1,0 +1,865 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+    use HSDB4::Constants;
+    use HSDB45::Eval::Authoring;
+    use HSDB45::Survey;
+	use TUSK::Core::HSDB45Tables::Course;
+	use TUSK::FTS::Eval::Index;
+	use XML::LibXML;
+	use XML::LibXSLT;
+</%once>
+
+<%shared>
+	my $school = $m->comp('SELF:schoolname');
+</%shared>
+
+%	if ($eval_id) {
+<div><a href="/protected/eval/administrator/filter_creator/<% $school %>/<% $eval_id %>">Add Filter</a></div>
+%	}
+
+%	if ($msg) {
+%		my @msgs = split ("\n", $msg);
+<div class="error">
+%		foreach my $message (@msgs) { print $message . "<br />"; }
+</div>
+%	}
+
+%	if ($ARGS{'DUPLICATE'}) {
+<div class="success">Eval ID = <% $ARGS{'DUPLICATE'} %> has been copied to this new eval.</div>
+%	}
+
+%	if ($ARGS{NEW_EVAL}) {
+<div class="success">New eval has been created; Eval ID = <% $ARGS{'NEW_EVAL'} %></div>
+%	}
+
+<h3 class="title">Eval Information</h3>
+%	if (not $eval_editable) {
+<div class="error">Eval has been answered; questions may only be added, and its dates/stylesheets may be edited.</div>
+%	}
+
+<form name="eval_create" id="eval_create" method="post">
+<table border="0" cellpadding="3" width="100%">
+%	if ($eval && $eval->primary_key()) {
+%		if ($eval_editable) {
+	<tr><td align="left" colspan="2">You can <strong>edit the eval information</strong> here: that is, its title, course, time period, due date information, and stylesheet information. To cause the changes to take effect, enter your user name and password and choose "Save Changes". When you do, the eval will be changed, and you will continue to work with this eval. If you need to create new courses or new time periods, you can do that <a href="/management/home">here</a>.</td></tr>
+%		} else {
+	<tr><td align="left" colspan="2">Because this eval has already been answered, its title, course, teaching site and time period information cannot be changed. However, if necessary, you can <strong>change its date and stylesheet information</strong> here.</td></tr>
+%		}
+	<tr>
+	 	<td align="right"><b>Eval ID:</b></td>
+		<td align="left"><% $eval->primary_key() %> (<a href="/eval/complete/<% $school %>/<% $eval->primary_key() %>" target="_blank" >Preview this eval</a>.)</td>
+	</tr>
+%	} else {
+	<tr><td align="left" colspan="2">To <strong>create a new eval</strong>, enter the title, course, time period, date and stylesheet information below. Then, enter your user name and password and choose "Create New Eval". After you do this, a new eval will be created, and you will be able to add questions to it (either from scratch or by copying them from another eval). If you need to create new courses or new time periods, you can do that <a href="/management/home">here</a>.</td></tr>
+%	}
+
+	<tr>
+		<td align="right"><b>Title:</b></td>
+		<td align="left">
+%		my $eval_title = $ARGS{'title'} || $eval->field_value('title');
+%		if ($eval_editable) {
+			<input type="text" name="title" size="50" value="<% $eval_title %>" />
+%		} else {
+			<span class="title"><% $ARGS{title} %></span><input type="hidden" name="title" value="<% $eval_title %>" />
+%		}
+		</td>
+	</tr>
+
+	<tr>
+		<td align="right" valign="top"><b>Course:</b></td>
+		<td align="left">
+%		my $eval_course_id = $ARGS{'course_id'} || $eval->field_value('course_id');
+%		if ($eval_editable) {
+			<select name="course_id" size="6"  onChange="displayList(this.selectedIndex)">
+%			foreach my $course (@$courses) {
+				<option value="<% $course->getPrimaryKeyID() %>"<% ($eval_course_id == $course->getPrimaryKeyID) ? " selected" : "" %>><% $course->getTitle() %> (<% $course->getPrimaryKeyID() %>)</option>
+%			}
+			</select>
+%		} else {
+%			my $course = $eval->course();
+			<% ($course->field_value('oea_code')) ? $course->field_value('oea_code') : '-' %> : <% $course->out_label() %> (<% $course->primary_key() %>)
+			<input type="hidden" name="course_id" value="<% $eval_course_id %>" />
+%		}
+		</td>
+	</tr>
+
+	<tr>
+		<td align="right" valign="top"><b>Teaching Site:</b></td>
+		<td align="left">
+			<select name="teaching_site_id" size="4" style="width: 450px" onClick="alertMissing(this);"></select>
+		</td>
+	</tr>
+
+	<tr>
+		<td align="right" valign="top"><b>Time Period:</b></td>
+		<td align="left">
+%		my $eval_time_period_id = $ARGS{'time_period_id'} || $eval->field_value('time_period_id');
+%		if ($eval_editable) {
+			<select name="time_period_id" size="4">
+%			foreach my $tp (sort { $b <=> $a } @timeperiods) {
+				<option value="<% $tp->primary_key() %>"<% ($eval_time_period_id == $tp->primary_key) ? " selected" : "" %>>
+					<% $tp->primary_key() %>: <% $tp->out_label() %>
+%				if ($tp->start_date()->has_value() && $tp->end_date()->has_value()) {
+					(<% $tp->start_date()->out_mysql_date() %> to <% $tp->end_date()->out_mysql_date() %>)
+%				}
+				</option>
+%			}
+			</select>
+%		} else {
+%			my $tp = $eval->time_period();
+%			$tp->out_label();
+%			if ($tp->start_date()->has_value() && $tp->end_date()->has_value()) {
+				(<% $tp->start_date()->out_mysql_date() %> to <% $tp->end_date()->out_mysql_date() %>)
+				<input type="hidden" name="time_period_id" value="<% $eval_time_period_id %>" />
+%			}
+%		}
+		</td>
+	</tr>
+
+<%perl>
+my $a_date = $ARGS{'available_date'} || $eval->field_value('available_date');
+$a_date = '' if $a_date eq '0000-00-00';
+my $avail_params =
+             { 	label => '<b>Available Date:</b>',
+				td_class => '',
+				td_align => 'right',
+				input_td_class => '',
+				input_td_align => 'left',
+				name =>  'available_date',
+				value => $a_date,
+				calendar => 1,
+             };
+
+my $submittable_date = $ARGS{'submittable_date'} || $eval->field_value('submittable_date');
+$submittable_date = '' if $submittable_date eq '0000-00-00';
+my $submittable_params =  
+             { 	label => '<b>Submittable Date:</b>',
+				td_class => '',
+				td_align => 'right',
+				input_td_class => '',
+				input_td_align => 'left',
+				name =>  'submittable_date',
+				value => $submittable_date,
+				calendar => 1,
+             };
+
+my $p_due_date = $ARGS{'prelim_due_date'} || $eval->field_value('prelim_due_date');
+$p_due_date = '' if $p_due_date eq '0000-00-00';
+my $p_due_params =  
+             { 	label => '<b>Preliminary Due Date:</b>',
+				td_class => '',
+				td_align => 'right',
+				input_td_class => '',
+				input_td_align => 'left',
+				name =>  'prelim_due_date',
+				value => $p_due_date,
+				calendar => 1,
+             };
+
+my $due_date = $ARGS{'due_date'} || $eval->field_value('due_date');
+$due_date = '' if $due_date eq '0000-00-00';
+my $due_params = 
+             { 	label => '<b>Due Date:</b>',
+				td_class => '',
+				td_align => 'right',
+				input_td_class => '',
+				input_td_align => 'left',
+				name =>  'due_date',
+				value => $due_date,
+				calendar => 1,
+             } ;
+</%perl>
+
+<& /tmpl/element:textbox, params => $avail_params &>
+<& /tmpl/element:textbox, params => $submittable_params &>
+<& /tmpl/element:textbox, params => $p_due_params &>
+<& /tmpl/element:textbox, params => $due_params &>
+
+	<tr>
+		<td align="right"><b>Question Stylesheet:</b></td>
+		<td align="left">
+			<select name="question_stylesheet">
+				<option value="">Default Question Stylesheet</option>
+%				my $qss_id = $ARGS{'question_stylesheet'} || $eval->question_stylesheet_id;
+%				foreach my $stylesheet ($eval->question_stylesheets()) {
+				<option value="<% $stylesheet->stylesheet_id() %>"<% ($qss_id == $stylesheet->stylesheet_id) ? " selected" : "" %>><% $stylesheet->stylesheet_id() %>: <% $stylesheet->label() %></option>
+%				}
+			</select>
+		</td>
+	</tr>
+
+	<tr>
+		<td align="right"><b>Results Stylesheet:</b></td>
+		<td align="left">
+			<select name="results_stylesheet">
+				<option value="">Default Results Stylesheet</option>
+%				my $rss_id = $ARGS{'results_stylesheet'} || $eval->results_stylesheet_id;
+%				foreach my $stylesheet ($eval->results_stylesheets()) {
+				<option value="<% $stylesheet->stylesheet_id() %>"<% ($rss_id == $stylesheet->stylesheet_id) ? " selected" : "" %>><% $stylesheet->stylesheet_id() %>: <% $stylesheet->label() %></option>
+%				}
+			</select>
+		</td>
+	</tr>
+<%perl>
+	if ($eval->primary_key()) {
+		$m->comp('SELF:action_row', name => "edit_eval", value => "Save Changes");
+	} else {
+		$m->comp('SELF:action_row', name => "new_eval", value => "Create New Eval");
+	}
+</%perl>
+</table>
+</form>
+
+	<script type="text/javascript">
+	var courses = document.eval_create.course_id;
+	var teaching_sites_group = document.eval_create.teaching_site_id;
+	var teaching_site_id = new Array();
+%	my $i = 0;
+%	foreach my $course (@$courses) {
+%		my $links = $course->getLinkTeachingSiteObjects();
+	teaching_site_id[ <% $i++ %> ] = [ "0|None"
+%		foreach my $link (@$links) {
+%			if ($link->getPrimaryKeyID() && ref($link->getTeachingSiteObject()) eq 'TUSK::Core::HSDB45Tables::TeachingSite') {
+%				my $teaching_site = $link->getTeachingSiteObject();
+,"<% $teaching_site->getPrimaryKeyID() %>|<% $teaching_site->getSiteName() %>"
+%			}
+%		}
+	];
+%	}
+
+<%perl>
+	my $highlight_site_id = 0;
+	if ($ARGS{teaching_site_id}) {
+		$highlight_site_id = $ARGS{teaching_site_id};
+	} elsif ($eval->field_value('teaching_site_id')){
+		$highlight_site_id = $eval->field_value('teaching_site_id');
+	}
+</%perl>
+
+	if (document.eval_create.course_id.selectedIndex != -1) {
+		displayList(document.eval_create.course_id.selectedIndex);
+		for (var i=0; i<document.eval_create.teaching_site_id.options.length; i++) {
+			if (document.eval_create.teaching_site_id.options[i].value == <% $highlight_site_id %>) {
+				document.eval_create.teaching_site_id.selectedIndex = i;
+				break;
+			}
+		}
+	}
+
+	function displayList(selectedGroup) {
+		teaching_sites_group.options.length = 0;
+
+		for (i=0; i<teaching_site_id[selectedGroup].length; i++) {
+			var default_selected = false;
+			var selected_choice = false;
+			if (document.eval_create.teaching_site_id.selectedIndex != -1) {
+				if (i == 0) default_selected = true;
+			        selected_choice = true;
+			}
+			teaching_sites_group.options[teaching_sites_group.options.length] = new Option(teaching_site_id[selectedGroup][i].split("|")[1], teaching_site_id[selectedGroup][i].split("|")[0], default_selected, selected_choice );
+		}
+		document.eval_create.teaching_site_id.selectedIndex = 0;
+	}
+
+
+	function alertMissing(teaching_site) {
+		if (teaching_site.selectedIndex == -1 ) { 
+			alert('Please click on a course to get a list of corresponding teaching sites.');
+		}
+	}
+	</script>
+
+%	if ($eval->primary_key() && @questions && ! $eval_editable) {
+<hr />
+	<h4 class="title">Copy This Eval</h4>
+	<p>You may <strong>create a new eval</strong> which is a copy of <em>this</em> eval 
+	(which you can then edit) by entering your username and password below and choosing 
+	"Copy This Eval". If you do that, a new eval will be created whose information 
+	(title, course, dates, etc.) will be exactly the same as this eval, with the set 
+	of questions here linked to it. You will be able to edit that eval's information 
+	and manipulate its question list.</p>
+<table width="100%" cellpadding ="2">
+	<& SELF:action_row, name => "copy_eval", value => "Copy this Eval" &>
+</table>
+%	}
+
+<hr /> 
+
+%	if ($eval->primary_key()) {
+	<h3 class="title">Question List</h3>
+%		if (@questions == 0) {
+		<p>There are no questions entered for this eval. 
+		There are two approaches to adding questions to this eval.</p>
+		<ol>
+		<li>You may <strong>copy the question list from another eval</strong> by 
+		following the instructions under "Copy Questions from Another Eval"; or</li>
+		<li>You may <strong>make a new question from scratch</strong>
+		 to add to this eval by following the instructions under "Add a Question to This Eval".</li>
+		</ol>
+		<h4 class="title">Copy Questions from Another Eval</h4>
+		<p>You <strong>copy the list of questions from another eval</strong> to this eval 
+		by selected the other eval below, entering your username and password, and choosing
+		"Copy Questions from Eval". When you do this, the questions which are linked to 
+		the other eval will become linked to this eval, and you will be able to work with them here.</p>
+		<form name="copy_eval" method="post" onsubmit="return validateForm(this)">
+		<table border="0" cellspacing="0" cellpadding="2" width="100%">
+		<tr><td align="right"><b>Copy Eval:</b></td>
+		<td align="left"><select name="eval_to_copy">
+%		foreach my $other ($blank_eval->lookup_conditions('course_id = ' . $eval->field_value ('course_id') . ' and eval_id != ' . $eval->field_value('eval_id'))) {
+			<option value="<% $other->primary_key() %>">
+				<% $other->out_label() %> (<% $other->primary_key() %>)
+			</option>
+%		}
+		</select></td></tr>
+                <tr><td>&nbsp;</td>
+                <td align="left">Alternatively, you may enter an Eval ID: &nbsp;<input type="text" name="eval_to_copy_2"></td></tr>
+		</table>
+		<table width="100%" cellpadding ="2">
+			<& SELF:action_row, name => "copy_eval", value => "Copy Questions from Eval" &>
+		</table>
+		</form>
+
+		<script type="text/javascript">
+		function validateForm(form) {
+			var str = form.eval_to_copy_2.value;
+			if (str == null || str.length == 0) {
+				return true;
+			}
+
+			if (isValidIdWithoutLeadingZeroes(form.eval_to_copy_2)) {
+				return true;
+			}
+			return false;
+		}
+		</script>
+
+%	} else {
+		<p>You can <strong>manipulate the question list</strong> of this eval here. 
+		The list of all of the questions (along with their information) is shown below. 
+		You can do the following things to a question:</p>
+		<ul>
+		<li><strong>Unlink</strong> it from this eval (this does not delete the question 
+		or affect its relationship with other evals).</li>
+		<li><strong>Edit</strong> the question itself. This option will let you edit the question 
+		information. This option is not available if the question is part of another eval 
+		that has already been answered.</li>
+		<li><strong>Duplicate and then edit</strong> the question. 
+		This will make a duplicate of the question, unlink the original question, 
+		link the duplicate question, and edit the newly duplicated question.</li>
+		</ul>
+		<p>For each question you wish to manipulate, choose the checkbox next to the action 
+		to the right of the question below. After you have selected all of the questions 
+		you with to unlink, duplicate, and edit, enter your password below and choose 
+		"Create and Edit Questions". If you are editing any questions (possibly after duplicating them), 
+		you will be taken to a page where you can do that.</p>
+
+		<form name="question_automation" method="post">
+		<table border="0" cellspacing="0" cellpadding="2" width="100%">
+		<tr>
+%		if ($eval_editable) {
+			<td style="text-align:left"><& "/tmpl/element:button", params => { type => 'submit', name => 'automate_all_labels', label => 'Automate All Labels' } &></td>
+%		}
+			<td style="text-align:right">
+				<& "/tmpl/element:button", params => { name => 'edit_select_all', onclick => 'eval_select_all(true)', label => 'Edit All' } &>
+				<& "/tmpl/element:button", params => { name => 'edit_clear_all', onclick => 'eval_select_all(false)', label => 'Deselect All' } &>
+			</td>
+		</tr>
+		</table>
+		</form>
+
+
+		<form name="question_list" method="post">
+		<table border="0" cellspacing="0" cellpadding="2" width="100%">
+%		foreach my $qn (@questions) {
+			<& SELF:question_info, q => $qn, eval_id => $eval_id, eval_editable => $eval_editable &>
+%		}
+		<tr><td colspan="2" style="text-align:left"><& "/tmpl/element:button", params => { type => 'submit', name => 'do_edit', label => 'Unlink and Edit Questions' } &></td></tr>
+		</table>
+		</form>
+
+%	}
+
+<hr />
+
+	<h4 class="title">Add a Question to This Eval</h4>
+	<p>You may <strong>add a new question</strong> to his eval by choosing its type 
+%	if (@questions) {
+		and the question it will follow in the sort order
+%	}
+	below, and entering your name and password. If you do this, a new question will be created and linked to this eval, and you will be taken to a page to edit the new question.</p>
+	<form name="add_question" method="post">
+	<table border="0" cellspacing="0" cellpadding="2" width="100%">
+	<tr><td align="right"><b>New Question Type: </b>
+
+	<td align="left"><& SELF:question_type_select, eval_editable => $eval_editable &></td></tr>
+%	if (@questions) {
+		<tr><td align="right"><b>Preceding Question:</b></td>
+		<td align="left"><select name="new_q_after">
+		<option value="0">Beginning</option>
+%		foreach my $question (@questions) {
+			<option value="<% $question->primary_key() %>">
+				<% $question->out_text_display() %>
+			</option>
+%		}
+		</select></td></tr>
+%	}
+		<tr>
+			<td colspan="2" style="text-align:left"><& "/tmpl/element:button", params => { type => 'submit', name => 'add_question', label => 'Create Question' } &></td>
+			<td><& "/tmpl/element:button", params => { onclick => 'doHelpWindow()', label => 'Question Authoring Help' } &></td>
+			<td><& "/tmpl/element:button", params => { onclick => 'doQuickRefWindow(\'' . $school . '/' . $eval->primary_key . '\')', label => 'Directory of This Eval' } &></td>
+		</tr>
+	</table>
+	</form>
+%	}
+
+<%init>
+	my $eval_id = $m->comp("/tmpl/url:get_last_path_id");
+	my ($eval, $eval_editable, @questions);
+	my $blank_eval = HSDB45::Eval->new( _school => $school );
+	my ($res, $msg) = (1, '');
+	my $courses = TUSK::Core::HSDB45Tables::Course->new()->getWithTeachingSites($school);
+	my @timeperiods = HSDB45::TimePeriod->new( _school => $school )->nonpast_time_periods();
+
+	# If we're trying to create a new one...
+	if ($ARGS{new_eval}) {
+		($res, $msg) = HSDB45::Eval::Authoring::check_field_values(\%ARGS);
+		if ($res) {
+			my $new_eval = HSDB45::Eval->new( _school => $school );
+			$new_eval->set_field_values(
+				title            => $ARGS{title},		
+				course_id        => $ARGS{course_id},
+				time_period_id   => $ARGS{time_period_id},
+				teaching_site_id => $ARGS{teaching_site_id},
+				available_date   => $ARGS{available_date},
+				submittable_date => $ARGS{submittable_date},
+				prelim_due_date  => $ARGS{prelim_due_date},
+				due_date         => $ARGS{due_date},
+				question_stylesheet => $ARGS{question_stylesheet},
+				results_stylesheet  => $ARGS{results_stylesheet},
+			);
+			($res, $msg) = $new_eval->save();
+
+			if ($res) {
+				$m->redirect( '/protected/eval/administrator/eval_edit/' . $school . "/" . $new_eval->primary_key . "?NEW_EVAL=" . $new_eval->primary_key );
+	    	}
+	    }
+	}
+
+	if ($eval_id) {
+		if ($eval_id =~ /S/) {
+			$eval_id =~ s/S//g;
+			$eval = HSDB45::Survey->new(_school => $school, _id => $eval_id);
+		} else {
+		    $eval = HSDB45::Eval->new( _school => $school, _id => $eval_id );
+		}
+		$eval_editable = $eval->is_editable();
+
+		my @fields = qw(title course_id time_period_id teaching_site_id available_date prelim_due_date due_date);
+		if ($eval->primary_key()) {
+			if ($ARGS{duplicate_eval}) {
+				($res, $msg) = HSDB45::Eval::Authoring::duplicate_eval($school, $eval);
+				if ($res) {
+					$m->redirect( '/protected/eval/administrator/eval_edit/' . $school . "/" . $res . "?DUPLICATE=" . $eval->primary_key );
+				}
+			}
+		}
+
+		if ($ARGS{edit_eval}) {
+			($res, $msg) = HSDB45::Eval::Authoring::check_field_values(\%ARGS);
+			if ($res && $eval_editable) {
+				$eval->set_field_values(
+					title            => $ARGS{title},
+					course_id        => $ARGS{course_id},
+					time_period_id   => $ARGS{time_period_id},
+					teaching_site_id => $ARGS{teaching_site_id},
+					available_date   => $ARGS{available_date},
+					submittable_date => $ARGS{submittable_date},
+					prelim_due_date  => $ARGS{prelim_due_date},
+					due_date         => $ARGS{due_date},
+					question_stylesheet => $ARGS{question_stylesheet},
+					results_stylesheet  => $ARGS{results_stylesheet},
+				);
+			} elsif ($res) {
+				$eval->set_field_values(
+					available_date   => $ARGS{available_date},
+					submittable_date => $ARGS{submittable_date},
+					due_date         => $ARGS{due_date},
+					prelim_due_date  => $ARGS{prelim_due_date},
+					question_stylesheet => $ARGS{question_stylesheet},
+					results_stylesheet  => $ARGS{results_stylesheet},
+				);
+			}
+
+			if ($res) {
+				($res, $msg) = $eval->save(); 
+			}
+		} else {
+			for my $field (@fields) { 
+				$ARGS{$field} = $eval->field_value($field);
+				$ARGS{$field} =~ s/\"/\&\#34;/g;  #"  IGNORE THIS QUOTE.  It is here to keep vim syntax highlighting nice.
+			}
+		}
+
+		if ($eval_editable && $ARGS{copy_eval}) {
+			### eval_id in the input box (eval_to_copy_2) has priority over the one in the select box (eval_to_copy)
+			### eval_to_copy will be used only if eval_to_copy_2 is empty
+			my $eval_to_copy = ($ARGS{eval_to_copy_2}) ? $ARGS{eval_to_copy_2} : $ARGS{eval_to_copy};
+			($res, $msg) = 	HSDB45::Eval::Authoring::copy_eval_questions($school, $eval_to_copy, $eval->primary_key());
+		} elsif ($ARGS{do_edit}) {
+			if ( !$ARGS{unlink_q} && !$ARGS{edit_q} && !$ARGS{duplicate_q} ) {
+				$m->redirect( '/protected/eval/administrator/eval_edit/' . $school . "/" . $eval->primary_key . "?errmsg=Please select at least one question." );
+			}
+
+			my $answered_hash = {};
+			my (@unlinks, @edits, @duplicates);
+
+			if ( ref($ARGS{unlink_q}) eq 'ARRAY' ) {
+				@unlinks = @{$ARGS{unlink_q}};
+			} elsif( $ARGS{unlink_q} ) {
+				push @unlinks, $ARGS{unlink_q};
+			}
+
+			if ( ref($ARGS{edit_q}) eq 'ARRAY' ) {
+				@edits = @{$ARGS{edit_q}};
+			} elsif( $ARGS{edit_q} ) {
+				push @edits, $ARGS{edit_q};
+			}
+
+			if ( ref($ARGS{duplicate_q}) eq 'ARRAY' ) {
+				@duplicates = @{$ARGS{duplicate_q}};
+			} elsif( $ARGS{duplicate_q} ) {
+				push @duplicates, $ARGS{duplicate_q};
+			}
+
+			foreach my $qid (@unlinks) {
+				my $q = $eval->question($qid);
+				if (!$q || $answered_hash->{$qid}) {
+					$msg .= "Can't unlink $qid";
+					next; 	
+				} elsif ($answered_hash->{$qid} = $q->has_been_answered($eval_id)) {
+					$msg .= "Can't unlink $qid";
+					next;
+				}
+				($res, $msg) = $eval->delete_child_question($qid);
+				my $docid = $school . "_" . $eval_id . "_" . $qid;
+				TUSK::FTS::Eval::Index::deleteDocument($docid);
+				last unless $res;
+			}
+
+			foreach my  $qid (@duplicates) {
+				my $q = $eval->question($qid);
+				if (!$q || $answered_hash->{$qid}) {
+					$msg .= "Can't duplicate $qid";
+					next; 	
+				} elsif ($answered_hash->{$qid} = $q->has_been_answered($eval_id)) {
+					$msg .= "Can't duplicate $qid";
+					next; 	
+				} 
+				($res, $msg) = HSDB45::Eval::Authoring::make_question_duplicate($school, undef, undef, $eval, $qid);
+				if ($res) { push @edits, $res; }
+				last unless $res;
+			}
+			if (@edits && $res) {
+				my @real_edits = ();
+				for my $qid (@edits) {
+					my $q = $eval->question($qid);
+					next unless $q and $q->primary_key();
+					next if $q->has_been_answered();
+					push @real_edits, $qid; 
+				}
+				$m->redirect( '/protected/eval/administrator/eval_question_edit/' . $school . "/" . $eval->primary_key() . "/" . join('/', @real_edits));
+			}
+		} 
+
+		@questions = $eval->questions();
+		if ($ARGS{add_question}) {
+			($res, $msg) = HSDB45::Eval::Authoring::create_question($school, undef, undef, $eval, $ARGS{new_q_type}, $ARGS{new_q_after});
+			if ($res) {
+				$m->redirect( '/protected/eval/administrator/eval_question_edit/' . $school . "/" . $eval->primary_key() . "/" . $res );
+			}
+		}
+
+		if($eval_editable && $ARGS{automate_all_labels}) {
+			$eval->automate_all_labels();
+			@questions = $eval->questions();
+		}
+
+	} else {
+		$eval_editable = 1;
+	}
+
+	if ( !$eval ) {
+		$eval = $blank_eval;
+	} elsif ( !$eval->primary_key ) {
+		$m->redirect( '/protected/eval/administrator/show/' . $school . "?errmsg=Eval not found." );
+	}
+</%init>
+
+<%method question_info>
+<%args>
+	$q
+	$eval_id
+	$eval_editable
+</%args>
+%	my $editable = !$q->has_been_answered($eval_id);
+%	my $type     = $q->body()->question_type();
+%   my $real_label = $q->get_real_label();
+%	utf8::decode($real_label);
+
+	<tr bgcolor="#ccccff" class="header">
+		<td class="header-center"><a name="q_<% $q->primary_key() %>"><span class="title"><% $real_label ? $real_label : "-" %></span></td>
+		<td class="header-left"><span class="title">ID: <% $q->primary_key() %>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Type: <% $type %><% ($q->body()->is_reference()) ? " (Reference)" : "" %></span></td>
+	</tr>
+
+	<tr>
+		<td align="center">Sort: <% $q->sort_order() %></td>
+		<td align="left">
+			<table border="0" width="100%" cellpadding="2" cellspacing="0">
+				<tr>
+					<td align="right"><b>Required:</b></td>
+					<td align="left"><% $q->is_required() ? "Yes" : "No" %></td>
+					<td align="right"><b>N/A Available:</b></td>
+					<td align="left"><% $q->body()->na_available() ? "Yes" : "No" %></td>
+					<td align="right"><b>Grouping:</b></td>
+					<td align="left"><% ($q->group_by_ids()) ? join(', ', $q->group_by_ids()) : 'None' %></td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+
+<%perl>
+	my $parser     = XML::LibXML->new();
+	my $xslt       = XML::LibXSLT->new();
+	my $filename   = $ENV{XSL_ROOT} . "/Common/flow.xsl";
+	my $style_doc  = $parser->parse_file($filename);
+	my $stylesheet = $xslt->parse_stylesheet($style_doc);
+	my $doc        = $parser->parse_string($HSDB45::Eval::Question::Body::prolog.$q->body()->elt()->first_child('question_text')->sprint()); 
+	my $result     = $stylesheet->transform($doc);
+</%perl>
+	<tr>
+		<td rowspan="2" valign="top" align="left">
+%		if (($type ne 'Title' && $type ne 'Instruction') || $eval_editable) {
+%			if ($editable) {
+%				if (not $q->other_evals_answered()) {
+			<input type="checkbox" name="edit_q" value="<% $q->primary_key() %>" />Edit<br />
+%				} else {
+			<input type="checkbox" name="duplicate_q" value="<% $q->primary_key()%>" />Dup &amp; Edit<br/>
+%				}
+			<input type="checkbox" name="unlink_q" value="<% $q->primary_key() %>" />Unlink
+%			} else {
+			&nbsp;
+%			}
+%		}
+		</td>
+		<td align="left">
+			<div style="font-family: sans-serif; border: solid #ccc; padding: 3pt;">
+%				my $outtext = $stylesheet->output_string($result); utf8::decode($outtext);
+				<% $outtext %>
+			</div>
+		</td>
+	</tr>
+
+<%perl>
+	if ($q->body()->is_reference()) {
+		$m->comp('SELF:question_ref', q => $q);
+	} elsif ($type eq 'Title' || $type eq 'Instruction') {
+		$m->comp('SELF:title_instruction', q => $q);
+	} elsif ($type eq 'MultipleChoice' || $type eq 'MultipleResponse' || $type eq 'DiscreteNumeric') {
+		$m->comp('SELF:multiple_choice_response', q => $q);
+	} elsif ($type eq 'NumericRating' || $type eq 'PlusMinusRating') {
+		$m->comp('SELF:numeric_rating', q => $q);
+	} elsif ($type eq 'Count') {
+		$m->comp('SELF:count', q => $q);
+	} elsif ($type eq 'Ranking') {
+		$m->comp('SELF:ranking', q => $q);
+	} elsif ($type eq 'TeachingSite') {
+		$m->comp('SELF:teaching_site', q => $q);
+	} elsif ($type eq 'SmallGroupsInstructor') {
+		$m->comp('SELF:small_groups_instructor', q => $q);
+	} elsif ($type eq 'IdentifySelf') {
+		$m->comp('SELF:identify_self', q => $q);
+	} elsif ($type eq 'FillIn' || $type eq 'NumericFillIn') {
+		$m->comp('SELF:fill_in', q => $q);
+	} else {
+		$m->comp('SELF:title_instruction', q => $q);
+	}
+</%perl>
+</%method>
+
+<%method question_type_select>
+<%args>
+	$eval_editable
+</%args>
+	<select name="new_q_type">
+%	foreach my $qtype (HSDB45::Eval::Question::Body->question_types()) {
+%		if (($eval_editable) || (($qtype ne 'Instruction') && ($qtype ne 'Title'))) {
+		<option value="<% $qtype %>"><% $qtype %></option>
+%		}
+%	}
+	</select>
+</%method>
+
+<%method title_instruction>
+<%args>
+	$q
+</%args>
+	<!-- Title/Instruction More Information -->
+	<tr><td></td></tr>
+</%method>
+
+<%method count>
+<%args>
+	$q
+</%args>
+	<!-- Count More Information -->
+	<tr><td>
+	<table cellpadding="0" cellspacing="2" border="0" width="100%">
+		<tr>
+			<td width="25%" align="right"><b>Style:</b></td>
+			<td width="25%" align="left"><% $q->body()->choice_style() %></td>
+			<td width="25%" align="right"><b>Low Bound:</b></td>
+			<td width="25%" align="left"><% $q->body()->low_bound() %>
+			<% ($q->body->lower_than_bound()) ? " (with lower)" : "" %></td>
+		</tr>
+		<tr>
+			<td align="right"><b>Align:</b></td>
+			<td align="left"><% $q->body()->choice_align()  %></td>
+			<td align="right"><b>Interval:</b></td>
+			<td align="left"><% $q->body()->interval() %></td>
+		</tr>
+		<tr>
+			<td align="right"></td>
+			<td align="left"></td>
+			<td align="right"><b>High Bound:</b></td>
+			<td align="left"><% $q->body()->high_bound() %>
+			<% ($q->body->higher_than_bound()) ? " (with higher)" : "" %></td>
+		</tr>
+	</table>
+	</td></tr>
+</%method>
+
+<%method multiple_choice_response>
+<%args>
+	$q
+</%args>
+	<tr><td align="left">
+		<b>Choice Columns</b>: <% $q->body()->num_columns() || 'Unspecified' %><br />
+		<b>Choices</b>
+		<ol style="margin-top: 0pt" type="a">
+%		foreach my $choice ($q->body()->choices()) {
+			<li><% $choice %></li>
+%		}
+		</ol>
+	</td></tr>
+</%method>
+
+<%method numeric_rating>
+<%args>
+	$q
+</%args>
+	<!-- Numeric Rating More Information -->
+	<tr><td align="left">
+		<table cellpadding="0" cellspacing="2" border="0" width="100%">
+			<tr>
+				<td width="25%" align="right"><b>Num Steps:</b></td>
+				<td width="25%" align="left"><% $q->body()->num_steps() %></td>
+				<td width="25%" align="right"><b>Low Text:</b></td>
+				<td width="25%" align="left"><% $q->body()->low_text() %></td>
+			</tr>
+			<tr>
+				<td align="right"><b>Style:</b></td>
+				<td align="left"><% $q->body()->choice_style() %></td>
+				<td align="right"><b>Mid Text:</b></td>
+				<td align="left"><% $q->body()->mid_text() %></td>
+			</tr>
+			<tr>
+				<td align="right"><b>Show numbers:</b></td>
+				<td align="left"><% ($q->body()->show_numbers()) ? 'Yes' : 'No' %></td>
+				<td align="right"><b>High Text:</b></td>
+				<td align="left"><% $q->body()->high_text() %></td>
+			</tr>
+		</table>
+	</td></tr>
+</%method>
+
+<%method fill_in>
+<%args>
+	$q
+</%args>
+	<!-- Fill-in More Information -->
+	<tr><td align="left"><b>Long Text:</b> <% $q->body()->longtext() ? "Yes" : "No" %></td></tr>
+</%method>
+
+<%method identify_self>
+<%args>
+	$q
+</%args>
+	<!-- Identify Self More Information -->
+	<tr><td></td></tr>
+</%method>
+
+<%method small_groups_instructor>
+<%args>
+	$q
+</%args>
+	<!-- Small Groups Instructor More Information -->
+	<tr><td align="left">Small groups instructor info here.</td></tr>
+</%method>
+
+<%method teaching_site>
+<%args>
+	$q
+</%args>
+	<!-- Teaching Site More Information -->
+	<tr><td>
+		<ul>
+%		foreach my $ts ($q->parent_eval()->course()->child_teaching_sites()) {
+			<li><% $ts->site_name() %></li>
+%		}
+		</ul>
+	</td></tr>
+</%method>
+
+<%method question_ref>
+<%args>
+	$q
+</%args>
+	<!-- Question Ref More Information -->
+%	my $tid = $q->body()->target_question_id();
+	<tr><td align="left">Reference to <a href="#q_<% $tid %>">Question <% $tid %></a></td></tr>
+</%method>
+
+<%method action_row>
+<%args>
+	$name
+	$value
+</%args>
+	<tr><td><& "/tmpl/element:button", params => { type => 'submit', name => $name, label => $value } &></td></tr>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . " Eval Editing";
+</%method>
+
+<%method jsarray>
+%	return ['calendar.js', 'calendar-en.js', 'calendar-setup.js', 'eval.js', 'scripts.js', 'formbuilder.js'];
+</%method>
+

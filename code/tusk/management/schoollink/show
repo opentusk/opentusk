@@ -1,0 +1,84 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::SchoolLink::SchoolLink;
+</%once>
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit => undef, 
+        name => 'schoollink' } 
+&>
+
+<& /tmpl/element:cms_button_row, 
+        links => [ 
+                  { display_txt => 'New School Link',
+                    link_txt    => '/management/schoollink/addedit/' . $type_path },
+	             ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+        sort_box => 1,
+        columns => [ 
+                {'label' => 'Label', 'field' => 'getLabel'}, 
+                {'label' => 'Displaying', 'field' => 'isActiveDisplay', align => 'center'}, 
+                {'label' => 'Sublinks', 'field' => 'countChildLinks', align => 'center'}, 
+                ],
+        action_columns => [ 
+                { 'label' => 'Modify', 'link' => '/management/schoollink/addedit' },
+                { 'label' => 'Delete', 'link' => '/management/schoollink/delete' } 
+                ], 
+        object_list => $school_links,
+        type_path => $type_path,
+        name => "schoollinks",
+        'empty_message' => 'No associated school links.',
+        }
+&>
+
+</form>
+
+
+<%init>
+my $type_object = $m->comp('/tmpl/url:get_type_object');
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my ($school_links,$errmsg,$msgtype) = (undef,'','errmsg');
+
+if (!$type_object || !$type_object->isa('TUSK::Core::School')){
+	my $url_path = $m->comp('SELF:get_url_path');
+	$errmsg = "The URL used : $url_path does not have a valid school.";
+} 
+else {
+	$school_links = TUSK::SchoolLink::SchoolLink->lookup('school_id = ' . $type_object->getPrimaryKeyID() . ' AND parent_school_link_id is NULL');
+	if ($ARGS{'order'}) {
+		$school_links = TUSK::SchoolLink::SchoolLink->updateSortOrders($type_object->getPrimaryKeyID, $ARGS{'order'}, $school_links);
+	}
+}
+if ($errmsg){
+	$m->redirect($m->comp("/tmpl/url:construct_url", 
+	        'base_url' => "/management/schoollink/addedit", 
+	        'msg' => $errmsg, 'msgtype' => $msgtype)
+	);
+}
+</%init>
+
+
+<%method title>
+% return 'Manage School Links';
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>

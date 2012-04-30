@@ -1,0 +1,101 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	no_check_path => 1
+	no_header   => '1'
+	page_header => undef
+	page_footer => undef
+    allow_guests  => '0'
+</%attr>
+
+<%once>
+ 	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::GradeBook::GradeStats;
+</%once>
+
+<%perl>
+	$m->clear_buffer();
+	$r->content_type('text/html');
+	$r->no_cache(1);
+</%perl>
+
+
+% my $sorted_grades = $m->session->{'user'}->get_grades();
+
+% if (scalar(@$sorted_grades)){
+<& /tmpl/element:table &>
+
+% foreach my $sorted_grade (@$sorted_grades) {
+
+<& /tmpl/element:section_header_row,label=>$sorted_grade->{title} . " (" . $sorted_grade->{school_name} . ")" &>
+<tr><td>
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [
+		{label => 'Name', field => 'name', width => "35%"},
+		{label => 'Grade', field => 'grade', width => "15%"},
+		{label => 'Scaled Grade', field => 'scaled_grade', width => "15%"},
+		{label => 'Comments', field => 'comments', width => "35%"},
+	],
+	rows => $sorted_grade->{data},
+	name => "Grades",
+	width => "100%",
+}&>
+<tr><td> 
+<& SELF:print_stats, grade_data => $sorted_grade &>
+</td></tr>
+% } 
+</table>
+% } else {
+<br/>You have no course grades in the system. 
+% }
+
+<%method print_stats>
+<%args>
+	$grade_data
+</%args>
+
+<%perl> 
+	my $grade_offering  = TUSK::GradeBook::GradeOffering->new()->lookupReturnOne(undef, undef, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Course", {joinkey => 'course_id', jointype => 'inner', joincond => "school_course_code = $grade_data->{course_id} AND time_period_id = $grade_data->{time_period_id} AND school_id = $grade_data->{school_id}"})]);
+
+	my $std_dev = 'Unavailable';
+	my $mean = 'Unavailable';
+	my $links = [];
+
+	if ($grade_offering && $grade_offering->getFinalGradeEventID()) {
+		$links = TUSK::GradeBook::LinkUserGradeEvent->lookup("child_grade_event_id = " . $grade_offering->getFinalGradeEventID());
+
+		my @grades = map { $_->getGrade() } @$links;
+		if (scalar(@grades) > 0) {
+			$mean = TUSK::GradeBook::GradeStats->getMean(@grades);
+			$std_dev = TUSK::GradeBook::GradeStats->getStandardDeviation($mean,@grades);
+		} 
+	}
+</%perl> 
+
+% if (scalar @$links) {
+%	my $event = TUSK::GradeBook::GradeEvent->new()->lookupKey($grade_offering->getFinalGradeEventID());
+<table>
+<tr>
+<td class="gray" style="padding-right:10px;">Mean:</td>
+<td style="padding-right:30px;"> <% sprintf("%4.2f", $mean) %> </td>
+<td class="gray" style="padding-right:10px;">Standard Deviation:</td>
+<td><% sprintf("%4.2f", $std_dev) %> </td>
+</tr>
+</table>
+% }
+</%method>
+
+

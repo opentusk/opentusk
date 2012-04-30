@@ -1,0 +1,55 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+no_check_path => 1,
+page_header => '',
+page_footer => ''
+</%attr>
+
+<%once>
+   use HSDB4::SQLRow::Content;
+   use HSDB4::XML::HSCML;
+</%once>
+
+<html>
+<head>
+	<style type="text/css">@import url(<% $style %>);</style>
+</head>
+<body>
+<%perl>
+	my $twig_body = HSDB4::XML::HSCML->new($doc->out_hscml());
+	my $parsed_body = $twig_body->parse_sub_body($ARGS{node}, $doc);
+	$doc->field_value('hscml_body', '<?xml version="1.0" encoding="ISO-8859-1"?><!DOCTYPE content SYSTEM "hscml.dtd"><db-content><body>' . $parsed_body. '</body></db-content>');
+	$doc->xsl_stylesheet($ENV{XSL_ROOT} . "/Content/Document.xsl");
+
+	print $doc->out_html_body();
+</%perl>
+</body>
+</html>
+
+<%init>
+	my $content_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $doc = HSDB4::SQLRow::Content->new()->lookup_key( $content_id );
+	if (!$doc->primary_key) {
+		$m->redirect("/home?msgtype=errmsg&msg=Content $content_id not found.");
+	}
+
+	my $style = '';
+	if ($doc->field_value('style')) {
+		$style = "/style/".$doc->field_value('style').".css";
+	}
+</%init>
+

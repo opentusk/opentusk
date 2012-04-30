@@ -1,0 +1,242 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use MySQL::Password;
+use HSDB4::Constants;
+use HSDB45::Course;
+use HSDB4::SQLRow::Content;
+use HSDB4::SQLRow::User;
+
+use Getopt::Long;
+
+    my ($content_id,$commit,$children,$force);
+    GetOptions("content_id=s" => \$content_id,
+	   "commit!" => \$commit,
+	   "children!" => \$children,
+	   "force!" => \$force,
+	   );
+
+    if (!$content_id) {
+	print "Usage: delete_content --content_id=<content_id>,<content_id>, . . . --commit --children\n\n";
+	print "Extended usage info:\n--commit\tactually does the delete, run at least once without this to verify items being deleted\n";
+	print "--children\tremoves all child content of this item\n";
+	print "--content_id\tlist of ids to remove\n";
+	exit;
+    }
+
+HSDB4::Constants::set_user_pw (get_user_pw);
+my $dbh = HSDB4::Constants::def_db_handle;
+
+my @content_ids = split(",",$content_id);
+my @content_items = map { HSDB4::SQLRow::Content->new->lookup_key($_) } @content_ids;
+
+if ($children) {
+    if (@content_ids != 1) {
+	print "Only one content can be specified when deleting recursively";
+	exit;
+    }    
+    if (!$content_items[0]->primary_key) {
+	print "invalid content_id\n";
+	exit;
+    }
+    my @c_content = $content_items[0]->child_content;
+    # pull the original content off the array
+    shift (@content_items);
+    # fill with child;
+    unshift(@content_items,@c_content);
+    print "Deleting ".scalar @c_content." child content items linked to parent\n";
+}
+
+foreach my $content (@content_items) {
+    my $content_id = $content->primary_key;
+    if (!$content_id) {
+	print "invalid content_id\n";
+	next;
+    }
+    print "Starting deletion of content $content_id...\n";
+    print "\tChild check...";
+    if (my @c_content = $content->child_content) {
+	print "content ".$content_id." has ".scalar @c_content." children. Safety check prevents deletion of this content.\n";
+	exit unless ($children);
+	next;
+    }
+    print "content has no children, OK to delete\n";
+    # check to see where this is linked, use caution when deleting
+    print "\tParent check...";
+    if (my @p_content = $content->parent_content) {
+	if (@p_content > 1) {
+	    print "\tcontent ".$content_id." has ".scalar @p_content.
+		  ". Safety check prevent deletion of this content.\n";
+	    exit unless ($children);
+	    next;
+	}
+	print "\tcontent has one parent, OK to delete\n";
+        # delete link_content_content where this content is child (shouldn't be any where this content is parent)
+	foreach my $p (@p_content) {
+	    print "\tdeleting link from parent content ".$p->primary_key."...";
+	    if ($commit) {
+		($res,$msg) = &delete_content_link($p->primary_key,$content_id);
+	    	print $res ? "OK\n" : "Failed: ".$msg."\n";
+	    } else {print "Should be fine\n";}
+	}
+    }
+    else {
+	print "no parents to this content, OK do delete\n";
+    }
+    # delete links to objectives
+    foreach my $obj ($content->child_objectives) {
+	print "\tdeleting link to child objective ".$obj->primary_key."...";
+	my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_objective'};
+	if ($commit) {
+	    ($r,$msg) = $linkdef->delete(-parent_id => $content_id,
+				    -child_id => $obj->primary_key);
+		print $res ? "OK\n" : "Failed: ".$msg."\n";
+	} else {print "Should be fine\n";}
+    }
+
+    # delete link_content_user
+    if (my @user = $content->child_users) {
+	foreach my $u (@user) {
+	    print "\tdeleting link to child user ".$u->primary_key."...";
+	    if ($commit) {
+		my $query = "delete from link_content_user where parent_content_id=".$content_id." and child_user_id='".$u->primary_key."'";
+		$res = $dbh->do($query);
+	    	print $res ? "OK\n" : "Failed: ".$msg."\n";
+	    } else {print "Should be fine\n";}
+	}
+    }
+    
+    # delete link_content_non_user
+    if (my @user = $content->child_non_users) {
+	foreach my $nu (@user) {
+	    print "\tdeleting link to child user ".$nu->primary_key."...";
+	    if ($commit) {
+		($res,$msg) = &delete_non_user_link($content_id,$nu->primary_key);
+	    	print $res ? "OK\n" : "Failed: ".$msg."\n";
+	    } else {print "Should be fine\n";}
+	}
+    }
+    # delete link_course_content from each database
+    foreach my $course ($content->parent_courses) {
+	print "\tdeleting link from parent course ".$course->primary_key."-".$course->school."...";
+	if ($commit) {
+	    ($res,$msg) = &delete_course_link($course,$content);
+        	print $res ? "OK\n" : "Failed: ".$msg."\n";
+	} else {print "Should be fine\n";}
+    } 
+
+    # delete binary_data (if this is a slide)
+	my $ext;
+	if    ( -e '/data/html/slide/orig/' . $content->primary_key . '.jpg' ) { $ext = '.jpg'; }
+	elsif ( -e '/data/html/slide/orig/' . $content->primary_key . '.gif' ) { $ext = '.gif'; }
+	elsif ( -e '/data/html/slide/orig/' . $content->primary_key . '.png' ) { $ext = '.png'; }
+	my @files = (
+		'/data/html/slide/icon/' . $content->primary_key . $ext,
+		'/data/html/slide/large/' . $content->primary_key . $ext,
+		'/data/html/slide/medium/' . $content->primary_key . $ext,
+		'/data/html/slide/orig/' . $content->primary_key . $ext,
+		'/data/html/slide/small/' . $content->primary_key . $ext,
+		'/data/html/slide/thumb/' . $content->primary_key . $ext,
+		'/data/html/slide/xlarge/' . $content->primary_key . $ext,
+		'/data/html/slide/overlay/large/' . $content->primary_key . $ext,
+		'/data/html/slide/overlay/medium/' . $content->primary_key . $ext,
+		'/data/html/slide/overlay/orig/' . $content->primary_key . $ext,
+		'/data/html/slide/overlay/small/' . $content->primary_key . $ext,
+		'/data/html/slide/overlay/xlarge/' . $content->primary_key . $ext,
+		);
+	print "\tDeleting files...";
+	if ( $commit ) {
+		unlink @files;
+		print "OK\n";
+	} else {
+		print "\n";
+		foreach my $file ( @files ) {
+			print "\t\tdelete $file\n";
+		}
+	}
+
+    # delete keywords
+    my @keywords = $content->keywords;
+    foreach (@keywords) {
+	print "\tdeleting keyword link ".$_->getKeyword."...";
+	if ($commit) {
+	    $res = $_->delete;
+		print $res ? "OK\n" : "Failed: ".$@."\n";
+	} else {print "Should be fine\n";}
+    }
+
+    # delete recent log item
+    unless($statement = $dbh->prepare("select distinct(user_id) from hsdb4.recent_log_item where content_id = $content_id;")) {print "Unable to prepare recent_log_item : $!\n";}
+    elsif(!$statement->execute()) {print "Unable to get the links in recent_log_item : $!\n";}
+    else {
+	while(my @row=$statement->fetchrow_array) {
+    		print "\tdeleting recent_log_item records for $row[0]...";
+    		if ($commit) {
+        		$res = $dbh->do("delete from content where content_id = $content_id;");
+        		print $res ? "OK\n" : "Failed: ".$@."\n";
+    		} else {print "Should be fine\n";}
+	}
+    }
+
+    # delete content itself
+    print "\tdeleting content record...";
+    if ($commit) {
+	$res = $dbh->do("delete from content where content_id = $content_id;");
+    	print $res ? "OK\n" : "Failed: ".$@."\n";
+    } else {print "Should be fine\n";}
+}
+
+$dbh->disconnect;
+
+sub delete_content_link {
+    my $parent_id = shift;
+    my $child_id = shift;
+    my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
+    my ($r,$msg) = $linkdef->delete(-parent_id => $parent_id,
+    				    -child_id => $child_id);
+    return ($r,$msg);
+}
+
+sub delete_user_link {
+    my $parent_id = shift;
+    my $child_id = shift;
+    my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
+    my ($r,$msg) = $linkdef->delete(-parent_id => $parent_id,
+    				    -child_id => $child_id);
+    return ($r,$msg);
+}
+
+sub delete_user_link {
+    my $parent_id = shift;
+    my $child_id = shift;
+    my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_non_user'};
+    my ($r,$msg) = $linkdef->delete(-parent_id => $parent_id,
+    				    -child_id => $child_id);
+    return ($r,$msg);
+}
+
+sub delete_course_link {
+    my $course = shift;
+    my $content = shift;
+    my ($r, $msg) =  $course->content_link()->delete (-parent_id => $course->primary_key,
+						    -child_id => $content->primary_key);
+    return ($r, $msg);
+}
+
+

@@ -1,0 +1,112 @@
+#!/usr/bin/perl -w
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+
+#
+# makeent
+#
+# Export a .ent file.  You can choose a subset by putting --set=<set> on
+# the command line. Valid sets are "latin1", "symbol", "special", or "all".
+# You can also choose to export a subset for XSL/HTML files by using
+# --render=html on the command line.
+#
+# Tarik Alkasab <tarik.alkasab@neurosci.tufts.edu>
+# $Revision: 1.5 $
+# $Date: 2012-04-20 16:52:32 $
+#
+
+use strict;
+use utf8;
+use XML::Twig;
+use Getopt::Long;
+
+my $set = 'all';
+my $render = 'char';
+my $pdf;
+GetOptions ('set=s' => \$set,
+	    'render=s' => \$render,
+	    'pdf!' => \$pdf);
+
+sub make_image_render {
+    #
+    # Make up the entry for an <img/> for XHTML. Takes an XML::Twig::Ent
+    # as an argument.
+    #
+
+    my $e = shift;
+    my $name = $e->first_child ('name')->text;
+    my $img = $e->first_child ('glyph-image');
+    return sprintf ('<img src=&34;%s&34; width=&34;%s&34; height=&34;%s&34; alt=&34;%s&34; />',
+		    $img->att ('src'), $img->att ('width'), 
+		    $img->att ('height'), $name);
+}
+
+sub make_ent {
+    #
+    # Go through all of the entities and put out an <!ENTITY> entry, whose
+    # format depends on the "render-by" attribute of the <glyph> element.
+    # This is meant as a TwigHandler.
+    #
+    my ($t, $e) = @_;
+    # Check to make sure it's the right set (or all)
+    return unless $set eq 'all' or $e->parent->att ('name') eq $set;
+    my $code = $e->att ('code');
+    my $name = $e->first_child ('name')->text;
+    my $comment = $e->first_child ('comment')->text;
+    my $value;
+    # Spit out a character if we're rendering by 'char' (default)
+    if ($pdf) {
+	my $dec_code = hex($code);
+	$value = "<special-char font=\'LucSansUnicode\'>&#$dec_code\;</special-char>";
+    }
+    elsif ($render eq 'char') {
+	$value = chr(hex($code));
+    }
+    elsif ($render eq 'code') {
+	my $dec_code = hex($code);
+	$value = "&#$dec_code\;";
+    }
+    else {
+	# But if we're rendering otherwise, pick the right method
+	my $method = $e->first_child ('render-by')->att ('method');
+	if ($method eq 'image') {
+	    $value = make_image_render $e;
+	}
+	elsif ($method eq 'name') {
+	    $value = "&#38;$name\;";
+	}
+	else {
+	    $value = "&#38;#x$code\;";
+	}
+    }
+    # And now, make up the right <!ENTITY> entry and print it out
+    printf("<!ENTITY %s \"%s\">%s\n", $name, $value,$comment ? "  <!-- $comment -->" : '');
+}
+
+# Make up a Twig with the right handler
+my $t = new XML::Twig (TwigHandlers => { glyph => \&make_ent });
+# And then for each filename, let it get parsed
+for (@ARGV) {
+    -e or next;
+    $t->parsefile ($_);
+}
+
+1;
+
+__END__
+
+
+

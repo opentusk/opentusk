@@ -1,0 +1,701 @@
+<!--
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+-->
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================= -->
+<!--  MODULE:    Journalist DTD                                    -->
+<!--  VERSION:   2.0                                               -->
+<!--  DATE:      May 1, 2000                                       -->
+<!--                                                               -->
+<!--  MULBERRY INTERNAL VERSION CONTROL:
+$Id: journalist.dtd,v 1.2 2012-04-20 16:52:32 scorbe01 Exp $
+     ============================================================= -->
+
+<!-- =============================================================
+     Formal Public Identifier:
+"-//SoftQuad Software//DTD Journalist v1.0 19990506//EN"
+     Delivered as file "journalist.dtd"
+     ============================================================= -->
+
+<!-- ============================================================= -->
+<!-- SYSTEM:     SoftQuad XMetaL example application               -->
+<!--                                                               -->
+<!-- PURPOSE:    Sample DTD, loosely based on DocBook, for use     -->
+<!--             with XMetaL example documents                     -->
+<!--                                                               -->
+<!-- CONTAINS:   1) Internal parameter entity declarations         -->
+<!--             2) Element declarations                           -->
+<!--                                                               -->
+<!-- MODULES REQUIRED:                                             -->
+<!--             1) table.ent - HTML 4.0 table module              -->
+<!--                                                               -->
+<!-- CREATED FOR:                                                  -->
+<!--             SoftQuad Software Inc.                            -->
+<!--                                                               -->
+<!-- ORIGINAL CREATION DATE:                                       -->
+<!--             April 7, 1999                                     -->
+<!--                                                               -->
+<!-- CREATED BY:                                                   -->
+<!--             Mulberry Technologies, Inc. (TKG)                 -->
+<!--             17 West Jefferson Street, Suite 207               -->
+<!--             Rockville, MD  20850  USA                         -->
+<!--             Phone:  +1 301/315-9631                           -->
+<!--             Fax:    +1 301/315-8285                           -->
+<!--             e-mail: info@mulberrytech.com                     -->
+<!--             WWW:    http://www.mulberrytech.com               -->
+<!-- ============================================================= -->
+
+<!-- ============================================================= -->
+<!--            DESIGN CONSIDERATIONS                              -->
+<!--
+     This DTD began with DocBook elements but some content models
+     have been simplified and some parts of the hierarchy have
+     been flattened.  In addition, many attributes have been
+     removed.
+
+     Changes from the DocBook DTD include:
+
+      - The content model of <Address> has been reduced, and the
+        elements are allowed in a strict order instead of being in
+        an OR group.
+
+      - The <Graphic> element has been made EMPTY, in accordance
+        with a future change to the DocBook DTD.
+
+      - <Bibliography> contains the non-DocBook <BiblioItem>,
+        which itself contains the non-DocBook <Designator> and the
+        DocBook-like <BiblioEntry> elements.
+
+      - <BiblioEntry> allows mixed content.
+-->
+<!-- ============================================================= -->
+
+<!-- ============================================================= -->
+<!--                    CHANGE HISTORY                             -->
+<!-- ============================================================= -->
+<!-- May 1, 2000                                                   -->
+<!-- Modified by Dale Adamson for SoftQuad Software Inc.           -->
+<!--  - removed Bold, BoldItalic, Italic, Mono, and Underscore     -->
+<!--    attributes to Emphasis element.                            -->
+<!--  - added Strong, TT, and Underscore elements.                 -->
+<!--  - added LastModDate element.                                 -->
+<!--  - added Title and Style to ItemizedList and OrderedList.     -->
+<!--  - added Title to VariableList                                -->
+<!--  - added SeeAlso in order to demonstrate semantic tables.     -->
+<!--                                                               -->
+<!-- April 3, 2000                                                 -->
+<!-- Modified by Dale Adamson for SoftQuad Software Inc.           -->
+<!--                                                               -->
+<!--  - added Bold, BoldItalic, Italic, Mono, and Underscore       -->
+<!--    attributes to Emphasis element.                            -->
+<!--  - fixed LiteralLayout and ProgramListing by changing         -->
+<!--    xml:space (preserve) to xml:space (default|preserve)       -->
+<!--                                                               -->
+<!-- ============================================================= -->
+
+
+<!-- ============================================================= -->
+<!--                   ISO STANDARD SPECIAL CHARACTER SETS         -->
+<!-- ============================================================= -->
+
+<!ENTITY % isolat1      PUBLIC
+"ISO 8879-1986//ENTITIES Added Latin 1//EN"
+"entities/ISOlat1.pen"
+                                                                    >
+
+<!ENTITY % isonum       PUBLIC
+"ISO 8879-1986//ENTITIES Numeric and Special Graphic//EN"
+"entities/ISOnum.pen"
+                                                                    >
+
+<!ENTITY % isopub       PUBLIC
+"ISO 8879-1986//ENTITIES Publishing//EN"
+"entities/ISOpub.pen"
+                                                                    >
+
+<!ENTITY % isotech      PUBLIC
+"ISO 8879-1986//ENTITIES General Technical//EN"
+"entities/ISOtech.pen"
+                                                                    >
+
+%isolat1; %isonum; %isopub; %isotech;
+
+
+<!-- ============================================================= -->
+<!--                    PARAMETER ENTITIES FOR CONTENT MODELS      -->
+<!-- ============================================================= -->
+
+
+<!--                    LIST ELEMENTS                              -->
+<!ENTITY % lists       "ItemizedList | OrderedList | VariableList"   >
+
+
+<!--                    LINESPECIFIC ELEMENTS                      -->
+<!--                    Elements where line endings and whitespace
+                        are significant                            -->
+<!ENTITY % linespecific
+                       "LiteralLayout | ProgramListing"              >
+
+
+<!--                    PHRASE-LEVEL ELEMENTS                      -->
+<!--                    Elements allowed at the same level as text -->
+<!ENTITY % PhraseLevel "Citation | Emphasis | Strong | TT |
+                        Underscore | InlineGraphic | Link |
+                        Subscript | Superscript | ULink"             >
+
+
+<!--                    PARAGRAPH-LEVEL ELEMENTS                   -->
+<!--                    Elements (including paragraphs) allowed at
+                        the level of paragraphs                    -->
+<!ENTITY % ParaLevel   "%linespecific; | %lists; | Note | Para |
+                        TABLE | Figure | Graphic"                    >
+
+
+<!-- ============================================================= -->
+<!--                    PARAMETER ENTITIES FOR ATTRIBUTES          -->
+<!-- ============================================================= -->
+
+
+<!--                    COMMON ATTRIBUTES                          -->
+<!ENTITY % common.atts
+            "Id         ID                                 #IMPLIED" >
+
+<!--                    GRAPHIC-RELATED ATTRIBUTES                 -->
+<!ENTITY % graphic.atts
+            "FileRef    CDATA                              #IMPLIED
+             Alt        CDATA                              #IMPLIED
+             SrcCredit  CDATA                              #IMPLIED
+             Width      NMTOKEN                            #IMPLIED
+             Depth      NMTOKEN                            #IMPLIED
+             Scale      NMTOKEN                            #IMPLIED
+             Scalefit   NMTOKEN                            #IMPLIED" >
+
+<!-- ============================================================= -->
+<!--                    EXTERNAL MODULES                           -->
+<!-- ============================================================= -->
+
+
+<!ENTITY % table.ent SYSTEM "table.ent"                              >
+%table.ent;
+
+
+<!-- ============================================================= -->
+<!--                    ELEMENT DEFINITIONS                        -->
+<!-- ============================================================= -->
+
+
+<!--                    ARTICLE                                    -->
+<!ELEMENT  Article      (Title, PubDate?, Copyright?, Author*,
+                         Abstract?,
+                         (((%ParaLevel;)+, Sect1*) | Sect1+),
+                         Appendix*, Bibliography?, SeeAlso?,
+                         LastModDate?)                               >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Article
+            %common.atts;                                            >
+
+
+<!--                    TITLE                                      -->
+<!ELEMENT  Title        (#PCDATA | %PhraseLevel;)*                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Title
+            %common.atts;                                            >
+
+
+<!--                    PUBLICATION DATE                           -->
+<!--                    Publication date and, possibly, time       -->
+<!ELEMENT  PubDate      (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  PubDate
+            %common.atts;                                            >
+
+
+<!--                    LAST MODIFIED DATE                         -->
+<!--                    Last modified date and, possibly, time     -->
+<!ELEMENT  LastModDate  (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  LastModDate
+            %common.atts;                                            >
+
+
+<!--                    COPYRIGHT STATEMENT                        -->
+<!ELEMENT  Copyright    (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Copyright
+            %common.atts;                                            >
+
+
+<!--                    AUTHOR                                     -->
+<!ELEMENT  Author       (FirstName, Surname, JobTitle?, OrgName?,
+                         Address?)                                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Author
+            %common.atts;                                            >
+
+
+<!--                    ABSTRACT                                   -->
+<!ELEMENT  Abstract     (Para+)                                      >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Abstract
+            %common.atts;                                            >
+
+
+<!--                    SECTION 1                                  -->
+<!ELEMENT  Sect1        (Title, (((%ParaLevel;)+, Sect2*) | Sect2+)) >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Sect1
+            %common.atts;                                            >
+
+
+<!--                    SECTION 2                                  -->
+<!ELEMENT  Sect2        (Title, (((%ParaLevel;)+, Sect3*) | Sect3+)) >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Sect2
+            %common.atts;                                            >
+
+
+<!--                    SECTION 3                                  -->
+<!ELEMENT  Sect3        (Title, (((%ParaLevel;)+, Sect4*) | Sect4+)) >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Sect3
+            %common.atts;                                            >
+
+
+<!--                    SECTION 4                                  -->
+<!ELEMENT  Sect4        (Title, (%ParaLevel;)+)                      >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Sect4
+            %common.atts;                                            >
+
+
+<!--                    APPENDIX                                   -->
+<!ELEMENT  Appendix     (Title, (((%ParaLevel;)+, Sect1*) | Sect1+)) >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Appendix
+            %common.atts;                                            >
+
+
+<!--                    BIBLIOGRAPHY                               -->
+<!ELEMENT  Bibliography (Title, BiblioItem+)                         >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Bibliography
+            %common.atts;                                            >
+
+
+<!--                    BIBLIOGRAPHY ITEM                          -->
+<!ELEMENT  BiblioItem   (Designator, BiblioEntry)                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  BiblioItem
+            %common.atts;                                            >
+
+
+<!--                    BIBLIOGRAPHY ITEM DESIGNATOR               -->
+<!--                    Designator contains whatever designator the
+                        author uses to identify publications listed in
+                        the bibliography (e.g., [LAB 87]).  The
+                        stylesheet generates the square "[]" brackets
+                        fore & aft.                                -->
+<!ELEMENT  Designator   (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Designator
+            %common.atts;                                            >
+
+
+<!--                    BIBLIOGRAPHY ENTRY                         -->
+<!ELEMENT  BiblioEntry  (#PCDATA | %PhraseLevel;)*                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  BiblioEntry
+            %common.atts;                                            >
+
+
+<!--                    SEEALSO                                    -->
+<!ELEMENT  SeeAlso      (SeeAlsoItem+)                               >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  SeeAlso
+            %common.atts;                                            >
+
+
+<!--                    SEEALSO ITEM                               -->
+<!ELEMENT  SeeAlsoItem  (Description, Location, Source)              >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  SeeAlsoItem
+            %common.atts;                                            >
+
+
+<!--                    SEEALSO ITEM DESCRIPTION                   -->
+<!--                    Description describes the SeeAlso item.    -->
+<!ELEMENT  Description  (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Description
+            %common.atts;                                            >
+
+
+<!--                    SEEALSO LOCATION                           -->
+<!--                    Location is the location                   -->
+<!ELEMENT  Location     (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Location
+            %common.atts;                                            >
+
+
+<!--                    SEEALSO SOURCE                             -->
+<!--                    Source is the source                       -->
+<!ELEMENT  Source       (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Source
+            %common.atts;                                            >
+
+
+<!-- ============================================================= -->
+<!--                    AUTHOR-RELATED ELEMENTS                    -->
+<!-- ============================================================= -->
+
+
+<!--                    FIRST NAME                                 -->
+<!ELEMENT  FirstName    (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  FirstName
+            %common.atts;                                            >
+
+
+<!--                    SURNAME                                    -->
+<!ELEMENT  Surname      (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Surname
+            %common.atts;                                            >
+
+
+<!--                    JOB TITLE                                  -->
+<!ELEMENT  JobTitle     (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  JobTitle
+            %common.atts;                                            >
+
+
+<!--                    ORGANIZATION NAME                          -->
+<!ELEMENT  OrgName      (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  OrgName
+            %common.atts;                                            >
+
+
+<!--                    ADDRESS                                    -->
+<!ELEMENT  Address      (Street?, POB?, City?, State?, Postcode?, 
+                         Country?, Phone?, Fax?, Email?)             >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Address
+            %common.atts;                                            >
+
+
+<!-- ============================================================= -->
+<!--                    ADDRESS ELEMENTS                           -->
+<!-- ============================================================= -->
+
+
+<!--                    STREET ADDRESS                             -->
+<!ELEMENT  Street       (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Street
+            %common.atts;                                            >
+
+
+<!--                    POST OFFICE BOX                            -->
+<!ELEMENT  POB          (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  POB
+            %common.atts;                                            >
+
+
+<!--                    POSTCODE                                   -->
+<!ELEMENT  Postcode     (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Postcode
+            %common.atts;                                            >
+
+
+<!--                    CITY                                       -->
+<!ELEMENT  City         (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  City
+            %common.atts;                                            >
+
+
+<!--                    STATE                                      -->
+<!ELEMENT  State        (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  State
+            %common.atts;                                            >
+
+
+<!--                    COUNTRY                                    -->
+<!ELEMENT  Country      (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Country
+            %common.atts;                                            >
+
+
+<!--                    PHONE NUMBER                               -->
+<!ELEMENT  Phone        (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Phone
+            %common.atts;                                            >
+
+
+<!--                    FAX NUMBER                                 -->
+<!ELEMENT  Fax          (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Fax
+            %common.atts;                                            >
+
+
+<!--                    EMAIL ADDRESS                              -->
+<!ELEMENT  Email        (#PCDATA)                                    >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Email
+            %common.atts;                                            >
+
+
+<!-- ============================================================= -->
+<!--                    PARAGRAPH-LEVEL ELEMENTS                   -->
+<!-- ============================================================= -->
+
+
+<!--                    PARAGRAPH                                  -->
+<!ELEMENT  Para         (#PCDATA | %PhraseLevel;)*                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Para
+            %common.atts;                                            >
+
+
+<!--                    NOTE                                       -->
+<!ELEMENT  Note         (%ParaLevel;)+                               >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Note
+            %common.atts;                                            >
+
+
+<!--                    ITEMIZED LIST                              -->
+<!ELEMENT  ItemizedList (Title?, ListItem+)                          >
+<!--         Id         Unique identifier                          -->
+<!--         Style      Indicates what type of prefix is desired.  -->
+<!--                    A Simple list is one with no item prefix.  -->
+<!ATTLIST  ItemizedList
+            %common.atts;
+            Style       (Simple | Bullet | Dash) "Bullet"            >
+
+
+<!--                    ORDERED LIST                               -->
+<!ELEMENT  OrderedList  (Title?, ListItem+)                          >
+<!--         Id         Unique identifier                          -->
+<!--         Style      Indicates type of numbering is desired.    -->
+<!--                    (i.e.    Arabic    1, 2, 3, 4,...          -->
+<!--                             UAlpha    A, B, C, D,...          -->
+<!--                             URoman    I, II, III, IV,...      -->
+<!--                             LAlpha    a, b, c, d,...          -->
+<!--                             LRoman    i, ii, iii, iv,...)     -->
+<!ATTLIST  OrderedList
+            %common.atts;
+            Style       (Arabic | UAlpha | URoman | LAlpha | LRoman)
+                        "Arabic"                                     >
+
+
+<!--                    VARIABLE LIST                              -->
+<!ELEMENT  VariableList (Title?, VarListEntry+)                      >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  VariableList
+            %common.atts;                                            >
+
+
+<!--                    LIST ITEM                                  -->
+<!ELEMENT  ListItem     (#PCDATA | %PhraseLevel; | %ParaLevel;)*     >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  ListItem
+            %common.atts;                                            >
+
+
+<!--                    VARIABLE LIST ENTRY                        -->
+<!ELEMENT  VarListEntry (Term+, ListItem)                            >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  VarListEntry
+            %common.atts;                                            >
+
+
+<!--                    TERM                                       -->
+<!ELEMENT  Term         (#PCDATA | %PhraseLevel;)*                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Term
+            %common.atts;                                            >
+
+
+<!--                    LITERAL LAYOUT                             -->
+<!ELEMENT  LiteralLayout
+                        (#PCDATA | %PhraseLevel;)*                   >
+<!--         xml:space  Whitespace handling
+             Id         Unique identifier                          -->
+<!ATTLIST  LiteralLayout
+             xml:space  (default|preserve)         #FIXED "preserve"
+            %common.atts;                                            >
+
+
+<!--                    PROGRAM LISTING                            -->
+<!ELEMENT  ProgramListing
+                        (#PCDATA | %PhraseLevel;)*                   >
+<!--         xml:space  Whitespace handling
+             Id         Unique identifier                          -->
+<!ATTLIST  ProgramListing
+             xml:space  (default|preserve)         #FIXED "preserve"
+            %common.atts;                                            >
+
+
+<!--                    FIGURE                                     -->
+<!ELEMENT  Figure       (Title, Graphic)                             >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Figure
+            %common.atts;                                            >
+
+
+<!--                    GRAPHIC                                    -->
+<!ELEMENT  Graphic      EMPTY                                        >
+<!--         Align      Alignment of graphic image.  Values are:
+                          Left          Left aligned
+                          Right         Right aligned
+                          Center        Centered
+             FileRef    Path to external file
+             Alt        Alternate text
+             SrcCredit  Source of graphic
+             Width      Width of area in which to fit graphic
+             Depth      Depth of area in which to fit graphic
+             Scale      Percentage scaling factor
+             Scalefit   Scale to fit width and/or depth
+             Id         Unique identifier                          -->
+<!ATTLIST  Graphic
+             Align      (Left |Right |Center)              #IMPLIED
+            %graphic.atts;
+            %common.atts;                                            >
+
+<!--                    INLINE GRAPHIC                             -->
+<!ELEMENT  InlineGraphic
+                        EMPTY                                        >
+<!--         FileRef    Path to external file
+             Alt        Alternate text
+             SrcCredit  Source of graphic
+             Width      Width of area in which to fit graphic
+             Depth      Depth of area in which to fit graphic
+             Scale      Percentage scaling factor
+             Scalefit   Scale to fit width and/or depth
+             Id         Unique identifier                          -->
+<!ATTLIST  InlineGraphic
+            %graphic.atts;
+            %common.atts;                                            >
+
+<!-- ============================================================= -->
+<!--                    TEXT-LEVEL ELEMENTS                        -->
+<!-- ============================================================= -->
+
+
+<!--                    BIBLIOGRAPHIC CITATION                     -->
+<!--                    A <Citation> appears in the body of the
+                        article, and it refers through its
+                        "Linkend" attribute to the ID of the
+                        relevant Bibliography Item.
+                          The <Citation> receives the same
+                        formatting as the <Designator> element
+                        within the <BiblioItem> being referenced.
+                        For example, when for the bibitem
+                        <BiblioItem id="bib1"><Designator>LAB
+                        87</Designator>...</BiblioItem> is
+                        formatted as "[LAB 87]", the bibliographic
+                        citation <Citation Linkend="bib1">LAB
+                        87</Citation> also formats as "[LAB 87]".  -->
+<!ELEMENT  Citation     (#PCDATA | Emphasis | Strong | TT | 
+                         Underscore | InlineGraphic |
+                         Subscript | Superscript)*                   >
+<!--         Linkend    Id of referenced bibliography entry
+             Id         Unique identifier                          -->
+<!ATTLIST  Citation
+             Linkend    IDREF                              #REQUIRED
+            %common.atts;                                            >
+
+
+<!--                    EMPHASIS                                   -->
+<!--                    displayed as Italic                        -->
+<!ELEMENT  Emphasis     (#PCDATA | %PhraseLevel;)*                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Emphasis
+            %common.atts;                                            >
+
+
+<!--                    STRONG                                     -->
+<!--                    displayed as Bold                          -->
+<!ELEMENT  Strong       (#PCDATA | %PhraseLevel;)*                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Strong
+            %common.atts;                                            >
+
+
+<!--                    TT                                         -->
+<!--                    displayed as monospaced                    -->
+<!ELEMENT  TT           (#PCDATA | %PhraseLevel;)*                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  TT
+            %common.atts;                                            >
+
+
+<!--                    UNDERSCORE                                 -->
+<!--                    displayed as underscore                    -->
+<!ELEMENT  Underscore   (#PCDATA | %PhraseLevel;)*                   >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Underscore
+            %common.atts;                                            >
+
+
+<!--                    SUBSCRIPT                                  -->
+<!ELEMENT  Subscript    (#PCDATA | Emphasis | Strong | TT | 
+                         Underscore | Subscript | Superscript)*      >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Subscript
+            %common.atts;                                            >
+
+
+<!--                    SUPERSCRIPT                                -->
+<!ELEMENT  Superscript  (#PCDATA | Emphasis | Strong | TT | 
+                         Underscore | Subscript | Superscript)*      >
+<!--         Id         Unique identifier                          -->
+<!ATTLIST  Superscript
+            %common.atts;                                            >
+
+
+<!--                    LINK                                       -->
+<!ELEMENT  Link         (#PCDATA)                                    >
+<!--         Linkend    Id of referenced element
+             Id         Unique identifier                          -->
+<!ATTLIST  Link
+             Linkend    IDREF                              #REQUIRED
+            %common.atts;                                            >
+
+
+<!--                    ULINK                                      -->
+<!ELEMENT  ULink        (#PCDATA)                                    >
+<!--         URL        Uniform Resource Locator; the target of the
+                        ULink
+             Id         Unique identifier                          -->
+<!ATTLIST  ULink
+             URL        CDATA                              #REQUIRED
+            %common.atts;                                            >
+
+
+<!-- ================== End of SoftQuad Journalist DTD =========== -->

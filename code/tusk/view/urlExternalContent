@@ -1,0 +1,51 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	default_path_type	=> 'content'
+</%attr>
+
+<%once>
+	use Apache2::Const;
+	use URI;
+</%once>
+
+<%perl>
+	my $content = $m->comp('/tmpl/url:get_type_object');
+	if ($content->type() eq 'External'){
+		my $source = $content->get_external_source();
+
+		if ($source){
+			my $response = $source->redirect($content, $m->session->{'user'});
+
+			if ($response) {
+				$m->auto_send_headers(0);
+				$m->clear_buffer();
+				my $page = $response->as_string();
+				my $uri = URI->new($response->base());
+				my $base = $uri->scheme() . '://' . $uri->host();
+				$page =~ s/<head>/<head>\n<base href="$base"\/>/;
+				$m->print($page);
+			} else {
+				$m->clear_buffer();
+				$m->print("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n<html>\n<head><title>External Content Error Page</title></head>\n<body>\n<div style=\"color:red;\" align=\"center\">We are unable to display the article.</div>\n</body>\n</html>");
+			}
+			$m->abort();
+		}
+	} else {
+		$m->comp("/tmpl/url:redirect",message => "Not a valid URL");
+	}
+</%perl>
+

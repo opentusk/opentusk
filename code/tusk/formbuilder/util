@@ -1,0 +1,148 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::Form;
+	use TUSK::FormBuilder::FormType;
+	use HSDB45::TimePeriod;
+	use TUSK::FormBuilder::EntryAssociation;
+</%once>
+
+<%shared>
+	my ($time_period_id, $teaching_site_id);
+	my ($form_id) = $m->comp("/tmpl/url:get_path_ids");
+</%shared>
+
+<%method get_form_id>
+%	return $form_id;
+</%method>
+
+<%method get_form>
+<%args>
+	$join_objects => []
+</%args>
+<%perl>
+	unless ($form_id) {
+		$m->comp("/tmpl/url:redirect", message => "Missing Form ID");
+	}
+
+ 	if (scalar @$join_objects) {
+		return TUSK::FormBuilder::Form->new()->lookupKey($form_id, $join_objects);
+	} else {
+		return TUSK::FormBuilder::Form->new()->lookupKey($form_id);
+	}
+</%perl>
+</%method>
+
+<%method get_time_period_id>
+<%args>
+	$student_id => undef
+</%args>
+<%perl>
+	unless ($time_period_id){
+		$m->comp("SELF:set_aux_course_info", student_id => $student_id);
+	}
+	return ($time_period_id);
+</%perl>
+</%method>
+
+<%method get_teaching_site_id>
+<%perl>
+	unless ($teaching_site_id){
+		$m->comp("SELF:set_aux_course_info");
+	}
+	return ($teaching_site_id);
+</%perl>
+</%method>
+
+<%doc> this is to handle the case someone fills in a form for a given student, otherwise a form is for self</%doc>
+<%method set_aux_course_info>
+<%args>
+	$student_id => ''
+</%args>
+
+<%perl>
+	$student_id = $m->session->{'user'}->user_id() unless $student_id;
+	unless ($time_period_id){
+		my $course = $m->comp("/tmpl/url:get_type_object");
+		my @students = $course->child_students("child_user_id = '$student_id'");
+
+		# set some default values
+		$time_period_id = -1;
+		$teaching_site_id = -1;
+
+		if (scalar @students == 1){
+			$time_period_id = $students[0]->aux_info('time_period_id');
+			$teaching_site_id = $students[0]->aux_info('teaching_site_id');
+		} elsif (scalar @students){
+			# need to look at the case where a student is associated to the course in more than one time period
+
+			# figure out all the time period ids and store the corresponding teaching site id
+			my %time_period_hash = map { $_->aux_info('time_period_id') => $_->aux_info('teaching_site_id') } @students;
+
+			my @time_periods = HSDB45::TimePeriod->new(_school => $course->school())->lookup_conditions("time_period_id in (" . join(',', keys %time_period_hash) . ") and start_date <= curdate() and end_date >= curdate()", "order by start_date asc");
+
+			# grab the latest one (else -1 will be set for time_period_id and teaching_site_id)
+			if (scalar @time_periods){
+				$time_period_id = $time_periods[0]->primary_key();
+				$teaching_site_id = $time_period_hash{ $time_period_id };
+			}
+		}
+	}
+</%perl>
+</%method>
+
+<%method get_base_dir>
+<%perl>
+	my $basedir = $ENV{SCRIPT_NAME};
+	$basedir =~ s/\/([^\/]*?)$//;
+	return ($basedir);
+</%perl>
+</%method>
+
+<%method getFormType>
+<%args>
+	$token
+</%args>
+%	return TUSK::FormBuilder::FormType->new()->lookupReturnOne("token = '$token'");
+</%method>
+
+<%method displayDate>
+<%args>
+	$entry
+	$date_label
+</%args>
+<& /tmpl/element:textbox, params =>{ 
+		label 		=> $date_label,
+		name        => 'encounter_date',
+		value       => ($entry) ? $entry->getDate() : HSDB4::DateTime->new()->out_mysql_date(),
+		size        => 10,
+		maxlength   => 10,
+		calendar    => 1,
+} &>
+</%method>
+
+<%method displayTimePeriod>
+<%args>
+	$entry
+</%args>
+% if (my $tp_id = ($entry) ? $entry->getTimePeriodID() : $m->comp('SELF:get_timeperiod_id')) {
+% 	my $tp = HSDB45::TimePeriod->new(_school => $m->comp('/tmpl/url:get_school'), _id => $tp_id);
+<& /tmpl/element:field_display, params => { 
+	label => 'Time Period',
+	value => $tp->out_display() . " <input type=\"hidden\" name=\"time_period_id\" value=\"$tp_id\" />",
+} &>
+% }
+</%method>

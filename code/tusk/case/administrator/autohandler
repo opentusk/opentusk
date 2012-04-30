@@ -1,0 +1,95 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method jsarray>
+%return ['layers.js','element.js','caseshell.js'];
+</%method>
+
+<%attr>
+	page_header		=> '/tmpl/prepend'
+	page_footer		=> '/tmpl/footer'
+	must_be_school_admin	=> 1
+	top_tab_type 		=> 'manage'
+	no_check_path		=> 0
+	default_path_type	=> undef
+</%attr>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method leftnav>
+<%perl>
+	return {
+			component 	=> "/tmpl/leftnav/admin",
+			type_path	=> $m->comp("/tmpl/url:get_type_path"),
+			school_name 	=> $m->comp("/tmpl/url:get_school"),
+		};
+</%perl>
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+return $m->comp("/tmpl/nav", 
+        'objects' => $m->comp("SELF:get_nav_bar_objects"),
+            'prefix' => '/case/administrator',
+            'hierarchy' => {
+                'main'=>[], 
+                'assigntests'=>['main','patienttypeshow','patienttypeaddedit'],
+                'batteryshow' => ['main'],
+                'batteryaddedit'=>['main','batteryshow'],
+                'batterydelete'=>['main'],
+                'phasetypedelete'=>['main'],
+                'phasetypeaddedit'=>['main'],
+                'phasetypeshow'=>['main'],
+                'patienttypeaddedit'=>['main','patienttypeshow'],
+                'patienttypeshow'=>['main'],
+                'patienttypedelete'=>['main'],
+                'examaddedit' => ['main','batteryshow','batteryaddedit'],
+                'subtestedit' => ['main','batteryshow','batteryaddedit','examaddedit'],
+                'examdelete' => ['main','batteryaddedit'],
+                },
+            'nav_entities_dependency' => {
+                'main' =>{'object'=>undef, 'depend'=>[]}, 
+                'phasetypeshow' =>{'object'=>undef, 'depend'=>[]}, 
+                'phasetypeaddedit' =>{'object'=>undef, 'depend'=>[]}, 
+                'patienttypeaddedit' =>{'object'=>"TUSK::Case::PatientType", 'depend'=>[], 'static_title'=>'Modify Patient: '}, 
+                'patienttypedelete' =>{'object'=>undef, 'depend'=>[]}, 
+                'batteryshow' =>{'object'=>undef, 'depend'=>[]}, 
+                'batterydelete' =>{'object'=>undef, 'depend'=>[]}, 
+                'batteryaddedit' =>{'object'=>"TUSK::Case::Battery", 'depend'=>[], 'static_title'=>'Modify Category: '}, 
+                'examaddedit' =>{'object'=>"TUSK::Case::Test", 'depend'=>['TUSK::Case::Battery'], 'static_title'=>'Modify Test: '}, 
+                'examdelete' =>{'object'=>"TUSK::Case::Battery", 'static_title'=>'Case Reports:', 'depend'=>[]}, 
+                },
+            'title_func' => { 	
+                'TUSK::Case::Battery' => 'getBatteryTitle',
+                'TUSK::Case::Test' => 'getTitle',
+                'TUSK::Case::PatientType' => 'getTypeName',
+                'TUSK::Case::Phase'=>'getPhaseTitle'
+                },
+            'urls' => {
+                'main' => {link => 'main', label => 'Case Administrator Main'},
+                'batteryshow' => {link => 'batteryshow', label => 'Manage Categories'},
+                'patienttypeshow' => {link => 'patienttypeshow', label => 'Manage Patient Types'}
+                });
+</%perl>
+</%method>
+
+<%method header_image>
+% return undef;
+</%method>
+
+
+% $m->call_next();

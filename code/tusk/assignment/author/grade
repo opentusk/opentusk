@@ -1,0 +1,165 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Functions;
+</%once>
+
+<%shared>
+	my $typePath = $m->comp("/tmpl/url:get_type_path");
+	my ($assignment,$author);
+	my $max_length = 100;
+</%shared>
+
+<%perl>
+	$assignment = $m->comp('SELF:getAssignment');
+	my $type = ($assignment->getGroupFlag()) ? 'Group' : 'Student';
+	my $col_fields = [ 
+		{label => "$type Name", field => 'name'},
+		{label => 'Submit Date', field => 'submit_date'},
+		{label => "$type Comment", field => 'student_comment'},
+		{label => "$type Files", field => 'files'},
+		{label => 'Grade', field => 'grade', align => 'center'},
+		{label => 'Instructor Feedback', field => 'instructor_comment'},
+	];
+	$author = TUSK::Application::Assignment::Author->new({
+			user_id => $m->session->{'user'}->user_id(), 
+			assignment => $assignment,
+			course => $m->comp("/tmpl/url:get_type_object")});
+	my $rows = ($assignment->getGroupFlag()) ? $m->comp('SELF:get_group_rows') : $m->comp('SELF:get_student_rows');
+</%perl>
+
+<table>
+<tr><td>
+% if (@$rows) {
+<form method="POST" class="no-padding" action="/gradebook/author/addedit/<% $typePath %>/<% $assignment->getGradeEventID() %>">
+<input type="submit" class="formbutton" value=" Post Grades ">
+</form>
+% }
+</td>
+% if ($assignment->getPublishFlag()) {
+<td style="font-size:80%;color:blue;">&nbsp; * Grade event for this assignment is already posted.</td> 
+% } 
+</tr>
+</table>
+
+
+<& /tmpl/element:table, params => { 
+	width 		=> "100%",
+	border		=> "0",
+	cellspacing	=> "0",
+	ellpadding 	=> "0" 
+} &>
+
+% my $actions = [ { label => 'Update Grade', link => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/gradeupdate' }, ];
+<%doc>temporary removing this option as there is a bug  for individual resubmission</%doc>
+% # push @$actions, { label => 'Allow Resubmission', link => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/resubmit' } unless ($assignment->getResubmitFlag());
+
+<& /tmpl/element:object_selection_box, params => { 
+	columns 	=> $col_fields,
+	'norows-message' => 'No students have submitted the assignment.',
+	rows		=> $rows,
+	type_path	=> "$typePath/" . $assignment->getPrimaryKeyID(),
+	name 		=> "assignments",
+	action_columns	=> $actions,
+##	action_dropdown => ($assignment->getResubmitFlag()) ? undef : 1,
+}
+&>
+</table>
+
+
+<%method function_token>
+%	return 'grade_assignment';
+</%method>
+
+
+<%method get_student_rows>
+<%perl>	
+	my @rows = ();
+	my $students = $author->getStudents();
+	foreach my $student (@{$students}) {
+		my $submit_date = $student->getSubmitDate();
+		my $faculty_comments = $student->getFacultyComments();
+		my $faculty_comments_length = length($faculty_comments);
+		my $student_userid = $student->getUserID();
+
+		push @rows, {
+			name 		=> $student->getName(),
+			submit_date 	=> $submit_date,
+			student_comment => (defined $submit_date) ? $m->comp('SELF:format_comments', $student->getStudentComments(), $student_userid) : '',
+			files		=> (defined $submit_date) ? $m->comp('/assignment/tmpl:get_students_files', students => $student) : '',
+			grade		=> $student->getGrade(),
+			instructor_comment => ($faculty_comments_length > $max_length) 
+				? "<a style=\"color:blue;text-decoration:none;\" href=\"/assignment/author/gradeupdate/$typePath/" . $assignment->getPrimaryKeyID() . "/Student/$student_userid\">" . TUSK::Functions::truncate_string($faculty_comments, $max_length) . "</a>"
+				: $faculty_comments,		
+			id  		=> ($submit_date) ? $student->getUserID() : undef,
+		};
+	}
+	return \@rows;
+</%perl>	
+</%method>
+
+
+<%method get_group_rows>
+<%perl>
+	my @rows = ();
+	foreach my $group (@{$author->getStudentGroups()}) {
+		my $submit_date = $group->getSubmitDate();
+		my $faculty_comments = $group->getFacultyComments();
+		my $faculty_comments_length = length($faculty_comments);
+		my $group_id = $group->getGroupID();
+
+		push @rows, {
+			name 		=> "<a href=\"\" onclick=\"javascript:window.open('/tusk/group/members/$typePath/$group_id',null,'height=400,width=350,scrollbars=1,resizable=1,left=400,top=250'); return false;\">" . $group->getName() . "</a>",
+			submit_date 	=> $submit_date,
+			student_comment => (defined $submit_date) ? $m->comp('SELF:format_comments', $group->getStudentComments(), $group_id) : '',
+			files		=> (defined $submit_date) ? $m->comp('/assignment/tmpl:get_students_files', students => $group) : '',
+			grade		=> $group->getGrade(),
+			instructor_comment => ($faculty_comments_length > $max_length) 
+				? "<a style=\"color:blue;text-decoration:none;\" href=\"/assignment/author/gradeupdate/$typePath/" . $assignment->getPrimaryKeyID() . "/$group_id\">" . TUSK::Functions::truncate_string($faculty_comments, $max_length) . "</a>"
+				: $faculty_comments,		
+			id  		=> $group->getGroupID(),
+		};
+	}
+
+	my @sorted = sort {$a->{name} cmp $b->{name}} (@rows);
+	return \@sorted;
+</%perl>
+</%method>
+
+<%method format_comments>
+<%perl>
+	my ($comments, $id) = @_;
+	my $comments_length = length($comments);
+	if ($comments_length > $max_length) {
+		return "<a style=\"color:blue;text-decoration:none;\" href=\"/assignment/author/gradeupdate/$typePath/" . $assignment->getPrimaryKeyID() . "/$id\">" . TUSK::Functions::truncate_string($comments, $max_length) . "</a>"
+	} 
+	return $comments;
+</%perl>
+</%method>
+
+
+
+<%method title>
+% 	return "Grade Assignment: &nbsp;" . $m->comp('SELF:getAssignment')->getTitle();
+</%method>
+
+<%method red_header_text>
+% 	return "Grade Assignment: &nbsp; <span style=\"font-size:75%\">" . $m->comp('SELF:getAssignment')->getTitle() . "</span>";
+</%method>
+
+
+
+

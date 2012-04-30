@@ -1,0 +1,266 @@
+#!/bin/bash
+
+#
+# httpd        Startup script for the Apache HTTP Server
+#
+# chkconfig: - 85 15
+# description: Apache is a World Wide Web server.  It is used to serve \
+#	       HTML files and CGI.
+# processname: httpd
+# config: /etc/httpd/conf/httpd.conf
+# config: /etc/sysconfig/httpd
+# pidfile: /var/run/httpd.pid
+
+
+umask 002
+# Check this out, this calls the same script with perl and perl looks for the #! perl line and starts processing from there
+# This is the magic that I use to get the configuration stuff out of httpdconf.pm
+eval `perl -x $0 2> /dev/null`
+
+# Path to the server binary, and short-form for messages.
+httpd=${HTTPD-/usr/sbin/httpd}
+prog=httpd
+tuskroot=${TUSKROOT-/usr/local/tusk/current}
+pidfile=${PIDFILE-$tuskroot/logs/httpd.pid}
+conffile=${CONFFILE-$tuskroot/conf/httpd.conf}
+lockfile=${LOCKFILE-/var/lock/subsys/httpd}
+OPTIONS="-f $conffile -DSSL"
+if [ "x$DEVELOPER" != "x" ] ; then
+	OPTIONS="$OPTIONS -Dsmallserver -DDEBUG -DDEV "
+fi
+
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+if [ -f /etc/sysconfig/httpd ]; then
+	. /etc/sysconfig/httpd
+fi
+
+# Start httpd in the C locale by default.
+HTTPD_LANG=${HTTPD_LANG-"C"}
+
+# This will prevent initlog from swallowing up a pass-phrase prompt if
+# mod_ssl needs a pass-phrase from the user.
+INITLOG_ARGS=""
+
+# Set HTTPD=/usr/sbin/httpd.worker in /etc/sysconfig/httpd to use a server
+# with the thread-based "worker" MPM; BE WARNED that some modules may not
+# work correctly with a thread-based MPM; notably PHP will refuse to start.
+
+RETVAL=0
+STOP_TIMEOUT=${STOP_TIMEOUT-10}
+
+# Check TUSK configuration
+config_test() {
+	# Check to see if httpd.conf or lib/httpdconf.pm has been updated since the last time we ran
+	# if so then run the syntax checker
+	RETURN_VALUE=0
+	if [ -f "$TUSK_BASE/conf/.last.start.httpd.conf" ] && [ -f "$TUSK_BASE/lib/httpdconf.pm" ] ; then
+		if      [ ! "x`diff $TUSK_BASE/conf/.last.start.httpd.conf $TUSK_BASE/conf/httpd.conf`" = "x"  ] || \
+			[ ! "x`diff $TUSK_BASE/lib/.last.start.httpdconf.pm $TUSK_BASE/lib/httpdconf.pm`" = "x" ]; then
+			# Check the perl syntax of httpd.conf as well as the httpd parser
+			# returns 0 if valid 8 if not valid
+			echo -n "checking config files...";
+			PERL_TEST=`perl -wcx $CONFFILE 2>&1`
+			if [ "x`echo $PERL_TEST | grep 'syntax OK'`" = "x" ] ; then
+				echo "Perl Syntax Invalid"
+				echo "$PERL_TEST"
+				RETURN_VALUE=8;
+			else
+				if [ `echo "$PERL_TEST" | wc -l` != 1 ] ; then
+					CONFIG_WARNING="Perl warning issued\n$PERL_TEST\n";
+				fi
+				HTTP_TEST=`$HTTPD -D$USER -d $TUSK_BASE -f $CONFFILE -t 2>&1;`
+				if [ "x`echo $HTTP_TEST | grep 'Syntax OK'`" = "x" ] ; then
+					echo "HTTP Syntax Invalid"
+					echo "$HTTP_TEST"
+					RETURN_VALUE=8;
+				else
+					if [ `echo "$HTTP_TEST" | wc -l` -gt 6 ] ; then
+						CONFIG_WARNING="$CONFIG_WARNING\nHttp warning issued\n$HTTP_TEST";
+					fi
+
+					if [ "x$CONFIG_WARNING" = "x" ] ; then
+						echo "Syntax Valid"
+					else
+						echo "Syntax Warning"
+						if [ "x$IGNORE_HTTP_WARNING" = "x" ] ; then
+							echo "$CONFIG_WARNING"
+						fi
+					fi
+					RETURN_VALUE=0;
+				fi
+			fi
+		else
+			echo "Conf files have not changed since last startup... not checking syntax";
+		fi
+	fi
+	# Now lets take a copy of the files to check next time
+	cp "$TUSK_BASE/conf/httpd.conf" "$TUSK_BASE/conf/.last.start.httpd.conf"
+	cp "$TUSK_BASE/lib/httpdconf.pm" "$TUSK_BASE/lib/.last.start.httpdconf.pm"
+	if [ ! -f "$TUSK_BASE/conf/.last.start.httpd.conf" ] || [ ! -f "$TUSK_BASE/lib/httpdconf.pm" ] ; then
+		echo "Unable to copy files, will have to check conf next time too."
+	fi
+	return $RETURN_VALUE;
+}
+
+
+# check for 1.3 configuration
+check13 () {
+	GONE="(ServerType|BindAddress|Port|AddModule|ClearModuleList|"
+	GONE="${GONE}AgentLog|RefererLog|RefererIgnore|FancyIndexing|"
+	GONE="${GONE}AccessConfig|ResourceConfig)"
+	if LANG=C grep -Eiq "^[[:space:]]*($GONE)" $conffile; then
+		echo
+		echo 1>&2 " Apache 1.3 configuration directives found"
+		echo 1>&2 " please read /usr/share/doc/httpd-2.2.3/migration.html"
+		failure "Apache 1.3 config directives test"
+		echo
+		exit 1
+	fi
+}
+
+# The semantics of these two functions differ from the way apachectl does
+# things -- attempting to start while running is a failure, and shutdown
+# when not running is also a failure.  So we just do it the way init scripts
+# are expected to behave here.
+start() {
+	# Ports 1-1024 can only be bound by root if were use one of those ports and were not root compain before apache does, unless we are on Solaris 10
+	if [ ! -f '/sbin/zonename' ] && [ $MAIN_PORT -lt 1025 ] && [ `whoami` != 'root' ] ; then
+		echo "You are trying to start httpd on port $MAIN_PORT, that can only happen as root!"
+		return 3;
+	fi
+	config_test
+	if [ $? = 0 ] ; then
+		# Check for shibboleth if we are running with it
+		if [ $SHIBBOLETH = 1 ] ; then
+			echo -n "Checking is shibboleth is running...";
+			if [ -f $SHIBBOLETH_PID_FILE ] ; then
+				echo "Ok";
+			else
+				echo "Failed";
+				echo "Shibboleth PID file ($SHIBBOLETH_PID_FILE) does not exist!";
+				echo "STARTING APACHE WITH SHIBBOLETH INTEGRATION BUT SHIBBOLETH IS DOWN!";
+			fi
+		fi
+		echo -n $"Starting $prog: "
+		check13 || exit 1
+		LANG=$HTTPD_LANG daemon --pidfile=${pidfile} $httpd $OPTIONS
+		RETVAL=$?
+		echo
+		if [ $RETVAL = 0 ] ; then
+			touch ${lockfile}
+		fi
+		chown -R apache:apache $tuskroot/mason_cache
+		return $RETVAL
+	else
+		echo "You must fix the config error before apache can be started";
+		return 8;
+	fi
+}
+
+# When stopping httpd a delay (of default 10 second) is required
+# before SIGKILLing the httpd parent; this gives enough time for the
+# httpd parent to SIGKILL any errant children.
+stop() {
+	# Ports 1-1024 can only be bound by root if were use one of those ports and were not root compain before apache does, unless we are on Solaris 10
+	if [ ! -f '/sbin/zonename' ] && [ $MAIN_PORT -lt 1025 ] && [ `whoami` != 'root' ] ; then
+		echo "You are trying to stop httpd on port $MAIN_PORT, that can only happen as root!"
+		return 3;
+	fi
+	# If we can't stop httpd but killproc runs it will still remove the lock/pid files which is bad.
+	echo -n $"Stopping $prog: "
+	killproc -p ${pidfile} -d ${STOP_TIMEOUT} $httpd
+	RETVAL=$?
+	echo
+	if [ $RETVAL = 0 ] ; then
+		rm -f ${lockfile} ${pidfile}
+	fi
+}
+
+reload() {
+    echo -n $"Reloading $prog: "
+    if ! LANG=$HTTPD_LANG $httpd $OPTIONS -t >&/dev/null; then
+	RETVAL=$?
+	echo $"not reloading due to configuration syntax error"
+	failure $"not reloading $httpd due to configuration syntax error"
+    else
+	killproc -p ${pidfile} $httpd -HUP
+	RETVAL=$?
+    fi
+    echo
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	status -p ${pidfile} $httpd
+	RETVAL=$?
+	;;
+  restart)
+	stop
+	start
+	;;
+  condrestart)
+	if [ -f ${pidfile} ] ; then
+		stop
+		start
+	fi
+	;;
+  reload)
+	reload
+	;;
+  *)
+	echo $"Usage: $prog {start|stop|restart|condrestart|reload|status|fullstatus|graceful|help|configtest}"
+	exit 1
+esac
+
+exit $RETVAL
+
+
+
+
+# This portion of the script extracts information out of httpdconf.pm and returns them to the sh above
+# All it does is print environment stuff and the above script has to parse through that output to actuall make env stuff
+#!/usr/bin/perl
+use FindBin;
+use strict;
+# Since this script can be run as /etc/init.d/httpd we have to add /usr/local/tusk/current/lib to the search path
+# Since FindBin is first it should check there first.
+use lib "$FindBin::Bin/../lib", '/usr/local/tusk/current/lib';
+use httpdconf;
+
+# It uses a module called lib/httpdconf.pm
+# This file should (hopefully) never need to be edited by an external installation.
+
+my %hashOfVariables;
+# This will make sure we know what type of machine is running tusk (i.e. PROD, TEST, etc)
+my $returnError = httpdconf::setVariablesForServerEnvironment(\%hashOfVariables);
+if($returnError <= 0) {
+	print "SOURCE_ERROR=\"Could not get variables (Check lib/httpdconf.pm for return code $returnError)!\"; export SOURCE_ERROR;\n";
+}
+
+
+unless($hashOfVariables{'http_exec'} && -x $hashOfVariables{'http_exec'}) {
+	print "SOURCE_ERROR=\"http executable $hashOfVariables{'http_exec'} does not exist or can not be executed!\"; export SOURCE_ERROR;\n";
+}
+
+if($hashOfVariables{'pid_file'})       {print "PIDFILE=$hashOfVariables{'pid_file'}; export PIDFILE;\n";}
+if($hashOfVariables{'http_exec'})      {print "HTTPD=$hashOfVariables{'http_exec'}; export HTTPD;\n";}
+if($hashOfVariables{'config_file'})    {print "CONFFILE=$hashOfVariables{'config_file'}; export CONFFILE;\n";}
+if($hashOfVariables{'server_root'})    {print "TUSK_BASE=$hashOfVariables{'server_root'}; export TUSK_BASE;\n";}
+if($hashOfVariables{'log_root'})       {print "LOG_ROOT=$hashOfVariables{'log_root'}; export LOG_ROOT;\n";}
+if($hashOfVariables{'main_port'})      {print "MAIN_PORT=$hashOfVariables{'main_port'}; export MAIN_PORT;\n";}
+if($hashOfVariables{'developer'})      {print "DEVELOPER=$hashOfVariables{'developer'}; export DEVELOPER;\n";}
+print "SHIBBOLETH=$hashOfVariables{'use_shibboleth'}; export SHIBBOLETH;\n";
+print "SHIBBOLETH_PID_FILE=$hashOfVariables{'log_root'}/shibd.pid; export SHIBBOLETH_PID_FILE;\n";
+# An explicit exit so that perl does not go past here
+exit();
+

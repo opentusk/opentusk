@@ -1,0 +1,191 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+	$args
+	$report_type => 'horizontal'
+	$is_mobi => 0
+</%args>
+
+<%once>
+	use TUSK::FormBuilder::Form;
+	use TUSK::Application::FormBuilder::Report::Course;
+	use HSDB45::TimePeriod;
+	use HSDB45::TeachingSite;
+</%once>
+
+<%perl>
+	my $form = $m->comp("/formbuilder/util:get_form");
+	my $form_id = $form->getPrimaryKeyID();
+	my $fields = $form->getAllFormFields("token != 'FillIn'");
+
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $fields_hashref = {};
+	my $results = {};
+	my $type = "Field";
+	my $title_append;
+
+	# show default default
+	unless ($args->{'fields'}){
+		$args->{'fields'} = [];
+		foreach my $field (@$fields){
+			if ($field->getDefaultReport()){
+				my $attributes = $field->getAttributes();
+				my $value = $field->getPrimaryKeyID();
+				if (scalar(@$attributes)){
+					$value .= ":" . $attributes->[0]->getPrimaryKeyID();
+				}
+
+				push (@{$args->{'fields'}}, $value);
+			}
+		}
+		if ($m->comp("SELF:check_course_permissions", token => 'SITEDIRECTOR')){
+			$args->{'time_period_id'} = $m->comp("SELF:get_time_period_id");
+		}
+	}
+
+
+
+	if (defined($args->{'fields'}) or defined($args->{'type'})){
+
+		# give default values depending on role
+
+		if ($m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT')){
+		}elsif ($m->comp("SELF:check_course_permissions", token => 'SITEDIRECTOR')){
+			$args->{'teaching_site_id'} = $m->comp("SELF:get_teaching_site_id");
+		}else{
+			$args->{'teaching_site_id'} = $m->comp("SELF:get_teaching_site_id");
+			$args->{'time_period_id'} = $m->comp("SELF:get_time_period_id");
+			$args->{'user_id'} = $m->session->{'user'}->user_id();
+		}
+		$args->{'type'} = "Field" unless ($args->{'type'} eq "Other" or $args->{'type'} eq "History" or $args->{'type'} eq "Field");
+
+		$type = $args->{'type'} if ($args->{'type'});
+		$type = "Other" if ($args->{'show_other'});		
+		foreach my $field (@$fields){
+			$fields_hashref->{$field->getPrimaryKeyID()} = $field;
+		}
+	
+		my $report = TUSK::Application::FormBuilder::Report::Course->new($form_id, $course);
+
+   
+		$report->setUserID($args->{'user_id'}) if (defined($args->{'user_id'}));
+
+		if ($args->{'user_id'} eq $m->session->{'user'}->user_id()){
+			$report->setPersonalFlag(1);
+		}elsif(defined($args->{'user_id'})){
+			$args->{'fields'} = undef;
+			$args->{'type'} = "History";
+		}
+
+		$title_append = $m->comp("SELF:make_header", args => $args, full_flag => $m->comp("SELF:check_course_permissions", token => 'SITEDIRECTOR'));
+
+
+		if ($args->{'type'} eq "History") {
+			my $user = HSDB4::SQLRow::User->new()->lookup_key($args->{'user_id'});
+
+			my $header;
+
+			if ($args->{'user_id'} eq $m->session->{'user'}->user_id()){
+				$header = "My History";
+			}else{
+				$header = "Patient Log History for " . $user->first_name() . " " . $user->last_name();
+			}
+
+			$results = $m->comp("/formbuilder/report:process", report_obj => $report, type => $args->{'type'} . 'perPerson', args => $args, width => "100%",  fields_hashref => $fields_hashref, header => $header, course => $course);			
+
+		} elsif ($args->{'time_period_id'}) {
+			if ($args->{'nosite'}){
+				$results = $m->comp("/formbuilder/report:process", report_obj => $report, type => $type . 'perPerson', args => $args, fields_hashref => $fields_hashref);
+			} elsif ($args->{'teaching_site_id'}){
+				$results = $m->comp("/formbuilder/report:process", report_obj => $report, type => $type . 'perPerson', args => $args, fields_hashref => $fields_hashref, course => $course);
+			} else {
+				$results = $m->comp("/formbuilder/report:process", report_obj => $report, type => $type . 'perTeachingSite', args => $args, fields_hashref => $fields_hashref);
+			}
+		} else {
+			$args->{'start_date'} = $m->comp("SELF:time_period_condition");
+
+			$results = $m->comp("/formbuilder/report:process", report_obj => $report, type => $type . 'perTimePeriod', args => $args, fields_hashref => $fields_hashref);
+		}
+
+	}
+
+	$m->comp("/formbuilder/report:display", args => { %$args, results => $results, report_type => $report_type, is_mobi => $is_mobi,  title_append => $title_append, link => $m->comp("SELF:make_link", args => $args) });
+</%perl>
+
+
+<%method make_header>
+<%args>
+$args
+$full_flag
+</%args>
+<%perl>
+	my $string_array = [];
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+
+	if ($full_flag){
+		if ($args->{time_period_id}){
+			my $time_period = HSDB45::TimePeriod->new(_school => $type_object->school())->lookup_key($args->{time_period_id});
+			push (@$string_array, $time_period->out_display());
+		}else{
+			push (@$string_array, "All Time Periods");
+		}
+
+		if ($args->{teaching_site_id}){
+			my $teaching_site = HSDB45::TeachingSite->new(_school => $type_object->school())->lookup_key($args->{teaching_site_id});
+			push (@$string_array, $teaching_site->site_name());
+		}else{
+			push (@$string_array, "All Teaching Sites");
+		}
+	}
+
+	if (defined($args->{'advanced_item_id'})){
+		if (ref ($args->{'advanced_item_id'}) eq 'ARRAY'){
+			for (my $int=0; $int<scalar(@{$args->{'advanced_item_id'}}); $int++){
+				if ($args->{'advanced_item_id'}->[$int]){
+					push (@$string_array, "Advanced Search");
+					last;
+				}
+			}
+		}elsif($args->{'advanced_item_id'}){
+			push (@$string_array, "Advanced Search");
+		}
+	}
+
+	return "[" . join("; ", @$string_array) . "]" if (scalar(@$string_array));
+</%perl>
+</%method>
+
+<%method make_link>
+<%args>
+$args
+</%args>
+<%perl>
+	my $link = {};
+
+	$link->{'time_period_id'} = $args->{'time_period_id'};
+	$link->{'advanced_item_id'} = $args->{'advanced_item_id'};
+	$link->{'fields'} = $args->{'fields'};
+
+	if ($args->{'nosite'}) {
+		$link->{'nosite'} = 1;
+	} else {
+		$link->{'teaching_site_id'} = $args->{'teaching_site_id'};
+	}
+
+
+	return $link;
+</%perl>
+</%method>

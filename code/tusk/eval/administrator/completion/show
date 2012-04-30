@@ -1,0 +1,88 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Email::Template;	
+</%once>
+
+
+<%shared>
+	my $eval_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $school = $m->comp('SELF:schoolname');
+	my $eval = HSDB45::Eval->new(_school => $school, _id => $eval_id);
+	my @complete = $eval->complete_users();
+	my @incomplete = $eval->incomplete_users();
+	my $school_id = TUSK::Core::School->new()->getSchoolID($school);
+	my $tmpl = TUSK::Email::Template->new()->lookup("school_id = $school_id");
+</%shared>
+
+<div class="admintext"><% $eval->field_value('title') %></div>
+<br/>
+<table width="100%">
+<tr>
+<td valign="top">
+<h4 class="title">Completions (<% scalar(@complete) %>)</h4>
+<ul>
+% foreach my $user (@complete) {
+	<li><a class="sm" href="/view/user/<% $user->user_id() %>"><% $user->out_lastfirst_name() %></a></li>
+% }
+</ul>
+</td>
+<td width="20">&nbsp;</td>
+<td valign="top">
+<h4 class="title">Non-completions (<% scalar(@incomplete) %>)</h4>
+<ul>
+% foreach my $user (@incomplete) {
+	<li><a class="sm" href="/view/user/<% $user->user_id() %>"><% $user->out_lastfirst_name() %></a></li>
+% }
+</ul>
+</td>
+<td width="20">&nbsp;</td>
+<td valign="top">
+<a class="navsm" href="/protected/eval/administrator/completion/addedit/<% $school %>/<% $eval_id %>">Add new email template</a><br/>
+
+<br/><b>Email Templates:</b><br/>
+<table>
+%	if  (@incomplete) {
+	<tr><td>Default&nbsp;&nbsp;</td><td>
+	   <a class="navsm" href="/protected/eval/administrator/completion/email/<% $school %>/<% $eval_id %>/0">email</a>
+	   </td>
+	</tr>
+%	}
+% foreach my $msg (@$tmpl) {
+	<tr><td><% $msg->getLabel() %>&nbsp;&nbsp;</td>
+            <td><a class="navsm" href="/protected/eval/administrator/completion/addedit/<% $school %>/<% $eval_id %>/<% $msg->getPrimaryKeyID() %>">modify</a> 
+%	if (@incomplete) {
+	    &nbsp;|&nbsp;<a class="navsm" href="/protected/eval/administrator/completion/email/<% $school %>/<% $eval_id %>/<% $msg->getPrimaryKeyID() %>">email</a>
+%	}
+             </td>
+	</tr>
+% }	
+</table>
+</td>
+</tr>
+</table>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+
+<%method title>
+%	return 'Evaluations Completion';
+</%method>
+
+
+

@@ -1,0 +1,105 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%doc>
+	This page will be displayed when the user is prompted to change their TUSK-specific password.
+</%doc>
+
+<%attr>
+	no_check_path => 1
+	page_header   =>'/tmpl/prepend:manage_header_div_layout'
+	page_footer   =>'/tmpl/footer:footer_div'
+	top_tab_type  => 'login'
+	hide_global_links	=> 1
+</%attr>
+
+<%once>
+	use TUSK::Constants;
+</%once>
+
+<%args>
+	$oldpassword => ''
+	$newpassword => ''
+	$newpassword2 => ''
+</%args>
+
+% if ($msg) {
+	<p class="error">Could not change password: <% $msg %><br />
+	Please try again.</p>
+% } elsif ($chpw) {
+	<p class="error">Your password has expired. You need to change it before continuing on.</p>
+% }
+
+<p>To change your password, please enter your old password in the "Old password" box, and then enter your new password twice; once into each of the new password boxes. Then, press the submit button, and we'll attempt to save your changes. If there's a problem, we'll tell you what happened as best we can, and let you try again. If there's no problem, you'll be taken to the home page, and the next time you log in, you'll use your new password.</p>
+<p>Thank you for your patience.</p>
+<p>Rules for your new password:</p>
+<ul>
+	<li>It <b>must</b> be more than six characters long.</li>
+    <li>It <b>must</b> be different from the old password.</li>
+</ul>
+<form action="<% $ssrv %>" method="post" onsubmit="return checkform(this)">
+<table>
+<tr>
+<td class="header-left"><label for="oldpassword">Old Password:</label></td>
+<td><input name="oldpassword" id="old_password__y" type="password" class="textareawhite" size="20"/></td>
+</tr>
+<tr>
+<td class="header-left"><label for="newpassword">New Password:</label></td>
+<td><input name="newpassword" type="password" id="new_password__y" class="textareawhite" size="20"/></td>
+</tr>
+<tr>
+<td class="header-left"><label for="newpassword2">New Password again:</label></td>
+<td><input name="newpassword2" type="password" id="new_password2__y" class="textareawhite" size="20"/></td>
+</tr>
+<tr>
+<td></td>
+<td>
+<& /tmpl/element:button, params => { 
+	label => 'submit password',
+	type => 'submit' } &>
+<& /tmpl/element:button, params => { 
+	label => 'reset',
+	reset => 1 } &>
+		
+</td></tr>
+</table>
+</form>
+<br/>
+
+<%init>
+	my $user = $m->session->{'user'};
+	my $msg = '';
+	my $chpw = '';
+	# check if user is being "required" to change their password
+	$chpw = 1 if $user->field_value('profile_status') =~ /ChangePassword/;
+	# check if form has been submitted
+	if ($oldpassword) {
+		my $result = '';
+		($result, $msg) = $user->user_change_password($oldpassword, $newpassword, $newpassword2);
+		# password has been successfully changed, redirect to home page and show confirmation message
+		if ($result) {
+			$m->comp("/tmpl/url:redirect",destination => "/home", message =>"Your password has been updated.", msg_type => "msg");
+		}
+	}
+	# set up form submission URL so that passwords are always sent securely (https) and to the right place (current server, port and script name)
+	# 	$r->dir_config('SecureDomain') if in dev environment
+	# 	$TUSK::Constants::Domain if in test or production
+	(my $ssrv = ($r->dir_config('SecureDomain') || 'https://'.$TUSK::Constants::Domain) . $ENV{SCRIPT_URL}) =~ s/([^:])\/\//$1\//;
+</%init>
+
+<%method title>
+% 	return 'Change Password';	
+</%method>
+

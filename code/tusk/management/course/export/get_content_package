@@ -1,0 +1,92 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Manage::Course::Export;
+	use HSDB4::SQLRow::Content;
+</%once>
+
+<%attr>
+	top_tab_type	=> 'manage'
+	default_path_type	=> 'course'
+	must_be_school_admin => 1
+</%attr>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $school = $course->get_school();
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+<%method title>
+%	return "Get Content Package";
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/course_export.css'];
+</%method>
+
+<%method leftnav>
+<%perl>
+	return {
+			component 	=> "/tmpl/leftnav/admin",
+			type_path	=> $type_path,
+			school_name 	=> $school->getSchoolName(),
+		};
+</%perl>
+</%method>
+
+
+
+% unless(exists $ARGS{zip}){
+<p id="exportWarning">
+Sorry. Packaging a course can be tough work. If the course is large, it might take several minutes to complete the process.<br/><br/><strong>Please do not reload this page.</strong> Thank you for your patience.<br/>
+<span style="display:block; text-align:center; margin:10px 0;">
+<img src="/graphics/icons/waiting_bar.gif" width="220" height="19" />
+</span>
+</p>
+
+<%doc>
+	these closing table tags are necessary so that IE will render the message
+	above when mason flushes the buffer. UGH! perhaps an ajaxian solution is in
+	order for this kind of lengthy processing.
+</%doc>
+</table></table></table>
+<%perl>
+	$m->flush_buffer;
+
+	my ($log_info, $zip_name) = TUSK::Manage::Course::Export::export($course, \%ARGS);
+
+	if($log_info && !$zip_name){
+		print "<head><meta http-equiv=\"REFRESH\" content=\"1;url=/management/course/export/export/$type_path?errmsg=$log_info\" /></head>";
+	}
+	else{
+		$zip_name =~ s/^\/data\/temp\///;
+		my $msg = 'Course packaged successfully<br>Download by clicking button below.';
+
+		print "<head><meta http-equiv=\"REFRESH\" content=\"1;url=/management/course/export/get_content_package/$type_path?zip=$zip_name&msg=$msg\" /></head>";
+	}
+</%perl>
+% }
+% else {
+<div class="gCMSButtonRow clearfix">
+<a id="zipLnk" href="/management/course/export/download_zip/<% $type_path %>/<% $ARGS{'zip'} %>">Download Course Content Package</a>
+</div>
+% }
+

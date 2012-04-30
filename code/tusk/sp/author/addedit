@@ -1,0 +1,48 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my $form_type = $m->comp('/formbuilder/util:getFormType', token => 'SP');
+	my $parent = '/formbuilder/author/addedit';
+	my ($form_id) = $m->comp("/tmpl/url:get_last_path_id");
+</%shared>
+
+<& $parent,
+	args => \%ARGS, 
+	form_type_id => $form_type->getPrimaryKeyID(),
+	form_label => $form_type->getLabel(), 
+	form_id => $form_id,
+	app_path => 'sp',
+&>
+
+<%method jsarray>
+% 	return $m->comp("$parent:jsarray");
+</%method>
+
+
+<%method right_header_text>
+% 	return ($form_id) ? [{'txt' => 'Preview', url => '', 'onclick' => "window.open('/sp/author/preview/" . $m->comp("/tmpl/url:get_type_path") . "/$form_id');" } ] : [];
+</%method>
+
+
+<%method red_header_text>
+%  	return ($form_id) ? 'Modify Simulated Patient' : 'Create New Simulated Patient';
+</%method>
+
+<%method title>
+%  	return ($form_id) ? 'Modify Simulated Patient' : 'Create New Simulated Patient';
+</%method>
+
+

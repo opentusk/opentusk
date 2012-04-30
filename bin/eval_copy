@@ -1,0 +1,130 @@
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+
+
+#!/usr/local/bin/perl -w
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use DBI;
+use MySQL::Password;
+use Getopt::Long;
+use Term::ReadLine;
+use HSDB4::Constants;
+
+my $dbh;
+my $term = new Term::ReadLine 'Field Prompt';
+my $OUT = $term->OUT;
+my $q_sel;
+
+sub get_value {
+    my ($prompt, $default) = @_;
+    my $def = $default ? " [$default]" : '';
+    my $value = $term->readline ("$prompt$def: ");
+    $value ||= $default;
+}
+
+sub copy_eval_question {
+    my $qid=shift;
+    my $body = $dbh->selectrow_array ($q_sel, undef, $qid);
+    return unless $body;
+    $dbh->do ('INSERT INTO eval_question (body) VALUES (?)', undef, $body);
+    return $dbh->{mysql_insertid};
+}
+
+my ($old_eval, $new_eval, $duplicates, $school);
+GetOptions ("old_eval=i" => \$old_eval,
+	    "duplicates:s" => \$duplicates,
+	    "new_eval:i" => \$new_eval,
+	    "school=s" => \$school,
+	    );
+
+my $db = HSDB4::Constants::get_school_db($school) or die "Must specify --school=<school>.\n";
+$old_eval or die "Must specify --old_eval=<eval_id>.\n";
+
+{
+    my ($u, $p) = get_user_pw ();
+    $dbh = DBI->connect ("dbi:mysql:$db", $u, $p, { RaiseError => 1 });
+}
+
+my %duplicates = ();
+my $duplicate_all = 0;
+if ($duplicates eq 'all') {
+    $duplicate_all = 1;
+}
+elsif ($duplicates) {
+    for (split (/\s/, $duplicates)) { $duplicates{$_} = 1 }
+}
+
+unless ($new_eval) {
+    my $query = qq[SELECT course_id, time_period_id, title, available_date, due_date, prelim_due_date 
+		   FROM eval where eval_id=$old_eval];
+    my %eval_values = ();
+    @eval_values{qw/course_id time_period_id title available_date due_date prelim_due_date/} = 
+	$dbh->selectrow_array ($query);
+    
+    $eval_values{course_id} = 
+	get_value ("Course ID of the new eval", $eval_values{course_id});
+    $eval_values{time_period_id} = 
+	get_value ("Time Period ID of the new eval", $eval_values{time_period_id});
+    $eval_values{title} = 
+	get_value ("Title of the new eval");
+    $eval_values{available_date} = 
+	get_value ("Available date of the new eval", $eval_values{available_date});
+    $eval_values{due_date} = 
+	get_value ("Due date of the new eval", $eval_values{due_date});
+    $eval_values{prelim_due_date} = 
+	get_value ("Preliminary due date of the new eval", $eval_values{prelim_due_date});
+    
+    my @fields = ();
+    my @values = ();
+    for (keys %eval_values) {
+	if ($eval_values{$_}) {
+	    push @fields, $_;
+	    push @values, $eval_values{$_};
+	}
+    }
+    my $insert = sprintf ("INSERT INTO eval (%s) VALUES (%s)",
+			  join (", ", @fields), join (", ", map { '?' } @fields));
+    $dbh->do ($insert, undef, @values);
+    $new_eval = $dbh->{mysql_insertid};
+    print $OUT "Created new eval $new_eval\.\n";
+}
+
+my $ins = 
+    $dbh->prepare ('INSERT INTO link_eval_eval_question VALUES (?, ?, ?, ?, ?, ?, ?)');
+my $sel = 
+    $dbh->prepare ("SELECT child_eval_question_id, label, sort_order, required, grouping, graphic_stylesheet FROM link_eval_eval_question WHERE parent_eval_id=$old_eval");
+$q_sel =
+    $dbh->prepare ("SELECT body FROM eval_question WHERE eval_question_id=?");
+    
+
+$sel->execute ();
+while (my ($qid, $lab, $sort, $req, $group, $gstyle) = $sel->fetchrow_array ) {
+    if ($duplicate_all or $duplicates{$qid}) {
+	my $new_qid = copy_eval_question ($qid);
+	$ins->execute ($new_eval, $new_qid, $lab, $sort, $req, $group, $gstyle);
+	print $OUT "Duplicating $qid to $new_qid\.\n";
+    }
+    else {
+	$ins->execute ($new_eval, $qid, $lab, $sort, $req, $group, $gstyle);
+	print $OUT "Copying link to $qid\.\n";
+    }
+}
+
+END { $dbh && $dbh->ping() && $dbh->disconnect () }
+
+1;
+__END__

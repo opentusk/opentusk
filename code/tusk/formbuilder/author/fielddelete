@@ -1,0 +1,105 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::Field;
+	use TUSK::Application::FormBuilder::Delete;
+</%once>
+
+<%attr>
+	hintmsg => 'Do you want to delete this Field?'
+</%attr>
+
+<%shared>
+	my $field_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $field = TUSK::FormBuilder::Field->new()->lookupKey($field_id);
+	my $delete = TUSK::Application::FormBuilder::Delete->new({field => $field});
+	my $is_dynamic_list = $field->isChildOfDynamicList();
+	my $root_field_id = 0;
+</%shared>
+
+<%method title>
+% 	return "Delete Field";
+</%method>
+
+<%method get_nav_bar_objects>
+<%perl>
+	if ($is_dynamic_list) {
+		return $m->comp("/formbuilder/author/fielddynamic:get_nav_bar_objects");	
+	} else {
+		return $m->comp("/formbuilder/author/field:get_nav_bar_objects");
+	}
+</%perl>
+</%method>
+
+
+<%method check_dynamic_field>
+<%perl>
+	if ($field->isDynamicList()) {
+ 		$m->comp('SELF:set_msg', type => 'hintmsg', msg	=> 'Do you want to delete this field? This will also delete all the child fields.');
+ 	} elsif ($is_dynamic_list) {
+		my $children = $field->getChildDynamicList();
+		$root_field_id = $children->[0]->getRootFieldID();
+		if (scalar @$children > 1) {
+	 		$m->comp('SELF:set_msg', type => 'hintmsg', msg	=> 'Do you want to delete this field? This will also delete all the child fields.');
+		}
+	}
+</%perl>
+</%method>
+
+
+<%method page>
+<%args>
+	$args
+	$form
+</%args>
+
+<%perl>
+	my $desc = ($field->getFieldDescription()) ? $field->getFieldDescription() : "None";
+	my $back_url;
+	my $base_dir = $m->comp("/formbuilder/util:get_base_dir");
+
+	if ($is_dynamic_list) {
+		$back_url = $m->comp("/tmpl/url:construct_url", base_url => "$base_dir/field", pathref => [$form->getPrimaryKeyID(), $root_field_id]);
+	} else {
+		$back_url = $m->comp("/tmpl/url:construct_back_url", base_url => "$base_dir/addedit");
+	}
+
+	if ($args->{'submit'}){
+		$delete->deleteFieldsAndItems();  
+		$m->redirect($back_url . '?msg=Field successfully deleted');
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	onsubmit =>'',
+	name => 'formedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{ label=>'Field Name', value => $field->getFieldName() }&>
+<& /tmpl/element:field_display, params=>{ label=>'Field Description', value => $desc }&>
+
+<& /tmpl/element:save_button, params => {
+	label => 'Delete',
+	cancel_onclick =>  "go_back('$back_url');",
+	name=>'submit'} &>
+</table>
+</form>
+</%method>

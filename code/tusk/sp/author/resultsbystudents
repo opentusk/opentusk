@@ -1,0 +1,200 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::EntryAssociation;
+	use TUSK::FormBuilder::FormType;
+	use TUSK::FormBuilder::Form;
+	use TUSK::FormBuilder::CourseUserGroup;
+	use HSDB45::UserGroup;
+	use TUSK::FormBuilder::Entry;
+</%once>
+
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%shared>
+	my $form_type_label = 'Simulated Patient';
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my @rows = ();
+	my %args = $m->request_args();
+	my $user_group_id = $args{gid} || 0;
+	my $user_group;
+	if ($user_group_id) {
+		$user_group = HSDB45::UserGroup->new(_id => $user_group_id, _school => $course->get_school()->getSchoolName());
+	}
+;
+	my $form_type = TUSK::FormBuilder::FormType->lookupReturnOne("token = 'SP'");
+	my $forms;
+	my $time_period_id = $m->session->{timeperiod};
+
+	my $course_groups = TUSK::FormBuilder::CourseUserGroup->lookup("course_id = " . $course->primary_key());
+	my $can_resubmit = 0;
+</%shared>
+
+<%init> 
+	if ($args{submit_check}) {
+		my $msg = '';
+		my $group_query_string = '';
+		$group_query_string = 'gid=' . $user_group_id . '&' if ($user_group_id);
+
+		if ($args{allow_resubmit}) {
+			$m->comp('SELF:allowResubmit');
+			$msg = 'Successfully Allow Resubmission';
+		}
+
+		$m->redirect($ENV{SCRIPT_URL} . "?" . $group_query_string . "msg=$msg");
+		exit();
+	}
+
+	my $students = [];
+	if (scalar @$course_groups) {
+		$students = $user_group->getStudentMembers($course, $time_period_id) if defined $user_group;
+	} else {
+		$students = [ $course->get_students() ];
+	}
+
+	$forms = TUSK::FormBuilder::Form->new()->getCourseForms($course, $form_type->getPrimaryKeyID());
+
+	my @form_ids = map { $_->getPrimaryKeyID() } @$forms;
+	return unless scalar @form_ids;
+	my $ids = join(',', @form_ids);
+
+	my $associations = TUSK::FormBuilder::EntryAssociation->lookup('',undef,undef,undef, [TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', joincond => "form_id in ($ids) and time_period_id = $time_period_id", jointype => 'inner' })]);
+
+	my %entries = map { $_->getUserID() . '_' . $_->getEntryObject()->getFormID() => $_->getEntryObject() } @$associations;
+
+	foreach my $student (@$students) {
+		my $student_id = $student->primary_key();
+		my $i = 0;
+
+		foreach my $form (@$forms) {
+			my ($submit_date, $actor_name, $view_link, $entry_checkbox) = ('', '', '', '');
+			my $entry = undef;
+			if (exists $entries{$student_id . '_' . $form->getPrimaryKeyID()}) {
+				$entry = $entries{$student_id . '_' . $form->getPrimaryKeyID()};
+				if ($submit_date = $entry->getCompleteDate()) {
+					my $group_id = ($user_group_id) ? "/$user_group_id" : '';
+					$view_link = '<a href="/sp/author/entry/' . $m->comp('/tmpl/url:get_type_path') . '/' . $entry->getFormID() . '/' . $entry->getPrimaryKeyID() .  "$group_id\">View</a>";
+					if (my $actor = HSDB4::SQLRow::User->new()->lookup_key($entry->getUserID())) {
+					$actor_name = $actor->out_full_name();
+					}
+					$entry_checkbox = '<input type="checkbox" name="sp_entry" value="' . $entry->getPrimaryKeyID() . '"/>'; 
+					$can_resubmit = 1;
+				}
+			}
+
+			push @rows, { 
+				student_name => ($i == 0) ? $student->out_lastfirst_name() : '', 
+				form_name => $form->getFormName(),
+				submit_date => $submit_date,
+				actor_name => $actor_name,
+				view_link => $view_link,
+				sp_entry => $entry_checkbox,
+				id => ($entry) ? $entry->getPrimaryKeyID() : '',
+			};
+			$i++;
+		}
+	}
+</%init>
+
+% delete $ARGS{submit_check};
+% delete $ARGS{allow_resubmit};
+
+<& "/tmpl/element:table", params => { width => "80%", border =>"0", cellspacing =>"0", cellpadding =>"0" } &>
+
+%	if (scalar @$course_groups) {
+%		my @groups = HSDB45::UserGroup->new(_school => $course->school())->lookup_conditions("user_group_id in (" . join(",", map { $_->getUserGroupID() } @$course_groups) . ")");
+%		if (scalar @groups) {
+<tr>
+<td align="right">
+<form name="sp_home" action="" method="POST" class="no-padding"> 
+<select name="address" onChange="forward(this);">
+<option value="">select group</option>
+%			foreach my $group (@groups) {
+%				my $selected = ($user_group && $user_group_id == $group->primary_key()) ? 'SELECTED' : '';
+%				$m->print("<option value=\"/sp/author/resultsbystudents/" . $m->comp('/tmpl/url:get_type_path') . "?gid=" . $group->primary_key() . "\"$selected>" . $group->label() . '</option>');
+%			}
+</select>
+</form>
+</td>
+</tr>
+%		}
+%	}
+
+
+% 	my $checkall_box = ($can_resubmit) ? "<input type=\"checkbox\" onclick=\"toggle_boxes(this, this\.form, 'sp_entry');\" />" : '';
+
+<tr>
+<td>
+<& /tmpl/element:form, params => { 
+	method => 'POST', onsubmit => '', name => 'sp_entry' 
+} &>
+<& "/tmpl/element:table", params => { 
+	width => "100%", border =>"0", cellspacing =>"0", cellpadding =>"0" 
+} &>
+<tr><td >
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [
+		{label => 'Student', field => 'student_name', width => '20%' },
+		{label => 'Form', field => 'form_name', width => '25%' },
+		{label => 'Submitted By', field => 'actor_name'},
+		{label => 'Submitted On', field => 'submit_date', align => 'center' },
+		{label => 'Action', field => 'view_link', align => 'center'},
+		{label => $checkall_box, field => 'sp_entry'},
+	],
+	rows => \@rows,
+	name => "Simulated Patients",
+	sort_box => 0,
+	type_path => $m->comp('/tmpl/url:get_type_path'),
+	'norows-message' => '<div align="center">No Results</div>',
+} &>
+</td></tr>
+%	if (scalar @rows && $can_resubmit) {
+<tr>
+<td align="right" style="padding-top:5px;">
+<input class="formbutton" style="" type="submit"
+name="allow_resubmit" id="resubmit" value="Allow Resubmission" onmouseup="" onmousedown="" onclick="">
+</td>
+</tr>
+% 	}
+</table>
+</form>
+</td>
+</tr>
+</table>
+
+<%method allowResubmit>
+<%perl>
+##	pre_dump($args{sp_entry}); exit();
+	my $entry_ids = (ref $args{sp_entry} eq 'ARRAY') ? join(", ", @{$args{sp_entry}}) : $args{sp_entry};
+
+	my $entries = TUSK::FormBuilder::Entry->lookup("entry_id in ($entry_ids)");
+	foreach my $entry (@$entries) {
+		$entry->setCompleteDate(undef);
+		$entry->save({user => $m->session->{user}->user_id()});
+	}
+</%perl>
+</%method>
+
+<%method red_header_text>
+% 	return "$form_type_label Results by Students";
+</%method>
+
+<%method title>
+% 	return "$form_type_label Results by Students";
+</%method>
+

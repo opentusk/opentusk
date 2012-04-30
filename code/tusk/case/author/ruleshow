@@ -1,0 +1,156 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::LinkCasePhase;
+</%once>
+
+<%shared>
+my $case_id = $m->comp('/tmpl/url:get_last_path_id');
+my $case = TUSK::Case::Case->lookupKey($case_id);
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+% my $formname = 'ruleshow';
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => $formname } &>
+
+
+% my $phase_array = $m->comp('get_phases_no_rules', phases_w_rules => $phases_w_rules);
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0",
+                style =>"margin:10px 0;", } &>
+
+<& /tmpl/element:dropdown, params => { 
+		label => 'Create rule to restrict entrance to phase:',
+		name        => 'phase',
+		onchange    => "addRuleToPhase(this, '$type_path', $case_id);",
+		options     => $phase_array }
+&>
+
+</table>
+
+<%perl>
+$m->comp('/tmpl/element:object_selection_box', params => {
+		columns => [ { label => 'Phase with Entrance Rule', field => 'getPhaseTitle' } ],
+		action_columns => [ 
+					{ label => 'Modify', 
+					  link => '/case/author/ruleaddedit',
+					  appendbefore => '/' . $case->getPrimaryKeyID() . '/',
+					} ],
+		object_list   => $rules_data,
+		type_path     => $type_path,
+		empty_message => 'No rules are associated with any phases',
+		});
+</%perl>
+
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0", } &>
+<& tmpl/sections:case_footer, case=>$case, type_path=>$type_path, formname=>$formname, use_save => 0 &>
+</table>
+<& /tmpl/wizard:include &>
+
+</form>
+
+
+
+<%init>
+# do some quick error checking
+$m->comp('/tmpl/url:redirect', message => 'Missing Case ID') unless (defined $case_id);
+$m->comp('/tmpl/url:redirect', message => 'Invalid Case ID') unless (defined $case);
+
+$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => 'Rules succesfully updated');
+
+my $phases_w_rules = TUSK::Case::LinkCasePhase->new()->lookup("parent_case_id=$case_id", ['sort_order ASC', 'child_phase_id ASC'], undef, undef,
+		[ TUSK::Core::JoinObject->new('TUSK::Case::Rule', { joinkey => 'phase_id', origkey => 'child_phase_id', jointype => 'inner' }),
+		  TUSK::Core::JoinObject->new('TUSK::Case::Phase', { joinkey => 'phase_id', origkey => 'child_phase_id', jointype => 'inner' }),]);
+
+my $rules_data = [];
+foreach my $phase_lnk (@$phases_w_rules) {
+	push @$rules_data, $phase_lnk->getJoinObject('TUSK::Case::Phase');
+}
+</%init>
+
+
+<%method title>
+%	return "Manage Rules";
+</%method>
+
+<%method leftnav>
+<%perl>
+return {
+	component => '/case/tmpl/leftnav/case-create', 
+	id        => $case_id,
+	uri       => 'ruleshow'
+	};
+</%perl>
+</%method>
+
+<%method jsarray>
+% 	return ['jquery/jquery.min.js', 'caseshell.js', 'element.js'];
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css','/style/caseSimulator.css'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Case::Case' => $case};
+</%method>
+
+
+<%def get_phases_no_rules>
+<%args>
+@phases_w_rules
+</%args>
+<%perl>
+my %phase_rule_map = map { $_->getChildPhaseID, 1 } @phases_w_rules;
+my $phases = $case->availablePhases();
+my $phase_array = [{'label' => 'Select Phase', 'value' => ''}];
+my $first_phase = 1;
+foreach my $p (@$phases) {
+	if ($first_phase) {
+		$first_phase = 0;
+		push @$phase_array, 
+			{'label' => $p->getPhaseTitle(),
+			 'value' => '',
+			 'disabled' => 1,
+			 'style' => 'color:#454545;',
+			};
+	}
+	else {
+		unless (exists $phase_rule_map{$p->getPrimaryKeyID()} ) {
+			push @$phase_array, 
+				{'label' => $p->getPhaseTitle(),
+				 'value' => $p->getPrimaryKeyID()
+				};
+		}
+	}
+}
+return $phase_array;
+</%perl>
+</%def>

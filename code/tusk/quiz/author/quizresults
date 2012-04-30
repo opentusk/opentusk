@@ -1,0 +1,91 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Result;
+	use TUSK::Core::HSDB4Tables::User;
+</%once>
+
+<%shared>
+	my $id = $m->comp('/tmpl/url:get_last_path_id');
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($id);
+</%shared>
+
+
+<%method title>
+<%perl>
+	my $title = "Quiz Results: ".$quiz->getTitle();
+	return $title;
+</%perl>
+</%method>
+
+<%method red_header_text>
+%	return "Quiz Results: ". $quiz->getTitle();
+</%method>
+
+
+<%method function_token>
+% 	return 'view_grades';
+</%method>
+
+<%method get_nav_bar_objects>
+%	return {'quiz'=>$quiz};
+</%method>
+
+
+<%init>
+	my $results = TUSK::Quiz::Result->lookup("quiz_id = $id and preview_flag = 0", ['lastname'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User") ]);
+	my $result_rows = [];
+	foreach my $result (@{$results}){
+		my $end_date =  ($result->isOverdue()) ? '<span style="color:red">'.$result->getEndDate().'</span>' : $result->getEndDate();
+
+		my $needs_grade_text = ($result->needsGrading()) ? 'Yes' : 'No';
+		my $user = $result->getUserObject();
+		my $name = ($quiz->isSelfAssessment()) ? "Anonymous" : ((defined $user) ? $user->out_lastfirst_name() : '');
+
+	        push @$result_rows, {
+			'name'=>"<a name=\"". $result->getPrimaryKeyID() . "\">$name</a>",
+			'id'=>$result->getPrimaryKeyID(),
+                	'start_date'=>$result->getStartDate(),
+			'end_date'=>$end_date, 
+			'needs_grade'=>$needs_grade_text,
+			'score' => $result->getScore()};
+		}	
+	my $default_sort = "name";
+	my $sort = ($ARGS{'sort'}) || $default_sort;
+	$sort = "start_date" if ($sort eq $default_sort and $quiz->isSelfAssessment());
+	my $toggle = $ARGS{'toggle'} || 0;
+
+	
+</%init>
+
+
+<& /tmpl/element:object_selection_box, params=>{'columns'=>[{'field'=>'name','label'=>"Name", 'sort'=>"char"},
+		{'field'=>'start_date','label'=>"Start Date", "sort"=>"char"},
+		{'field'=>'end_date','label'=>"End Date", "sort"=>"char"},
+		{'field'=>'needs_grade','label'=>"Needs Grading", align=>"center", "sort"=>"char"},
+		{'field'=>'score','label'=>"Score", "sort"=>"num", align=>'center'}],
+		'action_columns'=>[{'label'=>'View Responses',
+			'link'=>'/quiz/author/quizresponses'}],
+		'type_path' => $m->comp("/tmpl/url:get_type_path") . '/' . $quiz->getPrimaryKeyID() ,
+		'nobutton' => 1,
+		'norows-message' => 'No results',
+                'rows'=> $result_rows,
+		'sort'=> $sort,
+		'default_sort' => $default_sort,
+		'toggle' => $toggle } &>
+
+

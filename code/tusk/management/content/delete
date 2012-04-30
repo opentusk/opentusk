@@ -1,0 +1,206 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB4::SQLRow::Content;
+	use TUSK::Application::DeleteContent;
+	use URI::Escape;
+</%once>
+
+<%attr>
+	top_tab_type	=> 'manage'
+</%attr>
+
+<%args>
+	@content => ()
+</%args>
+
+<%shared>
+	my @contentObjectArray;
+	my $backURL;
+	my $current_course;
+</%shared>
+
+<%method startup>
+	<%args>
+		$args
+	</%args>
+
+	<%perl>
+		if($args->{goToWhenDone}) {$backURL = $args->{goToWhenDone};} else {$backURL = $ENV{HTTP_REFERER};}
+		$backURL =~ s/\?.*$//;
+		my @tempContentIDArray;
+		if(ref($args->{content}) eq 'ARRAY') {
+			foreach my $contentID (@{$args->{content}}) {push @tempContentIDArray, $contentID;}
+		} else {
+			push @tempContentIDArray, $args->{content};
+		}
+
+		my ($rval, $msg);
+		if(defined($args->{submit_check}) && defined($args->{form_submit})){
+			my $tempObject = $m->comp('/tmpl/url:get_type_object');
+			my $lastId = $m->comp('/tmpl/url:get_last_path_id');
+			if($lastId && ($tempObject->primary_key() ne $lastId)) {$tempObject = HSDB4::SQLRow::Content->new->lookup_key($lastId);}
+			($rval, $msg) = TUSK::Application::DeleteContent::process_delete($args->{removeContent}, $m->session->{user}, $tempObject, \@tempContentIDArray);
+			if ( $rval == 0 ) {
+				my $r = 1;
+				# The success/fail return values are backwards from process_delete and delete_child_content...  Talk about annoying.
+				foreach my $key ( keys %{$args} ) {
+					if ( $key =~ /^delete_\d*/ ) {
+						my ($garbage, $cm_id) = split( "_", $key );
+						my $class_meeting = HSDB45::ClassMeeting->new( _school => $tempObject->school, _id => $cm_id );
+						foreach my $content_id ( @tempContentIDArray ) {
+							($r,$msg) = $class_meeting->delete_child_content($content_id);
+							last if (!$r);
+						}
+					}
+					last if (!$r);
+				}
+				$rval = !$r;
+			}
+			if($rval == 0) {$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'msg', destination => $args->{goToWhenDone});}
+		}
+
+		$current_course = $m->comp('/tmpl/url:get_type_object');
+		if ( !($current_course->isa( "HSDB45::Course" )) ) {
+			$current_course = '';
+		}
+
+		foreach my $contentID (@tempContentIDArray) {
+			my $contentObject = HSDB4::SQLRow::Content->new->lookup_key($contentID);
+			if($contentObject->primary_key()) {push @contentObjectArray, $contentObject;}
+		}
+		if($rval || $msg)                      {$m->comp("SELF:set_msg", msg => $msg, type => 'err');}
+		elsif(scalar(@contentObjectArray) > 0) {$m->comp("SELF:set_msg", msg => "Are you sure you want to delete content?", type => 'hintmsg');}
+		else                                   {$m->comp("SELF:set_msg", msg => "No content was passed... nothing to delete!", type => 'err');}
+	</%perl>
+</%method>
+
+<%method title>
+%	return "Delete Content";
+</%method>
+
+<%method jsarray>
+%	return $m->comp("/management/tmpl/content:jsarray");
+</%method>
+
+<%method get_nav_bars>
+% 	return $m->comp("/management/tmpl/content:get_nav_bars");
+</%method>
+
+<%method red_header_text>
+%	return "Delete Content";
+</%method>
+
+
+<& /tmpl/element:form, params => { method => 'POST', onsubmit =>'return formedit_submit(this);', name => 'formedit' } &> 
+<& /tmpl/wizard:include &>
+<& /tmpl/element:table, params => { width => "100%", border =>"0", cellspacing =>"0", cellpadding =>"0" } &> 
+
+<%perl>
+	my $alsoLinkedFrom = '';
+	my %linkedLocations;
+	my $contentToRemove = '';
+	my @class_meetings;
+	foreach my $contentObject (@contentObjectArray) {
+		$contentToRemove.= $contentObject->title() . " (" . $contentObject->primary_key() . ")<input type=\"hidden\" name=\"content\" value=\"" . $contentObject->primary_key() . "\"><br>";
+		if($contentObject and $contentObject->primary_key()) {
+			foreach my $contentParent ($contentObject->other_parents()) {
+				my $link = '';
+				if($contentParent->isa('HSDB4::SQLRow::Content')) {
+					$link = "<a href=\"/management/folders/course/".$contentParent->school()."/".$contentParent->field_value('course_id')."/".$contentParent->primary_key."\">".$contentParent->field_value('title')."</a>";
+				} elsif($contentParent->isa('HSDB45::Course')) {
+					$link = "<a href=\"/management/course/display/" . $contentParent->school() . "/" . $contentParent->course_id() . "\">" . $contentParent->out_label() . "</a>";
+				} elsif ($contentParent->isa('HSDB45::ClassMeeting')) {
+					$contentParent->{'content_title'}   = $contentObject->title;
+					$contentParent->{'course_title'}    = $contentParent->course->out_title;
+					$contentParent->{'checkbox_delete'} = '<input type="checkbox" name="delete_' . $contentParent->class_meeting_id . '" value="1"' . (($current_course && $current_course->course_id == $contentParent->course->course_id) ? ' checked' : '') . '>';
+					delete $contentParent->{'-course'};
+
+					push @class_meetings, $contentParent;
+				}
+				$linkedLocations{$contentParent->primary_key} = $link if ($link);
+			}
+		}
+	}
+	unless($contentToRemove) {$contentToRemove = 'None';}
+	foreach (sort keys %linkedLocations) { $alsoLinkedFrom .= $linkedLocations{$_} . "<br>\n"; }
+	unless($alsoLinkedFrom) {$alsoLinkedFrom = 'Nothing';}
+</%perl>
+
+<& /tmpl/element:hidden_form_element, params =>{ name=> 'goToWhenDone', value => $backURL } &>
+<& /tmpl/element:field_display, params =>{ label => 'Content To Remove', value => $contentToRemove } &>
+<& /tmpl/element:field_display, params=>{ label => 'Linked From', value=>$alsoLinkedFrom } &>
+<& /tmpl/element:sort_order_box , params =>{
+		no_add_button => 1,
+		label => 'Associated Meetings',
+		buttons => [ ],
+		layer_info => {
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+			layer => 'meetingsdiv',
+			empty_message => 'Not linked to any class meetings',
+			fields => ['class_meeting_id', 'checkbox_delete', 'content_title', 'course_title', 'title', 'meeting_date','start_time', 'end_time'],
+			name => 'meetings',
+			sort => {usage => 'No'},
+			sortoninsert => {usage => 'Yes', sorton => 'name'},
+			action => {usage => 'No'},
+			display => [
+				{field=>'checkbox_delete', label=> 'Unlink', align=>'center', length=>40 },
+				{field=>'content_title', label=> 'Content', align=>'center' },
+				{field=>'course_title', label=> 'Course', align=>'center' },
+				{field=>'title', label=> 'Title', align=>'center' },
+				{field=>'meeting_date', label=>'Date', align=>'left', length=>50, },
+				{field=>'starttime', label=> 'Start', align=>'left', length=>50, },
+				{field=>'endtime', label=> 'End', align=>'left', length=>50, },
+				],
+			validate => {
+					usage => 'No',
+				},
+			data => \@class_meetings
+		}
+	} &>
+% if(scalar(@contentObjectArray) > 0) {
+<& /tmpl/element:flexible_tr, params=>{ label => 'What do you want to do?' } &>
+	<table width="100%" cellspacing="0" class="tusk">
+		<tr>
+			<td class="layers-left" width="10"> <input name="removeContent" type="radio" value="0" checked></td>
+			<td class="layers-left">
+				<b>Remove Content from This Folder Only</b> (Recommended)
+				<span class="navsm"><br>
+					Content will still be accessible from other folders and courses linking to it. <br>
+              				You will still be able to reuse this content in other folders and courses.<br>
+					If you are an author or editor of this content, and it no longer appears anywhere else, you will be able to use the search to locate it.
+				</span>
+			</td>
+		</tr>
+		<tr>
+			<td class="layers-left" width="10" > <input type="radio" name="removeContent" value="1"></td>
+			<td class="layers-left">
+				<b>Delete Content</b><br>
+				<span class="navsm">
+					Content will be completely removed and unavailable. <br>
+					ONLY authors and editors of content have this option, and ONLY IF it is not linked from another folder or course.
+				</span>
+			</td>
+		</tr>
+	</table>
+</td></tr>
+% $backURL .= "?msg=" . uri_escape("Delete Canceled");
+<& /tmpl/element:save_button, params=>{label=>'Remove Content', name=>'form_submit', cancel_onclick=>"go_back('$backURL');" } &>
+% }
+</table>
+
+

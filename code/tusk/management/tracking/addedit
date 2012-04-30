@@ -1,0 +1,190 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Tracking;
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use HSDB45::TimePeriod;
+</%once>
+
+<%shared>
+	my $tracking_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $is_edit = 0;
+	my ($tracking, $time_period);
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $course = $m->comp("/tmpl/url:get_type_object");
+
+	if ($tracking_id){
+		$is_edit = 1;
+		$tracking    = TUSK::Tracking->new(_school => $school)->lookup_key( $tracking_id );
+		$time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($tracking->field_value('time_period_id'));
+	}else{
+		$tracking    = TUSK::Tracking->new(_school => $school);
+		$time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($m->comp("SELF:get_timeperiod_id"));
+	}
+</%shared>
+
+<script language="Javascript">
+	function show_hide_dates( ) {
+		if ( document.tracking.alldates[0].checked ) {
+			document.getElementById("start_row_tr").style.display = "none";
+			document.getElementById("end_row_tr").style.display   = "none";
+		} 
+		if ( document.tracking.alldates[1].checked ) {
+			document.getElementById("start_row_tr").style.display = "table-row";
+			document.getElementById("end_row_tr").style.display   = "table-row";
+		}
+	}
+</script>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+		onsubmit =>'',
+                name => 'tracking' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:hidden_form_element, params =>{ name => 'time_period_id',
+                value => $time_period->field_value('time_period_id') } &>
+<& /tmpl/element:field_display, params =>{ label => 'Time Period:',
+				value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')' } &>
+
+<%perl>
+if ($is_edit) {
+	my $content_value = "";
+	if ($tracking->field_value('content_id')) { $content_value = $tracking->field_value('content_id'); }
+	else { $content_value = "Course homepage"; }
+</%perl>
+<& /tmpl/element:hidden_form_element, params =>{ name => 'content_id',
+                value => $tracking->field_value('content_id') } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'Content Id:',
+                value => $content_value } &>
+<%perl>
+} else {
+</%perl>
+<%perl>
+	my $options = [ {'label' => '| Course Homepage', 'value' => '0'} ];
+	my $tree = new TUSK::ContentTree($course->child_contentref, "Collection");
+	for (my $i=0; $i<scalar (@{$tree->{branches}}); $i++){
+	    my $branch = @{$tree->{branches}}[$i];
+	    my $dashes = "&nbsp;" x $branch->{tab};
+	    my $label = $branch->{content}->field_value("title");
+	    $label = substr($label,0,30) . "..." if (length($label) > 30);
+	    my $id = $branch->{content}->primary_key;
+	    push @{$options}, { 'label' => $dashes . "\\_ " . $label, 'value' => $id };
+	}
+	my $or_content_id = "<br><br> <span class='xsm'><b>- OR -</b></span><br> <br> <span class='xsm'>Track a Specific Content ID:</span> <input name='content_id' type='text' class='textareawhite' size='15'> 
+                         <span class='xsm'><a href='javascript:open_window(\"/management/searchpages/content/?type=content&parent=opener.document.tracking.content_id.value\",\"directories=no,menubar=no,toolbar=yes,scrollbars=yes,resizable=yes,width=800,height=700\");' class='chooser'>find content ids</a><br></span>";
+</%perl>
+<& /tmpl/element:dropdown, params =>{ label => 'Track this Content/Data:',
+				name => 'folder',
+                options => $options,
+				trailing_text => $or_content_id } &>
+<%perl>
+}
+</%perl>
+
+<%perl>
+	my $all_dates = ($tracking->field_value('start_date') eq '1000-01-01' && $tracking->field_value('end_date') eq '2037-12-31');
+</%perl>
+<& /tmpl/element:radio_buttons, params =>{ label => 'Dates:',
+                name => 'alldates',
+        		buttons => [
+					{ value => "1", text => "All Dates", 
+ 			  		checked => $all_dates,
+					onclick => 'show_hide_dates()'
+					},
+	        		{ value => "0", text => "Between ...", 
+			  		checked => !$all_dates,
+					onclick => 'show_hide_dates()'
+					} 
+	   			], } &>
+
+<%perl>
+my $start_value = '';
+$start_value = $tracking->field_value('start_date') if ($is_edit && $tracking->field_value('start_date') ne '1000-01-01');
+</%perl>
+<& /tmpl/element:textbox, params =>{ label => '&nbsp;&nbsp;&nbsp;Start Date:',
+				tr_name => 'start_row',
+                name => 'start_date',
+                value => $start_value,
+                size => 12,
+                length => 10,
+				calendar => 1 } &>
+
+<%perl>
+my $end_value = '';
+$end_value = $tracking->field_value('end_date') if ($is_edit && $tracking->field_value('end_date') ne '2037-12-31');
+</%perl>
+<& /tmpl/element:textbox, params =>{ label => '&nbsp;&nbsp;&nbsp;End Date:',
+				tr_name => 'end_row',
+                name => 'end_date',
+                value => $end_value,
+                size => 12,
+                length => 10,
+				calendar => 1 } &>
+
+<script language="javascript">show_hide_dates()</script>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes', name=>'form_submit', 'no_cancel_button' => 1} &>
+
+</table>
+</form>
+
+<%init>
+	if (defined($ARGS{'form_submit'})){
+		$tracking->field_value('course_id', $course->course_id );
+		$tracking->field_value('content_id', ( $ARGS{'content_id'} || $ARGS{'folder'} ) );
+		$tracking->field_value('time_period_id', $ARGS{'time_period_id'} );
+		if ($ARGS{'alldates'}) {
+			$tracking->field_value('start_date', '1000-01-01');
+			$tracking->field_value('end_date', '2037-12-31');
+		} else {
+			$tracking->field_value('start_date', $ARGS{'start_date'});
+			$tracking->field_value('end_date', $ARGS{'end_date'});
+		}
+
+    	$tracking->save();
+    	$tracking->calculate();
+
+		my $msgtxt;
+		if ($is_edit){
+			$msgtxt = "Report updated";
+		}else{
+			$msgtxt = "Report added";
+		}
+	
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/tracking/show", 'extra' => '', 'msg' => $msgtxt));
+	}
+</%init>
+
+<%method title>
+<%perl>
+	my $title = "Create New Report";
+	if ($is_edit){
+	        $title = "Modify Report";
+	}
+	return $title;
+</%perl>
+</%method>
+
+<%method jsarray>
+%	return ['calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>

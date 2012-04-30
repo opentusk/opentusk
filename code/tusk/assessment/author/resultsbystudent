@@ -1,0 +1,409 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::Response;
+	use TUSK::FormBuilder::EntryAssociation;
+	use TUSK::FormBuilder::SubjectAssessor;
+	use HSDB4::DateTime;
+	use TUSK::FormBuilder::EntryGrade;
+</%once>
+
+<%shared>
+	my ($form_id,$uid,$entry_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $form = $m->comp('/formbuilder/util:get_form', join_objects => [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }) ]);
+	my $assessment_form = $form->getJoinObject('TUSK::FormBuilder::Assessment');
+	my $student = HSDB4::SQLRow::User->new()->lookup_by_uid($uid);
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $user_id = $m->session->{'user'}->user_id();
+	my $student_id = $student->primary_key();
+	my $entry;
+	my $edit_mode = 0;  ## allow edit grades
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $time_period_id = $m->comp('SELF:get_timeperiod_id');
+	my (%scores, %comments, %entries, %assigned, %field_responses);
+ 	my $student_grade;
+	my $repost_grade;
+	my $column_headers = [];
+	my $assessors = [];
+	my @rows = ();
+	my $curr_url = "/assessment/author/resultsbystudent/$type_path/$form_id";
+	my $total_weight = $assessment_form->getTotalWeight();
+	my $fields = $form->getFields();
+	my @student_options = ();
+	my $all_assessors_completed = 0;
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method 		=> 'POST',
+    name 		=> 'resultsbystudent' 
+} &>
+
+<input type="hidden" id="edit_mode" name="edit_mode" value="<% $edit_mode %>" />
+
+
+% if ($assessment_form->getShowImages()) {
+<img style="float:left;margin:7px 25px 0 0;" src="<% $student->official_image() %>" width="120px" height="120px" />
+% }
+
+<& "/tmpl/element:table", params => { border => "0",cellspacing => "0",cellpadding => "0", width => "85%"} &>
+
+<& /tmpl/element:field_display, params => { 
+	label => 'Student',
+	value => $m->scomp( '/tmpl/element:dropdown', params => { 
+				name 		=> 'students',
+				selected 	=> "$curr_url/$uid",
+				options 	=> \@student_options,
+			}),
+} &>
+
+<& /formbuilder/util:displayTimePeriod, entry => $entry &>	
+
+% if (scalar @rows) {
+<& /formbuilder/util:displayDate, entry => ($entry->getPrimaryKeyID()) ? $entry : undef, date_label => 'Assessment Date' &>
+% 	if (scalar @$assessors) {
+%		my @assessors = (); 
+%		foreach (@$assessors) {
+%			my $incomplete = (exists $entries{$_->getAssessorID()}) ? '' : '<span class="errTxt">*</span>';
+%			push @assessors,  $_->getJoinObject('TUSK::Core::HSDB4Tables::User')->outLastFirstName() . $incomplete;
+%		}
+
+<& /tmpl/element:field_display, params=>{ 
+	label => 'Assessor(s)',
+	value => join("; &nbsp; ", @assessors) . (($all_assessors_completed) ? '' : '<div class="xsm" style="padding-top:3px;"><span class="errTxt">*</span> Assessor who has NOT completed the assessment</div>') } &>
+%	}
+% 	if ($entry->getCompleteDate()) {
+<& /tmpl/element:field_display, params => { label => 'Post Date & Time', value => $entry->getCompleteDate() } &>
+% 	}
+% }
+</table>
+
+<& "/tmpl/element:table", params => { id => "expandable", width => "100%", border => "0", cellspacing => "0", cellpadding => "0", style => "border-collapse:collapse;" } &>
+<tr>
+<td class="no-button">
+
+<& /tmpl/element:object_selection_box, params => { 
+	columns => $column_headers,
+	rows => \@rows,
+	name => "assessments",
+	sort_box => 0,
+	type_path => $type_path,
+	'norows-message' => '<br/>No assessor assigned to this student',
+	border_bottom_tr => 1,
+} &>
+</td>
+</tr>
+% if ($edit_mode && scalar @rows) {	
+%	my ($buttons, $repost_text);
+%	if (($repost_grade)) {
+%		$repost_text = 'Re-';
+%	} else {
+%		$buttons = [ $m->scomp('/tmpl/element:button', params => { label => 'Save Changes', name => 'save_submit', type => 'submit',}) ];
+%	}
+<& /tmpl/element:save_button, params => {
+	label				=>	$repost_text . 'Post Result', 
+	name				=>	'post_submit', 
+	no_cancel_button 	=> 	1,
+	one_column			=> 	1,
+	td_class			=> 	'cell-submit-right',
+	buttons				=>  $buttons,
+} &>
+% }
+</table>
+</form>
+
+<%init>
+	if ($ARGS{submit_check}){
+		## a bit kludgy but need to prepend a fake item id to scaling question type.  
+		foreach my $key (keys %ARGS) {
+			$ARGS{$key} = '0_' . $ARGS{$key} if ($key =~ /^id/);
+		}
+
+		my $entry_grade = TUSK::FormBuilder::EntryGrade->lookupReturnOne("entry_id = $entry_id") if ($entry_id);
+
+		$entry_id = $m->comp("/formbuilder/process:entry", args => { %ARGS, time_period_id => $time_period_id }, form => $form, user_id => $user_id, date => $ARGS{encounter_date}, entry_id => $entry_id, entry_grade => $entry_grade );
+
+		$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id) unless ($entry->getPrimaryKeyID());
+
+		unless (TUSK::FormBuilder::EntryAssociation->lookupReturnOne("entry_id = $entry_id AND user_id = '$student_id'")) {
+			my $entry_assoc = TUSK::FormBuilder::EntryAssociation->new();
+			$entry_assoc->setFieldValues({
+				entry_id 	=> $entry_id,
+				user_id 	=> $student_id,
+				is_final 	=> 1,
+			});
+			$entry_assoc->save({user => $user_id});
+		}
+
+		if ($assessment_form && $assessment_form->getScoreDisplay()) { 
+			$student_grade = $m->comp('/assessment/tmpl/grade:addedit', 
+				form => $form, 
+				time_period_id => $time_period_id, 
+				student_id => $student_id, 
+				grade => ($ARGS{total_override_score}) ? $ARGS{total_override_score} : (($ARGS{post_submit}) ? $ARGS{total_final_score} : ''),
+				comments => $ARGS{comment_final},
+				course	=> $course,
+				user_id => $user_id,
+			);
+		}
+
+		my ($msg,$url);
+		if ($ARGS{post_submit}) {		
+			$entry->setCompleteDate(HSDB4::DateTime->new()->out_mysql_timestamp());
+			$entry->save({user => $user_id});
+			$msg = 'Successfully Submitted';
+			$url = "/assessment/author/results/$type_path/$form_id";
+		} elsif  ($ARGS{save_submit}) {	
+			$msg = 'Successfully saved';
+			$url = $ENV{SCRIPT_NAME} . "/$type_path/$form_id/$uid/$entry_id";
+		}
+		$m->comp("/tmpl/url:redirect", destination => $url,  message => $msg, msg_type => 'msg' );
+	}
+
+	$m->comp('SELF:process_rows') if scalar (@$assessors);
+	### two tokens in the value:  url and image preview locations
+	@student_options = map {{  class => 'imgPreview', label => $_->out_lastfirst_name(), value => $curr_url . '/' . $_->uid() }} $course->get_students($time_period_id);
+</%init>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	$m->comp('SELF:nocache');
+
+	if (!$time_period_id || ($m->session->{timeperiod_course} ne $course->school() . '-' . $course->primary_key())) {
+		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/results/$type_path/$form_id/$uid", message => "Something wrong with time period! Try again.");
+	}
+
+	if ($entry_id) {
+		$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id);
+	} else {
+		$entry = TUSK::FormBuilder::Entry->lookupReturnOne("form_id = $form_id and time_period_id = $time_period_id and form_builder_entry.user_id = '$user_id'", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "' and is_final = 1"}) ]);
+		if ($entry) {
+			$entry_id = $entry->getPrimaryKeyID();
+		} else {
+			$entry = TUSK::FormBuilder::Entry->new() 
+		}
+	}
+
+	unless ($args->{submit_check}) {
+		### only responses for those completed entries
+		my $responses = TUSK::FormBuilder::Response->lookup(undef,undef,undef,undef, [
+			TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id and time_period_id = $time_period_id"}), 
+			TUSK::Core::JoinObject->new('TUSK::FormBuilder::Field', { joinkey => 'field_id', jointype => 'inner'}),
+			TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "'"}),
+			TUSK::Core::JoinObject->new('TUSK::Core::HSDB4Tables::User', { origkey => 'created_by', jointype => 'inner', joinkey => 'user_id' }),
+		]);
+
+		$assessors = TUSK::FormBuilder::SubjectAssessor->lookup("form_id = $form_id  AND form_builder_subject_assessor.time_period_id = $time_period_id AND subject_id = '" . $student->primary_key() . "' AND form_builder_subject_assessor.status != 0", ['user.lastname', 'user.firstname'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Core::HSDB4Tables::User', { origkey => 'assessor_id', joinkey => 'user_id', jointype => 'inner' }) ]);
+
+		foreach (@{TUSK::FormBuilder::EntryGrade->lookup(undef,undef,undef,undef, [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id and time_period_id = $time_period_id"}), TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "'"}),  ])}) {
+			if (my $assessor_final_comments = $_->getComments()) {
+				$comments{assessor}{$_->getJoinObject('TUSK::FormBuilder::Entry')->getUserID()}{final} = $assessor_final_comments;
+			}
+		}
+
+		if (scalar @$fields) {  ### Get min/max or scores for each field
+			my $sth = $form->databaseSelect("select field_id, min(min_value), max(min_value), max(max_value), max(max_value) from tusk.form_builder_form_attribute a, tusk.form_builder_form_attribute_item b, tusk.form_builder_field_item c, tusk.form_builder_form_attribute_field_item d where form_id = $form_id and a.attribute_id = b.attribute_id AND b.attribute_item_id = d.attribute_item_id and c.item_id = d.field_item_id group by field_id");
+
+			while (my ($fid, $score, $max_score, $max_max_score) = $sth->fetchrow_array()) {
+				$scores{range}{$fid} = [ $score, ($assessment_form->getScoreRange()) ? $max_max_score : $max_score ];
+			}
+			$sth->finish();
+		}
+
+		foreach my $resp (@$responses) {
+			my $fid = $resp->getFieldID();
+			my $score = $resp->getScore();
+			my $entry_assoc = $resp->getJoinObject('TUSK::FormBuilder::EntryAssociation');
+			my $assessor = $resp->getJoinObject('TUSK::Core::HSDB4Tables::User');
+
+			if ($entry_assoc->getIsFinal()) {
+				### entry_association has final flag to indicate the final scores for each field
+				$scores{field}{$fid}{final} = $score; 
+				$field_responses{$fid} = $resp;
+			} else {
+				$scores{field}{$fid}{frequency}{$score}++;
+				$scores{field}{$fid}{assessors}{$assessor->getLastname()} = ((defined $score) ? (($score == 0) ? 'UA' : $score) : '-');
+				$scores{total}{frequency}{$score}++;
+				$scores{field}{$fid}{sum} += $score;
+				$entries{$resp->getCreatedBy()} = $resp->getEntryID();
+
+				if ($resp->getText() =~ /\w+/) {
+					$comments{assessor}{$resp->getJoinObject('TUSK::Core::HSDB4Tables::User')->getLastname()}{$fid} = $resp->getText();
+				}
+			}
+		}
+		$all_assessors_completed = 1 if (scalar keys %entries == scalar @$assessors);
+		$repost_grade = (defined $args->{rp} && $args->{rp} == 1) ? 1 : 0;
+
+		##  rp + completed,  all_completed + no entry or entry but not complete
+		if (!$entry_id || ($entry_id && !defined $entry->getCompleteDate()) || ($repost_grade && $entry_id && $entry->getCompleteDate())) {
+			$edit_mode = 1;
+		}
+
+		if ($edit_mode) {
+			if ($repost_grade) {
+				$m->comp('SELF:set_msg', msg => 'You may edit/repost grades. They are already posted to students and registrar', type => 'hint');
+			}
+		} 
+	}
+</%perl>
+</%method>
+
+<%method process_rows>
+<%perl>
+	if ($entry_id && !$student_grade) {
+		$student_grade = $m->comp('/assessment/tmpl/grade:get_student_grade', form_id => $form_id, time_period_id => $time_period_id, student_id => $student_id ); 
+	}
+
+	if ($student_grade) {
+		$scores{total}{final_override} = ($student_grade->getGrade()) ? sprintf("%.2f", $student_grade->getGrade()): '';
+		$comments{final} = $student_grade->getComments();
+	}
+
+	$column_headers = [ {label => 'Performance Criteria', field => 'field' } ];
+
+	if ($assessment_form->getMultiAssessors()) {
+		push @$column_headers, (		
+			{label => 'Frequency', field => 'frequency', align => 'center' },
+			{label => '<span style="cursor:pointer;" title="Number of assessors who has assessed"> N </span>', field => 'assessors', align => 'center' },
+			{label => '<span style="font-size:80%">Calc Avg Score</span>', field => 'calc_avg_score', align => 'center' },
+		);
+	}
+
+	push @$column_headers, {label => 'Score', field => 'avg_score', align => 'center' };
+
+	if ($total_weight) {
+		push @$column_headers, (
+			{label => 'Weight', field => 'weight', align => 'center' },
+			{label => 'Weighted Score %', field => 'weighted_avg', align => 'center' },
+		);
+	}
+
+	push @$column_headers, {label => '<div class="allrows"><div class="arrow"></div></div>', field => 'arrow', align => 'center', class => 'td_master'};
+
+	my $rubrics = $m->comp('SELF:get_form_rubrics', form_id => $form_id);
+	my $i = 0;  ## row number
+	foreach my $field (@$fields) {
+		next unless ($field->getFieldTypeToken() eq 'Scaling');   ## for now we set this limit
+		my $fid = $field->getPrimaryKeyID();
+
+		$rows[$i]->{field} = '<span class="bold_emphasis_font">' . $field->getFieldName() . '</span>';
+		$rows[$i]->{row_class} 	= 'master';
+
+		if ($assessment_form->getMultiAssessors()) {
+			my $title = join("   ", map { $_  . ': ' . $scores{field}{$fid}{assessors}{$_} } sort keys %{$scores{field}{$fid}{assessors}});
+			my $assessors_per_field = scalar grep { /^\d+$/ } values %{$scores{field}{$fid}{assessors}};
+
+			$rows[$i]->{assessors}	= $assessors_per_field;
+			$rows[$i]->{frequency} 	= '<table align="center"><tr><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[0] . "</td><td><span class=\"inlinebar\" title=\"$title\">" . join(",", map { (exists $scores{field}{$fid}{frequency}{$_}) ? $scores{field}{$fid}{frequency}{$_} : 0 } ($scores{range}{$fid}->[0] .. $scores{range}{$fid}->[1])) . '</span></td><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[1] . '</td></tr></table>';
+
+			if ($assessors_per_field > 0 && $scores{field}{$fid}{sum}) {
+				my $calc_avg = sprintf("%.2f", $scores{field}{$fid}{sum} / $assessors_per_field);
+				$rows[$i]->{calc_avg_score} = "<span style=\"font-size:80%\">$calc_avg</span>";
+				$scores{field}{$fid}{final} = $calc_avg unless $scores{field}{$fid}{final};
+				$scores{total}{average} += $scores{field}{$fid}{final};
+			} else {
+				$rows[$i]->{calc_avg_score} = '-';
+			}
+		}
+		
+		if ($total_weight) {
+			$rows[$i]->{weight}	= "<span id=\"weight_id_$fid\">" . $field->getWeight() . '</span><span class="xxsm">%</span>';
+		}
+
+		if ($field->getWeight()) {
+			$rows[$i]->{weighted_avg} =  "<span id=\"weighted_avg_id_$fid\"></span><span class=\"xxsm\">%</span> <input type=\"hidden\" name=\"range_id_$fid\" value=\"$scores{range}{$fid}->[1]\" />";
+		}
+
+		$rows[$i]->{arrow} = '<div class="row"><div class="arrow"></div></div>';
+		$rows[$i]->{avg_score} = "<input type=\"text\" class=\"num-right field-average blue\" name=\"id_$fid\" value=\"$scores{field}{$fid}{final}\" size=\"2\" />";
+
+		$rows[++$i] = { 
+			colspan => scalar @$column_headers, 
+			row_class => 'line-bgcolor', 
+			text => "<table width=\"100%\">\n" . 
+					$m->scomp('/formbuilder/view:' . $field->getFieldTypeToken(), 
+						field => $field, 
+						show_scale => 0, 
+						score_display 	=> $assessment_form->getScoreDisplay(),
+						rubrics			=> $rubrics,
+						colspan 		=> '', 
+						response => [ (exists $field_responses{$fid}) ? $field_responses{$fid} : TUSK::FormBuilder::Response->new() ],
+						additional_comments => $m->comp('SELF:get_comments', key => $fid),
+					) . "</table>\n",
+		};
+		$i++;
+	} ## loop each field
+
+	push @rows, {  	## total scores row
+		field => '<span style="font-size:10pt;font-weight:bold;">Total</span>', 
+		calc_avg_score => $scores{total}{average} . ((exists $scores{total}{final_override} && $scores{total}{final_override}) ? "<input type=\"hidden\" name=\"db_total_override_score\" value=\"$scores{total}{final_override}\" />" : ''),
+		weight => ($total_weight) ? "<span id=\"total_weight\">$total_weight</span>" . '<span class="xxsm">%</span>' : '',
+		avg_score => ($total_weight) 
+			? '<span id="total_avg_score"></span>'
+			: '<table align="center"><tr><td class="xxsm" align="right">calculated:</td><td><input type="text" class="totalValue" name="total_final_score" size="4" value="" READONLY/></td></tr><tr><td class="xxsm" align="right">override:</td><td><input type="text" class="totalValue" name="total_override_score" size="4" value="' . sprintf("%.2f", $scores{total}{final_override}) . '" /></td></tr></table>',
+		weighted_avg => '<table align="center">' . 
+(($edit_mode && $total_weight && $assessment_form->getMinScore()) ? '<tr><td class="xxsm" align="right">minimum score to pass:</td><td><input type="text" class="totalValue gray" name="min_score" value="' .  $assessment_form->getMinScore() . '" size="4" DISABLED /></td></tr>' : '') .
+'<tr><td class="xxsm" align="right">calculated:</td><td><input tyoe="text" class="totalValue blue" name="total_final_score" size="4" value="" READONLY /></td></tr>
+<tr><td class="xxsm" align="right">override:</td><td><input type="text" class="totalValue green" name="total_override_score" size="4" value="' . $scores{total}{final_override} . '" /></td></tr>
+</table>',
+		arrow => '<div class="row"><div class="arrow"></div></div>',
+	};
+
+	push @rows,  {  	## total comments row
+		colspan => 1, 
+		row_class => 'line-bgcolor', 
+		text => '<div style="margin:5px 10px 5px 10px;"><span style="font-weight:bold;color:#565051;">Summary Comments:</span>' . $m->scomp('/formbuilder/view:displayCommentBox', key => 'final', additional_comments => $m->comp('SELF:get_comments', key => 'final'), comment => $comments{final}) . '</div>',
+	};
+</%perl>
+</%method>
+
+<%method get_comments>
+<%args>
+	$key
+</%args>
+<%perl>
+	my $assessor_comments = join("\n",
+		map { "<li><span class=\"bold_emphasis_font\"> $_ </span><span class=\"placeholder_$key\"> $comments{assessor}{$_}{$key} </span></li>" } 
+		grep { exists $comments{assessor}{$_}{$key} } keys %{$comments{assessor}}
+	);
+
+	return ($assessor_comments) ? qq(<div class="xsm">Assessor Comments</div>\n<ul class="gArrow">\n$assessor_comments\n</ul>) : undef;
+</%perl>
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:getFormTypeLabel') . ' Summary Results: &nbsp;' . $student->out_full_name();
+</%method>
+
+<%method title>
+% 	return $m->comp('SELF:getFormTypeLabel') . ' Summary Results: &nbsp;' . $student->out_full_name();
+</%method>
+
+<%method function_token>
+%	return 'results_assessment';
+</%method>
+
+<%method get_nav_bar_objects>
+%	return { 'TUSK::FormBuilder::Form' => $form };
+</%method>
+
+<%method jsarray>
+%	return ['jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/sparkline.min.js', 'formbuilder/view.js', 'jquery/plugin/validate.min.js', 'assessment/resultsbystudent.js',  'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>
+

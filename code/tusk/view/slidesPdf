@@ -1,0 +1,217 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+%
+
+<%attr>
+        top_tab_type            => 'none'
+        displayLittleUserNavBar => '1'
+        no_header               => '1'
+        page_header             => undef
+        page_footer             => undef
+        allow_guests            => '1'
+	no_check_path		=> '1'
+</%attr>
+
+<%shared>
+  my $contentID = '';
+  my $logFile = "$ENV{LOG_ROOT}/fop.log";
+</%shared>
+
+<%perl>
+  # We have to untaint the logFile variable
+  $logFile =~ /(.*)/;
+  $logFile = $1;
+
+  use HSDB4::SQLRow::Content;
+  use HSDB4::DateTime;
+  use Apache2::Const;
+  use HSDB4::XML::PDF;
+  use TUSK::Constants;
+  use Mail::Sendmail;
+
+  #Lets start by checking to make sure we got arguments.
+  my @pathElements = $m->comp('/tmpl/url:get_path_ids');
+  $contentID = shift(@pathElements);
+  unless($contentID) {$m->comp("/tmpl/error_display:displayError", message => "No content id was specified");}
+  unless($contentID =~ /^\d*$/) {$m->comp("/tmpl/error_display:displayError", message => "Content ids can only contain numbers");}
+  
+  my $numberOfSlides = shift(@pathElements);
+
+  #Now lets see if we can make a content from the passed arguments.
+  my $document;
+  eval {$document = HSDB4::SQLRow::Content->new()->lookup_path($contentID);};
+  if($@) {$m->comp("/tmpl/error_display:displayError", message => "Invalid Content: $contentID");}
+  # This one should never really happen but just in case
+  unless($document->primary_key()) {$m->comp("/tmpl/error_display:displayError", message => "Invalid Content: $contentID");}
+
+  #Now lets see if we can view the content we created above.
+  unless($document->is_user_authorized($m->session->{'user'}->primary_key)) {
+    $m->clear_buffer();
+    $m->abort(FORBIDDEN);
+  }
+
+  #Did we create a collection?
+  unless($document->content_type() eq 'Collection')
+    {$m->comp("/tmpl/error_display:displayError", message => "Only collections can be printed in PDF format <!-- " . $document->content_type() . "!-->");}
+
+  my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
+  unless($document->is_active()) {
+    unless(!$iAmAGuest && $document->can_user_edit($m->session->{'user'}))
+     {$m->comp("/tmpl/error_display:displayError", message => "That content is not currently active");}
+  }
+
+  #Can we get the xml content of these slides?
+  my $xml = HSDB4::XML::PDF::generate_slide_xml($document);
+  unless($xml) {$m->comp("/tmpl/error_display:displayError", message => "Collection has no slides");}
+  #We need to convert any & chars
+  $xml=~s/\&/\&amp;/gm;
+  $xml =~ s/[\0-\011\013-\037\177-\377]//g; # Remove unprintables
+
+  ## Some path variables
+  my $xmlFile = "/data/html/fop-xml/$contentID.xml";
+  my $xsl_path = $r->server_root_relative("code/XSL")."/PDF";
+  my $pdf_path = "/data/html/fop-pdf"; 
+
+  # append fop path to ENV{PATH}
+  my ($env_path) = $ENV{PATH} =~m/(.*)/; # untaint $ENV{PATH}
+
+  $ENV{PATH}="$env_path:$fop_path";
+  # this shouldn't have to be here, but just in case
+  $ENV{JAVA_HOME}="/usr/java" unless ($ENV{JAVA_HOME});
+
+  ############
+  ## here are the different pdf formats
+  ############
+  my %pdfFormats = (
+    "6" => 1,
+    "4" => 1,
+    "2" => 1,
+    "1" => 1,
+  );
+  ############
+  unless(exists($pdfFormats{$numberOfSlides})) {$numberOfSlides = 6;}
+
+  #Assume that we will update everything
+  my $update_xml = 1;
+  my $generate_pdf = 1;
+
+  #If the xml file exists on the os lets check and see if its valid
+  if(-e $xmlFile) {
+    #Is the xml in the file the same as the xml in the database?
+    unless(open(XML_OLD, $xmlFile)) {$m->comp("SELF:logError", log => "Error accessing XML file $xmlFile : $!");}
+    my $xml_old = <XML_OLD>;
+    close(XML_OLD);
+
+    # if the xml in the file is the same as the xml in the database don't update the xml file
+    if($xml_old eq $xml) {
+      $update_xml = 0;
+      #If the pdf file exists and it is newer than the xml file don't update the pdf.
+      if( -e "$pdf_path/$numberOfSlides-$contentID.pdf" && ((stat $xmlFile)[9] < (stat "$pdf_path/$numberOfSlides-$contentID.pdf")[9]) )
+        {$generate_pdf = 0;}
+    }
+  }
+
+  #If update_xml = 1 then update the xml that is used with fop
+  if($update_xml) {
+    unless(open(XML,">$xmlFile"))
+      {$m->comp("SELF:logError", log => "Error creating accessing XML file $xmlFile : $!");}
+      print XML $xml;
+    close(XML);
+    chmod(0664, $xmlFile);
+    $generate_pdf = 1; #if we updated the xml we must regenerate the pdf file (just in case)
+  }
+
+  #if generate_pdf = 1 then run fop and generate the new pdf file
+  if($generate_pdf) {
+    #One crazy check here
+    if(-z $xmlFile) {$m->comp("SELF:logError", log => "XML File does not exist or is 0 length $xmlFile");}
+
+    #Remove the pdf files (if they exist)
+    foreach my $key (keys %pdfFormats) {
+      if(-e "$pdf_path/$key-$contentID.pdf") {
+        unless(unlink "$pdf_path/$key-$contentID.pdf")
+          {$m->comp("SELF:logError", log => "Unable to remove old pdf file $pdf_path/$key-$contentID.pdf : $!");}
+      }
+    }
+
+    #Now lets log the command we are going to do, execute it and log and output
+    my $command = $TUSK::Constants::fopCMD . " -xml $xmlFile -xsl $xsl_path/$numberOfSlides-slides.xsl -pdf $pdf_path/$numberOfSlides-$contentID.pdf";
+    $m->comp("SELF:logMessage", messageToLog => $command);
+    my $output = `$command`;
+    if($output) {$m->comp("SELF:logMessage", messageToLog => "fop output: $output");}
+    chmod(0664, "$pdf_path/$numberOfSlides-$contentID.pdf");
+  }
+
+  #Lets see if we can open the pdf file off the os
+  unless(open(PDF,"$pdf_path/$numberOfSlides-$contentID.pdf")) {$m->comp("SELF:logError", log => "Error accessing PDF file");}
+
+  #We have opened the pdf file from the os so lets sent it to the browser.
+  $m->clear_buffer();
+  $r->content_type('application/pdf');
+  $r->no_cache(1);
+  unless($r->header_in('User-Agent')=~/MSIE/) {$r->headers_out->set("Content-disposition","attachment; filename=$contentID\.pdf");}
+  $r->send_http_header; 
+  while(<PDF>) {$m->print($_);}
+  close(PDF);
+  $m->abort();
+</%perl>
+
+
+
+<%method logError>
+  <%args>
+    $log
+  </%args>
+
+  <%perl>
+    $m->comp("SELF:logMessage", messageToLog => "$log");
+    $m->comp("SELF:sendMail", message => $log);
+    $m->comp("/tmpl/error_display:displayError", message => "Unable to retrieve PDF file.");
+  </%perl>
+</%method>
+
+
+<%method logMessage>
+  <%args>
+    $messageToLog
+  </%args>
+
+  <%perl>
+    unless(open(LOG_FILE, ">>$logFile")) {$m->comp("SELF:sendMail", message => "Unable to log: $messageToLog from PID $$ in $logFile\n$!");}
+    else {
+      print LOG_FILE "$$: $messageToLog\n";
+      close(LOG_FILE);
+    }
+  </%perl>
+</%method>
+
+
+
+<%method sendMail>
+  <%args>
+    $message
+  </%args>
+
+  <%perl>
+      my %mail = (
+        To => $TUSK::Constants::ErrorEmail,
+        From => $TUSK::Constants::ErrorEmail,
+        Subject => "FOP PDF Error",
+        Message => $message
+      );
+      Mail::Sendmail::sendmail(%mail);
+  </%perl>
+</%method>

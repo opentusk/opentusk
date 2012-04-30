@@ -1,0 +1,103 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use Forum::ForumKey;
+use Forum::MwfMain;
+use HSDB45::Course;
+use TUSK::Functions;
+</%once>
+
+<%attr>
+no_check_path => 1
+</%attr>
+
+<%shared>
+
+my ($x, $cfg, $lng, $user) = MwfMain->new($r);
+my $userId = $user->{id};
+my $topicId = $m->comp("/tmpl/url:get_last_path_id");
+my $topic = $x->fetchHash("SELECT * FROM $cfg->{dbPrefix}topics WHERE id = $topicId");
+my $allowed=1;
+my $board;
+if ($topic){
+	$board = $x->fetchHash("SELECT * FROM $cfg->{dbPrefix}boards WHERE id=".$topic->{boardId});
+
+	# Check if user can see and write to board
+	my $boardAdmin = $user->{admin} || $x->boardAdmin($userId, $board->{id});
+
+	$boardAdmin || $x->boardVisible($board) or $allowed=0;;
+	my $boardWritable = $boardAdmin || $x->boardWritable($board);
+	my $topics;
+}
+else {
+    $allowed=0;
+}
+
+</%shared>
+
+<%method get_nav_bars>
+<%perl>
+	if($allowed==1){
+ 		my $nav_bars = []; 
+		my $truncDisc  =  TUSK::Functions::truncate_string('Discussions',10);
+		my $truncTitle =  TUSK::Functions::truncate_string($board->{title},10); 
+ 		$nav_bars = [ { href => '/mobi/forum/forumshow/', label => $truncDisc } ,
+					  {	href => '/mobi/forum/boardshow/'.$board->{id}, label => $truncTitle } ];
+ 		return $nav_bars;
+	}
+</%perl>
+</%method>
+
+<%method header_text>
+% if($allowed==1){  return $topic->{subject}; } 
+</%method>
+
+<%perl>
+
+if ($allowed==1) {
+ 
+	my $posts = $x->fetchAllHash("
+        SELECT id, parentId, postTime, body, userNameBak , userId
+        FROM $cfg->{dbPrefix}posts
+        WHERE topicId = $topicId
+        ORDER BY postTime");
+
+	print "<ul class='gNoBullets'>";
+	for my $post (@$posts){
+		my $postId = $post->{id};
+    	my $timeStr = $x->formatTime($post->{postTime}, $user->{timezone});
+    
+		print "<h4 class='annHdr' >By @".$post->{userNameBak}." Date ".$timeStr."</h4>";
+		print "<li>".$post->{body}."</li>";
+		print "<li> <a href='/mobi/forum/replypost/$postId'>Reply</a> ";
+	
+		my $postUserId = $post->{userId};   
+		if ($userId && $userId == $postUserId  && !$topic->{locked} ) {	
+    		print "<a href='/mobi/forum/editpost/$postId'>Edit</a> ";
+			print "<a href='/mobi/forum/deletepost/$postId'>Delete</a></li>";
+		}
+	}
+
+	print "</ul>";
+
+}
+else{
+    print "<h4> You do not have access to this topic, or it does not exist. </h4>";
+	print "<a href=\"/mobi/forum/forumshow\">Return to Discussions page</a>";	
+}	
+
+
+</%perl>

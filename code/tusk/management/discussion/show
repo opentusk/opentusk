@@ -1,0 +1,151 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use Forum::ForumKey;
+	use Forum::Board;
+	use TUSK::Manage::Forums;
+</%once>
+
+<%shared>
+	my $school               = $m->comp("/tmpl/url:get_school");
+    my $school_id            = TUSK::Core::School->new->getSchoolID($school);
+	my $type_object          = $m->comp("/tmpl/url:get_type_object");
+	my $self_path            = "school/" . $school;
+	my $base_url             = "/management/discussion/";
+	my $is_course_discussion = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
+	my $is_thesis_comm;
+	my $course;
+	my @tc_members;
+	my @tc_student;
+	if ( $is_course_discussion ) {
+		$course         = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+		$self_path      = "course/" . $school . "/" . $type_object->course_id;
+
+		@tc_members     = $course->child_users();
+		@tc_student     = $course->child_students();
+		$is_thesis_comm = ($course->type() =~ /thesis committee/i) ? 1 : 0;
+	}
+	my $discussions;
+	my $boardKey;
+</%shared>
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit => undef, 
+        name => 'tracking' } 
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+				columns         => $col_fields, 
+				nobutton        => 1, 
+				sort_box        => (!$is_course_discussion || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})),
+				object_list     => $discussions,
+				action_columns  => $action_columns,
+				empty_message   => 'No discussions available.',
+				type_path       => "", }
+&>
+
+</form>
+
+<%init>
+    my $dbh = HSDB4::Constants::def_db_handle();
+    if ($is_course_discussion) {
+		my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+		my @subgroups = $course->sub_user_groups($time_period_id);
+		my %groupLabel = map {$_->{user_group_id}, $_->{label}} @subgroups;
+		$groupLabel{0} = "All";
+		$boardKey = Forum::ForumKey::createBoardKey($school_id, $course->primary_key, $time_period_id, '%');
+    } else {
+		$boardKey = Forum::ForumKey::createBoardKey($school_id, 0, 0, 0);
+	}
+	$discussions = Forum::Board->new()->lookup( "boardkey like '$boardKey' and private = 0", ["pos"] );
+
+	if ($ARGS{'order'}) {
+    	my ($index, $insert) = split('-', $ARGS{'order'});
+	
+	    splice(@{$discussions}, ($insert-1), 0, splice(@{$discussions}, ($index-1),1));
+    
+    	for(my $i=0; $i < scalar(@{$discussions}); $i++){
+			my $board = @{$discussions}[$i];
+			$board->setPos($i);
+			$board->save();
+		}
+
+	}
+
+	if($ARGS{'create_standard'} && ($is_thesis_comm && !scalar(@{$discussions}))){
+		# This was done to faciliate the easy transition from embperl to mason.  Because
+		# the discussions are more than a little hairy, the idea was to touch the least
+		# amount of code possible.
+		my %local_udat;
+		$local_udat{'_session_id'} = $m->session->{'_session_id'};
+
+		my %local_req;
+		$local_req{'school'}    = $school;
+		$local_req{'type'}      = ($is_course_discussion) ? 'course' : 'school';
+		$local_req{'course'}    = $course;
+		$local_req{'course_id'} = ($course) ? $course->course_id : '';
+		$local_req{'user'}      = $m->session->{'user'};
+
+		my %local_fdat;
+		foreach my $board ('Advisor-Student', 'Advisor-Committee', 'All'){
+			$local_fdat{title} = $board;
+			$local_fdat{shortDesc}   = "Discussion board for $board";
+			$local_fdat{longDesc}    = '';
+			$local_fdat{anonymous}   = 0;
+			$local_fdat{usergroup}   = 0;
+			$local_fdat{action}      = 'add';
+			$local_fdat{thesis_comm} = $board;
+
+			TUSK::Manage::Forums::addedit_process(\%local_req, \%local_fdat, \%local_udat);
+		}
+
+		$m->redirect( $base_url . 'show/' .  $self_path . "?msg=Default Discussions Added" );
+	}
+
+	my $buttons = [];
+	if (!$is_course_discussion || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+		push @{$buttons}, {link_txt=>'/management/discussion/addedit/' . $self_path, display_txt=>'New Discussion'};
+	}
+	if (($is_thesis_comm && !scalar @{$discussions}) && (scalar @tc_members && scalar @tc_student)) {
+		push @{$buttons}, {link_txt=>'/management/discussion/show/' . $self_path . '?create_standard=true', display_txt=>'Create Default Discussions'};
+	}
+	$m->comp("/tmpl/element:cms_button_row", links => $buttons );
+
+	my $col_fields = [ {'label'=>'Discussion Boards', 'field'=>'title_and_desc'}, {'label'=>'Available To','field'=>'available_to'} ];
+
+	my $action_columns = [ {'label'=>'View Board','link'=>"/forum/board_show.pl?bid=", 'is_query_string'=>1}, {'label'=>'Users','link'=>"/management/discussion/users/$self_path"} ];
+	if (!$is_course_discussion || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+		push @$action_columns, {'label'=>'Modify','link'=>"/management/discussion/addedit/$self_path"};
+		push @$action_columns, {'label'=>'Delete','link'=>"/management/discussion/delete/$self_path"};
+	}
+</%init>
+
+<%method jsarray>
+% return ['layers.js','element.js'];
+</%method>
+
+<%method should_show_tp_dropdown>
+% return $is_course_discussion;
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return 'Manage Discussions';
+</%method>

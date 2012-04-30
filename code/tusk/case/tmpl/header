@@ -1,0 +1,90 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+   %req_hash
+</%args>
+
+
+<%method leftnav>
+%  return "DEFINE THE LEFTNAV METHOD";
+</%method>
+
+
+<& /tmpl/prepend:header, title=>$req_hash{'pagetitle'},
+		stylearray=>$req_hash{'stylearray'},jsarray=>$req_hash{'jsarray'}, metaData=>$req_hash{'metaData'} &>
+<body>
+<%perl>
+	if (!$req_hash{'noheader'}){
+		my $case_id = $m->comp("/tmpl/url:get_first_path_id");
+		my $case = TUSK::Case::Case->new()->lookupKey($case_id);
+		my $type_object = ($req_hash{'type_path'}) ? $m->comp("/tmpl/url:get_type_object") : '';
+</%perl>
+<table width="100%" cellspacing="0" border="0" cellpadding="0" id="outer_table">
+<% $req_hash{'form'} %>
+<tr valign="top">
+<td valign="bottom" width="1%"><a href="/home" ><img src="/graphics/case/header.gif" border="0"></a></td>
+<td valign="top" align="right">
+<table cellspacing="0" border="0" cellpadding="0" id="top_right_table">
+<tr> 
+<td valign="bottom" class="welcome_text">Welcome <% $req_hash{'user'}->out_full_name() %></td>
+<td valign="top"><a href="<% $TUSK::Constants::HelpMap{HelpURL} %>"><img src="/graphics/nav-help.gif" alt="Help" width="71" height="21" hspace="0" vspace="0" border= "0"></a><img src="/graphics/div-search.gif" alt=" " width="3" height="21"><a href="mailto:<% $TUSK::Constants::Institution{Email} %>"><img src="/graphics/nav-contact-us.jpg" width="83" height="21" hspace="0" vspace="0" border="0" alt="Contact Us"></a></td>
+</tr>
+<tr ><td colspan = "2" style="padding-top:3px; padding-right:4px;" align="right">
+<span class="emphasis_font">
+% if ($case->getFeedbackEmail() && $req_hash{'type_path'}){
+ <a href="javascript:open_feedback_window('<% $m->comp("/tmpl/url:get_type_path") %>', '<% $case_id %>');">Send Feedback</a> 
+% 	if ($ENV{SCRIPT_NAME}!~ /(showcontent)/){
+| <a href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>">Logout</a>
+% 	} 
+% }
+</span>
+</td></tr>
+</table>
+<img src="/graphics/spacer.gif" alt=" " height="5" border="0">
+</td>
+</tr>
+<tr><td colspan="2" height="1" background="/graphics/bg-dotshorz.gif"><img src="/graphics/spacer.gif" alt=" " height="1" border="0"></td></tr>
+<tr>
+% 	if ($req_hash{'leftnav'}){
+<td background="/graphics/case/sb_BackgroundTile.gif" valign="top" id="leftnav_td">
+<& /tmpl/prepend:do_leftnav,leftnav=>$req_hash{'leftnav'} &>
+</td>
+<td style="padding-left: 13px; padding-top:5px" valign="top" id="after_header_id">
+% 	} else {
+<td colspan="2" id="after_header_id" >
+% 	} 
+% } # end of 'no_header' block 
+
+<%perl>
+	if ($m->comp('SELF:get_msg')){
+		$m->comp('/tmpl/prepend:traffic_light', make_table => 1, args => {});
+	}
+</%perl>
+% 	if ($req_hash{'type_path'}){
+<table width="100%" border="0" cellspacing="6" cellpadding="1">
+	<tr>
+		<td valign="top">
+<%perl>
+			my $course = $m->comp('/tmpl/url:get_type_object');
+			$m->comp('/tmpl/prepend:manage_nav_bar', nav_bar_arrayref => [
+										{ href => '/', label => $TUSK::Constants::SiteAbbr .' Home' },
+										{ href => '/view/course/' . $course->school() . '/' . $course->primary_key() . '/cases', label => 'Course - ' . $course->title()},
+									]);
+</%perl>
+		</td>
+	</tr>
+</table>
+%	}

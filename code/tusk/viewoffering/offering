@@ -1,0 +1,30 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Core::Offering;
+use TUSK::Core::Section;
+my ($blank,$offering_id) = split("/",$r->path_info());
+</%once>
+
+% my $offering = TUSK::Core::Offering->new;
+% $offering->lookupKey($offering_id);
+% my $group_entity = $offering->getGroupEntity;
+% my $time_period = $offering->getTimePeriodObject;
+<h3><% $group_entity->getLabel %> - <% $time_period->getLabel %></h3>
+<h4>Sections</h4>
+% foreach my $section (@{$offering->getSections}) {
+<% $section->getPrimaryKeyID %>: <a href="/section/<% $section->getPrimaryKeyID %>"><% $section->getLabel %></a>
+% }

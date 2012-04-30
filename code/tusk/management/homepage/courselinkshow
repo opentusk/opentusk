@@ -1,0 +1,71 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::HomepageCourse;
+	use TUSK::HomepageCategory;
+</%once>
+
+<%perl>
+	my $school      = $m->comp("/tmpl/url:get_school");
+	my $category_id = @{$m->comp("/tmpl/url:get_path_ids")}[0];
+	my $category    = TUSK::HomepageCategory->new(_school => $school)->lookup_key( $category_id );
+    my @courselinks = $category->get_homepage_courses;
+
+	if ($ARGS{'order'}) {
+    	my ($index, $insert) = split('-', $ARGS{'order'});
+	
+	    splice(@courselinks, ($insert-1), 0, splice(@courselinks, ($index-1),1));
+    
+    	for(my $i=0; $i < scalar(@courselinks); $i++){
+			$courselinks[$i]->set_field_values( sort_order=>10*($i+1));
+			$courselinks[$i]->save();
+		}
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit => undef, 
+        name => 'category' } 
+&>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ { link_txt    => '/management/homepage/courselinkaddedit/school/' . $school . '/' . $category_id . '/0',
+		         display_txt => 'New Course Link' } ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+				sort_box => 1,
+				columns => [ {'label' => 'Label',         'field' => 'formatted_label' },
+				             {'label' => 'Course or URL', 'field' => 'formatted_course' },
+				             {'label' => 'Displaying',    'field' => 'displaying', 'align' => 'center' },
+					],
+				action_columns => [ 
+							{ 'label' => 'Modify', 'link' => '/management/homepage/courselinkaddedit' },
+							{ 'label' => 'Delete', 'link' => '/management/homepage/courselinkdelete' } 
+			  			], 
+				object_list => \@courselinks,
+				type_path => $m->comp("/tmpl/url:get_type_path") . '/' . $category_id,
+				name => "category",
+				empty_message => "No course links.",
+				}
+&>
+
+</form>
+
+<%method title>
+% return "Manage Course Links";
+</%method>

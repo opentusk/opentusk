@@ -1,0 +1,86 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+	$newfolder => ''
+	$add_to_folder => ''
+	$content_item => ''
+</%args>
+
+<%attr>
+	no_check_path	=> 1
+</%attr>
+
+
+<%once>
+  use HSDB4::SQLRow::User;
+  use HSDB4::SQLRow::PersonalContent;
+  use HSDB4::Constants;
+  use TUSK::FlashCard;
+  use TUSK::Constants;
+  use Data::Dumper;
+</%once>
+
+
+<form method="post" name="fcardform" id="fcardform">
+
+% @personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type="Flash Card Deck"'} );
+% $length = scalar(@personal_content);
+%  if( $length > 0) {
+<br>
+<ul  class="gNoBullets courseList">
+%    my $i =1;
+%    foreach my $pieceOfContent (@personal_content) {
+%    	print "<li><a href='/mobi/flashcard/viewdeck/".$pieceOfContent->primary_key."'>". $pieceOfContent->out_label . "</a></li>"; 
+%    	$i++;
+%    }  # end for loop
+</ul>
+
+
+%  } else {
+     <b>No Decks Available</b><br>
+%  }
+
+<input type="hidden" name="order" value="">
+<input type="hidden" name="newfldr" id="newfldr"/>
+<input type="hidden" name="deleteDeck" > 
+<input type="hidden" name="rnm" id="rnm" />
+
+</form>
+
+
+<%init>
+my @personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type="Flash Card Deck"'} );
+my $length = scalar(@personal_content);	
+</%init>
+
+<%method jsarray>
+% return ['flashcards.js'];
+</%method>
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+%	return " Flash Card Decks: " . $m->session->{'user'}->out_abbrev;
+</%method>
+
+
+

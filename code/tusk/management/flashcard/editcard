@@ -1,0 +1,210 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	page_header	  => '/tmpl/prepend:manage_header_div_layout'
+	page_footer	  => '/tmpl/footer:footer_div_with_school_links'
+	no_check_path	=> 1
+   
+</%attr>
+
+<%once>
+  use HSDB4::SQLRow::User;
+  use HSDB4::SQLRow::PersonalContent;
+  use TUSK::FlashCard;
+  use HSDB4::SQLRow::Content;
+  use HSDB4::Constants;
+  use TUSK::Constants;
+  use Data::Dumper;
+</%once>
+
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>'return',
+				name => 'savecard' } &>
+
+<div class="checkedBG">
+
+<br><br>
+<table>
+<tr><td></td> <td >
+
+
+% if ($fcard->getContentID()) {
+
+% my $zoom_level;
+% if ( exists( $ARGS{'zoom_level'}) ) {
+% 		$zoom_level = $ARGS{'zoom_level'};
+% } else { $zoom_level = "medium"; }
+
+% my $img_src = "/$zoom_level/".@$fcards[$indx]->getContentID;
+% my $img = "<img src=$img_src class='mainImg' id='mainImg' />";
+
+<input type="hidden" value="medium" name="zoom_level" id="zoom_level" />
+<%  HSDB4::SQLRow::Content::Slide->get_zoom_menu($img) %>
+
+
+</td></tr>
+<tr><td>
+</td><td align="left">
+
+% } # end if ($fcard->getContentID())
+ 
+</td></tr>
+<tr>
+<td><h2>Question:</h2></td> 
+<td>
+<textarea  name="question" cols="60" rows="5" class="textareawhite"><% $fcard->getQuestion() %></textarea>
+</td></tr>
+
+<tr><td><h2>Answer: </h2></td>
+<td>
+<textarea  name="answer" cols="60" rows="5" class="textareawhite"><% $fcard->getAnswer() %></textarea>
+</td></tr>
+<tr><td></td><td>PLEASE NOTE: If no answer is provided, the content's title and description will be displayed as a default answer during testing. <br><br></td></tr>
+<tr><td></td>
+
+
+% if ($fcard->getContentID) {
+
+% my @content_notes = HSDB4::SQLRow::Content->new->lookup_key($fcard->getContentID)->child_personal_content($m->session->{'user'}->user_id());
+
+% if (scalar(@content_notes) > 0) {
+
+<tr><td><h2>Notes: </h2></td>
+<td>
+<textarea  name="notes" cols="60" rows="5"  disabled><% $content_notes[0]->field_value('body') %></textarea>
+</td></tr>
+
+% } # end if notes exist
+% } # end if contentid exists
+
+<td>
+
+% if ( ($indx > 0) ) {
+<input type="submit" name="submit" value="Previous Card" class="formbutton">
+% }
+% if ( ($indx < (scalar(@$fcards)-1) ) ) {
+<input type="submit" name="submit" value="Next Card" class="formbutton">
+% }
+
+<input type="submit" name="submit" value="Save and Continue" class="formbutton" onclick="save_and_continue('savecard','/flashcard/flashcard')"> 
+
+<input type="reset" style="" value="Cancel" id="cancel" name="cancel" onclick="go_back('/management/flashcard/flashcard');" class="formbutton"/>
+
+</td></tr>
+</table>
+
+
+% my $k = 0;
+% foreach my $crd (@$fcards){
+
+<input type="hidden" value="<% $crd->getFlashCardID %>" name="c<% $k %>" />
+% $k++; }
+
+<input type="hidden" value="<% $indx %>" name="card_index" />
+<br>
+
+</div>
+</form>
+
+<%init>
+	my $fcards;
+    my $indx=0;
+	my $fcard;
+	my $fcardID = $m->comp("/tmpl/url:get_last_path_id");
+  	
+	if ( exists($ARGS{'card_index'}) ) {
+			
+		$indx = $ARGS{'card_index'};
+		#load fcards from hidden form data
+		my $i=0;
+		my $str = "c$i";
+		while( exists($ARGS{$str}) ){
+			@$fcards[$i] = TUSK::FlashCard->lookupReturnOne("flash_card_id =".$ARGS{$str});	
+			$i++;
+			$str="c$i";
+		}
+   			
+	}
+	else {
+ 			#else the user has just entered "modify card", so...
+			#grab all fcards for this deck
+			my $qStr = "flash_card_id = ".$fcardID;
+    		$fcard = TUSK::FlashCard->lookupReturnOne($qStr);
+			my $deckID = $fcard->getParentPersonalContentID();
+			$qStr = "parent_personal_content_id = ".$deckID;
+			$fcards =  TUSK::FlashCard->lookup($qStr);
+			my $i=0;
+			foreach my $card (@$fcards) {
+				if($card->getFlashCardID() eq $fcard->getFlashCardID() ) {
+					$indx=$i;
+				}
+				$i++;
+			}
+	}
+    
+	 	
+ 	if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
+
+	    $fcard = @$fcards[$indx];
+
+		if (exists($ARGS{'question'})) {
+			$fcard->setQuestion( $ARGS{'question'} );
+		}
+
+		if (exists($ARGS{'answer'})) {
+			$fcard->setAnswer( $ARGS{'answer'} );
+		}
+
+        my $out = $fcard->save({'user' => $m->session->{'user'}->user_id()} );	
+	
+        my $msgtxt = "Flash Card Saved Successfully";
+	
+	    if ($ARGS{'submit'} eq 'Save and Continue' ) {
+			my $reload_url = "/management/flashcard/flashcard";
+			$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msgtxt");
+		}
+
+	}
+		
+	if ( $ARGS{'submit'} eq 'Previous Card' && ($indx > 0) ) { $indx--; }
+	elsif ( $ARGS{'submit'} eq 'Next Card' &&  ($indx < (scalar(@$fcards)-1) ) ) { 	$indx++; }
+	    
+	$fcard = @$fcards[$indx];
+
+</%init>
+
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title> 
+
+%   my $fc = TUSK::FlashCard->new->lookupKey($m->comp("/tmpl/url:get_last_path_id"));
+%   return $TUSK::Constants::SiteAbbr . " Flash Card: " . $fc->outCardTitleNoLink;
+</%method>
+
+<%method jsarray>
+% return ['flashcards.js','element.js','content.js'];
+</%method>
+
+

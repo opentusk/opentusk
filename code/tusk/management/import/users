@@ -1,0 +1,311 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Import;
+	use TUSK::Import::Structure;
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use HSDB45::UserGroup;
+</%once>
+
+<%init>
+
+my $fail = 0;
+my $import;
+my $struct;
+my @file_fields;
+my $ug;
+my $user;
+my $user_id;
+my @errMsgs;
+my $user_msg;
+my @logs;
+my $school = $m->comp('/tmpl/url:get_school');
+	if ($ARGS{datafile}) {
+		$import = TUSK::Import->new;
+		$import->add_log("summary","test run, course links will not be created") unless ($ARGS{save});
+		$struct = TUSK::Import::Structure->new;
+		## this set of conditionals is to account for different kinds of files, from different schools
+		if ($ARGS{preset_fields} eq "sisfeed") {
+			@file_fields = qw(sid user_id lastname firstname midname email trunk);
+		}
+		elsif ($ARGS{preset_fields} eq "medfeed") {
+			@file_fields = qw(classyear gradyear sid lastname firstname user_id);
+		}
+		else {
+			@file_fields = split(/\s*,\s*/,$ARGS{fields});
+		}
+		$import->set_fields(@file_fields);
+		my $upload = $r->upload();
+	    $import->read_filehandle($upload->fh(),"\t") if ($upload);
+
+		@errMsgs = @{$import->get_err_msgs};
+		if (!@errMsgs){
+			if ($ARGS{limit_field} && $ARGS{limit_value}) {
+				$import->grep_records($ARGS{limit_field},$ARGS{limit_value});
+				$import->add_log("summary","limiting records to where $ARGS{limit_field} = $ARGS{limit_value}");
+			}
+			$import->add_log("summary","processing ".scalar $import->get_records." records");
+			if ($ARGS{save} && $ARGS{clean_group}) {
+				$ug = HSDB45::UserGroup->new(_id => $ARGS{user_group_id}, _school => $school);
+				$ug->delete_children($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+				$import->add_log("summary","removed existing users from ".$ug->out_label);
+			}
+
+			my $rowcount = 1;
+			foreach my $r ($import->get_records) {
+				$user_id = $r->get_field_value("user_id");
+				
+				## ensure user_id isn't blank
+				(my $test_field = $user_id) =~ s/\s//g;
+				if (!$test_field) {
+					$fail++;
+					$import->add_log("error","row $rowcount: user_id missing");
+					$rowcount++;
+					next;
+				}
+				## ensure last name isn't blank
+				($test_field = $r->get_field_value("lastname")) =~ s/\s//g;
+				if (!$test_field) {
+					$fail++;
+					$import->add_log("error","row $rowcount: last name missing for $user_id");
+					$rowcount++;
+					next;
+				}
+				## ensure first name isn't blank
+				($test_field = $r->get_field_value("firstname")) =~ s/\s//g;
+				if (!$test_field) {
+					$fail++;
+					$import->add_log("error","row $rowcount: first name missing for $user_id");
+					$rowcount++;
+					next;
+				}
+				## ensure email isn't blank
+				($test_field = $r->get_field_value("email")) =~ s/\s//g;
+				if (!$test_field) {
+					$fail++;
+					$import->add_log("error","row $rowcount: email missing for $user_id");
+					$rowcount++;
+					next;
+				}
+
+				## warn if sid is blank
+				($test_field = $r->get_field_value("sid")) =~ s/\s//g;
+				if (!$test_field) {
+					$import->add_log("warn","row $rowcount: sid missing for $user_id");
+				}
+				## warn if trunk is blank
+				($test_field = $r->get_field_value("trunk")) =~ s/\s//g;
+				if (!$test_field) {
+					$import->add_log("warn","row $rowcount: trunk missing for $user_id");
+				}
+				
+				$import->add_log("record","looking up user_id: $user_id");
+				$user = HSDB4::SQLRow::User->new->lookup_key($user_id);
+
+				if ($user->primary_key) {
+					## if sid was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("sid")) =~ s/\s//g;
+					if ($test_field && $user->field_value('sid') && ($user->field_value('sid') ne $r->get_field_value("sid"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and sid value is different");
+						$rowcount++;
+						next;
+					}
+					## if trunk was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("trunk")) =~ s/\s//g;
+					if ($test_field && $user->field_value('trunk') && ($user->field_value('trunk') ne $r->get_field_value("trunk"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and trunk value is different");
+						$rowcount++;
+						next;
+					}
+					## if first name was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("firstname")) =~ s/\s//g;
+					if ($test_field && $user->first_name() && ($user->first_name() ne $r->get_field_value("firstname"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and first name value is different");
+						$rowcount++;
+						next;
+					}
+					## if last name was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("lastname")) =~ s/\s//g;
+					if ($test_field && $user->last_name() && ($user->last_name() ne $r->get_field_value("lastname"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and last name value is different");
+						$rowcount++;
+						next;
+					}
+					## if email was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("email")) =~ s/\s//g;
+					if ($test_field && $user->email() && ($user->email() ne $r->get_field_value("email"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and email value is different");
+						$rowcount++;
+						next;
+					}
+
+					## otherwise, update existing user
+					$import->add_log("record", "row $rowcount: $user_id exists - will update account");
+				}
+
+				$rowcount++;
+				if ($ARGS{save}) {
+					if (!$user->primary_key) {
+						$user->primary_key($user_id);
+						$user_msg = "created account for $user_id";
+					}
+					else {
+						$user_msg = "updated account for $user_id";
+					}
+
+					foreach my $field (@file_fields) {
+						next if $field =~ /^user_id$/;
+						next unless grep { $field =~ /$_/ } $user->fields;
+
+						## check to make sure new value isn't just spaces before saving
+						($test_field = $r->get_field_value($field)) =~ s/\s//g;
+						if ($test_field) {
+							$user->field_value($field,$r->get_field_value($field));
+						}
+					}	
+
+					## determine what affiliation to give the user
+					if (grep { $_ =~ /affiliation/ } @file_fields) {
+						$user->field_value("affiliation",$r->get_field_value("affiliation"));
+						$user_msg .= " (affiliation ".$user->field_value("affiliation").")";
+					}
+					else {
+						$user->field_value("affiliation",$school);
+						$user_msg .= " (affiliation ".$user->field_value("affiliation").")";						
+					}
+					$user->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+					$import->add_log("record",$user_msg);
+
+					if($ARGS{reset_password}){
+						$user->admin_reset_password();
+					}
+
+					if ($ARGS{user_group_id}) {
+						$ug = HSDB45::UserGroup->new(_id => $ARGS{user_group_id}, _school => $school);
+						if ($ug->contains_user($user_id)) {
+							$import->add_log("warn", "$user_id already in ".$ug->out_label." user group");	
+						} else {
+							$ug->add_user($user,$TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+							$import->add_log("record", " $user_id added to ".$ug->out_label." user group");	
+						}
+					}									 
+
+				} # end if save
+			}
+			$import->add_log("summary","$fail failed records");
+			@logs = $import->get_logs;
+		} # end of error msg state
+	}
+</%init>
+
+<form name="data_form" action="" method="post" enctype="multipart/form-data" onsubmit="return checkform(this);" class="no-padding">
+<table cellpadding="0">
+<tr>
+<td class="labelgray">Import type:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td>Test<input type="radio" name="save" value="0" checked></td><td align="right">Live<input type="radio" name="save" value="1"></td></tr></table><br>"Test" verifies data, but does not save. "Live" verifies and saves data.</td>
+</tr>
+% if ($school) {
+<input type="hidden" name="school" value="<% $school %>">
+<tr><td class="labelgray">School: </td><td class="cell-left"><% $school %></td></tr>
+% } else {
+<tr><td class="labelgray">School: </td><td class="cell-left">school not provided</div></td></tr>
+% }
+
+<tr>
+<td class="labelgray">Fields in File:</td>
+<td class="cell-left">
+<input type="radio" name="preset_fields" value="sisfeed" checked="checked"> SIS file (sid,user_id,lastname,firstname,midname,email,trunk)<br>
+% if ($school eq "Medical") {
+<input type="radio" name="preset_fields" value="medfeed"> Med file (classyear,gradyear,sid,lastname,firstname,user_id)<br>
+% }
+<br>
+<input type="radio" name="preset_fields" value="self"> <input name="fields" value="<% $ARGS{fields}%>" size="50" class="textareawhite"><br>
+<div> Either select a standard import format, or list the fields in the import file, separated by commas. Fields that align with column names in the TUSK user table will be saved along with the user.</div><br/>
+<div><b>Please note</b> that fields in any import file must be separated by a <strong>tab</strong>.</div>
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">Limit Results:</td>
+<td class="cell-left">
+Field: <input name="limit_field" value="<% $ARGS{limit_field} %>" size="20" class="textareawhite"> &nbsp;&nbsp;Value: <input name="limit_value" value="<% $ARGS{limit_value} %>" size="20" class="textareawhite"><br>
+<div> If you would like to selectively import only certain students from your import file, you may use these field to use only
+records that match a certain criteria.  Just input the name of a field to look at and a value to search for, and any record that meets 
+your criteria will be imported.  For example, the field could be &quot;lastname&quot; and the value could be &quot;Jones&quot;, this 
+combination would only import students who have Jones as their last name.</div>
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">File:</td><td class="cell-left"><input type="file" name="datafile" class="formbutton" id="File__y"></td>
+</tr>
+
+<tr>
+<td class="labelgray">User Group:</td>
+<td class="cell-left">
+<select name="user_group_id">
+<option value="0">none</option>
+% foreach my $group (HSDB45::UserGroup->new(_school => $school)->lookup_conditions("sub_group='No'","order by label")) {
+<option value="<% $group->primary_key %>"<% $ARGS{user_group_id} == $group->primary_key ? " SELECTED" : ""%>><% $group->out_label %> (<% $group->primary_key %>)</option>
+% }
+</select><br>
+Choose user group to add all users (optional)
+<br><br>
+<input type="checkbox" name="clean_group"> Remove existing users from group before adding new users.
+
+</td>
+</tr>
+<tr>
+	<td class="labelgray">Email Password:</td>
+	<td class="cell-left"><input name="reset_password" type="checkbox">Create/Reset and Email Password to User</td>
+</tr>
+<tr>
+<td>&nbsp;</td><td class="cell-submit"><input type="submit" value="Process" class="formbutton"></td>
+</tr>
+</table>
+</form>
+% if (@logs) {
+<h4>Log Errors</h4>
+% foreach my $log (@logs) {
+%	 if ($log->get_type =~ /(error)/) {
+		<div class="<% $log->get_type %>"><% $log->get_type %> <% $log->get_message %></div>
+% 	 }
+% } # end foreach
+<h4>Log Messages</h4>
+% foreach my $log (@logs) {
+	<div class="<% $log->get_type %>"> <% $log->get_message %></div>
+% } 
+% } # end if (@logs)
+% if (@errMsgs) {
+<h4> Import Errors </h4>
+% 	foreach my $msg (@errMsgs) {
+		<p class="importError"><% $msg %></p>
+% 	}
+% }
+
+<%method title>
+% return "Import Students";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+

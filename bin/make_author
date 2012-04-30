@@ -1,0 +1,164 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+#
+# make_author
+#
+# HSDB program to take user information from hsdb4.user table and populate
+# the mysql.user table, and also grant permissions for a user to do author-
+# like stuff in the database.
+#
+# First pass: 1999-11-01, Tarik Alkasab <tarik@alkasab.com>
+# Second pass: 2001-05-08, Mike Kruckenberg <mike@kruckenberg.com>
+#
+
+BEGIN {
+#    print "Except for when using XMetaL, with the release of the web-based management\n",
+#    "tools, make_author\n",
+#    "is not needed to enable a user to author. Using controls under the\n",
+#    "\"Manage Content\" tab, you can add a user to a course or admin group\n",
+#    "and they will then be authorized to make changes in TUSK.\n";
+#    exit;
+
+    use Getopt::Long;
+    use vars qw($school $user_id $forum $grantauthor $test $newuser);
+    GetOptions( "school=s" => \$school,
+		"user_id=s" => \$users,
+		"makeauthor" => \$grantauthoring,
+		"newuser" => \$newuser,
+		"test" => \$test,
+		);
+    # make sure we have information
+    if (!$school || !$users) {
+	print "Usage: make_author --school=<school> --user_id=<username>[,<username>, . . .] --newuser --makeauthor --test\n";
+	exit;
+    }
+};
+
+use MySQL::Password;
+use HSDB4::Constants qw(:school);
+use HSDB4::SQLRow::User;
+use DBI;
+
+my $db = get_school_db($school);
+my @usernames = split(",",$users);
+my @grants = ("grant usage on *.* to %U%\@localhost",
+"grant usage on *.* to %U%\@'%'",
+"grant select, insert, update on hsdb4.content to %U%\@'%'",
+"grant select,insert,update,delete on $db.course to %U%\@'%'",
+"grant select,insert,update,delete on $db.link_course_user to %U%\@'%'",
+"grant select on $db.link_user_group_user to %U%\@'%'",
+"grant select, insert on hsdb4.non_user to %U%\@'%'",
+"grant select, insert on hsdb4.content_history to %U%\@'%'",
+"grant select, insert on hsdb4.status_history to %U%\@'%'",
+"grant select, insert on hsdb4.ppt_upload_status to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.keyword to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.link_content_content to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.link_content_user to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.link_content_non_user to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.link_content_objective to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.link_objective_content to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.link_content_concept to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.link_content_content to %U%\@'%'",
+"grant select, insert, update, delete on $db.link_course_content to %U%\@'%'",
+"grant select, insert, update, delete on $db.announcement to %U%\@'%'",
+"grant select, insert, update, delete on $db.link_course_announcement to %U%\@'%'",
+"grant select, insert, update, delete on $db.link_course_user_group to %U%\@'%'",
+"grant select, insert, update, delete on $db.link_user_group_announcement to %U%\@'%'",
+"grant select, insert, update, delete on $db.link_class_meeting_content to %U%\@'%'",
+"grant select, insert, update, delete on hsdb4.content_draft to %U%\@'%'",
+"grant select,insert,update on forum.boards to %U%\@'%'",
+"grant select,insert,update,delete on $db.teaching_site to %U%\@'%'",
+"grant select,insert,update,delete on $db.link_course_teaching_site to %U%\@'%'",
+"grant select,insert,update,delete on hsdb4.link_forum_user to %U%\@'%'",
+"grant select,insert,update,delete on $db.link_user_group_forum to %U%\@'%'",
+"grant select,insert,update,delete on $db.homepage_course to %U%\@'%'",
+"grant select,insert,update,delete on $db.homepage_category to %U%\@'%'");
+
+if ($grantauthoring) {
+    push(@grants,"grant grant option,reload on *.* to %U%\@'%'",
+"grant grant option,reload on *.* to %U%\@'localhost'",
+"grant select,insert,update,delete on mysql.user to %U%\@'%'",
+"grant select,insert,update,delete on mysql.tables_priv to %U%\@'%'",
+"grant select,delete on hsdb4.user to %U%\@'%'");
+}
+
+if ($newuser) {
+    push(@grants,"grant insert,update on hsdb4.user to %U%\@'%'",
+	 "grant insert,update,delete on $db.link_user_group_user to %U%\@'%'");
+}
+
+if ($test) {
+    push(@grants,"grant select,insert,delete on $db.webtest_lock to %U%\@'%'");
+}
+
+push(@grants,"update hsdb4.user set author=1 where user_id='%U%'");
+
+# Get username and password
+my ($un, $pw) = get_user_pw ();
+# Set the username and password for HSDB4 module lookups
+HSDB4::Constants::set_user_pw ($un, $pw);
+# Make a connection for the mysql database
+my $dbh = DBI->connect ('DBI:mysql:mysql', $un, $pw, { RaiseError => 1});
+
+# Get ready to do the update of password
+my $sth = $dbh->prepare ('update user set password = ? where user = ?');
+
+# For each argument...
+foreach my $username (@usernames) {
+    # Get the user object
+    my $user = HSDB4::SQLRow::User->new->lookup_key ($username);
+    # And move on if we can't do that
+    unless ($user->primary_key) {
+	print "Cannot find user $username\n";
+	next;
+    }
+    # Check to make sure the password is good
+    my $password = $user->field_value('password');
+    if ($password && length($password) < 16) {
+	print "User $username must update password first\n";
+	next;
+    }
+
+    # Now, actually do the execute
+    my $sql;
+    eval {
+	@localgrants = @grants;
+	# Grant permissions
+	foreach $sql (@localgrants) {
+	    $sql =~ s/%U%/$username/;
+	    $dbh->do ($sql);
+	}
+	# And then update password
+	$sth->execute($password,$username) if ($password);
+    };
+    # Report errors
+    if ($@) {
+	warn "Problem for user $username: $@ ($_: $sql)\n"; 
+    } else {
+	print "Authoring privileges granted to $username\n";
+    }
+}
+
+$sth->finish;
+# Clean up our handle
+$dbh->disconnect;
+system("mysqladmin flush-privileges");
+
+1;

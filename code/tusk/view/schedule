@@ -1,0 +1,746 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	default_path_type       => 'view'
+	no_check_path           => '1'
+	top_tab_type            => 'none'
+	displayLittleUserNavbar => '1'
+	allow_guests            => '0'
+</%attr>
+
+<%once>
+	use TUSK::Constants;
+	use HSDB45::UserGroup;
+	use Apache2::Const qw(:response);
+	use POSIX qw(floor);
+	use HSDB4::DateTime;
+	use HSDB4::Constants;
+	use Date::Calc;
+	use URI::Escape;
+</%once>
+
+<%shared>
+	##
+	## Constants for the display of the schedule
+	##
+	############################################
+	my $START_HOUR      = 8;   # Start hour (24 hour clock)
+	my $END_HOUR        = 18;  # End hour (24 hour clock)
+	my $MINUTE_INTERVAL = 30;  # Show blocks of X minutes.  This value must be a factor of 60.
+	my $PX_PER_INTERVAL = 42;  # Pixels per interval.  If the time range is increased, this will 
+	                           #   need to decrease to allow the schedule to fit on one printed page
+	my $DAY_WIDTH       = 140; # Width of a day in pixels
+	my $MEETING_SPACING = 3;   # Pixels of spacing after the end of a meeting.  Less than 3 results
+	                           # in some overlap.
+	my $IC_BORDER_WIDTH = 3;   # Width of the integrated course border when applicable.  Note that 
+	                           #   changing this will require changes to 'ic_a' in style.css.
+	############################################
+	##
+	##
+	##
+
+	my @hours;
+	for ($START_HOUR..$END_HOUR) {
+		if ( $_ < 10 ) { $_ = '0' . $_; }
+		push @hours, $_;
+	}
+
+	my @minutes;
+	for (my $min = 0; $min < 60; $min += $MINUTE_INTERVAL) {
+		if ( $min < 10 ) { $min = '0' . $min; }
+		push @minutes, $min;
+	}
+
+	my %meetings_hash;
+	my @meetings_days;
+	my @extra_meetings;
+	my $group = "";
+	my $group_no;
+	my $school;
+	my $date;
+	my $printing;
+	my $next_week;
+	my $prev_week;
+	my $accreditation_view;
+</%shared>
+
+<%perl>
+	my $current = $school . "/".$group_no."/".$date;
+	$next_week  = $meetings_days[0]->next_sunday->out_mysql_date;
+	$next_week  = $school . '/' . $group_no . '/' . $next_week;
+	$prev_week  = $meetings_days[0]->prev_sunday;
+	$prev_week->in_unix_time($prev_week->out_unix_time - 7 * 86400);
+	$prev_week  = $prev_week->out_mysql_date;
+	$prev_week  = $school . '/' . $group_no . '/' . $prev_week;
+
+	# we do this to check to see if there are any meetings to get
+	# I was unable to find a blank vCal file that didn't crash Palm Desktop
+	# so if there are no meetings then do not display the links
+	my $user_group = HSDB45::UserGroup->lookup_path($school . "/".$group_no);
+	my $countOfTimePeriods = $user_group->count_time_period_meetings();
+
+	my $current_start_day = $meetings_days[0]->out_mysql_date; 
+	my ($year,$month,$day) = split(/-/,$current_start_day);
+	my $month_segment = floor(($month-1)/$TUSK::Constants::ScheduleMonthsDisplayedAtOnce);
+	my $startMonth = $TUSK::Constants::ScheduleMonthsDisplayedAtOnce * $month_segment;
+	my $endMonth = $TUSK::Constants::ScheduleMonthsDisplayedAtOnce * ($month_segment+1) - 1;
+
+	my @monthOutput;
+	my $trOption = "style=\"cursor:pointer;\" onMouseOver=\"this.style.backgroundColor='lightblue';\" onMouseOut=\"this.style.backgroundColor='';\"";
+	my $tdOption = "class=\"xsm\" align=\"center\"";
+
+	foreach my $monthInSegment ($startMonth..$endMonth) {
+        	my $monthString = '<table border="0" cellpadding="3" cellspacing="0" style="border:1px solid #CDD6E9">';
+		my $startDate = HSDB4::DateTime->new();
+		my $month1thru12 = $monthInSegment + 1;
+		if($month1thru12 < 10) {$month1thru12 = "0$month1thru12";}
+		$startDate->in_mysql_date("$year-$month1thru12-01");
+
+        	$monthString.= "<tr><td class=\"sm\" colspan=\"7\" align=\"center\" style=\"border-bottom: 1px solid #CDD6E9;\">" . $HSDB4::DateTime::monthNames[$monthInSegment] . "</td></tr>\n";
+        	$monthString.= "  <tr>";
+		foreach (@HSDB4::DateTime::dayAbbr) {$monthString.= "<th class=\"xsm\">$_</th>";}
+		$monthString.= "</tr>\n";
+
+		# Print the starting week of this month
+        	my $counter = 1;
+		my $printMonth = $monthInSegment + 1;
+		if($printMonth < 10) {$printMonth = "0$printMonth";}
+		my $tempClass = '';
+		if(($monthInSegment == ($month-1)) && ($meetings_days[0]->out_monthday <= (6-$startDate->out_weekday_number()+1))) {$tempClass = 'highlighted';}
+        	$monthString.= "  <tr class=\"$tempClass\" $trOption onClick=\"document.location='$ENV{SCRIPT_NAME}/$school/$group_no/$year-$printMonth-01';\">";
+        	foreach (1..$startDate->out_weekday_number()) {$monthString.= "<td $tdOption>&nbsp;</td>";}
+        	foreach ($startDate->out_weekday_number()..6) {
+                	$monthString.= "<td $tdOption>$counter</td>";
+                	$counter++;
+        	}
+        	$monthString.= "</tr>\n";
+
+		# Do the rest of the weeks
+		my $rowOpen = 0;
+        	my $weekCounter = 0;
+		my $numWeeksInTable = 1;
+        	while($counter <= $startDate->out_days_in_month()) {
+			unless($rowOpen) {
+				my $printCounter = $counter;
+				if($counter < 10) {$printCounter = "0$counter";}
+				my $tempClass = '';
+				if(($monthInSegment == ($month-1)) && ($meetings_days[0]->out_monthday >= $counter) && ($meetings_days[0]->out_monthday <= ($counter+6))) {$tempClass = 'highlighted';}
+				$monthString.= "  <tr class=\"$tempClass\" $trOption onClick=\"document.location='$ENV{SCRIPT_NAME}/$school/$group_no/$year-$printMonth-$printCounter';\">";
+				$rowOpen = 1;
+				$numWeeksInTable++;
+			}
+                	$monthString.= "<td $tdOption>$counter</td>";
+                	$counter++;
+                	$weekCounter++;
+                	if($weekCounter == 7) {
+                        	$monthString.= "</tr>\n";
+                        	$weekCounter = 0;
+				$rowOpen = 0;
+                	}
+        	}
+        	if($rowOpen) {
+			foreach ($weekCounter..6) {$monthString.="<td $tdOption>&nbsp;</td>";}
+			$monthString.="</tr>\n";
+		}
+		foreach ($numWeeksInTable..5) {
+			$monthString.= "  <tr class=\"\">";
+			foreach(1..7) {$monthString.= "<td $tdOption>&nbsp;</td>";}
+			$monthString.= "</tr>\n";
+		}
+        	$monthString.= "</table>";
+        	push @monthOutput, $monthString;
+	}
+</%perl>	
+% unless($printing) {
+	<style type="text/css">
+		.highlighted {background-color:yellow;}
+	</style>
+	
+	<script type="text/javascript">
+	function show_hide(divID) {
+		var id = document.getElementById(divID);
+
+		if(id) {
+			if (id.style.display=="none" || id.style.display=="")	{id.style.display="block";}
+			else if (id.style.display=="block")			{id.style.display="none";}
+		}
+	}
+	
+	function go_to_multi_cal() {
+		var start_date = document.getElementById("start_date").value;
+		var end_date   = document.getElementById("end_date").value;
+
+		if ( ( start_date == "" || end_date == "" ) || ( end_date <= start_date ) ) 
+		{
+			alert( "Both dates must be filled in, and the end date cannot be before the start date!" );
+			return false;
+		}
+
+		document.getElementById("date_range").style.display='none';
+		window.location = "/view/schedule/<% $school %>/<% $group_no %>/" + start_date + "/" + end_date + "?print=1";
+	}
+
+	function change_view(newView) {
+		document.view.accreditation_view.value=newView;
+		document.view.submit();
+	}
+	</script>
+
+	<table width="100%" border="0" cellpadding="0" cellspacing="1">
+		<tr>
+			<td class="xsm" valign="top" style="padding-top:10px; width:200px;">
+				<a class="helpLnk" href="javascript:;" onClick="openhelp(-1, '<% $TUSK::Constants::PDAHelpURL %>'); return false;"><b>Schedule Help</b></a><br>
+				<form method="post" name="view">
+					<input type="hidden" name="change_view" value="1">
+					<input type="hidden" name="accreditation_view" value="">
+				</form>
+
+				<p style="margin-bottom:3px;">
+					<b>View:</b>
+					<br />
+%					if(!$accreditation_view) {
+						&nbsp;&nbsp;Academic&nbsp;&middot;&nbsp;<a href="javascript:change_view(1);">Accreditation</a>
+%					} else {
+						&nbsp;&nbsp;<a href="javascript:change_view(0);">Academic</a>&nbsp;&middot;&nbsp;Accreditation
+%					}
+					<br />
+					&nbsp;&nbsp;<a href="/view/objsched/<% $school %>/<% $group_no %>/<% $meetings_days[0]->out_mysql_date %>/<% $meetings_days[4]->out_mysql_date %>">Weekly&nbsp;Lecture&nbsp;Objectives</a><br>
+				</p>
+
+%				if($countOfTimePeriods > 0) {
+%					my $webcalLink = 'webcal://'. $ENV{'SERVER_NAME'};
+%					if($ENV{'SERVER_PORT'} && ($ENV{'SERVER_PORT'} ne '80')) {$webcalLink .= ":$ENV{SERVER_PORT}";}
+%					my $gCalLink = $webcalLink;
+%					$gCalLink =~ s/webcal/http/;
+					<p style="margin-bottom:3px;">
+						<b><a href="javascript:show_hide('subscribeFormats');">Subscribe&nbsp;To&nbsp;This&nbsp;Schedule</a></b><br>
+						<div class="xsm" style="display:none; padding-left:5px; padding-top:7px;" id="subscribeFormats">
+							<table border="0" cellspacing="5" cellpadding="0" style="border-right:1px solid grey; border-bottom:1px solid grey;">
+								<tr><td class="xsm"><a href="http://www.google.com/calendar/render?cid=<% uri_escape("$gCalLink/perl/pda/$school/$group_no/ics/") %>" target="_tuskScheduleWindow">In&nbsp;Google&nbsp;Cal</a></td></tr>
+								<tr><td class="xsm"><a href="http://30boxes.com/add.php?webcal=<% uri_escape("$webcalLink/perl/pda/$school/$group_no/ics/") %>" target="_tuskScheduleWindow">In&nbsp;30&nbsp;Boxes</a></td></tr>
+								<tr><td class="xsm"><a href="<% $webcalLink %>/perl/pda/<% $school %>/<% $group_no %>/ics/">In&nbsp;Your&nbsp;Default&nbsp;Application</a></td></tr>
+								<tr><td class="xsm">
+									Subscribe&nbsp;URL&nbsp;For&nbsp;Other&nbsp;Apps:<br>
+									<textarea class="xsm" rows="2" style="background-color:white;" onClick="this.select()"><% $webcalLink %>/perl/pda/<% $school %>/<% $group_no %>/ics/</textarea><br>
+								</td></tr>
+								<tr><td align="right" class="xsm"><a href="javascript:show_hide('subscribeFormats');">Close</a></td></tr>
+							</table>
+						</div>
+					</p>
+					<p style="margin-bottom:3px;">
+						<b><a href="javascript:show_hide('oldDownloadFormats');">Download&nbsp;This&nbsp;Schedule</a></b><br>
+						<div class="xsm" style="display:none; padding-left:5px; padding-top:7px;" id="oldDownloadFormats">
+							<table border="0" cellspacing="5" cellpadding="0" style="border-right:1px solid grey; border-bottom:1px solid grey;">
+								<tr><td class="xsm"><a href="/perl/pda/<%$current%>/ics/">Universal/iCalendar (.ics)</a></td></tr>
+								<tr><td class="xsm"><a href="/perl/pda/<%$current%>/outlook/">Outlook (.csv)</a></td></tr>
+								<tr><td class="xsm">Palm&nbsp;Desktop: <a href="/perl/pda/<%$current%>/dba/">Windows (.dba)</a></td></tr>
+								<tr><td class="xsm">Palm&nbsp;Desktop: <a href="/perl/pda/<%$current%>/vcal/">Mac (.vcs)</a></td></tr>
+								<tr><td align="right" class="xsm"><a href="javascript:show_hide('oldDownloadFormats');">Close</a></td></tr>
+							</table>
+						</div>
+					</p>
+%				}
+				<p>
+				<b>Print:</b><br />
+				&nbsp;&nbsp;<a href="/view/schedule/<% $school %>/<% $group_no %>/<% $meetings_days[0]->out_mysql_date %>?print=1">This&nbsp;Week</a>&nbsp;&middot;&nbsp;<a href="#" onclick="show_hide('date_range'); return false;">Multiple&nbsp;Weeks</a><br>
+				<div class="xsm" style="display:none; padding-left:5px;" id="date_range">
+					<form>
+					<table border="0" cellspacing="5" cellpdaaing="0" style="border-right:1px solid grey; border-bottom:1px solid grey;">
+						<tr>
+							<td class="xsm" align="right" valign="top">From:</td>
+							<td>
+<& /tmpl/element:input_calendar, params =>{ label => 'Start Date',
+		name => 'start_date',
+		value => $ARGS{start_date},
+		size => 10,
+		maxlength => 10,
+		calendar => 1, } &>
+							</td>
+						</tr>
+						<tr>
+							<td class="xsm" align="right" valign="top">To:</td>
+							<td>
+<& /tmpl/element:input_calendar, params =>{ label => 'End Date',
+		name => 'end_date',
+		value => $ARGS{end_date},
+		size => 10,
+		maxlength => 10,
+		calendar => 1, } &>
+							</td>
+						</tr>
+						<tr>
+							<td align="left" class="xsm"><a href="#" onClick="go_to_multi_cal();">Print</a></td>
+							<td align="right" class="xsm"><a href="#" onClick="show_hide('date_range'); return false;">Close</a></td>
+						</tr>
+					</table>
+					</form>
+				</div>
+				</p>
+			</td>
+			<td rowspan="2" valign="top">
+				<center><h3 class="subhead"><% $meetings_days[0]->out_mysql_date %> to <% $meetings_days[4]->out_mysql_date %></h3></center>
+% } else {
+	<style type="text/css">
+		body {margin-top: 0px;}
+	</style>
+	<body onLoad="alert('When printing be sure to have your top and bottom margins set to .5 (this option is typically found in Page Setup) or use the Shrink to Fit option offered in some browsers.  Firefox users may need to use scaling.');">
+% }
+% if ( scalar(@extra_meetings) ) {
+				<div class="page-break">
+% } else {
+				<div>	
+%} 
+
+					<table border="0" align="center" cellpadding="0" cellspacing="1">
+% unless($printing) {
+						<& SELF:weeknav &>
+						<tr>
+							<td>&nbsp;</td>
+%	foreach ( @meetings_days ) {
+							<td align="center"><% $_->out_weekday %></td>
+%	}
+						</tr>
+% } else {
+						<tr><td colspan="6" align="center"><% $m->comp('SELF:red_header_text') %></td></tr>
+% }
+						<tr>
+							<td>&nbsp;</td>
+% foreach ( @meetings_days ) {
+							<td align="center"><% $_->out_string_date_short_year %></td>
+% }
+						</tr>
+						<& SELF:print_week_row, week => \%meetings_hash &>
+<%perl>
+	if($printing) {
+		if ( scalar(@extra_meetings) ) {
+			my $counter = 0;
+			foreach my $new_week (@extra_meetings) {
+				my $new_day;
+				my @new_meetings_days;
+				foreach (sort keys %{$new_week}) {
+					push @new_meetings_days, HSDB4::DateTime->new->in_mysql_date($_);
+				}
+
+				$counter++;
+</%perl>
+					</table>
+				</div>
+%				if ( $counter == scalar(@extra_meetings) ) {
+				<div>
+%				} else {
+				<div class="page-break">
+%				}
+					<table border="0" align="center" cellpadding="0" cellspacing="1">
+						<tr><td>&nbsp;</td><td colspan="6" align="center"><% $m->comp('SELF:red_header_text') %></td></tr>
+						<tr>
+							<td>&nbsp;</td>
+%				 		foreach $new_day (@new_meetings_days) {
+							<td align="center"><% $new_day->out_mysql_date %></td>
+%				 		}
+						</tr>
+						<& SELF:print_week_row, week => $new_week &>
+<%perl>
+			}
+		}
+ 	} else {
+		$m->comp("SELF:weeknav");
+ 	}
+</%perl>
+					</table>
+				</div>
+
+% unless($printing) {
+				<div class="sm" align="left">
+					<p>Click on any class for more information.</p>
+					<p><img width="10" src="/icons/reddot.gif" height="10" alt="Red Dot"><i>&nbsp;: indicates a class whose schedule has changed within the past week.</i></p>
+					<p><img width="10" src="/icons/greendot.gif" height="10" alt="Green Dot"><i>&nbsp;: indicates a class whose schedule has changed, but more than one week ago.</i></p>
+					<p><span class="m_key"></span><i>&nbsp;: indicates a class with mandatory attendance.</i><div class="newdot"></div></p>
+				</div>
+			</td>
+	</tr>
+	<tr><td valign="top">
+		<center><h3 class="subhead"><% $year %></h3></center>
+		<table border="0" align="center" cellspacing="1">
+			<tr>
+				<td colspan="<% $TUSK::Constants::scheduleDisplayMonthsInARow %>">
+					<table border="0" width="100%" cellpadding="0" cellspacing="0">
+						<tr>
+							<td align="left" width="50%"><a href="<% $ENV{SCRIPT_NAME} %>/<% $school %>/<% $group_no %>/<% $meetings_days[0]->get_prev_date() %>">Prev</a></td>
+							<td align="right" width="50%"><a href="<% $ENV{SCRIPT_NAME} %>/<% $school %>/<% $group_no %>/<% $meetings_days[0]->get_next_date() %>">Next</a></td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+%			my $monthCounter = 0;
+%			while($monthCounter < $TUSK::Constants::scheduleMonthsDisplayedAtOnce) {
+			<tr>
+%				foreach (1..$TUSK::Constants::scheduleDisplayMonthsInARow) {
+				<td valign="top"><% $monthOutput[$monthCounter] %></td>
+%					$monthCounter++;
+%				}
+			</tr>
+%			}
+		</table>
+	</td></tr>
+	</table>
+% } else {
+	</body>
+	</html>
+% }
+
+<%method weeknav>
+	<tr>
+		<td colspan="3"><a href="<% $ENV{SCRIPT_NAME} %>/<% $prev_week %>">Previous Week</a></td>
+		<td colspan="3" align="RIGHT"><a href="<% $ENV{SCRIPT_NAME} %>/<% $next_week %>">Next week</a></td>
+	</tr>
+</%method>
+
+<%method jsarray>
+% return ['element.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
+</%method>
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+<%method return_page_footer>
+%	if($printing) {return undef;} else {return "/tmpl/footer:footer_with_school_links";}
+</%method>
+
+<%method no_header>
+%	if($printing) {return 1;} else {return 0;}
+</%method>
+
+<%method red_header_text>
+%	my $title = $group->field_value('label');
+%	if ( $accreditation_view ) { $title .= " Accreditation Schedule"; }
+%	else                       { $title .= " Academic Schedule"; }
+%	return "<b>" . $title . "</b>";
+</%method>
+
+
+<%method title>
+%	my $title = $group->field_value('label');
+%	if ( $accreditation_view ) { $title .= " Accreditation Schedule"; }
+%	else                       { $title .= " Academic"; }
+%	return $title;
+</%method>
+
+<%method startup>
+	<%args>
+		$args => {}
+	</%args>
+	<%perl>
+		if ( defined( ${$args}{'change_view'} ) ) {
+			$m->session->{'accreditation_view'} = ${$args}{'accreditation_view'};
+
+			# Redirect so that if the user refreshes they don't have to repost the form.
+			$m->redirect( $ENV{SCRIPT_URI} );
+		}
+
+		$m->comp("SELF:set_no_cache");
+		$m->comp("SELF:set_unicode");
+		$printing = ${$args}{print};
+
+		$accreditation_view = $m->session->{'accreditation_view'};
+
+		my $group_date = $r->path_info;
+		my $end_date = "";
+		$group_date =~ s/\///;
+		$group_date =~ s/\?.*$//;
+		($school, $group_no, $date) = split ('/', $group_date, 3);
+		if ( $date =~ /\// ) {
+			# We have a range of dates.
+			($date, $end_date) = split( '/', $date, 2);
+		}
+
+		if ( $date ne '' && ( $date !~ /[0-9]{4}-[0-9]{2}-[0-9]{2}/ || !Date::Calc::check_date( split("-", $date) ) ) ) {
+			$m->comp("/tmpl/url:redirect",destination => $ENV{SCRIPT_NAME}."/".$school."/".$group_no."/", message => "Invalid Date or Format - ($date) Please enter dates as YYYY-MM-DD.");
+		}
+		if ( $printing && $end_date ne '' && ( $end_date !~ /[0-9]{4}-[0-9]{2}-[0-9]{2}/ || !Date::Calc::check_date( split("-", $end_date) ) ) ) {
+			$m->comp("/tmpl/url:redirect",destination => $ENV{SCRIPT_NAME}."/".$school."/".$group_no."/", message => "Invalid Date or Format - ($end_date) Please enter dates as YYYY-MM-DD.");
+		}
+
+		if ( $date eq '' ) { 
+			$date = HSDB4::DateTime->new->out_mysql_date; 
+		}
+		if(! $school or ! $group_no) {$m->comp("/tmpl/url:redirect",message => "Invalid Schedule Request");}
+
+
+		$group = HSDB45::UserGroup->new( _school => $school )->lookup_key( $group_no );
+
+		my $s_t = HSDB4::DateTime->new->in_mysql_date ($date)->prev_sunday;
+		my $e_t = HSDB4::DateTime->new->in_mysql_date ($date)->next_sunday;
+		$s_t->add_days(1);      # Get to Monday
+		$e_t->subtract_days(2); # Get to Friday
+		%meetings_hash = $group->class_meetings( $s_t->out_mysql_date, $e_t->out_mysql_date );
+		foreach (sort keys %meetings_hash) {
+			push @meetings_days, HSDB4::DateTime->new->in_mysql_date($_);
+		}
+
+		if ( $end_date ne "" && $printing ) {
+			my $s_t = HSDB4::DateTime->new->in_mysql_date ($date)->prev_sunday;
+			my $e_t = HSDB4::DateTime->new->in_mysql_date ($end_date)->next_sunday;
+			# Advance a week to start since we already have the first week above in @days
+			$s_t->in_unix_time($s_t->next_sunday->out_unix_time);
+			$e_t->subtract_days(2); # Get to Friday
+			
+			my $start_in_unix = $s_t->out_unix_time;
+			my $end_in_unix   = $e_t->out_unix_time;
+
+			while ( $start_in_unix <= $end_in_unix ) {
+				my %new_week;
+				my $temp_end = HSDB4::DateTime->new->in_mysql_date($s_t->next_sunday->out_mysql_date);
+				$s_t->add_days(1);
+				$temp_end->subtract_days(2);
+
+				# Load up @extra_meetings.
+				%new_week = $group->class_meetings( $s_t->out_mysql_date, $temp_end->out_mysql_date );
+				push @extra_meetings, \%new_week;
+
+				$s_t->in_unix_time($s_t->next_sunday->out_unix_time);
+				$start_in_unix = $s_t->out_unix_time;
+			}
+		}
+	</%perl>
+</%method>
+
+<%method get_week_of_meetings>
+<%args>
+	$sunday_date
+</%args>
+	
+
+</%method>
+
+<%method print_week_row>
+<%args>
+	$week
+</%args>
+%	my $gridlines = "<ol class=\"schedule_times\">\n";
+	<tr class="week_row">
+		<td>
+			<ol class="schedule_times">
+% my $first = 1;
+% foreach my $hour (@hours) {
+%	foreach my $minute (@minutes) {
+%		my $class;
+%		my $hour_str = $hour;
+%		if ( $hour_str > 12 )     { $hour_str -= 12; $hour_str .= " pm"; }
+%		elsif ( $hour_str == 12 ) { $hour_str .= " pm"; }
+%		else                  { $hour_str .= " am"; }
+%		if ( length($hour_str) == 4 ) { $hour_str = "&nbsp;" . $hour_str; }
+%		$hour_str =~ s/^0/&nbsp;/;
+%
+%		if ( $minute eq '00' ) { $class  = "majorInterval"; }
+%		else                   { $class  = "minorInterval"; }
+%
+%		if ( $first || ($minute ne '00' && $minute ne '30') ) { $class .= " noBorder"; }
+%		if ( $minute eq '00' ) {
+			<li style="height: <% 2*$PX_PER_INTERVAL %>px;"><span class="<% $class %>"><% $hour_str %></span></li>
+%		}
+%		$gridlines .= "<li style=\"height: " . $PX_PER_INTERVAL . "px;\"><span class=\"$class\" style=\"display: block; width: " . $DAY_WIDTH . "px;\"></span></li>\n";
+%		$first = 0;
+%	}
+% }
+% $gridlines .= "</ol>\n";
+			</ol> 
+		</td>
+<%perl>
+foreach my $current_day ( sort keys %{$week} ) {
+ 	my @start_times = map { $_->start_time } @{$week->{$current_day}};
+ 	my @end_times   = map { $_->end_time }   @{$week->{$current_day}};
+	my @overlaps    = [];
+
+	# This unfortunately needs to happen here so that meetings can see into the future for overlaps.
+	my $z_index = 0;
+	foreach my $meeting ( @{$week->{$current_day}} ) {
+		my %overlap = ( 'pre' => [], 'post' => [], 'pre_count' => 0, 'post_count' => 0 );
+		for (0..(scalar(@start_times)-1) ) {
+			next if $_ == $z_index;
+
+			if ( ($start_times[$_] ge $start_times[$z_index] && $start_times[$_] lt $end_times[$z_index]) ||  # If it starts in my range
+				 ($end_times[$_]   gt $start_times[$z_index] && $end_times[$_]   le $end_times[$z_index]) ||
+				 ($start_times[$_] ge $start_times[$z_index] && $end_times[$_]   le $end_times[$z_index]) || 
+				 ($start_times[$_] lt $start_times[$z_index] && $end_times[$_]   gt $end_times[$z_index]) ) {
+				if ( $z_index < $_ ) {
+					push @{$overlap{'post'}}, $_;
+				} else {
+					push @{$overlap{'pre'}}, $_;
+					$overlap{'pre_count'}++;
+				}
+			}
+		}
+		$overlaps[$z_index] = \%overlap;
+		$z_index++;
+	}
+
+	if ( $z_index ) {
+		# Now that we have all the overlaps, walk backwards to properly adjust for post-events
+		for ( my $idx = scalar(@overlaps)-1; $idx >= 0; $idx-- ) {
+			my $overlap = $overlaps[$idx];
+
+			my $max_post_count = -1;
+			foreach my $post ( @{$overlap->{'post'}} ) {
+				$max_post_count = $overlaps[$post]->{'post_count'} if $overlaps[$post]->{'post_count'} > $max_post_count;
+			}
+			$overlap->{'post_count'} = $max_post_count + 1;
+		}
+
+		# Then walk forward to properly adjust for pre-events
+		for ( my $idx = 0; $idx < scalar(@overlaps); $idx++ ) {
+			my $overlap = $overlaps[$idx];
+
+			my $max_pre_count = -1;
+			foreach my $pre ( @{$overlap->{'pre'}} ) {
+				$max_pre_count = $overlaps[$pre]->{'pre_count'} if $overlaps[$pre]->{'pre_count'} > $max_pre_count;
+			}
+			$overlap->{'pre_count'} = $max_pre_count + 1;
+		}
+	}
+</%perl>
+		<td>
+			<dl id="d_<% $current_day %>" class="day_schedule" style="height:<% (scalar(@hours) * scalar(@minutes) * $PX_PER_INTERVAL) %>px; width:<% $DAY_WIDTH %>px;">
+				<dd><% $gridlines %></dd>
+<%perl>
+				$z_index = 0;
+				foreach my $meeting ( @{$week->{$current_day}} ) {
+					my ($overrun, $underrun, $skip_display) = (0, 0, '');
+					my ($s_hour, $s_min, $s_sec) = split( ':', $meeting->start_time );
+					my ($e_hour, $e_min, $e_sec) = split( ':', $meeting->end_time );
+
+					if ( $e_hour < $START_HOUR || ( $e_hour == $START_HOUR && $e_min == 0 ) || ( $s_hour >= $END_HOUR+1 ) ) { 
+						$skip_display = ' display: none;'; 
+					} else {
+						if ( $s_hour < $START_HOUR ) { $s_hour = $START_HOUR; $s_min = 0; $underrun = 1; }
+						if ( $e_hour > $END_HOUR+1 || ( $e_hour == $END_HOUR+1 && $e_min > 0 ) ) { $e_hour = $END_HOUR + 1; $e_min = 0; $overrun = 1; }
+					}
+
+					my $color      = $meeting->course->color || "#999999";
+					my $dark_color = $meeting->course->dark_color;
+					my $top        = (($s_hour-$hours[0])*(60/$MINUTE_INTERVAL) + ($s_min/$MINUTE_INTERVAL)) * $PX_PER_INTERVAL;
+					my $left       = 0;
+					my $height     = (($e_hour-$s_hour)*(60/$MINUTE_INTERVAL) + ($e_min/$MINUTE_INTERVAL) - ($s_min/$MINUTE_INTERVAL)) * $PX_PER_INTERVAL - $MEETING_SPACING;
+					my $width      = $DAY_WIDTH;
+
+					my $pre_counter  = $overlaps[$z_index]->{'pre_count'};
+					my $post_counter = $overlaps[$z_index]->{'post_count'};
+					if ( $pre_counter || $post_counter ) {
+						$width = floor( $DAY_WIDTH/($pre_counter+$post_counter+1) ) - 2;
+						$left  = $pre_counter * $width + $pre_counter;
+						if ( $left ) { $left += $pre_counter; }
+					}
+</%perl>
+				<dt><% $meeting->start_time %> - <% $meeting->end_time %></dt>
+				<dd id="d_<% $current_day %>_m_<% $z_index %>" style="top: <% $top %>px; left: <% $left %>px; height: <% $height %>px; width: <% $width %>px; border: 1px solid <% $dark_color %>; background-color: <% $color %>; z-index:<% $z_index %>;<% $skip_display %>">
+<%perl>
+					my $style    = "height:" . $height . "px; width:" . $width . "px;";
+					my $ic_class = "";
+					if ( $meeting->course->is_a_subcourse ) {
+						$ic_class = " class=\"ic_a\"";
+						$style    = "height:" . ($height-(2*$IC_BORDER_WIDTH)) . "px; width:" . ($width-(2*$IC_BORDER_WIDTH)) . "px; border: " . $IC_BORDER_WIDTH . "px solid " . $meeting->course->is_a_subcourse->color . ";";
+					}
+
+					my $link;
+					my $footer = join (' ', map { $_->field_value('lastname') } $meeting->child_users);
+
+					if ( !$accreditation_view ) { 
+						$link = "/view/course/" . $school . "/" . $meeting->course->course_id . "/schedule/" . $meeting->class_meeting_id;
+						$footer .= '<br />' if $footer;
+						$footer .= $meeting->location; 
+					} else {
+						$link = "/view/accreditation/" . $school . "/" . $group_no . "/" . $meeting->course->course_id . "/" . $meeting->class_meeting_id;
+						
+						my @content = $meeting->active_child_content();
+						my $num_obj = $m->comp('SELF:tally_objectives', content => \@content, meeting => $meeting);
+						$footer .= '<br />' if $footer;
+						$footer .= $num_obj . " objective(s)";
+					}
+</%perl>
+					<a href="<% $link %>" <% $ic_class %> style="<% $style %>">
+%						if ($meeting->is_mandatory()) {
+						<p class="m_flag"><span>Mandatory</span></p>
+%						}
+%						if ( $meeting->flagtime() && $meeting->group_flagtime() &&
+%						     $meeting->flagtime()->out_unix_time() > $meeting->group_flagtime()->out_unix_time()) {
+%							if (time - $meeting->flagtime()->out_unix_time < 168 * 3600) {
+						<div class="r_flag"></div>
+%							} else {
+						<div class="g_flag"></div>
+<%perl>
+							}
+						}
+						my $title = $meeting->course->out_abbrev;
+						$title =~ s|([/-])| $1 |g;
+</%perl>
+%						if ( $underrun ) { print "<h5>(" . $m->comp('SELF:pretty_time', time => $meeting->start_time) . " - " . $m->comp('SELF:pretty_time', time => $meeting->end_time) . ")</h5>\n"; }
+						<h3><% $title %></h3>
+						<h4><% $meeting->title %></h4>
+						<h5><% $meeting->type %> @ <% $m->comp('SELF:pretty_time', time => $meeting->start_time) %></h5>
+						<h6 style="width: <% $width %>px;"><% $footer %><%perl>if ( $overrun ) { print "<br />(" . $m->comp('SELF:pretty_time', time => $meeting->start_time) . " - " . $m->comp('SELF:pretty_time', time => $meeting->end_time) . ")"; }</%perl></h6>
+					</a>
+				</dd>
+%					$z_index++;
+% 				}
+			</dl>
+		</td>
+% }
+	</tr>
+
+</%method>
+
+<%method tally_objectives>
+<%args>
+	$content
+	$meeting  => undef
+	$obj_hash => undef
+</%args>
+<%perl>
+	if ( !defined($obj_hash) ) {
+		$obj_hash = {};
+	}
+	my $totals = 0;
+	foreach my $item ( @{$content} ) {
+		my @child_content = $item->active_child_content;
+		foreach my $objective ($item->child_objectives) {
+			$obj_hash->{'o' . $objective->objective_id} = "1";
+		}
+		if ( $item->type eq 'Collection' ) {
+			$m->comp('SELF:tally_objectives', content => \@child_content, obj_hash => $obj_hash);
+		}
+	}
+	
+	if ( $meeting ) {
+		foreach my $obj_link (@{$meeting->child_objectives()}) {
+			my $objective = $obj_link->getObjective;
+			$obj_hash->{'o' . $objective->getFieldValue('objective_id')} = 1;
+		}
+	}
+
+	return scalar( keys %{$obj_hash} );
+</%perl>
+</%method>
+
+<%method pretty_time>
+<%args>
+	$time
+</%args>
+%	my ($h, $m, $s) = split( ":", $time );
+%	$h =~ s/^0//g;
+%	$h -= 12 if $h > 12;
+%	return $h . ":" . $m;
+</%method>
+

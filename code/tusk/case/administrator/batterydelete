@@ -1,0 +1,81 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Case::Battery;
+</%once>
+
+<%shared>
+ my $id = $m->comp("/tmpl/url:get_first_path_id");
+</%shared>
+
+<%attr>
+hintmsg => 'Deleting will also delete any associated tests and sub tests'
+</%attr>
+
+<%method title>
+% return "Delete Category";
+</%method>
+
+<%perl>
+my $battery = TUSK::Case::Battery->lookupKey($id);
+if (!defined($battery->getPrimaryKeyID())){
+	$m->comp("/case/tmpl/error",msg=>"Category $id not found");
+}
+
+</%perl>
+<& /tmpl/element:form, params => { 
+                method => 'POST',
+                name => 'batterydelete',
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0	",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{'label'=>'Category Name',
+		'value'=>$battery->getBatteryTitle()} 
+		&>
+
+<& /tmpl/element:save_button,params=>{name=>'delete_battery', 
+					label=>'Delete Category',
+					cancel_onclick=>'go_back(\'' . $back_url . '\');'} &>
+</form>
+</table>
+
+<%init>
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $back_url = "/case/administrator/batteryshow/$type_path";
+
+if (defined($ARGS{'delete_battery'})){
+	my $battery = TUSK::Case::Battery->lookupKey($id);
+	
+	my $exams = $battery->getChildTests();
+	
+	foreach my $exam (@$exams){
+		my $tests = $exam->getSubTests();
+			
+		foreach my $test (@$tests){
+			$test->delete();
+		}
+		
+		$exam->delete();
+	}
+	
+	$battery->delete();
+	$m->redirect($back_url . "?msg=Category+successfully+deleted");
+}
+</%init>

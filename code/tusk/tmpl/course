@@ -1,0 +1,116 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method class_schedule>
+<%args>
+$class
+$is_mobi => 0
+</%args>
+<div>
+
+% my $ulclass = $is_mobi? 'gNoBullets highlight' : '';
+
+<h4 class="subHdr"><% $class->title . " - " . $class->type() %><% ($class->is_mandatory())? ' <span class="cmMandAtt">(Attendance Mandatory)</span>' : ''  %></h4>
+<ul class="<% $ulclass  %>">
+% unless($is_mobi){
+% 	my @meeting_links = $class->build_meeting_links();
+% 	foreach my $meeting_link (@meeting_links) {
+		<li><% $meeting_link %></li>
+% 	}
+% }
+	<li><% $class->out_starttime->out_string_time . " to " . $class->out_endtime->out_string_time %></li>
+% if ($class->location){
+	<li><% $class->location %></li>
+% }
+</ul>
+				
+<h4 class="subHdr">Faculty</h4>
+<ul class="<% $ulclass  %>">
+
+% my @faculty = $class->child_users;
+% if(scalar @faculty){
+% 	foreach my $aUser ($class->child_users()) {
+	<li><% $aUser->out_full_name %></li>
+%	}
+% }
+% else{
+	<li>No faculty listed</li>
+% }
+
+</ul>
+
+% my @content = $class->active_child_content();
+				
+<h4 class="subHdr">Meeting Contents</h4>
+
+% if (scalar @content) {
+%	if($is_mobi){
+%		$m->comp('/tmpl/content:drawMobileContent', contentArray => \@content);
+%	}
+%	else{
+%		$m->comp('/tmpl/content:drawSimpleContentTable', contentArray => \@content, classmeeting_page => 1);
+%	}
+% }
+% else {
+<ul class="<% $ulclass  %>"><li>No meeting contents linked</li></ul>
+% }
+
+<h4 class="subHdr">Learning Objectives</h4>
+% my $used;
+% my @objectives = @{$m->comp('SELF:tally_objectives', content => \@content, meeting => $class)};
+<ul class="<% $ulclass  %>">
+% foreach my $ob (@objectives) {
+%	$used = 1;
+	<li><% $ob %></li>
+% }
+% if (!$used) {
+<li>No objectives listed.</li>
+% }
+</ul>
+
+</div>
+</%method>
+
+<%method tally_objectives>
+<%doc>
+construct array (to retain sort order) of objectives from content array reference
+</%doc>
+<%args>
+	$content
+	$meeting  => undef
+	$obj_array => []
+</%args>
+<%perl>
+	my $totals = 0;
+	foreach my $item ( @{$content} ) {
+		my @child_content = $item->active_child_content;
+		foreach my $objective ($item->child_objectives) {
+			push @$obj_array,  $objective->field_value('body');
+		}
+		if ( $item->type eq 'Collection' ) {
+			$m->comp('SELF:tally_objectives', content => \@child_content, obj_array => $obj_array);
+		}
+	}
+	
+	if ( $meeting ) {
+		foreach my $obj_link (@{$meeting->child_objectives()}) {
+			my $objective = $obj_link->getObjective;
+			push @$obj_array, $objective->getFieldValue('body');
+		}
+	}
+
+	return $obj_array;
+</%perl>
+</%method>

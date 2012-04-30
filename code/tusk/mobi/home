@@ -1,0 +1,55 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+no_check_path => 1
+</%attr>
+
+<%once>
+use HSDB4::DateTime;
+</%once>
+
+<%method header_text>
+% return 'Home';
+</%method>
+
+
+<%method startup>
+% $m->comp("SELF:set_no_cache");
+</%method>
+
+
+% my $user = $m->session->{'user'};
+% my $new_cnt = $user->count_new_announcements();
+% my $new_ann_txt = ($new_cnt)? "($new_cnt new)" : '';
+
+% my $school = TUSK::Core::School->new->lookupReturnOne("school_name = '" . $user->affiliation() . "'");
+% my $school_name = ($school && $school->getPrimaryKeyID())? $school->getSchoolDisplay() : '';
+% my $accesskey = 1;
+
+<ol class="homeNav">
+	<li><a href="/mobi/view/announcements" accesskey="<% $accesskey++ %>">Announcements</a> <span class="newAnn"><% $new_ann_txt %></span></li>
+	<li><a href="/mobi/view/schedule/schedule" accesskey="<% $accesskey++ %>">Schedule</a></li>
+	<li><a href="/mobi/view/courselist" accesskey="<% $accesskey++ %>">My Courses</a></li>
+% if($school_name){
+	<li><a href="/mobi/view/schoolcourses/<% $school->getPrimaryKeyID() %>" accesskey="<% $accesskey++ %>">All <% $school_name %> Courses</a></li>
+	<li><a href="/mobi/forum/forumshow">Discussions</a> </li>
+	<li><a href="/mobi/patientlog/home">Patient Logs</a> </li>
+	<li><a href="/mobi/flashcard/home">Flash Cards</a> </li>
+% }
+	<li class="xtraspace"><a href="/dologout?request_uri=/mobi/home?<% HSDB4::DateTime->new()->out_unix_time %>" accesskey="<% $accesskey++ %>">Logout</a></li>
+</ol>
+
+<& /mobi/tmpl/element:classic_link &>

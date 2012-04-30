@@ -1,0 +1,174 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::FormAssociation;
+</%once>
+
+<%shared>
+	my $form = $m->comp('/formbuilder/util:get_form');
+	my $form_id = $form->getPrimaryKeyID();
+	my $form_type_label = 'Simulated Patients';
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $selected_actors = [];
+	my $available_actors = [];
+</%shared>
+
+<%init>
+	my ($msg, $msgtype, $extra);
+	if ($ARGS{submit_check}) {
+		my $current = $m->comp('/tmpl/process:process_fields', fields => \%ARGS, filter => '^currentdiv');
+
+		my $available = $m->comp('/tmpl/process:process_fields', fields => \%ARGS, filter => '^availablediv');
+
+		foreach my $i (sort keys %$current) {  ### add
+			if ($current->{$i}{fields}{elementchanged}[0]) {
+				my $assoc = TUSK::FormBuilder::FormAssociation->new();
+				$assoc->setUserID($current->{$i}{fields}{userid});
+				$assoc->setFormID($form_id);
+				$assoc->save({user => $m->session->{'user'}->user_id()});
+				$msg = 'Successfully updated';
+			}
+		}
+
+		foreach my $i (sort keys %$available) {  ### delete
+			if ($available->{$i}{fields}{elementchanged}[0]) {
+				if (my $assoc = TUSK::FormBuilder::FormAssociation->lookupReturnOne("form_id = $form_id AND user_id = '$available->{$i}{fields}{userid}'")) {
+					$assoc->delete({user => $m->session->{'user'}->user_id()});
+					$msg = 'Successfully updated';
+				}
+			}
+		}
+
+		if ($msg) {
+			$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msg' => $msg, 'msgtype' => 'msg'));
+		}
+	}
+	$m->comp('SELF:processActors');
+</%init>
+
+<script language="Javascript">
+function addActor(layer, index) {
+	data = layers[layer].structure.data[index];
+	remove(layer, index);
+	layers['currentdiv'].adddata(data, 1);
+}
+
+function removeActor(layer, index) {
+	data = layers[layer].structure.data[index];
+	remove(layer, index);
+	layers['availablediv'].adddata(data, 1);
+}
+</script>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'actors' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border => "0",
+                cellspacing => "0",
+                cellpadding => "0" } &>
+
+<& /tmpl/element:sort_order_box, params => {
+	no_add_button => 1,
+    label => 'Available SPs',
+    buttons => [],
+    layer_info => {
+		context_path => $m->comp("/tmpl/url:get_full_path"),
+		base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+		layer => 'availablediv',
+		fields => ['userid','name'],
+		name => 'users',
+		sort => {usage => 'No'},
+		sortoninsert => {usage => 'Yes', sorton => 'name'},
+		action => {usage => 'Yes', length=>100, functions => [{func=>'addActor', label=>'Add'}]},
+		display => [
+			{field=>'name', align=>'left', length=>225,},
+			{field=>'userid', label=>'UserID', align=>'left', length=>75,}
+		],
+		validate => {
+			usage => 'No',
+		},
+		data => $available_actors,
+	}
+} &>
+
+<& /tmpl/element:sort_order_box, params => {
+	no_add_button => 1,
+	label => 'Current SPs',
+	buttons => [],
+	layer_info => {
+		context_path => $m->comp("/tmpl/url:get_full_path"),
+		base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+		layer => 'currentdiv',
+		empty_message => '',
+		fields => ['userid','name'],
+		name => 'users',
+		sort => {usage => 'No'},
+		sortoninsert => {usage => 'Yes', sorton => 'name'},
+		action => {usage => 'Yes', length=>100, functions => [{func=>'removeActor', label=>'Delete'}]},
+		display => [
+			{field=>'name', align=>'left', length=>225,},
+			{field=>'userid', label=>'UserID', align=>'left', length=>75,}
+		],
+		validate => {usage => 'No', },
+		data => $selected_actors,
+	}
+} &>
+
+<& /tmpl/element:save_button, params => {
+	label => 'Save Changes',
+	cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_url", 
+	'base_url' => "/sp/author/show") . "');",
+	name => 'submit'
+} &>
+
+</table>
+</form>
+
+<%method processActors>
+<%perl>
+	my $seen_actors = {};
+	my $actors = TUSK::FormBuilder::FormAssociation->lookup("form_id = $form_id");
+	if (scalar @$actors) {
+		my @users = HSDB4::SQLRow::User->new()->lookup_conditions('user_id in (' . join(',', map { "'" . $_->getUserID() . "'" } @$actors) . ')');
+		foreach my $user (@users) {
+			push (@$selected_actors, {userid => $user->primary_key(), name => $user->out_lastfirst_name()});
+			unless (exists $seen_actors->{$user->primary_key()}) {
+				$seen_actors->{$user->primary_key()} = 1;
+			}
+		}
+	}
+
+	foreach my $actor ($course->child_users("roles rlike 'Instructor'")) {
+		unless (exists $seen_actors->{$actor->primary_key()}) {
+			push (@$available_actors, {userid => $actor->primary_key, name => $actor->out_lastfirst_name()});
+		}
+	}
+</%perl>
+</%method>
+
+<%method title>
+% 	return "Update SPs: " . $form->getFormName(); 
+</%method>
+
+<%method red_header_text>
+% 	return "Update SPs: " . $form->getFormName();
+</%method>
+
+<%method jsarray>
+% 	return ['layers.js','element.js'];
+</%method>

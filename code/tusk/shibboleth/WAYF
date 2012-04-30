@@ -1,0 +1,115 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+        no_check_path           => '1'
+        allow_guests            => '1'
+        allow_shib              => '1'
+        page_footer             => '/tmpl/footer:footer_with_school_links'
+        skip_header_bar         => '1'
+</%attr>
+
+<%once>
+	use TUSK::Shibboleth::User;
+	use Mail::Sendmail;
+	use TUSK::Constants;
+</%once>
+
+<%method title>
+% return ("Where Are You From?");
+</%method>
+
+<%perl>
+	my $shibRunning = 0;
+	my $checkError;
+	# Lets check to see if there is a pid file and if so is that process actually running and is it a shib process?
+	unless(-e "$ENV{LOG_ROOT}/shibd.pid") {$checkError = "The shibd.pid file does not exist at $ENV{LOG_ROOT}/shibd.pid.\nDid you move it? Is \$ENV{LOG_ROOT} incorrect?";}
+	else {
+		unless(open(PID, "$ENV{LOG_ROOT}/shibd.pid")) {$checkError = "Unable to open shibd.pid for read under $ENV{LOG_ROOT} : $!";}
+		else {
+			my $pid = <PID>;
+			chomp($pid);
+			close(PID);
+
+			# Untaint path
+			if($ENV{PATH} =~ /(.*)/) {$ENV{PATH} = $1;}
+			unless(open(COMMAND, "/bin/ps -ef |")) {$checkError = "Could not run ps -ef : $!\n";}
+			else {
+				while(<COMMAND>) {
+					my $line = $_;
+					$checkError .= $line;
+					$line =~ s/  */ /g;
+					if($line =~ /$pid/ && $line =~ /shib/) {
+						$shibRunning = 1;
+					}
+				}
+				unless($shibRunning) {
+					$checkError = "Unable to determine if shibd was running" . $checkError;
+				}
+			}
+		}
+	}
+</%perl>
+
+% if($shibRunning) {
+<script>
+	function startLogin(value) {
+		if(value != 'Select') {
+			document.location='https://<% $TUSK::Constants::shibbolethSP %>/shibboleth/'+value;
+		}
+	}
+</script>
+<br><br><br><center>
+<form>
+Please select the institution you are from to start an external login
+<select name="from" onChange="startLogin(this[this.selectedIndex].value);">
+	<option value="Select" SELECTED>Select</option>
+%	my $shibbolethUsers = TUSK::Shibboleth::User->new->lookup();
+%	foreach my $shibUserObject (@{$shibbolethUsers}) {
+%		if($shibUserObject->ifIsEnabled()) {
+%			my $apacheShibId = $shibUserObject->getUniqueName();
+			<option value="<% $apacheShibId %>"><% $shibUserObject->getShibbolethInstitutionName() %></option>
+%		}
+%	}
+</select>
+% } else {
+%	my %mail = (
+%		To => $TUSK::Constants::ErrorEmail,
+%		From => $TUSK::Constants::ErrorEmail,
+%		Subject => "Attempted Shib Login with Shibd Down",
+%		Message => "A user wanted to use the shibboleth login but as far as I can tell shibd is down.\n" . $checkError . "\nPlease check the shibd is running... there is no way to notify the user unless they called.",
+%	);
+
+	I'm sorry, the shibboleth daemon does not appear to be running. This will prevent you from being able to login. <br>
+%	if (Mail::Sendmail::sendmail(%mail)) {
+		I have already notified the administrators of the system.
+%		if($TUSK::Constants::ContactURL) {
+			<br>If you would like to follow up on this issue, please view the <a href="<% $TUSK::Constants::ContactURL %>">Contact Us Page</a>
+%		}
+%	} else {
+%		warn("Unable to send email\n" . $Mail::Sendmail::error . "Shibd error: " . $checkError);
+%		if($TUSK::Constants::ContactURL) {
+			<br>Pplease contact the administrators of this system using the <a href="<% $TUSK::Constants::ContactURL %>">Contact Us Page</a>
+%		} else {
+			<br>Please contact the administrators of this system.
+%		}
+%	}
+% }
+
+<br><br>
+<input type="button" class="formbutton" value="Return To Login Screen" onClick="document.location='/';">
+</form>
+</center><br><br><br>
+

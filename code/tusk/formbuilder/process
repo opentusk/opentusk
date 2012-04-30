@@ -1,0 +1,479 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::Entry;
+	use TUSK::FormBuilder::EntryAssociation;
+	use TUSK::FormBuilder::Response;
+	use TUSK::FormBuilder::ResponseAttribute;
+	use HSDB4::DateTime;
+	use TUSK::FormBuilder::EntryGrade;
+</%once>
+
+<%doc>
+	## patient log is for counting so we keep adding it. 
+	## for patient log, strikeout (active_flag = 0)  otherwise active_flag = 1
+	## For other apps like SP, assesssment, we want to update the already inserted response
+	## therefore delete
+</%doc>
+
+<%shared>
+	my $update_response;
+</%shared>
+
+<%method entry>
+<%args>
+	$args
+	$form
+	$user_id
+	$date
+	$entry_id => 0
+	$entry_grade => TUSK::FormBuilder::EntryGrade->new()
+</%args>
+<%perl>
+	my $entry = TUSK::FormBuilder::Entry->new();
+	my $response_hash = {}; # used for editing
+	$update_response  = ($form->getFormTypeToken() eq 'PatientLog') ?  0 : 1;
+
+	if (ref($entry_id) eq 'ARRAY'){
+		$entry_id = (scalar(@$entry_id)) ? $entry_id->[0] : 0;
+	}
+
+	my $now = HSDB4::DateTime->new()->out_mysql_timestamp();
+
+	if ($entry_id) {
+		$entry = $entry->lookupKey($entry_id);
+		$entry->setDate($date); # we allow users to change the date
+		$entry->setTimePeriodID($args->{time_period_id}) if (defined $args->{time_period_id});
+		$entry->save({ 'user' => $user_id });
+		
+		my $responses = $entry->getResponses();
+		foreach my $response (@$responses){
+			push (@{$response_hash->{ $response->getFieldID() }}, $response);
+		}
+	} else {
+		$args->{time_period_id} = $m->comp("/formbuilder/util:get_time_period_id", student_id => $args->{student_id}) unless ($args->{time_period_id});
+		$entry->setUserID($user_id);
+		$entry->setDate($date);
+		$entry->setFormID($form->getPrimaryKeyID());
+		$entry->setTimePeriodID($args->{time_period_id});
+		$entry->save({ 'user' => $user_id });
+		$entry_id = $entry->getPrimaryKeyID();
+
+		if ($args->{update_entry_association}) {
+			 $m->comp('SELF:updateEntryAssociation', entry_id => $entry_id, student_id => $args->{student_id}, user_id => $user_id, is_final => $args->{is_final_entry});
+		}
+	}
+
+	if ($entry_grade) {
+		unless ($entry_grade->getPrimaryKeyID()) {
+			$entry_grade->setEntryID($entry_id);		
+		} 
+
+		if ($args->{form_submit} && $args->{total_score}) {  ## store total score when completed only
+			if ($args->{total_max_score}) {
+				if ($args->{total_weight}) {
+					$entry_grade->setScore($args->{total_score} / $args->{total_max_score} * $args->{total_weight});
+				} else {
+					$entry_grade->setScore($args->{total_score});
+				}
+			}
+		}
+
+		$entry_grade->setComments($args->{final_comment});
+		$entry_grade->save({ user => $user_id });
+	}
+
+	my $fields = $form->getFields();
+	my $skip = { 'SingleSelectAllowMulti' => 1, 'MultiSelectWithAttributes' => 1, 'Checklist' => 1 };
+	
+	foreach my $field (@$fields){
+		next if $field->isHeading();
+		unless (exists $skip->{$field->getFieldTypeToken()}) {
+			if ($field->getFieldTypeToken() eq 'DynamicList') {
+				my $child_fields = TUSK::FormBuilder::Field->lookup(undef, undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::FormBuilder::LinkFieldField", { origkey => 'field_id', joinkey => 'child_field_id', joincond => 'root_field_id = ' . $field->getPrimaryKeyID(), jointype => 'inner'})]);
+				push @$fields, grep { defined $_->getPrimaryKeyID() } @$child_fields;
+			}
+
+			my $pk = $field->getPrimaryKeyID();
+			if (exists($response_hash->{ $pk }) && scalar(@{$response_hash->{ $pk }})){
+				my $response = $response_hash->{ $pk }->[0];
+				my $key = 'id_' . $pk;
+
+				if ($field->getFieldTypeToken() eq 'FillIn') {
+					if ($response->getText() ne $args->{ $key }){
+						$m->comp("DeleteResponse", response => $response, user_id => $user_id);
+					} else {
+						next;
+					}
+				} elsif ($field->getFieldTypeToken() eq 'Essay') {
+					if ($response->getText() ne $args->{ $key }){
+						$response->setText( $args->{ $key } );
+						$response->save({ 'user' => $user_id });
+					}
+					next;
+				} else {
+					unless ($update_response) {  ## ie patient log
+						if ($response->getItemID() != $args->{ $key }){
+							$m->comp("DeleteResponse", response => $response, user_id => $user_id);
+						} else {
+							next;
+						}
+					}
+				}
+			}
+		}
+
+		$m->comp($field->getFieldTypeToken(), field => $field, args => $args, user_id => $user_id, entry_id => $entry_id);
+	}
+
+	## we delay setting this complete date until now so as to ensure there is no error message while processing each field
+	if ($args->{form_submit} && !$args->{err_process_msg}) {
+		$entry->setCompleteDate($now);
+		$entry->save({ 'user' => $user_id });
+	}
+	
+	$args->{delete_item} = [ $args->{delete_item} ] unless (ref($args->{delete_item}) eq 'ARRAY');
+
+	foreach my $delete_info (@{$args->{delete_item}}){
+		my ($field_id, $item_id, $response_id) = split('-', $delete_info);
+
+		if (exists($response_hash->{ $field_id })){
+			foreach my $response (@{$response_hash->{ $field_id }}){
+				if ($response_id) {
+					if ($response_id == $response->getPrimaryKeyID()) {
+						$m->comp("DeleteResponse", response => $response, user_id => $user_id);
+					}
+				} elsif ($response->getItemID() == $item_id){	
+					$m->comp("DeleteResponse", response => $response, user_id => $user_id);
+				}
+			}
+		}
+	}
+
+	return $entry_id;
+</%perl>
+</%method>
+
+<%def FillIn>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<%perl>
+	my $key = "id_" . $field->getPrimaryKeyID();
+	$args->{$key} = '' if (!defined($args->{$key}));
+	$m->comp("InsertResponse", entry_id => $entry_id, text => $args->{$key}, user_id => $user_id, field => $field);
+</%perl>
+</%def>
+
+
+<%def Essay>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<%perl>
+	my $key = "id_" . $field->getPrimaryKeyID();
+	$args->{$key} = '' if (!defined($args->{$key}));
+	$m->comp("InsertResponse", entry_id => $entry_id, text => $args->{$key}, user_id => $user_id, field => $field);
+</%perl>
+</%def>
+
+<%def RadioSelect>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<& "SingleSelect", field => $field, args => $args, user_id => $user_id, entry_id => $entry_id, check_item => 0 &>
+</%def>
+
+<%def SingleSelect>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<%perl>
+	my $key = 'id_' . $field->getPrimaryKeyID();
+	my $text_key = 'text_' . $key;
+	my $item_id = $args->{$key};
+	my $text = $args->{$text_key} || undef;
+	return unless ($item_id);
+	if (defined($item_id)){
+		$m->comp("InsertResponse", entry_id => $entry_id, item_id => $item_id, text => $text, user_id => $user_id, field => $field, check_item => 0);
+	}
+</%perl>
+</%def>
+
+<%def SingleSelectAllowMulti>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<%perl>
+	my $key = 'id_' . $field->getPrimaryKeyID();
+	my $text_key = 'text_' . $key;
+	my $seen = {};
+
+	unless (ref($args->{$key}) eq 'ARRAY'){
+		$args->{$key} = [ $args->{$key} ];
+		$args->{$text_key} = [ $args->{$text_key} ];
+	}
+
+	for (my $i=0; $i < scalar (@{$args->{$key}}); $i++){
+		my $item_id = $args->{$key}->[$i];
+		next unless ($item_id);
+		my $text = $args->{$text_key}->[$i] || undef;
+
+		unless ($text){
+			next if ($seen->{$item_id});
+			$seen->{$item_id} = 1;
+		}
+
+		$m->comp("InsertResponse", field => $field, user_id => $user_id, entry_id => $entry_id, item_id => $item_id, text => $text);
+	}
+</%perl>
+</%def>
+
+<%def MultiSelect>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<%perl>
+	my $key = "id_" . $field->getPrimaryKeyID();
+	if (defined($args->{$key})){
+		$args->{$key} = [ $args->{$key} ] unless (ref($args->{$key}) eq "ARRAY");
+		foreach my $item_id (@{$args->{$key}}){
+			next unless ($item_id);
+			$m->comp("InsertResponse", field => $field, user_id => $user_id, entry_id => $entry_id, item_id => $item_id);
+		}
+	}
+</%perl>
+</%def>
+
+<%def CheckList>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<%perl>
+	my $items = $field->getItems();
+	my $attributes = $field->getAttributes();
+	my $field_id = $field->getPrimaryKeyID();
+	my $resps =	TUSK::FormBuilder::Response->new()->lookup("field_id = $field_id AND entry_id = $entry_id" , undef, undef, undef, [ 	TUSK::Core::JoinObject->new("TUSK::FormBuilder::ResponseAttribute", { origkey => 'response_id', joinkey => 'response_id', jointype => 'inner'}) ]);
+	my %answered_items = (scalar @$resps) ? map { $_->getItemID() => $_->getJoinObject('TUSK::FormBuilder::ResponseAttribute') } @$resps : ();
+
+	foreach my $item (@$items){
+		my $item_id = $item->getPrimaryKeyID();
+		my $key = $field_id . '_' . $item_id;
+		foreach my $attribute (@$attributes) {
+			my $attribute_key = $key . '_' . $attribute->getPrimaryKeyID();
+			next unless ($attribute->isValidItem($args->{$attribute_key}));
+
+			if ($args->{$attribute_key}) {
+				my $text = ($item->getAllowUserDefinedValue()) ? $args->{$key . "_user_defined"} : undef;
+				my $response = $m->comp("InsertResponse", field => $field, user_id => $user_id, entry_id => $entry_id, item_id => $item->getPrimaryKeyID(), text => $text);
+				if ($response) {
+					if (exists $answered_items{$item_id}) {
+						unless ($answered_items{$item_id}->getAttributeItemID() == $args->{$attribute_key}) {
+							$answered_items{$item_id}->setAttributeItemID($args->{$attribute_key});
+							$answered_items{$item_id}->save({'user' => $user_id});
+						}
+					} else {
+						my $response_attribute = TUSK::FormBuilder::ResponseAttribute->new();
+						$response_attribute->setResponseID($response->getPrimaryKeyID());
+						$response_attribute->setAttributeID($attribute->getPrimaryKeyID());
+						$response_attribute->setAttributeItemID($args->{$attribute_key});
+						$response_attribute->save({ 'user' => $user_id });
+					}
+				}
+			} ## arguments are passed
+		} ## attributes
+	}  ## items
+
+	## double check if checklist is all complete for a required field when the form is actually submitted
+	## We can't identify why some items are not being saved. It appears javascript doesn't work 100% for some reason
+	if ($args->{form_submit} && $field->getRequired()) {
+		my $sth = $field->databaseSelect(qq(
+			select count(*) 
+			from tusk.form_builder_field_item a, tusk.form_builder_item_type b
+			where a.field_id = $field_id 
+			and a.item_type_id = b.item_type_id and token = 'Item'
+			and a.item_id not in (
+				select c.item_id 
+				from tusk.form_builder_response c
+				where a.field_id = c.field_id and a.item_id = c.item_id and entry_id = $entry_id)
+		));
+		my $count = $sth->fetchrow_array();
+		$sth->finish();
+		push @{$args->{err_process_msg}}, 'Incomplete checklist for ' . $field->getFieldName() if ($count > 0);
+	}
+</%perl>
+</%def>
+
+
+<%def MultiSelectWithAttributes>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<%perl>
+	my $items = $field->getItems();
+	my $attributes = $field->getAttributes();
+	foreach my $item (@$items){
+		my $key = $field->getPrimaryKeyID() . '_' . $item->getPrimaryKeyID;
+		my $selected_key = 'multiwithattr_' . $key . '_selected';
+		if ($args->{$selected_key}){
+			my $text = ($item->getAllowUserDefinedValue()) ? $args->{$key . "_user_defined"} : undef;
+		
+			my $response = $m->comp("InsertResponse", field => $field, user_id => $user_id, entry_id => $entry_id, item_id => $item->getPrimaryKeyID(), text => $text);
+			next unless ($response);
+			foreach my $attribute (@$attributes){
+
+				my $attribute_key = $key . '_' . $attribute->getPrimaryKeyID();
+				next unless ($attribute->isValidItem($args->{$attribute_key}));
+
+				my $response_attribute = TUSK::FormBuilder::ResponseAttribute->new();
+				$response_attribute->setResponseID($response->getPrimaryKeyID());
+				$response_attribute->setAttributeID($attribute->getPrimaryKeyID());
+				$response_attribute->setAttributeItemID($args->{$attribute_key});
+				$response_attribute->save({ 'user' => $user_id });
+			}
+		}
+	}
+</%perl>
+</%def>
+
+<%def DynamicList>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<& "SingleSelect", field => $field, args => $args, user_id => $user_id, entry_id => $entry_id &>
+</%def>
+
+<%def Scaling>
+<%args>
+	$field
+	$args
+	$user_id
+	$entry_id
+</%args>
+<%perl>
+	my $key = 'id_' . $field->getPrimaryKeyID();
+	return unless ($args->{$key});
+
+	my ($item_id, $score) = (0, undef);
+	if ($args->{$key} =~ /\d+_/) {
+		($item_id, $score) = split('_', $args->{$key});
+	} else {
+		$item_id = $args->{$key};
+	}
+
+	$m->comp("InsertResponse", entry_id => $entry_id, field => $field, user_id => $user_id, item_id => $item_id, score => $score, check_item => 0, text => $args->{'comment_' . $field->getPrimaryKeyID()});
+</%perl>
+</%def>
+
+<%doc>
+This now could be either insert a new record (ie patient log) or update an existing one (ie sp, assessment)
+</%doc>
+<%def InsertResponse>
+<%args>
+	$entry_id
+	$field
+	$user_id
+	$item_id => 0
+	$text => undef
+	$score => undef
+	## used for $update_response and some field types will have only one response
+	## when check_item is 0, we leave out not to include item in determining which response to update
+	$check_item => 1  
+</%args>
+<%perl>
+	$item_id = int($item_id);
+	if ($check_item && $item_id && $field->isValidItem($item_id) == 0) {
+		return;  ## early exit in case of invalid item except if the field doesn't need to validate the item
+	}
+
+	my $response;
+	if ($update_response) {
+		my $item_cond = " AND item_id = $item_id" if $check_item;
+		$response = TUSK::FormBuilder::Response->lookupReturnOne("entry_id = $entry_id AND field_id = " . $field->getPrimaryKeyID() . $item_cond);
+	 	$response = TUSK::FormBuilder::Response->new() unless $response;
+	} else {
+	 	$response = TUSK::FormBuilder::Response->new();
+	}
+
+	if ($response) {
+		$response->setEntryID($entry_id);
+		$response->setFieldID($field->getPrimaryKeyID());
+		$response->setItemID($item_id);
+		$response->setText($text);
+		$response->setScore($score);
+		$response->save({ 'user' => $user_id });
+		return $response;
+	}
+</%perl>
+</%def>
+
+<%def DeleteResponse>
+<%args>
+	$response
+	$user_id
+</%args>
+<%perl>
+	if ($update_response) {
+		$response->delete({'user' => $user_id});
+	} else {
+		$response->setActiveFlag(0);
+		$response->save({'user' => $user_id});
+	}
+</%perl>
+</%def>
+
+<%method updateEntryAssociation>
+<%args>
+	$entry_id
+	$student_id
+	$user_id
+	$is_final
+</%args>
+<%perl>
+	my $assoc = TUSK::FormBuilder::EntryAssociation->new();
+ 	$assoc->setEntryID($entry_id);
+ 	$assoc->setUserID($student_id);
+ 	$assoc->setIsFinal($is_final);
+ 	$assoc->save({user => $user_id});
+</%perl>
+</%method>

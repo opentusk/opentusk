@@ -1,0 +1,278 @@
+<!--
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+-->
+
+
+<!--    eval.dtd
+
+        Designed to represent a course evaluation, including its list
+        of associated questions.  This way, we can work with an entire 
+        evaluation at once. 
+
+        Jeannette Ryan Alkasab <jeannette.alkasab@tufts.edu>
+        Tarik Alkasab <tarik.alkasab@neurosci.tufts.edu>
+        $Revision: 1.28 $
+        $Date: 2012-04-20 16:52:32 $
+-->
+
+
+<!-- Include useful entities. -->
+<!ENTITY % entitiesDTD PUBLIC "-//HSDB//Useful entities for HSCML//EN" "entities.dtd">
+%entitiesDTD;
+
+<!-- Use the XHTML entities -->
+<!ENTITY % HTMLlat1 PUBLIC "-//W3C//ENTITIES Latin 1 for XHTML//EN" "XMLlat1.ent">
+<!ENTITY % HTMLsymbol PUBLIC "-//W3C//ENTITIES Symbols for XHTML//EN" "XMLsymbol.ent">
+<!ENTITY % HTMLspecial PUBLIC "-//W3C//ENTITIES Special for XHTML//EN" "XMLspecial.ent">
+%HTMLlat1;
+%HTMLsymbol;
+%HTMLspecial;
+
+<!-- Include basic inline text elements -->
+<!ENTITY % entitiesDTD PUBLIC "-//HSDB//Definition of useful entities//EN" "entities.dtd">
+%entitiesDTD;
+<!-- Include basic inline text elements -->
+<!ENTITY % inlineDTD PUBLIC "-//HSDB//Definition of text elements//EN" "inline.dtd">
+%inlineDTD;
+<!-- Include structure elements -->
+<!ENTITY % structureDTD PUBLIC "-//HSDB//Definition of document structure//EN" "structure.dtd">
+%structureDTD;
+
+<!ENTITY % QuestionTypes "Title|Instruction|MultipleResponse|MultipleChoice|DiscreteNumeric|NumericRating|PlusMinusRating|Count|YesNo|Ranking|TeachingSite|SmallGroupsInstructor|IdentifySelf|FillIn|NumericFillIn">
+
+<!-- The structure of the eval itself -->
+<!ELEMENT Eval (eval_title, available_date, due_date, prelim_due_date?, (EvalQuestion|EvalQuestionRef|QuestionGroup)+)>
+<!-- Eval's attributes are course_id and time_period_id, which should be
+     related to the course and time_period tables in the database. -->
+<!ENTITY % EvalAttrs 
+        "eval_id         CDATA   #IMPLIED
+        course_id       CDATA   #REQUIRED
+        time_period_id  CDATA   #REQUIRED
+        school          %Schools; #REQUIRED">
+<!ATTLIST Eval %EvalAttrs;>
+
+<!ELEMENT EvalQuestion (question_label?, grouping*, graphic_stylesheet?, (%QuestionTypes;))>
+<!ATTLIST EvalQuestion
+        required        (Yes|No)        "No"
+        eval_question_id      CDATA               #IMPLIED
+        sort_order            CDATA               #IMPLIED>
+
+<!ELEMENT EvalQuestionRef (question_label?, grouping*, graphic_stylesheet?, QuestionRef)>
+<!ATTLIST EvalQuestionRef
+        required        (Yes|No)        "No"
+        eval_question_id      CDATA               #IMPLIED
+        sort_order            CDATA               #IMPLIED>
+
+<!ELEMENT question_label %Inline;>
+<!ELEMENT grouping EMPTY>
+<!ATTLIST grouping group_by_id CDATA #REQUIRED>
+<!ELEMENT graphic_stylesheet (#PCDATA)>
+
+<!ELEMENT QuestionGroup (EvalQuestion, EvalQuestionRef+)>
+
+<!-- These should be dates, as appropriate for the database, though 
+     the DTD format doesn't let us specify that. -->
+<!ELEMENT eval_title %Inline;>
+<!ELEMENT available_date %Date;>
+<!ELEMENT due_date %Date;>
+<!ELEMENT prelim_due_date %Date;>
+
+<!ENTITY % EvalQuestionAttrs
+  "default_answer 	CDATA               #IMPLIED
+  na_available         (yes|no)               &#34;no&#34;">
+
+<!ENTITY % ChoiceAlignAttr
+  "choice_align (horizontal|vertical) &#34;horizontal&#34;">
+<!ENTITY % MultipleChoiceStyle
+  "choice_style (radiobox|dropdown) &#34;radiobox&#34;">
+<!ENTITY % MultipleResponseStyle
+  "choice_style (checkbox|combobox) &#34;checkbox&#34;
+   display_rows CDATA &#34;5&#34;">
+<!ENTITY % QuestionElements "question_text">
+
+<!-- Sub Elements of the kinds of questions -->
+<!ELEMENT question_text %Flow;>
+
+<!ELEMENT choice %Inline;>
+<!ATTLIST choice 
+        stored_value CDATA #IMPLIED
+        %DefAttrs;>
+  
+
+<!-- Eval Elements (they aren't all questions...) -->
+
+<!--    QuestionRef
+        Reference to another question.
+-->
+<!ELEMENT QuestionRef (%QuestionElements;)>
+<!ATTLIST QuestionRef 
+        %DefAttrs;
+        %EvalQuestionAttrs;
+        target_question_id CDATA #REQUIRED>
+  
+<!--    Title
+        User defines a section or sub-section title; a non-question. 
+        Stores: 
+-->
+<!ELEMENT Title (%QuestionElements;)>
+<!ATTLIST Title 
+        %DefAttrs;
+        %EvalQuestionAttrs;>
+
+<!--    Instruction
+        A non-question for the designer to give the user instruction.
+        Stores:
+-->
+<!ELEMENT Instruction (%QuestionElements;)>
+<!ATTLIST Instruction 
+        %DefAttrs;
+        %EvalQuestionAttrs;>
+
+<!--    MultipleResponse
+        Somehow allow a user to select none, one, or more choices from 
+        a list of choices.
+        Stores:
+-->
+<!ELEMENT MultipleResponse (%QuestionElements;, choice+)>
+<!ATTLIST MultipleResponse 
+        %DefAttrs;
+        %EvalQuestionAttrs;
+        %ChoiceAlignAttr;
+	%MultipleResponseStyle;>
+
+<!--    MultipleChoice
+        Somehow allow the user to select one from a list of choices. 
+        The user can specify a couple of styles; either dropdown or
+        radiobox. -->
+<!ELEMENT MultipleChoice (%QuestionElements;, choice+)>
+<!ATTLIST MultipleChoice 
+        %DefAttrs;
+        %EvalQuestionAttrs;
+        %ChoiceAlignAttr;
+	%MultipleChoiceStyle;>
+
+<!--    DiscreteNumeric
+        Same as MultipleChoice, except that the choices are all designated
+        as being numeric. -->
+<!ELEMENT DiscreteNumeric (%QuestionElements;, choice+)>
+<!ATTLIST DiscreteNumeric
+        %DefAttrs;
+        %EvalQuestionAttrs;
+        %ChoiceAlignAttr;
+	%MultipleChoiceStyle;>
+
+<!--    NumericRating
+        Allows a rating on a numeric scale, with (optional) labels at the low,
+        middle, and highest points on the scale. -->
+<!ENTITY % NumSteps 
+        "num_steps CDATA &#34;3&#34;
+        show_numbers (yes|no) &#34;no&#34;">
+<!ELEMENT NumericRating (%QuestionElements;, low_text?, mid_text?, high_text?)>
+<!ATTLIST NumericRating 
+        %DefAttrs;
+        %EvalQuestionAttrs;
+        %NumSteps;
+        %ChoiceAlignAttr;
+	%MultipleChoiceStyle;>
+
+<!--    PlusMinusRating
+        More specific kind of numeric rating where extremes go too far in one or another
+        direction: "How much reading was there?" "Too much - - Just Right - - Too little"
+        -->
+<!ELEMENT PlusMinusRating (%QuestionElements;, low_text?, mid_text?, high_text?)>
+<!ATTLIST PlusMinusRating
+        %DefAttrs;
+	%EvalQuestionAttrs;
+	%NumSteps;
+        %ChoiceAlignAttr;
+        %MultipleChoiceStyle;>
+		
+<!ELEMENT low_text %Inline;>
+<!ELEMENT high_text %Inline;>
+<!ELEMENT mid_text %Inline;>
+
+<!--    Count
+        Allow the user to specify a quantity within bins; that is, a quantity
+        between a low_bound (default 0), a high_bound with a given bin
+        size, based on the interval attribute (default 1). -->
+<!ELEMENT Count (%QuestionElements;, low_bound?, high_bound, interval?)>
+<!ATTLIST Count
+        %DefAttrs;
+        %EvalQuestionAttrs;
+        %ChoiceAlignAttr;
+	%MultipleChoiceStyle;>
+		
+<!ELEMENT low_bound (#PCDATA)>
+<!ATTLIST low_bound lower_than_bound (yes|no) "yes">
+<!ELEMENT high_bound (#PCDATA)>
+<!ATTLIST high_bound higher_than_bound (yes|no) "yes">
+<!ELEMENT interval (#PCDATA)>
+
+<!--    YesNo
+        A Yes/No question type; the only responses are yes and no. -->
+<!ELEMENT YesNo (%QuestionElements;)>
+<!ATTLIST YesNo 
+        %DefAttrs;
+        %EvalQuestionAttrs;>
+
+<!--    Ranking
+        Somehow, show a list of choices and allow the user to put them in
+        some order. -->
+<!ELEMENT Ranking (%QuestionElements;, choice+)>
+<!ATTLIST Ranking
+        %DefAttrs;
+	%EvalQuestionAttrs;>
+
+<!--    TeachingSite
+        Allows the user to choose a TeachingSite generated from a database query
+        of the teaching sites for the course. -->
+<!ELEMENT TeachingSite  (%QuestionElements;)>
+<!ATTLIST TeachingSite 
+        %DefAttrs;
+        %EvalQuestionAttrs;>
+
+<!--    SmallGroupsInstructor
+        Allows the user to choose a small group instructor from a database query
+        of the small group instructors for the course. -->
+<!ELEMENT SmallGroupsInstructor (%QuestionElements;)>
+<!ATTLIST SmallGroupsInstructor 
+        %DefAttrs;
+        %EvalQuestionAttrs;>
+
+<!--    IdentifySelf
+        Not so much a question whether or not to allow identification of the
+        user. -->
+<!ELEMENT IdentifySelf  (%QuestionElements;)>
+<!ATTLIST IdentifySelf 
+        %DefAttrs;
+        %EvalQuestionAttrs;>
+
+<!--    FillIn
+        A textual fill-in; lets the user type to their heart's content. -->
+<!ELEMENT FillIn  (%QuestionElements;)>
+<!ATTLIST FillIn 
+        %DefAttrs;
+        %EvalQuestionAttrs;
+        longtext (yes|no) "yes">
+
+<!--    NumericFillIn
+        A FillIn which is specified as taking numeric data.  (We may have to
+        include form validation eventually. -->
+<!ELEMENT NumericFillIn (%QuestionElements;, low_bound, high_bound)>
+<!ATTLIST NumericFillIn
+        %DefAttrs;
+	decimal_ok (yes|no) "yes">
+
+

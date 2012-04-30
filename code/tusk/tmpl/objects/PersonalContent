@@ -1,0 +1,113 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method edit_PersonalContentCollectionDeck>
+  <%args>
+    $personalContentRef
+	$i
+	$lngth
+  </%args>
+
+
+<tr height="10px"> </tr>
+<tr bgcolor="#cccccc">
+
+<td>  
+<select name="order_box" onchange="this.form.order.value=this.options[this.selectedIndex].value;this.form.submit();">
+% for (my $j=1; $j< $lngth+1; $j++) {
+
+%if ($i == $j) { 
+	<option selected="" value=""  >
+
+% } else {
+	<option value="<% $i %>-<% $j %>" >
+% } 
+ 
+<% $j %> </option>
+
+% }  #end for loop
+
+</select>
+
+</td><td>
+
+% my $pcid = ${$personalContentRef}->primary_key;
+
+<img src="/icons/ico-folder-plus.gif" id="fldr_<% $i %>" width="20" height="22" border="0" onclick="javascript:toggle_visibility_multiple('toggled<% $i %>');toggle_img(<% $i %>);requestContent(<% $pcid %>);">
+</td>
+
+<td colspan="3" align="left">
+<input class="textareawhite" name="rename_<% ${$personalContentRef}->primary_key %>" type="text" size="40" value="<% ${$personalContentRef}->out_label %>"  >
+
+% if ( ${$personalContentRef}->field_value("type") eq "Flash Card Deck" ) {
+      <a class="navsm" href="javascript:submitrename('fcardform',<% ${$personalContentRef}->primary_key %>)">Save Name</a> 
+% } else {
+	<a class="navsm" href="javascript:submitrename('pcform',<% ${$personalContentRef}->primary_key %>)">Save Name</a> |
+	<a class="navsm" href="javascript:submitnote('pcform',<% ${$personalContentRef}->primary_key %>)">Add Note</a>
+% }
+    </td>
+    <td align="right">
+
+%  if ( ${$personalContentRef}->field_value("type") eq "Flash Card Deck" ) {
+<a class="navsm" href="/management/flashcard/newblankcard/<% ${$personalContentRef}->primary_key %>/blank">New Blank Card</a> |
+<a class="navsm" href="/management/flashcard/viewdeck/<% ${$personalContentRef}->primary_key %>">Test Yourself</a> | 
+<a class="navsm" href="javascript:submitform(<% ${$personalContentRef}->primary_key %>, 1);" >Delete Deck</a> 
+% } else {
+
+<a class="navsm" href="javascript:submitformpc(<% ${$personalContentRef}->primary_key %>, 0);" >Delete Folder</a> 
+
+
+% }
+
+</td>
+</tr>
+
+
+% #####   Begin: Get cards in this deck, show them
+
+
+<tr id ="toggled<% $i %>1" style="display:none;" >
+<td colspan="100%" id="td_<% $pcid %>" >
+
+</td>
+</tr>
+
+% ##### End : Get cards in this deck, show them
+
+</%method>
+
+
+% #########################################################################################################
+
+<%method edit_PersonalContent>
+  <%args>
+    $personalContentRef
+    $parentContentID
+	$i
+  </%args>
+
+  <tr valign="top" id ="toggled<% $i %>">
+
+    <td>&nbsp;</td>
+    <td>&nbsp;</td>
+    <td Valign="top" align="right">
+      <textarea name="rename_<% ${$personalContentRef}->primary_key %>" class="textareawhite" cols="60" wrap="virtual" rows="4"><% ${$personalContentRef}->field_value('body') %></textarea>
+    </td>
+    <td align="left" valign="top"><input type="submit" value="Save Note" class="formbutton"></td>
+    <td align="right" valign="top" colspan="2">
+<input type="submit" name="deletePersonalContent_<% $parentContentID %>.<% ${$personalContentRef}->primary_key %>" value="Delete" class="formbutton"</td>
+   </tr>
+   
+</%method>

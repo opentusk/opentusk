@@ -1,0 +1,95 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB4::Constants;
+	use JSON;
+</%once>
+
+
+<%attr>
+	no_header => 1
+	no_body => 1
+	page_header => undef,
+	page_footer => undef,
+</%attr>
+
+
+<%perl>
+	$m->clear_buffer();
+	$r->content_type('application/json');
+	$r->no_cache(1);
+
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $db = HSDB4::Constants::get_school_db($course->school());		
+	my $course_id = $course->primary_key();
+	my $tp_ids = join(',', (ref $ARGS{tpid} eq 'ARRAY') ? @{$ARGS{tpid}} : $ARGS{tpid});
+	my $form = $m->comp("/formbuilder/util:get_form");
+	my $form_id = $form->getPrimaryKeyID();
+
+	## get list of site directors / directors regardless of time periods
+    ## narrow down site directors to only who is assigned with the teaching_site that is associated with students who entered the form for the given time period(s)
+ 	my @users = $course->child_users("(FIND_IN_SET('Site Director', roles) or FIND_IN_SET('Director', roles))");
+
+	my $sql = qq(
+		SELECT cs.teaching_site_id, site_name, count(*) as entries, count(distinct child_user_id) as students, count(distinct user_id) as completed_students
+		FROM $db.link_course_student as cs
+		INNER JOIN $db.teaching_site as ts
+			on (cs.teaching_site_id = ts.teaching_site_id)
+		LEFT OUTER JOIN tusk.form_builder_entry as e 
+			on (child_user_id = user_id and e.time_period_id = cs.time_period_id and form_id = $form_id)
+		WHERE parent_course_id = $course_id and cs.time_period_id in ($tp_ids) 
+		GROUP BY teaching_site_id
+	);
+
+	my $sth = $form->databaseSelect($sql);
+	my $sites = $sth->fetchall_hashref('teaching_site_id');
+	my $data = {};
+
+	if (scalar keys %$sites) {
+		foreach my $user (@users) {
+			my $isSiteDirector = ($user->aux_info('roles') =~ /Site Director/) ? 1 : 0;
+			my $site_id = $user->aux_info('teaching_site_id');
+
+			if ($isSiteDirector) {
+				if (exists $sites->{$site_id}) {
+					$sites->{$site_id}{hasSiteDirector} = 1;
+				} else {
+					next;
+				}
+			}
+
+			my $key = ($isSiteDirector) ? 'sitedirectors' : 'directors';
+			push @{$data->{$key}}, {
+				name 				=> $user->out_lastfirst_name(),
+				isSiteDirector		=> $isSiteDirector,
+				email 				=> $user->default_email(),
+				siteId  			=> $site_id,
+				siteName			=> (exists $sites->{$site_id}) ? $sites->{$site_id}{site_name} : '',   
+				entries				=> (exists $sites->{$site_id}) ? $sites->{$site_id}{entries} : '',
+				students			=> (exists $sites->{$site_id}) ? $sites->{$site_id}{students} : '',
+				completedStudents	=> (exists $sites->{$site_id}) ? $sites->{$site_id}{completed_students} : '',
+			};
+		}
+
+		## get sites with no site director assigned
+		foreach (keys %$sites) {
+			push @{$data->{'siteswithnodirector'}}, $sites->{$_}{site_name} unless (exists $sites->{$_}{hasSiteDirector});
+		}
+	}
+
+	my  $json = JSON->new()->allow_nonref();
+ 	$m->print($json->encode($data));
+</%perl>

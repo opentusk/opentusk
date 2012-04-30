@@ -1,0 +1,120 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+my $school             = $m->comp("/tmpl/url:get_school");
+my $type_object        = $m->comp("/tmpl/url:get_type_object");
+my $base_url           = "/management/usergroup/show";
+my $self_path          = "school/" . $school;
+my $is_course_group    = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
+my $course;
+if ( $is_course_group ) {
+       	$course             = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+		$self_path          = "course/" . $school . "/" . $type_object->course_id;
+}
+</%shared>
+
+<%method should_show_tp_dropdown>
+% return $is_course_group;
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method right_header_text>
+%	return [ {txt => 'Preview', url => "/view/$self_path/groups" } ];
+</%method>
+
+<%method title>
+<%perl>
+if ( $is_course_group ) {
+	if ( $course->type() eq 'group' ) {	return 'Manage Sub-Groups'; }
+	else { return 'Manage Course Groups'; }
+}
+else { return 'Manage Groups'; }
+</%perl>
+</%method>
+
+% if (!$is_course_group || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+<& /tmpl/element:cms_button_row, links => [ {link_txt=>'/management/usergroup/addedit/' . $self_path, display_txt=>'New Group'} ] &>
+% }
+
+<%perl>
+my $groups = [];
+
+if ( $is_course_group ) {
+	$groups = [ $course->sub_user_groups( $m->comp("SELF:get_timeperiod_id") ) ]; 
+} else {
+	$groups = [ HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'", "order by sort_order, upper(label)") ];
+}
+
+my $new_groups = [ map { id => $_->primary_key, label => "<a href='/management/usergroup/addedit/$self_path/" . $_->primary_key . "'>" . $_->label . "</a>", description => $_->description }, @{$groups} ];
+
+my $col_fields = [ {'label'=>'Group Name',  'field'=>'label', 'link'=>'/management/usergroup/addedit/' . $self_path},
+                   {'label'=>'Description', 'field'=>'description'} ];
+my $action_columns = [];
+if (!$is_course_group) {
+	push @$action_columns, {'label' => 'Link Courses',         'link' => '/management/grouplinks/show/usergroup/' . $school};
+	push @$action_columns, {'label' => 'Student/Course Links', 'link' => '/management/usergroup/studentcourse/' . $self_path};
+}
+if (!$is_course_group || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+	push @$action_columns, {'label'=>'Modify','link'=>"/management/usergroup/addedit/$self_path"};
+	push @$action_columns, {'label'=>'Delete','link'=>"/management/usergroup/delete/$self_path"};
+}
+
+my $post_to = '/management/usergroup/ajaxReorder/' . $school;
+if ( $is_course_group ) {
+	$post_to .= '/' . $type_object->course_id . '/' . $m->comp("SELF:get_timeperiod_id"); 
+}
+
+</%perl>
+<& /tmpl/element:jquery_sort_list, params => {
+				width => "100%",
+				label => 'Usergroups',
+				no_table => 1,
+				no_add_button => 1,
+				container => 'usergroup_container',
+				name => 'usergroups',
+				sort => 1,
+				no_nesting => 'sort-row',
+				action_width => 150,
+				action_columns => $action_columns,
+				action_dropdown => 1,
+				fields => [
+					{ hide  => 1, field => 'id' },
+                	{ label => 'Group Name', field => 'label' },
+                	{ label => 'Description', field => 'description' }
+				],
+				data => $new_groups, 
+				post_to => $post_to,
+				empty_message => "No usergroups available." }
+&>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js" 
+			];
+</%perl>
+</%method>

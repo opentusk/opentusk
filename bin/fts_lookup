@@ -1,0 +1,70 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use MySQL::Password;
+use HSDB4::SQLRow::Content;
+use TUSK::Search::Indexer;
+use TUSK::Search::UserSearch;
+use Getopt::Long;
+use DBIx::FullTextSearch::StopList;
+
+my ($content_id,$user_id);
+GetOptions ("content-id=s" => \$content_id,
+	    "user-id=s" => \$user_id);
+
+if (!$content_id && !$user_id) {
+	print "Usage: fts_lookup [--content-id=<content id>] [--user-id=<user id>]\n";
+	exit;
+}
+
+HSDB4::Constants::set_user_pw (get_user_pw);
+my $query = TUSK::Search::Indexer->new();
+my $dbh = TUSK::Search::UserSearch->getFTSHandle;
+my @tables;
+
+if ($content_id) {
+    @tables = qw(author body course school system title type);
+    foreach my $table (@tables) {
+	my $table_name1 = "fts_".$table."_data";
+	my $table_name2 = "fts_".$table."_words";
+	my $query_text = "select w.word,d.idx from $table_name1 d, $table_name2 w where d.word_id = w.id and d.doc_id = $content_id order by w.word;";
+	my $sth = $dbh->prepare($query_text);
+	$sth->execute;
+	print "$table (".$sth->rows." matches):\n\t";
+	while (my ($word,$data) = $sth->fetchrow_array) {
+	    my @positions = unpack 'L*', $data;
+	    print $word." (".scalar @positions.")\n\t";
+	}
+	print "\n";
+    }
+} else {
+    my $query_text = "select d.name,w.word 
+                      from fts_user_words w, fts_user_docid d, fts_user_data u 
+                      where u.word_id = w.id and u.doc_id = d.id and d.name = '$user_id'";
+    my $sth = $dbh->prepare($query_text);
+    $sth->execute;
+    print "$user_id (".$sth->rows." matches):\n\t";
+    while (my ($name,$word) = $sth->fetchrow_array) {
+        print $word."\n\t";
+    }
+    print "\n";
+}
+
+TUSK::Search::UserSearch->dropFTSHandle($dbh);

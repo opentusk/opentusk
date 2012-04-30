@@ -1,0 +1,231 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+	$propertyType
+	$parentCourseID
+	$nodeToModify => ''
+</%args>
+
+<%flags>
+  inherit => undef
+</%flags>
+
+<%shared>
+  my $numFailed = 0;
+  my $course;
+  my $globalParentCourseID = 0;
+  my $globalModifying = 0;
+</%shared>
+
+<%attr>
+</%attr>
+
+
+% $m->clear_buffer();
+% $r->content_type('text/xml');
+<?xml version="1.0" encoding="UTF-8"?>
+
+<theResponse>
+<%perl>
+  $globalParentCourseID = $parentCourseID;
+  #Build the course from the tusk id number.
+  my $tuskCourse = TUSK::Course->lookupKey($parentCourseID);
+  $course = $tuskCourse->getHSDB45CourseFromTuskID();
+
+  #Check our permissions on this course.
+  if(exists($m->session->{'user'})) {
+    if($course->primary_key()) {
+      if($m->comp("/autohandler:check_course_permissions", token => 'DIRECTOR', typeObj => $course, school => $course->school())) {
+	#Starting with this node find and create all parents node until we find an existing one or hit the top.
+	my $parentID = $m->comp("SELF:createParentIfNeeded", startWithParentOf => $propertyType, args => \%ARGS);
+
+        #If we had a failure then don't go on and create more.
+        unless($numFailed) {
+          my $theNodeOfTheItemPassedIn;
+          #If we are explicity changing a node value.
+          if($nodeToModify) {
+print "<debug>There was something existing</debug>\n";
+            $globalModifying = 1;
+            $theNodeOfTheItemPassedIn = TUSK::Course::CourseMetadata->new;
+            if($theNodeOfTheItemPassedIn->lookupKey($nodeToModify)) {
+print "<debug>It was valid</debug>\n";
+              #If a change was requested to the value of the node then lets change it.
+              if($ARGS{ $theNodeOfTheItemPassedIn->getMetadataType() }) {
+print "<debug>I am changing it</debug>\n";
+                $theNodeOfTheItemPassedIn->setValue( $ARGS{ $theNodeOfTheItemPassedIn->getMetadataType() } );
+                $theNodeOfTheItemPassedIn->setUser( $m->session->{'user'}->primary_key() );
+                unless($theNodeOfTheItemPassedIn->save()) {$numFailed++;}
+              }
+            } else {$numFailed++;}
+          } else {
+            #Now check to see if the node exists if we are a top level element.
+            my @possibleNodes = @{ TUSK::Course::CourseMetadata->lookup("metadata_type='$propertyType' and course_id='$globalParentCourseID'") };
+            if(scalar(@possibleNodes) && ($parentID eq '')) {
+              $theNodeOfTheItemPassedIn = $possibleNodes[0];
+              $theNodeOfTheItemPassedIn->setValue( $ARGS{$propertyType} );
+              $theNodeOfTheItemPassedIn->setUser( $m->session->{'user'}->primary_key() );
+              unless($theNodeOfTheItemPassedIn->save()) {$numFailed++;}
+print "<debug>Using an old top level node</debug>\n";
+            } else {
+              $globalModifying = 0;
+	      #Now create the node that we really wanted to.
+print "<debug>Creating a new node of type $propertyType</debug>\n";
+              $theNodeOfTheItemPassedIn = $m->comp("SELF:addNewCourseMetadata", parentID => $parentID, type => $propertyType, value => $ARGS{$propertyType});
+              $m->print("<newItemNumber>", $theNodeOfTheItemPassedIn->getPrimaryKeyID(), "</newItemNumber>");
+            }
+          }
+
+          unless($numFailed) {
+	    #Now create any children (that have been passed in).
+            my $numberOfChildrenNodes = $m->comp("SELF:saveChildren", typeOfParentItem => $propertyType,
+                                                                      idOfParentItem => $theNodeOfTheItemPassedIn->getPrimaryKeyID(), args => \%ARGS
+                                                 );
+          }
+        }
+        $m->print("<itemsFailed>$numFailed</itemsFailed>");
+      } else {
+        $m->print("<itemsFailed>-1</itemsFailed>");
+      }
+    } else {
+      $m->print("<itemsFailed>-2</itemFailed>");
+    }
+  } else {
+    $m->print("<itemsFailed>-3</itemsFailed>");
+  }
+</%perl>
+</theResponse>
+
+
+<%method addNewCourseMetadata>
+  <%args>
+    $parentID => ''
+    $type
+    $value => ''
+  </%args>
+
+  <%perl>
+    my $tempNode = TUSK::Course::CourseMetadata->new;
+    $tempNode->setCourseID($globalParentCourseID);
+    $tempNode->setMetadataType($type);
+    if($parentID)
+      {$tempNode->setParent($parentID);}
+    if($value) 
+      {$tempNode->setValue($value);}
+    $tempNode->setUser( $m->session->{'user'}->primary_key() );
+    unless($tempNode->save()) {$numFailed++; return '';}
+    else                      {return $tempNode;}
+  </%perl>
+</%method>
+
+
+
+<%method createParentIfNeeded>
+  <%args>
+    $startWithParentOf
+    $args
+  </%args>
+
+  <%perl>
+    my $localParentID = 0;
+    my $pkOfParent = '';
+    if($startWithParentOf) {
+      my $typeOfParentOfNodeToStartWith = TUSK::Course::CourseMetadataDisplay->new()->lookupKey($startWithParentOf)->getParent();
+      my $parentItems = [];
+      if($typeOfParentOfNodeToStartWith) {
+        $parentItems = $course->getCourseMetadataByType($globalParentCourseID, $typeOfParentOfNodeToStartWith, undef);
+      }
+
+
+      if($typeOfParentOfNodeToStartWith) {
+        if(scalar(@{$parentItems}) == 0) {
+          #Call ourselves again and then get create a new node.
+          $localParentID = $m->comp("SELF:createParentIfNeeded", startWithParentOf => $typeOfParentOfNodeToStartWith, args => $args);
+
+          #Create the actual node into the database.
+          my $newObject = $m->comp("SELF:addNewCourseMetadata", parentID => $localParentID, type => $typeOfParentOfNodeToStartWith,
+                                                              value => ${$args}{$typeOfParentOfNodeToStartWith}
+                                  );
+          if($newObject) {$pkOfParent = $newObject->getPrimaryKeyID();}
+        } else {
+          $pkOfParent = ${$parentItems}[0]->getPrimaryKeyID();
+        }
+      }
+    }
+    return $pkOfParent;
+  </%perl>
+</%method>
+
+
+<%method saveChildren>
+  <%args>
+    $typeOfParentItem
+    $idOfParentItem
+    $args
+  </%args>
+
+  <%perl>
+    my $localChildNode;
+    my $numberOfChildren = 0;
+    if($typeOfParentItem && $idOfParentItem) {
+      #Foreach the children of this item type from the courseMetadataDisplay.
+      foreach my $childCourseMetadataDisplayObject (@{ TUSK::Course::CourseMetadataDisplay->lookup("parent='$typeOfParentItem'")}) {
+        my $childNodeObject;
+        if($globalModifying) {
+          #Check to see if we have any of these type of children in the database.
+          my $condition = "metadata_type='" . $childCourseMetadataDisplayObject->getPrimaryKeyID() .
+                          "' and course_id='$globalParentCourseID' and (metadata_id='$idOfParentItem' or parent='$idOfParentItem')";
+          my $tempNode = TUSK::Course::CourseMetadata->new;
+          my @possibleMatches = @{ $tempNode->lookup($condition) };
+          if(scalar(@possibleMatches) == 1) {
+            $localChildNode = $possibleMatches[0];
+            #This must be the thing we were changing
+            #If a change was requested to the value of the node then lets change it.
+            if(exists(${$args}{ $localChildNode->getMetadataType() })) {
+              $localChildNode->setValue( ${$args}{ $localChildNode->getMetadataType() } );
+              $localChildNode->setUser( $m->session->{'user'}->primary_key() );
+              unless($localChildNode->save()) {$numFailed++;}
+            }
+          } 
+        } else {
+print "<debug>Does the arg exist for ", $childCourseMetadataDisplayObject->getPrimaryKeyID(), "?: ", exists(${$args}{ $childCourseMetadataDisplayObject->getPrimaryKeyID() }), "</debug>\n";
+          #Now check for an existing node of this type.
+          my @possibleNodes = @{ TUSK::Course::CourseMetadata->lookup("metadata_type='$childCourseMetadataDisplayObject->getPrimaryKeyID()' and course_id='$globalParentCourseID'") };
+          if(scalar(@possibleNodes)) {
+            $localChildNode = $possibleNodes[0];
+            $localChildNode->setValue( ${$args}{ $childCourseMetadataDisplayObject->getPrimaryKeyID() } );
+            $localChildNode->setUser( $m->session->{'user'}->primary_key() );
+            unless($localChildNode-->save()) {$numFailed++;}
+          } else {
+            #Now create the node that we really wanted to.
+            $localChildNode = $m->comp("SELF:addNewCourseMetadata", parentID => $idOfParentItem,
+                                                                    type => $childCourseMetadataDisplayObject->getPrimaryKeyID(),
+                                                                    value => ${$args}{ $childCourseMetadataDisplayObject->getPrimaryKeyID() });
+            if($localChildNode) {$m->print("<newItemNumber>", $localChildNode->getPrimaryKeyID(), "</newItemNumber>");}
+          }
+        }
+
+        unless($numFailed || !$localChildNode) {
+          #Now save the children of this child.
+          $m->comp("SELF:saveChildren", typeOfParentItem => $childCourseMetadataDisplayObject->getPrimaryKeyID(),
+                                        idOfParentItem => $localChildNode->getPrimaryKeyID(), args => $args
+                  );
+        }
+        $numberOfChildren++;
+      }
+    } else {$numberOfChildren++;}
+    return $numberOfChildren;
+  </%perl>
+</%method>

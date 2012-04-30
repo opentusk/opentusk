@@ -1,0 +1,78 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Application::GradeBook::GradeBook;
+	use TUSK::FormBuilder::Form::GradeEvent;
+</%once>
+
+<%method addedit>
+<%args>
+	$form
+	$time_period_id
+	$student_id
+	$grade
+	$comments
+	$course => $m->comp('/tmpl/url:get_type_object')
+	$user_id => $m->session->{'user'}->user_id()
+</%args>
+
+<%perl>
+	my $form_grade_event = TUSK::FormBuilder::Form::GradeEvent->lookupReturnOne("form_id = " . $form->getPrimaryKeyID(), undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', jointype => 'inner', joincond => "time_period_id = $time_period_id"}) ]);
+
+	## first time grading, so let's create a grade event first
+	unless ($form_grade_event) {
+		my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $time_period_id, user_id => $user_id});
+		my $grade_event = $gb->createGradeEvent($form->getFormName(), $form->getFormDescription());
+		$form_grade_event = TUSK::FormBuilder::Form::GradeEvent->new();
+		$form_grade_event->setFormID($form->getPrimaryKeyID());
+		$form_grade_event->setGradeEventID($grade_event->getPrimaryKeyID());
+		$form_grade_event->save({user => $user_id});
+	}
+	
+	my $student_grade = TUSK::GradeBook::LinkUserGradeEvent->lookupReturnOne("parent_user_id = '$student_id' AND child_grade_event_id = " . $form_grade_event->getGradeEventID());
+
+	unless ($student_grade) {
+		$student_grade = TUSK::GradeBook::LinkUserGradeEvent->new();
+		$student_grade->setFieldValues({
+			parent_user_id 			=> $student_id,
+			child_grade_event_id 	=> $form_grade_event->getGradeEventID(),
+		});
+	}
+
+	$student_grade->setFieldValues({
+		grade		=> $grade,
+		comments	=> $comments,
+	});
+
+	$student_grade->save({user => $user_id});		
+	return $student_grade;
+</%perl>
+</%method>
+
+
+<%method get_student_grade>
+<%args>
+	$form_id
+	$time_period_id
+	$student_id
+</%args>
+<%perl>
+	return TUSK::GradeBook::LinkUserGradeEvent->lookupReturnOne("parent_user_id = '$student_id'", undef, undef, undef, [ 
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "time_period_id = $time_period_id"}),
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Form::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "form_id = $form_id"}), 
+	]);
+</%perl>
+</%method>

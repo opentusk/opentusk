@@ -1,0 +1,53 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Constants;
+</%once>
+
+
+<%method logo>
+<div><img src="/graphics/mlogo.gif" height="40" width="110" alt="<% $TUSK::Constants::SiteAbbr %>" /></div>
+</%method>
+
+<%method manage_header>
+<%args>
+%req_hash
+</%args>
+<%perl>
+my $req = \%req_hash;
+
+push @{$req->{stylearray}}, '/style/mobi.css';
+unshift @{$req->{jsarray}}, 'mobi.js';
+
+$m->comp('/tmpl/prepend:header', 
+              title=>$req->{pagetitle},
+              jsarray=>$req->{jsarray},
+              stylearray=>$req->{stylearray}, 
+              metaData => $req->{metaData}, 
+              doctype => 'wap',
+              );
+$m->comp('/tmpl/prepend:print_body', has_nav => 0);
+$m->comp('SELF:logo');
+
+$m->comp('/mobi/tmpl/element:page_header', nav_bar => $req->{nav_bar}, hdr => $req->{redHeaderBarText});
+if($ENV{SCRIPT_URI} !~ /login/){
+	$m->comp("/tmpl/prepend:traffic_light", args => \%ARGS, use_tables => 0);
+}
+</%perl>
+
+</%method>
+
+

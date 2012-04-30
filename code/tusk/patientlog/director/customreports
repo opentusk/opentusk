@@ -1,0 +1,50 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my $form = $m->comp("/formbuilder/util:get_form");
+	my $fields = $form->getAllFormFields("token != 'FillIn'");
+	my $course = $m->comp("/tmpl/url:get_type_object");
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	action => "/patientlog/director/report/" . $m->comp("/tmpl/url:get_type_path") . '/' . $form->getPrimaryKeyID(),
+	onsubmit =>'return report_submit(this);',
+	name => 'formedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+    border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<& "/tmpl/element:section_header_row", label => 'Custom Reports' &>
+
+<& "/formbuilder/report:time_periods", course => $course, start_date => $m->comp("SELF:time_period_condition") &>
+
+<& "/formbuilder/report:teaching_sites", course => $course &>
+
+<& "/formbuilder/report:fields", form => $form &>
+
+<%doc>
+temporarily disable advanced report
+<& "/formbuilder/report:advanced", form => $form &>
+</%doc>
+
+<& "/formbuilder/report:submit", field_count => scalar(@$fields) &>
+
+</table>
+</form>
+

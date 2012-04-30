@@ -1,0 +1,212 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method tree_box>
+<%args>
+%params
+</%args>
+<%perl>
+sub action_string{
+	my $action_ref = shift;
+	my $obj = shift;
+	my $parent_string = shift;
+	my $out_text = '';
+	my ($link,$label);
+	foreach my $action (@{$action_ref}){
+		($link,$label) = ($action->{'link'},$action->{'label'});
+		$link .= $parent_string . ( $action->{'extra'} ? $action->{'extra'} : '');
+		if ($out_text ne ''){
+			$out_text .= '&nbsp;|&nbsp;';
+		}
+		my $onclick = $action->{onclick} || '';
+		$out_text .= "<A HREF=\"$link\" onclick=\"$onclick\">$label</A>";
+	}
+
+	return '<td class="layers-right">'.$out_text.'</td>';
+}
+
+sub get_pk {
+	my $obj = shift;
+	if (!defined($obj)){
+		return;
+	}
+	if (ref($obj) eq 'HASH'){
+		return $obj->{pk};
+	} else {
+		return $obj->getPrimaryKeyID();
+	}
+}
+
+sub checked {
+	my $obj = shift;
+	my $config = shift;
+	if (ref($obj) eq 'HASH'){
+		return $obj->{$config->{checked_func}};
+	} else {
+		my $func = $config->{checked_func};
+		if ($obj->can($func)){
+			return $obj->$func; 
+		} else  {
+			return 0;
+		}
+	}
+
+}
+
+sub data_columns {
+	my ($current,$depth,$col_values,$count_str,$has_children) = @_;	
+	my $label = 'AA';
+	my $out_text = '';
+	my $expander_text = "<A HREF=\"javascript:toggle_branch('tree_branch$count_str')\"  ".
+		"id=\"tree_branch$count_str\_link\" >".
+		"<script language=\"JavaScript\">document.write(close_html);</script></A>&nbsp;";
+	my $indent_text =  "&nbsp;" x ($depth * 7);
+	if ($has_children){
+		$expander_text = $indent_text . $expander_text;	
+	} else {
+		$expander_text = $indent_text;
+	}
+	if (ref($col_values ) ne 'ARRAY'){
+		die "col values is not an array";
+	} 
+	my $count = 0;
+	foreach my $column_val (@{$col_values}){
+		$count++; 
+		if ($count > 1){
+			$expander_text = '';
+		}
+		if (defined($column_val)){
+			if (defined($current)){
+				if (ref($current) eq 'HASH'){
+					$label = $current->{$column_val};
+				} else {
+					$label =  $current->$column_val();
+				}
+			} else {
+				# die "Invalid object passed";
+			}
+			$out_text .=<<EOM;
+<td class="layers-left">$expander_text$label</td>
+EOM
+		} else {
+			$out_text .= '<td class="layers-left">&nbsp;</td>';
+		}
+	}
+
+	return $out_text;
+
+}
+sub print_tree_table {
+	my $config = shift;
+	my $accum = rec_print_tree($config, $config->{'data_values'},0);
+	return $accum;
+} 
+sub print_row{
+	my $config = shift;
+	my $obj = shift;
+	my $depth = shift;
+	my $count_str = shift;
+	my $has_children = shift;
+	my $url_string = shift;
+	my $parents = shift;
+	my $accum  = ''; 
+	if (!defined($config->{'name_prefix'}->[$depth])){
+		if (!$config->{'no_checkboxes'}){
+			die "please define the name_prefix for all levels of data";
+		}
+	}
+	if (!defined($config->{'column_values'}->[$depth])){
+		if (!$config->{'same_column_values'}){
+			die "please define the column_values for all levels of data";
+		}
+	}
+	my $class = ""; 
+	if ($depth > 0){
+		$class = "display:none";
+	}
+	my $checked = '';
+	if ($config->{'all_checked'} || checked($obj,$config)){
+		$checked = 'CHECKED ="Y"';
+	}
+	my $col_value_depth = $depth;
+	if ($config->{'same_column_values'}){
+		$col_value_depth = 0;
+	}
+	$accum .= '<tr style="'.$class.'" class="branch_row" id="tree_branch'.$count_str.'" >';
+	if (!$config->{'no_checkboxes'}){
+	$accum .= '<td valign="top" align="center" style="padding:5"><input type="checkbox" value="1" name="'.$config->{'name_prefix'}->[$depth] . get_pk($obj).'" '.$checked.' id="parent-'. join('-', @$parents) .'-" onclick="tree_toggle_branch(this);"/></td>';
+	}
+	$accum .= data_columns($obj,$depth,$config->{'column_values'}->[$col_value_depth],$count_str,$has_children);
+	$accum .= action_string($config->{'action_columns'},$obj,$url_string.'/'.get_pk($obj));
+	$accum .= "</tr>\n";
+	return $accum;
+}
+
+# this function takes a data structure that is an array ref of hashes 
+# it loops through the array and then determines whether there is a similar
+# structure in the 'children' key of the hash, if so it does the same
+# until the children key is undef.
+sub rec_print_tree{
+	my $config = shift;
+	my $data = shift;
+	my $depth = shift;
+	my $count_str = shift;
+	my $url_string = shift;
+	my $parents = shift || [];
+	my $count = 0;
+	my $accum = '';
+	my $has_children;
+	my $pk;
+	foreach my $current (@{$data}){
+		if (defined($current->{'children'}) and (scalar(@{$current->{'children'}}))){
+			$has_children = 1;
+		} else {
+			$has_children = 0;
+		}
+		$accum .= print_row($config, $current->{'current'},$depth,$count_str."_".$count,$has_children,$url_string, $parents);
+		if ($has_children){
+			$pk = get_pk($current->{'current'});
+			my @temp_parents = @$parents;
+			push @temp_parents, $config->{'name_prefix'}->[$depth] . $pk;
+
+			$accum .= rec_print_tree($config, $current->{'children'},
+				$depth+1,$count_str."_".$count,$url_string.'/'.$pk,
+				\@temp_parents);
+		}
+		$count++;
+	}
+	return $accum;
+}
+</%perl>
+<& /tmpl/element:tr_tag, params=>\%params &>
+% my $style = (defined($params{'style'})) ? $params{'style'} : 'padding-bottom:10px';
+<td colspan="2" style="<% $style %>">
+% if (scalar(@{$params{data_values}})){
+<table width="100%" border="0" class="tusk tree_tbl" cellspacing="0" cellpadding="0">
+<tr class="header">
+% if (!$params{'no_checkboxes'}){
+<td class="header-left" width="1">SELECT</td> 
+% }
+% foreach my $col (@{$params{'column_labels'}}) { 
+<td class="header-left" width="<% $col->{width} %>"><% uc($col->{label}) %></td> 
+% } 
+<td class="header-right" width="0">ACTION</td></tr>
+<% print_tree_table(\%params) %>
+</table>
+% } else {
+No <% ($params{data_name}) ? $params{data_name} : "results" %>.
+% }
+</td></tr>
+</%method>

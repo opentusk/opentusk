@@ -1,0 +1,100 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use Forum::ForumKey;
+use Forum::MwfMain;
+use HSDB45::Course;
+</%once>
+
+<%attr>
+no_check_path => 1
+</%attr>  
+
+<%shared>
+my ($x, $cfg, $lng, $user) = MwfMain->new($r);
+my $boardId = $m->comp("/tmpl/url:get_last_path_id");
+my $q = "SELECT boards.* FROM $cfg->{dbPrefix}boards AS boards  WHERE boards.id = $boardId ";
+my $board = $x->fetchHash($q);
+my $boardTitle=$board->{title};
+my $userId = $user->{id};
+
+
+# Check if user can see and write to board
+my $boardAdmin = $user->{admin} || $x->boardAdmin($userId, $board->{id});
+#$boardAdmin || $x->boardVisible($board) or $x->entryError($lng->{errBrdNotFnd});
+my $allowed=1;
+$boardAdmin || $x->boardVisible($board) or $allowed=0;;
+my $boardWritable = $boardAdmin || $x->boardWritable($board);
+my $topics;
+
+if ($allowed == 1) {
+
+	my $sort = $x->paramStr('sort');
+	my $qry =   "SELECT topics.id, topics.subject, topics.tag, topics.pollId, topics.locked, topics.sticky, topics.postNum, ";
+	$qry = $qry."topics.lastPostTime, topics.hitNum, posts.userNameBak ";
+	$qry = $qry."FROM $cfg->{dbPrefix}topics as topics, $cfg->{dbPrefix}posts as posts ";
+	$qry = $qry."WHERE topics.boardId = $boardId AND  topics.basePostId = posts.id ";
+	$qry = $qry."ORDER BY topics.lastPostTime DESC";
+	$topics = $x->fetchAllHash($qry);
+	my $size = scalar (@$topics);
+
+} # else allowed == 1
+
+</%shared>
+
+
+<%method get_nav_bars>
+
+% my $nav_bars = []; 
+% $nav_bars = [ { href => '/mobi/forum/forumshow/', label => 'Discussions' } ];
+% return $nav_bars;
+
+</%method>
+
+<%method header_text>
+% return $boardTitle;
+</%method>
+
+
+
+
+<%perl>
+
+if ($allowed == 0) {
+	
+	print "<h4> You do not have access to this board. </h4>";
+	print "<a href=\"/mobi/forum/forumshow\">Return to Discussions page</a>";
+} else {
+	
+	print "<br/><a href=\"/mobi/forum/topicadd/".$boardId."\">Add Topic</a><br/><br/>";
+
+	if ( @$topics != 0 ) {
+		print "<h4 class=\"annHdr\">Topics</h4> <ul class=\"gNoBullets courseList\">";
+		for my $topic (@$topics) {
+			print "<li><a href=\"/mobi/forum/topicshow/".$topic->{id}."\" >".$topic->{subject}."</a>";
+			 print "@".$topic->{userNameBak}."</li>";
+		}
+	}
+	else {
+		print "<span> No Topics Available </span>";
+	}
+
+}
+
+
+</%perl>
+
+

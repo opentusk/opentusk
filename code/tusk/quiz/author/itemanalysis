@@ -1,0 +1,211 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Application::Quiz::ItemAnalysis;
+	use HSDB45::TimePeriod;
+</%once>
+
+<%shared>
+	my ($quiz_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $quiz = TUSK::Quiz::Quiz->new->lookupKey($quiz_id, [ TUSK::Core::JoinObject->new("TUSK::Quiz::LinkCourseQuiz", {joinkey=>'child_quiz_id', origkey=>'quiz_id'}) ]);
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my ($stats,$questions);
+</%shared>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+
+<%method title>
+%	my $title = "Item Analysis: " . $quiz->getTitle();
+%	return $title;
+</%method>
+
+<%method function_token>
+% 	return 'reports_quiz';
+</%method>
+
+
+<%method get_nav_bar_objects>
+%	return {quiz => $quiz};
+</%method>
+
+
+<%init>
+	$stats = TUSK::Application::Quiz::ItemAnalysis->new({ quiz_id => $quiz_id });
+	$questions = $stats->getQuestions();
+
+	my $data = $stats->getData();
+
+	my $errmsgs = [];
+	unless (scalar @$data) {
+		push @$errmsgs, 'Not enough data available for items analysis.';
+   	}
+
+	unless ($stats->isMultipleChoiceQuiz()) {
+		push @$errmsgs, 'Item analysis is only for quizzes with all multiple choice questions';
+	}
+
+	if (scalar @$errmsgs) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/show", 'msg' => join("<br/> ", @$errmsgs), msgtype => 'errmsg'));
+	} else {
+		$stats->addData($data);
+		$m->comp('SELF:showDescriptive');
+		$m->comp('SELF:showItemsAnalysis');
+	}
+</%init>
+
+
+<%method showDescriptive>
+%	my $desc = $stats->getDescriptiveStatsObject();
+%	my $time_period = HSDB45::TimePeriod->new(_school => $course->get_school()->getSchoolName())->lookup_key($quiz->getLinkCourseQuizObject()->getTimePeriodID());
+%	my $date = HSDB4::DateTime->new()->in_apache_timestamp(scalar localtime);
+%	my $course_code = ($course->registrar_code()) ? ' (' . $course->registrar_code() . ')' : '';
+
+<table width="100%">
+<tr><td class="labelgray"> Course:</td>
+    <td class="cell-left"> <% $course->title() . $course_code %>  </td>
+    <td class="labelgray"> Instructor:</td>
+    <td class="cell-left"> <%  %>  </td>
+</tr>
+<tr>
+    <td class="labelgray"> Time Period:</td>
+    <td class="cell-left"> <% (ref $time_period eq 'HSDB45::TimePeriod') ? $time_period->out_display : '' %> </td>
+    <td class="labelgray"> Day/Time:</td>
+    <td class="cell-left"> <% $date->out_string_date() . ' ' . $date->out_string_time() %>  </td>
+</tr>
+</table>
+<br/>
+
+<table width="100%">
+<tr><td class="labelgray"> Total Possible Points:</td>
+    <td class="cell-left"> <% $stats->getQuestionsCount() %>  </td>
+    <td class="labelgray"> Median Score: </td>
+    <td class="cell-left"> <% $desc->median() %> </td>
+    <td class="labelgray"> Highest Score: </td>
+    <td class="cell-left"> <% $desc->max() %> </td>
+</tr>
+<tr><td class="labelgray"> Standard Deviation: </td>
+    <td class="cell-left"> <% sprintf("%.2F", $desc->standard_deviation()) %> </td>
+    <td class="labelgray"> Mean Score: </td>
+    <td class="cell-left"> <% sprintf("%.2F", $desc->mean()) %> </td>
+    <td class="labelgray"> Lowest Score: </td>
+    <td class="cell-left"> <% $desc->min() %> </td>
+</tr>
+<tr><td class="labelgray"> Students in this group: </td>
+    <td class="cell-left"> <% $desc->count() %> </td>
+    <td class="labelgray"> Reliability Coefficient </td>
+    <td class="cell-left"> <% $stats->getTestReliabilityEstimate() %> </td>
+    <td colspan="2">&nbsp;</td>
+</tr>
+<tr><td class="labelgray" NOWRAP> Student Records Based On: </td>
+    <td class="cell-left"> All Students </td>
+    <td colspan="4">&nbsp;</td>
+</tr>
+</table>
+<br/>   
+</%method>
+
+
+<%method showItemsAnalysis>
+<%perl>
+   	my ($upper_group, $lower_group) = $stats->getCorrectGroupResponses();
+   	my $upper_group_count = $stats->getCountForUpperGroup();
+   	my $lower_group_count = $stats->getCountForLowerGroup();
+   	my $items = $stats->getCountForEachItem();
+   	my $responses = $stats->getResponses();
+   	my $population = scalar $stats->getNames();
+	my ($sort_orders, $max_sort_order) = $stats->getSortOrders();
+
+	return if ($upper_group_count < 1 || $lower_group_count < 1 || $population < 1);
+
+	print $m->comp('/tmpl/element:table', params => { width => "100%", border => "0", cellspacing => "0", cellpadding => "0" });
+	print $m->comp('SELF:printColumnHeadings', max_sort_order => $max_sort_order);
+	my $cstyle = "font-family:Verdana,Arial;font-size: 10pt;border-bottom:solid #DDDEEE 1px; padding-top:5px;";
+	my $pstyle = "<span style=\"font-size:7pt\">%</span>";
+
+	my $num = 1;
+   	foreach (@$questions) {
+		my $id = $_->[0];
+		my %corrects = map { $_->getSortOrder() => '' } @{$_->[1]};
+
+		print "<tr><td style=\"$cstyle\">&nbsp;$num</td><td style=\"$cstyle\" align=\"right\">" . sprintf("%.2F", ($items->{$id} / $population) * 100) . "$pstyle&nbsp;&nbsp;</td><td style=\"$cstyle\" align=\"right\">" . sprintf("%.2F", ($upper_group->{$id} / $upper_group_count) * 100) . "$pstyle&nbsp;&nbsp;</td><td style=\"$cstyle\" align=\"right\">" . sprintf("%.2F", ($lower_group->{$id} / $lower_group_count) * 100) . "$pstyle&nbsp;&nbsp;</td>";
+		print "<td align=\"center\" style=\"$cstyle\">";
+		print chr($_ + 64) foreach (sort keys %corrects);
+		print  "</td>";
+
+		my $non_destractor = '&nbsp;';
+
+		foreach my $i (1..$sort_orders->{$id}) {
+			if (exists $corrects{$i}) {
+				print "<td align=\"right\" style=\"$cstyle\" bgcolor=\"#FAF8CC\">* ";
+			} else {
+				print "<td align=\"right\" style=\"$cstyle\">";
+			}
+
+			if (defined $responses->{$id}[$i]) {
+				print $responses->{$id}[$i];
+			} else {
+				print '0';
+				$non_destractor .= chr($i+64);
+			}
+
+			print "&nbsp;</td>";
+		}
+
+		if ($sort_orders->{$id} < $max_sort_order) {
+			foreach my $i ($sort_orders->{$id}+1 .. $max_sort_order) {
+				print "<td align=\"right\" style=\"$cstyle\">-</td>";
+			}
+		}
+
+		print "<td style=\"$cstyle\" align=\"center\">$non_destractor</td>";
+		print "</tr>\n";
+		$num++;
+    	}
+	print "</table>\n";
+	print "<img src/graphics/spacer.gif height=\"1\" width=\"150\">";
+</%perl>
+</%method>
+
+
+<%method printColumnHeadings>
+<%args>
+	$max_sort_order
+</%args>
+<%perl>
+	my $headings = qq(
+<tr bgcolor="#EEEEEE">
+    <td class="subhead" rowspan="2" align="center" valign="bottom">No.</td>
+    <td class="subhead" colspan="3" align="center"> Correct Group Responses </td>
+    <td class="subhead" rowspan="2" align="center" valign="bottom">Correct</br>Answer</td>
+    <td class="subhead" colspan="$max_sort_order" align="center"> Response Frequencies </td>
+    <td class="subhead" rowspan="2" align="center" valign="bottom">Non<br/>Distractor</td>
+</tr>
+<tr bgcolor="#EEEEEE">
+    <td class="subhead" align="right"> Total &nbsp;</td>
+    <td class="subhead" align="right"> Upper 27% &nbsp;</td>
+    <td class="subhead" align="right"> Lower 27% &nbsp;</td>);
+
+	foreach my $i (1 .. $max_sort_order) {
+		$headings .= "<td class=\"subhead\" align=\"right\">" . chr($i+64) .  "&nbsp;</td>\n";
+	}
+	
+	return "$headings</tr>\n";
+</%perl>
+</%method>
+

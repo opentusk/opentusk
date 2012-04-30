@@ -1,0 +1,97 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<!--- SOAP Phase Info --->
+<%perl>
+my $phase = $ARGS{'phase'};
+my ($phase_title,$phase_name) = $m->comp("sections:get_phase_info",'phase'=>$phase);
+my $case = $ARGS{'case'};
+</%perl>
+
+<& /tmpl/element:top_header_row, label => 'SOAP Answers' &>
+<& /tmpl/element:note, msg=>'The phase is not graded by the system.  Students enter their findings in the appropriate text boxes and can compare their answers against a model answer (in self-assessment mode).  Enter answers below.' &>
+<& /tmpl/element:textarea, params=>{ label => 'Subjective Findings',
+		name=>"subjective",
+		cols=>"60",
+		rows=>"4",
+		value=>$phase->getSubjective(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120'} &>
+<& /tmpl/element:textarea, params=>{ label => 'Objective Findings',
+		name=>"objective",
+		cols=>"60",
+		rows=>"4",
+		value=>$phase->getObjective(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120'} &>
+<& /tmpl/element:textarea, params=>{ label => 'Assessment of Patient Condition',
+		name=>"assessment",
+		cols=>"60",
+		rows=>"4",
+		value=>$phase->getAssessment(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120'} &>
+<& /tmpl/element:textarea, params=>{ label => 'Treatment Plan',
+		name=>"treatment",
+		cols=>"60",
+		rows=>"4",
+		value=>$phase->getPlan(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120'} &>
+
+
+<!--- SOAP Phase Info --->
+
+
+<%method process_args>
+<%args>
+$user_id
+$phase 
+%params 
+</%args>
+<%perl>
+$phase->setSubjective($params{'subjective'});
+$phase->setObjective($params{'objective'});
+$phase->setAssessment($params{'assessment'});
+$phase->setPlan($params{'treatment'});
+$phase->save({user=>$user_id});
+</%perl>
+</%method>
+
+<%method phaseReport>
+<%args>
+$case
+$phase
+$case_report
+</%args>
+<%perl>
+my $text = '<span class="smTextTwo">'.$phase->getMainText().'</span>';
+$text .= '<table cellpadding="0" cellspacing="0" width="100%"  border="0">';
+my %selections = map {($_->getPhaseOptionID(), $_ ) } 
+                        @{TUSK::Case::PhaseOptionSelection->getLatestPhaseSelections($phase,$case_report)};
+my ($phase_option, $sel,$func);
+foreach my $section (@TUSK::Case::Phase::SOAP::SOAPOptions) {
+        $func  = 'get'.$section.'Option';
+        $phase_option = $phase->$func;
+        $sel = $selections{$phase_option->getPrimaryKeyID()} or next;
+        $text .= '<tr><td class="sm" width="25%"><b>'.$section
+                .'</b></td><td style="padding-left:8px" class="sm">'.$sel->getAnswerText.'</tr>'
+;
+}
+$text .= '</table>';
+</%perl>
+<% $text %>
+</%method>
+

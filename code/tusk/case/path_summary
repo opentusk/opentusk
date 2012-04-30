@@ -1,0 +1,100 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+$case
+$report
+</%args>
+
+<%once>
+use TUSK::Case::CaseReport;
+use TUSK::Case::Case;
+use TUSK::Case::LinkCaseReportQuizResult;
+</%once>
+
+
+% my $phases = $case->availablePhases();
+% my @phase_ids = map { $_->getPrimaryKeyID() } @$phases;
+% my $phase_str = '(' . (join ', ', @phase_ids) . ')';
+
+% my $visits = TUSK::Case::PhaseVisit->new()->lookup('case_report_id = ' . $report->getPrimaryKeyID() . " and case_phase_visit.phase_id in $phase_str");
+% $case->setReport($report);
+
+
+<div id="pathSort">
+Sort by: 
+<a href="javascript:;" onclick="pwSort('chrono', this)" class="activeSort">Chronology</a> | 
+<a href="javascript:;" onclick="pwSort('phase', this)">Phase</a>
+</div>
+
+<div id="pwSortByChrono">
+<h4 class="pwVisitType">Chronological Pathway</h4>
+% my $count = 0;
+% my %visits_by_phase;
+% my %quiz_attempts;
+% foreach my $v (@$visits) {
+%	$v->setVisitOrder(++$count);
+%	my $p = $v->getPhaseObject();
+% 	my $qrls = TUSK::Case::LinkCaseReportQuizResult->new()->lookup('phase_visit_id=' . $v->getPrimaryKeyID());
+%	my $quiz_attempt_txt = '';
+%	if (scalar @$qrls) {
+%		my @attempt_strings;
+%		foreach my $qrl (@$qrls) {
+%			push @attempt_strings, 'Quiz attempt ' . ++$quiz_attempts{$qrl->getQuizResultObject()->getQuizID()};
+%		}
+%		$quiz_attempt_txt = '(' . join(', ', @attempt_strings) . ')';
+% 	}
+<div class="pwStep">
+<h4 class="pwStepTitle"><% $count %> -- <% $p->getPhaseTitle() %> <% $quiz_attempt_txt %></h4>
+<div class="chartInfo">
+%	my $txt = $m->comp('tmpl/'.$p->getIncludeFile.':chartInfo', case=>$case, phase=>$p, visit=>$v);
+<% $txt %>
+</div> <!-- chartInfo -->
+</div>
+%	$quiz_attempt_txt .= ($quiz_attempt_txt)? '<br>' : '';
+%	push @{ $visits_by_phase{$p->getPrimaryKeyID()} }, { visit => $v, txt => $quiz_attempt_txt . $txt };
+% }
+</div> <!-- pwSortByChrono -->
+
+
+<div id="pwSortByPhase">
+<h4 class="pwVisitType">Phase Pathway</h4>
+% my $visited_phases = $case->getVisitedPhases();
+% foreach my $p (@$visited_phases) {
+<div class="pwStep">
+<h4 class="pwStepTitle"><% $p->getPhaseTitle %></h4>
+<& /tmpl/element:table, params => {
+		cellspacing => 3,
+		class => 'pwVisitTable',
+		cellpadding => 4,
+		}
+&>
+%	if(defined $visits_by_phase{$p->getPrimaryKeyID()}){
+%		foreach my $v (@{ $visits_by_phase{$p->getPrimaryKeyID()} }) {
+<tr valign="top">
+<td width="20" align="center"><% $v->{visit}->getVisitOrder() %></td>
+<td><% $v->{txt} %></td>
+</tr>
+%		}
+</table>
+%	}
+</div><!-- pwStep -->
+% }
+</div><!-- pwSortByPhase -->
+
+
+<%method leftnav>
+% return undef;
+</%method>

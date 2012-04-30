@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use Data::Dumper;
+use HSDB4::Constants;
+use MySQL::Password;
+use XML::Twig;
+use XML::LibXML;
+use Getopt::Long;
+
+my ($course_id,$school,$dump_dir,$exclude_type);
+
+GetOptions("course_id=s"=> \$course_id,
+	   "school=s"=> \$school,
+	   "dump_dir=s" => \$dump_dir,
+	   "exclude_type=s" => \$exclude_type);
+
+unless ($school && $course_id && $dump_dir) {
+    die "Usage: tusk_dump --course_id=<course_id> --school=<school> --dump_dir=<dir for dump> --exclude_type=<type>,<type>,...\n";
+}
+
+my $db = HSDB4::Constants::get_school_db($school);
+die "Can't find database for $school" unless $db;
+
+HSDB4::Constants::set_user_pw (get_user_pw);
+my $dbh = HSDB4::Constants::def_db_handle;
+
+$exclude_type=~s/,/\'\,\'/g;
+
+my $query = "select * from $db.course where course_id = $course_id";
+my $sth = $dbh->prepare($query);
+$sth->execute;
+my $course_ref = $sth->fetchall_arrayref({});
+
+my $twig = XML::Twig->new(pretty_print => 'indented');
+my $tusk_elt = XML::Twig::Elt->new( "tusk-dump" );
+$twig->set_root($tusk_elt);
+my $course_elt = XML::Twig::Elt->new( course => { existing_id => "$course_id", existing_school=>"$school" });
+
+foreach my $key (keys %{$$course_ref[0]}) {
+        next unless ${$$course_ref[0]}{$key};  
+	my $elt = XML::Twig::Elt->new($key);
+	$elt->set_text(${$$course_ref[0]}{$key});
+	$elt->paste("last_child",$course_elt);
+}
+
+system("rm -fR $dump_dir/dump");
+system("mkdir $dump_dir/dump"); 
+system("mkdir $dump_dir/dump/files");
+
+## start with the course
+my $query = "select * from hsdb4.content c, $db.link_course_content lc where c.content_id = lc.child_content_id and parent_course_id = $course_id";
+$query .= " and c.type not in ('$exclude_type')" if ($exclude_type);
+my $sth = $dbh->prepare($query);
+$sth->execute;
+my $course_content_ref = $sth->fetchall_arrayref({});
+
+&add_content($course_content_ref,$course_elt);
+
+sub add_content {
+    my ($data_ref,$element_ref) = @_;
+    my %seen;
+    foreach my $link_ref (@$data_ref) {
+	die "tusk_dump can't process Slides\n" if ($link_ref->{type} =~ /(Slide)/);
+        my $content_elt = XML::Twig::Elt->new( content => { sort_order => $link_ref->{'sort_order'},
+							    label => $link_ref->{'label'},
+							    existing_content_id => $link_ref->{'content_id'}},
+					       );
+	foreach my $key (keys %{$link_ref}) {
+	    next unless $link_ref->{$key};
+	    next if ($key =~ /^(course_id|school|parent_course_id|content_id|child_content_id|parent_content_id|sort_order|label)$/);
+	    my $elt = XML::Twig::Elt->new($key);
+	    $elt->set_text($link_ref->{$key});
+	    $elt->paste("last_child",$content_elt);
+	}
+
+	if ($link_ref->{type} =~ /PDF/) {
+	    system("cp /data/html/web-auth/pdf/".$link_ref->{content_id}.".pdf $dump_dir/dump/files/.");
+	}
+
+	if ($link_ref->{type} =~ /DownloadableFile/) {
+	    my $filename = $link_ref->{body};
+	    $filename =~ s/.+>(\d+\..{3})\<\/file_uri.+/$1/si;
+	    $content_elt->set_att("filename",$filename);
+	    system("cp /data/html/downloadable_file/".$link_ref->{content_id}.".* $dump_dir/dump/files/.");
+	}
+
+	if ($link_ref->{'type'} =~ /Collection/ && !$seen{$link_ref->{content_id}}) {
+	    ## add any child_content
+	    $seen{$link_ref->{content_id}}++;
+	    my $query = "select * from hsdb4.content c, hsdb4.link_content_content lc where c.content_id = lc.child_content_id and lc.parent_content_id = $link_ref->{'content_id'}";
+	    $query .= " and c.type not in ('$exclude_type')" if ($exclude_type);
+	    my $sth = $dbh->prepare($query);
+	    $sth->execute;
+	    my $content_ref = $sth->fetchall_arrayref({});
+	    &add_content($content_ref,$content_elt);
+	}
+
+	$content_elt->paste("last_child",$element_ref);
+    }
+}
+
+$course_elt->paste("first_child",$tusk_elt);
+
+open DUMP_XML, ">$dump_dir/dump/tusk_dump.xml";
+my $dump_xml = $twig->sprint;
+print DUMP_XML $dump_xml;
+
+chdir $dump_dir;
+system("/usr/local/bin/tar -cf tusk_dump.tar dump");
+print "tusk_dump.tar created in $dump_dir\n";

@@ -1,0 +1,288 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::SchoolLink::SchoolLink;
+</%once>
+
+<%shared>
+my $school_link_id = $m->comp("/tmpl/url:get_last_path_id");
+my $school = $m->comp("/tmpl/url:get_type_object");
+</%shared>
+
+<& /tmpl/element:form, params => {
+        method   => 'POST',
+        onsubmit => 'return validate_sl_addedit()',
+        name     => 'addedit' } 
+&>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { 
+        width       => "100%",
+        border      =>"0",
+        cellspacing =>"0",
+        cellpadding =>"0",
+        } 
+&>
+
+<& /tmpl/element:textbox, params =>{ 
+        label  => 'Label',
+        name   => 'label',
+        value  => $school_link->getLabel(),
+        size   => 60,
+        length => 255 } 
+&>
+
+<& /tmpl/element:textbox, params =>{ 
+        label  => 'URL',
+        name   => 'url',
+        value  => $school_link->getUrl(),
+        size   => 60,
+        length => 255,
+        }
+&>
+
+<& /tmpl/element:textbox, params =>{ 
+        label         => 'Show Date',
+        name          => 'show_date',
+        value         => $school_link->getShowDate(),
+        size          => 10,
+        maxlength     => 10,
+        calendar      => 1,
+        trailing_text => '(optional)',
+        }
+&>
+
+<& /tmpl/element:textbox, params =>{ 
+        label         => 'Hide Date',
+        name          => 'hide_date',
+        value         => $school_link->getHideDate(),
+        size          => 10,
+        maxlength     => 10,
+        calendar      => 1,
+        trailing_text => '(optional)',
+        }
+&>
+
+<& /tmpl/element:section_header_row,
+		label=>'Sublinks', 
+		top_space => 1, 
+		skip_space => 1,
+		trailing_text => $m->scomp('/tmpl/element:help_link', params => 
+				{ not_xmetal => 1, 
+				  class      => 'helpLnk', 
+				  content_id => '470041/832122', 
+				  text => '' })
+&>
+
+<%perl>
+my $button = $m->scomp('/tmpl/element:button', params=>{
+               'name'=>'add_new_sublink',
+               'onclick'=>"addnewdata('sublinkdiv',{
+                    label:'',
+                    url:'',
+                    show_date:'',
+                    hide_date:''
+                    });",
+               'label'=>'Add New Sublink'});
+
+
+my $sublinks = $school_link->getChildLinks();
+my $links_data = [];
+foreach my $sl (@$sublinks) {
+	push @$links_data, 
+		{ school_link_id   => $sl->getPrimaryKeyID(), 
+		  label        => $sl->getLabel(),
+		  url          => $sl->getUrl(),
+		  show_date    => $sl->getShowDate(),
+		  hide_date    => $sl->getHideDate(),	
+		};
+}
+</%perl>
+
+<& /tmpl/element:sort_order_box , params =>{
+        width => '100%',
+        no_add_button => 1,
+        buttons => [$button],
+        no_label => '1',
+        td_class => 'no-button',
+        layer_info => {
+            layer => 'sublinkdiv',
+            fields => ['school_link_id'],
+            name   => 'sublinks',
+            sort   => {usage => 'Yes', length=>50},
+            action => {usage => 'Yes', length=>50, functions => [
+                {func=>'remove', label=>'Delete'} 
+                ]},
+            display => [ 
+                {label => 'Label', field => 'label', align=>'left', length=>200, type=>'textbox' },
+                {label => 'URL', field => 'url', align=>'left', length=>200, type=>'textarea' },
+                {label => 'Show Date', field => 'show_date', align=>'left', length=>85, type=>'textbox', onclick=>'setupCal(this);' }, 
+                {label => 'Hide Date', field => 'hide_date', align=>'left', length=>85, type=>'textbox', onclick=>'setupCal(this);' },
+                ] ,
+            validate => {
+                usage => 'No',
+                form  => 'addedit'
+                },
+            data => $links_data
+            }
+        } 
+&>
+
+
+
+<& /tmpl/element:save_button, params=>{
+		one_column=>'1',
+		colspan=>'2',
+        label => 'Save and Continue',
+        name => 'submit',
+        cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/management/schoollink/show") . "');",
+        } 
+&>
+
+</table>
+</form>
+
+<%init>
+
+my $school_link;
+my ($msg,$msgtype) = (undef,'');
+
+if ($school_link_id){
+	$school_link = TUSK::SchoolLink::SchoolLink->lookupKey($school_link_id);
+	unless(defined $school_link){
+		$m->comp('/tmpl/url:redirect', message => 'Invalid School Link ID passed.');
+	}
+} 
+else {
+	$school_link = TUSK::SchoolLink::SchoolLink->new();
+}
+
+if ($m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
+	my $user_id = $m->comp('SELF:user');
+	my $all_school_links = TUSK::SchoolLink::SchoolLink->lookup( "school_id = " . $school->getPrimaryKeyID());
+
+	$school_link->setLabel($ARGS{'label'});
+	$school_link->setUrl($ARGS{'url'});
+	$school_link->setSchoolID($school->getPrimaryKeyID());
+
+	# a date that is an empty string shows up as 0000-00-00 in db. we do not prefer this. 
+	# if the value is undef in object, the date is null in db. this is preferable
+	delete $ARGS{'show_date'} unless $ARGS{'show_date'};
+	delete $ARGS{'hide_date'} unless $ARGS{'hide_date'};
+	$school_link->setShowDate($ARGS{'show_date'});
+	$school_link->setHideDate($ARGS{'hide_date'});
+
+	if (!defined($school_link->getSortOrder())){
+		$school_link->setSortOrder(scalar(@$all_school_links) * 10 + 10);
+	}
+
+	if ($ARGS{'label'}) { 
+		$school_link->save({'user'=>$user_id});
+
+		if (!$school_link_id){
+			$msg = "School link successfully created.";
+
+			# school_link_id is needed for sort order box below when link and subs are created in one go
+			$school_link_id = $school_link->getPrimaryKeyID();
+		}else{
+			$msg = "School link successfully modified.";
+		}
+		$msgtype = 'msg';
+
+		my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>\%ARGS,filter=>'^sublinkdiv');
+		
+		foreach my $set (keys %{$rowHash}){
+			unless ($rowHash->{$set}->{'fields'}->{'label'} && $rowHash->{$set}->{'fields'}->{'url'}) {
+				# do not want to insert subtests with blank titles.
+				delete $rowHash->{$set};
+			} 
+			else {
+				# a date that is an empty string shows up as 0000-00-00. we do not prefer this. 
+				# if undef, the date is null in db. this is preferable
+				if ($rowHash->{$set}->{'fields'}->{'show_date'} == '') {
+					$rowHash->{$set}->{'fields'}->{'show_date'} = undef;
+				}
+				if ($rowHash->{$set}->{'fields'}->{'hide_date'} == '') {
+					$rowHash->{$set}->{'fields'}->{'hide_date'} = undef;
+				}
+			}
+		}
+
+		my @sublink_data = map { 
+		  {
+		  school_link_id   => $_->getPrimaryKeyID(), 
+		  label            => $_->getLabel(),
+		  url              => $_->getUrl(),
+		  show_date        => $_->getShowDate(),
+		  hide_date        => $_->getHideDate(),	
+		  } 
+					} @{$school_link->getChildLinks()};
+
+		$m->comp('/tmpl/process:manipulate_rows',
+		    row_type => 'Direct',
+		    user => $user_id,
+		    object_name => 'TUSK::SchoolLink::SchoolLink',
+		    fields_data => $rowHash,
+		    default_field_data=>{
+		        'parent_school_link_id' => $school_link_id,
+		        },
+		    field_function_map => {
+			    'school_link_id'=>'setPrimaryKeyID',
+			    'label'=>'setLabel',
+			    'url' => 'setUrl',
+			    'show_date' => 'setShowDate',
+			    'hide_date' => 'setHideDate',
+			    'sortorder' => 'setSortOrder',
+			    'parent_school_link_id' => 'setParentSchoolLinkID' },
+		    display_data => \@sublink_data );
+		
+	} 
+	else {
+		$msg = "Label is a required field";
+		$msgtype = 'errmsg';
+	}
+
+	if ($msgtype eq 'msg') {
+		$m->redirect( $m->comp("/tmpl/url:construct_back_url",
+				'base_url' => '/management/schoollink/show',
+				'msg'=>$msg,
+				'msgtype'=> $msgtype) );
+
+	} 
+	elsif ($msgtype eq 'errmsg'){
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+	        'base_url' => "/management/schoollink/addedit", 
+	        'msg'      => $msg, 
+	        'msgtype'  => $msgtype));
+	}
+}
+</%init>
+
+
+<%method title>
+% my $title = ($school_link_id)? 'Modify' : 'Create';
+% $title .= ' School Link';
+% return $title;
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+% return ['schoollink.js','layers.js','element.js','calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>

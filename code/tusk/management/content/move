@@ -1,0 +1,273 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::ContentTree;
+	use HSDB4::SQLRow::Content;
+	use TUSK::Session;
+	use HSDB4::Constants;
+	use CGI;
+	use TUSK::Constants;
+</%once>
+
+<%shared>
+	my ($course, $parent_object);
+</%shared>
+
+<%method title>
+% return 'Move Content';
+</%method>
+
+<%init>
+	if (exists($ARGS{course})){
+		my ($school, $course_id) = split('-', $ARGS{course});
+		$course = HSDB45::Course->new( _school => $school )->lookup_key($course_id);
+	}else{
+		$course = $m->comp('/tmpl/url:get_type_object');
+	}
+
+	my $path = $m->comp('/tmpl/url:get_path_ids');
+	if (scalar(@$path)){
+		$parent_object = HSDB4::SQLRow::Content->new()->lookup_key($path->[-1]);
+	}else{
+		$parent_object = $m->comp('/tmpl/url:get_type_object');
+	}
+
+	unless (ref($ARGS{content}) eq 'ARRAY'){
+		$ARGS{content} = [ $ARGS{content} ];
+	}
+</%init>
+
+<script>
+	function reloadForm(){
+		document.move.allowSubmit.value=false;
+		document.getElementById('folder_content_id').value = '';
+		document.move.submit();
+	}
+
+	function checkForm(){
+		return document.move.allowSubmit.value;
+	}
+</script>
+
+<& /tmpl/element:form, params => {
+                		method 		=> 'POST',
+	 	               	name 		=> 'move',
+				action		=> $ENV{SCRIPT_URL},
+                		onsubmit 	=> 'return checkForm();' 
+				} &>
+
+<& /tmpl/element:hidden_form_element, params => {
+				name		=> 'allowSubmit',
+				value		=> 'true',
+				} &>
+
+<& /tmpl/element:table, params => { 
+				width		=> "100%",
+        	       		border		=> "0",
+		                cellspacing	=> "0",
+               	 		cellpadding	=> "0",
+				} &>			
+
+<& /tmpl/element:flexible_tr, params => { 
+				label 		=> 'Content to Move',
+				} &>
+
+<& /tmpl/element:table, params => { 
+				width		=> "75%",
+        	       		border		=> "0",
+		                cellspacing	=> "0",
+               	 		cellpadding	=> "0",
+				class		=> "tusk",
+				} &>
+<%perl>
+		foreach my $content_id (@{$ARGS{content}}){
+			my $content = HSDB4::SQLRow::Content->new->lookup_key($content_id);
+			print "<tr>\n";
+			print '<td class="layers-left"><b>' . $content->title() . '&nbsp;(' . $content->primary_key() . ')</b></td>' . "\n";
+			$m->comp('/tmpl/element:hidden_form_element', params => { name => 'content', value => $content->primary_key() } );
+			print "</tr>\n";
+		}
+</%perl>
+	</table>
+</td>
+</tr>
+
+<& /tmpl/element:dropdown, params => {
+				label 		=> 'Select a Course',
+		                name 		=> 'course',
+		                onchange	=> 'reloadForm()',
+		                selected	=> $course->school() . '-' . $course->primary_key(),
+		                options		=> $m->comp('SELF:courses_dropdown'),
+					 } &>
+<& /tmpl/element:dropdown, params => {
+				label 		=> 'Move to Folder',
+		                name 		=> 'movelocation',
+		                onchange	=> "document.getElementById('folder_content_id').value ='';",
+		                selected	=> '' ,
+		                options		=> $m->comp('SELF:collection_dropdown', course => $course),
+				trailing_text	=> '<br><b>-OR-</b><br>type in the content_id of the folder:&nbsp;' . 
+						   $m->scomp('/tmpl/element:input_textbox', params => { name => 'folder_content_id', value => $ARGS{folder_content_id} } ),
+						 } &>
+<& /tmpl/element:save_button, params=> {
+				label=>'Move Content',
+				name=> 'Submit',
+				no_cancel_button => 1,
+				} &>
+  </table>
+</form>
+
+<%method courses_dropdown>
+<%perl>
+	my $courses = TUSK::Session::cms_user_courses($m->session->{'user'});
+	my $course_options = [];
+
+	foreach my $school (keys %$courses){
+		foreach my $course_info (sort keys %{$courses->{$school}}){
+			my ($label, $id) = split("\0", $course_info);
+			$label = substr($label,0,100)."..." if (length($label) > 100);
+			push (@$course_options, { label => $label . ' (' . $id . ')', value => $school . '-' . $id });
+		}
+	}
+
+	return $course_options;
+</%perl>
+</%method>
+
+<%method collection_dropdown>
+<%args>
+	$course
+</%args>
+<%perl>
+	my $tree = new TUSK::ContentTree($course->child_contentref, "Collection");
+	my $collection_options = [ {label => 'Course Homepage', value => 'course-' . $course->primary_key() . '-' . $course->school() } ];
+	
+	foreach my $branch (@{$tree->{branches}}){
+		my $dashes = "&nbsp;&nbsp;&nbsp;" x $branch->{tab};
+		my $label = $branch->{content}->field_value("title");
+		$label = substr($label,0,100)."..." if (length($label) > 100);
+		my $content_id = $branch->{content}->primary_key();
+		push (@$collection_options, { label => $dashes . '\_' . $label . ' (' . $content_id . ')', value => "content-" . $content_id . '-' . $course->school() . '/' . $course->primary_key() });
+    	}
+
+	return $collection_options;
+</%perl>
+</%method>
+
+<%init>
+	if ($ARGS{Submit}){
+		my ($parent_linkdef, $redirect_path, $new_linkdef);
+		my $last_path_id = $m->comp('/tmpl/url:get_last_path_id');
+
+		my $parent_id = $parent_object->primary_key();
+		if ($parent_object->isa('HSDB45::Course')){
+			my $schooldb = HSDB4::Constants::get_school_db($parent_object->school());
+			$parent_linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$schooldb\.link_course_content"};
+		}elsif($parent_object->isa('HSDB4::SQLRow::Content')){
+			$parent_linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
+		}else{
+			#error
+		}
+
+		my ($new_type, $new_id, $new_path) = split('-', $ARGS{movelocation});
+		my $error_redirect_path =  $ENV{SCRIPT_URL} . '?' . join('&', map { 'content=' . $_ } @{$ARGS{content}}) . '&folder_content_id=' . $ARGS{folder_content_id} . '&course=' . $ARGS{course} . '&errmsg=';
+
+
+		#Store the destination id if we are moving something into a piece of cotent, start with -1 since no content can have a -1
+		# I was going to just use new_id but what if you are trying to move content_id #5 into course #5
+		my $destinationContentId = -1;
+		if ($ARGS{folder_content_id}){
+			my $folder_content = HSDB4::SQLRow::Content->new()->lookup_key($ARGS{folder_content_id});
+
+			if (!$folder_content or !$folder_content->primary_key()){
+				$m->redirect($error_redirect_path . 'Invalid+destination+folder');
+			}elsif($folder_content->primary_key() == $last_path_id){
+				$m->redirect($error_redirect_path . 'Destination+location+is+same+as+start+location');
+			}elsif ($folder_content->type() ne 'Collection'){
+				$m->redirect($error_redirect_path . 'Content+id+specified+is+not+a+folder');
+			}elsif (! TUSK::Session::check_content_permissions($m->session, 
+									$folder_content->course(), 
+									$folder_content, 
+									TUSK::Session::course_user_role($folder_content->course(), $m->session->{'user'}->user_id()),
+									$m->session->{'user'})){
+				$m->redirect($error_redirect_path . 'Sorry%2c+you+do+not+have+permission+to+move+content+into+folder+specified+by+content+id ' . $ARGS{folder_content_id});
+			}
+			$new_type = "content";
+			$new_id = $ARGS{folder_content_id};
+			$destinationContentId=$new_id;
+			$new_path = $folder_content->school() . '/' . $folder_content->field_value('course_id');
+		}
+
+	 	if ($new_type eq "content"){
+			$new_linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
+			$redirect_path = "/management/folders/course/" . $new_path . "/" . $new_id;
+			$destinationContentId=$new_id;
+			if ($last_path_id == $new_id){
+				$m->redirect($error_redirect_path . 'Destination+location+is+same+as+start+location');
+			}
+		}elsif($new_type eq "course"){
+			my $schooldb = HSDB4::Constants::get_school_db($new_path);
+			$new_linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$schooldb\.link_course_content"};
+			$redirect_path = "/management/course/display/" . $new_path . "/" . $new_id;
+
+			my $type_object = $m->comp('/tmpl/url:get_type_object');
+			if (!$last_path_id && $new_path eq $type_object->school() && $new_id == $type_object->primary_key()){
+				$m->redirect($error_redirect_path . 'Destination+location+is+same+as+start+location');
+			}
+	    	}
+		
+		my @children  = $parent_linkdef->get_children($parent_id, "child_content_id in(" . join (',', @{$ARGS{content}}) . ")" )->children();
+		my @newchildren  = $new_linkdef->get_children($new_id)->children();
+		my %newchildren = map { $_->primary_key() => $_ } @newchildren;
+		my $sort_order = scalar(@newchildren) * 10;
+
+		# Start with a blank Title
+		my $movingFolderIntoItsSelf='';
+	    	foreach my $child (@children){
+			# If we are trying to move something into itsself (yes someone actually did this) then grab our title for an error later
+			if($child->primary_key() == $destinationContentId) {$movingFolderIntoItsSelf=$child->title();}
+			else {
+				my ($rval, $msg) = $parent_linkdef->delete(
+								-user 		=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
+								-password 	=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+					 			-parent_id 	=> $parent_id,
+							 	-child_id 	=> $child->primary_key(), 
+								);
+
+				# check to see if this link already exists
+
+				unless ($newchildren{ $child->primary_key() }){
+					$sort_order += 10;
+					($rval, $msg) = $new_linkdef->insert(	
+									-user 		=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, 
+									-password 	=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+					     				-parent_id 	=> $new_id,
+									-child_id 	=> $child->primary_key(),
+									sort_order 	=> $sort_order,
+								);
+				}
+			}
+    		}
+		
+		# If we moved into ourself than print a warning message
+		if($movingFolderIntoItsSelf) {
+			my $errorString = CGI::escape("The folder <b>$movingFolderIntoItsSelf</b> could not be moved into itself");
+			if(scalar(@children) > 1) {$errorString.=CGI::escape(", but the rest of the content was moved into the selected folder");}
+			$m->redirect($redirect_path . "?hintmsg=$errorString");
+		} else {
+			$m->redirect($redirect_path . '?msg=Content+successfully+moved');
+		}
+	}
+</%init>

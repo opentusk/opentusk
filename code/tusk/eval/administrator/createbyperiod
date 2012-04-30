@@ -1,0 +1,374 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB45::TeachingSite;
+	use HSDB45::TimePeriod;
+	use TUSK::Application::Eval::Maker;
+	use TUSK::Application::Eval::MakerTemplate;
+</%once>
+
+<%shared>
+	my %params = $m->request_args;
+	my $school_name = $m->comp('SELF:schoolname');
+	my ($tp, $has_error, $created_evals_by_course, $errors) = (undef, 0, {}, []);
+	my (%course_titles, %site_names);
+</%shared>
+
+<%def get_course_info>
+<%doc>
+	Take form-submitted course information and format into array of hashrefs of course data
+	[
+		{
+			'faculty_names' => '',
+			'teaching_site_id' => '',
+			'course_title' => '',
+			'course_id' => '',
+			'teaching_site' => '',
+			'code' => ''
+		},		
+		{
+			'faculty_names' => '',
+			'teaching_site_id' => '',
+			'course_title' => '',
+			'course_id' => '',
+			'teaching_site' => '',
+			'code' => ''
+		}
+		...
+	]
+</%doc>
+<%perl>
+ 	my $tmpHashRef;
+	my @tmpArray;
+	my $courses = [];
+	unless ( ref $params{'courses'} eq 'ARRAY') {
+		$params{'courses'} = [$params{'courses'}];
+	}
+
+	foreach my $hashstring (@{$params{'courses'}}) {
+		$tmpHashRef = {};
+ 		my @attributes = split "&", $hashstring;
+		foreach my $attribute (@attributes) {
+			@tmpArray = split "=", $attribute;
+			## unescape value
+			$tmpArray[1] =~ s/%(..)/chr(hex($1))/eg;
+			$tmpHashRef->{$tmpArray[0]} = $tmpArray[1];
+		}
+		push @$courses, $tmpHashRef;
+	}
+	return $courses;
+</%perl>
+</%def>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	my @current_time_periods = HSDB45::TimePeriod->new(_school => $m->comp('SELF:schoolname'))->lookup_all('end_date >= curdate()', 'ORDER BY end_date ASC');
+	unless (scalar @current_time_periods) {
+		$m->comp('SELF:set_msg', type => 'err', msg => 'Your school does not have any current time periods. Please contact your system administrator');
+		$has_error = 1;
+	}
+</%perl>
+</%method>
+
+<%init>
+	return if ($has_error);
+	$m->comp('SELF:show_form');
+
+	## if form has been submitted, process request
+	if ($params{submit_check} && $params{time_period_id} && $params{due_date} && $params{available_date}) {
+		$tp = HSDB45::TimePeriod->new(_school => $school_name)->lookup_key($params{time_period_id});
+    	$m->comp('SELF:process');
+    	$m->comp('SELF:print_messages');
+	} 
+</%init>
+
+
+<%method show_form>
+<& /tmpl/element:form, params => {
+	name 		=> 'createbulkevals',
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+	onsubmit	=> 'return verifyCreateByPeriod(this);'
+} &>
+
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0" 
+} &>
+
+<& /tmpl/element:radio_buttons, params => { 
+	label => 'Create an evaluation<br />for each: <span style="font-size:80%;color:red">*</span>',
+	name => 'create_by',
+	buttons => [
+		{ value => "course", text => "Course", checked => ($params{create_by} ne 'course_site') ? 1 : undef, onclick => "requestCourses(this.form.time_period_id, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by);",
+ },
+		{ value => "course_site", text => "Course and Teaching Site combination", checked => ($params{create_by} eq 'course_site') ? 1 : undef, onclick => "requestCourses(this.form.time_period_id, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by);",
+}
+	],
+} &>
+
+<& /eval/administrator/tmpl:get_current_time_periods, params => {
+	label			=> 'Time Period: <span style="font-size:80%;color:red">*</span>',
+	onchange		=> "requestCourses(this, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by);",
+	 trailing_text	=> qq(<br/>
+<div id="coursesOuter" style="ont-size:85%;">
+	<span id="coursesInstruction" style="display:none;"></span>
+	<div id="coursesInner" style="display:none;font-size:85%;">\n</div>\n
+</div>\n), 
+} &>
+
+<& /tmpl/element:textbox, params => { 
+    label 	=> 'Template Eval ID:',
+    name 	=> 'template_eval_id',
+    value 	=> $params{template_eval_id},
+    size 	=> 10,
+} &>
+
+<& /tmpl/element:textbox, params => { 
+    label 	=> 'Eval Title: <span style="font-size:80%;color:red">*</span>',
+    name 	=> 'title',
+    value 	=> $params{title},
+    size 	=> 80,
+    trailing_text => 
+'<br/><span style="font-size:85%">followed by:</span>
+<table style="font-size:80%">
+<tr>
+<td><input type="checkbox" name="t_cn" value="1"' . (($params{t_cn}) ? 'CHECKED' : '') . ' /> Course Name</td>
+<td><input type="checkbox" name="t_tp" value="1"' . (($params{t_tp}) ? 'CHECKED' : '') . ' /> Time Period</td>
+<td><input type="checkbox" name="t_ay" value="1"' . (($params{t_ay}) ? 'CHECKED' : '') . ' /> Academic Year</td>
+<td><input type="checkbox" name="t_ts" value="1"' . (($params{t_ts}) ? 'CHECKED' : '') . ' /> Teaching Site</td>
+<td><input type="checkbox" name="t_faculty" value="1"' . (($params{t_faculty}) ? 'CHECKED' : '') . ' /> Director Names</td>
+</tr>
+</table>'
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Available Date: <span style="font-size:80%;color:red">*</span>',
+	name	=> 'available_date',
+	value	=> $params{available_date},
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Submittable Date:',
+	name	=> 'submittable_date',
+	value	=> $params{submittable_date},
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Preliminary Date:',
+	name	=> 'prelim_due_date',
+	value	=> $params{prelim_due_date},
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Due Date: <span style="font-size:80%;color:red">*</span>',
+	name	=> 'due_date',
+	value	=> $params{due_date},
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<tr>
+	<td>&nbsp;</td>
+	<td><p><span style="font-size:80%;color:red">*</span> field is required</p></td>
+</tr>
+
+<& /tmpl/element:save_button, params=>{
+	label	=>	'Create Evaluations',
+    cancel_onclick => "go_back('/eval/administrator/show/$school_name'');",
+	name	=>	'submit',
+	trailing_text => '<br/><span style="font-size:75%">Note: This will create evals for all selected courses from the selected time period.</span>' 
+} &>
+</tr>
+</table>
+</form>
+</%method>
+
+
+<%method process>
+<%perl>
+	## set up default error message
+	my $err_msg = "There is no template set up in the system for the course(s) you selected.  Please contact your system administrator or fill in a template eval id in the form.";
+
+	## attempt to get template eval id from form submission and, if it's there, change possible error message accordingly
+	my $eval_id = $params{template_eval_id};
+	if ($eval_id) {
+		$err_msg = "You have submitted an invalid template eval id.";
+	}
+	my $got_template = 0;
+
+
+	## parse course info passed into array of course info hash references
+	my $courses = $m->comp('get_course_info');
+
+	if (scalar @$courses) {
+		foreach (@$courses) {
+			my $key;
+			if ($_->{'course_code'}) {
+				$key = $_->{'course_id'} . "_" . $_->{'course_code'};
+			}
+			else {
+				$key = $_->{'course_id'};
+			}
+			## only proceed if there's a prototype eval for this course
+			if (!$eval_id) {			
+				$eval_id = TUSK::Application::Eval::MakerTemplate->new( { school => $m->comp('SELF:schoolname'),time_period_id => $params{'time_period_id'} })->getPrototypeEvalID($_->{'course_code'});
+			}
+			if (HSDB45::Eval->new(_school => $school_name, _id => $eval_id)->field_value('eval_id')) {
+				$got_template = 1;
+				$m->comp('SELF:create_eval', tmpl_eval_id => $eval_id, course_id => $_->{'course_id'}, course_title => $_->{'course_title'}, course_code => $_->{'course_code'}, site_id => $_->{'teaching_site_id'}, site_name => $_->{'teaching_site_name'}, faculty_names => $_->{'faculty_names'}, key => $key);
+
+				## update %course_titles and %site_names hashes with data from newly created eval
+				$course_titles{$key} = $_->{'course_title'};
+				if ($_->{'teaching_site_id'} && $_->{'teaching_site_name'}) {
+					$site_names{$_->{'teaching_site_id'}} = $_->{'teaching_site_name'};
+				}
+			}
+			## wipe out template eval id unless there was one passed by the user
+			$eval_id = undef unless ($params{template_eval_id});
+		}
+	}
+	else {
+		## user has submitted a valid template eval id, but there are no course codes set up in the system, so change error message accordingly
+		if ($eval_id && HSDB45::Eval->new(_school => $school_name, _id => $eval_id)->field_value('eval_id')) {
+			$err_msg = "You have no course codes defined for the selected time period.  Please contact your system administrator or select another time period.";
+		}
+	}
+
+	unless ($got_template) {
+		push @$errors, $err_msg;
+	}
+
+	</%perl>
+</%method>
+
+
+<%method create_eval>
+<%args>
+	$tmpl_eval_id
+	$course_id
+	$course_title
+	$course_code
+	$site_id => 0
+	$site_name => undef
+	$faculty_names
+	$key
+</%args>
+
+<%perl>
+	### don't create one if there is no template eval_id
+	return unless defined $tmpl_eval_id;  
+
+	my $course = HSDB45::Course->new(_id => $course_id, _school => $school_name);
+
+	my $eval_title = $params{title};
+	$eval_title .= (($eval_title) ? ' - ' : '') . $course_title if defined $params{t_cn} && defined $course_title;
+	$eval_title .= ' - AY ' . $tp->field_value('academic_year') if defined $params{t_ay} && defined $tp->field_value('academic_year');
+	$eval_title .= ' - ' . $tp->field_value('period')  if defined $params{t_tp} && defined $tp->field_value('period');
+	$eval_title .= ' - ' . $site_name if defined $params{t_ts} && defined $site_name;
+	$eval_title .= ' - ' . $faculty_names  if defined $params{t_faculty} && defined $faculty_names;
+
+	my $evalmaker = TUSK::Application::Eval::Maker->new({ 
+	    school				=> $school_name,
+	    course				=> $course,
+   		time_period			=> $tp,
+   		teaching_site		=> HSDB45::TeachingSite->new(_school => $school_name, _id => $site_id),
+   		available_date		=> $params{available_date},
+    	due_date			=> $params{due_date},
+   		submittable_date	=> $params{submittable_date},
+    	prelim_due_date		=> $params{prelim_due_date},
+   		eval_title			=> $eval_title,
+	});
+
+	if (my $eval = $evalmaker->clone($tmpl_eval_id)) {
+		push @{$created_evals_by_course->{$key}}, HSDB45::Eval->new(_school => $school_name)->lookup_key($evalmaker->getEvalID());
+	} else {
+		push @$errors, "There was a problem creating an eval for the course: " . $course_title . (($site_name) ? ' - ' . $site_name : '');
+	}
+</%perl>
+</%method>
+
+
+<%method print_messages>
+<%perl>
+	if (scalar @$errors) {
+		print "<ul>\n";
+		foreach (@$errors) {
+		    print "<li style=\"font-size:125%;color:red;font-weight:bold;\">$_</li>\n";
+		}
+		print "</ul>\n<br/>\n";
+   	}
+	if (!scalar @$errors && (scalar %$created_evals_by_course)) {
+		print "<br/><br/><div class=\"admintext\"><b>Eval Creation Report for Period: " . $tp->period() . ', ' . $tp->field_value('academic_year') . "</b></div>";
+		print $m->comp('SELF:print_table', $created_evals_by_course, 'New');
+	}
+</%perl>
+</%method>
+
+
+<%method print_table>
+<%perl>
+	my ($evals, $label) = @_;
+	
+	print "<h3 class='subhead'>" . $label . ' Evaluations:</h3>';
+	print "<ul>\n";
+    if (keys %{$evals}) {
+		my $total = 0; 
+		foreach my $course_id (sort { $course_titles{$b} <=> $course_titles{$a} } keys %course_titles) {
+			if (exists $evals->{$course_id} && scalar @{$evals->{$course_id}}) {
+				print "<li><h4>Course: &nbsp; $course_titles{$course_id}</h4>\n<ol>";
+			}
+			foreach my $eval (@{$evals->{$course_id}}) {
+		    	print "<li class=\"line-left\"><p><a href=\"/protected/eval/administrator/eval_edit/$school_name/" . $eval->primary_key() . "\" target=\"new\">" . $eval->field_value('title') . "</a></p></li>\n";
+				$total++;
+			}
+			if (exists $evals->{$course_id} && scalar @{$evals->{$course_id}}) {
+				print "</ol></li>\n";
+			}
+		}
+		print "<p class=\"sm\">Total Number of $label Evaluations: $total</p>\n";
+    } else {
+		print "<p class=\"sm\">No $label Evaluations.</p>\n";
+	}
+
+	print "</ul>\n";
+</%perl>
+</%method>
+
+
+<%method title>
+% 	return "Create Evaluations By Time Period";
+</%method>
+
+
+<%method jsarray>
+% 	return ['eval.js', 'jquery/jquery.min.js', 'evalBatch.js', 'element.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>

@@ -1,0 +1,55 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method next_phase_url>
+<%args>
+$case
+$phase
+</%args>
+<%perl>
+my $next_phase = $case->getNextPhase($phase);
+my $next_phase_id;
+if ($next_phase){
+	$next_phase_id = $next_phase->getPrimaryKeyID();
+}
+my $case_id = $case->getPrimaryKeyID();
+my $location;
+if (!defined($next_phase_id)){
+	my $report_id = $case->getReport()->getPrimaryKeyID();
+        $location = "casedone/" . $m->comp("/tmpl/url:get_type_path") . "/$case_id/$report_id";
+} else {
+        $location = "dophase/" . $m->comp("/tmpl/url:get_type_path") . "/$case_id/$next_phase_id";
+}
+return $location;
+</%perl>
+</%method>
+
+<%method getChartInfo>
+<%args>
+$case
+$type => 'leftnav'
+</%args>
+<%perl>
+my $retStruct = [];
+my $content;
+foreach my $phase (@{$case->getVisitedPhases()}){
+	$content = $phase->getNarrativeContent();
+	push @{$retStruct},{'name'=>$phase->getPhaseTitle(),
+			'content'=>$content,
+			'text'=>$m->comp($phase->getIncludeFile.':chartInfo',phase=>$phase,case=>$case,type=>$type)}
+}
+return $retStruct;
+</%perl>
+</%method>

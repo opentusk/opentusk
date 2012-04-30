@@ -1,0 +1,331 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use HSDB4::SQLRow::Content;
+</%once>
+
+<%method print_my_groups>
+<%args>
+$group_courses_hashref
+</%args>
+<%doc></%doc>
+
+% foreach my $school (keys %{$group_courses_hashref}) {
+      <!-- Begin My Groups Header Table -->
+
+<h3 class="gRedHeaderBar"><% $school %> groups [beta]</h3>
+
+      <!-- End My Groups Header Table -->
+      <!-- Begin my Groups Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0"  } &>
+   
+       <tr>
+        <td width="1" valign="top" background="/graphics/bg-reddotsvert.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+	<td width="150%" valign="top">
+
+	<!-- Begin Inner My Groups Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"5",
+	cellpadding =>"0"  } &>
+	 
+%     foreach my $g_course (sort keys %{$group_courses_hashref->{$school}}) {
+%	   my ($label,$id)=split("\0",$g_course);
+		<tr><td width="100%" valign="top" class="cell-left"><a href="/management/course/display/<% $school %>/<% $id %>"><% $label %></a></td></tr>
+%	}
+	  <tr>
+	   <td colspan="2" width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+          </tr>
+         </table>
+         <!-- End Inner My Groups Table -->
+        </td>
+       </tr>
+      </table>
+      <!-- End My Groups Table -->
+% }
+</%method>
+
+
+
+<%method print_thesis_committees>
+<%args>
+$tc_courses_hashref
+</%args>
+<%doc></%doc>
+
+% foreach my $school (keys %{$tc_courses_hashref}) {
+      <!-- Begin Thesis Committee Header Table -->
+
+<h3 class="gRedHeaderBar"><% $school %> Thesis Committees [beta]</h3>
+
+      <!-- End Thesis Committee Header Table -->
+      <!-- Begin Thesis Committee Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0"  } &>
+      
+       <tr>
+        <td width="1" valign="top" background="/graphics/bg-reddotsvert.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+	<td width="150%" valign="top">
+
+	<!-- Begin Inner Thesis Committee Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"5",
+	cellpadding =>"0"  } &>
+	 
+%     foreach my $tc_course (sort keys %{$tc_courses_hashref->{$school}}) {
+%	    my ($label,$id)=split("\0",$tc_course) ;
+		<tr><td width="100%" valign="top" class="cell-left"><a href="/management/course/display/<% $school %>/<% $id %>"><% $label %></a></td></tr>
+%	}
+	  <tr>
+	   <td colspan="2" width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+          </tr>
+         </table>
+         <!-- End Inner Thesis Committee Table -->
+        </td>
+       </tr>
+      </table>
+      <!-- End Thesis Committee Table -->
+%   } # end for each tc_courses
+
+</%method>
+
+
+<%method print_conversion_status>
+<%args>
+@ppt_statuses
+@tuskdoc_statuses
+</%args>
+<%doc></%doc>
+
+<!-- Begin Conversion Status Header Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0"  } &>
+  <tr>
+	<td width="100%" valign="top"><h3 class="gRedHeaderBar">Conversion Status</h3></td>
+  </tr>
+</table>
+<!-- End Conversion Status Header Table -->
+
+<!-- Begin Conversion Status Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0"  } &>
+
+  <tr>
+    <td width="1" valign="top" background="/graphics/bg-reddotsvert.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+	<td width="150%" valign="top">
+<h4 class="homepageHdr">Powerpoint Documents</h4>
+	<!-- Begin Inner Conversion Status Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"5",
+	cellpadding =>"0"  } &>
+	
+% if (@ppt_statuses) {
+% foreach my $ppt (@ppt_statuses) {
+<tr>
+    <td width="100%" valign="top" class="cell-left"><% $ppt->field_value('title') %> (<% $ppt->field_value('content_id') %>) <em>- <% $ppt->field_value('status') %></em></td>
+  </tr>
+% }
+% } else {
+<tr>
+   <td class="cell-left"><i>No powerpoint uploads.</i>
+   </td>
+</tr>
+% } 
+   <tr>
+	<td width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+  </tr>
+</table>
+<h4 class="homepageHdr">TUSKdoc Documents</h4>
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"5",
+	cellpadding =>"0"  } &>
+	
+% if (@tuskdoc_statuses) {
+% foreach my $tds (@tuskdoc_statuses) {
+% 	my $doc = HSDB4::SQLRow::Content->new()->lookup_key($tds->getObjectID());
+<tr>
+    <td width="100%" valign="top" class="cell-left"><% $doc->title() %> (<% $tds->getObjectID() %>) <em>- <% $tds->getStatusLabel() %></em></td>
+  </tr>
+% }
+% } else {
+<tr>
+   <td class="cell-left"><i>No TUSKdoc uploads.</i>
+   </td>
+</tr>
+% } 
+   <tr>
+	<td width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+  </tr>
+</table>
+	<!-- End Inner Conversion Status Table -->
+	</td>
+  </tr>
+</table>
+                  <!-- End Conversion Status Table -->
+
+</%method>
+
+<%method print_recently_modified>
+<%args>
+@recently_modified
+</%args>
+<%doc></%doc>
+                <!-- Begin Recently Modified Header Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0"  } &>
+                  
+  <tr>
+    <td width="100%" valign="top"><h3 class="gRedHeaderBar">Recently Modify</h3></td
+  </tr>
+</table>
+<!-- End Recently Modified Header Table -->
+
+<!-- Begin Recently Modified Table -->
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+  <tr>
+    <td width="1" valign="top" background="/graphics/bg-reddotsvert.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+	<td width="150%" valign="top">
+	<!-- Begin Inner Recently Modified Table -->
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"5",
+	cellpadding =>"0"  } &>
+	
+%	 if (@recently_modified) {
+%	   foreach my $content (@recently_modified) {
+	    <tr>
+	       <td width="100%" valign="top" class="cell-left">
+<a href="/management/content/addedit/course/<%$content->field_value('school') %>/<% $content->field_value('course_id') %>/<% $content->primary_key %>?page=edit"><% $content->field_value('title') %></a> (<% $content->primary_key %>)&nbsp;<i><% $content->modified_date %>
+</i></td></tr>
+% }
+
+% } else {
+	<tr>
+	<td class="cell-left">
+	     <i>No recently modified content.</i>
+	</td>
+	</tr>
+% }
+   <tr>
+	<td width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+  </tr>
+</table>
+	<!-- End Inner Recently Modified Table -->
+	</td>
+  </tr>
+</table>
+	<!-- End Inner Recently Modified Table -->
+<!-- End Recently Modified Table -->
+
+</%method>
+
+<%method display_content_modify>
+<%args>
+</%args>
+<%doc></%doc>
+                  <!-- Begin Quick Edit Header Table -->
+				  <& /tmpl/element:table, params => { 
+				  	width => "100%",
+					cellspacing =>"0",
+					cellpadding =>"0"  } &>
+                  
+                    <tr> 
+			<td width="100%" valign="top"><h3 class="gRedHeaderBar">Quick Content Modify</h3></td
+                    </tr>
+                  </table>
+                  <!-- End Quick Edit Header Table -->
+                  <!-- Begin Quick Edit Table -->
+				  <& /tmpl/element:table, params => { 
+				   width => "100%",
+				   cellspacing =>"0",
+				   cellpadding =>"0"  } &>
+                  
+                    <tr> 
+                      <td width="1" valign="top" background="/graphics/bg-reddotsvert.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+                      <td width="150%" valign="top"> 
+                        <!-- Begin Inner Quick Edit Table -->
+						<& /tmpl/element:table, params => { 
+							width => "100%",
+							cellspacing =>"5",
+							cellpadding =>"0"  } &>
+                        
+                          <tr> 
+                            <td width="100%" valign="top" class="cell-left" nowrap><form action="/management/content/addedit/content" name="content" method="post" class="no-padding" onsubmit="return checkform(this);"><input type="hidden" name="page" value="edit">
+                                ID#: 
+                                <input name="content_id" type="text" class="textareawhite" size="8" id="Content_ID__y">&nbsp;
+                                <input name="Find" type="submit" class="formbutton" value="Modify">&nbsp;<a href="javascript:open_window('/management/searchpages/content/?parent=opener.document.content.edit_content_id.value','directories=no,menubar=no,toolbar=yes,scrollbars=yes,resizable=yes,width=800,height=700');" class="xxsm">Search for Content IDs</a>
+                              </form></td>
+                          </tr>
+                          <tr> 
+                            <td width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+                          </tr>
+                        </table>
+                        <!-- End Inner Quick Edit Tables -->
+                      </td>
+                    </tr>
+                  </table>
+                  <!-- End Quick Edit Table -->
+
+</%method>
+
+
+<%method display_courses>
+<%args>
+$courses_hashref
+</%args>
+<%doc></%doc>
+% foreach my $school (keys %{$courses_hashref}) {
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+  <tr>
+    <td width="100%" valign="top"><h3 class="gRedHeaderBar"><% $school %> School</h3></td
+  </tr>
+</table>
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0"  } &>
+% foreach my $course (sort keys %{$courses_hashref->{$school}}) {
+%     my ($label,$id)=split("\0",$course);      
+                    <tr> 
+                      <td width="90%" class="graycell"><a href="course/display/<% $school %>/<% $id %>"><% $label %></a></td>
+                    </tr>
+% }
+
+</table>
+% }
+</%method>

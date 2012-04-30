@@ -1,0 +1,45 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method title>
+<%perl>
+my $title = "Modify Phase Type";
+return $title;
+</%perl>
+</%method>
+<%once>
+use TUSK::Case::PhaseType;
+</%once>
+<%perl>
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $phase_types = TUSK::Case::PhaseType->getPhaseTypes('ALL');
+my $col_fields = [ {'label'=>'Name', 'field'=>'getTitle'},
+		   {'label'=>'Sort', 'field'=>'getDefaultSortOrder'},
+                   {'label'=>'Object Name', 'field'=>'getPhaseTypeObjectName'}];
+my $action_columns;
+$action_columns = [{'label'=>'Modify','link'=>"/case/administrator/phasetypeaddedit/$type_path"},
+		{'label'=>'Delete','link'=>"/case/administrator/phasetypedelete/$type_path"}];
+</%perl>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:vertical_spacing, size =>1 &>
+<& /tmpl/element:object_selection_box, params => { columns=>$col_fields,
+                object_list => $phase_types,
+                action_columns=>$action_columns }
+&>
+</table>

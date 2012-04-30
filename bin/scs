@@ -1,0 +1,358 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+# LOTS of helpful information and explanation at __END__ of file
+
+use strict;
+use MySQL::Password;
+use HSDB45::Eval;
+use HSDB45::Eval::Completion;
+use HSDB45::Eval::Results;
+use HSDB45::Eval::Question;
+use HSDB45::Eval::Question::Body;
+use HSDB45::Eval::Question::Results;
+use HSDB45::Eval::Question::Response;
+use XML::Twig;
+
+use constant DEBUG => 0;
+
+HSDB4::Constants::set_user_pw(get_user_pw());
+
+my $school  = shift(@ARGV);
+my $eval_id = shift(@ARGV);
+
+my $eval = HSDB45::Eval->new(_school => $school, _id => $eval_id); # the eval to clone
+my $results = HSDB45::Eval::Results->new($eval); # the results to clone
+my @questions = $eval->questions(); # won't be cloning the questions, but need them for cloning other stuff
+my @question_results = $results->question_results(); # the individual question results to clone
+
+#######
+# (1) #
+#######
+
+my %user_code_hash; # a mapping of user code to the location the user was at
+my %locations = (NEMC => 1, Winchester => 1, Faulkner => 1); # essentially a list of unique locations
+foreach my $response ($question_results[1]->responses()) { # fill in the two above hashes from info in location question
+    my $user_code = $response->user_code();
+    my $chopped_user_code = $user_code;
+    chop($chopped_user_code); # create a "new" user code for the FW responses
+
+    if($response->interpreted_response() eq "NEMC/Winchester") {
+	$user_code_hash{$chopped_user_code} = "Winchester";
+	$user_code_hash{$user_code} = "NEMC";
+    }
+    elsif($response->interpreted_response() eq "NEMC/Faulkner")
+    {
+	$user_code_hash{$chopped_user_code} = "Faulkner";
+	$user_code_hash{$user_code} = "NEMC";
+    }
+    else {
+	$user_code_hash{$user_code} = $response->interpreted_response();
+	$locations{$response->interpreted_response()} = 1;
+    }
+}
+
+#######
+# (2) #
+#######
+
+my %new_evals;
+foreach my $location (keys(%locations)) {
+    print "creating eval for $location\n" if DEBUG;
+    $new_evals{$location} = HSDB45::Eval->new(_school => $eval->school());
+    $new_evals{$location}->set_field_values(course_id           => $eval->field_value('course_id'),
+					    time_period_id      => $eval->field_value('time_period_id'),
+					    available_date      => $eval->field_value('available_date'),
+					    modified            => $eval->field_value('modified'),
+					    due_date            => $eval->field_value('due_date'),
+					    prelim_due_date     => $eval->field_value('prelim_due_date'),
+					    question_stylesheet => $eval->field_value('question_stylesheet'),
+					    results_stylesheet  => $eval->field_value('results_stylesheet'),
+					    title               => $eval->field_value('title') . ' (' . $location . ')');
+    my ($res, $msg) = $new_evals{$location}->save();
+}
+
+
+#######
+# (3) #
+#######
+
+my $new_question_elt = XML::Twig::Elt->new("question", {question_type => "radio-box", required => "no"});
+XML::Twig::Elt->new("question_label", {}, 1)->paste('last_child', $new_question_elt);
+XML::Twig::Elt->new("question_text", {}, "Hospital:")->paste('last_child', $new_question_elt);
+my $choice_label = "a";
+for(my $elt = $questions[1]->body()->elt()->first_child()->next_sibling();
+    $elt;
+    $elt = $elt->next_sibling(), $choice_label++)
+{
+    my $choice_text = $elt->text();
+    if($choice_text eq "NEMC/Winchester") {
+	$choice_text = "Winchester";
+    }
+    elsif($choice_text eq "NEMC/Faulkner") {
+	$choice_text = "Faulkner";
+    }
+
+    my $new_choice_elt = XML::Twig::Elt->new("question_choice",
+					     {choice_label => $choice_label},
+					     $choice_text);
+    $new_choice_elt->paste('last_child', $new_question_elt);
+}
+
+XML::Twig::Elt->new("question_choice", {choice_label => $choice_label}, "NEMC")->paste('last_child', $new_question_elt);
+my $dbh = HSDB4::Constants::def_db_handle();
+my $db = HSDB4::Constants::get_school_db($school);
+my $sth = $dbh->prepare("insert into $db.eval_question set body=?");
+$sth->execute('<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $new_question_elt->sprint());
+my $new_hospital_question_id = $sth->{"mysql_insertid"};
+
+
+#######
+# (4) #
+#######
+
+my $link = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_eval_eval_question"}; # for linking new evals to questions
+foreach my $location (keys(%new_evals)) {
+    $link->insert(-parent_id => $new_evals{$location}->primary_key(),
+		  -child_id  => $new_hospital_question_id,
+		  label => $questions[1]->aux_info('label'),
+		  sort_order => $questions[1]->aux_info('sort_order'),
+		  required => $questions[1]->aux_info('required'),
+		  graphic_stylesheet => $questions[1]->aux_info('graphic_stylesheet'));
+}
+
+#######
+# (5) #
+#######
+
+foreach my $response ($question_results[1]->responses()) {
+    if(($response->interpreted_response() eq "NEMC/Winchester") ||
+       ($response->interpreted_response() eq "NEMC/Faulkner"))
+    {
+	my $fw_response = HSDB45::Eval::Question::Response->new(_school => $school);
+	$fw_response->field_value(response => $response->response());
+	my $chopped_user_code = $response->user_code();
+	chop($chopped_user_code);
+	$fw_response->primary_key($chopped_user_code,
+				  $response->interpreted_response() eq "NEMC/Winchester"
+				  ? $new_evals{"Winchester"}->primary_key()
+				  : $new_evals{"Faulkner"}->primary_key(),
+				  $new_hospital_question_id);
+	$fw_response->save();
+
+	my $nemc_response = HSDB45::Eval::Question::Response->new(_school => $school);
+	$nemc_response->field_value(response => $choice_label);
+	$nemc_response->primary_key($response->user_code(),
+				    $new_evals{"NEMC"}->primary_key(),
+				    $new_hospital_question_id);
+	$nemc_response->save();
+    }
+    else {
+	my $cloned_response = HSDB45::Eval::Question::Response->new(_school => $school);
+	$cloned_response->field_value(response => $response->response());
+	$cloned_response->primary_key($response->user_code(),
+				      $new_evals{$response->interpreted_response()}->primary_key(),
+				      $new_hospital_question_id);
+	$cloned_response->save();
+    }
+}
+
+#######
+# (6) #
+#######
+
+my $i;
+my %question_ids; # this mapping is needed later when cloning responses to the fw questions
+my $status = "not_started"; # looping variable indicating whether inside the range of questions to be dealt with
+for($i = 0; ; ++$i) {
+    print "processing question_id " . $questions[$i]->primary_key() . "\n" if DEBUG;
+
+    $question_ids{$questions[$i]->label()} = $questions[$i]->primary_key() if $questions[$i]->label();
+
+    # looping control
+    last if($questions[$i]->label() eq "fw3"); # just got to the fw questions so drop out of loop
+    $status = "started" if $questions[$i]->label() eq "3"; # just entered the block of questions of interest
+    next unless $status eq "started"; # ignore this question if not in the range of ones of interest
+
+    # link this question to each of the new evals
+    foreach my $location (keys(%locations)) {
+	if(DEBUG) {
+	    print "linking eval " . $new_evals{$location}->primary_key() .
+		" to question " . $questions[$i]->primary_key() . "\n";
+	}
+
+	$link->insert(-parent_id => $new_evals{$location}->primary_key(),
+		      -child_id => $questions[$i]->primary_key(),
+		      label => $questions[$i]->aux_info('label'),
+		      sort_order => $questions[$i]->aux_info('sort_order'),
+		      required => $questions[$i]->aux_info('required'),
+		      grouping => $new_hospital_question_id,
+		      graphic_stylesheet => $questions[$i]->aux_info('graphic_stylesheet'));
+    }
+
+    # foreach response to this eval question, clone the response to be a response to the appropriate new eval
+    foreach my $response ($question_results[$i]->responses()) {
+	if(DEBUG) {
+	    print "copying response to " . $new_evals{$user_code_hash{$response->user_code()}}->primary_key() . "\n";
+	}
+
+	my $cloned_response = HSDB45::Eval::Question::Response->new(_school => $school);
+	$cloned_response->field_value(response => $response->response());
+	$cloned_response->primary_key($response->user_code(),
+				      $new_evals{$user_code_hash{$response->user_code()}}->primary_key(),
+				      $questions[$i]->primary_key());
+	$cloned_response->save();
+    }
+}
+
+#######
+# (7) #
+#######
+
+my %morons; # take note of idiots who filled out the FW questions, despite not having attended those locations
+for(; $i < scalar(@questions); ++$i) {
+    my $label = $questions[$i]->label();
+    $label =~ s/fw//;
+
+    foreach my $response ($question_results[$i]->responses()) {
+	my $cloned_response = HSDB45::Eval::Question::Response->new(_school => $school);
+	$cloned_response->field_value(response => $response->response());
+	my $chopped_user_code = $response->user_code(); # remember, need a distinct user code for NEMC and FW response
+	chop($chopped_user_code);
+
+	if($user_code_hash{$chopped_user_code} eq "Winchester") {
+	    # this is a response pertaining to Winchester
+	    print "copying fw response to " . $new_evals{Winchester}->primary_key() . "\n" if DEBUG;
+	    $cloned_response->primary_key($chopped_user_code,
+					  $new_evals{Winchester}->primary_key(),
+					  $question_ids{$label});
+	    $cloned_response->save();
+	}
+	elsif($user_code_hash{$chopped_user_code} eq "Faulkner") {
+	    # this is a response pertaining to Faulkner
+	    print "copying fw response to " . $new_evals{Faulkner}->primary_key() . "\n" if DEBUG;
+	    $cloned_response->primary_key($chopped_user_code,
+					  $new_evals{Faulkner}->primary_key(),
+					  $question_ids{$label});
+	    $cloned_response->save();
+	}
+	else {
+	    $morons{$response->user_code()}++;
+	    # this is a response by a med student who is a moron and can't follow simple directions...
+	    # perhaps delete from hsdb4.user where user_id='xxxx' if only we had that info... >:o
+	}
+    }
+}
+
+if(DEBUG) {
+    foreach my $moron (keys(%morons)) {
+	print $moron . " was a moron " . $morons{$moron} . " times!!!  they should die!!!\n";
+    }
+}
+
+print "New Evals Created:\n";
+foreach my $location (sort { $new_evals{$a}->primary_key() <=> $new_evals{$b}->primary_key() } keys(%new_evals)) {
+    print $new_evals{$location}->primary_key() . ": " . $location . "\n";
+}
+
+__END__
+
+scs: surgery clerkship splitter
+
+Author: Andrew Gibbs
+
+Though he'd rather not be associated with this script, he will tell a
+hearty tale of the ridiculous hurdles he had to overcome to make it
+work.
+
+This script is a dozen different hacks rolled into one horrible
+kludge, though I try to feign elegance...  Perhaps they should be
+delineated so this script does not become a rosetta stone...
+
+The purpose of this script is twofold, though it started out as
+onefold, and during its creation the author realized that, much to his
+delight, he had killed two birds with one stone, or if you are vegan,
+microwaved two blocks of tofu simultaneously.  Firstly, this script
+splits apart a surgery clerkship into several distinct evals, one for
+each location.  This is useful when one desires to see the results of
+the eval for just one location.  Surprisingly, this was the unintended
+consequence.  Initially this script was written with the intent to act
+as the first step in a two step pipline involving creating the
+distinct evals, and then glomming them with
+HSDB45::Eval::MergedResults, so as to create a unified report.
+
+In any case, this process is woefully complicated, and as such great
+pains have been taken to document the discrete steps involved in
+accomplishing the desired ends.  The main phases are delineated below,
+and the comment headings are similarly marked in the code body.  There
+are also various inline comments to help out at the potentially
+extra-confusing bits.
+
+1) Create a map of user codes that can be used to correlate responses
+   in later questions back to the location of the hospital(s) at which
+   the hapless student performed his or her clerkship.  In the case of
+   everyone but the NEMC/Winchester or NEMC/Faulkner people, this will
+   just be their original user code.  For the NEMC/FW people, they
+   will actually need to have two distinct user codes, so both their
+   answers to the first block of questions can later be properly
+   categorized, as well as their responses to the "FW" questions which
+   come later in the eval.  This is accomplished by using their
+   original user code as their user code for NEMC responses, and by
+   generating a "new" user code for use with their FW responses by
+   chopping one character off of their original user code.  This
+   chopping must be done consistently in three different places:
+   building up %user_code_hash, cloning the NEMC/FW people's responses
+   for the hospital location question, and lastly for cloning the
+   responses for the NEMC/FW people to the FW questions.
+   Incidentally, while doing the looping involved for this, a hash of
+   locations will also be assembled which will shortly thereafter be
+   used to create the new evals.
+
+2) Create the new evals, one for each location at which the clerkship
+   occurred.  The only difference between these evals and the
+   originals will be the eval_id (duh) and the title.  The title will
+   be created by appending the location name in parenthesis to the
+   original eval's title.
+
+3) Clone the original location choice question, by which all later
+   questions are categorized.  This involves copying the various
+   locations, but also in the case of the "NEMC/Winchester" and
+   "NEMC/Faulkner" choices, they will be scratched out, with just
+   "Winchester" and "Faulkner" in their stead.  There will
+   additionally be a "NEMC" choice created.  The "choice_label" for
+   the new NEMC group will be stored for later use when cloning
+   responses for the location question (4), hence why $choice_label is
+   declared in the scope above the loop, rather than in the scope of
+   the loop.
+
+4) Link all of the newly created evals to the newly cloned location
+   question.
+
+5) Clone the responses of the original location question, or perhaps
+   more appropriately, clone and mutate extensively.  First of all,
+   the responses must be made to have the eval_id of the appropriate
+   new eval.  Secondly, foreach NEMC/[Winchester|Faulkner] response,
+   there will need to be two cloned responses.  One of those
+   responses will have the response left alone, but the user code
+   chopped by one character, making this response for the user's FW
+   persona.  The other response will be for the user's NEMC persona,
+   for which the user code will be left intact, but the response will
+   be changed to the stored $choice_label variable, which is the
+   response for the user's NEMC persona.  This will be important later
+   when responses to FW questions are pulled up from the FW questions
+   and dropped unceremoniously on the first section's questions.
+
+6) Loop on all of the questions in the first section, linking each of
+   them to each of the new evals, and specifying that they are grouped
+   by the new hospital location question, whose eval_question_id was
+   conveniently saved in the $new_hospital_question_id variable.
+   Also, foreach question, the responses to it from the original eval
+   must be captured, and then cloned and rewritten such that their
+   eval_id is that of the appropriate new eval.
+
+7) Loop on all of the FW questions, just dealing with cloning their
+   responses, not linking them to the new evals.  In cloning the
+   responses, the user code will be chopped, to be consistent (see (1)
+   and (5)), and the eval_id will be set to the eval_id of the new
+   Winchester or Faulkner eval, as appropriate.

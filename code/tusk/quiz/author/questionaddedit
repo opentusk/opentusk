@@ -1,0 +1,233 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	no_filter => 1
+</%attr>
+
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Question;
+	use TUSK::Quiz::LinkQuizQuizItem;
+	use TUSK::Quiz::LinkQuestionQuestion;
+</%once>
+
+<%shared>
+	my $path = $m->comp("/tmpl/url:get_path_ids");
+	my $user_id = $m->comp("SELF:user");
+	my $answers_data = [];
+	my $is_edit = 0;
+	my $id = $path->[0];
+	my $question = TUSK::Quiz::Question->new();
+	my $quiz = TUSK::Quiz::Quiz->new()->lookupKey($path->[0]);
+	my $type = 'Quiz';
+	my $formname = 'questionaddedit';
+
+	if (scalar(@$path) == 2 && !$m->request_args->{add}){
+		$question->lookupKey($path->[-1]);
+		$is_edit = 1;
+	}elsif (scalar(@$path) >= 2 ){
+		$type = 'Section'; 
+
+		if ($m->request_args->{add}){
+			$id = $path->[-1];
+		} else {
+			$id = $path->[-2];
+			$question->lookupKey($path->[-1]);
+			$is_edit = 1;
+		}
+	}
+</%shared>
+
+<%method function_token>
+% return 'edit_quiz';
+</%method>
+
+
+<%method get_nav_bars>
+<%perl>
+	my $nav_bars = $m->comp('PARENT:get_nav_bars');
+	if (scalar(@$path) > 2 or (scalar(@$path) > 1 and $ENV{QUERY_STRING} =~ /add=/)){
+		my $offset = ($ENV{QUERY_STRING} =~ /add=/) ? 0 : 1;
+		for (my $i=1; $i<(scalar(@$path) - $offset); $i++){
+			my $section = TUSK::Quiz::Question->new()->lookupKey($path->[$i]);
+			my $body = $section->getBody();
+			$body =~ s/^\s*//;
+			$body =~ s/\s*$//;
+			$body =~ s/<\/?[^>]*?>//g;
+			if (length($body) > 30){
+				$body = substr($body,0, 27) . "...";
+			}
+			my @paths = @$path;
+			push (@$nav_bars, { 
+				label => 'Section: ' . $body, 
+				href => '/quiz/author/questionaddedit/' . $m->comp('/tmpl/url:get_type_path') . '/' . join('/', splice(@paths, 0, ($i+1))) });
+		}
+	}
+	return $nav_bars;
+</%perl>
+</%method>
+
+
+<%method get_nav_bar_objects>
+% return {'quiz' => $quiz};
+</%method>
+
+
+<%method title>
+<%perl>
+	my $title = "Create Question";
+	if ($is_edit){
+       		$title = "Modify Question";
+	}
+	return $title;
+</%perl>
+</%method>
+
+
+<%method jsarray>
+% 	return ['layers.js', 'quiz.js', 'element.js', 'object_tree.js' , 'ckeditor/ckeditor.js', 'ckeditor/tusk.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js','jquery/plugin/interface/interface.js','jquery/plugin/json.js','jquery/plugin/inestedsortable-1.0.1.pack.js','jqNestedSortableFunctions.js' ];
+</%method>
+
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => $formname,
+                onsubmit => '{return question_submit_all(this);}'} &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:save_button, params=>{
+		label			=> 'Save Changes',
+		no_cancel_button	=> 1,
+		buttons 		=> $buttons,
+                name			=> 'submit',
+} &>
+
+
+<& /quiz/author/tmpl/editquestion:question_fields,formname=>$formname, 
+		question=>$question,questionLink=>$questionLink &>
+
+<& /tmpl/element:save_button, params=>{
+		label			=> 'Save Changes',
+		no_cancel_button	=> 1,
+		buttons 		=> $buttons,
+                name			=> 'submit'
+	} &>
+
+</form>
+</table>
+
+% if ($is_edit){
+	<& SELF:footer, obj=>$question &>
+% }
+
+
+
+<%init>
+	my $buttons = [];
+
+	if ($is_edit){
+		my $add = ($type eq 'Section') ? '?add=1' : '';
+		push (@$buttons, $m->scomp('/tmpl/element:button', params => { 
+			onclick => "window.location='" . $m->comp("/tmpl/url:construct_back_url",
+			base_url => "/quiz/author/questionaddedit") . $add . "';",
+			name	=> 'new_question',
+			label	=> 'Create New'  . (($question->getType() eq 'Section') ? ' Quiz' : '') . ' Question',
+		}));
+
+		if ($question->getType() eq 'Section'){
+			$add = "?add=1";
+			push (@$buttons, $m->scomp('/tmpl/element:button', params => { 
+				onclick => "window.location='" . $m->comp("/tmpl/url:construct_url",
+				base_url => "/quiz/author/questionaddedit") . "?add=1';",
+				name	=> 'new_question',
+				label	=> 'Create New Section Question',
+			}));
+		}
+	}
+
+	my $backurl = ($type eq 'Quiz') ? '/quiz/author/addedit' : '/quiz/author/questionaddedit';
+	my $backcomp = ($is_edit) ? '/tmpl/url:construct_back_url' : '/tmpl/url:construct_url';
+	push (@$buttons, $m->scomp('/tmpl/element:button', params => { 
+		onclick => "window.location='" . $m->comp($backcomp, base_url 	=> $backurl, is_edit => 1) . "';",
+		name	=> 'back',
+		label	=> 'Back to ' . $type,
+	}));
+
+	my ($msg, $extra, $msgtype, $questionLink);
+	my $question_type = $question->getType();
+	my $question_id = $question->getPrimaryKeyID();
+
+	if ($type eq 'Quiz'){
+		if ($question_id){
+			$questionLink = shift @{TUSK::Quiz::LinkQuizQuizItem->new()->lookupByRelation($id, $question_id)};
+		} else {
+			$questionLink = TUSK::Quiz::LinkQuizQuizItem->new();
+		}
+	} else {
+		if ($question_id){
+			$questionLink = shift @{TUSK::Quiz::LinkQuestionQuestion->new()->lookupByRelation($id, $question_id)};
+		} else {
+			$questionLink = TUSK::Quiz::LinkQuestionQuestion->new();
+		}
+	}
+
+	my $back_url = "/quiz/author/quizaddedit/$id";
+	
+	if (defined($ARGS{'submit'})){
+        
+		if (!$ARGS{'question_type'} and !$is_edit){
+			$msg = "Please select a question type";
+			$msgtype = "errmsg";
+		}
+	
+		if (!$ARGS{'body'}){
+			$msg = "Please enter a question body";
+			$msgtype = "errmsg";
+		}
+
+		if ($ARGS{'question_type'} ne 'Section'){
+			if (!$ARGS{'points'} and ($quiz->getQuizType eq "Quiz" or $quiz->getQuizType eq 'FeedbackQuiz')){
+				$msg = "Please enter question points";
+				$msgtype = "errmsg";
+			}
+		}
+
+		if ($msgtype ne "errmsg"){
+			$m->comp('/quiz/author/tmpl/editquestion:process_args', question=>$question,
+	        		questionLink=>$questionLink,
+       			        id => $id,
+				type => $type,
+       			        user_id=>$user_id,
+               			args=> \%ARGS );
+	
+			if ($is_edit){
+				$msg = "Question successfully modified";
+				$msgtype = "msg";
+			}else{
+				$msg = "Question successfully created";
+				$extra = $question->getPrimaryKeyID();
+				$msgtype = "msg";
+			}
+		}
+		 $m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/questionaddedit", 'extra' => $extra, 'msg' => $msg, 'msgtype'=>$msgtype));
+	}
+</%init>
+
+

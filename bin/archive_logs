@@ -1,0 +1,182 @@
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+
+
+#!/usr/bin/env perl
+
+use warnings;
+use strict;
+
+use Getopt::Long;
+use Date::Calc qw(:all);
+use Sys::Hostname;
+
+my ($all, $verbose, $date, $regex, $today, $year);
+my $archive_dir = '/data-net/logs';
+my $source_dir = '/usr/local/tusk';
+my $host = hostname(); $host =~ s/\..*$//;
+my $gzip = ( -f '/usr/local/bin/gzip'
+	? '/usr/local/bin/gzip'
+	: '/usr/bin/gzip');
+my $gargs = '--best';
+
+sub usage {
+	print "Usage: $0 [-h] [--verbose] [--all]  [--archive_dir DIR] [--source_dir DIR] [--host HOSTNAME] [--gzip GZIPPATH]\n";
+	print "\t--all\t\t\tProcess all dates, not just yesterday\n";
+	print "\t--archive_dir DIR\tDirectory to write the log file copies,\n\t\t\t\tdefaults to ($archive_dir)\n";
+	print "\t-h\t\t\tThis help screen\n";
+	print "\t--host HOSTNAME\t\tProcess logs as if on HOSTNAME,\n\t\t\t\tdefaults to ($host)\n";
+	print "\t--gzip GZIPPATH\t\tAbsolute path to gzip binary,\n\t\t\t\tdefaults to ($gzip)\n";
+	print "\t--source_dir DIR\tDirectory find the access_log and error_log,\n\t\t\t\tdefaults to ($source_dir)\n";
+	print "\t--verbose\t\tVerbose output\n";
+	exit 0;
+}
+
+sub create_dest_filename {
+	my ($y, $d) = @_;
+	return "$archive_dir/$y/access_log.$host.$d" if ( defined $d );
+}
+
+sub process_file {
+	my ($source_file, $dest_file, $regex) = @_;
+	my ($ifh, $ofh, $olddate);
+
+	warn "In process_file($source_file, $dest_file, $regex)\n"
+		if ( $verbose );
+	open($ifh, $source_file) || die "Could not open $source_file\n";
+	while (<$ifh>) {
+		# Dealing with the --all case here.
+		if ( $all ) {
+
+			# get the date in the log (trimming off the time).
+			my @a = split;
+
+			# Hack to handle some really old log file format issues.
+			if ( $a[3] =~ /^\(\d-\d\)$/ ) {
+				$a[3] = $a[4];
+			}
+			$a[3] =~ s/:.*$/:/;
+
+			# if we have a new date, then flush all the old info
+			# and start a new file.
+			if ( ! defined $olddate || $olddate ne $a[3] ) {
+				close ($ofh) if ( defined $ofh );
+				$olddate = $a[3];
+				$a[3] =~ s/^\[//;
+				$a[3] =~ s/:$//;
+				my ($day, $mon, $y) = split (/\//, $a[3]);
+				$date = sprintf "%4.4d-%2.2d-%2.2d", $y, Decode_Month($mon), $day;
+				$year = $y;
+
+				open ($ofh, '>>' . create_dest_filename($y, $date)) ||
+					die "Could not open destination file\n"
+					if ( $olddate ne $today );
+			}
+
+			print $ofh $_ 
+				if ( $olddate ne $today );
+
+		} elsif ( m|$regex| ) {
+			open($ofh, ">>$dest_file") ||
+				die "Could not open $dest_file (for writing)\n"
+				if ( ! defined $ofh );
+			
+			print $ofh $_;
+		}
+	}
+	close ($ifh);
+	close ($ofh) if ( defined $ofh );
+}
+
+&usage () if ( ! &GetOptions (
+	'all'	=> \$all,
+	'archive_dir=s'	=> \$archive_dir,
+	'host=s'	=> \$host,
+	'source_dir=s'	=> \$source_dir,
+	'verbose'	=> \$verbose,
+));
+
+my @yesterday = Add_Delta_Days(Today(),-1);
+
+die "Source dir ($source_dir) does not exist\n"
+	if ( ! -d $source_dir );
+
+die "Archive dir ($archive_dir) does not exist\n"
+	if ( ! -d $archive_dir );
+
+if ( ! defined $all ) {
+	$date = sprintf "%4.4d-%2.2d-%2.2d", @yesterday;
+	$regex = sprintf "	\\[%2.2d/%3.3s/%4.4d:", $yesterday[2], Month_to_Text($yesterday[1]), $yesterday[0];
+	$year = $yesterday[0];
+} else {
+	my @today = Today();
+	$today = sprintf "[%2.2d/%3.3s/%4.4d:", $today[2], Month_to_Text($today[1]), $today[0];
+	$year = $today[0];
+}
+
+sub _my_sort {
+	my ($a1, $a2, $a3);
+	my ($b1, $b2, $b3);
+	my ($res);
+
+	if ( $a =~ /^tusk-(\d+)_(\d+)_(\d+)$/ ) {
+		$a1 = $1; $a2 = $2; $a3 = $3;
+	} else {
+		return -1;
+	}
+	if ( $b =~ /^tusk-(\d+)_(\d+)_(\d+)$/ ) {
+		$b1 = $1; $b2 = $2; $b3 = $3;
+	} else {
+		return -1;
+	}
+
+	if ( $a1 eq $b1 ) {
+		if ( $a2 eq $b2 ) {
+			if ( $a3 eq $b3 ) {
+				return 0;
+			} else { return $a3 - $b3; }
+		} else { return $a2 - $b2; }
+	} else { return $a1 - $b1; }
+
+	return -1;
+}
+
+mkdir ("$archive_dir/$year")
+	if ( ! -d "$archive_dir/$year" );
+
+opendir (DIR, $source_dir) || die "Could not open $source_dir\n";
+my @dirs = readdir(DIR);
+closedir DIR;
+foreach my $dir ( sort _my_sort @dirs ) {
+
+	# Don't try to process the ., .. or current directories.
+	# Or files that are older than yesterday.
+	if ( $dir =~ /^(tusk-)?\d+_\d+_\d+$/ ) {
+		my $source_file = "$source_dir/$dir/logs/access_log";
+		process_file($source_file, create_dest_filename($yesterday[0], $date), $regex)
+			if ( -f $source_file && ( -M $source_file < 2 || $all ));
+	}
+}
+
+# Compress the logs we just created, faster to just call gzip instead
+# of using Compress::Zlib.
+opendir (DIR, "$archive_dir/$year") || die "Could not open $archive_dir/$year\n";
+while (my $file=readdir(DIR)) {
+	if ( $file =~ /^(access|error)_log\.$host\.\d{4}-\d{2}-\d{2}$/ ) {
+		system ("$gzip $gargs $archive_dir/$year/$file");
+	}
+}
+closedir DIR;
+
+exit 0;

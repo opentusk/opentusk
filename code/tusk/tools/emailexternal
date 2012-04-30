@@ -1,0 +1,119 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%flags>
+	inherit => undef
+</%flags>
+
+
+<%doc>
+	This page could be used without logging into tusk
+	email is sent from 'form' parameter.
+	valid parameters:  
+		from, firstname, lastname for (from email),  
+		whoto, bcc, subject 
+</%doc>
+
+
+<%once>
+	use Mail::Sendmail;
+	use TUSK::Constants;
+	use Data::Dumper;
+</%once>
+
+
+<%shared>
+	my %args = $m->request_args();
+</%shared>
+
+
+<%init>
+	my $redirect_url;
+
+	if ($ENV{REQUEST_METHOD} eq 'POST') {
+		my $email_addr = ($args{from}) ? $args{from} : $TUSK::Constants::SupportEmail;
+		my $firstname  = ($args{firstname}) ? $args{firstname} : (($args{from}) ? $args{from} : $TUSK::Constants::SupportEmail);
+		my $lastname = ($args{lastname}) ? $args{lastname} : '';
+		$m->comp('SELF:sendEmail', from_email => $firstname . ' ' . $lastname. '<' . $email_addr . '>');
+	} else {
+		$redirect_url = '/home?errmsg=Email error';
+	}
+
+	$redirect_url = ($args{redirect}) ? $args{redirect} : $ENV{HTTP_REFERER} . "?submit=1";
+	$redirect_url = '/home?msg=Form+submitted' if ($redirect_url eq '?submit=1' or $redirect_url =~ /$ENV{SCRIPT_NAME}/);
+
+	$m->redirect($redirect_url);
+	exit;
+</%init>
+
+
+<%method sendEmail>
+<%args>
+	$from_email
+</%args>
+<%perl>
+	my ($email_text, $current_name);
+
+	foreach my $name (sort (keys %args)){
+		my ($num, $field_name) = split('__', $name);
+
+		$field_name =~ s/_/ /g;
+		
+		if ($field_name =~ s/-/ \(/){
+			$field_name .= ")";
+		}	
+
+		if ($current_name){
+			if ($current_name ne $field_name){
+				$email_text .= "</ul>\n";
+				$current_name = "";
+			}
+		}
+
+		next unless ($num > 0);
+
+		if (ref($args{$name}) eq 'ARRAY'){
+			my @non_blank = grep { $_ } @{$args{$name}};
+			next unless (scalar(@non_blank));
+
+			unless ($current_name){
+				$email_text .= "<b>" . $field_name . "</b><br><ul>\n";
+				$current_name = $field_name;
+			}
+
+			$email_text .= "<li>" . join(', ', @non_blank) . "</li>\n";
+		} else {
+			$email_text .= "<b>" . $field_name . "</b>: " . $args{$name} . "<br>\n";
+		}
+	}
+
+	my $whotos = (ref $args{whoto} eq 'ARRAY') ? join(',', @{$args{whoto}}) : $args{whoto};
+
+	sendmail(
+		To				=> $whotos,
+		BCC				=> $args{bcc},
+		From			=> $from_email,
+		Subject			=> $args{subject},
+		Message			=> '<html><body>' . $email_text . '</body></html>',
+		'content-type' 	=> 'text/html; charset="iso-8859-1"',
+	) or sendmail(
+		To				=> $TUSK::Constants::SupportEmail,
+		From			=> $TUSK::Constants::SupportEmail,
+		Subject			=> 'Form Mail Error - ' . $ENV{HTTP_REFERER},
+		Message			=> '<html><body><div>' . $Mail::Sendmail::error . '</div><pre>' . Dumper(\%args) . '</pre></body></html>',
+		'content-type' 	=> 'text/html; charset="iso-8859-1"',
+	);
+</%perl>
+</%method>

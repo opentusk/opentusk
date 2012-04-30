@@ -1,0 +1,251 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Case::PatientType;
+</%once>
+
+<%method exam_row>
+<%args>
+$exam
+$read_only => 0
+$summary=>0 
+$exam_test=>0
+$school => undef 
+$is_new_test => undef
+</%args>
+<%perl>
+my $patient_types;
+if (!$read_only){
+	if (!$school){
+		$m->comp('/tmpl/error',msg=>'Need school to do exam row');
+	}
+	$patient_types = TUSK::Case::PatientType->getSchoolPatientTypes($school);
+}
+
+my $patient_ref = [];
+my $patient_type;
+if (!$read_only){
+	foreach my $type (@{$patient_types}){
+		push @{$patient_ref}, {'label'=>$type->getTypeName(), 'value'=>$type->getPrimaryKeyID() };
+	}
+}
+
+my $pk = $exam->getPrimaryKeyID() || 0;
+</%perl>
+
+
+% if ($read_only){
+
+<& /tmpl/element:field_display,params=>{'label'=> 'Test Title',
+        value => $exam->getTitle() } &>
+
+<& /tmpl/element:field_display,params=>{'label'=> 'Cost',
+        value => $exam->getDefaultCost() } &>
+
+<& /tmpl/element:field_display,params=>{'label'=> 'Units',
+        value => $exam->getUnits() } &>
+
+
+% } else { 
+<& /tmpl/element:textbox, params =>{ label => 'Test Title',
+        name => 'title',
+        value => $exam->getTitle(),
+        size => 60,
+        length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Cost',
+        name => 'default_cost',
+        value => $exam->getDefaultCost(),
+        size => 60,
+        length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Units',
+        name => 'units',
+        value => $exam->getUnits(),
+        size => 60,
+        length => 255 } &>
+
+%	if ($is_new_test){
+<& /tmpl/element:radio_buttons, params =>{ 
+        label => 'Does this test have sub-tests?',
+        name => 'has_sub',
+        buttons => [{value => "yes", text=> "yes"},
+                    {value => "no", text=> "no"} ],
+        size => 60,
+        length => 255 } &>
+
+%	}
+% } 
+
+</%method>
+
+<%method edit_patient_type>
+<%args>
+	$school
+	$exam
+	$test_values
+</%args>
+<%perl>
+
+my $patient_types = $exam->getUnassignedPatients();
+
+my $patient_ref = [ {'label' => 'Patient Type', 'value' => '' } ];
+
+foreach my $type (@{$patient_types}){
+	push @{$patient_ref}, 
+		{'label'=>$type->getTypeName(),
+		 'value'=>$type->getPrimaryKeyID() };
+}
+
+my $drop_down = '<!-- subtest does not want a drop-down here -->';
+my $layer_action = {'usage' => 'no'};
+
+unless($exam->isSubTest()){
+
+	$drop_down = $m->scomp('/tmpl/element:dropdown', params=>
+			{ label 	=> 'Associate Patient Type',
+			  name		=> 'patient_list',
+			  onchange	=> "add_patient_type(this,'patientdiv',
+                   {patient_type_id:document.examaddedit.patient_list.value,
+                    patient_type:document.examaddedit.patient_list.options[document.examaddedit.patient_list.selectedIndex].text,
+                    test_value_id:document.examaddedit.patient_list.options[document.examaddedit.patient_list.selectedIndex].id, 
+                    default_content_id:'', 
+                    default_value:'', 
+                    source:''
+                   }, 1, 'patient_type_id');",
+			  multiple	=> 0,
+			  options	=> $patient_ref });
+
+	$layer_action = {usage => 'Yes', length=>50, functions => [
+	                {func=>'moveToDrop', extra_param=>['\'patient_list\'','\'patient_type\'','\'patient_type_id\''], label=>'Delete'} ]};
+
+}
+
+my $patient_data = [];
+foreach my $tv (@{$test_values}){
+	push @{$patient_data}, {
+		test_value_id      => $tv->getPrimaryKeyID(),
+		patient_type_id     => $tv->getPatientTypeID(), 
+		patient_type        => $tv->getPatientTypeName(), 
+		default_value       => $tv->getDefaultValue(),
+		default_content_id  => $tv->getDefaultContentID(),
+		source              => $tv->getSource(),
+		};
+}
+
+my $display_array = [
+                {label => 'Patient Type', field => 'patient_type', align=>'left', length=>125 },
+                {label => 'Patient Type ID', field =>'patient_type_id', length=>0, type=>'hidden' } 
+                 ];
+
+if(!$exam->isMasterTest()){
+	push @$display_array, (
+                {label => 'Default Value',field=>'default_value', 
+                 type => 'textbox', align=>'left', length=>200}  ,
+                {label =>'Default&nbsp;Content&nbsp;ID', field => 'default_content_id',
+                 type => 'textbox', align=>'left', length=>150},
+                {label => 'Source', field => 'source',type =>'textbox',
+                 align=>'left', length=>100}
+                );
+}
+
+</%perl>
+
+<& /tmpl/element:section_header_row,label=>'Patient Types' &>
+
+<& /tmpl/element:sort_order_box , params =>{
+        no_add_button=>1,
+        buttons=>[$drop_down],
+        no_label=>'1',
+        td_class=>'no-button',
+        layer_info => {
+            empty_message => 'No patients for this test',
+            layer => 'patientdiv',
+            fields => ['test_value_id'],
+            name => 'patients',
+            sort => {usage => 'No'},
+            action => $layer_action,
+            display => $display_array,
+            validate => { usage => 'No', },
+            data => $patient_data 
+            }
+       	} &>
+
+</%method>
+
+
+<%method edit_sub_tests>
+<%args>
+	$school
+	$exam
+</%args>
+<%perl>
+
+my $subtests = $exam->getSubTests();
+
+my $subtests_data = [];
+
+foreach my $subtest (@{$subtests}){
+	push @{$subtests_data}, 
+	    {test_id        => $subtest->getPrimaryKeyID(),
+	    test_name       => $subtest->getTitle(), 
+	    default_cost    => $subtest->getDefaultCost(), 
+	    units           => $subtest->getUnits(), 
+		};
+}
+
+my $button = $m->scomp('/tmpl/element:button', params=>{
+                'name'=>'add_new_test',
+                'onclick'=>"addnewdata('subtestdiv',{
+                     test_name:'',
+                     default_cost:'',
+                     units:''
+                     });",
+                'label'=>'Add New Sub Test'});
+
+</%perl>
+
+<& /tmpl/element:section_header_row,label=>'Sub Tests' &>
+<& /tmpl/element:sort_order_box , params =>{
+        no_add_button=>1,
+        buttons=>[$button],
+        no_label=>'1',
+        td_class=>'no-button',
+        layer_info => {
+            context_path => $m->comp("/tmpl/url:get_full_path"),
+            base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+            empty_message => 'No sub tests exist',
+            layer => 'subtestdiv',
+            fields => ['test_id'],
+            name => 'tests',
+            sort => {usage => 'Yes', length=>50},
+            action => {usage => 'Yes', length=>50, functions => [
+                {func=>'subtest_modify', label=>'Modify'},
+                {func=>'remove', label=>'Delete'} ]},
+            display => [ 
+                {label => 'Sub Test Title', field => 'test_name', align=>'left', length=>250, type=>'textbox' },
+                {label => 'Cost', field => 'default_cost', align=>'left', length=>75, type=>'textbox' },
+                {label => 'Units', field => 'units', align=>'left', length=>150, type=>'textbox' } ] ,
+            validate => {
+                usage => 'No',
+                form  => 'examaddedit'
+                },
+            data => $subtests_data 
+            }
+        } 
+&>
+
+</%method>

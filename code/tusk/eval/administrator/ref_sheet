@@ -1,0 +1,74 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+page_header => ''
+page_footer => ''
+</%attr>
+
+<%once>
+   use HSDB45::Eval;
+</%once>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>Eval Quick Reference</title>
+<link rel="stylesheet" href="/style/style.css?head" type="text/css" />
+<link rel="shortcut icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+<link rel="icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+</head>
+
+<body style="margin:0 5px; padding:0 5px;">
+<h2><% $eval->out_label() %></h2>
+<form>
+	<& "/tmpl/element:button", params => { type => 'button', label => 'Refresh the Data',  onclick => 'javascript:window.location.reload();' } &>
+	<& "/tmpl/element:button", params => { type => 'button', label => 'Close This Window', onclick => 'javascript:window.close();' } &>
+</form>
+<br />
+%	if (@questions) {
+<table class="tusk" cellpadding="0" cellspacing="0" width="100%">
+	<tr class="header">
+	<th class="header-left">ID</th>
+	<th class="header-left">Label</th>
+	<th class="header-left">Sort</th>
+	<th class="header-left">Type</th>
+	<th class="header-left">Text</th>
+</tr>
+%		foreach my $qno (0..$#questions) {
+%			my $question = $questions[$qno];
+<tr class="<% ($qno % 2) ? "odd" : "even" %>">
+	<td><% $question->primary_key() %></td>
+	<td align="center"><b><% $question->label() %></b></td>
+	<td><% $question->sort_order() %></td>
+	<td><b><% $question->body()->question_type() %></b></td>
+	<td><% substr($question->body()->question_text(), 0, 40) %></td>
+</tr>
+%		}
+</table>
+%	} else {
+<p>Eval contains no questions.</p>
+%	}
+</body>
+</html>
+
+<%init>
+	my $school = $m->comp('SELF:schoolname');
+	my $eval_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $eval = HSDB45::Eval->new(_school => $school, _id => $eval_id);
+
+    my @questions = $eval->questions();
+</%init>
+

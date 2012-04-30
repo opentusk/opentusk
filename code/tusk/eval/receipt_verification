@@ -1,0 +1,99 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use HSDB4::DateTime;
+	use HSDB45::Eval::Secret;
+</%once>
+
+<%attr>
+	page_header   => '/tmpl/prepend:manage_header_div_layout'
+	page_footer   => '/tmpl/footer:footer_div_with_school_links'
+	no_check_path => 1
+</%attr>
+
+<div align="center">
+<& /tmpl/element:form, params => {
+				method => 'GET',
+				name => 'receipt' } &>
+
+<& /tmpl/element:table, params => { 
+				border      =>"0",
+				cellspacing =>"0",
+				cellpadding =>"0" } &>
+
+<& /tmpl/element:dropdown, params=>{
+				label => 'School:',
+				name  => "school",
+				options  => [ HSDB4::Constants->eval_schools() ] } &>
+
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'Eval ID:',
+				name   => 'eval_id',
+				size   => 20,
+				length => 20 } &>
+
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'User ID:',
+				name   => 'user_id',
+				size   => 20,
+				length => 20 } &>
+
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'Timestamp:',
+				name   => 'timestamp',
+				size   => 20,
+				length => 20 } &>
+
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'Receipt:',
+				name   => 'receipt',
+				size   => 20,
+				length => 20 } &>
+
+<& /tmpl/element:save_button, params=>{ 
+				label => 'Submit',
+				name  => 'submit' } &>
+
+</table>
+</form>
+</div>
+
+<%init>
+	if ($ARGS{'school'}) {
+		print "<div align='center'>";
+		if ( $ARGS{'eval_id'} && $ARGS{'user_id'} && $ARGS{'timestamp'} && $ARGS{'receipt'} ) {
+			my $date = HSDB4::DateTime->new()->in_mysql_timestamp($ARGS{'timestamp'});
+			if ( HSDB45::Eval::Secret::verify_hashcode($ARGS{'school'}, $ARGS{'eval_id'}, $ARGS{'user_id'}, $date , $ARGS{'receipt'}) ) {
+				print "<h3>Completion Verified</h3>";
+			} else {
+				print "<h3>Completion NOT Verified</h3>";
+			}
+		} else {
+			print "<h3>ERROR: You must fill in all fields of the form.</h3>";
+		}
+		print "<hr/></div>";
+	}
+</%init>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $TUSK::Constants::SiteAbbr . ' Course Evaluation Receipt Verification';
+</%method>

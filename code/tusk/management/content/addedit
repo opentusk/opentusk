@@ -1,0 +1,106 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	top_tab_type	=> 'manage'
+	no_filter 	=> 1
+</%attr>
+
+<%once>
+	use HSDB4::SQLRow::Content;
+	use HSDB4::Constants;
+</%once>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+<%method cms_min_course_role>
+% return (ref $course eq 'HSDB45::Course') ? 'STUDENTEDITOR' : '';
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+
+<& /management/tmpl/content:set_globals, page => $args->{page}, action => $args->{contentAction} &>
+<%perl>
+	my $parent_content = HSDB4::SQLRow::Content->new();
+	my $last_id = $m->comp('/tmpl/url:get_last_path_id');
+	$parent_content->lookup_key($last_id) if ($last_id);
+</%perl>
+<& /management/tmpl/content:process, args => {%$args, parent_content => $parent_content} &>
+</%method>
+
+<%method title>
+%	return $m->comp("/management/tmpl/content:title", args => \%ARGS);
+</%method>
+
+<%method jsarray>
+%	return $m->comp("/management/tmpl/content:jsarray");
+</%method>
+
+<%method get_nav_bars>
+% 	return $m->comp("/management/tmpl/content:get_nav_bars");
+</%method>
+
+<%method red_header_text>
+%	return $m->comp("/management/tmpl/content:get_red_header_text", args => \%ARGS);
+</%method>
+
+<%method right_header_text>
+<%doc>Method that returns a list of all the images to use to the right on the red header bar</%doc>
+%	return $m->comp('/management/tmpl/content:get_content_preview_link');
+</%method>
+
+<style>
+	#grayOutDiv {
+		position: absolute;
+		left: 0;
+		top: 0;
+		background: black;
+		z-index: 500;
+	}
+
+	#multistatus {
+		width: 500px;
+		height: 100px;
+		background: white;
+		border: 3px solid #CC3300;
+		text-align: center;
+		position: absolute;
+		margin-left: -250px;
+		margin-top: -50px;
+		padding:20px;
+		left: 50%;
+		top: 50%;
+		z-index: 1000;
+		display: none;
+	}
+</style>
+
+<& /management/tmpl/content:show_page, args => \%ARGS, course => $course &>
+
+<div id="grayOutDiv"></div>
+<div id="multistatus">
+	<font style="font-weight: bold; font-size: 10pt;">Multi Content Upload Status</font>
+	<table border="0" width="100%">
+		<tr><td align="right" style="white-space:nowrap;"><b>Upload Zip File</b></td><td width="99%"><div id="uploadstatus"></div></td></tr>
+		<tr><td align="right" style="white-space:nowrap;"><b>Unzip Zip File</b></td><td width="99%"><div id="unzipstatus"></div></td></tr>
+		<tr><td align="right" style="white-space:nowrap;"><b>Generate Previews</b></td><td width="99%"><div id="previewstatus"></div></td></tr>
+		<tr><td colspan="2" align="center"><div id="errorstatus" width="100%"></div></td></tr>
+	</table>
+</div>

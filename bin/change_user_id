@@ -1,0 +1,185 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+
+use strict;
+use warnings;
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use TUSK::Core::DB;
+use TUSK::Constants;
+use Getopt::Long;
+
+my ($old_user_id, $new_user_id, $help);
+
+GetOptions( "user-id=s" => \$old_user_id,
+	    "help!" => \$help,
+	    "new-user-id=s" => \$new_user_id,
+	    );
+
+&help if ($help);
+
+if (!$old_user_id){
+    print "You must provide a user-id to this script\n\n";
+    &help;
+}
+
+my $spinning_wheel = ['-', '\\', '|', '/'];
+my $spinning_index = 0;
+
+print "Finding Matches: " . $spinning_wheel->[$spinning_index++ % 4];
+
+my $table_hash = find_fields();
+
+my $dbh = TUSK::Core::DB::getWriteHandle('ContentManager') or die ("Could not connect to the database");
+
+my $matches_hash = check_for_matches($table_hash, $dbh, $old_user_id);
+
+if (scalar (keys %{$matches_hash}) == 0){
+    print "no matches for $old_user_id\n";
+    exit;
+}
+
+exit unless ($new_user_id);
+
+while (1){
+    print "Are you sure that you want to change '$old_user_id' to '$new_user_id'? (yes/no): ";
+
+    my $action = <STDIN>;
+    
+    chomp $action;
+    
+    if ($action =~ /yes/i){
+	update_fields($matches_hash, $dbh, $old_user_id, $new_user_id);
+	print "Finished!\n";
+	exit;
+    }
+    elsif ($action =~ /no/i){
+	exit;
+    }
+}
+
+# sub that finds all the tables that have an utln in them...I swipped this from the old script...probably not the best to be using back ticks.
+sub find_fields {
+    my $table_hash = {};
+
+    my $mysql = $TUSK::Constants::mysqlDir . '/mysql';
+    foreach my $database (split("\n",`$mysql -NBr -e 'show databases'`)) {
+	next if ($database !~ /^hsdb4|mwforum|tusk/);
+	foreach my $table (split("\n",`$mysql -NBr -e 'show tables' $database`)) {
+	    next if ($table eq 'log_item');
+	    foreach my $column (split("\n",`$mysql -NBr -e 'show columns from $table' $database`)) {
+		$column =~ s/(\w.+?)\t.+/$1/;
+		if ($column =~ /^(parent_user_id|child_user_id|user_id|username|created_by|modified_by)$/i){
+		    push @{$table_hash->{ $database . "." . $table }}, $column;
+		    print "\b" . $spinning_wheel->[$spinning_index++ % 4];
+		}
+	    }
+	}
+    }
+    
+    return $table_hash;
+}
+
+# sub that iterates through the table_hash looking for matches based on the old_user_id
+sub check_for_matches{
+    my ($table_hash, $dbh, $old_user_id) = @_;
+    
+    my $matches_hash = {};
+    my @messages = ();
+
+    foreach my $key (sort keys %{$table_hash}){
+	my $where_clause = join (
+				 ' OR ', ## figure out all the fields in the table we need to check
+				 map { 
+				     "$_ = '$old_user_id'" 
+				     } 
+				 @{$table_hash->{$key}}
+				 );
+	
+	my $sql = "select count(1) as the_count from $key where ($where_clause)";
+	my $sth = $dbh->prepare($sql);
+	
+	eval {  
+	    $sth->execute(); 
+	};
+	die "error : $@ in query $sql" if ($@);
+	
+	my $row_hashref = $sth->fetchrow_hashref;
+	if ($row_hashref->{the_count} > 0){
+	    push @messages, 
+	           "$key: " .  $row_hashref->{the_count} . " Record" . (($row_hashref->{the_count} > 1) ? "s" : "");
+	    $matches_hash->{$key} = $table_hash->{$key};
+	}
+	print "\b" . $spinning_wheel->[$spinning_index++ % 4];	
+    }
+
+    print "\b \n" . join("\n", @messages) . "\n";
+
+    return $matches_hash;
+}
+
+# update the actual fields that matched
+sub update_fields{
+    my ($matches_hash, $dbh, $old_user_id, $new_user_id) = @_;
+
+    my $ending_message = '';
+
+    foreach my $key (keys %{$matches_hash}){
+	if ($key eq 'hsdb4.user'){
+	    my $sql = "select count(1) as the_count from $key where user_id = '$new_user_id'";
+	    my $sth = $dbh->prepare($sql);
+	    eval {
+		$sth->execute();
+	    };
+	    die "error : $@ in query $sql" if ($@);
+	    
+	    my $row_hashref = $sth->fetchrow_hashref;
+	    if ($row_hashref->{the_count} > 0){
+		$ending_message = "There is already a user record with user_id \"$new_user_id\".  Please manually delete the record with user_id \"$old_user_id\"\n";
+		next;
+	    }
+	}
+	print "Updating: $key\n";
+	foreach my $field (@{$matches_hash->{$key}}){
+	    my $sql = "update $key set $field = '$new_user_id' where $field = '$old_user_id'";
+	    eval {
+		$dbh->do($sql);
+	    };
+	    if ($@){
+		if ($@ =~ /Duplicate entry /){
+		    warn "Duplicate entry found in table $key\n";
+		}
+		else {
+		    warn "$@ in query $sql\nContinuing...\n";
+
+		}
+	    }
+	}
+    }
+    print $ending_message if ($ending_message);
+}
+
+
+sub help{
+    print <<EOF;
+Usage: $0 --user-id=<existing user_id> [--new-user-id=<new user_id>] [--help]
+note - use just user-id if you want to see where the user_id has been used but don't want to do any replacing
+EOF
+    exit;
+}

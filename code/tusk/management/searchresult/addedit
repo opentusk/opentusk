@@ -1,0 +1,162 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Search::SearchResultCategory;
+use TUSK::Search::SearchResult;
+</%once>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+
+<%method title>
+<%perl>
+my $title = "Create Search Result Category";
+if ($result_category_id){
+	$title  = "Modify Search Result Category";
+}
+return $title;
+</%perl>
+</%method>
+
+<%shared>
+my $result_category_id = $m->comp("/tmpl/url:get_last_path_id");
+my $result_category;
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my $base_url = "/management/searchresult/addedit";
+</%shared>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Search::SearchResultCategory'=>$result_category};
+</%method>
+
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+		onsubmit =>undef,
+                name => 'addedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Label',
+                name => 'label',
+                value => $result_category->getCategoryLabel(),
+                size => 60,
+                length => 255 } &>
+
+<%perl>
+        my $button_text = $m->scomp('/tmpl/element:button', params=>{ 
+                                        onclick         => "window.location='" . $m->comp("/tmpl/url:construct_url", 
+                                                                                base_url => '/management/searchresult/resultaddedit').
+								"'",
+                                        name            => 'addsearchresult',
+                                        label           => 'Create Search Result',
+                                                });
+
+</%perl>
+% if ($is_edit){
+<& /tmpl/element:sort_order_box , params =>{
+                no_add_button   => '1',
+                label           => 'Search Results',
+                buttons         =>[ $button_text ],
+                layer_info      => {
+                                        context_path    => $m->comp("/tmpl/url:get_full_path"),
+                                        layer           => 'resultsdiv',
+                                        fields          => ['result_id', 'label', 'type'],
+                                        name            => 'results',
+                                        sort            => { usage => 'Yes', length => 50 },
+                                        action          => 
+                                                        { 
+                                                                usage           => 'Yes', 
+                                                                length          => 100, 
+                                                                functions       => [
+                                                                                        { func => 'searchresult_edit', label => 'Modify'},
+                                                                                        { func => 'searchresult_remove', label => 'Delete'} 
+                                                                                     ]
+                                                        },
+                                        display         => 
+                                                                [
+                                                                        {label => 'label', field => 'label', 
+									align => 'left', length => 400},
+                                                                        {label => 'type',field => 'type', 
+									align => 'left', length => 120},
+                                                                   ],
+                                        validate        => {
+                                                                usage => 'No',
+                                                           },
+                                        data            => $results_data 
+                                }
+                } &>
+% }
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+                cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+			'base_url' => "/management/searchresult/show") . "');",
+                name=>'submit'} &>
+
+</table>
+</form>
+
+<%init>
+my $is_edit = 1;
+my @resultsArray ;
+if ($result_category_id){
+	$result_category = TUSK::Search::SearchResultCategory->lookupKey($result_category_id);
+	@resultsArray = map {{'label'=>$_->getResultLabel,
+			'result_id'=>$_->getPrimaryKeyID,
+			'type'=>$_->getSearchResultTypeObject->getTypeName()} } 
+		@{TUSK::Search::SearchResult->lookup(" search_result.search_result_category_id = $result_category_id ")};
+} else {
+	$result_category = TUSK::Search::SearchResultCategory->new();
+	$is_edit = 0;
+}
+my ($errmsg,$msgtype) = (undef,"errmsg");
+my $extra = '';
+my $results_data = \@resultsArray;
+my $msg;
+if (defined($ARGS{'submit'})){
+	my $user_id = $m->comp('SELF:user');
+	my $all_result_categorys = TUSK::Search::SearchResultCategory->lookup(" search_result_category.school_id = ".$type_object->getPrimaryKeyID());
+	$result_category->setCategoryLabel($ARGS{'label'});
+	$result_category->setSchoolID($type_object->getPrimaryKeyID());
+	if ($ARGS{'label'}){
+		my $id = $result_category->save({'user'=>$user_id});
+		if (!$result_category_id){
+			$extra = $id;
+			$msg = "Search result category successfully created.";
+		}else{
+			$msg = "Search result successfully modified.";
+		}
+			$m->redirect( $m->comp("/tmpl/url:construct_url",
+				'base_url' => '/management/searchresult/show',
+				'msg'=>$msg,
+				'msgtype'=>'msg',
+				'extra'=>$extra) );
+	} else {
+		$errmsg = "Label is a required field";
+	}
+}
+if ($errmsg){
+        $m->redirect($m->comp("/tmpl/url:construct_url", 
+                'base_url' => "/management/searchresult/addedit", 
+                'msg' => $errmsg, 'msgtype'=>$msgtype));
+}
+
+</%init>

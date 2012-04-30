@@ -1,0 +1,150 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%perl>
+my $phase = $ARGS{'phase'};
+my $case = $ARGS{'case'};
+my $args = $ARGS{'args'};
+my $submit_mode = 0;
+if ($m->comp('/tmpl/wizard:submitted',args=>$args)){
+	$submit_mode = 1;
+}
+$m->comp('element:transition',args=>$args);
+</%perl>
+<!-- Begin Problem List Phase -->
+<& /tmpl/element:table &>
+<& /tmpl/element:tr_tag &>
+<td>
+
+% if (!$submit_mode){
+% 	if ($phase->getInstructions()) {
+<div class="text2"><% $phase->getInstructions() %></div>
+%	}
+% } 
+
+<& /tmpl/element:table &>
+<tr><td>&nbsp;</td></tr>
+<%perl>
+my ($selections,$selection);
+my $phase_option = $phase->findModelAnswer();
+if (!$phase_option->getPrimaryKeyID()){
+	$m->print('This phase needs a model answer.');
+	$m->abort;
+} 
+else {
+	if ($submit_mode){
+		my $visit = $phase->getVisit();
+		$selections = TUSK::Case::PhaseOptionSelection->getVisitSelection($visit,$phase_option);
+		if (!scalar(@{$selections})){
+			$selection = TUSK::Case::PhaseOptionSelection->new();
+			$selection->setCaseReportID($case->getReport->getPrimaryKeyID());
+			$selection->setPhaseID($phase->getPrimaryKeyID());
+			$selection->setPhaseVisitID($visit->getPrimaryKeyID());
+			$selection->setPhaseOptionID($phase_option->getPrimaryKeyID());
+			$selection->setAnswerText($args->{'problem_list'});
+			$selection->setOptionText($phase_option->getOptionText());
+			$selection->save({user=>$m->comp('SELF:user')});
+		}
+		else {
+			$selection = pop @{$selections};
+		}		
+	}
+	else { 		
+		my $visit = $phase->getLastVisitWithSelections($case->getReport());
+		if (defined $visit) {
+			$selections = TUSK::Case::PhaseOptionSelection->getVisitSelection($visit,$phase_option);
+			$selection = pop @{$selections};
+		}
+		else {
+			$selection = TUSK::Case::PhaseOptionSelection->new();
+		}
+	} 
+}
+
+</%perl>
+% if ($submit_mode){
+% 	if ($case->isTest()){
+		<& element:transition,args=>$args &>
+% 	} 
+<tr><td class="subhead1">My Answer:</td></tr>
+<tr><td class="text1"><% $args->{'problem_list'} %></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="subhead1">Expert Answer:</td></tr>
+<tr><td class="text1"><% $phase->getModelAnswer() %></td></tr>
+% } 
+% else {
+<tr><td><& /tmpl/element:input_textarea, params=>{'rows'=>8,'cols'=>60,
+		'value'=>$selection->getAnswerText(),
+		'name'=>'problem_list'} &>
+% }
+</table>
+
+<& element:content_display,phase=>$phase &>
+</td>
+</tr>
+<& element:divider_bar &>
+<%doc>
+<& /tmpl/element:tr_tag &><td>
+% if ($submit_mode){
+<& element:transition_button, no_submit=>1, case=>$case, phase=>$phase,args=>$args &>
+% } else {
+<& /tmpl/element:submit_button,	params=>{ case=>$case, no_quiz=>1, label=>'Submit',phase=>$phase,args=>$args } &> 
+% }
+</td></tr>
+</%doc>
+</table>
+<!-- End Problem List Phase -->
+
+<%method chartInfo>
+<%args>
+$phase
+$case
+$visit => undef
+</%args>
+<%perl>
+my $text = '<span class="smTextTwo">'.$phase->getMainText().'</span>';
+$text .= '<table cellpadding="0" cellspacing="0" border="0">';
+
+my $selections;
+if (defined $visit) {
+	$selections = TUSK::Case::PhaseOptionSelection->getPhaseVisitSelections($visit);
+}
+else {
+	$selections = TUSK::Case::PhaseOptionSelection->getLatestPhaseSelections($phase,$case->getReport);
+}
+my $answer;
+if (scalar @$selections) {
+	foreach my $sel (@{$selections}){
+		$answer = $sel->getShortAnswerText();
+		$answer = $answer ? $answer : $sel->getAnswerText();
+		$text .= '<tr><td class="smHighlight2">'.$answer.'</tr>';
+	}
+}
+else {
+	$text .= '<tr><td class="smHighlight2"><em>Nothing to report</em></tr>';
+}
+$text .= '</table>';
+return $text;
+</%perl>
+</%method> 
+
+<%method get_button_nav>
+<%args>
+$case
+$phase 
+$args
+</%args>
+<& sections:get_button_nav_option_phase, phase=>$phase,case=>$case,args=>$args &>
+</%method>

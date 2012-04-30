@@ -1,0 +1,123 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::CourseUserGroup;
+</%once>
+
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $form_name = 'groups';
+</%shared>
+
+<%init>
+	if ($ARGS{submit_check}) {
+		my $sub_group_ids = [];
+		if (ref $ARGS{sub_group_id} eq 'ARRAY') {
+			$sub_group_ids = $ARGS{sub_group_id};
+		} else {
+			$sub_group_ids = [ $ARGS{sub_group_id} ];
+		}
+		foreach my $sub_group_id (@$sub_group_ids) {
+			my $link = TUSK::FormBuilder::CourseUserGroup->new();
+			$link->setCourseID($course->primary_key());
+			$link->setUserGroupID($sub_group_id);
+			$link->save({user => $m->session->{user}->user_id()});
+		}
+
+		if (scalar $sub_group_ids) {
+			$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msg' => 'Successfully Updated'));
+		}
+	}
+</%init>
+
+% my ($groups, $allchecked) = $m->comp('SELF:getGroups');
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => $form_name } &>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border => "0",
+    cellspacing => "0",
+    cellpadding => "0" 
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => 'Groups',
+	value => (scalar @$groups) 
+			 ? $m->scomp("/tmpl/element:checkbox_table", 
+				objects => $groups,
+				formname => $form_name, 
+				checkboxname => $groups->[0]->{name}, 
+				allchecked => $allchecked )
+			: '<span class="emphasis_font">No Associated Group</span>',
+
+} &>
+
+<& /tmpl/element:save_button, params => {
+	label => 'Save Changes',
+	cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_url", 
+	'base_url' => "/sp/author/show") . "');",
+	name => 'submit'
+} &>
+
+</table>
+</form>
+
+<%method getGroups>
+<%perl>
+	my @all_sub_groups =  $course->sub_user_groups($m->session()->{timeperiod});
+	my %selected_sub_groups = map { $_->getUserGroupID() => 1 } @{TUSK::FormBuilder::CourseUserGroup->lookup("course_id = " . $course->primary_key())};
+	my $display_sub_groups = [];
+
+	my $all_checked = 'CHECKED';
+	my $input_name = 'sub_group_id';
+	foreach my $sub_group (@all_sub_groups) {
+		my $sub_group_id = $sub_group->primary_key();
+		my $checked = 1;
+
+		unless (exists $selected_sub_groups{$sub_group_id}) {
+			$checked = 0;
+			$all_checked = '';
+		}
+
+		push @$display_sub_groups, { 
+				label => $sub_group->label(), 
+				value => $sub_group_id,
+				name => $input_name,
+				checked => $checked,
+		};
+	}
+	return ($display_sub_groups, $all_checked);
+</%perl>
+</%method>
+
+<%method title>
+% 	return "Link Groups"; 
+</%method>
+
+<%method red_header_text>
+% 	return "Link Groups";
+</%method>
+
+<%method jsarray>
+% 	return ['formbuilder.js'];
+</%method>

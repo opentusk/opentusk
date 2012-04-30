@@ -1,0 +1,100 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use XML::Twig;
+use TUSK::Case::Case;
+use TUSK::Case::Phase;
+use TUSK::Case::LinkCourseCase;
+use TUSK::Case::LinkCasePhase;
+</%once>
+<%perl>
+if ($ARGS{'comet_file'}) {
+
+	my $upload = $r->upload;
+
+	my $upload_fh = $upload->fh;
+	my $file_contents;
+
+	while(<$upload_fh>) {   
+		$file_contents .= $_;
+	}
+	close($upload_fh);
+
+	my $twig = XML::Twig->new;
+	$twig->parse($file_contents);
+	my $case_xml = $twig->root;
+	$m->clear_buffer;
+	$r->content_type('text/html');
+	my $title = $case_xml->child_text(0,"Title");	
+	my $overview = $case_xml->child_text(0,"Overview");
+	my $source = $case_xml->child_text(0,"Source");
+
+	my $case = TUSK::Case::Case->new;
+	$case->setCaseTitle($title);
+	$case->setCaseUserDesc($overview);
+	$case->setSource($source);
+	$case->save;
+
+	print "CaseID: ".$case->getPrimaryKeyID."<br>";
+	print "Title: $title<br>";
+	print "Overview: $overview<br>";
+
+	foreach my $phase_xml ($case_xml->children("Phase")) {
+		if ($phase_xml->att("Type") eq "ChiefComplaint") {
+			my $phase = TUSK::Case::Phase->new;
+			$phase->setPhaseTitle($phase_xml->child_text(0,"Title"));
+			$phase->setPhaseTypeID(1);
+			my $content = $phase_xml->child(0,"Content");
+			my $URL = "<img src=\"".$content->child_text(0,"URL")."\">";
+			$phase->setMainText($URL."<br>".$phase_xml->child_text(0,"Text"));
+			$phase->save;
+
+			my $link_phase_case = TUSK::Case::LinkCasePhase->new;
+			$link_phase_case->setParentCaseID($case->getPrimaryKeyID);
+			$link_phase_case->setChildPhaseID($phase->getPrimaryKeyID);
+			$link_phase_case->save;
+		} elsif	($phase_xml->att("Type") eq "History") {
+			my $phase = TUSK::Case::Phase->new;
+			$phase->setPhaseTitle($phase_xml->child_text(0,"Title"));
+			$phase->setPhaseTypeID(2);
+			$phase->setMainText($phase_xml->child_text(0,"Text"));
+			$phase->save;
+
+			my $link_phase_case = TUSK::Case::LinkCasePhase->new;
+			$link_phase_case->setParentCaseID($case->getPrimaryKeyID);
+			$link_phase_case->setChildPhaseID($phase->getPrimaryKeyID);
+			$link_phase_case->save;
+		}		
+	}
+
+	my $case_link = TUSK::Case::LinkCourseCase->new;
+	$case_link->setParentCourseID(62);
+	$case_link->setSchoolID(1);
+	$case_link->setChildCaseID($case->getPrimaryKeyID);
+	$case_link->save;
+
+
+} else {
+
+	$m->clear_buffer;
+	$r->content_type('text/html');
+	print "<form action=\"/service/importcomet\" method=\"post\" enctype=\"multipart/form-data\">";
+	print "<input type=\"file\" name=\"comet_file\">";
+	print "<input type=\"submit\">";
+	print "</form><br><br>";
+
+}
+</%perl>

@@ -1,0 +1,150 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+case_ignore_perms=>1
+</%attr>
+
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::CaseReport;
+use TUSK::Case::PhaseVisit;
+use TUSK::Constants;
+</%once>
+
+<%shared>
+my $id = $m->comp('/tmpl/url:get_last_path_id');
+my $caseReport = TUSK::Case::CaseReport->lookupKey($id);
+my $case = $caseReport->getCaseObject();
+$case->setReport($caseReport);
+my $user = $caseReport->getUserObject();
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+
+
+<div id="caseSummaries">
+<ul id="csTabNav" class="clearfix">
+<li id="responses" class="activeTab"><a href="javascript:;" onclick="activateTab(this)">Response Summary</a></li>
+% # we don't want to display pathway data for any case started before 3.6.1 was released. 
+% if ($caseReport->hasPathway()) {
+<li id="pathway"><a href="javascript:;" onclick="activateTab(this)">Pathway Summary</a></li>
+% }
+% if ($case->getBillingTotal() && $total_cost) {
+<li id="cost"><a href="javascript:;" onclick="activateTab(this)">Cost</a></li>
+% }
+% if (defined $quiz_result_links && scalar @$quiz_result_links) {
+<li id="quiz_results"><a href="javascript:;" onclick="activateTab(this);">Quiz Results</a></li>
+% }
+</ul>
+
+<div id="responsesArea" class="tabArea activeArea">
+<& /tmpl/element:table &>
+%	my $phase;
+%	
+%	if (scalar(@$visited_phases)){	
+%		foreach my $phase (@{$visited_phases}){
+			<&  /tmpl/element:section_header_row, label=>$phase->getPhaseTitle() &>
+			<tr><td colspan="2">
+		<& "/case/author/tmpl/".$phase->getIncludeFile().":phaseReport", 
+				case=>$case, phase=>$phase, case_report=>$caseReport &>
+			</td></tr>
+%		}
+%	}
+%	else{
+<i>There are no responses.</i>
+%	}
+</table>
+</div> <!-- responsesArea -->
+
+% if ($caseReport->hasPathway()) {
+<div id="pathwayArea" class="tabArea">
+% $m->comp('/case/path_summary', case => $case, report => $caseReport);
+</div> <!-- pathwayArea -->
+% }
+
+% if ($case->getBillingTotal() && $total_cost) {
+<div id="costArea" class="tabArea">
+<& /tmpl/element:table &>
+%	foreach my $cat (keys %cost_by_cat){
+<tr>
+<td><% $cat %></td>
+<td><div style="width:10%; text-align:right;"><% sprintf("%.2f", $cost_by_cat{$cat}) %></div></td>
+</tr>
+%	}
+<tr>
+<td class="text2"><strong>Total:</strong></td>
+<td class="text2"><div style="width:10%; text-align:right;"><strong><% sprintf("%.2f", $total_cost) %></strong></div></td>
+</tr>
+</table>
+</div> <!-- costArea -->
+% }
+
+
+% if (defined $quiz_result_links && scalar @$quiz_result_links) {
+<div id="quiz_resultsArea" class="tabArea">
+<& /tmpl/element:table &>
+<tr><td colspan="2">
+% $m->comp('/case/quiz_result_summary', quiz_result_links => $quiz_result_links);
+</td></tr>
+</table>
+</div> <!-- quiz_resultsArea -->
+% }
+
+
+</div> <!-- caseSummaries -->
+
+
+
+<%init>
+my $visited_phases = $case->getVisitedPhases();
+
+my $tests = $case->getTestsWithCosts($user);
+my ($total_cost, %cost_by_cat);
+foreach my $t (@$tests){
+	$total_cost += $t->getDefaultCost();
+	$cost_by_cat{$t->getBatteryObj()->getBatteryTitle()} += $t->getDefaultCost();
+}	
+
+my $quiz_result_links = $caseReport->getQuizResultLinks();
+</%init>
+
+<%method title>
+% return 'Case Responses : ' . $case->getCaseTitle();
+</%method>
+
+<%method function_token>
+% return 'reports_case';
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Case::Case'=>$case};
+</%method>
+
+<%method red_header_text>
+<%perl>
+	my $txt = 'case responses';
+	if(!$case->isSelfAssessment()){
+		$txt .= ': ' . lc($user->out_lastfirst_name()) . " (<a  href=\"javascript:email_user('" . $user->user_id() . "', '$type_path');\">email</a>)";
+	}
+	return $txt;
+</%perl>
+</%method>
+
+<%method leftnav>
+<%perl>
+return "/tmpl/leftnav/course";
+</%perl>
+</%method>

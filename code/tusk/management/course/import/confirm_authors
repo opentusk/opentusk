@@ -1,0 +1,140 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Manage::Course::Import;
+	use HSDB4::SQLRow::Content;
+</%once>
+
+<%attr>
+	top_tab_type	=> 'manage'
+	default_path_type	=> 'school'
+	must_be_school_admin => 1
+</%attr>
+
+<%shared>
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $school = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+<%method title>
+%	return "Confirm Authors";
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+%	return ['course_import.js'];
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/course_import.css'];
+</%method>
+
+<%method leftnav>
+<%perl>
+	return {
+			component    => "/tmpl/leftnav/admin",
+			type_path    => $type_path,
+			school_name  => $school->getSchoolName(),
+		};
+</%perl>
+</%method>
+
+%  my @native_authors = (ref $ARGS{native_authors} eq 'ARRAY')? @{$ARGS{native_authors}} : 
+%                       (exists $ARGS{native_authors})        ? ($ARGS{native_authors})  :
+%                                                               ();
+%  my $tmp_dir = $ARGS{'tmp_dir'};
+
+
+%  if(scalar @native_authors){
+
+<p class="pnaInstruction">The following list of author id's from the course you are importing matched existing user id's within your system. If the id from the course refers to the same person referenced in your system, please check the appropriate box.</p>
+
+<& /tmpl/element:form, params => { 
+		action => $r->uri(),
+		method => 'POST',
+		name   => 'confirm_authors' } &>
+
+<input type="hidden" name="tmp_dir" value="<% $tmp_dir %>" />
+
+<ul class="pnaNativeAuthors">
+<li class="pnaHdrRow"><input type="checkbox" name="toggle_authors" value="" onclick="toggleAuthors(this);" /> <strong>Author Name</strong></li>
+
+% my $rowType = 'pnaHighlight';
+% foreach my $a (@native_authors){
+%	$rowType = ($rowType)? '' : 'pnaHighlight';
+<li class="<% $rowType %>"><input type="checkbox" name="approved_authors" value="<% $a %>" /> <% $a %></li>
+% }
+</ul>
+
+<& /tmpl/element:submit_button, params=>{
+		'class' => 'submitBtn', 
+		'label' => 'Confirm Authors'} &>
+
+</form>
+%  }
+%  else {
+
+<p id="importWarning">
+Sorry. Importing a course can be tough work. If the course is large, it might take several minutes to complete the process.<br/><br/><strong>Please do not reload this page.</strong> Thank you for your patience.<br/>
+<span style="display:block; text-align:center; margin:10px 0;">
+<img src="/graphics/icons/waiting_bar.gif" width="220" height="19" />
+</span>
+</p>
+
+<%doc>
+	these closing table tags are necessary so that IE will render the message
+	above when mason flushes the buffer. UGH! perhaps an ajaxian solution is in
+	order for this kind of lengthy processing.
+</%doc>
+</table></table></table>
+
+
+<%perl>	
+
+	$m->flush_buffer;
+
+	my $school = $m->comp('/tmpl/url:get_type_object');
+
+	my @approved_authors = (ref $ARGS{approved_authors} eq 'ARRAY')? @{$ARGS{approved_authors}} : 
+	                       (exists $ARGS{approved_authors})        ? ($ARGS{approved_authors})  :
+	                                                                 ();
+	# security check: 
+	# do not allow '../' || any chars except: alphanumerics, spaces, 
+	# underscores, dots, forward slashes and hyphens
+	if($tmp_dir =~ /\.\.\// || $tmp_dir =~ /[^\w\s_.\/-]/){
+		my $msg = 'Potential security breach detected. Please try again. Thank you.';
+		$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'errmsg', destination => "/management/course/import/import/$type_path");
+	}
+
+	# untaint $tmp_dir
+	if($tmp_dir =~ m/\A(.+)\z/s){
+		 $tmp_dir = $1;
+	}
+	my $course = TUSK::Manage::Course::Import::importCourse($school->getSchoolName(), $tmp_dir, $m->session->{user}, \@approved_authors);
+
+	my $msg = 'Course created successfully.';
+	my $url = '/management/course/display/' . $school->getSchoolName() . '/' . $course->primary_key();
+
+	print "<head><meta http-equiv=\"REFRESH\" content=\"1;url=$url?msg=$msg\" /></head>";
+
+</%perl>
+
+%  }
+
+

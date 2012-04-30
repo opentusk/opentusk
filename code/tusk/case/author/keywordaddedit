@@ -1,0 +1,140 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my $id = $m->comp('/tmpl/url:get_last_path_id');
+	my $case = TUSK::Case::Case->lookupKey($id);
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $formname = 'keywordaddedit';	
+</%shared>
+
+<%method title>
+<%perl>
+	return 'Keywords';
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Case::Case' => $case};
+</%method>
+
+<%method leftnav>
+<%perl>
+return {
+	component => '/case/tmpl/leftnav/case-create',
+	id => $id,
+	type_path => $type_path,
+	uri => 'keywordaddedit'
+	};
+</%perl>
+</%method>
+
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => $formname,
+		onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+<& /tmpl/element:sort_order_box , params =>{
+                label=>'Keyword',
+		no_label => 1,
+		td_class => 'button-left',
+                button_onclick=>"openwindow('keywordsdiv')",
+                layer_info => {
+                        layer => 'keywordsdiv',
+                        fields => ['keyword_id','concept_id','keyword', 'umls'],
+                        name => 'keywords',
+                        sort => {usage => 'Yes', length=>50},
+                        action => {usage => 'Yes', length=>100, functions => [
+                                                        {func=>'remove', label=>'Delete'} ]},
+                        display => [
+                                        {label=>'keyword',field=>'keyword', align=>'left', length=>350},
+                                        {label=>'UMLS',field=>'umls', align=>'left', length=>50}
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => \@keywordarray }
+                } &>
+<& tmpl/sections:case_footer, case=>$case, type_path=>$type_path, formname=>$formname &>
+
+<& /tmpl/wizard:include &>
+
+</table>
+</form>
+
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::LinkCaseKeyword;
+</%once>
+
+<%method get_keywordarray>
+<%perl>
+	my $keyword_links = TUSK::Case::LinkCaseKeyword->lookup(" parent_case_id = $id ");
+
+	my @keywordarray = ();
+
+	foreach my $link (@$keyword_links){
+		my $keyword = $link->getKeywordObject();
+		if ($keyword and ref($keyword) eq 'TUSK::Core::Keyword'){
+			push (@keywordarray, {'keyword_id'=>$keyword->getPrimaryKeyID(),
+					'concept_id'=>$keyword->getConceptID(),
+					'keyword'=>$keyword->getKeyword(),
+					'umls'=>$keyword->isUMLS ? 'Yes' : 'No' });
+		}
+	}
+	
+	return @keywordarray;
+</%perl>
+</%method>
+<%init>
+
+	my @keywordarray = $m->comp('SELF:get_keywordarray');
+	
+	if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
+        	my $args = \%ARGS;
+
+	        my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^keywordsdiv');
+       	 	$m->comp('/tmpl/process:manipulate_rows',
+               	 			user => $m->comp('SELF:user'),
+			                parent_id => $id,
+			                object_name => 'TUSK::Case::LinkCaseKeyword',
+			                set_parent => 'setParentCaseID',
+			                set_child => 'setChildKeywordID',
+			                child_pk_field => 'keyword_id',
+			                fields_data => $rowHash,
+			                display_data => \@keywordarray );
+
+		$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => 'Keywords successfully updated');
+
+		@keywordarray = $m->comp('SELF:get_keywordarray');
+}
+
+</%init>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+% $m->comp("SELF:set_msg", msg => 'Keywords successfully updated') if ($m->comp('/tmpl/wizard:submitted',args => $args));
+</%method>

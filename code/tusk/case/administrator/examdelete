@@ -1,0 +1,80 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+ my ($battery_id, $exam_id) = $m->comp("/tmpl/url:get_path_ids");
+ my $type_path = $m->comp('/tmpl/url:get_type_path');
+ my $battery = TUSK::Case::Battery->lookupKey($battery_id);
+</%shared>
+
+<%attr>
+hintmsg => 'Deleting will also delete any associated test values, sub tests, and sub test values.'
+</%attr>
+
+<%method title>
+% return "Delete Test";
+</%method>
+
+<%method get_nav_bar_objects >
+% return {'TUSK::Case::Battery'=>$battery };
+</%method>
+
+<%once>
+use TUSK::Case::Battery;
+use TUSK::Case::Test;
+</%once>
+
+<%perl>
+my $exam = TUSK::Case::Test->lookupKey($exam_id);
+if (!$exam || !defined($exam->getPrimaryKeyID())){
+	$m->comp("/case/tmpl/error",msg=>"Test $exam_id not found");
+}
+</%perl>
+<& /tmpl/element:form, params => { 
+                method => 'POST',
+                name => 'examdelete',
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+
+<& tmpl/sections:exam_row,exam=>$exam, read_only=>'Y' &>
+
+<%perl>
+my $url = $m->comp("/tmpl/url:construct_url", 
+                base_url => "/case/administrator/batteryaddedit", 
+                type_path => $type_path,
+                pathref => [ $battery_id ] );
+</%perl>
+<& /tmpl/element:save_button,params=>{name=>'delete_exam', 
+					label=>'Delete Test',
+					cancel_onclick=>"go_back('$url');"} &>
+</form>
+</table>
+
+<%init>
+
+if (defined($ARGS{'delete_exam'})){
+	my $exam = TUSK::Case::Test->new()->lookupKey($exam_id);
+	
+	$exam->delete();
+	
+	$m->redirect("/case/administrator/batteryaddedit/$type_path/$battery_id/?msg=Test successfully deleted"); 
+
+}
+</%init>

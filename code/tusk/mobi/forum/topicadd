@@ -1,0 +1,131 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use Forum::ForumKey;
+use Forum::MwfMain;
+use HSDB45::Course;
+use Data::Dumper;
+use TUSK::Functions;
+</%once>
+
+<%method jsarray>
+% return ['scripts.js'];
+</%method>
+
+<%attr>
+no_check_path => 1
+</%attr>  
+
+<%shared>
+my ($x, $cfg, $lng, $user) = MwfMain->new($r);
+my $userId = $user->{id};
+my $boardId = $m->comp("/tmpl/url:get_last_path_id");
+my $board = $x->fetchHash("SELECT * FROM $cfg->{dbPrefix}boards WHERE id=".$boardId);
+</%shared>
+
+<%method get_nav_bars>
+<%perl>
+ 	my $nav_bars = []; 
+	my $truncDisc  =  TUSK::Functions::truncate_string('Discussions',10);
+	my $truncTitle =  TUSK::Functions::truncate_string($board->{title},10); 
+ 	$nav_bars = [ { href => '/mobi/forum/forumshow/', label => $truncDisc } ,
+				  {	href => '/mobi/forum/boardshow/'.$board->{id}, label => $truncTitle } ];
+ 	return $nav_bars;
+</%perl>
+</%method>
+
+<%method header_text>
+% return 'Add Topic';
+</%method>
+
+<& /tmpl/element:form, params => {
+                                method => 'POST',
+                                onsubmit =>'',
+                                name => 'topicadd' } &>
+
+<h4 class='annHdr'>Subject</h4> 
+<input type='textarea' name='subjectq'  maxlength='30'/><br>
+<h4 class='annHdr'>Body</h4>
+<textarea name="bodyq" 
+id="event_description" 
+cols="20" 
+rows="4"  
+class="textareawhite"></textarea> 
+<br>
+
+<& /tmpl/element:save_button, params=>{
+        label=>'Save Changes',
+        cancel_onclick=>"go_back('/mobi/forum/boardshow/$boardId')",
+        name=>'save_changes'} &>
+</form>
+
+<%perl>
+if ( defined( $ARGS{'submit_check'} )  )
+{
+
+	# Transaction
+	my $topicId = 0;
+	my $postId = 0;
+	my $subjectQ = $x->dbQuote($ARGS{'subjectq'});
+	my $bodyQ = $x->dbQuote($ARGS{'bodyq'});
+    my $postUserId = $user->{id};
+	my $postUserName = $x->dbQuote($user->{userName});
+	my $approved=1;
+    
+	$x->dbBegin();
+	eval {
+		# Insert topic
+		$x->dbDo("
+			INSERT INTO $cfg->{dbPrefix}topics (
+				subject, boardId, locked, hitNum, postNum, lastPostTime
+			) VALUES (
+				$subjectQ, $boardId, 0, 1, 1, $x->{now}
+			)");
+		$topicId = $x->dbInsertId("$cfg->{dbPrefix}topics");
+		
+		# Insert post
+		$x->dbDo("
+			INSERT INTO $cfg->{dbPrefix}posts (
+				userId, userNameBak, boardId, topicId, parentId,
+				approved, ip, postTime, body
+			) VALUES (
+				$postUserId, $postUserName, $boardId, $topicId, 0,
+				$approved, '$x->{env}{userIp}', $x->{now}, $bodyQ
+			)");
+		$postId = $x->dbInsertId("$cfg->{dbPrefix}posts");
+	
+		# Update topic's basePostId
+		$x->dbDo("
+			UPDATE $cfg->{dbPrefix}topics SET basePostId = $postId WHERE id = $topicId");
+		
+		# Update board stats
+		$x->dbDo("
+			UPDATE $cfg->{dbPrefix}boards SET 
+				postNum = postNum + 1, 
+				lastPostTime = $x->{now}
+			WHERE id = $boardId");
+		
+		# Update user stats
+		$x->dbDo("UPDATE $cfg->{dbPrefix}users SET postNum = postNum + 1 WHERE id = $userId") if !$board->{anonymous};
+
+	};
+	$@ ? $x->dbRollback() : $x->dbCommit();
+    
+	my $reload_url = "/mobi/forum/boardshow/$boardId";
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url);
+}  #end if submit checked
+
+</%perl>

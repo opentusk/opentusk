@@ -1,0 +1,1002 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::UploadContent;
+	use HSDB4::SQLRow::Content;
+	use TUSK::Constants;
+	use TUSK::Content::External::Source;
+	use TUSK::Content::External::Field;
+	use TUSK::Content::External::MetaData;
+	use TUSK::Constants;
+	use Image::Magick;
+	use HTML::Defang;
+</%once>
+
+
+<%shared>
+	my ($page_token, $action_token, $filename, $set_global_flag, $sources, $metadata);
+
+	my $content = HSDB4::SQLRow::Content->new();
+	my $child_users = [];
+	my $default_keywords = [];
+
+	my $page_hash = {
+		upload 	=> {
+			title 		=> 'Upload New Content',
+			comps		=> 'upload_page',
+			page_value	=> 'add',
+			action_value	=> '',
+		},
+		replace	=> {
+			title 		=> 'Replace Content',
+			comps		=> 'upload_page',
+			page_value	=> 'edit',
+			action_value	=> 'edit',
+		},
+		add	=> {
+			title 		=> 'Add #type#',
+			comps		=> 'addedit_page',
+			page_value	=> 'edit',
+			action_value	=> 'add',
+		},
+		edit	=> {
+			title 		=> 'Modify #type#',
+			comps		=> 'addedit_page',
+			page_value	=> 'edit',
+			action_value	=> 'edit',
+		},
+		overlay => {
+			title		=> 'Slide Overlay',
+			comps		=> 'overlay_page',
+			page_value	=> 'overlay',
+			action_value	=> 'overlay',
+		},
+		url => {
+			title		=> 'Add URL',
+			comps		=> 'url_page',
+			page_value	=> 'add',
+			action_value	=> '',
+		},
+	};
+
+	my $action_hash = {
+		add 	=> 1,
+		edit	=> 1,
+	};
+
+	my $type_object = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+
+<%method jsarray>
+%	return ['jquery/jquery.min.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js', 'layers.js', 'edit_content.js', 'ckeditor/ckeditor.js', 'ckeditor/tusk.js'];
+</%method>
+
+<%method upload_page>
+<%args>
+	$args
+</%args>
+<%perl>
+
+my $additional_lnks = $m->scomp('/tmpl/element:help_link', params=>{node=>3618, text=>'more about acceptable file types'});
+$additional_lnks .= '<br/>';
+$additional_lnks .= $m->scomp('/tmpl/element:help_link', params => {content_id => 676038, text => 'more about powerpoint files', not_xmetal => 1});
+
+my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
+
+</%perl>
+
+
+% my $info_class = '';
+% if($page_token eq 'upload'){ # don't want this functionality on replace page
+%	$info_class = 'gDisplayNone';
+%   my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => 672610, text => 'help', not_xmetal => 1});
+%   my $multiHelpLink = '';
+%   if(exists($TUSK::Constants::HelpMap{'multiContentUpload'}) && $TUSK::Constants::HelpMap{'multiContentUpload'}) {
+%	$multiHelpLink = " - ". $m->scomp('/tmpl/element:help_link', params => {content_id => $TUSK::Constants::HelpMap{'multiContentUpload'}, text => 'help', not_xmetal => 1});
+%   }
+
+%   my $regUpload = $m->comp('SELF:get_content_upload_uri', multiUpload => 0);
+%   my $multiUpload = $m->comp('SELF:get_content_upload_uri', multiUpload => 1);
+<& /tmpl/element:radio_buttons, params => {
+                    label   => 'Selected Action:',
+                    name    => 'selected_action',
+                    buttons => [
+                               { 
+                                 value => 'upload_file', 
+				 onclick => 'contentSetSubmit(this.value, \''. $regUpload .'\', \'submit\');',
+                                 text => 'Upload Content', 
+                               },
+                               { 
+                                 value => 'upload_zip_file', 
+                                 onclick => 'contentSetSubmit(this.value, \''. $multiUpload .'\', \'multi\');',
+                                 text => "Upload Multi Content (<b><font color=\"red\">New!</font></b>)$multiHelpLink",
+                               },
+                               { 
+                                 value => 'create_blank_doc', 
+                                 onclick => 'contentSetSubmit(this.value, \''. $regUpload .'\', \'submit\');',
+                                 text => 'Create Document using TUSK HTML Editor', 
+                               },
+                               { 
+                                 value => 'min_style', 
+                                 onclick => 'contentSetSubmit(this.value, \''. $regUpload .'\', \'submit\');',
+                                 text => "Upload Web Page: no TUSK Toolkit (no navigation, notes, keywords, etc.) - $help_lnk", 
+                               },
+                               ],
+                    } &>
+
+<tr>
+<td colspan="2">
+<& /tmpl/element:table, params => { id => 'uploadInfo', class => $info_class } &>
+% }
+
+% if ($ENV{'HTTP_USER_AGENT'}=~/mac/i) {
+
+<& /tmpl/element:dropdown, params => {
+					label		=> 'Content Type:',
+					name		=> 'upload_type',
+					options		=> 	[
+									{ value => 'Slide', label => 'Image (gif, jpg, png)'},
+									{ value => 'PDF', label => 'Adobe PDF'},
+									{ value => 'PPT', label => 'Powerpoint presentation (PPT)' },
+									{ value => 'PPTX', label => 'Powerpoint presentation - Office 2007 (PPTX)' },
+									{ value => 'PPS', label => 'Powerpoint presentation (PPS)' },
+									{ value => 'DownloadableFile', label => 'Downloadable File (doc, xls, etc)'},
+									{ value => 'Document', label => 'Document (html, txt)'},
+									{ value => 'URL', label => 'URL'},
+									{ value => 'Video', label => 'Video' },
+									{ value => 'Audio', label => 'Audio' },
+									{ value => 'Shockwave', label => 'Flash' },
+								],
+					} &>
+
+% }
+
+<& /tmpl/element:file_upload, params => { name => 'file', label => 'File:', onchange => 'checkFileType(this.value, \'any\')', trailing_text => $trailing_text } &>
+
+% if($page_token eq 'upload'){ # don't want this functionality on replace page
+</table>
+
+%# The multi content upload page
+<& /tmpl/element:table, params => { id => 'multiUploadInfo', class => $info_class } &>
+<& /tmpl/element:file_upload, params => { name => 'zipfile', label => 'Zip File:', multiple => 1, onchange => 'checkFileType(this.value, \'any\')', trailing_text => $trailing_text } &>
+</table>
+</td>
+</tr>
+% }
+
+<& /tmpl/element:save_button, params => {
+					name => 'submit_btn',
+					label => 'Submit',
+					style => 'margin-top: 15px;',
+					no_cancel_button => 1,
+					} &>
+
+</%method>
+
+<%method addedit_page>
+<%args>
+	$args
+	$course => undef
+</%args>
+
+%
+% if ($page_token eq 'edit') {
+%
+
+<& /tmpl/element:field_display, params => { 
+						label => 'Content ID:', 
+						value => $content->primary_key() 
+					} &>
+
+<& content-comps:actions, content => $content &>
+%	
+% }
+%
+
+<& content-comps:title, content => $content &>
+
+% my $comp = $m->fetch_comp('content-comps');
+% if ($comp->method_exists($content->type())) {
+<& "content-comps:" . $content->type(), content => $content, args => { %$args, filename => $filename } &>
+% }
+
+% $args->{metadata} = $metadata if $metadata;
+% $args->{metadata} = TUSK::Content::External::MetaData->new()->lookupReturnOne("content_id = " . $content->primary_key()) if ($page_token eq 'edit');	
+
+<& "content-comps:common", args => $args, content => $content, child_users => $child_users, default_keywords => $default_keywords, course => $course &>
+
+% if($page_hash->{ $page_token }->{'action_value'} eq 'edit'){
+<& SELF:print_timestamps, obj => $content &>
+% }
+
+</%method>
+
+<%method overlay_page>
+<%args>
+	$args
+</%args>
+<%perl>
+	my $overlay = $content->overlay_data();
+	my $html; 
+
+	if ($overlay){
+		$html = '<img src="/overlay/large/' . $content->primary_key . '">';
+	}else{
+		$html = '&nbsp;';
+	}
+</%perl>
+<tr>
+	<td class="no-button">
+		<table class="border" cellspacing="0" width="100%">
+                        <tr class="header">
+                                <td class="border-header" width="50%">Original Image</td>
+                                <td class="border-header">With Overlay (if any)</td>
+                        </tr>
+                        <tr>
+                                <td class="border-center"><br><img src="/large/<% $content->primary_key() %>"><br><br></td>
+                                <td class="border-center"><br><% $html %></td>
+                        </tr>
+                </table>
+	</td>
+</tr>
+</table>
+
+<& /tmpl/element:table, params => {} &>
+
+<& /tmpl/element:file_upload, params => { name => 'file', label => 'Image File:' } &>
+
+<& /tmpl/element:save_button, params => {
+                                        no_cancel_button        => 1,
+                                        label                   => 'Create Overlay',
+                                        name                    => 'Submit',
+                                        buttons                 => (ref($args->{'buttons'}) eq 'ARRAY') ? $args->{'buttons'} : [],
+                                        } &>
+</%method>
+
+<%method url_page>
+<%args>
+	$args
+</%args>
+<%perl>
+	$content->field_value('type', 'URL');
+
+	my $options = [ { label => 'Web Page', value => 0 } ];
+	foreach my $source (@$sources){
+		push (@$options, { label => $source->getName(), value => $source->getPrimaryKeyID() } );
+	}
+</%perl>
+<script language="JavaScript" type="text/javascript">
+	var choice;
+	function checkUrlPage(theform) {
+
+		for (var i = 0; i < theform.length; i++ ) {
+			var element = theform.elements[i];
+			var id = element.id;
+			if (id) {
+				var words = id.split('__');
+
+				if (words[0] != 'external_content_field') {
+					continue;
+				}
+
+				if (words[3] != choice) {
+					element.value = '';
+					continue;
+				}
+
+				if (words[2] == 'y' && element.value == "") {
+					alert('Please fill in a value for ' + words[1]);
+					document.getElementById(id).focus();
+					return false;
+				}
+
+			}
+		}
+		return true;
+	}
+
+	function change_fields(dropdown){
+		choice = dropdown.options[dropdown.selectedIndex].value;
+		for (var i = 0; i < dropdown.options.length; i++) {
+			var display = 'none';
+			if (dropdown.selectedIndex == i){
+				display = (is_ie) ? 'inline' : 'table-row';
+			}
+			var counter = 1;
+			while (document.getElementById(dropdown.options[i].value + '_source_' + counter + '_tr') != null) {
+				document.getElementById(dropdown.options[i].value + '_source_' + counter + '_tr').style.display = display;
+
+				counter++;
+			}
+		}
+
+		if (dropdown.selectedIndex == 0) {
+			document.getElementById('content_type_id').value = 'URL';
+		} else {
+			document.getElementById('content_type_id').value = 'External';
+		}
+	}
+
+	document.getElementById('content_type_id').value = 'URL'; // set the content type to URL
+</script>
+
+<& /tmpl/element:dropdown, params => {
+		label 		=> 'Source:',
+		onchange	=> 'change_fields(this)',
+		selected 	=> 0,
+		name		=> 'source_id',
+		options		=> $options,
+		before_text     => '<div style="font-size:95%">To create a typical website link, click "Create URL" button. To create a link to a library resource, choose an appropriate item from dropdown menu. ' . $m->scomp("/tmpl/element:help_link", params => { content_id => 653553, not_xmetal => 1, text => '(Help)' }) . '</div><br/>',
+			} &>
+
+<%perl>
+	foreach my $source (@$sources){
+		my $fields = $source->getFields();
+		my $counter = 1;
+
+		foreach my $field (@$fields){
+			next if ($source->getPrimaryKeyID() == 1 && $field->getName() =~ /accession number/i);
+			$m->comp('/tmpl/element:textbox', params => {
+				label => $field->getName() . ":",
+				id => 'external_content_field__' . $field->getName() . '__' . lc $field->getRequired() . '__' . $source->getPrimaryKeyID(),
+				name => 'external_content_field_' . $field->getPrimaryKeyID(),
+				tr_name => $source->getPrimaryKeyID() . '_source_' . $counter,
+				value => '',
+				style => 'display:none',
+				size => 60,
+			});
+			$counter++;
+		}
+	}
+</%perl>
+
+
+<& /tmpl/element:save_button, params => {
+		no_cancel_button	=> 1,
+		label                   => 'Create URL',
+		name                    => 'submit_url',
+		buttons                 => (ref($args->{'buttons'}) eq 'ARRAY') ? $args->{'buttons'} : [],
+                                        } &>
+
+</%method>
+
+
+<%method show_page>
+<%args>
+	$args
+	$course => undef
+</%args>
+
+<& /tmpl/element:form, params => {
+		method 		=> 'POST',
+		action		=> $m->comp('SELF:get_content_upload_uri', multiUpload => 0),
+		name 		=> 'content',
+		submit_check	=> ($page_token ne 'url') ? 1 : 0,
+		enctype		=> ($page_token eq 'upload' or $page_token eq 'replace' or $page_token eq 'overlay') ? 'multipart/form-data' : '',
+		onsubmit 	=> ($page_token eq 'url') ? 'return checkUrlPage(this);' : 'return performSubmitAction(this);',
+} &>
+
+<iframe id="MCIF" name="MCIF" style="display:none; height:0px; width:0px;" src=""></iframe>
+<& /tmpl/element:hidden_form_element, params => { name    => 'multiContentId', value   => , } &>
+
+<& SELF:display_hidden_fields, args => $args &>
+%	# don't want this functionality on replace page
+%	if ($page_token eq 'edit' && ($content->type() eq 'TUSKdoc' && $content->showConversionStatus())) {
+%		$m->comp('/tmpl/content:getStatusRetrievalMsg', content_id => $content->primary_key());
+%	}
+
+
+<%doc>Fire fox really wanted these hiddens before the submits</%doc>
+<& /tmpl/element:table, params => { width => '100%', align => 'center', style => 'padding-top:1px;padding-bottom:7px;' } &>
+
+<& "SELF:$page_hash->{$page_token}->{'comps'}", args => $args, course => $course &>
+
+</table>
+</form>
+
+</%method>
+
+
+<%method process>
+<%args>
+	$args
+</%args>
+
+<%perl>
+	my ($rval, $req, $traffic_light, $content_type);
+
+	if ($args->{content_id}){
+		$content->lookup_key($args->{content_id});
+	} elsif ($page_token eq 'edit' or $page_token eq 'replace' or $page_token eq 'overlay'){
+		$content->lookup_key($m->comp('/tmpl/url:get_last_path_id'));
+	}
+
+	if ($args->{content_type} && !$content->primary_key()) {
+		$content->field_value('type', $args->{content_type});
+		$content->rebless() if ($args->{content_type} eq 'External');
+	}
+
+	$m->comp("SELF:set_globals", page => $args->{page}, action => $args->{action});
+
+	# check permissions
+	if ($content->primary_key() and !$content->can_user_edit($m->session->{'user'})){
+		$page_token = 'abort';
+		$traffic_light = { type => 'errmsg', text => 'Access denied' };
+	} elsif ($args->{'submit_check'}){
+		if ($page_token eq 'overlay'){
+			$traffic_light = $m->comp('SELF:overlay_process', args => $args);
+		}else{
+			if (exists($args->{rte_html_body})){
+				# rich text editor uses rte_body as its form element because naming it body causes js conflicts
+				$args->{body} = $args->{rte_html_body}; 
+			} elsif (exists($args->{html_body})){
+				# 'minimal' styled content does not have rich text area, so get content of html_body field...
+				$args->{body} = $args->{html_body}; 
+			}
+
+
+			$args->{content_type} = $content->type() unless ($args->{content_type});
+
+			if (exists $args->{'selected_action'} && $args->{'selected_action'} eq 'create_blank_doc'){
+				$content->field_value('type', 'Document');
+			} elsif ($args->{'file'}){
+				$args->{filehandle} = $r->upload('file')->fh;
+				if ($page_token eq 'add'){
+					($rval, $args->{msg}, $args->{body}, $content_type) = TUSK::UploadContent::upload_file(%$args);
+					$content->field_value('type', $content_type);
+					
+					if ($content->type() eq 'Document'){
+						if(exists $args->{'selected_action'} && $args->{'selected_action'} eq 'min_style'){
+							$content->field_value('style', 'minimal');
+						}
+
+						# a complete hack I cannot wait to get xml out of the body field!
+						$content->field_value('body', '<content_body><html><![CDATA[' . $args->{body} . ']]></html></content_body>');
+					}
+
+					if ($rval){
+						$filename = $args->{msg} if ($rval);
+					}
+					else {
+						$m->comp('/tmpl/url:redirect', message => $args->{msg});
+					}
+				} elsif($content->primary_key()) {
+					($rval, $args->{msg}) = TUSK::UploadContent::replace_file($content, $m->comp('SELF:user'), %$args);
+					my $msgtype = ($rval)? 'msg' : 'err';
+					$traffic_light = { type => $msgtype, text => $args->{msg} };
+				} else {
+					$traffic_light = { type => 'errmsg', text => "An error occurred with your upload, please try again.<br>If this problem persists try a different browser." };
+				}
+			} elsif (exists($args->{'file'})){
+				$page_token = ($content->primary_key())? 'replace' : 'upload';
+				$traffic_light = { type => 'errmsg', text => 'Please select a file to upload' };
+			} else {
+				if ($args->{parent_content} && $args->{parent_content}->primary_key()){
+					if (ref($m->comp('/tmpl/url:get_type_object')) eq 'HSDB45::Course'){
+						$req->{root_course} = $m->comp('/tmpl/url:get_type_object');
+					}
+				} elsif(!$args->{course}) {
+					if (ref($m->comp('/tmpl/url:get_type_object')) eq 'HSDB45::Course'){
+						$req->{course} = $m->comp('/tmpl/url:get_type_object');
+					}
+
+				}
+
+				$req->{user} = $m->session->{'user'};
+				$req->{content} = $content;
+	
+				if ($action_token eq 'add'){
+					$args->{'is_a_course'} = $type_object->isa('HSDB45::Course');
+					($rval, $args->{'msg'}, $content) = TUSK::UploadContent::add_content_sub($req, %$args);
+					$m->comp('SELF:save_metadata_keywords', args => $args, content => $content) if $args->{content_type} eq 'External';
+					unless ($rval){
+						$m->comp('/tmpl/url:redirect', message => $args->{msg});
+					}
+					# remember the last content we edited and which folder it was in
+					$m->session->{lastcontent_id} = $content->primary_key();
+					if ($args->{'parent_content'} and $args->{'parent_content'}->isa('HSDB4::SQLRow::Content') and $args->{'parent_content'}->primary_key()){
+						$m->session->{parent_id} = $args->{parent_content}->primary_key();
+					}else{
+						if ($type_object->isa('HSDB45::Course')){
+							$m->session->{parent_id} = $type_object->school() . $type_object->primary_key();
+						}
+					}
+
+					if ($rval){
+						$traffic_light = { type => 'msg', text => 'Content successfully added' };
+					} else {
+						$page_token = 'upload';
+						$traffic_light = { type => 'errmsg', text => $args->{'msg'} };
+					}
+				} else {
+					$args->{'is_a_course'} = $type_object->isa('HSDB45::Course');
+					($rval, $args->{'msg'}, $content) = TUSK::UploadContent::update_content_sub($req, %$args);
+					$m->comp('SELF:save_metadata_keywords', args => $args, content => $content) if $args->{content_type} eq 'External';
+					if ($rval){
+						$traffic_light = { type => 'msg', text => 'Content successfully modified' };
+					} else {
+						$traffic_light = { type => 'errmsg', text => $args->{'msg'} };
+						$m->session->{parent_id} = "" if ($m->session->{parent_id} == $content->primary_key());
+					}
+				}
+			}
+		}
+	}
+
+	# extra processing
+	if ($page_token eq 'add') {
+		if ($type_object->isa('HSDB45::Course')){
+			if ($args->{'parent_content'} and ($m->session->{parent_id} == $args->{'parent_content'}->primary_key() or $m->session->{parent_id} eq $type_object->school() . $type_object->primary_key()) and ($m->session->{lastcontent_id})){
+				$args->{'parent_content'} = HSDB4::SQLRow::Content->new()->lookup_key($m->session->{lastcontent_id});
+			}
+		}
+
+		if ($args->{'parent_content'} and $args->{'parent_content'}->isa('HSDB4::SQLRow::Content') and $args->{'parent_content'}->primary_key()){
+			$content->set_field_values(
+				copyright => $args->{'parent_content'}->field_value('copyright'),
+				source 	=> $args->{'parent_content'}->source(),
+				read_access => $args->{'parent_content'}->read_access(),
+				start_date => $args->{'parent_content'}->start_date(),
+				end_date => $args->{'parent_content'}->end_date(),
+			);
+
+			$child_users = [ $args->{'parent_content'}->child_users() ];
+						
+		}else{
+			$content->field_value('copyright', $m->comp('SELF:get_default_copyright'));
+			$content->field_value('read_access', 'HSDB Users');
+		}
+
+		$content->field_value('display', 1);
+
+		my $source_msg;
+		if ($content->type() eq 'External'){
+			if ($args->{source_id}){
+				my $source = TUSK::Content::External::Source->new()->lookupKey($args->{source_id});
+
+				my $data = {};
+				foreach my $key (keys %$args){
+					if ($key =~ /external_content_field_(\d*)/){
+						$data->{$1} = $args->{$key};
+					}
+				}
+				$data->{user} = $m->session->{user};
+
+				($content, $metadata, $default_keywords, $source_msg) = $source->metadata($content, $data);
+				### a kludgy way...
+				### we need to store data somewhere for the next 
+				### component call
+				if ($args->{source_id} == 1 && $source_msg) {
+					$content->{'__accession_number_pmed'} = $source_msg;
+					$source_msg = undef;
+				}
+			}
+		}		
+		# make sure the current user is in the list of child users for the new content
+		my @current_user = grep { $_->primary_key() eq $m->session->{'user'}->primary_key() } @$child_users;
+		unless (scalar(@current_user)){
+			my $user = $m->session->{'user'};
+
+			my $role = 'Editor';
+			if ($args->{course} and $args->{course}->user_primary_role($user->primary_key()) eq 'Author' ){
+				$role = 'Author';
+			}
+
+			$user->set_aux_info( roles => $role);
+
+			push (@$child_users, $user);
+		}
+
+		if ($content->type() eq 'External'){
+			if ($source_msg) {
+				$traffic_light = { type => 'err', text => $source_msg};
+			} else {
+				$traffic_light = { type => 'hintmsg', text => 'Please check the retrieved metadata below, makes changes or add and then save it.'};
+			}
+		} else {
+			$traffic_light = { type => 'hintmsg', text => 'Please fill in the metadata below as content will not be saved until this has been completed' };
+		}
+
+	} elsif ($page_token eq 'edit') {
+		$child_users = [ $content->child_users() ];
+	}
+
+	if (($page_token ne 'upload' and $page_token ne 'url') and $content->type() eq ''){
+		$page_token = 'abort';
+		$traffic_light = { type => 'errmsg', text => 'Missing content type' };
+	}
+
+	if ($traffic_light){
+		if ($args->{'table_html'}){
+			$m->comp("/tmpl/prepend:traffic_light", make_table 	=> 1, 
+								table_html 	=> $args->{'table_html'}, 
+								args 		=> { $traffic_light->{type} => $traffic_light->{text} });
+		} else {
+			$m->comp("SELF:set_msg", msg => $traffic_light->{text}, type => $traffic_light->{type});
+		}
+	}
+
+	if ($page_token eq 'abort'){
+		$m->comp('/tmpl/url:redirect', message => $traffic_light->{text});
+	}
+
+	if($args->{'redirect_after_post'}){
+		$m->comp('/tmpl/url:redirect', destination => $args->{'redirect_after_post'}, msg_type => 'msg', message => 'Content successfully modified. Preview below.');
+	}
+
+
+</%perl>
+</%method>
+
+<%method title>
+<%perl>
+	my $title = $page_hash->{ $page_token }->{'title'};
+	my $type = ucfirst($content->type());
+	$type = 'URL' if ($type eq 'External'); # hack 
+	$title =~ s/#type#/$type/g;
+	return $title;
+</%perl>
+</%method>
+
+<%method get_red_header_text>
+<%perl>
+	if ($content->type() eq 'TUSKdoc'){
+		return $m->comp('SELF:title');
+	}else{
+		return $m->comp('SELF:red_header_text');
+	}
+</%perl>
+</%method>
+
+
+<%method set_globals>
+<%args>
+	$page 	=> 'upload'
+	$action => 'edit'
+</%args>
+<%perl>
+	return if ($set_global_flag);
+
+	$page = $page->[-1] if (ref($page) eq 'ARRAY');
+
+	if ($page && exists($page_hash->{ $page })){
+		$page_token 	= $page;
+	}else{
+		$page_token 	= 'upload';
+	}
+
+	if ($page eq 'url'){
+		$sources = TUSK::Content::External::Source->new()->lookup();
+		unless (scalar(@$sources)){
+			$page_token = 'add';
+			$content->field_value('type', 'URL');
+		}
+	}
+
+	if ($action && exists($action_hash->{ $action })){
+		$action_token 	= $action;
+	}else{
+		$action_token 	= 'edit';
+	}
+
+	$set_global_flag = 1;	
+</%perl>
+</%method>
+
+<%method display_hidden_fields>
+<& /tmpl/element:hidden_form_element, params => {
+							name 	=> 'page',
+							value 	=> $page_hash->{ $page_token }->{'page_value'},
+						} &>
+<& /tmpl/element:hidden_form_element, params => {
+							name 	=> 'contentAction',
+							value 	=> $page_hash->{ $page_token }->{'action_value'},
+						} &>
+
+<& /tmpl/element:hidden_form_element, params => {
+							name 	=> 'content_type',
+							value 	=> $content->type(),
+						} &>
+
+% if ($filename){
+<& /tmpl/element:hidden_form_element, params => {
+							name 	=> 'filename',
+							value 	=> $filename,
+						} &>
+% }
+</%method>
+
+<%method get_default_copyright>
+<%perl>
+	my $year = (localtime)[5] + 1900;
+	return ("Copyright $year, ".$TUSK::Constants::CopyrightOrg);
+</%perl>
+</%method>
+
+<%method get_content>
+% return ($content);
+</%method>
+
+<%method get_page_token>
+% return $page_token;
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+	my $nav_bars = $m->comp('/tmpl/url:get_initial_nav_bars');
+	
+	if ($type_object->isa('HSDB4::SQLRow::Content')){
+		$nav_bars = [ { href => '/management/home', label => 'CMS Home' } ];
+	}
+	my $path_ids = $m->comp('/tmpl/url:get_path_ids');
+	my $parent_ids = [];
+
+	foreach my $path_id (@$path_ids){
+		next unless ($path_id > 0);
+		next if ($path_id == $content->primary_key());
+		push (@$parent_ids, $path_id);
+		my $path_content = HSDB4::SQLRow::Content->new()->lookup_key($path_id);
+		push (@$nav_bars, { href => '/management/folders/' . $m->comp('/tmpl/url:get_type_path') . '/' . join('/', @$parent_ids), label => $path_content->title() });
+	}
+
+	if ($page_token eq 'overlay'){
+		push (@$nav_bars, { href =>  $m->comp('SELF:fix_uri', page => 'edit'), label => 'Modify Slide - ' . $content->title()});
+	}
+
+	return $nav_bars;
+</%perl>
+</%method>
+
+<%method overlay_process>
+<%args>
+	$args
+</%args>
+<%perl>
+	my $traffic_light;
+
+	if ($args->{file}) {
+		my $blob;
+		my $fh =  $r->upload('file')->fh;
+
+		while (my $data = <$fh>) {
+			$blob .= $data;
+		}
+
+		if (length($blob)) {
+			foreach my $cur_size ( @HSDB4::Constants::image_sizes ) {
+				next if ($cur_size eq 'resize' || $cur_size eq 'thumb' || $cur_size eq 'icon');
+				
+				# We want to do this inside the loop so that it doesn't get downscaled then re-upscaled.
+				my $overlay = Image::Magick->new();
+				$overlay->BlobToImage($blob);
+
+				my $location = $content->get_image_location();
+
+				my $path = $TUSK::UploadContent::path{'slide'} . '/' . $cur_size . '/' . $location;
+				my ($orig_filename, $file_ext);
+
+				my $original = Image::Magick->new();
+				if    ( -e $path . '.jpg' ) { $orig_filename = $path . '.jpg'; $file_ext = '.jpg'; } 
+				elsif ( -e $path . '.gif' ) { $orig_filename = $path . '.gif'; $file_ext = '.gif'; }
+				elsif ( -e $path . '.png' ) { $orig_filename = $path . '.png'; $file_ext = '.png'; }
+				$original->Read( $orig_filename );
+
+				my ($width, $height) = $original->Get('base-columns', 'base-rows');
+				$overlay->Scale(width => $width, height => $height);
+				$original->Composite(compose => 'Over', image => $overlay);
+
+				$original->Write(filename=>$TUSK::UploadContent::path{'slide'}."/overlay/".$cur_size."/".$location.$file_ext, compression=>'None');
+
+				my $body = $content->body();
+				my ($info) = $body->tag_values('slide_info');
+				unless ($info){
+					$info = HSDB4::XML::Content->new('slide_info');
+					$body->xml_insert(0, $info);
+				}
+
+				my ($overlay_tag) = $info->tag_values('overlay');
+				unless ($overlay_tag){
+					$overlay_tag = HSDB4::XML::SimpleElement->new(-tag => 'overlay', -label => 'Overlay');
+					$info->xml_push($overlay_tag);
+				}
+
+				$overlay_tag->set_value('1');
+				$content->field_value('body', $body->out_xml());
+
+				my ($ret, $msg) = $content->save_version('Added/modified slide overlay info via web', $m->session->{'user'}->user_id());
+
+				if ($ret){
+					$traffic_light = { type => 'msg', text => 'Overlay saved successfully' };
+				} else {
+					$traffic_light = { type => 'errmsg', text => $msg };
+				}
+			}
+		} else {
+			$traffic_light = { type => 'errmsg', text => 'Unable to read file "' . $args->{'file'} . '": no data' };
+		}
+	} else {
+		$traffic_light = { type => 'errmsg', text => 'Please enter the path to an image file to overlay in the space provided' };
+	}
+
+	return $traffic_light;
+</%perl>
+</%method>
+
+
+<%doc>This method makes sure that the content_id (if it exists) is always in the uri</%doc>
+<%method fix_uri>
+<%args>
+	$page => ''
+</%args>
+<%perl>
+	my $uri = $ENV{REQUEST_URI};
+
+	my $df = HTML::Defang->new();
+	$uri = $df->defang($uri);
+
+	if ($content->primary_key() && $uri !~ /content_id=/){
+		if ($uri !~ /\?/){
+			$uri .= '?';
+		}elsif ($uri !~ /\?$/){
+			$uri .= '&';
+		}
+		
+		$uri .= 'content_id=' . $content->primary_key();
+	}
+
+	if ($page){
+		$uri =~ s/\&?page=[A-z]*//;
+		if ($uri !~ /\?/){
+			$uri .= '?';
+		}elsif ($uri !~ /\?$/){
+			$uri .= '&';
+		}
+		
+		$uri .= 'page=' . $page;
+	}
+
+	return $uri;
+</%perl>
+</%method>
+
+
+<%method get_content_preview_link>
+<%doc>
+	method to generate a "Preview" link for all content. link calls confirm_departure() to 
+	ensure that user is aware that previewing content will POST any changes they made to 
+	content addedit form.
+</%doc>
+
+<%perl>
+	
+my $content_id = $content->primary_key();
+if($content_id){
+	my $course = $m->comp('/tmpl/url:get_type_object');
+ 	my $args = $m->request_args();
+	my $course_context = HSDB4::Constants::code_by_school($course->school) . $course->primary_key() . 'C';
+
+	my $path = join('/', $m->comp('/tmpl/url:get_path_ids'));
+	$path .= '/' if ($path);
+	my $url = "javascript:confirm_departure('/view/content/$course_context/$path$content_id')";
+
+	return [ {txt => 'Preview', url => $url } ];
+}
+else{
+	return [];
+}
+
+</%perl>
+</%method>
+
+
+<%method save_metadata_keywords>
+<%args>
+	$args
+	$content
+</%args>
+<%perl>
+	my $user = $m->session->{'user'};
+	my $metadata = TUSK::Content::External::MetaData->new();
+	my $found = $metadata->lookupReturnOne("content_id = " . $content->primary_key());
+	$metadata = $found if ($found);
+	$metadata->setFieldValues({
+			abstract => $args->{rte_abstract},
+			author => $args->{external_authors},
+			content_id => $content->primary_key(),
+	});
+	$metadata->save({user => $user});
+
+	if ($args->{url}) {  ### change or add url
+		$metadata->setUrl($args->{url},$user);
+	} else {
+		### delete url
+		if ($found) {
+			if ($metadata->getUrl()) {
+				$metadata->getUrlObject()->delete();
+			}
+		}
+	}
+
+
+
+	if ($args->{keyword_id}) {
+		my @keyword_ids = (ref $args->{keyword_id} eq 'ARRAY') ? @{$args->{keyword_id}} : $args->{keyword_id};
+		foreach my $id (@keyword_ids) {
+			my $keyword_link = TUSK::Core::LinkContentKeyword->new();
+			$keyword_link->setFieldValues({
+				parent_content_id => $content->primary_key(),
+				child_keyword_id => $id,
+				author_weight => 2,
+			});
+			$keyword_link->save({user => $user});
+		}
+	}
+</%perl>
+</%method>
+
+<%method print_timestamps>
+<%args>
+$obj
+</%args>
+<tr>
+	<td>&nbsp;</td>
+	<td class="cell-left">
+	<br/>
+	<div class="xxsm">
+	<strong>Created:</strong> <% $obj->created() %><br/>
+	<strong>Modified:</strong> <% $obj->modified() %>
+	</div>
+	</td>
+</tr>
+
+</%method>
+
+<%method get_content_upload_uri>
+<%args>
+	$multiUpload
+</%args>
+<%perl>
+        my $uri = $m->comp('SELF:fix_uri');
+        $uri =~ s/\&?page=[A-z]*//;
+        $uri =~ s/\&?content_type=[A-z]*//;
+	if($multiUpload) {
+		$uri =~ s/\/addedit\//\/multiupload\//;
+	}
+	return $uri;
+</%perl>
+</%method>
+
+
+<%method addedit_multi_common_page>
+<%args>
+	$args
+	$course => undef
+</%args>
+
+% $args->{metadata} = $metadata if $metadata;
+% $args->{metadata} = TUSK::Content::External::MetaData->new()->lookupReturnOne("content_id = " . $content->primary_key()) if ($page_token eq 'edit');	
+
+<& "content-comps:common",
+	args => $args,
+	content => $content,
+	child_users => $child_users,
+	default_keywords => $default_keywords,
+	course => $course,
+	addSave => 0,
+&>
+
+</%method>

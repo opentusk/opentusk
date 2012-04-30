@@ -1,0 +1,101 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB45::Eval;
+	use HSDB45::Eval::Results;
+	use Apache2::Const qw (FORBIDDEN);
+	use TUSK::Eval::EvalLoadTime;
+	use TUSK::Constants;
+</%once>
+
+<%attr>
+	page_header => '/tmpl/prepend:manage_header_div_layout'
+	page_footer => '/tmpl/footer:footer_div'
+	skip_header_bar => 1
+	allow_guest => 0
+	must_be_eval_admin => 1
+</%attr>
+
+<%method title>
+%       return "Eval Report: $title";
+</%method>
+
+<%method jsarray>
+%       return [ 'eval.js', 'evalReports.js' ];
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/eval.css', '/style/grapher.css'];
+</%method>
+
+<%shared>
+	my $eval;
+	if($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
+		$eval = HSDB45::Eval->new(_school => $1, _id => $2);
+	} else {
+		$eval = HSDB45::Eval->lookup_path( $ENV{'PATH_INFO'} );
+	}
+	# Check for valid user
+	unless($eval->admin_group()->contains_user($m->session->{'user'})) {
+		$r->status(FORBIDDEN);
+		$m->abort();
+	}
+	my $title = "Unknown Eval";
+	if($eval && $eval->out_label) {$title = $eval->out_label;}
+</%shared>
+<span class="evalFluff" style="float:right; text-align:right;">
+%	if($TUSK::Constants::HelpMap{evalStatisticsDef}) {
+		<a href="javascript:;" class="helpLnk" onclick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalStatisticsDef} %>'); return false;">Statistics Definitions</a>
+%	}
+	&nbsp;
+%       if($TUSK::Constants::HelpMap{evalPrinting}) {
+		<a href="javascript:;" class="helpLnk" onclick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalPrinting} %>'); return false;">Printing Help</a>
+%	}
+</span>
+<h2 class="title"><% $title %></h2>
+% if($ENV{HTTPS}) {
+%	my $scriptURL = $ENV{SCRIPT_URL};
+%	$scriptURL =~ s/^\///;
+%	my $redirectURL = "http://" . $TUSK::Constants::Domain . "/" . $scriptURL;
+%	if($redirectURL !~ /^http/) {$redirectURL = "http://$redirectURL";}
+%#	$m->print("<center>I'm sorry, this page can not be successfully displayed over https at this time. Please <a href=\"". $redirectURL . "\">click here</a> to view this page.</center>");
+%	$m->clear_buffer;
+%	$m->redirect($redirectURL);
+%	$m->about();
+% }
+
+<div class="evalFluff">
+	<a href="/protected/eval/administrator/show/<% $eval->school %>">Manage Evaluations</a><br />
+	<a href="/protected/eval/administrator/export/<%$eval->school %>/<% $eval->primary_key() %>">Export Report</a><br />
+	<a id="graphLink" style="display:none;" href="" onclick="showHideGraphs(); return false;">Hide Graphs</a>
+
+% my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
+% $evalLoadStats->setEval($eval);
+	<p class="timeMessage">
+		This eval has been requested <% $evalLoadStats->totalLoads() %> times
+% if($evalLoadStats->totalLoads()) {
+	with an average of <% sprintf('%.1f', $evalLoadStats->average()) %> sec
+	and the longest time being <% sprintf('%.1f', $evalLoadStats->max()) %> secs.
+% }
+	You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.
+	</p>
+</div>
+<div id="graphicsLoadMessage" style="display:none;">
+	<p id="queueMessage">Loading Eval Graphs</p><img src="/graphics/icons/waiting_bar.gif" alt="" />
+</div>
+<div id="evalArea">
+</div>
+<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $eval->school %>/<% $eval->primary_key() %>', 0);</script>

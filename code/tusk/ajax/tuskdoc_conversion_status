@@ -1,0 +1,112 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+page_header => ''
+no_body => 1
+use_nav_bar => 0
+no_check_path => 1
+</%attr>
+
+<%once>
+	use HSDB4::SQLRow::Content;
+	use TUSK::ProcessTracker::ProcessTracker;
+</%once>
+
+
+{ 
+  "statusMsg": "<% $msg %>",
+  "completed": <% $completed %>
+}
+
+
+
+<%init>
+my $id = $m->comp('/tmpl/url:get_last_path_id');
+my $content = HSDB4::SQLRow::Content->new()->lookup_key($id);
+
+my $msg;
+my $completed = 'null';
+if ($content->primary_key()) {
+	if ($content->can_user_edit($m->session->{'user'})) {
+		my $tracker = TUSK::ProcessTracker::ProcessTracker->new()->getMostRecentTracker(undef, $id, 'tuskdoc');
+		$msg = $m->scomp('getConversionStatusDisplay', tracker => $tracker);
+		$completed = $tracker->isCompleted if (defined $tracker);
+	}
+	else {
+		$msg = 'Cannot retrieve status';
+	}
+}
+else {
+	$msg = "Invalid Content ID: $id";
+}
+
+# we need to make this valid JSON, so escape following
+$msg =~ s/"/\\"/g;
+$msg =~ s/\r|\n/ /g;
+</%init>
+
+<%def getConversionStatusDisplay>
+<%args>
+	$tracker
+</%args>
+
+<%perl>
+
+my $status = "Unknown";
+if (defined $tracker) {
+	my @stat_list;
+	push @stat_list, TUSK::ProcessTracker::StatusType->lookupReturnOne("token='tuskdoc_received'")->getLabel();
+	push @stat_list, TUSK::ProcessTracker::StatusType->lookupReturnOne("token='tuskdoc_processing'")->getLabel();
+	push @stat_list, TUSK::ProcessTracker::StatusType->lookupReturnOne("token='tuskdoc_completed'")->getLabel();
+
+	my $active_status = $tracker->getStatusLabel();
+
+	# what can be considered "completed" in tracker-land is one of three: completed, completed (with warnings),
+	# and error. if tracker is completed, pop off the last member of array (the generic completed status)
+	# and put the appropriate one at end in case it is one of the status levels with a problem (warn or error).
+	# yes, it is true, if the td completed without incident, we are popping off "completed" and pushing the 
+	# exact same status back on.
+	if ($tracker->isCompleted()) {
+		pop @stat_list;
+		push @stat_list, $active_status;
+	}
+
+	foreach my $stat (@stat_list) {
+		if ($stat eq $active_status) {
+			$stat = "<span id=\"actProcStatus\">$stat</span>";
+		}
+	}
+ 
+	$status  = '<span class="procStatusList">';
+	$status .= join ' &rarr; ', @stat_list;
+	$status .= '</span>';
+
+	my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => '1017607', text => '&nbsp;', not_xmetal => 1, class => 'helpLnk'});
+	
+	$status .= $help_lnk;
+
+}
+</%perl>
+
+<span class="procStatus">Conversion Status: <% $status %></span>
+% if (defined $tracker && !$tracker->isCompleted()) {
+<em>(status refreshes each 15 seconds)</em>
+% }
+% else {
+&nbsp;
+% }
+
+</%def>

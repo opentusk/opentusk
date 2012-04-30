@@ -1,0 +1,409 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB45::Eval;
+	use HSDB45::Eval::Formatter;
+	use HSDB45::Eval::SavedAnswers;
+	use Apache2::Const qw/:common/;
+	use HSDB4::DateTime;
+	use HSDB45::Eval::Secret;
+	use HSDB45::StyleSheet;
+	use XML::LibXML;
+	use XML::LibXSLT;
+</%once>
+
+<%attr>
+	no_header => 1
+	default_path_type => 'school'
+</%attr>
+
+
+<%shared>
+	my $eval_id = $m->comp("/tmpl/url:get_first_path_id");
+	my $school = $m->comp('/tmpl/url:get_type_object');
+	my $school_name = $school->getSchoolName;
+	my $eval = HSDB45::Eval->new(_school => $school_name)->lookup_key($eval_id);
+	my @questions = grep { $_->body()->question_type !~ /Title|Instruction/ }  $eval->questions();
+	my @required_questions = $eval->required_questions();
+	my %fdat = $m->request_args();
+  	foreach my $key (keys %fdat) {
+		if ( ref($fdat{$key}) eq 'ARRAY' ) {
+			# This MUST be a '	' and not a '\t' for some of the DBI methods to function properly
+			$fdat{$key} = join( '	', @{$fdat{$key}} );
+		}
+	}
+	my $user = $m->session->{'user'};
+	my ($formatter, $saved_answers_id, $teaching_site, @loaded_answers, @loaded_fields);
+	my $answers;
+	my ($eval_completed, $msg, $qualified_request) = (0, '', 1);
+</%shared>
+
+
+<%init>
+	unless($eval_completed) {
+		if ($qualified_request) {
+			$saved_answers_id = $answers->id() if $answers;
+			$m->print("<body onload=\"doInitialSatisfys();\">");
+			$m->comp('SELF:write_script');
+			my $eval_form = $m->comp('SELF:get_eval');
+			$m->comp('SELF:header_with_title_msg');
+			$m->comp('SELF:display_eval', $eval_form);
+		} else {
+			$m->print("<body>");
+			$m->comp('SELF:header_with_title_msg');
+		}
+	}
+</%init>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+
+<%perl>
+	unless ($eval->admin_group()->contains_user($user)) {
+		($qualified_request, $msg) = $eval->is_user_allowed ($user);
+		unless ($qualified_request) {
+			$m->comp('SELF:set_msg', msg => $msg, type => 'err');
+		}		
+	}
+
+	$formatter = HSDB45::Eval::Formatter->new($eval);
+	$teaching_site = $eval->field_value('teaching_site_id');
+	$teaching_site = '' unless (defined($teaching_site));
+
+	my $password = $fdat{'load_password'} || $fdat{'submit_password'};
+	my $pw_error = 0;
+	if ( $password ) {
+        if ($user->verify_password($password)) {
+			$answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
+		} else {
+			$pw_error = 1;
+			$m->comp('SELF:set_msg', msg => "Passwords do not match.", type => 'err' );
+		}
+	} elsif ($fdat{load_submit} || $fdat{save_submit} || $fdat{complete_submit}) {
+		$pw_error = 1;
+		$m->comp('SELF:set_msg', msg => "Please enter your password.", type => 'err' );
+	}
+
+	if ( !$pw_error ) {
+		if ($fdat{load_submit}) {
+			$m->comp('SELF:set_msg', msg => 'Answers loaded.', type => 'msg');
+			if ($answers && $answers->answers()) {
+				while (my ($key, $answer) = each %{$answers->answers()}) {
+					$fdat{"eval_q_$key"} = $answer;
+				}
+			}
+		} elsif ($fdat{complete_submit}) {
+			my @bad_fields = $eval->validate_form(\%fdat);
+	   		if (@bad_fields) {
+				$answers->set_answers(%fdat);
+				$saved_answers_id = $answers->id();
+  	        	while (my ($key, $answer) = each %{$answers->answers()}) {
+					$fdat{"eval_q_$key"} = $answer;
+				}
+				$m->comp('SELF:set_msg', msg => 'Please complete all required questions.', type => 'err');
+	    	} else {
+				($eval_completed, $msg) = $eval->answer_form($user, \%fdat);
+				if ($eval_completed) {
+					$m->comp('SELF:acknowledge');
+					if ($answers && $answers->id()) { 
+						$answers->do_delete();
+					}
+					$m->comp('SELF:set_msg', msg => 'Evaluation successfully submitted');
+				}
+	   		}
+			delete $fdat{complete_submit};
+		} elsif ($fdat{save_submit}) {
+			$answers->set_answers(%fdat);
+			delete $fdat{save_submit};
+			$m->comp('SELF:set_msg', msg => 'Evaluation successfully saved');
+		}
+	} else {
+		$answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
+		$answers->set_answers(%fdat);
+	}
+</%perl>
+</%method>
+
+
+<%method display_eval>
+%	my $eval_form = shift;
+
+% if ($saved_answers_id) {
+<!-- Saved Answers ID: <% $saved_answers_id %> -->
+<!-- Loaded Answers: <% @loaded_answers %> -->
+% } else {
+<!-- No Saved Answers -->
+% }
+<!-- URLPREFIX : 'https://' . <% $ENV{'HTTP_HOST'} . '/' %>  -->
+<!-- TEACHING_SITE_ID : <% $teaching_site %> -->
+	<ol>
+	<div style="padding:0 60px 0 50px">
+	<& SELF:top_buttons &>
+	<br/>
+<form name="eval_form" method="post">
+%	$m->print($eval_form);
+	<& SELF:bottom_buttons &>
+	</div>
+	</ol>
+</form>
+</%method>
+
+
+<%method top_buttons>
+<div class="password_box" style="background: #eeeeee; border-style: dotted; border-width: thin; margin-bottom: 6pt;padding:6px;">
+	<form name="load_form" method="post" onSubmit="return checkLoadPassword()">
+	<h4 class="title"><a name="Load"></a>Load Previously Saved Responses</h4>
+	<p class="instruction">If you have already partially completed and saved answers to this eval, you may retrieve your responses by entering your password here and clicking <strong>Load</strong>.</p>
+	<table cellspacing="4" border="0" width="100%">
+		<tr>
+			<td align="right"><b>User name:</b></td>  
+			<td><% $user->out_abbrev %></td>
+			<td align="right"><b>Password:</b></td>
+			<td><input type="password" name="load_password"></td>
+			<td>
+				<& /tmpl/element:button, params => {
+							label		=> 'Load Answers',
+							name		=> 'load_submit',
+							type		=> 'submit',
+				} &>
+			</td>
+		</tr>
+	</table>
+	</form>
+</div>
+<table width="100%">
+	<tr>
+		<td align="right" style="font-size:75%;color:blue;">
+		Total Questions: <% scalar @questions %><br/>
+		Required Questions: <% scalar @required_questions %>
+	</td>
+</table>
+</%method>
+
+<%method bottom_buttons>
+<table width="100%">
+	<tr>
+		<td align="right" style="font-size:75%;color:blue;">
+		Total Questions: <% scalar @questions %><br/>
+		Required Questions: <% scalar @required_questions %>
+	</td>
+</table>
+<div class="password_box" style="background: #eeeeee; border-style: dotted; border-width: thin; margin-bottom: 6pt;padding:6px;">
+	<h4 class="title">Save or Submit Responses</h4>
+	<p class="instruction">If you wish to set aside this eval and come
+	back to it later, you may save the form by entering your password
+	and clicking <strong>Save Eval</strong>. Your responses will be 
+	encrypted and saved to a draft area until you are ready to return.</p>
+	<p class="instruction">When you are satisfied with your answers,
+	enter your password and click <strong>Submit Eval</strong>. <em>Once
+	you have submitted your answers, you will not be able to view or 
+	change them again.</em> After you submit your answers, you will receive 
+	an acknowledgement that your answers have been received and a receipt 
+	which you may print. (You will also be e-mailed a copy of the receipt.)</p> 
+	<table cellspacing="4" border="0" width="100%"> 
+		<tr>
+			<td align="right"><b>User name:</b></td>
+			<td><% $user->out_abbrev %></td>
+			<td align="right"><b>Password:</b></td>
+			<td><input type="password" name="submit_password"></td>
+			<td valign="top" align="center">
+				<& /tmpl/element:button, params => {
+						label		=> 'Save Eval',
+						name		=> 'save_submit',
+						type		=> 'submit',
+				} &>
+			</td>
+%			if ( $eval->is_submittable ) {
+			<td align="center">or</td><td align="center">
+				<& /tmpl/element:button, params => {
+						label		=> 'Submit Eval',
+						name		=> 'complete_submit',
+						type		=> 'submit',
+				} &>
+			</td>
+% }
+		</tr>
+	</table>
+</div>
+</%method>
+
+<%method get_eval>
+
+<%perl>
+	my $url =  'http://' . $ENV{'HTTP_HOST'};
+
+	if ($url =~ /dev/) {
+        	my $regular_port = ($ENV{'SERVER_PORT'} - 100); 
+		$url =~ s/\d{4}/$regular_port/;
+	}
+
+    	my $stylesheet = $eval->question_stylesheet();
+
+    	my @atts = ('USERID'          	=> $user->primary_key(),
+		'SAVED_ANSWER_ID' 	=> $saved_answers_id,
+		'TEACHING_SITE'	  	=> $teaching_site,
+                'URLPREFIX'	  	=> $url . '/',
+                'HTML_EVAL_ERROR_MESSAGE'=> $TUSK::Constants::evalErrorMessage,
+    	);
+
+
+	if ($stylesheet) {
+		return $stylesheet->apply_stylesheet($formatter->get_xml_text(), @atts);
+					     
+    	} else {
+        	return HSDB45::StyleSheet::apply_global_stylesheet(
+			$ENV{XSL_ROOT} . $eval->global_question_stylesheet(),
+			$HSDB45::Eval::Question::Body::prolog.$formatter->get_xml_text(),
+                	@atts);
+    	}
+</%perl>
+</%method>
+
+
+<%method header_with_title_msg>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="350" valign="top">
+      <img src="<% $TUSK::Constants::Logo %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" />
+    </td>
+    <td>
+      <& '/tmpl/prepend:traffic_light', args => \%ARGS, make_table => 1 &>
+    </td>
+    <td align="right" valign="bottom"><span class="emphasis_font">
+<% join(' | ', @{$m->comp('SELF:add_links')}) %> </span> &nbsp;</td>
+  </tr>
+  <tr class="redHeaderBar">
+    <td align="center" colspan="3">Evaluation: <% $eval->title %> </td>
+  </tr>
+</table>
+</%method>
+
+
+<%method add_links>
+<%perl>
+	my @links;
+	if (TUSK::Session::is_eval_admin($m->session(), $user)) {
+		push @links, '<a href="/eval/administrator/show/' . $m->comp('/tmpl/url:get_type_path') . '">Manage Evaluations</a>',
+			     '<a href="/eval/administrator/eval_edit/' . $m->comp('/tmpl/url:get_type_path') . '/' . $eval->primary_key() . '">Edit Evaluation</a>';
+	} else {
+		push @links, '<a href="/home">Home</a>';
+	}
+	push @links, '<a class="logout" href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time() . '">Logout</a>';
+	return \@links;
+</%perl>
+</%method>
+
+
+
+<%method title>
+%	return 'Evaluation: ' . $eval->out_label();
+</%method>
+
+
+
+<%method write_script>
+<script language="JavaScript">
+
+var requiredObject = new Array();
+var questions = <% scalar @questions %>;
+var questionsAnswered = <% scalar @questions %>;
+var requiredQuestions = <% scalar @required_questions %>;
+var requiredQuestionsAnswered = <% scalar @required_questions %>;
+
+function doInitialSatisfys() {
+%  	foreach my $eval_q (keys %fdat) {
+%  		print "// $eval_q \n";
+%		my ($id) = $eval_q =~ /^eval_q_(\d+)$/;
+%		if ($id) {
+%			print "satisfy($id, ''); \n";
+%		}
+%	}
+}
+</script>
+</%method>
+
+
+<%method acknowledge>
+
+<body>
+<& SELF:header_with_title_msg &>
+
+<div style="padding:0 60px 0 50px">
+<div class="admintext">Successful Submission</div>
+
+<p>
+You have completed the evaluation entitled <b>"<% $eval->field_value('title') %>"</b>.  Your feedback is greatly appreciated. 
+</p>
+
+<div class="admintext">Receipt Information</div>
+% my $date = HSDB4::DateTime->new();
+% my $receipt = HSDB45::Eval::Secret::generate_hashcode($eval->school(),  $eval->primary_key(), $user->primary_key(), $date);
+
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border 		=> "0",
+	cellspacing 	=> "1",
+	cellpadding 	=> "1" 
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'School:',
+	value 	=> $eval->school(),
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Eval ID:',
+	value 	=> $eval->primary_key(),
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'User ID:',
+	value 	=> $user->primary_key(),
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Timestamp:',
+	value 	=> $date->out_mysql_timestamp,
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Receipt:',
+	value 	=> $receipt,
+} &>
+
+</table>
+</div>
+<%perl>
+	my $body = "School: "  . $eval->school() . "\n";
+  	$body .= "Eval ID: "   . $eval->primary_key() . "\n";
+  	$body .= "User ID: "   . $user->primary_key() . "\n";
+  	$body .= "Timestamp: " . $date->out_mysql_timestamp() . "\n";
+  	$body .= "Receipt: "   . $receipt . "\n\n";
+  	$body .= "This may be verified at http://$ENV{SERVER_NAME}/tusk/eval/receipt_verification";
+  	$user->send_email("Eval Completion Receipt: " . $eval->field_value("title"), $body);
+</%perl>
+</%method>
+
+
+<%method jsarray>
+%	return [ 'eval.js' ];
+</%method>
+
+
+

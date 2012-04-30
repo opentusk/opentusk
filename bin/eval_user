@@ -1,0 +1,76 @@
+#!/usr/bin/perl -wl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use MySQL::Password;
+use Getopt::Long;
+use HSDB4::Constants qw(:school);
+use HSDB4::SQLRow::User;
+use HSDB45::Eval;
+
+sub usage { while (<DATA>) { print } }
+
+# Set up the DB connection
+my $dbh;
+{
+    my ($u, $p) = get_user_pw ();
+    $dbh = DBI->connect ('dbi:mysql:hsdb4', $u, $p,
+                         { RaiseError => 1 });
+}
+HSDB4::Constants::set_def_db_handle ($dbh);
+
+my ($eval_id, $school);
+GetOptions ("eval_id=i" => \$eval_id,
+	    "school=s" => \$school_id,
+	    );
+unless (get_school_db($school)) { usage, exit -1 }
+my $eval = HSDB45::Eval->new ( _school => $school, _id => $eval_id );
+unless ($eval->primary_key) { usage, exit -1 }
+print $eval->out_label;
+
+USER:
+    while (my $user_id = shift) {
+
+	# Look up the user
+	my $user = HSDB4::SQLRow::User->new ()->lookup_key ($user_id);
+	# And if we don't have one, then tell us, and skip to the next one
+	unless ($user->primary_key) {
+	    print "$user_id: Cannot find user.";
+	    next USER;
+	}
+
+	# Now actually do the check
+	my ($r, $msg) = $eval->is_user_allowed ($user);
+	# If the result is good, then just say that.
+	if ($r) {
+	    print $user->out_label, " is allowed.";
+	}
+	# Otherwise, give the reason
+	else {
+	    print $user->out_label, " is not allowed; ", $msg;
+	}
+    }
+
+1;
+__DATA__
+Usage:
+    eval_user --school=<school> --eval_id=<ID> <user_id> [ <user_id> [ <user_id> ... ] ]
+
+    Returns information on whether a user is permitted to submit a particular
+    eval, and if not, why not.

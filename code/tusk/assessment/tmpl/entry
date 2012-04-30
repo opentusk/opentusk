@@ -1,0 +1,216 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+	$args => {}
+	$show_grade => 0
+	$show_scale => 1
+	$show_assessor_name => 0
+	$update_entry_association => 0
+	$has_save_button => 0
+	$redirect_submit_url => undef
+	$show_subject_image => 1
+	$validate_entry => 0
+</%args>
+
+<%once>
+	use TUSK::FormBuilder::Entry;
+	use TUSK::FormBuilder::EntryAssociation;
+</%once>
+
+<%shared>
+	my $form = $m->comp('/formbuilder/util:get_form', join_objects => [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }) ]);
+	my ($form_id, $uid, $entry_id) = $m->comp('/tmpl/url:get_path_ids');
+	my ($student, $entry);
+	if ($uid) {
+		$student = HSDB4::SQLRow::User->new()->lookup_by_uid($uid);
+	} else {   ## preview page and just for display
+		$student = HSDB4::SQLRow::User->new();
+		$student->set_first_name('Jane');
+		$student->set_last_name('Doe');
+	}
+	my $assessment_form = $form->getJoinObject('TUSK::FormBuilder::Assessment');
+	my $score_display = $assessment_form->getScoreDisplay();
+	my $is_final_entry = ($assessment_form->getMultiAssessors()) ? 0 : 1;
+	my $summary_comment_text;
+</%shared>
+
+<& "/formbuilder/view", 
+	args => { 
+		%$args,
+		hide_required => 0, 
+		entry_id => $entry_id, 
+		student_id => $student->primary_key() || undef, 
+		show_final_comment => $assessment_form->getShowFinalComment(),
+		update_entry_association => $update_entry_association,
+		is_final_entry => $is_final_entry,
+		summary_comment_text => $summary_comment_text,
+		Scaling => { 
+			show_grade 		=> ($score_display) ? $show_grade : 0, 
+			show_scale 		=> $show_scale,
+			score_display 	=> $score_display,
+			rubrics			=> $m->comp('SELF:get_form_rubrics', form_id => $form_id),
+			unable_to_assess => $assessment_form->getUnableToAssess(),
+		}
+	},
+	date_label => 'Assessment Date', 
+	dynamic_components => \@dynamic_components,
+	button_component => ($has_save_button) ? '/assessment/tmpl/entry:printSaveSubmitButtons' : undef,
+	has_save_button => $has_save_button,
+	redirect_submit_url => $redirect_submit_url,
+	form => $form,
+	show_user_image => ($assessment_form->getShowImages() && $show_subject_image) ? '<img style="float:left;margin:7px 25px 0 0;" src="' . $student->official_image() . '" width="120px" height="120px" />' : '',
+&>
+
+<%init>
+	my $time_period_id = ($args->{time_period_id}) ? $args->{time_period_id} : (($student->primary_key()) ? $m->comp("/formbuilder/util:get_time_period_id", student_id => $student->primary_key()) : 0);
+	if ($entry_id) {
+		$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id);
+	} else {
+		if ($validate_entry) { ## assume user is an assessor and we check that there was no entry created yet
+			$entry = TUSK::FormBuilder::Entry->lookupReturnOne("form_id = $form_id and time_period_id = $time_period_id and form_builder_entry.user_id = '" . $m->session->{'user'}->user_id() . "'", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "' and is_final = 0"}) ]);
+			$entry_id = $entry->getPrimaryKeyID() if ($entry);
+		} else {
+		 	$entry = TUSK::FormBuilder::Entry->new();
+		}
+	}
+
+	my @dynamic_components = '/assessment/tmpl/entry:displayStudentName';
+
+	## if it is a final entry, then we create a grade event if necessary and post grade 
+	if ($args->{submit_check} && $args->{form_submit} && $is_final_entry && $score_display) {
+		my $student_grade = $m->comp('/assessment/tmpl/grade:addedit', 
+			form => $form, 
+			time_period_id => $time_period_id,
+			student_id => $student->primary_key(), 
+			grade => $args->{total_score}, 
+			comments => $args->{final_comment}
+		);
+	} else {
+		push @dynamic_components, '/assessment/tmpl/entry:displayAssessorName' if ($show_assessor_name);
+		push @dynamic_components,  '/assessment/tmpl/entry:displayGrade' if ($score_display && $show_grade && $assessment_form->getShowGradeToSubject());
+	}
+	$summary_comment_text = $m->comp("SELF:getSummaryComment");
+</%init>
+
+<%method displayStudentName>
+<& /tmpl/element:field_display, params => { 
+	label => 'Student',
+	value => (defined $student) ? $student->out_full_name() : '',
+} &>
+</%method>
+
+<%method displayAssessorName>
+% my $assessor = ($entry->getPrimaryKeyID()) ? HSDB4::SQLRow::User->new()->lookup_key($entry->getCreatedBy()) : HSDB4::SQLRow::User->new();
+
+<& /tmpl/element:field_display, params => { 
+	label => 'Assessed by',
+	value => $assessor->out_full_name(),
+} &>
+</%method>
+
+<%method displayGrade>
+<%perl>
+	my $entry_assoc = TUSK::FormBuilder::EntryAssociation->lookupReturnOne("form_builder_entry_association.entry_id = $entry_id",undef,undef,undef, [
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner'}),
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryGrade', { joinkey => 'entry_id', jointype => 'left outer'}),
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Form::GradeEvent', { joinkey => 'form_id', origkey => 'form_builder_entry.form_id', jointype => 'inner'}),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { origkey => 'form_builder_form_grade_event.grade_event_id', joinkey => 'grade_event_id', jointype => 'inner', joincond => 'grade_event.time_period_id = form_builder_entry.time_period_id'}),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::LinkUserGradeEvent', { origkey => 'grade_event.grade_event_id', joinkey => 'child_grade_event_id', jointype => 'inner', joincond => "parent_user_id = '" . $student->primary_key() . "'"}),
+	]);
+
+	return unless (defined $entry_assoc);
+	my $score;
+
+	if ($entry_assoc->getIsFinal()) {
+		if (my $link = $entry_assoc->getJoinObject('TUSK::GradeBook::LinkUserGradeEvent')) {
+			$score = $link->getGrade();
+		}
+	} else {
+		if (my $entry_grade = $entry_assoc->getJoinObject('TUSK::FormBuilder::EntryGrade')) {
+			$score = $entry_grade->getScore();
+		}
+	}
+</%perl>
+
+<& /tmpl/element:field_display, params => { label => 'Final Score', value => $score } &>
+</%method>
+
+
+<%method printSaveSubmitButtons>
+% if ($assessment_form->getScoreDisplay()) {
+%	if ($assessment_form->getShowGradeToAssessor()) {
+<tr><td colspan="2"><br/>
+Total Calculated Score:  <input id="total_score" class="totalValue" name="total_score" value="" size="4" READONLY />  &nbsp; &nbsp; &nbsp; &nbsp; 
+Total Maximum Score: <input id="total_max_score" class="totalValue" name="total_max_score" value="" size="2" READONLY />
+% 		if (my $min_score = $assessment_form->getMinScore()) {
+&nbsp; &nbsp; &nbsp; &nbsp; 
+Total Minimum Score to Pass: <input type="text" class="totalValue" name="min_score" value="<% $min_score %>" size="2" READONLY />
+% 		}
+%	} else {
+<input type="hidden" id="total_score" name="total_score" value="" />
+<input type="hidden" id="total_max_score" name="total_max_score" value="" />
+%	}
+% 	if ($assessment_form->getTotalWeight()) {
+<input type="hidden" id="total_weight" name="total_weight" value="<% $assessment_form->getTotalWeight() %>" />
+% 	}
+</td></tr>
+% }
+<& /tmpl/element:save_button, params => {
+	label 				=> 'Submit', 
+	name				=> 'form_submit', 
+	onmouseup			=> 'this.blur();', 
+	no_cancel_button 	=> 1,
+	one_column			=> 1,
+	buttons 			=> [ 
+		$m->scomp('/tmpl/element:button', params => { label => 'Save', name => 'save_submit', type => 'submit',}),
+	],
+} &>
+</%method>
+
+<%method jsarray>
+% 	return ['jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'formbuilder/view.js', 'jquery/plugin/validate.min.js', 'layers.js',  'element.js', 'dynamiclist.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js' ];
+</%method>
+
+<%method getStudent>
+%	return $student;
+</%method>
+
+<%method getForm>
+%	return $form;
+</%method>
+
+
+<%method getSummaryComment>
+<%perl>
+if ($entry){
+	return unless ($entry_id);
+	#If this is a final entry, get the final comment text from the relevant LinkUserGradeEvent record.
+	my $entry_assoc = $entry->lookupReturnOne("form_builder_entry.entry_id = $entry_id and form_builder_entry_association.is_final = 1", 
+												undef, undef, undef, 
+												[TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', {joinkey => 'entry_id'})]);
+	if ($entry_assoc){
+		$summary_comment_text = $m->comp("/assessment/tmpl/grade:get_student_grade",
+											form_id => $form->getPrimaryKeyID(),
+											time_period_id => $entry->getTimePeriodID(), 	
+											student_id => $student->primary_key());
+		return unless $summary_comment_text;
+		$summary_comment_text = $summary_comment_text->getComments(); 
+		return $summary_comment_text;
+	}	
+} 
+return;
+</%perl>
+</%method>

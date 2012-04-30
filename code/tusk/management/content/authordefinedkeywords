@@ -1,0 +1,199 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Core::LinkContentKeyword;
+</%once>
+
+<%shared>
+
+	# if we are lucky the content_id is the last id on the path
+	my $content_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $content; 
+
+	# if we are not then this page was called in a content context and the id is in the type path
+	unless ($content_id){
+		my $type_object = $m->comp('/tmpl/url:get_type_object');
+		
+		if ($type_object and $type_object->isa('HSDB4::SQLRow::Content')){
+			$content_id = $type_object->primary_key();
+			$content = $type_object;
+		}
+	}
+
+	$content = HSDB4::SQLRow::Content->new()->lookup_key($content_id)
+                    unless ($content);
+	$m->comp('/tmpl/url:redirect',
+            message => 'Sorry the content you tried to access is invalid')
+                        unless ($content and $content->primary_key());
+
+	my $back_url;
+	if (ref $m->comp('/tmpl/url:get_type_object') eq 'HSDB45::Course'){
+		$back_url = '/management/content/addedit/' . $m->comp('/tmpl/url:get_type_path') . "/" . $content->primary_key() . "?page=edit";
+	}
+	else{
+		$back_url = '/management/content/addedit/' . $m->comp('/tmpl/url:get_type_path') . "?page=edit";
+	}
+</%shared>
+
+<%method jsarray>
+% return ['layers.js'];
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+	 return $m->comp("/management/tmpl/content:get_nav_bars");
+</%perl>
+</%method>
+
+<%method title>
+<%perl>
+	return 'Author Defined Keywords';
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	if ($args->{'submit_check'}){
+		$m->comp("SELF:set_msg", msg => "Author Defined Keywords for this content have been updated");
+	}
+</%perl>
+</%method>
+
+<script>
+	function addToLayer(){
+		if (document.keyword_form.keyword.value){
+			layers['keyworddiv'].adddata({keyword_id : '0', keyword : document.keyword_form.keyword.value },0);
+		}
+	}
+</script>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+              onsubmit => undef,
+                  name => 'keyword_form' } &>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+		style => 'padding-top:10px',
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<tr><td style="vertical-align:top;width:40%;">
+	<div style="margin-bottom:5px">
+		<& /tmpl/element:input_textbox, params => { name => 'keyword' } &> 
+		<& /tmpl/element:button, params => {
+								onclick	=> 'addToLayer();',
+								label	=> 'Add Keyword',
+								name	=> 'UMLSConcepts',
+							} &>
+	</div>
+	<& /tmpl/element:sort_order_box , params =>{
+                no_table => 1,
+                no_add_button => 1,
+                layer_info => {
+                        scrollrows => 10,
+                        layer => 'keyworddiv',
+                        fields => ['keyword_id', 'keyword'],
+                        name => 'Keywords',
+                        sort => { usage => 'No' },
+                        action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
+                        display => [
+                                        { label => 'Keyword', field => 'keyword', align => 'left', length => '5' },
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $keywords_data,
+                        }
+                } &>
+</td></tr>
+<& /tmpl/element:save_button, params=>{
+					label => 'Save Changes',
+					name  => 'rank_submit',
+					td_class => 'cell-submit-no-padding',
+					one_column => 1,
+					no_cancel_button => 1,
+				buttons	=> [
+						$m->scomp("/tmpl/element:button", params => {
+										label 	=> 'Preview Content', 
+										name 	=> 'preview',
+										onclick	=> "window.open('/view/content/$content_id', 'preview')",
+									}),
+						$m->scomp("/tmpl/element:button", params => {
+										label 	=> 'Cancel', 
+										name 	=> 'back_to_content',
+										href	=> $back_url,
+									}),
+				],
+				} &>
+
+</table>
+</form>
+
+<%init>
+	my $keyword_links = TUSK::Core::LinkContentKeyword->new()->lookup("parent_content_id = '" . $content->primary_key() . "' and concept_id is null");
+	
+	if ($ARGS{'submit_check'}){
+		my $keyword_links_hash =  { map { $_->getChildKeywordID() => $_ } @$keyword_links };
+
+		my $processed_data = $m->comp('/tmpl/process:process_fields', fields => \%ARGS, filter => '^' . 'keyworddiv');
+
+		foreach my $keyword_data (values %$processed_data){
+			if ($keyword_data->{'pk'}){
+				if ($keyword_links_hash->{ $keyword_data->{'pk'} }){
+					delete($keyword_links_hash->{ $keyword_data->{'pk'} });
+				}
+			} else {
+				my $keyword = TUSK::Core::Keyword->lookupReturnOne("keyword = lower('" . $keyword_data->{'fields'}->{'keyword'} . "')");
+				unless ($keyword){
+					$keyword = TUSK::Core::Keyword->new();
+					$keyword->setKeyword($keyword_data->{'fields'}->{'keyword'});
+					$keyword->save({ user => $m->comp('SELF:user') });
+				}
+
+				my $keyword_link = TUSK::Core::LinkContentKeyword->new();
+				$keyword_link->setChildKeywordID($keyword->getPrimaryKeyID());
+				$keyword_link->setParentContentID($content->primary_key());
+				$keyword_link->save({ user => $m->comp('SELF:user') });
+			}
+		}
+
+		foreach my $keyword_link (values %$keyword_links_hash){
+			$keyword_link->delete({ user => $m->comp('SELF:user') });
+		}
+
+		$keyword_links = TUSK::Core::LinkContentKeyword->new()->lookup("parent_content_id = '" . $content->primary_key() . "' and concept_id is null");
+		
+		$content->reset_modified();
+	}
+	
+	my $keywords_data = [];
+
+	foreach my $keyword_link (@$keyword_links){
+		push (@$keywords_data, { 
+						keyword_id => $keyword_link->getChildKeywordID(), 
+						keyword => $keyword_link->getKeywordObject()->getKeywordNormalized(), 
+					});
+	}
+
+</%init>
+

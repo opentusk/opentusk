@@ -1,0 +1,137 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Quiz::Quiz;
+</%once>
+
+<%shared>
+	my $quiz_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my $question_rows = [];
+</%shared>
+
+<%method title>
+%	return "Quiz Results By Questions: ". $quiz->getTitle();
+</%method>
+
+<%method red_header_text>
+%	return "Quiz Results: ". $quiz->getTitle();
+</%method>
+
+<%method function_token>
+% 	return 'questions_results_quiz';
+</%method>
+</%doc>
+
+<%method get_nav_bar_objects>
+% 	return {'quiz' => $quiz};
+</%method>
+
+<%init>
+	my $links = TUSK::Quiz::LinkQuizQuizItem->lookup("quiz_id = $quiz_id", ['sort_order']);
+	$m->comp('SELF:process_questions', links => $links);
+</%init>
+
+<%perl>
+my $default_sort = "question";
+my $sort = ($ARGS{'sort'}) || $default_sort;
+my $toggle = $ARGS{'toggle'} || 0;
+</%perl>
+
+<& /tmpl/element:object_selection_box, params=>{'columns' => [
+	{field => 'question', label => "Question", sort => 'num'},
+	{field => 'points', label => "Points", align => "center", sort => 'num' },
+	{field => 'needs_grade', label => "Needs Grading", align => "center",  sort => 'char'}
+	],
+	action_columns => [ {label => 'View Responses',
+			link => '/quiz/author/quizresponsesquestions'}],
+	type_path => $m->comp("/tmpl/url:get_type_path") . '/' . $quiz->getPrimaryKeyID() ,
+	nobutton => 1,
+	'norows-message' => 'No results',
+	rows => $question_rows,
+	sort=> $sort,
+	default_sort => $default_sort,
+	toggle => $toggle,
+} &>
+
+
+
+<%method process_questions>
+<%args>
+	$links
+	$level	=> 0
+	$is_section => 0
+</%args>
+
+<%perl>
+	my $question_count = (($level % 2 == 1) && $is_section) ? 'A' : (($level) ? 'a' : 1);
+                         
+	foreach my $link (@$links) {
+		my ($question_id,$link_type,$link_type_text);
+		if (ref $link eq 'TUSK::Quiz::LinkQuizQuizItem') {
+			$question_id = $link->getQuizItemID();
+			$link_type = 1;
+			$link_type_text = 'link_quiz_quiz_item';
+		} elsif (ref $link eq 'TUSK::Quiz::LinkQuestionQuestion') {
+			$question_id = $link->getChildQuestionID();
+			$link_type = 2;
+			$link_type_text = 'link_question_question';
+		} else {
+
+		}
+
+		my $question = TUSK::Quiz::Question->lookupKey($question_id);
+		next unless $question;
+
+		if ($question) {
+		    	if (ref $link eq 'TUSK::Quiz::LinkQuizQuizItem') {
+
+		    	} elsif (ref $link eq 'TUSK::Quiz::LinkQuestionQuestion') {
+
+			}
+		}
+
+	    	my $question_type = $question->getType();
+
+	    	if ($question_type =~ /^Section$/) {
+	       		push @$question_rows, { 
+				question => '<div style="margin-left:' . 30 * $level . 'px"><div style="float:left;"><a name="' . $question_id . '">' . ($question_count++) . '.</a>&nbsp;' . $question->getBody() . '</div>',
+				id       => 0,
+				points	 => '',
+			};
+
+
+			$m->comp('SELF:process_questions', 
+				links 	=> $question->getSubQuestionLinks(), 
+				level	=> ($level+1),
+				is_section  => ($question->getType() eq 'Section') ? 1 : 0,
+			);
+		} else {
+			my $points = $m->comp('/quiz/author/tmpl/questions:get_points', link => $link, question => $question);
+	       		push @$question_rows, { 
+				question => '<div style="margin-left:' . 30 * $level . 'px"><div style="float:left;"><a name="' . $question_id . '">' . ($question_count++) . '.</a>&nbsp;' . $question->getBody() . '</div>',
+				id       => $link_type . '/' . $link->getPrimaryKeyID() . "/$question_id",
+				points	 => $points,
+				needs_grade =>  ($question->needsGrading($quiz,$link->getPrimaryKeyID(),$link_type_text,$question_id,$question_type)) ? 'Yes' : 'No',
+			};
+		}
+	} 
+</%perl>
+</%method>
+
+
+
+

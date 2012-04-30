@@ -1,0 +1,104 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%args>
+$hierarchy
+$page_token => ''
+$prefix => ''
+$nav_entities_dependency => {}
+$title_func => {}
+$urls => {}
+$objects => []
+$initial_nav_bar => ''
+$type_path => undef
+</%args>
+<%perl>
+	$page_token = $page_token || $ENV{SCRIPT_NAME} || return;
+	if ($page_token eq $ENV{SCRIPT_NAME}){
+		$page_token =~ s#^/tusk##;
+		$page_token =~ s/$prefix\/// if ($prefix);
+	}
+
+	$type_path = $m->comp("/tmpl/url:get_type_path") unless (defined($type_path));
+	my $nav_items = (ref($initial_nav_bar) eq "ARRAY") ? $initial_nav_bar : $m->comp("/tmpl/url:get_initial_nav_bars");
+
+	if (!defined($hierarchy->{$page_token})) { 
+		$m->print("Need to have valid page_token, received : $page_token");
+		return;
+	}
+
+	foreach my $page (@{$hierarchy->{$page_token}}){
+		my $ent = $nav_entities_dependency->{$page}->{'object'};
+
+		if (!defined($ent)){
+			my ($url, $label, $extra, $extra_path) = @{$urls->{$page}}{'link','label','extra', 'extra_path'};
+
+			if (!defined($url)){
+				$m->print("The entity for page $page is not defined");
+				return;
+			} else {
+				my $href = $prefix . "/" . $url . "/" . $type_path;
+				$href .= '/' . $extra_path if $extra_path;
+				$href .= '?' . $extra if $extra;
+				push (@$nav_items, { href => $href, label=> $label });
+				next;
+			}
+		}
+
+		my $func = $title_func->{$ent}; 
+
+		if (!defined($func)){
+			$m->print("The function for entity $ent is not defined");
+			return;
+		}
+
+		if (!defined($objects->{$ent})){
+			$m->print("Missing necessary object for entity $ent");
+			return;
+		}
+
+		my $title = $objects->{$ent}->$func;
+		my $id_string = "";
+		foreach my $depend (@{$nav_entities_dependency->{$page}->{'depend'}}){
+			if (!defined($objects->{$depend})){
+				$m->print("Missing necessary object for entity $depend in id generation");
+				return;
+			}
+			unless ($objects->{$depend}->getPrimaryKeyID()){
+				$m->print("The Dependency $depend for the URL is not defined");
+			}
+			$id_string .= "/" . $objects->{$depend}->getPrimaryKeyID();
+		}
+
+		$id_string .= "/" . $objects->{$ent}->getPrimaryKeyID() if ($objects->{$ent}->getPrimaryKeyID());
+
+		### suffix can be used but be careful if you pass an empty object, see below
+		foreach my $suffix (@{$nav_entities_dependency->{$page}->{'suffix'}}){
+			if (!defined($objects->{$suffix})){
+				$m->print("Missing necessary object for entity $suffix");
+				return;
+			}
+			## handle case that the suffix might not be needed  ie caller passes an empty object
+			if (defined $objects->{$suffix}->getPrimaryKeyID()){
+				$id_string .= "/" . $objects->{$suffix}->getPrimaryKeyID();
+			}
+		}
+
+		my $static_title = $nav_entities_dependency->{$page}->{'static_title'};
+		push (@$nav_items, {href => $prefix . "/" . $page . "/" . $type_path . $id_string, label=> $static_title . $title});
+	}
+	
+	return $nav_items;
+</%perl>

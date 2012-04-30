@@ -1,0 +1,70 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::HomepageCategory;
+</%once>
+
+<%perl>
+	my $school   = $m->comp("/tmpl/url:get_school");
+	my @category = TUSK::HomepageCategory->new(_school => $school)->lookup_all( "order by sort_order" );
+
+	if ($ARGS{'order'}) {
+    	my ($index, $insert) = split('-', $ARGS{'order'});
+	
+	    splice(@category, ($insert-1), 0, splice(@category, ($index-1),1));
+    
+    	for(my $i=0; $i < scalar(@category); $i++){
+			$category[$i]->set_field_values( sort_order=>10*($i+1));
+			$category[$i]->save();
+		}
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit => undef, 
+        name => 'category' } 
+&>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ { link_txt    => '/management/homepage/categoryaddedit/school/' . $school,
+		         display_txt => 'New Category' } ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+				sort_box => 1,
+				columns => [ {'label' => 'Label',                'field' => 'label' },
+				             {'label' => 'Primary User Group',   'field' => 'formatted_prim_usergroup', 'align' => 'center' },
+				             {'label' => 'Secondary User Group', 'field' => 'formatted_sec_usergroup',  'align' => 'center' },
+                             {'label' => 'Schedule Link',        'field' => 'formatted_schedule',       'align' => 'center' },
+					],
+				action_columns => [ 
+							{ 'label' => 'Course Links', 'link' => '/management/homepage/courselinkshow' },
+							{ 'label' => 'Modify',       'link' => '/management/homepage/categoryaddedit' },
+							{ 'label' => 'Delete',       'link' => '/management/homepage/categorydelete' } 
+			  			], 
+				object_list => \@category,
+				type_path => $m->comp("/tmpl/url:get_type_path"),
+				name => "category",
+				empty_message => "No homepage categories.",
+				}
+&>
+
+</form>
+
+<%method title>
+% return "Manage Categories";
+</%method>

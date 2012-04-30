@@ -1,0 +1,561 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use IO::File;
+	use Spreadsheet::WriteExcel;
+</%once>
+
+<%shared>
+	my $form = $m->comp("/formbuilder/util:get_form");
+	my $fh;
+	my $startpos;
+	my $workbook;
+	my $row = 0;   ### running row that should be reset when a new worksheet is created
+	my $course_field_map;
+	my $title_format;
+	my $header_format;
+	my $bold_format;
+	my $report = undef;
+	my $conditions = '';
+	my $fields = [];
+	my %params = ();
+</%shared>
+
+<%method get>
+<%args>
+	$args
+</%args>
+
+<%perl>
+	$fh = IO::File::new_tmpfile;
+	$startpos = $fh->getpos();
+	$workbook = Spreadsheet::WriteExcel->new($fh);
+	$row = 0;   ### running row that should be reset when a new worksheet is created
+	$title_format  = $workbook->add_format();
+	$header_format = $workbook->add_format();
+	$bold_format = $workbook->add_format();
+
+	$report = $m->comp('SELF:getReportObject', args => $args);
+	%params = %$args;
+	$conditions = $m->comp('SELF:getFieldConditions', default_report_flags => $report->getReportFlagString(), fields => $params{fields});
+	$fields = $form->getAllFormFields($conditions->{non_comments});		
+
+    $title_format->set_bold();
+    $title_format->set_size(12);
+    $title_format->set_color('green');
+	$bold_format->set_bold();
+    $header_format->set_bold();
+    $header_format->set_color('blue');
+	$header_format->set_center_across();
+
+	$m->comp('SELF:createReport');
+	$workbook->close();
+
+	my $names = {
+		'cs' => 'course_summary',
+		'ts' => 'site_summary',
+		'ss' => 'student_summary_' . $params{uid},
+		'ssc' => 'all_students_summary',
+	};
+	return ($fh, $startpos, 'patient_log_' . $names->{$params{rtype}} . '.xls');
+</%perl>
+</%method>
+
+
+<%method createReport>
+<%perl>
+	if ($params{rtype} eq 'cs') {
+		$course_field_map = $m->comp('SELF:getCourseSummaryByFieldMap');
+		$m->comp('SELF:summary');
+		$m->comp('SELF:courseSummaryByField');
+	} elsif ($params{rtype} eq 'ts') {
+		$m->comp('SELF:summary');
+		$m->comp('SELF:studentSummaryByField');
+	} elsif ($params{rtype} eq 'ss') {
+		$m->comp('SELF:studentSummary');
+		$m->comp('SELF:summaryByField');
+	} elsif ($params{rtype} eq 'ssc') {
+		$m->comp('SELF:allStudents');
+	}
+</%perl>
+</%method>
+
+
+<%method summary>
+<%perl>
+	my $results = $report->getReport();
+	my $worksheet = $workbook->add_worksheet('Summary');
+	$row = 0;
+	$worksheet->set_column(0, 0, 30);
+	my $headings = $m->comp('SELF:getReportHeadings', report_type => $params{rtype});
+
+	for (my $col = 0; $col < @$headings; $col++) {
+		$worksheet->write($row, $col, $headings->[$col], $header_format);
+	}
+
+	foreach my $data (@{$results->{rows}}) {
+		$row++; 
+		for (my $col = 0; $col < @$data; $col++) {
+			## first column is an id so we simply skip
+			$worksheet->write($row, $col, $data->[$col+1]);  
+		}
+	}
+
+	if ($results->{total}) {
+		$row++;
+		$worksheet->write($row, 0, 'Total');
+		for (my $col = 1; $col <= @{$results->{total}}; $col++) {
+			$worksheet->write($row, $col, $results->{total}[$col - 1]);		
+		}
+	}
+</%perl>
+</%method>
+
+
+<%method studentSummary>
+<%perl>
+	$row = 0;
+	my $results = $report->getReport();
+	my $worksheet = $workbook->add_worksheet('Summary');
+	$worksheet->set_column(0, 0, 30);
+	$worksheet->write($row, 0, 'Total Number of Patients Seen:', $bold_format);
+	$worksheet->write($row++, 1, $results->{num_patients});
+
+	my $headings = $m->comp('SELF:getReportHeadings', report_type => $params{rtype});
+	for (my $col = 0; $col < @$headings; $col++) {
+		$worksheet->write($row, $col+1, $headings->[$col], $header_format);
+	}
+
+	$row++;
+	foreach my $field (@{$results->{fields}}) {
+		my $field_id = $field->getPrimaryKeyID();
+		next unless $results->{data}{$field_id};
+		$worksheet->write($row, 0, $field->getFieldName(), $bold_format);
+		my $col = 1;
+		foreach (@{$results->{data}{$field_id}}) {
+			$worksheet->write($row, $col++, $_);
+		}
+		$row++;
+	}
+</%perl>
+</%method>
+
+<%doc> remove chars that cause xls rendering to fail </%doc>
+<%method formatLabel>
+<%args>
+	$label
+</%args>
+<%perl>
+	$label = (length($label) < 30) ? $label : substr($label, 0, 27) . "...";
+	$label =~ s/[\[\]\:\*\?\/\\]//g; 
+	return $label;
+</%perl>
+</%method>
+
+
+<%method courseSummaryByField>
+<%perl>
+	foreach my $field (@$fields) {
+		my $worksheet = $workbook->add_worksheet($m->comp('SELF:formatLabel', label => $field->getFieldName()));
+		$row = 0; 		## reset a new running row 
+
+		my $course_summary_field_view_map = $m->comp('SELF:getCourseSummaryByFieldMap');
+		foreach my $key (sort keys %{$course_summary_field_view_map}) {
+			my $func = $course_summary_field_view_map->{$key}{func};
+			my $results = $report->$func($field->getPrimaryKeyID());
+
+			$worksheet->write($row++, 0, $course_summary_field_view_map->{$key}{label}, $title_format);
+
+			if ($results->{items}) {  ## by site and student, items are displayed horizontally
+				$m->comp('SELF:tableHeadingsByItems', items => $results->{items}, worksheet => $worksheet, attribute_items => $results->{attribute_items});
+				$m->comp('SELF:tableData', items => $results->{items}, vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, view => $key);
+			} else {   ## all sites, items are displayed vertically
+				my $column_headings = $course_summary_field_view_map->{$key}{column_headings};
+				$m->comp('SELF:tableHeadings', labels => $column_headings, worksheet => $worksheet, attribute_items => $results->{attribute_items});
+				$m->comp('SELF:tableDataByItems', vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
+			}
+			$row++;
+		}
+	}
+</%perl>
+</%method>
+
+
+<%method summaryByField>
+<%perl>
+	foreach my $field (@$fields) {
+		my $worksheet = $workbook->add_worksheet($m->comp('SELF:formatLabel', label => $field->getFieldName()));
+		$row = 0;  ## reset a new running row 
+		my $results = $report->getReportByField($field->getPrimaryKeyID());
+		my $column_headings = $m->comp('SELF:getReportHeadings', report_type => $params{rtype}, type => 'byfield');
+		$m->comp('SELF:tableHeadings', worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
+		$m->comp('SELF:tableDataByItems', vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
+	}
+</%perl>
+</%method>
+
+
+<%method studentSummaryByField>
+<%perl>
+	foreach my $field (@$fields) {
+		my $worksheet = $workbook->add_worksheet($m->comp('SELF:formatLabel', label => $field->getFieldName()));
+		$row = 0;  ## reset a new running row 
+		my $results = $report->getFieldReportByStudent($field->getPrimaryKeyID());
+		$m->comp('SELF:tableDataByUsers', vheadings => $results->{rows}, data => $results->{data}, total_seen => $results->{total_seen}, total_reporting => $results->{total_reporting}, total_students => $results->{total_students}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $results->{categorized_items}, contains_category => $results->{contains_category});
+	}
+</%perl>
+</%method>
+
+
+<%method allStudents>
+<%perl>
+	my $time_period_ids = $report->getTimePeriodIDs();
+	if (scalar (@$time_period_ids) == 1) {
+		my $course = $m->comp('/tmpl/url:get_type_object');
+		### teaching site could be undef. if so get all students for the course for the given tp
+		my @students = $course->get_students($time_period_ids->[0], $params{tsid});
+		my %seen_students = ();
+
+		my $column_headings = $m->comp('SELF:getReportHeadings', report_type => 'ss', type => 'byfield');
+
+		foreach my $student (@students) {
+			next if (exists $seen_students{$student->primary_key()});
+			$seen_students{$student->primary_key()} = 1;
+			my $student_report = $report->getStudentSummary($student->primary_key());
+			my $worksheet = $workbook->add_worksheet($m->comp('SELF:formatLabel', label => $student->out_lastfirst_name()));
+			$worksheet->set_column(0, 0, 35);
+			$worksheet->write(0,0,'Report for: ' . $student->out_lastfirst_name(), $title_format);
+			$row = 2;
+			my $attribute_num = 0;
+			foreach my $field (@$fields) {
+				$worksheet->write($row, 0, $field->getFieldName(), $title_format);
+				my $results = $student_report->getReportByField($field->getPrimaryKeyID());
+				$m->comp('SELF:tableHeadings', worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
+				$m->comp('SELF:tableDataByItems', vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
+				$row += 2;
+				$attribute_num = scalar @{$results->{attribute_items}} if $results->{attribute_items};
+			}
+
+			my $total_columns = ($attribute_num) ? scalar @$column_headings * $attribute_num  :scalar @$column_headings;
+			foreach my $i (1 .. $total_columns) {
+				$worksheet->set_column(0, $i, 20);
+			}
+		}
+	}
+</%perl>
+</%method>
+
+
+<%method tableHeadings>
+<%args>
+	$worksheet
+	$items => []
+	$attribute_items => []
+	$labels => []
+</%args>
+<%perl>
+	$worksheet->set_column(0, 0, 30);
+
+	my $attribute_columns = 0;
+	if (scalar @{$attribute_items} > 0) {
+		$attribute_columns = scalar @{$attribute_items};
+	}
+
+	my $j = 1;
+	for (my $i = 0; $i < scalar @{$labels}; $i++) {		
+		$worksheet->write($row, $j++, $labels->[$i], $header_format);		
+
+		foreach (1..$attribute_columns-1) {
+			$worksheet->write_blank($row, $j++, $header_format);			
+		}
+	}
+
+	$row++;
+
+	if (scalar @$attribute_items > 0) {
+		my $col = 1;
+		foreach (@{$labels}) {		
+			for (my $i = 0; $i < scalar @{$attribute_items}; $i++) {
+				my $value = ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
+				$worksheet->write($row, $col++, $value, $header_format);
+			}
+		}
+		$row++;
+	}
+
+</%perl>
+</%method>
+
+
+<%method tableHeadingsByItems>
+<%args>
+	$worksheet
+	$items => []
+	$attribute_items => []
+</%args>
+<%perl>
+	$worksheet->set_column(0, 0, 30);
+
+	my $attribute_columns = 0;
+	my $itemname_format = $workbook->add_format();
+	$itemname_format->set_bold();
+    $itemname_format->set_color('blue');
+
+	if (scalar @{$attribute_items}) {
+		$itemname_format->set_center_across();
+		$attribute_columns = scalar @{$attribute_items};
+	} else {
+		$itemname_format->set_rotation(60);
+	}
+
+	my $j = 1;
+	for (my $i = 0; $i < scalar @{$items}; $i++) {
+		if ($items->[$i]->getItemTypeToken() eq 'Item') {
+			$worksheet->write($row, $j++, $items->[$i]->getItemName(), $itemname_format);
+		}	
+		foreach (1..$attribute_columns-1) {
+			$worksheet->write_blank($row, $j++, $itemname_format);			
+		}
+	}
+	$row++;
+
+	if (scalar @$attribute_items) { 	### attribute_item headings
+		my $col = 1;
+		foreach my $item (@{$items}) {
+	 		if ($item->getItemTypeToken() eq 'Item') {
+				for (my $i = 0; $i < scalar @{$attribute_items}; $i++) {
+					my $value = ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
+					$worksheet->write($row, $col++, $value, $header_format);
+				}
+			}
+		}
+		$row++;
+	}
+</%perl>
+</%method>
+
+
+<%method tableData>
+<%args>
+	$worksheet
+	$vheadings
+	$data
+	$items
+	$attribute_items => []
+	$view
+</%args>
+
+<%perl>
+	my $columns = scalar @$attribute_items;
+ 	foreach my $obj (@{$vheadings}) {
+		my $obj_id = $obj->primary_key();
+		my $func = $course_field_map->{$view}{title_func};
+		$worksheet->write($row, 0, $obj->$func);
+		my $col = 1;
+		foreach my $item (@{$items}) {
+			next unless ($item->getItemTypeToken() eq 'Item');
+			my $i = 0;
+			my $dat = $data->{$obj_id}{$item->getPrimaryKeyID()};
+			if (defined $dat) {
+				foreach my $d (@{$dat}) {
+					$worksheet->write($row, $col++, ($d) ? int $d : 0);
+					$i++;
+				}
+				while ($i++ < $columns) {
+					$worksheet->write($row, $col++, 0);
+				}
+			} else {
+				if ($columns) {
+					while ($i++ < $columns) {
+						$worksheet->write($row, $col++, 0);
+					}
+				} else {
+					$worksheet->write($row, $col++, 0);
+				}
+			}
+		}
+		$row++;
+	}
+</%perl>
+</%method>
+
+
+<%method tableDataByItems>
+<%args>
+	$worksheet
+	$data
+	$vheadings
+	$attribute_items => []
+	$labels => []
+</%args>
+<%perl>
+	my $columns = (scalar @$attribute_items > 0) ? scalar @$attribute_items * scalar @$labels : scalar @$labels;
+
+	foreach my $item (@$vheadings) {
+		if ($item->isCatStart()) {
+			$worksheet->write($row, 0, $item->getItemName(), $bold_format);
+		} elsif ($item->isItemType()) {
+			my $item_name = $item->getItemName();
+			$worksheet->write($row, 0, $item_name, ($item_name =~ /\*/) ? $bold_format : undef);
+			my $item_id = $item->getPrimaryKeyID();
+
+			if ($data->{$item_id}) { 
+				my $col = 1;
+				foreach	my $dat (@{$data->{$item_id}}) {
+					if (ref $dat eq 'ARRAY') {
+						my $i = 1;
+						foreach my $d (@$dat) {
+							$worksheet->write($row, $col++, ($d) ? int $d : 0);
+							$i++;
+						}
+						foreach ($i .. @$attribute_items) {
+							$worksheet->write($row, $col++, 0);
+						}
+					} else {
+						$worksheet->write($row, $col++, ($dat) ? int $dat : 0);
+					}
+				}
+				foreach ($col .. $columns) {
+					$worksheet->write($row, $col++, 0);
+				}
+			} else {
+				for (my $col = 0; $col < $columns; $col++) {
+					$worksheet->write($row, $col+1, 0);
+				}
+			}
+		}
+		$row++;
+	}
+
+</%perl>
+</%method>
+
+
+
+<%method tableDataByUsers>
+<%args>
+	$worksheet
+	$data
+	$total_seen
+	$total_reporting
+	$total_students
+	$vheadings
+	$attribute_items => []
+	$labels => []
+	$contains_category
+</%args>
+<%perl>
+	foreach my $category (@$labels) {
+ 		# category title
+ 		if ($contains_category) {
+			$worksheet->write($row, 0, $category->{category_name}, $bold_format);
+			$row++;
+		}
+
+		# column headings (field item values) row
+		my $col = 1;
+		foreach my $item (@{$category->{category_items}}) {
+			$worksheet->write($row, $col, $item->{item_name}, $header_format);
+			if (scalar @$attribute_items > 0) {
+				$col = $col + scalar @$attribute_items;
+			}
+			else {
+				$col++;
+			}
+		}
+		$row++;
+
+		# attribute row (if needed)
+		if (scalar @$attribute_items > 0) {
+			my $col = 1;
+			foreach my $item (@{$category->{category_items}}) {
+				foreach my $attr (@$attribute_items) {
+					my $value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+					$worksheet->write($row, $col, $value, $header_format);
+					$col++;
+				}
+ 			}
+		}
+		$row++;
+
+		# total rows
+		$col = 1;
+		$worksheet->write($row, 0, "# Patients Seen");		
+		foreach my $item (@{$category->{category_items}}) {
+			if (scalar @$attribute_items > 0) {
+				foreach my $attr (@$attribute_items) {
+					my $value = $total_seen->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+					$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+				}
+			}
+			else {
+				my $value = $total_seen->{$item->{item_id}} || 0;
+				$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+			}
+		}
+		$row++;
+		$col = 1;
+		$worksheet->write($row, 0, "# Patients Reporting");		
+		foreach my $item (@{$category->{category_items}}) {
+			if (scalar @$attribute_items > 0) {
+				foreach my $attr (@$attribute_items) {
+					my $value = $total_reporting->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+					$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+				}
+			}
+			else {
+				my $value = $total_reporting->{$item->{item_id}} || 0;
+				$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+			}
+		}
+		$row++;
+		$col = 1;
+		$worksheet->write($row, 0, "% Students Reporting");		
+		foreach my $item (@{$category->{category_items}}) {
+			if (scalar @$attribute_items > 0) {
+				foreach my $attr (@$attribute_items) {
+					$worksheet->write($row, $col++, sprintf("%.0f%", $total_reporting->{$item->{item_id}}->{$attr->getPrimaryKeyID()}/$total_students*100), ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+				}
+			}
+			else {
+				$worksheet->write($row, $col++, sprintf("%.0f%", $total_reporting->{$item->{item_id}}/$total_students*100), ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+			}
+		}
+		$row++;
+
+		# data rows, with user name in the first column
+		foreach my $user (@$vheadings) {
+			$worksheet->write($row, 0, $user->out_lastfirst_name());
+			$col = 1;
+			foreach my $item (@{$category->{category_items}}) {
+				if (scalar @$attribute_items > 0) {
+					foreach my $attr (@$attribute_items) {
+						my $value = $data->{$user->primary_key}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+						$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+					}
+				}
+				else {
+					my $value = $data->{$user->primary_key}->{$item->{item_id}} || 0;
+					$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+				}
+			}
+			$row++;
+		}
+		$row++;
+	}
+
+</%perl>
+</%method>

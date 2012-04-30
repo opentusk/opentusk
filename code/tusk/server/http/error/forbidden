@@ -1,0 +1,46 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>	
+     no_check_path => 1
+</%attr>
+
+
+<%init>
+
+my $user = $m->session->{'user'};
+my $user_id = $user->primary_key();
+
+</%init>
+
+% if ($user->primary_key()) {
+<H4 class="error">Access to <% $user->out_short_name %> Forbidden</H4> 
+<P>I'm sorry, but the page you tried to reach won't give you access. 
+If you believe you should have access to this page please contact <% $TUSK::Constants::SiteAbbr %> by emailing <A HREF="mailto:<% $TUSK::Constants::SupportEmail %>"><% $TUSK::Constants::SupportEmail %></A> or calling <% $TUSK::Constants::SupportPhone %>. You may also want go back to the <a href="/home">home page</a>, or try to <A href="/dologout">log in again.</A></P>
+% } else {
+<H4 class="error">Access Forbidden: Unrecognized User</H4>
+
+<P>I'm sorry, but we seem to have crossed wires somewhere.  I recommend <A HREF="/dologout">logging out</A> and logging in again, and we'll see if we can do better.</P>
+
+% }
+
+
+<%method title>
+%	return "ACCESS DENIED";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>

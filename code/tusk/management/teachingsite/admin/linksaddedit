@@ -1,0 +1,129 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Constants;
+</%once>
+
+<%method title>
+<%perl>
+	if ($is_edit){
+		 return "Modify Site Link";
+	}else{
+		 return "Create New Site Link";
+	}
+</%perl>
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'site' => $teaching_site};
+</%method>
+
+<%shared>
+	my $path = $m->comp("/tmpl/url:get_path_ids");
+	my $teaching_site_id = $path->[0];
+	my $is_edit = 0;
+	my ($course_id, $max_students, $course);
+
+	if (scalar(@$path) == 2){
+		$is_edit = 1;
+		$course_id = $path->[1];
+	}
+
+        my $school = $m->comp("/tmpl/url:get_school");
+	my $teaching_site = $m->comp("SELF:get_teaching_site_object", teaching_site_id => $teaching_site_id);
+
+	my $options = [];
+
+	if ($is_edit){
+		$course = $m->comp("SELF:get_course_object", course_id => $course_id);
+
+		my @linkcourses = $teaching_site->parent_courses("parent_course_id = " . $course_id);
+		if (scalar(@linkcourses)){
+			$max_students = $linkcourses[0]->aux_info('max_students');
+		}
+	}else{
+		my @linkcourses = $teaching_site->parent_courses();
+		my $ids = [];
+		foreach my $link (@linkcourses){
+			push (@$ids, $link->primary_key());
+		}
+		my $cond = (scalar(@$ids)) ? "course_id not in (" . join(',', @$ids) . ")" : "";
+		my @courses = HSDB45::Course->new(_school => $school)->lookup_conditions($cond, "order by title");
+
+		foreach my $course (@courses){
+			push (@$options, { 'label' => $course->out_label() . '&nbsp;[' . $course->primary_key() . ']', 'value' => $course->primary_key() } );
+		}
+	}
+
+	
+</%shared>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                onsubmit =>'return event_submit(this)',
+                name => 'teachingsiteaddedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+% if ($is_edit){
+<& /tmpl/element:field_display, params=>{ label=>'Course', value => $course->out_label() . '&nbsp;[' . $course->primary_key() . ']' }&>
+% } else {
+<& /tmpl/element:dropdown, params=>{ label => "Courses",
+                multiple => 1,
+                name=> "course_id",
+                options => $options } &>
+% }
+
+<& /tmpl/element:textbox, params=>{ label => 'Max Students',
+                name=> "max_students",
+                size=> 30,
+		value=> $max_students } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save and Continue', name=>'form_submit', 'no_cancel_button' => 1} &>
+
+</table>
+</form>
+
+<%init>
+	 if (defined($ARGS{'form_submit'})){
+		my ($extra, $msgtxt);
+		if ($is_edit){
+			my ($r, $msg) = $teaching_site->course_link()->update(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername} , -password => $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword},
+									-child_id => $teaching_site->primary_key(),
+									-parent_id => $course_id,
+									max_students => $ARGS{'max_students'});
+       	 	        $msgtxt = "Course Teaching Site link updated.";
+			$extra = $teaching_site->primary_key();
+		}else{
+	        	unless (ref($ARGS{'course_id'}) eq "ARRAY"){
+				$ARGS{'course_id'} = [ $ARGS{'course_id'} ];
+			}
+
+			foreach my $course_id (@{$ARGS{'course_id'}}){
+				my ($r, $msg) = $teaching_site->course_link()->insert(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername} , -password => $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword},
+											-child_id => $teaching_site->primary_key(),
+											-parent_id => $course_id,
+											max_students => $ARGS{'max_students'});
+			}
+	
+       	 	        $msgtxt = "Course Teaching Site link(s) added.";
+			$extra = $teaching_site->primary_key();
+		}
+                $m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/teachingsite/admin/linksshow", 'extra' => $extra, 'msg' => $msgtxt));
+	}
+</%init>

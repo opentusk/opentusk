@@ -1,0 +1,417 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::PhaseType;
+use TUSK::Case::PatientType;
+use TUSK::Case::LinkCourseCase;
+use TUSK::GradeBook::GradeEvent;
+use HSDB45::TimePeriod;
+
+my $get_phases = sub {
+	my $case = shift;
+	my (@phasearray);
+	my $phase_types = TUSK::Case::PhaseType->getPhaseTypes();
+	my $phase_type;
+	my $found_hash = {};
+	my $phases = $case->availablePhases();
+
+	foreach my $phase (@{$phases}){
+		$phase_type = $phase->getPhaseType();
+		$found_hash->{$phase_type->getPrimaryKeyID()} = 1;
+		push (@phasearray,{'phase_id'=>$phase->getPrimaryKeyID(),
+					'phase_type'=>$phase_type->getTitle(),
+					'phase_title'=>$phase->getPhaseTitle()} );
+	}
+
+	foreach $phase_type (@{$phase_types}){
+		if (!$found_hash->{$phase_type->getPrimaryKeyID()}){
+			push (@phasearray,{'phase_type_id'=>$phase_type->getPrimaryKeyID,
+						'phase_type'=>$phase_type->getTitle(),
+						'phase_title'=> 'phase not defined' });
+		}
+	}
+	return \@phasearray;
+};
+</%once>
+
+<%shared>
+	my $id = $m->comp('/tmpl/url:get_last_path_id') ;
+	my $case = TUSK::Case::Case->new();
+	$case->setCopyright($m->comp('/management/tmpl/content:get_default_copyright'));
+	my $link = TUSK::Case::LinkCourseCase->new();
+	my $is_edit = 0;
+	my $user_id = $m->comp('SELF:user');
+	my $no_links = $id ? 0 : 1;
+	my $action_page = "/case/author/caseaddedit/";
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $type_object = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+
+
+<%perl>
+my $goalsText = 'Enter Goals Text Here';
+my $referenceText = 'Enter References Text Here';
+my $metadataText = 'Enter Metadata Text Here';
+my $phaseText = 'Enter Phases Text Here';
+my $formname = 'caseaddedit';
+</%perl>
+
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => $formname,
+		onsubmit => 'return validate_case_form(this);' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+
+<%perl>
+
+if (defined($id)){
+	$m->comp('tmpl/sections:case_footer', 
+		case=>$case, 
+		type_path=>$type_path, 
+		formname=>$formname);
+} else {
+	$m->comp('/tmpl/element:save_button', params=>{label=>'Save Changes', name=>'case_submit'});
+}
+</%perl>
+
+
+<& /tmpl/element:textbox, params =>{ label => 'Case Title',
+		name => 'title',
+		value => $case->getCaseTitle(),
+		size => 60,
+		length => 255 } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Author Notes',
+		name=>"case_author_desc",
+		cols=>"60",
+		rows=>"2",
+		value=>$case->getCaseAuthorDesc(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120', width => '710'}
+ &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Copyright',
+                name => 'copyright',
+                value => $case->getCopyright,
+                size => 60,
+                length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Source',
+                name => 'source',
+                value => $case->getSource,
+                size => 60,
+                length => 255 } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Patient Type',
+                name=>"patient_type_id",
+                onchange=>undef,
+                selected=>$case->getPatientTypeID(),
+                options=>$patientTypeArrayRef } &>
+
+
+<& /tmpl/element:dropdown, params=>{ label => 'Type of Assessment',
+		name=>"case_type",
+		onchange=>undef,
+		selected=>$case->getCaseType(),
+		options=>['Self-Assessment','Reviewed','Test'] } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Navigation Type',
+                name=>"navigation_type",
+                onchange=>undef,
+                selected=>$case->getNavigationType(),
+                options=>['Linear', 'Global'] } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Case Overview',
+        name=>"case_user_desc",
+        cols=>"60",
+        rows=>"4",
+        value=>$case->getCaseUserDesc(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120', width => '710'}
+ &>
+
+
+<& /tmpl/element:textbox, params =>{ label => 'Feedback Email',
+                name => 'feedback_email',
+                value => $case->getFeedbackEmail(),
+                size => 60,
+                length => 255 } &>
+
+%
+% if ($case->getCaseType() eq 'Self-Assessment' or $is_edit == 0){
+%
+<& /tmpl/element:textbox, params =>{ label => 'Case Duration',
+                name => 'duration',
+                value => $case->getDurationText(),
+                size => 60,
+                length => 255 } &>
+%
+% } else {
+%
+<& /tmpl/element:timebox, params =>{ label => 'Case Duration',
+                name => 'duration',
+                value => $case->getDuration(),
+                size => 10,
+                length => 10,
+		'optional-label' => "None" } &>
+%
+% }
+%
+
+
+<& /tmpl/element:dropdown, params=>{ label => 'Grade Event',
+                name=>"grade_event_id",
+                onchange=>undef,
+                selected=>$case->getGradeEventID(),
+                options=>$gradeEventArrayRef } &>
+
+<& /tmpl/element:textbox, params => { 
+				label 		=> 'Available Date',
+				name 		=> 'available_date',
+				value 		=> $link->getFormattedAvailableDate(),
+				size 		=> 20,
+				maxlength 	=> 20,
+				calendar    => 1,
+				calendar_type => 'datetime',
+				default_time => 'midnight',
+} &>
+
+<& /tmpl/element:textbox, params => { 
+				label 		=> 'Due Date',
+				name 		=> 'due_date',
+				value 		=> $link->getFormattedDueDate(),
+				size 		=> 20,
+				maxlengt	=> 20,
+				calendar    => 1,
+				calendar_type => 'datetime',
+				default_time => 'endofday',
+} &>
+
+<& /tmpl/element:section_header_row, label=>"Cost of Patient Care" &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Display&nbsp;expenses&nbsp;of&nbsp;patient&nbsp;care&nbsp;as&nbsp;they are incurred ?',
+                name=>"billing_total",
+                onchange=>undef,
+                selected=>$case->getBillingTotal(),
+                options=>[
+                        {'label'=>'Yes','value'=>'1'},
+                        {'label'=>'No','value'=>'0'} ] } &>
+
+<& /tmpl/element:section_header_row, label=>'Case Access' &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Usage Permission',
+                name=>"share_case",
+                onchange=>undef,
+                selected=>$case->getShareCase(),
+                options=>[
+                        {'label'=>'Share Case as Read-Only','value'=>'1'},
+						{'label'=>'Do not share case','value'=>'0'}
+                         ] } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Restricted Access',
+                name=>"restricted_access",
+                onchange=>undef,
+                selected=>$case->getRestrictedAccess(),
+                options=>[
+                        {'label'=>'Allow all ' . $TUSK::Constants::SiteAbbr . ' users','value'=>'0'},
+						{'label'=>'Allow only course users','value'=>'1'}
+                         ] } &>
+
+<& /tmpl/element:posted_dropdown, selected => $case->getPublishFlag() &>
+
+<%perl>
+if (defined($id)){
+	$m->comp('tmpl/sections:case_footer', 
+		case=>$case, 
+		type_path=>$type_path, 
+		formname=>$formname);
+} else {
+	$m->comp('/tmpl/element:save_button', params=>{label=>'Save Changes', name=>'case_submit'});
+}
+</%perl>
+
+<& /tmpl/wizard:include &>
+
+</form>
+</table>
+
+<%perl>
+if (defined($id)){
+	$m->comp('SELF:footer', obj=>$case);
+}
+</%perl>
+
+<%init>
+
+	my $school_obj = $type_object->get_school();
+
+	my $patientTypeArrayRef = [ {'label'=>'Select Patient Type', 'value'=>''} ];
+	foreach my $patient_type (@{TUSK::Case::PatientType->new()->getSchoolPatientTypes($school_obj)}){
+		my $hashref = {'label'=>$patient_type->getTypeName(),
+		               'value'=>$patient_type->getPrimaryKeyID() };
+		push @{$patientTypeArrayRef}, $hashref;
+	}
+
+	my $gradeEventArrayRef = [{'label'=>'No Grade Event', 'value'=>''}];
+	foreach my $ge (@{TUSK::GradeBook::GradeEvent->new->getCourseEvents($school_obj->getSchoolName(), $type_object->course_id())}){
+		my $tp = HSDB45::TimePeriod->new(_school => $school_obj->getSchoolName())->lookup_key($ge->getTimePeriodID());
+		my $hashref = {'label'=>$ge->getEventName() . ' (' . $tp->period() . ')',
+		               'value'=>$ge->getPrimaryKeyID() };
+		push @{$gradeEventArrayRef}, $hashref;
+	}
+
+
+	my $transition = $action_page.$type_path.'/'.$id;
+
+	if (defined($id)){
+        	$case->lookupKey($id);
+        
+		if (!defined($case) || !defined($case->getPrimaryKeyID())){
+       	        	$m->comp('/tmpl/error',msg=>"Case not found for ID : $id");
+	                exit;
+       		}
+	
+	        $is_edit = 1;
+	
+		my $links = TUSK::Case::LinkCourseCase->lookup("parent_course_id = " . $type_object->course_id() . " and school_id = " . $type_object->get_school()->getPrimaryKeyID() . " and child_case_id = " . $id);
+		$link = $links->[0];
+	} 
+
+	if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
+		if (!$is_edit){
+			$case->setCopyright($m->comp('/management/tmpl/content:get_default_copyright'));
+		}
+
+		my $rule_msg;
+		if ($case->hasRule() && 
+		   ($case->getNavigationType() eq 'Global' && $ARGS{navigation_type} eq 'Linear')) {
+			$rule_msg = '<br><br>You have switched your navigation type from Global to Linear, please be sure that this does not negatively impact any of the rules you have applied to this case.';
+		}
+
+		$case->setCaseTitle($ARGS{'title'});
+		$case->setCaseAuthorDesc($ARGS{'case_author_desc'});
+		$case->setPatientTypeID($ARGS{'patient_type_id'});
+		$case->setCaseType($ARGS{'case_type'});
+		$case->setNavigationType($ARGS{'navigation_type'});
+	
+		if ($case->getCaseType() eq 'Self-Assessment'){
+			$case->setDurationText($ARGS{'duration'});
+		}else{
+			$case->setDuration($ARGS{'duration'});
+		}
+
+		$case->setCaseUserDesc($ARGS{'case_user_desc'});
+		$case->setShareCase($ARGS{'share_case'});
+		$case->setRestrictedAccess($ARGS{'restricted_access'});
+		$case->setBillingTotal($ARGS{'billing_total'});
+		$case->setFeedbackEmail($ARGS{'feedback_email'});
+		$case->setPublishFlag($ARGS{'publish_flag'});
+		$case->setCopyright($ARGS{'copyright'});
+		$case->setSource($ARGS{'source'});
+
+		$id = $case->save({ user => $user_id });
+
+
+		$case->setGradeEventID($ARGS{'grade_event_id'}, $user_id);	
+		
+		if (!$is_edit) {
+			$link->setParentCourseID($type_object->course_id());
+			$link->setChildCaseID($id);
+			$link->setSchoolID($type_object->get_school()->getPrimaryKeyID());
+			my $course_cases = TUSK::Case::LinkCourseCase->lookup( "parent_course_id = " . $type_object->course_id() . " and school_id = " . $type_object->get_school()->getPrimaryKeyID());
+			my $sort_order = 10 + ((scalar(@$course_cases)) ? $course_cases->[-1]->getSortOrder() : 0);
+			$link->setSortOrder($sort_order);
+
+			my $user_role = TUSK::Permission::UserRole->new();
+			$user_role->setUserID($user_id);
+			$user_role->setRoleToken('case', 'author');
+			$user_role->setFeatureID($id);
+			$user_role->save({ user => $user_id});
+
+			$transition .= "/$id";
+		}
+		
+		$link->setAvailableDate(($ARGS{available_date}) ? $ARGS{available_date} : undef);
+		$link->setDueDate(($ARGS{due_date}) ? $ARGS{due_date} : undef);
+		$link->save({ user => $user_id });
+	
+		my $msg = ($is_edit) ? "Case successfully updated." : "Case successfully added.";
+
+		my $msgtype = 'msg';
+		if ($case->isGlobalNav() && $case->hasPopQuiz()) {
+			$msgtype = 'hintmsg';
+			$msg .= '<br><br>Globally navigable cases only support quizzes that are a part of a "Quiz" phase. Quizzes embedded in any other phase type will not be made visible to the users.';
+		}
+
+		if ($rule_msg) {
+			$msgtype = 'hintmsg';
+			$msg .= $rule_msg;
+		}
+
+		$m->comp('/tmpl/wizard:do_next',args=>\%ARGS,default_transition => $transition, msg => $msg, msgtype => $msgtype);	
+	}
+
+</%init>
+
+
+<%method jsarray>
+% return ['element.js', 'caseshell.js', 'object_tree.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js',  'ckeditor/ckeditor.js', 'ckeditor/tusk.js', 'jquery/jquery.min.js'];
+</%method>
+
+<%method stylearray>
+%return ['/style/style.css','/style/caseSimulator.css','/style/calendar-blue.css'];
+</%method>
+
+
+<%method title>
+<%perl>
+my $title = "Create Case";
+if (defined($id)){
+	$title = "Modify Case";	
+}
+return $title;
+</%perl>
+</%method>
+
+<%method function_token>
+<%perl>
+	if ($id){
+		return 'modify_case';
+	}
+	else{
+		return '';
+	}
+</%perl>
+</%method>
+
+<%method leftnav>
+<%perl>
+return {
+	component => '/case/tmpl/leftnav/case-create',
+ 	id => $id,
+	type_path => $m->comp('/tmpl/url:get_type_path'),
+	uri => 'caseaddedit', 
+	no_links => $no_links
+	};
+</%perl>
+</%method>

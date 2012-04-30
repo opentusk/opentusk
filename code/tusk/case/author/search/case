@@ -1,0 +1,48 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%flags>
+inherit=>undef 
+</%flags>
+<%perl>
+use TUSK::Case::Case;
+my $params = {
+	fields=>{'case_title'=>'case_title like "%%%s%%"','case_user_desc'=>''},
+	search_fields=>[{'label'=>'Title',name=>'case_title'}],
+	obj=>'TUSK::Case::Case',
+	orderby=>['case_title'],
+	entity_name=>'cases',
+	layer_info => {
+		layer => 'searchdiv',
+		fields => ['case_id','case_title', 'case_user_desc'],
+		name => 'question',
+		search_page =>'/case/author/search/case',
+		sort => {usage => 'Yes', length=>50},
+		action => {usage => 'Yes', length=>100, functions => [
+						{func=>'update_parent', label=>'Select'} ]},
+		display => [
+			{label=>'title',field=>'case_title', align=>'left', length=>150},
+			{label=>'Overview',field=>'case_user_desc', align=>'left', length=>350}
+		  ],
+		validate => {
+				usage => 'No',
+			},
+		object_methods=>['getPrimaryKeyID','getCaseTitle','getCaseUserDesc']
+	 }
+
+};
+
+</%perl>
+<& /tmpl/search, params=>$params, inputArgs=>\%ARGS &>

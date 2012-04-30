@@ -1,0 +1,70 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB45::Eval::MergedResults;
+	use HSDB45::Eval::MergedResults::Formatter;
+</%once>
+
+<%shared>
+	my $school   = $m->comp('SELF:schoolname');
+	my @path_ids = $m->comp("/tmpl/url:get_path_ids");
+	my ($filter, $filter_id, $eval_id);
+	if ( scalar(@path_ids) == 2 ) {
+		$filter    = "filtered_";
+		$filter_id = $path_ids[0];
+		$eval_id   = $path_ids[1];
+	} else {
+		$filter    = "";
+		$filter_id = "";
+		$eval_id   = $path_ids[0];
+	}
+	my $merged_eval_results = HSDB45::Eval::MergedResults->new( _school => $school, _id => $eval_id );
+	my $eval = $merged_eval_results->parent_eval();
+</%shared>
+
+<% $results_string %>
+
+<%init>
+	my $results_string;
+	my $formatter;
+	if(scalar($eval->users())) {
+		my @atts = ("HOST" => $r->header_in("Host"), 
+					"SVGURL" => "/mergedevalgraph",
+					"MERGED_ID" => $merged_eval_results->primary_key(),
+					"FILTER" => $filter,
+					"FILTER_ID" => $filter_id,
+					"COMPLETIONS" => 0,
+					"HIDEGROUPBY" => $ARGS{'HIDEGROUPBY' } ? 1 : 0);
+
+		$formatter = HSDB45::Eval::MergedResults::Formatter->new($merged_eval_results);
+		$results_string = HSDB45::StyleSheet::apply_global_stylesheet($ENV{XSL_ROOT} . "/Eval/eval_results.xsl", $formatter->get_xml_text(), @atts);
+	} else {
+		$results_string = '<b>No Results Available</b>';
+	}
+</%init>
+
+<%method stylearray>
+%	return ['/style/eval.css', '/style/style.css'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . " Eval Report: " . $merged_eval_results->field_value('title');
+</%method>
+

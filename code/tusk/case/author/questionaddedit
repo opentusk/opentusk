@@ -1,0 +1,208 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once> 
+use TUSK::Quiz::Quiz;
+use TUSK::Quiz::Question;
+use TUSK::Quiz::LinkQuizQuizItem;
+use TUSK::Case::LinkPhaseQuiz;
+use TUSK::Case::Phase;
+</%once>
+
+<%shared>
+	my @path = @{$m->comp('/tmpl/url:get_path_ids')};
+	my $case_id = $path[0];
+	my $phase_id = $path[1];
+	my ($quiz, $id);
+	my $is_edit = 0;
+	my $user_id = $m->comp('SELF:user');
+	my $phase = TUSK::Case::Phase->new()->lookupKey($phase_id);
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+
+	my $type = 'Quiz';
+	my $question = TUSK::Quiz::Question->new();
+
+	if (scalar(@path) == 3 && !$m->request_args->{add}){
+		$question->lookupKey($path[-1]);
+		$is_edit = 1;
+	}elsif (scalar(@path) >= 3 ){
+		$type = 'Section'; 
+
+		if ($m->request_args->{add}){
+			$id = $path[-1];
+		} else {
+			$id = $path[-2];
+			$question->lookupKey($path[-1]);
+			$is_edit = 1;
+		}
+	}
+
+	unless ($is_edit){
+		$question->setType($m->request_args->{'type'}) if ($m->request_args->{'type'});
+	}
+</%shared>
+
+<%method jsarray>
+% return ['layers.js','element.js','caseshell.js','object_tree.js', 'quiz.js', 'ckeditor/ckeditor.js', 'ckeditor/tusk.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js'];
+</%method>
+
+<%attr> 
+	no_check_path 		=> 1
+	no_header		=> 1
+	use_nav_bar 		=> 0
+	use_footer		=> 0
+	case_ignore_perms	=> 1
+</%attr>
+
+<%method title>
+<%perl>
+if ($is_edit){
+	return "Edit Quiz Question";
+} 
+return 'Create Quiz Question';
+</%perl>
+</%method>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'questionaddedit',
+                onsubmit => undef } &>
+
+
+% $m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => $ARGS{msg} }) if ($ARGS{msg});
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0",
+		} &>
+
+<tr><td class="no-button" colspan="2">
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0",
+		 } &>
+<tr><td style="vertical-align: top;background-color:#5F6F7D;padding:0px; width:1px; margin:0px"><img border="0" src="/graphics/case/summaryHeader_corner_right.gif" /></td>
+<td class="caseTab"><% $question->getFormattedType %> Question</td></tr>
+</table>
+</td></tr>
+<& /quiz/author/tmpl/editquestion:question_fields,question=>$question,
+		questionLink=>$questionLink,
+		formname=>'questionaddedit',
+		quiz_id=>$quizLink->getChildQuizID(),
+		tool => 'Case' &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+		onclick => '{return question_submit_all(this.form);}',
+		close_window_button => 1,
+		no_cancel_button => 1,
+                name=>'question_submit'} &>
+
+</form>
+</table>
+
+<%init>
+
+my ($quizLinks,$quizLink);
+if (defined($phase_id)){
+	$quizLinks = TUSK::Case::LinkPhaseQuiz->lookup( " parent_phase_id = $phase_id " );
+} else {
+	$quizLinks = [];
+}
+if (scalar (@{$quizLinks}) > 1 ){
+	$m->comp("/tmpl/error", msg=>"The phase has multiple quizzes");
+} elsif (!scalar(@{$quizLinks})){
+	$quiz = TUSK::Quiz::Quiz->new();
+	my $qtitle = $phase->getPhaseTitle();
+	# append the word ' Quiz' to the quiz title, unless our phase type is "Quiz"
+	$qtitle .= (ref($phase) !~ /Quiz$/)? ' Quiz' : '';
+	$quiz->setTitle($qtitle);
+	$quiz->setQuizType('Quiz');
+	$quiz->save({'user'=>$user_id});	
+	$quizLink = TUSK::Case::LinkPhaseQuiz->new();
+	$quizLink->setParentPhaseID($phase_id);
+	$quizLink->setChildQuizID($quiz->getPrimaryKeyID());
+	$quizLink->save({'user'=>$user_id});
+} else {
+	$quizLink = pop @{$quizLinks};
+}
+my $extra;
+my $question_type = $question->getType();# ||$m->comp("/tmpl/error", msg=>"Question ID is $question_id  but No question type passed");
+$id = $quizLink->getChildQuizID() if ($type eq 'Quiz');
+my $questionLink;
+my $msg;
+if ($is_edit){
+	if ($type eq 'Quiz'){
+		$questionLink = shift @{TUSK::Quiz::LinkQuizQuizItem->new()->lookupByRelation($id, $question->getPrimaryKeyID())};
+		unless(defined $questionLink){
+			$msg = 'You attempted to edit a question that has previously been deleted.';
+			$m->comp('/tmpl/error', msg => $msg); 
+		}
+
+		$m->comp('SELF:add_layer_data',question=>$question,questionLink=>$questionLink);
+	}else{
+		$questionLink = shift @{TUSK::Quiz::LinkQuestionQuestion->new()->lookupByRelation($id, $question->getPrimaryKeyID())};
+	}
+	$msg = "Question successfully modified";
+} else {
+	if ($type eq 'Quiz'){
+		$questionLink = TUSK::Quiz::LinkQuizQuizItem->new();
+	}else{
+		$questionLink = TUSK::Quiz::LinkQuestionQuestion->new();
+	}
+	$msg = "Question successfully created";
+}
+if (defined($ARGS{'question_submit'})){
+	$m->comp('/quiz/author/tmpl/editquestion:process_args', question=>$question, 
+		questionLink=>$questionLink,
+		id => $id,
+		type => $type,
+		user_id=>$user_id,
+		args=> \%ARGS );
+
+	my $extra = (!$is_edit) ? $question->getPrimaryKeyID() : '';
+
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/case/author/questionaddedit", 'extra' => $extra, 'msg' => $msg));
+}
+</%init>
+
+<%method add_layer_data>
+<%args>
+$question
+$questionLink
+</%args>
+<%perl>
+	my $escaped_body = $question->getBody();
+	$escaped_body =~ s/'/\\'/g;
+	$escaped_body =~ s/\n|\r/ /gs;
+	$escaped_body = substr($escaped_body, 0,40);
+</%perl>
+
+<SCRIPT language="JavaScript">
+	var rowIndex = parent.opener.layers['questiondiv'].getIndexByPK(<% $question->getPrimaryKeyID %>);
+	if (rowIndex == null){
+		parent.opener.layers['questiondiv'].adddata({ question_id : <% $question->getPrimaryKeyID %>,
+			phase_id : '<% $phase_id %>',
+			body : '<% $escaped_body %>',
+			quiz_id : '<% $id %>',
+			type : '<% $question->getType %>' }, 'check');
+	} else {
+		parent.opener.layers['questiondiv'].setfield(rowIndex,'body','<% $escaped_body %>');
+		parent.opener.layers['questiondiv'].showlayer();
+	}
+</SCRIPT>
+</%method>

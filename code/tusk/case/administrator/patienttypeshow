@@ -1,0 +1,76 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method title>
+<%perl>
+	my $title = "Manage Patient Types";
+	return $title;
+</%perl>
+</%method>
+
+<%once>
+	use TUSK::Case::PatientType;
+</%once>
+
+<%perl>
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $school = $m->comp('/tmpl/url:get_type_object');
+	my $patient_types = TUSK::Case::PatientType->getSchoolPatientTypes($school);
+	my $col_fields = [ { label => 'Type Name', field => 'getTypeName'}];
+	
+	my $action_columns = [
+		{ label => 'Modify', link => "/case/administrator/patienttypeaddedit" },
+		{ label => 'Delete', link => "/case/administrator/patienttypedelete" } 
+		];
+	
+	if (defined($ARGS{'order'})){
+		$patient_types = TUSK::Case::PatientType->updateSortOrders($school->getPrimaryKeyID(), $ARGS{'order'}, $patient_types);
+	}
+</%perl>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+        {display_txt => 'Add Patient Type',
+        link_txt    => '/case/administrator/patienttypeaddedit/' . $type_path}
+	         ]
+&>
+
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'eventshow' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0"} &>
+	<tr>
+		<td class="no-button">
+
+
+<& /tmpl/element:object_selection_box, params => { 
+		columns => $col_fields, 
+		sort_box => 1,
+                object_list => $patient_types,
+                action_columns => $action_columns,
+		empty_message => 'No patient types for this school.',
+		type_path => $type_path,
+	}
+&>
+		</td>
+	</tr>
+</table>
+
+</form>

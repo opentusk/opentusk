@@ -1,0 +1,45 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%method title>
+% return "Manage Teaching Sites";
+</%method>
+
+<%perl>
+	my @teaching_sites = HSDB45::TeachingSite->new(_school => $m->comp("/tmpl/url:get_school"))->lookup_all("order by site_name");
+</%perl>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+              { display_txt => 'New Teaching Site',
+                link_txt    => '/management/teachingsite/admin/addedit/' . $m->comp("/tmpl/url:get_type_path")},
+	         ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+				sort_box => 0,
+				columns => [ {'label' => 'Name', 'field' => 'site_name'},
+	                                     {'label' => 'Type', 'field' => 'site_city_state'}
+					],
+				action_columns => [ 
+							{ 'label'=>'Link Courses','link' => '/management/teachingsite/admin/linksshow' },
+							{ 'label'=>'Modify','link' => '/management/teachingsite/admin/addedit' },
+							{ 'label' => 'Delete','link' => '/management/teachingsite/admin/delete' } 
+			  			], 
+				object_list => \@teaching_sites,
+				type_path => $m->comp("/tmpl/url:get_type_path"),
+				name => "teaching sites",
+				}
+&>

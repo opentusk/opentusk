@@ -1,0 +1,92 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my ($settings, $query);
+</%shared>
+
+<%attr>
+top_tab_type=>'search'
+</%attr>
+
+<%method title>
+<%perl>
+	my $title = 'Search Form';
+
+	if ($ARGS{'include_umls'}){
+		$title = "UMLS Concepts";
+	} elsif ($ARGS{'Search'}){
+		$title = "Search Results";
+	} elsif ($ARGS{'refine'}){
+		$title = "Refine Search";
+	}
+
+	return $title;
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title', %ARGS);
+</%method>
+
+<%method red_header_class>
+% return 'blueHeaderBar';
+</%method>
+
+<%method jsarray>
+% return [];
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	($settings, $query) = $m->comp('tmpl/element:interpretQueryString', args => $args);
+	
+	$settings->{pageName} = '/search/form';
+	
+	if ($args->{'include_umls'}){
+		$m->comp('SELF:set_msg', msg => 'Please select which UMLS concepts you want to include in your search.', type => 'hintmsg');
+	}
+
+	if ($settings->{'empty_query'}){
+		$m->comp('SELF:set_msg', msg => 'Please enter a search term.', type => 'hintmsg');
+	}
+</%perl>
+</%method>
+
+<%perl>
+	my ($predefinedResults);
+
+	if ($settings->{'searchExecuted'}){
+		($predefinedResults, $settings->{userQuery}) = $m->comp('tmpl/element:executeSearch', query => $query, settings => $settings);
+	}
+</%perl>
+
+% if ($ARGS{'include_umls'}){
+
+<& tmpl/element:showUMLS, query => $query, resultSetLimit => $settings->{'resultSetLimit'} &>
+
+% } else {
+
+	<& tmpl/element:entryForm, query => $query, settings => $settings &>
+
+%	 if ($settings->{'searchExecuted'}){
+
+		<& tmpl/element:searchResults, query => $query, settings => $settings, predefinedResults => $predefinedResults &>
+
+% 	}
+% }

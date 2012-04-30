@@ -1,0 +1,68 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my $form_id = $m->comp("/tmpl/url:get_last_path_id");
+</%shared>
+
+<%method get_nav_bars>
+<%perl>
+my $course = $m->comp("/tmpl/url:get_type_object") if (!$m->base_comp->attr('no_check_path'));
+my $initial_nav_bars;
+
+
+if ($course) {
+	my $path = $course->school() . "/" . $course->course_id();
+
+	$initial_nav_bars = [ { href => '/patientlog/student/home', label => 'Patient Log Homepage'},
+{ href => "/view/course/$path/patientlogs", label => 'Course - ' . $course->title()} ];
+
+	if ($course->get_current_timeperiod() and ($m->comp("/formbuilder/util:get_time_period_id") == $course->get_current_timeperiod()->primary_key)){
+		push (@$initial_nav_bars, { href => "/patientlog/student/display/course/$path/$form_id" , label => 'Entry Form'});
+	}
+
+	push (@$initial_nav_bars, { href=> "/patientlog/student/report/course/$path/$form_id?type=History", label => 'My History'});
+}
+
+return $m->comp("/tmpl/nav", 
+				'initial_nav_bar' => $initial_nav_bars,
+			     'prefix' => '/patientlog/student',
+			     'hierarchy' => {
+						'home' => [],
+						'display' => ['defaultreports', 'customreports'],
+						'report' => ['defaultreports', 'customreports'],
+						'customreports' => ['defaultreports', 'customreports'],
+						'delete' => ['defaultreports', 'customreports'],
+						},
+			     'nav_entities_dependency' => {
+							'form' =>{'object'=>undef, 'depend'=>[]}, 
+							'field' =>{'object'=>"TUSK::FormBuilder::Field", 'depend'=>[], 'static_title'=>'Field: '}, 
+							},
+				 'type_path' => ($m->base_comp->attr('no_check_path')) ? '' : $m->comp("/tmpl/url:get_type_path") . '/' . $form_id,
+			     'title_func' => {'TUSK::FormBuilder::Field' => 'getFieldName'},
+			     'urls' => {'form' => {link => 'form', label => 'Manage Patient Log'},
+					'customreports' => {link => 'customreports', label => 'Custom Reports'},
+					'defaultreports' => {link => 'report', label => 'My Reports'}});
+</%perl>
+</%method>
+
+
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+
+<% $m->call_next %>

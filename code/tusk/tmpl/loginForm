@@ -1,0 +1,160 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%doc>
+	This page has some methods to display a form get the users password and verify that they are who they are.
+	This uses ajax to trick most browsers into not displaying the grades.
+	It does this by defining an onunload method.
+	Here is a quick rundown of how to use this in TUSK.
+	1. In your component (say view/course) you make a call to printPrivateLogin passing 1 arg (ajaxComponent) which is the name of an ajax component you will write
+	2. printPrivateLogin makes a div and puts a standard message into it with a password field and a button
+		(HINT Dont use this in an open form)
+	3. When the user clicks the button an AJAX call is made using the passed component name
+	4. Your AJAX method calls verifyLogin to verify that the user it legit
+	5. Your AJAX method returns some HTML code that gets displayed in a second div
+	6. When the page is unloaded a JS function:
+		a. Emptys the div that the HTML was put into
+		b. Hides said div
+		c. Opens the origional div displaying the login form
+	Hopfully this works out well
+</%doc>
+
+<%method verifyLogin>
+	<%args>
+		$args => {}
+	</%args>
+	<%perl>
+		use HSDB45::Authentication;
+		my $passwordVerified = 0;
+		if($args->{userPassword}) {
+			if($args->{genTime} > time()) {
+				my $authen = HSDB45::Authentication->new();
+				$passwordVerified = $authen->verify_password($m->session->{'user'},$args->{userPassword});
+				#Do we want to be nasty and auto log people out after a specific number of tries?
+				unless($passwordVerified) {
+					#Display Login Not Valid
+					$args->{errmsg} = "Invalid Password";
+				}
+				else {$passwordVerified = 1;}
+			} else {
+				$args->{errmsg} = "The ammount of time that this page will be displayed has expired";
+			}
+		}
+		return $passwordVerified;
+	</%perl>
+</%method>
+
+<%method redisplayPrivateLogin>
+	<%args>
+		$hideGradeDiv => 0
+	</%args>
+	<span id="doLogin" style="display:none;"></span>
+%	if($hideGradeDiv) {
+		<span id="doGrade" style="display:none;"></span>
+%	}
+</%method>
+
+<%method printPrivateLogin>
+	<%args>
+		$ajaxComponent
+	</%args>
+
+	<br>
+	<div id="gradeDiv" style="display:none; width:100%;">
+	</div>
+	<div id="printPrivateLoginDiv" style="display:block;">
+		<h2>Important Privacy Notice</h2>
+		You are currently logged in as <b><% $m->session->{'user'}->out_full_name() %></b>.<br>
+		This section of <% $TUSK::Constants::SiteAbbr %> contains private information.<br>
+		If you are not <b><% $m->session->{'user'}->out_full_name() %></b> please <a href="/dologout">Click Here</a>.<br>
+		<br><% $TUSK::Constants::PrivacyNotice %><br><br>
+		<script language="JavaScript"><!--
+			var ajaxRequest;
+			window.onunload=wipeGradeDiv;
+
+			function wipeGradeDiv() {
+				document.getElementById('printPrivateLoginDiv').style.display='block';
+				document.getElementById('gradeDiv').style.display='none';
+				document.getElementById('gradeDiv').innerHTML = '';
+			}
+
+			function redisplayLoginDiv() {
+				if(document.getElementById('doLogin')) {
+					if(document.getElementById('printPrivateLoginDiv')) {
+						document.getElementById('printPrivateLoginDiv').style.display='block';
+					} else {alert('Error: could not get login message');}
+				}
+				if(document.getElementById('doGrade')) {
+					if(document.getElementById('gradeDiv')) {
+						document.getElementById('gradeDiv').style.display='none';
+					} else {alert("Error: could not get this section div to hide... very strange!");}
+				}
+			}
+			function checkPassword() {
+				if(document.theForm.userPassword.value=='') {
+					alert('Please enter a password to login!');
+					document.theForm.userPassword.style.backgroundColor='yellow';
+					return false;
+				}
+				var now = new Date();
+				//getTime is in miliseconds.
+				document.theForm.genTime.value = document.theForm.genTime.value + Math.round(((now.getTime() - startDate.getTime())/100));
+
+				//Package up the form and submit it to the passed ajax component
+				if (window.XMLHttpRequest) {
+					ajaxRequest = new XMLHttpRequest();
+				} else if (window.ActiveXObject) {
+					ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+				} else {
+					alert('You can not view this section because your browser does not support AJAX.');
+				}
+				if(ajaxRequest) {
+					var parameters = 'userPassword=' + encodeURI( document.theForm.userPassword.value );
+					parameters+= '&showGrades=' + encodeURI( document.theForm.showGrades.value );
+					parameters+= '&genTime=' + encodeURI( document.theForm.genTime.value );
+					ajaxRequest.open("POST", '<% $ajaxComponent %>', true);
+					ajaxRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+					ajaxRequest.setRequestHeader("Content-length", parameters.length);
+					ajaxRequest.setRequestHeader("Connection", "close");
+					ajaxRequest.send(parameters);
+					ajaxRequest.onreadystatechange = displayGradeResults;
+				}
+
+			}
+			function displayGradeResults() {
+				if(!ajaxRequest) {return;}
+				if(ajaxRequest.readyState == 4) {
+					document.getElementById('printPrivateLoginDiv').style.display='none';
+					document.getElementById('gradeDiv').style.display='block';
+					document.getElementById('gradeDiv').innerHTML = ajaxRequest.responseText;
+					redisplayLoginDiv();
+				}
+			}
+			var startDate = new Date();
+		//!--></script>
+		<%doc>The return false prevents the form being submitted with the enter key</%doc>
+		<form name="theForm" action="" method="post" onsubmit="document.theForm.showGrades.click(); return false;">
+			If you are <% $m->session->{'user'}->out_full_name() %> please enter your <% $TUSK::Constants::SiteAbbr %> password to view this section:
+			<input type="password" name="userPassword" value="" class="textareawhite" size="20">
+			<input type="button" name="showGrades" value="Show Grade" class="formbutton" onClick="return checkPassword();">
+			<input type="hidden" name="genTime" value="<% time()+30 %>">
+			<br>
+		</form>
+	</div>
+	<br>
+	<font class="bold_emphasis_font">
+		*<% $TUSK::Constants::SiteAbbr %> recommends that you logout after viewing this section to prevent other people from seeing this section.
+	</font>
+</%method>

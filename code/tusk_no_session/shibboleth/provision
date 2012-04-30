@@ -1,0 +1,87 @@
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+
+
+<%args>
+	$location => ''
+</%args><%init>
+	use Apache2::Const qw/REDIRECT NOT_FOUND/;
+#	use Apache::TicketTool;
+	use TUSK::Constants;
+	use TUSK::Shibboleth::User;
+	use Digest::MD5 qw(md5_hex);
+	use CGI::Cookie;
+	use CGI;
+
+	# bomb out if the script was not called via the shibboleth-login apache location
+	unless($r->uri() =~ /^\/shibboleth-login\/provision/) {
+		$r->status(NOT_FOUND);
+		exit();
+	}
+
+        my $url_path =  substr($r->path_info(), 1); # take away the prepending / and then split
+        my @path_ids = split('/', $url_path);
+	# bomb out if no institution name was given
+	if(scalar(@path_ids) == 0) {
+		$r->status(NOT_FOUND);
+		exit();
+	}
+	my $shibbolethUserId = $path_ids[$#path_ids];
+
+	my $now = time;
+	my $expires = 240;
+
+	# Check and see how many schools we matched
+	my $shibUserId = $TUSK::Constants::shibbolethUserID . $shibbolethUserId;
+
+	my $idForCookie = $shibUserId;
+#
+#	unless($TUSK::Constants::CookieUsesUserID) {
+#		# Build the session
+#		my %session;
+#		Apache::TicketTool::create_apache_session(undef, \%session);
+#		$session{user} => $shibUserId;
+#		$idForCookie = $session{_session_id};
+#		# Undef to session to force a save and release the lock
+#		Apache::TicketTool::destroy_apache_session(\%session);
+#	} else {
+#		$idForCookie = $shibUserId
+#	}
+
+	my $hash = md5_hex($TUSK::Constants::CookieSecret . md5_hex(join ':', $TUSK::Constants::CookieSecret, $now, $expires, $idForCookie));
+
+
+	# Build the cookie
+	my $cookie = new CGI::Cookie(
+		-name =>'Ticket',
+		-path =>'/',
+		-value => {
+			'time' => $now,
+			'user' => $idForCookie,
+			'hash' => $hash,
+			'expires' => $expires,
+		},
+	);
+
+	unless($location) {$location = "/home";}
+	my $cgiObject = new CGI;
+	$m->clear_buffer;
+	$m->print($cgiObject->header(
+		-cookie => $cookie,
+		-status => "302 Moved",
+		-location => $location,
+	));
+	$m->abort();
+</%init>
+

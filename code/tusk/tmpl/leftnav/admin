@@ -1,0 +1,106 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Session;
+</%once>
+
+<%args>
+$type_path
+$school_name
+$show_in_td => 1
+</%args>
+
+<%method print_admin_nav>
+<%args>
+$school_name
+</%args>
+<script type="text/javascript">
+function submit_form(location, querystring){
+	if (querystring){
+		querystring = '?' + querystring;
+	}else{
+		querystring = '';
+	}
+	document.location.href = location + "/school/" + document.admin.school.options[document.admin.school.selectedIndex].value + querystring;
+}
+
+function check_links(){
+	if (!DHTML) return;
+	var school = document.admin.school.options[document.admin.school.selectedIndex].value;
+	var courseusers = new getObj('courseusers');
+}
+</script>
+
+<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'School&nbsp;Admin'} &>
+<ul class="adminLeftNavList">
+	<li>
+		<form name="admin" class="no-padding">&nbsp;&nbsp;<select name="school" width="20" class="navsm" onchange="check_links()">
+% foreach my $school (TUSK::Session::get_schools($m->session)) {
+% my $selected = ($school eq $school_name) ? "selected" : "";
+			<option class="navsm" value="<% $school %>" <% $selected %>><% $school %></option>
+% }
+		</select></form>
+	</li>
+	<li><a href="javascript:submit_form('/management/announcements/show')" class="admintext">Announcements</a></li>
+	<li><a href="javascript:toggle_case_subnav('caseSubNav');" class="admintext nodots">Case&nbsp;Administrator&nbsp;|&nbsp;<span id="case_sub_link"><% ($r->uri =~ /^\/case\/administrator/)? '-' : '+' %></span></a>
+		<div id="caseSubNav" class="<% ($r->uri =~ /^\/case\/administrator/)? 'showNav' : 'hideNav' %>">
+			<a href="javascript:submit_form('/case/administrator/batteryshow')" class="admintext">Manage Categories / Tests</a>
+			<a href="javascript:submit_form('/case/administrator/patienttypeshow')" class="admintext">Manage Patient Types</a>
+		</div>
+	</li> 
+	<li><a href="javascript:submit_form('/management/coding/categoryaddedit')" class="admintext">Classification</a></li>
+	<li><a href="javascript:submit_form('/management/competency/list')" class="admintext">Competencies</a></li>
+	<li><a href="javascript:submit_form('/management/course/modify')" class="admintext">Create New Course</a></li>
+	<li><a href="javascript:submit_form('/management/course/modify','type=committee')" class="admintext">Create&nbsp;New&nbsp;Committee</a></li>
+	<li><a href="javascript:submit_form('/management/users/add')" class="admintext">Create New User</a></li>
+	<li><a href="javascript:submit_form('/management/reporting/show')" class="admintext">Curriculum Hours</a></li>
+	<li><a href="javascript:submit_form('/management/discussion/show')" class="admintext">Discussions</a></li>
+        <li><a href="javascript:submit_form('/management/users/show')" class="admintext">Find &amp; Modify Users</a></li>
+	<li><a href="javascript:submit_form('/management/homepage/categoryshow')" class="admintext">Homepage Courses</a></li>
+	<li id="coursestudents"><a href="javascript:submit_form('/management/import/coursestudents')" class="admintext">Import Course Roster</a></li>
+	<li id="schedule">      <a href="javascript:submit_form('/management/import/schedule')" class="admintext">Import Schedule</a></li>
+	<li id="courseusers">   <a href="javascript:submit_form('/management/import/users')" class="admintext">Import Users</a></li>
+	<li id="userimages">   <a href="javascript:submit_form('/management/import/userimages')" class="admintext">Import User Images</a></li>
+	<li><a href="javascript:submit_form('/management/usergroup/show')" class="admintext">Manage Groups</a></li>
+	<li><a href="javascript:submit_form('/management/schoollink/show')" class="admintext">School Links</a></li>
+	<li><a href="javascript:submit_form('/management/teachingsite/admin/show')" class="admintext">Teaching Sites</a></li>
+	<li><a href="javascript:submit_form('/management/timeperiod/show')" class="admintext">Time Periods</a></li>
+% if($TUSK::Constants::useShibboleth && TUSK::Session::is_tusk_admin($m->session->{'user'}->primary_key) ) {
+	<li><a href="javascript:submit_form('/management/shibboleth/manageIdPs')" class="admintext">Shib IdPs</a></li>
+% }
+</ul>
+
+<script type="text/javascript">
+check_links();
+</script>
+</%method>
+
+<%method print_eval_nav>
+<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Eval&nbsp;Admin'} &>
+<ul class="adminLeftNavList">
+% foreach my $school (TUSK::Session::get_eval_schools($m->session)) {
+	<li><a href="/eval/administrator/show/<% $school %>" class="admintext"><% $school %></a></li>
+% }
+</ul>
+</%method>
+
+<div id="gLeftNav" class="<% $show_in_td? 'gTableNav' : '' %>">
+<%perl>
+if (TUSK::Session::is_admin($m->session)) {
+	$m->comp("SELF:print_admin_nav", school_name => $school_name);
+} 
+</%perl>
+</div> <!-- end gLeftNav -->

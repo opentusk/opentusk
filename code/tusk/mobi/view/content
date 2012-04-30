@@ -1,0 +1,199 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::ErrorReport;
+use TUSK::Constants;
+use HSDB4::Constants;
+use HSDB4::SQLRow::Content;
+</%once>
+
+<%attr>
+default_path_type	=> 'content'
+allow_guests => 1
+</%attr>
+
+<%args>
+$tryit => 0
+</%args>
+
+<%shared>
+my $content = $m->comp('/tmpl/url:get_type_object');
+my $userObject = $m->session->{'user'};
+my $iCanEdit = $content->can_user_edit($userObject);
+
+my $course;	
+my $pathinfo = $r->path_info;
+$pathinfo =~ s/\///;
+my ($course_id, @garbage) = split ('/', $pathinfo);
+if ( scalar(@garbage) ) {
+	$course_id =~ s/\D//g;
+	$course = HSDB45::Course->new( _school => $content->school )->lookup_key($course_id);
+}
+my $integrated_course = (defined $course) ? ($course->type eq 'integrated course') : 0;
+</%shared>
+
+<%method header_text>
+% return $content->title();
+</%method>
+
+<%method jsarray>
+% return ['content.js'];
+</%method>
+
+
+<%method get_topnav_lnks>
+<%perl>
+my $lnks;
+my %family;
+$family{prev} = $content->context_prev;
+$family{next} = $content->context_next;
+$family{up}   = $content->context_parent;
+foreach my $key qw(prev up next){
+	my $url = undef;
+	if($family{$key}){
+		$url = $family{$key}->out_url_mobi;
+	}
+	push @$lnks, {lnk => $url, label => $key};
+}
+return $lnks;
+</%perl>
+</%method>
+
+
+<%method get_nav_bars>
+
+<%perl>
+	#grab the first path id, extract school letter and parent course id
+	my $aStr = $m->comp("/tmpl/url:get_first_path_id");
+ 	my $parent_id = substr($aStr, 1, length($aStr)-2);
+ 	my $sc = HSDB4::Constants::school_codes(substr($aStr,0,1));
+
+	##alternatively, if in the future we need paths for parents and other siblings, use the following 
+    ##lines which returns an arrayref of hashes. didnt need all this right now so leaving it out
+    ##in the name of speed and efficiency
+	##my $path_ids = $m->comp("/tmpl/url:get_path_ids");
+	##$my $cPath = $content->get_bread_crumb_from_path($path_ids);
+    
+
+ 	my $prntURL = "/mobi/view/course/$sc/$parent_id"; 
+ 	my $nav_bars = []; 
+ 	$nav_bars = [ { href => $prntURL, label => 'Course Home', title => 'Course Home' } ];
+ 	return $nav_bars;
+</%perl>
+
+</%method>
+
+
+
+% unless($content->is_active()) {
+%	if($iCanEdit){
+<p style="border:2px solid red;">This content has expired!<br>You are only able to see it because you are an editor</p>
+%	}
+%	else{
+<em>Sorry this content is not currently active.</em>
+%	return();
+%	}
+% }
+
+
+<%perl>
+# set a default size for images
+if($content->type() eq 'Slide'){
+	$ARGS{SIZE} ||= 'medium';
+}
+
+my $body = $content->out_html_body(%ARGS); 
+
+if($content->error) {
+	print "<div class=\"error\">This document cannot be displayed at this time.  Please email <a href=\"$TUSK::Constants::SupportEmail\">$TUSK::Constants::SupportEmail</a> if you have a question.</div>";
+	ErrorReport::sendErrorReport($r, {'Msg'=>$content->error()});
+} 
+elsif(!$content->is_mobile_ready()){
+	print "<p>This piece of content is not currently supported on the mobile version of $TUSK::Constants::SiteAbbr. We are sorry for any inconvenience.</p>";
+}
+else {
+	if($content->type() eq 'Collection') {
+		if($body) {
+			print "<strong>Folder Notes:</strong><p class=\"folderNotes\">$body</p>";
+		}
+		my @subContent = $content->active_child_content();
+		if($content->display_child_content && scalar @subContent) {
+			$m->comp('/tmpl/content:drawMobileContent', contentArray => \@subContent, course => $course, integrated_course => $integrated_course);
+		}
+		else {
+			print 'There are no documents, slides or other multimedia in this collection.';
+		}
+	} 
+	else{
+		my $dload_warn = "<p>The link below goes to a piece of content that may not be supported on your mobile device. Check that it can handle the file type and has the capacity for large files.</p>";
+		if ($ENV{HTTP_USER_AGENT} =~ /android/i) {
+			$dload_warn .= "<p><strong>Android users:</strong> to download a file, hold your thumb down on the file link until a menu appears and choose the \"Save link\" option from the list.</p>";
+		}
+		my $pretxt = '';
+		if( $content->type() eq 'DownloadableFile' || $content->type() eq 'PDF' ){
+			$pretxt = $dload_warn;
+			$body = '<a href="/download/' . $content->primary_key() . '">' . $content->title  . '</a>';
+		}
+		elsif($content->type() =~ /Audio|Video|Fdlashpix/){
+			$pretxt = $dload_warn;
+			my $url = $content->out_streaming_url();
+			$body = "<a href=\"$url\">" . $content->title() . '</a>';
+		}
+		elsif($content->type() eq 'Slide') {
+			my $uri = $ENV{SCRIPT_URI};
+			my @sublnks;
+			foreach my $size qw(medium large xlarge orig){
+				push @sublnks, ($ARGS{SIZE} eq $size)? $size : "<a href=\"$uri?SIZE=$size\">$size</a>";
+			}
+			my $lnk_str = join ' | ', @sublnks;
+			$pretxt = "<div id=\"subNav\">$lnk_str</div>";
+		}
+		elsif($content->display_framed()) {
+			$pretxt = "<p>To view this content, follow the link below. Warning: you will be leaving the $TUSK::Constants::SiteAbbr site and will need to use your browser's 'back' button to return.</p>";
+			if($content->type() eq 'Document'){
+				$body = '<a href="/view/minStyle/content/' . $content->primary_key() . '">' . $content->title . '</a>';
+			}
+			if($content->type() eq 'External'){
+				$body = '<a href="/view/urlExternalContent/' . $content->primary_key() . '">' . $content->title . '</a>';
+			}
+		}
+		print $pretxt, $body;
+	}
+	my $ctime = HSDB4::DateTime->new;
+	my $mtime = HSDB4::DateTime->new;
+	$ctime->in_mysql_timestamp($content->field_value("created"));
+	$mtime->in_mysql_timestamp($content->field_value("modified"));
+	my @authors = $content->child_authors();
+
+	print "<p>\n";
+	print '<b>Author(s):</b> ' . join('; ', @authors) . "<br/>\n" if (scalar @authors);
+
+
+	if($ctime->out_string_date eq '') {
+		print "<b>Created:</b> Unknown<br/>\n";
+	} 
+	else {
+		print "<b>Created:</b> " . $ctime->out_string_date . "<br/>\n";
+	}
+	unless($mtime->out_string_date eq '') {
+		print "<b>Modified:</b> " . $mtime->out_string_date . "\n";
+	}
+	print "</p>\n";
+
+	print $content->out_html_appendix();
+}
+</%perl>
+

@@ -1,0 +1,102 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use Integritytest::Runner;
+use Integritytest::IntegritySuite;
+use Integritytest::XMLBuilder;
+use Integritytest::Logger;
+use Getopt::Long;
+use Term::ReadKey;
+
+my ($test,$verbose,$db,$user_id,$password,$dir,$file,$help);
+GetOptions("test=s" => \$test,
+	   "verbose" => \$verbose,
+	   "database=s" => \$db,
+	   "user_id=s" => \$user_id,
+	   "password=s" => \$password,
+	   "help" => \$help,
+);
+
+if ($help) {
+    print "Usage: integritytest --help --test=<name of test> --user_id=<user> --password=<password> --database=<db name>\n";
+    exit;
+}
+
+$db = "hsdb4" unless ($db);
+
+$dir = $ENV{PERL5LIB}."/Integritytest/cases";
+$file = $test;
+if (!$file) {
+    opendir DIR, $dir;
+    my @tests;
+    while (defined ($file = readdir(DIR))) {
+	next if ($file !~ /\.xml$/);
+	push(@tests,$file);
+    }
+    closedir DIR;
+    my $ii = 1;
+    my @sorted_tests = sort @tests;
+    foreach my $name (@sorted_tests) {
+	$name =~ s/(.+)\.xml/$1/;
+	print "$ii:\t$name\n";
+	$ii++;
+    }
+    my $test_no;
+    print "Test: ";
+    chomp ($test_no = ReadLine (0));
+    $file = @sorted_tests[$test_no-1];
+}
+$file = "$dir/$file.xml";
+if (!-e $file) {
+    print "Cannot find integrity check $test\n";
+    exit;
+}
+
+if (!$user_id || !$password) {
+    ($user_id, $password) = get_prompt_pw($user_id);
+}
+my $suite = Integritytest::XMLBuilder::build_suite($file);
+my $runner = Integritytest::Runner->new(-database => $db,-user_id=>$user_id,-password=>$password);
+my ($dbh,$msg) = $runner->db_connect();
+if (!$dbh) {
+    print "cannot connect to database: $msg";
+    exit;
+}
+
+print $suite->run($dbh,$verbose);
+$dbh->disconnect() if $dbh;
+
+sub get_prompt_pw {
+    my $username = shift;
+    unless ($username) {
+	# Get the username for connecting to the database
+	print "Database username: ";
+	chomp ($username = ReadLine (0));
+    }
+    # Get the password, but use noecho to prevent it being shown as the
+    # user types it
+    print "Database password: ";
+    ReadMode ('noecho');
+    chomp ($password = ReadLine (0));
+    ReadMode ('normal');
+    print "\n";
+    return ($username, $password);
+}
+

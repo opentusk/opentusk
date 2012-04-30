@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use MySQL::Password;
+use HSDB45::Course::XMLRenderer;
+use HSDB45::Course;
+use Getopt::Long;
+HSDB4::Constants::set_user_pw (get_user_pw);
+
+GetOptions("course-id=s"=> \$id,
+	   "stylesheet=s"=> \$xsl,
+	   "school=s"=> \$school);
+
+if (!$id || !$school) {
+    print "Usage: course_xml --course-id=<course id> --school=<school>\n";
+    exit;
+}
+
+my $course = HSDB45::Course->new(_id => $id,_school => $school);
+$body = $course->body();
+$xml = HSDB45::Course::XMLRenderer->new($course,$body);
+
+if ($xsl) {
+    print $xml->transform($xsl);
+}
+else {
+    print $xml->xml_text;
+}

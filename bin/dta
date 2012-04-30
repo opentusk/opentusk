@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+# dta: death to apache
+# useful if you whack your apache directory, forgetting
+# to shut down apache... this script kills all of your
+# httpd processes
+
+use strict;
+
+use Getopt::Long;
+
+my ($user_id, $help);
+GetOptions('user_id|u=s' => \$user_id,
+	   'help|h'  => \$help);
+
+usage() if($help);
+
+unless($user_id) {
+    $user_id = `whoami`;
+    chop($user_id);
+}
+
+print "killing all httpd processes for $user_id...\n";
+
+my $ps = `ps -u $user_id`;
+my ($fields, $processes) = split(/\n/, $ps, 2);
+
+foreach my $process (split(/\n/, $processes)) {
+    my @fields = split(" ", $process);
+    if($fields[3] eq "httpd") {
+	`kill -9 $fields[0]`;
+    }
+}
+
+sub usage {
+    print "dta [[-u|--user_id] user_id]\n";
+    exit(1);
+}

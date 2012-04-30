@@ -1,0 +1,72 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB45::TimePeriod;
+	use HSDB45::Course;
+</%once>
+
+
+<%method get_current_time_periods>
+<%args>
+	%params => ()
+</%args>
+<%perl>
+	my @current_time_periods = HSDB45::TimePeriod->new(_school => $m->comp('SELF:schoolname'))->lookup_all('end_date >= curdate()', 'ORDER BY end_date ASC');
+	my @time_periods;
+
+	push @time_periods, { value => '', label => '' };
+	foreach (@current_time_periods) {
+		push @time_periods, { 
+			value  => $_->primary_key(),
+			label  => $_->field_value('period') . ', ' 
+				. $_->field_value('academic_year') 
+				. ' &nbsp;&nbsp; (<span style="font-size:65%;">' 
+				. $_->field_value('start_date') . ' to ' 
+				. $_->field_value('end_date') 
+				. ')</span>' 
+		};
+	}
+</%perl>
+
+<& /tmpl/element:dropdown, params => { 
+	label			=> ($params{label}) ? $params{label} : 'Time Period:',
+	name			=> 'time_period_id',
+	options			=> \@time_periods,
+	selected		=> $params{selected},
+	onchange		=> $params{onchange},
+	trailing_text	=> $params{trailing_text},
+} &>
+</%method>
+
+
+<%method get_courses>
+<%perl>
+	my $school = $m->comp('SELF:schoolname');
+	my @all_courses = HSDB45::Course->new(_school => $school)->lookup_all('ORDER BY title');
+	my @courses;
+	push @courses, { value => '', label => '' };
+
+	foreach (@all_courses) {
+		next unless $_->title() =~ /\w+/;
+		push @courses, { 
+			value  => $_->primary_key(),
+			label  => $_->title() . ' (' . $_->primary_key() . ')',
+		}
+	}
+	return \@courses;
+</%perl>
+</%method>
+

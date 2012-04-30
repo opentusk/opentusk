@@ -1,0 +1,268 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+
+use TUSK::Constants;
+use HSDB4::Constants;
+use TUSK::Core::School;
+use HSDB45::UserGroup;
+use Time::Local;
+use Palm::DBA;
+
+my $r = shift; 
+
+my $path =$r->path_info();
+my $school_name = lc($TUSK::Constants::Institution{ShortName}); 
+
+$path=~s/\/([^\/]*?)\/$//i;
+
+my $type = $1;
+
+$type = "dba" unless ($type); # just to be sure
+
+my $date = $1 if($path=~s/\/(\d{4}-\d{1,2}-\d{1,2})\/?$//i);
+	
+my $user_group = HSDB45::UserGroup->lookup_path($path);
+my $icsTimeZone = $TUSK::Constants::icsTimeZoneFile;
+my @gmtTimeComponents = gmtime(time());
+my $gmtTimeStamp = ($gmtTimeComponents[5] + 1900) . sprintf("%02d", $gmtTimeComponents[4]+1) . sprintf("%02d",$gmtTimeComponents[3]) . 'T' . sprintf("%02d",$gmtTimeComponents[2]) . sprintf("%02d",$gmtTimeComponents[1]) . sprintf("%02d",$gmtTimeComponents[0]) . 'Z';
+
+$icsTimeZone =~ s:\.:/:g;
+my @meetings = ();
+my ($ug_school_name, $ug_school_code, $ug_school);
+
+if ($user_group) {
+	@meetings = $user_group->time_period_meetings($date);
+	$ug_school_name = $user_group->school;
+	$ug_school_code = HSDB4::Constants::code_by_school($ug_school_name);
+	$ug_school = TUSK::Core::School->new()->lookupReturnOne("school_name='$ug_school_name'");
+}
+
+
+my @output;
+my $count = 0;
+foreach my $meeting (@meetings){
+    my ($location, $meeting_type, $lecturer, $entry);
+    
+    if ($meeting->field_value('location')){
+	$location = $meeting->field_value('location');
+    }
+    else{
+	$location = "Unspecified";
+    }
+    
+	if ($meeting->type()){
+		$meeting_type = $meeting->type();
+	}
+	else {
+		$meeting_type = "Unspecified";
+	}
+
+    
+    my @faculty = $meeting->child_users;
+
+
+    my $title = $meeting->course->field_value('title') . ": " . $meeting->field_value('title');
+	$title .= ($meeting->is_mandatory())? ' (Attendance Mandatory)' : '';
+    my $date = $meeting->field_value('meeting_date');
+    my $start = $meeting->field_value('starttime');
+    my $end = $meeting->field_value('endtime');
+
+    if ($type eq "outlook"){
+	$entry = outlook_entry($title, $date, $start, $end, $location, $meeting_type, $lecturer, $school_name);
+    }elsif($type eq "dba"){
+	$entry = dba_entry($title, $date, $start, $end, $location, $meeting_type, $lecturer);
+    }elsif($type eq 'ics') {
+	#Add an Ical Entry
+	my $startTime = parseCalDate($date, $start);
+	my $endTime = parseCalDate($date, $end);
+	my $uid = $ug_school_code . $meeting->primary_key.'@'. $TUSK::Constants::Domain;
+
+	$entry = "BEGIN:VEVENT\r\n";
+	$entry.= 'ORGANIZER;CN="'. $ug_school->getSchoolDisplay() .'":invalid:nomail'. "\r\n";
+	if(@faculty) {
+		foreach my $facultyMember (@faculty) {
+			if(!$facultyMember->email) {$entry.= 'ATTENDEE;CN="'. $facultyMember->out_full_name .'";RSVP=FALSE:invalid:nomail'. "\r\n";}
+			else {
+				$entry.= 'ATTENDEE;CN="'. $facultyMember->out_full_name .' ('. $facultyMember->email . ')"';
+				$entry.= ';RSVP=FALSE:mailto:'. $facultyMember->email ."\r\n";
+			}
+		}
+    	}
+	$entry.= "UID:$uid\r\n";
+	$entry.= "SUMMARY:$title\r\n";
+	$entry.= "URL:http://". $TUSK::Constants::Domain ."/view/course/" . $ug_school_name ."/". $meeting->course->primary_key() ."\r\n";
+	$entry.= "DTSTART;TZID=$icsTimeZone:$startTime\r\n";
+	$entry.= "LOCATION:$location\r\n";
+	$entry.= "DTSTAMP:$gmtTimeStamp\r\n";
+	$entry.= "CREATED:$gmtTimeStamp\r\n";
+	$entry.= "LAST-MODIFIED:$gmtTimeStamp\r\n";
+	$entry.= "DTEND;TZID=$icsTimeZone:$endTime\r\n";
+	$entry.= "END:VEVENT";
+    }else{
+	$entry = vcal_entry($title, $date, $start, $end, $location, $meeting_type, $lecturer, $school_name);
+    }
+
+    
+    push (@output, $entry);
+}
+
+#print "here it is\n";
+
+# we are sending either a palm pda file or a csv file
+if($type eq 'ics') {
+	$r->content_type("text/calendar"); 
+} else {
+	$r->content_type("text/unknown"); 
+}
+
+
+if ($type eq "outlook"){
+    $r->headers_out->set("Content-disposition","attachment; filename=".$school_name."_schedule.csv");
+    $r->send_http_header;
+
+    print "Subject,Start Date,Start Time,End Date,End Time,All day event,Categories,Description,Location,Private,Show time as\r\n";
+    print join("\r\n", @output);
+}elsif($type eq "dba"){
+    $r->headers_out->set("Content-disposition","attachment; filename=".$school_name."_schedule.dba");
+    $r->send_http_header;
+
+    Palm::DBA::write_header($school_name.'_scheduler.dba');
+    Palm::DBA::write_contents(\@output, 0, ((localtime)[2] - (gmtime)[2]));
+}elsif($type eq 'ics') {
+	$r->headers_out->set("Content-disposition","attachment; filename=".$school_name."_schedule.ics");
+	$r->headers_out->set("Cache-Control", "no-cache, must-revalidate");
+	$r->headers_out->set('Expires', 'Sat, 26 Jul 1997 05:00:00 GMT');
+	$r->send_http_header;
+
+	print "BEGIN:VCALENDAR\r\n";
+	print "CALSCALE:GREGORIAN\r\n";
+	print "X-WR-TIMEZONE:$icsTimeZone\r\n";
+	print "X-WR-CALNAME;VALUE=TEXT:$school_name ". $user_group->label() ."\r\n";
+	print "METHOD:PUBLISH\r\n";
+	print "PRODID://Tufts University//TUSK 3.5.6//EN\r\n";
+	print "VERSION:2.0\r\n";
+	print "BEGIN:VTIMEZONE\r\n";
+	print "TZID:$icsTimeZone\r\n";
+	# Untaint the SERVER_ROOT because its used in an open later
+        my ($tzFile) = ($ENV{SERVER_ROOT} =~ /^(.*)$/g);
+        $tzFile .= "/addons/ics/". $TUSK::Constants::icsTimeZoneFile .".tz";
+	unless(-f $tzFile) {warn("ICS timezone file does not exist ($tzFile)\n");}
+	elsif(!open(FILE, $tzFile)) {warn("Unable to read ICS timezone file ($tzFile)\n");}
+	else {
+		while(<FILE>) {
+			s/\r?\n/\r\n/;
+			print $_;
+		}
+		close(FILE);
+	}
+	print "END:VTIMEZONE\r\n";
+
+	print join("\r\n", @output);
+	print "\r\n";
+	print "END:VCALENDAR";
+}else{
+    $r->content_type("text/unknown"); 
+    $r->headers_out->set("Content-disposition","attachment; filename=".$school_name."_schedule.vcs");
+    $r->send_http_header; 
+
+    my $output = join('', @output);
+print <<EOF;
+BEGIN:VCALENDAR
+VERSION:1.0
+$output
+END:VCALENDAR
+EOF
+ 
+}
+
+exit;
+
+sub outlook_entry{
+    my ($title, $date, $start, $end, $location, $type, $lecturer, $school_name) = @_;
+    my @date=split('-', $date);
+
+    my @starttime = split(':', $start);
+    my @endtime = split(':', $end);
+    my $show_time_as = 2;
+
+    $show_time_as = 3 if ($type eq "Holiday" or $type eq "Study Day");
+    $show_time_as = 1 if ($type eq "Unknown" or $type eq "Reception" or $type eq "Luncheon");
+
+    $location = "" if $location eq "Unspecified";
+        
+    return '"' . escape($title) . '","' . $date[1] . "/" . $date[2] . "/" . $date[0] . '","' . $start  . '","' . $date[1] . "/" . $date[2] . "/" . $date[0] . '","' . $end . '","FALSE","'.$school_name.' Schedule","' . escape("Type: $type\nLecturer: $lecturer") . '","' . escape($location) . '","FALSE",'.$show_time_as;
+}
+
+sub escape{
+    my ($string) = @_;
+    $string =~ s/"/""/g;
+    return ($string);
+}
+
+sub dba_entry{
+    my ($title, $date, $start, $end, $location, $type, $lecturer) = @_;
+
+    my ($startsec, @startdate) = parse_date($start, $date);
+
+    my ($endsec, @enddate) = parse_date($end, $date);
+
+    my $min = ($endsec - $startsec) / 60;
+
+    return [$title, 0, $startdate[1], $startdate[2], $startdate[3], $startdate[4], $startdate[5] + 1900, $min, "Type: $type\r\nLocation: $location\r\nLecturer: $lecturer"];
+
+}
+
+sub vcal_entry{
+    my ($title, $date, $start, $end, $location, $type, $lecturer, $school_name) = @_;
+
+    my $description = ";QUOTED-PRINTABLE:Location: $location =0D=0AType: $type=0D=0ALecturer: $lecturer";
+    my $starttime=parseCalDate($date, $start);
+    my $endtime=parseCalDate($date, $end);
+my $entry=<<EOF;
+
+BEGIN:VEVENT
+SUMMARY:$title
+DESCRIPTION$description
+DTSTART:$starttime
+DTEND:$endtime
+CATEGORIES: $school_name Schedule
+END:VEVENT
+
+EOF
+
+return $entry;
+}
+
+sub parse_date{
+    my ($time, $date) = @_;
+
+    my @date=split('-', $date);
+
+    my @time = split(':', $time);
+
+    my $datetime = timelocal($time[2], $time[1], $time[0], $date[2], $date[1]-1, $date[0]-1900) or die ($!);
+    return ($datetime, localtime($datetime));
+
+    
+}
+
+sub parseCalDate{
+	my ($date, $time) = @_;
+	my ($parseedsec, @parsedDate) = parse_date($time, $date);
+	my $returnTime = sprintf("%04d%02d%02dT%02d%02d%02d",$parsedDate[5]+1900, $parsedDate[4]+1, $parsedDate[3], $parsedDate[2], $parsedDate[1], $parsedDate[0]) ;
+	return $returnTime;
+}

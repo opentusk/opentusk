@@ -1,0 +1,138 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::FormBuilder::Field;
+	use TUSK::FormBuilder::Attribute;
+	use TUSK::FormBuilder::AttributeItem;
+</%once>
+
+<%method title>
+% return "Modify Attribute";
+</%method>
+
+<%method jsarray>
+% return ['layers.js', 'formbuilder.js'];
+</%method>
+
+<%method get_nav_bar_objects>
+<%perl>
+	my $path = $m->comp("/tmpl/url:get_path_ids");
+	return [] unless (scalar(@$path) > 1);
+	my $field_id = $path->[1];
+	my $form = $m->comp("/formbuilder/util:get_form");
+	return {  'TUSK::FormBuilder::Form' => $form, 'TUSK::FormBuilder::Field' => TUSK::FormBuilder::Field->new()->lookupKey($field_id) };
+</%perl>
+</%method>
+
+<%method page>
+<%args>
+$args
+$form
+</%args>
+<%perl>
+my $attribute_id = $m->comp("/tmpl/url:get_last_path_id");
+my $attribute = TUSK::FormBuilder::Attribute->new()->lookupKey($attribute_id);
+
+my $items = $attribute->getItems();
+
+my $items_data = [];
+
+foreach my $item (@$items){
+	push (@$items_data, { 'item_id' => $item->getPrimaryKeyID(), 'name' => $item->getItemName(), 'abbreviation' => $item->getAbbreviation() } );
+}
+
+if (defined($args->{'form_submit'})){
+	$args->{'attribute_name'} = 'No Name' unless ($args->{'attribute_name'});
+	$attribute->setAttributeName($args->{'attribute_name'});
+	$attribute->save({'user' => $m->session->{'user'}->user_id()});
+
+	# process the items
+
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args, filter=>'^itemsdiv');
+	foreach my $set (keys %$rowHash){
+		if ($rowHash->{$set}->{'fields'}->{'name'}){
+			$rowHash->{$set}->{'fields'}->{'attribute_id'} = $attribute_id;
+		}else{
+			delete $rowHash->{$set};
+		}
+	}
+
+	$m->comp('/tmpl/process:manipulate_rows',
+		row_type => 'Direct',
+		user => $m->session->{'user'}->user_id(),
+		object_name => 'TUSK::FormBuilder::AttributeItem',
+		fields_data => $rowHash,
+		field_function_map => {'attribute_id'=>'setAttributeID',
+				'sortorder'=>'setSortOrder',
+				'name'=>'setItemName',
+				'abbreviation' => 'setAbbreviation',
+				},
+		display_data => $items_data );
+	
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => '', 'msg' => 'Attribute successfully modified'));
+
+}
+</%perl>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+		onsubmit => 'return attributeedit_submit(this)',
+                name => 'fieldedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border => "0",
+                cellspacing => "0",
+                cellpadding => "0" } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Attribute Name',
+                name => 'attribute_name',
+                value => $attribute->getAttributeName(),
+                size => 60,
+                length => 100 } &>
+
+% my $button_text =  $m->scomp('/tmpl/element:button', 
+%			params=>{ onclick=>"layers['itemsdiv'].adddata({item_id:'0', name:'', abbreviation:''},0);",
+%				name=>'addnewitem',
+%				label=>'Add New Item'});
+<& /tmpl/element:sort_order_box , params =>{
+		no_add_button=>'1',
+                label=>'Items',
+		buttons=>[$button_text],
+                layer_info => {
+			empty_message => 'No items defined for this attribute',
+                        layer => 'itemsdiv',
+                        fields => ['item_id','name'],
+                        name => 'item',
+                        sort => { usage => 'Yes', length => 50},
+                        action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
+                        display => [
+                                        { label => 'Name', field => 'name', type => 'textbox', align => 'left', length => 300 },
+                                        { label => 'Abbreviation', field => 'abbreviation', type => 'textbox', align => 'left', length => 100 },
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $items_data }
+                } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+                cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_back_url", 
+			base_url =>  $m->comp("/formbuilder/util:get_base_dir") . '/field', is_edit =>  1) . "');",
+                name=>'form_submit'} &>
+</table>
+</form>
+
+</%method>

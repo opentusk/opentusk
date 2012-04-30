@@ -1,0 +1,47 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+my $ii = `ps -Af | wc -l`;
+$ii =~ s/\W+(.+)\W+/$1/;
+my $totalmem;
+my ($tot,$free);
+$tot = $free = `/usr/local/bin/top -d1 | /usr/local/bin/egrep "Memory"`;
+$tot =~ s/.+:\ (.+?)M.+\W/$1/;
+$free =~ s/.+,\ (.+?)M\ free.+\W/$1/;
+$totalmem = 100-(($free/$tot)*100);
+my $apache_count = `ps -Af | egrep "httpd" | wc`;
+
+$apache_count =~ s/\D+?(\d+).+\d+.+\d+.*/$1/s; 
+
+my $w = `w -u`;
+$w =~ s/.+,(.+).+/$1/s;
+print localtime().",$w load average, $apache_count Apache processes, $ii total processes, ".sprintf("%d",$totalmem)."% memory\n";
+
+
+
+
+
+
+
+
+
+
+

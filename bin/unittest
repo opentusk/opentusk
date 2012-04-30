@@ -1,0 +1,156 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use Test::Unit::TestRunner;
+use TestDataInitializer::Setup;
+use Term::ReadKey;
+use File::Find;
+use HSDB4::Constants;
+use Cwd;
+use vars qw/@test_modules %data_dirs/;
+
+BEGIN {
+    # If command lines arguments are specified require those, use just those classes
+    if (@ARGV) {
+	foreach my $modname (@ARGV) {
+	    # Require the module, make sure it went OK, and that it's the right subclass
+	    eval qq{require $modname};
+	    if ($@) { die $@ }
+	    unless ($modname->isa('Test::Unit::TestCase')) {
+		warn "$modname is not a Test::Unit::TestCase";
+		next;
+	    }
+	    push @test_modules, $modname;
+	    print STDERR $modname;
+	    # Find and note a data directory if it exists (in @INC)
+	    my $filename = $modname;
+	    $filename =~ s!::!/!g; # Turn a module name into a path
+	    for my $incdir (@INC) {
+		my $datadirname = "$incdir/$filename\_data";
+		if (-d $datadirname) {
+		    $data_dirs{$modname} = $datadirname;
+		    print STDERR " ($datadirname)";
+		    last;
+		}
+	    }
+	    print STDERR "\n";
+	}
+    }
+    # Without command line arguments, look through the PERL5LIB path and find modules
+    # named WhateverTest.pm (which do NOT have /CVS/ somewhere in their path---watch
+    # out for that exception!)
+    else {
+	for my $incdir (split /:/, $ENV{PERL5LIB}) {
+	    find(sub {
+		return if $File::Find::name =~ m!/CVS/!;
+		if (/Test\.pm$/) {
+		    # Turn a path into a module name
+		    my $modname = substr($File::Find::name, length($incdir), -3);
+		    $modname =~ s!^/!!g;
+		    $modname =~ s!/!::!g;
+		    # Require the module, make sure it went OK, and that it's the right subclass
+		    eval qq{require $modname};
+		    if ($@) { 
+			warn $@;
+			return;
+		    }
+		    return unless $modname->isa('Test::Unit::TestCase');
+		    return unless not grep { $_ eq $modname } @test_modules;
+		    push @test_modules, $modname;
+		    print STDERR $modname;
+		    # Find and note a data directory if it exists where the module file is
+		    my $datadirname = substr($File::Find::name, 0, -3) . "_data";
+		    if (! $data_dirs{$modname} && -d $datadirname) {
+			$data_dirs{$modname} = $datadirname;
+			print STDERR " ($datadirname)";
+		    }
+		    print "\n";
+		}
+	    }, $incdir);
+	}
+    }
+    # Then, make sure there are actually tests to run!
+    unless (@test_modules) {
+	die "Could not find any valid TestCase modules";
+    }
+}
+
+use MySQL::Password;
+my ($user, $password) = get_user_pw();
+HSDB4::Constants::set_user_pw($user, $password);
+
+my $testrunner = Test::Unit::TestRunner->new();
+
+unless ($user && $password) {
+    ($user, $password) = get_login();
+}
+
+my $tdi = TestDataInitializer::Setup->new(-user_id => $user, -password => $password, 
+					  -doc_root => $ENV{PERL5LIB});
+my ($result, $message) = $tdi->lock();
+die "Could not obtain lock: $message\n" unless $result;
+
+my $startdir = cwd;
+foreach my $test_module (@test_modules) {
+    pretty_print_module($test_module);
+    ($result, $message) = $tdi->clean();
+    die "Could not clean database: $message" unless $result;
+
+    foreach my $sql_file ($test_module->sql_files()) {
+	($result, $message) = $tdi->runfile($sql_file);
+	die "Could not exec $sql_file: $message" unless $result;
+    }
+
+    # Set the working directory to the data directory, if it exists
+    my $rundir = $data_dirs{$test_module} ? $data_dirs{$test_module} : $startdir;
+    print STDERR "Changing to $rundir\n";
+    chdir $rundir;
+
+    # do eval because this method dies on failure of tests
+    eval { $testrunner->start($test_module); }; 
+    print "\n";
+}
+
+chdir $startdir;
+scalar($tdi->unlock()) or die 'ERROR: Could not release lock!';
+
+sub get_login {
+    print "user>";
+    my $user = <STDIN>;
+    chomp $user;
+
+    ReadMode('noecho');
+    print "password>";
+    my $password = <STDIN>;
+    chomp $password;
+    ReadMode('normal');
+
+    return ($user, $password);
+}
+
+sub pretty_print_module {
+    my $test_module = shift();
+    my $line = '* ' .  $test_module . ' *';
+    print "\n" . '-' x length($line)  . "\n";
+    print $line;
+    print "\n" . '-' x length($line)  . "\n";    
+}
+
+1;

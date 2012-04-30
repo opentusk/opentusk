@@ -1,0 +1,125 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+	use TUSK::Manage::Course::Import;
+	use HSDB4::SQLRow::Content;
+</%once>
+
+<%attr>
+	top_tab_type	=> 'manage'
+	default_path_type	=> 'school'
+	must_be_school_admin => 1
+</%attr>
+
+<%shared>
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $school = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+<%method title>
+%	return "Import Course";
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+%	return ['course_import.js'];
+</%method>
+
+<%method leftnav>
+<%perl>
+	return {
+			component    => "/tmpl/leftnav/admin",
+			type_path    => $type_path,
+			school_name  => $school->getSchoolName(),
+		};
+</%perl>
+</%method>
+
+
+<& /tmpl/element:form, params => { 
+		enctype	 => 'multipart/form-data',
+		method   => 'POST',
+		name     => 'import_course',
+		onsubmit => 'return validateImportForm(this)' } &>
+
+<br/>
+<& /tmpl/element:table, params => {style => 'margin-bottom:10px;'} &>
+<& /tmpl/element:file_upload, params => { name => 'zip_file', label => 'Course Content Package:' } &>
+</table>
+
+<& /tmpl/element:submit_button, params=>{
+		'class' => 'submitBtn', 
+		'name'  => 'submit_import', 
+		'label' => 'Import Course'} &>
+
+</form>
+
+
+
+<%init>
+
+if(defined $ARGS{submit_check} && defined $ARGS{zip_file}){
+	my $upload = $r->upload('zip_file');
+
+	my ($bytesread, $body, $buffer);
+	my $CHUNK_SIZE = 32768; # for calls to 'read' 
+
+	my $fh_in = $upload->fh;
+
+	while ($bytesread = read($fh_in, $buffer, $CHUNK_SIZE)){
+		$body .= $buffer;
+	}
+
+	unless($body){
+		my $msg = 'Could not find specified content package. Please check for errors and resubmit. Thank you.';
+		$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'errmsg', destination => "/management/course/import/import/$type_path");
+	}
+
+	my $zip_location = TUSK::Manage::Course::Import::getRandomFile('/data/temp/', 'cp_', '.zip');
+
+	if(open my $fh_out, ">$zip_location"){
+		binmode $fh_out;
+	
+		print $fh_out $body;
+		close $fh_out;
+		close $fh_in;
+
+		my $tmp_dir = TUSK::Manage::Course::Import::unzip($zip_location);
+		my $authors = TUSK::Manage::Course::Import::getNativeUsers($tmp_dir);
+		if(scalar @$authors){
+			my $msg = "please confirm identity of authors";
+	
+			my $author_str = '';
+			foreach my $a (@$authors){
+				$author_str .= "&native_authors=$a";
+			}
+			$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'hintmsg', destination => "/management/course/import/confirm_authors/$type_path?tmp_dir=$tmp_dir$author_str");
+
+		}
+		else{
+			$m->redirect("/management/course/import/confirm_authors/$type_path?tmp_dir=$tmp_dir");
+		}
+	}
+
+
+
+}
+
+</%init>
+
