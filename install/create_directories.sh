@@ -47,6 +47,7 @@ mkdir /data/html/web
 mkdir /data/html/downloadable_file
 mkdir /data/html/fop-pdf
 mkdir /data/html/fop-xml
+mkdir /usr/local/tusk
 mkdir /usr/local/tusk/conf
 mkdir /usr/local/tusk/ssl
 mkdir /usr/local/tusk/ssl_certificate
