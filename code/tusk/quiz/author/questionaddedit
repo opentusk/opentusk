@@ -18,6 +18,7 @@
 </%attr>
 
 <%once>
+	use TUSK::Application::HTML::Strip;
 	use TUSK::Quiz::Quiz;
 	use TUSK::Quiz::Question;
 	use TUSK::Quiz::LinkQuizQuizItem;
@@ -61,15 +62,13 @@
 	my $nav_bars = $m->comp('PARENT:get_nav_bars');
 	if (scalar(@$path) > 2 or (scalar(@$path) > 1 and $ENV{QUERY_STRING} =~ /add=/)){
 		my $offset = ($ENV{QUERY_STRING} =~ /add=/) ? 0 : 1;
+		my $stripObj = TUSK::Application::HTML::Strip->new();
 		for (my $i=1; $i<(scalar(@$path) - $offset); $i++){
 			my $section = TUSK::Quiz::Question->new()->lookupKey($path->[$i]);
 			my $body = $section->getBody();
-			$body =~ s/^\s*//;
-			$body =~ s/\s*$//;
-			$body =~ s/<\/?[^>]*?>//g;
-			if (length($body) > 30){
-				$body = substr($body,0, 27) . "...";
-			}
+			$body =~ s/\r|\n//g;
+			$body = $stripObj->truncateAndRemoveHTML($body, 30);
+			$body =~ s/[^\w\s]//g;
 			my @paths = @$path;
 			push (@$nav_bars, { 
 				label => 'Section: ' . $body, 

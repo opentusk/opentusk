@@ -36,6 +36,7 @@ use TUSK::UploadContent;
 use TUSK::Core::Keyword;
 use TUSK::Core::LinkContentKeyword;
 use TUSK::Core::LinkIntegratedCourseContent;
+use TUSK::Content::MSTextExtractor;
 use TUSK::Content::External::MetaData;
 use TUSK::Course;
 use TUSK::Session;
@@ -54,7 +55,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.260 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.262 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::SQLRow::ContentHistory;
@@ -323,7 +324,7 @@ sub save {
 	my $un = shift;
 	return (0,'No fields have been changed') if (!scalar($self->changed_fields));
 	$self->save_version("No note entered.",$un,"don't save");
-	my ($rval,$msg) = $self->SUPER::save($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});	
+	my ($rval,$msg) = $self->SUPER::save($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});	
 	return ($rval,$msg);
 }
 
@@ -347,10 +348,10 @@ sub save_version {
     $version->field_value ('modify_note', $note);
 
     # And save it
-    $version->save ($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+    $version->save ($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
 
     # Now save our actual object
-    my ($rval,$msg) = $self->SUPER::save ($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword}) unless($no_save);
+    my ($rval,$msg) = $self->SUPER::save ($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword}) unless($no_save);
     return ($rval,$msg);
 }
 
@@ -3951,18 +3952,15 @@ sub get_file_body {
 	my $self = shift;
 	my $filename = $self->out_file_path();
 	my $pk = $self->primary_key();
-	if ($filename !~ m/\.doc$/){
+	unless($filename =~ /\.docx?$/ || $filename =~ /\.pptx$/) {
 		return $self->out_html_body();
 	}
 	if (! -f $filename ){
 		warn "get_file_body (ID : $pk ) : There is no file called $filename";
 		return;
 	} 
-	open WORDEXTRACT,$TUSK::Constants::WordTextExtract." $filename |" 
-		or confess "Can't open ".$TUSK::Constants::WordTextExtract." : $!";
-	my @body_text = <WORDEXTRACT>;	
-	close WORDEXTRACT;
-	return join(" ",@body_text);
+	my $msConverter = TUSK::Content::MSTextExtractor->new();
+	return $msConverter->getDocumentText($filename);
 }
 
 sub out_icon {

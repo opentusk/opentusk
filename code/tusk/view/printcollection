@@ -22,6 +22,7 @@ page_footer => ''
 <%once>
 	use HSDB4::SQLRow::Content;
 	use POSIX qw(ceil);
+	use TUSK::Application::HTML::Strip;
 	use TUSK::Constants;
 </%once>
 
@@ -148,12 +149,14 @@ body {
         <tr><td align="right"><a href="#" onClick="closeBox();"><font color="blue" height="-1">Close</font></a></td></tr>
     </table>
 </div>
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $page (1..$pages) {
 <div class="<% $page == $pages ? "" : "page" %>">
 	<table class="header">
 		<tr>
 			<td rowspan="2" width="1" valign="middle"><img src="/icons/little/alhsdb4-style.gif" height="25"></td>
-			<td align="left" colspan="2"><% (length($doc->field_value('title')) > 80) ? substr($doc->field_value('title'), 0, 80). "..." : $doc->field_value('title') %></td>
+%	my $title = $stripObj->removeHTML($doc->field_value('title'));
+			<td align="left" colspan="2"><% (length($title) > 80) ? substr($title, 0, 80). "..." : $title %></td>
 			<td rowspan="2" valign="middle" align="right">Page - <% $page %></td>
 		</tr>
 		<tr>

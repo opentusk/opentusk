@@ -14,7 +14,7 @@
  limitations under the License.
 </%doc>
 <%once>
-	use TUSK::Functions;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 
@@ -74,8 +74,8 @@
 	}
 
 	my $col_fields = [ 
-		{label => 'Title', field => 'title'},
-		{label => 'Instructions', field => 'instructions'},
+		{label => 'Title', field => 'title', 'link' => "/assignment/author/addedit/" . (($typePath =~ /^course/) ? $typePath : "course/$typePath")},
+		{label => 'Instructions', field => 'instructions', 'html' => 1},
 		{label => 'Weight', field => 'weight', align => 'center'},
 		{label => 'Available Date', field => 'available_date'},
 		{label => 'Due Date', field => 'due_date'},
@@ -88,6 +88,7 @@
 		TUSK::Assignment::Assignment->updateSortOrders($ARGS{'order'}, $assignments);
 	}
 
+	my $stripObj = TUSK::Application::HTML::Strip->new();
 	foreach my $assignment (@$assignments) {
 		my $instructions = $assignment->getInstruction();
 		my $instructions_length = length($instructions);
@@ -95,15 +96,15 @@
 		my $prefix = $m->comp('/tmpl/element:check_for_firefox_upload_bug');
 
 		push @rows, { 
-			title => "<a style=\"text-decoration:none;\" href=\"/assignment/author/addedit/$typePath/$assignment_id\">" . $assignment->getTitle() . "</a>",
-			instructions => ($instructions_length > $max_length) 
-				? "<span style=\"cursor:pointer;color:blue;\" title=\"$instructions\">" . TUSK::Functions::truncate_string($instructions,$max_length) . "</span>"
-				: $instructions,
-			weight => $assignment->getWeight(),
-			available_date => $assignment->getFormattedAvailableDate(),
-			due_date => $assignment->getFormattedDueDate(),
-			id => $assignment->getPrimaryKeyID(),
-			sort_order => $assignment->getSortOrder(), 
+			title 			=> $assignment->getTitle(),
+			instructions	=> ($instructions_length > $max_length) 
+				? "<span style=\"cursor:pointer;color:blue;\" title=\"$instructions\">" . $stripObj->truncateAndRemoveHTML($instructions,$max_length) . "</span>"
+				: 	$stripObj->removeHTML($instructions),
+			weight			=> $assignment->getWeight(),
+			available_date	=> $assignment->getFormattedAvailableDate(),
+			due_date		=> $assignment->getFormattedDueDate(),
+			id				=> $assignment->getPrimaryKeyID(),
+			sort_order		=> $assignment->getSortOrder(), 
 		};
 	}
 

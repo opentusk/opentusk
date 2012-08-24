@@ -132,13 +132,11 @@ if($type eq 'ics') {
 
 if ($type eq "outlook"){
     $r->headers_out->set("Content-disposition","attachment; filename=".$school_name."_schedule.csv");
-    $r->send_http_header;
 
     print "Subject,Start Date,Start Time,End Date,End Time,All day event,Categories,Description,Location,Private,Show time as\r\n";
     print join("\r\n", @output);
 }elsif($type eq "dba"){
     $r->headers_out->set("Content-disposition","attachment; filename=".$school_name."_schedule.dba");
-    $r->send_http_header;
 
     Palm::DBA::write_header($school_name.'_scheduler.dba');
     Palm::DBA::write_contents(\@output, 0, ((localtime)[2] - (gmtime)[2]));
@@ -146,7 +144,6 @@ if ($type eq "outlook"){
 	$r->headers_out->set("Content-disposition","attachment; filename=".$school_name."_schedule.ics");
 	$r->headers_out->set("Cache-Control", "no-cache, must-revalidate");
 	$r->headers_out->set('Expires', 'Sat, 26 Jul 1997 05:00:00 GMT');
-	$r->send_http_header;
 
 	print "BEGIN:VCALENDAR\r\n";
 	print "CALSCALE:GREGORIAN\r\n";
@@ -177,7 +174,6 @@ if ($type eq "outlook"){
 }else{
     $r->content_type("text/unknown"); 
     $r->headers_out->set("Content-disposition","attachment; filename=".$school_name."_schedule.vcs");
-    $r->send_http_header; 
 
     my $output = join('', @output);
 print <<EOF;

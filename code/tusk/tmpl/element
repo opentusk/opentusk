@@ -23,6 +23,7 @@ Any method that produces a tusk table row, the id of the tr is "$params{name}_tr
 </%doc>
 
 <%once>
+use TUSK::Application::HTML::Strip;
 use TUSK::Constants;
 </%once>
 
@@ -537,12 +538,14 @@ class="<% $class %>"
 <script type="text/javascript">
 CKEDITOR.replace( '<% ($params{'id'}) ? $params{'id'} : $params{'name'}%>',
 	{
+%	my $count = 1;
 %	foreach my $option (keys %cke_params) {
 %		if ($cke_params{$option} eq "true" || $cke_params{$option} eq "false") {
-	<% $option %> : <% $cke_params{$option} %>,
+	<% $option %> : <% $cke_params{$option} %><% ($count < scalar (keys %cke_params)) ? ',' : '' %>
 %		} else {
-	<% $option %> : "<% $cke_params{$option} %>",
+	<% $option %> : "<% $cke_params{$option} %>"<% ($count < scalar (keys %cke_params)) ? ',' : '' %>
 %		} 
+%		$count++;
 %	}
 });
 </script>
@@ -674,7 +677,6 @@ align="<% $align %>">
 %	}
 %	else {
 		<h3> <% $params{'label'} %> </h3>
-
 %	}
 % }
 <% $preceding_text %> <select id="<% $params{'name'} %>" name="<% $params{'name'} %>" 
@@ -691,6 +693,7 @@ style="<% $params{'style'} %>"
 <% $title %>>
 % my ($label,$value,$style,$disabled);
 % my $option_class = 'view';
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $opt (@{$params{'options'}}) {
 <%perl>
 	if (ref($opt) eq 'HASH'){
@@ -717,6 +720,8 @@ style="<% $params{'style'} %>"
 		$label = $opt;
 		$value = $opt;
 	}
+	## strip out HTML tags from text that will appear as the label
+	$label = $stripObj->removeHTML($label);
 </%perl>
 	<option class="<% $option_class %>" style="<% $style %>" value="<% $value %>" <% $selected %> <% $disabled %>><% $label %></option>
 % }
@@ -1085,8 +1090,9 @@ Actions
 <!-- done text -->
 %		next;  ## early exit as we are done with single cell for this row
 %   }
+%	my $stripObj = TUSK::Application::HTML::Strip->new();
 %	for (my $i=0; $i < @{$params{'columns'}}; $i++) {
-%		$col = ${$params{'columns'}}[$i];
+%		my $col = ${$params{'columns'}}[$i];
 %		my $align = $col->{'align'} || "left";
 % 		my $nowrap = ($col->{'nowrap'}) ? "nowrap" : "";
 
@@ -1105,7 +1111,12 @@ Actions
 					if ($col->{'link'}) {
 						$m->print( '<a href="' . $col->{'link'} . '/' . $row->{'id'} . '">' );
 					}
-					$m->print($row->{$col->{'field'}});
+					if ($col->{'field'} =~ /action/ || $col->{'html'}) {
+						$m->print($row->{$col->{'field'}});
+					}
+					else {
+						$m->print($stripObj->removeHTML($row->{$col->{'field'}}));
+					}
 					if ($col->{'link'}) {
 						$m->print( '</a>' );
 					}
@@ -1151,11 +1162,11 @@ Actions
 %				$link = $action->{'link'}.$type_path.$action->{'appendbefore'}.$row->{'id'};
 %				if($action->{'appendafter'}) { $link.= $action->{'appendafter'};} 
 %			 } else {
-%			 $link = ($action->{'comp'}) ? $m->comp($action->{'comp'}, base => $action->{'link'}, obj => $row->{'obj'}) : $action->{'link'} .  $type_path . ($action->{'is_query_string'} ? "" : "/") . $row->{'id'} . $action->{extra}; }
+%			 $link = ($action->{'comp'}) ? $m->comp($action->{'comp'}, base => $action->{'link'}, obj => $row->{'obj'}) : $action->{'link'} .  $type_path . ($action->{'is_query_string'} ? "" : "/") . $row->{'id'} . ($action->{extra} ? $action->{extra} : ""); }
 
 %			if (defined $params{'action_dropdown'}) {
 %				$link = '' unless (defined $action->{'link'});
-%				$action_select_option .= "<option value=\"" . $link . "\" class=\"" . $params{'dd_class'} . "\">" . $action->{'label'} . "</option>\n";
+%				$action_select_option .= "<option value=\"" . ($link ? $link : "") . "\" class=\"" . ($params{'dd_class'} ? $params{'dd_class'} : "") . "\">" . $action->{'label'} . "</option>\n";
 %			} else {
        	 			<a href="<% $link %>" class="navsm" <% $target %>>
 				<% $action->{'label'} %></a>
@@ -1268,6 +1279,9 @@ $label
 $title
 </%args>
 <%doc>Method to make link used in bread crumb</%doc>
+% ## strip out HTML tags from text that will appear as the label
+% my $stripObj = TUSK::Application::HTML::Strip->new();
+% $label = $stripObj->removeHTML($label);
 <a href="<% $href %>" title="<% $title %>" class="navsm" target="_top"><% (length($label) > 30) ? substr($label, 0, 30) . '...' : $label %></a>\
 </%method>
 
@@ -1380,11 +1394,15 @@ unless ($label){
 	return $options;
 }
 $value = $label unless ($value);
+my $stripped_label;
+my $stripObj = TUSK::Application::HTML::Strip->new();
 foreach my $array_item (@$arrayref){
 	my $level_value = ($level && $array_item->can($level)) ? $array_item->$level : 0;
 	my $cat_value = ($cat && $array_item->can($cat)) ? $array_item->$cat : 0;
 	my $item_value = ($array_item->$value) ? $array_item->$value : 0;
-	push (@$options, {label => $array_item->$label, value => $item_value, level => $level_value, cat => $cat_value});
+	## strip out HTML tags from text that will appear as the label
+	$stripped_label = $stripObj->removeHTML($array_item->$label);
+	push (@$options, {label => $stripped_label, value => $item_value, level => $level_value, cat => $cat_value});
 }
 return $options;
 </%perl>

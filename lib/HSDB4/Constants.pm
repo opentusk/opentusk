@@ -32,7 +32,7 @@ BEGIN {
 				      eval_schools user_group_schools school_codes 
 				      code_by_school get_school_db school_code_regexp] ],
 		     );
-    $VERSION = do { my @r = (q$Revision: 1.135 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.138 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 # Non-exported package globals go here
@@ -176,7 +176,7 @@ sub db_connect {
 # are almost always the same. If we start using different servers for 
 # each, we will need to address this.
     my $dbc = "DBI:mysql:$db:".($ENV{DATABASE_ADDRESS} ? $ENV{DATABASE_ADDRESS} : $TUSK::Constants::DBParameters{Sys::Hostname::hostname}->{'WriteHost'});
-    my $user = $db_user || $ENV{HSDB_DATABASE_USER} || $TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername};
+    my $user = $db_user || $ENV{HSDB_DATABASE_USER} || $TUSK::Constants::DatabaseUsers{ContentManager}->{readusername};
     my $pw = $db_pass || $ENV{HSDB_DATABASE_PASSWORD} || '';
     # warn "Password: $db_pass" if ($ENV{MOD_PERL} && $db_user == 'caper_user');
 

@@ -27,7 +27,7 @@ BEGIN {
     use vars qw($VERSION %LinkDefs);
 
     %LinkDefs = ();
-    $VERSION = do { my @r = (q$Revision: 1.46 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.47 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
     sub new {
 	
@@ -350,8 +350,8 @@ sub update_children_sort_order {
 	my $length = scalar(@$aref);
 
 			for (my $i=0; $i < $length; $i++) {
-				my ($r, $msg) = $linkdef->update(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
-						-password=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+				my ($r, $msg) = $linkdef->update(-user => $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},
+						-password=> $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword},
 						-parent_id => $params->{'parent_id'},
 						-child_id => @$aref[$i]->primary_key(),
 						sort_order => 10*($i+1),
@@ -746,7 +746,7 @@ use strict;
 use vars qw(@fields $VERSION);
 
 @fields = ();
-$VERSION = do { my @r = (q$Revision: 1.46 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.47 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 sub new {
     #
@@ -819,7 +819,7 @@ package HSDB4::SQLLinkSet;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.46 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.47 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 sub new {
     #

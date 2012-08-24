@@ -240,7 +240,7 @@ sub importContent{
 		# to re-import, but create a new link record to the imported content.
 		# unless, this content is linked from a document, in which case we don't 
 		# want to create a link record at all
-		$parent->add_child_content($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, $xtra_params->{imported_content}->{$id}, 65535);
+		$parent->add_child_content($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}, $xtra_params->{imported_content}->{$id}, 65535);
 	}
 
 	return $xtra_params->{imported_content}->{$id};
@@ -286,12 +286,12 @@ sub importUsers{
 				            midname => $name_parts[2],
 				                       );
 
-				$user->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+				$user->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 				
 				$xtra_params->{imported_users}->{$id} = $new_id;
 			}
 			
-			my ($rval, $msg) = $content->add_child_user($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, $xtra_params->{imported_users}->{$id}, 10*(++$counter), 'author');
+			my ($rval, $msg) = $content->add_child_user($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}, $xtra_params->{imported_users}->{$id}, 10*(++$counter), 'author');
 			# $log .= "$msg\n" unless (defined($rval));
 		}
 	}
@@ -336,12 +336,12 @@ sub importObjectives{
 		unless(defined $objective){
 			$objective = HSDB4::SQLRow::Objective->new();
 			$objective->field_value(body => $obj_str);
-			($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+			($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 		}
 
 		unless(defined $rval && $rval == 0){
 			$counter++;
-			$c->add_child_objective($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, $objective->primary_key(), ($counter*10));
+			$c->add_child_objective($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}, $objective->primary_key(), ($counter*10));
 		}
 	}
 }

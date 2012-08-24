@@ -14,7 +14,6 @@
  limitations under the License.
 </%doc>
 <%attr>
-	hintmsg => 'Are you sure you want to delete this grade event and grade records?'
 </%attr>
 
 <%once>
@@ -34,7 +33,36 @@
 	}
 
 	my ($grades_data, $saved_grades) = $event->getGradeRecords($type_object);
+
+  my $is_assignment = scalar @{$event->lookup("grade_event_id = $event_id",
+    undef, undef, undef,
+    [TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType',
+      { joinkey => "grade_event_type_id", jointype => "inner",
+        joincond => "grade_event_type_name = 'Assignment'" }),])};
 </%shared>
+
+<%method startup>
+  <%args>
+    $args
+  </%args>
+  <%perl>
+    # Check if the grade event is part of an assignment. If
+    # so, show an error and don't allow user to delete.
+    # This is because deleting the grade event would delete
+    # the content of the assignment.
+    if ($is_assignment) {
+      $m->comp("SELF:set_msg",
+        msg => 'Grade event cannot be deleted while the assignment exists.',
+        type => 'err');
+    }
+    else {
+      $m->comp("SELF:set_msg",
+        msg => 'Are you sure you want to delete this grade event and grade records?',
+        type => 'hintmsg');
+    }
+  </%perl>
+
+</%method>
 
 <& /tmpl/element:form, params => {
                 method => 'POST',
@@ -66,10 +94,11 @@
 					],
 				validate => { usage => 'No', },
 				data => $grades_data }} &>
-
+% unless ($is_assignment) {
 <& /tmpl/element:save_button, params=>{label=>'Delete',
                 cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
                 name=>'submit'} &>
+% }
 </table>
 </form>
 

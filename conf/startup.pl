@@ -21,6 +21,7 @@ BEGIN {
     use HSDB4::SQLRow::StatusHistory;
     use HSDB45::TimePeriod;
     use TUSK::Constants;
+    use TUSK::Core::Logger;
 
     # Limit size of the Apache processes
     $Apache2::SizeLimit::MAX_PROCESS_SIZE = $TUSK::Constants::maxApacheProcSize;

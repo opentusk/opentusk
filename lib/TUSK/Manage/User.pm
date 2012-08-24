@@ -22,8 +22,8 @@ use HSDB45::UserGroup;
 use TUSK::Constants;
 use Scalar::Util 'reftype';
 
-my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
-my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
 sub add_process{
     my ($req, $fdat) = @_;

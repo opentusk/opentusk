@@ -17,7 +17,7 @@
 	use TUSK::Constants;
 	use HSDB45::UserGroup;
 	use TUSK::Case::Case;
-	use TUSK::Functions;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 <%args>
@@ -68,8 +68,9 @@ else {
 <& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Announcements'} &>
 <ul class="gArrow">
 %		my $iter = 0;
+%		my $stripObj = TUSK::Application::HTML::Strip->new();
 %		foreach my $announcement (@{$announcement_ref}) {
-%			my $lnk_txt = TUSK::Functions::truncateTextWithoutTags($announcement->{item}->field_value("body"));
+%			my $lnk_txt = $stripObj->truncateAndRemoveHTML($announcement->{item}->field_value("body"));
 %			my $ann = $announcement->{item}->field_value("body");
 %			my ($grouping, $grouping_lnk);
 %			if($announcement->{type} eq 'course') {

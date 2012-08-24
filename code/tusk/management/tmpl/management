@@ -1,20 +1,6 @@
-<%doc>
- Copyright 2012 Tufts University 
-
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
-
- http://www.opensource.org/licenses/ecl1.php 
-
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
- limitations under the License.
-</%doc>
 <%once>
 use HSDB4::SQLRow::Content;
+use TUSK::Application::HTML::Strip;
 </%once>
 
 <%method print_my_groups>
@@ -319,9 +305,12 @@ $courses_hashref
 	width => "100%",
 	cellspacing =>"0",
 	cellpadding =>"0"  } &>
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $course (sort keys %{$courses_hashref->{$school}}) {
 %     my ($label,$id)=split("\0",$course);      
                     <tr> 
+%     ## strip out HTML tags from text that will appear as the label
+%     $label = $stripObj->removeHTML($label);
                       <td width="90%" class="graycell"><a href="course/display/<% $school %>/<% $id %>"><% $label %></a></td>
                     </tr>
 % }
@@ -329,3 +318,145 @@ $courses_hashref
 </table>
 % }
 </%method>
+
+
+<%method display_content_list>
+<%args>
+	$course
+	$contents
+	$data => {}
+	$selfpath
+	$courserole
+	$user_object
+</%args>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	name => 'content' } 
+&>
+	<input type="hidden" name="order" value="">
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	class => "tusk",
+	cellpadding =>"0" } &>
+
+	<tr class="header"> 
+		<td class="header-center" width="1%">Sort</td>
+		<td class="header-center" width="1%">&nbsp;</td>
+		<td class="header-left" width="65%">Title</td>
+
+% if (defined($course) && $course->type eq 'integrated course') {
+		<td class="header-left" width="1%">Originating&nbsp;Course</td>
+% }
+		<td class="header-left" width="31%">Authors</td>
+		<td class="header-center" width="1%">Actions</td>
+% if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR'))  {
+		<td class="header-center" width="1%"><input type="checkbox" onClick="toggle_boxes(this,this.form,'content')"></td>
+% }
+	</tr>
+<%perl>
+	my $content_id;
+	foreach my $i (0..scalar(@$contents)-1) {
+		$content_id = $contents->[$i]->primary_key;  
+		if ($i % 2 == 0){
+			$data->{class} = "even";
+		}else{
+			$data->{class} = "odd";
+		}
+		my $type = $contents->[$i]->field_value('type');
+		my $out_title = '';
+		my $out_id;
+		if (defined($course) && $course->type eq 'integrated course') {
+			my $orig_course = $contents->[$i]->get_originating_course( $course );	
+			if ( defined($orig_course) ) {
+				$out_title = $orig_course->title;
+				$out_id    = $orig_course->course_id;
+			}
+		}
+</%perl>
+	<tr class="<% $data->{class} %>">
+		<td class="layers-center" width="1%">
+		<select class="<% $data->{class} %>" name="order-box" onChange="this.form.order.value=this.options[this.selectedIndex].value;document.content.submit();">
+%		my $contents_count=scalar(@$contents);
+%		foreach my $j (1..$contents_count) {
+%			my $mrg = ($i+1)."-".$j;
+			<option class="<% $data->{class} %>" <% $j == ($i+1) ? "value='' selected" : "value='$mrg'" %>  ><% $j %></option>
+% 		}
+		</select></td>
+		<td class="layers-center" nowrap width="1%"><% $contents->[$i]->out_icon %></td>
+		<td class="layers-left" width="65%">
+%		if ($type eq "Collection" or $type eq "Multidocument") {
+		<a class="folder" href="/management/folders/<% $selfpath %>/<% $content_id %>"><% $contents->[$i]->field_value("title") %></a> (<%$content_id%>)
+%		} else {
+		<% $contents->[$i]->field_value("title") %> (<% $content_id %>)
+%		}
+%		if ($contents->[$i]->is_expired()) {
+		&nbsp;<i>expired</i>
+%		} elsif ($contents->[$i]->is_hidden()) {
+		&nbsp;<i>hidden</i>
+%		}
+		</td>
+%		if (defined($course) && $course->type eq 'integrated course') {
+		<td class="layers-left"><% $out_title %></td>
+%		}
+		<td class="layers-left" width="31%">
+%		if ($contents->[$i]->type eq 'External') {
+		<% $contents->[$i]->child_authors() %>
+%		} else {
+		<% join(', ', map {$_->out_abbrev} $contents->[$i]->child_authors()) %>
+%		}
+		</td>
+		<td class="layers-center" nowrap width="1%">
+%		my $course_type_p;
+%		if ($m->comp("/tmpl/url:get_full_path") =~ m/course/ ) {
+%			$course_type_p = $m->comp("/tmpl/url:get_course_type_path");
+%		}
+%		my $url;
+%		my $pathids = $m->comp("/tmpl/url:get_path_ids");
+%		my $pathstr = join("/",@$pathids);
+%		if ( $course_type_p ) {
+%    		my @paths = split(/\//, $course_type_p);
+%  	 		my $course_context = HSDB4::Constants::code_by_school( $m->comp("/tmpl/url:get_school") ) . $paths[1] . 'C/';
+%    		$url = "/view/content/$course_context$pathstr/$content_id";
+%		} else {
+%			$url = "/view/content/$selfpath/$content_id";
+%                       # view/content/course/... causes problems when
+%                       # generating breadcrumb trail. Fixes Preview
+%                       # $url by removing course/
+%                       $url =~ s!/course/!/!;
+%		}
+		<a href="<% $url %>" class="navsm">Preview</a>
+%		my $check_cont_perm = TUSK::Session::check_content_permissions($m->session, $course, $contents->[$i], $courserole, $user_object);
+%		if  ($check_cont_perm) {
+		<span class="littlespacing">|</span>
+		<a href="/management/content/addedit/<% $selfpath %>?content_id=<%$content_id%>&page=edit" class="navsm">Modify</a>
+%		}
+		</td>
+%		if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR'))  {
+        <td class="layers-center" width="1%">
+%			if ( $m->comp("SELF:check_course_permissions", token => 'DIRECTOR') or $check_cont_perm ) {
+		<input type="checkbox" name="content" value="<% $content_id %>">
+%			} else {
+		&nbsp;
+%			}
+		</td>
+%		}
+	</tr>
+% } # END FOR EACH
+ </table>
+% if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR'))  {
+ <table align="right" cellspacing="0" cellpadding="0">
+	<tr bgcolor="white"> 
+% 	if ($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+		<td class="button-right"><a href="javascript:formsubmit('/management/content/move/<% $selfpath %>')"><img src="/graphics/manage/Button-MoveChecked.gif" alt="Move Checked" border="0"></a></td>
+%	}
+		<td class="button-right"><a href="javascript:formsubmit('/management/content/delete/<% $selfpath %>')"><img src="/graphics/manage/Button-DeleteChecked.gif" alt="Delete Checked" border="0"></a></td>
+	</tr>
+ </table>
+% }
+</form>
+</%method>
+

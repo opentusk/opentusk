@@ -62,6 +62,7 @@
 	### cs - course summary,  fid - field id
 	### ts - teaching site summary, tsid(required) - teaching site id
 	### ss - student summary, uid(required) - student's user id
+
 	my $reports = { 
 		'cs' => { 	object => 'TUSK::Application::FormBuilder::Report::PatientLog::CourseSummary',
 				  	params => [$form_id, $course, $args->{tpid}] },
@@ -72,6 +73,7 @@
 		'ssc' => { 	object => 'TUSK::Application::FormBuilder::Report::PatientLog::StudentSummaryCollection',
 					params => [$form_id, $course, $args->{tpid}] },
 	};
+
 	if ($args->{rtype}) {
 		return $reports->{$args->{rtype}}{object}->new( @{$reports->{$args->{rtype}}{params}} );
 	} 
@@ -94,11 +96,11 @@
 <%perl>
 	my $column_headings = {
 		cs => {
-			summary => [ 'Site', '# Students', '# Students Reporting', '% Student Reporting', '# Patients Seen' ],
+			summary => [ 'Site', '# Students', '# Students Reporting', '% Student Reporting', '# Patients Seen'],
 		},
 		ts => {
 			summary => [ 'Student', '# Patients Seen' ],
-			byfield => [ '# Patients Seen', '# Students Reporting', '% Students Reporting'],
+			byfield => [ '# Patients Seen', '# Students Reporting', '% Students Reporting' ],
 		},
 		ss => {
 			summary => [ '# Total', '# Distinct', '# Patients Seen' ],
@@ -111,31 +113,70 @@
 
 
 <%method getCourseSummaryByFieldMap>
+<%args>
+	$field_id => undef
+</%args>
 <%perl>
-	my $map = {
-		bysite => { 
-			func => 'getReportBySite', 
-			label => 'View by Site', 
-			template => 'courseSummaryByField', 
-			title_func => 'site_name', 
-			colname => 'Site', 
-			key => 'tsid', 
-			rtype => 'ts' },
-		bystudent => {
-			func => 'getReportByStudent', 
-			label => 'View by Student', 
-			template => 'courseSummaryByField',
-			title_func => 'out_lastfirst_name', 
-			colname => 'Student', 
-			key => 'uid', 
-			rtype => 'ss' },
-		allsites => { 
-			func => 'getReportAllSites', 
-			label => 'Summary View', 
-			template => 'courseSummaryByField',
-			column_headings => [ '# Patients Seen','# Students Reporting', '% Students Reporting' ],
-		},
-	};
+	my $map;
+	if ($field_id && TUSK::FormBuilder::Field->new()->lookupKey($field_id)->isMultiSelectWithAttributes()) {
+		$map = {
+			bysite => { 
+				func => 'getReportBySite', 
+				label => 'View by Site', 
+				template => 'courseSummaryByField', 
+				title_func => 'site_name', 
+				colname => 'Site', 
+				key => 'tsid', 
+				rtype => 'ts' },
+			bysitepercentages => { 
+				func => 'getPercentagesBySite', 
+				label => 'View by Site (summary percentages)', 
+				template => 'coursePercentagesBySite', 
+				title_func => 'site_name', 
+				colname => 'Site', 
+				key => 'tsid' }, 
+			bystudent => {
+				func => 'getReportByStudent', 
+				label => 'View by Student', 
+				template => 'courseSummaryByField',
+				title_func => 'out_lastfirst_name', 
+				colname => 'Student', 
+				key => 'uid', 
+				rtype => 'ss' },
+			allsites => { 
+				func => 'getReportAllSites', 
+				label => 'Summary View', 
+				template => 'courseSummaryByField',
+				column_headings => [ '# Patients Seen','# Students Reporting', '% Students Reporting', '% Students'  ],
+			},
+		};
+	}
+	else {
+		$map = {
+			bysite => { 
+				func => 'getReportBySite', 
+				label => 'View by Site', 
+				template => 'courseSummaryByField', 
+				title_func => 'site_name', 
+				colname => 'Site', 
+				key => 'tsid', 
+				rtype => 'ts' },
+			bystudent => {
+				func => 'getReportByStudent', 
+				label => 'View by Student', 
+				template => 'courseSummaryByField',
+				title_func => 'out_lastfirst_name', 
+				colname => 'Student', 
+				key => 'uid', 
+				rtype => 'ss' },
+			allsites => { 
+				func => 'getReportAllSites', 
+				label => 'Summary View', 
+				template => 'courseSummaryByField',
+				column_headings => [ '# Patients Seen','# Students Reporting', '% Students Reporting', '% Students'  ],
+			},
+		};
+	}
 	return $map;
 </%perl>
 </%method>

@@ -14,7 +14,7 @@
  limitations under the License.
 </%doc>
 <%once>
-	use Mail::Sendmail;
+	use TUSK::Application::Email;
 </%once>
 
 <%attr>
@@ -35,9 +35,9 @@
 		foreach my $name (sort (keys %ARGS)){
 			my ($num, $field_name) = split('__', $name);
 
-			$field_name =~ s/_/ /g;
+			$field_name =~ s/_/ /g; #/
 		
-			if ($field_name =~ s/-/ \(/){
+			if ($field_name =~ s/-/ \(/){ #/
 				$field_name .= ")";
 			}	
 
@@ -66,14 +66,16 @@
 			}
 		}
 
-		Mail::Sendmail::sendmail(
-					To		=> $ARGS{whoto},
-					Bcc		=> $user->email(),
-					From		=> $user->first_name() . ' ' . $user->last_name() . '<' . $user->email() . '>',
-					Subject		=> $ARGS{subject},
-					Message		=> '<html><body>' . $email_text . '</body></html>',
-					'content-type' 	=> 'text/html; charset="iso-8859-1"',
-				);
+		my $mail = TUSK::Application::Email->new({
+			to_addr         => $ARGS{whoto},
+			bcc             => $user->email(),
+			from_addr       => $user->first_name() . ' ' . $user->last_name() . '<' . $user->email() . '>',
+			subject         => $ARGS{subject},
+			body            => '<html><body>' . $email_text . '</body></html>',
+			'Content-Type'  => 'text/html; charset="iso-8859-1"',
+		});
+		$mail->send();
+		warn "Error sending email: ", $mail->getError() if $mail->getError();
 
 		$redirection = ($ARGS{redirect}) ? $ARGS{redirect} : $ENV{HTTP_REFERER} . "?submit=1";
 		$redirection = '/home?msg=Form+submitted' if ($redirection eq '?submit=1' or $redirection =~ /$ENV{SCRIPT_NAME}/);

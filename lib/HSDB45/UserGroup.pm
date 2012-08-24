@@ -23,7 +23,7 @@ BEGIN {
 
     use vars qw($VERSION);
     
-    $VERSION = do { my @r = (q$Revision: 1.66 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.67 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version { return $VERSION }
@@ -798,7 +798,7 @@ sub systemwide_usergroup {
 
 sub schoolwide_usergroup {
     my $school = lc(shift);
-    my $user_group_id = $TUSK::Constants::SchoolWideUserGroup->{$school} || $TUSK::Constants::SystemWideUserGroup;
+    my $user_group_id = $TUSK::Constants::SchoolWideUserGroup{$school} || $TUSK::Constants::SystemWideUserGroup;
     return HSDB45::UserGroup->new(_school => $school, _id => $user_group_id);
 }
 

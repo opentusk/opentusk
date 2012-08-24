@@ -23,7 +23,7 @@
 
 <%once>
 	use TUSK::Shibboleth::User;
-	use Mail::Sendmail;
+	use TUSK::Application::Email;
 	use TUSK::Constants;
 </%once>
 
@@ -85,21 +85,21 @@ Please select the institution you are from to start an external login
 %	}
 </select>
 % } else {
-%	my %mail = (
-%		To => $TUSK::Constants::ErrorEmail,
-%		From => $TUSK::Constants::ErrorEmail,
-%		Subject => "Attempted Shib Login with Shibd Down",
-%		Message => "A user wanted to use the shibboleth login but as far as I can tell shibd is down.\n" . $checkError . "\nPlease check the shibd is running... there is no way to notify the user unless they called.",
-%	);
+%	my $mail = TUSK::Application::Email->new({
+%		to_addr => $TUSK::Constants::ErrorEmail,
+%		from_addr => $TUSK::Constants::ErrorEmail,
+%		subject => "Attempted Shib Login with Shibd Down",
+%		body => "A user wanted to use the shibboleth login but as far as I can tell shibd is down.\n" . $checkError . "\nPlease check the shibd is running... there is no way to notify the user unless they called.",
+%	});
 
 	I'm sorry, the shibboleth daemon does not appear to be running. This will prevent you from being able to login. <br>
-%	if (Mail::Sendmail::sendmail(%mail)) {
+%	if ($mail->send()) {
 		I have already notified the administrators of the system.
 %		if($TUSK::Constants::ContactURL) {
 			<br>If you would like to follow up on this issue, please view the <a href="<% $TUSK::Constants::ContactURL %>">Contact Us Page</a>
 %		}
 %	} else {
-%		warn("Unable to send email\n" . $Mail::Sendmail::error . "Shibd error: " . $checkError);
+%		warn("Unable to send email\n" . $mail->getError() . "Shibd error: " . $checkError);
 %		if($TUSK::Constants::ContactURL) {
 			<br>Pplease contact the administrators of this system using the <a href="<% $TUSK::Constants::ContactURL %>">Contact Us Page</a>
 %		} else {

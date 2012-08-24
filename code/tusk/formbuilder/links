@@ -13,6 +13,11 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
+<%once>
+	use TUSK::Application::HTML::Strip;
+</%once>
+
 <%method page>
 <%args>
 $args
@@ -64,9 +69,10 @@ $field
 	my $items = $field->getNonCatItems();
 	my $display_arrayref = [];
 	my $string;
+	my $stripObj = TUSK::Application::HTML::Strip->new();
 	foreach my $item (@$items){
 		if ($item->getContentID() > 1){
-			$string = "<a href=\"/hsdb4/content/" . $item->getContentID() . "\" target=\"content\">" . $item->getItemName() . "</a>";
+			$string = "<a href=\"/hsdb4/content/" . $item->getContentID() . "\" target=\"content\">" . $stripObj->removeHTML($item->getItemName()) . "</a>";
 		}else{
 			$string = $item->getItemName();
 		}
@@ -74,7 +80,7 @@ $field
 	}
 </%perl>
 <& /tmpl/element:object_selection_box, params => { 
-				columns => [ {'label' => $field->getFieldName(), 'field' => 'itemname'} ],
+				columns => [ {'label' => $field->getFieldName(), 'field' => 'itemname', 'html' => 1} ],
 				rows => $display_arrayref,
 				name => "itemnames",
 				}

@@ -23,8 +23,8 @@ sub new {
     my ($class, $args) = @_;
 
     my $self = {  
-	username			=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
-	password			=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+	username			=> $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},
+	password			=> $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword},
 	school				=> $args->{school},
 	course				=> $args->{course},
 	time_period			=> $args->{time_period},

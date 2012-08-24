@@ -33,18 +33,35 @@ sub start_request_hook {
 
 
 sub clean_args {
-	my $args = shift;
+  my $args = shift;
+  my $skip = 0;
 
-	my $df = HTML::Defang->new();
-	foreach my $arg (@$args) {
-		if (ref $arg eq 'ARRAY') {
-			foreach my $subarg (@$arg) {
-				$subarg = $df->defang($subarg);
-			}
-		}
-		else {
-			$arg = $df->defang($arg);
-		}
-	}
+  my $df = HTML::Defang->new();
+  # Defanging causes problems when trying to save and load evaluations
+  # because it mangles the password. I've inserted special logic here
+  # to take care of the eval case, but I think it would be better to
+  # only defang fields as needed. The current implementation is
+  # overkill. -- Mike Prentice
+  # Update: Added special logic for password resets as well, which were also
+  # being defanged.
+  foreach my $arg (@$args) {
+    if ($skip) {
+      $skip = 0;
+    } else {
+      if ($arg eq 'submit_password' or $arg eq 'load_password' or
+         $arg eq 'oldpassword' or $arg eq 'newpassword' or
+         $arg eq 'newpassword2') {
+        $skip = 1;
+      } else {
+        if (ref $arg eq 'ARRAY') {
+          foreach my $subarg (@$arg) {
+            $subarg = $df->defang($subarg);
+          }
+        } else {
+          $arg = $df->defang($arg);
+        }
+      }
+    }
+  }
 }
 1;

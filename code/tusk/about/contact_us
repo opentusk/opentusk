@@ -1,5 +1,5 @@
 <%once>
-	use Mail::Sendmail;
+	use TUSK::Application::Email;
 </%once>
 
 
@@ -60,15 +60,13 @@
   my $from = $TUSK::Constants::FeedbackEmail;
   if($ARGS{email} and $ARGS{email} =~ /\@/) {$from = $ARGS{email};}
   if($ARGS{sendemail})	{
-    my %mail = (     To => "$TUSK::Constants::Institution{Email}",
-                   From => $from ,
-                Subject => $ARGS{topic}.'-'.$ARGS{subject},
-                Message => $wholemessage
-               );
-
-    my $msg;
-    if(my $err = Mail::Sendmail::sendmail(%mail)) {$msg = 0;}
-    else                                          {Apache->warn($Mail::Sendmail::error);}
+    my $mail = TUSK::Application::Email->new({     
+				to_addr => "$TUSK::Constants::Institution{Email}",
+				from_addr => $from ,
+				subject => $ARGS{topic}.'-'.$ARGS{subject},
+				body => $wholemessage
+              });
+	$mail->send() or Apache->warn($mail->getError());
   }
 </%init>
 

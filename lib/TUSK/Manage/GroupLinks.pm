@@ -23,8 +23,8 @@ use TUSK::Constants;
 
 use strict;
 
-my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
-my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
 sub delete_process{
 	my ($school,$usergroup_id, $data) = @_;
@@ -149,3 +149,5 @@ sub show_pre_process{
 
     return $data;
 }
+
+1;

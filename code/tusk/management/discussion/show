@@ -1,12 +1,9 @@
 <%doc>
  Copyright 2012 Tufts University 
-
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
  you may not use this file except in compliance with the License. 
  You may obtain a copy of the License at 
-
  http://www.opensource.org/licenses/ecl1.php 
-
  Unless required by applicable law or agreed to in writing, software 
  distributed under the License is distributed on an "AS IS" BASIS, 
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
@@ -33,7 +30,6 @@
 	if ( $is_course_discussion ) {
 		$course         = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
 		$self_path      = "course/" . $school . "/" . $type_object->course_id;
-
 		@tc_members     = $course->child_users();
 		@tc_student     = $course->child_students();
 		$is_thesis_comm = ($course->type() =~ /thesis committee/i) ? 1 : 0;
@@ -51,7 +47,7 @@
 <& /tmpl/element:object_selection_box, params => { 
 				columns         => $col_fields, 
 				nobutton        => 1, 
-				sort_box        => (!$is_course_discussion || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})),
+				sort_box        => (TUSK::Session::is_admin($m->session, $m->session->{user}) || ($is_course_discussion && $course && TUSK::Session::check_course_permissions(TUSK::Session::course_user_role($course, $m->session->{user}->{user_id}), 'Author'))),
 				object_list     => $discussions,
 				action_columns  => $action_columns,
 				empty_message   => 'No discussions available.',
@@ -117,7 +113,7 @@
 	}
 
 	my $buttons = [];
-	if (!$is_course_discussion || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+	if (TUSK::Session::is_admin($m->session, $m->session->{user}) || ($is_course_discussion && $course && TUSK::Session::check_course_permissions(TUSK::Session::course_user_role($course, $m->session->{user}->{user_id}), 'Author'))) {
 		push @{$buttons}, {link_txt=>'/management/discussion/addedit/' . $self_path, display_txt=>'New Discussion'};
 	}
 	if (($is_thesis_comm && !scalar @{$discussions}) && (scalar @tc_members && scalar @tc_student)) {
@@ -128,7 +124,7 @@
 	my $col_fields = [ {'label'=>'Discussion Boards', 'field'=>'title_and_desc'}, {'label'=>'Available To','field'=>'available_to'} ];
 
 	my $action_columns = [ {'label'=>'View Board','link'=>"/forum/board_show.pl?bid=", 'is_query_string'=>1}, {'label'=>'Users','link'=>"/management/discussion/users/$self_path"} ];
-	if (!$is_course_discussion || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+	if (TUSK::Session::is_admin($m->session, $m->session->{user}) || ($is_course_discussion && $course && TUSK::Session::check_course_permissions(TUSK::Session::course_user_role($course, $m->session->{user}->{user_id}), 'Author'))) {
 		push @$action_columns, {'label'=>'Modify','link'=>"/management/discussion/addedit/$self_path"};
 		push @$action_columns, {'label'=>'Delete','link'=>"/management/discussion/delete/$self_path"};
 	}

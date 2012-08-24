@@ -18,6 +18,7 @@
 </%args>
 
 <%once>
+use TUSK::Application::HTML::Strip;
 use TUSK::Case::Case;
 use TUSK::Case::Phase;
 use TUSK::Case::Rule;
@@ -26,7 +27,6 @@ use TUSK::Case::RuleRelationType;
 use TUSK::Case::LinkPhaseQuiz;
 use TUSK::Quiz::Quiz;
 use TUSK::Quiz::Question;
-use TUSK::Functions;
 </%once>
 
 <%shared>
@@ -464,9 +464,10 @@ $m->comp('/tmpl/process:manipulate_rows',
 	$txt
 </%args>
 % my $max_length = 80;
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % $txt =~ s/<\s*\/?[?A-z][^>]*>//g;
 % if (length($txt) > $max_length) {
-% 	$txt = TUSK::Functions::truncateTextWithoutTags($txt, $max_length);
+% 	$txt = $stripObj->truncateAndRemoveHTML($txt, $max_length);
 % }
 % return $txt;
 </%def>

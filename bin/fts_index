@@ -1,19 +1,19 @@
- Copyright 2012 Tufts University 
-
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
-
- http://www.opensource.org/licenses/ecl1.php 
-
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
- limitations under the License.
-
-
 #!/usr/local/bin/perl  
+
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+#
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 use strict;
@@ -43,6 +43,7 @@ sub runAll();
 sub runUpdate();
 
 $ENV{XSL_ROOT} = "$FindBin::Bin/../code/XSL";
+$ENV{SERVER_ROOT} = "$FindBin::Bin/../";
 
 my ($content_id,$all,$archive,$noUMLSIndexing, $noprint,$idFile,$update,$debug,$numChildren,$restartAll);
 GetOptions( "content-id=s" => \$content_id,
@@ -281,6 +282,7 @@ sub runAll() {
 						  AND (end_date > NOW() OR end_date IS NULL)
 						  AND display=1
 			";
+
 			my $tableSQL = "CREATE TABLE IF NOT EXISTS multi_fts (
 						content_id int(10) unsigned NOT NULL,
 						converting_host varchar(100) default 'none', converting_pid int,
@@ -430,7 +432,6 @@ sub runAll() {
 			}
 		}
 
-
 		# Check to see if the number of rows in the table are 0 if not start over, if so, delete the table
 		my $statement = "select count(1) as numLeft from multi_fts where converting_host = 'none' OR converting_host = '$hostname';";
 		my $dbh = dbConnect();
@@ -443,7 +444,7 @@ sub runAll() {
 				$content_done = 1;
 				$message.= "All $totalContentToIndex content ids indexed";
 			} else {
-				$message.= ($totalContentToIndex - $num_left) ." of $totalContentToIndex indexed [$nextChar]";
+				$message.= "[$nextChar]  ". ($totalContentToIndex - $num_left) ." of $totalContentToIndex indexed";
 				if($nextChar eq '-') {$nextChar = '\\';}
 				elsif($nextChar eq '\\') {$nextChar = '|';}
 				elsif($nextChar eq '|') {$nextChar = '/';}

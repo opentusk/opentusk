@@ -88,8 +88,8 @@ sub getName {
 sub deleteContent {
     my ($self, $content_ids) = @_;
 
-    my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
-    my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
+    my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
+    my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
 
     eval {
 	foreach my $content_id (@{$content_ids}) {

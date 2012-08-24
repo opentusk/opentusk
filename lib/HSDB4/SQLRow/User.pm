@@ -29,7 +29,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.222 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.231 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::Constants qw(:school);
@@ -46,9 +46,8 @@ use TUSK::HomepageCategory;
 use Forum::MwfConfig;
 use TUSK::GradeBook::GradeEventEval;
 use TUSK::Application::GradeBook::GradeBook;
-
-
 use Data::Dumper;
+
 use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
 
@@ -554,7 +553,13 @@ sub parent_user_groups {
 	    # And use it to get a LinkSet, if possible
 	    push @groups, $linkdef->get_parents( $self->primary_key(), @conds )->parents();
 	}
-	$self->{-parent_user_groups} = \@groups;
+        # This was causing huge bloat in the stored session object
+        # (hsdb4.sessions table in the database). TEXT columns cannot
+        # store more than 64K, and the parent_user_groups object gets
+        # bloated when users belong to lots of groups, such as happens
+        # with administrators. Temporary fix is to comment out this
+        # assignment to make the session object much smaller.
+        # $self->{-parent_user_groups} = \@groups;
 	return @groups;
     }
     # Return the list
@@ -713,15 +718,21 @@ sub current_courses {
 	    }
 	}
 
-	if ($params->{'all_courses'} && $params->{'only_enrollment'}) {
-		$self->{'-all_enrollment_courses'} = \@courses;
-	} elsif ($params->{'all_courses'} && !$params->{'only_enrollment'}) {
-		$self->{'-all_courses'} = \@courses;
-	} elsif (!$params->{'all_courses'} && $params->{'only_enrollment'}) {
-		$self->{'-current_enrollment_courses'} = \@courses;
-	} elsif (!$params->{'all_courses'} && !$params->{'only_enrollment'}) {
-		$self->{'-current_courses'} = \@courses;
-	}
+        # This was causing huge bloat in the stored session object
+        # (hsdb4.sessions table in the database). TEXT columns cannot
+        # store more than 64K, and the parent_user_groups object gets
+        # bloated when users belong to lots of groups, such as happens
+        # with administrators. Temporary fix is to comment out this
+        # assignment to make the session object much smaller.
+	# if ($params->{'all_courses'} && $params->{'only_enrollment'}) {
+	# 	$self->{'-all_enrollment_courses'} = \@courses;
+	# } elsif ($params->{'all_courses'} && !$params->{'only_enrollment'}) {
+	# 	$self->{'-all_courses'} = \@courses;
+	# } elsif (!$params->{'all_courses'} && $params->{'only_enrollment'}) {
+	# 	$self->{'-current_enrollment_courses'} = \@courses;
+	# } elsif (!$params->{'all_courses'} && !$params->{'only_enrollment'}) {
+	# 	$self->{'-current_courses'} = \@courses;
+	# }
 
 	return @courses;
 }
@@ -2196,7 +2207,7 @@ sub get_annoucments_with_user_groups {
     my @systemwide_announcements = ();
 
     if ( @systemwide_announcements = HSDB45::Announcement::systemwide_announcements()) {
-	@announcements = map { 
+		@announcements = map { 
 		       { item   => $_,
 		         type   => 'user_group',
 		         school => $self->affiliation,
@@ -2204,13 +2215,16 @@ sub get_annoucments_with_user_groups {
                     } @systemwide_announcements;
     }
 
-    if ($self->affiliation && (lc($self->affiliation) ne lc($TUSK::Constants::SystemWideUserGroupSchool))) {
-	my $affiliation = lc $self->affiliation;
-	push(@announcements, map { 
+    if ($self->affiliation && ($self->affiliation ne $TUSK::Constants::SystemWideUserGroupSchool)) {
+		my $affiliation = $self->affiliation;
+		## get school user group id from constants file by affiliation; if affiliation is not a school, 
+		## then use the system-wide user group id
+		my $user_group = ($TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup}) ? $TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup} : $TUSK::Constants::SystemWideUserGroup;
+		push(@announcements, map {
                           { item   => $_, 
 			    type   => 'user_group',
 			    school => $self->affiliation, 
-			    id     => $TUSK::Constants::SchoolWideUserGroup->{$affiliation} }
+			    id     => $TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup} }
 		      } HSDB45::Announcement::schoolwide_announcements($self->affiliation));
     }
 

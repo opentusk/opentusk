@@ -25,8 +25,8 @@ use TUSK::Content::External::LinkContentField;
 
 use strict;
 
-my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
-my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
 sub process_reuse{
     my ($req,$course_id, $school, $is_parent_content, $user_id, $fdat) = @_;

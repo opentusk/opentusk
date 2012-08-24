@@ -54,8 +54,8 @@ sub verify_password {
     } elsif ($db_pw eq $old_sqlpw) {
        ## matches on old password, update to new and return success
        $user->field_value ('password', $sqlpw);
-       $user->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
-	           $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+       $user->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},
+	           $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
        return 1;
     } elsif ($db_pw eq $cryptpw) {
        ## the password matches the temp password, return success

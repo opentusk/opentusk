@@ -58,7 +58,6 @@ sub handler {
 	my $image = Image::Magick->new();
 	$image->Read( $fileOnDisk );
 	$r->no_cache;
-	$r->send_http_header;
 	$r->print($image->ImageToBlob()) or return DECLINED;
 	return OK;
 }

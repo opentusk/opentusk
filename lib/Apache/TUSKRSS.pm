@@ -34,7 +34,6 @@ sub handler {
 
     # Set up the header and send it
     $r->content_type("application/xml");
-    $r->send_http_header;
     my $base_url = "http://tusk.tufts.edu";
     my $title = "TUSK";
 

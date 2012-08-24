@@ -28,7 +28,7 @@
 
 
 <%once>
-	use Mail::Sendmail;
+	use TUSK::Application::Email;
 	use TUSK::Constants;
 	use Data::Dumper;
 </%once>
@@ -101,19 +101,22 @@
 
 	my $whotos = (ref $args{whoto} eq 'ARRAY') ? join(',', @{$args{whoto}}) : $args{whoto};
 
-	sendmail(
-		To				=> $whotos,
-		BCC				=> $args{bcc},
-		From			=> $from_email,
-		Subject			=> $args{subject},
-		Message			=> '<html><body>' . $email_text . '</body></html>',
-		'content-type' 	=> 'text/html; charset="iso-8859-1"',
-	) or sendmail(
-		To				=> $TUSK::Constants::SupportEmail,
-		From			=> $TUSK::Constants::SupportEmail,
-		Subject			=> 'Form Mail Error - ' . $ENV{HTTP_REFERER},
-		Message			=> '<html><body><div>' . $Mail::Sendmail::error . '</div><pre>' . Dumper(\%args) . '</pre></body></html>',
-		'content-type' 	=> 'text/html; charset="iso-8859-1"',
-	);
+	my $mail = TUSK::Application::Email->new({
+		to_addr         => $whotos,
+		bcc             => $args{bcc},
+		from_addr       => $from_email,
+		subject         => $args{subject},
+		body            => '<html><body>' . $email_text . '</body></html>',
+		'Content-Type'  => 'text/html; charset="utf-8"',
+	}); 
+	unless ($mail->send()) {
+		$mail = TUSK::Application::Email->new({
+			to_addr         => $TUSK::Constants::SupportEmail,
+			from_addr       => $TUSK::Constants::SupportEmail,
+			subject         => 'Form Mail Error - ' . $ENV{HTTP_REFERER},
+			body            => '<html><body><div>' . $mail->getError() . '</div><pre>' . Dumper(\%args) . '</pre></body></html>',
+			'Content-Type' => 'text/html; charset="utf-8"',
+		});
+	}
 </%perl>
 </%method>

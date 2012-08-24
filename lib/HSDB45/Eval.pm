@@ -30,7 +30,7 @@ use TUSK::Constants;
 BEGIN {
     use vars qw($VERSION);
     
-    $VERSION = do { my @r = (q$Revision: 1.69 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.70 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version {
@@ -314,7 +314,7 @@ sub delete_child_question {
     my ($u,$p);
     # handling case where password is not passed to function;
     if (!defined($second) && !defined($qid)){
-	($u,$p) =  ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+	($u,$p) =  ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 	$qid = $first;
     } else {
 	($u,$p) = ($first,$second);
@@ -673,7 +673,7 @@ sub incomplete_users {
 
 sub save {
 	my $self = shift;
-        return $self->SUPER::save ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+        return $self->SUPER::save ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 }
 
 sub is_user_complete {
@@ -832,7 +832,7 @@ sub get_preceding_qid {
 sub automate_all_labels {
     my ($self) = shift;
 
-    my ($username,$password) = ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+    my ($username,$password) = ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
     my $type;
     foreach my $q ($self->questions()) {
 	$type = $q->body()->question_type();

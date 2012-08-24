@@ -23,7 +23,7 @@ BEGIN {
 
     use vars qw($VERSION);
     
-    $VERSION = do { my @r = (q$Revision: 1.39 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.40 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version { return $VERSION }
@@ -56,8 +56,8 @@ use Text::Wrap qw(wrap $columns);
 use vars ();
 
 # File-private lexicals
-my $UserID = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername} ;
-my $Password = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword} ; 
+my $UserID = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername} ;
+my $Password = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword} ; 
 my $tablename = "class_meeting";
 my $primary_key_field = "class_meeting_id";
 

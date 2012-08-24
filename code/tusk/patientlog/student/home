@@ -15,6 +15,7 @@
 </%doc>
 <%once>
 	use HSDB4::SQLRow::User;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 <%attr>
@@ -24,8 +25,9 @@
 
 <%perl>
 	my $patientlogs = $m->session->{'user'}->get_patient_logs();
-
 	my $prev_title; my %seen_logs;  my $i = 0;
+	my $stripObj = TUSK::Application::HTML::Strip->new();
+
 	foreach my $log (@$patientlogs){
 		if (exists $seen_logs{$log->{course_id}}{$log->{form_id}}) {
 			my $j = $seen_logs{$log->{course_id}}{$log->{form_id}};
@@ -42,7 +44,7 @@
 
 		my $title = $log->{title};
 		
-		$log->{title} = ($title eq $prev_title) ? '' : "<a href=\"/view/course/$log->{school_name}/$log->{course_id}/patientlogs\">$title</a>";
+		$log->{title} = ($title eq $prev_title) ? '' : "<a href=\"/view/course/$log->{school_name}/$log->{course_id}/patientlogs\">" . $stripObj->removeHTML($title) . "</a>";
 		$prev_title = $title;
 		$seen_logs{$log->{course_id}}{$log->{form_id}} = $i++;
 	}
@@ -53,7 +55,7 @@
 <td class="no-button">
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [
-		{label => 'Course', field => 'title', width => "25%" },
+		{label => 'Course', field => 'title', width => "25%", 'html' => 1 },
 		{label => 'Form Name', field => 'form_name', width => "25%" },
 		{label => 'Time Period', field => 'time_period', width => "20%" },
 		{label => 'Site', field => 'site_name', width => "20%" },

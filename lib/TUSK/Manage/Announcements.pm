@@ -23,8 +23,8 @@ use TUSK::Constants;
 
 use strict;
 
-my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
-my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
 sub get_usergroups{
     my ($req, $udat) = @_;
@@ -74,19 +74,19 @@ sub show_pre_process{
 		$req->{extratext}->[$cur_ind]->{text} .= "<select name=\"ug_id\" onchange=\"document.generic.submit();\" class=\"navsm\">";
 		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\"0\" class=\"navsm\">Entire Course\n";
 	}elsif ($req->{type} eq "school"){
-		$data->{usergroup_id} = $TUSK::Constants::SchoolWideUserGroup->{lc($req->{school})} unless ($data->{usergroup_id});
+		$data->{usergroup_id} = $TUSK::Constants::SchoolWideUserGroup{lc($req->{school})} unless ($data->{usergroup_id});
 		$req->{extratext}->[$cur_ind]->{name} = "Group";
 		$req->{extratext}->[$cur_ind]->{text} = "<select name=\"ug_id\" onchange=\"document.generic.submit();\" class=\"navsm\">";
-		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\"".$TUSK::Constants::SchoolWideUserGroup->{lc($req->{school})}."\" class=\"navsm\">Entire School\n";
+		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\"".$TUSK::Constants::SchoolWideUserGroup{lc($req->{school})}."\" class=\"navsm\">Entire School\n";
 	}
 
     $data->{usergroups} = get_usergroups($req, $udat);
     
     foreach my $group (@{$data->{usergroups}}){
-	if ($group->primary_key == $data->{usergroup_id} or (!$data->{usergroup_id} and $group->primary_key == $TUSK::Constants::SchoolWideUserGroup->{lc($group->school)})){
+	if ($group->primary_key == $data->{usergroup_id} or (!$data->{usergroup_id} and $group->primary_key == $TUSK::Constants::SchoolWideUserGroup{lc($group->school)})){
 	    $maingroup = $group;
 	}
-	unless ($group->primary_key == $TUSK::Constants::SchoolWideUserGroup->{lc($group->school)}) {
+	unless ($group->primary_key == $TUSK::Constants::SchoolWideUserGroup{lc($group->school)}) {
 	    $maingroup = $group if ($group->primary_key == $data->{usergroup_id});
 	    $req->{extratext}->[$cur_ind]->{text} .= "<option class=\"navsm\" value=\"" . $group->primary_key . "\" ";
 	    $req->{extratext}->[$cur_ind]->{text} .= "selected" if ($group->primary_key == $data->{usergroup_id});

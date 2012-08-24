@@ -74,104 +74,13 @@
 	<td class="no-button">
 % }
 % if (@contents) {
-			<form name="content" method="post" class="no-padding">
-                        <table class="tusk" width="100%" cellspacing="0">
-                          <tr class="header"> 
-
-<!-- Objs select here -->
-% # (Sort), Title, (Originiating Course), Authors, Actions, (checkboxes)
-
-<%perl>
-
-my @columns;
-$columns[0] = { 'label' => '', 'field' => 'Image' };
-$columns[1] = { 'label' => 'Title', 'field' => 'Title' };
-if ( $course->type eq 'integrated course') { 
-	$columns[2] = { 'label' => 'Originating Course', 'field' => 'origcourse' };
-} else {
-	$columns[2] = { 'label' => 'Authors', 'field' => 'Authors' };
-}
-
-my @rows;
-
-foreach my $i (0..scalar(@contents)-1) {
-
-	my $type = $contents[$i]->field_value('type');
-	my $out_title = '';
-	my $content_id = $contents[$i]->primary_key;
-	
-
-    if ($type eq "Collection" or $type eq "Multidocument") {
-			$out_title="<a class='folder' href='/management/folders/$selfpath/$content_id '>".$contents[$i]->field_value('title')."</a> ($content_id)";
-	} else { 
-			 $out_title = $contents[$i]->field_value("title")."  ($content_id)";
-	}  
-
-	 if ($contents[$i]->is_expired()) { $out_title .= "<i>expired</i>"; }
-	 elsif ($contents[$i]->is_hidden()) { $out_title .= "<i>hidden</i>"; }
-	
-
-	if ($course->type eq 'integrated course') {
-		my $orig_course = $contents[$i]->get_originating_course( $course );
-
-		if ( defined($orig_course) ) {
-			$out_title .= $orig_course->title;
-		#	$out_id    = $orig_course->course_id;
-		}
-	}
-	$rows[$i]->{'id'} = $content_id;
-	$rows[$i]->{'Title'} = $out_title;
-	$rows[$i]->{'Image'} = $contents[$i]->out_icon;
- 
-   if ($type eq 'External') {
-		$rows[$i]->{'Authors'} =  $contents[$i]->child_authors() ;
-    }  else {
-		$rows[$i]->{'Authors'} = join(', ', map {$_->out_abbrev} $contents[$i]->child_authors()) ;
-	}
-	
-}
-
-my $actions;
-$actions = [  { 'label'=>'Preview','link' => '/view/content' } , { 'label' => 'Modify','link' => '/management/content/addedit/course', 'appendbefore' => '?content_id=', 'appendafter' => '&page=edit'}  ];
-
-#if ($is_director &&  TUSK::Session::check_content_permissions($m->session, $course, $contents[$i], $courserole, $user_object))
-#{
-#	push(@$actions, { 'label' => 'Modify','link' => '/management/content/addedit/course' });
-#}
-
-</%perl>
-
-<& /tmpl/element:object_selection_box, params => { 
-	sort_box => 1,
-	columns => \@columns,
-	rows => \@rows,
-	type_path => $m->comp("/tmpl/url:get_type_path"),
-	name => "content",
-	has_checkboxes => 1,
-	action_columns => $actions,
-} &>
-
-
-<!-- end obj selection -->
-
- </table>
-% if ($is_director) {
-
-<div style="float:right">
-
-<& /tmpl/element:cms_button_row, links => [
- 						{ link_txt    => "javascript:formsubmit('/management/content/move/$selfpath')",
-                          display_txt => 'Move Checked'
-                        },
-     { link_txt    => "javascript:formsubmit('/management/content/delete/$selfpath')",
-                          display_txt => 'Delete Checked'
-                        }
-                       ] 
+<& /management/tmpl/management:display_content_list, 
+    course => $course,
+    contents => \@contents,
+    selfpath => $selfpath,
+    courserole => $courserole,
+    user_object => $user_object
 &>
-</div>
-
-% }
-</form>
 % } else {
 	<br><i>No content is linked.</i>
 % }

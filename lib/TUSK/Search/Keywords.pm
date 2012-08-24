@@ -39,6 +39,8 @@ use strict;
 BEGIN {
     require Exporter;
     require TUSK::Core::SQLRow;
+	require TUSK::Application::HTML::Strip;
+
 
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
     
@@ -149,6 +151,9 @@ sub search{
 	#	}
 	#}
 
+	# take out HTML tags before search
+	my $stripObj = TUSK::Application::HTML::Strip->new();
+	$searchTerm = TUSK::Core::SQLRow::sql_escape($stripObj->removeHTML($searchTerm));
 
 	my $whereSearchTerm = &TUSK::Search::FTSFunctions::add_plusses_to_search_string($searchTerm);
 

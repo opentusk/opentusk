@@ -20,6 +20,7 @@ use MIME::Lite;
 use Mail::Sendmail;
 use utf8;
 use Encode;
+use TUSK::Constants;
 
 my $sendmail_error;
 
@@ -41,6 +42,9 @@ sub send {
 		Message => $self->{body},
 	};
 	$mailhash->{'Content-Type'} = $self->{'Content-Type'} || 'text/plain; charset="utf-8"';
+	if ($mailhash->{'Content-Type'} =~ m/html/i) {
+		$mailhash = fixHTMLPaths($mailhash);
+	}
 	$mailhash->{'BCC'} = $self->{bcc} if $self->{bcc};
 	$mailhash = fixUTF8($mailhash);
 
@@ -86,6 +90,14 @@ sub fixUTF8 {
 			}
 		}
 	}
+	return $mailhash;
+}
+
+# make all relative paths absolute for HTML email so that links/images 
+# will work as expected in email clients
+sub fixHTMLPaths {
+	my $mailhash = shift;
+	$mailhash->{'Message'} =~ s/([src|href]=["|'])\//$1http:\/\/$TUSK::Constants::Domain\//sg;
 	return $mailhash;
 }
 

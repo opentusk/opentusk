@@ -14,8 +14,9 @@
  limitations under the License.
 </%doc>
 <%once>
-	use TUSK::Constants;
-	use TUSK::Manage::User;
+use TUSK::Application::HTML::Strip;
+use TUSK::Constants;
+use TUSK::Manage::User;
 </%once>
 
 <& /tmpl/element:form, params => {
@@ -218,6 +219,7 @@
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
 
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $ug (@{$data->{usergroups}}) {
 %	if ($data->{tr_flag} == 0){
 %		print  "<tr>";
@@ -228,7 +230,8 @@
 %  if ($ARGS{page} eq "add") {
 <input type="checkbox" name="groups" value="<% $ug->primary_key %>">
 % }
-<% $ug->field_value('label') %>
+
+<% $stripObj->removeHTML($ug->field_value('label')) %>
 
 % if ($ARGS{page} eq "edit") {
 &nbsp;(<% $ug->school %>)
@@ -303,7 +306,10 @@ None
 	my $data = TUSK::Manage::User::addedit_pre_process($r,$usrid,$school,\%ARGS);
 	$useredit = $data->{useredit};
 
-	my @affiliations = @TUSK::Constants::Affiliations;
+	# include schools and affiliations in affiliations array to populate drop-down
+	my @schools = keys %TUSK::Constants::Schools;
+	my @affiliations = sort keys %{ { map { $_ => 1 } @TUSK::Constants::Affiliations, @schools} };
+
 	my @degrees = @TUSK::Constants::Degrees;
 	my @suffices = ('', 'II', 'III', 'IV', 'Jr.', 'Sr.');
 	my @statuses = ('Active','Inactive','Restricted','Test');

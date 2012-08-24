@@ -23,7 +23,7 @@
 	use TUSK::Manage::Course::Info;
 	use TUSK::Manage::Forums;
 	use HSDB45::Course;
-    use Data::Dumper;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 
@@ -33,12 +33,13 @@ function master_checkform(form){
 
 %               my @courses = HSDB45::Course->new( _school => $school )->lookup_conditions("oea_code is not null");
 %               my @oea_codes = map { $_->registrar_code() } @courses;
+%				my $stripObj = TUSK::Application::HTML::Strip->new();
 
                 var oea_codes = new Array();
 
 % foreach my $oea_code (@oea_codes) {
 %	if ($oea_code ne $course->registrar_code()) {
-                oea_codes['<% $oea_code %>'] = 1;
+                oea_codes['<% $stripObj->removeHTML($oea_code) %>'] = 1;
 %	}
 % }
                 var key = document.getElementById('cr_oea_code').value;

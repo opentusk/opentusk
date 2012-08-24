@@ -29,7 +29,7 @@ sub handler {
     my $r = shift;
     my $hostfile;
     my $remote_ip = $r->connection()->remote_ip();
-    return OK if $TUSK::Constants::PermissableIPs->{$remote_ip};
+    return OK if $TUSK::Constants::PermissableIPs{$remote_ip};
     $r->log_reason("Access forbidden to client IP: $remote_ip.");
     return FORBIDDEN;
 }

@@ -17,6 +17,7 @@
     use HSDB4::Constants;
     use HSDB45::Eval::Authoring;
     use HSDB45::Survey;
+    use TUSK::Application::HTML::Strip;
 	use TUSK::Core::HSDB45Tables::Course;
 	use TUSK::FTS::Eval::Index;
 	use XML::LibXML;
@@ -83,10 +84,11 @@
 		<td align="right" valign="top"><b>Course:</b></td>
 		<td align="left">
 %		my $eval_course_id = $ARGS{'course_id'} || $eval->field_value('course_id');
+%		my $stripObj = TUSK::Application::HTML::Strip->new();
 %		if ($eval_editable) {
 			<select name="course_id" size="6"  onChange="displayList(this.selectedIndex)">
 %			foreach my $course (@$courses) {
-				<option value="<% $course->getPrimaryKeyID() %>"<% ($eval_course_id == $course->getPrimaryKeyID) ? " selected" : "" %>><% $course->getTitle() %> (<% $course->getPrimaryKeyID() %>)</option>
+				<option value="<% $course->getPrimaryKeyID() %>"<% ($eval_course_id == $course->getPrimaryKeyID) ? " selected" : "" %>><% $stripObj->removeHTML($course->getTitle()) %> (<% $course->getPrimaryKeyID() %>)</option>
 %			}
 			</select>
 %		} else {
@@ -112,7 +114,7 @@
 			<select name="time_period_id" size="4">
 %			foreach my $tp (sort { $b <=> $a } @timeperiods) {
 				<option value="<% $tp->primary_key() %>"<% ($eval_time_period_id == $tp->primary_key) ? " selected" : "" %>>
-					<% $tp->primary_key() %>: <% $tp->out_label() %>
+					<% $tp->primary_key() %>: <% $stripObj->removeHTML($tp->out_label()) %>
 %				if ($tp->start_date()->has_value() && $tp->end_date()->has_value()) {
 					(<% $tp->start_date()->out_mysql_date() %> to <% $tp->end_date()->out_mysql_date() %>)
 %				}
@@ -196,7 +198,7 @@ my $due_params =
 				<option value="">Default Question Stylesheet</option>
 %				my $qss_id = $ARGS{'question_stylesheet'} || $eval->question_stylesheet_id;
 %				foreach my $stylesheet ($eval->question_stylesheets()) {
-				<option value="<% $stylesheet->stylesheet_id() %>"<% ($qss_id == $stylesheet->stylesheet_id) ? " selected" : "" %>><% $stylesheet->stylesheet_id() %>: <% $stylesheet->label() %></option>
+				<option value="<% $stylesheet->stylesheet_id() %>"<% ($qss_id == $stylesheet->stylesheet_id) ? " selected" : "" %>><% $stylesheet->stylesheet_id() %>: <% $stripObj->removeHTML($stylesheet->label()) %></option>
 %				}
 			</select>
 		</td>
@@ -209,7 +211,7 @@ my $due_params =
 				<option value="">Default Results Stylesheet</option>
 %				my $rss_id = $ARGS{'results_stylesheet'} || $eval->results_stylesheet_id;
 %				foreach my $stylesheet ($eval->results_stylesheets()) {
-				<option value="<% $stylesheet->stylesheet_id() %>"<% ($rss_id == $stylesheet->stylesheet_id) ? " selected" : "" %>><% $stylesheet->stylesheet_id() %>: <% $stylesheet->label() %></option>
+				<option value="<% $stylesheet->stylesheet_id() %>"<% ($rss_id == $stylesheet->stylesheet_id) ? " selected" : "" %>><% $stylesheet->stylesheet_id() %>: <% $stripObj->removeHTML($stylesheet->label()) %></option>
 %				}
 			</select>
 		</td>
@@ -235,7 +237,7 @@ my $due_params =
 %		foreach my $link (@$links) {
 %			if ($link->getPrimaryKeyID() && ref($link->getTeachingSiteObject()) eq 'TUSK::Core::HSDB45Tables::TeachingSite') {
 %				my $teaching_site = $link->getTeachingSiteObject();
-,"<% $teaching_site->getPrimaryKeyID() %>|<% $teaching_site->getSiteName() %>"
+,"<% $teaching_site->getPrimaryKeyID() %>|<% $stripObj->removeHTML($teaching_site->getSiteName()) %>"
 %			}
 %		}
 	];
@@ -321,7 +323,7 @@ my $due_params =
 		<td align="left"><select name="eval_to_copy">
 %		foreach my $other ($blank_eval->lookup_conditions('course_id = ' . $eval->field_value ('course_id') . ' and eval_id != ' . $eval->field_value('eval_id'))) {
 			<option value="<% $other->primary_key() %>">
-				<% $other->out_label() %> (<% $other->primary_key() %>)
+				<% $stripObj->removeHTML($other->out_label()) %> (<% $other->primary_key() %>)
 			</option>
 %		}
 		</select></td></tr>
@@ -412,7 +414,7 @@ my $due_params =
 		<option value="0">Beginning</option>
 %		foreach my $question (@questions) {
 			<option value="<% $question->primary_key() %>">
-				<% $question->out_text_display() %>
+				<% $stripObj->removeHTML($question->out_text_display()) %>
 			</option>
 %		}
 		</select></td></tr>

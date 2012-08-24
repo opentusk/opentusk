@@ -61,9 +61,12 @@ use Apache2::Const qw/REDIRECT NOT_FOUND/;
 use Apache2::Cookie;
 use Data::Dumper;
 use TUSK::Session;
+use TUSK::Core::Logger;
 use TUSK::Core::SessionTimePeriod;
 use TUSK::Permission;
 use HTTP::Date;
+
+my $TUSK_Logger = TUSK::Core::Logger->new();
 
 # useful debug subroutine
 sub pre_dump{
@@ -134,10 +137,10 @@ my $authentication = sub {
 	if ($m->base_comp->attr('check_permissions_by_context')){
 		my $typeObj = $m->comp("/tmpl/url:get_type_object");
 
-		## if context is a course, only give access if user is school admin or course director
+		## if context is a course, only give access if user has role equal or above what the "check_permissions_by_context" attribute has been set to
 		if (ref($typeObj) eq "HSDB45::Course") {
-		unless (TUSK::Session::is_school_admin($m->session, $typeObj->school(), $m->session->{'user'})) {
-				if ($m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT') == 0) {
+			unless (TUSK::Session::is_school_admin($m->session, $typeObj->school(), $m->session->{'user'})) {
+				if ($m->comp("SELF:check_course_permissions", token => $m->base_comp->attr('check_permissions_by_context')) == 0) {
 					$m->redirect('/home?errmsg=Access+Denied');
 				}
 			}

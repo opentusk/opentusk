@@ -20,21 +20,6 @@ use HSDB45::TimePeriod;
 use FindBin;
 
 
-#############################################
-# return any given string in text only 
-# upto number of chars (default= 50), remove html tags
-#############################################
-sub truncateTextWithoutTags {
-
-    my ($text, $maxCharSize) = @_;
-    $maxCharSize ||= 50;
-
-    $text =~ s/<\s*\/?[?A-z][^>]*>//g;
-
-    return substr($text, 0, $maxCharSize) . ' ...';
-}
-
-
 sub truncate_string {
     my $stringToWorkOn = shift();
 

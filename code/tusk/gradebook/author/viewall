@@ -14,6 +14,7 @@
  limitations under the License.
 </%doc>
 <%once>
+	use TUSK::Application::HTML::Strip;
 	use TUSK::GradeBook::GradeEvent;
 	use TUSK::GradeBook::GradeStats;
 	use TUSK::GradeBook::LinkUserGradeEvent;
@@ -119,6 +120,7 @@ for  (my $i=0; $i < $size; $i++)
 	print "<tr class='$class'><td><a href='/gradebook/author/gradeaddeditbystudent/$type_path/$stdnt'> ".$lname.",".$fname."</a></td>";
 
     #for each grade event
+	my $stripObj = TUSK::Application::HTML::Strip->new();
     for (my $j=0; $j < scalar(@$events); $j++)
 	{
 		my $event_id = @$events[$j]->getGradeEventID(); 
@@ -126,7 +128,7 @@ for  (my $i=0; $i < $size; $i++)
 		my $linkugrades = TUSK::GradeBook::LinkUserGradeEvent->lookupReturnOne($qString);
 		if(defined($linkugrades)){
 			my $grade = $linkugrades->getGrade();
-	    	print "<td class='layers-center'> $grade </td>";
+	    	print "<td class='layers-center'> " . $stripObj->removeHTML($grade) . " </td>";
 		}else {
 			print "<td  class='layers-center'>  </td>";
 		}

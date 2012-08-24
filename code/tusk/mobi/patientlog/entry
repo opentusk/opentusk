@@ -35,7 +35,7 @@
 	use TUSK::FormBuilder::Form;
     use TUSK::Application::FormBuilder::Report::Course;
 	use TUSK::Application::FormBuilder::DynamicList;
-	use Data::Dumper;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 <%shared>
@@ -114,7 +114,6 @@
    
 	my $is_new=0;
 	if ($args->{submit_check}) {
-
 		my $dont_save = 0;
 	    my $entry_id;
 		my $lngth = scalar(@$fields);
@@ -124,13 +123,33 @@
 		}		
 		else {
 			if( @$fields[$args->{index}]->getRequired == 1){
-
 				my $field_id = @$fields[$args->{index}]->getPrimaryKeyID();
-				my $key = "id_".$field_id;
-				if ($args->{$key} eq '' ){
-					print "<br><b>Error: This field requires a value.</b><br>";
-					$dont_save =1;
+				my $value;
+				
+				## if it's a required multiselect with attributes, loop through the possible fields that might be selected
+				if (@$fields[$args->{index}]->isMultiSelectWithAttributes()) {
+					my $items = @$fields[$args->{index}]->getItems();
+					my $attributes = @$fields[$args->{index}]->getAttributes();
+					
+					foreach my $item (@$items) {
+						my $item_id = $item->getPrimaryKeyID();
+						if ($args->{"multiwithattr_" . $field_id . "_" . $item_id . "_selected"} == "1") {
+							$value = 1;
+							last;
+						}
+					}
+					if (!$value) {
+						print "<br><b>Error: </b>" . @$fields[$args->{index}]->getFieldName() . "<b> field requires a value.</b><br>";
+						$dont_save =1;
+					}
 				}
+				## otherwise, just a simple check
+				else {
+					if ($args->{"id_".$field_id} eq '' ){
+						print "<br><b>Error: </b>" . @$fields[$args->{index}]->getFieldName() . "<b> field requires a value.</b><br>";
+						$dont_save =1;
+					}
+				}				
 			}
 		}
 		if ($dont_save == 0 ) {
@@ -293,10 +312,12 @@ else {
 	$report->setUserID($m->session->{'user'}->user_id());
     $report->setPersonalFlag(1);
     my $data = $report->HistoryperPerson($m->comp("/formbuilder/util:get_time_period_id"), $m->comp("/formbuilder/util:get_teaching_site_id"));
-	my ($cur_entry_id, $cur_field_id, $text, $field_count, $index);
+	my ($cur_field_id, $text, $field_count, $index);
 	my $options = [];
+	my $cur_entry_id = -1;
 	my $string = "";
 	my ($prev_field_name, $field_name);
+	my $stripObj = TUSK::Application::HTML::Strip->new();
 
 	foreach my $dataset (@$data){
     	if ($dataset->{entry_id} != $cur_entry_id){
@@ -312,7 +333,7 @@ else {
             $index++;
             $field_count = 0;
             $string = "";
-            $cur_field_id = "";
+            $cur_field_id = 0;
             $prev_field_name = "";
         }
 
@@ -335,10 +356,8 @@ else {
 
         if ($dataset->{'item_abbreviation'}){
         	$text = $dataset->{'item_abbreviation'};
-		}elsif($dataset->{length($dataset->{'item_name'}) > 15}){
-			$text = substr($dataset->{'item_name'}, 0, 12) . "..."
 		}else{
-			$text = $dataset->{'item_name'};
+			$text = $stripObj->truncateAndRemoveHTML($dataset->{'item_name'}, 15);
 		}
 		next if (scalar(@{$options->[$index - 1]->{'data'}}) > 2);
 		push (@{$options->[$index - 1]->{'data'}}, $text) if ($text);
@@ -359,7 +378,7 @@ Patient:
 <%perl>
 	foreach my $option (@$options){
 		my $string = join(", ", @{$option->{'data'}});
-    	$string = (length($string) > 60) ? substr($string, 0, 57) . "..." : $string;
+    	$string = $stripObj->truncateAndRemoveHTML($string, 60);
 		my $selected = ($args->{entry_id} == $option->{entry_id}) ? 'selected' : '';
 		print "<option value=\"" . $option->{'entry_id'} . "\" $selected>" . $option->{'date'} . $option->{'string'} . " - " . $string . "</option>\n";
 	}

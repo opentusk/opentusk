@@ -29,7 +29,7 @@ sub handler {
 
     ## automatically approve if the request came from the server itself
     my $remote_ip = $r->connection()->remote_ip();
-    if ($TUSK::Constants::PermissableIPs->{$remote_ip}) {
+    if ($TUSK::Constants::PermissableIPs{$remote_ip}) {
 	$r->user("TUSKserver");
 	return OK;
     }

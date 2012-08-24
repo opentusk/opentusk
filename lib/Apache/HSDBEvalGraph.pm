@@ -49,7 +49,6 @@ sub handler {
     $r->update_mtime($bar->get_modified->out_unix_time());
     $r->set_last_modified;
     $r->content_type($bar->get_mime_type());
-    $r->send_http_header();
 
     unless ($r->header_only()) {
 	$r->print($bar->get_graphic());

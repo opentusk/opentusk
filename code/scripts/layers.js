@@ -69,7 +69,7 @@ function createCKEinstance(ckefield_id) {
 		toolbarCanCollapse : false,
 		removePlugins : 'elementspath',
 		resize_enabled : false,
-		readOnly : true, 
+		readOnly : true 
 	});
 	instance.on('contentDom', function(e) {
 		this.document.on('click', function(event) {
@@ -102,7 +102,7 @@ function createCKEinstance(ckefield_id) {
 				resize_enabled : true,
 				readOnly : false,
 				height : edheight - 200,
-				width : edwidth - 10,
+				width : edwidth - 10
 			});
 			// add lightbox animation
 			$('div#largeditor').css({
@@ -110,7 +110,7 @@ function createCKEinstance(ckefield_id) {
 				width: openCKEditor.width,
 				height: openCKEditor.height,
 				top: openCKEditor.parent.position().top,
-				left: openCKEditor.parent.position().left,
+				left: openCKEditor.parent.position().left
 			});
 			// add dragability
 			$('div#largeditor').draggable({handle: 'h4#crSelItmHdr'}); 
@@ -119,7 +119,7 @@ function createCKEinstance(ckefield_id) {
 				height: edheight,
 				width: edwidth,
 				top: (($(window).height() - edheight) / 2) + $(window).scrollTop(),
-				left: (($(window).width() - edwidth) / 2) + $(window).scrollLeft(),
+				left: (($(window).width() - edwidth) / 2) + $(window).scrollLeft()
 			}, 500, function() {
 				instance.focus();
 			});
@@ -144,7 +144,7 @@ function closeCKEbox() {
 		left: openCKEditor.parent.position().left,
 		opacity: 'hide',
 		width: openCKEditor.width,
-		height: openCKEditor.height,
+		height: openCKEditor.height
 	}, 500, function() { 
 		$('div#crCurtain').css('display', 'none');
 	});

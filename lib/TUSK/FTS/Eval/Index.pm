@@ -27,7 +27,7 @@ use TUSK::Constants;
 
 sub deleteDocument {
     my ($docid) = @_;
-    HSDB4::Constants::set_user_pw($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+    HSDB4::Constants::set_user_pw($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
     my $dbh = HSDB4::Constants::def_db_handle();
     my $arr_ref = $dbh->selectall_arrayref("select id from fts.fts_eval_docid where name = '$docid'");
 

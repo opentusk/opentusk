@@ -30,8 +30,8 @@ use File::Type;
 use IO::File;
 use DBI qw(:sql_types);
 
-my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
-my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
 my $CHUNK_SIZE = 32768; # for calls to 'read' 
 our %path = (
@@ -805,7 +805,7 @@ sub update_objectives{
 		    
 		    $objective->set_field_values(body => @$objectives[$i]->{body});
 		    
-		    ($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+		    ($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 		    return (0, $msg) unless ($rval > 0);
 		}
 		

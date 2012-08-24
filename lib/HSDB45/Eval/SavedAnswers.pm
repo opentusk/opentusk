@@ -20,10 +20,13 @@ use HSDB4::Constants qw/:school/;
 use HSDB4::SQLRow::User;
 use HSDB45::Eval;
 use Digest::MD5;
-use Storable qw(nfreeze thaw);
+use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.13 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+BEGIN { $ENV{PERL_JSON_BACKEND} = 'JSON::PP' }
+use JSON;
+
+$VERSION = do { my @r = (q$Revision: 1.21 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 sub version { return $VERSION; }
 
 my @mod_deps  = ('HSDB45::Eval');
@@ -141,6 +144,7 @@ sub do_lookup {
     eval {
 	my $db = $self->school_db();
 	my $data;
+	
 	if ($self->id()) {
 	    my $sth = $dbh->prepare(qq[SELECT data FROM $db\.eval_save_data
 				       WHERE eval_save_data_id=?]);
@@ -156,7 +160,10 @@ sub do_lookup {
 	    $self->{-id} = $id;
 	}
 	if ($data) {
-	    $self->{-answers} = thaw $data;
+		#Get JSON to expect a character string, rather than octets.
+		#This is because the default database handle will transform query results into
+		#character strings on the way in. 
+	    $self->{-answers} = JSON->new->loose->decode($data);
 	    $self->{-has_answers} = 1;
 	}
     };
@@ -174,20 +181,23 @@ sub has_answers {
 sub do_save {
     my $self = shift;
     my $dbh = HSDB4::Constants::def_db_handle();
-    my $data = nfreeze $self->answers();
+	my $answers = $self->answers();
+
+	my $json_answers = encode_json($answers);
+	$json_answers =~ s/'/\\'/g;      #Snip out single quote characters.
+	$json_answers =~ s/\\r\\n/\\n/g; #Snip out the extra carriage returns introduced by encode_json.
+
     eval {
 	my $db = $self->school_db();
 	if ($self->id()) {
-	    $dbh->do(qq[UPDATE $db\.eval_save_data SET data=? WHERE eval_save_data_id=?],
-		     undef, $data, $self->id());
+		$dbh->do("UPDATE $db\.eval_save_data SET data = ? WHERE eval_save_data_id = ?", undef, $json_answers, $self->id());
 	}
 	else {
-	    $dbh->do(qq[INSERT INTO $db\.eval_save_data (user_eval_code, data) VALUES (?,?)],
-		     undef, $self->hash(), $data);
+		$dbh->do("INSERT INTO $db\.eval_save_data (user_eval_code, data) VALUES (?, ?)", undef, $self->hash(), $json_answers);
 	    $self->{-id} = $dbh->{'mysql_insertid'};
 	}
     };
-    warn if $@;
+    die $@ if $@;
 }
 
 # Deletes an answers object when that's appropriate

@@ -14,7 +14,9 @@
  limitations under the License.
 </%doc>
 <%once>
+	use TUSK::Application::HTML::Strip;
 	use TUSK::Core::LinkContentKeyword;
+	use TUSK::Core::QuizQuestionKeyword;
 	use TUSK::UMLS::UmlsConceptMention;
 	my @rank_options = ();
 
@@ -208,15 +210,17 @@
 		my $nav_bars = $m->comp('PARENT:get_nav_bars');
 		my $allpaths = $m->comp("/tmpl/url:get_full_path");
         my $quiz_question_object = TUSK::Quiz::Question->new()->lookupKey($question_id);
+        my $stripObj = TUSK::Application::HTML::Strip->new();
 
 		my $quiz_object = TUSK::Quiz::Quiz->new()->lookupKey($quiz_id);
-		my $quiz_title = substr($quiz_object->getTitle(),0,27)."...";
+		my $quiz_title = $stripObj->truncateAndRemoveHTML($quiz_object->getTitle(), 30);
+
 		my @qpath_array = split('/',$allpaths);
 		pop(@qpath_array);
 		my $addedit_quiz_path = join('/',@qpath_array);
 		push (@$nav_bars,{ label => 'Quiz: '.$quiz_title, href => '/quiz/author/addedit/' . $addedit_quiz_path });
 
-		my $body = substr($quiz_question_object->getBody(),0,27)."...";
+		my $body = $stripObj->truncateAndRemoveHTML($quiz_question_object->getBody(), 30);
 		push (@$nav_bars,{ label => $body, href => '/quiz/author/questionaddedit/' . $allpaths });
 
 		return $nav_bars;

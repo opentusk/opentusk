@@ -170,6 +170,7 @@ sub writeConfigFiles {
 		} else {
 			s/TUSK_HOST_NAME/$TUSK::Constants::shibbolethSP/g;
 			s/TUSK_SECURE_PORT/$TUSK::Constants::shibSPSecurePort/g;
+			s/TUSK_EMAIL/$TUSK::Constants::SupportEmail/g;
 			s/TUSK_LOG_DIRECTORY/$ENV{LOG_ROOT}/g;
 			s/TUSK_CERT_KEY/$keyFile/g;
 			s/TUSK_CERT/$certFile/g;

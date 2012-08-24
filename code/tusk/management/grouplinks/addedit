@@ -1,12 +1,9 @@
 <%doc>
  Copyright 2012 Tufts University 
-
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
  you may not use this file except in compliance with the License. 
  You may obtain a copy of the License at 
-
  http://www.opensource.org/licenses/ecl1.php 
-
  Unless required by applicable law or agreed to in writing, software 
  distributed under the License is distributed on an "AS IS" BASIS, 
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
@@ -15,6 +12,7 @@
 </%doc>
 <%once>
 	use TUSK::Manage::GroupLinks;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 <%shared>
@@ -45,15 +43,13 @@
 <tr>
 <td class="labelgray">Course:</td>
 <td class="cell-left">
-
 % if ( @{$data->{courses}} ) {
 <select name="course_id" <% ($ARGS{page} eq "add") ? "multiple size='10'" : "" %>  >
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $course (@{$data->{courses}}) {
 % my $slct_str = "";
 % if ( ($ARGS{page} eq "edit") && ($course->primary_key == $data->{current_course_id}) ) { $slct_str ="selected"; }
-	
-	<option value="<% $course->primary_key %>" <% $slct_str %>  > <% $course->out_title %> </option>	
-
+	<option value="<% $course->primary_key %>" <% $slct_str %>  > <% $stripObj->removeHTML($course->out_title) %> </option>	
 % } # end foreach
 </select>
 % } else {
@@ -63,10 +59,9 @@
 <tr>
 <td class="labelgray">Time Period:</td>
 <td class="cell-left"><select name="time_period_id">
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $tp (@{$data->{timeperiods}}) {
-
-	<option value="<% $tp->primary_key %>" <% ( ($ARGS{page} eq "edit") && ($tp->primary_key == $data->{current_time_period_id} )) ? "selected" : "" %>  ><% $tp->out_display %></option>	
-
+	<option value="<% $tp->primary_key %>" <% ( ($ARGS{page} eq "edit") && ($tp->primary_key == $data->{current_time_period_id} )) ? "selected" : "" %>  ><% $stripObj->removeHTML($tp->out_display) %></option>	
 % } # end foreach
 </select></td></tr>
 <tr> 

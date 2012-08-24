@@ -2607,7 +2607,7 @@ sub printError
 	
 	die $msg if ($ENV{COMMAND_LINE});
 
-	my $r = Apache->request();
+	my $r = $m->{ap};
 	# Avoid recursion
 	return if $m->{error};
 	$m->{error} = 1;
@@ -2638,7 +2638,7 @@ sub printError
 	}
 
 	# We are on a development machine, go ahead and print errors to screen.
-	if ($r->define('DEV') or $msg ne $lng->{errDb}) {
+	if (Apache2::ServerUtil::exists_config_define('DEV') or $msg ne $lng->{errDb}) {
 	    if (MP || CGI) {
 		# Escape HTML in message
 		$msg = $m->escHtml($msg, 2) if MP || CGI;

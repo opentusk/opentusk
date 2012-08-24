@@ -1,4 +1,5 @@
-<xsl:comment>
+<?xml version="1.0" encoding="utf-8"?>
+<!-->
  Copyright 2012 Tufts University 
 
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
@@ -12,7 +13,7 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
  See the License for the specific language governing permissions and 
  limitations under the License.
-</xsl:comment>
+<-->
 
 
 <xsl:stylesheet

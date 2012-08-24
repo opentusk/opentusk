@@ -18,7 +18,7 @@ package HSDB45::Eval::MergedResults;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.9 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.10 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 sub version { return $VERSION; }
 
 my @mod_deps  = ('HSDB45::Eval::Results');
@@ -253,7 +253,7 @@ sub edit_merged_eval{
 	$self->primary_eval_id($fields->{primary_eval});
 	$self->secondary_eval_ids($fields->{secondary_evals});
 	$self->title($fields->{title}); 
-	$self->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+	$self->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 	return 0;
 
 

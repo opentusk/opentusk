@@ -1,24 +1,10 @@
-<%doc>
- Copyright 2012 Tufts University 
-
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
-
- http://www.opensource.org/licenses/ecl1.php 
-
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
- limitations under the License.
-</%doc>
 <%once>
 	use TUSK::Import;
 	use TUSK::Import::Structure;
 	use HSDB4::Constants;
 	use TUSK::Constants;
 	use HSDB45::UserGroup;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 <%init>
@@ -66,10 +52,10 @@ my $school = $m->comp('/tmpl/url:get_school');
 			}
 
 			my $rowcount = 1;
+			my %import_fields = map { $_ => 1 } $import->get_fields();
 			foreach my $r ($import->get_records) {
-				$user_id = $r->get_field_value("user_id");
-				
 				## ensure user_id isn't blank
+				$user_id = $import_fields{'user_id'} ? $r->get_field_value("user_id") : '';
 				(my $test_field = $user_id) =~ s/\s//g;
 				if (!$test_field) {
 					$fail++;
@@ -78,7 +64,8 @@ my $school = $m->comp('/tmpl/url:get_school');
 					next;
 				}
 				## ensure last name isn't blank
-				($test_field = $r->get_field_value("lastname")) =~ s/\s//g;
+				$test_field = $import_fields{'lastname'} ? $r->get_field_value("lastname") : '';
+				$test_field =~ s/\s//g;
 				if (!$test_field) {
 					$fail++;
 					$import->add_log("error","row $rowcount: last name missing for $user_id");
@@ -86,7 +73,8 @@ my $school = $m->comp('/tmpl/url:get_school');
 					next;
 				}
 				## ensure first name isn't blank
-				($test_field = $r->get_field_value("firstname")) =~ s/\s//g;
+				$test_field = $import_fields{'firstname'} ? $r->get_field_value("firstname") : '';
+				$test_field =~ s/\s//g;
 				if (!$test_field) {
 					$fail++;
 					$import->add_log("error","row $rowcount: first name missing for $user_id");
@@ -94,7 +82,8 @@ my $school = $m->comp('/tmpl/url:get_school');
 					next;
 				}
 				## ensure email isn't blank
-				($test_field = $r->get_field_value("email")) =~ s/\s//g;
+				$test_field = $import_fields{'email'} ? $r->get_field_value("email") : '';
+				$test_field =~ s/\s//g;
 				if (!$test_field) {
 					$fail++;
 					$import->add_log("error","row $rowcount: email missing for $user_id");
@@ -103,12 +92,14 @@ my $school = $m->comp('/tmpl/url:get_school');
 				}
 
 				## warn if sid is blank
-				($test_field = $r->get_field_value("sid")) =~ s/\s//g;
+				$test_field = $import_fields{'sid'} ? $r->get_field_value("sid") : '';
+				$test_field =~ s/\s//g;
 				if (!$test_field) {
 					$import->add_log("warn","row $rowcount: sid missing for $user_id");
 				}
 				## warn if trunk is blank
-				($test_field = $r->get_field_value("trunk")) =~ s/\s//g;
+				$test_field = $import_fields{'trunk'} ? $r->get_field_value("trunk") : '';
+				$test_field =~ s/\s//g;
 				if (!$test_field) {
 					$import->add_log("warn","row $rowcount: trunk missing for $user_id");
 				}
@@ -117,45 +108,70 @@ my $school = $m->comp('/tmpl/url:get_school');
 				$user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 
 				if ($user->primary_key) {
+					my $test_sid;
 					## if sid was included and it's different from what's in the DB, throw error
-					($test_field = $r->get_field_value("sid")) =~ s/\s//g;
-					if ($test_field && $user->field_value('sid') && ($user->field_value('sid') ne $r->get_field_value("sid"))) {
-						$fail++;
-						$import->add_log("error", "row $rowcount: $user_id exists and sid value is different");
-						$rowcount++;
-						next;
+					if ($import_fields{'sid'}) {
+						($test_sid = $r->get_field_value("sid")) =~ s/\s//g;
+						if ($test_sid && $user->field_value('sid') && ($user->field_value('sid') ne $r->get_field_value("sid"))) {
+							$fail++;
+							$import->add_log("error", "row $rowcount: $user_id exists and sid value is different");
+							$rowcount++;
+							next;
+						}
 					}
+
 					## if trunk was included and it's different from what's in the DB, throw error
-					($test_field = $r->get_field_value("trunk")) =~ s/\s//g;
-					if ($test_field && $user->field_value('trunk') && ($user->field_value('trunk') ne $r->get_field_value("trunk"))) {
+					(my $test_trunk = $import_fields{'trunk'} ? $r->get_field_value("trunk") : '') =~ s/\s//g;
+					if ($test_trunk && $user->field_value('trunk') && ($user->field_value('trunk') ne $r->get_field_value("trunk"))) {
 						$fail++;
 						$import->add_log("error", "row $rowcount: $user_id exists and trunk value is different");
 						$rowcount++;
 						next;
 					}
-					## if first name was included and it's different from what's in the DB, throw error
-					($test_field = $r->get_field_value("firstname")) =~ s/\s//g;
+					## if trunk or sid was included and first name was included and it's different from what's in the DB, throw warning
+					## if trunk or sid wasn't included and first name was included and it's different from what's in the DB, throw error
+					($test_field = $import_fields{'firstname'} ? $r->get_field_value("firstname") : '') =~ s/\s//g;
 					if ($test_field && $user->first_name() && ($user->first_name() ne $r->get_field_value("firstname"))) {
-						$fail++;
-						$import->add_log("error", "row $rowcount: $user_id exists and first name value is different");
-						$rowcount++;
-						next;
+						if ($test_trunk || $test_sid) {
+							$import->add_log("warn", "row $rowcount: $user_id exists and first name value is different");
+							$rowcount++;
+						}
+						else {
+							$fail++;
+							$import->add_log("error", "row $rowcount: $user_id exists and first name value is different; no sid or trunk included to confirm uniqueness");
+							$rowcount++;
+							next;
+						}
 					}
-					## if last name was included and it's different from what's in the DB, throw error
-					($test_field = $r->get_field_value("lastname")) =~ s/\s//g;
+					## if trunk or sid was included and last name was included and it's different from what's in the DB, throw warning
+					## if trunk or sid wasn't included and last name was included and it's different from what's in the DB, throw error
+					($test_field = $import_fields{'lastname'} ? $r->get_field_value("lastname") : '') =~ s/\s//g;
 					if ($test_field && $user->last_name() && ($user->last_name() ne $r->get_field_value("lastname"))) {
-						$fail++;
-						$import->add_log("error", "row $rowcount: $user_id exists and last name value is different");
-						$rowcount++;
-						next;
+						if ($test_trunk || $test_sid) {
+							$import->add_log("warn", "row $rowcount: $user_id exists and last name value is different");
+							$rowcount++;
+						}
+						else {
+							$fail++;
+							$import->add_log("error", "row $rowcount: $user_id exists and last name value is different; no sid or trunk included to confirm uniqueness");
+							$rowcount++;
+							next;
+						}
 					}
-					## if email was included and it's different from what's in the DB, throw error
-					($test_field = $r->get_field_value("email")) =~ s/\s//g;
+					## if trunk or sid was included and email was included and it's different from what's in the DB, throw warning
+					## if trunk or sid wasn't included and email was included and it's different from what's in the DB, throw error
+					($test_field = $import_fields{'email'} ? $r->get_field_value("email") : '') =~ s/\s//g;
 					if ($test_field && $user->email() && ($user->email() ne $r->get_field_value("email"))) {
-						$fail++;
-						$import->add_log("error", "row $rowcount: $user_id exists and email value is different");
-						$rowcount++;
-						next;
+						if ($test_trunk || $test_sid) {
+							$import->add_log("warn", "row $rowcount: $user_id exists and email value is different");
+							$rowcount++;
+						}
+						else {
+							$fail++;
+							$import->add_log("error", "row $rowcount: $user_id exists and email value is different; no sid or trunk included to confirm uniqueness");
+							$rowcount++;
+							next;
+						}
 					}
 
 					## otherwise, update existing user
@@ -263,8 +279,9 @@ combination would only import students who have Jones as their last name.</div>
 <td class="cell-left">
 <select name="user_group_id">
 <option value="0">none</option>
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $group (HSDB45::UserGroup->new(_school => $school)->lookup_conditions("sub_group='No'","order by label")) {
-<option value="<% $group->primary_key %>"<% $ARGS{user_group_id} == $group->primary_key ? " SELECTED" : ""%>><% $group->out_label %> (<% $group->primary_key %>)</option>
+<option value="<% $group->primary_key %>"<% $ARGS{user_group_id} == $group->primary_key ? " SELECTED" : ""%>><% $stripObj->removeHTML($group->out_label) %> (<% $group->primary_key %>)</option>
 % }
 </select><br>
 Choose user group to add all users (optional)

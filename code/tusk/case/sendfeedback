@@ -14,7 +14,7 @@
  limitations under the License.
 </%doc>
 <%once>
-	use Mail::Sendmail;
+	use TUSK::Application::Email;
 	use TUSK::Constants;
 </%once>
 
@@ -47,13 +47,13 @@ my $case = TUSK::Case::Case->new()->lookupKey($case_id);
 		my $name = ($ARGS{'name'}) ? $ARGS{'name'} : "Anonymous";
 		my $email = ($ARGS{'email'}) ? $ARGS{'email'} : "Anonymous";
 
-		my %mail = (
-				To => $case->getFeedbackEmail(),
-				From => $TUSK::Constants::SupportEmail,
-				Subject => "Case Feedback: " . $case->getCaseTitle(),
-				Message => "The following has been submitted as feedback to your case\n\nName: " . $name . "\nEmail: " . $email . "\n" . $ARGS{'feedback'},
-				);
-		if (Mail::Sendmail::sendmail(%mail)) {
+		my $mail = TUSK::Application::Email->new({
+				to_addr   => $case->getFeedbackEmail(),
+				from_addr => $TUSK::Constants::SupportEmail,
+				subject   => "Case Feedback: " . $case->getCaseTitle(),
+				body      => "The following has been submitted as feedback to your case\n\nName: " . $name . "\nEmail: " . $email . "\n" . $ARGS{'feedback'},
+				});
+		if ($mail->send()) {
 			$m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => 'Your feedback has been sent'});
 		}else{
 			$m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => 'Your feedback has been sent'});

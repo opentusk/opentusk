@@ -11,7 +11,7 @@ package TUSK::Mason;
 	use strict;
 	use Apache2::RequestRec;
 	use Apache2::ServerUtil;
-	use Apache2::Const qw(:common);
+	use Apache2::Const -compile => qw(:common :http);
 	use Apache2::Upload;
 	use APR::Const;
 	use Carp;
@@ -75,7 +75,7 @@ package TUSK::Mason;
 		if (my $err = $@) {
 			$r->pnotes(error => $err );
 			$r->log_error($err);
-			return $Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+			return Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
 		}
 		return $status;
 	}

@@ -1,229 +1,328 @@
-#!/bin/bash
+#!/bin/sh
+#
+# Apache control script designed to allow an easy command line interface
+# to controlling Apache.  Origionally written by Marc Slemko, 1997/08/23
+# Modified by TUSK
+# 
+# The exit codes returned are:
+#	0 - operation completed successfully
+#	2 - usage error
+#	3 - httpd could not be started
+#	4 - httpd could not be stopped
+#	5 - shibbolet is not running
+#	8 - configuration syntax error
+#
+# When multiple arguments are given, only the error from the _last_
+# one is reported.  Run "apachectl help" for usage info
+#
+# Comments to support chkconfig on RedHat Linux
+# chkconfig: 2345 64 36
+# description: httpd is a webserver
+#
+#
+# |||||||||||||||||||| START CONFIGURATION SECTION  ||||||||||||||||||||
+# --------------------                              --------------------
+
+# This is needed for the new dynamic apache configuration
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/apache/libexec:/usr/local/lib:/opt/shibboleth-sp/lib
+export LD_LIBRARY_PATH
+PATH=/usr/sbin:/usr/bin:/usr/ucb:/sbin:/bin:/usr/local/bin
+export PATH
+# This is the time between each check for when apache tries to start and stop
+SLEEP_TIME=1
+# This is then umber of times to check that apache has started or stopped before it is done
+NUM_TRIES=10
+
+# a command that outputs a formatted text version of the HTML at the
+# url given on the command line.  Designed for lynx, however other
+# programs may work.  
+LYNX="lynx -dump"
 
 #
-# httpd        Startup script for the Apache HTTP Server
+# the URL to your server's mod_status status page.  If you do not
+# have one, then status and fullstatus will not work.
+STATUSURL="http://localhost/server-status"
 #
-# chkconfig: - 85 15
-# description: Apache is a World Wide Web server.  It is used to serve \
-#	       HTML files and CGI.
-# processname: httpd
-# config: /etc/httpd/conf/httpd.conf
-# config: /etc/sysconfig/httpd
-# pidfile: /var/run/httpd.pid
+# --------------------                              --------------------
+# ||||||||||||||||||||   END CONFIGURATION SECTION  ||||||||||||||||||||
 
+# sh echo does know understand -n so if there is a ucb/echo lets use that
+for dir in '/usr/ucb' '/usr/local/bin' '/usr/bin' '/bin'; do
+	if [ -x "$dir/echo" ]; then
+		ECHO="$dir/echo"
+		break
+	fi
+done
 
-umask 002
-# Check this out, this calls the same script with perl and perl looks for the #! perl line and starts processing from there
-# This is the magic that I use to get the configuration stuff out of httpdconf.pm
-eval `perl -x $0 2> /dev/null`
+# |||||||||||||||||||| START FUNCTIONS SECTION  ||||||||||||||||||||
+# --------------------                          --------------------
+start_http() {
+	# Check to see if the perl part of this script generated an error before we try and start up
+	if [ "x$SOURCE_ERROR" = "x" ] ; then
+		check_running
+		if [ $? = 1 ] ; then
+			$ECHO "httpd is already running as pid $PID";
+			return 3;
+		else
+			# Ports 1-1024 can only be bound by root if were use one of those ports and were not root compain before apache does, unless we are on Solaris 10
+			if [ ! -f '/sbin/zonename' ] && [ $MAIN_PORT -lt 1025 ] && [ $ME != 'root' ] ; then
+				$ECHO "You are trying to start httpd on port $MAIN_PORT, that can only happen as root!"
+				return 3;
+			fi
+			# Check the config and ignore http warnings because starting apache will tell us that.
+			IGNORE_HTTP_WARNING=
+			config_test
+			if [ $? = 0 ] ; then
+				# Check for shibboleth if we are running with it
+				if [ $SHIBBOLETH = 1 ] ; then
+					$ECHO -n "Checking is shibboleth is running...";
+					if [ -f $SHIBBOLETH_PID_FILE ] ; then
+						$ECHO "Ok";
+					else
+						$ECHO "Failed";
+						$ECHO "Shibboleth PID file ($SHIBBOLETH_PID_FILE) does not exist!";
+						$ECHO "STARTING APACHE WITH SHIBBOLETH INTEGRATION BUT SHIBBOLETH IS DOWN!";
+					fi
+				fi
+				$ECHO "Starting apache...";
+				DEV_PARAMS=
+				if [ "x$DEVELOPER" != "x" ] ; then
+					DEV_PARAMS=" -Dsmallserver -DDEBUG -DSSL -DDEV "
+				fi
+				$HTTPD -D$USER $DEV_PARAMS -d $SERVER_ROOT -f $CONFIG $1
+				$ECHO -n "Verifying http is started"
+				RUNNING=0;
+				NUMBER=0;
+				while [ "$NUMBER" -lt $NUM_TRIES ] ; do
+					$ECHO -n "."
+					check_running;
+					if [ $? = 1 ] ; then
+						RUNNING=1
+						break
+					else
+						sleep $SLEEP_TIME
+					fi
+					NUMBER=`expr $NUMBER + 1`
+				done
+				if [ $RUNNING = 0 ] ; then
+					$ECHO "httpd could not be started";
+					$ECHO "Possible Message: $STATUS";
+					$ECHO "Also check the logs in $LOG_ROOT (especially error_log)"
+					$ECHO "and try $0 checkconfig";
+					return 3
+				else
+					$ECHO httpd started!
+				fi
+			else
+				$ECHO "You must fix the config error before apache can be started";
+				return 8;
+			fi
+		fi
+	else
+		$ECHO "There was an error sourcing the perl information"
+		$ECHO $SOURCE_ERROR
+		exit;
+	fi
+}
 
-# Path to the server binary, and short-form for messages.
-httpd=${HTTPD-/usr/sbin/httpd}
-prog=httpd
-tuskroot=${TUSKROOT-/usr/local/tusk/current}
-pidfile=${PIDFILE-$tuskroot/logs/httpd.pid}
-conffile=${CONFFILE-$tuskroot/conf/httpd.conf}
-lockfile=${LOCKFILE-/var/lock/subsys/httpd}
-OPTIONS="-f $conffile -DSSL"
-if [ "x$DEVELOPER" != "x" ] ; then
-	OPTIONS="$OPTIONS -Dsmallserver -DDEBUG -DDEV "
-fi
+show_help() {
+	$ECHO "usage: $0 (start|stop|fullstatus|status|configtest|help)";
 
+	$ECHO "start      - start httpd";
+	$ECHO "startnossl - start httpd without SSL enabled (dont ask me why we have this)";
+	$ECHO "stop       - stop httpd";
+	$ECHO "fullstatus - dump a full status screen; requires lynx and mod_status enabled";
+	$ECHO "status     - dump a short status screen; requires lynx and mod_status enabled";
+	$ECHO "configtest - do a configuration syntax test";
+	$ECHO "help       - this screen";
+	$ECHO
+	$ECHO "NOTE: restart and graceful have been removed because mod_perl and mod_ssl have issues with them.";
+}
 
-# Source function library.
-. /etc/rc.d/init.d/functions
-
-if [ -f /etc/sysconfig/httpd ]; then
-	. /etc/sysconfig/httpd
-fi
-
-# Start httpd in the C locale by default.
-HTTPD_LANG=${HTTPD_LANG-"C"}
-
-# This will prevent initlog from swallowing up a pass-phrase prompt if
-# mod_ssl needs a pass-phrase from the user.
-INITLOG_ARGS=""
-
-# Set HTTPD=/usr/sbin/httpd.worker in /etc/sysconfig/httpd to use a server
-# with the thread-based "worker" MPM; BE WARNED that some modules may not
-# work correctly with a thread-based MPM; notably PHP will refuse to start.
-
-RETVAL=0
-STOP_TIMEOUT=${STOP_TIMEOUT-10}
-
-# Check TUSK configuration
 config_test() {
 	# Check to see if httpd.conf or lib/httpdconf.pm has been updated since the last time we ran
 	# if so then run the syntax checker
 	RETURN_VALUE=0
-	if [ -f "$TUSK_BASE/conf/.last.start.httpd.conf" ] && [ -f "$TUSK_BASE/lib/httpdconf.pm" ] ; then
-		if      [ ! "x`diff $TUSK_BASE/conf/.last.start.httpd.conf $TUSK_BASE/conf/httpd.conf`" = "x"  ] || \
-			[ ! "x`diff $TUSK_BASE/lib/.last.start.httpdconf.pm $TUSK_BASE/lib/httpdconf.pm`" = "x" ]; then
+	if [ -f "$SERVER_ROOT/conf/.last.start.httpd.conf" ] && [ -f "$SERVER_ROOT/lib/httpdconf.pm" ] ; then
+		if	[ ! "x`diff $SERVER_ROOT/conf/.last.start.httpd.conf $SERVER_ROOT/conf/httpd.conf`" = "x"  ] || \
+ 			[ ! "x`diff $SERVER_ROOT/lib/.last.start.httpdconf.pm $SERVER_ROOT/lib/httpdconf.pm`" = "x" ]; then
 			# Check the perl syntax of httpd.conf as well as the httpd parser
 			# returns 0 if valid 8 if not valid
-			echo -n "checking config files...";
-			PERL_TEST=`perl -wcx $CONFFILE 2>&1`
-			if [ "x`echo $PERL_TEST | grep 'syntax OK'`" = "x" ] ; then
-				echo "Perl Syntax Invalid"
-				echo "$PERL_TEST"
+			$ECHO -n "checking config files...";
+			PERL_TEST=`perl -wcx $CONFIG 2>&1`
+			if [ "x`$ECHO $PERL_TEST | grep 'syntax OK'`" = "x" ] ; then
+				$ECHO "Perl Syntax Invalid"
+				$ECHO "$PERL_TEST"
 				RETURN_VALUE=8;
 			else
-				if [ `echo "$PERL_TEST" | wc -l` != 1 ] ; then
+				if [ `$ECHO "$PERL_TEST" | wc -l` != 1 ] ; then
 					CONFIG_WARNING="Perl warning issued\n$PERL_TEST\n";
 				fi
-				HTTP_TEST=`$HTTPD -D$USER -d $TUSK_BASE -f $CONFFILE -t 2>&1;`
-				if [ "x`echo $HTTP_TEST | grep 'Syntax OK'`" = "x" ] ; then
-					echo "HTTP Syntax Invalid"
-					echo "$HTTP_TEST"
+				HTTP_TEST=`$HTTPD -D$USER -d $SERVER_ROOT -f $CONFIG -t 2>&1;`
+				if [ "x`$ECHO $HTTP_TEST | grep 'Syntax OK'`" = "x" ] ; then
+					$ECHO "HTTP Syntax Invalid"
+					$ECHO "$HTTP_TEST"
 					RETURN_VALUE=8;
 				else
-					if [ `echo "$HTTP_TEST" | wc -l` -gt 6 ] ; then
+					if [ `$ECHO "$HTTP_TEST" | wc -l` -gt 6 ] ; then
 						CONFIG_WARNING="$CONFIG_WARNING\nHttp warning issued\n$HTTP_TEST";
 					fi
-
+		
 					if [ "x$CONFIG_WARNING" = "x" ] ; then
-						echo "Syntax Valid"
+						$ECHO "Syntax Valid"
 					else
-						echo "Syntax Warning"
+						$ECHO "Syntax Warning"
 						if [ "x$IGNORE_HTTP_WARNING" = "x" ] ; then
-							echo "$CONFIG_WARNING"
+							$ECHO "$CONFIG_WARNING"
 						fi
 					fi
 					RETURN_VALUE=0;
 				fi
 			fi
 		else
-			echo "Conf files have not changed since last startup... not checking syntax";
+			$ECHO "Conf files have not changed since last startup... not checking syntax";
 		fi
 	fi
 	# Now lets take a copy of the files to check next time
-	cp "$TUSK_BASE/conf/httpd.conf" "$TUSK_BASE/conf/.last.start.httpd.conf"
-	cp "$TUSK_BASE/lib/httpdconf.pm" "$TUSK_BASE/lib/.last.start.httpdconf.pm"
-	if [ ! -f "$TUSK_BASE/conf/.last.start.httpd.conf" ] || [ ! -f "$TUSK_BASE/lib/httpdconf.pm" ] ; then
-		echo "Unable to copy files, will have to check conf next time too."
+	cp "$SERVER_ROOT/conf/httpd.conf" "$SERVER_ROOT/conf/.last.start.httpd.conf"
+	cp "$SERVER_ROOT/lib/httpdconf.pm" "$SERVER_ROOT/lib/.last.start.httpdconf.pm"
+	if [ ! -f "$SERVER_ROOT/conf/.last.start.httpd.conf" ] || [ ! -f "$SERVER_ROOT/lib/httpdconf.pm" ] ; then
+		$ECHO "Unable to copy files, will have to check conf next time too."
 	fi
 	return $RETURN_VALUE;
 }
 
-
-# check for 1.3 configuration
-check13 () {
-	GONE="(ServerType|BindAddress|Port|AddModule|ClearModuleList|"
-	GONE="${GONE}AgentLog|RefererLog|RefererIgnore|FancyIndexing|"
-	GONE="${GONE}AccessConfig|ResourceConfig)"
-	if LANG=C grep -Eiq "^[[:space:]]*($GONE)" $conffile; then
-		echo
-		echo 1>&2 " Apache 1.3 configuration directives found"
-		echo 1>&2 " please read /usr/share/doc/httpd-2.2.3/migration.html"
-		failure "Apache 1.3 config directives test"
-		echo
-		exit 1
+check_running() {
+	STATUS=''
+	#Returns 1 if apache is running or 0 if apache is stopped
+	if [ "x$PID_FILE" = "x" ] ; then
+		$ECHO "Could not check if apache was running: Unknown PID filename";
+		exit;
+	else 
+		if [ -f $PID_FILE ] ; then
+			PID=`cat $PID_FILE`
+			if [ "x$PID" != "x" ] && [ `ps -p $PID | wc -l` -gt 1 ] ; then
+				STATUS="httpd (pid $PID) running"
+				return 1;
+			else
+				STATUS="httpd (pid $PID?) not running"
+				return 0;
+			fi
+		else
+			STATUS="httpd not running, no pid file"
+			return 0;
+		fi
 	fi
 }
 
-# The semantics of these two functions differ from the way apachectl does
-# things -- attempting to start while running is a failure, and shutdown
-# when not running is also a failure.  So we just do it the way init scripts
-# are expected to behave here.
-start() {
-	# Ports 1-1024 can only be bound by root if were use one of those ports and were not root compain before apache does, unless we are on Solaris 10
-	if [ ! -f '/sbin/zonename' ] && [ $MAIN_PORT -lt 1025 ] && [ `whoami` != 'root' ] ; then
-		echo "You are trying to start httpd on port $MAIN_PORT, that can only happen as root!"
-		return 3;
-	fi
-	config_test
-	if [ $? = 0 ] ; then
-		# Check for shibboleth if we are running with it
-		if [ $SHIBBOLETH = 1 ] ; then
-			echo -n "Checking is shibboleth is running...";
-			if [ -f $SHIBBOLETH_PID_FILE ] ; then
-				echo "Ok";
+# --------------------                        --------------------
+# |||||||||||||||||||| END FUNCTIONS SECTION  ||||||||||||||||||||
+
+
+umask 002
+# Check this out, this calls the same script with perl and perl looks for the #! perl line and starts processing from there
+# This is the magic that I use to get the configuration stuff out of httpdconf.pm
+eval `perl -x $0 2> /dev/null`
+ERROR=0
+ME=`whoami`
+
+ARGV="$@"
+if [ "x$ARGV" = "x" ] ; then
+	$ECHO
+	$ECHO "Error: Please supply at least one argument!"
+	$ECHO
+	show_help
+	ERROR=2;
+fi
+
+for ARG in $@ $ARGS
+do
+	case $ARG in
+	start)
+		start_http "-DSSL"
+		ERROR=$?
+		;;
+	startnossl)
+		start_http
+		ERROR=$?
+		;;
+	stop)
+		check_running;
+		if [ $? = 0 ] ; then
+			$ECHO "httpd not running";
+		else 
+			# Check to see if we are the owner of this process
+			# We know that the PID file exists and is valid because we used check_running
+			PID=`cat $PID_FILE`
+		
+			PROCESS_OWNER=nothing
+			COMMAND=`ps -p $PID -o comm | tail -1 | sed 's:^  *::g'`
+			if [ "x$COMMAND" != "x" ] ; then
+				if [ `$ECHO $COMMAND | grep -i httpd | wc -l` -gt 0 ] ; then
+					# We are an apache command
+					PROCESS_OWNER=`ps -p $PID -o user | tail -1 | sed 's:^  *::g'`
+					if [ "$ME" != "$PROCESS_OWNER" ] && [ "$ME" != "root" ] ; then
+						$ECHO "You are not the process owner or root"
+						$ECHO "httpd is running as $PROCESS_OWNER"
+						ERROR=4;
+					else
+						STOPPED=0;
+						$ECHO "Stopping apache...";
+						if kill $PID ; then
+							$ECHO -n "Verifying that httpd is stopped"
+							NUMBER=0;
+							while [ "$NUMBER" -lt $NUM_TRIES ] ; do
+								$ECHO -n "."
+								check_running;
+								if [ $? = 0 ] ; then
+									STOPPED=1
+									break
+								else
+									sleep $SLEEP_TIME
+								fi
+								NUMBER=`expr $NUMBER + 1`
+							done
+							$ECHO
+							if [ $STOPPED = 1 ] ; then
+								$ECHO "$0 $ARG: httpd stopped"
+							fi
+	      					fi
+						if [ $STOPPED = 0 ] ; then 
+							$ECHO "$0 $ARG: httpd could not be stopped ($PID)"
+							ERROR=4;
+						fi
+					fi
+				else
+					$ECHO The process with pid $PID does not appear to be an apache process
+				fi
 			else
-				echo "Failed";
-				echo "Shibboleth PID file ($SHIBBOLETH_PID_FILE) does not exist!";
-				echo "STARTING APACHE WITH SHIBBOLETH INTEGRATION BUT SHIBBOLETH IS DOWN!";
+				$ECHO "I cant get the command type related to the process id $PID"
 			fi
 		fi
-		echo -n $"Starting $prog: "
-		check13 || exit 1
-		LANG=$HTTPD_LANG daemon --pidfile=${pidfile} $httpd $OPTIONS
-		RETVAL=$?
-		echo
-		if [ $RETVAL = 0 ] ; then
-			touch ${lockfile}
-		fi
-		chown -R apache:apache $tuskroot/mason_cache
-		return $RETVAL
-	else
-		echo "You must fix the config error before apache can be started";
-		return 8;
-	fi
-}
-
-# When stopping httpd a delay (of default 10 second) is required
-# before SIGKILLing the httpd parent; this gives enough time for the
-# httpd parent to SIGKILL any errant children.
-stop() {
-	# Ports 1-1024 can only be bound by root if were use one of those ports and were not root compain before apache does, unless we are on Solaris 10
-	if [ ! -f '/sbin/zonename' ] && [ $MAIN_PORT -lt 1025 ] && [ `whoami` != 'root' ] ; then
-		echo "You are trying to stop httpd on port $MAIN_PORT, that can only happen as root!"
-		return 3;
-	fi
-	# If we can't stop httpd but killproc runs it will still remove the lock/pid files which is bad.
-	echo -n $"Stopping $prog: "
-	killproc -p ${pidfile} -d ${STOP_TIMEOUT} $httpd
-	RETVAL=$?
-	echo
-	if [ $RETVAL = 0 ] ; then
-		rm -f ${lockfile} ${pidfile}
-	fi
-}
-
-reload() {
-    echo -n $"Reloading $prog: "
-    if ! LANG=$HTTPD_LANG $httpd $OPTIONS -t >&/dev/null; then
-	RETVAL=$?
-	echo $"not reloading due to configuration syntax error"
-	failure $"not reloading $httpd due to configuration syntax error"
-    else
-	killproc -p ${pidfile} $httpd -HUP
-	RETVAL=$?
-    fi
-    echo
-}
-
-# See how we were called.
-case "$1" in
-  start)
-	start
-	;;
-  stop)
-	stop
-	;;
-  status)
-	status -p ${pidfile} $httpd
-	RETVAL=$?
-	;;
-  restart)
-	stop
-	start
-	;;
-  condrestart)
-	if [ -f ${pidfile} ] ; then
-		stop
-		start
-	fi
-	;;
-  reload)
-	reload
-	;;
-  *)
-	echo $"Usage: $prog {start|stop|restart|condrestart|reload|status|fullstatus|graceful|help|configtest}"
-	exit 1
-esac
-
-exit $RETVAL
-
+		;;
+	status)
+		$LYNX $STATUSURL | awk ' /process$/ { print; exit } { print } '
+		;;
+	fullstatus)
+		$LYNX $STATUSURL
+		;;
+	configtest)
+		$ECHO "Just a warning, this is not fool proof."
+		$ECHO "Apache may say that the file is valid but runtime issues can occur.";
+		$ECHO
+		config_test
+		ERROR=$?
+		;;
+	help)
+		show_help
+		;;
+	*)
+		show_help
+		ERROR=2
+		;;
+	esac
+done
+exit $ERROR;
 
 
 
@@ -234,7 +333,7 @@ use FindBin;
 use strict;
 # Since this script can be run as /etc/init.d/httpd we have to add /usr/local/tusk/current/lib to the search path
 # Since FindBin is first it should check there first.
-use lib "$FindBin::Bin/../lib", '/usr/local/tusk/current/lib';
+use lib "$FindBin::Bin/../lib", "/usr/local/tusk/current/lib";
 use httpdconf;
 
 # It uses a module called lib/httpdconf.pm
@@ -252,10 +351,10 @@ unless($hashOfVariables{'http_exec'} && -x $hashOfVariables{'http_exec'}) {
 	print "SOURCE_ERROR=\"http executable $hashOfVariables{'http_exec'} does not exist or can not be executed!\"; export SOURCE_ERROR;\n";
 }
 
-if($hashOfVariables{'pid_file'})       {print "PIDFILE=$hashOfVariables{'pid_file'}; export PIDFILE;\n";}
+if($hashOfVariables{'pid_file'})       {print "PID_FILE=$hashOfVariables{'pid_file'}; export PID_FILE;\n";}
 if($hashOfVariables{'http_exec'})      {print "HTTPD=$hashOfVariables{'http_exec'}; export HTTPD;\n";}
-if($hashOfVariables{'config_file'})    {print "CONFFILE=$hashOfVariables{'config_file'}; export CONFFILE;\n";}
-if($hashOfVariables{'server_root'})    {print "TUSK_BASE=$hashOfVariables{'server_root'}; export TUSK_BASE;\n";}
+if($hashOfVariables{'config_file'})    {print "CONFIG=$hashOfVariables{'config_file'}; export CONFIG;\n";}
+if($hashOfVariables{'server_root'})    {print "SERVER_ROOT=$hashOfVariables{'server_root'}; export SERVER_ROOT;\n";}
 if($hashOfVariables{'log_root'})       {print "LOG_ROOT=$hashOfVariables{'log_root'}; export LOG_ROOT;\n";}
 if($hashOfVariables{'main_port'})      {print "MAIN_PORT=$hashOfVariables{'main_port'}; export MAIN_PORT;\n";}
 if($hashOfVariables{'developer'})      {print "DEVELOPER=$hashOfVariables{'developer'}; export DEVELOPER;\n";}
@@ -264,3 +363,66 @@ print "SHIBBOLETH_PID_FILE=$hashOfVariables{'log_root'}/shibd.pid; export SHIBBO
 # An explicit exit so that perl does not go past here
 exit();
 
+
+
+
+## This was the origional copyright notice
+##
+## ====================================================================
+## The Apache Software License, Version 1.1
+##
+## Copyright (c) 2000-2003 The Apache Software Foundation.  All rights
+## reserved.
+##
+## Redistribution and use in source and binary forms, with or without
+## modification, are permitted provided that the following conditions
+## are met:
+##
+## 1. Redistributions of source code must retain the above copyright
+##    notice, this list of conditions and the following disclaimer.
+##
+## 2. Redistributions in binary form must reproduce the above copyright
+##    notice, this list of conditions and the following disclaimer in
+##    the documentation and/or other materials provided with the
+##    distribution.
+##
+## 3. The end-user documentation included with the redistribution,
+##    if any, must include the following acknowledgment:
+##       "This product includes software developed by the
+##        Apache Software Foundation (http://www.apache.org/)."
+##    Alternately, this acknowledgment may appear in the software itself,
+##    if and wherever such third-party acknowledgments normally appear.
+##
+## 4. The names "Apache" and "Apache Software Foundation" must
+##    not be used to endorse or promote products derived from this
+##    software without prior written permission. For written
+##    permission, please contact apache@apache.org.
+##
+## 5. Products derived from this software may not be called "Apache",
+##    nor may "Apache" appear in their name, without prior written
+##    permission of the Apache Software Foundation.
+##
+## THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+## WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+## OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+## DISCLAIMED.  IN NO EVENT SHALL THE APACHE SOFTWARE FOUNDATION OR
+## ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+## SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+## LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+## USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+## ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+## OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+## OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+## SUCH DAMAGE.
+## ====================================================================
+##
+## This software consists of voluntary contributions made by many
+## individuals on behalf of the Apache Software Foundation.  For more
+## information on the Apache Software Foundation, please see
+## <http://www.apache.org/>.
+##
+## Portions of this software are based upon public domain software
+## originally written at the National Center for Supercomputing Applications,
+## University of Illinois, Urbana-Champaign.
+##
+# 
