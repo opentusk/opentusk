@@ -759,7 +759,7 @@ sub fix_image {
 	unless ($elt->att ('width') && $elt->att ('height')) {
 	    # Figure out if it's a filename
 	    my $uri = $elt->att ('uri');
-	    my $filename = "/data/html/$uri";
+	    my $filename = $TUSK::Constants::BaseStaticPath . "/$uri";
 	    # And if it is, then use the file size to set our attributes
 	    if ($filename && -e $filename) {
 		my ($w, $h) = imgsize ($filename);

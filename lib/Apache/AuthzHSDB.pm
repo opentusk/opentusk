@@ -21,15 +21,20 @@ use Apache2::Cookie;
 use Apache2::Connection;
 use Apache::TicketTool;
 use TUSK::Constants;
+use Socket;
+use Sys::Hostname;
 
 # Lookup the content page, and see if we're authorized to look at it.
 
 sub handler {
     my $r = shift;
 
-    ## automatically approve if the request came from the server itself
+    ## automatically approve if the request came from the server
+    ## itself or a list of authorized IP addresses
     my $remote_ip = $r->connection()->remote_ip();
-    if ($TUSK::Constants::PermissableIPs{$remote_ip}) {
+    my $local_ip = inet_ntoa(scalar gethostbyname(hostname() || 'localhost'));
+    if ((grep { $_ eq $remote_ip } @TUSK::Constants::PermissibleIPs)
+        || ($remote_ip eq $local_ip)) {
 	$r->user("TUSKserver");
 	return OK;
     }

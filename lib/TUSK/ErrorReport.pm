@@ -44,14 +44,17 @@ sub sendErrorReport {
 	my $host = $ENV{HOSTNAME} || "unknown host";
 	my $remote_ip = $conn->remote_ip() || "unknown ip";
 	my $lastRequest = 'Unknown';
-	my $uriRequest = $param_hash->{'uriRequest'} || "unknown uri";
+	my $uriRequest = $param_hash->{'uriRequest'} || $req_rec->uri()
+            || "unknown uri";
 	my ($error,$error_text,$errArray,%localArgs) = ("","",[],());
+        my $postString = '';
 	if ($req_rec->prev()){
 		if($req_rec->prev()->prev()) {
 			$lastRequest = $req_rec->prev()->prev()->as_string();
 		}
 		$uriRequest = $req_rec->prev()->uri() || "unknown uri"; 
 		%localArgs = $req_rec->prev()->args();
+                # $postString = readPost($req_rec->prev());
 		$error = $req_rec->prev()->pnotes('error');
 		$error_text = UNIVERSAL::can( $error, 'as_text' ) ? $error->as_text : $error;
 	}
@@ -62,7 +65,11 @@ sub sendErrorReport {
 	}	
 
 	$queryString = $ENV{'QUERY_STRING'} unless $queryString;
+	$queryString = '(No query string)' unless $queryString;
 	my $errString = $error_text;
+
+        # $postString = readPost($req_rec) unless $postString;
+        $postString = '(HTTP POST data reporting not yet supported)' unless $postString;
 
 	my $msgBody =<<EOM;
 Error from user $user on machine $host
@@ -77,6 +84,9 @@ $uriRequest
 
 Their query string was:
 $queryString
+
+HTTP POST data:
+$postString
 
 Error:
 $errString 
@@ -154,4 +164,18 @@ EOM
 
 	exit 1;
 }
+
+sub readPost {
+    my $r = shift;
+    my $postdata = '';
+    if ($r->method() eq "POST") {
+        my $buf = '';
+        # limit reported POST data to first 1024 bytes
+        if ($r->read($buf, 1024)) {
+            $postdata = $postdata . $buf;
+        }
+    }
+    return $postdata;
+}
+
 1;

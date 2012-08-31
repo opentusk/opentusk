@@ -369,7 +369,7 @@ sub genTmpDir{
 sub unzip{
 	my $cont_pack = shift;
 
-	my $tmp_dir = genTmpDir('/data/temp/', 'unpacked_');
+	my $tmp_dir = genTmpDir($TUSK::Constants::TempPath . '/', 'unpacked_');
 
 	$ENV{PATH} = '/bin:/usr/bin';
 

@@ -18,6 +18,7 @@ package TUSK::Constants;
 use strict;
 use Carp;
 use JSON;
+use Hash::Util qw(lock_hash);
 
 initConfigs();
 initStatics();
@@ -48,9 +49,10 @@ sub initConfigs {
 		if (ref $data->{$category}{$item} eq 'ARRAY') {
 		    @{$varname} = @{$data->{$category}{$item}};
 		} elsif (ref $data->{$category}{$item} eq 'HASH') {
-		    %{$varname} = %{$data->{$category}{$item}}; 
-		} else { 
-		    ${$varname} = $data->{$category}{$item}; 
+		    %{$varname} = %{$data->{$category}{$item}};
+                    lock_hash(%$varname);
+		} else {
+		    ${$varname} = $data->{$category}{$item};
 	        }
 	    }
 	}

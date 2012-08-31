@@ -57,7 +57,7 @@ sub export{
 
 	#####
 	# make tmp file with random number. put this in lexical var and use that as dir for adds
-	my $tmp_dir = TUSK::Manage::Course::Import::genTmpDir('/data/temp/', 'tmp_'); 
+	my $tmp_dir = TUSK::Manage::Course::Import::genTmpDir($TUSK::Constants::TempPath . '/', 'tmp_'); 
 	$log .= "created tmp directory for content package.\n";
 
 	#####
@@ -745,7 +745,7 @@ sub getPackageName{
 	$title =~ s/\"//g;
 	$title .= '_cp';
 
-	my $fn = TUSK::Manage::Course::Import::getRandomFile('/data/temp/', $title, '.zip');
+	my $fn = TUSK::Manage::Course::Import::getRandomFile($TUSK::Constants::TempPath . '/', $title, '.zip');
 	return $fn;
 }
 

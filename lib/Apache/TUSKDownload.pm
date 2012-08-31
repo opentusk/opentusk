@@ -22,6 +22,7 @@ use Apache2::URI ();
 use Apache::AuthzHSDB;
 use HSDB4::SQLRow::Content;
 use TUSK::XMLRenderer;
+use TUSK::ErrorReport;
 use Devel::Size;
 
 my %noAttachmentExt = (
@@ -153,8 +154,23 @@ sub handler {
 	$r->content_type($contentType);
 
 	if($filename) {
+            if (-e $filename) {
 		$r->sendfile($filename);
-	} 
+            } else {
+                # file not found in the file system for some reason
+                # (this is bad in production)
+                my $msg = "Error in lib/Apache/TUSKDownload.pm: "
+                    . "File '$filename' referenced in database but file "
+                    . "not found in file system.\n";
+                $r->log_error($msg);
+		ErrorReport::sendErrorReport($r, {
+                    To => $TUSK::Constants::ErrorEmail,
+                    From => $TUSK::Constants::ErrorEmail,
+                    Msg => $msg,
+                });
+                return Apache2::Const::NOT_FOUND;
+            }
+	}
 	else {
 	    $r->print($blob);
 	}

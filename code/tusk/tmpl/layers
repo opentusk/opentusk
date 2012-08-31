@@ -19,8 +19,11 @@ use TUSK::Application::HTML::Strip;
 
 my $clean_sub  = sub {
 	my $to_clean = shift;
-	my $stripObj = TUSK::Application::HTML::Strip->new();
-	$to_clean = $stripObj->removeHTML($to_clean);
+	my $skipHTML = shift || 0;
+	if (!$skipHTML) {
+		my $stripObj = TUSK::Application::HTML::Strip->new();
+		$to_clean = $stripObj->removeHTML($to_clean);
+	}
 	$to_clean =~ s/\\/\\\\/g;
 	$to_clean =~ s/'/\\'/g;
 	$to_clean =~ s/\n|\r/ /g;
@@ -91,19 +94,24 @@ my $action_sub = sub {
 
    $jsstruct .= "data:[";
    if (defined($struct->{data})){
-	   for (my $i=0; $i<scalar(@{$struct->{data}}); $i++){
+   		# create hash to check for htmleditor fields
+   		my %htmleditor_fields = map { $_->{field} => $_->{htmleditor} } @{$struct->{display}};
+         
+		for (my $i=0; $i<scalar(@{$struct->{data}}); $i++){
 	      $jsstruct .= ",\n" if ($i != 0);
 	      $jsstruct .= "{" . join(", ", map{if ($_ eq '_action'){
 							$action_sub->($struct->{data}[$i]->{$_},"action_array");
 					 	} else {  
-							$_ . ":'" . $clean_sub->($struct->{data}[$i]->{$_}) . "'"
+							if ($htmleditor_fields{$_}) {
+								$_ . ":'" . $clean_sub->($struct->{data}[$i]->{$_}, 1) . "'"
+							} else {
+								$_ . ":'" . $clean_sub->($struct->{data}[$i]->{$_}) . "'"
+							}
 						}} keys (%{$struct->{data}[$i]})) . "}";
 	    }
     } else {
 	my ($field,$func);
 	for (my $i=0; $i<scalar(@{$struct->{object_list}}); $i++){
-
-
               $jsstruct .= ",\n" if ($i != 0);
 	      $jsstruct .= "{";
 	      for (my $j = 0; $j<scalar(@{$struct->{fields}}); $j++) {

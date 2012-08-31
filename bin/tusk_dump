@@ -21,6 +21,7 @@ use strict;
 use Data::Dumper;
 use HSDB4::Constants;
 use MySQL::Password;
+use TUSK::Constants;
 use XML::Twig;
 use XML::LibXML;
 use Getopt::Long;
@@ -92,14 +93,14 @@ sub add_content {
 	}
 
 	if ($link_ref->{type} =~ /PDF/) {
-	    system("cp /data/html/web-auth/pdf/".$link_ref->{content_id}.".pdf $dump_dir/dump/files/.");
+	    system("cp " . $TUSK::Constants::BaseStaticPath . "/web-auth/pdf/".$link_ref->{content_id}.".pdf $dump_dir/dump/files/.");
 	}
 
 	if ($link_ref->{type} =~ /DownloadableFile/) {
 	    my $filename = $link_ref->{body};
 	    $filename =~ s/.+>(\d+\..{3})\<\/file_uri.+/$1/si;
 	    $content_elt->set_att("filename",$filename);
-	    system("cp /data/html/downloadable_file/".$link_ref->{content_id}.".* $dump_dir/dump/files/.");
+	    system("cp " . $TUSK::Constants::BaseStaticPath . "/downloadable_file/".$link_ref->{content_id}.".* $dump_dir/dump/files/.");
 	}
 
 	if ($link_ref->{'type'} =~ /Collection/ && !$seen{$link_ref->{content_id}}) {

@@ -13,7 +13,6 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
-%
 
 <%attr>
         top_tab_type            => 'none'
@@ -22,18 +21,20 @@
         page_header             => undef
         page_footer             => undef
         allow_guests            => '1'
-	no_check_path		=> '1'
+		no_check_path			=> '1'
 </%attr>
 
 <%shared>
   my $contentID = '';
-  my $logFile = "$ENV{LOG_ROOT}/fop.log";
+  my $logFile = $TUSK::Constants::LogRoot . "/fop.log";
 </%shared>
 
 <%perl>
   # We have to untaint the logFile variable
   $logFile =~ /(.*)/;
   $logFile = $1;
+
+warn "--in slidesPDF";
 
   use HSDB4::SQLRow::Content;
   use HSDB4::DateTime;
@@ -81,9 +82,9 @@
   $xml =~ s/[\0-\011\013-\037\177-\377]//g; # Remove unprintables
 
   ## Some path variables
-  my $xmlFile = "/data/html/fop-xml/$contentID.xml";
-  my $xsl_path = $r->server_root_relative("code/XSL")."/PDF";
-  my $pdf_path = "/data/html/fop-pdf"; 
+  my $xmlFile = $TUSK::Constants::FOPXMLPath . "/$contentID.xml";
+  my $xsl_path = $TUSK::Constants::XSLRoot ."/PDF";
+  my $pdf_path = $TUSK::Constants::FOPPDFPath; 
 
   # append fop path to ENV{PATH}
   my ($env_path) = $ENV{PATH} =~m/(.*)/; # untaint $ENV{PATH}

@@ -16,7 +16,6 @@
 package TUSK::Application::RSSCourse;
 
 use strict;
-use Apache2::Const qw(:common);
 use HSDB4::Constants;
 use TUSK::Constants;
 use TUSK::Core::ServerConfig;
@@ -43,7 +42,7 @@ my @allContent;
 $r->content_type("application/xml");
 
 #the name of the RSS file is a concat of the course ID and the course school
-my $filename = "/data/feeds/".$course->course_id."_".$course->school.".rss";
+my $filename = $TUSK::Constants::FeedPath . "/".$course->course_id."_".$course->school.".rss";
 
 # define the school/id prefix for the URL
 my $prefix = getPrefix($cSchool, $crsID);
@@ -172,7 +171,7 @@ sub debugInfo
     my $csch = shift;
 
    
-    open (RSSdebug, ">> /data/feeds/debugInfo.txt") or die "cannot open file $!\n";
+    open (RSSdebug, ">> " . $TUSK::Constants::FeedPath . "/debugInfo.txt") or die "cannot open file $!\n";
     #print RSSdebug "courseid is $cid\n";
     #print RSSdebug "school is $csch\n";
     #print RSSdebug "<rss version='2.0' xmlns:dc='http://purl.org/dc/elements/1.1/'>\n";

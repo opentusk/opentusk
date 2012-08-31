@@ -23,17 +23,17 @@
 	$loadFile => ''
 </%args>
 <%attr>
-        top_tab_type            => 'none'
-        displayLittleUserNavBar => '1'
-        no_header               => '1'
-        page_header             => undef
-        page_footer             => undef
-        allow_guests            => '0'
-	no_check_path		=> 1
-	must_be_tusk_admin	=> 1
+	top_tab_type            => 'none'
+	displayLittleUserNavBar => '1'
+	no_header               => '1'
+	page_header             => undef
+	page_footer             => undef
+	allow_guests            => '0'
+	no_check_path			=> 1
+	must_be_tusk_admin		=> 1
 </%attr>
 <%once>
-	use Apache2::Const;
+	use Apache2::Const qw(:common);
 	use HSDB45::Eval;
 	use HSDB45::Eval::Formatter;
 	use HSDB45::Eval::Results;
@@ -44,20 +44,22 @@
 	use HSDB45::Eval::MergedResults::BarGraphCreator;
 	use HSDB45::Eval::Completion::Formatter;
 </%once>
+
 % if($loadFile) {
 <%perl>
-        #Send the download
-        $r->content_type("application/unknown");
-        $r->headers_out->set("Accept-Ranges", "bytes");
+	#Send the download
+	$r->content_type("application/unknown");
+	$r->headers_out->set("Accept-Ranges", "bytes");
 	my $fileName = $TUSK::Constants::EvalSaveDir ."/". $loadFile;
-        $r->headers_out->set("Content-Length", -s $fileName);
-        $r->headers_out->set("Content-disposition","attachment; filename=$loadFile"); 
-        $r->no_cache(1);
-	unless(open(my $fh, $fileName)) {return NOT_FOUND;}
-                $r->send_fd($fh);
-        close $fh;
+	$r->headers_out->set("Content-Length", -s $fileName);
+	$r->headers_out->set("Content-disposition","attachment; filename=$loadFile"); 
+	$r->no_cache(1);
+	my $fh;
+	unless(open($fh, $fileName)) {return NOT_FOUND;}
+	$r->sendfile($fileName);
+	close $fh;
 	unlink $fileName;
-        return OK;
+	return OK;
 </%perl>
 % } else {
 <%perl>

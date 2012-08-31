@@ -20,6 +20,8 @@ use Apache2::Const qw(:common);
 use Apache2::Connection;
 use Apache2::Log();
 use TUSK::Constants;
+use Socket;
+use Sys::Hostname;
 use Safe();
 
 my $Safe = Safe->new();
@@ -29,7 +31,11 @@ sub handler {
     my $r = shift;
     my $hostfile;
     my $remote_ip = $r->connection()->remote_ip();
-    return OK if $TUSK::Constants::PermissableIPs{$remote_ip};
+    # Use list of PermissibleIPs if available in tusk.conf
+    return OK if grep { $_ eq $remote_ip } @TUSK::Constants::PermissibleIPs;
+    # Otherwise a simple check if remote IP is same as local IP
+    my $local_ip = inet_ntoa(scalar gethostbyname(hostname() || 'localhost'));
+    return OK if $remote_ip eq $local_ip;
     $r->log_reason("Access forbidden to client IP: $remote_ip.");
     return FORBIDDEN;
 }

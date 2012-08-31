@@ -21,6 +21,7 @@
 	use TUSK::Search::Content;
 	use URI::Escape;
 	use HSDB4::DateTime;
+        use Data::Dumper;
 	my $defaultResultSetLimit = 10;
 	my $pageName =  '/search/form';
 </%once>
@@ -355,7 +356,13 @@
 		$selectedHash->{'0'} = 1;
 	}
 
-	my @schoolOptions = map { { label => ($_ eq 'HSDB') ? 'TUSK' : $_ , value => $_  } } @TUSK::Constants::SearchSchools;
+        # 'HSDB' => 'TUSK' is a horrible kludge to support the
+        # re-branding from HSDB to TUSK. It would be better done by
+        # adding a field ShortDisplayName for each school in tusk.conf
+        # file.
+	my @schoolOptions =
+            map { { label => ($_ eq 'HSDB') ? 'TUSK' : $_,
+                    value => $_ } } HSDB4::Constants::schools();
 	unshift @schoolOptions, { label => 'All', value => '0' } ;
 </%perl>
 
@@ -400,9 +407,9 @@
 			<tr>
 				<td style="vertical-align:top">
 
-% if ($TUSK::Constants::HelpMap{'search'}){
+% if (exists $TUSK::Constants::HelpMap{'Search'}){
 <& /tmpl/element:link, params=>{
-                href		=> '/view/content/' . $TUSK::Constants::HelpMap{'search'},
+                href		=> '/view/content/' . $TUSK::Constants::HelpMap{'Search'},
 		target		=> 'help',
 		use_div 	=> 1,
 		style		=> 'font-size:10pt',

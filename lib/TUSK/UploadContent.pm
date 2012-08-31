@@ -35,18 +35,18 @@ my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
 my $CHUNK_SIZE = 32768; # for calls to 'read' 
 our %path = (
-		'downloadablefile'=>'/data/html/downloadable_file',
-		'shockwave' => '/data/html/downloadable_file',
-		'flashpix' => '/data/streaming/flashpix/',
-		'pdf' => '/data/html/web-auth/pdf',
-		'ppt' => '/data/ppt/native',
-		'doc' => '/data/TUSKdoc/native',
-		'doc-archive' => '/data/TUSKdoc/native-archive',
-		'doc-processed' => '/data/TUSKdoc/processed',
-		'video' => '/data/streaming/video',
-		'audio' => '/data/streaming/video',
-		'temp' => '/data/temp',
-		'slide' => '/data/html/slide',
+		'downloadablefile'=> $TUSK::Constants::BaseStaticPath . '/downloadable_file',
+		'shockwave' => $TUSK::Constants::BaseStaticPath . '/downloadable_file',
+		'flashpix' => $TUSK::Constants::BaseStreamPath . '/flashpix/',
+		'pdf' => $TUSK::Constants::BaseStaticPath . '/web-auth/pdf',
+		'ppt' => $TUSK::Constants::BasePPTPath . '/native',
+		'doc' => $TUSK::Constants::BaseTUSKDocPath . '/native',
+		'doc-archive' => $TUSK::Constants::BaseTUSKDocPath . '/native-archive',
+		'doc-processed' => $TUSK::Constants::BaseTUSKDocPath . '/processed',
+		'video' => $TUSK::Constants::BaseStreamPath . '/video',
+		'audio' => $TUSK::Constants::BaseStreamPath . '/video',
+		'temp' => $TUSK::Constants::TempPath,
+		'slide' => $TUSK::Constants::BaseStaticPath . '/slide',
 	    );
 
 our %fileTypes = (

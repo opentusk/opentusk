@@ -15,6 +15,7 @@
 </%doc>
 <%once>
 	use CGI;
+	use TUSK::Constants;
 </%once>
 <%attr>
 	default_path_type    => 'course'
@@ -33,11 +34,11 @@ if($zip =~ /\.\.\// || $zip !~ /\.zip$/){
 	$m->comp('/tmpl/url:redirect', message => 'Invalid file name.', msg_type => 'errmsg', always_homepage => 1);
 }
 
-my $file = "/data/temp/$zip";
+my $file = $TUSK::Constants::TempPath . "/$zip";
 my $fileSize = -s $file;
-
+my $fh;
 my $upload_file;
-unless($upload_file = open($file)) {
+unless($upload_file = open($fh, "<", $file)) {
 	$m->comp('/tmpl/url:redirect', message => 'Unable to open file.', msg_type => 'errmsg', always_homepage => 1);
 }
 $m->clear_buffer();
@@ -47,8 +48,8 @@ $r->headers_out->set("Accept-Ranges", "bytes");
 $r->headers_out->set("Content-Length", $fileSize);
 $r->headers_out->set("Content-disposition","attachment; filename=". $zip);
 $r->no_cache(1);
-$r->send_fd($upload_file);
-close $upload_file;
+$r->sendfile($file);
+close $fh;
 $m->autoflush(0);
 $m->abort();
 </%init>
