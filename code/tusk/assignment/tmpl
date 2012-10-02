@@ -30,23 +30,25 @@
 
 <%perl>
 	my $upload;
+
 	if (ref $params->{files} eq 'ARRAY') {
 		my $i = 0;
-		for (my $r_upload = $r->upload; $r_upload; $r_upload = $r_upload->next) {
+		my @uploads = $r->upload('files');
+		foreach my $r_upload (@uploads) {
 			if ($r_upload->filename) {
 				$upload = TUSK::Application::Assignment::Upload->new({ 
 					user 		=> $m->session->{'user'},
 					school		=> $school,
 					course_id	=> $course_id,
 					role		=> $role,
-					assignment  	=> $assignment,
+					assignment  => $assignment,
 					sequence	=> $sequence,
 				});
 				$upload->uploadContent({
-					filename => $r_upload->filename,
-					filehandle => $r_upload->fh(),
-					group_id  => (ref $params->{group_id} eq 'ARRAY') ? $params->{group_id}[$i] : $params->{group_id},
-					user_id => (ref $params->{user_id} eq 'ARRAY') ? $params->{user_id}[$i] : $params->{user_id},
+					filename 	=> $r_upload->filename,
+					filehandle 	=> $r_upload->fh(),
+					group_id	=> (ref $params->{group_id} eq 'ARRAY') ? $params->{group_id}[$i] : $params->{group_id},
+					user_id 	=> (ref $params->{user_id} eq 'ARRAY') ? $params->{user_id}[$i] : $params->{user_id},
 				});
 				$i++;
 			}

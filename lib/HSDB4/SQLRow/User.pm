@@ -29,7 +29,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.231 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.232 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::Constants qw(:school);
@@ -2294,9 +2294,7 @@ sub get_announcements_by_group_and_course{
 
 	my @ug_anns;
 	while(scalar @$anns){
-		warn $anns->[0]->{item}->primary_key();
 		if($anns->[0]->{type} eq 'user_group'){
-			warn $anns->[0]->{item}->primary_key();
 			push @ug_anns, shift @$anns;
 		}
 		else{
@@ -2454,10 +2452,20 @@ sub set_first_name{
 }
 
 sub official_image {
-	my ($self) = @_;
-	return (-e $TUSK::Constants::userImagesPath . '/' . $self->uid() . '/official.jpg') 
-			? '/images/users/' . $self->uid() . '/official.jpg' 
-			: '/graphics/no-profile.gif';
+	my ($self) = @_;	
+	my $filePath;
+	my $imagePath = '/graphics/no-profile.gif';
+
+	## check to see if there exists a .jpg, .jpeg, .bmp, .png, or .gif image for the user
+	my @suffixes = qw(jpg jpeg bmp png gif);
+	foreach my $suffix (@suffixes) {
+		$filePath = $TUSK::Constants::BaseStaticPath . $TUSK::Constants::UserImagesPath . '/' . $self->uid() . '/official.' . $suffix;
+		if (-e $filePath) {
+			$imagePath = $TUSK::Constants::UserImagesPath . '/' . $self->uid() . '/official.' . $suffix;
+			last;
+		}
+	}
+	return $imagePath;
 }
 
 1;

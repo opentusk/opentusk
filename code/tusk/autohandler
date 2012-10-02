@@ -59,6 +59,7 @@ use_dynamic_wrapper => 0
 use HSDB4::SQLRow::User;
 use Apache2::Const qw/REDIRECT NOT_FOUND/;
 use Apache2::Cookie;
+use ModPerl::Util;
 use Data::Dumper;
 use TUSK::Session;
 use TUSK::Core::Logger;
@@ -91,7 +92,7 @@ my $authentication = sub {
 	if (!$user_id){ # redirect to login page
 		$r->headers_out->set('Location', $home_url . '&errmsg=Please+login');
 		$r->status(REDIRECT);
-		exit;
+		$m->abort(REDIRECT);
 	}
 	# If user is not an HSDB4::SQLRow::User or (we are not a ghost user and user_id ne user_id from obj)
 	if (
@@ -115,7 +116,7 @@ my $authentication = sub {
 			unless($m->base_comp->attr('allow_guests') == 1) {
 				$r->headers_out->set('Location',$home_url . '&errmsg=Please+login');
 				$r->status(REDIRECT);
-				exit;
+				$m->abort(REDIRECT);
 			}
 		}
 		$m->session->{'user'} = $user;
@@ -128,7 +129,7 @@ my $authentication = sub {
 				if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR') == 0){
 					$r->headers_out->set('Location','/home?errmsg=Access+Denied');
 					$r->status(REDIRECT);
-					exit;
+					$m->abort(REDIRECT);
 				}
 			}
 		}

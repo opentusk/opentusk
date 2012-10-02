@@ -681,26 +681,17 @@ return $right_hdr_lnks;
 	      }
 	    }
 % } else {
-	    if(document.theTuskPrintForm.printType && document.theTuskPrintForm.printType[1].checked)
-	    {
-	      document.theTuskPrintForm.action = '/perl/content_pdf/<% $document->primary_key %>/full';
-	      document.theTuskPrintForm.target = 'tuskPDFWindow';
-	      document.theTuskPrintForm.submit();
-        }
-	    else
-	    { 
-	      var selectedKeywords = '';
-	      if(document.theTuskWordForm.keyWords) {
-	        for(var index=0; index<document.theTuskWordForm.keyWords.length; index++) {
-		  if(document.theTuskWordForm.keyWords[index].checked) {
-		    selectedKeywords += document.theTuskWordForm.keyWords[index].value+'|';
-		  }
-	        }
-	      }
-	      document.theTuskPrintForm.action = '/tusk/view/printcontent/<% $document->primary_key %>';
-	      document.theTuskPrintForm.hiddenWords.value = selectedKeywords;
-	      document.theTuskPrintForm.submit();
-	    }
+	  var selectedKeywords = '';
+	  if(document.theTuskWordForm.keyWords) {
+		for(var index=0; index<document.theTuskWordForm.keyWords.length; index++) {
+	  if(document.theTuskWordForm.keyWords[index].checked) {
+		selectedKeywords += document.theTuskWordForm.keyWords[index].value+'|';
+	  }
+		}
+	  }
+	  document.theTuskPrintForm.action = '/tusk/view/printcontent/<% $document->primary_key %>';
+	  document.theTuskPrintForm.hiddenWords.value = selectedKeywords;
+	  document.theTuskPrintForm.submit();
 % }
 	  }
       
@@ -895,9 +886,6 @@ return $right_hdr_lnks;
 	      &nbsp; <input type="radio" name="slidesPerPage" value="/view/printcollection/<% $document->primary_key %>/<% $numSlides %>"><% $numSlides %> slides per page (<font style="font-size:6pt;"><% $numberOfPages %></font>)<br>
 %      }
 	    </p>
-%	if($TUSK::Constants::PrintPDFHelp) {
-            &nbsp; <a href="/view/content/<% $TUSK::Constants::PrintPDFHelp %>" target="tuskHELP">Click here for help printing to PDF</a>
-%	}
 %    } else {
             <p style="color:gray;">
               This collection has no slides.<br>
@@ -908,23 +896,6 @@ return $right_hdr_lnks;
 %      $addPrintButton = 0;
 %    } 
 %  } else {
-%    if($document->type() eq 'TUSKdoc' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
-            <script>
-              function changePDF(pdfOrNothing) {
-                if(pdfOrNothing == 1) {
-                  document.getElementById('standardPrintOptions').style.color='lightgrey';
-                  document.theTuskPrintForm.Print.value = "Download";
-                } else {
-                  document.getElementById('standardPrintOptions').style.color='';
-                  document.theTuskPrintForm.Print.value = "Print";
-                }
-              }
-            </script>
-            <input type="radio" name="printType" value="standard" onClick="changePDF(0);" checked>Standard
-            <input type="radio" name="printType" value="pdf" onClick="changePDF(1);">PDF<br>
-%    } else {
-            <p style="color:gray;">PDF Not avaliable for this content.</p>
-%    }
             <p id="standardPrintOptions" style="font-color:red;">
               <input type="checkbox" name="addNotes" <% $m->session->{'contentPrintOptions'}->{addNotes} %>>Add my notes.<br>
               <input type="checkbox" name="addContentInfo" <% $m->session->{'contentPrintOptions'}->{addContentInfo} %>>Add content info.<br>

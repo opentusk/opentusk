@@ -143,6 +143,8 @@ valid types: course, school, usergroup, content, case
 <%perl>
 	return if ($type_path);
 
+use Data::Dumper;
+
 	my $type = ($default_path_type) ? $default_path_type : shift @$path_ids;
 
 	if ($type eq "course"){
@@ -211,7 +213,9 @@ valid types: course, school, usergroup, content, case
 		}
 
 		# Build the content bread crumb here
-		$initial_nav_bars = $type_object->get_bread_crumb_from_path($path_ids);
+		if (scalar @$path_ids) {
+			$initial_nav_bars = $type_object->get_bread_crumb_from_path($path_ids);
+		}
 		# do permissions here
 	}elsif($type eq "classmeeting"){
 		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");

@@ -38,7 +38,7 @@
 			title 		=> 'Upload New Content',
 			comps		=> 'upload_page',
 			page_value	=> 'add',
-			action_value	=> '',
+			action_value	=> 'add',
 		},
 		replace	=> {
 			title 		=> 'Replace Content',
@@ -524,6 +524,8 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 					}
 				} else {
 					$args->{'is_a_course'} = $type_object->isa('HSDB45::Course');
+					$req->{course} = $req->{content}->course() if (!$req->{course});
+
 					($rval, $args->{'msg'}, $content) = TUSK::UploadContent::update_content_sub($req, %$args);
 					$m->comp('SELF:save_metadata_keywords', args => $args, content => $content) if $args->{content_type} eq 'External';
 					if ($rval){
@@ -692,7 +694,7 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 	}else{
 		$action_token 	= 'edit';
 	}
-
+	
 	$set_global_flag = 1;	
 </%perl>
 </%method>
@@ -844,7 +846,6 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 </%args>
 <%perl>
 	my $uri = $ENV{REQUEST_URI};
-
 	my $df = HTML::Defang->new();
 	$uri = $df->defang($uri);
 

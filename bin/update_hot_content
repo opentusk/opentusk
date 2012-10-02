@@ -21,12 +21,16 @@ use strict;
 use HSDB4::Constants;
 use HSDB45::UserGroup;
 use TUSK::Constants;
+use MySQL::Password;
 
 my $noprint = $ARGV[0];
 
-$ENV{HSDB_DATABASE_PASSWORD} = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+HSDB4::Constants::set_user_pw (get_user_pw);
 
-for my $school (HSDB4::Constants::user_group_schools()) {
+if(!defined($ENV{DATABASE_ADDRESS})) {$ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost;}
+die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
+
+for my $school (keys %TUSK::Constants::Schools) {
     print "School: $school\n" unless ($noprint);
     my $blankgroup = HSDB45::UserGroup->new( _school => $school );
     my @groups = 

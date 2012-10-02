@@ -23,16 +23,12 @@ function requestCourses(tp_field,url,school,create_by_field) {
 	$("#coursesInstruction").html("").hide();
 	removeAllRows();
 
-	// check that a time period has been selected 
-	if (!tp_field.value) {
-		alert('Please select a time period.');
-	}
 	// check to make sure the user didn't somehow de-select one of the radio buttons 
-	else if (!create_by_field) {
+	if (!create_by_field) {
 		alert('Please select whether to create evaluations by course or course and teaching site combination.');
 	}
 	// go ahead and make the AJAX request
-	else {
+	else if (tp_field.value) {
 		$("#coursesInstruction").html("<p class='xsm'>please wait <img src='/graphics/icons/waiting_bar.gif' /></p>").show();
 		for (var i = 0; i < create_by_field.length; i++) {
 			if (create_by_field[i].checked) {

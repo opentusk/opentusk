@@ -31,7 +31,7 @@ BEGIN {
 
     @EXPORT = qw(@monthNames %months @dayAbbr);
     @EXPORT_OK = qw();
-    $VERSION = do { my @r = (q$Revision: 1.24 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.25 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 
@@ -456,21 +456,21 @@ sub m_d_yyyy_to_yyyy_mm_dd {
 
 sub get_prev_date {
 	#
-	# Takes the date of this and then (roughly) removes x number of months defined in TUSK::Constants::scheduleMonthsDisplayedAtOnce
+	# Takes the date of this and then (roughly) removes x number of months defined in TUSK::Constants::ScheduleMonthsDisplayedAtOnce
 	#
 	my $self = shift;
 	my $newDate = HSDB4::DateTime->new()->in_unix_time($self->out_unix_time);
-	$newDate->add_days(-($TUSK::Constants::scheduleMonthsDisplayedAtOnce * 30.25));
+	$newDate->add_days(-($TUSK::Constants::ScheduleMonthsDisplayedAtOnce * 30.25));
 	return $newDate->out_mysql_date();
 }
 
 sub get_next_date {
 	#
-	# Takes the date of this and then (roughly) adds x number of months defined in TUSK::Constants::scheduleMonthsDisplayedAtOnce
+	# Takes the date of this and then (roughly) adds x number of months defined in TUSK::Constants::ScheduleMonthsDisplayedAtOnce
 	#
 	my $self = shift;
 	my $newDate = HSDB4::DateTime->new()->in_unix_time($self->out_unix_time);
-	$newDate->add_days(($TUSK::Constants::scheduleMonthsDisplayedAtOnce * 30));
+	$newDate->add_days(($TUSK::Constants::ScheduleMonthsDisplayedAtOnce * 30));
 	return $newDate->out_mysql_date();
 }
 
