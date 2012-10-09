@@ -2217,3 +2217,65 @@ $rowheaders					# reference for array of arrays of row headers {id =>, name => }
 </table>
 </%method>
 
+<%method list_time_periods>
+<%doc>
+  Generate a list of current and past time periods appropriate for
+  constructing a dropdown. The dropdown includes empty values to
+  indicate no time period restriction should be used. Example:
+
+  [Empty line]
+  ------ Current Time Periods ------
+  eternity, (2007-08-23 to 2036-10-31)
+  8A8C, 2013 (2013-03-11 to 2013-04-19)
+  ... [More time periods] ...
+  [Empty line]
+  ------ Past Time Periods ------
+  ... [List of past time periods] ...
+</%doc>
+<%args>
+    $school
+</%args>
+<%perl>
+    my $tp = HSDB45::TimePeriod->new(_school => $school);
+    my @past_time_periods = $tp->lookup_all('end_date < curdate()',
+                                            'ORDER BY end_date DESC');
+    my @current_time_periods = $tp->lookup_all('end_date >= curdate()',
+                                               'ORDER BY end_date DESC');
+    my @time_periods = ();
+    push @time_periods, { value => '', label => '', class => 'xsm' };
+    if (@current_time_periods) {
+        push @time_periods, { value => '',
+                              label => '------ Current Time Periods ------',
+                              class => 'xsm' };
+    }
+    foreach (@current_time_periods) {
+        push @time_periods, {
+            value  => $_->primary_key(),
+            label  => $_->field_value('period') . ', '
+                . $_->field_value('academic_year')
+                . ' ('
+                . $_->field_value('start_date') . ' to '
+                . $_->field_value('end_date')
+                . ')',
+            class   => 'xsm'
+        };
+    }
+    push @time_periods, { value => '', label => '', class=> 'xsm'  };
+    push @time_periods, { value => '',
+                          label => '------ Past Time Periods ------',
+                          class=> 'xsm'  } if (@past_time_periods);
+    foreach (@past_time_periods) {
+        push @time_periods, {
+            value  => $_->primary_key(),
+            label  => $_->field_value('period') . ', '
+                . $_->field_value('academic_year')
+                . ' ('
+                . $_->field_value('start_date') . ' to '
+                . $_->field_value('end_date')
+                . ')' ,
+            class   => 'xsm'
+        };
+    }
+    return \@time_periods;
+</%perl>
+</%method>
