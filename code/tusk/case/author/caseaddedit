@@ -68,16 +68,14 @@ my $formname = 'caseaddedit';
 
 
 <%perl>
-my $button_ref = [$m->scomp('/tmpl/element:html_edit_button')];
 
 if (defined($id)){
 	$m->comp('tmpl/sections:case_footer', 
 		case=>$case, 
 		type_path=>$type_path, 
-		formname=>$formname, 
-		buttons=>$button_ref);
+		formname=>$formname);
 } else {
-	$m->comp('/tmpl/element:save_button', params=>{label=>'Save Changes', name=>'case_submit', buttons=>$button_ref});
+	$m->comp('/tmpl/element:save_button', params=>{label=>'Save Changes', name=>'case_submit'});
 }
 </%perl>
 
@@ -92,7 +90,10 @@ if (defined($id)){
 		name=>"case_author_desc",
 		cols=>"60",
 		rows=>"2",
-		value=>$case->getCaseAuthorDesc()  } &>
+		value=>$case->getCaseAuthorDesc(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120', width => '710'}
+ &>
 
 <& /tmpl/element:textbox, params =>{ label => 'Copyright',
                 name => 'copyright',
@@ -126,10 +127,14 @@ if (defined($id)){
                 options=>['Linear', 'Global'] } &>
 
 <& /tmpl/element:textarea, params=>{ label => 'Case Overview',
-                name=>"case_user_desc",
-                cols=>"60",
-                rows=>"4",
-                value=>$case->getCaseUserDesc() } &>
+        name=>"case_user_desc",
+        cols=>"60",
+        rows=>"4",
+        value=>$case->getCaseUserDesc(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120', width => '710'}
+ &>
+
 
 <& /tmpl/element:textbox, params =>{ label => 'Feedback Email',
                 name => 'feedback_email',
@@ -224,10 +229,9 @@ if (defined($id)){
 	$m->comp('tmpl/sections:case_footer', 
 		case=>$case, 
 		type_path=>$type_path, 
-		formname=>$formname, 
-		buttons=>$button_ref);
+		formname=>$formname);
 } else {
-	$m->comp('/tmpl/element:save_button', params=>{label=>'Save Changes', name=>'case_submit', buttons=>$button_ref});
+	$m->comp('/tmpl/element:save_button', params=>{label=>'Save Changes', name=>'case_submit'});
 }
 </%perl>
 
@@ -356,7 +360,7 @@ if (defined($id)){
 
 
 <%method jsarray>
-% return ['layers.js', 'element.js', 'caseshell.js', 'object_tree.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+% return ['element.js', 'caseshell.js', 'object_tree.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js',  'ckeditor/ckeditor.js', 'ckeditor/tusk.js', 'jquery/jquery.min.js'];
 </%method>
 
 <%method stylearray>
@@ -376,8 +380,8 @@ return $title;
 
 <%method function_token>
 <%perl>
-	if ($is_edit){
-		return 'edit_quiz';
+	if ($id){
+		return 'modify_case';
 	}
 	else{
 		return '';

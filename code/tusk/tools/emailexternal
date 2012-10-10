@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%flags>
 	inherit => undef
 </%flags>
@@ -13,7 +28,7 @@
 
 
 <%once>
-	use Mail::Sendmail;
+	use TUSK::Application::Email;
 	use TUSK::Constants;
 	use Data::Dumper;
 </%once>
@@ -86,19 +101,22 @@
 
 	my $whotos = (ref $args{whoto} eq 'ARRAY') ? join(',', @{$args{whoto}}) : $args{whoto};
 
-	sendmail(
-		To				=> $whotos,
-		BCC				=> $args{bcc},
-		From			=> $from_email,
-		Subject			=> $args{subject},
-		Message			=> '<html><body>' . $email_text . '</body></html>',
-		'content-type' 	=> 'text/html; charset="iso-8859-1"',
-	) or sendmail(
-		To				=> $TUSK::Constants::SupportEmail,
-		From			=> $TUSK::Constants::SupportEmail,
-		Subject			=> 'Form Mail Error - ' . $ENV{HTTP_REFERER},
-		Message			=> '<html><body><div>' . $Mail::Sendmail::error . '</div><pre>' . Dumper(\%args) . '</pre></body></html>',
-		'content-type' 	=> 'text/html; charset="iso-8859-1"',
-	);
+	my $mail = TUSK::Application::Email->new({
+		to_addr         => $whotos,
+		bcc             => $args{bcc},
+		from_addr       => $from_email,
+		subject         => $args{subject},
+		body            => '<html><body>' . $email_text . '</body></html>',
+		'Content-Type'  => 'text/html; charset="utf-8"',
+	}); 
+	unless ($mail->send()) {
+		$mail = TUSK::Application::Email->new({
+			to_addr         => $TUSK::Constants::SupportEmail,
+			from_addr       => $TUSK::Constants::SupportEmail,
+			subject         => 'Form Mail Error - ' . $ENV{HTTP_REFERER},
+			body            => '<html><body><div>' . $mail->getError() . '</div><pre>' . Dumper(\%args) . '</pre></body></html>',
+			'Content-Type' => 'text/html; charset="utf-8"',
+		});
+	}
 </%perl>
 </%method>

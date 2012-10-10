@@ -1,6 +1,6 @@
 <%once>
+use TUSK::Application::HTML::Strip;
 use TUSK::Constants;
-use Data::Dumper;
 use TUSK::Manage::User;
 </%once>
 
@@ -10,7 +10,6 @@ use TUSK::Manage::User;
 	onsubmit =>'return checkform(this)',
 	action => "/management/users/addedit/".$selfpath ,
 	name => 'user' } 
-
 &>
 
 <& /tmpl/element:table, params => { 
@@ -20,13 +19,10 @@ use TUSK::Manage::User;
 	cellpadding =>"0" } &>
 
 
-<tr>
-<td class="labelgray">UserID:</td>
-<td class="cell-left">
-<% $usrid %>
-<input type="hidden" name="userid" value="<% $usrid %>">
-</td></tr><tr> 
-
+<& /tmpl/element:field_display, params => { 
+	label => 'UserID:',
+	value => $usrid . "\n<input type=\"hidden\" name=\"userid\" value=\"$usrid\">",
+} &>
 
 % if ($isldap) {
 	<td class="labelgray">First Name:</td>
@@ -39,7 +35,7 @@ use TUSK::Manage::User;
 	label => 'First Name:',
 	name => 'firstname',
 	id => 'First_Name__y',
-    size => 24,
+        size => 24,
 	maxlength => 20,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{firstname} : '',
@@ -56,7 +52,7 @@ use TUSK::Manage::User;
 	label => 'Middle Name:',
 	name => 'midname',
 	id => '',
-    size => 24,
+        size => 24,
 	maxlength => 20,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{midname} : '',
@@ -76,7 +72,7 @@ use TUSK::Manage::User;
 	label => 'Last Name:',
 	name => 'lastname',
 	id => 'Last_Name__y',
-    size => 24,
+        size => 24,
 	maxlength => 40,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{lastname} : '',
@@ -98,45 +94,41 @@ use TUSK::Manage::User;
 	label => 'Email:',
 	name => 'email',
 	id => 'Email__y',
-    size => 24,
+        size => 24,
 	maxlength => 80,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{email} : '',
-  	} &>
+} &>
 
 % }
 </td></tr>
 <tr>
-    
 <td class="labelgray">Affiliation:</td>
 <td class="cell-left">
-
 <select name="affiliation">
 % foreach my $item (@affiliations) {
-%			if ($ARGS{page} eq "edit" and ($item eq $useredit->{affiliation} or (!$useredit->{affiliation} and $school eq $item))) {
+%	if ($ARGS{page} eq "edit" and ($item eq $useredit->{affiliation} or (!$useredit->{affiliation} and $school eq $item))) {
 		<option selected><% $item %> </option>
-% } else {
+% 	} else {
 		<option ><% $item %></option>
-% }
+% 	}
 % } # END FOREACH
 </select>
-
 </td></tr>
+
 <tr>
 <td class="labelgray">Degree:</td>
 <td class="cell-left"><select name="degree" onchange="check_degree(this);">
-
-%			my  $degree_in_dropdown = 0; 
-% 		    foreach my $item (@degrees) {
-%				if ($ARGS{page} eq "edit" and $item eq $useredit->{degree}) {
-%					$degree_in_dropdown=1;
-					<option selected><% $item %></option>
-%				} else {
-					<option ><% $item %></option>
-% 				}
-
-% 			} # END FOREACH
-				<option value="Other">Other</option>
+%	my  $degree_in_dropdown = 0; 
+%	foreach my $item (@degrees) {
+%		if ($ARGS{page} eq "edit" and $item eq $useredit->{degree}) {
+%			$degree_in_dropdown=1;
+			<option selected><% $item %></option>
+%		} else {
+			<option ><% $item %></option>
+%		}
+%	} # END FOREACH
+			<option value="Other">Other</option>
 </select>
 
 <div id="degree_text" style=<%(!$degree_in_dropdown)? 'margin-left:10px;display:none;' : 'margin-left:10px;display:inline;'%> <input name="degree_text" maxlength="60" size="24" class="textareawhite" value="<%($degree_in_dropdown == 0)? $useredit->{degree} : '' %>"> 
@@ -213,13 +205,12 @@ my $expire_params =
 <& /tmpl/element:textbox, params => { 
 	label => 'SID:',
 	name => 'sid',
-    size => 24,
+	size => 24,
 	maxlength => 20,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{sid} : '',
-  	} &>
+} &>
 
-</tr>
 <tr>
 <td class="labelgray">User Source:</td>
 <td class="cell-left"><select name="source">
@@ -251,6 +242,7 @@ my $expire_params =
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
 
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $ug (@{$data->{usergroups}}) {
 %	if ($data->{tr_flag} == 0){
 %		print  "<tr>";
@@ -261,7 +253,8 @@ my $expire_params =
 %  if ($ARGS{page} eq "add") {
 <input type="checkbox" name="groups" value="<% $ug->primary_key %>">
 % }
-<% $ug->field_value('label') %>
+
+<% $stripObj->removeHTML($ug->field_value('label')) %>
 
 % if ($ARGS{page} eq "edit") {
 &nbsp;(<% $ug->school %>)
@@ -283,8 +276,8 @@ None
 
 </td>
 </tr>
-% if (!($isldap)) {
 
+% if (!($isldap)) {
 <tr>
 <td class="labelgray">Reset Password:</td>
 <td class="cell-left">
@@ -292,22 +285,21 @@ None
 <input name="reset_password" type="checkbox" <% $ischkd %> >
 % my $set_or_reset = $ARGS{page} eq "add" ? "Set" : "Reset";
 <% $set_or_reset %> and Email Password to User
-</td></tr>
-
+</td>
+</tr>
 % }
 
 <tr> 
-
 <& /tmpl/element:save_button, params=>{
 	label 			=> 'Save and Continue',
 	no_cancel_button => 1,
 	class 	=> 'formbutton',
 	name	=> 'Submit',
-	} 
-&>
+} &>
 
 <input type="hidden" name="action" value="<% $ARGS{page} %>"> 
-</td></tr>
+</td>
+</tr>
 </table>
 
 % if ($isldap) {
@@ -322,27 +314,21 @@ None
 	unless ($ARGS{page}){ $ARGS{page} = "edit"; }
 	unless ($ARGS{userid}){ $ARGS{userid} = ""; }
 
-	my $usrid;
-    if ($ARGS{userid}) { $usrid = $ARGS{userid}; }
-	else { $usrid = $m->comp("/tmpl/url:get_last_path_id");}	
+	my $usrid = ($ARGS{userid}) ?  $ARGS{userid} : $m->comp("/tmpl/url:get_last_path_id");
 
 	my ($rval, $msg);
-    my $school = $m->comp('/tmpl/url:get_school');
+	my $school = $m->comp('/tmpl/url:get_school');
+
 	if ($ARGS{action}){
-		
-		($rval, $msg) = TUSK::Manage::User::addedit_process($r, $usrid,$school, \%ARGS);
-		my $msgtype;
-		if($rval == 1) { $msgtype= "msg";}
-		else { $msgtype="errmsg"; }
+		($rval, $msg) = TUSK::Manage::User::addedit_process($r, $usrid, $school, \%ARGS);
+		my $msgtype = ($rval == 1) ?  "msg" : "errmsg"; 
 		$m->comp("/tmpl/url:redirect",destination => "/management/users/addedit/school/".$school."/".$usrid."?$msgtype=$msg", message =>'');
 	}
 
 	my $useredit;
 	my $ldapuser;
 	my $data = TUSK::Manage::User::addedit_pre_process($r,$usrid,$school,\%ARGS);
-
 	$useredit = $data->{useredit};
-
 
 	my @affiliations = @TUSK::Constants::Affiliations;
 	my @degrees = @TUSK::Constants::Degrees;
@@ -352,11 +338,7 @@ None
 	my %source_label = ('internal' => $TUSK::Constants::SiteAbbr);
 	my $selfpath = $m->comp("/tmpl/url:get_full_path");
 
-	
-	
-	if ( $ARGS{userid} ) {
-# 		$useredit = HSDB4::SQLRow::User->new->lookup_key($ARGS{userid}); 
-	}	else {
+	unless ($ARGS{userid}) {
 		$useredit = HSDB4::SQLRow::User->new->lookup_key( $m->comp("/tmpl/url:get_last_path_id") );
 	}
 	

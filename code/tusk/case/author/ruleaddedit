@@ -1,8 +1,24 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%args>
 @new_rule_id => (); # each new rule created passes in this hidden input elt
 </%args>
 
 <%once>
+use TUSK::Application::HTML::Strip;
 use TUSK::Case::Case;
 use TUSK::Case::Phase;
 use TUSK::Case::Rule;
@@ -11,7 +27,6 @@ use TUSK::Case::RuleRelationType;
 use TUSK::Case::LinkPhaseQuiz;
 use TUSK::Quiz::Quiz;
 use TUSK::Quiz::Question;
-use TUSK::Functions;
 </%once>
 
 <%shared>
@@ -41,12 +56,10 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 		cellspacing =>"0",
 		cellpadding =>"0" } &>
 
-% my $button_ref = [$m->scomp('/tmpl/element:html_edit_button')];
 <& tmpl/sections:case_footer, 
 	case      => $case, 
 	type_path => $type_path, 
-	formname  => $form_name,
-	buttons   => $button_ref &>
+	formname  => $form_name &>
 
 <& /tmpl/element:tr_tag &>
 <td>
@@ -86,8 +99,7 @@ Would you like to add more rule definitions to this phase?<br>
 <& tmpl/sections:case_footer, 
 	case      => $case, 
 	type_path => $type_path, 
-	formname  => $form_name,
-	buttons   => $button_ref &>
+	formname  => $form_name &>
 
 <& /tmpl/wizard:include &>
 
@@ -234,7 +246,8 @@ Provide a warning message that will be shown to a student who tries to enter the
 %		name =>  'msg' . $id, 
 %		class => 'crRuleMsg',
 %		value => $rule->getMessage(),
-%		});
+%		htmleditor=>1}, 
+%	cke_params=> {height => '120'});
 
 % if ($id eq 'NewRule0') {
 <& /tmpl/element:hidden_form_element, params => { name => 'new_rule_id', id => 'new_rule_id', value => $id } &>
@@ -451,9 +464,10 @@ $m->comp('/tmpl/process:manipulate_rows',
 	$txt
 </%args>
 % my $max_length = 80;
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % $txt =~ s/<\s*\/?[?A-z][^>]*>//g;
 % if (length($txt) > $max_length) {
-% 	$txt = TUSK::Functions::truncateTextWithoutTags($txt, $max_length);
+% 	$txt = $stripObj->truncateAndRemoveHTML($txt, $max_length);
 % }
 % return $txt;
 </%def>
@@ -464,7 +478,7 @@ $m->comp('/tmpl/process:manipulate_rows',
 </%method>
 
 <%method jsarray>
-% return ['layers.js', 'element.js', 'caseshell.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/selectlist/scripts/jquery.selectlist.min.js', 'ruleaddedit.js'];
+% return ['layers.js', 'element.js', 'caseshell.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/selectlist/scripts/jquery.selectlist.min.js', 'ruleaddedit.js', 'ckeditor/ckeditor.js', 'ckeditor/tusk.js'];
 </%method>
 
 <%method stylearray>

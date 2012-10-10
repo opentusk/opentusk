@@ -1,3 +1,19 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
 <%once>
 	use IO::File;
 	use Spreadsheet::WriteExcel;
@@ -157,19 +173,35 @@
 		my $worksheet = $workbook->add_worksheet($m->comp('SELF:formatLabel', label => $field->getFieldName()));
 		$row = 0; 		## reset a new running row 
 
-		my $course_summary_field_view_map = $m->comp('SELF:getCourseSummaryByFieldMap');
-		foreach my $key (sort keys %{$course_summary_field_view_map}) {
-			my $func = $course_summary_field_view_map->{$key}{func};
+		$course_field_map = $m->comp('SELF:getCourseSummaryByFieldMap', field_id => $field->getPrimaryKeyID());
+		
+		foreach my $key (sort keys %{$course_field_map}) {
+			my $func = $course_field_map->{$key}{func};
 			my $results = $report->$func($field->getPrimaryKeyID());
 
-			$worksheet->write($row++, 0, $course_summary_field_view_map->{$key}{label}, $title_format);
+			$worksheet->write($row++, 0, $course_field_map->{$key}{label}, $title_format);
 
-			if ($results->{items}) {  ## by site and student, items are displayed horizontally
+			
+			## if percentage report for field with attributes
+			if ($func eq 'getPercentagesBySite') {
+				## prepare attribute hash
+				my (@colheaders, $value, $either);
+				foreach my $attr (@{$results->{attribute_items}}) {
+					$value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+					push(@colheaders, {id => $attr->getPrimaryKeyID(), name => $value});
+					$either .= " or " if ($either);
+					$either .= $value;
+				}
+				push(@colheaders, {id => 'either', name => $either});
+				$m->comp('SELF:tableHeadingsByItems', items => $results->{items}, worksheet => $worksheet, attribute_items => \@colheaders);
+				$m->comp('SELF:tableData', items => $results->{items}, vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => \@colheaders, view => $key);
+			}
+			elsif ($results->{items}) {  ## by site and student, items are displayed horizontally
 				$m->comp('SELF:tableHeadingsByItems', items => $results->{items}, worksheet => $worksheet, attribute_items => $results->{attribute_items});
 				$m->comp('SELF:tableData', items => $results->{items}, vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, view => $key);
 			} else {   ## all sites, items are displayed vertically
-				my $column_headings = $course_summary_field_view_map->{$key}{column_headings};
-				$m->comp('SELF:tableHeadings', labels => $column_headings, worksheet => $worksheet, attribute_items => $results->{attribute_items});
+				my $column_headings = $course_field_map->{$key}{column_headings};
+				$m->comp('SELF:tableHeadings', labels => $column_headings, worksheet => $worksheet, attribute_items => $results->{attribute_items}, report_type => 'cs');
 				$m->comp('SELF:tableDataByItems', vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
 			}
 			$row++;
@@ -186,7 +218,7 @@
 		$row = 0;  ## reset a new running row 
 		my $results = $report->getReportByField($field->getPrimaryKeyID());
 		my $column_headings = $m->comp('SELF:getReportHeadings', report_type => $params{rtype}, type => 'byfield');
-		$m->comp('SELF:tableHeadings', worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
+		$m->comp('SELF:tableHeadings', worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings,  report_type => $params{rtype});
 		$m->comp('SELF:tableDataByItems', vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
 	}
 </%perl>
@@ -228,7 +260,7 @@
 			foreach my $field (@$fields) {
 				$worksheet->write($row, 0, $field->getFieldName(), $title_format);
 				my $results = $student_report->getReportByField($field->getPrimaryKeyID());
-				$m->comp('SELF:tableHeadings', worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
+				$m->comp('SELF:tableHeadings', worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings, report_type => 'ss');
 				$m->comp('SELF:tableDataByItems', vheadings => $results->{rows}, data => $results->{data}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $column_headings);
 				$row += 2;
 				$attribute_num = scalar @{$results->{attribute_items}} if $results->{attribute_items};
@@ -250,6 +282,7 @@
 	$items => []
 	$attribute_items => []
 	$labels => []
+	$report_type
 </%args>
 <%perl>
 	$worksheet->set_column(0, 0, 30);
@@ -260,7 +293,16 @@
 	}
 
 	my $j = 1;
-	for (my $i = 0; $i < scalar @{$labels}; $i++) {		
+	my $total;
+
+	if (scalar @$attribute_items > 0) {
+		$total = scalar @{$labels};
+	}
+	else {
+		$total = (scalar @{$labels}) - 1;
+	}
+
+	for (my $i = 0; $i < $total; $i++) {		
 		$worksheet->write($row, $j++, $labels->[$i], $header_format);		
 
 		foreach (1..$attribute_columns-1) {
@@ -272,10 +314,20 @@
 
 	if (scalar @$attribute_items > 0) {
 		my $col = 1;
-		foreach (@{$labels}) {		
-			for (my $i = 0; $i < scalar @{$attribute_items}; $i++) {
-				my $value = ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
+		foreach (@{$labels}) {
+			my $value;	
+			if ($col == ((scalar @$attribute_items) * (scalar @{$labels})) - 1) {
+				for (my $i = 0; $i < scalar @{$attribute_items}; $i++) {
+					$value .= " or " if ($value);
+					$value .= ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
+				}
 				$worksheet->write($row, $col++, $value, $header_format);
+			}
+			else {
+				for (my $i = 0; $i < scalar @{$attribute_items}; $i++) {
+					$value = ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
+					$worksheet->write($row, $col++, $value, $header_format);
+				}
 			}
 		}
 		$row++;
@@ -322,8 +374,13 @@
 		foreach my $item (@{$items}) {
 	 		if ($item->getItemTypeToken() eq 'Item') {
 				for (my $i = 0; $i < scalar @{$attribute_items}; $i++) {
-					my $value = ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
-					$worksheet->write($row, $col++, $value, $header_format);
+			 		if (ref $attribute_items->[$i] eq "HASH") {
+						$worksheet->write($row, $col++, $attribute_items->[$i]->{'name'}, $header_format);
+					}
+					else {
+						my $value = ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
+						$worksheet->write($row, $col++, $value, $header_format);
+					}
 				}
 			}
 		}
@@ -342,7 +399,6 @@
 	$attribute_items => []
 	$view
 </%args>
-
 <%perl>
 	my $columns = scalar @$attribute_items;
  	foreach my $obj (@{$vheadings}) {
@@ -355,12 +411,23 @@
 			my $i = 0;
 			my $dat = $data->{$obj_id}{$item->getPrimaryKeyID()};
 			if (defined $dat) {
-				foreach my $d (@{$dat}) {
-					$worksheet->write($row, $col++, ($d) ? int $d : 0);
-					$i++;
+				if (ref $dat eq "ARRAY") {
+					foreach my $d (@{$dat}) {
+						$worksheet->write($row, $col++, ($d) ? int $d : 0);
+						$i++;
+					}
+					while ($i++ < $columns) {
+						$worksheet->write($row, $col++, 0);
+					}
 				}
-				while ($i++ < $columns) {
-					$worksheet->write($row, $col++, 0);
+				elsif (ref $dat eq "HASH") {
+					foreach my $attr (@{$attribute_items}) {
+						$worksheet->write($row, $col++, ($dat->{$attr->{id}}) ? int $dat->{$attr->{id}} : 0);
+						$i++;
+					}
+					while ($i++ < $columns) {
+						$worksheet->write($row, $col++, 0);
+					}
 				}
 			} else {
 				if ($columns) {
@@ -387,7 +454,7 @@
 	$labels => []
 </%args>
 <%perl>
-	my $columns = (scalar @$attribute_items > 0) ? scalar @$attribute_items * scalar @$labels : scalar @$labels;
+	my $columns = (scalar @$attribute_items > 0) ? (scalar @$attribute_items * scalar @$labels) : scalar @$labels;
 
 	foreach my $item (@$vheadings) {
 		if ($item->isCatStart()) {
@@ -403,6 +470,7 @@
 					if (ref $dat eq 'ARRAY') {
 						my $i = 1;
 						foreach my $d (@$dat) {
+							$d =~ s/%//;
 							$worksheet->write($row, $col++, ($d) ? int $d : 0);
 							$i++;
 						}
@@ -410,14 +478,15 @@
 							$worksheet->write($row, $col++, 0);
 						}
 					} else {
+						$dat =~ s/%//;
 						$worksheet->write($row, $col++, ($dat) ? int $dat : 0);
 					}
 				}
-				foreach ($col .. $columns) {
+				foreach ($col .. $columns - 1) {
 					$worksheet->write($row, $col++, 0);
 				}
 			} else {
-				for (my $col = 0; $col < $columns; $col++) {
+				for (my $col = 0; $col < $columns - 1; $col++) {
 					$worksheet->write($row, $col+1, 0);
 				}
 			}

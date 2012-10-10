@@ -305,7 +305,7 @@ sub make_spec_char_translate {
     return sub {
 	# my @in = demoronise_name(@_);
 	my $encodingre = qr/(latin1|utf8|utf7)/;
-	my $encoding = 'latin1';
+	my $encoding = 'utf8';
 	if ($_[-1] =~ $encodingre) { $encoding = pop @_ }
 	*encoding_sub = $Unicode::String::{$encoding};
 	my @out = ();
@@ -654,7 +654,7 @@ sub xml_escape {
     }
 
     my $text = shift;
-    my $encoding = shift || 'latin1';
+    my $encoding = shift || 'utf8';
 
     # if ($self->get_entities()) {
     #     $text = spec_chars_name($text, $encoding);

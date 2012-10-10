@@ -12,8 +12,6 @@ BEGIN {
     use Apache::Log ();
     use Apache::SizeLimit ();
     use lib Apache->server_root_relative('lib');
-    use HTML::Embperl::Session;
-    use HTML::Embperl;
     use Carp;
     use HSDB4::SQLRow::Content;
     use HSDB45::Course;
@@ -22,6 +20,7 @@ BEGIN {
     use HSDB4::SQLRow::StatusHistory;
     use HSDB45::TimePeriod;
     use TUSK::Constants;
+    use TUSK::Core::Logger;
 
     # Limit size of the Apache processes
     $Apache::SizeLimit::MAX_PROCESS_SIZE = $TUSK::Constants::maxApacheProcSize;

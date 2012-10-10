@@ -32,7 +32,7 @@ sub handler {
 		# TUSK added logout
 		MwfPlgAuthen::logout($user_id);
 
-		# Destroy Embperl Session
+		# Destroy Apache Session
 		unless($TUSK::Constants::CookieUsesUserID) {
 			my %session;
 			Apache::TicketTool::create_apache_session($ticket{user}, \%session);

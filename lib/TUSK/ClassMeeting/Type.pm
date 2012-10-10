@@ -37,6 +37,10 @@ use vars @EXPORT_OK;
 # Non-exported package globals go here
 use vars ();
 
+use TUSK::Core::School;
+use HSDB45::ClassMeeting;
+
+
 sub new {
     # Find out what class we are
     my $class = shift;
@@ -55,7 +59,7 @@ sub new {
 					'label' => '',
 				    },
 				    _attributes => {
-					save_history => 0,
+					save_history => 1,
 					tracking_fields => 1,	
 				    },
 				    _levels => {
@@ -138,6 +142,44 @@ sub setLabel{
 =cut
 
 ### Other Methods
+
+
+#######################################################
+
+=item B<getSchoolTypes>
+
+$obj->getSchoolTypes($school_id);
+
+Get the class_meeting_type records, returned in alpha 
+order provided a school id.
+
+=cut
+
+sub getSchoolTypes {
+	my ($class, $id) = @_;
+	return $class->lookup("school_id=$id", ['label ASC']);
+}
+
+
+#######################################################
+
+=item B<hasLinkedMeetings>
+
+$obj->hasLinkedMeetings();
+
+Given the class_meeting_type, see if there are any
+meetings of that type.
+
+=cut
+
+sub hasLinkedMeetings {
+	my ($self) = @_;
+
+	my $school = TUSK::Core::School->new()->lookupKey($self->getSchoolID());
+	my $meeting_count = HSDB45::ClassMeeting->new(_school => $school->getSchoolName())->lookup_conditions('type_id=' . $self->getPrimaryKeyID());
+
+	return $meeting_count;
+}
 
 =head1 BUGS
 

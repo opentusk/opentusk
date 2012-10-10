@@ -10,7 +10,7 @@
 package TUSK::Mason;
 
 # Bring in main Mason package.
-use HTML::Mason;
+use HTML::Mason 1.47;
 use MasonX::Request::WithApacheSession;
 use Apache::Constants qw(:common);
 
@@ -61,7 +61,8 @@ my $ah =
 	  use_object_files => $use_object_files,
 	  error_mode=>$error_mode, 
           comp_root => "$ENV{CODE_ROOT}/tusk",
-	  data_dir => "$ENV{SERVER_ROOT}/mason_cache");
+	  data_dir => "$ENV{SERVER_ROOT}/mason_cache",
+	  plugins=>['MasonX::Plugin::UTF8', 'MasonX::Plugin::Defang']);
           
 
 sub handler

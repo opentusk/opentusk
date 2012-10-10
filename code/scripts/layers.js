@@ -5,7 +5,7 @@ item called action_array which has the same format as the action structure.
 */
 
 var layers = new Array();
-
+var openCKEditor = new Object();
 
 function layer(structure, layer){
 	this.structure = structure;
@@ -17,6 +17,8 @@ function layer(structure, layer){
 	this.actionstring = actionstring;
 	this.getIndexByPK = getIndexByPK;
 	this.setfield = layersetfield;
+	this.ckefields = new Array();
+	this.generateCKECode = generateCKECode;
 }
 
 function save(){
@@ -30,8 +32,126 @@ function save(){
 		}
 		string += data[fields[i]];
 	}
-
 }
+
+function generateCKECode() {
+	for (var i = 0; i < this.ckefields.length; i++) {
+		if (document.getElementById(this.ckefields[i])) {
+			// cleanly destroy instance if it already exists
+			if (CKEDITOR.instances[this.ckefields[i]]) {
+				CKEDITOR.instances[this.ckefields[i]].destroy(true);
+			}
+			createCKEinstance(this.ckefields[i]);
+		}
+	}
+}
+
+function createCKEinstance(ckefield_id) {
+	// create instance
+	var instance = CKEDITOR.replace(ckefield_id, {
+		toolbar : 'TUSK_min', 
+		toolbarStartupExpanded : false,
+		toolbarCanCollapse : false,
+		removePlugins : 'elementspath',
+		resize_enabled : false,
+		readOnly : true 
+	});
+	instance.on('contentDom', function(e) {
+		this.document.on('click', function(event) {
+			// set up variables for lightbox switch
+			var link = "#" + e.editor.container.$.id;
+			var editor_id = e.editor.container.$.id.substring(4);
+			openCKEditor.id = editor_id;
+			var edwidth = $(window).width() - 300;
+			var edheight = $(window).height() - 250;
+
+			// get readable name of field and add to the header of the lightboxed edit window
+			var match = /(\w*)__(.+)__(\w*)__(.+)/.exec(editor_id);
+			if (match) {
+				$('#crSelItmHdr').html("Modify HTML field: " + " " + match[3].replace(/[_-]/, " ") + ", row " + (parseInt(match[4]) + 1));
+			}
+			
+			// get id of CKEDITOR instance that triggered click event
+			// and recreate it within the div to be lightboxed, saving the former parent
+			openCKEditor.parent = $("#" + editor_id).parent();
+			openCKEditor.width = openCKEditor.parent.width();
+			openCKEditor.height = openCKEditor.parent.height();
+			CKEDITOR.instances[editor_id].destroy(true);			
+			$("#" + editor_id).appendTo("#largeditor .inner");					
+			var instance = CKEDITOR.replace(editor_id, {
+				toolbar : 'TUSK', 
+				toolbarStartupExpanded : true,
+				toolbarCanCollapse : true,
+				removePlugins : 'elementspath',
+				extraPlugins : "tuskcontent", 
+				resize_enabled : true,
+				readOnly : false,
+				height : edheight - 200,
+				width : edwidth - 10
+			});
+			// add lightbox animation
+			$('div#largeditor').css({
+				display: 'block',
+				width: openCKEditor.width,
+				height: openCKEditor.height,
+				top: openCKEditor.parent.position().top,
+				left: openCKEditor.parent.position().left
+			});
+			// add dragability
+			$('div#largeditor').draggable({handle: 'h4#crSelItmHdr'}); 
+
+			$('div#largeditor').animate({
+				height: edheight,
+				width: edwidth,
+				top: (($(window).height() - edheight) / 2) + $(window).scrollTop(),
+				left: (($(window).width() - edwidth) / 2) + $(window).scrollLeft()
+			}, 500, function() {
+				instance.focus();
+			});
+		
+			$('div#crCurtain').css({
+				display: 'block',
+				position: 'fixed',
+				'z-index':15,
+				opacity: 0.5
+			});			
+		});
+	});
+	return instance;
+}
+
+function closeCKEbox() {
+	CKEDITOR.instances[openCKEditor.id].destroy(true);
+
+	$("#largeditor .inner #" + openCKEditor.id).appendTo(openCKEditor.parent);					
+	$('div#largeditor').animate({
+		top: openCKEditor.parent.position().top,
+		left: openCKEditor.parent.position().left,
+		opacity: 'hide',
+		width: openCKEditor.width,
+		height: openCKEditor.height
+	}, 500, function() { 
+		$('div#crCurtain').css('display', 'none');
+	});
+	createCKEinstance(openCKEditor.id).focus();
+	openCKEditor.id = null;
+	openCKEditor.parent = null;
+	openCKEditor.height = null;
+	openCKEditor.width = null;
+}
+
+function saveCKEbox() {
+	CKEDITOR.instances[openCKEditor.id].updateElement();
+	updateCKfield(CKEDITOR.instances[openCKEditor.id]);
+	closeCKEbox();
+}
+
+function updateCKfield (instance) {
+	// layer__id__fieldname__row
+	var fieldAttrs = instance.name.split("__");
+	setfield(fieldAttrs[0], fieldAttrs[3], fieldAttrs[2], instance.getData(), "this.form." + fieldAttrs[0] + "__" + fieldAttrs[1] + "__elementchanged__" + fieldAttrs[3]);
+}
+
 
 function showlayer(){
 	var string;
@@ -61,11 +181,19 @@ function showlayer(){
 			string = "";
 		}
 	}
-
 	if (this.structure['validate']['usage'] == 'Yes'){
 		document.forms[this.structure['validate']['form']].elements[this.structure['validate']['element']].value = hasdata;
 	}
 	display(this.layer, string, height, overflow);
+	
+	// if there are dynamically-created CKEDITOR fields, do cleanup and generation of CKEDITOR code
+	if (this.ckefields.length > 0) {
+		this.generateCKECode();
+		cleanUpCKEInstances(this.layer);
+	}
+	else if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances) {
+		cleanUpCKEInstances(this.layer);
+	}
 }
 
 function display(layer, string, height, overflow){
@@ -101,7 +229,8 @@ function showrows(){
 	var action = this.structure['action'];
 	var sort = this.structure['sort'];
 	var fields = this.structure['fields'];
-	var fieldRE = new RegExp('"',"g"); 
+	var fieldRE = new RegExp('"',"g");
+	var ckefields = this.ckefields = new Array();
 	for (var i=0; i<data.length; i++){
 		if (i % 2){
 			rowclass = 'odd';
@@ -182,7 +311,10 @@ function showrows(){
 				if ((this.editnum == i && display[j]['uneditable'] == null) || (((display[j]['type'] == 'textarea') || (display[j]['type'] == 'textbox') || (display[j]['type'] == 'checkbox')) && typeof(data[i]['isHeaderRow']) == 'undefined')){
 					displayFieldValue = displayFieldValue.replace(new RegExp('&','g'), '&amp;');
 					if ((display[j]['edittype'] == 'textarea') || (display[j]['type'] == 'textarea')){
-						string += '<textarea class="textareawhite" id="' + elementname(this.layer, data[i][fields[0]], display[j]['field'], i) + '" name="' + elementname(this.layer, data[i][fields[0]], display[j]['field'], i) + '" onclick="edit_textarea_sob(this, \'' + this.layer + '\');" onChange="setfield(\'' + this.layer + '\', ' + i + ', \'' + display[j]['field'] + '\', this.value, this.form.' + changedname + ')" style="width:' + display[j]['length']  + 'px;height:70px">' + displayFieldValue + '</textarea>';
+						string += '<textarea class="textareawhite" id="' + elementname(this.layer, data[i][fields[0]], display[j]['field'], i) + '" name="' + elementname(this.layer, data[i][fields[0]], display[j]['field'], i) + '" onChange="setfield(\'' + this.layer + '\', ' + i + ', \'' + display[j]['field'] + '\', this.value, this.form.' + changedname + ')" style="width:' + display[j]['length']  + 'px;height:70px">' + displayFieldValue + '</textarea>';
+						if (display[j]['htmleditor']) {
+							ckefields.push(elementname(this.layer, data[i][fields[0]], display[j]['field'], i));
+						}
 					}else if ((display[j]['edittype'] == 'checkbox') || (display[j]['type'] == 'checkbox')){
 						string += '<input type="checkbox" name="' + elementname(this.layer, data[i][fields[0]], display[j]['field'], i) + '" '
 						if (displayFieldValue == 1){
@@ -242,7 +374,7 @@ function actionstring(action,id){
 			}
 			var link_action = action['functions'][k]['func'];
 			var linkid =  link_action + '_' + id;
-			string += '<a class="navsm" id="' + linkid + '" onclick="return confirm_actionability(\'' + this.layer + '\');" href="javascript:';
+			string += '<a class="navsm" id="' + linkid + '" href="javascript:';
 			if (action['functions'][k]['prompt'] == 'Yes'){
 				string += '{if (confirm(\'Are you sure you want to ' 
 					+ action['functions'][k]['label'].toLowerCase()  + '?\')){';
@@ -323,7 +455,7 @@ function header(structure){
 }
 
 function makesortbox(layer, key, index, length, rowclass){
-	var string = '<select class="' + rowclass + '" name="' + elementname(layer, key, 'sortorder', index) + '" onchange="confirm_swap(\'' + layer + '\', this.options[this.selectedIndex].value, this);">';
+	var string = '<select class="' + rowclass + '" name="' + elementname(layer, key, 'sortorder', index) + '" onchange="swap(\'' + layer + '\', this.options[this.selectedIndex].value);">';
 	for(var i=1; i<length+1; i++){
 		string += '<option class="' + rowclass + '" ';
 		if (i == index + 1){
@@ -354,8 +486,8 @@ function swap(layer, string){
 }
 
 function layersetfield(index, field, value, formelement){
-        this.structure.data[index][field] = value;
-        this.structure.data[index]['elementchanged'] = 1;
+	this.structure.data[index][field] = value;
+	this.structure.data[index]['elementchanged'] = 1;
 	if (formelement != null){
 		formelement.value = 1;
 	}
@@ -411,8 +543,10 @@ function showbutton(button){
 
 
 function edit(layer, index, id){
+	// user is going from edit mode
 	if (layers[layer].editnum == index){
 		layers[layer].editnum = -1;
+	// user is going to edit mode
 	}else{
 		layers[layer].editnum = index;
 	}
@@ -564,41 +698,21 @@ function duplicate_row(layer, index, linkid){
 	layers[layer].showlayer();
 }
 
-// launch popup html editor
-function edit_textarea_sob(ele, layer_id){
-	edit_textarea(ele, layer_id);
+function isEmptyObject(obj) {
+	for(var prop in obj) {
+		if (Object.prototype.hasOwnProperty.call(obj, prop)) {
+		  return false;
+		}
+	}
+	return true;
 }
 
-function is_layer_editor_open(layer_id){
-	if((typeof(popWin) != 'undefined') && (popWin.id.indexOf(layer_id + '_editor') != -1 && !popWin.ref.closed)){
-		return true;
-	} else {
-		return false;
+// clean up all CKE Instances within a container div
+function cleanUpCKEInstances(containerDiv) {
+	for (var i in CKEDITOR.instances) {
+		if (CKEDITOR.instances[i].name.indexOf(containerDiv) > -1 && !document.getElementById(CKEDITOR.instances[i].name)) {
+			CKEDITOR.instances[i].destroy(true);
+		}
 	}
 }
 
-// confirm that popup html editor is not open for a textarea from this layer
-function confirm_swap(layer_id, string, ele){
-	if (!string) return;
-	var stringsplit = string.indexOf(':');
-	var index = string.substring(0, stringsplit);
-
-	if(is_layer_editor_open(layer_id)){
-		alert('Sorting is disabled when the html editor is open.');
-		ele.selectedIndex = index;
-		popWin.ref.focus();
-	} else {
-		swap(layer_id, string);
-	}
-}
-
-// confirm that popup html editor is not open for a textarea from this layer
-function confirm_actionability(layer_id){
-	if(is_layer_editor_open(layer_id)){
-		alert('Sorry, this action is disabled when the HTML Editor is open.\nPlease close it before trying to perform this action again.');
-		if (window.focus) {popWin.ref.focus()}
-		return false;
-	} else {
-		return true;
-	}
-}

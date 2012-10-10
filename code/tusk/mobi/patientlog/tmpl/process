@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%once>
 	use TUSK::FormBuilder::Entry;
 	use TUSK::FormBuilder::Response;
@@ -47,7 +62,6 @@
     my $field = @$fields[$field_index];
 		
 	if ($field->getFieldTypeToken() ne 'SingleSelectAllowMulti' and $field->getFieldTypeToken() ne 'MultiSelectWithAttributes'){
-
     ## DYNAMICLIST	###########	
 			if ($field->getFieldTypeToken() eq 'DynamicList') { 
 				my $child_fields = TUSK::FormBuilder::Field->lookup(undef, undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::FormBuilder::LinkFieldField", { origkey => 'field_id', joinkey => 'child_field_id', joincond => 'root_field_id = ' . $field->getPrimaryKeyID(), jointype => 'inner'})]);
@@ -301,7 +315,7 @@
 	my $items = $field->getItems();
     my $attributes = $field->getAttributes();
 	foreach my $item (@$items){
-		my $key = $field->getPrimaryKeyID() . '_' . $item->getPrimaryKeyID;
+		my $key = "multiwithattr_" . $field->getPrimaryKeyID() . '_' . $item->getPrimaryKeyID;
 		my $selected_key = $key . '_selected';
 
 		if ($args->{$selected_key}){

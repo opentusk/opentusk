@@ -21,8 +21,10 @@ use TUSK::UploadContent;
 use TUSK::Core::Keyword;
 use TUSK::Core::LinkContentKeyword;
 use TUSK::Core::LinkIntegratedCourseContent;
+use TUSK::Content::MSTextExtractor;
 use TUSK::Content::External::MetaData;
 use TUSK::Course;
+use TUSK::Session;
 use Carp;
 use Image::Magick;
 use TUSK::ProcessTracker::ProcessTracker;
@@ -38,7 +40,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.258 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.259.2.1 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::SQLRow::ContentHistory;
@@ -1403,8 +1405,15 @@ sub can_user_edit {
     my $user = shift;
     # first check the user's role in this content
     my $role = $self->user_primary_role($user->primary_key);
-    return 1 if ($role && join(",",@HSDB4::Constants::Content_Edit_Roles) =~ /$role/);
-    return 1 if ($self->course->can_user_edit($user));
+
+	## allow if user is associated with content
+	return 1 if $role;
+
+	## allow if school admin
+    return 1 if $user->check_school_permissions($self->school());
+	
+	## allow if user has role in course that allows editing of other people's content
+    return 1 if (join(",",@HSDB4::Constants::Content_Edit_Roles) =~ $self->course()->user_primary_role($user->primary_key));
 }
 
 sub can_user_add {
@@ -3928,18 +3937,15 @@ sub get_file_body {
 	my $self = shift;
 	my $filename = $self->out_file_path();
 	my $pk = $self->primary_key();
-	if ($filename !~ m/\.doc$/){
+	unless($filename =~ /\.docx?$/ || $filename =~ /\.pptx$/) {
 		return $self->out_html_body();
 	}
 	if (! -f $filename ){
 		warn "get_file_body (ID : $pk ) : There is no file called $filename";
 		return;
 	} 
-	open WORDEXTRACT,$TUSK::Constants::WordTextExtract." $filename |" 
-		or confess "Can't open ".$TUSK::Constants::WordTextExtract." : $!";
-	my @body_text = <WORDEXTRACT>;	
-	close WORDEXTRACT;
-	return join(" ",@body_text);
+	my $msConverter = TUSK::Content::MSTextExtractor->new();
+	return $msConverter->getDocumentText($filename);
 }
 
 sub out_icon {

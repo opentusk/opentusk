@@ -1,14 +1,14 @@
-<%once>
-	use Forum::Board;
-</%once>
-
 <%attr>
-check_cms_permissions =>1 
 top_tab_type => 'manage'
+check_permissions_by_context => 'SITEDIRECTOR'
 use_dynamic_wrapper => 1
 page_header   => 'SELF:page_header_method'
 page_footer   => 'SELF:page_footer_method'
 </%attr>
+
+<%once>
+	use Forum::Board;
+</%once>
 
 <%shared>
 my $header_func;
@@ -27,31 +27,10 @@ elsif (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course") {
 }
 </%shared>
 
+% $m->call_next();
+
 <%method leftnav>
 % return $nav;
-</%method>
-
-<%method check_dynamic_permissions>
-<%perl>
-my $typeObj = $m->comp("/tmpl/url:get_type_object");
-
-if (ref($typeObj) eq "HSDB45::Course") {
-	unless (TUSK::Session::is_school_admin($m->session, $typeObj->school(), $m->session->{'user'})) {
-		if ($m->comp("SELF:check_course_permissions", token => 'DIRECTOR') == 0) {
-			$r->header_out(Location => '/home?errmsg=Access+Denied');
-			$r->status('REDIRECT');
-			exit;
-		}
-	}
-}
-else {
-	unless (TUSK::Session::is_school_admin($m->session, $m->comp("/tmpl/url:get_school"), $m->session->{'user'})) {
-		$r->header_out(Location => '/home?errmsg=Access+Denied');
-		$r->status('REDIRECT');
-		exit;
-	}
-}
-</%perl>
 </%method>
 
 <%method get_nav_bars>
@@ -85,5 +64,3 @@ return $m->comp("/tmpl/nav",
 <%method page_footer_method>
 % return $footer_func;
 </%method>
-
-% $m->call_next();

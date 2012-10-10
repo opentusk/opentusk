@@ -25,7 +25,7 @@
   use Apache::Constants;
   use HSDB4::XML::PDF;
   use TUSK::Constants;
-  use Mail::Sendmail;
+  use TUSK::Application::Email;
 
   #Lets start by checking to make sure we got arguments.
   my @pathElements = $m->comp('/tmpl/url:get_path_ids');
@@ -191,12 +191,12 @@
   </%args>
 
   <%perl>
-      my %mail = (
-        To => $TUSK::Constants::ErrorEmail,
-        From => $TUSK::Constants::ErrorEmail,
-        Subject => "FOP PDF Error",
-        Message => $message
-      );
-      Mail::Sendmail::sendmail(%mail);
+      my $mail = TUSK::Application::Email->new({
+        to_addr => $TUSK::Constants::ErrorEmail,
+        from_addr => $TUSK::Constants::ErrorEmail,
+        subject => "FOP PDF Error",
+        body => $message
+      });
+      $mail->send();
   </%perl>
 </%method>

@@ -1,4 +1,3 @@
-
 function changeSearch(isAdvanced) {
 		if(isAdvanced) {
 			document.getElementById('regularForm').style.display = 'none';
@@ -22,4 +21,14 @@ function definition(layer, index){
 	}else{
 		alert("No definition.");
 	}
+}
+
+function validateSearch(formObj) {
+	if (formObj.content_id != null && formObj.content_id.value != "") {
+		if (isNaN(parseInt(formObj.content_id.value))) {
+			alert ('You must enter a numeric value for the content id.');
+			return false;
+		}
+	}
+	return true;
 }

@@ -1,10 +1,27 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
 <%attr>
 	no_check_path => 1
 </%attr>
+
 <%once>
 	use TUSK::Search::Keywords;
 	use TUSK::Core::Keyword;
-    use Data::Dumper;
+    use TUSK::Application::HTML::Strip;
 </%once>
 
 <%init>
@@ -12,8 +29,14 @@
 	my $keyword;
 	my $results;
 	my $user= $m->session->{'user'}->user_id();
-	if ($ARGS{make_keyword}){
-		$keyword = TUSK::Core::Keyword->makeKeyword($ARGS{search},$user);
+	my $stripped_search;
+	if ($ARGS{search}) {
+		my $stripObj = TUSK::Application::HTML::Strip->new();
+		$stripped_search = $stripObj->removeHTML($ARGS{search});
+	}
+	
+	if ($ARGS{make_keyword} && $stripped_search){
+		$keyword = TUSK::Core::Keyword->makeKeyword($stripped_search,$user);
 	} elsif ($ARGS{search}){
 		$results = TUSK::Search::Keywords->new()->search($ARGS{search}, 25);
 	}
@@ -37,9 +60,11 @@
 		
 		</td>
 	</tr>
-% if ($ARGS{make_keyword}) {
+% if ($ARGS{make_keyword} && $stripped_search) {
 
 <tr><td><br><b>Keyword Created.</b></td></tr>
+% } elsif ($ARGS{make_keyword}) {
+<tr><td><br><b>No Keyword Created; please enter a valid value.</b></td></tr>
 % } elsif  ($ARGS{search}) {
 	<tr>	
 		<td><br>
@@ -79,7 +104,7 @@
 
 % }
 
-% if ($ARGS{'make_keyword'}) {
+% if ($ARGS{'make_keyword'} && $stripped_search) {
 <script>
 addnew('searchdiv',{umls:'No', keyword:"<% $keyword->getKeyword %>",
                 keyword_id:<% $keyword->getPrimaryKeyID() %>, concept_id:null},1);

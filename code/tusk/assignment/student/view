@@ -1,5 +1,21 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%once>
 	use TUSK::Application::Assignment::Student::Individual;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 <%args>
@@ -17,7 +33,7 @@
 	my $student = TUSK::Application::Assignment::Student::Individual->new({ user_id => $student_user_id, course => $course, school => $school});
 
 	my $col_fields = [ { label => 'Title', field => 'title'},
-                	   { label => 'Instructions', field => 'instruction'},
+                	   { label => 'Instructions', field => 'instruction', 'html' => 1},
                 	   { label => 'Weight', field => 'weight', align => 'center'},
 			   { label => 'Available Date', field => 'available_date'},
 			   { label => 'Due Date', field => 'due_date'},
@@ -29,6 +45,7 @@
 	my $max_length = 150;
 	my $has_resubmissions = 0;
 	my $current_assignments = $student->getCurrentAssignments();
+	my $stripObj = TUSK::Application::HTML::Strip->new();
 
 	foreach my $curr (@$current_assignments) {
 		my $assignment = $curr->{assignment};
@@ -44,15 +61,15 @@
 			$has_resubmissions = 1;
 		}
 		push @rows, {
-			title => $assignment->getTitle(),
-			instruction => ($instructions_length > $max_length) 
-				? "<a style=\"color:blue;text-decoration:none;\" href=\"$url\">" . TUSK::Functions::truncate_string($instructions,$max_length) . "</a>"
-				: $instructions,
-			weight => $assignment->getWeight(),
-			available_date => $assignment->getFormattedAvailableDate(),
-			due_date => $assignment->getFormattedDueDate(),
-			submit_date => "$curr->{submit_date} $resubmit_hint",
-			action => "<a href=\"$url\">view/complete</a>",
+			title			=> $assignment->getTitle(),
+			instruction		=> ($instructions_length > $max_length) 
+				? "<a style=\"color:blue;text-decoration:none;\" href=\"$url\">" . $stripObj->truncateAndRemoveHTML($instructions,$max_length) . "</a>"
+				: $stripObj->removeHTML($instructions),
+			weight			=> $assignment->getWeight(),
+			available_date	=> $assignment->getFormattedAvailableDate(),
+			due_date		=> $assignment->getFormattedDueDate(),
+			submit_date		=> "$curr->{submit_date} $resubmit_hint",
+			action			=> "<a href=\"$url\">view/complete</a>",
 		};
 	}
 </%perl>

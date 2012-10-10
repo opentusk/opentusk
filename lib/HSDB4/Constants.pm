@@ -17,7 +17,7 @@ BEGIN {
 				      eval_schools user_group_schools school_codes 
 				      code_by_school get_school_db school_code_regexp] ],
 		     );
-    $VERSION = do { my @r = (q$Revision: 1.132 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.136 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 # Non-exported package globals go here
@@ -177,11 +177,11 @@ $LDAP_PASSWORD = "pswd";
 	'Default' => 1,
 	 );
 
-@Course_Admin_Roles = ('Director','Administrator');
-@Course_Edit_Roles = ('Director','Administrator','Editor');
-@Course_Add_Roles = ('Director','Administrator','Editor','Author');
-@Content_Edit_Roles = ('Director','Author','Editor','Contact-Person');
-@Content_Add_Roles = ('Director','Author');
+@Course_Admin_Roles = ('Director','Manager','Administrator');
+@Course_Edit_Roles = ('Director','Manager','Administrator','Editor','Author');
+@Course_Add_Roles = ('Director','Manager','Administrator','Editor','Author');
+@Content_Edit_Roles = ('Director','Manager','Author','Editor','Student Manager','Contact-Person');
+@Content_Add_Roles = ('Director','Manager','Editor','Author','Student Manager');
 
 @image_sizes = qw(orig xlarge large medium small thumb icon resize);
 
@@ -217,7 +217,7 @@ sub db_connect {
     my $user = $db_user || $ENV{HSDB_DATABASE_USER} || $TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername};
     my $pw = $db_pass || $ENV{HSDB_DATABASE_PASSWORD} || '';
 
-    return ($dbc, $user, $pw, {RaiseError => 1});
+    return ($dbc, $user, $pw, {RaiseError => 1, mysql_enable_utf8 => 1});
 }
 
 # The default DBH

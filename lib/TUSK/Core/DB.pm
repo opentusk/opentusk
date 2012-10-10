@@ -2,10 +2,10 @@ package TUSK::Core::DB;
 
 use strict;
 use TUSK::Core::ServerConfig;
-use DBI;
 use Carp qw(cluck croak confess);
+use DBI;
 
-my $DBConnectAttr = {'RaiseError' => 1};
+my $DBConnectAttr = {'RaiseError' => 1, 'mysql_enable_utf8' => 1};
 my $alternateDBAddress = $ENV{'ALTERNATE_DB_ADDRESS'};
 
 sub getReadHandle {

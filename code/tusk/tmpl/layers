@@ -1,11 +1,35 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
 <%once>
+use TUSK::Application::HTML::Strip;
+
 my $clean_sub  = sub {
 	my $to_clean = shift;
+	my $skipHTML = shift || 0;
+	if (!$skipHTML) {
+		my $stripObj = TUSK::Application::HTML::Strip->new();
+		$to_clean = $stripObj->removeHTML($to_clean);
+	}
 	$to_clean =~ s/\\/\\\\/g;
 	$to_clean =~ s/'/\\'/g;
 	$to_clean =~ s/\n|\r/ /g;
 	return $to_clean;
 };
+
 my $action_sub = sub {
 	my $action_hash = shift;
 	my $name = shift;
@@ -37,8 +61,6 @@ my $action_sub = sub {
 	$localString .= " } \n";
 	return $localString;
 };
-
-
 </%once>
 
 <%method create_layer>
@@ -46,7 +68,9 @@ my $action_sub = sub {
 %struct
 </%args>
 <%perl>
+
   my $struct = \%struct;
+  my $ckflag = 0;
   my $jsstruct = "";
    $jsstruct .= "layer:'" . $struct->{layer} . "',\n";
    $jsstruct .= "fields:[" . join(", ", map {"'$_'"} @{$struct->{fields}}) . "],\n";
@@ -70,12 +94,19 @@ my $action_sub = sub {
 
    $jsstruct .= "data:[";
    if (defined($struct->{data})){
-	   for (my $i=0; $i<scalar(@{$struct->{data}}); $i++){
+   		# create hash to check for htmleditor fields
+   		my %htmleditor_fields = map { $_->{field} => $_->{htmleditor} } @{$struct->{display}};
+         
+		for (my $i=0; $i<scalar(@{$struct->{data}}); $i++){
 	      $jsstruct .= ",\n" if ($i != 0);
 	      $jsstruct .= "{" . join(", ", map{if ($_ eq '_action'){
 							$action_sub->($struct->{data}[$i]->{$_},"action_array");
 					 	} else {  
-							$_ . ":'" . $clean_sub->($struct->{data}[$i]->{$_}) . "'"
+							if ($htmleditor_fields{$_}) {
+								$_ . ":'" . $clean_sub->($struct->{data}[$i]->{$_}, 1) . "'"
+							} else {
+								$_ . ":'" . $clean_sub->($struct->{data}[$i]->{$_}) . "'"
+							}
 						}} keys (%{$struct->{data}[$i]})) . "}";
 	    }
     } else {
@@ -102,6 +133,10 @@ my $action_sub = sub {
        $jsstruct .= ", label:'" . ucfirst($struct->{display}[$i]{label}) . "'" if ($struct->{display}[$i]{label});
        $jsstruct .= ", align:'" . $struct->{display}[$i]{align} . "'" if ($struct->{display}[$i]{align});
        $jsstruct .= ", type:'" . $struct->{display}[$i]{type} . "'" if ($struct->{display}[$i]{type});
+       if ($struct->{display}[$i]{htmleditor}) {
+	       $jsstruct .= ", htmleditor:'" . $struct->{display}[$i]{htmleditor} . "'";
+	       $ckflag = 1;
+	   }
        $jsstruct .= ", onclick:'" . $struct->{display}[$i]{onclick} . "'" if ($struct->{display}[$i]{onclick});
        $jsstruct .= ", headeralign:'" . $struct->{display}[$i]{headeralign} . "'" if ($struct->{display}[$i]{headeralign});
        $jsstruct .= ", uneditable:'" . $struct->{display}[$i]{uneditable} . "'" if ($struct->{display}[$i]{uneditable});
@@ -133,5 +168,8 @@ my $action_sub = sub {
 <script type="text/javascript" language="JavaScript">
 layers['<% $struct->{layer} %>'] = new layer({<% $jsstruct %>}, '<% $struct->{layer} %>');
 layers['<% $struct->{layer} %>'].showlayer();
+if (<% $ckflag %> && !document.getElementById('largeditor')) {
+	$("body").append('<div id="largeditor"><h4 id="crSelItmHdr">Modify HTML field</h4><div class="inner"></div><input id="close_btn" class="formbutton" type="button" style="" value="Cancel" name="close_btn" onclick="closeCKEbox()" /><input id="save_btn" class="formbutton" type="button" style="" value="Save and Close" name="save_btn" onclick="saveCKEbox()" /></div><div id="crCurtain"></div>');
+}
 </script>
 </%method>

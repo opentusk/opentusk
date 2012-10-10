@@ -1,4 +1,5 @@
 <%attr>
+	check_permissions_by_context => 'DIRECTORNONSTUDENT'
 	hintmsg => 'Are you sure you want to delete this announcement?'
 </%attr>
 
@@ -47,12 +48,12 @@ my $usergroup_id;
 <%perl>
 my $hidden_usergroup_id;
 
-if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Constants::SchoolWideUserGroup->{lc($school)} ) {
+if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Constants::Schools{$school}{Groups}{SchoolWideUserGroup} ) {
 	$hidden_usergroup_id = $usergroup_id;
 } elsif ( $is_course_announcement ) {
 	$hidden_usergroup_id = 0;
 } else {
-	$hidden_usergroup_id = $TUSK::Constants::SchoolWideUserGroup->{lc($school)};
+	$hidden_usergroup_id = $TUSK::Constants::Schools{$school}{Groups}{SchoolWideUserGroup};
 }
 </%perl>
 <& /tmpl/element:hidden_form_element, params =>{ 
@@ -69,8 +70,6 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 </form>
 
 <%init>
-$m->comp( "SELF:check_dynamic_permissions" );
-
 $usergroup_id = (defined($ARGS{'ug_id'})) ? $ARGS{'ug_id'} : undef;
 
 my $announcement_id = $m->comp("/tmpl/url:get_last_path_id" );

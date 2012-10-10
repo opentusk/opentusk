@@ -1,5 +1,22 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%once>
 	use TUSK::Application::FormBuilder::Report::Course;
+	use TUSK::Application::HTML::Strip;
+
 </%once>
 
 <%attr>
@@ -46,6 +63,7 @@
 	my $options = [];
 	my $string = "";
 	my ($prev_field_name, $field_name);
+	my $stripObj = TUSK::Application::HTML::Strip->new();
 
 	foreach my $dataset (@$data){
     	if ($dataset->{entry_id} != $cur_entry_id){
@@ -85,6 +103,7 @@
         if ($dataset->{'item_abbreviation'}){
         	$text = $dataset->{'item_abbreviation'};
 		}elsif($dataset->{length($dataset->{'item_name'}) > 15}){
+			$text = $stripObj->removeHTML($text);
 			$text = substr($dataset->{'item_name'}, 0, 12) . "..."
 		}else{
 			$text = $dataset->{'item_name'};
@@ -105,9 +124,8 @@
 <select name="entry_id" id="entry_id" onchange="reload_entry_form(this.options[this.selectedIndex].value)">
 <option value="">New Patient</option>
 <%perl>
-###  printf "args is ".Dumper($args)."\n\n";
 	foreach my $option (@$options){
-		my $string = join(", ", @{$option->{'data'}});
+		my $string = $stripObj->removeHTML(join(", ", @{$option->{'data'}}));
     	$string = (length($string) > 60) ? substr($string, 0, 57) . "..." : $string;
 		my $selected = ($args->{entry_id} == $option->{entry_id}) ? 'selected' : '';
 		print "<option value=\"" . $option->{'entry_id'} . "\" $selected>" . $option->{'date'} . $option->{'string'} . " - " . $string . "</option>\n";

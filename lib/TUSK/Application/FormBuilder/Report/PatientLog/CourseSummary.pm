@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package TUSK::Application::FormBuilder::Report::PatientLog::CourseSummary;
 
 use strict;
@@ -27,8 +42,20 @@ sub getReport {
 				SELECT
 				 	a.teaching_site_id,
 				 	site_name,
-					count(child_user_id) AS students,
-					(SELECT CONCAT(COUNT(DISTINCT user_id), "_", count(*)) FROM tusk.form_builder_entry, $self->{_db}.link_course_student AS d WHERE form_id = $self->{_form_id} AND d.time_period_id IN ($self->{_time_period_ids_string}) AND parent_course_id = $self->{_course_id} AND user_id = child_user_id AND d.teaching_site_id = a.teaching_site_id) AS patients
+					count(distinct child_user_id) AS students,
+					(SELECT 
+						CONCAT(COUNT(DISTINCT user_id), "_", count(*)) 
+					FROM 
+						tusk.form_builder_entry e, 
+						$self->{_db}.link_course_student AS d 
+					WHERE 
+						form_id = $self->{_form_id} AND 
+					        d.time_period_id IN ($self->{_time_period_ids_string}) AND
+						e.time_period_id = d.time_period_id AND 
+						parent_course_id = $self->{_course_id} AND 
+						user_id = child_user_id AND 
+						d.teaching_site_id = a.teaching_site_id	
+					) AS patients
 				FROM
 					$self->{_db}.link_course_student AS a,
 					$self->{_db}.teaching_site AS b
@@ -37,8 +64,8 @@ sub getReport {
 					a.parent_course_id = $self->{_course_id} AND 
 					time_period_id IN ($self->{_time_period_ids_string})
 				GROUP BY teaching_site_id
-				ORDER BY site_name
-				);
+		                ORDER BY site_name
+		     );
 
 	my $sth = $self->{_form}->databaseSelect($sql);
 	my ($total_num_students, $total_report_students, $total_patients);
@@ -63,8 +90,32 @@ sub getReportAllSites {
 	my ($attribute_items, $aids) = $self->getAttributeItems($field_id);
 	my @time_periods = split(",", $self->{_time_period_ids_string});
 	my $total_students = scalar $self->{_course}->get_students(\@time_periods);
+	my ($sql, $sth, $attribute_summary);
+
+	## if this is a field with attributes, get summary (# of people who selected any of the attribute items)
+	if (scalar (keys %$aids)) {
+		$sql = qq(
+					select item_id, count(distinct user_id) as either
+					from tusk.form_builder_response as a 
+					inner join 
+					(select user_id, entry_id 
+						from tusk.form_builder_entry b, $self->{_db}.link_course_student c 
+						where b.user_id = c.child_user_id 
+						and b.time_period_id = c.time_period_id 
+						and parent_course_id = $self->{_course_id} 
+						and b.time_period_id in ($self->{_time_period_ids_string}) 
+						and form_id = $self->{_form_id}) as d 
+					on (a.entry_id = d.entry_id) 
+					left outer join tusk.form_builder_response_attribute as c on (a.response_id = c.response_id) 
+					where a.field_id = $field_id and 
+					active_flag = 1 group by item_id order by item_id;
+				);
 	
-	my $sql = qq(
+		$sth = $self->{_form}->databaseSelect($sql);
+		$attribute_summary = $sth->fetchall_hashref('item_id');
+	}
+
+	$sql = qq(
 				 select item_id, attribute_item_id, count(*), count(distinct user_id)
 				 from tusk.form_builder_response as a
 				 inner join
@@ -82,18 +133,20 @@ sub getReportAllSites {
 				 group by item_id, attribute_item_id
 				 );
 
-	my $sth = $self->{_form}->databaseSelect($sql);
+	$sth = $self->{_form}->databaseSelect($sql);
 
 	while (my ($item_id, $attr_item_id, $patients, $students) = $sth->fetchrow_array()) {
 		my $i = (defined $attr_item_id) ? $aids->{$attr_item_id} : 0;
 		$data{$item_id}[0][$i] = $patients;
 		$data{$item_id}[1][$i] = $students;
 		$data{$item_id}[2][$i] = sprintf("%.0f%", $students/$total_students*100);
+		if (scalar (keys %$aids)) {
+			$data{$item_id}[3] = sprintf("%.0f%", ($attribute_summary->{$item_id}{'either'}/$total_students)*100);
+		}
 	}
     $sth->finish();
 
 	my $items = TUSK::FormBuilder::FieldItem->lookup("field_id = $field_id");
-
 	return { rows => $items, attribute_items => $attribute_items, data => \%data, contains_category => $self->isCategory($items->[0]), total_students => $total_students };
 }
 
@@ -197,6 +250,107 @@ sub getData {
 
 	my $items = TUSK::FormBuilder::FieldItem->lookup("field_id = $field_id");
 	return ($reported_data, $items, $attribute_items, $self->isCategory($items->[0]));
+}
+
+
+sub getPercentagesBySite {
+	my ($self, $field_id) = @_;
+	return unless defined $field_id;
+
+	my ($attribute_items, $aids) = $self->getAttributeItems($field_id);
+	my @time_periods = split(",", $self->{_time_period_ids_string});
+	my ($sql, $sth);
+	my $reported_data;
+	my (%ts_hash, @ts_array);
+
+	foreach my $tp_id (@{$self->{_time_period_ids}}) {
+		my $sites = $self->{_course}->get_teaching_sites_for_enrolled_time_period($tp_id);
+		foreach my $site (@$sites) {
+			my $site_id = $site->site_id();
+			$ts_hash{$site_id} = $site unless $ts_hash{$site_id};
+		}
+	}
+	@ts_array = map { $ts_hash{$_} } sort { $ts_hash{$a} cmp $ts_hash{$b} } keys %ts_hash;
+	my @ts_ids = keys (%ts_hash);
+	my $total_students = $self->getNumStudentsBySite(\@ts_ids);
+
+	$sql = qq(
+				select teaching_site_id, item_id, count(distinct user_id)
+				from tusk.form_builder_response as a
+				inner join
+				(select teaching_site_id, user_id, entry_id
+					from tusk.form_builder_entry as b, $self->{_db}.link_course_student as c
+					where b.time_period_id in ($self->{_time_period_ids_string})
+					and b.time_period_id = c.time_period_id
+					and child_user_id = user_id and parent_course_id = $self->{_course_id} 
+					and form_id = $self->{_form_id}) as d
+				on (a.entry_id = d.entry_id) 
+				left outer join tusk.form_builder_response_attribute as e
+				on (a.response_id = e.response_id)
+				where field_id = $field_id
+				and active_flag = 1
+				group by teaching_site_id, item_id
+			);
+
+	$sth = $self->{_form}->databaseSelect($sql);
+	while (my ($teaching_site_id, $item_id, $responses) = $sth->fetchrow_array()) {
+		$reported_data->{$teaching_site_id}->{$item_id}->{'either'} = sprintf("%.0f%", ($responses/$total_students->{$teaching_site_id}->{total})*100);;
+	}
+
+	$sql =  qq(
+				select teaching_site_id, item_id, attribute_item_id, count(distinct user_id)
+				from tusk.form_builder_response as a
+				inner join
+				(select user_id, teaching_site_id, entry_id
+					from tusk.form_builder_entry as b, $self->{_db}\.link_course_student as c
+					where b.time_period_id in ($self->{_time_period_ids_string})
+					and b.time_period_id = c.time_period_id
+					and child_user_id = user_id and parent_course_id = $self->{_course_id} 
+					and form_id = $self->{_form_id}) as d
+				on (a.entry_id = d.entry_id) 
+				left outer join tusk.form_builder_response_attribute as e
+				on (a.response_id = e.response_id)
+				where field_id = $field_id
+				and active_flag = 1
+				group by teaching_site_id, item_id, attribute_item_id
+				);
+
+	$sth = $self->{_form}->databaseSelect($sql);
+	
+	while (my ($teaching_site_id, $item_id, $attribute_item_id, $responses) = $sth->fetchrow_array()) {
+		$reported_data->{$teaching_site_id}->{$item_id}->{$attribute_item_id} = sprintf("%.0f%", ($responses/$total_students->{$teaching_site_id}->{total})*100);;
+	}
+
+	my $items = TUSK::FormBuilder::FieldItem->lookup("field_id = $field_id");
+	return {rows => \@ts_array, items => $items, attribute_items => $attribute_items, data => $reported_data, bysite => 1, teaching_sites => \%ts_hash };
+}
+
+
+sub getNumStudentsBySite {
+	my $self = shift;
+	my $teaching_sites = shift;
+	my $ts_string;
+
+    if (ref($teaching_sites) eq 'ARRAY') {
+		$ts_string = " teaching_site_id IN(" . join(",", @$teaching_sites) . ")";
+	}
+	else {
+		$ts_string = " teaching_site_id = $teaching_sites";
+	}
+
+	my $sth = $self->{_form}->databaseSelect(qq(
+		select teaching_site_id, count(*) as total
+		from $self->{_db}.link_course_student a 
+		where parent_course_id = $self->{_course_id}
+		and time_period_id in ($self->{_time_period_ids_string})
+		and $ts_string
+		group by teaching_site_id
+	));
+	
+	my $teaching_site_totals = $sth->fetchall_hashref('teaching_site_id');
+	$sth->finish();
+
+	return $teaching_site_totals;
 }
 
 

@@ -5,6 +5,7 @@ use Apache;
 use Apache::Cookie;
 use Apache::TicketTool;
 use TUSK::Constants;
+use TUSK::Application::Email;
 
 sub sendErrorReport {
 	my $req_rec = shift or &sendDefaultReport();
@@ -30,7 +31,6 @@ sub sendErrorReport {
 	if ($req_rec->prev()){
 		$uriRequest = $req_rec->prev()->uri() || "unknown uri"; 
 		%localArgs = $req_rec->prev()->args();
-		$errArray = $req_rec->prev()->pnotes("EMBPERL_ERRORS") || []; 
 		$error = $req_rec->prev()->pnotes('error');
 		$error_text = UNIVERSAL::can( $error, 'as_text' ) ? $error->as_text : $error;
 	}
@@ -42,14 +42,7 @@ sub sendErrorReport {
 
 	$queryString = $ENV{'QUERY_STRING'} unless $queryString;
 	my $errString = $error_text;
-	
-	## soon to be depricated -- checking for Embperl errors
-	if (scalar @$errArray) {
-		$errString .= "\n-- Begin Embperl Errors --\n\n\t";
-		$errString .= join ("\n\t",@{$errArray});
-		$errString .= "\n\n-- End Embperl Errors --\n\n";
-	}
-	
+
 	my $msgBody =<<EOM;
 Error from user $user on machine $host
 
@@ -74,16 +67,18 @@ EOM
 
 	if ((!Apache->define('DEV') && !Apache->define('FINCH'))
 		  || defined($always_send)){
-		my %mail = ( To => $email_receiver,
-		From => $email_sender ,
-		Subject => $subject,
-		Message => $msgBody);
+		my $mail = TUSK::Application::Email->new({
+			to_addr   => $email_receiver,
+			from_addr => $email_sender ,
+			subject   => $subject,
+			body      => $msgBody
+		});
 
 		my $msg;
-		if (my $err = Mail::Sendmail::sendmail(%mail)) {
+		if (my $err = $mail->send()) {
 			$msg = 0; 
 		} else {
-			Apache->warn($Mail::Sendmail::error);
+			Apache->warn($mail->getError());
 		}
 		warn "Message Sent";
 	    }else{
@@ -119,13 +114,15 @@ This message has been sent because the Error Reporter was called incorrectly.
 Most likely request object was not sent.  This Report will trigger a cluck and a
 message to go into the Apache Log.
 EOM
-                my %mail = ( To => $TUSK::Constants::ErrorEmail,
-                From => $TUSK::Constants::ErrorEmail,
-                Subject => "Error Report Incorrectly Called",
-                Message => $msgBody);
+                my $mail = TUSK::Application::Email->new({ 
+					to_addr   => $TUSK::Constants::ErrorEmail,
+					from_addr => $TUSK::Constants::ErrorEmail,
+					subject   => "Error Report Incorrectly Called",
+					body      => $msgBody
+				});
 
-                if (!(my $err = Mail::Sendmail::sendmail(%mail))) {
-                        Carp::cluck $Mail::Sendmail::error;
+                if (!(my $err = $mail->send())) {
+                        Carp::cluck $mail->getError();
                 }
         }
 

@@ -1,3 +1,8 @@
+<%attr>
+no_filter => 1
+</%attr>
+
+
 <%once>
 use TUSK::Case::Case;
 use TUSK::Case::Phase;
@@ -7,6 +12,7 @@ use TUSK::Case::LinkPhaseUser;
 use TUSK::Case::LinkPhaseContent;
 use TUSK::Case::LinkPhaseKeyword;
 </%once>
+
 
 <%shared>
 	my @id = $m->comp('/tmpl/url:get_path_ids') ;
@@ -36,12 +42,8 @@ use TUSK::Case::LinkPhaseKeyword;
 
 
 <%perl>
-
 	my $buttons = [];
 	my $phase_type = $phase->getPhaseType();
-
-	push @$buttons, $m->scomp("/tmpl/element:html_edit_button");
-
 </%perl>
 
 
@@ -68,13 +70,17 @@ use TUSK::Case::LinkPhaseKeyword;
 		name=>"phase_desc",
 		cols=>"60",
 		rows=>"2",
-		value=>$phase->getPhaseDesc()  } &>
+		value=>$phase->getPhaseDesc(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120'} &>
 
 <& /tmpl/element:textarea, params=>{ label => 'Phase Instructions',
-                name=>"instructions",
-                cols=>"60",
-                rows=>"2",
-                value=>$phase->getInstructions()  } &>
+        name=>"instructions",
+        cols=>"60",
+        rows=>"2",
+        value=>$phase->getInstructions(),
+		htmleditor=>1}, 
+	cke_params=> {height => '120'} &>
 
 <& /tmpl/element:dropdown, params => {
 		label		=> 'Encounter',
@@ -210,7 +216,6 @@ my $question_select = 'Add new question of type:'.$m->scomp('/tmpl/element:dropd
 	onchange      => undef,
 	options       => $m->comp('/quiz/author/tmpl/process:question_type_data'),
 	});
-
 $question_select .= '<br>' . $m->scomp('/tmpl/element:input_checkbox', params=> {
 	name    => 'retake_quiz',
 	value   => '1',
@@ -470,7 +475,7 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 </%init>
 
 <%method jsarray>
-% return ['layers.js', 'element.js', 'caseshell.js', 'object_tree.js'];
+% return ['layers.js', 'element.js', 'caseshell.js', 'object_tree.js', 'ckeditor/ckeditor.js', 'ckeditor/tusk.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js'];
 </%method>
 
 <%method startup>

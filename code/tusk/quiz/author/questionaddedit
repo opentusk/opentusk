@@ -1,4 +1,24 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	no_filter => 1
+</%attr>
+
 <%once>
+	use TUSK::Application::HTML::Strip;
 	use TUSK::Quiz::Quiz;
 	use TUSK::Quiz::Question;
 	use TUSK::Quiz::LinkQuizQuizItem;
@@ -42,15 +62,13 @@
 	my $nav_bars = $m->comp('PARENT:get_nav_bars');
 	if (scalar(@$path) > 2 or (scalar(@$path) > 1 and $ENV{QUERY_STRING} =~ /add=/)){
 		my $offset = ($ENV{QUERY_STRING} =~ /add=/) ? 0 : 1;
+		my $stripObj = TUSK::Application::HTML::Strip->new();
 		for (my $i=1; $i<(scalar(@$path) - $offset); $i++){
 			my $section = TUSK::Quiz::Question->new()->lookupKey($path->[$i]);
 			my $body = $section->getBody();
-			$body =~ s/^\s*//;
-			$body =~ s/\s*$//;
-			$body =~ s/<\/?[^>]*?>//g;
-			if (length($body) > 30){
-				$body = substr($body,0, 27) . "...";
-			}
+			$body =~ s/\r|\n//g;
+			$body = $stripObj->truncateAndRemoveHTML($body, 30);
+			$body =~ s/[^\w\s]//g;
 			my @paths = @$path;
 			push (@$nav_bars, { 
 				label => 'Section: ' . $body, 
@@ -79,22 +97,19 @@
 
 
 <%method jsarray>
-% 	return ['layers.js', 'quiz.js', 'element.js', 'object_tree.js', 'rte/richtext.js','jquery/jquery.js','jquery/plugin/interface/interface.js','jquery/plugin/json.js','jquery/plugin/inestedsortable-1.0.1.pack.js','jqNestedSortableFunctions.js' ];
+% 	return ['layers.js', 'quiz.js', 'element.js', 'object_tree.js' , 'ckeditor/ckeditor.js', 'ckeditor/tusk.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js','jquery/plugin/interface/interface.js','jquery/plugin/json.js','jquery/plugin/inestedsortable-1.0.1.pack.js','jqNestedSortableFunctions.js' ];
 </%method>
 
 
 <& /tmpl/element:form, params => {
                 method => 'POST',
                 name => $formname,
-                onsubmit => '{updateRTEs(); return question_submit_all(this);}'} &>
+                onsubmit => '{return question_submit_all(this);}'} &>
 
 <& /tmpl/element:table, params => { width => "100%",
                 border =>"0",
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
-
-% push @$buttons, $m->scomp('/tmpl/element:html_edit_button');
-
 
 <& /tmpl/element:save_button, params=>{
 		label			=> 'Save Changes',

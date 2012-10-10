@@ -1,3 +1,20 @@
+<%doc>
+ Copyright 2012 Tufts University 
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+ http://www.opensource.org/licenses/ecl1.php 
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Application::HTML::Strip;
+</%once>
+
 <%attr>
 	top_tab_type            => 'manage'
 	no_check_path	=> '1'
@@ -15,12 +32,13 @@
 <%perl>
 
 my @rows;
+my $stripObj = TUSK::Application::HTML::Strip->new();
 foreach my $i (0..(scalar(@folders)-1)) {
 	my $folder = $folders[$i];
 	$rows[$i] = {
 			'id' => $folder->primary_key,
 			'type' => '<img src="/graphics/icons/ico-folder.gif">',
-			'title' => "<a href='/management/folders/content/".$folder->primary_key."'>".$folder->field_value('title')."</a> (". $folder->primary_key." )",
+			'title' => "<a href='/management/folders/content/".$folder->primary_key."'>".$stripObj->removeHTML($folder->field_value('title'))."</a> (". $folder->primary_key." )",
 			'authors' => join(', ', map {$_->out_abbrev} $folder->child_users), } ;
 	
 }
@@ -29,8 +47,8 @@ foreach my $i (0..(scalar(@folders)-1)) {
 
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [
-		{'label' => 'Type', 'field' => 'type'},
-		{'label' => 'Title', 'field' => 'title'},
+		{'label' => 'Type', 'field' => 'type', 'html' => 1},
+		{'label' => 'Title', 'field' => 'title', 'html' => 1},
 		{'label' => 'Authors', 'field' => 'authors'},
 	],
 	rows => \@rows,

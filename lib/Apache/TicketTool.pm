@@ -155,7 +155,6 @@ sub verify_ticket {
 sub delete_cookies{
     my ($self, $cookies, $result, $msg) = @_;
     $self->remove_cookie($cookies->{'TUSKMasonCookie'});
-    $self->remove_cookie($cookies->{'EMBPERL_UID'});
     $self->remove_cookie($cookies->{'Ticket'});
     return ($result, $msg);
 }

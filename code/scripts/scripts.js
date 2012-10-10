@@ -50,12 +50,10 @@
 
     // convert all characters to lowercase to simplify testing
     var agt=navigator.userAgent.toLowerCase();
-
     // *** BROWSER VERSION ***
     // Note: On IE5, these return 4, so use is_ie5up to detect IE5.
     var is_major = parseInt(navigator.appVersion);
     var is_minor = parseFloat(navigator.appVersion);
-
     // Note: Opera and WebTV spoof Navigator.  We do strict client detection.
     // If you want to allow spoofing, take out the tests for opera and webtv.
     var is_nav  = ((agt.indexOf('mozilla')!=-1) && (agt.indexOf('spoofer')==-1)
@@ -71,7 +69,6 @@
     var is_nav6up = (is_nav && (is_major >= 5));
     var is_gecko = (agt.indexOf('gecko') != -1);
 
-
     var is_ie     = ((agt.indexOf("msie") != -1) && (agt.indexOf("opera") == -1));
     var is_ie3    = (is_ie && (is_major < 4));
     var is_ie4    = (is_ie && (is_major == 4) && (agt.indexOf("msie 4")!=-1) );
@@ -82,7 +79,6 @@
     var is_ie5_5up =(is_ie && !is_ie3 && !is_ie4 && !is_ie5);
     var is_ie6    = (is_ie && (is_major == 4) && (agt.indexOf("msie 6.")!=-1) );
     var is_ie6up  = (is_ie && !is_ie3 && !is_ie4 && !is_ie5 && !is_ie5_5);
-
     // KNOWN BUG: On AOL4, returns false if IE3 is embedded browser
     // or if this is the first browser window opened.  Thus the
     // variables is_aol, is_aol3, and is_aol4 aren't 100% reliable.
@@ -91,23 +87,19 @@
     var is_aol4  = (is_aol && is_ie4);
     var is_aol5  = (agt.indexOf("aol 5") != -1);
     var is_aol6  = (agt.indexOf("aol 6") != -1);
-
     var is_opera = (agt.indexOf("opera") != -1);
     var is_opera2 = (agt.indexOf("opera 2") != -1 || agt.indexOf("opera/2") != -1);
     var is_opera3 = (agt.indexOf("opera 3") != -1 || agt.indexOf("opera/3") != -1);
     var is_opera4 = (agt.indexOf("opera 4") != -1 || agt.indexOf("opera/4") != -1);
     var is_opera5 = (agt.indexOf("opera 5") != -1 || agt.indexOf("opera/5") != -1);
     var is_opera5up = (is_opera && !is_opera2 && !is_opera3 && !is_opera4);
-
     var is_webtv = (agt.indexOf("webtv") != -1); 
 
     var is_TVNavigator = ((agt.indexOf("navio") != -1) || (agt.indexOf("navio_aoltv") != -1)); 
     var is_AOLTV = is_TVNavigator;
-
     var is_hotjava = (agt.indexOf("hotjava") != -1);
     var is_hotjava3 = (is_hotjava && (is_major == 3));
     var is_hotjava3up = (is_hotjava && (is_major >= 3));
-
     // *** JAVASCRIPT VERSION CHECK ***
     var is_js;
     if (is_nav2 || is_ie3) is_js = 1.0;
@@ -129,13 +121,11 @@
 
     // HACK: no idea for other browsers; always check for JS version with > or >=
     else is_js = 0.0;
-
     // *** PLATFORM ***
     var is_win   = ( (agt.indexOf("win")!=-1) || (agt.indexOf("16bit")!=-1) );
     // NOTE: On Opera 3.0, the userAgent string includes "Windows 95/NT4" on all
     //        Win32, so you can't distinguish between Win95 and WinNT.
     var is_win95 = ((agt.indexOf("win95")!=-1) || (agt.indexOf("windows 95")!=-1));
-
     // is this a 16 bit compiled version?
     var is_win16 = ((agt.indexOf("win16")!=-1) || 
                (agt.indexOf("16bit")!=-1) || (agt.indexOf("windows 3.1")!=-1) || 
@@ -143,10 +133,8 @@
 
     var is_win31 = ((agt.indexOf("windows 3.1")!=-1) || (agt.indexOf("win16")!=-1) ||
                     (agt.indexOf("windows 16-bit")!=-1));
-
     var is_winme = ((agt.indexOf("win 9x 4.90")!=-1));
     var is_win2k = ((agt.indexOf("windows nt 5.0")!=-1));
-
     // NOTE: Reliable detection of Win98 may not be possible. It appears that:
     //       - On Nav 4.x and before you'll get plain "Windows" in userAgent.
     //       - On Mercury client, the 32-bit version will return "Win98", but
@@ -156,11 +144,9 @@
     var is_win32 = (is_win95 || is_winnt || is_win98 || 
                     ((is_major >= 4) && (navigator.platform == "Win32")) ||
                     (agt.indexOf("win32")!=-1) || (agt.indexOf("32bit")!=-1));
-
     var is_os2   = ((agt.indexOf("os/2")!=-1) || 
                     (navigator.appVersion.indexOf("OS/2")!=-1) ||   
                     (agt.indexOf("ibm-webexplorer")!=-1));
-
     var is_mac    = (agt.indexOf("mac")!=-1);
     // hack ie5 js version for mac
     if (is_mac && is_ie5up) is_js = 1.4;
@@ -168,7 +154,6 @@
                                (agt.indexOf("68000")!=-1)));
     var is_macppc = (is_mac && ((agt.indexOf("ppc")!=-1) || 
                                 (agt.indexOf("powerpc")!=-1)));
-
     var is_sun   = (agt.indexOf("sunos")!=-1);
     var is_sun4  = (agt.indexOf("sunos 4")!=-1);
     var is_sun5  = (agt.indexOf("sunos 5")!=-1);
@@ -198,12 +183,9 @@
     var is_unix  = ((agt.indexOf("x11")!=-1) || is_sun || is_irix || is_hpux || 
                  is_sco ||is_unixware || is_mpras || is_reliant || 
                  is_dec || is_sinix || is_aix || is_linux || is_bsd || is_freebsd);
-
     var is_vms   = ((agt.indexOf("vax")!=-1) || (agt.indexOf("openvms")!=-1));
-
 /* check to see if this browser supports DHTML */
 var DHTML = (document.getElementById || document.all || document.layers);
-
 function checkform(aform){
 	for ( var i=0;i<aform.length;i++ )
     	{
@@ -216,12 +198,10 @@ function checkform(aform){
 				continue;
 			}
 			attrib = id.substring(split + 2, id.length);
-
 			// ff had no problem accessing chars in the attrib string (below) through array notation, 
 			// but ie6 needed to split() the array with empty string in order to create an 
 			// array with each char from the orig string being represented as an elt in the array 
 			attrib = attrib.split("");
-
 			if (attrib[0] == 'y'){
 				if (element.value == ""){
 					name = name.replace('_', ' ');
@@ -259,7 +239,6 @@ function openhelp (node, content_id){
 	}
 	var param = "directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=" + 650 + ",height=" + 450;
 	var win_name = 'quickhelp';
-
 	if(node > 0){
 		help_window = window.open("/view/truncate/" + content_id + "/?node="+node, win_name, param);
 		if (!help_window.opener) help_window.opener = self;
@@ -271,9 +250,7 @@ function openhelp (node, content_id){
 
 function openJustContent(content_id, win_name, params){
 	if(!win_name) win_name = 'just_content';
-
 	if(!params) params = "directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=" + 650 + ",height=" + 450;
-
 	content_window = window.open('/view/justcontent/content/' + content_id, win_name, params);
 	if (!content_window.opener) help_window.opener = self;
 }
@@ -358,7 +335,6 @@ function isValidTUSKBrowser(){
 
 function togglelayerbutton(button, layername, title){
 	var layer;
-
 	if (document.layers) {
 		layer = document.layers[layername];
 	} else if (document.all) {
@@ -368,7 +344,6 @@ function togglelayerbutton(button, layername, title){
 	}
 	
 	var extra;
-
 	if (title){
 		extra = " " + title;
 	}
@@ -385,7 +360,6 @@ function togglelayerbutton(button, layername, title){
 
 function togglelayer(layername, checked){
 	var layer;
-
 	if (document.layers) {
 		layer = document.layers[layername];
 	} else if (document.all) {
@@ -437,14 +411,12 @@ function isValidDate(date) {
 	date_str = date_str.replace(/^\s+|\s+$/g,"");
 	var date_array = date_str.split(/[- :]/);
 	var dt;
-
 	if ( !date_str.match(/^\d{4}-\d{2}-\d{2}(?:\s\d{2}:\d{2}(?::\d{2})?)?$/) ) {
 		return false;
 	}
 
 	if ( date_array.length == 3 ) {
 		dt = new Date(date_array[0], date_array[1]-1, date_array[2]);
-
 		if (dt.getDate() != date_array[2]){
 			return false;
 		} else if (dt.getMonth()+1 != date_array[1]){
@@ -454,7 +426,6 @@ function isValidDate(date) {
 		}
 	} else if ( date_array.length == 5 ) {
 		dt = new Date(date_array[0], date_array[1]-1, date_array[2], date_array[3], date_array[4]);
-
 		if ( dt.getMinutes() != date_array[4] ) {
 			return false;
 		} else if ( dt.getHours() != date_array[3] ) {
@@ -468,7 +439,6 @@ function isValidDate(date) {
 		}
 	} else if ( date_array.length == 6 ) {
 		dt = new Date(date_array[0], date_array[1]-1, date_array[2], date_array[3], date_array[4], date_array[5]);
-
 		if ( dt.getSeconds() != date_array[5] ) {
 			return false;
 		} else if ( dt.getMinutes() != date_array[4] ) {
@@ -498,9 +468,7 @@ function forward(destination) {
 	var word = /\w+/;  
 	var dest = destination.value;
 	var result = dest.match(word);
-
 	destination.selectedIndex = 0;
-
 	if (result == null) {
 		return false;
 	}
@@ -566,7 +534,6 @@ function findPos(obj) {
 // that is, if anchor clicked on, return the anchor element
 function getElt(e){
 	var targ;
-
 	if(e.target){ 
 		targ = e.target;
 	}
@@ -661,9 +628,7 @@ function fxLock(ele){
 function widthfx(from, to, ele, options){
 	if(!fxLock(ele)){
 		var increment = (typeof(options) == 'object' && options.increment)? options.increment : 5;
-
 		var duration =  (typeof(options) == 'object' && options.duration)? options.duration : 15;
-
 		if (from > to) increment -= (2 * increment);
 	
 		movefx('width', from, to, ele, increment, duration);
@@ -673,11 +638,8 @@ function widthfx(from, to, ele, options){
 function heightfx(from, to, ele, options){
 	if(!fxLock(ele)){
 		var increment = (typeof(options) == 'object' && options.increment)? options.increment : 10;
-
 		var duration =  (typeof(options) == 'object' && options.duration)? options.duration : 15;
-
 		if (from > to) increment -= (2 * increment);
-
 		movefx('height', from, to, ele, increment, duration);
 	}
 }
@@ -694,69 +656,10 @@ function movefx(effect, from, to, ele, increment, duration){
 		}
 
 		ele.style[effect] = (from + 'px');
-
 		setTimeout(function(){movefx(effect, from, to, ele, increment, duration)}, duration);			
 	
 }
 // end effects
-
-// functions related to launching html editor from basic text areas.
-function toggle_html_edit(ele){
-	if(window.document.html_edit && ((typeof(popWin) != 'undefined') && !popWin.ref.closed)){
-		alert('Before deactivating \'HTML Edit mode\', please close the HTML Editor.');
-		if (window.focus) {popWin.ref.focus()}
-	}
-	else if(window.document.html_edit){
-		window.document.html_edit = false;
-
-		var btns = getElementsByClass({className:'htmlEditBtn', tag:'input'});
-		for (var i=0; i<btns.length; i++){				
-			btns[i].value = 'Go To HTML Edit Mode';
-		}
-
-	}
-	else {
-		var areas = getElementsByClass({ className:'textareawhite', tag:'textarea'});
-		for (var i=0; i<areas.length; i++){				
-			if(!areas[i].onclick || areas[i].onclick.toString().indexOf('edit_textarea') == -1){
-				fn = function(e){edit_textarea(this);}; 
-				addEvent(areas[i], 'click', fn);
-			}
-		}
-		window.document.html_edit = true;
-		
-		var btns = getElementsByClass({className:'htmlEditBtn', tag:'input'});
-		for (var i=0; i<btns.length; i++){				
-			btns[i].value = 'Go To Direct Edit Mode';
-		}
-
-	}
-}
-
-
-function edit_textarea(ele, layer_id){		
-
-	var win_id = (layer_id)? layer_id + '_editor' : 'html_editor';
-	win_id += '_' + ele.id;
-
-
-	win_id = (win_id)? win_id + '_editor' : 'html_editor';
-
-	if(window.document.html_edit){
-		if((typeof(popWin) != 'undefined') && (!popWin.ref.closed && popWin.ref.location)){
-			if(popWin.id != win_id){
-				alert('The HTML Editor is already open and contains the contents of another text area.\nYou must close it before trying to edit another area.');
-			}
-		} else {
-			popWin = new Object();
-			popWin.ref = window.open('/tusk/tools/html_editor?field=' + ele.id + '&opener=' + location.pathname, 'html_editor', 'directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=715,height=520');
-			popWin.id = win_id;
-		}
-		if (window.focus) {popWin.ref.focus()}
-	}
-}
-
-// end html editor functions
 
 function email_user(user_id, context_path){
 	var pop_url = '/management/mail/emailuser/' + context_path + '?recipient=' + user_id;
@@ -766,7 +669,6 @@ function email_user(user_id, context_path){
 
 function toggle_div(id){
 	var new_display = 'none';
-
 	if (document.getElementById(id).style.display == 'none'){
 		new_display = 'block';
 	}
@@ -781,7 +683,6 @@ fx for form on /management/course/modify/ and /management/course/info/
 function adjustXtraFields(selection, integrated){
 
 	var selectionTxt = selection[selection.selectedIndex].text;
-
 	if(!selectionTxt || selectionTxt.match(/group|thesis committee/i)){
 		document.getElementById('caeXtraFields').className = 'hideAll';		
 	}
@@ -832,7 +733,6 @@ function getTopOfScreen(){
 		screen_top = document.body.scrollTop;
 	}
 	return screen_top;
-
 }
 
 // http://www.quirksmode.org/viewport/compatibility.html
@@ -861,7 +761,6 @@ function getPageXY(){
 	}
 	
 	return [x, y];
-
 }
 
 
@@ -869,9 +768,7 @@ function getPageXY(){
 // have that value set to _blank
 function setTargets(frame_name){
 	var doc = top[frame_name].document;
-
 	var lnks = doc.getElementsByTagName('a');
-
 	for(var i=0; i<lnks.length; i++){
 		if(lnks[i].target != '_blank'){
 			lnks[i].target = '_top';
@@ -884,11 +781,8 @@ function setTargets(frame_name){
 function updateTPAndSubmit(elt){
 	var hidInp = document.generic.timeperiod;
 	hidInp.value = elt.value;
-
 	elt.selectedIndex = 0;
-
 	document.generic.submit();
-
 }
 
 /* if called, will either return the DOM element passed in
@@ -939,11 +833,9 @@ function getElementsByClass(params){
 		return [];
 	if (params['className'] == null)
 		return [];
-
 	var searchClass = params['className'];
 	var node        = params['node'];
 	var tag         = params['tag'];
-
 	var classElements = new Array();
 	if ( node == null )
 		node = document;
@@ -986,7 +878,6 @@ function toggleExcess(elt){
 
 function positionExcessWin(elt){
 	var txt_win = elt.fullTxtWin;
-
 	var hgt = txt_win.offsetHeight;
 	var browser_top = getScrollXY()[1];
 	var yPos = findPos(elt)[1] - hgt;
@@ -994,13 +885,11 @@ function positionExcessWin(elt){
 		 yPos = findPos(elt)[1] + elt.offsetHeight + 5;
 	}
 	txt_win.style.top = yPos + 'px';
-
 	var width = txt_win.offsetWidth;		
 	var browser_width = document.documentElement.clientWidth;
 	var browser_scroll = getScrollXY()[0];
 	var browser_edge = browser_scroll + browser_width
 	var xPos = findPos(elt)[0];
-
 	if((xPos + width) > browser_edge){
 		xPos = browser_edge - width - 20;
 		if(xPos < browser_scroll){
@@ -1046,7 +935,6 @@ function checkDates( el, no_empty ) {
 	if ( !isValid ) {
 		if ( !el.form.invalid_dates[ el.id ] ) {
 			el.form.invalid_dates[ el.id ] = 1;
-
 			if ( el.form.orig_onsubmit === null ) {
 				if ( el.form.onsubmit == undefined ) {
 					el.form.orig_onsubmit = "";
@@ -1061,9 +949,7 @@ function checkDates( el, no_empty ) {
 	} else {
 		if ( el.form.invalid_dates[ el.id ] ) {
 			var all_ok = 1;
-
 			el.form.invalid_dates[ el.id ] = 0;
-
 			for (var i in el.form.invalid_dates) {
 				if ( el.form.invalid_dates[i] ) { all_ok = 0; break; }
 			}
@@ -1084,15 +970,11 @@ function checkDates( el, no_empty ) {
 */
 function activateTab(active){
 	var nav = active.parentNode.parentNode;
-
 	var deactivate = getElementsByClass({node: nav, tag:'li', className:'activeTab'})[0];
 	deactivate.className = '';
-
 	var deactivate_div = document.getElementById(deactivate.id + 'Area');
 	deactivate_div.className = 'tabArea';
-
 	active.parentNode.className = 'activeTab';
-
 	var activate_div = document.getElementById(active.parentNode.id + 'Area');
 	activate_div.className += ' activeArea';
 }

@@ -59,6 +59,7 @@ function populate_answers(){
 		layers['answersdiv'].structure['display'][3]['type'] = 'hidden';
 		layers['answersdiv'].structure['display'][0]['type'] = 'textarea';
 		layers['answersdiv'].structure['display'][0]['label'] = 'Pair Question';
+		layers['answersdiv'].structure['display'][0]['htmleditor'] = '1';
 		layers['answersdiv'].structure['display'][1]['label'] = 'Pair Answer';
 	} else {
 		layers['answersdiv'].structure['display'][3]['type'] = '';
@@ -117,8 +118,7 @@ function populate_answers(){
 }
 
 function addToLayer(newdata){
-        layers['answersdiv'].adddata(newdata,0);
-
+    layers['answersdiv'].adddata(newdata,0);
 }
 
 function addDefaultToLayer(){
@@ -131,7 +131,7 @@ function addTrueFalseAnswers(){
 		elem.style.visibility = "hidden";
 	}
 	layers['answersdiv'].structure['display'][1]['type'] = '';
-	addToLayer({ correct:'',quiz_answer_id:'0',question_id:'<% $question_id %>',question:'',answer:'True' , feedback:'', child_question_id:''});
+	addToLayer({ correct:'',quiz_answer_id:'0',question_id:'<% $question_id %>',question:'',answer:'True' , feedback:'', child_question_id:'' });
 	addToLayer({ correct:'',quiz_answer_id:'0',question_id:'<% $question_id %>',question:'',answer:'False', feedback:'', child_question_id:'' });
 }
 </script>
@@ -157,11 +157,13 @@ function addTrueFalseAnswers(){
 
 <& /tmpl/element:textarea, params=>{ 
 			label	 	=> 'Question&nbsp;Body',
-	                name		=> "body",
-       	         	cols		=> "80",
-       	 	       	rows		=> "6",
-                	value		=> $question->getBody()  
-		} &>
+	        name		=> "body",
+       	    cols		=> "80",
+       	 	rows		=> "6",
+            value		=> $question->getBody(),
+            htmleditor  => 1 },
+		cke_params	=> { height => '150' }
+ &>
 
 % if ($question->getType() ne "Section"){
 %       my $note; my $first_display = '';
@@ -172,23 +174,25 @@ function addTrueFalseAnswers(){
 %	}
 
 <& /tmpl/element:textarea, params=>{ 
-			label	 	=> 'Answer&nbsp;/&nbsp;Feedback',
-	                name		=> "feedback",
-       	         	cols		=> "80",
-       	 	       	rows		=> "3",
-                	value		=> $question->getFeedback(),
-			trailing_text   => "<div id=\"answernote\" $first_display>$note</div>",
-			trailing_text_new_row	=> 1
-		} &>
+			label	 				=> 'Answer&nbsp;/&nbsp;Feedback',
+            name					=> "feedback",
+         	cols					=> "80",
+ 	       	rows					=> "3",
+           	value					=> $question->getFeedback(),
+			trailing_text   		=> "<div id=\"answernote\" $first_display>$note</div>",
+			trailing_text_new_row	=> 1,
+            htmleditor  			=> 1 },
+		cke_params	=> { height => '150' }
+	&>
 
 
 <& /tmpl/element:textbox, params =>{ label => 'Question&nbsp;Points',
-                name => 'points',
-		id => 'questionPoints',
-                value => ($questionLink->getPoints()) ? $questionLink->getPoints() : 1,
-                size => 10,
-                length => 10 } &>
-%
+            name => 'points',
+			id => 'questionPoints',
+            value => ($questionLink->getPoints()) ? $questionLink->getPoints() : 1,
+            size => 10,
+            length => 10 }
+	&>
 % }
 %
 
@@ -241,11 +245,12 @@ function addTrueFalseAnswers(){
 
 	my $question_display_type = ($question->getType() eq "Matching") ? "textarea" : "hidden";
 	my $correct_display_type = ($question->getType() eq "Matching") ? "hidden" : "";
+	my $htmleditor = ($question->getType() eq "Matching") ? "1" : "";
 
 	my $display = [
-			{label=> (($question->getType() eq 'Matching') ? 'pair ' : '' ) . 'Question',field=>'question', align=>'center', length=>230, type => $question_display_type},
-			{label=>(($question->getType() eq 'Matching') ? 'pair ' : '' ) . 'Answer',field=>'answer', align=>'center', length=>230, type => $type},
-		       	{label=>'feedback',field=>'feedback', align=>'center', length=>230, type => 'textarea'},
+			{label=> (($question->getType() eq 'Matching') ? 'pair ' : '' ) . 'Question',field=>'question', align=>'center', length=>230, type => $question_display_type, htmleditor => $htmleditor},
+			{label=>(($question->getType() eq 'Matching') ? 'pair ' : '' ) . 'Answer',field=>'answer', align=>'center', length=>230, type => $type, htmleditor => '1'},
+		       	{label=>'feedback',field=>'feedback', align=>'center', length=>270, type => 'textarea', htmleditor => '1'},
                		{label=>'correct',field=>'correct', align=>'center', length=>50, type => $correct_display_type, 
 						options=>[{'label'=>'No','value'=>'0'},{'label'=>'Yes','value'=>'1'}]},
 			{label=>'child question id',field=>'child_question_id', align=>'center', length=>230, type => 'hidden'},
@@ -254,6 +259,17 @@ function addTrueFalseAnswers(){
 </%perl>
 
 % if ($question->getType() ne "Essay" and $question->getType() ne "Section" and $question->getType() ne "FillIn" and $question->getType() ne "MultipleFillIn"){
+
+% ## fill in blank data for sort order box if this is a new question
+% ## so that the functions that populate empty questions don't throw error in certain browsers
+%  if (!@answers_data) {
+% 	if ($question->getType() eq "Matching" || $question->getType() eq "MultipleChoice") {
+% 		@answers_data = ({},{},{},{},{});
+% 	}
+% 	elsif ($question->getType() eq "TrueFalse") {
+% 		@answers_data = ({'answer' => 'True'},{'answer' => 'False'});
+% 	}
+%  }
 
 <& /tmpl/element:sort_order_box , params =>{
                 label =>'Answers',
@@ -280,33 +296,13 @@ function addTrueFalseAnswers(){
 	<& /quiz/author/tmpl/editquestion:show_questions_box, id => $question->getPrimaryKeyID(), links => $question->getSubQuestionLinks(), type => 'Section', tool => $tool &>
 %
 % }
-%
-<%perl>
-	if ($question->getType() eq 'MultipleChoice' or $question->getType() eq 'Matching'){
-		unless ($question->getPrimaryKeyID()){
-			$m->print('<script language="JavaScript">');
-			for (scalar(@answers_data)..4) {
-				$m->print("addDefaultToLayer();");
-			 }
-			$m->print("</script>");
-		}
-	}
-</%perl>
-% if (($question->getType() eq 'TrueFalse') && (!scalar(@answers_data))){
-<script language="JavaScript">
-addTrueFalseAnswers();
-</script>
-%}
-
- 
+% 
 %   my $type_object =  $m->comp("/tmpl/url:get_type_object");
 %	my $school = $m->comp("/tmpl/url:get_school");
 %	my $course_id = $type_object->course_id;
 %	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
-
-
+%
 % if ($course->type() eq 'integrated course') {
-
 %   my $related_courses ; 
 %   if(defined($question_id)){
 %		$related_courses = $question->get_related_courses($question_id,$course_id,$school);

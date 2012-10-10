@@ -59,21 +59,25 @@ sub is_admin{
     my ($hash, $user) = @_;
 
     if ($user){
-	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_admin})){
-	    $hash->{roles} = $user->check_admin;
+		unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_admin}}){
+			$hash->{roles} = $user->check_admin;
+		}
+    }    
+	if (defined($hash->{roles}->{tusk_session_admin})) {
+		return scalar keys %{$hash->{roles}->{tusk_session_admin}};
 	}
-    }
-
-    return ($hash->{roles}->{tusk_session_is_admin}) if (defined($hash->{roles}) or defined($hash->{roles}->{tusk_session_is_admin}));
+	else {
+		return 0;	
+	}
 }
 
 sub is_school_admin{
     my ($hash, $school, $user) = @_;
 
     if ($user){
-	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_admin})){
-	    $hash->{roles} = $user->check_admin;
-	}
+		unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_admin}}){
+			$hash->{roles} = $user->check_admin;
+		}
     }
 
     if (defined($hash->{roles}->{tusk_session_admin}->{$school})) {return($hash->{roles}->{tusk_session_admin}->{$school});}
@@ -86,9 +90,9 @@ sub is_author{
     my ($hash, $user) = @_;
 
     if ($user){
-	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_author})){
-	    $hash->{roles} = $user->check_author($hash->{roles});
-	}
+		unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_author})){
+		    $hash->{roles} = $user->check_author($hash->{roles});
+		}
     }
 
     return ($hash->{roles}->{tusk_session_is_author}) if (defined($hash->{roles}) or defined($hash->{roles}->{tusk_session_is_author}));
@@ -98,12 +102,31 @@ sub is_eval_admin{
     my ($hash, $user) = @_;
 
     if ($user){
-	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_eval_admin})){
-	    $hash->{roles} = $user->check_admin;
-	}
+		unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_eval_admin}}){
+			$hash->{roles} = $user->check_admin;
+		}
     }
+	if (defined($hash->{roles}->{tusk_session_eval_admin})) {
+		return scalar keys %{$hash->{roles}->{tusk_session_eval_admin}};
+	}
+	else {
+		return 0;	
+	}
+}
 
-    return($hash->{roles}->{tusk_session_is_eval_admin}) if (defined($hash->{roles}->{tusk_session_is_eval_admin}));
+sub is_school_eval_admin {
+    my ($hash, $school, $user) = @_;
+	
+    if ($user){
+		unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_eval_admin}}){
+			$hash->{roles} = $user->check_admin;
+		}
+    }
+    
+    if (defined($hash->{roles}->{tusk_session_eval_admin}->{$school})) {return($hash->{roles}->{tusk_session_eval_admin}->{$school});}
+    elsif(defined($hash->{roles}->{tusk_session_eval_admin}->{lc($school)})) {return($hash->{roles}->{tusk_session_eval_admin}->{lc($school)});}
+    elsif(defined($hash->{roles}->{tusk_session_eval_admin}->{uc($school)})) {return($hash->{roles}->{tusk_session_eval_admin}->{uc($school)});}
+    else {return(0);}
 }
 
 sub get_schools{
@@ -114,9 +137,8 @@ sub get_schools{
 
 sub get_eval_schools{
     my ($hash, $user) = @_;
-
-    return grep { $hash->{roles}->{tusk_session_admin}->{$_} == 2 }(keys %{$hash->{roles}->{tusk_session_admin}}) 
-	if (defined($hash->{roles}->{tusk_session_admin}));
+    return grep { $hash->{roles}->{tusk_session_eval_admin}->{$_} == 1 }(keys %{$hash->{roles}->{tusk_session_eval_admin}}) 
+	if (defined($hash->{roles}->{tusk_session_eval_admin}));
 }
 
 sub check_content_key{

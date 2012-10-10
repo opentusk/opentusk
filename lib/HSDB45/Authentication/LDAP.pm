@@ -7,6 +7,7 @@ use HSDB4::SQLRow::User;
 use HSDB45::LDAP;
 use Net::LDAPS;
 use TUSK::Constants;
+use TUSK::Application::Email;
 use POSIX qw /strftime/;
 
 
@@ -143,24 +144,24 @@ sub verify {
 	
         # send off an email to TUSK admins
         if($TUSK::Constants::emailWhenNewUserLogsIn && $message) {
-                my %mail = (
-                        To => $TUSK::Constants::AdminEmail,
-                        From => $TUSK::Constants::AdminEmail,
-                        Subject => "New User Signon: ".$user->primary_key,
-                        Message => $message,
-                );
-                Mail::Sendmail::sendmail(%mail);
+				my $mail = TUSK::Application::Email->new({
+								to_addr => $TUSK::Constants::AdminEmail,
+								from_addr => $TUSK::Constants::AdminEmail,
+								subject => "New User Signon: ".$user->primary_key,
+								body => $message,
+				});
+				warn sprintf("Error sending email to TUSK admins: %s", $mail->getError()) unless $mail->send();
         }
 
         # send off an email to new User
         if($TUSK::Constants::emailUserWhenNoAffiliationOrGroup && $user->email && $sendUserEmail) {
-                my %mail = (
-                        To => $user->email,
-                        From => $TUSK::Constants::AdminEmail,
-                        Subject => "$TUSK::Constants::SiteAbbr User Account",
-                        Message => $TUSK::Constants::emailUserWhenNoAffiliationOrGroup,
-                );
-                Mail::Sendmail::sendmail(%mail);
+                my $mail = TUSK::Application::Email->new({
+                        to_addr => $user->email,
+                        from_addr => $TUSK::Constants::AdminEmail,
+                        subject => "$TUSK::Constants::SiteAbbr User Account",
+                        body => $TUSK::Constants::emailUserWhenNoAffiliationOrGroup,
+                });
+				warn sprintf("Error sending email to new user %s: %s", $user->email, $mail->getError()) unless $mail->send();
         }
 
     }

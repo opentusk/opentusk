@@ -1,3 +1,19 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
 <%once>
 	use TUSK::Core::PatientLogApproval;
 </%once>
@@ -17,15 +33,14 @@
 	my $nav_query_string;
 </%shared>
 
-
 <%init>
 	my $report_template;
 	my ($header_fields,$comment_fields);
 	my $approve = 0;
 
 	my $conditions = $m->comp('SELF:getFieldConditions', default_report_flags => $report->getReportFlagString(), fields => $params{fields});
-	$header_fields = $form->getAllFormFields($conditions->{non_comments});		
-	$comment_fields = $form->getAllFormFields($conditions->{comments});		
+	$header_fields = $form->getAllFormFields($conditions->{non_comments});
+	$comment_fields = $form->getAllFormFields($conditions->{comments});
 
 	if ($params{rtype} eq 'ts') {  ### teaching site summary
 		if ($params{fid}) {
@@ -56,7 +71,7 @@
 		}
 	} else {  ## course summary
 		if ($params{fid}) {
-			$course_field_map = $m->comp('SELF:getCourseSummaryByFieldMap');
+			$course_field_map = $m->comp('SELF:getCourseSummaryByFieldMap', field_id => $params{fid});
 			$params{view} = 'bysite' unless defined $params{view};
 			my $func = $course_field_map->{$params{view}}{func}; 
 			$results = $report->$func($params{fid});  
@@ -92,8 +107,14 @@
 <%perl>
 	$m->comp("PARENT:startup", args => \%ARGS);
 
+        ### check if we are building a custom report for a teaching site
+        if (!($params{rtype}) and (int($params{teaching_site_id}) > 0)) {
+                $params{rtype} = 'ts';
+                $params{tsid} = $params{teaching_site_id};
+        }
 	### default no report type passed so we stick it in for using later
 	$params{rtype} = 'cs' unless ($params{rtype});	
+
 	$report = $m->comp('SELF:getReportObject', args => \%params);
 	$m->comp('SELF:setExtraQueryString');
 </%perl>
@@ -255,7 +276,13 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <%def courseSummaryByField>
 % my $columns = ($params{view} eq 'allsites') ? 3 : scalar @{$results->{items}};
 <& SELF:fieldViewNav, columns => $columns, field_id => $params{fid} &>
-% my $labels = [ '# Patients Seen','# Students Reporting', '% Students Reporting'];
+% my $labels;
+%		if (defined $results->{attribute_items} && scalar @{$results->{attribute_items}}) {
+%			$labels = [ '# Patients Seen','# Students Reporting', '% Students Reporting', '% Students'];
+%		}
+%		else {
+%			$labels = [ '# Patients Seen','# Students Reporting', '% Students Reporting'];
+%		}
 
 % if ($params{view} eq 'allsites') { ## ALL SITES
 <tr><td colspan="<% $columns %>">Total Number of Students: &nbsp; <% $results->{total_students} %></td></tr>
@@ -265,8 +292,13 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <tr class="header">
 <td></td>
 %		my $colspan = (defined $results->{attribute_items}) ? scalar @{$results->{attribute_items}} : 1;
-%		foreach my $label (@$labels) {
-<th style="padding:0 10px 0 10px;" align="center" colspan="<% $colspan %>"><% $label %></th>
+%		for my $i (0..(scalar @$labels - 1)) {
+%			if ($i < (scalar @$labels -1 )) {
+<th style="padding:0 10px 0 10px;" align="center" colspan="<% $colspan %>"><% $labels->[$i] %></th>
+%			}
+%			else {
+<th style="padding:0 10px 0 10px;" align="center"><% $labels->[$i] %></th>
+%			}
 %		}
 </tr>
 %		if (defined $results->{attribute_items}) {
@@ -319,6 +351,49 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 % }
 </%def>
 
+
+<%def coursePercentagesBySite>
+<table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td><& SELF:fieldViewNav, columns => 1, field_id => $params{fid} &></td>
+</tr>
+<%perl>
+
+	my $rowheaders;
+	foreach my $site (@{$results->{rows}}) {
+		push(@{$rowheaders}, {id => $site->primary_key(), name => '<a href="' . $ENV{SCRIPTNAME} . '?rtype=ts&fid=' . $params{fid} . '&tsid=' . $site->primary_key() . $concat_extra_query_string . '">' . $site->site_name() . '</a>'});
+	}
+
+	my $colheaders = [];
+	foreach my $item (@{$results->{items}}) {
+		my $value;
+		my $either;
+		push(@{$colheaders->[0]}, {id => $item->getPrimaryKeyID(), name => $item->getItemName()});
+		foreach my $attr (@{$results->{attribute_items}}) {
+			$value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+			push(@{$colheaders->[1]}, {id => $attr->getPrimaryKeyID(), name => $value});
+			$either .= " or " if ($either);
+			$either .= $value;
+		}
+		push(@{$colheaders->[1]}, {id => "either", name => $either});
+	}
+	
+</%perl>
+<tr>
+<td><br />
+<& /tmpl/element:scrollable_display_table, table_id => "percentagereporttable",
+	table_classes => ['reporttable'],
+	zebra_striping => 1,
+	corner_text => 'Sites',
+	cell_data => $results->{data},
+	colheaders => $colheaders,
+	rowheaders => [$rowheaders] &>
+</td>
+</tr>
+</table>
+</%def>
+
+
 <%method printAttributeLabels>
 <%args>
 	$labels
@@ -326,9 +401,20 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 </%args>
 <tr class="header">
 <td></td>
-%	foreach my $label (@$labels) {
-%		foreach my $attr (@{$attribute_items}) {
-%			my $value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+%	my $value;
+%	for my $i (0..(scalar @$labels - 1)) {
+%		if ($i < (scalar @$labels - 1)) {
+%			foreach my $attr (@{$attribute_items}) {
+%				$value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+<th style="padding:0 10px 0 10px;" align="center"><% $value %></th>
+%			}
+%		}
+%		else {
+%			$value = "";
+%			foreach my $attr (@{$attribute_items}) {
+%				$value .= " or " if ($value);
+%				$value .= ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+%			}
 <th style="padding:0 10px 0 10px;" align="center"><% $value %></th>
 %		}
 %	}
@@ -723,6 +809,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <td class="line-left" style="<% $bold %>"><% $item_name %></td>
 %			if ($data->{$item->getPrimaryKeyID()}) {
 %				my $total_columns = ($num_items_with_attrs) ? $columns * $num_items_with_attrs : $columns;
+%				$total_columns-- if ($num_items_with_attrs);
 %				my $curr_column = 0;
 %				foreach my $d (@{$data->{$item->getPrimaryKeyID()}}) {
 %					if (ref $d eq 'ARRAY') {
@@ -744,13 +831,17 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <td class="line-center" style="<% $bold %>">0</td>
 %				}
 %			} else {
+%				my $curr_column = 0;
 %				foreach (@$labels) {
 %					if ($num_items_with_attrs) {
 %						foreach (1 .. $num_items_with_attrs) {
 <td class="line-center" style="<% $bold %>">0</td>
+%							last if ($curr_column > scalar @$labels);
+%							$curr_column++;
 %						}
 %					} else {
 <td class="line-center" style="<% $bold %>">0</td>
+%						$curr_column++;
 % 					}
 %				}
 %			}
@@ -766,7 +857,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <%method right_header_text>
 <%perl>
 	my $links = [ 
-		{ url => '', onclick => "window.open('/hsdb4/content/" . $TUSK::Constants::HelpMap{ patientLogs } . "');return false;", txt => "Help" },
+		{ url => '', onclick => "window.open('/hsdb4/content/" . $TUSK::Constants::HelpMap{PatientLogs} . "');return false;", txt => "Help" },
 		{ url => '', onclick => "window.open('/patientlog/preview/" . $m->comp("/tmpl/url:get_type_path") . '/'. $m->comp('/tmpl/url:get_last_path_id') . "');return false;", txt => "Preview" },
 		{ url => '/patientlog/director/export/' . $m->comp("/tmpl/url:get_type_path") . "/$form_id?rtype=$params{rtype}" . $concat_extra_query_string, txt => "Export" },
 	];

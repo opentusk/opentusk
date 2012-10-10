@@ -9,7 +9,7 @@ $VERSION = '0.30';
 
 use Apache::Session::Wrapper 0.13;
 
-use HTML::Mason 1.16;
+use HTML::Mason 1.47;
 use HTML::Mason::Exceptions ( abbr => [ qw( param_error error ) ] );
 use HTML::Mason::Request;
 

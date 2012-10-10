@@ -1,8 +1,31 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+
+<%attr>
+no_filter => 1
+</%attr>
+
+
 <%once>
 	use TUSK::Quiz::Quiz;
 	use TUSK::Quiz::Response;
 	use TUSK::Quiz::Answer;
 </%once>
+
 
 <%shared>
 	my %args = $m->request_args();
@@ -30,27 +53,28 @@
 </%perl>
 </%method>
 
+
 <%method red_header_text>
 %	return "Quiz Response:";
 </%method>
+
 
 <%method function_token>
 % 	return 'view_grades';
 </%method>
 
+
 <%method feature_id>
 % 	return $result->getQuizID();
 </%method>
+
 
 <%method get_nav_bar_objects>
 % 	return {'quiz'=>$quiz};
 </%method>
 
 
-<%doc>
-	This component is also called by quizanswer page
-</%doc>
-
+<%doc>This component is also called by quizanswer page</%doc>
 <%method display_quiz>
 <%args>
 	$show_answers => 1
@@ -121,11 +145,11 @@
 		      ];
 
 	if ($show_answers){
-		push (@$columns, { field => 'response', label => 'Response' });
+		push (@$columns, { field => 'response', label => 'Response'});
 		push (@$columns, { field => 'points', label => 'Points', align => 'center' });
-		push (@$columns, { field => 'graded_points', label => 'Graded Points<span style="color:red;font-size:80%;">*</span>', align => 'center' });
+		push (@$columns, { field => 'graded_points', label => 'Graded Points<span style="color:red;font-size:80%;">*</span>', align => 'center', html => 1 });
 	} elsif ($quiz->getQuizType() ne 'SelfAssessment'){
-		push (@$columns, { field => 'points', label => 'Points', align => 'center' });
+		push (@$columns, { field => 'points', label => 'Points', align => 'center', html => 1 });
 	}
 	
 	my $selection_params = {columns  => $columns,
@@ -139,6 +163,7 @@
 	$m->comp('/tmpl/element:object_selection_box', params => $selection_params);
 </%perl>
 </%method>
+
 
 <%method process_responses>
 <%args>

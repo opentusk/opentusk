@@ -18,6 +18,8 @@
 <td VALIGN="middle">
 	<table  cellspacing="0" cellpadding="0"> 
 		<input type="hidden" name="join" value="and">
+		<input TYPE="hidden" NAME="limit" VALUE="50">
+		<input TYPE="hidden" NAME="start" VALUE="0">
 	<tr>
 		<td class="labelgray">Keywords:</td>
 		<td class="cell-left"><input TYPE="TEXT" SIZE=35 NAME="query" VALUE="<% $ARGS{query} %>" SIZE="50"></td>
@@ -56,33 +58,33 @@
 
 </td>
 <td>&nbsp;</td>
+
+% if ($ARGS{media_type}) {
+<input type="hidden" name="media_type" value="<% $ARGS{media_type} %>">
+% }
+
 <td VALIGN="top">
 	<table>
 <tr>
 	<td align="center">Type<br>
-<select NAME="media_type" SIZE="6" MULTIPLE>
-<option VALUE="" SELECTED>All</option>
-<option VALUE="Audio">Audio</option>
-<option VALUE="Collection">Collection</option>
-<option VALUE="Document">Document</option>
-<option VALUE="DownloadableFile">Downloadable File</option>
-<option VALUE="Flashpix">Flashpix</option>
-<option VALUE="PDF">PDF</option>
-
-<option VALUE="Shockwave">Shockwave</option>
-<option VALUE="Slide">Slide</option>
-<option VALUE="Student Notes">Student Notes</option>
-<option VALUE="URL">URL</option>
-<option VALUE="Video">Video</option>
-	</select>
+% my %types = ( "All" => "", "Audio" => "Audio", "Collection" => "Collection", "Document" => "Document", "Downloadable File" => "DownloadableFile", "Flashpix" => "Flashpix", "PDF" => "PDF", "Shockwave" => "Shockwave", "Slide" => "Slide", "Student Notes" => "Student Notes", "URL" =>"URL", "Video" => "Video" );
+<select NAME="media_type" SIZE="6" MULTIPLE<% ($ENV{'QUERY_STRING'} =~ 'media_type') ? ' disabled="disabled" class="disabled"' : '' %>>
+% foreach my $option (sort keys %types) {
+%	if ($ENV{'QUERY_STRING'} =~ 'media_type') {
+	<option value="<% $types{$option} %>"<% ($ARGS{media_type} eq $types{$option}) ? ' selected="selected"' : '' %>><% $option %></option>
+%	} else {
+	<option value="<% $types{$option} %>"><% $option %></option>
+%	}
+% }
+</select>
 	</td>
 	<td VALIGN="top" ALIGN="center"></td>
-	<td align="center">School<br>
+	<td align="center" valign="top">School<br>
 
 <select NAME="school" SIZE="6" MULTIPLE>
-<option VALUE="" SELECTED >All</option>
+<option VALUE=""<% ($ARGS{school}) ? '' : ' selected="selected"'  %>>All</option>
 % foreach my $search_school (@TUSK::Constants::SearchSchools) {
-<option VALUE="<% $search_school %>"><% $search_school %></option>
+<option VALUE="<% $search_school %>"<% ($ARGS{school} eq $search_school) ? ' selected="selected"' : ''  %>><% $search_school %></option>
 % } # END FOR EACH
 
 	</select>
@@ -97,14 +99,54 @@ to select multiple items</div></td></tr>
 
 <input TYPE="hidden" NAME="search" VALUE="1">
 
-
 % if ($ARGS{search}) {
 	<tr>	
-		<td class="layers-left">
-%	 my $numResults = scalar(@$results) ; 
-		<div id="count"><% $numResults %> matching entr<% ($numResults == 1)? "y" : "ies" %><% ($numResults)? ":" : "" %></div>
-		</td></tr>
-%	 if ($numResults) {
+		<td colspan="3">
+		<table width="100%">
+		<tr>
+		<td colspan="2">
+		<% $totalNumResults %> matching entr<% ($totalNumResults == 1)? "y" : "ies" %><% ($totalNumResults)? ":" : "" %>
+%	if ($totalNumResults > 1) {
+		showing <% $ARGS{start} + 1 %> to <% $ARGS{start} + $numResults %>
+%	}
+		
+		</tr>
+% if ($totalNumResults > 50) {
+%		my $prevquerystring;
+%		my $nextquerystring = "pageId=" . $ARGS{pageId} . "&elementId=" . $ARGS{elementId};
+%		foreach my $key (qw(query title author course school)) {
+%			if ($ARGS{$key}) {
+%				$nextquerystring .= "\&$key";
+%				$nextquerystring .= "=";
+%				$nextquerystring .= $ARGS{$key};
+%			}
+%		}
+%		$nextquerystring .= "&search=1&limit=50&media_type=";
+%		$nextquerystring .= $ARGS{media_type};
+%		$nextquerystring .= "&start=";
+%		if ($ARGS{start}) {
+%			$prevquerystring = $nextquerystring . ($ARGS{start} - 50);
+%			$nextquerystring .= ($ARGS{start} + 50);
+%		}
+%		else {
+%			$nextquerystring .= "50";
+%		}
+		<tr>
+		<td width="50%">
+%	if ($ARGS{start}) {
+		<a href="/management/searchpages/content/?<% $prevquerystring %>" class="titletext">&lt;&lt;&lt; PREV</a>
+%	}
+		</td>
+		<td align="right" width="50%">
+%	if ($ARGS{start} + 50 < $totalNumResults) {
+		<a href="/management/searchpages/content/?<% $nextquerystring %>" class="titletext">NEXT &gt;&gt;&gt;</a>
+%	}
+		</td>
+% }
+		</tr>
+		</table></td>
+		</tr>
+%	 if ($totalNumResults) {
 	<tr>
 		<td colspan="3">
 	<div id="searchdiv"></div>
@@ -170,20 +212,30 @@ to select multiple items</div></td></tr>
 
 <script language="Javascript">
 function update_parent(layer,id){
-       		var pk ;
-	        if (layer == 'searchdiv'){
-        	        pk = layers[layer].structure.data[id].content_id;
-%			 if (defined ($ARGS{'parent'})){
-%				print OUT $ARGS{parent}; 
-%				} else {
-%				print OUT "var foo";
-%				}
-//			   = pk;
+	var pk ;
+	if (layer == 'searchdiv'){
+		pk = layers[layer].structure.data[id].content_id;
+
+		// check to see if CKEditor is what called this
+		if (opener.CKEDITOR && opener.CKEDITOR.dialog.getCurrent()) {
+			opener.CKEDITOR.dialog.getCurrent().setValueOf('<% $ARGS{pageId} %>', '<% $ARGS{elementId} %>', pk);
+		}
+		else {
+%			if (ref $ARGS{'parent'} ne 'ARRAY' && $ARGS{'parent'}) {
+				<% $ARGS{'parent'} %> = pk; 
+%			} else {
+				foo = pk; 
+%			}
 %			 if ($ARGS{'parentlayer'}) {
 				add('searchdiv',id,'<% $ARGS{'parentlayer'} %>')
-%			}			
-			opener.window.focus();
+%			}
 		}
+		// check to see if CKEditor is what called this
+		if (opener.CKEDITOR && opener.CKEDITOR.dialog.getCurrent()) {
+			this.window.close();
+		}
+		opener.window.focus();
+	}
 }
 	
 function view(layer, id){
@@ -195,30 +247,42 @@ function view(layer, id){
 <%init>
 	my $contentString;
 	my $results = [];
+	my $totalNumResults = 0;
+	my $numResults = 0;
 	my $ids;
 	my %queryStruct;
 	my @contentarray;
-	
 	my $user = $m->session->{'user'}->user_id();
 	if ($ARGS{search}){
 		if ($ARGS{content_id}){
 			$contentString = $ARGS{content_id};
 			$contentString =~ s/[^0-9, ]//g;
 			$results = [HSDB4::SQLRow::Content->new->lookup_conditions(" content_id IN ( $contentString )")];
+			$numResults = scalar @$results;
+			$totalNumResults = scalar @$results;
 		} elsif ($ARGS{query} || $ARGS{title} || $ARGS{author} || $ARGS{course}) {
-			 ## do a search for each field
-		
-		
-			 %queryStruct = map { ( $_ => $ARGS{$_} )  } grep { $ARGS{$_} } qw(query title author course school media_type);
-			 $ids = TUSK::Search::Content->new()->search({ %queryStruct });
+			## clean up %ARGS hash
+			foreach my $key (qw(parent query title author course school media_type start limit)) {
+				if (ref $ARGS{$key} eq "ARRAY") {
+					$ARGS{$key} = $ARGS{$key}->[-1];
+				}
+			}
+
+			## find total number of results
+			%queryStruct = map { ( $_ => $ARGS{$_} )  } grep { $ARGS{$_} } qw(query title author course school media_type);
+			$ids = TUSK::Search::Content->new()->search({ %queryStruct });
+			$totalNumResults = scalar(@$ids);
+			
+			## do a search for each field
+			%queryStruct = map { ( $_ => $ARGS{$_} )  } grep { $ARGS{$_} } qw(query title author course school media_type start limit);
+			$ids = TUSK::Search::Content->new()->search({ %queryStruct });
+			$numResults = scalar(@$ids);
+
 			$results = [];
 			if (scalar(@$ids)){
 				$results = [ HSDB4::SQLRow::Content->new()->lookup_conditions("content_id in (" . join(',', @$ids) . ")") ];
 			}
 		}
 	}
-       
-	my $counter = 0;
-
 </%init>
 

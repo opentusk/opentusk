@@ -104,7 +104,7 @@ function phase_select(case_id,path_context){
 
 function open_quiz_window(type_path, phase_id, question_id){
 	var dropdown = document.getElementById('question_type');
-	var params = "width=680,height=470,directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes"
+	var params = "width=1200,height=620,directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes"
 	if (dropdown){
 		var dropdownValue = dropdown.options[dropdown.options.selectedIndex].value;
 		if (question_id == null){

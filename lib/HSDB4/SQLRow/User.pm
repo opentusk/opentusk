@@ -14,7 +14,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.216 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.220 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::Constants qw(:school);
@@ -46,7 +46,7 @@ require TUSK::Eval::Group;
 require HSDB45::Eval;
 require HSDB45::Eval::Completion;
 require HSDB45::UserGroup;
-require Mail::Sendmail;
+require TUSK::Application::Email;
 
 use vars @EXPORT_OK;
 
@@ -273,10 +273,6 @@ sub check_author{
 sub check_admin{
     my ($self, $roles) = @_;
 
-    $roles->{tusk_session_is_admin} = 0;
-    $roles->{tusk_session_is_eval_admin} = 0;
-    $roles->{tusk_session_is_registrar} = 0;
-    
     if (!$self->primary_key()){
 		confess "check_author only works on initialized user objects"; 
     }
@@ -285,25 +281,17 @@ sub check_admin{
     foreach my $school (course_schools()){
 		my $db = get_school_db($school);
 		my $eval_gid = HSDB4::Constants::get_eval_admin_group($school);
-		my $registrar_gid = HSDB4::Constants::get_registrar_group($school);
 		my $admin_gid = $HSDB4::Constants::School_Admin_Group{$school};
 		my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_user_group_user"};
 
-		if ($registrar_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $registrar_gid")) {
-			$roles->{tusk_session_admin}->{$school} = 3;
-			$roles->{tusk_session_is_registrar} = 1;
-			$roles->{tusk_session_is_admin} = 1;
-		} elsif ($eval_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $eval_gid")) {
-			$roles->{tusk_session_admin}->{$school} = 2;
-			$roles->{tusk_session_is_eval_admin} = 1;
+		if ($eval_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $eval_gid")) {
+			$roles->{tusk_session_eval_admin}->{$school} = 1;
 			$roles->{tusk_session_is_author} = 1;
-			$roles->{tusk_session_is_admin} = 1;
-		} elsif ($admin_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $admin_gid")) {
+		}
+
+		if ($admin_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $admin_gid")) {
 			$roles->{tusk_session_admin}->{$school} = 1;
 			$roles->{tusk_session_is_author} = 1;
-			$roles->{tusk_session_is_admin} = 1;
-		} else {
-			$roles->{tusk_session_admin}->{$school} = 0;
 		}
     }
 
@@ -1844,18 +1832,20 @@ sub send_email {
     my $message = join("\n",@_);
     my $email_from = $self->send_email_from;
     $email_from = $TUSK::Constants::SupportEmail unless ($email_from);
-    my %mail = ( To => $email,
-		 From => $email_from,
-		 Subject => $subject,
-		 Message => $message,
-    );
 
-    if($message =~ /^\<html\>/) {$mail{'Content-type'} = "text/html";}
+	my $mail = TUSK::Application::Email->new(
+		{
+			to_addr   => $email,
+			from_addr => $email_from,
+			subject   => $subject,
+			body      => $message,
+			'Content-Type' => ($message =~ /^\<html\>/ ? "text/html; charset='utf-8'" : ""),
+		});
 
-    if (Mail::Sendmail::sendmail(%mail)) {
-	return (1,"Email sent to ".$self->primary_key);
+    if ($mail->send()) {
+		return (1,"Email sent to ".$self->primary_key);
     }
-    return(0,$Mail::Sendmail::error);
+    return(0,$mail->getError());
 }
 
 

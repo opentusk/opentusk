@@ -1,9 +1,6 @@
 #!/usr/local/bin/perl  
 use FindBin;
 use lib "$FindBin::Bin/../lib";
-#use httpdconf;
-#my %hashOfVariables;
-#unless(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {exit();}
 use strict;
 use POSIX;
 use Time::Local;
@@ -25,16 +22,18 @@ sub time_stamp();
 sub index_objective($$);
 sub index_users($$);
 sub index_content_id($);
-sub connect_db();
+sub dbConnect();
 sub disconnect($);
 sub runAll();
 sub runUpdate();
 
 $ENV{XSL_ROOT} = "$FindBin::Bin/../code/XSL";
+$ENV{SERVER_ROOT} = "$FindBin::Bin/../";
 
-my ($content_id,$all,$archive,$noUMLSIndexing, $noprint,$idFile,$update,$debug,$numChildren);
+my ($content_id,$all,$archive,$noUMLSIndexing, $noprint,$idFile,$update,$debug,$numChildren,$restartAll);
 GetOptions( "content-id=s" => \$content_id,
 	    "all!" => \$all,
+	    "restart-all!" => \$restartAll,
 	    "include-archive"=>\$archive,
 	    "noprint!" => \$noprint,
 	    "no-umls-indexing"=>\$noUMLSIndexing,
@@ -114,7 +113,7 @@ sub index_objective($$) {
     my $query = "select objective_id,body from hsdb4.objective";
     $query .= " where modified > '$modified'" if ($modified);
     my $sth = $dbh->prepare($query);
-    $sth->execute;
+    $sth->execute();
     my $ii = 0;
     while (my ($id,$string) = $sth->fetchrow_array) {
         $fts->index_document($id,$string);
@@ -131,7 +130,7 @@ sub index_users($$) {
     my $query = "select user_id, firstname, lastname, midname, suffix, degree, status from hsdb4.user";
     $query .= " where modified > '$modified'" if ($modified);
     my $sth = $dbh->prepare($query);
-    $sth->execute;
+    $sth->execute();
     my $ii=0;
     while (my ($id,$fname,$mname,$lname,$sfx,$deg,$status) = $sth->fetchrow_array) {
 	next if ($id =~ /^&/);
@@ -160,7 +159,7 @@ sub index_users($$) {
     $query = "select non_user_id, firstname, lastname, midname, suffix, degree from hsdb4.non_user";
     $query .= " where modified > '$modified'" if ($modified);
     $sth = $dbh->prepare($query);
-    $sth->execute;
+    $sth->execute();
     while (my ($id,$fname,$mname,$lname,$sfx,$deg) = $sth->fetchrow_array) {
 	next if ($id =~ /^&/);
 	my $string = $id." ".$fname." ".$mname." ".$lname." ".$sfx." ".$deg;
@@ -178,6 +177,25 @@ sub index_users($$) {
 
 
 
+
+sub index_content_id_all($) {
+	my $content_sid = shift;
+	my $indexer = TUSK::Search::Indexer->new();
+	my $content_obj = HSDB4::SQLRow::Content->new->lookup_key($content_sid);
+	my $validCourses = 1;
+	if ($content_obj->course->title() =~ /^OCW: /) {$validCourses = 0;}
+	if ($content_obj->display and $content_obj->is_active() and $validCourses) {
+		$content_obj->out_html_body;
+		if($content_obj->error) {print "\tIndexing failed for $content_sid: ".$content_obj->error."\n";}
+		else {
+			eval { $indexer->indexContent($content_obj,$noUMLSIndexing ? 0 : 1, 0); };
+			if($@) {print "\tFailed Indexing $content_sid : $@";}
+		}
+	} else {
+		eval { $indexer->unindexContent($content_sid); };
+		if($@) {print "\tFailed UnIndexing $content_sid : $@";}
+	}
+}
 
 sub index_content_id($) {
 	my $content_sid = shift;
@@ -204,16 +222,16 @@ sub index_content_id($) {
 
 
 
-sub connect_db() {
-    my $dbh = DBI->connect ("dbi:mysql:fts:$ENV{DATABASE_ADDRESS}", get_user_pw (), { RaiseError => 1 });
-    return $dbh;
-}
-
 sub disconnect($) {
     my $dbh = shift;
     $dbh->disconnect;
 }
 
+
+sub dbConnect() {
+	my $aDbh = DBI->connect ("dbi:mysql:fts:$ENV{DATABASE_ADDRESS}", get_user_pw (), { RaiseError => 1 });
+	return $aDbh;
+}
 
 sub runAll() {
 	TUSK::ScriptLog::log("Reindex All Content started $starttime. ");
@@ -223,14 +241,21 @@ sub runAll() {
 	my $hostname = Sys::Hostname::hostname();
 
 	#Create a table table that all process on all hosts will use
-	my $dbh = &connect_db;
+	my $dbh = dbConnect();
 	# so IF NOT EXISTS does not work with AS SELECT
 	# So we need to do a check to see if the table is there and if not then lets try to create it
 	my $numTablesSth = $dbh->prepare("SHOW TABLES LIKE 'multi_fts';");
+	my $needsPause = 0;
 	unless($numTablesSth) {die "Could not check to see if the table was there!\n";}
 	elsif(!$numTablesSth->execute()) {die "Could not execute sql to check to see if the table was there!\n";}
 	else {
 		my $tableName = $numTablesSth->fetchrow_array();
+		if($tableName && $restartAll) {
+			print "Dropping existing multi_fts table\n" if(!$noprint);
+			$needsPause++;
+			unless($dbh->do("DROP TABLE multi_fts")) {die "Could not drop the temp table!\n";}
+			$tableName = '';
+		}
 		unless($tableName) {
 			my $archiveClause = ', "Archive" ';
 			if($archive) {$archiveClause = '';}
@@ -242,6 +267,7 @@ sub runAll() {
 						  AND (end_date > NOW() OR end_date IS NULL)
 						  AND display=1
 			";
+
 			my $tableSQL = "CREATE TABLE IF NOT EXISTS multi_fts (
 						content_id int(10) unsigned NOT NULL,
 						converting_host varchar(100) default 'none', converting_pid int,
@@ -251,118 +277,194 @@ sub runAll() {
 					) AS $selectStatement;
 			";
 			unless($dbh->do($tableSQL)) {die "Could not create the temp table!\nThis can happen if two instances of FTS are started on different machines at the same time";}
+		} else {
+			print "Reusing existing multi_fts table if you want a fresh run, wipe out this table\n" if(!$noprint);
+			$needsPause++;
 		}
 	}
 	#Remove old instances of this converter (incase the entire thing died before)
 	unless($dbh->do("UPDATE multi_fts SET converting_host='none', converting_pid=NULL WHERE converting_host='$hostname'")) {
 		warn "I could not reset unfinished encounters of the indexer for this host";
+		$needsPause++;
 	}
-	$numTablesSth->finish();
-	$dbh->disconnect();
+	eval {$numTablesSth->finish();};
 
+	# Get the total number of contents to be processed
+	my $totalContentToIndex = 'Unknown';
+	my $totalCountSelectStatement = $dbh->prepare("SELECT COUNT(1) FROM multi_fts");
+	unless($totalCountSelectStatement) {die "Could not count the total number of items to index!\n";}
+	elsif(!$totalCountSelectStatement->execute()) {die "Could not execute sql to count the total number of content to index\n";}
+	else {
+		$totalContentToIndex = $totalCountSelectStatement->fetchrow_array();
+	}
+	eval {$totalCountSelectStatement->finish();};
+	
 	my $content_done = 0;
+	my $nextChar = '-';
+	my $warnings;
+
+	disconnect($dbh);
+	# flush std out
+	autoflush STDOUT 1;
+	if($needsPause) {
+		print "\n\nPlease review messages and press enter to continue...\n\n";
+		my $garbage = <STDIN>;
+	}
 	while(!$content_done) {
+		my $message = "\tPid\tWorking on content ID\n";
+		# Check the children
+		my $runningChildren = 0;
+		foreach my $childPid (keys %children) {
+			# open a DB connection for this child
+			# Check to see if the process is still running by sending it sig 0
+			my $childIsAlive = kill(0,$childPid);
+			$message.= "\t$childPid\t";
+			if($childIsAlive) {
+				$runningChildren++;
+				# Get the piece of content this child is indexing
+				my $dbh = dbConnect();
+				my $getChildContent = $dbh->prepare("SELECT content_id FROM multi_fts WHERE converting_host='$hostname' AND converting_pid='$childPid';");
+				unless($getChildContent->execute()) {
+					$message.= "Unknown\n";
+				} else {
+					my $contentIds = $getChildContent->fetchrow_array();
+					$message.= $contentIds."\n";
+				}
+				eval {$getChildContent->finish();};
+				disconnect($dbh);
+			} else {
+				$message.= "died\n";
+				TUSK::ScriptLog::log("Detected death of $childPid.");
+				delete $children{$childPid};
+				#Check to see if there is anything left in the database from this kid and if so remove the lock on it
+				my $resetContent = 1;
+				my $dbh = dbConnect();
+				my $getChildContent = $dbh->prepare("SELECT count(content_id) FROM multi_fts WHERE converting_host='$hostname' AND converting_pid='$childPid';");
+				unless($getChildContent->execute()) {
+					TUSK::ScriptLog::log("Unable to execute sql to get content ids child was working on! : $! ... Going to try and reset content just in case\n");
+					$warnings++;
+				} else {
+					$resetContent = $getChildContent->fetchrow_array();
+				}
+				eval {$getChildContent->finish();};
+				if($resetContent) {
+					unless($dbh->do("UPDATE multi_fts SET converting_host='none', converting_pid=NULL WHERE converting_host='$hostname' AND converting_pid='$childPid';")) {
+						TUSK::ScriptLog::log("I could not reset content for child pid $childPid : $!\n");
+						$warnings++;
+					}
+				}
+				disconnect($dbh);
+			}
+		}
+
 		#Spawn children for this host
-		foreach my $i (1..$numChildren) {
+		foreach my $i (($runningChildren+1)..$numChildren) {
 			if(my $pid = fork()) {
 				$children{$pid} = 1;
 			} elsif(defined $pid) {
-				my $dbh = &connect_db;
-				my $getMyCurrentContentId = $dbh->prepare("SELECT content_id FROM multi_fts WHERE converting_host='$hostname' AND converting_pid='$$';");
-				my $deleteCurrentContentId = $dbh->prepare("DELETE from multi_fts WHERE converting_host='$hostname' AND converting_pid='$$' AND content_id=?;");
-				unless($dbh && $getMyCurrentContentId && $deleteCurrentContentId) {warn "Could not get db handle and prepare sql statements for me! ($$)\n";}
-				else {
+				TUSK::ScriptLog::log("($$) Child spawned\n");
+				my $childDbh = dbConnect();
+				my $getMyCurrentContentId = $childDbh->prepare("SELECT content_id FROM multi_fts WHERE converting_host='$hostname' AND converting_pid='$$';");
+				my $deleteCurrentContentId = $childDbh->prepare("DELETE from multi_fts WHERE converting_host='$hostname' AND converting_pid='$$' AND content_id=?;");
+				my $updateContentId = "UPDATE multi_fts SET converting_host='$hostname', converting_pid=$$ WHERE converting_host='none' AND converting_pid IS NULL LIMIT 1;";
+				unless($childDbh && $getMyCurrentContentId && $deleteCurrentContentId) {
+					TUSK::ScriptLog::log("($$) Could not get db handle and prepare sql statements for me!\n");
+					$warnings++;
+				} else {
 					my $doneConverting = 0;
 					while(!$doneConverting) {
 						#Get a content_id to convert or, if there are none left, exit
-						if($dbh->do("UPDATE multi_fts SET converting_host='$hostname', converting_pid=$$ WHERE converting_host='none' AND converting_pid IS NULL LIMIT 1;")) {
+						if($childDbh->do($updateContentId)) {
 							unless($getMyCurrentContentId->execute()) {
-								warn "Unable to execute sql to get what my current content id was! : $! ($$)\n";
+								TUSK::ScriptLog::log("($$) Unable to execute sql to get what my current content id was! : $!\n");
+								$warnings++;
 								$doneConverting = 1;
 							} else {
 								my $contentIdToConvert = $getMyCurrentContentId->fetchrow_array();
 								if($contentIdToConvert) {
-									print "\t($$)I am supposed to convert $contentIdToConvert\n" if(!$noprint);
 									#Convert it
-									TUSK::ScriptLog::log("Starting with content id $contentIdToConvert");
-									index_content_id($contentIdToConvert);
+									TUSK::ScriptLog::log("($$) Starting with content id $contentIdToConvert");
+									index_content_id_all($contentIdToConvert);
+									TUSK::ScriptLog::log("($$) Done with content id $contentIdToConvert");
 									
 									#delete the content id that i completed
 									$deleteCurrentContentId->bind_param(1, $contentIdToConvert);
 									unless($deleteCurrentContentId->execute()) {
-										warn "Unable to delete my lock on $contentIdToConvert after converting it!\n";
+										TUSK::ScriptLog::log("($$) Unable to delete my lock on $contentIdToConvert after converting it!\n");
+										$warnings++;
 										$doneConverting = 1;
 									}
-								} else {$doneConverting = 1;}
-								
+								} else {
+									TUSK::ScriptLog::log("($$) Unable to get content id to convert\n");
+									$doneConverting = 1;
+								}
 							}
 						} else {
-							warn "Unable to reserve a number for me to convert ($$)!\n";
+							TUSK::ScriptLog::log("($$) Unable to reserve a number for me to convert!\n");
+							$warnings++;
 							$doneConverting = 1;
 						}
 					}
 					$getMyCurrentContentId->finish();
 					$deleteCurrentContentId->finish();
-					$dbh->disconnect();
+					disconnect($childDbh);
 				}
+				TUSK::ScriptLog::log("($$) Exiting\n");
 				exit();
 			} else {
-				warn "Can't fork for number $i : $!\n";
+				TUSK::ScriptLog::log("Can't fork a child : $!\n");
+				$warnings++;
 			}
 		}
-
-		my $dbh = &connect_db;
-		while(scalar(keys %children)) {
-			my %runningPids;
-			
-			foreach my $childPid (keys %children) {
-				#Check to see if the process is still running by sending it sig 0
-				if(kill(0,$childPid)) {
-					delete $children{$childPid};
-					#Check to see if there is anything left in the database from this kid and if so remove the lock on it
-					print "Child $childPid died... resetting its content (in case it died)... \n" if(!$noprint);
-					unless($dbh->do("UPDATE multi_fts SET converting_host='none', converting_pid=NULL WHERE converting_host='$hostname' AND converting_pid='$childPid';")) {
-						warn "I could not try to reset content for child pid $childPid\n";
-					}
-				}
-			}
-			sleep (1);
-		}
-	
-		print "All the kids are alseep lets see if they finished there chores\n" if(!$noprint);
 
 		# Check to see if the number of rows in the table are 0 if not start over, if so, delete the table
-		my $statement = "select count(1) as numLeft from multi_fts where converting_host = 'none';";
+		my $statement = "select count(1) as numLeft from multi_fts where converting_host = 'none' OR converting_host = '$hostname';";
+		my $dbh = dbConnect();
 		my $sth = $dbh->prepare($statement);
 		unless($sth) {warn "Could not check to see if there was more content to be converted\n";}
-		elsif(!$sth->execute) {warn "Could not run statement to see if there was more that needed to be converted\n";}
+		elsif(! $sth->execute()) {warn "Could not run statement to see if there was more that needed to be converted\n";}
 		else {
 			my $num_left = $sth->fetchrow_array();
-			if($num_left > 0) {
-				print "There was $num_left content left over, perhaps I should try again\n" if(!$noprint);
-			} else {
+			if($num_left <= 0) {
 				$content_done = 1;
+				$message.= "All $totalContentToIndex content ids indexed";
+			} else {
+				$message.= "[$nextChar]  ". ($totalContentToIndex - $num_left) ." of $totalContentToIndex indexed";
+				if($nextChar eq '-') {$nextChar = '\\';}
+				elsif($nextChar eq '\\') {$nextChar = '|';}
+				elsif($nextChar eq '|') {$nextChar = '/';}
+				elsif($nextChar eq '/') {$nextChar = '-';}
 			}
-			$sth->finish();
 		}
-		$dbh->disconnect();
+		eval {$sth->finish();};
+		disconnect($dbh);
+
+		unless($noprint) {
+			system('clear');
+			print $message ."\n";
+			if($warnings > 0)	{print "$warnings warnings, check log for details\n";}
+			else			{print "No problems so far\n";}
+			
+		}
+		sleep (1);
 	}
 
-	$dbh = &connect_db;
 	#Check the table to see if there are just 0 rows (if so then delete the multi_fts table
+	my $dbh = dbConnect();
 	my $sth = $dbh->prepare("SELECT COUNT(1) AS numLeft FROM multi_fts");
 	unless($sth) {warn "Could not check to see if there was any content left in the multi_fts table\n";}
-	elsif(!$sth->execute) {warn "Could not run statement to see if there was any content left in the multi_fts table!\n";}
+	elsif(!$sth->execute()) {warn "Could not run statement to see if there was any content left in the multi_fts table!\n";}
 	else {
 		my $num_left = $sth->fetchrow_array();
 		if($num_left > 0) {
-			print "There was $num_left content left over\n" if(!$noprint);
+			print "There was $num_left content left over. If you are processing on multiple machines this is ok.\n" if(!$noprint);
 		} else {
 			print "Removing multi_fts table..." if(!$noprint);
 			unless($dbh->do("DROP TABLE multi_fts;")) {warn "Unable to drop an empty multi_fts table!\n";}
 			elsif(!$noprint) {print "OK\n";}
 		}
 	}
+	eval { $sth->finish(); };
 	my $indexer = TUSK::Search::Indexer->new(); 
 	TUSK::ScriptLog::log("Unindexing deleted content");
 	my $numUnindexed = $indexer->unindexDeletedContent($dbh);
@@ -371,7 +473,7 @@ sub runAll() {
 	index_users($dbh, $lastRunTime);
 
 	index_objective($dbh, $lastRunTime);
-	&disconnect($dbh);
+	disconnect($dbh);
 
 	## save new modified time
 	$processVariables->setValue('LastRun', $newRunTime);
@@ -434,10 +536,10 @@ sub runUpdate() {
 			$ii++;
 		}
 
-		my $dbh = &connect_db;
+		my $dbh = dbConnect();
 		index_users($dbh,$lastRunTime);
 		index_objective($dbh,$lastRunTime);
-		&disconnect($dbh);
+#		&disconnect($dbh);
 
 		## save new modified time
 		$processVariables->setValue('LastRun', $newRunTime);

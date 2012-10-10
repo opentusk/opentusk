@@ -114,7 +114,6 @@ function changeGrayOut() {
 }
 
 function performSubmitAction(theForm) {
-	updateRTEs();
 	if(!checkform(theForm)) {return false;}
 	if(formAction == 'submit') {
 		return true;

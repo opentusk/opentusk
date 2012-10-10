@@ -18,13 +18,7 @@ sub defineLocations($);
 my $perlscripts = qq{
   SetHandler	perl-script
   PerlCleanupHandler	Apache::SizeLimit
-  Options	+ExecCGI
-};
- 
-my $embperl_handler = qq{
-  $perlscripts
-  PerlHandler	HTML::Embperl
-  DefaultType	text/html
+  Options -Indexes +ExecCGI
 };
  
 my $mason_handler = qq{
@@ -44,6 +38,7 @@ my $mason_no_session_handler = qq{
 my $hsdbauth = qq{
   AuthType	HSDB
   AuthName	HSDB
+  Options	-Indexes
   PerlAuthenHandler	Apache::TicketAccess
   PerlAuthzHandler	Apache::AuthzHSDB
   require valid-user
@@ -51,7 +46,7 @@ my $hsdbauth = qq{
 
 
 my %serverDesignations = (
-  'MYFQDN'             => 'PROD', # or TEST or DEV
+	'MYFQDN'             => 'PROD', # or TEST or DEV 
 );
 
 # NOTE:  If the school is not using a CA Certificate, this should be changed to always return false.
@@ -79,12 +74,10 @@ sub setVariablesForServerEnvironment($) {
   ${$hashOfVariablesRef}{'apacheGroup'}          = 'apache';
   ${$hashOfVariablesRef}{'server_admin'}         = $TUSK::Constants::SupportEmail;
   ${$hashOfVariablesRef}{'allowStatusFrom'}      = '127.0.0.1';
-  ${$hashOfVariablesRef}{'embperl_mail_server'}  = 'smtp.tufts.edu';
   ${$hashOfVariablesRef}{'elephantLogo'}         = '/graphics/logo-prod.gif';
   ${$hashOfVariablesRef}{'database_address'}     = TUSK::Core::ServerConfig::dbReadHost();
   ${$hashOfVariablesRef}{'http_exec'}            = '/usr/local/apache/bin/httpd';
   ${$hashOfVariablesRef}{'use_shibboleth'}       = $TUSK::Constants::useShibboleth;
-  ${$hashOfVariablesRef}{'embperlDebug'}         = 0;
 
   unless(exists($serverDesignations{$hostname})) {
     warn "Error: I do not know what type of machine $hostname is!\n\tPlease edit httpdconf.pm and set the machine name in %serverDesignations.\n";
@@ -178,10 +171,6 @@ sub setVariablesForServerEnvironment($) {
   ${$hashOfVariablesRef}{'pid_file'}              = "${$hashOfVariablesRef}{'log_root'}/httpd.pid";
   ${$hashOfVariablesRef}{'config_file'}           = "${$hashOfVariablesRef}{'server_root'}/conf/httpd.conf";
   ${$hashOfVariablesRef}{'code_root'}             = "${$hashOfVariablesRef}{'server_root'}/code";
-  ${$hashOfVariablesRef}{'embperlSessionArgs'}    = "\"DataSource=dbi:mysql:hsdb4:${$hashOfVariablesRef}{'database_address'} UserName=${$hashOfVariablesRef}{'hsdbDatabaseUser'} " .
-                                                 "Password=${$hashOfVariablesRef}{'hsdbDatabasePassword'} LockDataSource=dbi:mysql:tusk:${$hashOfVariablesRef}{'database_address'} " .
-                                                 "LockUserName=${$hashOfVariablesRef}{'hsdbDatabaseUser'} LockPassword=${$hashOfVariablesRef}{'hsdbDatabasePassword'}\"";
-  ${$hashOfVariablesRef}{'embperlSessionClasses'} = "\"MySQL MySQL\"";
   ${$hashOfVariablesRef}{'secure_loc'}            = "https://${$hashOfVariablesRef}{'secure_server'}";
   ${$hashOfVariablesRef}{'unsecure_loc'}            = "http://${$hashOfVariablesRef}{'unsecure_server'}";
 
@@ -237,7 +226,6 @@ sub defineSSLLocations() {
   $locations{'/public/'} = qq { $mason_handler };
   $locations{'/nosession/'} = qq { $mason_no_session_handler };
   foreach my $d (qw(/icons/ /style/ /code/ /scripts/ /graphics/ /addons/ /xsd/))	{  $locations{$d} = qq{ SetHandler default-handler };  }
-  foreach my $d (qw(/cms /import_enroll_listing))				{  $locations{$d} = qq{ $embperl_handler $hsdbauth };  }
   foreach my $d (qw(/manage/))								{  $locations{$d} = qq{ $hsdbauth };  }
   foreach my $d (qw(/tusk/)) {  
       $locations{$d} = qq{ 
@@ -245,6 +233,7 @@ sub defineSSLLocations() {
 	      $hsdbauth   	
 	      require valid-user	
 	      PerlSetVar AuthzDefault Permissive
+	      Options -Indexes
 	      ErrorDocument 403 /
 	      PerlLogHandler Apache::HSDBLogger
 	  };  
@@ -276,16 +265,13 @@ sub defineLocations($) {
   my $hashOfVariablesRef = shift;
 
   my %locations = ();
-  # The top level directory has embperls:
-  $locations{'/'} = $embperl_handler ;
  
   # FOR TESTING ONLY, PLEASE REMOVE 
 #  $locations{'/ocw/'} = qq{ SetHandler default-handler };
   
   foreach my $d (qw(/hsdb4/ /hsdb45/ /auth/)) {
- 	# The main HSDB4 handler: Embperl, permissive auth, and some extras.
+ 	# The main HSDB4 handler: permissive auth, and some extras.
     	$locations{$d} = qq{
-      		$embperl_handler
       		$hsdbauth
       		PerlSetVar AuthzDefault Permissive
       		ErrorDocument 403 /
@@ -316,7 +302,6 @@ sub defineLocations($) {
  
   foreach my $d ('/hsdb45/eval/', '/hsdb45/user_group', '/hsdb4/quiz') {
   	$locations{$d} = qq {
-  		$embperl_handler
   		$hsdbauth
   		PerlSetVar AuthzDefault Restrictive			
   	};

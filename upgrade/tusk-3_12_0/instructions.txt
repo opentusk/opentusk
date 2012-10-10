@@ -1,0 +1,42 @@
+#########
+#	Security Updates
+#########
+1. Separation of school admin and eval admin authorization
+2. Closing of CMS security holes
+3. Sanitization of user input
+
+#########
+#	Other Updates
+#########
+1. TUSK Logger
+2. Doc-x searching
+3. View faculty list
+4. New UI for Class Meeting Types
+
+
+#########
+#	Additional Instructions
+#########
+
+# Sanitization of user input
+#===========================
+# requires installation of HTML::Defang package
+# requires installation of HTML::Strip package
+
+# TUSK Logger
+#===========================
+# Install perl's Log::Log4perl module:
+sudo yum install perl-Log-Log4perl
+
+# Doc-x searching
+#===========================
+mysql -e "SELECT content_id FROM hsdb4.content WHERE body LIKE '%<file_uri>%.pptx</file_uri>%' OR body LIKE '%<file_uri>%.docx</file_uri>%';" > /tmp/content_ids_to_fts_index.txt
+
+# Note the --num-children= can vary depending on the machine that you are
+# going to run this on, the more children, the more resources you will need.
+cd /usr/local/tusk/current/bin
+./fts_index --id-file=/tmp/content_ids_to_fts_index.txt --num-children=1
+
+# New UI for Class Meeting Types
+#===========================
+mysql -e "CREATE TABLE IF NOT EXISTS `tusk`.`class_meeting_type_history` ( `class_meeting_type_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `class_meeting_type_id` int(10) unsigned NOT NULL, `school_id` int(10) unsigned NOT NULL, `label` varchar(255) character set utf8 NOT NULL, `created_by` varchar(24) character set utf8 NOT NULL default '', `created_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00', `modified_by` varchar(24) character set utf8 NOT NULL default '', `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00', `history_action` enum('Insert','Update','Delete') DEFAULT NULL, PRIMARY KEY (`class_meeting_type_history_id`), KEY (`class_meeting_type_id`), KEY `school_id` (`school_id`,`label`) ) ENGINE=InnoDB DEFAULT CHARSET=latin1;"

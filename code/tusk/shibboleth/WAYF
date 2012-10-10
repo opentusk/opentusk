@@ -1,14 +1,29 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%attr>
         no_check_path           => '1'
         allow_guests            => '1'
         allow_shib              => '1'
-        page_footer             => '/tmpl/footer:footer_with_tufts_links'
+        page_footer             => '/tmpl/footer:footer_with_school_links'
         skip_header_bar         => '1'
 </%attr>
 
 <%once>
 	use TUSK::Shibboleth::User;
-	use Mail::Sendmail;
+	use TUSK::Application::Email;
 	use TUSK::Constants;
 </%once>
 
@@ -70,21 +85,21 @@ Please select the institution you are from to start an external login
 %	}
 </select>
 % } else {
-%	my %mail = (
-%		To => $TUSK::Constants::ErrorEmail,
-%		From => $TUSK::Constants::ErrorEmail,
-%		Subject => "Attempted Shib Login with Shibd Down",
-%		Message => "A user wanted to use the shibboleth login but as far as I can tell shibd is down.\n" . $checkError . "\nPlease check the shibd is running... there is no way to notify the user unless they called.",
-%	);
+%	my $mail = TUSK::Application::Email->new({
+%		to_addr => $TUSK::Constants::ErrorEmail,
+%		from_addr => $TUSK::Constants::ErrorEmail,
+%		subject => "Attempted Shib Login with Shibd Down",
+%		body => "A user wanted to use the shibboleth login but as far as I can tell shibd is down.\n" . $checkError . "\nPlease check the shibd is running... there is no way to notify the user unless they called.",
+%	});
 
 	I'm sorry, the shibboleth daemon does not appear to be running. This will prevent you from being able to login. <br>
-%	if (Mail::Sendmail::sendmail(%mail)) {
+%	if ($mail->send()) {
 		I have already notified the administrators of the system.
 %		if($TUSK::Constants::ContactURL) {
 			<br>If you would like to follow up on this issue, please view the <a href="<% $TUSK::Constants::ContactURL %>">Contact Us Page</a>
 %		}
 %	} else {
-%		warn("Unable to send email\n" . $Mail::Sendmail::error . "Shibd error: " . $checkError);
+%		warn("Unable to send email\n" . $mail->getError() . "Shibd error: " . $checkError);
 %		if($TUSK::Constants::ContactURL) {
 			<br>Pplease contact the administrators of this system using the <a href="<% $TUSK::Constants::ContactURL %>">Contact Us Page</a>
 %		} else {

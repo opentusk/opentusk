@@ -15,7 +15,7 @@ BEGIN {
     @ISA = qw(Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.75 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.76 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use vars @EXPORT_OK;
@@ -842,62 +842,6 @@ sub out_html_save {
 
     # And return it!
     return @changes;
-}
-
-my $EmbperlLib = '';
-my %EmbperlFiles = ();
-sub out_html {
-
-	#
-	# this should not be called; if it is, send email to tuskdev
-	#
-	use TUSK::ErrorReport;
-	my $r = Apache->request();
-	
-	my $msgBody = ErrorReport::sendErrorReport($r, {'Subject' => 'SQLRow:out_html with Embperl called!', 'Msg' => 'SQLRow:out_html with Embperl called!'});
-		
-    #
-    # Do the complicated figuring out of what directory, etc, to call
-    # and then call the file
-    #
-
-    require HTML::Embperl;
-
-    my $self = shift;
-
-    unless ($EmbperlLib) {
-	# Figure out the embperl directory, and die if we can't fine it
-	$EmbperlLib = $ENV{EMBPERL_LIB} || "embperl";
-	die "Cannot find embperl library directory\n" unless -d $EmbperlLib;
-    }
-
-    my $file = shift;
-    my $filekey = (ref $self || $self) . "::$file";
-    unless ($EmbperlFiles{$filekey}) {
-	# Figure out the class path
-	my @class = split /::/, (ref $self || $self);
-	# Presumably "HSDB4" and "SQLRow"
-	splice @class, 0, 2;
-	# Now actually figure out the path for the file in question. 
-	# Start with the subclass's subdirectory, and ascend until 
-	# there's nothing left in the @class list
-	my $path = "$EmbperlLib/" . join ('/', @class);
-	while (@class && not -e "$path/$file") {
-	    pop @class;
-	    $path = "$EmbperlLib/" . join ('/', @class);
-	}
-	# ...and die if we can't find the file in it
-	die "Cannot find $path/$file" unless -e "$path/$file";
-	$EmbperlFiles{$filekey} = "$path/$file";
-    }
-
-    # Now actually do the business
-    my $outval = '';
-    HTML::Embperl::Execute ({ inputfile => $EmbperlFiles{$filekey}, 
-			      output => \$outval,
-			      param => [ $self , @_ ], 
-			      debug => 0, escmode => 0 });
-    return $outval;
 }
 
 sub out_url {

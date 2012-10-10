@@ -15,7 +15,7 @@ BEGIN {
     @ISA = qw(Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.54 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.55 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use vars @EXPORT_OK;
@@ -694,7 +694,8 @@ sub parse_sub_body {
     my $content = shift;
     my $twig = $self->twig;
     my $root = $twig->root;
-    my $body = $root->child(0,"body");
+    my $body;
+    eval { $body = $root->child(0,"body"); };
     return "Body not in correct XML format" if (!$body);
     my @elts = $body->descendants();
     foreach my $elt (@elts) {

@@ -43,10 +43,6 @@ function addOperand(link) {
 	$('div#crCurtain').css({
 		position: 'fixed',
 		display: 'block',
-		top: 0,
-		left: 0,
-		width: 4000, 
-		height: 4000, 
 		'background-color': '#1f1f1f',
 		'z-index':15,
 		opacity: 0.5

@@ -7,6 +7,7 @@
 	use TUSK::Content::External::MetaData;
 	use TUSK::Constants;
 	use Image::Magick;
+	use HTML::Defang;
 </%once>
 
 
@@ -66,7 +67,7 @@
 
 
 <%method jsarray>
-%	return ['jquery/jquery.min.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js', 'layers.js', 'rte/richtext.js', 'edit_content.js'];
+%	return ['jquery/jquery.min.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js', 'layers.js', 'edit_content.js', 'ckeditor/ckeditor.js', 'ckeditor/tusk.js'];
 </%method>
 
 <%method upload_page>
@@ -828,6 +829,9 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 </%args>
 <%perl>
 	my $uri = $ENV{REQUEST_URI};
+
+	my $df = HTML::Defang->new();
+	$uri = $df->defang($uri);
 
 	if ($content->primary_key() && $uri !~ /content_id=/){
 		if ($uri !~ /\?/){

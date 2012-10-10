@@ -1,3 +1,7 @@
+<%attr>
+check_permissions_by_context => 'DIRECTORNONSTUDENT'
+</%attr>
+
 <%shared>
 my $school                 = $m->comp("/tmpl/url:get_school");
 my $type_object            = $m->comp("/tmpl/url:get_type_object");
@@ -12,36 +16,18 @@ if ( $is_course_announcement ) {
 		$is_course_director = TUSK::Session::is_director($course, $m->session->{user}->{user_id});
 		$timeperiod         = $m->comp("SELF:get_timeperiod_id");
 }
-
 my $announcement_id = $m->comp("/tmpl/url:get_last_path_id" );
 my $usergroup_id;
 my $announcement;
 my $form_action;
 </%shared>
 
-<%method jsarray>
-% return ['layers.js','element.js', 'rte/richtext.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
-</%method>
-
-<%method red_header_text>
-% return $m->comp( "SELF:title" );
-</%method>
-
-<%method title>
-<%perl>
-	if ( defined($announcement_id) ) {
-		return "Modify Announcement";
-	} else {
-		return "Create New Announcement";
-	}
-</%perl>
-</%method>
-
 <script type="text/javascript">
 	function checkThisForm() {
-		updateRTEs();
-		updateRTE('rte_announcement_text');
-		if(document.addedit.rte_announcement_text.value == '') {alert('Please enter some text for this announcement.'); return false;}
+		if (CKEDITOR) {
+		CKEDITOR.instances['rte_announcement_text'].updateElement();
+	}
+		if((CKEDITOR && CKEDITOR.instances['rte_announcement_text'].getData() == '') || (CKEDITOR == null && document.addedit.rte_announcement_text.value == '')) {alert('Please enter some text for this announcement.'); return false;}
 		return checkform(document.addedit);
 	}
 </script>
@@ -69,7 +55,7 @@ my $form_action;
 my $announcement_for;
 my $hidden_usergroup_id;
 
-if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Constants::SchoolWideUserGroup->{lc($school)} ) {
+if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Constants::Schools{$school}{Groups}{SchoolWideUserGroup} ) {
 	my $usergroup        = HSDB45::UserGroup->new(_school=>$school)->lookup_key($usergroup_id);
 	$announcement_for    = $usergroup->field_value('label');
 	$hidden_usergroup_id = $usergroup_id;
@@ -78,7 +64,7 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 	$hidden_usergroup_id = 0;
 } else {
 	$announcement_for    = "Schoolwide";
-	$hidden_usergroup_id = $TUSK::Constants::SchoolWideUserGroup->{lc($school)};
+	$hidden_usergroup_id = $TUSK::Constants::Schools{$school}{Groups}{SchoolWideUserGroup};
 }
 </%perl>
 <& /tmpl/element:field_display, params =>{ 
@@ -91,7 +77,7 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 
 <& /tmpl/element:textarea, params =>{ 
 				label       => 'Announcement Text',
-				name        => 'announcement_text',
+				name        => 'rte_announcement_text',
 				cols        => '60',
 				rows        => '3',
 				htmleditor  => 1,
@@ -128,8 +114,6 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 </form>
 
 <%init>
-$m->comp( "SELF:check_dynamic_permissions" );
-
 $usergroup_id = (defined($ARGS{'ug_id'})) ? $ARGS{'ug_id'} : undef;
 $usergroup_id = (!defined($usergroup_id) && defined($ARGS{'usergroup_id'})) ? $ARGS{'usergroup_id'} : $usergroup_id;
 
@@ -194,3 +178,21 @@ if ( $msg ) {
 	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>'/management/announcements/addedit', 'msg'=>$msg, 'msgtype'=>$msgtype, 'extra'=>$extra, 'additional_args'=>$add_args));
 }
 </%init>
+
+<%method jsarray>
+% return ['element.js', 'ckeditor/ckeditor.js', 'ckeditor/tusk.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+<%perl>
+	if ( defined($announcement_id) ) {
+		return "Modify Announcement";
+	} else {
+		return "Create New Announcement";
+	}
+</%perl>
+</%method>

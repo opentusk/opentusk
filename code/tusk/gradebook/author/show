@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%attr>
 	show_tp_dropdown_no_cache => 1
 </%attr>
@@ -6,6 +21,8 @@
 	use TUSK::GradeBook::GradeEvent;
 	use TUSK::Application::GradeBook::GradeBook;
 	use HSDB4::DateTime;
+	use TUSK::Application::HTML::Strip;
+
 </%once>
 
 <%shared>
@@ -42,7 +59,7 @@
 <& /tmpl/element:object_selection_box, params => { 
 	sort_box => $sort_order_box,
 	columns => [ 
-		{'label' => 'Title', 'field' => 'title'},
+		{'label' => 'Title', 'field' => 'title', 'html' => 1},
 		{'label' => 'Weight', 'field' => 'weight'},
 		{'label' => 'Due Date', 'field' => 'due_date'},
 		{'label' => 'Posted', 'field' => 'posted', align => 'center'}, 
@@ -90,10 +107,11 @@
 	if (@$categories) {
 		my ($categorized_events, $unused) = $gb->getAllEventsByCategory();
 		$has_categories = 1;
+		my $stripObj = TUSK::Application::HTML::Strip->new();
 		foreach my $cat (@$categories) {
 			my $spaces = ($cat->getDepth() > 1) ? '&nbsp;' x (($cat->getDepth()-1) * 2) : '';
 			push @rows, {
-				title => $spaces . '<span class="bigtext">' . $cat->getGradeCategoryName() . '</span> ',
+				title => $spaces . '<span class="bigtext">' . $stripObj->removeHTML($cat->getGradeCategoryName()) . '</span> ',
 				use_alternate_action_columns => 1,
 				id => $cat->getPrimaryKeyID(),
 			};
@@ -129,11 +147,12 @@
 	$spaces => ''
 </%args>
 <%perl>
+	my $stripObj = TUSK::Application::HTML::Strip->new();
 	foreach my $event (@$events) {
 		my $gray = ($has_categories) ? 'gray' : '';
 		my $due_date = ($event->getDueDate()) ? HSDB4::DateTime->new()->in_mysql_date($event->getDueDate())->out_string_date_short_year() : '';
 		push @rows, {
-			title => $spaces . "<span class=\"$gray\">" . $event->getEventName() . "</span>",
+			title => $spaces . "<span class=\"$gray\">" . $stripObj->removeHTML($event->getEventName()) . "</span>",
 			weight => ($event->getWeight()) ? $event->getWeight() : '',
 			due_date => $due_date,
 			posted => $event->getPublishFlagSpelledOut(),

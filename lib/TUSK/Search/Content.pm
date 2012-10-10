@@ -369,8 +369,7 @@ sub setBody{
 
 $obj->search($query_hashref, $user_id, $parent_query);
 
-Method that searches full_text_search_content based on the query hashref that is passed in.  If no $user_id is passed then we can assume it is a content select search and we limit the results to 50 (the searches that happen in a popped up window).
-
+Method that searches full_text_search_content based on the query hashref that is passed in.
 =cut
 
 sub search{
@@ -401,7 +400,7 @@ sub search{
 
     foreach my $key (%$query_hashref){
 	$query_hashref->{$key} =~ s/\'/\\\'/g;
-	next if ($key eq 'media_type' or $key eq 'school' or $key eq 'concepts');
+	next if ($key eq 'media_type' or $key eq 'school' or $key eq 'concepts' or $key eq 'limit' or $key eq 'start');
 	$query_hashref->{$key} = &TUSK::Search::FTSFunctions::add_plusses_to_search_string($query_hashref->{$key});
     }
 
@@ -492,7 +491,7 @@ sub search{
     $sql .= " where " . join(' and ', @$wheres);
     $sql .= " and search.child_content_id = content.content_id and search.parent_search_query_id = " . $parent_query->getPrimaryKeyID() if ($parent_query);
 
-    $sql .= " order by computed_score desc limit 50" unless ($user_id);
+    $sql .= " order by computed_score desc" unless ($user_id);
     
     if ($user_id){
 	my $results = $search_query->databaseSelect($sql);
@@ -506,11 +505,21 @@ sub search{
 	}
 	return $search_query;
     }else{
-		
-	my $results = $search_query->databaseSelect($sql);
-	my $array_ref = $results->fetchall_arrayref();
-	my @ids = map { $_->[0] } @$array_ref; 
-	return \@ids;
+    	if ($query_hashref->{limit}) {
+			$sql .= " LIMIT ";
+			if ($query_hashref->{start}) {
+				$sql .= $query_hashref->{start}
+			}
+			else {
+				$sql .= "0";
+			}			
+			$sql .= ",";
+			$sql .= $query_hashref->{limit};
+    	}
+		my $results = $search_query->databaseSelect($sql);
+		my $array_ref = $results->fetchall_arrayref();
+		my @ids = map { $_->[0] } @$array_ref; 
+		return \@ids;
     }
 }
 

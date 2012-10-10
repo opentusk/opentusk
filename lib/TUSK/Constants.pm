@@ -49,7 +49,10 @@ our $userTimezone = "-5";
 our $Mailer = "sendmail";
 
 ## URLs control the top right blue button links
+#THIS IS THE HELP URL FOR TUSK PROD
 our $HelpURL = '/view/course/HSDB/1185';
+#AND THIS IS THE ONE FOR THE LOCAL CONTENT
+#our $HelpURL = '/view/course/HSDB/1443';
 our %HelpMap = (
 	'patientLogs' => '471802/490014',
 	'printPDF' => '385575',
@@ -168,7 +171,7 @@ our $DatabaseUsers = {
     ContentManager => {
 	readusername => "CONTENT_MANAGER_USER",
 	readpassword => "CONTENT_MANAGER_PASSWORD",
-	writeusername => "CONTENT_MANAGER_USER",
+	writeusername => "CONTENT_MANAGER_USERcontent_mgr",
 	writepassword => "CONTENT_MANAGER_PASSWORD",
     },
 };
@@ -180,8 +183,8 @@ our %DBParameters = ("MYFQDN" => {"ReadHost" => "localhost",
 				  "SearchHost" => "localhost",
 				  "VideoHost" => "localhost",
 				  "AudioHost" => "localhost",
-			},
-		    );
+                        },
+                    );
 
 our $privacy_notice="We refer you to the <a href=\"http://hss.edu/pnotice\" target=\"_blank\">Health Sciences Responsible Use Policy</a>.";
 

@@ -10,7 +10,7 @@
 package TUSK::MasonNoSession;
 
 # Bring in main Mason package.
-use HTML::Mason;
+use HTML::Mason 1.47;
 use MasonX::Request::WithApacheSession;
 use Apache::Constants qw(:common);
 
