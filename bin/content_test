@@ -1,0 +1,152 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+#use httpdconf;
+#my %hashOfVariables;
+#unless(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {exit();}
+
+
+use strict;
+
+use MySQL::Password;
+use HSDB4::Constants;
+use XML::LibXML;
+use XML::EscapeText;
+use XML::Twig;
+use Getopt::Long;
+
+my $line = "\n" . "=" x 10 . "\n";
+my $parser = XML::LibXML->new();
+my $dtdhash = { 'live' => "http://tusk.tufts.edu/DTD/hscmlweb.dtd",
+	    'bruce' => "http://dev.tusk.tufts.edu:9008/DTD/hscmlweb.dtd",
+	    'paul' => "http://dev.tusk.tufts.edu:9013/DTD/hscmlweb.dtd"
+	    };
+
+my $options = {
+	'use_escapetext' => 0,
+	'test_twig' => 0,
+	'test_parse' => 0,
+	'force_doctype' => 0,
+	'do_update' => 0,
+	'dtd' => 'live',
+	'help' => 0,
+	'verbose' => 0,
+	};
+
+my $content;
+
+GetOptions("content_id=s" => \$content,
+           "use_escapetext" => \$options->{use_escapetext},
+	   "test_twig" => \$options->{test_twig},
+	   "test_parse" => \$options->{test_parse},
+	   "force_doctype" => \$options->{force_doctype},
+	   "do_update" => \$options->{do_update},
+	   "dtd=s" => \$options->{dtd},
+	   "help" => \$options->{help},
+	   "verbose" => \$options->{verbose}
+           );
+
+my $dtd = $options->{dtd};
+unless ($dtdhash->{$dtd}){
+    print "DTD not valid, choices are " . join(', ', keys (%$dtdhash)) . "\n";
+    exit;
+}
+
+if ($options->{help}){
+    print "Usage: content_test --content_id=<content_id>,<content_id>,.... --use_escapetext --test_twig --test_parse --do_update --dtd=dtd_to_use --help --verbose\n";
+    print "Extended usage info:\n";
+    print "--content_id\tlist of ids to test; If blank all content table is tested\n";
+    print "--use_escaptetext\trun test using the escape text code\n";
+    print "--test_twig\ttest the twig parsing\n";
+    print "--test_parse\ttest the XML::LibXML parsing\n";
+    print "--do_udpate\tupdate the content table (use this with use_escapetext)\n";
+    print "--dtd\tselect a dtd to use.  defaults to live, choices are: " . join(', ', keys (%$dtdhash)) . "\n";
+    print "--verbose\tuse verbose mode\n";
+    exit;
+}
+
+open(LOG, ">>/usr/local/tusk/current/log/content_test_log") or die("Log file failed: $!");
+print LOG "Run at " . (localtime) . "\n\n";
+
+# Get username and password
+my ($un, $pw) = get_user_pw ();
+
+my $dbh = DBI->connect ('DBI:mysql:mysql', $un, $pw, { RaiseError => 1});
+
+my $sql="select content_id, body, hscml_body, conversion_status, type from hsdb4.content";
+
+$sql .= " where content_id IN ($content)" if ($content);
+
+my $sth=$dbh->prepare($sql);
+ 
+$sth->execute;
+
+while (my @row=$sth->fetchrow_array){
+    output("Processing Content ID: $row[0]\n") if ($options->{verbose});
+    my ($body, $update, $field, $esc_body, $org_body);
+    my $update = 1;
+
+    if ($row[3] == 2) { # XMetal doc
+	$org_body = $body = $row[2];
+	$field = "hscml_body";
+    }else{
+	$org_body = $body = $row[1];
+	$field = "body";
+    }
+    
+    if ($options->{use_escapetext}){
+	$esc_body = XML::EscapeText::spec_chars_number($body);
+	$esc_body =~s/ ?\&#0; ?//g;
+	$esc_body =~s/\r//g;
+	$update = 0 if ($esc_body eq $body);
+	$body = $esc_body;
+    }	
+    
+    if ($options->{do_update} and $update){
+	$body =~ s/\\?'/\\'/g;
+	$update="update hsdb4.content set $field = '" . $body . "', modified = modified where content_id = " . $row[0] . ";";
+	my $sth_update = $dbh->prepare($update);
+	$sth_update->execute;
+	output("Original Body: $org_body\n",1);
+	output("Doing Update\n") if ($options->{verbose});
+    }
+
+    next unless $body;
+
+    if ($options->{test_twig}){
+	my $twig = XML::Twig->new(KeepEncoding => 1,NoExpand => 1, ErrorContext => 0);	
+	eval {
+	    $twig->parse($body);
+	};
+	if ($@){
+	    output("Content ID (Twig): $row[0]\n");
+	    output($line . $@ . $line);
+	}
+    }
+
+    if ($options->{test_parse}){
+	if ($row[3] == 2) {
+	    $body =~s/^.*?(<db-content( id="21130")?>)/$1/s;
+	}else{
+	    $body =~s/^.*?(<content_body\s*?>)/$1/s;
+	}
+	$body = "<?xml version=\"1.0\"?><!DOCTYPE CONTENT SYSTEM \"" . $dtdhash->{$dtd} . "\">" . $body;
+
+	eval {
+	    my $doc = $parser->parse_string($body);
+	};
+    
+	if ($@){
+	    output("Content ID (Parse): $row[0]\n");
+	    output($line . $@ . $line)
+	}
+    }
+}
+
+close(LOG);
+
+sub output{
+    my ($output, $flag) = @_;
+    print $output unless ($flag);
+    print LOG $output;
+}

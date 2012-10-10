@@ -1,0 +1,132 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+
+#
+# update_auth_pw
+#
+# HSDB program to take password from user account in hsdb4.user and update 
+# the user's password in mysql.user. If ALLUSERS is the first argument, the
+# script will update all authors from hsdb4.user
+#
+# First pass: 2001-09-05, Mike Kruckenberg
+#
+
+use MySQL::Password;
+use HSDB4::Constants;
+use HSDB4::SQLRow::User;
+use Getopt::Long;
+use DBI;
+
+# Make sure we have arguments
+die "Usage: $0 <username> <username> ..." unless @ARGV;
+my @users = @ARGV;
+my $all;
+my $value;
+
+if ($users[0] =~ /^ALLUSERS$/) {
+    shift @users;
+    $all = 1;
+}
+if ($users[0] =~ /^ALLUSERSNOPROMPT$/) {
+    shift @users;
+    $all = 1;
+    $value = "yes";
+}
+my $print = 0;
+# Get username and password
+my ($un, $pw) = get_user_pw ();
+# Set the username and password for HSDB4 module lookups
+HSDB4::Constants::set_user_pw ($un, $pw);
+# Make a connection for the mysql database
+my $dbh = DBI->connect ('DBI:mysql:mysql', $un, $pw, { RaiseError => 1});
+
+if ($all) {
+    while ($value !~ /(yes|no)/i) {
+	my $prompt = "Are you sure you want to update all authoring passwords? (yes or no): ";
+	print $prompt;
+	$value = <STDIN>;
+	chomp $value;
+    }
+    if ($value =~ /yes/i) {
+	my $allqry = "SELECT user FROM user";
+	my @rows = @{$dbh->selectall_arrayref($allqry)};
+	foreach my $row (@rows) {
+	    push(@users,$$row[0]);
+	}
+    }
+    else {
+	$dbh->disconnect;
+	exit;
+    }
+}
+
+# Prepare the query to find out if the user is already there
+my $qry = $dbh->prepare ('SELECT user from user WHERE user = ?');
+# Get ready to do the insert
+my $sth = $dbh->prepare ('UPDATE user SET password = ? where user = ?');
+my $flush = $dbh->prepare ('flush privileges;');
+
+# For each argument...
+foreach my $username (@users) {
+    # skip the root, and any blank user accounts
+    next if $username =~ /(root|^$)/;
+
+    # Get the user object
+    my $user = HSDB4::SQLRow::User->new->lookup_key ($username);
+    # And move on if we can't do that
+    unless ($user->primary_key) {
+	print "Cannot find user $username in hsdb4.user.\n" if $print;
+	next;
+    }
+
+    # Check to make sure the password is good
+    my $password = $user->field_value ('password');
+    next if ($password eq "");
+    # Now, actually do the execute
+    eval {
+	# Check to see if the user already exists
+	$qry->execute ($username);
+	# And if she doesn't...
+	if ($qry->fetchrow_array) {
+	    # Make the new user
+	    $sth->execute ($password,$username);
+	}
+	else {
+	    print "User $username not an author.\n" if $print;
+	}
+    }
+}
+$flush->execute();
+$qry->finish;
+$sth->finish;
+$flush->finish;
+# Clean up our handle
+$dbh->disconnect;
+print "Password update(s) complete.\n" if ($print);
+
+1;
+
+
+
+
+
+
+
+

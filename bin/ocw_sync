@@ -1,0 +1,75 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use strict;
+use TUSK::Cron::VariableManager;
+use Sys::Hostname;
+
+use Getopt::Long;
+my ($noprint);
+GetOptions(
+            "noprint!" => \$noprint,
+);
+
+my $processVariables = TUSK::Cron::VariableManager->new();
+my $pid = $processVariables->getValue('Pid');
+print "Got pid $pid \n" if (!$noprint);
+if($pid) {
+	my $progName = $0;
+	$progName =~ s/^.*\///g;
+	# this line detects whether the process is alive
+	if(kill (0,$pid)){
+		# the process is running
+		print "The process $pid is alive \n" if (!$noprint);
+		# We used to check here to see if the pid that we just found was actually running fts_index but that
+		# required know where ps was and forking for a pipe, seems like a waste.
+		my $numTries = $processVariables->getValue('NumTries') + 1;
+		if(($numTries == 11) || ($numTries == 51) || ($numTries > 100)) {
+			#Alert the developers that there may be an issue
+			print "The OCW shync has been running for more than 10 iterations of cron, please check it out.\n I will not send another email!";
+		}
+		$processVariables->setValue('NumTries', $numTries);
+		$processVariables->saveValue('NumTries');
+		print "Please check to make sure that $pid is actually running the FTS program and if not update the Pid variable in the databse!\n" if (!$noprint);
+		exit (0);
+	} else {
+		print "Unable to check pid $pid :$!\n" if (!$noprint);
+		#exit(255);
+	}
+}
+$processVariables->setValue("Pid", $$);
+$processVariables->saveValue("Pid");
+print "Creating new pid variable with pid $$\n" if (!$noprint);
+
+my $command = "/usr/local/bin/rsync --delete --recursive --update --perms --times --exclude 'content_archive' --rsh=/usr/bin/ssh /home/tusk/tusk/ocw/servers/Test/ peleus.tusk.tufts.edu:/home/tusk/ocw_qa_mason/data | ";
+unless(open(COMMAND, $command)) {print "Could not run $command : $!\n";}
+else {
+	while(<COMMAND>) {
+		unless(/skipping directory /) {
+			print $_;
+		}
+	}
+}
+
+## set the new Pid
+$processVariables->setValue("Pid", '');
+$processVariables->saveValue("Pid");
+$processVariables->setValue('NumTries', 0);
+$processVariables->saveValue('NumTries');
+
+exit();

@@ -1,0 +1,63 @@
+#!/usr/bin/perl -w
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+
+use strict;
+use Test::Unit;
+use HSDB4::test::setup;
+use HSDB45::Eval;
+
+my $eval;
+my ($eval_id, $school) = (2241, 'Medical');
+
+sub set_up {
+    $eval = HSDB45::Eval->new (_school => $school, _id => $eval_id);
+}
+
+sub test_eval_constructor {
+    assert (defined $eval && ref $eval && $eval->isa ('HSDB45::Eval'),
+  	    "Eval object is very weird.");
+    my $key = $eval->primary_key;
+    assert ($key == $eval_id, "Didn't get right eval ($key != $eval_id)");
+    my $get_school = $eval->school;
+    assert ($get_school eq $school, "Didn't get the right school ($get_school != $school)");
+    my $table = $eval->table;
+    assert ($table eq 'hsdb45_med_admin.eval', "Didn't get the right table ($table)");
+}
+
+sub test_get_questions {
+    my @questions = $eval->questions;
+    assert (@questions > 0, "Didn't get any questions!");
+    for (@questions) {
+	my $type = ref $_;
+	assert ($_, "Got nothing or invalid question from Question.");
+	assert ($type->isa ('HSDB45::Eval::Question'), "Got a weird question type ($type)");
+	assert ($type eq 'HSDB45::Eval::Question::Radiobox', "Type is unexpected ($type)");
+    }
+    my $question = $eval->question (11089);
+    assert ($question, "Got nothing from Eval::question ().");
+    assert (ref $question && $question->isa ('HSDB45::Eval::Question'),
+	    "Got a weird object back from Eval::question ().");
+    assert ($question->field_value ('eval_question_id') == 11089, "Didn't get the right question.");
+}
+
+create_suite ();
+run_suite ();
+# set_up ();
+# test_eval_constructor ();
+
+1;
+__END__

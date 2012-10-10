@@ -1,0 +1,271 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use HSDB45::LDAP;
+use HSDB45::Authentication::LDAP;
+use HSDB4::Constants;
+use MySQL::Password;
+use HSDB4::SQLRow::User;
+use Getopt::Long;
+use XML::Twig;
+
+my ($user_id,$lastname,$compare,$allfields,$firstname,$passwd,$other,$email);
+GetOptions( "user-id=s" => \$user_id,
+	    "lastname=s" => \$lastname,
+	    "email=s" => \$email,
+	    "firstname=s" => \$firstname,
+	    "compare!" => \$compare,
+	    "allfields!" => \$allfields,
+	    "other!" => \$other,
+	    "password=s" => \$passwd);
+if (!$user_id && !$lastname && !$compare && !$other && !$email) {
+    print "Usage: ldap_lookup [--user-id=<user id> [--password=<password>]] [--lastname=<last name> [--firstname--<first name>]] [--allfields]\n";
+    exit;
+}
+
+HSDB4::Constants::set_user_pw(get_user_pw);
+
+my ($res,$msg);
+my $ldap = HSDB45::LDAP->new;
+if ($user_id && $passwd) {
+    my $authen = HSDB45::Authentication::LDAP->new();
+    my ($res,$msg) = $authen->verify($user_id,$passwd);
+    print "$res: $msg\n";
+}
+elsif ($user_id) {
+    my $user = HSDB4::SQLRow::User->new();
+    $user->lookup_key($user_id);
+    print "NOTE: No user_id in HSDB . . . proceeding with LDAP lookup\n" unless ($user->primary_key);
+    ($res,$msg) = $ldap->lookup_user_id($user_id);
+    if (!$res) {
+	print $msg."\n";
+    }
+    else {
+        &out_entry($ldap);
+    }
+}
+elsif ($lastname && $firstname) {
+    ($res,$msg) = $ldap->lookup("(&(sn=$lastname) (givenName=${firstname}*))");
+    if (!$res) {
+	print $msg."\n";
+    }
+    else {
+	print "Found ".$res->count." entries.\n";
+	for(my $i=0;$i<$res->count;$i++) {
+	    $ldap->entry($res->entry($i));
+	    &out_entry($ldap);
+	}
+    }    
+}
+elsif ($lastname) {
+    ($res,$msg) = $ldap->lookup_lastname($lastname);
+    if (!$res) {
+	print $msg."\n";
+    }
+    else {
+	print "Found ".$res->count." entries.\n";
+	for(my $i=0;$i<$res->count;$i++) {
+	    $ldap->entry($res->entry($i));
+	    &out_entry($ldap);
+	}
+    }
+}
+elsif ($email) {
+    ($res,$msg) = $ldap->lookup("(mail=$email)");
+    if (!$res) {
+	print $msg."\n";
+    }
+    else {
+	print "Found ".$res->count." entries.\n";
+	for(my $i=0;$i<$res->count;$i++) {
+	    $ldap->entry($res->entry($i));
+	    &out_entry($ldap);
+	}
+    }
+}
+elsif ($other) {
+    ($res,$msg) = $ldap->lookup("(sn=jones)");
+    if (!$res) {
+	print $msg."\n";
+    }
+    else {
+	print "Found ".$res->count." entries.\n";
+	for(my $i=0;$i<$res->count;$i++) {
+	    my $entry = $res->entry($i);
+	    my @attrs = $entry->attributes();
+	    print "Attrs: @attrs\n";
+	    exit;
+	    #$res->entry($1)
+	    #$ldap->entry($res->entry($i));
+	    #&out_entry($ldap);
+	}
+    }    
+}
+elsif ($compare) {
+    my $dbh = DBI->connect("dbi:mysql:hsdb4", get_user_pw(), { RaiseError => 1});
+    my @users = HSDB4::SQLRow::User->lookup_conditions("Status != 'Inactive'","order by user_id");
+    print scalar @users." users in the hsdb.\n";
+    my $ldap = HSDB45::LDAP->new();
+    my ($ld,$msg) = $ldap->bind($ldap->bind_params);
+    my $twig = XML::Twig->new(PrettyPrint => "indented");
+    $twig->parse("<ldapcompare></ldapcompare>");
+    my $root = $twig->root;
+    foreach (@users) {
+	my $userelt = XML::Twig::Elt->new("user");
+	$userelt->set_att(id => $_->primary_key);
+	$userelt->set_att(firstname => $_->field_value("firstname"));
+	$userelt->set_att(lastname => $_->field_value("lastname"));
+	$userelt->set_att(affiliation => $_->field_value("affiliation"));
+	$userelt->set_att(ssn => $_->field_value("tufts_id"));
+	$userelt->set_att(email => $_->field_value("email"));
+	$userelt->set_att(lastlogin => &last_login($dbh,$_->primary_key));
+	foreach my $ug ($_->parent_user_groups) {
+	    my $ugelt = XML::Twig::Elt->new("usergroup");
+	    $ugelt->set_att(id => $ug->primary_key);
+	    $ugelt->set_att(school => $ug->school);
+	    $ugelt->set_empty;
+	    $ugelt->paste("last_child",$userelt);
+	}
+	foreach my $course ($_->parent_courses) {
+	    my $courseelt = XML::Twig::Elt->new("course");
+	    $courseelt->set_att(id => $course->primary_key);
+	    $courseelt->set_att(school => $course->school);
+	    $courseelt->set_empty;
+	    $courseelt->paste("last_child",$userelt);
+	}
+	  my $res = $ldap->search($ld,base => 'dc=tufts, dc=edu',scope => 'sub',filter => "(uid=".$_->primary_key.")");
+	  if ($res->code()) {
+	      my $errorelt = XML::Twig::Elt->new("error");
+	      $errorelt->set_text("error looking up user in LDAP");
+	      $errorelt->paste("last_child",$userelt);
+	      $userelt->paste("last_child",$root);
+	      next;
+	  }
+	  if ($res->count eq 1) {
+	      my $matchelt = XML::Twig::Elt->new("ldapidmatch");
+	      my $entry = $res->entry(0);
+	      my $subldap = HSDB45::LDAP->new();
+	      $subldap->entry($res->entry(0));
+	      $matchelt = &out_entry_xml($subldap,$matchelt);
+	      $matchelt->paste("last_child",$userelt);
+	  }
+	  if ($_->field_value("lastname") && $_->field_value("firstname")) {
+		 $res = $ldap->search($ld,
+				      base => 'dc=tufts, dc=edu',
+				      scope => 'sub',
+				      filter => "(&(sn=".$_->field_value("lastname").") (givenname=".$_->field_value("firstname")."))");
+		 if (!$res->count) {
+		     my $errorelt = XML::Twig::Elt->new("error");
+		     $errorelt->set_text("no user name match in LDAP");
+		     $errorelt->paste("last_child",$userelt);
+		     $userelt->paste("last_child",$root);
+		     next;
+		 }
+		 for(my $i=0;$i<$res->count;$i++) {
+		     my $matchelt = XML::Twig::Elt->new("ldapnamematch");
+		     my $entry = $res->entry($i);
+		     my $subldap = HSDB45::LDAP->new();
+		     $subldap->entry($res->entry($i));
+		     $matchelt = &out_entry_xml($subldap,$matchelt);
+		     $matchelt->paste("last_child",$userelt);
+		 }
+	     }
+	else {
+	    my $errorelt = XML::Twig::Elt->new("error");
+	    $errorelt->set_text("no first/last name for lookup in HSDB");
+	    $errorelt->paste("last_child",$userelt);
+	}
+	$userelt->paste("last_child",$root);
+    }
+    $ld->unbind;
+    $dbh->disconnect;
+    $root->print;
+}
+
+sub out_entry {
+    my $ldap = shift;
+    print "-" x 60 . "\n";
+    if ($allfields) {
+	foreach my $attr ($ldap->entry->attributes) {
+		print "$attr: ".join(",",$ldap->entry->get_value($attr)),"\n";
+	}
+	print "\n";
+    }
+    else {
+	print $ldap->displayname."\n";
+	print "\tUTLN: ".$ldap->uid."\n";
+	    print "\tSchool: ".$ldap->school_info."\n";
+	    print "\tTitle: ".$ldap->title."\n";
+	    print "\tPrimary affiliation: ".$ldap->affiliation."\n";
+	    print "\tValid affiliation: ";
+	    print $ldap->valid_affiliation ? "yes\n" : "no\n";
+	    print "\tSchool year: ".$ldap->school_year."\n";
+	    print "\tEmail: ".$ldap->email."\n";
+	    print "\tPrivate: ";
+	    print $ldap->private ? "yes\n" : "no\n";
+    }
+}
+
+sub out_entry_xml {
+    my $ldap = shift;
+    my $elt = shift;
+    my $subelt = XML::Twig::Elt->new("firstname");
+    $subelt->set_text($ldap->firstname);
+    $subelt->paste("last_child",$elt);
+
+    my $subelt = XML::Twig::Elt->new("lastname");
+    $subelt->set_text($ldap->lastname);
+    $subelt->paste("last_child",$elt);
+
+    $subelt = XML::Twig::Elt->new("utln");
+    $subelt->set_text($ldap->uid);
+    $subelt->paste("last_child",$elt);
+
+    $subelt = XML::Twig::Elt->new("school");
+    $subelt->set_text($ldap->school_info);
+    $subelt->paste("last_child",$elt);
+    
+    $subelt = XML::Twig::Elt->new("affiliation");
+    $subelt->set_text($ldap->affiliation);
+    $subelt->paste("last_child",$elt);
+
+    $subelt = XML::Twig::Elt->new("email");
+    $subelt->set_text($ldap->email);
+    $subelt->paste("last_child",$elt);
+    
+    return $elt;
+}
+
+sub last_login {
+    my $dbh = shift;
+    my $user_id = shift;
+    my $sth = $dbh->prepare("select hit_date from log_item where user_id = '$user_id' and type='Log-in' order by hit_date desc limit 1;");
+    $sth->execute();
+    my $hit_date;
+    if (($hit_date) = $sth->fetchrow_array) {
+	return $hit_date;
+    }
+}
+
+
+
+
+
+

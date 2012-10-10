@@ -1,0 +1,154 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%doc>
+	Page to check user's permissions and, if correct, create credentials for an external site.
+	Expected URL structure:
+	auth/external/[target of external link]/[school]/[course id]
+	
+	Currently supported external targets:
+		- THCI: family medicine clerkship (in progress)
+
+</%doc>
+
+<%attr>	
+	no_check_path => 1
+	page_header   =>'/tmpl/prepend:manage_header_div_layout'
+	top_tab_type  => 'login'
+	nostandardheader => 1
+	hide_global_links	=> 1
+</%attr>	
+
+<%once>
+	use HSDB4::SQLRow::User;
+	use HSDB45::Course;
+	use HSDB45::UserGroup;
+	use Apache::TicketAccess;
+	use Apache2::ServerUtil;
+	use Digest::MD5 qw(md5_hex);
+</%once>
+
+% if (Apache2::ServerUtil::exists_config_define('DEV')) {
+<p>User: <% $user->primary_key %></p>
+<p>First Name: <% $user->field_value("firstname") %></p>
+<p>Last Name: <% $user->field_value("lastname") %></p>
+<p>Email: <% $user->field_value("email") %></p>
+<p>Registration Key: <% $reg_key %></p>
+<p>Designation: <% $designation %></p>
+<p>Hash Key: <% $hash_key %></p>
+% }
+
+<form action="http://campus.thci.org/InstitutionIntegration/Default.asp" method="post" name="thci_post">
+	<input type="hidden" name="HashKey" value="<% $hash_key %>">
+	<input type="hidden" name="FirstName" value="<% $user->field_value("firstname") %>">
+	<input type="hidden" name="LastName" value="<% $user->field_value("lastname") %>">
+	<input type="hidden" name="Email" value="<% $user->field_value("email") %>">
+	<input type="hidden" name="RegistrationKey" value="<% $reg_key %>">
+	<input type="hidden" name="ProfessionalDesignation" value="<% $designation %>">
+</form>
+<p>You are being directed to an external site. If the page doesn't reload within a few seconds please <a href="javascript:document.thci_post.submit()">click here</a></p>
+<script type="text/javascript">
+// commented out while connection is being discussed with THCI
+// document.thci_post.submit();
+</script>
+
+<%init>
+#	for testing other users
+#	my $user = HSDB4::SQLRow::User->new()->lookup_path("scorde01");
+#
+
+	my $user = $m->session->{'user'};
+
+	my $reg_key = undef;
+	my $designation = undef;
+
+	# get school and id information from URL; if not included, throw error
+	(my $target, my $school, my $course_id, my @rest) = $m->comp("/tmpl/url:get_path_ids");
+	if (!$course_id || !$school || !$target) {
+		$m->redirect("/tusk/server/http/error/forbidden");
+	}
+
+	($reg_key, $designation) = $m->comp('SELF:get_course_creds',user => $user,
+																school => $school,
+																course_id => $course_id);
+
+	$reg_key = "RIPB84284";
+	$designation = "Medical Student";
+	
+	if (!$reg_key || !$designation) {
+		$m->redirect("/tusk/server/http/error/forbidden");
+	}
+	
+	my $hash_key = md5_hex($reg_key.":"."rebecca.asch\@tufts.edu".":ScSaf310");
+
+</%init>
+
+<%method get_course_creds>
+<%args>
+	$user
+	$school
+	$course_id
+</%args>
+
+<%perl>
+	# is class admin?
+	my $course = HSDB45::Course->new(_school => $school, _id => $course_id);
+	
+	if (!$course->primary_key) {
+		$m->redirect("/tusk/server/http/error/forbidden");
+	}
+	else {
+	    my $admin_ug = HSDB45::UserGroup->new(_school => $school, _id => $HSDB4::Constants::School_Admin_Group{$school});
+		
+	    if ($admin_ug->contains_user($user->primary_key)) {
+			return ("OTQF42744", "Physician");
+	    }
+	}
+
+	# is user in one of a certain course child group?
+	## groups 04,05,06,07,08,09
+	my %group_key = (63 => "QCFD55377",
+					301 => "BRWW21343",
+					325 => "SXVK38523",
+					670 => "NZCA76488",
+					694 => "UBAI55628",
+					780 => "PFJJ65787");
+
+	my $course_group = undef;
+	foreach $course_group ($course->child_user_groups) {
+		next unless $group_key{$course_group->primary_key};
+		next unless $course_group->contains_user($user->primary_key);
+		return ($group_key{$course_group->primary_key}, "Medical Student");
+	}
+
+	# the user is in the course, must determine what role
+	my @child_users = $course->child_users("user_id='" . $user->primary_key . "'");	
+	if (@child_users) {
+		my $course_user = shift (@child_users);
+		if ($course_user->aux_info("roles") =~ /Director/) {
+			return ("ZPTT32454", "Physician");
+		}
+		else {
+			return ("EQTR11733", "Physician");
+		}
+	}
+
+
+</%perl>
+</%method>
+
+<%method title>
+%	return "Redirecting to external site...";
+</%method>

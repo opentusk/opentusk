@@ -1,0 +1,447 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%doc>
+	Future Enhancements:
+		Only add default data if tables are selected
+		Make admin/content manager user export optional
+</%doc>
+<%once>
+	use Data::Dumper;
+	use Devel::Size;
+</%once><%attr>
+	add_save => 0
+        no_check_path => 1
+        must_be_tusk_admin => 1
+</%attr><%shared>
+	my $defaultUser = 'admin';
+	my $defaultGroup = 'HSDB Admin Group';
+</%shared><%perl>
+	# hsdb45_xxx_admin will be dynamically selected (med prefered but defaults to hsdb)
+	my %defaultDBsToExport = (
+		'tusk'			=> 1,
+		'hsdb4'			=> 1,
+		'mwforum'		=> 1,
+		'fts'			=> 1,
+	);
+	my %dbTablesToExport = (
+		'tusk.cron_job_variable' => 1,
+		'fts.fts_eval' => 1,
+		'fts.fts_non_user' => 1,
+		'fts.fts_objective' => 1,
+		'fts.fts_user' => 1,
+		'fts.hsdb_stoplist' => 1,
+		'hsdb4.stylesheet_type' => 1,
+		'mwforum.config' => 1,
+		'tusk.class_meeting_content_type' => 1,
+		'tusk.coding_type' => 1,
+		'tusk.content_external_field' => 1,
+		'tusk.content_external_source' => 1,
+		'tusk.course_standard_scale' => 1,
+		'tusk.email_template_type' => 1,
+		'tusk.form_builder_attribute_type' => 1,
+		'tusk.form_builder_field_type' => 1,
+		'tusk.form_builder_form_type' => 1,
+		'tusk.form_builder_item_type' => 1,
+		'tusk.grade_event_type' => 1,
+		'tusk.grade_scale_type' => 1,
+		'tusk.homepage_section' => 1,
+		'tusk.log_item_type' => 1,
+		'tusk.permission_feature_type' => 1,
+		'tusk.permission_function' => 1,
+		'tusk.permission_role' => 1,
+		'tusk.permission_role_function' => 1,
+		'tusk.phase_type' => 1,
+		'tusk.search_query_field_type' => 1,
+		'tusk.search_result_type' => 1,
+	);
+</%perl><%method startup>
+	<%args>
+		$args => {}
+	</%args>
+	<%perl>
+		if(exists(${$args}{'submit_check'})) {
+			my $sqlDump = '';
+			my %schemaExports;
+			my $exportWarnings = '';
+			# Check the args, if there is only one thing selected we'll get a scalar otherwise its a hash
+			my @schemaItems;
+			unless(ref(${$args}{schema}))		{push @schemaItems, ${$args}{schema}; }
+			elsif(ref(${$args}{schema}) eq 'ARRAY')	{@schemaItems = @{${$args}{schema}}; }
+			foreach my $schemaItem (@schemaItems) {
+				my ($db, $table) = split /\./, $schemaItem, 2;
+				$schemaExports{$db}{$table} = 1;
+			}
+			my %dropDBs;
+			if(${$args}{drop_db}) {
+				unless(ref(${$args}{drop_db}))	{ $dropDBs{ ${$args}{drop_db} } = 1; }
+				elsif(ref(${$args}{drop_db}))	{ foreach (@{${$args}{drop_db}}) {$dropDBs{$_} = 1;} }
+			}
+
+			my $dbh = HSDB4::Constants::def_db_handle;
+			$dbh->{'mysql_auto_reconnect'} = 1;
+			my @tablesWithConstraints;
+			# Dump the schemas
+			foreach my $db (sort keys %schemaExports) {
+				my $dropDB = 0;
+				my $createSyntax = '';
+				my $dbName = '';
+				if(exists($dropDBs{$db})) {
+					# Extract the DB information
+					my $dbCreateHandle = $dbh->prepare("SHOW CREATE DATABASE $db;");
+        				$dbCreateHandle->execute();
+        				($dbName,$createSyntax) = $dbCreateHandle->fetchrow_array();
+					$dbCreateHandle->finish();
+        				chomp $createSyntax;
+					$dropDB = 1;
+				}
+
+				# regardless of which hsdb45_xxx_admin db we exported give it the hsdb45_hsdb_admin (default school)
+				my $targetDB = $db;
+				if($db =~ /hsdb45_.*_admin/) {
+					$targetDB = 'hsdb45_hsdb_admin';
+					$createSyntax =~ s/$db/$targetDB/;
+				}
+
+				$sqlDump.= "/*\n *\n *\t$targetDB\n *\n */\n";
+				if($dropDB) {
+					$sqlDump.= "DROP DATABASE IF EXISTS $targetDB;\n";
+					$sqlDump.= "$createSyntax;\n";
+				} else {
+					$sqlDump.= "/* The entire DB was not selected (check box in blue bar) so not dropping the db */\n";
+				}
+        			$sqlDump.= "use $targetDB;\n";
+
+				# Export the table schemas for each selected table in this database
+				foreach my $table (sort keys %{$schemaExports{$db}}) {
+					my $numTries = 5;
+					my $success = 0;
+					my $tempWarnings = '';
+					while($numTries > 0 && !$success) {
+						eval {
+							my $tableCreateHandle = $dbh->prepare("SHOW CREATE TABLE $db.$table");
+							$tableCreateHandle->execute();
+							my ($table, $createSyntax) = $tableCreateHandle->fetchrow_array();
+							$tableCreateHandle->finish();
+							chomp $createSyntax;
+							# Strip out foreign key constraints
+							my $lastLine;
+							unless($dropDB) {$sqlDump.= "DROP TABLE IF EXISTS $db.$table;\n";}
+							foreach my $line (split /\n/, $createSyntax) {
+								# Here we pare the syntax from SHOW CREATE TABLE
+								# Foreign keys get stripped off so that we can apply those after all tables get created
+								if($line =~ /^\) ENGINE/) {
+									$line =~ s/AUTO_INCREMENT=\d+/AUTO_INCREMENT=0/;
+									$lastLine =~ s/\,$//;
+									$sqlDump.="$lastLine\n";
+									$lastLine = '';
+									$sqlDump.="$line;\n";
+								} elsif($line !~ /FOREIGN KEY/) {
+									if($lastLine) {$sqlDump.="$lastLine\n";}
+									$line =~ s/$db/$targetDB/g;
+									$lastLine = $line;
+								} else {
+									$line =~ s/,?$/;/;
+									push @tablesWithConstraints, "ALTER TABLE $targetDB.$table ADD". $line ."\n";
+								}
+							}
+							$success = 1;
+						}; if($@) {
+							$tempWarnings ="Unable to export $db.$table\n$@\n";
+						}
+						$numTries--;
+					}
+					if($numTries == 0) {
+						$exportWarnings.= $tempWarnings;
+					}
+				}
+
+				$sqlDump.= "\n\n";
+			}
+
+
+			$sqlDump.= "\n\n/*\n *\n *\tConstraints\n *\n */\n";
+			foreach (@tablesWithConstraints) {$sqlDump.=$_;}
+
+			# Dump the data
+			$sqlDump.="\n\n/*\n *\n *\tData\n *\n */\n";
+			foreach my $tableWithData (@{${$args}{data}}) {
+				my $sth = $dbh->prepare("SELECT * FROM $tableWithData");
+				$sth->execute();
+				my $firstRow = 1;
+				my $lastLine;
+				my $bonusSQL = '';
+				while(my $dataHash = $sth->fetchrow_hashref()) {
+					if($firstRow) {
+						$sqlDump.="INSERT INTO $tableWithData (". join(",", sort(keys( %{$dataHash} ))) .") VALUES \n";
+						$firstRow = 0;
+					}
+					if($lastLine) {$sqlDump.="$lastLine,\n";}
+					$lastLine="\t(";
+					foreach (sort keys %{$dataHash}) {
+						if(!defined $dataHash->{$_}) {
+							$lastLine.="NULL,";
+						} else {
+							my $tempValue;
+							# If we are a created_by or modified_by and there is a value for this field set it to db_export
+							if(  (($_ eq 'created_by') || ($_ eq 'modified_by'))  &&  $dataHash->{$_} ) {
+								$tempValue = 'db_export';
+							} else {
+								if( $tableWithData =~ /^fts.fts_/ && ($_ eq 'param') && ($dataHash->{$_} eq 'max_doc_id') ) {
+									$bonusSQL = "UPDATE $tableWithData SET value=0 WHERE param='max_doc_id';\n";
+								}
+								$tempValue = $dataHash->{$_};
+								$tempValue =~ s/'/''/g;
+							}
+							$lastLine.= "'$tempValue',";
+						}
+					}
+					# Remove the last , on the last line.
+					chop $lastLine;
+					$lastLine.=")";
+				}
+				$sqlDump.="$lastLine;\n";
+				$sth->finish();
+				$sqlDump.=$bonusSQL;
+			}
+
+			$sqlDump.= "\n\n/*\n *\n *\tDB User\n *\n */\n";
+			$sqlDump.= "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, ".
+					"SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, ".
+					"CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON *.* TO '${$args}{dbUser}'\@'%' ".
+					"IDENTIFIED BY '${$args}{dbPassword}';\n";
+			$sqlDump.= "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, ".
+					"SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, ".
+					"CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON *.* TO '${$args}{dbUser}'\@'localhost' ".
+					"IDENTIFIED BY '${$args}{dbPassword}';\n";
+
+			$sqlDump.= "\n\n/*\n *\n *\tTUSK User\n *\n */\n";
+			$sqlDump.= "INSERT INTO hsdb4.user (user_id, source, status, password, lastname, firstname, affiliation) ".
+					"VALUES ('$defaultUser', 'internal', 'Active', PASSWORD('$defaultUser'), 'Trator', 'Adminis', 'HSDB');\n";
+
+			$sqlDump.= "INSERT INTO hsdb45_hsdb_admin.user_group (label, homepage_info, sub_group, description) ".
+					"VALUES ('$defaultGroup', 'Hot Content, Announcements', 'No', 'Group which HSDB school admins belong to');\n";
+
+			$sqlDump.= "INSERT INTO hsdb45_hsdb_admin.user_group (label, homepage_info, sub_group, description) ".
+					"VALUES ('Evaluations Administrators', 'Announcements', 'No', 'Group which HSDB eval admins belong to');\n";
+
+			$sqlDump.= "INSERT INTO hsdb45_hsdb_admin.user_group (label, homepage_info, sub_group, description) ".
+					"VALUES ('Schoolwide Announcements', 'Announcements', 'No', 'Group which HSDB announcers belong to');\n";
+
+			$sqlDump.= "INSERT INTO hsdb45_hsdb_admin.link_user_group_user (parent_user_group_id, child_user_id) ".
+					"VALUES ((SELECT user_group_id FROM hsdb45_hsdb_admin.user_group WHERE label='$defaultGroup'), '$defaultUser');\n";
+
+			$sqlDump.= "INSERT INTO hsdb45_hsdb_admin.link_user_group_user (parent_user_group_id, child_user_id) ".
+					"VALUES ((SELECT user_group_id FROM hsdb45_hsdb_admin.user_group WHERE label='Evaluations Administrators'), '$defaultUser');\n";
+
+			$sqlDump.= "INSERT INTO hsdb45_hsdb_admin.link_user_group_user (parent_user_group_id, child_user_id) ".
+					"VALUES ((SELECT user_group_id FROM hsdb45_hsdb_admin.user_group WHERE label='Schoolwide Announcements'), '$defaultUser');\n";
+
+			$sqlDump.= "INSERT INTO hsdb45_hsdb_admin.user_group (user_group_id, label, homepage_info, sub_group, description) ".
+					"VALUES (666, 'All Schools', 'Announcements', 'No', 'Announcements in this school and group will appear for all users in the system');\n";
+
+			$sqlDump.= "INSERT INTO mwforum.categories (title, pos, categorykey) VALUES ('HSDB', 0, 0-1-0);\n";
+
+			$sqlDump.= "INSERT INTO tusk.school (school_display, school_name, school_db, created_by, modified_by) ".
+					"VALUES ('TUSK School', 'HSDB', 'hsdb45_hsdb_admin', 'Import', 'Import');\n";
+
+			$dbh->disconnect();
+			if($exportWarnings) {
+				warn($exportWarnings);
+				$sqlDump = "/*\n$exportWarnings*/\n$sqlDump";
+			}
+			$m->clear_buffer();
+			$r->content_type('application/unknown');
+			$r->headers_out->set("Accept-Ranges", "bytes");
+			$r->headers_out->set("Content-Length", Devel::Size::size($sqlDump));
+			$r->headers_out->set("Content-disposition","attachement; filename=tusk_schema.sql");
+			$r->no_cache(1);
+			$r->print($sqlDump);
+			$m->abort();
+		}
+	</%perl>
+</%method>
+<%method title>
+%       return 'DB Export Tool';
+</%method>
+<%method red_header_text>
+%       return "<b>DB Exort</b>";
+</%method>
+<script>
+	function displayDBRows(dbName) {
+		var counter = 0;
+		var newDisplayStyle = '';
+		var imageSrc = 'down';
+		if(document.getElementById(dbName +'_0')) {
+			if(document.getElementById(dbName +'_0').style.display == '') {
+				newDisplayStyle = 'none';
+				imageSrc = 'right';
+			}
+		}
+		if(document.getElementById(dbName +'_image')) {
+			document.getElementById(dbName +'_image').src = '/graphics/'+ imageSrc +'_triangle.gif';
+		}
+		while(document.getElementById(dbName +'_'+ counter)) {
+			document.getElementById(dbName +'_'+ counter).style.display = newDisplayStyle;
+			counter++;
+		}
+	}
+
+	function changeAllChecks(dbName, type, checked) {
+		var prefix = type+'.'+dbName;
+		for(var index=0; index<document.theForm.length; index++) {
+			if(	document.theForm[index].type == 'checkbox' &&
+				document.theForm[index].name == type &&
+				(document.theForm[index].value.substring(0, dbName.length+1) == dbName +'.')
+			) {  document.theForm[index].checked = checked;  }
+		}
+	}
+</script>
+
+<& /tmpl/element:form, params=> { 'name' => 'theForm', 'method' => 'post', onsubmit => '' } &>
+<& /tmpl/element:table, params => { } &>
+
+% my $dbh = HSDB4::Constants::def_db_handle;
+% unless($dbh) {
+	<center><font color="red">Unable to connect to database!</font></center>
+% } else {
+	<& /tmpl/element:table, params => { border=> 0, cellspacing => 0, cellpadding => 0, width => '100%'} &>
+	<tr>
+		<td align="center">
+			<& /tmpl/element:table, params => { border=> 0, cellspacing => 0, cellpadding => 0, width=> '300px' } &>
+			<tr class="header"><td colspan="2">DB Login Information (for new installation):</td></tr>
+			<tr>
+				<td align="right"><label for="user" class="xsm">User&nbsp;Name:</label></td>
+				<td align="left"><input name="dbUser" type="text" class="textareawhite" size="20" value="contentmanager"/></td>
+			</tr>
+			<tr>
+				<td align="right"><label for="password" class="xsm">Password:</label></td>
+				<td align="left"><input name="dbPassword" type="password" class="textareawhite" size="20"/></td>
+			</tr>
+			</table>
+		</td>
+
+		<td align="center" valign="top">
+			<& /tmpl/element:table, params => { border=> 0, cellspacing => 0, cellpadding => 0, } &>
+			<tr class="header"><td>Notes:</td></tr>
+			<tr>
+				<td style="padding-left:10px;">Default User <% $defaultUser %>/<% $defaultUser %> will be created.</td>
+			</tr>
+			<tr>
+				<td style="padding-left:10px;">Default Groups: <% $defaultGroup %>, Evaluations Administrators, Schoolwide Announcements will be created.</td>
+			</tr>
+			<tr>
+				<td style="padding-left:10px;"><% $defaultUser %> user will be linked to will be linked to all groups.</td>
+			</tr>
+			</table>
+		</td>
+
+		<td align="right" valign="bottom">
+			<& /tmpl/element:submit_button, params=> {
+        			'name'                  => 'export',
+        			'label'                 => 'Export Dataabses',
+        			'no_cancel_button'      => 1,
+			} &><br><br>
+		</td>
+%#<& /tmpl/element:input_checkbox, params => {
+%#	'value' => 'Use Remote Database',
+%#	'name' => 'Use Remote Datbase',
+%#	'txt' => 'Use remote database',
+%#}&>
+	<& /tmpl/element:table, params => { border=> 0, cellspacing => 0, cellpadding => 0} &>
+	<tr class="header">
+		<td class="header-left" colspan="2" width="100%">Databases And Tables</td>
+		<td class="header-center">Export Schema</td>
+		<td class="header-center">Export Data</td>
+	</tr>
+
+%	my $sth = $dbh->prepare('show databases');
+%	$sth->execute();
+%	my $dbsRef = $sth->fetchall_arrayref();
+%	my %tables;
+%	# Pick which hsdb db to use (prefer med but default to hsdb if its not there)
+%	foreach my $dbNameRef (@{$dbsRef}) {
+%		my $dbName = ${$dbNameRef}[0];
+%		if($dbName eq 'hsdb45_med_admin') {  $defaultDBsToExport{$dbName} = 1;  }
+%	}
+%	unless(exists($defaultDBsToExport{'hsdb45_med_admin'})) {  $defaultDBsToExport{'hsdb45_hsdb_admin'} = 1;  }
+%		
+%	foreach my $dbNameRef (@{$dbsRef}) {
+%		my $dbName = ${$dbNameRef}[0];
+%	        if($dbName =~ /^hsdb45_(.*)_admin/) {
+%			unless(exists($defaultDBsToExport{$dbName})) {next;}
+%	        } elsif($dbName eq 'mysql') {next;}
+		<tr class="odd">
+			<td class="layers-left" style="width:10px;" colspan="2">
+				<img id="<% $dbName %>_image" src="/graphics/right_triangle.gif" onClick="displayDBRows('<% $dbName %>');">
+				<b><% $dbName %></b>
+			</td>
+%			my $defaultChecked = 'checked';
+%			if(!exists($defaultDBsToExport{$dbName})) {$defaultChecked = '';}
+			<td class="layers-center"><& /tmpl/element:input_checkbox, params => {
+				'value' => $dbName,
+				'name' => 'drop_db',
+				'checked' => $defaultChecked,
+				'onclick' => "changeAllChecks('$dbName', 'schema', this.checked);",
+			}&></td>
+			<td class="layers-center"><& /tmpl/element:input_checkbox, params => {
+				'value' => 'junk',
+				'name' => 'junk',
+				'checked' => $defaultChecked,
+				'onclick' => "changeAllChecks('$dbName', 'data', this.checked);",
+			}&></td>
+		</tr>
+%		my $tableStatementHandle = $dbh->prepare("SHOW TABLES IN $dbName;");
+%		$tableStatementHandle->execute();
+%		my $tableRef = $tableStatementHandle->fetchall_arrayref();
+%		my $counter = 0;
+%		foreach my $tableNameRef (@{$tableRef}) {
+%			my $tableName = ${$tableNameRef}[0];
+			<tr class="even" id="<% $dbName %>_<% $counter++ %>" style="display:none;">
+				<td class="layers-center">&nbsp;</td>
+				<td class="layers-left" style="border-bottom:1px solid #CDD6E9;"><% $dbName %>.<% $tableName %></td>
+				<td class="layers-center" style="border-bottom:1px solid #CDD6E9;"><& /tmpl/element:input_checkbox, params => {
+					'value' => "$dbName.$tableName",
+					'name' => "schema",
+					'checked' => $defaultChecked,
+				}&></td>
+				<td class="layers-center" style="border-bottom:1px solid #CDD6E9;">
+%					if(exists($dbTablesToExport{"${dbName}.${tableName}"})) {
+						<& /tmpl/element:input_checkbox, params => {
+							'value' => "$dbName.$tableName",
+							'name' => "data",
+							'checked' => $defaultChecked,
+						}&>
+%					} else {
+						&nbsp;
+%					}
+				</td>
+			</tr>
+%		}
+%# warn(Data::Dumper->Dump([\%dbTablesToExport]));
+
+%	}
+
+
+	</table>
+	<& /tmpl/element:submit_button, params=> {
+        	'name'                  => 'export',
+        	'label'                 => 'Export Dataabses',
+        	'no_cancel_button'      => 1,
+	} &><br><br>
+% } # Close of if(!$dbh)
+</form>
+
+

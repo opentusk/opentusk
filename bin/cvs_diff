@@ -1,0 +1,180 @@
+#!/usr/bin/perl
+use strict;
+use Getopt::Long;
+
+my ($user_id,$new_rev,$old_rev,$only_old,$only_new,$only_changed,$help,$diffs,$no_pause);
+GetOptions(
+	"user-id=s" => \$user_id,
+	"new=s" => \$new_rev,
+	"old=s" => \$old_rev,
+	"only-old!" => \$only_old,
+	"only-new!" => \$only_new,
+	"only-changed!" => \$only_changed,
+	"help!" => \$help,
+	"diffs!" => \$diffs,
+	"no-pause!" => \$no_pause,
+
+);
+
+if($help) {show_help();}
+unless($new_rev && $old_rev) {
+	print "You must pass at least old and new\n";
+	show_help();
+}
+
+my %files;
+unless(open(COMMAND, "find . | grep -v CVS |")) {die "Canot open the find dir!\n";}
+while(<COMMAND>) {
+	chomp;
+	my $filename = $_;
+	if(-f $filename && $filename !~ /CVS/) {
+		$files{$_}+=1;
+	}
+}
+close(COMMAND);
+
+foreach my $filename (sort keys %files) {
+	my $checking_string = "Checking $filename...";
+	print $checking_string;
+	my $version1;
+	my $version2;
+	my $user_1;
+	my $user_2;
+	my $changingUser;
+	my @change_1;
+	my @change_2;
+	my $state1IsDead=0;
+	my @messages;
+	eval {@messages = `cvs log "$filename" 2>&1`;};
+	if(@!) {print "Could not execute cvs log $filename\n$!\n";}
+	# Head is a special case because there is no tag for it so we are going to go through the messages and get the head version
+	if($new_rev eq 'HEAD') {
+		$version1 = 0;
+		foreach (@messages) {
+			if(/^revision ([\d\.]*)/) {
+				my $tempVersion = $1;
+				if(isVersion2Newer($version1, $tempVersion)) {$version1 = $tempVersion;}
+			}
+#			This does not work so well because if there is a branch head might say 1.1 and there will be a branchs: field that says 1.11.1
+#			if(/^head: ([\d\.]*)/) {
+#				$version1 = $1;
+#				last;
+#			}
+		}
+	}
+	foreach my $counter (0..$#messages) {
+		$_ = $messages[$counter];
+		if(/$new_rev: ([\d\.]*)/) {$version1 = $1;}
+		if(/$old_rev: ([\d\.]*)/) {$version2 = $1;}
+		if(/^revision ([\d\.]*)/) {
+			if($1 eq $version1) {
+				$user_1 = $messages[$counter+1];
+				$user_1 =~ s/^.*author: //;
+				$user_1 =~ s/;.*$//;
+				chomp($user_1);
+				if($messages[$counter+1] =~ /state: dead/) {$state1IsDead = 1;}
+				foreach my $counter2 ($counter+2..$#messages) {
+					chomp($messages[$counter2]);
+					push @change_1, $messages[$counter2];
+					last if ($messages[$counter2+1] =~ /^\-*$/);
+				}
+			} elsif($1 eq $version2) {
+				$user_2 = $messages[$counter+1];
+				$user_2 =~ s/^.*author: //;
+				$user_2 =~ s/;.*$//;
+				chomp($user_2);
+				foreach my $counter2 ($counter+2..$#messages) {
+					chomp($messages[$counter2]);
+					push @change_2, $messages[$counter2];
+					last if ($messages[$counter2+1] =~ /^\-*$/);
+				}
+			}
+		}
+	}
+	print "\r";
+	print " "x(length($checking_string));
+	print " \r";
+	my $print_changes = 1;
+	if($user_id && ($user_1 ne $user_id)) {$print_changes = 0;}
+	if($print_changes) {
+		if($state1IsDead && !$only_old && !$only_changed && !$only_new) {
+			print "$filename: DELETED\n";
+			print "\t$user_1 deleted the file with comment:\n";
+                        foreach (@change_1) {print "\t\t$_\n";}
+                        print "\n";
+		} elsif($version1 && !$version2 && !$only_old && !$only_changed) {
+			print "$filename: NEW\n";
+			print "\t$user_1 added the file with comment:\n";
+			foreach (@change_1) {print "\t\t$_\n";}
+			print "\n";
+		} elsif(isVersion2Newer($version1, $version2) && !$only_new && !$only_changed) {
+			print "$filename: OLDER VERSION IN NEWER RELEASE\n";
+                	print "\tFor $new_rev cvs version is $version1 made by $user_1\n";
+			foreach (@change_1) {print "\t\t$_\n";}
+                	print "\tFor $old_rev cvs version is $version2 made by $user_2\n";
+                	foreach (@change_2) {print "\t\t$_\n";}
+			if($diffs) {do_diff($old_rev, $new_rev, $filename);}
+                	print "\n";
+		} elsif($version1 ne $version2 && !$only_new && !$only_old) {
+			print "$filename: CHANGED\n";
+			print "\tFor $new_rev cvs version is $version1 made by $user_1\n";
+			foreach (@change_1) {print "\t\t$_\n";}
+			print "\tFor $old_rev cvs version is $version2 made by $user_2\n";
+			foreach (@change_2) {print "\t\t$_\n";}
+			if($diffs) {do_diff($old_rev, $new_rev, $filename);}
+			print "\n";
+		}
+	}
+}
+
+sub show_help() {
+	print "Usage: $0 -new=<newer_version> -old=<older_version> [-user-id=<id>] [-only-old | -only-new | -only-changed] [-diffs [-no_pause]]\n";
+	print "\t-new=The new version of tusk i.e. tusk_2_1_5\n";
+	print "\t-old=The old version of tusk i.e. tusk_2_1_4\n";
+	print "\t-user-id=The user id if you are only interested in their changes\n";
+	print "\t-only-old=Only show the files where an old version is in the newer release\n";
+	print "\t-only-new=Only show the new files in the release\n";
+	print "\t-only-changed=Only show the changed changes\n";
+	print "\t-diffs=After finding a changed or old file print the cvs diff and wait for a carrage return to continue\n";
+	print "\t-no-pause=When diffing, dont wait for carrage return to continue\n";
+	print "\n";
+	print "This should be called from the root of the tusk tree.\n";
+	print "\n\n";
+	exit();
+}
+
+sub do_diff() {
+	my $oldVersion = shift;
+	my $newVersion = shift;
+	my $filename = shift;
+	system("cvs diff -r $newVersion -r $oldVersion $filename");
+	unless($no_pause) {
+		print "PRESS ENTER TO CONTINUE SEARCH";
+		my $garbage = <STDIN>;
+	}
+}
+
+sub isVersion2Newer() {
+	my $version1 = shift;
+	my $version2 = shift;
+
+	my @version1Pieces = split /\./, $version1;
+	my @version2Pieces = split /\./, $version2;
+	my $localVersion2IsNewer = 0;
+	my $length = $#version1Pieces;
+	if($length < $#version2Pieces) {$length = $#version2Pieces;}
+	foreach my $versionCounter (0..$length) {
+		if($version2Pieces[$versionCounter] > $version1Pieces[$versionCounter]) {
+			$localVersion2IsNewer = 1;
+			last;
+		} elsif($version1Pieces[$versionCounter] > $version2Pieces[$versionCounter]) {
+			# imagine here 1.1.4.5 vs 1.6
+			# 1 = 1, 1 < 6, 4 > undef
+			# if we did not have the check to see if 6 > 1 then 1.1.4.5 would be bigger than 1.6!
+			last;
+		}
+	}
+	return($localVersion2IsNewer);
+#	if($localVersion2IsNewer)	{return $version2;}
+#	else 				{return $version1;}
+}

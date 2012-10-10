@@ -1,0 +1,76 @@
+<%once>
+	use TUSK::Application::Email;
+</%once>
+
+
+<table cellpadding="0" class="emailform">
+<tr>
+	<td><br />
+% foreach (@{$TUSK::Constants::Institution{Address}}) {
+	<% $_ %><br />
+% }
+	<br />Phone: <% $TUSK::Constants::Institution{Phone} %><br />
+	Email: <a href="mailto:<% $TUSK::Constants::Institution{Email} %>"><b><% $TUSK::Constants::Institution{Email} %></b>
+	</td>
+</tr>
+</table>
+<br>
+%  if ($ARGS{sendemail})	{
+<p>Your message has been successfully sent.</p>
+% }else	{
+<p>Please use the form below to contact <% $TUSK::Constants::SiteAbbr %>.</p>
+
+<form method="POST" action="">
+  <table class="emailform" border="0" cellpadding="0" cellspacing="0" width="90%">
+    <tr>
+      <td width="20%">Your Name: </td>
+      <td width="80%" class="cell-left"> <input type="text" name="name" size="20" class="textareawhite"> (not required)</td>
+    </tr>
+    <tr>
+      <td width="20%">Your Email Address:</td>
+      <td width="80%" class="cell-left"> <input type="text" name="email" size="36" class="textareawhite"></td>
+    </tr>
+    <tr>
+      <td width="20%">Topic:</td>
+      <td width="80%" class="cell-left"> 
+  <select size="1" name="topic">
+  <option>Comment and/or Suggestions</option>
+  <option>Login Problems/Requests</option>
+  <option>Information Request</option>
+  <option>Technical Support Question</option>
+  </select></td>
+    </tr>
+    <tr>
+      <td width="20%">Subject:</td>
+      <td width="80%" class="cell-left"> <input type="text" name="subject" size="47" class="textareawhite"></td>
+    </tr>
+    <tr>
+      <td width="20%">Your Message:</td><td width="80%" class="cell-left"><textarea rows="10" name="message" cols="55" class="textareawhite"></textarea></td>
+    </tr>
+<tr><td width="20%">&nbsp;</td><td width="80%" class="cell-submit"><input type="submit" class="formbutton"  name="sendemail" value="Send Email Message to <% $TUSK::Constants::SiteAbbr %>"></td>
+  </table>
+  <p></p>
+</form>
+% }
+
+
+<%init>
+  my $wholemessage = "\n$ARGS{message}";
+ 
+  my $from = $TUSK::Constants::FeedbackEmail;
+  if($ARGS{email} and $ARGS{email} =~ /\@/) {$from = $ARGS{email};}
+  if($ARGS{sendemail})	{
+    my $mail = TUSK::Application::Email->new({     
+				to_addr => "$TUSK::Constants::Institution{Email}",
+				from_addr => $from ,
+				subject => $ARGS{topic}.'-'.$ARGS{subject},
+				body => $wholemessage
+              });
+	$mail->send() or Apache->warn($mail->getError());
+  }
+</%init>
+
+
+<%method title>
+% 	return 'Contact Us'; 
+</%method>
