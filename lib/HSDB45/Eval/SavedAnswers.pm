@@ -5,10 +5,10 @@ use HSDB4::Constants qw/:school/;
 use HSDB4::SQLRow::User;
 use HSDB45::Eval;
 use Digest::MD5;
-use Storable qw(freeze thaw);
+use Storable qw(nfreeze thaw);
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.11 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.12 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 sub version { return $VERSION; }
 
 my @mod_deps  = ('HSDB45::Eval');
@@ -159,7 +159,7 @@ sub has_answers {
 sub do_save {
     my $self = shift;
     my $dbh = HSDB4::Constants::def_db_handle();
-    my $data = freeze $self->answers();
+    my $data = nfreeze $self->answers();
     eval {
 	my $db = $self->school_db();
 	if ($self->id()) {

@@ -120,8 +120,18 @@ sub getReportBySite {
 				  );
 
 	my ($reported_data, $items, $attribute_items, $isCategory) = $self->getData($field_id, $sql, 'hoh');
-	my $teaching_sites = $self->{_course}->get_teaching_sites_for_enrolled_time_period($self->{_time_period_ids}[0]);
-	return {rows => $teaching_sites, items => $items, attribute_items => $attribute_items, data => $reported_data, bysite => 1, contains_category => $isCategory};
+	my %site_hash;
+	foreach my $tp_id (@{$self->{_time_period_ids}}) {
+		my $sites = $self->{_course}->get_teaching_sites_for_enrolled_time_period($tp_id);
+		foreach my $site (@$sites) {
+			my $site_id = $site->site_id();
+			$site_hash{$site_id} = $site unless $site_hash{$site_id};
+		}
+	}
+	my @teaching_sites;
+	push(@teaching_sites, values(%site_hash));
+
+	return {rows => \@teaching_sites, items => $items, attribute_items => $attribute_items, data => $reported_data, bysite => 1, contains_category => $isCategory};
 }
 
 
@@ -151,10 +161,12 @@ sub getReportByStudent {
 	my ($reported_data, $items, $attribute_items, $isCategory) = $self->getData($field_id, $sql, 'hoh');
 	## possibly one student are in more than one teaching site
 	my %seen_students = (); my @students = ();
-	foreach my $student ($self->{_course}->get_students($self->{_time_period_ids}[0])) {
-		unless (exists $seen_students{$student->primary_key()}) {
-			push @students, $student;
-			$seen_students{$student->primary_key()} = 1;
+	foreach my $tp_id ($self->{_time_period_ids}) {
+		foreach my $student ($self->{_course}->get_students($tp_id)) {
+			unless (exists $seen_students{$student->primary_key()}) {
+				push @students, $student;
+				$seen_students{$student->primary_key()} = 1;
+			}
 		}
 	}
 

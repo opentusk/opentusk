@@ -4,7 +4,6 @@ var tableBody = null;
 var loadingImage = new Image();
 loadingImage.src = "/graphics/pleasewait.gif";
 
-
 function showLoading() {
   loadingContent = 1;
   document.body.style.cursor='wait';
@@ -65,7 +64,6 @@ function requestEvalSearch(url,params) {
 	showLoading();
 	xRequest = initXMLHTTPRequest();
 	if (xRequest) {
-//		document.write(params);
 		xRequest.open("POST", url, true);
 		xRequest.onreadystatechange = showEvalResults;
 		xRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -88,14 +86,14 @@ function showEvalResults() {
 		} else {
 
 			var evalResults = response.getElementsByTagName('evalResults');
-			createSearchForm(evalResults[0].getElementsByTagName('searchForm')[0].firstChild.nodeValue);
 			var school = evalResults[0].getAttribute('school');
-		        var evals = evalResults[0].getElementsByTagName('eval');
+			var evals = evalResults[0].getElementsByTagName('eval');
+			var mergedEvals = evalResults[0].getElementsByTagName('mergedEval');
 
-			if (evals.length == 0) {
+			if (evals.length == 0 && mergedEvals.length == 0) {
 				printNoResults();	
 			} else {
-				printEvalResults(evals,school);
+				printEvalResults(evals,mergedEvals,school);
 			}
 			hideLoading();
 		}
@@ -103,7 +101,11 @@ function showEvalResults() {
 }
 
 
-function printEvalResults (evals,school) {	
+function printEvalResults (evals,mergedEvals,school) {	
+
+	if (evals.length) {
+		headerRow('Single Eval Results');
+	}
 
 	for (var i = 0; i < evals.length; i++) { 
 		var evalId = evals[i].getAttribute('id');
@@ -114,31 +116,52 @@ function printEvalResults (evals,school) {
 		var course_id = (course.parentNode.getAttribute('id').length > 0) ? ' &nbsp;<span class="smallfont">(#' + course.parentNode.getAttribute('id') +  ')</span>' : '';
 		createRow('Course:', course.nodeValue + course_id);
 		createRow('Time Period:', evals[i].getElementsByTagName('timePeriod')[0].firstChild.nodeValue);
-		var questions = evals[i].getElementsByTagName('question');
-		for (var j = 0; j < questions.length; j++) {
-			var questionId = questions[j].getAttribute('id');
-			createRow('Question &nbsp;<span class="smallfont">(#' + questionId  + ')</span>:', questions[j].getElementsByTagName('questionText')[0].firstChild.nodeValue);
 
-			var responses = questions[j].getElementsByTagName('response');
-			createRow('Responses:', responses[0].firstChild.nodeValue);
+		printQuestions(evals[i]);
+
+		spacingRow();
+	}
+
+	if (mergedEvals.length) {
+		headerRow('Merged Eval Results');
+	}
+
+	for (var i = 0; i < mergedEvals.length; i++) { 
+		var mergedEvalId = mergedEvals[i].getAttribute('id');
+		var mergedEvalIdUrl = "<a href=\"#\" onClick=\"newEvalPage('/eval/merged_report/" + school + "/" + mergedEvalId + "')\">" + mergedEvalId + "</a>";
+		var primaryEvalIdUrl = "<a href=\"#\" onClick=\"newEvalPage('/hsdb45/eval/report/" + school + "/" + mergedEvals[i].getElementsByTagName('primaryEval')[0].getAttribute('id') + "')\">" + mergedEvals[i].getElementsByTagName('primaryEval')[0].getAttribute('id') + "</a>";
+
+		createRow('Merged Eval Title:', mergedEvals[i].getElementsByTagName('title')[0].firstChild.nodeValue + ' &nbsp;<span class="smallfont">(#' + mergedEvalIdUrl + ')</span>');
+		createRow('Primary Eval:', mergedEvals[i].getElementsByTagName('primaryEval')[0].firstChild.nodeValue + ' &nbsp;<span class="smallfont">(#' + primaryEvalIdUrl + ')</span>');
+		var secondaryRows = "<p class='xsm'>";
+		var secondaryTags = mergedEvals[i].getElementsByTagName('secondaryEvals')[0].getElementsByTagName('secondaryEval');
+		var idlink = "";
+		for (var j = 0; j < secondaryTags.length; j++) {
+			idlink = " (#<a href=\"#\" onClick=\"newEvalPage('/hsdb45/eval/report/" + school + "/" + secondaryTags[j].getAttribute('id') + "')\">" + secondaryTags[j].getAttribute('id') + "</a>)";
+			secondaryRows += secondaryTags[j].firstChild.nodeValue;
+			secondaryRows += idlink;
+			secondaryRows += "<br />";
 		}
+		createRow('Secondary Evals:', secondaryRows + '</p>');
+		printQuestions(mergedEvals[i]);
 		spacingRow();
 	}
 }
 
 
-function createSearchForm (text) {
-        var row = document.createElement("TR");
-	var col = document.createElement("TD");
-	col.colSpan = 2;
-	col.innerHTML = text;
-	row.appendChild(col);
-	tableBody.appendChild(row);
+function printQuestions (evalTag) {
+	var questions = evalTag.getElementsByTagName('question');
+	for (var i = 0; i < questions.length; i++) {
+		var questionId = questions[i].getAttribute('id');
+		createRow('Question &nbsp;<span class="smallfont">(#' + questionId  + ')</span>:', questions[i].getElementsByTagName('questionText')[0].firstChild.nodeValue);
 
+		var responses = questions[i].getElementsByTagName('response');
+		createRow('Responses:', responses[0].firstChild.nodeValue);
+	}
 }
 
 function spacingRow () {
-        var row = document.createElement("TR");
+	var row = document.createElement("TR");
 	var col = document.createElement("TD");
 	col.innerHTML = '&nbsp;';
 	row.appendChild(col);
@@ -146,8 +169,17 @@ function spacingRow () {
 	tableBody.appendChild(row);
 }
 
+function headerRow (text) {
+	var row = document.createElement("TR");
+	var col = document.createElement("TD");
+	col.innerHTML = '<h3>' + text + '</h3>';
+	row.appendChild(col);
+	row.appendChild(col);
+	tableBody.appendChild(row);
+}
+
 function createRow (title,text,num) {
-        var row = document.createElement("TR");
+	var row = document.createElement("TR");
 	row.appendChild(createColumn(title,1));
 	row.appendChild(createColumn(text,0));
 	row.id = 'export' + num;
@@ -205,8 +237,6 @@ function addElement2Form(iname,ivalue) {
 
 
 function getMainContent() {
-	var searchForm = document.getElementById('searchForm');	
-	searchForm.style.display = "none";
 	var docTable = document.getElementById('theTable');
 	return '<table>' + docTable.innerHTML + '</table>';
 }
@@ -228,11 +258,45 @@ function isBlank(str) {
 	return true;
 }
 
-function isValidDate(input) {
-	var dateFormat = /(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])/
-	var result = input.match(dateFormat);
-	return (result == null) ? false : true;
+
+function setIncludeChecks(checkboxObj) {
+//	include
+//		- merged
+//		- single
+//		- outsidetime
+//		- onlysingle
+	var name = checkboxObj.value;
+	var form = checkboxObj.form;
+	switch (name) {
+		case "merged":
+			if (checkboxObj.checked) {
+				form.outsidetime.disabled = false;
+				document.getElementById('outsidetimelabel').className = "";
+			}
+			else {
+				form.outsidetime.disabled = true;
+				form.outsidetime.checked = false;
+				document.getElementById('outsidetimelabel').className = "disabled";
+			}
+			break;
+		case "single":
+			if (checkboxObj.checked) {
+				form.onlysingle.disabled = false;
+				document.getElementById('onlysinglelabel').className = "";
+			}
+			else {
+				form.onlysingle.disabled = true;
+				form.onlysingle.checked = false;
+				document.getElementById('onlysinglelabel').className = "disabled";
+			}
+			break;
+		case "onlysingle":
+			if (checkboxObj.checked) {
+			}
+			break;
+	}
 }
+
 
 function verify(form) {
 	var search = form.search_string;
@@ -240,10 +304,29 @@ function verify(form) {
 		alert("Name/Keyword field is required!\n");
 		return false;
 	}
-	var toDate = form.to_date;
-	var fromDate = form.from_date;
-	if ((!isValidDate(toDate.value)) || (!isValidDate(fromDate.value))) {
-		alert("Either date format or date is invalid!\n Please make sure you have entered valid dates in yyyy-mm-dd format.\n");
+	// check to make date information has been entered
+	if (isBlank(form.start_time_period_id.value) && isBlank(form.end_time_period_id.value) && isBlank(form.start_available_date.value) && isBlank(form.end_available_date.value) && isBlank(form.start_due_date.value) && isBlank(form.end_due_date.value)) {
+		alert("Time period or available/due date fields are required!\n");
+		return false;
+	}
+	// if one time period has been entered, make sure other time period id field has been filled out, too
+	else if ((isBlank(form.start_time_period_id.value) && !isBlank(form.end_time_period_id.value)) || (!isBlank(form.start_time_period_id.value) && isBlank(form.end_time_period_id.value))) {
+		alert("To narrow down the results by time period, please select both a beginning time period and an ending time period!\n");
+		return false;
+	}
+	// if one available date has been entered, make sure other available date field has been filled out, too
+	else if ((isBlank(form.start_available_date.value) && !isBlank(form.end_available_date.value)) || (!isBlank(form.start_available_date.value) && isBlank(form.end_available_date.value))) {
+		alert("To narrow down the results by available date, please select both a beginning available date and an ending available date!\n");
+		return false;
+	}
+	// if one due date has been entered, make sure other due date field has been filled out, too
+	else if ((isBlank(form.start_due_date.value) && !isBlank(form.end_due_date.value)) || (!isBlank(form.start_due_date.value) && isBlank(form.end_due_date.value))) {
+		alert("To narrow down the results by due date, please select both a beginning due date and an ending due date!\n");
+		return false;
+	}
+	// make sure either "merged evals" or "single evals" is checked
+	else if (!form.include[0].checked && !form.include[1].checked) {
+		alert("At least one type of evaluation (merged or single) must be included!\n");
 		return false;
 	}
 

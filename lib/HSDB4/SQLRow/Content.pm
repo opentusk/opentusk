@@ -38,7 +38,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.257 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.258 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::SQLRow::ContentHistory;
@@ -2661,10 +2661,10 @@ sub showConversionStatus {
 	my $tracker = TUSK::ProcessTracker::ProcessTracker->new()->getMostRecentTracker(undef, $self->primary_key(), 'tuskdoc');
 	if (defined $tracker) {
 		my $modified = HSDB4::DateTime->new()->in_mysql_timestamp($tracker->getModifiedOn());
-		my $three_days_ago = HSDB4::DateTime->new();
-		$three_days_ago->subtract_days(3);
+		my $three_hrs_ago = HSDB4::DateTime->new();
+		$three_hrs_ago->subtract_hours(3);
 
-		if (!$tracker->isCompletedSuccessfully() ||  $modified->is_after($three_days_ago)) {
+		if (!$tracker->isCompletedSuccessfully() ||  $modified->is_after($three_hrs_ago)) {
 			return 1;
 		}
 	}

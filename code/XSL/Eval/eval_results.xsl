@@ -9,21 +9,26 @@
   <xsl:include href="bar_graph.xsl"/>
   <xsl:include href="../Common/flow.xsl"/>
 
-  <xsl:variable name="eval_results" select="Eval_Results"/>
-  <xsl:variable name="evalURL">http://<xsl:value-of select="$HOST"/>/XMLObject/<xsl:value-of select="$FILTER"/>eval/<xsl:value-of select="/Eval_Results/@school"/>/<xsl:value-of select="/Eval_Results/@eval_id"/>/<xsl:value-of select="$FILTER_ID"/></xsl:variable>
-
-  <xsl:variable name="evalXml" select="document($evalURL)/Eval"/>
-
-  <xsl:variable name="courseURL">http://<xsl:value-of select="$HOST"/>/XMLObject/course/<xsl:value-of select="Eval_Results/@school"/>/<xsl:value-of select="$evalXml/@course_id"/></xsl:variable>
-  <xsl:variable name="courseXml" select="document($courseURL)/course"/>
-
-  <xsl:variable name="completionsURL">http://<xsl:value-of select="$HOST"/>/XMLObject/eval_completions/<xsl:value-of select="Eval_Results/@school"/>/<xsl:value-of select="/Eval_Results/@eval_id"/></xsl:variable>
-  <xsl:variable name="completionsXml" select="document($completionsURL)/Enrollment"/>
   <xsl:output method="html" encoding="iso-8859-1"/>
   <xsl:param name="SHOWUSERS"></xsl:param>
   <xsl:param name="FULLHTML"></xsl:param>
   <xsl:param name="PRETTYUSERLABEL"></xsl:param>
   <xsl:param name="MERGED"></xsl:param>
+  <xsl:param name="MERGED_ID"></xsl:param>
+
+  <xsl:variable name="eval_results" select="Eval_Results"/>
+  <xsl:variable name="evalURL">http://<xsl:value-of select="$HOST"/>/XMLObject/<xsl:value-of select="$FILTER"/>eval/<xsl:value-of select="/Eval_Results/@school"/>/<xsl:value-of select="/Eval_Results/@eval_id"/>/<xsl:value-of select="$FILTER_ID"/></xsl:variable>
+
+  <xsl:variable name="evalXml" select="document($evalURL)/Eval"/>
+  <xsl:variable name="courseURL">http://<xsl:value-of select="$HOST"/>/XMLObject/course/<xsl:value-of select="Eval_Results/@school"/>/<xsl:value-of select="$evalXml/@course_id"/></xsl:variable>
+  <xsl:variable name="courseXml" select="document($courseURL)/course"/>
+  <xsl:variable name="completionsURL">
+  	<xsl:choose>
+  		<xsl:when test="$MERGED='1'">http://<xsl:value-of select="$HOST"/>/XMLObject/merged_eval_completions/<xsl:value-of select="Eval_Results/@school"/>/<xsl:value-of select="$MERGED_ID"/></xsl:when>
+  		<xsl:otherwise>http://<xsl:value-of select="$HOST"/>/XMLObject/eval_completions/<xsl:value-of select="Eval_Results/@school"/>/<xsl:value-of select="/Eval_Results/@eval_id"/></xsl:otherwise>
+  	</xsl:choose>
+  </xsl:variable>
+  <xsl:variable name="completionsXml" select="document($completionsURL)/Enrollment"/>
 
   <xsl:template match="/">
     <ol>
@@ -233,6 +238,40 @@
             <xsl:with-param name="question_results" select="$question_results"/>
           </xsl:call-template>
           <ul>
+            <xsl:if test="count($question_results/Categorization/ResponseGroup) &gt; 1">
+              <li>
+                <b>All</b>
+                <table border="1" cellspacing="0">
+                  <tr>
+                    <th></th>
+                    <th>N</th>
+                    <th>%</th>
+                  </tr>
+                  <xsl:for-each select="$question_results/ResponseGroup/ResponseStatistics/Histogram/HistogramBin">
+                    <xsl:sort select="." data-type="number"/>
+                    <tr>
+                      <td><xsl:value-of select="."/></td>
+                      <td><xsl:value-of select="@count"/></td>
+                      <td><xsl:value-of select="round(100 * (@count div ../../response_count))"/></td>
+                    </tr>
+                  </xsl:for-each>
+                  <xsl:if test="$question_results/ResponseGroup/ResponseStatistics/no_response_count &gt; 0">
+                    <tr>
+                      <td>No Response</td>
+                      <td><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/no_response_count"/></td>
+                      <td><xsl:value-of select="round(100 * ($question_results/ResponseGroup/ResponseStatistics/no_response_count div ($question_results/ResponseGroup/ResponseStatistics/response_count + $question_results/ResponseGroup/ResponseStatistics/no_response_count + $question_results/ResponseGroup/ResponseStatistics/na_response_count)))"/></td>
+                    </tr>
+                  </xsl:if>
+                  <xsl:if test="MultipleChoice">
+                    <tr>
+                      <td>All</td>
+                      <td><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/response_count"/></td>
+                      <td>100</td>
+                    </tr>
+                  </xsl:if>
+                </table>
+              </li>
+            </xsl:if>
             <xsl:for-each select="$question_results/Categorization/ResponseGroup">
               <li>
                 <b><xsl:value-of select="grouping_value"/></b>
@@ -268,40 +307,6 @@
                 <br/>
               </li>
             </xsl:for-each>
-            <xsl:if test="count($question_results/Categorization/ResponseGroup) &gt; 1">
-              <li>
-                <b>All</b>
-                <table border="1" cellspacing="0">
-                  <tr>
-                    <th></th>
-                    <th>N</th>
-                    <th>%</th>
-                  </tr>
-                  <xsl:for-each select="$question_results/ResponseGroup/ResponseStatistics/Histogram/HistogramBin">
-                    <xsl:sort select="." data-type="number"/>
-                    <tr>
-                      <td><xsl:value-of select="."/></td>
-                      <td><xsl:value-of select="@count"/></td>
-                      <td><xsl:value-of select="round(100 * (@count div ../../response_count))"/></td>
-                    </tr>
-                  </xsl:for-each>
-                  <xsl:if test="$question_results/ResponseGroup/ResponseStatistics/no_response_count &gt; 0">
-                    <tr>
-                      <td>No Response</td>
-                      <td><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/no_response_count"/></td>
-                      <td><xsl:value-of select="round(100 * ($question_results/ResponseGroup/ResponseStatistics/no_response_count div ($question_results/ResponseGroup/ResponseStatistics/response_count + $question_results/ResponseGroup/ResponseStatistics/no_response_count + $question_results/ResponseGroup/ResponseStatistics/na_response_count)))"/></td>
-                    </tr>
-                  </xsl:if>
-                  <xsl:if test="MultipleChoice">
-                    <tr>
-                      <td>All</td>
-                      <td><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/response_count"/></td>
-                      <td>100</td>
-                    </tr>
-                  </xsl:if>
-                </table>
-              </li>
-            </xsl:if>
           </ul>
         </xsl:when>
         <xsl:otherwise>

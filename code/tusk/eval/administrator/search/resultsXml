@@ -1,6 +1,7 @@
 <%shared>
 	my %params = $m->request_args;
 	my @search_strings = split(/\s+/, lc $params{search_string});
+	my ($single_evals, $merged_evals, $questions, $responses);
 </%shared>
 
 
@@ -8,27 +9,59 @@
 	use TUSK::FTS::Eval;
 </%once>
 
-% my ($evals, $questions, $responses) = $m->comp('SELF:getEvalResults');  
+% $m->comp('getEvalResults');
 
 % $m->clear_buffer();
 % $r->content_type('text/xml');
 % $r->no_cache(1);
 <?xml version="1.0" encoding="UTF-8"?>
 <evalResults school="<% $params{school} %>">
-	<searchForm><![CDATA[<% $m->comp('SELF:getSearchForm') %>]]></searchForm>
-% foreach my $eid (sort { $evals->{$b}{timeperiod_sort} <=> $evals->{$a}{timeperiod_sort} } keys %{$evals}) {
-%	next unless defined %{$responses->{$eid}};
+% if ($single_evals) {
+% 	foreach my $eid (sort { $single_evals->{$b}{timeperiod_sort} <=> $single_evals->{$a}{timeperiod_sort} } keys %{$single_evals}) {
+%		next unless defined %{$responses->{$eid}};
 	<eval id="<% $eid %>">
-		<title><![CDATA[<% $evals->{$eid}{title} %>]]></title>
-                <course id="<% $evals->{$eid}{course_id} %>"><![CDATA[<% $evals->{$eid}{course} %>]]></course>
-		<timePeriod><![CDATA[<% $evals->{$eid}{timeperiod} %>]]></timePeriod>
+		<title><![CDATA[<% $single_evals->{$eid}{title} %>]]></title>
+                <course id="<% $single_evals->{$eid}{course_id} %>"><![CDATA[<% $single_evals->{$eid}{course} %>]]></course>
+		<timePeriod><![CDATA[<% $single_evals->{$eid}{timeperiod} %>]]></timePeriod>
+<% 	$m->comp("output_question", eid => $eid) %>
+	</eval>
+% 	}
+% }
+
+% foreach my $merged_id (keys %{$merged_evals}) {
+% my @ids = ();
+	<mergedEval id="<% $merged_id %>">
+		<title><![CDATA[<% $merged_evals->{$merged_id}{title} %>]]></title>
+		<primaryEval id="<% $merged_evals->{$merged_id}{primary_eval}->{id} %>"><![CDATA[<% $merged_evals->{$merged_id}{primary_eval}->{title} %>]]></primaryEval>
+%	if ($responses->{$merged_evals->{$merged_id}{primary_eval}->{id}}) {
+%		push @ids, $merged_evals->{$merged_id}{primary_eval}->{id};
+%	}
+		<secondaryEvals>
+%	foreach my $secondary_eval (@{$merged_evals->{$merged_id}{secondary_evals}}) {
+			<secondaryEval id="<% $secondary_eval->{id} %>"><![CDATA[<% $secondary_eval->{title} %>]]></secondaryEval>
+%		if ($responses->{$secondary_eval->{id}}) {
+%			push @ids, $secondary_eval->{id};
+%		}
+%	}
+		</secondaryEvals>
+%	foreach my $id (@ids) {
+<% $m->comp("output_question", eid => $id) %>
+%	}
+	</mergedEval>
+% }
+
+</evalResults>
+
+
+<%def output_question>
+<%args>
+	$eid
+</%args>
 %  	foreach my $qid (keys %{$responses->{$eid}}) {
 		<question id="<% $qid %>">
-
 %		foreach my $word (@search_strings) {
 %			$questions->{$eid}{$qid} =~ s#(\b$word)#<span class=\"highlight\">$1</span>#gi;
 %		}	
-
                 	<questionText><![CDATA[<% $questions->{$eid}{$qid} %>]]></questionText>
 %		my $responseList = join("\n", map { "<li>$_</li>" } @{$responses->{$eid}{$qid}});
 %		foreach my $word (@search_strings) {
@@ -37,14 +70,10 @@
 			<response><![CDATA[<% $responseList %>]]></response>
 	        </question>
 %       }
-	</eval>
-% }
-
-</evalResults>
+</%def>
 
 
-
-<%method getEvalResults>
+<%def getEvalResults>
 
 <%perl>
 	my %search_by = ();
@@ -53,26 +82,40 @@
 	} else {
 		$search_by{$params{search_by}} = '1';
 	}
-
+	my %include = ();
+	if (ref($params{include}) eq 'ARRAY') {
+		%include = map { $_ => '1' } @{$params{include}};
+	} else {
+		$include{$params{include}} = '1';
+	}
+	
 	my $ftsEval = TUSK::FTS::Eval->new( 
-				school        => $params{school},
-				search_string => [ @search_strings ],
-				eval_title    => $params{eval_title},
-				course_name   => $params{course_name},
-				from_date     => $params{from_date},
-				to_date       => $params{to_date},
-				partial_word  => $search_by{pw},
-				all_words     => $search_by{aw},
-				numeric_ranking => $search_by{nrq},
-				no_response   => $search_by{nr},
-				small_group   => $search_by{sg},
-
+		school					=> $params{school},
+		search_string			=> [ @search_strings ],
+		eval_title				=> $params{eval_title},
+		course_name				=> $params{course_name},
+		start_time_period_id	=> $params{start_time_period_id},
+		end_time_period_id		=> $params{end_time_period_id},
+		start_available_date	=> $params{start_available_date},
+		end_available_date		=> $params{end_available_date},
+		start_due_date			=> $params{start_due_date},
+		end_due_date			=> $params{end_due_date},
+		partial_word			=> $search_by{pw},
+		all_words				=> $search_by{aw},
+		numeric_ranking			=> $search_by{nrq},
+		no_response				=> $search_by{nr},
+		small_group				=> $search_by{sg},
+		merged					=> $include{merged},
+		single					=> $include{single},
+		outsidetime				=> $include{outsidetime},
+		onlysingle				=> $include{onlysingle},
 	);
 
-	return $ftsEval->search();
+	($single_evals, $merged_evals, $questions, $responses) = $ftsEval->search();
+	
 </%perl>
 
-</%method>
+</%def>
 
 
 <%method replaceEntities>
@@ -87,36 +130,6 @@
 </%perl>
 </%method>
 
-
-<%method getSearchForm>
-
-<%perl>
-	my $form = $m->scomp('/eval/administrator/search/formEntry/', 
-		params => {   
-			search_string  => $params{search_string},
-			eval_title     => $params{eval_title},
-			course_name    => $params{course_name},
-			from_date      => $params{from_date},
-			to_date        => $params{to_date},
-			search_by      => $params{search_by},
-		  },
-		school => $params{school}  );
-
-	return <<SEARCHFORM;
-</script>
-	<table id="searchForm" width="100%">
-	<tr><td NOWRAP>
-	<a style="font-size:90%;text-decoration:none;font-weight:bold;" href="javascript:showHide('switchContent')" style="cursor:hand;cursor:pointer">Show/Hide Search Entry</a> 
-        &nbsp;|&nbsp;
-	<a style="font-size:90%;text-decoration:none;font-weight:bold;" href="#" onClick="javascript:exportContent('$params{search_string}','$params{school}')" style="cursor:hand;cursor:pointer">Export</a> 
-	</td></tr>
-	<tr><td NOWRAP>
-	<div id="switchContent" style="display:none">$form</div>
-        </td></tr>
-	</table>
-SEARCHFORM
-</%perl>
-</%method>
 
 <%flags>
         inherit => undef

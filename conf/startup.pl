@@ -4,7 +4,6 @@ BEGIN {
 	use Apache::Status;
     }
 
-    use Apache::DBI;
     use Apache ();
     use Apache::Server;
     use Apache::File ();

@@ -3,7 +3,7 @@ package HSDB45::Eval::MergedResults;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.7 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.8 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 sub version { return $VERSION; }
 
 my @mod_deps  = ('HSDB45::Eval::Results');
@@ -121,6 +121,26 @@ sub question_results {
 
     # If there are no arguments, then just return them all (sorted, of course)
     return sort { $a->question()->aux_info('sort_order') <=> $b->question()->aux_info('sort_order') } values %{$self->{-question_results}};
+}
+
+# Description: Returns the number of students that are enrolled in the courses covered by the merged eval results
+# Input:
+# Output: The integer number of enrolled students
+sub enrollment {
+    my $self = shift;
+    my $catted_ids = join(",", $self->primary_eval_id(), $self->secondary_eval_ids());
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $db = HSDB4::Constants::get_school_db($self->school());
+	my $num;
+	my $sql = "SELECT COUNT(distinct child_user_id) 
+		FROM $db.eval, $db.link_course_student 
+		WHERE eval_id in ($catted_ids) 
+		AND parent_course_id = course_id 
+		AND eval.time_period_id = link_course_student.time_period_id";
+	my $sth = $dbh->prepare($sql);
+	$sth->execute();
+	($num) = $sth->fetchrow_array();
+	return $num;
 }
 
 # Description: Returns the number of completion tokens for the eval

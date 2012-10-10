@@ -3,21 +3,124 @@
 	$school
 </%args>
 
-% my %checked = (ref($params->{search_by}) eq 'ARRAY') ? map { $_ => 'CHECKED' } @{$params->{search_by}} : ($params->{search_by} => 'CHECKED');
+% my %search_by = (ref($params->{search_by}) eq 'ARRAY') ? map { $_ => 'CHECKED' } @{$params->{search_by}} : ($params->{search_by} => 'CHECKED');
+% my %results_include_in_search = (ref($params->{include}) eq 'ARRAY') ? map { $_ => 'CHECKED' } @{$params->{include}} : ($params->{include} => 'CHECKED');
 
 <form action="/eval/administrator/search/result/<% $school %>" method="post" onsubmit="return verify(this);">
 <table class="xsm">
 <tr><td align="right">Name/Keyword:</td><td><input type="text" name="search_string" size="40" value="<% $params->{search_string} %>"/> &nbsp; <span style="font-size:8pt;color:red">* required</span></td></tr>
 <tr><td align="right">Eval Title:</td><td><input type="text" name="eval_title" size="40" value="<% $params->{eval_title} %>"/></td></tr>
 <tr><td align="right">Course Name:</td><td><input type="text" name="course_name" size="40" value="<% $params->{course_name} %>"/></td></tr>
-<tr><td align="right">Time Period:</td><td>
-<input type="text" name="from_date" size="12" value="<% $params->{from_date} %>"/> &nbsp;&nbsp; - &nbsp;&nbsp; <input type="text" name="to_date" size="12" value="<% $params->{to_date} %>"/> &nbsp;&nbsp;&nbsp;
-<span style="font-size:8pt;color:red">* YYYY-MM-DD</span></td></tr>
-<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="aw" <% $checked{aw} %>/> Match with all the words</td></tr>
-<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="pw" <% $checked{pw} %>/> Match partial word, i.e. all words starting with provided name/keywords</td></tr>
-<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="nrq" <% $checked{nrq} %>/> Include numeric ranking question types</td></tr>
-<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="nr" <% $checked{nr} %>/> Include questions that have no response</td></tr>
-<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="sg" <% $checked{sg} %>/> Include small group instructor questions</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="aw" <% $search_by{aw} %>/> Match with all the words</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="pw" <% $search_by{pw} %>/> Match partial word, i.e. all words starting with provided name/keywords</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="nrq" <% $search_by{nrq} %>/> Include numeric ranking question types</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="nr" <% $search_by{nr} %>/> Include questions that have no response</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="sg" <% $search_by{sg} %>/> Include small group instructor questions</td></tr>
+<tr><td align="right" valign="top">Beginning time period:</td><td>
+<%perl>
+	my $tp = HSDB45::TimePeriod->new(_school => $school);
+	my @past_time_periods = $tp->lookup_all('end_date < curdate()', 'ORDER BY end_date DESC');
+	my @current_time_periods = $tp->lookup_all('end_date >= curdate()', 'ORDER BY end_date DESC');
+
+	my @time_periods = ();
+	push @time_periods, { value => '', label => '', class=> 'xsm'  };
+
+	if (@current_time_periods) {
+		push @time_periods, { value => '', label => '------ Current Time Periods ------', class=> 'xsm' };
+	}
+
+	foreach (@current_time_periods) {
+		push @time_periods, { 
+			value  => $_->primary_key(),
+			label  => $_->field_value('period') . ', ' 
+				. $_->field_value('academic_year') 
+				. ' (' 
+				. $_->field_value('start_date') . ' to ' 
+				. $_->field_value('end_date') 
+				. ')',
+			class	=> 'xsm'
+		};
+	}
+
+	push @time_periods, { value => '', label => '', class=> 'xsm'  };
+	push @time_periods, { value => '', label => '------ Past Time Periods ------', class=> 'xsm'  } if (@past_time_periods);
+	foreach (@past_time_periods) {
+		push @time_periods, { 
+			value  => $_->primary_key(),
+			label  => $_->field_value('period') . ', ' 
+				. $_->field_value('academic_year') 
+				. ' (' 
+				. $_->field_value('start_date') . ' to ' 
+				. $_->field_value('end_date') 
+				. ')' ,
+			class	=> 'xsm'
+		};
+	}
+
+</%perl>
+
+<& /tmpl/element:dropdown, params => { 
+	name		=> 'start_time_period_id',
+	class		=> 'xsm',
+	no_table	=> 1,
+	options		=> \@time_periods,
+	selected	=> $params->{start_time_period_id}
+} &>
+</td></tr>
+<tr><td align="right" valign="top">Ending time period:</td><td>
+
+<& /tmpl/element:dropdown, params => { 
+	name		=> 'end_time_period_id',
+	class		=> 'xsm',
+	no_table	=> 1,
+	options		=> \@time_periods,
+	selected	=> $params->{end_time_period_id}
+} &>
+</td></tr>
+<tr>
+<td align="right">Available date is between:</td>
+<td>
+<& /tmpl/element:input_calendar, params =>{
+		name => 'start_available_date',
+		size => 10,
+		maxlength => 10,
+		value => $params->{start_available_date},
+		calendar => 1, } &>
+&nbsp;and&nbsp;
+<& /tmpl/element:input_calendar, params =>{
+		name => 'end_available_date',
+		size => 10,
+		maxlength => 10,
+		value => $params->{end_available_date},
+		calendar => 1, } &>
+</td></tr>
+<tr>
+<td align="right">Due date is between:</td>
+<td>
+<& /tmpl/element:input_calendar, params =>{
+		name => 'start_due_date',
+		size => 10,
+		maxlength => 10,
+		value => $params->{start_due_date},
+		calendar => 1, } &>
+&nbsp;and&nbsp;
+<& /tmpl/element:input_calendar, params =>{
+		name => 'end_due_date',
+		size => 10,
+		maxlength => 10,
+		value => $params->{end_due_date},
+		calendar => 1, } &>
+</td></tr>
+<tr>
+	<td align="right">Include:</td>
+	<td><input type="checkbox" name="include" id="merged" value="merged" onclick="setIncludeChecks(this)" <% ($results_include_in_search{merged}) ? 'checked="checked"' : "" %> /> merged evals<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+	<input type="checkbox" name="include" id="single" value="single" onclick="setIncludeChecks(this)" <% ($results_include_in_search{single}) ? 'checked="checked"' :  '' %> /> single evals &nbsp; <span style="font-size:8pt;color:red">* required</span></td>
+</tr>
+<tr>
+	<td>&nbsp;</td>
+	<td><input type="checkbox" name="include" id="outsidetime" value="outsidetime" onclick="setIncludeChecks(this)" <% ($results_include_in_search{outsidetime}) ? 'checked="checked"' :  'disabled="disabled"' %> /><label id="outsidetimelabel" for="outsidetime" <% ($results_include_in_search{outsidetime}) ? '' :  'class="disabled"' %>>include merged evals that go outside the selected time restraints</label><br />
+	<input type="checkbox" name="include" value="onlysingle" id="onlysingle" onclick="setIncludeChecks(this)" <% ($results_include_in_search{onlysingle}) ? 'checked="checked"' : "" %> <% ($results_include_in_search{single}) ? '' :  'disabled="disabled"' %> /><label id="onlysinglelabel" for="onlysingle" <% ($results_include_in_search{single}) ? '' :  'class="disabled"' %>>only include non-merged single evals</label></td>
+</tr>
 <tr><td colspan="2" align="right"><input type="submit" value="Search" class="formbutton"> &nbsp; <input type="reset" value="reset" class="formbutton"></td></tr>
 % unless ($r->uri() =~ /form/) {
 <tr><td colspan="2" style="font-size:8pt;color:blue">Note: Enter/Modify the parameters above for a new search.</td></tr>

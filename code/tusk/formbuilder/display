@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%once>
 	use TUSK::FormBuilder::Form;
 	use TUSK::FormBuilder::FieldItem;
@@ -536,9 +551,15 @@
 			}
 			$response_text .= '</table>';
 			print $response_text;
+
+	## set height of field dynamically if it's less than 5 items
+	my $items = $field->getItems();
+	my $height;
+	if (scalar @$items < 5) {
+		$height = (scalar @$items) * 24;
+	}
 </%perl>
-<div class="multiselectdiv">
-%	my $items = $field->getItems();
+<div class="multiselectdiv"<% ($height) ? ' style="height:' . $height . 'px"' : '' %>>
 %	my $attributes = $field->getAttributes();
 %	my $field_id = $field->getPrimaryKeyID();
 <input type="hidden" id="attributes_<% $field_id %>" name="attributes_$field_id" value="<% scalar @$attributes %>">

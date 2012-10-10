@@ -37,7 +37,7 @@
 	}
 	$r->content_type('text/html');
 	$r->no_cache(1);
-	my $eval;
+	my $primary_eval;
 	my $filter = '';
 	my $filter_id = '';
 	my $merged_eval_results;
@@ -49,19 +49,19 @@
 		$merged_eval_results = HSDB45::Eval::MergedResults->lookup_path( $ENV{'PATH_INFO'} );
 	}
 
-	$eval = $merged_eval_results->parent_eval();
-	unless($eval) {
+	$primary_eval = $merged_eval_results->parent_eval();
+	unless($primary_eval) {
 		$r->status(NOT_FOUND);
 		$m->abort();
 	}
 	# Check for valid user
-	unless($eval->admin_group()->contains_user($m->session->{'user'})) {
+	unless($primary_eval->admin_group()->contains_user($m->session->{'user'})) {
 		$r->status(FORBIDDEN);
 		$m->abort();
 	}
-	if(scalar($eval->users())) {
+	if(scalar($merged_eval_results->user_codes())) {
 		my $timer = TUSK::Eval::EvalLoadTime->new();
-		$timer->setEval($eval);
+		$timer->setEval($merged_eval_results);
 		$timer->start();
 		my $parser = XML::LibXML->new();
 		my $xslt = XML::LibXSLT->new();
@@ -76,7 +76,6 @@
 		if($HIDEGROUPBY) {$hideGroup = 1;}
 		# This should only be called over http because the .xsl sheet specifically requests an http page with this host.
 		my $host = $ENV{'HTTP_HOST'};
-
 		my $results = $stylesheet->transform(
 			$source,
 			XML::LibXSLT::xpath_to_string(
@@ -84,7 +83,7 @@
 				"MERGED_ID" => $merged_eval_results->primary_key(),
 				"FILTER" => $filter,
 				"FILTER_ID" => $filter_id,
-				"COMPLETIONS" => 0,
+				"COMPLETIONS" => 1,
 				"HIDEGROUPBY" => $hideGroup,
 				"MERGED" => 1,
 			),

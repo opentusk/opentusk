@@ -477,7 +477,7 @@ sub defineLocations($) {
   	PerlHandler Apache::TUSKRSS
   };
   
-  foreach my $d (qw(eval_results merged_eval_results eval_completions eval_saved_answers)) {
+  foreach my $d (qw(eval_results merged_eval_results eval_completions merged_eval_completions eval_saved_answers)) {
   	$locations{"/XMLObject/$d/"} = qq{
   		PerlAccessHandler Apache::HSDBHostsOnly
   	};

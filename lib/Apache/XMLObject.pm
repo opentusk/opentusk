@@ -6,6 +6,7 @@ use HSDB45::Course::Formatter;
 use HSDB45::Eval::Results::Formatter;
 use HSDB45::Eval::SavedAnswers::Formatter;
 use HSDB45::Eval::Completion::Formatter;
+use HSDB45::Eval::MergedCompletion::Formatter;
 use HSDB45::Survey::Formatter;
 use HSDB45::Eval::Formatter;
 use HSDB45::Eval::Filter::Formatter;
@@ -29,6 +30,7 @@ sub handler {
 			 "merged_eval_results" => "HSDB45::Eval::MergedResults::Formatter",
 			 "eval_saved_answers" => "HSDB45::Eval::SavedAnswers::Formatter",
 			 "eval_completions" => "HSDB45::Eval::Completion::Formatter",
+			 "merged_eval_completions" => "HSDB45::Eval::MergedCompletion::Formatter",
 			 "eval" => "HSDB45::Eval::Formatter",
 			 "filtered_eval" => "HSDB45::Eval::Filter::Formatter",
 			 "survey" => "HSDB45::Survey::Formatter");

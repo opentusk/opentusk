@@ -14,7 +14,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.212 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.216 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::Constants qw(:school);
@@ -773,12 +773,11 @@ sub taken_quizzes{
 
     my $course_id = $course->primary_key();
 
-	my $only_current_timeperiods = 1;
-    my $tp_list = $course->get_current_and_future_time_periods($only_current_timeperiods);
+	my $tps = $course->get_users_active_timeperiods($self->user_id);
 	my $tp_cond = '';
-	if ($tp_list and scalar(@$tp_list)) {
-		my @tp_ids = map { $_->primary_key() } @$tp_list;
-		$tp_cond = 'and time_period_id in (' . join(',', @tp_ids) . ')' ;
+	if ($tps and scalar(@$tps)) {
+		my @tp_ids = map { $_->primary_key() } @$tps;
+		$tp_cond = 'and time_period_id in (' . join(',', @tp_ids) . ')';
 	}
     my $user_id = $self->primary_key();
 
@@ -825,28 +824,30 @@ sub current_quizzes{
 
     if ($coursearray and scalar(@$coursearray)){
 		foreach my $course (@$coursearray){
-			my $only_current_timeperiods = 1;
-		    my $tp_list = $course->get_current_and_future_time_periods($only_current_timeperiods);
-		    next unless $tp_list and scalar(@$tp_list);
+			my $tps = $course->get_users_active_timeperiods($self->user_id);
+		    next unless $tps and scalar(@$tps);
 		    my $key = $course->school . "-" . $course->course_id;
 		    my $preview_value = 0;
 
-			#Verify the user is enrolled in this course.
-			foreach my $tp (@$tp_list) {
-			    if ($course->is_user_registered($self->primary_key, $tp->primary_key)){
+			#Verify the user is enrolled in this course or is some other kind
+			#of child user.
+			my $user_is_enrolled = 0;
+			foreach my $tp (@$tps) {
+				if ($course->is_user_registered($self->primary_key, $tp->primary_key)){
 					push (@courses, $course);
+					$user_is_enrolled = 1;
 					last;
-			    } elsif ($course->is_child_user($self->primary_key, 
-				  "(find_in_set('Author', roles) > 0  or 
-		                    find_in_set('Editor', roles) > 0 or
-		                    find_in_set('Director', roles) > 0 or
-		                    find_in_set('Manager', roles) > 0)")){
+				} 
+			}
+			if (!$user_is_enrolled and $course->is_child_user($self->primary_key, 
+					  "(find_in_set('Author', roles) > 0  or 
+			                    find_in_set('Editor', roles) > 0 or
+			                    find_in_set('Director', roles) > 0 or
+			                    find_in_set('Manager', roles) > 0)")){
 					push (@courses, $course);
 					$preview_value = 1;
 					last;
-			    }
-			}	
-	
+			}
 		    $preview->{$key} = $preview_value;
 		}
     } else {
@@ -876,13 +877,12 @@ sub current_quizzes{
 		}
 	
 		my $school_id = $schoolhash->{$course->school};
-		my $only_current_timeperiods = 1;
-		my $tp_list = $course->get_current_and_future_time_periods($only_current_timeperiods);
-		next unless $tp_list and scalar(@$tp_list);
-
+		my $tps = $course->get_users_active_timeperiods($self->user_id);
 		my $tp_cond = '';
-		my @tp_ids = map { $_->primary_key() } @$tp_list;
-		$tp_cond = " and time_period_id in (" . join(',', @tp_ids) . ")";
+		if ($tps and scalar(@$tps)) {
+			my @tp_ids = map { $_->primary_key() } @$tps;
+			$tp_cond = " and time_period_id in (" . join(',', @tp_ids) . ")";
+		}
 		push (@where_clause, "(school_id =" . $school_id . " and parent_course_id = " . $course->primary_key . "$tp_cond)");
     }
 	
@@ -2303,12 +2303,13 @@ sub get_announcements_by_group_and_course{
 sub get_course_assignments {
 
     my ($self, $course) = @_;
-    my $tp = $course->get_users_current_timeperiod($self->user_id);
+	my $tps = $course->get_users_active_timeperiods($self->user_id);
+	my @tp_ids = map { $_->primary_key() } @$tps;
     my $assignments = [];
 
-    if (ref $tp eq 'HSDB45::TimePeriod' && $course->is_user_registered($self->primary_key(), $tp->primary_key())) {
-	$assignments = TUSK::Assignment::Assignment->new()->lookup("course_id = " . $course->primary_key() . " AND time_period_id = " . $tp->primary_key() . " AND school_id = " . $course->get_school->getPrimaryKeyID() . " AND available_date != '0000-00-00 00:00:00' AND available_date <= now() AND assignment.due_date != '0000-00-00 00:00:00'");
-    }
+	if (@tp_ids and scalar(@tp_ids)) {
+		$assignments = TUSK::Assignment::Assignment->new()->lookup("course_id = " . $course->primary_key() . " AND time_period_id in (" . join(',', @tp_ids)  . ") AND school_id = " . $course->get_school->getPrimaryKeyID() . " AND available_date != '0000-00-00 00:00:00' AND available_date <= now() AND assignment.due_date != '0000-00-00 00:00:00'");
+	}
 
     return $assignments;
 }

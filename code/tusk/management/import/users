@@ -50,16 +50,104 @@ my $school = $m->comp('/tmpl/url:get_school');
 				$import->add_log("summary","removed existing users from ".$ug->out_label);
 			}
 
-
+			my $rowcount = 1;
 			foreach my $r ($import->get_records) {
 				$user_id = $r->get_field_value("user_id");
+				
+				## ensure user_id isn't blank
+				(my $test_field = $user_id) =~ s/\s//g;
+				if (!$test_field) {
+					$fail++;
+					$import->add_log("error","row $rowcount: user_id missing");
+					$rowcount++;
+					next;
+				}
+				## ensure last name isn't blank
+				($test_field = $r->get_field_value("lastname")) =~ s/\s//g;
+				if (!$test_field) {
+					$fail++;
+					$import->add_log("error","row $rowcount: last name missing for $user_id");
+					$rowcount++;
+					next;
+				}
+				## ensure first name isn't blank
+				($test_field = $r->get_field_value("firstname")) =~ s/\s//g;
+				if (!$test_field) {
+					$fail++;
+					$import->add_log("error","row $rowcount: first name missing for $user_id");
+					$rowcount++;
+					next;
+				}
+				## ensure email isn't blank
+				($test_field = $r->get_field_value("email")) =~ s/\s//g;
+				if (!$test_field) {
+					$fail++;
+					$import->add_log("error","row $rowcount: email missing for $user_id");
+					$rowcount++;
+					next;
+				}
+
+				## warn if sid is blank
+				($test_field = $r->get_field_value("sid")) =~ s/\s//g;
+				if (!$test_field) {
+					$import->add_log("warn","row $rowcount: sid missing for $user_id");
+				}
+				## warn if trunk is blank
+				($test_field = $r->get_field_value("trunk")) =~ s/\s//g;
+				if (!$test_field) {
+					$import->add_log("warn","row $rowcount: trunk missing for $user_id");
+				}
+				
 				$import->add_log("record","looking up user_id: $user_id");
 				$user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 
 				if ($user->primary_key) {
-					$import->add_log("warn", "$user_id exists - will update account");
+					## if sid was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("sid")) =~ s/\s//g;
+					if ($test_field && $user->field_value('sid') && ($user->field_value('sid') ne $r->get_field_value("sid"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and sid value is different");
+						$rowcount++;
+						next;
+					}
+					## if trunk was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("trunk")) =~ s/\s//g;
+					if ($test_field && $user->field_value('trunk') && ($user->field_value('trunk') ne $r->get_field_value("trunk"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and trunk value is different");
+						$rowcount++;
+						next;
+					}
+					## if first name was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("firstname")) =~ s/\s//g;
+					if ($test_field && $user->first_name() && ($user->first_name() ne $r->get_field_value("firstname"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and first name value is different");
+						$rowcount++;
+						next;
+					}
+					## if last name was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("lastname")) =~ s/\s//g;
+					if ($test_field && $user->last_name() && ($user->last_name() ne $r->get_field_value("lastname"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and last name value is different");
+						$rowcount++;
+						next;
+					}
+					## if email was included and it's different from what's in the DB, throw error
+					($test_field = $r->get_field_value("email")) =~ s/\s//g;
+					if ($test_field && $user->email() && ($user->email() ne $r->get_field_value("email"))) {
+						$fail++;
+						$import->add_log("error", "row $rowcount: $user_id exists and email value is different");
+						$rowcount++;
+						next;
+					}
+
+					## otherwise, update existing user
+					$import->add_log("record", "row $rowcount: $user_id exists - will update account");
 				}
 
+				$rowcount++;
 				if ($ARGS{save}) {
 					if (!$user->primary_key) {
 						$user->primary_key($user_id);
@@ -72,7 +160,12 @@ my $school = $m->comp('/tmpl/url:get_school');
 					foreach my $field (@file_fields) {
 						next if $field =~ /^user_id$/;
 						next unless grep { $field =~ /$_/ } $user->fields;
-						$user->field_value($field,$r->get_field_value($field));
+
+						## check to make sure new value isn't just spaces before saving
+						($test_field = $r->get_field_value($field)) =~ s/\s//g;
+						if ($test_field) {
+							$user->field_value($field,$r->get_field_value($field));
+						}
 					}	
 
 					## determine what affiliation to give the user
@@ -97,7 +190,7 @@ my $school = $m->comp('/tmpl/url:get_school');
 							$import->add_log("warn", "$user_id already in ".$ug->out_label." user group");	
 						} else {
 							$ug->add_user($user,$TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
-							$import->add_log("record", "$user_id added to ".$ug->out_label." user group");	
+							$import->add_log("record", " $user_id added to ".$ug->out_label." user group");	
 						}
 					}									 
 
@@ -174,19 +267,18 @@ Choose user group to add all users (optional)
 </tr>
 </table>
 </form>
-% my $i = 1 ;
+% if (@logs) {
+<h4>Log Errors</h4>
 % foreach my $log (@logs) {
 %	 if ($log->get_type =~ /(error)/) {
-		<div class="<% $log->get_type %>"><% $log->get_type %> <% $i %>: <% $log->get_message %></div>
-%	    $i ++;
+		<div class="<% $log->get_type %>"><% $log->get_type %> <% $log->get_message %></div>
 % 	 }
 % } # end foreach
-% if (@logs) {
 <h4>Log Messages</h4>
 % foreach my $log (@logs) {
-	<div class="<% $log->get_type %>"><% $log->get_message %></div>
+	<div class="<% $log->get_type %>"> <% $log->get_message %></div>
 % } 
-% } # end if
+% } # end if (@logs)
 % if (@errMsgs) {
 <h4> Import Errors </h4>
 % 	foreach my $msg (@errMsgs) {

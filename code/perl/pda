@@ -3,6 +3,7 @@
 #use Apache::Constants;
 use TUSK::Constants;
 use HSDB4::Constants;
+use TUSK::Core::School;
 use HSDB45::UserGroup;
 use Time::Local;
 use Palm::DBA;
@@ -26,8 +27,17 @@ my @gmtTimeComponents = gmtime(time());
 my $gmtTimeStamp = ($gmtTimeComponents[5] + 1900) . sprintf("%02d", $gmtTimeComponents[4]+1) . sprintf("%02d",$gmtTimeComponents[3]) . 'T' . sprintf("%02d",$gmtTimeComponents[2]) . sprintf("%02d",$gmtTimeComponents[1]) . sprintf("%02d",$gmtTimeComponents[0]) . 'Z';
 
 $icsTimeZone =~ s:\.:/:g;
-# go grab the meetings!!
-my @meetings = ($user_group) ? $user_group->time_period_meetings($date) : ();
+my @meetings = ();
+my ($ug_school_name, $ug_school_code, $ug_school);
+
+if ($user_group) {
+	@meetings = $user_group->time_period_meetings($date);
+	$ug_school_name = $user_group->school;
+	$ug_school_code = HSDB4::Constants::code_by_school($ug_school_name);
+	$ug_school = TUSK::Core::School->new()->lookupReturnOne("school_name='$ug_school_name'");
+}
+
+
 my @output;
 my $count = 0;
 foreach my $meeting (@meetings){
@@ -65,11 +75,10 @@ foreach my $meeting (@meetings){
 	#Add an Ical Entry
 	my $startTime = parseCalDate($date, $start);
 	my $endTime = parseCalDate($date, $end);
-	my $school_code = HSDB4::Constants::code_by_school($meeting->course->get_school()->getSchoolName());
-	my $uid = $school_code . $meeting->primary_key.'@'. $TUSK::Constants::Domain;
+	my $uid = $ug_school_code . $meeting->primary_key.'@'. $TUSK::Constants::Domain;
 
 	$entry = "BEGIN:VEVENT\r\n";
-		$entry.= 'ORGANIZER;CN="'. $meeting->course->get_school()->getSchoolDisplay() .'":invalid:nomail'. "\r\n";
+	$entry.= 'ORGANIZER;CN="'. $ug_school->getSchoolDisplay() .'":invalid:nomail'. "\r\n";
 	if(@faculty) {
 		foreach my $facultyMember (@faculty) {
 			if(!$facultyMember->email) {$entry.= 'ATTENDEE;CN="'. $facultyMember->out_full_name .'";RSVP=FALSE:invalid:nomail'. "\r\n";}
@@ -81,7 +90,7 @@ foreach my $meeting (@meetings){
     	}
 	$entry.= "UID:$uid\r\n";
 	$entry.= "SUMMARY:$title\r\n";
-	$entry.= "URL:http://". $TUSK::Constants::Domain ."/view/course/" . $meeting->course->school() ."/". $meeting->course->primary_key() ."\r\n";
+	$entry.= "URL:http://". $TUSK::Constants::Domain ."/view/course/" . $ug_school_name ."/". $meeting->course->primary_key() ."\r\n";
 	$entry.= "DTSTART;TZID=$icsTimeZone:$startTime\r\n";
 	$entry.= "LOCATION:$location\r\n";
 	$entry.= "DTSTAMP:$gmtTimeStamp\r\n";

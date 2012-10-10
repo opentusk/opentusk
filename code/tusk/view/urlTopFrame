@@ -39,15 +39,26 @@
 <& SELF:tuskbar &>
 
 <%doc>
-statref links cannot be shown in a frame. we called statref, they are unable or
-unwilling to fix this. therefore, if link is to statref, present the user with
-a link to launch the link in a new window (outside of the frame).
+some users and/or platforms don't handle frames well, so this provides a link 
+to launch the contentin a new window (outside of the frame).
 </%doc>
-% if($document->type() eq 'URL'){
-%	my $ext_url = $document->out_external_url();
-%	if($ext_url =~ /http:\/\/online\.statref\.com/){
-<div style="margin-top:2px; margin-bottom:0px; padding: 0 5px; border:1px solid black; background:#fff9df;">If the content below does not display correctly, you can view it in a <a href="<% $ext_url %>" target="_blank">new window</a>.</div>
+% my $content_url;
+% if ($document->type() eq 'External'){
+%	if ($document->get_external_source()){
+%		$content_url = '/view/urlExternalContent/' . $document->primary_key();
 %	}
+% } elsif ($document->type() eq 'Document'){
+%	$content_url = '/view/minStyle/content/' . $document->primary_key();
+% } elsif ($document->type() eq 'URL'){
+% 	$content_url = $document->out_external_url();
+% } elsif ($document->type() eq 'PDF'){
+% 	$content_url = $document->out_external_url();
+% } else {
+% 	$content_url = '/download/' . $document->primary_key();
+% }
+
+% if($document->type() eq 'URL' || $document->type() eq 'PDF' || $document->type() eq 'External'){
+<div style="margin-top:2px; margin-bottom:0px; padding: 0 5px; border:1px solid black; background:#fff9df;">If the content below does not display correctly, you can view it in a <a href="<% $content_url %>" target="_blank">new window</a>.</div>
 % }
 
 

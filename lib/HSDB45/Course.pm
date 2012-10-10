@@ -6,7 +6,7 @@ BEGIN {
     use vars qw($VERSION @non_blob_fields %primary_keys);
     use base qw/HSDB4::SQLRow/;
     
-    $VERSION = do { my @r = (q$Revision: 1.141 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.145 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version {
@@ -743,32 +743,32 @@ sub get_current_timeperiod{
     my @tp_ids;
  
     unless ($self->{-current_timeperiod}){
-    my $timeperiods = $self->get_time_periods();
-	$self->{-current_timeperiod} = 0;
-	if ($timeperiods and scalar(@$timeperiods)){
-	    foreach my $tp (@$timeperiods){
-		push (@tp_ids, $tp->primary_key);
+	    my $timeperiods = $self->get_time_periods();
+		$self->{-current_timeperiod} = 0;
+		if ($timeperiods and scalar(@$timeperiods)){
+			    foreach my $tp (@$timeperiods){
+					push (@tp_ids, $tp->primary_key);
+			    }
+		
+			    my @non_past_tps = HSDB45::TimePeriod->new( _school => $self->school() )->lookup_conditions("time_period_id in (" . join(',', @tp_ids) . ") and start_date <= curdate() and end_date >= curdate()", "ORDER BY start_date DESC, end_date ASC");
+		
+			    if (!$self->associate_user_group() and scalar(@non_past_tps) > 1){
+					my @enrollment_time_periods = $self->get_time_periods_for_enrollment();
+					my %enrollment_tp_hash = map {$_ => 1} @enrollment_time_periods;
+		
+					foreach my $np_tp (@non_past_tps){
+				    	if ($enrollment_tp_hash{$np_tp->primary_key()}){
+							$self->{-current_timeperiod} = $np_tp;
+							last;
+				    	}
+					}
+			    }
+		
+			    if (scalar(@non_past_tps) and !$self->{-current_timeperiod}){
+					$self->{-current_timeperiod} = $non_past_tps[0]; # we want the last time period
+			    }
+			}
 	    }
-
-	    my @non_past_tps = HSDB45::TimePeriod->new( _school => $self->school() )->lookup_conditions("time_period_id in (" . join(',', @tp_ids) . ") and start_date <= curdate() and end_date >= curdate()", "ORDER BY start_date DESC, end_date ASC");
-
-	    if (!$self->associate_user_group() and scalar(@non_past_tps) > 1){
-		my @enrollment_time_periods = $self->get_time_periods_for_enrollment();
-		my %enrollment_tp_hash = map {$_ => 1} @enrollment_time_periods;
-
-		foreach my $np_tp (@non_past_tps){
-		    if ($enrollment_tp_hash{$np_tp->primary_key()}){
-			$self->{-current_timeperiod} = $np_tp;
-			last;
-		    }
-		}
-	    }
-
-	    if (scalar(@non_past_tps) and !$self->{-current_timeperiod}){
-		$self->{-current_timeperiod} = $non_past_tps[0]; # we want the last time period
-	    }
-	}
-    }
 
     return ($self->{-current_timeperiod});
 }
@@ -777,10 +777,10 @@ sub get_current_timeperiod{
 
 =item B<get_users_current_timeperiod>
 
-    $timeperiods = $course->get_users_current_timeperiod($user);
+    $timeperiod = $course->get_users_current_timeperiod($user);
 
-	Return the time period associated 
-	NOTE: get_current_timeperiod should probably be used instead.
+	Return the most recent time period in which a student is linked
+	to this course.
 
 =cut
 
@@ -791,13 +791,12 @@ sub get_users_current_timeperiod{
 
     my $dbh = HSDB4::Constants::def_db_handle;
     my $db = $self->school_db();
-	my $sql = qq[select lcs.time_period_id from $db\.link_course_student lcs, $db\.time_period tp where parent_course_id = ? and child_user_id = ? and start_date <= curdate() and end_date >= curdate()];
+	my $sql = "select lcs.time_period_id from $db.link_course_student lcs join $db.time_period tp on lcs.time_period_id = tp.time_period_id where parent_course_id = " . $self->primary_key() . " and child_user_id = '$user' and start_date <= curdate() and end_date >= curdate() order by start_date desc";
 	
 	eval {
 		my $sth = $dbh->prepare($sql);
-		$sth->execute($self->primary_key(), $user);
+		$sth->execute();
 		($tp_id) = $sth->fetchrow_array();
-
 		$sth->finish;
 	};
 
@@ -806,6 +805,56 @@ sub get_users_current_timeperiod{
 	}
 
 	return $tp;
+}
+
+
+########################################################
+
+=item B<get_users_active_timeperiods>
+
+    $timeperiods = $course->get_users_active_timeperiods($user);
+
+	Find all ongoing timeperiods in which a user is enrolled in this course.
+	Returns an arrayref of HSDB45::TimePeriod objects.
+
+=cut
+
+sub get_users_active_timeperiods {
+	my ($self, $user) = @_;
+	my $dbh = HSDB4::Constants::def_db_handle;
+	my $db = $self->school_db();
+
+	#Get all currently ongoing timeperiods for this course.
+	my $only_current_timeperiods = 1;
+	my $ongoing_tps = $self->get_current_and_future_time_periods($only_current_timeperiods);
+	my %ongoing_tp_hash;	
+	map { $ongoing_tp_hash{$_->primary_key()} = 1 } @$ongoing_tps;
+
+	#Then, compare ongoing timeperiods to timeperiods in which the student is enrolled, taking
+	#the union of these two lists (i.e. only current timeperiods in which the student is enrolled).
+	my %enrolled_tps;  
+	my $sql = "select lcs.time_period_id from $db.link_course_student lcs join $db.time_period tp on lcs.time_period_id = tp.time_period_id where parent_course_id = " . $self->primary_key() . " and child_user_id = '$user'";
+
+	eval {
+		my $sth = $dbh->prepare($sql);
+		$sth->execute();
+		my $result;
+		while ($result = $sth->fetchrow_arrayref()) {
+			$enrolled_tps{$result->[0]} = 1;
+		}
+		$sth->finish;
+	};
+	
+	foreach my $ongoing_tp (keys(%ongoing_tp_hash)) {
+		#Ignore this timeperiod if the user is not enrolled in it.
+		unless ($enrolled_tps{$ongoing_tp}) {
+			delete $ongoing_tp_hash{$ongoing_tp}; 
+			next;
+		}
+		$ongoing_tp_hash{$ongoing_tp} = HSDB45::TimePeriod->new( _school => $self->school())->lookup_key($ongoing_tp);
+	}
+	my @active_timeperiods_for_user = values(%ongoing_tp_hash);
+	return \@active_timeperiods_for_user;
 }
 
 
@@ -841,7 +890,7 @@ sub get_students {
 	my $site_condition = (defined $site_id) ? "AND teaching_site_id = $site_id" : '';
     
     if (ref($timeperiod_id) eq 'ARRAY') {
-		@students = sort { $a->{lastname} cmp $b->{lastname} } $self->student_link()->get_children($self->primary_key,"time_period_id IN(" . join(",", @$timeperiod_id) . ") $site_condition")->children();
+		@students = sort { $a->{lastname} cmp $b->{lastname} } $self->student_link()->get_children($self->primary_key,"time_period_id IN(" . join(",", @$timeperiod_id) . ") $site_condition GROUP BY user_id")->children();
     }
     else {
 		@students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id $site_condition")->children();
@@ -1169,6 +1218,7 @@ sub can_user_edit {
     my $user = shift;
     # first check the user's role (as opposed to label) in this course
     my $role = $self->user_primary_role($user->primary_key);
+
     return 1 if ($role =~ /(Director|Manager|Author|Editor|Student Manager|Student Editor|Site Director)/);
     my @groups = $user->parent_user_groups;
     foreach (@groups) {
@@ -1516,7 +1566,8 @@ sub get_self_assessment_quizzes{
     my ($quizzes);
 
     my $school_id = TUSK::Core::School->new->getSchoolID($self->school);
-	my $tp_list = $self->get_current_and_future_time_periods();
+	my $tp_list = $self->get_users_active_timeperiods($user);
+	
 	my $tp_cond = "";
 	if ($tp_list and scalar(@$tp_list)) {
 		my @tp_ids = map { $_->primary_key() } @$tp_list;

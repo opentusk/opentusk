@@ -112,7 +112,7 @@ sub add_content_sub{
 
     $fdat{filename} =~ s/$path{'temp'}//;
     unless (-e $path{'temp'} . "/" . $fdat{filename}) {
-	warn("Unable to create content because $path{'temp'} . "/" . $fdat{filename} does not exist\n");
+	warn("Unable to create content because " . $path{'temp'} . "/" . $fdat{filename} . " does not exist\n");
 	return (0, "The file could not be found.  Please try to upload again.");
     }
     ($rval, $req->{content_id}) = add_content($req->{user}, %fdat);

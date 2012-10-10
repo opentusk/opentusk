@@ -16,7 +16,7 @@ BEGIN {
 
     @EXPORT = qw(@monthNames %months @dayAbbr);
     @EXPORT_OK = qw();
-    $VERSION = do { my @r = (q$Revision: 1.22 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.23 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 
@@ -417,6 +417,15 @@ sub add_days {
     return unless $self->has_value();
     my $day_secs = $days * 60 * 60 * 24;
     $self->{-time} += $day_secs;
+    return;
+}
+
+sub subtract_hours {
+    my $self = shift;
+    my $hrs = shift;
+    return unless $self->has_value();
+    my $hrs_as_secs = $hrs * 60 * 60;
+    $self->{-time} -= $hrs_as_secs;
     return;
 }
 

@@ -23,21 +23,22 @@ sub new {
 sub getReport {
 	my ($self) = @_;
 	my $sql = qq(
-				 select
+				 SELECT
 				 child_user_id,
-				 (select concat(lastname, ', ', firstname)
-				  from hsdb4.user b
-				  where a.child_user_id = b.user_id) as studentname,
-				 (select count(*)
-				  from tusk.form_builder_entry c
-				  where a.time_period_id = c.time_period_id  
-				  and a.child_user_id = c.user_id
-				  and form_id = $self->{_form_id}) as patients
-				 from $self->{_db}.link_course_student a 
-				 where a.parent_course_id = $self->{_course_id}
-				 and time_period_id in ($self->{_time_period_ids_string})
-				 and teaching_site_id = $self->{_site_id}
-				 order by studentname
+				 (SELECT CONCAT(lastname, ', ', firstname)
+				  FROM hsdb4.user b
+				  WHERE a.child_user_id = b.user_id) AS studentname,
+				 (SELECT COUNT(*)
+				  FROM tusk.form_builder_entry c
+				  WHERE time_period_id IN ($self->{_time_period_ids_string})  
+				  AND a.child_user_id = c.user_id
+				  AND form_id = $self->{_form_id}) AS patients
+				 FROM $self->{_db}.link_course_student a 
+				 WHERE a.parent_course_id = $self->{_course_id}
+				 AND time_period_id in ($self->{_time_period_ids_string})
+				 AND teaching_site_id = $self->{_site_id}
+				 GROUP BY child_user_id
+				 ORDER BY studentname
 				 );
 
 	my $sth = $self->{_form}->databaseSelect($sql);

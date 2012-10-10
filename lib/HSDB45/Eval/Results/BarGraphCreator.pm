@@ -16,7 +16,7 @@ use TUSK::Graphs::EvalStackedBar;
 
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.18 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.19 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 sub version { return $VERSION; }
 
 my @mod_deps  = ('HSDB45::Eval::Results',
@@ -189,6 +189,19 @@ sub save_svg_graphs {
 		my @graphBars;
 		if($categories) {
 			my @responseGroups = $questionResult->findnodes('Categorization/ResponseGroup');
+
+			# Grab the all data
+			my $tempHash = {
+				'name'	=> 'All',
+				'value'	=> $mean,
+				'mean'	=> $mean,
+				'SD'	=> $questionResult->findvalue('ResponseGroup/ResponseStatistics/standard_deviation'),
+				'N'	=> $questionResult->findvalue('ResponseGroup/ResponseStatistics/response_count'),
+				'NA'	=> $questionResult->findvalue('ResponseGroup/ResponseStatistics/na_response_count'),
+			};
+			if(${$tempHash}{'SD'} < .009) {${$tempHash}{'SD'} ="--";}
+			push @graphBars, $tempHash;
+
 			foreach my $responseGroup (@responseGroups) {
 				my $tempName = $responseGroup->findvalue('grouping_value');
 				$tempName =~ s/ /&nbsp;/g;
@@ -205,17 +218,6 @@ sub save_svg_graphs {
 				};
 				push @graphBars, $tempHash;
 			}
-			# Now grab the all data
-			my $tempHash = {
-				'name'	=> 'All',
-				'value'	=> $mean,
-				'mean'	=> $mean,
-				'SD'	=> $questionResult->findvalue('ResponseGroup/ResponseStatistics/standard_deviation'),
-				'N'	=> $questionResult->findvalue('ResponseGroup/ResponseStatistics/response_count'),
-				'NA'	=> $questionResult->findvalue('ResponseGroup/ResponseStatistics/na_response_count'),
-			};
-			if(${$tempHash}{'SD'} < .009) {${$tempHash}{'SD'} ="--";}
-			push @graphBars, $tempHash;
 		}
 
 		#

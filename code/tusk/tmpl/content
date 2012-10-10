@@ -210,9 +210,25 @@ function getStatus(){
 	var time = new Date();    // append to url to avoid caching
 	$.getJSON('/tusk/ajax/tuskdoc_conversion_status/<% $content_id %>' + '?' + time.getTime(), function(data){
 	    $('#tdStatusBox').html(data.statusMsg);
-		
-		if (data.completed != null && data.completed != 1) {
-	        setTimeout('checkStatus()', '15000');
+
+		// null returned if user didn't have permission to request status
+		if (data.completed != null) {	
+			if (data.completed != 1) {
+				$('#tdStatusBox')[0].not_completed = 1;
+				setTimeout('checkStatus()', '15000');
+			}
+			else {
+				// this element is used on two pages, make sure we are in student view
+				if (window.location.href.search(/view\/content/) > 0) {
+					// will only have this property if it has gone through at least one
+					// update previously (meaning it has transitioned from a non-completed
+					// to a completed status.
+					if ($('#tdStatusBox')[0].not_completed) {
+						alert('This TUSKdoc has completed processing. Click "OK" to refresh the page and retrieve the content.');
+						window.location.reload();
+					}
+				}
+			}
 		}
 	});
 }

@@ -111,32 +111,33 @@ sub setNotes {
 sub getCurrentAssignments {
     my ($self) = @_;
     my @assignment_links = ();
-    my $tp = $self->{course}->get_users_current_timeperiod($self->{user_id});
+	my $tps = $self->{course}->get_users_active_timeperiods($self->{user_id});
+	my @tp_ids = map { $_->primary_key() } @$tps;
 
-    if (ref $tp eq 'HSDB45::TimePeriod' && $self->{course}->is_user_registered($self->{user_id}, $tp->primary_key)) {
-	my $assignments = TUSK::Assignment::Assignment->new()->lookup(
-	      "course_id = " . $self->{course}->primary_key 
-	      . " AND time_period_id = " . $tp->primary_key() 
-	      . " AND school_id = " . TUSK::Core::School->new()->getSchoolID($self->{school}) 
-	      . " AND available_date != '0000-00-00 00:00:00' AND available_date <= now()",
-		  ["assignment.sort_order"]);
-
-	my $sth;
-	foreach my $assignment (@{$assignments}) {
-	    if ($assignment->getGroupFlag()) {
-		my $db = $self->{course}->get_school()->getSchoolDb();
-		$sth = $assignment->databaseSelect("select max(submit_date) from tusk.assignment_submission where link_id in (select link_assignment_user_group_id from tusk.link_assignment_user_group where parent_assignment_id = " . $assignment->getPrimaryKeyID() . " and child_user_group_id in (select parent_user_group_id from $db\.link_user_group_user where child_user_id = '$self->{user_id}')) and link_type = 'link_assignment_user_group'");
-	    } else { 
-		$sth = $assignment->databaseSelect("select max(submit_date) from tusk.assignment_submission where link_id = (select link_assignment_student_id from tusk.link_assignment_student where parent_assignment_id = " . $assignment->getPrimaryKeyID() . " and child_user_id = '$self->{user_id}') and link_type = 'link_assignment_student'");
-	    }
-
-	    my ($submit_date) = $sth->fetchrow_array();
-	    $sth->finish();
-	    push @assignment_links, { assignment => $assignment, submit_date => $submit_date};
+	if (@tp_ids and scalar(@tp_ids)) {
+		my $assignments = TUSK::Assignment::Assignment->new()->lookup(
+		      "course_id = " . $self->{course}->primary_key 
+		      . " AND time_period_id in (" . join(',', @tp_ids) . ")" 
+		      . " AND school_id = " . TUSK::Core::School->new()->getSchoolID($self->{school}) 
+		      . " AND available_date != '0000-00-00 00:00:00' AND available_date <= now()",
+			  ["assignment.sort_order"]);
+	
+		my $sth;
+		foreach my $assignment (@{$assignments}) {
+		    if ($assignment->getGroupFlag()) {
+			my $db = $self->{course}->get_school()->getSchoolDb();
+			$sth = $assignment->databaseSelect("select max(submit_date) from tusk.assignment_submission where link_id in (select link_assignment_user_group_id from tusk.link_assignment_user_group where parent_assignment_id = " . $assignment->getPrimaryKeyID() . " and child_user_group_id in (select parent_user_group_id from $db\.link_user_group_user where child_user_id = '$self->{user_id}')) and link_type = 'link_assignment_user_group'");
+		    } else { 
+			$sth = $assignment->databaseSelect("select max(submit_date) from tusk.assignment_submission where link_id = (select link_assignment_student_id from tusk.link_assignment_student where parent_assignment_id = " . $assignment->getPrimaryKeyID() . " and child_user_id = '$self->{user_id}') and link_type = 'link_assignment_student'");
+		    }
+	
+		    my ($submit_date) = $sth->fetchrow_array();
+		    $sth->finish();
+		    push @assignment_links, { assignment => $assignment, submit_date => $submit_date};
+	
+		}
 
 	}
-    }
-
     return \@assignment_links;
 }
 

@@ -1,0 +1,1 @@
+ALTER TABLE tusk.competency MODIFY title varchar(350);
