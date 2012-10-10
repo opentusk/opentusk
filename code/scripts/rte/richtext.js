@@ -36,9 +36,10 @@ function initRTE(imgPath, incPath, css, genXHTML) {
 	
 	//check to see if designMode mode is available
 	//Safari/Konqueror think they are designMode capable even though they are not
-	if (document.getElementById && document.designMode && !isSafari && !isKonqueror) {
+	if (document.getElementById && document.designMode && !isKonqueror) {
 		isRichText = true;
 	}
+
 	
 	if (isIE) {
 		document.onmouseover = raiseButton;

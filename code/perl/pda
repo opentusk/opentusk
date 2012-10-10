@@ -83,6 +83,7 @@ foreach my $meeting (@meetings){
 	$entry.= "LOCATION:$location\r\n";
 	$entry.= "DTSTAMP:$gmtTimeStamp\r\n";
 	$entry.= "CREATED:$gmtTimeStamp\r\n";
+	$entry.= "LAST-MODIFIED:$gmtTimeStamp\r\n";
 	$entry.= "DTEND;TZID=$icsTimeZone:$endTime\r\n";
 	$entry.= "END:VEVENT";
     }else{
@@ -97,7 +98,7 @@ foreach my $meeting (@meetings){
 
 # we are sending either a palm pda file or a csv file
 if($type eq 'ics') {
-	$r->content_type("text/calendar;charset=UTF-8"); 
+	$r->content_type("text/calendar"); 
 } else {
 	$r->content_type("text/unknown"); 
 }
@@ -117,6 +118,8 @@ if ($type eq "outlook"){
     Palm::DBA::write_contents(\@output, 0, ((localtime)[2] - (gmtime)[2]));
 }elsif($type eq 'ics') {
 	$r->header_out("Content-disposition","attachment; filename=".$school_name."_schedule.ics");
+	$r->header_out("Cache-Control", "no-cache, must-revalidate");
+	$r->header_out('Expires', 'Sat, 26 Jul 1997 05:00:00 GMT');
 	$r->send_http_header;
 
 	print "BEGIN:VCALENDAR\r\n";

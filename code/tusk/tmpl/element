@@ -2088,3 +2088,84 @@ $inactive_image => '/graphics/icons/move_16_inactive.png'
 		} @{$params{checkboxes}})
 } &>
 </%method>
+
+<%method scrollable_display_table>
+<%doc>
+Method to set up table that takes advantage of the scrollableFixedHeaderTable jquery plugin
+- supports 1 or 2 header (top) rows
+	- assumes if there is an uneven number of cells between the rows that there is an consistent colspan between the two
+- supports 1 header (left) column
+- requires the CSS file /scripts/jquery/plugin/scrollablefixedheadertable/css/scrollableFixedHeaderTable.css and the following js files
+	- jquery/jquery.min.js
+	- jquery/plugin/scrollablefixedheadertable/scripts/wrapper.min.js
+</%doc>
+<%args>
+$table_id					# string for table id attribute
+$table_classes => []		# array reference for additional table classes
+$zebra_striping => ''		# string to enable zebra (odd/even) striping
+$corner_text => '&nbsp;'	# string for the top left cell
+$default_value => 0			# default data cell value
+$cell_data					# hash reference for data cell contents: $cell_data{row_id}{first_col_id}{second_col_id}
+$cell_css => {}				# hash reference for data cell CSS: $table_css{row_id}{first_col_id}{second_col_id}
+$colheaders					# reference for array of arrays of column headers hashes {id =>, name => }
+$rowheaders					# reference for array of arrays of row headers {id =>, name => }
+</%args>
+
+% push(@$table_classes, "scrollableFixedHeaderTable");
+<& SELF:table, params => { border =>"0", cellspacing =>"1", cellpadding =>"0", width => 'auto', id => $table_id, class => join(" ", @$table_classes)} &>
+<thead>
+% ## display first header row and, if it exists, the second header row
+%	my ($colspan, $colspan_text);
+%	if ($colheaders->[1]) {
+%		$colspan = scalar @{$colheaders->[1]} / scalar @{$colheaders->[0]};
+%		$colspan_text = ' colspan="' . $colspan . '"';
+%	}
+<tr class="header">
+	<th class="first" nowrap="nowrap"><span class="outer"><% $corner_text %></span></th>
+%	foreach my $colheader (@{$colheaders->[0]}) {
+	<th<% $colspan_text %> nowrap="nowrap"><span class="outer"><% $colheader->{name} %></span></th>
+%	}
+</tr>
+%	if ($colheaders->[1]) {
+<tr class="header">
+	<th class="first" nowrap="nowrap"><span class="outer">&nbsp;</span></th>
+%	foreach my $colheader (@{$colheaders->[1]}) {
+	<th nowrap="nowrap"><span class="outer"><% $colheader->{name} %></span></th>
+%	}
+</tr>
+%	}
+</thead>
+% ## display row header and data cells
+<tbody>
+%	my $class;
+%	my $rowcounter = 0;
+%	foreach my $rowheader (@{$rowheaders->[0]}) {
+%		if ($zebra_striping) {
+%			$class = ($rowcounter++ % 2 == 0) ? "even" : "odd";
+%		}
+%		if ($rowheader->{class}) {
+%			$class = $class . " " . $rowheader->{class};
+%		}
+<tr class="<% $class %>">
+	<td class="first" nowrap="nowrap"><span class="outer"><% $rowheader->{name} %></span></td>
+%		my $colcounter = 0;
+%		foreach my $colheader (@{$colheaders->[0]}) {
+%			if ($colspan) {
+%				my $innercounter;
+%				for ($innercounter = 0; $innercounter < $colspan; $innercounter++) {
+%					my $value = $cell_data->{$rowheader->{id}}->{$colheader->{id}}->{$colheaders->[1]->[$innercounter + $colcounter]->{id}} || $default_value;
+	<td nowrap="nowrap" class="<% $cell_css->{$rowheader->{id}}->{$colheader->{id}}->{$colheaders->[1]->[$innercounter + $colcounter]->{id}} %>"><span class="outer"><% $value %></span></td>
+%				}
+%				$colcounter += $innercounter;
+%			}
+%			else {
+%				my $value = $cell_data->{$rowheader->{id}}->{$colheader->{id}} || $default_value;
+	<td nowrap="nowrap" class="<% $cell_css->{$rowheader->{id}}->{$colheader->{id}} %>"><span class="outer"><% $value %></span></td>
+%			}
+%		}
+</tr>
+%	}
+</tbody>
+</table>
+</%method>
+

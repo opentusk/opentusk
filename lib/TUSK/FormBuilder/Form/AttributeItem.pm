@@ -20,6 +20,8 @@ B<TUSK::FormBuilder::Form::AttributeItem> - Class for manipulating entries in ta
 =cut
 
 use strict;
+use TUSK::FormBuilder::Form::AttributeFieldItem;
+use TUSK::FormBuilder::FieldItem;
 
 BEGIN {
     require Exporter;
@@ -71,6 +73,7 @@ sub new {
     # Finish initialization...
     return $self;
 }
+
 
 ### Get/Set methods
 
@@ -266,6 +269,35 @@ sub setMaxValue{
 =cut
 
 ### Other Methods
+
+#######################################################
+
+=item B<delete>
+
+    $retval = $obj->delete();
+
+	Before deleting this AttributeItem, delete any associated 
+	FieldItems relying on this, as well as the AttributeFieldItem
+	link.
+
+=cut
+
+sub delete{
+	my ($self, $params) = @_;
+	my $id = $self->getPrimaryKeyID();	
+	my $attribute_field_items = TUSK::FormBuilder::Form::AttributeFieldItem->lookup("attribute_item_id = $id");
+	foreach my $attribute_field_item (@$attribute_field_items) {
+		my $field_item_id = $attribute_field_item->getFieldItemID();
+		my $field_item = TUSK::FormBuilder::FieldItem->lookupReturnOne("item_id = $field_item_id");
+		$field_item->delete($params);
+		$attribute_field_item->delete($params);
+	}
+	
+	return $self->SUPER::delete($params);
+}
+
+#######################################################
+
 
 =head1 BUGS
 

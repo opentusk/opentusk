@@ -8,6 +8,8 @@ $(function() {
 
 	showHideUA();
 	$('#addrubric').click(showHideUA);	
+
+	$('a[id^="remove_"]').click(deletePerformanceLevel);
 });
 
 function scoreDisplayChange() {
@@ -52,5 +54,12 @@ function showHideUA() {
 		}
 	} else {
 		$('#ua_checkbox').hide();
+	}
+}
+
+
+function deletePerformanceLevel() {
+	if ($('#num_performance_criteria_id').val() > 0) {
+		return confirm("Deleting a Performance Level will remove the level and its associated comments from each criteria in this assessment.\nAre you sure you want to continue?");
 	}
 }

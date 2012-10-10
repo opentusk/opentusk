@@ -2,13 +2,14 @@
 	use TUSK::FormBuilder::Assessment;
 	use TUSK::FormBuilder::Form::Attribute;
 	use TUSK::FormBuilder::Form::AttributeItem;
+	use TUSK::FormBuilder::Form::AttributeFieldItem;
+	use TUSK::FormBuilder::FieldItem;
 </%once>
 
 <%shared>
 	my $parent = '/formbuilder/author/addedit';
 	my $course = $m->comp('/tmpl/url:get_type_object');
 	my ($form_id) = $m->comp("/tmpl/url:get_last_path_id");
-	my $form;
 	my $path = 'assessment/author';
 	my $rubric_data = [];
 	my $assessment_form;
@@ -108,9 +109,29 @@
 		display_data => $rubric_data 
 	);
 
+	#Add new Performance Levels to prexisting Performance Criteria.
+	my $form_attr_items = TUSK::FormBuilder::Form::AttributeItem->lookup("attribute_id = $attribute_id", ['form_builder_form_attribute_item.sort_order desc'], undef, undef,
+						[TUSK::Core::JoinObject->new('TUSK::FormBuilder::Form::AttributeFieldItem', {joinkey => 'attribute_item_id', jointype => 'left outer' })]);
+	my $form_fields = $form->getFields();
+	foreach my $form_attr_item (@$form_attr_items) {
+		#If there's a new Performance Level (FormAttributeItem), it wont have an AttributeFieldItem link,
+		#so create a new FieldItem for it for each Field (Criteria) in this Form.
+		unless (scalar( @{$form_attr_item->getJoinObjects('TUSK::FormBuilder::Form::AttributeFieldItem')} )) {
+			foreach my $field (@$form_fields) {
+				my $field_item	= TUSK::FormBuilder::FieldItem->new();	
+				$field_item->setFieldID($field->getPrimaryKeyID());
+				$field_item->save({user => $user_id});
+	
+				my $attr_field_item = TUSK::FormBuilder::Form::AttributeFieldItem->new();
+				$attr_field_item->setFieldValues({attribute_item_id => $form_attr_item->getPrimaryKeyID,
+												  field_item_id		=> $field_item->getPrimaryKeyID}); 
+				$attr_field_item->save({user => $user_id});
+			}
+		}
+	}
+
 </%perl>
 </%method>
-
 
 <%method display_metadata>
 <%args>
@@ -216,6 +237,12 @@
 		txt => 	"Display 'N/A' to indicate the assessor is unable to assess" 
 	}) . '</div>',
 } &>
+
+<%perl>
+	if (ref($form) eq 'TUSK::FormBuilder::Form') {
+		$m->comp('/tmpl/element:hidden_form_element', params => { name => 'num_performance_criteria', value => scalar(@{$form->getFields()}) }); 
+	}
+</%perl>
 </%method>
 
 

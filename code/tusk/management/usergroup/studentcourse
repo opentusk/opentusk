@@ -11,40 +11,22 @@ my $school          = $m->comp("/tmpl/url:get_school");
 my $type_object     = $m->comp("/tmpl/url:get_type_object");
 my $self_path       = "school/" . $school;
 my $is_course_group = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
-my $time_period_id;
-
-if ( $is_course_group ) {
-	$m->comp("/tmpl/url:redirect",
-		'destination' => '/management/usergroup/show/course/' . $school . '/' . $type_object->course_id,
-		'message'     => 'Cannot link student to individual courses in a course group.',
-		'msgtype'     => 'errmsg');
-	exit;
-}
+my $base_url		= "/management/usergroup/studentcourse";
 
 my $usergroup;
 if ($usergroup_id) {
 	$usergroup = HSDB45::UserGroup->new( _school => $school )->lookup_key($usergroup_id);
-} else {
-	$m->comp("/tmpl/url:redirect",
-		'destination' => '/management/usergroup/show/course/' . $self_path,
-		'message'     => 'No user group ID provided.',
-		'msgtype'     => 'errmsg');
-	exit;
 }
-
 my $time_periods = [ $usergroup->time_periods() ];
-my $base_url     = "/management/usergroup/studentcourse";
-
-my $fields       = [ 'name', 'onclick' ];
-my $col_fields   = [ {'label'=>'Name', 'field'=>'name'} ];
+my $time_period_id;
 
 my @users;
 my @courses;
-my @user_course_array;
 
-if ( !scalar(@$time_periods) ) {
-	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>'/management/usergroup/show/school/' . $school, 'msg'=>'No time periods associated.', 'msgtype'=>'errmsg'));
-}
+my %data;
+my $course_student_members;
+my @colheaders;
+my @rowheaders;
 </%shared>
 
 <& /tmpl/element:form, params => {
@@ -52,21 +34,14 @@ if ( !scalar(@$time_periods) ) {
 				onsubmit =>undef,
 				name => 'studentcourse' } &>
 
-<& /tmpl/element:table, params => { 
-				width       => "100%",
-				border      =>"0",
-				cellspacing =>"0",
-				cellpadding =>"0" } &>
-
-<& /tmpl/element:object_selection_box, params => { 
-				columns         => $col_fields, 
-				nobutton        => 1, 
-				sort_box        => 0,
-				is_object       => 0,
-				object_list     => \@user_course_array,
-				empty_message   => 'No students are in this usergroup.',
-				type_path       => "" }
-&>
+<div class="tablediv">
+<& /tmpl/element:scrollable_display_table, table_id => "studentcourselinks",
+				corner_text => 'Name',
+				zebra_striping => 1,
+				cell_data => \%data,
+				colheaders => [\@colheaders],
+				rowheaders => [\@rowheaders] &>
+</div>
 
 <& /tmpl/element:hidden_form_element, params =>{ 
 				name   => 'action',
@@ -79,9 +54,30 @@ if ( !scalar(@$time_periods) ) {
 				name=>'submit'} &>
 </table>
 </form>
-
+</div>
 <%init>
 $m->comp( "SELF:check_dynamic_permissions" );
+
+if ( $is_course_group ) {
+	$m->comp("/tmpl/url:redirect",
+		'destination' => '/management/usergroup/show/course/' . $school . '/' . $type_object->course_id,
+		'message'     => 'Cannot link student to individual courses in a course group.',
+		'msgtype'     => 'errmsg');
+	exit;
+}
+
+if ( !scalar(@$time_periods) ) {
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>'/management/usergroup/show/school/' . $school, 'msg'=>'No time periods associated.', 'msgtype'=>'errmsg'));
+}
+
+if ( !$usergroup_id ) {
+	$m->comp("/tmpl/url:redirect",
+		'destination' => '/management/usergroup/show/course/' . $self_path,
+		'message'     => 'No user group ID provided.',
+		'msgtype'     => 'errmsg');
+	exit;
+}
+
 
 $time_period_id = $m->session->{timeperiod};
 
@@ -130,48 +126,61 @@ if ( $msg ) {
 	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>$base_url, 'msg'=>$msg, 'msgtype'=>$msgtype, 'extra'=>$extra));
 }
 
-$m->comp( "SELF:fill_user_course_array" );
+$m->comp( "SELF:fill_table_data_vars" ); 
 </%init>
 
-<%method fill_user_course_array>
+<%method fill_table_data_vars>
 <%perl>
-$user_course_array[0] = HSDB4::SQLRow->new( _school => $school, _primary_key_field => 'primary_key', _fields => $fields );
-$user_course_array[0]->primary_key( "all" );
-$user_course_array[0]->set_field_values( 'name', "<i>Select All</i>" );
 
+# populate column headers array
+# and set up temporary data array (faster than using $course->get_single_student method)
 my $course_student_members;
 foreach my $course (@courses) {
 	my $label = $course->abbreviation;
 	if ( $label eq "" ) { $label = $course->title; }
+	push @colheaders, {id => $course->course_id, name => $label};
 
-	push @$fields, 'checkbox_' . $course->course_id;
-	push @$col_fields, {'label'=>$label, 'field'=>'checkbox_' . $course->course_id};
-
-	$user_course_array[0]->set_field_values( 'checkbox_' . $course->course_id, 0 );
 	my $members = $usergroup->getStudentMembers($course, $time_period_id, 1);
 	foreach my $member (@$members) {
 		$course_student_members->{$course->primary_key()}{$member} = 1;
 	}
 }
 
+# create arrray of users for row header array and populate data hash
+push @rowheaders, {id => 'all', name => '<em>Select All</em>', class => 'summary'};
 foreach my $user ( @users ) {
-	my $user_course_row = HSDB4::SQLRow->new( _school => $school, _primary_key_field => 'primary_key', _fields => $fields );
-
-	$user_course_row->primary_key( $user->user_id );
-	$user_course_row->set_field_values( 'name', $user->out_lastfirst_name );
-
-	foreach my $course ( @courses ) {
-		
-		$user_course_row->set_field_values( 'checkbox_' . $course->course_id, (exists $course_student_members->{$course->primary_key()}{$user->primary_key()}) ? 1 : 0 );
+	push @rowheaders, {id => $user->user_id, name => $user->out_lastfirst_name};
+	foreach my $course ( @courses ) {		
+		my $checked;
+		if (exists $course_student_members->{$course->primary_key()}{$user->user_id}) {
+			$checked = ' checked="checked"';
+		}		
+		$data{'all'}{$course->primary_key()} = '<span class="checkbox"><input name="all_checkbox_' . $course->primary_key() . '" id="all_checkbox_' . $course->primary_key() . '" onclick="checkbox_action(\'all_checkbox_' . $course->primary_key() . '\');" type="checkbox"></span>';
+		$data{$user->primary_key()}{$course->primary_key()} = '<span class="checkbox"><input name="' . $user->primary_key() . '_checkbox_' . $course->primary_key() . '" id="' . $user->primary_key() . '_checkbox_' . $course->primary_key() . '"' . $checked . ' type="checkbox" /></span>';
 	}
-
-	push @user_course_array, $user_course_row;
 }
 </%perl>
 </%method>
 
 <%method jsarray>
-% return ['layers.js','element.js', 'usergroup.js'];
+<%perl>
+	return [
+		'jquery/jquery.min.js',
+		'jquery/plugin/scrollablefixedheadertable/scripts/wrapper.min.js',
+		'usergroup.js',
+	];
+</%perl>
+</%method>
+
+<%method stylearray>
+<%perl>
+	return [
+		'/style/style.css',
+		'/style/calendar-blue.css',
+		'/scripts/jquery/plugin/scrollablefixedheadertable/css/scrollableFixedHeaderTable.css',
+		'/style/studentcourse.css',
+	];
+</%perl>
 </%method>
 
 <%method get_timeperiods>

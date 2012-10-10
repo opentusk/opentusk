@@ -366,7 +366,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <tr><td>Total Number of Students Reporting: &nbsp;<% $results->{reporting_students} %>&nbsp;<span style="font-size:85%;color:gray;">(<% sprintf("%.0f%", $results->{reporting_students}/$results->{total_students}*100) %>)</span></td></tr>
 <tr>
 <td>
-<div class="datatable">
+<div class="tablediv">
 %	my $tablecounter = 1;
 %	## drop down and button to show/hide category tables
 %	if ($results->{contains_category}) {
@@ -378,101 +378,63 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 %	my $class = undef;
 %	## loop through cateogories and display table for each one
 %	foreach my $category (@{$results->{categorized_items}}) {
-% 		if ($results->{contains_category}) {
 <div id="reportdiv<% $tablecounter %>" class="reportdiv">
+% 		if ($results->{contains_category}) {
 <h2 class=""><% $category->{category_name} %></h2>
 %		}
-<table cellspacing="1" cellpadding="0" border="0" id="reporttable<% $tablecounter++ %>" class="reporttable scrollableFixedHeaderTable">
-% ## header rows
-<thead>
-<tr class="header">
-	<th class="first">&nbsp;</th>
-%		foreach my $item (@{$category->{category_items}}) {
-	<th<% (scalar @{$results->{attribute_items}}) ? ' colspan="' . scalar @{$results->{attribute_items}} . '"' : ""   %> nowrap="nowrap"><span><% $item->{item_name} %></span></th>
-%		}
-</tr>
-%		if (scalar @{$results->{attribute_items}}) {
-<tr class="header">
-	<th class="first">&nbsp;</th>
-%		foreach my $item (@{$category->{category_items}}) {
-%				foreach my $attr (@{$results->{attribute_items}}) {
-%					my $value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
-	<th nowrap="nowrap"><span><% $value %></span></th>
-%				}
-%			}
-</tr>
-%		}
-</thead>
-<tbody>
-% ## summary rows
-<tr class="summary">
-	<td class="odd first" nowrap="nowrap"># Patients Seen</td>
-%			foreach my $item (@{$category->{category_items}}) {
-%				if (scalar @{$results->{attribute_items}}) {
-%					foreach my $attr (@{$results->{attribute_items}}) {
-%						my $value = $results->{total_seen}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
-	<td class="odd"><% $value %></td>
-%					}
-%				}
-%				else {
-%					my $value = $results->{total_seen}->{$item->{item_id}} || 0; 
-	<td class="odd"><% $value %></td>
-%				}
-%			}
-</tr>
-<tr class="summary">
-	<td class="even first" nowrap="nowrap"># Students Reporting</td>
-%			foreach my $item (@{$category->{category_items}}) {
-%				if (scalar @{$results->{attribute_items}}) {
-%					foreach my $attr (@{$results->{attribute_items}}) {
-%						my $value = $results->{total_reporting}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
-	<td class="even"><% $value %></td>
-%					}
-%				}
-%				else {
-%						my $value = $results->{total_reporting}->{$item->{item_id}} || 0;
-	<td class="even"><% $value %></td>
-%				}
-%			}
-</tr>
-<tr class="summary">
-	<td class="odd first" nowrap="nowrap">% Students Reporting</td>
-%			foreach my $item (@{$category->{category_items}}) {
-%				if (scalar @{$results->{attribute_items}}) {
-%					foreach my $attr (@{$results->{attribute_items}}) {
-	<td class="odd"><% sprintf("%.0f%", $results->{total_reporting}->{$item->{item_id}}->{$attr->getPrimaryKeyID()}/$results->{total_students}*100) %></td>
-%					}
-%				}
-%				else {
-	<td class="odd"><% sprintf("%.0f%", $results->{total_reporting}->{$item->{item_id}}/$results->{total_students}*100) %></td>
-%				}
-%			}
-</tr>
-% ## data rows
-%		my $rowcounter = 0;
-%		foreach my $user (@{$results->{rows}}) {
-%			$class = ($rowcounter++ % 2 == 0) ? "even" : "odd";
-<tr>
-	<td class="<% $class %> first" nowrap="nowrap"><% $user->out_lastfirst_name() %></td>
-%			if (scalar @{$results->{attribute_items}}) {
-%				foreach my $item (@{$category->{category_items}}) {
-%					foreach my $attr (@{$results->{attribute_items}}) {
-%						my $value = $results->{data}->{$user->primary_key}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
-	<td class="<% $class %>"><% $value %></td>
-%					}
-%				}
-%			}
-%			else {
-%				foreach my $item (@{$category->{category_items}}) {
-%					my $value = $results->{data}->{$user->primary_key}->{$item->{item_id}} || 0;
-	<td class="<% $class %>"><% $value %></td>
-%				}
-%			}
-</tr>
-%		}
-</tbody>
-</table>
+<%perl>
+	## set up first column header row
+	my $colheaders;
+	foreach my $item (@{$category->{category_items}}) {
+		push(@{$colheaders->[0]}, {id => $item->{item_id}, name => $item->{item_name}});
+	}
+
+	## set up second header attribute row
+	if (scalar @{$results->{attribute_items}}) {
+		foreach my $item (@{$category->{category_items}}) {
+			foreach my $attr (@{$results->{attribute_items}}) {
+				my $value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+				push (@{$colheaders->[1]}, {id => $attr->getPrimaryKeyID(), name => $value});
+			}
+		}
+	}
+
+	## set up row header array
+	my $rowheaders;
+	push(@$rowheaders, {id => "total_seen", name => "# Patients Seen", class => "summary"});
+	push(@$rowheaders, {id => "total_reporting", name => "# Students Reporting", class => "summary"});
+	push(@$rowheaders, {id => "percent_reporting", name => "% Students Reporting", class => "summary"});
+	foreach my $row (@{$results->{rows}}) {
+		push(@$rowheaders, {id => $row->primary_key, name => $row->out_lastfirst_name()});
+	}
+
+	## add summary rows to data
+	foreach my $item (@{$category->{category_items}}) {
+		if (scalar @{$results->{attribute_items}}) {
+			foreach my $attr (@{$results->{attribute_items}}) {
+				$results->{data}->{total_seen}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} = $results->{total_seen}->{$item->{item_id}}->{$attr->getPrimaryKeyID()};
+				$results->{data}->{total_reporting}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} = $results->{total_reporting}->{$item->{item_id}}->{$attr->getPrimaryKeyID()};
+				$results->{data}->{percent_reporting}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} = sprintf("%.0f%", $results->{total_reporting}->{$item->{item_id}}->{$attr->getPrimaryKeyID()}/$results->{total_students}*100);
+			}
+		}
+		else {
+			$results->{data}->{total_seen}->{$item->{item_id}} = $results->{total_seen}->{$item->{item_id}};
+			$results->{data}->{total_reporting}->{$item->{item_id}} = $results->{total_reporting}->{$item->{item_id}};
+			$results->{data}->{percent_reporting}->{$item->{item_id}} = sprintf("%.0f%", $results->{total_reporting}->{$item->{item_id}}/$results->{total_students}*100);
+		}
+	}
+</%perl>
+
+<& /tmpl/element:scrollable_display_table, table_id => "reporttable$tablecounter",
+	table_classes => ['reporttable'],
+	zebra_striping => 1,
+	corner_text => '&nbsp;',
+	cell_data => $results->{data},
+	colheaders => $colheaders,
+	rowheaders => [$rowheaders] &>
+
 </div>
+%	$tablecounter++;
 %	}
 </div>
 </td>
@@ -662,10 +624,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 	return [ 
 		"jquery/jquery.min.js",
 		"patientlog/report.js",
-		"jquery/plugin/dimensions.min.js",
-		"jquery/plugin/scrollablefixedheadertable/scripts/scrollableFixedHeaderTable.min.js",
 		"jquery/plugin/scrollablefixedheadertable/scripts/wrapper.min.js",
-		"jquery/plugin/scrollbarWidth.min.js",
 	];
 </%perl>
 </%method>

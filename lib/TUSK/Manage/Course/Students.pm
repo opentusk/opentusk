@@ -259,9 +259,10 @@ sub get_assessor {
 sub assign_assessor {
 	my ($req, $form_id, $tp_id, $checked_student_assessor, $user_id, $existing) = @_;
 	my @student_assessors = ();
+	
 	if (ref $checked_student_assessor eq 'ARRAY') {
 		@student_assessors = @$checked_student_assessor;
-	} elsif (ref $checked_student_assessor eq 'SCALAR') {
+	} else {
 		@student_assessors = ($checked_student_assessor);
 	}
 

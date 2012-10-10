@@ -1,20 +1,7 @@
 $(document).ready(function() {
-	// get maximum table dimensions
-	var adjustedwidth = parseInt($(window).width()) - 50;
-	var adjustedheight = parseInt($(window).height() - $('#reporttable1').offset().top - 50);
-
-	// set number of header rows
-	var headerRowSize = $('#reporttable1 tr.header').length;
-
-	$("table.reporttable").each(function() {
-		$(this).scrollableTable(adjustedwidth, adjustedheight, headerRowSize, 1);
+	$(window).bind("load", function() {
+		showhidetable('reportdiv1');
 	});
-	
-	showhidetable('reportdiv1');
-
-	// now that rendering is done, remove the curtain
-	$(".datatable fieldset").css("visibility", "visible");
-	$(".reportdiv").css("visibility", "visible");
 });
 
 // variable and function to show/hide category tables
