@@ -1,0 +1,86 @@
+<%args>
+</%args>
+
+<%attr>
+	default_path_type	=> 'content'
+	allow_guests		=> '1'
+	no_header		=> '1'
+	page_footer		=> ''
+	page_header		=> 'tmpl/prepend:manage_frameset_header'
+</%attr>
+
+<%shared>
+	my $iconWidth = 27;
+	my $printIconWidth = "width=\"$iconWidth\" height=\"$iconWidth\"";
+	my $document = $m->comp('/tmpl/url:get_type_object');
+	my $userObject = $m->session->{'user'}; #HSDB4::SQLRow::User->new->lookup_key($m->session->{'user'});
+	my $iCanEdit = $document->can_user_edit($userObject);
+</%shared>
+
+
+<%method title>
+%	return ucfirst($document->type) .": ". $document->out_label;
+</%method>
+
+
+<%doc>Redirect if we are not url</%doc>
+% unless($document->display_framed) {
+%       my $location = $ENV{SCRIPT_URI};
+%       $location =~ s/viewurl/viewcontent/;
+%       $r->header_out(Location => $location);
+%       $r->status('REDIRECT');
+%       exit;
+% }
+
+
+% unless($iCanEdit || $document->is_active()) {
+	<br><br>
+	<table border="0" width="100%">
+	  <tr><th><font size="+2">Sorry this content is not currently active.</font></th></tr>
+	</table>
+	<br><br>
+%    return();
+% }
+
+<%perl>
+	my $topURL = $ENV{SCRIPT_URI};
+	my $topRowHeight = "170";
+	my $onload = '';
+	if($document->type() eq 'Document'){
+		$topURL =~ s/view\/url/view\/minStyTopFrame/;
+		$topRowHeight = "110";
+		$onload = 'setTargets(this.name);';
+	}
+	else {
+		$topURL =~ s/view\/url/view\/urlTopFrame/;
+	}
+
+	my $goToURL;
+	if ($document->type() eq 'External'){
+		my $source = $document->get_external_source();
+		if ($source){
+			$goToURL = '/view/urlExternalContent/' . $document->primary_key();
+		}
+	}elsif($document->type() eq 'URL'){
+			$goToURL = $document->out_external_url();
+	}elsif($document->type() eq 'PDF'){
+                $goToURL = $document->out_external_url();
+	}elsif($document->type() eq 'Document'){
+		$goToURL = '/view/minStyle/content/' . $document->primary_key();
+	}else{
+		$goToURL = '/download/' . $document->primary_key();
+	}
+</%perl>
+
+% if($iCanEdit && !$document->is_active()) {
+  <frameset rows="210,*">
+% } else {
+  <frameset rows="<% $topRowHeight %>,*">
+% }
+    <frame src="<% $topURL %>"  frameborder="0" scrolling="no">
+    <frame  frameborder="0" name="content" src="<% $goToURL %>" onload="<% $onload %>">
+    <noframes>
+	Sorry, this is a frame based page.
+    </noframes>
+  </frameset>
+</html>

@@ -1,0 +1,98 @@
+<%method jsarray>
+% return ['layers.js','element.js','caseshell.js','object_tree.js'];
+</%method>
+
+<%method get_case_id>
+% my $case_id = $m->comp("/tmpl/url:get_first_path_id");
+% $case_id ||= '';
+% return $case_id;
+</%method>
+
+<%method feature_id>
+% return $m->comp('SELF:get_case_id');
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+return $m->comp("/tmpl/nav", 'objects' => $m->comp("SELF:get_nav_bar_objects"),
+                             'prefix' => '/case/author',
+                             'hierarchy' => {
+						'index.html'=>[], 
+                                                'caseshow' => [],
+						'questionaddedit'=>[],
+                                                'caseaddedit' => ['caseshow'],
+                                                'users' => ['caseshow', 'caseaddedit'],
+                                                'casereuse' => ['caseshow'],
+                                                'casedelete' => ['caseshow'],
+                                                'caseresults' => ['caseshow'],
+                                                'caseresponses' => ['caseshow','caseresults'],
+						'goaladdedit'=>['caseshow','caseaddedit'],
+						'referenceaddedit'=>['caseshow','caseaddedit'],
+						'phaseshow'=>['caseshow','caseaddedit'],
+						'keywordaddedit'=>['caseshow','caseaddedit'],
+						'phaseaddedit'=>['caseshow','phaseshow' ],
+						'examaddedit'=>['caseshow','caseaddedit','phaseaddedit' ],
+						'examreset'=>['caseshow','caseaddedit','phaseaddedit' ],
+                                                },
+                             'nav_entities_dependency' => {
+                                                        'caseshow' =>{'object'=>undef, 'depend'=>[]}, 
+                                                        'casereuse' =>{'object'=>undef, 'depend'=>[]}, 
+                                                        'casedelete' =>{'object'=>undef, 'depend'=>[]}, 
+                                                        'caseresponses' =>{'object'=>undef, 'depend'=>[]}, 
+                                                        'caseresults' =>{'object'=>"TUSK::Case::Case", 
+									'static_title'=>'Case Reports:',
+									'depend'=>[]}, 
+                                                        'caseaddedit' =>{'object'=>"TUSK::Case::Case", 
+								'depend'=>[], 'static_title'=>'Case: '}, 
+							'goaladdedit' => {'object'=>"TUSK::Case::Case",
+								'depend'=>[],'static_title'=>'Case: '},
+							'referenceaddedit' => {'object'=>"TUSK::Case::Case",
+								'depend'=>[],'static_title'=>'Case: '},
+							'phaseshow' => {'object'=>"TUSK::Case::Case",
+								'depend'=>[],'static_title'=>'Case: '},
+							'keywordaddedit' => {'object'=>"TUSK::Case::Case",
+								'depend'=>[],'static_title'=>'Case: '},
+							'phaseaddedit' => {'object'=>"TUSK::Case::Phase",
+								'depend'=>['TUSK::Case::Case'],'static_title'=>'Phase: '},
+							'examreset' => {'object'=>"TUSK::Case::Phase",
+								'depend'=>[],'static_title'=>'Phase: '},
+							'examaddedit' => {'object'=>"TUSK::Case::Phase",
+								'depend'=>[],'static_title'=>'Phase: '},
+
+                                                        },
+                             'title_func' => {'TUSK::Case::Case' => 'getCaseTitle',
+						'TUSK::Case::Phase'=>'getPhaseTitle'},
+                             'urls' => {'caseshow' => {link => 'caseshow', label => 'Manage Cases'}});
+</%perl>
+</%method>
+
+<%once>
+	use TUSK::Case::Case;
+</%once>
+
+<%attr>
+	check_cms_permissions 		=> 1
+	check_feature_permissions 	=> 1
+	default_path_type		=> ''
+	top_tab_type 			=> 'manage'
+	no_check_path			=> 0
+	page_header			=> '/tmpl/prepend'
+	page_footer			=> '/tmpl/footer'
+	case_ignore_perms		=> 0
+</%attr>
+
+<%method cms_min_course_role>
+% return 'AUTHOR';
+</%method>
+
+
+<%method feature_type_token>
+% return 'case';
+</%method>
+
+<%method function_token>
+% return 'modify_case';
+</%method>
+
+% $m->call_next();
+

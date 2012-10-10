@@ -1,0 +1,74 @@
+<%attr>
+	no_check_path => 1
+	no_header => 1
+</%attr>
+
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::Phase;
+use TUSK::Case::CaseReport;
+</%once>
+
+<%method title>
+% return "Expert Selections";
+</%method>
+
+<& /tmpl/element:table, params => { id => 'pExpContent' } &>
+	<tr>
+		<td><img id="pExpLogo" src="/graphics/logosm.gif" alt="TUSK: Tufts University Sciences Knowledgebase" width="255" height="65" /></td>
+		<td class="cell-submit-right"><& /tmpl/element:button, params=>{ label => 'Close', onclick => "window.close();" } &></td>
+	</tr>
+	<tr>
+		<td colspan="2"><h5>Expert Selections</h5>"Expert Selections" are those tests with a priority of "high" or "medium"</td>
+	</tr>
+	<tr>
+		<td colspan="2">
+			<& /tmpl/element:table, params => { id => 'pExpContent' } &>
+		
+
+<%perl>
+
+	my ($case_id, $phase_id, $report_id) = $m->comp('/tmpl/url:get_path_ids');
+
+	my $case_report = TUSK::Case::CaseReport->lookupKey($report_id);
+
+	my $phase = TUSK::Case::Phase->lookupKey($phase_id);
+	my $case = TUSK::Case::Case->lookupKey($case_id);
+
+	my $selections = $phase->getPhaseTestSelections($case_report);
+
+	my $testHash = {};
+	foreach my $selection (@$selections){
+		my $pk = $selection->getTestID();
+
+		my $test = $selection->getTestObject();
+
+		if($test->isSubTest){
+			$testHash->{'test'}->{ $pk } = 1;
+			$testHash->{'exam'}->{ $test->getMasterTestID() } = 2;
+		}
+		else{
+			$testHash->{'exam'}->{ $pk } = 1;
+		}
+	}
+
+
+
+	my $batteries = $phase->getBatteries();
+
+	foreach my $battery (@{$batteries}){
+		$m->comp('/case/tmpl/sections:battery_table', 
+			battery => $battery,
+			selectionHash => $testHash, 
+			phase => $phase,
+			case => $case,
+			table_type => 'expert',
+			is_test => $case->isTest());
+	}
+
+</%perl>
+
+
+</table>
+
+<& /case/tmpl/element:expert_selection_key &>

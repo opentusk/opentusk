@@ -1,0 +1,146 @@
+[!
+	use TUSK::Import;
+	use TUSK::Constants;
+!][-
+	$req = shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	
+	$req->{checkforadmin} = 1;
+	$req->{mustbeadmin} = 1;
+
+	$req->{pagetype}="";
+	$req->{image}="ImportStudents";
+	
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	manage_header($req);
+	
+	if ($fdat{datafile}) {
+        if ($fdat{time_period_id}) {
+		$import = TUSK::Import->new;
+	    	$import->add_log("summary","test run, course links will not be created") unless ($fdat{save});
+		if ($fdat{preset_fields} eq "sisfeed") {
+			@file_fields = qw(oea_code title lastname firstname midname sid e school subschool year graduate email);
+		}
+		else {
+			@file_fields = split(",",$fdat{fields});
+		}
+		$import->set_fields(@file_fields);
+		$import->read_filehandle($fdat{datafile},"\t");
+		if ($fdat{limit_field} && $fdat{limit_value}) {
+			$import->grep_records($fdat{limit_field},$fdat{limit_value});
+		    	$import->add_log("summary","limiting records to where $fdat{limit_field} = $fdat{limit_value}");
+		}
+		$import->add_log("summary","processing ".scalar $import->get_records." records");
+		foreach $r ($import->get_records) {		
+			$import->add_log("record","looking up ssn: ".$r->get_field_value("sid"));
+			$user = HSDB4::SQLRow::User->new;
+			@users = $user->lookup_conditions("sid=".$r->get_field_value("sid"));
+			@users = $user->lookup_conditions("tufts_id='".$r->get_field_value("sid")."'") if (!@users);
+			if (scalar @users != 1) {				
+				$import->add_log("error", "check sid: ".$r->get_field_value("sid"));
+				$fail++;
+				next;
+			}									
+			$user_id = $users[0]->primary_key;
+			$import->add_log("message","found user $user_id");
+			$import->add_log("message","looking up course: ".
+				$r->get_field_value("oea_code"));
+			$course = HSDB45::Course->new(_school => $req->{school});
+			@courses = $course->lookup_conditions("oea_code='".$r->get_field_value("oea_code")."'");
+			if (scalar @courses != 1) {
+				$import->add_log("error",
+						 "check oea_code: ".$r->get_field_value("oea_code"));
+				$fail++;
+				next;
+			}
+			$course = $courses[0];
+			$import->add_log("message","found course: ".$course->out_label." (".$course->primary_key.")");
+			if ($course->is_user_registered($user_id,$fdat{time_period_id})) {
+				$import->add_log("warning","$user_id is already registered for course ".$course->primary_key);
+			}
+			if ($fdat{save}) {
+				$course->add_child_student($TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$user_id,$fdat{time_period_id});
+				$import->add_log("message","added $user_id to ".$course->out_label." (".$course->primary_key.")");
+			}
+		}
+		$import->add_log("summary","$fail failed records");
+	}
+	else {
+		$import->add_log("error", "cannot import users without specifying a time period");
+	}
+	@logs = $import->get_logs;
+	}
+-]
+<form name="data_form" action="" method="post" enctype="multipart/form-data" onsubmit="return checkform(this);" class="no-padding">
+<table cellpadding="0">
+<tr>
+<td class="labelgray">Import type:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td>Test<input type="radio" name="save" value="0" checked></td><td align="right">Live<input type="radio" name="save" value="1"></td></tr></table><br>"Test" verifies data, but does not save. "Live" verifies and saves data.</td>
+</tr>
+[$ if ($req->{school}) $]
+<input type="hidden" name="school" value="[+ $req->{school} +]">
+<tr><td class="labelgray">School: </td><td class="cell-left">[+ $req->{school} +]</td></tr>
+[$ else $]
+<tr><td class="labelgray">School: </td><td class="cell-left">school not provided</div></td></tr>
+[$ endif $]
+<tr>
+<td class="labelgray">Time Period:</td>
+<td class="cell-left">
+[- @time_periods = HSDB45::TimePeriod->new(_school => $req->{school})->nonpast_time_periods -]
+[$ if (scalar @time_periods == 1) $]
+[+ $time_periods[0]->out_label." (".$time_periods[0]->primary_key.")" +]
+<input type="hidden" name="time_period_id" value="[+ $time_periods[0]->primary_key +]">
+[$ elsif (!@time_periods) $]
+<font color="red">no time periods available</font>
+[$ else $]
+<select name="time_period_id">
+<option>choose time period</option>
+[$ foreach $tp (@time_periods) $]
+<option value="[+ $tp->primary_key +]">[+ $tp->out_label+] ([+ $tp->primary_key +])</option>
+[$ endforeach $]
+</select>
+[$ endif $]
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">Fields in File:</td>
+<td class="cell-left">
+<input type="radio" name="preset_fields" value="sisfeed"> SIS file (oea_code,title,lastname,firstname,midname,sid . . .)<br>
+<br>
+<input type="radio" name="preset_fields" value="self"> <input name="fields" value="[+ $fdat{fields}+]" size="50" class="textareawhite"><br>
+Either select a standard import format, or list the fields in the import file, separated by commas. TUSK will look for oea_code and sid fields to use to identify courses and students and link them together.
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">Limit Results:</td>
+<td class="cell-left">
+Field: <input name="limit_field" value="[+ $fdat{limit_field} +]" size="20" class="textareawhite"> &nbsp;&nbsp;Value: <input name="limit_value" value="[+ $fdat{limit_value} +]" size="20" class="textareawhite"><br>
+Enter a field name, and a corresponding value to limit the import to only certain records.
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">File:</td><td class="cell-left"><input type="file" name="datafile" class="formbutton" id="File__y"></td>
+</tr>
+
+<tr>
+<td>&nbsp;</td><td class="cell-submit"><input type="submit" value="Process" class="formbutton"></td>
+</tr>
+</table>
+</form>
+[- $i = 1 -]
+[$ foreach $log (@logs) $]
+	[$ if ($log->get_type =~ /(error)/) $]
+		<div class="[+ $log->get_type +]">[+ $log->get_type +] [+ $i +]: [+ $log->get_message +]</div>
+	[- $i ++ -]
+	[$ endif $]
+[$ endforeach $]
+<h4></h4>
+[$ foreach $log (@logs) $]
+	<div class="[+ $log->get_type +]">[# $log->get_type #] [+ $log->get_message +]</div>
+[$ endforeach $]
+
+[- manage_footer(); -]

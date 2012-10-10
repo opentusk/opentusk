@@ -1,0 +1,73 @@
+<%once>
+	use TUSK::Application::Assignment::Student::Individual;
+</%once>
+
+<%args>
+	$course
+</%args>
+
+<%attr>
+	skip_creating_assignment => 1
+</%attr>
+
+
+<%perl>
+	my $school = $course->school();
+	my $student_user_id = $m->session->{'user'}->primary_key();
+	my $student = TUSK::Application::Assignment::Student::Individual->new({ user_id => $student_user_id, course => $course, school => $school});
+
+	my $col_fields = [ { label => 'Title', field => 'title'},
+                	   { label => 'Instructions', field => 'instruction'},
+                	   { label => 'Weight', field => 'weight', align => 'center'},
+			   { label => 'Available Date', field => 'available_date'},
+			   { label => 'Due Date', field => 'due_date'},
+			   { label => 'Submit Date', field => 'submit_date'},
+			   { label => 'Action', field => 'action'},
+			 ];
+
+	my @rows = ();
+	my $max_length = 150;
+	my $has_resubmissions = 0;
+	my $current_assignments = $student->getCurrentAssignments();
+
+	foreach my $curr (@$current_assignments) {
+		my $assignment = $curr->{assignment};
+		my $instructions = $assignment->getInstruction();
+		my $instructions_length = length($instructions);
+		my $url = "/assignment/student/complete/course/$school/" . $course->primary_key() . "/" . $assignment->getPrimaryKeyID();;
+		if ($m->comp('/tmpl/element:check_for_firefox_upload_bug')){
+			$url = "/unprotected" . $url;
+		}
+		my $resubmit_hint = '';
+		if ($assignment->getResubmitFlag() && $curr->{submit_date}) {
+			$resubmit_hint = '<font color="red">*</font>';
+			$has_resubmissions = 1;
+		}
+		push @rows, {
+			title => $assignment->getTitle(),
+			instruction => ($instructions_length > $max_length) 
+				? "<a style=\"color:blue;text-decoration:none;\" href=\"$url\">" . TUSK::Functions::truncate_string($instructions,$max_length) . "</a>"
+				: $instructions,
+			weight => $assignment->getWeight(),
+			available_date => $assignment->getFormattedAvailableDate(),
+			due_date => $assignment->getFormattedDueDate(),
+			submit_date => "$curr->{submit_date} $resubmit_hint",
+			action => "<a href=\"$url\">view/complete</a>",
+		};
+	}
+</%perl>
+
+<table>
+<& /tmpl/element:object_selection_box, params => { 
+	columns 	=> $col_fields,
+	rows		=> \@rows,
+	type_path 	=> "course/$school/" . $course->primary_key(),
+	name 		=> "assignments",
+	'norows-message' => 'No Current Assignments',
+} &>
+</table>
+
+% if ($has_resubmissions) {
+<div style="padding:15px;font-size:85%;"><font color="red">*</font> Most recent submit date </div>
+% }
+

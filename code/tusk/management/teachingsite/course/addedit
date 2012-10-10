@@ -1,0 +1,110 @@
+<%once>
+	use TUSK::Constants;
+</%once>
+
+<%method title>
+<%perl>
+	if ($is_edit){
+		 return "Modify Site Link";
+	}else{
+		 return "Create New Site Link";
+	}
+</%perl>
+</%method>
+
+<%shared>
+	my $course = $m->comp("SELF:get_course_object");
+	my $teaching_site_id = $m->comp("/tmpl/url:get_last_path_id");
+
+	my $is_edit = 0;
+	my $max_students;
+	my $options = [];
+	my $site;
+
+	if ($teaching_site_id){
+		$is_edit = 1;
+		my @sites = $course->child_teaching_sites("child_teaching_site_id = " . $teaching_site_id);
+		if (scalar(@sites) == 1 && $sites[0]->isa("HSDB45::TeachingSite")){
+			$site = $sites[0];
+			$max_students = $sites[0]->aux_info('max_students');
+		}else{
+			$m->comp("/tmpl/url:redirect",message => "Invalid Teaching Site.");
+		}
+	}else{
+		my @sites = $course->child_teaching_sites();
+		my $ids = [];
+		foreach my $site (@sites){
+			push (@$ids, $site->primary_key());
+		}
+	
+		my $cond = (scalar(@$ids)) ? "teaching_site_id not in (" . join(',', @$ids) . ")" : "";
+		my @teachingsites = HSDB45::TeachingSite->new(_school => $course->school())->lookup_conditions($cond, "order by site_name");
+
+		foreach my $teachingsite (@teachingsites){
+			my $extra_text = ($teachingsite->site_city_state()) ? '&nbsp;[' . $teachingsite->site_city_state() . ']' : '';
+			push (@$options, { 'label' => $teachingsite->site_name() . $extra_text, 'value' => $teachingsite->primary_key() } );
+		}
+		unless (scalar(@$options)){
+			$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/teachingsite/course/show", 'extra' => '', 'msg' => 'No available teaching sites.'));
+		}
+	}
+</%shared>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                onsubmit =>'',
+                name => 'teachingsiteaddedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+% if ($is_edit){
+% my $extra_text = ($site->site_city_state()) ? '&nbsp;[' . $site->site_city_state() . ']' : '';
+<& /tmpl/element:field_display, params=>{ label=>'Course', value => $site->site_name() . $extra_text }&>
+% } else {
+<& /tmpl/element:dropdown, params=>{ label => "Teaching Sites",
+                multiple => 1,
+                name=> "teaching_site_id",
+                options => $options } &>
+% }
+
+<& /tmpl/element:textbox, params=>{ label => 'Max Students',
+                name=> "max_students",
+                size=> 30,
+		value=> $max_students } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save and Continue', name=>'form_submit', 'no_cancel_button' => 1} &>
+
+</table>
+</form>
+
+<%init>
+	 if (defined($ARGS{'form_submit'})){
+		my ($msgtxt);
+		if ($is_edit){
+			if ($ARGS{'max_students'} =~ /^\s*$/ ){
+				$ARGS{'max_students'} = undef;	
+			}
+			my ($r, $msg) = $course->teaching_site_link()->update(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername} , -password => $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword},
+									-child_id => $site->primary_key(),
+									-parent_id => $course->primary_key(),
+									max_students => $ARGS{'max_students'});
+       	 	        $msgtxt = "Course Teaching Site link updated.";
+		}else{
+	        	unless (ref($ARGS{'teaching_site_id'}) eq "ARRAY"){
+				$ARGS{'teaching_site_id'} = [ $ARGS{'teaching_site_id'} ];
+			}
+
+			foreach my $teaching_site_id (@{$ARGS{'teaching_site_id'}}){
+				my ($r, $msg) = $course->teaching_site_link()->insert(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername} , -password => $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword},
+											-child_id => $teaching_site_id,
+											-parent_id => $course->primary_key(),
+											max_students => $ARGS{'max_students'});
+			}
+	
+       	 	        $msgtxt = "Course Teaching Site link(s) added.";
+		}
+                $m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/teachingsite/course/show", 'extra' => '', 'msg' => $msgtxt));
+	}
+</%init>

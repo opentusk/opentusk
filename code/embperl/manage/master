@@ -1,0 +1,349 @@
+[!
+	use HSDB4::SQLRow::User;
+	use HSDB45::Course;
+	use TUSK::Functions;
+	use Apache::Cookie;
+	use Apache::Constants qw(REDIRECT);
+	use HSDB4::Constants;
+	use HSDB45::UserGroup;
+	use File::Type;
+	use URI::Escape;
+	use TUSK::Session;
+!][-
+
+$req = shift;
+
+push(@{$req->{nav_bar}},"/management/home\tCMS Home");
+
+# Get the authenticated user
+unless ($un = $req_rec->connection->user) {
+	if (%cookies = Apache::Cookie->new($req_rec)->parse) {
+		if ($cookies{'Ticket'}){
+			%ticket = $cookies{'Ticket'}->value;
+			$un = $ticket{'user'};
+		}
+	}
+}
+
+if (!$un){ # redirect to login page
+	$url = '/login?msg=Please+log+in+first';
+
+	if ($ENV{HTTPS} ne 'on'){
+		$url = '/protected' . $url;	
+	}
+
+	$req_rec->header_out(Location => $url);
+	$req_rec->status(REDIRECT);
+}
+
+$req->{user} = HSDB4::SQLRow::User->new->lookup_key($un);
+
+@{$req->{path_info}} = split ('/', $req_rec->path_info());
+$req->{script}=shift(@{$req->{path_info}}); # remove the script from this array
+$req->{selfpath}=join('/',@{$req->{path_info}});
+unless ($req->{type}){
+	$req->{type}=shift(@{$req->{path_info}}); # get the page type
+}
+$req->{base_path_string}=$req->{type};
+
+# are we within a course?
+if ($req->{type}){
+	if ($req->{type} eq "course"){
+		$req->{school}=shift(@{$req->{path_info}});
+		$req->{course_id}=shift(@{$req->{path_info}});
+		$req->{course} = HSDB45::Course->new(_school => $req->{school})->lookup_key($req->{course_id});
+		if (!$req->{course}->primary_key){
+			$req_rec->header_out(Location => '/forbidden.html');
+			$req_rec->status(REDIRECT);
+			exit();
+		}
+		$req->{checkforschooladmin} = 1;		
+
+		$req->{classpath} = $req->{school}."/".$req->{course_id};
+		$req->{typepath} = "course/".$req->{classpath};
+		$req->{base_path_string}.="/".$req->{classpath};
+
+		push(@{$req->{nav_bar}},"/management/course/display/".$req->{classpath}."\tCourse - ".$req->{course}->out_title);
+	}
+	elsif ($req->{type} eq "school"){
+		$req->{school}=shift(@{$req->{path_info}});
+		$req->{schoolpath}="school/".$req->{school};
+		$req->{typepath} = $req->{schoolpath};
+		$req->{leftnav}="admin-leftnav";
+		if ($req->{donotcheckschooladmin}){
+			$req->{mustbeadmin} = 1;
+		}else{
+			$req->{checkforschooladmin} = 1;
+			$req->{mustbeschooladmin} = 1;
+		}
+	}
+	elsif ($req->{type} eq "usergroup"){
+		$req->{school}=shift(@{$req->{path_info}});
+		$req->{usergroup_id}=shift(@{$req->{path_info}});
+		$req->{usergroup}=HSDB45::UserGroup->new(_school=>$req->{school})->lookup_key($req->{usergroup_id});
+		$req->{new_grouppath}="school/".$req->{school}."/".$req->{usergroup_id};	
+		$req->{grouppath}="usergroup/".$req->{school}."/".$req->{usergroup_id};
+		$req->{typepath} = "school/".$req->{school};
+	}elsif($req->{type} eq "content"){
+		$req->{typepath} = "content";
+	}
+}
+
+if ($req->{checkforevaladmin} or $req->{checkforschooladmin} or $req->{checkforadmin}){
+	TUSK::Session::is_admin(\%udat, $req->{user});
+}
+
+if (($req->{mustbeadmin} and TUSK::Session::is_admin(\%udat) == 0) or
+	($req->{mustbeschooladmin} and TUSK::Session::is_school_admin(\%udat, $req->{school}) == 0)){
+	$req_rec->header_out(Location => '/forbidden.html');
+	$req_rec->status(REDIRECT);
+	exit();
+}
+
+if ( $req->{type} and ($req->{type} eq "school" or $req->{showschool}) and TUSK::Session::is_school_admin(\%udat, $req->{school})){
+	push(@{$req->{nav_bar}},"\tAdmin - " . $req->{school});
+}
+
+if ($req->{type} and $req->{type} eq "course"){
+	if (TUSK::Session::is_school_admin(\%udat, $req->{school})){
+		$req->{courserole} = TUSK::Session::get_role('DIRECTORNONSTUDENT');
+	}else{
+		$req->{courserole} = TUSK::Session::course_user_role($req->{course}, $req->{user}->primary_key);
+	}
+
+	# check permissions for this page
+	unless ($req->{checkcourserole}){
+		$req->{checkcourserole} = "STUDENTEDITOR";	
+	}
+	elsif($req->{groupcourserole} && $req->{course}->type() eq 'group') {
+		$req->{checkcourserole} = $req->{groupcourserole};	
+	}
+
+	unless (TUSK::Session::check_course_permissions($req->{courserole}, $req->{checkcourserole})){
+ 		$req_rec->header_out(Location => '/forbidden.html');
+               	$req_rec->status(REDIRECT);
+                exit();
+	}
+
+	if (TUSK::Session::check_course_permissions($req->{courserole}, 'AUTHOR')){
+		$req->{leftnav}="course-leftnav";
+	}
+}
+
+$req->{xsl_dir} = $req_rec->server_root_relative("code/XSL");
+
+-][$if ($req->{pagetype})$][$ if ($req->{pagetype})$]
+
+[$ if $req->{pagetype} eq "content" $][!
+	use HSDB4::SQLRow::Content;
+!][-
+	if ($fdat{page} eq "add" or $fdat{action} eq "add"){
+		$req->{content_id}=@{$req->{path_info}}[scalar(@{$req->{path_info}})-1];
+	}elsif($fdat{edit_content_id}){
+		$req->{content_id} = $fdat{edit_content_id};
+		$req->{selfpath}.="/".$req->{content_id};
+	}else{
+		$fdat{page} = "edit";
+		$req->{content_id}=pop(@{$req->{path_info}});
+	}
+
+	if ($req->{content_id}){
+		$req->{path_content_count}=scalar (@{$req->{path_info}});
+		$req->{content} = HSDB4::SQLRow::Content->new()->lookup_key($req->{content_id});
+		unless ($req->{content}->primary_key){
+				$url = $ENV{HTTP_REFERER};
+				$msg = "Sorry content with id " . $req->{content_id} . " could not be found.";
+				$url =~ s/errmsg/msg/g; # make sure we dont have two error messages
+				if ($url =~ /\?/){
+					$url .= "\&errmsg=$msg"; 
+				}else{
+					$url .= "?errmsg=$msg";
+				}        
+				$req_rec->header_out(Location => $url);
+			        $req_rec->status(REDIRECT);
+				exit();
+		}
+		# dont do this check if it is the folder page
+		if($req->{pagetitle} ne "Folder" and $fdat{action} ne "add" and $fdat{page} ne "add"){
+			unless(TUSK::Session::check_content_permissions(\%udat, $req->{course}, $req->{content}, $req->{courserole}, $req->{user})){
+			 if ($req->{content} and $req->{school} and $req->{course_id}){
+				$location =  "/management/course/display/" . $req->{school}. "/" . $req->{course_id} ."?errmsg=Sorry+you+do+not+have+permission+to+modify+content+with+id+" . $id
+			 }else{
+				$location = "/manage/?errmsg=Sorry+you+do+not+have+permission+to+modify+content+with+id+" . $req->{content_id};
+			}
+			 $req_rec->header_out("Location" => $location);
+    			   $req_rec->status(REDIRECT);
+		   	   exit();
+			}
+		}
+
+		if ($fdat{action} ne "add" and $fdat{page} ne "add"){
+			$fdat{content_type} = $req->{content}->field_value('type');
+		}
+		if ($fdat{edit_content_id}){
+			$req->{school} = $req->{content}->field_value('school');
+			$req->{course_id} = $req->{content}->field_value('course_id');
+			$req->{course} = HSDB45::Course->new(_school => $req->{school})->lookup_key($req->{course_id});
+			$req->{classpath}=$req->{school}."/".$req->{course_id};
+			$req->{selfpath}="course/".$req->{classpath}."/".$fdat{edit_content_id};
+			$req->{base_path_string}.="/".$req->{classpath};
+			$req->{type} = "course";
+			push(@{$req->{nav_bar}},"/management/course/display/".$req->{classpath}."\tCourse Controls - ".$req->{course}->out_title);
+	                $req->{leftnav}="course-leftnav";
+		}
+	}
+
+	foreach $path_content_id (@{$req->{path_info}}){
+		$req->{parent_content}=HSDB4::SQLRow::Content->new->lookup_key($path_content_id); 
+		$base_string.="/".$path_content_id;
+		push(@{$req->{nav_bar}},"/management/folders/".$req->{typepath}.$base_string."\t".$req->{parent_content}->field_value('title'));
+	}
+-][$ endif $][$ if $req->{pagetype} eq "grouplinks" $][!
+	use TUSK::Manage::GroupLinks;
+!][-
+	push(@{$req->{nav_bar}},"/management/usergroup/show/".$req->{typepath}."\tManage Groups");
+	push(@{$req->{nav_bar}},"/management/usergroup/addedit/".$req->{new_grouppath}."\t".$req->{usergroup}->field_value('label'));
+	
+	unless ($req->{showpage}){
+		$req->{course_id}=shift(@{$req->{path_info}});
+		$req->{timeperiod_id}=shift(@{$req->{path_info}});
+
+		if ($req->{course_id}){
+			$fdat{page}="edit";
+		}
+
+		push(@{$req->{nav_bar}},"/manage/grouplinks/show/".$req->{grouppath}."\tGroup Links");
+	}
+-][$ endif $][$ if $req->{pagetype} eq "announcement" $][!
+	use TUSK::Manage::Announcements;
+!][-
+	unless ($req->{showpage} == 1){
+		$req->{usergroup_id}=pop(@{$req->{path_info}});
+	
+		$req->{announcement_id}=pop(@{$req->{path_info}});
+
+		if ($req->{announcement_id}){
+			$fdat{page}="edit";
+			$req->{announcement}=HSDB45::Announcement->new(_school=>$req->{school}, _id=>$req->{announcement_id});
+		}	
+		push(@{$req->{nav_bar}},"/management/announcements/show/".$req->{typepath}."?ug_id=".$req->{usergroup_id}."\tManage Announcements");
+	}
+-][$ endif $][$ if $req->{pagetype} eq "discussions" $][!
+	use TUSK::Manage::Forums;
+!][-
+	unless ($req->{showpage}){
+		$req->{discussion_id}=pop(@{$req->{path_info}});
+		
+                if ($req->{discussion_id}){
+                        $fdat{page}="edit";
+                }
+
+		push(@{$req->{nav_bar}},"/manage/discussions/show/".$req->{typepath}."\tManage Discussions");
+	}
+-][$ endif $][$ if $req->{pagetype} eq "tracking" $][!
+	use TUSK::Manage::Tracking;
+!][-
+	unless ($req->{showpage}){
+		$req->{tracking_id}=pop(@{$req->{path_info}});
+
+		if ($req->{tracking_id}){
+		$fdat{page}="edit";
+		$req->{tracking}=TUSK::Tracking->new(_school=>$req->{school})->lookup_key( $req->{tracking_id});
+	}	
+
+	push(@{$req->{nav_bar}},"/manage/tracking/show/".$req->{typepath}."\tManage Reports");
+}
+-][$ endif $][$ if $req->{pagetype} eq "timeperiod" $][!
+	use HSDB45::TimePeriod;
+!][-
+
+$req->{timeperiod_id}=pop(@{$req->{path_info}});
+
+if ($req->{timeperiod_id}){
+	$fdat{page}="edit";
+	$req->{timeperiod}=HSDB45::TimePeriod->new(_school=>$req->{school})->lookup_key( $req->{timeperiod_id});
+	$req->{selfpath}.="/".$req->{timeperiod_id};
+}	
+push(@{$req->{nav_bar}},"/manage/timeperiods/show/".$req->{typepath}."\tManage Time Periods");
+-][$ endif $][$ if $req->{pagetype} eq "user" $][!
+	use TUSK::Manage::User;
+!][-
+unless (TUSK::Session::is_admin(\%udat)){
+        $req_rec->header_out(Location => '/forbidden.html');
+        $req_rec->status(REDIRECT);
+        exit();
+}
+
+unless ($req->{showpage}){
+	$req->{useredit_id}=pop(@{$req->{path_info}});
+
+	if ($req->{useredit_id}){
+		$fdat{page} = "edit";
+		$req->{useredit} = HSDB4::SQLRow::User->new->lookup_key( $req->{useredit_id});
+		if ($req->{useredit}->primary_key){
+			if ($req->{useredit}->source eq "LDAP") {
+				$req->{ldapuser} = 1;
+			}
+		}
+	}	
+
+	push(@{$req->{nav_bar}},"/management/users/show\tFind Users");
+}
+-][$ endif $][$ if $req->{pagetype} eq "properties" $][-
+
+$req->{propertytype}=pop(@{$req->{path_info}});
+
+-][$ endif $][$ if $req->{pagetype} eq "students" $][!
+	use TUSK::Manage::Course::Students;
+!][-
+	unless ($req->{showpage}){
+		if ($fdat{show}){
+			$req->{show} = $fdat{show};
+		}else{
+			$req->{show} = "0";
+		}
+
+	push(@{$req->{nav_bar}},"/management/course/students/show/".$req->{classpath}."\tManage Course Students");
+	}
+-][$ endif $][$ if $req->{pagetype} eq "teachingsites" $]
+[-
+	push(@{$req->{nav_bar}},"/management/course/students/show/".$req->{classpath}."\tManage Course Students");
+-][$ endif $][$ if $req->{pagetype} eq "courseusers" $][!
+	use TUSK::Manage::Course::Users;
+!][-
+	unless ($req->{showpage}){
+		push(@{$req->{nav_bar}},"/management/course/users/show/".$req->{classpath}."\tManage Course Editors");
+}
+-][$ endif $][$ if $req->{pagetype} eq "email" $][!
+	use TUSK::Manage::Email;
+!][$ endif $][$ if $req->{pagetype} eq "tracking" $][!
+	use TUSK::Manage::Tracking;
+!][$ endif $][$ if $req->{pagetype} eq "category" $][!
+	use TUSK::Manage::Homepage::Category;
+!][-
+	unless ($req->{showpage}){
+		$req->{category_id} = pop(@{$req->{path_info}});
+
+		if ($req->{category_id}){
+			$fdat{page} = "edit";
+			$req->{category} = TUSK::HomepageCategory->new(_school => $req->{school})->lookup_key($req->{category_id});
+		}	
+		push(@{$req->{nav_bar}},"/manage/homepage/category/show/" . $req->{schoolpath} . "\tHomepage Courses");
+	}
+-][$ endif $][$ if $req->{pagetype} eq "courselink" $][!
+	use TUSK::Manage::Homepage::CourseLink;
+!][-
+	$req->{category_id} = shift(@{$req->{path_info}});
+	
+	push(@{$req->{nav_bar}},"/manage/homepage/category/show/" . $req->{schoolpath} . "\tHomepage Courses");
+	unless ($req->{showpage}){
+		$req->{courselink_id} = pop(@{$req->{path_info}});
+
+		if ($req->{courselink_id}){
+			$fdat{page} = "edit";
+			$req->{courselink} = TUSK::HomepageCourse->new(_school => $req->{school})->lookup_key($req->{courselink_id});
+		}
+		$req->{category} = TUSK::HomepageCategory->new(_school => $req->{school})->lookup_key($req->{category_id});
+		push(@{$req->{nav_bar}},"/manage/homepage/courselink/show/" . $req->{schoolpath} . "/" . $req->{category_id} . "\tCategory - " . $req->{category}->get_label);
+	}
+-][$ endif $][$ endif $]

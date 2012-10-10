@@ -1,0 +1,81 @@
+[! 
+   use HSDB4::DateTime;
+   use HSDB45::Eval::Secret;
+!]
+
+[-
+    $escmode = 0;
+    $embperldir=$req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+    Execute ("$embperldir/hsdb4-style.css");
+-]
+
+<HTML>
+<HEAD>
+<TITLE>[+ $TUSK::Constants::SiteAbbr +] Course Evaluation Receipt Verification</TITLE>
+</HEAD>
+<BODY TOPMARGIN="10" LEFTMARGIN="10" RIGHTMARGIN="24">
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/userbox.html")) -]
+
+<h3 class="title">Receipt Verification</h3>
+
+<div align="center">
+[$ if $fdat{'school'} $]
+    [$ if $fdat{'school'} and $fdat{'eval_id'} and $fdat{'user_id'} and $fdat{'timestamp'} and $fdat{'receipt'} $]
+    [-
+        $date = HSDB4::DateTime->new()->in_mysql_timestamp($fdat{'timestamp'});
+    -]
+        [$ if HSDB45::Eval::Secret::verify_hashcode($fdat{'school'}, $fdat{'eval_id'}, $fdat{'user_id'},
+	                                            $date , $fdat{'receipt'})
+        $]
+	    <b>Completion Verified</b>
+	[$ else $]
+	    <b>Completion NOT Verified</b>
+	[$ endif $]
+    [$ else $]
+        <b>ERROR: You must fill in all fields of the form</b>
+    [$ endif $]
+<hr/>
+[$ endif $]
+
+<form method="get">
+<table>
+    <tr>
+        <td><b>School</b></td>
+        <td><b>Eval ID</b></td>
+        <td><b>User ID</b></td>
+    </tr>
+    <tr>
+        <td>
+	    <select name="school">
+            [$ foreach $school (HSDB4::Constants->eval_schools()) $]
+	        <option>[+ $school +]</option>
+            [$ endforeach $]
+	    </select>
+	</td>
+        <td><input type="text" name="eval_id"/></td>
+        <td><input type="text" name="user_id"/></td>
+    </tr>
+    <tr>
+    	<td><b>Timestamp</b></td>
+        <td><b>Receipt</b></td>
+	<td></td>
+    </tr>
+    <tr>
+        <td><input type="text" name="timestamp"/></td>
+        <td><input type="text" name="receipt"/></td>
+	<td><input type="reset"/><input type="submit" value="Submit"/></td>
+    </tr>
+</table>
+</form>
+</div>
+
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/footer_links.html")) -]
+</BODY>
+</HTML>
+
+
+
+
+
+

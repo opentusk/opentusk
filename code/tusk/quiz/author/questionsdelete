@@ -1,0 +1,142 @@
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Question;
+	use TUSK::Quiz::LinkQuizQuizItem;
+	use TUSK::Quiz::LinkQuestionQuestion;
+	use TUSK::Application::Quiz::Delete;
+</%once>
+
+<%shared>
+	my $type_obj = $m->comp("/tmpl/url:get_type_object");
+	my $quiz_id = $m->comp("/tmpl/url:get_first_path_id");
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my $back_url = "/quiz/author/addedit/" . $m->comp('/tmpl/url:get_type_path') . '/' . $quiz_id;
+	my $time_period = HSDB45::TimePeriod->new(_school => $type_obj->school())->lookup_key(TUSK::Quiz::LinkCourseQuiz->lookupReturnOne("child_quiz_id = $quiz_id")->getTimePeriodID());
+	my $links = TUSK::Quiz::LinkQuizQuizItem->new()->getQuestions("quiz_id = $quiz_id");
+	my %args = $m->request_args();
+	my $has_section = 0;
+</%shared>
+
+<%method function_token>
+% 	return 'edit_quiz';
+</%method>
+
+<%method get_nav_bar_objects>
+% 	return {'quiz'=>$quiz};
+</%method>
+
+<%method title>
+% 	return "Delete Multiple Quiz Questions";
+</%method>
+
+<%method red_header_text>
+%	return "Delete Multiple Quiz Questions";
+</%method>
+
+
+<%method display_questions_in_checkboxes>
+<%args>
+	$links
+</%args>
+
+<table>
+<& SELF:print_checkbox, links => $links &>
+</table>
+</%method>
+
+
+
+<%method print_checkbox>
+<%args>
+	$links
+	$level => 0
+</%args>
+<%perl>
+	my $i = ($level % 2 == 0) ? 1 : 'a';
+
+	foreach my $link (@$links) {
+		my $q = $link->getQuestionObject();
+		my ($type, $id);
+		if (ref $link eq 'TUSK::Quiz::LinkQuizQuizItem') {
+			$id = $link->getQuizID();
+			$type = 'linkquiz';
+		} elsif (ref $link eq 'TUSK::Quiz::LinkQuestionQuestion') {
+			$id = $link->getParentQuestionID();
+			$type = 'linkquestion';
+		}
+
+		next unless defined $type && defined $id;
+		$m->print( "<tr><td class=\"cell-left\"><div style=\"margin-left:" . 30 * $level . "px\"><div style=\"float:left;\"><input type=\"checkbox\" name=\"question_key\" value=\"$type\_$id\_" . $q->getPrimaryKeyID() . "\" onclick=\"updateDeleteCheckbox();\"> " . $i++ . '. ' . $q->getBody() . "</div></td></tr>");
+		if ($q->getType eq 'Section') {
+			$has_section = 1;
+			$m->comp('SELF:print_checkbox', links => $q->getSubQuestionLinks(), level => $level+1);
+		}
+	}
+</%perl>
+</%method>
+
+
+
+<%perl>
+	if (!defined($quiz->getPrimaryKeyID())){
+        	$m->comp("/tmpl/error",msg=>"Quiz $quiz_id not found");
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'questionsdelete',
+                onsubmit => undef } &>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params => {
+	label => 'Quiz Title:',
+        value => $quiz->getTitle()} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Time Period:',
+	value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')',
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Questions to Delete:',
+	value 	=>  $m->scomp('SELF:display_questions_in_checkboxes', links => $links) ,
+	
+} &>
+
+% if ($has_section) {
+<tr><td>&nbsp;</td><td><br/><span style="color:red;">Note that all section/questions under the selected section will be deleted.</span></td></tr>
+% }
+
+<& /tmpl/element:save_button,params=>{name=>'delete_question',
+                                        label=>'Delete Selected Questions',
+                                        cancel_onclick=>"go_back('$back_url');"} &>
+</table>
+<input type="hidden" name="do_delete_quiz_questions" value="1"/>
+</form>
+
+
+<%init>
+	if ($args{submit_check} && $args{do_delete_quiz_questions}) {
+		my @question_keys = ();
+		if (ref $args{question_key} eq 'ARRAY') {
+			push @question_keys,  @{$args{question_key}};
+		} else {
+			push @question_keys, $args{question_key};
+		}
+
+		if (scalar @question_keys) {
+			my $app = TUSK::Application::Quiz::Delete->new({user => $m->session->{'user'}->user_id(), quiz_id => $quiz_id});
+			$app->deleteSomeQuestions(\@question_keys);
+		        $m->redirect($back_url . '?msg=Questions+Successfully+Deleted');
+		}
+
+	}
+</%init>
+
+
+
+

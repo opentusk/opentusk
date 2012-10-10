@@ -1,0 +1,53 @@
+<%once>
+	use TUSK::GradeBook::GradeCategory;
+</%once>
+
+<%shared>
+	my $category_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my @students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"));
+</%shared>
+
+% if ($category_id) {
+<div class="med"> Category: <% TUSK::GradeBook::GradeCategory->lookupKey($category_id)->getGradeCategoryName() %> </div>
+% } else {
+<div align="right" style="margin-top:5px;">
+<& SELF:print_gradebook_tools&>
+</div>
+% }
+
+<table>
+<& /tmpl/element:object_selection_box, params => {
+	sort_box => 0,
+	columns => [
+		{ 'label' => 'Last Name', width=> '200',  'field' => 'lastname'  },
+		{ 'label' => 'First Name', width=> '200', 'field' => 'firstname' },
+        { 'label' => 'User ID', 'field' => 'user_id' }
+	],
+	action_columns => [ $m->comp('SELF:get_action_link') ],
+    object_list => \@students,
+	type_path => $m->comp("/tmpl/url:get_type_path"),
+	name => "student_list",
+	nobutton => 1,
+} &>
+</table>
+
+<%method get_action_link>
+<%perl>
+	return ($category_id) 
+		? { label => 'View/Edit Grades', link => '/gradebook/author/gradeaddeditbystudent', extra => '/' . $category_id }
+		: { label => 'View/Edit All Grade Events', link => '/gradebook/author/gradeaddeditbystudent'};
+</%perl>
+</%method>
+
+<%method title>
+%	return "View/Edit By Student";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+
+
+

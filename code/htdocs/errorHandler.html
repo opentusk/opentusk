@@ -1,0 +1,38 @@
+<html>
+<head>
+[-
+ use strict;
+ use TUSK::Constants;
+ use TUSK::ErrorReport;
+ our $msgBody = ErrorReport::sendErrorReport($req_rec);
+
+ our $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+ Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+ Execute ("$embperldir/hsdb4-style.css");
+
+-]
+<title>[+ $TUSK::Constants::SiteAbbr +] Error</title>
+</head>
+<body>
+[- head_graphics ("Trouble with Page") -]
+[$ if (!Apache->define('DEV')) $]
+
+<P>The page you requested is having trouble getting from 
+our server to your web browser.</P>
+
+<p>Your problem has been reported to [+ $TUSK::Constants::SiteAbbr +] and we will do our best to help you 
+with this issue.  If you would like to contact us with additional information 
+please email <a href="mailto:[+ $TUSK::Constants::AdminEmail+]">[+ $TUSK::Constants::AdminEmail +]</a> or call [+ $TUSK::Constants::SupportPhone +].
+Thank you for your patience.
+[$ else $]
+[+ '<pre>'.$msgBody.'</pre>' +]
+[$ endif $]
+[$ if ($msg) $]
+Error processing send mail request:
+[+ $msg +]
+[$ endif $]
+</p>
+<HR>
+[- Execute ("$embperldir/footer_links.html") -]
+</body>
+</html>

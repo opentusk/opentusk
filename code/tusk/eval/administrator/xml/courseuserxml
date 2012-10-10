@@ -1,0 +1,21 @@
+% my %params = $m->request_args;
+% my $course;
+% if ($params{course_id} && $params{school}) {
+%	$course = HSDB45::Course->new(_school => $params{school})->lookup_key($params{course_id});
+%	if (defined $course) {
+% $m->clear_buffer();
+% $r->content_type('text/xml');
+% $r->no_cache(1);
+<?xml version="1.0" encoding="UTF-8"?>
+<courseUsers school="<% $params{school} %>" courseId="<% $params{course_id} %>">
+% 		my @users = $course->child_users();
+% 		foreach my $user (@users) {
+	<user id="<% $user->primary_key %>" name="<% $user->out_full_name() %>" />
+% 		}
+</courseUsers>
+%	}
+% }
+
+<%flags>
+        inherit => undef
+</%flags>

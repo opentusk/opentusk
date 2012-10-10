@@ -1,0 +1,63 @@
+[! use HSDB4::SQLRow::User;
+   use Apache::Constants (NOT_FOUND);
+!]
+[- 
+    unless ($req_rec->path_info) {
+	$req_reec->status (NOT_FOUND);
+	exit;
+    }
+    $user = HSDB4::SQLRow::User->new ()->lookup_path($req_rec->path_info);
+    unless ($user->primary_key) {
+        $req_rec->status (NOT_FOUND);
+        exit;
+    }
+    $escmode=0;
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+    $viewer = $req_rec->connection->user;
+-]
+<HTML>
+<HEAD>
+<TITLE>TUSK User Display: [+$user->out_abbrev+]</TITLE>
+[- Execute ("$embperldir/hsdb4-style.css"); -]
+</HEAD>
+<BODY>
+[- head_graphics ($user->out_full_name) -]
+
+[# Basic Information #]
+<H3 CLASS="title">User Information</H3>
+[# Links to editing... #]
+<UL>
+[$ if $viewer eq $user->primary_key $]
+<DIV>
+<LI><A HREF="[+ $user->out_edit_url +]">Edit user info</A></DIV>
+<DIV>
+<LI><A HREF="/protected/change_password">Change password</A></DIV>
+[$ endif $]
+<DIV>
+<LI><B>Email Address:</B> [- email ($user->field_value('email')) -]</DIV>
+[$ if @groups = $user->out_groups $]
+<DIV>
+<LI><B>Groups:</B> [+join (', ', @groups)+]</DIV>
+[$ endif $]
+</UL>
+
+[# Contact Information #]
+[- @contacts = $user->out_contact_info ($viewer) -]
+[$ if @contacts $]
+<H3 CLASS="title">Contact Information</H3>
+<TABLE>
+[$ if $contacts[$row]$][+ $contacts[$row]->out_html_row() +][$ endif $]
+</TABLE>
+[$ endif $]
+
+[# Documents Authored #]
+[$ if $user->parent_content() $]
+[- @docs = $user->parent_content() -]
+<H3 CLASS="title">Documents Authored ([+ scalar(@docs) +])</H3>
+<TABLE>
+[+ $docs[$row]->out_html_row() +]
+</TABLE>
+[$ endif $]
+</BODY>
+</HTML>

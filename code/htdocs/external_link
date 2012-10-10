@@ -1,0 +1,150 @@
+[!
+use Digest::MD5 qw(md5_hex);
+use HSDB4::SQLRow::User;
+use HSDB45::Course;
+use HSDB45::UserGroup;
+use Apache::Constants qw(:common REDIRECT);
+!]
+[-
+    $req_rec->no_cache();
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    #Find the user name
+    ($none,$type,@args) = split("/",$req_rec->path_info);
+    $user_id = $req_rec->connection->user;
+    $user = HSDB4::SQLRow::User->new->lookup_key ($user_id);
+    ## put all the checks here so a redirect can happen before output is started
+    %types = ('thci' => 1,
+	      'lexi' => 2,
+	);	
+
+    if (!$types{$type}) {
+	$req_rec->header_out("Location" => "/forbidden.html");
+   	$req_rec->status(REDIRECT);
+    	exit();
+    }
+-]
+[## a subroutine to process the request and return necessary elements defined for the external site ##]
+[$ sub process_external_link $]
+[-  if ($type =~ /^thci$/) {
+	    $reg_key = "";
+	    $role = "";
+	    ($school,$course_id) = @args;
+ 	    if (!$school || !$course_id) {
+	        $req_rec->header_out("Location" => "/forbidden.html");
+    	        $req_rec->status(REDIRECT);
+    	        exit();
+	    }
+	    if (!$user->field_value("email")) {
+	        $req_rec->header_out("Location" => "/forbidden.html");
+    	        $req_rec->status(REDIRECT);
+    	        exit();
+	    }
+	    ## find the course user group - if the user is in it then it's OK to proceed
+	    $course = HSDB45::Course->new(_school => $school, _id => $course_id);
+	    if (!$course->primary_key) {
+		Execute({inputfile => "$embperldir/missingHandler.html"});
+		exit();
+	    }
+
+	    ## check the admin group for this school
+	    $admin_ug = HSDB45::UserGroup->new(_school => $school,
+					       _id => $HSDB4::Constants::School_Admin_Group{ucfirst(lc($school))});
+	    if ($admin_ug->contains_user($user_id)) {
+		$reg_key = "OTQF42744";
+		$designation = "Physician";
+	    }
+	
+	    if (!$reg_key) {
+	      ## groups 04,05,06,07,08,09
+	      %group_key = (63 => "QCFD55377",
+		      301 => "BRWW21343",
+		      325 => "SXVK38523",
+		      670 => "NZCA76488",
+		      694 => "UBAI55628",
+		      780 => "PFJJ65787");
+
+	      foreach $course_group ($course->child_user_groups) {
+		next unless $group_key{$course_group->primary_key};
+		next unless $course_group->contains_user($user_id);
+		$reg_key = $group_key{$course_group->primary_key};
+		$designation = "Medical Student";
+	      }
+	    }	
+	    ## maybe the user is a course director or faculty
+	    if (!$reg_key) {
+		@child_users = $course->child_users("user_id='$user_id'");
+		# the user is in the course, must determine what role
+		if (@child_users) {
+			$course_user = shift (@child_users);
+			$reg_key = "EQTR11733";
+			$reg_key = "ZPTT32454" if ($course_user->aux_info("roles") =~ /Director/);				
+			$designation = "Physician";
+		}
+	    }
+	    ## at this point if there is no reg key this user isn't allowed to get to the link
+	    if (!$reg_key) {
+		$req_rec->header_out("Location" => "/forbidden.html");
+    	        $req_rec->status(REDIRECT);
+    	        exit();
+  	    }
+	    $hash_key = md5_hex($reg_key.":".$user->field_value("email").":ScSaf310");
+        }
+-]
+[$ endsub $]
+[- process_external_link(); -]
+[$ if ($type =~ /^thci$/i) $]
+<html>
+<body onload="javascript:document.thci_post.submit()">
+<form name="thci_post" action="http://campus.thci.org/InstitutionIntegration/Default.asp" method="post">
+<input type="hidden" name="HashKey" value="[+ $hash_key+]">
+<input type="hidden" name="FirstName" value="[+ $user->field_value("firstname") +]">
+<input type="hidden" name="LastName" value="[+ $user->field_value("lastname") +]">
+<input type="hidden" name="Email" value="[+ $user->field_value("email") +]">
+<input type="hidden" name="RegistrationKey" value="[+ $reg_key +]">
+<input type="hidden" name="ProfessionalDesignation" value="[+ $designation +]">
+</form>
+You are being directed to the THCI site. If the page doesn't reload within a few seconds please <a href="javascript:document.thci_post.submit()">click here</a>
+
+[# debug information to make sure we're doing the right thing
+<h4>Debug</h4>
+Type: [+ $type +]<br>
+
+[$ foreach $group ($user->parent_user_groups) $]
+Group: [+ $group->out_label+] ([+ $group->primary_key +])<br>
+[$ endforeach $] 
+
+<h4>Post Variables</h4>
+HashKey: [+ $hash_key +]<br>
+FirstName: [+ $user->field_value("firstname") +]<br>
+FirstName: [+ $user->field_value("lastname") +]<br>
+Email: [+ $user->field_value("email") +]<br>
+RegistrationKey: [+ $reg_key +]<br>
+ProfessionalDesignation: [+ $designation +]<br>
+</body>
+</html>
+#]
+[$ elsif ($type =~ /^lexi$/i) $]
+<html>
+<body onload="javascript:document.login_form.submit()">
+<form name="login_form" action="http://online.lexi.com/crlsql/servlet/crlonline" method="POST">
+<input type="hidden" name="a" value="li">
+<input type="hidden" name="name" value="tusdm">
+<input type="hidden" name="passwd" value="tusdm">
+</form>
+You are being direted to the Lexi-Comp site. If the page doesn't reload within a few seconds please <a href="javascript:document.login_form.submit()">click here</a>
+</body>
+</html>
+
+[$ endif $]
+
+
+
+
+
+
+
+
+
+
+
+

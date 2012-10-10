@@ -1,0 +1,194 @@
+[! use HSDB45::Announcement; 
+   use TUSK::Case::Case;
+   use TUSK::Core::UsefulLink;
+   use TUSK::Functions;
+   use TUSK::Constants;
+!]
+[- shift; #get rid of embperl object
+$arrayref = shift;
+($user,$announcement_ref,$embperldir) = @$arrayref;
+$time = time() -]
+[$ if (!$user->primary_key) $]
+[- $ssrv = $req_rec->dir_config('SecureLogin') 
+	|| 'https://'. $TUSK::Constants::Domain .'/login'; 
+-]
+<img src="/graphics/headerleft-login.gif" alt="Login" width="201" height="25" border="0">
+<form action="[+ $ssrv +]" method="post">
+<table width="100%" border="0" cellspacing="3" cellpadding="0">
+  <tr>
+    <td class="sm"><strong>Username:</strong><br />
+	<input class="textareawhite" name="user" type="text"></td>
+  </tr>
+    <tr>
+    <td class="sm"><strong>Password:</strong><br />
+	<input class="textareawhite" name="password" type="password"></td>
+  </tr>
+  <tr>
+	<td align="right">
+		<input class="formbutton" name="Login" type="submit" value="Login">
+	</td>
+  </tr>
+</table>
+</form>
+[$ else $] [# user is logged in #]
+<h3 class="gGrayHeaderBar">Announcements</h3>
+<!-- Begin Announcements Inner Table -->
+<table width="100%" border="0" cellspacing="0" cellpadding="3">
+[$ if (@$announcement_ref) $]
+[$ foreach $announce (@$announcement_ref) $]
+  <tr>
+  <td width="9" valign="top"><img src="/graphics/home-bulletleft.gif" alt=" " width="9" height="12"></td>
+  <td width="100%" valign="top" class="xsm">[+ TUSK::Functions::truncateTextWithoutTags($announce->{item}->field_value("body")) +] 
+	[$ if ($announce->{type} eq 'course') $]
+	[- $course = $announce->{course} -]
+	&nbsp;<font size="-2">(<a href="hsdb45/course/[+ $course->school() +]/[+ $course->course_id +]" title="[+ $course->title +]">[+ ($course->registrar_code) ? $course->registrar_code : $course->course_id +]</a>)</font>
+	[$ elsif ($announce->{type} eq 'user_group') $]
+	&nbsp;<font size="-2">(<a href="/view/usergroup/[+ $announce->{school} +]/[+ $announce->{id} +]" title="[+ $announce->{school} +]">[+ ($announce->{id_label}) ? $announce->{id_label} : $announce->{school} +]</a>)</font>
+	[$ endif $]
+  </td>
+  </tr>
+[$ endforeach $]
+[$ else $]
+  <tr>
+    <td width="9" valign="top"><img src="/graphics/spacer.gif" alt=" " width="9" height="14"></td>
+	<td width="100%" valign="top" class="xsm"><em>no announcements</em></td>
+  </tr>
+[$ endif $]
+</table>
+<!-- End Announcements Inner Table -->
+
+[- @evals = $user->current_evals() -]
+[- @group_evals = $user->current_group_evals() -]
+[$ if ((defined(@evals) && scalar(@evals)) || (defined(@group_evals) && scalar(@group_evals))) $]
+<h3 class="gGrayHeaderBar">Evaluations</h3>
+<!-- Begin Evaluations Inner Table -->
+<table width="100%" border="0" cellspacing="0" cellpadding="3">
+[$ foreach $eval (@evals) $]
+  <tr>
+    <td width="9" valign="top"><img src="/graphics/home-bulletleft.gif" alt=" " width="9" height="12"></td>
+    [- $ddate = ($eval->prelim_due_date) ? $eval->prelim_due_date->out_string_date_short_short : $eval->due_date->out_string_date_short_short -]
+    <td width="100%" valign="top" class="xsm">[+ $eval->out_html_label +] (due [+ $ddate +])</td>
+  </tr>
+[$ endforeach $]
+[$ foreach $group_eval (@group_evals) $]
+  <tr>
+    <td width="9" valign="top"><img src="/graphics/home-bulletleft.gif" alt=" " width="9" height="12"></td>
+    <td width="100%" valign="top" class="xsm"><a href="/protected/eval/group/course/[+ $group_eval->getSchoolName() +]/[+ $group_eval->getCourseID() +]/[+ $group_eval->getPrimaryKeyID() +]">[+ $group_eval->getTitle() +]</a> (due [+ $group_eval->getDueDateObject()->out_string_date_short_short() +])</td>
+  </tr>
+[$ endforeach $]
+    <tr>
+    <td width="9" valign="top"><img src="/graphics/spacer.gif" alt=" " width="9" height="14"></td>
+	<td width="100%" valign="top" class="xsm"><a href="/hsdb45/eval/history"><strong>View History</strong></a></td>
+  </tr>
+</table>
+<!-- End Evaluations Inner Table -->
+[$ endif $]
+[- $patientlogs = $user->get_patient_logs()  -]
+[- $directorpatientlogs = $user->get_director_patient_logs()  -]
+[$ if (scalar(@$patientlogs) || (defined($directorpatientlogs) && scalar(@$directorpatientlogs))) $]
+<!-- Begin Patient Log Inner Table -->
+<h3 class="gGrayHeaderBar">Patient Logs</h3>
+<table width="100%" border="0" cellspacing="0" cellpadding="3">
+[$ if (scalar(@$patientlogs)) $]
+<tr>
+<td width="9" valign="top"><img src="/graphics/spacer.gif" alt=" " width="9" height="14"></td>
+<td width="100%" valign="top" class="xsm"><a href="/protected/patientlog/student/home"><strong>View Patient Logs</strong></a></td>
+</tr>
+[$ endif $]
+[$ if (defined($directorpatientlogs) && scalar(@$directorpatientlogs)) $]
+[$ foreach $logrow (@$directorpatientlogs) $]
+<tr>
+<td width="9" valign="top"><img src="/graphics/spacer.gif" alt=" " width="9" height="14"></td>
+<td width="100%" valign="top" class="xsm">[+ $logrow->{title} +]<br/>&nbsp;&nbsp;<a href="/protected/patientlog/director/report/course/[+ $logrow->{school_name} +]/[+ $logrow->{course_id} +]"><strong>View Reports</strong></a></td>
+</tr>
+[$ endforeach $]
+[$ endif $]
+</table>
+<!-- End Patient Log Inner Table -->
+[$ endif $]
+
+[- $grades = $user->has_grades()  -]
+[$ if ($grades) $]
+<!-- Begin Grades Inner Table -->
+<h3 class="gGrayHeaderBar">Grades</h3>
+<table width="100%" border="0" cellspacing="0" cellpadding="3">
+<tr>
+<td width="9" valign="top"><img src="/graphics/spacer.gif" alt=" " width="9" height="14"></td>
+<td width="100%" valign="top" class="xsm"><a href="/protected/gradebook/showgrades"><strong>View Grades</strong></a></td>
+</tr>
+</table>
+<!-- End Grades Inner Table -->
+[$ endif $]
+
+[# A Shib User can not have quizzes so lets skip this section #]
+[$ if (!$user->isGhost()) $]
+  [- $quizzes = $user->current_quizzes -]
+  [$ if (defined($quizzes) && scalar(@$quizzes)) $]
+  <h3 class="gGrayHeaderBar">Quizzes</h3>
+  <!-- Begin Quizzes Inner Table -->
+  <table width="100%" border="0" cellspacing="0" cellpadding="3">
+    <tr>
+      <td width="9" valign="top"><img src="/graphics/spacer.gif" alt=" " width="9" height="14"></td>
+	  <td width="100%" valign="top" class="xsm"><em>Current Quizzes:</em></td>
+    </tr>
+  [$ foreach $quiz (@$quizzes) $]
+    <tr>
+      <td width="9" valign="top"><img src="/graphics/home-bulletleft.gif" alt=" " width="9" height="12"></td>
+	  <td width="100%" valign="top" class="xsm"><a href="/protected/quiz/
+  [$ if ($quiz->{preview}) $]author/quizpreview[$ else $]quizstart[$ endif $]
+  /course/[+ $quiz->{school} +]/[+ $quiz->{course_id} +]/[+ $quiz->{quiz_id} +]" 
+  [$ if ($quiz->{start_date}) $]style="color:red"[$ endif $] 
+  [$ if ($quiz->{preview}) $]target="preview"[$ endif $]
+  >[+ $quiz->{title} +]</a>
+  [$ if ($quiz->{preview}) $]&nbsp;(Preview)[$ endif $]</td>
+    </tr>
+    [$ endforeach $]
+  </table>
+  [$ endif $]
+[$ endif $]
+
+[- $cases = TUSK::Case::Case->getAvailableUserCases($user); -]
+[$ if (defined($cases) && scalar(@$cases)) $]
+<h3 class="gGrayHeaderBar">Cases</h3>
+<!-- Begin Cases Inner Table -->
+<table width="100%" border="0" cellspacing="0" cellpadding="3">
+  <tr>
+    <td width="9" valign="top"><img src="/graphics/spacer.gif" alt=" " width="9" height="14"></td>
+        <td width="100%" valign="top" class="xsm"><em>Current Cases:</em></td>
+  </tr>
+[$ foreach $case (@$cases) $]
+  <tr>
+    <td width="9" valign="top"><img src="/graphics/home-bulletleft.gif" alt=" " width="9" height="12"></td>
+        <td width="100%" valign="top" class="xsm"><a href="/protected/case/casestart/[+ $case->getSchoolID() +]/[+ $case->getCourseID() +]/[+ $case->getPrimaryKeyID() +]">[+ $case->getCaseTitle() +]</a>
+	</td>
+  </tr>
+  [$ endforeach $]
+</table>
+[$ endif $]
+[$ endif $] [# User is Logged in  #]
+
+[# A Shib User is not related to a school so we can skip this section too #]
+[$ if (!$user->isGhost()) $]
+  <h3 class="gGrayHeaderBar">Useful Links</h3>
+  <!-- Begin Useful Links Inner Table -->
+  <table width="100%" border="0" cellspacing="0" cellpadding="3">
+    [- ## this little include is used in cases where the user's affiliation doesn't map to an actual database (ie library)
+       if ($user->affiliation && -e "$embperldir/".lc($user->affiliation)."_links") {
+          Execute($embperldir."/".lc($user->affiliation)."_links");
+       }
+       $usefulLinks = ($user) ? TUSK::Core::UsefulLink->lookup(' LOWER(school_name) = LOWER("'.$user->affiliation .'")') : [];
+    -]
+  [$ foreach $usefulLink (@{$usefulLinks}) $]
+  <tr>
+    <td width="9" valign="top"><img src="/graphics/home-bulletleft.gif" alt=" " width="9" height="12"></td>
+    <td width="100%" valign="top" class="xsm"><a href="[+ $usefulLink->getUrl +]">[+ $usefulLink->getLabel +]</a></td>
+  </tr>
+  [$ endforeach $]
+   </table>
+[$ endif $]
+<img src="/graphics/spacer.gif" alt=" " width="200" height="20" border="0">
+
+
+
+
+

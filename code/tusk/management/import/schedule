@@ -1,0 +1,124 @@
+<%once>
+	use HSDB45::UserGroup;
+	use HSDB4::DateTime;
+	use TUSK::Import::Schedule;
+</%once>
+
+<%method title>
+% return "Import Schedule";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method jsarray>
+% return ['element.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
+</%method>
+
+<script>
+	function change_mode(){
+		var dropdown = document.getElementById('mode');
+		var mode_flag = dropdown.options[dropdown.selectedIndex].value;
+		if (mode_flag == "reset_flag"){
+			display_row('schedule_file_tr', 0);
+			display_row('flag_time_tr', 1);
+		}
+		else{
+			display_row('schedule_file_tr', 1);
+			display_row('flag_time_tr', 0);
+		}
+	}
+</script>
+
+<%perl>
+	my @user_groups = HSDB45::UserGroup->new( _school => $m->comp('/tmpl/url:get_school') )->lookup_conditions("sub_group='No'", "order by upper(label)");
+	my $date = HSDB4::DateTime->new();
+	my $flag_time = $ARGS{flag_time} || $date->out_mysql_timestamp();
+	$flag_time =~ s/(\d{2}:\d{2}):\d{2}/$1/;
+</%perl>
+
+<& /tmpl/element:form, params => { enctype=>'multipart/form-data',
+		method => 'POST',
+		name => 'permissions',
+		onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'User Group',
+                name=> "user_group_id",
+		selected=> $ARGS{user_group_id},
+                options => $m->comp("/tmpl/element:make_dropdown_options", arrayref => \@user_groups, label => "out_label", value => "primary_key"), } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Mode',
+                name=> "mode",
+		selected=> $ARGS{mode},
+		onchange=> "change_mode();",
+                options => [ { label => 'Test', value => 'test'}, { label => 'Live', value => 'live' }, { label => 'Reset usergroup flagtime', value => 'reset_flag' } ] } &>
+
+<& /tmpl/element:file_upload, params=>{ label => "Schedule File",
+		name => 'schedule_file',} &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Flag Time',
+                name => 'flag_time',
+                value => $flag_time,
+                size => 19,
+		maxlength => 19,
+		calendar => 1,
+		calendar_type => 'datetime' } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Process',
+                name=>'form_submit',
+		no_cancel_button => 1,} &>
+</table>
+
+</form>
+
+<script>
+	change_mode();
+</script>
+<%perl>
+if ($ARGS{submit_check}){
+	my $mode = $ARGS{mode};
+	$mode =~ s/_(.)/uc(" " . $1)/eg;
+
+	$m->print("<div class=\"subhead\">Import Results (" . ucfirst($mode) . "):</div>\n");
+
+	my $import = TUSK::Import::Schedule->new();
+
+	my $upload = $r->upload();
+	$import->read_filehandle($upload->fh()) if ($upload);
+	
+	my $selected_user_group;
+
+	foreach my $user_group (@user_groups){
+		if ($user_group->primary_key() == $ARGS{user_group_id}){
+			$selected_user_group = $user_group;
+			last;
+		}
+	}
+
+	$import->processData(
+		     { 
+			 user_group => $selected_user_group, 
+			 mode_flag => $ARGS{mode}, 
+			 flag_time => $ARGS{flag_time},
+			 start_date => $ARGS{start_date},
+                         end_date => $ARGS{end_date},
+		     });
+
+	close $upload->fh();
+	
+	$m->print("<ul>\n");
+
+	foreach my $log ($import->get_logs()){
+		my $color = ($log->get_type() eq "error") ? "red" : "green";
+		$m->print("<li><span style=\"color:" . $color . "\">" . $log->get_message() . "</span></li>\n");
+	}
+	
+	$m->print("</ul>\n");
+}
+</%perl>

@@ -1,0 +1,62 @@
+#!/bin/sh
+
+LD_LIBRARY_PATH=/opt/shibboleth-sp/lib
+export LD_LIBRARY_PATH
+PID_FILE=/usr/local/tusk/current/logs/shibd.pid
+SHIBD_SOCK=/usr/local/tusk/current/logs/shib-shar.sock
+SHIBD_PID=
+if [ -f "$PID_FILE" ] ; then
+	SHIBD_PID=`cat "$PID_FILE"`
+fi
+
+case "$1" in
+	'start')
+		# Check to see if the shibd process is really running,
+		# not just that the PID file exists.
+		kill -0 $SHIBD_PID > /dev/null 2>&1
+		err=$?
+		if [ $err -eq 0 ]
+		then
+			echo "shibd is running: pid $SHIBD_PID"
+		else
+
+			# cleanup after improper shutdown
+			if [ -f "$PID_FILE" ]
+			then
+				rm -f "$PID_FILE"
+			fi
+			if [ -r "$SHIBD_SOCK" ]
+			then
+				rm -f "$SHIBD_SOCK"
+			fi
+
+			/opt/shibboleth-sp/sbin/shibd -c /usr/local/tusk/current/addons/shibboleth/shibboleth.xml & echo $! > "$PID_FILE"
+			echo "shibd started"
+		fi
+		;;
+	'stop')
+		if [ "$SHIBD_PID" ]
+		then
+			kill $SHIBD_PID
+			rm -f $PID_FILE
+			echo "shibd stopped"
+		else
+			echo "shibd is not running"
+		fi
+		if [ -r "$SHIBD_SOCK" ]
+		then
+			rm -f "$SHIBD_SOCK"
+		fi
+		;;
+	'restart')
+		$0 stop;
+		$0 start;
+		;;
+	*)
+		# usage
+		echo "usage: $0 start|stop|restart"
+		exit 1
+		;;
+esac	
+
+exit 0

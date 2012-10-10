@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use File::stat;
+
+my $tempdir = "/data/temp/";
+my $mtime;
+
+opendir(DIR, "$tempdir");
+
+while (defined(my $filename = readdir(DIR))){
+	next if ($filename =~ /^\./);
+	$mtime = stat($tempdir . "/" .$filename)->mtime;
+	if (time - $mtime > 60*60*2){
+		unlink($tempdir . "/" . $filename);
+	}
+}
+
+closedir(DIR);

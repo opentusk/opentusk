@@ -1,0 +1,125 @@
+<%shared>
+my $id = $m->comp('/tmpl/url:get_last_path_id');
+my $case = TUSK::Case::Case->lookupKey($id);
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+<%method title>
+<%perl>
+my $title = "Reference Library";
+return $title;
+</%perl>
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Case::Case' => $case};
+</%method>
+
+<%method leftnav>
+<%perl>
+return {
+	component => '/case/tmpl/leftnav/case-create',
+	id => $id,
+	type_path => $type_path,
+	uri => 'referenceaddedit'
+	};
+</%perl>
+</%method>
+
+<%perl>
+my $formname = 'referenceaddedit';
+</%perl>
+
+
+<& /tmpl/element:form, params => {
+		method => 'POST',
+		name => $formname, 
+		onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+<& /tmpl/element:sort_order_box , params =>{
+		button_label=>'Existing TUSK Content/URL',
+		no_label => 1,
+		td_class => 'button-left',
+		button_onclick=>"openwindow('referencediv')",
+		buttons => 	[
+				$m->scomp("/tmpl/element:button", params => { 	
+					label   => 'Upload New Content', 
+					name    => 'upload_content', 
+					onclick => "open_upload_content_window('" . $m->comp('/tmpl/url:get_type_path') . "/" . $id . "', 'referencediv')" }),
+				$m->scomp("/tmpl/element:button", params => { 	
+					label   => 'Upload New URL', 
+					name    => 'link_url', 
+					onclick => "open_upload_content_window('" . $m->comp('/tmpl/url:get_type_path') . "/" . $id . "', 'referencediv', 'url')" })
+				],
+		layer_info => {
+				layer => 'referencediv',
+				fields => ['content_id', 'title'],
+				name => 'content',
+				sort => {usage => 'Yes', length=>50},
+				action => {usage => 'Yes', length=>100, functions => [
+					{func=>'preview_content', label=>'Preview'},
+					{func=>'modify_content', label=>'Modify'},
+					{func=>'remove', label=>'Delete'}
+				]},
+				display => [ 
+					{label=>'Content&nbsp;ID',field=>'content_id', align=>'left', length=>50},
+					{label=>'References',field=>'title', align=>'left', length=>'5000'},
+				],
+				validate => { usage => 'No' },
+				data => \@reference_data 
+		}
+} &>
+
+<& tmpl/sections:case_footer, case=>$case, type_path=>$type_path, formname=>$formname &>
+
+<& /tmpl/wizard:include &>
+
+</table>
+</form>
+
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::LinkCaseContent;
+</%once>
+
+<%init>
+my @reference_data = map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }  
+			map { $_->getContent } 
+			@{TUSK::Case::LinkCaseContent->lookup(" parent_case_id = $id  and link_type = 'Reference' ",['sort_order'] )};
+
+if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
+	my $args = \%ARGS;
+	my $user_id =  $m->comp('SELF:user');
+	$case->setReferencesSection($args->{'references_section'});
+	$case->save({user=>$user_id});
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^referencediv');
+	#$m->print(Dumper($rowHash));
+        $m->comp('/tmpl/process:manipulate_rows',
+                user => $user_id,
+                parent_id => $id,
+                object_name => 'TUSK::Case::LinkCaseContent',
+                set_parent => 'setParentCaseID',
+                set_child => 'setChildContentID',
+                child_pk_field => 'content_id',
+                fields_data => $rowHash,
+		addtlRelationFields=> ['Reference'],
+                display_data => \@reference_data );
+
+	@reference_data = map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
+                        map { $_->getContent }
+                        @{TUSK::Case::LinkCaseContent->lookup(" parent_case_id = $id  and link_type = 'Reference' ",['sort_order'] )};
+	$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => 'References successfully updated');
+}
+</%init>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+% $m->comp("SELF:set_msg", msg => 'References successfully updated') if ($m->comp('/tmpl/wizard:submitted',args => $args));
+</%method>

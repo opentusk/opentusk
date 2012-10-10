@@ -1,0 +1,239 @@
+<%shared>
+my @ids = $m->comp("/tmpl/url:get_path_ids");
+my ($battery_id,$exam_id,$test_id) = @ids;
+
+my $active_test_id = $test_id || $exam_id;
+
+my $is_sub_test = 0;
+
+my ($exam, $test_values); #move this to init?
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+<%once>
+use TUSK::Case::Battery;
+use TUSK::Case::Test;
+</%once>
+
+<%args>
+  $args => \%ARGS
+</%args>
+
+<%method startup>
+  <%args>
+    $args => {}
+  </%args>
+  <%perl>
+    $m->comp("SELF:set_no_cache");
+  </%perl>
+</%method>
+
+
+<%method title>
+<%perl>
+if (defined($test_id)){
+	return "Modify Sub Test";
+}
+if (defined($exam_id)){
+	return "Modify Test";
+} else {
+	return "Create Test";
+}
+</%perl>
+</%method>
+
+<%method get_nav_bar_objects >
+<%perl>
+
+return {'TUSK::Case::Battery'=>TUSK::Case::Battery->lookupKey($battery_id)};
+
+</%perl>
+</%method>
+
+<& /tmpl/element:form, params => { 
+                method => 'POST',
+                name => 'examaddedit',
+                onsubmit => 'return confirm_has_sub();' } &>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& tmpl/sections:exam_row, school=>$school, exam=>$exam, is_new_test=>$new_test, exam_test => $is_sub_test &>
+
+% if(!$new_test) { 
+<& tmpl/sections:edit_patient_type, 
+	school		=> $school, 
+	test_values => $test_values, 
+	exam		=> $exam
+&>
+% }
+
+% if ($has_sub){
+<& tmpl/sections:edit_sub_tests, 
+	school=>$school, 
+	exam=>$exam
+&>
+% } 
+
+<& /tmpl/element:save_button, params=>{
+		one_column=>'1',
+		colspan=>'2',
+		td_class=>'no-button',
+		label=>'Save Changes',
+		cancel_onclick=>"go_back('/case/administrator/batteryaddedit/$type_path/$battery_id')",
+		name=>'save_changes'} &>        
+
+</form>
+</table>
+
+% if (!$new_test || $has_sub){
+<& SELF:footer, obj=>$exam &>
+% }
+
+
+
+
+<%init>
+
+if (!defined($exam_id)){ # one id is passed
+	if (defined($battery_id)){
+    	$exam = TUSK::Case::Test->new();
+	} else {
+		$m->comp("/case/tmpl/error",msg=>"Can't create battery exam");
+	}
+} elsif ($test_id){ # there are two ids passed
+	$is_sub_test = 1;
+	$exam = TUSK::Case::Test->lookupKey($test_id);
+	$test_values = $exam->getTestValues();
+} else { # there is an exam id passed
+	$exam = TUSK::Case::Test->lookupKey($exam_id);
+	$test_values = $exam->getTestValues();
+}
+
+my $new_test = (defined($exam->getPrimaryKeyID))? 0 : 1;
+my $has_sub = $exam->getHasSubTest();
+my $school = $m->comp('/tmpl/url:get_type_object');
+my $reload_url = $r->uri();
+
+
+if (defined($args->{'save_exam'}) or $m->comp("/tmpl/wizard:submitted", args => $args)){
+
+	my $user_id = $m->comp('SELF:user');
+
+	if($new_test){
+		$exam->setBatteryID($battery_id);
+	}
+
+	if(defined($args->{'has_sub'})){
+		if($args->{'has_sub'} eq 'yes'){
+			$exam->setHasSubTest(1);
+		} else {
+			$exam->setHasSubTest(0);
+		}
+	}
+
+	# format cost so it is only numbers and decimal point (a nice float)
+	$args->{'default_cost'} =~ s/[^0-9\.]//g;
+
+	$exam->setDefaultCost($args->{'default_cost'});
+	$exam->setUnits($args->{'units'});
+	$exam->setTitle($args->{'title'});
+		
+	$exam->save({user=>$user_id});
+
+	if ($new_test) {
+		$reload_url .= "/" . $exam->getPrimaryKeyID();
+	}
+
+	my $msg = ($new_test)? "Test successfully created" : ($is_sub_test)? "Sub Test successfully modified" : "Test successfully modified";	
+
+	if ($has_sub){
+
+		my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^subtestdiv');
+		
+		foreach my $set (keys %{$rowHash}){
+			unless ($rowHash->{$set}->{'fields'}->{'test_name'}) {
+				# do not want to insert subtests with blank titles.
+				delete $rowHash->{$set};
+			} else {
+				# clean costs so they are only numbers and decimal point (a nice float)
+				$rowHash->{$set}->{'fields'}->{'default_cost'} =~ s/[^0-9\.]//g;
+			} 
+		}
+
+		my @subtest_data = map { {
+					test_name	=> $_->getTitle(), 
+					test_id 	=> $_->getPrimaryKeyID(), 
+					battery_id 	=> $_->getBatteryID(), 
+					master_test_id 	=> $_->getMasterTestID(),
+					default_cost 	=> $_->getDefaultCost(),
+					units 	=> $_->getUnits() 
+					} } 
+					@{$exam->getSubTests()};
+
+		$m->comp('/tmpl/process:manipulate_rows',
+		    row_type => 'Direct',
+		    user => $user_id,
+		    object_name => 'TUSK::Case::Test',
+		    fields_data => $rowHash,
+		    default_field_data=>{
+		        'master_test_id' =>$exam_id,
+		        'battery_id'     =>$battery_id
+		        },
+		    field_function_map => {
+			    'test_id'=>'setPrimaryKeyID',
+			    'test_name'=>'setTitle',
+			    'sortorder' => 'setSortOrder',
+			    'battery_id' => 'setBatteryID',
+			    'master_test_id' => 'setMasterTestID',
+			    'default_cost' => 'setDefaultCost',
+			    'units' => 'setUnits' },
+		    display_data => \@subtest_data );
+
+		
+	} 
+
+	if (!$new_test){
+
+		my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^patientdiv');
+
+		my $patient_data;
+		foreach my $tv (@{$test_values}){
+			push @{$patient_data}, {
+				test_value_id      => $tv->getPrimaryKeyID(), 
+				patient_type_id     => $tv->getPatientTypeID(),
+				default_value       => $tv->getDefaultValue(),
+				default_content_id  => $tv->getDefaultContentID(),
+				source              => $tv->getSource()
+				};
+		}
+
+		$m->comp('/tmpl/process:manipulate_rows',
+		       row_type => 'Direct',
+		       user => $user_id,
+		       object_name => 'TUSK::Case::MasterTestTestValue',
+		       fields_data => $rowHash,
+		       default_field_data=>{'test_id'=>$active_test_id },
+		       field_function_map => {
+					'test_value_id'=>'setPrimaryKeyID',
+					'test_id'=>'setTestID',
+					'patient_type_id'=>'setPatientTypeID',
+					'default_value'=>'setDefaultValue',
+					'default_content_id'=>'setDefaultContentID',
+					'source' => 'setSource' },
+		       display_data => $patient_data );
+	}
+
+
+
+
+	$m->comp("/tmpl/wizard:do_next", args => $args, default_transition => $reload_url . "?msg=$msg" );
+
+} 
+
+
+</%init>

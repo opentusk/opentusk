@@ -1,0 +1,701 @@
+<%once>
+	use TUSK::Constants;
+	use TUSK::Search::UserSearch;
+	use TUSK::Search::SearchTerm;
+	use TUSK::Search::SearchQuery;
+	use TUSK::Search::Content;
+	use URI::Escape;
+
+	my $defaultResultSetLimit = 10;
+	my $pageName =  '/search/form';
+</%once>
+
+<%shared>
+	my $user = $m->comp('SELF:user');	
+</%shared>
+
+<%method interpretQueryString>
+<%args>
+	$args
+</%args>
+<%perl>
+	my ($userQueryID) = $m->comp("/tmpl/url:get_last_path_id");
+
+	my $query = {};
+	my $userQuery;
+
+	if ($userQueryID){
+       		$userQuery = TUSK::Search::SearchQuery->lookupKey($userQueryID);
+
+	        if ($userQuery && ($user ne $userQuery->getUserID())){
+       	        	$m->comp('/tmpl/error',msg=>'That query does not belong to you.');
+	                $m->abort();
+	        }
+
+       		if (! defined($userQuery)){
+                	$m->comp('/tmpl/error',msg=>'That query is not defined :'.$userQueryID);
+	                $m->abort();
+       		}
+
+	        if (! $args->{'refine'}){
+        	        $query = $userQuery->getQueryStruct();
+	        } 
+	} 
+
+	my $settings = {
+				resultSetLimit 		=> ($args->{'resultSetLimit'}) ? $args->{'resultSetLimit'} : $defaultResultSetLimit,
+				resultSetStart		=> ($args->{'start'}) ? $args->{'start'} : 0,
+				advancedView		=> ($args->{'Search'}) ? 0 : 1,
+				searchExecuted		=> ($args->{'include_umls'}) ? 0 : $args->{'Search'},
+				refineSearch		=> ($args->{'refine'}) ? 1 : 0,
+				userQuery		=> $userQuery,
+			};
+			
+	if ($userQueryID && ! $args->{'refine'}){
+		return ($settings, $query);
+	}
+
+	my $fields = ['query', 'author', 'title', 'content_id', 'course', 'copyright', 'concepts', 'school', 'media_type'];
+	my $array_field = {
+				'concepts'	=> 1,
+				'school'	=> 1,
+				'media_type'	=> 1,
+			};
+
+	foreach my $field (@$fields){
+		if ($args->{ $field }){
+			if ($array_field->{ $field } && ! ref ($args->{ $field })){
+				$query->{ $field } = [ $args->{ $field } ];
+			} else {
+				$query->{ $field } = $args->{ $field };
+			}
+			
+		}
+	}
+
+	if ($settings->{'searchExecuted'} && scalar(keys %$query) == 0){
+		$settings->{'searchExecuted'} = '';
+		$settings->{'empty_query'} = 1;
+	}
+	
+	return ($settings, $query);
+</%perl>
+</%method>
+
+<%method createQueryString>
+<%args>
+	$query
+	$query_replace 	=> 0
+	$advanced 	=> 0
+	$start 		=> undef
+	$limit 		=> undef
+	$runQuery 	=> 0
+</%args>
+<%perl>
+	my $query_string = '?';
+	
+	foreach my $key (keys %$query){
+		if ($query_replace && $key eq 'query'){
+			$query_string .= '&' . uri_escape($key) . '=' . uri_escape($query_replace);
+			next;
+		}
+
+		if (($key eq 'media_type') || ($key eq 'school')){
+			if (ref($query->{$key})) {
+				foreach $m (@{$query->{$key}}){
+					$query_string .= '&' . uri_escape($key) . '=' . uri_escape($m);
+				}
+			} else {
+				$query_string .= '&' . uri_escape($key) . '=' . uri_escape($query->{$key});
+			}
+			next;
+		}
+
+		$query_string .= '&' . uri_escape($key) . '=' . uri_escape($query->{$key});
+	}
+
+	if ($advanced){
+		$query_string .= '&advanced=1';
+	}
+	
+	if (defined($start)){
+		$query_string .= "&start=$start";
+	}
+	
+	if (defined($limit)){
+		$query_string .= "&resultSetLimit=$limit";
+	}
+	
+	if ($runQuery){
+		$query_string .= "&Search=1";
+	}
+	
+	return $query_string;
+</%perl>
+</%method>
+
+<%method executeSearch>
+<%args>
+	$query
+	$settings
+</%args>
+<%perl>
+	my ($predefinedResults) = TUSK::Search::UserSearch->findPredefinedSearchResults($query->{'query'});
+
+	my $userQuery = $settings->{'userQuery'};
+
+	if (! $userQuery){
+		$userQuery = TUSK::Search::Content->new()->search({ %$query }, $user);
+	} elsif ($settings->{'refineSearch'}){
+		$userQuery = TUSK::Search::Content->new()->search({ %$query }, $user, $settings->{ 'userQuery' });
+	}
+
+	return ($predefinedResults, $userQuery);
+</%perl>
+</%method>
+
+<%method entryForm>
+<%args>
+	$query
+	$settings
+</%args>
+<%perl>
+	my $userQueryID;
+
+	if ($settings->{'userQuery'}){
+		$userQueryID = $settings->{'userQuery'}->getPrimaryKeyID();
+	}
+
+	if ($settings->{pageName}){
+		$pageName = $settings->{pageName};
+	}
+
+	my $action = $pageName . ($settings->{'refineSearch'} ? '/' . $userQueryID : '') . '?' . ($settings->{'refineSearch'} ? '&refine=1' : '' );
+</%perl>
+
+<& /tmpl/element:form, params => {
+			action		=> $action,
+			method 		=> 'POST',
+			onsubmit 	=> undef,
+			name 		=> 'addedit',
+} &>
+
+% if ($settings->{'refineSearch'} && ! $settings->{'searchExecuted'}){
+	<div>
+	<& SELF:show_user_query, userQuery => $settings->{'userQuery'} &>
+	</div>
+%}
+
+<& /tmpl/element:table, params => { width => "",
+			border 		=> "0",
+			cellspacing 	=> "0",
+			cellpadding 	=> "0",
+ } &>
+
+	<tr>
+		<td>
+
+<& /tmpl/element:table, params => { 
+			width 		=> "",
+			border 		=> "0",
+			id 		=> 'entry_form',
+			cellspacing 	=> "0",		
+			cellpadding 	=> "0",
+ } &>
+
+<%perl>
+	if ($settings->{'advancedView'}){
+		$query = TUSK::Search::Content::split_search_string($query);
+	}
+
+	my $keyword_value = $query->{'query'};
+	if ($settings->{'searchExecuted'}){
+		$keyword_value = TUSK::Search::Content::show_full_search_string($query);
+	}
+</%perl>
+<& /tmpl/element:textbox, params =>{ 
+			label 		=> 'Keyword',
+			name 		=> 'query',
+			value 		=> $keyword_value,
+			size 		=> 60,
+			length 		=> 255 
+} &>
+
+% if ($settings->{'advancedView'}){
+
+<& /tmpl/element:textbox, params => {
+			label   	=> 'Document Title',
+			name    	=> 'title',
+			value   	=> $query->{'title'},
+			size    	=> 30,
+			length  	=> 255,
+} &>
+
+<& /tmpl/element:textbox, params => {
+	                label   	=> 'Author ',
+       	        	name    	=> 'author',
+	                value   	=> $query->{'author'},
+       	        	size    	=> 30,
+   	             	length  	=> 255,
+} &>
+
+<& /tmpl/element:textbox, params => {
+	                label   	=> 'Course Title',
+	                name    	=> 'course',
+	                value   	=> $query->{'course'},
+	                size    	=> 30,
+	                length  	=> 255,
+} &>
+
+<& /tmpl/element:textbox, params => {
+	                label   	=> 'Content ID',
+	                name    	=> 'content_id',
+	                value   	=> $query->{'content_id'},
+	                size    	=> 10,
+	                length  	=> 255,
+} &>
+
+<& /tmpl/element:textbox, params => {
+	                label   	=> 'Copyright',
+	                name    	=> 'copyright',
+	                value   	=> $query->{'copyright'},
+	                size    	=> 30,
+	                length  	=> 255,
+} &>
+
+<%perl>
+	my $selectedHash = {};
+	my $selected_flag = 0;
+
+	if (ref($query->{'media_type'})){
+		foreach my $media (@{$query->{'media_type'}}){
+			$selectedHash->{$media} = 1;
+			$selected_flag = 1;
+		}
+	} elsif($query->{'media_type'}) {
+		$selectedHash->{$query->{'media_type'}} = 1;
+		$selected_flag = 1;
+	}
+
+	unless ($selected_flag){
+		if ($settings->{limitedMediaOptions}){
+			$selectedHash->{'document'} = 1;
+		}
+		else {
+			$selectedHash->{'0'} = 1;
+		}
+	}
+
+	my $multiple = 1;
+	my $dropdown_size = 6;
+	my $mediaOptions = [ 
+                                        { label => 'Any', 		value => '0' }, 
+                                        { label => 'Audio',   		value => 'audio' }, 
+                                        { label => 'Collection',   	value => 'collection' }, 
+                                        { label => 'Document',   	value => 'document' }, 
+                                        { label => 'Downloadable File',	value => 'downloadablefile' }, 
+                                        { label => 'Flashpix',   	value => 'flashpix'  }, 
+                                        { label => 'PDF',  		value => 'pdf' }, 
+					{ label => 'Shockwave', 	value =>'shockwave' },
+					{ label => 'Slide', 		value => 'slide' },
+					{ label => 'Student Notes', 	value => 'student' },
+					{ label => 'URL', 		value => 'url' },
+					{ label => 'Video', 		value => 'video' },
+			];
+
+	if ($settings->{limitedMediaOptions}){
+		$multiple = 0;
+		$dropdown_size = 1;
+		$mediaOptions = [	
+				 { label => 'Document',          value => 'document' },
+				 { label => 'Slide',             value => 'slide' },
+			];
+	}
+</%perl>
+
+<& /tmpl/element:dropdown, params => { 
+                label           => 'Media Type',
+		size		=> $dropdown_size,
+		multiple	=> $multiple,
+                name            => 'media_type',
+		selected 	=> $selectedHash,
+                options         => $mediaOptions, 
+                                 } &>
+
+<%perl>
+	$selectedHash = {};
+	$selected_flag = 0;
+
+	if (ref($query->{'school'})){
+	        foreach my $school (@{$query->{'school'}}){
+	                $selectedHash->{$school} = 1;
+			$selected_flag = 1;
+        	}
+	} elsif($query->{'school'}) {
+        	$selectedHash->{$query->{'school'}} = 1;
+		$selected_flag = 1;
+	}
+	
+	unless ($selected_flag){
+		$selectedHash->{'0'} = 1;
+	}
+
+	my @schoolOptions = map { { label => ($_ eq 'HSDB') ? 'TUSK' : $_ , value => $_  } } @TUSK::Constants::SearchSchools;
+	unshift @schoolOptions, { label => 'All', value => '0' } ;
+</%perl>
+
+<& /tmpl/element:dropdown, params => {
+                label           => 'School',
+                size            => (scalar(@schoolOptions) > 6) ? 6 : scalar(@schoolOptions),
+                multiple        => 1,
+                name            => 'school',
+                selected        => $selectedHash,
+                options         => \@schoolOptions,
+} &>
+
+
+<& /tmpl/element:dropdown, params=>{ 
+		label 		=> 'Results per page',
+                name		=> 'resultSetLimit',
+                onchange	=> undef,
+                selected	=> $settings->{'resultSetLimit'},
+                options		=> [10,25,50,100],
+} &>
+
+% }
+% unless ($settings->{'skipUMLS'}){
+<& /tmpl/element:tr_tag &>
+	<td>&nbsp;</td>
+	<td class="cell-submit"><input type="checkbox" checked="1" name="include_umls"/>Include matching UMLS concepts</td>
+</tr>
+% }
+<& /tmpl/element:tr_tag &><td>&nbsp;</td><td class="cell-submit">
+<& /tmpl/element:submit_button, params=>{
+		name		=> 'Search',
+		label		=> 'Search',
+} &>
+
+				</td>
+			</tr>
+		</table>
+	</td>
+	<td style="vertical-align:top">
+% unless ($settings->{noLinks}){
+		<table>
+			<tr>
+				<td style="vertical-align:top">
+
+% if ($TUSK::Constants::HelpMap{'search'}){
+<& /tmpl/element:link, params=>{
+                href		=> '/view/content/' . $TUSK::Constants::HelpMap{'search'},
+		target		=> 'help',
+		use_div 	=> 1,
+		style		=> 'font-size:10pt',
+                label		=> 'Search Help'} 
+&>	
+% }
+% if ($settings->{'searchExecuted'}){
+<& /tmpl/element:link, params=>{
+                href		=> '/tusk/search/form/' . $userQueryID . '?refine=1',
+		use_div 	=> 1,
+		style		=> 'font-size:10pt',
+                label		=> 'Refine Search'} 
+&>
+% }
+
+<& /tmpl/element:link, params=>{
+                href		=> '/tusk/search/form?' . ($settings->{'advancedView'} ? 'advanced=1' : ''),
+		use_div 	=> 1,
+		style		=> 'font-size:10pt',
+                label		=> 'New Search'} 
+&>
+<& /tmpl/element:link, params=>{
+                href		=> '/tusk/search/mysearches',
+		use_div 	=> 1,
+		style		=> 'font-size:10pt',
+                label		=> 'View Past Searches'} 
+&>
+
+					</td>
+				</tr>
+			</table>
+% }
+		</td>
+	</tr>
+</table>
+</form>
+</%method>
+
+<%method searchResults>
+<%args>
+	$query
+	$settings
+	$predefinedResults
+</%args>
+<%perl>
+	my $userQuery = $settings->{'userQuery'};
+	
+	if ($settings->{pageName}){
+		$pageName = $settings->{pageName};
+	}
+
+	unless ($settings->{noShowUserQuery} ) {
+		$m->comp('SELF:show_user_query', userQuery => $userQuery);
+	}
+
+ 	if ($predefinedResults && scalar(@$predefinedResults)){
+		$m->print('<div class="med" style="margin-left:5px">Quick Links:');
+ 		foreach my $result (@$predefinedResults){
+			$m->comp('/tmpl/element:link', params => {
+							no_table	=> 1,
+							href		=> $result->getResultUrl(),
+							link_style	=> 'titletext',
+							label		=> $result->getResultLabel(),
+				});
+ 		}
+		$m->print('</div>');
+	}
+
+ 	my $fullTextContent = $userQuery->getResults($settings->{'resultSetStart'}, $settings->{'resultSetLimit'});
+
+	if (scalar (@$fullTextContent)){
+		my $resultCount = $userQuery->countResults();
+		my $resultEnd = $settings->{'resultSetLimit'} + $settings->{'resultSetStart'};
+		my $endRange = ($resultCount < $resultEnd) ? $resultCount : $resultEnd;
+</%perl>
+	<div class="med" style="padding-left:5px">Displaying <% $settings->{'resultSetStart'} + 1 %> - <% $endRange %> of <% $resultCount %> results</div>
+		<table cellpadding="5" class="sm" style="width:100%;padding-left:5px">
+	<tr style="font-weight:bold"><td style="text-align:center">Type</td><td>Document</td><td>Authors</td><td>Course</td><td>School</td></tr>
+ 
+%		my $rowCount = $settings->{'resultSetStart'} + 1;
+
+%		foreach my $content (@$fullTextContent){ 
+%			next if (!$content->primary_key());
+<%perl>
+			my (@users, @non_users, $authors, $course);
+			
+			if ($content->primary_key()){
+				if ($content->type() eq 'External') {
+					$authors = $content->child_authors();
+				} else {
+					@users = $content->child_users("sort_order", "roles like '%Author%'");
+					@non_users = $content->child_non_users("sort_order", "roles like '%Author%'");
+					$authors = join (', ', map { $_->out_abbrev } @users, @non_users);
+				}
+				$course = $content->course();
+			}
+			
+			$content->set_aux_info('uri_path', $userQuery->getPrimaryKeyID() . 'Q');
+</%perl>
+			<tr>
+				<td style="vertical-align:top;text-align:center;"><% $content->out_html_thumbnail %></td>
+				<td>
+				<& /tmpl/element:link, params=>{
+						no_table		=> 1,
+						link_style		=> 'sm',
+                        	                href			=> '/view/content/' . $userQuery->getPrimaryKeyID() . 'Q/' . $content->primary_key(),
+                                	        label			=> $content->title(),
+				 } &> 
+			<%perl>
+				use HSDB4::DateTime
+;				my $mod_time = HSDB4::DateTime->new();
+	  			$mod_time->in_mysql_timestamp($content->field_value("modified"));
+
+				my $created_time = HSDB4::DateTime->new();
+				if ($content->field_value("created")){
+		  			$created_time->in_mysql_timestamp($content->field_value("created"));
+				}
+				else {
+					$created_time = $mod_time;
+				}
+			</%perl>
+				<div class="xsm">ID: <% $content->primary_key() %> &nbsp;&nbsp;Created: <% $created_time->out_mysql_date() %>&nbsp;&nbsp;Modified: <% $mod_time->out_mysql_date() %></div>
+				</td>
+				<td style="vertical-align:top"><% $authors %></td>
+				<td style="vertical-align:top"><% $course->title %></td>
+				<td style="vertical-align:top"><% $content->field_value('school') %></td>
+			</tr>
+%		 }
+	</table>
+			<div style="padding-left:5px; width:100%; text-align:right;">
+%                       if ($settings->{'resultSetStart'}){
+			<div style="float:left;">
+                        	<& /tmpl/element:link, params=>{
+						no_table	=> 1,
+	                                        link_style	=> 'titletext',
+       		                                href		=>   $pageName . '/' . $userQuery->getPrimaryKeyID() 
+								   . $m->comp('SELF:createQueryString',
+				                                                query 	=> $query,
+				                                                runQuery=> 1,
+				                                                start	=> ($settings->{'resultSetStart'} - $settings->{'resultSetLimit'}),
+				                                                limit	=> $settings->{'resultSetLimit'},
+				                                                advanced=> $settings->{'advancedView'}),
+                                        	label		=> '<<< PREVIOUS',
+					 } &>
+			</div>
+%                       }
+%			if ($resultCount > $endRange){
+				<span style="margin-right:10px">
+                        	<& /tmpl/element:link,params=>{
+						no_table	=> 1,
+						link_style	=> 'titletext',
+                                        	href		=> 	$pageName .'/'. $userQuery->getPrimaryKeyID() 
+									. $m->comp('SELF:createQueryString',
+				                                                query	=> $query,
+										start	=> $settings->{'resultSetStart'} + $settings->{'resultSetLimit'},
+										runQuery=> 1,
+										limit	=> $settings->{'resultSetLimit'},
+                                				                advanced=> $settings->{'advancedView'}),
+	                                        label		=> 'NEXT >>>' 
+				} &></span>
+%			}
+			<div style="clear:left"></div>
+			</div>
+
+%	} else {
+		<div class="med" style="padding-left:5px">No Results Found.</div>
+%	}
+</%method>
+
+
+<%method showUMLS>
+<%args>
+	$query
+	$resultSetLimit
+</%args>
+
+<& /tmpl/element:form, params => {
+		action => '',
+		method => 'POST',
+		onsubmit => undef,
+		name => 'addedit' } &>
+<%perl>
+	my $query_string = [];
+
+	$query = TUSK::Search::Content::split_search_string($query);
+
+	$query->{resultSetLimit} = $resultSetLimit;
+
+	foreach my $key (keys %$query){
+		if (ref($query->{$key}) eq 'ARRAY'){
+			foreach my $value (@{$query->{$key}}){
+			push (@$query_string, { name => $key, value => $value });
+			 $m->comp('/tmpl/element:hidden_form_element', params => { name => $key, value => $value });
+			}
+		}else{
+			push (@$query_string, { name => $key, value => $query->{$key} });
+			$m->comp('/tmpl/element:hidden_form_element', params => { name => $key, value => $query->{$key} });
+		}
+	}
+	
+	my $similarConcepts = TUSK::Search::UserSearch->findSimilarUMLSConcepts($query->{'query'});
+
+	unless (scalar(@$similarConcepts)){
+		push (@$query_string, { name => 'Search', value => '1'});
+
+		my $url = $ENV{'REQUEST_URI'};
+		if ($url =~ /\?/){
+			$url .= '&' unless ($url =~ /\?$/);
+		}
+		else{
+			$url .= '?';
+		}
+		$url .= join('&', map { $_->{name} . '=' . $_->{value} } @$query_string);
+		$m->redirect($url);
+		$m->abort();		
+	}
+
+</%perl>
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		style => 'border-top: solid white 4px;',
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+<%perl>
+	foreach my $concept (sort { lc($a->getKeyword()) cmp lc($b->getKeyword()) } @$similarConcepts){
+		$m->print('<tr>');
+		$m->print('<td class="cell-left" style="text-align:right;width:100px;vertical-align:top;"><input type="checkbox" name="concepts" value="' . $concept->getConceptID() . '"/></td>');
+		$m->print('<td class="cell-left">' . $concept->getKeywordNormalized());
+		$m->comp("SELF:display_def_and_syns", concept => $concept);
+		$m->print('</td>');
+		$m->print('</tr>' . "\n");
+	
+	}	
+</%perl>
+	<tr>
+		<td>&nbsp;</td>
+		<td class="cell-submit">
+			<& /tmpl/element:submit_button,params=>{name=>'Search',label=>'Search'} &>
+		</td>
+	</tr>
+</table>
+</form>
+</%method>
+
+<%method display_def_and_syns>
+<%args>
+	$concept
+</%args>
+<%perl>
+	my $print = '';
+
+	my $definitionText = join ('<br/>' , 
+ 					map { 
+					  '<u>' . $_->getUmlsDefinitionTypeObject->getDefinitionTypeName()
+					. '</u>:<br/>' . $_->getDefinition() 
+					} 
+ 				@{$concept->getDefinitions()});
+	if ($definitionText){
+		$print .= '&nbsp;[<a href="javascript:toggle_div(\'' . $concept->getConceptID() . '_def\')">definition</a>]';
+	}
+	my $synonyms_obj = $concept->getConceptStrings();
+	my $synonyms = [];
+
+	foreach my $synonym_obj (@$synonyms_obj){
+		if (lc($synonym_obj->getStringText()) ne lc($concept->getKeyword())){
+			push (@$synonyms, $synonym_obj->getStringTextNormalized());
+		}
+	}
+
+	if (scalar(@$synonyms)){
+		$print .= '&nbsp;[<a href="javascript:toggle_div(\'' . $concept->getConceptID() . '_syn\')">synonyms</a>]';
+	}
+
+	if ($definitionText){
+		$print .= '<div style="display:none" id="' . $concept->getConceptID() . '_def">' . $definitionText . '</div>';
+	}
+
+	if (scalar(@$synonyms)){
+		$print .= '<div style="display:none" id="' . $concept->getConceptID() . '_syn">' . join('<br>', sort @$synonyms) . '</div>';
+	}
+
+	$m->print($print);
+</%perl>
+</%method>
+
+<%method show_user_query>
+<%args>
+	$userQuery
+	$margin	=> '5px'
+</%args>
+<div class="med" style="margin-top:<% $margin %>;margin-bottom:<% $margin %>;margin-left:5px;">
+<%perl>
+	my @user_queries = split("\t", $userQuery->prettyPrintUserQuery(1));
+
+	my $count = 0;
+	foreach my $user_query (@user_queries){
+		$m->print('<div style="margin-left:' . (15 * $count). 'px">');
+
+		if ($count + 1 != scalar(@user_queries)){
+			$m->print('<img src="/graphics/down_triangle.gif"/>');
+		} else {
+			$m->print('<img src="/graphics/right_triangle.gif"/>');
+		}
+
+		$m->print($user_query . '</div>');
+		$count++;
+	}
+</%perl>
+</div>
+</%method>

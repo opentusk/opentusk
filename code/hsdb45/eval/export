@@ -1,0 +1,45 @@
+[! use HSDB45::Eval::Results;
+   use HSDB45::Eval::MergedResults;
+   use Apache::Cookie;
+   use Apache::Constants qw (NOT_FOUND);
+   use HSDB45::Eval::Export;
+!]
+[- 
+    $escmode=0;
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+
+    if ($fdat{'MERGED'}){
+	$merged_eval = HSDB45::Eval::MergedResults->lookup_path( $req_rec->path_info() );
+	$merged_eval_id = $merged_eval->primary_key(); 	
+	$eval = $merged_eval->parent_eval();
+	$filename = "merged_export-$merged_eval_id.xls";
+    } else {
+	$eval = HSDB45::Eval->lookup_path( $req_rec->path_info() );
+	$eval_id = $eval->primary_key();
+	$filename = "export-$eval_id.xls";
+    }
+
+
+
+    # Get the authenticated user
+    $username = $req_rec->connection->user;
+    $user = HSDB4::SQLRow::User->new ()->lookup_key ($username);
+    unless ($user->primary_key and $eval->admin_group()->contains_user($user)) {
+	$req_rec->status (NOT_FOUND);
+	return;
+    }
+
+	
+    $req_rec->content_type("application/vnd.ms-excel");	
+    $req_rec->header_out("Content-disposition","attachment; filename=$filename");
+    $req_rec->send_http_header();
+    if(scalar($eval->users())) {
+	if (!$fdat{'MERGED'}){
+		HSDB45::Eval::Export::export_eval_to_excel($eval,\*STDOUT);	
+	} else {
+		HSDB45::Eval::Export::export_merged_eval_to_excel($merged_eval,\*STDOUT);	
+	}
+
+    }
+-]

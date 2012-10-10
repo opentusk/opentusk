@@ -1,0 +1,25 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+use TUSK::Quiz::Result;
+use TUSK::Quiz::LinkQuizQuizItem;
+use HSDB4::Constants;
+use MySQL::Password;
+HSDB4::Constants::set_user_pw (&get_user_pw());
+
+my $quiz_id = $ARGV[0];
+
+unless ($quiz_id){
+    print "Please enter a quiz id\n";
+    exit;
+}
+
+my $results = TUSK::Quiz::Result->lookup("quiz_id = " . $quiz_id, ['lastname'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User") ]);
+
+foreach my $result (@$results){
+    my $user= $result->getUserObject();
+    print $user->last_name() . "," . $user->first_name() . "," . $user->field_value("sid") . "," . $result->getScore() . "\n";
+}

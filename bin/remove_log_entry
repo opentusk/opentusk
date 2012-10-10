@@ -1,0 +1,102 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+use Term::ReadKey;
+use MySQL::Password;
+use TUSK::FormBuilder::Entry;
+use TUSK::FormBuilder::Form;
+use TUSK::FormBuilder::LinkCourseForm;
+use TUSK::Core::School;
+use HSDB45::Course;
+use HSDB4::SQLRow::User;
+use HSDB4::Constants;
+HSDB4::Constants::set_user_pw (get_user_pw);
+my ($deletor, $pw) = MySQL::Password::get_cnf_file_pw();
+
+
+use Getopt::Long;
+
+my ($entryid, $help, $quiet);
+
+GetOptions( "entryid=s" => \$entryid,
+            "quiet!" => \$quiet,
+	    "help!" => \$help);
+
+if (!$entryid or $help){
+	exitmessage("Usage: remove_log_entry --entryid <entryid> [--help] [--quiet] \n");
+}
+
+my $entry = TUSK::FormBuilder::Entry->new()->lookupKey($entryid);
+
+if (!$entry or !$entry->isa('TUSK::FormBuilder::Entry') or !$entry->getPrimaryKeyID()){
+	exitmessage("No log entry found with id $entryid\n");
+}
+
+
+my $form = TUSK::FormBuilder::Form->new()->lookupKey($entry->getFormID());
+
+if (!$form or !$form->isa('TUSK::FormBuilder::Form') or !$form->getPrimaryKeyID()){
+	exitmessage("Form with id " . $entry->getFormID() . " is not found\n");	
+}
+
+unless ($form->getFormTypeToken eq 'PatientLog'){
+    exitmessage("Form is a patient log");
+}
+
+my $links = TUSK::FormBuilder::LinkCourseForm->new()->lookup("child_form_id = " . $form->getPrimaryKeyID());
+
+unless(scalar(@$links)){
+	exitmessage("No courses linked to form with id " . $form->getPrimaryKeyID());
+}
+
+if (scalar(@$links) > 1){
+	print "Note: More then one course linked to this form\n";
+}
+
+my $link = $links->[0];
+
+
+my $course = HSDB45::Course->new(_school => $link->getSchoolID())->lookup_key($link->getParentCourseID());
+
+if (!$course or !$course->isa('HSDB45::Course') or !$course->primary_key()){
+	exitmessage("Course with id " . $link->getParentCourseID() . " is not found\n");	
+}
+
+my $user = HSDB4::SQLRow::User->new()->lookup_key($entry->getUserID());
+
+if (!$user or !$user->isa('HSDB4::SQLRow::User') or !$user->primary_key()){
+	exitmessage("User with id " . $entry->getUserID() . " is not found\n");	
+}
+
+print "Course: " . $course->title() . " (" . $course->primary_key() . ")\n";
+print "User: " . $user->out_full_name() . " (" . $user->primary_key() . ")\n";
+
+ReadMode('cbreak');
+print "Go ahead and delete entry? [y/n]";
+my $char = ReadKey(0);
+ReadMode('normal');
+&exitmessage() if ($char ne "y" and $char ne "Y");
+print "\nDeleting\n";
+
+my $responses = $entry->getResponses();
+foreach my $response (@$responses){
+	my $response_attributes = $response->getResponseAttributes();
+	foreach my $response_attribute (@$response_attributes){
+		print "Deleting Response Attribute with id ". $response_attribute->getPrimaryKeyID() . "\n" unless ($quiet);
+		$response_attribute->delete({'user' => $deletor});
+	}
+	print "Deleting Response with id " . $response->getPrimaryKeyID() ."\n" unless ($quiet);
+	$response->delete({'user' => $deletor});
+}
+print "Deleting Entry with id $entryid\n" unless ($quiet);
+$entry->delete({'user' => $deletor});
+
+sub exitmessage{
+	my ($msg) = @_;
+	chomp $msg;
+	print $msg . "\n";
+	exit;
+}

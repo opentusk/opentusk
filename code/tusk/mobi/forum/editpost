@@ -1,0 +1,96 @@
+<%once>
+use Forum::ForumKey;
+use Forum::MwfMain;
+use Forum::MwfConfig;
+use HSDB45::Course;
+use Data::Dumper;
+use TUSK::Functions;
+</%once>
+
+<%method jsarray>
+% return ['scripts.js'];
+</%method>
+
+<%attr>
+no_check_path => 1
+</%attr>  
+
+<%shared>
+	my ($x, $cfg, $lng, $user) = MwfMain->new($r);
+	my $userId = $user->{id};
+	my $postId= $m->comp("/tmpl/url:get_last_path_id");
+	# Get Post
+	my $query = "SELECT * FROM $cfg->{dbPrefix}posts WHERE id = $postId";
+	my $post = $x->fetchHash($query);
+	my $boardId = $post->{boardId};
+	my $topicId = $post->{topicId};
+	# Get board
+	$query = "SELECT * FROM $cfg->{dbPrefix}boards WHERE id = $boardId";
+	my $board = $x->fetchHash($query);
+	my $boardAdmin = $x->boardAdmin($user->{id}, $boardId);
+	# Get topic
+	$query = "SELECT * FROM $cfg->{dbPrefix}topics WHERE id = $topicId";
+	my $topic = $x->fetchHash($query);
+</%shared>
+
+<%method get_nav_bars>
+<%perl>
+ 	my $nav_bars = []; 
+	my $truncDisc  =  TUSK::Functions::truncate_string('Discussions',10);
+	my $truncTitle =  TUSK::Functions::truncate_string($board->{title},10); 
+ 	$nav_bars = [ { href => '/mobi/forum/forumshow/', label => $truncDisc } ,
+				  {	href => '/mobi/forum/boardshow/'.$board->{id}, label => $truncTitle } ];
+ 	return $nav_bars;
+</%perl>
+</%method>
+
+<%method header_text>
+% my $str    = "<a href='/mobi/forum/topicshow/".$topic->{id}."'>".$topic->{subject}."</a> ";
+% return $str;
+</%method>
+
+<& /tmpl/element:form, params => {
+                                method => 'POST',
+                                onsubmit =>'',
+                                name => 'editpost' } &>
+
+<h4 class='annHdr'>Post Reply</h4>
+<textarea name="bodyq" 
+id="event_description" 
+cols="20" 
+rows="4" 
+style="" 
+class="textareawhite"><% $post->{body} %></textarea> 
+<br>
+
+<& /tmpl/element:save_button, params=>{
+        label=>'Save Changes',
+		cancel_onclick=>"go_back('/mobi/forum/topicshow/$topicId')" ,
+        name=>'save_changes'} &>
+
+</form>
+
+<%perl>
+if ( defined( $ARGS{'submit_check'} )  )
+{  
+	# Transaction
+	my $subjectQ = $x->dbQuote($ARGS{'subjectq'});
+	my $bodyQ = $x->dbQuote($ARGS{'bodyq'});
+    my $postUserId = $user->{id};
+	my $postUserName = $x->dbQuote($user->{userName});
+	my $approved=1;
+	$x->dbBegin();
+	eval {
+	
+		# update post
+		$x->dbDo("UPDATE $cfg->{dbPrefix}posts SET body = $bodyQ WHERE id = $postId");
+
+	};
+	$@ ? $x->dbRollback() : $x->dbCommit();
+
+	my $reload_url = "/mobi/forum/topicshow/$topicId";
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url);
+
+}  #end if submit checked
+
+</%perl>

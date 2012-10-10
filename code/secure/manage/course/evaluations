@@ -1,0 +1,67 @@
+[! use TUSK::Functions !]
+[-
+	$req = shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+
+	# get the content
+	$req->{type} = "course";
+	$req->{image} = "CourseEvaluations";
+	$req->{checkcourserole}="AUTHOR";
+
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	foreach my $school (HSDB4::Constants::eval_schools()){
+		if (lc($school) eq lc($req->{course}->school())){
+			$isEvalSchool = 1;
+			last;
+		}
+	}
+	if (!$isEvalSchool){
+		$errMsg = 'This school does not have evaluations available.';
+		manage_header($req);
+	} else {
+		my $timeperiod = TUSK::Functions::course_time_periods($req,$fdat{timeperiod},\%udat);
+		my $time_period_id ;
+		if ($timeperiod){
+			$time_period_id = $timeperiod;
+		} else {
+			$time_period_id = $fdat{timeperiod};
+		}
+		$req->{jsinclude} = "layers.js";
+		manage_header($req);
+			
+		our @evals = $req->{course}->get_evals($time_period_id);
+		
+		our @evalarray = map { {'eval_id'=>$_->primary_key() ,
+					'title'=>$_->title(),
+					'due_date'=>$_->due_date() } } @evals;
+	}
+-]
+<br>
+[$ if ($errMsg) $]
+<div class="sm">[+$errMsg +]</div>
+[$ else $]
+ <div id="evalsdiv"></div>
+				
+[-
+        create_layer({
+                        layer => 'evalsdiv',
+                        fields => ['eval_id','title','due_date'],
+                        name => 'evaluations',
+                        sort => {usage=>'No'},
+                        action => {usage=>'No'},
+                        display => [
+                                        {field=>'eval_id', label=>'Eval ID',align=>'left', length=>100},
+                                        {field=>'title', align=>'left', length=>400},
+                                        {field=>'due_date', label=>'Due Date',align=>'left', length=>200}
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => \@evalarray,
+                        });
+
+-]
+[$endif$]
+[- manage_footer(); -]

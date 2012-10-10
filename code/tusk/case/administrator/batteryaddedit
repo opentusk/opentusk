@@ -1,0 +1,161 @@
+<%shared>
+my $id = $m->comp("/tmpl/url:get_first_path_id");
+my $battery;
+if (defined($id)){
+        $battery = TUSK::Case::Battery->lookupKey($id);
+} else {
+        $battery = TUSK::Case::Battery->new();
+}
+
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $back_url = "/case/administrator/batteryshow/$type_path";
+my $reload_url = $r->uri();
+</%shared>
+<%once>
+use TUSK::Case::Battery;
+use TUSK::Case::Test;
+</%once>
+
+<%method title>
+<%perl>
+my $title = "Create Category";
+if (defined($id)){
+        $title = "Modify Category";
+}
+return $title;
+</%perl>
+</%method>
+
+<%method jsarray>
+% return ['layers.js','element.js','caseshell.js','object_tree.js'];
+</%method>
+
+<%perl>
+my $exams_data = [];
+my $exams;
+
+if ($id){
+	$exams = $battery->getChildTests();
+} else {
+	$exams = [];
+}
+
+foreach my $exam (@{$exams}){
+	my $num_sub_tests = scalar(@{$exam->getSubTests()});
+	push @{$exams_data}, { exam_name => $exam->getTitle(), sub_tests => $num_sub_tests, test_id => $exam->getPrimaryKeyID() };
+}
+my $pk = $battery->getPrimaryKeyID();
+</%perl>
+
+<& /tmpl/element:form, params => { 
+                method => 'POST',
+                name => 'batteryaddedit',
+                onsubmit => undef } &>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Category Title',
+                name => 'battery_title',
+                value => $battery->getBatteryTitle(),
+                size => 60,
+                length => 255 } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Category Description',
+                name=>"battery_desc",
+                cols=>"60",
+                rows=>"4",
+                value=>$battery->getBatteryDesc()  } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Phase Type',
+                name=>"battery_type",
+                onchange=>undef,
+                selected=>$battery->getBatteryType(),
+                options=>[ 'Physical Exam', 'Diagnostic Studies', 'History'] } &>
+
+% if (defined($id)) {
+<%perl>
+my $button_text = $m->scomp('/tmpl/element:button', params=>{'name'=>'add_exam_button',
+                'onclick'=>"exam_add('/case/administrator/examaddedit/$type_path/$id');",
+                'label'=>'Add Test'} );
+
+</%perl>
+<& /tmpl/element:sort_order_box , params =>{
+        no_add_button => 1,
+        label => 'Tests',
+        buttons => [ $button_text ],
+        layer_info => {
+                      context_path => $m->comp("/tmpl/url:get_full_path"),
+                      base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+                      empty_message => 'No tests for this category',
+                      layer => 'examsdiv',
+                      fields => ['test_id'],
+                      name => 'exam',
+                      sort => {usage => 'Yes', length=>50},
+                      action => {usage => 'Yes', length=>100, functions => [
+                          {func=>'exam_modify', label=>'Modify'},
+                          {func=>'exam_delete', label=>'Delete'} ]},
+                      display => [
+                          {label => 'Name',field => 'exam_name', 
+                           align => 'left', length => 350},
+                          {label => '# of Sub Tests',field => 'sub_tests', 
+                           align => 'center', length => 200},
+                          {label => 'TestIDField', 
+                           field=>'test_id', length => 0, 
+                           type => 'hidden'},
+                          ],
+                      validate => {
+                          usage => 'No',
+                          form => 'batteryaddedit'
+                          },
+                      data => $exams_data }
+            } &>
+% }
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+        cancel_onclick=>"go_back('$back_url')",
+        name=>'save_changes'} &>
+</form>
+</table>
+
+<%perl>
+if (defined($id)){
+	$m->comp('SELF:footer', obj=>$battery);
+}
+</%perl>
+
+<%init>
+my $user_id = $m->comp('SELF:user');
+if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
+
+	my $msg = "Category successfully created";
+	if(defined($id)){
+		$msg = "Category successfully modified";
+	}
+
+	my $type_object = $m->comp('/tmpl/url:get_type_object');
+	$battery->setBatteryTitle($ARGS{'battery_title'});
+	$battery->setBatteryDesc($ARGS{'battery_desc'});
+	$battery->setBatteryType($ARGS{'battery_type'});
+	$battery->setSchoolID($type_object->getPrimaryKeyID());
+	$battery->save({user=>$user_id});
+	
+	unless(defined($id)){
+		$reload_url .= "/" . $battery->getPrimaryKeyID();
+	}
+
+    $m->comp("/tmpl/process:process_sort_orders", 
+        'layer' => 'examsdiv', 
+        'args' => \%ARGS, 
+        'class' => 'TUSK::Case::Test', 
+        'primary_key_field' => 'test_id');
+
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msg");
+}
+
+</%init>
+

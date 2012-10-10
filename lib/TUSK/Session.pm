@@ -1,0 +1,191 @@
+package TUSK::Session;
+
+use strict;
+use HSDB45::Course;
+
+my %courseroles = (
+    'DIRECTORNONSTUDENT' => "80",
+    'DIRECTOR' => "50",
+    'SITEDIRECTOR' => "40",
+    'AUTHOR' => "20",
+    'STUDENTEDITOR' => "10"
+    );
+
+sub get_role{
+    my ($role) = @_;
+    return $courseroles{$role};
+}
+
+sub course_user_role{
+    my ($course, $user_id) = @_;
+    my $rolename = $course->user_primary_role($user_id);
+    if ($rolename eq "Director" or $rolename eq "Manager"){
+	return $courseroles{'DIRECTORNONSTUDENT'};
+    }elsif ($rolename eq "Student Manager"){
+	return $courseroles{'DIRECTOR'};
+    }elsif ($rolename eq "Site Director"){
+	return $courseroles{'SITEDIRECTOR'};
+    }elsif ($rolename eq "Author" or $rolename eq "Editor"){
+	return $courseroles{'AUTHOR'};
+    }elsif ($rolename eq "Student Editor"){
+	return $courseroles{'STUDENTEDITOR'};
+    }else{
+	return 0;
+    }
+}
+
+sub check_course_permissions{
+    my ($courserole, $minrole) = @_;
+    my $key = uc($minrole);
+    return 0 unless ($courseroles{$key});
+    if ($courserole >= $courseroles{$key}){
+	return 1;
+    }else{
+	return 0;
+    }
+}
+
+sub is_director{
+	my ( $course, $user_id ) = @_;
+	if ( course_user_role($course, $user_id) == $courseroles{DIRECTORNONSTUDENT} ) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+sub is_admin{
+    my ($hash, $user) = @_;
+
+    if ($user){
+	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_admin})){
+	    $hash->{roles} = $user->check_admin;
+	}
+    }
+
+    return ($hash->{roles}->{tusk_session_is_admin}) if (defined($hash->{roles}) or defined($hash->{roles}->{tusk_session_is_admin}));
+}
+
+sub is_school_admin{
+    my ($hash, $school, $user) = @_;
+
+    if ($user){
+	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_admin})){
+	    $hash->{roles} = $user->check_admin;
+	}
+    }
+
+    if (defined($hash->{roles}->{tusk_session_admin}->{$school})) {return($hash->{roles}->{tusk_session_admin}->{$school});}
+    elsif(defined($hash->{roles}->{tusk_session_admin}->{lc($school)})) {return($hash->{roles}->{tusk_session_admin}->{lc($school)});}
+    elsif(defined($hash->{roles}->{tusk_session_admin}->{uc($school)})) {return($hash->{roles}->{tusk_session_admin}->{uc($school)});}
+    else {return(0);}
+}
+
+sub is_author{
+    my ($hash, $user) = @_;
+
+    if ($user){
+	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_author})){
+	    $hash->{roles} = $user->check_author($hash->{roles});
+	}
+    }
+
+    return ($hash->{roles}->{tusk_session_is_author}) if (defined($hash->{roles}) or defined($hash->{roles}->{tusk_session_is_author}));
+}
+
+sub is_eval_admin{
+    my ($hash, $user) = @_;
+
+    if ($user){
+	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_eval_admin})){
+	    $hash->{roles} = $user->check_admin;
+	}
+    }
+
+    return($hash->{roles}->{tusk_session_is_eval_admin}) if (defined($hash->{roles}->{tusk_session_is_eval_admin}));
+}
+
+sub get_schools{
+    my ($hash, $user) = @_;
+    return grep { $hash->{roles}->{tusk_session_admin}->{$_} }(keys %{$hash->{roles}->{tusk_session_admin}}) 
+	if (defined($hash->{roles}->{tusk_session_admin}));
+}
+
+sub get_eval_schools{
+    my ($hash, $user) = @_;
+
+    return grep { $hash->{roles}->{tusk_session_admin}->{$_} == 2 }(keys %{$hash->{roles}->{tusk_session_admin}}) 
+	if (defined($hash->{roles}->{tusk_session_admin}));
+}
+
+sub check_content_key{
+    my ($hash, $content_id) = @_;
+    if (defined($hash->{content}->{$content_id})){
+	return $hash->{content}->{$content_id};
+    }else{
+	return -1;
+    }
+}
+
+sub set_content_key{
+    my ($hash, $content_id, $value) = @_;
+
+    $hash->{content}->{$content_id} = $value;
+}
+
+sub check_content_permissions{
+    my ($udat, $course, $content, $courserole, $user) = @_;
+    my $grant;
+
+    $udat->{content} = {} unless ($udat->{content});
+
+    my $key = check_content_key($udat, $content->primary_key);
+    return $key if ($key != -1);
+    $udat->{modified} = localtime;
+
+    my $orig_course = HSDB45::Course->new( _school => $content->field_value('school') )->lookup_key( $content->field_value('course_id') );
+
+    if ((check_course_permissions($courserole, 'DIRECTOR') and $content->field_value('course_id') eq $course->primary_key and $content->field_value('school') eq $course->school) ||
+        is_director( $orig_course, $user->user_id ) ) {
+	$grant = 1;
+    }elsif (&is_school_admin($udat, $content->field_value('school'), $user)){
+	$grant = 1;
+    }
+    
+    unless ($grant){
+	my @roles = $content->child_user_roles($user->primary_key);
+	
+	if ($roles[0] and $roles[0] ne "Contact-Person"){
+	    $grant = 1;
+	}else{
+	    $grant = 0;
+	  }
+    }
+    
+    set_content_key($udat, $content->primary_key, $grant);
+    return $grant;
+}
+
+sub cms_user_courses{
+	my $user = shift;
+	my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $user->parent_courses();
+	push(@courses,$user->admin_courses);
+
+	my $courses_hash;
+	for(my $i=0; $i<scalar @courses; $i++){
+		my $school = $courses[$i]->{_school};
+		my $key = $courses[$i]->out_title."\0".$courses[$i]->primary_key;
+		$courses_hash->{$school}->{$key}=$courses[$i];
+	}
+  
+	return $courses_hash;
+}
+
+sub is_tusk_admin{
+	my $user_id = shift;
+	unless($user_id) {return 0;}
+	foreach(@TUSK::Constants::siteAdmins) {  if($user_id eq $_) {return 1;}  }
+	return 0;
+}
+1;

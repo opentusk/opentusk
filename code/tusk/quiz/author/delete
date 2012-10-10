@@ -1,0 +1,57 @@
+<%shared>
+	my $quiz_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my $back_url = $m->comp("/tmpl/url:construct_back_url", base_url =>"/quiz/author/show");
+</%shared>
+
+<%method title>
+% return "Delete Quiz";
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'quiz'=> $quiz};
+</%method>
+
+<%method function_token>
+% return 'delete_quiz';
+</%method>
+
+<%perl>
+	if (!defined($quiz->getPrimaryKeyID())){
+	        $m->comp("/tmpl/error",msg=>"Quiz $quiz_id not found");
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'quizdelete',
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"6",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{'label'=>'Title',
+                'value'=>$quiz->getTitle()}
+                &>
+
+<& /tmpl/element:save_button,params=>{name=>'delete_quiz',
+                                        label=>'Delete Quiz',
+                                        cancel_onclick=>"go_back('$back_url');"} &>
+</form>
+</table>
+
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::LinkCourseQuiz;
+</%once>
+
+<%init>
+	if (defined($ARGS{'delete_quiz'})){
+        	$quiz->delete({ user => $m->comp('SELF:user') });
+		my $link = TUSK::Quiz::LinkCourseQuiz->new()->lookupReturnOne("child_quiz_id = $quiz_id");
+		$link->delete({ user => $m->comp('SELF:user') }) if ($link);
+       		$m->redirect($back_url);
+	}
+</%init>

@@ -1,0 +1,278 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use HSDB4::Constants;
+use HSDB4::SQLRow::Content;
+use MySQL::Password;
+use HSDB4::Image;
+use Carp;
+use Getopt::Long;
+
+my ($user_name, $password) = get_user_pw();
+HSDB4::Constants::set_user_pw($user_name, $password);
+
+my $dbh;
+eval {
+	$dbh = HSDB4::Constants::def_db_handle();
+};
+die "$@\t...failed to obtain database handle!" if $@;
+
+main();
+
+sub dump_image_data {
+	my ( $content_id, $size, $binary_id ) = @_;
+	
+	my $query = sprintf( 'select mime_type, binary_data from hsdb4.binary_data where binary_data_id = ' . $binary_id );
+	eval {
+		my $handle = $dbh->prepare($query);
+		my $path   = $TUSK::UploadContent::path{'slide'} . '/' . $size;
+		my ($mime_type, $binary_data, $blob, $type, $width, $height);
+
+		$handle->execute();
+		$handle->bind_columns(\$mime_type, \$binary_data);
+
+		while($handle->fetch()) {
+			if ( $binary_data ) {
+				$mime_type =~ s|image\/||;
+
+				if ( $mime_type eq '' ) {
+					my $ft = File::Type->new();
+					$mime_type = $ft->mime_type($binary_data);
+
+					$mime_type =~s/^.*?\///;
+				}
+
+				if ( $size eq 'small' ) {
+					($blob, $type, $width, $height) = HSDB4::Image::make_small(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+				} elsif ( $size eq 'icon' ) {
+					($blob, $type, $width, $height) = HSDB4::Image::make_icon(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+				} elsif ( $size eq 'large' ) {
+					($blob, $type, $width, $height) = HSDB4::Image::make_large(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+				} elsif ( $size eq 'orig' ) {
+					($blob, $type, $width, $height) = HSDB4::Image::make_original(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+				} elsif ( $size eq 'xlarge' ) {
+					($blob, $type, $width, $height) = HSDB4::Image::make_xlarge(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+				} elsif ( $size eq 'medium' ) {
+					($blob, $type, $width, $height) = HSDB4::Image::make_medium(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+				} elsif ( $size eq 'thumb' ) {
+					($blob, $type, $width, $height) = HSDB4::Image::make_thumb(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+				}
+
+				if    ( $mime_type eq 'x-png' ) { $mime_type = 'png'; }
+				elsif ( $mime_type eq 'jpeg' )  { $mime_type = 'jpg'; }
+
+				my $location = join "/", (split '', sprintf "%03d", $content_id)[0..2], $content_id;
+
+				open(IMG, ">".$path."/".$location.".".$mime_type) or die($! . " -- ".$path."/".$location.".".$mime_type);
+				binmode(IMG);
+				print IMG $blob;
+				close(IMG);
+			}
+		}
+	};
+	die "$@\t...query failed: " . $query if $@;
+}
+
+sub dump_overlay_data {
+	my ( $content ) = @_;
+
+	my $body = $content->body();
+	my ($info) = $body->tag_values('slide_info');
+	return unless defined( $info );
+	
+	my ($overlay_tag) = $info->tag_values('overlay');
+	
+	return unless defined( $overlay_tag );
+	
+	my $overlay_id = $overlay_tag->value;
+	$overlay_id =~ s/[^\d]//g;
+	
+	my $query = sprintf( 'select mime_type, binary_data from hsdb4.binary_data where binary_data_id = ' . $overlay_id );
+	eval {
+		my ($mime_type, $binary_data, $blob, $type, $width, $height);
+		my $handle = $dbh->prepare($query);
+		$handle->execute();
+		$handle->bind_columns(\$mime_type, \$binary_data);
+
+		while($handle->fetch()) {
+			if ( $binary_data ) {
+				foreach my $cur_size ( @HSDB4::Constants::image_sizes ) {
+					next if ($cur_size eq 'resize' || $cur_size eq 'thumb' || $cur_size eq 'icon');
+
+					my $path = $TUSK::UploadContent::path{'slide'} . '/overlay/' . $cur_size;
+
+					$mime_type =~ s|image\/||;
+
+					if ( $mime_type eq '' ) {
+						my $ft = File::Type->new();
+						$mime_type = $ft->mime_type($binary_data);
+
+						$mime_type =~s/^.*?\///;
+					}
+
+					if ( $cur_size eq 'small' ) {
+						($blob, $type, $width, $height) = HSDB4::Image::make_small(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+					} elsif ( $cur_size eq 'large' ) {
+						($blob, $type, $width, $height) = HSDB4::Image::make_large(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+					} elsif ( $cur_size eq 'orig' ) {
+						($blob, $type, $width, $height) = HSDB4::Image::make_original(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+					} elsif ( $cur_size eq 'xlarge' ) {
+						($blob, $type, $width, $height) = HSDB4::Image::make_xlarge(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+					} elsif ( $cur_size eq 'medium' ) {
+						($blob, $type, $width, $height) = HSDB4::Image::make_medium(-blob =>  $binary_data, -type => $mime_type, -blur => "-1");
+					}
+
+					if    ( $mime_type eq 'x-png' ) { $mime_type = 'png'; }
+					elsif ( $mime_type eq 'jpeg' )  { $mime_type = 'jpg'; }
+
+					my $location = join "/", (split '', sprintf "%03d", $content->primary_key)[0..2], $content->primary_key;
+
+					open(IMG, ">".$path."/".$location.".".$mime_type) or die($! . " -- ".$path."/".$location.".".$mime_type);
+					binmode(IMG);
+					print IMG $blob;
+					close(IMG);
+				}
+			}
+		}
+	};
+	die "$@\t...query failed: " . $query if $@;
+}
+
+sub update_overlay_tag {
+	my ( $content ) = @_;
+
+	my $body = $content->body();
+	my ($info) = $body->tag_values('slide_info');
+	return unless defined( $info );
+	
+	my ($overlay_tag) = $info->tag_values('overlay');
+	
+	return unless defined( $overlay_tag );
+	return if ( $overlay_tag->value == 1 );
+	
+	my $overlay_id = $overlay_tag->value;
+	$overlay_id =~ s/[^\d]//g;
+	
+	$overlay_tag->set_value('1');
+	$content->field_value('body', $body->out_xml());
+
+	$content->save_version('Updated overlay value via dump script', '');
+}
+
+sub print_help{
+
+    print <<EOM;
+
+    Usage:  dump_binary_data [--start|s #] [--count|c #] [--delay|d #] [--timed|t #] 
+                             [--modified|m yyyy-mm-dd] [--help|h]
+                             [--overlay_only|oo]
+
+	--start #:  First content_id to be checked (default 0)
+	--count #:  Maximum number of pieces of content to dump
+	--delay #:  Number of pieces of content to dump before pausing (default 25)
+	--timed #:  Maximum number of seconds to run (will run slightly longer as 
+		        it finishes the current piece of content before halting)
+	--modified yyyy-mm-dd:  Only dump pieces of content modified on or after the
+	                        given date.
+
+	Note that if both timed and count are set, the script will halt on the first 
+	true exit condition.
+
+	
+	The following option can only be used by itself.
+	
+	--overlay_only:  This flag does not do any image processing, but only update the
+	                 <overlay> tag in the content body.
+EOM
+    exit 1;
+}
+
+# ==============================================================================
+# ==============================================================================
+# ==============================================================================
+
+
+sub main {
+    my ($start, $count, $delay, $timed, $modified, $overlay_only, $help);
+
+	my $GetOptResult = GetOptions("start|s=i" => \$start,
+	                              "count|c=i" => \$count,
+	                              "delay|d=i" => \$delay,
+	                              "timed|t=i" => \$timed,
+	                              "modified|m=s" => \$modified,
+	                              "overlay_only|oo" => \$overlay_only,
+	                              "help|h"    => \$help);
+	
+	print_help() if $help;
+	print_help() if ($overlay_only && ($start || $count || $delay || $timed || $modified));
+
+	$start        = 0  if ( !(defined($start)) || !($start =~ /^\d+$/) );
+	$count        = '' if ( !(defined($count)) || !($count =~ /^\d+$/) );
+	$delay        = 25 if ( !(defined($delay)) || !($delay =~ /^\d+$/) );
+	$timed        = '' if ( !(defined($timed)) || !($timed =~ /^\d+$/) );
+	$modified     = '' if ( !(defined($modified)) || !($modified =~ /^[\d]{4}-[\d]{2}-[\d]{2}$/) );
+
+	my $conds = "(type = 'Slide' OR type = 'Question' OR type = 'Flashpix') AND ";
+	$conds   .= "( (data_id is not null and data_id <> 0 ) or (small_data_id is not null and small_data_id <> 0) or 
+	               (thumbnail_id is not null and thumbnail_id <> 0) or (orig_data_id is not null and orig_data_id <> 0) or 
+	               (xlg_data_id is not null and xlg_data_id <> 0) or (lg_data_id is not null and lg_data_id <> 0) or 
+	               (med_data_id is not null and med_data_id <> 0) or (sm_data_id is not null and sm_data_id <> 0) or 
+	               (thumb_data_id is not null and thumb_data_id <> 0) or (icon_data_id is not null and icon_data_id <> 0) ) AND ";
+	$conds   .= "modified >= '" . $modified . "' AND " if $modified;
+	$conds   .= "body like '\%overlay\%' AND " if $overlay_only;
+	$conds   .= "content_id >= " . $start;
+
+	my $order = "order by content_id";
+	$order   .= " limit $count" if $count;
+
+	my $starting_time = time();
+
+	my $query = sprintf( 'select content_id, body, data_id, small_data_id, thumbnail_id, orig_data_id, xlg_data_id, lg_data_id, med_data_id, sm_data_id, thumb_data_id, icon_data_id from hsdb4.content where ' . $conds . ' ' . $order );
+
+	my $counter = 0;
+
+	eval {
+		my ($content_id, $body, $data_id, $small_data_id, $thumbnail_id, $orig_data_id, $xlg_data_id, 
+			$lg_data_id, $med_data_id, $sm_data_id, $thumb_data_id, $icon_data_id);
+		my $handle = $dbh->prepare($query);
+		$handle->execute();
+		$handle->bind_columns(\$content_id, \$body, \$data_id, \$small_data_id, \$thumbnail_id, \$orig_data_id, \$xlg_data_id, 
+							  \$lg_data_id, \$med_data_id, \$sm_data_id, \$thumb_data_id, \$icon_data_id);
+
+		while($handle->fetch()) {
+			# This is annoying, but we want to use the Content object so that overlay changes are cataloged in content_history.
+			my $content = [HSDB4::SQLRow::Content->new()->lookup_conditions( "content_id = $content_id" )];
+			
+			next if (!$content);
+
+			if ( $overlay_only ) {
+				update_overlay_tag( $content->[0] );
+			} else {
+				dump_image_data( $content_id, 'orig',   $data_id )       if ( $data_id );
+				dump_image_data( $content_id, 'small',  $small_data_id ) if ( $small_data_id );
+				dump_image_data( $content_id, 'thumb',  $thumbnail_id )  if ( $thumbnail_id );
+				dump_image_data( $content_id, 'orig',   $orig_data_id )  if ( $orig_data_id );
+				dump_image_data( $content_id, 'xlarge', $xlg_data_id )   if ( $xlg_data_id );
+				dump_image_data( $content_id, 'large',  $lg_data_id )    if ( $lg_data_id );
+				dump_image_data( $content_id, 'medium', $med_data_id )   if ( $med_data_id );
+				dump_image_data( $content_id, 'small',  $sm_data_id )    if ( $sm_data_id );
+				dump_image_data( $content_id, 'thumb',  $thumb_data_id ) if ( $thumb_data_id );
+				dump_image_data( $content_id, 'icon',   $icon_data_id )  if ( $icon_data_id );
+
+				dump_overlay_data( $content->[0] );
+			}
+		
+			$counter++;
+
+			if ( $counter >= $delay ) { sleep(1); $counter = 0; }
+			if ( $timed && (($starting_time + $timed) < time()) ) { die( "Time limit reached!" ); }
+
+			print $content_id . "\n";
+		}
+	};
+	die "$@\t...query failed: " . $query if $@;
+
+	exit 1;
+}

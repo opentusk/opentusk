@@ -1,0 +1,73 @@
+<%args>
+$case
+$report
+</%args>
+
+<%once>
+use TUSK::Case::CaseReport;
+use TUSK::Case::Case;
+</%once>
+
+
+% my $phases = $case->availablePhases();
+% my @phase_ids = map { $_->getPrimaryKeyID() } @$phases;
+% my $phase_str = '(' . (join ', ', @phase_ids) . ')';
+
+% my $visits = TUSK::Case::PhaseVisit->new()->lookup('case_report_id = ' . $report->getPrimaryKeyID() . " and case_phase_visit.phase_id in $phase_str");
+% $case->setReport($report);
+
+
+<div id="pathSort">
+Sort by: 
+<a href="javascript:;" onclick="pwSort('chrono', this)" class="activeSort">Chronology</a> | 
+<a href="javascript:;" onclick="pwSort('phase', this)">Phase</a>
+</div>
+
+<div id="pwSortByChrono">
+<h4 class="pwVisitType">Chronological Pathway</h4>
+% my $count = 0;
+% my %visits_by_phase;
+% foreach my $v (@$visits) {
+%	$v->setVisitOrder(++$count);
+%	my $p = $v->getPhaseObject();
+<div class="pwStep">
+<h4 class="pwStepTitle"><% $count %> -- <% $p->getPhaseTitle() %></h4>
+<div class="chartInfo">
+%	my $txt = $m->comp('tmpl/'.$p->getIncludeFile.':chartInfo', case=>$case, phase=>$p, visit=>$v);
+<% $txt %>
+</div> <!-- chartInfo -->
+</div>
+%	push @{ $visits_by_phase{$p->getPrimaryKeyID()} }, { visit => $v, txt => $txt };
+% }
+</div> <!-- pwSortByChrono -->
+
+
+<div id="pwSortByPhase">
+<h4 class="pwVisitType">Phase Pathway</h4>
+% my $visited_phases = $case->getVisitedPhases();
+% foreach my $p (@$visited_phases) {
+<div class="pwStep">
+<h4 class="pwStepTitle"><% $p->getPhaseTitle %></h4>
+<& /tmpl/element:table, params => {
+		cellspacing => 3,
+		class => 'pwVisitTable',
+		cellpadding => 4,
+		}
+&>
+%	if(defined $visits_by_phase{$p->getPrimaryKeyID()}){
+%		foreach my $v (@{ $visits_by_phase{$p->getPrimaryKeyID()} }) {
+<tr valign="top">
+<td width="20" align="center"><% $v->{visit}->getVisitOrder() %></td>
+<td><% $v->{txt} %></td>
+</tr>
+%		}
+</table>
+%	}
+</div><!-- pwStep -->
+% }
+</div><!-- pwSortByPhase -->
+
+
+<%method leftnav>
+% return undef;
+</%method>

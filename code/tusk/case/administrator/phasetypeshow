@@ -1,0 +1,30 @@
+<%method title>
+<%perl>
+my $title = "Modify Phase Type";
+return $title;
+</%perl>
+</%method>
+<%once>
+use TUSK::Case::PhaseType;
+</%once>
+<%perl>
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $phase_types = TUSK::Case::PhaseType->getPhaseTypes('ALL');
+my $col_fields = [ {'label'=>'Name', 'field'=>'getTitle'},
+		   {'label'=>'Sort', 'field'=>'getDefaultSortOrder'},
+                   {'label'=>'Object Name', 'field'=>'getPhaseTypeObjectName'}];
+my $action_columns;
+$action_columns = [{'label'=>'Modify','link'=>"/case/administrator/phasetypeaddedit/$type_path"},
+		{'label'=>'Delete','link'=>"/case/administrator/phasetypedelete/$type_path"}];
+</%perl>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:vertical_spacing, size =>1 &>
+<& /tmpl/element:object_selection_box, params => { columns=>$col_fields,
+                object_list => $phase_types,
+                action_columns=>$action_columns }
+&>
+</table>

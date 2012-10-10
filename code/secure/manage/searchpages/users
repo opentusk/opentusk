@@ -1,0 +1,141 @@
+[!
+	use HSDB4::SQLRow::User;
+!]
+[-
+
+	$req = shift;
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});	
+
+	$localUserSearchIsAdvanced = 0;
+	if ($fdat{action}){
+		$lookupConditions = "";
+		if($fdat{advanced}) {
+			$localUserSearchIsAdvanced = 1;
+			($last = $fdat{lastName}) =~ s/'/\\'/g;
+			($middle = $fdat{middleName}) =~ s/'/\\'/g;
+			($first = $fdat{firstName}) =~ s/'/\\'/g;
+			if($first || $middle || $last) {
+				if($last) {$lookupConditions .= "lastname like '\%" . $last . "\%'";}
+				if($middle) {
+					if($lookupConditions) {$lookupConditions .= " AND ";}
+					$lookupConditions.= "midname like '\%" . $middle . "\%'";
+				}
+				if($first) {
+					if($lookupConditions) {$lookupConditions .= " AND ";}
+					$lookupConditions.= "firstname like '\%" . $first . "\%'";
+				}
+			}
+		} else {
+			($search = $fdat{simpleSearch}) =~ s/'/\\'/g;
+			if($search) {
+				$lookupConditions = "firstname like '\%$search\%' OR midname like '\%$search\%' OR lastname like '\%$search\%'";
+			}
+		}
+		if($lookupConditions) {
+			@results = HSDB4::SQLRow::User->new->lookup_conditions($lookupConditions,"order by lastname, firstname");
+		}
+	}
+-]
+<table cellspacing="5" width="100%">
+	<tr>
+		<td>
+			<script>
+				function changeSearch(isAdvanced) {
+					if(isAdvanced) {
+						document.getElementById('regularForm').style.display = 'none';
+						document.getElementById('advancedForm').style.display = '';
+					} else {
+						document.getElementById('advancedForm').style.display = 'none';
+						document.getElementById('regularForm').style.display = '';
+					}
+				}
+			</script>
+			<table id="regularForm" border="0" style="display:[$ if($localUserSearchIsAdvanced) $]none[$ endif $];">
+				<tr>
+					<td align="right"><b>Name Contains:</b></td>
+					<td align="left"><input type="text" name="simpleSearch" value="[+ $fdat{simpleSearch} +]"></td>
+				</tr>
+			</table>
+			<table id="advancedForm" border="0" style="display:[$ if(!$localUserSearchIsAdvanced) $]none[$ endif $];">
+				<tr>
+					<td align="right"><b>Last Name:</b></td>
+					<td align="left"><input type="text" name="lastName" value="[+ $fdat{lastName} +]"></td>
+				</tr>
+				<tr>
+					<td align="right"><b>Middle Name:</b></td>
+					<td align-"left"><input type="text" name="middleName" value="[+ $fdat{middleName} +]"></td>
+				</tr>
+				<tr>
+					<td align="right"><b>First Name:</b></td>
+					<td align="left"><input type="text" name="firstName" value="[+ $fdat{firstName} +]"></td>
+				</tr>
+			</table>
+			<input type="checkbox" name="advanced" onChange="changeSearch(this.checked);"[$ if($localUserSearchIsAdvanced) $] checked='checked'[$ endif $]>Advanced
+			<input type="submit" name="action" value="Search" class="formbutton">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+
+		
+		</td>
+	</tr>
+	[$ if ($fdat{action}) $]
+	<tr>	
+		<td><br>
+			<div id="count">
+				[$ if(!$lookupConditions) $]
+					<font color="red">You must enter some search criteria</font>
+				[$ else $]
+					[+ scalar(@results) +] matching entr[$ if (scalar(@results) == 1) $]y[$ else $]ies[$ endif $][$ if (scalar(@results)) $]:[$ endif $]
+				[$ endif $]
+			</div>
+		</td>
+	</tr>
+	[$ if (@results) $]
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+[-
+	foreach $user (@results){
+		my $pk = $user->primary_key();
+		push (@resultarray, {userid => $pk, name => $user->out_lastfirst_name, affiliation => $user->field_value('affiliation'),role => $user->aux_info('roles')});
+	}
+
+	create_layer({
+			layer => 'searchdiv',
+			fields => ['userid','name','role', 'affiliation'],
+			name => '',
+			scrollrows => 9,
+			parentlayer => $fdat{parentlayer},
+			sort => {usage => 'No'},
+			action => {usage => 'Yes', length=>100, functions => [
+									{func=>'add', label=>'Add'}
+								]},
+			display => [
+					{field=>'name', align=>'left', length=>225,},
+					{field=>'userid', label=> 'UserID', align=>'left', length=>75,},
+					{field=>'affiliation', label=> 'Affiliation', align=>'center', length=>75,}
+
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => \@resultarray,
+			});
+-]
+		</td>
+
+	</tr>
+	[$ endif $]
+	[$ endif $]
+	<tr>
+		<td class="xsm">
+			<br>
+			Simple searchs will look for the string you enter in either the first or middle or last name.<br>
+			Advanced search will look for the strings you enter in the first name and the middle name and the last name.
+			In the advanced search, if you do not enter a first middle or last name those fields will not be searched.
+		</td>
+	</tr>
+</table>

@@ -1,0 +1,148 @@
+<%once>
+	use TUSK::Application::Assignment::Upload;
+	use HSDB4::SQLRow::Content;
+</%once>
+
+<%method upload_content>
+<%args>
+	$params
+	$role
+	$assignment
+	$school
+	$course_id
+	$sequence => 0
+</%args>
+
+<%perl>
+	my $upload;
+	if (ref $params->{files} eq 'ARRAY') {
+		my $i = 0;
+		for (my $r_upload = $r->upload; $r_upload; $r_upload = $r_upload->next) {
+			if ($r_upload->filename) {
+				$upload = TUSK::Application::Assignment::Upload->new({ 
+					user 		=> $m->session->{'user'},
+					school		=> $school,
+					course_id	=> $course_id,
+					role		=> $role,
+					assignment  	=> $assignment,
+					sequence	=> $sequence,
+				});
+				$upload->uploadContent({
+					filename => $r_upload->filename,
+					filehandle => $r_upload->fh(),
+					group_id  => (ref $params->{group_id} eq 'ARRAY') ? $params->{group_id}[$i] : $params->{group_id},
+					user_id => (ref $params->{user_id} eq 'ARRAY') ? $params->{user_id}[$i] : $params->{user_id},
+				});
+				$i++;
+			}
+		}
+	} elsif ($params->{files} =~ /\w+/) {
+
+		$upload = TUSK::Application::Assignment::Upload->new({ 
+			user 		=> $m->session->{'user'},
+			school		=> $school,
+			course_id	=> $course_id,
+			role		=> $role,
+			assignment  	=> $assignment,
+			sequence	=> $sequence,
+		});
+		$upload->uploadContent({
+			filename => $params->{files},
+			filehandle => $r->upload('files')->fh(),
+			group_id => $params->{group_id},
+			user_id => $params->{user_id},
+		});
+
+	} else {
+		return undef;
+	}
+
+	return (defined $upload) ? $upload->getMessage() : undef;
+</%perl>
+</%method>
+
+
+<%method get_content_links>
+<%args>
+	$contents
+	$checkbox => 1
+	$modified => 1     ### show modified time of the content file
+	$groupselection => 0
+	$assignmentgroups => undef
+	$shownames => 0
+</%args>
+<%perl>
+	my $contentlinks = "<div id=\"uploadedcontent\">";
+	my $i = 0;
+	foreach my $link (@{$contents}) {
+		my $content = HSDB4::SQLRow::Content->new()->lookup_key($link->getChildContentID());
+		$contentlinks .= "<input type=\"checkbox\" name=\"del_content_id\" value=\"" . $content->primary_key() . "\">" if ($checkbox);
+		$contentlinks .= " <a style=\"font-size:80%;width:100;\" href=\"\" onclick=\"javascript:window.open('/view/content/" . $content->primary_key() . "',null,'scrollbars=1,resizable=1'); return false;\">" . $content->title() . "</a>";
+		$contentlinks .= "&nbsp; <span style=\"font-size:65%;color:green;\">" . $content->modified() . " &nbsp;&nbsp; " . $content->out_file_size() . "</span>" if $modified;
+
+		$contentlinks .= "&nbsp; <select id=\"uploaded_sub_group_$i\" style=\"font-size:65%;color:gray;\" name=\"uploaded_sub_group_$i\" onclick=\"showUploadedGroup($i," . $link->getUserGroupID() . "," . $link->getPrimaryKeyID() . ")\"><option value=\"" . $link->getUserGroupID() . "\">" . $assignmentgroups->{$link->getUserGroupID()} . "</option></select>" if ($groupselection);
+
+		if ($shownames) {
+			my @users = grep { $_->aux_info('roles') =~ /Student-Author/ } $content->child_users();
+			$contentlinks .= "&nbsp; " . $users[0]->out_full_name();
+		}
+
+		$contentlinks .= "<br/>";
+		$i++;
+	}
+
+
+	$contentlinks .= "</div>";
+
+	if (@{$contents} && $checkbox) {
+		$contentlinks .= "&nbsp; <span style=\"font-size:75%;color:brown;\">* To delete uploaded files, select and click on 'Save Changes'</span>.";
+	}
+
+	return $contentlinks;
+</%perl>
+</%method>
+
+
+<%method delete_content>
+<%args>
+	$content_ids
+	$user
+</%args>
+
+<%perl>
+	$content_ids = [ $content_ids ] if (not ref $content_ids);
+	my $err = $user->deleteContent($content_ids);
+	return (defined $err) ? "Failed to delete the file(s)." : undef;
+</%perl>
+</%method>
+
+
+<%method get_students_files>
+<%args>
+	$students
+</%args>
+<%perl>
+	my $links = $students->getContent();
+	my $content_links;
+	foreach my $link (@{$links}) {
+		my $content = HSDB4::SQLRow::Content->new()->lookup_key($link->getChildContentID());
+		$content_links .= "<a href=\"\" onclick=\"javascript:window.open('/view/content/" . $content->primary_key() . "',null,'scrollbars=1,resizable=1'); return false;\">" . $content->title() . '</a><br/>';
+	}
+	return $content_links;
+</%perl>	
+</%method>
+
+
+<%method get_email_template>
+<%args>
+	$title
+</%args>
+<%perl>
+	my $assignment = $m->comp('SELF:getAssignment');
+	my $emailTmpl = TUSK::Email::Template->new();
+	$emailTmpl->setFieldValues({
+		subject => $assignment->getTitle() . ' - ' . $title,
+		body 	=> $assignment->getInstruction() . "\n\nThe assignment is due on " . $assignment->getFormattedDueDate() . " and can be found at https://$ENV{'HTTP_HOST'}/assignment/student/complete/" . $m->comp("/tmpl/url:get_type_path") . "/" . $assignment->getPrimaryKeyID() . "." });
+	return $emailTmpl;
+</%perl>
+</%method>

@@ -1,0 +1,101 @@
+<%method class_schedule>
+<%args>
+$class
+$is_mobi => 0
+</%args>
+<div>
+
+% my $ulclass = $is_mobi? 'gNoBullets highlight' : '';
+
+<h4 class="subHdr"><% $class->title . " - " . $class->field_value('type') %></h4>
+<ul class="<% $ulclass  %>">
+% unless($is_mobi){
+% 	my @meeting_links = $class->build_meeting_links();
+% 	foreach my $meeting_link (@meeting_links) {
+		<li><% $meeting_link %></li>
+% 	}
+% }
+	<li><% $class->out_starttime->out_string_time . " to " . $class->out_endtime->out_string_time %></li>
+% if ($class->location){
+	<li><% $class->location %></li>
+% }
+</ul>
+				
+<h4 class="subHdr">Faculty</h4>
+<ul class="<% $ulclass  %>">
+
+% my @faculty = $class->child_users;
+% if(scalar @faculty){
+% 	foreach my $aUser ($class->child_users()) {
+	<li><% $aUser->out_full_name %></li>
+%	}
+% }
+% else{
+	<li>No faculty listed</li>
+% }
+
+</ul>
+
+% my @content = $class->active_child_content();
+				
+<h4 class="subHdr">Meeting Contents</h4>
+
+% if (scalar @content) {
+%	if($is_mobi){
+%		$m->comp('/tmpl/content:drawMobileContent', contentArray => \@content);
+%	}
+%	else{
+%		$m->comp('/tmpl/content:drawSimpleContentTable', contentArray => \@content, classmeeting_page => 1);
+%	}
+% }
+% else {
+<ul class="<% $ulclass  %>"><li>No meeting contents linked</li></ul>
+% }
+
+<h4 class="subHdr">Learning Objectives</h4>
+% my $used;
+% my %objectives = %{$m->comp('SELF:tally_objectives', content => \@content, meeting => $class)};
+<ul class="<% $ulclass  %>">
+% foreach my $ob_key (keys %objectives) {
+%	$used = 1;
+	<li><% $objectives{$ob_key} %></li>
+% }
+% if (!$used) {
+<li>No objectives listed.</li>
+% }
+</ul>
+
+</div>
+</%method>
+
+<%method tally_objectives>
+<%args>
+	$content
+	$meeting  => undef
+	$obj_hash => undef
+</%args>
+<%perl>
+	if ( !defined($obj_hash) ) {
+		$obj_hash = {};
+	}
+	my $totals = 0;
+	foreach my $item ( @{$content} ) {
+		my @child_content = $item->active_child_content;
+		foreach my $objective ($item->child_objectives) {
+			$obj_hash->{'o' . $objective->objective_id} = $objective->field_value('body');
+		}
+		if ( $item->type eq 'Collection' ) {
+			$m->comp('SELF:tally_objectives', content => \@child_content, obj_hash => $obj_hash);
+		}
+	}
+	
+	if ( $meeting ) {
+		foreach my $obj_link (@{$meeting->child_objectives()}) {
+			my $objective = $obj_link->getObjective;
+			$obj_hash->{'o' . $objective->getFieldValue('objective_id')} = $objective->getFieldValue('body');
+		}
+	}
+
+	return $obj_hash;
+</%perl>
+</%method>

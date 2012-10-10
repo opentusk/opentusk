@@ -1,0 +1,30 @@
+<%method title>
+% return "Manage Teaching Sites";
+</%method>
+
+<%perl>
+	my @teaching_sites = HSDB45::TeachingSite->new(_school => $m->comp("/tmpl/url:get_school"))->lookup_all("order by site_name");
+</%perl>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+              { display_txt => 'New Teaching Site',
+                link_txt    => '/management/teachingsite/admin/addedit/' . $m->comp("/tmpl/url:get_type_path")},
+	         ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+				sort_box => 0,
+				columns => [ {'label' => 'Name', 'field' => 'site_name'},
+	                                     {'label' => 'Type', 'field' => 'site_city_state'}
+					],
+				action_columns => [ 
+							{ 'label'=>'Link Courses','link' => '/management/teachingsite/admin/linksshow' },
+							{ 'label'=>'Modify','link' => '/management/teachingsite/admin/addedit' },
+							{ 'label' => 'Delete','link' => '/management/teachingsite/admin/delete' } 
+			  			], 
+				object_list => \@teaching_sites,
+				type_path => $m->comp("/tmpl/url:get_type_path"),
+				name => "teaching sites",
+				}
+&>

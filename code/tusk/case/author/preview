@@ -1,0 +1,17 @@
+<%method function_token>
+% return 'preview_case';
+</%method>
+
+<%perl>
+	my $id = $m->comp('/tmpl/url:get_last_path_id');
+	my $case = TUSK::Case::Case->lookupKey($id);
+	my $user_id = $m->comp('SELF:user');
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $report = $case->getReport($user_id);
+
+	$report->setPreviewFlag(1);
+	$report->save({ user => $user_id });
+	
+	$type_path =~ s/course\///;
+	$m->redirect('/case/casestart/' . $type_path . '/' . $case->getPrimaryKeyID());
+</%perl>

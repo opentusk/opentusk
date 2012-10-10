@@ -1,0 +1,108 @@
+<%once>
+	use TUSK::FormBuilder::Form;
+	use TUSK::FormBuilder::FormType;
+	use HSDB45::TimePeriod;
+</%once>
+
+<%shared>
+	my ($time_period_id, $teaching_site_id);
+	my ($form_id) = $m->comp("/tmpl/url:get_path_ids");
+</%shared>
+
+<%method get_form_id>
+%	return $form_id;
+</%method>
+
+<%method get_form>
+<%perl>
+	my $form;
+
+	if ($form_id) {
+		$form = TUSK::FormBuilder::Form->new->lookupKey($form_id);
+	} else {
+		my $type_object = $m->comp("/tmpl/url:get_type_object");
+		if ($type_object->isa("HSDB45::Course")) {
+			$form = $type_object->get_patient_log();
+			unless ($form) {
+				$m->comp("/tmpl/url:redirect",message => "No patient log for this course.");
+			}	
+		}
+	}
+	return $form;
+</%perl>
+</%method>
+
+<%method get_time_period_id>
+<%args>
+	$student_id => undef
+</%args>
+<%perl>
+	unless ($time_period_id){
+		$m->comp("SELF:set_aux_course_info", student_id => $student_id);
+	}
+	return ($time_period_id);
+</%perl>
+</%method>
+
+<%method get_teaching_site_id>
+<%perl>
+	unless ($teaching_site_id){
+		$m->comp("SELF:set_aux_course_info");
+	}
+	return ($teaching_site_id);
+</%perl>
+</%method>
+
+<%doc> this is to handle the case someone fills in a form for a given student, otherwise a form is for self</%doc>
+<%method set_aux_course_info>
+<%args>
+	$student_id => ''
+</%args>
+
+<%perl>
+	$student_id = $m->session->{'user'}->user_id() unless $student_id;
+	unless ($time_period_id){
+		my $course = $m->comp("/tmpl/url:get_type_object");
+		my @students = $course->child_students("child_user_id = '$student_id'");
+
+		# set some default values
+		$time_period_id = -1;
+		$teaching_site_id = -1;
+
+		if (scalar @students == 1){
+			$time_period_id = $students[0]->aux_info('time_period_id');
+			$teaching_site_id = $students[0]->aux_info('teaching_site_id');
+		}
+		elsif (scalar @students){
+			# need to look at the case where a student is associated to the course in more than one time period
+
+			# figure out all the time period ids and store the corresponding teaching site id
+			my %time_period_hash = map { $_->aux_info('time_period_id') => $_->aux_info('teaching_site_id') } @students;
+
+			my @time_periods = HSDB45::TimePeriod->new(_school => $course->school())->lookup_conditions("time_period_id in (" . join(',', keys %time_period_hash) . ") and start_date <= curdate() and end_date >= curdate()", "order by start_date asc");
+
+			# grab the latest one (else -1 will be set for time_period_id and teaching_site_id)
+			if (scalar @time_periods){
+				$time_period_id = $time_periods[0]->primary_key();
+				$teaching_site_id = $time_period_hash{ $time_period_id };
+			}
+		}
+	}
+</%perl>
+</%method>
+
+<%method get_base_dir>
+<%perl>
+	my $basedir = $ENV{SCRIPT_NAME};
+	$basedir =~ s/\/([^\/]*?)$//;
+	return ($basedir);
+</%perl>
+</%method>
+
+
+<%method getFormType>
+<%args>
+	$token
+</%args>
+%	return TUSK::FormBuilder::FormType->new()->lookupReturnOne("token = '$token'");
+</%method>

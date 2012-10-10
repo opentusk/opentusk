@@ -1,0 +1,71 @@
+<%once>
+	use Mail::Sendmail;
+</%once>
+
+<%attr>
+	no_check_path 	=> 1
+	page_header	=> undef
+	page_footer	=> undef
+</%attr>
+
+<%perl>
+	my $redirection;
+
+	my $user = $m->session->{user};
+
+	if ($user->primary_key()){
+
+		my ($email_text, $current_name);
+
+		foreach my $name (sort (keys %ARGS)){
+			my ($num, $field_name) = split('__', $name);
+
+			$field_name =~ s/_/ /g;
+		
+			if ($field_name =~ s/-/ \(/){
+				$field_name .= ")";
+			}	
+
+			if ($current_name){
+				if ($current_name ne $field_name){
+					$email_text .= "</ul>\n";
+					$current_name = "";
+				}
+			}
+
+			next unless ($num > 0);
+
+			if (ref($ARGS{$name}) eq 'ARRAY'){
+				my @non_blank = grep { $_ } @{$ARGS{$name}};
+
+				next unless (scalar(@non_blank));
+
+				unless ($current_name){
+					$email_text .= "<b>" . $field_name . "</b><br><ul>\n";
+					$current_name = $field_name;
+				}
+
+				$email_text .= "<li>" . join(', ', @non_blank) . "</li>\n";
+			} else {
+				$email_text .= "<b>" . $field_name . "</b>: " . $ARGS{$name} . "<br>\n";
+			}
+		}
+
+		Mail::Sendmail::sendmail(
+					To		=> $ARGS{whoto},
+					Bcc		=> $user->email(),
+					From		=> $user->first_name() . ' ' . $user->last_name() . '<' . $user->email() . '>',
+					Subject		=> $ARGS{subject},
+					Message		=> '<html><body>' . $email_text . '</body></html>',
+					'content-type' 	=> 'text/html; charset="iso-8859-1"',
+				);
+
+		$redirection = ($ARGS{redirect}) ? $ARGS{redirect} : $ENV{HTTP_REFERER} . "?submit=1";
+		$redirection = '/home?msg=Form+submitted' if ($redirection eq '?submit=1' or $redirection =~ /$ENV{SCRIPT_NAME}/);
+	}else{
+		$redirection = '/home?errmsg=Email error';
+	}
+	
+	$m->redirect($redirection);
+	exit;
+</%perl>

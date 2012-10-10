@@ -1,0 +1,228 @@
+<%attr>
+	page_header	  => '/tmpl/prepend:manage_header_div_layout'
+	page_footer	  => '/tmpl/footer:footer_div_with_tufts_links'
+	no_check_path	=> 1
+</%attr>
+
+<%once>
+  use HSDB4::SQLRow::User;
+  use HSDB4::SQLRow::PersonalContent;
+  use TUSK::FlashCard;
+  use HSDB4::SQLRow::Content;
+  use HSDB4::Constants;
+  use TUSK::Constants;
+  use Data::Dumper;
+</%once>
+
+
+
+% if ($hascards ) {  
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>'return',
+				name => 'savecard' } &>
+
+
+<input type="hidden" value="<% $indx %>" name="card_index" />
+% my $k = 0;
+% foreach my $crd (@$fcards){
+
+<input type="hidden" value="<% $crd->getFlashCardID %>" name="c<% $k %>" />
+% $k++; } # end foreach
+
+
+
+<div class="checkedBG" >
+
+<br><br>
+<table>
+<tr><td></td><td align="left">
+
+% my $cntnt = HSDB4::SQLRow::Content::Slide->new()->lookup_key(@$fcards[$indx]->getContentID);
+% my $zoom_level;
+% if ( exists( $ARGS{'zoom_level'}) ) {
+% 		$zoom_level = $ARGS{'zoom_level'};
+% } else { $zoom_level = "medium"; }
+
+% my $img_src = "/$zoom_level/".@$fcards[$indx]->getContentID;
+% my $img = "<img src=$img_src class='mainImg' id='mainImg' />";
+
+
+<input type="hidden" value="<%$zoom_level%>" name="zoom_level" id="zoom_level" />
+
+% if(@$fcards[$indx]->getContentID()) {
+<% HSDB4::SQLRow::Content::Slide->get_zoom_menu($img) %>
+% }
+</td></tr>
+
+<tr>
+% if ( @$fcards[$indx]->getQuestion() ) {
+<td align="right"><h2>Question:</h2></td> 
+<td>
+<textarea readOnly name="question" cols="100" rows="5" > <% @$fcards[$indx]->getQuestion() %> </textarea>
+</td>
+% }
+</tr>
+
+<tr><td align="right"> 
+
+<!------------------- toggle answer button --------------->
+<div id="showDiv" style="visibility:visible;" >
+<h2>
+
+% my $onclck="javascript:toggle_visibility('answerDiv');toggle_button('mybtn');";
+% if ($cntnt->overlay_data) { $onclck = $onclck."swapOverlay('mainImg');"; }
+
+<input type="button" class="formButton" onclick="<%$onclck%>" id="mybtn" style="width:125px;" value="Show Answer"/>
+
+
+</h2> 
+</div>
+<!------------------- toggle answer button --------------->
+
+</td>
+
+<td>
+<div id="answerDiv" style="visibility:hidden">
+
+<%perl>
+
+my $answer_to_display;
+
+if ( @$fcards[$indx]->getAnswer() || !(@$fcards[$indx]->getContentID())) {
+	$answer_to_display = @$fcards[$indx]->getAnswer();
+}
+else{
+	
+	my $content = HSDB4::SQLRow::Content->new->lookup_key(@$fcards[$indx]->getContentID());
+
+	my $body = $content->out_just_body;
+	$body =~ s/<(.*?)>//gi;
+	my $title = $content->out_html_label;
+	$title =~ s/<(.*?)>//gi;
+
+    (length($body) > 0 ) ? ($answer_to_display = $title." -- ".$body) : ($answer_to_display = $title);
+
+}
+
+
+</%perl>
+
+<textarea readOnly  name="answer" cols="100" rows="5" > <% $answer_to_display %> </textarea>
+
+</div>
+</td></tr>
+
+
+
+<tr><td></td><td>
+% if ( ($indx > 0) ) {
+<input type="submit" name="submit" value="Previous Card" class="formbutton">
+% }
+% if ( ($indx < (scalar(@$fcards)-1) ) ) {
+<input type="submit" name="submit" value="Next Card" class="formbutton">
+% }
+
+<input type="reset" style="" value="Back to my Flash Card Decks" id="cancel" name="cancel" onclick="go_back('/management/flashcard/flashcard');" class="formbutton"/></td>
+</td></tr>
+
+</table>
+
+
+</form>
+
+</div>
+
+% } else { # if there are no cards
+<br><br>
+<h2> There are no cards in this deck </h2>
+<br><br>
+<input type="reset" style="" value="Back to my Flash Card Decks" id="cancel" name="cancel" onclick="go_back('/management/flashcard/flashcard');" class="formbutton"/>
+% } 
+
+
+<%init>
+my $pcId = $m->comp("/tmpl/url:get_last_path_id");
+my $fcards;
+my $indx=0;
+my $hascards=1;
+
+my $qStr = "parent_personal_content_id = ".$pcId." order by content_id ASC";
+$fcards =  TUSK::FlashCard->lookup($qStr);
+
+# if there are cards in this deck, get started
+if ( scalar(@$fcards) > 0 )
+{
+
+
+	if ( exists($ARGS{'card_index'}) ) {
+		$fcards= ();
+		$indx = $ARGS{'card_index'};
+
+		#load fcards from hidden form data
+		my $i=0;
+		my $str = "c$i";
+		while( exists($ARGS{$str}) ){
+			@$fcards[$i] = TUSK::FlashCard->lookupReturnOne("flash_card_id =".$ARGS{$str});	
+			$i++;
+			$str="c$i";
+		}
+   
+		if ( $ARGS{'submit'} eq 'Previous Card' && ($indx > 0) ) { 
+	
+		 	$indx--;
+		}
+		elsif ( $ARGS{'submit'} eq 'Next Card' &&  ($indx < (scalar(@$fcards)-1) ) ) {
+	
+			$indx++;
+		}
+
+    
+	}
+	else {
+		#if card index doesnt exist, this is start of deck viewing
+		#so need to perform fisher-yates shuffle
+
+		my $qStr = "parent_personal_content_id = ".$pcId." order by content_id ASC";
+		$fcards =  TUSK::FlashCard->lookup($qStr);
+		my $i;
+   		for ($i = @$fcards; --$i; ) {
+   		   	 my $j = int rand ($i+1);
+    	     next if $i == $j;
+    	     @$fcards[$i,$j] = @$fcards[$j,$i];
+    	}
+    
+	}
+
+	#if we've done the entire deck, start over
+	if ($indx > ( scalar(@$fcards) -1 ) ){
+
+		$indx=0;
+	}
+
+} ### end if scalar(fcards) > 0
+else { 
+	# there are no cards, set flag
+	$hascards = 0;
+}
+
+</%init>
+
+<%method jsarray>
+% return ['flashcards.js','content.js'];
+</%method>
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+%   my $deck = HSDB4::SQLRow::PersonalContent->new->lookup_key($m->comp("/tmpl/url:get_last_path_id"));
+%	return $TUSK::Constants::SiteAbbr . " Flash Card Deck: " . $deck->out_label;
+</%method>
+

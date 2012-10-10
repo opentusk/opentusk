@@ -1,0 +1,122 @@
+<%once>
+	use TUSK::Functions;
+</%once>
+
+
+<%attr>
+	show_tp_dropdown_no_cache => 1
+	skip_creating_assignment => 1
+</%attr>
+
+<%shared>
+	my @assignments;
+	my $permissions;
+	my %args = $m->request_args();
+</%shared>
+
+
+<%method feature_id>
+<%perl>
+	my $assignment_ids = [];
+
+	foreach my $assignment (@assignments){
+		push (@$assignment_ids, $assignment->getPrimaryKeyID());
+	}
+	return $assignment_ids;
+</%perl>
+</%method>
+
+
+<%method title>
+% 	return "Manage Assignments";
+</%method>
+
+
+<%perl>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $typePath = $m->comp("/tmpl/url:get_type_path");
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+
+	unless (defined $time_period_id) {
+		my $msg = TUSK::Core::SessionTimePeriod::course_time_periods($m->comp("/tmpl/url:get_type_object"), undef, $m->session);
+		$time_period_id = $m->comp("SELF:get_timeperiod_id");
+	}
+
+	my $school = $course->get_school();
+
+	my $grade_events = TUSK::GradeBook::GradeEvent->new()->lookup("school_id = " . $school->getPrimaryKeyID() . " AND course_id = " . $course->primary_key() . " AND time_period_id = $time_period_id");
+
+	foreach my $grade_event (@{$grade_events}) {
+		push @assignments, TUSK::Assignment::Assignment->new()->lookupReturnOne("assignment.grade_event_id = " . $grade_event->getPrimaryKeyID());
+	}
+
+	$permissions = $m->comp('/tmpl/permission:get_permissions');
+
+	unless (defined $permissions) {
+
+		$m->comp("/tmpl/permission:lookup_permissions", 
+			feature_type_token => $m->comp("SELF:feature_type_token"),
+			feature_id => $m->comp("SELF:feature_id"),
+			function_token => $m->comp("SELF:function_token"));
+		$permissions = $m->comp("/tmpl/permission:get_permissions"),
+
+		$typePath = "course/$typePath" unless $typePath =~ /^course/;
+	}
+
+	my $col_fields = [ 
+	   {label => 'Title', field => 'title'},
+       	   {label => 'Instructions', field => 'instructions'},
+       	   {label => 'Weight', field => 'weight', align => 'center'},
+	   {label => 'Available Date', field => 'available_date'},
+	   {label => 'Due Date', field => 'due_date'},
+	 ];
+
+	my @rows = ();
+	my $max_length = 300;
+	foreach my $assignment (@assignments) {
+		my $instructions = $assignment->getInstruction();
+		my $instructions_length = length($instructions);
+		my $assignment_id = $assignment->getPrimaryKeyID();
+		my $prefix = $m->comp('/tmpl/element:check_for_firefox_upload_bug');
+
+		push @rows, { 
+			title => "<a style=\"text-decoration:none;\" href=\"/assignment/author/addedit/$typePath/$assignment_id\">" . $assignment->getTitle() . "</a>",
+			instructions => ($instructions_length > $max_length) 
+				? "<span style=\"cursor:pointer;color:blue;\" title=\"$instructions\">" . TUSK::Functions::truncate_string($instructions,$max_length) . "</span>"
+				: $instructions,
+			weight => $assignment->getWeight(),
+			available_date => $assignment->getFormattedAvailableDate(),
+			due_date => $assignment->getFormattedDueDate(),
+			id => $assignment->getPrimaryKeyID(),
+		};
+	}
+
+</%perl>
+
+
+<& /tmpl/element:cms_button_row, 
+	links => [ 
+	          {display_txt => 'New Assignment',
+	           link_txt    => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/addedit/' . $typePath }
+	         ]
+&>
+
+
+<& /tmpl/element:object_selection_box, params => { 
+	columns 	=> $col_fields,
+	rows		=> \@rows,
+	type_path 	=> $typePath,
+	name 		=> 'assignments',
+	feature_token 	=> 'assignment',
+	'norows-message' => 'No Assignments',
+	permissions 	=> $permissions,
+	action_dropdown  => 1,
+	action_columns => [
+	{ label => 'Modify', link => '/assignment/author/addedit', function_token => 'edit_assignment', },
+	{ label => 'Email', link => '/assignment/author/email', function_token => 'email_assignment', },
+	{ label => 'Grade/View', link => '/assignment/author/grade', function_token => 'grade_assignment', },
+	{ label => 'Users', link => '/assignment/author/users', function_token => 'users_assignment', },
+	{ label => 'Delete', link => '/assignment/author/delete', function_token => 'users_assignment', },
+			],
+
+} &>

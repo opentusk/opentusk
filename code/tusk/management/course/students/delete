@@ -1,0 +1,130 @@
+<%once>
+	use TUSK::Manage::Course::Students;
+</%once>
+
+<%attr>
+	top_tab_type            => 'manage'
+	check_cms_permissions	=> 1
+    default_path_type	=> 'course'
+</%attr>
+
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',} 
+&>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+    <tr> 
+      <td class="labelgray">User:</td>
+      <td class="cell-left">
+
+% if ( $user ) {
+% 	my @rows;
+% 	my $usr = $data->{user};
+% 	push(@rows, { 
+%				'id' => $usr->primary_key, 
+%				'lastname' => $usr->field_value('lastname'),
+%				'firstname' => $usr->field_value('firstname'),
+%				'email' => $usr->field_value('email'),
+%				'affiliation' => $usr->field_value('affiliation') } );
+
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [ 
+		{'label' => 'UserID', 'field' => 'id' },
+		{'label' => 'Last Name', 'field' => 'lastname'},
+		{'label' => 'First Name', 'field' => 'firstname'},
+		{'label' => 'Email', 'field' => 'email'},
+		{'label' => 'Affiliation', 'field' => 'affiliation'}, 
+	],
+	rows => \@rows,
+	type_path => $m->comp("/tmpl/url:get_type_path"),
+	name => "users",
+} &>
+
+% } else {
+	<b> No user selected. </b>
+% }
+
+<br>
+        <i>please confirm that you want these users removed from this course</i>
+	</td>
+    </tr>
+    <tr> 
+      <td>&nbsp;</td>
+      <td class="cell-submit"> 
+
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Delete and Continue',
+	no_cancel_button => 1,
+	class 	=> 'formbutton',
+	name			=> 'action',
+	} 
+&>
+                         
+	<input type="hidden" name="user" value="<% $user %>">
+	<input type="hidden" name="timeperiod" value="<% $time_period %>">
+</td>
+    </tr>
+  </table>
+</form>
+
+<%init>
+
+	my $selfpath = $m->comp("/tmpl/url:get_full_path");
+	my $type_object =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $time_period = $m->comp("SELF:get_timeperiod_id");
+	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+	my ($rval, $msg); 
+	my $is_group_course;
+	my $user;
+	
+	if ($ARGS{user}) { $user = $ARGS{user}; }
+	else { $user = $m->comp("/tmpl/url:get_last_path_id"); }
+
+	unless ($ARGS{page}){ $ARGS{page}="add"; }
+	
+	if ($ARGS{action}){
+		($rval, $msg) = TUSK::Manage::Course::Students::delete($r,$time_period, $type_object->course_id, $school, \%ARGS);
+		if ($rval == 1) {
+			my $d = "/management/course/students/show/".$school."/".$type_object->course_id."/?timeperiod=".$time_period;
+			$m->comp("/tmpl/url:redirect", destination=> $d, message => $msg, msg_type => 'msg');
+		} else {
+			my $d = "/management/course/students/show/".$school."/".$type_object->course_id."/?timeperiod=".$time_period;
+			$m->comp("/tmpl/url:redirect", destination=> $d, message => $msg, msg_type => 'errmsg');
+		}
+
+	}
+
+	my $data = TUSK::Manage::Course::Students::delete_pre_process($user);
+
+</%init>
+
+<%method title>
+% return "Delete Course Student";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method cms_min_course_role>
+% return 'DIRECTORNONSTUDENT';
+</%method>
+
+
+
+
+
+
+
+
+
+
+
+

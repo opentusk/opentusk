@@ -1,0 +1,51 @@
+<!--- Problem List Phase Info --->
+<%perl>
+my $phase = $ARGS{'phase'};
+my ($phase_title,$phase_name) = $m->comp("sections:get_phase_info",'phase'=>$phase);
+my $case = $ARGS{'case'};
+</%perl>
+
+<& /tmpl/element:top_header_row, label => 'Problem List' &>
+<& /tmpl/element:textarea, params=>{ label => 'Model Answer',
+                name=>"model_answer",
+                cols=>"60",
+                rows=>"4",
+                value=>$phase->getModelAnswer()  } &>
+
+
+<!--- END Problem List Phase Info --->
+
+
+<%method process_args>
+<%args>
+$user_id
+$phase 
+%params 
+</%args>
+<%perl>
+$phase->setModelAnswer($params{'model_answer'});
+$phase->save({user=>$user_id});
+</%perl>
+</%method>
+
+<%method phaseReport>
+<%args>
+$phase
+$case
+$case_report
+</%args>
+<%perl>
+my $text = '<span class="sm">'.$phase->getMainText().'</span>';
+$text .= '<table width="100%" cellpadding="0" cellspacing="0" border="0">';
+my $selections = TUSK::Case::PhaseOptionSelection->getLatestPhaseSelections($phase,$case_report);
+my $answer;
+foreach my $sel (@{$selections}){
+        $answer = $sel->getShortAnswerText();
+        $answer = $answer ? $answer : $sel->getAnswerText();
+        $text .= '<tr><td class="sm">'.$answer.'</tr>';
+}
+$text .= '</table>';
+</%perl>
+<% $text %>
+</%method>
+

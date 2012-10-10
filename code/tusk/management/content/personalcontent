@@ -1,0 +1,255 @@
+<%args>
+	$backButton => ''
+	$newfolder => ''
+	$add_to_folder => ''
+	$content_item => ''
+</%args>
+
+<%attr>
+	page_header	  => '/tmpl/prepend:manage_header_div_layout'
+	page_footer	  => '/tmpl/footer:footer_div_with_tufts_links'
+	no_check_path	=> 1
+</%attr>
+
+<%once>
+	use HSDB4::SQLRow::User;
+	use HSDB4::SQLRow::PersonalContent;
+	use HSDB4::Constants;
+	use TUSK::Constants;
+</%once>
+
+
+<%method startup>
+	<%args>
+		$args => {}
+	</%args>
+
+	<%perl>
+     
+	if(${$args}{'newfldr'} == 1 ) {
+			
+			my $folder = $m->session->{'user'}->new_child_personal_content_folder;
+		
+			my @personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type!="Flash Card Deck"'} );
+		    my $length = scalar(@personal_content);
+
+			my %params_hash = (
+				'change_order_string' => "$length-1" ,
+				'parent_id' => $m->session->{'user'}->primary_key() ,
+				'link_def_type' => 'link_user_personal_content',
+				'child_arrayref' => \@personal_content,
+			);
+
+			HSDB4::SQLLinkDefinition->update_children_sort_order(\%params_hash);
+
+		}
+
+	    my @personalContent = $m->session->{'user'}->child_personal_content({'type' => 'type!="Flash Card Deck"'});
+        
+	if( ${$args}{'order'}) {
+
+
+			my @personal_content = $m->session->{'user'}->child_personal_content({'type' => 'type!="Flash Card Deck"'});
+        
+			my %params_hash = (
+				'change_order_string' => ${$args}{'order'} ,
+				'parent_id' => $m->session->{'user'}->primary_key() ,
+				'link_def_type' => 'link_user_personal_content',
+				'child_arrayref' => \@personal_content,
+			);
+
+			HSDB4::SQLLinkDefinition->update_children_sort_order(\%params_hash);
+
+	}
+		if(${$args}{'add_to_folder'}) {
+
+			my $folder;
+			
+			if (${$args}{'add_to_folder'} == -1) {
+
+				$folder = $m->session->{'user'}->new_child_personal_content_folder;
+				my @personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type!="Flash Card Deck"'} );
+			    my $length = scalar(@personal_content);
+
+				my %params_hash = (
+				'change_order_string' => "$length-1" ,
+				'parent_id' => $m->session->{'user'}->primary_key() ,
+				'link_def_type' => 'link_user_personal_content',
+				'child_arrayref' => \@personal_content,
+			);
+
+			HSDB4::SQLLinkDefinition->update_children_sort_order(\%params_hash);
+				
+			} 
+			else {
+				$folder = HSDB4::SQLRow::PersonalContent->new;
+				$folder->lookup_key(${$args}{'add_to_folder'});
+			}
+			
+			${$args}{'content_item'} =~ s!^.*/hsdb4/content!!g;
+			$folder->add_child_content( HSDB4::SQLRow::Content->new->lookup_path(${$args}{'content_item'}) );
+		}
+
+
+		if ( ${$args}{'deleteContent'} ) {
+			
+				my @arr = split(/\//,${$args}{'deleteContent'});
+				my $pc = HSDB4::SQLRow::PersonalContent->new->lookup_key($arr[0]);   
+				$pc->delete_child_content( HSDB4::SQLRow::Content->new->lookup_key($arr[1]));									
+		}
+
+		if(exists(${$args}{"addnote"})) {
+				my $pc = HSDB4::SQLRow::PersonalContent->new->lookup_key(${$args}{"addnote"});
+				my $note = HSDB4::SQLRow::PersonalContent->new_blank(user_id => $m->session->{'user'}->primary_key, type => 'Note');					 unless($note->save) {
+			 		${$args}{'errmsg'} = "Unable to save the note!"; 
+				} 
+				else {
+					$pc->add_child_personal_content($note); 
+				}
+		}
+		foreach (keys %{$args}) {
+			if(/^rename_(\d+)$/) {
+				my $contentID = $1;
+				my $pc = HSDB4::SQLRow::PersonalContent->new->lookup_key($contentID);
+		
+				if($pc->primary_key) {
+					if($pc->is_user_authorized_write($m->session->{'user'}->primary_key)) {
+						if(exists(${$args}{"delete_$contentID"})) {
+							#If we are deleteing it then do it and be done.
+							$pc->delete;
+						} 
+						else {
+							#Start with a renameing
+							$pc->edit_body( ${$args}{"rename_$contentID"} );
+		
+							#Add a note if requests
+							if(exists(${$args}{"addNote_$contentID"})) {
+								my $note = HSDB4::SQLRow::PersonalContent->new_blank(user_id => $m->session->{'user'}->primary_key, type => 'Note');
+								
+								unless($note->save) { ${$args}{'errmsg'} = "Unable to save the note!"; 
+							} 
+							else {
+								$pc->add_child_personal_content($note); 
+							}
+						}
+		
+						#Now lets check the content underneith it.
+						foreach (keys %{$args}) {
+							if(/delete(.*)_${contentID}\.(\d+)/) {
+								if($1 eq 'Content') {
+									$pc->delete_child_content( HSDB4::SQLRow::Content->new->lookup_key($2) );
+								}
+								elsif($1 eq 'PersonalContent') {
+									$pc->delete_child_personal_content( HSDB4::SQLRow::PersonalContent->new->lookup_key($2) );
+								}
+							}
+						}
+					}
+				} 
+				else {
+					${$args}{'errmsg'} = "You are not authorized to modify this personal content.";
+				}
+			} 
+			else {
+				${$args}{'errmsg'} = "The selected content id does not exist.<br>Perhaps it was already deleted?";
+			}
+		}
+		}
+
+		if ( ${$args}{'deleteFolder'} ) {
+
+		my $pc = HSDB4::SQLRow::PersonalContent->new->lookup_key(${$args}{'deleteFolder'});
+		$pc->delete;
+	}
+	</%perl>
+</%method>
+ 
+  <form method="post" name="pcform" id="pcform">
+    <table border="0" width="100%">
+      <tr>
+        <td valign="left" width="33%">
+
+
+
+% my $fc_dir = "/management/content";
+% if( ($ENV{'HTTP_REFERER'} && ( index($ENV{'HTTP_REFERER'},$fc_dir) == -1 )))
+% {$m->session->{'pcbackbutton'} = $ENV{'HTTP_REFERER'};}
+
+<%perl>
+my $backbuttn = $m->session->{'pcbackbutton'};
+my $disp_txt = "Home Page";
+if($backbuttn) { 
+		my @splt = (split "/", $backbuttn);
+		if (index($backbuttn,'home') > -1 ) {
+			$disp_txt = "Home Page";
+		}
+		else {
+			$disp_txt = "Collection/Content";
+		}
+}
+</%perl>
+
+<& /tmpl/element:cms_button_row,
+    links => [
+        {display_txt => 'Add a New Folder',
+        link_txt    => "javascript:submitnewfolder('pcform');"},
+# the back button was problematic due to a known problem with truncated sessions.
+# until the session issue is straightened out, the back button is nixed.
+#		{display_txt => 'Back to '.$disp_txt,
+#        link_txt    => "$backbuttn",		
+#		},
+
+        ]
+	&>
+
+
+        </td>
+        <td align="center" width="33%">
+
+        </td>
+        <td align="right" width="33%">
+
+% my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => 871270, text => 'Personal Folders Help', not_xmetal => 1, class => 'helpLnk'});
+<% $help_lnk %>
+</td>
+      </tr>
+    </table>
+
+%  my @personalContent = $m->session->{'user'}->child_personal_content({'type' => 'type!="Flash Card Deck"'});
+%  my $pcLength = scalar(@personalContent) ;
+%  if(scalar(@personalContent) > 0) {
+    <table border="0" cellpadding="3" align="center" cellspacing="0" class="wide" width="100%">
+%  my $i =1;
+%    foreach my $pieceOfContent (@personalContent) {
+      <& /tmpl/objects/PersonalContent:edit_PersonalContentCollection, lngth => $pcLength,  personalContentRef => \$pieceOfContent, i => $i &>
+%    $i++;
+%    }
+    </table><br>
+%  } else {
+     <b>You do not have any personal content added yet</b><br>
+%  }
+<input type="hidden" name="order" value="">
+<input type="hidden" name="newfldr" id="newfldr"/>
+<input type="hidden" name="deleteContent" > 
+<input type="hidden" name="deleteFolder" > 
+<input type="hidden" name="rnm" id="rnm" />
+<input type="hidden" name="addnote" id="addnote" />
+  </form>
+
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+<%method jsarray>
+% return ['flashcards.js'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+%	return $TUSK::Constants::SiteAbbr . " Personal Folders: " . $m->session->{'user'}->out_abbrev;
+</%method>
+

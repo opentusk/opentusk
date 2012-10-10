@@ -1,0 +1,141 @@
+<%once>
+	use TUSK::Application::FormBuilder::Report::Course;
+	use HSDB4::SQLRow::User;
+	use TUSK::FormBuilder::Entry;
+	use TUSK::FormBuilder::EntryAssociation;
+	use HSDB45::UserGroup;
+</%once>
+
+<%attr>
+	onload 	=> "initDynamicOptionLists();",
+</%attr>
+
+<%shared>
+	my $form_type_label = 'Simulated Patient';
+	my ($form_id, $user_group_id, $student_id, $entry_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $form = TUSK::FormBuilder::Form->lookupKey($form_id);
+	my ($student,$user_group);
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	$user_group_id = 0 unless $user_group_id;
+	$user_group = HSDB45::UserGroup->new(_id => $user_group_id, _school => $course->get_school()->getSchoolName());
+	my $user_id = $m->session->{'user'}->user_id();
+	my $url = '/sp/actor/list/' . $m->comp('/tmpl/url:get_type_path') . '/' . $form_id;
+	$url .=  '/' . $user_group_id if ($user_group_id);
+</%shared>
+
+
+<& 'SELF:printJscript' &>
+<div style="margin:5px 0 0 15px;">
+<& "/formbuilder/display:page", 
+	args => { %ARGS, hide_required => 0, entry_id => $entry_id, student_id => $student_id },
+	date_label => 'Encounter Date', 
+	dynamic_components => ['/sp/actor/entry:displayStudentName', '/sp/actor/entry:printHiddenInput'],
+	extra_actions => ($entry_id) ? {} : { new_entry => '/sp/actor/entry:updateEntryAssociation' },
+	button_component => '/sp/actor/entry:printButtons',
+	has_save_button => 1,
+	redirect_submit_url => $url,
+&>
+</div>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	$m->comp('SELF:nocache');
+	$m->redirect($url . '?errmsg=Missing Form ID') unless ($form_id);
+	$m->redirect($url . '?errmsg=Missing Form ID') unless ($student_id);
+	$student = HSDB4::SQLRow::User->new()->lookup_key($student_id);
+	$m->redirect($url . '?errmsg=Invalid Student ID') unless ($student);
+
+	my $entry = TUSK::FormBuilder::Entry->lookupReturnOne("form_builder_entry.user_id = '$user_id' AND form_id = $form_id", undef, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::FormBuilder::EntryAssociation", { origkey => 'entry_id', joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '$student_id'"}) ]);
+
+	if (defined $entry) {
+		if ($entry->getCompleteDate()) {
+			$m->redirect($url . "?errmsg=You have already submitted the SP form") 
+		}
+		if (!$entry_id && $entry->getPrimaryKeyID()) {
+			$entry_id = $entry->getPrimaryKeyID();
+		}
+	}
+</%perl>
+</%method>
+
+
+<%method displayStudentName>
+<& /tmpl/element:field_display, params => { 
+	label => 'Student',
+	value => $student->out_full_name(),
+
+} &>
+</%method>
+
+<%method printHiddenInput>
+<input type="hidden" name="submit_click" value="0" />
+<input type="hidden" name="save_click" value="0" />
+</%method>
+
+
+<%method updateEntryAssociation>
+<%args>
+	$entry_id
+</%args>
+<%perl>
+	my $assoc = TUSK::FormBuilder::EntryAssociation->new();
+	$assoc->setEntryID($entry_id);
+	$assoc->setUserID($student_id);
+	$assoc->save({user => $user_id});
+</%perl>
+</%method>
+
+
+<%method get_nav_bar_objects>
+% 	return {'TUSK::FormBuilder::Form' => TUSK::FormBuilder::Form->lookupKey($form_id),'user_group' => $user_group};
+</%method>
+
+<%method printJscript>
+<script language="JavaScript"  type="text/javascript">
+
+var message = 'Please complete the form';
+var checkNotRequired = 0;
+var confirmMessage = 1;
+disableRightClick(message);
+
+function clickSubmit() {
+	document.myform.submit_click.value = 1;
+}
+
+function clickSave() {
+	document.myform.save_click.value = 1;
+	checkNotRequired = 1;
+}
+</script>
+</%method>
+
+
+<%method printButtons>
+<& /tmpl/element:save_button, params => {
+	label 				=> 'Submit', 
+	name				=> 'form_submit', 
+	onmouseup			=> 'this.blur();', 
+	'no_cancel_button' 	=> 1,
+	onclick		 		=> 'clickSubmit();',
+	buttons 			=> [ $m->scomp('/tmpl/element:button', params => { label => 'Save', name => 'save_submit', type	=> 'submit', onclick => 'clickSave();'}) ],
+} &>
+</%method>
+
+
+<%method red_header_text>
+% 	return "$form_type_label Entry Form: &nbsp;" . $form->getFormName();
+</%method>
+
+
+<%method title>
+% 	return "$form_type_label Entry Form: &nbsp;" . $form->getFormName();
+</%method>
+
+
+<%method jsarray>
+% 	return $m->comp("/formbuilder/display:jsarray", js_files => ['browsers.js']);
+</%method>

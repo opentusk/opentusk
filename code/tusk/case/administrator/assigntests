@@ -1,0 +1,115 @@
+<%shared>
+
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $id = $m->comp("/tmpl/url:get_first_path_id");
+my $school = $m->comp('/tmpl/url:get_type_object');
+
+</%shared>
+<%args>
+$tests => []
+</%args>
+
+<%method title>
+<%perl>
+my $title = "Assign Tests to Patient Type";
+return $title;
+</%perl>
+</%method>
+
+<%method get_nav_bar_objects >
+% return {'TUSK::Case::PatientType' => TUSK::Case::PatientType->lookupKey($id)};
+</%method>
+
+
+% if(scalar(@$cats)){
+
+<form name="patient_tests">
+
+<& /tmpl/element:hidden_form_element, params => {
+	'name' => 'phase_type',
+	'value' => $selected_phase
+	}
+
+&>
+
+<ul id="category_list">
+% foreach my $category (@$cats){
+%	my $tests = $category->getJoinObjects('TUSK::Case::Test');
+%	if (scalar(@$tests)){
+	<li id="c_<% $category->getPrimaryKeyID() %>_node" class="category_item">
+		<input id="c_<% $category->getPrimaryKeyID() %>" name="cats" value="c_<% $category->getPrimaryKeyID() %>" onclick="cascade_checks(this);" type="checkbox" /> <% $category->getBatteryTitle() %> <a class="hideShowLink" href="#toggle_cat" onclick="hide_show_tests(this, 'c_<% $category->getPrimaryKeyID() %>_node')">[+]</a> 
+		<ul class="test_list_hide">
+%		foreach my $test (@$tests){
+			<li class="test_list_item" id="t_<% $test->getPrimaryKeyID() %>_node">
+				<input id="c_<% $category->getPrimaryKeyID() %>-t_<% $test->getPrimaryKeyID() %>" value="t_<% $test->getPrimaryKeyID() %>" name="tests" onclick="cascade_checks(this);" type="checkbox" /> <% $test->getTitle() %>
+%				my $sub_tests = $test->getJoinObjects('subTest');
+%				if (scalar(@$sub_tests)){
+				<ul>
+%					foreach my $sub_test (@$sub_tests){
+					<li id="s_<% $sub_test->getPrimaryKeyID() %>_node">
+						<input class="pATNoShow" id="c_<% $category->getPrimaryKeyID() %>-t_<% $test->getPrimaryKeyID() %>-s_<% $sub_test->getPrimaryKeyID() %>" name="tests" value="t_<% $sub_test->getPrimaryKeyID() %>" onclick="cascade_checks(this);" type="checkbox" /> <% $sub_test->getTitle() %>
+					</li>
+%					}
+				</ul>
+%				}
+			</li>
+%		}
+		</ul>
+	</li>
+% 	}
+% }
+
+</ul>
+
+<& /tmpl/element:save_button, params=>{
+    td_class=>'no-button',
+    label=>'Assign Tests',
+    name=>'submit', 
+    cancel_onclick=>"go_back('/case/administrator/patienttypeaddedit/$type_path/$id?phase_type=$selected_phase')"}
+&>
+
+</form>
+
+% } else {
+% $m->comp('/tmpl/url:redirect', message => "There are no available tests from the $selected_phase phase type to assign to this patient type.");
+% }
+
+
+<%init>
+
+
+my $patient = TUSK::Case::PatientType->lookupKey($id);
+my $selected_phase = $ARGS{'phase_type'};
+
+
+my $batteries = TUSK::Case::Battery->getSchoolBatteries($school);
+
+unless(scalar(@$batteries)){
+	$m->comp('/tmpl/url:redirect', message => "There are no tests created for this school. You must create tests before attempting to assign them to a patient type.");
+} 
+
+my $cats = $patient->getUnassignedTests($selected_phase);
+
+if (defined ($ARGS{'submit'})){
+
+	if (defined($ARGS{'tests'})){
+		my $user_id = $m->comp('SELF:user');
+		my @test_ids = (ref($tests) eq "ARRAY")? @$tests : $tests;
+
+		foreach my $test_id (@test_ids){
+			$test_id =~ s/t_(\d+)/$1/;
+			my $test_value = TUSK::Case::TestValue->new();
+			$test_value->setTestID($test_id);
+			$test_value->setPatientTypeID($id);
+			$test_value->save({user => $user_id});
+		}
+	}	
+	my $msg = "Tests successfully assigned";
+
+	my $reload_url = "/case/administrator/patienttypeaddedit" . $r->path_info();
+
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url  . "?phase_type=$selected_phase&msg=$msg" );
+
+}
+
+</%init>

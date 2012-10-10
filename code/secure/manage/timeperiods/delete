@@ -1,0 +1,37 @@
+[-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+
+	$req->{pagetype}="timeperiod";
+
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	
+	if ($fdat{action} eq "Delete and Continue"){
+		$req->{timeperiod}->delete($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+
+		$http_headers_out{'Location'}="/manage/timeperiods/show/school/".$req->{school}."/?msg=Time+Period+Deleted";
+	}
+
+	$req->{image} = "DeleteTimePeriod";
+	
+	$fdat{hintmsg} = "Are you sure you want to delete time period?";
+
+	manage_header($req);
+-]
+<form action="" method="post" class="no-padding" onsubmit="return checkform(this);">
+                    <table width="100%" border="0" cellspacing="0">
+                      <tr> 
+                        <td class="labelgray">&nbsp;Delete:</td>
+                        <td class="cell-left">
+[+ $req->{timeperiod}->field_value('period') +]&nbsp;&nbsp;
+			</td>
+                      </tr>
+                      <tr> 
+                        <td>&nbsp;</td>
+                        <td class="cell-submit">
+                          <input name="action" type="submit" class="formbutton" value="Delete and Continue"></td>
+                      </tr>
+                    </table>
+                  </form>
+[- manage_footer(); -]

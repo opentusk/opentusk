@@ -1,0 +1,178 @@
+<!-- 
+        DTD for the creation of test questions.
+        Initial version: August 6, 2001
+        Tarik Alkasab <tarik.alkasab@neurosci.tufts.edu>
+	  Jeannette Alkasab <jeannette.alkasab@tufts.edu>
+
+        $Revision: 1.2 $
+        $Date: 2001-08-06 21:16:15 $
+-->
+
+<!-- Include useful entities. -->
+<!ENTITY % entitiesDTD PUBLIC
+   "-//HSDB//Useful entities for HSCML//EN"
+   "entities.dtd">
+%entitiesDTD;
+
+<!-- Include basic inline text elements -->
+<!ENTITY % inlineDTD PUBLIC
+   "-//HSDB//Definition of text elements//EN"
+   "inline.dtd">
+%inlineDTD;
+
+<!-- Include the information about the header. -->
+<!ENTITY % headerDTD PUBLIC
+   "-//HSDB//Header metadata for HSDB documents//EN"
+   "header.dtd">
+%headerDTD;
+
+<!-- A list of question types to use in definitions. -->
+<!ENTITY % question-types 
+        "multiple-choice-question | true-false-question | 
+        multiple-response-question | image-hotspot-question | 
+        fill-in-question | long-response-question">
+
+<!-- The root element (and also contains itself). 
+     The idea is that this is how groups of questions can be put together. -->
+<!ELEMENT question-block (instruction-text,
+        question-objective-ref*,
+        (question-block|%question-types;)+,
+        question-content-ref*)>
+<!ATTLIST question-block
+        %DefAttrs;
+        shuffle-questions (yes|no) "no">
+
+<!-- A multiple choice question; the text, and a bunch of choices, and some
+     feedback, possibly. -->
+<!ELEMENT multiple-choice-question 
+        (question-text, question-objective-ref*, (choicelist|choicetable), 
+        global-feedback?, question-content-ref*)>
+<!ATTLIST multiple-choice-question
+        %DefAttrs;
+        shuffle-choices (yes|no) "no">
+
+<!-- A true-false question: the text and feedback -->
+<!ELEMENT true-false-question 
+        (question-text, question-objective-ref*, 
+        global-feedback?, question-content-ref*)>
+<!ATTLIST true-false-question
+        %DefAttrs;
+  	  correct-answer (true|false) "true">
+
+<!-- A multiple-response question (choose the ones that belong) -->
+<!ELEMENT multiple-response-question 
+        (question-text, question-content-ref*, (choicelist|choicetable), 
+        global-feedback?, question-content-ref)>
+<!ATTLIST multiple-response-question 
+        %DefAttrs;>
+
+<!-- An image-based question; the user picks a region of the image. -->
+<!ELEMENT image-hotspot-question 
+        (question-text, question-objective-ref*, question-image, 
+        answer-region, global-feedback?, question-content-ref*)>
+<!ATTLIST image-hotspot-question 
+        %DefAttrs;>
+
+<!-- A question where a user enters some text. -->
+<!ELEMENT fill-in-question 
+        (question-text, question-objective-ref*, correct-response?, 
+        global-feedback?, question-content-ref*)>
+<!ATTLIST fill-in-question 
+        %DefAttrs;>
+
+<!-- A question where a user enters a bunch of text. -->
+<!ELEMENT long-response-question 
+        (question-text, question-objective-ref*, correct-response?, 
+        global-feedback?, question-content-ref*)>
+<!ATTLIST long-response-question 
+        %DefAttrs;>
+
+<!-- Question instructions. -->
+<!ELEMENT instruction-text %Inline;>
+<!ATTLIST instruction-text 
+        %DefAttrs;>
+
+<!-- The question itself. -->
+<!ELEMENT question-text %Inline;>
+<!ATTLIST question-text 
+        %DefAttrs;>
+
+<!-- References to objectives and content. -->
+<!ELEMENT question-objective-ref EMPTY>
+<!ATTLIST question-objective-ref
+        %DefAttrs;
+        objective-id CDATA #REQUIRED>
+
+<!ELEMENT question-content-ref EMPTY>
+<!ATTLIST question-content-ref
+        %DefAttrs;
+        content-id CDATA #REQUIRED
+        node-id CDATA #IMPLIED>
+
+<!-- The list of choices available for the question. -->
+<!ELEMENT choicelist (choice+)>
+<!ATTLIST choicelist
+        %DefAttrs;>
+
+<!-- A table of choices available for the question, to be used when there are a number of variables that are being varied for each choice. -->
+<!ELEMENT choicetable (choice-header-row?, choicerow+)>
+<!ATTLIST choicetable
+        %DefAttrs;>
+
+
+<!-- The row containing the headers enumerating the variables that are being varied for each choice.   -->
+<!ELEMENT choice-header-row (th+)>
+<!ATTLIST choice-header-row
+        %DefAttrs;>
+
+<!-- The row containing one of the choices available for the question. -->
+<!ELEMENT choicerow ( choice-text-row?, td+)>
+<!ATTLIST choicerow
+	  %DefAttrs;
+        correct (yes|no) "no"
+        shuffle (yes|no) "yes"
+        choice-label CDATA #IMPLIED>
+
+<!-- An optional row containing descriptions in description-and-variable questions. -->
+<!ELEMENT choice-text-row %Inline;>
+<!ATTLIST choice-text-row
+	    %DefAttrs;>
+
+<!-- Possible choices. -->
+<!ELEMENT choice (choice-text, choice-feedback?)>
+<!ATTLIST choice 
+        %DefAttrs;
+        correct (yes|no) "no"
+        shuffle (yes|no) "yes"
+        choice-label CDATA #IMPLIED>
+        
+<!ELEMENT choice-text %Inline;>
+<!ATTLIST choice-text 
+        %DefAttrs;>
+        
+<!ELEMENT choice-feedback %Inline;>
+<!ATTLIST choice-feedback
+        %DefAttrs;>
+
+<!-- The overall feedback for the question. -->
+<!ELEMENT global-feedback %Inline;>
+<!ATTLIST global-feedback 
+        %DefAttrs;>
+
+<!-- The image to be displayed with a hotspot question. -->
+<!ELEMENT question-image EMPTY>
+<!ATTLIST question-image
+        %DefAttrs;
+        content-id CDATA #REQUIRED
+        width CDATA #REQUIRED
+        height CDATA #REQUIRED>
+
+<!-- The region of an image which is the correct answer. -->
+<!ELEMENT answer-image-region EMPTY>
+<!ATTLIST answer-image-region
+        %DefAttrs;
+        top-left CDATA #IMPLIED
+        top-right CDATA #IMPLIED
+        bottom-left CDATA #IMPLIED
+        bottom-right CDATA #IMPLIED
+        shape (box|oval) "box">

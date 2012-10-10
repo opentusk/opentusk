@@ -1,0 +1,131 @@
+<HTML>
+<HEAD>
+[! 
+   use HSDB4::Constants;
+   use TUSK::Search::UserSearch;
+ !]
+[# Figure out what document we are #]
+[-
+    $path = $req_rec->path_info;
+    ($concept_id) = $path =~ /^\/([^\/]*)/;
+    $isSearch = 0;
+    if ($concept_id){
+	$concepts = TUSK::Core::Keyword->lookup(" concept_id = '$concept_id' ");
+	if (scalar (@{$concepts})){
+		$concept = $concepts->[0];
+		$conceptString = "Concept : ".$concept->getKeyword;
+	}
+    } elsif ( $fdat{'string'}) {
+	$isSearch = 1;
+	$concepts = TUSK::Search::UserSearch->findSimilarUMLSConcepts($fdat{'string'});
+	$conceptString = "Search for '".$fdat{'string'}."'";
+    } else {
+	$errmsg = "Please submit a query.";
+    }
+
+    $escmode = 0;
+    $embperldir=$req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+
+    # Import the style sheet
+    Execute ("$embperldir/hsdb4-style.css")
+-]
+
+[# Make the title #]
+<TITLE>[+ $TUSK::Constants::SiteAbbr +] [+ $conceptString +]</TITLE>
+
+</HEAD>
+<BODY>
+
+[# Put in the user box #]
+[- Execute ("$embperldir/userbox.html") -]
+
+[# Now do the title thing #]
+<h2 class="title">UMLS Concepts</h2>
+
+
+<p> To search concepts by the text of alternate forms please use the search box below. For example
+if you would like to see all concepts that have a preferred alternate form that includes 'diabetes', please 
+enter 'diabetes' and click 'Search'.</p>
+<form action="/hsdb4/concept" method="post">
+<b>Search</b>: <input name="string" type="text" size="20">
+<input type="submit" value="Search">
+</form>
+
+[$ if ($errmsg) $]
+<b>[+ $errmsg +]</b>
+<br><br>
+[$ elsif ($isSearch) $]
+[$ if ($numConcepts = scalar @{$concepts}) $]
+<p> Search for <span style="font-weight:bold">[+ $fdat{'string'} +]</span> complete. Please select a concept to view. </p>
+<p style="font-weight: bold; color:red"> [+ $numConcepts +] Matching Term[$if ($numConcepts > 1) $]s[$ endif $].</p>
+[$ else $]
+<p style="color:red">No Matching Terms.</p>
+[$ endif $]
+<ul>
+[$ foreach $concept (sort {$a->getKeyword cmp $b->getKeyword } @{$concepts}) $]
+<li><A HREF="/hsdb4/concept/[+ $concept->getConceptID() +]">[+ $concept->getKeyword +]</A>
+[$ endforeach$]
+</ul>
+[$ else $] [# not a search, so display the concept #]
+<H3 class="title">Concept: [+ $concept->getKeyword +]</H3>
+
+[- $semanticTypeString = $concept->getSemanticTypeString  -]
+[$ if $semanticTypeString $]
+<H4 class="title">Concept Types</H4>
+<ul>
+<li>[+ $semanticTypeString +]</li>
+</ul>
+[$ endif $]
+[- 
+	$defns = $concept->getDefinitions
+-]
+[$ if (@{$defns}) $]
+[# The course #]
+<H4 class="title">Definition</H4>
+<ul>
+[$ foreach $defn (@{$defns}) $]
+<li>
+[ <span style="font-weight: bold">Source:</span> [+ $defn->getUmlsDefinitionTypeObject->getDefinitionTypeName() +] ] 
+[+ $defn->getDefinition +]
+</li>
+[$ endforeach $]
+</ul>
+[$ endif $]
+
+[- @strings = map { $_->getStringText } @{$concept->getConceptStrings} -]
+[$ if @strings $]
+<h4 class="title">Alternate Forms</h4>
+<ul>
+<li>[+$strings[$row]+]
+</ul>
+[$ endif $]
+
+[# Display the document list #]
+[- 
+	$links = TUSK::Core::LinkContentKeyword->lookup(" keyword_id = ".$concept->getPrimaryKeyID());
+	@contents = ();
+	foreach my $link (@$links){
+		$content = $link->getContentObject();
+		next unless ($content->is_active());
+		push(@contents, $content);
+	}
+-]	
+[$ if (scalar(@contents)) $]
+<H4 CLASS="title">Related Documents</H4>
+<TABLE CLASS="wide">
+[# This should be done from the object #]
+<TR><TH ALIGN=LEFT>Type</TH><TH COLSPAN=2 ALIGN=LEFT>Document</TH><TH ALIGN=LEFT>Authors</TH></TR>
+[$ foreach $subdoc @contents $]
+[+ $subdoc->out_html_row +]
+[- $length += 300 -]
+[$ endforeach $]
+</TABLE>
+[$ endif $]
+
+[$ endif $] [# errmsg is true #]
+
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/footer_links.html")) -]
+
+</BODY>
+</HTML>

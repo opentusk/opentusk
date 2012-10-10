@@ -1,0 +1,55 @@
+<%shared>
+my $id = $m->comp("/tmpl/url:get_first_path_id");
+my $quiz = TUSK::Quiz::Quiz->lookupKey($id);
+my $back_url = "/quiz/author/quizshow";
+</%shared>
+
+<%method function_token>
+% return 'delete_quiz';
+</%method>
+
+<%method title>
+% return "Delete Quiz";
+</%method>
+
+<%method nav_bar>
+<%perl>
+my $obj = {'quiz'=>$quiz};
+return $m->scomp("/quiz/tmpl/nav", 'prefix'=>$m->comp("SELF:url_prefix"),
+                'page_token'=>'quizdelete',
+                objects => $obj);
+</%perl>
+</%method>
+
+<%perl>
+if (!defined($quiz->getPrimaryKeyID())){
+        $m->comp("/tmpl/error",msg=>"Quiz $id not found");
+}
+</%perl>
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'quizdelete',
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"6",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{'label'=>'Title',
+                'value'=>$quiz->getTitle()}
+                &>
+
+<& /tmpl/element:save_button,params=>{name=>'delete_quiz',
+                                        label=>'Delete Quiz',
+                                        cancel_onclick=>"go_back('$back_url');"} &>
+</form>
+</table>
+
+<%init>
+use TUSK::Quiz::Quiz;
+if (defined($ARGS{'delete_quiz'})){
+        $quiz->delete();
+        $m->redirect($back_url);
+}
+</%init>

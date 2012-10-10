@@ -1,0 +1,289 @@
+<%once>
+	use TUSK::Coding::Code;
+	use TUSK::Coding::Type;
+	use TUSK::GradeBook::GradeCategoryCodingCode;
+	use TUSK::GradeBook::GradeCategory;
+	use TUSK::Application::GradeBook::GradeBook;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $category_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $category;
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $school = $type_object->get_school()->getSchoolName();
+	my $is_edit = 0;
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+	my $user_id = $m->session->{'user'}->user_id();
+	my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id, user_id => $user_id});
+	my $root_category  = $gb->getRootCategory();
+	my $parent_category;
+	my $coding_data;
+</%shared>
+
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	onsubmit => 'return categorySubmit(this);',
+	name => 'categoryaddedit' } &>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { 
+	width 		=> "100%",
+	border		=> "0",
+	cellspacing	=> "0",
+	cellpadding	=> "0" 
+} &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Category Name',
+	name => 'category_name',
+	value => $category->getGradeCategoryName(),
+	size => 60,
+    length => 255 
+} &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Parent Category',
+	name		=> "parent_category_id",
+	onchange	=> 'showHideMultiSite(this);',
+	selected	=> ($parent_category) ? $parent_category->getPrimaryKeyID() : '' ,
+    options		=> $m->comp('SELF:get_category_options', gb => $gb, root_category => $root_category, category_id => $category_id, show_no_children => 1),
+} &>
+
+<%doc>
+% ## For near future use when we implement weight by category
+<& /tmpl/element:textbox, params =>{ label => 'Weight',
+	name => 'weight',
+	value => $category->getCategoryWeight(),
+    size => 10,
+    length => 10 
+} &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Drop the Lowest',
+	name 		=>	"drop_lowest",
+    onchange	=>	undef,
+	selected	=>	$category->getDropLowest() ,
+    options 	=> 	[ map { {label => $_, value => $_} } ('None', 1..9) ],
+} &>
+
+
+<& /tmpl/element:dropdown, params=>{ label => 'Drop the Highest',
+	name 		=>	"drop_highest",
+    onchange	=>	undef,
+	selected	=>	$category->getDropHighest() ,
+    options 	=> 	[ map { {label => $_, value => $_} } ('None', 1..9) ],
+} &>
+</%doc>
+
+<& /tmpl/element:radio_buttons, params => { 
+        label => 'Display sites for grading',
+        name => 'multi_site',
+        buttons => [
+			{ value => "1", text => "Yes", 
+ 			  checked => ($category->getMultiSite() == 1) ? 1 : 0,
+			},
+	        { value => "0", text => "No", 
+			  checked => ($category->getMultiSite() == 0) ? 1 : 0,
+			} 
+	   	],
+		nobreak => 1, 
+		trailing_text => qq(<br/><span style="font-size:85%">Note: This option is available to only top level categories. All sub categories will inherit this feature.<br/>  Sites will be displayed on 'grade by category' page. Make sure that teaching sites are added to the course.</span>),
+} &>
+
+<& SELF:print_assign_code &>
+
+<& /tmpl/element:save_button, params => {
+	label 			=> 'Save Changes',
+	cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+	name			=> 'save_changes',
+	buttons			=> ($is_edit) 
+		? [ $m->scomp('/tmpl/element:button', params => { label => 'New Grade Category', onclick => "window.location='/gradebook/author/categoryaddedit/$type_path'" }),
+			$m->scomp('/tmpl/element:button', params => { label => 'Add/Edit Grades', onclick => "window.location='/gradebook/author/gradelistbystudent/$type_path/$category_id'" }),
+			$m->scomp('/tmpl/element:button', params => { label => 'Sort Categories', onclick => "window.location='/gradebook/author/categorysort/$type_path/$category_id'" }),
+			$m->scomp('/tmpl/element:button', params => { label => 'Sort Events', onclick => "window.location='/gradebook/author/eventsort/$type_path/$category_id'" }),
+			$m->scomp('/tmpl/element:button', params => { label => 'Delete Category', onclick => "window.location='/gradebook/author/categorydelete/$type_path/$category_id'" }),
+		  ] 
+		: [],
+} &>
+</table>
+
+% if ($category->getPrimaryKeyID() && !$category->isFirstGeneration()) {
+<script>
+	document.getElementById('multi_site_tr').style.display = 'none';
+</script>
+% } 
+</form>
+
+
+<%init>
+	## assume new parent and will be reset only if parent is changed
+	my $new_parent = 1;  
+
+	if (defined $category_id) {
+		$is_edit = 1;
+		$category = TUSK::GradeBook::GradeCategory->new()->lookupKey($category_id);
+
+		if ($ARGS{parent_category_id} && $category->getParentGradeCategoryID() != $ARGS{parent_category_id}) {
+			$parent_category = TUSK::GradeBook::GradeCategory->lookupKey($ARGS{parent_category_id});
+		} else {
+			$parent_category = TUSK::GradeBook::GradeCategory->lookupKey($category->getParentGradeCategoryID());
+			$new_parent = 0;
+			my $cat_codes = TUSK::GradeBook::GradeCategoryCodingCode->lookup("grade_category_id = $category_id", ['sort_order']);
+			push @$coding_data, { grade_category_coding_code_id => $_->getPrimaryKeyID(), coding_code_id => $_->getCodingCodeID()} foreach (@$cat_codes);
+		}
+	} else {
+		$parent_category = TUSK::GradeBook::GradeCategory->lookupKey($ARGS{parent_category_id});
+		$category = TUSK::GradeBook::GradeCategory->new();
+	}
+
+	if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)) {
+		my ($msgtxt, $extra, $grade_offering);
+		$ARGS{'category_name'} = "Untitled" unless ($ARGS{'category_name'});
+		$category->setGradeCategoryName($ARGS{'category_name'});
+		$category->setMultiSite($ARGS{'multi_site'});
+		$category->setGradeOfferingID($root_category->getGradeOfferingID()) unless ($is_edit);
+
+		$m->comp('SELF:update_category') if ($new_parent);
+
+		### this has to be done after get existing siblings
+		$category->setParentGradeCategoryID($ARGS{'parent_category_id'});
+		$category->save({'user' => $user_id});
+
+		## then, adjust all descendants based on its own new attribute
+		$m->comp('SELF:update_descendant_categories') if ($new_parent && $is_edit);
+		$m->comp('SELF:update_coding_codes', args => \%ARGS);
+
+		my $url = $r->uri();
+		if ($is_edit) {
+			$msgtxt = "Grade category successfully modified";
+		} else {
+			$url .= "/" . $category->getPrimaryKeyID();
+			$msgtxt = "Grade category successfully created";
+		}
+		$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $url . "?msg=$msgtxt");
+	}
+</%init>
+
+<%method update_category>
+<%perl>
+	## re-order existing siblings
+	if ($is_edit) {
+		my $sibling_categories = $category->getSiblings("sort_order > " . $category->getSortOrder());
+		foreach my $sibling_category (@$sibling_categories) {
+			$sibling_category->setSortOrder($sibling_category->getSortOrder() - 1);
+			$sibling_category->save({user => $user_id});
+		}
+	}
+
+	$category->setDepth($parent_category->getDepth() + 1);
+	$category->setSortOrder(scalar @{$parent_category->getChildren()} +1);
+	$category->setLineage($parent_category->getLineage() . $parent_category->getPrimaryKeyID() . '/');
+</%perl>
+</%method>
+
+<%method update_descendant_categories>
+<%perl>
+	my $descendant_categories = $category->getDescendants();
+	foreach my $descendant_category (@$descendant_categories) {
+		my $parent = TUSK::GradeBook::GradeCategory->lookupKey($descendant_category->getParentGradeCategoryID());
+		if (ref $parent eq 'TUSK::GradeBook::GradeCategory') {
+			$descendant_category->setDepth($parent->getDepth() + 1);
+			$descendant_category->setLineage($parent->getLineage() . $parent->getPrimaryKeyID() . '/');
+			$descendant_category->save({user => $user_id});
+		}
+	}
+</%perl>
+</%method>
+
+<%method update_coding_codes>
+<%args>
+	%args
+</%args>
+<%perl>
+	my $row_hash = $m->comp('/tmpl/process:process_fields',fields => \%args, filter => '^codingdiv');
+	$category_id = $category->getPrimaryKeyID() unless $category_id;
+	foreach my $key (keys %$row_hash){
+		$row_hash->{$key}->{fields}->{grade_category_id} = $category_id;
+		if ($row_hash->{$key}->{fields}->{coding_code_id} == -1) {
+			$m->comp("/tmpl/url:redirect", message => "Please select only code", destination => $ENV{SCRIPT_URI});
+		}
+	}
+
+	$m->comp('/tmpl/process:manipulate_rows',
+		row_type => 'Direct',
+		user => $user_id,
+		object_name => 'TUSK::GradeBook::GradeCategoryCodingCode',
+		fields_data => $row_hash,
+		field_function_map => {
+			'grade_category_id' => 'setGradeCategoryID',
+			'coding_code_id'	=> 'setCodingCodeID',
+			'sortorder'			=> 'setSortOrder',
+		},
+		display_data => $coding_data );
+</%perl>
+</%method>
+
+
+<%method print_assign_code>
+<%perl>
+	my $coding_type = TUSK::Coding::Type->new()->lookupReturnOne("token = 'procedure'");
+	my $coding_type_id = $coding_type->getPrimaryKeyID();
+	my $codes = TUSK::Coding::Code->lookup("coding_type_id = $coding_type_id", ['coding_category.sort_order', 'coding_code.sort_order'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Coding::Category", {joinkey => 'coding_category_id', jointype => 'inner', joincond => "school_id = " . $type_object->get_school()->getPrimaryKeyID()})]);
+
+	return unless (scalar @$codes); ## we skip this if school doesn't have codes.
+
+	my $coding_options = [];
+	my $prev_cat_id = 0;
+	push @$coding_options, { label => '', value => -1 };
+	foreach my $code (@$codes) {
+		my $cat = $code->getJoinObject("TUSK::Coding::Category");
+		if ($prev_cat_id != $cat->getPrimaryKeyID()) {
+			push @$coding_options, { label => $cat->getLabel(), value => '-1', style => 'font-weight: bold;' };
+		}
+		my $real_code = ($code->getCode()) ? ' &nbsp;(' . $code->getCode . ')' : '';
+		push @$coding_options, { label => $code->getLabel() . $real_code, value => $code->getPrimaryKeyID() };
+		$prev_cat_id = $cat->getPrimaryKeyID();
+	}
+</%perl>
+
+<& /tmpl/element:sort_order_box, params => {
+	label			=> 'Assign code for grading',
+	no_add_button 	=> 0,
+	button_onclick	=> "addnewdata('codingdiv',{ grade_category_coding_code_id:'0', coding_code_id:'0', name:'' });",
+	button_label	=> 'Add Code',
+	layer_info => {
+		layer => 'codingdiv',
+		context_path => $m->comp("/tmpl/url:get_full_path"),
+		base_path => $m->comp("/formbuilder/util:get_base_dir"),
+		fields => ['grade_category_coding_code_id', 'coding_code_id', 'name'],
+		name => 'codes',
+		sort => {usage => 'Yes'},
+		action => {	usage => 'Yes', 
+					length=> 150,
+                   	functions => [
+						{func => 'remove', label => 'Delete'},
+					]
+		},
+		scrollrows => 15,
+		object_list => [],
+		formname => 'categoryaddedit',
+		display => 	[ 
+			{ label => 'Code', field => 'coding_code_id', align => 'center', length => '200', options => $coding_options },
+		],
+		validate => { usage => 'No'},
+		data => $coding_data 
+	}
+} &>
+</%method>
+
+<%method jsarray>
+% 	return ['gradebook.js', 'layers.js', 'element.js'];
+</%method>
+
+<%method title>
+%	return ($is_edit) ? "Modify Grade Category" : "Create New Grade Category" ;
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>

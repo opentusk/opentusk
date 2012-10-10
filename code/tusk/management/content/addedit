@@ -1,0 +1,53 @@
+<%once>
+	use HSDB4::SQLRow::Content;
+	use HSDB4::Constants;
+</%once>
+
+<%attr>
+	top_tab_type	=> 'manage'
+</%attr>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+<%method cms_min_course_role>
+% return (ref $course eq 'HSDB45::Course') ? 'STUDENTEDITOR' : '';
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+
+<& /management/tmpl/content:set_globals, page => $args->{page}, action => $args->{action} &>
+<%perl>
+	my $parent_content = HSDB4::SQLRow::Content->new();
+	my $last_id = $m->comp('/tmpl/url:get_last_path_id');
+	$parent_content->lookup_key($last_id) if ($last_id);
+</%perl>
+<& /management/tmpl/content:process, args => {%$args, parent_content => $parent_content} &>
+</%method>
+
+<%method title>
+%	return $m->comp("/management/tmpl/content:title", args => \%ARGS);
+</%method>
+
+<%method jsarray>
+%	return $m->comp("/management/tmpl/content:jsarray");
+</%method>
+
+<%method get_nav_bars>
+% 	return $m->comp("/management/tmpl/content:get_nav_bars");
+</%method>
+
+<%method red_header_text>
+%	return $m->comp("/management/tmpl/content:get_red_header_text", args => \%ARGS);
+</%method>
+
+<%method right_header_text>
+<%doc>Method that returns a list of all the images to use to the right on the red header bar</%doc>
+%	return $m->comp('/management/tmpl/content:get_content_preview_link');
+</%method>
+
+<& /management/tmpl/content:show_page, args => \%ARGS, course => $course &>

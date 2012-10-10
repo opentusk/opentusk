@@ -1,0 +1,133 @@
+#! /usr/bin/perl 
+
+use strict;
+use HSDB4::Constants;
+use HSDB45::Course;
+use HSDB45::UserGroup;
+use HSDB45::TimePeriod;
+use MySQL::Password;
+use DBI;
+
+my ($un, $pw) = get_user_pw();
+HSDB4::Constants::set_user_pw($un, $pw);
+
+#####
+# Get user-supplied options
+use Getopt::Long;
+my ($school, $user_group_id, $name, $get_help);
+
+my $GetOptResult = GetOptions("school=s"  => \$school,
+                              "ug=i"      => \$user_group_id,
+                              "name=s"    => \$name,
+                              "help"      => \$get_help);
+
+print_help($school, $user_group_id, $name, $get_help);
+
+
+#####
+# create group course
+# first, confirm that appropriate user_group and time_period exist
+my $user_group = HSDB45::UserGroup->new(_school => $school)->lookup_key($user_group_id);
+die "no user group with id $user_group_id in school $school\n" unless $user_group->primary_key();
+
+my $name = ($name =~ /same/i)? $user_group->field_value('label') : $name;
+
+my ($time_period) = HSDB45::TimePeriod->new(_school => $school)->lookup_conditions("period='eternity' AND end_date='2036-10-31'");
+
+my $tp_key;
+
+if($time_period){
+	$tp_key = $time_period->primary_key();
+}
+else{
+	print qq(
+**Warning**
+The supplied school does not have an 'eternity' time period with 
+end_date: 2036-10-31.
+Such a time period must exist before this script can be run. 
+One can be created for you, or you can abort this script.
+);
+	my $confirmation;
+	do {
+		print "Create 'eternity'? (y/n): ";
+		$confirmation = lc(<stdin>);
+		chomp $confirmation;
+	} while $confirmation ne 'y' && $confirmation ne 'n';
+	if ($confirmation eq 'y'){
+		$tp_key = create_eternity($school);
+	}
+	else {
+		print "create_group_course script aborted. goodbye\n";
+		exit;
+	}
+}
+
+# second, actually make the course
+my $course = HSDB45::Course->new(_school => $school);
+$course->set_field_values(title => $name, type => 'group', associate_users => 'enrollment');
+$course->save();
+
+my @users = $user_group->child_users();
+
+# add each user group member as user and student
+foreach my $user (@users){
+	$course->add_child_user($un, $pw, $user->primary_key, '65535', '','author');
+	$course->add_child_student($un, $pw, $user->primary_key, $tp_key);
+}
+
+
+#####
+# help sub definition
+sub print_help{
+	my ($school, $ug_id, $name, $help) = @_;
+
+	my $school_str = qq(
+    -s[chool] : Please provide the school name where you would like
+                the new group course to reside - must be the same
+                school that contains the user group upon which the 
+                group course will be based.
+);
+
+	my $ug_str = qq(
+    -ug       : Please provide the user group id for the group whose 
+                membership you are attempting to load into a group 
+                course. 
+);
+
+	my $name_str = qq(
+    -n[ame]   : Please provide the name for the group course you are 
+                trying to create. You can either create a unique name 
+                for it, or use the same name as the user group (often 
+                desired) by passing in "-n[ame]=same".
+);
+	
+	# should i validate school name, group id?
+	if($help)       { print "$school_str$ug_str$name_str\n"; exit; }
+	unless($school) { print "$school_str\n"; exit; }
+	unless($ug_id)  { print "$ug_str\n"; exit; }
+	unless($name)   { print "$name_str\n"; exit; }
+
+}
+
+sub create_eternity{
+	my $school = shift;
+
+	my $date = HSDB4::DateTime->new();
+	my $tp = HSDB45::TimePeriod->new(_school => $school);
+	$tp->set_field_values(
+						academic_year => '', 
+						period => 'eternity', 
+						start_date => $date->out_mysql_date(), 
+						end_date => '2036-10-31');
+	my $retval = $tp->save();
+
+	if($retval){
+		print "Success: Created 'eternity' time period for $school school\n";
+		return $tp->primary_key();
+	}
+	else{
+		print "Failure: failed to create 'eternity' time period for $school school\n";
+		print "create_group_course script aborted. goodbye\n";
+		exit;
+	}
+}

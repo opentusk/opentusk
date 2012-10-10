@@ -1,0 +1,71 @@
+<%once>
+	use TUSK::Eval::Group;
+	use TUSK::Core::School;
+	use HSDB45::Course;
+</%once>
+
+<%shared>
+	my %params = $m->request_args;
+	my $school = $m->comp('SELF:schoolname');
+	my $group_evals = TUSK::Eval::Group->new()->lookup("school_id = " . TUSK::Core::School->lookupReturnOne("school_name = '$school'")->getPrimaryKeyID());
+	my $col_fields = [ {label => 'ID', field => 'id'},
+			   {label => 'Title', field => 'title'},
+			   {label => 'Time Period', field => 'time_period'},
+                	   {label => 'Available Date', field => 'available_date'},
+                	   {label => 'Due Date', field => 'due_date'},
+			];
+	my $typePath = $m->comp("/tmpl/url:get_type_path");
+	my @rows = ();
+	foreach my $group_eval (@$group_evals) {	
+		my $time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($group_eval->getTimePeriodID());
+		push @rows, { 
+			id => $group_eval->getPrimaryKeyID(),
+			title => $group_eval->getTitle(),
+			time_period => ($time_period) ? $time_period->field_value('period') : '',
+			available_date => $group_eval->getFormattedAvailableDate(),
+			due_date => $group_eval->getFormattedDueDate(),
+			obj => $group_eval,
+		};				
+	}
+</%shared>
+
+
+<& SELF:display &>
+
+<%method preview_url>
+<%args>
+	$base
+	$obj
+</%args>
+%	return $base . '/' . $obj->getCourseID() . '/' . $obj->getPrimaryKeyID();
+</%method>
+
+<%method display>
+<table border="0" cellspacing="3" cellpadding="3">
+<tr><td>
+<form method="POST" class="no-padding" action="/eval/administrator/byuser/create/<% $typePath %>">
+<input type="submit" class="formbutton" value="Create Evals By Faculty/Staff" />
+</form>
+</td></tr>
+</table>
+
+<& /tmpl/element:object_selection_box, params => { 
+	columns 	=> $col_fields,
+	action_columns 	=> [ 
+		{ label =>'Modify', link => '/eval/administrator/byuser/edit'},
+		{ label =>'Preview', link => "/eval/group/course/$school", comp => '/eval/administrator/byuser/show:preview_url'},
+  			],
+	action_dropdown  => 1,
+	rows 		=> \@rows,
+	type_path 	=> $typePath,
+	name 		=> "evals",
+	'norows-message' => "No current evals by faculty/staff",
+} &>
+
+</%method>
+
+
+<%method title>
+% 	return "Manage Evaluations By Faculty/Staff";
+</%method>
+

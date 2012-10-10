@@ -1,0 +1,88 @@
+[-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+
+	$req->{pagetype} = "tracking";
+	$req->{showpage} = 1;
+	$req->{image} = "Tracking&Statistics";
+	$req->{checkcourserole}="AUTHOR";
+
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	Execute ({inputfile=>$req->{include_dir}."/element",import => 1});
+
+	$req->{check_timeperiod} = 1 if ($req->{type} eq "course");
+
+	$data = TUSK::Manage::Tracking::show_pre_process($req, $fdat{timeperiod}, \%udat);
+
+	if ($fdat{order}){
+		($rval, $msg) = TUSK::Manage::Tracking::show_process($req, $fdat{order}, $data);
+		process_return_values($rval, $msg);
+		delete($fdat{order});
+	}
+
+        manage_header($req);
+-]
+                  <form name="tracking" method="post" class="no-padding">
+[-
+$buttons = [ 
+             { link_txt    => '/perl/export_tracking/' . $req->{selfpath},
+               display_txt => 'Export Data'
+             } 
+           ];
+if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')){
+unshift @$buttons, { link_txt    => '/manage/tracking/addedit/' . $req->{selfpath},
+                     display_txt => 'New Report'
+                   };
+}
+
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'cms_button_row', 
+          param     => $buttons
+         }); 
+-]
+
+[$ if ($data->{tracking_count}) $]
+                    <table width="100%" cellspacing="0" class="tusk">
+                      <tr class="header"> 
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]
+                        <td class="header-center" width="1%">Sort</td>
+                        <td class="header-center">Type</td>
+[$ else $]
+                        <td class="header-center" width="1%">Type</td>
+[$ endif $]
+
+                        <td class="header-left">Title</td>
+                        <td class="header-center">Views</td>
+                        <td class="header-center">Visitors</td>
+                        <td class="header-center" width="1%">Actions</td>
+
+                      </tr>
+[$ foreach $i (0..(scalar(@{$data->{tracking}})-1)) $]
+[-  
+	$tracking = $data->{tracking}->[$i];  
+	if ($i % 2 == 0){
+		$data->{class} = "even";
+	}else{
+		$data->{class} = "odd";
+	}
+-]                      <tr class="[+ $data->{class} +]"> 
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]
+			<td class="layers-center"> <select class="[+ $data->{class} +]" name="order" onChange="document.tracking.submit();">
+			[$ foreach $j (1..scalar(@{$data->{tracking}})) $]
+			<option class="[+ $data->{class} +]" [$ if ($j == ($i + 1)) $] value="" selected [$ else $] value="[+ ($i + 1) +]-[+ $j +]"[$ endif $]>[+ $j +]</option>
+			[$ endforeach $]
+                        </select></td>
+[$ endif $]
+                        <td class="layers-center" nowrap>[+ $tracking->getIcon +]</td><td class="layers-left"><a href="/manage/tracking/addedit/[+ $req->{selfpath} +]/[+ $tracking->primary_key +]">[+ $tracking->getTrackingTitle +]</a> [+ "[ " . $tracking->getTrackingInfo . " ]" +]</td>
+                        <td class="layers-center">[+ $tracking->field_value('page_views') +]</td>
+                        <td class="layers-center">[+ $tracking->field_value('unique_visitors') +]</td>
+			<td class="layers-center" nowrap><a class="navsm" href="[+ $tracking->getPreview($req->{school}) +]" target="_blank">Preview</a>[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]<span class="littlespacing">|</span><a class="navsm" href="/manage/tracking/addedit/[+ $req->{selfpath} +]/[+ $tracking->primary_key +]">Modify</a><span class="littlespacing">|</span><a class="navsm" href="/manage/tracking/delete/[+ $req->{selfpath} +]/[+ $tracking->primary_key +]">Delete</a>[$ endif $]</td>
+                      </tr>
+[$ endforeach $]
+                    </table>
+[$ else $]
+<br><i>Course has no tracking reports.</i>
+[$ endif $]
+                  </form>
+[- manage_footer(); -]

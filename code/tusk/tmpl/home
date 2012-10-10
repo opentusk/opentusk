@@ -1,0 +1,229 @@
+<%once>
+use TUSK::SchoolLink::SchoolLink;
+</%once>
+
+<%method build_sched_table>
+<%args>
+@meetings
+$is_mobi => 0
+</%args>
+
+<& /tmpl/element:table, params=>{class => 'schedTable', width => '100%'} &>
+% my $iter = 1;
+% foreach my $meet (@meetings){
+%	$iter++;
+%	my $course = $meet->course();
+  <tr class="<% ($is_mobi && $iter % 2)? 'highlight' : '' %>">
+    <td class="time"><% sprintf ("%s - %s", $meet->out_starttime->out_string_time_hm, $meet->out_endtime->out_string_time) %></td>
+%	my $url = $is_mobi? $course->out_url_mobi() : $course->out_url();
+    <td class="course"><a href="<% $url %>"><% $course->out_abbrev() %></a></td>
+
+%	my $disp_title = $meet->title();
+%	$disp_title .= $disp_title? ' - ' : '';
+%	$disp_title .= $meet->type();
+%	my $cm_url = $is_mobi? $meet->out_url_mobi() : $meet->out_url();
+%	$disp_title = '<a href="' . $cm_url . '">' . $disp_title . '</a>';
+    <td class="meeting"><% $disp_title %></td>
+    <td class="location">
+%	if($is_mobi){
+<% $meet->location() %>
+%	}
+%	else {
+<& /tmpl/element:excess_text_popup, str => $meet->location(), length=>12 &>
+%	}
+    </td>
+  </tr> 
+% }
+</table>
+</%method>
+
+
+<%method print_courses>
+<%args>
+$enum_cat          => undef
+@user_stud_courses => ()
+$is_mobile         => 0
+</%args>
+
+% if(defined $enum_cat or scalar @user_stud_courses){
+%	my $lnk_prefix = $is_mobile? '/mobi/view/course' : '/view/course';
+<!-- enrolled courses -->
+
+%	if(scalar @user_stud_courses){
+
+<h4 class="homepageHdr">Enrolled Courses</h4>
+<ul class="gNoBullets courseList">
+%		foreach my $user_course (@user_stud_courses){
+%			my $url = $is_mobile? $user_course->out_url_mobi() : $user_course->out_url();
+<li><a href="<% $url %>"><% $user_course->out_label %></a> (<% $user_course->school %>)</li>
+%		}
+</ul>
+%	}
+
+<!-- usergroup courses -->
+%	if(defined $enum_cat){
+%		my $school = $enum_cat->school;
+
+%		if($enum_cat->get_label){
+<h4 class="inlineHdr"><% $enum_cat->get_label %></h4> 
+%			if($enum_cat->get_schedule && !$is_mobile){
+- <a href="/view/schedule/<% $school %>/<% $enum_cat->get_primary_user_group_id %>" class="schedule">Schedule</a>
+%			}
+%		}
+<ul class="gNoBullets courseList">
+%		my ($course_id, $courseURL, $lastLabel, $lastLabelIndent);
+%		$lastLabel = '';
+%		$lastLabelIndent = 0;
+%		foreach my $hp_course ($enum_cat->get_homepage_courses){
+%			$course_id = $hp_course->get_course_id();
+%			$courseURL = '';
+% # If we have a valid course_id then see if we are related to a current group
+% # If we do not have a valid course_id then we are a label, save us incase we have a course under us that is valid
+%			if($course_id){
+%				$courseURL = "$lnk_prefix/$school/$course_id";
+%			}
+%			elsif($hp_course->get_url){
+%				$courseURL = $hp_course->get_url;
+%			}
+%			else{
+%				my $indent = $hp_course->get_indent() * 10;
+%				$lastLabel = "<h4 class=\"inlineHdr\" style=\"margin-left:${indent}px\">" . $hp_course->get_label . "</h4>";
+%				$lastLabelIndent = $hp_course->get_indent;
+%			}
+
+%			if($courseURL && $hp_course->isCurrent()){
+%			# Here we are going to print a label and clear the var if there was a label set
+%				if ($lastLabel){
+%					$m->print("<li>$lastLabel</li>");
+%					$lastLabel = '';
+%					$lastLabelIndent = 0;
+%				}
+%				elsif($lastLabelIndent >= $hp_course->get_indent){
+% 				# At this point we came across a label and we have moved back out the previous 
+%				# indentation without needing to print the label so reset it
+%					$lastLabelIndent = 0;
+%				}
+%				my $indent = $hp_course->get_indent() * 10;
+<li><a style="margin-left:<% $indent %>px" href="<% $courseURL %>"><% $hp_course->get_label %></a></li>
+%			}
+%		}
+</ul>
+
+% 	}
+% }
+% else{
+<em>You are not associated as a student with any courses in <% $TUSK::Constants::SiteAbbr %>. If you feel this is an error, please contact the <% $TUSK::Constants::SiteAbbr %> administrator for your school.</em>
+% }
+
+</%method>
+
+
+<%method print_admin_courses>
+<%args>
+@user_committees    => ()
+@user_auth_courses  => ()
+$is_mobile          => 0
+$user
+</%args>
+
+% if (@user_auth_courses || @user_committees){
+%	my $lnk_prefix = $is_mobile? '/mobi/view/course' : '/view/course';
+<!-- section with speficically linked courses as an author (link_course_user) -->
+<h4 class="homepageHdr">Course Admin</h4>
+<ul class="gNoBullets courseList">
+%	foreach my $user_course (@user_auth_courses){
+<li><a href="<% $lnk_prefix %>/<% $user_course->school ."/". $user_course->primary_key %>"><% $user_course->out_label %></a> (<% $user_course->school %>)
+%		if (!$is_mobile && $user_course->can_user_edit($user)){
+<a href="/protected/management/course/display/<% $user_course->school . "/" . $user_course->primary_key %>">Upload/Edit</a>
+%		}
+</li>
+%	}
+%	if (!@user_auth_courses){
+<li><em>no courses</em></li>
+%	}
+</ul>
+<h4 class="homepageHdr">Committees</h4>
+<ul class="gNoBullets courseList">
+%	foreach my $user_course (@user_committees){
+<li><a href="<% $lnk_prefix %>/<% $user_course->school ."/". $user_course->primary_key %>"><% $user_course->out_label %></a> (<% $user_course->school %>)
+%		if (!$is_mobile && $user_course->can_user_edit($user)){
+<a href="/protected/management/course/display/<% $user_course->school . "/" . $user_course->primary_key %>">Upload/Edit</a>
+%		}
+</li>
+%	}
+%	if (!@user_committees){
+<li><em>no committees</em></li>
+%	}
+</ul>
+
+% }
+
+</%method>
+
+
+<%method print_school_courses>
+<%args>
+@list_cats
+$is_mobile => 0
+</%args>
+%	my $lnk_prefix = $is_mobile? '/mobi/view/course' : '/view/course';
+<!-- then the course lists -->
+% foreach my $list_cat (@list_cats){
+%	my $school = $list_cat->school;
+<h4 class="inlineHdr"><% $list_cat->get_label %></h4>
+%	if(!$is_mobile && $list_cat->get_schedule){
+ - <strong><a href="/view/schedule/<% $school %>/<% $list_cat->get_primary_user_group_id %>" class="schedule">Schedule</a></strong>
+%	}
+<form class="homeCourseList no-padding" action="" method="get">
+<select name="gotocourse" onchange="location.href=this.options[this.selectedIndex].value;this.selectedIndex = 0;">
+	<option value="">Select a course</option> 
+%	foreach my $hp_course ($list_cat->get_homepage_courses){
+%		my $course_id = $hp_course->get_course_id;
+%		if ($course_id){
+	<option value="<% $lnk_prefix %>/<% $school ."/". $course_id %>"><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
+%		}
+%		elsif ($hp_course->get_url){
+	<option value="<% $hp_course->get_url %>"><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
+%		}
+%		else{
+	<option value=""><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
+%		}
+%	}
+</select> 
+</form>
+% }
+
+</%method>
+
+
+<%method print_school_links>
+<%args>
+$school
+</%args>
+
+% my $links = $school->getHomepageSchoolLinks();
+
+% if (scalar @$links) {
+<ul class="gNoBullets">
+%	foreach my $l (@$links) {
+%		my $subLinks = $l->getJoinObjects('subLink'); 
+%		if (scalar @$subLinks) {
+<li><div class="closed" onclick="toggleSublinkDisplay(this);"><h4 class="inlineHdr gPointer"><% $l->getLabel() %></h4> <a href="javascript:;">[+]</a></div>
+	<ul class="gDisplayNone gNoBullets nestedList">
+%			foreach my $sl (@$subLinks) {	
+	<li><a href="<% $sl->getUrl() %>"><% $sl->getLabel() %></a></li>
+%			}
+	</ul>
+</li>
+%		}
+%		else {
+<li><a href="<% $l->getUrl() %>"><% $l->getLabel() %></a></li>
+%		}
+%	}
+</ul>
+% }
+% else {
+<em class="indented">no school links</em>
+% }
+
+</%method>

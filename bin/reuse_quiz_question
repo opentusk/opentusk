@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+use TUSK::Quiz::Quiz;
+use TUSK::Quiz::LinkQuizQuizItem;
+
+my $quiz_id = $ARGV[0] || die('Please specify a Quiz ID');
+my $question_id = $ARGV[1] || die ('Please specify a Question ID');
+
+my $items = TUSK::Quiz::LinkQuizQuizItem->new()->lookup("quiz_id = $quiz_id");
+
+my $link = TUSK::Quiz::LinkQuizQuizItem->new();
+
+$link->setQuizID($quiz_id);
+$link->setQuizItemID($question_id);
+$link->setSortOrder(scalar(@$items) + 1);
+
+foreach my $item (@$items){
+	if ($item->getQuizItemID() eq $question_id){
+		$link->setWeight($item->getWeight());
+		last;
+	}
+}
+
+$link->save({ user => 'psilev01' });
+

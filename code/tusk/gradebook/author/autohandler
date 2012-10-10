@@ -1,0 +1,123 @@
+<%attr>
+	check_cms_permissions => 1
+	check_timeperiod => 1
+	top_tab_type => 'manage'
+</%attr>
+
+<%method cms_min_course_role>
+% 	return 'DIRECTORNONSTUDENT';
+</%method>
+
+<%method leftnav>
+<%perl>
+if (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course"){
+	return "/tmpl/leftnav/course";
+}
+</%perl>
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+return $m->comp("/tmpl/nav", 'objects' => $m->comp("SELF:get_nav_bar_objects"),
+			     'prefix' => '/gradebook/author',
+			     'hierarchy' => {
+						'show' => [],
+						'addedit' => ['show'],
+						'delete' => ['show'],
+						'gradelistbystudent' => ['show'],
+						'gradeaddeditbystudent' => ['show', 'gradelistbystudent'],
+						'import' => ['show', 'addedit'],         
+            	    	'setup' => ['show'],
+						'statsfinalgrade' => ['show'],
+						'gradestats' => ['show'],
+						'gradefinal' => ['show'],
+						'gradescale' => ['show'],
+						'weights'  => ['show'],
+						'viewgrades' => ['show'],
+						'customscale' => ['show'],
+						'viewall' => ['show'],
+						'gradeaddedit' => ['show', 'addedit'],
+						'categoryaddedit' => ['show' ],
+						'categorydelete' => ['show', 'categoryaddedit' ],
+						'categorysort' => ['show', 'categoryaddedit' ],
+						'eventsort' => ['show', 'categoryaddedit' ],
+						},
+				'nav_entities_dependency' => {
+					'show' =>{'object'=>undef, 'depend'=>[]}, 
+					'addedit' =>{'object'=>"TUSK::GradeBook::GradeEvent", 'depend'=>[], 'static_title'=>'Event: '}, 
+					'categoryaddedit' =>{'object'=>"TUSK::GradeBook::GradeCategory", 'depend'=>[], 'static_title'=>'Category: '}, 
+					'gradelistbystudent' =>{'object'=>undef, 'depend'=>[] }
+				},
+			    'title_func' => {
+					'TUSK::GradeBook::GradeEvent' => 'getEventName',
+					'TUSK::GradeBook::GradeCategory' => 'getGradeCategoryName',
+				},
+			    'urls' =>  {
+					'show' => {link => 'show', label => 'Manage Grade Book'}, 
+					'gradelistbystudent' => {link => 'gradelistbystudent', label=> 'Students List', extra_path => $m->comp('SELF:get_category_id')}
+				});
+</%perl>
+</%method>
+
+<%doc>do nothing but required. can be override by child page</%doc>
+<%method get_category_id>
+</%method>
+
+<%method get_category_options>
+<%args>
+	$gb
+	$root_category
+	$category_id => undef
+	$exclude_category_itself => 1
+	$no_root_option => undef
+	$show_no_children => undef
+</%args>
+<%perl>
+	my @options = ();
+	unless ($no_root_option) {
+		push @options, { label => 'None', value => ($root_category) ? $root_category->getPrimaryKeyID() : 0 };
+	}
+
+	my $cond = ($exclude_category_itself && $category_id) ? "grade_category_id != $category_id" : '';
+	my $categories = $gb->getSortedCategories($cond);
+	foreach my $cat (@$categories) {
+		my $spaces = ($cat->getDepth() > 1) ? '&nbsp;' x (($cat->getDepth()-1) * 2) : '';
+		next if ($show_no_children && $category_id && $cat->getLineage =~ /\/$category_id\//);
+		push @options, { label => $spaces . $cat->getGradeCategoryName(), value => $cat->getPrimaryKeyID() }; 
+	}
+	return \@options;
+</%perl>
+</%method>
+
+<%method print_gradebook_tools>
+% my $type_path = $m->comp("/tmpl/url:get_type_path");
+<form name="act" method="POST" action="" class="no-padding">
+<& /tmpl/element:dropdown, params => { 
+	label		=> undef,
+	name 		=> 'address',
+	onchange	=> 'forward(this);',
+	options		=> [
+		{ label => '<span class=""><b>Gradebook Tools ...</b></span>', value => '', },
+
+		{ label => '&nbsp;View/Edit Grades By Student', value => "/gradebook/author/gradelistbystudent/$type_path", },
+		{ label => '&nbsp;View All Grades', value => "/gradebook/author/viewall/$type_path", },
+		{ label => '&nbsp;Final Grade', value => '', },
+		{ label => '&nbsp;-&nbsp;Balance Events Weight', value => "/gradebook/author/weights/$type_path", },
+		{ label => '&nbsp;-&nbsp;View/Update', value => "/gradebook/author/gradefinal/$type_path", },
+		{ label => '&nbsp;-&nbsp;Statistics', value => "/gradebook/author/gradestats/$type_path", },
+	] }
+&>
+</form>
+</%method>
+
+
+<%method startup>
+<%perl>
+	unless (my $time_period_id = $m->comp('SELF:get_timeperiod_id')) {
+		TUSK::Core::SessionTimePeriod::get_time_period($m->comp("/tmpl/url:get_type_object"), $m->session);
+	}
+</%perl>
+</%method>
+
+
+<% $m->call_next %>

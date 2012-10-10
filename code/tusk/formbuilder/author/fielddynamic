@@ -1,0 +1,261 @@
+<%once>
+	use TUSK::FormBuilder::Form;
+	use TUSK::FormBuilder::Field;
+	use TUSK::FormBuilder::FieldType;
+	use TUSK::FormBuilder::ItemType;
+	use TUSK::FormBuilder::FieldItem;
+	use TUSK::FormBuilder::LinkFieldField;
+	use TUSK::Application::FormBuilder::DynamicList;
+</%once>
+
+
+<%shared>
+	my ($form_id, $root_field_id, $parent_field_id, $child_field_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $is_edit = 0;
+	my $link_field_field_id = 0;
+	my $field = TUSK::FormBuilder::Field->new();
+	my $items_data = [];
+
+	my $dla = TUSK::Application::FormBuilder::DynamicList->new({ root_field_id => $root_field_id, parent_field_id => $parent_field_id, child_field_id => $child_field_id });
+
+	if ($child_field_id) {
+		$is_edit = 1;
+		$field = $field->lookupKey($child_field_id);
+		$items_data = $dla->getItemsData();
+		$link_field_field_id = $dla->getLinkFieldFieldID();
+	}
+
+	my $parent_items = $dla->getParentItemNames();
+</%shared>
+
+
+<%method page>
+<%args>
+	$args
+	$form
+</%args>
+
+<& SELF:action, args => $args, form => $form &>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	onsubmit => 'return fieldaddedit_submit(this)',
+	name => 'fieldedit' } &>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border => "0",
+	cellspacing => "0",
+	cellpadding => "0" } &>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Field Name',
+	name => 'field_name',
+	value => $field->getFieldName(),
+	size => 60,
+	length => 100 } &>
+
+<& /tmpl/element:hidden_form_element, params => { 
+	name=> "parent_field_id",
+	value => $parent_field_id, } &>
+
+<& /tmpl/element:dropdown, params =>{ 
+	label => 'Default Report',
+	name => "default_report",
+	onchange => "",
+	selected => $field->getDefaultReport(),
+    options => [ { label => 'No', value => '0'}, { label => 'Yes', value => '1' } ] } &>
+
+<& /tmpl/element:dropdown, params => { 
+	label => 'Item Sort',
+	name => "item_sort",
+	onchange => "",
+	selected => $field->getItemSort(),
+	options => [{ label => 'Alphanumeric', value => 'Alphanumeric'}, { label => 'User-Defined', value => 'User-Defined' } ] } &>
+
+<%perl>
+	my $parent_field = TUSK::FormBuilder::Field->lookupKey($parent_field_id);
+	my $parent_field_name = $parent_field->getFieldName();
+	my $button_text =  $m->scomp('/tmpl/element:button', params => {
+		onclick => "layers['itemsdiv'].adddata({child_item_id:'0',name:'', parent_item_id:'0', root_field_id:'$root_field_id',parent_field_id:'$parent_field_id',child_field_id:'$child_field_id',link_field_field_id:'$link_field_field_id',link_field_item_item_id:'0'},0);",
+		name => 'addnewitem',
+		label => 'Add New Item'});
+
+	my @parent_item_options = ();
+	foreach my $p_item (@$parent_items) {
+		my $p_item_name = (defined $p_item->[2]) ? '[' .  $p_item->[2] . ']' : '';
+		push @parent_item_options, { label => "$p_item->[1] $p_item_name", value => $p_item->[0]};
+	}
+</%perl>
+
+<& /tmpl/element:sort_order_box , params =>{
+	no_add_button => '1',
+	label => 'Items',
+	name => "items",
+	buttons => [$button_text],
+	layer_info => {
+		empty_message => 'No items defined for this field',
+		layer => 'itemsdiv',
+		scrollrows => 0,
+       	fields => ['child_item_id','name','parent_item_id','root_field_id','parent_field_id','child_field_id','link_field_field_id','link_field_item_item_id'],
+		name => 'item',
+		sort => { 
+			usage => 'Yes', length => 50},
+			action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
+			display => [
+          		{ label => 'Name', field => 'name', type => 'textbox', align => 'left', length => 300 },
+				{ label => $parent_field_name, field => 'parent_item_id', align => 'center', length => 200, options => \@parent_item_options },
+				{ field => 'root_field_id', length => 0, type => 'hidden' },
+				{ field => 'parent_field_id', length => 0, type => 'hidden' },
+				{ field => 'child_field_id', length => 0, type => 'hidden' },
+				{ field => 'link_field_field_id', length => 0, type => 'hidden' },
+				{ field => 'child_item_id', length => 0, type => 'hidden' },
+				{ field => 'link_field_item_item_id', length => 0, type => 'hidden' },
+			],
+		validate => { usage => 'No', },
+		data => $items_data }
+} &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+	cancel_onclick => "go_back('" . $m->comp("/formbuilder/util:get_base_dir") . "/field/" . $m->comp('/tmpl/url:get_type_path') . "/" . $form->getPrimaryKeyID() . "/$root_field_id');", 
+	name => 'form_submit'} &>
+
+</table>
+</form>
+</%method>
+
+
+<%method action>
+<%args>
+	$args
+	$form
+</%args>
+
+<%perl>
+	if (defined($args->{submit_check})) {
+		my $field_type = TUSK::FormBuilder::FieldType->new()->lookupReturnOne("token = 'RadioSelect'");
+		$field->setFieldValues({
+			field_name => $args->{field_name},
+			field_type_id => $field_type->getPrimaryKeyID(),
+			item_sort => $args->{item_sort},
+			default_report => $args->{default_report} 
+		});
+
+    	$field->save({user => $m->session->{'user'}->user_id()});
+
+		my $field_id = $field->getPrimaryKeyID();
+		$child_field_id = $field_id;
+		my $depth_level = $dla->getNextDepthLevel();
+		my $row_hash = $m->comp('/tmpl/process:process_fields', fields => $args, filter => '^itemsdiv');
+
+		### get all item names and check for duplicates
+		my $item_names = {};
+		my %parent_items_hash = map { $_->[0] => $_->[1] } @$parent_items;
+		my @duplicates = ();
+
+		foreach my $key (keys %$row_hash){
+			my $iname = $row_hash->{$key}->{'fields'}->{'name'} . '_' . $parent_items_hash{$row_hash->{$key}->{'fields'}->{'parent_item_id'}};
+			if (exists $item_names->{$iname}) {
+				push @duplicates, $row_hash->{$key}->{'fields'}->{'name'};
+			}
+			$item_names->{$iname} = $key;
+		}
+
+		### sort items if requested
+		if ($args->{'item_sort'} eq 'Alphanumeric'){
+			my $index = 0;
+			foreach my $key (sort keys %$item_names){
+				if ($row_hash->{$item_names->{$key}}->{'fields'}->{'sortorder'} != $index){
+					$row_hash->{$item_names->{$key}}->{'fields'}->{'sortorder'} = $index;
+					$row_hash->{$item_names->{$key}}->{'elementchanged'} = 1;
+				}
+				$index++;
+			}
+		}
+
+		### add/update/delete data into db
+		$m->comp('/tmpl/process:manipulate_rows',
+			row_type => 'MultiDirect',
+			row_object_name => 'TUSK::FormBuilder::FieldItem',
+			user => $m->session->{'user'}->user_id(),
+			fields_data => $row_hash,
+			display_data => $items_data, 
+			structs => [
+				{
+					object_name => 'TUSK::FormBuilder::FieldItem',
+					functions => {
+						name => 'setItemName',
+						child_field_id => 'setFieldID',
+						sortorder => 'setSortOrder',
+					},
+					pk => 'child_item_id',
+					reset => { child_item_id => 'getPrimaryKeyID' },
+				},
+				{ 	object_name => 'TUSK::FormBuilder::LinkFieldItemItem',
+					functions => {
+						link_field_field_id => 'setLinkFieldFieldID',
+						parent_item_id => 'setParentItemID',
+						child_item_id => 'setChildItemID', 
+					},
+					pk => 'link_field_item_item_id'
+				},
+			],
+			default_structs => [
+				{ 	object_name => 'TUSK::FormBuilder::LinkFieldField',
+					functions => {
+						setRootFieldID => $root_field_id,
+						setParentFieldID => $parent_field_id,
+						setChildFieldID => $child_field_id,
+						setSortOrder => 1,
+						setDepthLevel => $depth_level,
+					},
+					pk => $link_field_field_id,
+					reset => ($is_edit) ? {} : {link_field_field_id => 'getPrimaryKeyID', child_field_id => 'getChildFieldID' }, 
+				},
+			],
+		);
+
+		my ($extra, $msg) = ('','');
+		my $msg_type = 'msg';
+
+		if (scalar @duplicates) {
+			my $duplicate_text = 'Please check for duplicate item(s): '  . join(", ", @duplicates);
+			$msg_type = 'errmsg';
+			if ($is_edit){
+				$msg = "Field modified. $duplicate_text";
+			} else {
+				$extra = $field_id;
+				$msg = "Field created. $duplicate_text";
+			}
+		} else {
+			if ($is_edit){
+				$msg = 'Field successfully modified';
+			} else {
+				$extra = $field_id;
+				$msg = 'Field successfully created';
+			}
+		}
+		$m->comp("/tmpl/wizard:do_next", args => $args, default_transition => $m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, extra => $extra, msgtype => $msg_type, msg => $msg ));
+	}
+</%perl>
+</%method>
+
+
+<%method title>
+% 	return ($is_edit) ? "Modify Dynamic List Field" : "Create New Dynamic List Field";
+</%method>
+
+
+<%method jsarray>
+% 	return ['layers.js', 'formbuilder.js', 'element.js'];
+</%method>
+
+
+<%method get_nav_bar_objects>
+<%perl>
+	my $form = $m->comp("/formbuilder/util:get_form");
+	return { 'TUSK::FormBuilder::Form' => $form, 'TUSK::FormBuilder::Field' => TUSK::FormBuilder::Field->new()->lookupKey($root_field_id) };
+</%perl>
+</%method>

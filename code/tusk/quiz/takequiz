@@ -1,0 +1,567 @@
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Result;
+	use HSDB4::DateTime;
+	use TUSK::Constants;
+</%once>
+
+<%attr>
+	no_header => 1
+</%attr>
+
+<%shared>
+	my $quiz_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $user_id = $m->session->{user}->user_id;
+	my %args = $m->request_args();
+	my $quiz_done = 0;
+	my $preview = ($args{preview}) ? 1 : 0;
+	my $quiz = ($preview) ? TUSK::Quiz::Quiz->lookupKey($quiz_id) : $m->comp("SELF:check_quiz_permission", quiz_id => $quiz_id, user_id => $user_id, auto_finish => $args{auto_submit});
+	my $result = TUSK::Quiz::Result::findOpenResult($user_id, $quiz_id, $preview);
+	my $show_feedback = 0;
+
+	### need user_id to figure order of random questions before getting quiz items
+	$quiz->setUserID($user_id) if $quiz->getRandomQuestionLevel();
+	my $items = $quiz->getQuizItemsWithAnswers();
+	my $total_items_count = scalar @$items;
+	my $err = 0;
+	my $now = HSDB4::DateTime->new()->in_apache_timestamp(scalar localtime);
+	my $use_browser_buttons = 0;
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	$args{finish_submit} = 1 if ($args{auto_submit});
+</%shared>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	$m->comp('SELF:nocache');
+
+	if (defined $result) {
+		### starting counting start datetime
+		unless ($result->getStartDate()) {
+			$result->setStartDate();
+			$result->save({user => $user_id});
+		}
+	} else {
+		if ($preview) {
+			$m->redirect('/quiz/author/quizpreview/' . $type_path . '/' . $quiz_id . '?preview=1&hintmsg=Please use Preview button or link to preview the quiz.');
+		} 
+	}
+
+	if ($args{repeat_quiz_submit}) {	
+		my $page = ($preview) ? 'author/quizpreview' : 'takequiz';
+		$m->redirect("/quiz/$page/" . $m->comp("/tmpl/url:get_type_path") . "/$quiz_id");
+	}
+
+	if (defined($args{save_submit})) {
+		$m->comp('SELF:set_msg', msg => 'Quiz successfully saved');
+	}
+
+	if ($args{finish_submit}){
+		if ($quiz->isSelfAssessment() || $quiz->isFeedbackQuiz()){
+			if ($quiz->getQuestionsPerPage()){
+				$m->comp("SELF:set_msg", msg => "Your quiz has been successfully submitted");
+			} else {
+				$m->comp("SELF:set_msg", msg => "Your quiz has been successfully submitted. Please review your answers");
+			}
+		} else {
+			$m->comp("SELF:set_msg", msg => "Your quiz has been successfully submitted");
+		}
+	} 
+
+	if (defined $result && $total_items_count <= $result->getCurrentQuestionIndex() && !($result->getEndDate()) && !$preview) {
+		$m->comp('SELF:set_msg', msg => "There is something wrong about your quiz. Please contact $TUSK::Constants::SiteAbbr for help.", type => 'err');
+		$err = 1;
+	}
+
+	if ($quiz->hasUserCompleted($user_id,$preview) && !$quiz->isSelfAssessment() && !$preview) {
+		$m->comp("SELF:set_msg", msg => "You have already submitted this quiz", type => 'err');
+		$err = 1;
+	}
+
+</%perl>
+</%method>
+
+<%method nocache>
+<%perl>
+	$r->header_out('Expires','Mon, 1 Jan 1990 05:00:00 GMT' );
+        $r->header_out('Pragma','no-cache');
+        $r->header_out('Cache-Control', 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0');
+</%perl>
+</%method>
+
+
+<%method get_nav_bars>
+% 	return [];
+</%method>
+
+
+<%method jsarray>
+%	return ['quiz.js', 'browsers.js', 'drag.js'];
+</%method>
+
+
+<%method useBrowserButtons>
+<%perl>
+	my $session_last_visit = $m->session->{'last_quiz_visit'};
+	my $param_last_visit = HSDB4::DateTime->new()->in_apache_timestamp($args{last_visit});
+
+	if ($session_last_visit > $param_last_visit || !defined $param_last_visit) {
+		$use_browser_buttons = 1;
+	}
+
+	$m->session->{'last_quiz_visit'} = $now;
+</%perl>
+</%method>
+
+
+<%method print_jscript>
+
+<script language="JavaScript"  type="text/javascript">
+
+var message = 'Please only use the navigation buttons or links on the quiz page';
+disableRightClick(message);
+
+function warnUser() {
+	if (document.takequiz && document.takequiz.submit_click.value != 1) {
+		alert("Please only use the navigation buttons or links on the quiz page.\n If you are taken out of the quiz in error, you may resume the quiz.");
+	}
+}
+
+function clickSubmit() {
+	document.takequiz.submit_click.value = 1;
+}
+
+// used with /tmpl/element:countdown_box to count down starting with a # of secs
+function countdown(secs, layer){
+	secs = secs - 1;
+    
+	min = Math.floor(Math.abs(secs)/60);
+	sec = Math.abs(secs) - min * 60;
+
+	if (secs == 0) {
+		hideClock();
+		alert("Time for taking this quiz is up.\n\nClick 'OK' to submit the quiz.");
+		document.takequiz.auto_submit.value = 1;
+		document.takequiz.submit_check.value = 1;
+		clickSubmit();
+		document.forms['takequiz'].submit();
+	}
+
+	min_s = (min > 1) ? 's' : '';
+	sec_s = (sec > 1) ? 's' : '';
+	
+	var display_string = "<font color='blue'>" + min + " minute" + min_s + " and " + sec + " second" + sec_s + " left</font>";
+
+	// this message should not be display now. In case we might want to change the logic again.
+	if (secs <= 0) {
+		display_string = "<font color='red'>Time has expired (over by " + display_string + ").</font>";
+    }
+     	
+	if (document.layers){
+       	document.layers[layer].document.open();
+   		document.layers[layer].document.writeln(display_string)
+   		document.layers[layer].document.close();
+   	} else if (document.all){
+       	document.all[layer].innerHTML = display_string;
+   	} else {
+       	document.getElementById(layer).innerHTML = display_string;
+   	}
+
+   	setTimeout("countdown(" + secs + ",'" + layer +"')",1000);
+}
+
+function hideClock() {
+	var timer = document.getElementById('timerDiv');
+	timer.style.display = 'none';
+}
+
+</script>
+
+</%method>
+
+
+<%method check_cms_permissions>
+% 	return 0;
+</%method>
+
+
+<%method title>
+% 	return "Quiz: ".$quiz->getTitle();
+</%method>
+
+
+<%method nav_bar>
+% 	return $m->comp("/quiz/tmpl/common:student_nav_bar");
+</%method>
+
+
+<%method red_header_text>
+% 	return "Quiz: ".$quiz->getTitle();
+</%method>
+
+
+<%method add_links>
+<%perl>
+	my @links;
+
+	push @links, '<strong>' . $m->session->{user}->out_full_name() . '</strong>';
+
+	if ($args{preview}) {
+		push @links, '<a href="/quiz/author/show/' . $type_path . '" onclick="clickSubmit();">Manage Quizzes</a>';
+		push @links, '<a href="/quiz/author/addedit/' . $type_path . '/' . $quiz_id . '" onclick="clickSubmit();">Modify Quiz</a>';
+	} else {
+		push @links, '<a href="/" onclick="clickSubmit();">Home Page</a>';
+		push @links, '<a href="/view/' . $type_path . '/quizzes" onclick="clickSubmit();">Course Quizzes</a>';
+	}
+
+	push @links, '<a class="logout" href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time() . '" onclick="clickSubmit();">Logout</a>';
+
+	return \@links;
+</%perl>
+</%method>
+
+
+<%method display_continued_or_single_quiz_page>
+<%perl> 
+	my $secs = $quiz->getDurationInSeconds();
+
+	if ($secs) {
+		if (defined($result)){
+			my $start_date = HSDB4::DateTime->new();
+			$start_date->in_mysql_timestamp($result->getStartDate());
+			my $diff = $secs - (time() - $start_date->out_unix_time());
+
+			if ($diff > 0) {
+				$secs = $diff;
+			} else {
+				$result->setStartDate();
+				$result->save({user => $user_id});
+			}
+		}
+	}
+
+	my ($button_name, $button_text, $onclick);
+	my $done_with_feedback_and_quiz = 0;
+
+	if ($quiz->getQuestionsPerPage()) {
+		if ($show_feedback) {
+			if ($total_items_count == $result->getCurrentQuestionIndex()) {
+				$done_with_feedback_and_quiz = 1;
+			} else {
+				$button_text = 'Continue';
+				$button_name = 'feedback_submit';
+			}
+		} else {
+			if ($total_items_count <= $result->getCurrentQuestionIndex() + $quiz->getQuestionsPerPage()) {				
+				$button_text = 'Submit & Complete Quiz';
+				$button_name = 'finish_submit';
+			} else {
+				if ($quiz->isGradedQuiz()) {
+					$button_text = 'Next Page';
+				} else {
+					$button_text = 'Submit Answer(s)';
+				}
+				$button_name = 'continue_submit';
+			}
+		}
+	} else {  ### all questions in one page
+			$button_text = 'Submit Quiz';
+			$button_name = 'finish_submit';
+	}
+
+	$onclick = "clickSubmit(); return check_quiz('$button_text')";	
+	my $displayed_questions;
+
+	if ($show_feedback){
+		$displayed_questions = $m->scomp('/quiz/tmpl/quizdisplay:display_responses', quiz => $quiz, result => $result, show_title => 0, save_submission => ((defined $args{'save_submit'}) ? 1 : 0), items => $items);
+	} else {
+		$result->getResponses('check_db');
+		$displayed_questions = $m->scomp('/quiz/tmpl/quizdisplay:display_quiz', quiz_id => $quiz_id, result => $result, items => $items);
+	}
+
+	my $buttons = [];
+
+	my $prev_save_buttons = '';
+	if ($quiz->getQuestionsPerPage() && $result->getCurrentQuestionIndex() && !$quiz->isSelfAssessment() && !$quiz->isFeedbackQuiz()) {
+		$prev_save_buttons = $m->scomp('/tmpl/element:button', params => {
+			label		=> 'Previous Page',
+			name		=> 'back_submit',
+			type		=> 'submit',
+			onclick		=> 'clickSubmit();',
+		});
+
+	}
+
+	if (($quiz->isFeedbackQuiz() || $quiz->isGradedQuiz()) && !$show_feedback) {
+		$prev_save_buttons .= $m->scomp('/tmpl/element:button', params => {
+			label		=> 'Save Quiz',
+			name		=> 'save_submit',
+			type		=> 'submit',
+			onclick		=> 'clickSubmit();',
+		});
+	} 
+
+</%perl>
+
+<& /tmpl/element:form, params => { id => 'takequiz', method => 'POST', name => 'takequiz', } &>
+
+<input type="hidden" name="submit_click" value="0">
+<input type="hidden" name="auto_submit" value="0">
+<input type="hidden" name="last_visit" value="<% $now->out_string() %>">
+
+<table border="0" width="100%">
+<tr><td>
+<table>
+<& /tmpl/element:save_button, params=> { label => $button_text, name => $button_name, no_cancel_button => 1, onclick => $onclick, buttons => $buttons, prefixed_text => $prev_save_buttons } &>
+</table>
+</td>
+% if ($quiz->getQuestionsPerPage() || $secs ) {
+<td align="right" valign="top">
+% 	if ($quiz->getQuestionsPerPage()) {
+<& 'SELF:question_bar_graph' &>
+% 	}
+% 	if ($secs) {
+<& 'SELF:float_clock', secs => $secs &>
+% 	}
+</td>
+% } 
+</tr>
+</table>
+
+<table border="0" width="100%">
+<tr><td></td><td>
+% $m->print($displayed_questions);
+</td></tr>
+
+% if (scalar(@{$items})){
+%	if ($done_with_feedback_and_quiz) {
+		<tr><td></td><td>
+%		$m->print("<span style=\"font-size:90%;color:blue;font-weight:bold;\">You have completed the quiz on " . $result->getEndDate() . "</span><br/>");
+		<& SELF:display_done_quiz_page &>	
+		</td></tr>
+%	} else {
+<& /tmpl/element:save_button, params=> { label => $button_text, name => $button_name, no_cancel_button => 1, onclick => $onclick, buttons => $buttons, prefixed_text => $prev_save_buttons } &>
+%	}
+% }
+
+</table>
+</form>
+</%method>
+
+
+<%method question_bar_graph>
+<%perl>
+	if ($result) {
+		my $total = 250;
+		my $current = ($show_feedback) ? $result->getCurrentQuestionIndex() + $quiz->getQuestionsPerPage() : $result->getCurrentQuestionIndex();
+		my $fraction = ($total_items_count > 0) ? ($current / $total_items_count) : 0 ;
+ 		my $w1 = sprintf("%0dpx", ($fraction) * $total);
+		##my $w1 = sprintf("%0dpx", ($current / $total_items_count) * $total);
+		my $w2 = sprintf("%0dpx", $total - $w1);
+		$m->print(qq(
+<table border="0" cellspacing="0" cellspadding="0" style="margin-top:10px;">
+<tr>
+<td>
+<span style="color:gray;font-size:70%">Number of Questions Viewed or Completed</span>
+<table border="1" cellspacing="0" cellspadding="0">
+<tr>
+<td width="$w1" bgcolor="lightgreen" align="right"><span style="font-size:70%">$current</span></td><td width="$w2" align="right"><span style="font-size:70%">$total_items_count</span></td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+));
+	}
+</%perl>
+
+</%method>
+
+
+<%method display_done_quiz_page>
+% my $button;
+% if ($quiz->isSelfAssessment()){
+<div style="margin:15px;">
+<& '/tmpl/element:form', params => { id => 'takequiz', method => 'POST', name => 'takequiz', } &>
+
+<tr><td>
+<input type="hidden" name="submit_click" value="0">
+<input type="hidden" name="last_visit" value="<% $now->out_string() %>">
+
+<%perl>
+	$button = $m->scomp( '/tmpl/element:button', params => {
+			label		=> 'Repeat Quiz',
+			name		=> 'repeat_quiz_submit',
+			type		=> 'submit',
+			onclick		=> 'clickSubmit();',
+		} );
+</%perl>
+</td></tr>
+</table>
+% }
+
+<%perl>
+	if (($quiz->isSelfAssessment() || $quiz->isFeedbackQuiz())){
+		$m->comp('/quiz/tmpl/quizdisplay:display_responses', quiz => $quiz, result => $result, show_title => 0, items => $items);
+	} 
+
+	if ($quiz->getEndingMessage()) {		
+		$m->comp('/tmpl/element:table', params => { width => '90%', style => 'padding:15px;' });
+		$m->print("<tr>\n<td class=\"med\">" . $quiz->getEndingMessage() . "</td>\n</tr></table>");
+	}
+
+	if ($quiz->isSelfAssessment()) {
+		$m->print("<div style=\"margin: 10px 0 0 15px;\">$button</div>\n");
+	}
+</%perl>
+
+</form>
+</div>
+</%method>
+
+
+<%method create_responses>
+<%args>
+	$items_to_be_saved
+</%args>
+
+<%perl>
+	my $itemHash = {}; ### questions to be shown on the page
+
+	foreach my $item (@$items_to_be_saved){
+		my $question = $item->getQuestionObject();
+		$itemHash->{ $question->getPrimaryKeyID() } = $item;
+	}
+
+	$result->createResponses($user_id, $itemHash, \%args);
+</%perl>
+</%method>
+
+
+<%method update_current_question_index>
+<%perl>
+	return unless defined $result;
+
+	if (defined($args{finish_submit})) {
+		$result->setEndDate();
+		$result->setCurrentQuestionIndex($total_items_count);
+		$quiz_done = 1 unless ($show_feedback);
+	} elsif (defined($args{continue_submit})) {
+		$result->setCurrentQuestionIndex($result->getCurrentQuestionIndex() + $quiz->getQuestionsPerPage());
+
+	} elsif (defined($args{back_submit})) {
+		$result->setCurrentQuestionIndex($result->getCurrentQuestionIndex() - $quiz->getQuestionsPerPage());
+	}
+
+	$result->save({ user => $user_id });
+</%perl>
+</%method>
+
+<%method header_with_title_msg>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="350" valign="top">
+      <img src="/graphics/logo.gif" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" width="350" height="90">
+    </td>
+    <td>
+      <& '/tmpl/prepend:traffic_light', args => \%ARGS, make_table => 1 &>
+    </td>
+    <td align="right" valign="bottom"><span class="emphasis_font"> <% join(' | ', @{$m->comp('SELF:add_links')}) %></span> &nbsp;</td>
+  </tr>
+  <tr class="redHeaderBar">
+    <td align="center" colspan="3">Quiz: <% $quiz->getTitle %> </td>
+  </tr>
+</table>
+</%method>
+
+
+<%method float_clock>
+<%args>
+	$secs
+</%args>
+
+<div id="timerDiv" style="position:absolute; right:0px; top:0px;">
+    <table width="" border="0" cellspacing="0" cellpadding="3" style="border:1px solid black;" bgcolor="lightyellow">
+	<tr><td id="timerDivHandle" style="cursor:move; font-size:75%;" NOWRAP>
+	<& /tmpl/element:countdown_box, secs => $secs, style => 'padding-left:10px;padding-right:10px;display:inline' &>
+    </td></tr>
+	</table>
+</div>
+
+<script language="JavaScript"  type="text/javascript">
+	registerDragItem('timerDiv', 'top', 'right', '');
+</script>
+</%method>
+
+<%init>
+	$m->print("<body onunload=\"warnUser();\">\n");
+	$m->comp('SELF:header_with_title_msg');
+	$m->comp('SELF:print_jscript');
+	exit() if $err;
+
+	my $current_question_index = 0;
+	my $current_question_index_before_update = 0;
+	my @items_to_be_saved = @$items;
+
+	if ($quiz->getQuestionsPerPage()){
+	 	$m->comp('SELF:useBrowserButtons');
+		if (defined $result) {
+			$current_question_index = $result->getCurrentQuestionIndex();
+			$current_question_index_before_update = $current_question_index;
+			if (($quiz->isSelfAssessment() || $quiz->isFeedbackQuiz()) && ($args{continue_submit} || $args{finish_submit})) {
+				$show_feedback = 1;
+			} else {
+				unless ($use_browser_buttons) {
+					$m->comp('SELF:update_current_question_index');
+					$current_question_index = $result->getCurrentQuestionIndex();
+				}
+			}	
+		}
+		@items_to_be_saved = splice(@items_to_be_saved,$current_question_index_before_update,$quiz->getQuestionsPerPage());
+		@$items = splice(@$items,$current_question_index,$quiz->getQuestionsPerPage());
+	}
+
+
+	if ($result) {
+		if (defined($args{continue_submit}) || defined($args{save_submit}) || defined($args{finish_submit}) || defined($args{back_submit})) {
+
+			unless ($use_browser_buttons) {
+				$m->comp('SELF:create_responses', items_to_be_saved => \@items_to_be_saved);
+
+				if (defined($args{finish_submit}) && !$quiz->getQuestionsPerPage()) {
+					$m->comp('SELF:update_current_question_index');
+				}
+			}
+		} else {
+			if (!$args{submit_check} && $result->getCurrentQuestionIndex() != 0) {
+			}
+		}
+	}
+
+	unless (defined $result) {
+		$result = TUSK::Quiz::Result->new();
+		$result->setUserID($user_id);
+		$result->setQuizID($quiz_id);
+		$result->setPreviewFlag($preview);
+		$result->setStartDate();
+		$result->save({ user => $user_id });
+	}
+
+	if ($quiz_done || $args{finish_submit}) {
+		$m->comp('SELF:display_done_quiz_page');
+		$m->print("</div>");
+	} else {
+		$m->comp('SELF:display_continued_or_single_quiz_page');
+	}
+
+	### for feedback and self-assessment quizzes,
+	### we update question index after we've got questions displayed 
+	if ($show_feedback && !$use_browser_buttons) {
+		$m->comp('SELF:update_current_question_index');
+	}
+</%init>
+
+

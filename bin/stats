@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+my $ii = `ps -Af | wc -l`;
+$ii =~ s/\W+(.+)\W+/$1/;
+my $totalmem;
+my ($tot,$free);
+$tot = $free = `/usr/local/bin/top -d1 | /usr/local/bin/egrep "Memory"`;
+$tot =~ s/.+:\ (.+?)M.+\W/$1/;
+$free =~ s/.+,\ (.+?)M\ free.+\W/$1/;
+$totalmem = 100-(($free/$tot)*100);
+my $apache_count = `ps -Af | egrep "httpd" | wc`;
+
+$apache_count =~ s/\D+?(\d+).+\d+.+\d+.*/$1/s; 
+
+my $w = `w -u`;
+$w =~ s/.+,(.+).+/$1/s;
+print localtime().",$w load average, $apache_count Apache processes, $ii total processes, ".sprintf("%d",$totalmem)."% memory\n";
+
+
+
+
+
+
+
+
+
+
+

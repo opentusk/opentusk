@@ -1,0 +1,45 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+#
+# Script checks all tracking records in the database and updates any that need updating :)  Should be once daily in cron
+#
+
+
+use strict;
+
+use MySQL::Password;
+use HSDB4::Constants;
+use TUSK::Tracking;
+use TUSK::ScriptLog;
+use TUSK::Core::ServerConfig;
+
+my ($user, $pw) = get_user_pw;
+HSDB4::Constants::set_user_pw ($user, $pw);
+
+TUSK::ScriptLog::openlog();
+
+## could pass on db host through script command line, else take it from ServerConfig file
+$ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost unless defined($ENV{DATABASE_ADDRESS});
+die "Need to set 'DATABASE_ADDRESS' environmental variable\n" unless defined($ENV{DATABASE_ADDRESS});
+
+my $count = 0;
+
+foreach my $school (&HSDB4::Constants::course_schools) {
+    my @tracking = TUSK::Tracking->new(_school=>$school)->lookup_conditions("to_days(end_date) > to_days(now())");
+    $count += scalar(@tracking);
+
+    foreach my $tracking (@tracking){
+	eval{
+	    $tracking->calculate($user, $pw);
+	};
+
+	if ($@){
+	    TUSK::ScriptLog::printandlog("Error with " . $tracking->primary_key . " (" . $tracking->school . "): ". $@);
+	}
+    }
+}
+
+TUSK::ScriptLog::closelog("Finished - Processed $count tracking records");
+

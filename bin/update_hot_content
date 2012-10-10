@@ -1,0 +1,27 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use HSDB4::Constants;
+use HSDB45::UserGroup;
+use HSDB4::test::setup;
+use TUSK::Constants;
+
+my $noprint = $ARGV[0];
+
+$ENV{HSDB_DATABASE_PASSWORD} = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
+
+for my $school (HSDB4::Constants::user_group_schools()) {
+    print "School: $school\n" unless ($noprint);
+    my $blankgroup = HSDB45::UserGroup->new( _school => $school );
+    my @groups = 
+	$blankgroup->lookup_conditions("FIND_IN_SET('Hot Content',homepage_info)>0");
+    for my $group (@groups) {
+	printf("\tFetching content for %s (%d)\n", 
+	       $group->out_label(), $group->primary_key()) unless ($noprint);
+	$group->compute_hot_content();
+    }
+}
+
+1;

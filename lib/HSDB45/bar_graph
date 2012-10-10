@@ -1,0 +1,31 @@
+#!/usr/bin/perl -wl
+
+use strict;
+
+use HSDB45::Eval;
+use HSDB45::Eval::Results;
+use HSDB45::Eval::Results::Formatter;
+use HSDB45::Eval::Results::BarGraphCreator;
+use Getopt::Long;
+use HSDB4::test::setup;
+
+my ($school, $eval_id, $pretty_print, $verbose, $comparison_evals);
+GetOptions( "school=s"    => \$school,
+	    "eval_id=i"   => \$eval_id,
+	    "comparison_evals=s" => \$comparison_evals
+	    );
+
+my $eval = HSDB45::Eval->new (_school => $school, _id => $eval_id);
+die "Cannot file eval for school [$school] and eval_id [$eval_id]" unless $eval->primary_key();
+my $eval_results = HSDB45::Eval::Results->new($eval);
+
+my $file_name = $school . "_" . $eval_id . "_results.xml";
+print "output file name: " . $file_name . "\n";
+my $fh = FileHandle->new("> $file_name")
+    or die "could not create file " . $file_name . ": $!\n";
+$fh->autoflush(1);
+
+my $bargraphs = HSDB45::Eval::Results::BarGraphCreator->new($eval_results);
+$bargraphs->save_svg_graphs();
+
+1;

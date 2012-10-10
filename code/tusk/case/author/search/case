@@ -1,0 +1,33 @@
+<%flags>
+inherit=>undef 
+</%flags>
+<%perl>
+use TUSK::Case::Case;
+my $params = {
+	fields=>{'case_title'=>'case_title like "%%%s%%"','case_user_desc'=>''},
+	search_fields=>[{'label'=>'Title',name=>'case_title'}],
+	obj=>'TUSK::Case::Case',
+	orderby=>['case_title'],
+	entity_name=>'cases',
+	layer_info => {
+		layer => 'searchdiv',
+		fields => ['case_id','case_title', 'case_user_desc'],
+		name => 'question',
+		search_page =>'/case/author/search/case',
+		sort => {usage => 'Yes', length=>50},
+		action => {usage => 'Yes', length=>100, functions => [
+						{func=>'update_parent', label=>'Select'} ]},
+		display => [
+			{label=>'title',field=>'case_title', align=>'left', length=>150},
+			{label=>'Overview',field=>'case_user_desc', align=>'left', length=>350}
+		  ],
+		validate => {
+				usage => 'No',
+			},
+		object_methods=>['getPrimaryKeyID','getCaseTitle','getCaseUserDesc']
+	 }
+
+};
+
+</%perl>
+<& /tmpl/search, params=>$params, inputArgs=>\%ARGS &>

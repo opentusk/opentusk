@@ -1,0 +1,89 @@
+[! 
+    use HSDB45::Course;
+    use Apache::Constants qw/:common/;
+    use TUSK::Constants;
+!]
+[# Figure out what document we are #]
+[-  
+    # Find the user name
+    $username = $req_rec->connection->user;
+    $user = HSDB4::SQLRow::User->new->lookup_key ($username);
+
+    $embperldir=$req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    $course = HSDB45::Course->lookup_path( $req_rec->path_info() );
+    if (!defined($course->course_id())){
+	Execute({inputfile => "$embperldir/missingHandler.html"});
+	exit;
+    }
+    $escmode = 0;
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+    Execute ({inputfile => "$embperldir/course_menu", import => 1});
+
+
+    # Import the style sheet
+    Execute ("$embperldir/hsdb4-style.css");
+
+-]
+[# Make the title #]
+<HTML>
+<HEAD>
+<TITLE>[+ $TUSK::Constants::SiteAbbr +] [+ $course->school() +] Course: [+ $course->field_value('title') +] - Current Quizzes</TITLE>
+</HEAD>
+<BODY TOPMARGIN="10" LEFTMARGIN="10" RIGHTMARGIN="24">
+[# Anchor for the top #]
+<A NAME="_top"></A>
+
+[# Put in the user box #]
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/userbox.html")) -]
+
+[# Make the title #]
+<H2 class="title">[+ $course->field_value('title') +] - Current Quizzes</H2>
+<br>
+[- course_menu($course,"quizzes"); -]
+<h3 class="title">Quizzes</h3>
+<br><br><b>Current Graded Quizzes:</b>
+[- $quizzes = $user->current_quizzes([$course]); -]
+[$ if (scalar(@$quizzes)) $]
+<ul>
+[$ foreach $quiz (@$quizzes) $]
+<li><a href="/protected/quiz/
+[$ if ($quiz->{preview}) $]author/quizpreview[$ else $]quizstart[$ endif $]
+/course/[+ $course->school +]/[+ $course->primary_key +]/[+ $quiz->{quiz_id} +]" 
+[$ if ($quiz->{start_date}) $]style="color:red"[$ endif $] 
+ [$ if ($quiz->{preview}) $]target="preview"[$ endif $]
+>[+ $quiz->{title} +]</a>
+[$ if ($quiz->{preview}) $]&nbsp;(Preview)[$ endif $]
+[$ endforeach $]
+</ul>
+[$ else $]
+<br><br>No current quizzes.<br><br>
+[$ endif $]
+
+<b>Self Assessment Quizzes:</b>
+[- $self_assessment_quizzes = $course->get_self_assessment_quizzes(); -]
+[$ if (scalar(@$self_assessment_quizzes)) $]
+<ul>
+[$ foreach $quiz (@$self_assessment_quizzes) $]
+<li><a href="/protected/quiz/quizstart/course/[+ $course->school +]/[+ $course->primary_key +]/[+ $quiz->{quiz_id} +]">[+ $quiz->{title} +]</a>
+[$ endforeach $]
+</ul>
+[$ else $]
+<br><br>None.<br><br>
+[$ endif $]
+
+<b>Completed Quizzes:</b>
+[- $taken_quizzes = $user->taken_quizzes($course); -]
+[$ if (scalar(@$taken_quizzes)) $]
+<ul>
+[$ foreach $quiz (@$taken_quizzes) $]
+<li>[+ $quiz->{title} +] (<i>[+ $quiz->{end_date} +]</i>)</a>
+[$ endforeach $]
+</ul>
+[$ else $]
+<br><br>None.
+[$ endif $]
+
+<br><br><br>
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/footer_links.html")) -]
+</BODY>
+</HTML>

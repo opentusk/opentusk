@@ -1,0 +1,563 @@
+<%method FillIn>
+<%args>
+	$field
+	$response
+</%args>
+<%perl>
+	my $size = ($field->getFillinSize()) ? $field->getFillinSize() : 60;
+	my $value = (scalar(@$response)) ? $response->[0]->getText() : ''; 
+</%perl>
+
+<h3> <% $field->getFieldName() %> </h3> 
+<input type="text" name="id_<% $field->getPrimaryKeyID() %>" id="id_<% $field->getPrimaryKeyID() %>" maxlength="<% $size %>" value="<% $value %>" />
+
+</%method>
+
+% ###################################################################################################
+
+<%method Heading>
+<%args>
+	$field
+</%args>
+<tr><td style="font-size:110%;padding-top:12px;font-weight:bold;" colspan="2">
+<% $field->getFieldName() %>
+ </td></tr>
+</%method>
+
+% ###################################################################################################
+
+<%method Essay>
+<%args>
+	$field
+	$response
+</%args>
+<%perl>
+	my $value = (scalar(@$response)) ? $response->[0]->getText() : ''; 
+</%perl>
+
+<h3> <% $field->getFieldName() %> </h3> 
+<span>
+<textarea id="id_<% $field->getPrimaryKeyID() %>" class="textareawhite" rows="7" cols="70" name="id_<% $field->getPrimaryKeyID() %>"><% $value %></textarea>
+</span>
+</%method>
+
+% ###################################################################################################
+
+<%method RadioSelect>
+<%args>
+	$field
+	$response
+</%args>
+
+<div>
+<h3> <% $field->getFieldName() %> </h3>
+<span><UL class="gNoBullets">
+<%perl>
+	my $items = $field->getItems();
+	my $selected = 1;
+	my $item_selected_id = (scalar(@$response)) ? $response->[0]->getItemID() : undef;
+
+	foreach my $item (@$items){
+		print "<LI>";
+		print "<input type=\"radio\" name=\"id_" . $field->getPrimaryKeyID() . "\"";
+		if ($selected and (!defined($item_selected_id) or ($item_selected_id == $item->getPrimaryKeyID()))){
+			print "checked";
+			$selected = 0;
+		}
+		print " value=\"" . $item->getPrimaryKeyID() . "\">" . $item->getItemName();
+		print "</LI>";
+	}
+	
+</%perl>
+
+% print  "<LI>".$field->getTrailingText()."</LI>" if ($field->getTrailingText());
+
+</UL></span> </div>
+</%method>
+
+% ###################################################################################################
+
+<%method SingleSelect>
+<%args>
+	$field
+	$response
+	$extra_trailing_text => ''
+</%args>
+<%perl>
+	my ($selected, $response_text);
+ print "<div>";
+	if (scalar(@$response)){
+		if ($field->getFieldTypeToken() eq 'SingleSelect'){
+			$selected = $response->[0]->getItemID() . '#0';  # need to figure out what to do if there is a "other" value selected for a single select box
+		} else {
+			$response_text = ' <UL class="gNoBullets courseList" > ';
+			foreach my $res (@$response){
+				my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
+				my $extra = ($res->getText()) ? '&nbsp;(' . $res->getText() . ')' : '';
+				$response_text .= '<LI> ' . $item->getItemName() . $extra . ' <input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/> Delete </LI>' ;
+
+			}
+		
+			$response_text .='</UL>';
+		}
+	}
+</%perl>
+
+<& "SELF:field_dropdown", field => $field,
+	selected => $selected,
+	style => 'vertical-align:middle;',
+    trailing_text => '', 
+	before_text => $response_text . '<span id="singleselect_' . $field->getPrimaryKeyID() . '">',
+	value_method => 'getSingleDropDownValue',
+	onchange => '' &>
+</div>
+</%method>
+
+
+% ###################################################################################################
+
+<%method SingleSelectAllowMulti>
+<%args>
+	$field
+	$response
+</%args>
+% my $abbreviation = ($field->getAbbreviation()) ? '&nbsp;' . $field->getAbbreviation() : "";
+<& "SELF:SingleSelect", field => $field, response => $response, extra_trailing_text => '' &>
+</%method>
+
+
+% ###################################################################################################
+
+<%method MultiSelect>
+<%args>
+	$field
+	$response
+</%args>
+<& "SELF:field_dropdown", field => $field, multiple => 1, size => 6 &>
+</%method>
+
+% ###################################################################################################
+
+<%method CheckList>
+<%args>
+	$field
+	$response
+</%args>
+% my $required = ($field->getRequired()) ? ' &nbsp;<span style="font-size:80%;color:red">(required)</span>' : '';
+<& /tmpl/element:flexible_tr, params => { 
+	label => $field->getFieldName() . $required } &>
+<div class="checklistdiv">
+<table width="100%" cellspacing="0" cellpadding="5">
+<%perl>
+	my %responses;
+
+	foreach my $resp (@$response) {
+		my $attrs = $resp->getResponseAttributes();
+		if ($attrs->[0]->isa('TUSK::FormBuilder::ResponseAttribute')) {
+			my $key = $resp->getFieldID() . '_' . $resp->getItemID() . '_' . $attrs->[0]->getAttributeID();
+			$responses{$key} = $attrs->[0]->getAttributeItemID();
+		}
+	}
+
+	my $attributes = $field->getAttributes();
+	return unless (defined $attributes);
+
+	my $items = $field->getItems();
+	my $i = 1; my $k = 65;  my $unchecked = 0;
+	my $attrs_span = scalar @$attributes + 2 ;
+	my $field_id = $field->getPrimaryKeyID();
+
+	foreach my $item (@$items) {
+		my $item_id = $field_id . "_" . $item->getPrimaryKeyID();
+		print "<tr>\n";
+		if ($item->isCatStart()) {
+			print "<td class=\"line-left\" bgcolor=\"#EEEFFF\" colspan=\"$attrs_span\" style=\"font-size:9pt;font-weight:bold;\">" . chr($k++) . '. ' . $item->getItemName() . "</td></tr>";
+			next;
+		}
+
+		print "<td class=\"line-left\" valign=\"top\" style=\"font-size:9pt;\" width=\"60%\">" . $i++ . '. ' . $item->getItemName() . "</td>\n";
+		my $attribute_count = 1;
+		my $checked_attribute_items = 0;
+
+		foreach my $attribute (@$attributes) {
+			my $attribute_form_name = $item_id . "_" . $attribute->getPrimaryKeyID();
+			my $attribute_id = $item_id . '_' . $attribute_count;
+			print "<td class=\"line-left\" valign=\"top\" nowrap>";
+			if ($attribute->getAttributeTypeToken() eq 'DropDown') {
+				if (my @attribute_items = @{$attribute->getItems()}) {
+					print "<select class=\"smallfont\" name=\"" . $attribute_form_name . "\">";
+					print "<option class=\"smallfont\" value=\"\">select</option>" unless (exists $responses{$attribute_form_name});
+					foreach my $attribute_item (@attribute_items){
+						my $selected = '';
+						if (exists $responses{$attribute_form_name} && $responses{$attribute_form_name} == $attribute_item->getPrimaryKeyID()) {
+						 	$selected =  "SELECTED";
+							$checked_attribute_items++;
+						}
+						print "<option class=\"smallfont\" value=\"" . $attribute_item->getPrimaryKeyID() . "\" $selected>" . $attribute_item->getItemName() . "</option>\n";
+					}
+					print "</select>\n";
+				}
+			} elsif ($attribute->getAttributeTypeToken() eq 'RadioSelect') {
+				foreach my $attribute_item (@{$attribute->getItems()}) {
+					my $checked = '';
+					if ($responses{$attribute_form_name} == $attribute_item->getPrimaryKeyID()) {
+						$checked = 'CHECKED';
+						$checked_attribute_items++;
+					}
+					print "<input type=\"radio\" name=\"$attribute_form_name\" value=\"" . $attribute_item->getPrimaryKeyID() . "\" onclick=\"updateRequiredItem('$item_id', '$field_id');\"  $checked/>" . $attribute_item->getItemName() . "\&nbsp;\n";
+				}
+			}
+			print "</td>\n";	
+			$attribute_count++;
+		}
+
+		print "<td class=\"line-right\">";
+		if ($field->getRequired()) {
+			my $reddot = '';;
+			if ($checked_attribute_items == scalar @$attributes) {
+				$reddot = 'display:none';
+			} else {
+				$unchecked++;
+			}
+
+			print "<span align=\"right\" id=\"id_$item_id\" style=\"$reddot\"><img src=\"/icons/reddot.gif\"></span>";
+		}
+		print "</td>\n</tr>\n";
+	}
+	print "<input type=\"hidden\" id=\"checklist_$field_id\" name=\"num_items_in_checklist\" value=\"$unchecked\">\n";
+</%perl>
+</table>
+</div>
+% print  $field->getTrailingText() if ($field->getTrailingText());
+</td>
+</tr>
+</%method>
+
+
+<%method MultiSelectWithAttributes2>
+<%args>
+	$field
+	$response
+</%args>
+<br><br>
+<& /tmpl/element:flexible_tr, params => { label => $field->getFieldName() } &>
+<%perl>
+	my $response_text = '<table style="width:500px;border-collapse: collapse;margin-bottom:5px;">';
+			foreach my $res (@$response){
+				my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
+				my $attributes = $res->getJoinObjects('TUSK::FormBuilder::AttributeItem');
+
+				my @attribute_values = map { $_->getItemName() } @$attributes;
+				push (@attribute_values, $res->getText()) if ($res->getText());
+				
+				my $extra = '';
+				if (scalar(@attribute_values)){
+					$extra = '&nbsp;(' . join(', ', @attribute_values) . ')';
+				}
+				
+				$response_text .= '<tr><td class="sm" nowrap style="border:1px solid rgb(239, 239, 239); border-right: 1px solid white">' . $item->getItemName() . $extra . '</td><td class="sm" align="right" style="border:1px solid rgb(239, 239, 239); border-left: 1px solid white" nowrap><input type="checkbox" name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>Delete</td></tr>';
+			}
+			$response_text .= '</table>';
+			print $response_text;
+</%perl>
+<div class="multiselectdiv">
+<table width="99%" cellspacing="0" cellpadding="5">
+<%perl>
+	my $items = $field->getItems();
+	my $attributes = $field->getAttributes();
+	foreach my $item (@$items){
+		my $item_id = $field->getPrimaryKeyID() . "_" . $item->getPrimaryKeyID();
+		print "<tr class=\"unselected\" id=\"" . $item_id . "\">";
+		print "<input type=\"hidden\" class=\"no-padding\" name=\"" . $item_id . "_selected" ."\" id=\"" . $item_id . "_selected" . "\" value=\"0\">";
+		my $colspan = ($item->getAllowUserDefinedValue()) ? 1 : 2;
+		print "<td style=\"width:100%\" colspan=\"" . $colspan . "\" onmousedown=\"change_style('" . $item_id . "', " . scalar(@$attributes) . ");\" onmouseup=\"change_focus('" . $item_id . "', " . scalar(@$attributes) . ");\" nowrap>";
+		print "<span class=\"smallfont\">" . $item->getItemName() . "</span>";
+		if ($item->getAllowUserDefinedValue()){
+			print "</td><td class=\"formbuilder-multiselect-other-td\" nowrap>\n";
+			print "<input class=\"smallfont\" name=\"" . $item_id . "_user_defined\" id=\"" . $item_id . "_user_defined\" class=\"textareawhite\"  type=\"text\" style=\"margin-right:5px\">\n";
+		}
+		print "</td>\n";
+		my $attribute_count = 1;
+		foreach my $attribute (@$attributes){
+			my $attribute_form_name = $item_id . "_" . $attribute->getPrimaryKeyID();
+			my $attribute_id = $item_id . "_select_" . $attribute_count;
+			print "<td class=\"formbuilder-attribute-dropdown-td\" nowrap>";
+			if ($attribute->getAttributeTypeToken() eq 'DropDown'){
+				print "<select class=\"smallfont\"  class=\"formbuilder-attribute-dropdown\" name=\"" . $attribute_form_name . "\" id=\"" . $attribute_id . "\">";
+				foreach my $attribute_item (@{$attribute->getItems()}){
+					print "<option class=\"smallfont\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "</option>";
+				}
+				print "</select>";
+			}elsif ($attribute->getAttributeTypeToken() eq 'RadioSelect'){
+				print "<div  class=\"formbuilder-attribute-radio\" id=\"" . $attribute_id . "\">";
+				my $checked = "checked";
+				foreach my $attribute_item (@{$attribute->getItems()}){
+					print "<input type=\"radio\"  onClick=\"change_style('" . $item_id . "', " . scalar(@$attributes) . ");\" name=\"" . $attribute_form_name . "\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "\&nbsp;";
+					$checked = "" if ($checked);
+				}
+				print "</div>";
+			}
+			
+			print "</td>\n";
+			$attribute_count++;
+		}
+		print "</tr>\n";
+	}
+</%perl>
+</table>
+</div>
+% print  $field->getTrailingText() if ($field->getTrailingText());
+</td>
+</tr>
+</%method>
+
+% ###################################################################################################
+
+
+
+% ###################################################################################################
+
+<%method MultiSelectWithAttributes>
+<%args>
+	$field
+	$response
+</%args>
+
+<h3> <% $field->getFieldName() %></h3>
+<%perl>
+			my $response_text = ' <UL class="gNoBullets courseList" > ';
+			foreach my $res (@$response){
+				my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
+				my $attributes = $res->getJoinObjects('TUSK::FormBuilder::AttributeItem');
+
+				my @attribute_values = map { $_->getItemName() } @$attributes;
+				push (@attribute_values, $res->getText()) if ($res->getText());
+				
+				my $extra = '';
+				if (scalar(@attribute_values)){
+					$extra = '&nbsp;(' . join(', ', @attribute_values) . ')';
+				}
+							
+			$response_text .= ' <LI> ' . $item->getItemName() . $extra . ' </LI> <LI>  <input type="checkbox" name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>Delete </LI> ';
+			}
+			$response_text .= '</UL>';
+			## $response_text .= '</table>';
+			print $response_text;
+</%perl>
+<div class="multiselectdiv">
+
+<%perl>
+	my $items = $field->getItems();
+	my $attributes = $field->getAttributes();
+	foreach my $item (@$items){
+		my $item_id = $field->getPrimaryKeyID() . "_" . $item->getPrimaryKeyID();
+		print "<input type=\"hidden\" class=\"no-padding\" name=\"" . $item_id . "_selected" ."\" id=\"" . $item_id . "_selected" . "\" value=\"0\">";
+		my $colspan = ($item->getAllowUserDefinedValue()) ? 1 : 2;
+		print "<LI> ". $item->getItemName() . " </LI>";
+		if ($item->getAllowUserDefinedValue()){
+			print "<LI>";
+			print "<input class=\"smallfont\" name=\"" . $item_id . "_user_defined\" id=\"" . $item_id . "_user_defined\" class=\"textareawhite\"  type=\"text\" style=\"margin-right:5px\">\n";
+			print "</LI>";
+		}
+		my $attribute_count = 1;
+		foreach my $attribute (@$attributes){
+			my $attribute_form_name = $item_id . "_" . $attribute->getPrimaryKeyID();
+			my $attribute_id = $item_id . "_select_" . $attribute_count;
+			if ($attribute->getAttributeTypeToken() eq 'DropDown'){
+				print "<LI>";
+				print "<select class=\"smallfont\"  class=\"formbuilder-attribute-dropdown\" name=\"" . $attribute_form_name . "\" id=\"" . $attribute_id . "\">";
+				foreach my $attribute_item (@{$attribute->getItems()}){
+					print "<option class=\"smallfont\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "</option>";
+				}
+				print "</select>";
+				print "</LI>";
+			}elsif ($attribute->getAttributeTypeToken() eq 'RadioSelect'){
+				my $checked = "checked";
+				
+				foreach my $attribute_item (@{$attribute->getItems()}){
+					print "<LI class='unselected' id='$item_id' >";
+					print "<input type=\"radio\"  onClick=\"change_style('" . $item_id . "', " . scalar(@$attributes) . ");\" name=\"" . $attribute_form_name . "\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "\&nbsp;";
+					$checked = "" if ($checked);	
+					print "</LI>";
+				}
+			}
+			
+			$attribute_count++;
+		}
+		print "</UL>";
+	}
+</%perl>
+
+</div>
+% print  $field->getTrailingText() if ($field->getTrailingText());
+
+</%method>
+
+
+% ###################################################################################################
+
+<%method field_dropdown>
+<%args>
+	$field
+	$trailing_text => ''
+	$before_text => ''
+	$multiple => ''
+	$onchange => ''
+	$value_method => 'getPrimaryKeyID'
+	$style => ''
+	$size => ''
+	$selected => ''
+</%args>
+<%perl>
+
+	my $items = [];
+
+	unless($multiple) {
+		my $item = TUSK::FormBuilder::FieldItem->new();
+		$item->setItemName('Select');	
+		push (@$items, $item);
+	}
+
+	my $field_items = $field->getItems();
+	my $level = 0;
+
+	foreach my $item (@$field_items){
+		$item->setItemName($item->getItemName());
+		$item->setLevel($level);
+		if ($item->getItemTypeToken() eq 'CatStart'){
+			$level++;
+			$item->setPrimaryKeyID(-1);
+		}
+
+		$level-- if ($item->getItemTypeToken() eq 'CatEnd');
+		$level = 0 if ($level < 0);
+	}
+
+	push (@$items,   grep ($_->getItemTypeToken() ne 'CatEnd', @$field_items));
+
+</%perl>
+<& /tmpl/element:dropdown, params=>{ label => $field->getFieldName(), notables => 1, 
+		size => $size,
+		selected => $selected,
+		multiple => $multiple,
+		trailing_text => $trailing_text . '&nbsp;' . $field->getTrailingText(),,
+		style => $style,
+		before_text => $before_text,
+		onchange => $onchange,
+        name => 'id_' . $field->getPrimaryKeyID(),
+        options => $m->comp("/tmpl/element:make_dropdown_options", arrayref => $items, label => "getItemName", value => $value_method, level => 'getLevel', cat => 'isCatStart')
+} &>
+</%method>
+
+% ###################################################################################################
+
+<%method DynamicList>
+<%args>
+	$field
+	$response_hash
+	$dynamic_option_list_index
+</%args>
+
+<%perl>
+	my $field_id = $field->getPrimaryKeyID();
+	my $dla = TUSK::Application::FormBuilder::DynamicList->new({root_field_id => $field_id});
+	my $link_fields = $dla->getChildFieldsWithItems();
+	my $parent_items = $field->getItems();
+	my @parent_item_ids = map { $_->getPrimaryKeyID() } @$parent_items;
+	my $dlist = "dlist_$field_id";
+	my $select_label = TUSK::FormBuilder::FieldItem->new();
+	my $push_index =0;
+	$select_label->setItemName('Select');	
+	return unless scalar @$link_fields;  ### stop here if dynamiclist are not created correctly
+      
+ 	if ($dynamic_option_list_index > 0 && $link_fields->[1]{'items'} == undef  ){
+		$push_index = 3; #push it out of bounds
+ 	}
+
+</%perl>
+
+% ### get saved parent and child(ren)
+% my $saved_parent_id ;
+% my $saved_child_id ; 
+% my $saved_child_id_2;
+% if ( $response_hash->{$link_fields->[0]{parent_field_id}}[0] ) {
+% 	$saved_parent_id= $response_hash->{ $link_fields->[0]{parent_field_id} }[0]->getItemID(); }
+% 	my $i =0;
+%	foreach my $child_field_id (@{$link_fields->[0]{child_field_ids}}) {
+% 		if ($response_hash->{$child_field_id}[0]) { 
+% 			if ($i == 0) {
+% 				$saved_child_id = $response_hash->{$child_field_id}[0]->getItemID();
+% 				$i++;
+% 			} else {
+% 				$saved_child_id_2 = $response_hash->{$child_field_id}[0]->getItemID();
+% 			}
+% 		}
+% }
+
+% ### now show dropdowns where appropriate
+% print "<br><h3>".$field->getFieldName() ."</h3>";
+% $m->comp("SELF:showParent", link_fields => $link_fields, saved_id => $saved_parent_id, hash => $link_fields->[0]{'parent_items'}, field_id => $link_fields->[0]{parent_field_id} );
+
+% if ($dynamic_option_list_index > 0) {
+% 		$m->comp("SELF:showChild", link_fields => $link_fields, saved_id => $saved_child_id, child_array => $link_fields->[0]{'items'}{$saved_parent_id}{'children'}, field_id => $link_fields->[0]{child_field_ids}[0]  );
+% }# end if dyn index > 0
+
+% if ($dynamic_option_list_index > 1) {
+% 		$m->comp("SELF:showChild", link_fields => $link_fields, saved_id => $saved_child_id_2, child_array => $link_fields->[1]{'items'}{$saved_child_id}{'children'}, field_id => $link_fields->[0]{child_field_ids}[1]  );
+% } # end if > 1
+
+% $dynamic_option_list_index++;
+
+% if ($push_index > 0) { $dynamic_option_list_index = 3; }
+
+<input type="hidden" name="dynamic_index" id="dynamic_index" value="<% $dynamic_option_list_index %>" />
+
+</%method>
+
+% #############################################################################################
+
+<%method showParent>
+
+<%args>
+	$link_fields
+	$saved_id
+	$hash
+	$field_id
+</%args>
+
+<select id="id_<% $field_id %>" name="id_<% $field_id %>">
+<option value="0" >Select</option>
+% foreach my $key (keys %$hash ){
+% my $slcted = "selected";
+% if ($saved_id != $key ) { $slcted = ""; }
+  <option value="<% $key %>" <% $slcted %> > <% $hash->{$key} %> </option>
+% }
+</select>
+
+</%method>
+
+% #############################################################################################
+
+<%method showChild>
+
+<%args>
+	$link_fields
+	$saved_id
+	$child_array
+	$field_id
+</%args>
+
+<br>
+<span>
+<select id="id_<% $field_id %>" name="id_<% $field_id %>">
+<option value="0" >Select</option>
+% foreach my $item (@$child_array){ 
+% my $slcted = "selected";
+% if ($saved_id != $item->[1]) { $slcted ="";}
+<option value="<% $item->[1] %>" <% $slcted %> > <% $item->[0] %> </option>
+% } 
+</select>
+</span>
+</%method>
+
+% #############################################################################################

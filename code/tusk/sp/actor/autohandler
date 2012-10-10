@@ -1,0 +1,41 @@
+<%method get_nav_bars>
+<%perl>
+	my ($course, $initial_nav_bars);
+
+	unless ($m->base_comp->attr('no_check_path')) {
+		$course = $m->comp("/tmpl/url:get_type_object");
+	}
+
+	if ($course) {
+		my $path = $course->school() . "/" . $course->course_id();
+		$initial_nav_bars = [ 
+			{ href => '/sp/actor/home', label => 'Simulated Patient Homepage'},
+##			perhaps this might be confusing for actors as we don't show SP on students' course page yet
+##			{ href => "/view/course/$path", label => 'Course - ' . $course->title()},
+		];
+	}
+
+	return $m->comp("/tmpl/nav", 
+		objects =>  $m->comp("SELF:get_nav_bar_objects"), 
+		type_path => ($m->base_comp->attr('no_check_path')) ? '' : undef,
+		prefix => '/sp/actor',
+		hierarchy => {	
+			'home' => [],
+			'list' => [],
+			'entry' => ['list'],
+		},
+		nav_entities_dependency => {
+			'list' => {'object' => 'TUSK::FormBuilder::Form', suffix => ['user_group'], 'static_title' => 'Students List - '}, 
+		},
+		title_func => { 'TUSK::FormBuilder::Form' => 'getFormName', },
+		initial_nav_bar =>  $initial_nav_bars,
+	);
+</%perl>
+</%method>
+
+<%method red_header_class>
+% 	return 'blueHeaderBar';
+</%method>
+
+<% $m->call_next %>
+

@@ -1,0 +1,689 @@
+<%doc>
+	Page contains the default header and footer for tusk pages
+</%doc>
+
+<%once>
+	use TUSK::Session;
+	use TUSK::Constants;
+	use TUSK::Functions;
+	use TUSK::Application::RSSCourse;
+	use HSDB4::Constants;
+	use HSDB4::DateTime;
+</%once>
+
+<& SELF:manage_header, %ARGS &>
+
+<%method header>  
+<%args>
+$title => undef
+$doctype => 'html'
+@jsarray => ()
+@stylearray => ()
+@metaData => ()
+</%args>
+<%doc>Main header method.  jsarrays and stylearrays load the corresponding js files and css files.</%doc>
+
+% if($doctype eq 'xhtml'){
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+% }
+% elsif($doctype eq 'wap'){
+<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.2//EN" "http://www.openmobilealliance.org/tech/DTD/xhtml-mobile12.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+% }
+% elsif($doctype eq 'simpleType4') {
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+% }
+% else {
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+% }
+<head>
+<!-- siteabb: TUSK -->
+<!-- Script Running On: <% $ENV{HOSTNAME} %> under: <% $$ %> !-->
+<title><% $TUSK::Constants::SiteAbbr %> - <% $title %></title>
+% if (!scalar(@stylearray)){
+<link rel="stylesheet" href="/style/style.css?<% TUSK::Functions::get_tusk_version %>" type="text/css" />
+<style type="text/css">@import url(/style/calendar-blue.css);</style>
+% } else {
+%	foreach my $style (@stylearray){
+%		if(ref($style) eq 'HASH'){
+<link rel="stylesheet" href="<% $style->{'file'} %>?<% TUSK::Functions::get_tusk_version %>" type="text/css" media="<% $style->{'media'} %>" />
+%		} else {
+<link rel="stylesheet" href="<% $style %>?<% TUSK::Functions::get_tusk_version %>" type="text/css" />
+%		}
+%	}
+
+% }
+% unless($doctype eq 'wap'){
+<script type="text/javascript" src="/scripts/scripts.js?<% TUSK::Functions::get_tusk_version %>" ></script>
+% }
+% foreach my $js (@jsarray) {
+<script src="/scripts/<% $js %>?<% TUSK::Functions::get_tusk_version %>" type="text/javascript"></script>
+% }
+<% join("", @metaData) %>
+<link rel="shortcut icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+<link rel="icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+</head>
+</%method>
+
+<%method frameset_header>  
+	<%args>
+		$title => undef
+		@jsarray => ()
+		@stylearray => ()
+		@metaData => ()
+	</%args>
+	<%doc>Main header method.  jsarrays and stylearrays load the corresponding js files and css files.</%doc>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Frameset//EN">
+<html>
+<head>
+<title><% $TUSK::Constants::SiteAbbr %> - <% $title %></title>
+% if (!scalar(@stylearray)){
+<link rel="stylesheet" href="/style/style.css?<% TUSK::Functions::get_tusk_version %>" type="text/css">
+<style type="text/css">@import url(/style/calendar-blue.css);</style>
+% } else {
+%	foreach my $style (@stylearray){
+%		if(ref($style) eq 'HASH'){
+<link rel="stylesheet" href="<% $style->{'file'} %>?<% TUSK::Functions::get_tusk_version %>" type="text/css" media="<% $style->{'media'} %>">
+%		} else {
+<link rel="stylesheet" href="<% $style %>?<% TUSK::Functions::get_tusk_version %>" type="text/css">
+%		}
+%	}
+
+% }
+<SCRIPT language="JavaScript" src="/scripts/scripts.js?<% TUSK::Functions::get_tusk_version %>" type=text/javascript></SCRIPT>
+% foreach my $js (@jsarray) {
+<SCRIPT language="JavaScript" src="/scripts/<% $js %>?<% TUSK::Functions::get_tusk_version %>" type=text/javascript></SCRIPT>
+% }
+<% join("", @metaData) %>
+</head>
+</%method>
+
+
+<%method start_content_no_nav>
+<!-- Begin Start Content No Nav -->
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr><td width="10" valign="top" bgcolor ="#E7EFF7">
+<img src="/graphics/spacer.gif" alt=" " width="10" height="1">
+<& SELF:end_left_nav, width => "10" &>
+</%method>
+
+<%method start_content_no_left_bar>
+<!-- Begin Start Content No Left Bar -->
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td width="150%" valign="top">
+</%method>
+
+<%method start_content>
+<%args>
+$width => 200 
+</%args>
+<!-- Begin Start Content -->
+<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr>
+<td width="<% $width %>" valign="top" bgcolor="#E7EFF7">
+</%method>
+
+<%method end_left_nav>
+<%args>
+$width => 200 
+</%args>
+<br/>
+<img src= "/graphics/spacer.gif" alt=" " width="<% $width %>" height="1" border="0">
+</td><td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif">
+<img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+<td width="150%" valign="top">
+</%method>
+
+
+<%method traffic_light>
+<%args>
+$args
+$make_table => 0
+$table_html => '<table width="100%" style="margin-top:10px;margin-bottom:10px">'
+$use_tables => 1
+</%args>
+<%doc>
+Governs all the things that affect the traffic light.
+To make your traffic light semantic, pass in use_tables => 0
+</%doc>
+<%perl>
+
+return if ($args->{req_hash}->{displayLittleUserNavBar} && !($ARGS{msg} or $ARGS{errmsg} or $ARGS{hintmsg}));
+
+if ($make_table){
+	print $table_html . "<tr>\n";
+}
+my ($class,$img,$msg);
+
+if ($m->comp("SELF:get_msg")){
+	if ($m->comp("SELF:get_msg_type") eq "msg"){
+		$args->{msg} = $m->comp("SELF:get_msg");
+	}elsif($m->comp("SELF:get_msg_type") eq "err"){
+		$args->{errmsg} = $m->comp("SELF:get_msg");
+	}else{
+		$args->{hintmsg} = $m->comp("SELF:get_msg");
+	}
+}
+if ($args->{msg} or $args->{errmsg} or $args->{hintmsg}) {
+	if ($args->{errmsg}){
+		$class = "error";
+		$msg = $args->{errmsg};
+		$img= "red.gif";
+	}elsif($args->{msg}){
+		$class = "success";
+		$msg = $args->{msg};
+		$img = "green.gif";
+	}else{
+		$class = "hint";
+		$msg = $args->{hintmsg};
+		$img = "yellow.gif";
+	}
+	if (ref($msg) eq 'ARRAY'){
+		my %msg = map { $_ => 1} @$msg; # just to make sure we aren't showing the same message more then once
+		$msg = join('<br>', keys %msg); # if more then one message, show them all!
+	}
+	if($use_tables){
+</%perl>
+  <td>&nbsp;</td>
+  <td align="center" class="<% $class %>">
+<!-- Begin Error Message Table -->
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr valign= "middle" class="<% $class %>"><td width="30" align="center">
+<img src="/graphics/<% $img %>"></td><td style="padding-left:10px">
+<div class="emphasis_font"><% $msg %></div>
+</td></tr></table><!-- End Error Message Table -->
+%	} else { # !$use_tables
+<p id="gTrafficLight" class="gLight<% $class %>">
+<% $msg %>
+</p>
+%	}
+% } elsif($use_tables){
+  <td>&nbsp;</td><td>&nbsp;</td>
+% }
+% print "<td>\&nbsp;</td></tr></table>" if ($make_table);
+</%method>
+
+<%method little_user_nav>
+<%args>
+$user
+</%args>
+<%doc>Makes the User Navigation links on the top right</%doc>
+
+% if (ref($user) eq 'HSDB4::SQLRow::User' and $user->primary_key) {
+  <!-- Begin user Table -->
+    <table border="0" cellspacing="0" cellpadding="0" valign="top">
+      <tr valign="top">
+        <td align="right" width="440">
+        <!-- Begin User Profile Table -->
+          <table cellspacing="0" cellpadding="0" border="0">
+          <!-- End User Table -->
+            <tr>
+              <td align="right" nowrap>
+                <font class="xxsm">
+                  Welcome <% $user->out_full_name %>  |
+%	unless(HSDB4::Constants::is_guest($user) || (TUSK::ShibbolethUser->isShibUser($user) != -1)) {
+                  <a href="/view/user/<% $user->primary_key %>" target="_top">My Profile</a>  | 
+                  <a href="/tusk/management/content/personalcontent" target="_top"> Personal Folders</a>  |  
+%	}
+                  <a href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>" target="_top">Logout</a>
+                &nbsp;
+                </font>
+              </td>
+            </tr>
+            <tr><td><img src="/graphics/spacer.gif" alt=" " width="1" height="5" border="0"></td></tr>
+          </table><!-- End User Profile Table -->
+        </td>
+      </tr>
+    </table> <!-- End User Table -->
+% }
+</%method>
+
+
+
+<%method user_nav>
+<%args>
+$user
+</%args>
+<%doc>Makes the User Navigation links on the top right</%doc>
+
+% if (ref($user) eq 'HSDB4::SQLRow::User' and $user->primary_key) {
+<!-- Begin user Table -->
+<div align="right">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+	<tr>
+    <td align="right" colspan="3"><img src="/graphics/spacer.gif" alt=" " width="1" height="5" border= "0"></td>
+  </tr>
+  <tr valign="top">
+%	$m->comp("SELF:traffic_light", args => \%ARGS);
+    <td align="right" width="440"><!-- Begin User Profile Table --><table cellspacing="0" cellpadding="0" border="0">
+<!-- End User Table -->
+      <tr>
+        <td align="right" nowrap>
+	<span class="emphasis_font">
+&nbsp;Welcome <strong><% $user->out_full_name %></strong>  |  
+%	unless(HSDB4::Constants::is_guest($user) || (TUSK::ShibbolethUser->isShibUser($user) != -1)) {
+		<a href="/view/user/<% $user->primary_key %>">My Profile</a>  | 
+		<a href="/tusk/management/content/personalcontent"> Personal Folders</a>  |  
+% }
+<a class="logout" href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>">Logout</a></span>&nbsp;</td></tr>
+          <tr>
+            <td>
+                <img src="/graphics/spacer.gif" alt=" " width="1" height="5" border="0"></td>
+            </tr>
+             <tr>
+                <td align="right" colspan="3"><img src="/graphics/hr-tools.gif" alt=" "></td>
+             </tr>
+             </table><!-- End User Profile Table -->
+          </td>
+  </tr>
+</table> <!-- End User Table -->
+</div>
+% }
+</%method>
+
+<%method manage_nav_bar>
+<%args>
+$nav_bar_arrayref
+$extra_nav_text		=> ''
+</%args>
+<%perl>
+	$m->print('<div id="nav_bar">');
+	my @nav_bar_array = map ($m->comp("/tmpl/element:nav_element", title => $_->{title}, href => $_->{href}, label => $_->{label}), @$nav_bar_arrayref);
+	$m->print(join('&nbsp;<span class="navsm">|</span>&nbsp', @nav_bar_array));
+
+	if ($extra_nav_text){
+      		$m->print('<span class="navsm">&nbsp;|&nbsp;' . $extra_nav_text . '</span>');
+	}
+	$m->print('</div>');
+</%perl>
+</%method>
+
+
+<%method print_syndicate_lnk>
+
+% my $obj = $m->comp('/tmpl/url:get_type_object');
+
+% if($obj->isa('HSDB4::SQLRow::Content')){
+%	my $context_parent = $obj->context_parent();
+
+%	if(defined $context_parent
+%	   && $context_parent->isa('HSDB45::Course')
+%	   && TUSK::Application::RSSCourse->remoteCheckPodcast( $context_parent->primary_key(), $context_parent->school(), $obj->primary_key()) ) {
+
+%		my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => 683356, text => 'Podcast Help', not_xmetal => 1, class => 'helpLnk'});
+
+<a class="podcastLnk" href="/tusk/rss/rss?cid=<% $context_parent->primary_key() %>&sc=<% $context_parent->school %>&colid=<% $obj->primary_key() %>">Subscribe to Podcast</a> <% $help_lnk %>
+
+%	}
+% }
+</%method>
+
+
+<%method start_body> 
+<%args>
+	$onload
+	$onunload
+</%args>
+% my $onload_attr = ($onload ne '') ? " onload=\"$onload\"" : '';
+% my $onunload_attr = ($onunload ne '') ? " onunload=\"$onunload\"" : '';
+<%doc>This is where header stops and your new content starts.</%doc>
+<body<% $onload_attr %><% $onunload_attr %>>
+<!-- Begin Main Outer Table -->
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+    <td width="150%" valign="top">
+</%method> 
+
+<%method global_links>
+<%args>
+$page
+$user
+</%args>
+
+<%perl>
+my @li_strings;
+
+my $helpurl = ($page eq "manage")? $TUSK::Constants::ManageHelpURL : $TUSK::Constants::HelpURL;
+push @li_strings, "<a href=\"$helpurl\" target=\"help\">Help</a>";
+push @li_strings, "<a href=\"$TUSK::Constants::ContactURL\" target=\"_top\">Contact</a>";
+push @li_strings, "<a href=\"$TUSK::Constants::AboutURL\" target=\"_top\">About</a>" if ($page eq 'login');
+push @li_strings, '<a href="/smallscreen">Mobile</a>' if ($page eq 'login' || $page eq 'home');
+
+if (ref($user) eq 'HSDB4::SQLRow::User' && $user->primary_key && $page ne 'login'){
+	unless(HSDB4::Constants::is_guest($user) || (TUSK::ShibbolethUser->isShibUser($user) != -1)) {
+		unshift @li_strings, '<a href="/view/user/' . $user->primary_key .'" target="_top">My Profile</a>';
+	}
+	push @li_strings, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time . '" target="_top">Logout</a>';
+}
+
+</%perl>
+
+<ul class="gGlobalLnks">
+% my $class;
+% my $length = scalar @li_strings;
+% for(my $i=0; $i < $length; $i++){
+%	my $class = ($i+1 == $length)? ' class="gLastOne"' : '';
+    <li<% $class %>><% $li_strings[$i] %></li>
+% }
+</ul>
+</%method>
+
+<%method logo>
+<h1 id="gLogo"><a href="/home" target="_top"><span><% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %></span></a></h1>
+</%method>
+
+
+
+<%method masthead>
+<%args>
+$type => 'home'
+$user
+$is_author => 0
+</%args>
+
+<div id="gMasthead">
+
+<& SELF:logo &>
+
+<div id="gTopNavs">
+
+<& SELF:global_links, page => $type, user => $user &>
+
+% if (ref($user) eq 'HSDB4::SQLRow::User' and $user->primary_key and $type ne 'login') {
+<span id="pHPuser">Welcome <% $user->out_full_name() %></span>
+% }
+
+% unless($type eq 'login'){
+% 	my $active = $type;
+<ul id="gTabNav" class="<% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
+    <li class="firstone<% $active eq 'home'  ? ' gCurPage' : '' %>"><a href="/home" target="_top">Home</a></li>
+    <li class="<% $active eq 'browse'? 'gCurPage' : '' %>"><a href="/allcourses.htm" target="_top">Browse All Courses</a></li>
+    <li class="<% $active eq 'search'? 'gCurPage' : '' %>"><a href="/search/form" target="_top">Search</a></li>
+% if($is_author){ 
+    <li class="<% $active eq 'manage'? 'gCurPage' : '' %>"><a href="/protected/management/home" target="_top">Manage Content</a></li>
+% 	}
+% }
+</ul>
+
+</div> <!-- gTopNavs -->
+
+</div> <!-- gMasthead -->
+</%method>
+
+
+<%method do_leftnav>
+<%args>
+$leftnav
+$type_path => ''
+</%args>
+<%doc>Loads the correct left navigation bar</%doc>
+<%perl>
+if (ref $leftnav eq 'HASH' and $leftnav->{component}){
+	$m->comp($leftnav->{component}, type_path=> $type_path, %{$leftnav});
+} elsif (ref $leftnav eq "" and $leftnav) {
+	$m->comp($leftnav, type_path=> $type_path);
+} else {
+	$m->comp('/tmpl/error',msg=>'Invalid leftnav parameter passed');
+}
+</%perl>
+</%method>
+
+
+<%method manage_frameset_header>
+	<%args>
+		%req_hash
+	</%args>
+	<%perl>
+		my $req = \%req_hash;
+		# figure out the alt text for the main image
+		$m->comp('SELF:frameset_header', title=>$req->{pagetitle},jsarray=>$req->{jsarray},stylearray=>$req->{stylearray}, metaData => $req->{metaData});
+	</%perl>
+</%method>
+
+
+<%method manage_header_div_layout>
+<%args>
+%req_hash
+</%args>
+<%perl>
+my $req = \%req_hash;
+
+$m->comp('SELF:header', 
+		title=>$req->{pagetitle},
+		jsarray=>$req->{jsarray},
+		stylearray=>$req->{stylearray}, 
+		metaData => $req->{metaData}, 
+		doctype => 'xhtml',
+		);
+my $has_nav = ($req->{leftnav})? 1 : 0;
+$m->comp('SELF:print_body', id => $req->{body_id}, has_nav => $has_nav);
+$m->comp('SELF:open_gContainer');
+$m->comp('SELF:masthead', 
+		type => $req->{top_tab_type}, 
+		user =>$req->{user}, 
+		is_author => $req->{is_author}
+		);
+$m->comp('SELF:open_gBody');
+if($req->{leftnav}){
+	$m->comp("SELF:do_leftnav", 
+		leftnav=>$req->{leftnav},
+		type_path=>$req->{type_path}
+		);
+}
+$m->comp('SELF:open_gContent');
+$m->comp('SELF:open_gMainContent');
+
+if($req->{top_tab_type} ne 'login'){
+	$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
+}
+if (!$req->{nostandardheader}) { 
+	$m->comp("SELF:manage_nav_bar", nav_bar_arrayref => $req->{nav_bar}, extra_nav_text => $req->{extra_nav_text});
+	if($req->{syndicate}) {
+		$m->comp("SELF:print_syndicate_lnk");
+	}
+	unless ($req->{skip_header_bar}){
+		$m->comp("SELF:header_bar_table", req => $req );
+	}
+}
+</%perl>
+</%method>
+
+
+<%method manage_header>
+<%args>
+%req_hash
+</%args>
+<%perl>
+my $req = \%req_hash;
+# figure out the alt text for the main image
+unless ($req->{skip_head_tag}){
+	$m->comp('SELF:header', title=>$req->{pagetitle},jsarray=>$req->{jsarray},stylearray=>$req->{stylearray}, metaData => $req->{metaData}, doctype => $req->{docType});
+}
+return if ($req->{'noheader'});
+unless ($req->{skip_head_tag}){
+	$m->comp('SELF:start_body', onload => $req_hash{onload}, onunload => $req_hash{onunload});
+}
+$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, is_author => $req->{is_author});
+return if($req->{'nobody'}); 
+
+        if ($req->{leftnav}){
+            $m->comp("SELF:start_content");
+	        $m->comp("SELF:do_leftnav",leftnav=>$req->{leftnav},type_path=>$req->{type_path});
+	        $m->comp("SELF:end_left_nav");
+        }elsif($req->{no_leftbar}){
+            $m->comp("SELF:start_content_no_left_bar");
+        }else{
+            $m->comp("SELF:start_content_no_nav");
+        }
+ 
+		$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
+
+</%perl>
+<!-- Begin Full Content Table -->
+<%doc>
+id on this table is used by forum. forum allows user to increase font size, but since 
+i didnt want that selection to mess up tusk's font sizes, i have those font increases
+only affect the content within the fullContentTable
+</%doc>
+<table id="fullContentTable" width="100%" border="0" cellspacing="0" cellpadding="0">
+   <tr>
+    <td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
+    <td width="100%" valign="top">
+% if (!$req->{nostandardheader}) { 
+<!-- Begin CMS Nav Table -->
+        <table width="100%" border="0" cellspacing="6" cellpadding="1">
+  <tr>
+    <td valign="top"><& SELF:manage_nav_bar , nav_bar_arrayref => $req->{nav_bar}, extra_nav_text => $req->{extra_nav_text} &></td>
+
+% if($req->{syndicate}){
+<td align="right"> 
+<& SELF:print_syndicate_lnk &>
+</td>
+% } 
+
+  </tr>
+
+</table>
+% 	unless ($req->{skip_header_bar}){
+		<& SELF:header_bar_table, req => $req &> 
+% 	}
+% }
+</%method>
+
+<%method header_bar_table>
+<%args>
+$req
+</%args>
+<%doc>Creates the header bar for the page (the red bar).  It either displays an image or text representation (new method).  It is possible to put images on the right of the header bar (preview and modify are examples of this).  If check_timeperiod flag is on, then checks to make sure the page</%doc>
+        <!-- End CMS Nav Table -->
+<!-- Begin Top Header Bar Table -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr class="<% ($req->{headerBarClass}) ? $req->{headerBarClass} : 'redHeaderBar' %>">
+    <td width="14" valign="top"><img src="/graphics/reverseLeft.gif" alt="Left" width="14" height="21" /></td>
+      <td width="100%" >
+<%doc>Change the text to lowercase if it has tags in it</%doc>
+%if($req->{redHeaderBarText} !~ /\<.*\>/) {$req->{redHeaderBarText} = lc($req->{redHeaderBarText});}
+%$m->print($req->{redHeaderBarText});
+</td>
+<td valign="middle" nowrap>
+	<& right_header_links, req => $req &>
+</td>
+  </tr>
+
+</table>
+% if (ref($req->{extratext}) eq "ARRAY") {
+<form name="generic" style="margin-top:0px; margin-bottom:0px" method="get">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+% foreach my $item (@{$req->{extratext}}) {
+% if ($item->{name} ne "") {
+<tr>
+   <td class="labelgray"><% $item->{name} %>:</td>
+   <td class="cell-left"><% $item->{text} %></td>
+ </tr>
+% 	}
+%   }
+</table>
+</form>
+% } 
+% if (($req->{check_timeperiod} || $req->{dynamic_check_tp}) && $m->session->{timeperiod} <=0) {
+<br>
+In <% $TUSK::Constants::SiteAbbr %>, there are no time periods associated with this course, please contact your school administrator for more assistance.
+<& $m->base_comp->attr('page_footer') &>
+% $m->abort;
+% }
+
+</%method>
+
+<%method print_body>
+<%args>
+$id => ''
+$has_nav => 1
+</%args>
+
+% my $class = ($has_nav)? '' : 'no_nav';
+% my $id_str = $id? "id=\"$id\"" : '';
+<body <% $id_str %> class="<% $class %>">
+</%method>
+
+<%method open_gContainer>
+<div id="gContainer">
+</%method>
+
+<%method open_gBody>
+<div id="gBody" class="clearfix">
+</%method>
+
+<%method open_gContent>
+<div id="gContent">
+</%method>
+
+<%method open_gMainContent>
+<div id="gMainContent">
+</%method>
+
+<%def right_header_links>
+<%args>
+	$req
+</%args>
+
+<%perl>
+    if ($req->{headerimages}){
+        for (my $i=0; $i < scalar(@{$req->{headerimages}}); $i++){
+		my $imgref = $req->{headerimages}->[$i];
+		  if ($imgref->{img}){
+		      print "<a href=\"" . $imgref->{url} . "\" target=\"" . $imgref->{target} . "\"><img class=\"headerimagelinks\" border=\"0\" src=\"/graphics/manage/" . $imgref->{img} . ".gif\" alt=\"" . $imgref->{img} . "\"></a>";
+		       }
+		  }
+	}
+	if ($req->{right_header_text}){
+		my @hrefs;
+		for (my $i=0; $i < scalar(@{$req->{right_header_text}}); $i++){
+			my $hdr_ref = $req->{right_header_text}->[$i];
+			if ($hdr_ref->{txt}){
+				push @hrefs, '<a href="' . $hdr_ref->{url} . '" onclick="' . $hdr_ref->{onclick} . '" target="' . $hdr_ref->{target} . '">' . $hdr_ref->{txt} . '</a>';
+			}
+	
+		}
+		$m->print(join(" \|\n", @hrefs) . '&nbsp;');
+	}
+</%perl>
+</%def>
+
+
+<%doc>
+	this component would show header with just logo, username and traffic light
+	title in the blue bar
+</%doc>
+<%method simple_header>
+<%args>
+	$args
+	$title
+	$links => undef
+	$onload => ''
+	$onunload => ''
+</%args>
+
+<& 'SELF:start_body', onload => $onload, onunload => $onunload &>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="350" valign="top">
+      <img src="/graphics/logo.gif" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" width="350" height="90">
+    </td>
+    <td>
+      <& 'SELF:traffic_light', args => $args, make_table => 1 &>
+    </td>
+    <td align="right" valign="bottom">
+	<span id="pHPuser"><% $m->session->{'user'}->out_full_name() %></span> &nbsp;
+	<span class="emphasis_font"> <% $links %></span
+	</td>
+  </tr>
+  <tr class="blueHeaderBar">
+    <td align="center" colspan="3"><% $title %> </td>
+  </tr>
+</table>
+</%method>
+

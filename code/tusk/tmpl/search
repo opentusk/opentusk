@@ -1,0 +1,152 @@
+<%args>
+%params 
+%inputArgs
+</%args>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="stylesheet" href="/style/styleNN.css" type="text/css">
+<style type="text/css">
+@import url(/style/style.css); /*IE and NN6x styles*/
+</style>
+<script language=JavaScript src="/scripts/layers.js" type=text/javascript></script>
+<script language="Javascript">
+function update_parent(layer,id){
+        var pk ;
+        if (layer == 'searchdiv'){
+                pk = layers[layer].structure.data[id][layers[layer].structure.fields[0]];
+%	if ($inputArgs{'parent'}){
+		<% $inputArgs{'parent'} %> = pk;
+%	} 
+		opener.window.focus();
+	}
+}
+</script>
+</head>
+
+<body>
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+          <td width="255" valign="top"><img src="/graphics/logosm.gif" 
+		alt="TUSK: Tufts University Science Knowledgebase" 
+		width="255" height="65"></td>
+          <td width="25" valign="middle" align="center"><img src="/graphics/spacer.gif" 
+		alt=" " width="25" height="1"
+ 		border="0"></td>
+          <td width="100%" valign="bottom" align="center">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td align="center" nowrap><img 
+			src="/graphics/manage/Find-<% $params{entity_name}%>.gif" 
+			alt="Find <% ucfirst ($params{entity_name}) %>" height="43"></td>
+              </tr>
+              <tr>
+		<td align="right" nowrap>
+                        &nbsp;
+                </td>
+              </tr>
+            </table></td>
+	<td width="10" valign="middle" align="right"><img src="/graphics/spacer.gif" 
+		alt=" " width="10" height="1" border="0"></td>
+        </tr>
+        <tr>
+          <td colspan="3" width="100%" 
+		valign="top" 
+		background="/graphics/bg-dotshorz.gif"><img src="/graphics/spacer.gif" 
+				alt=" " width="1" height="1" border="0"></td>
+        </tr>
+      </table>
+<br>
+<form name="search" method="post">
+<& SELF:create_search_form, params=>\%params, inputArgs=>\%inputArgs &>
+</form>
+</body>
+</html>
+
+<%method create_search_form>
+<%args>
+%params
+%inputArgs
+</%args>
+<%perl>
+	sub setupConds {
+		my ($params,$input) = @_;
+		my $cond = ' 1= 1 ';
+		foreach my $field_key (keys %{$params->{fields}}){
+			if (($input->{$field_key}) 
+			|| ($input->{$field_key} eq '0')){
+				$cond .= " AND ".sprintf($params->{fields}->{$field_key},
+						$input->{$field_key});
+			}	
+		}
+		return $cond;
+	}
+	sub setupFields {
+		my $params = shift;
+		return [keys %{$params->{'fields'}}];
+	}
+	sub setupOrderBy {
+		my $params = shift;
+		return $params->{orderby};
+	}
+	my $resultsRef = [] ; 
+        if ($inputArgs{search_submit}){
+		my $conds = setupConds(\%params,\%inputArgs);
+		my $orderby = setupOrderBy (\%params);
+		if ($params{obj}->can('lookup_conditions')){
+                     my @results = $params{obj}->lookup_conditions($conds,$orderby);
+		     $resultsRef = \@results;
+		} elsif ($params{obj}->can('lookup')){
+		     my $fields = setupFields(\%params);
+		     $resultsRef = $params{obj}->lookup($conds, $orderby,$fields); 
+		} else {
+			$m->print("INVALID OBJECT SELECTED");
+		}
+        } 
+	$params{layer_info}->{object_list} = $resultsRef;
+</%perl>
+<table cellspacing="5">
+% 	foreach my $field (@{$params{search_fields}}) {
+        <tr>
+                <td> <b><% $field->{'label'} %></b>&nbsp;</td>
+		<td><input type="text" name="<% $field->{'name'} %>"></td>
+        </tr>
+%	}
+</table>
+<table>
+        <tr>
+                <td width= "1%">
+		<input type="submit" name="search" value ="Search" class="formbutton"> 
+		<input type="hidden" name="search_submit" value ="Search" class="formbutton"> 
+		</td>
+                <td style="text-align : left">
+                        <input type="button" class="formbutton" 
+			value="Close window" onclick="window.close()">&nbsp;
+                </td>
+        </tr>
+%	if ($inputArgs{search_submit}) {
+%		my $resultCount = scalar(@{$resultsRef});
+        <tr>
+                <td colspan="2"><br>
+%		if($resultCount){
+                        <div id="count"><% $resultCount %> matching entries:</div>
+%		} else {
+                        <div id="count">No matching entries.</div>
+%		}
+                </td>
+        </tr>
+%		if ($resultCount) {
+
+        <tr>
+                <td colspan="2">
+                        <div id="searchdiv"></div>
+			<& layers:create_layer, struct=>$params{'layer_info'} &>
+                </td>
+
+        </tr>
+%		} # end of has results
+%	} # end of search run
+
+</table>
+
+</%method>

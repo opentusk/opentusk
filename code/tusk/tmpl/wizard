@@ -1,0 +1,65 @@
+<%doc>
+Library that creates the structure to handle form submit and page redirection.
+Notes
+Must call method include inside a form
+Used with the save_and_continue js function found in element.js (this is where dynamic next_page values are created)
+</%doc>
+
+<%method include>
+<%doc>Creates hidden form element next_page</%doc>
+<input type="hidden" name="next_page" />
+</%method>
+
+<%method submitted>
+<%args>
+%args 
+</%args>
+<%doc>Checks to see if the form was submitted and a next_page value was submitted</%doc>
+<%perl>
+if (defined($args{'next_page'})){
+	return 1;
+}
+return 0;
+</%perl>
+</%method>
+
+<%method do_next>
+<%args>
+%args
+$default_transition => undef
+$msg => ''
+$msgtype => 'msg'
+</%args>
+<%doc>Redirect to the next_page or to the default_transition</%doc>
+<%perl>
+
+my $msgappend = ($msg) ? "?" . $msgtype . "=" . $msg : "";
+
+if ($args{'next_page'}){
+	$m->redirect($args{'next_page'} . $msgappend);
+} elsif (defined($default_transition)){
+	$m->redirect($default_transition . $msgappend);
+}
+
+</%perl>
+</%method>
+
+<%method next_button>
+<%args>
+$formname
+$next_page
+$label => 'Next' 
+$extra => ""
+$addtl_code => '';
+</%args>
+<%doc>Create a next button</%doc>
+<%perl>
+if (defined($formname)){
+	$formname = "'".$formname."'";
+} 
+</%perl>
+<& /tmpl/element:button, params=>{'name'=>'next_button',
+                'onclick'=>"save_and_continue($formname,'$next_page','$extra','$addtl_code')",
+                'label'=>$label} &>
+</%method>
+

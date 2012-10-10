@@ -1,0 +1,36 @@
+<%flags>
+inherit => undef
+</%flags>
+
+<%once>
+	use IO::File;
+	use Spreadsheet::WriteExcel;
+</%once>
+
+<%shared>
+	$m->comp("/tmpl/url:check_path");
+</%shared>
+
+<%perl>
+	my $fh = IO::File::new_tmpfile;
+	my $startpos = $fh->getpos;
+
+	$m->comp("/formbuilder/report:open_workbook", handle => $fh);
+	$m->comp("/patientlog/tmpl/report", args => \%ARGS, report_type => "download-xls");
+	$m->comp("/formbuilder/report:close_workbook");
+
+	if (defined($fh)){
+                $m->clear_buffer();
+		$fh->setpos($startpos);
+		$r->content_type( 'application/vnd.ms-excel' );
+		$r->header_out( 'Content-Disposition' => 'attachment; filename="patientlog-export.xls"'); 
+		$r->send_http_header();
+		binmode( $fh );
+		binmode( STDOUT );
+      		while( read $fh, my $buf, 16384 ) { print STDOUT $buf; }
+      		close $fh;
+                $m->abort();
+	}else{
+                $m->comp("/error:displayError", message => "Sorry, there was an error generating the report.");
+	}
+</%perl>

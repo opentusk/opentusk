@@ -1,0 +1,273 @@
+<%doc>Library file that handles adding/editing/deleting permissions within a feature (fearture_type_token) and interfacing with the permission engine (TUSK::Permission check the perldoc).</%doc>
+<%init>
+use TUSK::Permission;
+use TUSK::Permission::Role;
+use TUSK::Permission::UserRole;
+</%init>
+
+<%method hintmessage>
+% return 'Please remember to hit \'Save Changes\' once you are done making changes.';
+</%method>
+
+<%method jsarray>
+<%doc>any pages that want to manage permissions needs to load these js files</%doc>
+% return ['layers.js', 'element.js'];
+</%method>
+
+<%method page>
+<%args>
+$args
+$feature_type_token
+$feature_id
+$allow_duplicate => 1
+$course_users => undef
+$role_label => ''
+</%args>
+
+<%doc>Method that makes a permission add/edit/delete screen for a particular feature_type_token</%doc>
+
+<%perl>
+	my $users = TUSK::Permission::UserRole->new()->lookupFeature($feature_type_token, $feature_id);
+	my @data = map { {  'user_role_id' => $_->getPrimaryKeyID(), userid => $_->getUserID(), role => $_->getRoleID(), name => $_->getFullUserName() } } @$users;
+
+	$m->comp("SELF:actions", args => $args, data => \@data, feature_id => $feature_id) if ($args->{'submit_check'});
+
+	my $roles = TUSK::Permission::Role->new()->getRoles($feature_type_token);
+	my @roles_array = map { { label => $_->getPrettyRoleToken(), value => $_->getPrimaryKeyID() } } @$roles;
+	my $functions = ($allow_duplicate) ? [ {func=>'duplicate_row', label => 'Another Role'} ] : [];
+	push (@$functions, {func=>'remove', label=>'Remove'});
+</%perl>
+
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => 'permissions',
+		onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+
+% if ($course_users) {
+
+<%perl>
+	my %app_users = map { $_->getUserID() => 1 } @$users;
+	my @selected_course_users = ();
+	foreach my $user (@$course_users) {
+		next if exists $app_users{$user->primary_key()};
+		push @selected_course_users, { 
+			name => $user->out_label(),
+			userid => $user->primary_key(),
+			role => $user->roles(), 
+			uid => $user->primary_key(),
+		};
+	}
+</%perl>
+
+<& /tmpl/element:field_display, params => { 
+	label 	=> 'Available course users:',
+	value 	=> '<div id="courseusersdiv"></div>' } &>
+
+<& /tmpl/layers:create_layer, struct => {
+      	layer => 'courseusersdiv',
+	fields => ['uid','userid','name','role'],
+	name => 'users',
+	sort => {usage => 'No'},
+	scrollrows => 6,
+	action => { usage => 'Yes', length => 70, functions => [{func => 'addUser', label=> 'Add'}] },
+	display => [ 
+		{label=>'Name',field=>'name', align=>'left', length=>250},
+		{label=>'User ID',field=>'userid', align=>'left', length=>90},
+		{label=>'Course Role',field=>'role', align=>'left', length=>150, }, 
+	],
+	validate => { usage => 'No', },
+	data => \@selected_course_users,
+} &>
+
+<script>
+function addUser(layer, index){
+	data = layers[layer].structure.data[index];
+	remove(layer, index);
+	layers['userdiv'].adddata(data, 1);
+
+}
+</script>
+
+<& /tmpl/element:sort_order_box , params =>{
+	no_add_button 	=> 1,
+	label => 'Current Users',
+	buttons => [ '&nbsp;' . $m->scomp("/tmpl/element:button", params => {label => 'Add Names', onclick => "openwindow('userdiv');" }) ],
+	td_class => 'button-left',
+	layer_info => {
+        	layer => 'userdiv',
+		fields => ['user_role_id', 'userid', 'name','role'],
+		name => 'users',
+		sort => {usage => 'No'},
+		scrollrows => 10,
+		action => { usage => 'Yes', length=> 200, functions => $functions },
+		display => [ 
+			{label=>'Name',field=>'name', align=>'left', length=>250},
+			{label=>'User ID',field=>'userid', align=>'left', length=>90},
+			{label=>"$role_label Role",field=>'role', align=>'center', length=>150,options=>\@roles_array }, ],
+		validate => {usage => 'No',},
+		data => \@data }
+} &>
+
+<& /tmpl/element:save_button, params => {
+	label => 'Save Changes', 
+	name => 'form_submit', 
+	no_cancel_button => 1,
+	onclick => 'this.form.submit();',
+} &>
+
+% } else {
+
+<& /tmpl/element:sort_order_box , params =>{
+                no_label=>'Yes',
+		label => 'User',
+                button_onclick=>"openwindow('userdiv')",
+		buttons => [ $m->scomp("/tmpl/element:button", params => {label => 'Save Changes', name => 'form_submit', onclick => 'this.form.submit();' }) ],
+		td_class => 'button-left',
+                layer_info => {
+                        layer => 'userdiv',
+                        fields => ['user_role_id', 'userid', 'name','role'],
+                        name => 'users',
+                        sort => {usage => 'No'},
+			scrollrows => 10,
+                        action => { usage => 'Yes', length=>300, functions => $functions },
+                        display => [ 
+					{label=>'Name',field=>'name', align=>'left', length=>250},
+					{label=>'User ID',field=>'userid', align=>'left', length=>90},
+					{label=>'Role',field=>'role', 
+						align=>'center', length=>150,options=>\@roles_array },
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => \@data }
+                } &>
+
+% } 
+
+% $m->comp("/tmpl/element:submit_check");
+</form>
+</table>
+% $m->comp("SELF:show_role_definitions", roles => $roles);
+</%method>
+
+<%method show_role_definitions>
+<%args>
+$roles
+</%args>
+<%doc>Method that displays an html version of each role for this feature_type_token (show all functions associated to each role)</%doc>
+<div class="subhead">Role Definitions</div>
+<%perl>
+foreach my $role (@$roles){
+	my $body = "<ul class=\"xsm\">";
+	my $role_functions = $role->getRoleFunctionObjects();
+	my $body_flag = 0;
+
+	foreach my $role_function (@$role_functions){
+		my $function = $role_function->getFunctionObject();
+		next unless ($function->getPrimaryKeyID());
+
+		$body .= "<li class=\"xsm\">";
+		$body .= ($function->getFunctionDesc()) ? $function->getFunctionDesc()  : $function->getPrettyFunctionToken();
+		$body .= "</li>\n";
+		$body_flag = 1;
+	}
+	
+	$body .= "</ul>";
+
+	$body = "No defined functions." unless ($body_flag);
+
+	my $extra_text = ($role->getRoleDesc()) ? " - " . $role->getRoleDesc() : "";
+
+	$m->comp("/tmpl/element:toggle_link", pk => $role->getPrimaryKeyID(), body => $body, extra_text => $extra_text, link_text => $role->getPrettyRoleToken(), body_class => "xsm");
+}
+</%perl>
+</%method>
+
+<%method actions>
+<%args>
+$args
+$feature_id
+$data
+</%args>
+<%doc>Actions for a permission add/edit/delete page (saves changes to the database)</%doc>
+<%perl>
+my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^userdiv');
+
+# remove doubles (ie same user and same role)
+my $row_check = {};
+foreach my $row (keys %{$rowHash}){
+	my $key = $rowHash->{$row}->{fields}->{userid} . "\0" . $rowHash->{$row}->{fields}->{role};
+	print $key . "<br>";
+	if (exists($row_check->{$key})){
+		delete($rowHash->{$row});
+	}else{
+		$row_check->{$key} = 1;
+	}
+}
+
+$m->comp('/tmpl/process:manipulate_rows',
+		row_type => 'Direct',
+		user => $m->session->{'user'}->user_id(),
+		object_name => 'TUSK::Permission::UserRole',
+		fields_data => $rowHash,
+		field_function_map => { 
+					'userid'=>'setUserID',
+					'role' => 'setRoleID',
+					'feature_id' => 'setFeatureID',
+				},
+		default_field_data => {
+					'feature_id' => $feature_id,
+					},
+		display_data => $data );
+
+$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msg' => "Roles successfully updated."));
+</%perl>
+</%method>
+
+<%shared>
+	my $permissions;
+</%shared>
+
+<%method get_permissions>
+<%doc>Return global permission object.</%doc>
+% return $permissions;
+</%method>
+
+<%method check_permission>
+<%args>
+$function_token => ''
+$feature_id => 0
+</%args>
+<%doc>Do a permission check against the global permission object</%doc>
+% return 0 unless ref($permissions) eq 'TUSK::Permission';
+% return $permissions->check( { feature_id => $feature_id, function_token => $function_token } );
+</%method>
+
+<%method lookup_permissions>
+<%args>
+$function_token => ''
+$feature_type_token
+$feature_id
+</%args>
+<%doc>Method uses new permission scheme.  Only checks if attribute check_feature_permissions is on.  Please refer to TUSK::Permission for more information.</%doc>
+<%perl>
+	$permissions = TUSK::Permission->new( { 
+						'user_id' 		=> $m->session->{'user'}->primary_key(),
+						'feature_type_token' 	=> $feature_type_token,
+						'feature_id' 		=> $feature_id,
+						'allow_flag' 		=> $m->comp('/autohandler:check_course_permissions', token => 'DIRECTORNONSTUDENT'),
+					} );
+	if ($function_token){
+		unless ($m->comp("SELF:check_permission", function_token => $function_token)){
+			$m->comp("/tmpl/url:redirect",message => "Permission Denied");
+		}
+	}
+
+</%perl>
+</%method>

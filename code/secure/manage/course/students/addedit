@@ -1,0 +1,121 @@
+[!
+	use TUSK::Manage::Course::Users;
+	use TUSK::Manage::Course::Students;
+!]
+[-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	$req->{jsinclude} = "layers.js";
+
+	$req->{type}="course";
+	$req->{pagetype}="students";
+	$req->{checkforschooladmin} = 1;
+
+	unless ($fdat{page}){ $fdat{page}="add"; }
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	$is_thesis_comm = ($req->{course}->type() eq 'thesis committee')? 1 : 0;
+
+	if ($fdat{action}){
+		($rval, $msg) = TUSK::Manage::Course::Students::addedit_users($req, \%fdat, \%udat);
+
+		if($is_thesis_comm && $rval == 1){
+			$fdat{roles} = 'Student Editor';
+			($rval, $msg) = TUSK::Manage::Course::Users::addedit_users($req, \%fdat, \%udat);
+		}
+
+		process_return_values($rval, $msg);
+		$http_headers_out{'Location'}="/manage/course/students/show/".$req->{classpath}."/?" . $fdat{urimsg};
+	}
+	
+	$data = TUSK::Manage::Course::Students::addedit_pre_process($req, $fdat{user}, \%udat);
+
+        manage_header($req);
+-]
+<!-- End Header Table -->
+<form name="users" action="" method="post" onsubmit="return checkform(this);" class="no-padding">
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+     <tr>
+           <td class="labelgray">Time Period:</td>
+ 	   <td class="cell-left">[+ TUSK::Functions::get_selected_timeperiod_display($req->{school}, \%udat) +]</td>
+    </tr>	
+    <tr> 
+      <td class="labelgray">User(s):</td>
+      <td>
+<table width="75%" cellpadding="0" cellspacing="0">
+[$ if (!$fdat{user}) $]
+		<tr>
+			<td class="cell-left">
+				<input type="button" value="Add Names" class="formbutton" onclick="openwindow('usersdiv')">
+			</td>
+		</tr>
+[$ endif $]
+		<tr>
+			<td class="cell-left">
+				<div id="usersdiv"></div><input type="hidden" id="User__y" name="users">
+			</td>
+		</tr>
+	</table>
+[- 	
+	create_layer({
+			layer => 'usersdiv',
+			fields => ['userid','name'],
+			name => 'users',
+			sort => {usage => 'No'},
+			action => $data->{actionref},
+			display => [
+					{field=>'name', align=>'left', length=>225,},
+					{field=>'userid', label=>'UserID', align=>'left', length=>75,}
+				  ],
+			validate => {
+					usage => 'Yes',
+					form => 'users',
+					element => 'users'
+				},
+			data => $data->{userarray},
+			});
+-]
+ </td>
+    </tr>
+[$ if ($data->{showflag}) $]
+    <tr> 
+      <td class="labelgray">Teaching Site:</td>
+      <td class="cell-left"><select name="teaching_site"><option value="0">None[$ foreach $site (@{$data->{sites}}) $]
+	<option value="[+ $site->primary_key+]" [$ if ($data->{cursite} == $site->primary_key) $]selected[$ endif $]>[+ $site->field_value('site_name') +]
+	[$ endforeach $]</select>
+        </td>
+    </tr>
+[$ endif $]
+    <tr> 
+      <td class="labelgray">Assign to Course Groups:</td>
+      <td class="cell-left"><table width="75%" border="0" cellspacing="0" class="tusk">
+
+[$ if (scalar(@{$data->{usergroups}})) $]
+[$ foreach $usergroup (@{$data->{usergroups}}) $]
+[- 
+	if ($fdat{user}){
+		@groupusers=$usergroup->child_users("child_user_id='" . $fdat{user} . "'"); # check the each of the groups to the first user in the array
+	}
+-]
+	<tr> 
+            <td class="layers-left"> <input type="checkbox" name="newgroup-[+ $usergroup->primary_key +]" value="1" [$ if ($groupusers[0]) $] checked[$ endif $]>[+ $usergroup->field_value('label') +]<input type="hidden" name="oldgroup-[+ $usergroup->primary_key +]" value="[$ if ($groupusers[0]) $]1[$ else $]0[$ endif $]"></td>
+          </tr>
+[$ endforeach $]
+[$ else $]
+	<tr><td><i>No course groups.</i></td></tr>
+[$ endif $]
+        </table></td>
+    </tr>
+    <tr> 
+      <td>&nbsp;</td>
+      <td class="cell-submit"><input class="formbutton" type="submit" name="submit" value="Save and Continue"><input type="hidden" name="action" value="[+ $data->{action} +]"></td>
+    </tr>
+    <tr> 
+      <td width="200"><img src="/graphics/spacer.gif" width="200" height="1"></td>
+      <td><img src="/graphics/spacer.gif" width="356" height="1"></td>
+    </tr>
+  </table>
+</form>
+</td></tr></table></td></tr></table></td></tr></table></body></html>

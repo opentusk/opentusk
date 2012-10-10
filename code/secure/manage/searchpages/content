@@ -1,0 +1,191 @@
+[!
+	use TUSK::Search::Content;
+	use TUSK::Constants;
+!][-
+	$req = shift;
+	$user = $req->{user}->user_id();	
+	if ($fdat{search}){
+		if ($fdat{content_id}){
+			$contentString = $fdat{content_id};
+			$contentString =~ s/[^0-9, ]//g;
+			$results = [HSDB4::SQLRow::Content->new->lookup_conditions(" content_id IN ( $contentString )")];
+		} elsif ($fdat{query} || $fdat{title} || $fdat{author} || $fdat{course}) {
+			 ## do a search for each field
+			 %queryStruct = map { ( $_ => $fdat{$_} )  } grep { $fdat{$_} } qw(query title author course school media_type);
+
+			 $ids = TUSK::Search::Content->new()->search({ %queryStruct });
+	
+			$results = [];
+			if (scalar(@$ids)){
+				$results = [ HSDB4::SQLRow::Content->new()->lookup_conditions("content_id in (" . join(',', @$ids) . ")") ];
+			}
+		}
+	}
+        Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	$counter = 0;
+-]
+<table width="100%" cellspacing="0" cellspacing="0">
+
+<tr>
+<td VALIGN="middle">
+	<table  cellspacing="0" cellpadding="0"> 
+		<input type="hidden" name="join" value="and">
+	<tr>
+		<td class="labelgray">Keywords:</td>
+		<td class="cell-left"><input TYPE="TEXT" SIZE=35 NAME="query" VALUE="[+ $fdat{query} +]" SIZE="50"></td>
+	</tr>
+
+	<tr>
+		<td class="labelgray" >Document Title:</td>
+		<td class="cell-left"><input TYPE="TEXT" SIZE=35 NAME="title" VALUE="[+ $fdat{title} +]" SIZE="50"></td>
+	</tr>
+	[$ if (defined($req->{mycontent})) $]
+		<input type="hidden" name="author" value="[+ $req->{user}->primary_key +]">
+	[$ else $]
+	<tr>
+		<td class="labelgray">Author:</td>
+		<td class="cell-left"><input TYPE="TEXT" SIZE=35 NAME="author" VALUE="[+ $fdat{author} +]"></td>
+	</tr>
+	[$ endif $]
+
+        <tr>
+                <td class="labelgray">Course Title:</td>
+                <td class="cell-left"><input TYPE="TEXT" SIZE="35" NAME="course" VALUE="[+ $fdat{course} +]"></td>
+        </tr>
+        <tr>
+                <td class="labelgray">Content ID:</td>
+                <td class="cell-left"><input TYPE="TEXT" SIZE="10" NAME="content_id" VALUE="[+ $fdat{content_id} +]"></td>
+        </tr>
+		<tr><td>&nbsp;</td><td class="cell-submit"><input type="submit" name="search" value="Search" class="formbutton">&nbsp;
+[$ if ($TUSK::Constants::HelpMap{'search'}) $]
+<a href="/view/content/[+ $TUSK::Constants::HelpMap{'search'} +]" target="help">Help</a>
+[$ endif $]</td></tr>
+
+
+	</table>
+</td>
+<td>&nbsp;</td>
+<td VALIGN="top">
+	<table>
+<tr>
+	<td align="center">Type<br><select NAME="media_type" SIZE="6" MULTIPLE>
+<option VALUE="" SELECTED>All</option>
+<option VALUE="Audio">Audio</option>
+<option VALUE="Collection">Collection</option>
+<option VALUE="Document">Document</option>
+<option VALUE="DownloadableFile">Downloadable File</option>
+<option VALUE="Flashpix">Flashpix</option>
+<option VALUE="PDF">PDF</option>
+
+<option VALUE="Shockwave">Shockwave</option>
+<option VALUE="Slide">Slide</option>
+<option VALUE="Student Notes">Student Notes</option>
+<option VALUE="URL">URL</option>
+<option VALUE="Video">Video</option>
+	</select>
+	</td>
+	<td VALIGN="top" ALIGN="center"></td>
+	<td align="center">School<br><select NAME="school" SIZE="6" MULTIPLE>
+
+<option VALUE="" SELECTED>All</option>
+[$ foreach $search_school (@TUSK::Constants::SearchSchools)$]
+<option VALUE="[+ $search_school +]">[+ $search_school +]</option>
+[$ endforeach $]
+	</select>
+
+	</td>
+	</tr>
+	<tr><td colspan="8" align="center"><div class="hinttext">press and hold the control (Ctrl) key while clicking
+to select multiple items</div></td></tr>
+	</table>
+</td>
+</tr>
+<script language="Javascript">
+	function update_parent(layer,id){
+       		var pk ;
+	        if (layer == 'searchdiv'){
+        	        pk = layers[layer].structure.data[id].content_id;
+			[- if (defined ($fdat{'parent'})){
+				print OUT $fdat{parent}; 
+				} else {
+				print OUT "var foo";
+				}
+			  -] = pk;
+			[$ if ($fdat{'parentlayer'}) $]
+			add('searchdiv',id,'[+ $fdat{'parentlayer'} +]')
+			[$ endif $]
+			opener.window.focus();
+		}
+	}
+	
+	function view(layer, id){
+		location.href = '/view/content/' + layers[layer].structure.data[id].content_id;
+	}
+</script>
+<input TYPE="hidden" NAME="search" VALUE="1">
+
+
+	[$ if ($fdat{search}) $]
+	<tr>	
+		<td class="layers-left">
+[- $numResults = scalar(@$results) -]
+			<div id="count">[+ $numResults +] matching entr[$ if ($numResults == 1) $]y[$ else $]ies[$ endif $][$ if ($numResults) $]:[$ endif $]</div>
+		</td>
+	</tr>
+	[$ if ($numResults) $]
+	<tr>
+		<td colspan="3">
+	<div id="searchdiv"></div>
+
+[-
+        foreach $content (@{$results}){
+		if ($content->primary_key()){
+			push (@contentarray, {
+					content_id => $content->primary_key() || 0 , 
+					author => join(',', map {$_->out_abbrev} $content->child_authors) || '',
+					type => $content->type() || '',
+					title => $content->title() || '',
+					icon => $content->out_icon() || '',
+				});
+		}
+        }
+
+	my $fields = ['content_id','title','type','author'];
+	my $display = [
+                                        {field=>'icon', label=>'&nbsp;',align=>'left', length=>40, uneditable=>'Y'},
+                                        {field=>'type', align=>'left', length=>100,},
+                                        {field=>'title', align=>'left', length=>300,},
+                                        {field=>'author', align=>'left', length=>300,}
+			  ];
+	my $action = { usage => 'Yes', length => 100, functions => [
+                                                                        { func => 'update_parent', label => 'Select' }
+                                                                ]};
+	if (defined($req->{mycontent})){
+			
+		$action = { usage => 'Yes', length => 100, functions => [
+                                                                        { func => 'view', label => 'View' }
+                                                                ]};
+	}
+        create_layer({
+                        layer => 'searchdiv',
+                        fields => $fields, 
+                        name => '',
+                        sort => {usage => 'No'},
+                        scrollrows => 9,
+                        parentlayer => $fdat{parentlayer},
+                        action => $action,
+                        display => $display,
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => \@contentarray,
+                        });
+-]
+
+		</td>
+
+	</tr>
+	[$ endif $] [# end if results #]
+	[$ endif $] [# end if search #]
+</table>
+<input type="hidden" name="parent" value="[+ $fdat{parent} +]">

@@ -1,0 +1,38 @@
+[-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+
+	$req->{pagetype}="tracking";
+	$req->{image}="DeleteReport";
+	$req->{checkcourserole}="DIRECTOR";
+	
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	if ($fdat{action} eq "Delete and Continue"){
+		($rval, $msg) = TUSK::Manage::Tracking::delete_process($req);
+		process_return_values($rval, $msg);
+		$http_headers_out{'Location'}="/manage/tracking/show/course/" . $req->{classpath} . "/?" . $fdat{urimsg};
+	}
+	
+	$fdat{hintmsg} = "Are you sure you want to delete tracking report?";
+
+        manage_header($req);
+-]
+<form action="" method="post" class="no-padding">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr> 
+                        <td class="labelgray">Delete:</td>
+                        <td class="cell-left">
+[+$req->{tracking}->getTrackingTitle+]&nbsp;&nbsp;([+$req->{tracking}->getUserGroupName+]; [+$req->{tracking}->getDateRange+])
+			</td>
+                      </tr>
+                      <tr> 
+                        <td>&nbsp;</td>
+                        <td class="cell-submit"> 
+                          <input name="action" type="submit" class="formbutton" value="Delete and Continue"></td>
+                      </tr>
+                    </table>
+                  </form>
+
+[- manage_footer(); -]

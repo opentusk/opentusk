@@ -1,0 +1,188 @@
+<%shared>
+	my @classArray = ('simEven','simOdd');
+	my $rowCount = 0; 
+</%shared>
+
+<%method header_bar>
+<%args>
+	$label
+</%args>
+<tr><td colspan="2">
+<& /tmpl/element:table, params=>{width=>"100%"} &>
+<tr class="header1"><td width="1%" valign="top"><img src="/graphics/reverseLeft.gif" /></td><td style="padding-left : 3px" ><% $label %></td></tr>
+</table>
+</td></tr>
+</%method>
+
+<%method divider_bar>
+<tr><td><img src ="/graphics/spacer.gif" height="8" /></td></tr>
+<tr><td height="1" background="/graphics/bg-dotshorz.gif">
+<img src="/graphics/spacer.gif" alt=" " height="1" border="0"></td></tr>
+<tr><td><img src ="/graphics/spacer.gif" height="3" /></td></tr>
+</%method>
+
+<%method field_display>
+<%args>
+	%params
+</%args>
+
+<%perl>
+	my $class = 'text1';
+	if ($params{'bold'}){
+		$class = 'highlightBold';
+	}
+	my $nowrap = ($params{'nowrap'}) ? 'nowrap' : '';
+</%perl>
+
+<tr>
+% if (defined($params{'addtl_cols'})){
+%	for my $count (1..$params{'addtl_cols'}){
+	<td></td>
+%	}
+%}
+<td class="label" valign="top" <% $nowrap %> width="<% $params{'width'} %>"><% $params{'label'} %></td>
+<td class="<% $class %>" valign="top" ><% $params{'value'} %></td>
+</tr>
+</%method>
+
+<%method table_header>
+<tr class="simHeader">
+</%method>
+
+<%method table_row>
+<%args>
+	%params => {}
+</%args>
+<tr class="<% $classArray[($rowCount++ % 2)] %> <% $params{'class'} %>">
+</%method>
+
+<%method transition>
+<%args>
+	%args
+</%args>
+<%perl>
+	if ($m->comp('/tmpl/wizard:submitted',args =>\%args)){
+		$m->comp('/tmpl/wizard:do_next',args=>\%args);
+	}
+</%perl>
+</%method>
+
+<%method transition_button>
+<%args>
+	$phase
+	$case
+	%args
+	$label 		=> 'Continue'
+	$formname 	=> 'dophase'
+	$no_submit 	=> 0
+	$no_quiz 	=> 0
+</%args>
+<%perl>
+	my $location =  $m->comp('process:next_phase_url', case => $case, phase => $phase );
+	my $link = $phase->getQuizLink();
+	my $quiz_id  = '';
+	my $addtl_code = '';
+	my $case_id = $case->getPrimaryKeyID();
+	my $report_id = $case->getReport->getPrimaryKeyID();
+
+	if (defined($link) and !$no_quiz){
+		$quiz_id = $link->getChildQuizID();
+		my $phase_id = $phase->getPrimaryKeyID();
+		$location = 'takequiz/' . $m->comp("/tmpl/url:get_type_path") . '/' . $case_id . '/' . $phase_id . '/' . $quiz_id . '/' . $report_id;
+	}
+
+	$label = 'Finish' if ($location =~ /^casedone/);
+</%perl>
+% if ($no_submit){
+<& /tmpl/element:button, params => { 	
+		onclick => "complete_phase('$formname', '/case/$location')",
+		name	=> 'redirect_button',
+		label 	=> $label,
+		} 
+&>
+<input type="hidden" name="redirect" value="1">
+% } else {
+<& /tmpl/element:button, params=>{
+		'onclick'=>"complete_phase('$formname', '/case/$location')",
+		'name'=>'next_button',
+		'label'=>$label,
+		} 
+&>
+% }
+</%method>
+
+<%method content_display>
+<%args>
+$phase
+</%args>
+<& SELF:content_links, phase => $phase, case_id => $m->comp("/tmpl/url:get_first_path_id") &>
+</%method>
+
+<%method content_links>
+<%args>
+@content_links => () 
+$case_id
+$phase => undef
+</%args>
+<%perl>
+if (defined($phase)){
+	@content_links  = (@{TUSK::Case::LinkPhaseContent->lookup("parent_phase_id = " . $phase->getPrimaryKeyID(). " and link_type = 'Narrative' ", ['sort_order'] )});
+} 
+my $content_id;
+</%perl>
+% my $style = 'padding-top:10px;';
+% foreach my $content_link (@content_links){
+% 	my $content = $content_link->getContent();
+% 
+% 	($content_id) = ($content->primary_key());
+% 	if ($content_link->getDisplayType() eq 'Link'){
+<& /tmpl/element:link, params=>{ style => $style, link_style => 'smHeader2', href=>"javascript:open_content_window($case_id, $content_id);",
+		label=>$content->title()} &>
+% 	}else{
+<tr><td style="<% $style %>">
+		<div class="subhead1"><% $content->title() %></div>
+%		my $html = $content->out_html_body($m->comp('/tmpl/url:params_hash', return_ref => 0), zoom => 1);
+%		$html =~ s/<\/?form[^>]*>//g;
+%		print $html;
+</td></tr>
+%	}
+%	$style = '';
+% }
+</%method>
+
+<%method media_link>
+<%args>
+	$content_id
+	$else_print => '--'
+</%args>
+% 	if ($content_id) {
+% 		my $case_id = $m->comp("/tmpl/url:get_first_path_id");
+<a href="javascript:open_content_window(<% $case_id %>, <% $content_id %>);" class="tableMedia">view</a>
+% 	} else {
+<% $else_print %>
+% 	}
+</%method>
+
+<%method display_text>
+<%args>
+	$text
+</%args>
+<%perl>
+	$text =~ s/\n/<br>/g;
+</%perl>
+<% $text %>
+</%method>
+
+<%method expert_selection_key>
+<div id="key" class="clearfix">
+<h5 id="keyHdr">KEY:</h5>
+<dl class='colorKey'>
+	<dt><img src="/graphics/case/checkbox_user_expert.gif"></dt>
+		<dd>Selection ordered by Expert and User</dd>
+	<dt><img src="/graphics/case/checkbox_expert.gif"></dt>
+		<dd>Selection ordered by Expert, but <strong>not</strong> by User</dd>
+	<dt><img src="/graphics/case/checkbox_checked.gif"></dt>
+		<dd>Selection ordered by User, but <strong>not</strong> by Expert</dd>
+</dl>
+</div>
+</%method>

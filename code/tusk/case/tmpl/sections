@@ -1,0 +1,1008 @@
+<%once>
+	use TUSK::Case::PhaseOptionSelection;
+	use TUSK::Case::TestSelection;
+</%once>
+
+<%shared>
+	my $tdClass = "simCell";
+	my $empty_gif = 'checkbox_empty.gif';
+	my $expert_gif = 'checkbox_expert.gif';
+	my $checked_gif = 'checkbox_checked.gif';
+	my $user_expert_gif = 'checkbox_user_expert.gif';
+	my $submit_mode = 0;
+	my $wrong_gif = 'checkbox_wrong.gif';
+</%shared>
+
+<%method phase_option_phase>
+<%perl>
+my $phase = $ARGS{'phase'};
+my $case = $ARGS{'case'};
+my $args = $ARGS{'args'};
+my $optionLabel = $ARGS{'optionLabel'};
+my $phase_type_name = $phase->getPhaseType->getTitle();
+$m->comp('element:transition',args=>$args);
+my $phase_options = $phase->getPhaseOptions();
+my $selected_phase_options = $phase->getPhaseOptions($case->getReport);
+my $phase_option_type = $phase->getPhaseOptionType();
+if ($m->comp('/tmpl/wizard:submitted',args=>$args)){
+        $submit_mode = 1 ;
+}
+</%perl>
+<!-- Begin <% $phase_type_name %> Phase -->
+<& /tmpl/element:table &>
+<& /tmpl/element:tr_tag &>
+<td>
+% my $pk;
+% print "<div class=\"text2\" style=\"padding-bottom:10px\">" . $phase->getInstructions() . "</div>" if ($phase->getInstructions());
+
+<& /tmpl/element:table, params => { class => 'diffDiagTbl' } &>
+% if ($phase_option_type eq 'LikelyUnlikely'){
+%	if ($phase_type_name eq 'Treatment'){
+%		if ($submit_mode) { 
+			<& binarySubmit, optionLabel=>$optionLabel, 
+				phase_options=>$phase_options, phase=>$phase, 
+				case=>$case, args=>$args &>
+%		} else {
+			<& binaryTable, optionLabel=>$optionLabel,
+				selected_phase_options=>$selected_phase_options,
+				phase_options=>$phase_options &>
+%		}
+%	} else {
+%		if ($submit_mode) { 
+			<& likelySubmit, optionLabel=>$optionLabel, 
+				phase_options=>$phase_options, phase=>$phase, 
+				case=>$case, args=>$args &>
+%		} else {
+			<& likelyTable, optionLabel=>$optionLabel,
+				selected_phase_options=>$selected_phase_options,
+				phase_options=>$phase_options &>
+%		}
+%	}
+% } elsif ($phase_option_type eq 'Rank Choices'){
+% 	if ($submit_mode) { 
+		<& rankSubmit, phase_options=>$phase_options, phase=>$phase, case=>$case, args=>$args &>
+%	} else {
+		<& rankTable,phase_options=>$phase_options,selected_phase_options=>$selected_phase_options &>
+%	}
+
+% } elsif ($phase_option_type eq 'Free Text'){
+% 	if ($submit_mode) { 
+		<& freeTextSubmit, phase_options=>$phase_options, phase=>$phase, case=>$case, args=>$args &>
+%	} else {
+		<& freeTextTable,phase_options=>$phase_options,selected_phase_options=>$selected_phase_options &>
+%	}
+% } else {
+%	$m->comp('/tmpl/error', msg=>"Invalid phase option type : $phase_option_type");
+% } 
+</table>
+
+% if ($submit_mode && $phase_option_type eq 'LikelyUnlikely' and $phase_type_name ne 'Treatment'){
+<& /case/tmpl/element:expert_selection_key &>
+% }
+
+<& element:content_display,phase=>$phase &>
+</td></tr>
+<& element:divider_bar &>
+</table>
+<!-- End <% $phase_type_name %> Phase -->
+
+</%method>
+
+<%def likelySubmit>
+<%args>
+%args
+$phase
+$case
+@phase_options 
+$optionLabel
+</%args>
+<%perl>
+my %phase_option_lookup = map { ($_->getPrimaryKeyID(),$_)} @phase_options;
+my ($pk,$choice,$choiceText,$selections,$case_report_id,$selection,$phase_option);
+my $userSelections = {};
+foreach my $field (keys %args){
+	if ($args{$field} eq 'checked'){
+		if ($field =~ m/^option_(\d+)_(\d+)/){
+			($pk,$choice) = ($1,$2);
+			# choice should be 1 (Likely), 2 (Less Likely), or 3 (Unlikely)
+			$choiceText = ('Likely', 'Less Likely', 'Unlikely')[--$choice];
+			$userSelections->{$pk} = $choiceText;
+			$phase_option = $phase_option_lookup{$pk};
+			$case_report_id = $case->getReport->getPrimaryKeyID();
+			
+			my $visit = $phase->getVisit();
+			$selections = TUSK::Case::PhaseOptionSelection->getVisitSelection($visit,$phase_option);
+			# don't want to record duplicate entries per visit (possible on a page reload), so
+			# check to make sure that no selections recorded for this visit 			
+			if (!scalar(@{$selections})){
+				$selection = TUSK::Case::PhaseOptionSelection->new();
+				$selection->setCaseReportID($case->getReport->getPrimaryKeyID());
+				$selection->setPhaseID($phase->getPrimaryKeyID());
+				$selection->setPhaseVisitID($visit->getPrimaryKeyID());
+				$selection->setPhaseOptionID($pk);
+				$selection->setShortAnswerText($choiceText);
+				$selection->setAnswerText($args{'optionResponse_'.$pk});
+				$selection->setOptionText($phase_option->getOptionText());
+				$selection->save({user=>$m->comp('SELF:user')});
+			} else {
+				next; 
+			}
+		}
+	}
+}
+if ($case->isTest()){
+	$m->comp('element:transition',args=>\%args);
+	exit;
+}
+</%perl>
+
+<& likelyTable, optionLabel=>$optionLabel, phase_options=>\@phase_options, 
+selections=>$userSelections, args=>\%args  &> 
+</%def>
+
+<%def freeTextSubmit>
+<%args>
+%args
+$phase
+$case
+@phase_options
+</%args>
+<%perl>
+my %phase_option_lookup = map { ($_->getPrimaryKeyID(),$_)} @phase_options;
+my ($pk,$selection,$phase_option,$selections);
+my $userSelections = {};
+foreach my $field (keys %args){
+	if ($args{$field}){
+		if ($field =~ m/^optionResponse_(\d+)/){
+			($pk) = ($1);
+			$phase_option = $phase_option_lookup{$pk};
+			$userSelections->{$pk} = $args{$field};
+			my $visit = $phase->getVisit();
+			$selections = TUSK::Case::PhaseOptionSelection->getVisitSelection($visit,$phase_option);
+			# don't want to record duplicate entries per visit (possible on a page reload), so
+			# check to make sure that no selections recorded for this visit - 8/6/09
+			if (!scalar(@{$selections})){
+				$selection = TUSK::Case::PhaseOptionSelection->new();
+				$selection->setCaseReportID($case->getReport->getPrimaryKeyID());
+				$selection->setPhaseID($phase->getPrimaryKeyID());
+				$selection->setPhaseVisitID($visit->getPrimaryKeyID());
+				$selection->setPhaseOptionID($pk);
+				$selection->setAnswerText($args{$field});
+				$selection->setOptionText($phase_option->getOptionText());
+				$selection->save({user=>$m->comp('SELF:user')});
+			} 
+			else {
+				next; 
+			}
+		}
+	}
+}
+if ($case->isTest()){
+	$m->comp('element:transition',args=>\%args);
+	exit;
+}
+</%perl>
+% foreach my $option (@phase_options){
+% $pk = $option->getPrimaryKeyID();
+<tr><td class="text1"><% $option->getOptionText() %></td></tr>
+<tr><td class="subhead1">My Answer:</td></tr>
+<tr><td class="text1"><% $userSelections->{$pk} %></td></tr>
+<tr><td class="subhead1">Expert Answer:</td></tr>
+<tr><td class="text1"><% $option->getFeedback() %></td></tr>
+% }
+</%def>
+
+<%def freeTextTable>
+<%args>
+@phase_options
+@selected_phase_options => ()
+</%args>
+% my %selected_phase_hash = map { ($_->getPrimaryKeyID(), $_) } @selected_phase_options;
+% my ($phase_option_selection,$pk);
+% foreach my $option (@phase_options){
+<%perl>
+	$pk = $option->getPrimaryKeyID();
+ 	if (defined($selected_phase_hash{$pk})){
+		$phase_option_selection = $selected_phase_hash{$pk}->getPhaseOptionSelectionObject();
+	} else {
+		$phase_option_selection = TUSK::Case::PhaseOptionSelection->new();
+	}
+</%perl>
+<tr><td class="text1"><% $option->getOptionText %></td></tr>
+<tr><td><& /tmpl/element:input_textarea,params=>{'name'=>"optionResponse_$pk",
+                        rows=>"3", value=>$phase_option_selection->getAnswerText(),
+			cols=>"60"} &></td></tr>
+% }
+</%def>
+
+
+
+<%def likelyTable>
+<%args>
+@phase_options
+%selections => ()
+$optionLabel => 'Diagnosis'
+@selected_phase_options => ()
+%args => ()
+</%args>
+<%perl>
+my $pk;
+my $answer;
+my %selected_phase_hash = map { ($_->getPrimaryKeyID(), $_) } @selected_phase_options;
+</%perl>
+% if (!$submit_mode){
+<& element:table_header &><td style="padding-left:5px"><% $optionLabel %></td>
+<td>Likely</td><td>Less Likely</td><td>Unlikely</td><td>Explain Your Choices</td></tr>
+% } else {
+<& element:table_header &><td style="padding-left:5px"><% $optionLabel %></td>
+<td>Likely</td><td>Less Likely</td><td>Unlikely</td><td>Feedback</td><td>Explain Your Choices</td></tr>
+% }
+%    my ($likely_gif,$lesslikely_gif,$unlikely_gif,$unlikely_value,$lesslikely_value,$likely_value);
+%    foreach my $option (@phase_options){
+<%perl>
+		($likely_gif,$lesslikely_gif,$unlikely_gif,$unlikely_value,$lesslikely_value,$likely_value) = ($empty_gif,$empty_gif,$empty_gif,'','','');
+		$pk = $option->getPrimaryKeyID();
+		$answer = undef;
+		my $user_input = ''; 
+		if (defined($selected_phase_hash{$pk})){
+			$answer = $selected_phase_hash{$pk}->getPhaseOptionSelectionObject->getShortAnswerText();
+			$user_input = $selected_phase_hash{$pk}->getPhaseOptionSelectionObject->getAnswerText();
+			if ($answer eq 'Likely'){
+				$likely_gif = $checked_gif;
+				$likely_value = 'value = "checked" ';
+			}  elsif ($answer eq 'Unlikely') {
+				$unlikely_gif = $checked_gif;
+				$unlikely_value = 'value = "checked" ';
+			}  elsif ($answer eq 'Less Likely'){
+				$lesslikely_gif = $checked_gif;
+				$lesslikely_value = 'value = "checked" ';
+			}
+		}
+</%perl>
+<& element:table_row, params=>{'class' => 'reqInput'} &><td class="<% $tdClass %>"><% $option->getOptionText() %></td>
+% 		if (!$submit_mode){ 
+<td class="<% $tdClass %>"><a href="javascript:sim_radio('option<% $pk %>',1);">
+<img src="/graphics/case/<% $likely_gif %>" id="option<% $pk %>-img-1" border="0"/></a>
+<input class="qqqq" type="hidden" <% $likely_value %> id="option<% $pk %>-1" name="option_<% $pk %>_1"/></td>
+<td class="<% $tdClass %>"><a href="javascript:sim_radio('option<% $pk %>',2);">
+<img src="/graphics/case/<% $lesslikely_gif %>" id="option<% $pk %>-img-2" border="0"/></a>
+<input class="qqqq" type="hidden" <% $lesslikely_value %> id="option<% $pk %>-2" name="option_<% $pk %>_2"/></td>
+<td class="<% $tdClass %>"><a href="javascript:sim_radio('option<% $pk %>',3);">
+<img src="/graphics/case/<% $unlikely_gif %>" id="option<% $pk %>-img-3" border="0"/></a>
+<input class="qqqq" type="hidden" <% $unlikely_value %> id="option<% $pk %>-3" name="option_<% $pk %>_3"/></td>
+<td><& /tmpl/element:input_textarea, params=>{'name'=>"optionResponse_$pk", 
+	value=>$user_input,rows=>"2", cols=>"40"} &></td>
+%		} else {
+<%perl>
+
+	my ($unlikely_gif,$likely_gif,$lesslikely_gif);
+
+	my $selText = $selections{$pk};
+	if ($option->getCorrect == 0){
+		$likely_gif = ($selText eq 'Likely')? $checked_gif : $empty_gif;
+		$unlikely_gif = ($selText eq 'Unlikely')? $user_expert_gif : $expert_gif;
+		$lesslikely_gif = ($selText eq 'Less Likely')? $checked_gif : $empty_gif;
+	} elsif ($option->getCorrect == 1){
+		$likely_gif = ($selText eq 'Likely')? $user_expert_gif : $expert_gif;
+		$unlikely_gif = ($selText eq 'Unlikely')? $checked_gif : $empty_gif;
+		$lesslikely_gif = ($selText eq 'Less Likely')? $checked_gif : $empty_gif;
+	} elsif ($option->getCorrect == 2){
+		$likely_gif = ($selText eq 'Likely')? $checked_gif : $empty_gif;
+		$unlikely_gif = ($selText eq 'Unlikely')? $checked_gif : $empty_gif;
+		$lesslikely_gif = ($selText eq 'Less Likely')? $user_expert_gif : $expert_gif;
+	}
+
+</%perl>
+<td class="<% $tdClass %>">
+<img src="/graphics/case/<% $likely_gif %>" id="option<% $pk %>-img-1" border="0"/>
+</td>
+<td class="<% $tdClass %>">
+<img src="/graphics/case/<% $lesslikely_gif %>" id="option<% $pk %>-img-1" border="0"/>
+</td>
+<td class="<% $tdClass %>">
+<img src="/graphics/case/<% $unlikely_gif %>" id="option<% $pk %>-img-2" border="0"/>
+</td>
+<td><& element:display_text, text => $option->getFeedback() &></td><td><& element:display_text, text => $args{"optionResponse_$pk"} &></td>
+%		}
+</tr>
+%               }
+</%def>
+
+
+
+<%def rankSubmit>
+<%args>
+%args
+$phase
+$case
+@phase_options 
+</%args>
+<%perl>
+my %phase_option_lookup = map { ($_->getPrimaryKeyID(),$_)} @phase_options;
+my ($pk,$choice,$choiceText,$selection,$selections,$case_report_id,$phase_option);
+my $userSelections = {};
+foreach my $field (keys %args){
+	if ($args{$field}){
+		if ($field =~ m/^optionRank_(\d+)/){
+ 			($pk) = ($1);
+ 			$phase_option = $phase_option_lookup{$pk};
+ 			$userSelections->{$pk} = $args{$field};
+			$case_report_id = $case->getReport->getPrimaryKeyID();
+
+			my $visit = $phase->getVisit();
+			$selections = TUSK::Case::PhaseOptionSelection->getVisitSelection($visit,$phase_option);
+			# don't want to record duplicate entries per visit (possible on a page reload), so
+			# check to make sure that no selections recorded for this visit - 8/6/09
+			if (!scalar(@{$selections})){
+				$selection = TUSK::Case::PhaseOptionSelection->new();
+ 				$selection->setCaseReportID($case_report_id);
+ 				$selection->setPhaseID($phase->getPrimaryKeyID());
+ 				$selection->setPhaseVisitID($visit->getPrimaryKeyID());
+ 				$selection->setPhaseOptionID($pk);
+ 				$selection->setShortAnswerText($args{$field});
+ 				$selection->setAnswerText($args{'optionResponse_'.$pk});
+ 				$selection->setOptionText($phase_option->getOptionText());
+	 			$selection->save({user=>$m->comp('SELF:user')});
+			} 
+			else {
+				next; 
+			}
+ 		}
+	}
+}
+if ($case->isTest()){
+	$m->comp('element:transition',args=>\%args);
+	exit;
+}
+</%perl>
+
+<& rankTable, phase_options=>\@phase_options, selections=>$userSelections,args=>\%args &>
+
+</%def>
+
+<%def rankTable>
+<%args>
+@phase_options
+%selections => ()
+%args => ()
+@selected_phase_options => ()
+</%args>
+% my $pk;
+% my $optionSelection;
+% my %selected_phase_hash = map { ($_->getPrimaryKeyID(), $_) } @selected_phase_options;
+% if ($submit_mode){
+<& element:table_header &><td style="padding-left:1px">Your Rank</td><td>Expert Rank</td><td>Possible Diagnosis</td>
+<td>Feedback</td><td>Explain Your Choices</td></tr>
+% } else {
+<& element:table_header &><td style="padding-left:5px">Rank</td><td>Possible Diagnosis</td>
+<td>Explain Your Choices</td></tr>
+% }
+% my $rankCount = 1;
+% my $optArray = ['--', (1 .. (scalar(@phase_options)))];
+%
+% if (!$submit_mode and scalar(@phase_options)){
+%
+% 	# do a Fisher Yates Shuffle!
+%	if (my $i = scalar(@phase_options)){
+%		while ($i--){
+%			my $j = int rand ($i+1);
+%			@phase_options[$i, $j] = @phase_options[$j, $i];
+%		}
+%	}
+%
+% }
+%
+% foreach my $option (@phase_options){
+<%perl>
+	$pk = $option->getPrimaryKeyID();
+	if ($selected_phase_hash{$pk}){
+		$optionSelection = $selected_phase_hash{$pk}->getPhaseOptionSelectionObject();
+	} else {
+		$optionSelection = TUSK::Case::PhaseOptionSelection->new();	
+	}
+</%perl>
+<& element:table_row, params=>{class=>'reqInput'} &>
+% 	if ($submit_mode){
+% 		if ($rankCount eq $selections{$pk}){
+<td class="<% $tdClass %>"><% $selections{$pk} %></td>
+%		} else {
+<td class="<% $tdClass %>"><span style="color:red;font-weight:bold;"><% $selections{$pk} %></span></td>
+%		}
+<td class="<% $tdClass %>"><% $rankCount %></td>
+<td class="<% $tdClass %>"><% $option->getOptionText() %></td>
+<td><% $option->getFeedback() %></td><td><% $args{"optionResponse_$pk"} %></td>
+% 	} else {
+<td class="<% $tdClass %>"><& /tmpl/element:dropdown, params=>{'name'=>"optionRank_$pk",
+				no_label=>1,
+				selected=>$optionSelection->getShortAnswerText(),
+				options=>$optArray,
+				class=>'qqqq'} &></td>
+<td class="<% $tdClass %>"><% $option->getOptionText() %></td>
+<td><& /tmpl/element:input_textarea, params=>{'name'=>"optionResponse_$pk", 
+	value=>$optionSelection->getAnswerText(),rows=>"2", cols=>"40"} &>
+%	}
+</tr>
+% $rankCount++;
+% }
+</%def>
+
+
+
+<%method phaseOptionChartInfo>
+<%args>
+$phase
+$case
+$visit => undef
+</%args>
+<%perl>
+	my $phase_option_type = $phase->getPhaseOptionType();
+	my $display_type = ($phase_option_type eq 'Rank Choices') ? 'Rank' : 'Answer';
+	my $text = '<span class="smTextTwo">'.$phase->getMainText().'</span>';
+	$text .= '<table cellpadding="0" cellspacing="0" border="0" style="" width="100%">';
+	my $selections;
+
+	if (defined $visit) {
+		$selections = TUSK::Case::PhaseOptionSelection->getPhaseVisitSelections($visit);
+	}
+	else {
+		$selections = TUSK::Case::PhaseOptionSelection->getLatestPhaseSelections($phase, $case->getReport());
+	}
+	my $options = TUSK::Case::PhaseOption->lookup("phase_id = " . $phase->getPrimaryKeyID());
+
+	my %optionHash = map { $_->getPrimaryKeyID => $_ } @$options;
+
+	if(scalar @$selections){
+		$text .= '<tr><td width="25%" class="header2">Item</td><td class="header2" style="padding-left:8px" width="25%">My ' . $display_type . '</td><td class="header2" width="50%">Expert ' . $display_type . '</td></tr>';
+
+		foreach my $sel (@{$selections}) {
+			my $answer = $sel->getShortAnswerText();
+			$answer = $answer ? $answer : $sel->getAnswerText();
+	
+			my $option = $optionHash{ $sel->getPhaseOptionID() };
+			next unless ($option);
+			my $correct_text = ($option->getCorrect()) ? " <i>(correct)</i>" : "";
+			$text .= '<tr><td class="smHighlight2">'.$sel->getOptionText()
+			      .  '</td><td style="padding-left:8px" class="smHighlight2">'. $answer . '</td><td class="smHighlight2">' .
+				$option->getFeedback() . $correct_text . '</td></tr>';
+		}
+	} 
+	else {
+		$text .= '<tr><td><em>Nothing to report.</em></td></tr>';
+	}
+	$text .= '</table>';
+	return $text;
+</%perl>
+</%method>
+
+<%method batteryPhase>
+<%perl>
+	my $phase = $ARGS{'phase'};
+	my $case = $ARGS{'case'};
+	my $args = $ARGS{'args'};
+	my $batteries = $phase->getBatteries();
+	my $selectionHash = {};
+	my $submit_mode = 0;
+
+	if (defined($args->{'battery_submit'})){
+		$submit_mode = 1;
+		foreach my $field (keys %{$args}){
+			if ($field =~ m/^(test|exam)-(\d+)$/){
+				my $type = $1;
+				my $id = $2;
+				if ($args->{$field}){
+					my $test = TUSK::Case::Test->lookupKey($id) 
+					              or die "TUSK::Case::Test not found for id : $id";
+			
+					$selectionHash->{ $type }->{$id} = 2;
+	
+					if ($type eq 'test'){
+						$selectionHash->{'exam'}->{ $test->getMasterTestID() } = 2;
+					}
+
+					my $selections = TUSK::Case::TestSelection->getReportSelections($case->getReport, $test, $phase);
+
+					unless (scalar(@{$selections})){
+						my $selection = TUSK::Case::TestSelection->new();
+						$selection->setCaseReportID($case->getReport()->getPrimaryKeyID());
+						$selection->setPhaseID($phase->getPrimaryKeyID());	
+						$selection->setPhaseVisitID($phase->getVisit()->getPrimaryKeyID());	
+						$selection->setTestID($id);
+						$selection->setTestTitle($test->getTitle());
+						$selection->save({user=>$m->comp('SELF:user')});
+					}
+				}
+			}
+		}	
+	}
+
+	my $selections = $phase->getPhaseTestSelections($case->getReport());
+
+	foreach my $selection (@$selections){
+		my $pk = $selection->getTestID();
+
+		my $test = $selection->getTestObject();
+
+		my $type = ($test->isSubTest())? 'test' : 'exam';
+
+		unless ($selectionHash->{ $type }->{ $pk }){
+			$selectionHash->{ $type }->{ $pk } = 1;
+
+			if($type eq 'test' && !$selectionHash->{'exam'}->{ $test->getMasterTestID() }){
+				$selectionHash->{'exam'}->{ $test->getMasterTestID() } = 1;
+			}
+		}
+	}
+
+</%perl>
+
+<!-- Begin Battery Phase -->
+<& element:transition,args=>$args &>
+% # only show instructions if there are any && we are not a history phase, since history phase
+% # shows instructions on its own (history's phase_type_id is 2)
+% if ($phase->getInstructions() && $phase->getPhaseTypeID() != 2){
+	<div class="text2"><% $phase->getInstructions() %></div>
+%
+% }
+%
+
+% # only show content if we are not a history phase, since history phase
+% # shows content on its own (history's phase_type_id is 2)
+% if ($phase->getPhaseTypeID() != 2){
+<& element:content_display,phase=>$phase &>
+% }
+
+<& /tmpl/element:table &>
+
+<%perl>
+
+foreach my $battery (@{$batteries}){
+	my $table_type = ($submit_mode) ? 'submit' : 'show';
+	$m->comp('SELF:battery_table', 
+		battery => $battery,
+		selectionHash => $selectionHash, 
+		phase => $phase,
+		case => $case,
+		table_type => $table_type,
+		is_test => $case->isTest());
+
+}
+</%perl>
+
+<& element:divider_bar &>
+
+</table>
+</%method>
+
+<%method battery_table>
+<%args>
+	$battery
+	$selectionHash
+	$phase
+	$case
+	$is_test => 0
+	$table_type => 'show'
+</%args>
+<%perl>
+	my $battery_struct = $battery->getChildExamStruct($phase,$case->getPatientType());
+	my @exams =  grep { $_->{'current'}->{'include'} } @{$battery_struct->{'children'}};
+	return unless (scalar(@exams));
+
+	if ($table_type eq 'submit' or $table_type eq 'expert'){
+		my @checked_exams = grep { $selectionHash->{'exam'}->{ $_->{'current'}->{'pk'} } } @exams;
+
+		my @expert_selections = grep { ($_->{'current'}->{'include'} && $_->{'current'}->{'priority'} ne 'Low')
+				|| $_->{'current'}->{'has_expert_subtest'} } @exams;
+
+		return if ($table_type eq 'submit' && !(scalar(@checked_exams)));
+		return if ($table_type eq 'expert' && !(scalar(@checked_exams) + scalar(@expert_selections)));
+	}
+	my $exam_priority = ($is_test) ? '' : '<td width="10%">Exam Priority</td>';
+</%perl>
+%
+% if (scalar(@exams)) {
+%
+<tr>
+	<td>
+		<div>&nbsp;</div>
+		<div class="subhead1"><%  $battery->getBatteryTitle() %></div>
+	</td>
+</tr>
+<tr>
+	<td>
+% my $table_class = ($table_type eq 'expert')? 'expertTable' : '';
+<& /tmpl/element:table, params => {'class' => $table_class } &>
+<& element:table_header &>
+%
+% if ($table_type eq 'show' or $table_type eq 'expert'){
+%
+	<td width="1%">&nbsp;</td>
+%
+% }
+%
+%	my $padding = ($table_type eq 'show' or $table_type eq 'expert') ? 7 : 24;
+%
+	<td style="padding-left:<% $padding %>px" width="<% ($table_type eq 'submit') ? '30%' : '' %>"></td>
+%
+% if ($table_type eq 'submit' or $table_type eq 'expert') {
+%
+	<td width="20%">Result</td><td width="20%">Normal Range</td><td width="10%">Media</td><td width="10%">Feedback</td><% $exam_priority %>
+%
+% }
+%
+</tr>
+<& children_table, struct => $battery_struct, selectionHash => $selectionHash, is_test => $is_test, table_type => $table_type &>
+</table>
+	</td>
+</tr>
+%
+% }
+%
+</%method>
+
+<%def children_table>
+<%args>
+	$struct
+	$selectionHash
+	$indent => 0
+	$type => 'exam'
+	$is_test => 0
+	$table_type => 'show'
+</%args>
+<%perl>
+	my $indent_html = '&nbsp;&nbsp;&nbsp;&nbsp;';
+	my @children = grep { $_->{'current'}->{'include'} } @{$struct->{'children'}};
+
+	foreach my $child (@children){
+		my $body = $child->{'current'};
+		my $pk = $body->{'pk'};
+
+		next if ($table_type eq 'submit' and ! $selectionHash->{ $type }->{ $pk });
+
+		next if ($table_type eq 'expert' and 
+				((!$selectionHash->{ $type }->{ $pk } and $body->{'priority'} eq 'Low') 
+				and !$body->{'has_expert_subtest'}));
+
+
+		$body->{'display_value'} = '&nbsp;' if ($body->{'display_value'} eq '');
+		$body->{'def_value'} = '&nbsp;' if ($body->{'def_value'} eq '');
+		my $content_id = ($body->{'alt_content_id'}) ? $body->{'alt_content_id'} : $body->{'content_id'};
+		my $has_children = (ref($child->{'children'}) eq 'ARRAY' and scalar(@{$child->{'children'}})) ? 1 : 0;
+		my $element_id = $type . '-' . $pk;
+		my $priorityText = ($has_children) ? '&nbsp;' : $body->{'priority'};
+		
+</%perl>
+<& element:table_row &>
+%
+%	if ($table_type eq 'show'){
+%
+		<td style="padding-left:7px">
+%
+%  		if (!$has_children){
+%			if (!exists($selectionHash->{$type}{$pk})){
+%
+			<a href="javascript:sim_check('<% $element_id %>');"><img src="/graphics/case/checkbox_empty.gif" id="<% $element_id %>-img" border="0"/></a>
+			<input type="hidden" id="<% $element_id %>" name="<% $element_id %>"/>
+%
+%			} else {
+%
+			<img src="/graphics/case/checkbox_disabled.gif">
+%
+% 			}
+%		}
+%
+		</td>
+%
+%	}
+%
+%
+%	if ($table_type eq 'expert'){
+%
+		<td style="padding-left:7px">
+%
+%  		if (!$has_children){
+%			if($priorityText eq 'High' or $priorityText eq 'Medium'){
+%				if($selectionHash->{ $type }->{ $pk } == 1){
+			<img src="/graphics/case/checkbox_user_expert.gif">
+%				} else {
+			<img src="/graphics/case/checkbox_expert.gif">
+%				}
+%			}
+%			else {
+			<img src="/graphics/case/checkbox_checked.gif">
+%			}
+
+%		}
+%		else {
+			&nbsp;
+%		}
+		</td>
+%	}
+
+
+%	my $padding = ($table_type eq 'show' or $table_type eq 'expert') ? 20 : 37;
+%
+%	my $class = ($table_type eq 'submit' and $selectionHash->{ $type }->{ $pk } == 1) ? 'gray' : '';
+
+
+		<td style="padding-left:<% $padding %>px" class="<% $class %>"><% $indent_html x $indent %><% $body->{'title_with_units'} %></td>
+%
+% if ($table_type eq 'submit' or $table_type eq 'expert'){
+%
+%	my $class = ($selectionHash->{ $type }->{ $pk } == 1) ? 'gray' : '';
+		<td class="<% $class %>"><% $body->{'display_value'} %></td>
+		<td class="<% $class %>"><% $body->{'def_value'} %></td>
+		<td class="<% $class %>"><& element:media_link, content_id=> $content_id, else_print => '&nbsp;' &></td>
+		<td class="<% $class %>">
+% if ($body->{'feedback'}){
+		<a href="javascript:;" onclick="showTxtWin(this, 'txtWin_<% $pk %>');">Feedback</a>
+		<div id="txtWin_<% $pk %>" class="hideTxtWin">
+			<span class="txtWinClose"><a href="javascript:;" onclick="hideTxtWin('txtWin_<% $pk %>');">Close [X]</a></span>
+			<p class="txtWinText"><% $body->{'feedback'} %></p>
+		</div>
+% } else {
+		&nbsp;
+
+% }
+		</td>
+%
+% 	if (!$is_test){
+%
+		<td class="<% $class %>"><% $priorityText %></td>
+%
+% 	}
+%  }
+%
+
+	</tr>
+<%perl>
+		if ($has_children){
+			$m->comp('children_table', struct => $child, selectionHash => $selectionHash, indent => $indent + 1, type => 'test', is_test => $is_test, table_type => $table_type);
+		}
+	}
+</%perl>
+</%def>
+
+<%method batteryPhaseChartInfo>
+<%args>
+$phase
+$case
+$visit => undef
+</%args>
+<%perl>
+my $text;
+if($phase->getIsGeneric()){
+	$text = '<span class="sm">'.$phase->getMainText().'</span>';
+}
+
+$text .= '<table cellpadding="0"  cellspacing="0" width="100%" border="0">';
+
+my $examSelections;
+if (defined $visit) {
+	$examSelections = TUSK::Case::TestSelection->getPhaseVisitSelections($visit);
+}
+else {
+	$examSelections = TUSK::Case::TestSelection->getPhaseSelections($case->getReport(),$phase);
+}
+
+my %includedBatteries;
+foreach my $selection (@{$examSelections}){
+	push @{$includedBatteries{$selection->getTestObject->getBatteryID()}},$selection;
+}
+my $batteries = $phase->getBatteries();
+my $struct;
+
+if (scalar keys %includedBatteries) {
+	foreach my $battery (@{$batteries}){
+		if ($includedBatteries{$battery->getPrimaryKeyID()}){
+			$text .= '<tr><td class="smHighlight2" width="50%">' . $battery->getBatteryTitle . "</td><td class=\"header2\" width=\"50%\">Result</td></tr>\n";
+		} else {
+			next;
+		}
+		foreach my $selection (@{$includedBatteries{$battery->getPrimaryKeyID()}}){
+			$text .= '<tr><td class="text2" valign="top">' . $selection->getTestTitle . '</td><td class="text2" valign="top">' . $selection->getTestObject->getDisplayValue($phase) . "</td></tr>\n";
+		}
+	}
+}
+elsif ($phase->getPhaseTypeID() != 2 && !$phase->getIsGeneric()) {
+	$text .= '<tr><td><em>Nothing to report.</em></td></tr>';
+}
+$text .= '</table>';
+return $text;
+</%perl>
+</%method>
+
+<%def binarySubmit>
+<%args>
+%args
+$phase
+$case
+@phase_options
+$optionLabel
+</%args>
+<%perl>
+my %phase_option_lookup = map { ($_->getPrimaryKeyID(),$_)} @phase_options;
+my ($pk,$choice,$choiceText,$selections,$selection,$case_report_id,$phase_option);
+my $userSelections = {};
+foreach my $field (keys %args){
+	if ($args{$field}){
+		if ($field =~ m/^option_(\d+)/){
+			($pk) = ($1);
+			# choice should be 1 -- Likely or 2 -- Unlikely
+			$choiceText = 'Likely';
+			$userSelections->{$pk} = $choiceText;
+			$phase_option = $phase_option_lookup{$pk};
+			$case_report_id = $case->getReport->getPrimaryKeyID();
+
+			my $visit = $phase->getVisit();
+			$selections = TUSK::Case::PhaseOptionSelection->getVisitSelection($visit,$phase_option);
+			# don't want to record duplicate entries per visit (possible on a page reload), so
+			# check to make sure that no selections recorded for this visit - 8/6/09
+			if (!scalar(@{$selections})){
+				$selection = TUSK::Case::PhaseOptionSelection->new();
+				$selection->setCaseReportID($case->getReport->getPrimaryKeyID());
+				$selection->setPhaseID($phase->getPrimaryKeyID());
+				$selection->setPhaseVisitID($visit->getPrimaryKeyID());
+				$selection->setPhaseOptionID($pk);
+				$selection->setShortAnswerText($choiceText);
+				$selection->setAnswerText($args{'optionResponse_'.$pk});
+				$selection->setOptionText($phase_option->getOptionText());
+				$selection->save({user=>$m->comp('SELF:user')});
+			} else {
+				next; 
+			}
+		}
+	}
+}
+if ($case->isTest()){
+	$m->comp('element:transition',args=>\%args);
+}
+my $selected_phase_options = $phase->getPhaseOptions($case->getReport);
+</%perl>
+
+<& binaryTable, optionLabel=>$optionLabel, phase_options=>\@phase_options, 
+selected_phase_options=>$selected_phase_options ,
+selections=>$userSelections &>
+</%def>
+
+<%def binaryTable>
+<%args>
+@phase_options
+%selections => ()
+$optionLabel => 'Diagnosis'
+@selected_phase_options => ()
+</%args>
+<%perl>
+my %selected_phase_hash = map { ($_->getPrimaryKeyID(), $_) } @selected_phase_options;
+my $pk;
+my ($explanation, $myExplanation);
+</%perl>
+% if (!$submit_mode){
+<& element:table_header &><td style="padding-left:7px">&nbsp;</td><td style="padding-left:2px"><% $optionLabel %></td>
+<td>Explain Your Choices</td></tr>
+% } else {
+<& element:table_header &><td style="padding-left:7px">&nbsp;</td><td style="padding-left:2px"><% $optionLabel %></td>
+<td>&nbsp;</td><td>Feedback</td><td>Explain Your Choices</td></tr>
+% }
+% 	my ($answer,$likely_gif,$unlikely_gif,$unlikely_value,$likely_value,$phaseSelection);
+%	foreach my $option (@phase_options){
+<%perl>
+                ($likely_gif,$unlikely_gif,$unlikely_value,$likely_value) = ($empty_gif,$empty_gif,'','');
+                $pk = $option->getPrimaryKeyID();
+		next if ($submit_mode and !$selections{$pk});
+                $answer = undef;
+                if (defined($selected_phase_hash{$pk})){
+			$phaseSelection = $selected_phase_hash{$pk}->getPhaseOptionSelectionObject;
+                        $answer = $phaseSelection->getShortAnswerText();
+
+			$myExplanation = $explanation = $phaseSelection->getAnswerText();
+
+                        if ($answer eq 'Likely'){
+                                $likely_gif = $checked_gif;
+                                $likely_value = 'value = "checked" ';
+                        }  else {
+                                $unlikely_gif = $checked_gif;
+                                $unlikely_value = 'value = "checked" ';
+                        }
+                }  else {
+			$explanation = undef;
+		}
+</%perl>
+
+<& element:table_row &>
+%               if (!$submit_mode){
+<td class="<% $tdClass %>"><a href="javascript:sim_check('option<% $pk %>',1);">
+<img src="/graphics/case/<% $likely_gif %>" id="option<% $pk %>-img" border="0"/></a>
+<input type="hidden" <% $likely_value %> id="option<% $pk %>" name="option_<% $pk %>"/></td>
+<td class="<% $tdClass %>"><% $option->getOptionText() %></td>
+<td><& /tmpl/element:input_textarea, params=>{'name'=>"optionResponse_$pk", value=>$explanation, rows=>"2", cols=>"40"} &></td>
+%               } else {
+<%perl>
+        # $m->print('<PRE>'.Dumper(\%selections).'</PRE>');
+        my ($selected_gif,$answer_gif);
+        # correct indicates the answer is likely
+        my $selText = $selections{$pk};
+        if ($selText eq 'Likely'){
+                $selected_gif = $checked_gif;
+                if ($option->getCorrect){
+                        $answer_gif = $checked_gif;
+                } else {
+                        $answer_gif = $wrong_gif;
+                }
+        } else { # no selection was made
+                $selected_gif = $empty_gif;
+                if ($option->getCorrect()){
+                        $answer_gif = $wrong_gif;
+                } else {
+                        $answer_gif = $empty_gif;
+                }
+        }
+
+</%perl>
+<td class="<% $tdClass %>">
+<img src="/graphics/case/<% $selected_gif %>" id="option<% $pk %>-img-1" border="0"/>
+</td>
+<td class="text1"><% $option->getOptionText() %></td>
+<td class="<% $tdClass %>">
+<img src="/graphics/case/<% $answer_gif %>" id="option<% $pk %>-img-2" border="0"/>
+</td>
+<td><& element:display_text, text => $option->getFeedback() &></td><td><& element:display_text, text => $myExplanation &></td>
+%               }
+</tr>
+%               }
+</%def>
+
+
+<%method get_button_nav_test_phase>
+<%args>
+$phase
+$case
+$args
+</%args>
+<%perl>
+if (defined($args->{'battery_submit'})){
+	my ($case_id, $phase_id) = ($case->getPrimaryKeyID(), $phase->getPrimaryKeyID());
+
+	$m->comp('/tmpl/element:button', params=>{ 
+		label	=> 'See patient again for more exams', 
+		onclick => "go_back('/case/dophase/" . $m->comp('/tmpl/url:get_type_path') . "/$case_id/$phase_id')"
+		} );
+
+	unless ($case->isTest()) {
+		$m->comp('/tmpl/element:button', params=>{ 
+			label => 'See expert selections', 
+			onclick => "expert_window($case_id, $phase_id, " . $case->getReport()->getPrimaryKeyID() . ");"
+		} );
+	}
+	if ($case->isLinearNav()) {
+		$m->comp('element:transition_button', case=>$case, phase=>$phase,args=>$args);
+	}
+} 
+else {
+	if (scalar(@{$phase->getBatteries()})) {
+		my $label = ($phase->getPhaseTypeID() == 2)? 'Take History' : 'Perform Exam';
+		$m->comp('/tmpl/element:submit_button', params=>{ 
+			label => $label, 
+			name => 'battery_submit' 
+			} );
+	} 
+	elsif ($case->isLinearNav()) { 
+		$m->comp('element:transition_button', case=>$case, phase=>$phase,args=>$args);
+	}
+}
+</%perl>
+</%method>
+
+<%method get_button_nav_option_phase>
+<%args>
+$case
+$phase 
+$submit_onclick => ''
+$args
+</%args>
+% if (!$m->comp('/tmpl/wizard:submitted',args=>$args)) {
+<& /tmpl/element:submit_button, params=>{'label'=>'Submit', onclick=>$submit_onclick} &>
+% }
+% elsif ($case->isLinearNav()) {
+<& element:transition_button, no_submit => 1, case => $case, phase => $phase, args => $args &>
+% }
+</%method>

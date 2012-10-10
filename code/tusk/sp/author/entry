@@ -1,0 +1,100 @@
+<%once>
+	use HSDB4::SQLRow::User;
+	use TUSK::FormBuilder::Entry;
+	use TUSK::FormBuilder::EntryAssociation;
+</%once>
+
+<%attr>
+	onload => 'disableForm();'
+</%attr>
+
+<%shared>
+	my $form_type_label = 'Simulated Patient';
+	my ($form_id, $entry_id, $user_group_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my ($entry, $student, $actor);
+</%shared>
+
+
+<div style="margin:5px 0 0 15px;">
+<& "/formbuilder/display:page", 
+	args => { %ARGS, hide_required => 0, entry_id => $entry_id},
+	date_label => 'Encounter Date', 
+	dynamic_components => ['/sp/author/entry:displayStudentName','/sp/author/entry:displayActorInfo',],
+	button_component => '/sp/author/entry:printButtons',
+	read_access => 1
+&>
+</div>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	unless ($form_id) {
+		$m->redirect('/sp/author/students/' . $type_path . '?errmsg=Missing Form ID');
+	}
+
+	unless ($entry_id) {
+		$m->redirect('/sp/author/students/' . $type_path . '?errmsg=Missing Entry ID');
+	}
+
+	$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id);
+	$actor = HSDB4::SQLRow::User->new()->lookup_key($entry->getUserID());
+	my $link = TUSK::FormBuilder::EntryAssociation->lookupReturnOne('entry_id = ' . $entry->getPrimaryKeyID());
+	$student = HSDB4::SQLRow::User->new()->lookup_key($link->getUserID());
+</%perl>
+</%method>
+
+
+<%method displayStudentName>
+<& /tmpl/element:field_display, params => { 
+	label => 'Student',
+	value => $student->out_full_name(),
+
+} &>
+</%method>
+
+
+<%method displayActorInfo>
+<& /tmpl/element:field_display, params => { 
+	label => 'Simulated Patient',
+	value => $actor->out_full_name(),
+
+} &>
+<& /tmpl/element:field_display, params => { 
+	label => 'Submitted on',
+	value => $entry->getCompleteDate(),
+
+} &>
+</%method>
+
+
+<%method red_header_text>
+% 	return "$form_type_label Entry";
+</%method>
+
+
+<%method title>
+% 	return "$form_type_label Entry";
+</%method>
+
+
+<%method printButtons>
+</%method>
+
+
+<%method jsarray>
+% 	return $m->comp("/formbuilder/display:jsarray");
+</%method>
+
+<%method leftnav>
+</%method>
+
+
+<%method getGroup>
+%  return ($user_group_id) ? 'gid=' . $user_group_id : undef;
+</%method>
+

@@ -1,0 +1,36 @@
+<%args>
+	$params => undef
+	$school
+</%args>
+
+% my %checked = (ref($params->{search_by}) eq 'ARRAY') ? map { $_ => 'CHECKED' } @{$params->{search_by}} : ($params->{search_by} => 'CHECKED');
+
+<form action="/eval/administrator/search/result/<% $school %>" method="post" onsubmit="return verify(this);">
+<table class="xsm">
+<tr><td align="right">Name/Keyword:</td><td><input type="text" name="search_string" size="40" value="<% $params->{search_string} %>"/> &nbsp; <span style="font-size:8pt;color:red">* required</span></td></tr>
+<tr><td align="right">Eval Title:</td><td><input type="text" name="eval_title" size="40" value="<% $params->{eval_title} %>"/></td></tr>
+<tr><td align="right">Course Name:</td><td><input type="text" name="course_name" size="40" value="<% $params->{course_name} %>"/></td></tr>
+<tr><td align="right">Time Period:</td><td>
+<input type="text" name="from_date" size="12" value="<% $params->{from_date} %>"/> &nbsp;&nbsp; - &nbsp;&nbsp; <input type="text" name="to_date" size="12" value="<% $params->{to_date} %>"/> &nbsp;&nbsp;&nbsp;
+<span style="font-size:8pt;color:red">* YYYY-MM-DD</span></td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="aw" <% $checked{aw} %>/> Match with all the words</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="pw" <% $checked{pw} %>/> Match partial word, i.e. all words starting with provided name/keywords</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="nrq" <% $checked{nrq} %>/> Include numeric ranking question types</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="nr" <% $checked{nr} %>/> Include questions that have no response</td></tr>
+<tr><td>&nbsp;</td><td><input type="checkbox" name="search_by" value="sg" <% $checked{sg} %>/> Include small group instructor questions</td></tr>
+<tr><td colspan="2" align="right"><input type="submit" value="Search" class="formbutton"> &nbsp; <input type="reset" value="reset" class="formbutton"></td></tr>
+% unless ($r->uri() =~ /form/) {
+<tr><td colspan="2" style="font-size:8pt;color:blue">Note: Enter/Modify the parameters above for a new search.</td></tr>
+% }
+</table>
+</form>
+
+<%init>
+	unless (defined $params) {
+		my ($day,$month,$year) = (localtime)[3,4,5];
+		$year += 1900;
+		$params->{to_date} = sprintf("%04d-%02d-%02d", $year,$month+1,$day);
+		$params->{from_date} = '1999-01-01';
+	}
+</%init>
+

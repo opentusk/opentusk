@@ -1,0 +1,36 @@
+<%attr>
+	default_path_type	=> 'content'
+</%attr>
+
+<%once>
+	use Apache::Constants;
+	use URI;
+</%once>
+
+<%perl>
+	my $content = $m->comp('/tmpl/url:get_type_object');
+	if ($content->type() eq 'External'){
+		my $source = $content->get_external_source();
+
+		if ($source){
+			my $response = $source->redirect($content, $m->session->{'user'});
+
+			if ($response) {
+				$m->auto_send_headers(0);
+				$m->clear_buffer();
+				my $page = $response->as_string();
+				my $uri = URI->new($response->base());
+				my $base = $uri->scheme() . '://' . $uri->host();
+				$page =~ s/<head>/<head>\n<base href="$base"\/>/;
+				$m->print($page);
+			} else {
+				$m->clear_buffer();
+				$m->print("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n<html>\n<head><title>External Content Error Page</title></head>\n<body>\n<div style=\"color:red;\" align=\"center\">We are unable to display the article.</div>\n</body>\n</html>");
+			}
+			$m->abort();
+		}
+	} else {
+		$m->comp("/tmpl/url:redirect",message => "Not a valid URL");
+	}
+</%perl>
+

@@ -1,0 +1,31 @@
+<%once>
+	use TUSK::Quiz::Question;
+	use TUSK::Quiz::LinkQuestionQuestion;
+</%once>
+
+<%attr>
+	no_header	=> 1
+</%attr>
+
+<%init>
+	# this page is only called from type 'Section' (deleting from link_quiz_quiz_item is handled elsewhere)
+
+	my $path = $m->comp("/tmpl/url:get_path_ids");
+	$m->comp('/tmpl/error', msg => "Invalid parameters passed") if (scalar(@$path) < 2);
+
+	my $question = TUSK::Quiz::Question->new()->lookupKey($path->[-1]);
+	my $id = $path->[-2]; # id of the section
+	my $question_id = $question->getPrimaryKeyID();
+
+	my ($questionLink, $baseUrl);
+	
+
+	$questionLink = shift @{TUSK::Quiz::LinkQuestionQuestion->new()->lookupByRelation($id, $question_id)};
+	$baseUrl = '/case/author/questionaddedit';
+	
+	my $backUrl = $m->comp("/tmpl/url:construct_back_url", base_url => $baseUrl);
+
+	$questionLink->delete();
+       	$question->delete();
+        $m->redirect($backUrl . '?msg=Question+Successfully+Deleted');
+</%init>

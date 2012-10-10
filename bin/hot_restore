@@ -1,0 +1,96 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use Getopt::Long;
+
+my ($file,$db,$table);
+GetOptions("file=s" => \$file,
+	    "database=s" => \$db,
+	    "table=s" => \$table,
+	    "stoptime=s" => \$stoptime,
+	    );
+
+if (!$file || $help) {
+    print "Usage: hot_restore --file=<mysql text log file> [--database=<database>] [--table=<table>] [--stoptime=<mysql log timestamp>]\n\n";
+    print "Extended usage info:\n";
+    print "--file\t\tthis is the textfile created by the backup each night\n";
+    print "\t\tif this file isn't available the command \"mysqlbinlog <bin file> > <text file> will do the job\n";
+	print "--database\tspecifying a database name will limit the update to that specific database\n";
+	print "--table\t\tspecifying a table name will limit the update to that specific table (within the specified database)\n";
+	print "--stoptime\tspecifying a stoptime will prohibit the update from moving past a certain time in the log file\n";
+	print "\t\tthe stoptime looks something like: 1030881195\n";
+    exit;
+} 
+elsif ($table && !$db) {
+    print "Must specify a database in order to use specific table.\n";
+    print "Usage: hot_restore --file=<mysql text log file> [--database=<database>] [--table=<table>] [--stoptime=<mysql timestamp>]\n";
+    exit;   
+}
+
+my $insert_id;
+my $timestamp;
+my $update_table_on = 0;
+my $update_on = 0;
+
+open FILE, $file;
+while (<FILE>) {
+	next if $_ =~ /^#/;
+	if ($db) {
+		if ($_ =~ /^SET INSERT_ID/i) {
+			$insert_id = $_;	
+			next;
+		}	
+		if ($_ =~ /^SET TIMESTAMP/i) {
+			$timestamp = $_;
+			$time = $_;
+			$time =~ s/.+\=(\d+)\;\n/$1/;
+			if ($stoptime) {
+				if ($time > $stoptime) {				
+					exit;
+				}
+			}
+			next;
+		}
+		if ($_ =~ /^use/) {
+			if ($_ =~ /use\ $db;/) {
+				$update_on = 1;
+				next if ($_ =~ /^$use_db$/);
+				$use_db = $_;
+				print $_;
+				next;
+			}
+			else {
+				$update_on = 0;
+			}
+		}
+	}
+	else {
+		$update_on = 1;
+	}
+
+	next if ($update_on == 0);
+
+	if ($_ =~ /^(insert into|update|delete from)/i) {
+		if ($_ =~ /^(insert into|update|delete from)\ $table/i) {
+			$update_table_on = 1;
+			print $insert_id.$timestamp;
+			$insert_id = $timestamp = "";
+		}
+		else {
+			if ($table) {
+				$update_table_on = 0;
+				next;
+			}
+		}
+	}
+
+	next if ($update_table_on == 0);
+
+	print $_;
+}
+close FILE;
+
+
+
+

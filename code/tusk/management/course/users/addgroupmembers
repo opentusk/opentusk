@@ -1,0 +1,145 @@
+<%attr>
+	top_tab_type            => 'manage'
+	page_footer             => ''
+</%attr>
+
+<%once>
+	use HSDB45::UserGroup;
+	use HSDB45::TimePeriod;
+	use HSDB4::Constants;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $school = $course->get_school();
+	my $tp = HSDB45::TimePeriod->new( _school => $school->getSchoolName() )->get_eternity_period();
+	my $tp_id = ($tp)? $tp->primary_key() : '';
+	my $metadataHashRef = $course->getSchoolMetadata();
+
+	my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
+	my $userObject = $m->session->{'user'};
+</%shared>
+
+
+<%method jsarray>
+%	return ['scripts.js', 'layers.js'];
+</%method>
+
+
+<%method title>
+%	return "Add Group Members";
+</%method>
+
+<%method red_header_text>
+%	return 'Add Group Members';
+</%method>
+
+<%method leftnav>
+<%perl>
+	my %someHash = (
+	                'component'           => '/tmpl/leftnav/course',
+	                'metaDataRef'         => $metadataHashRef,
+	               );
+	return \%someHash;
+</%perl>
+</%method>
+
+
+<form name="groups" action="" method="post" onsubmit="return checkform(this);" class="no-padding">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr> 
+      <td class="labelgray">Group(s):</td>
+      <td>
+		<table width="75%" cellspacing="0" cellpadding="0">
+		<tr>
+			<td class="cell-left">
+				<input type="button" value="Add Groups" class="formbutton" onclick="openwindow('groupsdiv',0,0,{school:'<% $school->getSchoolName() %>'})">
+			</td>
+		</tr>
+		<tr>
+			<td class="cell-left">
+				<div id="groupsdiv"></div><input type="hidden" id="UserGroup__y" name="groups">
+			</td>
+		</tr>
+		</table>
+	  </td>
+	</tr>
+    <tr> 
+      <td>&nbsp;</td>
+      <td class="cell-submit"><input class="formbutton" type="submit" name="submit" value="Save and Continue"><input type="hidden" name="action" value="add"></td>
+    </tr>
+    <tr> 
+      <td width="200"><img src="/graphics/spacer.gif" width="200" height="1"></td>
+      <td><img src="/graphics/spacer.gif" width="356" height="1"></td>
+    </tr>
+</table>
+
+
+<& /tmpl/layers:create_layer, struct=>{
+			layer => 'groupsdiv',
+			empty_message => 'Select groups to add their members.',
+			fields => ['group_name', 'user_group_id'],
+			name => 'groups',
+			sort => {usage => 'No'},
+			action => {usage => 'Yes', length=>100, functions => [{func=>'remove', label=>'Delete'}]},
+			display => [
+					{field=>'user_group_id', label=>'Group ID', align=>'left', length=>225, type=>'hidden'},
+					{field=>'group_name', label=>'Group Name', align=>'left', length=>225,},
+				  ],
+			validate => {
+					usage => 'Yes',
+					form => 'groups',
+					element => 'groups'
+				},
+			data => [],
+			}
+&>
+
+</form>
+
+
+<%init>
+    $m->comp("SELF:set_no_cache");
+    $m->comp("SELF:set_unicode");
+
+	my $args = \%ARGS;
+
+	unless($tp_id){
+		my $errmsg = 'No "eternity" time period with appropriate end date.';
+		$errmsg .= '<br>Please see administrator for assistance.';
+       	$m->comp('/tmpl/error', msg=>$errmsg);
+	}
+
+
+	if($args->{action} eq 'add'){
+		my $un = $HSDB4::Constants::db_username;
+		my $pw = $HSDB4::Constants::db_password;
+		my ($master_msg);
+
+		foreach my $key (keys %$args){
+			if($key =~ /^groupsdiv__(.+)__user_group_id__\d+$/){
+				my $ug_id = $args->{$key};
+				my $ug = HSDB45::UserGroup->new( _school => $school->getSchoolName() )->lookup_key($ug_id);
+				if($ug->primary_key()){
+					my @members = $ug->child_users();
+					$master_msg .= $course->add_child_members($un, $pw, \@members, $tp_id, '');
+				}
+				else {
+					$master_msg .= "No User Group found with name '$1'<br/>";
+				}
+			}
+		}
+
+		if($master_msg){
+        	$m->comp('/tmpl/error', msg=>$master_msg, destination=>'/management/course/users/addgroupmembers/course/' . $school->getSchoolName() . '/' . $course->primary_key());
+		}
+		else{
+			$master_msg = "Users successfully added.";
+			$m->comp('/tmpl/wizard:do_next',
+				args => \%ARGS,
+			 	default_transition => '/management/course/users/show/' . $school->getSchoolName() . '/' . $course->primary_key(),
+				msg => $master_msg,
+				);
+		}
+	}
+</%init>

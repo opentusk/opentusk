@@ -1,0 +1,179 @@
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Application::Quiz::Copy;
+	use TUSK::Quiz::LinkCourseQuiz;
+</%once>
+
+<%shared>
+	my $type_obj = $m->comp("/tmpl/url:get_type_object");
+	my $quiz_id = $m->comp("/tmpl/url:get_first_path_id");
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my $back_url = "/quiz/author/addedit/" . $m->comp('/tmpl/url:get_type_path') . '/' . $quiz_id;
+	my $time_period = HSDB45::TimePeriod->new(_school => $type_obj->school())->lookup_key(TUSK::Quiz::LinkCourseQuiz->lookupReturnOne("child_quiz_id = $quiz_id")->getTimePeriodID());
+</%shared>
+
+<%method title>
+%	return "Quiz Questions Copy";
+</%method>
+
+<%method red_header_text>
+%	return "Quiz Questions Copy";
+</%method>
+
+<%method function_token>
+% 	return 'copy_quiz';
+</%method>
+
+
+<%method get_nav_bar_objects>
+% 	return {'quiz'=> $quiz};
+</%method>
+
+
+<%method get_quizzes>
+<%perl>
+	my ($quizzes,@quizzes);
+	if (defined($quiz->getPrimaryKeyID())){
+		$quizzes = TUSK::Quiz::LinkCourseQuiz->new()->getQuizzes($type_obj->school(), $type_obj->primary_key(), "child_quiz_id != $quiz_id");
+	} else {
+	       	$m->comp("/tmpl/error",msg=>"Quiz $quiz_id not found");
+	}
+	
+	foreach (@$quizzes) {
+		my $time_period = HSDB45::TimePeriod->new(_school => $type_obj->school())->lookup_key($_->getJoinObject('TUSK::Quiz::LinkCourseQuiz')->getTimePeriodID());
+		my $period = (defined $time_period) ? $time_period->out_display() : 'no time period';
+
+		my $items = $_->getQuizItems();
+		my $disabled = (@$items) ? '' : 'DISABLED';
+		push @quizzes, { 
+			qid => '<input type="checkbox" name="source_quiz_id" value="' . $_->getPrimaryKeyID() . "\" $disabled> " . $_->getPrimaryKeyID(),
+			title => $_->getTitle(),
+			items_count => scalar @$items,
+			period => $time_period->period(),
+			academic_year => $time_period->field_value('academic_year'),
+			qqid => "<input class=\"formbutton\" value=\"Selected Questions\" type=\"submit\" onclick=\"forward('/quiz/author/questionselectedcopy/" . $_->getPrimaryKeyID() ."')\"/>",
+		};
+	}
+
+	return \@quizzes;
+</%perl>
+</%method>
+
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+        border => "0",
+        cellspacing => "6",
+        cellpadding => "0" } &>
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        name => 'questionscopy',
+        onsubmit => "return verifyQuestionsCopy();" } &>
+
+<& /tmpl/element:field_display, params => {
+	label => 'Quiz Title:',
+        value => $quiz->getTitle()} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Time Period:',
+	value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')',
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => 'Quiz to copy from:',
+        value => $m->scomp('/tmpl/element:object_selection_box', params => {
+			 columns => [
+				{'field'=>'qid','label'=>"Quiz ID"},
+				{'field'=>'title','label'=>"Title"},
+				{'field'=>'items_count','label'=>"#Questions", 'align'=>"center"},
+				{'field'=>'period','label'=>"Period"},
+				{'field'=>'academic_year','label'=>"Academic Year"}, 
+			],
+			 type_path => '',
+			 nobutton  => 1,
+			 'norows-message'  => 'No results',
+                	 rows  => $m->comp('SELF:get_quizzes')
+		 }) . qq(<br/><span style="font-size:85%;">To copy quizzes not listed above, enter a list of quiz ids in comma delimited format:</span><br/> <input type="text" name="source_quiz_id_list" size="60"/>),
+	}
+&>
+
+<& /tmpl/element:radio_buttons, params => { 
+        label => 'Include Quiz Answers and Feedback:',
+        name => 'include_answers',
+        buttons => [
+		{ value => "1", text => "Yes (copy both questions and answers/feedback)", checked => 1 },
+                { value => "0", text => "No (copy only questions)", checked => 0 }
+	],
+        size => 60,
+        length => 255 } &>
+
+
+<& /tmpl/element:save_button, params=> {
+		name  => 'copy_quiz_questions',
+                label => 'Copy All Questions',
+                cancel_onclick => "go_back('$back_url');",
+		buttons => [ $m->scomp('/tmpl/element:button', params => {
+			label		=> 'Display Questions To Copy',
+			name		=> 'selected_questions_submit',
+			type		=> 'submit',
+		}) ]
+	} 
+&>
+
+</form>
+</table>
+
+<%init>
+	if (defined $ARGS{submit_check}) {
+		my @source_quiz_ids = ();
+		
+		if (defined $ARGS{source_quiz_id}) {
+			if (ref $ARGS{source_quiz_id} eq 'ARRAY') {
+				push @source_quiz_ids, @{$ARGS{source_quiz_id}};
+			} else {
+				push @source_quiz_ids, $ARGS{source_quiz_id};
+			}
+		}
+
+		if (defined $ARGS{source_quiz_id_list} && $ARGS{source_quiz_id_list} =~ /^[\d,]+$/) {
+			push @source_quiz_ids, split(/,/, $ARGS{source_quiz_id_list});
+		}
+
+
+		if (defined $ARGS{selected_questions_submit}) {
+			$m->redirect('/quiz/author/questionselectedcopy/' . $m->comp('/tmpl/url:get_type_path') . '/' . "$quiz_id/$ARGS{include_answers}/" . join('/', @source_quiz_ids));
+		} else {
+			my $msg = '';
+			my $msgtype = 'msg';
+
+			foreach my $source_quiz_id (@source_quiz_ids) {
+
+				my $copy_quiz = TUSK::Quiz::Quiz->lookupKey($source_quiz_id);
+
+				unless (defined $copy_quiz) {
+					$msg .= "Invalid template quiz id [$source_quiz_id].<br/> ";
+					next;
+				}
+
+				my $quizapp = TUSK::Application::Quiz::Copy->new({
+					source_quiz_id => $source_quiz_id,
+					target_quiz_id => $quiz_id,
+					include_answers => $ARGS{include_answers},
+					user  => $m->session->{'user'}->user_id()
+				});
+
+	        		$quizapp->copy();
+			}
+
+			if ($msg =~ /\w+/) {
+				$msgtype = 'errmsg';
+			} else {
+				$msg = 'Quiz questions copied successfully';
+			}
+
+		        $m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/addedit", 'pathref' => [$quiz_id], msg => $msg, msgtype => $msgtype));
+		}		
+	}
+</%init>
+

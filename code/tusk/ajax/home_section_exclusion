@@ -1,0 +1,32 @@
+<%flags>
+inherit => undef
+</%flags>
+
+<%once>
+use TUSK::Homepage::Exclusion;
+</%once>
+
+<%args>
+$uid
+$section
+$action
+</%args>
+
+<%perl>
+
+if($action eq 'include'){
+	my $hpx = TUSK::Homepage::Exclusion->new()->lookupReturnOne("user_id='$uid' and section_token='$section'");
+	if(defined $hpx){
+		$hpx->includeSection();
+	}
+}
+else {
+	my $hpx = TUSK::Homepage::Exclusion->new();
+	unless(defined $hpx->lookupReturnOne("user_id='$uid' and section_token='$section'")){
+		$hpx->setUserID($uid);
+		$hpx->setSectionToken($section);
+		$hpx->excludeSection();
+	}
+}
+
+</%perl>

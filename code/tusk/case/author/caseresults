@@ -1,0 +1,108 @@
+<%once>
+	use TUSK::Case::Case;
+	use TUSK::Case::CaseReport;
+	use TUSK::Core::HSDB4Tables::User;
+</%once>
+
+
+<%attr>
+	case_ignore_perms=>1
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+
+<%shared>
+	my $id = $m->comp('/tmpl/url:get_last_path_id');
+	my $case = TUSK::Case::Case->lookupKey($id);
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my %params = $m->request_args;
+</%shared>
+
+
+<%method title>
+%	return "Case Results : ".$case->getCaseTitle();
+</%method>
+
+
+<%method function_token>
+% 	return 'reports_case';
+</%method>
+
+
+<%method get_nav_bar_objects>
+%	return {'TUSK::Case::Case'=>$case};
+</%method>
+
+
+<%method leftnav>
+%	return "/tmpl/leftnav/course";
+</%method>
+
+
+<%method get_students_condition>
+<%perl>
+	my $time_period_id = $params{timeperiod};
+
+	unless ($time_period_id) {
+		if (my $tp = $course->get_current_timeperiod()) {
+			$time_period_id = $tp->primary_key();
+		}
+	}
+
+	my @students = $course->get_students($time_period_id);
+
+	return (scalar @students) 
+		? ' and tusk.case_report.user_id in (' . join(',', map { "'" . $_->primary_key() . "'" } @students) . ')'
+		: undef;
+</%perl>
+</%method>
+
+
+<%init>
+	my $sortOrderArray = ['lastname', 'start_date'];
+
+	if ($case->isSelfAssessment()){
+		$sortOrderArray = ['start_date'];
+	}
+
+
+	my $result_rows = [];
+
+	if (my $student_cond = $m->comp('SELF:get_students_condition')) {
+
+		### only report responses for students that are in either enrollment or user_group
+		my $results = TUSK::Case::CaseReport->lookup("not preview_flag and case_id = $id and end_date is not null" . $student_cond, $sortOrderArray, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User") ]);
+
+		my ($needs_grade_text,$end_date);
+		my $isSelfAssessment = $case->isSelfAssessment;
+
+		foreach my $result (@{$results}) {
+	        	push @$result_rows, {
+				name => ($isSelfAssessment) ? 'Anonymous' : $result->getUserObject->out_lastfirst_name(),
+				id => $result->getPrimaryKeyID(),
+	        	        start_date => $result->getStartDate(),
+				end_date => $result->getEndDate(),
+				needs_grade => $needs_grade_text }
+		}
+	}
+
+	my $sort = $params{'sort'} || "name";
+	my $toggle = $params{'toggle'} || 0;
+	my $default_sort = "name";
+</%init>
+
+
+<& /tmpl/element:object_selection_box, params=>{'columns'=>[{'field'=>'name','label'=>"Name", 'sort'=>"char"},
+		{'field'=>'start_date','label'=>"Start Date", "sort"=>"char"},
+		{'field'=>'end_date','label'=>"End Date", "sort"=>"char"} ],
+		'action_columns'=>[{'label'=>'View Responses',
+			'link'=>'/case/author/caseresponses'}],
+		'type_path' => $m->comp("/tmpl/url:get_type_path") . '/' . $id,
+		'nobutton' => 1,
+		'norows-message' => 'No results',
+                'rows'=> $result_rows,
+		'sort'=> $sort,
+		'default_sort' => $default_sort,
+		'toggle' => $toggle } &>
+
+

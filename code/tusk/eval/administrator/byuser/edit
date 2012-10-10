@@ -1,0 +1,120 @@
+<%once>
+	use TUSK::Eval::Group;
+</%once>
+
+<%shared>
+	my %args = $m->request_args;
+	my $school = $m->comp('SELF:schoolname');
+	my $group_eval_id = $m->comp("/tmpl/url:get_first_path_id");
+	my $group_eval = TUSK::Eval::Group->new()->lookupKey($group_eval_id);
+	my $time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($group_eval->getTimePeriodID());
+</%shared>
+
+
+
+<%init>
+	my $msgtxt;
+	if ($args{submit_check}) {
+		$group_eval->setFieldValues({
+			title => $args{title} || '',
+			instructions => $args{instructions} || '',
+			available_date => $args{available_date} || '',
+			due_date => $args{due_date} || '',
+		});
+		$group_eval->save({user => $m->session->{'user'}->primary_key()});
+		$msgtxt = 'Successfully Saved';
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/eval/administrator/byuser/edit", 'msg' => $msgtxt));
+	}
+
+</%init>
+
+
+<& /tmpl/element:form, params => {
+	name 		=> 'editbyuser',
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+	onsubmit	=> '',
+} &>
+
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0" 
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Time Period:',
+	value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')',
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label 	=> 'Title:',
+	name 	=> 'title',
+	value 	=> $group_eval->getTitle(),
+	size 	=> 80,
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label	=> 'Instructions:',
+	value	=> $m->scomp('/tmpl/element:input_textarea', params => { 
+				name	=> 'instructions',
+				cols	=> 80,
+				rows    => 5,
+				value	=> $group_eval->getInstructions(), })
+} &>	
+
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Available Date:',
+	name	=> 'available_date',
+	value 	=> $group_eval->getFormattedAvailableDate() || '',
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Due Date:',
+	name	=> 'due_date',
+	value 	=> $group_eval->getFormattedDueDate() || '',
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:radio_buttons, params => { 
+        label => 'Display Faculty Name:',
+        name => 'show_name_flag',
+	nobreak => 1,
+        buttons => [
+		{ value => "1", text => "Yes", 
+ 		  checked => ($group_eval->getShowNameFlag()) ? 1 : 0,},
+                { value => "0", text => "No", 
+		  checked => ($group_eval->getShowNameFlag()) ? 0 : 1, }
+		   ],
+	trailing_text => '<br/><br/><span style="font-size:75%;">* Faculty/Staff names will be displayed instead of evaluation titles, if "Yes" is selected.</span>',
+	}
+&>
+
+<& /tmpl/element:save_button, params=>{
+	label	=> 'Save Changes',
+        cancel_onclick => "go_back('/eval/administrator/byuser/show/" . $m->comp('SELF:schoolname') . "');",
+	name	=> 'submit',
+	trailing_text => '<div style="color:brown;font-size:80%;margin:10px;">Note: Any modifications will NOT impact those already created evaluations.  The change  will appear only on the intermediate page that list all the evaluations.</div>',
+} &>
+
+</table>
+</form>
+
+
+
+<%method title>
+% 	return "Modify Evaluations By Faculty/Staff";
+</%method>
+
+
+<%method jsarray>
+% return ['eval.js', 'element.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
+</%method>

@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use Getopt::Long;
+use TUSK::Core::ServerConfig;
+if (!defined($ENV{DATABASE_ADDRESS})){
+	$ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost;
+}
+die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
+
+my $path=$0;
+$path=~s/\/process_zip//;
+
+my $verbose=""; # set to 1 then info is printed to the screen
+
+GetOptions ("verbose!" => \$verbose);
+     
+$verbose = "--verbose" if($verbose);
+my $xmlslides="$path/xmlslides";
+my $zipdir="/data/ppt/processed"; # location where the zips are stored
+
+opendir (ZIP,$zipdir) or die("Cannot open $zipdir: $!");
+my @zip = readdir(ZIP);
+closedir (ZIP);
+
+foreach my $zipfile (@zip){
+	next if ($zipfile =~ m/^\./);
+	$zipfile=~s/\(/\\(/g;
+	print "Processing: $zipfile\n" if ($verbose);
+	system("$xmlslides --zipfile=$zipfile $verbose");
+}

@@ -1,0 +1,76 @@
+[!
+	use TUSK::Search::UserSearch;
+!][-
+	$req = shift;
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	if ($fdat{search}){
+		$results = TUSK::Search::UserSearch->findObjectives($fdat{search});
+	}
+-]
+<table cellspacing="5" width="100%">
+	<tr>
+		<td>
+			<table>
+				<tr>
+					<td>
+						<b>Objective: </b>&nbsp;
+					</td>
+					<td>
+						<textarea name="search" class="textareawhite" cols="35" rows="3"></textarea>&nbsp;
+					</td>
+					<td>
+						<input type="submit" name="action" value="Search" class="formbutton">
+					</td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" name="action" value="Make New Objective" class="formbutton" onclick="addnew('searchdiv', {body:document.search.search.value, objective_id:0})">&nbsp;
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+
+		
+		</td>
+	</tr>
+[$ if ($fdat{search}) $]
+	<tr>	
+		<td><br>
+[- $numResults = scalar(@{$results}); -]
+			<div id="count">[+ $numResults +] matching entr[$ if ($numResults == 1) $]y[$ else $]ies[$ endif $][$ if ($numResults) $]:[$ endif $]</div>
+		</td>
+	</tr>
+[$ endif $]
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+[- 	
+	foreach $objective (@{$results}){
+		my $pk = $objective->primary_key();
+		push (@objectivearray, {objective_id => $pk, body => $objective->field_value_esc('body')});
+	}
+
+	create_layer({
+			layer => 'searchdiv',
+			fields => ['objective_id','body'],
+			name => '',
+			sort => {usage => 'No'},
+			scrollrows => 9,
+			parentlayer => $fdat{parentlayer},
+			action => {usage => 'Yes', length=>100, functions => [
+									{func=>'add', label=>'Add'}
+								]},
+			display => [
+					{field=>'body', align=>'left', length=>400,}
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => \@objectivearray,
+			});
+-]
+		</td>
+
+	</tr>
+</table>

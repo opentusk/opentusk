@@ -1,0 +1,43 @@
+<%perl>
+my $phase = $ARGS{'phase'};
+my $case = $ARGS{'case'};
+my $args = $ARGS{'args'};
+</%perl>
+
+<!-- Begin Generic Phase --> 
+<& /tmpl/element:table &>
+<& /tmpl/element:tr_tag &>
+<td>
+<& element:transition,args=>$args &>
+% if ($phase->getInstructions()) {
+<div class="text2"><% $phase->getInstructions() %></div>
+% }
+<div class="highlight-text"><% $phase->getMainText() %></div>
+<br><br>
+<& element:content_display,phase=>$phase &>
+</td>
+</tr>
+
+<& element:divider_bar &>
+</table>
+<!-- End Generic Phase --> 
+
+<%method chartInfo>
+<%args>
+$phase 
+</%args>
+% my $text = $phase->getMainText() || "<em>Nothing to report</em>";
+% return $text;
+</%method>
+
+
+<%method get_button_nav>
+<%args>
+$case
+$phase 
+$args
+</%args>
+% if($case->isLinearNav()) {
+<& element:transition_button, phase => $phase, case => $case, args => $args &>
+% }
+</%method>

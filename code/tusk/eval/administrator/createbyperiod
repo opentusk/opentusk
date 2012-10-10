@@ -1,0 +1,200 @@
+<%once>
+	use HSDB45::TeachingSite;
+	use TUSK::Application::Eval::Maker;
+	use TUSK::Application::Eval::MakerTemplate;
+</%once>
+
+<%shared>
+	my %params = $m->request_args;
+</%shared>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	unless ($ENV{HOSTNAME} =~ /tusk.tufts.edu/i && $m->comp('SELF:schoolname') eq 'Medical') {
+		$m->comp('SELF:set_msg',, type => 'err', msg => 'Sorry. At this time, this page is not yet available.');
+		exit();
+	}
+</%perl>
+</%method>
+
+<%init>
+	return unless ($ENV{HOSTNAME} =~ /tusk.tufts.edu/i && $m->comp('SELF:schoolname') eq 'Medical');
+
+	$m->comp('SELF:show_form');
+
+	if ($params{submit_check} && $params{time_period_id} && $params{due_date} && $params{available_date}) {
+		my $tmpl = TUSK::Application::Eval::MakerTemplate->new( { school => $m->comp('SELF:schoolname'),time_period_id => $params{'time_period_id'} });
+
+	    	my ($created_evals, $existing_evals, $errors, $sync_errors) = $m->comp('SELF:create_evals', $tmpl);
+
+		print "<br/><br/><div class=\"admintext\"><b>Eval Creation Report for Period: " . $tmpl->getPeriod() . ', ' . $tmpl->getAcademicYear() . "</b></div>";
+
+	    	$m->comp('SELF:print_messages', $created_evals, $existing_evals,$errors, $sync_errors);
+	} 
+</%init>
+
+
+<%method show_form>
+<& /tmpl/element:form, params => {
+	name 		=> 'createbulkevals',
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+	onsubmit	=> 'return verify_create_bulk_evals_submit();'
+} &>
+
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0" 
+} &>
+
+<& /eval/administrator/tmpl:get_current_time_periods &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Available Date:',
+	name	=> 'available_date',
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Due Date:',
+	name	=> 'due_date',
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:save_button, params=>{
+	label	=>	'Create Evaluations',
+        cancel_onclick => "go_back('/eval/administrator/show/" . $m->comp('SELF:schoolname') . "');",
+	name	=>	'submit',
+	trailing_text => '<br/><span style="font-size:70%">Note: This will create evals for all courses in the selected time period. It will not re-create existing evaluations.</span>' } &>
+
+
+</table>
+</form>
+
+</%method>
+
+
+
+<%method create_evals>
+<%perl>
+    	my $tmpl = shift;
+    	my $codes = $tmpl->getCourseCodes();
+    	my (%created_evals, %existing_evals, %errors);
+    	my $school = $tmpl->getSchool()->getSchoolName();
+
+    	### ensure that teaching sites are in sync among link_course_student, 
+    	### course_code and link_course_teaching_site
+    	$tmpl->sync_teaching_sites();
+	my $sync_errors = $tmpl->getTeachingSiteSyncErrors();
+
+	foreach my $code (@{$codes}) {
+		$tmpl->setCourse($code->[0]);
+		my $teaching_sites = $tmpl->getAllTeachingSites();
+
+		foreach my $teaching_site (@{$teaching_sites}) {
+			$tmpl->setTeachingSite($teaching_site);
+			my $eval_title = $tmpl->getEvalTitle();
+
+			my $key = $code->[0];  
+			### put course_code + teaching_site as a unique key
+			## $key .= (defined $tmpl->getTeachingSite()) ? '-' . $tmpl->getTeachingSite()->primary_key() : '';
+			my @existed_evals = $tmpl->evalExists();
+
+			if (@existed_evals) {
+	    			push @{$existing_evals{$key}}, @existed_evals;
+			} else {
+    			### creat an eval even though there is no teaching site
+    			### there are more than one teaching site for some course
+				my $evalmaker = TUSK::Application::Eval::Maker->new({ 
+			    	school         => $school,
+			    	course         => $tmpl->getCourse(),
+		    		time_period    => $tmpl->getTimePeriod(),
+		    		teaching_site  => $tmpl->getTeachingSite(),
+		    		available_date => $params{available_date},
+		    		due_date       => $params{due_date},
+		    		eval_title     => $eval_title,
+				});
+
+				if ($evalmaker->clone($tmpl->getPrototypeEvalID())) {
+	    				push @{$created_evals{$key}}, HSDB45::Eval->new(_school => $school)->lookup_key($evalmaker->getEvalID());
+				} else {
+			    		$errors{$key} = '';
+				}
+			}
+		}
+	}
+	return (\%created_evals, \%existing_evals, \%errors, $sync_errors);
+</%perl>
+</%method>
+
+
+<%method print_messages>
+<%perl>
+	my ($created_evals, $existing_evals, $errors, $sync_errors) = @_;
+
+	if ($sync_errors) {
+		print "<table width=\"100%\">\n";
+		print "<tr><td><span style=\"font-size:125%;color:red;font-weight:bold;\">Problems syncing teaching sites for these courses:</span></td></tr>\n";
+		foreach my $course (@{$errors->{sync}}) {
+			    print "<tr><td>$course</td></tr>\n";
+		}
+		print "</table>\n<br/>\n";
+	}
+
+	if (%{$errors}) {
+		print "<table width=\"100%\">\n";
+		print "<tr><td><span style=\"font-size:125%;color:red;font-weight:bold;\">Problems creating evals for these courses:</span></td></tr>\n";
+		foreach my $code (sort keys %{$errors}) {
+		    print "<tr><td>$code</td></tr>\n";
+		}
+		print "</table>\n<br/>\n";
+    	} 
+
+	print $m->comp('SELF:print_table', $created_evals, 'New');
+	print $m->comp('SELF:print_table', $existing_evals, 'Existing');
+
+</%perl>
+</%method>
+
+<%method print_table>
+<%perl>
+	my ($evals, $label) = @_;
+	my $school = $m->comp('SELF:schoolname');
+	print "<table width=\"100%\">\n";
+	print $m->comp('/tmpl/element:section_header_row', label => $label . ' Evaluations:', skip_space => 1);
+    if (%{$evals}) {
+		my $total = 0;
+		foreach my $code (sort keys %{$evals}) {
+			print "<tr><td valign=\"top\" class=\"sm\" colspan=\"2\"><b>$code</b></td></tr>";
+			my $count = 1;
+			foreach my $eval (@{$evals->{$code}}) {
+		    		print "<tr><td>&nbsp;&nbsp;<span class=\"xsm\">" . $count++ . ")</span></td><td><a style=\"font-size:75%;text-decoration:none;\" href=\"javascript:open_eval_edit_window('$school'," . $eval->primary_key() . ")\">" . $eval->field_value('title') . "</a> <span class=\"xsm\">(" . $eval->primary_key() . ")</span></td></tr><tr><td></td><td><span class=\"xxsm\">last modified: " . $eval->field_value('modified') . "</td></tr>\n";
+				$total++;
+			}
+		}
+		print "<tr><td class=\"sm\" colspan=\"2\"><br/>Total Number of $label Evaluations: $total</td></tr>\n";
+    } else {
+		print "<tr><td class=\"sm\">No $label Evaluations.</td></tr>\n";
+	}
+
+	print "</table>\n<br/>\n";
+</%perl>
+</%method>
+
+<%method title>
+% 	return "Create Evaluations By Time Period";
+</%method>
+
+
+<%method jsarray>
+% return ['eval.js', 'element.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
+</%method>

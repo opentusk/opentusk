@@ -1,0 +1,142 @@
+[-
+	$req=shift;
+
+	# page setup
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	$req->{pagetype}="tracking";
+	$req->{checkcourserole}="DIRECTOR";
+
+	unless ($fdat{page}){ $fdat{page}="add"; }
+
+	# the includes
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	Execute({inputfile=>$req->{include_dir}."/element",import=>1});
+	
+	# process the actions
+	if ($fdat{action}){
+		($rval, $msg) = TUSK::Manage::Tracking::addedit_process($req, \%fdat, \%udat);
+		process_return_values($rval, $msg);
+		$http_headers_out{'Location'}="/manage/tracking/show/course/" . $req->{classpath} . "/?" . $fdat{urimsg};
+	}
+	
+	$data = TUSK::Manage::Tracking::addedit_pre_process($req, \%fdat, \%udat);
+
+	# call the header
+        manage_header($req);
+-]
+<style type="text/css">@import url(/style/calendar-blue.css);</style>
+<script language="Javascript" src="/scripts/calendar.js"></script>
+<script language="Javascript" src="/scripts/calendar-en.js"></script>
+<script language="Javascript" src="/scripts/calendar-setup.js"></script>
+<script language="Javascript">
+	function show_hide_dates( ) {
+		if ( document.tracking.alldates[0].checked ) {
+			document.getElementById("start_row").style.display = "none";
+			document.getElementById("end_row").style.display   = "none";
+		} 
+		if ( document.tracking.alldates[1].checked ) {
+			document.getElementById("start_row").style.display = "table-row";
+			document.getElementById("end_row").style.display   = "table-row";
+		}
+	}
+</script>
+                  <!-- End Header Table -->
+                  <form action="/manage/tracking/addedit/[+ $req->{selfpath} +]" method="post" name="tracking" onsubmit="return checkform(this);" class="no-padding">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+			<tr>
+                        <td class="labelgray">Time Period:</td>
+                        <td class="cell-left">[+ TUSK::Functions::get_selected_timeperiod_display($req->{school}, \%udat) +]</td>
+                      </tr>		
+[$ if ($fdat{page} eq "edit") $]
+	<tr>
+		<td class="labelgray">Content Id:</td>
+		<td class="cell-left"><b>[$ if ($req->{tracking}->field_value('content_id')) $][+ $req->{tracking}->field_value('content_id') +][$ else $]Course homepage[$ endif $]<input type="hidden" name="content_id" value="[+ $req->{tracking}->field_value('content_id') +]"></b></td>
+	</tr>
+[$ else $]
+      <tr>
+	                  <td class="labelgray">Track this Content/Data:</td>
+                        <td class="cell-left"><select name="folder">
+	  <option value="0">| Course Homepage</option>
+[+ $data->{options} +]
+                          </select>
+[# checkbox taken out..might be added back later <input type="checkbox" name="checkbox" value="checkbox"> 
+                          <span class="xsm">include subfolders</span>
+#]
+<br> <br> 
+                          <span class="xsm"><b>- OR -</b></span><br> <br> <span class="xsm">Track 
+                          a Specific Content ID:</span> <input name="content_id" type="text" class="textareawhite" size="15"> 
+                          <span class="xsm"><a href="javascript:open_window('/manage/search?type=content&parent=opener.document.tracking.content_id.value','directories=no,menubar=no,toolbar=yes,scrollbars=yes,resizable=yes,width=800,height=700');" class="chooser">find content ids</a><br></span>
+			</td>
+                      </tr>
+[$ endif $]
+[- 	$checkflag = 1; -]
+                     <tr> 
+                        <td class="labelgray">Dates:</td>
+                        <td class="cell-left">
+						  <input type="radio" id="alldates" name="alldates" value="1" onclick="show_hide_dates();" [$ if ($fdat{page} eq "add" or $fdat{page} eq "edit" and $req->{tracking}->isAllDate) $][- $checkflag=0 -]checked[$ endif $]>
+                          <span class="xsm">All Dates</span><br>
+						  <input type="radio" id="alldates" name="alldates" value="0" onclick="show_hide_dates();" [$ if ($checkflag==1) $]checked[$ endif $]>
+                          <span class="xsm">Between ...</span>
+		</td>
+                      </tr>
+[-
+$start_value = '';
+$start_value = $req->{tracking}->field_value('start_date') if ($req->{tracking} && $req->{tracking}->field_value('start_date') ne '1000-01-01');
+$start_params =  [
+             { 	tr_id => 'start_row',
+				label => '&nbsp;&nbsp;&nbsp;Start Date:',
+				name =>  'start_date',
+				size =>  '12',
+				maxlength =>  '10',
+				value => $start_value,
+				calendar => 1,
+				trailing_text => '<span class="xsm">(if applicable)</span>',
+             } ];
+
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'textbox', 
+          param     => $start_params
+         }); 
+
+$end_value = '';
+$end_value = $req->{tracking}->field_value('end_date') if ($req->{tracking} && $req->{tracking}->field_value('end_date') ne '2037-12-31');
+$end_params =  [
+             { 	tr_id => 'end_row',
+              	label => '&nbsp;&nbsp;&nbsp;End Date:',
+				name =>  'end_date',
+				size =>  '12',
+				maxlength =>  '10',
+				value => $end_value,
+				calendar => 1,
+				trailing_text => '<span class="xsm">(if applicable)</span>',
+             } ];
+
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'textbox', 
+          param     => $end_params
+         }); 
+-]
+<script language="javascript">show_hide_dates()</script>
+[#                      <tr> 
+                        <td class="labelgray">For these Users:</td>
+                        <td class="cell-left"><select name="usergroup_id" onchange="check_dropdowns(this, this.form.time_period);">
+ <option value="0" selected>All [+ $req->{course}->field_value('title') +]</option>
+[$ foreach $usergroup (@{$data->{usergroups}}) $]
+[- 
+	$tp =  $usergroup->aux_info('time_period_id');
+-]
+	<option value="[+ $usergroup->primary_key +]" [$ if ($req->{tracking} and $usergroup->primary_key == $req->{tracking}->field_value('user_group_id')) $]selected[$ endif $]>[+ $usergroup->field_value('label') +] - [+ $data->{period_hash}->{$tp}->out_display +]
+[$ endforeach $]
+</select></td>
+	</tr>
+ #]                     <tr> 
+                        <td>&nbsp;</td>
+                        <td class="cell-submit">
+                          <input name="Submit" type="submit" class="formbutton" value="Save and Continue">
+			<input type="hidden" name="action" value="[+ $fdat{page} +]"></td>
+                      </tr>
+                    </table>
+                  </form>
+[- manage_footer(); -]
+

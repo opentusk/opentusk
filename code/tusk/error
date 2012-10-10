@@ -1,0 +1,53 @@
+%# This is intended to handle errors for pages that have no output
+%# For example.. the slidesPDF and download pages (which are intended to ship files to browser)
+
+<%attr>
+	no_check_path		=> '1'
+        top_tab_type            => 'none'
+        displayLittleUserNavBar => '1'
+        allow_guests            => '1'
+	page_footer             => '/tmpl/footer:footer_with_tufts_links'
+</%attr>
+
+<%args>
+  $message => $TUSK::Constants::SiteAbbr . " encountered an error";
+  $log     => ''
+</%args>
+
+<%method title>
+%       return $TUSK::Constants::SiteAbbr . " Error";
+</%method>
+
+<%method red_header_text>
+%       return $TUSK::Constants::SiteAbbr . " Error";
+</%method>
+
+
+
+  <h4 class="error"><% $message %></h4>
+% if($log) {
+    <p>
+      Your problem has been reported to. <% $TUSK::Constants::SiteAbbr %> and we will do our best to help you with this issue.
+      If you would like to contact us with additional information please email
+      <a href="mailto:<% $TUSK::Constants::AdminEmail %>"><% $TUSK::Constants::AdminEmail %></a> or call <% $TUSK::Constants::SupportPhone %>
+      Thank you for your patience.
+    </p>
+
+    $msgBody = ErrorReport::sendErrorReport($r, {Msg => $message . "\n" . $log);
+% }
+
+
+<%method displayError>
+  <%args>
+    $message => ''
+    $log     => ''
+  </%args>
+
+  <%perl>
+    use Apache::Constants qw(REDIRECT);
+    use Apache::Util qw(:all);
+    $m->clear_buffer();
+    $r->header_out(Location => "/tusk/error?message=" . Apache::Util::escape_uri($message) . "&log=" . Apache::Util::escape_uri($log));
+    $m->abort(REDIRECT);
+  </%perl>
+</%method>

@@ -1,0 +1,17 @@
+#!/usr/bin/perl -l
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+use HSDB4::SQLRow::User;
+use HSDB4::test::setup;
+
+while (my $user_id = shift @ARGV) {
+    my $user = HSDB4::SQLRow::User->new ()->lookup_key ($user_id);
+    print "User: ", $user->out_label, " ($user_id)";
+    my @evals = $user->current_evals;
+    for my $eval (@evals) {
+	print join (' ', $eval->table, $eval->primary_key, substr($eval->out_label, 0, 50));
+    }
+}

@@ -1,0 +1,24 @@
+#!/usr/bin/perl -nl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+next unless ($min, $hour, $bytes) = /1999-((\d\d-\d\d \d\d):\d\d).+\s(\d+)$/; 
+$hr_count{$hour} += $bytes if $bytes; 
+$min_count{$min} += $bytes if $bytes;
+
+END { 
+    foreach (sort keys %hr_count) { 
+	my $total = $hr_count{$_};
+	next unless $total > 10_000_000;
+	my $rate = $total / 3_600_000;
+	my $percent_rate = $rate * 9 / 10_000 * 100;
+	printf "%s : %9d  %6.2f   %5.3f\n", $_, $total, $rate, $percent_rate;
+    } 
+    foreach (sort keys %min_count) { 
+	my $total = $min_count{$_};
+	next unless $total > 1_000_000;
+	my $rate = $total / 60_000;
+	my $percent_rate = $rate * 9 / 10_000 * 100;
+	printf "%s : %9d  %6.2f   %5.2f\n", $_, $total, $rate, $percent_rate;
+    } 
+}

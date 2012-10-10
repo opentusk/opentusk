@@ -1,0 +1,124 @@
+<%shared>
+my @id = $m->comp("/tmpl/url:get_path_ids");
+my ($question, $quiz, $id, $is_edit,$answer);
+pop(@id) if (scalar(@id) == 3 and $id[2] == 0);
+if (scalar(@id) == 3){
+	$is_edit = 1;
+	$id = shift @id;
+	$quiz = TUSK::Quiz::Quiz->new->lookupKey($id);
+	$id = shift @id;
+	$question = TUSK::Quiz::Question->new->lookupKey($id);
+	$id = shift @id;
+        $answer = TUSK::Quiz::Answer->new->lookupKey($id);
+} elsif (scalar(@id) == 2) {
+	$is_edit = 0;
+	$id = shift @id;
+	$quiz = TUSK::Quiz::Quiz->new->lookupKey($id);
+	$id = shift @id;
+	$question = TUSK::Quiz::Question->new->lookupKey($id);
+        $answer = TUSK::Quiz::Answer->new();
+} else {
+	$m->comp("/tmpl/error",msg=>"Error in query string");
+}
+</%shared>
+
+<%method function_token>
+% return 'edit_grades';
+</%method>
+
+<%method title>
+<%perl>
+my $title = "Create Answer";
+if (scalar(@id) == 2){
+        $title = "Modify Answer";
+}
+return $title;
+</%perl>
+</%method>
+<%method nav_bar>
+<%perl>
+my $obj = {'quiz'=>$quiz,
+		'question'=>$question};
+return $m->comp("/quiz/tmpl/nav", 'prefix'=>$m->comp("SELF:url_prefix"),
+                'page_token'=>'answeraddedit',
+                objects => $obj,
+		initial_nav_bar => $m->comp("SELF:get_nav_bar"));
+</%perl>
+</%method>
+<%method jsarray>
+% return ['layers.js','quiz.js','element.js','object_tree.js'];
+</%method>
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'questionaddedit',
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Answer Value',
+                name=>"value",
+		cols=>"60",
+                rows=>"4",
+                value=>$answer->getValue()  } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Correct',
+                name=>"correct",
+                onchange=>undef,
+                selected=>$answer->getCorrect() ,
+                options=>[{'label'=>'No','value'=>0},
+			{ 'label'=>'Yes','value'=>1}] } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Feedback',
+                name=>"feedback",
+                cols=>"60",
+                rows=>"4",
+                value=>$answer->getFeedback()  } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Hint',
+                name=>"hint",
+                cols=>"60",
+                rows=>"4",
+                value=>$answer->getHint()  } &>
+
+% if ($is_edit){
+<& SELF:footer, obj=>$answer &>
+% }
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+                cancel_onclick=>"go_back('$cancel_url');",
+                name=>'submit'} &>
+
+</form>
+</table>
+
+<%once>
+use TUSK::Quiz::Quiz;
+use TUSK::Quiz::Question;
+use TUSK::Quiz::LinkQuizQuizItem;
+use Data::Dumper;
+</%once>
+
+<%init>
+my $quiz_id = $quiz->getPrimaryKeyID();
+my $question_id = $question->getPrimaryKeyID();
+my $answer_id = $answer->getPrimaryKeyID();
+
+my $back_url = $m->comp("/tmpl/url:construct_back_url", base_url => "/quiz/author/questionaddedit", msg => 'Answer successfully modified');
+my $cancel_url = $m->comp("/tmpl/url:construct_url", base_url => "/quiz/author/questionaddedit");
+
+if (defined($ARGS{'submit'})){
+        $answer->setLabel($ARGS{'label'});
+        $answer->setValue($ARGS{'value'});
+	$answer->setCorrect($ARGS{'correct'});
+	$answer->setFeedback($ARGS{'feedback'});
+	$answer->setHint($ARGS{'hint'});
+	$answer->setQuestionID($question_id);
+        $answer->save({'user'=>$m->session->{'user'}->user_id()});
+	$m->redirect($back_url);
+}
+</%init>
+
+

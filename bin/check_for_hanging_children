@@ -1,0 +1,42 @@
+#!/usr/bin/perl -w
+#
+#
+# This script will alert us of hanging apache processes
+# It will not tell us why they are happening
+# Good discussion of this topic is here:
+#
+# http://modperlbook.org/html/5-11-4-Tracking-and-Terminating-Hanging-Processes.html
+#
+#
+
+use strict;
+
+open (my $PSEF_PIPE, # run custom ps command and grep for httpd
+      "ps -e -o pid -o ppid -o comm -o time 2>&1 | grep httpd 2>&1 | grep -v grep 2>&1 |")
+    or die "Problem with ps command: $!";
+
+while (my $line = <$PSEF_PIPE>) {
+    chomp $line;
+
+    my ($pid, $parent_pid, $command, $time) = split(' ', $line);
+
+    next if $parent_pid == 1; # skip if parent process
+
+    # time could be of the format:
+    # mm:ss
+    # hh:mm:ss
+    # dd-hh:mm:ss
+    die "time not in proper format ($time) ($line)\n"
+          if ( $time !~ /^((\d+-)?\d{1,2}:)?\d{1,2}:\d{2}$/ );
+
+    my (@t) = split(/[-:]/, $time);  
+
+    if ( scalar (@t) == 2 && $t[0] > 30			# greater than 30 minutes
+		|| scalar (@t) == 3 && $t[0] >= 1		# greater than or equal to 1 hour
+		|| scalar (@t) == 4 && $t[0] >= 1) {	# greater than or equal to 1 day
+	print "process id $pid has been running for $time\n";
+    }
+
+}
+
+close $PSEF_PIPE;

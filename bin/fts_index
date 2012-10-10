@@ -1,0 +1,450 @@
+#!/usr/local/bin/perl  
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+#use httpdconf;
+#my %hashOfVariables;
+#unless(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {exit();}
+use strict;
+use POSIX;
+use Time::Local;
+use TUSK::Core::ServerConfig;
+use TUSK::ScriptLog;
+use MySQL::Password;
+use Getopt::Long;
+use TUSK::Cron::VariableManager;
+use Sys::Hostname;
+use DBI;
+use DBIx::FullTextSearch;
+use DBIx::FullTextSearch::StopList;
+use HSDB4::SQLRow::Content;
+use HSDB4::SQLRow::User;
+use HSDB4::DateTime;
+use TUSK::Search::Indexer;
+
+sub time_stamp();
+sub index_objective($$);
+sub index_users($$);
+sub index_content_id($);
+sub connect_db();
+sub disconnect($);
+sub runAll();
+sub runUpdate();
+
+$ENV{XSL_ROOT} = "$FindBin::Bin/../code/XSL";
+
+my ($content_id,$all,$archive,$noUMLSIndexing, $noprint,$idFile,$update,$debug,$numChildren);
+GetOptions( "content-id=s" => \$content_id,
+	    "all!" => \$all,
+	    "include-archive"=>\$archive,
+	    "noprint!" => \$noprint,
+	    "no-umls-indexing"=>\$noUMLSIndexing,
+	    "recent!" => \$update,
+	    "debug!" => \$debug,
+	    "id-file=s" => \$idFile,
+	    "num-children=i" => \$numChildren,
+);
+
+BEGIN {
+	# Make sure we have arguments
+	unless (@ARGV) {
+		print "Usage: fts_index [--recent  | --all | --id-file=<file name> | --content-id=<content_id>[,<content_id>,<content_id>, . . .]\n";
+		print "		--include-archive --no-umls-indexing --num-children=<number of child processes> --noprint\n";
+		print "\n";
+		print "	You must use of of the four options to run fts:\n";
+		print "		recent     : indexes content that has changed, started or ended since last run\n";
+		print "		all        : indexes all content\n";
+		print "		content-id : takes a list of content ids to index\n";
+		print "		id-file    : takes the name of a file that has a list of content ids to index\n";
+		print "	Optional Paramaters:\n";
+		print "		num-children	: number of child processes to spawn when running --all\n";
+		print "		include-archive : includes the archive school in the index\n";
+		print "		no-umls-indexing : turn off UMLS Indexing to increase performance\n";
+		print "\n";
+		print "\n";
+		exit;
+	}
+}
+
+
+my $processVariables = TUSK::Cron::VariableManager->new();
+
+HSDB4::Constants::set_user_pw (get_user_pw);
+my $starttime = &time_stamp;
+
+
+if(!defined($ENV{DATABASE_ADDRESS})) {$ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost;}
+die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
+
+TUSK::ScriptLog::openlog("fts_index.log");
+
+## get the last time that fts was run succesfully updated
+my $lastRunTime = $processVariables->getValue('LastRun');
+
+if($content_id) {  foreach my $contentID (split(",", $content_id)) {index_content_id($contentID);}  }
+elsif($update) {runUpdate();}
+elsif($all) {runAll();}
+elsif ($idFile){
+	if(! -f $idFile) {die "File doesn't exist : $idFile";}
+	open IDFILE,"<$idFile" or die "Unable to open file $idFile : $!";
+	my @ids = <IDFILE>;
+	foreach my $id (@ids){
+		chomp $id;
+		next if ($id !~ /^\d+$/); 
+		index_content_id($id);
+	}
+	close IDFILE;
+}
+
+END { 
+    TUSK::ScriptLog::closelog();
+}
+
+
+
+sub time_stamp() {
+    my @time = split(" ",scalar(localtime(time())));
+    return $time[3];
+}
+
+
+sub index_objective($$) {
+    my $dbh = shift;
+    my $modified = shift;
+    my $fts = DBIx::FullTextSearch->open($dbh,"fts_objective");
+    my $query = "select objective_id,body from hsdb4.objective";
+    $query .= " where modified > '$modified'" if ($modified);
+    my $sth = $dbh->prepare($query);
+    $sth->execute;
+    my $ii = 0;
+    while (my ($id,$string) = $sth->fetchrow_array) {
+        $fts->index_document($id,$string);
+	sleep (1);
+	$ii++;
+	print "$ii: objective $id - $string\n" if (!$noprint);
+    }
+}
+
+sub index_users($$) {
+    my $dbh = shift;
+    my $modified = shift;
+    my $fts = DBIx::FullTextSearch->open($dbh,"fts_user");
+    my $query = "select user_id, firstname, lastname, midname, suffix, degree, status from hsdb4.user";
+    $query .= " where modified > '$modified'" if ($modified);
+    my $sth = $dbh->prepare($query);
+    $sth->execute;
+    my $ii=0;
+    while (my ($id,$fname,$mname,$lname,$sfx,$deg,$status) = $sth->fetchrow_array) {
+	next if ($id =~ /^&/);
+	if ($status =~ /Inactive/) {
+	    eval {
+		    $fts->delete_document($id);
+	    };
+	    if ($@){
+		die "Failed to delete user $id : $@";
+	    }
+	    print "Removed $id\n" if (!$noprint);
+	    next;
+	}
+	my $string = $id." ".$fname." ".$mname." ".$lname." ".$sfx." ".$deg;
+	eval {
+		$fts->index_document($id,$string);
+	};
+	if ($@){
+		die "Failed to Index User $id : $@";
+	}
+	$ii++;
+	print "$ii: indexed user $id\n" if (!$noprint);
+    }
+
+    $fts = DBIx::FullTextSearch->open($dbh,"fts_non_user");
+    $query = "select non_user_id, firstname, lastname, midname, suffix, degree from hsdb4.non_user";
+    $query .= " where modified > '$modified'" if ($modified);
+    $sth = $dbh->prepare($query);
+    $sth->execute;
+    while (my ($id,$fname,$mname,$lname,$sfx,$deg) = $sth->fetchrow_array) {
+	next if ($id =~ /^&/);
+	my $string = $id." ".$fname." ".$mname." ".$lname." ".$sfx." ".$deg;
+	eval {
+		$fts->index_document($id,$string);
+	};
+	if ($@){
+                die "Failed to Index Non User $id : $@";
+	}
+	$ii++;
+	print "$ii: non_user $id\n" if (!$noprint);
+    }
+    TUSK::ScriptLog::log("$ii users/non_users. ");
+}
+
+
+
+
+sub index_content_id($) {
+	my $content_sid = shift;
+	my $indexer = TUSK::Search::Indexer->new();
+	my $content_obj = HSDB4::SQLRow::Content->new->lookup_key($content_sid);
+	my $validCourses = 1;
+	if ($content_obj->course->title() =~ /^OCW: /) {$validCourses = 0;}
+	if ($content_obj->display and $content_obj->is_active() and $validCourses) {
+		$content_obj->out_html_body;
+		if($content_obj->error) {print "Indexing failed for $content_sid: ".$content_obj->error."\n";}
+		else {
+			eval { $indexer->indexContent($content_obj,$noUMLSIndexing ? 0 : 1, $noprint ? 0 : 1); };
+			if($@) {die "Failed Indexing $content_sid : $@";}
+			print "Indexed $content_sid\n" if (!$noprint);
+		}
+	} else {
+		eval { $indexer->unindexContent($content_sid); };
+		if($@) {die "Failed UnIndexing $content_sid : $@";}
+		print "Dropped from index: $content_sid" if(!$noprint);
+		print " (OCW content)" if(!$noprint && !$validCourses);
+		print "\n" if(!$noprint);
+	}
+}
+
+
+
+sub connect_db() {
+    my $dbh = DBI->connect ("dbi:mysql:fts:$ENV{DATABASE_ADDRESS}", get_user_pw (), { RaiseError => 1 });
+    return $dbh;
+}
+
+sub disconnect($) {
+    my $dbh = shift;
+    $dbh->disconnect;
+}
+
+
+sub runAll() {
+	TUSK::ScriptLog::log("Reindex All Content started $starttime. ");
+	my $newRunTime = HSDB4::DateTime->new->out_mysql_timestamp;
+	my %children;
+	$numChildren ||= 2;
+	my $hostname = Sys::Hostname::hostname();
+
+	#Create a table table that all process on all hosts will use
+	my $dbh = &connect_db;
+	# so IF NOT EXISTS does not work with AS SELECT
+	# So we need to do a check to see if the table is there and if not then lets try to create it
+	my $numTablesSth = $dbh->prepare("SHOW TABLES LIKE 'multi_fts';");
+	unless($numTablesSth) {die "Could not check to see if the table was there!\n";}
+	elsif(!$numTablesSth->execute()) {die "Could not execute sql to check to see if the table was there!\n";}
+	else {
+		my $tableName = $numTablesSth->fetchrow_array();
+		unless($tableName) {
+			my $archiveClause = ', "Archive" ';
+			if($archive) {$archiveClause = '';}
+
+			my $selectStatement = "SELECT content_id
+						 FROM hsdb4.content
+						WHERE school not in ('Downstate' $archiveClause)
+						  AND (start_date < NOW() OR start_date IS NULL)
+						  AND (end_date > NOW() OR end_date IS NULL)
+						  AND display=1
+			";
+			my $tableSQL = "CREATE TABLE IF NOT EXISTS multi_fts (
+						content_id int(10) unsigned NOT NULL,
+						converting_host varchar(100) default 'none', converting_pid int,
+						PRIMARY KEY (content_id),
+						INDEX multi_fts_i01 (converting_host, converting_pid),
+						INDEX multi_fts_i02 (converting_host, converting_pid, content_id)
+					) AS $selectStatement;
+			";
+			unless($dbh->do($tableSQL)) {die "Could not create the temp table!\nThis can happen if two instances of FTS are started on different machines at the same time";}
+		}
+	}
+	#Remove old instances of this converter (incase the entire thing died before)
+	unless($dbh->do("UPDATE multi_fts SET converting_host='none', converting_pid=NULL WHERE converting_host='$hostname'")) {
+		warn "I could not reset unfinished encounters of the indexer for this host";
+	}
+	$numTablesSth->finish();
+	$dbh->disconnect();
+
+	my $content_done = 0;
+	while(!$content_done) {
+		#Spawn children for this host
+		foreach my $i (1..$numChildren) {
+			if(my $pid = fork()) {
+				$children{$pid} = 1;
+			} elsif(defined $pid) {
+				my $dbh = &connect_db;
+				my $getMyCurrentContentId = $dbh->prepare("SELECT content_id FROM multi_fts WHERE converting_host='$hostname' AND converting_pid='$$';");
+				my $deleteCurrentContentId = $dbh->prepare("DELETE from multi_fts WHERE converting_host='$hostname' AND converting_pid='$$' AND content_id=?;");
+				unless($dbh && $getMyCurrentContentId && $deleteCurrentContentId) {warn "Could not get db handle and prepare sql statements for me! ($$)\n";}
+				else {
+					my $doneConverting = 0;
+					while(!$doneConverting) {
+						#Get a content_id to convert or, if there are none left, exit
+						if($dbh->do("UPDATE multi_fts SET converting_host='$hostname', converting_pid=$$ WHERE converting_host='none' AND converting_pid IS NULL LIMIT 1;")) {
+							unless($getMyCurrentContentId->execute()) {
+								warn "Unable to execute sql to get what my current content id was! : $! ($$)\n";
+								$doneConverting = 1;
+							} else {
+								my $contentIdToConvert = $getMyCurrentContentId->fetchrow_array();
+								if($contentIdToConvert) {
+									print "\t($$)I am supposed to convert $contentIdToConvert\n" if(!$noprint);
+									#Convert it
+									TUSK::ScriptLog::log("Starting with content id $contentIdToConvert");
+									index_content_id($contentIdToConvert);
+									
+									#delete the content id that i completed
+									$deleteCurrentContentId->bind_param(1, $contentIdToConvert);
+									unless($deleteCurrentContentId->execute()) {
+										warn "Unable to delete my lock on $contentIdToConvert after converting it!\n";
+										$doneConverting = 1;
+									}
+								} else {$doneConverting = 1;}
+								
+							}
+						} else {
+							warn "Unable to reserve a number for me to convert ($$)!\n";
+							$doneConverting = 1;
+						}
+					}
+					$getMyCurrentContentId->finish();
+					$deleteCurrentContentId->finish();
+					$dbh->disconnect();
+				}
+				exit();
+			} else {
+				warn "Can't fork for number $i : $!\n";
+			}
+		}
+
+		my $dbh = &connect_db;
+		while(scalar(keys %children)) {
+			my %runningPids;
+			
+			foreach my $childPid (keys %children) {
+				#Check to see if the process is still running by sending it sig 0
+				if(kill(0,$childPid)) {
+					delete $children{$childPid};
+					#Check to see if there is anything left in the database from this kid and if so remove the lock on it
+					print "Child $childPid died... resetting its content (in case it died)... \n" if(!$noprint);
+					unless($dbh->do("UPDATE multi_fts SET converting_host='none', converting_pid=NULL WHERE converting_host='$hostname' AND converting_pid='$childPid';")) {
+						warn "I could not try to reset content for child pid $childPid\n";
+					}
+				}
+			}
+			sleep (1);
+		}
+	
+		print "All the kids are alseep lets see if they finished there chores\n" if(!$noprint);
+
+		# Check to see if the number of rows in the table are 0 if not start over, if so, delete the table
+		my $statement = "select count(1) as numLeft from multi_fts where converting_host = 'none';";
+		my $sth = $dbh->prepare($statement);
+		unless($sth) {warn "Could not check to see if there was more content to be converted\n";}
+		elsif(!$sth->execute) {warn "Could not run statement to see if there was more that needed to be converted\n";}
+		else {
+			my $num_left = $sth->fetchrow_array();
+			if($num_left > 0) {
+				print "There was $num_left content left over, perhaps I should try again\n" if(!$noprint);
+			} else {
+				$content_done = 1;
+			}
+			$sth->finish();
+		}
+		$dbh->disconnect();
+	}
+
+	$dbh = &connect_db;
+	#Check the table to see if there are just 0 rows (if so then delete the multi_fts table
+	my $sth = $dbh->prepare("SELECT COUNT(1) AS numLeft FROM multi_fts");
+	unless($sth) {warn "Could not check to see if there was any content left in the multi_fts table\n";}
+	elsif(!$sth->execute) {warn "Could not run statement to see if there was any content left in the multi_fts table!\n";}
+	else {
+		my $num_left = $sth->fetchrow_array();
+		if($num_left > 0) {
+			print "There was $num_left content left over\n" if(!$noprint);
+		} else {
+			print "Removing multi_fts table..." if(!$noprint);
+			unless($dbh->do("DROP TABLE multi_fts;")) {warn "Unable to drop an empty multi_fts table!\n";}
+			elsif(!$noprint) {print "OK\n";}
+		}
+	}
+	my $indexer = TUSK::Search::Indexer->new(); 
+	TUSK::ScriptLog::log("Unindexing deleted content");
+	my $numUnindexed = $indexer->unindexDeletedContent($dbh);
+	TUSK::ScriptLog::log("Unindexed $numUnindexed content");
+
+	index_users($dbh, $lastRunTime);
+
+	index_objective($dbh, $lastRunTime);
+	&disconnect($dbh);
+
+	## save new modified time
+	$processVariables->setValue('LastRun', $newRunTime);
+	$processVariables->saveValue('LastRun');
+
+	TUSK::ScriptLog::log("Ended ".&time_stamp."\n");
+}
+
+
+
+
+sub runUpdate() {
+	my $pid = $processVariables->getValue('Pid');
+	print "Got pid $pid \n" if (!$noprint);
+
+	if($pid) {
+		my $progName = $0;
+		$progName =~ s/^.*\///g;
+		# this line detects whether the process is alive
+		if(kill (0,$pid)){
+			# the process is running
+			print "The process $pid is alive \n" if (!$noprint);
+			# We used to check here to see if the pid that we just found was actually running fts_index but that
+			# required know where ps was and forking for a pipe, seems like a waste.
+			print "Please check to make sure that $pid is actually running the FTS program and if not update the Pid variable in the databse!\n" if (!$noprint);
+			exit (0);
+		} else {
+			print "Unable to check pid $pid :$!\n" if (!$noprint);
+			#exit(255);
+		}
+	}
+	$processVariables->setValue("Pid", $$);
+	$processVariables->saveValue("Pid");
+	print "Creating new pid variable with pid $$ \n" if (!$noprint);
+
+	TUSK::ScriptLog::log("Update started $starttime.");
+
+	# if I have not run error out with a message that --all needs to be run or something to get the LastRun time in the database
+	unless($lastRunTime) {
+		TUSK::ScriptLog::log("No LastRun time was found, perhaps $0 needs to be run with --all to start the indexing?");
+		print "There was not LastRunTime\n" if (!$noprint);
+	} else {
+		my $archiveClause = " AND school NOT IN ('Archive') ";
+		if($archive) {$archiveClause = ''}
+
+		my $newRunTime = HSDB4::DateTime->new->out_mysql_timestamp;
+		print "Getting content ids to index..." if (!$noprint);
+		my @content_ids = TUSK::Search::Content->get_content_that_needs_indexing($lastRunTime, $newRunTime);
+		print "OK\n" if (!$noprint);
+
+		print "Found " . scalar(@content_ids) . " pieces of content to index . . .\n" if (!$noprint);
+		TUSK::ScriptLog::log(scalar @content_ids." contents. ");
+
+		my $ii = 1;
+		foreach (@content_ids) {
+			next if ($_ =~ /^$/);
+			print "$ii - indexing $_: " if (!$noprint);
+			index_content_id($_);
+			print "done.\n" if (!$noprint);
+			$ii++;
+		}
+
+		my $dbh = &connect_db;
+		index_users($dbh,$lastRunTime);
+		index_objective($dbh,$lastRunTime);
+		&disconnect($dbh);
+
+		## save new modified time
+		$processVariables->setValue('LastRun', $newRunTime);
+		$processVariables->saveValue('LastRun');
+	}
+	$processVariables->setValue("Pid", '');
+	$processVariables->saveValue("Pid");
+
+	TUSK::ScriptLog::log("Ended ".&time_stamp."\n");
+}

@@ -1,0 +1,84 @@
+<%once>
+  use GD;
+  use GD::Graph::bars;
+  use TUSK::GradeBook::GradeEvent;
+  use TUSK::GradeBook::GradeStats;
+  use POSIX;
+</%once>
+
+
+
+<%args>
+  $title     => undef
+  $label     => undef
+  $height   => 180
+  $width    => 200
+</%args>
+
+<%perl>
+# Both the arrays should same number of entries.
+
+my $event;
+my $event_id = $m->comp("/tmpl/url:get_last_path_id");
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my @nums;
+
+if(defined($event_id))
+{
+	$event=TUSK::GradeBook::GradeEvent->new->lookupKey($event_id);
+}
+
+my ($grades_data, $saved_grades) = $event->getGradeRecords($type_object);
+
+my $i=0;
+my $numOfGrades;
+while(@$grades_data[$i])
+{
+	my $grade = @$grades_data[$i]->{'grade'};
+    if(defined($grade)){
+
+	push(@nums,$grade);
+	#$nums[$i]=$grade;
+
+	my $j=0;
+	while ($j < 11) 
+	{
+	
+		my $mod = floor($grade / 10);
+		if ($mod == $j || ($j==9 && $grade eq "100"))
+		{
+			if(!defined(@$numOfGrades[$j])) { @$numOfGrades[$j]=0;}
+			@$numOfGrades[$j]++;
+			$j=12;
+		}
+		$j++;
+	}
+
+	}
+	$i++;
+	
+}
+
+if ($numOfGrades) {
+	my @data = (["0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80-89", "90-100"], $numOfGrades);
+
+
+	my $mygraph = GD::Graph::bars->new(500, 300);
+	$mygraph->set(
+    	y_label     => 'Number of Students per Score',
+	    x_label     => 'Score',
+    	title       => 'Grade Distribution',
+	    y_max_value => scalar(@$grades_data),
+	    x_label_position => '0.5',
+	 show_values => 'TRUE',
+	) or warn $mygraph->error;
+
+	my $myimage = $mygraph->plot(\@data) or die $mygraph->error;
+
+	 $r->content_type("image/png");
+	  $m->clear_buffer;
+	  $m->print($myimage->png() or die "Oops");
+	  $m->abort;
+}
+</%perl>
+

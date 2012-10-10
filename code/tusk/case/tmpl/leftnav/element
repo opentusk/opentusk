@@ -1,0 +1,341 @@
+<%once>
+use TUSK::Case::TestSelection;
+use TUSK::Case::Test;
+</%once>
+
+<%method header>
+<%args>
+$title
+</%args>
+<tr><td colspan="2"><img src="/graphics/case/spacer.gif" height="5" /></td></tr>
+<tr><td class="leftnav_tab"><% $title %></td>
+<td width="1%" class="leftnav_curve" style="text-align:right"><img src="/graphics/case/summaryHeader_corner.gif"/></td></tr>
+</%method>
+
+<%method body>
+<%args>
+$body
+$body_title => '' 
+$name => ''
+$body_display => 0
+$use_minimize_link => 1
+$onclick => ''
+</%args>
+% my $style = 'style="display:none"';
+% if ($body_display){
+% 	$style = '';
+% }
+<tr><td colspan="2" class="leftnav_body_border"><span class="smHeader1"><% $body_title %></span></td></tr>
+<tr id="<% $name %>" <% $style %> ><td class="leftnav_body_border" colspan="2">
+<% $body %></td></tr>
+% if ($name && $use_minimize_link) {
+<tr><td colspan="2" style="text-align:right" class="leftnav_body_border"><& expand_link,name=>$name, display=>$body_display, onclick=>$onclick &></td></tr>
+% }
+<tr><td class="leftnav_body" style="border-bottom: solid 1px #B4B5B5"><img src="/graphics/case/spacer.gif" height="1"/></td>
+<td width="1%" style="text-align:right;background: bottom right no-repeat url('/graphics/case/summaryHeader_lower_corner_60px.gif') #F6F6F7;"><img src="/graphics/case/summaryHeader_lower_corner.gif" /></td></tr>
+</%method>
+
+<%def expand_link>
+<%args>
+$name
+$display
+$onclick => ''
+</%args>
+<%perl>
+my $text = 'Expand Panel'; 
+if ($display){
+	$text = 'Minimize Panel';
+}
+</%perl>
+<a href="javascript:toggle_panel('<% $name %>');" class="smAction" id="<% $name %>-link" onclick="<% $onclick %>"><% $text %></a>
+</%def> 
+
+<%method case_panel>
+<%args>
+	$case
+</%args>
+<%perl>
+	my $body_title = $case->getCaseTitle();
+	my ($output_string, $duration_string, $duration);
+
+	if ($case->isTest()){
+		$duration_string .= 'Time&nbsp;Limit:';
+		$duration = $case->getDuration();
+	} else {
+		$duration_string = 'Duration:';
+		$duration = $case->getDurationText();
+	}
+	undef $duration if ($duration eq '00:00:00');
+	$duration = 'Untimed' unless ($duration);
+
+	$output_string .= "Author(s): " . $case->getCaseAuthors({credentials => 1}) . "<br>\n";
+	$output_string .= $duration_string . $duration . "<br>\n";
+
+	$output_string .= "Overview: " . $case->getCaseUserDesc() . "<br>\n" if ($case->getCaseUserDesc());
+
+	if ($case->getCaseType() eq 'Self-Assessment'){
+		my $objective_string;
+		my $objectives = $case->getObjectives();
+
+		foreach my $objective (@{$objectives}){
+			$objective_string .= $objective->getBody()."<br>";
+		}
+		
+		$output_string .= 'Objectives: ' .  $objective_string . "<br>\n" if ($objective_string);
+	}
+
+	$m->comp('SELF:body', body_title => $body_title, body => '<span class="text1">' . $output_string . '</span>', name => 'case_panel');
+</%perl>
+</%method>
+
+<%method phase_panel>
+<%args>
+$phase 
+$case
+</%args>
+<%perl>
+my $body_title = $case->getCaseTitle();
+my $output_string = '<table cellspacing="0" cellpadding="0" border="0">';
+
+my $nav_type = $case->getNavigationType();
+if($nav_type eq 'Global') {
+	$output_string .= '<tr><td colspan="2">This case has a <strong>global</strong> navigation, which means users can freely navigate by clicking on the phases below in any order they choose.</td></tr>';
+}
+
+my $phases = $case->availablePhases();
+if (!defined($case->getUser())){
+	$case->setUser($m->comp('SELF:user'));
+}
+my %visited_phase = map { ($_->getPrimaryKeyID(), 1 ) } @{$case->getVisitedPhases()};
+my ($title,$graphic,$class);
+my $divider = ''; 
+my ($phase_label,$pk);
+my $case_id = $case->getPrimaryKeyID();
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+
+foreach my $current_phase (@{$phases}){
+	$title = $current_phase->getPhaseTitle();
+	$pk = $current_phase->getPrimaryKeyID();
+	$graphic = "/graphics/case/sb_TrackerOff.gif";
+	if ($visited_phase{$pk}){
+		$graphic = "/graphics/case/sb_TrackerCheck.gif";
+	}
+	$class = "smText1";
+	if (defined($phase) 
+		&& ($current_phase->getPrimaryKeyID() eq $phase->getPrimaryKeyID())){
+		$graphic = "/graphics/case/sb_TrackerOn.gif";
+		$class = "smTrackerOn";
+	}
+	if ($case->isGlobalNav() || $visited_phase{$pk}) {
+		$phase_label = "<a href=\"/case/dophase/$type_path/$case_id/$pk\" class=\"$class\">$title</a>";
+	} else {
+		$phase_label = "<span class=\"$class\">$title</span>";
+	}
+	$output_string .= <<EOM;
+$divider
+<tr><td>
+<img src="$graphic"></td><td>$phase_label</td></tr>
+EOM
+	$divider = '<tr><td colspan="2" align="left"><img src="/graphics/case/sb_TrackerDivider.gif" /></td></tr>';
+}
+
+if($nav_type eq 'Global' && $m->request_comp()->title() !~ /casedone/){
+	my $report = $case->getReport($m->comp('SELF:user'));
+	my $report_id = $report->getPrimaryKeyID();
+
+	my $btn_txt = $m->scomp('/tmpl/element:button', params=> {
+	                 label    => 'Complete Case',
+	                 onclick  => "complete_phase('dophase', '/case/casedone/$type_path/$case_id/$report_id');",
+	                 style    => 'margin-top:9px',
+	                 name     => 'next_button',
+	                 });
+
+	$output_string .= <<EOM;
+<tr>
+<td colspan="2">$btn_txt</td>
+</tr>
+EOM
+}
+
+$output_string .='</table>';
+
+my $minimize = ($nav_type eq 'Global')? 0 : 1;
+$m->comp('SELF:body',body=>$output_string,'body_title'=>$body_title,'body_display'=>1,'name'=>'phase_panel',use_minimize_link => $minimize);
+</%perl>
+
+</%method>
+
+<%method chart_panel>
+<%args>
+$phase
+$case
+</%args>
+<%perl>
+my $report = $case->getReport();
+my $out_str = 'Sorry, cannot retrieve patient chart at this time.';
+my $onclick = '';
+if (defined $report) {
+	my $repid = $report->getPrimaryKeyID();
+	$onclick = "getChart($repid)";
+	$out_str = 'Retrieving patient chart. One moment...';
+}
+else {
+	warn 'Cannot retrieve patient chart: no case report.';
+}
+$m->comp('SELF:body',body=>$out_str,'name'=>'chart_panel','onclick'=>$onclick);
+</%perl>
+</%method>
+
+<%method get_chart>
+<%args>
+$case
+</%args>
+<%perl>
+my $chartStruct = $m->comp('/case/tmpl/process:getChartInfo',case=>$case); 
+my $output_string ;
+my ($name,$body,$content,$links,@content_links);
+my $idName; 
+if (!scalar(@{$chartStruct})){
+	$output_string = '<span class="smHeader1">The chart is currently empty</span>';
+} else {
+	$output_string = '';
+	my $count = 0;
+	foreach my $item (@{$chartStruct}){
+		($name,$body,$content) = @{$item}{'name','text','content'};
+		$count++;
+		$idName = $name.$count; 
+		$idName =~ s/\s+//g;
+		$links = $m->scomp('/tmpl/element:table');
+		@content_links = map { '<tr><td>'.$m->scomp('SELF:link','label'=>$_->title,
+					'href'=>'javascript:open_content_window(' . $case->getPrimaryKeyID() . ', '.$_->primary_key().');',
+					  ).'</td></tr>'}
+				@{$content};
+
+		$links .= join('',@content_links);
+		$links .= '</table>';
+		$output_string .= $m->scomp("/tmpl/element:toggle_link", pk => $idName, link_text => $name, body => $body . " " . $links, body_class => "smTextTwo");
+
+	}
+}
+</%perl>
+<% $output_string %>
+</%method>
+
+<%method references_panel>
+<%args>
+$phase
+$case
+</%args>
+<%perl>
+	my $body_title = 'Access References'; 
+	my $output_string = $m->comp('SELF:get_references_panel_text', case => $case, phase => $phase);
+	
+	return unless ($output_string);
+	
+	$m->comp('element:header', title => 'References');
+	$m->comp('SELF:body', body => $output_string, body_title => $body_title, name =>'references_panel' );
+</%perl>
+</%method>
+
+<%method get_references_panel_text>
+<%args>
+$phase
+$case
+</%args>
+<%perl>
+	my $reference_flag = 0;
+
+	my $output_string = '<table cellspacing="0" cellpadding="0" border="0">';
+	my $case_references = $case->getReferences();
+
+	foreach my $content (@{$case_references}){
+		$reference_flag = 1;
+        	$output_string .= '<tr><td><a class="smHighlight1" target="_blank" href="'.$content->out_url().'">'
+                	.$content->out_label().'</a></td></tr>';
+	}
+
+	if (defined($phase)){
+		my @phaseArray;
+		if (ref ($phase) eq 'ARRAY'){
+			@phaseArray = @{$phase};
+		} else {
+			push @phaseArray, $phase;
+		}
+	  	my $phase_references;
+		my %contentIncludedHash = ();
+		
+		foreach my $phaseItem (@phaseArray){ 
+			$phase_references = $phaseItem->getReferences();
+			foreach my $content (@{$phase_references}){
+				$reference_flag = 1;
+				if (!$contentIncludedHash{$content->primary_key()}){
+					$output_string .= '<tr><td > <a href="'.$content->out_url()
+						.'" class="smHighlight2" target="_blank">'
+						.$content->out_label().'</a></td></tr>';
+					$contentIncludedHash{$content->primary_key} = 1;
+				} 
+			}
+		}
+	}
+	
+	$output_string .='</table>';
+	
+	$output_string = "" unless ($reference_flag);
+	return $output_string;
+</%perl>
+</%method>
+
+<%method notepad_panel>
+<%args>
+$phase
+$case
+</%args>
+<%perl>
+my $body_title = 'Make notes as you go along';
+my $report = $case->getReport();
+
+my $output_string  = '<div id="getNoteMsg">Retrieving notepad.</div>';
+$m->comp('SELF:body',body=>$output_string,'body_title'=>$body_title,'name'=>'notepad_panel',onclick=>'getNotes(' . $report->getPrimaryKeyID()  . ')');
+</%perl>
+</%method>
+
+<%method cost_panel>
+<%args>
+$phase
+$case
+</%args>
+<%perl>
+my $user;
+if (!($user = $m->comp('SELF:user'))) {
+	$m->comp('/tmpl/error',msg=>'User is not defined');
+}
+
+my $tests = $case->getTestsWithCosts($user);
+my $body_title = 'View the cost incurred for this patient care.';
+my $total;
+my $output_string = '<table cellspacing="0" cellpadding="0" border="0" width="100%">';
+foreach my $test (@{$tests}){
+	$output_string .= '<tr><td class="smTextTwo">'.$test->getTitle().'</td>';
+	$output_string .= '<td class="smTextTwo" align="right" >'.$test->getFormattedCost().'</td></tr>';
+	$total += $test->getDefaultCost();
+}
+if($total){
+	$total = sprintf("%.2f", $total);
+	$output_string .= '<tr><td class="smTextTwo"><strong>Total</strong></td>';
+	$output_string .= "<td class=\"smTextTwo\" align=\"right\"><strong>$total</strong></td></tr>";
+}
+$output_string .='</table>';
+$m->comp('SELF:body',body_title=>$body_title,body=>$output_string,'name'=>'cost_panel');
+</%perl>
+</%method>
+
+<%method link>
+<%args>
+$href
+$label
+$name =>'name'
+$target =>undef 
+</%args>
+% $target = 'target="'.$target.'"' if ($target);
+<a href="<% $href %>" class="smAction" id="<% $name %>-link" <% $target %> ><% $label %></a>
+</%method>

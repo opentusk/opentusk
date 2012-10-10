@@ -1,0 +1,49 @@
+<%attr>
+	no_check_path => 1
+</%attr>
+
+<%perl>
+	my $sps = $m->session->{'user'}->get_instructor_simulated_patients();
+	my ($courses, $stations, $groups);
+	my $school = $sps->[0]{school_name};  ## for now we know there is only one school
+
+	foreach my $sp (@$sps) {
+		unless (exists $courses->{$sp->{course_id}}{title}) {
+			$courses->{$sp->{course_id}}{title} = $sp->{title};
+		}
+
+		unless (exists $stations->{$sp->{course_id}}{$sp->{form_id}}) {
+			$stations->{$sp->{course_id}}{$sp->{form_id}} = [ $sp->{form_name}, $sp->{form_description} ];
+		}
+	}
+</%perl>
+
+<br/>
+<& "/tmpl/element:table", params => { width => "70%", border =>"0", cellspacing => "0", cellpadding => "0" } &>
+%	foreach my $course_id (keys %$courses) {
+<tr><td colspan="3" style="margin:10px 0 3px 0;"><a href="/view/course/<% $school . '/' . $course_id . '">' . $courses->{$course_id}{title} %></a><td></tr>
+
+<tr class="header"><th align="left">Station</th><th align="left">Description</th><th align="left">Actions</th></tr>
+%		my $i = 0;
+%		foreach my $form_id (sort keys %{$stations->{$course_id}}) {
+%			my $odd_even = ($i++ % 2 == 0) ? 'even' : 'odd';
+<tr class="<% $odd_even %>">
+<td style="padding-right:10px"><% $stations->{$course_id}{$form_id}[0] %></td>
+<td style="padding-right:10px"><% $stations->{$course_id}{$form_id}[1] %></td>
+<td>
+<a href="<% "/sp/actor/list/course/$school/$course_id/$form_id" %>">entry forms</a>
+</td>
+</tr>
+%		}
+<tr><td colspan="3"><br/><br/></td></tr>
+%	}
+</table>
+
+
+<%method red_header_text>
+% 	return "Simulated Patient Homepage";
+</%method>
+
+<%method title>
+% 	return "Simulated Patient Homepage";
+</%method>

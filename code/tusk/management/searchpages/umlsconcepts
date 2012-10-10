@@ -1,0 +1,99 @@
+<%attr>
+	no_check_path => 1
+</%attr>
+<%once>
+	use TUSK::Search::Keywords;
+</%once>
+<%init>
+	my $results;
+	if ($ARGS{search}){
+		$results = TUSK::Search::Keywords->new()->search($ARGS{search}, 25);
+	}
+</%init>
+
+<script language=JavaScript src="/scripts/scripts.js" type=text/javascript></script>
+<table cellspacing="5" width="100%">
+	<tr>
+		<td>
+			<input type="hidden" name="make_keyword" value="0"/>
+			<b>Keyword: </b>&nbsp;<input type="text" name="search">&nbsp;&nbsp;<input type="submit" name="action" value="Search" class="formbutton">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+		</td>
+	</tr>
+% if  ($ARGS{search}) {
+	<tr>	
+		<td><br>
+% my $numResults=0;
+% if ($results) {
+%   $numResults = scalar(@{$results}); 
+% }
+			<div id="count"><% int($numResults) %> matching entr<% ($numResults == 1)? "y" : "ies" %><% ($numResults)? ":" : "" %></div>
+		</td>
+	</tr>
+% }
+% my $umlsNewlineEscape = "UMLSDEFINITIONNEWLINEESCAPE"; 
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+<%perl>
+	foreach my $result (@$results){
+		$result->{ keyword_with_info } = $result->{ keyword };
+
+		my $divs = '';
+
+		if ($result->{ definitions }){
+			$result->{ keyword_with_info } .= '&nbsp;[<a href="javascript:toggle_div(\'' . $result->{ concept_id } . '_def\')">definition</a>]';
+			
+			$divs .= '<div style="display:none" id="' . $result->{ concept_id } . '_def">';
+
+			my @definition_types = split("\t", $result->{ definition_types });
+
+			foreach my $definition (split ("\t", $result->{ definitions })){
+				$divs .= '<u>' . shift(@definition_types) . '</u><br/>' . $definition . '<br/>';
+			}
+			
+			$divs .= '</div>';
+		}
+
+		if ($result->{ synonyms }){
+			$result->{ keyword_with_info } .= '&nbsp;[<a href="javascript:toggle_div(\'' . $result->{ concept_id } . '_syn\')">synonyms</a>]';
+			$divs .= '<div style="display:none" id="' . $result->{ concept_id } . '_syn">' . join('<br/>', sort split ("\t", $result->{ synonyms })) . '</div>';
+		}
+
+		$result->{ keyword_with_info } .= $divs;
+		$result->{ rank } = 1;
+	}
+
+</%perl>
+
+<& /tmpl/layers:create_layer, struct => {
+		 	layer => 'searchdiv',
+			fields => ['concept_id', 'keyword', 'umls', 'definition', 'rank', 'keyword_with_info'],
+			name => '',
+			sort => { usage => 'No' },			
+			parentlayer => $ARGS{parentlayer},
+			action => { usage => 'Yes', length => 100, functions => [
+									{ func => 'add', label => 'Add' },
+								]},
+			display => [
+					{ field => 'keyword_with_info', align => 'left', length => 400 },
+					{ label => 'Relevance', field => 'rank', align => 'center', length => 75, radio_options => [ 
+																{ label => 'Mentioned', value => 1 },
+															     	{ label => 'Central', value => 2 },
+															] },
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => $results,
+			}
+&>
+
+		</td>
+
+	</tr>
+</table>

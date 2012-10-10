@@ -1,0 +1,39 @@
+<!--- Labs Phase Info --->
+
+<%perl>
+my $phase = $ARGS{'phase'};
+my $case = $ARGS{'case'};
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%perl>
+
+% my $patient_type = $case->getPatientType();
+<& sections:diagnostic_studies, case=>$case, type_path=>$type_path,
+	phase=>$phase,patient_type=>$patient_type &>
+
+
+<!--- End Labs Phase Info --->
+
+<%method jsarray>
+% return ['element.js','object_tree.js','layers.js','caseshell.js'];
+</%method>
+
+<%method process_args>
+<%args>
+$user_id
+%params
+$phase
+</%args>
+% my $case = $ARGS{'case'};
+% my $patient_type = $case->getPatientType();
+<& sections:process_diagnostic_studies, user_id=>$user_id,phase=>$phase,
+                        patient_type=>$patient_type,args=>\%params &>
+</%method>
+<%method phaseReport>
+<%args>
+$phase
+$case
+$case_report
+</%args>
+<& sections:batteryPhaseReport, case_report=>$case_report, case=>$case,phase=>$phase &>
+</%method>
+

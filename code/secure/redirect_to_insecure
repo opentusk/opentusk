@@ -1,0 +1,25 @@
+<HTML>
+<HEAD>
+[# OK, this isn't actually an HTML document.  We just use EmbPerl to
+do a redirect.  #]
+[! use Apache::Constants qw(REDIRECT);
+!]
+[-
+  $debug = $req_rec->dir_config('HSDBDebug') || 0;
+  $orig_doc = $ENV{'REDIRECT_URL'};
+  $qs = $ENV{'REDIRECT_QUERY_STRING'};
+  $qs = (!length($qs)? "": "?$qs");
+  $open_port = 80;
+  $open_port = $req_rec->get_server_port - 100
+	if ($req_rec->get_server_port > 9000);
+  $new_doc = "http://" . $req_rec->get_server_name() . ":$open_port$orig_doc$qs";
+  $req_rec->warn("Redirecting $orig_doc to $new_doc");
+
+  $req_rec->header_out("Location" => $new_doc );
+  $req_rec->status(REDIRECT);
+-]
+</HEAD><BODY>
+Redirecting [+ $orig_doc +] to [+ $new_doc +].
+</BODY></HTML>
+
+

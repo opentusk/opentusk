@@ -1,0 +1,68 @@
+<%shared>
+	my $user = HSDB4::SQLRow::User->new()->lookup_path(substr($r->path_info(),1));
+</%shared>
+
+<%args>
+	$preferredEmail   => ''
+	$savePreferredEmail => ''
+</%args>
+
+<%attr>
+	no_check_path 	=> 1
+	page_footer	=> '/tmpl/footer:footer_with_tufts_links'
+</%attr>
+
+% if ($user->primary_key()) {
+<table>
+	<& /tmpl/element:field_display, params => { 
+		label => '<b>Name:</b>',
+                value => $user->out_full_name()  } &>
+
+	<& /tmpl/element:field_display, params => { 
+		label => '<b>Email Address:</b>',
+                value => $user->email()  } &>
+
+%	if($user->primary_key() eq $m->session->{'user'}->primary_key()) {
+%		if($savePreferredEmail eq 'Change') {$user->set_preferred_email($preferredEmail);}
+%# alter table hsdb4.user add preferred_email varchar(80) default null after email;
+	<script>
+		function validate_email() {
+%#			if(document.changePreferredForm.preferredEmail.value.search(/[a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*\@[a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*/) == -1) {
+			if(document.changePreferredForm.preferredEmail.value.search(/^\w+((-\w+)|(\.\w+))*\@[A-Za-z0-9]+((\.|-)[A-Za-z0-9]+)*\.[A-Za-z0-9]+$/) == -1) {
+				document.changePreferredForm.preferredEmail.style.color='red';
+			} else {
+				document.changePreferredForm.preferredEmail.style.color='';
+			}
+		}
+	</script>
+
+	<& /tmpl/element:field_display, params => {
+		label => '<b>Preferred Email:</b><br><font size="-2">Only visible by you</font>',
+		value => '<form name="changePreferredForm" method="post"><input type="text" onKeyUp="validate_email();" name="preferredEmail" size="30" value="' .  $user->preferred_email() . '">
+                          <input type="submit" name="savePreferredEmail" class="formbutton" value="Change"></form>' }&>
+%	}
+	<& /tmpl/element:field_display, params => { 
+		label => '<b>User Groups:</b>',
+                value => $m->comp('SELF:user_groups')  } &>
+
+</table>
+% } else {
+	<& /tmpl/url:redirect, message => 'Invalid Userid' &>
+% }
+
+
+<%method red_header_text>
+%	return "User Information: ";
+</%method>
+
+<%method title>
+% 	return 'User Information';	
+</%method>
+
+
+<%method user_groups>
+<%perl>
+	my @groups = $user->parent_user_groups();
+	return "<ul>\n" . join ("\n", map { "<li><a href='/view/usergroup/" . $_->school ."/" . $_->primary_key."'>" . $_->out_label . "</a></li>" } @groups) . "</ul>\n";
+</%perl>
+</%method>

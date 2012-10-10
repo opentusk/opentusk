@@ -1,0 +1,31 @@
+<%attr>
+skip_auth => 1
+no_check_path => 1
+</%attr>
+
+<%once>
+use TUSK::Constants;
+</%once>
+
+<%args>
+$errmsg => ''
+</%args>
+
+
+<%method header_text>
+% return 'Login';
+</%method>
+
+<%method startup>
+% $m->comp("SELF:set_no_cache");
+</%method>
+
+<%perl>
+my %cookies = Apache::Cookie->new($r)->fetch();
+my $message = $cookies{'login_error'} && $cookies{'login_error'}->value() ? $cookies{'login_error'}->value()
+                  : $errmsg ? $errmsg
+                  : '';
+</%perl>
+
+<& /login:build_login_box, is_mobi => 1, message => $message &>
+<& /mobi/tmpl/element:classic_link &>

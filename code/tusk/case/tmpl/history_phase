@@ -1,0 +1,66 @@
+<%perl>
+my $phase = $ARGS{'phase'};
+my $case = $ARGS{'case'};
+my $args = $ARGS{'args'};
+my $questions = $phase->getChildHistoryQuestions();
+</%perl>
+
+<!-- Begin History Phase -->
+
+<& element:transition,args=>$args &>
+<div class="text2"><% $phase->getInstructions() %></div>
+<div class="text2"><% $phase->getMainText() %></div>
+
+<& /tmpl/element:table &>
+<tr><td>&nbsp;</td></tr>
+<%perl>
+foreach my $q (@{$questions}){
+	$m->comp('show_question',question=>$q);
+}
+</%perl>
+</table>
+
+<& element:content_display,phase=>$phase &>
+<tr><td>
+<& sections:batteryPhase, case=>$case,phase=>$phase,args=>$args &>
+</td></tr>
+<!-- End History Phase -->
+
+<%def show_question>
+<%args>
+$question
+</%args>
+<tr><td>
+<& /tmpl/element:toggle_link, link_text => $question->getQuestion(), body => $question->getAnswer(), pk => $question->getPrimaryKeyID() &>
+</td></tr>
+</%def>
+
+<%method chartInfo>
+<%args>
+$phase
+$case
+$visit => undef
+</%args>
+<%perl>
+my $text = '<span class="smTextTwo">'.$phase->getMainText().'</span>';
+$text .= '<table cellpadding="0" cellspacing="0" border="0">';
+my $questions = $phase->getChildHistoryQuestions();
+foreach my $q (@{$questions}){
+	$text .= '<tr><td class="smHighlight2">'.$q->getQuestion.'</td></tr>';
+	$text .= '<tr><td class="smTextTwo">'.$q->getAnswer.'</td></tr>';
+}
+$text .='</table>';
+
+$text .= "\n" . $m->comp('sections:batteryPhaseChartInfo',phase=>$phase,case=>$case,visit=>$visit);
+return $text;
+</%perl>
+</%method>
+
+<%method get_button_nav>
+<%args>
+$phase
+$case
+$args
+</%args>
+<& sections:get_button_nav_test_phase, phase=>$phase,case=>$case,args=>$args &>
+</%method>

@@ -1,0 +1,839 @@
+<%once>
+my $phase_option_sub = sub {
+	my $phase = shift or confess "phase is a required parameter";
+	my @rankarray = map { { 'option_text'=>$_->getOptionText(),
+                        'correct'=>$_->getCorrect(),
+                        'feedback'=> $_->getFeedback(),
+                        'phase_option_id'=>$_->getPrimaryKeyID() } }
+                @{$phase->getPhaseOptions()};
+	return \@rankarray;
+};
+use TUSK::Case::PhaseOptionSelection;
+use TUSK::Case::TestSelection;
+use TUSK::Case::PhaseTestExclusion;
+</%once>
+<%method attributions>
+<%args>
+%params
+$phase
+</%args>
+<& /tmpl/element:collapse_section, params=>{label=>'Attributions',
+                 name=>'attributions',
+                section=>'start',
+                 check_function => undef } &>
+
+<& /tmpl/element:sort_order_box , params =>{
+                label=>'Authors &amp; Editors',
+		button_onclick=>"openwindow('authorsdiv')",
+                layer_info => {
+                        layer => 'authorsdiv',
+                        fields => ['userid','name','role'],
+                        name => 'users',
+                        sort => {usage => 'Yes', length=>50},
+                        action => {usage => 'Yes', length=>100, functions => [
+                                                                        {func=>'remove', label=>'Delete'}
+                                                                ]},
+                        display => [
+                                        {label=>'name',field=>'name', align=>'left', length=>225,},
+                                        {label=>'user Id',field=>'userid', align=>'left', length=>75,},
+                                        {label=>'role',field=>'role', length=>100, options=>[
+                                                                                {label=>'Editor'}, 
+                                                                                {label=> 'Author'}
+                                                                                ]}
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $params{'attributionarray'}
+                        }
+		} &>
+<& /tmpl/element:textbox, params =>{ label => 'Source',
+                name => 'source',
+                value => $phase->getSource,
+                size => 60,
+                length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Copyright',
+                name => 'copyright',
+                value => $phase->getCopyright(),
+                size => 60,
+                length => 255 } &>
+
+<& /tmpl/element:collapse_section, params=>{label=>'Attributions',
+                 name=>'attributions',
+                 section=>'end',
+                 check_function => undef } &>
+</%method>
+
+<%method phase_header>
+<%args>
+$phase
+$case
+</%args>
+% $m->comp('/tmpl/error',msg=>'Case not found') if (!defined($case));
+% my $patient_type_obj = $case->getPatientType();
+% my $patient_type_label = ($patient_type_obj && $patient_type_obj->getPrimaryKeyID()) ? $patient_type_obj->getTypeName() : "Undefined";
+<table>
+<tr><td class="navsm">Case : <% $case->getCaseTitle() %></td></tr>
+<tr><td class="navsm">Patient Type : <% $patient_type_label %></td></tr>
+<tr><td class="navsm">Phase : <% $phase->getPhaseType->getTitle() %></td></tr>
+</table>
+</%method>
+
+
+<%method references>
+<%args>
+$label
+@referencearray
+</%args>
+<& /tmpl/element:collapse_section, params=>{label=>$label,
+                name=>'references',
+                section=>'start',
+		default_state => 'open',
+                check_function => undef } &>
+
+<& SELF:content_layer, layer_name=>'referencesdiv',
+		onclick			=> "openwindow('referencesdiv',700)",
+		label			=> 'References',
+		contentarray 		=> \@referencearray,
+		buttons 		=> 	[
+							$m->scomp("/tmpl/element:button", params => { 	
+												label 	=> 'Upload Reference', 
+												name 	=> 'upload_reference', 
+												onclick => "open_upload_content_window('" . $m->comp('/tmpl/url:get_type_path') . "/" . $m->comp('SELF:get_case_id') . "', 'referencesdiv')",
+											}),
+					], &>
+<& /tmpl/element:collapse_section, params=>{label=>$label,
+                name=>'references',
+                section=>'end',
+                check_function => undef } &>
+</%method> 
+
+
+<%method content_layer>
+<%args>
+$layer_name
+$onclick
+$label
+$buttons => []
+@contentarray
+$show_display_type => 0
+</%args>
+<%perl>
+	my $fields = [ 'content_id', 'title'];
+	push (@$fields, 'display_type') if ($show_display_type);
+
+	my $display = [ 
+			{ label => 'Content&nbsp;ID', field => 'content_id', align => 'left', length => 40},
+			{ label => 'Title', field => 'title', align => 'left', length => 400},
+			];
+	push (@$display, { 
+				label 	=> 'Display Type', 
+				field 	=> 'display_type', 
+				align 	=> 'center', 
+				length 	=> 150, 
+				options => [ { label => 'As Link', value => 'Link' }, { label => 'On Page', value => 'Inline' } ] } ) if ($show_display_type);
+</%perl>
+<& /tmpl/element:sort_order_box , params =>{
+		label		   => $label,
+		button_onclick => $onclick,
+		buttons	       => $buttons,
+		layer_info     => {
+				layer 		=> $layer_name,
+				fields 		=> $fields,
+				name 		=> 'content',
+				sort 		=> { usage => 'Yes', length => 50 },
+				action 		=> { 
+						usage     => 'Yes', 
+						length    => 100,  
+						functions => [ 
+							{ func => 'preview_content', label => 'Preview' },
+							{ func => 'remove', label => 'Delete' },
+						] },
+                        	display 	=> $display,
+                        	validate 	=> { usage => 'No' },
+                        	data 		=> \@contentarray,
+                       	 }
+                } &></%method>
+
+<%method metadata>
+<%args>
+@keywordarray
+</%args>
+<& /tmpl/element:collapse_section, params=>{label=>'Keywords',
+                name=>'keywords',
+                section=>'start',
+                check_function => undef } &>
+
+<& /tmpl/element:sort_order_box , params =>{
+                label=>'Keywords',
+                button_onclick=>"openwindow('keywordsdiv')",
+                layer_info => {
+                        layer => 'keywordsdiv',
+                        fields => ['keyword_id','concept_id','keyword', 'umls'],
+                        name => 'keywords',
+                        sort => {usage => 'Yes', length=>50},
+                        action => {usage => 'Yes', length=>100, functions => [
+                                                        {func=>'remove', label=>'Delete'} ]},
+                        display => [
+                                        {label=>'keyword',field=>'keyword', align=>'left', length=>350},
+                                        {label=>'umls',field=>'umls', align=>'left', length=>50}
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => \@keywordarray }
+                } &>
+
+
+<& /tmpl/element:collapse_section, params=>{label=>'Keywords',
+                name=>'keywords',
+                section=>'end',
+                check_function => undef } &>
+
+</%method>
+
+<%method phase_option_type>
+<%args>
+	%params
+</%args>
+<%perl>
+	my $phase = $params{'phase'} or confess " no phase passed ";
+
+	my $dropdown_name = "phase_option_type";
+
+	my $rankarray = [];
+	
+	if (ref($phase) eq 'TUSK::Case::Phase::Diagnosis' and !$phase->getPrimaryKeyID()){
+		my $diff_diag_phases = TUSK::Case::Phase->new->lookup("parent_case_id = " . $m->comp('SELF:get_case_id') . " and phase_type.title = 'Differential Diagnosis'", undef, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Case::LinkCasePhase", {origkey=>'phase_id', joinkey=>'child_phase_id', })]);
+		foreach my $diff_diag_phase (@$diff_diag_phases){
+			$rankarray = $phase_option_sub->($diff_diag_phase);
+			foreach my $rank (@$rankarray){
+				$rank->{phase_option_id} = undef;
+			}
+			$params{'optionType'} = $phase->getPhaseOptionType();
+			last;
+		}
+	}else{
+		$rankarray = $phase_option_sub->($phase);
+	}
+
+	my $optionHash = {};
+	foreach my $opt (@{$params{'options'}}){
+		next if ($opt->{'value'} eq '');
+		$optionHash->{$opt->{'value'}} = 1;
+	}
+</%perl>
+
+<& /tmpl/element:section_header_row, label=>$params{'phase_title'} &>
+
+
+<& /tmpl/element:dropdown, params=>{ label => 'Type of Answer',
+                selected=>$params{'selected'}, 
+		name=>$dropdown_name,
+                onchange=>"diagnosis_method_select('$dropdown_name','${dropdown_name}_tr');",
+                options=>$params{'options'} } &>
+
+% my $style = "";
+% if (defined($optionHash->{'rank_tr'})){
+<& /tmpl/element:sort_order_box , params =>{
+                label=>'Rank Choices',
+		name=>'rank',
+		style=> $style,
+		button_onclick=>"addDefaultData('rankdiv');",
+                layer_info => {
+                        layer => 'rankdiv',
+                        fields => ['phase_option_id','option_text','correct','feedback'],
+                        name => 'rank',
+                        sort => {usage => 'Yes', length=>50},
+                        action => {usage => 'Yes', length=>100,
+                                functions => [
+					{func=>'remove', label=>'Delete'}, ]},
+                        display => [
+                                        {label=>'diagnosis',field=>'option_text',
+						align=>'left', type=>'textarea',length=>200},
+                                        {label=>'feedback',field=>'feedback',
+						align=>'left', type=>'textarea',length=>200}
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $rankarray,
+                        }
+                } &>
+% $style = "display:none";
+% }
+
+% if (defined($optionHash->{'likely_tr'})){
+<%perl>
+my $phase_type_name = $phase->getPhaseType()->getTitle();
+my $option_array = [{'label'=>'Unlikely','value'=>0}];
+push @$option_array, {'label'=>'Less Likely', 'value'=>2} if ($phase_type_name ne 'Treatment');
+push @$option_array, {'label'=>'Likely', 'value'=>1};
+</%perl>
+<& /tmpl/element:sort_order_box , params =>{
+            label=>'Selection',
+            name=>'likely',
+            button_onclick=>"addDefaultData('likelydiv');",
+            style=> $style,
+            layer_info => {
+                    layer => 'likelydiv',
+                    fields => ['phase_option_id','option_text','correct','feedback'],
+                    name => 'diagnosis',
+                    sort => {usage => 'Yes', length=>50},
+                    action => {usage => 'Yes', length=>100,
+                               functions => [ {func=>'remove', label=>'Delete'} ]},
+                    display => [
+                                {label=>'selection',field=>'option_text',
+                                 'type'=>'textarea', align=>'left', length=>200},
+                                {label=>'answer',field=>'correct',
+                                 align=>'left', length=>50,
+                                 options=>$option_array,
+                                },
+                                {label=>'feedback',field=>'feedback',
+                                 align=>'left', type=>'textarea', length=>200}
+                              ],
+                    validate => { usage => 'No',},
+                    data => $rankarray,
+                    }
+            } &>
+% $style = "display:none";
+%}
+%if (defined($optionHash->{'free_text_tr'})){
+<& /tmpl/element:sort_order_box , params =>{
+                label=>'Free Text',
+                name=>'free_text',
+		button_onclick=>"addDefaultData('freetextdiv');",
+                style=> $style,
+                layer_info => {
+                        layer => 'freetextdiv',
+                        fields => ['phase_option_id','option_text','correct','feedback'],
+                        name => 'diagnosis',
+                        sort => {usage => 'Yes', length=>50},
+                        action => {usage => 'Yes', length=>100,
+                                functions => [
+						{func=>'remove', label=>'Delete'} ]},
+                        display => [
+                                        {label=>'question',field=>'option_text',
+                                                align=>'left', type=>'textarea', length=>200},
+                                        {label=>'feedback',field=>'feedback',
+                                                align=>'left', type=>'textarea', length=>200}
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $rankarray,
+                        }
+                } &>
+% $style = "display:none";
+%}
+
+% if (defined($params{'selected'})){
+	<script language="JavaScript">
+		diagnosis_method_select('<% $dropdown_name %>','<% ${dropdown_name}.'_tr' %>')
+	</script>
+% } 
+</%method>
+
+<%method phase_option_process>
+<%args>
+$phase
+$user_id
+%params
+</%args>
+<%perl>
+my $rank_array = $phase_option_sub->($phase);
+my $args = \%params;
+my $phase_option_type_lookup = {'free_text_tr'=>'Free Text',
+				'rank_tr'=>'Rank Choices',
+				'likely_tr'=>'LikelyUnlikely'};
+my $phase_option_type = $phase_option_type_lookup->{$args->{'phase_option_type'}};
+my $rowHash;
+if (!$phase_option_type){
+	return;
+}
+if ((!$phase->getPhaseOptionType()) || 
+	($phase_option_type ne $phase->getPhaseOptionType())){
+	$phase->setPhaseOptionType($phase_option_type);
+	$phase->save({'user'=>$user_id});
+} 
+
+if ($phase_option_type eq 'Free Text'){
+	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^freetextdiv');
+} elsif ($phase_option_type eq 'Rank Choices'){
+	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^rankdiv');
+} elsif ($phase_option_type eq 'LikelyUnlikely'){
+	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^likelydiv');
+} else {
+	confess "Invalid value for phase_option_type : $phase_option_type";
+}
+
+my $pk = $phase->getPrimaryKeyID();
+$m->comp('/tmpl/process:manipulate_rows',
+                row_type => 'Direct',
+                user => $user_id,
+                object_name => 'TUSK::Case::PhaseOption',
+                fields_data => $rowHash,
+                default_field_data=>{'phase_id'=>$pk },
+                field_function_map => {
+				'sortorder'=>'setSortOrder',
+                                'phase_id'=>'setPhaseID',
+				'option_text'=>'setOptionText',
+                                'feedback'=>'setFeedback',
+                                'correct'=>'setCorrect' },
+                display_data => $rank_array );
+
+</%perl>
+</%method>
+
+
+<%method diagnostic_studies>
+<%args>
+$case
+$phase
+$patient_type
+$type_path
+</%args>
+<%perl>
+my ($phase_title,$phase_name) = $m->comp("SELF:get_phase_info",'phase'=>$phase);
+my $parent_child_struct = [];
+my $batteries;
+my $phase_batteries;
+my $phase_id  = $phase->getPrimaryKeyID();  
+
+my $all_checked = ($phase_id) ? 0 : 1;
+
+if ($phase_id){
+ 	$phase_batteries = $phase->getBatteries();
+}
+
+my %phase_battery_lookup = map { ($_->getPrimaryKeyID(), 1) } @{$phase_batteries};
+</%perl>
+
+<& /tmpl/element:top_header_row, label=>$phase_title &>
+
+% if (!$phase_id){
+% 	$m->comp('/tmpl/element:note',msg=>'Please save the phase before changing the exams');
+% } else {
+<%perl>
+$batteries = TUSK::Case::Battery->getBatteries($phase, $m->comp("/tmpl/url:get_school"));
+foreach my $battery (@{$batteries}){
+	my $battery_struct = $battery->getChildExamStruct($phase,$patient_type,1);
+	next unless (scalar(@{$battery_struct->{'children'}}));
+	if ($phase_battery_lookup{$battery_struct->{current}->{pk}}){
+		$battery_struct->{current}->{include} = 1;
+	}
+	push @{$parent_child_struct}, $battery_struct;
+}
+</%perl>
+<& /tmpl/tree:tree_box, params=>{
+		column_labels=>[
+			{label=>'Categories'},
+			{label=>'Results'},
+			{label=>'Normal<br>Range'},
+			{label=>'Priority'} ],
+		all_checked=>$all_checked,
+		name_prefix => ['b','e','t'],
+		column_values=>[
+			['title',undef,undef,undef],
+			['title_with_units','display_value','def_value','priority'],
+			['title_with_units','display_value','def_value','priority']],
+		checked_func=>'include',
+		action_columns => [ 
+			{label => 'Edit',
+			 link  => '/case/author/examaddedit/'
+			          .$type_path.'/'
+			          .$case->getPrimaryKeyID().'/'
+			          .$phase->getPrimaryKeyID(),
+			 onclick => 'editTest(document.phaseaddedit, this.href); return false;' },
+			],
+		data_values => $parent_child_struct,
+		data_name => 'categories' } &>
+
+% if (scalar(@$parent_child_struct)){
+<& /tmpl/element:select_all_button, params=>{select_onclick=>"tree_select_all('phaseaddedit');",
+                clear_onclick=>"tree_clear_all('phaseaddedit');" } &>
+% }
+
+
+% } 
+</%method>
+
+<%method process_diagnostic_studies >
+<%args>
+$user_id
+$phase
+$patient_type
+%args
+</%args>
+<%perl>
+my ($exam_test,$pk,$obj);
+my $pk_hash = {};
+my $phase_id = $phase->getPrimaryKeyID();
+my $link;
+foreach my $field (keys %args) { 
+	if ($field =~ m/^(b|e|t)(\d+)$/){
+		$exam_test = $1;
+		$pk = $2;
+		$m->print("<P>".$exam_test.":".$pk."</P>");
+		if($exam_test eq 'b'){
+			print $pk;
+			$link = pop @{TUSK::Case::LinkPhaseBattery->lookupByRelation($phase_id,$pk)};
+			if (!defined($link)){
+				$obj = TUSK::Case::LinkPhaseBattery->new();
+				$obj->setParentPhaseID($phase_id);
+				$obj->setChildBatteryID($pk);
+				$obj->save({ user => $user_id });
+			}
+			$pk_hash->{'battery'}->{$pk} = 1;
+		} elsif ($exam_test eq 'e'){
+			$link = pop @{TUSK::Case::PhaseTestExclusion->lookup("test_id = $pk and phase_id = $phase_id")};
+			unless (defined($link) && defined($link->getPrimaryKeyID())){
+				$link = TUSK::Case::PhaseTestExclusion->new();
+				$link->setTestID($pk);
+				$link->setPhaseID($phase_id);	
+			}
+			$link->setInclude(1);
+			$link->save({ user => $user_id });
+
+			$pk_hash->{'exam'}->{$pk} = 1;
+		} elsif ($exam_test eq 't'){
+			$link = pop @{TUSK::Case::PhaseTestExclusion->lookup(
+				"test_id = $pk and phase_id = $phase_id")};
+			unless (defined($link) && defined($link->getPrimaryKeyID())){
+				$link = TUSK::Case::PhaseTestExclusion->new();
+				$link->setTestID($pk);
+				$link->setPhaseID($phase_id);	
+			}
+	
+			$link->setInclude(1);
+			$link->save({ user => $user_id });
+	
+			$pk_hash->{'test'}->{$pk} = 1;
+		} 
+	}
+}
+
+my $phase_batteries = TUSK::Case::LinkPhaseBattery->lookup(" parent_phase_id = $phase_id " );
+my $count = 0;
+
+foreach my $phase_link (@{$phase_batteries}){
+	my $battery_struct = $phase_link->getBattery()->getChildExamIDStruct($phase,$patient_type);
+	foreach my $test_id (keys %{$battery_struct->{'test'}}){
+		if (!defined($pk_hash->{test}->{$test_id})){
+			$obj = pop @{TUSK::Case::PhaseTestExclusion->lookup(
+				"test_id = $test_id and phase_id = $phase_id")};
+			if (!defined($obj) || !$obj->getPrimaryKeyID()){
+				$obj = TUSK::Case::PhaseTestExclusion->new();
+				$obj->setPhaseID($phase_id);
+				$obj->setTestID($test_id);
+			}
+			$obj->setInclude(0);
+			$obj->save({ user => $user_id });
+		}	
+	}
+	foreach my $exam_id (keys %{$battery_struct->{'exam'}}){
+		if (!defined($pk_hash->{exam}->{$exam_id})){    
+			$obj = pop @{TUSK::Case::PhaseTestExclusion->lookup(
+				"test_id = $exam_id and phase_id = $phase_id " )};
+			if (!defined($obj) || !$obj->getPrimaryKeyID()){
+				$obj = TUSK::Case::PhaseTestExclusion->new();
+				$obj->setPhaseID($phase_id);
+				$obj->setTestID($exam_id);
+			}
+			$obj->setInclude('0');
+			$obj->save({ user => $user_id });
+		}
+	}
+
+
+}
+
+foreach my $b (@{$phase_batteries}){
+	if (!defined($pk_hash->{'battery'}->{$b->getChildBatteryID()})){
+		$b->delete();	
+	}
+	$count++;
+}
+
+</%perl>
+
+</%method>
+<%method get_phase_info>
+<%args>
+$phase
+</%args>
+<%perl>
+my $phase_type = $phase->getPhaseType();
+my $phase_title = $phase_type->getTitle();
+my $phase_name = $phase_title;
+$phase_name =~ s/\s+//g;
+return ($phase_title,$phase_name);
+</%perl>
+</%method>
+
+
+<%method case_header>
+<%args>
+$case
+</%args>
+% my $header = 'Case : '.$case->getCaseTitle();
+<& /tmpl/element:note, msg=>$header &>
+</%method>
+
+<%method case_footer>
+<%args>
+$case
+$formname
+$type_path
+$buttons => []
+</%args>
+<%perl>
+my $uri = $r->filename() ;
+# get just the last part of the file name 
+$uri =~ s/.*\///g;
+my $case_id = $case->getPrimaryKeyID() 
+	or $m->comp('/tmpl/error',msg=>'Invalid case passed to case_footer');
+my $continue_hash = { 	'caseaddedit'=>'goaladdedit',
+			'goaladdedit'=>'keywordaddedit',
+			'keywordaddedit'=>'phaseshow',
+			'phaseshow'=>'referenceaddedit',
+			'phaseaddedit'=>'phaseshow',
+			'referenceaddedit'=>'users'};
+$continue_hash->{ referenceaddedit } = 'caseaddedit' unless ($m->comp('/tmpl/permission:check_permission', function_token => 'users_case', feature_id => $case_id));
+my $next_page = '/case/author/'.$continue_hash->{$uri};
+</%perl>
+
+<& /tmpl/element:tr_tag &>
+<td class="cell-submit-right" colspan="2">
+<& /tmpl/element:button, params=>{'name'=>'cancel_button',
+                'onclick'=>"window.location = '/case/author/caseaddedit/$type_path/$case_id';",
+                'label'=>'Cancel'} &>
+<& /tmpl/element:submit_button, params=>{'name'=>'case_submit',
+                'label'=>'Save'} &>
+<& /tmpl/wizard:next_button,formname=>$formname,label=>'Save and Continue',
+		next_page=>$next_page,extra=>$type_path.'/'.$case_id &>
+<%perl>
+	foreach my $button (@$buttons){
+		print $button;
+	}
+</%perl>
+</td>
+</tr>
+
+</%method>
+
+<%def exam_fields>
+<%args>
+$exam
+$examExclusion
+$prefix
+$formname
+$patient_type_id
+</%args>
+% my $exam_id = $exam->getPrimaryKeyID();
+<& /tmpl/element:note, msg=>$exam->getTitle(), emph=>1 &>
+<& /tmpl/element:tr_tag &>
+<td colspan = "2">
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+<tr class="header"><td class="header-left" >&nbsp;</td><td class="header-left" >Values</td><td class="header-left" >Content</td><td class="header-left" >Action</td></tr>
+<tr ><td class="layers-left">Normal</td><td class="layers-left"><% $exam->getDefaultValue($patient_type_id) %></td>
+<td class="layers-left"><% $exam->getDefaultContentID($patient_type_id) %><td>&nbsp;</td></tr>
+<tr class="odd"><td class="layers-left">Result</td>
+<td class="layers-left"><& /tmpl/element:input_textarea, params=>{rows => 2, cols => 50, name=>$prefix."__alternate_value__$exam_id",
+                        value=>$examExclusion->getAlternateValue(),length=>255,size=>60 }&></td>
+% my $input_name = $prefix."__alternate_content_id__$exam_id";
+<td class="layers-left"><& /tmpl/element:input_textbox, params=>{
+			name=>$input_name,
+                        value=>$examExclusion->getAlternateContentID(),length=>20,size=>10 }&></td>
+<td valign="top"><& element:content_search_link, formname=>$formname, input_field_name=>$input_name &></td>
+</tr>
+</table>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+
+<& /tmpl/element:dropdown, params=>{ 
+		label => 'Priority',
+                name=>$prefix."__priority__$exam_id",
+                onchange=>undef,
+                selected=>$examExclusion->getPriority(),
+                options=>[
+                        {'label'=>'Low','value'=>'Low'},
+                        {'label'=>'Medium','value'=>'Medium'},
+                        {'label'=>'High','value'=>'High'},
+			 ] } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Feedback',
+                name=>$prefix."__feedback__$exam_id",
+                cols=>"60",
+                rows=>"4",
+                value=>$examExclusion->getFeedback()  } &>
+
+</table>
+</td>
+</tr>
+</%def>
+<%method exam_update>
+<%args>
+$exam
+$test_id =>undef
+$patient_type_id
+$formname
+</%args>
+<%perl>
+my $exam_id = $exam->getPrimaryKeyID();
+my $examExclusion = $exam->getTestExclusion();
+my $tests = $exam->getSubTests();
+if (scalar(@{$tests})){
+	$m->comp('/tmpl/element:top_header_row',label=>$exam->getTitle());
+	foreach my $test (@{$tests}){
+		if (defined($test_id)){
+			if ($test->getPrimaryKeyID() != $test_id){
+				next;	
+			}
+		}
+		$m->comp('exam_fields',exam=>$test,prefix=>'test', examExclusion=>$test->getTestExclusion, formname=>$formname, patient_type_id => $patient_type_id);
+	}
+} else {
+	$m->comp('exam_fields',exam=>$exam,prefix=>'exam',examExclusion=>$examExclusion,formname=>$formname, patient_type_id => $patient_type_id);
+}
+</%perl>
+</%method>
+
+<%method exam_process>
+<%args>
+@exams
+$user_id
+%args  
+</%args>
+<%perl>
+# $m->print('<PRE>');
+# $m->print(Dumper(\%args));
+# $m->print('</PRE>');
+my ($testSets,$examSets) = ({},{});
+my ($prefix,$fieldname,$id);
+foreach my $field (keys %args){
+	next if ($field !~ /^(\w+)__(\w+)__(\d+)$/);
+	($prefix,$fieldname,$id) = ($1,$2,$3);
+	if ($args{$field} eq ''){
+		# needed to remove '' and make it undef so insert logic will work
+		$args{$field} = undef;	
+	}
+	if ($prefix eq 'exam'){
+		$examSets->{$id}->{$fieldname} = $args{$field};	
+	} elsif ($prefix eq 'test'){ 
+		$testSets->{$id}->{$fieldname} = $args{$field};	
+	}
+}
+
+my ($pk,$test_pk,$test_exclusion,$exam_exclusion); 
+my ($exam,$test,$do_insert);
+foreach my $exam (@exams){
+	$exam_exclusion = $exam->getTestExclusion();
+	foreach my $test (@{$exam->getSubTests()}){
+		$test_pk = $test->getPrimaryKeyID();
+		next if (!$testSets->{$test_pk});
+		# only do an insert if there is an exclusion to save
+		foreach my $field (qw (priority correct alternate_value alternate_content_id feedback )){
+			if (defined($testSets->{$test_pk}->{$field})){
+				$do_insert = 1;
+				last;
+			}
+		}
+		$test_exclusion = $test->getTestExclusion();
+		if ($do_insert){
+			$test_exclusion->setAlternateValue($testSets->{$test_pk}->{'alternate_value'});
+			$test_exclusion->setAlternateContentID($testSets->{$test_pk}->{'alternate_content_id'});
+			#$test_exclusion->setCorrect($testSets->{$test_pk}->{'correct'});
+			$test_exclusion->setPriority($testSets->{$test_pk}->{'priority'});
+			$test_exclusion->setFeedback($testSets->{$test_pk}->{'feedback'});
+			$test_exclusion->save({user=>$user_id});
+		} 
+		$do_insert = 0; 
+	}
+	$pk = $exam->getPrimaryKeyID();
+	next if (!$examSets->{$pk});
+        # only do an insert if there is an exclusion to save
+        foreach my $field (qw (priority correct alternate_value alternate_content_id feedback )){
+		if (defined($examSets->{$pk}->{$field})){
+			$do_insert = 1;
+			last;
+		}
+	}
+	if ($do_insert){
+		$exam_exclusion->setAlternateValue($examSets->{$pk}->{'alternate_value'});
+		$exam_exclusion->setAlternateContentID($examSets->{$pk}->{'alternate_content_id'});
+		$exam_exclusion->setPriority($examSets->{$pk}->{'priority'});
+		#$exam_exclusion->setCorrect($examSets->{$pk}->{'correct'});
+		$exam_exclusion->setFeedback($examSets->{$pk}->{'feedback'});
+		$exam_exclusion->save({user=>$user_id});
+	}
+	$do_insert = 0;
+
+}
+</%perl>
+</%method>
+
+<%method phaseOptionReport>
+<%args>
+$phase
+$case
+$case_report
+</%args>
+<%perl>
+my $text = '<span class="sm">'.$phase->getMainText().'</span>';
+$text .= '<table cellpadding="0" width="100%" cellspacing="0" border="0">';
+my $selections = TUSK::Case::PhaseOptionSelection->getLatestPhaseSelections($phase,$case_report);
+my $answer;
+foreach my $sel (@{$selections}){
+        $answer = $sel->getShortAnswerText();
+        $answer = $answer ? $answer : $sel->getAnswerText();
+        $text .= '<tr><td class="sm" width="25%"><b>'.$sel->getOptionText()
+                .'</b></td><td style="padding-left:8px" class="sm">'.$answer.'</tr>';
+}
+$text .= '</table>';
+</%perl>
+<% $text %>
+</%method>
+
+
+<%method batteryPhaseReport>
+<%args>
+$phase
+$case
+$case_report
+</%args>
+<%perl>
+my $text;
+if($phase->getIsGeneric()){
+	$text = '<span class="sm">'.$phase->getMainText().'</span>';
+}
+$text .= '<table cellpadding="0" width="100%" cellspacing="0" border="0">';
+my $test_selections = TUSK::Case::TestSelection->getPhaseSelections($case_report,$phase);
+my %includedBatteries;
+foreach my $selection (@{$test_selections}){
+	push @{$includedBatteries{$selection->getTestObject->getBatteryID()}}, $selection;
+}
+my $batteries = $phase->getBatteries();
+my $struct;
+foreach my $battery (@{$batteries}){
+	if ($includedBatteries{$battery->getPrimaryKeyID()}){
+		$text .= '<tr><td class="sm"><b>'.$battery->getBatteryTitle."</b></td></tr>\n";
+	} else {
+		next;
+	}
+	foreach my $selection (@{$includedBatteries{$battery->getPrimaryKeyID()}}){
+		$text .= '<tr><td class="sm" width="25%">'.$selection->getTestTitle."</td></tr>\n";
+	}
+}
+$text .= '</table>';
+</%perl>
+<% $text %>
+</%method>
+

@@ -1,0 +1,298 @@
+[!
+	use TUSK::Import;
+	use TUSK::Import::Structure;
+	use HSDB4::Constants;
+	use HSDB45::UserGroup;
+        use HSDB45::TimePeriod;
+!]
+[-
+	$req = shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	
+	$req->{checkforadmin} = 1;
+	$req->{mustbeadmin} = 1;
+
+	$req->{pagetype}="";
+	$req->{image}="ImportStudents";
+	
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	manage_header($req);
+	$fail = 0;
+	if ($fdat{datafile}) {
+		$import = TUSK::Import->new;
+	    	$import->add_log("error","test run, course links will not be created") unless ($fdat{save});
+		$db_user = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+		$db_password = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
+		$struct = TUSK::Import::Structure->new;
+		## this set of conditionals is to account for different kinds of files, from different schools
+		if ($fdat{preset_fields} eq "preferred") {
+			@file_fields = qw(course_code user_id time_period academic_year teaching_site);
+		} else {
+			## clear out any unnecessary spaces
+			$fdat{fields} =~ s/\ //g;
+			@file_fields = split(",",$fdat{fields});
+		}
+		$import->set_fields(@file_fields);
+		$import->read_filehandle($fdat{datafile},"\t");
+		if ($fdat{limit_field} && $fdat{limit_value}) {
+			$import->grep_records($fdat{limit_field},$fdat{limit_value});
+		    	$import->add_log("summary","limiting records to where $fdat{limit_field} = $fdat{limit_value}");
+		}
+		$line_no = 0;
+		foreach $record ($import->get_records) {
+			$line_no++;
+			## get the user object
+			$user = HSDB4::SQLRow::User->new;
+			if (join("-",$import->get_fields) =~ /sid/) {
+				@users = $user->lookup_conditions("sid='".$record->get_field_value("sid")."'");
+				push (@users,$user->lookup_conditions("tufts_id='".$record->get_field_value("sid")."'"));
+				if (scalar @users != 1) {
+					#$import->add_log("error",$record->get_field_value("sid")." ".$record->get_field_value("name"));
+					$import->add_log("error","Record $line_no - User ".$record->get_field_value("sid").
+							" not found in TUSK");
+					next;
+				}
+				$user = $users[0];
+			} elsif (join("-",$import->get_fields) =~ /user_id/) {
+				$user->lookup_key($record->get_field_value("user_id"));
+			}
+
+			if (!$user->primary_key) {
+				$import->add_log("error","Record $line_no - User ".$record->get_field_value("user_id").
+							" not found in TUSK");
+				next;
+			}
+			$user_id = $user->primary_key;
+			
+			## get the course object
+			my $course;
+			my @set;
+			if (join("-",$import->get_fields) =~ /course_id/) {
+				$course = HSDB45::Course->new(_school => $req->{school}, _id => $record->get_field_value("course_id"));
+				if (!$course->primary_key) {
+					$import->add_log("error","Record $line_no - Cannot find course ".
+							$record->get_field_value("course_id")." in TUSK");
+					next;					
+				}
+			} else {
+				$course = HSDB45::Course->new(_school => $req->{school});				
+				@set = $course->lookup_conditions("oea_code='".$record->get_field_value("course_code")."'");
+
+				if (scalar @set != 1) {
+					$import->add_log("error","Record $line_no - Cannot find course ".
+							$record->get_field_value("course_code")." in TUSK");
+					next;
+				} else {
+					$course = $set[0];
+				}
+			}
+
+			## get the time period
+			if ($fdat{time_period_id}) {
+				$time_period_id = $fdat{time_period_id}; 
+			} else {
+				my $timeref = HSDB45::TimePeriod->new( _school => $req->{school});
+    				@set = $timeref->lookup_conditions("period='".$record->get_field_value("time_period").
+					"' AND academic_year='".$record->get_field_value("academic_year")."'");
+
+				if (scalar @set != 1) {
+					$import->add_log("error","Record $line_no - Cannot find time period ".
+							$record->get_field_value("time_period")." in TUSK");
+					next;
+				} else {
+					$time_period_id = $set[0]->primary_key;
+				}
+			}			
+
+			%courseTeachingSites;
+			foreach ($course->child_teaching_sites()) {$courseTeachingSites{$_->primary_key} = 1;}
+
+			if (join("-",$import->get_fields) =~ /teaching_site/) {
+				## look up  the teaching site
+				@set = HSDB45::TeachingSite->new(_school => $req->{school}, _id => $record->get_field_value("teaching_site"));
+				if( scalar @set != 1) {
+					$import->add_log("warning","Record $line_no - Cannot find teaching site ".
+						$record->get_field_value("teaching_site")." using none");
+					next;
+				} else {
+					$teaching_site = $set[0]->primary_key;
+					unless(exists($courseTeachingSites{$teaching_site})) {
+						$import->add_log("error", "Record $line_no - Teaching site ". $record->get_field_value("teaching_site") . " is not linked to course");
+						next;
+					}
+				}
+			}
+
+
+        	        ## see if the user is in the course
+			@set = $course->child_students("user_id='".$user_id."'","time_period_id=".$time_period_id);
+			if (@set > 0) {
+				$import->add_log("message","Record $line_no - $user_id already in course ".
+					$course->primary_key);
+				next; 
+			} else {
+				if ($fdat{save}) {
+					($r,$msg) = $course->add_child_student($db_user,$db_password,$user_id,$time_period_id, $teaching_site);
+				}
+				if ($r) {
+					$msg = "OK";
+				}
+				$line = "Record $line_no - adding $user_id to course ". $course->primary_key ." for period $time_period_id, teaching site ";
+				if($teaching_site) {$line .= $teaching_site;} else {$line .= "None";}
+				if($msg) {$line .= " - $msg";}
+				$import->add_log("message",$line);
+			}
+		}
+
+		$import->add_log("summary","processing ".scalar $import->get_records." records");
+		@logs = $import->get_logs;
+		@err_logs = @{$import->get_err_msgs};
+	}
+$tp = HSDB45::TimePeriod->new(_school => $req->{school});
+@time_periods = $tp->nonpast_time_periods;
+-]
+<form name="data_form" action="" method="post" enctype="multipart/form-data" onsubmit="return checkform(this);" class="no-padding">
+<table cellpadding="0">
+<tr>
+<td class="labelgray">Import type:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td>Test<input type="radio" name="save" value="0" checked></td><td align="right">Live<input type="radio" name="save" value="1"></td></tr></table><br>"Test" verifies data, but does not save. "Live" verifies and saves data.</td>
+</tr>
+[$ if ($req->{school}) $]
+<input type="hidden" name="school" value="[+ $req->{school} +]">
+<tr><td class="labelgray">School: </td><td class="cell-left">[+ $req->{school} +]</td></tr>
+[$ else $]
+<tr><td class="labelgray">School: </td>
+<td class="cell-left"><td class="cell-left">school not provided</td></tr>
+[$ endif $]
+
+<tr><td class="labelgray">Time Period: </td>
+<td class="cell-left">
+<select name="time_period_id">
+<option value="0">no time period</option>
+[$ foreach $tp (@time_periods) $]
+<option value="[+ $tp->primary_key +]">[+ $tp->out_label +]</option>
+[$ endforeach $]
+</select>  Choose a time period, or select "no time period" if the time period is in the file.
+</td></tr>
+
+<tr>
+<td class="labelgray">Fields in File:</td>
+<td class="cell-left">
+<input type="radio" name="preset_fields" value="preferred"> Preferred (course_code, user_id, time_period, academic_year, teaching_site)
+<br>
+<input type="radio" name="preset_fields" value="self"> <input name="fields" value="[+ $fdat{fields}+]" size="50" class="textareawhite"><br>
+Either select the preferred import format, or list the fields in the import file, separated by commas. The uploaded file should be tab-delimited, and should not contain a row of column names.
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">Limit Results:</td>
+<td class="cell-left">
+Field: <input name="limit_field" value="[+ $fdat{limit_field} +]" size="20" class="textareawhite"> &nbsp;&nbsp;Value: <input name="limit_value" value="[+ $fdat{limit_value} +]" size="20" class="textareawhite"><br>
+Enter a field name, and a corresponding value to limit the import to those records only.
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">File:</td><td class="cell-left"><input type="file" name="datafile" class="formbutton" id="File__y"></td>
+</tr>
+
+<!--
+<tr>
+<td class="labelgray">User Groups:</td>
+<td class="cell-left">
+<table>
+
+<tr>
+<td class="cell-left">
+Code: <input type="text" size="8" class="textareawhite" name="user_group_course_code_1" value="[+ $fdat{user_group_course_code_1} +]">&nbsp;&nbsp;
+</td>
+<td class="cell-left">
+Group:
+<select name="user_group_1">
+<option>none</option>
+[- @user_groups = HSDB45::UserGroup->new(_school => $req->{school})->lookup_conditions("order by label") -]
+[$ foreach $group (@user_groups) $]
+<option value="[+ $group->primary_key +]"[+ $fdat{user_group_1} == $group->primary_key ? " SELECTED" : ""+]>[+ $group->out_label +] ([+ $group->primary_key +])</option>
+[$ endforeach $]
+</select>
+</td>
+</tr>
+
+<tr>
+<td class="cell-left">
+Code: <input type="text" size="8" class="textareawhite" name="user_group_course_code_2" value="[+ $fdat{user_group_course_code_2} +]">&nbsp;&nbsp;
+</td>
+<td class="cell-left">
+Group:
+<select name="user_group_2">
+<option>none</option>
+[$ foreach $group (@user_groups) $]
+<option value="[+ $group->primary_key +]"[+ $fdat{user_group_2} == $group->primary_key ? " SELECTED" : ""+]>[+ $group->out_label +] ([+ $group->primary_key +])</option>
+[$ endforeach $]
+</select>
+</td>
+</tr>
+
+<tr>
+<td class="cell-left">
+Code: <input type="text" size="8" class="textareawhite" name="user_group_course_code_3" value="[+ $fdat{user_group_course_code_3} +]">&nbsp;&nbsp;
+</td>
+<td class="cell-left">
+Group:
+<select name="user_group_3">
+<option>none</option>
+[$ foreach $group (@user_groups) $]
+<option value="[+ $group->primary_key +]"[+ $fdat{user_group_3} == $group->primary_key ? " SELECTED" : ""+]>[+ $group->out_label +] ([+ $group->primary_key +])</option>
+[$ endforeach $]
+</select>
+</td>
+</tr>
+
+<tr>
+<td class="cell-left">
+Code: <input type="text" size="8" class="textareawhite" name="user_group_course_code_4" value="[+ $fdat{user_group_course_code_4} +]">&nbsp;&nbsp;
+</td>
+<td class="cell-left">
+Group:
+<select name="user_group_4">
+<option>none</option>
+[- @user_groups = HSDB45::UserGroup->new(_school => $req->{school})->lookup_conditions -]
+[$ foreach $group (@user_groups) $]
+<option value="[+ $group->primary_key +]"[+ $fdat{user_group_4} == $group->primary_key ? " SELECTED" : ""+]>[+ $group->out_label +] ([+ $group->primary_key +])</option>
+[$ endforeach $]
+</select>
+</td>
+</tr>
+
+</table>
+Enter the registration code and select a user group to enter all matching imported students in the course into a user group (optional).
+<br><br>
+<input type="checkbox" name="clean_group"> Remove existing users from group before adding new users.
+
+
+</td>
+</tr>
+-->
+
+<tr>
+<td>&nbsp;</td><td class="cell-submit"><input type="submit" value="Process" class="formbutton"></td>
+</tr>
+</table>
+</form>
+<h4>Alerts:</h4>
+[$ foreach $err (@err_logs) $]
+	<div class="error">[+ $err +]</div>
+[$ endforeach $]
+[$ foreach $log (@logs) $]
+	[$ if ($log->get_type =~ /(error)/) $]
+		<div class="[+ $log->get_type +]">[+ $log->get_message +]</div>
+	[$ endif $]
+[$ endforeach $]
+<h4>Messages:</h4>
+[$ foreach $log (@logs) $]
+	<div class="[+ $log->get_type +]">[# $log->get_type #] [+ $log->get_message +]</div>
+[$ endforeach $]
+
+[- manage_footer(); -]

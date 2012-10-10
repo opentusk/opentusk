@@ -1,0 +1,162 @@
+[!
+	use TUSK::Import::CourseRole;
+	use TUSK::Core::KeyLookup;
+!][-
+	$req = shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	
+	$req->{checkforadmin} = 1;
+	$req->{mustbeadmin} = 1;
+
+	$req->{pagetype}="";
+	$req->{image}="ImportCourseUsers";
+	
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	manage_header($req);
+	
+	if ($fdat{datafile}) {
+		$import = TUSK::Import->new;
+	    	$import->add_log("summary","test run, course links will not be created") unless ($fdat{save});
+		if ($fdat{preset_fields} eq "medfeed") {
+			@file_fields = qw(coursenum coursekey firstname middlename lastname contactkey 
+					  sortorder site sitecode sitecity sitestate);
+
+		}
+		else {
+			@file_fields = split(",",$fdat{fields});
+                }
+		$import->set_fields(@file_fields);
+		$import->read_filehandle($fdat{datafile},"\t");
+		if ($fdat{limit_field} && $fdat{limit_value}) {
+			$import->grep_records($fdat{limit_field},$fdat{limit_value});
+		    	$import->add_log("summary","limiting records to where $fdat{limit_field} = $fdat{limit_value}");
+		}
+		$import->add_log("summary","processing ".scalar $import->get_records." records");
+		foreach $r ($import->get_records) {
+			@log_records = ();
+			$diff = "";
+			$oea_code = $r->get_field_value("coursenum");
+			$oea_code =~ s/(.+)\-.+/$1/;
+			next if ($oea_code =~ /(MBA|MPH)/);
+
+			# skip everything but 400 level
+			next if ($oea_code !~ /(^.{3})4.{2}/);
+
+			$course = HSDB45::Course->new(_school => $req->{school});
+			@courses = $course->lookup_conditions("oea_code='".$oea_code."'");
+			if (scalar @courses != 1) {
+				$import->add_log("record","* Lookup course code (".$oea_code.") in TUSK: not found<br><br>");
+				next;
+			}
+
+			push @log_records, "Lookup course code (".$oea_code.") in TUSK: found course_id ".$courses[0]->primary_key;
+
+			my $key_lookup = TUSK::Core::KeyLookup->new();
+			my $med_user_ref = $key_lookup->lookup("type='Medical User' and other_key='".$r->get_field_value("contactkey")."'");
+	 	        my @med_users = @{$med_user_ref};
+			$user_id;
+			$diff = "";
+
+			if (scalar @med_users != 1) {
+				push @log_records, "Lookup user in TUSK using Medical key (".$r->get_field_value("contactkey")."): not found";
+				## should do a firstname lastname lookup here
+				$first = $r->get_field_value("firstname");
+				$last = $r->get_field_value("lastname");  
+				$blankuser = HSDB4::SQLRow::User->new;
+				@file_users = $blankuser->lookup_conditions("firstname='$first'","lastname='$last'");
+				if (scalar @file_users > 1) {
+					$user_msg = "multiple matches (".join(" or ",map { $_->primary_key } @file_users).")";
+					push @log_records, "Lookup user in TUSK on name (".$first." ".$last."): ".$user_msg;
+					$diff = "*";
+				}
+				elsif (scalar @file_users < 1) {
+					$user_msg = "no matches";
+					push @log_records, "Lookup user in TUSK on name (".$first." ".$last."): ".$user_msg;
+					$diff = "*";
+				} else {
+					$user_id = $file_users[0]->primary_key; 
+					push @log_records, "Lookup user in TUSK on name ($first $last): matches ".$file_users[0]->primary_key;				}
+			} else {
+				$user_id = $med_users[0]->getTuskKey;
+				push @log_records, "Lookup user in TUSK using Medical key (".$r->get_field_value("contactkey")."): found ".$med_users[0]->getTuskKey;
+			}
+
+			$course = $courses[0];
+			@users = $course->child_users;
+			$old_user_msg = "";
+			if (scalar @users > 1) {
+				$old_user_msg = join(", ",map { $_->primary_key } @users)." - multiple users, please check<br><br>";
+				$diff = "*";
+			} elsif (scalar @users < 1) {
+				$old_user_msg = "no existing users<br><br>";
+				$diff = "*";
+			} else {
+				if ($user_id eq $users[0]->primary_key) {
+					$old_user_msg = $users[0]->primary_key." . . . perfect match!!<br><br>";
+				} else {
+					$old_user_msg = $users[0]->primary_key." . . . needs changed<br><br>";
+					$diff = "*"
+				}				
+			}
+			push @log_records, "$diff Existing course user(s) in TUSK: $old_user_msg";
+			if ($diff) {
+				map { $import->add_log("record",$_) } @log_records;
+			}
+		}
+		@logs = $import->get_logs;
+	}
+-]
+<form name="data_form" action="" method="post" enctype="multipart/form-data" onsubmit="return checkform(this);" class="no-padding">
+<table cellpadding="0">
+<tr>
+<td class="labelgray">Import type:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td>Test<input type="radio" name="save" value="0" checked></td><td align="right">Live<input type="radio" name="save" value="1"></td></tr></table><br>"Test" verifies data, but does not save. "Live" verifies and saves data.</td>
+</tr>
+[$ if ($req->{school}) $]
+<input type="hidden" name="school" value="[+ $req->{school} +]">
+<td class="labelgray">School: </td><td class="cell-left">[+ $req->{school} +]</td>
+[$ else $]
+<tr>
+<td class="labelgray">School:</td><td class="cell-left">
+<select name="school">
+[$ foreach $school (HSDB4::Constants::course_schools) $]
+<option value="[+$school+]">[+ $school +]</option>
+[$ endforeach $]
+</select>
+</td>
+</tr>
+[$ endif $]
+
+<tr>
+<td class="labelgray">Fields in File:</td>
+<td class="cell-left">
+<input type="radio" name="preset_fields" value="medfeed"> Med file (oea_code, med_course_id, firstname, midname, lastname, contactkey, sortorder, site, sitecode, sitecity, sitestate)<br>
+<br>
+<input type="radio" name="preset_fields" value="self"> <input name="fields" value="[+ $fdat{fields}+]" size="50" class="textareawhite"><br>
+Either select a standard import format, or list the fields in the import file, separated by commas. TUSK will look for oea_code and sid fields to use to identify courses and students and link them together.
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">Limit Results:</td>
+<td class="cell-left">
+Field: <input name="limit_field" value="[+ $fdat{limit_field} +]" size="20" class="textareawhite"> &nbsp;&nbsp;Value: <input name="limit_value" value="[+ $fdat{limit_value} +]" size="20" class="textareawhite"><br>
+Enter a field name, and a corresponding value to limit the import to only certain records.
+</td>
+</tr>
+
+<tr>
+<td class="labelgray">File:</td><td class="cell-left"><input class="formbutton" type="file" name="datafile" id="File__y"></td>
+</tr>
+
+<tr>
+<td>&nbsp;</td><td class="cell-submit"><input type="submit" value="Process" class="formbutton"></td>
+</tr>
+</table>
+</form>
+<h4>Results</h4>
+[$ foreach $log (@logs) $]
+	<div class="[+ $log->get_type +]">[# $log->get_type #][+ $log->get_message +]</div>
+[$ endforeach $]
+[- manage_footer(); -]

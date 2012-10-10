@@ -1,0 +1,165 @@
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use TUSK::Application::GradeBook::GradeBook;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my @rows = ();
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+	my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id});
+	my $root_category  = $gb->getRootCategory($m->session->{'user'}->user_id());
+	my $total_weight = 0;
+	my $item_num = 0;
+</%shared>
+
+<br/>
+<div align="left">
+<& SELF:print_gradebook_tools &>
+</div>
+
+% if (scalar @rows) {
+<& /tmpl/element:form, params => {
+	method 		=> 'POST',
+	onsubmit 	=> undef,
+	name 		=> 'weight' } &>
+
+<script language="JavaScript"  type="text/javascript">
+	var totalWeight = <% $total_weight %>;
+	var itemNum = <% $item_num %>;
+</script>
+<br/>
+<& /tmpl/element:table, params => { 
+	width 		=> "",
+	border		=> "0",
+	cellspacing	=> "0",
+	cellpadding	=> "0" 
+} &>
+
+% 	if (scalar @rows > 15) {
+<& /tmpl/element:save_button, params=>{
+	label			=> 'Save Changes',
+    cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+    name			=> 'save_changes',
+} &>
+% 	}
+
+<tr class="header"> 
+<td class="header-left">Title</td>
+<td class="header-right">Weight</td>
+</tr>
+
+% 	foreach my $row (@rows) {
+<tr>
+<td style="padding-right:30px;"><% $row->{title} %></td>
+<td align="right"><% $row->{weight} %></td>
+</tr>
+% 	}
+
+<tr class="header">
+<td class="header-right" style="padding-right:10px;"> Total Weight:</td>
+<td class="header-right"><input type="text" id="totalWeight" size="4" style="text-align:right;color:blue;background-color:#CDD6E9;font-weight:bold;color:red;border:0px;" value="<% $total_weight %>" DISABLED/></td>
+</tr>
+
+<& /tmpl/element:save_button, params=>{
+	label			=> 'Save Changes',
+    cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+    name			=> 'save_changes',
+
+} &>
+</table>
+</form>
+% } else {
+<br/><em>No Grade Events Associated</em>
+% }
+
+<%init>
+	if (defined( $ARGS{'submit_check'} )) {
+		my $events = $gb->getAllButFinalEvents();
+		foreach my $event (@$events) {
+			$event->setWeight($ARGS{'eid_' . $event->getPrimaryKeyID()});
+			$event->save({'user' => $m->session->{'user'}->user_id()});
+		}
+                      
+	    $m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $r->uri() . "?msg=Successfully saved");
+
+	}
+
+	$m->comp('SELF:process_rows');
+</%init>
+
+
+<%method process_rows>
+<%perl>
+	my $categories = $gb->getSortedCategories();
+	if (scalar @$categories) {
+		foreach my $cat (@$categories) {
+			my $spaces = ($cat->getDepth() > 1) ? '&nbsp;' x ($cat->getDepth() * 2) : '';
+			push @rows, {
+				title => $spaces . '<span class="bigtext">' . $cat->getGradeCategoryName() . '</span> ',
+				weight => '<div></div>'
+			};
+			my $events = TUSK::GradeBook::GradeEvent->new()->lookup("grade_category_id = " . $cat->getPrimaryKeyID(), ['sort_order']);
+			$m->comp('SELF:update_event_rows', events => $events, spaces => $spaces);			
+		}
+		$m->comp('SELF:update_uncategorized_event_rows');
+	} else {
+		my $events = $gb->getAllButFinalEvents();
+		if (defined($ARGS{'order'})){
+			$events = TUSK::GradeBook::GradeEvent->updateSortOrders($type_object->school, $type_object->primary_key, $m->comp("SELF:get_timeperiod_id"), $ARGS{'order'}, $events);
+		}
+		$m->comp('SELF:update_event_rows', events => $events) if ($events && scalar @$events);
+	}
+</%perl>
+</%method>
+
+<%method update_uncategorized_event_rows>
+<%perl>
+	my $uncategorized_events = TUSK::GradeBook::GradeEvent->new()->lookup("grade_category_id = " . $root_category->getPrimaryKeyID(), ['sort_order']);
+	if (scalar @$uncategorized_events) {
+		push @rows, { title => '<b>Uncategorized</b>' };
+		$m->comp('SELF:update_event_rows', events => $uncategorized_events);
+	}
+</%perl>
+</%method>
+
+<%method update_event_rows>
+<%args>
+	$events
+	$spaces => ''
+</%args>
+<%perl>
+	foreach my $event (@$events) {
+		my $weight = ($event->getWeight()) ? $event->getWeight() : '';
+		push @rows, {
+			title => $spaces . $event->getEventName(),
+			weight => '<input id="item_' . $item_num++ . '" type="text" style="text-align:right" size="5" name="eid_' . $event->getPrimaryKeyID() . '" value="' . $weight . '" onkeyup="updateWeights();"/>',
+		};
+		$total_weight += $event->getWeight();
+	}
+</%perl>
+</%method>
+
+
+<%method right_header_text>
+<%perl>
+	return [ 
+		{ url => '', onclick => "openhelp(-1,790406);return false;", txt => "Help" },
+	];
+</%perl>
+</%method>
+
+
+<%method title>
+%	return "Balance Event Weights";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+% 	return ['gradebook.js'];
+</%method>
+

@@ -1,0 +1,62 @@
+<%attr>
+	top_tab_type => 'manage'
+</%attr>
+
+
+<%method get_nav_bars>
+<%perl>
+	my $objects = $m->comp("SELF:get_nav_bar_objects");
+
+	return $m->comp("/tmpl/nav", 
+		'objects' =>  $objects,
+		'prefix' => '/patientlog/author',
+		'hierarchy' => {	
+			'show' => [],
+			'delete' => [],
+			'addedit' => [],
+			'field' => ['addedit'],
+			'fielddynamic' => ['addedit','field'],
+			'fielddelete' => (exists $objects->{'TUSK::FormBuilder::Field'}) ? ['addedit', 'field'] : ['addedit'],
+			'attribute' => ['addedit', 'field'], 
+		},
+		'nav_entities_dependency' => {
+			'addedit' => {'object' => "TUSK::FormBuilder::Form", 'depend'=>[], 'static_title' => 'Form: '}, 
+			'field' => {'object' => "TUSK::FormBuilder::Field", 'depend'=>['TUSK::FormBuilder::Form'], 'static_title'=>'Field: '}, 
+
+		},
+		'title_func' => {
+		      'TUSK::FormBuilder::Field' => 'getFieldName',
+		      'TUSK::FormBuilder::Form' => 'getFormName',
+		},
+		'initial_nav_bar' => $m->comp("SELF:get_initial_nav_bars"),
+	);
+</%perl>
+</%method>
+
+<%method leftnav>
+% if (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course"){
+%	return "/tmpl/leftnav/course";
+% }
+</%method>
+
+<%method get_initial_nav_bars>
+<%perl>
+	my @navBar = ({ href => '/management/home', label => 'CMS Home' });
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $course = $m->comp("/tmpl/url:get_type_object");
+
+	if	($course->isa("HSDB45::Course")) {
+		push @navBar, {href => '/management/course/display/' . $school . '/' . $course->primary_key(), label => 'Course - ' . $course->out_title() };
+		push @navBar, {href => "/patientlog/author/show/" . $m->comp("/tmpl/url:get_type_path"), label => 'Manage Patient Logs'};
+	}
+	return \@navBar;
+</%perl>
+</%method>
+
+<%method right_header_images>
+% my ($form_id) = $m->comp("/tmpl/url:get_path_ids");
+% return [{'img' => 'Preview', target => 'preview', 'url' => '/patientlog/preview/' . $m->comp("/tmpl/url:get_type_path") . "/$form_id" }];
+</%method>
+
+
+<% $m->call_next %>

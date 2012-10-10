@@ -1,0 +1,66 @@
+<%shared>
+my ($quiz_id) = $m->comp("/tmpl/url:get_path_ids");
+my $quiz = TUSK::Quiz::Quiz->new(_id=>$quiz_id);
+</%shared>
+
+<%method function_token>
+% return 'export_quiz';
+</%method>
+
+<%once>
+use TUSK::Quiz::Quiz;
+</%once>
+<%attr>
+show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%method title>
+<%perl>
+return 'Export to Grade Book';
+</%perl>
+</%method>
+
+<%method jsarray>
+% return ['layers.js','quiz.js','element.js','object_tree.js'];
+</%method>
+
+
+<%method get_nav_bar_objects>
+% return {'quiz'=>$quiz};
+</%method>
+
+<%init>
+my $no_grade_event = 0;
+my $course = $m->comp('/tmpl/url:get_type_object');
+my ($grade_events,$msg,$grade_event);
+$grade_events = TUSK::GradeBook::GradeEvent->getCourseEvents($course->school,
+	$course->course_id() ,$m->comp("SELF:get_timeperiod_id"));
+
+# take out grade events that are already associated to quizzes
+@{$grade_events} = grep { (!defined($_->getQuizID()) || ($_->getQuizID eq $quiz_id)) } 
+	@{$grade_events};
+
+my $col_fields = [ {'label' => 'Name', 'field' => 'getEventName'},
+                           {'label' => 'Weight', 'field' => 'getWeight'},
+                           {'label' => 'Description', 'field' => 'getEventDescription'},
+                           {'label' => 'Posted', 'field' => 'getPublishFlagSpelledOut', align => 'center'} ];
+
+</%init>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:vertical_spacing,size=>1 &>
+
+<& /tmpl/element:object_selection_box, params => {
+                                columns => $col_fields,
+                                action_columns => [
+						{ 'label'=>'Select','link' => '/quiz/author/exportgradebook' },
+                                                ],
+                                object_list => $grade_events,
+                                type_path => $m->comp('/tmpl/url:get_type_path').'/'.$quiz_id,
+                                name => "events",
+                                } &>
+</table>

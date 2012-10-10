@@ -1,0 +1,96 @@
+<%attr>
+	no_check_path => 1
+</%attr>
+
+<%once>
+	use TUSK::Search::UserSearch;
+	use Data::Dumper;
+</%once>
+
+
+<table cellspacing="5" width="100%">
+	<tr>
+		<td>
+			<table>
+				<tr>
+					<td>
+						<b>Objective: </b>&nbsp;
+					</td>
+					<td>
+						<textarea name="search" class="textareawhite" cols="35" rows="3"></textarea>&nbsp;
+					</td>
+					<td>
+						<input type="submit" name="action" value="Search" class="formbutton">
+					</td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" name="action" value="Make New Objective" class="formbutton" onclick="addnew('searchdiv', {body:document.search.search.value, objective_id:0})">&nbsp;
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+
+		
+		</td>
+	</tr>
+% if ($ARGS{search}) {
+	<tr>	
+		<td><br>
+% my $numResults = scalar(@{$results}); 
+			<div id="count"><% $numResults %> matching entr<% ($numResults == 1)? "y" : "ies" %><% ($numResults)? ":" : "" %></div>
+		</td>
+	</tr>
+% }
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+<%perl> 	
+	foreach my $objective (@{$results}){
+		my $pk = $objective->primary_key();
+		push (@objectivearray, {objective_id => $pk, body => $objective->field_value_esc('body')});
+	}
+</%perl>
+<& /tmpl/layers:create_layer, struct => {
+			layer => 'searchdiv',
+			fields => ['objective_id','body'],
+			name => '',
+			sort => {usage => 'No'},
+			scrollrows => 9,
+			parentlayer => $ARGS{parentlayer},
+			action => {usage => 'Yes', length=>100, functions => [
+									{func=>'add', label=>'Add'}
+								]},
+			display => [
+					{field=>'body', align=>'left', length=>400,}
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => \@objectivearray,
+   					
+						}
+&>
+
+	</td></tr>
+</table>
+
+</form>
+</body>
+</html>
+
+<%init>
+	my $results;
+	my @objectivearray;
+	if ($ARGS{search}){
+		$results = TUSK::Search::UserSearch->findObjectives($ARGS{search});
+	}
+</%init>
+
+<%method title>
+% return "Find Objectives";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>

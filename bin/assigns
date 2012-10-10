@@ -1,0 +1,174 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use Text::CSV_XS;
+use FileHandle;
+use HSDB4::Constants;
+use DBI;
+use MySQL::Password;
+
+my $dbh = DBI->connect ('DBI:mysql:hsdb4', get_user_pw, { RaiseError => 1});
+HSDB4::Constants::set_def_db_handle ($dbh);
+
+my %m2002 = (1 => 'cabueid', 2 => 'madams', 3 => 'sanandan', 4 =>
+	     'aanyanwu', 5 => 'nashraf', 6 => 'dbacos', 7 => 'abaig',
+	     8 => 'cbeland', 10 => 'ybogorad', 11 => 'lborodya', 12 =>
+	     'jboule', 13 => 'abowerin', 14 => 'jbrennan', 15 =>
+	     'rbrutus', 16 => 'ebullitt', 17 => 'bcadet', 18 =>
+	     'icanchol', 19 => 'pnewton', 20 => 'jcarpent', 21 =>
+	     'mcasares', 23 => 'lchang', 24 => 'bchang', 25 =>
+	     'dchen', 27 => 'echriste', 28 => 'achused', 29 =>
+	     'sconway', 30 => 'tdailey', 32 => 'jdesalvo', 33 =>
+	     'bdomajnk', 34 => 'adubelma', 35 => 'mduca', 36 =>
+	     'lenrique', 37 => 'tfaber', 38 => 'bfarbman', 39 =>
+	     'cfinney', 40 => 'jfiore', 42 => 'ngandhi', 43 =>
+	     'dgoldman', 44 => 'egonzale', 45 => 'lgotanco', 46 =>
+	     'fgrey', 47 => 'shakimia', 48 => 'ehekier', 49 => 'bho1',
+	     50 => 'aho', 51 => 'khobbs', 52 => 'chong1', 53 =>
+	     'chong', 54 => 'jhsu1', 55 => 'thwang', 56 => 'ajenkins',
+	     57 => 'sjo1', 58 => 'sjo', 59 => 'hjones', 60 =>
+	     'sjoseph1', 61 => 'jjutkiew', 62 => 'rkarnik', 64 =>
+	     'lkatz', 65 => 'kkearney', 66 => 'hkhachad', 67 =>
+	     'kkim', 70 => 'hkim3', 71 => 'ckleeman', 72 => 'skorten',
+	     73 => 'kkrasins', 74 => 'dkrivan', 75 => 'akrol', 78 =>
+	     'skwon', 79 => 'nlavine', 80 => 'qle', 81 => 'dlederer',
+	     82 => 'klee1', 84 => 'vlee1', 85 => 'alee1', 87 =>
+	     'tlee2', 88 => 'jlevine', 89 => 'fli', 90 => 'sliang', 91
+	     => 'blin2', 92 => 'hlin', 93 => 'tlink', 94 => 'klo', 95
+	     => 'amalorat', 97 => 'lmanera', 98 => 'rmankosk', 99 =>
+	     'smarcus', 100 => 'smathews', 101 => 'smatra', 102 =>
+	     'jmazer', 103 => 'mmclaug1', 104 => 'kmehta', 105 =>
+	     'amendes', 106 => 'jmetcalf', 107 => 'kmoalem', 108 =>
+	     'nnasser', 109 => 'enelson', 110 => 'anemi', 111 =>
+	     'dng', 112 => 'cnguyen', 113 => 'dnguyen3', 114 =>
+	     'mnguyen', 115 => 'nnichols', 116 => 'fnovosol', 117 =>
+	     'coconnor', 118 => 'modonnel', 119 => 'apagani', 120 =>
+	     'kpatel2', 122 => 'sperry', 123 => 'jphancao', 124 =>
+	     'jpurvian', 125 => 'jquinn', 126 => 'squreshi', 127 =>
+	     'aradke', 129 => 'jriff', 130 => 'arosak', 131 => 'mroy',
+	     132 => 'drubin', 133 => 'rsalas', 134 => 'gsam', 135 =>
+	     'lsantoni', 136 => 'msargent', 137 => 'dseretak', 138 =>
+	     'sseth', 140 => 'lskarf', 141 => 'msolari', 142 =>
+	     'jstein1', 143 => 'jsteinb1', 144 => 'pstrumpf', 145 =>
+	     'sstulac', 146 => 'ssu', 147 => 'ksulliva', 148 =>
+	     'rtalati', 149 => 'jtan', 150 => 'sthaker', 151 =>
+	     'ntheodor', 152 => 'jthomas', 153 => 'pvuong', 154 =>
+	     'twagner1', 156 => 'vwang', 157 => 'twanich', 158 =>
+	     'awendel', 159 => 'jwey', 160 => 'rwiseman', 161 =>
+	     'dwolfe', 162 => 'eyan', 163 => 'ayan', 166 =>
+	     'lzaslavs', 167 => 'gzella', 168 => 'dzuckerm', 170 =>
+	     'rkakkar', 171 => 'vabernat', 172 => 'rfrankel', 173 =>
+	     'msicard1', 174 => 'dgerson', 175 => 'mhanna1', 176 =>
+	     'rnuzzox', 155 => 'wwang3', 128 => 'hrhim', 121 =>
+	     'mpeng', 86 => 'blee1', 83 => 'jlee6', 76 => 'dkuftine',
+	     69 => 'jkim4', 68 => 'skim5', 41 => 'wfung', 9 =>
+	     'jberz', 31 => 'jdeem', 26 => 'jchen2', 77 => 'jkwon',
+	     164 => 'pyang', 178 => 'vrodrigu', 63 => 'mkarpins', 179
+	     => 'mcallaha', 165 => 'dyimlama', 139 => 'mshahsav', 96
+	     => 'rmanchan' );
+
+my %m2003 = (1 => 'awong01', 2 => 'ldomin01', 3 => 'dkehas01', 4 =>
+	     'csides01', 5 => 'rwhite02', 6 => 'kmorse01', 7 =>
+	     'drausc01', 8 => 'amarti01', 9 => 'galber01', 10 =>
+	     'aharde01', 11 => 'dkahan', 12 => 'jshu01', 13 =>
+	     'eferna01', 14 => 'alevin03', 15 => 'jkelly01', 16 =>
+	     'lgillo01', 17 => 'gdiwad01', 18 => 'adhill01', 19 =>
+	     'arhee01', 21 => 'pgrabl01', 24 => 'acorrent', 25 =>
+	     'ajuozo01', 27 => 'jmcgover', 28 => 'rbeckerl', 29 =>
+	     'tellis01', 30 => 'sbailey1', 31 => 'lcorne02', 32 =>
+	     'asaltz01', 33 => 'aconan01', 34 => 'mmatti01', 35 =>
+	     'ymiyas01', 36 => 'sdufre01', 37 => 'kshu', 38 =>
+	     'lkonni01', 39 => 'nwrigh01', 40 => 'mfogel02', 41 =>
+	     'thuynh2', 42 => 'lwheel01', 43 => 'echin01', 45 =>
+	     'gwong02', 46 => 'jbell', 47 => 'nvaidy01', 48 =>
+	     'uogwud01', 49 => 'cvente01', 50 => 'ekeise01', 51 =>
+	     'krocho01', 52 => 'elai02', 53 => 'rbeauv01', 54 =>
+	     'mmcnam01', 55 => 'rroses01', 56 => 'bnewto01', 57 =>
+	     'crinaldi', 58 => 'rlee02', 59 => 'ptelle01', 60 =>
+	     'ayekta01', 61 => 'skappl01', 62 => 'pfurmo01', 63 =>
+	     'rsalguer', 64 => 'cpatsk01', 66 => 'kameel01', 67 =>
+	     'gsam', 68 => 'slin01', 70 => 'dgolde04', 71 =>
+	     'jlundh01', 72 => 'dchand01', 73 => 'clee02', 74 =>
+	     'smikel01', 75 => 'dchang01', 77 => 'kng', 78 =>
+	     'rrose01', 79 => 'plee04', 80 => 'jlazar01', 81 =>
+	     'jschec01', 82 => 'eohare01', 83 => 'psween01', 84 =>
+	     'cmatsu01', 86 => 'schaudha', 87 => 'lgenen', 88 =>
+	     'aturof01', 89 => 'shuang', 90 => 'smille05', 91 =>
+	     'jsong04', 92 => 'aprabh01', 93 => 'elanda01', 94 =>
+	     'agokhale', 95 => 'jchris01', 96 => 'alim', 97 =>
+	     'ltchon01', 99 => 'mshah01', 100 => 'mchoh', 101 =>
+	     'lmiyas01', 102 => 'jlipan01', 103 => 'sgohil01', 104 =>
+	     'mburkm01', 105 => 'echa', 106 => 'lchang03', 107 =>
+	     'ckeati01', 108 => 'chsu', 109 => 'alin03', 110 =>
+	     'cshin02', 111 => 'pkaye01', 112 => 'ofriedma', 113 =>
+	     'pforno01', 114 => 'rgorod01', 115 => 'pdesgr01', 116 =>
+	     'pmohr01', 117 => 'nakhta01', 118 => 'mmurph06', 119 =>
+	     'lgraje01', 120 => 'spandy01', 121 => 'kvolkman', 122 =>
+	     'lwaldr01', 124 => 'sbradf01', 125 => 'cfuke', 127 =>
+	     'janton01', 126 => 'jcastill', 128 => 'mkidd01', 129 =>
+	     'jlin04', 130 => 'khuber02', 131 => 'nhamme02', 132 =>
+	     'swaggene', 133 => 'dkoo01', 134 => 'gfayba01', 135 =>
+	     'jschec02', 136 => 'jfu', 137 => 'samin02', 138 =>
+	     'twu01', 139 => 'dgerst01', 140 => 'jchin03', 143 =>
+	     'rkwaan01', 144 => 'nchian01', 145 => 'selazi01', 146 =>
+	     'cwykae01', 147 => 'jmok01', 148 => 'kmille04', 149 =>
+	     'svoska01', 150 => 'dchi01', 151 => 'pvilli01', 152 =>
+	     'mtiole01', 153 => 'vluu', 154 => 'jtom01', 155 =>
+	     'aakman', 156 => 'tnguye06', 157 => 'mkowalsk', 158 =>
+	     'jsanch01', 159 => 'cli02', 160 => 'yko01', 161 =>
+	     'okwon01', 162 => 'eganal01', 163 => 'sbady01', 165 =>
+	     'ebak02', 166 => 'sghali01', 167 => 'plin', 168 =>
+	     'ytam01', 169 => 'ykim06', 170 => 'avasan01', 171 =>
+	     'sshah06', 172 => 'smarcus', 164 => 'jlin2', 142 =>
+	     'dlee06', 141 => 'nmeiss01', 123 => 'ehsu01', 98 =>
+	     'swoodr01', 76 => 'bvande01', 69 => 'eliu01', 65 =>
+	     'hwhitl01', 44 => 'dsmith08', 26 => 'ssriva01', 85 =>
+	     'cdeang02', 23 => 'smarti02', 22 => 'msidhu', 20 =>
+	     'mgiova02', 23 => 'smarti02', 84 => 'cmatsu01', 126 =>
+	     'jcastill', 172 => 'msolari' );
+
+my $csv = Text::CSV_XS->new();
+
+my $sth=$dbh->prepare (q[REPLACE INTO link_small_group_user
+			 VALUES (?, ?, 'Student', NOW())]);
+
+my $class;
+my $year = shift @ARGV;
+if ($year eq '2002') {
+    $class = \%m2002;
+}
+elsif ($year eq '2003') {
+    $class = \%m2003;
+}
+else {
+    die "Must specify year 2002 or 2003.";
+}
+
+my %misses = ();
+my $assnfile = shift @ARGV or die "Must specify filename";
+my @assnfields = ('student_id', 'group_id');
+my $fh = FileHandle->new ($assnfile) or die "Could not open $assnfile";
+
+eval {
+    my $count = 0;
+    while (<$fh>) {
+	next unless /\S/;
+	my %assn = ();
+	$csv->parse($_) and @assn{@assnfields} = $csv->fields;
+	if ($class->{$assn{student_id}}) {
+	    $sth->execute ($assn{group_id}, $class->{$assn{student_id}});
+	    $count++;
+	}
+	else {
+	    $misses{$assn{student_id}} = [] unless $misses{$assn{student_id}};
+	    push @{$misses{$assn{student_id}}}, $assn{group_id};
+	}
+    }
+    print "Did $count inserts.\n";
+    foreach (keys %misses) {
+	print "$_ : ", join (' ', @{$misses{$_}}), "\n";
+    }
+};
+print $@ if $@;
+$dbh->disconnect;

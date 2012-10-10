@@ -1,0 +1,129 @@
+[-
+	use TUSK::Constants;
+	$req = shift;
+	$req->{typepath} = "course/" . $req->{classpath} unless ($req->{typepath});	
+	$bulletImage = '<td width="14">&nbsp;</td>';
+	$is_group_course = ($req->{course}->type() eq 'group')? 1 : 0;
+	$is_thesis_comm = ($req->{course}->type() eq 'thesis committee')? 1 : 0;
+-]
+<table width="100%"><tr><td valign="top">
+        <table border="0" cellspacing="0" width="185" cellpadding="0">
+            <tr><td colspan="2"><h3 class="gRedHdrBar">General</h3></td></tr>
+                          <tr> [+ $bulletImage +]
+                            <td><a href="/management/course/info/[+ $req->{classpath} +]" class="titletext">Basic Information</a></td></tr>
+[$ if(!$is_thesis_comm) $]
+                            <tr>[+ $bulletImage +]<td><a href="/management/course/objectives/[+$req->{classpath}+]" class="titletext">Objectives</a></td></tr>
+[$ endif $]
+[- 
+  # Use the course to get the top level items from a course.
+  $metadataHash = $req->{course}->getSchoolMetadata();
+
+  #use Data::Dumper;
+  #print "<pre>" . Dumper($req) . "</pre>\n";
+  #print "<pre>" . Dumper($metadataHash) . "</pre>\n";
+-]
+
+[# Use the top level items to build links. #]
+[$  foreach $metadataNumber (@{ ${$metadataHash}{metadataOrder} }) $]
+	[$ if( (!$is_group_course && !$is_thesis_comm) ||
+	       ($is_group_course && ${$metadataHash}{$metadataNumber}{'displayName'} =~ /description|other/i) ||
+	       ($is_thesis_comm && ${$metadataHash}{$metadataNumber}{'displayName'} =~ /other/i) ) $]
+		[-
+		if($is_thesis_comm){
+			${$metadataHash}{$metadataNumber}{'displayName'} = 'Guidelines';
+		}
+		-]
+    <tr>
+      [+ $bulletImage +]
+      <td><a href="/management/course/properties/[+$req->{classpath}+]/[+ $metadataNumber +]" class="titletext">[+ ${$metadataHash}{$metadataNumber}{'displayName'} +]</a></td>
+    </tr>
+	[$ endif $]
+[$  endforeach $]
+
+
+[$ if(!($is_group_course || $is_thesis_comm)) $]
+                            <tr>[+ $bulletImage +]<td><a href="/management/course/evaluations/[+$req->{classpath}+]" class="titletext">Course Evaluations</a></td></tr>
+[$ endif $]
+            <tr><td colspan="2"><h3 class="gRedHdrBar">Communication</h3></td></tr>
+                          <tr> 
+                            [+ $bulletImage +]<td><a href="/management/announcements/show/[+$req->{typepath}+]" class="titletext">Announcements</a></td>
+                          </tr>
+                          <tr> 
+                            [+ $bulletImage +]<td><a href="/manage/discussions/show/[+$req->{typepath}+]" class="titletext">Discussions</a></td>
+                          </tr>
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR') || $is_group_course) $]
+                          <tr> 
+                           [+ $bulletImage +] <td><a href="/management/mail/compose/[+$req->{typepath}+]" class="titletext">Send E-mail</a></td>
+                          </tr>
+[$ endif $]
+            <tr><td colspan="2"><h3 class="gRedHdrBar">Management</h3></td></tr>
+                          <tr> 
+[-
+$faculty_lbl = ($is_group_course)   ? 'Members' 
+               : ($is_thesis_comm)  ? 'Thesis Committee' 
+               :                      'Faculty &amp; Staff';
+-]
+                            [+ $bulletImage +]<td><a href="/management/course/users/show/[+$req->{classpath}+]" class="titletext">[+ $faculty_lbl +]</a></td>
+                          </tr>
+[$ if(!$is_group_course) $]
+                          <tr> 
+[- $student_lbl = ($is_thesis_comm)? 'Student' : 'Students'; -]
+                            [+ $bulletImage +]<td><a href="/management/course/students/show/[+$req->{classpath}+]" class="titletext">[+ $student_lbl +]</a></td>
+                          </tr>
+[$ endif $]
+			  <tr> 
+                            [+ $bulletImage +]<td><a href="/management/usergroup/show/[+$req->{typepath}+]" class="titletext">[$ if($is_group_course) $]Sub-[$ endif $]Groups</a></td>
+                          </tr>
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'AUTHOR')) $]		
+  			  <tr> 
+                          [+ $bulletImage +]<td><a href="/assignment/author/show/[+$req->{typepath}+]" class="titletext">Assignments</a></td>
+ 			  </tr>
+[$ endif $]
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTORNONSTUDENT') && !$is_thesis_comm) $]		
+                          <tr>
+                            [+ $bulletImage +]<td><a href="/gradebook/author/show/[+$req->{typepath}+]" class="titletext">Grade Book</a></td>
+                          </tr>
+[$ endif $]
+[$ if(!$is_thesis_comm) $]
+                          <tr>
+                            [+ $bulletImage +]<td><a href="/management/schedule/show/[+$req->{typepath}+]" class="titletext">Schedule</a></td>
+                          </tr>
+[$ endif $]
+[$ if(!($is_group_course || $is_thesis_comm)) $]
+			  <tr> 
+                            [+ $bulletImage +]<td><a href="/management/teachingsite/course/show/[+$req->{typepath}+]" class="titletext">Teaching Sites</a></td>
+                          </tr>
+[$ endif $]
+[$ if($TUSK::Constants::useShibboleth) $]
+                          <tr>
+                            [+ $bulletImage +]<td><a href="/management/course/sharing/[+$req->{classpath}+]" class="titletext">Course Sharing</a></td>
+                          </tr>
+[$ endif $]
+[$ if(!$is_thesis_comm) $]
+            <tr><td colspan="2"><h3 class="gRedHdrBar">Interactive</h3></td></tr>
+                          <tr> 
+                            [+ $bulletImage +]<td><a href="/quiz/author/show/[+$req->{typepath}+]" class="titletext">Quizzes</a></td>
+                          </tr>
+                          <tr> 
+                            [+ $bulletImage +]<td><a href="/case/author/caseshow/[+$req->{typepath}+]" class="titletext">Cases</a></td>
+                          </tr>
+						  <tr> 
+                            [+ $bulletImage +]<td><a href="/patientlog/author/show/[+$req->{typepath}+]" class="titletext">Patient Logs</a></td>
+                          </tr>
+						  <tr> 
+                            [+ $bulletImage +]<td><a href="/sp/author/show/[+$req->{typepath}+]" class="titletext">Simulated Patients</a></td>
+                          </tr>
+[$ endif $]
+[$ if(!$is_group_course) $]
+            <tr><td colspan="2"><h3 class="gRedHdrBar">tools</h3></td></tr>
+                          <tr> 
+                            [+ $bulletImage +]<td><a href="/manage/tracking/show/[+$req->{typepath}+]" class="titletext">Tracking &amp; Statistics</a></td>
+                          </tr>
+[$ endif $]
+                        </table>
+                        <table width="100%" border="0" cellspacing="4" cellpadding="0">
+                          <tr> 
+                            <td bgcolor="#CC3300" class="xsm"><img src="/graphics/spacer.gif" width="1" height="4"></td>
+                          </tr>
+                        </table>
+</td></tr></table>

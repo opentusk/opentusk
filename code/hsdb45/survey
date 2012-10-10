@@ -1,0 +1,176 @@
+[! use HSDB45::Survey;
+   use HSDB45::Survey::Formatter;
+   use Apache::Cookie;
+   use Apache::Constants qw (NOT_FOUND);
+   use HSDB4::DateTime;
+   use XML::LibXML;
+   use XML::LibXSLT;
+!]
+[-
+   my $filename = $ENV{XSL_ROOT} . "/Eval/survey.xsl";
+   $parser = XML::LibXML->new();
+   $xslt = XML::LibXSLT->new();
+   my $style_doc = $parser->parse_file($filename);
+   $stylesheet = $xslt->parse_stylesheet($style_doc);
+-]
+[-
+    $survey = HSDB45::Survey->lookup_path( $req_rec->path_info() );
+
+    ($result, $disp_msg, $write_result, $write_msg) = (0, '', 0, '');
+
+    my $username = '';
+    if ($req_rec->connection()->user()) {
+	$username = $req_rec->connection()->user();
+    }
+    else {
+	my %cookies = Apache::Cookie->new($req_rec)->parse();
+	if ($cookies{'Ticket'}) {
+	    %ticket = $cookies{'Ticket'}->value();
+	    $username = $ticket{'user'};
+	}
+    }
+
+    ($result, $disp_msg) = $survey->is_user_allowed($username);
+    unless ($result) {
+	$req_rec->status (NOT_FOUND);
+	return;
+    }
+
+    $uri = '/hsdb45/survey/' . $survey->school() . '/' . $survey->primary_key();
+
+    @bad_fields = ();
+    if ($fdat{'Clear'}) {
+	for my $key (keys %fdat) {
+	    next unless $key =~ /^eval_q_/;
+	    delete $fdat{$key};
+        }
+    }
+    elsif ($fdat{'Submit'} and not $disp_msg) {
+        @bad_fields = $survey->validate_form (\%fdat);
+	if (@bad_fields) {
+	    $write_msg = "Not all required fields filled";
+	}
+	else {
+	    ($write_result, $write_msg) = $survey->answer_form (\%fdat);
+	}
+    }
+
+    $filename = $ENV{XSL_ROOT} . "/Eval/eval.xsl";
+
+    $formatter = HSDB45::Survey::Formatter->new($survey);
+-]
+[-
+
+    $escmode=0;
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+-]
+
+[$ sub submit_box $]
+<div class="password_box">
+<input type="submit" name="Submit" value="Submit Survey">
+<input type="submit" value="Clear Survey" name="Clear"></div>
+[$ endsub $]
+
+<html>
+<head>
+<title>[+ $TUSK::Constants::SiteAbbr +] Survey: [+ $survey->out_label() +]</title>
+[# Execute ("$embperldir/hsdb4-style.css"); #]
+<link rel="stylesheet" type="text/css" href="/style/eval.css" title="HSDBEval"/>
+<script language="JavaScript">
+<!--//
+
+function satisfy(qid, type) {
+  var imgname="flag_"+qid;
+  var fieldname = "eval_q_"+qid;
+  if (document.images) {
+    var image = document.images[imgname];
+    var element = document.forms['eval_form'].elements[fieldname];
+    if (type == 'select') {
+      if (element.options[element.selectedIndex].value.length == 0) {
+        image.src = "/icons/reddot.gif";
+      }
+      else {
+        image.src = "/icons/transdot.gif";
+      }
+    }
+    else if (type == 'text') {
+      if (element.value.length == 0) {
+        image.src = "/icons/reddot.gif";
+      }
+      else {
+        image.src = "/icons/transdot.gif";
+      } 
+    }
+    else {
+      // It's probably OK, and we can just mark it as such
+      image.src = "/icons/transdot.gif";
+    }
+  }
+  return true;
+}
+
+//-->
+</script>
+[$ if $write_result $]
+<meta http-equiv="refresh" content="5;URL='[+ $uri +]'">
+[$ endif $]
+</head>
+<body>
+
+[- head_graphics ($survey->out_label) -]
+<img src="/icons/transdot.gif" width=1 height=1>
+<hr>
+<div>[+ $found +]</div>
+
+[$ if $write_result $]
+
+<h4 class="error">Successful Entry</h4>
+
+<p>You have completed the survey entitled
+<b>"[+$survey->field_value('title')+]"</b>.  Your feedback is greatly
+appreciated.</p>
+
+<p><a href="[+ $uri +]"/>Reset this survey.</a></p>
+<p><a href="/">Return to the TUSK home page.</a></p>
+
+[$ elsif $disp_msg $]
+
+<h4 class="error">[+ $disp_msg +]</h4>
+
+[$ else $]
+
+[$ if $write_msg $]
+
+<h4 class="error">[+ $write_msg +]</h4>
+
+[$endif $] [# Ends the if $write_msg #]
+
+<form name="eval_form" method="post">
+
+[-
+  my $doc = $parser->parse_string($formatter->get_xml_text());
+  $tdoc = $stylesheet->transform($doc, XML::LibXSLT::xpath_to_string('USERID' => $userid));
+-]
+[+ $stylesheet->output_string($tdoc); +]
+
+[- submit_box -]
+
+</form>
+
+<script language="JavaScript">
+<!--//
+[$ foreach $survey_q (grep (/^eval_q_/, keys %fdat)) $]
+[- ($id) = $survey_q =~ /^eval_q_(\d+)$/ -]
+satisfy([+ $id +], '');
+[$ endforeach $]
+//-->
+</script>
+
+[$ endif $]
+
+
+<hr>
+</body>
+</html>

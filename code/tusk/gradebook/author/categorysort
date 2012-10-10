@@ -1,0 +1,64 @@
+<%once>
+	use TUSK::GradeBook::GradeCategory;
+	use TUSK::GradeBook::GradeOffering;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $category_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $category = TUSK::GradeBook::GradeCategory->lookupKey($category_id);
+	my $categories = TUSK::GradeBook::GradeCategory->lookup("parent_grade_category_id = " . $category->getParentGradeCategoryID(), ['sort_order']);
+	my $col_fields = [ {'label' => 'Category Name', 'field' => 'getGradeCategoryName'},];
+</%shared>
+
+<br/>
+<& 'SELF:get_parent_category_name' &>
+
+<& /tmpl/element:form, params => {
+	method 		=> 'POST',
+	onsubmit 	=> undef,
+	name 		=> 'categorysort' } &>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 1,
+	columns => $col_fields,
+	action_columns => undef,
+	object_list => $categories,
+	name => 'categories',
+} &>
+</form>
+
+<%init>
+	if (defined($ARGS{'order'})) {
+		my $offering = TUSK::GradeBook::GradeOffering->lookupKey($category->getGradeOfferingID());
+		if ($offering) {
+			my ($index, $newindex) = split('-', $ARGS{'order'});
+			$categories =  $offering->updateSortOrders($index, $newindex, 'grade_offering_id = ' . $offering->getPrimaryKeyID(), $categories, 1);
+		}
+	}
+</%init>
+
+<%method get_parent_category_name>
+<%perl>
+	my $parent_category = TUSK::GradeBook::GradeCategory->lookupKey($category->getParentGradeCategoryID());
+	my $name = ($parent_category->getGradeCategoryName() =~ /^Offering Category$/) ? 'None' : $parent_category->getGradeCategoryName();
+	print "<div class=\"med\">Parent Category: &nbsp; $name</div>";
+</%perl>
+</%method>
+
+<%method get_nav_bar_objects>
+% 	return {'TUSK::GradeBook::GradeCategory' => $category};
+</%method>
+
+<%method jsarray>
+% 	return ['gradebook.js'];
+</%method>
+
+<%method title>
+%	return 'Sort Grade Categories';
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>

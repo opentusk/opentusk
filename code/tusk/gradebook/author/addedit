@@ -1,0 +1,185 @@
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use TUSK::Application::GradeBook::GradeBook;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $event_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $is_edit = 0;
+	my ($event, $category, $time_period_id, $gb, $root_category, $category_id);
+</%shared>
+
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	onsubmit =>'return event_submit(this)',
+	name => 'gradeaddedit' } &>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Event Name',
+	name => 'event_name',
+	value => $event->getEventName(),
+	size => 60,
+	length => 255 } &>
+
+<& /tmpl/element:textarea, params => {
+	label 	=> 	'Event Description',
+	name	=>	'event_description',
+	cols	=>	"60",
+	rows	=>	"4",
+	value	=>	$event->getEventDescription()  } &>
+
+
+<& /tmpl/element:dropdown, params => { 
+	label 		=> 'Category',
+	name		=> "category_id",
+	onchange	=> undef,
+	selected	=> $category_id,
+    options 	=> $m->comp('SELF:get_category_options', gb => $gb, root_category => $root_category, category_id => $category_id, exclude_category_itself => 0),
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Weight',
+	name => 'weight',
+	value => ($event->getWeight()) ? $event->getWeight : '',
+	size => 10,
+	length => 10 
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Grade to pass',
+	name => 'pass_grade',
+	value => $event->getPassGrade(),
+	size => 10,
+	length => 10,
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label 		=> 'Due Date:',
+	name 		=> 'due_date',
+	value 		=> $event->getFormattedDueDate(),
+	size 		=> 20,
+	maxlengt	=> 20,
+	calendar    => 1,
+	calendar_type => 'datetime',
+	default_time => 'endofday',
+} &>
+
+<& /tmpl/element:posted_dropdown, selected => $event->getPublishFlag() &>
+
+
+% if ($is_edit) {
+<& /tmpl/element:radio_buttons, params => { 
+        label => 'Exclude from final grade calculation?',
+        name => 'waive_grade',
+        buttons => [
+			{ value => "1", text => "Yes", 
+ 			  checked => ($event->getWaiveGrade() == 1) ? 1 : 0,
+			},
+	        { value => "0", text => "No", 
+			  checked => ($event->getWaiveGrade() == 0) ? 1 : 0,
+			} 
+	   	],
+		nobreak => 1, } &>
+% }
+
+
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Save Changes',
+	cancel_onclick  => "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
+	name			=> 'save_changes',
+	buttons			=> ($is_edit) 
+		? [ $m->scomp('/tmpl/element:button', params => { label => 'Add/Edit Grades', onclick => "window.location='/gradebook/author/gradeaddedit/$type_path/$event_id'" }),
+			$m->scomp('/tmpl/element:button', params => { label => 'New Grade Event', onclick => "window.location='/gradebook/author/addedit/$type_path'" }) ] 
+		: '',
+} &>
+</table>
+</form>
+
+<%init>
+	if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)) {
+
+		if (defined($m->comp("SELF:get_timeperiod_id")) && $m->comp("SELF:get_timeperiod_id") > -1 ) {
+			my ($msgtxt, $extra);
+			$ARGS{'event_name'} = "Untitled" unless ($ARGS{'event_name'});
+			$event->setEventName($ARGS{'event_name'});
+			$event->setWeight($ARGS{'weight'});
+			$event->setEventDescription($ARGS{'event_description'});
+			$event->setPublishFlag($ARGS{'publish_flag'});
+			$event->setDueDate($ARGS{'due_date'}) if ($ARGS{'due_date'});
+			$event->setGradeCategoryID($ARGS{'category_id'});				
+			$event->setPassGrade($ARGS{'pass_grade'});
+			if ($is_edit) {
+				$event->setWaiveGrade($ARGS{'waive_grade'});
+			} else {
+				$event->setCourseID($type_object->primary_key);
+				$event->setSchoolID($type_object->get_school()->getPrimaryKeyID());
+				$event->setTimePeriodID($m->comp("SELF:get_timeperiod_id"));
+				my $events = TUSK::GradeBook::GradeEvent->new()->lookup("grade_category_id = $ARGS{category_id}");
+				$event->setSortOrder(scalar(@$events)*10 + 10);
+			}
+
+			$event->save({'user' => $m->session->{'user'}->user_id()});
+
+			my $url = $r->uri();
+			if ($is_edit) {
+				$msgtxt = "Grade event successfully modified";
+			} else {
+				$url .= "/" . $event->getPrimaryKeyID();
+				$msgtxt = "Grade event successfully created";
+			}
+
+			$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $url . "?msg=$msgtxt");
+
+		} else {  #something is wrong with timeperiod 
+			$m->comp("/tmpl/url:redirect", message => "The Time Period has not been set.");
+		}
+	}	
+</%init>
+
+
+<%method startup>
+<%perl>
+	if (defined($event_id)){
+		$is_edit = 1;
+	    $event = TUSK::GradeBook::GradeEvent->new()->lookupReturnOne("grade_event_id = $event_id", undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::GradeBook::GradeCategory", { joinkey => 'grade_category_id', jointype => 'inner'} )]);
+		$category = $event->getJoinObject("TUSK::GradeBook::GradeCategory");
+		$time_period_id = $event->getTimePeriodID();
+	} else {
+		### still not sure why time period is not set to session from show page
+		unless (defined($m->comp("SELF:get_timeperiod_id")) && $m->comp("SELF:get_timeperiod_id") > -1) {
+			$m->comp("/tmpl/url:redirect", message => "Something wrong with Time Period!");
+		}
+	    $event = TUSK::GradeBook::GradeEvent->new();
+		$time_period_id = $m->comp("SELF:get_timeperiod_id");
+	}
+
+	$gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id});
+	$root_category  = $gb->getRootCategory($m->session->{'user'}->user_id());	
+	$category_id = $category->getPrimaryKeyID() if ($category);
+</%perl>
+</%method>
+
+
+<%method jsarray>
+% 	return ['layers.js', 'element.js', 'gradebook.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>
+
+
+<%method title>
+%	return ($is_edit) ? "Modify Grade Event" : "Create New Grade Event";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>

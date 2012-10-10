@@ -1,0 +1,22 @@
+<%method update>
+<%args>
+	$input
+	$db_responses	
+</%args>
+<%perl>
+
+	my $user_id = $m->session->{'user'}->user_id();
+	my %input_corrects;
+
+	foreach my $resp (@$db_responses) {
+		my $id = $resp->getPrimaryKeyID();
+##		print "resp_$id => " . $input->{"resp_$id"} . "<br/>";
+		if (exists $input->{"resp_$id"} && $input->{"resp_$id"} =~ /[0-9\.]+/) {
+			$resp->setGradedPoints($input->{"resp_$id"});
+			$resp->setGradedFlag(1);
+			$resp->save({user => $user_id});
+		}
+	}
+
+</%perl>
+</%method>

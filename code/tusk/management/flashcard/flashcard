@@ -1,0 +1,249 @@
+<%args>
+	$newfolder => ''
+	$add_to_folder => ''
+	$content_item => ''
+</%args>
+
+<%attr>
+	page_header	  => '/tmpl/prepend:manage_header_div_layout'
+	page_footer	  => '/tmpl/footer:footer_div_with_tufts_links'
+	no_check_path	=> 1
+</%attr>
+
+
+<%once>
+  use HSDB4::SQLRow::User;
+  use HSDB4::SQLRow::PersonalContent;
+  use HSDB4::Constants;
+  use TUSK::FlashCard;
+  use TUSK::Constants;
+  use Data::Dumper;
+</%once>
+
+% my $fc_dir = "/management/flashcard";
+% if( ($ENV{'HTTP_REFERER'} && ( index($ENV{'HTTP_REFERER'},$fc_dir) == -1 )))
+% {$m->session->{'flashcardsbackbutton'} = $ENV{'HTTP_REFERER'};}
+
+<%perl>
+my $backbuttn = $m->session->{'flashcardsbackbutton'};
+my $disp_txt = "Home Page";
+if($backbuttn) { 
+		my @splt = (split "/", $backbuttn);
+		if (index($backbuttn,'home') > -1 ) {
+			$disp_txt = "Home Page";
+		}
+		else {
+			$disp_txt = "Collection/Content";
+		}
+}
+</%perl>
+
+<form method="post" name="fcardform" id="fcardform">
+
+ <table border="0" width="100%">
+      <tr>
+        <td valign="left" width="33%">
+
+<& /tmpl/element:cms_button_row,
+    links => [
+        {display_txt => 'Add a New Deck',
+        link_txt    => "javascript:submitnewfolder('fcardform');",
+		
+		},
+# the back button was problematic due to a known problem with truncated sessions.
+# until the session issue is straightened out, the back button is nixed.
+#		{display_txt => 'Back to '.$disp_txt,
+#		link_txt    => "$backbuttn",	
+#		},
+        ]
+&>
+
+</td>
+  <td align="center" width="33%">
+
+        </td>
+        <td align="right" width="33%">
+
+% my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => 867133, text => 'Flash Cards Help', not_xmetal => 1, class => 'helpLnk'});
+
+<% $help_lnk %>
+
+
+</td></tr></table>
+
+
+
+
+
+% @personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type="Flash Card Deck"'} );
+% $length = scalar(@personal_content);
+%  if( $length > 0) {
+
+<table name="fc" border="0" cellpadding="3" align="center" cellspacing="0" class="wide" width="100%" >
+
+%    my $i =1;
+%    foreach my $pieceOfContent (@personal_content) {
+
+
+<& /tmpl/objects/PersonalContent:edit_PersonalContentCollectionDeck, personalContentRef => \$pieceOfContent, i => $i , lngth => $length &>
+
+%    	$i++;
+%    }  # end for loop
+
+</table>
+
+%  } else {
+     <b>No Decks Available</b><br>
+%  }
+
+<input type="hidden" name="order" value="">
+<input type="hidden" name="newfldr" id="newfldr"/>
+<input type="hidden" name="deleteDeck" > 
+<input type="hidden" name="rnm" id="rnm" />
+
+</form>
+
+
+<%init>
+my @personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type="Flash Card Deck"'} );
+my $length = scalar(@personal_content);
+
+		if($ARGS{'newfldr'} == 1) {
+
+			# add a new deck, but add to top of list
+			my $folder = $m->session->{'user'}->new_child_personal_content_deck;
+			# because we've added a deck, get PC again
+		
+			@personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type="Flash Card Deck"'} );
+		    $length = scalar(@personal_content);
+
+			my %params_hash = (
+				'change_order_string' => "$length-1" ,
+				'parent_id' => $m->session->{'user'}->primary_key() ,
+				'link_def_type' => 'link_user_personal_content',
+				'child_arrayref' => \@personal_content,
+			);
+
+			HSDB4::SQLLinkDefinition->update_children_sort_order(\%params_hash);
+
+		}
+		
+	
+		if( $ARGS{'order'} ) {
+	
+			my %params_hash = (
+				'change_order_string' => $ARGS{'order'} ,
+				'parent_id' => $m->session->{'user'}->primary_key() ,
+				'link_def_type' => 'link_user_personal_content',
+				'child_arrayref' => \@personal_content,
+			);
+
+			HSDB4::SQLLinkDefinition->update_children_sort_order(\%params_hash);
+		}
+
+		if(  $ARGS{'rnm'}) { 
+			my $cID = $ARGS{'rnm'}; 
+			my $folder = HSDB4::SQLRow::PersonalContent->new()->lookup_key( $cID );
+			$folder->edit_body( $ARGS{"rename_$cID"} );
+			
+		}
+		
+		if($ARGS{'add_to_folder'}) {
+			
+			my $folder;
+			
+			if ($ARGS{'add_to_folder'} == -1) {
+
+				$folder = $m->session->{'user'}->new_child_personal_content_deck;
+				@personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type="Flash Card Deck"'} );
+			    $length = scalar(@personal_content);
+
+				my %params_hash = (
+				'change_order_string' => "$length-1" ,
+				'parent_id' => $m->session->{'user'}->primary_key() ,
+				'link_def_type' => 'link_user_personal_content',
+				'child_arrayref' => \@personal_content,
+			);
+
+			HSDB4::SQLLinkDefinition->update_children_sort_order(\%params_hash);
+				
+			} 
+			else {
+				$folder = HSDB4::SQLRow::PersonalContent->new;
+				$folder->lookup_key($ARGS{'add_to_folder'});
+			}
+
+			my $content_id_no_slash = substr $ARGS{'content_item'}, 1;
+            my $contnt = HSDB4::SQLRow::Content->new->lookup_key($content_id_no_slash);
+            
+            if ( $contnt->content_type eq "Collection" ) {
+				#this is a collection, go through all child content and add it
+                
+				my @sub_content = $contnt->active_child_content();
+				my $bad_content=0;
+				foreach my $piece (@sub_content){
+					   
+					if ( $piece->type eq "Slide"){
+						TUSK::FlashCard->saveCard($piece,$folder,$m->session->{'user'});
+					}
+					else { $bad_content++; }
+
+				}
+				if ( $bad_content > 0){
+					my $msg;
+					my $msg_tail = "Only images can be added to a Flash Card Deck.";
+					if ($bad_content == 1){
+						$msg="One piece of content was of the wrong type and could not be added. ".$msg_tail;
+					}
+					else {
+						$msg="$bad_content pieces of content were of the wrong type and could not be added. ".$msg_tail;
+					}
+					$m->comp("SELF:cant_add_content_type", msgtxt => $msg);
+				}
+			}
+            elsif($contnt->content_type eq "Slide") {			
+			    TUSK::FlashCard->saveCard($contnt,$folder,$m->session->{'user'});
+			}
+			else{
+				
+				# cannot add content of this type, show traffic light warning	
+				$m->comp("SELF:cant_add_content_type", msgtxt => "This content cannot be added. Only images can be added to a Flash Card Deck.");
+			}
+
+		}
+		if ( $ARGS{'deleteDeck'} ) {
+
+			my $pc = HSDB4::SQLRow::PersonalContent->new->lookup_key($ARGS{'deleteDeck'});
+			$pc->delete;
+			@personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type="Flash Card Deck"'} );
+			$length = scalar(@personal_content);
+		}
+	</%init>
+
+<%method jsarray>
+% return ['flashcards.js'];
+</%method>
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+%	return $TUSK::Constants::SiteAbbr . " Flash Card Decks: " . $m->session->{'user'}->out_abbrev;
+</%method>
+
+<%method cant_add_content_type>
+<%args>
+	$msgtxt => ''
+</%args>
+<%perl>
+	# cannot add content of this type, show traffic light warning	
+	my $reload_url = "/management/flashcard/flashcard";
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?hintmsg=$msgtxt");
+</%perl>
+</%method>
+

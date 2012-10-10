@@ -1,0 +1,116 @@
+<%once>
+	use TUSK::Manage::Email;
+</%once>
+
+<%attr>
+	show_tp_dropdown_no_cache => 1
+	top_tab_type            => 'manage'
+	check_cms_permissions	=> 1
+
+</%attr>
+
+<%shared>
+    my $type_object =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $course_id = $type_object->course_id ;
+	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
+</%shared>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+                      <tr> 
+                        <td class="labelgray">To:</td>
+                        <td class="cell-left"> All 
+% if ($ARGS{to}) {
+<% $data->{usergroup}->field_value('label') %>
+% } else {
+<% $course->field_value('title') %>
+% }
+% if ($ARGS{sendself}) { 
+, <% $user->field_value('email') %>
+% }
+					</td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">From:</td>
+                        <td class="cell-left"><% $fullname %> (<% $user->field_value('email') %>)</td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">Subject</td>
+                        <td class="cell-left"><% $ARGS{subject} %></td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">Message:</td>
+                        <td class="cell-left"><% $ARGS{body} %></td>
+                      </tr>
+                      <tr> 
+			<td>&nbsp;</td>
+                        <td class="cell-submit">
+% if($ARGS{action}) {
+
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Send Another Message',
+	no_cancel_button => 1,
+	onclick => "location.href='/management/emails/compose/".$selfpath."'",
+	class 	=> 'formbutton',
+	name			=> 'action',
+	} 
+&>
+
+
+% } else {
+
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Close Preview',
+	no_cancel_button => 1,
+	onclick => "javascript:window.close();",
+	class 	=> 'formbutton',
+	name			=> 'action',
+	} 
+&>
+
+% }
+
+</td>
+</tr>
+</table>
+
+
+<%init>
+
+	my $timeperiod = $m->comp("SELF:get_timeperiod_id");	
+    my $user = $m->session->{'user'};
+	my $fullname = $user->field_value('firstname') . " " . $user->field_value('lastname');
+	my $selfpath =  $m->comp("/tmpl/url:get_full_path");
+    my $data;
+
+    if ($ARGS{action}){
+		$data = TUSK::Manage::Email::email_process($r, $user->primary_key, $school, $course_id, $timeperiod, \%ARGS);
+	
+	} else{
+		$data = TUSK::Manage::Email::email_preview_process($r, \%ARGS);
+	}
+
+</%init>
+
+<%method title>
+% if ($ARGS{action}) {
+% 	return "Email Confirmation";
+% } else { return "Preview Email" ; }
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method cms_min_course_role>
+% if ($course->type eq 'group'){
+% return 'AUTHOR';
+%} else {
+% return 'DIRECTOR';
+% }
+</%method>

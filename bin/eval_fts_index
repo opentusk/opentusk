@@ -1,0 +1,497 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use warnings;
+use POSIX;
+use Getopt::Long;
+use DBI;
+use DBIx::FullTextSearch;
+use DBIx::FullTextSearch::StopList;
+
+use MySQL::Password;
+use HSDB4::SQLRow::User;
+use HSDB4::DateTime;
+use HSDB4::Constants;
+use HSDB45::Eval::Question;
+use HSDB45::Eval::Question::Body;
+use HSDB45::Eval::Question::Results;
+use HSDB45::Eval::Results;
+use TUSK::Core::HSDB45Tables::Eval::LinkEvalEvalQuestion;
+use TUSK::Core::School;
+use TUSK::Cron::VariableManager;
+use TUSK::ScriptLog;
+use TUSK::Core::ServerConfig;
+
+my ($school,$dbh,$fts,$processVariables);
+
+main ();
+
+
+sub main {
+    my ($changes_update,$full_update,$create,$search,$esearch,$truncate,$drop,$help);
+    eval {
+	my $rc = GetOptions( "help"             => \$help,
+			     "changes_update"   => \$changes_update,
+			     "full_update"      => \$full_update,
+			     "create"           => \$create,
+			     "search=s"         => \$search,
+			     "esearch=s"        => \$esearch,
+			     "truncate"         => \$truncate,
+			     "drop"             => \$drop,
+			     "school=s"         => \$school,
+			   );
+
+	if (defined $changes_update || defined $full_update || defined $search || defined $esearch) {
+	    die "missing school\n" unless defined $school;
+	}
+
+	my $index_name = 'fts_eval';
+	HSDB4::Constants::set_user_pw (get_user_pw);
+
+	$dbh = connect_db();
+	$fts = DBIx::FullTextSearch->open($dbh,$index_name);
+
+	if ($create) { 
+	    if ($fts) {
+		print "$index_name exists...\n";
+	    } else {
+		create($index_name);
+	    }
+	} elsif ($full_update) {
+	    init('full');
+	    if ($school eq 'all') {
+		all_schools('full');
+	    } else {
+		full_update();
+	    }
+	    finishup();
+	} elsif ($changes_update) {
+	    init('changes');
+	    if ($school eq 'all') {
+		all_schools('changes');
+	    } else {
+		changes_update();
+	    }
+	    finishup();
+	} elsif ($search) {
+	    search($search);
+	} elsif ($esearch) {
+	    esearch($esearch);
+	} elsif ($truncate) {
+	    empty($index_name);
+	} elsif ($drop) {
+	    drop($index_name);
+	} elsif ($help) {
+	    help();
+	}
+        disconnect($dbh);
+    };
+
+    print $@ if $@;
+}
+
+
+sub init {
+    my $update = shift;
+    $processVariables = TUSK::Cron::VariableManager->new();
+    TUSK::ScriptLog::openlog("eval_fts_index.log", "Starting $update update");
+}
+
+sub finishup {
+    TUSK::ScriptLog::closelog();
+}
+
+
+sub help {
+    print <<HELP;
+* Create fts tables
+    eval_fts_index --create
+
+* Update changes from the last time the script runs
+    eval_fts_index --changes_update --school=[all|Medical|Dental...]
+
+* Refresh database
+    eval_fts_index --full_update --school=[all|Medical|Dental...]
+
+* Search
+    eval_fts_index --search=string
+    eval_fts_index --esearch='string1 string2'
+
+* Drop/Truncate
+    eval_fts_index --drop
+    eval_fts_index --truncate
+HELP
+}
+
+sub create {
+    my ($index_name) = @_;
+
+    DBIx::FullTextSearch->create($dbh, $index_name,
+				 frontend => 'string',
+				 backend => 'phrase',
+				 stoplist => 'hsdb',
+				 word_id_bits => 32,
+				 count_bits => 32,
+				 doc_id_bits => 32,
+				 position_bits => 32,
+				 index_splitter => 
+				           "/([a-zA-Z-']{2,\$word_length}\\*?)/g",
+				 search_splitter => 
+				           "/([a-zA-Z-']{2,\$word_length}\\*?)/g",
+				 );
+    print "$index_name created\n";
+}
+
+
+sub all_schools {
+
+    my $update = shift;
+    unless (defined $update && ($update eq 'full' || $update eq 'changes')) {
+	die "eval_fts_index [ --full_update | --changes_update ] --school=all\n";
+    }
+
+    my @schools = get_schools_using_evals();
+    my @completions = ();
+    my $last_update_time = get_last_update_time();
+    my $new_mod_time = HSDB4::DateTime->new->out_mysql_timestamp;
+    my $changes_complete = 0;
+    my $start_counts = getCount();
+
+    foreach my $s (@schools) {
+	$school = $s;  ### reset current processing school
+	
+	if ($update eq 'full') {
+	    full_update();
+	} elsif ($update eq 'changes') {
+	    TUSK::ScriptLog::log($school);    
+	    $changes_complete = (changes_questions($last_update_time) && changes_responses($last_update_time)) ? 1 : 0;
+	} 
+
+	push @completions, $school;
+    }
+
+    if (scalar @completions != scalar @schools) {
+	my $msg = "Already processed: " .  join(", ", @completions) . "\nHowever, here is the complete list of schools using evals:" . join(",", @schools) . ".";
+	TUSK::ScriptLog::printandlog($msg);    
+    }
+
+    ### reset the last update time for changes_update
+    if ($changes_complete && $update eq 'changes') {
+	set_last_update_time($new_mod_time);
+	my $end_counts = getCount();
+	logCount($start_counts, $end_counts);
+    }
+}
+
+
+sub get_schools_using_evals {
+
+    my @school_names = HSDB4::Constants::eval_schools();
+    my @schools = ();
+    foreach my $name (@school_names) { 
+	my $schoolObject = TUSK::Core::School->new()->lookupReturnOne("school_name = '$name'");
+	my $db = $schoolObject->getSchoolDb();
+	my $sth = $dbh->prepare(qq(select count(*) from $db\.eval_question));
+	$sth->execute();
+	my $rows = $sth->fetchrow();
+	$sth->finish();
+	if (defined $rows) {
+	    push @schools, $schoolObject->getSchoolName() if ($rows > 0);
+	}
+    }
+
+    return @schools;
+}
+
+
+
+#### this last update time is actually the start of processing time.
+#### we use this start time because it is possible that the process time can be quite 
+#### long and that some eval responses/questions might be added or modified after 
+#### process has started but before it gets indexed.
+sub set_last_update_time {
+    my $new_mod_time = shift;
+    $processVariables->setValue('LastRun', $new_mod_time);
+    $processVariables->saveValue('LastRun');
+}
+
+sub get_last_update_time {
+    my $last_update_time = $processVariables->getValue('LastRun');
+    unless ($last_update_time) {
+	die "There is no last run time in the 'cron_job_variables' table. Please add last runtime into the table prior to running this process as changes updates.\n";
+    }
+}
+
+sub changes_update {
+    my $last_update_time = get_last_update_time();
+    my $new_mod_time = HSDB4::DateTime->new->out_mysql_timestamp;
+    TUSK::ScriptLog::log($school);    
+    my $start_counts = getCount();
+    if (changes_questions($last_update_time) && changes_responses($last_update_time)) {
+	set_last_update_time($new_mod_time);
+	my $end_counts = getCount();	
+	logCount($start_counts, $end_counts);
+    }
+}
+
+
+sub changes_questions {
+    my $last_update_time = shift;
+
+    foreach my $q (HSDB45::Eval::Question->new(_school=>$school)->lookup_conditions("modified > '$last_update_time'")) {
+
+		my $qt;
+		eval { $qt = $q->body()->question_type(); };
+		next unless defined $qt;
+		my $text = get_question_text($q,$qt);
+		next unless defined $text;
+
+		## update all the evals that have the same question id
+		foreach my $eval_id ($q->other_eval_ids()) {
+			my $doc_id = $school . '_' . $eval_id . '_' . $q->primary_key();
+
+			if (my $existing_words = get_existing_fts_words($doc_id)) {
+				$text .= " $existing_words";
+			}
+
+			$fts->index_document($doc_id, $text);
+		}
+    }
+
+    my $link = TUSK::Core::HSDB45Tables::Eval::LinkEvalEvalQuestion->new();
+    $link->setDatabase(HSDB4::Constants::get_school_db($school));
+    my $links = $link->lookup("modified > '$last_update_time'");
+
+    foreach my $ln (@{$links}) {
+		my $qid = $ln->getFieldValue('child_eval_question_id');
+		my $q = HSDB45::Eval::Question->new(_school => $school)->lookup_key($qid);
+		my $qt;
+		eval { $qt = $q->body()->question_type(); };
+		next unless defined $qt;
+		my $text = get_question_text($q,$qt);
+
+		my $label = $ln->getLabel();
+		$text .= " $label" if defined $label && $label =~ /[A-z]{2,}/;
+
+		next unless defined $text;
+
+		my $doc_id = $school . '_' . $ln->getFieldValue('parent_eval_id') . '_' . $qid;
+
+		if (my $existing_words = get_existing_fts_words($doc_id)) {
+			$text .= " $existing_words";
+		}
+
+		$fts->index_document($doc_id, $text);
+    }
+
+    return 1;
+}
+
+
+sub changes_responses {
+    my $last_update_time = shift;
+    my (%existing_words, %new_words);
+    foreach my $resp (HSDB45::Eval::Question::Response->new(_school=>$school)->lookup_conditions("modified > '$last_update_time'")) {
+		my ($q, $qt);
+		eval { 
+			$q = HSDB45::Eval::Question->new(_school=>$school)->lookup_key($resp->field_value('eval_question_id'));
+			$qt = $q->body()->question_type(); 
+		};
+
+		die $@ if $@;
+
+		if ($qt =~ m/QuestionRef|FillIn|SmallGroupsInstructor/) {
+			my $text = get_response_text($resp,$qt);
+			my $doc_id = $school . '_' . $resp->field_value('eval_id') . '_' . $resp->field_value('eval_question_id');
+			$existing_words{$doc_id} = get_existing_fts_words($doc_id) unless defined $existing_words{$doc_id};
+			push @{$new_words{$doc_id}}, $text if ($text ne '');
+		}
+    }
+
+    foreach my $doc_id (keys %new_words) {
+	    $fts->index_document($doc_id, join(' ', @{$new_words{$doc_id}}) . ' ' . $existing_words{$doc_id});
+    }
+
+    return 1;
+}
+
+
+sub get_existing_fts_words {
+    my $doc_id = shift;
+
+    my $words = $dbh->selectcol_arrayref(qq(
+SELECT word 
+FROM fts.fts_eval_data a, fts.fts_eval_words b, fts.fts_eval_docid c 
+WHERE a.word_id = b.id and a.doc_id = c.id and name = '$doc_id'));
+
+    return join(' ', @$words);
+}
+
+
+sub get_eval_ids {
+    my $db = HSDB4::Constants::get_school_db($school);
+    die "Invalid School Name!" unless defined $db;
+    my $sth = $dbh->prepare("SELECT min(eval_id), max(eval_id) FROM $db.eval");
+    $sth->execute();
+    my ($min_id, $max_id) = $sth->fetchrow_array();
+    $sth->finish();
+    return ($min_id, $max_id);
+}
+
+
+sub full_update {
+    my($min_id, $max_id) = get_eval_ids();
+
+    TUSK::ScriptLog::log($school);    
+    foreach my $eval_id ($min_id..$max_id) {
+		my $eval = HSDB45::Eval->new( _school => $school, _id => $eval_id);
+		next unless defined $eval->{eval_id};
+		my ($text,$qt,$body);
+
+		foreach my $q ($eval->questions()) {
+			eval { $body = $q->body(); };
+			next unless defined $body && defined $q->{eval_question_id};
+
+			eval { $qt = $q->body()->question_type(); };
+			next unless defined $qt;
+
+			$text = get_question_text($q,$qt);
+			next unless defined $text;  ### skip some questions 
+
+			### grab all responses for some types of questions
+			if ($qt =~ m/QuestionRef|FillIn|SmallGroupsInstructor/) {
+				my ($results_eval,$results);
+				eval {
+					$results_eval = HSDB45::Eval::Results->new($eval);
+					$results = HSDB45::Eval::Question::Results->new($q,$results_eval);
+				};
+
+				unless ($@) {
+					$text .= ' ' . get_response_text($_, $qt)  foreach ($results->responses());
+				}
+			}
+
+			$fts->index_document($school . '_' . $eval->{eval_id} . '_' . $q->{eval_question_id}, $text);
+		}
+	}
+}
+
+
+sub get_question_text {
+    my ($q, $qt) = @_;
+    my $text = undef;
+
+    ### skip questions in small group 
+    my $grouping = $q->aux_info('grouping');  
+    if (defined $grouping && $grouping =~ /^\d+$/ && $qt =~ /SmallGroupsInstructor/) {
+	return undef;
+    }
+
+    eval { $text = $q->body()->question_text(); };
+
+    unless ($@) {
+        ### some names in label field
+	$text .= ' ' . $q->aux_info('label') if $q->aux_info('label');  
+	## get rid of all the html tags and store only text 
+	$text =~ s/<\s*\/?[A-z][^>]*>//g;  
+    }	    
+    return $text;
+}
+
+
+sub get_response_text {
+
+    my ($resp,$qt) = @_;
+
+    if ($qt =~ /SmallGroupsInstructor/) { ### translate userid to first/last names
+	return '' if $resp->response() =~ /unknown/i;
+	my $user = HSDB4::SQLRow::User->new(_school => $school, _id => $resp->response());
+	if (defined $user->last_name()) {
+	    return $user->first_name() . ' ' . $user->last_name();
+	}
+    }
+	
+    return $resp->response();
+}
+
+
+sub search {
+    my ($searchString) = @_;
+    my @search_strings = split(/\s+/, $searchString);
+    ### get list of doc_ids used for search
+    my @results = $fts->contains(map { lc } @search_strings);  
+    foreach (@results) {
+	print "$_\n" if /^$school/i;
+    }
+}
+
+
+sub esearch {
+    my ($searchString) = @_;
+
+    my @search_strings = split(/\s+/, $searchString);
+    ### get list of doc_ids used for search
+    my @results = $fts->econtains(@search_strings);  
+    foreach (@results) {
+	print "$_\n" if /^$school/i;
+    }
+}
+
+
+sub empty {
+    my $index_name = shift;
+
+    if ($fts) {
+	$fts->empty;
+	print "Truncate '$index_name' tables\n";
+    } 
+}
+
+
+sub drop {
+    my $index_name = shift;
+
+    if ($fts) {
+	$fts->drop;
+	print "Drop '$index_name' tables\n";
+    } 
+}
+
+
+sub connect_db {
+	## could pass on db host through script command line, else take it from ServerConfig file
+	$ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost unless defined($ENV{DATABASE_ADDRESS});
+
+	die "Need to set 'DATABASE_ADDRESS' environmental variable\n" unless defined($ENV{DATABASE_ADDRESS});
+
+	return DBI->connect("dbi:mysql:fts:$ENV{DATABASE_ADDRESS}", get_user_pw (), { RaiseError => 1 });
+}
+
+
+sub disconnect {
+    my $dbh = shift;
+    $dbh->disconnect;
+}
+
+sub getCount {
+    my %counts;
+    my $sth;
+    foreach my $table ('fts_eval_words', 'fts_eval_docid', 'fts_eval_data') {
+	$sth = $dbh->prepare(qq(select count(*) from fts\.$table));
+	$sth->execute();
+	$counts{$table} = $sth->fetchrow();
+	$sth->finish();
+    }
+    return \%counts;
+}
+
+sub logCount {
+    my ($start, $end) = @_;
+
+    foreach my $table (keys %$start) {
+	my $diff = $end->{$table} - $start->{$table};
+	TUSK::ScriptLog::log("new records in $table: $diff");
+    }
+}

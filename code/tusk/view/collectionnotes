@@ -1,0 +1,162 @@
+<%args>
+</%args>
+
+<%attr>
+        top_tab_type            => 'none'
+	displayLittleUserNavBar => '1'
+	default_path_type	=> 'content'
+	allow_guests		=> '0'
+</%attr>
+
+% use TUSK::Functions ;
+
+<%shared>
+	my $document = $m->comp('/tmpl/url:get_type_object');
+        my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
+	my $userObject = $m->session->{'user'};
+        my $iCanEdit = $document->can_user_edit($userObject);
+</%shared>
+
+<%method jsarray>
+%	return 'effects.js';
+</%method>
+
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+
+<%method red_header_text>
+%       return "Notes For: <b>" . $document->out_label . "</b>";
+</%method>
+
+
+<%method title>
+%       return "Notes For: " . ucfirst($document->type) .": ". $document->out_label;
+</%method>
+
+
+
+% if($iCanEdit || $document->is_active()) {
+%   my @subContent = $document->active_child_content();
+  <%perl>
+  if($ARGS{'save'}) {
+    foreach my $aSubContent (@subContent) {
+      my $noteID = $aSubContent->primary_key . '_note';
+      $aSubContent->make_annotation($m->session->{'user'}, $ARGS{$noteID});
+    }
+  }
+  </%perl>
+
+
+    <script>
+      function showCollectionNotes() {
+	var newWindow = window.open('', 'newWindow', 'directories=no, location=no, menubar=no, toolbar=no');
+	var theDocument = newWindow.document.open();
+	var numberOfTextAreas = 1;
+	for(var index=0; index<document.myForm.length; index++) {
+		if(document.myForm[index].type == 'textarea') {
+			var theNote = document.myForm[index].value;
+			theDocument.writeln(numberOfTextAreas+': '+theNote+'<br>');
+			numberOfTextAreas++;
+		}
+	}
+	theDocument.close();
+      }
+
+      function resetNote(noteNumber) {
+	if(document.myForm[''+noteNumber+'_check'].checked) {
+          document.myForm[''+noteNumber+'_note'].value=document.getElementById(''+noteNumber+'_resetValue').innerHTML;
+	  document.getElementById(''+noteNumber+'_notSavedDiv').style.display='none';
+          document.myForm[''+noteNumber+'_check'].checked = false;
+	  highlightButton(noteNumber);
+	} else {
+          changeColor('FF0000', 'FFFFFF', 0, document.getElementById(''+noteNumber+'_checkSpan'), 'borderColor');
+//          document.getElementById(''+noteNumber+'_checkSpan').style.border='2px red solid';
+        }
+      }
+
+      function highlightButton(noteNumber) {
+	if(document.myForm[''+noteNumber+'_resetButton'].style.color == 'red') {document.myForm[''+noteNumber+'_resetButton'].style.color="";}
+        else                                                                   {document.myForm[''+noteNumber+'_resetButton'].style.color="red";}
+      }
+    </script>
+
+    <form method="post" name="myForm">
+    <center>
+<!--    <font style="color:red;">
+      Please Note!!<br>
+      Notes will not be saved until the save button at the bottom of the form is clicked!<br>
+    </font>
+!-->
+    </center>
+      
+    <table border="0" align="center">
+      <& SELF:printFormButtons &>
+%   if ($document->display_child_content && @subContent > 0) {
+%     my $counter = 1;
+%     my $totalSubContent = scalar(@subContent);
+%     my $tabIndexCounter = 1;
+%     foreach my $aSubContent (@subContent) {
+%       $ARGS{'SIZE'} = 'medium';
+%       my $body;
+%       if($aSubContent->type() eq 'Slide') {$body = $aSubContent->out_html_body(%ARGS);}
+%	else                                {$body = $aSubContent->out_icon("icon" . $aSubContent->primary_key);}
+%       my @notes = ();
+%       unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
+%         @notes = $aSubContent->child_personal_content($m->session->{'user'}->primary_key());
+%       }
+%       my $combinedNote = '';
+%       foreach my $aNote (@notes) {
+%         $combinedNote .= $aNote->field_value('body');
+%       }
+       <tr>
+         <td colspan="3">
+           <table border="0" width="100%" cellpadding="0" cellspacing="0">
+             <tr>
+               <td valign="top" align="left"><font size="+1"><b><% $aSubContent->title() %></b></font></td>
+               <td valign="bottom" align="right"><font size="-1">Content <% $counter %> of <% $totalSubContent %></td>
+             </tr>
+           </table>
+         </td>
+       </tr>
+       <tr>
+         <td valign="center" style="border:1px solid black;width:450px;" align="center"><% $body %></td>
+         <td align="center" valign="top">
+           <table border="0">
+             <tr><td align="center" valign="bottom" style="height:45px;">
+	       <div id="<% $aSubContent->primary_key %>_resetValue" style="display:none"><% $combinedNote %></div>
+               <input type="button" name="<% $aSubContent->primary_key %>_resetButton" class="formbutton" value="Reset Note" onClick="resetNote('<% $aSubContent->primary_key %>');">
+               <span id="<% $aSubContent->primary_key %>_checkSpan" style="padding:5px 3px 3px 3px; border:2px solid white; text-align:center;">
+                 <input type="checkbox" onClick="highlightButton('<% $aSubContent->primary_key %>');" name="<% $aSubContent->primary_key %>_check">
+               </span>
+               </td></tr>
+             <tr><td align="center" valign="bottom" style="height:50px;"><div id="<% $aSubContent->primary_key %>_notSavedDiv" style="display:none;" class="navsm"><font color="red">Not Saved</font></div></td></tr>
+           </table>
+         </td>
+         <td valign="top" align="right"><textarea name="<% $aSubContent->primary_key %>_note" style="width:450px; height:270px" tabindex="<% $tabIndexCounter %>" onFocus="this.style.backgroundColor='white';this.style.border='2px solid black';" onBlur="this.style.backgroundColor=''; this.style.border='';" onChange="document.getElementById(''+<% $aSubContent->primary_key %>+'_notSavedDiv').style.display='block';"><% $combinedNote %></textarea></td>
+%	  $tabIndexCounter++;
+       </tr>
+       <tr><td colspan="3"><img src="/graphics/spacer.gif" height="1" width="25"></td></tr>
+%       $counter++;
+%     }
+%   }
+      <& SELF:printFormButtons &>
+    </table>
+    </form>
+% } else {
+  So Sorry...
+% }
+
+
+
+<%method printFormButtons>
+%	my $viewCollectionLink = $ENV{SCRIPT_URI};
+%	$viewCollectionLink =~ s/collectionnotes/content/;
+	<tr>
+		<td align="left"><input type="button" class="formbutton" name="return" value="Return to View Collection" onClick="document.location='<% $viewCollectionLink %>';"></td>
+		<td align="center"><input type="button" class="formbutton" name="summary" value="Show All Notes" onClick="showCollectionNotes();"></td>
+		<td align="right"><input type="submit" class="formbutton" name="save" value="Save Notes"></td>
+	</tr>
+</%method>

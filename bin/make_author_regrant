@@ -1,0 +1,24 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+#use httpdconf;
+#my %hashOfVariables;
+#unless(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {exit();}
+
+
+use strict;
+use HSDB4::Constants;
+use MySQL::Password;
+HSDB4::Constants::set_user_pw (get_user_pw);
+
+my $dbh = HSDB4::Constants::def_db_handle();
+foreach my $school (HSDB4::Constants::schools) {
+    my $query = "select distinct(mu.user) from mysql.user mu, hsdb4.user tu where mu.user = tu.user_id and tu.affiliation = '$school'";
+    my @users = @{$dbh->selectcol_arrayref($query)};
+    next unless (@users);
+    print "$school (".scalar @users." authors)\n----------------------------------------------\n";
+    my $users = join(",",@users);
+    my $response = `/usr/local/tusk/current/bin/make_author --school=$school --user_id=$users`;
+    print $response,"\n\n";
+}
+

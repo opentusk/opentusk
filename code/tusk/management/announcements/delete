@@ -1,0 +1,102 @@
+<%attr>
+	hintmsg => 'Are you sure you want to delete this announcement?'
+</%attr>
+
+<%shared>
+my $school                 = $m->comp("/tmpl/url:get_school");
+my $type_object            = $m->comp("/tmpl/url:get_type_object");
+my $self_path              = "school/" . $school;
+my $is_course_announcement = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
+my $is_course_director     = 0;
+my $course;
+if ( $is_course_announcement ) {
+       	$course             = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+		$self_path          = "course/" . $school . "/" . $type_object->course_id;
+		$is_course_director = TUSK::Session::is_director($course, $m->session->{user}->{user_id});
+}
+my $usergroup_id;
+</%shared>
+
+<%method jsarray>
+% return ['layers.js','element.js'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return 'Delete Announcement';
+</%method>
+
+<& /tmpl/element:form, params => {
+				method   => 'POST',
+				onsubmit => undef,
+				name     => 'delete' } &>
+
+<& /tmpl/element:table, params => { 
+				width       => "100%",
+				border      => "0",
+				cellspacing => "0",
+				cellpadding => "0" } &>
+
+<& /tmpl/element:field_display, params =>{ 
+				label => 'Delete',
+                value => $announcement->field_value( 'body' ) } &>
+
+<%perl>
+my $hidden_usergroup_id;
+
+if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Constants::SchoolWideUserGroup->{lc($school)} ) {
+	$hidden_usergroup_id = $usergroup_id;
+} elsif ( $is_course_announcement ) {
+	$hidden_usergroup_id = 0;
+} else {
+	$hidden_usergroup_id = $TUSK::Constants::SchoolWideUserGroup->{lc($school)};
+}
+</%perl>
+<& /tmpl/element:hidden_form_element, params =>{ 
+				name   => 'usergroup_id',
+				value  => $hidden_usergroup_id } &>
+
+<& /tmpl/element:save_button, params =>{ 
+				label          => 'Delete and Continue',
+                name           => 'submit',
+				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+				'base_url' => "/management/announcements/show") . "');" } &>
+
+</table>
+</form>
+
+<%init>
+$m->comp( "SELF:check_dynamic_permissions" );
+
+$usergroup_id = (defined($ARGS{'ug_id'})) ? $ARGS{'ug_id'} : undef;
+
+my $announcement_id = $m->comp("/tmpl/url:get_last_path_id" );
+my $announcement;
+
+if ( defined($announcement_id) ) {
+	$announcement = HSDB45::Announcement->new(_school => $school)->lookup_key($announcement_id);
+} else {
+	$m->comp("/tmpl/url:redirect",
+		'destination' => '/management/announcements/show/' . $self_path,
+		'message'     => 'Must supply an announcement id.',
+		'msg_type'     => 'errmsg');
+}
+
+if (defined($ARGS{'submit'})) {
+	if ($ARGS{'usergroup_id'}) {
+		my $ug = HSDB45::UserGroup->new(_school => $school)->lookup_key($ARGS{'usergroup_id'});
+		$ug->remove_announcement("", "", $announcement_id);
+	}else{
+		$course->remove_announcement("", "", $announcement_id);
+	}
+	
+	$announcement->delete();
+	$m->comp("/tmpl/url:redirect",
+		'destination' => '/management/announcements/show/' . $self_path,
+		'message'     => 'Announcement deleted.',
+		'msg_type'     => 'msg');
+}
+</%init>

@@ -1,0 +1,91 @@
+<%attr>
+	no_check_path => 1
+</%attr>
+<%once>
+	use TUSK::Search::Keywords;
+	use TUSK::Core::Keyword;
+    use Data::Dumper;
+</%once>
+
+<%init>
+	
+	my $keyword;
+	my $results;
+	my $user= $m->session->{'user'}->user_id();
+	if ($ARGS{make_keyword}){
+		$keyword = TUSK::Core::Keyword->makeKeyword($ARGS{search},$user);
+	} elsif ($ARGS{search}){
+		$results = TUSK::Search::Keywords->new()->search($ARGS{search}, 25);
+	}
+   
+</%init>
+
+
+<table cellspacing="5" width="100%">
+	<tr>
+		<td>
+			<input type="hidden" name="make_keyword" value="0"/>
+			<b>Keyword: </b>&nbsp;<input value="<% $ARGS{search} ? $ARGS{search} : '' %>" type="text" name="search">&nbsp;&nbsp;<input type="submit" name="action" value="Search" class="formbutton">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" name="keyword_button" value="Make New Keyword" class="formbutton" 
+			onclick="do_keyword();">&nbsp;
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+
+		
+		</td>
+	</tr>
+% if ($ARGS{make_keyword}) {
+
+<tr><td><br><b>Keyword Created.</b></td></tr>
+% } elsif  ($ARGS{search}) {
+	<tr>	
+		<td><br>
+% my $numResults =0;
+% if ($results){ $numResults =  scalar(@{$results}); }
+			<div id="count"><% $numResults %> matching entr<% ($numResults == 1)? "y": "ies" %><% ($numResults)? ":" : "" %></div>
+		</td>
+	</tr>
+
+% my $umlsNewlineEscape = "UMLSDEFINITIONNEWLINEESCAPE"; 
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+
+% if ($results) {
+<& /tmpl/layers:create_layer, struct => {
+		    layer => 'searchdiv',
+			fields => ['keyword_id','concept_id','keyword', 'umls', 'definition'],
+			name => '',
+			sort => {usage => 'No'},			
+			parentlayer => $ARGS{parentlayer},
+			scrollrows => 9,
+			action => {usage => 'Yes', length=>100, functions => [
+									{func=>'add', label=>'Add'},
+									{func=>'definition', label=>'Definition'}
+								]},
+			display => [
+					{field=>'keyword', align=>'left', length=>400},
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => $results,				
+						}
+&>
+%  }
+
+% }
+
+% if ($ARGS{'make_keyword'}) {
+<script>
+addnew('searchdiv',{umls:'No', keyword:"<% $keyword->getKeyword %>",
+                keyword_id:<% $keyword->getPrimaryKeyID() %>, concept_id:null},1);
+
+</script>
+%  }
+	
+</td></tr>
+</table>

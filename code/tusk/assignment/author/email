@@ -1,0 +1,241 @@
+<%once>
+	use TUSK::Email::Template;
+	use TUSK::Manage::Email;
+	use HSDB4::DateTime;
+</%once>
+
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $school = $course->get_school()->getSchoolName();
+	my $args = $m->request_args();
+	my $author_user_id = $m->session->{'user'}->user_id();
+	my $body = $args->{body};
+   	my ($req, $assignment);
+</%shared>
+
+
+% if (defined $args->{submit_check}) {
+	<& SELF:emailConfirm &>
+% } else {
+	<& SELF:emailForm &>
+% }
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	$m->comp('PARENT:startup', args => $args);
+	$assignment = $m->comp('SELF:getAssignment');
+
+	 if (defined $args->{submit_check}) {
+		$m->comp('SELF:emailSend');
+		$m->comp('SELF:resetAvailableDate') if defined $args->{reset_availabledate} && $args->{reset_availabledate} eq 'on';
+	} else {
+		my @msgs = ();
+		unless ($m->comp('SELF:isDueDateValid')) {
+			push @msgs, 'Please make sure that the due date is valid and after the available date.';
+		}
+
+		if (@msgs) {
+			$m->comp('SELF:set_msg', type => 'err', msg => join("<br/>\n", @msgs));
+		}
+	}
+</%perl>
+</%method>
+
+
+
+<%method emailSend>
+<%perl>
+	$req = {school => $school, 
+		user => $m->session->{'user'},
+		course => $course };
+	my $data = TUSK::Manage::Email::email_process($req, $args) if $args->{action};
+	my $email_tmpl = $m->comp("/assignment/tmpl:get_email_template", title => $course->title());
+
+	$body =~ s/\n/<br\/>/gi;
+
+ 	if (defined $data) {
+		$m->comp('SELF:set_msg', 
+	 			type 	=> 'msg', 
+				msg 	=> 'You have successfully sent the email.' );
+	} else {
+		$m->comp('SELF:set_msg', 
+	 			type 	=> 'errmsg', 
+				msg 	=> 'There is a problem sending the email.' );
+	}
+</%perl>
+</%method>
+
+<%method resetAvailableDate>
+<%perl>
+	my $now = HSDB4::DateTime->new()->in_apache_timestamp(scalar localtime);
+	$assignment->setAvailableDate($now->out_mysql_timestamp);
+	$assignment->save({user => $author_user_id});
+</%perl>
+</%method>
+
+
+<%method emailConfirm>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr> 
+      <td class="labelgray">To:</td>
+      <td class="cell-left"> 
+% if ($args->{email_list}) {
+<% (ref($args->{to}) eq 'ARRAY') ? join(', ', map { HSDB4::SQLRow::User->new()->lookup_key($_)->out_full_name() } @{$args->{to}}) : HSDB4::SQLRow::User->new()->lookup_key($args->{to})->out_full_name() %>
+% } else {
+<% (ref($args->{to}) eq 'ARRAY') ? join(', ', map { HSDB45::UserGroup->new(_school => $school)->lookup_key($_)->out_label() } @{$args->{to}}) : HSDB45::UserGroup->new(_school => $school)->lookup_key($args->{to})->out_label() %>
+% }
+      </td>
+      </tr>
+      <tr> 
+      <td class="labelgray">From:</td>
+      <td class="cell-left"><% $req->{user}->out_full_name() %> (<% $req->{user}->email() %>)</td>
+      </tr>
+      <tr> 
+      <td class="labelgray">Subject:</td>
+      <td class="cell-left"><% $args->{subject} %></td>
+      </tr>
+      <tr> 
+      <td class="labelgray">Message:</td>
+      <td class="cell-left"><% $body %></td>
+      </tr>
+      <tr> 
+      <td class="labelgray">Available Date:</td>
+      <td class="cell-left"><% $assignment->getFormattedAvailableDate() %></td>
+      </tr>
+</table>
+</%method>
+
+
+
+<%method emailForm>
+%   my $email_tmpl = $m->comp("/assignment/tmpl:get_email_template", title => $course->title());
+<& /tmpl/element:form, params => { method => 'POST',
+	name => 'emailform',
+	onsubmit => 'return validateCheckbox(this);' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'To:',
+	name => 'to_checkboxes',
+	value => $m->comp('SELF:getStudents') } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'From:',
+	name => 'from_name',
+	value => $m->session->{'user'}->out_full_name() . ' (' . $m->session->{'user'}->email() . ')' } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Subject:',
+	name => 'subject',
+	value => $email_tmpl->getSubject(),
+	size => 70,
+	length => 255 } &>
+
+<& /tmpl/element:textarea, params =>{ label => 'Message:',
+	name => 'body',
+	value => $email_tmpl->getBody(),
+	cols =>"70",
+	rows =>"7",  } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'Due Date:',
+	name => 'due_date',
+	value => $assignment->getFormattedDueDate()} &>
+
+<& /tmpl/element:field_display, params =>{ label => 'Available Date:',
+	name => 'available_date',
+	value => $assignment->getFormattedAvailableDate()} &>
+
+<& /tmpl/element:field_display, params =>{ label => 'Current Datetime:',
+	name => 'current_date',
+	value => $m->comp('SELF:getCurrentDateTime')} &>
+<tr> 
+<td>&nbsp;</td>
+<td class="cell-submit">
+<input type="checkbox" name="reset_availabledate"/> Change available date to the date and time email is sent. <br/><br/>
+% if ($m->comp('SELF:isDueDateValid')) {
+<input type="submit" name="action" class="formbutton" value="Send Email" />
+<input type="reset" name="cancel" class="formbutton" value="Cancel" onclick="go_back('/assignment/author/show/<% $type_path %>');" />
+% }
+</td>
+</tr>
+</table>
+<input type="hidden" name="from" value="<% $author_user_id %>"/>
+</form>
+</%method>
+
+
+
+<%method getStudents>
+<%perl>
+	my $author = TUSK::Application::Assignment::Author->new({user_id => $author_user_id, assignment => $assignment, course => $course});
+
+	my $list; 
+	if ($assignment->getGroupFlag()) {
+		my @groups = $course->sub_user_groups($assignment->getTimePeriodID());
+		$list .= (scalar @groups > 1) ? "&nbsp;<input type=\"checkbox\" name=\"checkall\" onclick=\"checkUncheckAll(this);\"><span class=\"xsm\">select/unselect all</span><br/>" : '';
+		$list .= "<table>\n";
+		foreach my $group (@groups) {
+			$list .=  "<tr><td><input type=\"checkbox\" name=\"to\" value=\"" . $group->primary_key() . "\"><a class=\"xsm\" href=\"\" onclick=\"javascript:window.open('/tusk/group/members/$type_path/" . $group->primary_key() . "',null,'height=400,width=350,scrollbars=1,resizable=1,left=400,top=250'); return false;\">" . $group->out_label() . "</a></td></tr>\n";
+		}
+	} else {
+		my $students = $author->getStudents();
+		my $i = 1;
+		$list .= (scalar @$students > 1) ? "&nbsp;<input type=\"checkbox\" name=\"checkall\" onclick=\"checkUncheckAll(this);\"><span class=\"xsm\">select/unselect all</span><br/>" : '';
+		$list .= '<input type="hidden" name="email_list" value="1"/>';
+		$list .= "<table>\n<tr>";
+		foreach my $student (@$students) {
+			$list .=  "<td><input type=\"checkbox\" name=\"to\" value=\"" . $student->getUserID() . "\"><span class=\"xsm\">" . $student->getName() . "</span></td>";
+			$list .= "</tr>\n<tr>" if $i % 3 == 0;
+			$i++;
+		}
+		$list .= "</tr>\n";
+	}
+	$list .= "</table>\n";
+	return $list;
+</%perl>
+</%method>
+
+
+
+<%method getCurrentDateTime>
+%	my $date = HSDB4::DateTime->new()->in_apache_timestamp(scalar localtime);
+% 	my $current_datetime = $date->out_mysql_timestamp();
+% 	$current_datetime =~ s/:\d\d$//;
+%	return $current_datetime;
+</%method>
+
+
+
+<%method isDueDateValid>
+<%perl>
+	my $due_date = $assignment->getDueDate();
+	my $avail_date = $assignment->getAvailableDate();
+	return 0 unless defined $due_date;
+	return 0 if $due_date =~ /0000-00-00/;
+	my $avail_obj = HSDB4::DateTime->new()->in_mysql_timestamp($avail_date);
+	my $due_date_obj = HSDB4::DateTime->new()->in_mysql_timestamp($due_date);
+	return ($due_date_obj >= $avail_obj) ? 1 : 0;
+</%perl>
+</%method>
+
+
+
+<%method title>
+% 	return "Email Assignment";
+</%method>
+
+
+
+<%method jsarray>
+% 	return ['formbuilder.js'];
+</%method>
+
+
+

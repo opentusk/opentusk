@@ -1,0 +1,93 @@
+<%once>
+use Forum::ForumKey;
+use Forum::MwfMain;
+use Forum::MwfConfig;
+use HSDB45::Course;
+use Data::Dumper;
+use DBI;
+</%once>
+
+<%method jsarray>
+% return ['scripts.js'];
+</%method>
+
+<%attr>
+no_check_path => 1
+</%attr>  
+
+<%shared>
+	my ($x, $cfg, $lng, $user) = MwfMain->new($r);
+	my $userId = $user->{id};
+	my $parentId= $m->comp("/tmpl/url:get_last_path_id");
+	my $query = "SELECT * FROM $cfg->{dbPrefix}posts WHERE id = $parentId";
+	my $parent = $x->fetchHash($query);
+	my $boardId = $parent->{boardId};
+	my $topicId = $parent->{topicId};
+	# Get board
+	$query = "SELECT * FROM $cfg->{dbPrefix}boards WHERE id = $boardId";
+	my $board = $x->fetchHash($query);
+	my $boardAdmin = $x->boardAdmin($user->{id}, $boardId);
+	# Get topic
+	$query = "SELECT * FROM $cfg->{dbPrefix}topics WHERE id = $topicId";
+	my $topic = $x->fetchHash($query);
+</%shared>
+
+
+<%method get_nav_bars>
+<%perl>
+ 	my $nav_bars = []; 
+	my $truncDisc  =  TUSK::Functions::truncate_string('Discussions',10);
+	my $truncTitle =  TUSK::Functions::truncate_string($board->{title},10);
+	my $truncSubj  =  TUSK::Functions::truncate_string($topic->{subject},10);
+ 	$nav_bars = [ { href => '/mobi/forum/forumshow/', label => $truncDisc } ,
+				  {	href => '/mobi/forum/boardshow/'.$board->{id}, label => $truncTitle }, 
+				  {	href => '/mobi/forum/topicshow/'.$topic->{id}, label => $truncSubj } 
+				];
+ 	return $nav_bars;
+</%perl>
+</%method>
+
+<%method header_text>
+% return 'Delete';
+</%method>
+
+<& /tmpl/element:form, params => {
+                                method => 'POST',
+                                onsubmit =>'',
+                                name => 'deletepost' } &>
+
+<p> Are you sure you want to delete this post? </p>
+
+<& /tmpl/element:save_button, params=>{
+        label=>'Yes',
+		cancel_onclick=>"go_back('/mobi/forum/topicshow/$topicId')" ,
+        name=>'delete'} &>
+</form>
+
+
+<%perl>
+if ( defined( $ARGS{'submit_check'} )  )
+{
+	my $postId= $m->comp("/tmpl/url:get_last_path_id");
+
+	#get post
+	my $query = "SELECT * FROM $cfg->{dbPrefix}posts WHERE id = $postId";
+	my $post = $x->fetchHash($query);
+	my $boardId = $post->{boardId};
+	my $topicId = $post->{topicId};
+	
+	# Delete post
+	my $trash = $cfg->{trashBoardId} && $cfg->{trashBoardId} != $boardId;
+	my $topicDeleted = $x->deletePost($postId, $trash);
+
+	# Update board/topic stats
+	$x->recalcStats($boardId, $topicId);
+
+	my $reload_url = "/mobi/forum/topicshow/$topicId";
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url);
+}
+</%perl>
+
+
+
+

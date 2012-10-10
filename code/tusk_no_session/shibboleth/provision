@@ -1,0 +1,54 @@
+<%args>
+	$location => ''
+</%args><%init>
+	use Apache::Constants qw/REDIRECT NOT_FOUND/;
+	use TUSK::Constants;
+	use TUSK::ShibbolethUser;
+	use Digest::MD5 qw(md5_hex);
+	use CGI::Cookie;
+	use CGI;
+
+	# bomb out if the script was not called via the shibboleth-login apache location
+	unless($r->uri() =~ /^\/shibboleth-login\/provision/) {
+		$r->status(NOT_FOUND);
+		exit();
+	}
+
+        my $url_path =  substr($r->path_info(), 1); # take away the prepending / and then split
+        my @path_ids = split('/', $url_path);
+	# bomb out if no institution name was given
+	if(scalar(@path_ids) == 0) {
+		$r->status(NOT_FOUND);
+		exit();
+	}
+	my $shibbolethUserId = $path_ids[$#path_ids];
+
+	my $now = time;
+	my $expires = 240;
+
+	# Check and see how many schools we matched
+	my $shibUserId = $TUSK::Constants::shibbolethUserID . $shibbolethUserId;
+
+	my $hash = md5_hex($TUSK::Constants::CookieSecret . md5_hex(join ':', $TUSK::Constants::CookieSecret, $now, $expires, $shibUserId));
+
+	# Build the cookie
+	my $cookie = new CGI::Cookie(
+		-name =>'Ticket',
+		-path =>'/',
+		-value => {
+			'time' => $now,
+			'user' => $shibUserId,
+			'hash' => $hash,
+			'expires' => $expires,
+		},
+	);
+	unless($location) {$location = "http://" . $TUSK::Constants::Domain;}
+	my $cgiObject = new CGI;
+	$m->clear_buffer;
+	$m->print($cgiObject->header(
+		-cookie => $cookie,
+		-status => "302 Moved",
+		-location => $location,
+	));
+	$m->abort();
+</%init>

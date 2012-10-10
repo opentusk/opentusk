@@ -1,0 +1,102 @@
+<%once>
+	use HSDB45::Eval::MergedResults;
+	use HSDB45::Eval::MergedResults::Formatter;
+	use Apache::Constants qw (FORBIDDEN NOT_FOUND);
+	use TUSK::Eval::EvalLoadTime;
+</%once>
+
+<%attr>
+	skip_header_bar => 1
+	allow_guest => 0
+</%attr>
+
+<%method jsarray>
+%       return [ 'eval.js', 'evalReports.js' ];
+</%method>
+
+<%method title>
+%       return "Merged Eval Report: $title";
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/eval.css', '/style/grapher.css'];
+</%method>
+
+<%shared>
+	my $eval;
+	my $merged_eval_results;
+	if($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
+		$merged_eval_results = HSDB45::Eval::MergedResults->new(_school => $1, _id => $2);
+	} else {
+		$merged_eval_results = HSDB45::Eval::MergedResults->lookup_path( $ENV{'PATH_INFO'} );
+	}
+	$eval = $merged_eval_results->parent_eval();
+	unless($eval) {
+		$r->status(NOT_FOUND);
+                $m->abort();
+        }
+
+
+	# Check for valid user
+	unless($eval->admin_group()->contains_user($m->session->{'user'})) {
+		$r->status(FORBIDDEN);
+		$m->abort();
+	}
+	my $title = "Unknown Merged Eval Report";
+	if($merged_eval_results && $merged_eval_results->field_value('title')) {$title = $merged_eval_results->field_value('title');}
+</%shared>
+
+<style>
+	@media print {
+		.evalFluff {display:none;}
+	}
+	.theGraph {
+	}
+	.theGraphText {
+	}
+</style>
+
+<span class="evalFluff" style="float:right; text-align:right;">
+%	if($TUSK::Constants::HelpMap{evalStatisticsDef}) {
+		<a href="javascript:;" class="helpLnk" onClick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalStatisticsDef} %>'); return false;">Statistics Definitions</a>
+%	}
+	&nbsp;
+%       if($TUSK::Constants::HelpMap{evalPrinting}) {
+		<a href="javascript:;" class="helpLnk" onClick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalPrinting} %>'); return false;">Printing Help</a>
+%	}
+</span>
+<h2 class="title"><% $title %></h2>
+% if($ENV{HTTPS}) {
+%	my %httpVars;
+%	httpdconf::setVariablesForServerEnvironment(\%httpVars);
+%	my $scriptURL = $ENV{SCRIPT_URL};
+%	$scriptURL =~ s/^\///;
+%	my $redirectURL = $httpVars{unsecure_server} . $scriptURL;
+%	if($redirectURL !~ /^http/) {$redirectURL = "http://$redirectURL";}
+%#	$m->print("<center>I'm sorry, this page can not be successfully displayed over https at this time. Please <a href=\"". $redirectURL . "\">click here</a> to view this page.</center>");
+%	$m->clear_buffer;
+%	$m->redirect($redirectURL);
+%	$m->about();
+% }
+
+<div class="evalFluff">
+	<a href="/protected/eval/administrator/show/<% $merged_eval_results->school %>">Manage Evaluations</a><br>
+	<a id="graphLink" style="display:none;" href="" onClick="showHideGraphs(); return false;">Hide Graphs</a><br><br>
+
+% my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
+% $evalLoadStats->setEval($merged_eval_results);
+	<center>
+		This eval has been requested <% $evalLoadStats->totalLoads() %> times
+% if($evalLoadStats->totalLoads()) {
+	with an average of <% sprintf('%.1f', $evalLoadStats->average()) %> sec
+	and the longest time being <% sprintf('%.1f', $evalLoadStats->max()) %> secs.
+% }
+	You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.
+	</center>
+</div>
+<div id="graphicsLoadMessage" style="display:none;">
+	<br><br><center><font color="#CC6600"><span id="queueMessage">Loading Eval Graphs</span></font><br><img src="/graphics/icons/waiting_bar.gif"></center>
+</div>
+<div id="evalArea">
+</div>
+<script>loadEval('/tusk/ajax/evalMergedBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $merged_eval_results->school %>/<% $merged_eval_results->primary_key() %>', 1);</script>

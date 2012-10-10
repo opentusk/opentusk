@@ -1,0 +1,159 @@
+[!
+    use Apache::Cookie;
+    use Apache::Constants qw (NOT_FOUND);
+    use XML::LibXML;
+    use XML::LibXSLT;
+    use HSDB45::Eval;
+    use HSDB45::Eval::Question;
+    use HSDB45::Eval::Question::Body;
+    use HSDB45::Eval::Filter;
+    use HSDB45::Eval::Filter::Rule;
+!]
+[- 
+    $escmode=0;
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+
+    ($school, $eval_id) = ($req_rec->path_info() =~ m|^/(.*)/(.*)|);
+    if ($school && $eval_id) {
+	    $eval = HSDB45::Eval->new(_school => $school, _id => $eval_id);
+	    $username = $req_rec->connection->user;
+	    $user = HSDB4::SQLRow::User->new()->lookup_key($username);
+
+	    unless ($user->primary_key and $eval->admin_group()->contains_user($user)) {
+		$req_rec->status (NOT_FOUND);
+		exit;
+	    }
+
+	    %question_types = ();
+	    foreach $question ($eval->questions()) {
+		unless(defined($question_types{$question->body()->question_type()})) {
+		    $question_types{$question->body()->question_type()} = [];
+		}
+		push(@{$question_types{$question->body()->question_type()}}, $question->primary_key());
+	    }
+    } else {
+	    $msg = 'Error: Please supply a school and an eval id to the page';
+    }
+-]
+
+
+[$ sub checkbox_cell $]
+[- $question_id = shift(); -]
+<td align="right" width="[+ $cell_size +]">
+[$ if(defined($question_id)) $]
+<b>[+ $question_id  +]: </b> <input type="checkbox" name="[+ $type +]IDs" value="[+ $question_id +]"/>
+[$ endif $]
+</td>
+[$ endsub $]
+
+[$ sub filter_specification $]
+[- $type = shift(); -]
+<table border="1" cellspacing="0" cellpadding="0">
+<tr>
+  <th width="153">[+ $type +]</td>
+  <td>
+    <select name="[+ $type +]">
+      <option value="include_all">Include All</option>
+      <option value="include_selected">Include Selected</option>
+      <option value="exclude_all">Exclude All</option>
+      <option value="exclude_selected">Exclude Selected</option>
+    </select>
+  </td>
+</tr>
+</table>
+<table border="1" cellspacing="0" cellpadding="0">
+<tr>
+  <th width="50"></th>
+  <th width="50">ID</th>
+  <th width="50">Label</th>
+  <th>Text</th>
+</tr>
+[- $bgcolor = "#EFEFEF" -]
+[$ foreach $question_id (@{$question_types{$type}}) $]
+[- 
+  $question = $eval->question($question_id);
+  if($bgcolor eq "#FFFFFF") {
+    $bgcolor = "#EFEFEF";
+  }
+  else {
+    $bgcolor = "#FFFFFF";
+  }
+-]
+<tr bgcolor="[+ $bgcolor +]">
+  <td><input type="checkbox" name="[+ $type +]IDs" value="[+ $question->primary_key() +]"/></td>
+  <td>[+ $question->primary_key() +]</td>
+  <td>[+ $question->label() +]</td>
+  <td>[+ $question->body()->question_text() +]</td>
+</tr>
+[$ endforeach $]
+</table>
+[$ endsub $]
+
+<html>
+<head>
+<title>TUSK Stylesheet Creator</title>
+<link rel="stylesheet" type="text/css" href="/style/eval.css" title="HSDBEval"/>
+</head>
+<body>
+
+[- head_graphics() -]
+<img src="/icons/transdot.gif" width=1 height=1>
+<hr>
+<h3 class="title">Create Evaluation Filter</h3>
+
+[$ if ($msg) $]
+	<div class="error">[+$msg+]</div>
+[$ else $] 
+[$ if(scalar(keys(%fdat))>0) $]
+[-
+    @rules = ();
+    foreach $question_type (sort(keys(%question_types))) {
+        @ids = ();
+	@ids = split(' ', $fdat{$question_type . 'IDs'}) if(defined($fdat{$question_type . 'IDs'}));
+        push(@rules, HSDB45::Eval::Filter::Rule->new($question_type, $fdat{$question_type}, @ids));
+    }
+    
+    $filter = HSDB45::Eval::Filter->new($eval->school(), $eval->primary_key(), $fdat{'label'}, $fdat{'description'}, @rules);
+    ($stylesheet_id , $msg) = $filter->create_stylesheet();
+-]
+	[$ if ($msg) $]
+		<div class="error">[+$msg+]</div>
+		<br/>
+		<br/>
+		<br/>
+		Please go <a href="javascript:history.back();">back</a> and try again.
+	[$ else $]
+		<b>Successfully Created Stylesheet Filter</b>
+		<br/>
+		<b>id: </b> [+ $stylesheet_id +]
+		<br/>
+		<b>label: </b> [+ $fdat{'label'} +]
+		<br/>
+		<b>description: </b> [+ $fdat{'description'} +]
+	[$endif$]
+[$ else $]
+<form method="post">
+<table>
+  <tr>
+    <td valign="top" ><b>Label</b></td>
+    <td align="left"><input type="text" name="label" size="50"/></td>
+  </tr>
+  <tr>
+    <td valign="top" ><b>Description</b></td>
+    <td align="left"><textarea name="description" cols="60" rows="4"></textarea></td>
+  </tr>
+</table>
+<br/>
+[$ foreach $question_type (sort(keys(%question_types))) $]
+[- filter_specification($question_type) -]
+<br/>
+[$ endforeach $]
+<br/>
+<input value="Create Filter" name="filter_submit" type="submit"/>
+</form>
+[$ endif $]
+[$ endif $] [# end if for check for $msg #]
+
+</body>
+</html>

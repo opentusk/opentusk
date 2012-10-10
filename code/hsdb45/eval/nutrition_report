@@ -1,0 +1,76 @@
+[! 
+   use HSDB45::Eval;
+   use HSDB45::Eval::Results;
+   use HSDB45::Eval::Results::Formatter;
+   use Apache::Cookie;
+   use Apache::Constants qw (NOT_FOUND);
+   use IO::Scalar;
+   use XML::LibXML;
+   use XML::LibXSLT;
+   use HSDB45::Eval::MergedResults;
+   use HSDB45::Eval::MergedResults::Formatter;
+   use HSDB45::StyleSheet;
+!]
+
+[-
+    $escmode=0;
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+
+    $path_info = $req_rec->path_info();
+    ($eval_id, $merged_eval_id) = ($path_info =~ m|.*/(\d+)/(\d+)|);
+    $eval = HSDB45::Eval->new(_school => 'nutrition', _id => $eval_id);
+    $errmsg = undef;
+    if (!$eval){
+	$errmsg = "That is an invalid Eval ID";
+    } else {
+	    $eval_results = HSDB45::Eval::Results->new($eval);
+	    $eval_results_formatter = HSDB45::Eval::Results::Formatter->new($eval_results);
+
+	    # Get the authenticated user
+	    $username = $req_rec->connection->user();
+	    $user = HSDB4::SQLRow::User->new ()->lookup_key ($username);
+	    unless ($user->primary_key() and $eval->admin_group()->contains_user($user)) {
+		$req_rec->status(NOT_FOUND);
+		exit;
+	    }
+
+	    $results_string = '';
+	    if(scalar($eval->users())) {
+		# this kludge is required or @#$%ing LibXSLT times out while waiting for a mammoth
+		# merged eval results xml object to be generated...
+		$merged_results_kludge = HSDB45::Eval::MergedResults->new(_school => 'nutrition', _id => $merged_eval_id);
+		if (!$merged_results_kludge) {
+			$errmsg = "That is an invalid Merged Eval ID";
+
+		} else {
+			$merged_formatter_kludge = HSDB45::Eval::MergedResults::Formatter->new($merged_results_kludge);
+			$merged_formatter_kludge->get_xml_text();
+
+			$stylesheet = $eval->results_stylesheet();
+			if($stylesheet) {
+			    $results_string = $stylesheet->apply_stylesheet($eval_results_formatter->get_xml_text(),
+									    "HOST" => $req_rec->header_in("Host"),
+									    "MERGED_EVAL_ID" => $merged_eval_id);
+			}
+			else {
+			    my $subr = $req_rec->lookup_uri("/XSL/");
+			    my $stylesheet_path = $subr->filename . "/Eval/nutrition_results.xsl";
+			    $results_string = HSDB45::StyleSheet::apply_global_stylesheet($stylesheet_path,
+											  $eval_results_formatter->get_xml_text(),
+											  "HOST" => $req_rec->header_in("Host"),
+											  "MERGED_EVAL_ID" => $merged_eval_id);
+			}
+		}
+	    } else {
+		$results_string = '<b>No Results Available</b>';
+	    }
+   }
+-]
+[$ if ($errmsg) $]
+<p></b>[+ $errmsg +]</b></p>
+[$ else $]
+<p><b> Using Evaluation <i>[+ $eval->title() +]</i></b><p>
+<p><b> Using Merged Evaluation <i>[+ $merged_results_kludge->title() +]</i></b></p>
+[+ $results_string +]
+[$ endif $]

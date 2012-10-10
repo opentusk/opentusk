@@ -1,0 +1,53 @@
+<%once>
+	use TUSK::GradeBook::GradeCategory;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $category_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $category = TUSK::GradeBook::GradeCategory->lookupKey($category_id);
+	my $events = TUSK::GradeBook::GradeEvent->lookup("grade_category_id = " . $category_id, ['sort_order']);
+	my $col_fields = [ {'label' => 'Event Name', 'field' => 'getEventName'},];
+</%shared>
+
+<br/>
+<div class="med">Category: &nbsp; <% $category->getGradeCategoryName() %></div>
+<br/>
+<& /tmpl/element:form, params => {
+	method 		=> 'POST',
+	onsubmit 	=> undef,
+	name 		=> 'eventsort' } &>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 1,
+	columns => $col_fields,
+	action_columns => undef,
+	object_list => $events,
+	name => 'events',
+	width => '50%',
+} &>
+
+</form>
+
+<%init>
+	if (defined($ARGS{'order'}) && $category){
+		my ($index, $newindex) = split('-', $ARGS{'order'});
+		$events = $category->updateSortOrders($index, $newindex, "grade_category_id = $category_id", $events, 1);
+	}
+</%init>
+
+<%method get_nav_bar_objects>
+% 	return {'TUSK::GradeBook::GradeCategory' => $category};
+</%method>
+
+<%method jsarray>
+% 	return ['gradebook.js'];
+</%method>
+
+<%method title>
+%	return 'Sort Grade Events';
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>

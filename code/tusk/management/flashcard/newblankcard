@@ -1,0 +1,105 @@
+<%attr>
+	page_header	  => '/tmpl/prepend:manage_header_div_layout'
+	page_footer	  => '/tmpl/footer:footer_div_with_tufts_links'
+	no_check_path	=> 1
+
+</%attr>
+
+
+<%once>
+  use HSDB4::SQLRow::User;
+  use HSDB4::SQLRow::PersonalContent;
+  use TUSK::FlashCard;
+  use HSDB4::SQLRow::Content;
+  use HSDB4::Constants;
+  use TUSK::Constants;
+  use Data::Dumper;
+</%once>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>'return',
+				name => 'savecard' } &>
+
+
+<div class="checkedBG">
+<br><br>
+<table>
+<tr><td></td><td align="left">
+
+% if ($cntntId ne "blank") {
+<img class="mainImg" src="/large/<% $cntntId %>"/>
+% } 
+
+</td></tr>
+<tr>
+<td><h2>Question:</h2></td> 
+<td>
+<textarea  name="question" cols="60" rows="5" class="textareawhite"></textarea>
+</td></tr>
+
+<tr><td><h2>Answer: </h2></td>
+<td>
+<textarea  name="answer" cols="60" rows="5" class="textareawhite"></textarea>
+</td></tr>
+<tr><td></td><td><input type="submit" name="submit" value="Save and Continue" class="formbutton"> <input type="reset" style="" value="Cancel" id="cancel" name="cancel" onclick="go_back('/management/flashcard/flashcard');" class="formbutton"/></td></tr>
+</table>
+<br>
+
+</div>
+</form>
+
+<%init>
+
+    my $cntntId = $m->comp("/tmpl/url:get_last_path_id");
+    my $reload_url = $r->uri();
+
+    if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
+		
+		my $fcard;
+		my $pcId = $m->comp("/tmpl/url:get_first_path_id");
+    	if($cntntId eq "blank"){ 
+		    $fcard = TUSK::FlashCard->new();
+		}
+    	else {
+  	    
+			my $qStr = "content_id = ".$cntntId." and parent_personal_content_id = ".$pcId;
+    	    $fcard = TUSK::FlashCard->lookupReturnOne($qStr);
+		}
+
+		if ($ARGS{'question'}) {
+			$fcard->setQuestion( $ARGS{'question'} );
+		}
+
+		if ($ARGS{'answer'}) {
+			$fcard->setAnswer( $ARGS{'answer'} );
+		}
+
+		$fcard->setParentPersonalContentID($pcId);
+        
+        $fcard->save({'user' => $m->session->{'user'}->user_id()} );	
+        my $msgtxt = "Flash Card Saved Successfully";
+		
+	    if ($ARGS{'submit'} eq 'Save and Continue' ) {
+			my $reload_url = "/management/flashcard/flashcard";
+			$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msgtxt");
+		}
+
+}
+
+</%init>
+
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title> 
+% return "New Card";
+</%method>
+
+

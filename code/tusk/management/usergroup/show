@@ -1,0 +1,80 @@
+<%shared>
+my $school             = $m->comp("/tmpl/url:get_school");
+my $type_object        = $m->comp("/tmpl/url:get_type_object");
+my $base_url           = "/management/usergroup/show";
+my $self_path          = "school/" . $school;
+my $is_course_group    = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
+my $course;
+if ( $is_course_group ) {
+       	$course             = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+		$self_path          = "course/" . $school . "/" . $type_object->course_id;
+}
+</%shared>
+
+<%method jsarray>
+% return ['layers.js','element.js'];
+</%method>
+
+<%method should_show_tp_dropdown>
+% return $is_course_group;
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method right_header_text>
+%	return [ {txt => 'Preview', url => "/view/$self_path/groups" } ];
+</%method>
+
+<%method title>
+<%perl>
+if ( $is_course_group ) {
+	if ( $course->type() eq 'group' ) {	return 'Manage Sub-Groups'; }
+	else { return 'Manage Course Groups'; }
+}
+else { return 'Manage Groups'; }
+</%perl>
+</%method>
+
+% if (!$is_course_group || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+<& /tmpl/element:cms_button_row, links => [ {link_txt=>'/management/usergroup/addedit/' . $self_path, display_txt=>'New Group'} ] &>
+% }
+
+<%perl>
+my $groups = [];
+
+if ( $is_course_group ) {
+	$groups = [ $course->sub_user_groups( $m->comp("SELF:get_timeperiod_id") ) ]; 
+}
+else {
+	$groups = [ HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'", "order by upper(label)") ];
+}
+
+my $col_fields = [ {'label'=>'Group Name',  'field'=>'label', 'link'=>'/management/usergroup/addedit/' . $self_path},
+                   {'label'=>'Description', 'field'=>'description'} ];
+my $action_columns = [];
+if (!$is_course_group) {
+	push @$action_columns, {'label' => 'Link Courses',         'link' => '/manage/grouplinks/show/usergroup/' . $school};
+	push @$action_columns, {'label' => 'Student/Course Links', 'link' => '/management/usergroup/studentcourse/' . $self_path};
+}
+if (!$is_course_group || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+	push @$action_columns, {'label'=>'Modify','link'=>"/management/usergroup/addedit/$self_path"};
+	push @$action_columns, {'label'=>'Delete','link'=>"/management/usergroup/delete/$self_path"};
+}
+</%perl>
+<& /tmpl/element:object_selection_box, params => { 
+				columns         => $col_fields, 
+				nobutton        => 1, 
+				sort_box        => 0,
+				object_list     => $groups,
+				action_columns  => $action_columns,
+				action_dropdown => 1,
+				empty_message   => 'No usergroups available.',
+				type_path       => "",
+				dd_class        => "navsm" }
+&>
+
+<%init>
+$m->comp( "SELF:check_dynamic_permissions" );
+</%init>

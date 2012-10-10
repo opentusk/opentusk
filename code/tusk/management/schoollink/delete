@@ -1,0 +1,77 @@
+<%attr>
+	hintmsg => 'Are you sure you want to delete this School Link? Please note that you will be deleting any sublinks this link might have as well.'
+</%attr>
+
+<%once>
+use TUSK::SchoolLink::SchoolLink;
+</%once>
+
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit =>undef,
+        name => 'sl_delete' 
+        } 
+&>
+
+<& /tmpl/element:table, params => { 
+        width => "100%",
+        border =>"0",
+        cellspacing =>"0",
+        cellpadding =>"0" 
+        } 
+&>
+
+<& /tmpl/element:field_display, params =>{ 
+        label => 'Label',
+        value => $school_link->getLabel() 
+        } 
+&>
+
+<& /tmpl/element:save_button, params=>{
+        label          => 'Delete Link',
+        cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_back_url", 
+        'base_url'     => "/management/schoollink/show") . "');",
+        name           => 'submit'
+        } 
+&>
+
+</table>
+</form>
+
+<%init>
+my $school_link_id = $m->comp("/tmpl/url:get_last_path_id");
+my $school_link;
+my ($msg, $msgtype);
+if ($school_link_id){
+	$school_link = TUSK::SchoolLink::SchoolLink->lookupKey($school_link_id);
+} else {
+	$msg = 'Missing School Link ID.';
+	$msgtype = 'errmsg';
+}
+
+if (!$msg && defined($ARGS{'submit_check'})){
+	my $user_id = $m->comp('SELF:user');
+	$school_link->delete({'user'=>$user_id});
+
+	$msg = 'Link Deleted';
+	$msgtype = 'msg';
+}
+
+if($msg){
+	$m->redirect( $m->comp("/tmpl/url:construct_url",
+	        'base_url' => '/management/schoollink/show',
+	        'msg'      => $msg,
+	        'msgtype'  => $msgtype) 
+	        );
+}
+
+</%init>
+
+<%method title>
+% return "Delete School Link";
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>

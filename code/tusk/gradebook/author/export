@@ -1,0 +1,37 @@
+<%once>        
+	use Data::Dumper;
+	use HSDB4::SQLRow::User;
+</%once>
+<%flags>
+	inherit =>undef
+</%flags>
+
+<%init>
+my ($grade_event_id) = $m->comp('/tmpl/url:get_last_path_id');
+
+my $linkUserGradeEvent = TUSK::GradeBook::LinkUserGradeEvent->lookup("child_grade_event_id = $grade_event_id");
+my $size = scalar (@$linkUserGradeEvent);
+
+
+#$r->content_type('text/plain');
+
+$m->clear_buffer();
+$r->content_type( 'application/vnd.ms-excel');
+$r->header_out( 'Content-Disposition' => 'attachment; filename="grades-export.xls"');
+$r->send_http_header();
+
+
+
+#foreach my $linkEvent (@linkUserGradeEvent)
+for(my $i =0; $i<$size; $i++)
+{
+	
+    my $uid = @$linkUserGradeEvent[$i]->getParentUserID();
+    my $usr = HSDB4::SQLRow::User->new->lookup_key($uid);
+	print $usr->last_name."	";
+    print $usr->first_name."	";	
+	print @$linkUserGradeEvent[$i]->getParentUserID()."	";
+	print @$linkUserGradeEvent[$i]->getGrade()."	";
+	print @$linkUserGradeEvent[$i]->getComments()."\n";
+}
+</%init>

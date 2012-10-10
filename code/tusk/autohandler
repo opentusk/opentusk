@@ -1,0 +1,510 @@
+<%doc>Please refer to MasonPages for overview of autohandler use.  Below is a description of autohandler methods.</%doc>
+
+
+<%once>
+use HSDB4::SQLRow::User;
+use Apache::Constants qw/REDIRECT NOT_FOUND/;
+use Apache::Cookie;
+use Data::Dumper;
+use TUSK::Session;
+use TUSK::Core::SessionTimePeriod;
+use TUSK::Permission;
+use HTTP::Date;
+
+# useful debug subroutine
+sub pre_dump{
+	my ($args) = @_;
+	print "<pre>" . Dumper($args) . "</pre>";
+}
+
+my $authentication = sub {
+	my ($user, $user_id);
+	unless ($user_id = $r->connection->user) {
+		if (my %cookies = Apache::Cookie->new($r)->parse) {
+			if (defined ($cookies{'Ticket'})){
+				my %ticket = $cookies{'Ticket'}->value;
+				$user_id = $ticket{'user'};
+			}
+		}
+	}
+	if (!$user_id){ # redirect to login page
+		$r->header_out(Location => '/home?url=' . $m->{'top_path'} . '/' . $m->comp('/tmpl/url:get_full_path') . '&errmsg=Unknown+User');
+		$r->status(REDIRECT);
+		exit;
+	}
+	# If user is not an HSDB4::SQLRow::User or (we are not a ghost user and user_id ne user_id from obj)
+	if (
+		(ref($m->session->{'user'}) ne 'HSDB4::SQLRow::User') ||
+		(!$m->session->{'user'}->isGhost && ($user_id ne $m->session->{'user'}->user_id()))
+	) {
+		my $shibUserID = -1;
+		if($user_id && !$m->session->{'user'}) {$m->session->{'user'} = $user_id;}
+        	$shibUserID = TUSK::ShibbolethUser->isShibUser($m->session->{'user'});
+		$user = HSDB4::SQLRow::User->new();
+        	if(($shibUserID > -1) && ($m->base_comp->attr('allow_shib') == 1)) {
+			# If we are a shib user and we are allowing shib users then make a ghost user
+                	$user->makeGhost($shibUserID);
+		} else {
+			# Otherwise look up the user id which will be nothing for a shib user or a guest
+			$user->lookup_key($user_id);
+		}
+
+		if(!$user->primary_key) {
+			# Returen that we are an unknown user
+			unless($m->base_comp->attr('allow_guests') == 1) {
+				$r->header_out(Location => '/home?url=' . $m->{'top_path'} . '/' . $m->comp('/tmpl/url:get_full_path') . '&errmsg=Unknown+User');
+				$r->status(REDIRECT);
+				exit;
+			}
+		}
+		$m->session->{'user'} = $user;
+	}
+			
+	if ($m->base_comp->attr('check_cms_permissions')){
+		my $typeObj = $m->comp("/tmpl/url:get_type_object");
+		if (ref($typeObj) eq "HSDB45::Course"){
+			unless (TUSK::Session::is_school_admin($m->session, $typeObj->school(), $m->session->{'user'})){
+				if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR') == 0){
+					$r->header_out(Location => '/home?errmsg=Access+Denied');
+					$r->status(REDIRECT);
+					exit;
+				}
+			}
+		}
+	}
+
+	if ($m->base_comp->attr('must_be_school_admin')){
+		unless (TUSK::Session::is_school_admin($m->session, $m->comp("/tmpl/url:get_school"), $m->session->{'user'})){
+				$r->header_out(Location => '/home?errmsg=Access+Denied');
+				$r->status(REDIRECT);
+				exit;
+		}
+		
+	}
+
+	if ($m->base_comp->attr('must_be_tusk_admin')) {
+		unless(TUSK::Session::is_tusk_admin($m->session->{'user'}->primary_key)) {
+			$r->header_out(Location => '/home?errmsg=Access+Denied');
+			$r->status(REDIRECT);
+			exit;
+		}
+#For some reason this does not throw the 404 page... just a blank page... I want to figure out why.... sometime
+	}
+	
+	return undef;
+};
+
+</%once>
+
+<%shared>
+	my ($courserole, $msg_string, $msg_type, $permissions);
+	my $defaultPageTitle = "PLEASE CHANGE THIS TITLE";
+	my $extratext;
+	my @metaData = ();
+	my $dynamic_tp_dropdown = 0;
+</%shared>
+
+<%method nocache>
+<%perl>
+	$r->header_out('Expires','Mon, 1 Jan 1990 05:00:00 GMT' );
+	$r->header_out('Pragma','no-cache');
+	$r->header_out('Cache-Control', 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0');
+</%perl>
+</%method>
+
+
+<%method set_no_cache>
+	<%perl>
+                $r->header_out('Expires' => "Mon, 26 Jul 1997 05:00:00 GMT");
+                $r->header_out('Last-Modified' => time2str(time));
+                $r->header_out('Cache-Control' => " no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
+                $r->header_out('Pragma' =>  "no-cache");
+
+                push @metaData, "<META HTTP-EQUIV=\"cache-control\" CONTENT=\"no-cache\">\n";
+                push @metaData, "<META HTTP-EQUIV=\"pragma\" CONTENT=\"no-cache\">\n";
+                push @metaData, "<META HTTP-EQUIV=\"expires\" CONTENT=\"0\">\n";
+	</%perl>
+</%method>
+
+<%method set_unicode>
+	<%perl>
+        	push @metaData, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n";
+	</%perl>
+</%method>
+
+
+<%method check_course_permissions>
+<%args>
+	$token
+	$school => ''
+	$typeObj => ''
+</%args>
+<%doc>Method used to check cms course permissions</%doc>
+<%perl>
+	$typeObj ||= $m->comp("/tmpl/url:get_type_object");
+	$school ||= $m->comp("/tmpl/url:get_school");
+
+	unless ($courserole){
+		if (TUSK::Session::is_school_admin($m->session, $school, $m->session->{'user'})){
+			$courserole = TUSK::Session::get_role('DIRECTORNONSTUDENT');
+			return 1;
+		}else{
+			return 0 unless (ref($typeObj) eq 'HSDB45::Course');
+			$courserole = TUSK::Session::course_user_role($typeObj, $m->session->{'user'}->primary_key);	
+		}
+	}
+	
+	return TUSK::Session::check_course_permissions($courserole, $token);
+</%perl>
+</%method>
+
+<%method set_msg>
+<%args>
+$msg
+$type => 'msg'
+</%args>
+<%doc>Method for setting traffic light messages</%doc>
+% $msg_string = $msg;
+% $msg_type = $type;
+</%method>
+
+<%method get_msg>
+<%doc>Return global traffic light message</%doc>
+% return $msg_string;
+</%method>
+
+<%method get_msg_type>
+<%doc>Return global traffic light message type</%doc>
+% return $msg_type;
+</%method>
+
+<%method get_nav_bars>
+<%doc>Method that holds info about the bread crumb</%doc>
+% return $m->comp('/tmpl/url:get_initial_nav_bars');
+</%method>
+
+<%method get_nav_bar_objects>
+<%doc>Method that holds related info used in the bread crumb</%doc>
+% return {};
+</%method>
+
+<%method stylearray>
+<%doc>Method that returns an array of all the style sheets you want to include.  Defaults to an empty array</%doc>
+% return [];
+</%method>
+
+<%method jsarray>
+<%doc>Method that returns an array of all the js pages you want to include.  Defaults to an empty array</%doc>
+% return [];
+</%method>
+
+<%method title>
+<%doc>Method that returns the title of your page.  Defaults to $defaultPageTitle.  That is a hint.</%doc>
+% return $defaultPageTitle;
+</%method>
+
+<%method getPreRedHeaderText>
+<%doc>Method that contains the any stuff to be put before the red header bar</%doc>
+% return undef;
+</%method>
+
+<%method leftnav>
+<%doc>Method that contains the left nav page to use. Defaults to undef</%doc>
+% return undef;
+</%method>
+
+<%method build_red_header_image>
+	<%args>
+		$imageName
+		$imageAltText => ''
+		$imageText    => ''
+	</%args>
+
+	<%perl>
+		unless($imageName =~ /^\//)    {$imageName = "/graphics/manage/$imageName";}
+		unless($imageName =~ /\.\w+$/) {$imageName = "${imageName}.gif";}
+		unless($imageAltText)
+		{
+			$imageAltText = $imageName;
+			$imageAltText =~ s/^.*\///;
+			$imageAltText =~ s/\..*?$//;
+		}
+		unless($imageText) {$imageText = $imageAltText;}
+
+		return("<img src=\"$imageName\" alt=\"$imageAltText\" width=\"250\" height=\"21\" text=\"$imageText\">");
+	</%perl>
+</%method>
+
+
+
+<%method red_header_class>
+	<%doc>
+		This defines what class to put on the red header.
+		If you do not redefine this then it will use the redHeaderBar
+	</%doc>
+
+	<%perl>
+		return("redHeaderBar");
+	</%perl>
+</%method>
+
+
+
+
+<%method red_header_text>
+	<%doc>
+		This defines what HTML to put into the red header.
+		If you want in image then you can use the build_red_header_image method (above).
+		If you do not redefine this then it will take the page title and put in into the red header.
+		This will still auto build images for legacy code.
+	</%doc>
+
+	<%perl>
+		my $title = $m->comp("SELF:title");
+		return ($defaultPageTitle) if($title eq $defaultPageTitle);
+
+		$title =~ s/:.*//g; # strip out anything after a colon
+		$title =~ s/ //g; # remove all spaces
+
+		my $imagealt = $title;
+		$imagealt =~ s/([a-z])([A-Z])/$1 $2/g;
+		$imagealt =~ s:\&: \& :g;
+		return($m->comp("SELF:build_red_header_image", imageName => $title, imageAltText => $imagealt));
+	</%perl>
+</%method>
+
+
+
+<%method right_header_images>
+<%doc>Method that returns a list of all the images to use to the right on the red header bar</%doc>
+% return [];
+</%method>
+
+<%method right_header_text>
+<%doc>Method that returns a list of all the text links to use to the right on the red header bar</%doc>
+% return [];
+</%method>
+
+<%method user>
+<%doc>Method to return the user_id from mason session</%doc>
+% return $m->session->{'user'}->user_id();
+</%method>
+
+<%method form>
+% return '';
+</%method>
+
+<%method get_extratext>
+<%args>
+$default => []
+</%args>
+% return $default;
+</%method>
+
+<%method get_timeperiod_id>
+<%doc>Return the selected time period id from the mason session</%doc>
+% return $m->session->{timeperiod};
+</%method>
+
+<%method return_page_footer>
+	<%doc>Return the page_footer attrib</%doc>
+%	return $m->base_comp->attr('page_footer');
+</%method>
+
+<%method no_header>
+	<%doc>Returns the no_header attr</%doc>
+%	return $m->base_comp->attr("no_header"),;
+</%method>
+
+<%method cms_min_course_role>
+% return '';
+</%method>
+
+<%attr>
+docType	=> ''
+no_check_path => 0
+msg => ''
+hintmsg => ''
+errmsg => ''
+use_footer => 1
+check_cms_permissions => 0
+no_header => 0
+no_body => 0
+onload => ''
+onunload => ''
+skip_header_bar => 0
+use_nav_bar => 1
+page_header=>'/tmpl/prepend'
+page_footer=>'/tmpl/footer'
+dynamic_check_tp => 0
+check_timeperiod => 0
+show_tp_dropdown_no_cache => 0
+show_tp_dropdown_without_course => 0
+top_tab_type => ''
+preRedHeaderText => ''
+must_be_school_admin => 0
+must_be_tusk_admin => 0
+check_feature_permissions => 0
+displayLittleUserNavBar => 0
+default_path_type => ''
+allow_guests => 0
+allow_shib => 0
+skip_auth => 0
+no_leftbar => 0
+syndicate => 0
+body_id => ''
+nostandardheader => 0
+use_dynamic_wrapper => 0
+</%attr>
+
+<%init>
+	unless ($m->base_comp->attr('no_check_path')){
+		$m->comp("/tmpl/url:check_path", default_path_type => $m->base_comp->attr('default_path_type'));
+		if ($m->base_comp->attr('show_tp_dropdown_no_cache') || $m->comp("SELF:should_show_tp_dropdown") ) {
+			$extratext = TUSK::Core::SessionTimePeriod::course_time_periods($m->comp("/tmpl/url:get_type_object"), $ARGS{'timeperiod'}, $m->session);
+			$m->comp("SELF:nocache");
+	 		# Time Period dropdown is problematic when using 'back' button.
+			# If we don't send headers to avoid caching page, if user selects a new TP from dropdown, then navs 'back'
+			# their session will not reflect that their TP should be reverted. If user then interacts with
+			# a button to modify, or create, an entity, it will be affiliated with (potentially) the wrong time period.
+		}
+		elsif ($m->base_comp->attr('show_tp_dropdown_without_course')) {
+			$extratext = TUSK::Core::SessionTimePeriod::show_dropdown_without_course($m->comp("SELF:get_timeperiods"), $m->comp("/tmpl/url:get_school"), $ARGS{'timeperiod'}, $m->session);
+			$m->comp("SELF:nocache");
+	 		# Time Period dropdown is problematic when using 'back' button.
+			# If we don't send headers to avoid caching page, if user selects a new TP from dropdown, then navs 'back'
+			# their session will not reflect that their TP should be reverted. If user then interacts with
+			# a button to modify, or create, an entity, it will be affiliated with (potentially) the wrong time period.
+		}
+		
+		foreach my $add_extratext ( $m->comp("SELF:additional_extratext", args => \%ARGS) ) { 
+			push( @$extratext, $add_extratext) if ( ref($extratext) eq "ARRAY" );
+		}
+	}
+	
+	unless ($m->base_comp->attr('skip_auth')) {
+	  $authentication->();
+        }
+	$m->comp("SELF:startup", args => \%ARGS);
+</%init>
+
+<%method startup>
+<%args>
+$args => {}
+</%args>
+</%method>
+
+<%doc>
+This method was put into place for usergroups.  Some instances of the "show" page need a time period dropdown (sub-groups),
+whereas others (school groups) do not.  The attribute itself does not allow for that, so this method was added.  This method
+should be overloaded if you want a dropdown.  In that case, DO NOT declare the show_tp_dropdown_no_cache attribute.
+</%doc>
+<%method should_show_tp_dropdown>
+% return 0;
+</%method>
+
+<%doc>
+This method was put into place for announcements.  Some instances of the "show" page need a usergroup dropdown when showing
+the time period, whereas others do not.  The idea was to set up something that was easily expandable.  This method should 
+be overloaded if you want something additional for the time period dropdown.
+</%doc>
+<%method additional_extratext>
+% return ();
+</%method>
+
+<%doc>
+This method was put into place for usergroups.  Some instances of the "show" page need a time period dropdown (sub-groups),
+whereas others (school groups) do not.  The attribute itself does not allow for that, so this method was added.  This method
+should be overloaded if you want a dropdown.  In that case, DO NOT declare the show_tp_dropdown_no_cache attribute.
+</%doc>
+<%method check_tp>
+% return 0;
+</%method>
+
+<%method function_token>
+% return '';
+</%method>
+
+<%perl>
+$ARGS{msg} =  $m->base_comp->attr('msg') unless $ARGS{msg};
+$ARGS{hintmsg} = $m->base_comp->attr('hintmsg') unless $ARGS{hintmsg};
+$ARGS{errmsg} = $m->base_comp->attr('errmsg') unless $ARGS{errmsg};
+
+
+if ($m->comp('SELF:cms_min_course_role')){
+	unless ($m->comp("SELF:check_course_permissions", token => $m->comp('SELF:cms_min_course_role') )){
+		$m->comp("/tmpl/url:redirect",message => "FAILURE : Improper Permission to Perform Activity");
+	}
+}
+
+my $nav_bar_arrayref = [];
+
+if ($m->base_comp->attr('use_nav_bar')){
+	$nav_bar_arrayref = $m->comp("SELF:get_nav_bars");
+}
+
+if ($m->base_comp->attr('check_feature_permissions')){
+	$m->comp("/tmpl/permission:lookup_permissions", 
+						feature_type_token => $m->comp("SELF:feature_type_token"),
+						feature_id => $m->comp("SELF:feature_id"),
+						function_token => $m->comp("SELF:function_token"));
+}
+
+my $type_path = ($m->base_comp->attr('no_check_path')) ? "" : $m->comp("/tmpl/url:get_type_path");
+
+my $localUser = undef;
+my $localIsAuthor = undef;
+eval {
+	$localUser = $m->session->{'user'};
+	$localIsAuthor = TUSK::Session::is_author($m->session, $m->session->{user});
+};
+
+my %req_hash = ( user => $localUser,
+                nav_bar => $nav_bar_arrayref,
+                jsarray => $m->comp("SELF:jsarray"),
+                stylearray => $m->comp("SELF:stylearray"),
+                pagetitle => $m->comp("SELF:title",%ARGS),
+                leftnav  => $m->comp("SELF:leftnav"),
+                type_path => $type_path,
+                redHeaderBarText => $m->comp("SELF:red_header_text", %ARGS),
+                syndicate => $m->base_comp->attr('syndicate'),
+                body_id => $m->base_comp->attr('body_id'),
+                headerimages => $m->comp("SELF:right_header_images", %ARGS),
+                right_header_text => $m->comp("SELF:right_header_text", %ARGS),
+                noheader => $ARGS{print} ? 1 : $m->base_comp->attr("no_header"), 
+                docType => $m->base_comp->attr("docType"), 
+                nobody => $ARGS{print} ? 1 : $m->base_comp->attr("no_body"), 
+                form => $m->comp("SELF:form"),
+                extratext => $m->comp("SELF:get_extratext", default => $extratext),
+                dynamic_check_tp => $m->comp("SELF:check_tp"),
+                check_timeperiod => $m->base_comp->attr('check_timeperiod'),
+                displayLittleUserNavBar => $m->base_comp->attr('displayLittleUserNavBar'),
+                top_tab_type => $m->base_comp->attr('top_tab_type'),
+                metaData => \@metaData,
+                preRedHeaderText => $m->comp("SELF:getPreRedHeaderText"),
+                headerBarClass => $m->comp("SELF:red_header_class"),
+                onload => $m->base_comp->attr('onload'),
+                onunload => $m->base_comp->attr('onunload'),
+				is_author => $localIsAuthor,
+				skip_header_bar => $m->base_comp->attr('skip_header_bar'),
+                no_leftbar => $m->base_comp->attr('no_leftbar'),
+				nostandardheader => $m->base_comp->attr('nostandardheader'),
+               );
+</%perl>
+
+% if ($m->base_comp->attr('use_dynamic_wrapper')) {
+	<& $m->comp($m->base_comp->attr('page_header')), req_hash => \%req_hash, %ARGS &>
+% } elsif ($m->base_comp->attr('page_header')) {
+	<& $m->base_comp->attr('page_header'), req_hash=>\%req_hash, %ARGS &>
+% }
+
+
+<% $m->call_next %>
+
+
+% if ($m->base_comp->attr('use_dynamic_wrapper')) {
+	<& $m->comp($m->base_comp->attr('page_footer')), req_hash => \%req_hash &>
+% } elsif ($m->comp("SELF:return_page_footer") && !($m->base_comp->attr('no_body'))){
+	<& $m->comp("SELF:return_page_footer"), req_hash => \%req_hash &>
+% }
+

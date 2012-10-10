@@ -1,0 +1,47 @@
+<%once>
+use TUSK::Case::Battery;
+</%once>
+
+<%method title>
+<%perl>
+my $title = "Manage Categories";
+return $title;
+</%perl>
+</%method>
+
+<%perl>
+	my $type_path = $m->comp('/tmpl/url:get_type_path'); 
+	my $school = $m->comp('/tmpl/url:get_type_object');
+	my $batteries = TUSK::Case::Battery->getSchoolBatteries($school);
+	if (defined($ARGS{'order'})){
+		$batteries = TUSK::Case::Battery->updateSortOrders($school->getPrimaryKeyID(), $ARGS{'order'}, $batteries);
+	}
+	my $col_fields = [ {'label'=>'Category Title', 'field'=>'getBatteryTitle'},
+                	   {'label'=>'Category Description', 'field'=>'getBatteryDesc'},
+                   	   {'label'=>'Phase Type', 'field'=>'getBatteryType'}];
+	my $action_columns;
+	$action_columns = [{'label'=>'Modify','link'=>"/case/administrator/batteryaddedit"},
+			   {'label'=>'Delete','link'=>"/case/administrator/batterydelete"}];
+</%perl>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+        {display_txt => 'Add Category',
+        link_txt    => '/case/administrator/batteryaddedit/' . $type_path}
+	         ]
+&>
+
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'eventshow' } &>
+
+<& /tmpl/element:object_selection_box, params => { columns=>$col_fields, nobutton => 1, 
+        sort_box => 1,
+        object_list => $batteries,
+        action_columns=>$action_columns,
+        empty_message => 'No categories for this school.',
+        type_path => $type_path }
+&>
+
+</form>

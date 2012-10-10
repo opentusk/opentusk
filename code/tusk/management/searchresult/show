@@ -1,0 +1,78 @@
+<%once>
+use TUSK::Search::SearchResultCategory;
+</%once>
+<%shared>
+my $submit_mode = 0;
+</%shared>
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+
+<%method title>
+% return 'Manage Search Result Categories';
+</%method>
+
+<%perl>
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $col_fields = [ {'label' => 'Label', 'field' => 'getCategoryLabel'}];
+
+</%perl>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                onsubmit =>undef,
+                name => 'searchresult' } &>
+
+
+<& /tmpl/element:buttons, array => [ 
+                        $m->scomp('/tmpl/element:button', params => {
+									class => 'boldformbutton',
+									name => 'NewCategory',
+									label => 'New Category',
+									href => '/management/searchresult/addedit/' . $typePath,
+									}
+				),
+                ],
+                        align => 'left'
+&>
+<& /tmpl/element:object_selection_box, params => { 
+                                sort_box => 1,
+                                columns => $col_fields,
+                                action_columns => [ 
+                                                        { 'label'=>'Modify','link' => '/management/searchresult/addedit' },
+                                                        { 'label' => 'Delete','link' => '/management/searchresult/delete' } 
+                                                ], 
+                                object_list => $search_result_categories,
+                                type_path => $typePath,
+                                name => "searchresults",
+				'empty_message' => 'No associated categories.',
+                                }
+&>
+
+
+</form>
+
+
+<%init>
+my $type_object = $m->comp('/tmpl/url:get_type_object');
+my $typePath = $m->comp('/tmpl/url:get_type_path');
+my $user_id = $m->comp('SELF:user');
+my ($search_result_categories,@search_result_categories_array,$errmsg,$msgtype) = (undef,'','errmsg');
+if (!$type_object || !$type_object->isa('TUSK::Core::School')){
+	my $url_path = $m->comp('SELF:get_url_path');
+	$errmsg = "The URL used : $url_path does not have a valid school.";
+} else {
+	$search_result_categories = TUSK::Search::SearchResultCategory->lookup(" search_result_category.school_id = ".$type_object->getPrimaryKeyID());
+	if ($ARGS{'order'}) {
+		$submit_mode = 1;
+                $search_result_categories = TUSK::Search::SearchResultCategory->updateSortOrders($type_object->getPrimaryKeyID, 
+			$ARGS{'order'}, $search_result_categories);
+        }
+}
+if ($errmsg){
+        $m->redirect($m->comp("/tmpl/url:construct_url", 
+                'base_url' => "/management/searchresult/addedit", 
+                'msg' => $errmsg, 'msgtype'=>$msgtype));
+}
+</%init>

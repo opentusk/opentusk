@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -x '/usr/bin/mysql' ]; then
+	MYSQL=/usr/bin/mysql
+fi
+if [ -x '/usr/local/mysql/bin/mysql' ]; then
+	MYSQL=/usr/local/mysql/bin/mysql
+fi
+
+$MYSQL -e "update user set author = 0" hsdb4
+$MYSQL -Ne "select user from user" mysql | awk '{printf("update user set author=1 where user_id = --%s--;\n",$0)}' | sed -e s/--/\'/g | $MYSQL hsdb4

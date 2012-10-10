@@ -1,0 +1,95 @@
+<%attr>
+	top_tab_type         => 'manage'
+	default_path_type    => 'course'
+	must_be_school_admin => 1
+</%attr>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $school = $course->get_school();
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+<%method title>
+%	return "Export Course";
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/course_export.css', '/style/calendar-blue.css'];
+</%method>
+
+<%method jsarray>
+%	return ['course_export.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>
+
+
+<%method leftnav>
+<%perl>
+	return {
+			component    => "/tmpl/leftnav/admin",
+			type_path    => $type_path,
+			school_name  => $school->getSchoolName(),
+		};
+</%perl>
+</%method>
+
+<& /tmpl/element:form, params => { 
+		method   => 'POST',
+		name     => 'export_type',
+		onsubmit => 'return checkDates(this)' } &>
+
+
+<h3 class="subhead">Determine Course Span (Optional)</h3>
+
+<table>
+<& /tmpl/element:textbox, params =>{ 
+				label          => 'Start Date:',
+				name           => 'start_date',
+				size           => 10,
+				maxlength      => 10,
+				calendar       => 1,
+				td_class       => ''
+			 } &>
+<& /tmpl/element:textbox, params =>{ 
+				label          => 'End Date:',
+				name           => 'end_date',
+				size           => 10,
+				maxlength      => 10,
+				calendar       => 1,
+				td_class       => ''
+			 } &>
+</table>
+
+<& /tmpl/element:submit_button, params=>{
+		'class' => 'submitBtn', 
+		'name'  => 'export_selected', 
+		'label' => 'Select Content to Export'} &>
+
+<& /tmpl/element:submit_button, params=>{
+		'class' => 'submitBtn', 
+		'name'  => 'export_all', 
+		'label' => 'Export All Content'} &>
+
+</form>
+
+
+<%init>
+
+if(defined($ARGS{'submit_check'})){
+	my $start = $ARGS{start_date};
+	my $end = $ARGS{end_date};
+
+	if(defined($ARGS{'export_selected'})){
+		my $msg = 'Please examine course content below to be sure that only desired content is packaged.';  
+		$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'hintmsg', destination => "/management/course/export/select_content/$type_path?start=$start&end=$end");
+	}
+	elsif(defined($ARGS{'export_all'})){
+		$m->redirect("/management/course/export/get_content_package/$type_path?export_all=1&start=$start&end=$end");
+	}
+}
+
+</%init>

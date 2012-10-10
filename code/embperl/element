@@ -1,0 +1,83 @@
+[$sub other_parent_links $]
+[- 
+$content = shift @param;
+return unless ($content and $content->primary_key());
+$parentContent = shift @param;
+$content->set_aux_info('-parent',$parentContent);
+@other_content = $content->other_parents; 
+-]
+[$ if (@other_content) $]
+<tr>    
+        <td class="labelgray">Also linked from:</td>
+        <td class="cell-left">
+        [$ foreach $contentParent (@other_content) $]
+        [$ if ($contentParent->isa('HSDB4::SQLRow::Content')) $]
+        <A HREF="/manage/folders/course/[+ $contentParent->school() +]/[+ $contentParent->field_value('course_id') +]/[+ $contentParent->primary_key +]">[+ $contentParent->field_value('title') +]</A> 
+        [$ elsif ($contentParent->isa('HSDB45::Course')) $]
+        <A HREF="/management/course/display/[+ $contentParent->school +]/[+ $contentParent->course_id +]">[+ $contentParent->out_label() +]</A> 
+        [$ endif $]
+        [$ endforeach $] 
+        </td>
+</tr>
+[$ endif $]
+[$ endsub $]
+
+[$sub page_title $]
+[- $title = shift @param -]
+<H2 class="title">[+ $title +]</H2>
+[$ endsub $]
+
+[$sub cms_button_row $]
+[- @links = @param -]
+<div class="gCMSButtonRow clearfix">
+[$ foreach $link (@links) $]
+<a class="[+ $link->{link_class} +]" href="[+ $link->{link_txt} +]">[+ $link->{display_txt} +]</a>
+[$ endforeach $]
+</div>
+[$ endsub $]
+
+[$sub textbox $]
+[- 
+	$params = shift(@param);
+	$params->{td_class} = (exists $params->{td_class})? $params->{td_class} : 'labelgray';
+	$params->{input_td_class} = (exists $params->{input_td_class})? $params->{input_td_class} : 'cell-left';
+	$params->{value} =~ s/\&/\&amp;/g;
+	$params->{value} =~ s/"/\&quot;/g;
+	$showsTime = ($params->{calendar_type} eq 'datetime') ? "true" : "false";
+	$format = ($params->{calendar_type} eq 'datetime') ? "%Y-%m-%d %H:%M" : "%Y-%m-%d";
+	$params->{id} = $params->{name} if (!$params->{id});
+	$params->{'no_empty'} = 0 if ( !defined($params{'no_empty'}) );
+	$params->{'onblur'} = "checkDates(this, " . $params->{'no_empty'} . ");";
+	$params->{'onchange'} = "checkDates(this, " . $params->{'no_empty'} . ");";
+	$params->{'onkeyup'} = "checkDates(this, " . $params->{'no_empty'} . ");";
+	$params->{'onkeydown'} = "checkDates(this, " . $params->{'no_empty'} . ");";
+-]
+<tr id="[+ $params->{'tr_id'} +]">
+<td class="[+ $params->{td_class} +]" width="[+ $params->{width} +]"[$ if (exists($params->{td_align})) $] align="[+ $params->{td_align} +]"[$ endif $]> [+ $params->{label} +]</td>
+<td class="[+ $params->{input_td_class} +]"[$ if (exists($params->{input_td_align})) $] align="[+ $params->{input_td_align} +]"[$ endif $]> 
+	<input name="[+ $params->{name} +]" id="[+ $params->{id} +]" type="text" class="textareawhite" 
+		value="[+ $params->{value} +]" size="[+ $params->{size} +]" maxlength="[+ $params->{maxlength} +]" 
+		onblur="[+ $params->{onblur} +]" onkeyup="[+ $params->{onkeyup} +]"
+		onkeydown="[+ $params->{onkeydown} +]"
+		onclick="[+ $params->{onclick} +]" onchange="[+ $params->{onchange} +]">
+	[$ if ( $params->{calendar} ) $]
+		<span id="calendar-[+ $params->{name} +]" style="cursor: pointer;"><img src="/graphics/icons/ico-calendar.gif" width="20" height="20" border="0" align="absmiddle"></span>	
+		<script type="text/javascript">
+			Calendar.setup({
+        		inputField     :    "[+ $params->{name} +]",      // id of the input field
+        		ifFormat       :    "[+ $format +]",       // format of the input field
+        		showsTime      :    [+ $showsTime +],      // will display a time selector
+        		button         :    "calendar-[+ $params->{name} +]",  // trigger for the calendar (button ID)
+        		singleClick    :    true,           // double-click mode
+        		align          :    "Tl",
+        		step           :    1          // show all years in drop-down boxes (instead of every other year as default)
+    		});
+		</script>
+	[$ endif $]
+	[$ if ( $params->{trailing_text} ) $]
+		[+ $params->{trailing_text} +]
+	[$ endif $]
+</td>
+</tr>
+[$ endsub $]
+

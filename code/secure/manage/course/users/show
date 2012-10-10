@@ -1,0 +1,179 @@
+[-
+	$req = shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	$req->{type}="course";
+	$req->{pagetype}="courseusers";
+	$req->{showpage} = 1;
+	$req->{checkcourserole}="AUTHOR";
+
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	Execute ({inputfile=>$req->{include_dir}."/element",import => 1});	
+	
+	$data = TUSK::Manage::Course::Users::show_pre_process($req, $fdat{timeperiod}, \%udat);
+
+	if ($fdat{order}){
+		($rval, $msg) = TUSK::Manage::Course::Users::change_order($req, $fdat{order}, $data->{users});
+		process_return_values($rval, $msg);
+		delete($fdat{order});
+	}      	
+
+	$is_group_course = ($req->{course}->type() eq 'group')? 1 : 0;;
+	$is_thesis_comm = ($req->{course}->type() eq 'thesis committee')? 1 : 0;;
+	$req->{main_hdr_txt} = ($is_group_course) ? 'manage members' : 
+	                       ($is_thesis_comm)  ? 'manage thesis committee' :
+	                                            'manage faculty &amp; staff';
+
+	$req->{pagetitle} = uc $req->{main_hdr_txt};
+
+	push (@{$req->{headertext}}, '/view/course/' . $req->{selfpath} . '/fac'  . "\tPreview");
+	manage_header($req);
+
+-]
+<!-- End Header Table -->
+<table  border="0" width="100%" cellspacing="0" cellpadding="0">
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTORNONSTUDENT')) $]
+<tr>
+	<td class="button-left">
+[$ if($is_group_course) $]
+	<div class="gCMSButtonRow">
+		<a href="/manage/course/users/addedit/[+ $req->{selfpath} +]">Add Individual Members</a>
+		<a href="/management/course/users/addgroupmembers/course/[+ $req->{selfpath} +]">Add Members By User Group</a>
+	</div>
+[$ elsif($is_thesis_comm) $]
+	<div class="gCMSButtonRow">
+		<a href="/manage/course/users/addedit/[+ $req->{selfpath} +]">Add Members</a>
+	</div>
+[$ else $]
+[-
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'cms_button_row', 
+          param     => [ { link_txt    => '/manage/course/users/addedit/' . $req->{selfpath},
+                           display_txt => 'New Faculty &amp; Staff'
+                         }
+                       ]
+         }); 
+-]
+[$ endif $]
+	</td>
+</tr>
+<tr>
+	<td>
+
+[$ else $]
+<tr>
+	<td class="no-button">
+
+[$ endif $]
+[$ if ($data->{usercount}) $]
+<form action="" name="users" method="post" name="display" class="no-padding">
+                    <table width="100%" class="tusk" cellspacing="0">
+                      <tr class="header">
+[-
+# group courses can have huge rosters (1k members!), and the sort order column takes minutes 
+# to generate. while it might make sense to change the sort functionality when the list
+# gets that long, we don't think we are likely to encounter another situation like this outside
+# of group courses. since we don't need to really sort this list in a group course, we are 
+# just removing the column for them.
+-]
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTORNONSTUDENT') && !$is_group_course) $]
+			<td class="header-center" width="1%">Sort</td> 
+                        <td class="header-left">UserID</td>
+[$ else $]
+                        <td class="header-left" width="1%">UserID</td>
+[$ endif $]
+
+                        <td class="header-left">Name</td>
+                        <td class="header-left">Role(s)</td>
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTORNONSTUDENT')) $]
+                       <td class="header-center">Affiliation</td>
+                       <td class="header-center" width="1%">Actions</td>
+[$ else $]
+                       <td class="header-center" width="1%">Affiliation</td>
+[$ endif $]
+                      </tr>
+[$ foreach $i (0..($data->{usercount}-1)) $]
+[-
+	$user = $data->{users}->[$i];
+	if ($i % 2 == 0){
+		$data->{class} = "even";
+	}else{
+		$data->{class} = "odd";
+	}
+-]
+                      <tr class="[+ $data->{class} +]"> 
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTORNONSTUDENT') && !$is_group_course) $]
+			<td class="layers-center" width="1%"><select class="[+ $data->{class} +]" name="order" onChange="document.users.submit();">
+                                [$ foreach $j (1..$data->{usercount}) $]
+                                <option class="[+ $data->{class} +]" [$ if ($j == ($i+1)) $] value="" selected [$ else $] value="[+ ($i+1) +]-[+ $j +]"[$ endif $]>[+ $j +]</option>
+				[$ endforeach $]
+                              </select></td>
+[$ endif $]
+                        <td class="layers-left">[+ $user->primary_key +]</td>
+                        <td class="layers-left">[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]<a href="/manage/course/users/addedit/[+ $req->{classpath} +]/?user=[+ $user->primary_key +]">[+ $user->field_value('lastname') +], [+ $user->field_value('firstname') +] </a>[$ else $][+ $user->field_value('lastname') +], [+ $user->field_value('firstname') +][$ endif $]</td>
+[- 
+	($roles = $user->aux_info('roles'))=~s/,/, /g;
+	if($is_thesis_comm){
+		$roles =~ s/director/Advisor/i;
+		$roles =~ s/author/Committee Member/i;
+	}
+-]
+                        <td class="layers-left">[+ $roles +]</td>
+                        <td class="layers-center" nowrap>[$ if ($user->field_value('affiliation')) $][+ $user->field_value('affiliation') +][$else$]&nbsp;[$ endif $]</td>
+[$ if (TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTORNONSTUDENT')) $]
+                        <td class="layers-center" width="1%" nowrap><a href="/manage/course/users/addedit/[+ $req->{classpath} +]/?user=[+ $user->primary_key +]" class="navsm">Modify</a><span class="littlespacing">|</span><a href="/manage/course/users/delete/[+ $req->{classpath} +]/?user=[+ $user->primary_key +]" class="navsm">Delete</a></td>
+[$ endif $]
+                      </tr>
+[$ endforeach $]
+                    </table>
+</form>
+[$ else $]
+&nbsp;<i>No users associated with this course.</i><br><br>
+
+[$ endif $]
+
+[$ if ( $data->{subusercount} ) $]
+<h2 style="color: #CC3300; padding: 25px 0 1px 0; margin: 0;">Subcourse Faculty</h2>
+                    <table width="100%" class="tusk" cellspacing="0">
+                      <tr class="header">
+                        <td class="header-left" width="1%">UserID</td>
+                        <td class="header-left">Name</td>
+						<td class="header-left">Course</td>
+                        <td class="header-left">Role(s)</td>
+                      </tr>
+[-
+	$i = 0;
+-]
+[$ foreach $key ( sort keys %{$data->{subusers}} ) $]
+
+[$ foreach $user (@{$data->{subusers}->{$key}}) $]
+[-
+	if ($i++ % 2 == 0){
+		$data->{class} = "even";
+	}else{
+		$data->{class} = "odd";
+	}
+-]
+                      <tr class="[+ $data->{class} +]"> 
+                        <td class="layers-left">[+ $user->primary_key +]</td>
+                        <td class="layers-left">[+ $user->field_value('lastname') +], [+ $user->field_value('firstname') +]</td>
+                        <td class="layers-left">[+ $key +]</td>
+[- 
+	($roles = $user->aux_info('roles'))=~s/,/, /g;
+-]
+                        <td class="layers-left">[+ $roles +]</td>
+                      </tr>
+[$ endforeach $]
+
+[$ endforeach $]
+                    </table>
+<br /><br />
+[$ endif $]
+</form>
+</td>
+</tr>
+</table>
+[- manage_footer(); -]
+
+
+

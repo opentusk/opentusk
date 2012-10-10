@@ -1,0 +1,149 @@
+<%shared>
+my $id = $m->comp('/tmpl/url:get_last_path_id') ;
+my $case = TUSK::Case::Case->new->lookupKey($id);
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+<%method title>
+<%perl>
+my $title = "Objectives";
+return $title;
+</%perl>
+</%method>
+
+<%method leftnav>
+<%perl>
+return {
+	component => '/case/tmpl/leftnav/case-create',
+	id => $id,
+	type_path => $type_path,
+	uri => 'goaladdedit'
+	};
+</%perl>
+</%method>
+<%method jsarray>
+% return ['layers.js','element.js','caseshell.js'];
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Case::Case' => $case};
+</%method>
+
+<%once>
+use TUSK::Case::LinkCaseObjective;
+use TUSK::Case::Case;
+</%once>
+
+% my $formname = 'goaladdedit';
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => $formname,
+		onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+<& /tmpl/element:sort_order_box , params =>{
+                label=>'Objective',
+		td_class => 'button-left',
+		no_label => 1,
+		button_onclick=>"openwindow('objectivesdiv')",
+                layer_info => {
+                        layer => 'objectivesdiv',
+                        fields => ['objective_id', 'body'],
+                        name => 'objectives',
+                        sort => {usage => 'Yes', length=>50},
+                        action => {usage => 'Yes', length=>100, functions => [
+                                                        {func=>'edit', label=>'Modify'},
+                                                        {func=>'remove', label=>'Delete'} ]},
+                        display => [ {label=>'body',field=>'body', edittype => 'textarea', align => 'left', length => 600}
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $objective_data }
+                } &>
+
+% my $button_ref = [$m->scomp('/tmpl/element:html_edit_button')];
+<& tmpl/sections:case_footer, 
+	case      => $case, 
+	type_path => $type_path, 
+	formname  => $formname,
+	buttons   => $button_ref,
+	&>
+
+<& /tmpl/wizard:include &>
+
+</form>
+</table>
+
+<%init>
+if (!$case){
+	$m->comp('/tmpl/error',msg=>'That is an invalid case id');
+}
+my $objective_data = [];
+foreach my $objective (@{$case->getObjectives()}){
+	push @{$objective_data}, {'objective_id'=>$objective->getPrimaryKeyID(),
+			'body'=>$objective->getBody()};
+}
+if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
+        my $args = \%ARGS;
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^objectivesdiv');
+	my ($tmpHash,$objective,$pk,$link_object);
+	my $userHash = {'user'=> $m->comp('SELF:user')};
+	my $pk_hash = {};
+	#
+	# this does not use /tmpl/process because it needs to add objectives if they don't exist.
+	#
+	foreach my $set (keys (%{$rowHash})){
+		$tmpHash = $rowHash->{$set};
+		$pk_hash->{$tmpHash->{'pk'}} = 1;
+		if ($tmpHash->{'pk'} == 0){
+			$objective = TUSK::Core::Objective->new();
+		}else{
+			$objective = TUSK::Core::Objective->new()->lookupKey($tmpHash->{'pk'});
+		}
+
+		$objective->setBody($tmpHash->{'fields'}->{'body'});
+		$objective->save($userHash);
+		$tmpHash->{'pk'} = $objective->getPrimaryKeyID();
+
+		$link_object = TUSK::Case::LinkCaseObjective->new->lookupByRelation($id,$tmpHash->{'pk'});
+		if (!scalar (@{$link_object})){
+			$link_object = TUSK::Case::LinkCaseObjective->new();	
+			$link_object->setChildObjectiveID($tmpHash->{'pk'});
+			$link_object->setParentCaseID($id);
+		} else {
+			# there should be only one link for a relation
+			$link_object = pop @{$link_object};
+		}
+		$link_object->setSortOrder($tmpHash->{'fields'}->{'sortorder'});
+		$link_object->save($userHash);
+	}
+	# delete any objectives that were not submitted
+	for (my $i = 0; $i < @{$objective_data}; $i++) {
+		$pk = $objective_data->[$i]->{'objective_id'};
+		if (!$pk_hash->{$pk}){
+		        $link_object = TUSK::Case::LinkCaseObjective->new->lookupByRelation($id,$pk);
+			# there should be only one link for a relation
+			map { $_->delete() } @{$link_object};
+		}
+	}
+	$objective_data = [];
+	foreach my $objective (@{$case->getObjectives()}){
+		push @{$objective_data}, {'objective_id'=>$objective->getPrimaryKeyID(),
+				'body'=>$objective->getBody()};
+	}
+	$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => 'Objectives successfully updated');
+
+}
+</%init>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+% $m->comp("SELF:set_msg", msg => 'Objectives successfully updated') if ($m->comp('/tmpl/wizard:submitted',args => $args));
+</%method>

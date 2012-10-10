@@ -1,0 +1,78 @@
+<%attr>
+	top_tab_type            => 'manage'
+	no_check_path	=> '1'
+</%attr>
+
+% if (@folders) {
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<tr><td class="no-button">
+
+<%perl>
+
+my @rows;
+foreach my $i (0..(scalar(@folders)-1)) {
+	my $folder = $folders[$i];
+	$rows[$i] = {
+			'id' => $folder->primary_key,
+			'type' => '<img src="/graphics/icons/ico-folder.gif">',
+			'title' => "<a href='/management/folders/content/".$folder->primary_key."'>".$folder->field_value('title')."</a> (". $folder->primary_key." )",
+			'authors' => join(', ', map {$_->out_abbrev} $folder->child_users), } ;
+	
+}
+
+</%perl>
+
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [
+		{'label' => 'Type', 'field' => 'type'},
+		{'label' => 'Title', 'field' => 'title'},
+		{'label' => 'Authors', 'field' => 'authors'},
+	],
+	rows => \@rows,
+	action_columns => [
+		{ 'label' => 'Preview', 'link' => '/view/content' },
+		{ 'label' => 'Modify', 'link' => '/management/content/addedit/content', 'extra' => '?page=edit' },
+	],
+	name => "people",
+} &>
+
+</td></tr>
+
+</table>
+
+% } else {
+<i>No linked folders.</i>
+% }
+<br><br><br>
+
+<%init>
+
+	my $user_id = $m->comp('SELF:user');
+	my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
+	my @folders=$user->parent_content("type='Collection'");
+
+</%init>
+
+<%method get_nav_bars>
+% return [{ href=> '/management/home', label => 'CMS Home' } ];
+</%method>
+
+<%method title>
+% return "My Folders";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+
+
+
+
+
+

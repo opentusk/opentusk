@@ -1,0 +1,47 @@
+<HTML>
+<HEAD>
+[! use HSDB4::SQLRow::Content;
+!]
+[# Figure out what document we are #]
+[-
+    $req_rec->no_cache();
+    $path = $req_rec->path_info;
+    $doc = HSDB4::SQLRow::Content->new()->lookup_path ($path);
+
+    # Find the user name
+    $user = $req_rec->connection->user;
+
+    $escmode = 0;
+
+    # Read in my handy-dandy auxiliary functions
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+    Execute ("$embperldir/hsdb4-style.css");
+-]
+
+[# Make the title #]
+<TITLE>TUSK [+ ucfirst $doc->field_value('type') +]: 
+[+ $doc->field_value('title') +]</TITLE>
+
+[# If we're doing the navbar across the top... #]
+[$ if $fdat{'NAVBAR'} $]
+<BASE TARGET="_top">
+</HEAD>
+<BODY>
+[# The navigation bar #]
+[- Execute ("$embperldir/navbar.html", $doc) -]
+
+[# Make the title #]
+<H2 class="title">[+ $doc->field_value('title') +]</H2>
+</BODY>
+
+[# Otherwise, make the frameset #]
+[$ else $]
+</HEAD>
+
+<FRAMESET ROWS="120,*">
+<FRAME SRC="[- uri_flag ('NAVBAR', 1) -]">
+<FRAME SRC="[+ $doc->out_external_url +]">
+</FRAMESET>
+
+[$ endif $]

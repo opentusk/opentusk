@@ -1,0 +1,226 @@
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Response;
+	use TUSK::Quiz::Answer;
+</%once>
+
+<%shared>
+	my $id = $m->comp('/tmpl/url:get_last_path_id');
+	my $result = TUSK::Quiz::Result->lookupKey($id);
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($result->getQuizID());
+	my $responses = TUSK::Quiz::Response->lookup("quiz_result_id = $id");
+	my $response_rows = [];
+	my %args = $m->request_args();
+	my $type_path;
+</%shared>
+
+
+<%method title>
+<%perl>
+	my $title = "Quiz Responses : ".$quiz->getTitle();
+	return $title;
+</%perl>
+</%method>
+
+<%method red_header_text>
+%	return "Quiz Response:";
+</%method>
+
+<%method function_token>
+% 	return 'view_grades';
+</%method>
+
+<%method feature_id>
+% 	return $result->getQuizID();
+</%method>
+
+<%method get_nav_bar_objects>
+% 	return {'quiz'=>$quiz};
+</%method>
+
+
+<%doc>
+	This component is also called by quizanswer page
+</%doc>
+
+<%method display_quiz>
+<%args>
+	$show_answers => 1
+	$pquiz => undef
+</%args>
+<%perl>
+	$pquiz = $quiz unless defined $pquiz;
+	$type_path = $m->comp("/tmpl/url:get_type_path") . '/' . $pquiz->getPrimaryKeyID();	
+	my $response_hash = {};
+	my $count = 0;
+	foreach my $r (@{$responses}){
+		$response_hash->{ $r->getLinkType() }->{ $r->getLinkID() } = $r;
+		$count ++;
+	}
+
+	my $buttons;
+	if ($m->comp("/tmpl/permission:check_permission", function_token => 'edit_grades')){
+		$buttons = "<input class=\"formbutton\" type=\"submit\" name=\"submit\" value=\"Save Changes\">\n<input class=\"formbutton\" type=\"reset\" onclick=\"go_back('/quiz/author/quizresults/$type_path#" . $result->getPrimaryKeyID() . "');\" name=\"cancel\" id=\"cancel\" value=\"Go Back\"/>";
+	} else {
+		$buttons = "Not authorized for grading";
+	}
+
+	if ($show_answers) {
+		$m->comp('/tmpl/element:form', params => {
+        	        method => 'POST',
+                	name => 'quizresponses',
+        	        onsubmit => undef } );
+
+		my $quiz_taker = ($quiz->isSelfAssessment()) ? '' : "Name: &nbsp;&nbsp;" . HSDB4::SQLRow::User->new()->lookup_key($result->getUserID());
+		$m->print("<table width=\"100%\">\n<tr><td class=\"med\">$quiz_taker</td><td align=\"right\"><div style=\"margin-bottom:1px;\">$buttons</div></td></tr>\n</table>\n");
+	}
+
+	$m->comp('SELF:display_quiz_items', show_answers => $show_answers, response_hash => $response_hash, quiz => $pquiz);
+
+	if ($show_answers) {
+		$m->print ("<div align=\"right\" style=\"margin-top:3px;\">$buttons</div>\n") if ($count > 4 && $buttons && $buttons ne 'Not authorized for grading');
+		$m->print("</form>\n");
+	}
+
+</%perl>
+	<& '/quiz/author/tmpl/grade:help_grade_note' &>
+</%method>
+
+
+<%method display_quiz_items>
+<%args>
+	$show_answers	=> 1
+	$response_hash	=> {}
+	$quiz
+</%args>
+<%perl>
+	my $quiz_items = $quiz->getQuizItems();
+
+	$m->comp('SELF:process_responses', items 	=> $quiz_items, 
+					  response_hash => $response_hash, 
+					  link_type 	=> "link_quiz_quiz_item", 
+					  show_answers 	=> $show_answers);
+
+	my $actions;
+	if ($show_answers){
+		if ($m->comp("/tmpl/permission:check_permission", function_token => 'edit_grades')){
+		}
+	}
+
+	my $columns = [
+			{ field => 'question', label => 'Question' },
+			{ field => 'answer', label => 'Correct Answer' },
+		      ];
+
+	if ($show_answers){
+		push (@$columns, { field => 'response', label => 'Response' });
+		push (@$columns, { field => 'points', label => 'Points', align => 'center' });
+		push (@$columns, { field => 'graded_points', label => 'Graded Points<span style="color:red;font-size:80%;">*</span>', align => 'center' });
+	} elsif ($quiz->getQuizType() ne 'SelfAssessment'){
+		push (@$columns, { field => 'points', label => 'Points', align => 'center' });
+	}
+	
+	$m->comp('/tmpl/element:object_selection_box', params => {
+							columns 	=> $columns,
+							type_path	=> "$type_path/" . $result->getPrimaryKeyID ,
+							nobutton	=> 0,
+				 	               	rows		=> $response_rows,
+						 });
+</%perl>
+</%method>
+
+<%method process_responses>
+<%args>
+	$items
+	$response_hash
+	$link_type
+	$level	=> 0
+	$show_answers => 1
+	$is_section => 0
+</%args>
+<%perl>
+	my $item_count = ($level && $is_section) ? 'A' : 
+                         ($level) 		 ? 'a' : 1;
+	foreach my $item (@$items){
+
+		my $response;
+		$response  = $response_hash->{ $link_type }->{ $item->getPrimaryKeyID() } if ($show_answers);
+		my $id = 0;
+		my $response_text = '&nbsp;';
+		my $graded_points = '<font color="red">n/a</font>';
+		my $question = $item->getQuestionObject();
+
+		if ($response){
+			$id = $response->getPrimaryKeyID();
+			my $points = $item->getPoints();
+			my $val = ($response->getGradedFlag()) ? $response->getGradedPoints() : '';
+			$graded_points = "<a href=\"#\" onclick=\"document.quizresponses.resp_$id.value = $points; return false;\"><img align=\"bottom\" border=\"0\" src=\"/graphics/quiz/correct_small.gif\"/></a> <a href=\"#\" onclick=\"document.quizresponses.resp_$id.value = 0; return false;\"><img align=\"bottom\" border=\"0\" src=\"/graphics/quiz/incorrect_small.gif\"/></a> <input type=\"text\" name=\"resp_$id\" value=\"$val\" size=\"2\" max=\"3\" onchange=\"validateNumber(this)\"/>";
+
+			if ($question->getType() eq "MultipleChoice"){
+				my $answer_id = $response->getAnswerID();
+				my $answer = TUSK::Quiz::Answer->new()->lookupKey($answer_id);
+				if ($answer && ref($answer) && $answer->getPrimaryKeyID()){
+					my $letter = chr(ord('a') + ($answer->getSortOrder()-1));
+					$response_text = $letter . ". ";
+				}
+			}
+			$response_text .= $response->getResponseText();
+		}
+	
+		my $answer = $question->getCorrectAnswer();
+		my $answer_text = '&nbsp;';
+		if (defined ($answer)){
+			if ($question->getType() eq "MultipleChoice"){
+				my $letter = chr(ord('a') + ($answer->getSortOrder()-1));
+				$answer_text = $letter . ". ";
+			}
+			$answer_text .= $answer->getValue();
+		} 
+		elsif($question->getFeedback()){
+			$answer_text = $question->getFeedback();
+		}
+
+		if ($question->getType() eq "Matching" or $question->getType() eq "Section" or $question->getType() eq "MultipleFillIn"){
+	       		push (@$response_rows, { 
+					response => '&nbsp;',
+					question => '<div style="margin-left:' . 30 * $level . 'px"><div style="float:left;">' . ($item_count++) . '.&nbsp;' . $question->getBody() . '</div>',
+					answer   => $answer_text,
+					id       => 0,
+					points	 => '',
+				});
+			$m->comp('SELF:process_responses', 
+				items 	=> $question->getSubQuestionLinks(), 
+				response_hash	=> $response_hash,
+				link_type	=> "link_question_question", 
+				level		=> ($level+1),
+				is_section    => ($question->getType() eq 'Section') ? 1 : 0,
+				show_answers	=> $show_answers);
+		} else {
+	       		push (@$response_rows, {
+				response => $response_text,
+				question => '<div style="margin-left:' . 30 * $level . 'px">' . ($item_count++) . '.&nbsp;<a name="' . $id . '"/>' . $question->getBody() . '</div>',
+				answer   => $answer_text,
+				id       => $id,
+				points   => $item->getPoints(),
+				graded_points => $graded_points,
+			});
+		}
+	}
+</%perl>
+</%method>
+
+
+<%init>
+	$type_path = $m->comp("/tmpl/url:get_type_path") . '/' . $quiz->getPrimaryKeyID() if defined $quiz;
+
+	if ($args{submit_check}) {
+		$m->comp('/quiz/author/tmpl/responses:update', 
+			input => \%args,
+			db_responses => $responses,
+		);
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/quizresponses/$type_path/$id",'msg' => "Changes successfully saved"));
+	}
+
+	$m->comp('SELF:display_quiz');
+</%init>

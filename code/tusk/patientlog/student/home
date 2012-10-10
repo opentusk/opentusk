@@ -1,0 +1,62 @@
+<%once>
+	use HSDB4::SQLRow::User;
+</%once>
+
+<%attr>
+	check_cms_permissions => 0
+	no_check_path => 1
+</%attr>
+
+<%perl>
+	my $patientlogs = $m->session->{'user'}->get_patient_logs();
+
+	my $prev_title; my %seen_logs;  my $i = 0;
+	foreach my $log (@$patientlogs){
+		if (exists $seen_logs{$log->{course_id}}{$log->{form_id}}) {
+			my $j = $seen_logs{$log->{course_id}}{$log->{form_id}};
+			$patientlogs->[$j]->{time_period} .= "<br/>$log->{time_period}";
+			$patientlogs->[$j]->{site_name} .= "<br/>$log->{site_name}";
+			$log = {};
+			next;
+		}
+
+		if ($log->{form_link}){
+			$log->{actions} = '<a class="navsm" href="/patientlog/student/display/course/' . $log->{school_name} . '/' . $log->{course_id} . '/' . $log->{form_id} . '">Entry Form</a>&nbsp;&nbsp;|&nbsp;&nbsp;';
+		}
+		$log->{actions} .= '<a class="navsm" href="/patientlog/student/report/course/' . $log->{school_name} . '/' . $log->{course_id}  . '/' . $log->{form_id} .  '">Reports</a>';
+
+		my $title = $log->{title};
+		
+		$log->{title} = ($title eq $prev_title) ? '' : "<a href=\"/view/course/$log->{school_name}/$log->{course_id}/patientlogs\">$title</a>";
+		$prev_title = $title;
+		$seen_logs{$log->{course_id}}{$log->{form_id}} = $i++;
+	}
+</%perl>
+
+<& "/tmpl/element:table", params => { width => "100%", border =>"0",cellspacing =>"0",cellpadding =>"0" } &>
+<tr>
+<td class="no-button">
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [
+		{label => 'Course', field => 'title', width => "25%" },
+		{label => 'Form Name', field => 'form_name', width => "25%" },
+		{label => 'Time Period', field => 'time_period', width => "20%" },
+		{label => 'Site', field => 'site_name', width => "20%" },
+		{label => 'Actions', field => 'actions', width => "10%", nowrap => 1, align=>"center" },
+	],
+	rows => $patientlogs,
+	name => "Patient Logs",
+	width => "100%",	
+} &>
+</td>
+</tr>
+</table>
+
+
+<%method red_header_text>
+% 	return "Patient Log Homepage";
+</%method>
+
+<%method title>
+% 	return "Patient Log Homepage";
+</%method>

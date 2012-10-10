@@ -1,0 +1,187 @@
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use TUSK::GradeBook::GradeStats;
+	use TUSK::GradeBook::LinkUserGradeEvent;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+</%shared>
+
+<%method title>
+%return "View All Grades";
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+
+<%perl>
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+my $events;
+
+unless (defined $time_period_id) {
+	my $msg = TUSK::Core::SessionTimePeriod::course_time_periods($m->comp("/tmpl/url:get_type_object"), undef, $m->session);
+    $time_period_id = $m->comp("SELF:get_timeperiod_id");
+}
+
+
+if (ref($type_object) eq "HSDB45::Course"){
+		$events = TUSK::GradeBook::GradeEvent->new->getCourseEvents($type_object->school, $type_object->primary_key, $time_period_id);
+} 
+else{
+		$m->comp("/tmpl/url:redirect", message => "FAILURE");	
+}
+
+my $size = scalar (@$events);
+
+</%perl>
+
+<table>
+<tr><td>
+<& /tmpl/element:cms_button_row,
+    links => [
+        {display_txt => 'Export',
+        link_txt    => '/gradebook/author/exportall/'.$type_path.'/'.$time_period_id}
+	]
+&>
+</td><td>
+<& SELF:print_gradebook_tools &>
+</td></tr>
+</table>
+
+<br/>
+
+<table class="tusk" width="100%" cellspacing="2" >
+<tr class="header"> 
+<td class="header-left" width="45%">
+Name
+</td>
+
+
+<%perl>
+
+for (my $i=0; $i < $size; $i++)
+{
+	my $event_id = @$events[$i]->getGradeEventID(); 
+	my $name = @$events[$i]->getEventName();
+	print "<td class='header-center-small' colspan='1'> <a href='/gradebook/author/addedit/$type_path/$event_id'>$name</a> </td>";
+
+}
+print "</tr>";
+my @students;
+
+
+
+if (ref($type_object) eq "HSDB45::Course"){
+	@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"));
+} else {
+	$m->comp("/tmpl/url:redirect", message => "FAILURE");
+}
+
+
+
+$size = scalar(@students);
+
+my $class; #used to store style class of <tr>
+
+
+#for each student
+for  (my $i=0; $i < $size; $i++)
+{
+
+    
+	my $stdnt = $students[$i]->user_id();
+	my $fname = $students[$i]->first_name();
+	my $lname = $students[$i]->last_name();
+
+      
+	if( $i % 2 ==0)	{	$class="even"; }
+	else { $class="odd"; }	
+     
+	print "<tr class='$class'><td><a href='/gradebook/author/gradeaddeditbystudent/$type_path/$stdnt'> ".$lname.",".$fname."</a></td>";
+
+    #for each grade event
+    for (my $j=0; $j < scalar(@$events); $j++)
+	{
+		my $event_id = @$events[$j]->getGradeEventID(); 
+		my $qString = "parent_user_id = '$stdnt' and child_grade_event_id = $event_id";
+		my $linkugrades = TUSK::GradeBook::LinkUserGradeEvent->lookupReturnOne($qString);
+		if(defined($linkugrades)){
+			my $grade = $linkugrades->getGrade();
+	    	print "<td class='layers-center'> $grade </td>";
+		}else {
+			print "<td  class='layers-center'>  </td>";
+		}
+	}
+   
+    
+	print "</tr>";
+}
+
+my @all_grades;
+my @all_means;
+print "<tr class='odd'><td  class='header-left' width='45%'> Mean </td>";
+
+for(my $i=0; $i < scalar(@$events); $i++)
+{
+
+
+	my ($grades_data, $saved_grades) = @$events[$i]->getGradeRecords($type_object, $m->comp("SELF:get_timeperiod_id"));
+
+	my @nums;
+	my $j=0;
+
+	while(@$grades_data[$j])
+	{
+		my $grade = @$grades_data[$j]->{'grade'};
+	
+		
+		if (defined($grade)) {
+			push(@nums,$grade);
+		}	
+		$j++;
+	}
+
+    
+	my $mean ;
+	if( scalar(@nums) > 0 )
+	{
+		$mean= TUSK::GradeBook::GradeStats->getMean(@nums);
+		
+	}
+	else { $mean ="na" }
+	push(@all_grades,[@nums]);
+	push(@all_means,$mean);
+	printf "<td class='layers-center'>  %4.1f  </td>",$mean;
+  
+}
+
+
+print "</tr>";
+
+print "<tr class='odd'><td  class='header-left' width='45%'> Standard Deviation </td>";
+
+for(my $i=0; $i < scalar(@$events); $i++)
+{
+
+
+	my $stdev;
+	if( defined($all_grades[$i]) && scalar(@{$all_grades[$i]})  > 0  && $all_means[$i] ne "na" ) {
+	
+		$stdev = TUSK::GradeBook::GradeStats->getStandardDeviation($all_means[$i],@{$all_grades[$i]});
+
+	}
+	else { $stdev = "na" ; }
+	
+	printf "<td class='layers-center'>  %4.1f  </td>",$stdev;
+	
+}
+print "</tr>";
+
+</%perl>
+
+
+</table>

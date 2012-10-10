@@ -1,0 +1,100 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+#
+# make_eval_admin
+#
+# HSDB program to take user information from hsdb4.user table and populate
+# the mysql.user table, and also grant permissions for a user to do eval-admin-
+# like stuff in the database.
+#
+# First pass: 1999-11-01, Tarik Alkasab <tarik@alkasab.com>
+# More: 2001-02-02, Tarik Alkasab <tarik.alkasab@neurosci.tufts.edu>
+#
+
+use MySQL::Password;
+use HSDB4::Constants qw(:school);
+use HSDB4::SQLRow::User;
+use HSDB45::UserGroup;
+use Getopt::Long;
+use DBI;
+
+my $school;
+GetOptions( "school=s" => \$school );
+my $db = get_school_db($school) or die "Must specify --school=<school>\n";
+# Make sure we have arguments
+die "Usage: $0 --school=<school> <username> <username> ..." unless @ARGV;
+
+# Get username and password
+my ($un, $pw) = get_user_pw ();
+# Set the username and password for HSDB4 module lookups
+HSDB4::Constants::set_user_pw ($un, $pw);
+# Make a connection for the mysql database
+my $dbh = DBI->connect ('DBI:mysql:mysql', $un, $pw, { RaiseError => 1});
+# Prepare the query to find out if the user is already there
+my $qry = $dbh->prepare ('SELECT Host, User from user WHERE User=?');
+# Get ready to do the insert
+my $sth =
+  $dbh->prepare ('INSERT INTO user (Host, User) VALUES (?, ?)');
+
+# For each argument...
+my @done = ();
+foreach my $username (@ARGV) {
+    # Get the user object
+    my $user = HSDB4::SQLRow::User->new->lookup_key ($username);
+    # And move on if we can't do that
+    warn "Cannot find user $username\n", next unless $user->primary_key;
+    # Check to make sure the password is good
+    my $password = $user->field_value ('password');
+
+    my $admin_group_id = HSDB4::Constants::get_eval_admin_group($school);
+    my $admin_group = HSDB45::UserGroup->new(_school => $school, _id => $admin_group_id);
+    unless ($admin_group->contains_user($username)) {
+	$admin_group->add_child_user($un, $pw, $username);
+    }
+
+    # Now, actually do the execute
+    eval {
+	while (<DATA>) { 
+	    s/%U%/'$username'/; 
+	    s/%D%/$db/; 
+	    $dbh->do ($_); 
+	}
+	$dbh->do("update mysql.user set password='$password' where user='$username'") if ($password);
+    };
+    if ($@) {
+	# Report errors
+	warn "Problem for user $username: $@\n";
+    }
+    else {
+	push @done, $username;
+    }
+	
+}
+
+$qry->finish;
+$sth->finish;
+print "Eval Privileges granted for users: [ @done ]\n";
+# Clean up our handle
+END { $dbh && $dbh->ping() && $dbh->disconnect() }
+
+1;
+
+__END__
+GRANT USAGE on *.* to %U%@'%'
+GRANT USAGE on *.* to %U%@'localhost'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.eval TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.eval_question TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.eval_completion TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.eval_response TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.eval_question_convert TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.link_eval_eval_question TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.link_course_student TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.link_course_teaching_site TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.link_course_user TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.link_user_group_user TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.link_course_user_group TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.time_period TO %U%@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON %D%.merged_eval_results TO %U%@'%'
+FLUSH PRIVILEGES

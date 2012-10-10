@@ -1,0 +1,56 @@
+<%shared>
+my ($result_category_id, $result_id) = $m->comp('/tmpl/url:get_path_ids');
+
+my $result_category = TUSK::Search::SearchResultCategory->lookupKey($result_category_id);
+my $result = TUSK::Search::SearchResult->lookupKey($result_id);
+</%shared>
+
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+
+<%method title>
+% return "Delete Result";
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Search::SearchResultCategory'=>$result_category};
+</%method>
+
+<%perl>
+if (!defined($result->getPrimaryKeyID())){
+        $m->comp("/tmpl/error",msg=>"Result " . $result->getPrimaryKeyID . " not found");
+}
+</%perl>
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'resultdelete',
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"6",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{'label'=>'Label',
+                'value'=>$result->getResultLabel()}
+                &>
+
+<& /tmpl/element:save_button,params=>{name=>'delete_result',
+                                        label=>'Delete Result',
+                                        cancel_onclick=>"go_back('$back_url');"} &>
+</form>
+</table>
+
+<%init>
+use TUSK::Search::SearchResultCategory;
+my $back_url = $m->comp("/tmpl/url:construct_back_url", 
+	base_url => "/management/searchresult/addedit");
+if (defined($ARGS{'delete_result'})){
+	$result->delete();
+        $m->redirect($back_url);
+}
+</%init>
+

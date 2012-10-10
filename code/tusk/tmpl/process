@@ -1,0 +1,349 @@
+<%doc>Library that handles processing form variables and object arrays.</%doc>
+
+<%method process_fields>
+<%args>
+	%fields
+	$filter => '' 
+	$keep_all => 0
+</%args>
+
+<%doc>
+the method returns a data structure based on submitted data from the sort order boxes.
+
+The data structure is as follows:
+$rowHash = { <set_id> => { 
+				'pk' => '<primary_key>',
+				'fields' => { <fields and values> },
+				'elementchanged' => < 1 if row has changed >
+			},
+			<set_id> => { 
+				'pk' => '<primary_key>',
+                'fields'=> { <fields and values> },
+                'elementchanged'=>< 1 if row has changed >
+            },
+	... etc. ...
+};
+</%doc>
+
+<%perl>
+	my ($group,$field_name,$pk,$set_id);
+	my $rowHash = {};
+	foreach my $field (keys %fields){
+		next if ($field !~ /$filter/);
+		($group,$pk,$field_name,$set_id) = split /__/,$field;
+		$rowHash->{$set_id}->{'pk'} = $pk;
+		$rowHash->{$set_id}->{'fields'}->{$field_name} = $fields{$field};
+
+		if ($field_name eq 'elementchanged' && $fields{$field}) {
+			$rowHash->{$set_id}->{'elementchanged'} = 1;
+		}
+	}
+	return $rowHash;
+</%perl>
+</%method>
+
+
+<%method manipulate_rows>
+<%doc>Calls either definition manipulate_rows_link or manipulate_rows_direct based on $ARGS{'row_type'}</%doc>
+<%perl>
+	my $row_type = $ARGS{'row_type'};
+	if (!defined($row_type) || $row_type eq 'Link'){
+		$m->comp('manipulate_rows_link',%ARGS);
+	} elsif ($row_type eq 'MultiDirect'){
+		$m->comp('SELF:manipulate_rows_multi_direct',%ARGS);
+	} elsif ($row_type eq 'Direct'){
+		$m->comp('manipulate_rows_direct',%ARGS);
+	}  else {
+		confess "Invalid row_type passed  : $row_type";
+	}
+</%perl>
+</%method>
+
+<%def manipulate_rows_link>
+<%args>
+	$user
+	$parent_id
+	$object_name
+	$set_parent
+	$set_child
+	$child_pk_field 
+	%fields_data
+	@display_data
+	%default_field_data => ()
+	%field_function_map => () 
+	@addtlRelationFields => ()
+	$no_delete => 0
+</%args>
+
+<%doc>
+	$user - the user id of the person doing the manipulation
+	$parent_id - the id of the parent entity that are to be linked to
+	$object_name - name of the object that represents the link record
+	$set_parent - name of function that sets the parent_id of the link record
+	$set_child - name of function that sets the child_id of the link record
+	$child_pk_field - name of the field that is the single pk for the child table that is used in the display_data array
+	%fields_data - the data structure returned by  process fields
+	@display_data - array that has the state of the links as they are in the database that would populate a layer table 
+	%default_field_data - this hash specifies data that will be added to each set that allows the caller to add default values to a set of values.  
+	%field_function_map - allows mapping of field names to functions that should be called to set them in the link object
+	@addtlRelationFields - additional values required for lookupByRelation for the link object to filter link records that are to be manipulated 
+</%doc>
+
+<%perl>
+	my ($tmpHash,$pk,$link_object);
+	my $userHash = {'user'=> $user};
+	my $pk_hash = {};
+	my $function; 
+	foreach my $set (keys (%fields_data)){
+		$tmpHash = $fields_data{$set};
+		$pk_hash->{$tmpHash->{'pk'}} = 1;
+        next if (!$tmpHash->{'elementchanged'});
+		$link_object = $object_name->new->lookupByRelation($parent_id,$tmpHash->{'pk'},@addtlRelationFields);
+		if (!scalar (@{$link_object})){
+			$link_object = $object_name->new();
+			$link_object->$set_child($tmpHash->{'pk'});
+			$link_object->$set_parent($parent_id);
+		} else {
+			# there should be only one link for a relation
+			$link_object = pop @{$link_object};
+		}
+		$link_object->setSortOrder($tmpHash->{'fields'}->{'sortorder'});
+
+		foreach my $field_name (keys (%field_function_map)){
+			$function = $field_function_map{$field_name} ;
+			if (exists($tmpHash->{'fields'}->{$field_name})){
+				$link_object->$function($tmpHash->{'fields'}->{$field_name});
+			} elsif (exists($default_field_data{$field_name})) {
+				$link_object->$function($default_field_data{$field_name});
+			}
+		}
+                $link_object->save($userHash);
+	}
+
+	# delete any rows that were not submitted
+	if (!$no_delete){
+        for (my $i = 0; $i < @display_data; $i++) {
+			$pk = $display_data[$i]->{$child_pk_field};
+			if ($pk && !$pk_hash->{$pk}){
+				$link_object = $object_name->new->lookupByRelation($parent_id,$pk,@addtlRelationFields);
+				# there should be only one link for a relation
+				foreach my $obj (@{$link_object}){
+					if ($obj && $obj->getPrimaryKeyID()){
+						$obj->delete($userHash);
+					}else{
+						confess("Trying to delete object type " . $object_name . " with primary key " . $pk);
+					}
+				}	
+			}
+        }
+	}
+</%perl>
+</%def>
+
+<%def manipulate_rows_direct>
+<%args>
+	$user
+	$object_name
+	%fields_data
+	$display_data
+	%default_field_data => ()
+	%field_function_map => ()
+	$no_delete => 0
+</%args>
+
+<%doc>
+	$user - the user id of the person doing the manipulation
+	$object_name - name of the object that represents the link record
+	%fields_data - the data structure returned by  process fields
+	$display_data - array that has the state of the links as they are in the database that would populate a layer table.  Please note that the primary key field name must match the field name in the display data array hashes, otherwise deletes will not occur.
+	%default_field_data - this hash specifies data that will be added to each set that allows the caller to add default values to a set of values.  
+	%field_function_map - allows mapping of field names to functions that should be called to set them in the link object
+</%doc>
+
+<%perl>
+	my $tmpHash;
+	my $pk_hash = {};
+	my $function;
+        my $userHash = {'user'=> $user};
+	my $obj;
+
+	foreach my $set (keys (%fields_data)){
+		$tmpHash = $fields_data{$set};
+		$pk_hash->{$tmpHash->{'pk'}} = 1;
+
+		next if (!$tmpHash->{'elementchanged'});
+
+		$obj = $object_name->new->lookupKey($tmpHash->{'pk'});
+		$obj = $object_name->new() unless ($obj);
+
+		foreach my $field_name (keys (%field_function_map)){
+			$function = $field_function_map{$field_name} ;
+			if (exists($tmpHash->{'fields'}->{$field_name})){
+				$obj->$function($tmpHash->{'fields'}->{$field_name});
+			} elsif (exists($default_field_data{$field_name})) {
+				$obj->$function($default_field_data{$field_name});
+			}
+		}
+
+        my $hold = $obj->save($userHash);
+    }
+
+        # delete any rows that were not submitted
+	my $pk;
+	if (!$no_delete && defined($display_data)){
+		if (ref($display_data) eq "ARRAY"){
+			my $pk_field = $object_name->new()->getPrimaryKey();
+			for (my $i = 0; $i < scalar(@$display_data); $i++) {
+				$pk = $display_data->[$i]->{$pk_field};
+				if ($pk && !$pk_hash->{$pk}){
+					$obj = $object_name->new->lookupKey($pk);
+					if ($obj && $obj->getPrimaryKeyID()){
+						 $obj->delete($userHash);
+						$m->print("Deleted $pk");
+					}else{
+						confess("Trying to delete invalid object TYPE: " . $object_name 
+							. " with primary key " . $pk);
+					}
+				 }
+			}
+		} else {
+			confess "/tmpl/process:display_data must be an array reference";
+		}
+	}
+</%perl>
+</%def>
+
+<%method process_sort_orders>
+<%args>
+	$layer
+	$args
+	$class
+	$primary_key_field => ''
+</%args>
+<%doc>Useful method that takes the output from element:sort_order_box (after form submit) and updates the sort order of the associated objects</%doc> 
+<%perl>
+foreach my $field (keys %{$args}){
+	next if ($field !~ /^$layer/);
+	my ($group,$pk,$field_name,$id) = split (/__/, $field);
+	my $primary_key = ($primary_key_field) ? $args->{$group . '__' . $pk . '__' . $primary_key_field . '__' . $id} : $pk;
+	if ($field_name eq 'sortorder'){
+		if ($args->{$field} =~ /^\d+$/){
+			my $object = $class->new()->lookupKey($primary_key);
+			$object->setSortOrder($args->{$field}*10);     
+			$object->save( {'user'=>$m->session->{'user'}->user_id()} );
+		}
+	}
+}
+
+</%perl>
+</%method>
+
+
+<%method manipulate_rows_multi_direct>
+<%args>
+	$user
+	$row_object_name
+	%fields_data
+	$display_data
+	@structs
+ 	@default_structs => ()
+	$no_delete => 0
+</%args>
+
+<%doc>
+	$user - the user id of the person doing the manipulation
+	%fields_data - the data structure returned by  process fields
+	$display_data - array that has the state of the links as they are in the database that would populate a layer table.  Please note that the primary key field name must match the field name in the display data array hashes, otherwise deletes will not occur.
+	@structs - hash of objects with names, functions, primary key and reset values. They are iterated through based on processed fields_data
+	@default_structs - hash of objects with names, functions, primary key and reset values. They are created only once
+</%doc>
+
+<%perl>
+	foreach my $curr_struct (@default_structs) {
+		my $object_name = $curr_struct->{object_name};
+
+		### the object already exists as we got primary key so we skip it
+		next if ($curr_struct->{pk});  
+		my $obj = $object_name->new();
+
+		my $functions = $curr_struct->{functions};
+		while (my ($function, $value) = each %{$functions}) {
+			$obj->$function($value);
+		}
+		$obj->save({user => $user});
+
+		while (my ($field_name, $function) = each %{$curr_struct->{reset}}) {
+			foreach my $key (keys %fields_data) {
+				$fields_data{$key}{fields}{$field_name} = $obj->$function;
+			}
+		}
+	}
+
+	my %pk_hash = ();
+	foreach my $key (keys %fields_data) {
+		my $curr_row_hash = $fields_data{$key};
+		next unless ($curr_row_hash->{elementchanged});
+		$pk_hash{$curr_row_hash->{pk}} = 1;
+		foreach my $curr_struct (@structs) {
+			my $object_name = $curr_struct->{object_name},
+			my $obj;
+			if (my $object_key = $fields_data{$key}{fields}{$curr_struct->{pk}}) {
+               	$obj = $object_name->new()->lookupKey($object_key);
+			} else {
+				$obj = $object_name->new();
+			}
+
+			### set field values for the current object
+			my $functions = $curr_struct->{functions};
+            foreach my $field_name (keys (%{$functions})) {
+				my $function = $functions->{$field_name};
+				if ($curr_row_hash->{default_values}{$field_name}) {
+					$obj->$function($curr_row_hash->{default_values}{$field_name});
+				} elsif (exists($curr_row_hash->{fields}{$field_name})) {
+					$obj->$function($curr_row_hash->{fields}{$field_name});
+				}
+			}
+	
+			$obj->save({user => $user});
+
+			while (my ($field_name, $function) = each %{$curr_struct->{reset}}) {
+				$fields_data{$key}{fields}{$field_name} = $obj->$function;
+			}
+		}
+	}
+
+	# delete any rows that were not submitted
+	unless ($no_delete) {
+		if (ref($display_data) eq "ARRAY"){
+			for (my $i = 0; $i < scalar(@$display_data); $i++) {
+				my $object_name = $structs[0]->{object_name},
+				my $pk = $display_data->[$i]->{$structs[0]->{pk}};
+
+				if ($pk && !$pk_hash{$pk}) {
+					my $obj = $object_name->new()->lookupKey($pk);
+
+					if ($obj && $obj->getPrimaryKeyID()) {
+						$obj->delete({user => $user});
+						for (my $j = 1; $j < scalar @structs; $j++) {
+							$object_name = $structs[$j]->{object_name},
+							$pk = $display_data->[$i]->{$structs[$j]->{pk}};
+							if ($pk) {
+								$obj = $object_name->new()->lookupKey($pk);
+								if ($obj && $obj->getPrimaryKeyID()) {
+									$obj->delete({user => $user});
+								} else {
+									confess("Trying to delete invalid object TYPE: " . $row_object_name . " with primary key " . $pk);
+								}
+							}
+						}
+					} else {
+						confess("Trying to delete invalid object TYPE: " . $row_object_name . " with primary key " . $pk);
+					}
+			 	}
+			}
+		} else {
+			confess "/tmpl/process:display_data must be an array reference";
+		}
+	}
+</%perl>
+</%method>

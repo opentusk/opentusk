@@ -1,0 +1,268 @@
+<%shared>
+my $usergroup_id    = $m->comp("/tmpl/url:get_last_path_id");
+my $school          = $m->comp("/tmpl/url:get_school");
+my $type_object     = $m->comp("/tmpl/url:get_type_object");
+my $is_course_group = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
+my $course;
+my $timeperiod;
+if ( $is_course_group ) {
+       	$course     = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+		$timeperiod = $m->comp("SELF:get_timeperiod_id");
+}
+my $base_url        = "/management/usergroup/addedit";
+</%shared>
+
+<%method jsarray>
+% return ['layers.js','element.js','calendar.js','calendar-en.js','calendar-setup.js'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+<%perl>
+my $title = "Create User Group";
+if ($usergroup_id){
+	$title  = "Modify User Group";
+}
+return $title;
+</%perl>
+</%method>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>undef,
+				name => 'addedit' } &>
+
+<& /tmpl/element:table, params => { 
+				width       => "100%",
+				border      =>"0",
+				cellspacing =>"0",
+				cellpadding =>"0" } &>
+
+% if ($is_course_group) {
+% my %temphash;
+% if ( $form_action eq 'add' ) {
+% 	%temphash = ( 'timeperiod' => $timeperiod );
+% } else {
+% 	%temphash = ( 'timeperiod' => $course->user_group_link()->get_row( $course->primary_key(), $usergroup->primary_key() )->{'time_period_id'} );
+% }
+<& /tmpl/element:field_display, params =>{ 
+				label  => 'Time Period',
+				value  => TUSK::Functions::get_selected_timeperiod_display( $school, \%temphash ) } &>
+% }
+
+<& /tmpl/element:textbox, params =>{ 
+				label  => 'Group Name',
+				name   => 'label',
+				value  => $usergroup->field_value( 'label' ),
+				size   => 60,
+				length => 255 } &>
+
+<& /tmpl/element:textarea, params=>{ 
+				label => 'Description',
+				name  => 'description',
+				cols  => '60',
+				rows  => '4',
+				value => $usergroup->field_value( 'description' ) } &>
+
+% if ($is_course_group) {
+
+<script language="Javascript">
+function addmember(layer, index){
+	data = layers[layer].structure.data[index];
+	remove(layer, index);
+	layers['membersdiv'].adddata(data, 1);
+}
+</script>
+<& /tmpl/element:sort_order_box , params =>{
+        no_add_button => 1,
+        label => 'Available Members',
+        buttons => [ ],
+        layer_info => {
+						context_path => $m->comp("/tmpl/url:get_full_path"),
+						base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+
+						layer => 'rosterdiv',
+						fields => ['userid','name'],
+						name => 'users',
+						sort => {usage => 'No'},
+						sortoninsert => {usage => 'Yes', sorton => 'name'},
+						action => {usage => 'Yes', length=>100, functions => [{func=>'addmember', label=>'Add'}]},
+						display => [
+										{field=>'name', align=>'left', length=>225,},
+										{field=>'userid', label=>'UserID', align=>'left', length=>75,}
+									],
+						validate => {
+										usage => 'No',
+									},
+						data => \@studentarray
+					}
+            } &>
+% } else {
+<%perl>
+my %selected_hash;
+foreach my $selected( split( ",", $usergroup->field_value('homepage_info') ) ) {
+	$selected_hash{$selected} = 1;
+}
+</%perl>
+<& /tmpl/element:dropdown, params=>{ 
+				label    => 'Homepage Info',
+				name     => 'homepage_info',
+				size     => '4',
+				multiple => 'multiple',
+				options  => [ 
+							{ label => "Hot Content",   value => "Hot Content" },
+							{ label => "Announcements", value => "Announcements" },
+							{ label => "Evals",         value => "Evals" },
+							{ label => "Discussion",    value => "Discussion" }
+							],
+				selected => \%selected_hash,
+				 } &>
+
+<& /tmpl/element:textbox, params =>{ 
+				label    => 'Schedule Flag Time',
+				name     => 'schedule_flag_time',
+				value    => $usergroup->field_value( 'schedule_flag_time' ),
+				size     => '12',
+ 				calendar => '1' } &>
+% }
+
+<%perl>
+my ($button_text, $empty_msg);
+if ( !$is_course_group ) {
+	$button_text = $m->scomp('/tmpl/element:button', params=>{'name'=>'add_user_button',
+							 'onclick'=>"openwindow('membersdiv');",
+							 'label'=>'Add Names'} );
+	$empty_msg = 'Click \"Add Names\" to add members.';
+} else {
+	$empty_msg = 'Select users from above.';
+}
+</%perl>
+<& /tmpl/element:sort_order_box , params =>{
+        no_add_button => 1,
+        label => 'Current Members',
+        buttons => [ $button_text ],
+        layer_info => {
+						context_path => $m->comp("/tmpl/url:get_full_path"),
+						base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+
+						layer => 'membersdiv',
+						empty_message => $empty_msg,
+						fields => ['userid','name'],
+						name => 'users',
+						sort => {usage => 'No'},
+						sortoninsert => {usage => 'Yes', sorton => 'name'},
+						action => {usage => 'Yes', length=>100, functions => [{func=>'remove', label=>'Delete'}]},
+						display => [
+										{field=>'name', align=>'left', length=>225,},
+										{field=>'userid', label=>'UserID', align=>'left', length=>75,}
+									],
+						validate => {
+										usage => 'No',
+									},
+						data => \@userarray
+					}
+            } &>
+
+<& /tmpl/element:hidden_form_element, params =>{ 
+				name   => 'action',
+				value  => $form_action } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+				'base_url' => "/management/usergroup/show") . "');",
+				name=>'submit'} &>
+
+</table>
+</form>
+
+<%init>
+$m->comp( "SELF:check_dynamic_permissions" );
+
+my $usergroup;
+my $form_action;
+if ($usergroup_id){
+	$usergroup = HSDB45::UserGroup->new( _school => $school )->lookup_key($usergroup_id);
+	$form_action = "edit";
+} else {
+	$usergroup = HSDB45::UserGroup->new( _school => $school );
+	$form_action = "add";
+}
+
+my @userarray;
+my @studentarray;
+my %seen_hash;
+
+foreach my $user ($usergroup->child_users()) {
+	push (@userarray, {userid => $user->primary_key, name => $user->out_lastfirst_name});
+	$seen_hash{$user->primary_key} = '1';
+}
+
+if ( $is_course_group ) {
+	foreach my $student ( $course->get_students(  ) ) {
+		next if $seen_hash{$student->primary_key};
+		push (@studentarray, {userid => $student->primary_key, name => $student->out_lastfirst_name});
+	}
+}
+
+my ($msg,$msgtype) = (undef,"msg");
+my $rval = 0;
+my $extra = "";
+
+if ( defined($ARGS{'submit'}) ) {
+	$usergroup->set_field_values( label => $ARGS{'label'}, description => $ARGS{'description'});
+
+	if ($ARGS{'action'} eq "add") {
+		if ($is_course_group) {
+			$usergroup->set_field_values(sub_group=>'Yes');
+		}
+	}
+
+	if (!$is_course_group) {
+		if ( $ARGS{'schedule_flag_time'} ne "" ) { 
+			$usergroup->set_field_values( schedule_flag_time => $ARGS{'schedule_flag_time'});
+		}
+		
+		if (ref($ARGS{'homepage_info'})) { $ARGS{'homepage_info'} = join( ",", @{$ARGS{'homepage_info'}} ); }
+		$usergroup->set_field_values( homepage_info => $ARGS{'homepage_info'} );
+	}
+
+	($rval, $msg) = $usergroup->save();
+	if ($ARGS{'action'} eq "add") { $extra = $rval; }
+
+	# add link_course_user_group
+	if ($is_course_group && $ARGS{'action'} eq 'add') {
+		($rval, $msg) = $course->add_child_user_group_link("", "", $usergroup->primary_key, $timeperiod);
+	}
+
+	my $current_users = $usergroup->child_users_hashref();
+	my @users = TUSK::Functions::get_data(\%ARGS, "members");
+	foreach my $user (@users) { 
+		if ( !defined($current_users->{$user->{pk}}) ) {
+			($rval, $msg) = $usergroup->add_child_user("", "", $user->{pk});
+		}
+		
+		$current_users->{$user->{pk}} = 2;
+	}
+
+	foreach my $user_id (keys %$current_users) {
+		if ( $current_users->{$user_id} != 2 ) {
+			($rval, $msg) = $usergroup->delete_child_user("", "", $user_id);
+			$current_users->{$user_id} = undef;
+		}
+	}
+
+	if ($ARGS{'action'} eq "add") {
+		$ARGS{'page'} = "edit";
+		$msg = "User Group Successfully Added";
+	} else {
+		$msg = "User Group Successfully Updated";
+	}
+}
+
+if ( $msg ) {
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>$base_url, 'msg'=>$msg, 'msgtype'=>$msgtype, 'extra'=>$extra));
+}
+</%init>

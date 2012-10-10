@@ -1,0 +1,70 @@
+<%attr>
+	no_check_path => 1
+	no_header => 1
+	page_footer => undef
+</%attr>
+
+<%method title>
+% return "Rich Text Editor";
+</%method>
+
+<%method jsarray>
+% return ['rte/richtext.js'];
+</%method>
+
+<body onUnload="window.opener.focus();">
+
+<script>
+function return_html(){
+	if (window.opener){
+		if (window.opener.location.pathname == '<% $opener %>'){
+			updateRTEs(); 
+
+			window.opener.document.getElementById('<% $field %>').value = document.getElementById('hdnrte_editor').value;
+			// sort order boxes have an onchange that needs to put this value
+			// in the data structure.
+			if(window.opener.document.getElementById('<% $field %>').onchange){
+				window.opener.document.getElementById('<% $field %>').onchange();
+			}
+			window.close();
+		} else {
+			alert('you moved the target page.');
+		}
+	} else {
+		alert('you closed the parent');
+	}
+}
+
+</script>
+
+
+<& /tmpl/element:table, params => { id => 'pExpContent', style=>'padding:5px 5px 0 5px'} &>
+	<tr>
+		<td><img src="/graphics/logosm.gif" alt="TUSK: Tufts University Sciences Knowledgebase" width="255" height="65" /></td>
+		<td class="cell-submit-right"><input class="formbutton" type="button" onclick="window.close();" size="1" value="Cancel" style=""/> <input class="formbutton" type="button" onclick="return_html();" size="1" value="Transfer Text & Close" style=""/></td>
+	</tr>
+	<tr>
+		<td colspan="2">
+
+<script language="JavaScript" type="text/javascript">
+	// for some weird reason this call needs to be in its own separate script tag....
+	initRTE("/scripts/rte/images/", "/scripts/rte/", "/scripts/rte/rte.css");
+</script>
+<script language="JavaScript" type="text/javascript">
+	writeRichText('rte_editor', window.opener.document.getElementById('<% $field %>').value, 700, 300, true, false);
+</script>
+
+		</td>
+	</tr>
+</table>
+
+
+
+</body>
+</html>
+
+<%init>
+
+my $field = $ARGS{field};
+my $opener = $ARGS{opener};
+</%init>

@@ -1,0 +1,101 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use HSDB4::SQLRow::Content;
+use MySQL::Password;
+use File::Basename;
+use Term::ReadLine;
+
+# Username and passsword
+HSDB4::Constants::set_user_pw (get_user_pw);
+
+my $term = new Term::ReadLine 'content_in_files';
+my $OUT = $term->OUT;
+
+my $action = shift;
+unless ($action eq 'in' or $action eq 'out') {
+    die "Usage: $0 in|out file1.xml file2.html ...\n";
+}
+
+my @filelist;
+if (@ARGV) {
+    push @filelist, @ARGV;
+}
+else {
+    $_ = $term->readline ("Enter .xml or .html files to import: ");
+    push @filelist, split /,?\s/;
+}
+
+sub encode {
+    my $data = shift;
+    my @characters = qw{ \< \> \; \, \/ \? \\ \| \= \+ \) \( \* \& \^ \% \$ \# \@ \! \~ \` \: };
+    my $matches = join("|",@characters); 
+    $data =~ s/($matches)/sprintf("&#%03d;", ord($1))/seg;
+    return $data;
+}
+
+my @success=();
+my $doc = HSDB4::SQLRow::Content->new;
+foreach my $filename (@filelist) {
+    my $result = 0;
+    eval {
+	my ($id, $path, $type) = fileparse($filename, '\.(xml|html)');
+	die "$filename does not have .xml or .html extensions"
+	    unless $type eq '.xml' || $type eq '.html';
+	$doc->lookup_key($id);
+	die "Cannot find content record $id" unless $doc->primary_key == $id;
+
+	if ($action eq 'in') {
+	    die "Cannot read $filename" unless -r $filename;
+	    local $/ = undef;
+	    open FH, "$filename" or die "Cannot open $filename for reading";
+	    my $filedata = <FH>;
+	    close FH;
+	    if ($type eq '.xml') {
+		my $newxml = $doc->body->new;
+		$newxml->parse ($filedata);
+		$doc->field_value ('body', $newxml->out_xml);
+	    }
+	    elsif ($type eq '.html') {
+		$filedata = encode($filedata);
+		my $body = $doc->twig_body;
+		my ($status,$note) = $body->replace_html_element($filedata);
+		unless ($status) {
+		    print $note."\n";
+		    exit;
+		}
+     		$doc->field_value ('body', $body->out_xml);
+	    }
+	    if ($doc->changed_fields) {
+		my $note = $term->readline ("Enter version note: ");
+		my ($user, $pw) = (HSDB4::Constants::db_connect())[1,2];
+		$result = $doc->save_version ($note, $user, $pw);
+	    }
+	    else { 
+		print STDERR "$filename: no changes to record.\n";
+		$result = 1;
+	    }
+	}
+	elsif ($action eq 'out') {
+	    open FH, ">$filename" 
+		or die "Could not open $filename for writing.";
+	    if ($type eq '.xml') {
+		$result = print FH $doc->body->out_xml;
+	    }
+	    elsif ($type eq '.html') {
+		my ($html) = $doc->body->tag_values ('html');
+		$result = print FH $html->value;
+	    }
+	    close FH;
+	}
+    };
+    print $OUT $@ if $@;
+    if ($result) { push @success, $filename }
+    else { print $OUT "Failed for $filename" }
+}
+
+print "Succeeded for: ", join (', ', @success), "\n";
+
+1;

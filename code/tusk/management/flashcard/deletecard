@@ -1,0 +1,120 @@
+<%attr>
+	page_header	  => '/tmpl/prepend:manage_header_div_layout'
+	page_footer	  => '/tmpl/footer:footer_div_with_tufts_links'
+	no_check_path	=> 1
+    hintmsg => 'Are you sure you wish to delete this flash card?'
+</%attr>
+
+
+<%once>
+  use HSDB4::SQLRow::User;
+  use HSDB4::SQLRow::PersonalContent;
+  use TUSK::FlashCard;
+  use HSDB4::SQLRow::Content;
+  use HSDB4::Constants;
+  use TUSK::Constants;
+  use Data::Dumper;
+</%once>
+
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>'return',
+				name => 'savecard' } &>
+
+
+<div class="checkedBG">
+
+<br><br>
+<table>
+<tr><td></td> <td >
+
+
+% if ($fcard->getContentID()) {
+
+% my $img_src = "/medium/".$fcard->getContentID;
+% my $img = "<img src=$img_src class='mainImg' id='mainImg' />";
+<%  HSDB4::SQLRow::Content::Slide->get_zoom_menu($img) %>
+
+</td></tr>
+<tr><td>
+</td><td align="left">
+
+% } ### end if ($fcard->getContentID())
+ 
+</td></tr>
+<tr>
+<td><h2>Question:</h2></td> 
+<td>
+<textarea  name="question" cols="60" rows="5" class="textareawhite"><% $fcard->getQuestion() %></textarea>
+</td></tr>
+
+<tr><td><h2>Answer: </h2></td>
+<td>
+<textarea  name="answer" cols="60" rows="5" class="textareawhite"><% $fcard->getAnswer() %></textarea>
+</td></tr>
+<tr><td></td><td>
+
+<input type="submit" name="submit" value="Delete" class="formbutton">
+
+
+<input type="reset" style="" value="Cancel" id="cancel" name="cancel" onclick="go_back('/management/flashcard/flashcard');" class="formbutton"/>
+
+</td></tr>
+
+
+</table>
+
+<br>
+
+</div>
+</form>
+
+<%init>
+
+    my $indx=0;
+	my $fcard;
+	my $fcardID = $m->comp("/tmpl/url:get_last_path_id");
+	my $qStr = "flash_card_id = ".$fcardID;
+    $fcard = TUSK::FlashCard->lookupReturnOne($qStr);
+
+ if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
+	    my $reload_url = "/management/flashcard/flashcard";        
+	    if ($ARGS{'submit'} eq 'Delete' ) {
+			if ($fcard) {
+		    	$fcard->delete();	
+				my $msgtxt = "Flash Card Deleted";						
+				$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msgtxt");
+			}
+			else {
+				my $msgtxt ="You attempted to delete a Flash Card that does not exist, perhaps it has already been deleted.";
+				$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?hintmsg=$msgtxt");
+			}
+		}
+
+	}
+			    
+
+</%init>
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title> 
+%   my $fc = TUSK::FlashCard->new->lookupKey($m->comp("/tmpl/url:get_last_path_id"));
+%   if ($fc) {
+%   	return $TUSK::Constants::SiteAbbr . " Flash Card: " . $fc->outCardTitleNoLink;
+%	} else {
+%   	return $TUSK::Constants::SiteAbbr . "NO CARD";
+%	}
+
+</%method>
+
+<%method jsarray>
+% return ['flashcards.js','element.js','content.js'];
+</%method>

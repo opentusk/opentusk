@@ -1,0 +1,36 @@
+<%perl>
+my $phase = $ARGS{'phase'};
+my $case = $ARGS{'case'};
+my $args = $ARGS{'args'};
+</%perl>
+<div class="text2"><% $phase->getInstructions() %></div>
+<& /tmpl/element:note_text,msg=>'Do you think you have all the information you need for a diagnosis?' &>
+<ul>
+<li>If yes, read the following diagnosis and select the best one(s).</li>
+<li>If not, you can see the patient again for more exams, perform more diagnositic studies,
+or review the patient chart.</li>
+</ul>
+<& sections:phase_option_phase, 
+				optionLabel => 'Diagnosis', 
+				phase       => $phase, 
+				case        => $case, 
+				args        => $args,
+				&>
+
+<%method chartInfo>
+<%args>
+$phase
+$case
+$visit => undef
+</%args>
+% return $m->comp('sections:phaseOptionChartInfo',phase=>$phase,case=>$case,visit=>$visit);
+</%method>
+
+<%method get_button_nav>
+<%args>
+$phase
+$case
+$args
+</%args>
+<& sections:get_button_nav_option_phase, phase=>$phase,case=>$case,submit_onclick=>'is_form_complete()',args=>$args &>
+</%method>

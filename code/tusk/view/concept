@@ -1,0 +1,207 @@
+<%shared>
+	my $concept_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $concept;
+	my $concepts;
+	my $isSearch = 0;
+	my $titleString = 'Concept Error';
+	my $reverseSort = 0;
+</%shared>
+
+<%once>
+	use HSDB4::Constants;
+	use TUSK::Search::UserSearch;
+</%once>
+
+<%args>
+	$searchString => ''
+	$sortBy => ''
+</%args>
+
+<%attr>
+	no_check_path 	=> 1
+	page_footer	=> '/tmpl/footer:footer_with_tufts_links'
+</%attr>
+
+
+<%method red_header_text>
+%	return $titleString;
+</%method>
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+
+<%method title>
+%	return "$TUSK::Constants::SiteAbbr: $titleString";
+</%method>
+
+<%method startup>
+	<%args>
+		$args => {}
+	</%args>
+	<%perl>
+		if($concept_id) {
+			$concepts = TUSK::Core::Keyword->lookup(" concept_id = '$concept_id' ");
+			if (scalar (@{$concepts})){
+				$concept = $concepts->[0];
+				$titleString = "Concept : ".$concept->getKeyword;
+			} else {
+				${$args}{errmsg} = "Concept $concept_id does not exist.";
+			}
+		} elsif(${$args}{searchString}) {
+			$isSearch = 1;
+			$concepts = TUSK::Search::UserSearch->findSimilarUMLSConcepts(${$args}{searchString});
+			$titleString = "Concept Search for ${$args}{searchString}";
+		} else {
+			${$args}{errmsg} = "No Concept ID or query was detected.";
+		}   
+	</%perl>
+</%method>
+
+<table border="0" width="100%" cellpadding="5">
+	<tr>
+		<td style="border-right:1px solid lightgrey;" valign="top" align="left" width="1%">
+			<form action="<% $ENV{SCRIPT_NAME} %>" method="post">
+				<font class="med">Search UMLS Concepts</font>
+				<table border="0"><tr><td><input name="searchString" type="text" size="20"></td><td><input type="submit" value="Search"></td></tr></table>
+			</form>
+
+
+% if($isSearch) {
+		</td>
+		<td>
+%	if(scalar(@{$concepts})) {
+%		my $word = 'Term';
+%		if(scalar(@{$concepts}) > 1) {$word = 'Terms';}
+		<p> Search for <span style="font-weight:bold"><% $searchString %></span> complete. Please select a concept to view. </p>
+		<p style="font-weight: bold; color:red"> <% scalar(@{$concepts}) %> Matching <% $word %>.</p>            
+%	} else {
+		<p style="color:red">No Matching Terms.</p>
+%	}
+	<ul>
+%	foreach my $concept (sort {$a->getKeyword cmp $b->getKeyword } @{$concepts}) {
+                <li><a href="<% $ENV{SCRIPT_NAME} %>/<% $concept->getConceptID() %>"><% $concept->getKeyword %></a>
+%	}
+	</ul>  
+		</td>
+% } elsif($concept) {
+%	my $semanticTypeString = $concept->getSemanticTypeString;
+%	my $defns = $concept->getDefinitions;
+%	my @strings = map { $_->getStringText } @{$concept->getConceptStrings};
+%	my $links = TUSK::Core::LinkContentKeyword->lookup(" keyword_id = ".$concept->getPrimaryKeyID());
+%	my $contentCounter = 0;
+%	my %sortHash;
+%	foreach my $link (@$links){
+%		my $content = $link->getContentObject();
+%		# Flush out bad content as well as inactive content
+%		next unless ($content->primary_key() && $content->is_active());
+%		if($sortBy eq 'author') {
+%			push(@{$sortHash{ $content->out_html_authors() }}, $content);
+%		} elsif($sortBy eq 'school') {
+%			push(@{$sortHash{ $content->school() }}, $content);
+%		} elsif($sortBy eq 'course') {
+%			# Eval this because a content may not be related to a course.
+%			eval {push(@{$sortHash{ $content->course()->title() }}, $content)};
+%			if($@) {push(@{$sortHash{' '}}, $content);}
+%		} else {
+%			$reverseSort = 1;
+%			my $latestDate = HSDB4::DateTime->new();
+%			$latestDate->in_mysql_timestamp($content->field_value("modified"));
+%			push(@{$sortHash{ $latestDate->out_mysql_date() }}, $content);
+%		}
+%		$contentCounter++;
+%	}
+%	if($semanticTypeString) {
+                <font class="med">Concept Types</font>
+                <ul class="sm"><li><% $semanticTypeString %></li></ul> 
+%	}
+%	if(@{$defns}) {
+		<font class="med">Definition</font>
+		<ul class="sm">
+%		foreach my $defn (@{$defns}) {
+			<li>
+			<% $defn->getDefinition %><br>
+			<span class="xsm" style="white-space:nowrap">[ <span style="font-weight: bold">Source:</span> <% $defn->getUmlsDefinitionTypeObject->getDefinitionTypeName() %> ]</span>
+			</li>
+%		}
+		</ul>
+%	}
+
+%	if(@strings) {
+		<font class="med">Synonyms</font>
+		<ul class="sm">
+%			foreach my $string (@strings) {
+				<li><% $string %></li>
+%			}
+		</ul>
+%	}
+		</td>
+		<td width="20px">&nbsp;</td>
+		<td valign="top">
+
+%	if($contentCounter) {
+		<center><font class="med">Related Documents (<font class="sm"><% $contentCounter %></font>)</font></center>
+		<table border="0" width="100%" cellspacing="0" cellpadding="3" align="center">
+                	<tr>
+				<td style="border-bottom: 1px solid black;" width="60px"><font class="xxsm">Type</font></td>
+				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('document'); return(false);">Document</a>&nbsp;(Sorts by modified time)</font></td>
+				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('author'); return(false);">Author</a></font></td>
+				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('school'); return(false);">School</a></font></td>
+				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('course'); return(false);">Course</a></font></td>
+			</tr>
+%		my @keys = sort keys %sortHash;
+%		if($reverseSort) {@keys = reverse @keys;}
+%		foreach my $category (@keys) {
+%			foreach my $subdoc (@{$sortHash{$category}}) {
+			<tr style="cursor: pointer; padding-bottom:10px; margin-bottom:10px;" onMouseOver="this.style.backgroundColor = 'lightgrey';" onMouseOut="this.style.backgroundColor = '';">
+				<td style="border-bottom: 1px solid lightgrey; vertical-align: top;" onClick="document.location='<% $subdoc->out_url %>';">
+					<% $subdoc->out_html_thumbnail %>
+				</td>
+				<td style="border-bottom: 1px solid lightgrey; vertical-align: top;" onClick="document.location='<% $subdoc->out_url %>';">
+					<a href="<% $subdoc->out_url %>"><font class="bold_emphasis_font"><% $subdoc->title %></font></a>
+%				my $mod_time = HSDB4::DateTime->new();
+%				$mod_time->in_mysql_timestamp($subdoc->field_value("modified"));
+%				my $created_time;
+%				if($subdoc->field_value("created")) {
+%					$created_time = HSDB4::DateTime->new();
+%					$created_time->in_mysql_timestamp($subdoc->field_value("created"));
+%					if($created_time->is_null()) {undef $created_time;}
+%				}
+%				unless($created_time) {$created_time = $mod_time;}
+					<div class="xsm">ID: <% $subdoc->primary_key() %> &nbsp;&nbsp;Created: <% $created_time->out_mysql_date() %>&nbsp;&nbsp;Modified: <% $mod_time->out_mysql_date() %></div>
+				</td>
+				<td style="border-bottom: 1px solid lightgrey; vertical-align: top;" onClick="document.location='<% $subdoc->out_url %>';">
+					<font style="font-size: 8pt;"><% $subdoc->out_html_authors(1) %></font>
+				</td>
+				<td style="border-bottom: 1px solid lightgrey; vertical-align: top;" onClick="document.location='<% $subdoc->out_url %>';">
+					<font style="font-size: 8pt;"><% $subdoc->school %></font>
+				</td>
+				<td style="border-bottom: 1px solid lightgrey; vertical-align: top;" onClick="document.location='<% $subdoc->out_url %>';">
+%				my $title;
+%				eval {$title = $subdoc->course()->title;};
+%				if($@) {
+					&nbsp;
+%				} else {
+					<font style="font-size: 8pt;"><% $subdoc->course()->title %></font>
+%				}
+				</td>
+			</tr>
+%			}
+%		}
+                </table>
+		<script>
+			function doSort(sortType) {
+				document.sortForm.sortBy.value = sortType;
+				document.sortForm.submit();
+			}
+		</script>
+		<form name="sortForm" action="<% $ENV{SCRIPT_URI} %>" method="POST">
+			<input type="hidden" name="sortBy" value="">
+		</form>
+%	}
+	</td>
+% }
+
+	</tr>
+</table>

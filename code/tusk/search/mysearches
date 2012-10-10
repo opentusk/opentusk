@@ -1,0 +1,74 @@
+<%once>
+use TUSK::Search::UserSearch;
+use TUSK::Search::SearchTerm;
+use TUSK::Search::SearchQuery;
+use URI::Escape;
+</%once>
+
+<%method title>
+% return "My Searches";
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+% return ['object_tree.js','searchresult.js','element.js'];
+</%method>
+
+<%once>
+my $dropdownName = 'numResults';
+</%once>
+<%init>
+my $user_id = $m->comp('SELF:user');
+my $limit = $ARGS{'limit'} || 20;
+my $userQueries =  TUSK::Search::SearchQuery->new()->getTopLevelUserQueries($user_id,$limit);
+my @queryData = map { { 'search_query_id' => $_->getPrimaryKeyID(),
+			'search_query'=> $_->getSearchQuery(),
+			'result_count'=>$_->countResults(), 
+			'date'=> $_->getCreatedOn() }} 
+		@{$userQueries};
+
+</%init>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+		class=>'no-button',
+                name => 'addedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Number of Results',
+                selected=>$limit,
+                name=>$dropdownName,
+                onchange=>"resultsSelect('$dropdownName');",
+                options=>[20,50,100,1000] } &>
+
+% my $parent_child_struct = [ map  { $_->getResultsTree() } @$userQueries ];
+
+<& /tmpl/tree:tree_box, params=>{column_labels=>[{label=>'Search'},
+                                                {label=>'Results'},
+                                                {label=>'Date'} ],
+                                all_checked=>0,
+				no_checkboxes=>1,
+				same_column_values=>1,
+                                name_prefix => ['b','e','t'],
+                                column_values=>[['search_query','result_count' ,'date']],
+                                checked_func=>'include',
+                        action_columns => [ {label=>'View&nbsp;Results',
+                                                link=>'/tusk/search/form',
+						extra=>"?Search=1" },
+						{'label'=>'Refine&nbsp;Results',
+						link=>'/tusk/search/form',
+						extra=>"?refine=1"}
+                                                        ],
+                        data_values => $parent_child_struct,
+			style => 'border-top: solid 4px white;',
+                        data_name => 'searches' } &>
+
+</table>
+</form>

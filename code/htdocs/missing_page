@@ -1,0 +1,47 @@
+<HTML>
+<HEAD>
+<TITLE>Couldn't Locate Page</TITLE>
+[-
+ use TUSK::ErrorReport;
+ use TUSK::Constants;
+ my $conn = $req_rec->connection();
+ my $user = $conn->user() || "unknown user";
+ my $uriRequest;
+ if ($req_rec and $req_rec->prev()){
+	 $uriRequest = $req_rec->prev()->uri();
+ }else{
+ 	$uriRequest =  "unknown uri";
+ }
+ my $host = $req_rec->server->server_hostname() || "unknown host";
+ our $port = $req_rec->server->port();
+ if (0){ 
+	 ErrorReport::send404Report($req_rec,{'To' => $TUSK::Constants::SupportEmail,
+				'From' => $TUSK::Constants::SupportEmail,
+				'Subject' => "Missing Page ($host): $user - $uriRequest"
+				});
+ }
+ $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+ Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+ Execute ("$embperldir/hsdb4-style.css");
+-]
+</HEAD>
+<BODY>
+[- head_graphics ("Not Found")-]
+<H4 class="error">Couldn't locate [+ $ENV{'REDIRECT_URL'}+]</H4>
+
+<P>"Dang...I could have sworn it was around here somewhere..."</P>
+
+<P>I couldn't find the page you requested.  If you typed it in from
+something else, maybe you made a typo.  If, on the other hand, you
+followed a link, then something might be wrong, and you should
+probably <a href="[+ $TUSK::Constants::ContactURL+]">contact
+us</a> and tell us the location, and from where you followed that
+link. You can call us at [+ $TUSK::Constants::SupportPhone +] for immediate assistance.</P> 
+
+<HR>
+[- Execute ("$embperldir/footer_links.html") -]
+</BODY>
+</HTML>
+
+
+

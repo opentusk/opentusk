@@ -1,0 +1,33 @@
+<%shared>
+	my $form_type = $m->comp('/formbuilder/util:getFormType', token => 'PatientLog');
+	my $parent = '/formbuilder/author/addedit';
+	my ($form_id) = $m->comp("/tmpl/url:get_last_path_id");
+	my $path = 'patientlog';
+	my $form_type_label = $form_type->getLabel();
+</%shared>
+
+<& $parent,
+	args => \%ARGS, 
+	form_type_id => $form_type->getPrimaryKeyID(),
+	form_label => $form_type_label,
+	form_id => $form_id,
+	app_path => $path,
+&>
+
+<%method jsarray>
+% 	return $m->comp("$parent:jsarray");
+</%method>
+
+<%method right_header_images>
+% 	return ($form_id) ? [{'img' => 'Preview', target => 'preview', 'url' => "/$path/preview/" . $m->comp("/tmpl/url:get_type_path") . "/$form_id" } ] : [];
+</%method>
+
+<%method red_header_text>
+%  	return ($form_id) ? "Modify $form_type_label" : "Create New $form_type_label";
+</%method>
+
+<%method title>
+%  	return ($form_id) ? "Modify $form_type_label" : "Create New $form_type_label";
+</%method>
+
+

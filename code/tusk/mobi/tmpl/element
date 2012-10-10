@@ -1,0 +1,106 @@
+<%method page_header>
+<%args>
+$hdr
+$nav_bar
+</%args>
+
+<h2 id="mHdr">
+<& SELF:manage_nav_bar, nav_bar_arrayref => $nav_bar &>
+<span id="pageTitle"><% $hdr %></span>
+</h2>
+
+</%method>
+
+<%method print_topnav>
+<%args>
+$pretxt => undef
+@topnav
+</%args>
+<div id="topNav">
+% print $pretxt if (defined $pretxt);
+%	print join (' | ', map { #$_->{label} } @topnav);
+%		my $str = $_->{label};
+%		if(defined $_->{lnk}){
+%			$str = '<a href="' . $_->{lnk}  . '">' . $str . '</a>';
+%		}
+%		$str;
+%	} @topnav);
+</div>
+</%method>
+
+<%method manage_nav_bar>
+<%args>
+$nav_bar_arrayref
+</%args>
+<%perl>
+
+unless($m->comp('/mobi/tmpl/url:is_home_or_login')){
+	print '<a href="/mobi/home">Home</a> > ';
+}
+
+my $uri = $ENV{SCRIPT_URI};
+
+for my $elmnt (@$nav_bar_arrayref) {
+	print $m->comp("/tmpl/element:nav_element", title => $elmnt->{title}, href => $elmnt->{href}, label => $elmnt->{label} );
+	print ' > ';
+
+}
+ 
+</%perl>
+</%method>
+
+<%method classic_link>
+<p>
+View <% $TUSK::Constants::SiteAbbr %> in<br/>
+<strong>Mobile</strong> | <a href="/bigscreen">Classic</a>
+</p>
+</%method>
+
+
+<%method date>
+<%args>
+$label => 'Date'
+$mysql_date => undef
+</%args>
+
+
+<& "/tmpl/element:flexible_tr", params => { 'label' => $label, tr_name => "date_id" } &>
+<select name="showdate_month">
+<%perl>
+	my (undef, undef, undef, $day_select, $month_select, $year_select) = localtime(time);
+	$month_select++; # cause perl months start at 0
+
+	if ($mysql_date){
+		($year_select, $month_select, $day_select) = split('-', $mysql_date);
+		$year_select = $year_select - 1900;
+	}
+
+	my $selected;
+	for my $month (1..12){
+		$selected = ($month == $month_select) ? "selected" : "";
+		$m->print("<option value=\"$month\" $selected>$month</option>\n");
+	}
+</%perl>
+</select>
+/
+<select name="showdate_day">
+<%perl>
+	for my $day (1..31){
+		$selected = ($day == $day_select) ? "selected" : "";
+		$m->print("<option value=\"$day\" $selected>$day</option>\n");
+	}
+</%perl>
+</select>
+/
+<select name="showdate_year">
+<%perl>
+	for my $year (2005..2010){
+		$selected = ($year == $year_select + 1900) ? "selected" : "";
+		$m->print("<option value=\"$year\" $selected>$year</option>\n");
+	}
+</%perl>
+</select>
+</td>
+</tr>
+</%method>
+

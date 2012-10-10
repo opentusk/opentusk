@@ -1,0 +1,64 @@
+<%args>
+</%args>
+
+<%attr>
+        top_tab_type            => 'none'
+        displayLittleUserNavBar => '1'
+        no_header               => '1'
+        page_header             => undef
+        page_footer             => undef
+        allow_guests            => '0'
+	no_check_path		=> 1
+</%attr>
+
+<%shared>
+        my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
+	my $isMyPasswordValid = 0;
+	my $sorted_grades = $m->session->{'user'}->get_grades();
+</%shared>
+
+<%method startup>
+	<%args>
+		$args => {}
+	</%args>
+	<%perl>
+		$isMyPasswordValid = $m->comp("/tmpl/loginForm:verifyLogin", args=>$args);
+	</%perl>
+</%method>
+
+
+% $m->clear_buffer();
+% $r->content_type('text/html');
+% $r->no_cache(1);
+%	if($isMyPasswordValid) {
+%		if(scalar(@{$sorted_grades})) {
+			<& /tmpl/element:table &>
+
+%			foreach my $sorted_grade (@$sorted_grades){
+			<& /tmpl/element:section_header_row,label=>$sorted_grade->{title} . " (" . $sorted_grade->{school_name} . ")" &>
+			<tr><td>
+			<& /tmpl/element:object_selection_box, params => {
+				columns => [
+					{label => 'Name', field => 'name', width => "50%"},
+					{label => 'Type', field => 'grade_event_type_name', width => "10%"},
+					{label => 'Grade', field => 'grade', width => "25%"},
+					{label => 'Comments', field => 'comments', width => "40%"},
+				],
+				rows => $sorted_grade->{data},
+				name => "Grades",
+				width => "100%",
+			} &>
+			</td></tr>
+%			}
+			</table>
+%		} else {
+		<& '/tmpl/prepend:traffic_light', args => {'errmsg' => 'You have no course grades in the system.'}, 'make_table' => 1 &>
+%		}
+%	} else {
+		<& '/tmpl/prepend:traffic_light', args => {'errmsg' => 'Unable to validate password!<br>Please try again.'}, 'make_table' => 1 &>
+		<& '/tmpl/loginForm:redisplayPrivateLogin' &>
+%	}
+
+
+
+

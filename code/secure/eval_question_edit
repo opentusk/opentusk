@@ -1,0 +1,424 @@
+[! use HSDB4::Constants qw(:school);
+   use HSDB45::Eval;
+   use HSDB45::Survey;
+   use HSDB45::Eval::Authoring;
+   use HSDB4::SQLRow::User;
+   use Apache::Constants qw(NOT_FOUND REDIRECT);
+   use Apache::Cookie;
+   use XML::Twig;
+ !]
+[-
+
+    my @path = split(/\//, $req_rec->path_info());
+    shift @path;
+    $school = shift @path;
+    unless (get_school_db($school)) {
+        $req_rec->status (NOT_FOUND);
+        exit;
+    }
+
+    # Get the authenticated user
+    unless ($username = $req_rec->connection->user) {
+        %cookies = Apache::Cookie->new($req_rec)->parse;
+	if (defined($cookies{'Ticket'})){
+		%ticket = $cookies{'Ticket'}->value;
+		$username = $ticket{'user'};
+	} else {
+	    $req_rec->header_out("Location" => "/login?msg=Please+log_in");
+	    $req_rec->status(REDIRECT);
+	    exit();
+	}
+    }
+
+    # Make sure we have permission
+    $user = HSDB4::SQLRow::User->new()->lookup_key($username);
+    $blank_eval = HSDB45::Eval->new( _school => $school );
+    my $admin_group = $blank_eval->admin_group();
+    unless ($user->primary_key() && $admin_group->contains_user($user)) {
+        $req_rec->header_out (Location => '/forbidden.html');
+        $req_rec->status (REDIRECT);
+        exit;
+    }
+
+    # Get the eval
+    $eval = $blank_eval;
+    unless (@path >= 2) {
+        $req_rec->status (NOT_FOUND);
+        exit;
+    }
+
+    my $eval_uri;
+    my $eval_id = shift @path;
+    if ($eval_id =~ /S/) {
+        $eval_id =~ s/S//g;
+        $eval = HSDB45::Survey->new(_school => $school, _id => $eval_id);
+        $blank_eval = HSDB45::Survey->new(_school => $school);
+	$eval_uri = sprintf("/survey_edit/%s/%d", $school, $eval_id);
+    }
+    else {
+        $eval = HSDB45::Eval->new( _school => $school, _id => $eval_id);
+	$eval_uri = sprintf("/eval_edit/%s/%d", $school, $eval_id);
+    }
+    unless ($eval->primary_key()) {
+        $req_rec->status (NOT_FOUND);
+        exit;
+    }
+    @binnables = $eval->binnable_questions();
+    @targetables = ();
+    my $is_ref;
+    for my $q ($eval->questions()) {
+	$is_ref = $q->body()->is_reference() ;
+	if (!$is_ref 
+		&& $q->body()->question_type() ne 'Title' &&
+            	$q->body()->question_type() ne 'Instruction') {
+	    push @targetables, $q;
+        }
+    }
+
+    if ($fdat{return_to_eval}) {
+        $req_rec->header_out(Location => $eval_uri);
+	$req_rec->status(REDIRECT);
+	exit;
+    }
+
+    # Get the question
+    @question_ids = ();
+    for my $qid (@path) {
+	my $question = $eval->question($qid);
+	next unless ($question && $question->primary_key());
+	push @question_ids, $qid;
+	$editable{$qid} = $question->other_evals_answered() ? 0 : 1;
+    }
+
+    %msgs = ();
+    if ($fdat{save}) {
+	$r = 1;
+	for my $qid (@question_ids) {
+	    next unless $editable{$qid};
+	    my $question = $eval->question($qid);
+	    ($r, $msg) = 
+		HSDB45::Eval::Authoring::edit_question($eval, $question, \%fdat);
+	    if ($msg) {
+		$msgs{$qid} = HSDB45::Eval::Authoring::message_processor($msg);
+	    }
+	}
+
+	if (!scalar(keys (%msgs)))  {
+	    $req_rec->header_out(Location => $eval_uri);
+	    $req_rec->status(REDIRECT);
+	    exit;
+	}
+    }
+
+
+    $escmode = 0;
+    $embperldir=$req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+-]
+
+<html>
+<head>
+<script language="Javascript" src="/scripts/eval.js"></script>
+<title>[+ $TUSK::Constants::SiteAbbr +] Eval Question Authoring</title>
+[-
+    # Import the style sheet
+    Execute ("$embperldir/hsdb4-style.css")
+-]
+</head>
+<body>
+
+[- head_graphics("Eval Question Editing: " . ucfirst($school)) -]
+
+<hr/>
+
+<form>
+<p>Each question you have chosen to edit is listed below, along with the options associated with the question type. <strong>Make any changes you wish to make</strong>, enter your user name and password, and then choose "Save Changes" at the bottom of the form. Your changes to the questions will be saved, and you will be returned to the eval editing page. To return to the eval editing page <em>without</em> saving changes, choose "Return without Saving".</p>
+<p>For information on the options for each question type, choose the "Question Authoring Help" button, which will create a pop-up reference sheet. For a directory of the questions in the current eval (for grouping and reference purposes, for example), choose the "Directory of This Eval" button, which will display a summary of all the questions associate with this eval.</p>
+<input type="button" value="Question Authoring Help" onClick="doHelpWindow()" />
+<img src="/icons/transdot.gif" width="18" height="1" />
+<input type="button" value="Directory of This Eval" 
+onClick="doQuickRefWindow('[+ $school . "/" . $eval->primary_key() +]')" />
+</form>
+
+[$ sub alignment_dropdown $]
+[- ($name) = @_; -]
+<select name="[+ $name +]">
+<option value="horizontal">Horizontal</option>
+<option value="vertical">Vertical</option>
+</select>
+[$ endsub $]
+
+[$ sub style_dropdown $]
+[- ($name) = @_; -]
+<select name="[+ $name +]">
+<option value="radiobox">Radiobox</option>
+<option value="dropdown">Dropdown</option>
+</select>
+[$ endsub $]
+
+[$ sub numsteps_dropdown $]
+[- ($name) = @_; -]
+<select name="[+ $name +]">
+[$ foreach $num (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25) $]
+<option value="[+ $num +]">[+ $num +]</option>
+[$ endforeach $]
+</select>
+[$ endsub $]
+
+[$ sub shownumbers_dropdown $]
+[- ($name) = @_; -]
+<select name="[+ $name +]">
+<option value="0">No</option>
+<option value="1">Yes</option>
+</select>
+[$ endsub $]
+
+[$ sub preceding_qid_dropdown $]
+[-  ($question) = @_; -]
+<select name="q_[+ $question->primary_key() +]_preceding_qid">
+  [- $pqid = $eval->get_preceding_qid($question->primary_key()) -]
+  <option value="0" [+ $pqid ? '' : 'selected="true"' +]>Beginning</option>
+  [$ foreach $q ($eval->questions()) $]
+  [$ if $q->primary_key() != $question->primary_key() $]
+  <option value="[+ $q->primary_key() +]"
+          [+ $pqid == $q->primary_key() ? 'selected="true"' : '' +]>
+	[+ $q->out_text_display() +]
+  </option>
+  [$ endif $]
+  [$ endforeach $]
+</select>
+[$ endsub $]
+
+[$ sub grouping_dropdown $]
+[- ($question) = @_; -]
+<select name="q_[+ $question->primary_key() +]_group_by_ids">
+  <option value="0">None</option>
+  [$ foreach $q (@binnables) $]
+  <option value="[+ $q->primary_key() +]">ID: [+ $q->primary_key() +]</option>
+  [$ endforeach $]
+</select>
+[$ endsub $]
+
+[$ sub uneditable_message $]
+[- ($question) = shift;
+   $qid = $question->primary_key();
+   $type = $question->body()->question_type();
+-]
+<tr bgcolor="#ccccff">
+  <td><span class="title">ID: [+ $qid +]</span></td>
+  <td align="left" colspan="3"><span class="title">Type: [+ $type +]</span></td>
+</tr>
+<tr><td>&nbsp;</td><td colspan="3" align="left"><span class="error">Cannot edit this question, because it is used in evals which have been completed by some users.</span></td></tr>
+[$ endsub $]
+
+[$ sub question_ref_dropdown $]
+[- ($name) = @_; -]
+<select name="[+ $name +]">
+  [$ foreach $q (@targetables) $]
+  <option value="[+ $q->primary_key() +]">ID: [+ $q->primary_key() +];
+Type: [+ $q->body()->question_type() +]</option>
+  [$ endforeach $]
+</select>
+[$ endsub $]
+
+[$ sub question_form $]
+[- ($question) = shift; 
+   $qid = $question->primary_key();
+   $type = $question->body()->question_type();
+   $fdat{"q_$qid\_label"} ||= $question->get_real_label();
+   $fdat{"q_$qid\_label"} =~ s/\"/\&\#34;/g;
+   $fdat{"q_$qid\_sort_order"} ||= $question->aux_info('sort_order');
+   $fdat{"q_$qid\_required"} ||= $question->is_required();
+   $fdat{"q_$qid\_na_available"} ||= $question->body()->na_available();
+   $fdat{"q_$qid\_question_text"} ||= $question->body()->question_text();
+   if ($question->group_by_ids()) {
+      $fdat{"q_$qid\_group_by_ids"} ||= ($question->group_by_ids())[0];
+   }
+   else { $fdat{"q_$qid\_group_by_ids"} ||= 0 }
+-]
+<tr bgcolor="#ccccff">
+  <td><span class="title">ID: [+ $qid +]</span></td>
+  <td align="left" colspan="3"><span class="title">Type: [+ $type . ($question->body()->is_reference() ? ' (Reference)' : '') +]</span></td>
+</tr>
+[$ if $msgs{$qid} $]
+<tr>
+  <td>&nbsp;</td>
+  <td colspan="3"><span class="error">Error saving results:<br />
+    [+ $msgs{$qid} +]</span></td>
+</tr>
+[$ endif $]
+<tr>
+  <td align="right"><b>Label: </b></td>
+  <td align="left"><input type="text" size="16" name="q_[+ $qid +]_label" /></td>
+  <td align="right"><b>Preceding Question: </b></td>
+  <td align="left">[- preceding_qid_dropdown($question) -]</td>
+</tr>
+<tr>
+  <td align="center">&nbsp;</td>
+  <td align="left">
+    <b>Required:</b>
+[$ if ($type eq 'Title' || $type eq 'Instruction') $]
+No
+[$ else $]
+<input type="checkbox" name="q_[+ $qid +]_required" value="1" />
+[$ endif $]
+    <img src="/icons/transdot.gif" width="18" height="1" />
+    <b>N/A Available:</b> 
+[$ if ($type eq 'Title' || $type eq 'Instruction' || $type eq 'MultipleResponse' || $type eq 'FillIn') $]
+No
+[$ else $]
+<input type="checkbox" name="q_[+ $qid +]_na_available" value="1" />
+[$ endif $]
+  </td>
+  <td align="right"><b>Grouping:</b></td>
+  <td align="left">
+[$ if ($type eq 'Title' || $type eq 'Instruction') $]
+    N/A
+[$ else $]
+  [- grouping_dropdown($question) -]
+[$ endif $]
+  </td>
+</tr>
+<tr>
+  <td align="right" valign="top"><b>Text: </b></td>
+  <td colspan="3" align="left">
+    <i style="font-size: 80%;">Allowed tags: 
+    [+ join(', ', map { "\&lt;$_\&gt;" } qw/b strong i emph para br linebreak hr img pagebreak table tr td th ul itemized-list ol enumerated-list li list-item/) +]</i><br />
+    <textarea wrap="soft" name="q_[+ $qid +]_question_text" cols="80" rows="6"></textarea>
+  </td>
+</tr>
+[$ if ($question->body()->is_reference()) $]
+<tr>
+[- $fdat{"q_$qid\_target_question_id"} = $question->body()->target_question_id(); -]
+<td align="right"><b>Target Question ID:</b></td>
+<td colspan="3" align="left">
+  [- question_ref_dropdown("q_$qid\_target_question_id") -]
+</td>
+</tr>
+[$ elsif ($type eq 'NumericRating' || $type eq 'PlusMinusRating') $]
+<tr>
+[- $fdat{"q_$qid\_num_steps"} ||= $question->body()->num_steps();
+   $fdat{"q_$qid\_show_numbers"} ||= $question->body()->show_numbers();
+   $fdat{"q_$qid\_choice_style"} ||= $question->body()->choice_style();
+   # $fdat{"q_$qid\_choice_align"} ||= $question->body()->choice_align();
+   $fdat{"q_$qid\_low_text"} ||= $question->body()->low_text();
+   $fdat{"q_$qid\_mid_text"} ||= $question->body()->mid_text();
+   $fdat{"q_$qid\_mid_text"} =~ s/\"/\&\#34;/g;
+   $fdat{"q_$qid\_low_text"} =~ s/\"/\&\#34;/g;
+   $fdat{"q_$qid\_high_text"} =~ s/\"/\&\#34;/g;
+
+   $fdat{"q_$qid\_high_text"} ||= $question->body()->high_text(); -]
+  <td align="right"><b>Num Steps:</b></td>
+  <td align="left">[- numsteps_dropdown("q_$qid\_num_steps") -]</td>
+  <td align="right"><b>Low Text:</b></td>
+  <td align="left"><input name="q_[+ $qid +]_low_text" type="text" /></td>
+</tr>
+<tr>
+  <td align="right"><b>Style:</b></td>
+  <td align="left">[- style_dropdown("q_$qid\_choice_style") -]</td>
+  <td align="right"><b>Mid Text:</b></td>
+  <td align="left"><input name="q_[+ $qid +]_mid_text" type="text" /></td>
+</tr>
+<tr>
+  <td align="right"><b>Show numbers:</b></td>
+  [# <td align="left">[- alignment_dropdown("q_$qid\_choice_align") -]</td> #]
+  <td align="left">[- shownumbers_dropdown("q_$qid\_show_numbers") -]<input type="hidden" name="q_[+ $qid +]_choice_align" value="horizontal"></td>
+  <td align="right"><b>High Text:</b></td>
+  <td align="left"><input name="q_[+ $qid +]_high_text" type="text" /></td>
+</tr>
+[$ elsif ($type eq 'Count') $]
+[- # $fdat{"q_$qid\_choice_style"} ||= $question->body()->choice_style();
+   # $fdat{"q_$qid\_choice_align"} ||= $question->body()->choice_align();
+   $fdat{"q_$qid\_low_bound"} ||= $question->body()->low_bound();
+   $fdat{"q_$qid\_high_bound"} ||= $question->body()->high_bound();
+   $fdat{"q_$qid\_interval"} ||= $question->body()->interval();
+   $fdat{"q_$qid\_higher_than_bound"} ||= $question->body()->higher_than_bound();
+   $fdat{"q_$qid\_lower_than_bound"} ||= $question->body()->lower_than_bound(); -]
+<tr>
+  <td align="right"><b>Style:</b></td>
+  [# <td align="left">[- style_dropdown("q_$qid\_choice_style") -]</td> #]
+  <td align="left">Dropdown<input type="hidden" name="q_[+ $qid +]_choice_style" value="dropdown"></td>
+  <td align="right"><b>Low Bound:</b></td>
+  <td align="left">
+    <input type="text" name="q_[+ $qid +]_low_bound" size="4" />
+    (And Lower? <input type="checkbox" name="q_[+ $qid +]_lower_than_bound" value="1" />)
+  </td>
+</tr>
+<tr>
+  <td align="right"><b>Align:</b></td>
+  [# <td align="left">[- alignment_dropdown("q_$qid\_choice_align") -]</td> #]
+  <td align="left">Vertical<input type="hidden" name="q_[+ $qid +]_choice_align" value="vertical"></td>
+  <td align="right"><b>Interval:</b></td>
+  <td align="left"><input type="text" name="q_[+ $qid +]_interval" size="4" /></td></tr>
+<tr>
+  <td align="right"></td>
+  <td align="left"></td>
+  <td align="right"><b>High Bound:</b></td>
+  <td align="left">
+    <input type="text" name="q_[+ $qid +]_high_bound" size="4" />
+    (And Higher? <input type="checkbox" name="q_[+ $qid +]_higher_than_bound" value="1" />)
+  </td>
+</tr>
+[$ elsif ($type eq 'MultipleChoice' || $type eq 'MultipleResponse' || $type eq 'DiscreteNumeric') $]
+[- my @choices =  $question->body()->choices();
+   foreach $num (0..$#choices) {
+      $fdat{"q_$qid\_choice_$num"} ||= $choices[$num];
+      $fdat{"q_$qid\_choice_$num"} =~ s/\"/\&\#34;/g;
+   }
+   $fdat{"q_$qid\_num_columns"} ||= $question->body()->num_columns();
+ -]
+<tr>
+  <td align="right"><b>Columns:</b></td>
+  <td align="left" colspan="3">
+    <select name="q_[+ $qid +]_num_columns">
+      <option value="0">Default (4)</option> 
+      [$ foreach $num (1..6) $]
+	<option value="[+ $num +]">[+ $num +]</option> 
+      [$ endforeach $]
+    </select>
+  </td>
+</tr>
+<tr>
+  <td valign="top" align="right"><b>Choices</b></td>
+  <td align="left" colspan="3">
+    <ol type="a">
+    [$ foreach $num (0..19) $]
+      <li><input type="text" size="40" name="q_[+ $qid +]_choice_[+ $num +]" /></li>
+    [$ endforeach $]
+    </ol>
+  </td>
+</tr>
+[$ elsif ($type eq 'FillIn') $]
+[- $fdat{"q_$qid\_longtext"} ||= $question->body->longtext() -]
+<tr>
+  <td align="right"><b>Long text:</b></td>
+  <td align="left" colspan="3">
+    <input type="checkbox" name="q_[+ $qid +]_longtext" value="1" />
+  </td>
+</tr>
+[$ endif $]
+[$ endsub $]
+
+<form method="post">
+<table border="0" cellspacing="0" cellpadding="2" class="wide">
+[$ foreach $qid (@question_ids) $]
+[$ if $editable{$qid} $]
+[- question_form($eval->question($qid)) -]
+[$ else $]
+[- uneditable_message($eval->question($qid)) -]
+[$ endif $]
+[$ endforeach $]
+<tr bgcolor="#ccccff">
+<td align="center"><input type="submit" name="save" value="Save Changes" /></td>
+<td></td>
+<td></td>
+<td align="center"><input type="submit" name="return_to_eval" value="Return without Saving" /></td>
+</tr>
+</table>
+</form>
+
+<hr/>
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/footer_links.html")) -]
+</body>
+</html>
+

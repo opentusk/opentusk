@@ -1,0 +1,1109 @@
+<%attr>
+	top_tab_type            => 'manage'
+	default_path_type	=> 'course'
+	check_cms_permissions	=> 1
+</%attr>
+
+
+
+<%shared>
+	my $propertyNumber = $m->comp('/tmpl/url:get_first_path_id');
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $courseNumber = $course->primary_key();
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $metadataHashRef = $course->getSchoolMetadata();
+	my $ajaxCounter = 0;
+	$propertyNumber ||= ${$metadataHashRef}{metadataOrder}[0];
+
+	if($course->type() =~ /thesis committee/i){
+		if(${$metadataHashRef}{$propertyNumber}{'displayName'} =~ /other/i){
+			${$metadataHashRef}{$propertyNumber}{'displayName'} = 'Guidelines';
+		}
+	}
+</%shared>
+
+<%method get_nav_bars>
+%       return $m->comp('/tmpl/url:get_initial_nav_bars');
+</%method>
+
+<%method title>
+%	return ${$metadataHashRef}{$propertyNumber}{'displayName'};
+</%method>
+
+<%method red_header_text>
+%	return ${$metadataHashRef}{$propertyNumber}{'displayName'};
+</%method>
+
+<%method right_header_text>
+<%perl>
+	return [ {txt => 'Preview', 
+	          url => "/view/course/$type_path/" . ${$metadataHashRef}{$propertyNumber}{'displayName'} }];
+</%perl>
+</%method>
+
+
+<%method jsarray>
+%       return ["drag.js", "rte/richtext.js"];
+</%method>
+
+
+<%method leftnav>
+	<%perl>
+                my %someHash = (
+                    'component'           => '/tmpl/leftnav/course',
+                    'metaDataRef'         => $metadataHashRef,
+                );
+		return \%someHash;
+	</%perl>
+</%method>
+
+<%method startup>
+  <%args>
+    $args => {}
+  </%args>
+
+  <%perl>
+    if(exists(${$args}{'rte_newValue'})) {
+      my @currentObjects = @{$course->getCourseMetadataByType($course->getTuskCourseID(), $propertyNumber, undef, undef)};
+      if(scalar(@currentObjects) == 0) {
+        if(${$args}{'rte_newValue'}) {
+          #Create a new object
+          my $localObject = TUSK::Course::CourseMetadata->new();
+          $localObject->setCourseID( $course->getTuskCourseID() );
+          $localObject->setMetadataType( $propertyNumber );
+          $localObject->setValue( ${$args}{'rte_newValue'} );
+          #These text areas have a parent of NULL so we dont set it.
+
+          $localObject->setUser( $m->session->{'user'}->primary_key() );
+          unless($localObject->save()) {${$args}{errmsg} = 'Failed to create '. ${$metadataHashRef}{$propertyNumber}{'displayName'};}
+          else                         {${$args}{msg} = ${$metadataHashRef}{$propertyNumber}{'displayName'} . ' created';}
+        }
+      } elsif(scalar(@currentObjects) == 1) {
+        #Save it
+        if(${$args}{'rte_newValue'}) {
+          $currentObjects[0]->setValue( ${$args}{'rte_newValue'} );
+          $currentObjects[0]->setUser( $m->session->{'user'}->primary_key() );
+          unless($currentObjects[0]->save()) {${$args}{errmsg} = 'Failed to update '. ${$metadataHashRef}{$propertyNumber}{'displayName'};}
+          else                               {${$args}{msg} = ${$metadataHashRef}{$propertyNumber}{'displayName'} . ' updated';}
+        } else {
+          unless($currentObjects[0]->delete()) {${$args}{errmsg} = 'Failed to remove '. ${$metadataHashRef}{$propertyNumber}{'displayName'};}
+          else                               {${$args}{msg} = ${$metadataHashRef}{$propertyNumber}{'displayName'} . ' removed';}
+        }
+      } else {
+        #Bomb an error!
+        ${$args}{errmsg} = 'There were too many ' . ${$metadataHashRef}{$propertyNumber}{'displayName'} . ' for this course!';
+      }
+    }
+  </%perl>
+</%method>
+
+  <script>
+    var ajaxRequest;
+    var closeFormAfter;
+    var itemGreyingOut = '';
+    var itemToDelete;
+    var lastEditedTextArea;
+    var lastEditedText;
+    var lastFormOn = '';
+    var lastParentType;
+    var lastParentID;
+    var lastRowChanged;
+    var listItemToRemove;
+    var masterTimeOut;
+    var nodeTextType;
+    var propertyType;
+    var idOfThingToDelete;
+    var doingAjaxComand = 0;
+
+    function disableDeleteConfirmButton() {
+      document.getElementById('confirmDeleteButton').onclick = '';
+    }
+
+    function closeCancel() {
+      disableDeleteConfirmButton();
+      idOfThingToDelete = '';
+      turnOffForm('deleteDiv');
+    }
+
+    function confirmDelete(uidOfItemToDelete, deleteFunction) {
+      idOfThingToDelete = uidOfItemToDelete;
+      greyOut('CCCCCC', uidOfItemToDelete);
+      var windowWidth;
+      if(window.innerWidth)              {windowWidth = window.innerWidth;}
+      else if(document.body.offsetWidth) {windowWidth = document.body.offsetWidth;}
+      else                               {windowWidth = 0;}
+      var windowHeight;
+      if(window.innerHeight)              {windowHeight = window.innerHeight;}
+      else if(document.body.offsetHeight) {windowHeight = document.body.offsetHeight;}
+      else                                {windowHeight = 0;}
+      var theWindow = document.getElementById('deleteDiv');
+      theWindow.style.top = (windowHeight/2)-50 + document.body.scrollTop + "px";
+      theWindow.style.left = (windowWidth/2)-100 + document.body.scrollLeft + "px";
+      document.getElementById('confirmDeleteButton').onclick = eval(deleteFunction);
+      theWindow.style.display = '';
+    }
+
+    function hideAjaxElements() {
+      if(doingAjaxComand) {return false;}
+      doingAjaxComand = 1;
+      return true;
+    }
+
+    function showAjaxElements() {
+      doingAjaxComand = 0;
+    }
+
+    function greyOut(color, idToHighlight) {
+      if(idToHighlight && document.getElementById(idToHighlight)) {itemGreyingOut = idToHighlight;} else {itemGreyingOut = '';}
+
+      if(color == 'FFFFFF') {
+        document.getElementById('previewDiv').style.backgroundColor = color;
+        if(itemGreyingOut) {
+          document.getElementById(itemGreyingOut).style.backgroundColor = 'FFFFFF';
+          document.getElementById(itemGreyingOut).style.color = '000000';
+        }
+        masterTimeOut = setTimeout("greyOut('EEEEEE', itemGreyingOut)", 100);
+      } 
+      else if(color == 'EEEEEE') {
+        document.getElementById('previewDiv').style.backgroundColor = color;
+        if(itemGreyingOut) {
+          document.getElementById(itemGreyingOut).style.backgroundColor = 'CCCCFF';
+          document.getElementById(itemGreyingOut).style.color = '111111';
+        }
+        masterTimeOut = setTimeout("greyOut('DDDDDD', itemGreyingOut)", 100);
+      } 
+      else if(color == 'DDDDDD') {
+        document.getElementById('previewDiv').style.backgroundColor = color;
+        if(itemGreyingOut) {
+          document.getElementById(itemGreyingOut).style.backgroundColor = '9999FF';
+          document.getElementById(itemGreyingOut).style.color = '333333';
+        }
+        masterTimeOut = setTimeout("greyOut('CCCCCC', itemGreyingOut)", 100);
+      } 
+      else if(color == 'CCCCCC') {
+        document.getElementById('previewDiv').style.backgroundColor = color;
+        if(itemGreyingOut) {
+          document.getElementById(itemGreyingOut).style.backgroundColor = '6666CC';
+          document.getElementById(itemGreyingOut).style.color = '666666';
+        }
+        masterTimeOut = setTimeout("greyOut('BBBBBB', itemGreyingOut)", 100);
+      } 
+      else if(color == 'BBBBBB') {
+        document.getElementById('previewDiv').style.backgroundColor = color;
+        if(itemGreyingOut) {
+          document.getElementById(itemGreyingOut).style.backgroundColor = '333399';
+          document.getElementById(itemGreyingOut).style.color = '999999';
+        }
+        masterTimeOut = setTimeout("greyOut('AAAAAA', itemGreyingOut)", 100);
+      } 
+      else if(color == 'AAAAAA') {
+        document.getElementById('previewDiv').style.backgroundColor = color;
+        if(itemGreyingOut) {
+          document.getElementById(itemGreyingOut).style.backgroundColor = '003399';
+          document.getElementById(itemGreyingOut).style.color = 'CCCCCC';
+        }
+        masterTimeOut = setTimeout("greyOut('999999', itemGreyingOut)", 100);
+      } 
+      else if(color == '999999') {
+        document.getElementById('previewDiv').style.backgroundColor = color;
+        if(itemGreyingOut) {
+          document.getElementById(itemGreyingOut).style.backgroundColor = '003366';
+          document.getElementById(itemGreyingOut).style.color = 'FFFFFF';
+        }
+      }
+    }
+
+    function turnOnForm(onFormID, idToHighlight, resetForm) {
+      if(itemGreyingOut || lastFormOn) {turnOffForm(lastFormOn);}
+      for(var index=0; index<document.forms.length; index++) {
+        if(resetForm) {
+          document.forms[index].reset();
+        }
+        for(var index2=0; index2<document.forms[index].length; index2++) {
+          document.forms[index][index2].style.backgroundColor = '';
+          if(document.forms[index][index2].type.search(/select/) != -1) {
+            if(resetForm) {
+              if(document.forms[index][index2][  document.forms[index][index2].length - 1  ].value != 'SELECT') {
+                document.forms[index][index2][  document.forms[index][index2].length  ] = new Option ('Select', 'SELECT', 1, 1);
+              }
+            } else {
+              if(document.forms[index][index2][  document.forms[index][index2].length - 1  ].value == 'SELECT') {
+                document.forms[index][index2].length--;
+              }
+            }
+          }
+        }
+      }
+      if(document.getElementById(onFormID)) {
+        document.getElementById(onFormID).style.display = '';
+        lastFormOn = onFormID;
+      }
+      greyOut('CCCCCC', idToHighlight);
+    }
+
+    function turnOffForm(offFormID) {
+      if(itemGreyingOut && document.getElementById(itemGreyingOut) && document.getElementById(itemGreyingOut).style) {
+        document.getElementById(itemGreyingOut).style.backgroundColor = '';
+        document.getElementById(itemGreyingOut).style.color = '';
+        itemGreyingOut = '';
+      }
+      document.getElementById('previewDiv').style.backgroundColor = ''; 
+      if(document.getElementById(offFormID)) {document.getElementById(offFormID).style.display = 'none'; lastFormOn = '';}
+    }
+
+    function getNumberOfFailures(response) {
+      var itemsFailed = response.getElementsByTagName('itemsFailed');
+      if(itemsFailed.length != 1) {return(-1);}
+      if(itemsFailed[0][nodeTextType]) {return itemsFailed[0][nodeTextType];}
+      else if(itemsFailed[0].firstChild && itemsFailed[0].firstChild.nodeValue) {return itemsFailed[0].firstChild.nodeValue;}
+    }
+  </script>
+
+  <div id="deleteDiv" style="position:absolute; background-color:white; top:0; left:0; display:none;">
+    <form>
+      <table border="0" style="border:1px solid;">
+        <tr id="deleteDivHandle" class="header"><td class="border-header" colspan="2">Confirm&nbsp;Delete</td></tr>
+	<tr>
+          <td align="center" width="50%"><input type="button" id="confirmDeleteButton" value="Delete Item" class="formButton"></td>
+          <td align="center" width="50%"><input type="button" value="Cancel Delete" class="formButton" onClick="closeCancel();"></td>
+        </tr>
+      </table>
+    </form>
+  </div>
+
+  <script>registerDragItem('deleteDiv', 'top', 'left', '');</script>
+
+% if(${$metadataHashRef}{$propertyNumber}{'editType'} eq 'list') {
+  <& SELF:editTopLevelList &>
+% } elsif(${$metadataHashRef}{$propertyNumber}{'editType'} eq 'textarea') {
+  <& SELF:editTopLevelTextarea &>
+% } elsif(${$metadataHashRef}{$propertyNumber}{'editType'} eq 'radio') {
+  <& SELF:editTopLevelRadio &>
+% } elsif(${$metadataHashRef}{$propertyNumber}{'editType'} eq 'text') {
+  <& SELF:editTopLevelText &>
+% } elsif(${$metadataHashRef}{$propertyNumber}{'editType'} eq 'table') {
+    <table width="100%" id="previewDiv" cellpadding="0" cellspacing="0" style="border:2px solid black;">
+      <tr class="header"><td class="header-center">Preview</td></tr>
+      <tr><td>
+  <& SELF:editTopLevelTable &>
+      </td></tr>
+    </table>
+% } else {
+    An error has occurred.<br>
+    You are trying to edit a <% ${$metadataHashRef}{$propertyNumber}{'editType'} %> which is not allowed.<br>
+% }
+
+
+<%method editTopLevelText>
+  This is a text.
+</%method>
+
+
+<%method editTopLevelRadio>
+  This is a radio.
+</%method>
+
+
+<%method editTopLevelList>
+  <script>
+    function editText(textNumber, thePropertyType, theParentType) {
+      lastEditedText = textNumber;
+      propertyType = thePropertyType;
+      lastParentType = theParentType;
+      document.textForm.textValue.value = document.getElementById('textDiv'+textNumber).innerHTML;
+      turnOnForm('textTableForm', 'textDiv'+textNumber, false);
+    }
+
+    function saveText() {
+      if(!doingAjaxComand && hideAjaxElements()) {
+        if (window.XMLHttpRequest) {
+            ajaxRequest = new XMLHttpRequest();
+            nodeTextType = 'textContent';
+        } else if (window.ActiveXObject) {
+            ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+            nodeTextType = 'text';
+        }
+
+        var url = "/management/ajax/modifyProperty?parentCourseID=<% $course->getTuskCourseID() %>&propertyType="+ propertyType +
+                  "&"+ propertyType + "=" + escape(document.textForm.textValue.value);
+        if(lastEditedText != 'New') {url += "&nodeToModify="+ lastEditedText;}
+// document.open();
+// document.writeln(url);
+// document.close();
+        ajaxRequest.open("GET", url, true);
+        ajaxRequest.onreadystatechange = ajaxTextModify;
+        ajaxRequest.send(null);
+      }
+    }
+
+    function ajaxTextModify() {
+      if(ajaxRequest.readyState == 4) {
+        var response = undefined;
+	response = ajaxRequest.responseXML;
+        if(!response) {alert('I was unable to modify this item!');}
+        else {
+          var numFailures = getNumberOfFailures(response)
+          if(numFailures == -1) {alert('There was a problem saving this item!');}
+          else if(numFailures > 0) {alert('Failed to modify this item!');}
+          else {
+            turnOffForm('textTableForm');
+            document.getElementById('textDiv'+lastEditedText).innerHTML = document.textForm.textValue.value;
+          }
+        }
+        showAjaxElements();
+      }
+    }
+
+    var textAreaIDFromAjax = '';
+    function editTextArea(textAreaNumber, thePropertyType, theParentType, theParentID) {
+      lastEditedTextArea = textAreaNumber;
+      propertyType = thePropertyType;
+      lastParentType = theParentType;
+      lastParentID = theParentID;
+      document.getElementById('previewPane').innerHTML = document.getElementById('textAreaDiv'+textAreaNumber).innerHTML;
+      document.textAreaForm.newValue.value = document.getElementById('textAreaDiv'+textAreaNumber).innerHTML;
+      turnOnForm('textAreaTableForm', 'textAreaDiv'+textAreaNumber, false);
+    }
+
+    function saveTextArea() {
+      if(!doingAjaxComand && hideAjaxElements()) {
+        if (window.XMLHttpRequest) {
+            ajaxRequest = new XMLHttpRequest();
+            nodeTextType = 'textContent';
+        } else if (window.ActiveXObject) {
+            ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+            nodeTextType = 'text';
+        }
+
+        var url = "/management/ajax/modifyProperty?parentCourseID=<% $course->getTuskCourseID() %>&propertyType="+ propertyType +
+                  "&"+ propertyType + "=" + escape(document.textAreaForm.newValue.value);
+        if(lastEditedTextArea != 'New') {
+          url += "&nodeToModify="+ lastEditedTextArea;
+        } else {
+          if(textAreaIDFromAjax != '') {url += "&nodeToModify="+ textAreaIDFromAjax;}
+          document.getElementById('textAreaLink').innerHTML='Modify';
+        }
+// document.open();
+// document.writeln(url);
+// document.close();
+        ajaxRequest.open("GET", url, true);
+        ajaxRequest.onreadystatechange = ajaxTextAreaModify;
+        ajaxRequest.send(null);
+      }
+    }
+
+    function ajaxTextAreaModify() {
+      if(ajaxRequest.readyState == 4) {
+        var response = undefined;
+        response = ajaxRequest.responseXML;
+        if(!response) {alert('I was unable to modify this item!');}
+        else {
+          var numFailures = getNumberOfFailures(response)
+          if(numFailures == -1) {alert('There was a problem saving this item!');}
+          else if(numFailures > 0) {alert('Failed to modify this item!');}
+          else {
+            turnOffForm('textAreaTableForm');
+            if(document.getElementById('textAreaDiv'+lastEditedTextArea))
+              {document.getElementById('textAreaDiv'+lastEditedTextArea).innerHTML = document.textAreaForm.newValue.value;}
+            if((lastEditedTextArea == 'New') && (textAreaIDFromAjax == '')) {
+              newItemNumbers = response.getElementsByTagName('newItemNumber');
+              if((newItemNumbers.length != 1) || (newItemNumbers[0][nodeTextType] == '')) {alert('Failed to get the new item number!');}
+              else                                                                        {textAreaIDFromAjax = newItemNumbers[0][nodeTextType];}
+            }
+          }
+        }
+        showAjaxElements();
+      }
+    }
+
+    function addAnotherListItem(itemTypeName) {
+      document.getElementById('addNewTextArea').innerHTML = itemTypeName;
+      turnOnForm('theAddNewListItemTableForm', '', true);
+    }
+
+    function addNewItem(closeWindow, propertyType) {
+      if(!doingAjaxComand && hideAjaxElements()) {
+        closeFormAfter = closeWindow;
+        if (window.XMLHttpRequest) {
+            ajaxRequest = new XMLHttpRequest();
+            nodeTextType = 'textContent';
+        } else if (window.ActiveXObject) {
+            ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+            nodeTextType = 'text';
+        }
+        var warning = 0;
+        var url = "/management/ajax/modifyProperty?parentCourseID=<% $course->getTuskCourseID() %>&propertyType="+ propertyType;
+
+        for(var index=0; index<document.theAddNewListItemForm.length; index++) {
+          if(document.theAddNewListItemForm[index].type != 'button') {
+            url+="&" + escape(document.theAddNewListItemForm[index].name)+'='+escape(document.theAddNewListItemForm[index].value);
+            if(document.theAddNewListItemForm[index].type.search(/select/i) != -1) {
+              if(document.theAddNewListItemForm[index][document.theAddNewListItemForm[index].selectedIndex].value == 'SELECT') {
+                warning++;
+                document.theAddNewListItemForm[index].style.backgroundColor = 'yellow';
+              } else {
+                document.theAddNewListItemForm[index].style.backgroundColor = '';
+              }
+            }
+          }
+        }
+        if(warning > 0) {alert('Please fix the errors on your page before proceding'); showAjaxElements();}
+        else {
+//document.open();
+//document.writeln(url);
+//document.close();
+          ajaxRequest.open("GET", url, true);
+          ajaxRequest.onreadystatechange = ajaxAddListItem;
+          ajaxRequest.send(null);
+        }
+      }
+    }
+
+    function ajaxAddListItem() {
+      if(ajaxRequest.readyState == 4) {
+        var response = undefined;
+	response = ajaxRequest.responseXML;
+        if(!response) {alert('I was unable to add this item!');}
+        else {
+          var numFailures = getNumberOfFailures(response)
+          if(numFailures == -1) {alert('There was a problem saving this item!');}
+          else if(numFailures > 0) {alert('There was one or more failures causing the save to fail!');}
+          else {
+            var newItemNumbers = response.getElementsByTagName('newItemNumber');
+            if((newItemNumbers.length < 1) || (newItemNumbers[0][nodeTextType] == '')) {alert('Failed to get the new item number!');}
+            else {
+              var newItemNumber = newItemNumbers[0][nodeTextType];
+              var tempItem = document.createElement('LI');
+              tempItem.id = newItemNumber;
+              if(tempItem.setAttribute) {tempItem.setAttribute('id', newItemNumber);}
+              for(var index=0; index<document.theAddNewListItemForm.length; index++) {
+                if(
+                    (document.theAddNewListItemForm[index].type != 'hidden') &&
+                    (document.theAddNewListItemForm[index].type != 'button') &&
+                    (document.theAddNewListItemForm[index].type != 'submit')
+                  )
+                  {
+                  tempItem.innerHTML = '<div id="textDiv'+ newItemNumber + '">'+ document.theAddNewListItemForm[index].value +'</div>';
+                  tempItem.innerHTML+= "<a href=\"\" onClick=\"editText('"+ newItemNumber +"' ,'" + document.theAddNewListItemForm[index].name +
+                                       "', '<% $propertyNumber %>'); return false;\" class=\"navsm\">Modify</a>" +
+                                       "&nbsp;<span class=\"littlespacing\">|</span>&nbsp;" +
+                                       "<a href=\"\" onClick=\"confirmDelete('"+ newItemNumber +"', 'deleteListItem'); return false;\" class=\"navsm\">Delete</a>&nbsp;";
+                }
+              }
+
+              var list = document.getElementById('theMainList');
+              //Delete the NoneLI if its there.
+              if(document.getElementById('NoneLI')) {document.getElementById('NoneLI').style.display = 'none';}
+
+              list.appendChild(tempItem);
+              if(closeFormAfter == 1) {turnOffForm('theAddNewListItemTableForm');}
+            }
+          }
+        }
+        showAjaxElements();
+      }
+    }
+
+
+    function deleteListItem() {
+      disableDeleteConfirmButton();
+      if(!doingAjaxComand && hideAjaxElements()) {
+        listItemToRemove = idOfThingToDelete;
+        if (window.XMLHttpRequest) {
+            ajaxRequest = new XMLHttpRequest();
+            nodeTextType = 'textContent';
+        } else if (window.ActiveXObject) {
+            ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+            nodeTextType = 'text';
+        }
+        ajaxRequest.open("GET", '/management/ajax/deleteProperty?idToDelete='+idOfThingToDelete+'&parentCourseID=<% $course->getTuskCourseID() %>', true);
+        ajaxRequest.onreadystatechange = ajaxDeleteListItem;
+        ajaxRequest.send(null);
+      }
+    }
+
+    function ajaxDeleteListItem() {
+      if(ajaxRequest.readyState == 4) {
+        var response = undefined;
+	response = ajaxRequest.responseXML;
+        if(!response) {alert('I was unable to delete this item!');}
+        else {
+          var itemsFailed = response.getElementsByTagName('itemsFailed');
+          if(itemsFailed.length != 1) {alert('There was an error when deleting the object!');}
+          else {
+            var numFailed = itemsFailed[0][nodeTextType];
+
+            if(numFailed > 0) {alert('Failed to delete this item!');}
+            else {
+              //No delete the row in the table for itemToDelete
+              var list = document.getElementById('theMainList');
+              for(var index=0; index<list.childNodes.length; index++) {
+                if(list.childNodes[index] && (list.childNodes[index].id == listItemToRemove)) {list.removeChild(list.childNodes[index]);}
+              }
+            }
+          }
+        }
+        showAjaxElements();
+        closeCancel();
+      }
+    }
+  </script>
+
+% my $needAnInputForm = 0;
+% my $newListItemType = 0;
+  <table width="100%" id="previewDiv" cellpadding="0" cellspacing="0" style="border:2px solid black;">
+    <tr class="header"><td class="header-center">Preview</td></tr>
+    <tr><td>
+      <ul id="theMainList">
+%    my @bullets = @{ ${$metadataHashRef}{$propertyNumber}{'children'}{metadataOrder} };
+%    my $printCategories = 0;
+%    my $needButtonToAddListItems = 1;
+%  if( ($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) && !${$metadataHashRef}{$propertyNumber}{'locked'}) {
+      <input type="button" name="newItem" class="boldformbutton" value="Add Another Item To The List" onClick="alert('No supported yet!');">
+%  }
+%    if($#bullets > 0) {$needButtonToAddListItems = 0; $printCategories = 1;}
+
+%    foreach my $bulletOrder (@{ ${$metadataHashRef}{$propertyNumber}{'children'}{'metadataOrder'} }) {
+%      if($needButtonToAddListItems) {
+%        $needButtonToAddListItems = 0;
+%        if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+%          $needAnInputForm = ${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'editType'};
+%          $newListItemType = $bulletOrder;
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+	          {display_txt => 'Add Another ' . ${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'},
+               link_txt    => "javascript:addAnotherListItem('" . ${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'} . "');"}
+	         ]
+&>
+%        
+%        }
+%      }
+%      if(${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'editType'} eq 'textarea') {
+        <li>
+%        if($printCategories) {print "<b>${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'}</b><br>";}
+%        my @metadataItems = @{ $course->getCourseMetadataByType($course->getTuskCourseID(), $bulletOrder, undef, undef) };
+%        my $divDisplayValue = '';
+%        my $divID = '';
+%        my $myParent = '';
+%        foreach my $aMetadataItem (@metadataItems) {
+%          $divDisplayValue.= $aMetadataItem->getFieldValue('value');
+%          unless($divID) {$divID = $aMetadataItem->getPrimaryKeyID();}
+%          $myParent = $aMetadataItem->getParent();
+%        }
+%        if(scalar(@metadataItems) < 1) {$divDisplayValue = 'None'; $divID = 'New';}
+         <div id="textAreaDiv<% $divID %>"><% $divDisplayValue %></div>
+%        if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+           <a href="" id="textAreaLink" onClick="editTextArea('<% $divID %>', '<% $bulletOrder %>', '<% $propertyNumber %>', '<% $myParent %>'); return false;" class="navsm">
+%          if(scalar(@metadataItems) < 1) {
+             Add
+%          } else {
+             Modify
+%          }
+           </a><br>
+%        }
+        </li>
+%      } elsif(${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'editType'} eq 'text') {
+%        my @metadataItems = @{ $course->getCourseMetadataByType($course->getTuskCourseID(), $bulletOrder, undef, undef) };
+%        foreach my $aMetadataItem (@metadataItems) {
+        <li id="<% $aMetadataItem->getPrimaryKeyID() %>">
+%        if($printCategories) {print "<b>${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'}</b><br>";}
+<div id="textDiv<% $aMetadataItem->getPrimaryKeyID() %>"><% $aMetadataItem->getFieldValue('value') %></div>
+%          if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+         <a href="" onClick="editText('<% $aMetadataItem->getPrimaryKeyID() %>', '<% $bulletOrder %>', '<% $propertyNumber %>'); return false;" class="navsm">Modify</a>&nbsp;<span class="littlespacing">|</span>&nbsp;<a href="" onClick="confirmDelete('<% $aMetadataItem->getPrimaryKeyID() %>', 'deleteListItem'); return false;" class="navsm">Delete</a>&nbsp;
+%          }
+        </li>
+%        }
+%        if(scalar(@metadataItems) < 1) {
+        <li id="NoneLI">None</li>
+%        }
+%      } elsif(${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'editType'} ne 'table') {
+        <li>
+%        if($printCategories) {print "<b>${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'}</b><br>";}
+%        my @metadataItems = @{ $course->getCourseMetadataByType($course->getTuskCourseID(), $bulletOrder, undef, undef) };
+%        foreach my $aMetadataItem (@metadataItems) {
+         <% $aMetadataItem->getFieldValue('value') %>
+%        }
+%        if(scalar(@metadataItems) < 1) {
+          None
+%        }
+        </li>
+%      } else {
+        <li>
+%        if($printCategories) {print "<b>${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'}</b><br>";}
+         <& SELF:editTopLevelTable, tableTag => ${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder} &>
+        </li>
+%      }
+%    }
+      </ul>
+    </td></tr>
+  </table>
+
+%  if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+  <form method="post" name="textAreaForm">
+    <table id="textAreaTableForm" width="800px" cellspacing="0" cellpadding="0" style="top:140px; left:120px; border:2px solid black; background-color:white; position:absolute; display:none;">
+      <tr>
+        <td class="no-button">
+          <table width="100%" cellspacing="0" cellpadding="0" class="tusk">
+            <tr class="header" id="textAreaTableFormHandle">
+              <td class="border-header">Edit</td>
+              <td class="border-header">Preview</td>
+            </tr>
+            <tr class="even">
+              <td valign="top" width="50%" class="border-center">
+                <textarea class="textareawhite" name="newValue" id="newValue" rows="10" onKeyUp="document.getElementById('previewPane').innerHTML=this.value;" cols="40"></textarea>
+                <br><br>
+              </td>
+              <td valign="top" class="border-left">
+                <div id="previewPane" style="overflow:auto; height:225px; width:375px;"></div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <input type="button" name="action" value="Save" onClick="saveTextArea();" class="formbutton">
+          <input type="button" name="" class="formbutton" value="Cancel" onClick="turnOffForm('textAreaTableForm');"><br><br>
+        </td>
+      </tr>
+    </table>
+  </form>
+  <script>registerDragItem('textAreaTableForm', 'top', 'left', '');</script>
+
+  <form method="post" name="textForm">
+    <table id="textTableForm" cellspacing="0" cellpadding="0" style="top:140px; left:120px; border:2px solid black; background-color:white; position:absolute; display:none;">
+      <tr class="header">
+        <td class="border-header" colspan="2" id="textTableFormHandle">Edit Value</td>
+      </tr>
+      <tr>
+        <td>Modify Value:</td>
+        <td><input type="text" name="textValue" value="">
+      </tr>
+      <tr>
+        <td>
+          <input type="button" name="action" value="Save" onClick="saveText();" class="formbutton">
+          <input type="button" name="" class="formbutton" value="Cancel" onClick="turnOffForm('textTableForm');"><br><br>
+        </td>
+      </tr>
+    </table>
+  </form>
+  <script>registerDragItem('textTableForm', 'top', 'left', '');</script>
+
+%    if($needAnInputForm) {
+  <form method="post" name="theAddNewListItemForm">
+    <table id="theAddNewListItemTableForm" style="top:140px; left:120px; border:2px solid black; background-color:white; position:absolute; display:none;">
+      <tr class="header" style="cursor:move;">
+        <td class="border-header" colspan="2" id="theAddNewListItemTableFormHandle">Add New <span id="addNewTextArea"></span></td>
+      </tr>
+      <tr>
+        <td>Enter new value:</td>
+%      if($needAnInputForm eq 'text') {
+        <td><input type="text" name="<% $newListItemType %>" value="">
+%      }
+      </tr>
+      <tr>
+        <td colspan="2">
+          <input type="button" name="addNew" value="Add" onClick="addNewItem(1, '<% $propertyNumber %>');" class="formbutton">
+          <input type="button" name="" class="formbutton" value="Cancel" onClick="turnOffForm('theAddNewListItemTableForm');">
+          <input type="button" name="addNewAndAnother" value="Add + Add Another" onClick="addNewItem(0, '<% $propertyNumber %>');" class="formbutton">
+        </td>
+      </tr>
+    </table>
+    <script>registerDragItem('theAddNewListItemTableForm', 'top', 'left', '');</script>
+%    }
+%  }
+</%method>
+
+
+<%method editTopLevelTextarea>
+%    my $value = '';
+%    foreach (@{$course->getCourseMetadataByType($course->getTuskCourseID(), $propertyNumber, undef, undef)}) {
+%      $value .= $_->getFieldValue('value');
+%    }
+
+  <form method="post" class="no-padding">
+  <table cellspacing="0" width="100%" cellpadding="0">
+    <tr>
+      <td class="no-button">
+        <table width="100%" cellspacing="0" cellpadding="0" class="tusk">
+          <tr class="header">
+%   if ($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+            <td class="border-header">Edit</td>
+          </tr>
+          <tr class="even">
+            <td valign="top" align="center">
+              <& /tmpl/element:input_textarea, params=>{'name'=>"newValue", 'htmleditor'=>"1", 'value'=>$value, 'rows'=>"10", 'cols'=>"40"} &>
+              <br><br>
+              <input type="submit" name="action" value="Save" class="formbutton">
+            </td>
+%   } else {
+            <td class="border-header">Preview</td>
+          </tr>
+          <tr class="even">
+            <td valign="top" class="border-left">
+              <div id="previewPane"><% $value %></div><br><br><br>
+            </td>
+%   }
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+  </form>
+
+</%method>
+
+
+
+
+
+
+<%method editTopLevelTable>
+  <%args>
+    $tableTag => \%{ ${$metadataHashRef}{$propertyNumber} };
+    $tableName => 'contentTable'
+  </%args>
+<%doc>
+%  use Data::Dumper;
+   <pre>
+%    print Dumper($tableTag);
+   </pre>
+</%doc>
+
+%  if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+     <& SELF:printTableJS, tableName=>$tableName &>
+%   my $itemType = ${$tableTag}{'children'}{ ${${$tableTag}{'children'}{'metadataOrder'} }[0] }{'displayName'};
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+	          {display_txt => 'Add a ' . $itemType,
+               link_txt    => "javascript:openEdit('Add', '');"}
+	         ],
+	style => 'padding-left:5px;'
+&>
+
+%  }
+        <table id="<% $tableName %>" border="0" cellpadding="5" cellspacing="0">
+%  foreach my $tableRow (sort keys %{ ${$tableTag}{children} }) {
+%    unless($tableRow eq 'metadataOrder') {
+          <tr>
+%      my $rowHash = \%{ ${$tableTag}{children}{$tableRow} };
+%      my $tableCells = '';
+%      my $numHeaders = 0;
+%      foreach my $column (@{ ${$rowHash}{children}{metadataOrder} }) {
+            <td style="border-bottom:1px solid black;" valign="bottom"><b><% ${$rowHash}{children}{$column}{displayName} %></b></td>
+%        $tableCells.= "$column, ";
+%        $numHeaders++;
+%      }
+%      if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+            <td style="border-bottom:1px solid black;" width="1%" align="right" valign="bottom"><b>Actions</b></td>
+%           $numHeaders++;
+%      }
+          </tr>
+%      my $numberOfItems = 0;
+%      $tableCells =~ s/, $//;
+%      my %tableRows;
+%      foreach (@{$course->getCourseMetadataByType($course->getTuskCourseID(), $tableCells, undef, undef)}) {
+%        $tableRows{ $_->getFieldValue('parent') }{ $_->getFieldValue('metadata_type') } = $_->getFieldValue('value');
+%      }
+%      foreach my $tableDataRow (sort keys %tableRows) {
+%         $numberOfItems++;
+          <tr id="<% $tableDataRow %>" name="<% $tableDataRow %>">
+%        foreach my $column (@{ ${$rowHash}{children}{metadataOrder} }) {
+%          $tableRows{$tableDataRow}{$column} ||= "&nbsp;";
+            <td style="border-bottom:1px solid lightgrey;" id="<% $tableDataRow %>-<% $column %>"><% $tableRows{$tableDataRow}{$column} %></td>
+%        }
+%        if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+            <td style="border-bottom:1px solid lightgrey;">
+              <a href="" onClick="openEdit('Modify', '<% $tableDataRow %>'); return false;" class="navsm">Modify</a>&nbsp;<span class="littlespacing">|</span>&nbsp;<a href="" onClick="confirmDelete('<% $tableDataRow %>', deleteItem); return false;" class="navsm">Delete</a>&nbsp;
+            </td>
+%        }
+          </tr>
+%      }
+%      unless($numberOfItems) {
+          <tr id="NoneTR"><td colspan="<% $numHeaders %>"><center>None</center></td></tr>
+%      }
+%    }
+%  }
+        </table>
+
+%   if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+    <form method="post" class="no-padding" name="theForm<% $tableName %>" onSubmit="return false;">
+      <input type="hidden" name="addOrModify" value="">
+      <table border="0" cellspacing="0" width="1%"  cellpadding="0" id="modifyTableDiv" style="top:140px; left:120px; border:2px solid black; background-color:white; position:absolute; display:none;">
+        <tr class="header" id="modifyTableDivHandle"><td colspan="2" class="header-center"><div id="modifyTableDivTitle">Add</div></td></tr>
+%     foreach my $rowID (@{  ${$tableTag}{'children'}{'metadataOrder'}  }) {
+%       if(${$tableTag}{'children'}{$rowID}{'editType'} eq 'table row') {
+%         foreach my $cellID (@{  ${$tableTag}{'children'}{$rowID}{'children'}{'metadataOrder'}  }) {
+%           my $cellReference = \%{  ${$tableTag}{'children'}{$rowID}{'children'}{$cellID}  };
+        <tr>
+          <td class="labelgray"><% ${$cellReference}{'displayName'} %>:</td>
+          <td class="cell-left">
+%           if(${$cellReference}{'editType'} eq 'text') {
+            <input type="text" name="<% $cellID %>" value="" size="30" class="textareawhite">
+%           } elsif (${$cellReference}{'editType'} eq 'radio') {
+            <select name="<% $cellID %>" onChange="if(this[this.length-1].value == 'SELECT') {this.length--;}">
+              <option value="NO">No</option>
+              <option value="YES">Yes</option>
+              <option value="SELECT" selected>Select</option>
+            </select>
+%           } elsif (${$cellReference}{'editType'} eq 'select') {
+            <select name="<% $cellID %>" onChange="if(this[this.length-1].value == 'SELECT') {this.length--;}">
+%              foreach my $optionID (@{ ${$cellReference}{'children'}{'metadataOrder'}  }) {
+              <option value="<% ${$cellReference}{'children'}{$optionID}{'displayName'} %>"><% ${$cellReference}{'children'}{$optionID}{'displayName'} %></option>
+%              }
+              <option value="SELECT" selected>Select</option>
+            </select>
+%           }
+%           if(${$cellReference}{'editComment'}) {
+            <br><% ${$cellReference}{'editComment'} %>
+%           }
+          </td>
+        </tr>
+%         }
+        <tr>
+          <td colspan="2" call="cell-submit">
+            <input type="button" name="addNew" value="Add" onClick="addTableRow(1, '<% ${${$tableTag}{'children'}{'metadataOrder'} }[0] %>');" class="formbutton">
+            <input type="button" name="cancel" onClick="turnOffForm('modifyTableDiv'); lastRowChanged='';" value="Cancel" class="formbutton">
+            <input type="button" name="addNewAndAnother" onClick="addTableRow(0, '<% ${${$tableTag}{'children'}{'metadataOrder'} }[0] %>');" value="Add + Add Another" class="formbutton">
+          </td>
+        </tr>
+%       }
+%     }
+      </table>
+    </form>
+    <script>registerDragItem('modifyTableDiv', 'top', 'left', '');</script>
+%   }
+</%method>
+
+
+<%method printTableJS>
+  <%args>
+    $tableName
+  </%args>
+
+  <script>
+    function openEdit(editType, rowClickedOn) {
+      var resetFormVariableToPass = false;
+      if(masterTimeOut) {clearTimeout(masterTimeOut);}
+      if(rowClickedOn) {lastRowChanged = rowClickedOn;} else {lastRowChanged = '';}
+
+      document.getElementById('modifyTableDivTitle').innerHTML = editType;
+      document.theForm<% $tableName %>.addNew.value = editType;
+      if(editType == 'Add') {
+        resetFormVariableToPass = true;
+        document.theForm<% $tableName %>.addNewAndAnother.style.display = '';
+        document.theForm<% $tableName %>.addOrModify.value = '';
+        document.theForm<% $tableName %>.reset();
+      }
+      else {
+        document.theForm<% $tableName %>.addNewAndAnother.style.display = 'none';
+        document.theForm<% $tableName %>.addOrModify.value = rowClickedOn;
+        for(var index=0; index<document.theForm<% $tableName %>.length; index++) {
+          var tableElement = document.getElementById(rowClickedOn+'-'+document.theForm<% $tableName %>[index].name);
+          if(tableElement) {
+            var editValue = tableElement.innerHTML;
+            if(editValue == '&nbsp;') {editValue = '';}
+            if(document.theForm<% $tableName %>[index].type.search(/text/) != -1) {document.theForm<% $tableName %>[index].value = editValue;}
+            else if((document.theForm<% $tableName %>[index].type == 'radio') || (document.theForm<% $tableName %>[index].type.search(/select/) != -1)) {
+              for(var index2=0; index2<document.theForm<% $tableName %>[index].length; index2++) {
+                if(document.theForm<% $tableName %>[index][index2].value == editValue) {
+                  document.theForm<% $tableName %>[index][index2].checked = true;
+                  document.theForm<% $tableName %>[index][index2].selected = true;
+                } else {
+                  document.theForm<% $tableName %>[index][index2].checked = false;
+                  document.theForm<% $tableName %>[index][index2].selected = false;
+                }
+              }
+            }
+            else {alert('you need to think about a '+document.theForm<% $tableName %>[index].type);}
+          }
+        }
+      }
+      turnOnForm('modifyTableDiv', lastRowChanged, resetFormVariableToPass);
+    }
+
+
+    function addTableRow(closeWindow, propertyType) {
+      if(!doingAjaxComand && hideAjaxElements()) {
+        closeFormAfter = closeWindow;
+        if (window.XMLHttpRequest) {
+            ajaxRequest = new XMLHttpRequest();
+            nodeTextType = 'textContent';
+        } else if (window.ActiveXObject) {
+            ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+            nodeTextType = 'text';
+        }
+        var warning = 0;
+        var url = "/management/ajax/modifyProperty?parentCourseID=<% $course->getTuskCourseID() %>&propertyType="+ propertyType;
+        if(document.theForm<% $tableName %>.addOrModify.value != '') {
+          url += "&nodeToModify="+document.theForm<% $tableName %>.addOrModify.value;
+        }
+        for(var index=0; index<document.theForm<% $tableName %>.length; index++) {
+          if((document.theForm<% $tableName %>[index].type != 'button') && (document.theForm<% $tableName %>[index].type != 'hidden')) {
+            url+="&" + escape(document.theForm<% $tableName %>[index].name)+'='+escape(document.theForm<% $tableName %>[index].value);
+            if(document.theForm<% $tableName %>[index].type.search(/select/i) != -1) {
+              if(document.theForm<% $tableName %>[index][document.theForm<% $tableName %>[index].selectedIndex].value == 'SELECT') {
+                warning++;
+                document.theForm<% $tableName %>[index].style.backgroundColor = 'yellow';
+              } else {
+                document.theForm<% $tableName %>[index].style.backgroundColor = '';
+              }
+            }
+          }
+        }
+        if(warning > 0) {alert('Please fix the errors on your page before proceding'); showAjaxElements();}
+        else {
+// document.open();
+// document.writeln(url);
+// document.close();
+          ajaxRequest.open("GET", url, true);
+          if(document.theForm<% $tableName %>.addNew.value == 'Add') {ajaxRequest.onreadystatechange = ajaxAdd;}
+          else                                                       {ajaxRequest.onreadystatechange = ajaxModify;}
+          ajaxRequest.send(null);
+        }
+      }
+    }
+
+    function deleteItem() {
+      disableDeleteConfirmButton();
+      if(!doingAjaxComand && hideAjaxElements()) {
+        itemToDelete = idOfThingToDelete;
+        if (window.XMLHttpRequest) {
+            ajaxRequest = new XMLHttpRequest();
+            nodeTextType = 'textContent';
+        } else if (window.ActiveXObject) {
+            ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+            nodeTextType = 'text';
+        }
+        ajaxRequest.open("GET", '/management/ajax/deleteProperty?idToDelete='+idOfThingToDelete+'&parentCourseID=<% $course->getTuskCourseID() %>', true);
+        ajaxRequest.onreadystatechange = ajaxDelete;
+        ajaxRequest.send(null);
+      }
+    }
+
+    function ajaxModify() {
+      if(ajaxRequest.readyState == 4) {
+        var response = undefined;
+	response = ajaxRequest.responseXML;
+        if(!response) {alert('I was unable to add this item!');}
+        else {
+          var errorMessages = response.getElementsByTagName('errorMessage');
+          if(errorMessages.length > 0) {
+            //We had a problem lets print out all of the error messages.
+            var errorMessage = '';
+            for(var index=0; index<errorMessages.length; index++) {
+              errorMessage += errorMessages[index][nodeTextType] + "\n";
+            }
+            alert(errorMessage);
+          }
+          else {
+            //For each element on the form lets change the tds value.
+            for(var index=0; index<document.theForm<% $tableName %>.length; index++) {
+              if(
+                 (document.theForm<% $tableName %>[index].type != 'hidden') &&
+                 (document.theForm<% $tableName %>[index].type != 'button') &&
+                 (document.theForm<% $tableName %>[index].type != 'submit')
+                )
+              {
+                var elementNumber = document.theForm<% $tableName %>.addOrModify.value + '-' + document.theForm<% $tableName %>[index].name;
+                document.getElementById(elementNumber).innerHTML = document.theForm<% $tableName %>[index].value;
+                turnOffForm('modifyTableDiv'); lastRowChanged='';
+              }
+            }
+          }
+        }
+        showAjaxElements();
+      }
+    }
+
+    function ajaxAdd() {
+      if(ajaxRequest.readyState == 4) {
+        var response = undefined;
+        response = ajaxRequest.responseXML;
+        if(!response) {alert('I was unable to add this item!');}
+        else {
+          var errorMessages = response.getElementsByTagName('errorMessage');
+          if(errorMessages.length > 0) {
+            //We had a problem lets print out all of the error messages.
+            var errorMessage = '';
+            for(var index=0; index<errorMessages.length; index++) {
+              errorMessage += errorMessages[index][nodeTextType] + "\n";
+            }
+            alert(errorMessage);
+          }
+          else {
+            var newItemNumbers = response.getElementsByTagName('newItemNumber');
+            if((newItemNumbers.length < 1) || (newItemNumbers[0][nodeTextType] == '')) {alert('Failed to get the new item number!');}
+            else {
+              var newItemNumber = newItemNumbers[0][nodeTextType];
+
+              var tempRow = document.createElement("TR");
+              tempRow.id = newItemNumber;
+              if(tempRow.setAttribute) {tempRow.setAttribute('id', newItemNumber);}
+              tempRow.name = newItemNumber;
+
+              for(var index=0; index<document.theForm<% $tableName %>.length; index++) {
+                if(
+                    (document.theForm<% $tableName %>[index].type != 'hidden') &&
+                    (document.theForm<% $tableName %>[index].type != 'button') &&
+                    (document.theForm<% $tableName %>[index].type != 'submit')
+                  )
+                  {
+                  var tempCell = document.createElement("TD");
+                  tempCell.id = newItemNumber + "-" +document.theForm<% $tableName %>[index].name;
+                  if(tempCell.setAttribute) {tempCell.setAttribute('id', newItemNumber + "-" +document.theForm<% $tableName %>[index].name);}
+                  tempCell.style.borderBottom = '1px solid lightgrey';
+                  tempCell.style.verticalAlign = 'top';
+                  tempCell.innerHTML = document.theForm<% $tableName %>[index].value;
+                  if(tempCell.innerHTML == '') {tempCell.innerHTML = '&nbsp;'}
+                  tempRow.appendChild(tempCell);
+                }
+              }
+  
+              var tempCell = document.createElement("TD");
+              tempCell.style.borderBottom = '1px solid lightgrey';
+              tempCell.style.verticalAlign = 'top';
+              tempCell.innerHTML = "<a href=\"\" onClick=\"openEdit('Modify', '"+ newItemNumber +"'); return false;\" class=\"navsm\">Modify</a>";
+              tempCell.innerHTML+= "&nbsp;<span class=\"littlespacing\">|</span>&nbsp;";
+              tempCell.innerHTML+= "<a href=\"\" onClick=\"confirmDelete('"+ newItemNumber +"', 'deleteItem'); return false;\" class=\"navsm\">Delete</a>&nbsp;";
+              tempRow.appendChild(tempCell);
+
+              var table = document.getElementById('<% $tableName %>');
+              if(document.getElementById('NoneTR')) {document.getElementById('NoneTR').style.display = 'none';}
+              table.getElementsByTagName("tbody").item(0).appendChild(tempRow);
+              if(closeFormAfter == 1) {turnOffForm('modifyTableDiv'); lastRowChanged = '';}
+            }
+          }
+        }
+        showAjaxElements();
+      }
+    }
+
+    function ajaxDelete() {
+      if(ajaxRequest.readyState == 4) {
+        var response = undefined;
+        response = ajaxRequest.responseXML;
+        if(!response) {alert('I was unable to delete this item!');}
+        else {
+          var itemsFailed = response.getElementsByTagName('itemsFailed');
+          if(itemsFailed.length != 1) {alert('There was an error when deleting the object!');}
+          else {
+            var numFailed = itemsFailed[0][nodeTextType];
+            
+            if(numFailed > 0) {alert('Failed to delete this item!');}
+            else {
+              //No delete the row in the table for itemToDelete
+              var table = document.getElementById('<% $tableName %>').getElementsByTagName("tbody").item(0);
+              for(var index=0; index<table.childNodes.length; index++) {
+                if(table.childNodes[index] && (table.childNodes[index].id == itemToDelete)) {table.removeChild(table.childNodes[index]);}
+              }
+            }
+          }
+        }
+        showAjaxElements();
+        closeCancel();
+      }
+    }
+  </script>
+</%method>

@@ -1,0 +1,167 @@
+<%once>
+	use TUSK::Email::Template;	
+	use TUSK::Manage::Email;
+</%once>
+
+
+<%shared>
+	my ($evalId,$emailTmplId) = $m->comp('/tmpl/url:get_path_ids');
+	my $school = $m->comp('SELF:schoolname');
+	my $eval = HSDB45::Eval->new(_school => $school, _id => $evalId);
+	my @incomplete = $eval->incomplete_users();
+	my $args = $m->request_args();
+	my ($req, $email_data);
+	my $emailTmpl;
+	if ($emailTmplId == 0) {
+		$emailTmpl = TUSK::Email::Template->new();
+		$emailTmpl->setFieldValues( {
+			subject => "Please complete this Evaluation",
+			body 	=> "Please complete the course evaluation for:" . $eval->field_value('title') . " which can be found at http://" . $TUSK::Constants::Domain . "/protected/eval45/" . $eval->school() . '/' . $eval->field_value('eval_id') });
+	} else {
+		$emailTmpl = TUSK::Email::Template->lookupKey($emailTmplId);
+	}
+</%shared>
+
+% if ($args->{confirm}) {
+	<& SELF:emailConfirm &>
+% } else {
+	<& SELF:emailForm &>
+% }
+
+<%method get_nav_bar_objects>
+% 	return {'site' => $eval};
+</%method>
+
+
+<%method emailForm>
+<& /tmpl/element:form, params => { method => 'POST',
+		name => 'emailform',
+		onsubmit => 'return validateCheckbox(this);' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'To:',
+                name => 'to_checkboxes',
+		value => $m->comp('SELF:getIncompletes') } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'From:',
+                name => 'from_name',
+		value => $m->session->{'user'}->out_full_name() . ' (' . $m->session->{'user'}->email() . ')' } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Subject:',
+                name => 'subject',
+                value => $emailTmpl->getSubject(),
+                size => 70,
+                length => 255 } &>
+
+<& /tmpl/element:textarea, params =>{ label => 'Message:',
+                name => 'body',
+                value => $emailTmpl->getBody(),
+                cols =>"70",
+                rows =>"7",  } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Send Email',
+                cancel_onclick => "go_back('/protected/eval/administrator/completion/show/$school/$evalId)');",
+                name=>'submit'} &>
+
+</table>
+<input type="hidden" name="email_list" value="1"/>
+<input type="hidden" name="from" value="<% $m->session->{'user'}->user_id() %>"/>
+<input type="hidden" name="confirm" value="1"/>
+</form>
+</%method>
+
+
+<%method getIncompletes>
+<%perl>
+	my $incompletes = (scalar @incomplete > 1) ? "&nbsp;<input type=\"checkbox\" name=\"checkall\" onclick=\"checkUncheckAll(this);\"><span class=\"xsm\">select/unselect all</span><br/>" : '';
+	my $i = 1;
+	$incompletes .= "<table><tr>\n";
+	foreach my $user (@incomplete) {
+		$incompletes .=  "<td><input type=\"checkbox\" name=\"to\" value=\"" . $user->user_id() . "\"><span class=\"xsm\">" . $user->out_lastfirst_name() . "</span></td>";
+		$incompletes .= "</tr>\n<tr>" if $i % 3 == 0;
+		$i++;
+	}
+	$incompletes .= "</tr></table>\n";
+	return $incompletes;
+</%perl>
+</%method>
+
+
+<%method title>
+%	return 'Send email to students';
+</%method>
+
+
+<%method jsarray>
+% 	return ['formbuilder.js'];
+</%method>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	my $type_object =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $course_id =  $m->comp("/tmpl/url:get_first_path_id"); #$type_object->course_id ;
+	my $timeperiod = $m->comp("SELF:get_timeperiod_id");	
+    my $user = $m->session->{'user'};
+
+	if (defined $args->{submit_check}) {
+		$req->{user} = $m->session->{'user'};
+
+		$email_data=TUSK::Manage::Email::email_process($r, $user->primary_key, $school, $course_id, $timeperiod, $args) if ($args->{submit_check});
+
+ 		if ($email_data) {
+			$m->comp('SELF:set_msg', 
+	 			type 	=> 'msg', 
+				msg 	=> 'You have successfully sent the email.' );
+		} else {
+			$m->comp('SELF:set_msg', 
+	 			type 	=> 'errmsg', 
+				msg 	=> 'There is a problem sending the email.' );
+		}
+	}
+
+</%perl>
+</%method>
+	
+
+<%method emailConfirm>
+% 	if ($email_data) {
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr> 
+      <td class="labelgray">To:</td>
+      <td class="cell-left"> <% (ref($args->{to}) eq 'ARRAY') ? join(', ', map { HSDB4::SQLRow::User->new()->lookup_key($_)->out_full_name() } @{$args->{to}}) : HSDB4::SQLRow::User->new()->lookup_key($args->{to})->out_full_name() %>
+      </td>
+      </tr>
+      <tr> 
+      <td class="labelgray">From:</td>
+      <td class="cell-left"><% $req->{user}->out_full_name() %> (<% $req->{user}->email() %>)</td>
+      </tr>
+      <tr> 
+      <td class="labelgray">Subject:</td>
+      <td class="cell-left"><% $args->{subject} %></td>
+      </tr>
+      <tr> 
+      <td class="labelgray">Message:</td>
+      <td class="cell-left"><% $args->{'body'} %></td>
+      </tr>
+</table>
+%	}
+</%method>
+
+<%method getDefaultEmailTemplate>
+<%perl>
+	my $template = TUSK::Email::Template->new();
+	$template->set_field_values(
+		subject => "Please complete this Evaluation",
+		body 	=> "Please complete the course evaluation for:" . $eval->field_value('title') . " which can be found at http://" . $TUSK::Constants::Domain . "/protected/eval45/" . $eval->school() . '/' . $eval->field_value('eval_id'));
+	return $template;
+</%perl>
+</%method>

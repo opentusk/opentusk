@@ -1,0 +1,135 @@
+<%attr>
+	no_check_path 	=> 1
+	page_footer	=> '/tmpl/footer:footer_with_tufts_links'
+</%attr>
+
+% if (my @usergroups = $m->comp('SELF:usergroups')) {
+
+<table>
+% 	foreach my $ug (@usergroups) {
+
+<& /tmpl/element:field_display, params => { 
+	label => '<b>User Group:</b>',
+        value => "<span class=\"med\"><b>" . $ug->out_label() . "</b></span><br/><br/>" } &>
+
+<& /tmpl/element:field_display, params => { 
+	label => '<b>Announcements:</b>',
+        value => $m->comp('SELF:announcements', ug => $ug ) . '<br/><br/>' } &>
+	
+<& /tmpl/element:field_display, params => { 
+	label => '<b>Current Courses:</b>',
+        value => $m->comp('SELF:courses', ug => $ug ) . '<br/><br/>' } &>
+
+<& /tmpl/element:field_display, params => { 
+	label => '<b>Users:</b>',
+        value => $m->comp('SELF:users', ug => $ug ) . '<br/><br/>' } &>
+<tr><td colspan="2"><br/></td></tr>
+% 	}
+</table>
+% } else {
+	<& /tmpl/url:redirect, message => 'Invalid Input: ' . $r->path_info() &>
+% } 
+
+<%method usergroups>
+<%perl>
+	my @path_ids = split(/\//, substr($r->path_info(),1));
+	my @usergroups = ();
+	if (@path_ids) {
+		eval {
+			my $user_group = HSDB45::UserGroup->new(_id => $path_ids[1], _school => $path_ids[0]);
+
+			push @usergroups, $user_group if ($user_group->primary_key());
+		};
+	} else {
+		my $user = $m->session->{'user'};
+		@usergroups = $user->parent_user_groups unless @path_ids;
+	}
+	return @usergroups;
+</%perl>
+</%method>
+
+<%method red_header_text>
+%	return "User Groups:";
+</%method>
+
+<%method title>
+% 	return 'User Groups';	
+</%method>
+
+
+<%method announcements>
+<%args>
+	$ug
+</%args>
+<%perl>
+	my $announcements;
+	my @announcements = $ug->announcements();
+	if (@announcements) {
+	$announcements = '<ul class="sm">';
+ 	foreach my $ann (@announcements) {
+		$announcements .= '<li>' . $ann->field_value("body") . '<br/><br/></li>';
+	}
+	$announcements .= '</ul>';
+    	} else {
+		$announcements = '<em class="sm">no announcements</em>';
+	}	
+	return $announcements;
+</%perl>
+
+</%method>
+
+<%method courses>
+<%args>
+	$ug
+</%args>
+
+<%perl>
+	my $courses;
+	my @courses = $ug->current_courses();
+	if (@courses) {
+		$courses = '<ul class="sm">';
+		foreach my $course (@courses) {
+			$courses .= '<li>' . $course->out_html_label() . '</li>';
+		}
+		$courses .= '</ul>';
+	} else {
+		$courses = '<em class="sm">no courses</em>';
+	}
+	return $courses;
+</%perl>
+</%method>
+
+
+<%method users>
+<%args>
+	$ug
+</%args>
+
+<%perl>
+	my $users;
+	my @users = sort { $a cmp $b } $ug->child_users();
+ 	if (scalar(@users)) {
+		my $maxcol = 4; 
+		$users = '<table class="sm">';
+		my $open_row = 0;
+		for (my $index = 0; $index < scalar(@users); $index++) {
+
+			unless ($open_row){
+				$users .= '<tr>';
+				$open_row = 1;
+			}
+
+			$users .= '<td valign="top"><a href="' . $users[$index]->out_url() . '">' . $users[$index]->out_lastfirst_name() . '</a></td><td width="15">&nbsp;</td>';
+				
+			if ($index > 0 && $index % $maxcol == ($maxcol - 1)){
+				$open_row = 0;
+			}
+		}
+		$users .= '</tr></table>';
+	} else {
+		$users = '<em class="sm">no courses</em>';
+	}
+	return $users;
+</%perl>
+</%method>
+

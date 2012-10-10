@@ -1,0 +1,544 @@
+<%once>
+	use TUSK::Quiz::LinkQuestionQuestion;
+
+	my $get_answer_data = sub {
+		my $answers = shift or confess "answers array required";
+	    	my $question_id = shift or confess "question_id required";
+
+		return map { {
+                        answer		  => $_->getValue(),
+                        correct		  => $_->getCorrect(),
+                        quiz_answer_id 	  => $_->getPrimaryKeyID(),
+                        question_id	  => $question_id,
+                        hint		  => $_->getHint(),
+			feedback	  => $_->getFeedback(),
+			child_question_id => $_->getChildQuestionID(),
+			question	  => $_->getChildQuestionBody($_->getChildQuestionID()),
+			   } }
+               	@{$answers};
+	};
+</%once>
+
+<%method question_fields>
+<%args>
+	$question
+	$questionLink
+	$formname => 'foo'
+	$tool	=> 'Quiz'
+</%args>
+<%perl>
+	my $question_id = $question->getPrimaryKeyID();
+	my $answers = $question->getAnswers();
+	my @answers_data;
+	if (defined($answers)){
+	    @answers_data = $get_answer_data->($answers,$question_id);
+	}
+</%perl>
+
+<script language="JavaScript">
+
+function populate_answers(){
+	removeall('answersdiv');
+	hidebutton('addanswer');
+
+	var tablerow_display = 'table-row';
+	if (is_ie){
+		tablerow_display = 'inline'; // needed because IE does not support display type table-row :(
+	}
+
+	document.getElementById('num_fill_ins_tr').style.display = 'none';
+	document.getElementById('Answers_tr').style.display = tablerow_display;
+
+	var questionType = document.forms['<% $formname %>'].question_type.value;
+
+	if (questionType == "Matching"){
+		layers['answersdiv'].structure['display'][3]['type'] = 'hidden';
+		layers['answersdiv'].structure['display'][0]['type'] = 'textarea';
+		layers['answersdiv'].structure['display'][0]['label'] = 'Pair Question';
+		layers['answersdiv'].structure['display'][1]['label'] = 'Pair Answer';
+	} else {
+		layers['answersdiv'].structure['display'][3]['type'] = '';
+		layers['answersdiv'].structure['display'][0]['type'] = 'hidden';
+		layers['answersdiv'].structure['display'][0]['label'] = 'Question';
+		layers['answersdiv'].structure['display'][1]['label'] = 'Answer';
+	}
+
+	layers['answersdiv'].header = header(layers['answersdiv'].structure);
+	document.getElementById('feedback_tr').style.display = tablerow_display;
+	document.getElementById('points_tr').style.display = tablerow_display;
+	document.getElementById('answernote').style.display = 'none';
+
+	if (questionType == "Section"){
+		document.getElementById('feedback_tr').style.display = 'none';
+		document.getElementById('points_tr').style.display = 'none';
+		document.getElementById('Answers_tr').style.display = 'none';
+	}
+
+	if (questionType == "TrueFalse"){
+		layers['answersdiv'].structure['action']['usage'] = 'No';
+		layers['answersdiv'].header = header(layers['answersdiv'].structure);
+		addTrueFalseAnswers();
+		document.getElementById('answernote').style.display = 'inline';
+	}else if (questionType == "Essay"){
+		document.getElementById('Answers_tr').style.display = 'none';
+	}else{
+		layers['answersdiv'].structure['action']['usage'] = 'Yes';
+		layers['answersdiv'].header = header(layers['answersdiv'].structure);
+
+		if (questionType == "MultipleChoice"){
+			layers['answersdiv'].structure['display'][1]['type'] = 'textarea';
+			showbutton('addanswer');
+			addDefaultToLayer();
+			addDefaultToLayer();
+			addDefaultToLayer();
+			addDefaultToLayer();
+			addDefaultToLayer();
+			document.getElementById('answernote').style.display = 'inline';	
+		} else if (questionType == "Matching"){
+			layers['answersdiv'].structure['display'][1]['type'] = 'textarea';
+			showbutton('addanswer');
+			addDefaultToLayer();
+			addDefaultToLayer();
+			addDefaultToLayer();
+			addDefaultToLayer();
+			addDefaultToLayer();
+			document.getElementById('answernote').style.display = 'inline';
+		} else if (questionType == 'FillIn' || questionType == 'MultipleFillIn'){
+			document.getElementById('Answers_tr').style.display = 'none';
+			if (questionType == 'MultipleFillIn'){
+				document.getElementById('num_fill_ins_tr').style.display = tablerow_display;
+			}
+		}
+	}
+}
+
+function addToLayer(newdata){
+        layers['answersdiv'].adddata(newdata,0);
+
+}
+
+function addDefaultToLayer(){
+	addToLayer({ correct:'',quiz_answer_id:'0',question_id:'<% $question_id %>',question:'', answer:'', feedback:'', child_question_id:'' });
+}
+
+function addTrueFalseAnswers(){
+	var elem =  document.forms['<% $formname %>'].addanswer;
+	if (elem){
+		elem.style.visibility = "hidden";
+	}
+	layers['answersdiv'].structure['display'][1]['type'] = '';
+	addToLayer({ correct:'',quiz_answer_id:'0',question_id:'<% $question_id %>',question:'',answer:'True' , feedback:'', child_question_id:''});
+	addToLayer({ correct:'',quiz_answer_id:'0',question_id:'<% $question_id %>',question:'',answer:'False', feedback:'', child_question_id:'' });
+}
+</script>
+
+
+% if (defined($question->getType())){
+<& /tmpl/element:field_display, params=>{ label => 'Question&nbsp;Type', value => $question->getFormattedType() } &>
+<& /tmpl/element:hidden_form_element, params => { name => 'question_type', value => $question->getType() } &>
+% } else {
+<& /tmpl/element:dropdown, params=>{ label => 'Question&nbsp;Type',
+                name=>"question_type",
+                onchange=>"populate_answers('$formname');",
+                selected=>$question->getType() ,
+                options=>$m->comp('/quiz/author/tmpl/process:question_type_data',include_empty=>1)} &>
+% }
+
+<& /tmpl/element:textarea, params=>{ 
+			label	 	=> 'Question&nbsp;Body',
+	                name		=> "body",
+       	         	cols		=> "80",
+       	 	       	rows		=> "6",
+                	value		=> $question->getBody()  
+		} &>
+
+% if ($question->getType() ne "Section"){
+%       my $note; my $first_display = '';
+%	if (!defined ($question->getType()) || $question->getType() =~ /TrueFalse|MultipleChoice/) {
+%		$first_display = 'style="display:none;"' unless (defined ($question->getType()));
+
+%		$note = 'Note: This feedback will appear regardless of which answer a quiz taker selects.';
+%	}
+
+<& /tmpl/element:textarea, params=>{ 
+			label	 	=> 'Answer&nbsp;/&nbsp;Feedback',
+	                name		=> "feedback",
+       	         	cols		=> "80",
+       	 	       	rows		=> "3",
+                	value		=> $question->getFeedback(),
+			trailing_text   => "<div id=\"answernote\" $first_display>$note</div>",
+			trailing_text_new_row	=> 1
+		} &>
+
+
+<& /tmpl/element:textbox, params =>{ label => 'Question&nbsp;Points',
+                name => 'points',
+		id => 'questionPoints',
+                value => ($questionLink->getPoints()) ? $questionLink->getPoints() : 1,
+                size => 10,
+                length => 10 } &>
+%
+% }
+%
+<%perl>
+	my $num_fill_ins_display = "none";
+	my $num_fill_ins_selected = 2;
+
+	if ($question->getType() eq "MultipleFillIn"){
+		if ($question->getPrimaryKeyID()){
+			my $links = $question->getSubQuestionLinks();
+			$num_fill_ins_selected = scalar(@$links);
+		}
+		$num_fill_ins_display = "table-row";
+	}
+</%perl>
+
+<& /tmpl/element:dropdown, params=> { 
+					label 		=> '# of Fill Ins',
+					tr_style	=> 'display:' . $num_fill_ins_display,
+                			name		=> 'num_fill_ins',
+			                selected	=> $num_fill_ins_selected ,
+			                options		=> [2..20],
+				    } &>
+
+<%perl>
+	my $style;
+
+	$style = 'display:none' if ($question->getType() eq 'Essay' or $question->getType() eq 'TrueFalse' or $question->getPrimaryKeyID() == 0);
+        
+	my $button_text = $m->scomp('/tmpl/element:button',
+               			params => { 
+						onclick	=> "addDefaultToLayer();", 
+               					name	=> 'addanswer',
+              		 			label	=> 'Create Answer',
+	       					style	=> $style
+					});
+	my $actions_func_hash = []; 
+	my $actionusage="No";
+	if ($question->getType() ne 'TrueFalse'){
+        	push @{$actions_func_hash}, {func=>'remove', label=>'Delete'};
+		$actionusage="Yes";
+	}
+
+	my $type = "textarea";
+
+	if ($question->getType() eq "TrueFalse"){
+		$type = "text";
+	}
+
+	my $question_display_type = ($question->getType() eq "Matching") ? "textarea" : "hidden";
+	my $correct_display_type = ($question->getType() eq "Matching") ? "hidden" : "";
+
+	my $display = [
+			{label=> (($question->getType() eq 'Matching') ? 'pair ' : '' ) . 'Question',field=>'question', align=>'center', length=>230, type => $question_display_type},
+			{label=>(($question->getType() eq 'Matching') ? 'pair ' : '' ) . 'Answer',field=>'answer', align=>'center', length=>230, type => $type},
+		       	{label=>'feedback',field=>'feedback', align=>'center', length=>230, type => 'textarea'},
+               		{label=>'correct',field=>'correct', align=>'center', length=>50, type => $correct_display_type, 
+						options=>[{'label'=>'No','value'=>'0'},{'label'=>'Yes','value'=>'1'}]},
+			{label=>'child question id',field=>'child_question_id', align=>'center', length=>230, type => 'hidden'},
+
+			];
+</%perl>
+
+% if ($question->getType() ne "Essay" and $question->getType() ne "Section" and $question->getType() ne "FillIn" and $question->getType() ne "MultipleFillIn"){
+
+<& /tmpl/element:sort_order_box , params =>{
+                label =>'Answers',
+		name => 'Answers',
+                no_add_button=>1,
+                buttons => [$button_text],
+                layer_info => {
+                        layer => 'answersdiv',
+                        fields => ['quiz_answer_id','question_id','answer','correct', 'question', 'child_question_id'],
+                        name => 'answer',
+                        sort => {usage => 'Yes', length=>50},
+                        action => {usage => $actionusage, length=>250, functions=>$actions_func_hash},
+                        display => $display,
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => \@answers_data,
+			context_path => $m->comp("/tmpl/url:get_full_path") }
+                } &>
+% }
+%
+% if ($question->getPrimaryKeyID() && $question->getType() eq "Section"){
+%
+	<& /quiz/author/tmpl/editquestion:show_questions_box, id => $question->getPrimaryKeyID(), links => $question->getSubQuestionLinks(), type => 'Section', tool => $tool &>
+%
+% }
+%
+<%perl>
+	if ($question->getType() eq 'MultipleChoice' or $question->getType() eq 'Matching'){
+		unless ($question->getPrimaryKeyID()){
+			$m->print('<script language="JavaScript">');
+			for (scalar(@answers_data)..4) {
+				$m->print("addDefaultToLayer();");
+			 }
+			$m->print("</script>");
+		}
+	}
+</%perl>
+% if (($question->getType() eq 'TrueFalse') && (!scalar(@answers_data))){
+<script language="JavaScript">
+addTrueFalseAnswers();
+</script>
+%}
+</%method>
+
+<%method process_args>
+<%args>
+	$question
+	$questionLink
+	$id
+	$type
+	$user_id
+	$args
+</%args>
+<%perl>
+	my $is_edit = 1;
+	my $answers = $question->getAnswers();
+	my $question_id = $question->getPrimaryKeyID();
+        my @answers_data;
+        if (defined($answers)){
+		@answers_data = $get_answer_data->($answers,$question_id);
+	}  
+	if ($question->getPrimaryKeyID()){
+		if ($question->getType() eq "Section"){
+			$m->comp('/quiz/author/tmpl/process:questions_sort_order', type => 'Section', id => $question->getPrimaryKeyID(), args => $args); 
+		}
+	} else {
+		$is_edit = 0;
+		$question->setType($args->{'question_type'});
+	}
+
+	$question->setBody($args->{'body'});
+	$question->setFeedback($args->{'feedback'});
+
+	if (defined($args->{'type'})){
+		$question->setType($args->{'type'});
+	}
+	$question->save({'user'=>$user_id}) ;
+	$question_id = $question->getPrimaryKeyID();
+	
+	$questionLink->setLabel($args->{'label'});
+	$questionLink->setPoints(($args->{'points'}) ? $args->{'points'} : 0); # we cannot pass NULL as points
+
+	if ($type eq 'Quiz'){
+		$questionLink->setQuizID($id);
+		$questionLink->setQuizItemID($question_id);
+	}elsif ($type eq 'Section'){
+		$questionLink->setParentQuestionID($id);
+		$questionLink->setChildQuestionID($question_id);
+	}
+
+	if ($is_edit == 0){
+		if ($type eq 'Quiz'){
+			my $questions = TUSK::Quiz::LinkQuizQuizItem->new->lookup("quiz_id = $id");
+			$questionLink->setSortOrder(scalar(@$questions));
+		} elsif ($type eq 'Section'){
+			my $questions = TUSK::Quiz::LinkQuestionQuestion->new->lookup("parent_question_id = $id");
+			$questionLink->setSortOrder(scalar(@$questions));
+		}
+	}
+	$questionLink->save({'user'=>$user_id});
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^answersdiv');
+	foreach my $set (keys %{$rowHash}){
+		if ($rowHash->{$set}->{'fields'}->{'answer'}) {
+			$rowHash->{$set}->{'fields'}->{'question_id'} = $question_id;
+		} else {
+			delete $rowHash->{$set};
+		}
+	}
+
+	# do some wild stuff if this is a matching question
+	if ($question->getType() eq "Matching"){
+		foreach my $key (keys %$rowHash){
+			my $tmpHash = $rowHash->{$key};
+
+			if($tmpHash->{fields}->{question}){
+				my $child_question = TUSK::Quiz::Question->new();
+
+				if ($tmpHash->{fields}->{child_question_id}){
+					$child_question->lookupKey($tmpHash->{fields}->{child_question_id});
+				}
+
+				$child_question->setBody($tmpHash->{fields}->{question});
+				$child_question->setType('MatchingChild');
+				$child_question->save({ user => $user_id });
+
+				my $link = TUSK::Quiz::LinkQuestionQuestion->new();
+				if ($tmpHash->{fields}->{child_question_id}){
+					my $alink = $link->lookupReturnOne("parent_question_id = " . $question->getPrimaryKeyID() . " and child_question_id = " . $child_question->getPrimaryKeyID());
+					if (ref($alink) eq 'TUSK::Quiz::LinkQuestionQuestion' && $alink->getPrimaryKeyID()){
+						$link = $alink;
+					}
+				}				
+
+				$link->setParentQuestionID($question_id);
+				$link->setChildQuestionID($child_question->getPrimaryKeyID());
+				$link->setPoints($args->{points});
+				$link->setSortOrder($key);
+				$link->save({ user => $user_id });
+				
+				$tmpHash->{fields}->{child_question_id} = $child_question->getPrimaryKeyID();
+			} else {
+
+				if ($tmpHash->{fields}->{child_question_id}){
+					my $link = TUSK::Quiz::LinkQuestionQuestion->lookupReturnOne("child_question_id = " . $tmpHash->{fields}->{child_question_id});
+					if (ref($link) eq 'TUSK::Quiz::LinkQuestionQuestion' and $link->getPrimaryKeyID()){
+						$link->delete({ user => $user_id });
+					}
+					my $child_question = TUSK::Quiz::Question->new()->lookupKey($tmpHash->{fields}->{child_question_id});
+					$child_question->delete({ user => $user_id });
+				}
+
+				$tmpHash->{fields}->{child_question_id} = 0;
+			}
+		}
+
+	}
+	
+	if ($question->getType() eq "MultipleFillIn"){
+		my $links = $question->getSubQuestionLinks();
+
+		foreach my $link (@$links){
+			$link->setPoints($args->{points});
+			$link->save({ user => $user_id });		
+		}
+
+		if ($args->{'num_fill_ins'} > scalar(@$links)){
+			for my $int (scalar(@$links)..($args->{'num_fill_ins'}-1)){
+				my $child_question = TUSK::Quiz::Question->new();
+				$child_question->setType("FillIn");
+				$child_question->save({ user => $user_id });
+	
+				my $link = TUSK::Quiz::LinkQuestionQuestion->new();
+				$link->setParentQuestionID($question_id);
+				$link->setChildQuestionID($child_question->getPrimaryKeyID());
+				$link->setPoints($args->{points});
+				$link->setSortOrder($int);
+				$link->save({ user => $user_id });
+			}
+		} elsif ($args->{'num_fill_ins'} < scalar(@$links)){
+			for my $int ($args->{'num_fill_ins'}..(scalar(@$links)-1)){
+				my $child_question = $links->[$int]->getQuestionObject();
+				$links->[$int]->delete({ user => $user_id });		
+				$child_question->delete({ user => $user_id });
+			}
+		}
+	}
+
+	$m->comp('/tmpl/process:manipulate_rows',
+		row_type => 'Direct',
+		user => $user_id,
+		object_name => 'TUSK::Quiz::Answer',
+		fields_data => $rowHash,
+		field_function_map => {'question_id'=>'setQuestionID',
+				'sortorder'=>'setSortOrder',
+				'answer'=>'setValue',
+				'feedback' =>'setFeedback',
+				'child_question_id' => 'setChildQuestionID',
+				'correct'=>'setCorrect' },
+		display_data => \@answers_data );
+
+</%perl>
+</%method>
+
+
+<%method show_questions_box>
+<%args>
+	$links
+	$id
+	$type
+	$tool	=> 'Quiz'
+</%args>
+<%perl>
+	my $questions_data = [];
+
+	foreach my $link (@$links){
+		my $question = $link->getQuestionObject();
+		my $hash = { 	
+				label 		=> $link->getLabel(),
+				body		=> $question->getBody(),
+				title		=> $question->getTitle(),
+				type		=> $question->getFormattedType() ,
+				question_id	=> $question->getPrimaryKeyID() ,
+				quiz_id		=> $id 
+			};
+		push (@$questions_data, $hash);
+	}
+ 	
+	my $locations = { 
+				Quiz	=> '/quiz/author/questionaddedit',
+				Case	=> '/case/author/questionaddedit',
+			};
+
+	my $create_button_text = $m->scomp('/tmpl/element:button', params=>{ 
+		onclick	 => "window.location='" . $m->comp("/tmpl/url:construct_url", base_url => $locations->{$tool}) . "?add=1'",
+		name 	 => 'addquestion',
+		label 	 => 'Create Question',
+	});
+
+	my ($copy_button_text,$delete_button_text);
+
+	if ($tool eq 'Quiz' && $type ne 'Section') {
+		$copy_button_text = $m->scomp('/tmpl/element:button', params=>{ 
+			onclick	 => "window.location='" . $m->comp("/tmpl/url:construct_url", base_url => "/quiz/author/questionscopy") . "'",
+			name 	 => 'copyquestions',
+			label 	 => 'Copy Quiz Questions'
+		});
+
+
+		$delete_button_text = $m->scomp('/tmpl/element:button', params=>{ 
+			onclick	 => "window.location='" . $m->comp("/tmpl/url:construct_url", base_url => "/quiz/author/questionsdelete") . "'",
+			name 	 => 'deletequestions',
+			label 	 => 'Delete Multiple Questions'
+		});
+	}
+
+
+	my $actions = {
+			Quiz => {
+				edit	=> 'question_edit',
+				remove	=> 'question_remove',
+			},
+			Case => {
+				edit	=> 'case_question_edit',
+				remove	=> 'case_question_remove',
+				},
+			};
+
+</%perl>
+
+% my $trailing_text = (scalar @$questions_data > 4) ? "$create_button_text $copy_button_text" : undef;
+
+<& /tmpl/element:sort_order_box, params => {
+	no_add_button 	=> '1',
+        label 		=> 'Questions:',
+	buttons		=>[ $create_button_text, $copy_button_text, $delete_button_text, ],
+        layer_info 	=> {
+		context_path 	=> $m->comp("/tmpl/url:get_full_path"),
+                layer 		=> 'questionsdiv',
+                fields 		=> ['question_id', 'quiz_id', 'type', 'body'],
+                name 		=> 'question',
+                sort 		=> { usage => 'Yes', length => 50 },
+                action 		=> {
+			usage 		=> 'Yes', 
+			length 		=> 100, 
+			functions 	=> [
+				{ func => $actions->{$tool}->{'edit'}, label => 'Modify'},
+                                { func => $actions->{$tool}->{'remove'}, label => 'Delete'} 
+					   ]
+		},
+                display 	=> [
+			{label => 'type',field => 'type', align => 'left', length => 70},
+        	        {label => 'body',uneditable => 1, field => 'body', align => 'left', length => 450}
+		],
+                validate 	=> {usage => 'No', },
+                data 		=> $questions_data 
+	},
+	trailing_text => $trailing_text,
+
+} &>
+</%method>

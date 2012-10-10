@@ -1,0 +1,132 @@
+<%attr>
+	no_check_path 	=> 1
+	page_header	=> undef
+	page_footer	=> undef
+	skip_auth	=> 1
+</%attr>
+
+<%perl>
+	my $file = "$ENV{SERVER_ROOT}/code/style/style.css";
+
+	open(CSS, "<$file") or die ("Problem opening $file: $!");
+
+	my $struct;
+	my $display;
+
+	$struct->{comments} = ['desc'];
+	$struct->{tagexamples} = {
+				'table' => '<table class="##class##"><tr><td>Hello World</td></tr></table>',
+				'tr' => '<table><tr class="##class##"><td>Hello World</td></tr></table>',
+				'td' => '<table><tr><td class="##class##">Hello World</td></tr></table>',
+				'a' => '<a href="" class="##class##">Hello World</a>',
+				'li' => '<ol><li class="##class##">Hello World</li></ol>',
+				'ol' => '<ol class="##class##"><li>Hello World</li></ol>',
+				'textarea' => '<form><textarea class="##class##">Hello World</textarea></form>',
+				'form' => '',
+				'input[type=submit]' => '<form><input type="submit" class="##class##" value="Hello World"></form>',
+				'select' => '<form><select class="##class##"><option class="##class##">Hello World</option></select></form>',
+				'option' => '<form><select class="##class##"><option class="##class##">Hello World</option></select></form>',
+				'div' => '<div class="##class##">Hello World</div>',
+				'font' => '<font class="##class##">Hello World</font>',
+			};
+
+	while(my $line = <CSS>){
+		$display->{css} .= $line;
+		chomp $line;
+		$line =~ s/^\s*//;
+		$line =~ s/\r//g; # yuck
+
+		if ($line=~s/(.*)\{//){
+			my $tags = $1;
+			$tags =~ s/\s*//;
+			$struct->{temp}->{tags} = [ split(/,\s*/, $tags) ];
+			next unless $line;
+		}
+	
+		foreach my $comment (@{$struct->{comments}}){
+			if ($line=~s/\/\* $comment: ?(.*)\*\///){
+				$struct->{temp}->{comments}->{$comment} = $1;
+			}
+		}
+	
+		if ($line=~s/\/\* tags: ?(.*)\*\///){
+			$struct->{temp}->{tagex} = [ split(/,\s*/, $1) ];
+		}
+
+		if($line=~s/\s*\}.*//){
+			$struct->{flag} = 1;
+		}
+
+		if($struct->{temp}->{tags}){
+			$struct->{temp}->{text} .= $line . "\n" if ($line);
+		}
+	
+	
+		if($struct->{flag}){
+			foreach my $tag (@{$struct->{temp}->{tags}}){
+				$struct->{tags}->{$tag}->{text} .= $struct->{temp}->{text};
+				$struct->{tags}->{$tag}->{comments} = $struct->{temp}->{comments};
+			 	if ($tag =~ /^\.(.*)/ or $struct->{temp}->{tagex}){
+					if ($struct->{temp}->{tagex}){
+						$struct->{tags}->{$tag}->{tagex} =  $struct->{temp}->{tagex};
+					}else{
+						$struct->{tags}->{$tag}->{tagex} = [];
+					}
+					$struct->{tags}->{$tag}->{classname} = $1;
+				}else{
+					$struct->{tags}->{$tag}->{tagex} = [ $tag ];
+					$struct->{tags}->{$tag}->{tagex}->[0]=~s/\.(.*)//;
+					$struct->{tags}->{$tag}->{classname} = $1;
+				}
+			}
+			undef $struct->{temp};
+			$struct->{flag} = 0;
+		}
+		
+	}	
+
+
+	close(CSS);
+
+	foreach my $tag (keys %{$struct->{tags}}){
+		$display->{tableguts} .=  "<tr>\n";
+		$display->{tableguts} .= "<td>" . $tag . "</td>\n";
+		$display->{tableguts} .= "<td>" . join(", ", @{$struct->{tags}->{$tag}->{tagex}}) . "</td>\n";
+
+		$display->{tableguts} .= "<td><pre>" . $struct->{tags}->{$tag}->{text} . "</pre></td>\n";
+		foreach my $comment (@{$struct->{comments}}){
+			$display->{tableguts} .= "<td>" . $struct->{tags}->{$tag}->{comments}->{$comment} . "</td>\n";
+		}
+		
+		my $tagname = ($struct->{tags}->{$tag}->{tagex}->[0]) ? $struct->{tags}->{$tag}->{tagex}->[0] : "div";
+		$tagname =~ s/ //g;
+		$display->{tableguts} .= "<td>" . $m->comp('SELF:put_classname', chunk => $struct->{tagexamples}->{$tagname}, classname => $struct->{tags}->{$tag}->{classname}) . "</td>\n";
+
+		$display->{tableguts} .=  "</tr>\n";
+	}
+</%perl>
+
+<html>
+<head>
+<style>
+<% $display->{css} %>
+</style>
+</head>
+<body>
+<h1>CSS Display of /style/style.css</h1>
+<table border="1">
+<% $display->{tableguts} %>
+</table>
+</body>
+</html>
+
+<%method put_classname>
+<%args>
+	$chunk
+	$classname
+</%args>
+<%perl>
+	$chunk =~ s/##class##/$classname/g;
+	return $chunk;
+</%perl>
+</%method>

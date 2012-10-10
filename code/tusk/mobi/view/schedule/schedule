@@ -1,0 +1,58 @@
+<%once>
+use HSDB4::DateTime;
+</%once>
+
+<%attr>
+no_check_path => 1
+</%attr>
+
+<%method header_text>
+% return "Schedule for: $date";
+</%method>
+
+
+<%shared>
+my $user = $m->session->{'user'};
+my $date = $m->comp('/tmpl/url:get_last_path_id');
+
+if(defined $date && $date =~ /^\d{4}-\d{1,2}-\d{1,2}$/){
+	# make sure date is well-formed!!!
+	my @parts = split /-/, $date;
+	$parts[1] = sprintf("%02d", $parts[1]);
+	$parts[2] = sprintf("%02d", $parts[2]);
+	$date = join '-', @parts;
+}
+else{
+	$date = HSDB4::DateTime->new()->out_mysql_date();
+}
+
+</%shared>
+
+<%method get_topnav_lnks>
+<%perl>
+my $today = HSDB4::DateTime->new()->in_mysql_date($date);
+$today->subtract_days(1);
+my $prevdate = $today->out_mysql_date();
+$today->add_days(2);
+my $nextdate = $today->out_mysql_date();
+
+my $url = '/mobi/view/schedule';
+
+ return [{ lnk   => "$url/schedule/$prevdate",
+            label => 'prev'},
+          { lnk   => "$url/enterdate",
+            label => 'go-to'},
+          { lnk   => "$url/schedule/$nextdate",
+            label => 'next'},
+          ];
+</%perl>
+</%method>
+
+
+% my @sorted_meetings = $user->sorted_meetings_on_date($date);
+% if(scalar @sorted_meetings){
+<& /tmpl/home:build_sched_table, meetings => \@sorted_meetings, is_mobi => 1 &>
+% }
+% else {
+<em>No scheduled events.</em>
+% }

@@ -1,0 +1,206 @@
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::ExamSelection;
+use XML::Twig;
+</%once>
+<%perl>
+
+my $case_id = $m->comp("/tmpl/url:get_first_path_id");
+my $conditions = $case_id ? "case_header_id = $case_id" : "";
+my $cases = TUSK::Case::Case->lookup($conditions);
+my $twig = XML::Twig->new(pretty_print => 'indented');
+$twig->safe_parse("<CaseStructure></CaseStructure>");
+my $tw_root=$twig->root; 
+foreach my $case (@$cases) {
+   my $case_elt = XML::Twig::Elt->new('Case');
+   $case_elt->set_att("ID",$case->getPrimaryKeyID);
+
+   my $elt = XML::Twig::Elt->new('Title' => $case->getCaseTitle); 	
+   $elt->paste('last_child' => $case_elt);
+
+   $elt = XML::Twig::Elt->new('AuthorNotes' => $case->getCaseAuthorDesc); 	
+   $elt->paste('last_child' => $case_elt);
+
+   $elt = XML::Twig::Elt->new('PatientType' => $case->getPatientType->getTypeName); 	
+   $elt->paste('last_child' => $case_elt);
+
+   $elt = XML::Twig::Elt->new('Duration' => $case->getDurationText); 	
+   $elt->paste('last_child' => $case_elt);
+
+   $elt = XML::Twig::Elt->new('Overview' => $case->getCaseUserDesc); 	
+   $elt->paste('last_child' => $case_elt);
+
+   foreach my $phase (@{$case->availablePhases}) {
+      my $phase_elt = XML::Twig::Elt->new('Phase');
+      $phase_elt->set_att("ID",$phase->getPrimaryKeyID);
+      $phase_elt->set_att("Type",$phase->getPhaseType->getTitle);
+      #$phase_elt->set_att("TUSKObject",ref($phase));
+      my $phase_link_obj = $phase->getJoinObject("TUSK::Case::LinkCasePhase");
+      $phase_elt->set_att("Order",$phase_link_obj->getSortOrder);
+
+      $elt = XML::Twig::Elt->new('Title' => $phase->getPhaseTitle); 	
+      $elt->paste('last_child' => $phase_elt);
+
+      $elt = XML::Twig::Elt->new('AuthorNotes' => $phase->getPhaseDesc); 	
+      $elt->paste('last_child' => $phase_elt);
+
+      $elt = XML::Twig::Elt->new('Instructions' => $phase->getInstructions); 	
+      $elt->paste('last_child',$phase_elt);
+
+      $elt = XML::Twig::Elt->new('Text' => $phase->getMainText);
+      $elt->paste('last_child',$phase_elt);
+
+      if ($phase->getPhaseOptionType) {
+	 my $options_elt = XML::Twig::Elt->new('Options');
+         $options_elt->set_att("Type",$phase->getPhaseOptionType);
+
+         foreach my $option (@{$phase->getPhaseOptions}) {
+	      my $option_elt = XML::Twig::Elt->new('Option' => {Correct => $option->getCorrect});
+
+	      my $elt = XML::Twig::Elt->new('Text' => $option->getOptionText); 
+	      $elt->paste('last_child',$option_elt);
+
+	      $elt = XML::Twig::Elt->new('Feedback' => $option->getFeedback); 
+	      $elt->paste('last_child',$option_elt);
+
+	      $option_elt->paste('last_child' => $options_elt);
+	 }
+         $options_elt->paste('last_child' => $phase_elt);
+      }
+
+      if ($phase->isa("TUSK::Case::Phase::History")) {
+	      foreach my $question (@{$phase->getChildHistoryQuestions()}) {
+		 my $question_elt = XML::Twig::Elt->new("HistoryQuestion");
+
+		 my $elt = XML::Twig::Elt->new("Question" => $question->getQuestion);
+	         $elt->paste("last_child", $question_elt);
+
+		 $elt = XML::Twig::Elt->new("Answer" => $question->getAnswer);
+	         $elt->paste("last_child", $question_elt);
+
+		 $question_elt->paste("last_child", $phase_elt);
+	      }
+      }
+
+      foreach my $battery (@{$phase->getBatteries}) {
+	 my $category_elt = XML::Twig::Elt->new('Category' => { Type => $battery->getBatteryType });
+	 my $elt = XML::Twig::Elt->new("Title" => $battery->getBatteryTitle);
+	 $elt->paste('last_child' => $category_elt);	 
+
+	 $elt = XML::Twig::Elt->new("Description" => $battery->getBatteryDesc);
+	 $elt->paste('last_child' => $category_elt);
+
+	 foreach my $exam (@{$battery->getChildExams}) {
+	    my $exam_elt = XML::Twig::Elt->new("Exam" => {Priority => $exam->getCorrect($phase) ? "high" : "low"});
+
+	    my $elt = XML::Twig::Elt->new("Title" => $exam->getTitle);
+	    $elt->paste("last_child" => $exam_elt);
+
+	    $elt = XML::Twig::Elt->new("Value" => $exam->getDisplayValue($phase));
+	    $elt->paste("last_child" => $exam_elt);
+
+	    $elt = XML::Twig::Elt->new("Content" => $exam->getDisplayContentID($phase));
+	    $elt->paste("last_child" => $exam_elt);
+
+	    $elt = XML::Twig::Elt->new("DefaultValue" => $exam->getDefaultValue);
+	    $elt->paste("last_child" => $exam_elt);
+
+	    $elt = XML::Twig::Elt->new("DefaultCost" => $exam->getDefaultCost);
+	    $elt->paste("last_child" => $exam_elt);
+
+	    $elt = XML::Twig::Elt->new("DefaultContent" => $exam->getDefaultContentID);
+	    $elt->paste("last_child" => $exam_elt);
+
+	    foreach my $test (@{$exam->getChildTests}) {
+		my $test_elt = XML::Twig::Elt->new("Test");
+		$test_elt->set_att("Priority",$test->getTestExclusion($phase)->getCorrect() ? "high" : "low");
+
+		my $elt = XML::Twig::Elt->new("Title" => $test->getTitle);
+	        $elt->paste("last_child",$test_elt);
+
+   	        $elt = XML::Twig::Elt->new("DefaultValue" => $test->getDefaultValue);
+	        $elt->paste("last_child" => $test_elt);
+
+	        $elt = XML::Twig::Elt->new("DefaultContent" => $exam->getDefaultContentID);
+	        $elt->paste("last_child" => $test_elt);
+	
+		$test_elt->paste("last_child",$exam_elt);
+            }
+
+	    $exam_elt->paste("last_child",$category_elt);
+	 }
+
+	 $category_elt->paste('last_child', $phase_elt);
+      }
+
+      foreach my $content (@{$phase->getNarrativeContent}) {
+	 my $elt = XML::Twig::Elt->new('Content');
+	 $elt->set_att('ID' => $content->primary_key);
+	 $elt->set_att('Type' => $content->field_value("type"));
+
+	 my $sub_elt = XML::Twig::Elt->new('Title' => $content->out_label);
+	 $sub_elt->paste('last_child' => $elt);
+
+	 $sub_elt = XML::Twig::Elt->new('URL' => "http://".$TUSK::Constants::Domain.$content->out_url);
+	 $sub_elt->paste('last_child' => $elt);
+
+	 $elt->paste('last_child' => $phase_elt);	
+      }	
+
+      if ($phase->getQuizLink) {
+	 my $quizlink = $phase->getQuizLink;
+	 my $quiz = $quizlink->getJoinObject("TUSK::Quiz::Quiz");
+	 my $quiz_elt = XML::Twig::Elt->new('Quiz');
+	 $quiz_elt->set_att('ID' => $quiz->getPrimaryKeyID);
+
+	 ## create a title element and paste it into the quiz element
+	 my $elt = XML::Twig::Elt->new('Title' => $quiz->getTitle);
+	 $elt->paste('last_child' => $quiz_elt);
+
+	 foreach my $quiz_item (@{$quiz->getQuizItems}) {
+		 ## create a item element and paste it into the quiz element
+		 #my $item_elt = XML::Twig::Elt->new($quiz_item->getQuizItemType);
+		 ## this is not handling all the question types
+		 my $item_elt = XML::Twig::Elt->new("Question");
+	 	 my $question = $quiz_item->getJoinObject("TUSK::Quiz::Question");
+	         $item_elt->set_att('ID' => $question->getPrimaryKeyID);
+	         $item_elt->set_att('Order' => $quiz_item->getSortOrder);
+		 $item_elt->set_att('Type' => $question->getType);
+
+	
+		 my $title_elt = XML::Twig::Elt->new("Title" => $question->getTitle);
+		 $title_elt->paste('last_child' => $item_elt);
+
+		 my $body_elt = XML::Twig::Elt->new("Body" => $question->getBody);
+		 $body_elt->paste('last_child' => $item_elt);
+
+		 foreach my $answer (@{$question->getAnswers}) {
+			my $answer_elt;
+			if ($answer->getCorrect) {
+				$answer_elt = XML::Twig::Elt->new("CorrectAnswer" => $answer->getValue);
+			} else {
+				$answer_elt = XML::Twig::Elt->new("Answer" => $answer->getValue);
+			}
+			$answer_elt->set_att("Label" => $answer->getLabel) if ($answer->getLabel);
+			$answer_elt->paste('last_child' => $item_elt);
+		 }
+
+                 ## paste the quiz item into the quiz
+		 $item_elt->paste('last_child' => $quiz_elt);	     	
+	 }
+
+	 ## paste the quiz into the phase
+	 $quiz_elt->paste('last_child' => $phase_elt);	 
+      }
+
+      ## now paste the phase into the case
+      $phase_elt->paste('last_child' => $case_elt);
+   }
+
+   $case_elt->paste('last_child' => $tw_root);
+}
+
+print $tw_root->print;
+</%perl>
+
+

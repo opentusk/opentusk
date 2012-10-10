@@ -1,0 +1,103 @@
+<%once>
+	use TUSK::Eval::Group;
+	use TUSK::Eval::GroupEval;
+	use TUSK::Core::School;
+</%once>
+
+<%attr>
+	default_path_type => undef
+</%attr>
+
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $school = $course->get_school()->getSchoolName();
+	my $eval_group_id = $m->comp("/tmpl/url:get_first_path_id");
+	my $now = HSDB4::DateTime->new();
+	my $student = $m->session->{'user'};
+	my $time_period = $course->get_current_timeperiod();
+	my $eval_group = TUSK::Eval::Group->new()->lookupKey($eval_group_id);
+	my $eval_group_evals;
+</%shared>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	my $msg;
+	unless (defined $eval_group_id) {
+		$msg = 'Missing Eval Group ID';
+	}
+
+	unless ($time_period) {
+		$msg = 'No Current Time Period';
+	} else {
+		unless ($course->is_user_registered($student->primary_key(), $time_period->primary_key()) || TUSK::Session::is_eval_admin($m->session,$student)) {
+			$msg = 'Permisson Denied';
+		}
+	}
+
+	$msg = "Evaluations are no longer available" if ($eval_group->isOverdue());
+
+	if ($msg) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/home", msg => $msg, msgtype => 'errmsg' ));	
+	}
+
+	$eval_group_evals = TUSK::Eval::GroupEval->new()->lookup("parent_eval_group_id = " . $eval_group->getPrimaryKeyID());
+</%perl>
+</%method>
+
+
+% if (ref $eval_group eq 'TUSK::Eval::Group') {
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0" 
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label 		=> 'Instructions:',
+	value		=> $eval_group->getInstructions(),
+} &>	
+
+<& /tmpl/element:field_display, params => { 
+	label 		=> 'Due Date:',
+	value		=> $eval_group->getFormattedDueDate(),
+} &>	
+
+</table>
+% }
+
+
+<table border="0" cellspacing="10" cellspadding="10">
+% foreach my $eval_group_eval (@$eval_group_evals) {
+%	my $eval = HSDB45::Eval->new(_school => $school, _id => $eval_group_eval->getChildEvalID());
+%	if ($eval->due_date() > $now) {
+%		my $comp = HSDB45::Eval::Completion->new( _school => $school );
+%	    	$comp->lookup_key ($student->primary_key(), $eval->primary_key);
+%		my $title = ($eval_group->getShowNameFlag()) ? HSDB4::SQLRow::User->new(_id => $eval_group_eval->getUserID())->out_full_name() : $eval->title();
+
+%	    	if ($comp->primary_key && $comp->field_value('status') eq 'Done') {
+	<tr><td style="font-size:85%;color:gray;"><% $title %></td><td style="font-size:85%;color:gray;"> &nbsp;&nbsp; completed on <% $comp->field_value('created') %></td></tr>
+%		} else {
+	<tr><td><a style="text-decoration:none;" href="/protected/eval45/<% $school %>/<% $eval->primary_key() %>"><% $title %></a></td><td>&nbsp;</td></tr>
+%		}
+%	}
+% }
+</ul>
+
+
+<%method title>
+%	return 'Evaluations: ' . $eval_group->getTitle();
+</%method>
+
+<%method right_header_text>
+<%perl>
+	if (TUSK::Session::is_eval_admin($m->session,$student)) {
+		return [ {txt => 'Manage Evaluations By Faculty/Staff', url => "/eval/administrator/byuser/show/$school" } ];
+	}
+</%perl>
+</%method>

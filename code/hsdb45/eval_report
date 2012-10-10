@@ -1,0 +1,50 @@
+[! use HSDB45::Eval::Results;
+   use HSDB45::Eval::Results::Formatter;
+   use Apache::Cookie;
+   use Apache::Constants qw (NOT_FOUND);
+   use XML::LibXML;
+   use XML::LibXSLT;
+
+   $parser = XML::LibXML->new();
+   $xslt = XML::LibXSLT->new();
+   my $subr = $req_rec->lookup_uri("/XSL/");
+   $style_doc = $parser->parse_file($subr->filename . "/Eval/eval_results.xsl");
+   $stylesheet = $xslt->parse_stylesheet($style_doc);
+!]
+[- 
+    $eval = HSDB45::Eval->lookup_path( $req_rec->path_info() );
+
+    # Get the authenticated user
+    $username = $req_rec->connection->user;
+    $user = HSDB4::SQLRow::User->new ()->lookup_key ($username);
+    unless ($eval->primary_key and $user->primary_key and 
+       $eval->admin_group()->contains_user($user)) {
+       $req_rec->status (NOT_FOUND);
+       return;
+    }
+
+    $eval_results = HSDB45::Eval::Results->new($eval);
+    $results_formatter = HSDB45::Eval::Results::Formatter->new($eval_results);
+    $result_string = $results_formatter->xml_text();
+    $tdoc = $stylesheet->transform($parser->parse_string($result_string));
+
+    $escmode=0;
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+-]
+
+<html>
+<head>
+<title>[+ $TUSK::Constants::SiteAbbr +] Eval Report: [+ $eval->out_label +]</title>
+<link rel="stylesheet" type="text/css" href="/style/eval.css" title="HSDBEval"/>
+</head>
+<body>
+
+[- head_graphics ($eval->out_label) -]
+<img src="/icons/transdot.gif" width=1 height=1>
+<hr>
+
+[+ $stylesheet->output_string($tdoc) +]
+
+</body>
+</html>

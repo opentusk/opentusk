@@ -1,0 +1,134 @@
+<%attr>
+case_ignore_perms=>1
+</%attr>
+
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::CaseReport;
+use TUSK::Case::PhaseVisit;
+use TUSK::Constants;
+</%once>
+
+<%shared>
+my $id = $m->comp('/tmpl/url:get_last_path_id');
+my $caseReport = TUSK::Case::CaseReport->lookupKey($id);
+my $case = $caseReport->getCaseObject();
+$case->setReport($caseReport);
+my $user = $caseReport->getUserObject();
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+
+
+<div id="caseSummaries">
+<ul id="csTabNav" class="clearfix">
+<li id="responses" class="activeTab"><a href="javascript:;" onclick="activateTab(this)">Response Summary</a></li>
+% # we don't want to display pathway data for any case started before 3.6.1 was released. 
+% if ($caseReport->hasPathway()) {
+<li id="pathway"><a href="javascript:;" onclick="activateTab(this)">Pathway Summary</a></li>
+% }
+% if ($case->getBillingTotal() && $total_cost) {
+<li id="cost"><a href="javascript:;" onclick="activateTab(this)">Cost</a></li>
+% }
+</ul>
+
+<div id="responsesArea" class="tabArea activeArea">
+<& /tmpl/element:table &>
+%	my $phase;
+%	
+%	if (scalar(@$visited_phases)){	
+%		foreach my $phase (@{$visited_phases}){
+
+			<&  /tmpl/element:section_header_row, label=>$phase->getPhaseTitle() &>
+			<tr><td colspan="2">
+		<& "/case/author/tmpl/".$phase->getIncludeFile().":phaseReport", 
+				case=>$case, phase=>$phase, case_report=>$caseReport &>
+			</td></tr>
+% 		}
+%	
+%
+% 		my $quiz_results = $caseReport->getQuizResults();
+% 		my $quiz;
+% 		my $header_flag = 1;
+% 		foreach my $result (@{$quiz_results}) {
+%			$quiz = TUSK::Quiz::Quiz->lookupKey($result->getQuizID());
+% 			next if (!$quiz);
+% 			if ($header_flag){
+%				$m->comp("/tmpl/element:top_header_row", label=>'Quizzes');
+%				$header_flag = 0;
+%				}
+		<tr><td colspan ="2">
+		<& /quiz/tmpl/quizdisplay:display_responses,quiz=>$quiz,result=>$result &>
+		</td></tr>
+% 		}
+%	}else{
+<i>There are no responses.</i>
+% 	}
+</table>
+</div> <!-- responsesArea -->
+
+% if ($caseReport->hasPathway()) {
+<div id="pathwayArea" class="tabArea">
+% $m->comp('/case/path_summary', case => $case, report => $caseReport);
+</div> <!-- pathwayArea -->
+% }
+
+% if ($case->getBillingTotal() && $total_cost) {
+<div id="costArea" class="tabArea">
+<& /tmpl/element:table &>
+%	foreach my $cat (keys %cost_by_cat){
+<tr>
+<td><% $cat %></td>
+<td><div style="width:10%; text-align:right;"><% sprintf("%.2f", $cost_by_cat{$cat}) %></div></td>
+</tr>
+%	}
+<tr>
+<td class="text2"><strong>Total:</strong></td>
+<td class="text2"><div style="width:10%; text-align:right;"><strong><% sprintf("%.2f", $total_cost) %></strong></div></td>
+</tr>
+</table>
+</div> <!-- costArea -->
+% }
+
+</div> <!-- caseSummaries -->
+
+
+
+<%init>
+my $visited_phases = $case->getVisitedPhases();
+
+my $tests = $case->getTestsWithCosts($user);
+my ($total_cost, %cost_by_cat);
+foreach my $t (@$tests){
+	$total_cost += $t->getDefaultCost();
+	$cost_by_cat{$t->getBatteryObj()->getBatteryTitle()} += $t->getDefaultCost();
+}	
+</%init>
+
+<%method title>
+% return 'Case Responses : ' . $case->getCaseTitle();
+</%method>
+
+<%method function_token>
+% return 'reports_case';
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Case::Case'=>$case};
+</%method>
+
+<%method red_header_text>
+<%perl>
+	my $txt = 'case responses';
+	if(!$case->isSelfAssessment()){
+		$txt .= ': ' . lc($user->out_lastfirst_name()) . " (<a  href=\"javascript:email_user('" . $user->user_id() . "', '$type_path');\">email</a>)";
+	}
+	return $txt;
+</%perl>
+</%method>
+
+<%method leftnav>
+<%perl>
+return "/tmpl/leftnav/course";
+</%perl>
+</%method>

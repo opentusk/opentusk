@@ -1,0 +1,152 @@
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use TUSK::Application::GradeBook::GradeBook;
+	use HSDB4::DateTime;
+</%once>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+	my ($gb, $root_category);
+	my $sort_order_box = 0;
+	my @rows = ();
+	my $has_categories = 0;
+</%shared>
+
+
+% if ($time_period_id > -1) {
+<table>
+<tr><td>
+<& /tmpl/element:cms_button_row,
+    links => [
+        {display_txt => 'New Grade Event',
+        link_txt    => '/gradebook/author/addedit/' . $type_path},
+  		{display_txt => 'New Grade Category',
+        link_txt    => '/gradebook/author/categoryaddedit/' . $type_path},
+    ]
+&>
+</td><td>
+<& SELF:print_gradebook_tools, type_path => $type_path &>
+</td></tr>
+</table>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'eventshow' } &>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => $sort_order_box,
+	columns => [ 
+		{'label' => 'Title', 'field' => 'title'},
+		{'label' => 'Weight', 'field' => 'weight'},
+		{'label' => 'Due Date', 'field' => 'due_date'},
+		{'label' => 'Posted', 'field' => 'posted', align => 'center'}, 
+	],
+	action_columns => [ 
+		{ 'label' =>'Modify','link' => '/gradebook/author/addedit' },
+		{ 'label' =>'View Grades','link' => '/gradebook/author/viewgrades' },
+		{ 'label' =>'Add/Edit Grades','link' => '/gradebook/author/gradeaddedit' },
+		{ 'label' => 'Import Grades','link' => '/gradebook/author/import' },
+		{ 'label' => 'Export Grades','link' => '/gradebook/author/export'},		
+		{ 'label' => 'Statistics', 'link' => '/gradebook/author/gradestats'},
+		{ 'label' => 'Delete','link' => '/gradebook/author/delete' },
+	],
+	alternate_action_columns => [ 
+		{ 'label'=>'Modify','link' => '/gradebook/author/categoryaddedit' },
+		{ 'label'=>'Add/Edit Grades','link' => '/gradebook/author/gradelistbystudent' },
+		{ 'label'=>'Delete','link' => '/gradebook/author/categorydelete' },
+		{ 'label'=>'Sort Categories','link' => '/gradebook/author/categorysort' },
+		{ 'label'=>'Sort Events','link' => '/gradebook/author/eventsort' },
+	],
+	action_dropdown => 1,
+	action_column_align => 'left',
+	rows => \@rows,
+	type_path => $type_path,
+	name => "events",
+} &>
+</form>
+% } else { 
+<br/><b>Please select a time period</b><br/>
+% }
+
+
+<%init>
+	unless ($time_period_id) {
+		my $msg = TUSK::Core::SessionTimePeriod::course_time_periods($m->comp("/tmpl/url:get_type_object"), undef, $m->session);
+	 	$time_period_id = $m->comp("SELF:get_timeperiod_id");
+	}
+	return unless $time_period_id;
+
+	$gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id, user_id => $m->session->{'user'}->user_id()});
+	$root_category  = $gb->getRootCategory();
+
+	my $categories = $gb->getSortedCategories();
+
+	if (@$categories) {
+		my ($categorized_events, $unused) = $gb->getAllEventsByCategory();
+		$has_categories = 1;
+		foreach my $cat (@$categories) {
+			my $spaces = ($cat->getDepth() > 1) ? '&nbsp;' x (($cat->getDepth()-1) * 2) : '';
+			push @rows, {
+				title => $spaces . '<span class="bigtext">' . $cat->getGradeCategoryName() . '</span> ',
+				use_alternate_action_columns => 1,
+				id => $cat->getPrimaryKeyID(),
+			};
+			$m->comp('SELF:update_event_rows', events => $categorized_events->{$cat->getPrimaryKeyID()}, spaces => '&nbsp;' x (($cat->getDepth()) * 2));			
+		}
+		$m->comp('SELF:update_uncategorized_event_rows', uncategorized_events => $categorized_events->{$root_category->getPrimaryKeyID()});
+	} else {
+		my $events = $gb->getAllButFinalEvents();
+		if (defined($ARGS{'order'})) {
+			$events = TUSK::GradeBook::GradeEvent->updateSortOrders($type_object->school, $type_object->primary_key, $m->comp("SELF:get_timeperiod_id"), $ARGS{'order'}, $events);
+		}
+		$m->comp('SELF:update_event_rows', events => $events);			
+		$sort_order_box = 1;
+	}
+</%init>
+
+
+<%method update_uncategorized_event_rows>
+<%args>
+	$uncategorized_events
+</%args>
+<%perl>
+	if ($uncategorized_events && scalar @$uncategorized_events) {
+		push @rows, {title => '<span class="bigtext">Uncategorized</span>'};
+		$m->comp('SELF:update_event_rows', events => $uncategorized_events, spaces => '&nbsp;' x 2);
+	}
+</%perl>
+</%method>
+
+<%method update_event_rows>
+<%args>
+	$events
+	$spaces => ''
+</%args>
+<%perl>
+	foreach my $event (@$events) {
+		my $gray = ($has_categories) ? 'gray' : '';
+		my $due_date = ($event->getDueDate()) ? HSDB4::DateTime->new()->in_mysql_date($event->getDueDate())->out_string_date_short_year() : '';
+		push @rows, {
+			title => $spaces . "<span class=\"$gray\">" . $event->getEventName() . "</span>",
+			weight => ($event->getWeight()) ? $event->getWeight() : '',
+			due_date => $due_date,
+			posted => $event->getPublishFlagSpelledOut(),
+			id => $event->getPrimaryKeyID(),
+		};
+	}
+</%perl>
+</%method>
+
+<%method title>
+%	return "Manage Grade Book";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>

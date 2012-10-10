@@ -1,0 +1,314 @@
+<%attr>
+	top_tab_type            => 'manage'
+	check_cms_permissions	=> 1
+</%attr>
+
+<%once>
+	use TUSK::Constants;
+	use HSDB4::Constants;
+	use HSDB4::SQLRow::User;
+	use HSDB4::SQLRow::Content;
+</%once>
+          
+<%shared>
+	my $selfpath = $m->comp("/tmpl/url:get_full_path");
+</%shared>
+    
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+   
+<tr> <td>
+
+<%perl>
+
+my $prefix = '';
+
+if ($ENV{HTTPS} eq 'on' && $ENV{HTTP_USER_AGENT} =~ /Win/i && $ENV{HTTP_USER_AGENT} =~ /Firefox\/1\.5\.0\.\d{2}|Firefox\/2\.0\.0\.\d+/){
+	$prefix = '/unprotected'
+}
+
+my $params = [{ link_txt    => '/management/content/addedit/' . $selfpath . '?content_type=Collection&page=add',
+                display_txt => 'New Folder'
+              },
+              { link_txt    => "$prefix/management/content/addedit/" . $selfpath,
+                display_txt => 'Upload New Content'
+              },
+             ];
+
+if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR')){
+	push @$params, { link_txt    => '/management/reuse/' . $selfpath,
+	                 display_txt => 'Reuse TUSK Content'
+	               };
+	push @$params, { link_txt    => '/management/content/addedit/' . $selfpath . '?page=url',
+    	             display_txt => 'Link to URL'
+        	       };
+}
+
+</%perl>
+
+<& /tmpl/element:cms_button_row, 
+    links => $params
+&>
+
+</td></tr>
+</table>
+
+% if (@contents) { 
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	name => 'content' } 
+
+&>
+	<input type="hidden" name="order" value="">
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	class => "tusk",
+	cellpadding =>"0" } &>
+
+                    <tr class="header"> 
+                      <td class="header-center" width="1%">Sort</td>
+                      <td class="header-center" width="1%">&nbsp;</td>
+                      <td class="header-left" width="65%">Title</td>
+
+% if (defined($course) && $course->type eq 'integrated course') {
+
+                            <td class="header-left" width="1%">Originating&nbsp;Course</td>
+% }
+                      <td class="header-left" width="31%">Authors</td>
+                      <td class="header-center" width="1%">Actions</td>
+
+% if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR'))  {
+                      <td class="header-center" width="1%">
+						<input type="checkbox" onClick="toggle_boxes(this,this.form,'content')"></td>
+% }
+                    </tr>
+<%perl>
+  foreach my $i (0..scalar(@contents)-1) {
+  
+	$content_id = $contents[$i]->primary_key;  
+	if ($i % 2 == 0){
+		$data->{class} = "even";
+	}else{
+		$data->{class} = "odd";
+	}
+	my $type = $contents[$i]->field_value('type');
+	my $out_title = '';
+	my $out_id;
+
+	if (defined($course) && $course->type eq 'integrated course') {
+		my $orig_course = $contents[$i]->get_originating_course( $course );
+
+		if ( defined($orig_course) ) {
+			$out_title = $orig_course->title;
+			$out_id    = $orig_course->course_id;
+		}
+	}
+
+</%perl>
+
+<tr class="<% $data->{class} %>">
+<td class="layers-center" width="1%">
+<select class="<% $data->{class} %>" name="order-box" onChange="this.form.order.value=this.options[this.selectedIndex].value;document.content.submit();">
+% foreach my $j (1..$contents_count) {
+% 					my $mrg = ($i+1)."-".$j;
+					<option class="<% $data->{class} %>" <% $j == ($i+1) ? "value='' selected" : "value='$mrg'" %>  ><% $j %></option>
+
+##  <% $j == $i ? "value='' selected" : "value='$mrg'" %>  <% ($j == ($i+1))? "value='' selected"  : "value='".(($i+1) - $j )."'" %>
+% }
+                              </select></td>
+                            <td class="layers-center" nowrap width="1%"><% $contents[$i]->out_icon %></td>
+                            <td class="layers-left" width="65%">
+%	 if ($type eq "Collection" or $type eq "Multidocument") {
+	<a class="folder" href="/management/folders/<% $selfpath %>/<% $content_id %>"><% $contents[$i]->field_value("title") %></a> (<%$content_id%>)
+% } else {
+	<% $contents[$i]->field_value("title") %> (<% $content_id %>)
+% }
+
+%	 if ($contents[$i]->is_expired()) {
+&nbsp;<i>expired</i>
+% } elsif ($contents[$i]->is_hidden()) {
+&nbsp;<i>hidden</i>
+% }
+</td>
+
+% if (defined($course) && $course->type eq 'integrated course') {
+						<td class="layers-left">
+							<% $out_title %>
+						</td>
+% }
+		<td class="layers-left" width="31%">
+%  		 if ($contents[$i]->type eq 'External') {
+			<% $contents[$i]->child_authors() %>
+%		 } else {
+			<% join(', ', map {$_->out_abbrev} $contents[$i]->child_authors()) %>
+%		}
+		</td>
+
+<td class="layers-center" nowrap width="1%">
+
+% my $course_type_p;
+
+% if ($m->comp("/tmpl/url:get_full_path") =~ m/course/ ) {
+%  $course_type_p = $m->comp("/tmpl/url:get_course_type_path");
+% }
+
+% my $lastpath = $m->comp("/tmpl/url:get_last_path_id");
+% my $url;
+% my $pathids = $m->comp("/tmpl/url:get_path_ids");
+% my $pathstr = join("/",@$pathids);
+% if ( $course_type_p ) {
+%    my @paths = split(/\//, $course_type_p);
+%  	 my $course_context = HSDB4::Constants::code_by_school( $m->comp("/tmpl/url:get_school") ) . $paths[1] . 'C/';
+%    $url = "/view/content/$course_context$pathstr/$content_id";
+% } else {
+%   $url = "/view/content/$lastpath/$content_id";
+% }
+<a href="<% $url %>" class="navsm">Preview</a>
+
+% my $check_cont_perm = TUSK::Session::check_content_permissions($m->session, $course, $contents[$i], $courserole, $user_object);
+% if  ($check_cont_perm) {
+<span class="littlespacing">|</span>
+<a href="/management/content/addedit/<% $selfpath %>?content_id=<%$content_id%>&page=edit" class="navsm">Modify</a>
+% }
+</td>
+
+% if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR'))  {
+                            <td class="layers-center" width="1%">
+
+% if ( $m->comp("SELF:check_course_permissions", token => 'DIRECTOR') or $check_cont_perm ) {
+<input type="checkbox" name="content" value="<% $content_id %>">
+% } else {
+&nbsp;
+% }
+</td>
+% }
+                          </tr>
+% } # END FOR EACH
+ </table>
+
+% if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR'))  {
+ <table align="right" cellspacing="0" cellpadding="0">
+			<tr bgcolor="white"> 
+% if ($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
+
+                              <td class="button-right">
+				<a href="javascript:formsubmit('/management/content/move/<% $selfpath %>')"><img src="/graphics/manage/Button-MoveChecked.gif" alt="Move Checked" border="0"></a>
+				</td>
+% }
+				<td class="button-right">
+                              <a href="javascript:formsubmit('/management/content/delete/<% $selfpath %>')"><img src="/graphics/manage/Button-DeleteChecked.gif" alt="Delete Checked" border="0"></a>
+				</td>
+                            </tr>
+                          </table>
+% }
+</form>
+% } else {
+<br><i>No content is linked.</i><br><br>
+% }
+
+
+<%init>
+
+my $data;
+my $content_id = $m->comp("/tmpl/url:get_last_path_id");
+my $content_object = HSDB4::SQLRow::Content->new->lookup_key($content_id);
+my @contents;
+my $contents_count;
+my $course = $m->comp('/tmpl/url:get_type_object');
+my $courserole;
+
+my $user_id = $m->comp('SELF:user');
+my $user_object = HSDB4::SQLRow::User->new->lookup_key($user_id);
+
+if( defined($course) ) {
+	$courserole = TUSK::Session::course_user_role($course, $user_id);
+}
+
+# get the content
+if ($content_object->child_contentref){
+	@contents=@{$content_object->child_contentref};
+	$contents_count=scalar(@contents);
+}
+
+if ($ARGS{order}){
+	my ($index,$insert)=split('-',$ARGS{order});
+	
+	splice(@contents, ($insert-1), 0,splice(@contents,($index-1),1));
+	
+	my $link = $content_object->content_link;
+
+	for( my $i=0; $i<$contents_count;$i++){
+		my ($r, $t_err_msg) = $link->update(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
+					-password=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+					-parent_id => $content_id,
+					-child_id => $contents[$i]->primary_key,
+					sort_order => 10*($i+1),
+				);
+	}
+	delete($ARGS{order});
+	$ARGS{msg}="Order Successfully Changed";
+}	
+
+	my @roles = $content_object->child_user_roles($user_id);
+	my $path = $selfpath;
+	$path =~ s/(.+)\/\d+/$1/;
+	
+	my $classpath =  $m->comp("/tmpl/url:get_full_path");
+</%init>
+
+<%method jsarray>
+% return ['content_checkboxes.js',' edit_content.js'];
+</%method>
+
+<%method title>
+% return "Folder Content";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method right_header_text>
+<%doc>Method that returns a list of all the images to use to the right on the red header bar</%doc>
+% my $course_type_p;
+% if ($m->comp("/tmpl/url:get_full_path") =~ m/course/ ) {
+%  $course_type_p = $m->comp("/tmpl/url:get_course_type_path");
+% }
+%    my $pathids = $m->comp("/tmpl/url:get_path_ids");
+%    my $pathstr = join("/",@$pathids);
+%    my @paths = split(/\//, $course_type_p);
+%  	 my $course_context = HSDB4::Constants::code_by_school( $m->comp("/tmpl/url:get_school") ) . $paths[1] . 'C/';
+%    my $content_id = $m->comp("/tmpl/url:get_last_path_id");
+% my $prevURL = ( $m->comp("/tmpl/url:get_full_path") =~ m/course/ )  ? "/view/content/$course_context$pathstr" : "/view/$selfpath";
+% return [ {txt => 'Preview', url => "$prevURL"  } , {txt => 'Modify', url => "/management/content/addedit/$selfpath?page=edit" }];
+</%method>
+
+<%method leftnav>
+
+% my $paths = $m->comp("/tmpl/url:get_type_path");
+% my $last = substr $paths, -1, 1;
+% if ( $m->comp("SELF:check_course_permissions", token => 'AUTHOR') ) {
+% if ($last =~ /^[0-9]+$/ ) {
+% return { component => "/tmpl/leftnav/course" , school_name => $m->comp("/tmpl/url:get_school") } ;
+% } else {
+% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+% }
+% } else { return 0; }
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+         return $m->comp("/management/tmpl/content:get_nav_bars");
+</%perl>
+</%method>
+
+
+
+
+

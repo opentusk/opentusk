@@ -1,0 +1,1201 @@
+<%args>
+	$summary		=> 0
+	$SIZE			=> ''
+	$OVERLAY		=> 0
+</%args>
+
+<%attr>
+        top_tab_type            => 'none'
+	displayLittleUserNavBar => '1'
+	page_footer		=> '/tmpl/footer:footer_with_tufts_links'
+	default_path_type	=> 'content'
+	allow_guests		=> '1'
+	allow_shib		=> '1'
+</%attr>
+
+<%shared>
+	my $document = $m->comp('/tmpl/url:get_type_object');
+	my $border = "1px solid black";
+	my $grayborder = "1px solid lightgrey";
+        my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
+        my $iAmAShibUser = $m->session->{'user'}->isGhost();
+	my $userObject = $m->session->{'user'}; #HSDB4::SQLRow::User->new->lookup_key($m->session->{'user'});
+	my $iCanEdit = $document->can_user_edit($userObject);
+	my $contentPK = $document->primary_key();
+	my $redColor = '#CC3300';
+	my $blueColor = '#31649B';
+	my $defaultHeight = 180;
+	my $defaultWidth = 35;
+	my $tempWidth;
+	my $iconWidth = 27;
+	my $imageDir = "/graphics";
+	my $closeHandleHeight = 18;
+	my $iconsInTopRow = 3;
+	my $subMenuStartLocation = $defaultWidth + $iconsInTopRow * ($iconWidth + 6);
+</%shared>
+
+<%once>
+	use TUSK::Constants;
+	use TUSK::Functions ;
+	use TUSK::ErrorReport ;
+	use POSIX;
+</%once>
+
+
+
+<%method startup>
+<%args>
+$args => {}
+</%args>
+  <%perl>
+	if($iAmAShibUser) {
+		my $canView = 0;
+		my $courseShares = TUSK::Course::CourseSharing->new()->getCurrentSharedCourses($userObject->field_value('sid'));
+		# We have courses, now lets see if any of the shares are to a course related to this content....
+		# 1st put all of the shared course IDs into a hash
+		my %courseShareIds;
+		foreach my $sharedCourse (@{$courseShares}) {
+			$courseShareIds{$sharedCourse->primary_key} = 1;
+		}
+		# for each of the courses linked to the content check to see if the id was one of the shared course
+		foreach my $course ($document->linked_courses) {
+			if(exists($courseShareIds{$course->primary_key})) {$canView=1;}
+		}
+
+		unless($canView) {
+			# We cant view this so re-direct my to /home with a message saying that a shib user is not allowed to view the document.
+			$m->comp("/tmpl/url:redirect",message => "FAILURE : Content was not shared with you");
+		}
+	}
+
+    $m->comp("SELF:set_no_cache");
+    $m->comp("SELF:set_unicode");
+  </%perl>
+</%method>
+
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
+
+
+<%method red_header_text>
+%	return "<b>" . $document->out_label . "</b>";
+</%method>
+
+
+<%method title>
+%	return ucfirst($document->type) .": ". $document->out_label;
+</%method>
+
+
+<%method jsarray>
+%	return [ "drag.js", "content.js" ];
+</%method>
+
+
+<%method stylearray>
+<%perl>
+	my $css = ["/style/style.css"];
+	push (@$css, "/style/hscml.css") if ($document->type() eq 'HSCML' or ($document->type() eq 'Document' && $document->conversion_status() > 1));
+	return $css;
+</%perl>
+</%method>
+
+
+<%doc>Redirect if we are not url</%doc>
+% $m->session->{'contentDisplay'} = 'simple';
+
+% if($document->display_framed) {
+%       my $location = $ENV{SCRIPT_URI};
+%       $location =~ s/view\/content/view\/url/;
+%	$m->redirect($location);
+%       exit;
+% }
+
+
+% unless($iCanEdit || $document->is_active()) {
+	<br><br>
+	<table border="0" width="100%">
+	  <tr><th><font size="+2">Sorry this content is not currently active.</font></th></tr>
+	</table>
+	<br><br>
+%    return();
+% }
+
+% my $tempSize = 'orig';
+% if($document->type eq 'Slides') {
+%	if($document->overlay_data)                 {$tempSize = "large";}
+%	elsif($document->image_available("xlarge")) {$tempSize = "xlarge";}
+% }
+% if($SIZE) {$m->session->{'contentImageSize'} = $SIZE;}
+% else {
+%	if($m->session->{'contentImageSize'}) {$ARGS{'SIZE'} = $m->session->{'contentImageSize'};}
+%	else                                            {$ARGS{'SIZE'} = $tempSize;}
+% }
+
+<script>
+  function localOnLoad() {
+    if(!document.getElementById('contentFrameForFiles')) {return;}
+    //Attempt to resize the frame to match the content within it.
+    var theFrame = document.getElementById('contentFrameForFiles');
+    if(theFrame.contentDocument && theFrame.contentDocument.body && theFrame.contentDocument.body.offsetHeight)
+      {theFrame.style.height = theFrame.contentDocument.body.offsetHeight;}
+    else if(theFrame.Document && theFrame.Document.body && theFrame.Document.body.scrollHeight)
+      {theFrame.style.height = theFrame.Document.body.scrollHeight;}
+    else if(!navigator.userAgent.search(/Safari/)) 
+      {theFrame.style.height = "0px"; theFrame.style.width = "0px"; theFrame.style.border = "0px none";}
+  }
+</script>
+
+<%doc>This div is used by the floating nav bar for highlighting key terms.</%doc>
+
+<div class="checkedBG">
+&nbsp;
+<img align="left" border="0" width="1px" src="/graphics/spacer.gif" height="325px">
+
+<%doc>Create the floating navigation bar.</%doc>
+<& SELF:printNavBardwithJavaScripts, SIZE => $ARGS{'SIZE'}, summary => $summary &>
+
+<%doc>This anchor was in the legacy content.</%doc>
+<a name="_top"></a>
+% if($iCanEdit && !$document->is_active()) {
+        <center><div style="margin-top:10px; margin-right:30px; margin-bottom:20px; margin-left:125px; border:2px solid red; background-color:white;">This content has expired!<br>You are only able to see it because you are an editor</div></center>
+% }
+
+
+%#Color was FFFFCC
+
+% my $ieHack = '';
+% if($ENV{HTTP_USER_AGENT} =~ /IE/) {$ieHack = "width:100%;";}
+
+<div id="pageContent" style="<% $ieHack %> margin-top:10px; margin-right:30px; margin-bottom:20px; margin-left:125px; padding-top:5px; padding-right:30px; padding-botton:5px; padding-left:30px; background-color:#FFFFFF; border-right:3px solid black; border-bottom:3px solid black; border-top:1px solid <% $redColor %>; border-left:2px solid <% $redColor %>; z-index:99;">
+
+%my $xsl_dir = "$ENV{XSL_ROOT}/Content";
+%if($document->type() eq 'HSCML' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
+%	if($summary) {$document->xsl_stylesheet($xsl_dir."/DocumentSummary.xsl");} else {$document->xsl_stylesheet($xsl_dir."/Document.xsl");}
+%}
+%my $body = $document->out_html_body(%ARGS); 
+%if($document->error) {
+	  <div class="error">
+	    This document cannot be displayed at this time.  Please email <a href="<% $TUSK::Constants::SupportEmail %>"><% $TUSK::Constants::SupportEmail %></a>
+	    if you have a question.</div>
+%		ErrorReport::sendErrorReport($r, {'Msg'=>$document->error()});
+%} else {
+%	if($document->content_type() eq 'Collection') {
+%		if($body) {
+	  <table width="75%"><tr><td width="1%" valign="top">Folder&nbsp;Notes:</td><td><% $body %></td></tr></table><br>
+%		}
+%		my %displayedCollections;
+%		my @subContent = $document->active_child_content();
+%		if($document->display_child_content && @subContent > 0) {
+%#        Here we need to see if there is a parent course or not!
+%	         if($document->aux_info('uri_path')) {$contentPK = $document->aux_info('uri_path') . "/" . $document->primary_key();}
+%		  $m->comp('/tmpl/content:drawSimpleContentTable', contentArray => \@subContent);
+%	       }
+%#	} elsif($document->display_framed) {
+%#	 	my $frameStyle = "width:100%; height:400px; border:1px solid black;";
+%#		if ($document->type eq 'DownloadableFile') {$frameStyle = "width:1px; height:1px; border:0px none;";}
+%#	If this content does not start downloading or load below
+%#        please <a href="/download/<% $document->primary_key %>" style="color:blue;" target="ContentWindow">click here</a><br>
+%#	<iframe id="contentFrameForFiles" name="contentFrameForFiles" style="z-index:199; <% $frameStyle %>" src="/download/<% $document->primary_key %>"></iframe>
+%	} else {
+	  <% $body %>
+%	}
+%}
+
+
+
+<%doc>output the created and last modified</%doc>
+% my $ctime = HSDB4::DateTime->new;
+% my $mtime = HSDB4::DateTime->new;
+% $ctime->in_mysql_timestamp($document->field_value("created"));
+% $mtime->in_mysql_timestamp($document->field_value("modified"));
+  <table style="font-size:10px;" width="100%">
+    <tr>
+% if($ctime->out_string_date eq '') {
+      <td><b>Created:</b></td><td>Unknown</td>
+% } else {
+      <td><b>Created:</b></td><td nowrap style="white-space:nowrap;"><% $ctime->out_string_date %></td>
+% }
+      <td rowspan="2" align="right">
+% if($document->out_html_appendix() eq '') {
+        &nbsp;
+% } else {
+        <%doc>Print the appendix</%doc>
+        <% $document->out_html_appendix() %>
+% }
+      </td>
+    </tr>
+% unless($mtime->out_string_date eq '') {
+    <tr><td><b>Modified:</b></td><td nowrap style="white-space:nowrap;"><% $mtime->out_string_date %></td></tr>
+% }
+  </table>
+
+  </div>
+&nbsp;
+</div>
+
+<%doc>*******************************
+	Done with body here.
+	Below are methods.
+******************************</%doc>
+
+
+
+
+
+
+
+
+<%method printNavBardwithJavaScripts>
+	<%args>
+	  $SIZE
+	  $summary
+	</%args>
+%    my $handleWidth = 10;
+%    $m->session->{'contentMenuLocation'}->{'optionsDiv'}->{'x'} ||= $defaultWidth;
+%    $m->session->{'contentMenuLocation'}->{'optionsDiv'}->{'y'} ||= $defaultHeight;
+%    my @keyWords = ();
+%    foreach my $keyWord ($document->keywords()) {push @keyWords, $keyWord->getKeyword();}
+%    my @context = $document->other_parents;
+%    my @subContent = $document->active_child_content();
+%    my @objectives = $document->child_objectives;
+%    my @concepts = $document->UMLSkeywords;
+%    my $printIconWidth = "width=\"$iconWidth\" height=\"$iconWidth\"";
+%    my $linkedFrom = 0;
+%    if(@context > 0 && ($document->field_value('style') !~ /Liver/)) {$linkedFrom = 1;}
+
+	<style type="text/css"><!--
+	.mouseOverIcon {background-color: yellow;}
+	.openedSubMenu {background-color: #00CC66;}
+	.hiddenDiv, .tableWithLittleFont {
+		font-family: Arial, Helvetica, sans-serif;
+		font-size: 8pt;
+	}
+	.hiddenDiv {
+		background-color: white;
+		layer-background-color: white;
+ 		border: 1px solid #000000;
+		overflow: auto;
+		z-index: 9999;
+		left: <% ($iconWidth * $iconsInTopRow)+(3*6) %>px;
+		position:absolute;
+		width:250px;
+	}
+	--></style>
+        <& SELF:printNavBarJavaScript, numberOfContent => (scalar @subContent) &>
+	
+	<div id="loadingImageDiv" style="display:none; position:absolute; top:0px; left:0px;" onClick="this.style.display='none';">
+          <!--
+          <table border="0" cellspacing="0" cellpadding="0">
+            <tr><td><img id="theLoadingImage" src="/graphics/Loading.gif"></td></tr>
+            <tr><td align="right"><font style="align:right; font-size:8pt;">Click To Close</font></td></tr>
+          </table>
+          -->
+	</div>
+
+%	$tempWidth = $subMenuStartLocation;
+%	if($m->session->{'contentMenuLocation'}->{'optionsDiv'}->{'x'} > $tempWidth) {$tempWidth = $defaultWidth;}
+
+        <& SELF:printNotesForm &>
+        <& SELF:printSaveForm &>
+        <& SELF:printContentForm &>
+        <& SELF:printObjectiveForm, objectivesRef => \@objectives &>
+        <& SELF:printPrintForm, SIZE => $SIZE, summary => $summary, numberOfSubContent => (scalar @subContent) &>
+        <& SELF:printKeywordsForm, keyWordsRef => \@keyWords, conceptsRef => \@concepts &>
+        <& SELF:printLinkedDocsForm, contextRef => \@context, subContentRef => \@subContent, linkedFrom => $linkedFrom &>
+        <& SELF:printZoomForm, SIZE => $SIZE &>
+
+
+	<div id="optionsDiv" style="position:absolute; z-index:9997; left: <% $m->session->{'contentMenuLocation'}->{'optionsDiv'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'optionsDiv'}->{'y'} %>; background-color:;">
+	    <table width="<% $iconWidth+$handleWidth %>" border="0" cellspacing="0" cellpadding="3" style="border:1px solid black;" bgcolor="white">
+	      <tr><td height="<% $handleWidth %>" colspan="<% $iconsInTopRow %>" bgcolor="<% $blueColor %>" id="optionsDivHandle" style="cursor:move; border-bottom:1px solid black;"><img src="/graphics/spacer.gif" height="1px" width="1px"></td>
+	      <tr>
+% my $rowspan = 11;
+% if($document->type() eq 'HSCML' or (defined($document->conversion_status) && $document->conversion_status > 0)) {$rowspan++;}
+% if($iCanEdit && $userObject->primary_key) {$rowspan+=2;}
+	        <td width="<% $iconWidth %>" style="border-bottom:1px solid lightgrey; cursor:pointer;">
+%			my $prev = $document->context_prev;
+%			my $title = "Previous Document";
+%			my $background = 'style="background-color:lightgrey;"';
+%			if($prev) {
+%			  $title.= ": " . $prev->out_abbrev();
+%			  $background = "onClick=\"document.location='" . $prev->out_url() .
+%					"';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\"";
+%			}
+	          <img src="<% $imageDir %>/previous.gif" title="<% $title %>" <% $background %> <% $printIconWidth %> alt="Previous">
+	        </td>
+
+	        <td width="<% $iconWidth %>" style="border-bottom:1px solid lightgrey; cursor:pointer;">
+%		my $collection = $document->context_parent;
+%		$title = "To Collection";
+%		$background = 'style="background-color: lightgrey;"';
+%		if($collection) {
+%		  $title.= ": " . $collection->out_abbrev();
+%		  $background = "onClick=\"document.location='" . $collection->out_url() .
+%				"';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this)\";"
+%		}
+	        <img src="<% $imageDir %>/content_up.gif" <% $printIconWidth %> title="<% $title %>" <% $background %> alt="To Collection">
+	        </td>
+
+	        <td width="<% $iconWidth %>" style="border-bottom:1px solid lightgrey; cursor:pointer;">
+%		my $next = $document->context_next;
+%		$title = "Next Document";
+%		$background = 'style="background-color: lightgrey;"';
+%		if($next) {
+%		  $title.= ": " . $next->out_abbrev();
+%		  $background = "onClick=\"document.location='" . $next->out_url() .
+%				"';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this)\";"
+%		}
+	        <img src="<% $imageDir %>/next.gif" <% $printIconWidth %> title="<% $title %>" <% $background %> alt="Next">
+	        </td>
+	      </tr>
+
+<%doc>check on the active attribute below</%doc>
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Keywords',
+                        menuItemHelpText        => 'Keywords/UMLS Concepts',
+                        onClick                 => "displayForm('theKeyWordForm', this);",
+			active			=> (scalar(@keyWords) || scalar(@concepts)),
+                &>
+%	if($document->type() eq 'HSCML' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
+%		if ($summary) {
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Full Doc',
+                        menuItemHelpText        => 'View Full Document',
+                        onClick                 => "document.location='$ENV{SCRIPT_URI}?summary=0';",
+                &>
+%		} else {
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Doc Summary',
+                        menuItemHelpText        => 'View Document Summary',
+                        onClick                 => "document.location='$ENV{SCRIPT_URI}?summary=1';",
+                &>
+
+%	}
+% }
+
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Objectives',
+                        menuItemHelpText        => 'View Content Objectives',
+                        onClick                 => "displayForm('theContentObjectiveForm', this);",
+			active			=> scalar(@objectives),
+                &>
+%		unless($iAmAGuest || $iAmAShibUser) {
+%		  my @notes = $document->child_personal_content($m->session->{'user'}->primary_key());
+%		  my $imageIcon = '';
+%		  foreach (@notes) {
+%		    if($_->field_value('body') =~ /\S/) {
+%		            $imageIcon = '<img src="/icons/ico-newsm.gif" align="right" alt="You have notes for this content" title="You have notes for this content">';
+%                     last;
+%                   }
+%	  	  }
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Notes&nbsp;',
+                        menuItemHelpText        => 'View Notes',
+			onClick			=> "displayForm('theNotesForm', this);",
+			extraImg		=> $imageIcon,
+                &>
+%		  if($document->content_type() eq 'Collection') {
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Full&nbsp;Notes',
+                        menuItemHelpText        => 'Show full content notes',
+			onClick			=> 'displayContentNotes(this);',
+			showArrow		=> 0,
+                &>
+% my $collectionNotesPage = $ENV{SCRIPT_URI};
+% $collectionNotesPage =~ s/view\/content[^\/]*/view\/collectionnotes/;
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Collection&nbsp;Notes&nbsp;[<b>Beta</b>]',
+                        menuItemHelpText        => 'Take notes on all items in collection',
+			onClick			=> "document.location='$collectionNotesPage'",
+			showArrow		=> 0,
+                &>
+%		  }
+%		}
+
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Linked&nbsp;From',
+                        menuItemHelpText        => 'View Linked Documents',
+                        onClick                 => "displayForm('theLinkedDocsForm', this);",
+			active			=> $linkedFrom,
+                &>
+%		if(($document->type eq "Slide") || ($document->type eq "Flashpix"))
+%		{
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Image&nbsp;Zoom',
+                        menuItemHelpText        => 'Zoom Image',
+                        onClick                 => "displayForm('theZoomForm', this);",
+			menuID			=> 'topZoomImage',
+                &>
+%		}
+%		unless($iAmAGuest || $iAmAShibUser) {
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'My&nbsp;Folders',
+                        menuItemHelpText        => 'Folder',
+                        onClick                 => "displayForm('theSaveForm', this);",
+                &>
+%		}
+<& SELF:displayContentOptionMenuItem,   
+                        menuItemText            => 'Print',
+                        menuItemHelpText        => 'Print Document',
+                        onClick                 => "displayForm('thePrintForm', this);",
+                &>
+%	if($iCanEdit && $userObject->primary_key) {
+<& SELF:displayContentOptionMenuItem,
+                        menuItemText            => 'Edit',
+                        menuItemHelpText        => 'Edit Content',
+                        onClick                 => "document.location='/protected/management/content/addedit/course/" . $document->school() . "/" . $document->field_value('course_id') . "?content_id=" . $document->primary_key . "\&page=edit'",
+			showArrow		=> 0,
+                &>
+<& SELF:displayContentOptionMenuItem,
+                        menuItemText            => 'History',
+                        menuItemHelpText        => 'Content History',
+                        onClick                 => "document.location='/hsdb4/content_history/" . $document->primary_key . "'",
+			showArrow		=> 0,
+                &>
+%	}
+<& SELF:displayContentOptionMenuItem,
+                        menuItemText            => 'Info',
+                        menuItemHelpText        => 'View Content Info',
+                        onClick                 => "displayForm('theContentInfoForm', this);",
+                &>
+	    </table>
+
+
+
+        </div>
+	<script>
+          registerDragItem('theNotesForm', 'top', 'left', 'saveMenuLocation("theNotesForm")');
+          registerDragItem('theSaveForm', 'top', 'left', 'saveMenuLocation("theSaveForm")');
+          registerDragItem('optionsDiv', 'top', 'left', 'saveMenuLocation("optionsDiv")');
+          registerDragItem('theContentInfoForm', 'top', 'left', 'saveMenuLocation("theContentInfoForm")');
+          registerDragItem('theContentObjectiveForm', 'top', 'left', 'saveMenuLocation("theContentObjectiveForm")');
+          registerDragItem('thePrintForm', 'top', 'left', 'saveMenuLocation("thePrintForm")');
+          registerDragItem('theLinkedDocsForm', 'top', 'left', 'saveMenuLocation("theLinkedDocsForm")');
+          registerDragItem('theKeyWordForm', 'top', 'left', 'saveMenuLocation("theKeyWordForm")');
+          registerDragItem('theZoomForm', 'top', 'left', 'saveMenuLocation("theZoomForm")');
+        </script>
+</%method>
+
+
+
+
+
+
+<%method printNavBarJavaScript>
+  <%args>
+    $numberOfContent
+  </%args>
+
+	<script>
+	  var saveFormOut = 0;
+	  var printFormOut = 0;
+	  var keyWordFormOut = 0;
+	  var contentFormOut = 0;
+	
+	  var theContent = '';
+	  var Text = new Array();
+	  var Tags = new Array();
+	
+	  function saveMenuLocation(divName) {
+	    var ajaxRequest;
+            var divToMove = document.getElementById(divName);
+      	    var x = divToMove.style.left.replace('px', '');
+      	    var y = divToMove.style.top.replace('px', '');
+	    var url = "/tusk/ajax/saveContentMenuInfo?toSave=formLocation&x_value="+ escape(x) +"&y_value="+ escape(y) +"&divToSave="+ escape(divName);
+	  
+	    if (window.XMLHttpRequest) {ajaxRequest = new XMLHttpRequest();}
+	    else if (window.ActiveXObject) {ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");}
+	    ajaxRequest.open("GET", url, false);
+	    ajaxRequest.send(null);
+	  }
+
+          function turnOffLoadImage() {
+            if(document.getElementById('loadingImageDiv')) {document.getElementById('loadingImageDiv').style.display='none';}
+            if(document.getElementById('loadingDiv')) {document.getElementById('loadingDiv').style.display='none';}
+          }
+
+	  function getTheContent() {
+	    theContent = document.getElementById('pageContent').innerHTML;
+
+	    var windowWidth;
+	    if(window.innerWidth)              {windowWidth = window.innerWidth;}
+	    else if(document.body.offsetWidth) {windowWidth = document.body.offsetWidth;}
+	    else                               {windowWidth = 0;}
+	    var windowHeight;
+	    if(window.innerHeight)              {windowHeight = window.innerHeight;}
+	    else if(document.body.offsetHeight) {windowHeight = document.body.offsetHeight;}
+	    else                                {windowHeight = 0;}
+            //If the optionsDiv is off the page then move it back to the default locations.
+	    if((parseInt('<% $m->session->{'contentMenuLocation'}->{'optionsDiv'}->{'x'} %>') > windowWidth) ||
+	       (parseInt('<% $m->session->{'contentMenuLocation'}->{'optionsDiv'}->{'y'} %>') > windowHeight)
+	      ) {
+ 	      document.getElementById('optionsDiv').style.top = '<% $defaultHeight %>px';
+	      document.getElementById('optionsDiv').style.left = '<% $defaultWidth %>px';
+              saveMenuLocation('optionsDiv');
+
+              //If we've moved that back then lets move back the rest of the stuff.
+              for(var index=0; index<formNames.length; index++) {
+ 	        document.getElementById(formNames[index]).style.top = '<% $defaultHeight %>px';
+	        document.getElementById(formNames[index]).style.left = '<% $subMenuStartLocation %>px';
+                saveMenuLocation(formNames[index]);
+              }
+	    }
+
+%  if($m->session->{'contentMenuLastOpened'}->{'formToDisplay'} && $m->session->{'contentMenuLastOpened'}->{'iconID'}) {
+            displayForm('<% $m->session->{'contentMenuLastOpened'}->{'formToDisplay'} %>', document.getElementById('<% $m->session->{'contentMenuLastOpened'}->{'iconID'} %>'));
+%  }
+	    localOnLoad();
+	  }
+	  window.onload=getTheContent;
+          window.onunload=turnOffLoadImage;
+	
+	  var lastAnchor = 0;
+          var lastHighlighted = '';
+          function goToMatch(nextOrPrevious, currentCounter) {
+            if(nextOrPrevious == 'n') {
+	      currentCounter++;
+              if(!document.getElementById('TUSK_TEMP_A_'+currentCounter)) {currentCounter = 0;}
+            } else {
+	      currentCounter--;
+              if(!document.getElementById('TUSK_TEMP_A_'+currentCounter)) {currentCounter = lastAnchor-1;}
+            }
+
+            if(lastHighlighted && document.getElementById(''+lastHighlighted)) {document.getElementById(''+lastHighlighted).className='highlight';}
+	    lastHighlighted = 'TUSK_TEMP_SPAN'+currentCounter;
+            document.getElementById(''+lastHighlighted).className='currentHightlight';
+
+            var currentLocation = ''+document.location;
+            if(currentLocation.search(/#/) == -1) {
+              document.location = currentLocation + '#TUSK_TEMP_A_'+currentCounter;
+            } else {
+	      document.location = currentLocation.replace(/#.*$/, '#TUSK_TEMP_A_'+currentCounter);
+            }
+          }
+
+	  var alreadySaidOK = 0;
+	  function highlightWords() {
+	    if(theContent == '') {
+	      alert('Please wait for the page to finish loading.');
+	      for(var index=l; index<document.theTuskWordForm.keyWords.length; index++) {
+	        document.theTuskWordForm.keyWords[index].selected = false;
+	      }
+	      return;
+	    }
+%  if($document->content_type() eq 'Collection') {
+            //Check if we are making an ajax call.
+            if(loadingContent) {alert('Please wait for the content to finish loading.'); return;}
+            //Load all of the content again.
+            theContent = document.getElementById('pageContent').innerHTML;
+%  }
+	    //Get the selcted Key Words on the list.
+	    var selectedKeyWords = '';
+	    var numberOfSelectedKeyWords = 0;
+	    for(var index=0; index<document.theTuskWordForm.keyWords.length; index++) {
+	      if(document.theTuskWordForm.keyWords[index].selected) {
+	        selectedKeyWords += "(" + document.theTuskWordForm.keyWords[index].value + ")|";
+	        numberOfSelectedKeyWords++;
+	      }
+	    }
+	    selectedKeyWords = selectedKeyWords.replace(/\|$/, '');
+	    var tempContent = theContent;
+	    if(selectedKeyWords != '') {
+	      if((numberOfSelectedKeyWords > 10) && !alreadSaidOK) {
+	        var tooMany = "You have selected more than 10 key words.\n" +
+	                      "I can highlight them all but it may take some time.\n" +
+	                      "Do you want me to continue? (I wont ask again on this page if you say ok)";
+	        if(!confirm(tooMany)) {return true;} else {alreadySaidOK = 1;}
+	      }
+	      var theRegExp = new RegExp("([^_\/\"])("+selectedKeyWords+")[^<]", 'i');
+	
+	      
+	      //Highlight the selected key words.
+	      lastAnchor = 0;
+              while(theRegExp.test(tempContent)) {
+	        tempContent = tempContent.replace(theRegExp, '$1 <img src="/graphics/prevMatch.gif" onClick="goToMatch(\'p\', '+lastAnchor+');"><a id="TUSK_TEMP_A_'+lastAnchor+'" name="TUSK_TEMP_A_'+lastAnchor+'"><span id="TUSK_TEMP_SPAN'+lastAnchor+'" class="highlight">$2</span><img src="/graphics/nextMatch.gif" onClick="goToMatch(\'n\', '+lastAnchor+');"> ');
+	        lastAnchor++;
+	        if(lastAnchor > 1000) {alert('thats alot of stuff... breaking'); last;}
+              }
+	      document.getElementById('pageContent').innerHTML = tempContent;
+	    }
+	  }
+	  
+	  var formNames = new Array('theSaveForm', 'theZoomForm', 'thePrintForm', 'theKeyWordForm', 'theContentInfoForm', 'theLinkedDocsForm', 'theNotesForm', 'theContentObjectiveForm');
+	
+	  var lastImageTurnedOn;
+	var savedIcon;
+
+	  function displayForm(formToDisplay, icon) {
+            var ajaxAction = 'formOpened';;
+		if (icon) { 
+			savedIcon = icon;
+		}else {
+			icon = savedIcon;
+		}
+	    if(document.getElementById(formToDisplay).style.display == '') {
+              ajaxAction = 'formClosed';;
+	      document.getElementById(formToDisplay).style.display = 'none';
+	      icon.className = '';
+	      lastImageTurnedOn = '';
+	    } else {
+	      icon.className = 'openedSubMenu';
+	      if(lastImageTurnedOn) {lastImageTurnedOn.className = '';}
+	      lastImageTurnedOn = icon;
+	      for(var index=0; index<formNames.length; index++) {
+	        document.getElementById(formNames[index]).style.display='none';
+	        document.getElementById(formToDisplay).style.display='';
+	      }
+	    }
+
+            //ajax save the last poped up form.
+	    var ajaxRequest;
+	    var url = "/tusk/ajax/saveContentMenuInfo?toSave="+escape(ajaxAction)+"&formToDisplay="+ escape(formToDisplay) +"&iconID="+ escape(icon.id);
+
+	    if (window.XMLHttpRequest) {ajaxRequest = new XMLHttpRequest();}
+	    else if (window.ActiveXObject) {ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");}
+
+	    ajaxRequest.open("GET", url, false);
+	    ajaxRequest.send(null);
+	  }
+
+          function removeHighlighting(theImage) {
+	    if(theImage.className != 'openedSubMenu') {theImage.className = '';}
+	  }
+
+	  function highlightButton(theImage) {
+	    if(theImage.className != 'openedSubMenu') {theImage.className = 'mouseOverIcon';}
+	  }
+	    
+	  function submitToPrint(toPreview) {
+            if(toPreview) {
+              document.theTuskPrintForm.target = '';
+              document.theTuskPrintForm.preview.value='0';
+            } else {
+              document.theTuskPrintForm.target = 'printFrame';
+              document.theTuskPrintForm.preview.value='1';
+            }
+% if($document->type =~ /Collection/) {
+	    for(var index=0; index<document.theTuskPrintForm.slidesPerPage.length; index++) {
+	      if(document.theTuskPrintForm.slidesPerPage[index].checked) {
+		var slidesPerPage = document.theTuskPrintForm.slidesPerPage[index].value.substr(-1,1);
+	        document.theTuskPrintForm.action = document.theTuskPrintForm.slidesPerPage[index].value;
+	        if((<% $numberOfContent %>/slidesPerPage) > 10) {alert('This collection contains more than ten pages of images.\nWe suggest you print five pages at a time.');}
+	        document.theTuskPrintForm.submit();
+	      }
+	    }
+% } else {
+	    if(document.theTuskPrintForm.printType && document.theTuskPrintForm.printType[1].checked)
+	    {
+	      document.theTuskPrintForm.action = '/perl/content_pdf/<% $document->primary_key %>/full';
+	      document.theTuskPrintForm.target = 'tuskPDFWindow';
+	      document.theTuskPrintForm.submit();
+            }
+	    else
+	    {
+	      var selectedKeywords = '';
+	      if(document.theTuskWordForm.keyWords) {
+	        for(var index=0; index<document.theTuskWordForm.keyWords.length; index++) {
+		  if(document.theTuskWordForm.keyWords[index].checked) {
+		    selectedKeywords += document.theTuskWordForm.keyWords[index].value+'|';
+		  }
+	        }
+	      }
+	      document.theTuskPrintForm.action = '/tusk/printcontent/<% $document->primary_key %>';
+	      document.theTuskPrintForm.hiddenWords.value = selectedKeywords;
+	      document.theTuskPrintForm.submit();
+	    }
+% }
+	  }
+
+	  function loadImage(imageSizeToLoad) {
+	    displayForm('theZoomForm', document.getElementById('topZoomImage'));
+	    var windowWidth;
+	    if(window.innerWidth)              {windowWidth = window.innerWidth;}
+	    else if(document.body.offsetWidth) {windowWidth = document.body.offsetWidth;}
+	    else                               {windowWidth = 0;}
+	    var windowHeight;
+	    if(window.innerHeight)              {windowHeight = window.innerHeight;}
+	    else if(document.body.offsetHeight) {windowHeight = document.body.offsetHeight;}
+	    else                                {windowHeight = 0;}
+	    var loadingImageDiv = document.getElementById('loadingImageDiv');
+	    loadingImageDiv.style.top = (windowHeight/2)-50 + "px";
+	    loadingImageDiv.style.left = (windowWidth/2)-100 + "px";
+	    loadingImageDiv.style.display = '';
+	    document.location="<% $ENV{SCRIPT_URI} %>?SIZE="+imageSizeToLoad;
+	  }
+	</script>
+</%method>
+
+
+
+<%method printDragHandleWithClose>
+  <%args>
+    $formName
+    $title
+    $imageName
+  </%args>
+
+    <div style="background-color:<% $blueColor %>; cursor:move; border-bottom:1px solid black; top:0px; right:0px; left:0px; height:<% $closeHandleHeight %>px;" id="<% $formName %>Handle">
+      <table border="0" style="width:100%; height:<% $closeHandleHeight %>px;" cellspacing="0" cellpadding="0">
+        <tr style="z-index:9997;">
+          <td valign="middle" align="left"><font style="color:lightgrey; font-size:10px;"><% $title %></font></td>
+	  <td valign="middle" align="right">
+            <font style="color:lightgrey; font-size:10px; cursor:pointer;" onClick="displayForm('<% $formName %>');">
+              Close
+              <font style="border:1px solid lightgrey;">&nbsp;<b>X</b>&nbsp;</font>
+            </font>
+          </td>
+        </tr>
+      </table>
+    </div>
+</%method>
+
+
+
+<%method printContentForm>
+%  my @authors = $document->child_authors;
+%  my $formWidth = 300;
+%  my $formHeight = 150;
+%  $m->session->{'contentMenuLocation'}->{'theContentInfoForm'}->{'x'} ||= $tempWidth;
+%  $m->session->{'contentMenuLocation'}->{'theContentInfoForm'}->{'y'} ||= $defaultHeight;
+
+  <div id="theContentInfoForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theContentInfoForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theContentInfoForm'}->{'y'} %>px; overflow:hidden;">
+    <& SELF:printDragHandleWithClose, formName => 'theContentInfoForm', title => 'Info', imageName => 'infoButton' &>
+    <div style="z-index:9996; width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
+      <table border="0" cellspacing="0" width="100%" class="tableWithLittleFont">
+        <tr><td align="right"><b>School:</b></td><td><% ucfirst($document->field_value("school")) %></td></tr>
+        <tr><td align="right"><b>Content&nbsp;ID:</b></td><td><% $document->primary_key %></td></tr>
+%  if($document->course) {
+        <tr><td align="right" valign="top"><b>Course</b>:</td><td><% $document->course->out_html_label %></td></tr>
+%  }
+	
+%  if(@authors) {
+        <tr>
+          <td valign="top" align="right"><b>Authors</b>:</td>
+          <td valign="top">
+%  if(scalar(@authors) > 4) {$m->print('<div id="authorsDiv" class="multiselectdiv">');}
+            <ul style="padding-left:20px;">
+%    foreach my $author (@authors) {
+              <li><% $author->out_html_full_name %></li>
+%    }
+            </ul>
+%    if(scalar(@authors) > 4) {$m->print('</div>');}
+          </td>
+        </tr>
+%  }
+	
+%  if($document->type() eq 'HSCML' or $document->conversion_status > 1) {
+        <tr>
+          <td valign="top" align="right"><b>Key</b>:</td>
+          <td>
+            <div class="hscml_key">
+              <span class="nugget">&nbsp;nugget&nbsp;</span>
+              <span class="keyword">&nbsp;keyword&nbsp;</span>
+              <span class="objective-item">&nbsp;objective&nbsp;</span>
+              <span class="topic-sentence">&nbsp;topic-sentence&nbsp;</span>
+              <span class="summary">&nbsp;summary&nbsp;</span>
+              <span class="warning">&nbsp;warning&nbsp;</span>
+            </div>
+          </td>
+        </tr>
+%  }
+      </table>
+    </div>
+  </div>
+</%method>
+
+
+
+<%method printNotesForm>
+%  my $notesLocation = $ENV{'SCRIPT_URI'};
+%  $notesLocation =~ s/view\/content[^\/]*/view\/contentnotes/;
+%  $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'x'} ||= $tempWidth;
+%  $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'y'} ||= $defaultHeight;
+
+  <div id="theNotesForm" class="hiddenDiv" style="z-index:9999; left:<% $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'x'} %>px; top:<% $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'y'} %>px; width:402px; height:268px; display:none; overflow:hidden;">
+    <& SELF:printDragHandleWithClose, formName => 'theNotesForm', title => 'Notes', imageName => 'displayNotesFormImage' &>
+    <iframe id="theNotesFormBody" src="<% $notesLocation %>" style="border:0px none; width:400px; height:250px;" scrolling="no">
+    </iframe>
+  </div>  
+</%method>
+
+
+
+<%method printObjectiveForm>
+  <%args>
+    $objectivesRef
+  </%args>
+
+%  my @objectives = @{$objectivesRef};
+%  my $formWidth = 400;
+%  my $formHeight = 250;
+%  $m->session->{'contentMenuLocation'}->{'theContentObjectiveForm'}->{'x'} ||= $tempWidth;
+%  $m->session->{'contentMenuLocation'}->{'theContentObjectiveForm'}->{'y'} ||= $defaultHeight;
+
+  <div id="theContentObjectiveForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theContentObjectiveForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theContentObjectiveForm'}->{'y'} %>px; overflow:hidden;">
+    <& SELF:printDragHandleWithClose, formName => 'theContentObjectiveForm', title => 'Objectives', imageName => 'objectiveButton' &>
+    <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
+%  if(@objectives) {
+      <ul style=""padding-left:20px;">
+%    foreach my $objective (@objectives) {
+        <li><% $objective->out_label %></li>
+%    }
+      </ul>
+%  } else {
+      <b><center>None</center></b>
+%  }
+    </div>
+  </div>
+</%method>
+
+
+
+
+<%method printPrintForm>
+  <%args>
+    $SIZE
+    $summary
+    $numberOfSubContent
+  </%args>
+
+  <%perl>
+    my $addPrintButton = 1;
+    my $formWidth = 200;
+    my $formHeight = 250;
+    # when image is wider than ~725px, it gets cut off during printing.
+    # fortunately, size 'xlarge' is 700px wide. if 'orig' size is
+    # selected when printing, set size to xlarge. 
+    $SIZE = (!$SIZE || $SIZE eq 'orig')? 'xlarge' : $SIZE; 
+    $m->session->{'contentMenuLocation'}->{'thePrintForm'}->{'x'} ||= $tempWidth;
+    $m->session->{'contentMenuLocation'}->{'thePrintForm'}->{'y'} ||= $defaultHeight;
+  </%perl>
+
+  <div id="thePrintForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'thePrintForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'thePrintForm'}->{'y'} %>px; overflow:hidden;">
+% my $title = "Print Content";
+% if($document->type() eq 'HSCML' or (defined($document->conversion_status) && $document->conversion_status > 0)) {$title = "Print or Download Content";}
+
+    <script>
+      function turnOnPrintPreview(display) {
+        if(document.theTuskPrintForm.previewButton) {document.theTuskPrintForm.previewButton.style.display = display;}
+      }
+    </script>
+
+    <& SELF:printDragHandleWithClose, formName => 'thePrintForm', title => $title, imageName => 'printFormButton' &>
+    <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
+      <form name="theTuskPrintForm" method="get" target="printFrame" action="/tusk/printcontent/<% $document->primary_key %>">
+        <input type="hidden" name="summary" value="<% $summary %>">
+        <input type="hidden" name="SIZE" value="<% $SIZE %>">
+        <input type="hidden" name="hiddenWords" value="">
+        <input type="hidden" name="preview" value="">
+        <table border="0" width="100%" class="tableWithLittleFont">
+          <tr><td>
+%  if($document->type =~ /Collection/) {
+%    if($document->contains_slides) {
+            <p>Slides<br>
+%      foreach my $numSlides (6,4,3,2) {
+%        my $numberOfPages = ceil($numberOfSubContent/$numSlides);
+%	 if($numberOfPages != 1) {$numberOfPages = $numberOfPages . " pages";}
+%	 else                    {$numberOfPages = "1 page";}
+	      &nbsp; <input type="radio" name="slidesPerPage" value="/hsdb4/printcollection/<% $document->primary_key %>/<% $numSlides %>"><% $numSlides %> slides per page (<font style="font-size:6pt;"><% $numberOfPages %></font>)<br>
+%      }
+	    </p>
+%	if($TUSK::Constants::PrintPDFHelp) {
+            &nbsp; <a href="<% $TUSK::Constants::PrintPDFHelp %>" target="tuskHELP">Click here for help printing to PDF</a>
+%	}
+%    } else {
+            <p style="color:gray;">
+              This collection has no slides.<br>
+              Thus and can not be printed.<br><br>
+              If you are trying to print a collection of slides which is under this collection,
+              click on the name of the collection then use the print option on that page.
+            </p>
+%      $addPrintButton = 0;
+%    }
+%  } else {
+%    if($document->type() eq 'HSCML' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
+            <script>
+              function changePDF(pdfOrNothing) {
+                if(pdfOrNothing == 1) {
+                  document.getElementById('standardPrintOptions').style.color='lightgrey';
+                  document.theTuskPrintForm.Print.value = "Download";
+                } else {
+                  document.getElementById('standardPrintOptions').style.color='';
+                  document.theTuskPrintForm.Print.value = "Print";
+                }
+              }
+            </script>
+            <input type="radio" name="printType" value="standard" onClick="changePDF(0);" checked>Standard
+            <input type="radio" name="printType" value="pdf" onClick="changePDF(1);">PDF<br>
+%    } else {
+            <p style="color:gray;">PDF Not avaliable for this content.</p>
+%    }
+            <p id="standardPrintOptions" style="font-color:red;">
+              <input type="checkbox" name="addNotes" <% $m->session->{'contentPrintOptions'}->{addNotes} %>>Add my notes.<br>
+              <input type="checkbox" name="addContentInfo" <% $m->session->{'contentPrintOptions'}->{addContentInfo} %>>Add content info.<br>
+              <input type="checkbox" name="addKeywords" <% $m->session->{'contentPrintOptions'}->{addKeywords} %>>Add key words.<br>
+              <input type="checkbox" name="addUMLS" <% $m->session->{'contentPrintOptions'}->{addUMLS} %>>Add UMLS Concepts.<br>
+              <input type="checkbox" name="addObjectives" <% $m->session->{'contentPrintOptions'}->{addObjectives} %>>Add Objectives.<br>
+              <input type="checkbox" name="addLinkedTo" <% $m->session->{'contentPrintOptions'}->{addLinkedTo} %>>Add linked to.<br>
+              <input type="checkbox" name="addLinkedFrom" <% $m->session->{'contentPrintOptions'}->{addLinkedFrom} %>>Add linked from.<br>
+            </p>
+%  }
+          </td></tr>
+%  if($addPrintButton) {
+          <tr><td align="center">
+            <input type="button" name="previewButton" class="formbutton" value="Print Preview" onClick="submitToPrint(true);">
+            <input type="button" name="Print" class="formbutton" value="Print" onClick="submitToPrint(false);">
+          </td></tr>
+%  }
+        </table>
+      </form>
+      <iframe name="printFrame" style="height:1; width:1; border:0px;"></iframe>
+    </div>
+  </div>
+</%method>
+
+
+<%method printSaveForm>
+%  my $formWidth = 200;
+%  my $formHeight = 150;
+%  $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'x'} ||= $tempWidth;
+%  $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'y'} ||= $defaultHeight;
+
+  <div id="theSaveForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'y'} %>px; overflow:hidden;">
+    <& SELF:printDragHandleWithClose, formName => 'theSaveForm', title => 'My Folders', imageName => 'saveFormButton' &>
+    <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
+      <form name="theTuskSaveForm" method="post" action="/management/content/personalcontent">
+        <input type="hidden" name="content_item" value="/<% $document->primary_key()  %>" />
+	<table border="0" class="tableWithLittleFont">
+          <tr><td><a href="/management/content/personalcontent">Manage Personal Folders</a></td></tr>
+          <tr><td>Save in Personal Folder:</td></tr>
+          <tr><td>
+            <select name="add_to_folder" onChange="if(this[this.length-1].value == 'select') {this.length--;}">
+%  foreach my $folder ($m->session->{'user'}->child_personal_content) {
+              <option value="<% $folder->primary_key %>"><% $folder->out_label() %></option>
+%  }
+              <option value="-1"> * Add New Folder * </option>
+              <option value="select" selected>Select</option>
+            </select>
+          </td></tr>
+          <tr><td><input type="submit" class="formbutton" onClick="if(document.theTuskSaveForm.add_to_folder[document.theTuskSaveForm.add_to_folder.selectedIndex].value == 'select') {alert('You must select a folder to save this content into'); return false;}" name="Add" value="Save"></td></tr>
+        </table>
+      </form>
+    </div>
+  </div>
+</%method>
+
+
+<%method printZoomForm>
+  <%args>
+    $SIZE
+  </%args>
+
+%  $m->session->{'contentMenuLocation'}->{'theZoomForm'}->{'x'} ||= $tempWidth;
+%  $m->session->{'contentMenuLocation'}->{'theZoomForm'}->{'y'} ||= $defaultHeight;
+
+  <div id="theZoomForm" class="hiddenDiv" style="z-index:9999; display:none; width:<% 4*($iconWidth+1) %>px; height:<% $iconWidth+2+$closeHandleHeight %>px; left:<% $m->session->{'contentMenuLocation'}->{'theZoomForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theZoomForm'}->{'y'} %>px; overflow:hidden;">
+    <& SELF:printDragHandleWithClose, formName => 'theZoomForm', title => 'Image Zoom', imageName => 'topZoomImage' &>
+%  my $style = 'style="border:0px none gray; padding:0px; margin:0px;"';
+%  my $background;
+      <table border="0" width="<% (4 * $iconWidth)+2 %>" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="border-right:1px solid lightgrey;">
+%  if(  (($document->type eq "Slide") || ($document->type eq "Flashpix")) && ($SIZE ne 'medium')  )
+%    {$background = "onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\" onClick=\"loadImage(this.id);\"";}
+%  else {$background = 'style="background-color: lightgrey;"';}
+            <img id="medium" src="<% $imageDir %>/zoommedium.gif" <% $background %> <% $style %> title="Zoom Medium" alt="Zoom Medium">
+          </td>
+          <td style="border-right:1px solid lightgrey;">
+%  if(  (($document->type eq "Slide") || ($document->type eq "Flashpix")) && ($SIZE ne 'large')  )
+%    {$background = "onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\" onClick=\"loadImage(this.id);\"";}
+%  else {$background = 'style="background-color: lightgrey;"';}
+            <img id="large" src="<% $imageDir %>/zoomlarge.gif" <% $background %> <% $style %> title="Zoom Large" alt="Zoom Large">
+          </td>
+          <td style="border-right:1px solid lightgrey;">
+%  if(  (($document->type eq "Slide") || ($document->type eq "Flashpix")) && ($SIZE ne 'xlarge')  )
+%    {$background = "onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\" onClick=\"loadImage(this.id);\"";}
+%  else {$background = 'style="background-color: lightgrey;"';}
+            <img id="xlarge" src="<% $imageDir %>/zoomxlarge.gif" <% $background %> <% $style %> title="Zoom Extra Large" alt="Zoom Extra Large">
+          </td>
+%  if(  (($document->type eq "Slide") || ($document->type eq "Flashpix")) && ($SIZE ne 'orig')  )
+%    {$background = "onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\" onClick=\"loadImage(this.id);\"";}
+%  else {$background = 'style="background-color: lightgrey;"';}
+          <td><img id="orig" src="<% $imageDir %>/zoomorig.gif" <% $background %> <% $style %> title="Zoom Original" alt="Zoom Original"></td>
+        </tr>
+      </table>
+    <form name="theZoomForm" method="get">
+    </form>
+  </div>
+</%method>
+
+
+
+
+<%method printKeywordsForm>
+  <%args>
+    $keyWordsRef
+    $conceptsRef
+  </%args>
+
+%  my @keyWords = @{$keyWordsRef};
+%  my @concepts = @{$conceptsRef};
+%  my $keywordsTitle = "Click to highlight keywords in document";
+%  my $conceptTitle = "Click to view concept";
+%  my $formWidth = 400;
+%  my $formHeight = 400;
+%  $m->session->{'contentMenuLocation'}->{'theKeyWordForm'}->{'x'} ||= $tempWidth;
+%  $m->session->{'contentMenuLocation'}->{'theKeyWordForm'}->{'y'} ||= $defaultHeight;
+
+%  if((scalar(@concepts) == 0) && (scalar(@keyWords) == 0)) {$formHeight = 100;}
+%  elsif((scalar(@concepts) == 0) || (scalar(@keyWords) == 0)) {$formHeight = 300;}
+
+  <div id="theKeyWordForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theKeyWordForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theKeyWordForm'}->{'y'} %>px; overflow:hidden;">
+    <& SELF:printDragHandleWithClose, formName => 'theKeyWordForm', title => 'Keywords', imageName => 'keywordsButton' &>
+    <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
+      <form name="theTuskWordForm">
+        <table border="0" class="tableWithLittleFont" width="100%">
+          <tr><td title="<% $conceptTitle %>"><b>UMLS Concepts</b>:</td></tr>
+          <tr>
+            <td align="center" title="<% $conceptTitle %>">
+%  if(scalar(@concepts) > 0) {
+              <div id="UMLSConcepts" class="multiselectdiv" style="width:<% $formWidth - 25 %>px;">
+                <table border="0" width="100%" cellspacing="0" style="background-color:#E7EFF7;">
+%    my %conceptHash;
+%    foreach my $concept (@concepts) {
+%      $conceptHash{lc($concept->getKeyword)}{id} = $concept->getConceptID;
+%      $conceptHash{lc($concept->getKeyword)}{displayValue} = $concept->getKeyword;
+%    }
+%    foreach my $hashKey (sort keys %conceptHash) {
+                  <tr onMouseOver="this.style.backgroundColor='lightgrey';" onMouseOut="this.style.backgroundColor='';"
+                   style="cursor:pointer;" onClick="document.location='/hsdb4/concept/<% $conceptHash{$hashKey}{id} %>';"
+                  ><td class="bold_emphasis_font"><% $conceptHash{$hashKey}{displayValue} %></td></tr>
+%    }
+                </table>
+              </div>
+%  } else {
+There are no UMLS concepts.
+%  }
+            </td>
+          </tr>
+          <tr><td title="<% $keywordsTitle %>"><b>Keywords</b>:</td></tr>
+          <tr>
+            <td align="center" title="<% $keywordsTitle %>" width="100%">
+%  if($#keyWords >= 0) {
+              <select multiple size="10" name="keyWords" onClick="highlightWords();" style="width:<% $formWidth - 25 %>px;">
+%    foreach (sort {lc $a cmp lc $b} @keyWords) {$m->print("<option value=\"$_\">$_</option>");}
+              </select>
+%  } else {
+There are no keywords.
+%  }
+            </td>
+          </tr>
+        </table>
+      </form>
+    </div>
+  </div>
+</%method>
+
+
+
+<%method printLinkedDocsForm>
+  <%args>
+    $contextRef
+    $subContentRef
+    $linkedFrom
+  </%args>
+
+%  my @context = @{$contextRef};
+%  my @subContent = @{$subContentRef};
+%  my $formWidth = 450;
+%  my $formHeight = 250;
+%  my $bgcolor = 1;
+%  $m->session->{'contentMenuLocation'}->{'theLinkedDocsForm'}->{'x'} ||= $tempWidth;
+%  $m->session->{'contentMenuLocation'}->{'theLinkedDocsForm'}->{'y'} ||= $defaultHeight;
+
+%  if(!$linkedFrom) {$formHeight = 100;}
+%  else             {$formHeight = 300;}
+
+  <div id="theLinkedDocsForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theLinkedDocsForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theLinkedDocsForm'}->{'y'} %>px; overflow:hidden;">
+    <& SELF:printDragHandleWithClose, formName => 'theLinkedDocsForm', title => 'Linked Documents', imageName => 'linkedToButton' &>
+    <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
+      <table border="0" width="100%" class="tableWithLittleFont">
+          <tr><td><b>Also Linked From</b>:</td></tr>
+          <tr>
+            <td align="center">
+%  if($linkedFrom) {
+              <div class="multiselectdiv" style="width:<% $formWidth - 25 %>px;">
+                <table border="0" width="100%" cellspacing="0" style="background-color:#E7EFF7;">
+%    $bgcolor = 1;
+%    foreach my $parentContent (@context) {
+%       if($bgcolor) {$bgcolor = '';} else {$bgcolor = 'lightgrey';}
+        <tr style="background-color:<% $bgcolor %>;" onMouseOver="this.style.backgroundColor='yellow';" onMouseOut="this.style.backgroundColor='<% $bgcolor %>';">
+          <td><a href="<% $parentContent->out_url %>"><% $parentContent->field_value('title') %></a></td>
+        </tr>
+%    }
+                </table>
+              </div>
+%  } else {
+              <p>Not Linked From Other Documents.</p>
+%  }
+            </td>
+          </tr>
+        </table>
+      </form>
+    </div>
+  </div>
+</%method>
+
+<%method displayContentOptionMenuItem>
+<%args>
+        $menuItemText
+        $menuItemHelpText
+        $onClick	=> ''
+	$active		=> 1
+	$showArrow	=> 1
+	$onMouseOver	=> 'highlightButton(this);'
+	$onMouseOut	=> 'removeHighlighting(this);'
+        $background	=> 'background-color:lightgrey;'
+	$extraImg	=> ''
+	$menuID		=> ''
+</%args>
+%
+% unless ($menuID){
+%	$menuID = $menuItemText . '_id';
+% 	$menuID =~ s/ /_/g;
+% }
+%
+<tr>
+        <td
+		valign="middle" 
+		colspan="<% $iconsInTopRow %>" 
+		title="<% $menuItemHelpText %>" 
+		align="left" 
+		id="<% $menuID %>" 
+		style="width:100%; cursor:pointer; border-bottom:<% $grayborder %>; <% ($active) ? '' : $background %>" 
+		onClick="<% $onClick %>" 
+		onMouseOver="<% ($active) ? $onMouseOver : '' %>" 
+		onMouseOut="<% ($active) ? $onMouseOut : '' %>" 
+		>
+                <table style="width:100%;" cellpadding="0">
+                        <tr>
+                                <td valign="middle" align="left"><font style="font-size:8pt;"><% $menuItemText %></font></td>
+% 
+% if ($extraImg){
+			<td valign="middle" align="right"><% $extraImg %></td>
+%
+% }
+%
+%
+% if ($showArrow){
+%
+                                <td valign="middle" align="right"><img align="right" src="/graphics/rightArrow.gif"></td>
+%
+% }
+%
+                        </tr>
+                </table>
+        </td>
+</tr>
+</%method>

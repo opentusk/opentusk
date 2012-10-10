@@ -1,0 +1,193 @@
+<%attr>
+	top_tab_type            => 'manage'
+	check_cms_permissions	=> 1
+    default_path_type	=> 'course'
+</%attr>
+
+<%once>
+	use TUSK::Manage::Course::Users;
+	use TUSK::Manage::Course::Students;
+	use HSDB45::TimePeriod;
+</%once>
+
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	onsubmit => "return checkform(this);",
+	name => 'users' } 
+
+&>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+     <tr>
+           <td class="labelgray">Time Period:</td>
+ 	   <td class="cell-left"><% $time_period_display %></td>
+    </tr>	
+    <tr> 
+      <td class="labelgray">User(s):</td>
+      <td>
+<table width="75%" cellpadding="0" cellspacing="0">
+% if (!$user) {
+		<tr>
+			<td class="cell-left">
+				<input type="button" value="Add Names" class="formbutton" onclick="openwindow('usersdiv')">
+			</td>
+		</tr>
+% }
+		<tr>
+			<td class="cell-left">
+				<div id="usersdiv"></div><input type="hidden" id="User__y" name="users">
+			</td>
+		</tr>
+	</table>
+
+
+<& /tmpl/layers:create_layer, struct => {
+				layer => 'usersdiv',
+			fields => ['userid','name'],
+			name => 'users',
+			sort => {usage => 'No'},
+			action => $data->{actionref},
+			display => [
+					{field=>'name', align=>'left', length=>225,},
+					{field=>'userid', label=>'UserID', align=>'left', length=>75,}
+				  ],
+			validate => {
+					usage => 'Yes',
+					form => 'users',
+					element => 'users'
+				},
+			data => $data->{userarray},
+                }
+&>
+
+
+ </td>
+    </tr>
+% if ($data->{showflag}) {
+    <tr> 
+      <td class="labelgray">Teaching Site:</td>
+      <td class="cell-left">
+<select name="teaching_site">
+<option value="0">None
+% foreach my $site (@{$data->{sites}}) {
+	<option value="<% $site->primary_key%>" <% (($data->{cursite} == $site->primary_key))? 'selected' : '' %> > <% $site->field_value('site_name') %>
+% }
+</select>
+        </td>
+    </tr>
+% } # END IF data->showflag
+    <tr> 
+      <td class="labelgray">Assign to Course Groups:</td>
+      <td class="cell-left">
+
+<table width="75%" border="0" cellspacing="0" class="tusk">
+
+% if (scalar(@{$data->{usergroups}})) {
+%	 foreach my $usergroup (@{$data->{usergroups}}) {
+% 		if ($user){
+%			@groupusers=$usergroup->child_users("child_user_id='" . $user . "'"); # check the each of the groups to the first user in the array
+%		}
+
+	<tr> 
+    <td class="layers-left"> 
+<input type="checkbox" name="newgroup-<% $usergroup->primary_key %>" value="1" <% ($groupusers[0])? 'checked': '' %> >
+<% $usergroup->field_value('label') %>
+<input type="hidden" name="oldgroup-<% $usergroup->primary_key %>" value="<% ($groupusers[0])? '1': '0' %>" >
+</td>
+</tr>
+%	} # END FOREACH usergroup
+% } else {
+	<tr><td><i>No course groups.</i></td></tr>
+% }
+
+</table>
+</td></tr>
+    <tr> 
+      <td>&nbsp;</td>
+      <td class="cell-submit">
+
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Save and Continue',
+	no_cancel_button => 1,
+	class 	=> 'formbutton',
+	name			=> 'submit',
+	} 
+&>
+
+<input type="hidden" name="action" value="<% $data->{action} %>"></td>
+    </tr>
+    <tr> 
+      <td width="200"><img src="/graphics/spacer.gif" width="200" height="1"></td>
+      <td><img src="/graphics/spacer.gif" width="356" height="1"></td>
+    </tr>
+  </table>
+</form>
+</td></tr></table></td></tr></table></td></tr></table></body></html>
+
+<%init>
+
+	my $selfpath = $m->comp("/tmpl/url:get_full_path");
+	my $type_object =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $time_period = $m->comp("SELF:get_timeperiod_id");
+	my $course_id = $type_object->course_id;
+	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
+    my @usergroups =  $course->sub_user_groups($time_period); 
+	my $user;
+	my @groupusers;
+	my ($rval,$msg);
+
+
+    my $tp_obj = HSDB45::TimePeriod->new( _school=>$school )->lookup_key($time_period);
+	my $time_period_display = $tp_obj->out_display;
+
+	if ($ARGS{user}) { 
+		$user = $ARGS{user}; }
+	else { 
+		$user = $m->comp("/tmpl/url:get_last_path_id"); 
+	}
+	unless ($ARGS{page}){ $ARGS{page}="add"; }
+
+	my $is_thesis_comm = ($course->type() eq 'thesis committee')? 1 : 0;
+
+	if ($ARGS{action}){
+		($rval, $msg) = TUSK::Manage::Course::Students::addedit_users($r, $course_id, $school, $time_period, \%ARGS);
+
+		if($is_thesis_comm && $rval == 1){
+			$ARGS{roles} = 'Student Editor';
+			($rval, $msg) = TUSK::Manage::Course::Users::addedit_users($r, $course_id, $school, $time_period,  \%ARGS);
+		}
+
+		my $d = "/management/course/students/show/".$school."/".$type_object->course_id."/?timeperiod=".$time_period;
+		my $msgtype = 'msg';
+		if($rval !=1) {	
+			$msgtype='errmsg';	
+		}
+		$m->comp("/tmpl/url:redirect", destination=> $d, message => $msg, msg_type => $msgtype );
+	}
+	
+	my $data = TUSK::Manage::Course::Students::addedit_pre_process($r, $course_id, $school, $time_period,  $user);
+
+</%init>
+
+<%method jsarray>
+% return ['layers.js'];
+</%method>
+
+<%method title>
+% return "Create/Modify Course Student";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method cms_min_course_role>
+% return 'DIRECTORNONSTUDENT';
+</%method>

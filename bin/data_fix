@@ -1,0 +1,104 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+use MySQL::Password;
+use HSDB4::Constants;
+use XML::EscapeText;
+use Getopt::Long;
+use Data::Dumper;
+
+my $options = {
+		verbose => 0,
+		doupdate => 0,
+		database => "",
+		table => "",
+		primarykey => "",
+		ids => ""
+};
+
+GetOptions("database=s" => \$options->{database},
+           "table=s" => \$options->{table},
+	   "primarykey=s" => \$options->{primarykey},
+	   "ids=s" => \$options->{ids},
+	   "verbose" => \$options->{verbose},
+	   "doupdate" => \$options->{doupdate},
+	   "help" => \$options->{help},
+           );
+
+unless ($options->{database}){
+    print "Please specify a database name\n";
+    exit;
+}
+
+unless ($options->{table}){
+    print "Please specify a database table\n";
+    exit;
+}
+
+unless ($options->{primarykey}){
+    print "Please specify a primary key\n";
+    exit;
+}
+
+if ($options->{help}){
+	print "Usage: data_fix --database=database --table=table --primarykey=primarykey (--ids=id1,ids,id3) (--verbose) (--doupdate) (--help)\n";
+	print "Extended usage info:\n";
+	print "--database\tName of the database to connect to\n";
+	print "--table\tName of the table to check\n";
+	print "--primarykey\tName of the primary key field\n";
+	print "--ids\tList of ids to check.  If not used it will scan all the rows\n";
+	print "--verbose\tTurn verbose on\n";
+	print "--doupdate\tUpdate data when a problem has been found\n";
+	print "--help\tShow this help info\n";
+	exit;
+}
+
+
+open(LOG, ">data_fix-log") if ($options->{doupdate});
+
+# Get username and password
+my ($un, $pw) = get_user_pw ();
+
+my $dbh = DBI->connect ('DBI:mysql:mysql', $un, $pw, { RaiseError => 1});
+
+my $sql="select * from " . $options->{database} . "." . $options->{table};
+
+$sql .= " where " . $options->{primarykey} . " IN ( " . $options->{ids} . " )" if ($options->{ids});
+
+my $sth=$dbh->prepare($sql);
+ 
+$sth->execute;
+
+while (my $row=$sth->fetchrow_hashref){
+	my %update = ();
+	foreach my $key (keys %$row){
+		my $data = $row->{$key};
+		next unless $data;
+		my $converted = XML::EscapeText::spec_chars_number($data);
+		if ($data ne $converted){
+			$update{$key} = $converted;
+			$update{$key} =~ s/\\/\\\\/g;
+			$update{$key} =~ s/'/\\'/g;
+			if ($options->{verbose} and ($key !~ /body/)){
+				print "Found " . $row->{$options->{primarykey}} . "; Field: $key\nOld: $data\nNew: $converted\n\n";
+			}
+			if ($options->{doupdate}){
+			    print LOG "Found " . $row->{$options->{primarykey}} . "; Field: $key\nOld: $data\nNew: $converted\n\n";
+			}
+ 		}
+	}
+
+	next unless ($options->{doupdate});
+
+	if (%update){
+		my $updatesql = "update " . $options->{database} . "." . $options->{table} . " set " . join(', ', map("$_ = \'$update{$_}\'", keys %update))  .", modified = modified where " . $options->{primarykey} ." = " . $row->{$options->{primarykey}};
+		print LOG $updatesql . "\n";
+		my $sth_update = $dbh->prepare($updatesql);
+		$sth_update->execute or die("Database error: $! - $updatesql\n");
+	}
+}
+
+close LOG if ($options->{doupdate});

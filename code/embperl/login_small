@@ -1,0 +1,38 @@
+[# Embperl Login Module #]
+[# Make the form itself #]
+[- 
+use TUSK::Constants;
+$ssrv = $req_rec->dir_config('SecureLogin')."?request_uri=/hsdb4/content_choose" 
+	|| 'https://'.$TUSK::Constants::Domain.'/login';
+-]
+<FORM METHOD=POST ACTION="[+ $ssrv +]">
+
+[# <H3 CLASS="title">Login</H3> #]
+
+[# Find out if there's a login error, and print it if there it #]
+[-
+  $req_rec->no_cache();
+  %cookies = Apache::Cookie->new($req_rec)->parse;
+  if ($cookies{'login_error'}) { $msg = $cookies{'login_error'}->value }
+  if ($logmsg) {
+    $msg = $logmsg;
+  }
+-]
+[$ if $msg $]
+<H5 CLASS="error">Could not log in: [+$msg+]</H5>
+[$ endif $]
+
+<TABLE>
+<TR><TD ALIGN=RIGHT><DIV>User name:</DIV></TD>
+<TD><INPUT TYPE="TEXT" NAME="user" SIZE=20 VALUE=""></TD></TR>
+<TR><TD ALIGN=RIGHT><DIV>Password:</DIV></TD>
+<TD><INPUT TYPE="PASSWORD" NAME="password" SIZE=20 VALUE=""></TD></TR>
+
+<TR><TD>&nbsp;</TD>
+<TD><INPUT TYPE="Submit" VALUE="Login"></TD></TR>
+</TABLE>
+</FORM>
+
+
+
+

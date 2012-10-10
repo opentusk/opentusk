@@ -1,0 +1,184 @@
+<%method drawContentTable>
+        <%args>
+          $documentID
+          $documentType => 'document';
+          $contentAbbreviation => '';
+		  $integrated_course => 0
+        </%args>
+
+        <script language="JavaScript" src="/scripts/showContentTable.js?<% TUSK::Functions::get_tusk_version %>" type="text/javascript"></script>
+        <script>
+			requestSubContent(0, '<% $documentID %>', '<% $documentType %>', '<% $contentAbbreviation %>');
+		</script>
+</%method>
+
+
+
+
+<%method drawSimpleContentTable>
+<%args>
+@contentArray => ()
+$classmeeting_page => 0
+$integrated_course => 0
+$course            => undef
+</%args>
+% my $td_style = $classmeeting_page? '' : 'border-bottom: 1px solid black;';
+
+        <table border="0" cellspacing="0" cellpadding="3" id="theTable" width="100%">
+          <tr>
+            <td style="<% $td_style %>" width="60"><font style="font-size:8pt;">Type</font></td>
+            <td style="<% $td_style %>" width=""><font style="font-size:8pt;">Document</font></td>
+%	if ( $integrated_course ) {
+            <td style="<% $td_style %>" width=""><font style="font-size:8pt;">Course</font></td>
+%	}
+            <td style="<% $td_style %>" width=""><font style="font-size:8pt;">Authors</font></td>
+          </tr>
+<%perl>
+	foreach my $subContent (@contentArray) {
+		my @notes = ();
+		unless(HSDB4::Constants::is_guest($m->session->{'user'})) {@notes = $subContent->child_personal_content($m->session->{'user'}->primary_key());}
+		my $combinedNote = '';
+		my $miniNote;
+		foreach my $aNote (@notes) {$combinedNote .= $aNote->field_value('body');}
+</%perl>
+             <tr>
+              <td style="border-bottom:1px solid lightgrey;"><% $subContent->out_icon("icon" . $subContent->primary_key) %></td>
+              <td style="border-bottom:1px solid lightgrey;">
+		<font class="bold_emphasis_font"><a href="<% $subContent->out_url() %>"><% $subContent->title() %></a></font>
+%		if($combinedNote) {
+%			$miniNote = TUSK::Functions::truncate_string($combinedNote);
+%			$miniNote =~ s/[\r\n]/ /g;
+%			$combinedNote =~ s/"/\\"/g;
+%			$combinedNote =~ s/'/\\'/g;
+%			$combinedNote =~ s/[\r\n]/<br>/g;
+		<br><span style="font-size:8pt"><% $combinedNote %></span>
+%		}
+	      </td>
+<%perl>
+	if ( $integrated_course ) {
+		my $out_title = '';
+		my $out_id    = 0;
+		if ( $integrated_course ) {
+			my $orig_course = $subContent->get_originating_course( $course );
+
+			if ( defined($orig_course) ) {
+				$out_title = $orig_course->title;
+				$out_id    = $orig_course->course_id;
+			}
+		}
+</%perl>
+		<td style="border-bottom:1px solid lightgrey;"><% $out_title %></td>
+%	}
+
+              <td style="border-bottom:1px solid lightgrey;"><font style="font-size:8pt;"><% join('; ', $subContent->child_authors()) %>&nbsp;</font></td>
+%#              <td style="border-bottom:1px solid lightgrey;"><% $combinedNote %></td>
+%#              <td style="border-bottom:1px solid lightgrey;"><% $miniNote %></td>
+           </tr>
+%        }
+        </table>
+</%method>
+
+
+
+<%method drawMobileContent>
+<%args>
+	@contentArray      => ()
+	$course            => undef 
+	$integrated_course => 0
+</%args>
+<ul class="gNoBullets highlight">
+% foreach my $subContent (@contentArray) {
+    <li class="contentRow">
+%	my $iconImage = $subContent->out_icon("icon" . $subContent->primary_key);
+    <% $iconImage %>
+%	if(1){#$subContent->is_mobile_ready()){
+%		my $url = $subContent->out_url_mobi();
+    <a href="<% $url %>"><% $subContent->title() %></a>
+%	}
+%	else{
+    <% $subContent->title() %> (<del>M</del>)
+<%perl>
+	}
+	if ( $integrated_course ) {
+		my $out_title = '';
+		my $out_id    = 0;
+		if ( $integrated_course ) {
+			my $orig_course = $subContent->get_originating_course( $course );
+
+			if ( defined($orig_course) ) {
+				$out_title = $orig_course->title;
+				$out_id    = $orig_course->course_id;
+			}
+		}
+
+		if ( $out_title ) {
+</%perl>
+			&nbsp;&nbsp;&nbsp;<% $out_title %>
+%		}
+%	}
+    </li>
+% }
+</ul>
+</%method>
+
+
+
+<%method printContentXML>
+	<%args>
+		@contentArray => ()
+		$course       => 0
+		$integrated_course => 0
+		$filter_course => ''
+	</%args>
+	<%perl>
+ 	my $counter = 0;
+
+	foreach my $subContent (@contentArray) {
+		my $iconImage = $subContent->out_icon("icon" . $subContent->primary_key);
+		$iconImage =~ s/ico-folder/ico-folder-plus/;
+		my @notes = ();
+		unless(HSDB4::Constants::is_guest($m->session->{'user'})) {@notes = $subContent->child_personal_content($m->session->{'user'}->primary_key());}
+		my $combinedNote = '';
+		my $miniNote;
+		foreach my $aNote (@notes) {$combinedNote .= $aNote->field_value('body');}
+		if($combinedNote) {
+ 			$miniNote = TUSK::Functions::truncate_string($combinedNote);
+			$miniNote =~ s/[\r\n]/ /g;
+			$combinedNote =~ s/"/\\"/g;
+			$combinedNote =~ s/'/\\'/g;
+			$combinedNote =~ s/[\r\n]/<br>/g;
+		}
+
+		my $out_title = '';
+		my $out_id    = 0;
+		if ( $integrated_course ) {
+			my $orig_course = $subContent->get_originating_course( $course );
+
+			if ( defined($orig_course) ) {
+				$out_title = $orig_course->title;
+				$out_id    = $orig_course->course_id;
+			}
+		}
+
+		next if ( $filter_course && $out_id != $filter_course && $out_id != 0 );
+	</%perl>
+
+       <subContent>
+         <id><% $subContent->primary_key() %></id>
+		 <type><% $subContent->type() %></type>
+         <image><![CDATA[<% $iconImage %>]]></image>
+         <author><% join('; ', $subContent->child_authors()) %></author>
+% if ($subContent->type() eq 'External') {
+         <abstract><![CDATA[<% $subContent->get_abstract() %>]]></abstract>
+% }
+% if ($integrated_course) {
+		 <course><![CDATA[<% $out_title %>]]></course>
+		 <courseid><![CDATA[<% $out_id %>]]></courseid>
+% }
+         <fullNote><![CDATA[<% $combinedNote %>]]></fullNote>
+         <shortNote><![CDATA[<% $miniNote %>]]></shortNote>
+         <title><![CDATA[<% $subContent->title() %>]]></title>
+         <url><![CDATA[<% $subContent->out_url() %>]]></url>
+       </subContent>
+%	}
+</%method>

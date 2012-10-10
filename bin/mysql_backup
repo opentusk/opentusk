@@ -1,0 +1,486 @@
+#!/usr/bin/perl
+# This script take a backup of the TUSK mysql database from a replicated machine.
+# The script works by replicating until the machine is all caught up and then stopping 
+# replication and making a mysql dump of all the databases It creates a directory with 
+# a date as a name and then a file with the name <data base>_<table>.sql.zip for each 
+# database/table.  There were many problems (esp cross system) with trying to create a 
+# single tar/zip file.
+
+#
+# Basic Flow
+#
+# Check variables
+# create temp log file || die
+# create directory || exit
+# remove old backups
+# get databases
+# get tables
+# dump tables and zip
+# mv temp log file to the real log file
+
+use FindBin;
+use File::Copy;
+use lib "$FindBin::Bin/../lib";
+use TUSK::Constants;
+use TUSK::Core::ServerConfig;
+use strict;
+
+
+
+my $backupDirectory    = "/data/mysql_backup";
+my $mysqlDataDir    = "/data/mysql";
+#This is the number of backups that you want to keep on the os. 4 = 4 days worth.
+my $numberOfDaysToKeep = 4;
+#If you are running this on the production machine make this 0
+#This will have performace/locking issues if done this way
+my $useReplication = 1;
+# If you are using replication do you want it on (1) or off (0) when this script is done running?
+my $restartReplicationWhenDone = 1;
+#If you have poor connection between Master and Slave you may need a few seconds for replication to really start.
+my $secondsToSleepAfterReplication = 5;
+#
+#  This file should not need to be changed from here down!
+#
+my $mysqlExecutable    = $TUSK::Constants::mysqlDir . '/mysql';
+my $mysqlDump          = $TUSK::Constants::mysqlDir . '/mysqldump';
+my $databaseUser       = TUSK::Core::ServerConfig::dbReadUser();
+my $databasePassword   = TUSK::Core::ServerConfig::dbReadPassword();
+my $mysqlDumpOptions   = '--tables --add-drop-table --add-locks --allow-keywords --create-options --complete-insert --extended-insert --insert-ignore --lock-all-tables --flush-logs --no-autocommit --quick';
+
+
+
+sub exitProgram($);
+sub secondsBehindMaster();
+sub buildMysqlCommand($$);
+sub checkUserVariables();
+sub removeOlderBackups($);
+sub catchupOnReplication();
+sub makeBackup($);
+sub removeDirectory($);
+sub createNewDirectory($);
+sub startSlave();
+sub stopSlave();
+sub unzipFile($);
+sub getDateTime();
+
+
+
+use TUSK::Cron::VariableManager;
+use POSIX;
+use IO::Handle;
+use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
+autoflush STDOUT 1;
+autoflush STDERR 1;
+use Getopt::Long;
+# Parameters for the search
+my ($help, $unzip, $debug, $backup, $port, $socket);
+# Get the command line options
+GetOptions (
+	"unzip=s" => \$unzip,
+	"help" => \$help,
+	"backup" => \$backup,
+	"debug" => \$debug,
+	"days=i" => \$numberOfDaysToKeep,
+	"replication!" => \$useReplication,
+	"restart!" => \$restartReplicationWhenDone,
+	"sleep" => \$secondsToSleepAfterReplication,
+	"dir=s" => \$backupDirectory,
+	"port=i" => \$port,
+	"socket=s" => \$socket,
+);
+my $processVariables;
+
+if($unzip) {
+	unzipFile($unzip);
+} elsif($backup) {
+	#Check to see if we are already running
+	$processVariables = TUSK::Cron::VariableManager->new();
+	my $pid = $processVariables->getValue('Pid');
+
+	if($pid) {
+		my $progName = $0;
+		$progName =~ s/^.*\///g;
+		# this line detects whether the process is alive
+		if(kill (0,$pid)){
+			# the process is running
+			# Lets give some output so that cron will send an email
+			print "Old process $pid appears to still be alive\n";
+			# We used to check here to see if the pid that we just found was actually running fts_index but that
+			# required know where ps was and forking for a pipe, seems like a waste.
+			print "Please check to make sure that $pid is actually running and is the backup program and if not update the Pid variable in the database!\n";
+			exit (0);
+		} else {
+			print "Unable to check pid $pid :$!\n";
+		}
+	}
+	$processVariables->setValue("Pid", $$);
+	$processVariables->saveValue("Pid");
+
+	# Check the user variables
+	checkUserVariables();
+
+	# Set up some of our variables
+	my ($starttime, $currentBackupDate, $currentTime) = getDateTime();
+	my $thisBackupDir = "$backupDirectory/$currentBackupDate";
+	my $tempLog = "$backupDirectory/temp.$currentBackupDate.log";
+
+
+	# Open the log file for append
+	unless(open(LOG, ">>$tempLog")) {
+		print "Error: Unable to open log file ($tempLog) for append : $!\n";
+	} else {
+		autoflush LOG 1;
+		print LOG "Starting backup at $currentBackupDate $currentTime\n";
+		createNewDirectory($thisBackupDir);
+		removeOlderBackups($starttime-(60 * 60 * 24 * ($numberOfDaysToKeep-1))); #(60 sec/min) * (60 min/hr) * (24 hr/day) * (number of days to keep)
+		if($useReplication) {catchupOnReplication();}
+		makeBackup($thisBackupDir);
+
+		my $endtime;
+		($endtime, $currentBackupDate, $currentTime) = getDateTime();
+		my ($t) = $endtime-$starttime;
+		printf LOG "Done with backup at %s %s (took %d hours, %d minute, %d seconds)\n", $currentBackupDate, $currentTime, $t / 3600, ($t / 60 ) % 60, $t % 60;
+		startSlave() if ( $restartReplicationWhenDone );
+		close(LOG);
+		unless(rename($tempLog, "$thisBackupDir/backup.log")) {print "Unable to rename the log file!\n\t$!\n";}
+	}
+	$processVariables->setValue("Pid", '');
+	$processVariables->saveValue("Pid");
+} else {
+	unless($help) {print "\nYou did not pass an option...\n\n";}
+	print "$0: [options]\n";
+	print "\t--help\t\tThis help page\n";
+	print "\t--backup\tRun a backup\n";
+	print "\t--unzip <FILE>\tUnzip an existing backup file\n";
+	print "\t--debug\t\tTrace script execution\n";
+	print "\t--replication\tSync replication before starting dump (default is yes)\n";
+	print "\t--restart\tRestart replication after dump is finished (default is yes)\n";
+	print "\t--noreplication\tDo not turn on replication, for use on master servers\n";
+	print "\t--days <DAYS>\tNumber of Days to keep backups ($numberOfDaysToKeep)\n";
+	print "\t--sleep <SEC>\tSeconds to sleep after restarting replication ($secondsToSleepAfterReplication)\n";
+	print "\t--dir <DIR>\tDirectory to backup to ($backupDirectory)\n";
+	print "\t--port <NUM>\tMySQL port number ($port)\n";
+	print "\t--socket <SOCK>\tMySQL socket to use\n";
+}
+exit();
+
+
+
+
+
+
+sub createNewDirectory($) {
+	my $backupDirForThisRun = shift;
+	warn "in createNewDirectory($backupDirForThisRun)\n" if ( $debug );
+	# Check if the backup directory exists and if so overwrite
+	if(-e $backupDirForThisRun) {
+		print LOG "The directory $backupDirForThisRun already exists, removing...";
+		removeDirectory($backupDirForThisRun);
+		if(-e $backupDirForThisRun) {print LOG "Failed to delete old directory\n";}
+		else                  {print LOG "ok\n";}
+	}
+
+	unless(mkdir $backupDirForThisRun) {exitProgram("Unable to create backup directory $backupDirForThisRun\nError: $!\n");}
+}
+
+
+
+
+sub exitProgram($) {
+	my $errorString = shift;
+	warn "in exitProgram($errorString)\n" if ( $debug );
+	print $errorString;
+	print LOG $errorString;
+	startSlave() if ( $restartReplicationWhenDone );
+	close(LOG);
+	$processVariables->setValue("Pid", '');
+	$processVariables->saveValue("Pid");
+	exit();
+}
+
+
+
+sub buildMysqlCommand($$) {
+	my $command = shift;
+	my $commandArguments = shift;
+	warn "in buildMysqlCommand($command, $commandArguments)\n" if ( $debug );
+	$command .= " --port=$port"
+		if ( defined $port);
+	$command .= " --socket=$socket"
+		if ( defined $socket);
+
+	if($databaseUser) {$command .= " --user=$databaseUser";}
+	if($databasePassword) {$command .= " --password=$databasePassword";}
+	$command .= $commandArguments;
+	return($command);
+}
+
+
+
+
+sub checkUserVariables() {
+	warn "in checkUserVariables()\n" if ( $debug );
+	my $errors = 0;
+	unless(-d $backupDirectory) {
+		unless(mkdir $backupDirectory) {
+			print "Error: $backupDirectory does not exist and could not be created\n";
+			$errors++;
+		}
+	}
+	unless(-e $mysqlExecutable) {
+		print "$mysqlExecutable does not exist or is not executable!\n";
+		$errors++;
+	}
+	unless(-e $mysqlDump) {
+		print "$mysqlDump does not exist or is not executable!\n";
+		$errors++;
+	}
+	if($errors) {
+		print "\nOne or more errors prevent this script from running successfully!\n";
+		exit();
+	}
+}
+
+
+sub removeOlderBackups($) {
+	my $dateOfLastFileToSave = shift;
+	warn "in removeOlderBackups($dateOfLastFileToSave)\n" if ( $debug );
+	print LOG "Removing old backups...\n";
+	unless(opendir(BACKUP_DIR, $backupDirectory)) {exitProgram("Error: Unable to open backup directory to check for old backups : $!\n");}
+
+	my @files = grep /^\d{4}-\d{2}-\d{2}$/, readdir BACKUP_DIR;
+	foreach my $fileName (@files) {
+		my ($year, $month, $day) = split /\-/, $fileName;
+		my $timeOfBackupFile = mktime(0,0,0,$day,$month-1,$year-1900);
+		# Seems that perl < 5.10 might return 01:00:00 or 23:00:00 for
+		# the time, I think this may be due to the change in Daylight
+		# Savings the US went through in 2007.  If so, then adjust our
+		# calculations.
+		my ($ctime) = ctime($timeOfBackupFile);
+		if ( $ctime =~ / 01:00:00 $year$/ ) {
+			$timeOfBackupFile = mktime(0,0,-1,$day,$month-1,$year-1900)
+		} elsif ( $ctime =~ / 23:00:00 $year$/ ) {
+			$timeOfBackupFile = mktime(0,0,1,$day,$month-1,$year-1900)
+		}
+		my $delta = $dateOfLastFileToSave - $timeOfBackupFile;
+		if($delta > 60 * 60 * 24) {
+			if(-d "$backupDirectory/$fileName") {
+				print LOG "\tDeleting $fileName...";
+				removeDirectory("$backupDirectory/$fileName");
+				if(-e "$backupDirectory/$fileName") {print LOG "\tError : Unable to delete!\n";}
+				else            {print LOG "ok\n";}
+			} else {
+				print LOG "\tError: $backupDirectory/$fileName is not a directory!\n";
+			}
+		} else {
+			print LOG "\tKeeping $fileName ($delta)\n";
+		}
+	}
+	closedir(BACKUP_DIR);
+}
+
+
+
+
+sub catchupOnReplication() {
+	warn "in catchupOnReplication()\n" if ( $debug );
+	print LOG "Syncing database...\n";
+	my($theSecondsBehindMaster, @returnLines) = secondsBehindMaster();
+	if($theSecondsBehindMaster ne 'NULL') {
+		my $warningString = "\tWarning : replication appears to be already on!\n";
+		foreach (@returnLines) {$warningString .= "\t$_";}
+		print LOG $warningString;
+	} else {
+		startSlave();
+	}
+	my $caughtUp = 0;
+	while(!$caughtUp) {
+		($theSecondsBehindMaster, @returnLines) = secondsBehindMaster();
+		if($theSecondsBehindMaster eq 'NULL') {
+			exitProgram("Error : replication did not start!\n");
+		} elsif($theSecondsBehindMaster eq 0) {
+			$caughtUp = 1;
+		} else {
+			
+			my ($t, $currentBackupDate, $currentTime) = getDateTime();
+			print LOG "\tWaiting for replication to catch up : $theSecondsBehindMaster seconds behind at $currentBackupDate $currentTime\n";
+			my $secondsToSleep = 1;
+			if($theSecondsBehindMaster > 100000) {
+				if($theSecondsBehindMaster > 1000000) {$secondsToSleep = 60;}
+				else                                  {$secondsToSleep = 30;}
+			}
+			sleep($secondsToSleep);
+		}
+	}
+	stopSlave();
+}
+
+
+sub secondsBehindMaster() {
+	warn "in secondsBehindMaster()\n" if ( $debug );
+	# Returns:
+	#    seconds behind master : a number, NULL of replication is off, -1 on error
+	#    output from : emptry array or output from mysql -e "show slave status" as array;
+
+	my $command = buildMysqlCommand($mysqlExecutable, " -e \"show slave status \\G\"");
+	unless(open(COMMAND, "$command | ")) {exitProgram("Error: unable to use $mysqlExecutable to see if replication is off : $!\n");}
+	my @returnLines = <COMMAND>;
+	my $lastIndex = $#returnLines;
+	if($returnLines[$lastIndex] !~ /^.*Seconds_Behind_Master: *(.*)$/) {
+		my $errorMessage = "Error: could not tell if replication is turned on!\n";
+		foreach (@returnLines) {$errorMessage .= "\t$_";}
+		exitProgram($errorMessage);
+	}
+	return($1, @returnLines);
+}
+
+
+
+
+sub makeBackup($) {
+	my $backupDirForThisRun = shift;
+	warn "in makeBackup($backupDirForThisRun)\n" if ( $debug );
+	print LOG "Creating new mysql backup...\n";
+
+	if($useReplication) {
+		print LOG "\tVerifying mysql replication is off...";
+		my ($theSecondsBehindMaster, @commandOutput) = secondsBehindMaster();
+		if($theSecondsBehindMaster ne 'NULL') {
+			my $errorString = "Error: replication appears to be on!\n";
+			foreach (@commandOutput) {$errorString .= "\t$_";}
+			exitProgram($errorString);
+		}
+		print LOG "ok\n";
+
+		# Copy over the master.info and relay-log.info files so if we
+		# want to setup another slave server from this dump, we have
+		# the exact time the backups started.
+		copy($mysqlDataDir . '/master.info', $backupDirForThisRun . '/master.info') or die "Copy failed: $!"
+			if ( -f $mysqlDataDir . '/master.info' );
+		copy($mysqlDataDir . '/relay-log.info', $backupDirForThisRun . '/relay-log.info') or die "Copy failed: $!"
+			if ( -f $mysqlDataDir . '/relay-log.info' );
+	}
+
+	# To make the backup file:
+	#	Get all of the databases
+	#	foreach database {
+	#		get the tables
+	#		foreach (database.table) {
+	#			dump the db.table to a temp file
+	#			zip the temp file
+	#		}
+	#	}
+
+	# Get all of the databases (we are going to dump them one at a time to zip
+	my $command = buildMysqlCommand($mysqlExecutable, " --batch --skip-column-names -e \"show databases\"");
+	unless(open(COMMAND, "$command | ")) {exitProgram("Error: unable to use $mysqlExecutable to get the list of databases : $!\n");}
+	my @databases = <COMMAND>;
+	close(COMMAND);
+
+	my $error = 0;
+	# Get the tables and dump them
+	foreach my $singleDatabase (@databases) {
+		chomp $singleDatabase;
+		next if ( $singleDatabase eq 'lost+found' );
+		my $command = buildMysqlCommand($mysqlExecutable, " --batch --skip-column-names -e \"show tables\" $singleDatabase");
+		unless(open(COMMAND, "$command | ")) {print LOG "Error: unable to use $mysqlExecutable to get the list of tables for database $singleDatabase : $!\n";}
+		else {
+			while(<COMMAND>) {
+				chomp;
+				my $dbTable = $_;
+				print LOG "\tStarting dump of $singleDatabase.$dbTable...\n";
+				my $tempFile = "$backupDirForThisRun/$singleDatabase.$dbTable.sql";
+				unless(open(TEMP_FILE, ">$tempFile")) {print LOG "Error: Unable to open the temp file $tempFile : $!\n"; $error++;}
+				else {
+					my $dumpCommand = buildMysqlCommand($mysqlDump, " $mysqlDumpOptions $singleDatabase $dbTable");
+					unless(open(DUMP_COMMAND, "$dumpCommand | ")) {print LOG "Error: Unable to start mysqldump command : $!\n$dumpCommand\n"; $error++;}
+					else {
+						while(<DUMP_COMMAND>) {print TEMP_FILE $_;}
+						close(DUMP_COMMAND);
+						close(TEMP_FILE);
+
+						# zip the temp file 
+						my $zipFile = Archive::Zip->new();
+						my $member = $zipFile->addFile($tempFile, "$singleDatabase.$dbTable.sql");
+						unless($zipFile->overwriteAs("$backupDirForThisRun/$singleDatabase.$dbTable.sql.zip") == AZ_OK) {
+							print LOG "Error: Unable to zip the temp file : $!\n"; $error++;
+						} else {
+							# The zip file has been written so we can delete the temp sql file
+							unless(unlink($tempFile)) {print LOG "Error: Unable to remove old temp file ($tempFile) : $!\n";}
+						}
+					}
+				}
+			}
+		}
+	}
+	if($error) {exitProgram("Error: backup was not created successfully!\n");} 
+	print LOG "\tBackup successfully made to file $backupDirForThisRun\n";
+}
+
+
+sub removeDirectory($) {
+	# If you use this function it is your responsibility to see if any files are left over (this does no error checking!)
+	my $dirToRemove = shift;
+	warn "in removeDirectory($dirToRemove)\n" if ( $debug );
+	if(opendir(A_DIR, $dirToRemove)) {
+		foreach my $fileName (grep !/^\.\.?$/, readdir A_DIR) {
+			if(-f "$dirToRemove/$fileName") {
+				unless(unlink("$dirToRemove/$fileName")) {print LOG "Unabel to remove file $dirToRemove/$fileName in removeDirectory : $!\n";}
+			} elsif(-d "$dirToRemove/$fileName") {
+				removeDirectory("$dirToRemove/$fileName");
+			}
+		}
+		rmdir($dirToRemove);
+	} else {
+		print LOG "Unable to open dir $dirToRemove in removeDirectory : $!\n";
+	}
+}
+
+
+
+sub stopSlave() {
+	warn "in stopSlave()\n" if ( $debug );
+	print LOG "\tStopping Replication...\n";
+	system(  buildMysqlCommand($mysqlExecutable, " -e \"stop slave;\"")  );
+	my ($theSecondsBehindMaster, @returnLines) = secondsBehindMaster();
+	if($theSecondsBehindMaster ne 'NULL') {
+		exitProgram("\tUnable to stop replication! ($theSecondsBehindMaster)\n");
+	}
+}
+
+sub startSlave() {
+	warn "in startSlave()\n" if ( $debug );
+	print LOG "\tStarting Replication...";
+	system(  buildMysqlCommand($mysqlExecutable, " -e \"start slave;\"")  );
+	sleep($secondsToSleepAfterReplication);
+	my($theSecondsBehindMaster, @returnLines) = secondsBehindMaster();
+	if($theSecondsBehindMaster ne 'NULL') {
+		print LOG "ok\n";
+	} else {
+		print LOG "error starting replication\n";
+	}
+}
+
+
+
+sub unzipFile($) {
+	my $fileName = shift;
+	warn "in unzipFile($fileName)\n" if ( $debug );
+	if(!$fileName) {die "You must pass in the name of a zip file to unzip\n";}
+	unless(-f $fileName) {die "$fileName is not a file\n";}
+	my $archive = Archive::Zip->new($fileName);
+	my @members = $archive->members();
+	foreach (@members) {
+        	print "Extracting " . $_->fileName() . "...";
+        	if($archive->extractMember($_->fileName()) != AZ_OK)    {print "Failed\n$!\n";}
+        	else                                                    {print "OK\n";}
+	}
+}
+
+sub getDateTime() {
+	my $t = time();
+	my $date = strftime ("%Y-%m-%d", localtime($t));
+	my $time = strftime ("%X", localtime($t));
+
+	return ($t, $date, $time);
+}

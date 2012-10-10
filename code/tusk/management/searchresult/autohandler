@@ -1,0 +1,51 @@
+<%method leftnav>
+<%perl>
+if (ref($m->comp("/tmpl/url:get_type_object")) eq "TUSK::Core::School"){
+	return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school")  };
+}
+</%perl>
+</%method>
+
+<%attr>
+check_cms_permissions => 0
+must_be_school_admin => 1
+top_tab_type => 'manage'
+</%attr>
+
+<%method jsarray>
+% return ['layers.js','element.js','searchresult.js'];
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+return $m->comp("/tmpl/nav", 'objects' => $m->comp("SELF:get_nav_bar_objects"),
+                             'prefix' => '/management/searchresult',
+                             'hierarchy' => {
+                                                'show' => [],
+                                                'addedit' => ['show'],
+                                                'delete' => ['show'],
+						'resultaddedit'=>['show','addedit'],
+						'resultdelete'=>['show','addedit']
+						
+                                                },
+                             'nav_entities_dependency' => {
+                                                        'show' =>{'object'=>undef, 'depend'=>[]} , 
+                                                        'addedit' =>{
+								'object'=>"TUSK::Search::SearchResultCategory",
+								'static_title'=>"Result Category : ",
+								'depend'=>[]} ,
+                                                        'delete' =>{'object'=>undef, 'depend'=>[]} ,
+                                                        'resultdelete' =>{
+								'object'=>"TUSK::Search::SearchResult",
+	 							'depend'=>[]} ,
+                                                        'resultaddedit' =>{
+								'object'=>"TUSK::Search::SearchResult",
+	 							'depend'=>[]} 
+                                                        },
+                             'title_func' => {'TUSK::Search::SearchResultCategory'=>'getCategoryLabel'},
+                             'urls' => {'show' => {link => 'show', label => 'Manage Search Results'}});
+</%perl>
+</%method>
+
+% $m->call_next();
+

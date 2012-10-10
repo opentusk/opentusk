@@ -1,0 +1,153 @@
+<%once>
+use Forum::ForumKey;
+use Forum::MwfMain;
+use Forum::MwfConfig;
+use HSDB45::Course;
+use Data::Dumper;
+use TUSK::Functions;
+</%once>
+
+<%method jsarray>
+% return ['scripts.js'];
+</%method>
+
+<%attr>
+no_check_path => 1
+</%attr>  
+
+<%shared>
+	my ($x, $cfg, $lng, $user) = MwfMain->new($r);
+	my $userId = $user->{id};
+	my $parentId= $m->comp("/tmpl/url:get_last_path_id");
+	my $query = "SELECT * FROM $cfg->{dbPrefix}posts WHERE id = $parentId";
+	my $parent = $x->fetchHash($query);
+	my $boardId = $parent->{boardId};
+	my $topicId = $parent->{topicId};
+	# Get board
+	$query = "SELECT * FROM $cfg->{dbPrefix}boards WHERE id = $boardId";
+	my $board = $x->fetchHash($query);
+	my $boardAdmin = $x->boardAdmin($user->{id}, $boardId);
+	# Get topic
+	$query = "SELECT * FROM $cfg->{dbPrefix}topics WHERE id = $topicId";
+	my $topic = $x->fetchHash($query);
+</%shared>
+
+<%method get_nav_bars>
+<%perl>
+ 	my $nav_bars = []; 
+	my $truncDisc  =  TUSK::Functions::truncate_string('Discussions',10);
+	my $truncTitle =  TUSK::Functions::truncate_string($board->{title},10);
+	my $truncSubj  =  TUSK::Functions::truncate_string($topic->{subject},10);
+ 	$nav_bars = [ { href => '/mobi/forum/forumshow/', label => $truncDisc } ,
+				  {	href => '/mobi/forum/boardshow/'.$board->{id}, label => $truncTitle }, 
+				  {	href => '/mobi/forum/topicshow/'.$topic->{id}, label => $truncSubj } 
+				];
+ 	return $nav_bars;
+</%perl>
+</%method>
+
+<%method header_text>
+% return 'Reply';
+</%method>
+
+<& /tmpl/element:form, params => {
+                                method => 'POST',
+                                onsubmit =>'',
+                                name => 'replypost' } &>
+
+<h4 class='annHdr'>Post Reply</h4>
+<textarea name="bodyq" 
+id="event_description" 
+cols="20" 
+rows="4"  
+class="textareawhite"></textarea> 
+<br>
+
+<& /tmpl/element:save_button, params=>{
+        label=>'Save Changes',
+        cancel_onclick=>"go_back('/mobi/forum/topicshow/$topicId')" ,
+        name=>'save_changes'} &>
+
+</form>
+
+<%perl>
+if ( defined( $ARGS{'submit_check'} )  )
+{
+	# Transaction
+	my $postId = 0;
+	my $subjectQ = $x->dbQuote($ARGS{'subjectq'});
+	my $bodyQ = $x->dbQuote($ARGS{'bodyq'});
+    my $postUserId = $user->{id};
+	my $postUserName = $x->dbQuote($user->{userName});	
+	my $approved=1;
+	
+	$x->dbBegin();
+	eval {
+	
+		# Insert post
+		$x->dbDo("
+			INSERT INTO $cfg->{dbPrefix}posts (
+				userId, userNameBak, boardId, topicId, parentId,
+				approved, ip, postTime, body
+			) VALUES (
+				$postUserId, $postUserName, $boardId, $topicId, $parent->{id},
+				$approved, '$x->{env}{userIp}', $x->{now}, $bodyQ
+			)");
+		$postId = $x->dbInsertId("$cfg->{dbPrefix}posts");
+		
+		# Update board stats
+		$x->dbDo("
+			UPDATE $cfg->{dbPrefix}boards SET 
+				postNum = postNum + 1, 
+				lastPostTime = $x->{now}
+			WHERE id = $boardId");
+			
+	
+		 # Mark read if there haven't been other new posts in the meantime
+         my $topicReadTime = $x->fetchArray("
+                  SELECT lastReadTime
+                  FROM $cfg->{dbPrefix}topicReadTimes
+                  WHERE userId = $userId
+                  AND topicId = $topicId");
+         my $lowestUnreadTime = $x->max($topicReadTime, $user->{fakeReadTime},
+         		  $x->{now} - $cfg->{maxUnreadDays} * 86400);
+         my $allRead = $x->fetchArray("
+                  SELECT lastPostTime <= $lowestUnreadTime
+                  FROM $cfg->{dbPrefix}topics
+                  WHERE id = $topicId");
+         if ($allRead) {
+                  $x->dbDo("
+                           DELETE FROM $cfg->{dbPrefix}topicReadTimes
+                           WHERE userId = $userId
+                           AND topicId = $topicId");
+                  $x->dbDo("
+                           INSERT INTO $cfg->{dbPrefix}topicReadTimes (userId, topicId, lastReadTime)
+                           VALUES ($userId, $topicId, $m->{now} + 1)");
+                        }
+
+
+		 # Update board/topic stats
+                   $x->dbDo("
+                                UPDATE $cfg->{dbPrefix}topics SET
+                                        postNum = postNum + 1,
+                                        lastPostTime = $x->{now}
+                                WHERE id = $topicId");
+                   $x->dbDo("
+                                UPDATE $cfg->{dbPrefix}boards SET
+                                        postNum = postNum + 1,
+                                        lastPostTime = $x->{now}
+                                WHERE id = $boardId");
+
+		# Update user stats
+		$x->dbDo("
+			UPDATE $cfg->{dbPrefix}users SET postNum = postNum + 1 WHERE id = $userId")
+			if !$board->{anonymous};
+
+	};
+	$@ ? $x->dbRollback() : $x->dbCommit();
+    
+	my $reload_url = "/mobi/forum/topicshow/$topicId";
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url);
+}  #end if submit checked
+
+</%perl>

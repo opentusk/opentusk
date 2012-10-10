@@ -1,0 +1,79 @@
+<%once>
+	use TUSK::Case::Case;
+</%once>
+
+<%method user>
+% return $m->session->{'user'}->user_id();
+</%method>
+
+<%method title>
+%return "PLEASE CHANGE THIS TITLE";
+</%method>
+
+<%method jsarray>
+%return ['element.js','caseshell.js', 'content.js'];
+</%method>
+
+<%method stylearray>
+%return ['/style/style.css','/style/caseSimulator.css', '/style/hscml.css'];
+</%method>
+
+<%method leftnav>
+%return "/case/tmpl/leftnav/case";
+</%method>
+
+<%method get_full_path>
+% return ;
+</%method>
+
+
+<%method footer>
+<%args>
+$obj
+</%args>
+<br>
+<table>
+<tr>
+	<td class="xxsm">
+		<b>Created By:</b>
+	</td>
+	<td class="xxsm">
+		 <% $obj->getCreatedBy() %> (<i><% $obj->getCreatedOn() %></i>)</font>
+	</td>
+</tr>
+<tr>
+	<td class="xxsm">
+		<b>Changed By:</b>
+	</td>
+	<td class="xxsm">
+		<% $obj->getModifiedBy() %> (<i><% $obj->getModifiedOn() %></i>)</font>
+	</td>
+</tr>
+</table>
+</%method>
+
+
+<%method form>
+% return undef;
+</%method> 
+
+<%attr>
+	default_path_type	=> 'course'
+	no_header		=> 0
+	page_header		=> '/case/tmpl/header'
+	page_footer		=> '/case/tmpl/footer'
+</%attr>
+
+<%method get_preview_text>
+<%args>
+	$case
+</%args>
+<%perl>
+	$case->setUser($m->comp('SELF:user'));
+	my $report = $case->getReport();
+	return ($report->getPreviewFlag()) ? ' - (PREVIEW)' : '';
+</%perl>
+</%method>
+
+% $m->call_next ;
+

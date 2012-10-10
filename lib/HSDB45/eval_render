@@ -1,0 +1,33 @@
+#!/usr/bin/perl -w
+
+use strict;
+use HSDB4::test::setup;
+use HSDB45::Eval;
+use HSDB45::Eval::Formatter;
+use Getopt::Long;
+use FileHandle;
+use XML::Twig;
+use XML::LibXML;
+use XML::LibXSLT;
+
+my ($school, $eval_id, $pretty_print, $verbose, $stylesheet, $user_id);
+GetOptions( "school=s"    => \$school,
+	    "eval_id=i"   => \$eval_id,
+	    "stylesheet=s" => \$stylesheet,
+	    "user_id=s" => \$user_id,
+	    );
+
+my $eval = HSDB45::Eval->new (_school => $school, _id => $eval_id);
+die "Cannot file eval for school [$school] and eval_id [$eval_id]" unless $eval->primary_key();
+
+my $file_name = $school . "_" . $eval_id . ($stylesheet ? ".html" : ".xml");
+print "output file name: " . $file_name . "\n";
+my $fh = FileHandle->new("> $file_name")
+    or die "could not create file " . $file_name . ": $!\n";
+
+my $formatter = HSDB45::Eval::Formatter->new($eval);
+$fh->print($formatter->get_xml_document());
+
+1;
+
+

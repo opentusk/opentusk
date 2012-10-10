@@ -1,0 +1,32 @@
+<%attr>
+	no_check_path => 1
+	page_header   => undef
+	page_footer   => undef
+</%attr>
+
+<%once>
+use TUSK::Case::CaseReport;
+</%once>
+
+<%perl>
+my $id = $m->comp('/tmpl/url:get_last_path_id');
+my $report = TUSK::Case::CaseReport->new()->lookupKey($id);
+
+if (!defined $report) {
+	warn 'Cannot retrieve patient chart: no case report.';
+	$m->print('Sorry, cannot retrieve patient chart at this time.');
+	return;
+}
+
+
+if ($m->comp('SELF:user') ne $report->getUserID()) {
+	warn 'Cannot retrieve patient chart: user id in session does not match id in case report.';
+	$m->print('Sorry, cannot retrieve patient chart at this time.');
+	return;
+}
+
+my $case = $report->getCaseObject();
+$case->setReport($report);
+
+$m->comp('/case/tmpl/leftnav/element:get_chart', case => $case);
+</%perl>

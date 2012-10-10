@@ -1,0 +1,69 @@
+<%method page>
+<%args>
+$args
+$form
+</%args>
+<table cellspacing="0" cellpadding="0" width="100%">
+% $m->comp("/tmpl/element:section_header_row", label => $args->{title});
+</table>
+<table cellspacing="0" cellpadding="0" width="100%"><tr>
+<%perl>
+	my $fields = $form->getFields();
+	my $has_links = 0;
+
+	foreach my $field (@$fields){
+		my $items = $field->getNonCatItems();
+		my $show_links_flag = 0;
+		if ($field->getDefaultReport()){
+			$show_links_flag = 1;
+		}else{
+			foreach my $item (@$items){
+				if ($item->getContentID() > 1){
+					$show_links_flag = 1;
+					last;
+				}
+			}
+		}
+		if ($show_links_flag){
+			unless ($has_links){
+				$has_links = 1;
+			}
+			$m->comp("SELF:display_links", field => $field);
+		}
+	}
+
+	unless ($has_links){
+		print "<td><br><i>No links in form.</i></td>";
+	}
+</%perl>
+</tr>
+</table>
+</%method>
+
+<%method display_links>
+<%args>
+$field
+</%args>
+<td class="no-button" valign="top" style="padding-right:5px">
+<%perl>
+	my $items = $field->getNonCatItems();
+	my $display_arrayref = [];
+	my $string;
+	foreach my $item (@$items){
+		if ($item->getContentID() > 1){
+			$string = "<a href=\"/hsdb4/content/" . $item->getContentID() . "\" target=\"content\">" . $item->getItemName() . "</a>";
+		}else{
+			$string = $item->getItemName();
+		}
+		push (@$display_arrayref, {itemname => $string});
+	}
+</%perl>
+<& /tmpl/element:object_selection_box, params => { 
+				columns => [ {'label' => $field->getFieldName(), 'field' => 'itemname'} ],
+				rows => $display_arrayref,
+				name => "itemnames",
+				}
+&>
+
+</td>
+</%method>

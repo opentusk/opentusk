@@ -1,0 +1,74 @@
+<%args>
+	$imageOnly	=> 0
+</%args>
+<%once>
+	use HSDB45::Eval::Results::BarGraph;
+	use HSDB45::Eval::Results::Formatter;
+</%once>
+<%attr>
+	no_header	=> 1
+	docType		=> 'simpleType4'
+</%attr>
+<%method stylearray>
+%	return '/style/grapher.css';
+</%method>
+<%method title>
+%       return 'Eval Graph';
+</%method>
+<%method return_page_footer>
+%	return undef;
+</%method>
+<%shared>
+	my @pathIDs = $m->comp('/tmpl/url:get_path_ids');
+	my $school = $m->comp('/tmpl/url:get_school');
+	my $evalID = $pathIDs[0];
+	my $questionID = $pathIDs[1];
+	my $bar;
+	if($questionID =~ /^([HMm])(\d*)$/) {
+		my $questionType = $1;
+		$questionID = $2;
+		if($questionType eq 'H')	{$questionType = 'histogram';}
+		elsif($questionType eq 'M')	{$questionType = 'median';}
+		elsif($questionType eq 'm')	{$questionType = 'mode';}
+		else				{$questionType = '';}
+
+		$bar = HSDB45::Eval::Results::SupportingGraphs->new_from_variables($school,$evalID, $questionID, $questionType);
+
+	} else {
+		$bar = HSDB45::Eval::Results::BarGraph->new_from_variables($school,$evalID, $questionID);
+	}
+	# I don't think we want to do this but (if we wanted) we could provide an icon to force a generation of the graphic and then gen the graphic
+#	unless ($bar->primary_key) {
+#		# Extract the school and eval_id from the URL
+#		my $formatter = HSDB45::Eval::Results::Formatter->new_from_path("$school/$evalID/$questionID");
+#		if ($formatter->is_cache_valid()) {
+#			my $bar_graph_creator = HSDB45::Eval::Results::BarGraphCreator->new($formatter->school(), $formatter->object_id(), $formatter->get_xml_text());
+#			$bar_graph_creator->save_svg_graphs();
+#		} else {
+#			$formatter->get_xml_text();
+#		}
+#		# Now, reload the bar graph object
+#		$bar = HSDB45::Eval::Results::BarGraph->new_from_path("$school/$evalID/$questionID");
+#	}
+</%shared>
+
+% unless($imageOnly) {
+<body>
+<!-- Graph For: <% $questionID %> !-->
+% }
+% unless($bar->primary_key) {
+	<font color="red">Sorry, this graph is currently unavailable.</font>
+% } else {
+%	if($bar->get_mime_type() eq 'image/svg-xml') {
+ 		<embed src="/evalgraph/<% $school %>/<% $evalID %>/<% $questionID %>.svg" 
+		name="Bar Graph: Question <% $questionID %>" 
+		height="<% $bar->get_height * 2 %>" width="<% $bar->get_width %>" 
+		type="image/svg-xml" pluginspage="http://www.adobe.com/svg/viewer/install"/>
+%	} else {
+		<% $bar->get_graphic() %>
+%	}
+% }
+% unless($imageOnly) {
+</body>
+</html>
+% }

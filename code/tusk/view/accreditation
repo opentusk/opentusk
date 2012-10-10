@@ -1,0 +1,282 @@
+<%attr>
+	top_tab_type            => 'none'
+	displayLittleUserNavbar => '1'
+	allow_guests            => '1'
+	default_path_type       => 'usergroup'
+</%attr>
+
+<%once>
+	use HSDB45::UserGroup;
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use TUSK::Functions;
+	use HSDB45::ClassMeeting;
+</%once>
+
+<%shared>
+	my $printing;
+	my $usergroup = $m->comp('/tmpl/url:get_type_object');
+	my $school    = $usergroup->school;
+	my $meeting   = HSDB45::ClassMeeting->new( _school => $school )->lookup_key( $m->comp('/tmpl/url:get_last_path_id') );
+	my @content   = $meeting->active_child_content();
+	my %objectives;
+	$objectives{'0_column_titles'} = { '0_content' => '<span class="tusk_sub_header_row">Content</span>', '1_objective' => '<span class="tusk_sub_header_row">Objective</span>' };
+	foreach my $objective_link ( @{$meeting->child_objectives} ) {
+		my $objective = $objective_link->getObjective;
+		if ( defined( $objectives{$objective->getFieldValue('objective_id')}->{'0_content'} ) ) {
+			$objectives{$objective->getFieldValue('objective_id')}->{'0_content'} =~ s|</ul>|<li>(none)</li></ul>|;
+		} else { 
+			$objectives{$objective->getFieldValue('objective_id')} = { '0_content' => "<ul class='content_list'><li>(none)</li></ul>", '1_objective' => $objective->getFieldValue('body') };
+		}
+	}
+	my @ug_link   = $meeting->course->user_group_link()->get_children($meeting->course->course_id,"child_user_group_id='" . $usergroup->primary_key . "'")->children();
+	my $tp_id     = $ug_link[0]->aux_info('time_period_id');
+	my %keywords;
+	$keywords{'0_column_titles'} = { '0_content' => '<span class="tusk_sub_header_row">Content</span>', '1_keyword' => '<span class="tusk_sub_header_row">Keyword</span>' };
+	foreach my $keyword_link ( @{$meeting->child_keywords} ) {
+		my $keyword = $keyword_link->getKeyword;
+		if ( defined( $keywords{$keyword->getFieldValue('keyword_id')} ) ) {
+			$keywords{$keyword->getFieldValue('keyword_id')}->{'0_content'} =~ s|</ul>|<li>(none)</li></ul>|;
+		} else { 
+			$keywords{$keyword->getFieldValue('keyword_id')} = { '0_content' => "<ul class='content_list'><li>(none)</li></ul>", '1_keyword' => $keyword->getKeyword };
+		}
+	}
+</%shared>
+
+% if ($printing) {
+	<style type="text/css">
+		body {margin-top: 0px;}
+	</style>
+	<body onLoad="alert('When printing be sure to have your top and bottom margins set to .5 (this option is typically found in Page Setup) or use the Shrink to Fit option offered in some browsers.  Firefox users may need to use scaling.');">
+% } else {
+%	my $sched_date = HSDB4::DateTime->new()->in_mysql_date( $meeting->meeting_date );
+	<table width="100%">
+		<tr>
+			<td width="50%" align="left" class="xsm">
+				<a href="/view/schedule/<% $school %>/<% $usergroup->primary_key %>/<% $sched_date->prev_sunday->out_mysql_date %>">Back to weekly schedule</a>
+			</td>
+			<td width="50%" align="right" class="xsm">
+				<a href="<% $ENV{SCRIPT_URI} %>?print=1">Printable Version</a>
+			</td>
+		</tr>
+	</table>
+	<br>
+% }
+	<div align="center">
+		<table class="tusk acc_table" cellpadding="0" cellspacing="0">
+			<tr>
+				<th class="tusk_header_row" colspan="2">Course Details</th>
+			</tr>
+			<tr class="odd">
+				<td class="left_col left_col_size">Course</td>
+				<td><% $meeting->course->title %></td>
+			</tr>
+			<tr class="even">
+				<td class="left_col left_col_size">OEA Code</td>
+				<td><% $meeting->course->oea_code %></td>
+			</tr>
+			<tr class="odd">
+				<td class="left_col left_col_size">Group</td>
+				<td><% $usergroup->label %></td>
+			</tr>
+			<tr class="even">
+				<td class="left_col left_col_size">Academic Year</td>
+				<td><% HSDB45::TimePeriod->new( _school => $school )->lookup_key( $tp_id )->field_value('academic_year') %></td>
+			</tr>
+			<tr class="odd">
+				<td class="left_col left_col_size">Time Period</td>
+				<td><% HSDB45::TimePeriod->new( _school => $school )->lookup_key( $tp_id )->period %></td>
+			</tr>
+		</table>
+		<br />
+		<br />
+		<table class="tusk acc_table" cellpadding="0" cellspacing="0">
+			<tr>
+				<th class="tusk_header_row" colspan="2">Meeting Details</th>
+			</tr>
+			<tr class="odd">
+				<td class="left_col left_col_size">ID</td>
+				<td><% $meeting->primary_key %></td>
+			</tr>
+			<tr class="even">
+				<td class="left_col left_col_size">Title</td>
+				<td><% $meeting->title %></td>
+			</tr>
+			<tr class="odd">
+				<td class="left_col left_col_size">Meeting Type</td>
+				<td><% $meeting->type %></td>
+			</tr>
+			<tr class="even">
+				<td class="left_col left_col_size">Date</td>
+				<td><% $meeting->meeting_date %></td>
+			</tr>
+			<tr class="odd">
+				<td class="left_col left_col_size">Time</td>
+%				my $st = $meeting->start_time;
+%				my $et = $meeting->end_time;
+%				$st =~ s/:00$//;
+%				$et =~ s/:00$//;
+				<td><% $st %> - <% $et %></td>
+			</tr>
+			<tr class="even">
+				<td class="left_col left_col_size">Location</td>
+				<td><% $meeting->location %></td>
+			</tr>
+			<tr class="odd">
+				<td class="left_col left_col_size">Last Modified</td>
+				<td><% $meeting->field_value('modified') %></td>
+			</tr>
+		</table>
+		<br />
+		<br />
+		<table class="tusk acc_table" cellpadding="0" cellspacing="0">
+			<tr>
+				<th class="tusk_header_row" colspan="3">Content</th>
+			</tr>
+			<& SELF:parse_content, content => \@content &>
+		</table>
+		<br />
+		<br />
+		<& SELF:print_related_info, title => 'keywords',   columns => 2, hash_ref => \%keywords &>
+		<& SELF:print_related_info, title => 'objectives', columns => 2, hash_ref => \%objectives &>
+	</div>
+
+% if($printing) {
+	</body>
+	</html>
+% }
+
+<%method jsarray>
+% return ['element.js'];
+</%method>
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+<%method return_page_footer>
+%	if($printing) {return undef;} else {return "/tmpl/footer:footer_with_tufts_links";}
+</%method>
+
+<%method no_header>
+%	if($printing) {return 1;} else {return 0;}
+</%method>
+
+<%method red_header_text>
+%       return "<b>" . $meeting->course->title . " - " . $meeting->field_value('title') . " - Accreditation Details</b>";
+</%method>
+
+<%method title>
+%       return $meeting->course->title . " - " . $meeting->field_value('title') . " - Accreditation Details";
+</%method>
+
+<%method startup>
+	<%args>
+		$args => {}
+	</%args>
+%	$printing = ${$args}{'print'};
+</%method>
+
+<%doc>
+	This method prints the content table AND fills the related hashes for keywords, objectives, etc.
+
+	It's less than ideal to group these together, but it makes it so that we only have to parse through the list of content one time.
+</%doc>
+<%method parse_content>
+	<%args>
+		$content
+		$class  => "odd"
+		$indent => 0
+	</%args>
+%	my $used    = 0;
+%	my $padding = "padding: 2px 0 2px " . ($indent*5+5) . "px;";
+%	if ( $indent == 0 ) {
+			<tr class="odd">
+				<td></td>
+				<td style="padding: 2px 0 2px 5px;"><span class="tusk_sub_header_row">Title</span></td>
+				<td style="padding: 2px 0 2px 0;"><span class="tusk_sub_header_row">Author(s)</span></td>
+			</tr>
+%		$class = "even";
+%	}
+
+<%perl>
+ 	foreach my $item (@{$content}) {
+		$used = 1;
+</%perl>
+			<tr class="<% $class %>">
+				<td class="left_col" style="<% $padding %> width: 100px;"><% $item->out_icon %></td>
+				<td style="<% $padding %>"><% $item->title %></td>
+				<td><% join('; ', $item->child_authors) %></td>
+			</tr>
+<%perl>
+		my $title = $item->title;
+		foreach my $objective ($item->child_objectives()) {
+			if ( defined( $objectives{$objective->objective_id}->{'0_content'} ) ) {
+				$objectives{$objective->objective_id}->{'0_content'} =~ s|</ul>|<li>$title</li></ul>|;
+			} else { 
+				$objectives{$objective->objective_id} = { '0_content' => "<ul class='content_list'><li>" . $title . "</li></ul>", '1_objective' => $objective->field_value('body') };
+			}
+		}
+		foreach my $keyword ($item->keywords) {
+			if ( defined( $keywords{$keyword->getFieldValue('keyword_id')} ) ) {
+				$keywords{$keyword->getFieldValue('keyword_id')}->{'0_content'} =~ s|</ul>|<li>$title</li></ul>|;
+			} else { 
+				$keywords{$keyword->getFieldValue('keyword_id')} = { '0_content' => "<ul class='content_list'><li>" . $title . "</li></ul>", '1_keyword' => $keyword->getKeyword };
+			}
+		}
+		if ( $class eq "odd" ) { $class = "even"; }
+		else                   { $class = "odd";  }
+		if ( $item->type eq 'Collection' ) {
+			my @child_content = $item->active_child_content;
+			$m->comp( 'SELF:parse_content', content => \@child_content, class => $class, indent => ($indent+1) );
+		}
+ 	}
+</%perl>
+
+% 	if ( !$used && $indent == 0 ) {
+			<tr class="<% $class %>">
+				<td colspan="3" class="left_col">No content linked.</td>
+			</tr>
+%	}
+</%method>
+
+<%method print_related_info>
+<%args>
+	$title
+	$hash_ref
+	$columns => 1
+</%args>
+		<table class="tusk acc_table" cellpadding="0" cellspacing="0">
+			<tr>
+				<th class="tusk_header_row" align="center" colspan="<% $columns %>"><% ucfirst($title) %></th>
+			</tr>
+% 	my $used  = 0;
+% 	my $class = "odd";
+% 	foreach my $key (sort {$a <=> $b} keys %{$hash_ref}) {
+%		$used = 1 if $key ne '0_column_titles';
+			<tr class="<% $class %>">
+%			if ( $columns == 1 ) {
+				<td class="related_info">
+					<% $hash_ref->{$key} %>
+				</td>
+%			} else {
+%				foreach my $sub_key (sort keys %{$hash_ref->{$key}} ) {
+				<td class="related_info">
+					<% $hash_ref->{$key}->{$sub_key} %>
+				</td>
+%				}
+%			}
+			</tr>
+%		if ( $class eq "odd" ) { $class = "even"; }
+%		else                   { $class = "odd";  }
+% 	}
+% 	if ( !$used ) {
+			<tr class="<% $class %>">
+				<td class="left_col" colspan="<% $columns %>">No <% $title %> linked.</td>
+			</tr>
+% 	}
+		</table>
+		<br />
+		<br />
+</%method>
+

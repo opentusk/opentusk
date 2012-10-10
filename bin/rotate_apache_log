@@ -1,0 +1,61 @@
+#!/bin/bash
+
+## this script rotates the apache logs on a monthly basis
+## should be run on the first day of the month, only once (otherwise will overwrite log files)
+
+LOG_DIR=/data/logs
+ARCHIVE_DIR=${LOG_DIR}/archive
+
+if [ -d $ARCHIVE_DIR ]
+then
+	echo "archive directory exists"
+else
+	echo "creating archive directory"
+	mkdir $ARCHIVE_DIR
+fi
+
+this_month=`/usr/bin/perl -e 'print scalar localtime(time())' | awk '{print $2}'`
+last_month=`/usr/bin/perl -e 'print scalar localtime(time()-86400*5)' | awk '{print $2}'`
+two_months_ago=`/usr/bin/perl -e 'print scalar localtime(time()-86400*35)' | awk '{print $2}'`
+this_year=`/usr/bin/perl -e 'print scalar localtime(time())' | awk '{print $5}'`
+last_year=`/usr/bin/perl -e 'print scalar localtime(time()-86400*5)' | awk '{print $5}'`
+
+cd $LOG_DIR
+
+if [ -e access_log ]
+then
+	echo "moving access_log to archive/access_log.tmp"
+	mv access_log $ARCHIVE_DIR/access_log.tmp
+
+	echo "moving error_log to archives/${last_year}_${last_month}_error.log"
+	mv error_log $ARCHIVE_DIR/${last_year}_${last_month}_error.log
+
+	touch access_log
+	touch error_log
+else
+	echo "access_log is missing"
+exit
+fi
+
+echo "restarting apache"
+## restart apache
+/etc/init.d/httpd graceful
+
+cd $ARCHIVE_DIR
+## put all entries from last month into a file
+/usr/bin/cat -s ${last_year}_${last_month}_access.log.tmp access_log.tmp | grep "${last_month}/${last_year}" > ${last_year}_${last_month}_access.log
+## put entries from this month into a temp file for use next month
+grep "${this_month}/${this_year}" access_log.tmp > ${this_year}_${this_month}_access.log.tmp
+
+## to avoid loosing files, moving right now, uncomment the next line
+rm access_log.tmp
+
+echo "removing ${last_year}_${two_months_ago}_access.log (may not exist, which will give warning)" 
+rm ${last_year}_${two_months_ago}_access.log
+echo "removing ${last_year}_${two_months_ago}_error.log (may not exist, which will give warning)" 
+rm ${last_year}_${two_months_ago}_error.log
+
+echo "done rotating apache logs"
+echo ""
+echo "Logged `wc -l ${last_year}_${last_month}_access.log | awk '{print $1}'` requests in ${last_month} ${last_year}"
+echo "for sanity, there are `ps -fu apache | wc -l` apache processes running"

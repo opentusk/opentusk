@@ -1,0 +1,137 @@
+<%once>
+	use TUSK::Quiz::LinkCourseQuiz;
+</%once>
+
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%shared>
+	my $typeObj = $m->comp("/tmpl/url:get_type_object");
+	my $typePath = $m->comp("/tmpl/url:get_type_path");
+	my $school_id = TUSK::Core::School->new->getSchoolID($typeObj->school());
+	my ($links, @rows, $items);
+</%shared>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	$items = TUSK::Core::SessionTimePeriod::course_time_periods($typeObj, $args->{timeperiod}, $m->session);
+
+	if (defined $items && $items eq '-1') {
+		$m->comp('SELF:set_msg', type => 'err', msg => 'No time period associated with the course.<br/> Please add time period(s) in order to create a new quiz.');
+	} else {
+		$m->comp('SELF:set_msg', type => 'hintmsg', msg => 'Time periods have been added to this application. To view past quizzes, select the appropriate time period.  A new feature enables all/some questions to be copied from past quizzes to a new quiz. If you need help, contact support at <a href="mailto:' . $TUSK::Constants::SupportEmail . '">' . $TUSK::Constants::SupportEmail . '</a>');
+	}
+</%perl>
+</%method>		
+
+
+<%method title>
+% 	return "Manage Quizzes";
+</%method>
+
+
+<%method feature_id>
+<%perl>
+	my $quiz_ids = [];
+
+	foreach my $link (@$links){
+		my $quiz = $link->getJoinObject('TUSK::Quiz::Quiz');
+		push (@$quiz_ids, $quiz->getPrimaryKeyID());
+	}
+	return $quiz_ids;
+</%perl>
+</%method>
+
+
+<%init>
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+	if (defined($ARGS{'order'})){
+		my $cond = "parent_course_id = " . $typeObj->primary_key() . " and school_id = " . $school_id . " and time_period_id = $time_period_id";
+		my $links = TUSK::Quiz::LinkCourseQuiz->new()->lookup($cond);
+		my ($index, $newindex) = split('-', $ARGS{'order'});
+                $links = TUSK::Quiz::LinkCourseQuiz->updateSortOrders($index, $newindex, $cond, $links);
+        }
+
+	if (ref($typeObj) eq "HSDB45::Course"){
+		my $quizzes = TUSK::Quiz::LinkCourseQuiz->new()->getQuizzes($typeObj->school(), $typeObj->primary_key(), "time_period_id = $time_period_id");
+
+		foreach (@$quizzes) {
+			my $quiz_id = $_->getPrimaryKeyID();
+			push @rows, { 
+				title => "<a style=\"text-decoration:none;\" href=\"/quiz/author/addedit/$typePath/$quiz_id\">" . $_->getTitle() . "</a>",
+				type => $_->getFormattedQuizType(),
+				duration =>  $_->getFormattedDuration(),
+				available_date => $_->getAvailableDate(),
+				due_date => $_->getDueDate(),
+				id => $quiz_id,
+			};
+		}
+	} else {
+		$m->comp("/tmpl/url:redirect", message => "FAILURE");
+	}
+
+</%init>
+
+<%perl>
+	my $col_fields = [ {'label' => 'Name', 'field' => 'title'},
+                	   {'label' => 'Type', 'field' => 'type'},
+                	   {'label' => 'Time Limit', 'field' => 'duration'},
+                	   {'label' => 'Available Date', 'field' => 'available_date'},
+                	   {'label' => 'Due Date', 'field' => 'due_date'},
+			];
+</%perl>
+
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => 'quizshow',
+		onsubmit => undef } &>
+
+<table width="100%">
+<tr><td>
+% unless (defined $items && $items eq '-1') {
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+              {display_txt => 'New Quiz',
+               link_txt    => '/quiz/author/addedit/' . $typePath}
+	         ]
+&>
+% }
+</td><td valign="bottom" align="right">
+
+% my $quizzes_without_tp = TUSK::Quiz::LinkCourseQuiz->lookup("time_period_id = 0 and parent_course_id = " . $typeObj->primary_key() . " and school_id = $school_id");
+% if (@$quizzes_without_tp) {
+	<a class="help" href="/quiz/author/shownotp/<% $typePath %>">Quizzes without time period</a>
+% }
+</td></tr></table>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box	=> 1,
+	columns 	=> $col_fields,
+	action_columns 	=> [ 
+		{ label =>'Modify', link => '/quiz/author/addedit', function_token => 'edit_quiz', },
+		{ label =>'Preview', link => '/quiz/author/quizpreview', function_token => 'preview_quiz'},
+		{ label =>'Users', link => '/quiz/author/users', function_token => 'users_quiz', },
+		{ label => 'Grade/View', link => undef, function_token => 'edit_grades' },
+		{ label => ' &nbsp;-By Students', link => '/quiz/author/quizresults', function_token => 'edit_grades' },
+		{ label => ' &nbsp;-By Questions', link => '/quiz/author/quizresultsquestions', function_token => 'edit_grades' },
+		{ label => 'Reports', link => undef, function_token => 'reports_quiz' },
+		{ label => ' &nbsp;-Answer Key', link => '/quiz/author/answerkey', function_token => 'answer_key_quiz' },
+		{ label => ' &nbsp;-Item Analysis', link => '/quiz/author/itemanalysis', function_token => 'reports_quiz' },
+		{ label => ' &nbsp;-Export to GradeBook', link => '/quiz/author/showexport', function_token => 'export_quiz' },
+		{ label => 'Delete', link => '/quiz/author/delete', function_token => 'delete_quiz' },
+  			],
+	action_dropdown  => 1,
+	feature_token 	=> 'quiz',
+	rows 		=> \@rows,
+	type_path 	=> $typePath,
+	name 		=> "quizzes",
+	permissions 	=> $m->comp("/tmpl/permission:get_permissions"),
+} &>
+
+</form>
+

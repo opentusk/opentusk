@@ -1,0 +1,67 @@
+<%shared>
+my @id = $m->comp("/tmpl/url:get_path_ids");
+my ($quiz, $question, $answer, $id);
+if (scalar(@id) == 3){
+        $id = shift @id;
+        $quiz = TUSK::Quiz::Quiz->new->lookupKey($id);
+        $id = shift @id;
+        $question = TUSK::Quiz::Question->new->lookupKey($id);
+	$id = shift @id;
+        $answer = TUSK::Quiz::Answer->new->lookupKey($id);
+} else {
+	$m->comp('/tmpl/error', msg => "Invalid parameters passed");
+}
+</%shared>
+
+<%method nav_bar>
+<%perl>
+my $obj = {'quiz'=>$quiz,
+	'question'=>$question};
+return $m->comp("/quiz/tmpl/nav", 'prefix'=>$m->comp("SELF:url_prefix"),
+                'page_token'=>'answerdelete',
+                objects => $obj,
+		initial_nav_bar => $m->comp("SELF:get_nav_bar"));
+</%perl>
+</%method>
+
+<%method title>
+% return "Delete Answer";
+</%method>
+
+<%perl>
+if (!defined($answer->getPrimaryKeyID())){
+        $m->comp("/tmpl/error",msg=>"Answer " . $answer->getPrimaryKeyID . " not found");
+}
+</%perl>
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'answerdelete',
+                onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"6",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{'label'=>'Label',
+                'value'=>$answer->getLabel()}
+                &>
+<& /tmpl/element:field_display, params=>{'label'=>'Value',
+                'value'=>$answer->getValue()}
+                &>
+
+<& /tmpl/element:save_button,params=>{name=>'delete_answer',
+                                        label=>'Delete Answer',
+                                        cancel_onclick=>"go_back('$back_url');"} &>
+</form>
+</table>
+
+<%init>
+use TUSK::Quiz::Answer;
+my $back_url = $m->comp("/tmpl/url:construct_back_url", base_url => "/quiz/author/questionaddedit");
+if (defined($ARGS{'delete_answer'})){
+	$answer->delete();
+        $m->redirect($back_url);
+}
+</%init>
+

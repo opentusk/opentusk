@@ -1,0 +1,40 @@
+<%method next_phase_url>
+<%args>
+$case
+$phase
+</%args>
+<%perl>
+my $next_phase = $case->getNextPhase($phase);
+my $next_phase_id;
+if ($next_phase){
+	$next_phase_id = $next_phase->getPrimaryKeyID();
+}
+my $case_id = $case->getPrimaryKeyID();
+my $location;
+if (!defined($next_phase_id)){
+	my $report_id = $case->getReport()->getPrimaryKeyID();
+        $location = "casedone/" . $m->comp("/tmpl/url:get_type_path") . "/$case_id/$report_id";
+} else {
+        $location = "dophase/" . $m->comp("/tmpl/url:get_type_path") . "/$case_id/$next_phase_id";
+}
+return $location;
+</%perl>
+</%method>
+
+<%method getChartInfo>
+<%args>
+$case
+$type => 'leftnav'
+</%args>
+<%perl>
+my $retStruct = [];
+my $content;
+foreach my $phase (@{$case->getVisitedPhases()}){
+	$content = $phase->getNarrativeContent();
+	push @{$retStruct},{'name'=>$phase->getPhaseTitle(),
+			'content'=>$content,
+			'text'=>$m->comp($phase->getIncludeFile.':chartInfo',phase=>$phase,case=>$case,type=>$type)}
+}
+return $retStruct;
+</%perl>
+</%method>

@@ -1,0 +1,53 @@
+<%method question_type_data>
+<%args>
+$include_empty => 0 
+</%args>
+<%perl>
+my $question_type_hash = [
+				{ label => 'True / False', 	value => 'TrueFalse' }, 
+				{ label =>'Multiple Choice', 	value => 'MultipleChoice' },
+				{ label => 'Fill In',		value => 'FillIn' }, 
+				{ label => 'Multiple Fill In',	value => 'MultipleFillIn' }, 
+				{ label => 'Essay', 		value => 'Essay' }, 
+				{ label => 'Matching', 		value => 'Matching' }, 
+				{ label => 'Section', 		value => 'Section' }, 
+			];
+if ($include_empty) { unshift @{$question_type_hash}, '' ; } 
+return $question_type_hash;
+</%perl>
+</%method>
+
+<%once>
+	use TUSK::Quiz::LinkQuizQuizItem;
+	use TUSK::Quiz::LinkQuestionQuestion;
+</%once>
+
+<%method questions_sort_order>
+<%args>
+	$id
+	$args
+	$type
+</%args>
+<%perl>
+	my ($object);
+
+	foreach my $field (keys %$args){
+		next if ($field !~ /^questionsdiv/);
+		my ($group, $pk, $field_name, $sort_order) = split /__/,$field;
+
+		if ($field_name eq 'sortorder'){
+			if ($args->{$field} =~ /^\d+$/){
+				if ($type eq 'Quiz'){
+					$object = TUSK::Quiz::LinkQuizQuizItem->lookupByRelation($id, $pk);
+				} elsif ($type eq 'Section'){
+					$object = TUSK::Quiz::LinkQuestionQuestion->lookupByRelation($id, $pk);
+				}
+				foreach my $i (@$object){
+					$i->setSortOrder($sort_order);     
+					$i->save({ user => $m->comp('SELF:user') });
+				}
+			}
+		}
+	}
+</%perl>
+</%method>

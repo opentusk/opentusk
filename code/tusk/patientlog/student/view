@@ -1,0 +1,30 @@
+<%once>
+	use TUSK::FormBuilder::Form;
+</%once>
+
+<%perl>
+	my $form_type = $m->comp('SELF:getFormType');
+	my $type_obj = $m->comp("/tmpl/url:get_type_object");
+	my $forms = TUSK::FormBuilder::Form->new()->getCourseForms($type_obj, $form_type->getPrimaryKeyID(), 1);
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+</%perl>
+
+<& /tmpl/element:object_selection_box, params => { 
+		sort_box => 0,
+		columns => [
+		   {'label' => 'Name', 'field' => 'getFormName'},
+		   {'label' => 'Description', 'field' => 'getFormDescription'},
+		],
+		action_columns => [ 
+			{ 'label'=>'Entry Forms','link' => '/patientlog/student/display/course' },
+			{ 'label'=>'Report','link' => '/patientlog/student/report/course' }, 
+		], 
+		object_list => $forms,
+		type_path => $type_path,
+		name => "patient logs",
+		'nobutton' => 1,
+} &>
+</form>
+
+
+

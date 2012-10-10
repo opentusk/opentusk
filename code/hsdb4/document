@@ -1,0 +1,83 @@
+[! use HSDB4::SQLRow::Content;
+   use HSDB4::SQLRow::User;
+   use Apache::Constants qw(REDIRECT);
+!]
+[# Figure out what document we are #]
+[-
+    $req_rec->no_cache();
+    $path = $req_rec->path_info;
+    $doc = HSDB4::SQLRow::Content->new();
+    $sub_id = $doc->lookup_doc_path ($path);
+
+    # Find the user name
+    $user = $req_rec->connection->user;
+    $user_obj = HSDB4::SQLRow::User->new->lookup_key ($user);
+
+    $document = $doc->field_value('body');
+    $xml = HSDB4::XML::HSCML->new($document);
+    $body = $xml->parse_body($doc->primary_key);
+-]
+[# if there is a sub, para id - go get that piece of the document #]
+[$ if ($sub_id) $]
+[+ $xml->parse_sub_body($sub_id) +]
+[$ else $]
+[-
+    # Read in my handy-dandy auxiliary functions
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+    Execute ("$embperldir/hsdb4-document-style.css");
+    $maxcol=5;
+-]
+<HTML>
+<HEAD>
+[# Make the title #]
+<TITLE>[+ $TUSK::Constants::SiteAbbr +] [+ ucfirst $doc->field_value('type') +]: 
+[+ $doc->field_value('title') +]</TITLE>
+[+$doc->out_meta_data;+]
+</HEAD>
+<BODY>
+
+[# Anchor for the top #]
+<A NAME="_top"></A>
+
+[# Make the title #]
+<H2 class="title">[+ $doc->field_value('title') +]</H2>
+
+[# Document Info #]
+[$ if $fdat{'INFO'} $]
+[- @authors = $doc->child_users;
+   @keywords = $doc->keywords;
+   $course = $doc->course;
+   @objectives = $doc->parent_objectives;
+-]
+
+[$ if @authors $]
+<H3 CLASS="title">Authors</H3>
+<UL>
+[- $author = @authors[$row] -]
+[$ if $author $]
+<DIV CLASS="docinfo"><LI>[+ $authors[$row] && $authors[$row]->out_html_full_name +]</DIV>
+[$ endif $]
+</UL>
+[$ endif $] [# End putting in authors #]
+
+[$ if $course $]
+<H3 CLASS="title">Course</H3>
+<UL>
+<DIV CLASS="docinfo"><LI>[+ $course->out_html_label +]</DIV>
+</UL>
+[$ endif $] [# End putting in course #]
+
+[$ endif $] [# End putting in INFO #]
+
+[# The actual body #]
+[+ $body +]
+</BODY>
+</HTML>
+[$ endif $]
+
+
+
+
+
+

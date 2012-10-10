@@ -1,0 +1,160 @@
+[-
+	$req = shift;
+	delete($fdat{school});
+-]
+[$ if (TUSK::Session::is_admin(\%udat)) $]
+<script>
+function submit_form(location, querystring){
+	if (querystring){
+		querystring = '?' + querystring;
+	}else{
+		querystring = '';
+	}
+	document.location.href = location + "/school/" + document.admin.school.options[document.admin.school.selectedIndex].value + querystring;
+}
+
+function check_links(){
+	if (!DHTML) return;
+	var school = document.getElementById('school').options[document.getElementById('school').selectedIndex].value;
+	var enrolllisting = new getObj('enrolllisting');
+
+	if (school == "Medical"){
+		enrolllisting.style.display = "";
+	}else{
+		enrolllisting.style.display = "none";
+	}
+}
+</script>
+<!-- Begin School Admin Inner Table -->
+<table width="100%">
+	<tr><td><h3 class="gGrayHeaderBar" style="margin-right:15px;">School&nbsp;Admin</h3></td></tr>
+<tr><td valign="top">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+		<tr> 
+                  <td width="14">&nbsp;</td>
+                  <td class="layers-left"><form name="admin" class="no-padding">
+<select id="school" name="school" width="20" class="navsm" onchange="check_links()">
+[$ foreach $school (TUSK::Session::get_schools(\%udat)) $]
+    <option class="navsm" value="[+ $school +]" [$ if ($req->{school} and $school eq $req->{school}) $]selected[$ endif $]>[+ $school +]</option>
+[$ endforeach $]                      
+                    </select></td>
+                </tr>
+				<!--End Admin Row -->
+
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/announcements/show')" class="admintext">Announcements</a></td>
+                </tr>
+                <tr > 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:toggle_case_subnav('caseSubNav');" class="admintext nodots">Case Administrator | <span id="case_sub_link">+</span></a>
+                      <div id="caseSubNav" class="hideNav">
+                      <a href="javascript:submit_form('/case/administrator/batteryshow')" class="admintext">Manage Categories / Tests</a>
+                      <a href="javascript:submit_form('/case/administrator/patienttypeshow')" class="admintext">Manage Patient Types</a>
+                      </div>
+                  </td>
+                </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/manage/homepage/category/addedit')" class="admintext">Classification</a></td>
+                </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/course/modify')" class="admintext">Create New Course</a></td>
+                </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/course/modify','type=committee')" class="admintext">Create&nbsp;New&nbsp;Committee</a></td>
+                </tr>
+              <tr> 
+                <td>&nbsp;</td>
+                <td><a href="javascript:submit_form('/management/users/add')" class="admintext">Create New User</a></td>
+              </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/reporting/show')" class="admintext">Curriculum Hours</a></td>
+                </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/manage/discussions/show')" class="admintext">Discussions</a></td>
+                </tr>
+                <tr>
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/users/show')" class="admintext">Find &amp; Modify Users</a></td>
+                </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/manage/homepage/category/show')" class="admintext">Homepage Courses</a></td>
+                </tr>
+		<tr id="courselist"> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/manage/import/course_students')" class="admintext">Import Course Roster</a></td>
+                </tr>
+
+                <tr id="enrolllisting"> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/manage/import/enroll')" class="admintext">Import Enroll Listing</a></td>
+                </tr>
+                <tr id="enrolllisting"> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/import/schedule')" class="admintext">Import Schedule</a></td>
+                </tr>
+		<!--<tr id="coursestudents"> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/manage/import/students')" class="admintext">Import Students</a></td>
+                </tr>-->
+                <tr id="courseusers"> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/manage/import/users')" class="admintext">Import Users</a></td>
+                </tr>
+			<!--	<tr id="courseusersimages"> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/import/userimages')" class="admintext">Import User Images</a></td>
+                </tr> -->
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/usergroup/show')" class="admintext">Manage Groups</a></td>
+                </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/schoollink/show')" class="admintext">School Links</a></td>
+                </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/teachingsite/admin/show')" class="admintext">Teaching Sites</a></td>
+
+                </tr>
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/manage/timeperiods/show')" class="admintext">Time Periods</a></td>
+                </tr>
+[$ if($TUSK::Constants::useShibboleth && TUSK::Session::is_tusk_admin($req_rec->connection->user())) $]
+                <tr> 
+                  <td>&nbsp;</td>
+                  <td><a href="javascript:submit_form('/management/shibboleth/manageIdPs')" class="admintext">Shib IdPs</a></td>
+                </tr>
+[$ endif $]
+              </table></td></tr></table>
+<script type="text/javascript">
+check_links();
+</script>
+[$ endif $]
+[$ if (TUSK::Session::is_eval_admin(\%udat)) $]
+<!-- Begin School Admin Inner Table -->
+<table width="100%">
+	<tr><td><h3 class="gGrayHeaderBar" style="margin-right:15px;">Eval&nbsp;Admin</h3></td></tr>
+	<tr><td valign="top">
+	<table width="180" border="0" cellspacing="0" cellpadding="0">
+	[$ foreach $school (TUSK::Session::get_eval_schools(\%udat)) $]
+ 	<tr> 
+                <td width="14">&nbsp;</td>
+                <td><a href="/eval/administrator/show/[+ $school +]" class="admintext">[+ $school +]</a></td>
+              </tr>
+	[$ endforeach $]
+</table>
+	</td></tr>
+</table>
+[$ endif $]
+<br><br><br><br><br><br>
+              <!-- End School Admin Inner Table -->
+</form>

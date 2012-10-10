@@ -1,0 +1,265 @@
+<%once>
+	use TUSK::Application::Eval::Maker;
+	use TUSK::Eval::Group;
+	use TUSK::Eval::GroupEval;
+	use TUSK::Core::School;
+</%once>
+
+<%shared>
+	my %args = $m->request_args;
+	my $school = $m->comp('SELF:schoolname');
+	my $group_eval_id = $m->comp("/tmpl/url:get_first_path_id");
+	my ($tmpl, $course, @page_errs);
+</%shared>
+
+
+<%init>
+	if ($args{submit_check}) {
+		unless (@page_errs) {
+			my ($created_evals, $eval_errors) = $m->comp('SELF:create_evals');
+			$m->comp('SELF:show_form');
+			$m->comp('SELF:print_results', evals => $created_evals);
+			my $eval_group = TUSK::Eval::Group->new();
+			my $school_id = TUSK::Core::School->new()->getSchoolID($school);
+			$eval_group->setFieldValues({
+				school_id => $school_id,
+				course_id => $args{course_id},
+				time_period_id => $args{time_period_id},
+				title => $args{displayed_title} || $course->title(),
+				instructions => $args{instructions},
+				template_eval_id => $args{template_eval_id},
+				show_name_flag => $args{show_name_flag},
+				available_date => $args{available_date},
+				due_date => $args{due_date},
+			});
+			$eval_group->save({user => $m->session->{'user'}->user_id()});
+
+			foreach my $eval (@$created_evals) {
+				my $link = TUSK::Eval::GroupEval->new();
+				$link->setFieldValues({
+					parent_eval_group_id => $eval_group->getPrimaryKeyID(),
+					child_eval_id => $eval->[0]->primary_key(),
+					user_id => $eval->[1]->primary_key(),
+				});
+				$link->save({user => $m->session->{'user'}->user_id()});
+			}
+		}
+	} else {
+		$m->comp('SELF:show_form');
+	}
+</%init>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+
+<%perl>
+	if ($args{template_eval_id}) {
+		$tmpl = HSDB45::Eval->new(_school => $school)->lookup_key($args{template_eval_id});
+
+		push @page_errs, 'Invalid template eval id' unless $tmpl->primary_key();
+	} else {
+		push @page_errs, 'Missing template eval id';
+	}
+
+	if ($args{course_id}) {
+		$course = HSDB45::Course->new(_school => $school)->lookup_key($args{course_id});
+		push @page_errs, 'Invalid course' unless $course->primary_key();
+	}
+</%perl>
+</%method>
+
+
+<%method create_evals>
+<%perl>
+	my (@created_evals, @errors);
+	my @users = (ref $args{course_user} eq 'ARRAY') ? @{$args{course_user}} : $args{course_user};
+	foreach my $uid (@users) {
+		my $user = HSDB4::SQLRow::User->new()->lookup_key($uid);
+
+		my $evalmaker = TUSK::Application::Eval::Maker->new({ 
+		    	school         => $school,
+	    		course         => $course,
+			time_period    => HSDB45::TimePeriod->new(_school => $school)->lookup_key($args{time_period_id}),
+			teaching_site  => HSDB45::TimePeriod->new(_school => $school)->lookup_key($args{teaching_site_id}),
+			available_date => $args{available_date},
+    			due_date       => $args{due_date},
+	    		eval_title     => $m->comp('SELF:get_title') . ' - ' . $user->out_full_name(),
+		});
+
+		if ($evalmaker->clone($tmpl->primary_key())) {
+			push @created_evals, [ HSDB45::Eval->new(_school => $school)->lookup_key($evalmaker->getEvalID()), $user];
+		} else {
+	    		push @errors, $user->out_full_name();
+		}
+	}
+
+	return (\@created_evals, @errors);
+</%perl>
+</%method>
+
+
+<%method get_title>
+<%perl>
+	my $eval_title = $args{title};
+	my $tp = HSDB45::TimePeriod->new(_school => $school)->lookup_key($args{time_period_id});
+	$eval_title .= ' AY ' . $tp->field_value('academic_year') if defined $args{t_ay};
+	$eval_title .= ' - ' . $tp->field_value('period')  if defined $args{t_tp};
+	$eval_title .= ' - ' . $course->title()  if defined $args{t_cn};
+	return $eval_title;
+</%perl>
+</%method>
+
+
+<%method print_results>
+<%args>
+	$evals 
+</%args>
+<%perl>
+	if (@$evals) {
+		print "<br/><table\n>";
+		print "<tr><td class=\"sm\" colspan=\"2\"><br/>Total Number of New Evaluations: " . scalar @$evals . "</td></tr>\n";
+		my $count = 1;
+		foreach my $eval (@$evals) {
+	    		print "<tr><td>&nbsp;&nbsp;<span class=\"xsm\">" . $count++ . ")</span></td><td><a style=\"font-size:75%;text-decoration:none;\" href=\"javascript:open_eval_edit_window('$school'," . $eval->[0]->primary_key() . ")\">" . $eval->[0]->field_value('title') . "</a> <span class=\"xsm\">(" . $eval->[0]->primary_key() . ")</span></td></tr><tr><td></td><td><span class=\"xxsm\">last modified: " . $eval->[0]->field_value('modified') . "</td></tr>\n";
+		}
+	} else {
+		print "<tr><td class=\"sm\">No New Evaluations.</td></tr>\n";
+	}
+
+	print "</table>\n<br/>\n";
+</%perl>
+</%method>
+
+
+<%method show_form>
+<& /tmpl/element:form, params => {
+	name 		=> 'bulkevalsbyuser',
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+	onsubmit	=> 'return verifyCreateEvalsByUser(); return false;'
+} &>
+
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0" 
+} &>
+
+
+<& /tmpl/element:textbox, params => { 
+    label 	=> 'Template Eval ID:',
+    name 	=> 'template_eval_id',
+    value 	=> '',
+    size 	=> 10,
+} &>
+
+
+<& /tmpl/element:textbox, params => { 
+    label 	=> 'Eval Title:',
+    name 	=> 'title',
+    value 	=> '',
+    size 	=> 80,
+    trailing_text => 
+qq(<br/><span style="font-size:85%">followed by:</span>
+<table style="font-size:80%">
+<tr>
+<td><input type="checkbox" name="t_ay" value="1"> Academic Year</td>
+<td><input type="checkbox" name="t_tp" value="1"> Time Period</td>
+<td><input type="checkbox" name="t_cn" value="1"> Course Name</td>
+<td><input type="checkbox" name="t_ts value="1"> Teaching Site</td>
+<td><input type="checkbox" name="t_faculty" value="1" CHECKED DISABLED> Faculty/Staff Name</td>
+</tr>
+</table>)
+
+} &>
+
+
+<& /tmpl/element:dropdown, params => { 
+	label 		=> 'Course:',
+	name		=> 'course_id',
+	options		=> $m->comp('/eval/administrator/tmpl:get_courses'),
+	onchange	=> "requestCourseUsers(this, '/eval/administrator/xml/courseuserxml', '$school');",
+	trailing_text   => qq(<br/>
+<div id="course_users_row" style="display:none;font-size:85%;">
+<span id="course_users_instruction">Please select faculty/staff:</span>
+<table border="0" cellspacing="0" cellpadding="0" id="usersTable" style="font-size:85%;">\n<tbody>\n</tbody>\n</table>
+</div>\n),
+} &>
+
+
+<& /eval/administrator/tmpl:get_current_time_periods &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Available Date:',
+	name	=> 'available_date',
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Due Date:',
+	name	=> 'due_date',
+	size	=>  15,
+	maxlength  =>  15,	
+	calendar => "1",
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> 'Displayed Title:',
+	name 	=> 'displayed_title',
+	value 	=> '',
+	size 	=> 80,
+	trailing_text => '<br/><span style="font-size:80%">* if nothing is entered, it will default to course title.</span>', 
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label 	=> 'Instructions:',
+	value	=> $m->scomp('/tmpl/element:input_textarea', params => { 
+				name	=> 'instructions',
+				cols	=> 80,
+				rows    => 5,})
+} &>	
+
+
+<& /tmpl/element:radio_buttons, params => { 
+        label => 'Display Faculty Name:',
+        name => 'show_name_flag',
+	nobreak => 1,
+        buttons => [
+		{ value => "1", text => "Yes", 
+ 		  checked => 0,},
+                { value => "0", text => "No", 
+		  checked => 1, }
+		   ],
+	trailing_text => '<br/> &nbsp;<span style="font-size:75%;">* Faculty/Staff names will be displayed in place of evaluation titles.</span>',
+	}
+&>
+
+
+<& /tmpl/element:save_button, params=>{
+	label	=>	'Create Evaluations',
+        cancel_onclick => "go_back('/eval/administrator/byuser/show/" . $m->comp('SELF:schoolname') . "');",
+	name	=>	'submit',
+	trailing_text => '',
+} &>
+
+
+</table>
+</form>
+</%method>
+
+
+<%method title>
+% 	return "Create Evaluations By Faculty/Staff";
+</%method>
+
+
+<%method jsarray>
+% return ['evalByUser.js', 'eval.js', 'element.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
+</%method>
+

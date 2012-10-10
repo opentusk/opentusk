@@ -1,0 +1,49 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use TUSK::UploadContent;
+use File::Copy;
+
+foreach my $cur_size ( @HSDB4::Constants::image_sizes ) {
+	next if ($cur_size eq 'resize');
+
+	opendir ( SLIDEDIR, $TUSK::UploadContent::path{'slide'} . '/' . $cur_size ) or die "Can't open $TUSK::UploadContent::path{'slide'}/$cur_size: $!\n";
+	my @file_list = readdir( SLIDEDIR );
+	
+	foreach my $file ( @file_list ) {
+		next if ( !($file =~ /\d+\.\D+/) );
+
+		my $old_file = $TUSK::UploadContent::path{'slide'} . '/' . $cur_size . '/' . $file;
+
+		my $location = join "/", (split '', sprintf "%03d", $file)[0..2], $file;
+		my $new_file = $TUSK::UploadContent::path{'slide'} . '/' . $cur_size . '/' . $location;
+		
+		print $old_file . " -> " . $new_file . "\n";
+		move( $old_file, $new_file );
+	}
+	
+	closedir( SLIDEDIR );
+}
+
+foreach my $cur_size ( @HSDB4::Constants::image_sizes ) {
+	next if ($cur_size eq 'resize' || $cur_size eq 'thumb' || $cur_size eq 'icon');
+
+	opendir ( SLIDEDIR, $TUSK::UploadContent::path{'slide'} . '/overlay/' . $cur_size ) or die "Can't open $TUSK::UploadContent::path{'slide'}/overlay/$cur_size: $!\n";
+	my @file_list = readdir( SLIDEDIR );
+	
+	foreach my $file ( @file_list ) {
+		next if ( !($file =~ /\d+\.\D+/) );
+
+		my $old_file = $TUSK::UploadContent::path{'slide'} . '/overlay/' . $cur_size . '/' . $file;
+
+		my $location = join "/", (split '', sprintf "%03d", $file)[0..2], $file;
+		my $new_file = $TUSK::UploadContent::path{'slide'} . '/overlay/' . $cur_size . '/' . $location;
+		
+		print $old_file . " -> " . $new_file . "\n";
+		move( $old_file, $new_file );
+	}
+	
+	closedir( SLIDEDIR );
+}

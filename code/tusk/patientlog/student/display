@@ -1,0 +1,124 @@
+<%once>
+	use TUSK::Application::FormBuilder::Report::Course;
+</%once>
+
+<%attr>
+	onload => 'initDynamicOptionLists();'
+</%attr>
+
+<%method red_header_text>
+% 	return "Patient Log Entry Form";
+</%method>
+
+
+<%method title>
+% 	return "Patient Log Entry Form";
+</%method>
+
+<%method jsarray>
+% 	return $m->comp("/formbuilder/display:jsarray");
+</%method>
+
+<& "/formbuilder/display:page", 
+	args => {%ARGS, hide_required => 0}, 
+	date_label => 'Patient Encounter Date', 
+	dynamic_components => ['/patientlog/student/display:previous_log_dropdown', 'SELF:show_time_periods'] 
+&>
+
+<%method previous_log_dropdown>
+<%args>
+	$form
+	$args
+</%args>
+<%perl>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $report = TUSK::Application::FormBuilder::Report::Course->new($form->getPrimaryKeyID(), $course);
+	$report->setUserID($m->session->{'user'}->user_id());
+    $report->setPersonalFlag(1);
+
+	my @students = $course->child_students("child_user_id = '" . $m->session->{'user'}->user_id() . "'");
+    my $data = [];
+	foreach my $student (@students) {
+		push @$data, @{$report->HistoryperPerson($student->aux_info('time_period_id'), $student->aux_info('teaching_site_id'))};
+	}
+	my ($cur_entry_id, $cur_field_id, $text, $field_count, $index);
+	my $options = [];
+	my $string = "";
+	my ($prev_field_name, $field_name);
+
+	foreach my $dataset (@$data){
+    	if ($dataset->{entry_id} != $cur_entry_id){
+	    	undef $string;	
+			if ($dataset->{private}){
+				if ($dataset->{text}){
+					$string = ' (' . $dataset->{text} . ')';
+                }
+			}
+
+            $cur_entry_id = $dataset->{entry_id};
+            push (@$options, { 'date' => $dataset->{date}, 'string' => $string, 'data' => [], 'entry_id' => $cur_entry_id });
+            $index++;
+            $field_count = 0;
+            $string = "";
+            $cur_field_id = "";
+            $prev_field_name = "";
+        }
+
+		if ($dataset->{'field_name'} eq $prev_field_name){
+			$field_name = "";
+		}else{
+			$field_name = $prev_field_name = $dataset->{'field_name'};
+        }
+
+        next unless $dataset->{entry_id};
+        next unless $dataset->{date};
+        next unless $dataset->{default_report};
+        next if ($field_count > 2);
+		next unless ($dataset->{active_flag});
+
+		if ($cur_field_id != $dataset->{field_id}){
+			$cur_field_id = $dataset->{field_id};
+			$field_count++;
+		}
+
+        if ($dataset->{'item_abbreviation'}){
+        	$text = $dataset->{'item_abbreviation'};
+		}elsif($dataset->{length($dataset->{'item_name'}) > 15}){
+			$text = substr($dataset->{'item_name'}, 0, 12) . "..."
+		}else{
+			$text = $dataset->{'item_name'};
+		}
+		next if (scalar(@{$options->[$index - 1]->{'data'}}) > 2);
+		push (@{$options->[$index - 1]->{'data'}}, $text) if ($text);
+	}
+
+	my $fields = $form->getFields();
+	my $tr_ids = ["'date'"];
+	foreach my $field (@$fields){
+		last if ($field->getDefaultReport());
+		push (@$tr_ids, $field->getPrimaryKeyID());
+	}
+</%perl>
+
+<& "/tmpl/element:flexible_tr", params => { 'label' => 'Patient' } &>
+<select name="entry_id" id="entry_id" onchange="reload_entry_form(this.options[this.selectedIndex].value)">
+<option value="">New Patient</option>
+<%perl>
+	foreach my $option (@$options){
+		my $string = join(", ", @{$option->{'data'}});
+    	$string = (length($string) > 60) ? substr($string, 0, 57) . "..." : $string;
+		my $selected = ($args->{entry_id} == $option->{entry_id}) ? 'selected' : '';
+		print "<option value=\"" . $option->{'entry_id'} . "\" $selected>" . $option->{'date'} . $option->{'string'} . " - " . $string . "</option>\n";
+	}
+</%perl>
+</select>
+% if (!$args->{entry_id}) {
+<br><span class="smallfont"><b>New Patient</b> is for the first encounter with a patient.  To add data to a previous patient, select from the list.</font>
+% }
+</td>
+</tr>
+
+</%perl>
+</%method>
+
+

@@ -1,0 +1,73 @@
+<%once>
+	use TUSK::Manage::User;
+</%once>
+
+<& /tmpl/element:form, params => {
+		action => '',
+		method => 'POST',
+		onsubmit => 'return check_userid();',
+		class => 'no-padding' } &>
+
+<& /tmpl/element:table, params => {
+		width => '100%',
+		border => '0',
+		cellspacing => '0',
+		cellpadding => '0'  } &>
+
+                   
+<tr>
+<td></td>
+<td id="errmsg" class="cell-left errTxt"></td>
+</tr><tr>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'UserID:',
+	name => 'userid',
+	id => 'userid',
+    size => 24,
+	maxlength => 24,
+	class => "textareawhite",
+	onkeypress => "hide('errmsg');"
+  } &>
+
+
+</td></tr>
+<tr> <td>&nbsp;</td>
+<td class="cell-submit">
+
+<& /tmpl/element:save_button, params=>{label=>'Save and Continue',name=>'submit',no_cancel_button=> 1 } &> 
+<input type="hidden" name="action" value="1"> 
+
+</td></tr>
+</table>
+</form>
+
+<%init>
+	
+	my $rval;
+	my $msg;
+	my $school = $m->comp('/tmpl/url:get_school');
+	if ($ARGS{action}){
+		($rval, $msg) = TUSK::Manage::User::add_process($r, \%ARGS);
+		if ($rval){
+			my $location = "/management/users/addedit/school/" . $school . "?userid=" . $ARGS{userid} . "\&page=add&check_ldap=$ARGS{check_ldap}";
+		 	$m->redirect($location);
+        }
+		else {
+			$m->comp("/tmpl/url:redirect",destination => "/management/users/add/school/".$school , message => $msg);
+		}
+	}
+
+</%init>
+
+<%method title>
+% return "Create New User";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method jsarray>
+% return ['element.js', 'manage_users.js'];
+</%method>

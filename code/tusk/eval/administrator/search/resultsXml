@@ -1,0 +1,128 @@
+<%shared>
+	my %params = $m->request_args;
+	my @search_strings = split(/\s+/, lc $params{search_string});
+</%shared>
+
+
+<%once>
+	use TUSK::FTS::Eval;
+</%once>
+
+% my ($evals, $questions, $responses) = $m->comp('SELF:getEvalResults');  
+
+% $m->clear_buffer();
+% $r->content_type('text/xml');
+% $r->no_cache(1);
+<?xml version="1.0" encoding="UTF-8"?>
+<evalResults school="<% $params{school} %>">
+	<searchForm><![CDATA[<% $m->comp('SELF:getSearchForm') %>]]></searchForm>
+% foreach my $eid (sort { $evals->{$b}{timeperiod_sort} <=> $evals->{$a}{timeperiod_sort} } keys %{$evals}) {
+%	next unless defined %{$responses->{$eid}};
+	<eval id="<% $eid %>">
+		<title><![CDATA[<% $evals->{$eid}{title} %>]]></title>
+                <course id="<% $evals->{$eid}{course_id} %>"><![CDATA[<% $evals->{$eid}{course} %>]]></course>
+		<timePeriod><![CDATA[<% $evals->{$eid}{timeperiod} %>]]></timePeriod>
+%  	foreach my $qid (keys %{$responses->{$eid}}) {
+		<question id="<% $qid %>">
+
+%		foreach my $word (@search_strings) {
+%			$questions->{$eid}{$qid} =~ s#(\b$word)#<span class=\"highlight\">$1</span>#gi;
+%		}	
+
+                	<questionText><![CDATA[<% $questions->{$eid}{$qid} %>]]></questionText>
+%		my $responseList = join("\n", map { "<li>$_</li>" } @{$responses->{$eid}{$qid}});
+%		foreach my $word (@search_strings) {
+%			$responseList =~ s#\b($word)#<span class=\"highlight\">$1</span>#gi;
+%		}
+			<response><![CDATA[<% $responseList %>]]></response>
+	        </question>
+%       }
+	</eval>
+% }
+
+</evalResults>
+
+
+
+<%method getEvalResults>
+
+<%perl>
+	my %search_by = ();
+	if (ref($params{search_by}) eq 'ARRAY') {
+		%search_by = map { $_ => '1' } @{$params{search_by}};
+	} else {
+		$search_by{$params{search_by}} = '1';
+	}
+
+	my $ftsEval = TUSK::FTS::Eval->new( 
+				school        => $params{school},
+				search_string => [ @search_strings ],
+				eval_title    => $params{eval_title},
+				course_name   => $params{course_name},
+				from_date     => $params{from_date},
+				to_date       => $params{to_date},
+				partial_word  => $search_by{pw},
+				all_words     => $search_by{aw},
+				numeric_ranking => $search_by{nrq},
+				no_response   => $search_by{nr},
+				small_group   => $search_by{sg},
+
+	);
+
+	return $ftsEval->search();
+</%perl>
+
+</%method>
+
+
+<%method replaceEntities>
+<%args> $text => '' </%args>
+<%perl>
+	$text =~ s/</&lt;/g;
+	$text =~ s/>/&gt;/g;
+	$text =~ s/&/&amp;/g;
+	$text =~ s/"/&quot;/g;
+	$text =~ s/'/&apos;/g;
+	return $text;
+</%perl>
+</%method>
+
+
+<%method getSearchForm>
+
+<%perl>
+	my $form = $m->scomp('/eval/administrator/search/formEntry/', 
+		params => {   
+			search_string  => $params{search_string},
+			eval_title     => $params{eval_title},
+			course_name    => $params{course_name},
+			from_date      => $params{from_date},
+			to_date        => $params{to_date},
+			search_by      => $params{search_by},
+		  },
+		school => $params{school}  );
+
+	return <<SEARCHFORM;
+</script>
+	<table id="searchForm" width="100%">
+	<tr><td NOWRAP>
+	<a style="font-size:90%;text-decoration:none;font-weight:bold;" href="javascript:showHide('switchContent')" style="cursor:hand;cursor:pointer">Show/Hide Search Entry</a> 
+        &nbsp;|&nbsp;
+	<a style="font-size:90%;text-decoration:none;font-weight:bold;" href="#" onClick="javascript:exportContent('$params{search_string}','$params{school}')" style="cursor:hand;cursor:pointer">Export</a> 
+	</td></tr>
+	<tr><td NOWRAP>
+	<div id="switchContent" style="display:none">$form</div>
+        </td></tr>
+	</table>
+SEARCHFORM
+</%perl>
+</%method>
+
+<%flags>
+        inherit => undef
+</%flags>
+
+
+
+
+

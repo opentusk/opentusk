@@ -1,0 +1,127 @@
+[-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	
+	$req->{leftnav}="admin-leftnav";
+        $req->{checkforschooladmin} = 1;
+        $req->{mustbeschooladmin} = 1;
+	$req->{showschool} = 1;
+
+	$req->{pagetype} = "courselink";
+	unless ($fdat{page}){ $fdat{page}="add"; }
+	
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	Execute ({inputfile=>$req->{include_dir}."/element",import => 1});
+
+	# process the actions
+	if ($fdat{action}){
+		($rval, $msg) = TUSK::Manage::Homepage::CourseLink::addedit_process($req, \%fdat);
+		process_return_values($rval, $msg);
+		$http_headers_out{'Location'}="/manage/homepage/courselink/show/" . $req->{schoolpath} . "/" .  $req->{category_id} . "/?" . $fdat{urimsg};
+	}
+
+	$data = TUSK::Manage::Homepage::CourseLink::addedit_pre_process($req, \%fdat);
+
+        manage_header($req);
+-]
+<style type="text/css">@import url(/style/calendar-blue.css);</style>
+<script language="Javascript" src="/scripts/calendar.js"></script>
+<script language="Javascript" src="/scripts/calendar-en.js"></script>
+<script language="Javascript" src="/scripts/calendar-setup.js"></script>
+<script>
+	function showDateFields() {
+		if(document.courselink.url.value != '' || document.courselink.course_id.selectedIndex != 0) {
+			document.getElementById('showDateRow').style.display='';
+			document.getElementById('hideDateRow').style.display='';
+		} else {
+			document.getElementById('showDateRow').style.display='none';
+			document.getElementById('hideDateRow').style.display='none';
+		}
+	}
+</script>
+
+<form action="/manage/homepage/courselink/addedit/[+ $req->{selfpath} +]" method="post" name="courselink" onsubmit="return checkform(this);" class="no-padding">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td class="labelgray">
+	Label:
+</td>
+<td class="cell-left">
+	<input type="text" class="textareawhite" name="label" value="[+ $req->{courselink} ? $req->{courselink}->get_label : ""  +]" id="Label__y" size="35">
+</tr>
+<tr>
+<td class="labelgray">
+	Course:<br><br>
+	or URL:
+</td>
+<td class="cell-left">
+	<select name="course_id" onChange="showDateFields();">
+	<option>none</option>
+	[$ foreach $course (@{$data->{courses}}) $]
+	<option value="[+ $course->primary_key +]" [$ if ($fdat{page} eq "edit" and $req->{courselink}->get_course_id and $course->primary_key eq $req->{courselink}->get_course_id) $]selected[$ endif $]>[+ $course->out_label +] ([+ $course->primary_key+])</option>
+	[$ endforeach $]
+	</select>	
+	<br><br><input type="text" class="textareawhite" name="url" value="[+ $req->{courselink} ? $req->{courselink}->get_url : ""  +]" size="35" onChange="showDateFields();">
+</td>
+</tr>
+<tr>
+<td class="labelgray">
+	Indent
+</td>
+<td class="cell-left">
+	<select name="indent">
+	<option>0</option>
+	<option [+ $req->{courselink} and $req->{courselink}->get_indent == 1 ? "selected" : "" +]>1</option>
+	<option [+ $req->{courselink} and $req->{courselink}->get_indent == 2 ? "selected" : "" +]>2</option>
+	</select>
+</td>
+</tr>
+<tr id="showDateRow" style="display:none;">
+[-
+$show_value = '';
+$show_value = $req->{courselink}->get_show_date if $req->{courselink};
+$show_params =  [
+             { 	label => 'Show Date',
+				name =>  'showDate',
+				size =>  '24',
+				maxlength =>  '20',
+				value => $show_value,
+				calendar => 1,
+             } ];
+
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'textbox', 
+          param     => $show_params
+         }); 
+-]
+</tr>
+<tr id="hideDateRow" style="display:none;">
+[-
+$hide_value = '';
+$hide_value = $req->{courselink}->get_hide_date if $req->{courselink};
+$hide_params =  [
+             { 	label => 'Hide Date',
+				name =>  'hideDate',
+				size =>  '24',
+				maxlength =>  '20',
+				value => $hide_value,
+				calendar => 1,
+             } ];
+
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'textbox', 
+          param     => $hide_params
+		});
+-]
+</tr>
+<tr> 
+<td>&nbsp;</td>
+<td class="cell-submit">
+<input name="Submit" type="submit" class="formbutton" value="Save and Continue">
+<input type="hidden" name="action" value="[+ $fdat{page} +]"></td>
+</tr>
+</table>
+</form>
+<script>showDateFields();</script>
+[- manage_footer(); -]

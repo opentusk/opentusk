@@ -1,0 +1,252 @@
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use TUSK::GradeBook::LinkCourseGradeEventType;
+	use TUSK::GradeBook::LinkCourseGradeScale;
+	use TUSK::GradeBook::LinkCourseCustomScale;
+	use TUSK::GradeBook::CourseStandardScale;
+	use TUSK::GradeBook::LinkGradeEventGradeScale;
+	use TUSK::GradeBook::FinalGrades;
+	use TUSK::GradeBook::LinkUserCourseGrade;
+	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::Functions;
+    use Data::Dumper;
+	use HSDB4::SQLRow::User;
+</%once>
+
+
+<%method title>
+%return "Student Grades";
+</%method>
+
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method jsarray>
+% return ['layers.js', 'element.js'];
+</%method>
+
+
+
+<%attr>
+show_timeperiod_dropdown => 1
+</%attr>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+</%shared>
+
+
+
+
+<& /tmpl/element:form, params => {
+                                method => 'POST',
+                                onsubmit =>'return event_submit(this)',
+                                name => 'showStudentGrades' } &>
+
+<table><tr><td></td></tr>
+
+<%perl>
+
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my ($events, $courseID, $timePeriod, $school);
+
+if (ref($type_object) eq "HSDB45::Course")
+{
+	$courseID=$type_object->primary_key;
+	$timePeriod= $m->comp("SELF:get_timeperiod_id");
+	$school = $type_object->school;
+
+	$events = TUSK::GradeBook::GradeEvent->new->getCourseEvents($school, $courseID, $timePeriod);
+}
+else
+{
+	$m->comp("/tmpl/url:redirect", message => "FAILURE");
+}
+
+# student contains the UTLN (which is primary key) of the student whose data we're viewing
+my $student = $m->comp("/tmpl/url:get_last_path_id");
+my $studentName = HSDB4::SQLRow::User->new()->lookup_key($student)->out_full_name;
+my $total;
+my $size = scalar (@$events);
+my @printData;
+
+#this call is going to calculate the average, save it to the database, then return it for display
+$total = TUSK::GradeBook::FinalGrades::calculateFinalGrade($school,$courseID, $student, $timePeriod, \@printData);
+
+
+#oGrades and oComments will contain the original grades and comments that exist when the user gets to this page
+#used to compare with possible edits made so that we know whether or not a save is necessary
+my (@oGrades, @oComments);
+my $eventTypes = TUSK::GradeBook::GradeEventType->new->lookup();
+
+print "<h3> $studentName </h3>";
+
+
+my @grades_array;
+
+for(my $i=0; $i < $size; $i++)
+{
+	my $event_id = @$events[$i]->getGradeEventID(); 
+	my $event = TUSK::GradeBook::GradeEvent->new->lookupKey($event_id);
+	my $event_name = @$events[$i]->getEventName();
+ 	my $temp;
+	my ($grades_data, $saved_grades) = $event->getCourseGradesByStudent($type_object,$timePeriod,$student);
+	$temp = pop(@$grades_data);
+	$temp->{'event_name'}=$event_name;
+	$temp->{'event_id'}=$event_id;
+	push(@grades_array, $temp);
+}
+
+
+
+$m->comp('/tmpl/element:sort_order_box', params =>{
+	
+		no_add_button=>1,
+		no_label=>1,
+		buttons => [],
+		layer_info => {
+			layer => 'gradesdiv',
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			fields => ['link_user_grade_event_id','event_name','event_id', 'name', 'grade', 'comments', 'user_id'],
+			name => 'grades',
+			sort => {usage => 'No'},
+			action => {usage => 'No'},
+			scrollrows => 10,
+			display => [
+				{label=>'Event Name', field=>'event_name', align=>'left', length=>500},
+				{label=>'Grade',field=>'grade', align=>'center', length=>50, type=>'textbox'},
+				{label=>'Comments',field=>'comments', align=>'left', length=>300, type=>'textbox' },
+				{label=>'EventID' ,field=>'event_id', align=>'right', length=>40 ,type=>'hidden'},	
+				{label=>'user_id' ,field=>'user_id', align=>'right', length=>40 ,type=>'hidden'}
+			],
+			validate => { usage => 'No', form => 'showGrades'},
+			data => \@grades_array }	});
+
+
+# given the numeric average, returns the grade that corresponds based on the chosen scale
+my $gradeWithScale = TUSK::GradeBook::FinalGrades->getGradeWithScale($total,$courseID,$timePeriod,$student);
+
+my $linkScaleType = TUSK::GradeBook::LinkCourseGradeScale->lookupReturnOne("course_id = $courseID and time_period_id = $timePeriod");
+
+
+if( !defined($linkScaleType))
+{
+	$linkScaleType = TUSK::GradeBook::LinkCourseGradeScale->new();
+	$linkScaleType->setCourseID($courseID);
+	$linkScaleType->setGradeScaleTypeID(2);
+	$linkScaleType->setTimePeriodID($timePeriod);
+	$linkScaleType->save({'user' => $m->session->{'user'}});	
+}
+	
+my $scaleTypeID = $linkScaleType->getGradeScaleTypeID();
+#print out any msgs we get back from calculating the average
+
+
+
+print "<input type='hidden' name='avg' value='$total'>";
+print "<input type='hidden' name='scaleType' value='$scaleTypeID'>";
+
+
+printf "<tr><td>Average is %4.2f </td></tr>",$total;
+
+if ($scaleTypeID eq "1" || $scaleTypeID eq "4")
+{
+	print "<input type='hidden' name='gradeWScale' value='$gradeWithScale'>";
+	print "<tr><td><b> Estimated Final Grade : $gradeWithScale </b> </td></tr>";
+}
+if ($scaleTypeID eq "3")
+{
+	my $qString = "course_id = $courseID AND user_id = '$student' AND time_period_id=$timePeriod ";
+    my $linkUCGrades = TUSK::GradeBook::LinkUserCourseGrade->lookupReturnOne($qString);
+	my $val;
+    if (defined($linkUCGrades)) {
+		
+		 
+		 $val=$linkUCGrades->getCourseGrade(); 
+	}
+
+	print "<tr><td>Final Grade:  <input type='text' size=20 maxlength=80 name='ManualFinalGrade' value='$val' /> </tr>";
+}
+
+</%perl>
+
+<table>
+<%perl>
+for(my $k=0;$k< scalar(@printData); $k++) { print "<tr width=100%><td>$printData[$k] </td></tr>";}
+</%perl>
+</table>
+
+<& /tmpl/element:save_button, params=>{
+        label=>'Save Changes',
+        cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/bystudent") . "');",
+        name=>'save_changes'} &>
+
+</td></tr>
+</table>
+
+</form>
+
+<%perl>
+
+if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS))
+{
+
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^gradesdiv');
+     
+	
+		$m->comp('/tmpl/process:manipulate_rows',
+			row_type => 'Direct',
+			user => $m->session->{'user'}->user_id(),
+			object_name => 'TUSK::GradeBook::LinkUserGradeEvent',
+			fields_data => $rowHash,
+			field_function_map => {'grade'=>'setGrade',
+					'comments'=>'setComments',
+					'user_id'=>'setParentUserID',
+					'event_id' =>'setChildGradeEventID',
+					},
+			display_data => \@grades_array );
+
+
+
+	my $scaleTypeID = $ARGS{'scaleType'};
+        my $avg = $ARGS{'avg'};
+        my $gWScale = $ARGS{'gradeWScale'};
+        my $qString = "course_id = $courseID AND user_id = '$student' AND time_period_id=$timePeriod ";
+        my $linkCourseGrades = TUSK::GradeBook::LinkUserCourseGrade->lookupReturnOne($qString);
+      
+        
+        if (!defined($linkCourseGrades))
+        {
+		#this case will likely never occur
+		$linkCourseGrades=TUSK::GradeBook::LinkUserCourseGrade->new();
+		$linkCourseGrades->setCourseID($courseID);
+		$linkCourseGrades->setTimePeriodID($timePeriod);
+		$linkCourseGrades->setUserID($student);
+	        $linkCourseGrades->setAverage($avg);	
+        } 
+      
+        if(defined($ARGS{'ManualFinalGrade'}))
+        {
+		
+			$linkCourseGrades->setCourseGrade($ARGS{'ManualFinalGrade'});
+        }
+        else	
+        {
+		
+      		$linkCourseGrades->setCourseGrade($ARGS{'gradeWScale'});
+        }
+      
+        $linkCourseGrades->save({'user' => $m->session->{'user'}->user_id()});
+       
+
+	my $reload_url = $r->uri();
+   	my $msgtxt = "Changes successfully saved";
+	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msgtxt");
+
+       
+
+}
+
+</%perl>

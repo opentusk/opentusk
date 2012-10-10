@@ -1,0 +1,72 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use MySQL::Password;
+use HSDB4::Constants;
+use HSDB4::SQLRow::User;
+use Getopt::Long;
+
+my ($user_id, $lastname, $email);
+GetOptions ("user-id:s" => \$user_id,
+	    "lastname:s" => \$lastname,
+	    "email:s" => \$email);
+
+if (!$user_id && !$lastname) {
+    print "usage: reset_pw --user-id=<user_id> [--lastname=<user last name>] [--email=<email address>]\n";
+    exit;
+}
+
+HSDB4::Constants::set_user_pw (get_user_pw);
+
+sub get_email {
+    print "Enter the user's email address: ";
+    my $email = <>;
+    chomp $email;
+    return $email;
+}
+
+my @user_ids = ();
+my @emails = ();
+if ($lastname and not $user_id) {
+    my $cond = sprintf ("lastname like '%s%%'", substr($lastname, 0, 5));
+    my @users = HSDB4::SQLRow::User->lookup_conditions ($cond);
+    die "Could not find any matching users\n" unless @users;
+    my $count = 0;
+    foreach my $user (@users) {
+	$count++;
+	printf ("% 3d %10s   %s\n", $count, $user->primary_key, 
+		$user->out_label);
+	push @user_ids, $user->primary_key;
+	push @emails, $user->field_value('email');
+    }
+    print "Choose a user (0 for no match): ";
+    my $user_num = <>;
+    $user_num--;
+    die "No user found\n" unless $user_num >= 0 && $user_num <= $#users;
+    unless ($emails[$user_num]) { $email = get_email }
+    $user_id = $user_ids[$user_num];
+}
+
+if ($user_id) {
+    my $r;
+    my $msg;
+    my $user = HSDB4::SQLRow::User->new->lookup_key ($user_id);
+    die "Could not find a user \"$user_id\"\n" unless $user->primary_key;
+    unless ($email or $user->field_value('email')) { $email = get_email }
+    if ($email) { 
+	$user->field_value('email', $email);
+	$user->save;
+    }
+    ($r,$msg) = $user->admin_reset_password;
+    print $msg."\n" if ($msg);
+}
+
+
+
+
+
+
+
+

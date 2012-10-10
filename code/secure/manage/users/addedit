@@ -1,0 +1,203 @@
+[-
+	use TUSK::Constants;
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	$req->{donotcheckschooladmin} = 1;
+	$req->{ldapuser} = 0;
+	$req->{pagetype} = "user";
+	$req->{image} = "Add/Edit Users";
+	unless ($fdat{page}){ $fdat{page} = "add"; }
+	unless ($fdat{userid}){ $fdat{userid} = ""; }
+
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	Execute ({inputfile=>$req->{include_dir}."/element",import => 1});
+
+	if ($fdat{action}){
+		($rval, $msg) = TUSK::Manage::User::addedit_process($req, \%fdat);
+		process_return_values($rval, $msg);
+	}
+
+	$data = TUSK::Manage::User::addedit_pre_process($req, \%fdat);
+
+	manage_header($req);
+
+	@affiliations = @TUSK::Constants::Affiliations;
+
+	@degrees = @TUSK::Constants::Degrees;
+
+	@suffices = ('', 'II', 'III', 'IV', 'Jr.', 'Sr.');
+
+	@statuses = ('Active','Inactive','Restricted','Test');
+	@genders = ('Unknown', 'Female', 'Male');
+	%source_label = ('internal' => $TUSK::Constants::SiteAbbr);
+        if($TUSK::Constants::UseLDAP) {
+             $source_label{'external'} = $TUSK::Constants::SchoolShort." Authentication";
+        }
+-]	
+<style type="text/css">@import url(/style/calendar-blue.css);</style>
+<script language="Javascript" src="/scripts/calendar.js"></script>
+<script language="Javascript" src="/scripts/calendar-en.js"></script>
+<script language="Javascript" src="/scripts/calendar-setup.js"></script>
+<script>
+	function check_degree(degree){
+		if (degree.options[degree.selectedIndex].value == 'Other'){
+			document.getElementById('degree_text').style.display = 'inline';
+		}else{
+			document.getElementById('degree_text').style.display = 'none';
+		}
+	}
+</script>
+                  <form action="/manage/users/addedit/[+ $req->{selfpath} +]" method="post" onsubmit="return checkform(this);" class="no-padding" name="user">
+
+                    <table width="100%" border="0" cellspacing="0">
+			<tr>
+                        <td class="labelgray">UserID:</td>
+                        <td class="cell-left">[+ $data->{userid} +]<input type="hidden" name="userid" value="[+ $data->{userid} +]"></td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">First Name:</td>
+                        <td class="cell-left">[$ if ($req->{ldapuser}) $][+ $req->{useredit}->field_value('firstname') +][$ else $]<input name="firstname" type="text" class="textareawhite" size="24" maxlength="20" value="[$ if ($fdat{page} eq "edit") $][+ $req->{useredit}->field_value('firstname') +][$ endif $]" id="First_Name__y">[$ endif $]</td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">Middle Name:</td>
+                        <td class="cell-left"><input name="midname" type="text" class="textareawhite" size="24" maxlength="20" value="[$ if ($fdat{page} eq "edit") $][+ $req->{useredit}->field_value('midname') +][$ endif $]"></td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">Last Name: </td>
+                        <td class="cell-left">[$ if ($req->{ldapuser}) $][+ $req->{useredit}->field_value('lastname') +][$ else $]<input name="lastname" type="text" class="textareawhite" size="24" maxlength="40" value="[$ if ($fdat{page} eq "edit") $][+ $req->{useredit}->field_value('lastname') +][$ endif $]" id="Last_Name__y">[$ endif $]</td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">Email:</td>
+                        <td class="cell-left">[$ if ($req->{ldapuser}) $][+ $req->{useredit}->field_value('email') +][$ else $]<input name="email" type="text" class="textareawhite" size="24" maxlength="80" value="[$ if ($fdat{page} eq "edit") $][+ $req->{useredit}->field_value('email') +][$ endif $]" id="Email__y">[$ endif $]</td>
+                      </tr>
+			<tr>
+                        <td class="labelgray">Affiliation:</td>
+                        <td class="cell-left"><select name="affiliation">
+			[$ foreach $item (@affiliations) $]
+			<option [$ if ($fdat{page} eq "edit" and ($item eq $req->{useredit}->field_value('affiliation') or (!$req->{useredit}->field_value('affiliation') and $req->{school} eq $item))) $]selected[$ endif $]>[+ $item +]
+			[$ endforeach $]
+			</select></td>
+                      </tr>
+			<tr>
+                        <td class="labelgray">Degree:</td>
+                        <td class="cell-left"><select name="degree" onchange="check_degree(this);">
+			[- $degree_in_dropdown = 0; -]
+			[$ foreach $item (@degrees) $]
+			<option [$ if ($fdat{page} eq "edit" and $item eq $req->{useredit}->field_value('degree')) $][- $degree_in_dropdown = 1; -]selected[$ endif $]>[+ $item +]</option>
+			[$ endforeach $]
+				<option value="Other">Other</option>
+			</select><div id="degree_text" style="margin-left:10px;display:[$ if ($degree_in_dropdown) $]none[$ else $]inline[$ endif $]"><input name="degree_text" maxlength="60" size="24" class="textareawhite" value="[$ if ($degree_in_dropdown == 0) $][+ $req->{useredit}->field_value('degree') +][$ endif $]"></div></td>
+                      </tr>
+			<tr>
+                        <td class="labelgray">Suffix:</td>
+                        <td class="cell-left"><select name="suffix">
+			[$ foreach $item (@suffices) $]
+			<option [$ if ($fdat{page} eq "edit" and $item eq $req->{useredit}->field_value('suffix')) $]selected[$ endif $]>[+ $item +]
+			[$ endforeach $]
+			</select></td>
+                      </tr>
+			<tr>
+                        <td class="labelgray">Gender:</td>
+                        <td class="cell-left"><select name="gender">
+			[$ foreach $item (@genders) $]
+			<option [$ if ($fdat{page} eq "edit" and $item eq $req->{useredit}->field_value('gender')) $]selected[$ endif $]>[+ $item +]
+			[$ endforeach $]
+			</select></td>
+                      </tr>
+			<tr>
+                        <td class="labelgray">Status:</td>
+                        <td class="cell-left"><select name="status">
+			[$ foreach $item (@statuses) $]
+			<option [$ if ($fdat{page} eq "edit" and $item eq $req->{useredit}->field_value('status')) $]selected[$ endif $]>[+ $item +]
+			[$ endforeach $]
+			</select></td>
+			</tr>
+[-
+$expires_value = '' || $req->{useredit}->field_value('expires');
+$expire_params =  [
+             { 	label => 'Expires',
+				name =>  'expires',
+				size =>  '24',
+				maxlength =>  '20',
+				value => $expires_value,
+				calendar => 1,
+             } ];
+
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'textbox', 
+          param     => $expire_params
+         }); 
+-]
+			<tr>
+                        <td class="labelgray">[+ $TUSK::Constants::SchoolShort +] ID:</td>
+                        <td class="cell-left"><input name="tufts_id" type="text" class="textareawhite" size="24" maxlength="20" value="[$ if ($fdat{page} eq "edit") $][+ $req->{useredit}->field_value('tufts_id') +][$ endif $]"></td>
+                      </tr>
+			<tr>
+                        <td class="labelgray">SID:</td>
+                        <td class="cell-left"><input name="sid" type="text" class="textareawhite" size="24" maxlength="20" value="[$ if ($fdat{page} eq "edit") $][+ $req->{useredit}->field_value('sid') +][$ endif $]"></td>
+                      </tr>
+
+			<tr>
+                        <td class="labelgray">User Source:</td>
+                        <td class="cell-left"><select name="source">
+			[-
+				if ($req->{ldapuser}) {
+					$user_source = "external";
+				} elsif ($req->{useredit}->field_value('source')) {
+					$user_source = $req->{useredit}->field_value('source');
+				} else {
+					$user_source = "internal";
+				}
+			-]
+			[$ foreach $item (keys %source_label) $]
+			<option value="[+ $item +]"[$ if ($item eq $user_source) $] selected[$ endif $]>[+ $source_label{$item} +]</option>
+			[$ endforeach $]
+			</select></td>
+                        </tr>
+
+			<tr> 
+                        <td class="labelgray">[+ $data->{usergrouplabel} +]</td>
+                        <td class="cell-left">[$ if (scalar(@{$data->{usergroups}})) $]
+<table width="75%" cellspacing="0" class="tusk">
+[$ foreach $ug (@{$data->{usergroups}}) $]
+[- 
+	if ($data->{tr_flag} == 0){
+		print OUT "<tr>";
+	}
+-]
+<td width="50%" class="layers-left">[$ if ($fdat{page} eq "add") $]<input type="checkbox" name="groups" value="[+ $ug->primary_key +]">[$ endif $][+ $ug->field_value('label') +][$ if ($fdat{page} eq "edit") $]&nbsp;([+ $ug->school +])[$ endif $]</td>
+[-
+	if ($data->{tr_flag} == 1){
+		print OUT "</tr>";
+	}
+	$data->{tr_flag} = ($data->{tr_flag} + 1) % 2; # flip the flag
+-]
+[$ endforeach $]</table>[$ else $]None
+                          [$ endif $]</td>
+                      </tr>
+
+			  [$ if (!$req->{ldapuser}) $]
+			<tr>
+                           <td class="labelgray">Reset Password:</td>
+                           <td class="cell-left"><input name="reset_password" type="checkbox"[+ $fdat{page} eq "add" ? " CHECKED" : "" +]>[+ $fdat{page} eq "add" ? "Set" : "Reset" +] and Email Password to User </td>
+	                </tr>
+			  [$ endif $]
+
+                      <tr> 
+                        <td>&nbsp;</td>
+                        <td class="cell-submit">
+                          <input class="formbutton" type="submit" name="Submit" value="Save and Continue">
+			  <input type="hidden" name="action" value="[+ $fdat{page} +]"> 
+			</td>
+                      </tr>
+                    </table>
+[$ if ($req->{ldapuser}) $]
+	<input type="hidden" name="firstname" value="[+ $req->{useredit}->field_value('firstname') +]">
+	<input type="hidden" name="lastname" value="[+ $req->{useredit}->field_value('lastname') +]">
+	<input type="hidden" name="email" value="[+ $req->{useredit}->field_value('email') +]">
+[$ endif $]
+</form>
+
+[- manage_footer(); -]
+

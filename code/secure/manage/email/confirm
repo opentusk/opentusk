@@ -1,0 +1,47 @@
+[-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	$req->{pagetype} = "email";
+	$req->{checkcourserole}="DIRECTOR";
+	$req->{groupcourserole}="AUTHOR";
+
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	
+        if ($fdat{action}){
+		$data = TUSK::Manage::Email::email_process($req, \%fdat, \%udat);
+		manage_header($req);
+	}else{
+		$data = TUSK::Manage::Email::email_preview_process($req, \%fdat);
+		header("Preview Email","");
+	}
+-]
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr> 
+                        <td class="labelgray">To:</td>
+                        <td class="cell-left"> All [$ if ($fdat{to}) $][+ $data->{usergroup}->field_value('label') +][$ else $][+ $req->{course}->field_value('title') +][$ endif $][$ if $fdat{sendself} $], [+ $req->{user}->field_value('email') +][$ endif $]</td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">From:</td>
+                        <td class="cell-left">[+ $req->{fullname} +] ([+ $req->{user}->field_value('email') +])</td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">Subject</td>
+                        <td class="cell-left">[+ $fdat{subject} +]</td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">Message:</td>
+                        <td class="cell-left">[+ $fdat{body} +]</td>
+                      </tr>
+                      <tr> 
+			<td>&nbsp;</td>
+                        <td class="cell-submit">
+	[$ if($fdat{action}) $]<input type="submit" class="formbutton" onclick="location.href='/manage/email/compose/[+ $req->{selfpath} +]'" value="Send Another Message">[$ else $]<input type="submit" onclick="javascript:window.close();" value="Close Preview" class="formbutton">[$ endif $]</td>
+                      </tr>
+                    </table>
+[- if ($fdat{action}){ manage_footer(); } -]
+
+
+
+
+

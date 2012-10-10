@@ -1,0 +1,380 @@
+<%once>
+use TUSK::Constants;
+use Data::Dumper;
+use TUSK::Manage::User;
+</%once>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	onsubmit =>'return checkform(this)',
+	action => "/management/users/addedit/".$selfpath ,
+	name => 'user' } 
+
+&>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+
+<tr>
+<td class="labelgray">UserID:</td>
+<td class="cell-left">
+<% $usrid %>
+<input type="hidden" name="userid" value="<% $usrid %>">
+</td></tr><tr> 
+
+
+% if ($isldap) {
+	<td class="labelgray">First Name:</td>
+	<td class="cell-left">
+	<% $useredit->{firstname} %>
+
+% } else {
+
+<& /tmpl/element:textbox, params => { 
+	label => 'First Name:',
+	name => 'firstname',
+	id => 'First_Name__y',
+    size => 24,
+	maxlength => 20,
+	class => "textareawhite",
+	value => ($ARGS{page} eq "edit")? $useredit->{firstname} : '',
+  	} &>
+
+% } # else is not ldap
+
+</td>
+                      </tr>
+                      <tr> 
+                       
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Middle Name:',
+	name => 'midname',
+	id => '',
+    size => 24,
+	maxlength => 20,
+	class => "textareawhite",
+	value => ($ARGS{page} eq "edit")? $useredit->{midname} : '',
+  	} &>
+
+</td>
+                      </tr>
+                      <tr> 
+                       
+% if ($isldap) {
+	<td class="labelgray">Last Name: </td>
+    <td class="cell-left">
+	<% $useredit->{lastname} %>
+% } else {
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Last Name:',
+	name => 'lastname',
+	id => 'Last_Name__y',
+    size => 24,
+	maxlength => 40,
+	class => "textareawhite",
+	value => ($ARGS{page} eq "edit")? $useredit->{lastname} : '',
+  	} &>
+
+% }
+
+</td>
+                      </tr>
+                      <tr> 
+                       
+% if ($isldap) {
+	<td class="labelgray">Email:</td>
+    <td class="cell-left">
+	<% $useredit->{email} %>
+% } else {
+
+<& /tmpl/element:textbox, params => { 
+	label => 'Email:',
+	name => 'email',
+	id => 'Email__y',
+    size => 24,
+	maxlength => 80,
+	class => "textareawhite",
+	value => ($ARGS{page} eq "edit")? $useredit->{email} : '',
+  	} &>
+
+% }
+</td></tr>
+<tr>
+    
+<td class="labelgray">Affiliation:</td>
+<td class="cell-left">
+
+<select name="affiliation">
+% foreach my $item (@affiliations) {
+%			if ($ARGS{page} eq "edit" and ($item eq $useredit->{affiliation} or (!$useredit->{affiliation} and $school eq $item))) {
+		<option selected><% $item %> </option>
+% } else {
+		<option ><% $item %></option>
+% }
+% } # END FOREACH
+</select>
+
+</td></tr>
+<tr>
+<td class="labelgray">Degree:</td>
+<td class="cell-left"><select name="degree" onchange="check_degree(this);">
+
+%			my  $degree_in_dropdown = 0; 
+% 		    foreach my $item (@degrees) {
+%				if ($ARGS{page} eq "edit" and $item eq $useredit->{degree}) {
+%					$degree_in_dropdown=1;
+					<option selected><% $item %></option>
+%				} else {
+					<option ><% $item %></option>
+% 				}
+
+% 			} # END FOREACH
+				<option value="Other">Other</option>
+</select>
+
+<div id="degree_text" style=<%(!$degree_in_dropdown)? 'margin-left:10px;display:none;' : 'margin-left:10px;display:inline;'%> <input name="degree_text" maxlength="60" size="24" class="textareawhite" value="<%($degree_in_dropdown == 0)? $useredit->{degree} : '' %>"> 
+</div>
+
+
+</td></tr>
+<tr>
+% my @drop_options = map { {'label'=> $_, 'value' => $_ } } @suffices;
+<& /tmpl/element:dropdown, params => {
+	label => 'Suffix:',
+	name => 'suffix',
+	selected => $useredit->{suffix},
+	options => \@drop_options 
+
+} &>
+
+</tr>
+<tr>
+
+%  @drop_options = map { {'label'=> $_, 'value' => $_ } } @genders;
+<& /tmpl/element:dropdown, params => {
+	label => 'Gender:',
+	name => 'gender',
+	selected => $useredit->{gender},
+	options => \@drop_options 
+
+} &>
+
+</tr>
+<tr>
+%  @drop_options = map { {'label'=> $_, 'value' => $_ } } @statuses;
+<& /tmpl/element:dropdown, params => {
+	label => 'Status:',
+	name => 'status',
+	selected => $useredit->{status},
+	options => \@drop_options 
+
+} &>
+
+</tr>
+
+
+<%perl>
+my $expires_value = ' ' || $useredit->{expires};
+my $expire_params =  
+             { 	label => 'Expires',
+				name =>  'expires',
+				size =>  '24',
+				maxlength =>  '20',
+				value => $expires_value,
+				calendar => 1,
+				no_empty =>0,
+             } ;
+</%perl>
+
+<& /tmpl/element:textbox , params => $expire_params &>
+
+<tr>
+
+<& /tmpl/element:textbox, params => { 
+	label => $TUSK::Constants::SchoolShort.' ID:',
+	name => 'tufts_id',
+    size => 24,
+	maxlength => 20,
+	class => "textareawhite",
+	value => ($ARGS{page} eq "edit")? $useredit->{tufts_id} : '',
+  	} &>
+
+</tr>
+<tr>
+
+<& /tmpl/element:textbox, params => { 
+	label => 'SID:',
+	name => 'sid',
+    size => 24,
+	maxlength => 20,
+	class => "textareawhite",
+	value => ($ARGS{page} eq "edit")? $useredit->{sid} : '',
+  	} &>
+
+</tr>
+<tr>
+<td class="labelgray">User Source:</td>
+<td class="cell-left"><select name="source">
+<%perl>
+				my $user_source;
+				if ($isldap) {
+					$user_source = "external";
+				} elsif ($useredit->{source}) {
+					$user_source = $useredit->{source};
+				} else {
+					$user_source = "internal";
+				}
+</%perl>
+% foreach my $item (keys %source_label) {
+<option value="<% $item %>" <% ($item eq $user_source)? "selected" : "" %> ><% $source_label{$item} %></option>
+% }	# END FOREACH
+
+</select></td>
+</tr><tr> 
+<td class="labelgray"><% $data->{usergrouplabel} %></td>
+<td class="cell-left">
+
+% if (scalar(@{$data->{usergroups}})) {
+
+<& /tmpl/element:table, params => { 
+	width => "75%",
+	class => "tusk",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+% foreach my $ug (@{$data->{usergroups}}) {
+%	if ($data->{tr_flag} == 0){
+%		print  "<tr>";
+%	}
+
+% 
+<td width="50%" class="layers-left">
+%  if ($ARGS{page} eq "add") {
+<input type="checkbox" name="groups" value="<% $ug->primary_key %>">
+% }
+<% $ug->field_value('label') %>
+
+% if ($ARGS{page} eq "edit") {
+&nbsp;(<% $ug->school %>)
+% }
+
+</td>
+
+%	if ($data->{tr_flag} == 1) {
+%		print OUT "</tr>";
+%	}
+%	$data->{tr_flag} = ($data->{tr_flag} + 1) % 2; # flip the flag
+% } # END FOREACH
+
+</table>
+
+% } else {
+None
+% }
+
+</td>
+</tr>
+% if (!($isldap)) {
+
+<tr>
+<td class="labelgray">Reset Password:</td>
+<td class="cell-left">
+% my $ischkd = $ARGS{page} eq "add" ? " CHECKED" : "";
+<input name="reset_password" type="checkbox" <% $ischkd %> >
+% my $set_or_reset = $ARGS{page} eq "add" ? "Set" : "Reset";
+<% $set_or_reset %> and Email Password to User
+</td></tr>
+
+% }
+
+<tr> 
+
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Save and Continue',
+	no_cancel_button => 1,
+	class 	=> 'formbutton',
+	name	=> 'Submit',
+	} 
+&>
+
+<input type="hidden" name="action" value="<% $ARGS{page} %>"> 
+</td></tr>
+</table>
+
+% if ($isldap) {
+	<input type="hidden" name="firstname" value="<% $useredit->{firstname} %>">
+	<input type="hidden" name="lastname" value="<% $useredit->{lastname} %>">
+	<input type="hidden" name="email" value="<% $useredit->{email} %>">
+% }
+
+</form>
+
+<%init>
+	unless ($ARGS{page}){ $ARGS{page} = "edit"; }
+	unless ($ARGS{userid}){ $ARGS{userid} = ""; }
+
+	my $usrid;
+    if ($ARGS{userid}) { $usrid = $ARGS{userid}; }
+	else { $usrid = $m->comp("/tmpl/url:get_last_path_id");}	
+
+	my ($rval, $msg);
+    my $school = $m->comp('/tmpl/url:get_school');
+	if ($ARGS{action}){
+		
+		($rval, $msg) = TUSK::Manage::User::addedit_process($r, $usrid,$school, \%ARGS);
+		my $msgtype;
+		if($rval == 1) { $msgtype= "msg";}
+		else { $msgtype="errmsg"; }
+		$m->comp("/tmpl/url:redirect",destination => "/management/users/addedit/school/".$school."/".$usrid."?$msgtype=$msg", message =>'');
+	}
+
+	my $useredit;
+	my $ldapuser;
+	my $data = TUSK::Manage::User::addedit_pre_process($r,$usrid,$school,\%ARGS);
+
+	$useredit = $data->{useredit};
+
+
+	my @affiliations = @TUSK::Constants::Affiliations;
+	my @degrees = @TUSK::Constants::Degrees;
+	my @suffices = ('', 'II', 'III', 'IV', 'Jr.', 'Sr.');
+	my @statuses = ('Active','Inactive','Restricted','Test');
+	my @genders = ('Unknown', 'Female', 'Male');
+	my %source_label = ('internal' => $TUSK::Constants::SiteAbbr);
+	my $selfpath = $m->comp("/tmpl/url:get_full_path");
+
+	
+	
+	if ( $ARGS{userid} ) {
+# 		$useredit = HSDB4::SQLRow::User->new->lookup_key($ARGS{userid}); 
+	}	else {
+		$useredit = HSDB4::SQLRow::User->new->lookup_key( $m->comp("/tmpl/url:get_last_path_id") );
+	}
+	
+	my $isldap = ( $useredit->{source} eq "external" )? 1 : 0 ;
+	if($TUSK::Constants::UseLDAP) {
+    	$source_label{'external'} = $TUSK::Constants::SchoolShort." Authentication";
+    }
+	
+</%init>
+
+<%method jsarray>
+% return ['calendar.js','calendar-en.js','calendar-setup.js','users_addedit.js'];
+</%method>
+
+<%method title>
+% return "Add/Edit Users";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+

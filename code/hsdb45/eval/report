@@ -1,0 +1,143 @@
+[! use HSDB45::Eval::Results;
+   use HSDB45::Eval::Results::Formatter;
+   use Apache::Cookie;
+   use Apache::Constants qw (NOT_FOUND);
+   use IO::Scalar;
+   use XML::LibXML;
+   use XML::LibXSLT;
+	use Data::Dumper;
+!]
+[- 
+    $escmode=0;
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+
+    if($req_rec->path_info() =~ /\/(.+)\/(.+)\/(.+)/) {
+      $eval = HSDB45::Eval->new(_school => $1, _id => $2);
+      $filter = 'filtered_';
+      $filter_id = $3;
+    }
+    else {
+      $eval = HSDB45::Eval->lookup_path( $req_rec->path_info() );
+      $filter = '';
+      $filter_id = '';
+    }
+
+
+
+    # Get the authenticated user
+    $username = $req_rec->connection->user;
+    $user = HSDB4::SQLRow::User->new ()->lookup_key ($username);
+    unless ($user->primary_key and $eval->admin_group()->contains_user($user)) {
+	$req_rec->status (NOT_FOUND);
+	return;
+    }
+
+    if(scalar($eval->users())) {
+	my $parser = XML::LibXML->new();
+	my $xslt = XML::LibXSLT->new();
+	my $subr = $req_rec->lookup_uri("/XSL/");
+	my $style_doc = $parser->parse_file($subr->filename . "/Eval/eval_results.xsl");
+	my $stylesheet = $xslt->parse_stylesheet($style_doc);
+
+
+        my $eval_results = HSDB45::Eval::Results->new($eval);
+	$formatter = HSDB45::Eval::Results::Formatter->new($eval_results);
+
+##	print "<pre>", $formatter->get_xml_text(2), "</pre>";
+	my $source = $parser->parse_string($formatter->get_xml_text(0));
+##	print "<pre>", Dumper($source), "</pre>";
+
+	my $results = $stylesheet->transform($source, XML::LibXSLT::xpath_to_string("HOST" => $req_rec->header_in("Host"),
+										    "FILTER" => $filter,
+										    "FILTER_ID" => $filter_id,
+										    "COMPLETIONS" => 1,
+										    "HIDEGROUPBY" => $fdat{'HIDEGROUPBY'} ? 1 : 0));
+
+	$results_string = $stylesheet->output_string($results);
+
+    }
+    else {
+        $results_string = '\<b>No Results Available\</b>';
+    }
+-]
+
+<html>
+<head>
+<title>HSDB Eval Report: [+ $eval->out_label +]</title>
+[-
+    # Import the style sheet
+    Execute ("$embperldir/hsdb4-style.css")
+-]
+<link rel="stylesheet" type="text/css" href="/style/eval.css" title="HSDBEval"/>
+<link rel="stylesheet" type="text/css" href="/style/grapher.css?HEAD">
+
+	<script>
+		var elements = new Array();
+		var urls = new Array();
+		var ajaxRequest;
+		var processingElement;
+
+		// Queue up all of the graphs into arrays
+		function queueEvalGraphsToLoad() {
+			if(!window.XMLHttpRequest && !window.ActiveXObject) {alert('Your browser does not support ajax, unable to load graphs.'); return;}
+			spans = document.getElementsByTagName('span');
+			for(var index=0; index<spans.length; index++) {
+				if(spans[index].id.match("eval_question_")) {
+					var questionID = spans[index].id.replace("eval_question_", "");
+					var url="/tusk/ajax/evalGraph/[+ $eval->school +]/[+ $eval->primary_key() +]/"+ questionID +"?random="+ new Date().getTime();
+					spans[index].innerHTML = '<font color="green">Queued for Load</font>';
+					elements.push(spans[index]);
+					urls.push(url);
+				}
+			}
+			processQueue();
+		}
+
+		function processQueue() {
+			var url = urls.shift();
+			processingElement = elements.shift();
+			if(!processingElement || !url) {return;}
+			if (window.XMLHttpRequest)	{ajaxRequest = new XMLHttpRequest();}
+			else if (window.ActiveXObject)	{ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");}
+			if(ajaxRequest) {
+				ajaxRequest.open("GET", url, true);
+				ajaxRequest.onreadystatechange = doGraphLoad;
+				ajaxRequest.send(null);
+			} else {
+				processingElement.innerHTML = '<font color="red">Error requesting graph.</font>';
+				processQueue();
+			}
+		}
+
+
+		function doGraphLoad() {
+			if(processingElement) {
+				processingElement.innerHTML = "<font color=\"yellow\">Returning Image</font>";
+				if(ajaxRequest && ajaxRequest.readyState == 4) {
+					if(ajaxRequest.status && (ajaxRequest.status == 200)) {
+						processingElement.innerHTML = ajaxRequest.responseText;
+					} else {
+						processingElement.innerHTML = '<font color="red">Error loading graph.</font>';
+					}
+					processQueue();
+				}
+			} else {
+				alert('Error: mislocated current processing element');
+			}
+		}
+	</script>
+</head>
+<body onLoad="queueEvalGraphsToLoad();">
+
+[- Execute ("$embperldir/userbox.html",undef,$user); 
+   Execute ({inputfile => "$embperldir/element", import => 1});
+   Execute({inputfile=>"$embperldir/element",sub=>'page_title',
+                param=>[$eval->out_label]});-]
+
+<A HREF="/protected/eval/administrator/show/[+ $eval->school +]">Manage Evaluations</A><br>
+<A HREF="/hsdb45/eval/export/[+$eval->school +]/[+ $eval->primary_key() +]">Export Report</A><br><br>
+[+ $results_string +]
+
+</body>
+</html>

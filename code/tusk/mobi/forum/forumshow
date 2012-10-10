@@ -1,0 +1,43 @@
+<%once>
+use Forum::ForumKey;
+use Forum::MwfMain;
+use HSDB45::Course;
+</%once>
+
+<%attr>
+no_check_path => 1
+</%attr>
+
+<%method header_text>
+% return 'Discussions';
+</%method>
+
+<%perl>
+
+my ($x, $cfg, $lng, $user) = MwfMain->new($r);
+my $userId = $user->{id};
+my $course_key = '';
+my $categs = $x->fetchAllHash("SELECT id, title FROM $cfg->{dbPrefix}categories ORDER BY pos, categorykey");
+my $boards = Forum::ForumKey::getBoardsHashnoHidden($x, $user, $course_key, $x->paramStr
+('start_date'), $x->paramStr('end_date'));
+
+my $categPrinted=0;
+for my $categ (@$categs) {
+        my $categId = $categ->{id};
+        my $categPrinted = 0;      
+        for my $board (@$boards) {
+                my $boardId = $board->{id};
+                # Skip boards not in current category
+                next if $board->{categoryId} != $categId;
+				if (!$categPrinted) {
+					print "<h4 class='annHdr'>".$categ->{title}."</h4><ul class='gNoBullets courseList'>";
+					$categPrinted=1;	
+				}
+				print "<li><a href='/mobi/forum/boardshow/".$boardId."'>".$board->{title}."</a></li>";				
+		}
+
+if ($categPrinted==1){
+	print "</ul>";}
+}
+
+</%perl>

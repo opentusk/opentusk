@@ -1,0 +1,260 @@
+<%once>
+	use TUSK::Core::LinkContentKeyword;
+	use TUSK::UMLS::UmlsConceptMention;
+	my @rank_options = ();
+
+
+	my $rank_counter = 0;
+
+	push @rank_options, 
+    		map { 'label' => $_,
+			          'value' => $rank_counter++ }, 
+			     ( 'N/A', 'Mentioned', 'Central' );
+</%once>
+<%shared>
+
+	# if we are lucky the content_id is the last id on the path
+	my $content_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $content; 
+
+	# if we are not then this page was called in a content context and the id is in the type path
+	unless ($content_id){
+		my $type_object = $m->comp('/tmpl/url:get_type_object');
+		
+		if ($type_object and $type_object->isa('HSDB4::SQLRow::Content')){
+			$content_id = $type_object->primary_key();
+			$content = $type_object;
+		}
+	}
+
+	$content = HSDB4::SQLRow::Content->new()->lookup_path($r->path_info())
+                    unless ($content);
+	$m->comp('/tmpl/url:redirect',
+            message => 'Sorry the content you tried to access is invalid')
+                        unless ($content and $content->primary_key());
+
+	my $back_url;
+
+	my $ids = $m->comp('/tmpl/url:get_path_ids');
+
+	if ( $m->comp('/tmpl/url:get_type_object')->isa('HSDB4::SQLRow::Content')){
+		shift @$ids;
+	}
+
+	my $extra_path = '';
+
+	if (scalar @$ids){
+		$extra_path = '/' . join '/', @$ids;		
+	}
+
+	if (ref $m->comp('/tmpl/url:get_type_object') eq 'HSDB45::Course'){
+		$back_url = '/management/content/addedit/' . $m->comp('/tmpl/url:get_type_path') . $extra_path . "/" . $content->primary_key() . "?page=edit";
+	}
+	else{
+		$back_url = '/management/content/addedit/' . $m->comp('/tmpl/url:get_type_path') . "?page=edit";
+	}
+</%shared>
+
+<%method jsarray>
+% return ['layers.js'];
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+	my $navBars = $m->comp("/management/tmpl/content:get_nav_bars");
+
+	pop @$navBars;
+
+	push @$navBars, { href => $back_url, label => $content->title() };
+	return $navBars;
+</%perl>
+</%method>
+
+<%method title>
+<%perl>
+	return 'UMLS Concepts';
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	if ($args->{'submit_check'}){
+		$m->comp("SELF:set_msg", msg => "UMLS Concepts for this content have been updated");
+	}
+</%perl>
+</%method>
+
+<%doc>Reminder: Need to display bread crumbs (for both contexts)</%doc>
+
+% if ($suggested_flag) {
+<script>
+	function on_submit(){
+		if (confirm('Any concepts that are marked \"Not Rated\" will be removed from this list.  Are you sure you want to continue?')){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+</script>
+% }
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+              onsubmit => ($suggested_flag) ? 'return on_submit();' : '',
+                  name => 'keywordranking' } &>
+<%perl>
+	my $next_prev_buttons = [];
+
+	my $next = $content->context_next();
+	my $prev = $content->context_prev();
+
+	my $base_url = $ENV{REQUEST_URI};
+	$base_url =~ s/\/\d*$//;
+
+	if ($prev){
+		 push @$next_prev_buttons, $m->scomp("/tmpl/element:button", params => {
+                                                                                label   => 'Prev Content',
+                                                                                name    => 'prev_content',
+                                                                                href    => $base_url . '/' . $prev->primary_key(),
+                                                                        });
+
+	}
+
+	if ($next){
+		 push @$next_prev_buttons, $m->scomp("/tmpl/element:button", params => {
+                                                                                label   => 'Next Content',
+                                                                                name    => 'next_content',
+                                                                                href    => $base_url . '/' . $next->primary_key(),
+                                                                        });
+
+	}
+	$m->comp('/tmpl/element:buttons', array => $next_prev_buttons, align => 'left');
+</%perl>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+		style => 'padding-top:10px',
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<tr><td style="vertical-align:top;width:40%;">
+	<& /tmpl/element:sort_order_box , params =>{
+                no_table => 1,
+                no_add_button => 1,
+                layer_info => {
+                        scrollrows => 15,
+                        layer => 'conceptdiv',
+                        fields => ['concept_id', 'keyword', 'rank'],
+                        name => 'UMLS concepts',
+                        sort => { usage => 'No' },
+                        action => { usage => 'No' },
+                        display => [
+                                        { label => 'UMLS&nbsp;Concepts', field => 'keyword_with_info', align => 'left' },
+                                        { label => 'Relevance', field => 'rank', align => 'center', length => 75, radio_options => \@rank_options }
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $concepts_data,
+                        }
+                } &>
+</td></tr>
+<& /tmpl/element:save_button, params=>{
+					label => 'Save Changes',
+					name  => 'rank_submit',
+					td_class => 'cell-submit-no-padding',
+					one_column => 1,
+					no_cancel_button => 1,
+				buttons	=> [
+						$m->scomp("/tmpl/element:button", params => {
+										label 	=> 'Preview Content', 
+										name 	=> 'preview',
+										onclick	=> "window.open('/view/content/$content_id', 'preview')",
+									}),
+						$m->scomp("/tmpl/element:button", params => {
+										label 	=> 'Find New Concepts', 
+										name 	=> 'UMLSKeywords',
+										onclick	=> "openwindow('conceptdiv')",
+									}),
+						$m->scomp("/tmpl/element:button", params => {
+										label 	=> 'Cancel', 
+										name 	=> 'back_to_content',
+										href	=> $back_url,
+									}),
+				],
+				} &>
+
+</table>
+</form>
+
+<%init>
+	my $concept_links = TUSK::Core::LinkContentKeyword->new()->lookup("parent_content_id = '" . $content->primary_key() . "' and concept_id is not null");
+	
+	if ($ARGS{'submit_check'}){
+		my $concept_links_hash =  { map { $_->getKeywordObject()->getConceptID() => \$_ } @$concept_links };
+
+		my $processed_data = $m->comp('/tmpl/process:process_fields', fields => \%ARGS, filter => '^' . 'conceptdiv');
+
+		foreach my $concept_data (values %$processed_data){
+
+			if (exists($concept_links_hash->{ $concept_data->{'pk'} })){
+				my $concept_link = ${$concept_links_hash->{ $concept_data->{'pk'} }};
+				$concept_link->setAuthorWeight($concept_data->{'fields'}->{'rank'});
+				$concept_link->save({ user => $m->comp('SELF:user') });
+			} else {
+				my $concept_link = TUSK::Core::LinkContentKeyword->new();
+				my $concept = TUSK::Core::Keyword->lookupReturnOne("concept_id = '" . $concept_data->{'pk'} . "'");
+				$concept_link->setAuthorWeight($concept_data->{'fields'}->{'rank'});
+				$concept_link->setChildKeywordID($concept->getPrimaryKeyID());
+				$concept_link->setParentContentID($content->primary_key());
+				$concept_link->pushJoinObject('TUSK::Core::Keyword', $concept);
+				$concept_link->save({ user => $m->comp('SELF:user') });
+				push (@$concept_links, $concept_link);
+			}
+		}
+
+		$content->reset_modified();
+	}
+
+	my $umls_concept_mentions = TUSK::UMLS::UmlsConceptMention->lookup("content_id = '" . $content->getPrimaryKeyID() . "'");
+	my $suggested_flag = 0;
+
+	my $concepts = {};
+	my $concepts_seen_hash = {};
+	foreach my $concept_link (@$concept_links){
+		my $concept = $concept_link->getKeywordObject();
+
+		$concepts_seen_hash->{ $concept->getConceptID() } = 1;
+
+		if ($concept_link->getAuthorWeight()){
+			$concepts->{ $concept->getKeywordNormalized() } = { weight => $concept_link->getAuthorWeight(), object => $concept };
+		}
+	}
+
+	foreach my $umls_concept_mention (@$umls_concept_mentions){
+		my $concept = $umls_concept_mention->getKeywordObject();
+		unless (exists($concepts_seen_hash->{ $concept->getConceptID() })){
+			$concepts->{ $concept->getKeywordNormalized() } = { weight => 0, object => $concept };
+			$suggested_flag = 1;
+		}
+	}
+	
+	my $concepts_data = [];
+	
+	foreach my $concept_key (sort keys %$concepts){
+		push (@$concepts_data, { 
+						concept_id => $concepts->{$concept_key}->{object}->getConceptID(), 
+						keyword => $concept_key, 
+						keyword_with_info => $concept_key . $m->scomp("/search/tmpl/element:display_def_and_syns", concept => $concepts->{$concept_key}->{object}),
+						rank => $concepts->{$concept_key}->{weight} 
+					});
+	}
+
+</%init>

@@ -1,0 +1,220 @@
+[!
+    use Apache::Constants (q/:common/);
+    use HSDB4::Constants;
+    use HSDB45::UserGroup;
+    use HSDB45::Eval;
+!]
+
+[$ sub access_denied $]
+Did you forget to <a href="/">log in</a>, or are you somewhere you shouldn't be?
+[$ endsub $]
+
+[-
+    @months = qw/Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec/;
+    $escmode = 0;
+    $embperldir=$req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+
+    # Import the style sheet
+    Execute ("$embperldir/hsdb4-style.css");
+
+    ($school) = $req_rec->path_info() =~ /^\/([^\/]*)/;
+    ($first_letter) = ($school =~ /(^.)/);
+    $first_letter = uc($first_letter);
+    $school =~ s/^./$first_letter/;
+-]
+
+<html>
+<head>
+<title>[+ $school +] Scoreboard</title>
+</head>
+<body>
+
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/userbox.html")) -]
+
+[$ if !defined(HSDB4::Constants::code_by_school($school)) $]
+[-
+foreach $school (HSDB4::Constants::eval_schools) {
+     my $group = HSDB45::UserGroup->new(_school => $school, _id => HSDB4::Constants::get_eval_admin_group($school)); 
+     push (@eval_admin_groups,$group) if (defined $group && $group->primary_key && $group->contains_user($req_rec->connection()->user()));
+}
+-]
+
+<ul>
+[$ foreach $group (@eval_admin_groups) $]
+<li><a href="/hsdb45/eval/admin/[+ $group->school +]">[+ $group->school +]</a></li>
+[$ endforeach $]
+</ul>
+
+[$ if (!@eval_admin_groups) $]
+	[- access_denied -]
+[$ endif $]
+[- 
+    Execute($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/footer_links.html"));
+    exit();
+-]
+[$ endif $] [# end if defined(code_by_school($school) #]
+
+
+[-
+    my $user_name = $req_rec->connection()->user();
+    my $group_id = HSDB4::Constants::get_eval_admin_group($school);
+    my $user_group = HSDB45::UserGroup->new(_school => $school, _id => $group_id);
+    unless ($user_group->contains_user($user_name)) {
+        access_denied();
+	Execute($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/footer_links.html"));
+	exit;
+    }
+-]
+
+[-
+    my $blank = HSDB45::Eval->new(_school => $school);
+    my @evals = (); #$blank->lookup_all();
+    my $now = HSDB4::DateTime->new();
+    %years = ();
+    %past_months = ();
+    %past_years = ();
+    @future = ();
+    my $order = "ORDER BY due_date DESC";
+    @current = $blank->lookup_conditions('NOW() < due_date', $order);
+    @recently_past = $blank->lookup_conditions('NOW() > due_date AND NOW() - INTERVAL 30 DAY < due_date', $order);
+    @past = ();
+    if ($fdat{past}) {
+	my $year = $fdat{past} eq 'old' ? 0 : $fdat{past};
+	my $sql = qq[YEAR(due_date) = $year];
+	@past = $blank->lookup_conditions($sql, $order);
+    }
+
+    my $db = HSDB4::Constants::get_school_db($school);
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my $sth = $dbh->prepare(qq[SELECT YEAR(due_date) AS ay, COUNT(*) 
+			       FROM $db\.eval GROUP BY ay]);
+    $sth->execute();
+
+    while (my ($ay, $count) = $sth->fetchrow_array()) {
+	$past_years{$ay} = $count;
+    }
+    $sth->finish();
+-]
+
+[$ sub yearline $]
+[- $this_year = shift; 
+   return unless $past_years{$this_year} -]
+<tr>
+<td><b>[+ $this_year +]</b> ([+ $past_years{$this_year} +])</td>
+[$ foreach $i (1..12) $]
+  [$ if ($past_months{"$this_year\-$i"}) $]
+    <td><a href="[- uri_flag ($req_rec->uri, 'past', "$this_year\-$i") -]">[+ $past_months{"$this_year\-$i"} +]</a></td>
+  [$ else $]
+    <td>--</td>
+  [$ endif $]
+[$ endforeach $]
+</tr>
+[$ endsub $]
+
+
+[$ sub scoreboard $]
+<table width="100%" cellspacing="0">
+<tr>
+    <td><b>ID</b></td>
+    <td><b>Title (preview)</b></td>
+    <td><b>Available Date</b></td>
+    <td><b>Due Date</b></td>
+    <td><b>Edit</b></td>
+    <td><b>%Completions</b></td>
+    <td><b>Completions</b></td>
+    <td><b>Report</b></td>
+</tr>
+[- $bg = 0 -]
+[$ foreach $eval (@_) $]
+[$ if $bg $]
+<tr bgcolor="#dddddd">
+[$ else $]
+<tr>
+[$ endif $]
+[- $bg = !$bg -]
+    <td>[+ $eval->field_value('eval_id') +]</td>
+    <td><a href="/protected/eval45/[+ $school +]/[+ $eval->field_value('eval_id') +]">[+ $eval->out_label() +]</a></td>
+    <td>[+ $eval->available_date->out_string_date_short_year() if($eval->available_date()) +]</td>
+    <td>[+ $eval->due_date->out_string_date_short_year() if($eval->due_date()) +]</td>
+    <td><a href="[+ $eval->out_edit_url() +]">Edit</a></td>
+    <td align="center">
+	[- $total_users = $eval->count_users();
+	   $complete_users = $eval->count_complete_users();
+         -]
+        [$ if ($total_users > 0)  $]
+	    [+ sprintf("%.0f", ($complete_users / $total_users)*100) +] %  ([+ $complete_users +]/[+ $total_users +])
+        [$ endif $]
+    </td>
+    <td><a href="/protected/tusk/eval/administrator/completion/show/[+ $school +]/[+ $eval->field_value('eval_id') +]">Completions</a></td>
+    <td><a href="/hsdb45/eval/report/[+ $school +]/[+ $eval->field_value('eval_id') +]">Report</a></td>
+</tr>
+[$ endforeach $]
+</table>
+[$ endsub $]
+
+<h2 class="title">[+ $school +] Scoreboard</h2>
+
+<a href="/hsdb45/eval/merged_admin/[+ $school +]">View Merged Eval Report Scoreboard</a><br/>
+<a href="/hsdb45/eval/overdue_evals/[+ $school +]">View Users with Overdue Evals</a>
+<br/>
+<a href="/protected/tusk/eval/administrator/search/form/[+ $school +]">Search Evals</a>
+
+
+[$ if @past $]
+<p><a href="[- uri_flag($req_rec->uri(), 'past', 0) -]">Current scoreboard</a></p>
+<h3 class="title">Due Date [+ $fdat{past} eq 'old' ? 'Unknown' : "in $fdat{past}" +]</h3>
+[- scoreboard(@past) -]
+[$ else $]
+<h3 class="title">Create Evaluation</h3>
+<form action="/protected/eval_edit/[+ $school +]/" method="get">
+<input type="submit" value="Create a New Evaluation"/>
+</form>
+
+[$ if @future $]
+<h3 class="title">Future Evaluations ([+ scalar(@future) +])</h3>
+[- scoreboard(@future) -]
+<br/>
+[$ endif $]
+
+[$ if @current $]
+<h3 class="title">Current Evaluations ([+ scalar(@current) +])</h3>
+[- scoreboard(@current) -]
+<br/>
+[$ endif $]
+
+[$ if @recently_past $]
+<h3 class="title">Recently Past Evals ([+ scalar(@recently_past) +])</h3>
+[- scoreboard(@recently_past) -]
+<br/>
+[$ endif $]
+[$ endif $]
+
+<h3 class="title">Evals by Year</h3>
+[# <table border="0" cellpadding="2" cellspacing="1">
+<tr><td><b>Year</b></td>
+[$ foreach $mon (@months) $]<td><b>[+ $mon +]</b></td>[$ endforeach $]
+</tr>
+[$ foreach $year (reverse(sort(keys(%past_years)))) $]
+[- yearline($year) -]
+[$ endforeach $]
+</table> #]
+<ul>
+[$ foreach $past_year (reverse(sort(keys(%past_years)))) $]
+[$ if (! $fdat{past} || $fdat{past} != $past_year) $]
+<li><A HREF="[- uri_flag ($req_rec->uri, 'past', $past_year ? $past_year : 'old') -]">[+ $past_year ? $past_year : "Other" +] ([+ $past_years{$past_year} +])</a></li>
+[$ endif $]
+[$ endforeach $]
+</ul>
+
+[$ if @unknown $]
+<h3 class="title">Unknown Evaluations ([+ scalar(@unknown) +])</h3>
+[- scoreboard(@unknown) -]
+[$ endif $]
+
+<hr />
+
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/footer_links.html")) -]
+
+</body>
+</html>

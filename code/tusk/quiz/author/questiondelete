@@ -1,0 +1,113 @@
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Question;
+	use TUSK::Quiz::LinkQuizQuizItem;
+	use TUSK::Quiz::LinkQuestionQuestion;
+</%once>
+
+<%attr>
+	hintmsg => 'Do you want to delete this Question?'
+</%attr>
+
+<%shared>
+	my $path = $m->comp("/tmpl/url:get_path_ids");
+	$m->comp('/tmpl/error', msg => "Invalid parameters passed") if (scalar(@$path) < 2);
+
+	my $quiz = TUSK::Quiz::Quiz->new()->lookupKey($path->[0]);
+	my $question = TUSK::Quiz::Question->new()->lookupKey($path->[-1]);
+
+	my ($id, $type);
+
+	if (scalar(@$path) == 2){
+	        $id = $path->[0];
+		$type = 'Quiz';
+	} else {
+		$id = $path->[-2];
+		$type = 'Section';
+	}
+</%shared>
+
+<%method function_token>
+% return 'edit_quiz';
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'quiz'=>$quiz};
+</%method>
+
+<%method title>
+% return "Delete Quiz";
+</%method>
+
+<%perl>
+	if (!defined($quiz->getPrimaryKeyID())){
+        	$m->comp("/tmpl/error",msg=>"Quiz $id not found");
+	}
+
+	if(!defined($question->getPrimaryKeyID())){
+		$m->comp("/tmpl/error",msg=>"Question $id not found");
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => 'questiondelete',
+                onsubmit => undef } &>
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+<& /tmpl/element:field_display, params=>{'label'=>'Body',
+                'value'=>$question->getBody()}
+                &>
+
+<& /tmpl/element:save_button,params=>{name=>'delete_question',
+                                        label=>'Delete Question',
+                                        cancel_onclick=>"go_back('$backUrl');"} &>
+</table>
+</form>
+
+<%init>
+
+	if (!defined($quiz)){
+        	$m->comp("/tmpl/error",msg=>"Quiz $id not found");
+	}
+
+	if(!defined($question)){
+		$m->comp("/tmpl/error",msg=>"Question not found");
+	}
+
+	my $question_id = $question->getPrimaryKeyID();
+
+	my ($questionLink, $baseUrl);
+	
+	if ($type eq 'Quiz'){
+		$questionLink = shift @{TUSK::Quiz::LinkQuizQuizItem->new()->lookupByRelation($id, $question_id)};
+		$baseUrl = '/quiz/author/addedit';
+	} else {
+		$questionLink = shift @{TUSK::Quiz::LinkQuestionQuestion->new()->lookupByRelation($id, $question_id)};
+		$baseUrl = '/quiz/author/questionaddedit';
+	}
+	
+	my $backUrl = $m->comp("/tmpl/url:construct_back_url", base_url => $baseUrl);
+
+	if (!defined($questionLink) || !defined($question)){
+		$m->comp('/tmpl/error',msg=>"Can't find rows to delete");
+	}
+
+	if (defined($ARGS{'delete_question'})){
+		$questionLink->delete();
+
+		# only delete question if it is not used anywhere else
+		my $links = TUSK::Quiz::LinkQuizQuizItem->new()->lookup("quiz_item_id = $question_id");
+		unless (scalar(@$links)){
+			my $links = TUSK::Quiz::LinkQuestionQuestion->new()->lookup("child_question_id = $question_id");
+			unless (scalar(@$links)){
+		       		$question->delete();
+			}
+		}
+
+	        $m->redirect($backUrl . '?msg=Question+Successfully+Deleted');
+	}
+</%init>
+

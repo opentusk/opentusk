@@ -1,0 +1,97 @@
+<%attr>
+no_check_path => 1
+</%attr>
+
+<%method header_text>
+% return 'Announcements';
+</%method>
+
+<%shared>
+my $sort = $m->comp('/tmpl/url:get_param', p => 'sort') || 'date';
+</%shared>
+
+
+<& .printAnnouncements, sort => $sort &>
+
+
+
+<%method get_topnav_lnks>
+<%perl>
+my $url = $m->comp('/tmpl/url:get_full_path');
+
+my $date_lnk =   ($sort eq 'date')?     undef : "$url?sort=date";
+my $course_lnk = ($sort eq 'course')?   undef : "$url?sort=course";
+
+my $lnks;
+push @$lnks, { lnk => $date_lnk, label => 'date posted'};
+push @$lnks, { lnk => $course_lnk, label => 'course'};
+
+return ($lnks, 'sort by: ');
+</%perl>
+</%method>
+
+
+<%def .printAnnouncements>
+<%args>
+$sort
+</%args>
+<%perl>
+my $announcement_ref;
+
+if($sort eq 'date'){
+	$announcement_ref = $m->session->{'user'}->get_announcements_by_start();
+}
+else{
+	$announcement_ref = $m->session->{'user'}->get_announcements_by_group_and_course();
+}
+
+if(scalar(@{$announcement_ref})) {
+	my ($curr_id, $last_id, $txt);
+	foreach my $announcement (@{$announcement_ref}) {
+		my $obj = $announcement->{item};
+		my $label;
+		if($sort eq 'date'){
+			$curr_id = $obj->out_start_date_md;
+			if($curr_id ne $last_id){
+				$label = $curr_id;
+				# array is sorted with all ug announcements first, so if 1st
+				# member is user_group type, too, make header plural
+				$last_id = $curr_id;
+			}
+			$txt   = $obj->field_value('body');
+			if($announcement->{type} eq 'user_group'){
+				my $ug = HSDB45::UserGroup->new(_school => $announcement->{school})->lookup_key($announcement->{id});
+				$txt = $ug->label() . ' - ' . $txt
+			}
+			else{
+				$txt = $announcement->{course}->out_abbrev() . ' - ' . $txt
+			}
+		}
+		elsif($announcement->{type} eq 'user_group') {
+			$curr_id = 'ug';
+			if($curr_id ne $last_id){
+				$label = 'Group Announcement';
+				# array is sorted with all ug announcements first, so if 1st
+				# member is user_group type, too, make header plural
+				$label .= 's' if($announcement_ref->[1]->{type} eq 'user_group');
+				$last_id = $curr_id;
+			}
+			$txt   = $obj->out_post_date . ' - ' . $obj->field_value('body');
+		}
+		elsif($announcement->{type} eq 'course') {
+			$curr_id = 'c' . $announcement->{course}->primary_key();
+			if($curr_id ne $last_id){
+				$label = $announcement->{course}->out_abbrev();
+				$last_id = $curr_id;
+			}
+			$txt   = $obj->out_post_date . ' - ' . $obj->field_value('body');
+		} 
+		if(defined $label){
+			print "<h4 class=\"annHdr\">$label</h4>\n";
+		}
+		print "<p class=\"ann\">$txt</p>\n";
+	}
+}
+</%perl>
+</%def>
+

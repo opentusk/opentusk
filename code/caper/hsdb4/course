@@ -1,0 +1,57 @@
+<HTML>
+<HEAD>
+[! use HSDB4::SQLRow::Course; 
+   use Apache::URI;
+!]
+[# Figure out what document we are #]
+[-
+    $course = HSDB4::SQLRow::Course->new();
+    ($path) = $req_rec->path_info =~ /^\/?(\d+)/;
+    $course->lookup_key ($path);
+
+    $escmode = 0;
+    $embperldir=$req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+
+    # Import the style sheet
+    Execute ("$embperldir/caper-style.css")
+-]
+
+[# Make the title #]
+<TITLE>TUSK Course: [+ $course->field_value('title') +]</TITLE>
+
+</HEAD>
+<BODY TOPMARGIN="10" LEFTMARGIN="10" RIGHTMARGIN="24">
+
+[# Anchor for the top #]
+<A NAME="_top"></A>
+
+[# Put in the user box #]
+[- Execute ($req_rec->server_root_relative("$ENV{EMBPERL_LIB}/caper_userbox.html")) -]
+
+[# Make the title #]
+<H2 class="title">[+ $course->field_value('title') +]</H2>
+
+[# Display the faculty list #]
+[- @faculty = $course->child_users -]
+[$ if @faculty $]
+<H3 CLASS="title">Faculty</H3>
+<UL>
+<DIV CLASS="docinfo"><LI>[+ $faculty[$row]->out_html_full_name +]</DIV>
+</UL>
+[$ endif $]
+
+[# Display the document list #]
+[- @content = $course->child_content; -]
+[$ if (@content > 0) $]
+<H3 CLASS="title">Course Contents</H3>
+<TABLE CLASS="wide">
+[# This should be done from the object #]
+<TR><TH ALIGN=LEFT>Type</TH><TH COLSPAN=2 ALIGN=LEFT>Document</TH><TH ALIGN=LEFT>Authors</TH></TR>
+[$ foreach $doc @content $]
+[+ $doc->out_html_row +]
+[$ endforeach $]
+</TABLE>
+[$ endif $]
+</BODY>
+</HTML>

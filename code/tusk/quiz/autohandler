@@ -1,0 +1,53 @@
+<%once>
+    use TUSK::Quiz::Quiz;
+</%once>
+
+
+<%method jsarray>
+%   return ['quiz.js'];
+</%method>
+
+<%method check_quiz_permission>
+<%args>
+	$quiz_id
+	$user_id
+	$auto_finish => 0
+</%args>
+
+<%perl>
+	my $typeObj = $m->comp("/tmpl/url:get_type_object");
+	my $quiz;
+
+	if (ref($typeObj) eq "HSDB45::Course"){
+		my $quizzes = TUSK::Quiz::LinkCourseQuiz->new->getQuizzes($typeObj->school, $typeObj->primary_key, "quiz_id = " . TUSK::Core::SQLRow::sql_escape($quiz_id) );
+		$quiz = @$quizzes[0];
+
+		my $url = '/view/' . $m->comp("/tmpl/url:get_type_path") . '/quizzes';
+
+		unless ($quiz) {
+			$m->comp("/tmpl/url:redirect",message => "Invalid Quiz",destination => $url) 
+		}
+
+		if ($quiz->isOverDue()) {
+			$m->comp("/tmpl/url:redirect",message => "Quiz has expired",destination => $url);
+		}
+
+		if ($quiz->isOverTimeLimit($user_id) && !($auto_finish)) {
+			$m->comp("/tmpl/url:redirect",message => "Quiz time has expired!",destination => $url);
+		}
+
+		if ($quiz->getQuizType eq 'Quiz'){
+			my $tp_id = $quiz->getTimePeriodID();
+			if (!$tp_id || !$typeObj->is_user_registered($user_id, $tp_id)) {
+				$m->comp("/tmpl/url:redirect",message => "Invalid Quiz Permissions",destination => $url);
+			}
+		}
+	}
+
+	return $quiz;
+</%perl>
+</%method>
+
+<% $m->call_next %>
+
+    

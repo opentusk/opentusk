@@ -1,0 +1,93 @@
+<%once>
+use TUSK::Core::School;
+use TUSK::Core::GroupEntity;
+use TUSK::Core::Offering;
+use TUSK::Core::Section;
+</%once>
+% my ($blank,$course_id,$offering_id,$section_id) = split("/",$r->path_info());
+% if ($section_id) {
+% my $section = TUSK::Core::Section->new;
+% $section->lookupKey($section_id);
+% my $offering = $section->getOffering;
+% my $group_entity = $offering->getGroupEntity;
+% my $time_period = $offering->getTimePeriodObject;
+% my $school = $group_entity->getSchool;
+<h2>Section</h2>
+<h3>
+<a href="/course"><% $school->getSchoolDisplay %></a> 
+: <a href="/course/<% $group_entity->getPrimaryKeyID %>"><% $group_entity->getLabel %></a>
+: <a href="/course/<% $group_entity->getPrimaryKeyID %>/<% $offering->getPrimaryKeyID%>"><% $time_period->getLabel %></a>
+: Section <% $section->getPrimaryKeyID %> (<% $section->getLabel %>)</h3>
+<table width="100%">
+<tr>
+<td valign="top">
+<h4>Linked Users</h4>
+% foreach my $link_user (@{$section->getUsersWithRole}) {
+<% $link_user->getUserObject()->getNetID() %> (<% $link_user->getRoleObject()->getLabel() %>)<br/>
+% }
+</td>
+<td>
+&nbsp;&nbsp;
+</td>
+<td valign="top">
+<h4>Section Meetings</h4>
+% foreach my $meeting (@{$section->getSectionMeetings}) {
+<% $meeting->getPrimaryKeyID %>: <% $meeting->getMeetingDate %> <% $meeting->getStarttime %> <% $meeting->getEndtime %></br>
+% }
+</td>
+</tr>
+</table>
+% } elsif ($offering_id) {
+% my $offering = TUSK::Core::Offering->new;
+% $offering->lookupKey($offering_id);
+% my $group_entity = $offering->getGroupEntity;
+% my $time_period = $offering->getTimePeriodObject;
+% my $school = $group_entity->getSchool;
+<h2>Offering</h2>
+<h3>
+<a href="/course"><% $school->getSchoolDisplay %></a> 
+: <a href="/course/<% $group_entity->getPrimaryKeyID %>"><% $group_entity->getLabel %></a>
+: <% $time_period->getLabel %>
+</h3>
+<h4>Sections</h4>
+% foreach my $section (@{$offering->getSections}) {
+<% $section->getPrimaryKeyID %>: <a href="/course/<% $group_entity->getPrimaryKeyID %>/<% $offering->getPrimaryKeyID %>/<% $section->getPrimaryKeyID %>"><% $section->getLabel %></a><br/>
+% }
+<h4>Linked Users</h4>
+% foreach my $user_link (@{$offering->getUsersWithRole}) {
+<% $user_link->getUserObject()->getNetID() %> (<% $user_link->getRoleObject()->getLabel() %>)<br/>
+% }
+% } elsif ($course_id) {
+
+% my $course = TUSK::Core::GroupEntity->new;
+% $course->lookupKey($course_id);
+% my $school = $course->getSchool;
+<h2>Course</h2>
+<h3>
+<a href="/course"><% $school->getSchoolDisplay %></a> 
+: <% $course->getLabel %>
+</h3>
+<h4>Offerings</h4>
+% my $offering_ref = $course->getAllOfferings;
+% foreach my $offering (@$offering_ref) {
+%   my $time_period = $offering->getTimePeriodObject();
+
+    <% $offering->getPrimaryKeyID %>: <a href="/course/<% $course->getPrimaryKeyID %>/<% $offering->getPrimaryKeyID %>"><% $time_period->getLabel %></a> (<% $time_period->getStartDate %> - <% $time_period->getEndDate %>)<br/>
+
+% }
+% } else {
+
+% my $schools = TUSK::Core::School->new->lookup;
+% foreach my $school (@$schools) {
+
+    <h3><% $school->getSchoolDisplay %></h3>
+	<h4>Courses</h4>
+%   my $group_entity = TUSK::Core::GroupEntity->new;
+%   my $courses =$group_entity->lookup("group_entity.group_entity_type_id=1 and group_entity.school_id = ".$school->getPrimaryKeyID);
+%   foreach my $course (@$courses) {
+%	my $course_id = $course->getPrimaryKeyID;
+        <% $course->getLabel %> (<% $course_id %>)
+        (<a href="/course/<% $course_id %>">offerings</a>)<br>
+%   }
+% }
+% }

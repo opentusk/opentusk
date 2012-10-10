@@ -1,0 +1,203 @@
+<%args>
+	$preview => 0
+</%args>
+
+<%attr>
+	no_check_path => 1
+	no_header => 1
+</%attr>
+
+<%once>
+	use TUSK::Case::Case;
+	use TUSK::Constants;
+	use HSDB4::SQLRow::User;
+</%once>
+
+<%shared>
+	my ($case_id, $case_report_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $case = TUSK::Case::Case->lookupKey($case_id);
+	my $report = TUSK::Case::CaseReport->lookupKey($case_report_id);
+</%shared>
+
+
+
+% $m->comp('SELF:printcase', report => $report, case => $case, preview => $preview);
+
+
+
+<%def showChart>
+<%args>
+	$chartStruct  
+</%args>
+% foreach my $item (@{$chartStruct}){
+<tr>
+	<td valign="top" class="header2" style="padding-top:10px">
+		<b><% $item->{'name'} %>:</b>
+	</td>
+	<td valign="top" style="padding-top:10px">
+		<% $item->{'text'} %>
+	</td>
+</tr>
+% } 
+</%def>
+
+<%method leftnav>
+% return undef;
+</%method>
+
+<%method stylearray>
+%return ['/style/style.css', '/style/caseSimulator.css', { 'file' => '/style/casePrintView.css', 'media' => 'print'}];
+</%method>
+
+<%method title>
+% return $case->getCaseTitle();
+</%method>
+
+<%method printcase>
+<%args>
+	$report
+	$case
+	$preview => 0
+</%args>
+<%perl>
+	if (!defined($report)){
+		$m->comp('/tmpl/error',msg=>'Invalid Case Report ID passed');
+	}
+	
+	$case->setReport($report);
+	
+	my $user_id = $m->comp('SELF:user');
+	$m->comp('/tmpl/element:set_default_colspan', new_colspan => 2);
+	
+	my $phases = $case->availablePhases();
+	my $chart_struct = $m->comp('tmpl/process:getChartInfo',case=>$case,phases=>$phases);
+	my $notes = $report->getNotes();
+	$notes =~ s/\n/<br>\n/g;
+
+	my $reference_text =  $m->comp('/case/tmpl/leftnav/element:get_references_panel_text', case => $case, phase => $phases);
+
+	my $user = HSDB4::SQLRow::User->new()->lookup_key($user_id);
+	my $tests = $case->getTestsWithCosts($user);
+	my ($total_cost, %cost_by_cat);
+	foreach my $t (@$tests){
+		$total_cost += $t->getDefaultCost();
+		$cost_by_cat{$t->getBatteryObj()->getBatteryTitle()} += $t->getDefaultCost();
+	}	
+
+	my $quiz_results = $report->getQuizResults();
+</%perl>
+
+
+
+% if($preview){
+<div id="printView">
+% } 
+% else {
+<div id="screenView">
+% }
+
+<& /tmpl/element:table, params => { style => 'padding:5px' } &>
+% if($preview){
+<tr><td colspan="2">
+<form id="pvPrintButton">
+<input type="button" value="Print" onclick="window.print();"/>
+</form>
+</td></tr>
+% }
+
+<& tmpl/element:field_display, params=>{
+		label		=> 'Case:',
+		value		=> $case->getCaseTitle(),
+		width		=> '175'
+		} &>
+<& tmpl/element:field_display, params => {
+		label 		=> 'Case Completed:',
+		nowrap 		=> 1,
+		value		=> $report->getEndDate(),
+		} &>
+% if($case->getGradeEventID()){
+<& tmpl/element:field_display, params=>{
+		label		=> 'Grade Recorded:',
+		value		=> $case->getGradeDate($user_id, $case->getGradeEventID()),
+		} &>
+% }
+</table>
+
+<div id="caseSummaries">
+<ul id="csTabNav" class="clearfix">
+<li id="chart" class="activeTab"><a href="javascript:;" onclick="activateTab(this);">Patient Chart</a></li>
+% # we don't want to display pathway data for any case started before 3.6.1 was released. 
+% if ($report->hasPathway()) {
+<li id="pathway"><a href="javascript:;" onclick="activateTab(this);">Pathway Summary</a></li>
+% }
+% if ($case->getBillingTotal() && $total_cost) {
+<li id="cost"><a href="javascript:;" onclick="activateTab(this);">Cost</a></li>
+% }
+% if ($notes) {
+<li id="notepad"><a href="javascript:;" onclick="activateTab(this);">Notepad</a></li>
+% }
+% if ($reference_text){
+<li id="references"><a href="javascript:;" onclick="activateTab(this);">References</a></li>
+% }
+</ul>
+
+
+<div id="chartArea" class="tabArea activeArea">
+<& /tmpl/element:table &>
+<tr><td colspan="2" class="summary"><h4>Patient Chart</h4></td></tr>
+<& showChart, chartStruct => $chart_struct &>
+</table> 
+</div> <!-- chartArea -->
+
+% if ($report->hasPathway()) {
+<div id="pathwayArea" class="tabArea">
+<& /tmpl/element:table &>
+<tr><td class="summary"><h4>Pathway Summary</h4></td></tr>
+</table> 
+% $m->comp('path_summary', case => $case, report => $report);
+</div> <!-- pathwayArea -->
+% }
+
+% if ($case->getBillingTotal() && $total_cost) {
+<div id="costArea" class="tabArea">
+<& /tmpl/element:table &>
+<tr><td colspan="2" class="summary"><h4>Cost Summary</h4></td></tr>
+%	foreach my $cat (keys %cost_by_cat){
+<tr>
+<td><% $cat %></td>
+<td><div style="width:10%; text-align:right;"><% sprintf("%.2f", $cost_by_cat{$cat}) %></div></td>
+</tr>
+%	}
+<tr>
+<td class="text2"><strong>Total:</strong></td>
+<td class="text2"><div style="width:10%; text-align:right;"><strong><% sprintf("%.2f", $total_cost) %></strong></div></td>
+</tr>
+</table>
+</div> <!-- costArea -->
+% }
+
+% if ($notes) {
+<div id="notepadArea" class="tabArea">
+<& /tmpl/element:table &>
+<tr><td colspan="2" class="summary"><h4>My Notepad</h4></td></tr>
+<tr><td colspan="2" class="text2"><% $notes %></td></tr>
+</table>
+</div> <!-- notepadArea -->
+% }
+
+
+% if ($reference_text){
+<div id="referencesArea" class="tabArea">
+<& /tmpl/element:table &>
+<tr><td colspan="2" class="summary"><h4>References</h4></td></tr>
+<tr><td colspan="2" class="text2"><% $reference_text %></td></tr>
+</table>
+</div> <!-- referencesArea -->
+% }
+
+</div> <!-- caseSummaries -->
+
+% if($preview){
+</div> <!-- printView -->
+% } 
+</%method>

@@ -1,0 +1,128 @@
+[!
+	use HSDB4::DateTime;
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use Forum::Board;
+!]
+[-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+
+	$req->{pagetype}="timeperiod";
+	$req->{pagetitle}="Add/Edit Time Periods";
+	unless ($fdat{page}){ $fdat{page}="add"; }
+
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	Execute ({inputfile=>$req->{include_dir}."/element",import => 1});
+
+	if ($fdat{action}){
+		my $startDate = HSDB4::DateTime->new();
+		$startDate->in_mysql_date($fdat{tp_start_date});
+		if($startDate->is_null()) {$fdat{errmsg}.= "The entered start date $fdat{tp_start_date} is not a valid date.<br>\n";}
+
+		my $endDate = HSDB4::DateTime->new();
+		$endDate->in_mysql_date($fdat{tp_end_date});
+		if($endDate->is_null()) {$fdat{errmsg}.= "The entered end date $fdat{tp_end_date} is not a valid date.<br>\n";}
+
+		unless($fdat{errmsg}) {
+			if ($fdat{action} eq "add"){
+				$req->{timeperiod}=HSDB45::TimePeriod->new(_school => $req->{school});
+				$fdat{page}="edit";
+				$fdat{msg}="Time Period added successfully.";
+			}
+
+			$req->{timeperiod}->set_field_values( start_date => $fdat{tp_start_date},
+				    	end_date => $fdat{tp_end_date},
+				    	period => $fdat{tp_label},
+				    	academic_year => $fdat{tp_year}
+				    );
+			$res = $req->{timeperiod}->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+		    	$school = TUSK::Core::School->new->lookupReturnOne("school_name = lcase('" . $req->{school} . "')");
+			$schoolId = $school->getPrimaryKeyID();
+			$sql = "update mwforum.boards set start_date = '" . $fdat{tp_start_date} . "', end_date = '" . $fdat{tp_end_date} . "' where boardkey like '" . $schoolId . "-%-" . $req->{timeperiod}->primary_key() . "-%'";
+
+			$dbh = HSDB4::Constants::def_db_handle();
+			$sth = $dbh->prepare($sql);
+			$sth->execute();
+
+			if ($res){
+				if ($fdat{action} eq "add"){
+					$req->{selfpath}="school/".$req->{school}."/".$req->{timeperiod}->primary_key;
+				}else{
+					$fdat{msg}="Time Period updated successfully.";
+				}
+			}
+			$http_headers_out{'Location'}="/manage/timeperiods/show/school/".$req->{school}."/?msg=".$fdat{msg} if ($fdat{msg});
+		}
+	}
+	
+	if ($fdat{page} eq "add"){
+		$req->{image} = "CreateNewTimePeriod";
+	}else{
+		$req->{image} = "ModifyTimePeriod";
+	}
+
+        manage_header($req);	
+	
+	if ($req->{timeperiod}){
+		$academic_year = $req->{timeperiod}->field_value('academic_year');
+	}else{
+		$academic_year = (localtime)[5] + 1900;
+	}
+-]
+<style type="text/css">@import url(/style/calendar-blue.css);</style>
+<script language="Javascript" src="/scripts/calendar.js"></script>
+<script language="Javascript" src="/scripts/calendar-en.js"></script>
+<script language="Javascript" src="/scripts/calendar-setup.js"></script>
+<form action="/manage/timeperiods/addedit/[+ $req->{selfpath} +]" method="post" name="timeperiod" onsubmit="return checkform(this);" class="no-padding">
+                    <table width="100%" border="0" cellspacing="0">
+			<tr>
+                        <td class="labelgray">Label:</td>
+                        <td class="cell-left"><input name="tp_label" type="text" class="textareawhite" size="60" value="[$ if ($req->{timeperiod}) $][+ $req->{timeperiod}->field_value('period') +][$ endif $]"></td>
+                      </tr>
+                      <tr> 
+                        <td class="labelgray">Academic Year:</td>
+                        <td class="cell-left"><input type="text" name="tp_year" class="textareawhite" size="9" maxlength="9" value="[+ $academic_year +]"></td>
+                      </tr>
+[-
+$start_value = 'YYYY-MM-DD';
+$start_value = $req->{timeperiod}->field_value('start_date') if $req->{timeperiod};
+$start_params =  [
+             { 	label => 'Start Date',
+				name =>  'tp_start_date',
+				size =>  '12',
+				maxlength =>  '10',
+				value => $start_value,
+				calendar => 1,
+             } ];
+
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'textbox', 
+          param     => $start_params
+         }); 
+
+$end_value = 'YYYY-MM-DD';
+$end_value = $req->{timeperiod}->field_value('end_date') if $req->{timeperiod};
+$end_params =  [
+             { 	label => 'End Date',
+				name =>  'tp_end_date',
+				size =>  '12',
+				maxlength =>  '10',
+				value => $end_value,
+				calendar => 1,
+             } ];
+
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'textbox', 
+          param     => $end_params
+		});
+-]
+                      <tr> 
+                        <td>&nbsp;</td>
+                        <td class="cell-submit">
+                          <input name="Submit" type="submit" class="formbutton" value="Save and Continue"><input type="hidden" name="action" value="[+$fdat{page}+]"></td>
+                      </tr>
+                    </table>
+                  </form>
+[- manage_footer(); -]

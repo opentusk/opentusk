@@ -1,0 +1,25 @@
+[! use HSDB4::SQLRow::EvalQuestion !]
+[$ var $question $body $label $text $default $form_name $count $choice $ch $]
+[- $question = $param[0];
+   $body = $question->body;
+   $label = $question->label;
+   ($text) = map { $_->value } $body->tag_values ('question_text');
+   $default = shift or
+       ($default) = map { $_->value } $body->tag_values ('default_answer');
+   $form_name = "eval_q_" . $question->primary_key;
+   $count = 1;
+-]
+<div><p><b>[+ $question->is_required ? '(*) ' : '' +][+ $label +]: </b> [+ $text +]</p>
+<div>
+[$ foreach $choice ($body->tag_values ('question_choice')) $]
+[$ if ($count % 7 == 0) $]
+</div>
+<div>
+[$ endif $]
+[- $count++;
+   ($label) = map { $_->value } $choice->get_attribute_values ('choice_label');
+   $ch = $label eq $default ? ' checked' : '';
+-]
+<input type="radio"[+ $ch +] name="[+ $form_name +]" value="[+ $label +]">[+ $choice->value +]
+[$ endforeach $]
+</div></div>

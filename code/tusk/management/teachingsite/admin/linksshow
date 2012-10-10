@@ -1,0 +1,40 @@
+<%method title>
+% return "Manage Site Links";
+</%method>
+
+<%shared>
+	my $teaching_site_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $school = $m->comp("/tmpl/url:get_school");
+
+	my $teaching_site = $m->comp("SELF:get_teaching_site_object", teaching_site_id => $teaching_site_id);
+
+	my @courses = $teaching_site->parent_courses("order by parent.title");
+	my $rows = [];
+	foreach my $course (@courses){
+		push (@$rows, {'title' => $course->title(), 'id' => $course->course_id(), 'max_students' => $course->aux_info('max_students')});
+	}
+</%shared>
+
+<& /tmpl/element:cms_button_row, 
+	links => [ 
+	          {display_txt => 'New Link',
+	           link_txt    => '/management/teachingsite/admin/linksaddedit/' . $m->comp("/tmpl/url:get_type_path") . "/" . $teaching_site_id,}
+	         ]
+&>
+
+
+<& /tmpl/element:object_selection_box, params => {
+                                sort_box => 0,
+                                columns => [ {'label' => 'Course Name', 'field' => 'title'},
+                                             {'label' => 'Course ID', 'field' => 'id'},
+					     {'label' => 'Max Students', 'field' => "max_students" }
+                                        ],
+                                action_columns => [
+                                                        { 'label' => 'Modify','link' => '/management/teachingsite/admin/linksaddedit' },
+                                                        { 'label' => 'Delete Link','link' => '/management/teachingsite/admin/linksdelete' }
+                                                ],
+                                rows => $rows,
+                                type_path => $m->comp("/tmpl/url:get_type_path") . '/' . $teaching_site_id,
+                                name => "courses",
+                                }
+&>

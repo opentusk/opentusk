@@ -1,0 +1,195 @@
+<%once>
+	use TUSK::Constants;
+	use HSDB45::UserGroup;
+	use TUSK::Case::Case;
+	use TUSK::Functions;
+</%once>
+
+<%args>
+$show_in_td => 1
+</%args>
+
+<div id="gLeftNav" class="<% $show_in_td? 'gTableNav' : '' %>">
+
+<%perl>
+if(HSDB4::Constants::is_guest($m->session->{'user'})) {
+	$m->comp("SELF:printLoginForm");
+}
+else {
+	$m->comp("SELF:printAnnouncements");
+	$m->comp("SELF:printEval");
+	$m->comp("SELF:printPatientLogs");
+	$m->comp("SELF:printSimulatedPatients");
+	$m->comp("SELF:printGrades");
+	unless($m->session->{'user'}->isGhost()) {$m->comp("SELF:printQuizzes");}
+	$m->comp("SELF:printCases");
+	$m->comp("SELF:printPersonalFolders");
+	$m->comp("SELF:printFlashCards");
+}
+</%perl>
+
+
+</div> <!-- end gLeftNav -->
+
+
+
+<%method printLoginForm>
+
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Login'} &>
+<form action="https://<% $TUSK::Constants::Domain %>/login" method="post" class="loginForm">
+<strong>Username:</strong><br/>
+<input class="textareawhite" name="user" type="text"><br/>
+<strong>Password:</strong><br/>
+<input class="textareawhite" name="password" type="password">
+<input class="formbutton" name="Login" type="submit" value="Login">
+</form>
+
+</%method>
+
+
+<%method printAnnouncements>
+%	my ($announcement_ref, $user_groups) = $m->session->{'user'}->get_annoucments_with_user_groups();
+%	if(scalar(@{$announcement_ref})) {
+<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Announcements'} &>
+<ul class="gArrow">
+%		my $iter = 0;
+%		foreach my $announcement (@{$announcement_ref}) {
+%			my $lnk_txt = TUSK::Functions::truncateTextWithoutTags($announcement->{item}->field_value("body"));
+%			my $ann = $announcement->{item}->field_value("body");
+%			my ($grouping, $grouping_lnk);
+%			if($announcement->{type} eq 'course') {
+%				$grouping = $announcement->{course};
+%				$grouping_lnk = '/hsdb45/course/' . $grouping->school() . '/' .  $grouping->course_id;
+
+%				my $course_title = $grouping->out_abbrev();
+%				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">$course_title Home</a>";
+%				$ann .= " | <a href=\"$grouping_lnk/ann\" onclick=\"clickFullText(event); return true;\">Course Announcements</a>";
+%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">Close [X]</a></div>';
+%			} elsif($announcement->{type} eq 'user_group') {
+%				$grouping = $announcement->{school};
+%				$grouping_lnk = "/view/usergroup/$grouping/" . $announcement->{id};
+
+%				my $ug = HSDB45::UserGroup->new(_school => $grouping)->lookup_key($announcement->{id});
+%				my $group_title = $ug->label();
+%				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">$group_title</a>";
+%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">Close [X]</a></div>';
+%			}
+  <li>
+    <ul>
+      <li class="annSummary"><a class="winPartner_<% $iter++ %>" href="<% $grouping_lnk %>/ann" onmouseover="showFullText(event);" onmouseout="mouseoffFullText(event);"><% $lnk_txt %></a></li>
+      <li class="fullTxt"><% $ann %></li>
+    </ul>
+  </li>
+%		}
+</ul>
+%	} 
+</%method>
+
+
+<%method printEval>
+<%perl>
+my @evals = $m->session->{user}->current_evals;
+if (scalar @evals){
+	$m->comp('/tmpl/element:header_bar', params=>{'color' => 'gray', 'hdr_txt'=>'Evaluations'});
+	$m->print('<ul class="gArrow">');
+	foreach my $eval (@evals) {
+		my $ddate = ($eval->prelim_due_date) ? $eval->prelim_due_date->out_string_date_short_short : $eval->due_date->out_string_date_short_short;
+		my $label = $eval->out_html_label . " (due $ddate)<br/>";
+		$m->print("<li>$label</li>");
+	}
+</%perl>
+</ul>
+<br/>
+<a href="/hsdb45/eval/history"><strong>View History</strong></a>
+% }
+
+</%method>
+
+
+<%method printPatientLogs>
+%	my $patientlogs = $m->session->{user}->get_patient_logs();
+%	my $directorpatientlogs = $m->session->{user}->get_director_patient_logs();
+%	if(scalar(@$patientlogs) || (defined($directorpatientlogs) && scalar(@$directorpatientlogs))) {
+		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Patient Logs'} &>
+%		if(scalar(@{$patientlogs})) {
+<a href="/protected/patientlog/student/home">View Patient Logs</a>
+%		}
+%		if(defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
+<ul class="gArrow">
+%			foreach my $logrow (@$directorpatientlogs) {
+%				my $label = '<li><a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $logrow->{form_name} . '</a></li>';
+%				$m->print($label);
+%			}
+</ul>
+%		}
+%	}
+</%method>
+
+
+<%method printSimulatedPatients>
+%	my $instructor_sps = $m->session->{user}->get_instructor_simulated_patients();
+%	if (scalar @{$instructor_sps}) {
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Simulated Patients'} &>
+% # <a href="/protected/sp/actor/home/school/<% $instructor_sps->[0]{school_name}%>">View Simulated Patient</a>
+<a href="/protected/sp/actor/home">View Simulated Patient</a>
+%	}
+</%method>
+
+
+<%method printGrades>
+% my $grades = $m->session->{user}->has_grades();
+% if($grades) {
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Grades'} &>
+<a href="/protected/gradebook/showgrades">View Grades</a>
+%	}
+</%method>
+
+<%method printQuizzes>
+%	my $quizzes = $m->session->{user}->current_quizzes;
+%	if(defined($quizzes) && scalar(@$quizzes)) {
+		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Quizzes'} &>
+<ul class="gArrow">
+%		foreach my $quiz (@$quizzes) {
+%			my $title = $quiz->{title};
+%			if($quiz->{preview}) {$title .= "&nbsp;(Preview)";}
+%			my $link = "/protected/quiz/";
+%			$link .= ($quiz->{preview})? 'author/quizpreview' : 'quizstart';
+%			$link .= "/course/" .  $quiz->{school} . "/" . $quiz->{course_id} . "/" .  $quiz->{quiz_id};
+%			my $xtra_txt = '';
+%			if($quiz->{start_date}) {$xtra_txt .= 'style="color:red" ';}
+%			if($quiz->{preview})    {$xtra_txt .= 'target="preview"';}
+<li><a href="<% $link %>" <% $xtra_txt %>><% $title %></a></li>
+%		}
+</ul>
+%	}
+</%method>
+
+
+
+<%method printCases>
+%	my $cases = TUSK::Case::Case->getAvailableUserCases($m->session->{user});
+%	if(defined($cases) && scalar(@$cases)) {
+		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Cases'} &>
+<ul class="gArrow">
+%		foreach my $case (@$cases) {
+%			my $link = "/protected/case/casestart/" . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID();
+<li><a href="<% $link %>"><% $case->getCaseTitle() %></a></li>
+%		}
+</ul>
+%	}
+</%method>
+
+
+<%method printPersonalFolders>
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Personal Folders'} &>
+<a href="/management/content/personalcontent">View Personal Folders</a>
+</%method>
+
+
+<%method printFlashCards>
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Flash Cards'} &>
+<a href="/management/flashcard/flashcard">View Flash Cards</a>
+</%method>
+
+
+

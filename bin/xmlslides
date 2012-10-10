@@ -1,0 +1,408 @@
+#!/usr/bin/perl -w
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+
+# all of the wonderful includes (so many)
+use strict;
+use MySQL::Password;
+use XML::Twig;
+use HSDB4::Image;
+use Image::Magick;
+use HSDB4::Constants;
+use HSDB4::SQLRow::Content;
+use HSDB4::SQLRow::PPTUpload;
+use HSDB4::DateTime;
+use HSDB45::Course;
+use IO::File;
+use Getopt::Long;
+use XML::EscapeText qw(:escape);
+use TUSK::Constants;
+HSDB4::Constants::set_user_pw (get_user_pw);
+use TUSK::UploadContent;
+
+use TUSK::Core::ServerConfig;
+if (!defined($ENV{DATABASE_ADDRESS})){
+        $ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost;
+}
+die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
+
+
+my ($user_name, $user_pass) = get_user_pw ();
+
+my $zipfile=""; # name of zip file
+my $verbose=""; # set to 1 then info is printed to the screen
+my $testing=""; # set to 1 then zipfile will not be deleted at completion
+my $error='';
+
+GetOptions ("zipfile=s" => \$zipfile,
+	    "verbose!" => \$verbose,
+	    "testing!" => \$testing);
+
+# same constants
+my $setup = {
+    errorlog => "error.txt", # errors logged here
+    zipdir => "/data/ppt/processed",  # location where the zips are stored
+    pptdir => "/data/ppt/native", # location where the ppt are stored
+    archivedir => "/data/ppt/native-archive", # location where the ppt are archived
+    tempdir => "/data/ppt/temp", # location of temp dir
+    errordir => "/data/ppt/error", # location of error dir
+    unzip => "unzip",  # location of unzip tool
+    sendmail => "/usr/lib/sendmail", # location of sendmail
+    to_address => [$TUSK::Constants::ErrorEmail], # email address to send errors to
+    collection_sort_order => 10,
+    };
+
+if(defined $TUSK::Constants::PageEmail && $TUSK::Constants::PageEmail){
+	push @{$setup->{to_address}}, $TUSK::Constants::PageEmail;
+}
+
+BEGIN{
+    use vars qw($setup $info $slidedata $zip);
+}
+
+unless ($zipfile){
+    print "Usage: xmlslides --zipfile=<zipfile> [--verbose --testing]\n";
+    print "\t--zipfile\t-\tname of the zip file to work on (i.e. 742999.zip)\n";
+    print "\t--verbose\t-\tprint messages to the screen instead of generating an email\n";
+    print "\t--testing\t-\tdo not remove zip file uponcompletion\n";
+    exit;
+}
+
+if (!(-f $setup->{zipdir} . "/" . $zipfile)){
+    &sendmail("File $zipfile does not exist (please check the name)");
+    exit;
+}
+
+$error = 1 if ($zipfile =~ s/\.ERROR$//gi);
+
+# grab the info for this zip from database using a ZIPUpload object
+my $zip = HSDB4::SQLRow::PPTUpload->lookup_ppt($zipfile);
+
+unless ($zip){
+    &sendmail("No data found for Zip $zipfile (please check the name)");
+    $zipfile .= ".ERROR" if ($error);
+    if ( -f $setup->{zipdir} . "/"  . $zipfile) {
+	    system("/bin/mv " . $setup->{zipdir} . "\/"  . $zipfile  . " " . 
+			$setup->{errordir} . "\/" . $zipfile);
+	}
+
+    exit;
+}
+
+if ($error){
+	my $pptfile = $zipfile;
+	$pptfile =~ s/\.zip$/\.ppt/i;
+	$zipfile .= ".ERROR";
+
+	if ( -f $setup->{pptdir} . "/" . $pptfile ){ 
+		system("/bin/mv " . $setup->{pptdir} . "\/" . $pptfile . " " . $setup->{errordir} ."\/" . $pptfile);
+	}
+	# also check if the ppt file is of pptx format
+	elsif ( -f $setup->{pptdir} . "/" . $pptfile . 'x') {
+		system("/bin/mv " . $setup->{pptdir} . "\/" . $pptfile . "x " . $setup->{errordir} ."\/" . $pptfile . 'x');
+	}
+	
+	&xmlslides_die("There was an error processing this PPT with the batch convertor");
+}
+
+# get rid of any extra files in the tempdir
+system("/bin/rm -f " . $setup->{tempdir} . "/*");
+
+# we need to unzip the files
+system($setup->{unzip} . " -qq -o " . $setup->{zipdir} ."\/$zipfile -d " . $setup->{tempdir});
+    
+my $pptfile = $zipfile;
+$pptfile =~ s/\.zip$/\.ppt/i;
+
+my $parent_content = HSDB4::SQLRow::Content->new()->lookup_key($zip->field_value('content_id'));
+
+# grab this info from the db
+my $info = {
+    copyright => $zip->field_value('copyright'),
+    course_id => $zip->field_value('course_id'),
+    org_author => $zip->field_value('username'),
+    school =>  $zip->field_value('school'),
+    author => $zip->field_value('author'),
+    title => $zip->field_value('title'),
+    content_id => $zip->field_value('content_id'),
+    start_date => $parent_content->start_date(),
+    end_date => $parent_content->end_date(),
+    read_access => $parent_content->read_access(),
+    display => $parent_content->display()
+    };
+
+# update the time and status of the ZIP for the user
+my $zip_id = $zip->field_value('ppt_upload_status_id');
+my $date = HSDB4::DateTime->new();
+$zip->field_value("status", "Processing");
+$zip->field_value("statustime", $date->out_mysql_timestamp);
+$zip->save;
+
+# grab the filenames of all the files from the zip (fun fun fun)
+opendir (PPT, $setup->{tempdir}) or &error("Cannot open " . $setup->{tempdir} . ": $!");
+my @ppt = readdir(PPT);
+closedir (PPT);
+close (PPT);
+
+
+my ($parent_content_id, $filename, $slide_info, $note);
+
+@ppt = sort @ppt; # this will make sure we look at slide 1 first (which is VERY important)
+
+my $num = @ppt;
+
+my $slidedata;
+
+foreach my $filename (@ppt) {
+    $slidedata = { 
+	notes => '',
+	xml => '',
+	copyright => $info->{copyright},
+	author => $info->{author},
+	number => '',
+	image => '',
+	body => '',
+    };
+
+    print $setup->{tempdir} . " " . $filename . "\n" if ($verbose);
+    next unless ($filename =~ m/\.HTM$/i); # we only care about the htm files
+    
+    $slidedata = &parse_xml($setup->{tempdir} . "/" . $filename, $slidedata);
+    
+    my $filename = $setup->{tempdir} . "/" . $slidedata->{image};
+
+    open FILE, $filename;
+    my $blob="";
+
+    while (<FILE>) {
+	$blob .= $_;
+    }
+
+    close FILE;
+
+    $info->{parent_content_id} = $info->{content_id};
+
+    $slidedata->{child_content} = &create_content_record($slidedata);
+    $slidedata->{child_content}->generate_image_sizes(-username => $user_name, -password => $user_pass, -blob => $blob, -type=>"jpeg", -path => $TUSK::UploadContent::path{slide});
+    $slidedata->{child_content}->save;
+    &create_content_link($info->{parent_content_id}, $slidedata->{child_content}->primary_key, ($slidedata->{number} * $setup->{collection_sort_order}));
+}
+
+
+print "Here is the Parent ID - " . $info->{parent_content_id} . "\n" if ($verbose);
+
+# update the database with a new status, date and the content_id of the parent
+$date = HSDB4::DateTime->new();
+$zip->field_value("status","Completed");
+$zip->field_value("statustime",$date->out_mysql_timestamp);
+$zip->field_value("content_id",$parent_content_id);
+$zip->save;
+
+system("/bin/rm -f " . $setup->{tempdir} . "\/*"); # remove the unzipped files
+system("/bin/rm -f " . $setup->{zipdir} . "\/" . $zipfile) unless ($testing); # remove the zip
+exit; # program ends here
+
+## subs defined here
+
+sub xmlslides_die{
+    my ($message) = @_;
+    &log_file($message);
+    
+    my $date = HSDB4::DateTime->new();
+    $zip->field_value("status","Error");
+    $zip->field_value("statustime",$date->out_mysql_timestamp);
+    $zip->save;
+    if (-f $setup->{zipdir} . "/" . $zipfile ) {
+	    system("mv " . $setup->{zipdir} . "\/" . $zipfile . " " .  $setup->{errordir} ."\/" . $zipfile);	
+    }
+    exit;
+}
+
+sub sendmail{
+    my ($message) = @_;
+    if($verbose) {print $message . "\n";}
+    else {
+	# open a pipe to sendmail and send the message
+	open(MAIL, "| $setup->{sendmail} -t")or die "open: $!";
+	print MAIL "From: PPT Processor\n";
+	print MAIL "To: " . join(', ', @{$setup->{to_address}}) . "\n";
+	print MAIL "Subject: XMLSlides Failure \n\n";
+	print MAIL "PPT processing had the following error:\n";
+	print MAIL $message;
+	print MAIL ".\n";
+	close(MAIL);
+    }
+}
+
+sub log_file{
+    my ($message) = @_;
+    my $timestamp = localtime;
+    $message =~ s/\n//g;
+    $message =~ s/^\s*//;
+    $message =~ s/\s*$//;
+    $message =~ s/\s\s+/ /g;
+    &sendmail("$timestamp - " . $zipfile . " - $message\n");
+    
+}
+
+# it is possible that the PPT plugin will include some yucky chars...this sub gets rid of those
+sub parse_xml{
+    my ($filename, $slidedata) = @_;
+    undef $/;
+    open(FILE,"$filename") or &error("Error opening file " . $filename . ": $!");
+    $slidedata->{xml}=<FILE>;
+    close(FILE);
+
+    $slidedata->{xml} =~ s/\&/\&amp;/g;
+
+	# the demoronizer (aka spec_chars_number) removes carriage returns (ascii code 13, or \r) from a string
+	# the ppt process inserts \r after bulleted list items, ex.: last word of bullet\rword in next line
+	# after demoronizing, this causes the last word in a bullet to glom onto the first word that follows it w/o and space
+	# this messes up the umls process
+	# therefore, replace all \r's that do not have a \n after them with a space
+    $slidedata->{xml} =~ s/\r+([^\n])/ $1/g;
+
+    $slidedata->{xml} = XML::EscapeText::spec_chars_number($slidedata->{xml});
+
+    $slidedata->{extraNote} = $1 if ($slidedata->{xml} =~ s/<notes><\!\[CDATA\[(.*)\]\]><\/notes>//sg);
+    
+    my $twig= new XML::Twig(KeepEncoding => 1, ErrorContext => 0);	
+    eval {$twig->parse($slidedata->{xml})};
+    print "Trying to parse:\n$slidedata->{xml}\n" if($verbose);
+    &xmlslides_die("The error from the twig->parse was : $@") if ($@);
+    $slidedata->{twig} = $twig->root;
+    
+    if ($slidedata->{extraNote}){
+	$slidedata->{note} = $1 if ($slidedata->{extraNote} =~ m/<note>(.*?)<\/note>/s);
+	$slidedata->{author} = $1 if ($slidedata->{extraNote} =~ m/<author>(.*?)<\/author>/s);
+	$slidedata->{source} = $1 if ($slidedata->{extraNote} =~ m/<source>(.*?)<\/source>/s);
+	$slidedata->{copyright} = $1 if ($slidedata->{extraNote} =~ m/<copyright>(.*?)<\/copyright>/s);
+    }
+
+    $slidedata->{title} = $slidedata->{twig}->first_child('title')->text;
+    $slidedata->{number} = $slidedata->{twig}->first_child('number')->text;
+    $slidedata->{image} = $slidedata->{twig}->first_child('image')->text;
+    $slidedata->{indexOn} = $slidedata->{twig}->first_child('indexOn')->text;
+
+    return $slidedata;
+}
+
+# takes care of creating the content record.
+# if run with $content_type eq 'Collection' it will create the parent content record for the collection
+# otherwise it will create a content record for a slide
+
+sub create_content_record{
+    my ($slidedata) = @_;
+    $slidedata->{title} =~ s/Â//gi; # not sure why this funky char is appearing, but this gets rid of it
+    
+    $slidedata->{title} = $info->{title} .": Slide " . $slidedata->{number} if (!($slidedata->{title})) or ($slidedata->{title} eq ' ');
+	
+    $slidedata->{title} =~ s/!@#/\&/g;
+    $slidedata->{title} =~ s/\&quot;/\"/g;
+    
+    chomp $slidedata->{title};
+    
+    if ($slidedata->{note}){ 
+	$slidedata->{note} = "<html><![CDATA[" . $slidedata->{note} . "]]></html>";
+	$slidedata->{note} =~ s/!@#/\&/g;
+	$slidedata->{note} =~ s/Â//gi;
+    }
+    
+    $slidedata->{note} = "" unless ($slidedata->{note});
+    $slidedata->{source} = "" unless ($slidedata->{source});
+
+    $slidedata->{body} = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><content_body><indexOn><![CDATA[" . $slidedata->{indexOn} . "]]></indexOn>";
+    if($slidedata->{source} || $slidedata->{note})
+      {$slidedata->{body}.=  $slidedata->{source} . $slidedata->{note};}
+    $slidedata->{body}.= "</content_body>";
+    $slidedata->{body} =~ s/!@#/\&/g;
+    $slidedata->{body} =~ s/Â//gi;
+    $slidedata->{body} =~ s/\&gt;/>/g;
+    $slidedata->{body} =~ s/\&lt;/</g;
+    
+    
+    my $new_content = HSDB4::SQLRow::Content->new();
+    my @time = localtime;
+    $new_content->set_field_values (read_access => $info->{read_access},
+				    course_id => $info->{course_id},
+				    school => $info->{school},
+				    type => "Slide",
+				    title => $slidedata->{title},
+				    copyright => $slidedata->{copyright},
+				    body=> $slidedata->{body},
+				    source => $slidedata->{source},
+				    start_date => $info->{start_date},
+				    end_date => $info->{end_date},
+				    display => $info->{display},
+				    created => sprintf ("%d-%d-%d %d:%d:%d", $time[5]+1900, $time[4]+1, $time[3], $time[2], $time[1], $time[0]),
+				    );
+			
+    my ($r, $msg) = $new_content->save($user_name,$user_pass);
+    ## in case this is a slide, need to rebless it so it acts accordingly
+    $new_content->rebless;
+    my $new_content_id = $new_content->primary_key;	
+    &error("No returned content_id - $slidedata->{number} ") unless ($new_content_id);
+    
+    
+    &create_content_user_link($new_content_id);
+    
+    return $new_content;
+}
+
+# creates the content_user link
+sub create_content_user_link{
+    my ($parent_content_id) = @_;
+    
+    # rules: List the author as author, if no author then put the person uploading as the Editor
+    # if the author is not the person uploading, add that person as editor
+    
+    my $new_link = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
+
+    if ($slidedata->{author}){
+	$new_link->insert( -user => $user_name,
+			   -password => $user_pass,
+			   -parent_id => $parent_content_id,
+			   -child_id => $slidedata->{author},
+			   sort_order => 1,
+			   roles => 'Author',
+			   );
+    }
+
+    if ($info->{org_author} ne $slidedata->{author} or $info->{org_author} ne $info->{author}){
+	$new_link->insert( -user => $user_name,
+			   -password => $user_pass,
+			   -parent_id => $parent_content_id,
+			   -child_id => $info->{org_author},
+			   sort_order => 2,
+			   roles => 'Editor',
+			   );
+    }
+}
+
+# creates the content_content link
+# links slides to the parent collection
+
+sub create_content_link{
+    my ($parent_content_id, $child_content_id, $sort_order) = @_;
+    
+    my $new_link = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
+    $new_link->insert( -user => $user_name,
+		       -password => $user_pass,
+		       -parent_id => $parent_content_id,
+		       -child_id => $child_content_id,
+		       sort_order => $sort_order,
+		       );
+}
+
+
+sub error{
+    my $message = shift;
+    chomp $message;
+    &sendmail($message," - $zipfile");
+    exit;
+}
+
+__END__
+
+

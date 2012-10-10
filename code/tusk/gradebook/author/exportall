@@ -1,0 +1,148 @@
+<%once>        
+	use Data::Dumper;
+	use HSDB4::SQLRow::User;
+	use TUSK::GradeBook::GradeStats;
+</%once>
+<%flags>
+	inherit =>undef
+</%flags>
+
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+</%shared>
+
+
+<%init>
+
+my $time_period_id = $m->comp('/tmpl/url:get_last_path_id');
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my $events;
+
+$m->clear_buffer();
+$r->content_type( 'application/vnd.ms-excel');
+$r->header_out( 'Content-Disposition' => 'attachment; filename="grades-export.xls"');
+$r->send_http_header();
+
+
+
+if (ref($type_object) eq "HSDB45::Course"){
+		$events = TUSK::GradeBook::GradeEvent->new->getCourseEvents($type_object->school, $type_object->primary_key, $time_period_id);
+} else{
+		$m->comp("/tmpl/url:redirect", message => "FAILURE");	
+}
+
+my $size = scalar (@$events);
+print "Name	";
+for (my $i=0; $i < $size; $i++)
+{
+	my $event_id = @$events[$i]->getGradeEventID(); 
+	my $name = @$events[$i]->getEventName();
+	print "$name	";
+
+}
+print "\n";
+my @students;
+
+
+if (ref($type_object) eq "HSDB45::Course"){
+	@students = $type_object->get_students($time_period_id);
+}
+else{
+	$m->comp("/tmpl/url:redirect", message => "FAILURE");
+}
+
+
+$size = scalar(@students);
+
+for  (my $i=0; $i < $size; $i++)
+{
+
+	my $stdnt = $students[$i]->user_id();
+	my $fname = $students[$i]->first_name();
+	my $lname = $students[$i]->last_name();
+
+  
+	print $lname.",".$fname."	";
+
+    
+    for (my $j=0; $j < scalar(@$events); $j++)
+	{
+		my $event_id = @$events[$j]->getGradeEventID(); 
+		my $qString = "parent_user_id = '$stdnt' and child_grade_event_id = $event_id";
+		my $linkugrades = TUSK::GradeBook::LinkUserGradeEvent->lookupReturnOne($qString);
+		if(defined($linkugrades)){
+			my $grade = $linkugrades->getGrade();	
+	    	print "$grade	";
+		}else {
+			print "	";
+		}
+	}
+
+	print "\n";
+}
+
+
+my @all_grades;
+my @all_means;
+print "Mean	";
+
+for(my $i=0; $i < scalar(@$events); $i++)
+{
+
+	my ($grades_data, $saved_grades) = @$events[$i]->getGradeRecords($type_object, $time_period_id);
+	my @nums;
+	my $j=0;
+  
+	while(@$grades_data[$j])
+	{
+		my $grade = @$grades_data[$j]->{'grade'};
+	
+
+		if (defined($grade)) {
+			push(@nums,$grade);
+		}	
+		$j++;
+	}
+
+	
+	my $mean ;
+	if( scalar(@nums) > 0 )
+	{
+		$mean= TUSK::GradeBook::GradeStats->getMean(@nums);
+		
+	}
+	else { $mean ="na" }
+	push(@all_grades,[@nums]);
+	push(@all_means,$mean);
+	printf "%4.1f	",$mean;
+
+}
+
+
+print "\n";
+
+print "Standard Deviation	";
+
+for(my $i=0; $i < scalar(@$events); $i++)
+{
+
+	
+	my $stdev;
+	if( defined($all_grades[$i]) && scalar(@{$all_grades[$i]})  > 0  && $all_means[$i] ne "na" ) {
+	
+		$stdev = TUSK::GradeBook::GradeStats->getStandardDeviation($all_means[$i],@{$all_grades[$i]});
+
+	}
+	else { $stdev = "na" ; }
+	
+	printf "%4.1f	",$stdev;
+	
+}
+print "\n";
+
+
+
+</%init>
+
+

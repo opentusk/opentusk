@@ -1,0 +1,467 @@
+<%shared>
+	# some global variables
+	my $response_hash = {};
+	my $show_answers = 0;
+</%shared>
+
+<%method display_quiz>
+<%args>
+	$quiz_id
+	$preview 	=> undef
+	$result 	=> undef
+	$show_title	=> 0
+	$question_count => undef
+	$items		=> undef
+</%args>
+<%perl>
+ 	my $quiz = TUSK::Quiz::Quiz->new( _id => $quiz_id);
+	my ($answers, $question_type, $response_flag);
+	my $duration = $quiz->getDurationText();
+
+	if (defined($result)){
+		my $responses = $result->getResponses();
+		foreach my $r (@{$responses}){
+			$response_hash->{ $r->getLinkType() }->{ $r->getLinkID() } = $r;
+			$response_flag = 1;
+		}
+		
+		$question_count = $result->getCurrentQuestionIndex() if (!$preview && $quiz->getQuestionsPerPage() && !defined($question_count));
+	}
+
+	$quiz->setUserID($m->session->{user}->user_id()) if ($quiz->getRandomQuestionLevel == 1);
+
+	unless (defined $items) {
+		$items = $quiz->getQuizItemsWithAnswers();
+
+		if ($quiz->getQuestionsPerPage() && !$preview){
+			@$items = splice(@$items, $question_count, $quiz->getQuestionsPerPage());
+		}
+	}	
+
+	my $show_quiz_info = 1;
+
+	if ($quiz->getQuestionsPerPage() && defined $result && $result->getCurrentQuestionIndex() > 0 ) {
+		$show_quiz_info = 0;
+	}
+
+</%perl>
+<script language="JavaScript">
+if (!is_ie){
+	document.styleSheets[0].insertRule("li img { display:block; }",0);
+}
+</script>
+
+
+% unless ($show_answers) {
+% 	if ($show_quiz_info ) {
+%		if ($duration || $quiz->getInstructions()) {
+<br/>
+%		}
+
+<& /tmpl/element:table, params => { width => '90%', border => '0' }  &>
+%		if ($duration) {
+<tr><td class="med">Duration: &nbsp;<% $duration %></td></tr>
+% 		}
+
+% 		if ($quiz->getInstructions()) {
+<tr><td class="med">Instructions: &nbsp;<% $quiz->getInstructions() %></td></tr>
+% 		}
+</table>
+% 	}
+% }
+<br/>
+
+% if (!scalar(@{$items})){
+No Questions.
+% }
+<& SELF:show_questions, items => $items, count => $question_count, quiz => $quiz &>
+</%method>
+
+
+<%method show_questions>
+<%args>
+	$items
+	$quiz		=> undef
+	$is_section	=> 0
+	$count		=> 0
+</%args>
+% my $border = ''; 
+
+% if ($show_answers && !$is_section) {
+<div align="right" style="color:gray;font-weight:bold;font-size:110%;">Answers and Feedback</div>
+% 	$border =  'border-width:1px;border-style:solid;border-color:gray;margin: 0 5px 0 5px;';
+% }
+
+<table style="<% $border %>">
+<%perl>
+	$count = 'A' if ($is_section);
+	foreach my $item (@$items) {
+	 	my $question = $item->getQuestionObject();
+		my $trailing_text;
+	 	if ($show_answers && $question->getType() eq "TrueFalse"){
+			$trailing_text = '(True/False)';
+		}
+
+
+		my $response;
+		if ($question->getType() eq "Matching" or $question->getType() eq "MultipleFillIn" or $question->getType() eq "Section"){
+
+			$response = $response_hash->{'link_question_question'};
+
+		} else {
+			my $key = ($is_section) ? 'link_question_question' : 'link_quiz_quiz_item';
+		 	$response = $response_hash->{ $key }->{ $item->getPrimaryKeyID() };
+		}
+
+
+		my $answers = $question->getAnswers();
+		my $question_type = $question->getType(); 
+		my $show_response_flag = (defined($response) && $show_answers) ? 1 : 0;
+		my $tr_style = ($count) ? 'padding-top:10px' : '';
+</%perl>	
+	<tr style="<% $tr_style %>">
+		<td valign="top" class="quiz_count" style="width:1%"><% ($is_section) ? $count++ : ++$count %>.</td>
+		<td class="quiz_item"><% $question->getBody() %></td>
+	</tr>
+	<tr>
+		<td class="quiz_count">&nbsp;</td>
+		<td class="quiz_item">
+			<& "$question_type",
+						answers 		=> $answers,
+						question		=> $question,
+						response		=> $response, 
+						show_response_flag 	=> $show_response_flag,
+			&>
+% 		if ($show_response_flag){
+			<& SELF:display_answer, 
+						question 		=> $question, 
+						response 		=> $response, 
+						quiz			=> $quiz,
+			&>
+%		}
+%
+		</td>
+	</tr>
+% }
+
+</table>
+
+</%method>
+
+<%method display_responses>
+<%args>
+	$quiz
+	$result
+	$show_title => 1
+	$question_count => undef
+	$save_submission => 0
+	$items => undef
+</%args>
+% 	my $quiz_id = $quiz->getPrimaryKeyID();
+% 	$show_answers = 1 unless ($save_submission);
+<& SELF:display_quiz, quiz_id => $quiz_id, result => $result, show_title => $show_title, question_count => $question_count, items => $items &>
+</%method>
+
+
+<%method display_answer>
+<%args>
+	$question
+	$response
+	$quiz           => undef
+	$answer		=> undef
+	$margin_bottom	=> 10
+</%args>
+<%perl>
+	my ($your_answer, $feedback, $imgText, $correct_answer_text, $your_answer_text);
+	return unless (ref($response) eq 'TUSK::Quiz::Response');
+ 	if ($answer){
+ 		$feedback = $answer->getFeedback();
+  	} else {
+ 		$answer = $question->getCorrectAnswer();
+ 	}
+  
+ 	$your_answer = $response->getAnswer() if ($response);
+ 	$feedback = $your_answer->getFeedback() if ($your_answer && !$feedback);
+
+	if ($response && $response->getGradedFlag()) {
+		if($response->getGradedPoints()){
+			$imgText = '<img align="top"  border="0" src="/graphics/quiz/correct.gif" />';
+		} else {
+			$imgText = '<img align="top" border="0" src="/graphics/quiz/incorrect.gif" />';
+		}	
+	}
+
+	if ($question->getType() eq 'MultipleChoice'){
+		$correct_answer_text = chr(96 + $answer->getSortOrder()) . '.' if ($answer);
+		$your_answer_text = chr(96 + $your_answer->getSortOrder()) . '.' if ($your_answer);
+		if (defined $quiz && $quiz->getShowAllFeedback()) {
+			$feedback = '';
+			my $answers = $question->getAnswers();
+			foreach my $answer (@$answers){
+				if ($answer->getFeedback()) {
+					$feedback .= chr($answer->getSortOrder() + 96) . '. ' . $answer->getFeedback() . "<br/>\n";
+				}
+			}
+		}
+	} else {
+		$correct_answer_text = $answer->getValue() if ($answer && $question->getType() ne "Essay");
+		$your_answer_text = $response->getResponseText() if ($response);
+	}
+</%perl>
+
+<& /tmpl/element:table, params => {width => '90%', style => 'margin-bottom:' . $margin_bottom . 'px'} &>
+
+<& SELF:display_question_feedback, question => $question &>
+
+%
+% if ($correct_answer_text) {
+<& /tmpl/element:field_display , params=>{ label => 'Correct&nbsp;Answer', value => $correct_answer_text} &>
+% }
+
+% if ($your_answer_text){
+<& /tmpl/element:field_display , params=>{ label => 'Your Answer&nbsp;&nbsp;&nbsp;&nbsp;' . $imgText, 
+		value => $your_answer_text, nowrap => 1} &>
+% }
+
+% if ($feedback){
+	<& /tmpl/element:field_display , params=>{ label => 'Answer&nbsp;Feedback', value => "<div id=\"\">$feedback</div>" } &>
+% }
+</table>
+</%method>
+
+<%method display_question_feedback>
+<%args>
+	$question
+	$make_table	=> 0
+	$margin_bottom	=> 0
+</%args>
+<%perl>
+	if ($make_table){
+		$m->comp('/tmpl/element:table', params => {width => '90%', style => 'margin-bottom:' . $margin_bottom . 'px'});
+	}
+	
+	if ($question && $question->getFeedback()){
+		$m->comp('/tmpl/element:field_display' , params=>{
+									label => 'Answer&nbsp;/&nbsp;Feedback', 
+									value => $question->getFeedback(),
+					});
+	}
+
+	if ($make_table){
+		print "</table>";
+	}
+</%perl>
+</%method>
+
+<%def TrueFalse>
+<%args>
+@answers
+$question
+$response
+</%args>
+<table>
+<%doc>
+%	return if (defined($response));
+</%doc>
+
+%       foreach my $answer (@answers){
+%
+	<tr>
+		<td valign="top">
+			<input type="radio" value="<% $answer->getPrimaryKeyID() %>" name="<% $question->getPrimaryKeyID() %>" 
+%		if (defined $response && $response->getResponseText() eq $answer->getValue()) {
+			CHECKED
+%		}		
+			/>
+		</td>
+		<td>
+			<% $answer->getLabel() %> <% $answer->getValue() %>
+		</td>
+	</tr>
+% }
+</table>
+</%def>
+
+<%def MultipleChoice>
+<%args>
+@answers
+$question
+$response
+</%args>
+<table>
+% my $response_id = (defined($response)) ? $response->getAnswerID() : 0;
+%	foreach my $answer (@answers){
+	<tr>
+		<td valign="top" nowrap>
+%
+			<input type="radio" class="quiz" value="<% $answer->getPrimaryKeyID() %>" name="<% $question->getPrimaryKeyID() %>"
+
+%		if (defined $response && $response->getResponseText() eq $answer->getValue()) {
+			CHECKED
+%		}		
+
+			/>
+
+			</td><td valign="top" nowrap><% chr(96 + $answer->getSortOrder()) %>.</td><td valign="top"><% $answer->getLabel() %> <% $answer->getValue() %>\
+		</td>
+	</tr>
+%	}
+</table>
+</%def>
+
+<%def FillIn>
+<%args>
+	@answers
+	$question
+	$response
+	$margin	=> 5
+	$show_response_flag
+</%args>
+
+% my $response_text = (defined($response)) ? $response->getResponseText() : '';
+
+% unless ($show_response_flag) {
+<div style="margin-top:<% ($margin*2) %>px">
+<& /tmpl/element:input_textbox, params =>{ 
+                name => $question->getPrimaryKeyID(),
+		style=> 'margin-top:' . $margin . 'px',
+                size => 60,
+                length => 255,
+		value => $response_text } &>
+</div>
+% }
+</%def>
+
+
+<%def Essay>
+<%args>
+	@answers
+	$question
+	$response
+	$show_response_flag
+</%args>
+
+% my $response_text = (defined($response)) ? $response->getResponseText() : '';
+
+% unless ($show_response_flag) {
+<div style="margin-top:10px">
+<& /tmpl/element:input_textarea, params=>{name=> $question->getPrimaryKeyID(),
+		rows=>"5",
+		cols=>"60",
+		value=>$response_text} &>
+</div>
+% }
+</%def>
+
+
+<%def Matching>
+<%args>
+	@answers
+	$question
+	$response
+	$show_response_flag
+</%args>
+<%perl>
+	$m->comp('SELF:display_question_feedback', question => $question, make_table => 1) if ($show_response_flag);
+</%perl>
+<table width="<% ($show_response_flag) ? '100%' : '' %>">
+<%perl>
+	my $links = $question->getSubQuestionLinks();
+
+	# these are the answers after doubles have been removed
+	my @matching_answers = @{ $links->[0]->getQuestionObject()->getAnswers(1) };
+	
+	# randomize the answer choices using a Fisher Yates Shuffle!
+	if (my $i = scalar(@matching_answers)){
+		while ($i--){
+			my $j = int rand ($i+1);
+			@matching_answers[$i, $j] = @matching_answers[$j, $i];
+		}
+	}
+
+	my $count = "a";
+	foreach my $link (@$links){
+		my $sub_question = $link->getQuestionObject();
+		print "<tr>";
+		print "<td valign=\"top\" nowrap style=\"width:1px\">" . $count++ . ".</td>\n";
+		print "<td valign=\"top\" style=\"" . (($show_response_flag) ? 'width:100%;' : '') . "text-align:left\">" . $sub_question->getBody() . "</td>\n";
+		if ($show_response_flag){
+			foreach my $answer (@answers){
+				if ($answer->getChildQuestionID() == $sub_question->getPrimaryKeyID()){
+					print "</tr>\n<tr><td colspan=\"2\">\n";
+						$m->comp('SELF:display_answer', question => $sub_question, answer => $answer, response => $response->{ $link->getPrimaryKeyID() });
+					print "</td></tr>\n";
+					last;
+				}
+			}
+		} else {
+			print "<td valign=\"top\" style=\"padding-left:40px\">";
+
+			$m->comp('/tmpl/element:dropdown', params => { 
+				no_label => 1,
+		                name	=> $sub_question->getPrimaryKeyID(),
+                		options => $m->comp('/tmpl/element:make_dropdown_options', arrayref => \@matching_answers, label	=> 'getValue', value	=> 'getPrimaryKeyID'),
+				selected => ($response->{$link->getPrimaryKeyID()}) ? $response->{$link->getPrimaryKeyID()}->getAnswerID() : '',
+			});
+			print "</td>\n</tr>\n";
+		}
+	}
+</%perl>
+</table>
+</%def>
+
+<%def MultipleFillIn>
+<%args>
+	@answers
+	$question
+	$response
+	$show_response_flag
+</%args>
+<%perl>
+
+	if ($show_response_flag){
+		$m->comp('SELF:display_question_feedback', question => $question, make_table => 1);
+	} else {
+		print "<table style=\"margin-top:10px\">\n" 
+	}
+
+	my $links = $question->getSubQuestionLinks();
+	my $count = 1;
+
+	foreach my $link (@$links){
+		my $sub_question = $link->getQuestionObject();
+
+		if ($show_response_flag){
+			$m->comp('SELF:display_answer', 
+				question   => $sub_question, 
+				answer 	   => undef, 
+				response   => $response->{ $link->getPrimaryKeyID() }, 
+				margin_bottom => 0,
+				);	
+		} else {
+			print "<tr><td nowrap>" . $count++ . ".</td><td>";
+
+			$m->comp('FillIn', 
+				answers => undef, 
+				question => $sub_question, 
+				response => $response->{ $link->getPrimaryKeyID() }, 
+				margin => 0,
+				show_response_flag => $show_response_flag);
+	
+			print "</td></tr>\n";
+		}
+	}
+
+	print "</table>\n" unless ($show_response_flag);
+</%perl>
+</%def>
+
+<%def Section>
+<%args>
+	@answers
+	$question
+	$response
+	$show_response_flag
+</%args>
+<& SELF:show_questions, items => $question->getSubQuestionLinks(), is_section => 1 &>
+</%def>

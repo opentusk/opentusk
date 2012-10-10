@@ -1,0 +1,453 @@
+<%once>
+	use HSDB45::Course;
+	use HSDB45::TimePeriod;
+	use TUSK::Application::CurriculumReport::CourseSummary;
+	use TUSK::Application::CurriculumReport::UsergroupSummary;
+	use List::Util qw(sum);
+	use POSIX qw(floor);
+</%once>
+
+<script language="javascript">
+	function update_reporting(type) {
+		if ( type == 'course' ) {
+			var course_id     = document.getElementById('course_id').value;
+			var timeperiod_id = document.getElementById('c_timeperiod_id').value;
+			if ( timeperiod_id == '' ) {
+				alert ( 'Please select a time period.' );
+				return false;
+			}
+			document.location = '/management/reporting/show/school/<% $school %>/course/' + course_id + '/' + timeperiod_id;
+		} else if ( type == 'usergroup' ) {
+			var usergroup_id = document.getElementById('usergroup_id').value;
+			var timeperiod_box = document.getElementById('u_timeperiod_id');
+			var timeperiod_id = '';
+
+			while (timeperiod_box.selectedIndex != -1) { 
+				timeperiod_id += timeperiod_box.options[timeperiod_box.selectedIndex].value + '/';
+				timeperiod_box.options[timeperiod_box.selectedIndex].selected = false;
+			}
+
+			if ( timeperiod_id == '' ) {
+				alert ( 'Please select a time period.' );
+				return false;
+			}
+
+			document.location = '/management/reporting/show/school/<% $school %>/usergroup/' + usergroup_id + '/' + timeperiod_id;
+		}
+		return false;
+	}
+</script>
+
+<br />
+
+<ul id="reportsTabs" class="genTabNav clearfix">
+	<li id="usergroup" class="<% $usergroup_tab %>"><a href="javascript:;" onclick="activateTab(this)">Usergroup Reports</a></li>
+	<li id="course" class="<% $course_tab %>"><a href="javascript:;" onclick="activateTab(this)">Course Reports</a></li>
+</ul>
+
+<div id="usergroupArea" class="tabArea <% $usergroup_area %>">
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>"return update_reporting('usergroup');",
+				name => 'usergroup_reporting' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+				border =>"0",
+				cellspacing =>"0",
+				cellpadding =>"0" } &>
+
+<& /tmpl/element:dropdown, params =>{ label => 'Usergroup:',
+				name => 'usergroup_id',
+				options => $usergroup_options,
+				selected => $usergroup_id } &>
+
+<& /tmpl/element:dropdown, params =>{ label => 'Time Period(s):',
+				name => 'u_timeperiod_id',
+				multiple => 'multiple',
+				size => 5,
+				options => $timeperiod_options,
+				selected => \%timeperiod_id_hash } &>
+
+<& /tmpl/element:save_button, params=>{ label=>'Update', 
+				no_cancel_button => 1,
+				name => 'update' } &>
+</table>
+</form>
+</div>
+<div id="courseArea" class="tabArea<% $course_area %>">
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>"return update_reporting('course');",
+				name => 'course_reporting' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+				border =>"0",
+				cellspacing =>"0",
+				cellpadding =>"0" } &>
+
+<& /tmpl/element:dropdown, params =>{ label => 'Course:',
+				name => 'course_id',
+				options => $course_options,
+				selected => $course_id } &>
+
+<& /tmpl/element:dropdown, params =>{ label => 'Time Period:',
+				name => 'c_timeperiod_id',
+				size => 5,
+				options => $timeperiod_options,
+				selected => $timeperiod_id } &>
+
+<& /tmpl/element:save_button, params=>{ label=>'Update', 
+				no_cancel_button => 1,
+				name => 'update' } &>
+</table>
+</form>
+</div>
+
+<br /><br />
+
+<div id="reportDetails">
+% 	if ( $report_type && $object_id && $timeperiod_id ) {
+	<ul id="detailsTabs" class="genTabNav clearfix">
+		<li id="class_meetings" class="activeTab"><a href="javascript:;" onclick="activateTab(this)">Class Meetings</a></li>
+%		if ( $report_type eq 'course' ) {
+		<li id="objectives"><a href="javascript:;" onclick="activateTab(this)">Objectives</a></li>
+		<li id="umls_keywords"><a href="javascript:;" onclick="activateTab(this)">UMLS Keywords</a></li>
+		<li id="user_defined_keywords"><a href="javascript:;" onclick="activateTab(this)">User-Defined Keywords</a></li>
+%		}
+	</ul>
+%	}
+
+%	if ( $report_type eq 'course' && $class_meetings ) {
+%		my $tp = HSDB45::TimePeriod->new( _school => $school, _id => $timeperiod_id );
+	<div id="class_meetingsArea" class="tabArea activeArea">
+		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
+%		$m->comp("SELF:class_types_row", 'label' => 'Course', 'types' => \@types );
+%		if ( scalar(@types) ) {
+		<tr class="even">
+			<td class="layers-left">
+				<a href="/view/course/<% $school %>/<% $course->primary_key %>"><% $course->out_title %></a>
+%				my $parent_course = $course->is_a_subcourse();
+%				if ($parent_course) {
+					<br /><span class="xsm">&nbsp;&nbsp;&nbsp;This course is a child course of <% $parent_course->out_title %></span>
+%				}
+			</td>
+%		foreach my $type ( @types ) {
+%			my $time = $m->comp('SELF:fix_time', 'time' => $class_meetings->{$type}->{'time'});
+			<td class="layers-right"><% $class_meetings->{$type}->{'count'} %>&nbsp;/&nbsp;<% $time %></td>
+%		}
+		</tr>
+%		} else {
+		<tr class="even"><td class="layers-left"><i>No classes scheduled for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+%		}
+		</table>
+	</div>
+
+	<div id="objectivesArea" class="tabArea">
+		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
+<%perl>
+		$m->comp("SELF:class_types_row", 'label' => 'Objective', 'types' => \@types );
+		$cur = 0;
+		if (scalar(keys %{$objectives})) {
+			foreach my $objective_id ( keys %{$objectives} ) {
+				my $objective = $objectives->{$objective_id};
+				$m->comp("SELF:line_item_row", 'class' => $tr_classes[$cur], 'item' => $objective, 'item_type' => 'body', 'types' => \@types );
+				$cur = !$cur;
+			}
+		} else {
+</%perl>
+		<tr class="even"><td class="layers-left"><i>No objectives available for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+%		}
+		</table>
+	</div>
+
+	<div id="umls_keywordsArea" class="tabArea">
+		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
+<%perl>
+		$m->comp("SELF:class_types_row", 'label' => 'UMLS Keyword', 'types' => \@types );
+		$cur = 0;
+		$unused = 1;
+		foreach my $keyword_id ( keys %{$keywords} ) {
+			my $keyword = $keywords->{$keyword_id};
+			next unless ( $keyword->{'type'} eq 'UMLS' );
+			$unused = 0;
+			$m->comp("SELF:line_item_row", 'class' => $tr_classes[$cur], 'item' => $keyword, 'item_type' => 'keyword', 'types' => \@types, 'link' => '/view/concept/' . $keyword->{'concept'} );
+			$cur = !$cur;
+		}
+		if ( $unused ) {
+</%perl>
+		<tr class="even"><td class="layers-left"><i>No UMLS keywords available for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+%		}
+		</table>
+	</div>
+
+	<div id="user_defined_keywordsArea" class="tabArea">
+		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
+<%perl>
+		$m->comp("SELF:class_types_row", 'label' => 'User-Defined Keyword', 'types' => \@types );
+		$cur = 0;
+		$unused = 1;
+		foreach my $keyword_id ( keys %{$keywords} ) {
+			my $keyword = $keywords->{$keyword_id};
+			next unless ( $keyword->{'type'} eq 'user-defined' );
+			$unused = 0;
+			$m->comp("SELF:line_item_row", 'class' => $tr_classes[$cur], 'item' => $keyword, 'item_type' => 'keyword', 'types' => \@types );
+			$cur = !$cur;
+		}
+		if ( $unused ) {
+</%perl>
+		<tr class="even"><td class="layers-left"><i>No user-defined keywords available for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+%		}
+		</table>
+	</div>
+
+<%perl>
+#	use Data::Dumper;
+#	print "<!--\n";
+#	print Dumper( $class_meetings );
+#	print Dumper( $objectives );
+#	print Dumper( $keywords );
+#	print "\n//-->";
+</%perl>
+
+%	} elsif ( $report_type eq 'usergroup' && $usergroup ) {
+	<div id="class_meetingsArea" class="tabArea activeArea">
+		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
+<%perl>
+		$m->comp("SELF:class_types_row", 'label' => 'Courses', 'types' => \@types, 'exclude_column' => 1 );
+		$cur = 0;
+		if ( scalar( keys %{$class_meetings} ) ) {
+
+		foreach my $course_id ( @sorted_course_ids ) {
+			my $tp = HSDB45::TimePeriod->new( _school => $school, _id => $course_timeperiods->{ $course_id } );
+			my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
+			if ( scalar(@types) ) {
+</%perl>
+			<tr class="<% $tr_classes[$cur] %>">
+				<td class="layers-center"><a href="/management/reporting/show<% $r->path_info() %>?exclude=<% $course->primary_key %>" class="navsm">x</a></td>
+				<td class="layers-left">
+%					my $parent_course = $course->is_a_subcourse();
+%					if ($parent_course) {
+%						my $indent = '';
+%						if ( grep { $_ == $parent_course->course_id } @sorted_course_ids ) { $indent = '&nbsp;&nbsp;&nbsp;'; }
+						<% $indent %><a href="/view/course/<% $school %>/<% $course->primary_key %>"><% $course->out_title %></a>
+						<br /><% $indent %><span class="xsm">&nbsp;&nbsp;This course is a child course of <% $parent_course->out_title %></span>
+%					} else {
+						<a href="/view/course/<% $school %>/<% $course->primary_key %>"><% $course->out_title %></a>
+%					}
+				</td>
+%			foreach my $type ( @types ) {
+%				my $time   = $m->comp('SELF:fix_time', 'time' => $class_meetings->{$course_id}->{$type}->{'time'});
+%				my $outstr;
+%				if ( $time eq '0h&nbsp;00m' ) { $outstr = '&nbsp;'; }
+%				else                   { $outstr = $class_meetings->{$course_id}->{$type}->{'count'} . "&nbsp;/&nbsp;" . $time; }
+				<td class="layers-right"><% $outstr %></td>
+%			}
+			</tr>
+%			} else {
+			<tr class="<% $tr_classes[$cur] %>"><td class="layers-left"><i>No classes scheduled for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+%			}
+%			$cur = !$cur;
+%		}
+%		} else {
+			<tr class="<% $tr_classes[$cur] %>"><td class="layers-left"><i>No courses associated with <% $usergroup->out_label %> in the listed time period(s).</i></td>
+%		}
+		</table>
+%		if ( defined($excluded_courses) && @{$excluded_courses} ) {
+		<br>
+		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
+			<tr class="header">
+				<td></td>
+				<td class="header-left" width="100%">Excluded Courses</td>
+			</tr>
+<%perl>
+			$cur = 0;
+			foreach my $course_id ( @{$excluded_courses} ) {
+				my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
+</%perl>
+			<tr class="<% $tr_classes[$cur] %>">
+				<td class="layers-center"><a href="/management/reporting/show<% $r->path_info() %>?include=<% $course->primary_key %>" class="navsm">+</a></td>
+				<td class="layers-left">
+					<a href="/view/course/<% $school %>/<% $course->primary_key %>"><% $course->out_title %></a>
+				</td>
+			</tr>
+%			$cur = !$cur;
+%			}
+		</table>
+%		}
+	</div>
+
+<%perl>
+#	use Data::Dumper;
+#	print "<!--\n";
+#	foreach ( keys %{$class_meetings} ) { print $_ . " --> " . Dumper( $class_meetings->{$_} ) };
+#	foreach ( keys %{$objectives} )     { print $_ . " --> " . Dumper( $objectives->{$_} ) };
+#	foreach ( keys %{$keywords} )       { print $_ . " --> " . Dumper( $keywords->{$_} ) };
+#	print "\n//-->";
+</%perl>
+
+%	}
+</div>
+
+<%init>
+	my $school = $m->comp("/tmpl/url:get_school");
+	my ($report_type, $object_id, @timeperiod_ids) = $m->comp("/tmpl/url:get_path_ids");
+	my $timeperiod_id = $timeperiod_ids[0];
+	my %timeperiod_id_hash = map { $_ => 1 } @timeperiod_ids;
+
+	my ($course_id, $usergroup_id);
+	if ( $report_type eq 'course' ) {
+		$course_id = $object_id;
+	} elsif ( $report_type eq 'usergroup' ) {
+		$usergroup_id = $object_id;
+	}
+
+	my ($excluded_courses, $course_timeperiods, $course_titles, $class_meetings, $objectives, $keywords, $course, $usergroup);
+	my ($course_tab, $course_area, $usergroup_tab, $usergroup_area);
+	my @types;
+
+	if ( $report_type eq 'course' && defined($course_id) && defined($timeperiod_id) ) {
+		my $report = TUSK::Application::CurriculumReport::CourseSummary->new( $school, $course_id, $timeperiod_id );
+
+		$course = HSDB45::Course->new(_school => $school)->lookup_key( $course_id );
+
+		$class_meetings = $report->classMeetingsReport();
+		$objectives     = $report->objectivesReport();
+		$keywords       = $report->keywordsReport();
+
+		@types = sort keys %{$class_meetings};
+		($course_tab, $course_area) = ("activeTab", " activeArea");
+	} elsif ( $report_type eq 'usergroup' && defined($usergroup_id) && defined($timeperiod_id) ) {
+		my $report = TUSK::Application::CurriculumReport::UsergroupSummary->new( $school, $usergroup_id, \@timeperiod_ids, $ARGS{'include'}, $ARGS{'exclude'} );
+
+		$usergroup = HSDB45::UserGroup->new(_school => $school)->lookup_key( $usergroup_id );
+
+		$excluded_courses   = $report->{'excluded_courses'};
+		$course_titles      = $report->{'titles'};
+		$course_timeperiods = $report->{'timeperiods'};
+		$class_meetings     = $report->{'class_meetings'};
+		$objectives         = $report->{'objectives'};
+		$keywords           = $report->{'keywords'};
+
+		@types = @{$report->{'types'}};
+		($usergroup_tab, $usergroup_area) = ("activeTab", " activeArea");
+	} elsif ( !$report_type ) {
+		$report_type = 'usergroup';
+		($usergroup_tab, $usergroup_area) = ("activeTab", " activeArea");
+	}
+
+	my @sorted_course_ids;
+	my @temp_sorted_course_ids = sort {$course_titles->{$a} cmp $course_titles->{$b}} keys %{$course_titles};
+
+	foreach my $course_id ( @temp_sorted_course_ids ) {
+		my $course        = HSDB45::Course->new( _school => $school, _id => $course_id );
+		my $subcourses    = $course->get_subcourses();
+		my $parent_course = $course->is_a_subcourse();
+
+		if ( $parent_course ) {
+			# Put it in if the parent isn't associated.
+			if ( !(grep { $_ == $parent_course->course_id } @temp_sorted_course_ids) ) {
+				push @sorted_course_ids, $course_id;
+			}
+		} elsif ( $subcourses ) {
+			# Put in the parent
+			push @sorted_course_ids, $course_id;
+
+			# then put in the children IF they are in the original list
+			foreach my $subcourse ( @{$subcourses} ) {
+				if ( grep { $_ == $subcourse->course_id } @temp_sorted_course_ids ) {
+					push @sorted_course_ids, $subcourse->course_id;
+				}
+			}
+		} else {
+			push @sorted_course_ids, $course_id;
+		}
+	}
+
+	my $usergroups  = [ HSDB45::UserGroup->new(_school => $school)->lookup_conditions( "sub_group = 'No' order by label" ) ];
+	my $courses     = [ HSDB45::Course->new(_school => $school)->lookup_all( "order by title" ) ];
+	my $timeperiods = [ HSDB45::TimePeriod->new(_school => $school)->lookup_all( "order by start_date desc" ) ];
+
+	my $usergroup_options  = [];
+	my $course_options     = [];
+	my $timeperiod_options = [];
+
+	foreach (@{$usergroups})  { push @{$usergroup_options},  { 'label' => $_->out_label, 'value' => $_->primary_key }; }
+	foreach (@{$courses})     { push @{$course_options},     { 'label' => $_->out_label . ' (' . $_->course_id . ')', 'value' => $_->course_id }; }
+	foreach (@{$timeperiods}) {	push @{$timeperiod_options}, { 'label' => $_->out_label . ' (' . $_->field_value('academic_year') . ')', 'value' => $_->field_value('time_period_id')}; }
+
+	my @tr_classes = ('even', 'odd');
+	my ($cur, $unused);
+</%init>
+
+<%method fix_time>
+<%args>
+	$time
+</%args>
+<%perl>
+	$time =~ s/\.0*$//;
+	$time =~ s/([\d]{2})00$/:$1/;
+	my ($h,$m) = split(":", $time);
+	$h += int($m/60);
+	$m  = $m%60;
+	$time = sprintf("%dh&nbsp;%02dm",$h,$m);
+
+	return $time;
+</%perl>
+</%method>
+
+<%method line_item_row>
+	<%args>
+		$class
+		$item
+		$item_type
+		$types
+		$link => ''
+	</%args>
+	<tr class="<% $class %>">
+		<td class="layers-left">
+%			if ($link) {
+			<a href="<% $link %>" target="_blank">
+%			}
+			<% $item->{$item_type} %>
+%			if ($link) {
+			</a>
+%			}
+		</td>
+
+%	foreach my $type ( @{$types} ) {
+		<td class="layers-right">
+%		my $cm_details = $item->{'class_meeting'}->{$type};
+%		if ( defined( $cm_details ) ) {
+%			my $time = $m->comp('SELF:fix_time', 'time' => sum(values %{$cm_details}));
+			<% scalar(keys %{$cm_details}) %>&nbsp;/&nbsp;<% $time %>
+%		}
+		</td>
+%	}
+	</tr>
+</%method>
+
+<%method class_types_row>
+<%args>
+	$label
+	$types
+	$exclude_column => 0
+</%args>
+	<tr class="header">
+%	if ( $exclude_column ) {
+		<td class="header-center"></td>
+%	}
+		<td class="header-left"><% $label %></td>
+%	my $width = (scalar(@{$types})) ? floor( 50/(scalar(@{$types})) ) : 0;
+%	foreach my $type ( @{$types} ) {
+		<td class="header-right" width="<% $width %>%"><% $type %><br /><span class="xsm">Sessions&nbsp;/&nbsp;Hours</span></td>
+%	}
+	</tr>
+</%method>
+
+<%method red_header_text>
+% return "Reporting";
+</%method>
+
+<%method title>
+% return "Reporting";
+</%method>

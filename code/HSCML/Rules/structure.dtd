@@ -1,0 +1,260 @@
+<!-- Make sure the inline.dtd in included first. -->
+
+<!ENTITY % list "enumerated-list | itemized-list | outline-list | definition-list">
+<!ENTITY % conversion "conversion-note | conversion-exception">
+<!ENTITY % block "%list; | pagebreak | para | block-quote | equation | figure | table | hsdb-cite-include | %conversion;">
+<!ENTITY % Block "(%block;)*">
+<!ENTITY % Flow "(#PCDATA | %block; | %inline;)*">
+
+
+<!ENTITY % CaptionedBlock "((%block;)*, caption?)">
+<!-- Just a generic body -->
+<!ELEMENT body ((section-level-1 | %block;)+)>
+<!ATTLIST body levelstyle (numbered | outline | naked) "numbered">
+
+<!-- Chapter and sections -->
+<!ELEMENT section-level-1 (section-title, (section-level-2 | %block;)*)>
+<!ATTLIST section-level-1 %DefAttrs;>
+<!ELEMENT section-level-2 (section-title, (section-level-3 | %block;)*)>
+<!ATTLIST section-level-2 %DefAttrs;>
+<!ELEMENT section-level-3 (section-title, (section-level-4 | %block;)*)>
+<!ATTLIST section-level-3 %DefAttrs;>
+<!ELEMENT section-level-4 (section-title, (section-level-5 | %block;)*)>
+<!ATTLIST section-level-4 %DefAttrs;>
+<!ELEMENT section-level-5 (section-title, (section-level-5 | %block;)*)>
+<!ATTLIST section-level-5 %DefAttrs;>
+<!ELEMENT section-title %Inline;>
+<!ATTLIST section-title %DefAttrs;>
+
+<!-- Enumerated/itemized lists -->
+
+<!ENTITY % ListAttrs "">
+<!ELEMENT enumerated-list (list-title?, list-item+)>
+<!ATTLIST enumerated-list 
+    %ListAttrs;
+    %DefAttrs;>
+<!ELEMENT itemized-list (list-title?, list-item+)>
+<!ATTLIST itemized-list 
+    %ListAttrs;
+    %DefAttrs;>
+<!ELEMENT outline-list (list-title?, list-item+)>
+<!ATTLIST outline-list 
+    %ListAttrs;
+    %DefAttrs;>
+<!ELEMENT list-item %Flow;>
+<!ATTLIST list-item %DefAttrs;>
+<!ELEMENT list-title %Inline;>
+<!ATTLIST list-title %DefAttrs;>
+
+<!-- Definition lists -->
+<!ELEMENT definition-list (list-title?, (definition-term, definition-data)+)>
+<!ATTLIST definition-list
+    %ListAttrs;
+    %DefAttrs;>
+<!ELEMENT definition-term %Inline;>
+<!ATTLIST definition-term %DefAttrs;>
+<!ELEMENT definition-data %Flow;>
+<!ATTLIST definition-data %DefAttrs;>
+
+<!-- Paragraphs -->
+<!ELEMENT para %Inline;>
+<!ATTLIST para %DefAttrs;>
+
+<!-- Block quotes -->
+<!ELEMENT block-quote %Flow;>
+<!ATTLIST block-quote 
+		%DefAttrs;
+		acknowledgement CDATA #IMPLIED>
+
+<!-- Equations -->
+<!ELEMENT equation %Block;>
+<!ATTLIST equation 
+		%DefAttrs;
+		%AlignAttr;>
+
+<!-- Figures -->
+<!ELEMENT figure ((%graphic;), caption?)>
+<!ATTLIST figure 
+		%DefAttrs;
+		%AlignAttr;>
+<!ELEMENT caption %Inline;>
+<!ATTLIST caption %DefAttrs;>
+
+<!-- Includes -->
+<!ELEMENT hsdb-cite-include EMPTY>
+<!ATTLIST hsdb-cite-include
+        %DefAttrs;
+        content-id %ContentID_attr; #REQUIRED
+        node-ids %NodeIDs_attr; #IMPLIED>
+        
+<!-- breaks -->
+<!ELEMENT pagebreak EMPTY>
+<!ATTLIST pagebreak
+	width CDATA #IMPLIED
+	height CDATA #IMPLIED>
+
+<!--======================= Tables =======================================-->
+
+<!-- Derived from IETF HTML table standard, see [RFC1942] -->
+
+<!--
+ The border attribute sets the thickness of the frame around the
+ table. The default units are screen pixels.
+
+ The frame attribute specifies which parts of the frame around
+ the table should be rendered. The values are not the same as
+ CALS to avoid a name clash with the valign attribute.
+-->
+<!ENTITY % TFrame "(void|above|below|hsides|lhs|rhs|vsides|box|border)">
+
+<!--
+ The rules attribute defines which rules to draw between cells:
+
+ If rules is absent then assume:
+     "none" if border is absent or border="0" otherwise "all"
+-->
+
+<!ENTITY % TRules "(none | groups | rows | cols | all)">
+  
+<!-- horizontal placement of table relative to document -->
+<!ENTITY % TAlign "(left|center|right)">
+
+<!-- horizontal alignment attributes for cell contents
+
+  char        alignment char, e.g. char=':'
+  charoff     offset for alignment char
+-->
+<!ENTITY % cellhalign
+  "align      (left|center|right|justify|char) #IMPLIED
+   char       %Character_attr;    #IMPLIED
+   charoff    %Length_attr;       #IMPLIED"
+  >
+
+<!-- vertical alignment attributes for cell contents -->
+<!ENTITY % cellvalign
+  "valign     (top|middle|bottom|baseline) #IMPLIED"
+  >
+
+<!ELEMENT table
+     (caption?, (col*|colgroup*), thead?, tfoot?, (tbody+|tr+))>
+<!ELEMENT thead    (tr)+>
+<!ELEMENT tfoot    (tr)+>
+<!ELEMENT tbody    (tr)+>
+<!ELEMENT colgroup (col)*>
+<!ELEMENT col      EMPTY>
+<!ELEMENT tr       (th|td)+>
+<!ELEMENT th       %Flow;>
+<!ELEMENT td       %Flow;>
+
+<!ATTLIST table
+  %DefAttrs;
+  summary     %Text_attr;    #IMPLIED
+  width       %Length_attr;       #IMPLIED
+  border      %Pixels_attr;       #IMPLIED
+  frame       %TFrame;       #IMPLIED
+  rules       %TRules;       #IMPLIED
+  cellspacing %Length_attr;       #IMPLIED
+  cellpadding %Length_attr;       #IMPLIED
+  %AlignAttr;
+  >
+
+<!ENTITY % CAlign "(top|bottom|left|right)">
+
+<!--
+colgroup groups a set of col elements. It allows you to group
+several semantically related columns together.
+-->
+<!ATTLIST colgroup
+  %DefAttrs;
+  span        %Number_attr;       "1"
+  width       %MultiLength_attr;  #IMPLIED
+  %cellhalign;
+  %cellvalign;
+  >
+
+<!--
+ col elements define the alignment properties for cells in
+ one or more columns.
+
+ The width attribute specifies the width of the columns, e.g.
+
+     width=64        width in screen pixels
+     width=0.5*      relative width of 0.5
+
+ The span attribute causes the attributes of one
+ col element to apply to more than one column.
+-->
+<!ATTLIST col
+  %DefAttrs;
+  span        %Number_attr;       "1"
+  width       %MultiLength_attr;  #IMPLIED
+  %cellhalign;
+  %cellvalign;
+  >
+
+<!--
+    Use thead to duplicate headers when breaking table
+    across page boundaries, or for static headers when
+    tbody sections are rendered in scrolling panel.
+
+    Use tfoot to duplicate footers when breaking table
+    across page boundaries, or for static footers when
+    tbody sections are rendered in scrolling panel.
+
+    Use multiple tbody sections when rules are needed
+    between groups of table rows.
+-->
+<!ATTLIST thead
+  %DefAttrs;
+  %cellhalign;
+  %cellvalign;
+  >
+
+<!ATTLIST tfoot
+  %DefAttrs;
+  %cellhalign;
+  %cellvalign;
+  >
+
+<!ATTLIST tbody
+  %DefAttrs;
+  %cellhalign;
+  %cellvalign;
+  >
+
+<!ATTLIST tr
+  %DefAttrs;
+  %cellhalign;
+  %cellvalign;
+  >
+
+
+<!-- Scope is simpler than headers attribute for common tables -->
+<!ENTITY % Scope "(row|col|rowgroup|colgroup)">
+
+<!-- th is for headers, td for data and for cells acting as both -->
+
+<!ATTLIST th
+  %DefAttrs;
+  abbr        %Text_attr;    #IMPLIED
+  axis        CDATA          #IMPLIED
+  headers     IDREFS         #IMPLIED
+  scope       %Scope;        #IMPLIED
+  rowspan     %Number_attr;       "1"
+  colspan     %Number_attr;       "1"
+  %cellhalign;
+  %cellvalign;
+  >
+
+<!ATTLIST td
+  %DefAttrs;
+  abbr        %Text_attr;    #IMPLIED
+  axis        CDATA          #IMPLIED
+  headers     IDREFS         #IMPLIED
+  scope       %Scope;        #IMPLIED
+  rowspan     %Number_attr;       "1"
+  colspan     %Number_attr;       "1"
+  %cellhalign;
+  %cellvalign;
+  width       %MultiLength_attr;  #IMPLIED
+  >

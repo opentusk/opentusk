@@ -1,0 +1,129 @@
+<%attr>
+	top_tab_type => 'manage'
+</%attr>
+
+<%once>
+use HSDB4::Constants;
+</%once>
+<%shared>
+my $submit_mode = 0;
+my @Months = qw( January February March
+		April May June July 
+		August September October November
+		December );
+my $count = 1;
+my %monthLookup = map { ($_=>$count++) } @Months;
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+<%method title>
+% return 'Schedule';
+</%method>
+
+<%method right_header_text>
+% return [ {txt => 'Preview', url => "/view/$type_path/schedule" } ];
+</%method>
+
+<%perl>
+my $year = ((localtime())[5]) + 1900;
+my $this_month = @Months[(localtime())[4]] ;
+my @Years = (($year - 5) .. ($year + 2));
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%perl>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                onsubmit =>undef,
+                name => 'schedule' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+% if (!$errorMsg) {
+% if (!$submit_mode) {
+<& /tmpl/element:dropdown, params=>{ label => 'Please Select a Month',
+                name=>"month",
+                onchange=>undef,
+                selected=>$this_month,
+                options=>\@Months } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Please Select a Year',
+                name=>"year",
+                onchange=>undef,
+                selected=>$year,
+                options=>\@Years } &>
+<& /tmpl/element:vertical_spacing,size=>1 &>
+<& /tmpl/element:tr_tag &>
+<td>
+<& /tmpl/element:submit_button,params=>{'label'=>'View Schedule',
+		'name'=>'schedule_submit' } &>
+</td>
+</tr>
+% } else {
+<%perl>
+        my $col_fields = [ {'label' => 'Title', 'field' => 'title'},
+                           {'label' => 'Room', 'field' => 'location'},
+                           {'label' => 'Type', 'field' => 'type'},
+                           {'label' => 'Date', 'field' => 'meeting_date'}
+                            ];
+
+</%perl>
+<& /tmpl/element:link,params=>{'label'=>'Select Another Date','href'=>'/management/schedule/show/'.$type_path} &>
+<& /tmpl/element:vertical_spacing, size=>1 &>
+<& /tmpl/element:object_selection_box, params => { 
+                                sort_box => 0,
+                                columns => $col_fields,
+                                action_columns => [ 
+                                                   { 'label'=>'Modify','link' => '/management/schedule/addedit' }
+                                                  ], 
+                                object_list => \@class_meetings,
+                                type_path => $type_path,
+                                name => "schedule",
+                                }
+&>
+
+
+% }
+% } else {
+%  $m->comp('/tmpl/element:note', msg=>$errorMsg );
+% } 
+</table>
+
+</form>
+
+
+<%init>
+# should be a course
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my @class_meetings;
+my $isScheduleSchool = 0;
+foreach my $school (HSDB4::Constants::schedule_schools()){
+        if (lc($school) eq lc($type_object->school())){
+                $isScheduleSchool = 1;
+                last;
+        }
+}
+
+my $errorMsg  ;
+if (!$isScheduleSchool){
+	$errorMsg = "The school ".$type_object->school()." does not use schedules in TUSK.";
+}
+
+if ($ARGS{'schedule_submit'}) {
+	$submit_mode = 1;
+	my $month = $monthLookup{$ARGS{'month'}}  ;
+	my $afterDate;
+	if ($month == 12){
+		$afterDate = sprintf("%d-01-01",$ARGS{'year'}+1);	
+	} else {
+		$afterDate  = sprintf("%d-%02d-01", $ARGS{'year'},($month + 1));
+	}
+	my $beforeDate = sprintf("%d-%02d-01", $ARGS{'year'}, $month);
+	# $m->print(" BEFORE : $beforeDate -- AFTER : $afterDate ");
+	my $course_id = $type_object->primary_key();
+	@class_meetings = HSDB45::ClassMeeting->new(_school=>$type_object->school())->lookup_conditions(
+		"meeting_date BETWEEN '$beforeDate' AND DATE_SUB('$afterDate', INTERVAL 1 DAY) AND course_id = $course_id","order by meeting_date");
+}
+</%init>

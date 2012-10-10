@@ -1,0 +1,91 @@
+<%args>
+	$HIDEGROUPBY	=> 0
+</%args>
+<%attr>
+        top_tab_type            => 'none'
+        displayLittleUserNavBar => '1'
+        no_header               => '1'
+        page_header             => undef
+        page_footer             => undef
+        allow_guests            => '0'
+	no_check_path		=> 1
+</%attr>
+<%once>
+	use HSDB45::Eval::Results;
+	use HSDB45::Eval::Results::Formatter;
+	use Apache::Cookie;
+	use Apache::Constants qw/NOT_FOUND FORBIDDEN/;
+	use IO::Scalar;
+	use XML::LibXML;
+	use XML::LibXSLT;
+	use TUSK::Eval::EvalLoadTime;
+	use httpdconf;
+</%once>
+% $m->clear_buffer();
+<%perl>
+	# We need to not be called over https or this will fail.
+	# The reason is that the .xsl file which is used to render the eval body specifically calls http.
+	# If we pass it the https host:port then the browser tries to make an http call to the https port (which does not work so well).
+	# Unfortunatley, since ajax can not make a call from https to http we can't really do a redirect.
+	# So put a nice message with a url redirect
+	if($ENV{HTTPS}) {
+		my %httpVars;
+		httpdconf::setVariablesForServerEnvironment(\%httpVars);
+		my $redirectURL = $httpVars{unsecure_server} . $ENV{SCRIPT_URL};
+		if($redirectURL !~ /^http/) {$redirectURL = "http://$redirectURL";}
+		$m->print("I'm sorry, this page can not be successfully displayed over https at this time. Please <a href=\"". $redirectURL . "\">click here</a> to view this page.");
+		$m->abort();
+	}
+	$r->content_type('text/html');
+	$r->no_cache(1);
+	my $eval;
+	my $filter = '';
+	my $filter_id = '';
+	if($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
+		$eval = HSDB45::Eval->new(_school => $1, _id => $2);
+		$filter = 'filtered_';
+		$filter_id = $3;
+	} else {
+		$eval = HSDB45::Eval->lookup_path( $ENV{'PATH_INFO'} );
+	}
+
+	# Check for valid user
+	unless($eval->admin_group()->contains_user($m->session->{'user'})) {
+		$r->status(FORBIDDEN);
+		$m->abort();
+	}
+	if(scalar($eval->users())) {
+		my $timer = TUSK::Eval::EvalLoadTime->new();
+		$timer->setEval($eval);
+		$timer->start();
+		my $parser = XML::LibXML->new();
+		my $xslt = XML::LibXSLT->new();
+		my $style_doc = $parser->parse_file($ENV{'CODE_ROOT'}."/XSL/Eval/eval_results.xsl");
+		my $stylesheet = $xslt->parse_stylesheet($style_doc);
+
+		my $eval_results = HSDB45::Eval::Results->new($eval);
+		my $formatter = HSDB45::Eval::Results::Formatter->new($eval_results);
+
+		my $source = $parser->parse_string($formatter->get_xml_text(0));
+
+		my $hideGroup = 0;
+		if($HIDEGROUPBY) {$hideGroup = 1;}
+		# This should only be called over http because the .xsl sheet specifically requests an http page with this host.
+		my $host = $ENV{'HTTP_HOST'};
+
+		my $results = $stylesheet->transform(
+			$source,
+			XML::LibXSLT::xpath_to_string(
+				"HOST" => $host,
+				"FILTER" => $filter,
+				"FILTER_ID" => $filter_id,
+				"COMPLETIONS" => 1,
+				"HIDEGROUPBY" => $hideGroup,
+			),
+		);
+		$m->print($stylesheet->output_string($results));
+		$timer->stop();
+	} else {
+		$m->print("\<b>No Results Available\</b>");
+	}
+</%perl>

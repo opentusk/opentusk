@@ -1,0 +1,54 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use HSDB4::Constants qw(:school);
+use HSDB4::SQLRow::User;
+use HSDB45::Course;
+use MySQL::Password;
+use Getopt::Long;
+
+my $school;
+GetOptions( "school=s" => \$school );
+my $db = get_school_db($school) or die "Must specify --school=<school>\n";
+
+my $print = 1;
+if ($ARGV[0] =~ /NOPRINT/) {
+    $print = 0;
+}
+
+# Get username and password
+my ($un, $pw) = get_user_pw ();
+# Set the username and password for HSDB4 module lookups
+HSDB4::Constants::set_user_pw ($un, $pw);
+
+my $ii = 0;
+my $dir;
+my $course = HSDB45::Course->new( _school => $school );
+
+my @courses = $course->lookup_all("order by course_id");
+
+my $webauth = "/data/html/web-auth";
+foreach (@courses) {
+    $dir = $_->primary_key;
+    unless (-e "$webauth/pdf/$dir") {
+	print $dir." - ".$_->field_value('title') if ($print);
+	system "mkdir $webauth/pdf/$dir" || print "- creation error: $|\n";
+	system "chmod 777 $webauth/pdf/$dir" || print "- permissions error: $|\n";
+	print "\n" if ($print);
+	$ii++;
+    }
+}
+if ($ii) {
+    print "$ii directories created.\n" if ($print);
+}
+else {
+    print "No directories to be created.\n" if ($print);
+}
+exit;
+
+
+
+
+

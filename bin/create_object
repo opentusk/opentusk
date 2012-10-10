@@ -1,0 +1,230 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+
+use MySQL::Password;
+use DBI;
+use Getopt::Std;
+
+getopt('dptrec');
+
+
+
+if (!$opt_d or !$opt_t or !$opt_p){
+    print <<EOM;
+Usage: create_object -d <database> -p <package> -t <table> [-r (warn|cluck)] [-e <error level (0-10)>] -c <dir to automatically create package>
+
+Where package is the text between 'TUSK::' and  your package name.
+
+So if your package is called LinkCaseUser, and you do -p Case,
+your package will be called TUSK::Case::LinkCaseUser
+
+EOM
+    exit;
+}
+
+$opt_r = "cluck" unless ($opt_r);
+$opt_e = "0" unless ($opt_e);
+
+$objectname = $opt_t;
+$objectname =~ s/_(.)/uc($1)/eg;
+$objectname = ucfirst($objectname);
+$packagename="$opt_p\::$objectname";
+
+my ($u, $p) = get_user_pw ();
+$dbh = DBI->connect ('dbi:mysql:hsdb45_nut_admin', $u, $p,
+		     { RaiseError => 1 });
+$query = qq[desc $opt_d.$opt_t];
+
+$sth = $dbh->prepare($query);
+
+$arrayref = $dbh->selectall_arrayref($query);
+
+my $found_pk = 0;
+
+foreach $col (@$arrayref){
+    $colname = $$col[0];
+    if ($colname =~ /^(created_by|created_on|modified_on|modified_by)$/){
+	$count++;
+	next;
+    }
+    if ($$col[3] eq "PRI"){
+	$fields .= ("\t"x5)."'$colname' => 'pk',\n";
+	$found_pk = 1;
+	next;
+    }
+    
+    $fields .= ("\t"x5)."'$colname' => '',\n";
+
+
+    $methodname = $colname;
+    $methodname =~ s/_(.)/uc($1)/eg;
+    $methodname =~ s/Id$/ID/;
+    $methodname = ucfirst($methodname);
+
+$getset .= <<EOF;
+
+#######################################################
+
+=item B<get$methodname>
+
+my \$string = \$obj->get$methodname();
+
+Get the value of the $colname field
+
+=cut
+
+sub get$methodname\{
+    my (\$self) = \@_;
+    return \$self->getFieldValue('$colname');
+\}
+
+#######################################################
+
+=item B<set$methodname>
+
+\$obj->set$methodname(\$value);
+
+Set the value of the $colname field
+
+=cut
+
+sub set$methodname\{
+    my (\$self, \$value) = \@_;
+    \$self->setFieldValue('$colname', \$value);
+\}
+
+EOF
+
+}
+
+die "Table $opt_d.$opt_t does not have a primary key\n" unless ($found_pk);
+
+undef $/;
+
+# get rid of the last line return
+chop($fields);
+
+$version = 0;
+$version = 1 if ($count == 4);
+
+
+$slurp = <DATA>;
+
+$slurp =~s/<\%PACKAGENAME\%>/$packagename/g;
+$slurp =~s/<\%TABLENAME\%>/$opt_t/g;
+$slurp =~s/<\%DATABASE\%>/$opt_d/g;
+$slurp =~s/<\%VERSION\%>/$version/g;
+$slurp =~s/<\%FIELDS\%>/$fields/g;
+$slurp =~s/<\%GETSET\%>/$getset/mg;
+$slurp =~s/<\%REPORTING\%>/$opt_r/mg;
+$slurp =~s/<\%ERROR\%>/$opt_e/mg;
+
+if ($opt_c) {
+    open CLASS, ">$opt_c/$objectname.pm";
+    print CLASS $slurp,"\n";
+    close CLASS;
+	
+}
+else {
+    print $slurp,"\n";
+}
+
+__DATA__
+package TUSK::<%PACKAGENAME%>;
+
+=head1 NAME
+
+B<TUSK::<%PACKAGENAME%>> - Class for manipulating entries in table <%TABLENAME%> in <%DATABASE%> database
+
+=head1 SYNOPSIS
+
+
+=head1 DESCRIPTION
+
+
+=head1 INTERFACE
+
+
+=head2 GET/SET METHODS
+
+=over 4
+
+=cut
+
+use strict;
+
+BEGIN {
+    require Exporter;
+    require TUSK::Core::SQLRow;
+
+    use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
+    
+    @ISA = qw(TUSK::Core::SQLRow Exporter);
+    @EXPORT = qw( );
+    @EXPORT_OK = qw( );
+}
+
+use vars @EXPORT_OK;
+
+# Non-exported package globals go here
+use vars ();
+
+sub new {
+    # Find out what class we are
+    my $class = shift;
+    $class = ref $class || $class;
+    # Call the super-class's constructor and give it all the values
+    my $self = $class->SUPER::new ( 
+				    _datainfo => {
+					'database' => '<%DATABASE%>',
+					'tablename' => '<%TABLENAME%>',
+					'usertoken' => '',
+					'database_handle' => '',
+					},
+				    _field_names => {
+<%FIELDS%>
+				    },
+				    _attributes => {
+					save_history => 0,
+					tracking_fields => 1,	
+				    },
+				    _levels => {
+					reporting => '<%REPORTING%>',
+					error => <%ERROR%>,
+				    },
+				    @_
+				  );
+    # Finish initialization...
+    return $self;
+}
+
+### Get/Set methods
+<%GETSET%>
+
+=back
+
+=cut
+
+### Other Methods
+
+=head1 BUGS
+
+None Reported.
+
+=head1 SEE ALSO
+
+B<TUSK::Core::SQLRow> - parent class
+
+=head1 AUTHOR
+
+TUSK Development Team <tuskdev@tufts.edu>
+
+=head1 COPYRIGHT
+
+Copyright (c) Tufts University Sciences Knowledgebase, 2004.
+
+=cut
+
+1;

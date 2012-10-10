@@ -1,0 +1,136 @@
+[-
+	$req=shift;
+	$req->{checkadmin} = 1; # check for admin
+
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	$req->{pagetype} = "discussions";
+	$req->{showpage} = 1;
+	$req->{image}="ManageDiscussions";
+	$req->{checkcourserole}="AUTHOR";
+
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	Execute ({inputfile=>$req->{include_dir}."/element",import => 1});
+
+	$req->{check_timeperiod} = 1 if ($req->{type} eq "course");
+
+	$data = TUSK::Manage::Forums::show_pre_process($req, $fdat{timeperiod}, \%udat);
+
+	$is_thesis_comm;
+	if($req->{course}){
+		$is_thesis_comm = ($req->{course}->type() =~ /thesis committee/i)? 1 : 0;
+		# used below - if no users or students in class, don't present default discussions button
+		@tc_members = $req->{course}->child_users();
+		@tc_student = $req->{course}->child_students();
+	}
+
+	if($fdat{create_standard} && ($is_thesis_comm && !scalar(@{$data->{discussions}}))){
+		foreach my $board ('Advisor-Student', 'Advisor-Committee', 'All'){
+			$fdat{title} = $board;
+			$fdat{shortDesc} = "Discussion board for $board";
+			$fdat{longDesc} = '';
+			$fdat{anonymous} = 0;
+			$fdat{usergroup} = 0;
+			$fdat{action} = 'add';
+			$fdat{thesis_comm} = $board;
+
+			($rval, $msg) = TUSK::Manage::Forums::addedit_process($req, \%fdat, \%udat);
+			process_return_values($rval, $msg);
+			unless($rval){
+				# if no rval, or it is zero (0), we have error, so stop creating discussions 
+				# and send traffic light message to user 
+				last;
+			}
+		}
+		$http_headers_out{'Location'}="/manage/discussions/show/course/" . $req->{classpath} . "/?$fdat{urimsg}";
+	}
+
+	# change sort order!
+	if ($fdat{order}){
+		($rval, $msg, $data) = TUSK::Manage::Forums::show_process($data, $req, \%fdat);
+		process_return_values($rval, $msg);
+	}
+	
+	manage_header($req);
+-]
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+[$ if ($req->{type} eq "school" or TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]
+[- 
+@lnks = ( { link_txt    => '/manage/discussions/addedit/' . $req->{selfpath} ,
+            display_txt => 'New Discussion' } ); 
+-]                    
+[$ if(($is_thesis_comm && !scalar @{$data->{discussions}}) && (scalar @tc_members && scalar @tc_student)) $]
+[- 
+unshift @lnks, { link_txt    => '/manage/discussions/show/' . $req->{selfpath} . '?create_standard=true',
+                 display_txt => 'Create Default Discussions' };
+-]
+[$ endif $]
+<tr> 
+	<td>
+[-
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'cms_button_row', 
+          param     => \@lnks,
+         }); 
+-]
+	</td>
+</tr>
+<tr >
+	<td colspan="2">
+[$ else $]
+<tr>
+	<td class="no-button">
+[$ endif $]
+<form name="discussions" method="post" class="no-padding"> 
+[$ if (scalar(@{$data->{discussions}})) $]
+                 <table width="100%" cellspacing="0" class="tusk">
+                    <tr class="header"> 
+[$ if ($req->{type} eq "school" or TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]	
+                      <td class="header-center" width="1%">Sort</td>
+[$ endif $]
+                      <td class="header-left">Discussions Boards</td>
+[$ if (!$is_thesis_comm) $]
+                      <td class="header-left">Available To</td>
+[$ endif $]
+                      <td class="header-center" width="1%">Actions</td>
+                    </tr>
+[$ foreach $i (0..($data->{disc_count}-1)) $]
+[- 	
+	$discussion = $data->{discussions}[$i];
+	if ($i % 2 == 0){
+		$data->{class} = "even";
+	}else{
+		$data->{class} = "odd";
+	}
+-]
+	<tr class="[+ $data->{class} +]"> 
+[$ if ($req->{type} eq "school" or TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]
+        	<td class="layers-center" width="1%"><select name="order" onChange="document.discussions.submit();" class="[+ $data->{class} +]">
+			[$ foreach $j (1..($data->{disc_count})) $]
+			<option class="[+ $data->{class} +]" [$ if ($j == ($i+1)) $] value="" selected [$ else $] value="[+ ($i+1) +]-[+ $j +]"[$ endif $]>[+ $j +]</option>
+			[$ endforeach $]
+                        </select></td>
+[$ endif $]
+                      <td class="layers-left">[$ if ($req->{type} eq "school" or TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]<a href="/manage/discussions/addedit/[+ $req->{selfpath} +]/[+ $discussion->{id} +]">[+ $discussion->{title} +]</a>[$ else $][+ $discussion->{title} +][$ endif $]<br>[+ $discussion->{shortDesc} +]<br></td>
+[$ if(!$is_thesis_comm) $]
+                      <td class="layers-left">[$ if ($req->{type} eq "school") $]Schoolwide[$ else $][+ $discussion->{label} +][$ endif $]</td>
+[$ endif $]
+                      <td class="layers-center" nowrap><a href="/forum/board_show.pl?bid=[+ $discussion->{id} +]" class="navsm">View&nbsp;Board</a><span class="littlespacing">|</span><a href="/manage/discussions/users/[+ $req->{selfpath} +]/[+ $discussion->{id} +]" class="navsm">Users</a>[$ if ($req->{type} eq "school" or TUSK::Session::check_course_permissions($req->{courserole}, 'DIRECTOR')) $]<span class="littlespacing">|</span><a href="/manage/discussions/addedit/[+ $req->{selfpath} +]/[+ $discussion->{id} +]" class="navsm">Modify</a><span class="littlespacing">|</span><a href="/manage/discussions/delete/[+ $req->{selfpath} +]/[+ $discussion->{id} +]" class="navsm">Delete</a>[$ endif $]</td>
+                    </tr>
+
+[$ endforeach $]
+                  </table>
+[$ else $]
+[$ if ($req->{type} eq "course") $]
+<i>Course has no discussions.</i>
+[$ elsif ($req->{type} eq "school") $]
+<i>School has no discussions.</i>
+[$ endif $]
+[$ endif $]
+</form>
+</td>
+</tr>
+</table>
+
+
+[- manage_footer(); -]

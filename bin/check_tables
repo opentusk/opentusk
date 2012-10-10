@@ -1,0 +1,94 @@
+#!/usr/bin/perl
+use strict;
+use Getopt::Long;
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use TUSK::Constants;
+
+sub doPrint($);
+sub showHelp();
+
+my $verbose = 0;
+my $showHelp = 0;
+my $mysqlCommandBonus = '';
+my @databases;
+my @tables;
+GetOptions("verbose!" => \$verbose,
+	   "mysqlOpts=s" => \$mysqlCommandBonus,
+	   "help!" => \$showHelp,
+);
+
+if($showHelp) {showHelp();}
+
+my $mysqlCommand = $TUSK::Constants::mysqlDir . "/mysql --silent --batch --skip-column-names $mysqlCommandBonus";
+
+unless(open(INPUT, "$mysqlCommand -e \"show databases;\" | ")) {die "Unable to get databases : $!\n";}
+doPrint("Reading databases...");
+while(<INPUT>) {
+	chomp;
+	if(($_ !~/^lost.*found$/) && ($_ !~/^snap.*/)) {push @databases, $_;}
+}
+close(INPUT);
+doPrint("OK\n");
+
+doPrint("Reading tables...");
+foreach my $database (@databases) {
+	unless(open(INPUT, "$mysqlCommand -e \"show tables\" $database | ")) {warn "Unable to get tables from $database : $!\n";}
+	else {
+		while(<INPUT>) {
+			chomp;
+			push @tables, "$database.$_";
+		}
+	}
+}
+doPrint("OK\n");
+
+my %results;
+foreach my $table (@tables) {
+	doPrint("\rRunning check on $table...                          ");
+	unless(open(COMMAND, "$mysqlCommand -e \"CHECK TABLE $table CHANGED;\" |")) {die "Unable to run check command : $!\n";}
+	$results{$table} = <COMMAND>;
+}
+doPrint("Done checking tables\n");
+
+my %okResults;
+my %badResults;
+foreach my $tableName (keys %results) {
+	if($results{$tableName} =~ /Table is already up to date$/) {$okResults{$tableName} = $results{$tableName};}
+	elsif($results{$tableName} =~ /OK$/) {$okResults{$tableName} = $results{$tableName};}
+	elsif($results{$tableName} =~ /The storage engine for the table doesn't support check$/) {$okResults{$tableName} = $results{$tableName};}
+	else {
+		$badResults{$tableName} = $results{$tableName};
+	}
+}
+
+doPrint("\n\nOK Results:\n\n");
+foreach (keys %okResults) {doPrint($okResults{$_});}
+
+if(scalar(keys %badResults) > 0) {
+	print "\n\nBad Results:\n\n";
+	foreach (keys %badResults) {print $badResults{$_};}
+}
+
+
+
+
+sub doPrint($) {
+	my $message = shift;
+	if($verbose) {print $message;}
+}
+
+sub showHelp() {
+	print "\n\n$0 - use mysql to do a check on the tables\n";
+	print "\t-help\tThis message\n";
+	print "\t-verbose\tShow what's happening to stdout (non-cron)\n";
+	print "\t-mysqlOpts\tExtra stuff to pass to mysql command line\n";
+	print "\t\tDefault is --silent --skip-column-names --batch\n";
+	print "\t\tExample -mysqlOpts=\"-u root\" to do the checks as root\n";
+	print "\n";
+	print "This command is intended to be run as a cron for preventative maintenance\n";
+	print "24 23 * * * /usr/local/tusk/current/bin/$0 2>&1 | /usr/local/tusk/current/bin/mail_cron_error \"Mysql Table Check\"\n";
+	print "Runs this program at 11:24pm every day and mails the results based on the TUSK::Constants file\n";
+	print "\n\n";
+	exit();
+}

@@ -1,0 +1,28 @@
+<!-- Begin Course Inner Table -->
+<%args>
+  $refToLeftMenu
+  $highlightRow
+  $theCourseObjectRef
+  $user_obj
+</%args>
+
+% my $iCanEdit = $$theCourseObjectRef->can_user_edit($user_obj);
+
+
+<& /tmpl/leftnav/element:table &>
+%foreach my $tabName (@{ ${$refToLeftMenu}{tabOrder} }) {
+<tr><td colspan="2">
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>$tabName} &>
+</td></tr>
+%	foreach my $sectionName (@{ ${$refToLeftMenu}{$tabName} }) {
+%		if(${$refToLeftMenu}{$sectionName}{preText}) {
+			<& /tmpl/leftnav/element:menu_item, params=>{'label'=>${$refToLeftMenu}{$sectionName}{preText}, 'showLightArrows'=>'1', 'linkstyle'=>'viewCourseAnnouncement', 'no_link'=>1} &>
+%		}
+		<& /tmpl/leftnav/element:menu_item, params=>{'label'=>${$refToLeftMenu}{$sectionName}{title},'url'=>${$refToLeftMenu}{$sectionName}{link}, 'showLightArrows'=>'1', 'highlight'=>"$highlightRow", 'linkstyle'=> ${$refToLeftMenu}{$sectionName}{style}, 'target'=> ${$refToLeftMenu}{$sectionName}{target}, 'iCanEdit'=>$iCanEdit, 'actionLnk'=>${$refToLeftMenu}{$sectionName}{actionLnk}, 'actionLnkTxt'=>${$refToLeftMenu}{$sectionName}{actionLnkTxt}, 'newLine'=>${$refToLeftMenu}{$sectionName}{newLine} }&>
+%		if(${$refToLeftMenu}{$sectionName}{postText}) {
+			<& /tmpl/leftnav/element:menu_item, params=>{'label'=>${$refToLeftMenu}{$sectionName}{postText}, 'showLightArrows'=>'1', 'linkstyle'=>'viewCourseAnnouncement', 'no_link'=>1} &>
+%		}
+%	}
+%}
+
+<& /tmpl/leftnav/element:close_table, red_bar=>0 &>

@@ -1,0 +1,91 @@
+<%doc>
+	search criteria passed in @search_by argument
+		aw => 'all_words',     
+		sg => 'small_group',
+		nrq => 'numeric_ranking question',
+		pw => 'partial_word', 
+		nr => 'no_response',
+</%doc>
+
+
+<%shared>
+	my %args = $m->request_args;
+	my %search_criteria = (ref($args{search_by}) eq 'ARRAY') ? map { $_ => '' } @{$args{search_by}} : $args{search_by};
+	my @search_strings = split(/\s+/, lc $args{search_string});
+	$args{school} = $m->comp('SELF:schoolname');
+</%shared>
+
+<& SELF:printResults &>
+
+
+<%method args2string>
+<%perl>
+	my @paramStrings = ();
+	foreach my $key (keys %args) {
+		if (ref($args{$key}) eq 'ARRAY') {
+			foreach (@{$args{$key}}) {
+				push @paramStrings, "$key=$_";
+			}
+		} else {
+			push @paramStrings, "$key=$args{$key}";
+		}
+	}
+
+	return join('&', @paramStrings);
+</%perl>
+</%method>
+
+<%method startup>
+%      $m->comp("SELF:set_no_cache");
+%      $m->comp("SELF:set_unicode");
+</%method>
+
+<%method jsarray>
+%	return [ "showEvalSearchResults.js" ];
+</%method>
+
+
+<%method printResults>
+
+<%perl>
+	my @paramStrings = ();
+	foreach my $key (keys %args) {
+		if (ref($args{$key}) eq 'ARRAY') {
+			foreach (@{$args{$key}}) {
+				push @paramStrings, "$key=$_";
+			}
+		} else {
+			push @paramStrings, "$key=$args{$key}";
+		}
+	}
+
+	my $paramString = join('&', @paramStrings);
+
+</%perl>
+	<div id="loadingDiv" style="display:none; position:absolute; top:0px; left:0px;" onClick="this.style.display='none';">
+          <table border="0" cellspacing="0" cellpadding="0">
+            <tr><td><img id="theLoadingImage" src="/graphics/pleasewait.gif"></td></tr>
+          </table>
+	</div>
+
+	<table border="0" cellspacing="0" cellpadding="3" id="theTable">
+	<tr><td colspan="2">
+        </td></tr>
+	</table>
+
+	<script>
+		requestEvalSearch('/eval/administrator/search/resultsXml', "<% $paramString %>");
+	</script>
+
+</%method>
+
+<%method title>
+%	return "Evaluation Search Result: &nbsp;&nbsp;<span class=\"sm\">$args{search_string} </span>";
+</%method>
+
+
+<%method stylearray>
+%	return ["/style/style.css"];
+</%method>
+
+

@@ -1,0 +1,412 @@
+<%args>
+	$args => ''
+	$date_label => ''
+	$dynamic_components => []
+	$button_component => undef
+	$onsubmit => ""
+	$read_access => 0
+	$extra_actions => []
+	$redirect_submit_url => undef
+	$has_save_button => undef
+</%args>
+
+<%attr>
+	check_cms_permissions => 0
+	no_check_path => 1
+</%attr>
+
+<%once>	
+	use HSDB4::SQLRow::User;
+	use TUSK::FormBuilder::Form;
+    use TUSK::Application::FormBuilder::Report::Course;
+	use TUSK::Application::FormBuilder::DynamicList;
+	use Data::Dumper;
+</%once>
+
+<%shared>
+	my $form_id = $m->comp("/tmpl/url:get_last_path_id");
+</%shared>
+
+
+<%init>
+	my $form = $m->comp("SELF:get_form");
+	$m->comp("SELF:previous_log_dropdown", args => {%ARGS, hide_required => 0}, form => $form);
+	$m->comp("SELF:showform", args => {%ARGS, hide_required => 0}, form => $form, date_label => 'Patient Encounter Date');
+</%init>
+
+
+<%method showform>
+<%args>
+	$args => ''
+	$form
+	$date_label => ''
+	$dynamic_components => []
+	$button_component => undef
+	$onsubmit => ""
+	$read_access => 0	
+	$extra_actions => []
+	$redirect_submit_url => undef
+	$has_save_button => undef
+</%args>
+
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	onsubmit => 'return val_date_form()',
+	name => 'mplogform' } 
+
+&>
+
+<%perl>
+   
+ 	my $fields = $form->getFields();  
+ 	my $array_index=0;
+ 	my $dynamic_list_index=0;
+  
+	if(defined($args->{index})){
+		$array_index=$args->{index};
+	}
+	
+	if(defined($args->{'dynamic_index'})) {
+		$dynamic_list_index= $args->{'dynamic_index'};
+ 	} 
+
+	if($array_index == 0 && $args->{'isnew'} == 1 ) {
+		$array_index = $array_index +1;
+	}
+
+ 	if(defined($args->{'Previous'}) ){
+		$array_index = $array_index - 1;
+	}
+ 	if(defined($args->{'Next'}) && $dynamic_list_index != 1 && $dynamic_list_index != 2){
+		$array_index = $array_index + 1;
+	}
+
+	if( $args->{'entry_id'} ) {
+		my $i=0;
+		print "<br><span>Jump to: <select name='questions' id='questions' onchange='reload_entry_form(". $args->{'entry_id'} .",this.options[this.selectedIndex].value)'>";
+		print "<option value=''>Question</option>";
+		foreach my $f (@$fields) {
+			if( $array_index == $i ){
+				print " <option value='$i'> >>".$f->getFieldName()." </option> ";
+			} else {
+				print " <option value='$i'> ".$f->getFieldName()." </option> ";
+			}
+			$i++;
+		}
+		print '</select></span>';
+	}
+   
+	my $is_new=0;
+	if ($args->{submit_check}) {
+
+		my $dont_save = 0;
+	    my $entry_id;
+		my $lngth = scalar(@$fields);
+
+		if( $args->{index} >= scalar(@$fields) ){
+			$dont_save=1;
+		}		
+		else {
+			if( @$fields[$args->{index}]->getRequired == 1){
+
+				my $field_id = @$fields[$args->{index}]->getPrimaryKeyID();
+				my $key = "id_".$field_id;
+				if ($args->{$key} eq '' ){
+					print "<br><b>Error: This field requires a value.</b><br>";
+					$dont_save =1;
+				}
+			}
+		}
+		if ($dont_save == 0 ) {
+        
+        	if( $args->{'entry_id'} || $args->{'new_entry'}) {
+				$entry_id = $args->{'new_entry'} ? $args->{'new_entry'} : $args->{'entry_id'};
+            	if ( $args->{'new_entry'} ) {	
+					print "<input type='hidden' value='$entry_id' name='new_entry' id='new_entry' />";
+				}
+			} else {
+        		# make entry id, append it to args
+				my $entry = TUSK::FormBuilder::Entry->new();
+				$entry->setUserID($m->session->{'user'}->user_id());
+				$entry->setDate($m->comp('SELF:getDate', args => $args));
+				$entry->setFormID($form->getPrimaryKeyID());
+				$entry->setTimePeriodID($m->comp("/formbuilder/util:get_time_period_id", student_id => $args->{student_id}));
+				my $now = HSDB4::DateTime->new()->out_mysql_timestamp();
+				$entry->setCompleteDate($now) unless (defined $args->{save_submit});
+				$entry->save({ 'user' => $m->session->{'user'}->user_id()  });
+				$entry_id = $entry->getPrimaryKeyID();
+				print "<input type='hidden' value='$entry_id' name='new_entry' id='new_entry' />";
+        	    $args->{'entry_id'} = $entry_id; 
+				$is_new = 1;
+			}
+		}
+
+if ($dont_save == 0 ) {
+		my $new_entry_id = $m->comp("/mobi/patientlog/tmpl/process:entry", args => $args, form => $form, user_id => $m->session->{'user'}->user_id(), date => $m->comp('SELF:getDate', args => $args), entry_id => $entry_id, field_index => $args->{index});
+
+}
+else {
+    # if we're not saving because a check failed, revert to previous index
+	if(defined($args->{'Previous'}) ){
+		$array_index = $array_index + 1;
+	}
+ 	if(defined($args->{'Next'}) && $dynamic_list_index != 1 ){
+		$array_index = $array_index - 1;
+	}
+}
+
+## reload_entry_form 
+</%perl>
+
+<script type="text/javascript">
+ if( <% $is_new %> == 1 && <% $dont_save %> == 0 ) {
+	reload_entry_form( <% $entry_id %>, <% $is_new %> );
+ }
+</script>
+
+<%perl>
+					
+} # if submit check
+
+	my $entry;
+	my $response_hash = {};
+	if ($args->{entry_id}){
+		$entry = TUSK::FormBuilder::Entry->new()->lookupKey($args->{entry_id});
+		if (!$entry || !$entry->getPrimaryKeyID() || ($read_access && $entry->getUserID() ne $m->session->{'user'}->user_id())){
+			$m->comp("/tmpl/url:redirect",message => "You do not have access to that entry.");
+	}	
+		
+		my $responses = $entry->getFullResponses();
+		
+		foreach my $response (@$responses){
+			push (@{$response_hash->{ $response->getFieldID() }}, $response);
+		}
+	}
+
+</%perl>
+
+<input type="hidden" name="check_required" id="check_required" value="1" class="no-padding">
+<input type="hidden" name="index" id="index" value="<% $array_index %>" />
+
+<br>
+<%perl>
+	foreach my $comp (@$dynamic_components){
+		$m->comp($comp, form => $form, args => $args);
+	}
+</%perl>
+
+
+% if ($date_label and !$args->{hide_required} and $array_index == 0) {
+% 	$m->comp("/mobi/tmpl/element:date", label => $date_label, mysql_date => ($args->{entry_id}) ? $entry->getDate() : '');
+% }
+
+
+% my $lngth = scalar(@$fields);
+% if ($array_index < $lngth ) {
+<& "SELF:onefield", field => @$fields[$array_index], hide_required => $args->{hide_required}, response_hash => $response_hash , dynamic_list_index => $dynamic_list_index &>
+%}
+
+<br><br>
+% if ($array_index == $lngth) {
+% 	print "Patient Log Completed.<BR><BR>";
+%   print '<span><a href="/mobi/patientlog/home"> Return to Patient Logs Home </a> </span>';
+% }
+
+
+% if ($array_index < $lngth ){ 
+%   my $onclck;
+% 	if ($args->{entry_id}) {
+% 		$onclck = "document.forms[0].action=\"?entry_id=". $args->{entry_id} ."&Next=1\"; document.forms[0].submit();return false";
+%	}
+% 
+%   else {
+%		$onclck ="document.forms[0].action=\"?Next=1\"; document.forms[0].submit();return false"; 
+% 	}
+%   print "<input type='button' name='Next' id='Next' value='Save & Continue' onClick='$onclck' />";
+% }
+
+% if ($array_index < $lngth ){ 
+%   my $onclck;
+% 	if ($args->{entry_id}) {
+% 		$onclck = "document.forms[0].action=\"?entry_id=". $args->{entry_id} ."\"; document.forms[0].submit();return false";
+%	}  else {
+%		$onclck ="document.forms[0].action=\"\"; document.forms[0].submit();return false"; 
+% 	}
+%   print "<input type='button' name='saveonly' id='saveonly' value='Save' onClick='$onclck' />";
+% }
+
+
+<br><br>
+<input type="button" name="Cancel" id="Cancel" value="Cancel" onClick="go_back('/mobi/patientlog/home')" />
+
+
+</form>
+
+</%method>
+
+% ##################################################################################################
+
+<%method onefield>
+<%args>
+	$field
+	$hide_required => 0
+	$response_hash => {}
+	$dynamic_list_index
+</%args>
+
+%	if ($field->getFieldTypeToken() eq 'DynamicList') {
+<& '/mobi/patientlog/tmpl/display:DynamicList', field => $field, response_hash => $response_hash, dynamic_option_list_index => $dynamic_list_index &>
+% 	} else {
+%		my $response = (exists($response_hash->{ $field->getPrimaryKeyID() })) ? $response_hash->{ $field->getPrimaryKeyID() } : [];
+<& "/mobi/patientlog/tmpl/display:".$field->getFieldTypeToken(), field => $field, response =>  $response &>
+% }	
+
+</%method>
+
+% ##################################################################################################
+
+
+<%method previous_log_dropdown>
+<%args>
+	$form
+	$args
+</%args>
+<%perl>
+
+	my $report = TUSK::Application::FormBuilder::Report::Course->new($form->getPrimaryKeyID(), $m->comp("/tmpl/url:get_type_object"));
+	$report->setUserID($m->session->{'user'}->user_id());
+    $report->setPersonalFlag(1);
+    my $data = $report->HistoryperPerson($m->comp("/formbuilder/util:get_time_period_id"), $m->comp("/formbuilder/util:get_teaching_site_id"));
+	my ($cur_entry_id, $cur_field_id, $text, $field_count, $index);
+	my $options = [];
+	my $string = "";
+	my ($prev_field_name, $field_name);
+
+	foreach my $dataset (@$data){
+    	if ($dataset->{entry_id} != $cur_entry_id){
+	    	undef $string;	
+			if ($dataset->{private}){
+				if ($dataset->{text}){
+					$string = ' (' . $dataset->{text} . ')';
+                }
+			}
+
+            $cur_entry_id = $dataset->{entry_id};
+            push (@$options, { 'date' => $dataset->{date}, 'string' => $string, 'data' => [], 'entry_id' => $cur_entry_id });
+            $index++;
+            $field_count = 0;
+            $string = "";
+            $cur_field_id = "";
+            $prev_field_name = "";
+        }
+
+		if ($dataset->{'field_name'} eq $prev_field_name){
+			$field_name = "";
+		}else{
+			$field_name = $prev_field_name = $dataset->{'field_name'};
+        }
+
+        next unless $dataset->{entry_id};
+        next unless $dataset->{date};
+        next unless $dataset->{default_report};
+        next if ($field_count > 2);
+		next unless ($dataset->{active_flag});
+
+		if ($cur_field_id != $dataset->{field_id}){
+			$cur_field_id = $dataset->{field_id};
+			$field_count++;
+		}
+
+        if ($dataset->{'item_abbreviation'}){
+        	$text = $dataset->{'item_abbreviation'};
+		}elsif($dataset->{length($dataset->{'item_name'}) > 15}){
+			$text = substr($dataset->{'item_name'}, 0, 12) . "..."
+		}else{
+			$text = $dataset->{'item_name'};
+		}
+		next if (scalar(@{$options->[$index - 1]->{'data'}}) > 2);
+		push (@{$options->[$index - 1]->{'data'}}, $text) if ($text);
+	}
+
+	my $fields = $form->getFields();
+	my $tr_ids = ["'date'"];
+	foreach my $field (@$fields){
+		last if ($field->getDefaultReport());
+		push (@$tr_ids, $field->getPrimaryKeyID());
+	}
+
+</%perl>
+
+Patient:
+<select name="entry_id" id="entry_id" onchange="reload_entry_form(this.options[this.selectedIndex].value)">
+<option value="">New Patient</option>
+<%perl>
+	foreach my $option (@$options){
+		my $string = join(", ", @{$option->{'data'}});
+    	$string = (length($string) > 60) ? substr($string, 0, 57) . "..." : $string;
+		my $selected = ($args->{entry_id} == $option->{entry_id}) ? 'selected' : '';
+		print "<option value=\"" . $option->{'entry_id'} . "\" $selected>" . $option->{'date'} . $option->{'string'} . " - " . $string . "</option>\n";
+	}
+</%perl>
+</select>
+% if (!$args->{entry_id}) {
+<br><span class="smallfont"><b>New Patient</b> is for the first encounter with a patient.  To add data to a previous patient, select from the list.</font>
+% }
+
+</%method>
+
+% ##################################################################################################
+
+<%method getDate>
+<%args>
+	$args
+</%args>
+<%perl>
+	my $date ;#= HSDB4::DateTime->new()->out_mysql_date();
+	if (defined($args->{'showdate_month'}) and defined($args->{'showdate_day'}) and defined($args->{'showdate_year'})){
+		$date =  $args->{'showdate_year'} . "-" . $args->{'showdate_month'} . "-" . $args->{'showdate_day'};
+	}
+	return $date;
+</%perl>
+</%method>
+
+% ##################################################################################################
+
+
+<%method get_form>
+<%perl>
+	my $form;
+    
+	if ($form_id) {
+	
+		$form = TUSK::FormBuilder::Form->new->lookupKey($form_id);
+	} else {
+		my $type_object = $m->comp("/tmpl/url:get_type_object");
+	    
+		if ($type_object->isa("HSDB45::Course")) {
+			$form = $type_object->get_patient_log();
+			unless ($form) {
+				$m->comp("/tmpl/url:redirect",message => "No patient log for this course.");
+			}	
+		}
+	}
+	return $form;
+</%perl>
+</%method>
+
+% ##################################################################################################
+
+<%method red_header_text>
+%   my $form = $m->comp("SELF:get_form");
+%   my $name  = $form->getFormName();
+% 	return "<a href='/mobi/patientlog/home'>Patient Log Homepage</a> > $name";
+</%method>
+
+<%method title>
+% 	return "Patient Log Homepage";
+</%method>
+
+<%method jsarray>
+%  return ['layers.js', 'formbuilder.js', 'element.js', 'dynamiclist.js','mobi_patient_logs.js','scripts.js'];
+</%method>

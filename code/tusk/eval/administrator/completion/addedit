@@ -1,0 +1,86 @@
+<%once>
+	use TUSK::Email::Template;
+	use TUSK::Core::School;
+</%once>
+
+<%shared>
+	my ($evalId,$emailTmplId) = $m->comp("/tmpl/url:get_path_ids");
+	my $school = $m->comp('SELF:schoolname');
+	my $emailTmpl;
+	if (defined $emailTmplId) {
+		$emailTmpl = TUSK::Email::Template->lookupKey($emailTmplId);
+	} else {
+		$emailTmpl = TUSK::Email::Template->new();
+	}
+	my $eval = HSDB45::Eval->new(_school => $school, _id => $evalId);
+</%shared>
+
+<%method get_nav_bar_objects>
+% 	return { 'eval' => $eval };
+</%method>
+
+<%doc>
+my $eval = HSDB45::Eval->new(_school => $m->comp('SELF:schoolname'), _id =>  $m->comp('/tmpl/url:get_first_path_id'));
+my $objects = { 'eval' => $eval };
+</%doc>
+
+<br/>
+<& /tmpl/element:form, params => { method => 'POST',
+				   onsubmit => "return verify(this);" } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Label',
+                name => 'label',
+                value => $emailTmpl->getLabel(),
+                size => 70,
+                length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Subject',
+                name => 'subject',
+                value => $emailTmpl->getSubject(),
+                size => 70,
+                length => 255 } &>
+
+<& /tmpl/element:textarea, params =>{ label => 'Body',
+                name => 'body',
+                value => $emailTmpl->getBody(),
+                cols =>"70",
+                rows =>"7",  } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+                cancel_onclick => "go_back('/protected/eval/administrator/completion/show/$school/$evalId)');",
+                name=>'submit'} &>
+
+</table>
+
+
+<%method title>
+<%perl>
+	if (defined $emailTmplId) {
+		return 'Modify Email Template';
+	} else {
+		return 'Add Email Template';
+	}
+</%perl>
+</%method>
+
+<%method jsarray>
+%	return [ "formvalidator.js" ];
+</%method>
+
+
+<%init>
+	if (defined($ARGS{'submit'})) {
+		$emailTmpl->setLabel($ARGS{'label'}) if $ARGS{'label'};
+		$emailTmpl->setSubject($ARGS{'subject'}) if $ARGS{'subject'};
+		$emailTmpl->setBody($ARGS{'body'}) if $ARGS{'body'};
+		$emailTmpl->setSchoolID(TUSK::Core::School->new()->getSchoolID($school));
+		$emailTmpl->setEmailTemplateTypeID(1);
+		$emailTmpl->save({'user'=> $m->session->{'user'}->user_id()});
+		$m->redirect("/protected/eval/administrator/completion/show/$school/$evalId");
+	}
+</%init>

@@ -1,0 +1,74 @@
+<!--- SOAP Phase Info --->
+<%perl>
+my $phase = $ARGS{'phase'};
+my ($phase_title,$phase_name) = $m->comp("sections:get_phase_info",'phase'=>$phase);
+my $case = $ARGS{'case'};
+</%perl>
+
+<& /tmpl/element:top_header_row, label => 'SOAP Answers' &>
+<& /tmpl/element:note, msg=>'The phase is not graded by the system.  Students enter their findings in the appropriate text boxes and can compare their answers against a model answer (in self-assessment mode).  Enter answers below.' &>
+<& /tmpl/element:textarea, params=>{ label => 'Subjective Findings',
+                name=>"subjective",
+                cols=>"60",
+                rows=>"4",
+                value=>$phase->getSubjective()  } &>
+<& /tmpl/element:textarea, params=>{ label => 'Objective Findings',
+                name=>"objective",
+                cols=>"60",
+                rows=>"4",
+                value=>$phase->getObjective()  } &>
+<& /tmpl/element:textarea, params=>{ label => 'Assessment of Patient Condition',
+                name=>"assessment",
+                cols=>"60",
+                rows=>"4",
+                value=>$phase->getAssessment()  } &>
+<& /tmpl/element:textarea, params=>{ label => 'Treatment Plan',
+                name=>"treatment",
+                cols=>"60",
+                rows=>"4",
+                value=>$phase->getPlan()  } &>
+
+
+<!--- SOAP Phase Info --->
+
+
+<%method process_args>
+<%args>
+$user_id
+$phase 
+%params 
+</%args>
+<%perl>
+$phase->setSubjective($params{'subjective'});
+$phase->setObjective($params{'objective'});
+$phase->setAssessment($params{'assessment'});
+$phase->setPlan($params{'treatment'});
+$phase->save({user=>$user_id});
+</%perl>
+</%method>
+
+<%method phaseReport>
+<%args>
+$case
+$phase
+$case_report
+</%args>
+<%perl>
+my $text = '<span class="smTextTwo">'.$phase->getMainText().'</span>';
+$text .= '<table cellpadding="0" cellspacing="0" width="100%"  border="0">';
+my %selections = map {($_->getPhaseOptionID(), $_ ) } 
+                        @{TUSK::Case::PhaseOptionSelection->getLatestPhaseSelections($phase,$case_report)};
+my ($phase_option, $sel,$func);
+foreach my $section (@TUSK::Case::Phase::SOAP::SOAPOptions) {
+        $func  = 'get'.$section.'Option';
+        $phase_option = $phase->$func;
+        $sel = $selections{$phase_option->getPrimaryKeyID()} or next;
+        $text .= '<tr><td class="sm" width="25%"><b>'.$section
+                .'</b></td><td style="padding-left:8px" class="sm">'.$sel->getAnswerText.'</tr>'
+;
+}
+$text .= '</table>';
+</%perl>
+<% $text %>
+</%method>
+

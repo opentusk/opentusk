@@ -1,0 +1,447 @@
+<%once>
+	use HSDB45::TimePeriod;
+	use HSDB45::UserGroup;
+	use TUSK::Application::GradeBook::GradeBook;
+</%once>
+
+
+<%shared>
+	my %params = $m->request_args;
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my ($assignment_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $school = $course->get_school()->getSchoolName();
+	my $course_id = $course->primary_key();
+	my $author_user_id = $m->session->{'user'}->primary_key();
+	my ($assignment, $grade_event, $author, $time_period, $already_submitted,$group_flag,%assignment_groups,$group_file_flag,$time_period_id,$faculty_contents,$resubmit_flag);
+	my $form_name = 'addeditassignment';
+	my $is_edit = 0;
+</%shared>
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	if (defined($assignment_id)){
+		$is_edit = 1;
+		$m->comp("/tmpl/url:redirect", message => "Invalid Assignment.") unless ($assignment= TUSK::Assignment::Assignment->new()->lookupKey($assignment_id));
+		$author = TUSK::Application::Assignment::Author->new({user_id => $author_user_id, assignment => $assignment, course => $course});
+		$grade_event = TUSK::GradeBook::GradeEvent->new()->lookupKey($assignment->getGradeEventID());
+		$time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($assignment->getTimePeriodID());
+		$already_submitted = $assignment->isAlreadySubmitted();
+		$faculty_contents = $author->getFacultyContent(0);
+	} else {
+	  	$assignment = TUSK::Assignment::Assignment->new();
+		$grade_event = TUSK::GradeBook::GradeEvent->new();
+		$time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($m->comp("SELF:get_timeperiod_id"));
+	}
+
+	unless ($time_period_id = $time_period->primary_key()) {
+		$m->comp("/tmpl/url:redirect", message => "Invalid time period. Please logout and login again");
+	}
+
+	unless ($args->{msg}) {
+		if (defined $assignment) {
+			if ($already_submitted) {
+				$m->comp('SELF:set_msg', 
+		 			type 	=> 'err', 
+					msg	=> 'This assignment cannot be modified. Some students have already submitted it.' );
+			} elsif ($assignment->isAlreadyWorkedOnByStudents()) {
+				$m->comp('SELF:set_msg', 
+		 			type 	=> 'hintmsg', 
+					msg	=> 'Do you want to modify the assignment? Some students have already worked on it.' );
+			}
+		}
+	}
+</%perl>
+</%method>
+
+<%method function_token>
+%	return ($is_edit) ? 'edit_assignment' : '';
+</%method>
+
+
+<%init>
+	my $msgtext;
+	if (defined($params{'submit_check'})) {
+		$grade_event->setFieldValues({
+			event_name		=> $params{title},
+			event_description	=> $params{instructions},
+			time_period_id 		=> $time_period_id,
+			course_id		=> $course_id,
+			school_id		=> TUSK::Core::School->new()->getSchoolID($school),
+			grade_event_type_id	=> 3,
+			group_flag		=> $params{group_flag},
+		});
+		$grade_event->setDueDate($params{due_date}) if $params{due_date};
+
+		unless ($is_edit) {
+			my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $time_period_id, user_id => $author_user_id});
+			$grade_event->setGradeCategoryID($gb->getRootCategory()->getPrimaryKeyID());
+		}
+
+		## clean up group link if it is reset to individual assignment
+		$author->cleanupStudentsLinks(1) if (defined $author && $params{group_flag} == 0);
+
+		$grade_event->setWeight($params{weight}) if $params{weight};
+
+		if ($grade_event->save({user => $author_user_id})) {
+			$assignment->setGradeEventID($grade_event->getPrimaryKeyID());
+			$assignment->setAvailableDate($params{available_date}) if $params{available_date};
+			$assignment->setDueDate($params{due_date}) if $params{due_date};
+			$assignment->setGroupFileFlag($params{group_file_flag});
+			$assignment->setResubmitFlag($params{resubmit_flag});
+
+			if ($assignment->save({'user' => $author_user_id})) {
+				if ($is_edit) {
+			 		$msgtext = 'Your changes have been saved.';
+				} else {
+					$msgtext = 'An assignment has been successfully created.';
+					$assignment_id = $assignment->getPrimaryKeyID();
+					my $user_role = TUSK::Permission::UserRole->new();
+					$user_role->setUserID($author_user_id);
+					$user_role->setRoleToken('assignment', 'manager');
+					$user_role->setFeatureID($assignment_id);
+					$user_role->save({'user'=> $author_user_id});
+
+				}
+			} else {
+				$msgtext = 'Failed to add/edit assignment table. '; 
+			}
+		} else {
+			$msgtext = 'Failed to add/edit grade_event table. '; 
+		}
+
+		if (defined $params{group_id_list}) {
+			$m->comp('SELF:update_group_id_list');
+		}
+
+		if (defined $params{uploaded_group_id}) {
+			$m->comp('SELF:update_uploaded_groups');
+		}
+
+		if (defined $params{files}) {
+			$msgtext .= $m->comp('/assignment/tmpl:upload_content', 
+					params 		=> \%params,
+					role   		=> 'Author',
+				    	assignment 	=> $assignment,
+					school 		=> $school,
+					course_id 	=> $course_id
+			);
+		}
+
+		if (defined $params{del_content_id}) {
+			$msgtext .= $m->comp('/assignment/tmpl:delete_content', 
+						content_ids => $params{del_content_id},
+						user => $author );
+		}
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+				base_url => "/assignment/author/addedit",
+				pathref	 => [ $assignment->getPrimaryKeyID() ], 
+				msg	 => $msgtext ));	
+	}
+
+	$m->comp('SELF:show_form');
+</%init>
+
+
+<%method show_form>
+<& /tmpl/element:form, params => {
+	name 		=> $form_name,
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+	onsubmit	=> "return verifyAuthorAddedit(this);",
+} &>
+
+
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0" 
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Time Period:',
+	value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')',
+} &>
+
+
+<& /tmpl/element:textbox, params => { 
+    label 	=> 'Title:',
+    name 	=> 'title',
+    value 	=> $assignment->getTitle(),
+    size 	=> 70,
+    length 	=> 255 
+} &>
+
+<& /tmpl/element:textbox, params => { 
+    label 	=> 'Weight:',
+    name 	=> 'weight',
+    value 	=> $assignment->getWeight(),
+    size 	=> 4,
+    length 	=> 4 
+} &>
+
+<& /tmpl/element:textarea, params => { 
+    label 	=> 'Instructions:',
+    name 	=> 'instructions',
+    value 	=> $assignment->getInstruction(),
+    cols	=> "70",
+    rows	=> "8",  
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label 		=> 'Available Date:',
+	name 		=> 'available_date',
+	value 		=> $assignment->getFormattedAvailableDate(),
+	size 		=> 20,
+	maxlength 	=> 20,
+	calendar    => 1,
+	calendar_type => 'datetime',
+	default_time => 'midnight',
+	
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label 		=> 'Due Date:',
+	name 		=> 'due_date',
+	value 		=> $assignment->getFormattedDueDate(),
+	size 		=> 20,
+	maxlengt	=> 20,
+	calendar    => 1,
+	calendar_type => 'datetime',
+	default_time => 'endofday',
+} &>
+
+
+% $group_flag = (defined $grade_event && $grade_event->getGroupFlag()) ? $grade_event->getGroupFlag() : 0;
+% $resubmit_flag = (defined $assignment) ? $assignment->getResubmitFlag() : 0;
+% $group_file_flag = (defined $assignment && $assignment->getGroupFileFlag()) ? $assignment->getGroupFileFlag() : 0;
+% my $group_list_style = ($group_flag == 1) ? 'inline' : 'none';
+% my ($checkbox, $allchecked, $first_group_selection) = $m->comp('SELF:get_course_groups');
+
+% my $group_trailing_text;
+% if (scalar @$checkbox) {
+% 	my $group_checkbox =  $m->scomp("/tmpl/element:checkbox_table", objects => $checkbox, formname => $form_name, checkboxname => $checkbox->[0]->{name}, allchecked => $allchecked, onclickcheckall => 'checkUncheckAllMulti');
+<%perl>
+	$group_trailing_text = qq(<br/>
+<table border="0" id="group_list" style="display:$group_list_style;border-color:gray;">
+<tr><td>
+<span style="color:gray;font-size:85%;">+ Select assignment groups:</span> &nbsp;
+<a style="font-size:85%" href='' onclick="javascript:window.open('/tusk/group/author/checkdup/course/$school/$course_id/$time_period_id',null,'height=400,width=350,scrollbars=1,resizable=1,left=400,top=250'); return false;">check group members</a><br/>
+$group_checkbox
+<span style="color:gray;font-size:85%;">+ Each group has its own uploaded files:</span> &nbsp;\n ) . 
+$m->scomp('/tmpl/element:input_radio_buttons', params => {
+        name => 'group_file_flag',
+        buttons => [
+		{ value => "1", text => "Yes", 
+ 		  checked => ($group_file_flag == 1) ? 1 : 0,
+		  onclick => "assignGroup()"},
+                { value => "0", text => "No", 
+ 		  checked => ($group_file_flag == 0) ? 1 : 0,
+		  onclick => "removeGroup()"} ],
+	nobreak => 1, }) . 
+"</td></tr></table>\n";
+</%perl>
+% } else {
+<input type="hidden" name="group_file_flag" value="0"/>	
+% }
+
+
+<& /tmpl/element:radio_buttons, params => { 
+        label => 'Group Assignment:',
+        name => 'group_flag',
+        buttons => [
+		{ value => "1", text => "Yes", 
+ 		  checked => ($group_flag == 1) ? 1 : 0,
+		  onclick => "verifyGroup()"},
+                { value => "0", text => "No", 
+		  checked => ($group_flag == 0) ? 1 : 0,
+		  onclick => "disableGroup()"} 
+		   ],
+        nobreak => 1,
+	trailing_text => $group_trailing_text } &>
+
+
+<& /tmpl/element:radio_buttons, params =>{ 
+        label => 'Allow Resubmission:',
+        name => 'resubmit_flag',
+        buttons => [
+		{ value => "1", text => "Yes", 
+ 		  checked => ($resubmit_flag == 1) ? 1 : 0,
+		},
+                { value => "0", text => "No", 
+ 		  checked => ($resubmit_flag == 0) ? 1 : 0,
+		 } ],
+	nobreak => 1,
+} &>
+
+
+% unless ($already_submitted) {
+%	my $style = ($group_file_flag) ? 'inline' : 'none';
+	<& /tmpl/element:field_display, params => {
+		label => 'Files to upload:',
+		value => "<div id=\"content\"><input type=\"file\" name=\"files\" size=\"40\" /><select id=\"sub_group_0\" name=\"group_id\" style=\"display:$style;\">$first_group_selection</select><br/></div><span id=\"more\" style=\"color:#0000FF;cursor:pointer;text-decoration:underline;font-size:85%;\" onclick=\"addFile();\">Upload another file</span>" } &>
+% }
+
+% if (defined $assignment_id && $faculty_contents && scalar @$faculty_contents) {
+	<& /tmpl/element:field_display, params => {
+	label	=> 'Uploaded Files:', 
+	value 	=> $m->comp('/assignment/tmpl:get_content_links', 
+		contents => $faculty_contents,
+		checkbox => ($already_submitted) ? 0 : 1,
+		groupselection => ($group_file_flag) ? 1 : 0,
+		assignmentgroups => \%assignment_groups )} &>
+% }
+
+% unless ($already_submitted) {
+<& /tmpl/element:save_button, params=>{
+	label	=>	'Save Changes',
+	cancel_onclick => "go_back('/assignment/author/show/" . $m->comp("/tmpl/url:get_type_path") . "');",
+	name	=>	'submit'} &>
+% }
+
+</table>	
+</form>
+
+% if ($assignment_id) {
+<& SELF:footer, obj => $assignment &>
+% }
+</%method>
+
+<%method get_course_groups>
+<%perl>
+	my @groups = ();
+	my $group_selections = '';
+	my ($groups_with_content, %selected_groups);
+
+	if (defined $assignment_id) {
+		$groups_with_content = $author->getStudentGroupsWithContent();
+		%assignment_groups = map { $_->getGroupID()  => '' } @{$author->getStudentGroups()};
+		%selected_groups = map { $_->getUserGroupID() => '' } @{$groups_with_content};
+	}
+
+	my $i = 0;
+	$group_selections = "<option value=\"\">select group</option>\n";
+	my $allchecked = 'checked';
+	foreach my $group ($course->sub_user_groups($time_period_id)) {
+		my $checked;
+		my $label = $group->out_label();
+		my $group_id = $group->primary_key();
+
+		if (exists $assignment_groups{$group_id}) {
+			$checked = 1;
+			$assignment_groups{$group_id} = $label;
+			$group_selections .= "<option value=\"$group_id\">$label</option>\n";
+		} else {
+			$checked = 0;
+			$allchecked = '';
+		}
+
+		my $is_linked_to_content = (exists $selected_groups{$group_id}) ? 1 : 0;
+		push @groups, { 
+				label => $label, 
+				value => $group_id, 
+				name => 'group_id_list',
+				checked => $checked,
+				onclick => "updateGroup($is_linked_to_content,$i)" };
+		$i++;
+
+	}
+
+	$assignment_groups{0} = 'select group';
+
+	print "<script language=\"Javascript\">\nvar groupsWithContent = new Array();\n";
+
+	if (defined $groups_with_content) {
+		if (scalar @{$groups_with_content} == 1) {
+			print "groupsWithContent[0] = " . $groups_with_content->[0]->getUserGroupID() . ";\n";
+		} elsif (scalar @{$groups_with_content} > 1) {
+			print "groupsWithContent = [" . join(",", map {$_->getUserGroupID()} @{$groups_with_content}) . "];\n";
+		}
+	}
+
+	my $has_groups = (@groups) ? 1 : 0;
+
+	print "var hasGroups = $has_groups;\n";
+	my $ucnt = (defined $faculty_contents) ? scalar @{$faculty_contents} : 0;
+	print "var alreadyUploadedFormCount = $ucnt;\n";
+	print "</script>\n";
+
+	return (\@groups, $allchecked, $group_selections);
+</%perl>
+</%method>
+
+
+<%method update_group_id_list>
+<%perl>
+	my %groups = map { $_->getChildUserGroupID() => $_ } @{TUSK::Assignment::LinkAssignmentUserGroup->new()->lookup("parent_assignment_id = $assignment_id")};
+
+	if (ref $params{group_id_list} eq 'ARRAY') {
+		foreach my $group_id (@{$params{group_id_list}}) {
+			next unless $group_id && $group_id =~ /\d+/;
+
+			if (exists $groups{$group_id}) {
+				delete($groups{$group_id});
+			} else {
+				my $g = TUSK::Assignment::LinkAssignmentUserGroup->new();
+				$g->setFieldValues({
+					parent_assignment_id => $assignment_id,
+					child_user_group_id => $group_id, });
+				$g->save({user => $author_user_id});
+			}
+		}
+
+	} elsif ($params{group_id_list} =~ /\d+/) {
+		if (exists $groups{$params{group_id_list}}) {
+			delete($groups{$params{group_id_list}});
+		} else {
+			my $g = TUSK::Assignment::LinkAssignmentUserGroup->new();
+			$g->setFieldValues({
+				parent_assignment_id => $assignment_id,
+				child_user_group_id => $params{group_id_list}, });
+			$g->save({user => $author_user_id});
+		}
+	}
+
+	foreach my $group (values %groups) {
+		$group->delete({user => $author_user_id});
+	}
+</%perl>
+</%method>
+
+
+<%method update_uploaded_groups>
+<%perl>
+	if (ref $params{uploaded_group_id} eq 'ARRAY') {
+		foreach my $key (@{$params{uploaded_group_id}}) {
+			my ($pk, $ugid) = split(/_/,$key);
+			if (my $c = TUSK::Assignment::LinkAssignmentContent->new()->lookupKey($pk)) {
+				$c->setUserGroupID($ugid);
+				$c->save({user => $author_user_id});
+			} 
+		}
+	} elsif ($params{uploaded_group_id} =~ /\d+/) {
+		my ($pk, $ugid) = split(/_/,$params{uploaded_group_id});
+		if (my $c = TUSK::Assignment::LinkAssignmentContent->new()->lookupKey($pk)) {
+			$c->setUserGroupID($ugid);
+			$c->save({user => $author_user_id});
+		}
+	}
+</%perl>
+</%method>
+
+
+<%method title>
+%	return ($is_edit) ? "Modify Assignment" : "Create New Assignment";
+</%method>
+
+
+<%method jsarray>
+% 	return ['assignment.js', 'assignment_files.js', 'formvalidator.js', 'calendar.js','calendar-en.js','calendar-setup.js' ];
+</%method>
+
+

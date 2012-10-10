@@ -1,0 +1,43 @@
+#!/usr/bin/perl -wl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use MySQL::Password;
+use HSDB4::Constants;
+use DBI;
+use Getopt::Long;
+use XML::Twig;
+
+my ($school, $question_id);
+GetOptions ( "school=s" => \$school,
+	     "eval_question_id=i" => \$question_id,
+	     "xml_file=s" => \$xml_file,
+	     );
+
+# Make sure we have a good question
+die "Must give valid eval_question_id" unless $question_id =~ /^\d+$/;
+
+# Get the XML, and make sure it's good
+my $twig = XML::Twig->new( EmptyTags => 'normal',
+			   PrettyPrint => 'indented' );
+eval {
+    $xml_file = "$question_id\.xml" unless $xml_file;
+    $twig->parsefile( $xml_file );
+};
+if ($@) { die "XML Parse error: $@" }
+
+# Set up the database connection
+my $db = HSDB4::Constants::get_school_db( $school ) 
+    or die "Cannot determine proper database to connect to.";
+my $dbh = DBI->connect( "dbi:mysql:$db", get_user_pw(),
+			{ RaiseError => 1 } );
+
+# Actually do the insert
+my $sth = $dbh->prepare( 'INSERT INTO eval_question_convert VALUES (?, ?)' );
+$sth->execute( $question_id, $twig->first_elt()->sprint() );
+
+END { $dbh->disconnect if $dbh }
+
+1;
+__END__
+

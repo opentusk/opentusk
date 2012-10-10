@@ -1,0 +1,100 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use MySQL::Password;
+use DBI;
+use DBIx::FullTextSearch;
+use vars(qw($drop $create $index $print));
+use Getopt::Long;
+
+BEGIN {
+# Make sure we have arguments
+GetOptions( "drop!" => \$drop,
+	    "create!" => \$create,
+	    "print!" => \$print,
+	    "index!" => \$index
+	    );
+
+    unless ($drop || $create || $index) {
+	print "Usage: fts_umls_index [--drop --create --index --print]\n";
+	exit;
+    }
+}
+
+my $dbh = &connect_db;
+
+if ($drop) {
+    &drop_index($dbh);
+}
+if ($create) {
+    &create_index($dbh);
+}
+if ($index) {
+    &index($dbh);
+}
+
+&disconnect($dbh);
+
+sub connect_db {
+    my $dbh = DBI->connect ('dbi:mysql:fts', get_user_pw (),
+			{ RaiseError => 1 });
+    return $dbh;
+}
+
+sub disconnect {
+    my $dbh = shift;
+    $dbh->disconnect;
+}
+
+sub drop_index {
+    my $dbh = shift;
+    my $fts;
+    if ($fts = DBIx::FullTextSearch->open($dbh,"fts_umls")) {
+	$fts->drop;
+	print "fts_umls index dropped . . .\n";
+    }    
+    else {
+	print "fts_umls does not exist . . .\n";
+    }
+}
+
+sub create_index {
+    my $dbh = shift;
+    my $fts;
+    if ($fts = DBIx::FullTextSearch->open($dbh,"fts_umls")) {
+	print "fts_umls already exists . . .\n";
+    }
+    else {
+	$fts = DBIx::FullTextSearch->create ($dbh, "fts_umls",
+					     frontend => 'string',
+					     backend => 'phrase',
+					     stoplist => 'hsdb',
+					     count_bits => 32,
+					     word_id_bits => 32,
+					     doc_id_bits => 32,
+					     position_bits => 32,
+					     word_length => 60);
+	print "fts_umls created . . .\n";
+    }
+}
+
+sub index {
+    my $dbh = shift;
+    my $fts = DBIx::FullTextSearch->open($dbh,"fts_umls");
+    my $query = "select concept_id,preferred_string,definition from tusk.umls_concept order by concept_id desc limit 500000";
+    my $sth = $dbh->prepare($query);
+    $sth->execute;
+    my $ii = 0;
+    my $start = time();
+    while (my ($cid,$string,$def) = $sth->fetchrow_array) {
+	my $string_ref = $dbh->selectcol_arrayref("select string from tusk.umls_atom where concept_id = '$cid'");
+	$fts->index_document($cid,$string." ".$def." ".join(" ",@$string_ref));
+	$ii++;
+	print "$ii (".sprintf("%d",(time() - $start)/60)." mins elap): $cid\n" if ($print);
+    }
+    $sth->finish;
+}
+
+

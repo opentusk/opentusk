@@ -1,0 +1,356 @@
+<%once>
+use TUSK::Core::ClassMeetingContentType;
+</%once>
+
+<%method title>
+<%perl>
+my $title = "Modify Schedule";
+return $title;
+</%perl>
+</%method>
+
+<%method jsarray>
+% return ['scripts.js', 'layers.js'];
+</%method>
+
+<%shared>
+my $class_meeting;
+my $class_meeting_id = $m->comp("/tmpl/url:get_last_path_id");
+
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+
+if (defined($class_meeting_id)){
+	$class_meeting = HSDB45::ClassMeeting->new(_school=>$type_object->school)->lookup_key($class_meeting_id);
+	if (!$class_meeting->primary_key()){
+		$m->comp('/tmpl/error', msg=>'Invalid schedule id passed');
+	}
+} else {
+	$m->comp('/tmpl/error', msg=>'No schedule id passed');
+}
+
+my $school_id = $class_meeting->course->get_school()->getPrimaryKeyID();
+
+my $base_url = "/managment/schedule/addedit";
+my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimaryKeyID()} }
+                @{ TUSK::Core::ClassMeetingContentType->lookup(" 1 = 1")};
+
+</%shared>
+
+<script>
+	function addToLayer(){
+		if (document.classmeetingaddedit.keyword.value){
+			layers['keyworddiv'].adddata({keyword_id : '0', keyword : document.classmeetingaddedit.keyword.value },0);
+		}
+	}
+</script>
+
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>undef,
+				name => 'classmeetingaddedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'Event Title',
+                value => $class_meeting->field_value('title') } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'Event Date',
+                value => $class_meeting->field_value('meeting_date') } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'Start Time',
+                value => $class_meeting->field_value('starttime') } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'End Time',
+                value => $class_meeting->field_value('endtime') } &>
+
+<%perl>
+	$m->comp('/tmpl/element:sort_order_box', params =>{
+		label=>'Content',
+		button_onclick=>"openwindow('contentdiv',700);",
+		buttons => [],
+		layer_info => {
+			layer => 'contentdiv',
+			fields => ['link_class_meeting_content_id','content_id', 'title', 'anchor_label','label', 'class_meeting_content_type_id'],
+			name => 'content',
+			sort => {usage => 'Yes'},
+			action => {usage => 'Yes', length=>100, functions => [ {func=>'remove', label=>'Delete'} ]},
+			scrollrows => 10,
+			display => [{ label => 'Title',field => 'title', align => 'left', uneditable => 1, length => 300 },
+			            { label => 'Show on Schedule as', field => 'class_meeting_content_type_id', align => 'left', length => 50, options => \@classMeetingDropdown },
+			            { field => 'content_id', type => 'hidden', length => 100},
+			            { label => 'Label', field => 'label', type => 'textbox', length => 50 },
+			            { label => 'Section', field => 'anchor_label', type => 'textbox', align => 'left', length => 50 } ],
+			validate => { usage => 'No', },
+			data => \@link_data 
+		}
+	});
+
+	my $objectives      = $class_meeting->child_objectives(1) || [];
+	my @objectives_data = map { {objective_id => $_->getObjective()->getFieldValue('objective_id'), body => $_->getObjective()->getBody(),} } @$objectives;
+</%perl>
+
+<& /tmpl/element:sort_order_box , params =>{
+			label          => 'Objectives',
+			name           => "objectives",
+			button_onclick => "openwindow('objectivesdiv')",
+			help_info      => { content_id => 789685,
+			                    not_xmetal => 1, 
+			                    text       => 'Tips for Selecting Objectives' },
+			layer_info 	=> {
+				empty_message => 'No objectives associated for this content',
+				layer 	      => 'objectivesdiv',
+				scrollrows    => 6,
+				fields        => ['objective_id', 'body'],
+				name          => 'objectives',
+				sort          => { usage => 'Yes', length => 50},
+				action        => { usage => 'Yes', length => 100, functions => 	[ 
+					{ func=>'edit',     label=>'Edit'},
+					{ func => 'remove', label => 'Delete'} 
+					] },
+				display	 => [ { label => 'Body', field => 'body', align => 'left', length => 450, editsize => 75 } ],
+				validate => { usage => 'No', },
+				data     => \@objectives_data, 
+			} } &>
+
+<%perl>
+	my @rank_options = ();
+	my $rank_counter = 0;
+	push @rank_options, map { 'label' => $_, 'value' => $rank_counter++ }, ( 'N/A', 'Mentioned', 'Central' );
+
+	my $concepts = {};
+	foreach my $concept_link (@{$class_meeting->child_umls_concepts(1)}){
+		my $concept = $concept_link->getKeyword();
+		if ($concept_link->getAuthorWeight()){
+			$concepts->{ $concept->getKeywordNormalized() } = { weight => $concept_link->getAuthorWeight(), object => $concept };
+		}
+	}
+
+	my $concepts_data = [];
+	foreach my $concept_key (sort keys %$concepts){
+		push (@$concepts_data, { 
+						concept_id => $concepts->{$concept_key}->{object}->getConceptID(), 
+						keyword => $concept_key, 
+						keyword_with_info => $concept_key . $m->scomp("/search/tmpl/element:display_def_and_syns", concept => $concepts->{$concept_key}->{object}),
+						rank => $concepts->{$concept_key}->{weight} 
+					});
+	}
+</%perl>
+<& /tmpl/element:sort_order_box , params =>{
+		label => 'UMLS Concepts and Keywords',
+		button_onclick => "openwindow('conceptdiv')",
+		layer_info => {
+			scrollrows => 15,
+			layer => 'conceptdiv',
+			fields => ['concept_id', 'keyword', 'rank'],
+			name => 'UMLS concepts',
+			sort => { usage => 'No' },
+			action => { usage => 'No' },
+			display => [
+				{ label => 'UMLS&nbsp;Concepts', field => 'keyword_with_info', align => 'left' },
+				{ label => 'Relevance', field => 'rank', align => 'center', length => 75, radio_options => \@rank_options }
+			],
+			validate => { usage => 'No', },
+			data => $concepts_data,
+		} } &>
+
+<%perl>
+	my $keywords_data = [];
+
+	foreach my $keyword_link (@{$class_meeting->child_author_defined_keywords(1)}){
+		push (@$keywords_data, { 
+						keyword_id => $keyword_link->getKeywordID(), 
+						keyword => $keyword_link->getKeyword()->getKeywordNormalized(), 
+					});
+	}
+	my @keyword_buttons = (
+		$m->scomp( '/tmpl/element:input_textbox', params => { name => 'keyword' } ),
+		$m->scomp( '/tmpl/element:button', params => {
+								onclick	=> 'addToLayer();',
+								label	=> 'Add Keyword',
+							} )
+	);
+</%perl>
+<& /tmpl/element:sort_order_box , params =>{
+				label => 'User-Defined Keywords',
+				no_add_button => 1,
+				buttons => \@keyword_buttons,
+				layer_info => {
+					scrollrows => 10,
+					layer => 'keyworddiv',
+					fields => ['keyword_id', 'keyword'],
+					name => 'Keywords',
+					sort => { usage => 'No' },
+					action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
+					display => [
+						{ label => 'Keyword', field => 'keyword', align => 'left', length => '5' },
+					],
+					validate => { usage => 'No', },
+					data => $keywords_data,
+				}
+} &>
+
+<%perl>
+        $m->comp('/tmpl/element:sort_order_box', params =>{
+                label=>'Users',
+		no_add_button=>1,
+                layer_info => {
+                        layer => 'userdiv',
+                        fields => ['user_id', 'name'],
+                        name => 'user',
+                        sort => {usage => 'No'},
+                        action => {usage => 'No'},
+                        scrollrows => 10,
+                        display => [{label=>'Name',field=>'name', align=>'left', length=>300 }
+                        ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => \@user_data }});
+
+
+</%perl>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+                cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+			'base_url' => "/management/schedule/show") . "');",
+                name=>'submit'} &>
+
+</table>
+</form>
+
+<%init>
+my @link_data = map { {	content_id   => $_->content_id,
+						title        => $_->title,
+						type         => $_->type,
+						label        => $_->aux_info('label'), 
+						anchor_label => $_->aux_info('anchor_label'),
+						link_class_meeting_content_id => $_->aux_info('link_class_meeting_content_id'),
+						class_meeting_content_type_id => $_->aux_info('class_meeting_content_type_id') } 
+		      		}
+					$class_meeting->child_content();
+
+my @user_data = map {{'user_id'=>$_->primary_key,
+			'name'=>$_->out_full_name } }
+			$class_meeting->child_users(); 
+		
+if (defined($ARGS{'submit'})){
+	# Content updates
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^contentdiv');
+	my ($r,$msg) = (1,"");
+	foreach my $content_item (@link_data){
+		($r,$msg) = $class_meeting->delete_child_content($content_item->{'content_id'});
+		last if (!$r);
+	}
+	if (!$r) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/schedule/addedit", 'msg' => $msg, 'msgtype'=>'errmsg'));
+	}
+	foreach my $set (keys %{$rowHash}){
+		$rowHash->{$set}->{'fields'}->{'sort_order'} = $rowHash->{$set}->{'fields'}->{sortorder};
+		($r,$msg) = $class_meeting->add_child_content($rowHash->{$set}->{'fields'});
+		last if (!$r);
+	}
+	if (!$r) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/schedule/addedit", 'msg' => $msg, 'msgtype'=>'errmsg'));
+	}
+
+	@link_data = map { { content_id   => $_->content_id,
+						 title        => $_->title,
+						 type         => $_->type,
+						 label        => $_->aux_info('label'),
+						 anchor_label => $_->aux_info('anchor_label'),
+						 link_class_meeting_content_id => $_->aux_info('link_class_meeting_content_id'),
+						 class_meeting_content_type_id => $_->aux_info('class_meeting_content_type_id') } }
+					$class_meeting->child_content();
+
+	# Objective updates
+	my $objective_hash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^objectivesdiv');
+	my $objective_links_hash = { map { $_->getObjectiveID() => \$_ } @{$class_meeting->child_objectives()} };
+	foreach my $objective_data (values %$objective_hash){
+		if (exists($objective_links_hash->{ $objective_data->{'pk'} })){
+			my $objective_link = ${$objective_links_hash->{ $objective_data->{'pk'} }};
+			my $objective = TUSK::Core::Objective->lookupReturnOne("objective_id = '" . $objective_data->{'pk'} . "'") || TUSK::Core::Objective->new();
+
+			$objective->setBody( $objective_data->{'fields'}->{'body'} );			
+			$objective->save();
+
+			$objective_link->setSortOrder($objective_data->{'fields'}->{'sortorder'});
+			$objective_link->save({ user => $m->comp('SELF:user') });
+		} else {
+			my $objective_link = TUSK::Schedule::ClassMeetingObjective->new();
+			my $objective = TUSK::Core::Objective->lookupReturnOne("objective_id = '" . $objective_data->{'pk'} . "'") || TUSK::Core::Objective->new();
+
+			$objective->setBody( $objective_data->{'fields'}->{'body'} );			
+			$objective->save();
+
+			$objective_link->setSortOrder($objective_data->{'fields'}->{'sortorder'});
+			$objective_link->setObjectiveID($objective->getPrimaryKeyID());
+			$objective_link->setClassMeetingID($class_meeting->primary_key());
+			$objective_link->setSchoolID($school_id);
+			$objective_link->pushJoinObject('TUSK::Core::Objective', $objective);
+			$objective_link->save({ user => $m->comp('SELF:user') });
+		}
+		delete($objective_links_hash->{ $objective_data->{'pk'} });
+	}
+
+	foreach my $objective_link (values %$objective_links_hash){
+		${$objective_link}->delete({ user => $m->comp('SELF:user') });
+	}
+
+
+	# UMLS Concept updates
+	my $concept_hash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^conceptdiv');
+	my $concept_links_hash = { map { $_->getKeyword()->getConceptID() => \$_ } @{$class_meeting->child_umls_concepts()} };
+	foreach my $concept_data (values %$concept_hash){
+		if (exists($concept_links_hash->{ $concept_data->{'pk'} })){
+			my $concept_link = ${$concept_links_hash->{ $concept_data->{'pk'} }};
+			$concept_link->setAuthorWeight($concept_data->{'fields'}->{'rank'});
+			$concept_link->save({ user => $m->comp('SELF:user') });
+		} else {
+			my $concept_link = TUSK::Schedule::ClassMeetingKeyword->new();
+			my $concept = TUSK::Core::Keyword->lookupReturnOne("concept_id = '" . $concept_data->{'pk'} . "'");
+			$concept_link->setAuthorWeight($concept_data->{'fields'}->{'rank'});
+			$concept_link->setKeywordID($concept->getPrimaryKeyID());
+			$concept_link->setClassMeetingID($class_meeting->primary_key());
+			$concept_link->setSchoolID($school_id);
+			$concept_link->pushJoinObject('TUSK::Core::Keyword', $concept);
+			$concept_link->save({ user => $m->comp('SELF:user') });
+		}
+	}
+
+
+	# Author-Defined Keyword updates
+	my $keyword_hash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^keyworddiv');
+	my $keyword_links_hash =  { map { $_->getKeywordID() => $_ } @{$class_meeting->child_author_defined_keywords()} };
+	foreach my $keyword_data (values %$keyword_hash){
+		if ($keyword_data->{'pk'}){
+			if ($keyword_links_hash->{ $keyword_data->{'pk'} }){
+				delete($keyword_links_hash->{ $keyword_data->{'pk'} });
+			}
+		} else {
+			my $keyword = TUSK::Core::Keyword->lookupReturnOne("keyword = lower('" . $keyword_data->{'fields'}->{'keyword'} . "')");
+			unless ($keyword){
+				$keyword = TUSK::Core::Keyword->new();
+				$keyword->setKeyword($keyword_data->{'fields'}->{'keyword'});
+				$keyword->save({ user => $m->comp('SELF:user') });
+			}
+
+			my $keyword_link = TUSK::Schedule::ClassMeetingKeyword->new();
+			$keyword_link->setKeywordID($keyword->getPrimaryKeyID());
+			$keyword_link->setClassMeetingID($class_meeting_id);
+			$keyword_link->setSchoolID($school_id);
+			$keyword_link->save({ user => $m->comp('SELF:user') });
+		}
+	}
+
+	foreach my $keyword_link (values %$keyword_links_hash){
+		$keyword_link->delete({ user => $m->comp('SELF:user') });
+	}
+
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/schedule/addedit", 'extra' => '', 'msg' => 'Class meeting updated.'));
+}
+</%init>
+

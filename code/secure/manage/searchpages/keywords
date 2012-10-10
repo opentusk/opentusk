@@ -1,0 +1,93 @@
+[!
+	use TUSK::Search::Keywords;
+!][-
+	$req = shift;
+
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	if ($fdat{make_keyword}){
+		$keyword = TUSK::Core::Keyword->makeKeyword($fdat{search},$req->{user}->user_id);
+	} elsif ($fdat{search}){
+		$results = TUSK::Search::Keywords->new()->search($fdat{search}, 25);
+	}
+-]
+<script>
+function do_keyword(){
+	document.forms.search.make_keyword.value = 1;
+	document.forms.search.submit();
+}
+</script>
+<table cellspacing="5" width="100%">
+	<tr>
+		<td>
+			<input type="hidden" name="make_keyword" value="0"/>
+			<b>Keyword: </b>&nbsp;<input type="text" name="search">&nbsp;&nbsp;<input type="submit" name="action" value="Search" class="formbutton">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" name="keyword_button" value="Make New Keyword" class="formbutton" 
+			onclick="do_keyword();">&nbsp;
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+
+		
+		</td>
+	</tr>
+[$ if ($fdat{make_keyword}) $]
+
+<tr><td><br><b>Keyword Created.</b></td></tr>
+[$ elsif  ($fdat{search}) $]
+	<tr>	
+		<td><br>
+[- $numResults = scalar(@{$results}); -]
+			<div id="count">[+ $numResults +] matching entr[$ if ($numResults == 1) $]y[$ else $]ies[$ endif $][$ if ($numResults) $]:[$ endif $]</div>
+		</td>
+	</tr>
+[$ endif $]
+[- $umlsNewlineEscape = "UMLSDEFINITIONNEWLINEESCAPE"; -]
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+<script>
+function definition(layer, index){
+	if (layers[layer].structure.data[index]['definition']){
+		var RExp = /[+ $umlsNewlineEscape +]/g;
+		var defn = layers[layer].structure.data[index]['definition'].replace(RExp,"\n");
+		alert(defn);
+	}else{
+		alert("No definition.");
+	}
+}
+</script>
+[-
+	create_layer({
+			layer => 'searchdiv',
+			fields => ['keyword_id','concept_id','keyword', 'umls', 'definition'],
+			name => '',
+			sort => {usage => 'No'},			
+			parentlayer => $fdat{parentlayer},
+			scrollrows => 9,
+			action => {usage => 'Yes', length=>100, functions => [
+									{func=>'add', label=>'Add'},
+									{func=>'definition', label=>'Definition'}
+								]},
+			display => [
+					{field=>'keyword', align=>'left', length=>400},
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => $results,
+			});
+-]
+[$ if ($fdat{'make_keyword'}) $]
+<script>
+addnew('searchdiv',{umls:'No', keyword:"[+ $keyword->getKeyword +]",
+                keyword_id:[+ $keyword->getPrimaryKeyID() +], concept_id:null},1);
+
+</script>
+[$ endif $]
+		</td>
+
+	</tr>
+</table>

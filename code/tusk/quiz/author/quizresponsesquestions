@@ -1,0 +1,242 @@
+<%once>
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Result;
+	use TUSK::Core::HSDB4Tables::User;
+	use TUSK::Quiz::LinkQuizQuizItem;
+</%once>
+
+
+<%shared>
+	my ($quiz_id,$link_type,$link_id,$question_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my $question = TUSK::Quiz::Question->lookupKey($question_id);
+	my $link_item = ($link_type == 1) ? TUSK::Quiz::LinkQuizQuizItem->lookupKey($link_id) : TUSK::Quiz::LinkQuestionQuestion->lookupKey($link_id);
+	my $type_path = $m->comp("/tmpl/url:get_type_path") . '/' . $quiz->getPrimaryKeyID();
+	my %args = $m->request_args();
+	my $responses = [];
+	my $result_rows = [];
+	my $points;
+</%shared>
+
+<%method red_header_text>
+%	return "Quiz Responses: " . $quiz->getTitle();
+</%method>
+
+
+<%method title>
+%	return "Quiz Responses: " . $quiz->getTitle();
+</%method>
+
+<%method function_token>
+% 	return 'view_grades';
+</%method>
+
+
+<%method get_nav_bar_objects>
+%	return {'quiz'=>$quiz};
+</%method>
+
+
+<%method display_matching_questions>
+<%perl>
+	my $questions = TUSK::Quiz::Question->lookup("parent_question_id = $question_id", ['sort_order'], undef, undef, [TUSK::Core::JoinObject->new("TUSK::Quiz::LinkQuestionQuestion", {origkey => 'quiz_question_id', joinkey => 'child_question_id', jointype => 'inner'})]);
+	my $cnt = 1;
+	$m->print( join "<br/>", map { '<span style="margin-left:30px">' . $cnt++ . '. ' . $_->getBody() . '</span>' } (@$questions));
+</%perl>
+</%method>
+
+
+<%method get_multiple_responses>
+<%perl>
+	my @link_ids = map { $_->getPrimaryKeyID() } @{TUSK::Quiz::LinkQuestionQuestion->lookup("parent_question_id = $question_id", ['sort_order'])};
+	my $link_ids = join(",", @link_ids);
+
+	my $sth = $quiz->databaseSelect(qq[
+		select quiz_result.user_id, user.firstname, user.lastname, qr.quiz_response_id, response_text
+                from tusk.quiz_result left join hsdb4.user on (user.user_id=quiz_result.user_id) 
+                                      inner join tusk.quiz_response qr on (qr.quiz_result_id=quiz_result.quiz_result_id),
+                                      tusk.link_question_question link
+                where quiz_id = $quiz_id 
+	        and link_id in ($link_ids) 
+                and link_type = 'link_question_question' 
+                and preview_flag = 0 
+                and link.link_question_question_id = qr.link_id 
+                order by lastname, firstname, sort_order
+	]);
+
+	my (%names, $count);
+	my $each_response_points = $link_item->getPoints();
+	while (my ($uid, $firstname, $lastname, $response_id, $restponse_text) = $sth->fetchrow_array()) {
+		my $name = '';
+		unless (exists $names{$uid}) {
+			$names{$uid} = 1;
+			$name = ($quiz->isSelfAssessment()) ? "Anonymous" : "$lastname, $firstname";
+			$count = 1;
+		} 
+
+		my $response = TUSK::Quiz::Response->lookupKey($response_id);
+		my $graded_points = ($response->getGradedFlag()) ? $response->getGradedPoints() : '';
+		my $id = $response->getPrimaryKeyID();
+	        push @$result_rows, {
+			name      => "<font color=\"blue\">$name</font>",
+			response  => $count++ . '. ' . $response->getResponseText(),
+			graded_points => "<a href=\"#\" onclick=\"document.quizresponses.resp_$id.value = $each_response_points; return false;\"><img align=\"bottom\" border=\"0\" src=\"/graphics/quiz/correct_small.gif\"/></a> <a href=\"#\" onclick=\"document.quizresponses.resp_$id.value = 0; return false;\"><img align=\"bottom\" border=\"0\" src=\"/graphics/quiz/incorrect_small.gif\"/></a> <input type=\"text\" name=\"resp_$id\" value=\"$graded_points\" size=\"2\" max=\"3\" onchange=\"validateNumber(this)\"/>",
+		};
+		push @{$responses}, $response;
+	}
+	$sth->finish();
+</%perl>
+</%method>
+
+
+<%method get_responses>
+<%perl>
+	my $result = TUSK::Quiz::Result->new();
+	my $link_type_text = ($link_type == 1) ? 'link_quiz_quiz_item' : 'link_question_question';
+
+	my $results = $result->lookup("quiz_id = $quiz_id and link_id = $link_id and link_type = '$link_type_text' and preview_flag = 0", ['lastname'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User"), TUSK::Core::JoinObject->new("TUSK::Quiz::Response", {joinkey => 'quiz_result_id', jointype => 'inner'})]);
+
+	foreach my $result (@{$results}){	
+		my $name = ($quiz->isSelfAssessment()) ? "Anonymous" : $result->getUserObject->out_lastfirst_name();
+		my $response = $result->getJoinObject('TUSK::Quiz::Response');
+		my $response_text;
+
+		if ($question->getType() eq "MultipleChoice") {
+			my $answer_id = $response->getAnswerID();
+			my $answer = TUSK::Quiz::Answer->new()->lookupKey($answer_id);
+			if ($answer && ref($answer) && $answer->getPrimaryKeyID()){
+				my $letter = chr(ord('a') + ($answer->getSortOrder()-1));
+				$response_text = $letter . ". ";
+			}
+		} 
+
+		$response_text .= $response->getResponseText();
+		my $graded_points = ($response->getGradedFlag()) ? $response->getGradedPoints() : '';
+		my $id = $response->getPrimaryKeyID();
+	        push @$result_rows, {
+			name      => $name,
+			response  => $response_text,
+			graded_points  => "<a href=\"#\" onclick=\"document.quizresponses.resp_$id.value = $points; return false;\"><img align=\"bottom\" border=\"0\" src=\"/graphics/quiz/correct_small.gif\"/></a> <a href=\"#\" onclick=\"document.quizresponses.resp_$id.value = 0; return false;\"><img align=\"bottom\" border=\"0\" src=\"/graphics/quiz/incorrect_small.gif\"/></a> <input type=\"text\" name=\"resp_$id\" value=\"$graded_points\" size=\"2\" max=\"3\" onchange=\"validateNumber(this)\"/>",
+		};
+		push @{$responses}, $response;
+	}
+</%perl>
+</%method>
+
+
+<%method get_correct_answers>
+<%perl>
+	my $answers = [];
+	my $answer_text = '';
+
+	if ($question->getType() eq 'Matching') {
+		my $questions = TUSK::Quiz::Question->lookup("parent_question_id = $question_id", ['sort_order'], undef, undef, [TUSK::Core::JoinObject->new("TUSK::Quiz::LinkQuestionQuestion", {origkey => 'quiz_question_id', joinkey => 'child_question_id', jointype => 'inner'})]);
+		my $cnt = 1;
+		foreach my $question (@$questions) {
+			my $answer = $question->getCorrectAnswer();
+			if ($answer) {
+				$answer_text .= $cnt++ . '. ' . $answer->getValue() . '<br/>';
+			}
+		}
+	} elsif ($question->getType() eq 'MultipleFillIn') {
+		$answer_text = $question->getFeedback();
+		$answer_text =~ s/\n/<br\/>/g;
+	} else {
+		$answers = $question->getCorrectAnswers();
+		if ($answers) {
+			if ($question->getType() eq "MultipleChoice"){
+				foreach my $answer (@$answers) {
+					$answer_text .= chr(ord('a') + ($answer->getSortOrder()-1)) . '.' . $answer->getValue() . '<br/>';
+				}
+			} else {
+				foreach my $answer (@$answers) {
+					$answer_text .= $answer->getValue() . "<br/>";
+				}
+			}
+		}
+	}
+	return $answer_text;
+</%perl>
+</%method>
+
+
+<%method display_responses>
+%	my $answer_text = $m->comp('SELF:get_correct_answers');
+<table width="100%">
+<tr><td>
+<table>
+<tr><th class="sm" valign="top" align="right">Question:</th><td><% $question->getBody() %>
+% if ($question->getType() eq 'Matching' ) {
+	<br/>
+	<& SELF:display_matching_questions &>
+% }
+</td></tr>
+<tr><th class="sm" align="right">Points:</th><td><% $points %></td></tr>
+% if ($answer_text && $answer_text ne '') {
+<tr><th class="sm" valign="top" align="right">Correct Answer:</th><td valign="top"><% $answer_text %></td></tr>
+% }
+</table>
+</td></tr>
+
+<tr><td valign="bottom">
+% if ($result_rows && scalar @$result_rows > 0) {
+	<div align="right">
+%	if ($m->comp("/tmpl/permission:check_permission", function_token => 'edit_grades')) {
+		<& /tmpl/element:form, params => {
+                	method => 'POST',
+	                name => 'quizresponses',
+	                onsubmit => undef } &>
+
+		<div style="margin-bottom:2px;">
+		<input class="formbutton" type="submit" name="submit" value="Save Changes" onmouseup="" onmousedown="" onclick="">
+		<input class="formbutton" type="reset" onclick="go_back('/quiz/author/quizresultsquestions/<% $type_path . '#' . $question_id %>');" name="cancel" id="cancel" value="Back To View Results"/>
+		</div>
+
+		<& /tmpl/element:object_selection_box, params=>{ columns => [
+			{field => 'name', label => 'Name'},
+			{field => 'response',label => 'Response',},
+			{field => 'graded_points', label => 'Graded Points<span style="color:red;font-size:80%;">*</span>'},],
+			'norows-message' => 'No results',
+	                rows => $result_rows, } &>
+
+%		if (scalar @$result_rows > 10) {
+		<div style="margin-top:3px;">
+		<input class="formbutton" type="submit" name="submit" value="Save Changes" onmouseup="" onmousedown="" onclick="">
+		<input class="formbutton" type="reset" onclick="go_back('/quiz/author/quizresultsquestions/<% $type_path . '#' . $question_id %>');" name="cancel" id="cancel" value="Back To View Results"/>
+		</div>
+%		}
+		</form>
+	</div>
+	<& '/quiz/author/tmpl/grade:help_grade_note' &>
+%	} else {
+		<i>Not authorized for grading</i>
+%	}
+% } else {
+	<i>No Results</i>
+% }
+</td></tr>
+</table>
+</%method>
+
+
+<%init>
+	$points = $m->comp('/quiz/author/tmpl/questions:get_points', link => $link_item, question => $question);
+
+	if ($question->getType() =~ /^MultipleFillIn|Matching$/) {
+		$m->comp('SELF:get_multiple_responses');	
+	} else {
+		$m->comp('SELF:get_responses');
+	}
+
+	if ($args{submit_check}) {
+ 		$m->comp('/quiz/author/tmpl/responses:update', 
+			input => \%args,
+			db_responses => $responses
+		);
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/quizresponsesquestions",'msg' => "Changes successfully saved"));
+	}
+
+	$m->comp('SELF:display_responses');
+</%init>
+

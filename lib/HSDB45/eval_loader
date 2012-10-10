@@ -1,0 +1,19 @@
+#!/usr/bin/perl
+
+use HSDB45::Eval::Loader;
+use MySQL::Password;
+use Getopt::Long;
+
+
+my ($school, $verbose) = ("", 0);
+GetOptions( "school=s" => \$school,
+	    "verbose" => \$verbose );
+
+my $loader = HSDB45::Eval::Loader->new( get_user_pw() );
+$loader->set_verbose($verbose);
+$loader->set_school($school) if $school;
+for (@ARGV) {
+    $loader->do_file( $_ );
+}
+
+1;

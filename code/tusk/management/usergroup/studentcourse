@@ -1,0 +1,192 @@
+<%attr>
+show_tp_dropdown_without_course => 1
+use_dynamic_wrapper => 0
+page_header   => '/tmpl/prepend'
+page_footer   => '/tmpl/footer'
+</%attr>
+
+<%shared>
+my $usergroup_id    = $m->comp("/tmpl/url:get_last_path_id");
+my $school          = $m->comp("/tmpl/url:get_school");
+my $type_object     = $m->comp("/tmpl/url:get_type_object");
+my $self_path       = "school/" . $school;
+my $is_course_group = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
+my $time_period_id;
+
+if ( $is_course_group ) {
+	$m->comp("/tmpl/url:redirect",
+		'destination' => '/management/usergroup/show/course/' . $school . '/' . $type_object->course_id,
+		'message'     => 'Cannot link student to individual courses in a course group.',
+		'msgtype'     => 'errmsg');
+	exit;
+}
+
+my $usergroup;
+if ($usergroup_id) {
+	$usergroup = HSDB45::UserGroup->new( _school => $school )->lookup_key($usergroup_id);
+} else {
+	$m->comp("/tmpl/url:redirect",
+		'destination' => '/management/usergroup/show/course/' . $self_path,
+		'message'     => 'No user group ID provided.',
+		'msgtype'     => 'errmsg');
+	exit;
+}
+
+my $time_periods = [ $usergroup->time_periods() ];
+my $base_url     = "/management/usergroup/studentcourse";
+
+my $fields       = [ 'name', 'onclick' ];
+my $col_fields   = [ {'label'=>'Name', 'field'=>'name'} ];
+
+my @users;
+my @courses;
+my @user_course_array;
+
+if ( !scalar(@$time_periods) ) {
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>'/management/usergroup/show/school/' . $school, 'msg'=>'No time periods associated.', 'msgtype'=>'errmsg'));
+}
+</%shared>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>undef,
+				name => 'studentcourse' } &>
+
+<& /tmpl/element:table, params => { 
+				width       => "100%",
+				border      =>"0",
+				cellspacing =>"0",
+				cellpadding =>"0" } &>
+
+<& /tmpl/element:object_selection_box, params => { 
+				columns         => $col_fields, 
+				nobutton        => 1, 
+				sort_box        => 0,
+				is_object       => 0,
+				object_list     => \@user_course_array,
+				empty_message   => 'No students are in this usergroup.',
+				type_path       => "" }
+&>
+
+<& /tmpl/element:hidden_form_element, params =>{ 
+				name   => 'action',
+				value  => 'enroll' } 
+&>
+
+<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+				'base_url' => "/management/usergroup/show") . "');",
+				name=>'submit'} &>
+</table>
+</form>
+
+<%init>
+$m->comp( "SELF:check_dynamic_permissions" );
+
+$time_period_id = $m->session->{timeperiod};
+
+# These two lines must take place in the init section.  If they occur earlier, the page does not update properly.
+@users   = $usergroup->child_users();
+@courses = $usergroup->courses( $m->session->{timeperiod} );
+
+my ($msg,$msgtype) = (undef,"errmsg");
+my $rval = 0;
+my $extra = "";
+
+if ( defined($ARGS{'submit'}) && $ARGS{'action'} eq "enroll" ) {
+	my $link_course_student = $HSDB4::SQLLinkDefinition::LinkDefs{ HSDB4::Constants::get_school_db($school) . '.link_course_student' };
+
+	foreach my $course (@courses) {
+		my $course_student_members;
+		my $members = $usergroup->getStudentMembers($course, $time_period_id, 1);
+		foreach my $member (@$members) {
+			$course_student_members->{$course->primary_key()}{$member} = 1;
+		}
+
+		foreach my $user (@users) {
+			my $form_value = ($ARGS{$user->user_id . '_checkbox_' . $course->course_id} eq "on") ? 1 : 0;
+			my $db_value   = (exists $course_student_members->{$course->primary_key()}{$user->user_id}) ? 1 : 0;
+
+			if ( $form_value != $db_value ) {
+				if ( $form_value ) {
+					$link_course_student->insert( '-parent_id' => $course->course_id, '-child_id' => $user->user_id, 'time_period_id' => $time_period_id );
+				}
+				else {
+					$link_course_student->delete( '-parent_id' => $course->course_id, '-child_id' => $user->user_id, 'cond' => ' AND time_period_id = ' . $time_period_id );
+				}
+			}
+		}
+	}
+
+	$msg = "Student/Course Links Successfully Updated";
+	$msgtype = "msg";
+
+	# Need to refresh the data, since we just changed some things.
+	@users   = $usergroup->child_users();
+	@courses = $usergroup->courses( $m->session->{timeperiod} );
+}
+
+if ( $msg ) {
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>$base_url, 'msg'=>$msg, 'msgtype'=>$msgtype, 'extra'=>$extra));
+}
+
+$m->comp( "SELF:fill_user_course_array" );
+</%init>
+
+<%method fill_user_course_array>
+<%perl>
+$user_course_array[0] = HSDB4::SQLRow->new( _school => $school, _primary_key_field => 'primary_key', _fields => $fields );
+$user_course_array[0]->primary_key( "all" );
+$user_course_array[0]->set_field_values( 'name', "<i>Select All</i>" );
+
+my $course_student_members;
+foreach my $course (@courses) {
+	my $label = $course->abbreviation;
+	if ( $label eq "" ) { $label = $course->title; }
+
+	push @$fields, 'checkbox_' . $course->course_id;
+	push @$col_fields, {'label'=>$label, 'field'=>'checkbox_' . $course->course_id};
+
+	$user_course_array[0]->set_field_values( 'checkbox_' . $course->course_id, 0 );
+	my $members = $usergroup->getStudentMembers($course, $time_period_id, 1);
+	foreach my $member (@$members) {
+		$course_student_members->{$course->primary_key()}{$member} = 1;
+	}
+}
+
+foreach my $user ( @users ) {
+	my $user_course_row = HSDB4::SQLRow->new( _school => $school, _primary_key_field => 'primary_key', _fields => $fields );
+
+	$user_course_row->primary_key( $user->user_id );
+	$user_course_row->set_field_values( 'name', $user->out_lastfirst_name );
+
+	foreach my $course ( @courses ) {
+		
+		$user_course_row->set_field_values( 'checkbox_' . $course->course_id, (exists $course_student_members->{$course->primary_key()}{$user->primary_key()}) ? 1 : 0 );
+	}
+
+	push @user_course_array, $user_course_row;
+}
+</%perl>
+</%method>
+
+<%method jsarray>
+% return ['layers.js','element.js', 'usergroup.js'];
+</%method>
+
+<%method get_timeperiods>
+%	return $time_periods;
+</%method>
+
+<%method red_header_text>
+%	return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+%	return $usergroup->label . ' Student/Course Links';
+</%method>
+
+<%method leftnav>
+% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+</%method>
+

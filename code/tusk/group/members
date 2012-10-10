@@ -1,0 +1,42 @@
+<%attr>
+	no_header => 1
+</%attr>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $group_id = $m->comp("/tmpl/url:get_first_path_id");
+	my $group = HSDB45::UserGroup->new(_school => $course->get_school()->getSchoolName())->lookup_key($group_id);
+</%shared>
+
+
+<div class="admintext"><% $group->out_label() %></div><br/>
+<& /tmpl/element:table, params => { 
+	width		=> "",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0",
+	align		=> "center",
+} &>
+
+% my $members = $m->comp('SELF:get_group_members');
+	<tr><th align="left">Name</th><th>&nbsp;&nbsp;</th><th align="left">Userid</th></tr>
+%	my $i = 0;
+% foreach my $name (sort keys %$members) {
+%	my $bgcolor = ($i % 2 == 0) ? 'bgcolor:#EEEEE' : '';
+	<tr><td style="<% $bgcolor %>"><% $name %></td><td>&nbsp;&nbsp;</td><td style="<% $bgcolor %>"><% $members->{$name} %></td></tr>
+% }
+</table>
+
+<%method get_group_members>
+<%perl>
+	my %members;
+	foreach my $user ($group->child_users()) {
+		$members{$user->out_lastfirst_name()} = $user->primary_key();
+	}
+	return \%members;
+</%perl>
+</%method>
+
+<%method title>
+%	return "Group Members";
+</%method>

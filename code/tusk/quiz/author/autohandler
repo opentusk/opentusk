@@ -1,0 +1,166 @@
+<%once>
+	use TUSK::Quiz::Quiz;
+</%once>
+
+<%attr>
+check_cms_permissions => 1
+top_tab_type => 'manage'
+check_feature_permissions => 1
+</%attr>
+
+<%method cms_min_course_role>
+% return 'AUTHOR';
+</%method>
+
+<%method feature_type_token>
+% return 'quiz';
+</%method>
+
+<%method feature_id>
+% return $m->comp("SELF:get_quiz_id");
+</%method>
+
+<%method function_token>
+% return '';
+</%method>
+
+<%method leftnav>
+<%perl>
+if (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course"){
+	return "/tmpl/leftnav/course";
+}
+</%perl>
+</%method>
+
+<%method right_header_text>
+<%perl>
+	my $quiz_id = $m->comp("SELF:get_quiz_id");
+	my $links = [];
+	push @$links, { url => '', onclick => "openhelp(6023,181129);return false;", txt => "Help with Quizzes"};
+
+	if ($quiz_id){
+		push @$links, { url => "/quiz/author/quizpreview/" . $m->comp("/tmpl/url:get_type_path") . "/" . $quiz_id, txt => "Preview"};
+	}
+
+	return $links;
+</%perl>
+</%method>
+
+
+<%method get_quiz_id>
+% my $path = $m->comp("/tmpl/url:get_path_ids");
+% return $path->[0] if (scalar(@$path));
+% return 0;
+</%method>
+
+<%method get_quiz>
+% return TUSK::Quiz::Quiz->new()->lookupKey($m->comp("SELF:get_quiz_id"));
+</%method>
+
+<%method url_prefix>
+% return "/quiz/author/";
+</%method>
+
+<%method footer>
+<%args>
+$obj
+</%args>
+<br>
+<table>
+<tr>
+	<td class="xxsm">
+		<b>Created By:</b>
+	</td>
+	<td class="xxsm">
+		 <% $obj->getCreatedBy() %> (<i><% $obj->getCreatedOn() %></i>)</font>
+	</td>
+</tr>
+<tr>
+	<td class="xxsm">
+		<b>Changed By:</b>
+	</td>
+	<td class="xxsm">
+		<% $obj->getModifiedBy() %> (<i><% $obj->getModifiedOn() %></i>)</font>
+	</td>
+</tr>
+</table>
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+	return $m->comp("/tmpl/nav", 
+		'objects' => $m->comp("SELF:get_nav_bar_objects"),
+		'prefix' => '/quiz/author',
+		'hierarchy' => {
+			'index' =>[],
+			'addedit'=>['index'],
+			'show'=>[],
+			'shownotp'=>['index'],
+			'itemanalysis'=>['index'],
+			'delete'=>['index','addedit'],
+			'questionscopy'=>['index','addedit'],
+			'questionselectedcopy'=>['index','addedit', 'questionscopy'],
+			'questionaddedit'=>['index','addedit'],
+			'questiondelete'=>['index','addedit'],
+			'questionsdelete'=>['index','addedit'],
+			'answeraddedit'=>['index','addedit','questionaddedit'],
+			'answerdelete'=>['index','addedit','questionaddedit'],
+			'quizpreview'=>[],
+			'users'=>['index','addedit'],
+			'answerkey'=>['index'] ,
+			'quizresults'=>['index'] ,
+			'quizresultsquestions'=>['index'] ,
+			'quizresponses'=>['index','quizresults'],
+			'quizresponsesquestions'=>['index','quizresultsquestions'],
+			'graderesponse'=>['index','quizresults','quizresponses'],
+			'showexport'=>['index'],
+			'exportgradebook'=>['index', 'showexport'],
+		},
+		'nav_entities_dependency' => {
+			'index' =>{'object'=>undef, 'depend'=>[],}, 
+		        'show' =>{'object'=>undef, 'depend'=>[],}, 
+		        'shownotp' =>{'object'=>undef, 'depend'=>[],}, 
+		        'addedit'=>{'object'=>'quiz','depend'=>[],
+			'static_title'=>'Quiz: '},
+		        'itemanalysis'=>{'object'=>'quiz','depend'=>[],
+				'static_title'=>'Quiz: '},
+		        'questionscopy'=>{'object'=>'quiz','depend'=>[],
+				'static_title'=>'Copy Questions: '},
+		        'questionselectedcopy'=>{'object'=>'quiz','depend'=>[],
+				'static_title'=>'Copy Questions: '},
+		        'questionaddedit'=>{'object'=>'question','depend'=>[],
+				'static_title'=>'Question: '},
+		        'answeraddedit'=>{'object'=>'question',
+				'depend'=>['quiz','question','answer'],
+				'static_title'=>'Answers: '},
+		        'quizpreview'=>{'object'=>'quiz','depend'=>[],
+				'static_title'=>'Quiz Preview: '},
+			'quizreport'=>{'object'=>'quiz','depend'=>[],
+				'static_title'=>'Quiz Reports: '},
+		        'answerkey'=>{'object'=>'quiz','depend'=>['quiz'],
+				'static_title'=>'Answer Key: '} ,
+		        'quizresults'=>{'object'=>'quiz','depend'=>[],
+				'static_title'=>'View Results: '} ,
+		        'quizresultsquestions'=>{'object'=>'quiz','depend'=>[],
+				'static_title'=>'View Results: '} ,
+			'showexport'=>{'object'=>'quiz','depend'=>['quiz'],
+				'static_title'=>'Export to Grade Book:' },
+		        'quizresponses'=>{'object'=>'result','depend'=>[],
+				'static_title'=>'View Responses: '},
+		        'quizresponsesquestions'=>{'object'=>'result','depend'=>[],
+				'static_title'=>'View Responses: '},
+		        'graderesponses'=>{'object'=>'quiz','depend'=>['response'],
+				'static_title'=>'Grade Responses: '}
+		},
+		'title_func' => {
+			'quiz'=>'getTitle',
+			'question'=>'getBody',
+			'answer'=>'getValue',
+			'result'=>'getUserID',
+			'response'=>'getResponseText'
+		},
+		'urls' => { 'index' => {link=>'show', label=>'Manage Quizzes'} });
+</%perl>
+</%method>
+
+% $m->call_next();

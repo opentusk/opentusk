@@ -1,0 +1,62 @@
+[!
+	use HSDB45::TimePeriod;
+!][-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+
+	$req->{pagetype}="";
+	$req->{image}="ManageTimePeriods";
+	
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+	Execute ({inputfile=>$req->{include_dir}."/element",import => 1});
+
+	$blankperiod = HSDB45::TimePeriod->new( _school => $req->{school} );
+	@periods = $blankperiod->lookup_conditions(undef,'ORDER BY start_date DESC, end_date DESC');
+
+        manage_header($req);
+-]                  
+                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                    <tr> 
+                      <td>
+[-
+Execute ({inputfile => $req->{include_dir}."/element", 
+          sub       => 'cms_button_row', 
+          param     => [{ link_txt    => '/manage/timeperiods/addedit/school/' . $req->{school},
+                          display_txt => 'New Time Period'
+                       }],
+         }); 
+-]
+                      </td>
+                    </tr>
+                  </table>
+[$ if (@periods) $]
+                  <table width="100%" cellspacing="0" class="tusk">
+                    <tr class="header"> 
+                      <td class="header-left">Label</td>
+                      <td class="header-center">Academic&nbsp;Year</td>
+                      <td class="header-center">Start - End Date</td>
+                      <td class="header-center" width="1%">Actions</td>
+                    </tr>
+[$ foreach $i (0..(scalar(@periods)-1)) $]
+[-  
+	$tp = $periods[$i];
+	if ($i % 2 == 0){
+		$data->{class} = "even";
+	}else{
+		$data->{class} = "odd";
+	}
+-]
+                    <tr class="[+ $data->{class} +]"> 
+                      <td class="layers-left"><a href="/manage/timeperiods/addedit/school/[+ $req->{school} +]/[+ $tp->primary_key +]">[+ $tp->out_label() +]</a></td>
+                      <td class="layers-center">[+ $tp->field_value('academic_year') +]</td>
+                      <td class="layers-center">[+ $tp->start_date()->out_string_date_short_year() +] - [+ $tp->end_date()->out_string_date_short_year() +]</td>
+                      <td class="layers-center" nowrap><a href="/manage/timeperiods/addedit/school/[+ $req->{school} +]/[+ $tp->primary_key +]" class="navsm">Modify</a><span class="littlespacing">|</span><a href="/manage/timeperiods/delete/school/[+ $req->{school} +]/[+ $tp->primary_key +]" class="navsm">Delete</a></td>
+                    </tr>
+[$ endforeach $]
+                  </table>
+[$ else $]
+<i>School has no active time periods.</i>
+[$ endif $]
+
+[- manage_footer(); -]

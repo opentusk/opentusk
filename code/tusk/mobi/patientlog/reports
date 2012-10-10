@@ -1,0 +1,52 @@
+<%attr>
+	no_check_path => 1
+</%attr>
+
+<%once>	
+	use HSDB4::SQLRow::User;
+	use TUSK::FormBuilder::Form;
+    use TUSK::Application::FormBuilder::Report::Course;
+	use Data::Dumper;
+</%once>
+
+<%shared>
+	my $path = 'showreport';
+	my $form = $m->comp("/mobi/patientlog/entry:get_form");
+	my $fields = $form->getAllFormFields("token != 'FillIn'");
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $form_id = $m->comp("/tmpl/url:get_last_path_id");
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	action => "/mobi/patientlog/" . $path . "/" . $m->comp("/tmpl/url:get_type_path") . "/" . $form_id,
+	onsubmit =>'return report_submit(this);',
+	name => 'formedit' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+    border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<& "/formbuilder/report:fields", form => $form &>
+
+<& "/formbuilder/report:advanced", form => $form &>
+
+<& "/formbuilder/report:submit", field_count => scalar(@$fields) &>
+
+</table>
+</form>
+
+<%method red_header_text>
+%   my $form = $m->comp("/mobi/patientlog/entry:get_form");
+%	my $name = $form->getFormName();
+% 	return "<a href='/mobi/patientlog/home'>Patient Log Homepage</a> > Reports > $name";
+</%method>
+
+<%method title>
+% 	return "Patient Log Reports";
+</%method>
+
+<%method jsarray>
+% 	return $m->comp("/formbuilder/display:jsarray");
+</%method>

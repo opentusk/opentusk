@@ -1,0 +1,88 @@
+<%attr>
+dynamic_check_tp => 1
+check_cms_permissions => 0
+top_tab_type => 'manage'
+use_dynamic_wrapper => 1
+page_header   => 'SELF:page_header_method'
+page_footer   => 'SELF:page_footer_method'
+</%attr>
+
+<%shared>
+my $header_func;
+my $footer_func;
+my $nav;
+
+if (ref($m->comp("/tmpl/url:get_type_object")) eq "TUSK::Core::School") {
+	$header_func = '/tmpl/prepend:manage_header_div_layout';
+	$footer_func = '/tmpl/footer:footer_div_with_tufts_links';
+	$nav         = { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school"), show_in_td => 0  };
+}
+elsif (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course") {
+	$header_func = '/tmpl/prepend';
+	$footer_func = '/tmpl/footer';
+	$nav         = { component => "/tmpl/leftnav/course" };
+}
+</%shared>
+
+<%method leftnav>
+% return $nav;
+</%method>
+
+<%method check_tp>
+% return ( ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course" );
+</%method>
+
+<%method check_dynamic_permissions>
+<%perl>
+my $typeObj = $m->comp("/tmpl/url:get_type_object");
+
+if (ref($typeObj) eq "HSDB45::Course") {
+	unless (TUSK::Session::is_school_admin($m->session, $typeObj->school(), $m->session->{'user'})) {
+		if ($m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT') == 0) {
+			$r->header_out(Location => '/home?errmsg=Access+Denied');
+			$r->status('REDIRECT');
+			exit;
+		}
+	}
+}
+else {
+	unless (TUSK::Session::is_school_admin($m->session, $m->comp("/tmpl/url:get_school"), $m->session->{'user'})) {
+		$r->header_out(Location => '/home?errmsg=Access+Denied');
+		$r->status('REDIRECT');
+		exit;
+	}
+}
+</%perl>
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+return $m->comp("/tmpl/nav", 'objects' => $m->comp("SELF:get_nav_bar_objects"),
+                             'prefix' => '/management/usergroup',
+                             'hierarchy' => {
+                                                'show' => [],
+                                                'addedit' => ['show'],
+                                                'delete' => ['show'],
+                                                'studentcourse' => ['show'],
+                                                },
+                             'nav_entities_dependency' => {
+                                                        'show' =>{'object'=>undef, 'depend'=>[]} , 
+                                                        'addedit' =>{'object'=>undef, 'depend'=>[]} ,
+                                                        'delete' =>{'object'=>undef, 'depend'=>[]},
+                                                        'studentcourse' =>{'object'=>undef, 'depend'=>[]} 
+                                                        },
+                             'title_func' => {},
+                             'urls' => { 'show' => {link => 'show', label => 'Manage Groups'}});
+</%perl>
+</%method>
+
+<%method page_header_method>
+% return $header_func;
+</%method>
+
+<%method page_footer_method>
+% return $footer_func;
+</%method>
+
+% $m->call_next();
+

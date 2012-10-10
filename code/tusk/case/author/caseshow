@@ -1,0 +1,113 @@
+<%once>
+	use TUSK::Case::LinkCourseCase;
+</%once>
+
+<%method title>
+<%perl>
+	return 'Manage Cases';
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method right_header_text>
+<%doc>Method that returns a list of all the links to use to the right on the red header bar</%doc>
+%	return [ {txt => 'Preview', url => "/view/$type_path/cases" } ];
+
+</%method>
+
+
+<%method feature_id>
+<%perl>
+	my $case_ids = [];
+
+	foreach my $course_case (@$course_cases){
+		push (@$case_ids, $course_case->getCasePrimaryKeyID());
+	}
+
+	return $case_ids;
+</%perl>
+</%method>
+
+<%method function_token>
+% return '';
+</%method>
+
+<%method leftnav>
+<%perl>
+	return "/tmpl/leftnav/course";
+</%perl>
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	if ($args->{order}){
+		$m->comp("SELF:set_msg", msg => 'Sort order successfully modified');
+	}
+</%perl>
+</%method>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $school = $course->get_school();
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $course_cases = TUSK::Case::LinkCourseCase->lookup( "parent_course_id = " . $course->course_id() . " and school_id = " . $school->getPrimaryKeyID());
+</%shared>
+
+<%perl>
+	if (defined($ARGS{'order'})){
+		my ($index, $newindex) = split('-', $ARGS{'order'});
+                $course_cases = TUSK::Case::LinkCourseCase->updateSortOrders($index, $newindex, "parent_course_id = " . $course->course_id() . " and school_id = " . $school->getPrimaryKeyID(), $course_cases);
+        }
+</%perl>
+
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => 'caseshow',
+		onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+              {display_txt => 'New Case',
+               link_txt    => '/case/author/caseaddedit/' . $type_path}
+	         ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+				get_key_method	=> 'getChildCaseID',
+				columns 	=> [
+							{ label => 'Title', field => 'getCaseTitle' },
+							{ label => 'Author', field => 'getCaseAuthors' },
+							{ label => 'Type', field => 'getCaseType' },
+							{ label => 'Status', field => 'getCaseStatus' },
+						],
+				action_columns	=> [ 
+							{ label => 'Modify', link => '/case/author/caseaddedit', function_token => 'modify_case', },
+							{ label =>'Users', link => '/case/author/users', function_token => 'users_case', },
+							{ label => 'Reports', link => '/case/author/caseresults', function_token => 'reports_case' },
+							{ label => 'Delete', link => '/case/author/casedelete', function_token => 'delete_case' },
+							{ label => 'Preview', link => '/case/author/preview', 'target' => 'preview', function_token => 'preview_case' },
+
+			  			],
+				feature_token	=> 'case',
+				object_list	=> $course_cases,
+				type_path	=> $type_path,
+				name 		=> "cases",
+				sort_box	=> 'Yes',
+				permissions 	=> $m->comp("/tmpl/permission:get_permissions"),
+				}
+&>
+
+</table> 
+
+</form>

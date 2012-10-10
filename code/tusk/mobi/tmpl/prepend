@@ -1,0 +1,38 @@
+<%once>
+use TUSK::Constants;
+</%once>
+
+
+<%method logo>
+<div><img src="/graphics/mlogo.gif" height="40" width="110" alt="<% $TUSK::Constants::SiteAbbr %>" /></div>
+</%method>
+
+<%method manage_header>
+<%args>
+%req_hash
+</%args>
+<%perl>
+my $req = \%req_hash;
+
+push @{$req->{stylearray}}, '/style/mobi.css';
+unshift @{$req->{jsarray}}, 'mobi.js';
+
+$m->comp('/tmpl/prepend:header', 
+              title=>$req->{pagetitle},
+              jsarray=>$req->{jsarray},
+              stylearray=>$req->{stylearray}, 
+              metaData => $req->{metaData}, 
+              doctype => 'wap',
+              );
+$m->comp('/tmpl/prepend:print_body', has_nav => 0);
+$m->comp('SELF:logo');
+
+$m->comp('/mobi/tmpl/element:page_header', nav_bar => $req->{nav_bar}, hdr => $req->{redHeaderBarText});
+if($ENV{SCRIPT_URI} !~ /login/){
+	$m->comp("/tmpl/prepend:traffic_light", args => \%ARGS, use_tables => 0);
+}
+</%perl>
+
+</%method>
+
+

@@ -1,0 +1,83 @@
+[-
+	$req=shift;
+	$req->{include_dir} = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+	
+	$req->{leftnav}="admin-leftnav";
+        $req->{checkforschooladmin} = 1;
+        $req->{mustbeschooladmin} = 1;
+	$req->{showschool} = 1;
+
+	$req->{pagetype} = "category";
+	unless ($fdat{page}){ $fdat{page}="add"; }
+	
+	Execute($req->{include_dir}."/manage/master");
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});
+
+	# process the actions
+	if ($fdat{action}){
+		($rval, $msg) = TUSK::Manage::Homepage::Category::addedit_process($req, \%fdat);
+		process_return_values($rval, $msg);
+		$http_headers_out{'Location'}="/manage/homepage/category/show/" . $req->{schoolpath} . "/?" . $fdat{urimsg};
+	}
+	
+	$data = TUSK::Manage::Homepage::Category::addedit_pre_process($req, \%fdat);
+
+        manage_header($req);
+-]
+<form action="/manage/homepage/category/addedit/[+ $req->{selfpath} +]" method="post" name="category" onsubmit="return checkform(this);" class="no-padding">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td class="labelgray">
+	Label:
+</td>
+<td class="cell-left">
+	<input type="text" class="textareawhite" name="label" value="[+ $req->{category} ? $req->{category}->field_value('label') : ""  +]" id="Label__y">
+</tr>
+<tr>
+<td class="labelgray">
+	Primary User Group:
+</td>
+<td class="cell-left">
+	<select name="primary_user_group_id">
+	<option>none</option>
+	[$ foreach $ug (@{$data->{user_groups}}) $]
+	<option value="[+ $ug->primary_key +]" [+ $req->{category} and $ug->primary_key eq $req->{category}->get_primary_user_group_id ? "selected" : ""+]>[+ $ug->out_label +]</option>
+	[$ endforeach $]
+	</select>
+</td>
+</tr>
+<tr>
+<td class="labelgray">
+	Secondary User Group:
+</td>
+<td class="cell-left">
+	<select name="secondary_user_group_id">
+	<option>none</option>
+	[$ foreach $ug (@{$data->{user_groups}}) $]
+	<option value="[+ $ug->primary_key +]" [+ $req->{category} and $ug->primary_key eq $req->{category}->get_secondary_user_group_id ? "selected" : ""+]>[+ $ug->out_label +]</option>
+	[$ endforeach $]
+	</select>
+</td>
+</tr>
+<tr>
+<td class="labelgray">
+	Schedule Link:
+</td>
+<td class="cell-left">
+	<table class="tusk">
+	<tr>
+	<td>On <input type="radio" name="schedule" value="1" [+ $req->{category} and $req->{category}->get_schedule ? "checked" : "" +]></td>
+	<td>Off<input type="radio" name="schedule" value="0" [+ ($fdat{page} eq "add" or $req->{category}->get_schedule == 0) ? "checked" : "" +]></td>
+	</tr>
+	</table>
+</td>
+</tr>
+<tr> 
+<td>&nbsp;</td>
+<td class="cell-submit">
+<input name="Submit" type="submit" class="formbutton" value="Save and Continue">
+<input type="hidden" name="action" value="[+ $fdat{page} +]"></td>
+</tr>
+</table>
+</form>
+[- manage_footer(); -]

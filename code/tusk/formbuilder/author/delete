@@ -1,0 +1,119 @@
+<%once>
+	use TUSK::FormBuilder::Form;
+	use TUSK::FormBuilder::LinkCourseForm;
+</%once>
+
+<%method jsarray>
+% return ['layers.js', 'formbuilder.js', 'element.js'];
+</%method>
+
+<%shared>
+	my $formName = '';
+	my $formDescription = '';
+	my $formPublished = '';
+</%shared>
+
+<%method page>
+<%args>
+	$args
+	$form => 0
+	$redirectUrl
+</%args>
+<%perl>
+	my $basedir = $m->comp("/formbuilder/util:get_base_dir");
+
+	unless($form) {
+		my $form_id = $m->comp("/tmpl/url:get_last_path_id");
+		$form = TUSK::FormBuilder::Form->new->lookupKey($form_id);
+	}
+
+	my $fields_data = [];	
+	# if we were asked to construct a new form
+
+	if($form) {
+		my $fields = $form->getFields();
+	
+		foreach my $field (@{$fields}){
+			my $field_type = $field->getFieldTypeObject();
+			my $link_obj = $field->getLinkFormFieldObject();
+			my $hash = { 'link_form_field_id' => $link_obj->getPrimaryKeyID(),
+				'field_id' => $field->getPrimaryKeyID(),
+				'field_name'=> $field->getFieldName(),
+				'field_type'=> $field_type->getLabel(),
+				};
+			push @{$fields_data}, $hash;
+		}
+
+		if (defined($args->{'delete_submit'}) or $m->comp("/tmpl/wizard:submitted", args => $args)){
+			# Unlink the form here
+			my $numFailed = 0;
+			my $linksToDelete = TUSK::FormBuilder::LinkCourseForm->new()->lookup("child_form_id = '" . $form->getPrimaryKeyID . "'");
+			foreach my $link (@{$linksToDelete}) {
+				unless($link->delete()) {$numFailed++;}
+			}
+
+			if($numFailed) {
+				my $url = $m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msgtype' => 'errmsg', 'msg' => 'Unable to Delete!');
+				$m->comp("/tmpl/wizard:do_next", args => $args, default_transition => $url);
+			} else {
+				$m->comp("/tmpl/wizard:do_next", args => $args, default_transition => $redirectUrl . '?msg=Form%20successfully%20deleted');
+			}
+		}
+
+		$formName = $form->getFormName();
+		$formDescription = $form->getFormDescription();
+		$formPublished = ($form->getPublishFlag()) ? 'Yes' : 'No';
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+		onsubmit => undef,
+                name => 'delete_ptLog' } &>
+
+<& /tmpl/wizard:include &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params =>{ label => 'Form Name',
+                value => $formName,
+                } &>
+<& /tmpl/element:field_display, params=>{ label => 'Form Description',
+                value=>$formDescription  } &>
+
+<& /tmpl/element:field_display, params=>{ label => 'Posted?',
+		value => $formPublished,
+                } &>
+
+<& /tmpl/element:sort_order_box , params =>{
+		no_add_button => '1',
+                label=>'Fields',
+		sort_box => 1,
+                layer_info => {
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			base_path => $basedir,
+			empty_message => 'No fields for this form',
+                        layer => 'fieldsdiv',
+                        fields => ['field_id', 'link_form_field_id', 'field_name', 'field_type'],
+                        name => 'field',
+                        sort => {usage => 'No', length=>50},
+                        action => {usage => 'No', length=>100, functions => [] },
+                        display => [
+                                        {label=>'Name',field=>'field_name', align=>'left', length=>350},
+                                        {label=>'Type',field=>'field_type', align=>'left', length=>130},
+                                        {label=>'LinkFormField',field=>'link_form_field_id', length=> 0, type=> 'hidden'},
+                                  ],
+                        validate => {usage => 'No', form => 'formedit'},
+                        data => $fields_data }
+                } &>
+
+<& /tmpl/element:save_button, params=>{label=>'Delete and Continue', name=>'delete_submit', cancel_onclick=>"go_back('$ENV{HTTP_REFERER}');" } &>
+
+
+
+</table>
+</form>
+</%method>

@@ -1,0 +1,110 @@
+<%args>
+	$HIDEGROUPBY	=> 0
+	$loadImage	=> 0
+	$merged		=> 0
+</%args>
+<%attr>
+        top_tab_type            => 'none'
+        displayLittleUserNavBar => '1'
+        no_header               => '1'
+        page_header             => undef
+        page_footer             => undef
+        allow_guests            => 1
+	no_check_path		=> 1
+	docType			=> 'simpleType4'
+</%attr>
+<%once>
+	use HSDB45::Eval::Results::BarGraph;
+	use HSDB45::Eval::Results::SupportingGraphs;
+	use HSDB45::Eval::MergedResults::BarGraph;
+	use HSDB45::Eval::MergedResults::SupportingGraphs;
+</%once>
+% $m->clear_buffer();
+% $r->no_cache(1);
+<%perl>
+	my @params = split('/', $ENV{PATH_INFO});
+	# Since env{PATH_INFO} should be something like /Medical/1234/5678 and we split at the leading / we need to get rid of the first element
+	shift @params;
+
+	my $validSchool = 0;
+	foreach my $evalSchool (HSDB4::Constants::eval_schools()) {
+		if($evalSchool eq $params[0]) {$validSchool = 1;}
+	}
+	my $error;
+	unless($validSchool) {
+		$error.= '<font color="red">Invalid school ('. $params[0] .'), unable to retreive graph.</font>';
+	}
+	if($params[1] !~ /^\d+$/) {
+		$error.= '<font color="red">Invalid eval ID ('. $params[1] .'), unable to retreive graph.</font>';
+	}
+
+	my $bar;
+	my $school;
+	my $evalID;
+	my $questionID;
+
+	unless($error) {
+		$school = $params[0];
+		$evalID = $params[1];
+		$questionID = $params[2];
+		if($questionID =~ /^([HMm])(\d*)$/) {
+			my $questionType = $1;
+			$questionID = $2;
+			if($questionType eq 'H')	{$questionType = 'histogram';}
+			elsif($questionType eq 'M')	{$questionType = 'median';}
+			elsif($questionType eq 'm')	{$questionType = 'mode';}
+			else				{$questionType = '';}
+
+			if($merged) {
+				$bar = HSDB45::Eval::MergedResults::SupportingGraphs->new_from_variables($school,$evalID, $questionID, $questionType);
+			} else {
+				$bar = HSDB45::Eval::Results::SupportingGraphs->new_from_variables($school,$evalID, $questionID, $questionType);
+			}
+		} else {
+			if($merged) {
+				$bar = HSDB45::Eval::MergedResults::BarGraph->new_from_variables($school,$evalID, $questionID);
+			} else {
+				$bar = HSDB45::Eval::Results::BarGraph->new_from_variables($school,$evalID, $questionID);
+			}
+		}
+	}
+
+
+	if($loadImage) {
+		if($bar) {
+			$r->content_type($bar->get_mime_type());
+			$m->print($bar->get_graphic());
+		} else {
+			$r->content_type('text/html');
+			$m->print("<font color=\"red\">Graph requested could not be constructed</font>");
+		}
+	} else {
+		$r->content_type('text/xml');
+		my $graphData = '';
+		my $graphText = '';
+		if($error) {
+			$graphData = $error;
+			$graphText = $error;
+		} elsif(!$bar || !$bar->primary_key) {
+			$graphData = '<font color="red">Sorry, this graph is currently unavailable.</font>';
+			$graphText = $graphData;
+		} else {
+			if($bar->get_mime_type() eq 'image/svg-xml') {
+				$graphData = "<embed src=\"/evalgraph/$school/$evalID/$questionID.svg\" name=\"Bar Graph: Question $questionID\" ";
+				$graphData.= "height=\"". ($bar->get_height * 2) ."\" width=\"".  $bar->get_width ."\" ";
+				$graphData.= "type=\"image/svg-xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install\"/>";
+			} elsif($bar->get_mime_type() =~ /^image/) {
+				unless($ENV{REQUEST_URI} =~ /\?/) {$ENV{REQUEST_URI} .= '?';}
+				$graphData = "<img src=\"$ENV{REQUEST_URI}&loadImage=1\">";
+			} else {
+				$graphData = $bar->get_graphic();
+			}
+			$graphText = $bar->get_graphic_text();
+		}
+		$m->print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+		$m->print("<graph>\n");
+		$m->print("	<visual><![CDATA[ $graphData ]]></visual>\n");
+		$m->print("	<textual><![CDATA[ $graphText ]]></textual>\n");
+		$m->print("</graph>\n");
+	}
+</%perl>

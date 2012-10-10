@@ -1,0 +1,81 @@
+[! use HSDB4::Constants qw(:school);
+   use HSDB45::Eval;
+   use HSDB4::SQLRow::User;
+   use Apache::Constants qw(NOT_FOUND REDIRECT);
+   use Apache::Cookie;
+ !]
+[-
+    my @path = split(/\//, $req_rec->path_info());
+    $school = $path[1];
+    unless (get_school_db($school)) {
+        $req_rec->status (NOT_FOUND);
+        exit;
+    }
+
+    # Get the authenticated user
+    unless ($username = $req_rec->connection->user) {
+        %cookies = Apache::Cookie->new($req_rec)->parse;
+        %ticket = $cookies{'Ticket'}->value;
+        $username = $ticket{'user'};
+    }
+
+    # Make sure we have permission
+    $user = HSDB4::SQLRow::User->new()->lookup_key($username);
+    $blank_eval = HSDB45::Eval->new( _school => $school );
+    my $admin_group = $blank_eval->admin_group();
+    unless ($user->primary_key() && $admin_group->contains_user($user)) {
+        $req_rec->header_out (Location => '/forbidden.html');
+        $req_rec->status (REDIRECT);
+        exit;
+    }
+
+    $eval = HSDB45::Eval->new(_school => $school, _id => $path[2]);
+    unless ($eval->primary_key()) {
+	$req_rec->status(NOT_FOUND);
+	exit;
+    }
+    @questions = $eval->questions();
+    $escmode = 0;
+    $embperldir=$req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+    Execute ({inputfile => "$embperldir/eval_question.html", import => 1});
+-]
+<html>
+<head>
+<title>Eval Quick Reference</title>
+[-
+    # Import the style sheet
+    Execute ("$embperldir/hsdb4-style.css")
+-]
+</head>
+<body>
+<h3 class="title">[+ $eval->out_label() +]</h3>
+<form>
+<input type="button" onClick="javascript:window.location.reload()" value="Refresh the Data"/>
+<input type="button" onClick="javascript:window.close()" value="Close This Window"/>
+</form>
+[$ if (@questions) $]
+<table width="100%" cellpadding="2" cellspacing="0" style="font-size: 75%; font-family: sans-serif">
+<tr bgcolor="#ccccff">
+<th>ID</th>
+<th>Label</th>
+<th>Sort</th>
+<th>Type</th>
+<th>Text</th>
+</tr>
+[$ foreach $qno (0..$#questions) $]
+[- $question = $questions[$qno] -]
+<tr bgcolor="[+ ($qno % 2) ? "#ccccff" : "white" +]">
+<td>[+ $question->primary_key() +]</td>
+<td align="center"><b>[+ $question->label() +]</b></td>
+<td>[+ $question->sort_order() +]</td>
+<td><b>[+ $question->body()->question_type() +]</b></td>
+<td>[+ substr($question->body()->question_text(), 0, 40) +]</td>
+</tr>
+[$ endforeach $]
+</table>
+[$ else $]
+<p>Eval contains no questions.</p>
+[$ endif $]
+</body>
+</html>

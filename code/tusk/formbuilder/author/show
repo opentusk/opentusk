@@ -1,0 +1,50 @@
+<%args>
+	$form_label
+	$form_type_id
+	$app_path
+	$action_columns
+	$buttons => []
+</%args>
+
+<%once>
+	use TUSK::FormBuilder::Form;
+	use HSDB45::Course;
+</%once>
+
+
+<%perl>
+	my $type_obj = $m->comp("/tmpl/url:get_type_object");
+	my $forms = TUSK::FormBuilder::Form->new()->getCourseForms($type_obj, $form_type_id);
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+</%perl>
+
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+              {display_txt => "New $form_label",
+               link_txt    => "/$app_path/author/addedit/$type_path"},
+			   @$buttons,
+	         ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	columns => [
+	   {'label' => 'Name', 'field' => 'getFormName'},
+	   {'label' => 'Description', 'field' => 'getFormDescription'},
+	   {'label' => 'Posted', 'field' => 'getPublishFlagSpelledOut', align => 'center'}
+	],
+	action_columns => $action_columns,
+	object_list => $forms,
+	type_path => $type_path,
+	name => $form_label,
+	nobutton => 0,
+	action_dropdown => 1,
+
+} &>
+
+
+
+
+
+

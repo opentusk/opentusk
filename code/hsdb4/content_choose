@@ -1,0 +1,21 @@
+[!
+use Apache::TicketTool;
+use Apache::Constants qw(REDIRECT);
+!]
+[-
+    # log in the user if the token appears
+    if ($fdat{token}) {
+	    my $ttool = Apache::TicketTool->new;
+	    my ($status,$message) = $ttool->verify_string_ticket($fdat{token});
+	    if ($status) {
+		my ($time,$user_id,$hash,$timeout) = split("!!",$fdat{token});
+		$req_rec->connection->user($user_id);
+		my $cookie = $ttool->make_ticket($req_rec,$user_id);
+		$cookie->bake;
+	    }
+    }
+    $req_rec->header_out(Location => "/search/chooser");
+    $req_rec->status(REDIRECT);
+    exit;
+
+-]

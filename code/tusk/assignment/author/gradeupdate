@@ -1,0 +1,262 @@
+<%once>
+	use HSDB45::UserGroup;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my %params = $m->request_args;
+	my $school = $course->get_school()->getSchoolName();
+	my ($student_user_id, $group_id, $student, $assignment, $submissions, $label);
+</%shared>
+
+<%init>
+	$assignment = $m->comp('SELF:getAssignment');
+
+	if ($assignment->getGroupFlag()) {
+		$group_id = $m->comp("/tmpl/url:get_last_path_id");
+
+		unless (HSDB45::UserGroup->new(_school => $school)->lookup_key($group_id)->primary_key()) {
+			$m->redirect($m->comp("/tmpl/url:construct_url", 
+				base_url => "/assignment/author/grade", 
+				msg 	 => "Invalid/Missing student's group id.",
+				msgtype	 => 'errmsg' ));
+		}
+
+		$student = TUSK::Application::Assignment::Student::Group->new({ group_id => $group_id, assignment => $assignment, course => $course, faculty_view => 1});
+
+		if (ref $params{files} eq 'ARRAY') {
+			for (my $i = 0; $i < scalar @{$params{files}}; $i++) {
+				push @{$params{group_id}}, $group_id;
+			}
+		} elsif ($params{files} =~ /\w+/) {
+			$params{group_id} = $group_id;
+		}
+	
+	} else {
+		$student_user_id = $m->comp("/tmpl/url:get_last_path_id");
+
+		unless (HSDB4::SQLRow::User->new()->lookup_key($student_user_id)->primary_key()) {
+			$m->redirect($m->comp("/tmpl/url:construct_url", 
+				base_url => "/assignment/author/grade", 
+				msg 	 => "Invalid/Missing student's userid.",
+				msgtype	 => 'errmsg' ));
+		}
+
+		$student = TUSK::Application::Assignment::Student::Individual->new({ user_id => $student_user_id, assignment => $assignment, faculty_view => 1});
+
+		if (ref $params{files} eq 'ARRAY') {
+			for (my $i = 0; $i < scalar @{$params{files}}; $i++) {
+				push @{$params{user_id}}, $student_user_id;
+			}
+		} elsif ($params{files} =~ /\w+/) {
+			$params{user_id} = $student_user_id;
+		}
+	}
+
+	$submissions = $student->getSubmissions();
+	$submissions -= 1 if $submissions > 0;
+	my $author = TUSK::Application::Assignment::Author->new({user_id => $m->session->{'user'}->user_id(), assignment => $assignment, course => $course});
+	my $submit_date = $student->getSubmitDate();
+
+	if (defined($params{submit_check})) {
+		my $msgtext;
+		if (defined $params{grade}) {
+			$student->setGrade($author,$params{grade});
+		}
+		if (defined $params{comments}) {
+			$student->setFacultyComments($author,$params{comments});
+		}
+
+		$student->setFeedbackPostFlag($author,$params{feedback_post_flag});
+
+		if (defined $params{files}) {
+			$msgtext .= $m->comp('/assignment/tmpl:upload_content', 
+				params 		=> \%params,
+				role   		=> 'Author',
+			    	assignment 	=> $assignment,
+				school 		=> $school,
+				course_id 	=> $course->primary_key(),
+				sequence	=> $student->getCurrentSubmission(),
+			);
+		}
+
+		if ($params{del_content_id}) {
+			$msgtext = $m->comp('/assignment/tmpl:delete_content', 
+				content_ids => $params{del_content_id},
+				user => $author );
+		}
+
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			'base_url' => "/assignment/author/grade", 
+			'msg' => 'You have successfully updated the grade for ' . $student->getName()));	
+	}
+</%init>
+
+
+<& /tmpl/element:form, params => {
+	name 		=> 'assignmentgradeaction',
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+	onsubmit	=> 'return verifyGradeUpdate(this)',
+} &>
+
+<& /tmpl/element:table, params => { 
+	width 		=> "100%",
+	border 		=> "0",
+	cellspacing => "0",
+	cellpadding => "0" 
+} &>
+
+% my $sname = (ref $student eq 'TUSK::Application::Assignment::Student::Group') ? "<a href=\"\" onclick=\"javascript:window.open('/tusk/group/members/course/$school/" . $course->primary_key . "/$group_id',null,'height=400,width=350,scrollbars=1,resizable=1,left=400,top=250'); return false;\">" . $student->getName() . "</a>"  : $student->getName() . "&nbsp;(". $student->getID() . ")";
+% $label = (ref $student eq 'TUSK::Application::Assignment::Student::Group') ? 'Group' : 'Student';
+<& /tmpl/element:field_display, params => {
+	label => "$label:", 
+	value => $sname,
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => 'Title:', 
+	value => $assignment->getTitle()
+} &>
+
+
+<& /tmpl/element:field_display, params => {
+	label => 'Weight:', 
+	value => $assignment->getWeight()
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => 'Due Date:', 
+	value => $assignment->getFormattedDueDate()
+} &>
+
+% if ($submissions) {
+% 	my $num = $submissions + 1;
+<& /tmpl/element:field_display, params => {
+	label => 'Current Submission:', 
+	value => "<font color=\"green\">Submission #$num</font>",
+} &>
+% }
+
+
+<& /tmpl/element:field_display, params => {
+	label => 'Submit Date:', 
+	value => $student->getSubmitDate()
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => "Comments from $label:", 
+	value => $student->getStudentComments()
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => "$label Files:", 
+	value => (defined $submit_date) 
+			? $m->comp('/assignment/tmpl:get_students_files', students => $student)
+			: '',
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label 	=> 'Grade',
+	name 	=> 'grade',
+	value 	=> $student->getGrade(),
+	size 	=> 4,
+	length 	=> 4 
+} &>
+
+<& /tmpl/element:textarea, params => { 
+	label 	=> "Feedback to $label:",
+	name 	=> 'comments',
+	value 	=> $student->getFacultyComments(),
+	cols	=> "80",
+	rows	=> "8",  
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => 'Files to upload:',
+	value =>  qq(<input type="file" name="files" size="40"/><div id="content"></div><div id="more" style="font-size:85%;color:#0000FF;cursor:pointer;text-decoration:underline;" onclick="addFile();">Upload another file</div>) } &>
+
+
+% my $faculty_content = $student->getFacultyContent($student->getCurrentSubmission());
+% if (scalar @$faculty_content) {
+<& /tmpl/element:field_display, params => {
+	label => 'Uploaded Files:', 
+	value => $m->comp('/assignment/tmpl:get_content_links', 
+		contents => $faculty_content,
+		checkbox => 1)
+} &>
+% }
+
+% my $checked = ($student->shouldFeedbackBePosted()) ? 'CHECKED' : '';
+
+<tr><td></td><td style="padding:15px 0 0 0;font-size:85%;"> <input type="checkbox" name="feedback_post_flag" value="Y" <% $checked %>/> Make this feedback visible to student(s) now.</td></tr>
+
+<& /tmpl/element:save_button, params => {
+	label 	=> 'Save Changes',
+	cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/assignment/author/grade",) . "');",
+	name	=> 'submit',
+} &>
+
+% if ($submissions) {
+<tr><td colspan="2">&nbsp;</td></tr>
+<& /tmpl/element:field_display, params => {
+	label => 'Previous Submissions:', 
+	value => $m->scomp('SELF:show_previous_submissions', submissions => $submissions),
+} &>
+% }
+
+</table>
+</form>
+
+
+
+<%method show_previous_submissions>
+<%args>
+	$submissions
+</%args>
+
+%	foreach my $i (1 .. $submissions) {
+
+<div style="margin:5px;"><font color="green">Submission #<% $i %></font> &nbsp;
+<& /tmpl/element:button, params => {
+	class	=> 'formbutton',
+	onclick => "showHideSubmission(this,'feedback_$i')",
+	label	=> "Show",
+	name	=> 'toggle_feedbacks_button'} &>
+</div>
+
+<div id="feedback_<% $i %>" style="display:none;">
+<table style="font-size:85%;color:gray;" bgcolor="#EEFFFF">
+
+<tr><th align="right" valign="top">Submit Date:</th><td width="5px">&nbsp;</td><td><% $student->getSubmitDate($i) %></td></tr>
+<tr><th align="right" valign="top"><% $label %> Comments:</th><td width="5px">&nbsp;</td><td><% $student->getStudentComments($i) %></td></tr>
+% if (my $student_files = $student->getContent($i)) {
+<tr><th align="right" valign="top"><% $label %> Files:</th><td width="5px">&nbsp;</td><td><% $m->comp('/assignment/tmpl:get_content_links', contents => $student_files, checkbox => 0, modified => 0) %> </td></tr>
+%}
+<tr><th align="right" valign="top">Faculty Feedback:</th><td width="5px">&nbsp;</td><td><% $student->getFacultyComments($i) %></td></tr>
+% if (my $feedback_files = $student->getFacultyContent($i)) {
+<tr><th align="right" valign="top">Faculty Files:</th><td width="5px">&nbsp;</td><td>
+<% $m->comp('/assignment/tmpl:get_content_links', contents => $feedback_files, checkbox => 0, modified => 0) %>
+</td></tr>
+% }
+</table>
+</div>
+%	}
+
+</%method>
+
+
+<%method title>
+% 	return "Grade Update";
+</%method>
+
+
+<%method get_nav_bar_objects>
+% 	return {'TUSK::Assignment::Assignment' => $m->comp('SELF:getAssignment')};
+</%method>
+
+
+<%method jsarray>
+% 	return ['formvalidator.js','assignment.js','file.js'];
+</%method>

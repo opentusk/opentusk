@@ -1,0 +1,79 @@
+<%attr>
+	no_check_path	=> '1'
+	no_header => '1'
+	page_footer => ''
+</%attr>
+
+<%once>
+use TUSK::Constants;
+use Data::Dumper;
+</%once>
+
+
+<body>
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+        <tr> 
+          <td width="255" valign="top"><img src="/graphics/logosm.gif" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" width="255" height="65"></td>
+          <td width="25" valign="middle" align="center"><img src="/graphics/spacer.gif" alt=" " width="25" height="1" border="0"></td>
+          <td width="100%" valign="bottom" align="center">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td align="center" nowrap>
+<!-- title used to be an image, will leave this for now in case we decide to switch back.... scorde01 5/2010 -->
+<!--  <img src="/graphics/manage/Find-<% $type %>.gif" alt="Find <% ucfirst($type) %>" height="43">  -->
+	<h2 class="searchhd"> Find <% ucfirst($type) %> </h2>
+</td>
+              </tr>
+              <tr> 
+           <td align="right" nowrap>
+			&nbsp;
+		</td>
+              </tr>
+            </table></td><td width="10" valign="middle" align="right"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
+        </tr>
+        <tr> 
+          <td colspan="3" width="100%" valign="top" background="/graphics/bg-dotshorz.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+        </tr>
+      </table>
+<br>
+<form name="search" method="post" action="">
+
+<input type="hidden" name="type" value="<% $type %>">
+
+
+<input type="hidden" name="timeperiod" value="<% $timeperiod %>">
+
+<%init>
+# url pattern /type/school/course
+# first one is always type
+my $paths = $m->comp("/tmpl/url:get_path_ids");
+my $test = $m->comp("/tmpl/url:get_last_path_id");
+my $url_path = $r->uri;
+my $path_ids = [ split('/', $url_path) ];
+
+my $type =  @$path_ids[4];
+
+my $school = @$paths[1];
+my $course = @$paths[2];
+my $timeperiod = @$paths[3];
+
+</%init>
+
+<%method jsarray>
+% return ['layers.js', 'manage_search.js'];
+</%method>
+
+<%method title>
+% return "Search";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+
+<%  $m->call_next %>

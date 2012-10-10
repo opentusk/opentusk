@@ -1,0 +1,40 @@
+<%once>
+	use CGI;
+</%once>
+<%attr>
+	default_path_type    => 'course'
+	must_be_school_admin => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+<%init>
+# extra chars were getting inserted.
+# this really should prob be a perlhandler, not a mason page, but we'll have to change that later.
+# to avoid extra chars, we clear_buffer and abort() per:
+# http://www.masonhq.com/?FAQ:Components#h-why_does_my_output_have_extra_newlines_whitespace_and_how_can_i_get_rid_of_it_
+my $zip = $m->comp('/tmpl/url:get_last_path_id');
+
+if($zip =~ /\.\.\// || $zip !~ /\.zip$/){
+	$m->comp('/tmpl/url:redirect', message => 'Invalid file name.', msg_type => 'errmsg', always_homepage => 1);
+}
+
+my $file = "/data/temp/$zip";
+my $fileSize = -s $file;
+
+my $upload_file;
+unless($upload_file = Apache::File->new($file)) {
+	$m->comp('/tmpl/url:redirect', message => 'Unable to open file.', msg_type => 'errmsg', always_homepage => 1);
+}
+$m->clear_buffer();
+$m->autoflush(1);
+$r->content_type('application/octet-stream');
+$r->header_out("Accept-Ranges", "bytes");
+$r->header_out("Content-Length", $fileSize);
+$r->header_out("Content-disposition","attachment; filename=". $zip);
+$r->no_cache(1);
+$r->send_http_header;
+$r->send_fd($upload_file);
+close $upload_file;
+$m->autoflush(0);
+$m->abort();
+</%init>

@@ -1,0 +1,67 @@
+<%args>
+    $args
+	$form_label
+	$form_type_id
+	$app_path
+	$form_id => undef
+</%args>
+
+<%once>
+	use TUSK::FormBuilder::LinkCourseForm;
+</%once>
+
+<%shared>
+	my $is_this_a_new_form = 0;
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $school = $course->get_school();
+	my $form;
+	my $titleText;
+	my $form_type;
+</%shared>
+
+<%init>
+	if(defined($args->{'save_new_form'})) {
+		#Save the form data we just got.
+		$form = TUSK::FormBuilder::Form->new();
+
+		$form->setFieldValues({
+			form_name 			=> $args->{'form_name'},
+			form_type_id 		=> $form_type_id,
+			form_description 	=> $args->{'form_description'},
+			publish_flag		=> $args->{'publish_flag'},
+		});
+		$form->save({'user' => $m->session->{'user'}->primary_key()});
+
+		my $formToCourseLink = TUSK::FormBuilder::LinkCourseForm->new();
+		$formToCourseLink->setFieldValues({
+			parent_course_id 	=> $course->primary_key(),
+			child_form_id		=> $form->getPrimaryKeyID(),
+			school_id			=> $school->getPrimaryKeyID(),
+		});
+
+		$formToCourseLink->save({'user' => $m->session->{'user'}->primary_key()});
+		$m->redirect($ENV{SCRIPT_URL} . '/' . $form->getPrimaryKeyID() . '?msg=Successfully Created');
+		exit();
+	} 
+
+    if ($form_id) {
+		$form = TUSK::FormBuilder::Form->lookupKey($form_id);
+		$titleText = "Modify $form_label";
+	} else {
+		$is_this_a_new_form = 1;
+		$titleText = "Create New $form_label";
+	}
+</%init>
+
+
+% if ($is_this_a_new_form) {
+	<& "/formbuilder/author/form:page", args => $args, form => 'new' &>
+% } else {
+	<& "/formbuilder/author/form:page", args => $args, form => $form &>
+% }
+
+
+<%method jsarray>
+% 	return ['layers.js', 'formbuilder.js', 'element.js'];
+</%method>
+

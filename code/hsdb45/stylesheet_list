@@ -1,0 +1,47 @@
+[! 
+    use HSDB4::StyleSheetType;
+    use HSDB45::StyleSheet;
+!]
+
+[-
+    $escmode = 0;
+    $embperldir=$req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+    Execute ("$embperldir/hsdb4-style.css");
+    ($school) = $req_rec->path_info() =~ /^\/([^\/]+)\/?/;
+-]
+
+[- 
+    $stylesheet = HSDB45::StyleSheet->new(_school => $school);
+    @stylesheets = sort { $b->primary_key() <=> $a->primary_key() } $stylesheet->lookup_all();
+-]
+
+<html>
+  <body>
+    <div align="center">
+    [- $bgcolor = "#FFFFFF" -]
+    <table border="1" cellspacing="0">
+      <tr>
+        <th>ID</th>
+	<th>Label</th>
+	<th>Description</th>
+      </tr>
+    [$ foreach $stylesheet (@stylesheets) $]
+      [-
+        if($bgcolor eq "#FFFFFF") {
+	    $bgcolor = "#EFEFEF";
+	}
+	else {
+    	    $bgcolor = "#FFFFFF";
+	}
+      -]
+      <tr bgcolor="[+ $bgcolor +]">
+        <td>&nbsp;[+ $stylesheet->primary_key() +]&nbsp;</td>
+	<td>&nbsp;[+ $stylesheet->label() +]&nbsp;</td>
+	<td>&nbsp;[+ $stylesheet->description() +]&nbsp;</td>
+      </tr>
+    [$ endforeach $]
+    </table>
+    </div>
+  </body>
+</html>

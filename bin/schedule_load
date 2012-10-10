@@ -1,0 +1,183 @@
+#!/usr/bin/perl -w 
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use Getopt::Long;
+use MySQL::Password;
+use HSDB4::Constants qw(:school);
+
+my ($school, $user_group_id,$help);
+GetOptions ("school=s" => \$school,
+	    "user_group_id=i" => \$user_group_id,
+	    "help" => \$help
+	    );
+
+if ($help){
+	dousage();
+}
+if (!defined($user_group_id)){
+	dousage("Please specify a user_group_id");
+}
+if (!defined($school)){
+	dousage("Please specify a school");
+}
+
+use DBI;
+my $dbh = DBI->connect ("DBI:mysql:hsdb4", get_user_pw(), { RaiseError => 1 }) 
+		or die "Unable to connect to database";
+HSDB4::Constants::set_def_db_handle ($dbh);
+
+my $db = get_school_db($school) or dousage("You must specify a valid school");
+
+
+my $user_group = HSDB45::UserGroup->new( _school => $school, _id => $user_group_id );
+$user_group->primary_key() or dousage("You must specify a valid user group id for the school");
+
+use HSDB45::Course;
+use HSDB45::UserGroup;
+use HSDB45::ClassMeeting;
+
+if (!@ARGV){
+	dousage("Please specify a file on the command line");
+}
+my %lines = ();
+my %courses = ();
+my @oeacodes = ();
+my $start_date = '9999-99-99';
+my $end_date = '0000-00-00';
+my @fields;
+my $count = 0;
+while (<>) {
+    next unless /\S/;
+    next if /^#/;
+    my ($s, $c1, $c2, $date) = @fields = split /\t/, $_;
+    if (scalar(@fields) < 4){
+	dousage("The file format is invalid. ");
+    }
+    push @oeacodes, "'$c1-$c2'";
+    $courses{"'$c1'"} = 1;
+    $start_date = $date if $date lt $start_date;
+    $end_date = $date if $date gt $end_date;
+    $lines{"$c1-$c2"} = $_;
+    $count++;
+}
+
+if (!$count){
+	dousage ("There was no valid file specfied on the command line");
+}
+
+my %group_ids = ();
+
+my $mtg_cond;
+my $crs_cond ;
+if (scalar(@oeacodes)){
+	$mtg_cond = sprintf ("oea_code IN (%s)", join (', ', @oeacodes));
+	$crs_cond = sprintf ("oea_code IN (%s)", join (', ',  keys %courses));
+} else {
+	dousage("No OEA Codes were found in your file. ");
+}
+
+
+my $blankmtg = HSDB45::ClassMeeting->new( _school => $school );
+foreach my $mtg ($blankmtg->lookup_conditions ($mtg_cond)) {
+    my ($oeacode, $line);
+    eval {
+	$oeacode = $mtg->field_value ('oea_code');
+	$line = $lines{$oeacode};
+	if ($mtg->in_schedule_line ($line)) {
+	    printf("UPDATED %s (%s):\n\t%s\n\n", $oeacode, $mtg->primary_key,
+		    join("\n\t", $mtg->out_html_save));
+	    $mtg->set_flagtime();
+	    $mtg->save ();
+	}
+	my $faculty = (split(/\t/,$line))[9];
+	if ($mtg->set_faculty_list($faculty)) {
+	    printf("UPDATED faculty list %s (%s):\n\t%s\n\n", $oeacode, $mtg->primary_key,
+		    join("\n\t", $mtg->out_html_save));
+	    $mtg->set_flagtime();
+	    $mtg->save();
+	}
+    };
+    if ($@) {
+	print STDERR "Problem: $@\n";
+	print STDERR "Problem line ($.): $line\n";
+    }
+    delete $lines{$oeacode};
+}
+
+my @course_ids = ();
+my $blankcourse = HSDB45::Course->new( _school => $school );
+foreach ($blankcourse->lookup_conditions ($crs_cond)) {
+    push @course_ids, $_->primary_key;
+}
+
+foreach my $oeacode (keys %lines) {
+    # Do the insert here
+    my ($mtg, $save);
+    eval {
+	$mtg = $blankmtg->new_schedule_line($lines{$oeacode}, $school);
+	$save = join("\n\t", $mtg->out_html_save);
+	$mtg->save;
+	my $faculty = (split(/\t/,$lines{$oeacode}))[9];
+	$mtg->set_faculty_list($faculty);
+    };
+    if ($@) {
+	print STDERR "Problem: $@\n";
+	print STDERR "Problem line ($.): $lines{$oeacode}\n";
+    }
+    else {
+	printf("CREATED %s (%s):\n\t%s\n\n", $oeacode, $mtg->primary_key, 
+		$save);
+    }
+}
+
+if (scalar(@course_ids)){
+    my @del_conds = ("meeting_date >= '$start_date'",
+		     "meeting_date <= '$end_date'",
+		     sprintf ("course_id IN (%s)", join (', ', @course_ids)),
+		     sprintf ("oea_code NOT IN (%s)", join (', ', @oeacodes))
+		     );
+    
+    my @delmtgs = $blankmtg->lookup_conditions (@del_conds);
+    my $del_sth;
+    if (@delmtgs) {
+	$del_sth = $dbh->prepare("DELETE FROM $db\.class_meeting WHERE class_meeting_id=?");
+    }
+    
+    foreach my $mtg (@delmtgs) {
+	# Do the delete here
+	my $result = $del_sth->execute($mtg->primary_key());
+	if ($result) {
+	    printf("DELETED %s (%s; result=%s)\n", $mtg->field_value('oea_code'), 
+		   $mtg->primary_key, $result);
+	}
+	else {
+	    printf("Couldn't delete %s (%s): %s", $mtg->field_value('oea_code'),
+		   $mtg->primary_key(), $DBI::errstr);
+	}
+    }
+}
+
+sub dousage {
+	my $msg = shift || '';
+	$msg = "ERROR :" . $msg if ($msg);
+	print <<EOM;
+
+$msg 
+
+schedule_load should be called like this:
+
+schedule_load --school=<school>  --user_group_id=<user_group_id> <schedule file>
+
+For Example:
+
+schedule_load --school=Medical --user_group_id=267 schedule.dat
+
+
+EOM
+
+exit 1; 
+
+}
+1;

@@ -1,0 +1,138 @@
+<%attr>
+	no_header => 1
+</%attr>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $time_period_id = $m->comp("/tmpl/url:get_first_path_id");
+	my %params = $m->request_args;
+	my $form_name = 'checkgroupmembers';
+	my (%groups, %members, %group_labels);
+</%shared>
+
+
+<& /tmpl/element:form, params => {
+	name 		=> $form_name,
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+} &>
+
+% my $checkbox = $m->comp('SELF:get_groups');
+<table border="0" cellspacing="0" cellpadding="0">
+<tr><td>Please select groups:<br/>
+<& /tmpl/element:checkbox_table, objects => $checkbox, formname	=> $form_name, checkboxname => $checkbox->[0]->{name}, showcheckall => 0 &>
+</td></tr>
+<tr><td align="right">
+<input class="formbutton" type="submit" name="submit" value="check group members" />
+</td></tr>
+</table>
+</form>
+
+
+% if (%groups) {
+	<& SELF:show_group_members &>
+%}
+
+
+<%method get_groups>
+<%perl>
+	my @groups;
+	my $i = 65;
+	my %selected_groups = (ref $params{group_id_list} eq 'ARRAY') ? map { $_ => '' } @{$params{group_id_list}} : ( $params{group_id_list} => '' );
+	foreach my $group ($course->sub_user_groups($time_period_id)) {
+		my $group_id = $group->primary_key();
+		push @groups, { 
+			label => $group->out_label() . " <font color='blue'>[" . chr($i) . ']</font>',
+			value => $group_id,
+			name => 'group_id_list',
+			checked => (exists $selected_groups{$group_id}) ? 1 : 0,
+		};
+		$group_labels{$group_id} = chr($i);
+		$i++;
+	}
+	return \@groups;
+</%perl>
+</%method>
+
+
+<%method show_group_members>
+<br/>
+<div class="xxsm">&nbsp;&nbsp;<font color="red"><b>!</b></font> denotes a member appears in more than one group</div>
+<br/>
+
+<table border="0" cellspacing="1" cellpadding="1">
+%	my %selected_groups = map { $group_labels{$_} => $_ } keys %groups;
+<tr>
+<th class="xsm">Name</th><th class="xsm">Userid</th>
+%	foreach my $label (sort keys %selected_groups) {
+<td class="xsm">&nbsp;<font color="blue">[<% $label %>]</font>&nbsp;</td>
+%	}
+</tr>
+%	my $i = 0;
+%	foreach my $member (sort keys %members) {
+%		my $cell = ($i % 2 == 0) ? 'background-color:#efefef;' : ''; 
+<tr>
+<td style="<% $cell %>"> <% $member %> </td>
+<td style="<% $cell %>"><i><% $members{$member} %></i> </td>
+%		my $dup = 0;
+%		foreach	my $label (sort keys %selected_groups) {
+%			my $val;
+%			if (exists $groups{$selected_groups{$label}}{$member}) {
+%				$val =  'x';
+%				$dup++;
+%			} else {
+% 				$val = '&nbsp;';
+%			}
+<td style="<% $cell %>" align="center"> <% $val %> </td>
+%		}
+<td style="<% $cell %>" align="center"> <% ($dup > 1) ? '<b><font color="red">!</font></b>' : '' %> </td>	
+</tr>
+%	$i++;
+%	}
+</table>
+</%method>
+
+
+<%method set_group_members>
+<%args>
+	$group_id
+</%args>
+
+<%perl>
+	my $group = HSDB45::UserGroup->new(_school => $course->get_school()->getSchoolName())->lookup_key($group_id);
+	foreach my $user ($group->child_users()) {
+		$groups{$group_id}{$user->out_lastfirst_name} = '';
+		$members{$user->out_lastfirst_name} = $user->primary_key();
+	}
+</%perl>
+</%method>
+
+
+<%method jsarray>
+% 	return ['formbuilder.js'];
+</%method>
+
+
+<%method title>
+% 	return $course->title() . ": Check Group Members";
+</%method>
+
+
+<%init>
+	if (defined($params{'submit_check'})) {
+		if (ref $params{group_id_list} eq 'ARRAY') {
+			foreach my $group_id (@{$params{group_id_list}}) {
+				$m->comp('SELF:set_group_members', group_id => $group_id);
+			}		
+		} else {
+			$m->comp('SELF:set_group_members', group_id => $params{group_id_list});			
+		}		
+	}	
+</%init>
+
+
+
+
+
+
+

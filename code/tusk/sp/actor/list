@@ -1,0 +1,104 @@
+<%once>
+	use HSDB45::UserGroup;
+	use TUSK::FormBuilder::CourseUserGroup;
+	use TUSK::FormBuilder::EntryAssociation;
+</%once>
+
+<%shared>
+	my $form_type_label = 'Simulated Patient';
+	my $user = $m->session->{'user'}->user_id();
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my ($form_id, $user_group_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $user_group;
+	if ($user_group_id) {
+		$user_group = HSDB45::UserGroup->new(_id => $user_group_id, _school => $course->get_school()->getSchoolName());
+	} else {
+		### simply pass a zero for entry page; it requires the id for constructing a url back to this page
+		$user_group_id = 0;
+	}
+	my $form = $m->comp('/formbuilder/util:get_form');
+	my @rows = ();
+	my $course_groups = TUSK::FormBuilder::CourseUserGroup->lookup("course_id = " . $course->primary_key());
+</%shared>
+
+
+<%init>
+	my $students = [];
+	if (scalar @$course_groups) {
+		$students = $user_group->getStudentMembers($course) if defined $user_group;
+	} else {
+		$students = [ $course->get_students() ];
+	}
+
+	my $associations = TUSK::FormBuilder::EntryAssociation->lookup('',undef,undef,undef, [TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', joincond => "form_id = $form_id and form_builder_entry.user_id = '" . $m->session->{user}->user_id() . "'" }),]  );
+	my %entries = map { $_->getUserID() => $_->getEntryObject() } grep { ref $_->getEntryObject eq 'TUSK::FormBuilder::Entry' }  @$associations;
+
+	foreach my $student (@$students) {
+		my $student_id = $student->primary_key();
+		my $id = $form_id . '/' . $user_group_id . '/' . $student_id;
+		my $entry = $entries{$student_id}; 
+		$id .=  '/' . $entries{$student_id}->getPrimaryKeyID() if ($entry);
+
+		push @rows, { 
+			name => $student->out_full_name(), 
+			submitted => ($entry) ? $entry->getCompleteDate() : '-',
+			complete => ($entry && $entry->getCompleteDate()) 
+				? '<img src="/graphics/greencheckmark.gif">'
+				: '<a href="/sp/actor/entry/' . $m->comp('/tmpl/url:get_type_path') . "/$id\">Entry Form</a>", 
+		};
+	}
+</%init>
+
+%	if (scalar @$course_groups) {
+<div style="padding:5px" align="left">
+%		my @groups = HSDB45::UserGroup->new(_school => $course->school())->lookup_conditions("user_group_id in (" . join(",", map { $_->getUserGroupID() } @$course_groups) . ")");
+%		if (scalar @groups) {
+<table>
+<tr><th class="cell-left">Group: </th>
+<td>
+<form name="sp_home" action="" method="POST" class="no-padding"> 
+<select name="address" onChange="forward(this);">
+<option value="">select</option>
+%			foreach my $group (@groups) {
+%				my $selected = ($user_group && $user_group_id == $group->primary_key()) ? 'SELECTED' : '';
+%				$m->print("<option value=\"/sp/actor/list/" . $m->comp('/tmpl/url:get_type_path') . "/$form_id/" . $group->primary_key() . "\"$selected>" . $group->label() . '</option>');
+%			}
+</select>
+</form>
+</td>
+</tr>
+</table>
+%		}
+</div>
+%	}
+
+
+<& "/tmpl/element:table", params => { width => "50%", border =>"0",cellspacing =>"0",cellpadding =>"0" } &>
+<tr>
+<td class="no-button">
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [
+		{label => 'Student Name', field => 'name', width => "25%" },
+		{label => 'Submit Date', field => 'submitted', width => "25%", align => 'center' },
+		{label => 'Action', field => 'complete', width => "25%", align => 'center' },
+	],
+	rows => \@rows,
+	name => "Simulated Patients",
+	sort_box => 0,
+	type_path => $m->comp('/tmpl/url:get_type_path'),
+	'norows-message' => '&nbsp;',
+} &>
+</td>
+</tr>
+</table>
+
+<%method getGroups>
+</%method>
+
+<%method red_header_text>
+% 	return "$form_type_label: &nbsp;" . $form->getFormName();
+</%method>
+
+<%method title>
+% 	return "$form_type_label: &nbsp;" . $form->getFormName();
+</%method>

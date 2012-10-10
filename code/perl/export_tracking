@@ -1,0 +1,63 @@
+#!/usr/bin/perl
+use TUSK::Tracking;
+use HSDB4::SQLRow::Content;
+use HSDB45::UserGroup;
+use HSDB45::Course;
+use HSDB4::SQLRow::User;
+
+use strict;
+use Apache::Constants qw(REDIRECT);
+
+my $r = shift;
+
+# get the path
+my $path = $ENV{PATH_INFO};
+my $user_id = $r->connection->user;
+
+my $user=HSDB4::SQLRow::User->new->lookup_key($user_id);
+
+$path=~/\/([^\/]*?)\/(\d*)$/;
+my $school=$1;
+my $course_id=$2;
+
+my $course = HSDB45::Course->new(_school => $school)->lookup_key($course_id);
+	if (!$course->primary_key || !$course->can_user_edit($user)){
+		$r->header_out(Location => '/forbidden.html');
+		$r->status(REDIRECT);
+		exit();
+	}
+
+
+my @tracking = TUSK::Tracking->new(_school=>$school)->lookup_conditions("course_id = ".$course_id,"order by sort_order");
+my $output="title\tdate range\tuser group\tpage views\tunique visitors\n";
+
+my ($title,$daterange,$usergroup);
+
+foreach my $tracking (@tracking){
+    if ($tracking->field_value('content_id')){
+	my $content = HSDB4::SQLRow::Content->new()->lookup_key($tracking->field_value('content_id'));
+	$title = $content->field_value('title');
+    }else{
+	$title = "Course Homepage";
+    }
+    if ($tracking->field_value('start_date') eq "1000-01-01" and $tracking->field_value('end_date') eq "2037-12-31"){
+	$daterange="All Dates";
+    }else{
+	$daterange=$tracking->field_value('start_date')." to ".$tracking->field_value('end_date');
+    }
+    if ($tracking->field_value('user_group_id')){
+	my $ug = HSDB45::UserGroup->new(_school=>$school)->lookup_key($tracking->field_value('user_group_id'));
+	$usergroup = $ug->field_value('label');
+    }else{
+	$usergroup = "All ".$course->field_value('title');
+    }
+    $output.=$title."\t".$daterange."\t".$usergroup."\t".$tracking->field_value('page_views')."\t".$tracking->field_value('unique_visitors')."\n";
+}
+
+# we want to download the content
+$r->content_type("text/unknown"); 
+$r->header_out("Content-Disposition" => "attachment; filename=\"tracking.txt\""); 
+$r->send_http_header; 
+print $output;
+
+

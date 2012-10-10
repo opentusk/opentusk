@@ -1,0 +1,41 @@
+<%shared>
+	my $school = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+<%attr>
+	default_path_type => 'school'
+	must_be_school_admin => 1
+</%attr>
+
+<%method schoolname>
+% 	return $school->getSchoolName;
+</%method>
+
+<%method leftnav>
+%	return { component => '/tmpl/leftnav/admin', school_name => $school->getSchoolName,  };	
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+
+return $m->comp("/tmpl/nav", 'objects' =>  $m->comp("SELF:get_nav_bar_objects"), 
+			     'prefix' => '/eval/administrator/search',
+			     'hierarchy' => {	
+						'form' => [],
+						'result' => ['form'],
+					    },
+			      'type_path' => $m->comp('SELF:schoolname') . '/' . $m->comp('/tmpl/url:get_first_path_id'),
+			      'urls' => { 'form' => {link => 'form', label => 'New Search Form'},},
+			      'initial_nav_bar' => [
+		{ href => '/management/home', label => 'CMS Home'},
+		{ href => '/eval/administrator/show/' . $m->comp('SELF:schoolname'), label => 'Manage Evaluations'} ],
+		);
+</%perl>
+</%method>
+
+
+<% $m->call_next %>

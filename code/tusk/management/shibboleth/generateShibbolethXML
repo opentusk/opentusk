@@ -1,0 +1,106 @@
+<%attr>
+	no_check_path		=> 1
+        check_cms_permissions	=> 0
+        must_be_tusk_admin	=> 1
+        top_tab_type		=> 'manage'
+</%attr>
+<%init>
+	use TUSK::Constants;
+	use TUSK::ShibbolethUser;
+	use CGI;
+
+	my $manageScript = $ENV{HTTP_REFERER};
+	$manageScript =~ s/\?.*//;
+	# Untaint the SERVER_ROOT because its used in an open later
+	my ($shibDir) = ($ENV{SERVER_ROOT} =~ /^(.*)$/g);
+	$shibDir .= "/addons/shibboleth";
+	
+	my $shibTemplate = "$shibDir/shib_template.xml";
+	my $shibConfigFile = "$shibDir/shibboleth.xml";
+
+	# verify that the addons/shibboleth directory exists and can be written to
+	unless(-e $shibDir) { $m->redirect($manageScript . '?errmsg=Missing+addons+directory'); }
+	unless(-w $shibDir) { $m->redirect($manageScript . '?errmsg=Unable+to+write+to+addons+directory'); }
+
+	# verify that the template file is there and can be read
+	unless(open(TEMPLATE, $shibTemplate)) { $m->redirect($manageScript . '?errmsg=Missing+shibboleth+template'); }
+	unless(open(CONFIG, ">$shibConfigFile")) { $m->redirect($manageScript . '?errmsg=Unable+to+open+shibboleth.xml+for+write'); }
+
+	# write to each of the school.xml files
+	my $warnings = "";
+	my $errors = "";
+
+	my $shibIdPs = TUSK::ShibbolethUser->new()->lookup();
+	my %idPSSOBindings;
+	my %idPHosts;
+
+	foreach my $shibIdPObject (@{$shibIdPs}) {
+		if($shibIdPObject->getIdPXML) {
+			if($shibIdPObject->getIdPXML =~ /SingleSignOnService Binding="urn:mace:shibboleth:1.0:profiles:AuthnRequest" Location="([^"]*)"/) {
+				$idPSSOBindings{$shibIdPObject->getShibbolethUserID()} = $1;
+				$idPHosts{$shibIdPObject->getShibbolethUserID()} = $idPSSOBindings{$shibIdPObject->getShibbolethUserID()};
+				$idPHosts{$shibIdPObject->getShibbolethUserID()} =~ s/http[s]:\/\///g;
+				$idPHosts{$shibIdPObject->getShibbolethUserID()} =~ s/\/.*//g;
+
+				my $idPFile = $shibIdPObject->getUniqueName() . ".xml";
+				unless(open(XML_FILE, ">$shibDir/$idPFile")) {
+					$errors += "Unable to create file $idPFile.<Br>";
+				} else {
+					print XML_FILE $shibIdPObject->getIdPXML;
+					close(XML_FILE);
+					$shibIdPObject->setNeedsRegen('N');
+					$shibIdPObject->save();
+				}
+			} else {
+				$errors .= $shibIdPObject->getShibbolethInstitutionName() . " does not appear to contain information no how shibboleth 1.0 uses it.<br>";
+			}
+		} else {
+			$warnings .= $shibIdPObject->getShibbolethInstitutionName() . " does not contain any IdP xml.<br>";
+		}
+	}
+
+	# generate the main shibboleth.xml file
+	while(<TEMPLATE>) {
+		if(/<!-- TUSK Providers -->/) {
+			foreach my $shibIdPObject (@{$shibIdPs}) {
+				my $idPFileName = "$shibDir/" . $shibIdPObject->getUniqueName() . ".xml";
+				if(-e $idPFileName) {
+					print CONFIG "<MetadataProvider type=\"edu.internet2.middleware.shibboleth.metadata.provider.XMLMetadata\" uri=\"${idPFileName}\"/>\n";
+				}
+			}
+		} elsif(/<!-- TUSK IdP Definations -->/) {
+			foreach my $shibIdPObject (@{$shibIdPs}) {
+				if(exists($idPSSOBindings{$shibIdPObject->getShibbolethUserID()})) {
+					print CONFIG "<SessionInitiator isDefault=\"true\" id=\"". $shibIdPObject->getShibbolethUserID() ."\" Location=\"/WAYF/" . $idPHosts{$shibIdPObject->getShibbolethUserID()} ."\"\n";
+					print CONFIG "Binding=\"urn:mace:shibboleth:sp:1.3:SessionInit\"\n";
+					print CONFIG "wayfURL=\"". $idPSSOBindings{$shibIdPObject->getShibbolethUserID()} ."?target=https%3A%2f%2f". $TUSK::Constants::Domain ."%2fshibboleth-login%2fprovision%2f". $shibIdPObject->getShibbolethUserID() ."\"\n";
+					print CONFIG "wayfBinding=\"urn:mace:shibboleth:1.0:profiles:AuthnRequest\"/>\n";
+					if($shibIdPObject->getLogoutPage()) {
+						print CONFIG "<md:SingleLogoutService Location=\"/shibLogout" . $shibIdPObject->getShibbolethUserID() ."\"\n";
+						print CONFIG "        ResponseLocation=\"". $shibIdPObject->getLogoutPage() ."?target=http%3A%2F%2Fshib-service.tusk.tufts.edu%2F\"\n";
+						print CONFIG "        Binding=\"urn:mace:shibboleth:sp:1.3:Logout\"\n";
+						print CONFIG "/>\n";
+					}
+				}
+			}
+		} else {
+			print CONFIG $_;
+		}
+	}
+	close(TEMPLATE);
+	close(CONFIG);
+
+	if($errors && !$warnings) {
+		$m->redirect($manageScript . '?errmsg='. CGI::escape("Generation errored with the following messages:<br>". $errors));
+	} elsif(!$errors && $warnings) {
+		$m->redirect($manageScript . '?hintmsg='. CGI::escape("Generation completed with the following warnings:<br>". $warnings ."<br>Please review the warnings and restart apache and shibd when ready"));
+	} elsif($errors && $warnings) {
+		$m->redirect($manageScript . '?errmsg='. CGI::escape("Generation errored with the following errors:<br>". $errors ."<br>And warnings:". $warnings));
+	} else {
+		$m->redirect($manageScript . '?msg='. CGI::escape("Generation successful.<br>Please restart shibd and apache to complete the change"));
+	}
+</%init>
+
+ShibDir = <%$shibDir %><br>
+Errors:<br> <% $errors %><br>Warnings<Br><% $warnings %>
+%# foreach my $key (sort keys %ENV) {$m->print("<b>$key</b> $ENV{$key}<br>\n");}

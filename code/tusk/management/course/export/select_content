@@ -1,0 +1,77 @@
+<%attr>
+	top_tab_type         => 'manage'
+	default_path_type    => 'course'
+	must_be_school_admin => 1
+</%attr>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $school = $course->get_school();
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+<%method title>
+%	return "Select Exported Content";
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/course_export.css'];
+</%method>
+
+<%method jsarray>
+%	return ['course_export.js'];
+</%method>
+
+<%method leftnav>
+<%perl>
+	return {
+			component    => "/tmpl/leftnav/admin",
+			type_path    => $type_path,
+			school_name  => $school->getSchoolName(),
+		};
+</%perl>
+</%method>
+
+% # this div is used by js to house the foreign content form, if needed /*/
+<div id="confirmForCon"></div>
+
+
+<& /tmpl/element:form, params => { 
+		action   => "/management/course/export/get_content_package/$type_path",
+		method   => 'POST',
+		name     => 'export_course',
+		onsubmit => 'return checkForeignContent(this)'} &>
+
+<input type="hidden" name="approved" id="approved" value="0"/>
+<input type="hidden" name="start" id="start" value="<% $ARGS{start} %>"/>
+<input type="hidden" name="end" id="end" value="<% $ARGS{end} %>"/>
+
+
+<p id="exportWarning">
+Sorry. If the course is large, it might take more than a minute to load the content below.<br/><br/><strong>Please do not reload this page.</strong> Thank you for your patience.<br/>
+<span style="display:block; text-align:center; margin:10px 0;">
+<img src="/graphics/icons/waiting_bar.gif" width="220" height="19" />
+</span>
+</p>
+
+% # used by list_content (called in iframe below) as a container for the content list
+<div id="contentListContainer"></div>
+
+
+<& /tmpl/element:submit_button, params=>{
+		'class' => 'submitBtn', 
+		'style' => 'display:none;', 
+		'name'  => 'submit_export', 
+		'label' => 'Export Course'} &>
+
+</form>
+
+
+<iframe width="0" height="0" src="/management/course/export/list_content/<%$type_path%>?start=<% $ARGS{start} %>&end=<% $ARGS{end} %>" frameborder="no" scrolling="no">
+Sorry, you need inline frames to fully see this page.
+</iframe>
+

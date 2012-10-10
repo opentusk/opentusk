@@ -1,0 +1,72 @@
+<%once>
+	use TUSK::Quiz::Quiz;
+</%once>
+
+<%attr>
+	no_header  => 1
+	page_footer=>''
+</%attr>
+
+<%shared>
+	my $id = $m->comp("/tmpl/url:get_last_path_id");
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($id);
+</%shared>
+
+<%method function_token>
+% 	return 'preview_quiz';
+</%method>
+
+<%method right_header_images>
+% 	return [];
+</%method>
+
+<%method jsarray>
+% return [];
+</%method>
+
+<%method title>
+% return "Quiz Preview";
+</%method>
+
+
+<%perl>
+	my $quiz_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $user_id = $m->session->{user}->user_id;
+	my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $result = TUSK::Quiz::Result->lookupReturnOne("user_id = '$user_id' and quiz_id = $quiz_id and preview_flag = 1");
+	my $hintmsg = $ARGS{hintmsg};
+
+	if (defined $result) {
+		if ($quiz->getRandomQuestionLevel()) {
+			if ($result->areRandomQuestionsModified()) {
+				$result->deleteRandomQuestions();
+				$result->setCurrentQuestionIndex(0);
+				$result->save({user => $user_id});
+				$result->cleanupResponses();
+			}
+		}
+
+		if ($result->getEndDate()) {
+			$result->cleanupResponses();
+			$result->setFieldValues({
+				current_question_index => 0,
+				start_date => undef,
+				end_date => undef });
+			$result->save({user => $user_id});
+		} 
+	} else {
+		my $newresult = TUSK::Quiz::Result->new();
+		$newresult->setFieldValues({
+			user_id => $user_id,
+			quiz_id => $quiz_id,
+			preview_flag => 1,
+		 });
+		$newresult->save({ user => $user_id });
+	}
+	
+	my $url = '/quiz/quizstart/' . $type_path . '/' . $quiz_id . '?preview=1';
+	$url .= "&hintmsg=$hintmsg" if defined $hintmsg;
+	$m->redirect($url);
+</%perl>
+

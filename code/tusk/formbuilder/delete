@@ -1,0 +1,71 @@
+<%once>
+	use TUSK::FormBuilder::Entry;
+</%once>
+
+<%shared>
+	my $entry;
+</%shared>
+
+<%method startup>
+<%args>
+	$args
+	$msg
+	$redirect
+</%args>
+<%perl>
+	$entry = TUSK::FormBuilder::Entry->lookupKey($args->{entry_id});
+	if (!$entry or !$entry->getPrimaryKeyID() or $entry->getUserID() ne $m->session->{'user'}->user_id()){
+		$m->comp("/tmpl/url:redirect",message => "You do not have access to delete this entry");
+	}
+
+	$m->comp("SELF:set_msg", msg => $msg, type => 'hintmsg');
+	
+	if ($args->{submit_check}){
+		$entry->delete($m->session->{'user'}->user_id());
+		if ($redirect =~ /\?/){
+			$redirect .= '&';
+		}else{
+			$redirect .= '?';
+		}
+		$m->redirect($redirect . 'msg=Entry+successfully+deleted');
+	}
+</%perl>
+</%method>
+
+<%method page>
+<%args>
+	$args
+</%args>
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => 'delete_entry',
+		onsubmit => undef } &>
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+<& /tmpl/element:flexible_tr, params => { label => 'Entry Info' } &>
+<table>
+<%perl>
+	my $response_data = $entry->getResponseData();
+
+	foreach my $data (@$response_data){
+		my $name = $data->{name};
+		foreach my $value_hash (@{$data->{values}}){
+			next unless ($value_hash->{value});
+			my $class = ($value_hash->{active}) ? '' : 'strike';
+			print "<tr><td>" . $name . "</td><td class=\"" . $class . "\">" . $value_hash->{value} . "</td></tr>\n";
+			$name = '&nbsp;';
+		}
+	}
+</%perl>
+</table>
+</td>
+<tr>
+<& /tmpl/element:save_button, params=>{label=>'Delete Entry',
+		buttons => [],
+		no_cancel_button => 1,
+                name=>'form_submit'} &>
+</table>
+</form>
+</%method>

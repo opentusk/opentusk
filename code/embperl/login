@@ -1,0 +1,58 @@
+[# Embperl Login Module #]
+[# Make the form itself #]
+[- 
+use TUSK::Constants;
+ $ssrv = $req_rec->dir_config('SecureLogin') 
+	|| 'https://'.$TUSK::Constants::Domain .'/login';
+ $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+ Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+-]
+<form method="post" action="[+ $ssrv  +]">
+<input type="hidden" name="request_uri" value="[+ $ENV{REQUEST_URI} +]">
+<h3 class="title">[+ $TUSK::Constants::SiteAbbr +] Login</h3>
+
+[# Find out if there's a login error, and print it if there it #]
+[-
+  $req_rec->no_cache();
+  %cookies = Apache::Cookie->new($req_rec)->parse;
+  if ($cookies{'login_error'}) { $msg = $cookies{'login_error'}->value }
+  if ($logmsg) {
+    $msg = $logmsg;
+  }
+-]
+[$ if $msg $]
+<H4 CLASS="error">Could not log in: [+$msg+]</H4>
+[$ endif $]
+[- browser_alert -]
+<table border="0">
+	<tr>
+		<td align="right" nowrap><div>User name:</div></td>
+		<td><input type="text" name="user" size="25" value=""></td>
+		<td rowspan=3 valign="center" width="100">&nbsp;</td>
+	</tr>
+	<tr>
+		<td align="right"><div>Password:</div></td>
+		<td><input type="password" name="password" size="25" value=""></td>
+	</tr>
+	<tr>
+		<td>&nbsp;</td>
+		<td valign="top">
+			<table cellpadding="0" cellspacing="4">
+				<tr>
+					<td><input type="Submit" value="Login"></td>
+					<td><img src="/icons/locksmall.jpg" height="26" width="18"></td>
+					<td><font size=2>Your login is secure.</font></td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+        <tr><td colspan="3">If you need to obtain an account [$ if($TUSK::Constants::FaqURL) $]see our <a href="[+ $TUSK::Constants::FaqURL +]">FAQ</a> or [$ endif $]send email containing your name and affiliation to <a href="mailto:[+ $TUSK::Constants::SupportEmail +]">[+ $TUSK::Constants::SupportEmail +]</a></td></tr>
+</table>
+</form>
+
+<form name="shibForm" action="http://[+ $TUSK::Constants::Domain+]/tusk/shibboleth/WAYF" method="post">
+	<input type="hidden" name="location" value="[+ $ENV{'SCRIPT_URI'} +]">
+</form>
+
+
+

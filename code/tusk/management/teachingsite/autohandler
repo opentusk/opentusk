@@ -1,0 +1,35 @@
+<%once>
+	use HSDB45::Course;
+	use HSDB45::TimePeriod;
+	use HSDB4::Constants;
+</%once>
+
+<%method get_teaching_site_object>
+<%args>
+$teaching_site_id
+</%args>
+<%perl>
+	$m->comp("/tmpl/url:redirect", message => 'Invalid Parameters') unless ($teaching_site_id);
+
+	my $teaching_site = HSDB45::TeachingSite->new(_school => $m->comp("/tmpl/url:get_school"))->lookup_key($teaching_site_id);
+	$m->comp("/tmpl/url:redirect", message => 'Invalid Parameters') unless ($teaching_site or $teaching_site->primary_key());
+
+	return ($teaching_site);
+</%perl>
+</%method>
+
+<%method get_course_object>
+<%args>
+$course_id
+</%args>
+<%perl>
+	$m->comp("/tmpl/url:redirect", message => 'Invalid Parameters') unless ($course_id);
+	
+	my $course = HSDB45::Course->new(_school => $m->comp("/tmpl/url:get_school"))->lookup_key($course_id);
+	$m->comp("/tmpl/url:redirect", message => 'Invalid Parameters') unless ($course_id or $course->primary_key());
+
+	return ($course);
+</%perl>
+</%method>
+
+% $m->call_next();

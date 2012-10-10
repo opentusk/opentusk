@@ -1,0 +1,79 @@
+[! use HSDB45::Eval::Results;
+   use HSDB45::Eval::Results::Formatter;
+   use Apache::Cookie;
+   use Apache::Constants qw (NOT_FOUND);
+   use IO::Scalar;
+   use XML::LibXML;
+   use XML::LibXSLT;
+!]
+[- 
+    $escmode=0;
+    $embperldir = $req_rec->server_root_relative($ENV{EMBPERL_LIB});
+    Execute ({inputfile => "$embperldir/hsdblib.html", import => 1});
+
+    if($req_rec->path_info() =~ /\/(.+)\/(.+)\/(.+)/) {
+      $eval = HSDB45::Eval->new(_school => $1, _id => $2);
+      $filter = 'filtered_';
+      $filter_id = $3;
+    }
+    else {
+      $eval = HSDB45::Eval->lookup_path( $req_rec->path_info() );
+      $filter = '';
+      $filter_id = '';
+    }
+
+
+
+    # Get the authenticated user
+    $username = $req_rec->connection->user;
+    $user = HSDB4::SQLRow::User->new ()->lookup_key ($username);
+    unless ($user->primary_key and $eval->admin_group()->contains_user($user)) {
+	$req_rec->status (NOT_FOUND);
+	return;
+    }
+
+    $results = HSDB45::Eval::Results->new($eval);
+-]
+
+<html>
+<head>
+<title>TUSK Eval Report: [+ $eval->out_label +]</title>
+<link rel="stylesheet" type="text/css" href="/style/eval.css" title="HSDBEval"/>
+</head>
+<body>
+
+[- head_graphics ($eval->out_label) -]
+<img src="/icons/transdot.gif" width=1 height=1>
+<hr>
+
+[$ if $fdat{'user_code'} $]
+[+
+  $formatter = HSDB45::Eval::Results::Formatter->new($results);
+  $text = HSDB45::StyleSheet::apply_global_stylesheet($ENV{XSL_ROOT} . "/Eval/individual_results_extractor.xsl",
+						      $formatter->get_xml_text(),
+						      'USERCODE' => $fdat{'user_code'});
+
+  $text = HSDB45::StyleSheet::apply_global_stylesheet($ENV{XSL_ROOT} . "/Eval/individual_results_renderer.xsl",
+						      $text,
+						      'HOST' => $req_rec->header_in("Host"),
+						      'FILTER' => $filter,
+						      'FILTER_ID' => $filter_id);
+
+  $text;
++]
+[$ elsif($results->user_codes()) $]
+<table border="1" cellspacing="0">
+[$ foreach $user_code ($results->user_codes()) $]
+<form method="get">
+<input type="hidden" name="user_code" value="[+ $user_code +]"/>
+<tr>
+  <td>[+ $user_code +]</td>
+  <td><input type="submit" name="submit" value="View"/></td>
+</tr>
+</form>
+[$ endforeach $]
+</table>
+
+[$ endif $]
+</body>
+</html>

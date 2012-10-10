@@ -1,0 +1,516 @@
+[! 
+use HSDB4::DateTime;
+use TUSK::Session;
+use TUSK::Constants;
+use TUSK::Functions;
+!]
+
+[$ sub manage_header $]
+  [- 
+  $req = shift;
+  if (!$req->{user}){
+     exit;
+  }
+
+  no_cache_hdrs() if(exists $req->{no_cache} && $req->{no_cache});
+
+  # figure out the alt text for the main image
+  if ($req->{image}){
+	$req->{imagealt} = $req->{image};
+	$req->{imagealt} =~ s/([a-z])([A-Z])/$1 $2/g;
+	$req->{imagealt} =~ s/\&/ \& /g;
+	unless ($req->{pagetitle}){
+		$req->{pagetitle} = $req->{imagealt};		
+	}
+  }
+
+  header($req->{pagetitle},$req->{jsinclude});
+  return if ($req->{noheader});
+  start_body();
+
+
+    top_nav_bar("manage",$req->{user});
+
+      if ($req->{leftnav}){
+         start_content();
+         Execute($req->{include_dir}."/manage/".$req->{leftnav});
+          end_left_nav();
+        }else{
+	  start_content_no_nav();
+	  }  
+  
+    user_nav($req->{user}); -]
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+   <tr>
+    <td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
+    <td width="100%" valign="top">
+[$ if (!$req->{nostandardheader}) $]
+<!-- Begin CMS Nav Table -->
+	<table width="100%" border="0" cellspacing="6" cellpadding="1">
+  <tr>
+    <td valign="top">[- manage_nav_bar($req); -]</td>
+  </tr>
+</table>
+	<!-- End CMS Nav Table -->
+	<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr class="redHeaderBar">
+    <td width="14" valign="top"><img src="/graphics/left.gif" alt="Left" width="14" height="21"></td>
+[$ if($req->{main_hdr_txt}) $]
+<td width="100%">[+ $req->{main_hdr_txt} +]</td>
+[$ else $]
+    <td width="100%" valign="middle" class="xsm"><img src="/graphics/manage/[+ $req->{image} +].gif" alt="[+ $req->{imagealt} +]" width="250" height="21"></td>
+[$ endif $]
+    <td valign="middle" nowrap>[-
+    if ($req->{headerimages}){
+         for ($i=0; $i < scalar(@{$req->{headerimages}}); $i++){
+	        ($url, $img, $target) = split('\t',@{$req->{headerimages}}[$i]);
+		  if ($img){
+		      print OUT "<a href=\"$url\" target=\"" . $target . "\"><img class=\"headerimagelinks\" border=\"0\" src=\"/graphics/manage/" . $img . ".gif\" alt=\"" . $img . "\"></a>";
+		       }
+		  }
+	} 
+    if ($req->{headertext}){
+        for ($i=0; $i < scalar(@{$req->{headertext}}); $i++){
+            ($url, $txt, $target) = split('\t',@{$req->{headertext}}[$i]);
+            if ($txt){
+                print OUT "<a class=\"rightHdrTxt\" href=\"$url\" target=\"$target\">$txt</a>";
+            }
+        }
+    } 
+-]</td>
+  </tr>
+
+</table>
+[$ if ($req->{extratext}) $]
+<form name="generic" style="margin-top:0px; margin-bottom:0px" method="get">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+[$ foreach $item (@{$req->{extratext}}) $]
+[$ if ($item->{name} ne "") $]
+<tr>
+   <td class="labelgray">[+ $item->{name} +]:</td>
+   <td class="cell-left">[+ $item->{text} +]</td>
+ </tr>
+[$ endif $]
+[$ endforeach $]
+</table>
+</form>
+[$ endif $]
+[$ endif $]
+[$ if ($req->{check_timeperiod} and $udat{timeperiod} <=0) $]
+<br>
+In [+ $TUSK::Constants::SiteAbbr +], there are no time periods associated with this course, please contact your school administrator for more assistance.
+[- manage_footer() -]
+[- exit; -]
+[$ endif $]
+[$ endsub $]
+
+[$ sub manage_footer $]
+</td>
+	<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
+  </tr> 
+</table>
+	<!-- InstanceEndEditable -->
+	<!-- End Main Content -->
+[- end_content_body(); -]
+[$ endsub $]
+
+[$ sub header $]
+[- $release = TUSK::Functions::get_tusk_version; -]
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<!-- siteabb: TUSK -->
+<title>[+ $TUSK::Constants::SiteAbbr +] - [+ shift +]</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="stylesheet" href="/style/style.css?[+ $release +]" type="text/css"> 
+<script language=JavaScript src="/scripts/scripts.js?[+ $release +]" type=text/javascript></script>
+[$ if ($jsarray = shift) $]
+[$ foreach $js (split(',', $jsarray)) $]
+<script language=JavaScript src="/scripts/[+ $js +]?[+ $release +]" type=text/javascript></script>
+[$ endforeach $]
+[$ endif $]
+<link rel="shortcut icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+<link rel="icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+</head>
+[$ endsub $]
+
+[$ sub start_body $]
+<body>
+<!-- Begin Main Outer Table -->
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+    <td width="150%" valign="top">
+[$ endsub $]
+
+[$ sub top_nav_bar $]
+[# takes a string argument "home", "manage", "browse" or "search" and activates the appropriate tab #]
+[- $type = shift;
+   $user = shift;
+   $type = "home" unless $type;
+-]
+
+<div id="gMasthead">
+
+<h1 id="gLogo"><a href="/home"><span>[+ $TUSK::Constants::SiteAbbr +]: [+ $TUSK::Constants::SiteName +]</span></a></h1>
+
+<div id="gTopNavs">
+
+<ul class="gGlobalLnks">
+[$ if(!HSDB4::Constants::is_guest($user) && (TUSK::ShibbolethUser->isShibUser($user) == -1)) $]
+    <li><a href="/view/user/[+ $user->primary_key +]" target="_top">My Profile</a></li>
+[$ endif $]
+[- $helpurl = ($type eq "manage")? $TUSK::Constants::ManageHelpURL : $TUSK::Constants::HelpURL; -]
+    <li><a href="[+ $helpurl +]" target="help">Help</a></li>
+    <li><a href="[+ $TUSK::Constants::ContactURL +]">Contact</a></li>
+    <li class="gLastOne"><a href="/dologout?request_uri=/home?[+ HSDB4::DateTime->new()->out_unix_time +]" target="_top">Logout</a></li>
+</ul>
+
+<span id="pHPuser">Welcome [+ $user->out_full_name() +]</span>
+
+<ul id="gTabNav">
+    <li class="firstone[+ $type eq 'home'  ? ' gCurPage' : '' +]"><a href="/home" target="_top">Home</a></li>
+    <li class="[+ $type eq 'browse'? 'gCurPage' : '' +]"><a href="/allcourses.htm" target="_top">Browse All Courses</a></li>
+    <li class="[+ $type eq 'search'? 'gCurPage' : '' +]"><a href="/search/form" target="_top">Search</a></li>
+[$ if (TUSK::Session::is_author(\%udat, $user)) $]
+    <li class="[+ $type eq 'manage'? 'gCurPage' : '' +]"><a href="/management/home" target="_top">Manage Content</a></li>
+[$ endif $]
+</ul>
+
+</div> <!-- gTopNavs -->
+
+</div> <!-- gMasthead -->
+<!-- End Tab Nav Table -->
+[$ endsub $]
+
+[$ sub start_manage_content $]
+<!-- Begin Page Content Table -->
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+          <td width="10" valign="top" bgcolor="#E7EFF7"><img src="/graphics/spacer.gif" alt=" " width="10" height="20" border="0"></td>
+	  <td width="1" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0">
+	  <!-- Left navigation goes here -->
+[$ endsub $]
+
+[$ sub start_content_no_nav $]
+<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td width="10" valign="top" bgcolor="#E7EFF7"><img src="/graphics/spacer.gif" alt=" " width="10" height="1">
+[- end_left_nav(); -]
+[$ endsub $]
+
+[$ sub start_content $][- $width = shift;
+$width = "200" unless ($width) -]<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td width="[+ $width +]" valign="top" bgcolor="#E7EFF7"><img src="/graphics/spacer.gif" alt=" " width="[+ $width +]" height="1">[$ endsub $]
+
+[$ sub end_manage_left_nav $]
+        <!-- Left navigation items stop --></td>
+	<td width="150%" valign="top">
+[$ endsub $]
+
+[$ sub end_left_nav $]</td><td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td><td width="150%" valign="top">[$ endsub $]
+
+[$ sub user_nav $]
+[- $user = shift; -]
+[$ if ($user->primary_key) $]
+<!-- Begin user Table -->
+<div align="right">
+	<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+    <td align="right" colspan="3"><img src="/graphics/spacer.gif" alt=" " width="1" height="5" border="0"></td>
+  </tr>
+  <tr valign="top">
+[$ if ($fdat{msg} or $fdat{errmsg} or $fdat{hintmsg}) $]
+[- 
+   if ($fdat{errmsg}){
+       $class = "error";
+       $msg = $fdat{errmsg};
+       $img= "red.gif";
+   }elsif($fdat{msg}){
+       $class = "success";
+       $msg = $fdat{msg};
+       $img = "green.gif";
+   }else{
+       $class = "hint";
+       $msg = $fdat{hintmsg};
+       $img = "yellow.gif";
+   }
+   my %msg = map {$_ => 1 } split('\t', $msg); # make sure we are only displaying each message once
+   $msg = join('<br>', keys %msg);
+-]
+  <td>&nbsp;</td>
+  <td align="center" class="[+$class+]"><table width="100% cellpadding="0" cellspacing="0"><tr valign="middle" class="[+$class+]"><td width="50"><img src="/graphics/[+$img+]"></td><td style="padding-left:10px"><span class="emphasis_font">[+$msg+]</span></td></tr></table></td>
+[$ endif $]
+  </tr>
+</table>
+</div>
+<!-- End User Table -->
+[$ endif $]
+[$ endsub $]
+
+[$ sub manage_content_head $]
+<!-- Begin Manage Content Header Table -->
+	<table width="99%" border="0" cellpadding="0" cellspacing="0" background="/graphics/bg-redline.gif"><tr><td width="14" valign="top"><img src="/graphics/header-managecontent.gif" alt="Manage Content" width="152" height="18" vspace="5"></td>
+	<td width="100%" valign="top"><img src="/graphics/spacer.gif" alt="Medical School" width="20" height="20"></td></tr></table>
+<!-- End Manage Content Header Table -->
+[$ endsub $]
+
+[$ sub end_content_body $]
+[-  $embperldir = shift -]
+   </td>
+   <td width="1" valign="top" bgcolor="#003366"><img src="/graphics/spacer-dkblue.gif" width="1" height="32"></td>
+   </tr>
+</table>
+</td>
+</tr>
+<tr>
+  <td width="150%" valign="top" background="/graphics/bg-dotshorz.gif"><img src="/graphics/spacer.gif" alt=" " width="759" height="1" border="0"></td>
+  </tr>  <tr>
+  <td colspan="2">
+ [$ if ($embperldir) $]
+     [- Execute($embperldir."/footer_links.html") -]
+  [$ else $]
+  &nbsp;
+  [$ endif $]
+  </td>
+  </tr>
+</table>
+<!-- End Full Content Table -->
+[- end_body(); -]
+[$ endsub $]
+
+[$ sub end_body $]
+</body>
+</html>
+[$ endsub $]
+
+[$ sub uri_flag $]
+[- $this_uri = shift;
+   $flag = shift;
+   $val = shift;
+   $val ||= 0;
+
+   # Get the args, and set the flag
+   %qry = $req_rec->args;
+   $qry{$flag} = $val;
+   # Reform the query string
+   $qry = join ('&', map { "$_=$qry{$_}" } grep { defined $qry{$_} } keys %qry);
+   # And tack it onto the URI
+   $this_uri .= "?$qry" if $qry;
+-]
+[+ $this_uri +]
+[$ endsub $]
+
+[$ sub help_link $]
+[- 
+    $node = shift;
+    $text = shift;
+-]
+[$ if ($TUSK::Constants::DeepHelpLinksOn) $]
+        <a class="help" href="" onClick="openhelp([+ $node +]); return false;"><b>[+ $text +]</b></a>
+[$ endif $]
+[$ endsub $]
+
+[$ sub manage_nav_bar $][-
+
+     $req = shift;
+     @nav = @{$req->{nav_bar}};
+     $size = scalar(@nav);
+     $i=0;
+     for ($i=0; $i < $size; $i++){
+          ($url, $text) = split('\t',$nav[$i]);
+          if ($url){
+	           print OUT "<a href=\"$url\" class=\"navsm\">$text</a>";
+	  }else{
+	           print OUT "<span class=\"navsm\">$text</span>";
+	  }
+	  if ($i < ($size - 1 )){
+	           print OUT "\&nbsp;<span class=\"navsm\">|</span>\&nbsp;";
+	  }	   	
+     }	  
+     
+-][$ endsub $]
+[$ sub check_form_fields $]
+[-
+    # checks the fdat hash for fields and then sets errmsg if there were missing fields
+    # note this sub is usually called within an if with the second half being " or !$fdat{errmsg}
+    # embperl subs do not return values so this is a quick way to check if an error was found
+
+    %check = @_;
+    @missing= ();
+
+    foreach $key (keys %check){
+        unless ($fdat{$key}){
+	   push (@missing, $check{$key});
+	}    
+    }
+    if (@missing){
+	    $fdat{errmsg} = "The following fields were missing: " . join(', ', @missing);
+    }
+-]
+[$ endsub $]
+
+
+[$ sub create_layer $]
+[-
+   $struct = shift;
+
+    my $clean_sub  = sub {
+		my $to_clean = shift;
+		$to_clean =~ s/\n|\r//g;
+		$to_clean =~ s/\\/\\\\/g;
+		$to_clean =~ s/'/\\'/g;
+		return $to_clean;
+    };
+
+   $jsstruct = "";
+   $jsstruct .= "layer:'" . $struct->{layer} . "',\n";
+   $jsstruct .= "editnum:'-1',\n";
+   $jsstruct .= "fields:[" . join(", ", map {"'$_'"} @{$struct->{fields}}) . "],\n";
+   $jsstruct .= "name:'" . $struct->{name} . "',\n";
+   $jsstruct .= "parentlayer:'" . $struct->{parentlayer} . "',\n" if ($struct->{parentlayer});
+   $jsstruct .= "scrollrows:'" . $struct->{scrollrows} . "',\n" if ($struct->{scrollrows});
+   $jsstruct .= "sortoninsert:{usage:'" . $struct->{sortoninsert}->{usage} . "',sorton:'" . $struct->{sortoninsert}->{sorton} . "'},\n" if ($struct->{sortoninsert});
+   
+   $jsstruct .= "validate:{" . join(", ", map{$_ . ":'" . $struct->{validate}->{$_} . "'"} keys(%{$struct->{validate}})) . "},\n";
+   if ($struct->{sort}){
+      $jsstruct .= "sort:{usage:'" . $struct->{sort}->{usage} . "'";
+      $jsstruct .= ", length:'" . $struct->{sort}->{length} . "'" if ($struct->{sort}->{length});
+      $jsstruct .= "},\n";
+   }
+   $jsstruct .= "action:{usage:'" . $struct->{action}->{usage} . "'";
+   $jsstruct .= ", length:'" . $struct->{action}->{length} . "'" if ($struct->{action}->{length});
+
+   if ($struct->{action}->{functions}){
+      $jsstruct .= ", functions:[";
+      for ($i=0; $i<scalar(@{$struct->{action}->{functions}}); $i++){
+         $jsstruct .= ",\n" if ($i != 0);
+	 if (($struct->{action}->{functions}[$i]{func} eq "remove") and (!($struct->{action}->{functions}[$i]{prompt}))){
+	     $struct->{action}->{functions}[$i]{prompt} = 'Yes';
+	 }
+         $jsstruct .= "{" . join(", ", map{$_ . ":'" . $struct->{action}->{functions}[$i]{$_} . "'"} keys(%{$struct->{action}->{functions}[$i]})) . "}";
+
+         }
+	 $jsstruct .= "]";
+   }
+   $jsstruct .= "},\n";
+   $jsstruct .= "data:[";
+   if ($struct->{data}){
+      for ($i=0; $i<scalar(@{$struct->{data}}); $i++){
+        $jsstruct .= ",\n" if ($i != 0);
+        $jsstruct .= "{" . join(", ", map{$_ . ":'" . $clean_sub->($struct->{data}[$i]->{$_}) . "'"} keys (%{$struct->{data}[$i]})) . "}";
+      }
+        $jsstruct .= "],\n";
+        $jsstruct .= "display:[\n";
+        for ($i=0; $i<scalar(@{$struct->{display}}); $i++){
+           $jsstruct .= ",\n" if ($i != 0);
+           $jsstruct .= "{ field:'" . $struct->{display}[$i]{field} . "', length:" . $struct->{display}[$i]{length};
+           $jsstruct .= ", align:'" . $struct->{display}[$i]{align} . "'" if ($struct->{display}[$i]{align});
+           $jsstruct .= ", type:'" . $struct->{display}[$i]{type} . "'" if ($struct->{display}[$i]{type});
+           $jsstruct .= ", editsize:'" . $struct->{display}[$i]{editsize} . "'" if ($struct->{display}[$i]{editsize});
+           $jsstruct .= ", label:'" . $struct->{display}[$i]{label} . "'" if (defined($struct->{display}[$i]{label}));
+           $jsstruct .= ", headeralign:'" . $struct->{display}[$i]{headeralign} . "'" if ($struct->{display}[$i]{headeralign});
+           $jsstruct .= ", uneditable:'" . $struct->{display}[$i]{uneditable} . "'" if ($struct->{display}[$i]{uneditable});
+	   $jsstruct .= ", checkvaluefield:'" . $struct->{display}[$i]{checkvaluefield} . "'" if ($struct->{display}[$i]{checkvaluefield});
+	   $jsstruct .= ", edittype:'" . $struct->{display}[$i]{edittype} . "'" if ($struct->{display}[$i]{edittype});
+
+           if ($struct->{display}[$i]{options}){
+	       $jsstruct .= ", options:[";
+	       for ($j=0; $j<scalar(@{$struct->{display}[$i]{options}}); $j++){
+	           $jsstruct .= "," if ($j != 0);
+	           $jsstruct .= "{" . join(", ", map{$_ . ":'" . $struct->{display}[$i]{options}[$j]{$_} . "'"} keys (%{$struct->{display}[$i]{options}[$j]})) . "}";
+	       }
+	       $jsstruct .= "]";
+	    }
+           if ($struct->{display}[$i]{radio_options}){
+	       $jsstruct .= ", radio_options:[";
+	       for ($j=0; $j<scalar(@{$struct->{display}[$i]{radio_options}}); $j++){
+	           $jsstruct .= "," if ($j != 0);
+	           $jsstruct .= "{" . join(", ", map{$_ . ":'" . $struct->{display}[$i]{radio_options}[$j]{$_} . "'"} keys (%{$struct->{display}[$i]{radio_options}[$j]})) . "}";
+	       }
+	       $jsstruct .= "]";
+	    }
+	   $jsstruct .= "}";
+	}
+    }
+    $jsstruct .= "]";
+	$release = TUSK::Functions::get_tusk_version;
+-]
+<script type="text/javascript" language="JavaScript">
+layers['[+ $struct->{layer} +]'] = new layer({[+ $jsstruct +]}, '[+ $struct->{layer} +]');
+layers['[+ $struct->{layer} +]'].showlayer();
+</script>
+[$ endsub $]
+[$ sub process_return_values $][-
+ ($rval, $msg) = @_;
+ $urimsg = URI::Escape::uri_escape($msg);
+ if ($rval == 1){
+    $fdat{msg} = $msg;
+    $fdat{urimsg} = "msg=$urimsg";
+ }elsif ($rval == 2){
+    $fdat{hintmsg} = $msg;
+    $fdat{urimsg} = "hintmsg=$urimsg";
+ }else{
+    $fdat{errmsg} = $msg;
+    $fdat{urimsg} = "errmsg=$urimsg";
+ }
+-][$ endsub $]
+
+[# 
+
+needed to add this so that the two ways of calling get_content_preview_link would out
+1) calling in perl
+2) calling using goofy embperl Execute call (I cannot wait to move this all to mason!)
+#]
+
+[$ sub get_content_preview_link_hack $]
+[-  get_content_preview_link($param[0], $param[1]) -]
+[$ endsub $]
+
+[$ sub get_content_preview_link $][-  
+
+ $req = shift;
+ $content = shift;
+ $parent_id = shift;
+
+    $content = $req->{content} if (!$content);
+    if ($req->{course_id}){
+       $course_context = HSDB4::Constants::code_by_school($req->{school}) . $req->{course_id} . 'C/';
+    }
+	$path = '';
+    $path = join('/', @{$req->{path_info}}) if (scalar(@{$req->{path_info}}));
+    $path .= '/' if ($path);
+    $path .= "$parent_id/" if ($parent_id);
+-]/view/content/[+  $course_context +][+ $path +][+ $content->primary_key() +][$ endsub $]
+
+[$ sub calendar_js $]
+<style type="text/css">@import url(/style/calendar-blue.css?[+ $release +]);</style>
+<SCRIPT language="JavaScript" src="/scripts/calendar.js?[+ $release +]" type=text/javascript></SCRIPT>
+<SCRIPT language="JavaScript" src="/scripts/calendar-en.js?[+ $release +]" type=text/javascript></SCRIPT>
+<SCRIPT language="JavaScript" src="/scripts/calendar-setup.js?[+ $release +]" type=text/javascript></SCRIPT>
+[$ endsub $]
+
+[$ sub show_calendar $]
+[- ($field_id) = @_; -]
+<span id="calendar-[+ $field_id +]" style="cursor: pointer;"><img src="/graphics/icons/ico-calendar.gif" width="20" height="20" border="0" align="absmiddle"></span>
+<script type="text/javascript">
+    Calendar.setup({
+        inputField     :    "[+ $field_id +]",      // id of the input field
+        ifFormat       :    "%Y-%m-%d",       // format of the input field
+        showsTime      :    false,            // will display a time selector
+        button         :    "calendar-[+ $field_id +]",   // trigger for the calendar (button ID)
+        singleClick    :    true,           // double-click mode
+	align          :    "Tl",
+        step           :    1                // show all years in drop-down boxes (instead of every other year as default)
+    });
+</script>
+[$ endsub $]
+
+[$ sub parse_quotes $][-
+	my ($value) = @_;
+	$value =~ s/"/\&quot;/g;
+	print OUT $value;
+	return '';
+-][$ endsub $]
+
+[$ sub no_cache_hdrs $][-
+    $http_headers_out{'Expires'}       = 'Sun, 19 Nov 1979 05:00:00 GMT';
+    $http_headers_out{'Pragma'}        = 'no-cache';
+    $http_headers_out{'Cache-Control'} = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0';
+-][$ endsub $]

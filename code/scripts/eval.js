@@ -1,0 +1,327 @@
+function eval_select_all(value){
+	var form = document.forms.question_list;
+	if (form == null){
+		return ;
+	}
+	var elems = form.elements;
+	for (i =0; i <elems.length; i++){
+		if ((elems[i].type == "checkbox") &&
+			((elems[i].name == "edit_q") 
+			|| (elems[i].name == "duplicate_q"))){
+			elems[i].checked = value;
+		}
+	}
+}
+
+
+function doHelpWindow() {
+    window.open('/eval_question.html', 'evalQuickRefWin',
+        'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
+}
+
+function doQuickRefWindow(url) {
+    window.open('/hsdb45/eval/ref_sheet/'+url,
+        'evalQuickRefWin',
+        'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
+}
+
+
+function satisfy(qid, type) {
+  var imgname="flag_"+qid;
+  var fieldname = "eval_q_"+qid;
+  if (document.images) {
+    var image = document.images[imgname];
+    if (image == null) return;
+    var element = document.forms['eval_form'].elements[fieldname];
+    if (type == 'select') {
+      if (element.options[element.selectedIndex].value.length == 0) {
+        image.src = "/icons/reddot.gif";
+      } else {
+	requiredSatisfied(qid);
+        image.src = "/icons/transdot.gif";
+      }
+    }
+    else if (type == 'text') {
+      if (element.value.length == 0) {
+        image.src = "/icons/reddot.gif";
+      } else {
+	requiredSatisfied(qid);
+        image.src = "/icons/transdot.gif";
+      } 
+    }
+    else {
+      // It's probably OK, and we can just mark it as such
+      requiredSatisfied(qid);
+      image.src = "/icons/transdot.gif";
+    }
+  }
+  return true;
+}
+
+function checkActionSpecified() {
+  var actionElement = document.forms['eval_form'].elements['submit_action'];
+  var message = new String('');
+  if (actionElement.selectedIndex == 0) {
+    message += "Please specify an action: either \"Save\" or \"Submit\".\n";
+  }
+  var passwordElement = document.forms['eval_form'].elements['submit_password'];
+  if (passwordElement.value.length == 0) {
+    message += "Please enter your password before selecting \"Save/Submit\".\n";
+  }
+
+  if (actionElement.value == 'Submit') {	
+	var qid;
+  	for (var i = 0; i < requiredObject.length; i++){
+		qid = requiredObject[i];
+		if (qid.required){
+			if (!qid.satisfied){
+				message += "One or more questions have not been completed properly, please look for the red dot.\n";
+				break;
+			}	
+		}
+	}
+  }	
+
+  if (message.length > 0) {
+    alert(message);
+    return false;
+  }
+  return true;
+}
+
+function checkLoadPassword() {
+  var element = document.forms['load_form'].elements['load_password'];
+  if (element.value.length == 0) {
+    alert("Please enter your password before selecting \"Load\".");
+    return false;
+  }
+  return true;
+}
+
+
+function lengthCheck(qid,type,length){
+  var fieldname = "eval_q_"+qid;
+  var element = document.forms['eval_form'].elements[fieldname];
+  if (element.value.length >= length) {
+	element.value = element.value.substring(0,length );
+	alert("Your answer must be less than "+length+" characters.");
+	return false ;
+  } 
+  return true;
+}
+
+function requiredSatisfied(qid){
+	for (var i = 0; i < requiredObject.length; i++){
+		if (requiredObject[i].id == qid){
+			requiredObject[i].satisfied = 1;
+			return;
+		}
+	}
+}
+
+function markRequired(qid){
+	requiredObject.push({id:qid, required:1,satisfied:0 });
+}
+
+
+function open_eval_edit_window(school,eval_id){
+ 	var params = "width=700,height=470,directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes";
+ 	window.open('/protected/eval_edit/' + school + '/' + eval_id, "_blank", params);
+}
+
+function open_delete_window(school,eval_id){
+
+	if (confirm("Do you want to delete eval_id " + eval_id + "?")) {
+		var params = "width=580,height=470,directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=no";
+		window.open('/tusk/eval/administrator/delete/' + school + '/' + eval_id, "_blank", params);
+	} 
+}
+
+function verifyDates(available_date, due_date) {
+	var errmsg = new Array;
+	var check_date_range = 1;
+	var available_date_object;
+	var due_date_object;
+
+	if (available_date.value){
+		available_date_object = make_date_no_time_object(available_date.value);
+		if (available_date_object == 'Invalid Date') {
+			errmsg.push("Please use the format YYYY-MM-DD for the available date.");
+			check_date_range = 0;
+		}
+	} else {
+		errmsg.push("Please enter the available date (YYYY-MM-DD).");
+	}
+
+	if (due_date.value){
+		due_date_object = make_date_no_time_object(due_date.value);
+		if (due_date_object == 'Invalid Date'){
+			errmsg.push("Please use the format YYYY-MM-DD for due date.");
+			check_date_range = 0;
+		}
+	} else {
+		errmsg.push("Please enter the due date (YYYY-MM-DD).");
+	}
+
+
+	if (check_date_range && due_date.value && available_date.value){
+		if (due_date_object < available_date_object){
+			errmsg.push("Please make sure the due date is after the available date.");
+		}
+	}
+
+	return errmsg;
+}
+
+
+function isCourseUserSelected(theElement) {
+	if (!theElement) {
+		return false;
+	}
+
+	var i = 0;
+	for (i = 0; i < theElement.length; i++) {
+		if (theElement[i].checked == true) {
+			return true;
+		}
+	}
+
+	if (theElement.checked == true) {
+		return true;
+	}
+	
+	return false;
+}
+
+
+function verifyCreateEvalsByUser() {
+	var errmsg = new Array;
+
+	var dates_errmsg = verifyDates(document.bulkevalsbyuser.available_date, document.bulkevalsbyuser.due_date);
+
+	if (dates_errmsg) {
+		errmsg = dates_errmsg;
+	}
+
+	if (!document.bulkevalsbyuser.template_eval_id.value) {
+		errmsg.push('Please enter a Template Eval ID.');
+	}
+
+	if (!document.bulkevalsbyuser.title.value) {
+		errmsg.push('Please enter a title.');
+	}
+
+	if (!document.bulkevalsbyuser.time_period_id.value) {
+		errmsg.push('Please select a time period.');
+	}
+
+	if (!document.bulkevalsbyuser.course_id.value) {
+		errmsg.push('Please select a course.');
+	}
+
+	if (!isCourseUserSelected(document.bulkevalsbyuser.course_user)) {
+		errmsg.push('Please select at least one faculty/staff.');
+	}
+
+	if (errmsg.length){
+		alert(errmsg.join("\n"));
+		return false;
+	} 
+
+	if (confirm('Do you want to create evaluations ?')) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+
+function verify_create_bulk_evals_submit() {
+
+	var errmsg = new Array;
+
+	var dates_errmsg = verifyDates(document.createbulkevals.available_date, document.createbulkevals.due_date);
+
+	if (dates_errmsg) {
+		errmsg = dates_errmsg;
+	}
+
+	if (!document.createbulkevals.time_period_id.value) {
+		errmsg.push('Please select a time period.');
+	}
+
+	if (errmsg.length){
+		alert(errmsg.join("\n"));
+		return false;
+	} 
+
+	if (confirm('Do you want to create evaluations for selected time period?')) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+function verifyForward(destination, eval_id) {
+	var dest = destination.value;
+	if (dest) {
+		var del = /delete/;
+		var result = dest.match(del);
+
+		if (result == null) {
+			if (destination.selectedIndex > 0) {
+				location.href = dest;
+			}
+		} else {
+			if (confirm('Do you want to delete eval id ' + eval_id + ' ?')) {
+				location.href = dest;
+			} 
+		} 
+	} 
+
+	destination.selectedIndex = 0;
+}
+
+
+function verifyOtherEvalTools() {
+	var destination = document.other_eval_tools.url;
+	if (!destination.value) {
+		alert('Please select an evaluation tool.');
+		return false;
+	} else {
+		return true;
+	}
+	destination.selectedIndex = 0;
+}
+
+
+function forwardOtherEvalTools() {
+	var destination = document.other_eval_tools.url;
+	if (destination.selectedIndex > 0) {
+		location.href = destination.value;
+	}
+	destination.selectedIndex = 0;
+}
+
+
+
+function verifyShowEvalsByTimePeriod() {
+	var time_period = document.show_evals_by_time_period.time_period_id;
+	if (!time_period.value) {
+		alert('Please select a time period.');
+		return false;
+	} 
+	return true;
+}
+
+
+function verifyShowEvalsByCourse() {
+	var course = document.show_evals_by_course.course_id;
+	if (!course.value) {
+		alert('Please select a course.');
+		return false;
+	} 
+	return true;
+}

@@ -1,0 +1,353 @@
+<%doc>
+Library that contains methods that deal with parsing the url and handling redirection
+</%doc>
+
+<%once>
+	use URI::Escape;
+	use HSDB45::Course;
+	use TUSK::Core::School;
+	use HSDB4::SQLRow::Content;
+	use HSDB45::ClassMeeting;
+</%once>
+
+<%shared>
+	my ($type_path, $type_object);
+	my $initial_nav_bars = [];
+	my $url_path =  $r->path_info();
+	$url_path =~ s|^/||
+		if ( $url_path =~ m|^/| ); # take away the prepending / and then split 
+	my $path_ids = [ split('/', $url_path) ];
+</%shared>
+
+<%method get_path_ids>
+<%doc>Return global array ref path_ids which is an array of scalars after the type path in the url /1/233/22 => [1, 233, 22]</%doc>
+% return @$path_ids if (wantarray);
+% return $path_ids;
+</%method>
+
+<%method get_last_path_id>
+<%doc>Returns the last id on the path_ids stack</%doc>
+<%perl>
+	if ($path_ids and scalar(@{$path_ids})){
+		return $path_ids->[scalar(@$path_ids)-1];
+	}
+</%perl>
+</%method>
+
+<%method get_first_path_id>
+<%doc>Returns the first id on the path_ids stack</%doc>
+<%perl>
+	if ($path_ids and scalar(@{$path_ids})){
+		return $path_ids->[0];
+	}
+</%perl>
+</%method>
+
+<%method get_type_path>
+<%doc>Returns the type_path string.  Useful when constructing URLs (course/HSDB/1182)</%doc>
+<%perl>
+	unless ($type_path){
+		$m->comp("SELF:check_path");
+	}
+	return $type_path;
+</%perl>
+</%method>
+
+<%method get_course_type_path>
+<%doc>Returns a course_type_path without the word course (HSDB/1182)</%doc>
+% return $type_object->school() . "/" . $type_object->course_id();
+</%method>
+
+<%method get_type_object>
+<%doc>Returns an object that is associated with the type path. Example: 
+/course/HSDB/1182 => HSDB45::Course->new(_school => 'HSDB')->lookup_key(1182)</%doc>
+<%perl>
+	unless ($type_object){
+		$m->comp("SELF:check_path");
+	}
+	return $type_object;
+</%perl>
+</%method>
+
+<%method get_school>
+<%doc>Using the global type_path, return the associated school string</%doc>
+<%perl>
+	unless ($type_object){
+		$m->comp("SELF:check_path");
+	}
+
+	my $school_id;
+
+	if ($type_object->isa("HSDB45::Course")){
+		$school_id = $type_object->school();
+	}elsif($type_object->isa("TUSK::Core::School")){
+		$school_id = $type_object->getSchoolName();
+	}
+	
+	return $school_id;
+</%perl>
+</%method>
+
+<%method get_path>
+<%doc>Returns the path_ids arrayref (stack) that has all the path elements after the type path</%doc>
+% return ($path_ids);
+</%method>
+
+<%method get_full_path>
+<%doc>Constructs back the original full path</%doc>
+<%perl>
+	if (ref($path_ids) eq 'ARRAY' and scalar(@$path_ids)){
+		return $type_path . "/" . join("/", @$path_ids);
+	} else {
+		return $type_path;
+	}
+</%perl>
+</%method>
+
+<%method get_initial_nav_bars>
+<%doc>Returns global $initial_nav_bars. Used to put default links in the nav bar (CMS Home for example)</%doc>
+% return $initial_nav_bars;
+</%method>
+
+<%method check_path>
+<%args>
+$default_path_type => ''
+</%args>
+<%doc>
+Looks at the url and tries to build a perl object based on the type path:
+/course/HSDB/1182 => HSDB45::Course->new(_school => 'HSDB')->lookup_key(1182)
+If an invalid object is created (course_id doesn't exist) user is redirected with the nice message of 'FAILURE'
+valid types: course, school, usergroup, content, case
+</%doc>
+<%perl>
+	return if ($type_path);
+
+	my $type = ($default_path_type) ? $default_path_type : shift @$path_ids;
+
+	if ($type eq "course"){
+		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");
+		my $course_id = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing Course ID");
+		eval {
+			$type_object = HSDB45::Course->new(_school => $school)->lookup_key($course_id);
+		};
+		if ($@) {
+			$m->comp("SELF:redirect",message => "Invalid Course");
+		}
+
+		unless ($type_object->primary_key()){
+			$m->comp("SELF:redirect",message => "Invalid Course");
+		}
+
+		$type_path = "course/" unless ($default_path_type);
+		$type_path .= $school . "/" . $course_id;
+
+		push (@$initial_nav_bars, { href => '/management/home', label => 'CMS Home'});
+		push (@$initial_nav_bars, { href => '/management/course/display/' . $school . '/' . $course_id, label => 'Course - ' . $type_object->out_title() });
+		# do permissions here
+	}elsif($type eq "school"){
+		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School in Path");
+
+		if (int($school)){
+			$type_object = TUSK::Core::School->new()->lookupKey($school);
+		}else{
+			my $type_objects = TUSK::Core::School->new()->lookup("school_name = '$school'");
+			$type_object = $type_objects->[0] if (scalar(@$type_objects));
+		}
+		$type_path = "school/" unless ($default_path_type);
+		$type_path .= $school;
+		push (@$initial_nav_bars, { href => '/management/home', label => 'CMS Home'});
+		# do permissions here
+	}elsif($type eq "usergroup"){
+		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");
+		my $user_group_id = shift @$path_ids or $m->comp("SELF:redirect",message => "FAILURE");
+		eval {
+			$type_object = HSDB45::UserGroup->new( _school => $school )->lookup_key( $user_group_id );
+		};
+		if ($@) {
+			$m->comp("SELF:redirect",message => "Invalid User Group: $user_group_id");
+		}
+		my $course_id = shift @$path_ids || "";
+		$type_path = "usergroup/" . $school . "/" . $user_group_id;
+		if ( $course_id ne "" )
+		{
+			$type_path .= "/" . $course_id;
+		}
+		# do permissions here
+	}elsif($type eq "content"){
+		my $content_id = join("/", @$path_ids) || $m->request_args->{content_id};
+                $content_id or $m->comp("SELF:redirect",message => "Missing Content ID");
+		$type_path = "content/" . $content_id;
+		#Build the content object HERE
+		eval {
+			$type_object = HSDB4::SQLRow::Content->new()->lookup_path($content_id);
+		};
+		if ($@) {
+			$m->comp("SELF:redirect",message => "Invalid Content: $content_id");
+		}
+
+		unless ($type_object->primary_key()){
+			$m->comp("SELF:redirect",message => "Invalid Content: $content_id");
+		}
+
+		# Build the content bread crumb here
+		$initial_nav_bars = $type_object->get_bread_crumb_from_path($path_ids);
+		# do permissions here
+	}elsif($type eq "classmeeting"){
+		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");
+		my $cm_id = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing class meeting id");
+
+		eval {
+			$type_object = HSDB45::ClassMeeting->new(_school => $school)->lookup_key($cm_id);
+		};
+		if ($@) {
+			$m->comp("SELF:redirect",message => "Invalid Class Meeting");
+		}
+
+		unless ($type_object->primary_key()){
+			$m->comp("SELF:redirect",message => "Invalid Class Meeting");
+		}
+
+		$type_path = "classmeeting/" . $school . "/" . $cm_id;
+	}else{
+		# some failure occurs
+		$m->comp("SELF:redirect",message => "FAILURE : Invalid Type : $url_path");
+	}
+</%perl>
+</%method>
+
+<%method redirect>
+<%doc>Method to redirect user.  Tries to take the user back one page or back to the homepage (back to the homepage if $always_homepage is set or the last page was the same as the current page)</%doc>
+<%args>
+$message
+$always_homepage => 0
+$msg_type => 'errmsg'
+$destination => ''
+</%args>
+<%perl>
+	my $url;
+
+	if($always_homepage)                                                    {$url = "/home";}
+	elsif($destination)                                                     {$url = $destination;}
+	elsif($ENV{HTTP_REFERER} && ($ENV{HTTP_REFERER} !~ /$ENV{SCRIPT_URI}/)) {$url = $ENV{HTTP_REFERER};}
+	else                                                                    {$url = "/home";}
+
+	$url .= "?" unless ($url=~/\?/);
+	$url .= "\&" unless ($url=~/\?$/);
+	$url .= $msg_type . "=" . uri_escape($message);
+
+	$m->redirect($url);
+	exit;
+</%perl>
+</%method>
+
+<%method construct_back_url>
+<%args>
+$base_url
+$extra => ''
+$msg => ''
+$msgtype => 'msg'
+$is_edit => 1
+</%args>
+<%doc>assumes that if you remove the last item on the path stack and construct the url you will have the url of the next level up</%doc>
+<%perl>
+	my @poppath = (@$path_ids);
+	pop(@poppath) if ($is_edit);
+	return $m->comp("/tmpl/url:construct_url", base_url => $base_url, extra => $extra, msg=> $msg, msgtype => $msgtype, pathref => \@poppath);
+</%perl>
+</%method>
+
+<%method construct_url>
+<%args>
+$base_url
+$extra => ''
+$msg => ''
+$msgtype => 'msg'
+$pathref => $path_ids
+$additional_args => ''
+</%args>
+<%doc>Method that constructs an url based in the following order: base_url / type_path / @$pathref / extra ? msgtype = msg</%doc>
+<%perl>
+	my $url = $base_url . "/" . $type_path . "/" . join("/", @$pathref);
+	if ($extra){
+		$url .= "/" if ($url !~ m#/$#);
+		$url .= $extra;
+	}
+	
+	if ($msg){
+		if ($url =~ m/\?/){
+			$url .= '&';
+		} else {
+			$url .= '?';
+		}
+		$url .= $msgtype . "=" . $msg;
+	}
+	
+	$url .= $additional_args if ($additional_args);
+
+	return $url;
+</%perl>
+</%method>
+
+<%method params_hash>
+<%args>
+	$return_ref	=> 1
+</%args>
+<%perl>
+	my $params_hash = {};
+
+	foreach my $param ($r->param) {
+		$params_hash->{$param} = $r->param($param); 
+	}
+	
+	return $params_hash if ($return_ref);
+	return %$params_hash;
+</%perl>
+</%method>
+
+<%doc>
+given a specific param, return its value, or undef, if it is not present in query string.
+</%doc>
+<%method get_param>
+<%args>
+$p
+</%args>
+<%perl>
+my $p_hash = $m->comp('SELF:params_hash');
+return $p_hash->{$p};
+</%perl>
+</%method>
+
+<%method get_edit_link>
+<%args>
+	$content
+	$target => ''
+</%args>
+<%perl>
+	my $course_context = $m->comp('SELF:get_first_path_id');
+
+	my ($course_id, $school_name);
+	my $path_ids = $m->comp('SELF:get_path_ids');
+	if($course_context =~ /(\D)(\d+)C/){ # if first path id is of form 'H1345C'
+		my $school_code = $1;
+		$school_name = HSDB4::Constants::school_codes($school_code);
+		$course_id = $2;
+		shift @$path_ids;	# gets rid of context_path; eg, 'H1283C'
+	}
+	else {
+		$school_name = $content->school();
+		$course_id = $content->field_value('course_id');
+	}
+
+	if($content->field_value('type') =~ /Collection|Multidocument/){
+		my $path = join('/', @$path_ids);
+
+		return {txt => 'Edit', url => "/protected/management/folders/course/$school_name/$course_id/$path" . '?page=edit', target => $target };
+	} 
+	else {
+		pop @$path_ids; 
+		my $path = join('/', @$path_ids);
+
+		return {txt => 'Edit', url => "/protected/management/content/addedit/course/$school_name/$course_id/$path?content_id=" . $content->primary_key . '&page=edit', target => $target };
+	}
+</%perl>
+</%method>

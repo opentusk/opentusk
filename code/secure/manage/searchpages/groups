@@ -1,0 +1,69 @@
+[!
+	use HSDB45::UserGroup;
+!]
+[-
+
+	$req = shift;
+	Execute({inputfile=>$req->{include_dir}."/prepend.html",import=>1});	
+
+	if ($fdat{search} && $fdat{school}){
+		($search = $fdat{search}) =~ s/'/\\'/g;
+		@results = HSDB45::UserGroup->new(_school => $fdat{school})->lookup_conditions("label like '\%" . $search . "\%'","order by label");
+	}
+	
+
+-]
+
+<table cellspacing="5" width="100%">
+	<tr>
+		<td>
+			<b>Group Name: </b>&nbsp;<input type="text" name="search">&nbsp;&nbsp;<input type="submit" name="action" value="Search" class="formbutton">
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<input type="button" class="formbutton" value="Close window" onclick="window.close()">&nbsp;
+		</td>
+	</tr>
+	[$ if ($fdat{search}) $]
+	<tr>	
+		<td><br>
+			<div id="count">[+ scalar(@results) +] matching entr[$ if (scalar(@results) == 1) $]y[$ else $]ies[$ endif $][$ if (scalar(@results)) $]:[$ endif $]</div>
+		</td>
+	</tr>
+	[$ if (@results) $]
+	<tr>
+		<td>
+			<div id="searchdiv"></div>
+[-
+	foreach $group (@results){
+		my $pk = $group->primary_key();
+		push (@resultarray, {group_name => $group->label(), user_group_id => $group->primary_key()});
+	}
+
+	create_layer({
+			layer => 'searchdiv',
+			fields => ['group_name','user_group_id'],
+			name => '',
+			scrollrows => 9,
+			parentlayer => $fdat{parentlayer},
+			sort => {usage => 'No'},
+			action => {usage => 'Yes', length=>100, functions => [
+									{func=>'add', label=>'Add'}
+								]},
+			display => [
+					{field=>'user_group_id', align=>'left', length=>225, type=>'hidden'},
+					{field=>'group_name', label=>'Group Name', align=>'left', length=>225,},
+				  ],
+			validate => {
+					usage => 'No',
+				},
+			data => \@resultarray,
+			});
+-]
+		</td>
+
+	</tr>
+	[$ endif $]
+	[$ endif $]
+</table>
