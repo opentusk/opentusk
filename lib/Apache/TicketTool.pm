@@ -4,9 +4,11 @@ use strict;
 use Apache::Cookie ();
 use Digest::MD5 qw(md5_hex);
 use Apache::URI ();
+use Apache::Session::MySQL;
 use HSDB4::Constants;
 use TUSK::Constants;
 use HSDB4::SQLRow::User;
+use HSDB4::Constants;
 use HSDB45::Authentication;
 
 my $ServerName;
@@ -72,15 +74,31 @@ sub make_ticket {
     my $expires = $self->{TicketExpires};
     my $now = time;
     my $secret = $self->fetch_secret() or return undef;
+    my $idForCookie;
+    unless($TUSK::Constants::CookieUsesUserID) {
+    	# Create an apache session object
+    	my %session;
+    	create_apache_session(undef, \%session);
+    	$session{'user'} = $user_name;
+    	$idForCookie = $session{_session_id};
+    	#undef the hash to force a save and unlock the database
+    	if(tied(%session))	{tied(%session)->save();}
+    	else		{warn("make_ticket session was not tied... unable to save");}
+    	destroy_apache_session(\%session);
+    } else {
+	$idForCookie = $user_name;
+    }
+
     my $hash = md5_hex($secret .
-                 md5_hex(join ':', $secret, $now, $expires, $user_name)
+                 md5_hex(join ':', $secret, $now, $expires, $idForCookie)
                );
+
     return Apache::Cookie->new($r,
 			       -name => 'Ticket',
 			       -path => '/',
 			       -value => {
 				   'time' => $now,
-				   'user' => $user_name,
+				   'user' => $idForCookie,
 				   'hash' => $hash,
 				   'expires' => $expires,
 			       });
@@ -123,11 +141,13 @@ sub verify_ticket {
 
 	return $self->delete_cookies(\%cookies, 0, 'ticket mismatch');
     }
-    if (!HSDB45::Authorization->valid_account($ticket{'user'})){
+    my $user = get_user_from_ticket(\%ticket);
+
+    if (!HSDB45::Authorization->valid_account($user)){
 	return (0,'invalid user account');
     }
-    $r->connection->user($ticket{'user'});
-    my $cookie = $self->make_ticket($r, $ticket{'user'});
+    $r->connection->user($user);
+    my $cookie = $self->make_ticket($r, $user);
     $cookie->bake;
     return (1, 'ok');
 }
@@ -170,7 +190,7 @@ sub check_status {
     return '' if $userObject->user_id eq $ENV{'HSDB_GUEST_USERNAME'};
     my $status = $userObject->field_value ('profile_status');
     return undef if (!defined($status ));
-    return "/change_password" 
+    return "/tusk/tools/pswdchange" 
         if ($status =~ /ChangePassword/);
     return undef;
 }
@@ -182,6 +202,59 @@ sub remove_cookie{
 	$cookie->path("/");
 	$cookie->bake;
     }
+}
+
+sub get_user_from_ticket {
+	my $ticketRef = shift;
+	# the user field of the ticket actually contains the session id so lets create the session from it.
+	my $user;
+	unless($TUSK::Constants::CookieUsesUserID) {
+		eval {
+			my %session;
+			create_apache_session(${$ticketRef}{'user'}, \%session);
+			unless(tied(%session)) {
+				warn("get_user_from_ticket: session was not correctly tied, returning udef for user");
+				return undef;
+			}
+			$user = $session{'user'};
+			destroy_apache_session(\%session);
+		};
+		if($@) {
+			warn("get_user_from_ticket: unable to get user: $@\n");
+		}
+	} else {
+		$user = ${$ticketRef}{'user'};
+	}
+	return $user;
+}
+
+sub create_apache_session {
+	#
+	# If you create a session it is your responsibility to destroy it (i.e. call destroy_apache_session and then undef the variable this returns)
+	#
+
+	my $sessionID = shift;
+	my $hashRefToTie = shift;
+	# Create an apache session object
+	eval {
+		tie %{$hashRefToTie}, 'Apache::Session::MySQL', $sessionID, {
+			Handle     => HSDB4::Constants::def_db_handle(),
+			LockHandle => HSDB4::Constants::def_db_handle(),
+		};
+	};
+	if($@) {
+		warn("Unable to tie session to Apache::Session::MySQL for $sessionID: $@\n");
+	}
+}
+
+sub destroy_apache_session {
+	my $sessionRef = shift;
+	if(tied(%{$sessionRef})) {
+#		tied(%{$sessionRef})->DESTROY();
+		undef %{$sessionRef};
+	} else {
+		warn("destroy_apache_session: sessionRef was not tied, unable to destroy object\n");
+	}
 }
 
 1;

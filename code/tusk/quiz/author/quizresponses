@@ -5,13 +5,21 @@
 </%once>
 
 <%shared>
-	my $id = $m->comp('/tmpl/url:get_last_path_id');
-	my $result = TUSK::Quiz::Result->lookupKey($id);
-	my $quiz = TUSK::Quiz::Quiz->lookupKey($result->getQuizID());
-	my $responses = TUSK::Quiz::Response->lookup("quiz_result_id = $id");
-	my $response_rows = [];
 	my %args = $m->request_args();
-	my $type_path;
+	my ($id, $type_path, $result, $quiz, $responses, $response_rows);
+
+	#If this component's methods are called externally (such as in the answerkey component),
+	#   the URL may not contain the right path id's for the code below to be able to execute.
+	#	Here and throughout the component, we safeguard against this scenario by checking 
+	#	whether this component was the originally requested component or not.
+	my $requested_comp = $m->request_comp()->name();
+	unless ($requested_comp ne 'quizresponses') {
+		$id = $m->comp('/tmpl/url:get_last_path_id');
+		$result = TUSK::Quiz::Result->lookupKey($id);
+		$quiz = TUSK::Quiz::Quiz->lookupKey($result->getQuizID());
+		$responses = TUSK::Quiz::Response->lookup("quiz_result_id = $id");
+		$response_rows = [];
+	}
 </%shared>
 
 
@@ -59,7 +67,7 @@
 	}
 
 	my $buttons;
-	if ($m->comp("/tmpl/permission:check_permission", function_token => 'edit_grades')){
+	if ($m->comp("/tmpl/permission:check_permission", function_token => 'edit_grades') && $requested_comp eq 'quizresponses'){
 		$buttons = "<input class=\"formbutton\" type=\"submit\" name=\"submit\" value=\"Save Changes\">\n<input class=\"formbutton\" type=\"reset\" onclick=\"go_back('/quiz/author/quizresults/$type_path#" . $result->getPrimaryKeyID() . "');\" name=\"cancel\" id=\"cancel\" value=\"Go Back\"/>";
 	} else {
 		$buttons = "Not authorized for grading";
@@ -71,7 +79,7 @@
                 	name => 'quizresponses',
         	        onsubmit => undef } );
 
-		my $quiz_taker = ($quiz->isSelfAssessment()) ? '' : "Name: &nbsp;&nbsp;" . HSDB4::SQLRow::User->new()->lookup_key($result->getUserID());
+		my $quiz_taker = ($pquiz->isSelfAssessment()) ? '' : "Name: &nbsp;&nbsp;" . HSDB4::SQLRow::User->new()->lookup_key($result->getUserID());
 		$m->print("<table width=\"100%\">\n<tr><td class=\"med\">$quiz_taker</td><td align=\"right\"><div style=\"margin-bottom:1px;\">$buttons</div></td></tr>\n</table>\n");
 	}
 
@@ -120,12 +128,15 @@
 		push (@$columns, { field => 'points', label => 'Points', align => 'center' });
 	}
 	
-	$m->comp('/tmpl/element:object_selection_box', params => {
-							columns 	=> $columns,
-							type_path	=> "$type_path/" . $result->getPrimaryKeyID ,
-							nobutton	=> 0,
-				 	               	rows		=> $response_rows,
-						 });
+	my $selection_params = {columns  => $columns,
+							nobutton => 0,
+							rows	 => $response_rows};
+
+	if ($requested_comp eq 'quizresponses') {
+		$selection_params->{type_path} = "$type_path/" . $result->getPrimaryKeyID;
+	}
+
+	$m->comp('/tmpl/element:object_selection_box', params => $selection_params);
 </%perl>
 </%method>
 

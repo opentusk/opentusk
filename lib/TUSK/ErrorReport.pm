@@ -3,6 +3,7 @@ package ErrorReport;
 use strict; 
 use Apache;
 use Apache::Cookie;
+use Apache::TicketTool;
 use TUSK::Constants;
 
 sub sendErrorReport {
@@ -17,7 +18,7 @@ sub sendErrorReport {
 	unless ($user = $req_rec->connection->user) {
 		if (my %cookies = Apache::Cookie->new($req_rec)->parse) {
 			my %ticket = $cookies{'Ticket'}->value;
-			$user = $ticket{'user'};
+			$user = Apache::TicketTool::get_user_from_ticket(\%ticket);
 		}
 	}
 	$user ||= 'unknown user';
@@ -37,11 +38,18 @@ sub sendErrorReport {
 	my $queryString = '' ;
 	foreach my $arg (keys(%localArgs)){
 		$queryString .= "$arg : ".$localArgs{$arg}."\n";
-	}
+	}	
 
 	$queryString = $ENV{'QUERY_STRING'} unless $queryString;
-
-	my $errString = join ("\n",@{$errArray}) . ($error_text ? $error_text : "");
+	my $errString = $error_text;
+	
+	## soon to be depricated -- checking for Embperl errors
+	if (scalar @$errArray) {
+		$errString .= "\n-- Begin Embperl Errors --\n\n\t";
+		$errString .= join ("\n\t",@{$errArray});
+		$errString .= "\n\n-- End Embperl Errors --\n\n";
+	}
+	
 	my $msgBody =<<EOM;
 Error from user $user on machine $host
 

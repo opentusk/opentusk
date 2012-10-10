@@ -9,6 +9,7 @@ use TUSK::Constants;
 use TUSK::Core::LinkContentKeyword;
 use TUSK::Content::External::LinkContentField;
 use TUSK::Content::External::Field;
+use TUSK::ProcessTracker::ProcessTracker;
 use File::Copy;
 use File::Type;
 use IO::File;
@@ -33,8 +34,65 @@ our %path = (
 		'slide' => '/data/html/slide',
 	    );
 
+our %fileTypes = (
+		'htm' => 'Document',
+		'html'=> 'Document',
+		'pdf' => 'PDF',
+		'jpg' => 'Slide',
+		'gif' => 'Slide',
+		'png' => 'Slide',
+		'swf' => 'Shockwave',
+		'flv' => 'Shockwave',
+		'dcr' => 'Shockwave',
+		'fpx' => 'Flashpix',
+		'mov' => 'Video',
+		'avi' => 'Video',
+		'mpa' => 'Video',
+		'mpg' => 'Video',
+		'mpeg'=> 'Video',
+		'mpv' => 'Video',
+		'm2v' => 'Video',
+		'm1v' => 'Video',
+		'mp3' => 'Audio',
+		'mp4' => 'Video',
+		'rm'  => 'Video',
+		'rmvb'=> 'Video',
+		'rv'  => 'Video',
+		'ra'  => 'Audio',
+		'rmvb'=> 'Video',
+		'smi' => 'Video',
+		'mod' => 'Video',
+		'url' => 'URL',
+		'wmv' => 'Video',
+		'wma' => 'Audio',
+	);
+
+sub process_args_for_content_sub{
+	my($req, $args) = @_;
+	if ($args->{parent_content} && $args->{parent_content}->primary_key()){
+		$req->{parent_content} = $args->{parent_content};
+		$args->{course} = $args->{parent_content}->school() . "-" . $args->{parent_content}->field_value('course_id');
+		$req->{school} = $args->{parent_content}->school();
+		$req->{course} = HSDB45::Course->new( _school => $req->{school} )->lookup_key( $args->{parent_content}->field_value('course_id') );
+		$req->{course_id} = $req->{course}->primary_key();
+	} elsif ($args->{course}){
+		$req->{course} = $args->{course};
+		$req->{root_course} = $args->{course};
+		unless($req->{school}) {$req->{school} = $req->{course}->school();}
+		unless($req->{course_id}) {$req->{course_id} = $req->{course}->primary_key();}
+	} else {
+		$req->{school} = $req->{course}->school();
+		$req->{course_id} = $req->{course}->primary_key();
+		$req->{root_course} = $req->{course};
+	}
+
+	delete($args->{start_date}) unless ($args->{start_date});
+	delete($args->{end_date}) unless ($args->{end_date});
+}
+
 sub add_content_sub{
     my ($req, %fdat) = @_;
+    process_args_for_content_sub($req, \%fdat);
     my ($rval, $msg);
 
     if ($req->{course}){
@@ -52,7 +110,9 @@ sub add_content_sub{
     
     $fdat{school}=$req->{school};
 
-    unless (-e $path{'temp'} . "/" . $fdat{filename}){
+    $fdat{filename} =~ s/$path{'temp'}//;
+    unless (-e $path{'temp'} . "/" . $fdat{filename}) {
+	warn("Unable to create content because $path{'temp'} . "/" . $fdat{filename} does not exist\n");
 	return (0, "The file could not be found.  Please try to upload again.");
     }
     ($rval, $req->{content_id}) = add_content($req->{user}, %fdat);
@@ -75,6 +135,8 @@ sub add_content_sub{
 
 sub update_content_sub{
     my ($req, %fdat) = @_;
+
+    process_args_for_content_sub($req, \%fdat);
     my ($rval, $msg);
 
     # first we will do an update to the link_course_user stuff (sort and roles)
@@ -278,6 +340,11 @@ sub replace_file{
     my ($content, $user_id, %fdat) = @_;
     my ($rval, $msg);
 
+	if ($content->type() eq 'TUSKdoc') {
+		my $tracker = TUSK::ProcessTracker::ProcessTracker->getMostRecentTracker(undef, $content->primary_key, 'tuskdoc');
+		return (0, "Cannot replace this TUSKdoc because it is already in the process of being converted.") if (defined $tracker && !$tracker->isCompleted());
+	}
+	
     # upload the file
     ($rval, $fdat{filename}, $fdat{body}) = upload_file(%fdat);
     return (0, $fdat{filename}) unless ($rval > 0);
@@ -363,10 +430,14 @@ sub add_content{
 				   );
 
 
+#warn("Going to call the update_html\n");
 	($rval, $msg) = update_html($content, $user->primary_key,%fdat);
 	return (0, $msg) unless ($rval > 0);
+#warn("After the update_html the body is ". $content->body->out_xml() ."\n");
 
+#warn("Saving the version\n");
 	($rval, $msg) = $content->save_version("content added by CMS",$user->primary_key);
+#warn("After the save version the body is ". $content->body->out_xml() ."\n");
 	return (0, $msg) unless ($rval > 0);
 
 	return (0, 'An unkown error has occured. Please try again.') unless ($content->primary_key);
@@ -379,6 +450,7 @@ sub add_content{
 		($rval, $msg ) = add_content_content($user, $content, %fdat);
 		return(0, $msg) unless ($rval>0);
 	}
+#warn("After the link from parent the body is ". $content->body->out_xml() ."\n");
 
 	return (1, $content->primary_key);
 }
@@ -438,6 +510,8 @@ sub doc_process{
     my ($user, $content, %fdat) = @_;
     $content->field_value('type', 'TUSKdoc');
     $content->save_version("content turned into TUSKdoc type", $user->primary_key);
+	$content = $content->rebless();
+
     return (1, "Success");
 }
 
@@ -497,8 +571,11 @@ sub update_html{
 	    }
 	}
     } elsif ($fdat{content_type} eq "URL"){
+#warn("The content_type is URL with body of ". $fdat{'body'} ."\n");
 	$fdat{'body'}="http://".$fdat{'body'} unless($fdat{'body'}=~/^(\/|[A-Za-z]+:\/\/)/);
+#warn("after the sub the body is ". $fdat{'body'} ."\n");
 	($rval, $msg) = mangle_element($content, $fdat{'body'},"external_uri");
+#warn("The value from mangle_element is $rval: $msg\n");
 	return (0, $msg) if ($rval == 0);
     } elsif (exists($fdat{body})){
 	($rval, $msg) = mangle_element($content, $fdat{body},"html");
@@ -528,6 +605,11 @@ sub do_file_stuff{
 		return (0, $body) unless ($rval);
         ($rval, $body) = move_file($content, \%fdat, $path{'doc-archive'});
 		return (0, $body) unless ($rval);
+		my $tracker = TUSK::ProcessTracker::ProcessTracker->new();
+		$tracker->setObjectID($content->primary_key());
+		$tracker->setTrackerType('tuskdoc');
+		$tracker->setStatus('tuskdoc_received');
+		$tracker->save({user => $user_id});
     }elsif ($fdat{content_type} eq 'DownloadableFile' and $fdat{ppt_change} < 1){
         ($rval, $body) = move_file($content, \%fdat,$path{downloadablefile},"file_uri");
 		return (0, $body) unless ($rval);
@@ -779,7 +861,8 @@ sub move_file{
 
     if ($fdat->{content_type} eq "Shockwave"){
 	($rval, $ret) = mangle_shockwave($content, %$fdat);
-    }elsif($fdat->{content_type} eq "Audio" or $fdat->{content_type} eq "Video"){
+    }
+	elsif ($fdat->{content_type} eq "Audio" or $fdat->{content_type} eq "Video"){
 	($rval, $ret) = mangle_audiovideo($content, %$fdat);
     }
     
@@ -797,6 +880,17 @@ sub move_file{
     if ($fdat->{content_type} eq "Flashpix"){
 	chmod 0644, $newfilepath; # flashpix files need to have these permissions
     }
+	elsif ($fdat->{content_type} eq "TUSKdoc"){
+		if ($newfilepath =~ /\.(docx?)$/) {
+			my $alt_ext = ($1 eq 'docx')? 'doc' : 'docx';
+			my $altfilepath = $newfilepath;
+			$altfilepath =~ s/docx?$/$alt_ext/;
+			if (-e $altfilepath) {
+				# if we uploaded a doc and there is a docx with same id, delete it (or vice versa)
+				unlink $altfilepath;
+			}
+		}
+	}
 
     return (1, $ret);
 }
@@ -810,37 +904,6 @@ sub upload_file {
 
     my $filename = int(10000*rand(time));
     
-    my %filetypes = (
-		     'htm' => 'Document',
-		     'html'=> 'Document',
-		     'pdf' => 'PDF',
-		     'jpg' => 'Slide',
-		     'gif' => 'Slide',
-		     'png' => 'Slide',
-		     'swf' => 'Shockwave',
-		     'flv' => 'Shockwave',
-		     'dcr' =>'Shockwave',
-		     'fpx' =>'Flashpix',
-		     'mov' => 'Video',
-		     'avi' => 'Video',
-		     'mpa' => 'Video',
-		     'mpg' => 'Video',
-		     'mpeg'=> 'Video',
-		     'mpv' => 'Video',
-		     'm2v' => 'Video',
-		     'm1v' => 'Video',
-		     'mp3' => 'Audio',
-		     'mp4' => 'Video',
-		     'rm'  => 'Video',
-		     'rmvb'=> 'Video',
-		     'rv'  => 'Video',
-		     'ra'  => 'Audio',
-		     'rmvb'=> 'Video',
-		     'smi' => 'Video',
-		     'mod' => 'Video',
-		     'wmv' => 'Video',
-		     'wma' => 'Audio',
-		     );
     my %extensions=(
 		    'Shockwave' => 'swf',
 		    'Document' => 'html',
@@ -867,10 +930,10 @@ sub upload_file {
 		$fileext = $extensions{$fdat{upload_type}} unless ($fileext);
 		$fdat{upload_type} = "DownloadableFile" if ($fdat{upload_type} =~ /PPS|PPTX?/);
     }elsif(!$fdat{upload_type}){
-		$fdat{upload_type}=$filetypes{lc($fileext)};
+		$fdat{upload_type}=TUSK::UploadContent::get_content_type_from_file_ext($fileext);
 		unless ($fdat{upload_type}){ $fdat{upload_type}="DownloadableFile"; }
     }
-	if (lc($fileext) eq 'doc' and $fdat{content_type} eq 'TUSKdoc'){
+	if (lc($fileext) =~ /docx?/ and $fdat{content_type} eq 'TUSKdoc'){
 		$fdat{upload_type} = 'TUSKdoc';
 	}
     # are we replacing a file here?
@@ -1018,6 +1081,30 @@ sub mangle_audiovideo{
     $c->set_field_values("body" => $xml->out_xml);
 
     return (1, $xml->out_xml);
+}
+
+sub get_content_type_from_file_ext {
+	#	Returns one of the TUSK content types based on a file extension
+	#		Document, Audio, Video, Flashpix, Collection, Slide, Shockwave, URL, PDF,
+	#		Question, Multidocument, Quiz, Student, Reuse, External, TUSKdoc
+	#	Defaulting to a DownloadableFile if can not be determined.
+	my $fileName = shift;
+	my $extension = lc($fileName);
+	$extension =~ s/^.*\.//g;
+	if(exists($fileTypes{$extension})) {return $fileTypes{$extension};}
+	return 'DownloadableFile';
+}
+
+sub isa_powerpoint {
+	my $extension = shift;
+	if($extension eq 'ppt' || $extension eq 'pps' || $extension eq 'pptx') {return 1;}
+	return 0;
+}
+
+sub isa_worddoc {
+	my $extension = shift;
+	if($extension eq 'doc' || $extension eq 'docx') {return 1;}
+	return 0;
 }
 
 1;

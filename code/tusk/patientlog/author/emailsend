@@ -1,0 +1,52 @@
+<%attr>
+	no_header => 1
+	no_body => 1
+	page_header => undef,
+	page_footer => undef,
+</%attr>
+
+<%once>
+	use TUSK::Application::Email;
+</%once>
+
+<%perl>
+	$m->clear_buffer();
+	$r->content_type('application/json');
+	$r->no_cache(1);
+</%perl>
+
+{ "msg" : "Email(s) are successfully sent!" }
+
+<%init>
+	if ($ARGS{submit_check}) {
+
+		## get all the reports ready to send
+		my $reports = {};  
+		my @to_addrs = (ref $ARGS{to_addr} eq 'ARRAY') ? @{$ARGS{to_addr}} : $ARGS{to_addr};
+
+		## director report		
+		$reports->{cs} = [ $m->comp('/patientlog/director/spreadsheet:get', args => { %ARGS, rtype => 'cs' } ) ];
+
+		## site director reports
+		foreach my $site_id (map { (split('__', $_))[2] } @to_addrs) {
+			if ($site_id) {
+				$reports->{ts}{$site_id} = [ $m->comp('/patientlog/director/spreadsheet:get', args => { %ARGS, rtype => 'ts', tsid => $site_id } ) ];
+				$reports->{ssc}{$site_id} = [ $m->comp('/patientlog/director/spreadsheet:get', args => { %ARGS, rtype => 'ssc', tsid => $site_id } ) ];
+			}
+		}
+
+		my $sender = $m->session->{'user'};
+		foreach (@to_addrs) {
+			my ($to_addr, $is_site_director, $site_id) = split('__', $_);
+			my $email = TUSK::Application::Email->new({ 
+				to_addr => $to_addr,
+				from_addr  => $sender->default_email(),
+				subject => $ARGS{subject},
+				body	=> $ARGS{body},
+				attachments => ($is_site_director) ? [ $reports->{ts}{$site_id}, $reports->{ssc}{$site_id} ] : [ $reports->{cs} ],
+			});
+			$email->sendWithFHAttachments();
+		}
+	}
+</%init>
+

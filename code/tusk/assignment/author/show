@@ -8,18 +8,18 @@
 	skip_creating_assignment => 1
 </%attr>
 
+
 <%shared>
-	my @assignments;
+	my $assignments;
 	my $permissions;
 	my %args = $m->request_args();
 </%shared>
-
 
 <%method feature_id>
 <%perl>
 	my $assignment_ids = [];
 
-	foreach my $assignment (@assignments){
+	foreach my $assignment (@$assignments){
 		push (@$assignment_ids, $assignment->getPrimaryKeyID());
 	}
 	return $assignment_ids;
@@ -44,16 +44,11 @@
 
 	my $school = $course->get_school();
 
-	my $grade_events = TUSK::GradeBook::GradeEvent->new()->lookup("school_id = " . $school->getPrimaryKeyID() . " AND course_id = " . $course->primary_key() . " AND time_period_id = $time_period_id");
-
-	foreach my $grade_event (@{$grade_events}) {
-		push @assignments, TUSK::Assignment::Assignment->new()->lookupReturnOne("assignment.grade_event_id = " . $grade_event->getPrimaryKeyID());
-	}
+	$assignments = TUSK::Assignment::Assignment->new()->lookup('tusk.grade_event.school_id = ' . $school->getPrimaryKeyID() . ' AND course_id = ' . $course->primary_key() . " AND time_period_id = $time_period_id", ['tusk.assignment.sort_order'], undef, undef, [TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', {joinkey => 'grade_event_id', origkey => 'grade_event_id'})]);
 
 	$permissions = $m->comp('/tmpl/permission:get_permissions');
 
 	unless (defined $permissions) {
-
 		$m->comp("/tmpl/permission:lookup_permissions", 
 			feature_type_token => $m->comp("SELF:feature_type_token"),
 			feature_id => $m->comp("SELF:feature_id"),
@@ -64,16 +59,21 @@
 	}
 
 	my $col_fields = [ 
-	   {label => 'Title', field => 'title'},
-       	   {label => 'Instructions', field => 'instructions'},
-       	   {label => 'Weight', field => 'weight', align => 'center'},
-	   {label => 'Available Date', field => 'available_date'},
-	   {label => 'Due Date', field => 'due_date'},
+		{label => 'Title', field => 'title'},
+		{label => 'Instructions', field => 'instructions'},
+		{label => 'Weight', field => 'weight', align => 'center'},
+		{label => 'Available Date', field => 'available_date'},
+		{label => 'Due Date', field => 'due_date'},
 	 ];
 
 	my @rows = ();
 	my $max_length = 300;
-	foreach my $assignment (@assignments) {
+
+	if (defined($ARGS{'order'})) {
+		TUSK::Assignment::Assignment->updateSortOrders($ARGS{'order'}, $assignments);
+	}
+
+	foreach my $assignment (@$assignments) {
 		my $instructions = $assignment->getInstruction();
 		my $instructions_length = length($instructions);
 		my $assignment_id = $assignment->getPrimaryKeyID();
@@ -88,6 +88,7 @@
 			available_date => $assignment->getFormattedAvailableDate(),
 			due_date => $assignment->getFormattedDueDate(),
 			id => $assignment->getPrimaryKeyID(),
+			sort_order => $assignment->getSortOrder(), 
 		};
 	}
 
@@ -101,11 +102,17 @@
 	         ]
 &>
 
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit => undef, 
+        name => 'tracking' } 
+&>
 
 <& /tmpl/element:object_selection_box, params => { 
 	columns 	=> $col_fields,
 	rows		=> \@rows,
 	type_path 	=> $typePath,
+	sort_box	=> 1,
 	name 		=> 'assignments',
 	feature_token 	=> 'assignment',
 	'norows-message' => 'No Assignments',
@@ -120,3 +127,4 @@
 			],
 
 } &>
+</form>

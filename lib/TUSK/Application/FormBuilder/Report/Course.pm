@@ -116,9 +116,9 @@ sub FieldperPerson{
 	};
 
     if ($user_id){
-	for my $int (0..1){
-	    push (@{$sql_builder->{statements}->[$int]->{'wheres'}}, "s.child_user_id = '" . $user_id . "'");
-	}
+		for my $int (0..1){
+			push (@{$sql_builder->{statements}->[$int]->{'wheres'}}, "s.child_user_id = '" . $user_id . "'");
+		}
     }
     return $self->SUPER::query($self->processExtras($sql_builder, $args, $extra_field));
 }
@@ -222,7 +222,7 @@ sub OtherperTeachingSite{
 
 sub FieldperTimePeriod{
     my ($self, $args, $extra_field) = @_;
-    
+
     my $schooldb = $self->getSchoolDB();
     my $course_id = $self->getCourseID();
 
@@ -250,10 +250,10 @@ sub FieldperTimePeriod{
 			       wheres => [
 					  "s.parent_course_id = $course_id",
 					  "r.active_flag",
-                                          "(s.time_period_id = t.time_period_id)",
-                                          "(s.child_user_id = e.user_id and s.time_period_id = e.time_period_id and e.form_id = " . $self->getFormID() . ")",
-                                          "(i.item_id = r.item_id)",
-                                          "(i.item_type_id = it.item_type_id)",
+					  "(s.time_period_id = t.time_period_id)",
+					  "(s.child_user_id = e.user_id and s.time_period_id = e.time_period_id and e.form_id = " . $self->getFormID() . ")",
+					  "(i.item_id = r.item_id)",
+					  "(i.item_type_id = it.item_type_id)",
 					  ], 
 			   },
 		       {
@@ -279,12 +279,12 @@ sub FieldperTimePeriod{
 					  ], 
 			       wheres => [
 					  "s.parent_course_id = $course_id",
-                                          "(s.time_period_id = t.time_period_id)",
-                                          "(s.parent_course_id = l.parent_course_id)",
-                                          "(l.child_form_id = lff.parent_form_id)",
-                                          "(f.field_id = lff.child_field_id)",
-                                          "(i.field_id = f.field_id)",
-                                          "(i.item_type_id = it.item_type_id)",
+					  "(s.time_period_id = t.time_period_id)",
+					  "(s.parent_course_id = l.parent_course_id)",
+					  "(l.child_form_id = lff.parent_form_id)",
+					  "(f.field_id = lff.child_field_id)",
+					  "(i.field_id = f.field_id)",
+					  "(i.item_type_id = it.item_type_id)",
 					 ], 
 			   }
 		       ],
@@ -313,6 +313,18 @@ sub FieldperTimePeriod{
 	}
     }
 
+ 	## narrow results down by time period, if one(s) were passed
+   if ($args->{tpid}){
+	for my $int (0..1){
+		if (ref($args->{tpid}) eq "ARRAY") {
+		    push (@{$sql_builder->{statements}->[$int]->{'wheres'}}, "s.time_period_id IN(" . join("," , @{$args->{tpid}}) . ")");
+		}
+		else {
+		    push (@{$sql_builder->{statements}->[$int]->{'wheres'}}, "s.time_period_id = '" . $args->{tpid} . "'");
+		}
+	}
+   }
+    
     return $self->SUPER::query($self->processExtras($sql_builder, $args, $extra_field));
 }
 

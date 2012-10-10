@@ -13,7 +13,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.3 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.4 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use vars @EXPORT_OK;
@@ -60,15 +60,27 @@ sub new {
 }
 
 sub lookup_user_ppt {
-    #
-    # Do a lookup for all ppts for a particular user
-    #
+	#
+	# Do a lookup for all ppts for a particular user
+	#
 
-    my $self = shift;
-    my $un = shift;
-    my $cond_ppt= "username='$un'";
-    my @conds = ($cond_ppt,'ORDER BY ppt_upload_status_id');
-    return $self->lookup_conditions (@conds);
+	my $self = shift;
+	my $un = shift;
+	my $in_last_days = shift;
+
+	my $cond_ppt= "username='$un'";
+
+	my $time_cond = '';
+	if (defined $in_last_days) {
+		my $compare_date = HSDB4::DateTime->new();
+		$compare_date->subtract_days($in_last_days);
+
+		$time_cond = "statustime > '" . $compare_date->out_mysql_timestamp() . "'";
+	}
+
+	
+	my @conds = ($cond_ppt, $time_cond, 'ORDER BY ppt_upload_status_id DESC');
+	return $self->lookup_conditions (@conds);
 }
 
 sub lookup_ppt{

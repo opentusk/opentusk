@@ -97,7 +97,7 @@ $args => {}
 <%method stylearray>
 <%perl>
 	my $css = ["/style/style.css"];
-	push (@$css, "/style/hscml.css") if ($document->type() eq 'HSCML' or ($document->type() eq 'Document' && $document->conversion_status() > 1));
+	push (@$css, "/style/hscml.css") if ($document->type() eq 'HSCML' or $document->type() eq 'TUSKdoc' or ($document->type() eq 'Document' && $document->conversion_status() > 1));
 	return $css;
 </%perl>
 </%method>
@@ -169,7 +169,8 @@ $args => {}
 % my $ieHack = '';
 % if($ENV{HTTP_USER_AGENT} =~ /IE/) {$ieHack = "width:100%;";}
 
-<div id="pageContent" style="<% $ieHack %> margin-top:10px; margin-right:30px; margin-bottom:20px; margin-left:125px; padding-top:5px; padding-right:30px; padding-botton:5px; padding-left:30px; background-color:#FFFFFF; border-right:3px solid black; border-bottom:3px solid black; border-top:1px solid <% $redColor %>; border-left:2px solid <% $redColor %>; z-index:99;">
+% my $additional_class = ($document->content_type() eq 'TUSKdoc' && !$iCanEdit)? 'tdNotEdit' : '';
+<div id="pageContent" class="<% $additional_class %>" style="<% $ieHack %> margin-top:10px; margin-right:30px; margin-bottom:20px; margin-left:125px; padding-top:5px; padding-right:30px; padding-botton:5px; padding-left:30px; background-color:#FFFFFF; border-right:3px solid black; border-bottom:3px solid black; border-top:1px solid <% $redColor %>; border-left:2px solid <% $redColor %>; z-index:99;">
 
 %my $xsl_dir = "$ENV{XSL_ROOT}/Content";
 %if($document->type() eq 'HSCML' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
@@ -702,7 +703,7 @@ $args => {}
 		  }
 	        }
 	      }
-	      document.theTuskPrintForm.action = '/tusk/printcontent/<% $document->primary_key %>';
+	      document.theTuskPrintForm.action = '/tusk/view/printcontent/<% $document->primary_key %>';
 	      document.theTuskPrintForm.hiddenWords.value = selectedKeywords;
 	      document.theTuskPrintForm.submit();
 	    }
@@ -884,7 +885,7 @@ $args => {}
 
     <& SELF:printDragHandleWithClose, formName => 'thePrintForm', title => $title, imageName => 'printFormButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
-      <form name="theTuskPrintForm" method="get" target="printFrame" action="/tusk/printcontent/<% $document->primary_key %>">
+      <form name="theTuskPrintForm" method="get" target="printFrame" action="/tusk/view/printcontent/<% $document->primary_key %>">
         <input type="hidden" name="summary" value="<% $summary %>">
         <input type="hidden" name="SIZE" value="<% $SIZE %>">
         <input type="hidden" name="hiddenWords" value="">

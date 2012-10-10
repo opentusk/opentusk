@@ -12,6 +12,7 @@ use Devel::Size;
 
 my %noAttachmentExt = (
 		       'doc' => 'application/msword',
+		       'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 		       'ppt' => 'application/vnd.ms-powerpoint', 
 		       'xls' => 'application/vnd.ms-excel',
 		       'pdf' => 'application/pdf',
@@ -79,17 +80,21 @@ sub handler {
 		$ext = "pdf";
 		$filename = $document->out_file_path();
 	} 
-	elsif($document->content_type() eq "DownloadableFile" or $document->content_type() eq 'TUSKdoc') {
-		if ($document->content_type() eq "DownloadableFile"){
-			my $fileobj = $document->body->tag_values('file_uri');
-			my $file = $fileobj->value;
-			$file =~ /\.(.*)/;
-			$ext = $1;
-		} else{
-			$ext = 'doc';
-		}
+	elsif($document->content_type() eq "DownloadableFile") {
+		my $fileobj = $document->body->tag_values('file_uri');
+		my $file = $fileobj->value;
+		$file =~ /\.(.*)/;
+		$ext = $1;
 
 		$filename = $document->out_file_path();
+	}
+	elsif($document->content_type() eq 'TUSKdoc') {
+		$filename = $document->out_file_path();
+
+		if (defined $filename) {
+			$ext = 'doc'  if ($filename =~ /\.doc$/);
+			$ext = 'docx' if ($filename =~ /\.docx$/);
+		}
 	}
 	elsif($document->content_type() eq "Shockwave") {
 		$filename = $document->out_file_path();
@@ -97,7 +102,7 @@ sub handler {
 		$ext = "swf" if ( $filename =~ /\.swf/ );
 	}
 
-	#If we did not get a blob  or a valid filename print off a 404
+	# If we did not get a blob  or a valid filename print off a 404
 	unless($blob || $filename) {
 	    return(NOT_FOUND);
 	}

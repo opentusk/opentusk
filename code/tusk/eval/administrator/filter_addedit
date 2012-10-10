@@ -1,0 +1,153 @@
+<%doc>
+	Page to edit a single filter XSL stylesheet
+	Expected URL structure (if filter id is not included, form will allow user to add new):
+	filter_addedit/[school]/[filter id]
+</%doc>
+
+<%once>
+    use HSDB4::StyleSheetType;
+    use HSDB45::StyleSheet;
+</%once>
+
+<%shared>
+	# get school and id information from URL
+	my $school = $m->comp("/tmpl/url:get_school");
+	my @path = $m->comp("/tmpl/url:get_path_ids");
+	my $mode = 'Modify';
+	my $id = $path[0];
+	if (!$id) {
+		$mode = 'Add';
+	}
+</%shared>
+%# if an stylesheet has been loaded, populate form with data
+% if ($stylesheet->stylesheet_id() || !$id) {
+	<form method="post" action="" onsubmit="return checkform(this)">
+		<input type="hidden" name="id" value="<% $id %>"/>
+	
+	<& /tmpl/element:table, params => { 
+		width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+	<tr>
+	<td class="labelgray">Label:</td>
+	<td class="cell-left">
+	<input type="text" name="label" id="label__y" maxlength="100" size="60" class="textareawhite" value="<% $stylesheet->label() %>"/>
+	</td>
+	</tr>
+	<tr>
+	<td class="labelgray">Stylesheet Type:</td>
+	<td class="cell-left"><select name="stylesheet_type_id">
+% 	foreach my $thistype (HSDB4::StyleSheetType->new(_school => $school)->lookup_all()) {
+	<option 
+	value="<% $thistype->primary_key() %>"
+%	 if ($thistype->primary_key() == $stylesheet->stylesheet_type_id()) {
+	selected="true"
+%	 }
+	>
+	<% $thistype->stylesheet_type_label() %>
+	</option>
+%	 }
+	</select></td>
+	</tr>
+	<tr>
+	<td class="labelgray">Make Default:</td>
+	<td class="cell-left"><select name="default">
+	<option value="no"
+%	 if ($type->default_stylesheet_id($school) ne $id) {
+	selected="true"
+%	 }
+	>No</option>
+	<option value="yes"
+%	 if ($type->default_stylesheet_id($school) && $type->default_stylesheet_id($school) eq $id) {
+	selected="true"
+%	 }
+	>Yes</option>
+	</select></td>
+	</tr>
+	<tr>
+	<td class="labelgray">Description:</td>
+	<td class="cell-left"><textarea type="text" name="description" class="textareawhite" cols="80" rows="4"><% $stylesheet->description() %></textarea></td>
+	</tr>
+	<tr>
+	<td class="labelgray">Body:</td>
+	<td class="cell-left"><textarea type="text" name="body" id="body__y" cols="80" class="textareawhite" rows="30"><% $stylesheet->body() %></textarea>
+	</td>
+	</tr>
+	<tr>
+	<td></td>
+	<td class="cell-left">
+	<& /tmpl/element:submit_button, params=>{
+		label 			=> 'Submit',
+		class 	=> 'formbutton',
+		name	=> 'Submit',
+		} 
+	&>
+	<& /tmpl/element:button, params => { 
+		label => 'Reset',
+		class 	=> 'formbutton',
+		reset => 1
+		}
+	&>
+	</td>
+	</table>
+	</form>
+% }
+%# otherwise (stylesheet was not loaded -- invalid or no ID was passed) display error
+% else {
+	<p class="error">You've attempted to load a stylesheet that doesn't exist.</p>
+% }
+
+<%init>
+	# get individual stylesheet and school default stylesheet data
+	my $stylesheet = undef;
+	my $type = undef;
+    if($ARGS{Submit} || $id) {
+		$stylesheet = HSDB45::StyleSheet->new(_school => $school, _id => $id);
+		if ($ARGS{Submit}) {
+			$stylesheet->stylesheet_type_id($ARGS{stylesheet_type_id});
+			$stylesheet->label($ARGS{label});
+			$stylesheet->description($ARGS{description});
+			$stylesheet->body($ARGS{body});
+			$stylesheet->save();
+			if (!$id) {
+				(my $rootURL = $ENV{SCRIPT_URL}) =~ s/\/*$//;
+				print $rootURL;
+				$m->comp("/tmpl/url:redirect",destination => $rootURL . "/" . $stylesheet->primary_key(), message => "Your new eval filter stylsheet has been created.", msg_type => "msg");
+			}
+			else {
+				$m->comp("/tmpl/url:redirect", destination => $ENV{SCRIPT_URL}, message => "The eval filter stylsheet '" . $stylesheet->label() . "' has been updated.", msg_type => "msg");
+			}
+		}
+		$type = HSDB4::StyleSheetType->new(_id => $stylesheet->stylesheet_type_id());
+		if($ARGS{default} eq 'yes') {
+			$type->default_stylesheet_id($school, $id);
+		}
+		elsif($ARGS{default} eq 'no') {
+			if($type->default_stylesheet_id($school)) {
+				$type->default_stylesheet_id($school, 0);
+			}
+		}
+    }
+    else {
+		$stylesheet = HSDB45::StyleSheet->new(_school => $school);
+		$type = HSDB4::StyleSheetType->new(_id => $stylesheet->stylesheet_type_id());
+    }
+</%init>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+%	if ($mode eq "Add") {
+%		return $mode . " " . $school . " Eval Filter Stylesheet";
+%	}
+%	else {
+%		return $mode . " " . $school . " Eval Filter Stylesheet (" . $id . ")";
+%	}
+</%method>
+
+<%method get_nav_bars>
+</%method>
+

@@ -1,0 +1,1 @@
+alter table tusk.link_search_query_content add index (child_content_id);

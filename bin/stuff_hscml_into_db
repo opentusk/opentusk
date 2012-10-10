@@ -11,6 +11,8 @@ use HSDB4::SQLRow::Content;
 use MySQL::Password;
 use HSDB4::Constants;
 HSDB4::Constants::set_user_pw (get_user_pw);
+use TUSK::ProcessTracker::ProcessTracker;
+use TUSK::Constants;
 
 if (!defined($ENV{DATABASE_ADDRESS})){
 	$ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost;
@@ -27,30 +29,64 @@ my @dir = readdir(DIR);
 closedir (DIR);
 
 foreach my $file (@dir){
-	next unless ($file =~ /\.xml$/);
-	next unless ($file =~ /^(\d+)\./);
-	my $content_id = $1;
+	if ($file =~ /^(\d+)\.docx?\.xml$/) {
+		my $content_id = $1;
 
-	print "Processing: $file\n" if ($verbose);
-	my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
-	if ($content->primary_key()){
+		print "Processing: $file\n" if ($verbose);
+		my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
+		if ($content->primary_key()){
+			open (my $fh, "<", $processed_dir . '/' . $file) or die ("Could not open $file: $!");
+			my $hscml_body;
+			while (my $line = <$fh>){
+				$hscml_body .= $line;
+			}
+			close($fh);
+		
+			## crazy replace to make sure that &'s are transformed to entities in the web-cite tag
+			$hscml_body =~ s/(<web-cite[^>]+uri=")([^\"]+)(")/$1 . &fix_uri($2) . $3/ge;
+
+			# added fix for line return that is added to emph tags (inline style)
+			$hscml_body =~s/(<\/?emph>)\r?\n/$1/g;
+
+			$content->field_value('hscml_body', $hscml_body);
+			$content->save_version("hscml body updated from $0");
+			unlink $processed_dir . '/' . $file or die ("Could not clean up $file: $!");
+
+			my $tracker = TUSK::ProcessTracker::ProcessTracker->getMostRecentTracker(undef, $content_id, 'tuskdoc');
+
+			my $status = 'tuskdoc_completed';
+			if ($hscml_body =~ /<conversion-note severity/) {
+				$status .= '_warn';
+			}
+
+			$tracker->setStatus($status);
+			my ($uid, $pw) = get_user_pw();
+		
+			$tracker->save({user => $uid});
+		}
+	}
+	elsif ($file =~ /^(\d+)\.docx?\.err$/) {
+		my $content_id = $1;
+
 		open (my $fh, "<", $processed_dir . '/' . $file) or die ("Could not open $file: $!");
-		my $hscml_body;
+		my $err_txt;
 		while (my $line = <$fh>){
-			$hscml_body .= $line;
+			$err_txt .= $line;
 		}
 		close($fh);
 
-		## crazy replace to make sure that &'s are transformed to entities in the web-cite tag
-		$hscml_body =~ s/(<web-cite[^>]+uri=")([^\"]+)(")/$1 . &fix_uri($2) . $3/ge;
-
-                # added fix for line return that is added to emph tags (inline style)
-                $hscml_body =~s/(<\/?emph>)\r?\n/$1/g;
-
-		$content->field_value('hscml_body', $hscml_body);
-		$content->save_version("hscml body updated from $0");
 		unlink $processed_dir . '/' . $file or die ("Could not clean up $file: $!");
-	}else{
+
+		my $tracker = TUSK::ProcessTracker::ProcessTracker->getMostRecentTracker(undef, $content_id, 'tuskdoc');
+		$tracker->setStatus('tuskdoc_error');
+		my $upload_user = $tracker->getCreatedBy();
+		my ($uid, $pw) = get_user_pw();
+		
+		$tracker->save({user => $uid});
+
+		sendmail($err_txt, $content_id, $upload_user);
+	}
+	else{
 		# error case
 	}
 }
@@ -61,4 +97,18 @@ sub fix_uri{
     my ($string) = @_;
     $string =~ s/\&amp;|\&/\&amp;/g;
     return $string;
+}
+
+sub sendmail {
+	my ($msg, $cid, $userid) = @_;
+
+	open(MAIL, "| /usr/lib/sendmail -t")or die "open: $!";
+	print MAIL "From: TUSKdoc Process\n";
+	print MAIL "To: $TUSK::Constants::ErrorEmail, $TUSK::Constants::SupportEmail\n";
+	print MAIL "Subject: TUSKdoc Process Failure \n\n";
+	print MAIL "TUSKdoc with id $cid (uploaded by $userid) failed to convert with the following error:\n";
+	print MAIL $msg;
+	print MAIL ".\n";
+	close(MAIL);
+
 }

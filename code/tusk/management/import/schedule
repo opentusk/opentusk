@@ -13,7 +13,7 @@
 </%method>
 
 <%method jsarray>
-% return ['element.js', 'calendar.js','calendar-en.js','calendar-setup.js'];
+% return ['jquery/jquery.min.js', 'element.js', 'calendar.js','calendar-en.js','calendar-setup.js', 'management/import_schedule.js'];
 </%method>
 
 <script>
@@ -61,6 +61,30 @@
 
 <& /tmpl/element:file_upload, params=>{ label => "Schedule File",
 		name => 'schedule_file',} &>
+
+% my $help_link = $m->scomp('/tmpl/element:help_link', params => {class => 'helpLnk', text => 'When to use date ranges?', not_xmetal => 1, content_id => 1337}); 
+<& /tmpl/element:checkboxes_display, params => {
+	label => 'Date Range (optional)', 
+	checkboxes => [
+			 		{	name => 'date_range_display', 
+						value => '1',
+						checked => undef,
+						txt => 'Use Date Range ' . $help_link . '<div class="use_date_range">' . 
+									$m->scomp('/tmpl/element:textbox', params => { label => 'Start Date:',
+																				   name => 'start_date',
+																				   size => 12,
+																				   length => 10,
+																				   calendar => 1 }) . 
+									$m->scomp('/tmpl/element:textbox', params => { label => 'End Date:',
+																				   name => 'end_date',
+																				   size => 12,
+																				   length => 10,
+																				   calendar => 1 }) 
+					}
+				]}	
+&>
+
+
 
 <& /tmpl/element:textbox, params =>{ label => 'Flag Time',
                 name => 'flag_time',

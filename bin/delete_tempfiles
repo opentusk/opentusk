@@ -1,21 +1,44 @@
 #!/usr/bin/perl
 use FindBin;
 use lib "$FindBin::Bin/../lib";
-
 use strict;
 use File::stat;
 
-my $tempdir = "/data/temp/";
-my $mtime;
+my $deleteIfOlderThan = 60*60*2;
+my $startingDir = "/data/temp";
 
-opendir(DIR, "$tempdir");
+sub walkDir;
+walkDir($startingDir);
 
-while (defined(my $filename = readdir(DIR))){
-	next if ($filename =~ /^\./);
-	$mtime = stat($tempdir . "/" .$filename)->mtime;
-	if (time - $mtime > 60*60*2){
-		unlink($tempdir . "/" . $filename);
+
+sub walkDir {
+	my $tempdir = shift;
+	unless(opendir(DIR, "$tempdir")) {
+		warn ("Unable to open dir $tempdir : $!\n");
+		return;
 	}
-}
 
-closedir(DIR);
+	while(defined(my $filename = readdir(DIR))) {
+		next if ($filename =~ /^\./);
+		my $fullName = $tempdir . "/" .$filename;
+
+		if( -d $fullName ) {
+			walkDir($fullName);
+			my $age = time - stat($fullName)->mtime;
+			my @filesInDir = <$fullName/*>;
+			my $countFilesInDir = scalar @filesInDir;
+			if(($countFilesInDir == 0) &&  ($age > $deleteIfOlderThan)) {
+				unless(rmdir($fullName)) {  warn("Unable to rmdir $fullName : $!\n");  }
+			}
+		} elsif( -f $fullName ) {
+			my $age = time - stat($fullName)->mtime;
+			if($age > $deleteIfOlderThan) {
+				unless(unlink($fullName)) {  warn("Unable to unlink $fullName : $!\n");  }
+			}
+		} else {
+			warn("Unknow file type for: $fullName\n");
+		}
+	}
+
+	closedir(DIR);
+}

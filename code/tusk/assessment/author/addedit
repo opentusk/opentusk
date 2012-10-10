@@ -110,9 +110,12 @@
 	);
 
 	#Add new Performance Levels to prexisting Performance Criteria.
-	my $form_attr_items = TUSK::FormBuilder::Form::AttributeItem->lookup("attribute_id = $attribute_id", ['form_builder_form_attribute_item.sort_order desc'], undef, undef,
+	my ($form_attr_items, $form_fields);
+	if (keys(%$rowHash) > 0) {  #Only proceed if there are any associated Performance Levels.
+		$form_attr_items = TUSK::FormBuilder::Form::AttributeItem->lookup("attribute_id = $attribute_id", ['form_builder_form_attribute_item.sort_order desc'], undef, undef,
 						[TUSK::Core::JoinObject->new('TUSK::FormBuilder::Form::AttributeFieldItem', {joinkey => 'attribute_item_id', jointype => 'left outer' })]);
-	my $form_fields = $form->getFields();
+		$form_fields = $form->getFields();
+	}
 	foreach my $form_attr_item (@$form_attr_items) {
 		#If there's a new Performance Level (FormAttributeItem), it wont have an AttributeFieldItem link,
 		#so create a new FieldItem for it for each Field (Criteria) in this Form.

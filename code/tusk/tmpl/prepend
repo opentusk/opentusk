@@ -380,7 +380,19 @@ if (ref($user) eq 'HSDB4::SQLRow::User' && $user->primary_key && $page ne 'login
 </%method>
 
 <%method logo>
-<h1 id="gLogo"><a href="/home" target="_top"><span><% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %></span></a></h1>
+<%args>
+$hide_global_links
+</%args>
+
+<h1 id="gLogo">\
+% unless ($hide_global_links) {
+<a href="/home" target="_top">\
+% } else {
+<a href="#" target="_top">\
+% }
+<span><% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %></span>\
+</a>\
+</h1>\
 </%method>
 
 
@@ -390,15 +402,18 @@ if (ref($user) eq 'HSDB4::SQLRow::User' && $user->primary_key && $page ne 'login
 $type => 'home'
 $user
 $is_author => 0
+$hide_global_links
 </%args>
 
 <div id="gMasthead">
 
-<& SELF:logo &>
+<& SELF:logo, hide_global_links => $hide_global_links &>
 
 <div id="gTopNavs">
 
-<& SELF:global_links, page => $type, user => $user &>
+% unless($hide_global_links) {
+	<& SELF:global_links, page => $type, user => $user &>
+% }
 
 % if (ref($user) eq 'HSDB4::SQLRow::User' and $user->primary_key and $type ne 'login') {
 <span id="pHPuser">Welcome <% $user->out_full_name() %></span>
@@ -406,15 +421,15 @@ $is_author => 0
 
 % unless($type eq 'login' || $type eq 'frame'){
 % 	my $active = $type;
-<ul id="gTabNav" class="<% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
+<ul class="gTabNav <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
     <li class="firstone<% $active eq 'home'  ? ' gCurPage' : '' %>"><a href="/home" target="_top">Home</a></li>
     <li class="<% $active eq 'browse'? 'gCurPage' : '' %>"><a href="/allcourses.htm" target="_top">Browse All Courses</a></li>
     <li class="<% $active eq 'search'? 'gCurPage' : '' %>"><a href="/search/form" target="_top">Search</a></li>
 % if($is_author){ 
     <li class="<% $active eq 'manage'? 'gCurPage' : '' %>"><a href="/protected/management/home" target="_top">Manage Content</a></li>
 % 	}
-% }
 </ul>
+% }
 
 </div> <!-- gTopNavs -->
 
@@ -472,7 +487,8 @@ $m->comp('SELF:open_gContainer');
 $m->comp('SELF:masthead', 
 		type => $req->{top_tab_type}, 
 		user =>$req->{user}, 
-		is_author => $req->{is_author}
+		is_author => $req->{is_author}, 
+		hide_global_links => $req->{hide_global_links}
 		);
 $m->comp('SELF:open_gBody');
 if($req->{leftnav}){
@@ -514,7 +530,7 @@ return if ($req->{'noheader'});
 unless ($req->{skip_head_tag}){
 	$m->comp('SELF:start_body', onload => $req_hash{onload}, onunload => $req_hash{onunload});
 }
-$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, is_author => $req->{is_author});
+$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, is_author => $req->{is_author}, hide_global_links => $req->{hide_global_links});
 return if($req->{'nobody'}); 
 
         if ($req->{leftnav}){

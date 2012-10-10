@@ -220,7 +220,15 @@
 	<xsl:template match="hsdb-cite-content">
 		<a>
 			<xsl:call-template name="aClass"/>
-			<xsl:attribute name="href"><xsl:text>/view/content/</xsl:text><xsl:value-of select="@content-id"/><xsl:text>#</xsl:text><xsl:value-of select="@node-id"/></xsl:attribute>
+			<xsl:choose>
+				<xsl:when test="@link-type = 'popup'">
+					<xsl:attribute name="href"><xsl:text>/view/content/</xsl:text><xsl:value-of select="@content-id"/><xsl:text>#</xsl:text><xsl:value-of select="@node-id"/></xsl:attribute>
+					<xsl:attribute name="onClick"><xsl:text>javascript:window.open('/view/content/</xsl:text><xsl:value-of select="@content-id"/><xsl:text>#</xsl:text><xsl:value-of select="@node-id"/><xsl:text>?POPUP=1','_blank','height=600,width=650,resizable=yes,scrollbars=yes');return false;</xsl:text></xsl:attribute>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:attribute name="href"><xsl:text>/view/content/</xsl:text><xsl:value-of select="@content-id"/><xsl:text>#</xsl:text><xsl:value-of select="@node-id"/></xsl:attribute>
+				</xsl:otherwise>
+			</xsl:choose>
 			<xsl:apply-templates/>
 		</a>
 	</xsl:template>
@@ -238,7 +246,7 @@
 				<xsl:call-template name="aClass"/>
 				<xsl:attribute name="href"><xsl:text>/view/content/</xsl:text><xsl:value-of select="@content-id"/></xsl:attribute>
 				<xsl:value-of select="@label"/>
-			</a> - <xsl:value-of select="@copyright-holder"/>
+			</a>
 		</div>
 	</xsl:template>
 	<xsl:template match="web-cite">
@@ -363,6 +371,7 @@
 			<xsl:attribute name="width"><xsl:value-of select="@width"/></xsl:attribute>
 			<xsl:attribute name="height"><xsl:value-of select="@height"/></xsl:attribute>
 			<xsl:attribute name="alt"><xsl:value-of select="@description"/></xsl:attribute>
+			<xsl:attribute name="title"><xsl:value-of select="@description"/></xsl:attribute>
 			<xsl:attribute name="border"><xsl:text>0</xsl:text></xsl:attribute>
 		</img>
 	</xsl:template>

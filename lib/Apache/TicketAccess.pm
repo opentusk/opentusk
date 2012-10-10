@@ -19,7 +19,7 @@ sub handler {
 	# The ticket has been accepted.  If there are access problems
 	# later, we should tell the user what went wrong.
 
-	$r->custom_response(FORBIDDEN, "/tusk/forbidden");
+	$r->custom_response(FORBIDDEN, "/tusk/server/http/error/forbidden");
     } else {
 	# Ticket not accepted -- perhaps it's expired, or perhaps
 	# there are no cookies.  If the authorization handler returns

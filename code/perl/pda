@@ -2,6 +2,7 @@
 
 #use Apache::Constants;
 use TUSK::Constants;
+use HSDB4::Constants;
 use HSDB45::UserGroup;
 use Time::Local;
 use Palm::DBA;
@@ -64,7 +65,9 @@ foreach my $meeting (@meetings){
 	#Add an Ical Entry
 	my $startTime = parseCalDate($date, $start);
 	my $endTime = parseCalDate($date, $end);
-	my $uid = $meeting->primary_key.'@'. $TUSK::Constants::Domain;
+	my $school_code = HSDB4::Constants::code_by_school($meeting->course->get_school()->getSchoolName());
+	my $uid = $school_code . $meeting->primary_key.'@'. $TUSK::Constants::Domain;
+
 	$entry = "BEGIN:VEVENT\r\n";
 		$entry.= 'ORGANIZER;CN="'. $meeting->course->get_school()->getSchoolDisplay() .'":invalid:nomail'. "\r\n";
 	if(@faculty) {

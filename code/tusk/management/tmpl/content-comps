@@ -2,8 +2,33 @@
 	use HSDB4::Constants;
 	use TUSK::Constants;
 	use TUSK::Content::External::Source;
+	use TUSK::ProcessTracker::ProcessTracker;
 	use Image::ExifTool;
 </%once>
+
+<%method SlideOptions>
+	<%args>
+		$stain => ''
+		$reuseContent => ''
+		$size => 60
+		$multiContentID => ''
+	</%args>
+%	if ($reuseContent){
+		<& /tmpl/element:field_display, params => {
+			label	=> 'Stain',
+			value	=> ($stain) ? $stain : '&nbsp;',
+		}&>
+%	} else {
+%		my $name = 'stain';
+%		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+		<& /tmpl/element:textbox, params => { 
+			name		=> $name,
+			label 		=> 'Stain:', 
+			value 		=> $stain,
+			size 		=> $size, 
+		}&>
+%	}
+</%method>
 
 <%method Slide>
 <%args>
@@ -33,22 +58,8 @@
 </td></tr>
 
 <& SELF:html_textarea, content => $content, label => 'Text Description:' &>
+<& SELF:SlideOptions, stain => $stain, reuseContent => $content->reuse_content_id() &>
 
-% if ($content->reuse_content_id()){
-
-<& /tmpl/element:field_display, params => {
-						label	=> 'Stain',
-						value	=> ($stain) ? $stain : '&nbsp;',
-					} &>
-
-% } else {
-<& /tmpl/element:textbox, params => { 
-					name		=> 'stain',
-					label 		=> 'Stain:', 
-					value 		=> $stain,
-					size 		=> 60, 
-				} &>
-% }
 </%method>
 
 <%method Document>
@@ -87,6 +98,53 @@ that 'minimal' style is applied to this piece of content
 
 
 
+<%method AudioVideoOptions>
+<%args>
+	$contentType
+	$displayType
+	$reuseContent => 0
+	$width
+	$height
+	$multiContentID => ''
+</%args>
+% unless ($reuseContent){
+
+%	my $name = 'real_change';
+%	if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+<& /tmpl/element:dropdown, params => { 
+					label 		=> 'Media Type:', 
+					selected	=> $contentType,
+					name		=> $name,
+					options		=> 	[
+									{ label => 'Video',			value => 'Video' },
+									{ label => 'Audio',			value => 'Audio' },
+								],
+				} &>
+% } 
+
+%	my $name = 'displaytype';
+%	if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+<& /tmpl/element:dropdown, params => { 
+					label 		=> 'Display Type:', 
+					selected	=> $displayType,
+					name		=> $name,
+					options		=> 	[
+									{ label => 'Stream and Downloadable',	value => 'Both' },
+									{ label => 'Stream Only',		value => 'Stream' },
+									{ label => 'Downloadable Only',		value => 'Downloadable' },
+								],
+				} &>
+
+%
+% if ($contentType eq 'Video') {
+%
+<& SELF:dimensions, width => $width, height => $height, reuseContentID => $reuseContent, multiContentID => $multiContentID &>
+%
+% }
+%
+</%method>
+
+
 <%method AudioVideo>
 <%args>
 	$content
@@ -120,39 +178,10 @@ that 'minimal' style is applied to this piece of content
 </%perl>
 
 <& SELF:html_textarea, content => $content &>
-
-% unless ($content->reuse_content_id()){
-
-<& /tmpl/element:dropdown, params => { 
-					label 		=> 'Media Type:', 
-					selected	=> $content->type(),
-					name		=> 'real_change',
-					options		=> 	[
-									{ label => 'Video',			value => 'Video' },
-									{ label => 'Audio',			value => 'Audio' },
-								],
-				} &>
-% } 
-
-<& /tmpl/element:dropdown, params => { 
-					label 		=> 'Display Type:', 
-					selected	=> $display_type,
-					name		=> 'displaytype',
-					options		=> 	[
-									{ label => 'Stream and Downloadable',	value => 'Both' },
-									{ label => 'Stream Only',		value => 'Stream' },
-									{ label => 'Downloadable Only',		value => 'Downloadable' },
-								],
-				} &>
-
-%
-% if ($content->type() eq 'Video') {
-%
-<& SELF:dimensions, width => $width, height => $height, content => $content &>
-%
-% }
-%
+<& SELF:AudioVideoOptions, contentType => $content->type(), displayType => $display_type, reuseContent => $content->reuse_content_id(), width => $width, height => $height &>
 </%method>
+
+
 
 <%method Video>
 <%args>
@@ -318,8 +347,37 @@ that 'minimal' style is applied to this piece of content
 	$content
 	$args
 </%args>
+
 <%perl>
 </%perl>
+</%method>
+
+<%method DownloadableFileOptions>
+	<%args>
+		%params
+		$multiContentID => ''
+	</%args>
+	<%perl>
+		if($TUSK::Constants::PPTServiceEnabled && !$params{contentID} && TUSK::UploadContent::isa_powerpoint($params{extension})) {
+			my $name = 'ppt_change';
+			if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+			$m->comp("/tmpl/element:flexible_tr", params => { label => 'What do you want to do<br>with your presentation?' } );
+			$m->print('<input name="'. $name .'" type="radio" value="1" checked>Convert to Image Collection (can not be undone)<br>');
+        		$m->print('<input name="'. $name .'" type="radio" value="2">Convert to Image Collection and keep a downloadable version (can not be undone)<br>');
+			$m->print('<input name="'. $name .'" type="radio" value="" >Leave as PowerPoint (Downloadable File)<br>');
+			$m->print('</td>');
+			$m->print('</tr>');
+		}
+		if($TUSK::Constants::TUSKdocServiceEnabled && !$params{contentID} && TUSK::UploadContent::isa_worddoc($params{extension})) {
+			my $name = 'doc_change';
+			if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+			$m->comp("/tmpl/element:flexible_tr", params => { label => 'What do you want to do<br>with your document?' } );
+			$m->print('<input name="'. $name .'" type="radio" value="" checked>Leave as Word Document (Downloadable File)<br>');
+			$m->print('<input name="'. $name .'" type="radio" value="1">Convert to TUSKdoc (<strong style="color:red">New!</strong>)' . $m->scomp('/tmpl/element:help_link', params => {content_id => '1251559', text => 'More about TUSKdoc', not_xmetal => 1, class => 'help'}) . '<br>');
+			$m->print('</td>');
+			$m->print('</tr>');
+		}
+	</%perl>
 </%method>
 
 <%method DownloadableFile>
@@ -327,92 +385,79 @@ that 'minimal' style is applied to this piece of content
 	$content
 	$args
 </%args>
-<%perl>
-	if ($TUSK::Constants::PPTServiceEnabled) {
-		unless ($content->primary_key()){
-			(my $ext = lc($args->{filename})) =~ s/(.*)\.//;
-			if ($ext eq "ppt" or $ext eq "pps" or $ext eq "pptx"){
-				$m->comp("/tmpl/element:flexible_tr", params => { label => 'What do you want to do<br>with your presentation?' } );
-</%perl>
-	<input name="ppt_change" type="radio" value="1" checked>Convert to Image Collection (can not be undone)<br>
-        <input name="ppt_change" type="radio" value="2">Convert to Image Collection and keep a downloadable version (can not be undone)<br>
-	<input name="ppt_change" type="radio" value="" >Leave as PowerPoint (Downloadable File)<br>
-	</td>
-</tr>
-<%perl>
-			}
-		}
-	
-	}
-	if ($TUSK::Constants::TUSKdocServiceEnabled) {
-		unless ($content->primary_key()){
-			(my $ext = lc($args->{filename})) =~ s/(.*)\.//;
-			if ($ext eq "doc" or $ext eq "docx"){
-				$m->comp("/tmpl/element:flexible_tr", params => { label => 'What do you want to do<br>with your document?' } );
-</%perl>
-	<input name="doc_change" type="radio" value="" checked>Leave as Word Document (Downloadable File)<br>
-	<input name="doc_change" type="radio" value="1">TUSKdoc beta (for TUSK staff only)<br>
-	</td>
-</tr>
-<%perl>
-			}
-		}
-	
-	}
-</%perl>
+%	(my $ext = lc($args->{filename})) =~ s/(.*)\.//;
+	<& SELF:DownloadableFileOptions, params => {
+		'contentID' => "". $content->primary_key(),
+		'extension' => "$ext",
+	 } &>
 </%method>
 
-<%method Shockwave>
-<%args>
-	$content
-	$args
-</%args>
-<%perl>
-	my $width	     = 550;
-	my $height	     = 440;
-	my $filename     = '/temp/' . $args->{filename};
-	my $display_type = 'Stream';
-
-	if ($content->type() and $content->body()){
-		my $element 	= $content->body()->tag_values('shockwave_uri');
-		if ($element){
-			$filename     = $element->value();
-			$width        = $element->get_attribute_values('width')->value();
-			$height       = $element->get_attribute_values('height')->value();
-			if ( $element->get_attribute_values('display-type') ) {
-				$display_type = $element->get_attribute_values('display-type')->value();
-			}
-		} else {
+<%method ShockwaveOptions>
+	<%args>
+		$height		=> 0
+		$width		=> 0
+		$reuseContentId	=> 0
+		$displayType	=> 'Stream'
+		$filename	=> ''
+		$multiContentID => ''
+	</%args>
+	<%perl>
+		if(!$height && !$width && $filename) {
 			my $exifTool = new Image::ExifTool;
-			my $info = $exifTool->ImageInfo("/data" . $filename, 'ImageHeight', 'ImageWidth');
-
+			my $info = $exifTool->ImageInfo($filename, 'ImageHeight', 'ImageWidth');
 			$height = $info->{'ImageHeight'};
 			$width  = $info->{'ImageWidth'};
 		}
-	}
+		my $name = 'displaytype';
+		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
+	</%perl>
 
-	my $shockwave = HSDB4::SQLRow::Content::Shockwave->new();
-</%perl>
-<& /tmpl/element:flexible_tr, params => { label => 'Preview:'} &>
-		<% $shockwave->make_object_tag($filename, $width, $height, $display_type) %>
-	</td>
-</tr>
+	<& /tmpl/element:dropdown, params => { 
+		label 		=> 'Display Type:', 
+		selected	=> $displayType,
+		name		=> $name,
+		options		=> 	[
+			{ label => 'Stream and Downloadable',	value => 'Both' },
+			{ label => 'Stream Only',		value => 'Stream' },
+			{ label => 'Downloadable Only',		value => 'Downloadable' },
+		],
+	} &>
 
-<& SELF:html_textarea, content => $content &>
+	<& SELF:dimensions, width => $width, height => $height, reuseContentID => $reuseContentId, multiContentID => $multiContentID &>
+</%method>
 
-<& /tmpl/element:dropdown, params => { 
-					label 		=> 'Display Type:', 
-					selected	=> $display_type,
-					name		=> 'displaytype',
-					options		=> 	[
-									{ label => 'Stream and Downloadable',	value => 'Both' },
-									{ label => 'Stream Only',		value => 'Stream' },
-									{ label => 'Downloadable Only',		value => 'Downloadable' },
-								],
-				} &>
 
-<& SELF:dimensions, width => $width, height => $height, content => $content &>
+<%method Shockwave>
+	<%args>
+		$content
+		$args
+	</%args>
+	<%perl>
+		my $shockwave		= HSDB4::SQLRow::Content::Shockwave->new();
+		my $filename		= '/data/temp/' . $args->{filename};
+		my $display_type	= 'Stream';
+		my $width		= 0;
+		my $height		= 0;
+		my $reuseContentId	= 0;
+		if($content && $content->type() and $content->body()) {
+			my $element = $content->body()->tag_values('shockwave_uri');
+			if($element) {
+				$filename	= $element->value();
+				$width		= $element->get_attribute_values('width')->value();
+				$height		= $element->get_attribute_values('height')->value();
+				if( $element->get_attribute_values('display-type') ) {
+					$display_type = $element->get_attribute_values('display-type')->value();
+				}
+			}
+		}
+	</%perl>
+	<& /tmpl/element:flexible_tr, params => { label => 'Preview:'} &>
+			<% $shockwave->make_object_tag($filename, $width, $height, $display_type) %>
+		</td>
+	</tr>
 
+	<& SELF:html_textarea, content => $content &>
+	<& SELF:ShockwaveOptions, height => $height, width => $width, filename => $filename, reuseContentId => $content->reuse_content_id() &>
 </%method>
 
 <%method title>
@@ -441,20 +486,30 @@ that 'minimal' style is applied to this piece of content
 	$content
 </%args>
 <%perl>
+	my $tuskdoc_lnks = ['preview'];
+
+	my $tracker = TUSK::ProcessTracker::ProcessTracker->getMostRecentTracker(undef, $content->primary_key(), 'tuskdoc');
+	unless (defined $tracker && !$tracker->isCompleted()) {
+		push @$tuskdoc_lnks, 'replace';
+	}
+	push @$tuskdoc_lnks, 'download';
+
+
+
 	my $links = {
 		Collection	 => ['preview'],
 		Multidocument	 => ['preview'],
-		URL		 => ['preview'],
-		Slide		 => ['preview', 'replace', 'overlay', 'download'],
-		Document	 => ['preview', 'replace', 'download'],
-		Video		 => ['preview', 'replace', 'download_media'],
-		Audio		 => ['preview', 'replace', 'download_media'],
-		Flashpix	 => ['preview', 'replace', 'download'],
-		Shockwave	 => ['preview', 'replace', 'download'],
+		URL          => ['preview'],
+		Slide        => ['preview', 'replace', 'overlay', 'download'],
+		Document     => ['preview', 'replace', 'download'],
+		Video        => ['preview', 'replace', 'download_media'],
+		Audio        => ['preview', 'replace', 'download_media'],
+		Flashpix     => ['preview', 'replace', 'download'],
+		Shockwave    => ['preview', 'replace', 'download'],
 		DownloadableFile => ['preview', 'replace', 'download'],
-		TUSKdoc 	 => ['preview', 'replace', 'download'],
-		PDF		 => ['preview', 'replace', 'download'],
-		External	 => ['preview'], 
+		TUSKdoc      => $tuskdoc_lnks,
+		PDF          => ['preview', 'replace', 'download'],
+		External     => ['preview'], 
 	};
 
 	my $actions =	{
@@ -570,6 +625,7 @@ that 'minimal' style is applied to this piece of content
 	$default_keywords
 	$args
 	$course => undef
+	$addSave => 1
 </%args>
 <%perl>
 	if(defined $course && $course->type() eq 'integrated course') {
@@ -1000,7 +1056,18 @@ foreach (@class_meetings) {
 
 <& /tmpl/element:parent_links, content => $content &>
 
-<& /tmpl/element:save_button, params =>{
+% if($addSave) {
+	<& SELF:add_save_button, args => { $args->{'buttons'} } &>
+% }
+</%method>
+
+
+<%method add_save_button>
+<%args>
+        $args
+</%args>
+
+	<& /tmpl/element:save_button, params =>{
 				no_cancel_button	=> 1,
 				label			=> 'Save Changes',
 				name			=> 'Submit',
@@ -1057,12 +1124,13 @@ foreach (@class_meetings) {
 <%args>
 	$width  => -1
 	$height => -1
-	$content
+	$reuseContentID
+	$multiContentID => 0
 </%args>
 %
 % unless ($width == -1) {
 %
-% 	if ($content->reuse_content_id()){
+% 	if ($reuseContentID){
 
 <& /tmpl/element:field_display, params => {
 						label	=> 'Width:',
@@ -1070,10 +1138,11 @@ foreach (@class_meetings) {
 					} &>
 
 % 	} else {
-
+%		my $name = 'width';
+%		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
 <& /tmpl/element:textbox, params => { 
 					label    => 'Width (px):', 
-					name     => 'width',
+					name     => $name,
 					value    => $width, 
 					size     => 10, 
 					onchange => 'confirmDimension(this)', 
@@ -1085,7 +1154,7 @@ foreach (@class_meetings) {
 %
 % unless ($height == -1) {
 %
-%	if ($content->reuse_content_id()){
+%	if ($reuseContentID){
 
 <& /tmpl/element:field_display, params => {
 						label	=> 'Height:',
@@ -1093,10 +1162,11 @@ foreach (@class_meetings) {
 					} &>
 
 %	} else {
-
+%		my $name = 'height';
+%		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
 <& /tmpl/element:textbox, params => { 
 					label    => 'Height (px):', 
-					name     => 'height',
+					name     => $name,
 					value    => $height, 
 					size     => 10, 
 					onchange => 'confirmDimension(this)', 

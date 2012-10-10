@@ -1,3 +1,6 @@
+<%once>
+use HSDB4::SQLRow::Content;
+</%once>
 
 <%method print_my_groups>
 <%args>
@@ -94,6 +97,7 @@ $tc_courses_hashref
 <%method print_conversion_status>
 <%args>
 @ppt_statuses
+@tuskdoc_statuses
 </%args>
 <%doc></%doc>
 
@@ -117,7 +121,7 @@ $tc_courses_hashref
   <tr>
     <td width="1" valign="top" background="/graphics/bg-reddotsvert.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
 	<td width="150%" valign="top">
-
+<h4 class="homepageHdr">Powerpoint Documents</h4>
 	<!-- Begin Inner Conversion Status Table -->
 <& /tmpl/element:table, params => { 
 	width => "100%",
@@ -133,6 +137,29 @@ $tc_courses_hashref
 % } else {
 <tr>
    <td class="cell-left"><i>No powerpoint uploads.</i>
+   </td>
+</tr>
+% } 
+   <tr>
+	<td width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+  </tr>
+</table>
+<h4 class="homepageHdr">TUSKdoc Documents</h4>
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"5",
+	cellpadding =>"0"  } &>
+	
+% if (@tuskdoc_statuses) {
+% foreach my $tds (@tuskdoc_statuses) {
+% 	my $doc = HSDB4::SQLRow::Content->new()->lookup_key($tds->getObjectID());
+<tr>
+    <td width="100%" valign="top" class="cell-left"><% $doc->title() %> (<% $tds->getObjectID() %>) <em>- <% $tds->getStatusLabel() %></em></td>
+  </tr>
+% }
+% } else {
+<tr>
+   <td class="cell-left"><i>No TUSKdoc uploads.</i>
    </td>
 </tr>
 % } 

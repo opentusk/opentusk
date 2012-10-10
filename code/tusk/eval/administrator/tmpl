@@ -5,6 +5,9 @@
 
 
 <%method get_current_time_periods>
+<%args>
+	%params => ()
+</%args>
 <%perl>
 	my @current_time_periods = HSDB45::TimePeriod->new(_school => $m->comp('SELF:schoolname'))->lookup_all('end_date >= curdate()', 'ORDER BY end_date ASC');
 	my @time_periods;
@@ -24,9 +27,12 @@
 </%perl>
 
 <& /tmpl/element:dropdown, params => { 
-	label 		=> 'Time Period:',
-	name		=> 'time_period_id',
-	options		=> \@time_periods,
+	label			=> ($params{label}) ? $params{label} : 'Time Period:',
+	name			=> 'time_period_id',
+	options			=> \@time_periods,
+	selected		=> $params{selected},
+	onchange		=> $params{onchange},
+	trailing_text	=> $params{trailing_text},
 } &>
 </%method>
 

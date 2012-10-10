@@ -1,11 +1,9 @@
-<%flags>
-	inherit => undef
-</%flags>
-
 <%attr>
-no_check_path => 1
-page_header => ''
-page_footer => ''
+	no_check_path => 1
+	no_header   => '1'
+	page_header => undef
+	page_footer => undef
+    allow_guests  => '0'
 </%attr>
 
 <%once>
@@ -13,10 +11,14 @@ page_footer => ''
 	use TUSK::GradeBook::GradeStats;
 </%once>
 
-<%shared>
-	my $user = $m->session->{'user'};
-	my $sorted_grades = $user->get_grades();
-</%shared>
+<%perl>
+	$m->clear_buffer();
+	$r->content_type('text/html');
+	$r->no_cache(1);
+</%perl>
+
+
+% my $sorted_grades = $m->session->{'user'}->get_grades();
 
 % if (scalar(@$sorted_grades)){
 <& /tmpl/element:table &>
@@ -80,4 +82,5 @@ page_footer => ''
 </table>
 % }
 </%method>
+
 

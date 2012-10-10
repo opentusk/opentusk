@@ -6,7 +6,7 @@ BEGIN {
     use vars qw($VERSION @non_blob_fields %primary_keys);
     use base qw/HSDB4::SQLRow/;
     
-    $VERSION = do { my @r = (q$Revision: 1.137 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.141 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version {
@@ -597,14 +597,27 @@ sub email_child_users{
     }
 }
 
+
+#######################################################
+
+=item B<get_current_and_future_time_periods>
+
+    $timeperiods = $course->get_current_and_future_time_periods();
+
+	Returns an array of all ongoing and future timeperiods in this course's school. 
+	Optionally, return ONLY ongoing timeperiods.
+
+=cut
+
 sub get_current_and_future_time_periods{
-	my ($self) = @_;
+	my ($self, $only_current_timeperiods) = @_;
 	my @tp_ids;
+	my $only_current_clause = $only_current_timeperiods ? "and start_date <= curdate()" : ""; 
 
     my $dbh = HSDB4::Constants::def_db_handle;
     my $db = $self->school_db();
 
-    my $sql = "select time_period_id from $db\.time_period where end_date >= curdate()";
+    my $sql = "select time_period_id from $db\.time_period where end_date >= curdate() " . $only_current_clause;
     eval {
 	my $sth = $dbh->prepare ($sql);
 	$sth->execute ();
@@ -620,6 +633,17 @@ sub get_current_and_future_time_periods{
 
 	return ($self->{-current_and_future_time_periods});
 }
+
+
+#######################################################
+
+=item B<get_time_periods_for_enrollment>
+
+    $timeperiods = $course->get_time_periods_for_enrollment();
+
+	Returns an array of all timeperiods associated with this course. 
+
+=cut
 
 sub get_time_periods_for_enrollment{
     my ($self) = @_;
@@ -645,6 +669,16 @@ sub get_time_periods_for_enrollment{
     return (@{$self->{-time_periods_for_enrollment}});
 }
 
+#######################################################
+
+=item B<get_time_periods>
+
+    $timeperiods = $course->get_time_periods();
+
+	If this course's enrollment is managed by user groups, return an array of the timeperiods for each associated
+	group. Otherwise, return an array of all timeperiods associated with this course that are also ongoing.
+
+=cut
 sub get_time_periods{
     my ($self) = @_;
     my (@tp_ids, %checkperiod);
@@ -694,6 +728,16 @@ sub get_time_periods{
 }
 
 
+########################################################
+
+=item B<get_current_timeperiod>
+
+    $timeperiods = $course->get_current_timeperiod();
+
+	Return the time period associated with this course which starts and ends most recently. 
+
+=cut
+
 sub get_current_timeperiod{
     my ($self) = @_;
     my @tp_ids;
@@ -729,6 +773,17 @@ sub get_current_timeperiod{
     return ($self->{-current_timeperiod});
 }
 
+########################################################
+
+=item B<get_users_current_timeperiod>
+
+    $timeperiods = $course->get_users_current_timeperiod($user);
+
+	Return the time period associated 
+	NOTE: get_current_timeperiod should probably be used instead.
+
+=cut
+
 sub get_users_current_timeperiod{ 
 	my ($self, $user) = @_;	
     my $timeperiods = $self->get_time_periods();
@@ -752,6 +807,7 @@ sub get_users_current_timeperiod{
 
 	return $tp;
 }
+
 
 ### this will get the last element of time periods that is linked to the course.
 ### therefore, it could be future or past time period
@@ -1111,9 +1167,9 @@ sub can_user_manage_course {
 sub can_user_edit {
     my $self = shift;
     my $user = shift;
-    # first check the user's role in this course
+    # first check the user's role (as opposed to label) in this course
     my $role = $self->user_primary_role($user->primary_key);
-    return 1 if ($role);
+    return 1 if ($role =~ /(Director|Manager|Author|Editor|Student Manager|Student Editor|Site Director)/);
     my @groups = $user->parent_user_groups;
     foreach (@groups) {
 	return 1 if ($_->can_edit_course($self));
@@ -1460,13 +1516,13 @@ sub get_self_assessment_quizzes{
     my ($quizzes);
 
     my $school_id = TUSK::Core::School->new->getSchoolID($self->school);
-    my $tp;
-	if ( $user ) { 
-		$tp = $self->get_users_current_timeperiod($user);
-	} else {
-		$tp = $self->get_current_timeperiod();
+	my $tp_list = $self->get_current_and_future_time_periods();
+	my $tp_cond = "";
+	if ($tp_list and scalar(@$tp_list)) {
+		my @tp_ids = map { $_->primary_key() } @$tp_list;
+		$tp_cond = "and time_period_id in (" . join(',', @tp_ids ) . ")";
 	}
-    my $tp_cond = "and time_period_id = " . $tp->primary_key() if $tp;
+    
 
     my $sql = "select q.quiz_id, q.title from tusk.quiz q, tusk.link_course_quiz l where (school_id = '" . $school_id . "' and parent_course_id = " . $self->primary_key . ") and q.quiz_id = l.child_quiz_id and q.quiz_type = 'SelfAssessment' and available_date < now() and (due_date > now() or due_date is null) $tp_cond order by l.sort_order";
 

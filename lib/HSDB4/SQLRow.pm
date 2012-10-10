@@ -15,7 +15,7 @@ BEGIN {
     @ISA = qw(Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.73 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.75 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use vars @EXPORT_OK;
@@ -847,6 +847,15 @@ sub out_html_save {
 my $EmbperlLib = '';
 my %EmbperlFiles = ();
 sub out_html {
+
+	#
+	# this should not be called; if it is, send email to tuskdev
+	#
+	use TUSK::ErrorReport;
+	my $r = Apache->request();
+	
+	my $msgBody = ErrorReport::sendErrorReport($r, {'Subject' => 'SQLRow:out_html with Embperl called!', 'Msg' => 'SQLRow:out_html with Embperl called!'});
+		
     #
     # Do the complicated figuring out of what directory, etc, to call
     # and then call the file

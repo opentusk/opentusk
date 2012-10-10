@@ -15,6 +15,7 @@
 
 <%shared>
 	my $user = $m->session->{'user'};
+	my $use_recipient_groups = 0;
 </%shared>
 
 <br/>
@@ -44,9 +45,25 @@
 	border =>"0",
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
+
+% if (ref($recipients_checkboxes) eq 'HASH') {
+<%perl>
+	my $checkboxes;
+ 	my @group_names = keys(%$recipients_checkboxes);	
+	foreach my $group_name (@group_names) {
+		next unless scalar(@{$recipients_checkboxes->{$group_name}});
+		my @recipient_ids = map { $_->user_id() } @{$recipients_checkboxes->{$group_name}};
+		$checkboxes .= "<input type=\"checkbox\" name=\"to\" value=\"" . join(',', @recipient_ids) . "\"><span class=\"xsm\">" . $group_name;
+	}
+	$m->comp('/tmpl/element:field_display', params => {label => 'To:', value => $checkboxes});
+	$use_recipient_groups = 1;
+</%perl>
+% } else {
 <& /tmpl/element:field_display, params => { 
 	label => 'To:',
 	value => $recipients_checkboxes . $to_trailing_text} &>
+% }
+
 <& /tmpl/element:field_display, params =>{ label => 'From:',
 	name => 'from_name',
 	value => $user->out_full_name() . ' (' . $user->email() . ')' } &>

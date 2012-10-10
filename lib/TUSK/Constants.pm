@@ -8,6 +8,8 @@ our $Domain = 'TUSKFQDN';
 
 ## CookieSecret is used in creating the cookie hash
 our $CookieSecret = 'mysecretword';
+## CookieUsesUserID, if set, will put the userID directly into the Embperl cookie. If unset the cookie will use Apache::Session as a userID
+our $CookieUsesUserID = '0';
 
 ## DefaultDB is the database specified when creating connections
 our $DefaultDB = "hsdb4";
@@ -54,6 +56,7 @@ our %HelpMap = (
 	'search' => '',	
 	'evalPrinting' => '920118',
 	'evalStatisticsDef' => '920119',
+	'multiContentUpload' => '1247632',
 );
 our $ManageHelpURL = '/view/course/HSDB/1185';
 our $FAQURL = '/view/content/135650';
@@ -169,6 +172,7 @@ our $DatabaseUsers = {
 	writepassword => "CONTENT_MANAGER_PASSWORD",
     },
 };
+
 
 ## DBParameters specify host-based variables for database connections
 our %DBParameters = ("MYFQDN" => {"ReadHost" => "localhost",

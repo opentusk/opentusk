@@ -66,7 +66,7 @@
 
 
 <%method jsarray>
-%	return ['calendar.js', 'calendar-en.js', 'calendar-setup.js', 'layers.js', 'rte/richtext.js', 'edit_content.js'];
+%	return ['jquery/jquery.min.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js', 'layers.js', 'rte/richtext.js', 'edit_content.js'];
 </%method>
 
 <%method upload_page>
@@ -88,24 +88,35 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 % if($page_token eq 'upload'){ # don't want this functionality on replace page
 %	$info_class = 'gDisplayNone';
 %   my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => 672610, text => 'help', not_xmetal => 1});
+%   my $multiHelpLink = '';
+%   if(exists($TUSK::Constants::HelpMap{'multiContentUpload'}) && $TUSK::Constants::HelpMap{'multiContentUpload'}) {
+%	$multiHelpLink = " - ". $m->scomp('/tmpl/element:help_link', params => {content_id => $TUSK::Constants::HelpMap{'multiContentUpload'}, text => 'help', not_xmetal => 1});
+%   }
 
+%   my $regUpload = $m->comp('SELF:get_content_upload_uri', multiUpload => 0);
+%   my $multiUpload = $m->comp('SELF:get_content_upload_uri', multiUpload => 1);
 <& /tmpl/element:radio_buttons, params => {
                     label   => 'Selected Action:',
                     name    => 'selected_action',
                     buttons => [
                                { 
                                  value => 'upload_file', 
-                                 onclick => 'selectPath(this.value)',
+				 onclick => 'contentSetSubmit(this.value, \''. $regUpload .'\', \'submit\');',
                                  text => 'Upload Content', 
                                },
                                { 
+                                 value => 'upload_zip_file', 
+                                 onclick => 'contentSetSubmit(this.value, \''. $multiUpload .'\', \'multi\');',
+                                 text => "Upload Multi Content (<b><font color=\"red\">New!</font></b>)$multiHelpLink",
+                               },
+                               { 
                                  value => 'create_blank_doc', 
-                                 onclick => 'selectPath(this.value)',
+                                 onclick => 'contentSetSubmit(this.value, \''. $regUpload .'\', \'submit\');',
                                  text => 'Create Document using TUSK HTML Editor', 
                                },
                                { 
                                  value => 'min_style', 
-                                 onclick => 'selectPath(this.value)', 
+                                 onclick => 'contentSetSubmit(this.value, \''. $regUpload .'\', \'submit\');',
                                  text => "Upload Web Page: no TUSK Toolkit (no navigation, notes, keywords, etc.) - $help_lnk", 
                                },
                                ],
@@ -138,9 +149,14 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 
 % }
 
-<& /tmpl/element:file_upload, params => { name => 'file', label => 'File:', onchange => 'checkFileType(this.value)', trailing_text => $trailing_text } &>
+<& /tmpl/element:file_upload, params => { name => 'file', label => 'File:', onchange => 'checkFileType(this.value, \'any\')', trailing_text => $trailing_text } &>
 
 % if($page_token eq 'upload'){ # don't want this functionality on replace page
+</table>
+
+%# The multi content upload page
+<& /tmpl/element:table, params => { id => 'multiUploadInfo', class => $info_class } &>
+<& /tmpl/element:file_upload, params => { name => 'zipfile', label => 'Zip File:', multiple => 1, onchange => 'checkFileType(this.value, \'any\')', trailing_text => $trailing_text } &>
 </table>
 </td>
 </tr>
@@ -164,6 +180,7 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 %
 % if ($page_token eq 'edit') {
 %
+
 <& /tmpl/element:field_display, params => { 
 						label => 'Content ID:', 
 						value => $content->primary_key() 
@@ -348,22 +365,24 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 	$course => undef
 </%args>
 
-<%perl>
-	my $uri = $m->comp('SELF:fix_uri');
-	$uri =~ s/\&?page=[A-z]*//;
-	$uri =~ s/\&?content_type=[A-z]*//;
-</%perl>
-
 <& /tmpl/element:form, params => {
 		method 		=> 'POST',
-		action		=> $uri,
+		action		=> $m->comp('SELF:get_content_upload_uri', multiUpload => 0),
 		name 		=> 'content',
 		submit_check	=> ($page_token ne 'url') ? 1 : 0,
 		enctype		=> ($page_token eq 'upload' or $page_token eq 'replace' or $page_token eq 'overlay') ? 'multipart/form-data' : '',
-		onsubmit 	=> ($page_token eq 'url') ? 'return checkUrlPage(this);' : '{updateRTEs(); return (checkform(this));}',
+		onsubmit 	=> ($page_token eq 'url') ? 'return checkUrlPage(this);' : 'return performSubmitAction(this);',
 } &>
 
+<iframe id="MCIF" name="MCIF" style="display:none; height:0px; width:0px;" src=""></iframe>
+<& /tmpl/element:hidden_form_element, params => { name    => 'multiContentId', value   => , } &>
+
 <& SELF:display_hidden_fields, args => $args &>
+%	# don't want this functionality on replace page
+%	if ($page_token eq 'edit' && ($content->type() eq 'TUSKdoc' && $content->showConversionStatus())) {
+%		$m->comp('/tmpl/content:getStatusRetrievalMsg', content_id => $content->primary_key());
+%	}
+
 
 <%doc>Fire fox really wanted these hiddens before the submits</%doc>
 <& /tmpl/element:table, params => { width => '100%', align => 'center', style => 'padding-top:1px;padding-bottom:7px;' } &>
@@ -385,7 +404,7 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 	my ($rval, $req, $traffic_light, $content_type);
 
 	if ($args->{content_id}){
-		$content->lookup_key($args->{content_id}) 
+		$content->lookup_key($args->{content_id});
 	} elsif ($page_token eq 'edit' or $page_token eq 'replace' or $page_token eq 'overlay'){
 		$content->lookup_key($m->comp('/tmpl/url:get_last_path_id'));
 	}
@@ -441,7 +460,8 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 					}
 				} elsif($content->primary_key()) {
 					($rval, $args->{msg}) = TUSK::UploadContent::replace_file($content, $m->comp('SELF:user'), %$args);
-					$traffic_light = { type => 'msg', text => $args->{msg} };
+					my $msgtype = ($rval)? 'msg' : 'err';
+					$traffic_light = { type => $msgtype, text => $args->{msg} };
 				} else {
 					$traffic_light = { type => 'errmsg', text => "An error occurred with your upload, please try again.<br>If this problem persists try a different browser." };
 				}
@@ -450,32 +470,19 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 				$traffic_light = { type => 'errmsg', text => 'Please select a file to upload' };
 			} else {
 				if ($args->{parent_content} && $args->{parent_content}->primary_key()){
-					$req->{parent_content} = $args->{parent_content};
-					$args->{course} = $args->{parent_content}->school() . "-" . $args->{parent_content}->field_value('course_id');
-					$req->{school} = $args->{parent_content}->school();
-					$req->{course} = HSDB45::Course->new( _school => $req->{school} )->lookup_key( $args->{parent_content}->field_value('course_id') );
 					if (ref($m->comp('/tmpl/url:get_type_object')) eq 'HSDB45::Course'){
 						$req->{root_course} = $m->comp('/tmpl/url:get_type_object');
 					}
-					$req->{course_id} = $req->{course}->primary_key();
-				} elsif ($args->{course}){
-					$req->{course} = $args->{course};
-					$req->{root_course} = $args->{course};
-				} else {
+				} elsif(!$args->{course}) {
 					if (ref($m->comp('/tmpl/url:get_type_object')) eq 'HSDB45::Course'){
 						$req->{course} = $m->comp('/tmpl/url:get_type_object');
-						$req->{school} = $req->{course}->school();
-						$req->{course_id} = $req->{course}->primary_key();
-						$req->{root_course} = $req->{course};
 					}
+
 				}
 
 				$req->{user} = $m->session->{'user'};
 				$req->{content} = $content;
 	
-				delete($args->{start_date}) unless ($args->{start_date});
-				delete($args->{end_date}) unless ($args->{end_date});
-
 				if ($action_token eq 'add'){
 					$args->{'is_a_course'} = $type_object->isa('HSDB45::Course');
 					($rval, $args->{'msg'}, $content) = TUSK::UploadContent::add_content_sub($req, %$args);
@@ -680,7 +687,7 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 							value 	=> $page_hash->{ $page_token }->{'page_value'},
 						} &>
 <& /tmpl/element:hidden_form_element, params => {
-							name 	=> 'action',
+							name 	=> 'contentAction',
 							value 	=> $page_hash->{ $page_token }->{'action_value'},
 						} &>
 
@@ -688,7 +695,6 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 							name 	=> 'content_type',
 							value 	=> $content->type(),
 						} &>
-
 
 % if ($filename){
 <& /tmpl/element:hidden_form_element, params => {
@@ -937,5 +943,41 @@ $obj
 	</div>
 	</td>
 </tr>
+
+</%method>
+
+<%method get_content_upload_uri>
+<%args>
+	$multiUpload
+</%args>
+<%perl>
+        my $uri = $m->comp('SELF:fix_uri');
+        $uri =~ s/\&?page=[A-z]*//;
+        $uri =~ s/\&?content_type=[A-z]*//;
+	if($multiUpload) {
+		$uri =~ s/\/addedit\//\/multiupload\//;
+	}
+	return $uri;
+</%perl>
+</%method>
+
+
+<%method addedit_multi_common_page>
+<%args>
+	$args
+	$course => undef
+</%args>
+
+% $args->{metadata} = $metadata if $metadata;
+% $args->{metadata} = TUSK::Content::External::MetaData->new()->lookupReturnOne("content_id = " . $content->primary_key()) if ($page_token eq 'edit');	
+
+<& "content-comps:common",
+	args => $args,
+	content => $content,
+	child_users => $child_users,
+	default_keywords => $default_keywords,
+	course => $course,
+	addSave => 0,
+&>
 
 </%method>

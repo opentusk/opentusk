@@ -182,3 +182,45 @@ $course            => undef
        </subContent>
 %	}
 </%method>
+
+
+<%method getStatusRetrievalMsg>
+<%args>
+$content_id
+</%args>
+
+<script>
+$(document).ready(function(){
+	var box = document.getElementById('tdStatusBox');
+	box.origHTML = box.innerHTML;
+
+    checkStatus();
+});
+
+function checkStatus(){
+	// put getstatus msg
+	var box = document.getElementById('tdStatusBox');
+	box.innerHTML = box.origHTML;
+
+	// set 3s TO to call ajax
+	setTimeout('getStatus()', '3000');
+}
+
+function getStatus(){
+	var time = new Date();    // append to url to avoid caching
+	$.getJSON('/tusk/ajax/tuskdoc_conversion_status/<% $content_id %>' + '?' + time.getTime(), function(data){
+	    $('#tdStatusBox').html(data.statusMsg);
+		
+		if (data.completed != null && data.completed != 1) {
+	        setTimeout('checkStatus()', '15000');
+		}
+	});
+}
+</script>
+
+<span id="tdStatusBox">
+<em>Retrieving Conversion Status...</em><br>
+<img src="/graphics/icons/waiting_bar.gif" width="220" height="19" />
+</span>
+<br>
+</%method>

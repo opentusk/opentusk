@@ -258,8 +258,8 @@ sub defineSSLLocations() {
   $locations{'/home'} = qq {
                 SetHandler perl-script
                 Options ExecCGI
-                ErrorDocument 404 /tusk/redirect_to_insecure
-                ErrorDocument 403 /tusk/redirect_to_insecure
+                ErrorDocument 404 /tusk/server/http/redirect_to_insecure
+                ErrorDocument 403 /tusk/server/http/redirect_to_insecure
   };
 
   # handler for testing framework reset
@@ -314,7 +314,7 @@ sub defineLocations($) {
   };
 
  
-  foreach my $d ('/hsdb45/eval/', '/hsdb45/user_group', '/hsdb4/quiz', '/external_link') {
+  foreach my $d ('/hsdb45/eval/', '/hsdb45/user_group', '/hsdb4/quiz') {
   	$locations{$d} = qq {
   		$embperl_handler
   		$hsdbauth
@@ -429,6 +429,18 @@ sub defineLocations($) {
   	   AddType image/x-png	.png
   	};
   }
+
+	# Slide previews for multi content uploads
+	$locations{"/mcp/"} = qq{
+		$hsdbauth
+		SetHandler	perl-script
+		PerlHandler  Apache::MultiSlide
+		PerlSetVar AuthzDefault Permissive 
+
+		AddType image/gif	.gif
+		AddType image/jpeg	.jpg
+		AddType image/x-png	.png
+	};
 
   foreach my $d (qw(media)) {
   	$locations{"/$d/"} = qq{

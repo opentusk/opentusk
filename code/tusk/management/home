@@ -5,6 +5,7 @@
 </%attr>
 <%once>
     use HSDB4::SQLRow::PPTUpload;
+	use TUSK::ProcessTracker::ProcessTracker;
     use HSDB4::Constants;
     use TUSK::Session;
 </%once>
@@ -53,7 +54,7 @@
 
 % $m->comp("/management/tmpl/management:print_thesis_committees", tc_courses_hashref => $tc_courses_hashref );
 
-% $m->comp("/management/tmpl/management:print_conversion_status", ppt_statuses => \@ppt_statuses );
+% $m->comp("/management/tmpl/management:print_conversion_status", ppt_statuses => \@ppt_statuses, tuskdoc_statuses => $tuskdoc_statuses );
 
 
 <table cellspacing="0" cellpadding="0"><tr>
@@ -90,11 +91,13 @@
 
 	}
 
-   # What has been recently modified
-   my @recently_modified=$user->recently_modified;
+	# What has been recently modified
+	my @recently_modified=$user->recently_modified;
 
-   # Any PPTs we need to know about
-   my @ppt_statuses = HSDB4::SQLRow::PPTUpload->new->lookup_user_ppt($user_id);
+	# Any PPTs we need to know about
+	my @ppt_statuses = HSDB4::SQLRow::PPTUpload->new->lookup_user_ppt($user_id, 14);
+
+	my $tuskdoc_statuses = TUSK::ProcessTracker::ProcessTracker->new()->getDistinctRecentByUser('tuskdoc', $user_id, undef, 14);
    
 </%init>
 

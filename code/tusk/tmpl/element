@@ -26,11 +26,17 @@ $label
 $width => 0;
 $nowrap => 0;
 $class => 'labelgray';
-$align => ''
+$align => '';
+$rowspan => '';
+$colspan => '';
+$style => '';
 </%args>
+% if($colspan) {$colspan=" colspan=\"$colspan\"";}
+% if($rowspan) {$rowspan=" rowspan=\"$rowspan\"";}
 % $width = $width ? 'width="'.$width.'" ' : 'width="'.$default_label_width.'"';
+% if($style) {$style = 'style="'.$style.'" ';}
 % $nowrap = $nowrap ? 'nowrap' : '';
-<td <% $width %> class="<% $class %>" <% $nowrap %><% ($align) ? " align=\"$align\"" : "" %>><% $label %></td>
+<td <% $width %> class="<% $class %>" <% $nowrap %><% ($align) ? " align=\"$align\"" : "" %><% $style %><% $rowspan %><% $colspan %>><% $label %></td>
 </%method>
 
 <%method set_default_colspan>
@@ -487,13 +493,21 @@ onblur="<% $params{'onblur'} %>"
 	}
 	my $class = 'textareawhite';
 	$class .= ' ' . $params{'class'} if $params{'class'};
+	my $myBlur = '';
+	if($params{'onblur'}) {
+		$params{'onblur'} =~ s/"/\\"/g;
+		$myBlur = 'onblur="'. $params{'onblur'} .'"';
+	}
 </%perl>
 <textarea name="<% $params{'name'} %>" 
 id="<% ($params{'id'}) ? $params{'id'} : $params{'name'}%>" 
 cols="<% $params{'cols'} %>" 
 rows="<% $params{'rows'} %>" 
 style="<% $style %>" 
-class="<% $class %>"><% $params{'value'} %></textarea>
+class="<% $class %>"
+<% $myBlur %>
+><% $params{'value'} %>
+</textarea>
 
 %
 % if ($params{'htmleditor'}){
@@ -1046,6 +1060,7 @@ Actions
 ><% $j %></option>
 
 % 	}
+	</select>
 % }
 %	if ($row->{colspan}) {  ### 
 	   	<td class="<% $td_class %>-left" colspan="<% scalar @{$params{'columns'}} %>"><% $row->{text} %></td>
@@ -1131,12 +1146,10 @@ Actions
 %		} ## loop getting each element in action columns
 
 %		if (defined $params{'action_dropdown'} && defined $action_select_option) {
-			<form name="act" method="POST" action="" class="no-padding">
 			<select name="address" onChange="forward(this);" class="<% $params{'dd_class'} %>">
 			<option value="" class="<% $params{'dd_class'} %>"> -- select -- </option>
 			<% $action_select_option %>
 			</select>
-			</form>	
 % 		}
 %	} ## row_id
 % $m->print('-') if ($first_col);
@@ -1647,13 +1660,13 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 		foreach my $parent (@parents){
 			$m->print('<div>');
 			if ($parent->isa('HSDB4::SQLRow::Content')){
-				$m->print('<a href="/manage/folders/course/' . $parent->school() . '/' . $parent->field_value('course_id') . '/' . $parent->primary_key() . '">' . $parent->title() . '</a>');
+				$m->print('<a href="/management/folders/course/' . $parent->school() . '/' . $parent->field_value('course_id') . '/' . $parent->primary_key() . '">' . $parent->title() . '</a>');
 			}elsif ($parent->isa('HSDB45::Course')){
 				$m->print('<a href="/management/course/display/' . $parent->school() . '/' . $parent->primary_key() . '">' . $parent->out_label() . '</a>');
 			}
 			$m->print('</div>');
 		}
-		
+	
 		$m->print('</td></tr>');
 	}
 </%perl>

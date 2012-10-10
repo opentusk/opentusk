@@ -1,0 +1,701 @@
+<%once>
+	use Apache::Constants;
+	use HSDB4::SQLRow::Content;
+	use HSDB4::Constants;
+	use HSDB4::SQLRow::Content;
+	use Image::ExifTool;
+	use TUSK::Content::MultiContentManager;
+	use TUSK::UploadContent;
+	use Storable qw(dclone);
+</%once>
+
+<%doc>
+	This page is called one of two ways:
+		1) from content/addedit when Upload Multi Content is selected
+		2) from CMS when multiple pieces of content are selected and the "MultiEdit" button was clicked
+	We expect one of two things:
+		1) A Multi Content Upload ID for case 1 above
+		2) multiple content ids are presented via case 2 above
+
+	This creates an array of documents which is an array of hashes.
+	These hashes are:
+		uniqueID (contentID or fileName)
+		previewImage
+		title
+		description
+		contentType
+		extension
+</%doc>
+
+<%attr>
+	top_tab_type	=> 'manage'
+</%attr>
+
+<%shared>
+	my $directory = '';
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $zipFileMembers;
+	my $tempDirectory;
+	my $stepNumber = 0;
+	my @documentsToEdit;
+	my $parent_content = HSDB4::SQLRow::Content->new();
+	my $last_id = $m->comp('/tmpl/url:get_last_path_id');
+	$parent_content->lookup_key($last_id) if ($last_id);
+	my $buttonValue = '';
+	# This is used for the cancel button and also for sending users back once they are done editing.
+	my $redirect = '';
+	my $uploadObject = undef;
+</%shared>
+
+<%method title>
+%       return "Multi Content Editor";
+</%method>
+
+<%method jsarray>
+%	return $m->comp("/management/tmpl/content:jsarray");
+</%method>
+
+<%method cms_min_course_role>
+% return (ref $course eq 'HSDB45::Course') ? 'STUDENTEDITOR' : '';
+</%method>
+
+<%method get_nav_bars>
+% 	return $m->comp("/management/tmpl/content:get_nav_bars");
+</%method>
+
+<%method red_header_text>
+%	return "Multi Content Meta Data (applies to all content)";
+</%method>
+
+
+<%method startup>
+	<%args>
+		$args
+	</%args>
+	<%perl>
+		# Fill in redirect
+		if($last_id) {
+			# We want to go back to viewing the folder we uploaded from
+			my $endOfURI = join('/', $m->comp('/tmpl/url:get_path_ids'));
+			$redirect = '/management/folders/course/'. $course->school . '/' . $course->primary_key .'/'. $endOfURI;
+		} else {
+			# We want to go back to the course we were uploading from
+			$redirect = '/management/course/display/'. $course->school . '/' . $course->primary_key;
+		}
+
+		# See what we need to do.
+		my $traffic_light;
+		if($args->{submit_check} && $args->{ajax_save}) {
+			# We are supposed to save this multi content edit
+			my %metaData;
+			my %contentHash;
+			my $importID;
+			foreach my $key (sort keys %{$args}) {
+				if($key =~ /contentInfo_(\d*)_(.*)$/) {
+					my $contentID = $1;
+					my $contentType = $2;
+					$contentHash{$contentID}{$contentType} = ${$args}{$key};
+				} elsif($key =~ /saveContent/) {
+					$importID = ${$args}{$key};
+				} else {
+					$metaData{$key} = ${$args}{$key};
+				}
+			}
+
+			my $root_course;
+			if ($parent_content && $parent_content->primary_key()){
+				if (ref($m->comp('/tmpl/url:get_type_object')) eq 'HSDB45::Course'){
+					$root_course = $m->comp('/tmpl/url:get_type_object');
+				}
+			}
+
+			my $messages = '';
+			my $success = '';
+
+			my $parentFolder;
+			if(${$args}{parentContentID}) {
+				$parentFolder = HSDB4::SQLRow::Content->new()->lookup_key(${$args}{parentContentID});
+			} else {
+				#
+				# Create a new folder in the course and then put the uploaded content in the course. 
+				#
+				my $tempParentFolder = HSDB4::SQLRow::Content->new();
+				$tempParentFolder->field_value('type', "Collection");
+				# Get the parent content
+				my %parentFolderTempHash = my %group = %{ dclone \%metaData };
+				if($last_id)	{ $parentFolderTempHash{parent_content} = $parent_content; }
+				else		{ $parentFolderTempHash{course_id} = $course->primary_key; }
+
+				# Pull some data into the parentFolderTempHash
+				$parentFolderTempHash{root_course} = $root_course;
+				$parentFolderTempHash{user} = $m->session->{'user'};
+				$parentFolderTempHash{content} = $tempParentFolder;
+
+				# Pull some specific data from the contentHash into the args hash for processing
+				${$args}{content_type}	= "Collection";
+				${$args}{course}	= $course;
+				${$args}{title}		= ${$args}{parentFolderTitle};
+
+				my $rval = '';
+				my $msg = '';
+				($rval, $msg, $parentFolder) = TUSK::UploadContent::add_content_sub(\%parentFolderTempHash, %$args);
+				unless($rval) {
+					warn("Unable to create parent folder ${$args}{title}: $msg\n");
+					$messages.="Unable to create parent folder ${$args}{title}: $msg<br>";
+				}
+				$m->comp('SELF:save_metadata_keywords', args => $args, content => $parentFolder) if $args->{content_type} eq 'External';
+				delete(${$args}{content_type});
+				delete(${$args}{title});
+				delete(${$args}{course});
+			}
+
+			unless($parentFolder && $parentFolder->primary_key()) {
+				$messages.="Unable to find parent content for ${$args}{parentContentID}";
+			} else {
+				foreach my $contentNumber (sort {$a<=>$b} keys %contentHash) {
+					if($contentHash{$contentNumber}{'dne'} eq 'DNE') {next;}
+					if($importID && ($contentNumber ne $importID)) {next;}
+
+					# Clone the metaData hash into a temp hash (the objective is to create a hash for each piece of content)
+					my $contentType = TUSK::UploadContent::get_content_type_from_file_ext( $contentHash{$contentNumber}{id} );
+					my $tempContent = HSDB4::SQLRow::Content->new();
+					$tempContent->field_value('type', $contentType);
+
+					# Get the parent content
+					my %tempHash = my %group = %{ dclone \%metaData };
+					$tempHash{parent_content} = $parentFolder;
+					${$args}{parent_content} = $parentFolder;
+
+					# Pull some data into the tempHash
+					$tempHash{root_course} = $root_course;
+					$tempHash{user} = $m->session->{'user'};
+					$tempHash{content} = $tempContent;
+
+					# Pull some specific data from the contentHash into the args hash for processing
+					${$args}{content_type}	= $contentType;
+					${$args}{body}		= $contentHash{$contentNumber}{textDescription};
+					${$args}{course}	= $course;
+					unless($contentType eq 'URL') {
+						${$args}{filename}	= "${$args}{uploadDirectory}/$contentHash{$contentNumber}{id}";
+					}
+
+					# Delete the used data
+					delete($contentHash{$contentNumber}{id});
+					delete($contentHash{$contentNumber}{textDescription});
+
+					# Pull the rest of the content data into the hash
+					foreach (keys %{$contentHash{$contentNumber}}) {${$args}{$_} = $contentHash{$contentNumber}{$_};}
+
+					my ($rval, $msg, $content) = TUSK::UploadContent::add_content_sub(\%tempHash, %$args);
+					$m->comp('SELF:save_metadata_keywords', args => $args, content => $content) if $args->{content_type} eq 'External';
+
+					unless($rval) {
+						warn("Unable to import ${$args}{title} (${$args}{filename}): $msg\n");
+						$messages.="Unable to import ${$args}{title}: $msg<br>";
+					} else {
+						$success = 'true';
+					}
+
+					delete(${$args}{content_type});
+					delete(${$args}{title});
+					delete(${$args}{body});
+					delete(${$args}{course});
+					delete(${$args}{filename});
+				}
+			}
+
+
+			$m->clear_buffer();
+			$r->no_cache(1);
+			$r->content_type('text/xml');
+			$m->print('<?xml version="1.0" encoding="UTF-8"?>'. "\n");
+			$m->print("<return>\n");
+			$m->print("	<redirect>$redirect</redirect>\n");
+			$m->print("	<messages>$messages</messages>\n");
+			$m->print("	<success>$success</success>\n");
+			$m->print("	<parentContentID>". $parentFolder->primary_key() ."</parentContentID>\n");
+			$m->print('</return>');
+			$m->abort();
+		} elsif($args->{content}) {
+			# we are supposed to edit multiple pieces of content so load things from the content IDs
+			my $contentLoadWarnings = '';
+			$parent_content = HSDB4::SQLRow::Content->new();
+			my %metadata;
+			foreach my $content_id (@{  $args->{content}  }) {
+				my %tempHash;
+				my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
+				if($content && $content->primary_key()) {
+					if($content->can_user_edit($m->session->{'user'})) {
+						my $image = $content->out_html_small_img();
+						unless($image) {$image = $content->out_html_thumbnail();}
+						unless($image) {$image = $content->out_icon();}
+						$tempHash{'uniqueID'}		= $content_id;
+						$tempHash{'previewImage'}	= $image;
+						$tempHash{'title'}		= $content->title();
+						$tempHash{'description'}	= ($content->body() && $content->body()->tag_values('html')) ? $content->body()->tag_values('html')->value() : '';
+						$tempHash{'contentType'}	= $content->content_type();
+						$tempHash{'extension'}		= '';
+						$tempHash{'reuseContent'}	= $content->reuse_content_id();
+                				$tempHash{'stain'}		= '';
+						if($content->type() eq 'Video' && $content->body()) {
+							my $element = $content->body()->tag_values('realvideo_uri');
+							if($element) {
+								if($element->get_attribute_values('width')) {
+									$tempHash{'width'} = $element->get_attribute_values('width')->value();
+								}
+								if($element->get_attribute_values('height')) {
+									$tempHash{'height'} = $element->get_attribute_values('height')->value();
+								}
+							}
+						} elsif(($content->type() eq 'Slide') && $content->can('out_stain') && $content->out_stain()) {
+							$tempHash{'stain'} = $content->out_stain();
+						}
+						push @documentsToEdit, \%tempHash;
+						my $source	= $content->source();
+						my $endDate	= $content->end_date();
+						my $startDate	= $content->start_date();
+						my $copyright	= $content->copyright();
+						if(!exists($metadata{source}) || ($metadata{source}{array}[0] ne $source)) {push @{$metadata{source}{array}}, $source;}
+						$metadata{source}{hash}{$source}++;
+					} else {
+						$contentLoadWarnings = 'Unable to edit content with ID $content_id';
+					}
+				} else {
+					# For some reason we couldn't look up this content ID, let the user know and continue
+					$contentLoadWarnings = 'Unable to load content with ID $content_id';
+				}
+			}
+#$m->print("<br><br><br><br><center><b>The number of unique srouces was ". scalar(@{$metadata{source}{array}}) ."</b><br>");
+#foreach(@{$metadata{source}{array}}) {print "'$_' for $metadata{source}{hash}{$_}/". scalar(@documentsToEdit) ." (". (($metadata{source}{hash}{$_}/scalar(@documentsToEdit))*100) .")<br>";}
+			# If we got any load errors display them back
+			if($contentLoadWarnings != '') {
+				$m->comp("SELF:set_msg", msg => $contentLoadWarnings, type => 'errmsg');
+			}
+			$buttonValue = "Save";
+		} elsif(exists($args->{'multiContentId'})) {
+			# we were given a mutliContentID so we need to load things from the content IDs
+			$uploadObject = TUSK::Content::MultiContentManager->new->lookupKey( $args->{'multiContentId'} );
+
+			# First lets see if we got a valid multi content, then check if we were the ones who uploaded it.
+			if(!$uploadObject) {
+				$traffic_light = { type => 'errmsg', text => 'Unable to create a multicontnet upload object from passed ID.' };
+			} elsif(!$uploadObject->is_user_authorized($m->session->{'user'}->primary_key)) {
+				$m->comp('/tmpl/url:redirect', message => 'You are not authorized to work with this upload.')
+			} else {
+				$directory = $uploadObject->getDirectory();
+				my $previewDirectory = $uploadObject->getPreviewDirectory();
+				unless(opendir(DIR, $directory)) {
+					$traffic_light = { type => 'errmsg', text => 'Unable to open directory for multicontent upload..' };
+				} else {
+					# make this a recursive read
+					foreach my $fileName (grep !/^\./, readdir(DIR)) {
+						my %tempHash;
+						if( -d "$directory/$fileName" ) {
+							$tempHash{'previewImage'} = '<img src="/icons/ico-folder.gif">';
+							$tempHash{'title'} = $fileName;
+							$tempHash{'contentType'} = 'folder';
+						} else {
+                					$tempHash{'uniqueID'}		= $fileName;
+                					$tempHash{'previewImage'}	= '<img src="/icons/unknown.gif">';
+                					$tempHash{'extension'}		= 'None';
+                					$tempHash{'title'}		= $fileName;
+                					$tempHash{'description'}	= '';
+                					$tempHash{'contentType'}	= TUSK::UploadContent::get_content_type_from_file_ext($fileName);
+                					$tempHash{'reuseContent'}	= 0;
+                					$tempHash{'stain'}		= '';
+                					if($tempHash{'contentType'} eq 'URL') {
+								# If we are a URL load the first line from the file and set it as the body.
+								unless(open(URL_FILE, "$directory/$fileName")) {$tempHash{'description'} = "Unable to open $fileName: $!";}
+								else {
+									$tempHash{'description'} = <URL_FILE>;
+									chomp $tempHash{'description'};
+									close(URL_FILE);
+								}
+							} elsif($tempHash{'contentType'} eq 'Document') {
+								# If we are a Document (htm[l]) load the file as the body
+								unless(open(HTML_FILE, "$directory/$fileName")) {$tempHash{'description'} = "Unable to open $fileName: $!";}
+								else {
+									while(<HTML_FILE>) { $tempHash{'description'}.= $_; }
+									close(HTML_FILE);
+								}
+							} elsif($tempHash{'contentType'} eq 'Video' || $tempHash{'contentType'} eq 'Shockwave') {
+								my $exifTool = new Image::ExifTool;
+								my $info = $exifTool->ImageInfo("$directory/$fileName", 'ImageHeight', 'ImageWidth');
+								$tempHash{'height'} = $info->{'ImageHeight'};
+								$tempHash{'width'}  = $info->{'ImageWidth'};
+							}
+
+							if($fileName =~ /^(.*)\.([^\.]*)$/) {
+								$tempHash{'title'} = $1;
+								$tempHash{'extension'} = $2;
+							}
+							# if we are not a slide than let HSDB4::SQLRow::Content give us an icon for this file type.
+							if($tempHash{'contentType'} ne 'Slide') {
+								my $dummyContent = new HSDB4::SQLRow::Content->new();
+								$dummyContent->set_field_values ( type => $tempHash{'contentType'} );
+								$dummyContent->rebless;
+								$tempHash{'previewImage'} = $dummyContent->out_html_icon_img();
+								unless($tempHash{'previewImage'}) { $tempHash{'previewImage'} = $dummyContent->out_icon(); }
+							} else {
+								# Otherwise we are an image and a preview image should have been generated for us.
+								if(-f "$previewDirectory/${fileName}.jpg") {
+									$tempHash{'previewImage'} = "<img src=\"/mcp/". $uploadObject->getPrimaryKeyID() ."/${fileName}\" height=\"91\" width=\"140\">";
+								}
+							}
+						}
+						push @documentsToEdit, \%tempHash;
+					}
+				}
+			}
+			$buttonValue = "Import";
+		} else {
+			$traffic_light = { type => 'errmsg', text => 'No content was specified for multi content editor.' };
+		}
+		if($traffic_light)	{ $m->comp("SELF:set_msg", msg => $traffic_light->{text}, type => $traffic_light->{type}); }
+		else			{ $m->comp("SELF:set_msg", msg => ''); ${$args}{'errmsg'} = ''; }
+	</%perl>
+</%method>
+
+<script>
+	var lastEditedContentID;
+	var lastTextSize = new Array();
+	var lastOptionsSize = new Array();
+
+	var contentImports = new Array();
+
+	function editContent(divID) {
+		if(lastEditedContentID) {uneditContent(lastEditedContentID);}
+		$('#hdnrte_contentInfo_'+ divID +'_textDescription').value = document.getElementById(divID +'_displayText').innerHTML;
+		lastTextSize[0] = $("#"+ divID +'_displayText').css('height').replace(/[^0-9]/g, '');
+		lastTextSize[1] = $("#"+ divID +'_displayText').css('width').replace(/[^0-9]/g, '');
+		if(lastTextSize[0] == '') {lastTextSize[0] = 0;}
+		if(lastTextSize[1] == '') {lastTextSize[1] = 0;}
+		lastOptionsSize[0] = $("#"+ divID +'_additionalID').css('height').replace(/[^0-9]/g, '');
+		lastOptionsSize[1] = $("#"+ divID +'_additionalID').css('width').replace(/[^0-9]/g, '');
+		if(lastOptionsSize[0] == '') {lastOptionsSize[0] = 0;}
+		if(lastOptionsSize[1] == '') {lastOptionsSize[1] = 0;}
+		$("#"+ divID +'_additionalID').css('overflow', 'hidden');
+		$("#"+ divID +'_additionalID').animate({ 
+			width: "1px" 
+		}, 250, function() {
+			$("#"+ divID +'_additionalID').toggle();
+			$("#"+ divID +'_displayText').animate({ 
+				height: "315px", 
+				width: "700px"
+			}, 400,function() {
+    				$("#"+ divID +'_displayText').toggle();
+				$("#"+ divID +'_editText').toggle();
+				$('#rte_contentInfo_'+ divID +'_textDescription').focus();
+				lastEditedContentID = divID;
+  			}); 
+		}); 
+	}
+
+	function doBlurUnedit() {
+		uneditContent(lastEditedContentID);
+	}
+
+	function uneditContent(divID) {
+//		if(divID != lastEditedContentID) {return;}
+		updateRTEs();
+		newText = document.getElementById('hdnrte_contentInfo_'+ divID +'_textDescription').value;
+		document.getElementById(divID +'_displayText').innerHTML = newText;
+		$("#"+ divID +'_editText').toggle();
+		$("#"+ divID +'_displayText').toggle();
+		$("#"+ divID +'_displayText').animate({ 
+			height: lastTextSize[0] +'px', 
+			width: lastTextSize[1] +'px'
+		}, 400, function() {
+			$("#"+ divID +'_additionalID').toggle();
+			try {
+				$("#"+ divID +'_additionalID').animate({ 
+					height: lastOptionsSize[0] +'px',
+					width: lastOptionsSize[1] +'px'
+				}, 250, function() {
+					$("#"+ divID +'_additionalID').css('overflow', '');
+				}); 
+			} catch(err) {
+				// This was put in for IE 6... not sure why IE has a problem, the animations were fine.
+			}
+		});
+		lastEditedContentID = '';
+	}
+</script>
+<& /tmpl/element:form, params => {
+	method          => 'POST',
+	action          => '',
+	name            => 'content',
+} &>
+% if(scalar(@documentsToEdit) > 0) {
+	<& /tmpl/element:table, params => { id => 'contentMetaData', } &>
+ 		<& "/tmpl/element:flexible_tr", params => { 'label' => 'Number of Files', tr_name => "num_files_in_zip" } &>
+ 			<% scalar(@documentsToEdit) %>
+ 		</td></tr>
+		<& "/tmpl/element:flexible_tr", params => { 'label' => 'Parent Folder Name', tr_name => "parent_folder" } &>
+%			my @timeElements = localtime(time());
+%			my $uploadTimeStamp = sprintf("%.4d%.2d%.2d_%.2d%.2d", ($timeElements[5]+1900), ($timeElements[4]+1), $timeElements[3], $timeElements[2], $timeElements[1]);
+%			my $titlePrefix = 'MultiContentUpload_';
+%			if($uploadObject) {
+%				$titlePrefix = $uploadObject->getUploadedFileName();
+%				$titlePrefix =~ s/^.*\///;
+%				$titlePrefix =~ s/\.[^\.]*$/_/;
+%			}
+			<& /tmpl/element:input_textbox, params => {
+				name=>"parentFolderTitle",
+				size=>"60",
+				value=> $titlePrefix .$uploadTimeStamp,
+				maxlength=>"100%",
+			}&>
+			<input type="hidden" name="parentContentID" value="">
+		</td></tr>
+		<& /management/tmpl/content:process, args => { page => 'add', content_type => 'Multidocument', parent_content => $parent_content, } &>
+ 		<& /management/tmpl/content:addedit_multi_common_page, args => {}, course => $course &>
+ 	</table>
+	<br><br>
+	<& /tmpl/prepend:header_bar_table, req => { 'redHeaderBarText' => 'Multi Content Data (applies to a specific piece of content)'} &>
+	<input type="hidden" name="uploadDirectory" value="<% $directory %>">
+	<input type="hidden" name="ajax_save" value="">
+	<input type="hidden" name="saveContent" value="">
+ 	<table border="0" cellspacing="0" cellpadding="0" style="width:100%">
+%	my $contentCounter = 1;
+%	foreach my $index (0..$#documentsToEdit) {
+%		my %contentHashRef = %{$documentsToEdit[$index]};
+%		my $fileType = $contentHashRef{'contentType'};
+%		my $title = $contentHashRef{'title'};
+%		my $extension = $contentHashRef{'extension'};
+%		my $description = $contentHashRef{'description'};
+%		my $uid = $contentHashRef{'uniqueID'};
+%		my $headerWidth = '40px';
+%		my $previewImage = $contentHashRef{'previewImage'};
+%		my $rowspan = 2;
+%		my $isConvertableDocument = 0;
+%		if($fileType eq 'DownloadableFile' && (TUSK::UploadContent::isa_powerpoint($extension) || TUSK::UploadContent::isa_worddoc($extension))) {
+%			$isConvertableDocument = 1;
+%			$rowspan = 3;
+%		}
+
+ 		<tr onMouseOver="changeRow(<% $contentCounter %>, '#E7EFF7');" onMouseOut="changeRow(<% $contentCounter %>,'');">
+			<td id="<% $contentCounter %>_0" rowspan="<% $rowspan %>" valign="top" align="center" style="padding-top:7px; padding-left:10px; padding-right:10px;">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tr>
+						<td align="left"><b><% $contentCounter %>&nbsp;of&nbsp;<% scalar(@documentsToEdit)  %></b></td>
+						<td align="right">
+%						if($contentHashRef{'contentType'} ne 'Slide') {
+ 							<% $previewImage %>
+%						}
+						</td>
+					</tr>
+				</table>
+				<script>contentImports['<% $contentCounter %>'] = true;</script>
+%				if($buttonValue eq 'Import') {
+					<table border="0" cellspacing="0" cellpadding="0"><tr><td>
+%					if($fileType ne 'folder') {
+						<input type="checkbox" name="contentInfo_<% $contentCounter %>_dne" value="DNE"></td><td>Do&nbsp;Not&nbsp;Import</td>
+%					} else {
+						<font color="gray">Ignoring</font>
+%					}
+					</td></tr></table>
+%				}
+%				if($contentHashRef{'contentType'} eq 'Slide') {
+ 					<% $previewImage %>
+%				}
+				<input type="hidden" name="contentInfo_<% $contentCounter %>_id" value="<% $uid %>">
+			</td>
+			<& /tmpl/element:labelbox, style=>"width:$headerWidth" ,label=> 'Title:', align => 'left' &>
+			<td id="<% $contentCounter %>_1">
+%				if($fileType eq 'folder') {
+					<% $title %>
+%				} else {
+					<& /tmpl/element:input_textbox, params => {
+						name=>"contentInfo_${contentCounter}_title",
+						size=>"55%",
+						value=>$title,
+						maxlength=>"100%",
+					}&>
+%					if($buttonValue eq 'Import') {
+						(<font color="gray"><% $extension %></font>)
+%					} else {
+						(<font color="gray"><% $uid %></font>)
+%					}
+%				}
+			</td>
+		</tr>
+%		my $rowLabel = '';
+%		if($fileType eq 'URL')	{$rowLabel = 'URL:';}
+%		else			{$rowLabel = 'Description:';}
+
+		<tr onMouseOver="changeRow(<% $contentCounter %>, '#E7EFF7');" onMouseOut="changeRow(<% $contentCounter %>,'');">
+			<& /tmpl/element:labelbox, style=>"width:$headerWidth" ,label=> $rowLabel, align => 'left' &></td>
+			<td id="<% $contentCounter %>_2">
+				<table border="0" width="100%" cellspacing="0" cellpadding="0"><tr>
+				<td width="295px">
+%				if($fileType eq 'URL') {
+					<& /tmpl/element:input_textbox, params => {
+						name	=> "contentInfo_${contentCounter}_textDescription",
+						value	=> $description,
+						size	=> "55",
+						maxlength => "100%",
+					} &>
+%				} elsif(($fileType eq 'Audio') || ($fileType eq 'Video') || ($fileType eq 'Shockwave') || ($fileType eq 'Document') || ($fileType eq 'Slide')) {
+					<div id="<% $contentCounter %>_displayText"
+						style="display:; border: 1px solid #6699CC; height:120px; width:285px; overflow:hidden;"
+						onClick="editContent('<% $contentCounter %>');"
+					>
+						<% $description %>
+					</div>
+					<div id="<% $contentCounter %>_editText" style="display:none;">
+						<& /tmpl/element:input_textarea, params => {
+							name=>"contentInfo_${contentCounter}_textDescription",
+							value=>"$description",
+							cols=>40,
+							rows=>5,
+							htmleditor=>1,
+						}&>
+						<a href="javascript:" onclick="uneditContent('<% $contentCounter %>'); return false;">Close Editor</a>
+					</div>
+%				} elsif($fileType eq 'folder') {
+					<font color="gray"><i>Ignoring - Folder structure not imported with this tool.</i></font>
+%				} else {
+					<font color="gray"><i>Description not required for this content type.</i></font>
+%				}
+				</td>
+				<td valign="top" id="<% $contentCounter %>_additionalID">
+					<table width="100%">
+%					if($fileType eq 'Video' || $fileType eq 'Audio') {
+						<& /management/tmpl/content-comps:AudioVideoOptions,
+							contentType => $fileType, displayType => '', reuseContent => $contentHashRef{'reuseContent'},
+							width => $contentHashRef{'width'}, height => $contentHashRef{'height'}, multiContentID => $contentCounter,
+						&>
+%					} elsif($fileType eq 'Shockwave') {
+						<& /management/tmpl/content-comps:ShockwaveOptions,
+							contentType => $fileType, displayType => '', reuseContent => $contentHashRef{'reuseContent'},
+							width => $contentHashRef{'width'}, height => $contentHashRef{'height'}, multiContentID => $contentCounter,
+						&>
+%					} elsif($fileType eq 'Slide') {
+						<& /management/tmpl/content-comps:SlideOptions, multiContentID => $contentCounter,
+							stain => $contentHashRef{'stain'}, reuseContent => $contentHashRef{'reuseContent'}, size => 20,
+						&>
+%					} elsif($fileType eq 'DownloadableFile' && !$isConvertableDocument) {
+%						my $contentID = $uid;
+%						if($buttonValue eq 'Import') {$contentID = '';}
+						<& /management/tmpl/content-comps:DownloadableFileOptions, multiContentID => $contentCounter, params => {
+							'contentID' => "$contentID", 'extension' => "$extension",
+						} &>
+%					}
+					</table>
+				</td>
+				</tr></table>
+			</td>
+		</tr>
+%		if($isConvertableDocument) {
+%			my $contentID = $uid;
+%			if($buttonValue eq 'Import') {$contentID = '';}
+			<tr onMouseOver="changeRow(<% $contentCounter %>, '#E7EFF7');" onMouseOut="changeRow(<% $contentCounter %>,'');"><td colspan="2" id="<% $contentCounter %>_3">
+				<table width="100%" cellspacing="0" cellpadding="0">
+				<& /management/tmpl/content-comps:DownloadableFileOptions, multiContentID => $contentCounter, params => { 'contentID' => "$contentID", 'extension' => "$extension", } &>
+				</table>
+			</td></tr>
+%		}
+		<tr onMouseOver="changeRow(<% $contentCounter %>, '#E7EFF7');" onMouseOut="changeRow(<% $contentCounter %>,'');">
+			<td id="<% $contentCounter %>_4"colspan="3" style="height:1px; border-bottom:1px solid black; padding-top:5px;"></td>
+		</tr>
+%		$contentCounter++;
+%	}
+		<& /tmpl/element:save_button, params=>{
+			label		=> "$buttonValue Content",
+			name		=> 'multi_content_save',
+			onclick		=> "runImportContent(); return false;",
+			cancel_onclick	=> "go_back('$redirect');",
+			one_column	=> 1,
+			colspan		=> 6,
+		} &>
+	</table>
+	<br>
+% } else {	# Close if number of content > 0
+%	# Lets give them a back button
+	<br><& /tmpl/element:button, params=>{
+		label		=> "Go Back",
+		name		=> 'go_back',
+		href		=> $redirect,
+	} &>
+% }
+</form>
+
+<style>
+	#grayOutDiv {
+		position: absolute;
+		left: 0;
+		top: 0;
+		background: black;
+		z-index: 500;
+	}
+
+	#multistatus {
+		width: 500px;
+		height: 350px;
+		background: white;
+		border: 3px solid #CC3300;
+		text-align: center;
+		position: absolute;
+		margin-left: -250px;
+		margin-top: -175px;
+		padding:20px;
+		left: 50%;
+		top: 50%;
+		z-index: 1000;
+		display: none;
+	}
+
+	#done_div {
+		border-width:2px;
+		border-style:solid;
+		padding:10px 20px 10px 60px;
+		margin:20px 20px 0 20px;
+		width:70%;
+		min-width:300px;
+		_height:40px;
+		min-height:40px;
+		display: none;
+		text-align: left;
+	}
+
+	#savingmessages {
+	}
+
+	#errorstatus {
+		border:1px solid gray;
+		width: 450px;
+		height: 200px;
+		overflow: auto;
+		text-align:left;
+		white-space:nowrap;
+		margin-top:25px;
+	}
+</style>
+
+<div id="grayOutDiv"></div>
+<div id="multistatus">
+	<font style="font-weight: bold; font-size: 10pt;">Multi Content Save Status</font><br>
+	<center>
+		<div id="savingmessages">
+			Saving <span id="currentNumber">1</span> of <span id="totalNumber">Y</span>
+			<table border="0" style="border:1px solid black; width:350px;"><tr><td style="width:100%;">
+				<div id="percentBar" style="background-color: blue; width:0px; height:15px; border:1px solid gray;"></div>
+			</td></tr></table>
+		</div>
+		<div id="errorstatus"></div>
+	</center>
+	<center>
+		<div id="done_div"></div>
+		<div id="continue_button" style="display:none; margin-top:10px;"></div>
+	</center>
+</div>
+<script>
+	$('errorstatus').scroll( function() {
+		if(userScrolled) {
+			if(document.getElementById('errorstatus').scrollTop == document.getElementById('errorstatus').scrollHeight) {
+				userScrolled = false;
+			} else {userScrolled = true;}
+		}
+	} );
+</script>

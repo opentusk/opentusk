@@ -62,6 +62,7 @@ sub new {
 					'due_date' => '',
 					'group_file_flag' => '',
 					'resubmit_flag' => '',
+					'sort_order'	=> '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -272,11 +273,52 @@ sub setResubmitFlag{
     $self->setFieldValue('resubmit_flag', $value);
 }
 
-=back
+#######################################################
+
+=item B<getSortOrder>
+
+my $string = $obj->getSortOrder();
+
+Get the value of the sort_order field
 
 =cut
 
+sub getSortOrder{
+    my ($self) = @_;
+    return $self->getFieldValue('sort_order');
+}
+
+#######################################################
+
+=item B<setSortOrder>
+
+$obj->setSortOrder($value);
+
+Set the value of the sort_order field
+
+=cut
+
+sub setSortOrder{
+    my ($self, $value) = @_;
+    $self->setFieldValue('sort_order', $value);
+}
+
+=back
+
+
+=cut
+
+#######################################################
+
 ### Other Methods
+
+sub updateSortOrders{
+    my ($self, $change_order_string, $assignments) = @_;
+	my ($index, $new_index) = split('-', $change_order_string);	
+	my $cond = "1 = 1"; 
+    return $self->SUPER::updateSortOrders($index, $new_index, $cond, $assignments);
+}
+
 
 sub getGradeEventObject {
     my ($self) = @_;

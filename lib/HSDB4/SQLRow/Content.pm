@@ -25,6 +25,7 @@ use TUSK::Content::External::MetaData;
 use TUSK::Course;
 use Carp;
 use Image::Magick;
+use TUSK::ProcessTracker::ProcessTracker;
 
 use POSIX 'setsid';
 
@@ -37,7 +38,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.256 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.257 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::SQLRow::ContentHistory;
@@ -1184,10 +1185,9 @@ sub get_bread_crumb_from_path {
 
 	if(${$theCrumbsRef}[0] =~ /^[a-zA-Z]*$/) {
 		my $school = shift @{$theCrumbsRef};
-	    my $character = HSDB4::Constants::code_by_school($school);
+		my $character = HSDB4::Constants::code_by_school($school);
 		${$theCrumbsRef}[0] = $character . ${$theCrumbsRef}[0] . 'C';
 	}
-
 	my $trail = '/view/content/';
 	foreach my $item (@{$theCrumbsRef}) {
 		my $lastChar = substr($item, -1, 1);
@@ -2092,7 +2092,7 @@ sub out_html_img {
 	if ($overlay) { $uri = '/overlay'; }
 	
     $uri .= $HSDB4::Constants::URLs{$size} . "/" . $self->primary_key;
-    return "<img class=\"mainImg\" src=\"$uri\">";
+	return "<img class=\"mainImg\" src=\"$uri\">";
 }
 
 sub out_html_thumbnail_img {
@@ -2185,7 +2185,7 @@ sub out_html_icon_img {
 
     return unless $width && $height;
     my $uri = $self->out_html_thumbnail_uri;
-    return "<IMG WIDTH=\"$width\" HEIGHT=\"$height\" SRC=\"$uri\" BORDER=0>";
+	return "<IMG WIDTH=\"$width\" HEIGHT=\"$height\" SRC=\"$uri\" BORDER=0>";
 }
 
 sub out_html_thumbnail_uri {
@@ -2601,8 +2601,20 @@ sub out_html_body{
 
 sub out_file_path{
 	my ($self) = @_;
-	my $filename = $TUSK::UploadContent::path{'doc-archive'} . '/' . $self->primary_key() . '.doc';
-	return $filename;
+
+	my $id = ($self->reuse_content_id())? $self->reuse_content_id() : $self->primary_key();
+	my $fname_doc  = $TUSK::UploadContent::path{'doc-archive'} . "/$id.doc";
+	my $fname_docx = $TUSK::UploadContent::path{'doc-archive'} . "/$id.docx";
+	my $file_uri;
+
+	if (-e ($fname_doc) ) {
+		$file_uri = $fname_doc;
+	}
+	elsif (-e ($fname_docx) ) {
+		$file_uri = $fname_docx;
+	}
+
+	return $file_uri;
 }
 
 sub out_html_icon {
@@ -2641,6 +2653,22 @@ sub out_html_thumbnail {
 
 sub is_mobile_ready{
 	return 1;
+}
+
+sub showConversionStatus {
+	my $self = shift;
+
+	my $tracker = TUSK::ProcessTracker::ProcessTracker->new()->getMostRecentTracker(undef, $self->primary_key(), 'tuskdoc');
+	if (defined $tracker) {
+		my $modified = HSDB4::DateTime->new()->in_mysql_timestamp($tracker->getModifiedOn());
+		my $three_days_ago = HSDB4::DateTime->new();
+		$three_days_ago->subtract_days(3);
+
+		if (!$tracker->isCompletedSuccessfully() ||  $modified->is_after($three_days_ago)) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 

@@ -28,36 +28,39 @@ sub new {
 
     my $school = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $args->{school} . "'");
     my $self = { 
-	school            => $school,
-	period            => $tp->field_value('period'),
-	academic_year     => $tp->field_value('academic_year'),
-	time_period       => $tp,
-	prototype_eval_id => _setPrototypeEvalID($school),
+		school            => $school,
+		period            => $tp->field_value('period'),
+		academic_year     => $tp->field_value('academic_year'),
+		time_period       => $tp,
+		prototype_evals   => _setPrototypeEvals($school),
     };
 
     return bless $self, $class;
 }
 
-
-sub _setPrototypeEvalID {
+sub _setPrototypeEvals {
     my $school = shift;
-
-    my $prototypes = TUSK::Eval::Prototype->new()->lookup("school_id = " . $school->getPrimaryKeyID());
-    my %hash = map { $_->getCourseCode() => $_->getEvalID() } @$prototypes;
+    my $prototypes = TUSK::Eval::Prototype->lookup("school_id = " . $school->getPrimaryKeyID());
+    
+    my %hash = map { $_->getCourseCode() => $_ } @$prototypes;
     return \%hash;
 }
 
 sub getPrototypeEvalID {
-    my $self = shift;
-    my $proto = $self->{prototype_eval_id};
+    my ($self, $course_code) = @_;
 
-    ## first try
-    return $proto->{$self->{course_code}} if ($proto->{$self->{course_code}});
-    ## second try
-    my $special_case = substr($self->{course_code}, 0, 4);
-    return $proto->{$special_case} if ($proto->{$special_case});
-    ## finally
-    return $proto->{DEFAULT};
+    ## first try, an exact match
+    return $self->{prototype_evals}->{$course_code}->getEvalID() if ($self->{prototype_evals}->{$course_code});
+
+	## second try, see if there's a non-exact match
+	while (my ($code => $proto) = each(%{$self->{prototype_evals}})) {
+		if ($proto->getExactMatch() == "N" && $course_code =~ $code) {
+			return $proto->getEvalID();
+		}
+	}
+
+    ## otherwise return empty string
+    return "";
 }
 
 sub getSchool {
@@ -85,10 +88,81 @@ sub getCourse {
     return $self->{course};
 }
 
-
 sub getCourseCode {
     my $self = shift;
     return $self->{course_code};
+}
+
+### retrieve list of records by course_id, teaching_site_id and time_period_id
+sub getCoursesInfoBySite {
+    my $self = shift;
+    my $dbname = $self->{school}->getSchoolDb();
+    my $school_id = $self->{school}->getPrimaryKeyID();
+	my $tp_id = $self->{time_period}->primary_key();
+	my @courses;
+
+	my $sql = qq(
+		SELECT a.parent_course_id, title, code, a.teaching_site_id, site_name,
+			(SELECT group_concat(concat(firstname, ' ', lastname) SEPARATOR '; ') 
+			FROM $dbname.link_course_user cs, hsdb4.user u
+			WHERE cs.child_user_id = u.user_id and a.parent_course_id = cs.parent_course_id and roles in ('Director')
+			GROUP BY parent_course_id)
+		as faculty_name, 
+			(SELECT count(*) 
+			FROM $dbname.eval e 
+			WHERE parent_course_id = e.course_id AND e.time_period_id = $tp_id AND a.teaching_site_id = e.teaching_site_id) 
+		as evalcount
+		FROM $dbname.link_course_student a 
+		LEFT OUTER JOIN tusk.course_code as b
+		on (b.course_id = a.parent_course_id and a.teaching_site_id = b.teaching_site_id and school_id = $school_id) 
+		INNER JOIN $dbname.course as c on (c.course_id = a.parent_course_id)
+		LEFT OUTER JOIN $dbname.teaching_site as d on (d.teaching_site_id = a.teaching_site_id)
+		WHERE time_period_id = $tp_id
+		GROUP BY a.parent_course_id, a.teaching_site_id ORDER BY evalcount ASC
+	);
+
+	my $sth = $self->{school}->databaseSelect($sql);
+	my $results = $sth->fetchall_arrayref();
+	$sth->execute();
+
+    while (my ($course_id, $title, $code, $site_id, $site_name, $faculty_name, $eval_exists) = $sth->fetchrow_array) {
+		my $codes = TUSK::Core::CourseCode->new()->lookup("code = '" . $code . "' and school_id = " . $school_id);
+		if (scalar @{$codes} && $self->_isSingleCourse($codes) && $site_id) {
+			push(@courses, {'course_id' => $course_id, 'course_title' => $title, 'course_code' => $code, 'teaching_site_id' => $site_id, 'teaching_site_name' => $site_name, 'faculty_names' => $faculty_name, 'eval_exists' => $eval_exists});
+		}
+	}
+	
+	return \@courses;
+}
+
+### retrieve list of records by course_id and time_period_id
+sub getCoursesInfoByCourse {
+    my $self = shift;
+    my $dbname = $self->{school}->getSchoolDb();
+    my $school_id = $self->{school}->getPrimaryKeyID();
+	my $tp_id = $self->{time_period}->primary_key();
+	my @courses;
+
+	my $sql = qq(
+		SELECT courses.course_id, title, code, evalcount FROM (SELECT course_id, title, (SELECT count(*)
+					FROM $dbname.eval e
+					WHERE c.course_id = e.course_id AND e.time_period_id = $tp_id)
+				as evalcount
+			FROM $dbname.link_course_student, $dbname.course c 
+			WHERE time_period_id = $tp_id AND parent_course_id = course_id GROUP BY course_id) as courses
+		LEFT OUTER JOIN tusk.course_code ON courses.course_id = tusk.course_code.course_id AND school_id = $school_id
+		GROUP BY course_id ORDER BY evalcount ASC
+	);
+
+	my $sth = $self->{school}->databaseSelect($sql);
+	my $results = $sth->fetchall_arrayref();
+	$sth->execute();
+
+    while (my ($course_id, $title, $code, $eval_exists) = $sth->fetchrow_array) {
+		push(@courses, {'course_id' => $course_id, 'course_title' => $title, 'eval_exists' => $eval_exists, 'course_code' => $code});
+	}
+	
+	return \@courses;
 }
 
 sub setCourse {
@@ -98,20 +172,19 @@ sub setCourse {
     my ($course, $codes);
     my $school = $self->{school}->getSchoolName();
     if ($school eq 'Medical' && $course_code =~ /^FAM\d{3}$/ && $course_code !~ /FAM4(87|88|99)/) {
-	$course = HSDB45::Course->new(_school => "Medical")->lookup_key(370);    
+		$course = HSDB45::Course->new(_school => "Medical")->lookup_key(370);    
     } 
 	elsif ($school eq 'Medical' && $course_code =~ /^NEU\d{3}$/){
 		$course = HSDB45::Course->new(_school => "Medical")->lookup_key(2215);
 	}
 	else {
-	$codes = TUSK::Core::CourseCode->new()->lookup("code = '$course_code' and school_id = " . $self->{school}->getPrimaryKeyID());
-	if (@{$codes} > 1) {
-	    unless ($self->_isSingleCourse($codes)) {
-		return undef;
-	    }
-	}
-	$course = HSDB45::Course->new(_school => $school)->lookup_key($codes->[0]->getCourseID());    
-
+		$codes = TUSK::Core::CourseCode->new()->lookup("code = '$course_code' and school_id = " . $self->{school}->getPrimaryKeyID());
+		if (@{$codes} > 1) {
+		    unless ($self->_isSingleCourse($codes)) {
+				return undef;
+			}
+		}
+		$course = HSDB45::Course->new(_school => $school)->lookup_key($codes->[0]->getCourseID());    
     }
     
     $self->{course} = (defined $course->field_value('course_id')) ? $course : undef;
@@ -119,57 +192,6 @@ sub setCourse {
     $course_code =~ s/.+?(\d\d+)/$1/;
     $self->{course_level} = $course_code;
 }
-
-
-sub getAllTeachingSites {
-    my $self = shift;
-    my $school = $self->{school}->getSchoolName();
-
-	if ( $school eq 'Medical' ) {
-    	my $codes = TUSK::Core::CourseCode->new()->lookup(
-    	  "code = '" . $self->{course_code} 
-    	  . "' AND school_id = " . $self->{school}->getPrimaryKeyID()
-    	  . " AND teaching_site_id in (select teaching_site_id from " 
-    	  . $self->getSchool()->getSchoolDb() 
-    	  . ".link_course_student where parent_course_id = " 
-    	  . $self->{course}->field_value('course_id')
-    	  . " and time_period_id = " . $self->{time_period}->primary_key() . ')'); 
-      
-    	if (@{$codes} > 1) {
-			return undef unless $self->_isSingleCourse($codes);
-    	} 
-
-	    ### 4th year, one teaching site. set to null/undef if more than one teaching site
-	    ### 3rd year, multiple teaching sites
-	    if ($self->{course_level} =~ /4\d\d/) {
-		return (defined $codes && @{$codes} == 1) 
-		    ? [ HSDB45::TeachingSite->new(_school => $self->{school}->getSchoolName())->lookup_key($codes->[0]->getTeachingSiteID()) ] 
-		    : undef;
-	    } elsif ($self->{course_level} =~ /3\d\d/) {
-		my @teaching_sites = ();
-		if (defined $codes) {
-		    foreach (@$codes) {
-			my $ts = HSDB45::TeachingSite->new(_school => $self->{school}->getSchoolName())->lookup_key($_->getTeachingSiteID());
-			push @teaching_sites, $ts if $ts->primary_key();
-		    }
-		    return \@teaching_sites;
-		}
-   	 	} else {
-		warn "Unexpected Course Level for: ", $self->{course_code}, " ($self->{course_level})\n";
-		return undef;
-		}
-	} elsif ( $school eq 'Dental' ) {
-		my @ts = HSDB45::TeachingSite->new(_school => $self->{school}->getSchoolName())->lookup_conditions( 
-			"teaching_site_id in ( 
-				select distinct teaching_site_id from " . $self->getSchool()->getSchoolDb() . ".link_course_student 
-				where parent_course_id = " . $self->{course}->field_value( "course_id" ) . " and time_period_id = " . $self->{time_period}->primary_key . " 
-			)"
-		);
-		return \@ts;
-	}
-}
-
-
 
 sub _isSingleCourse {
     my ($self, $codes) = @_;
@@ -179,12 +201,10 @@ sub _isSingleCourse {
     return (scalar @uniqs == 1) ? 1 : 0;
 }
 
-
 sub getCourseLevel {
     my ($self, $code) = @_;
     return $self->{course_level};
 }
-
 
 sub setTeachingSite {
     my ($self, $teaching_site) = @_;
@@ -196,7 +216,6 @@ sub getTeachingSite {
     return $self->{teaching_site};
 }
 
-
 sub getCourseCodes {
     my $self = shift;
     my $dbname = $self->{school}->getSchoolDb();
@@ -205,85 +224,17 @@ sub getCourseCodes {
     my $dbh = HSDB4::Constants::def_db_handle();
 	my $codes;
 
-	if ( $self->{school}->getSchoolName eq 'Medical' ) {
-		my $statement = qq(
-		       select code 
-		       from tusk.course_code a, $dbname.link_course_student b 
-		       where a.course_id = b.parent_course_id 
-		       and time_period_id = $time_period_id 
-		       and school_id = $school_id and parent_course_id != 370 and course_id != 2215
-		       UNION
-		       select code 
-		       from tusk.course_code a, $dbname.link_course_student b 
-		       where a.course_id = b.parent_course_id 
-		       and a.teaching_site_id = b.teaching_site_id 
-		       and time_period_id = $time_period_id 
-		       and school_id = $school_id and parent_course_id = 370 
-			   UNION
-		       select code 
-		       from tusk.course_code a, $dbname.link_course_student b 
-		       where a.course_id = b.parent_course_id 
-		       and a.teaching_site_id = b.teaching_site_id 
-		       and time_period_id = $time_period_id 
-		       and school_id = $school_id and course_id = 2215
-		       );
-		$codes = $dbh->selectall_arrayref($statement);
-	} elsif ( $self->{school}->getSchoolName eq 'Dental' ) {
-		$codes = [ ["1481"], ["1354"] ];
-	}
+	my $statement = qq(
+			select distinct code 
+			from tusk.course_code a, $dbname.link_course_student b 
+			where a.course_id = b.parent_course_id 
+			and time_period_id = $time_period_id
+			and school_id = $school_id
+		   );
+	$codes = $dbh->selectall_arrayref($statement);
 
 	return $codes;
 }
-
-
-sub getEvalTitle {
-    my $self = shift;
-    my $eval_title;
-    my $site_name = (defined $self->{teaching_site}) ? $self->{teaching_site}->site_name() : undef;
-    my $course_title = $self->getCourse()->out_label();
-    my $ay = $self->getAcademicYear();
-    my $period = $self->getPeriod();
-
-	if ( $self->{school}->getSchoolName eq "Medical" ) {
-	    if ($self->{course_level} =~ /3\d\d/) {
-		$eval_title = "$course_title Evaluation Block $period,";
-		$eval_title .= (defined $site_name) ? "$site_name," : '';
-		$eval_title .= $ay;
-	    } else {
-			# Words cannot express my dislike of this ultra-custom special-case coding.
-			my @wards = qw( FAM487 FAM488 ICR401 ICR402 ICR405 ICR406 ICR407 ICR408 ICR409 MED401 MED404 MED405
-							MED407 MED422 MED423 MED430 MED435 MED441 OBG407 OBG409 OBG412 PED401 PED403 PED404
-							PED405 PED417 PED418 PED423 PED434 PED435 PSY412 SCR402 SCR404 SGN401 SGN402 SGN409
-							SGN410 SGN411 SGN412 SGN414 SGN416 SGN418 SGN422 SGN423 SGN426 SGN431 SGN432 SGN435
-							SGN436 SGN437 SGN439 SGN441 MED443 );
-
-			if ( grep { $_ eq $self->{course_code} } @wards ) {
-			    $eval_title = "Fourth Year Subinternship (Ward) Evaluation - AY $ay - Block $period - $course_title";
-		   	} elsif ($self->{course_code} =~ /FAM4/ ) {
-			    $eval_title = "Family Medicine Clerkship Evaluation - AY $ay - Block $period";
-			    $site_name =~ s/Family Practice - // if defined $site_name;
-			} elsif ($self->{course_code} =~ /NEU4/ || $self->{course_code} =~ /SNR4/) {
-			    $eval_title = "Neurology Clerkship Evaluation - AY $ay - Block $period - $course_title";
-			} else {
-			    $eval_title = "Fourth Year Elective Evaluation - AY $ay - Block $period - $course_title";
-			}
-
-			$eval_title .= " - $site_name" if (defined $site_name);
-
-			## add user's names except family medicine courses
-			unless ($self->{course_code} =~ /FAM\d{3}/ && $self->{course_code} !~ /FAM4(87|88|99)/) {
-			    $eval_title .= " - " . join(", ",map { $_->out_short_name } $self->{course}->child_users()) if ($self->{course}->child_users());
-			}
-	
-    	}
-	} elsif ( $self->{school}->getSchoolName eq "Dental" ) {
-		$eval_title = "$course_title Evaluation - $period";
-		$eval_title .= (defined $site_name) ? ", $site_name" : '';
-		$eval_title .= ", $ay" if $ay;
-	}
-    return $eval_title;
-}
-
 
 sub evalExists {
     my $self = shift;
@@ -300,46 +251,6 @@ sub evalExists {
 		. " AND  $statement");
 
     return @cur_evals;
-}
-
-
-## Take care of teaching sites in course_code and link_course_teaching_site. 
-## Some courses in link_course_student have teaching site ids but course_code 
-## and link_course_teaching_site don't
-sub sync_teaching_sites {
-    my $self = shift;
-
-    my $username = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
-    my $codes = TUSK::Core::CourseCode->new()->lookup("teaching_site_id = 0 and course_id in (select parent_course_id from " . $self->getSchool()->getSchoolDb() . ".link_course_student where time_period_id = " . $self->{time_period}->primary_key() . ") and school_id = " . $self->getSchool()->getPrimaryKeyID());
-
-    foreach my $code (@{$codes}) {
-	my $coursestudent = TUSK::Core::HSDB45Tables::LinkCourseStudent->new();
-	$coursestudent->setDatabase($self->getSchool()->getSchoolDb());
-	my $links = $coursestudent->lookup("parent_course_id = " . $code->getCourseID() . " and time_period_id = " . $self->{time_period}->primary_key());
-	if (scalar @{$links} == 1) {
-	    $code->setTeachingSiteID($links->[0]->getFieldValue('teaching_site_id'));
-	    $code->save({ user => $username });
-
-	    my $courseteachingsite = TUSK::Core::HSDB45Tables::LinkCourseTeachingSite->new();
-	    $courseteachingsite->setDatabase($self->getSchool()->getSchoolDb());
-	    my $ct_link = $courseteachingsite->lookupReturnOne("parent_course_id = " . $code->getCourseID() . " AND child_teaching_site_id = " . $links->[0]->getFieldValue('teaching_site_id'));
-	    unless ($ct_link) {
-		$courseteachingsite->setFieldValues( {
-		    parent_course_id  => $code->getCourseID(),
-		    child_teaching_site_id  => $links->[0]->getFieldValue('teaching_site_id'),
-		 });
-		$courseteachingsite->save({ user => $username });
-	    }
-	} else {
-	    push @{$self->{ts_sync_errors}}, $code->getCode() . ' [' . $code->getCourseID() . ']';
-	}
-    }
-}
-
-
-sub getTeachingSiteSyncErrors {
-    my $self = shift;
-    return $self->{ts_sync_errors};
 }
 
 

@@ -4,7 +4,6 @@ use strict;
 use Apache::Constants qw(:common REDIRECT);
 use Apache::Cookie;
 use Apache::Request ();
-use HTML::Embperl;
 use Apache::Session::MySQL;
 use HSDB4::SQLRow::User;
 use Data::Dumper;
@@ -18,10 +17,6 @@ sub handler {
     my $r = shift;
 
     my $apr = Apache::Request->new($r);
-    my $udat = HTML::Embperl::Req::SetupSession($apr);
-
-    HTML::Embperl::Req::DeleteSession();  
-    HTML::Embperl::Req::CleanupSession();  
 
     my %cookies = Apache::Cookie->new($r)->parse;
     my $location = $apr->param('request_uri') || "/";
@@ -31,11 +26,20 @@ sub handler {
     foreach my $cookieName (keys %cookies) {
 	if($cookieName eq 'Ticket') {
 		my %ticket = $cookies{'Ticket'}->value;
-		my $user_id = $ticket{'user'};
+		my $user_id = Apache::TicketTool::get_user_from_ticket(\%ticket);
 		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 
 		# TUSK added logout
 		MwfPlgAuthen::logout($user_id);
+
+		# Destroy Embperl Session
+		unless($TUSK::Constants::CookieUsesUserID) {
+			my %session;
+			Apache::TicketTool::create_apache_session($ticket{user}, \%session);
+			if(tied(%session))      {tied(%session)->delete;}
+			else                    {warn("Apache::TicketRemove session not tied... unable to delete");}
+			Apache::TicketTool::destroy_apache_session(\%session);
+		}
 
 		$user->update_loggedout_flag(1) if ($user);
 		my $shibUserPrefix = $TUSK::Constants::shibbolethUserID;

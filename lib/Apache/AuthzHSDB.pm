@@ -88,7 +88,8 @@ sub get_user_id{
 		my($returnValue, $message) = $ttool->verify_ticket($r);
 		if($returnValue && $cookies{'Ticket'}) {
 			my %ticket = $cookies{'Ticket'}->value;
-			$user_id = $ticket{'user'};
+			$user_id = Apache::TicketTool::get_user_from_ticket(\%ticket);
+
 		}
 	}
     }

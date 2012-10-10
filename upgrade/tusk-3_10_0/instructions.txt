@@ -1,0 +1,70 @@
+#        TUSK can use either a user ID or a session id in the Ticket cookie (Change for UCF)
+#        Better cookie removal on logout
+#        Added capability to encrypt passwords
+#        LDAP module now uses an encrypted password
+#        Made all failed login messages = 'Unable to login'
+#        Fixed mysql_backup to not assume replication should be turned back on (always turned it back on)
+#		 Integrated docx files into TUSKdoc
+#		 Introduced Process Tracker utility
+#		 Integrated Process Tracker into TUSKdoc
+#		 Upgraded TUSKdoc software
+
+#########
+#	Multi Content Upload
+#########
+mysql tusk < multi_content.sql
+
+
+##########
+### TUSKdoc *.docx Integration
+##########
+# We need to integrate docx file types into TUSKdoc. Currently, if a user uploaded a 
+# TUSKdoc as a .docx file and then as a .doc, we could have two files on our filesystem
+# for that one piece of content. This will not work with the changes made in 3.10.0; 
+# therefore, ensure that we only have one file for each TUSKdoc. Run this script to 
+# identify if there are multiple files and only keep the newest version.
+# You can run it in a trial mode first by answering 'y' when it asks whether it should 
+# run in debug mode:
+./tuskdoc_conversion.pl
+## That will generate a file named 'conversion.out.YYYYMMDD.HHMMSS' that you can peruse
+## you will see a few pieces of data counted from script:
+#### nuri: this is number of tuskdocs that did not have a file on system. this should be 0
+#### doc: number of tuskdocs that had a corresponding .doc file
+#### docx: number of tuskdocs that had a corresponding .docx file
+#### both: number of tuskdocs that had a corresponding .doc and .docx file
+#### if a tuskdoc has 'both' it will tell you which version was retained.
+# for sanity. If everything looks good, run again, but don't run in debug mode.
+./tuskdoc_conversion.pl
+
+
+##########
+### Process Tracker
+##########
+# This is a tool utility that can record and report on the state of a given process.
+# Initially, this tool is only used by the TUSKdoc conversion process.
+# To add the necessary tables to the DB, run the following mysql:
+mysql tusk < tracker.sql
+
+# There is also a cron that has been added to monitor whether a TUSKdoc file has been
+# awaiting action. Add it to run at whatever frequency you feel is appropriate.
+0,15,30,45 * * * * /usr/local/tusk/current/bin/tuskdoc_checker 2>&1 | /usr/local/tusk/current/bin/mail_cron_error "TUSKdoc Checker"
+
+
+##########
+### TUSKdoc Upgrade
+##########
+The upgrades to the TUSKdoc Windows machine also need to be completed. 
+Two files that need to be upgraded on the Windows machine that can be retrieved from 
+the repository are DOC2XML/TUSKdoc-batch.pl and DOC2XML/TUSK-Windows.pm.
+
+
+##########
+### Batch Eval Tool Upgrade
+##########
+No database changes involved, but tool has been expanded to all schools and domains, and to give the user more options.
+
+
+##########
+### Email Patient Log Report
+##########
+Install Mime::Lite (v. 3.027)  and JSON (v. 2.15)

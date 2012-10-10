@@ -118,7 +118,8 @@ sub getCurrentAssignments {
 	      "course_id = " . $self->{course}->primary_key 
 	      . " AND time_period_id = " . $tp->primary_key() 
 	      . " AND school_id = " . TUSK::Core::School->new()->getSchoolID($self->{school}) 
-	      . " AND available_date != '0000-00-00 00:00:00' AND available_date <= now()");
+	      . " AND available_date != '0000-00-00 00:00:00' AND available_date <= now()",
+		  ["assignment.sort_order"]);
 
 	my $sth;
 	foreach my $assignment (@{$assignments}) {

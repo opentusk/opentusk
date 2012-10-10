@@ -95,7 +95,7 @@ function markRequired(qid){
 
 function open_eval_edit_window(school,eval_id){
  	var params = "width=700,height=470,directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes";
- 	window.open('/protected/eval_edit/' + school + '/' + eval_id, "_blank", params);
+ 	window.open('/protected/eval/administrator/eval_edit/' + school + '/' + eval_id, "_blank", params);
 }
 
 function open_delete_window(school,eval_id){

@@ -11,7 +11,7 @@
 	default_path_type	=> 'content'
 	allow_guests		=> '1'
 	allow_shib		=> '1'
-    	syndicate               => '1'
+	syndicate               => '1'
 </%attr>
 
 <%shared>
@@ -108,7 +108,7 @@ return $right_hdr_lnks;
 
 
 <%method jsarray>
-%	return [ "drag.js", "content.js", "flashcards.js" ];
+%	return [ "drag.js", "content.js", "flashcards.js", "jquery/jquery.min.js" ];
 </%method>
 
 
@@ -168,10 +168,12 @@ return $right_hdr_lnks;
 
 % if ($document->type() eq 'TUSKdoc'){
 	function showTUSKdocMessages(){
+		var msg_count = 0;
 		var spanArray = document.getElementsByTagName("span");
 
 		for(var i=0; i < spanArray.length; i++){
 			if (spanArray[i].className == 'conversion-note' || spanArray[i].className == 'conversion-exception'){
+				msg_count++;
 				if (spanArray[i].style.display == 'none' || spanArray[i].style.display == ''){
 					spanArray[i].style.display = 'inline';
 				}
@@ -179,6 +181,9 @@ return $right_hdr_lnks;
 					spanArray[i].style.display = 'none';
 				}
 			}
+		}
+		if (!msg_count) {
+			alert("There are no messages to display.");
 		}
 	}
 
@@ -677,7 +682,7 @@ return $right_hdr_lnks;
 		  }
 	        }
 	      }
-	      document.theTuskPrintForm.action = '/tusk/printcontent/<% $document->primary_key %>';
+	      document.theTuskPrintForm.action = '/tusk/view/printcontent/<% $document->primary_key %>';
 	      document.theTuskPrintForm.hiddenWords.value = selectedKeywords;
 	      document.theTuskPrintForm.submit();
 	    }
@@ -858,7 +863,7 @@ return $right_hdr_lnks;
 
     <& SELF:printDragHandleWithClose, formName => 'thePrintForm', title => $title, imageName => 'printFormButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
-      <form name="theTuskPrintForm" method="get" target="printFrame" action="/tusk/printcontent/<% $document->primary_key %>">
+      <form name="theTuskPrintForm" method="get" target="printFrame" action="/tusk/view/printcontent/<% $document->primary_key %>">
         <input type="hidden" name="summary" value="<% $summary %>">
         <input type="hidden" name="SIZE" value="<% $SIZE %>">
         <input type="hidden" name="hiddenWords" value="">
@@ -1247,7 +1252,8 @@ $justcontent => 0
 %	my $view_by;
 %	if($document->aux_info('uri_path')) {$contentPK = $document->aux_info('uri_path') . "/" . $document->primary_key();}
 
-<div id="pageContent" style="margin:<% $margin %>; padding: 5px 30px; background-color:#FFFFFF; border-right:3px solid black; border-bottom:3px solid black; border-top:1px solid <% $redColor %>; border-left:2px solid <% $redColor %>; z-index:99;">
+% my $additional_class = ($document->content_type() eq 'TUSKdoc' && !$iCanEdit)? 'tdNotEdit' : '';
+<div id="pageContent" class="<% $additional_class %>" style="margin:<% $margin %>; padding: 5px 30px; background-color:#FFFFFF; border-right:3px solid black; border-bottom:3px solid black; border-top:1px solid <% $redColor %>; border-left:2px solid <% $redColor %>; z-index:99;">
 % if ( $is_integrated_course && $document->content_type() eq 'Collection' ) {
 		<script type="text/javascript">
 		function update_view() {
@@ -1304,6 +1310,9 @@ $justcontent => 0
 %		}
 %	} 
 %	else {
+%		if ( ($document->content_type() eq 'TUSKdoc' && $iCanEdit) && $document->showConversionStatus() ) {
+%			$m->comp('/tmpl/content:getStatusRetrievalMsg', content_id => $document->primary_key());
+%		}
 	  <% $body %>
 %	}
 %}

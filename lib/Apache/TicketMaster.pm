@@ -18,6 +18,12 @@ sub handler {
     $r->log_error("TicketMaster being handled") if ($debug >= 2);
     my $apr = Apache::Request->new($r);
     my($user, $pass) = ($apr->param('user'),$apr->param('password'));
+	my $failedLoginUserCookie = Apache::Cookie->new ($r,
+		-name => 'failed_login_user',
+		-value => '' ,
+		-expires=> '+3m', 
+		-path => '/'
+	);
 
     my %cookies = Apache::Cookie->new($r)->fetch();
     my $request_uri = $apr->param('request_uri') || 
@@ -38,16 +44,19 @@ sub handler {
 		my $ticket = $ticketTool->make_ticket($r, $user);
 		unless ($ticket) {
 			$r->log_error("Couldn't make ticket -- missing secret?");
+			$failedLoginUserCookie->bake();
 			return SERVER_ERROR;
 		}
 		logLogin($userObject);
 		$dest = $ticketTool->check_status($r, $userObject);
 		if ($dest) {
 			$r->log_error("TM redirecting $user to $dest") if ($debug >= 2);
+			$failedLoginUserCookie->bake();
 			return go_to_uri($r, $dest, $ticket);
 		} else {
 			$request_uri = setLoginMessage($userObject,$request_uri);
 			$r->log_error("TM redirecting $user to requested $request_uri") if ($debug >= 2);
+			$failedLoginUserCookie->bake();
 			return go_to_uri($r, $request_uri, $ticket);
 		}
 	}
@@ -55,9 +64,13 @@ sub handler {
     }
     if (!$user){
 	$msg = "Enter a username"
+    } else {
+	$msg = "Unable to login";
     }
     $r->log_error("TM going to login screen...") if ($debug >= 2);
 
+    $failedLoginUserCookie->value($user);
+    $failedLoginUserCookie->bake();
     return go_to_uri($r,$request_uri,undef,$msg);
 }
 

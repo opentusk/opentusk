@@ -1,0 +1,129 @@
+<%once>
+	use HSDB4::Constants;
+</%once>
+
+<%shared>
+	my $form_type = $m->comp('/formbuilder/util:getFormType', token => 'PatientLog');
+	my $form_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $path = 'patientlog';
+	my $form_type_label = $form_type->getLabel();
+	my $course = $m->comp("/tmpl/url:get_type_object");
+</%shared>
+
+<div id="ok-container" class="med highlight" style="display:none;" align="center"></div>
+<div id="emailform">
+
+<& /tmpl/element:form, params => {
+	name 		=> 'emailplogs',
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+} &>
+
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0" 
+} &>
+
+<& /tmpl/element:form, params => { 
+	method => 'POST',
+	name => 'emailform',} &>
+
+<& SELF:course_time_periods &>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params => { 
+	label => 'To:',
+	value => '<div id="recipients"><span class="sm">Select time period(s) above to get the list of directors.</span></div>' } &>
+
+<& /tmpl/element:field_display, params => { label => 'From:',
+	name => 'from_name',
+	value => $sender->out_full_name() . ' (' . $sender->default_email() . ')' } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Subject:',
+	name => 'subject',
+	value => $subject,
+	size => 70,
+	length => 255 } &>
+
+<& /tmpl/element:textarea, params =>{ label => 'Message:',
+	name => 'body',
+	value => $body,
+	cols =>"70",
+	rows =>"7",  } &>
+
+<& /tmpl/element:save_button, params => { 
+	label 	=>	'Send Email', 
+    cancel_onclick => "go_back('/patientlog/author/show/" . $m->comp("/tmpl/url:get_type_path") . "');",
+	name	=>	'emailsubmit' } &>
+
+</table>
+<input type="hidden" name="type_path" value="<% $m->comp("/tmpl/url:get_type_path") . "/$form_id" %>" />
+</form>
+</div>
+
+<%init>
+	my $sender = $m->session->{'user'};
+	my $subject = $course->title() . ' - Patient Log Report';
+	my $body = '';
+</%init>
+
+
+<%method course_time_periods>
+<%perl>
+	my $db = HSDB4::Constants::get_school_db($course->school());		
+	my $sth = $form_type->databaseSelect(qq(
+		SELECT t.time_period_id, period, academic_year, start_date, end_date 
+		FROM tusk.form_builder_entry e, $db.time_period t 
+		WHERE t.time_period_id = e.time_period_id and form_id = $form_id
+		GROUP BY e.time_period_id));
+
+	my @time_periods = ( { value => '', label => '' } );
+	while (my ($tp_id, $period, $academic_year, $start_date, $end_date) = $sth->fetchrow_array()) {
+		push @time_periods, { 
+			value  => $tp_id,
+			label  => qq($period, $academic_year, &nbsp;&nbsp; (<span style="font-size:65%;"> $start_date to $end_date)</span>)
+		};
+	}
+</%perl>
+<& /tmpl/element:dropdown, params => { 
+	label 		=> 'Time period:',
+	name		=> 'tpid',
+	multiple	=> 0,
+##	size 		=> (scalar @time_periods > 4) ? 5 : scalar @time_periods,
+	options		=> \@time_periods,
+} &>
+</%method>
+
+
+<%method jsarray>
+%  	return [ 'jquery/jquery.min.js', 'patientlog/email.js' ];
+</%method>
+
+
+<%method stylearray>
+<%perl>
+	return [ '/style/style.css', '/style/formbuilder.css' ];
+</%perl>
+</%method>
+
+
+<%method red_header_text>
+%  	return "$form_type_label - Send Email";
+</%method>
+
+
+<%method title>
+%  	return "$form_type_label - Send Email";
+</%method>
+
+
+<%method right_header_images>
+%	return [];
+</%method>

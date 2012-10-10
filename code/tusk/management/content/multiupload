@@ -1,0 +1,202 @@
+<%once>
+	use TUSK::Content::MultiContentManager;
+	use Apache::Constants;
+</%once>
+
+<%doc>
+	This page is responsible for uploading, unzipping and generating previews for a multi content edit.
+	This is all done using a TUSK::Content::MultiContentManager
+	This page is never intended to display anything at all, it just provides redirects to itself and then eventually to the multi content editor
+	We don't inherit => undef because we want the cms_min_course_role functions.
+</%doc>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $stepNumber = 0;
+</%shared>
+
+<%method cms_min_course_role>
+% return (ref $course eq 'HSDB45::Course') ? 'STUDENTEDITOR' : '';
+</%method>
+
+<%args>
+	$zipfile => '',
+	$multiContentId => '',
+	$contentAction => '',
+</%args>
+
+<%attr>
+	top_tab_type            => 'none'
+	displayLittleUserNavBar => '1'
+	no_header               => '1'
+	page_header             => undef
+	page_footer             => undef
+	allow_guests            => '0'
+	no_check_path           => 1
+</%attr>
+
+<%perl>
+
+my $redirect = '';
+my $xml = '';
+
+eval {
+	if($contentAction eq 'init') {
+		my $uploadObject = TUSK::Content::MultiContentManager->new();
+		$uploadObject->setStatus('initial');
+		$uploadObject->save({ user => $m->comp('SELF:user') });
+		$xml .= '<mcuid>'. $uploadObject->getPrimaryKeyID() .'</mcuid>';
+	} else {
+		my $uploadObject;
+		$uploadObject = TUSK::Content::MultiContentManager->new->lookupKey($multiContentId);
+		if(!$uploadObject) {
+			$xml .= "<error>Object $multiContentId does not exist</error>";
+		}  else {
+			if($contentAction eq 'upload') {
+				# we are uploading a zip file
+				if($zipfile) {
+					# create a new multi upload object
+					my @uploadFileNames;
+					my @uploadFileHandles;
+					my $error = '';
+					my $uploadWorked = 0;
+					my @uploadedFiles = $r->upload();
+
+					# for some reason we are getting an extra entitiy in the upload array (perhaps its an html 5 thing)
+					splice(@uploadedFiles, 1, 1);
+					if(scalar(@uploadedFiles) == 1) {
+						my $returnValue = $uploadObject->uploadZipFile($r->upload('zipfile')->filename, $r->upload('zipfile')->fh);
+						if($returnValue)	{$uploadWorked = 1;}
+						else			{$error = 'an error occurred while uploading the zip file:<br>' . $uploadObject->getError();}
+					} else {
+						$error = "One or more errors occurred while uploading the selected files:<br>";
+						$uploadWorked = 1;
+						foreach my $apacheUploadObject (@uploadedFiles) {
+							next unless($apacheUploadObject->filename);
+							my $returnValue = $uploadObject->upload($apacheUploadObject->filename, $apacheUploadObject->fh);
+							unless($returnValue) {
+								$uploadWorked = 0;
+								$error.=" &nbsp; Unable to upload ". $apacheUploadObject->filename .": ". $uploadObject->getError();
+							}
+						}
+						$uploadObject->setUploadComplete();
+					}
+					if($uploadWorked) {
+						#Upload worked set the redirect instead of the xml
+						$redirect = $ENV{SCRIPT_URL} . "?multiContentId=$multiContentId&contentAction=unzip";
+					} else {
+						$uploadObject->setStatus('errored');
+						$uploadObject->setError($error);
+						$uploadObject->save({ user => $m->comp('SELF:user') });
+						$xml .= "<error>". $uploadObject->getError() ."</error>";
+					}
+				} else {
+					$uploadObject->setStatus('errored');
+					$uploadObject->setError('No file specified to upload');
+					$uploadObject->save({ user => $m->comp('SELF:user') });
+					$xml .= "<error>". $uploadObject->getError() ."</error>";
+				}
+			} elsif($contentAction eq 'unzip' && $multiContentId) {
+				# do the unzip
+				$uploadObject->extract();
+				$redirect = $ENV{SCRIPT_URL} . "?multiContentId=$multiContentId&contentAction=generatePreviews";
+			} elsif($contentAction eq 'generatePreviews' && $multiContentId) {
+				# generate the previews
+				$uploadObject->generatePreviews();
+			} elsif($contentAction eq 'check' && $multiContentId) {
+				my $defaultLabel = "Pending";
+				my $uploadStatus = $defaultLabel;
+				my $unzipStatus = $defaultLabel;
+				my $previewStatus = $defaultLabel;
+				my $error;
+	
+				my $uploadCompleteMessage = "Completed ". $uploadObject->getPrettySize();
+				my $unzipCompleteMessage = "Completed ". $uploadObject->getZipEntitiesExtracted() .' file';
+				if($uploadObject->getZipEntitiesExtracted() != 1)  {$unzipCompleteMessage .= 's';}
+				$unzipCompleteMessage .= ' unzipped';
+				my $failureAt = '';
+				if($uploadObject->getStatus() eq 'initial') {
+					$uploadStatus = 'Waiting for upload';
+					$failureAt = 'upload';
+				} elsif($uploadObject->getStatus() eq 'uploading') {
+					$uploadStatus = "Uploading ". $uploadObject->getPrettySize();
+					$failureAt = 'upload';
+				} elsif($uploadObject->getStatus() eq 'upload complete') {
+					$uploadStatus = $uploadCompleteMessage;
+					$unzipStatus = "Waiting for unzip to begin";
+					$failureAt = 'upload';
+				} elsif($uploadObject->getStatus() eq 'extracting') {
+					$uploadStatus = $uploadCompleteMessage;
+					$unzipStatus = 'Unzipping '. $uploadObject->getZipEntitiesExtracted() .'/'. $uploadObject->getZipEntities();
+					$failureAt = 'zip';
+				} elsif($uploadObject->getStatus() eq 'extraction complete') {
+					$uploadStatus = $uploadCompleteMessage;
+					$unzipStatus = $unzipCompleteMessage;
+					$failureAt = 'generate';
+				} elsif($uploadObject->getStatus() eq 'previews') {
+					$uploadStatus = $uploadCompleteMessage;
+					$unzipStatus = $unzipCompleteMessage;
+					$previewStatus = 'Generating preview';
+					if($uploadObject->getPreviewsToGenerate() != 1) {$previewStatus .= 's';}
+					$previewStatus.= ': '. $uploadObject->getPreviewsGenerated() .'/'. $uploadObject->getPreviewsToGenerate();
+					$previewStatus.= ' generated';
+				} elsif($uploadObject->getStatus() eq 'previews complete') {
+					$uploadStatus = $uploadCompleteMessage;
+					$unzipStatus = $unzipCompleteMessage;
+					$previewStatus = 'Completed '. $uploadObject->getPreviewsGenerated() .' preview';
+					if($uploadObject->getPreviewsGenerated() != 1) {$previewStatus .= 's';}
+					$previewStatus .=' generated';
+					$xml .= '<completed>true</completed>';
+				} else {
+					$error = 'Status is unknown at this time ('. $uploadObject->getStatus() .')';
+				}
+	
+
+				if(!$error && $uploadObject->getError()) { $error = $uploadObject->getError(); }
+				if($error) {
+					$xml .= '<error>'. $error ."</error>\n";
+					if($failureAt eq 'upload') {
+						$uploadStatus = 'Failed';
+						$unzipStatus = 'N/A';
+						$previewStatus = 'N/A';
+					} elsif($failureAt eq 'zip') {
+						$unzipStatus = 'Failed';
+						$previewStatus = 'N/A';
+					} elsif($failureAt eq 'generate') {
+						$previewStatus = 'Failed';
+					}
+				}
+				$xml .= '<upload>'. $uploadStatus ."</upload>\n";
+				$xml .= '<unzip>'. $unzipStatus ."</unzip>\n";
+				$xml .= '<preview>'. $previewStatus ."</preview>\n";
+			} else {
+				$xml .= '<error>Not enough information was provided to determine what action to take</error>';
+			}
+		}
+	}
+}; if($@) {
+	warn("Perl error in multiupload:\n". $@);
+	$m->clear_buffer();
+	$r->no_cache(1);
+	$r->content_type('text/xml');
+	$m->print('<?xml version="1.0" encoding="UTF-8"?>'. "\n");
+	$m->print("<return>\n");
+	$m->print("<error>Fatal server error, please contact support.</error>\n");
+	$m->print('</return>');
+	return OK;
+} elsif(!$xml) {
+	$m->clear_buffer();
+	$r->no_cache(1);
+	# Send the redirect;
+	$m->redirect($redirect);
+} else {
+	$m->clear_buffer();
+	$r->no_cache(1);
+	$r->content_type('text/xml');
+	$m->print('<?xml version="1.0" encoding="UTF-8"?>'. "\n");
+	$m->print("<return>\n");
+	$m->print($xml);
+	$m->print('</return>');
+	return OK;
+}
+</%perl>

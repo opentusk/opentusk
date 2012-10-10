@@ -8,15 +8,17 @@ sub new {
     my ($class, $args) = @_;
 
     my $self = {  
-	username       => $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
-	password       => $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
-	school         => $args->{school},
-	course         => $args->{course},
-	time_period    => $args->{time_period},
-	teaching_site  => $args->{teaching_site},
-	due_date       => $args->{due_date},
-	available_date => $args->{available_date},
-	eval_title     => $args->{eval_title},
+	username			=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
+	password			=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+	school				=> $args->{school},
+	course				=> $args->{course},
+	time_period			=> $args->{time_period},
+	teaching_site		=> $args->{teaching_site},
+	due_date			=> $args->{due_date},
+	submittable_date	=> $args->{submittable_date},
+	prelim_due_date		=> $args->{prelim_due_date},
+	available_date		=> $args->{available_date},
+	eval_title			=> $args->{eval_title},
     };
 
     return bless $self, $class;
@@ -50,6 +52,8 @@ sub clone {
        'teaching_site_id' => ($self->{teaching_site} && $self->{teaching_site}->primary_key()) ? $self->{teaching_site}->primary_key() : undef,
        'title' => $self->{eval_title},
        'available_date' => $self->{available_date},
+       'submittable_date' => $self->{submittable_date},
+       'prelim_due_date' => $self->{prelim_due_date},
        'due_date' => $self->{due_date});
     my ($eval_id,$msg) = $evalref->save($self->{username},$self->{password});
 

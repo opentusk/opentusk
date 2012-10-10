@@ -1,0 +1,102 @@
+<%once> 
+	use TUSK::Quiz::Quiz;
+	use TUSK::Quiz::Result;
+</%once>
+
+
+<%shared>
+	my $course      =  $m->comp('/tmpl/url:get_type_object');
+	my $school      =  $course->get_school()->getSchoolName();
+	my $quiz_id     =  $m->comp('/tmpl/url:get_last_path_id');
+	my $quiz		=  TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	my $quiz_tp_id	=  TUSK::Quiz::LinkCourseQuiz->lookupReturnOne("child_quiz_id = $quiz_id")->getTimePeriodID(); 
+	my ($completed, $not_completed, $not_begun) = ([], [], []);
+</%shared>
+
+
+<%init>
+	($completed, $not_completed, $not_begun) = $m->comp('SELF:getCompletionLists');
+</%init>
+
+
+
+
+<div class="admintext">Quiz Completions for <% $quiz->getTitle() %></div>
+<br/>
+
+<table width="100%">
+<tr>
+<%perl>
+	map { $m->comp('SELF:printListCell', params => \%$_) } ({title => 'Completed', users => $completed}, 
+															{title => 'Started but Not Completed', users => $not_completed}, 
+															{title => 'Not Begun', users => $not_begun});
+</%perl>
+<td valign="top">
+	<h4 class="title"> Send Email To Completion Groups </h4>
+	<& '/tmpl/element:link', params => { no_table => 1, label => 'Email', link_style => 'navsm', href => "/quiz/author/email/course/$school/".$course->primary_key()."/$quiz_id" } &>
+</td>
+</tr>
+</table>
+
+
+
+
+<%method printListCell>
+<%args>
+%params
+</%args>
+<td valign="top">
+<h4 class="title"><% $params{'title'} %> (<% scalar(@{$params{'users'}}) %>)</h4>
+<ul>
+% foreach my $user (@{$params{'users'}}) {
+	<li><a class="sm" href="/view/user/<% $user->user_id() %>"><% $user->out_lastfirst_name() %></a></li>
+% }
+</ul>
+</td>
+</%method>
+
+
+<%method getCompletionLists>
+<%perl>
+	my ($not_begun, $completed, $not_completed) = ([], [], []);
+	my @students = $course->get_students($quiz_tp_id);
+	my (@completed_ids, @not_begun_ids, @not_completed_ids);
+	if (@students and scalar(@students)) {
+		my @student_ids  = map { sprintf("'%s'", $_->getPrimaryKeyID()) } @students;
+		my $quiz_results = TUSK::Quiz::Result->lookup("quiz_id = $quiz_id and user_id in (" . join(',', @student_ids) . ")");
+		my %result_hash   = map { sprintf("'%s'", $_->getUserID()) => $_ } @$quiz_results; 
+
+		foreach my $student_id (@student_ids) {
+			my $result = $result_hash{$student_id};
+			if (!$result) {
+				push @not_begun_ids, $student_id;
+			}	
+			elsif ($result->getEndDate()) {
+				push @completed_ids, $student_id;
+			} else {
+				push @not_completed_ids, $student_id;
+			}
+		}
+
+		push @$not_begun, HSDB4::SQLRow::User->lookup_conditions("user_id in (" . join(",", @not_begun_ids) . ")") if @not_begun_ids;
+		push @$completed, HSDB4::SQLRow::User->lookup_conditions("user_id in (" . join(",", @completed_ids) . ")") if @completed_ids;
+		push @$not_completed, HSDB4::SQLRow::User->lookup_conditions("user_id in (" . join(",", @not_completed_ids) . ")") if @not_completed_ids;
+	}
+	return ($completed, $not_completed, $not_begun);
+</%perl>
+</%method>
+
+
+<%method function_token>
+% return 'quiz_completion';
+</%method>
+
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+
+<%method title>
+% return "Quiz Completion";
+</%method>

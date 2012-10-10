@@ -1,0 +1,48 @@
+<%doc>
+	This page will be displayed when TUSK encounters a 404 error.
+</%doc>
+
+<%attr>	
+	no_check_path => 1
+	page_header   =>'/tmpl/prepend:manage_header_div_layout'
+	page_footer   =>'/tmpl/footer:footer_div_with_tufts_links'	
+	top_tab_type  => 'login'
+	nostandardheader => 1
+	allow_guests => 1
+</%attr>	
+
+<%once>
+	use TUSK::ErrorReport;
+	use TUSK::Constants;
+	use Data::Dumper;
+</%once>
+
+<h4 class="error">Couldn't locate <% $ENV{'REDIRECT_URL'} %></h4>
+
+<p>"Dang...I could have sworn it was around here somewhere..."</p>
+
+<p>I couldn't find the page you requested.  If you typed it in from something else, maybe you made a typo.  If, on the other hand, you followed a link, then something might be wrong, and you should probably <a href="<% $TUSK::Constants::ContactURL %>">contact us</a> and tell us the location, and from where you followed that link. You can call us at <% $TUSK::Constants::SupportPhone %> for immediate assistance.</p>
+
+<%init>
+	my $user = $m->session->{'user'};
+	my $uriRequest = $ENV{SCRIPT_URI};
+	my $host = $ENV{'HTTP_HOST'};
+	my $port = $ENV{'SERVER_PORT'};
+	
+	if (0){ 
+		ErrorReport::send404Report($ENV,{'To' => $TUSK::Constants::SupportEmail,
+		'From' => $TUSK::Constants::SupportEmail,
+		'Subject' => "Missing Page ($host): $user - $uriRequest"
+		});
+	}
+</%init>
+
+<%method title>
+%	return "MISSING PAGE";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+

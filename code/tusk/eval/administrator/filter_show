@@ -1,0 +1,58 @@
+<%doc>
+	Page to list all filter XSL stylesheets for a given school.
+	Expected URL structure:
+	filter_show/[school]
+</%doc>
+
+<%once>
+    use HSDB45::StyleSheet;
+</%once>
+
+<%shared>
+	# get school from URL
+	my $school = $m->comp("/tmpl/url:get_school");
+</%shared>
+
+% if (@stylesheets) {
+% 	my $class = "even";
+	<br />
+	<table class="tusk" cellpadding="0" cellspacing="0">
+		<tr class="header">
+			<td class="header-left" width="40">&nbsp;ID&nbsp;</td>
+			<td class="header-left">&nbsp;Label&nbsp;</td>
+			<td class="header-left">&nbsp;Description&nbsp;</td>
+		</tr>
+
+%	 foreach my $row (@stylesheets) {
+%		if ($class eq "odd") { $class = "even"; }
+%		else { $class = "odd"; }
+%
+		<tr class="<% $class %>">
+			<td>&nbsp;<a href="/eval/administrator/filter_addedit/<% $school %>/<% $row->primary_key() %>"><% $row->primary_key() %></a>&nbsp;</td>
+			<td>&nbsp;<% $row->label() %>&nbsp;</td>
+			<td>&nbsp;<% $row->description() %>&nbsp;</td>
+		</tr>
+% 	}
+</table>
+% }
+%# display message if requested school does not have any evaluation filters to list
+% else {
+	<p class="error"><% $school %> does not have any saved Evaluation filters.</p>
+% }
+<%init>
+	# get sorted listed of stylesheets for requested school
+	my $stylesheet = HSDB45::StyleSheet->new(_school => $school);
+	my @stylesheets = sort { $b->primary_key() <=> $a->primary_key() } $stylesheet->lookup_all();
+</%init>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . " Eval Filter Stylesheet List";
+</%method>
+
+<%method get_nav_bars>
+</%method>
+

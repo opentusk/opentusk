@@ -1,0 +1,25 @@
+<%perl>
+	use TUSK::Application::Eval::MakerTemplate;
+	use XML::EscapeText;
+	$m->clear_buffer();
+	my %params = $m->request_args;
+	$r->content_type('text/xml');
+	$r->no_cache(1);
+	my $matched_courses = {};
+	if ($params{'create_by'} eq "course") {
+		$matched_courses = TUSK::Application::Eval::MakerTemplate->new( { school => $params{'school'}, time_period_id => $params{'time_period_id'}})->getCoursesInfoByCourse();
+	}
+	else {
+		$matched_courses = TUSK::Application::Eval::MakerTemplate->new( { school => $params{'school'}, time_period_id => $params{'time_period_id'}})->getCoursesInfoBySite();
+	}
+</%perl>
+<?xml version="1.0" encoding="UTF-8"?>
+<courses>
+% 		foreach my $course (@$matched_courses) {
+	<course id="<% $course->{'course_id'} %>" title="<% XML::EscapeText::do_xml_escape($course->{'course_title'}) %>" code="<% XML::EscapeText::do_xml_escape($course->{'course_code'}) %>" teaching_site="<% XML::EscapeText::do_xml_escape($course->{'teaching_site_name'}) %>" teaching_site_id="<% XML::EscapeText::do_xml_escape($course->{'teaching_site_id'}) %>" faculty_names="<% XML::EscapeText::do_xml_escape($course->{'faculty_names'}) %>" eval_exists="<% $course->{'eval_exists'} %>" />
+% 		}
+</courses>
+
+<%flags>
+        inherit => undef
+</%flags>

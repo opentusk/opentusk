@@ -1,0 +1,23 @@
+#!/usr/bin/perl -w
+
+use strict;
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use TUSK::ProcessTracker::ProcessTracker;
+use MySQL::Password;
+
+die "script can only accept one argument" if scalar @ARGV > 1;
+my $doc = shift @ARGV or die "need to pass one document";
+
+# isolate content id from filename
+die "argument not of valid format" unless ($doc =~ /^(\d+)\.docx?$/);
+my $cid = $1;
+
+my $tracker = TUSK::ProcessTracker::ProcessTracker->getMostRecentTracker(undef, $cid, 'tuskdoc');
+
+$tracker->setStatus('tuskdoc_processing');
+
+my ($uid, $pw) = get_user_pw();
+
+$tracker->save({user => $uid});

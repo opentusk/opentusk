@@ -601,6 +601,52 @@ function isBlank(field){
 	return true;
 }
 
+//complex form field validation. checks radio buttons and selects; returns true if blank
+function multipleIsBlank(field){
+	var value = multipleValue(field);
+	if (value && /\S+/.test(value)) {
+		return false;
+	}
+	else {
+		return true;
+	}
+}
+
+//complex form field validation. checks radio buttons and selects; returns value if there is one
+function multipleValue(field){
+	var values = new Array();
+	
+	// single checkbox
+	if (field.type != null && field.type.toString().indexOf('checkbox') > -1) {
+		if (field.checked) {
+			values.push(field.value);
+		}
+	}
+	// select with array of options
+	else if (field.toString().indexOf('Select') > -1) {
+		for (var i = 0; i < field.options.length; i++) {
+			if (field.options[i].selected) {
+				values.push(field.options[i].value);
+			}
+		}
+	}
+	// set of radio buttons or checkboxes
+	else if (field.length) {
+		for (var i = 0; i < field.length; i++) {
+			if (field[i].checked) {
+				values.push(field[i].value);
+			}
+		}
+	}
+		
+	if (values.length) {
+		return values;
+	}
+	else {
+		return false;
+	}
+}
+
 // basic moving effects function-set. if we want to do some more complex stuff, we should probably invest some time in examining yahoo's yui or the script.aculo.us libs.
 function fxLock(ele){
 	if(!ele.lock || ele.lock == false){
