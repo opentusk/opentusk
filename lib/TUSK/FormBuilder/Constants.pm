@@ -36,4 +36,5 @@ our $map_default_report_flags = {
 	7 => { 1 => 1, 2 => 1, 4 => 1 } 
 };
 
+
 1;

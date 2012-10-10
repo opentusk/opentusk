@@ -433,5 +433,28 @@ sub needsGrading {
 }
 
 
+sub get_related_courses{
+        my ($self,$question_id, $orig_course_id, $school_name) = @_;
+		my $school_id = TUSK::Core::School->new->getSchoolID($school_name);
+		my $course =  HSDB45::Course->new(_school => $school_name, _id=>$orig_course_id);
+		my $tusk_course = TUSK::Course->new()->lookupKey($course->getTuskCourseID());
+		my $ret = [];
+		
+		foreach (@{ TUSK::Core::IntegratedCourseQuizQuestion->new()->passValues($tusk_course)->lookup("child_quiz_question_id=".$question_id." and originating_course_id =".$tusk_course->getFieldValue('course_id') ) } ) {
+			my $i_tusk_course = TUSK::Course->new()->lookupKey( $_->getParentIntegratedCourseID() );
+			push @{$ret}, $i_tusk_course->getHSDB45CourseFromTuskID();
+		}
+
+=head
+    foreach (@{ TUSK::Core::LinkCourseCourse->new()->passValues($tusk_course)->lookup("link_course_course.parent_course_id=".$tusk_course->getFieldValue('course_id'
+)) }) {
+                my $i_tusk_course = TUSK::Course->new()->lookupKey( $_->getChildCourseID() );
+                push @{$ret}, $i_tusk_course->getHSDB45CourseFromTuskID();
+        }
+=cut
+
+        return $ret;
+}
+
 
 1;

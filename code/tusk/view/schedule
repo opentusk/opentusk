@@ -1,8 +1,9 @@
 <%attr>
-        no_check_path           => '1'
-        top_tab_type            => 'none'
-        displayLittleUserNavbar => '1'
-        allow_guests            => '0'
+	default_path_type       => 'view'
+	no_check_path           => '1'
+	top_tab_type            => 'none'
+	displayLittleUserNavbar => '1'
+	allow_guests            => '0'
 </%attr>
 
 <%once>
@@ -14,6 +15,7 @@
 	use HSDB4::DateTime;
 	use HSDB4::Constants;
 	use Date::Calc;
+	use URI::Escape;
 </%once>
 
 <%shared>
@@ -23,8 +25,8 @@
 	############################################
 	my $START_HOUR      = 8;   # Start hour (24 hour clock)
 	my $END_HOUR        = 18;  # End hour (24 hour clock)
-	my $MINUTE_INTERVAL = 15;  # Show blocks of X minutes.  This value must be a factor of 60.
-	my $PX_PER_INTERVAL = 21;  # Pixels per interval.  If the time range is increased, this will 
+	my $MINUTE_INTERVAL = 30;  # Show blocks of X minutes.  This value must be a factor of 60.
+	my $PX_PER_INTERVAL = 42;  # Pixels per interval.  If the time range is increased, this will 
 	                           #   need to decrease to allow the schedule to fit on one printed page
 	my $DAY_WIDTH       = 140; # Width of a day in pixels
 	my $MEETING_SPACING = 3;   # Pixels of spacing after the end of a meeting.  Less than 3 results
@@ -207,8 +209,22 @@
 %				if($countOfTimePeriods > 0) {
 %					my $webcalLink = 'webcal://'. $ENV{'SERVER_NAME'};
 %					if($ENV{'SERVER_PORT'} && ($ENV{'SERVER_PORT'} ne '80')) {$webcalLink .= ":$ENV{SERVER_PORT}";}
+%					my $gCalLink = $webcalLink;
+%					$gCalLink =~ s/webcal/http/;
 					<p style="margin-bottom:3px;">
-						<b><a href="<% $webcalLink %>/perl/pda/<%$current%>/ics/">Subscribe&nbsp;To&nbsp;This&nbsp;Schedule</a></b><br>
+						<b><a href="javascript:show_hide('subscribeFormats');">Subscribe&nbsp;To&nbsp;This&nbsp;Schedule</a></b><br>
+						<div class="xsm" style="display:none; padding-left:5px; padding-top:7px;" id="subscribeFormats">
+							<table border="0" cellspacing="5" cellpadding="0" style="border-right:1px solid grey; border-bottom:1px solid grey;">
+								<tr><td class="xsm"><a href="http://www.google.com/calendar/render?cid=<% uri_escape("$gCalLink/perl/pda/$school/$group_no/ics/") %>" target="_tuskScheduleWindow">In&nbsp;Google&nbsp;Cal</a></td></tr>
+								<tr><td class="xsm"><a href="http://30boxes.com/add.php?webcal=<% uri_escape("$webcalLink/perl/pda/$school/$group_no/ics/") %>" target="_tuskScheduleWindow">In&nbsp;30&nbsp;Boxes</a></td></tr>
+								<tr><td class="xsm"><a href="<% $webcalLink %>/perl/pda/<% $school %>/<% $group_no %>/ics/">In&nbsp;Your&nbsp;Default&nbsp;Application</a></td></tr>
+								<tr><td class="xsm">
+									Subscribe&nbsp;URL&nbsp;For&nbsp;Other&nbsp;Apps:<br>
+									<textarea class="xsm" rows="2" style="background-color:white;" onClick="this.select()"><% $webcalLink %>/perl/pda/<% $school %>/<% $group_no %>/ics/</textarea><br>
+								</td></tr>
+								<tr><td align="right" class="xsm"><a href="javascript:show_hide('subscribeFormats');">Close</a></td></tr>
+							</table>
+						</div>
 					</p>
 					<p style="margin-bottom:3px;">
 						<b><a href="javascript:show_hide('oldDownloadFormats');">Download&nbsp;This&nbsp;Schedule</a></b><br>
@@ -280,7 +296,7 @@
 						<tr>
 							<td>&nbsp;</td>
 %	foreach ( @meetings_days ) {
-							<td align="center"><b><% $_->out_weekday %></b></td>
+							<td align="center"><% $_->out_weekday %></td>
 %	}
 						</tr>
 % } else {
@@ -289,7 +305,7 @@
 						<tr>
 							<td>&nbsp;</td>
 % foreach ( @meetings_days ) {
-							<td align="center"><% $_->out_mysql_date %></td>
+							<td align="center"><% $_->out_string_date_short_year %></td>
 % }
 						</tr>
 						<& SELF:print_week_row, week => \%meetings_hash &>
@@ -329,7 +345,6 @@
 		$m->comp("SELF:weeknav");
  	}
 </%perl>
-						</tr>
 					</table>
 				</div>
 
@@ -338,6 +353,7 @@
 					<p>Click on any class for more information.</p>
 					<p><img width="10" src="/icons/reddot.gif" height="10" alt="Red Dot"><i>&nbsp;: indicates a class whose schedule has changed within the past week.</i></p>
 					<p><img width="10" src="/icons/greendot.gif" height="10" alt="Green Dot"><i>&nbsp;: indicates a class whose schedule has changed, but more than one week ago.</i></p>
+					<p><span class="m_key"></span><i>&nbsp;: indicates a class with mandatory attendance.</i><div class="newdot"></div></p>
 				</div>
 			</td>
 	</tr>
@@ -500,20 +516,33 @@
 <%args>
 	$week
 </%args>
-	<tr>
+%	my $gridlines = "<ol class=\"schedule_times\">\n";
+	<tr class="week_row">
 		<td>
 			<ol class="schedule_times">
 % my $first = 1;
 % foreach my $hour (@hours) {
 %	foreach my $minute (@minutes) {
 %		my $class;
+%		my $hour_str = $hour;
+%		if ( $hour_str > 12 )     { $hour_str -= 12; $hour_str .= " pm"; }
+%		elsif ( $hour_str == 12 ) { $hour_str .= " pm"; }
+%		else                  { $hour_str .= " am"; }
+%		if ( length($hour_str) == 4 ) { $hour_str = "&nbsp;" . $hour_str; }
+%		$hour_str =~ s/^0/&nbsp;/;
+%
 %		if ( $minute eq '00' ) { $class  = "majorInterval"; }
 %		else                   { $class  = "minorInterval"; }
-%		if ( $first )          { $class .= " noBorder"; }
-				<li style="height: <% $PX_PER_INTERVAL %>px;"><span class="<% $class %>"><% $hour %>:<% $minute %></span></li>
+%
+%		if ( $first || ($minute ne '00' && $minute ne '30') ) { $class .= " noBorder"; }
+%		if ( $minute eq '00' ) {
+			<li style="height: <% 2*$PX_PER_INTERVAL %>px;"><span class="<% $class %>"><% $hour_str %></span></li>
+%		}
+%		$gridlines .= "<li style=\"height: " . $PX_PER_INTERVAL . "px;\"><span class=\"$class\" style=\"display: block; width: " . $DAY_WIDTH . "px;\"></span></li>\n";
 %		$first = 0;
 %	}
 % }
+% $gridlines .= "</ol>\n";
 			</ol> 
 		</td>
 <%perl>
@@ -571,6 +600,7 @@ foreach my $current_day ( sort keys %{$week} ) {
 </%perl>
 		<td>
 			<dl id="d_<% $current_day %>" class="day_schedule" style="height:<% (scalar(@hours) * scalar(@minutes) * $PX_PER_INTERVAL) %>px; width:<% $DAY_WIDTH %>px;">
+				<dd><% $gridlines %></dd>
 <%perl>
 				$z_index = 0;
 				foreach my $meeting ( @{$week->{$current_day}} ) {
@@ -627,6 +657,9 @@ foreach my $current_day ( sort keys %{$week} ) {
 					}
 </%perl>
 					<a href="<% $link %>" <% $ic_class %> style="<% $style %>">
+%						if ($meeting->is_mandatory()) {
+						<p class="m_flag"><span>Mandatory</span></p>
+%						}
 %						if ( $meeting->flagtime() && $meeting->group_flagtime() &&
 %						     $meeting->flagtime()->out_unix_time() > $meeting->group_flagtime()->out_unix_time()) {
 %							if (time - $meeting->flagtime()->out_unix_time < 168 * 3600) {
@@ -639,18 +672,15 @@ foreach my $current_day ( sort keys %{$week} ) {
 						my $title = $meeting->course->out_abbrev;
 						$title =~ s|([/-])| $1 |g;
 </%perl>
-%						if ( $underrun ) { print "<h5>(" . substr($meeting->start_time, 0, -3) . " - " . substr($meeting->end_time, 0, -3) . ")</h5>\n"; }
+%						if ( $underrun ) { print "<h5>(" . $m->comp('SELF:pretty_time', time => $meeting->start_time) . " - " . $m->comp('SELF:pretty_time', time => $meeting->end_time) . ")</h5>\n"; }
 						<h3><% $title %></h3>
 						<h4><% $meeting->title %></h4>
-						<h5><% $meeting->type %></h5>
-						<h6 style="width: <% $width %>px;"><% $footer %><%perl>if ( $overrun ) { print "<br />(" . substr($meeting->start_time, 0, -3) . " - " . substr($meeting->end_time, 0, -3) . ")"; }</%perl></h6>
+						<h5><% $meeting->type %> @ <% $m->comp('SELF:pretty_time', time => $meeting->start_time) %></h5>
+						<h6 style="width: <% $width %>px;"><% $footer %><%perl>if ( $overrun ) { print "<br />(" . $m->comp('SELF:pretty_time', time => $meeting->start_time) . " - " . $m->comp('SELF:pretty_time', time => $meeting->end_time) . ")"; }</%perl></h6>
 					</a>
 				</dd>
 %					$z_index++;
 % 				}
-%				if ( $z_index == 0 ) {
-			<div style="height:<% (scalar(@hours) * scalar(@minutes) * $PX_PER_INTERVAL) %>px; background-color:#999; border: 1px solid #666"></div>
-%				}
 			</dl>
 		</td>
 % }
@@ -689,3 +719,14 @@ foreach my $current_day ( sort keys %{$week} ) {
 	return scalar( keys %{$obj_hash} );
 </%perl>
 </%method>
+
+<%method pretty_time>
+<%args>
+	$time
+</%args>
+%	my ($h, $m, $s) = split( ":", $time );
+%	$h =~ s/^0//g;
+%	$h -= 12 if $h > 12;
+%	return $h . ":" . $m;
+</%method>
+

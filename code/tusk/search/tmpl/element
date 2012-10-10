@@ -5,7 +5,7 @@
 	use TUSK::Search::SearchQuery;
 	use TUSK::Search::Content;
 	use URI::Escape;
-
+	use HSDB4::DateTime;
 	my $defaultResultSetLimit = 10;
 	my $pageName =  '/search/form';
 </%once>
@@ -416,6 +416,12 @@
                 label		=> 'View Past Searches'} 
 &>
 
+<& /tmpl/element:help_link, params=>{
+				content_id => 135812,	
+				text => "Search Help Tips",
+				not_xmetal => 1}
+&>
+
 					</td>
 				</tr>
 			</table>
@@ -463,9 +469,10 @@
 		my $resultEnd = $settings->{'resultSetLimit'} + $settings->{'resultSetStart'};
 		my $endRange = ($resultCount < $resultEnd) ? $resultCount : $resultEnd;
 </%perl>
+	<div align="left"><br />Export:  <a href="/search/export/<% $userQuery->getFieldValue('search_query_id') %>?resultSetLimit=<% $settings->{'resultSetLimit'}%>&start=<% $settings->{'resultSetStart'} %>" target="_blank">This Page</a> | <a href="/search/export/<% $userQuery->getFieldValue('search_query_id') %>" target="_blank">All</a><br /><br /></div>
 	<div class="med" style="padding-left:5px">Displaying <% $settings->{'resultSetStart'} + 1 %> - <% $endRange %> of <% $resultCount %> results</div>
 		<table cellpadding="5" class="sm" style="width:100%;padding-left:5px">
-	<tr style="font-weight:bold"><td style="text-align:center">Type</td><td>Document</td><td>Authors</td><td>Course</td><td>School</td></tr>
+	<tr style="font-weight:bold"><td style="text-align:center">Type</td><td>Document</td><td>Authors</td><td>Course</td><td>Linked Meetings</td><td>School</td></tr>
  
 %		my $rowCount = $settings->{'resultSetStart'} + 1;
 
@@ -486,19 +493,13 @@
 			}
 			
 			$content->set_aux_info('uri_path', $userQuery->getPrimaryKeyID() . 'Q');
+			
 </%perl>
 			<tr>
 				<td style="vertical-align:top;text-align:center;"><% $content->out_html_thumbnail %></td>
-				<td>
-				<& /tmpl/element:link, params=>{
-						no_table		=> 1,
-						link_style		=> 'sm',
-                        	                href			=> '/view/content/' . $userQuery->getPrimaryKeyID() . 'Q/' . $content->primary_key(),
-                                	        label			=> $content->title(),
-				 } &> 
+				<td><a href="/view/content/<% $userQuery->getPrimaryKeyID() %>Q/<% $content->primary_key() %>"><% $content->title() %></a>
 			<%perl>
-				use HSDB4::DateTime
-;				my $mod_time = HSDB4::DateTime->new();
+				my $mod_time = HSDB4::DateTime->new();
 	  			$mod_time->in_mysql_timestamp($content->field_value("modified"));
 
 				my $created_time = HSDB4::DateTime->new();
@@ -509,10 +510,33 @@
 					$created_time = $mod_time;
 				}
 			</%perl>
-				<div class="xsm">ID: <% $content->primary_key() %> &nbsp;&nbsp;Created: <% $created_time->out_mysql_date() %>&nbsp;&nbsp;Modified: <% $mod_time->out_mysql_date() %></div>
+				<div class="xsm">ID: <% $content->primary_key() %> &nbsp;&nbsp;Created: <% $created_time->out_mysql_date() %>&nbsp;&nbsp;Modified: <% $mod_time->out_mysql_date() %>
+			<%perl>
+				my @parents = $content->parent_content;
+				my @parent_links;
+				foreach( @parents ) {
+					push @parent_links, '<a href="/view/content/' . $userQuery->getPrimaryKeyID . 'Q/' . $_->primary_key . '">' . $_->title . '</a>';
+				}
+
+				if ( scalar( @parent_links ) ) {
+					$m->print( "<br />Parent content:<br />" . join( "<br />", @parent_links ) );
+				}
+			</%perl>
+					</div>
 				</td>
 				<td style="vertical-align:top"><% $authors %></td>
 				<td style="vertical-align:top"><% $course->title %></td>
+				<td style="vertical-align:top">
+			<%perl>
+				my @class_meetings = $content->parent_class_meetings;
+				my @meeting_links;
+				foreach( @class_meetings ) {
+					push @meeting_links, '<a class="xsm" href="/view/course/' . $_->course->get_school->getSchoolName . '/' . $_->course->course_id . '/schedule/' . $_->primary_key . '">' . $_->title . '</a>';
+				}
+
+				$m->print( join( "<br />", @meeting_links ) );
+			</%perl>
+				</td>
 				<td style="vertical-align:top"><% $content->field_value('school') %></td>
 			</tr>
 %		 }
@@ -627,6 +651,13 @@
 		<td>&nbsp;</td>
 		<td class="cell-submit">
 			<& /tmpl/element:submit_button,params=>{name=>'Search',label=>'Search'} &>
+		</td>
+		<td>
+			<& /tmpl/element:help_link, params=>{
+					content_id => 135812,	
+					text => "Search Help Tips",
+					not_xmetal => 1}
+			&>
 		</td>
 	</tr>
 </table>

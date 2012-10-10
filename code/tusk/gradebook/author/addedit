@@ -1,5 +1,11 @@
 <%once>
+	use HSDB4::Constants;
+	use TUSK::GradeBook::GradeScale;
+	use TUSK::GradeBook::GradeScaleBounds;
+	use TUSK::GradeBook::GradeScaleCourse;
+	use TUSK::GradeBook::GradeEventGradeScale;
 	use TUSK::GradeBook::GradeEvent;
+	use TUSK::GradeBook::GradeEventEval;
 	use TUSK::Application::GradeBook::GradeBook;
 </%once>
 
@@ -8,7 +14,12 @@
 	my $event_id = $m->comp("/tmpl/url:get_last_path_id");
 	my $type_object = $m->comp("/tmpl/url:get_type_object");
 	my $is_edit = 0;
-	my ($event, $category, $time_period_id, $gb, $root_category, $category_id);
+	my $school = $m->comp("/tmpl/url:get_school");
+	
+	my ($event, $category, $time_period_id, $gb, $root_category, $category_id, $current_scale);
+	
+	my $school_id = TUSK::Core::School->new()->getSchoolID($school);
+	my $scale_array = [];
 </%shared>
 
 
@@ -57,6 +68,72 @@
 } &>
 
 <& /tmpl/element:textbox, params => { 
+	label => 'Maximum Possible Points',
+	name => 'max_possible_points',
+	value => ($event->getMaxPossiblePoints()) ? $event->getMaxPossiblePoints : '100',
+	size => 10,
+	length => 10 
+} &>
+
+% if (defined($event_id)){
+
+
+% my $show_scale;
+% if (defined($ARGS{scale_id})) { $show_scale = $ARGS{scale_id} ; } 
+% else { $show_scale = $current_scale; }
+
+<& /tmpl/element:dropdown, params => {
+	label => 'Choose a grade scale: ',
+	name  => 'available_scales',
+	tr_style =>"width:10%;",
+	td_style =>"width:10%;",
+	onchange => 'reload_scale(this.options[this.selectedIndex].value)',
+	selected=> (defined($show_scale)) ? $show_scale : '',
+	options=> $scales_dropdown_array_ref,
+	trailing_text => "<a href='/gradebook/author/showscales/".$type_path."'>Add/Modify Scales</a>",
+	
+} &>
+
+<%perl>
+if(defined($show_scale)) {
+	print "<tr><td></td><td><table>";
+	my $chosen_scale_id = $show_scale; ##$ARGS{scale_id}; 
+	my $bounds = TUSK::GradeBook::GradeScaleBounds->lookup("grade_scale_id = ".$chosen_scale_id." order by lower_bound desc");
+	foreach my $lnk (@$bounds){
+		my $scale_hash;
+	    $scale_hash->{'grade'} = $lnk->getGradeSymbol();
+		$scale_hash->{'number'} = $lnk->getLowerBound();
+		push(@$scale_array,$scale_hash);
+	}
+
+
+	$m->comp('/tmpl/element:sort_order_box', params =>{
+	
+		no_add_button=>1,
+        label=>'Existing Scale',
+		no_label=>1,
+		layer_info => {
+			layer => 'scalediv',
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			fields => ['link_grade_event_scale_id','grade', 'number','course_id','time_period','school_id'],
+			name => 'scale',
+			sort => {usage => 'No'},
+			action => {usage => 'No'},	
+			scrollrows => 10,
+			display => [
+				{label=>'Minimum Score', field=>'number', align=>'center', length=>50,type=>'label'},
+				{label=>'Grade',field=>'grade', align=>'center', length=>50, type=>'label'},
+			],
+			validate => { usage => 'No', form => 'coursePreferences'},
+			data => $scale_array }	});
+
+print "</table></td></tr>";
+} ### end if args{scale_id}
+</%perl>
+
+% }
+
+<& /tmpl/element:textbox, params => { 
 	label => 'Grade to pass',
 	name => 'pass_grade',
 	value => $event->getPassGrade(),
@@ -69,7 +146,7 @@
 	name 		=> 'due_date',
 	value 		=> $event->getFormattedDueDate(),
 	size 		=> 20,
-	maxlengt	=> 20,
+	maxlength	=> 20,
 	calendar    => 1,
 	calendar_type => 'datetime',
 	default_time => 'endofday',
@@ -77,8 +154,6 @@
 
 <& /tmpl/element:posted_dropdown, selected => $event->getPublishFlag() &>
 
-
-% if ($is_edit) {
 <& /tmpl/element:radio_buttons, params => { 
         label => 'Exclude from final grade calculation?',
         name => 'waive_grade',
@@ -91,8 +166,29 @@
 			} 
 	   	],
 		nobreak => 1, } &>
+
+% if ( grep { $_ eq $school } HSDB4::Constants->eval_schools() ) {
+% my $grade_release = 0;
+% if ( $event_id ) { 
+%	my $grade_event_eval = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = $event_id" );
+%	if ( $grade_event_eval ) {
+%		$grade_release = $grade_event_eval->getEvalID();
+%	}
+% }
+% my $evals = [ { label => "N/A", value => '' } ];
+% foreach ( HSDB45::Eval->new(_school => $school)->lookup_conditions("course_id = '$course_id' and time_period_id = '$time_period_id'") ) {
+%	push @{$evals}, { label => $_->title, value => $_->primary_key };
 % }
 
+<& /tmpl/element:dropdown, params => { 
+	label 		=> 'Grade Release Tied to Eval Completion?',
+	name		=> "grade_release",
+	onchange	=> undef,
+	selected	=> $grade_release,
+    options 	=> $evals,
+} &>
+
+% }
 
 <& /tmpl/element:save_button, params=>{
 	label 			=> 'Save Changes',
@@ -107,6 +203,16 @@
 </form>
 
 <%init>
+	my $course_id = $type_object->primary_key;
+	my $link_scales_course;
+	$link_scales_course = TUSK::GradeBook::GradeScaleCourse->lookup("course_id = $course_id AND school_id = $school_id");
+	my $scales_dropdown_array_ref=[];
+	push(@$scales_dropdown_array_ref, {'label' => '', 'value' => 0 });
+	foreach my $lnk (@$link_scales_course) {
+		my $scale = TUSK::GradeBook::GradeScale->lookupKey($lnk->getGradeScaleID());
+		push(@$scales_dropdown_array_ref, {'label' => $scale->getName(), 'value' => $lnk->getGradeScaleID() });
+	}
+
 	if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)) {
 
 		if (defined($m->comp("SELF:get_timeperiod_id")) && $m->comp("SELF:get_timeperiod_id") > -1 ) {
@@ -114,9 +220,12 @@
 			$ARGS{'event_name'} = "Untitled" unless ($ARGS{'event_name'});
 			$event->setEventName($ARGS{'event_name'});
 			$event->setWeight($ARGS{'weight'});
+			if( $ARGS{'max_possible_points'} ) {
+				$event->setMaxPossiblePoints($ARGS{'max_possible_points'});
+			}
 			$event->setEventDescription($ARGS{'event_description'});
 			$event->setPublishFlag($ARGS{'publish_flag'});
-			$event->setDueDate($ARGS{'due_date'}) if ($ARGS{'due_date'});
+			$event->setDueDate($ARGS{'due_date'} ? $ARGS{'due_date'} : undef);
 			$event->setGradeCategoryID($ARGS{'category_id'});				
 			$event->setPassGrade($ARGS{'pass_grade'});
 			if ($is_edit) {
@@ -131,12 +240,40 @@
 
 			$event->save({'user' => $m->session->{'user'}->user_id()});
 
+			## delete the old scale link, if one is chosen then set it
+			my $old_link_grade_event_scale = TUSK::GradeBook::GradeEventGradeScale->lookup("grade_event_id =".$event->getPrimaryKeyID());
+			foreach my $old_link (@$old_link_grade_event_scale) {
+				$old_link->delete();
+			}
+			if($ARGS{available_scales}) {
+			
+				my $link_grade_event_scale = TUSK::GradeBook::GradeEventGradeScale->new();
+				$link_grade_event_scale->setGradeScaleID($ARGS{available_scales});
+				$link_grade_event_scale->setGradeEventID($event->getPrimaryKeyID());
+				$link_grade_event_scale->save();
+			}
+
 			my $url = $r->uri();
 			if ($is_edit) {
 				$msgtxt = "Grade event successfully modified";
 			} else {
 				$url .= "/" . $event->getPrimaryKeyID();
-				$msgtxt = "Grade event successfully created";
+				$msgtxt = "Grade event successfully created";	
+			}
+
+			if ( $ARGS{'grade_release'} ) {
+				my $grade_event_eval = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $event->getPrimaryKeyID );
+				if ( !$grade_event_eval ) {
+					$grade_event_eval = TUSK::GradeBook::GradeEventEval->new();
+				}
+				$grade_event_eval->setGradeEventID( $event->getPrimaryKeyID );
+				$grade_event_eval->setEvalID( $ARGS{'grade_release'} );
+				$grade_event_eval->save({'user' => $m->session->{'user'}->user_id()});
+			} else {
+				my $grade_event_eval = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $event->getPrimaryKeyID );
+				if ( $grade_event_eval ) {
+					$grade_event_eval->delete({'user' => $m->session->{'user'}->user_id()});
+				}
 			}
 
 			$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $url . "?msg=$msgtxt");
@@ -155,6 +292,13 @@
 	    $event = TUSK::GradeBook::GradeEvent->new()->lookupReturnOne("grade_event_id = $event_id", undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::GradeBook::GradeCategory", { joinkey => 'grade_category_id', jointype => 'inner'} )]);
 		$category = $event->getJoinObject("TUSK::GradeBook::GradeCategory");
 		$time_period_id = $event->getTimePeriodID();
+
+		my $old_link_grade_event_scale = TUSK::GradeBook::GradeEventGradeScale->lookupReturnOne("grade_event_id = $event_id");	
+		
+		if (defined($old_link_grade_event_scale)){
+			$current_scale = $old_link_grade_event_scale->getGradeScaleID();	
+		}
+
 	} else {
 		### still not sure why time period is not set to session from show page
 		unless (defined($m->comp("SELF:get_timeperiod_id")) && $m->comp("SELF:get_timeperiod_id") > -1) {
@@ -162,6 +306,9 @@
 		}
 	    $event = TUSK::GradeBook::GradeEvent->new();
 		$time_period_id = $m->comp("SELF:get_timeperiod_id");
+
+		
+		
 	}
 
 	$gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id});

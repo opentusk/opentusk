@@ -2,24 +2,27 @@
 	use TUSK::FormBuilder::Form;
 </%once>
 
-<%method jsarray>
-% return ['layers.js', 'formbuilder.js', 'element.js'];
-</%method>
-
 <%shared>
 	my $formName = '';
 	my $formDescription = '';
 	my $formPublished = '';
+	my $formReqApproval = '';
 </%shared>
 
 <%method page>
 <%args>
 	$args
-	$form => 0
+	$form => undef
+	$fields => undef
+	$display_metadata => undef
+	$field_buttons => []
+	$params => undef
 </%args>
-<%perl>
-	my $basedir = $m->comp("/formbuilder/util:get_base_dir");
 
+<%perl>
+	my $field_label = ($args->{field_label}) ? $args->{field_label} : 'Fields';
+	my $create_field_label = ($args->{create_field_label}) ? $args->{create_field_label} : 'Field';
+	my $basedir = $m->comp("/formbuilder/util:get_base_dir");
 	unless($form) {
 		my $form_id = $m->comp("/tmpl/url:get_last_path_id");
 		$form = TUSK::FormBuilder::Form->new->lookupKey($form_id);
@@ -30,8 +33,6 @@
 
 	if($form) {
 		unless($form eq 'new') {
-			my $fields = $form->getFields();
-	
 			foreach my $field (@{$fields}){
 				my $field_type = $field->getFieldTypeObject();
 				my $link_obj = $field->getLinkFormFieldObject();
@@ -48,6 +49,7 @@
 				$form->setFormName($args->{'form_name'});
 				$form->setFormDescription($args->{'form_description'});
 				$form->setPublishFlag($args->{'publish_flag'});
+				$form->setRequireApproval($args->{'require_approval'});
 				$form->save({'user' => $m->session->{'user'}->user_id()});
 	
 				$m->comp("/tmpl/process:process_sort_orders", 'layer' => 'fieldsdiv', 
@@ -61,6 +63,7 @@
 			$formName = $form->getFormName();
 			$formDescription = $form->getFormDescription();
 			$formPublished = $form->getPublishFlag();
+			$formReqApproval = $form->getRequireApproval();
 		}
 	}
 </%perl>
@@ -82,62 +85,82 @@
                 value => $formName,
                 size => 60,
                 length => 100 } &>
+
 <& /tmpl/element:textarea, params=>{ label => 'Description',
                 name=>'form_description',
                 cols=>"60",
                 rows=>"4",
                 value=>$formDescription  } &>
 
+% if ( $params->{'require_approval'} ) {
+<& /tmpl/element:dropdown, params=>{ label => 'Require proctor approval?',
+                name=> "require_approval",
+                onchange=> "",
+				selected=> $formReqApproval,
+                options => [{ label => 'No', value => '0'}, { label => 'Yes', value => '1' } ] } &>
+% }
+
 <& /tmpl/element:dropdown, params=>{ label => 'Posted?',
                 name=> "publish_flag",
                 onchange=> "",
-		selected=> $formPublished,
+				selected=> $formPublished,
                 options => [{ label => 'No', value => '0'}, { label => 'Yes', value => '1' } ] } &>
 
-
+% if ($display_metadata) {
+<& $display_metadata, form => $form, args => $args &>
+% }
 
 % if($form eq 'new') {
 <& /tmpl/element:save_button, params=>{label=>'Save And Continue', name=>'save_new_form', 'no_cancel_button' => 1} &>
 % } else {
 %	my $button_text = '';
 %	$m->comp({store=> \$button_text},'/tmpl/element:button', 
-%			params=>{ onclick=>"window.location='" . $m->comp("/tmpl/url:construct_url", 
-%			'base_url' => $basedir . "/field") . "'",
-%			name=>'addfield',
-%			label=>'Create Field'});
+%			params => { 
+%				onclick => "window.location='" . $m->comp("/tmpl/url:construct_url", 'base_url' => $basedir . "/field") . "'",
+%				name => 'addfield',
+%				label => 'Add ' . $create_field_label });
 
 
-<& /tmpl/element:sort_order_box , params =>{
-		no_add_button => '1',
-                label=>'Fields',
-		buttons=>[$button_text],
-		sort_box => 1,
-                layer_info => {
-			context_path => $m->comp("/tmpl/url:get_full_path"),
-			base_path => $basedir,
-			empty_message => 'No fields for this form',
-                        layer => 'fieldsdiv',
-                        fields => ['field_id', 'link_form_field_id', 'field_name', 'field_type'],
-                        name => 'field',
-                        sort => {usage => 'Yes', length=>50},
-                        action => {usage => 'Yes', length=>100, functions => [
-							{func=>'field_modify', label=>'Modify'},
-                            {func=>'field_delete', label=>'Delete'} ]},
-                        display => [
-                            {label=>'Name',field=>'field_name', align=>'left', length=>350},
-                            {label=>'Type',field=>'field_type', align=>'left', length=>130},
-                            {label=>'LinkFormField',field=>'link_form_field_id', length=> 0, type=> 'hidden'},
-                        ],
-                        validate => {
-                            usage => 'No',
-							form => 'formedit'
-                        },
-                        data => $fields_data }
-                } &>
+<& /tmpl/element:sort_order_box , params => {
+	no_add_button => '1',
+	label => $field_label,
+	buttons => [$button_text, @$field_buttons],
+	sort_box => 1,
+	layer_info => {
+		context_path => $m->comp("/tmpl/url:get_full_path"),
+		base_path => $basedir,
+		empty_message => 'No questions for this form',
+		layer => 'fieldsdiv',
+		fields => ['field_id', 'link_form_field_id', 'field_name', 'field_type'],
+		name => 'field',
+		sort => {usage => 'Yes', length=>50},
+		action => {
+			usage => 'Yes', 
+			length => 100, 
+			functions => [
+				{func=>'field_modify', label=>'Modify'},
+				{func=>'field_delete', label=>'Delete'} ]
+		},
+		display => [
+			{label=>'Name',field=>'field_name', align=>'left', length=>350},
+			{label=>'Type',field=>'field_type', align=>'left', length=>130},
+			{label=>'LinkFormField',field=>'link_form_field_id', length=> 0, type=> 'hidden'},
+		],
+		validate => {
+			usage => 'No',
+			form  => 'formedit'
+		},
+    	data => $fields_data 
+	}
+} &>
 
 <& /tmpl/element:save_button, params=>{label=>'Save Changes', name=>'form_submit', 'no_cancel_button' => 1} &>
 %}
 
 </table>
 </form>
+</%method>
+
+<%method jsarray>
+% 	return ['layers.js', 'formbuilder.js', 'element.js'];
 </%method>

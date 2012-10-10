@@ -84,7 +84,10 @@
 		$cost_by_cat{$t->getBatteryObj()->getBatteryTitle()} += $t->getDefaultCost();
 	}	
 
-	my $quiz_results = $report->getQuizResults();
+	my $quiz_result_links;
+	if (!$case->isTest()) {
+		$quiz_result_links = $report->getQuizResultLinks();
+	}
 </%perl>
 
 
@@ -136,6 +139,9 @@
 % if ($notes) {
 <li id="notepad"><a href="javascript:;" onclick="activateTab(this);">Notepad</a></li>
 % }
+% if (defined $quiz_result_links && scalar @$quiz_result_links) {
+<li id="quiz_results"><a href="javascript:;" onclick="activateTab(this);">Quiz Results</a></li>
+% }
 % if ($reference_text){
 <li id="references"><a href="javascript:;" onclick="activateTab(this);">References</a></li>
 % }
@@ -154,7 +160,7 @@
 <& /tmpl/element:table &>
 <tr><td class="summary"><h4>Pathway Summary</h4></td></tr>
 </table> 
-% $m->comp('path_summary', case => $case, report => $report);
+% $m->comp('/case/path_summary', case => $case, report => $report);
 </div> <!-- pathwayArea -->
 % }
 
@@ -183,6 +189,17 @@
 <tr><td colspan="2" class="text2"><% $notes %></td></tr>
 </table>
 </div> <!-- notepadArea -->
+% }
+
+% if (defined $quiz_result_links && scalar @$quiz_result_links) {
+<div id="quiz_resultsArea" class="tabArea">
+<& /tmpl/element:table &>
+<tr><td colspan="2" class="summary"><h4>Quiz Results</h4></td></tr>
+<tr><td colspan="2">
+% $m->comp('/case/quiz_result_summary', quiz_result_links => $quiz_result_links);
+</td></tr>
+</table>
+</div> <!-- quiz_resultsArea -->
 % }
 
 

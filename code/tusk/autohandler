@@ -18,17 +18,22 @@ sub pre_dump{
 }
 
 my $authentication = sub {
+	my $home_url = '/home?url=' . $m->{top_path};
+	if ( $m->comp('/tmpl/url:get_full_path') ) {
+		$home_url .= "/" . $m->comp('/tmpl/url:get_full_path');
+	}
+
 	my ($user, $user_id);
 	unless ($user_id = $r->connection->user) {
 		if (my %cookies = Apache::Cookie->new($r)->parse) {
 			if (defined ($cookies{'Ticket'})){
 				my %ticket = $cookies{'Ticket'}->value;
-				$user_id = $ticket{'user'};
+				$user_id = Apache::TicketTool::get_user_from_ticket(\%ticket);
 			}
 		}
 	}
 	if (!$user_id){ # redirect to login page
-		$r->header_out(Location => '/home?url=' . $m->{'top_path'} . '/' . $m->comp('/tmpl/url:get_full_path') . '&errmsg=Unknown+User');
+		$r->header_out(Location => $home_url . '&errmsg=Please+login');
 		$r->status(REDIRECT);
 		exit;
 	}
@@ -39,7 +44,7 @@ my $authentication = sub {
 	) {
 		my $shibUserID = -1;
 		if($user_id && !$m->session->{'user'}) {$m->session->{'user'} = $user_id;}
-        	$shibUserID = TUSK::ShibbolethUser->isShibUser($m->session->{'user'});
+        	$shibUserID = TUSK::Shibboleth::User->isShibUser($m->session->{'user'});
 		$user = HSDB4::SQLRow::User->new();
         	if(($shibUserID > -1) && ($m->base_comp->attr('allow_shib') == 1)) {
 			# If we are a shib user and we are allowing shib users then make a ghost user
@@ -52,7 +57,7 @@ my $authentication = sub {
 		if(!$user->primary_key) {
 			# Returen that we are an unknown user
 			unless($m->base_comp->attr('allow_guests') == 1) {
-				$r->header_out(Location => '/home?url=' . $m->{'top_path'} . '/' . $m->comp('/tmpl/url:get_full_path') . '&errmsg=Unknown+User');
+				$r->header_out(Location => $home_url . '&errmsg=Please+login');
 				$r->status(REDIRECT);
 				exit;
 			}

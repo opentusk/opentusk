@@ -1,0 +1,71 @@
+<%flags>
+	inherit => undef
+</%flags>
+<%filter>
+s/[\n\r]+/\n/
+</%filter>
+<%attr>
+no_check_path => 1
+page_header => ''
+page_footer => ''
+</%attr>
+<%shared>
+	$r->content_type("application/unknown");
+	$r->header_out("Content-disposition","attachment; filename=search.xls"); 
+	$r->no_cache(1);
+	$r->send_http_header;
+</%shared>
+<%perl>
+	my $user = $m->session->{'user'}->user_id();
+	if ( !$ARGS{'resultSetLimit'} ) { $ARGS{'resultSetLimit'} = 1000000; }
+	my ($settings, $query) = $m->comp('tmpl/element:interpretQueryString', args => \%ARGS);
+	my $userQuery = $settings->{'userQuery'};
+ 	my $fullTextContent = $userQuery->getResults($settings->{'resultSetStart'}, $settings->{'resultSetLimit'});
+	my $resultCount = $userQuery->countResults();
+	my $resultEnd = $settings->{'resultSetLimit'} + $settings->{'resultSetStart'};
+	my $endRange = ($resultCount < $resultEnd) ? $resultCount : $resultEnd;
+	my $rowCount = $settings->{'resultSetStart'} + 1;
+</%perl>
+URL	ID	Document	Created	Modified	Parent(s)	Authors	Course	Linked Meetings	School
+<%perl>
+	foreach my $content (@$fullTextContent){ 
+		next if (!$content->primary_key());
+		my (@users, @non_users, $authors, $course);
+		
+		if ($content->primary_key()){
+			if ($content->type() eq 'External') {
+				$authors = $content->child_authors();
+			} else {
+				@users = $content->child_users("sort_order", "roles like '%Author%'");
+				@non_users = $content->child_non_users("sort_order", "roles like '%Author%'");
+				$authors = join (', ', map { $_->out_abbrev } @users, @non_users);
+			}
+			$course = $content->course();
+		}
+		
+		use HSDB4::DateTime;
+		my $mod_time = HSDB4::DateTime->new();
+	  	$mod_time->in_mysql_timestamp($content->field_value("modified"));
+		my $created_time = HSDB4::DateTime->new();
+		if ($content->field_value("created")){
+	  		$created_time->in_mysql_timestamp($content->field_value("created"));
+		} else {
+			$created_time = $mod_time;
+		}
+
+		my @parents = $content->parent_content;
+		my @parent_links;
+		foreach( @parents ) {
+			push @parent_links, $_->title;
+		}
+		my $parents_link_string = join( " | ", @parent_links );
+			
+		my @class_meetings = $content->parent_class_meetings;
+		my @meeting_links;
+		foreach( @class_meetings ) {
+			push @meeting_links, $_->title;
+		}
+		my $meeting_link_string = join( " | ", @meeting_links );
+</%perl>
+http://<% $TUSK::Constants::Domain %>/view/content/<% $userQuery->getPrimaryKeyID() %>Q/<% $content->primary_key() %>	<% $content->primary_key() %>	<% $content->title() %>	<% $created_time->out_mysql_date() %>	<% $mod_time->out_mysql_date() %>	<% $parents_link_string %>	<% $authors %>	<% $course->title %>	<% $meeting_link_string %>	<% $content->field_value('school') %>
+%	 }

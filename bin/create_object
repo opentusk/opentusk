@@ -2,7 +2,7 @@
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 
-
+use HSDB4::Constants;
 use MySQL::Password;
 use DBI;
 use Getopt::Std;
@@ -32,9 +32,17 @@ $objectname =~ s/_(.)/uc($1)/eg;
 $objectname = ucfirst($objectname);
 $packagename="$opt_p\::$objectname";
 
-my ($u, $p) = get_user_pw ();
-$dbh = DBI->connect ('dbi:mysql:hsdb45_nut_admin', $u, $p,
-		     { RaiseError => 1 });
+
+my ($user_name, $password) = get_user_pw();
+HSDB4::Constants::set_user_pw($user_name, $password);
+
+my $dbh;
+eval {
+        $dbh = HSDB4::Constants::def_db_handle();
+};
+die "$@\t...failed to obtain database handle!" if $@;
+
+
 $query = qq[desc $opt_d.$opt_t];
 
 $sth = $dbh->prepare($query);

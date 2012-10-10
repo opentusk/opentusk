@@ -73,6 +73,7 @@ sub new {
 					'body' => '',
 					'loggedout_flag' => '',
 					'source' => '',
+					'uid' => '',
 				    },
 				    _attributes => {
 					save_history => 0,
@@ -771,11 +772,50 @@ sub setSource{
 }
 
 
+#######################################################
+
+=item B<getUID>
+
+my $integer = $obj->getUID();
+
+Get the value of the uid field
+
+=cut
+
+sub getUID{
+    my ($self) = @_;
+    return $self->getFieldValue('uid');
+}
+
+#######################################################
+
+=item B<setUID>
+
+$obj->setUID($value);
+
+Set the value of the uid field
+
+=cut
+
+sub setUID{
+    my ($self, $value) = @_;
+    $self->setFieldValue('uid', $value);
+}
+
 =back
 
 =cut
 
 ### Other Methods
+
+
+# Show lastname, comma, then firstname
+sub outLastFirstName{
+    my $self = shift;
+    return $self->getFieldValue('lastname') . ", " . $self->getFieldValue('firstname');
+}
+
+
 
 =head1 BUGS
 

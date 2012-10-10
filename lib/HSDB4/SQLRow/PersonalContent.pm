@@ -17,7 +17,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.18 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.19 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version { return $VERSION }
@@ -696,7 +696,7 @@ sub is_user_authorized {
     return 0 if HSDB4::Constants::is_guest($user);
 
     # No for shib users...
-    return 0 if(TUSK::ShibbolethUser->isShibUser($user) != -1);
+    return 0 if(TUSK::Shibboleth::User->isShibUser($user) != -1);
 
     # ...yes for everyone else
     return 1;

@@ -1,0 +1,379 @@
+<%once>
+    use HSDB4::Constants;
+    use HSDB45::Eval::Authoring;
+    use HSDB45::Survey;
+</%once>
+
+<%shared>
+	my $maxMultiChoiseQuestions = 39;
+	my $school = $m->comp('SELF:schoolname');
+	my ( @binnables, @targetables, @question_ids, %editable, $eval, %msgs, %shared_args );
+	my ($eval_id, @path_question_ids) = $m->comp("/tmpl/url:get_path_ids");
+
+	if ($eval_id =~ /S/) {
+		$eval_id =~ s/S//g;
+		$eval = HSDB45::Survey->new(_school => $school, _id => $eval_id);
+	} else {
+	    $eval = HSDB45::Eval->new( _school => $school, _id => $eval_id );
+	}
+
+	if ( !$eval->primary_key ) {
+		$m->redirect( '/protected/eval/administrator/show/' . $school . "?errmsg=Eval not found." );
+	}
+</%shared>
+
+<p>For information on the options for each question type, choose the "Question Authoring Help" button, which will create a pop-up reference sheet. For a directory of the questions in the current eval (for grouping and reference purposes, for example), choose the "Directory of This Eval" button, which will display a summary of all the questions associate with this eval.</p>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				name   => 'eval_question_edit' } &>
+
+<& /tmpl/element:table, params => { 
+				border      =>"0",
+				cellspacing =>"0",
+				cellpadding =>"0" } &>
+
+<%perl>
+	foreach my $qid (@question_ids) {
+		if ($editable{$qid}) {
+			 $m->comp('SELF:question_form', question => $eval->question($qid) );
+		} else {
+			 $m->comp('SELF:uneditable_message', question => $eval->question($qid) );
+		}
+	}
+</%perl>
+
+<& /tmpl/element:save_button, params=>{ 
+				cancel_onclick=>"go_back('/protected/eval/administrator/eval_edit/$school/$eval_id');",
+				label => 'Save Changes',
+				name  => 'submit' } &>
+
+</table>
+</form>
+
+<%init>
+	$m->comp("/tmpl/element:cms_button_row", links => [ 
+		{link_txt=>'javascript:doHelpWindow();', display_txt=>'Question Authoring Help'},
+		{link_txt=>'javascript:doQuickRefWindow(\'' . $school . '/' . $eval_id. '\');', display_txt=>'Directory of This Eval'},
+	 ] );
+
+	@binnables = $eval->binnable_questions();
+	my $is_ref;
+    foreach my $q ($eval->questions()) {
+		$is_ref = $q->body()->is_reference() ;
+		if (!$is_ref && $q->body()->question_type() ne 'Title' && $q->body()->question_type() ne 'Instruction') {
+			push @targetables, $q;
+		}
+	}
+
+	foreach my $qid (@path_question_ids) {
+		my $question = $eval->question($qid);
+		next unless ($question && $question->primary_key());
+		push @question_ids, $qid;
+		$editable{$qid} = $question->other_evals_answered() ? 0 : 1;
+	}
+
+	if ($ARGS{'submit'}) {
+		for my $qid (@question_ids) {
+			next unless $editable{$qid};
+			my $question = $eval->question($qid);
+			my ($r, $msg) = HSDB45::Eval::Authoring::edit_question($eval, $question, \%ARGS);
+
+			if ($msg) {
+				$msgs{$qid} = HSDB45::Eval::Authoring::message_processor($msg);
+			}
+		}
+
+		%shared_args = %ARGS;
+
+		if (!scalar(keys (%msgs)))  {
+			$m->redirect( '/protected/eval/administrator/eval_edit/' . $school . "/" . $eval->primary_key . "?msg=Question(s) saved." );
+		}
+	}
+</%init>
+
+<%method style_dropdown>
+<%args>
+	$question
+	$name
+</%args>
+% my $value = $shared_args{$name} || $question->body()->choice_style(); 
+<select name="<% $name %>">
+	<option value="radiobox"<% ($value eq 'radiobox') ? " selected" : "" %>>Radiobox</option>
+	<option value="dropdown"<% ($value eq 'dropdown') ? " selected" : "" %>>Dropdown</option>
+</select>
+</%method>
+
+<%method numsteps_dropdown>
+<%args>
+	$question
+	$name
+</%args>
+% my $value = $shared_args{$name} || $question->body()->num_steps();
+<select name="<% $name %>">
+%	foreach my $num (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25) {
+	<option value="<% $num %>"<% ($value == $num) ? " selected" : "" %>><% $num %></option>
+%	}
+</select>
+</%method>
+
+<%method shownumbers_dropdown>
+<%args>
+	$question
+	$name
+</%args>
+% my $value = $shared_args{$name} || $question->body()->show_numbers();
+<select name="<% $name %>">
+	<option value="0"<% (!$value) ? " selected" : "" %>>No</option>
+	<option value="1"<% ($value)  ? " selected" : "" %>>Yes</option>
+</select>
+</%method>
+
+<%method preceding_qid_dropdown>
+<%args>
+	$question
+</%args>
+<select name="q_<% $question->primary_key() %>_preceding_qid">
+%	my $pqid = $shared_args{'q_' . $question->primary_key() . '_preceding_qid'} || $eval->get_preceding_qid($question->primary_key());
+  <option value="0" <% $pqid ? '' : 'selected="true"' %>>Beginning</option>
+%	foreach my $q ($eval->questions()) {
+%		if ($q->primary_key() != $question->primary_key()) {
+  <option value="<% $q->primary_key() %>" <% $pqid == $q->primary_key() ? 'selected="true"' : '' %>>
+	<% $q->out_text_display() %>
+  </option>
+%		}
+%	}
+</select>
+</%method>
+
+<%method grouping_dropdown>
+<%args>
+	$question
+</%args>
+% my $sel = $shared_args{'q_' . $question->primary_key . '_group_by_ids'} || ($question->group_by_ids) ? ($question->group_by_ids)[0] : 0;
+<select name="q_<% $question->primary_key %>_group_by_ids">
+  <option value="0"<% (!$sel) ? " selected" : "" %>>None</option>
+%	foreach my $q (@binnables) {
+% 	my $pk  = $q->primary_key;
+  <option value="<% $pk %>"<% ($sel == $pk) ? " selected" : "" %>>ID: <% $pk %></option>
+%	}
+</select>
+</%method>
+
+<%method uneditable_message>
+<%args>
+	$question
+</%args>
+%	my $qid = $question->primary_key();
+%	my $type = $question->body()->question_type();
+<tr class="header">
+  <td class="header-left">ID: <% $qid %></td>
+  <td class="header-left" colspan="3">Type: <% $type %></td>
+</tr>
+<tr><td>&nbsp;</td><td colspan="3" align="left"><span class="error">Cannot edit this question, because it is used in evals which have been completed by some users.</span></td></tr>
+</%method>
+
+<%method question_ref_dropdown>
+<%args>
+	$name
+	$question
+</%args>
+%	my $target = $shared_args{$name} || $question->body()->target_question_id();
+<select name="<% $name %>">
+%	foreach my $q (@targetables) {
+%	my $pk = $q->primary_key();
+  <option value="<% $pk %>"<% ($pk == $target) ? " selected" : "" %>>ID: <% $pk %>; Type: <% $q->body()->question_type() %></option>
+%	}
+</select>
+</%method>
+
+<%method question_form>
+<%args>
+	$question
+</%args>
+%	my $qid = $question->primary_key();
+%	my $type = $question->body()->question_type();
+%	my $label = $shared_args{'q_'.$qid.'_label'} || $question->get_real_label();
+%	$label =~ s/\"/\&\#34;/g;  #"  IGNORE THIS QUOTE.  It is here to keep vim syntax highlighting nice.
+%	my $is_required   = $shared_args{'q_'.$qid.'_required'} || $question->is_required;
+%	my $na_available  = $shared_args{'q_'.$qid.'_na_available'} || $question->body->na_available;
+%	my $question_text = $shared_args{'q_'.$qid.'_question_text'} || $question->body->question_text;
+<tr class="header">
+  <td class="header-left">ID: <% $qid %></td>
+  <td class="header-left" colspan="3">Type: <% $type %></td>
+</tr>
+<tr><td>&nbsp;</td></tr>
+%	if ($msgs{$qid}) {
+<tr>
+  <td>&nbsp;</td>
+  <td colspan="3" align="center" class="error"><b>Error saving results:<br />
+    <% $msgs{$qid} %></b></td>
+</tr>
+%	}
+<tr>
+  <td align="right"><b>Label: </b></td>
+  <td align="left"><input type="text" size="16" name="q_<% $qid %>_label" value="<% $label %>" /></td>
+  <td align="right"><b>Preceding Question: </b></td>
+  <td align="left"><& SELF:preceding_qid_dropdown, question => $question &></td>
+</tr>
+<tr>
+  <td align="center">&nbsp;</td>
+  <td align="left">
+    <b>Required:</b>
+%	if ($type eq 'Title' || $type eq 'Instruction') {
+No
+%	} else {
+<input type="checkbox" name="q_<% $qid %>_required" value="1"<% ($is_required) ? " checked " : " " %> />
+%	}
+	&nbsp;&nbsp;&nbsp;
+    <b>N/A Available:</b> 
+%	if ($type eq 'Title' || $type eq 'Instruction' || $type eq 'MultipleResponse' || $type eq 'FillIn') {
+No
+%	} else {
+<input type="checkbox" name="q_<% $qid %>_na_available" value="1"<% ($na_available) ? " checked" : "" %> />
+%	}
+  </td>
+  <td align="right"><b>Grouping:</b></td>
+  <td align="left">
+%	if ($type eq 'Title' || $type eq 'Instruction') {
+    N/A
+%	} else {
+	<& SELF:grouping_dropdown, question => $question &>
+%	}
+  </td>
+</tr>
+<tr>
+  <td align="right" valign="top"><b>Text: </b></td>
+  <td colspan="3" align="left">
+    <i style="font-size: 80%;">Allowed tags: 
+    <% join(', ', map { "\&lt;$_\&gt;" } qw/b strong i emph para br linebreak hr img pagebreak table tr td th ul itemized-list ol enumerated-list li list-item/) %></i><br />
+    <textarea wrap="soft" name="q_<% $qid %>_question_text" cols="80" rows="6"><% $question_text %></textarea>
+  </td>
+</tr>
+%	if ($question->body()->is_reference()) {
+<tr>
+<td align="right"><b>Target Question ID:</b></td>
+<td colspan="3" align="left">
+<& SELF:question_ref_dropdown, question => $question, name => "q_$qid\_target_question_id" &>
+</td>
+</tr>
+%	} elsif ($type eq 'NumericRating' || $type eq 'PlusMinusRating') {
+<tr>
+%	my $low_text  = $shared_args{'q_'.$qid.'_low_text'} || $question->body()->low_text();
+%	$low_text     =~ s/\"/\&\#34;/g;
+%	my $mid_text  = $shared_args{'q_'.$qid.'_mid_text'} || $question->body()->mid_text();
+%	$mid_text     =~ s/\"/\&\#34;/g;
+%	my $high_text = $shared_args{'q_'.$qid.'_high_text'} || $question->body()->high_text(); 
+%	$high_text    =~ s/\"/\&\#34;/g;  #"  IGNORE THIS QUOTE.  It is here to keep vim syntax highlighting nice.
+  <td align="right"><b>Num Steps:</b></td>
+  <td align="left"><& SELF:numsteps_dropdown, question => $question, name => "q_$qid\_num_steps" &></td>
+  <td align="right"><b>Low Text:</b></td>
+  <td align="left"><input name="q_<% $qid %>_low_text" type="text" value="<% $low_text %>" /></td>
+</tr>
+<tr>
+  <td align="right"><b>Style:</b></td>
+  <td align="left"><& SELF:style_dropdown, question => $question, name => "q_$qid\_choice_style" &></td>
+  <td align="right"><b>Mid Text:</b></td>
+  <td align="left"><input name="q_<% $qid %>_mid_text" type="text" value="<% $mid_text %>" /></td>
+</tr>
+<tr>
+  <td align="right"><b>Show numbers:</b></td>
+  <td align="left"><& SELF:shownumbers_dropdown, question => $question, name => "q_$qid\_show_numbers" &><input type="hidden" name="q_<% $qid %>_choice_align" value="horizontal"></td>
+  <td align="right"><b>High Text:</b></td>
+  <td align="left"><input name="q_<% $qid %>_high_text" type="text" value="<% $high_text %>" /></td>
+</tr>
+%	} elsif ($type eq 'Count') {
+%	my $low_bound = $shared_args{'q_'.$qid.'_low_bound'} || $question->body->low_bound;
+%	my $lower_than_bound = $shared_args{'q_'.$qid.'_lower_than_bound'} || $question->body->lower_than_bound;
+%	my $high_bound = $shared_args{'q_'.$qid.'_high_bound'} || $question->body->high_bound;
+%	my $higher_than_bound = $shared_args{'q_'.$qid.'_higher_than_bound'} || $question->body->higher_than_bound;
+%	my $interval  = $shared_args{'q_'.$qid.'_interval'} || $question->body->interval; 
+<tr>
+  <td align="right"><b>Style:</b></td>
+  <td align="left">Dropdown<input type="hidden" name="q_<% $qid %>_choice_style" value="dropdown"></td>
+  <td align="right"><b>Low Bound:</b></td>
+  <td align="left">
+    <input type="text" name="q_<% $qid %>_low_bound" size="4" value="<% $low_bound %>" />
+    (And Lower? <input type="checkbox" name="q_<% $qid %>_lower_than_bound" value="1"<% ($lower_than_bound) ? " checked" : "" %> />)
+  </td>
+</tr>
+<tr>
+  <td align="right"><b>Align:</b></td>
+  <td align="left">Vertical<input type="hidden" name="q_<% $qid %>_choice_align" value="vertical"></td>
+  <td align="right"><b>Interval:</b></td>
+  <td align="left"><input type="text" name="q_<% $qid %>_interval" size="4" value="<% $interval %>" /></td></tr>
+<tr>
+  <td align="right"></td>
+  <td align="left"></td>
+  <td align="right"><b>High Bound:</b></td>
+  <td align="left">
+    <input type="text" name="q_<% $qid %>_high_bound" size="4" value="<% $high_bound %>" />
+    (And Higher? <input type="checkbox" name="q_<% $qid %>_higher_than_bound" value="1"<% ($higher_than_bound) ? " checked" : "" %> />)
+  </td>
+</tr>
+<%perl>
+	} elsif ($type eq 'MultipleChoice' || $type eq 'MultipleResponse' || $type eq 'DiscreteNumeric') {
+	foreach my $num (0..$maxMultiChoiseQuestions) {
+		if ( !$shared_args{'q_'.$qid.'_choice_'.$num} ) {
+			foreach my $subnum ($num..$maxMultiChoiseQuestions) {
+				if ( $shared_args{'q_'.$qid.'_choice_'.$subnum} ) {
+					$shared_args{'q_'.$qid.'_choice_'.$num}    = $shared_args{'q_'.$qid.'_choice_'.$subnum};
+					$shared_args{'q_'.$qid.'_choice_'.$subnum} = '';
+					last;
+				}
+			}
+		}
+	}
+	my @choices =  $question->body()->choices();
+	foreach my $num (0..$maxMultiChoiseQuestions) {
+		$choices[$num] = $shared_args{'q_'.$qid.'_choice_'.$num} if $shared_args{'q_'.$qid.'_choice_'.$num};
+		$choices[$num] =~ s/\"/\&\#34;/g;  #"  IGNORE THIS QUOTE.  It is here to keep vim syntax highlighting nice.
+	}
+	my $num_columns = $shared_args{'q_'.$qid.'_num_columns'} || $question->body()->num_columns();
+</%perl>
+<tr>
+  <td align="right"><b>Columns:</b></td>
+  <td align="left" colspan="3">
+    <select name="q_<% $qid %>_num_columns">
+      <option value="0">Default (4)</option> 
+%      foreach my $num (1..6) {
+	<option value="<% $num %>"<% ($num == $num_columns) ? " selected" : ""%>><% $num %></option> 
+%      }
+    </select>
+  </td>
+</tr>
+<tr>
+  <td valign="top" align="right"><b>Choices</b></td>
+  <td align="left" colspan="3">
+    <ol type="a">
+%      foreach my $num (0..$maxMultiChoiseQuestions) {
+      <li><input type="text" size="40" name="q_<% $qid %>_choice_<% $num %>" value="<% $choices[$num] %>" /></li>
+%      }
+    </ol>
+  </td>
+</tr>
+%	} elsif ($type eq 'FillIn') {
+%	my $longtext = $shared_args{'q_'.$qid.'_longtext'} || $question->body()->longtext();
+<tr>
+  <td align="right"><b>Long text:</b></td>
+  <td align="left" colspan="3">
+    <input type="checkbox" name="q_<% $qid %>_longtext" value="1"<% ($longtext) ? " checked" : "" %> />
+  </td>
+</tr>
+%	}
+<tr><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td></tr>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . " Eval Question Authoring";
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'HSDB45::Eval' => $eval};
+</%method>
+

@@ -1,0 +1,106 @@
+<%args>
+	$args
+	$recipients_checkboxes 	=> undef
+	$to_trailing_text		=> undef
+	$cancel_url
+	$sendself				=> 0
+	$hidden_params  		=> undef
+	$trailing_component		=> undef  ### after 'message' row
+</%args>
+
+<%once>
+	use TUSK::Manage::Email;
+	use HSDB4::DateTime;
+</%once>
+
+<%shared>
+	my $user = $m->session->{'user'};
+</%shared>
+
+<br/>
+
+% if ($args->{submit_check}) {
+<div class="sm">
+<div><b>To:</b> &nbsp;&nbsp; 
+% if ($args->{email_list}) {
+<% (ref($args->{to}) eq 'ARRAY') 
+	? join(', ', map { $_->out_full_name() } HSDB4::SQLRow::User->new()->lookup_conditions('user_id in (' . join(',',  map { "'" . $_ . "'" } @{$args->{to}}) . ')'))
+	: HSDB4::SQLRow::User->new()->lookup_key($args->{to})->out_full_name() 
+%>
+% } else {
+<% (ref($args->{to}) eq 'ARRAY') ? join(', ', map { HSDB45::UserGroup->new(_school => $args->{school})->lookup_key($_)->out_label() } @{$args->{to}}) : HSDB45::UserGroup->new(_school => $args->{school})->lookup_key($args->{to})->out_label() %>
+% }
+</div>
+<div><b>From:</b> &nbsp;&nbsp; <% $user->out_full_name() %> (<% $user->email() %>)</div>
+<div><b>Subject:</b> &nbsp;&nbsp;  <% $args->{subject} %></div>
+<div class="labelgray"><br/><% $args->{body} %></div>
+</div>
+% } else {
+<& /tmpl/element:form, params => { 
+	method => 'POST',
+	name => 'emailform',} &>
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+<& /tmpl/element:field_display, params => { 
+	label => 'To:',
+	value => $recipients_checkboxes . $to_trailing_text} &>
+<& /tmpl/element:field_display, params =>{ label => 'From:',
+	name => 'from_name',
+	value => $user->out_full_name() . ' (' . $user->email() . ')' } &>
+<& /tmpl/element:textbox, params =>{ label => 'Subject:',
+	name => 'subject',
+	value => $args->{subject},
+	size => 70,
+	length => 255 } &>
+<& /tmpl/element:textarea, params =>{ label => 'Message:',
+	name => 'body',
+	value => $args->{body},
+	cols =>"70",
+	rows =>"7",  } &>
+% if ($trailing_component) {
+<& $trailing_component &>
+% }
+% if ($sendself) {
+<tr><td>&nbsp;</td>
+<td class="cell-submit">
+<input type="checkbox" name="sendself" value="1" /> Send a copy of this message to myself (<% $user->email() %>)<br/><br/>
+</td></tr>
+% }
+<& /tmpl/element:save_button, params => { 
+	label 	=>	'Send Email', 
+    cancel_onclick => "go_back('$cancel_url');",
+	name	=>	'emailsubmit' } &>
+</table>
+</form>
+% }
+
+
+<%method startup>
+<%args>
+	$args
+	$school => undef  ## required for if 'to' = user_group_id and if no course parameter
+	$course => undef  ## course, timeperiod needed if sending a class of student for a given time period
+	$actions => []
+</%args>
+<%perl>
+	$school = $course->get_school()->getSchoolName() if (!$school && ref $course eq 'HSDB45::Course');
+	my $data = TUSK::Manage::Email::email_process($user, $args, $school, $course, $args->{time_period_id});
+
+	$m->comp($_) foreach (@$actions);
+
+ 	if (defined $data) {
+		$m->comp('SELF:set_msg', 
+ 			type 	=> 'msg', 
+			msg 	=> 'You have successfully sent the email.' );
+	} else {
+		$m->comp('SELF:set_msg', 
+ 			type 	=> 'err', 
+			msg 	=> 'There is a problem sending the email.' );
+	}
+	$args->{body} =~ s/\n/<br\/>/gi;
+</%perl>
+</%method>
+

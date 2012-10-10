@@ -319,8 +319,24 @@ sub getQuizResults {
 	my $caseReportId = $self->getPrimaryKeyID() or confess "Case Report is not initialized";
 	my @links = map { $_->getQuizResultObject } 
 		@{TUSK::Case::LinkCaseReportQuizResult->lookup("parent_case_report_id = $caseReportId", ["created_on ASC"])};
-	return \@links;
-	
+	return \@links;	
+}
+
+#######################################################
+
+=item B<getQuizResultLinks>
+
+    $quiz_results = $obj->getQuizResultLinks();
+
+Return all associated Quiz Result Links for a given Case Report
+
+=cut
+
+sub getQuizResultLinks {
+	my $self = shift;
+	my $caseReportId = $self->getPrimaryKeyID() or confess "Case Report is not initialized";
+	my $links =  TUSK::Case::LinkCaseReportQuizResult->lookup("parent_case_report_id = $caseReportId", ["created_on ASC"]);
+	return $links;
 }
 
 #######################################################
@@ -357,11 +373,37 @@ sub getExpertSelections{
 
 #######################################################
 
+=item B<getOpenQuiz>
+
+    $scalar = $obj->getOpenQuiz();
+
+Return the most recently opened quiz for this particular Case Report, or undef if its end date is NOT null
+
+=cut
+
+sub getOpenQuiz {
+	my $self = shift;
+	my $quiz_id = shift;
+	
+	my $user_id = $self->getUserID();
+	my $case_start_date = $self->getStartDate();
+
+	my $quiz_result = TUSK::Quiz::Result->lookupReturnOne("user_id='$user_id' and quiz_id=$quiz_id and start_date >= '$case_start_date' order by start_date DESC");
+
+	if (defined $quiz_result && $quiz_result->getEndDate()) {
+		return undef;
+	}
+
+	return $quiz_result;
+}
+
+#######################################################
+
 =item B<getCompletedQuiz>
 
-    $scalar = $obj->hasCompletedQuiz();
+    $scalar = $obj->getCompletedQuiz();
 
-Return the most recently started quiz for this particular Case Report, or undef if its end date is null
+Return the most recently completed quiz for this particular Case Report, or undef if its end date is null
 
 =cut
 
@@ -386,7 +428,34 @@ sub getCompletedQuiz {
 			return undef;
 		}
 	}
-	return $quiz_results->[0];	
+	return $quiz_results->[0];
+}
+
+#######################################################
+
+=item B<hasCompletedQuiz>
+
+    $scalar = $obj->hasCompletedQuiz();
+
+Return 1 if user has completed quiz for this particular Case Report, 0 otherwise
+
+=cut
+
+sub hasCompletedQuiz {
+	my $self = shift;
+	my $quiz_id = shift;
+	
+	my $user_id = $self->getUserID();
+	my $case_start_date = $self->getStartDate();
+
+	my $quiz_results = TUSK::Quiz::Result->lookup("user_id='$user_id' and quiz_id=$quiz_id and start_date > '$case_start_date' order by start_date ASC");
+
+	foreach my $result(@$quiz_results){
+		if($result->getEndDate()){
+			return 1;
+		}
+	}
+	return 0;
 }
 
 #######################################################

@@ -37,14 +37,15 @@ sub init {
 	$self->{'content_id_str'}->{'all'}    = join(",", keys %{$self->{'content'}->{'course'}});
 	$self->{'content_id_str'}->{'course'} = join(",", keys %{$self->{'content'}->{'course'}});
 	foreach my $type ( keys %{$self->{'class_meeting_types'}} ) {
+		my @c_ids;
 		foreach my $class_meeting ( keys %{$self->{'content'}->{'class_meeting'}->{$type}} ) {
-			$self->{'content_id_str'}->{'class_meeting'}->{$type} = join(",", keys %{$self->{'content'}->{'class_meeting'}->{$type}->{$class_meeting}});
-			$self->{'content_id_str'}->{'class_meeting'}->{$type} =~ s/,time//g;
-			$self->{'content_id_str'}->{'class_meeting'}->{$type} =~ s/^time,//;
-
-			$self->{'content_id_str'}->{'all'} .= "," if ($self->{'content_id_str'}->{'all'});
-			$self->{'content_id_str'}->{'all'} .= $self->{'content_id_str'}->{'class_meeting'}->{$type};
+			push @c_ids, grep { !/time/ } keys %{$self->{'content'}->{'class_meeting'}->{$type}->{$class_meeting}};
 		}
+		$self->{'content_id_str'}->{'class_meeting'}->{$type} = join ",", @c_ids;
+
+		$self->{'content_id_str'}->{'all'} .= "," if ($self->{'content_id_str'}->{'all'});
+		$self->{'content_id_str'}->{'all'} .= $self->{'content_id_str'}->{'class_meeting'}->{$type};
+
 	}
 
 	$self->{'content_id_str'}->{'all'} = '0' if ( !($self->{'content_id_str'}->{'all'}) );
@@ -130,23 +131,28 @@ sub generateContentList {
 	};
 	die "$@\t... failed to obtain course content!" if $@;
 
-    $query = "	select 
-					l.child_content_id,
-					cm.type,
+	$query = "select 
+	                l.child_content_id,
+					cmt.label as type,
 					cm.class_meeting_id,
 					sum(timediff(cm.endtime,cm.starttime)) as time 
 				from 
-					" . $self->{'school_db'} . ".link_class_meeting_content l, 
-					" . $self->{'school_db'} . ".class_meeting cm, 
+					" . $self->{'school_db'} . ".link_class_meeting_content l
+			    inner join
+					" . $self->{'school_db'} . ".class_meeting cm 
+				on  l.parent_class_meeting_id = cm.class_meeting_id
+				left join
+				    tusk.class_meeting_type cmt
+				on  cm.type_id = cmt.class_meeting_type_id
+				inner join
 					hsdb4.content c 
+				on  l.child_content_id = c.content_id
 				where 
 					cm.course_id = " . $self->{'course_id'} . " and
 					cm.meeting_date >= '" . $self->{'timeperiod'}->raw_start_date . "' and 
-					cm.meeting_date <= '" . $self->{'timeperiod'}->raw_end_date . "' and
-					l.parent_class_meeting_id = cm.class_meeting_id and
-					l.child_content_id = c.content_id
+					cm.meeting_date <= '" . $self->{'timeperiod'}->raw_end_date . "'
 				group by
-					cm.type,
+					cmt.label,
 					cm.class_meeting_id,
 					l.child_content_id";
 
@@ -177,16 +183,19 @@ sub classMeetingsReport {
 	my $self = shift;
 
 	my $meeting_query = "	select 
-								distinct type, 
-								count(type) as count, 
+								cmt.label as type, 
+								count(cm.class_meeting_id) as count, 
 								sum(timediff(endtime,starttime)) as time 
-							from " . $self->{'school_db'} . ".class_meeting 
+							from " . $self->{'school_db'} . ".class_meeting as cm
+							left join
+							    tusk.class_meeting_type as cmt
+							on  cm.type_id=cmt.class_meeting_type_id
 							where 
 								course_id = " . $self->{'course_id'} . " and 
 								meeting_date >= '" . $self->{'timeperiod'}->raw_start_date . "' and 
 								meeting_date <= '" . $self->{'timeperiod'}->raw_end_date . "' 
 							group by 
-								type";
+								cmt.label";
 
 	my %meeting_types;
 	eval {
@@ -271,18 +280,23 @@ sub objectivesReport {
 													o.body, 
 													cm.class_meeting_id,
 													sum(timediff(cm.endtime,cm.starttime)) as time 
-												from 
-													hsdb4.objective o, 
-													tusk.class_meeting_objective cmo, 
-													" . $self->{'school_db'} . ".class_meeting cm 
-												where 
-													cmo.school_id = " . $self->{'school_id'} . " and 
-													cm.course_id = " . $self->{'course_id'} . " and 
-													cmo.class_meeting_id = cm.class_meeting_id and 
-													cmo.objective_id = o.objective_id and 
-													cm.meeting_date >= '" . $self->{'timeperiod'}->raw_start_date . "' and 
-													cm.meeting_date <= '" . $self->{'timeperiod'}->raw_end_date . "' and
-													cm.type = '" . $type . "'
+		                                        from 
+		                                            hsdb4.objective o 
+		                                        inner join 
+		                                            tusk.class_meeting_objective cmo
+		                                        on  cmo.objective_id = o.objective_id  
+		                                        inner join 
+		                                            " . $self->{'school_db'} . ".class_meeting cm 
+		                                        on  cmo.class_meeting_id = cm.class_meeting_id
+		                                        left join 
+		                                            tusk.class_meeting_type cmt
+		                                        on  cm.type_id = cmt.class_meeting_type_id
+		                                        where
+		                                            cmo.school_id = " . $self->{'school_id'} . " and 
+		                                            cm.course_id = " . $self->{'course_id'} . " and 
+		                                            cm.meeting_date >= '" . $self->{'timeperiod'}->raw_start_date . "' and 
+		                                            cm.meeting_date <= '" . $self->{'timeperiod'}->raw_end_date . "' and
+		                                            cmt.label = '$type'
 												group by 
 													objective_id,
 													class_meeting_id";
@@ -300,7 +314,6 @@ sub objectivesReport {
 			}
 		};
 		die "$@\t... failed to obtain class-meeting-related objectives report!" if $@;
-
 		if ( $self->{'content_id_str'}->{'class_meeting'}->{$type} ) {
 			my $objective_content_query = "	select 
 												objective_id, 
@@ -379,26 +392,31 @@ sub keywordsReport {
 	# All keywords linked to a class meeting OR to a piece of content in a class meeting
 	foreach my $type ( keys %{$self->{'class_meeting_types'}} ) {
 		my $keyword_class_meeting_query = "	select 
-												k.keyword_id, 
-												k.keyword, 
-												k.concept_id,
-												cm.class_meeting_id,
-												sum(timediff(cm.endtime,cm.starttime)) as time 
-											from 
-												tusk.keyword k, 
-												tusk.class_meeting_keyword cmk, 
-												" . $self->{'school_db'} . ".class_meeting cm 
-											where 
-												cmk.school_id = " . $self->{'school_id'} . " and 
-												cm.course_id = " . $self->{'course_id'} . " and 
-												cmk.class_meeting_id = cm.class_meeting_id and 
-												cmk.keyword_id = k.keyword_id and 
-												cm.meeting_date >= '" . $self->{'timeperiod'}->raw_start_date . "' and 
-												cm.meeting_date <= '" . $self->{'timeperiod'}->raw_end_date . "' and
-												cm.type = '" . $type . "'
-											group by 
-												keyword_id,
-												class_meeting_id";
+		                                   	    k.keyword_id, 
+		                                   	    k.keyword, 
+		                                   	    k.concept_id,
+		                                   	    cm.class_meeting_id,
+		                                   	    sum(timediff(cm.endtime,cm.starttime)) as time 
+		                                   	from 
+		                                   	    tusk.keyword k
+		                                   	inner join 
+		                                   	    tusk.class_meeting_keyword cmk
+		                                   	on  cmk.keyword_id = k.keyword_id
+		                                   	inner join 
+		                                   	    " . $self->{'school_db'} . ".class_meeting cm 
+		                                   	on  cmk.class_meeting_id = cm.class_meeting_id
+		                                   	left join 
+		                                   	    tusk.class_meeting_type cmt
+		                                   	on  cmt.class_meeting_type_id = cm.type_id
+		                                   	where 
+		                                   	    cmk.school_id = " . $self->{'school_id'} . " and 
+		                                   	    cm.course_id = " . $self->{'course_id'} . " and 
+		                                   	    cm.meeting_date >= '" . $self->{'timeperiod'}->raw_start_date . "' and 
+		                                   	    cm.meeting_date <= '" . $self->{'timeperiod'}->raw_end_date . "' and
+		                                   	    cmt.label = '" . $type . "'
+		                                   	group by 
+		                                   	    keyword_id,
+		                                        class_meeting_id";
 
 		eval {
 			my $handle = $self->{'dbh'}->prepare($keyword_class_meeting_query);

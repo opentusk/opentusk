@@ -1,0 +1,39 @@
+<%attr>
+	no_header => 1
+	no_body => 1
+</%attr>
+
+<%once>
+	use HSDB45::Eval::Results;
+	use HSDB45::Eval::MergedResults;
+	use HSDB45::Eval::Export;
+</%once>
+
+<%init>
+	my $school  = $m->comp('SELF:schoolname');
+	my $eval_id = $m->comp("/tmpl/url:get_last_path_id");
+	my ($eval, $merged_eval, $filename);
+
+	if ( $ARGS{'MERGED'} ) {
+		$merged_eval = HSDB45::Eval::MergedResults->new( _school => $school, _id => $eval_id );
+		$eval = $merged_eval->parent_eval();
+		$filename = "merged_export-$eval_id.xls";
+	} else {
+		$eval = HSDB45::Eval->new( _school => $school, _id => $eval_id );
+		$filename = "export-$eval_id.xls";
+	}	
+
+	$m->clear_buffer();
+	$r->content_type( 'application/vnd.ms-excel' );
+	$r->header_out( 'Content-Disposition' => 'attachment; filename="' . $filename . '"'); 
+	$r->send_http_header();
+
+	if(scalar($eval->users())) {
+		if (!$ARGS{'MERGED'}){
+			HSDB45::Eval::Export::export_eval_to_excel($eval,\*STDOUT);	
+		} else {
+			HSDB45::Eval::Export::export_merged_eval_to_excel($merged_eval,\*STDOUT);	
+		}
+	}
+</%init>
+

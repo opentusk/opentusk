@@ -105,7 +105,7 @@ sub setLoginMessage {
 	my $request_uri = shift;
 	unless ($user_obj->get_loggedout_flag()){
 	    if ($request_uri =~ /^(\/mobi)?\/home/){
-		$request_uri .= '?hintmsg=Remember%2C+click+on+%3Cb%3ELOGOUT%3C%2Fb%3E+prior+to+closing+the+web+browser%2E';
+		$request_uri .= '?hintmsg=Remember%2C+click+on+LOGOUT+prior+to+closing+the+web+browser%2E';
 		}
 	}
 	$user_obj->update_loggedout_flag(0);

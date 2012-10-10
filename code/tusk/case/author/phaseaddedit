@@ -85,6 +85,7 @@ use TUSK::Case::LinkPhaseKeyword;
 
 <& "tmpl/".$phase->getIncludeFile(), phase=>$phase, case=>$case, form_name=>$form_name &>
 
+% unless (ref($phase) eq 'TUSK::Case::Phase::Quiz') {
 <& /tmpl/element:section_header_row, label=>'Media' &>
 
 <& tmpl/sections:content_layer, 
@@ -100,9 +101,12 @@ use TUSK::Case::LinkPhaseKeyword;
 											}),
 					],
  		contentarray 	=> \@contentarray  &>
+% }
 
-% if ($case->isLinearNav()) {
-<& /tmpl/element:section_header_row, label=>'Phase Assessment' &>
+% # Global cases cannot have linked quizzes (due to lack of "continue" button),
+% # UNLESS the phase type is "Quiz"
+% if ($case->isLinearNav() || ref($phase) eq 'TUSK::Case::Phase::Quiz') {
+<& /tmpl/element:section_header_row, label=>'Phase Assessment (Quiz)' &>
 %	if ($is_edit) {
 <& /tmpl/element:note, msg=>$question_select &>
 
@@ -175,18 +179,6 @@ use TUSK::Case::LinkPhaseKeyword;
 <& /tmpl/element:nocache_iframe &>
 
 <%init>
-	my $question_select = 'Add new question of type:'.$m->scomp('/tmpl/element:dropdown',params=>{ 
-		name     => "question_type",
-		onclick  => "open_quiz_window('$type_path/$case_id', $phase_id);",
-		onchange      => undef,
-		options       => $m->comp('/quiz/author/tmpl/process:question_type_data'),
-		});
-	$question_select .= $m->scomp("/tmpl/element:button", params => { 	
-		label   => 'Preview Quiz', 
-		name    => 'preview_quiz', 
-		onclick => "quiz_preview('questiondiv')",
-		});
-
 my (@question_data,@contentarray,@attributionarray,@referencearray,@keywordarray);
 my $links= [];
 if ($phase_id){
@@ -194,10 +186,64 @@ if ($phase_id){
 	$links = TUSK::Case::LinkPhaseQuiz->lookup(" parent_phase_id = $phase_id ");
 }
 my $quiz_id;
+my $chk_allow_resubmit = '';
+my $chk_hide_correct = '';
+my $has_score_rule = 0;
 if (scalar(@{$links})){
-	# there should be only one
-	$quiz_id  = $links->[0]->getQuiz->getPrimaryKeyID();
+	# there should be only one link
+	$chk_allow_resubmit = ($links->[0]->getAllowResubmit())? 'checked' : '';
+
+	my $quiz = $links->[0]->getQuiz();
+	$has_score_rule = ($quiz->usedInScoreRule())? 1 : 0;
+	$chk_hide_correct = ($quiz->getHideCorrectAnswer())? 'checked' : '';
+
+	$quiz_id  = $quiz->getPrimaryKeyID();
 }
+
+my $onclick = ($has_score_rule)? 'open_quiz_window_check' : 'open_quiz_window';
+my $question_select = 'Add new question of type:'.$m->scomp('/tmpl/element:dropdown',params=>{ 
+	name     => "question_type",
+	onclick  => "$onclick('$type_path/$case_id', $phase_id);",
+	onchange      => undef,
+	options       => $m->comp('/quiz/author/tmpl/process:question_type_data'),
+	});
+$question_select .= $m->scomp("/tmpl/element:button", params => { 	
+	label   => 'Preview Quiz', 
+	name    => 'preview_quiz', 
+	onclick => "quiz_preview('questiondiv')",
+	});
+
+$question_select .= '<br>' . $m->scomp('/tmpl/element:input_checkbox', params=> {
+	name    => 'retake_quiz',
+	value   => '1',
+	checked => $chk_allow_resubmit,
+	txt     => 'Allow user to retake quiz.',
+	});
+
+# tests should not have the ability to check the box next to "hide correct answers;" since
+# tests don't show quiz results such a cbox would be redundant and misleading.
+# however, if the case was formerly not a test, and user had selected hiding answers, we
+# want to continue to pass this value in submission in hidden input so that it doesn't go away
+# (in the off-chance that user toggles type back to reviewed or self-assess. and wants to preserve 
+# this selection).
+if ($case->isTest()) {
+	if ($chk_hide_correct) {
+		$question_select .= $m->scomp('/tmpl/element:hidden_form_element', params => {
+			name  => 'hide_correct_answer',
+			value => $chk_hide_correct,
+		});
+	}
+}
+else {
+	$question_select .= '<br>' . $m->scomp('/tmpl/element:input_checkbox', params=> {
+		name    => 'hide_correct_answer',
+		value   => '1',
+		checked => $chk_hide_correct,
+		txt     => 'Hide correct answers from user after quiz submission.',
+		});
+}
+
+
 if (defined($phase_id)){
 	@question_data = map {  { 'question_id'=>$_->getQuestionObject->getPrimaryKeyID(),
 					'body'=>$_->getQuestionObject->getBody(),
@@ -205,8 +251,8 @@ if (defined($phase_id)){
 					'phase_id'=>$phase_id,
 					'quiz_id'=>$quiz_id? $quiz_id : '',
 					'type'=>$_->getQuestionObject->getFormattedType()}} 
-				map { @{$_->getQuiz->getQuizItems()} } 
-				@{$links};
+					map { @{$_->getQuiz->getQuizItems()} } 
+					@{$links};
 
 
 	@attributionarray = map { {'userid'=>$_->getUserObject->user_id(),
@@ -215,8 +261,8 @@ if (defined($phase_id)){
 					@{TUSK::Case::LinkPhaseUser->lookup(" parent_phase_id = $phase_id ")};
 
 	@referencearray =  map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
-			map { $_->getContent() }
-			@{TUSK::Case::LinkPhaseContent->lookup(" parent_phase_id = $phase_id
+					map { $_->getContent() }
+				@{TUSK::Case::LinkPhaseContent->lookup(" parent_phase_id = $phase_id
 					  and link_type = 'Reference' ",
 				['sort_order'] )};
 
@@ -237,15 +283,15 @@ if (defined($phase_id)){
 } else {
 	# defaulting case authors if the phase hasn't been saved
 	@attributionarray =  map { 
-					{
-						userid 	=> $_->getUserObject->getPrimaryKeyID(),
-	                                        name	=> $_->getFullUserName(),
-        	                                role	=> 'Author' }
-					}
-                                    @{ TUSK::Permission::UserRole->new()->lookupFeature('case', $case_id)};
+	                             {
+	                              userid => $_->getUserObject->getPrimaryKeyID(),
+	                              name	 => $_->getFullUserName(),
+	                              role   => 'Author' }
+	                             }
+	                             @{ TUSK::Permission::UserRole->new()->lookupFeature('case', $case_id)};
 }
 my $args = \%ARGS;
-  #use Data::Dumper; $m->print('<PRE>'.Dumper(\@questions).'</PRE>');
+
 my $user_id = $m->comp('SELF:user');
 if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 	my $userHash = {user=>$user_id};
@@ -259,9 +305,8 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 	$phase->setEncounter($ARGS{'encounter'});	
 	$phase->setSource($ARGS{'source'});	
 	$phase->setCopyright($ARGS{'copyright'});
-
-
 	$phase->save($userHash);
+
 	$phase_id = $phase->getPrimaryKeyID();
 	my $phaseLinks = TUSK::Case::LinkCasePhase->lookupByRelation($case_id,$phase_id);
 	my $casePhaseLink = pop @{$phaseLinks};
@@ -269,12 +314,20 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 		$casePhaseLink = TUSK::Case::LinkCasePhase->new();
 		$casePhaseLink->setParentCaseID($case_id);
 		$casePhaseLink->setChildPhaseID($phase_id);
-		$casePhaseLink->setSortOrder($phase->getPhaseType->getDefaultSortOrder());
+
+		my $sortorder = 0;
+		my $last_phase = $case->getLastPhase();
+		if (defined $last_phase) {
+			my $links = TUSK::Case::LinkCasePhase->lookupByRelation($case_id, $last_phase->getPrimaryKeyID());
+			$sortorder = $links->[0]->getSortOrder();
+		}
+		$casePhaseLink->setSortOrder( $sortorder + 1 );
+
 		$casePhaseLink->save($userHash);
 	}
 
-        my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^referencesdiv');
-        $m->comp('/tmpl/process:manipulate_rows',
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^referencesdiv');
+	$m->comp('/tmpl/process:manipulate_rows',
                 user => $user_id,
                 parent_id => $phase_id,
                 object_name => 'TUSK::Case::LinkPhaseContent',
@@ -282,18 +335,19 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
                 set_child => 'setChildContentID',
                 child_pk_field => 'content_id',
                 fields_data => $rowHash,
-		field_function_map => {'display_type'=>'setDisplayType' },
+                field_function_map => {'display_type'=>'setDisplayType' },
                 addtlRelationFields=> ['Reference'],
                 display_data => \@referencearray );
 
-        @referencearray =  map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
+	@referencearray =  map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
                         map { $_->getContent() }
                         @{TUSK::Case::LinkPhaseContent->lookup(" parent_phase_id = $phase_id
                                           and link_type = 'Reference' ",
                                 ['sort_order'] )};
 
+
 	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^questiondiv');
-        $m->comp('/tmpl/process:manipulate_rows',
+	$m->comp('/tmpl/process:manipulate_rows',
                 user => $user_id,
                 parent_id => $quiz_id,
                 object_name => 'TUSK::Quiz::LinkQuizQuizItem',
@@ -303,55 +357,56 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
                 fields_data => $rowHash,
                 display_data => \@question_data );
 
-        @question_data = map {  { 'question_id'=>$_->getQuestionObject->getPrimaryKeyID(),
-                                        'body'=>$_->getQuestionObject->getBody(),
-                                        'link_quiz_quiz_item_id'=>$_->getPrimaryKeyID(),
-                                        'phase_id'=>$phase_id,
-                                        'type'=>$_->getQuestionObject->getFormattedType(),
-					'quiz_id'=>$quiz_id}}
-                                map { @{$_->getQuiz->getQuizItems()} }
-                                @{$links};
+	@question_data = map {  { 'question_id'=>$_->getQuestionObject->getPrimaryKeyID(),
+	                          'body'=>$_->getQuestionObject->getBody(),
+	                          'link_quiz_quiz_item_id'=>$_->getPrimaryKeyID(),
+	                          'phase_id'=>$phase_id,
+	                          'type'=>$_->getQuestionObject->getFormattedType(),
+	                          'quiz_id'=>$quiz_id}
+	                        }
+	                        map { @{$_->getQuiz->getQuizItems()} }
+	                        @{$links};
 
-        $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^contentdiv');
-        $m->comp('/tmpl/process:manipulate_rows',
+	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^contentdiv');
+	$m->comp('/tmpl/process:manipulate_rows',
                 user => $user_id,
                 parent_id => $phase_id,
                 object_name => 'TUSK::Case::LinkPhaseContent',
                 set_parent => 'setParentPhaseID',
                 set_child => 'setChildContentID',
                 child_pk_field => 'content_id',
-		default_field_data => { 'link_type'=>'Narrative' },
-		field_function_map => {'link_type'=>'setLinkType', display_type => 'setDisplayType' },
+                default_field_data => { 'link_type'=>'Narrative' },
+                field_function_map => {'link_type'=>'setLinkType', display_type => 'setDisplayType' },
                 fields_data => $rowHash,
                 addtlRelationFields=> ['Narrative'],
                 display_data => \@contentarray );
 
-        @contentarray =  map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
+	@contentarray =  map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
                         map { $_->getContent() }
                         @{TUSK::Case::LinkPhaseContent->lookup(" parent_phase_id = $phase_id
                                           and link_type = 'Narrative' ",
                                 ['sort_order'] )};
 
-        $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^authorsdiv');
-        $m->comp('/tmpl/process:manipulate_rows',
+	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^authorsdiv');
+	$m->comp('/tmpl/process:manipulate_rows',
                 user => $user_id,
                 parent_id => $phase_id,
                 object_name => 'TUSK::Case::LinkPhaseUser',
                 set_parent => 'setParentPhaseID',
                 set_child => 'setChildUserID',
                 child_pk_field => 'userid',
-		field_function_map => {'role'=>'setRole' },
+                field_function_map => {'role'=>'setRole' },
                 fields_data => $rowHash,
                 display_data => \@attributionarray );
 
-        @attributionarray = map { {'user_id'=>$_->getUserObject->user_id(),
-                                        'name'=>$_->getUserObject->out_full_name(),
-                                        'role'=>$_->getRole() }}
-                                        @{TUSK::Case::LinkPhaseUser->lookup(" parent_phase_id = $phase_id ")};
+	@attributionarray = map { {'user_id'=>$_->getUserObject->user_id(),
+                               'name'=>$_->getUserObject->out_full_name(),
+                               'role'=>$_->getRole() }}
+                               @{TUSK::Case::LinkPhaseUser->lookup(" parent_phase_id = $phase_id ")};
 
 
-        $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^keywordsdiv');
-        $m->comp('/tmpl/process:manipulate_rows',
+	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^keywordsdiv');
+	$m->comp('/tmpl/process:manipulate_rows',
                 user => $user_id,
                 parent_id => $phase_id,
                 object_name => 'TUSK::Case::LinkPhaseKeyword',
@@ -361,21 +416,49 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
                 fields_data => $rowHash,
                 display_data => \@keywordarray );
 
-        @keywordarray =  map { {'keyword_id'=>$_->getPrimaryKeyID(),
-                                'keyword'=>$_->getKeyword(),
-                                'umls'=>$_->isUMLS()? 'Yes' : 'No' } }
+	@keywordarray =  map { {'keyword_id'=>$_->getPrimaryKeyID(),
+                            'keyword'=>$_->getKeyword(),
+                            'umls'=>$_->isUMLS()? 'Yes' : 'No' } }
                             map { $_->getKeyword() }
                         @{TUSK::Case::LinkPhaseKeyword->lookup(" parent_phase_id = $phase_id ",
                                 ['sort_order'] )};
+
 
 	# need to delete quiz link and quiz if there are no questions
 	if ($quiz_id && !scalar(@question_data)){
 		$links->[0]->getQuiz->delete($userHash);
 		$links->[0]->delete($userHash);
 	}
+	# if there are questions, and quiz, we need to make sure we have correct value
+	# for allow_resubmit and for the quiz's intructions field
+	elsif ($quiz_id) {
+		my $retake_quiz = (defined $args->{retake_quiz})? $args->{retake_quiz} : 0; 
+		$links->[0]->setAllowResubmit($retake_quiz);
+		$links->[0]->save($userHash);
 
-	$m->comp("tmpl/".$phase->getIncludeFile.":process_args",case=>$case, 
-			user_id=>$user_id,phase=>$phase, params=>\%ARGS);
+		my $q = $links->[0]->getQuiz();
+		if (ref($phase) eq 'TUSK::Case::Phase::Quiz') {
+			$q->setInstructions($ARGS{'instructions'});
+		}
+
+		my $hide_ans = (defined $args->{hide_correct_answer})? 1 : 0; 
+		$q->setHideCorrectAnswer($hide_ans);
+
+		my $qtitle = $phase->getPhaseTitle();
+		# append the word ' Quiz' to the quiz title, unless our phase type is "Quiz"
+		$qtitle .= (ref($phase) !~ /Quiz$/)? ' Quiz' : '';
+		$q->setTitle($qtitle);
+
+		$q->save($userHash);
+	}
+
+
+
+	$m->comp("tmpl/".$phase->getIncludeFile.":process_args",
+			case    =>$case, 
+			user_id =>$user_id,
+			phase   =>$phase, 
+			params  =>\%ARGS);
 
 	my $msg = ($is_edit) ? "Phase successfully modified" : "Phase successfully created";
 

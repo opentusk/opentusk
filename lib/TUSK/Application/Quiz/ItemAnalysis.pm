@@ -137,9 +137,9 @@ sub createGroups {
     my $self = shift;
 
     return if $self->{_err_creating_groups};
-#	print Dumper($self->{_scores});
+
     my @members = grep { defined($_) } (sort {$self->{_scores}{$b} <=> $self->{_scores}{$a}} (keys %{$self->{_scores}}));
-#	print Dumper(\@members);
+
     my $upper_end = int($self->{_upper_group} / 100 * $self->{_total_members});
     $self->{_upper_group_members} = [@members[0..$upper_end-1]];
 

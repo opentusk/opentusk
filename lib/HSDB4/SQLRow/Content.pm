@@ -37,7 +37,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.252 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.256 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::SQLRow::ContentHistory;
@@ -1184,9 +1184,10 @@ sub get_bread_crumb_from_path {
 
 	if(${$theCrumbsRef}[0] =~ /^[a-zA-Z]*$/) {
 		my $school = shift @{$theCrumbsRef};
-		my $character = uc substr($school, 0, 1);
+	    my $character = HSDB4::Constants::code_by_school($school);
 		${$theCrumbsRef}[0] = $character . ${$theCrumbsRef}[0] . 'C';
 	}
+
 	my $trail = '/view/content/';
 	foreach my $item (@{$theCrumbsRef}) {
 		my $lastChar = substr($item, -1, 1);
@@ -3341,6 +3342,16 @@ use vars qw (@ISA);
 use TUSK::Content::External::LinkContentField;
 use TUSK::Content::External::MetaData;
 
+sub out_html_body {
+	my $self = shift;
+
+	my $label = $self->title();
+	my $url = '/view/urlExternalContent/' . $self->primary_key();
+
+	my $content = "<div class=\"docinfo\"><a href=\"$url\">$label</a></div>";
+	return $content;
+}
+
 sub get_external_source {
     # returns 
     my ($self) = @_;
@@ -3456,22 +3467,16 @@ sub out_external_url {
 }
 
 sub out_html_body {
-    my $self = shift;
-    # require LWP::Simple;
+	my $self = shift;
 
-    my $body = $self->body or return;
-    my ($url) = $body->tag_values ('external_uri');
-    return unless $url;
-    $url = $url->value;
+	my $body = $self->body or return;
+	my ($url) = $body->tag_values ('external_uri');
+	return unless $url;
+	$url = $url->value;
+	my $label = $self->title();
 
-    # my $content = LWP::Simple::get($url->value);
-    # if ($content =~ m!<BODY[^>]+>.+</BODY>!i) {
-    #$content =~ s!^.+<BODY[^>]+>!!i;
-    #$content =~ s!</BODY>.+$>!!i;
-    #}
-
-    my $content = "<DIV CLASS=\"docinfo\"><A HREF=\"$url\">$url</A></DIV>";
-    return $content;
+	my $content = "<div class=\"docinfo\"><a href=\"$url\">$label</a></div>";
+	return $content;
 }
 
 sub out_icon {

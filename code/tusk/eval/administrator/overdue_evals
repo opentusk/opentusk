@@ -1,0 +1,59 @@
+<%once>
+    use HSDB4::Constants;
+    use HSDB4::SQLRow::User;
+    use HSDB45::UserGroup;
+    use HSDB45::Eval;
+</%once>
+
+<%shared>
+	my $school = $m->comp('SELF:schoolname');
+	my $usergroup_id;
+</%shared>
+
+<%perl>
+	if ($usergroup_id) {
+		print '<a href="/eval/administrator/overdue_evals/' . $school . '">Choose another User Group</a>';
+
+		my $ug = HSDB45::UserGroup->new(_school=>$school,_id=>$usergroup_id);
+		my @users;
+		if (!defined($ug->primary_key())){
+			print "<br><br>That is an invalid user group id.";
+		} else {
+			 @users = $ug->ordered_child_users();
+		}
+</%perl>
+		<ul>
+%			foreach my $user (@users) {
+%				my @evals = $user->overdue_evals();
+
+				<li><% $user->out_lastfirst_name %></li>
+				<ol>
+%					foreach my $eval (@evals) {
+					<li><% $eval->out_label %></li>	
+%					}
+				</ol>
+%			}
+		</ul>
+<%perl>
+	} else {
+		my @ugs = HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'", "order by upper(label)");
+		@ugs = grep { $_->has_evals } @ugs;
+		print "<ul>\n";
+		foreach my $user_group (@ugs) {
+			print "<li><a href='$school/" . $user_group->primary_key . "'>" . $user_group->out_label . "</a></li>";
+		}
+		print "</ul>\n";
+	}
+</%perl>
+
+<%init>
+	$usergroup_id = $m->comp("/tmpl/url:get_last_path_id");
+</%init>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . ' Overdue Evaluations';
+</%method>

@@ -119,6 +119,7 @@ sub getReportByField {
 				 left outer join tusk.form_builder_response_attribute e
 				 on (a.response_id = e.response_id)
 				 where field_id = $field_id
+				 and active_flag = 1
 				 group by item_id, attribute_item_id);
 
 	my $sth = $self->{_form}->databaseSelect($sql);
@@ -144,6 +145,111 @@ sub getReportByField {
 	    data => \%data, 
 	    contains_category => $self->isCategory($items->[0]),
 		attribute_items => $attribute_items,
+	};
+}
+
+sub getFieldReportByStudent {
+	my ($self, $field_id) = @_;
+	return unless defined $field_id;
+
+	my %data = ();
+	my %total_seen = ();
+	my %total_reporting = ();
+	my ($attribute_items, $aids) = $self->getAttributeItems($field_id);
+	my $items = TUSK::FormBuilder::FieldItem->lookup("field_id = $field_id");
+	my ($total_students, $reporting_students, $patients) = $self->getNumStudents();
+	my @time_periods = split(",", $self->{_time_period_ids_string});
+	my @students = $self->{_course}->get_students(\@time_periods, $self->{_site_id});
+    
+	# grab data for hash
+	my $sql = qq(
+				 select user_id, item_id, attribute_item_id, count(item_id) as patients
+				 from tusk.form_builder_response a
+				 inner join
+				 (select user_id, entry_id
+				  from tusk.form_builder_entry b, $self->{_db}.link_course_student c
+				  where b.time_period_id = c.time_period_id 
+				  and b.time_period_id in ($self->{_time_period_ids_string})
+				  and child_user_id = user_id and parent_course_id = $self->{_course_id}
+				  and form_id = $self->{_form_id} and teaching_site_id = $self->{_site_id}
+				  ) d on (a.entry_id = d.entry_id)
+				 left outer join tusk.form_builder_response_attribute e
+				 on (a.response_id = e.response_id)
+				 where field_id = $field_id
+				 and active_flag = 1
+				 group by user_id, item_id, attribute_item_id
+				);
+	my $sth = $self->{_form}->databaseSelect($sql);
+
+	# popuplate data hash with data
+	while (my ($user_id, $item_id, $attribute_item_id, $patients) = $sth->fetchrow_array()) {
+		if (defined $attribute_items && scalar @$attribute_items) {
+				$data{$user_id}->{$item_id}->{$attribute_item_id} = $patients;
+				$total_seen{$item_id}->{$attribute_item_id} += $patients;
+				$total_reporting{$item_id}->{$attribute_item_id} += 1;
+		}
+		else {
+			$data{$user_id}->{$item_id} = $patients;
+			$total_seen{$item_id} += $patients;
+			$total_reporting{$item_id} += 1;
+		}
+	}
+    $sth->finish();
+    
+	# create categorized item array, with the following structure:
+	# @categorized = 
+	#	[
+	#		{ category_name => 'Category name',
+	#		  items => [
+	#			{ item_id => 1,
+	#			  item_name => 'Item Name'
+	#			},
+	#			.
+	#			.
+	#		},
+	#		.
+	#		.
+	#	];
+	#
+	my (@categorized, $currentcategory, $currentitems);
+
+	foreach my $item (@$items) {
+		# field without categories
+		if (!$self->isCategory($items->[0])) {
+			push(@$currentitems, {item_id => $item->getPrimaryKeyID(), item_name => $item->getItemName()});
+		}
+		# field with categories
+		else {
+			if ($item->isCatStart()) {
+				if ($currentcategory) {
+					push(@categorized, {category_name => $currentcategory, category_items => $currentitems});
+				}
+				$currentitems = [];
+				$currentcategory = $item->getItemName();
+			}
+			elsif ($item->isItemType()) {
+				push(@$currentitems, {item_id => $item->getPrimaryKeyID(), item_name => $item->getItemName()});
+			}
+		}
+	}
+	# push the last category hash into the categorized array
+	if ($self->isCategory($items->[0])) {
+		push(@categorized, {category_name => $currentcategory, category_items => $currentitems});
+	}
+	else {
+		push(@categorized, {category_items => $currentitems});
+	}
+
+	return {
+		reporting_students => $reporting_students,
+		total_students => $total_students,
+	    contains_category => $self->isCategory($items->[0]),
+		categorized_items => \@categorized,
+		attribute_items => $attribute_items,
+		rows => \@students, 
+	    data => \%data,
+		total_seen => \%total_seen,
+		total_reporting => \%total_reporting,
 	};
 }
 

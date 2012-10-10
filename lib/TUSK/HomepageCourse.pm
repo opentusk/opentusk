@@ -8,7 +8,7 @@ use TUSK::ContentTree;
 BEGIN {
     use base qw/HSDB4::SQLRow/;
     use vars qw($VERSION);    
-    $VERSION = do { my @r = (q$Revision: 1.8 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.9 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 my $tablename = "homepage_course";
@@ -35,6 +35,23 @@ sub new {
 				       @_);
     # Finish initialization...
     return $self;
+}
+
+# This is overloaded to allow the object_selection_box to operate on compound fields from the database.
+sub field_value {
+    my ($self, $field, $val, $flag) = @_;
+
+	if ( $field eq "formatted_course" ) {
+		return $self->get_url if $self->get_url;
+		return $self->get_course->out_label;
+	} elsif ( $field eq "formatted_label" ) {
+		return "&nbsp;"x($self->get_indent*3) . $self->get_label;
+	} elsif ( $field eq "displaying" ) {
+		return "Yes" if $self->isCurrent;
+		return "No";
+	}
+
+	return $self->SUPER::field_value($field, $val, $flag);
 }
 
 sub split_by_school {

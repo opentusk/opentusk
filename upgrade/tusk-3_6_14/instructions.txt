@@ -1,0 +1,62 @@
+TUSK-3_6_14
+
+This release adds one new feature to Tusk and one modification to the structure of the HSDB4::User object and table that will have long reaching
+consequences.
+
+The new feature added is "Import User Images" (found in the admin leftnav) which allows admins to upload a batch of user images to the site. 
+The images are uploaded to /data/html/images/users which is defined in TUSK/Constants
+The images will be used in assesments and other tools in the future.
+
+The modification to the User object is the addition of a new int field called "uid" which will hopefully one day replace
+"user_id" as the primary key for the table. Currently uid is set manually by the User object when a save is executed. It is also a unique, NOT NULL field.
+
+**NOTE** This feature REQUIRES that the browser implement the multiple file upload feature of HTML5. At the time of writing the compatible browsers include : Firefox 3.6+ , Safari 4+ , Chrome 4+
+**NOTE** A script must be run during the install to update all existing entries in the user table to have a proper uid. Details below.
+**NOTE** This release requires some directory structure changes, see below.
+
+***************************************
+DATABASE CHANGES
+
+To make proper user table changes execute the following in order:
+
+"alter table hsdb4.user add uid int(10);"
+
+"alter table hsdb4.user add UNIQUE(uid);"
+
+**** now run the user_uid_script.pl 
+
+"alter table hsdb4.user modify uid int NOT NULL;"
+
+
+****************************************
+DIRECTORY STRUCTURE CHANGES
+
+To accomodate the uploaded files some changes need to be made in the data directory, they are the following:
+cd /data/html
+mv images images2
+mkdir images
+cd images
+mkdir users
+
+in summation, go do data/html, move the current images dir (which doesnt seem to be being used) to images2, recreate the images dir, then create a 
+subdir in images called "users"
+
+****************************************
+Files modified/created in this release:
+
+Created:
+/code/tusk/management/import/userimages
+/user_uid_script.pl
+/code/scripts/userimages.js
+/lib/TUSK/UploadUserImages.pm
+
+Modified:
+/code/tusk/tmpl/element
+/code/tusk/management/import/autohandler
+/code/tusk/tmpl/leftnav/admin
+/code/embperl/manage/admin-leftnav
+/lib/HSDB4/SQLRow/User.pm
+/lib/TUSK/Constants.pm
+
+
+

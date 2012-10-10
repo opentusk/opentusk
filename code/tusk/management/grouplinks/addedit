@@ -1,0 +1,112 @@
+<%once>
+	use TUSK::Manage::GroupLinks;
+</%once>
+
+<%shared>
+	my @fullpath = split("\/", $m->comp("/tmpl/url:get_full_path"));
+	my $course_id = $fullpath[3]; 
+	my $usergroup_id = $fullpath[2];
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $usergroup = HSDB45::UserGroup->new(_school=>$school)->lookup_key($usergroup_id);
+	my $ugroup_name = $usergroup->out_label();
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	onsubmit =>'return checkform(this)',
+	action => '/management/grouplinks/addedit/'.$selfpath,
+	name=>'usergroups',
+ } 
+&>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+
+<tr>
+<td class="labelgray">Course:</td>
+<td class="cell-left">
+
+% if ( @{$data->{courses}} ) {
+<select name="course_id" <% ($ARGS{page} eq "add") ? "multiple size='10'" : "" %>  >
+% foreach my $course (@{$data->{courses}}) {
+% my $slct_str = "";
+% if ( ($ARGS{page} eq "edit") && ($course->primary_key == $data->{current_course_id}) ) { $slct_str ="selected"; }
+	
+	<option value="<% $course->primary_key %>" <% $slct_str %>  > <% $course->out_title %> </option>	
+
+% } # end foreach
+</select>
+% } else {
+	No Courses Found.
+% } # end if/else
+</td></tr>
+<tr>
+<td class="labelgray">Time Period:</td>
+<td class="cell-left"><select name="time_period_id">
+% foreach my $tp (@{$data->{timeperiods}}) {
+
+	<option value="<% $tp->primary_key %>" <% ( ($ARGS{page} eq "edit") && ($tp->primary_key == $data->{current_time_period_id} )) ? "selected" : "" %>  ><% $tp->out_display %></option>	
+
+% } # end foreach
+</select></td></tr>
+<tr> 
+<td>&nbsp;</td>
+<td class="cell-submit"> 
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Save and Continue',
+	no_cancel_button => 1,
+	class 	=> 'formbutton',
+	name	=> 'Submit',
+	} 
+&>
+<input type="hidden" name="action" value="<% $ARGS{page} %>">
+</td></tr>
+<tr>
+<td>&nbsp;</td>
+<td class="cell-left">
+<br>
+Note - If the course you are looking for is not included in the dropdown above, the user group enrollment option needs to be adjusted on the Basic Information page for a course. To do this, enter a course in authoring view and select the "Basic Information" link (note only school administrators will have this option). Next to the line which reads "Manage Enrollment with User Groups", select "Yes" from the dropdown menu and the click the "Save and Continue" button. 
+</td>
+</tr></table></form>
+
+<%init>
+
+	if ($course_id eq "") { 
+		# no course is here so we're adding a new link
+		$ARGS{page} = "add";
+	} else { $ARGS{page} = "edit"; }
+
+	my $timeperiod_id = $m->comp("/tmpl/url:get_last_path_id"); 
+
+	my ($rval,$msg);
+	if ($ARGS{action}){
+		($rval, $msg) = TUSK::Manage::GroupLinks::addedit_process($school,$usergroup_id,$course_id, \%ARGS);
+		my $msgtype;
+		if($rval == 1) { $msgtype= "msg";}
+        else { $msgtype="errmsg"; }
+        $m->comp("/tmpl/url:redirect",destination => "/management/grouplinks/show/usergroup/$school/$usergroup_id?$msgtype=$msg", message =>'');
+
+	}
+	
+	my $data = TUSK::Manage::GroupLinks::addedit_pre_process($school,$course_id,$timeperiod_id, \%ARGS);
+	delete ($ARGS{course_id});
+	my $selfpath = $m->comp("/tmpl/url:get_full_path");
+
+</%init>
+
+<%method title>
+% return "Add/Edit Group Links";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method get_nav_bars>
+% return [{ href=> '/management/home', label => 'CMS Home' }, { href=>'', label=>'Admin - '.$school}, { href=>'/management/usergroup/show/school/'.$school,label=>'Manage Groups'}, { href=>'/management/usergroup/addedit/school/'.$school.'/'.$usergroup_id,label=> $ugroup_name }, {href=>'/management/grouplinks/show/usergroup/'.$school.'/'.$usergroup_id,label=>'Group Links'}  ];
+</%method>

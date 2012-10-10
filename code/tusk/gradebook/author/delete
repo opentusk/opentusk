@@ -5,6 +5,7 @@
 <%once>
 	use TUSK::GradeBook::GradeEvent;
 	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::GradeBook::GradeEventEval;
 </%once>
 
 
@@ -62,6 +63,12 @@ if (defined($ARGS{'submit'})){
 	foreach my $saved_grade (@$saved_grades){
 		$saved_grade->delete({user => $m->session->{'user'}->user_id() });
 	}
+
+	my $grade_event_eval = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $event->getPrimaryKeyID );
+	if ( $grade_event_eval ) {
+		$grade_event_eval->delete({'user' => $m->session->{'user'}->user_id()});
+	}
+
 	$event->delete({user => $m->session->{'user'}->user_id() });
 	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show", 'msg' => "Grade Event Deleted"));
 }

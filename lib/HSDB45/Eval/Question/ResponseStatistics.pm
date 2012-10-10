@@ -4,9 +4,10 @@ use strict;
 #use XML::Twig;
 use HSDB45::Eval::Question::ResponseGroup;
 use HSDB45::Eval::Question::Histogram;
+use POSIX qw(floor ceil);
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.17 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.18 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 sub version { return $VERSION; }
 
 my @mod_deps  = ('HSDB45::Eval::Question::ResponseGroup',
@@ -57,18 +58,38 @@ sub init {
 	# median (50), 25 & 75%
 	my @responses = sort { $a <=> $b } $self->response_group()->interpreted_responses();
 	my $count = scalar(@responses);
-	my $midIndex = $count/2;
-	my $quaterIndex = $count/4;
-	my $threeQuaterIndex = ($count * 3)/4;
+	my $q_point  = ($count-1)/4;
+	my $midpoint = ($count-1)/2;
+	my $q3_point = ($count-1) * 3/4;
 
 	if($count % 2) {
-		$self->{-median25} = $responses[int($quaterIndex)];
-		$self->{-median}   = $responses[int($midIndex)];
-		$self->{-median75} = $responses[int($threeQuaterIndex)];
+		$self->{-median} = $responses[ $midpoint ];
 	} else {
-		$self->{-median25} = ($responses[int($quaterIndex)] + $responses[int($quaterIndex+1)]) / 2;
-		$self->{-median}   = ($responses[int($midIndex)] + $responses[int($midIndex + 1)]) / 2;
-		$self->{-median75} = ($responses[int($threeQuaterIndex)] + $responses[int($threeQuaterIndex+1)]) / 2;
+		if ( ceil($midpoint) == $count ) {
+			$self->{-median} = $responses[ floor($midpoint) ];
+		} else {
+			$self->{-median} = ($responses[ floor($midpoint) ] + $responses[ ceil($midpoint) ]) / 2;
+		}
+	}
+
+	if ( int($q_point) == $q_point ) {
+		$self->{-median25} = $responses[ $q_point ];
+	} else {
+		if ( ceil($q_point) == $count ) {
+			$self->{-median25} = $responses[ floor($q_point) ];
+		} else {
+			$self->{-median25} = ($responses[ floor($q_point) ] + $responses[ ceil($q_point) ]) / 2;
+		}
+	}
+
+	if ( int($q3_point) == $q3_point ) {
+		$self->{-median75} = $responses[ $q3_point ];
+	} else {
+		if ( ceil($q3_point) == $count ) {
+			$self->{-median75} = $responses[ floor($q3_point) ];
+		} else {
+			$self->{-median75} = ($responses[ floor($q3_point) ] + $responses[ ceil($q3_point) ]) / 2;
+		}
 	}
 
 	# Mode

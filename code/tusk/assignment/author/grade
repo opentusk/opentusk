@@ -49,8 +49,9 @@
 } &>
 
 % my $actions = [ { label => 'Update Grade', link => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/gradeupdate' }, ];
-% push @$actions, { label => 'Allow Resubmission', link => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/resubmit' } unless ($assignment->getResubmitFlag());
-	
+<%doc>temporary removing this option as there is a bug  for individual resubmission</%doc>
+% # push @$actions, { label => 'Allow Resubmission', link => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/resubmit' } unless ($assignment->getResubmitFlag());
+
 <& /tmpl/element:object_selection_box, params => { 
 	columns 	=> $col_fields,
 	'norows-message' => 'No students have submitted the assignment.',
@@ -58,7 +59,7 @@
 	type_path	=> "$typePath/" . $assignment->getPrimaryKeyID(),
 	name 		=> "assignments",
 	action_columns	=> $actions,
-	action_dropdown => ($assignment->getResubmitFlag()) ? undef : 1,
+##	action_dropdown => ($assignment->getResubmitFlag()) ? undef : 1,
 }
 &>
 </table>
@@ -88,7 +89,7 @@
 			instructor_comment => ($faculty_comments_length > $max_length) 
 				? "<a style=\"color:blue;text-decoration:none;\" href=\"/assignment/author/gradeupdate/$typePath/" . $assignment->getPrimaryKeyID() . "/Student/$student_userid\">" . TUSK::Functions::truncate_string($faculty_comments, $max_length) . "</a>"
 				: $faculty_comments,		
-			id  		=> $student->getUserID(),
+			id  		=> ($submit_date) ? $student->getUserID() : undef,
 		};
 	}
 	return \@rows;

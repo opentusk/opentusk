@@ -35,6 +35,7 @@ sub getReport {
 			and user_id = '$self->{_user_id}' 
 			and default_report in ($self->{_report_flags})
 			and a.field_id = c.field_id 
+			and active_flag = 1
 			group by a.field_id
 	));
 
@@ -70,6 +71,7 @@ sub getReportByField {
 				 where b.time_period_id in ($self->{_time_period_ids_string})
 				 and form_id = $self->{_form_id} and user_id = '$self->{_user_id}'
 				 and field_id = $field_id
+				 and active_flag = 1
 				group by item_id, attribute_item_id);
 
 	my $sth = $self->{_form}->databaseSelect($sql);
@@ -99,12 +101,12 @@ sub getLogSummary {
 	my ($self, $private) = @_;
 	$private = 0 unless defined $private;
 
-	my $responses = TUSK::FormBuilder::Response->lookup("time_period_id in ($self->{_time_period_ids_string})", undef, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::FormBuilder::Entry", { origkey => 'entry_id', joinkey => 'entry_id', joincond => "user_id = '$self->{_user_id}' and form_id = $self->{_form_id}"}), TUSK::Core::JoinObject->new("TUSK::FormBuilder::Field", { origkey => 'field_id', joinkey => 'field_id', joincond => "private = $private"}), TUSK::Core::JoinObject->new("TUSK::FormBuilder::FieldItem", { origkey => 'item_id', joinkey => 'item_id'}), ]);
+	my $responses = TUSK::FormBuilder::Response->lookup("time_period_id in ($self->{_time_period_ids_string})", ['response_id'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::FormBuilder::Entry", { origkey => 'entry_id', joinkey => 'entry_id', joincond => "user_id = '$self->{_user_id}' and form_id = $self->{_form_id}"}), TUSK::Core::JoinObject->new("TUSK::FormBuilder::Field", { origkey => 'field_id', joinkey => 'field_id', joincond => "private = $private"}), TUSK::Core::JoinObject->new("TUSK::FormBuilder::FieldItem", { origkey => 'item_id', joinkey => 'item_id'}), ]);
 
 	my ($data, $num_reports) = $self->processLogSummary($responses);
 	my $fields = $self->{_form}->getAllFormFields();
 
-	return { rows => [keys %$data],  data => $data, fields => $fields, fullname => $self->{_user}->out_full_name(), num_reports => $num_reports };
+	return { rows => [sort keys %$data],  data => $data, fields => $fields, fullname => $self->{_user}->out_full_name(), num_reports => $num_reports };
 }
 
 

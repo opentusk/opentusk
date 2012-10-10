@@ -23,9 +23,11 @@ sub new {
 			 start_time 
 			 end_time 
 			 title
-			 type 
+			 type
 			 location 
 			 faculty_list
+			 duplicate
+			 mandatory
 			 )
 		      );
     $self->set_ignore_empty_fields(1);
@@ -115,6 +117,16 @@ sub processData {
 		    $self->add_log("error", "Record " . $record_count . " uses an invalid time: " . $record->get_field_value('end_time') );
 		    next if $testing;
 			return;
+		}
+
+		#add testing for duplicate and mandatory
+		foreach my $fld (qw|duplicate mandatory|) {
+			my $val = $record->get_field_value($fld);
+			if ($val && $val != 1) {
+				$self->add_log("error", "Record $record_count uses an invalid value for $fld: $val");
+				next if $testing;
+				return;
+			}
 		}
 
 		# make sure we get the full date range
@@ -236,7 +248,6 @@ sub get_course_ids{
 
 sub get_class_meeting_objects{
     my ($self, $course_ids, $school, $start_date, $end_date) = @_;
-
     return [] unless (scalar(@$course_ids));
 
     my @conds = ("meeting_date >= '" . $start_date . "'",
@@ -264,7 +275,8 @@ sub update_object{
     my ($self, $class_meeting, $record, $mode_flag) = @_;
 
     (my $title = $record->get_field_value('title')) =~ s/\&(amp\;|)/\&amp;/g;
-    my $type = HSDB45::ClassMeeting->check_type( $record->get_field_value('type') );
+    my $type = HSDB45::ClassMeeting->get_type_obj($record->get_field_value('type'), $class_meeting->school_id() );
+	my $type_id = (defined $type)? $type->getPrimaryKeyID() : undef;
 
 	my $starttime = $record->get_field_value('start_time');
 	my $endtime   = $record->get_field_value('end_time');
@@ -272,17 +284,36 @@ sub update_object{
 	$starttime    = "0" . $starttime if ( length($starttime) == 4 );  # These lines prevent times before 10:00 entered as "x:00"
 	$endtime      = "0" . $endtime   if ( length($endtime)   == 4 );  # from always appearing as updated
     
-    $class_meeting->set_field_values(
-				     title => $title,
-				     type => $type,
-				     meeting_date => $record->get_field_value('meeting_date'),
-				     starttime => $starttime . ":00",
-				     endtime => $endtime . ":00",
-				     location => $record->get_field_value('location'),
-				     );
-	
+	# TUSM Scheduling Software does not allow an event to be scheduled without a room.
+	# Since rooms aren't always needed, we have determined that any room that matches a regex of 
+	# phoro#[#], is to be stripped.
+
+	my $location = $record->get_field_value('location');
+	$location =~ s/^phoro\d\d?$//;
+
+	# in set_field_values() (called below), a field is added to modified array if its current,
+	# or new value is undef. this meant that if an event had a current undef meeting type, and 
+	# had an undef value in the new import file, it would be flagged as modified, even though
+	# its value REMAINED undef. therefore, only set type, and let it be flagged as modified, 
+	# if either its current or new value is defined.
+	my @type_val;
+	if (defined($type_id) || defined($class_meeting->type_id())) {
+		@type_val = (type_id => $type_id);
+	}
+
+	$class_meeting->set_field_values(
+	                 title => $title,
+	                 meeting_date => $record->get_field_value('meeting_date'),
+	                 starttime => $starttime . ":00",
+	                 endtime => $endtime . ":00",
+	                 location => $location,
+	                 is_duplicate => $record->get_field_value('duplicate') || 0,
+	                 is_mandatory => $record->get_field_value('mandatory') || 0,
+	                 @type_val, 
+	                 );
+
     my @changed_fields = grep { $_ ne 'class_meeting_id' } $class_meeting->changed_fields();
-    
+
     my $save_type = ($class_meeting->primary_key()) ? "Updated" : "Inserted";
     # need to do this save so we can get a primary key id for inserting into link_class_meeting_user
     $class_meeting->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}) if ($mode_flag eq "live");

@@ -1,3 +1,7 @@
+<%once>
+	use TUSK::Core::PatientLogApproval;
+</%once>
+
 <%shared>
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
 	my %params = $m->request_args();
@@ -17,6 +21,7 @@
 <%init>
 	my $report_template;
 	my ($header_fields,$comment_fields);
+	my $approve = 0;
 
 	my $conditions = $m->comp('SELF:getFieldConditions', default_report_flags => $report->getReportFlagString(), fields => $params{fields});
 	$header_fields = $form->getAllFormFields($conditions->{non_comments});		
@@ -24,8 +29,8 @@
 
 	if ($params{rtype} eq 'ts') {  ### teaching site summary
 		if ($params{fid}) {
-			$results = $report->getReportByField($params{fid});
-			$report_template = 'siteSummaryByField';
+			$results = $report->getFieldReportByStudent($params{fid});
+			$report_template = 'siteFieldSummaryByStudent';
 		} elsif ($params{comments}) {
 			$results = $report->getCommentSummary($conditions->{comments});
 			$report_template = 'commentSummary';
@@ -42,9 +47,11 @@
 			$report_template = 'commentSummary';
 		} elsif ($params{logs}) {
 			$results = $report->getLogSummary();
+			if ( $params{approve} ) { $approve = 1; }
 			$report_template = 'logSummary';
 		} else {
 			$results = $report->getReport();
+			if ( $params{approve} ) { $approve = 1; }
 			$report_template = 'studentSummary';
 		}
 	} else {  ## course summary
@@ -59,6 +66,19 @@
 			$report_template = 'courseSummary';
 		}
 	}
+
+	if ( $approve ) {
+		my $approval = TUSK::Core::PatientLogApproval->new()->lookupReturnOne( "user_id = '" . $params{'uid'} . "' and form_id = '" . $form_id . "'" );
+		if (!$approval) {
+			$approval = TUSK::Core::PatientLogApproval->new();
+		}
+		$approval->setFormID( $form_id );
+		$approval->setUserID( $params{'uid'} );
+		$approval->setApprovedBy( $m->session->{user}->user_id() );
+		$approval->setApprovalTime( HSDB4::DateTime->new()->out_mysql_timestamp );
+		$approval->save();
+	}
+
 	$m->comp('SELF:headersNav', fields => $header_fields, has_comments => scalar(@$comment_fields) ? 1 : 0 );
 
 	$m->comp('SELF:displayData', report_template => $report_template);
@@ -105,8 +125,8 @@
 	$report_template
 </%args>
 % 	my $label;
-% 	if (exists $results->{rows} && @{$results->{rows}}) {
-<table cellspacing="0" cellspadding="0" width="" margin="5px">
+%	if (exists $results->{rows} && @{$results->{rows}}) {
+<table cellspacing="0" cellpadding="0" width="" margin="5px">
 <& $report_template &>
 </table>
 % 	} else {
@@ -168,7 +188,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <% $nav %>
 </div>
 
-<div id="<% ($fields && scalar @$fields > 8) ? 'plogNavsCustom' : 'plogNavs' %>">
+<div id="plogNavs" class="outerNav">
 <ul id="gTabNav" class="allInactive"> 
 % my $extra = "rtype=$params{rtype}" . $concat_extra_query_string;
 	<li class="<% ($params{fid} || $params{comments} || $params{logs}) ? '' : 'gCurColorPage' %>"><a href="/patientlog/director/report/<% $type_path %>/<% $form_id %>?<% $extra %>">Summary</a></li>
@@ -225,19 +245,20 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <tr class="header">
 <th align="left">Total</th>
 <td align="center"><% $results->{total}[0] %></td>
-<td align="center" style="padding-right:10px"><% $results->{total}[1] %></td>
-<td  align="center"><% $results->{total}[2] %>%</td>
+<td align="center"><% $results->{total}[1] %></td>
+<td align="center"><% $results->{total}[2] %>%</td>
 <td align="center"><% $results->{total}[3] %></td>
 </tr>
 </%def>
 
 
 <%def courseSummaryByField>
-% my $columns = ($params{view} eq 'allsites') ? 1 : scalar @{$results->{items}};
+% my $columns = ($params{view} eq 'allsites') ? 3 : scalar @{$results->{items}};
 <& SELF:fieldViewNav, columns => $columns, field_id => $params{fid} &>
-% my $labels = [ '# Students Reporting' ];
+% my $labels = [ '# Patients Seen','# Students Reporting', '% Students Reporting'];
 
 % if ($params{view} eq 'allsites') { ## ALL SITES
+<tr><td colspan="<% $columns %>">Total Number of Students: &nbsp; <% $results->{total_students} %></td></tr>
 % 	if ($results->{contains_category}) {
 <& SELF:showHideButtonRow, columns => $columns &>
 % 	} else {
@@ -264,7 +285,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 %		my $obj_id = $obj->primary_key();
 %		my $func = $course_field_map->{$params{view}}{title_func};
 <tr class="<% ($i % 2 == 0) ? 'even' : 'odd' %>">
-<td class="line-left" style="font-size:85%" NOWRAP><a href="<% $ENV{SCRIPTNAME} . '?rtype=' . $course_field_map->{$params{view}}{rtype} . '&fid=' . $params{fid} . '&' . $course_field_map->{$params{view}}{key} . '=' . $obj_id . $concat_extra_query_string . '">' . $obj->$func %></a></td>
+<td class="line-left" style="font-size:85%" nowrap="nowrap"><a href="<% $ENV{SCRIPTNAME} . '?rtype=' . $course_field_map->{$params{view}}{rtype} . '&fid=' . $params{fid} . '&' . $course_field_map->{$params{view}}{key} . '=' . $obj_id . $concat_extra_query_string . '">' . $obj->$func %></a></td>
 %		foreach my $item (@{$results->{items}}) {
 %			next unless ($item->getItemTypeToken() eq 'Item');
 %			my $item_id = $item->getPrimaryKeyID();
@@ -307,7 +328,8 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <td></td>
 %	foreach my $label (@$labels) {
 %		foreach my $attr (@{$attribute_items}) {
-<th style="padding:0 10px 0 10px;" align="center"><% $attr->getAbbreviation() %></th>
+%			my $value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+<th style="padding:0 10px 0 10px;" align="center"><% $value %></th>
 %		}
 %	}
 </tr>
@@ -320,37 +342,141 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <tr class="header">
 <th style="padding:0 10px 0 10px;" align="left">Students</th>
 <th style="padding:0 10px 0 10px;"># Patients Seen</th>
+% 	if ( $form->getRequireApproval() ) {
+<th style="padding:0 10px 0 10px;">Approved</th>
+%	}
 </tr>
 % 	my $i = 0;
 % 	foreach my $row (@{$results->{rows}}) {
 <tr>
 <td class="line-left"><a href="/patientlog/director/report/<% $type_path . '/' . $form_id %>?rtype=ss&uid=<% $row->[0]. $concat_extra_query_string %>"><% $row->[1] %></a></td>
 <td class="line-center"><% $row->[2] %></td>
+% 	if ( $form->getRequireApproval() ) {
+%		my $approval = TUSK::Core::PatientLogApproval->new()->lookupReturnOne( "user_id = '" . $row->[0] . "' and form_id = '" . $form_id . "'" );
+%		my $app_string = ($approval ? '<span style="color: green;">Yes : ' . $approval->getApprovedBy . ' : ' . $approval->getApprovalTime . '</span>' : '<span style="color: red;">No</span>');
+<td class="line-center"><% $app_string %></td>
+%	}
 </tr>
 %		$i++;
 % 	}
 </%def>
 
-
-<%def siteSummaryByField>
-% 	my $labels = $m->comp('SELF:getReportHeadings', report_type => 'ts', type => 'byfield' );
-<tr><td colspan="3">Total Number of Students: &nbsp;<% $results->{total_students} %></td></tr>
-<tr><td colspan="2">Total Number of Students Reporting: &nbsp; <% $results->{reporting_students} %> &nbsp; <span style="font-size:85%;color:gray;"><% $results->{percent_reporting_students} %></span></td></tr>
-% 	if ($results->{contains_category}) {
-<& SELF:showHideButtonRow, columns => scalar @$labels &>
-% 	} else {
+<%def siteFieldSummaryByStudent>
+<tr><td>Total Number of Students: &nbsp;<% $results->{total_students} %></td></tr>
+<tr><td>Total Number of Students Reporting: &nbsp;<% $results->{reporting_students} %>&nbsp;<span style="font-size:85%;color:gray;">(<% sprintf("%.0f%", $results->{reporting_students}/$results->{total_students}*100) %>)</span></td></tr>
+<tr>
+<td>
+<div class="datatable">
+%	my $tablecounter = 1;
+%	## drop down and button to show/hide category tables
+%	if ($results->{contains_category}) {
+		<& categoryFieldset &>
+%	}
+%	else {
+<br />
+%	}
+%	my $class = undef;
+%	## loop through cateogories and display table for each one
+%	foreach my $category (@{$results->{categorized_items}}) {
+% 		if ($results->{contains_category}) {
+<div id="reportdiv<% $tablecounter %>" class="reportdiv">
+<h2 class=""><% $category->{category_name} %></h2>
+%		}
+<table cellspacing="1" cellpadding="0" border="0" id="reporttable<% $tablecounter++ %>" class="reporttable scrollableFixedHeaderTable">
+% ## header rows
+<thead>
 <tr class="header">
-<th style="padding:0 10px 0 10px;"></th>
-%		my $colspan = (defined $results->{attribute_items}) ? scalar @{$results->{attribute_items}} : 1;
-%		foreach my $label (@$labels) {
-<th style="padding:0 10px 0 10px;" align="center" colspan="<% $colspan %>"><% $label %></th>
+	<th class="first">&nbsp;</th>
+%		foreach my $item (@{$category->{category_items}}) {
+	<th<% (scalar @{$results->{attribute_items}}) ? ' colspan="' . scalar @{$results->{attribute_items}} . '"' : ""   %> nowrap="nowrap"><span><% $item->{item_name} %></span></th>
 %		}
 </tr>
-%		if (defined $results->{attribute_items}) {
-<& SELF:printAttributeLabels, labels => $labels, attribute_items => $results->{attribute_items} &>
+%		if (scalar @{$results->{attribute_items}}) {
+<tr class="header">
+	<th class="first">&nbsp;</th>
+%		foreach my $item (@{$category->{category_items}}) {
+%				foreach my $attr (@{$results->{attribute_items}}) {
+%					my $value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+	<th nowrap="nowrap"><span><% $value %></span></th>
+%				}
+%			}
+</tr>
 %		}
-% 	}
-<& SELF:displayByItemRows, items => $results->{rows}, attribute_items => $results->{attribute_items}, data => $results->{data}, labels => $labels &>
+</thead>
+<tbody>
+% ## summary rows
+<tr class="summary">
+	<td class="odd first" nowrap="nowrap"># Patients Seen</td>
+%			foreach my $item (@{$category->{category_items}}) {
+%				if (scalar @{$results->{attribute_items}}) {
+%					foreach my $attr (@{$results->{attribute_items}}) {
+%						my $value = $results->{total_seen}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+	<td class="odd"><% $value %></td>
+%					}
+%				}
+%				else {
+%					my $value = $results->{total_seen}->{$item->{item_id}} || 0; 
+	<td class="odd"><% $value %></td>
+%				}
+%			}
+</tr>
+<tr class="summary">
+	<td class="even first" nowrap="nowrap"># Students Reporting</td>
+%			foreach my $item (@{$category->{category_items}}) {
+%				if (scalar @{$results->{attribute_items}}) {
+%					foreach my $attr (@{$results->{attribute_items}}) {
+%						my $value = $results->{total_reporting}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+	<td class="even"><% $value %></td>
+%					}
+%				}
+%				else {
+%						my $value = $results->{total_reporting}->{$item->{item_id}} || 0;
+	<td class="even"><% $value %></td>
+%				}
+%			}
+</tr>
+<tr class="summary">
+	<td class="odd first" nowrap="nowrap">% Students Reporting</td>
+%			foreach my $item (@{$category->{category_items}}) {
+%				if (scalar @{$results->{attribute_items}}) {
+%					foreach my $attr (@{$results->{attribute_items}}) {
+	<td class="odd"><% sprintf("%.0f%", $results->{total_reporting}->{$item->{item_id}}->{$attr->getPrimaryKeyID()}/$results->{total_students}*100) %></td>
+%					}
+%				}
+%				else {
+	<td class="odd"><% sprintf("%.0f%", $results->{total_reporting}->{$item->{item_id}}/$results->{total_students}*100) %></td>
+%				}
+%			}
+</tr>
+% ## data rows
+%		my $rowcounter = 0;
+%		foreach my $user (@{$results->{rows}}) {
+%			$class = ($rowcounter++ % 2 == 0) ? "even" : "odd";
+<tr>
+	<td class="<% $class %> first" nowrap="nowrap"><% $user->out_lastfirst_name() %></td>
+%			if (scalar @{$results->{attribute_items}}) {
+%				foreach my $item (@{$category->{category_items}}) {
+%					foreach my $attr (@{$results->{attribute_items}}) {
+%						my $value = $results->{data}->{$user->primary_key}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+	<td class="<% $class %>"><% $value %></td>
+%					}
+%				}
+%			}
+%			else {
+%				foreach my $item (@{$category->{category_items}}) {
+%					my $value = $results->{data}->{$user->primary_key}->{$item->{item_id}} || 0;
+	<td class="<% $class %>"><% $value %></td>
+%				}
+%			}
+</tr>
+%		}
+</tbody>
+</table>
+</div>
+%	}
+</div>
+</td>
+</tr>
 </%def>
 
 
@@ -365,12 +491,37 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 %	my $field_id = $field->getPrimaryKeyID();
 %	next unless $results->{data}{$field_id};
 <tr>
-<td style="font-weight:bold;color:gray;" class="line-left" NOWRAP><% $field->getFieldName() %></td>
+<td style="font-weight:bold;color:gray;" class="line-left" nowrap="nowrap"><% $field->getFieldName() %></td>
 %	foreach (@{$results->{data}{$field_id}}) {
 <td class="line-center"><% $_ %></td>
 %	}
 </tr>
 % }
+% 	if ( $form->getRequireApproval() ) {
+%		my $approval = TUSK::Core::PatientLogApproval->new()->lookupReturnOne( "user_id = '" . $params{'uid'} . "' and form_id = '" . $form_id . "'" );
+%		my @params_str_array;
+%		foreach ( keys %params ) {
+%			if(ref $params{$_} eq 'ARRAY') {
+%				my $key = $_;
+%				foreach my $param (@{$params{$_}}) {
+%					push @params_str_array, $key . "=" . $param;
+%				}
+%			}
+%			else {
+%				push @params_str_array, $_ . "=" . $params{$_};
+%			}
+%		}
+%		my $params_str = join( "&", @params_str_array );
+<tr>
+	<td colspan="4" align="center"><br /><br />
+%	if ( $approval ) {
+		<span style="color: green;">Approved : <% $approval->getApprovedBy %> : <% $approval->getApprovalTime %></span><br /><br /><input type="button" class="formbutton" value="Update Approval" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
+%	} else {
+		<span style="color: red;">Not yet approved</span><br /><br /><input type="button" class="formbutton" value="Approve Logs" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
+%	}
+	</td>
+</tr>
+% 	}
 </%def>
 
 
@@ -415,7 +566,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <%def logSummary>
 <div>Total Number of Patients Seen: &nbsp; <% $results->{num_reports} %></div>
 <br/>
-<table border="0" cellspacing="0" cellspadding="0" width="100%" class="tusk">
+<table border="0" cellspacing="0" cellpadding="0" width="100%" class="tusk">
 <tr class="header"><th align="left">Date</th><th align="left">Field</th><th align="left" style="padding-left:20px;">Response</th></tr>
 % foreach my $date (@{$results->{rows}}) {
 % 	foreach my $entry_id (keys %{$results->{data}{$date}}) {
@@ -427,13 +578,45 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <td class="line-left" style="color:gray;text-decoration:bold;" valign="top"><% $field->getFieldName() %></td>
 <td class="line-left" style="font-size:90%;" width="70%" valign="top">
 <ul style="margin:0;">
-<% map { "<li>$_</li>\n" } @{$results->{data}{$date}{$entry_id}{$field->getPrimaryKeyID()}} %>
+% foreach (@{$results->{data}{$date}{$entry_id}{$field->getPrimaryKeyID()}}) {
+<li>
+% 	if ($_->[1]) {
+<% $_->[0] %>
+% 	} else { 
+<span class="strike"><% $_->[0] %></span></li>
+% 	}
+% }
 </ul>
 </td>
 </tr>
 % 		}
 % 	}
 % }
+% 	if ( $form->getRequireApproval() ) {
+%		my $approval = TUSK::Core::PatientLogApproval->new()->lookupReturnOne( "user_id = '" . $params{'uid'} . "' and form_id = '" . $form_id . "'" );
+%		my @params_str_array;
+%		foreach ( keys %params ) {
+%			if(ref $params{$_} eq 'ARRAY') {
+%				my $key = $_;
+%				foreach my $param (@{$params{$_}}) {
+%					push @params_str_array, $key . "=" . $param;
+%				}
+%			}
+%			else {
+%				push @params_str_array, $_ . "=" . $params{$_};
+%			}
+%		}
+%		my $params_str = join( "&", @params_str_array );
+<tr>
+	<td colspan="3" align="center"><br /><br />
+%	if ( $approval ) {
+		<span style="color: green;">Approved : <% $approval->getApprovedBy %> : <% $approval->getApprovalTime %></span><br /><br /><input type="button" class="formbutton" value="Update Approval" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
+%	} else {
+		<span style="color: red;">Not yet approved</span><br /><br /><input type="button" class="formbutton" value="Approve Logs" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
+%	}
+	</td>
+</tr>
+% 	}
 </table>
 </%def>
 
@@ -450,6 +633,52 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 </td></tr>
 %	}
 </%def>
+
+<%def categoryFieldset>
+%	my $tablecounter = 1;
+%	my $options;
+<fieldset>
+%		foreach my $category (@{$results->{categorized_items}}) {
+%			push(@$options, { label => $category->{category_name}, value => 'reportdiv' . $tablecounter++});
+%		}
+<label for="showhidetable">Select a category to display:</label>
+<& /tmpl/element:dropdown, params => { 
+	name => "showhidetable",
+	selected => "reportdiv1",
+	notables => 1,
+	multiple => 0,
+	class => 'showhidetable',
+	onchange => "showhidetable(this.value)",
+	options =>  $options } &>
+<& /tmpl/element:button, params=>{
+	label => "show all",
+	onclick => "showhidetable('all')",
+	name => "showhidebutton" } &>
+</fieldset>
+</%def>
+
+<%method jsarray>
+<%perl>
+	return [ 
+		"jquery/jquery.min.js",
+		"patientlog/report.js",
+		"jquery/plugin/dimensions.min.js",
+		"jquery/plugin/scrollablefixedheadertable/scripts/scrollableFixedHeaderTable.min.js",
+		"jquery/plugin/scrollablefixedheadertable/scripts/wrapper.min.js",
+		"jquery/plugin/scrollbarWidth.min.js",
+	];
+</%perl>
+</%method>
+
+<%method stylearray>
+<%perl>
+	return [
+		"/style/style.css",
+		"/scripts/jquery/plugin/scrollablefixedheadertable/css/scrollableFixedHeaderTable.css",
+		"/style/patientLogReport.css",
+	];
+</%perl>
+</%method>
 
 
 <%method printHeaderDataTable>
@@ -479,7 +708,8 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 %	foreach my $item (@{$items}) {
 % 		next unless ($item->getItemTypeToken() eq 'Item');
 %		foreach my $attribute_item (@{$attribute_items}) {
-<td valign="bottom" align="center"><span style="cursor:pointer;font-size:80%;" title="<% $attribute_item->getItemName() %>"><% $attribute_item->getAbbreviation() %></span></td>
+%			my $value = ($attribute_item->getAbbreviation()) ? $attribute_item->getAbbreviation() : $attribute_item->getItemName();
+<td valign="bottom" align="center"><span style="cursor:pointer;font-size:80%;" title="<% $value %>"><% $value %></span></td>
 %		}
 %	}
 </tr>

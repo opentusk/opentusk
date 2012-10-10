@@ -123,40 +123,50 @@ sub setCourse {
 
 sub getAllTeachingSites {
     my $self = shift;
+    my $school = $self->{school}->getSchoolName();
 
-    my $codes = TUSK::Core::CourseCode->new()->lookup(
-      "code = '" . $self->{course_code} 
-      . "' AND school_id = " . $self->{school}->getPrimaryKeyID()
-      . " AND teaching_site_id in (select teaching_site_id from " 
-      . $self->getSchool()->getSchoolDb() 
-      . ".link_course_student where parent_course_id = " 
-      . $self->{course}->field_value('course_id')
-      . " and time_period_id = " . $self->{time_period}->primary_key() . ')'); 
+	if ( $school eq 'Medical' ) {
+    	my $codes = TUSK::Core::CourseCode->new()->lookup(
+    	  "code = '" . $self->{course_code} 
+    	  . "' AND school_id = " . $self->{school}->getPrimaryKeyID()
+    	  . " AND teaching_site_id in (select teaching_site_id from " 
+    	  . $self->getSchool()->getSchoolDb() 
+    	  . ".link_course_student where parent_course_id = " 
+    	  . $self->{course}->field_value('course_id')
+    	  . " and time_period_id = " . $self->{time_period}->primary_key() . ')'); 
       
+    	if (@{$codes} > 1) {
+			return undef unless $self->_isSingleCourse($codes);
+    	} 
 
-    if (@{$codes} > 1) {
-	return undef unless $self->_isSingleCourse($codes);
-    } 
-
-    ### 4th year, one teaching site. set to null/undef if more than one teaching site
-    ### 3rd year, multiple teaching sites
-    if ($self->{course_level} =~ /4\d\d/) {
-	return (defined $codes && @{$codes} == 1) 
-	    ? [ HSDB45::TeachingSite->new(_school => $self->{school}->getSchoolName())->lookup_key($codes->[0]->getTeachingSiteID()) ] 
-	    : undef;
-    } elsif ($self->{course_level} =~ /3\d\d/) {
-	my @teaching_sites = ();
-	if (defined $codes) {
-	    foreach (@$codes) {
-		my $ts = HSDB45::TeachingSite->new(_school => $self->{school}->getSchoolName())->lookup_key($_->getTeachingSiteID());
-		push @teaching_sites, $ts if $ts->primary_key();
-	    }
-	    return \@teaching_sites;
+	    ### 4th year, one teaching site. set to null/undef if more than one teaching site
+	    ### 3rd year, multiple teaching sites
+	    if ($self->{course_level} =~ /4\d\d/) {
+		return (defined $codes && @{$codes} == 1) 
+		    ? [ HSDB45::TeachingSite->new(_school => $self->{school}->getSchoolName())->lookup_key($codes->[0]->getTeachingSiteID()) ] 
+		    : undef;
+	    } elsif ($self->{course_level} =~ /3\d\d/) {
+		my @teaching_sites = ();
+		if (defined $codes) {
+		    foreach (@$codes) {
+			my $ts = HSDB45::TeachingSite->new(_school => $self->{school}->getSchoolName())->lookup_key($_->getTeachingSiteID());
+			push @teaching_sites, $ts if $ts->primary_key();
+		    }
+		    return \@teaching_sites;
+		}
+   	 	} else {
+		warn "Unexpected Course Level for: ", $self->{course_code}, " ($self->{course_level})\n";
+		return undef;
+		}
+	} elsif ( $school eq 'Dental' ) {
+		my @ts = HSDB45::TeachingSite->new(_school => $self->{school}->getSchoolName())->lookup_conditions( 
+			"teaching_site_id in ( 
+				select distinct teaching_site_id from " . $self->getSchool()->getSchoolDb() . ".link_course_student 
+				where parent_course_id = " . $self->{course}->field_value( "course_id" ) . " and time_period_id = " . $self->{time_period}->primary_key . " 
+			)"
+		);
+		return \@ts;
 	}
-    } else {
-	warn "Unexpected Course Level for: ", $self->{course_code}, " ($self->{course_level})\n";
-	return undef;
-    } 
 }
 
 
@@ -193,26 +203,10 @@ sub getCourseCodes {
     my $school_id = $self->{school}->getPrimaryKeyID();
     my $time_period_id = $self->{time_period}->primary_key();
     my $dbh = HSDB4::Constants::def_db_handle();
+	my $codes;
 
-=head
-    my $statement = qq(
-		       select code 
-		       from tusk.course_code a, $dbname.link_course_student b 
-		       where a.course_id = b.parent_course_id 
-		       and time_period_id = $time_period_id 
-		       and school_id = $school_id and parent_course_id != 370 
-		       UNION 
-		       select code 
-		       from tusk.course_code a, $dbname.link_course_student b 
-		       where a.course_id = b.parent_course_id 
-		       and a.teaching_site_id = b.teaching_site_id 
-		       and time_period_id = $time_period_id 
-		       and school_id = $school_id and parent_course_id = 370 
-		       );
-
-=cut
-
-	 my $statement = qq(
+	if ( $self->{school}->getSchoolName eq 'Medical' ) {
+		my $statement = qq(
 		       select code 
 		       from tusk.course_code a, $dbname.link_course_student b 
 		       where a.course_id = b.parent_course_id 
@@ -232,10 +226,13 @@ sub getCourseCodes {
 		       and a.teaching_site_id = b.teaching_site_id 
 		       and time_period_id = $time_period_id 
 		       and school_id = $school_id and course_id = 2215
-		       ); 
-    my $codes = $dbh->selectall_arrayref($statement);
-    return $codes;
+		       );
+		$codes = $dbh->selectall_arrayref($statement);
+	} elsif ( $self->{school}->getSchoolName eq 'Dental' ) {
+		$codes = [ ["1481"], ["1354"] ];
+	}
 
+	return $codes;
 }
 
 
@@ -247,28 +244,43 @@ sub getEvalTitle {
     my $ay = $self->getAcademicYear();
     my $period = $self->getPeriod();
 
-    if ($self->{course_level} =~ /3\d\d/) {
-	$eval_title = "$course_title Evaluation Block $period,";
-	$eval_title .= (defined $site_name) ? "$site_name," : '';
-	$eval_title .= $ay;
-    } else {
-   	if ($self->{course_code} =~ /FAM4/ && $self->{course_code} !~ /FAM4(87|88|99)/) {
-	    $eval_title = "Family Medicine Clerkship Evaluation - AY $ay - Block $period";
-	    $site_name =~ s/Family Practice - // if defined $site_name;
-	} elsif ($self->{course_code} =~ /NEU4/) {
-	    $eval_title = "Neurology Clerkship Evaluation - AY $ay - Block $period - $course_title";
+	if ( $self->{school}->getSchoolName eq "Medical" ) {
+	    if ($self->{course_level} =~ /3\d\d/) {
+		$eval_title = "$course_title Evaluation Block $period,";
+		$eval_title .= (defined $site_name) ? "$site_name," : '';
+		$eval_title .= $ay;
+	    } else {
+			# Words cannot express my dislike of this ultra-custom special-case coding.
+			my @wards = qw( FAM487 FAM488 ICR401 ICR402 ICR405 ICR406 ICR407 ICR408 ICR409 MED401 MED404 MED405
+							MED407 MED422 MED423 MED430 MED435 MED441 OBG407 OBG409 OBG412 PED401 PED403 PED404
+							PED405 PED417 PED418 PED423 PED434 PED435 PSY412 SCR402 SCR404 SGN401 SGN402 SGN409
+							SGN410 SGN411 SGN412 SGN414 SGN416 SGN418 SGN422 SGN423 SGN426 SGN431 SGN432 SGN435
+							SGN436 SGN437 SGN439 SGN441 MED443 );
 
-	} else {
-	    $eval_title = "Fourth Year Subinternship (Ward) Evaluation - AY $ay - Block $period - $course_title";
+			if ( grep { $_ eq $self->{course_code} } @wards ) {
+			    $eval_title = "Fourth Year Subinternship (Ward) Evaluation - AY $ay - Block $period - $course_title";
+		   	} elsif ($self->{course_code} =~ /FAM4/ ) {
+			    $eval_title = "Family Medicine Clerkship Evaluation - AY $ay - Block $period";
+			    $site_name =~ s/Family Practice - // if defined $site_name;
+			} elsif ($self->{course_code} =~ /NEU4/ || $self->{course_code} =~ /SNR4/) {
+			    $eval_title = "Neurology Clerkship Evaluation - AY $ay - Block $period - $course_title";
+			} else {
+			    $eval_title = "Fourth Year Elective Evaluation - AY $ay - Block $period - $course_title";
+			}
+
+			$eval_title .= " - $site_name" if (defined $site_name);
+
+			## add user's names except family medicine courses
+			unless ($self->{course_code} =~ /FAM\d{3}/ && $self->{course_code} !~ /FAM4(87|88|99)/) {
+			    $eval_title .= " - " . join(", ",map { $_->out_short_name } $self->{course}->child_users()) if ($self->{course}->child_users());
+			}
+	
+    	}
+	} elsif ( $self->{school}->getSchoolName eq "Dental" ) {
+		$eval_title = "$course_title Evaluation - $period";
+		$eval_title .= (defined $site_name) ? ", $site_name" : '';
+		$eval_title .= ", $ay" if $ay;
 	}
-
-	$eval_title .= " - $site_name" if (defined $site_name);
-
-	## add user's names except family medicine courses
-	unless ($self->{course_code} =~ /FAM\d{3}/ && $self->{course_code} !~ /FAM4(87|88|99)/) {
-	    $eval_title .= " - " . join(", ",map { $_->out_short_name } $self->{course}->child_users()) if ($self->{course}->child_users());
-	}
-    }
     return $eval_title;
 }
 

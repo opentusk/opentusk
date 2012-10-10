@@ -1,0 +1,34 @@
+#!/usr/bin/perl -w
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin/../../tusk/current/lib";
+
+use HSDB4::Constants;
+use MySQL::Password;
+use Carp;
+
+my ($user_name, $password) = &get_user_pw();
+&HSDB4::Constants::set_user_pw($user_name, $password);
+
+foreach my $school_name (HSDB4::Constants::schools()) {
+	my $dbh;
+print "\n" . $school_name . "\n";
+	eval {
+		$dbh = HSDB4::Constants::def_db_handle();
+	};
+	die "$@\t...failed to obtain database handle!" if $@;
+
+	my $query = "drop table " . HSDB4::Constants::get_school_db( $school_name ) . ".eval_results_cache";
+	eval {
+		my $q_handle = $dbh->prepare($query);
+		$q_handle->execute();
+	};
+
+	$query = "drop table " . HSDB4::Constants::get_school_db( $school_name ) . ".eval_secret";
+	eval {
+		my $q_handle = $dbh->prepare($query);
+		$q_handle->execute();
+	};
+}
+

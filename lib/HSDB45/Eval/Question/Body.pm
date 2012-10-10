@@ -1,6 +1,6 @@
-# $Id: Body.pm,v 1.24 2005-05-16 19:55:29 bkessler Exp $
+# $Id: Body.pm,v 1.26 2011-05-17 00:39:48 jwestc01 Exp $
 # Package for storing and accessing the attributes of a eval_question's body
-# $Revision: 1.24 $
+# $Revision: 1.26 $
 package HSDB45::Eval::Question::Body;
 
 use strict;
@@ -254,7 +254,9 @@ sub set_body_elt {
 
     my $old_elt = $self->elt()->first_child($elt_gi);
 
-    $new_value = $html_flow->xml_escape($new_value);
+    $new_value = $html_flow->xml_escape("$new_value");
+    if(!$new_value && $elt_gi !~ /text/) {$new_value = 0;}
+
     # If neither is defined, then we don't have to do anything
     if (defined $old_elt) {
 	if (defined $new_value) {

@@ -8,7 +8,7 @@ BEGIN {
 
     use vars qw($VERSION);
     
-    $VERSION = do { my @r = (q$Revision: 1.62 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.65 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version { return $VERSION }
@@ -46,6 +46,7 @@ my @fields = qw(user_group_id
 		modified
 		description
 		sub_group
+		sort_order
 		);
 my %blob_fields = ('description'=>1);
 my %numeric_fields = ();
@@ -184,7 +185,7 @@ sub child_users_hashref {
 sub getStudentMembers {
 	my ($self, $course, $time_period_id, $just_user_id) = @_;
 
-	return unless $course->isa('HSDB45::Course');
+	return [] unless $course->isa('HSDB45::Course');
 
 	unless ($time_period_id) {
 		my $time_period = $course->get_current_timeperiod();
@@ -210,7 +211,7 @@ sub getStudentMembers {
     warn $@, return if $@;
 
 	my $user_ids = $sth->fetchall_arrayref([0]);
-	return unless $user_ids;
+	return [] if (!$user_ids || scalar @$user_ids == 0) ;
 
 	if ($just_user_id) {
 		return [ map { $_->[0] } @$user_ids ];
@@ -817,21 +818,18 @@ sub remove_announcement {
 sub announcements { # namely, unexpired ones
     my $self = shift;
 
-    unless ($self->{-child_announcements}) {
-        $self->{-child_announcements} = $self->announcement_link()->get_children($self->primary_key);
-    }
+	unless ( $self->{-current_ann} ) {
+		my @ann = grep { $_->current() } $self->announcement_link()->get_children($self->primary_key)->children();
+		$self->{-current_ann} = \@ann;
+	}
 
-    return grep { $_->current() } $self->{-child_announcements}->children();
+    return @{$self->{-current_ann}};
 }
 
 sub all_announcements { # notably, including expired ones
     my $self = shift;
 
-    unless ($self->{-child_announcements}) {
-        $self->{-child_announcements} = $self->announcement_link()->get_children($self->primary_key);
-    }
-
-    return $self->{-child_announcements}->children();
+    return $self->announcement_link()->get_children($self->primary_key)->children();
 }
 
 sub can_user_manage_user_group {

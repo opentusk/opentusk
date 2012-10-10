@@ -170,5 +170,30 @@ sub lookupByRelation {
 	return $self->lookup("quiz_id = $quiz_id and quiz_item_id = $quiz_item_id");
 }
 
+# this is largely a copy of SQLRow's updateSortOrders.
+# indices here start at 0 and that is not handled by parent method.
+sub updateSortOrders{
+	my ($self, $index, $newindex, $quizid) = @_;
+
+	my $arrayref = TUSK::Quiz::LinkQuizQuizItem->new()->lookup("quiz_id=$quizid", ['sort_order']);
+
+	return [] if scalar (@$arrayref == 0); #oops
+	return [] if ($index == $newindex); # oops
+	return [] if ($index < 0 or $index > scalar(@$arrayref)); #oops again
+
+	my $cond = "quiz_id = " . $quizid;
+
+	my $field = @$arrayref[$index]->getPrimaryKey;
+	
+	splice(@$arrayref, ($newindex), 0,splice(@$arrayref, ($index), 1));
+
+	my $length = scalar(@$arrayref);
+	for(my $i=0; $i<$length; $i++){
+		TUSK::Quiz::LinkQuizQuizItem->new->update("sort_order=$i", $cond . " and " . $field . " = '" . $arrayref->[$i]->getPrimaryKeyID() . "'");
+	}
+
+	return $arrayref;
+}
+
 
 1;

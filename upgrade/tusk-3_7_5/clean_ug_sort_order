@@ -1,0 +1,39 @@
+#!/usr/bin/perl -w
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin/../../tusk/current/lib";
+
+use HSDB4::Constants;
+use MySQL::Password;
+use Carp;
+
+my ($user_name, $password) = &get_user_pw();
+&HSDB4::Constants::set_user_pw($user_name, $password);
+
+foreach my $school_name (HSDB4::Constants::schools()) {
+	my $dbh;
+	print "\n" . $school_name . "\n";
+	eval {
+		$dbh = HSDB4::Constants::def_db_handle();
+	};
+	die "$@\t...failed to obtain database handle!" if $@;
+
+	my $query = "alter table " . HSDB4::Constants::get_school_db( $school_name ) . ".user_group change sort_order sort_order smallint(4) unsigned";
+	eval {
+		my $q_handle = $dbh->prepare($query);
+		$q_handle->execute();
+	};
+
+	my $add = 0;
+	$query = "select user_group_id, sort_order from " . HSDB4::Constants::get_school_db( $school_name ) . ".user_group where sort_order = 255";
+	eval {
+		my $q_handle = $dbh->prepare($query);
+		$q_handle->execute();
+
+		while (my ($user_group_id, $sort_order) = $q_handle->fetchrow_array()) {
+			$dbh->prepare( "update " . HSDB4::Constants::get_school_db( $school_name ) . ".user_group set sort_order = sort_order + $add where user_group_id = $user_group_id" )->execute();
+			$add++;
+		}
+	};
+}

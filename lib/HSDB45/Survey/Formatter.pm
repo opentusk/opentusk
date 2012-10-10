@@ -6,8 +6,9 @@ use base qw(XML::Formatter);
 use XML::Twig;
 use XML::EscapeText qw(:escape);
 use HSDB45::Survey;
+use TUSK::Constants;
 
-$VERSION = do { my @r = (q$Revision: 1.5 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.6 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 sub version { return $VERSION; }
 
@@ -42,8 +43,8 @@ sub new_from_path {
 sub init_decls {
     my $self = shift;
     $self->{-doctype_decl} = 'Survey';
-    $self->{-dtd_decl} = 'http://tusk.tufts.edu/DTD/survey.dtd';
-    $self->{-stylesheet_decl} = 'http://tusk.tufts.edu/XSL/Eval/survey.xsl';
+    $self->{-dtd_decl} = 'http://'. $TUSK::Constants::Domain .'/DTD/survey.dtd';
+    $self->{-stylesheet_decl} = 'http://'. $TUSK::Constants::Domain .'/XSL/Eval/survey.xsl';
     return;
 }
 

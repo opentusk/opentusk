@@ -35,7 +35,7 @@ BEGIN {
 use vars @EXPORT_OK;
 use HSDB4::DateTime;
 use TUSK::Course;
-use TUSK::ShibbolethUser;
+use TUSK::Shibboleth::User;
 
 # Non-exported package globals go here
 use vars ();
@@ -181,7 +181,7 @@ Get the expanded value of the shared_with field (the name behind the number)
 
 sub getSharedWithName{
     my ($self) = @_;
-    return TUSK::ShibbolethUser->new()->lookupKey( $self->getFieldValue('shared_with') )->getShibbolethInstitutionName();
+    return TUSK::Shibboleth::User->new()->lookupKey( $self->getFieldValue('shared_with') )->getShibbolethInstitutionName();
 }
 
 

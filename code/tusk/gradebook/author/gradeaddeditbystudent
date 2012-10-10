@@ -5,6 +5,7 @@
 	use TUSK::GradeBook::GradeMultiple;
 	use TUSK::GradeBook::GradeCategoryCodingCode;
 	use TUSK::Application::GradeBook::GradeBook;
+	
 </%once>
 
 <%shared>
@@ -62,7 +63,10 @@
 Code
 % }
 </th>
+<th>Scaled Grade</th>
+<th>Max Possible Points</th>
 <th>Comments</th>
+
 </tr>
 % foreach my $row (@grade_rows) {
 <tr>
@@ -76,8 +80,11 @@ Code
 %	$m->print($row->{coding_code});
 % }
 </td>
+<td> <% $row->{scaled_grade} %>  </td>
+<td> <% $row->{max_possible_points} %> </td>
 <td><% $row->{comments} %>
 <% $row->{eventid} . ' ' . $row->{userid} %></td>
+
 </tr>
 % }
 </table>
@@ -166,6 +173,8 @@ Code
 				title => $spaces . '<span class="bigtext">' . $cat->getGradeCategoryName() . '</span> ',
 				grade => undef,
 				comments => undef,
+				max_possible_points => undef,
+				scaled_grade =>undef,
 			};
 			$m->comp('SELF:update_grade_event_rows', cat_id => $cat->getPrimaryKeyID(), events => $events_by_category->{$cat->getPrimaryKeyID()}, grades_data => $saved_grades_by_event, spaces => '&nbsp;' x (($cat->getDepth()) * 2));			
 		}
@@ -203,9 +212,12 @@ Code
 
 	foreach my $event (@$events) {
 		my $event_id = $event->getPrimaryKeyID();
+		my $gevent = TUSK::GradeBook::GradeEvent->new()->lookupReturnOne("grade_event_id = $event_id");
 		my $gray = ($has_categories) ? 'gray' : '';
 		my $grade_record = $grades_data->{$event->getPrimaryKeyID()};
-		
+		my $max_possible_points = $gevent->getMaxPossiblePoints();
+		my $scaled_grade;
+
 		my ($pk, $grade, $comments, $site_id, $code_id) = ('', '', '', '', '');
 		if (ref $grade_record eq 'TUSK::GradeBook::LinkUserGradeEvent') { 
 			$pk = $grade_record->getPrimaryKeyID();
@@ -217,14 +229,18 @@ Code
 			$link_user_grade_events->{$event_id}{name} = $event->getEventName();
 			$link_user_grade_events->{$event_id}{passgrade} = $event->getPassGrade();
 			$link_events->{$pk} = $event_id;
+		    $scaled_grade = $gb->getScaledGrade($grade, $event_id); 
+		
 		}
 
 		push @grade_rows, {
 			title => $spaces . "<span class=\"$gray\">" . $event->getEventName() . "</span>",
 			eventid => "<input type=\"hidden\" name=\"$filter\__$pk\__eventid\__$set\" value=\"$event_id\"/>",
 			userid => "<input type=\"hidden\" name=\"$filter\__$pk\__userid\__$set\" value=\"" . $student_id . "\"/>",
-			grade => "<input type=\"text\" name=\"$filter\__$pk\__grade\__$set\" value=\"$grade\" size=\"3\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" style=\"text-align:right;\" />",
-			comments => "<input type=\"text\" name=\"$filter\__$pk\__comments\__$set\" value=\"$comments\" size=\"30\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" />",
+			grade => "<input style=\"text-align:center;\" type=\"text\" name=\"$filter\__$pk\__grade\__$set\" value=\"$grade\" size=\"3\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" style=\"text-align:right;\" size=\"15\"  />",
+			comments => "<input style=\"text-align:left;\" type=\"text\" name=\"$filter\__$pk\__comments\__$set\" value=\"$comments\" size=\"30\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" />",
+			scaled_grade => "<input disabled style=\"text-align:center;font-weight:bold;\" type=\"text\" name=\"$filter\__$pk\__scaled_grade\__$set\" value=\"$scaled_grade\" size=\"12\"  />",
+			max_possible_points => "<input disabled style=\"text-align:center;font-weight:bold;\" type=\"text\" name=\"$filter\__$pk\__max_possible_points\__$set\" value=\"$max_possible_points\" size=\"20\"  />",
 			site => ($show_multi_site) ? $m->scomp('SELF:get_sites_dropdown', pk => $pk, set => $set, site_id => $site_id ) : undef,
 			coding_code => ($code_options && scalar @$code_options) 
 				? $m->scomp('/tmpl/element:dropdown', params => { 

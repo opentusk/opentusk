@@ -45,17 +45,14 @@
         <xsl:otherwise><xsl:value-of select="$MERGED_ID"/></xsl:otherwise>
       </xsl:choose>
     </xsl:variable>
-      <table border="0">
-        <tr>
-          <td valign="top">
-            <b>Mean:</b>
-            <img src="/graphics/spacer.gif" width="200px" height="1px"/>
-            <span id="eval_question_{$question_id}" style="min-width:200px;">Loading graph...</span>
-          </td>
-        </tr>
-      </table>
-  </xsl:template>
+    <div class="singlebargraph">
+		<b>Mean:</b>
 
+		<span id="eval_question_{$question_id}" class="graphSpan">Loading graph...</span>
+
+	</div>
+    </xsl:template>
+    
   <xsl:template name="groupsvgembed">
     <xsl:param name="question_id">null</xsl:param>
     <xsl:param name="num_questions"/>
@@ -69,16 +66,11 @@
         <xsl:otherwise><xsl:value-of select="$MERGED_ID"/></xsl:otherwise>
       </xsl:choose>
     </xsl:variable>
-      <table border="0">
-        <tr>
-          <td valign="top">
-            <b>Mean:</b>
-            <img src="/graphics/spacer.gif" width="200px" height="1px"/>
-            <span id="eval_question_{$question_id}" style="min-width:200px;">Loading graph...</span>
-          </td>
-        </tr>
-      </table>
-  </xsl:template>
+    <div class="singlebargraph">
+		<b>Mean:</b>
+		<span id="eval_question_{$question_id}" class="graphSpan">Loading graph...</span>
+	</div>
+    </xsl:template>
 
   <xsl:template name="catsvgembed">
     <xsl:param name="question_id">null</xsl:param>
@@ -93,16 +85,11 @@
         <xsl:otherwise><xsl:value-of select="$MERGED_ID"/></xsl:otherwise>
       </xsl:choose>
     </xsl:variable>
-      <table border="0">
-        <tr>
-          <td valign="top">
-            <b>Mean:</b>
-            <img src="/graphics/spacer.gif" width="200px" height="1px"/>
-            <span id="eval_question_{$question_id}" style="min-width:200px;">Loading graph...</span>
-          </td>
-        </tr>
-      </table>
-  </xsl:template>
+    <div class="singlebargraph">
+		<b>Mean:</b>
+		<span id="eval_question_{$question_id}" class="graphSpan">Loading graph...</span>
+	</div>
+    </xsl:template>
 
   <xsl:template name="hbargraphgroup">
     <xsl:param name="questionXml"/>

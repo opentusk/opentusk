@@ -21,7 +21,18 @@
         <xsl:text>&#10;</xsl:text>
         <xsl:element name="option">
           <xsl:attribute name="value"><xsl:number value="1" format="a"/></xsl:attribute>
-          <xsl:number value="$low_bound - 1"/><xsl:text> or less</xsl:text>
+          <xsl:variable name="val"><xsl:number value="1" format="a"/></xsl:variable>
+          <xsl:if test="$val=$answer">
+            <xsl:attribute name="selected">selected</xsl:attribute>
+          </xsl:if>
+            <xsl:choose>
+              <xsl:when test="$low_bound = 0">
+                <xsl:text>less than 0</xsl:text>
+              </xsl:when>
+              <xsl:otherwise>
+                <xsl:number value="$low_bound - 1"/><xsl:text> or less</xsl:text>
+              </xsl:otherwise>
+            </xsl:choose>
         </xsl:element>
         <xsl:call-template name="count_option">
           <xsl:with-param name="low"><xsl:number value="$low_bound"/></xsl:with-param>
@@ -33,6 +44,10 @@
         <xsl:if test="high_bound[@higher_than_bound='yes']">
           <xsl:element name="option">
             <xsl:attribute name="value"><xsl:number value="ceiling(($high_bound - $low_bound) div $interval)+2" format="a"/></xsl:attribute>
+            <xsl:variable name="val"><xsl:number value="ceiling(($high_bound - $low_bound) div $interval)+2" format="a"/></xsl:variable>
+            <xsl:if test="$val=$answer">
+              <xsl:attribute name="selected">selected</xsl:attribute>
+            </xsl:if>
             <xsl:number value="$high_bound+1"/><xsl:text> or greater</xsl:text>
           </xsl:element>
         </xsl:if>

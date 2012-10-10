@@ -80,8 +80,10 @@ Library that contains methods that deal with parsing the url and handling redire
 
 	if ($type_object->isa("HSDB45::Course")){
 		$school_id = $type_object->school();
-	}elsif($type_object->isa("TUSK::Core::School")){
+	} elsif($type_object->isa("TUSK::Core::School")){
 		$school_id = $type_object->getSchoolName();
+	} elsif ( $type_object->isa("HSDB45::UserGroup")) {
+		$school_id = $type_object->school();
 	}
 	
 	return $school_id;
@@ -97,7 +99,11 @@ Library that contains methods that deal with parsing the url and handling redire
 <%doc>Constructs back the original full path</%doc>
 <%perl>
 	if (ref($path_ids) eq 'ARRAY' and scalar(@$path_ids)){
-		return $type_path . "/" . join("/", @$path_ids);
+		if ($type_path) {
+			return $type_path . "/" . join("/", @$path_ids);
+		} else {
+			return join("/", @$path_ids);
+		}
 	} else {
 		return $type_path;
 	}
@@ -208,6 +214,8 @@ valid types: course, school, usergroup, content, case
 		}
 
 		$type_path = "classmeeting/" . $school . "/" . $cm_id;
+	}elsif($type eq "view"){
+		$type_path = '';
 	}else{
 		# some failure occurs
 		$m->comp("SELF:redirect",message => "FAILURE : Invalid Type : $url_path");

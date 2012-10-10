@@ -13,14 +13,14 @@ function eval_select_all(value){
 	}
 }
 
-
+// NOTE:  This is /code/htdocs/eval_question.html, NOT /code/embperl/eval_question.html
 function doHelpWindow() {
     window.open('/eval_question.html', 'evalQuickRefWin',
         'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
 }
 
 function doQuickRefWindow(url) {
-    window.open('/hsdb45/eval/ref_sheet/'+url,
+    window.open('/protected/eval/administrator/ref_sheet/'+url,
         'evalQuickRefWin',
         'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
 }
@@ -54,37 +54,6 @@ function satisfy(qid, type) {
       requiredSatisfied(qid);
       image.src = "/icons/transdot.gif";
     }
-  }
-  return true;
-}
-
-function checkActionSpecified() {
-  var actionElement = document.forms['eval_form'].elements['submit_action'];
-  var message = new String('');
-  if (actionElement.selectedIndex == 0) {
-    message += "Please specify an action: either \"Save\" or \"Submit\".\n";
-  }
-  var passwordElement = document.forms['eval_form'].elements['submit_password'];
-  if (passwordElement.value.length == 0) {
-    message += "Please enter your password before selecting \"Save/Submit\".\n";
-  }
-
-  if (actionElement.value == 'Submit') {	
-	var qid;
-  	for (var i = 0; i < requiredObject.length; i++){
-		qid = requiredObject[i];
-		if (qid.required){
-			if (!qid.satisfied){
-				message += "One or more questions have not been completed properly, please look for the red dot.\n";
-				break;
-			}	
-		}
-	}
-  }	
-
-  if (message.length > 0) {
-    alert(message);
-    return false;
   }
   return true;
 }

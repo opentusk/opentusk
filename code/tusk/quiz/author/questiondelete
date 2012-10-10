@@ -96,14 +96,14 @@
 	}
 
 	if (defined($ARGS{'delete_question'})){
-		$questionLink->delete();
+		$questionLink->delete({user => $m->session->{'user'}->user_id()});
 
 		# only delete question if it is not used anywhere else
 		my $links = TUSK::Quiz::LinkQuizQuizItem->new()->lookup("quiz_item_id = $question_id");
 		unless (scalar(@$links)){
 			my $links = TUSK::Quiz::LinkQuestionQuestion->new()->lookup("child_question_id = $question_id");
 			unless (scalar(@$links)){
-		       		$question->delete();
+		       		$question->delete({user => $m->session->{'user'}->user_id()});
 			}
 		}
 

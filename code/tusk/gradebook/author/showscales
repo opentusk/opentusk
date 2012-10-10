@@ -1,0 +1,78 @@
+<%once>
+	use TUSK::GradeBook::GradeScale;
+	use TUSK::GradeBook::GradeScaleBounds;
+	use TUSK::GradeBook::GradeScaleCourse;
+	use TUSK::GradeBook::GradeEventGradeScale;
+	use TUSK::GradeBook::GradeEvent;
+    use TUSK::GradeBook::LinkCourseGradeEventType;
+	use TUSK::GradeBook::GradeScaleType;
+	use TUSK::Functions;
+	use Data::Dumper;
+</%once>
+
+<%attr>
+show_timeperiod_dropdown => 1
+</%attr>
+
+<%shared>
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $course_id = $type_object->primary_key;
+
+	my $grade_event_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $time_period = $m->comp("SELF:get_timeperiod_id");
+
+	my $school_id = TUSK::Core::School->new()->getSchoolID($m->comp("/tmpl/url:get_school"));
+	my $rows = [];
+</%shared>
+
+<& /tmpl/element:cms_button_row,
+    links => [
+        {display_txt => 'New Grade Scale',
+        link_txt    => '/gradebook/author/addeditscale/' . $type_path},
+  	    ]
+&>
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	name => 'showscales' } &>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	columns => [ 
+		{'label' => 'Name', 'field' => 'name'},
+	],
+	action_columns => [ 
+		{ 'label' =>'Modify','link' => '/gradebook/author/addeditscale' },
+		{ 'label' => 'Delete','link' => '/gradebook/author/deletescale' },
+	],
+	action_dropdown => 1,
+	action_column_align => 'left',
+	rows => $rows,
+	type_path => $type_path,
+	name => "scales",
+} &>
+</form>
+
+<%init>
+
+my $link_scales_course;
+$link_scales_course = TUSK::GradeBook::GradeScaleCourse->lookup("course_id = $course_id AND school_id = $school_id");
+
+foreach my $lnk (@$link_scales_course) {
+	my $scale = TUSK::GradeBook::GradeScale->lookupKey($lnk->getGradeScaleID());
+	push(@$rows, {'name' => $scale->getName(), 'id' => $lnk->getGradeScaleID() });
+}
+
+</%init>
+
+<%method jsarray>
+% return ['layers.js', 'element.js', 'gradebook.js'];
+</%method>
+
+<%method title>
+%return "Grading Scales";
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>

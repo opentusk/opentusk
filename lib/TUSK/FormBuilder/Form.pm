@@ -59,6 +59,7 @@ sub new {
 					'form_type_id' => '',
 					'form_description' => '',
 					'publish_flag' => '',
+					'require_approval' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -205,6 +206,21 @@ sub getPublishFlagSpelledOut{
 
 #######################################################
 
+=item B<getRequireApproval>
+
+    $string = $obj->getRequireApproval();
+
+    Get the value of the require_approval field
+
+=cut
+
+sub getRequireApproval{
+    my ($self) = @_;
+    return $self->getFieldValue('require_approval');
+}
+
+#######################################################
+
 =item B<setPublishFlag>
 
     $obj->setPublishFlag($value);
@@ -218,6 +234,20 @@ sub setPublishFlag{
     $self->setFieldValue('publish_flag', $value);
 }
 
+#######################################################
+
+=item B<setRequireApproval>
+
+    $obj->setRequireApproval();
+
+    Set the value of the require_approval field
+
+=cut
+
+sub setRequireApproval{
+    my ($self, $value) = @_;
+    return $self->setFieldValue('require_approval', $value);
+}
 #######################################################
 
 =item B<getFields>

@@ -230,9 +230,18 @@ function hideClock() {
 
 	if ($secs) {
 		if (defined($result)){
+			unless ($preview) {
+				if (my $due_date = $quiz->getDueDate()) {
+				    my $due = HSDB4::DateTime->new()->in_mysql_date($due_date);
+					my $secs_to_quiz_end_time = $due->out_unix_time - $now->out_unix_time();
+					$secs = $secs_to_quiz_end_time if ($secs_to_quiz_end_time < $secs);
+				}
+			}
+
 			my $start_date = HSDB4::DateTime->new();
 			$start_date->in_mysql_timestamp($result->getStartDate());
 			my $diff = $secs - (time() - $start_date->out_unix_time());
+
 
 			if ($diff > 0) {
 				$secs = $diff;

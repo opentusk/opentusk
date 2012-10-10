@@ -8,6 +8,8 @@ use HTML::Embperl;
 use Apache::Session::MySQL;
 use HSDB4::SQLRow::User;
 use Data::Dumper;
+use httpdconf;
+use URI::Escape;
 
 #TUSK added plugin
 use Forum::MwfPlgAuthen;
@@ -38,11 +40,20 @@ sub handler {
 		$user->update_loggedout_flag(1) if ($user);
 		my $shibUserPrefix = $TUSK::Constants::shibbolethUserID;
                 if($user_id =~ /^$shibUserPrefix/) {
-                        my $shibUserID = TUSK::ShibbolethUser->isShibUser($user_id);
+                        my $shibUserID = TUSK::Shibboleth::User->isShibUser($user_id);
                         if($shibUserID) {
-				my $shibIdPObject = TUSK::ShibbolethUser->new()->lookupKey($shibUserID);
+				my $shibIdPObject = TUSK::Shibboleth::User->new()->lookupKey($shibUserID);
 				if($shibIdPObject && $shibIdPObject->getLogoutPage() && ($shibIdPObject->needsRegen() ne 'Y')) {
-                                	$location = "https://". $TUSK::Constants::Domain ."/Shibboleth.sso/shibLogout" . $shibIdPObject->getShibbolethUserID();
+					my %hashOfVariables;
+
+					my $sslServer = $TUSK::Constants::Domain;
+					if(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {$sslServer = $hashOfVariables{'server_name'} .':'. $hashOfVariables{'secure_port'};}
+					my $server = $TUSK::Constants::Domain;
+					if(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {$server = $hashOfVariables{'server_name'} .':'. $hashOfVariables{'main_port'};}
+					$location = "https://$sslServer/Shibboleth.sso/Logout?";
+					if($shibIdPObject->getLogoutPage()) {
+						$location.= "return=". uri_escape($shibIdPObject->getLogoutPage(). "?target=http://". $server . "/home");
+					}
 				}
                         }
                 }

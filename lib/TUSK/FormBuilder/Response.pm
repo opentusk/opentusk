@@ -58,6 +58,7 @@ sub new {
 					'item_id' => '',
 					'text' => '',
 					'active_flag' => '',
+					'score' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -228,6 +229,36 @@ sub setActiveFlag{
     $self->setFieldValue('active_flag', $value);
 }
 
+
+#######################################################
+
+=item B<getScore>
+
+    $string = $obj->getScore();
+
+    Get the value of the score field
+
+=cut
+
+sub getScore{
+    my ($self) = @_;
+    return $self->getFieldValue('score');
+}
+
+#######################################################
+
+=item B<setScore>
+
+    $obj->setScore($value);
+
+    Set the value of the score field
+
+=cut
+
+sub setScore{
+    my ($self, $value) = @_;
+    $self->setFieldValue('score', $value);
+}
 
 
 =back

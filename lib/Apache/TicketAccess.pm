@@ -19,14 +19,14 @@ sub handler {
 	# The ticket has been accepted.  If there are access problems
 	# later, we should tell the user what went wrong.
 
-	$r->custom_response(FORBIDDEN, "/forbidden.html");
+	$r->custom_response(FORBIDDEN, "/tusk/forbidden");
     } else {
 	# Ticket not accepted -- perhaps it's expired, or perhaps
 	# there are no cookies.  If the authorization handler returns
 	# FORBIDDEN, we're going to need to handle it later.
 
 	$r->warn("Using guest access -- $msg") if ($debug >= 1);
-	$r->custom_response(FORBIDDEN, "/guestlogin.html");
+	$r->custom_response(FORBIDDEN, "/tusk/guestlogin");
 
 	# Set up a guest user.
 	$r->connection->user($ENV{'HSDB_GUEST_USERNAME'});

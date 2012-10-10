@@ -4,6 +4,10 @@
 	$form_type_id
 	$app_path
 	$form_id => undef
+	$set_metadata => undef
+	$display_metadata => undef
+	$field_buttons => []
+	$params => undef
 </%args>
 
 <%once>
@@ -17,11 +21,20 @@
 	my $form;
 	my $titleText;
 	my $form_type;
+	my $fields = [];
 </%shared>
 
+<& "/formbuilder/author/form:page", 
+	args => $args, 
+	form => ($is_this_a_new_form) ? 'new' : $form, 
+	fields => $fields,
+	display_metadata => $display_metadata, 
+	field_buttons => $field_buttons ,
+	params => $params,
+&>
+
 <%init>
-	if(defined($args->{'save_new_form'})) {
-		#Save the form data we just got.
+	if ($args->{'save_new_form'}) {
 		$form = TUSK::FormBuilder::Form->new();
 
 		$form->setFieldValues({
@@ -40,12 +53,16 @@
 		});
 
 		$formToCourseLink->save({'user' => $m->session->{'user'}->primary_key()});
+
+		$m->comp($set_metadata, form => $form, args => $args) if ($set_metadata);
 		$m->redirect($ENV{SCRIPT_URL} . '/' . $form->getPrimaryKeyID() . '?msg=Successfully Created');
 		exit();
 	} 
 
     if ($form_id) {
 		$form = TUSK::FormBuilder::Form->lookupKey($form_id);
+		$fields = $form->getFields();
+		$m->comp($set_metadata, form => $form, field => $fields, args => $args) if ($set_metadata && $args->{form_submit});
 		$titleText = "Modify $form_label";
 	} else {
 		$is_this_a_new_form = 1;
@@ -53,15 +70,7 @@
 	}
 </%init>
 
-
-% if ($is_this_a_new_form) {
-	<& "/formbuilder/author/form:page", args => $args, form => 'new' &>
-% } else {
-	<& "/formbuilder/author/form:page", args => $args, form => $form &>
-% }
-
-
 <%method jsarray>
-% 	return ['layers.js', 'formbuilder.js', 'element.js'];
+%	return ['layers.js', 'formbuilder.js', 'element.js'];
 </%method>
 

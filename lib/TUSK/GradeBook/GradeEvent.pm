@@ -73,6 +73,7 @@ sub new {
 					'waive_grade' => '',
 					'due_date' => '',
 					'pass_grade' => '',
+					'max_possible_points' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -323,6 +324,39 @@ sub getWeight{
 sub setWeight{
     my ($self, $value) = @_;
     $self->setFieldValue('weight', $value);
+}
+
+
+#######################################################
+
+#######################################################
+
+=item B<getMaxPossiblePoints>
+
+    $string = $obj->getMaxPossiblePoints();
+
+    Get the value of the max_possible_points field
+
+=cut
+
+sub getMaxPossiblePoints{
+    my ($self) = @_;
+    return $self->getFieldValue('max_possible_points');
+}
+
+#######################################################
+
+=item B<setMaxPossiblePoints>
+
+    $string = $obj->setMaxPossiblePoints($value);
+
+    Set the value of the max_possible_points field
+
+=cut
+
+sub setMaxPossiblePoints{
+    my ($self, $value) = @_;
+    $self->setFieldValue('max_possible_points', $value);
 }
 
 

@@ -1,0 +1,271 @@
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%once>
+	use TUSK::Manage::Course::Students;
+	use TUSK::FormBuilder::Entry;
+	use TUSK::Permission::UserRole;
+	use TUSK::FormBuilder::Assessment;
+</%once>
+
+<%shared>
+	my $type_object =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $type_object->get_school();
+	my ($form_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $time_period_id;
+	my $user_roles = TUSK::Permission::UserRole->new()->getFeatureUserByRole('assessment', $form_id, 'assessor') || [];
+	my $assessment_form = TUSK::FormBuilder::Assessment->lookupReturnOne("form_id = $form_id");
+	my $student_data = {};
+	my @students = ();
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	name => 'assessor' } 
+&>
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+<tr><td><br/>
+% 	if ($assessment_form && $assessment_form->getMultiAssessors()) {
+<& SELF:display_multi_assessors &>
+% 	} else {
+<& SELF:display_single_assessor &>
+% 	}
+</td></tr>
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Save',
+	cancel_onclick  => "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/assessment/author/show") . "');",
+	name			=> 'save_changes',
+	one_column		=> 1,
+} &>
+</table>
+</form>
+
+<%init>
+	my $course_id = $type_object->course_id;
+	$student_data = TUSK::Manage::Course::Students::get_assessor($r, $form_id, $time_period_id);
+
+	if ($ARGS{submit_check}){
+		TUSK::Manage::Course::Students::assign_assessor($r, $form_id, $time_period_id, $ARGS{student_assessor}, $m->session->{'user'}->user_id(), $student_data);
+		$m->comp("/tmpl/url:redirect", destination=> "/assessment/author/assessors/course/" . $school->getSchoolName() . "/$course_id/$form_id",  message => 'Successfully updated', msg_type => 'msg' );
+	}
+
+	@students = $type_object->get_students($time_period_id);
+</%init>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	$time_period_id = $ARGS{timeperiod} || $m->comp("SELF:get_timeperiod_id");
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	if (!$time_period_id || ($m->session->{timeperiod_course} ne $course->school() . '-' . $course->primary_key())) {
+		my $type_path = $m->comp('/tmpl/url:get_type_path');
+		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/assessors/$type_path/$form_id", message => "Something wrong with time period! Try again.");
+	}
+</%perl>
+</%method> 
+
+<%method display_multi_assessors>
+<%perl>
+	my $final_entries = TUSK::FormBuilder::Entry->lookup("form_builder_entry.form_id = $form_id AND time_period_id = $time_period_id",undef,undef,undef, [ 
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "is_final != 1" }),
+	]);
+
+	my %completed_forms = ();
+	foreach (@$final_entries) {
+		$completed_forms{$_->getCreatedBy()}{$_->getJoinObject('TUSK::FormBuilder::EntryAssociation')->getUserID()} = ($_->getCompleteDate()) ? ' <b>*</b>' : ' <b>!</b>';
+	}
+
+	my @checkboxes = ();
+	my @bgcolors = ();
+	my $i = 0;
+
+	foreach my $student (@students) {
+		my $student_id = $student->primary_key();
+		my $j = 0;	
+
+		foreach my $ur (@$user_roles) {
+			my $ssid = $student_id . '__' . $ur->getUserID();
+			my $checked = '';
+			
+			if (exists $student_data->{$ssid}) {
+				if ($student_data->{$ssid}[1] == 0) {
+					$bgcolors[$i][$j] = 'yellow';
+				} else {
+					$bgcolors[$i][$j] = 'lightblue' if ($student_data->{$ssid}[1] == 2); ## get bgcolor before append the value
+					$checked = 'CHECKED';
+				}
+				$ssid .= '__' . $student_data->{$ssid}[0];
+			}
+
+			$checkboxes[$i][$j] = "<input type=\"checkbox\" style=\"padding: 5px 0 3px 0; \" name=\"student_assessor\" value=\"$ssid\" title=\"Student:" . $student->out_lastfirst_name() . "    Assessor: " . $ur->getFullUserName() . " \"$checked/>";
+			$checkboxes[$i][$j] .= (exists $completed_forms{$ur->getUserID()}->{$student_id}) ? $completed_forms{$ur->getUserID()}->{$student_id} : ' &nbsp;';
+			$j++;
+		}
+		$i++;
+	}
+</%perl>
+<table><tr>
+<td style="border:black solid thin;"> <input type="checkbox" CHECKED DISABLED /> Original Assignment &nbsp;</td>
+<td bgcolor="lightblue" style="border:black solid thin;"> <input type="checkbox" CHECKED DISABLED /> Selection from assessor &nbsp;</td>
+<td bgcolor="yellow" style="border:black solid thin;"> <input type="checkbox" DISABLED> De-Selection from assessor &nbsp;</td>
+<td style="border:black solid thin;"> <input type="checkbox" CHECKED DISABLED /> <b>*</b> Assessor has completed the form &nbsp;</td>
+<td style="border:black solid thin;"> <input type="checkbox" CHECKED DISABLED /> <b>!</b> Assessor is working on the form &nbsp;</td>
+</tr>
+</table>
+</td></tr>
+<tr><td>
+<br/>
+
+<& ((scalar @$user_roles > 12) ? 'SELF:display_scrollable_table' : 'SELF:display_regular_table'), 
+	top_headers => [ 
+		(scalar @$user_roles > 12) 
+		? map { '<span style="cursor:pointer;padding:5px;" title="' . $_->getFullUserName() . '">' . substr($_->getUserObject()->getFirstname(),0,1) . substr($_->getUserObject()->getLastname(),0,1) . '</span>' } @$user_roles 
+		: map { '<span style="cursor:pointer;padding:5px;" title="' . $_->getFullUserName() . '">' . $_->getUserObject()->getLastname() . '</span>' } @$user_roles 
+	],
+	left_headers => [ map { $_->out_lastfirst_name() } @students ], 
+	checkboxes => \@checkboxes,
+	bgcolors => \@bgcolors,
+	completed_forms => \%completed_forms,
+&>
+</%method> 
+
+
+<%method display_scrollable_table>
+<%args>
+	$top_headers
+	$left_headers
+	$checkboxes
+	$bgcolors
+	$completed_forms
+</%args>
+<%perl>
+	my $total_height = 300;
+	my $total_width = 800;
+	my $first_column_width = 200;
+	my $offset = 20;
+</%perl>
+<table class="tusk" cellspacing="0" cellpadding="0" border="0" > 
+<tr> 
+<td id="firstTd" class="line-left" style="border-right:1px solid #99CCCC;"> 
+</td> 
+<td> 
+<div id="divHeader" style="overflow:hidden;width:<% $total_width - $first_column_width - $offset %>px;"> 
+<table cellspacing="0" cellpadding="0" border="0" > 
+<tr> 
+% my $i = 0;
+% 	foreach my $heading (@$top_headers) {
+<th NOWRAP><div class="tableHeader"><% $heading %></div></th>
+% 	}
+</tr>
+</table> 
+</div> <!--divHeader -->
+</td> 
+</tr> 
+
+<tr> 
+<!-- START  First column row -->
+<td valign="top"> 
+<div id="firstcol" style="overflow: hidden;height:<% $total_height - $offset %>px"> 
+<table width="<% $first_column_width %>px" cellspacing="0" cellpadding="0" border="0" > 
+% 	foreach my $i (0 .. $#{$left_headers}) {
+<tr> 
+<td class="tableFirstCol" style="border-right:1px solid #99CCCC;" NOWRAP> <% $left_headers->[$i] %></td> 
+</tr>
+% 	}
+</table> 
+</div> 
+</td> 
+<!-- END First column row -->
+
+<td valign="top"> 
+<div id="table_div" style="overflow: scroll;width:<% $total_width - $first_column_width %>px;height:<% $total_height %>px;position:relative" onscroll="fnScroll()" > 
+<table width="<% $total_width %>px" cellspacing="0" cellpadding="0" border="0" > 
+<tr id='firstTr'> 
+%	foreach my $j (0 .. $#{$checkboxes->[0]}) {
+<td class="line-center" bgcolor="<% $bgcolors->[0][$j] %>" NOWRAP><% $checkboxes->[0][$j] %></td>
+%   }
+</tr>
+
+% 	foreach my $i (1 .. $#{$checkboxes}) {
+<tr>
+%		foreach my $j (0 .. $#{$checkboxes->[$i]}) {
+<td class="line-center" bgcolor="<% $bgcolors->[$i][$j] %>" NOWRAP><% $checkboxes->[$i][$j] %></td>
+%   	}
+</tr>
+% 	}
+</table>
+</div> 
+</td> 
+</tr> 
+</table> 
+</%method>
+
+<%method display_regular_table>
+<%args>
+	$top_headers
+	$left_headers
+	$checkboxes
+	$bgcolors
+	$completed_forms
+</%args>
+<table>
+<tr>
+<th>Name</th>
+% 	foreach my $heading (@$top_headers) {	
+<th><% $heading %></th>
+% 	}
+</tr>
+% 	foreach my $i (0 .. $#{$left_headers}) {
+<tr>
+<td class="" NOWRAP> <% $left_headers->[$i] %></td> 
+%		foreach my $j (0 .. $#{$checkboxes->[$i]}) {
+<td class="line-center" bgcolor="<% $bgcolors->[$i][$j] %>" NOWRAP><% $checkboxes->[$i][$j] %></td>
+%		}
+</tr>
+% 	}
+</table>
+</%method> 
+
+
+<%method display_single_assessor>
+<table>
+% 	foreach my $student (@students) {
+<tr>
+<td class="line-left"><% $student->out_lastfirst_name() %></td>
+<td class="line-left">
+<select class="sm" name="student_assessor">
+<option value=""></option>
+%		foreach my $ur (@$user_roles) {
+%			my $ssid = $student->primary_key() . '__' . $ur->getUserID();
+<option value="<% $ssid . ((exists $student_data->{$ssid}) ? '__' . $student_data->{$ssid}[0] : '') %>" <% ($student_data->{$ssid}[1] == 1) ? 'SELECTED' : '' %>><% $ur->getFullUserName() %></option>
+%		}
+</select>
+</td>
+</tr>
+% 	}
+</table>
+</%method> 
+
+<%method function_token>
+% 	return 'users_assessment';
+</%method>
+
+<%method jsarray>
+% 	return ['jquery/jquery.min.js', 'utils.js'];
+</%method>
+
+<%method title>
+% 	return "Assign Assessor to students";
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp("SELF:title");
+</%method>
+

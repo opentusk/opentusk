@@ -40,39 +40,10 @@ sub generate_hashcode {
     my $timestamp = $datetime->out_mysql_timestamp();
     $timestamp =~ s/\D//g;
     $ctx->add($timestamp);
-    $ctx->add(associated_secret($school, $datetime));
+    $ctx->add("");  # This used to call associated_secret, but that always returned "".  Left here in case it would break old hashes.
 
     return $ctx->b64digest();
 }
 
-# INPUT:  A string containing a school, and an HSDB4::DateTime object
-# OUTPUT: A string containing a secret
-# EFFECT: Takes the school and the DateTime object and
-#         returns the associated secret string from the eval_secret table
-sub associated_secret {
-    my $school = shift();
-    my $datetime = shift();
-
-    my $dbh = HSDB4::Constants::def_db_handle();
-    my $db = HSDB4::Constants::get_school_db($school);
-    my $secret = "";
-
-    eval {
-	my $sth = $dbh->prepare("SELECT * FROM $db\.eval_secret ORDER BY secret_id");
-	$sth->execute();
-	while(my $hash_ref = $sth->fetchrow_hashref()) {
-	    my $secret_datetime = HSDB4::DateTime->new()->in_mysql_timestamp($hash_ref->{'created'});
-
-	    if($secret_datetime->compare($datetime) <= 0) {
-		$secret = $hash_ref->{'secret'};
-	    }
-	    else {
-		last;
-	    }
-	}
-    };
-
-    return $secret;
-}
-
 1;
+

@@ -34,6 +34,8 @@ BEGIN {
 
 use vars @EXPORT_OK;
 
+use TUSK::Case::Phase;
+
 # Non-exported package globals go here
 use vars ();
 
@@ -53,6 +55,7 @@ sub new {
 					'link_case_report_quiz_result_id' => 'pk',
 					'parent_case_report_id' => '',
 					'child_quiz_result_id' => '',
+					'phase_visit_id' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -134,6 +137,38 @@ sub getChildQuizResultID{
 sub setChildQuizResultID{
     my ($self, $value) = @_;
     $self->setFieldValue('child_quiz_result_id', $value);
+}
+
+
+
+#######################################################
+
+=item B<getPhaseVisitID>
+
+    $string = $obj->getPhaseVisitID();
+
+    Get the value of the phase_visit_id field
+
+=cut
+
+sub getPhaseVisitID{
+    my ($self) = @_;
+    return $self->getFieldValue('phase_visit_id');
+}
+
+#######################################################
+
+=item B<setPhaseVisitID>
+
+    $obj->setPhaseVisitID($value);
+
+    Set the value of the phase_visit_id field
+
+=cut
+
+sub setPhaseVisitID{
+    my ($self, $value) = @_;
+    $self->setFieldValue('phase_visit_id', $value);
 }
 
 

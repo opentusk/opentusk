@@ -1,0 +1,43 @@
+<%shared>
+	my $form = $m->comp('/assessment/tmpl/entry:getForm');
+	my $title = 'Assessment Form: &nbsp;' . $form->getFormName();
+</%shared>
+
+<& '/assessment/tmpl/entry', 
+	args => \%ARGS,
+	validate_entry => 1,
+	update_entry_association => 1,
+	has_save_button => 1,
+	redirect_submit_url => '/assessment/assessor/list/' . $m->comp('/tmpl/url:get_type_path') . '/' . $form->getPrimaryKeyID(),
+&>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+%	$m->comp('SELF:nocache');
+</%method>
+
+<%method leftnav>
+<%doc> override by showing nothing </%doc>
+</%method>
+
+<%method red_header_text>
+%  	return $title;
+</%method>
+
+<%method title>
+%  	return $title;
+</%method>
+
+<%method function_token>
+% 	return 'perform_assessment';
+</%method>
+
+<%method get_nav_bar_objects>
+%	return { 'TUSK::FormBuilder::Form' => $form };
+</%method>
+
+<%method jsarray>
+% 	return $m->comp('/assessment/tmpl/entry:jsarray');
+</%method>

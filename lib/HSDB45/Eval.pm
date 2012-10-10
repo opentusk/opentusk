@@ -15,7 +15,7 @@ use TUSK::Constants;
 BEGIN {
     use vars qw($VERSION);
     
-    $VERSION = do { my @r = (q$Revision: 1.67 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.68 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version {
@@ -429,12 +429,7 @@ sub set_submittable_date {
 sub is_submittable {
     my $self = shift();
 
-    my $now  = HSDB4::DateTime->new();
-    my $submittable_date = HSDB4::DateTime->new();
-    $submittable_date->in_mysql_date($self->get_submittable_date());
-
-    return 1 if (($submittable_date <=> $now) <= 0);
-    return 0;
+    return ( HSDB4::DateTime->new()->out_mysql_date() ge $self->get_submittable_date() );
 }
 
 sub is_available {

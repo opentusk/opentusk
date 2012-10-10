@@ -185,6 +185,14 @@ if ($args->{msg} or $args->{errmsg} or $args->{hintmsg}) {
 		my %msg = map { $_ => 1} @$msg; # just to make sure we aren't showing the same message more then once
 		$msg = join('<br>', keys %msg); # if more then one message, show them all!
 	}
+	
+	# sanitize
+	$msg =~ s/</&lt;/g;
+	$msg =~ s/>/&gt;/g;
+
+	# allow <br>
+	$msg =~ s|&lt;br */?&gt;|<br/>|g;
+
 	if($use_tables){
 </%perl>
   <td>&nbsp;</td>
@@ -224,7 +232,7 @@ $user
               <td align="right" nowrap>
                 <font class="xxsm">
                   Welcome <% $user->out_full_name %>  |
-%	unless(HSDB4::Constants::is_guest($user) || (TUSK::ShibbolethUser->isShibUser($user) != -1)) {
+%	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
                   <a href="/view/user/<% $user->primary_key %>" target="_top">My Profile</a>  | 
                   <a href="/tusk/management/content/personalcontent" target="_top"> Personal Folders</a>  |  
 %	}
@@ -264,7 +272,7 @@ $user
         <td align="right" nowrap>
 	<span class="emphasis_font">
 &nbsp;Welcome <strong><% $user->out_full_name %></strong>  |  
-%	unless(HSDB4::Constants::is_guest($user) || (TUSK::ShibbolethUser->isShibUser($user) != -1)) {
+%	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
 		<a href="/view/user/<% $user->primary_key %>">My Profile</a>  | 
 		<a href="/tusk/management/content/personalcontent"> Personal Folders</a>  |  
 % }
@@ -353,7 +361,7 @@ push @li_strings, "<a href=\"$TUSK::Constants::AboutURL\" target=\"_top\">About<
 push @li_strings, '<a href="/smallscreen">Mobile</a>' if ($page eq 'login' || $page eq 'home');
 
 if (ref($user) eq 'HSDB4::SQLRow::User' && $user->primary_key && $page ne 'login'){
-	unless(HSDB4::Constants::is_guest($user) || (TUSK::ShibbolethUser->isShibUser($user) != -1)) {
+	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
 		unshift @li_strings, '<a href="/view/user/' . $user->primary_key .'" target="_top">My Profile</a>';
 	}
 	push @li_strings, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time . '" target="_top">Logout</a>';
@@ -396,7 +404,7 @@ $is_author => 0
 <span id="pHPuser">Welcome <% $user->out_full_name() %></span>
 % }
 
-% unless($type eq 'login'){
+% unless($type eq 'login' || $type eq 'frame'){
 % 	my $active = $type;
 <ul id="gTabNav" class="<% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
     <li class="firstone<% $active eq 'home'  ? ' gCurPage' : '' %>"><a href="/home" target="_top">Home</a></li>

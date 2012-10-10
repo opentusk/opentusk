@@ -31,6 +31,8 @@ use TUSK::Quiz::Result;
 use TUSK::Core::School;
 use HSDB45::Course;
 use HSDB4::DateTime;
+use TUSK::Case::RuleOperand;
+use TUSK::Case::RuleElementType;
 
 # Non-exported package globals go here
 use vars ();
@@ -57,6 +59,7 @@ sub new {
 					'questions_per_page' => '',
 					'random_question_level' => '',
 					'show_all_feedback' => '',
+					'hide_correct_answer' => '',
 					'ending_message' => '',
 				    },
 				    _attributes => {
@@ -173,7 +176,6 @@ sub getRandomQuestionLevel {
     return $self->getFieldValue('random_question_level');
 }
 
-
 sub setShowAllFeedback {
     my ($self,$value) = @_;
     $self->setFieldValue('show_all_feedback',$value);
@@ -182,6 +184,16 @@ sub setShowAllFeedback {
 sub getShowAllFeedback {
     my ($self) = @_;
     return $self->getFieldValue('show_all_feedback');
+}
+
+sub setHideCorrectAnswer {
+    my ($self,$value) = @_;
+    $self->setFieldValue('hide_correct_answer',$value);
+}
+
+sub getHideCorrectAnswer {
+    my ($self) = @_;
+    return $self->getFieldValue('hide_correct_answer');
 }
 
 ### link stuff
@@ -560,6 +572,62 @@ sub isOverTimeLimit {
     return 0;
 }
 
+
+#######################################################
+
+=item B<usedInScoreRule>
+
+   $int = $quiz->usedInScoreRule();
+
+Return whether the quiz is a part of a minimum score 
+rule in the case simulator.
+
+=cut
+
+sub usedInScoreRule {
+	my $self = shift;
+	
+	my $type = TUSK::Case::RuleElementType->new->lookupReturnOne('label="quiz_score"');
+	my $oper = TUSK::Case::RuleOperand->new()->lookup('element_id=' . $self->getPrimaryKeyID() . ' and rule_element_type_id=' . $type->getPrimaryKeyID());
+
+	return scalar @$oper;
+}
+
+
+#######################################################
+
+=item B<canHaveScoreRule>
+
+   $int = $quiz->canHaveScoreRule();
+
+Return whether the quiz can have its score determined by the system;
+i.e., quiz only has questions that can have their correctness 
+determined by system. Free text answers cannot currently be evaluated
+by system, so a quiz with one of those fails.
+
+=cut
+
+sub canHaveScoreRule {
+	my $self = shift;
+	my $questions = shift;
+
+	my $can_grade = my $can_grade_recurse = 1;
+
+	foreach my $question (@$questions) {
+		# only list questions that have answers, but also list section questions
+		# sect. questions don't have answers, but they do have children questions that might
+		if ($question->hasAnswers() || $question->getType() eq 'Section') {
+			if ($question->getType() eq 'Section' || $question->getType() eq 'Matching') {
+				$can_grade_recurse = $self->canHaveScoreRule($question->getSubQuestions());
+			}
+		}
+		else {
+			$can_grade = 0;
+		}
+		$can_grade = ($can_grade && $can_grade_recurse)? 1 : 0;
+	}
+	return $can_grade;
+}
 
 =head1 AUTHOR
 

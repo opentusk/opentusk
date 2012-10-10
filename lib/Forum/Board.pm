@@ -24,6 +24,7 @@ use strict;
 BEGIN {
     require Exporter;
     require TUSK::Core::SQLRow;
+	use TUSK::Core::School;
 
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
     
@@ -87,6 +88,37 @@ sub new {
 
 ### Get/Set methods
 
+# Needed for the object_selection_box
+sub title_and_desc {
+    my ($self) = @_;
+	my ($school_id, $course_id, $garbage_id, $garbage_2_id) = split( '-', $self->getBoardkey );
+	my $school = TUSK::Core::School->new()->lookupKey( $school_id );
+
+	my $link = '/management/discussion/addedit/';
+	if ( !$course_id ) {
+		$link .= 'school/';
+	} else {
+		$link .= 'course/';
+	}
+	$link .= $school->getSchoolName() . '/';
+	$link .= $course_id . '/' if ($course_id);
+	$link .= $self->getFieldValue('id');
+	
+	return "<a href=\"" . $link . "\">" . $self->getTitle . "</a><br>" . $self->getShortDesc;
+}
+
+sub available_to {
+    my ($self) = @_;
+	my ($school_id, $course_id, $garbage_id, $usergroup_id) = split( '-', $self->getBoardkey );
+	my $school = TUSK::Core::School->new()->lookupKey( $school_id );
+
+	return "Schoolwide" if !$course_id;
+	return "All"        if !$usergroup_id;
+
+	my $usergroup = HSDB45::UserGroup->new( _school => $school->getSchoolName() )->lookup_key( $usergroup_id );
+	return $usergroup->label; 
+}
+
 #######################################################
 
 =item B<getTitle>
@@ -96,6 +128,12 @@ my $string = $obj->getTitle();
 Get the value of the title field
 
 =cut
+
+# Needed for the object_selection_box
+sub title{
+    my ($self) = @_;
+    return $self->getFieldValue('title');
+}
 
 sub getTitle{
     my ($self) = @_;

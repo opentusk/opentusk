@@ -587,6 +587,7 @@ $case
 $formname
 $type_path
 $buttons => []
+$use_save => 1
 </%args>
 <%perl>
 my $uri = $r->filename() ;
@@ -597,20 +598,28 @@ my $case_id = $case->getPrimaryKeyID()
 my $continue_hash = { 	'caseaddedit'=>'goaladdedit',
 			'goaladdedit'=>'keywordaddedit',
 			'keywordaddedit'=>'phaseshow',
-			'phaseshow'=>'referenceaddedit',
+			'phaseshow'=>'ruleshow',
 			'phaseaddedit'=>'phaseshow',
-			'referenceaddedit'=>'users'};
+			'ruleaddedit'=>'ruleshow',
+			'ruleshow'=>'referenceaddedit',
+			'referenceaddedit'=>'users',
+			};
 $continue_hash->{ referenceaddedit } = 'caseaddedit' unless ($m->comp('/tmpl/permission:check_permission', function_token => 'users_case', feature_id => $case_id));
 my $next_page = '/case/author/'.$continue_hash->{$uri};
+
+my $cancel_hash = { 'ruleaddedit'=>'ruleshow', };
+my $cancel_page = (defined $cancel_hash->{$uri})? $cancel_hash->{$uri} : 'caseaddedit';
 </%perl>
 
 <& /tmpl/element:tr_tag &>
 <td class="cell-submit-right" colspan="2">
 <& /tmpl/element:button, params=>{'name'=>'cancel_button',
-                'onclick'=>"window.location = '/case/author/caseaddedit/$type_path/$case_id';",
+                'onclick'=>"window.location = '/case/author/$cancel_page/$type_path/$case_id';",
                 'label'=>'Cancel'} &>
+% if ($use_save) {
 <& /tmpl/element:submit_button, params=>{'name'=>'case_submit',
                 'label'=>'Save'} &>
+% }
 <& /tmpl/wizard:next_button,formname=>$formname,label=>'Save and Continue',
 		next_page=>$next_page,extra=>$type_path.'/'.$case_id &>
 <%perl>

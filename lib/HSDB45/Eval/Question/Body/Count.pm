@@ -74,7 +74,7 @@ sub high_bound {
 sub higher_than_bound {
     my $self = shift;
     if (my $elt = $self->elt()->first_child('high_bound')) {
-	if ($elt->att('lower_than_bound') && $elt->att('higher_than_bound') eq 'no') {
+	if ($elt->att('higher_than_bound') && $elt->att('higher_than_bound') eq 'no') {
 	    return 0;
 	}
 	else {
@@ -104,9 +104,10 @@ sub set_low_high_bound {
     $self->set_body_elt('low_bound', $low_bound, ['question_text']);
     $self->set_body_elt('high_bound', $high_bound, ['low_bound', 'question_text']);
     my $elt = $self->elt->first_child('low_bound');
-    $elt->set_att('lower_than_bound', $lower ? 'yes' : 'no');
+    if($elt) { $elt->set_att('lower_than_bound', $lower ? 'yes' : 'no'); }
     $elt = $self->elt->first_child('high_bound');
-    $elt->set_att('higher_than_bound', $higher ? 'yes' : 'no');
+warn("-->\n-->\n--> Got a higher_than_bound with a value of $higher\n-->\n-->\n");
+    if($elt) { $elt->set_att('higher_than_bound', $higher ? 'yes' : 'no'); }
 
     $self->question()->set_field_values('body', $self->elt()->sprint());
     return 1;

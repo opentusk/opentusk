@@ -54,7 +54,11 @@ my %serverDesignations = (
   'MYFQDN'             => 'PROD', # or TEST or DEV
 );
 
-
+# NOTE:  If the school is not using a CA Certificate, this should be changed to always return false.
+sub useCACert {
+	my $server = Sys::Hostname::hostname;
+	return ( $serverDesignations{ $server } eq 'PROD' );
+}
 
 sub setVariablesForServerEnvironment($) {
   my $hashOfVariablesRef = shift;
@@ -160,6 +164,8 @@ sub setVariablesForServerEnvironment($) {
      if ( ! defined ${$hashOfVariablesRef}{'ssl_cert_file'} );
   ${$hashOfVariablesRef}{'ssl_key_file'}     = ${$hashOfVariablesRef}{'server_name'} . '.key'
      if ( ! defined ${$hashOfVariablesRef}{'ssl_key_file'} );
+  ${$hashOfVariablesRef}{'ssl_ca_cert_file'} = 'intermediate.crt'
+     if ( ! defined ${$hashOfVariablesRef}{'ssl_ca_cert_file'} );
   ${$hashOfVariablesRef}{'secure_server'}    = "${$hashOfVariablesRef}{'server_name'}/"
      if ( ! defined ${$hashOfVariablesRef}{'secure_server'} );
   ${$hashOfVariablesRef}{'unsecure_server'}  = "${$hashOfVariablesRef}{'server_name'}/"
@@ -222,7 +228,6 @@ sub defineSSLLocations() {
 	/graphics/
 	/addons/
 	/code/
-	/eval45
 	/public/
 	/nosession/
     );
@@ -232,7 +237,7 @@ sub defineSSLLocations() {
   $locations{'/public/'} = qq { $mason_handler };
   $locations{'/nosession/'} = qq { $mason_no_session_handler };
   foreach my $d (qw(/icons/ /style/ /code/ /scripts/ /graphics/ /addons/ /xsd/))	{  $locations{$d} = qq{ SetHandler default-handler };  }
-  foreach my $d (qw(/eval45 /cms /import_enroll_listing))				{  $locations{$d} = qq{ $embperl_handler $hsdbauth };  }
+  foreach my $d (qw(/cms /import_enroll_listing))				{  $locations{$d} = qq{ $embperl_handler $hsdbauth };  }
   foreach my $d (qw(/manage/))								{  $locations{$d} = qq{ $hsdbauth };  }
   foreach my $d (qw(/tusk/)) {  
       $locations{$d} = qq{ 
@@ -253,8 +258,8 @@ sub defineSSLLocations() {
   $locations{'/home'} = qq {
                 SetHandler perl-script
                 Options ExecCGI
-                ErrorDocument 404 /redirect_to_insecure
-                ErrorDocument 403 /redirect_to_insecure
+                ErrorDocument 404 /tusk/redirect_to_insecure
+                ErrorDocument 403 /tusk/redirect_to_insecure
   };
 
   # handler for testing framework reset
@@ -330,6 +335,12 @@ sub defineLocations($) {
   }
   	
   $locations{"/view/urlTopFrame/"} = qq{ 
+  	PerlSetVar RowClass HSDB4::SQLRow::Content
+  };
+  $locations{"/view/minStyTopFrame/"} = qq{ 
+  	PerlSetVar RowClass HSDB4::SQLRow::Content
+  };
+  $locations{"/view/minStyle/"} = qq{ 
   	PerlSetVar RowClass HSDB4::SQLRow::Content
   };
   $locations{"/view/url/"} = qq{ 

@@ -8,7 +8,7 @@ BEGIN {
     use base qw/HSDB4::SQLRow/;
     use vars qw($VERSION);    
     require HSDB4::SQLLink;
-    $VERSION = do { my @r = (q$Revision: 1.3 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.4 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 my $tablename = "homepage_category";
@@ -31,6 +31,24 @@ sub new {
 				       @_);
     # Finish initialization...
     return $self;
+}
+
+# This is overloaded to allow the object_selection_box to operate on compound fields from the database.
+sub field_value {
+    my ($self, $field, $val, $flag) = @_;
+
+	if ( $field eq "formatted_prim_usergroup" ) {
+		my $ug = HSDB45::UserGroup->new(_school => $self->school)->lookup_key( $self->get_primary_user_group_id );
+		return ($ug->out_label || "None");
+	} elsif ( $field eq "formatted_sec_usergroup" ) {
+		my $ug = HSDB45::UserGroup->new(_school => $self->school)->lookup_key( $self->get_secondary_user_group_id );
+		return ($ug->out_label || "None");
+	} elsif ( $field eq "formatted_schedule" ) {
+		return "On" if $self->get_schedule;
+		return "Off";
+	}
+
+	return $self->SUPER::field_value($field, $val, $flag);
 }
 
 sub split_by_school {

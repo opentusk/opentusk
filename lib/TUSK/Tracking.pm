@@ -11,7 +11,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.13 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.14 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::Constants qw(:school);
@@ -54,6 +54,19 @@ sub new {
 				    @_);
     # Finish initialization...
     return $self;
+}
+
+# This is overloaded to allow the object_selection_box to operate on compound fields from the database.
+sub field_value {
+    my ($self, $field, $val, $flag) = @_;
+
+	if ( $field eq "full_title" ) {
+		return $self->getTrackingTitle() . " [ " . $self->getTrackingInfo() . " ]";
+	} elsif ( $field eq "type" ) {
+		return $self->getIcon();
+	}
+
+	return $self->SUPER::field_value($field, $val, $flag);
 }
 
 sub split_by_school {

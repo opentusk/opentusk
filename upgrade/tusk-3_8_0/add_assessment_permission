@@ -1,0 +1,115 @@
+#!/usr/bin/perl
+###########################################
+# add permissions for assessment
+###########################################
+
+use strict;
+use warnings;
+
+use MySQL::Password;
+my ($uid, $pwd) = get_user_pw();
+HSDB4::Constants::set_user_pw($uid,$pwd);
+
+use TUSK::Permission::FeatureType;
+use TUSK::Permission::Function;
+use TUSK::Permission::Role;
+use TUSK::Permission::RoleFunction;
+
+main();
+
+sub main {
+    my $feature_type_id = add_feature_type();
+    my $role_funcs = add_permission_roles($feature_type_id);
+    my $functions = add_permission_functions();
+
+    for my $role_id (sort {$a <=> $b} keys %$role_funcs) {
+		for my $func_token (@{$role_funcs->{$role_id}}) {
+			my $rf = TUSK::Permission::RoleFunction->new();
+			$rf->setFieldValues({
+				role_id => $role_id,
+				function_id => $functions->{$func_token},
+			});
+			$rf->save({user => $uid});
+		}
+    }
+}
+
+
+sub add_feature_type {
+    my $feature = TUSK::Permission::FeatureType->new();
+    $feature->setFieldValues({
+		feature_type_token => 'assessment',
+		feature_type_desc => 'Assessment tool',	
+    });
+    $feature->save({user => $uid});
+    return $feature->getPrimaryKeyID();
+}
+
+
+sub add_permission_functions {
+
+    my @functions = ( 
+      { token => 'edit_assessment', desc => 'Edit a particular assessment'},
+      { token => 'email_assessment', desc => 'Email a particular assessment'},
+      { token => 'perform_assessment', desc => 'Assess students'},
+      { token => 'results_assessment', desc => 'View/Edit results for an assessment'},
+      { token => 'users_assessment', desc => 'Change permissions for an assessment'},
+      { token => 'delete_assessment', desc => 'Delete a particular assessment'},
+      { token => 'notified_assessment', desc => "Be notified of change in student's assessor"},
+    );
+
+    my %functions;
+    foreach my $f (@functions) {
+		my $function = TUSK::Permission::Function->new();
+		$function->setFieldValues({
+			function_token => $f->{token},
+			function_desc => $f->{desc},
+		});
+		$function->save({user => $uid});
+		$functions{$function->getFunctionToken()} = $function->getPrimaryKeyID();
+    }
+
+    return \%functions;
+}
+
+
+sub add_permission_roles {
+
+    my $feature_type_id = shift;
+
+    my @roles = ( 
+	  { token => 'manager', 
+		desc => 'Ability to do anything with a particular assessment', 
+		func_tokens => ['edit_assessment', 'email_assessment', 'perform_assessment', 'results_assessment', 'users_assessment', 'delete_assessment'], 
+	  },
+	  { token => 'editor', 
+		desc => 'Ability to edit the assessment and email; cannot see grades, view results, change permissions, or delete assessment', 
+		func_tokens => ['edit_assessment', 'email_assessment'],
+	  },
+	  { token => 'assessor', 
+		desc => 'Ability to assess students; cannot edit the assessment, view results, change permissions, or delete assessment', 
+		func_tokens => ['perform_assessment'],
+	  },
+	  { token => 'NCSA', 
+		desc => "Notification of change in student's assessor", 
+		func_tokens => ['notified_assessment'],
+	  },
+    );
+
+    my %role_funcs;
+    foreach my $r (@roles) {
+		my $role = TUSK::Permission::Role->new();
+		$role->setFieldValues({
+			role_token => $r->{token},
+			role_desc => $r->{desc},
+			feature_type_id => $feature_type_id,
+		});
+
+		$role->save({user => $uid});
+		$role_funcs{$role->getPrimaryKeyID()} = $r->{func_tokens};
+    }
+    return \%role_funcs;
+}
+
+
+

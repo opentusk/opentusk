@@ -1,0 +1,104 @@
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+
+<%once>
+	use TUSK::FormBuilder::SubjectAssessor;
+</%once>
+
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $form = $m->comp('/formbuilder/util:get_form', join_objects => [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }) ]);
+	my $form_id = $form->getPrimaryKeyID();
+</%shared>
+
+
+% if (my $assessors = $m->comp('SELF:getAssessors')) {
+<& /tmpl/email,
+	args 	=> { 
+		%ARGS,
+		subject => $form->getFormName() . ' - ' . $course->title() ,
+		body	=> 'Please complete your assessment forms for "' . $course->title() . "\". They can be accessed through the following link:\nhttp://$ENV{HTTP_HOST}/assessment/assessor/list/" . $m->comp("/tmpl/url:get_type_path") . '/' . $form_id, 
+	},
+	recipients_checkboxes 	=> $assessors,
+	to_trailing_text		=> '<div class="xsm"> &nbsp; Note: Assessor Name (Completed/Total Number of Students)</div>',
+	cancel_url				=> $m->comp("/tmpl/url:construct_back_url", base_url => $m->comp("/formbuilder/util:get_base_dir") . '/show'),
+	sendself				=> 1,
+&>
+% } else {
+<br/>
+<em>No assessors assoicated with selected time period</em>
+% }
+
+
+<%method startup>
+<%args>
+	$args
+</%args>
+% $m->comp('/tmpl/email:startup', args => $args) if (defined $args->{submit_check});
+</%method>
+
+
+<%method getAssessors>
+<%perl>
+	my $time_period_id = $ARGS{timeperiod} || $m->comp("SELF:get_timeperiod_id");
+	my $assessment_form = $form->getJoinObject('TUSK::FormBuilder::Assessment');
+	my $is_final = ($assessment_form->getMultiAssessors()) ? 0 : 1;
+	my $status_options = $TUSK::FormBuilder::SubjectAssessor::STATUS;
+	my $sql = qq(
+					SELECT assessor_id, lastname, firstname,
+					(SELECT count(*)
+					 FROM tusk.form_builder_entry e, tusk.form_builder_entry_association ae
+					 WHERE e.entry_id = ae.entry_id and is_final = $is_final
+					 and e.user_id = sa.assessor_id and e.form_id = sa.form_id and e.time_period_id = sa.time_period_id
+					 and complete_date is not NULL
+					) as completed,
+					count(subject_id) as total
+					FROM tusk.form_builder_subject_assessor sa, hsdb4.user u
+					WHERE u.user_id = sa.assessor_id
+					AND sa.form_id = $form_id
+					AND sa.time_period_id = $time_period_id
+					AND sa.status in ($status_options->{assigned}, $status_options->{selected_by_assessor}) 
+					GROUP BY assessor_id
+					ORDER BY lastname, firstname
+	);
+
+	my $sth = $form->databaseSelect($sql);
+	my $data = $sth->fetchall_arrayref();
+	$sth->finish();
+	return undef unless (scalar @$data);
+
+	my $i = 1;
+	my $list = (scalar @$data > 1) ? "&nbsp;<input type=\"checkbox\" name=\"checkall\"><span class=\"xsm\">select/deselect all</span><br/>" : '';
+	$list .= '<input type="hidden" name="email_list" value="1"/>';
+	$list .= "<table>\n<tr>";
+	foreach my $row (@$data) {
+		$list .=  "<td><input type=\"checkbox\" name=\"to\" value=\"$row->[0]\"><span class=\"xsm\">$row->[1], $row->[2] &nbsp; ($row->[3]/$row->[4])</span></td>";
+		$list .= "</tr>\n<tr>" if $i % 3 == 0;
+		$i++;
+	}
+	$list .= "</tr>\n";
+	$list .= "</table>\n";
+	return $list;
+</%perl>
+</%method>
+
+
+<%method jsarray>
+% 	return [ 'jquery/jquery.min.js', 'email.js' ];
+</%method>
+
+
+<%method title>
+% 	return "Email Assessors";
+</%method>
+
+
+<%method function_token>
+%	return 'email_assessment';
+</%method>
+
+
+

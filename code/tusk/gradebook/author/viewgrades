@@ -1,8 +1,8 @@
 <%once>
 	use TUSK::GradeBook::GradeEvent;
 	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::Application::GradeBook::GradeBook;
 </%once>
-
 
 <%shared>
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
@@ -28,6 +28,7 @@
 	my $base_url = "/gradebook/author/addedit";
 	my $grade_event_types = TUSK::GradeBook::GradeEventType->new->lookup();
 	my $reload_url = $r->uri();
+	my $time_period_id = $m->comp('SELF:get_timeperiod_id');
 </%shared>
 
 
@@ -37,6 +38,7 @@
 if ($is_edit) {
 	$m->comp('/tmpl/element:sort_order_box', params =>{
 		label =>'Grades',
+		no_table=>1,
 		no_add_button=>1,
 		no_label=>1,
 		buttons => [],
@@ -52,6 +54,7 @@ if ($is_edit) {
 				{label=>'Name',field=>'name', align=>'left', length=>300 },
 				{label=>'User&nbsp;ID', field=>'user_id', align=>'left', length=>140 },
 				{label=>'Grade',field=>'grade', align=>'left', length=>80, type=>'textbox:disabled'},
+				{label=>'Scaled Grade',field=>'scaled_grade', align=>'center', length=>80, type=>'textbox:disabled'},
 				{label=>'Comments',field=>'comments', align=>'left', length=>300, type=>'textbox:disabled' }
 			],
 			validate => { usage => 'No', form => 'eventaddedit'},
@@ -61,13 +64,20 @@ if ($is_edit) {
 my $fullPath = $m->comp("/tmpl/url:get_full_path");
 </%perl>
 
-</form>
+<%init>
+my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id, user_id => $m->session->{'user'}->user_id()});
 
+foreach my $x (@$grades_data) {
+		my $calculated_grade = $x->{'grade'};
+		my $scaled_grade = $gb->getScaledGrade($calculated_grade, $event_id); 
+		$x->{'scaled_grade'} = $scaled_grade;
+	}
+
+</%init>
 
 <%method jsarray>
 % return ['layers.js', 'element.js', 'gradebook.js'];
 </%method>
-
 
 <%method title>
 %return "View Grades";

@@ -15,6 +15,7 @@
 <%shared>
 	my @contentObjectArray;
 	my $backURL;
+	my $current_course;
 </%shared>
 
 <%method startup>
@@ -38,9 +39,29 @@
 			my $lastId = $m->comp('/tmpl/url:get_last_path_id');
 			if($lastId && ($tempObject->primary_key() ne $lastId)) {$tempObject = HSDB4::SQLRow::Content->new->lookup_key($lastId);}
 			($rval, $msg) = TUSK::Application::DeleteContent::process_delete($args->{removeContent}, $m->session->{user}, $tempObject, \@tempContentIDArray);
+			if ( $rval == 0 ) {
+				my $r = 1;
+				# The success/fail return values are backwards from process_delete and delete_child_content...  Talk about annoying.
+				foreach my $key ( keys %{$args} ) {
+					if ( $key =~ /^delete_\d*/ ) {
+						my ($garbage, $cm_id) = split( "_", $key );
+						my $class_meeting = HSDB45::ClassMeeting->new( _school => $tempObject->school, _id => $cm_id );
+						foreach my $content_id ( @tempContentIDArray ) {
+							($r,$msg) = $class_meeting->delete_child_content($content_id);
+							last if (!$r);
+						}
+					}
+					last if (!$r);
+				}
+				$rval = !$r;
+			}
 			if($rval == 0) {$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'msg', destination => $args->{goToWhenDone});}
 		}
 
+		$current_course = $m->comp('/tmpl/url:get_type_object');
+		if ( !($current_course->isa( "HSDB45::Course" )) ) {
+			$current_course = '';
+		}
 
 		foreach my $contentID (@tempContentIDArray) {
 			my $contentObject = HSDB4::SQLRow::Content->new->lookup_key($contentID);
@@ -77,6 +98,7 @@
 	my $alsoLinkedFrom = '';
 	my %linkedLocations;
 	my $contentToRemove = '';
+	my @class_meetings;
 	foreach my $contentObject (@contentObjectArray) {
 		$contentToRemove.= $contentObject->title() . " (" . $contentObject->primary_key() . ")<input type=\"hidden\" name=\"content\" value=\"" . $contentObject->primary_key() . "\"><br>";
 		if($contentObject and $contentObject->primary_key()) {
@@ -86,8 +108,15 @@
 					$link = "<a href=\"/management/folders/course/".$contentParent->school()."/".$contentParent->field_value('course_id')."/".$contentParent->primary_key."\">".$contentParent->field_value('title')."</a>";
 				} elsif($contentParent->isa('HSDB45::Course')) {
 					$link = "<a href=\"/management/course/display/" . $contentParent->school() . "/" . $contentParent->course_id() . "\">" . $contentParent->out_label() . "</a>";
+				} elsif ($contentParent->isa('HSDB45::ClassMeeting')) {
+					$contentParent->{'content_title'}   = $contentObject->title;
+					$contentParent->{'course_title'}    = $contentParent->course->out_title;
+					$contentParent->{'checkbox_delete'} = '<input type="checkbox" name="delete_' . $contentParent->class_meeting_id . '" value="1"' . (($current_course && $current_course->course_id == $contentParent->course->course_id) ? ' checked' : '') . '>';
+					delete $contentParent->{'-course'};
+
+					push @class_meetings, $contentParent;
 				}
-				$linkedLocations{$contentParent->primary_key} = $link;
+				$linkedLocations{$contentParent->primary_key} = $link if ($link);
 			}
 		}
 	}
@@ -99,6 +128,35 @@
 <& /tmpl/element:hidden_form_element, params =>{ name=> 'goToWhenDone', value => $backURL } &>
 <& /tmpl/element:field_display, params =>{ label => 'Content To Remove', value => $contentToRemove } &>
 <& /tmpl/element:field_display, params=>{ label => 'Linked From', value=>$alsoLinkedFrom } &>
+<& /tmpl/element:sort_order_box , params =>{
+		no_add_button => 1,
+		label => 'Associated Meetings',
+		buttons => [ ],
+		layer_info => {
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+			layer => 'meetingsdiv',
+			empty_message => 'Not linked to any class meetings',
+			fields => ['class_meeting_id', 'checkbox_delete', 'content_title', 'course_title', 'title', 'meeting_date','start_time', 'end_time'],
+			name => 'meetings',
+			sort => {usage => 'No'},
+			sortoninsert => {usage => 'Yes', sorton => 'name'},
+			action => {usage => 'No'},
+			display => [
+				{field=>'checkbox_delete', label=> 'Unlink', align=>'center', length=>40 },
+				{field=>'content_title', label=> 'Content', align=>'center' },
+				{field=>'course_title', label=> 'Course', align=>'center' },
+				{field=>'title', label=> 'Title', align=>'center' },
+				{field=>'meeting_date', label=>'Date', align=>'left', length=>50, },
+				{field=>'starttime', label=> 'Start', align=>'left', length=>50, },
+				{field=>'endtime', label=> 'End', align=>'left', length=>50, },
+				],
+			validate => {
+					usage => 'No',
+				},
+			data => \@class_meetings
+		}
+	} &>
 % if(scalar(@contentObjectArray) > 0) {
 <& /tmpl/element:flexible_tr, params=>{ label => 'What do you want to do?' } &>
 	<table width="100%" cellspacing="0" class="tusk">

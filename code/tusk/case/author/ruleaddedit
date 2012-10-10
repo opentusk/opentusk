@@ -1,0 +1,490 @@
+<%args>
+@new_rule_id => (); # each new rule created passes in this hidden input elt
+</%args>
+
+<%once>
+use TUSK::Case::Case;
+use TUSK::Case::Phase;
+use TUSK::Case::Rule;
+use TUSK::Case::RuleOperandRelation;
+use TUSK::Case::RuleRelationType;
+use TUSK::Case::LinkPhaseQuiz;
+use TUSK::Quiz::Quiz;
+use TUSK::Quiz::Question;
+use TUSK::Functions;
+</%once>
+
+<%shared>
+my @id = $m->comp('/tmpl/url:get_path_ids') ;
+my $case_id = shift @id;
+my $phase_id = shift @id;
+my $case = TUSK::Case::Case->lookupKey($case_id);
+my $phase = TUSK::Case::Phase->lookupKey($phase_id);
+my $user_id = $m->comp('SELF:user');
+
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+</%shared>
+
+
+
+% my $form_name = 'rules_form';
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => $form_name, 
+		onsubmit => 'return validateRuleForm(this)' } &>
+
+
+<& /tmpl/element:hidden_form_element, params => { name => 'key_id', id => 'key_id', value => $case_id } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+% my $button_ref = [$m->scomp('/tmpl/element:html_edit_button')];
+<& tmpl/sections:case_footer, 
+	case      => $case, 
+	type_path => $type_path, 
+	formname  => $form_name,
+	buttons   => $button_ref &>
+
+<& /tmpl/element:tr_tag &>
+<td>
+
+
+<%perl>
+
+my $fields = ['rule_operand_id', 'parent_label', 'phase_id', 'elt_label', 'elt_id', 'elt_type_id', 'relation_type_id', 'relation_value'];
+
+my $display = [
+               {label => 'Phase/Quiz', field => 'parent_label', align => 'left', length => 300 },
+               {label => 'phase_id', field => 'phase_id', type => 'hidden'},
+               {label => 'Element', field => 'elt_label', align => 'left', length => 300},
+               {field => 'elt_id', type => 'hidden',},
+               {field => 'elt_type_id', type => 'hidden',},
+               {field => 'relation_type_id', type => 'hidden',},
+               {field => 'relation_value', type => 'hidden',},
+              ];
+
+# add a new, blank rule to our rule array.
+push @$rules, TUSK::Case::Rule->new();
+
+# build the mark-up for each rule, passing in s.o.box data
+foreach my $r (@$rules) {
+	$m->comp('rule_template', rule => $r, fields => $fields, display => $display);
+}
+</%perl>
+
+<div class="crNewRuleTxt">
+Would you like to add more rule definitions to this phase?<br>
+<a href="javascript:;" onclick="addRuleDef(this);">Add New Rule Definition [+]</a>
+</div>
+
+</td>
+</tr>
+
+<& tmpl/sections:case_footer, 
+	case      => $case, 
+	type_path => $type_path, 
+	formname  => $form_name,
+	buttons   => $button_ref &>
+
+<& /tmpl/wizard:include &>
+
+</table>
+</form>
+
+
+% $m->comp('build_new_operand_window');
+
+
+<%init>
+my $rules = TUSK::Case::Rule->new()->lookup("phase_id=$phase_id");
+
+if ($m->comp('/tmpl/wizard:submitted', args =>\%ARGS)){
+	my $args = \%ARGS;
+	my $user_hash = {user=>$user_id};
+
+	foreach my $r (@$rules) {
+		my $row_hash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^rule' . $r->getPrimaryKeyID() . 'div');	
+
+		# if we do still have a layer of operands for this rule, process the layer
+		if (keys %$row_hash) {
+			my $id = $r->getPrimaryKeyID();
+			$r->setRuleOperatorTypeID($args->{'ruletype' . $id});
+			$r->setMessage($args->{'msg' . $id});
+			$r->save($user_hash);
+
+			my $current_operands = $m->comp('getRulesData', rule => $r);	
+
+			$m->comp('process_operands', rule => $r, user_id => $user_id, row_hash => $row_hash, current_operands => $current_operands);
+		}
+		# if we don't have a layer for this rule any longer, delete the rule and its operands
+		else {
+			$r->deleteRuleAndOperands();
+		}
+	}
+
+	# process/add each of my new rules
+	foreach my $nr (@new_rule_id) {
+		my $row_hash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^rule' . $nr . 'div');
+		
+		next unless keys %$row_hash;	# make sure the rule has operands
+
+		my $rule = TUSK::Case::Rule->new();
+		$rule->setPhaseID($phase_id);
+		$rule->setRuleOperatorTypeID($args->{'ruletype' . $nr});
+		$rule->setMessage($args->{'msg' . $nr});
+		$rule->save($user_hash);
+
+		$m->comp('process_operands', rule => $rule, user_id => $user_id, row_hash => $row_hash, current_operands => []);
+	}
+
+	my $msg = 'Phase rule(s) successfully modified.';
+
+	$m->comp('/tmpl/wizard:do_next',
+			args               => \%ARGS,
+			default_transition => "/case/author/ruleaddedit/$type_path/$case_id/$phase_id",
+			msg                => $msg,
+			);
+}
+</%init>
+
+
+<%def rule_template>
+<%args>
+$rule
+$fields
+$display
+</%args>
+
+% # we pass one new rule, which has no primary key in order to generate a blank
+% # template that is used for any new rules that need to be created.
+% my $id = $rule->getPrimaryKeyID() || 'NewRule0';
+
+
+% if ($id eq 'NewRule0') {
+<div id="crWrapper<% $id %>">
+% }
+<div id="ruleSec<% $id %>" class="crRuleDef">
+<h4 class="crRuleHdr clearfix"><span class="crRuleHdrMainTxt">Rule Definition<& /tmpl/element:help_link, params => {class => "helpLnk", not_xmetal => 1, content_id => 1173747, text => '&nbsp;'} &></span> <a href="javascript:;" onclick="delrule(this.parentNode.parentNode)" class="crDeleteLnk">delete</a></h4>
+
+<p class="crPreamble">To <strong>enter</strong> the <em><% $phase->getPhaseTitle() %></em> phase, the student must have completed the following:</p>
+
+<div>
+<h5 class="crStepHdr crFirstStepHdr">Step 1</h5>
+Identify whether the student needs to complete <strong>ALL</strong> of the rule definitions, <strong>OR</strong> at least one of a possible set.<br>
+% my $operator_type_id = $rule->getRuleOperatorTypeID() || 1;
+% $m->comp('/tmpl/element:input_radio_buttons', params => { 
+%		name => 'ruletype' . $id, 
+%		nobreak => 1,
+%		buttons => [ {value => '1', checked => ($operator_type_id == 1)? 1 : 0, text => 'All of the below <strong style="margin:0 30px">OR</strong>'},
+%		             {value => '2', checked => ($operator_type_id == 2)? 1 : 0, text => 'At least one from the list below'},
+%		           ]
+%		});
+</div>
+
+<div>
+<h5 class="crStepHdr">Step 2</h5>
+<p class="crStepTwoTxt">Identify the phases and phase elements (e.g. a quiz question or diagnostic study) the student needs to have completed before entering the <em><% $phase->getPhaseTitle() %></em> phase. You may select multiple phases and elements.</p>
+<table>
+
+<%perl>
+my $rules_data = [];
+unless ($id eq 'NewRule0') {
+	$rules_data = $m->comp('getRulesData', rule => $rule);
+}
+
+my $add_btn = $m->scomp('/tmpl/element:button', params=>{
+                'name'    => 'add_elt_btn_' . $id,
+                'onclick' => 'addOperand(this)',
+                'label'   => 'Select Phases and Elements'} );
+
+$m->comp('/tmpl/element:sort_order_box' , params =>{
+		no_label => 1,
+		no_add_button  => 1,
+		buttons	       => [$add_btn],
+		layer_info     => {
+				layer 		=> 'rule' . $id . 'div',
+				fields 		=> $fields,
+				name 		=> 'rule' . $id,
+				action 		=> { 
+						usage     => 'Yes', 
+						length    => 100,  
+						functions => [ 
+								{ func => 'delElt', label => 'Delete' },
+						] 
+				},
+				display       => $display,
+				validate      => { usage => 'No' },
+				empty_message => 'No phases/elements have been selected yet.',
+				data          => $rules_data,
+		}
+});
+</%perl>
+</table>
+
+</div>
+
+<h5 class="crStepHdr">Step 3</h5>
+Provide a warning message that will be shown to a student who tries to enter the <em><% $phase->getPhaseTitle() %></em> phase without first completing the criteria selected above.<br><br>
+<span class="crLabel">Message:</span>
+
+% $m->comp('/tmpl/element:input_textarea', params=>{
+%		name =>  'msg' . $id, 
+%		class => 'crRuleMsg',
+%		value => $rule->getMessage(),
+%		});
+
+% if ($id eq 'NewRule0') {
+<& /tmpl/element:hidden_form_element, params => { name => 'new_rule_id', id => 'new_rule_id', value => $id } &>
+% }
+
+</div><!--crRuleDef-->
+% if ($id eq 'NewRule0') {
+</div>
+% }
+</%def>
+
+
+<%def getRulesData>
+<%args>
+$rule
+</%args>
+<%doc>
+this should take in rule obj, get operands, loop through and populate objects accordingly.
+</%doc>
+<%perl>
+
+my $operands = $rule->getOperands();
+
+my $rules_data = [];
+
+foreach my $o (@$operands) {
+	my $type = $o->getElementType();
+	my ($parent_lbl, $elt_label);
+	if (! defined $type || $type->getLabel() =~ /test|option/) {
+		my $parent = TUSK::Case::Phase->new->lookupKey($o->getPhaseID());
+		$parent_lbl = $parent->getPhaseTitle();
+		if (defined $type) {
+			my $elt_id = $o->getElementID();
+			if ($type->getLabel() =~ /test/) {
+				my $test = TUSK::Case::Test->new->lookupKey($elt_id);
+				$elt_label = $test->getTitle();
+			}
+			elsif ($type->getLabel() =~ /option/) {
+				my $opt = TUSK::Case::PhaseOption->new->lookupKey($elt_id);
+				$elt_label = $opt->getOptionText();
+			}
+		}
+	}
+	elsif ($type->getLabel() =~ /quiz$|quiz_score/) {
+		my $parent = TUSK::Quiz::Quiz->new()->lookupKey($o->getElementID());
+		$parent_lbl = $parent->getTitle();
+		if ($type->getLabel() =~ /quiz_score/) {
+			my $relation = TUSK::Case::RuleOperandRelation->lookupReturnOne('rule_operand_id=' . $o->getPrimaryKeyID());
+			my $relation_type = TUSK::Case::RuleRelationType->lookupKey($relation->getRuleRelationTypeID());
+			$elt_label = 'Quiz Score ' . $relation_type->getLabel . ' ' . $relation->getValue() . '%';
+		}
+	}
+	elsif ($type->getLabel() =~ /quiz_question/) {
+		my $quizlink = TUSK::Case::LinkPhaseQuiz->new()->lookupReturnOne('parent_phase_id=' . $o->getPhaseID());
+		my $parent = TUSK::Quiz::Quiz->new()->lookupKey($quizlink->getChildQuizID());
+		$parent_lbl = $parent->getTitle();
+
+		my $elt_id = $o->getElementID();
+		my $question = TUSK::Quiz::Question->new()->lookupKey($elt_id);
+		$elt_label = $question->getBody();
+	}
+
+	push @$rules_data, {
+		rule_operand_id    => $o->getPrimaryKeyID(),
+		parent_label       => $parent_lbl,
+		phase_id           => $o->getPhaseID(),
+		elt_label          => $m->comp('truncate', txt => $elt_label),
+		elt_id             => $o->getElementID(),
+		elt_type_id        => $o->getRuleElementTypeID(),
+		relation_type_id   => $o->getRelationTypeID(),
+		relation_value     => $o->getRelationValue()
+		};
+}
+
+return $rules_data;
+</%perl>
+</%def>
+
+
+<%def build_new_operand_window>
+
+<div id="crNewOperand">
+<& /tmpl/element:form, params => { 
+		method => 'POST',
+		name => 'new_operand',
+		onsubmit => 'return false' } &>
+
+
+<h4 id="crSelItmHdr">Configure Rule</h4>
+<div id="crOperandSteps">
+<p id="crOperandIns">Select a phase (required) and the specific elements within the phase (optional) using the dropdown menus below.</p>
+<div id="crStep1">
+Step 1: Select Phase<br>
+
+<%perl>
+my $opts = [ {label => 'select', value => ''} ];
+foreach my $p (@{$case->availablePhases()}) {
+	if ($p->getPrimaryKeyID() != $phase_id) {
+		my $value = $p->getPrimaryKeyID();
+		my $class = 'phase_elt_opt';
+		# if phase is of type 'quiz' and definitely has a quiz linked to it, make the value of the option be 
+		# of the form 'phase_id-quiz_id' and change the class so we display the appropriate menu next
+		if (ref($p) =~ /quiz/i && $p->getQuiz()) {
+			$value .= '-' . $p->getQuiz()->getPrimaryKeyID();
+			$class = 'quiz_alt_opt';
+		}
+		push @$opts, {
+			label  => $p->getPhaseTitle(), 
+			value  => $value,
+			class  => $class
+			};
+
+		# if phase is not a quiz type, but has a quiz linked to it, insert the quiz as another option
+		# in the dropdown after its parent phase
+		my $q = $p->getQuiz;
+		if ($q && ref($p) !~ /quiz/i) {
+			push @$opts, {
+				label  => $q->getTitle(), 
+				value  => $value . '-' . $q->getPrimaryKeyID(),
+				class  => 'quiz_alt_opt'
+			};
+		}
+	}
+	# Disable our current phase in the dropdown so that it cannot be selected.
+	# we don't want to allow a rule that says you must complete 'A' to enter 'A' - impossible.
+	else {
+		push @$opts, {
+			label  => $p->getPhaseTitle(), 
+			value  => '',
+			disabled => 1,
+			style => 'color:#454545;',
+		}
+	}
+}
+</%perl>
+
+<& '/tmpl/element:dropdown', params => {
+	onchange => "popNextStep(this, '$type_path', 'crStep2')",
+	name => 'rule_phase',
+	class => 'crRuleElt',
+	options => $opts
+	}
+&>
+</div>
+
+<%doc>Following divs are intended to hold subsequent dropdowns/input fields - if desired.</%doc>
+<div id="crStep2"></div>
+
+<div id="crStep3"></div>
+
+
+<& /tmpl/element:button, params=>{
+                'name'    => 'close_btn',
+                'onclick' => 'closeNewOp()',
+                'label'   => 'Cancel'} &> 
+<& /tmpl/element:button, params=>{
+                'name'    => 'save_btn',
+                'onclick' => 'saveNewOp()',
+                'label'   => 'Save and Close'} &>
+
+</form>
+
+</div> <!-- /crOperandSteps -->
+</div>
+
+<%doc>this div conceals the rest of the page from interaction with newop div is opened for use</%doc>
+<div id="crCurtain"></div>
+</%def>
+
+
+<%def process_operands>
+<%args>
+$rule
+$user_id
+$row_hash
+$current_operands
+</%args>
+
+<%perl>
+
+foreach my $rowkey (keys %$row_hash) {
+	# we end up inserting into db a value of 0 for elt_id and elt_type_id if we have empty string value.
+	# therefore, if either of these has a val that evals to false, delete it from data struct, so we can 
+	# ensure a null val in db
+	unless ($row_hash->{$rowkey}->{fields}->{elt_id}) {
+		delete $row_hash->{$rowkey}->{fields}->{elt_id};
+	}
+	unless ($row_hash->{$rowkey}->{fields}->{elt_type_id}) {
+		delete $row_hash->{$rowkey}->{fields}->{elt_type_id};
+	}
+}
+
+$m->comp('/tmpl/process:manipulate_rows',
+	row_type    => 'Direct',
+	user        => $user_id,
+	object_name => 'TUSK::Case::RuleOperand',
+	default_field_data => { rule_id => $rule->getPrimaryKeyID() }, 
+	field_function_map => { rule_operand_id => 'setPrimaryKeyID',
+	                        rule_id    => 'setRuleID', 
+	                        phase_id => 'setPhaseID',
+	                        elt_id => 'setElementID',
+	                        elt_type_id => 'setRuleElementTypeID',
+	                        relation_type_id => 'setRelationTypeID', # in other obj, most often null
+	                        relation_value => 'setRelationValue', # in other obj, most often null
+	                      },
+	fields_data  => $row_hash,
+	display_data => $current_operands );
+</%perl>
+</%def>
+
+
+<%def truncate>
+<%args>
+	$txt
+</%args>
+% my $max_length = 80;
+% $txt =~ s/<\s*\/?[?A-z][^>]*>//g;
+% if (length($txt) > $max_length) {
+% 	$txt = TUSK::Functions::truncateTextWithoutTags($txt, $max_length);
+% }
+% return $txt;
+</%def>
+
+
+<%method title>
+%	return "Modify Entrance Rule";
+</%method>
+
+<%method jsarray>
+% return ['layers.js', 'element.js', 'caseshell.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/selectlist/scripts/jquery.selectlist.min.js', 'ruleaddedit.js'];
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css','/style/caseSimulator.css', '/scripts/jquery/plugin/selectlist/css/selectlist.css'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title') . ': ' . $phase->getPhaseTitle();
+</%method>
+
+<%method leftnav>
+<%perl>
+return {
+	component => '/case/tmpl/leftnav/case-create', 
+	id        => $case_id,
+	uri       => 'ruleshow'
+	};
+</%perl>
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'TUSK::Case::Case' => $case};
+</%method>

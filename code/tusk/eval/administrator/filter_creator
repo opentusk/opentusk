@@ -1,0 +1,125 @@
+<%once>
+    use HSDB4::Constants;
+	use XML::LibXML;
+	use XML::LibXSLT;
+    use HSDB45::Eval::Question;
+    use HSDB45::Eval::Question::Body;
+    use HSDB45::Eval::Filter;
+    use HSDB45::Eval::Filter::Rule;
+</%once>
+
+<%shared>
+	my $school = $m->comp('SELF:schoolname');
+	my ($eval, %question_types);
+	my $eval_id = $m->comp("/tmpl/url:get_last_path_id");
+
+	if ($school && $eval_id) {
+		$eval = HSDB45::Eval->new(_school => $school, _id => $eval_id);
+
+		foreach my $question ($eval->questions()) {
+			unless(defined($question_types{$question->body()->question_type()})) {
+				$question_types{$question->body()->question_type()} = [];
+			}
+			push(@{$question_types{$question->body()->question_type()}}, $question->primary_key());
+		}
+	} else {
+		$m->redirect( '/protected/eval/administrator/show/' . $school . "?errmsg=Eval not found." );
+	}
+</%shared>
+
+	<form method="post">
+		<table>
+			<tr>
+				<td valign="top" ><b>Label</b></td>
+				<td align="left"><input type="text" name="label" size="50"/></td>
+			</tr>
+			<tr>
+				<td valign="top" ><b>Description</b></td>
+				<td align="left"><textarea name="description" cols="60" rows="4"></textarea></td>
+			</tr>
+		</table>
+		<br/>
+%		foreach my $question_type (sort(keys(%question_types))) {
+		<& SELF:filter_specification, type => $question_type &>
+		<br/>
+%		}
+		<br/>
+		<& "/tmpl/element:button", params => { type => 'submit', name => 'filter_submit', label => 'Create Filter' } &>
+	</form>
+
+<%init>
+	if ( $ARGS{'filter_submit'} ) {
+		my ($stylesheet_id, $msg);
+		my @rules = ();
+		foreach my $question_type (sort(keys(%question_types))) {
+			my @ids = (defined($ARGS{$question_type . 'IDs'})) 
+				? ( (ref $ARGS{$question_type . 'IDs'} eq 'ARRAY') ? @{$ARGS{$question_type . 'IDs'}} : $ARGS{$question_type . 'IDs'})
+				: ();
+			push(@rules, HSDB45::Eval::Filter::Rule->new($question_type, $ARGS{$question_type}, @ids));
+		}
+		my $filter = HSDB45::Eval::Filter->new($eval->school(), $eval->primary_key(), $ARGS{'label'}, $ARGS{'description'}, @rules);
+		($stylesheet_id , $msg) = $filter->create_stylesheet();
+
+		if ($msg) {
+			$m->redirect( '/protected/eval/administrator/filter_creator/' . $school . "/" . $eval_id . "?errmsg=" . $msg );
+		} else {
+			$m->redirect( '/protected/eval/administrator/eval_edit/' . $school . "/" . $eval_id . "?msg=Stylesheet '" . $ARGS{'label'} . "' (" . $stylesheet_id . ") created." );
+		}
+	}
+	
+</%init>
+
+<%method filter_specification>
+<%args>
+	$type
+</%args>
+<table class="tusk" cellpadding="0" cellspacing="0">
+	<tr>
+		<th colspan="3">Type: <% $type %></th>
+		<th>
+			<select name="<% $type %>">
+				<option value="include_all">Include All</option>
+				<option value="include_selected">Include Selected</option>
+				<option value="exclude_all">Exclude All</option>
+				<option value="exclude_selected">Exclude Selected</option>
+			</select>
+		</th>
+	</tr>
+	<tr class="header">
+		<td width="50" class="header-left"></th>
+		<td width="50" class="header-left">ID</th>
+		<td width="300" class="header-left">Label</th>
+		<td width="300" class="header-left">Text</th>
+	</tr>
+<%perl>
+	my $class = "odd";
+	foreach my $question_id (@{$question_types{$type}}) {
+		my $question = $eval->question($question_id);
+		if($class eq "even") {
+			$class = "odd";
+		} else {
+			$class = "even";
+		}
+</%perl>
+	<tr class="<% $class %>">
+		<td><input type="checkbox" name="<% $type %>IDs" value="<% $question->primary_key() %>"/></td>
+		<td><% $question->primary_key() %></td>
+		<td><% $question->label() %></td>
+		<td><% $question->body()->question_text() %></td>
+	</tr>
+%	}
+</table>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . " Evaluation Filter";
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'HSDB45::Eval' => $eval};
+</%method>
+

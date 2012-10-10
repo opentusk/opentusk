@@ -212,11 +212,16 @@ my $rval = 0;
 my $extra = "";
 
 if ( defined($ARGS{'submit'}) ) {
-	$usergroup->set_field_values( label => $ARGS{'label'}, description => $ARGS{'description'});
+	my $groups = [ HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'") ];
+
+	$usergroup->set_field_values( label => $ARGS{'label'}, description => $ARGS{'description'} );
 
 	if ($ARGS{'action'} eq "add") {
 		if ($is_course_group) {
-			$usergroup->set_field_values(sub_group=>'Yes');
+			my $groups = [ $course->sub_user_groups( $timeperiod ) ];
+			$usergroup->set_field_values( sub_group=>'Yes', sort_order=>scalar(@{$groups}) );
+		} else {
+			$usergroup->set_field_values( sort_order=>scalar(@{$groups}) );
 		}
 	}
 

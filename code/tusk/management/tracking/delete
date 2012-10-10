@@ -1,0 +1,43 @@
+<%attr>
+        hintmsg => 'Are you sure you want to delete the tracking for this item?'
+</%attr>
+
+<%once>
+	use TUSK::Constants;
+	use TUSK::Tracking;
+</%once>
+
+<%shared>
+	my $school      = $m->comp("/tmpl/url:get_school");
+	my $tracking_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $tracking    = TUSK::Tracking->new(_school => $school)->lookup_key( $tracking_id );
+</%shared>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => '' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{ label=>'Delete', value => $tracking->getTrackingTitle() . ' [ ' . $tracking->getUserGroupName() . '; ' . $tracking->getDateRange() . ' ]' }&>
+
+<& /tmpl/element:save_button, params=>{label=>'Delete',
+                cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/management/tracking/show") . "');",
+                name=>'submit'} &>
+</table>
+</form>
+
+<%init>
+if (defined($ARGS{'submit'})){
+	$tracking->delete();
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/tracking/show", 'msg' => "Tracking Deleted"));
+}
+</%init>
+
+<%method title>
+% return "Delete Tracking";
+</%method>
+

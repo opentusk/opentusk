@@ -1,0 +1,77 @@
+<%once>
+	use TUSK::Manage::GroupLinks;
+</%once>
+
+<%attr>
+	hintmsg => 'Are you sure you want to delete this group link?'
+</%attr>
+
+<%shared>
+	my @fullpath = split("\/", $m->comp("/tmpl/url:get_full_path"));
+	my $course_id = $fullpath[3]; 
+	my $usergroup_id = $fullpath[2];
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $usergroup = HSDB45::UserGroup->new(_school=>$school)->lookup_key($usergroup_id);
+	my $ugroup_name = $usergroup->out_label();
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	onsubmit =>'return checkform(this)',
+ } 
+&>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<tr> 
+<td class="labelgray">Delete:</td>
+<td class="cell-left"><b><% $data->{course}->field_value('title') %>&nbsp;-&nbsp;<% $data->{timeperiod}->field_value('period') %></b></td>
+</tr><tr> 
+<td class="labelgray">Usage:</td>
+<td class="cell-left"><b>none</b> - <i>deleting this group link will not affect any content, discussions or announcements</i></td>
+</tr><tr> 
+<td>&nbsp;</td>
+<td class="cell-submit"> 
+<& /tmpl/element:save_button, params=>{
+	label 			=> 'Delete and Continue',
+	no_cancel_button => 1,
+	class 	=> 'formbutton',
+	name	=> 'action',
+	} 
+&>
+
+</tr></table></form>
+
+<%init>
+
+	my $timeperiod_id = $m->comp("/tmpl/url:get_last_path_id"); 
+	my $data = TUSK::Manage::GroupLinks::delete_pre_process($school,$course_id,$timeperiod_id);
+	
+	if ($ARGS{action}){
+		my ($rval, $msg) = TUSK::Manage::GroupLinks::delete_process($school,$usergroup_id, $data);
+
+		my $msgtype;
+		if($rval == 1) { $msgtype= "msg";}
+        else { $msgtype="errmsg"; }
+        $m->comp("/tmpl/url:redirect",destination => "/management/grouplinks/show/usergroup/$school/$usergroup_id?$msgtype=$msg", message =>'');
+
+	}
+
+</%init>
+
+<%method title>
+% return "Delete User Group Links";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method get_nav_bars>
+% return [{ href=> '/management/home', label => 'CMS Home' }, { href=>'', label=>'Admin - '.$school}, { href=>'/management/usergroup/show/school/'.$school,label=>'Manage Groups'}, { href=>'/management/usergroup/addedit/school/'.$school.'/'.$usergroup_id,label=> $ugroup_name }, {href=>'/management/grouplinks/show/usergroup/'.$school.'/'.$usergroup_id,label=>'Group Links'}  ];
+</%method>

@@ -6,8 +6,8 @@
 	must_be_school_admin => 1
 	check_cms_permissions => 1
 	use_nav_bar => 1
+	top_tab_type => 'manage'
 </%attr>
-
 
 <%method get_nav_bars>
 <%perl>
@@ -15,18 +15,29 @@
 		objects =>  $m->comp("SELF:get_nav_bar_objects"), 
 		prefix => '/eval/administrator',
 		hierarchy => {	
-				'show' => [],
-				'createbyperiod' => ['show'],
+				'export'             => [],
+				'ref_sheet'          => [],
+				'show'               => [],
+				'createbyperiod'     => ['show'],
+				'overdue_evals'      => ['show'],
+				'merged_admin'       => ['show'],
+				'merged_eval_edit'   => ['show', 'merged_admin'],
+				'eval_edit'          => ['show'],
+				'eval_question_edit' => ['show', 'eval_edit'],
+				'filter_creator'     => ['show', 'eval_edit'],
 			    },
-	       'type_path' => $m->comp('SELF:schoolname') . '/' . $m->comp('/tmpl/url:get_first_path_id'),
-               'nav_entities_dependency' => {},
+		type_path => $m->comp('SELF:schoolname'),
+		nav_entities_dependency => { 
+										'eval_edit' => {'object'=>'HSDB45::Eval', 'static_title'=>'Evaluation: ', 'depend'=>[]},
+									},
+		title_func => { 'HSDB45::Eval' => 'title' },
 		urls => { 
-			show => {link => 'show', label => 'Manage Evaluations'},
+				show => {link => 'show', label => 'Manage Evaluations'},
+				merged_admin => {link => 'merged_admin', label => 'Merged Evaluation Scoreboard'}
 			},
 );
 </%perl>
 </%method>
-
 
 <%method schoolname>
 % 	return $school->getSchoolName;

@@ -1,0 +1,40 @@
+<%attr>
+	top_tab_type => 'home'
+</%attr>
+
+<%method get_nav_bars>
+<%perl>
+	my ($course, $initial_nav_bars);
+
+	unless ($m->base_comp->attr('no_check_path')) {
+		$course = $m->comp("/tmpl/url:get_type_object");
+	}
+
+	if ($course) {
+		my $path = $course->school() . "/" . $course->course_id();
+		$initial_nav_bars = [ 
+			{ href => '/assessment/student/home', label => 'Assessments Homepage'},
+		];
+	}
+
+	return $m->comp("/tmpl/nav", 
+		objects =>  $m->comp("SELF:get_nav_bar_objects"), 
+		type_path => ($m->base_comp->attr('no_check_path')) ? '' : undef,
+		prefix => '/assessment/student',
+		hierarchy => {	
+			'home' => [],
+			'entry' => [],
+		},
+		nav_entities_dependency => {},
+		title_func => { 'TUSK::FormBuilder::Form' => 'getFormName', },
+		initial_nav_bar =>  $initial_nav_bars,
+	);
+</%perl>
+</%method>
+
+<%method red_header_class>
+% 	return 'blueHeaderBar';
+</%method>
+
+<% $m->call_next %>
+

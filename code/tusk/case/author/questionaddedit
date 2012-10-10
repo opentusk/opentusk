@@ -1,3 +1,11 @@
+<%once> 
+use TUSK::Quiz::Quiz;
+use TUSK::Quiz::Question;
+use TUSK::Quiz::LinkQuizQuizItem;
+use TUSK::Case::LinkPhaseQuiz;
+use TUSK::Case::Phase;
+</%once>
+
 <%shared>
 	my @path = @{$m->comp('/tmpl/url:get_path_ids')};
 	my $case_id = $path[0];
@@ -80,6 +88,7 @@ return 'Create Quiz Question';
 <& /quiz/author/tmpl/editquestion:question_fields,question=>$question,
 		questionLink=>$questionLink,
 		formname=>'questionaddedit',
+		quiz_id=>$quizLink->getChildQuizID(),
 		tool => 'Case' &>
 
 <& /tmpl/element:save_button, params=>{label=>'Save Changes',
@@ -90,14 +99,6 @@ return 'Create Quiz Question';
 
 </form>
 </table>
-
-<%once> 
-use TUSK::Quiz::Quiz;
-use TUSK::Quiz::Question;
-use TUSK::Quiz::LinkQuizQuizItem;
-use TUSK::Case::LinkPhaseQuiz;
-use TUSK::Case::Phase;
-</%once>
 
 <%init>
 
@@ -111,7 +112,10 @@ if (scalar (@{$quizLinks}) > 1 ){
 	$m->comp("/tmpl/error", msg=>"The phase has multiple quizzes");
 } elsif (!scalar(@{$quizLinks})){
 	$quiz = TUSK::Quiz::Quiz->new();
-	$quiz->setTitle($phase->getPhaseTitle(). " Quiz");
+	my $qtitle = $phase->getPhaseTitle();
+	# append the word ' Quiz' to the quiz title, unless our phase type is "Quiz"
+	$qtitle .= (ref($phase) !~ /Quiz$/)? ' Quiz' : '';
+	$quiz->setTitle($qtitle);
 	$quiz->setQuizType('Quiz');
 	$quiz->save({'user'=>$user_id});	
 	$quizLink = TUSK::Case::LinkPhaseQuiz->new();

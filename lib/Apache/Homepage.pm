@@ -4,7 +4,7 @@ use strict;
 use HSDB4::SQLRow::User;
 use Apache::TicketTool;
 use Apache::Cookie;
-use TUSK::ShibbolethUser;
+use TUSK::Shibboleth::User;
 use Apache::Constants qw(OK REDIRECT);
 use Apache::Request;
 use TUSK::Mobile::Device;
@@ -21,7 +21,7 @@ sub handler{
 	my $apr = Apache::Request->new($r);
 
 	if ($res) {
-		$shibUser = TUSK::ShibbolethUser->isShibUser($r->connection->user);
+		$shibUser = TUSK::Shibboleth::User->isShibUser($r->connection->user);
 		if($shibUser > -1) {
 			$user->makeGhost($shibUser);
 		} 
@@ -52,7 +52,7 @@ sub handler{
 
 	if($user->primary_key){
 		unless($r->uri() =~ /^\/bigscreen/){ 
-			if(($r->uri() =~ /^\/mobi/ || $r->uri() =~ /^\/smallscreen/) || (($ua && checkUA($ua)) || TUSK::Mobile::Device::isMobileDevice($ua))){
+			if(($r->uri() =~ /^\/mobi/ || $r->uri() =~ /^\/smallscreen/) || (!mobileExceptions($ua) && (checkUA($ua) || TUSK::Mobile::Device::isMobileDevice($ua)))){
 				$r->internal_redirect("/tusk/mobi/home?$params");
 				return OK;
 			}
@@ -63,7 +63,7 @@ sub handler{
 	}
 	else{
 		unless($r->uri() =~ /^\/bigscreen/){ 
-			if(($r->uri() =~ /^\/mobi/ || $r->uri() =~ /^\/smallscreen/) || (($ua && checkUA($ua)) || TUSK::Mobile::Device::isMobileDevice($ua))){
+			if(($r->uri() =~ /^\/mobi/ || $r->uri() =~ /^\/smallscreen/) || (!mobileExceptions($ua) && (checkUA($ua) || TUSK::Mobile::Device::isMobileDevice($ua)))){
 				$r->internal_redirect("/mobi/login?$params");
 				return OK;
 			}
@@ -73,6 +73,16 @@ sub handler{
 		return OK;
 	}
 
+}
+
+sub mobileExceptions {
+	my $ua = lc shift;
+
+	# This was put in place to redirect browsers that would normally be mobile
+	# to the main site.  The current impetus is the iPad, but there is clearly
+	# the potential for a variety of tablets if the market takes off.
+
+	if ( $ua =~ /ipad/ ) { return 1; }
 }
 
 sub checkUA{
@@ -97,7 +107,6 @@ sub checkUA{
 	   || $ua =~ /opwv/
 	   || $ua =~ /symbian/
 	   ){
-
 		return 1;
 	}
 	return 0;

@@ -1,13 +1,32 @@
 #!/bin/sh
 
-LD_LIBRARY_PATH=/opt/shibboleth-sp/lib
+# sh echo does know understand -n so if there is a ucb/echo lets use that
+for dir in '/usr/ucb' '/usr/local/bin' '/usr/bin' '/bin'; do
+        if [ -x "$dir/echo" ]; then
+                ECHO="$dir/echo"
+                break
+        fi
+done
+
+# Check this out, this calls the same script with perl and perl looks for the #! perl line and starts processing from there
+# This is the magic that I use to get the configuration stuff out of httpdconf.pm
+eval `perl -x $0 2> /dev/null`
+
+LD_LIBRARY_PATH=$SHIB_ROOT/lib
 export LD_LIBRARY_PATH
-PID_FILE=/usr/local/tusk/current/logs/shibd.pid
-SHIBD_SOCK=/usr/local/tusk/current/logs/shib-shar.sock
+PATH=/usr/sbin:/usr/bin:/usr/ucb:/sbin:/bin:/usr/local/bin
+export PATH
 SHIBD_PID=
 if [ -f "$PID_FILE" ] ; then
 	SHIBD_PID=`cat "$PID_FILE"`
 fi
+
+ME=`whoami`             
+if [ $ME != 'root' ] ; then
+	$ECHO "You are trying to $1 shibd as a non root user!"
+	exit 3
+fi
+
 
 case "$1" in
 	'start')
@@ -15,36 +34,48 @@ case "$1" in
 		# not just that the PID file exists.
 		kill -0 $SHIBD_PID > /dev/null 2>&1
 		err=$?
-		if [ $err -eq 0 ]
-		then
-			echo "shibd is running: pid $SHIBD_PID"
+		if [ $err -eq 0 ] ; then
+			$ECHO "shibd is running: pid $SHIBD_PID"
 		else
 
 			# cleanup after improper shutdown
-			if [ -f "$PID_FILE" ]
-			then
+			if [ -f "$PID_FILE" ] ; then
 				rm -f "$PID_FILE"
 			fi
-			if [ -r "$SHIBD_SOCK" ]
-			then
+			if [ -r "$SHIBD_SOCK" ] ; then
 				rm -f "$SHIBD_SOCK"
 			fi
 
-			/opt/shibboleth-sp/sbin/shibd -c /usr/local/tusk/current/addons/shibboleth/shibboleth.xml & echo $! > "$PID_FILE"
-			echo "shibd started"
+			# The perl call will attempt to make this if its not there
+			if [ -f "$XML_FILE" ] ; then
+				$SHIB_ROOT/sbin/shibd -c $XML_FILE -p $PID_FILE
+				SHIBD_PID=`cat "$PID_FILE"`
+				kill -0 $SHIBD_PID > /dev/null 2>&1
+				err=$?
+				if [ $err -eq 0 ] ; then
+					$ECHO "shibd started: pid $SHIBD_PID"
+				else
+					$ECHO "shibd failed to start $err"
+				fi
+			else
+				$ECHO "$XML_FILE unable to be created, can't start without it."
+			fi
 		fi
 		;;
 	'stop')
-		if [ "$SHIBD_PID" ]
-		then
+		if [ "$SHIBD_PID" ] ; then
 			kill $SHIBD_PID
-			rm -f $PID_FILE
-			echo "shibd stopped"
+			RETURN_VALUE=$?
+			if [ $RETURN_VALUE = 0 ] ; then
+				rm -f $PID_FILE
+				$ECHO "shibd stopped"
+			else
+				$ECHO "kill failed on shib (pid $SHIBD_PID)"
+			fi
 		else
-			echo "shibd is not running"
+			$ECHO "shibd is not running"
 		fi
-		if [ -r "$SHIBD_SOCK" ]
-		then
+		if [ -r "$SHIBD_SOCK" ] ; then
 			rm -f "$SHIBD_SOCK"
 		fi
 		;;
@@ -54,9 +85,63 @@ case "$1" in
 		;;
 	*)
 		# usage
-		echo "usage: $0 start|stop|restart"
+		$ECHO "usage: $0 start|stop|restart"
 		exit 1
 		;;
 esac	
 
 exit 0
+
+
+
+#!/usr/bin/perl
+# This portion of the script extracts information out of httpdconf.pm and returns them to the sh above
+# All it does is print environment stuff and the above script has to parse through that output to actuall make env stuff
+#!/usr/bin/perl
+use FindBin;
+use strict;
+# Since this script can be run as /etc/init.d/httpd we have to add /usr/local/tusk/current/lib to the search path
+# Since FindBin is first it should check there first.
+use lib "$FindBin::Bin/../lib", "/usr/local/tusk/current/lib";
+use TUSK::Shibboleth::Configurator;
+
+# This file should (hopefully) never need to be edited by an external installation.
+
+my %hashOfVariables = TUSK::Shibboleth::Configurator::getConfigurationFiles;
+
+if($hashOfVariables{'pidFile'})		{print "PID_FILE=$hashOfVariables{'pidFile'}; export PID_FILE;\n";}
+if($hashOfVariables{'shibdSock'})	{print "SHIBD_SOCK=$hashOfVariables{'shibdSock'}; export SHIBD_SOCK;\n";}
+if($hashOfVariables{'xmlFile'})		{print "XML_FILE=$hashOfVariables{'xmlFile'}; export XML_FILE;\n";}
+if($hashOfVariables{'shibRoot'})	{print "SHIB_ROOT=$hashOfVariables{'shibRoot'}; export SHIB_ROOT;\n";}
+# An explicit exit so that perl does not go past here
+
+my $regenFiles = 0;
+my $needsRegen = 0;
+my @shibbolethIDs = @{TUSK::Shibboleth::User->new()->lookup()};
+
+foreach (@shibbolethIDs) {
+	if($_->needsRegen() eq 'Y') {$needsRegen = 1;}
+}
+unless(-f $hashOfVariables{'xmlFile'}) {
+	print "\$ECHO $hashOfVariables{'xmlFile'} missing.\n";
+	$regenFiles = 1;
+} elsif($needsRegen) {
+	print "\$ECHO Shibboleth files are out of date and need to be regenerated.\n";
+	$regenFiles = 1;
+}
+if($regenFiles) {
+	print "\$ECHO Attempting to create files...\n";
+	my ($worked, $errors, $warnings) = TUSK::Shibboleth::Configurator::writeConfigFiles;
+	if(!$worked) {
+		print "Failed.;\n";
+		print "\$ECHO If you are on a dev machine and running this as root your environment may not have gotten set up correctly, try runing shibd as yourself 1st.;\n";
+		print "\$ECHO $errors;\n";
+	} else {
+		print "Success;\n";
+		if($errors)	{ print "\$ECHO $errors;\n"; }
+		if($warnings)	{ print "\$ECHO $warnings;\n"; }
+	}
+}
+
+exit();
+

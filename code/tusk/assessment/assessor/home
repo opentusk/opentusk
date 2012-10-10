@@ -1,0 +1,57 @@
+<%attr>
+	no_check_path => 1
+</%attr>
+
+<%once>
+	use HSDB45::Course;
+</%once>
+
+<%perl>
+	my $rows = $m->session->{'user'}->get_instructor_assessments();
+	my ($courses, $forms);
+
+	foreach my $row (@$rows) {
+		unless (exists $courses->{$row->{course_id}}{title}) {
+			if (my $course = HSDB45::Course->new(_school => $row->{school_name}, _id => $row->{course_id})) {
+				$courses->{$row->{course_id}}{title} = $course->title();
+				$courses->{$row->{course_id}}{school} = $row->{school_name};			
+			}
+		}
+
+		unless (exists $forms->{$row->{course_id}}{$row->{form_id}}) {
+			$forms->{$row->{course_id}}{$row->{form_id}} = [ $row->{form_name}, $row->{form_description} ];
+		}
+	}
+</%perl>
+
+<& "/tmpl/element:table", params => { width => "70%", border =>"0", cellspacing => "0", cellpadding => "0" } &>
+%	foreach my $course_id (keys %$courses) {
+<tr><td colspan="3" style="padding:10px 0 5px 0;"><a href="/management/course/display/<% $courses->{$course_id}{school} . '/' . $course_id . '">Course - ' . $courses->{$course_id}{title} %></a><td></tr>
+
+<tr class="header"><th align="left">Title</th><th align="left">Instruction</th><th align="left"></th></tr>
+%		my $i = 0;
+%		foreach my $form_id (sort keys %{$forms->{$course_id}}) {
+%			my $odd_even = ($i++ % 2 == 0) ? 'even' : 'odd';
+<tr class="<% $odd_even %>">
+<td style="padding:5px 10px 5px 2px;"><% $forms->{$course_id}{$form_id}[0] %></td>
+<td style="padding:5px 10px 5px 2px;"><% $forms->{$course_id}{$form_id}[1] %></td>
+<td>
+<a href="<% "/assessment/assessor/list/course/$courses->{$course_id}{school}/$course_id/$form_id" %>">assessment forms</a>
+</td>
+</tr>
+%		}
+<tr><td colspan="3"><br/><br/></td></tr>
+%	}
+</table>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:getFormTypeLabel') . 's';
+</%method>
+
+<%method title>
+% 	return $m->comp('SELF:getFormTypeLabel') . 's';
+</%method>
+
+<%method get_nav_bars>
+%	return [{ href => '/manage/', label => 'CMS Home' }];
+</%method>

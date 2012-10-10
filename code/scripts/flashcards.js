@@ -43,17 +43,17 @@ function toggle_display(id) {
 		e.style.display = 'none';
 }
 
+
 function toggle_button(id) {
 
-
 var e = document.getElementById(id);
-  if (e.value == 'Show Answer'){
-	e.value='Hide Answer ';
+ 
+if (e.value.indexOf("Show") >= 0 ) {
+	e.value= e.value.replace("Show","Hide");
 
-  }
-  else {
-	e.value = 'Show Answer';
-  }
+} else {
+	e.value= e.value.replace("Hide","Show");
+}
 
 }
 
@@ -155,8 +155,7 @@ function submitnote(formName,id)
 	frm.submit();
 }
 
-
- function showOrHideHelp() {
+function showOrHideHelp() {
 
        if(document.getElementById('showHideDiv').innerHTML == 'Show') {
          document.getElementById('showHideDiv').innerHTML = 'Hide';
@@ -165,4 +164,82 @@ function submitnote(formName,id)
          document.getElementById('showHideDiv').innerHTML = 'Show';
          document.getElementById('helpDiv').style.display = 'none';
        }
+}
+
+var ajaxRequest;
+
+function requestContent(personalContentID) {
+
+  var url = "/tusk/ajax/getFlashCardDeck/"+personalContentID;
+
+  if (window.XMLHttpRequest) {
+      ajaxRequest = new XMLHttpRequest();
+      nodeTextType = 'textContent';
+  } else if (window.ActiveXObject) {
+      ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+      nodeTextType = 'text';
+  } else {
+	var location = document.URL;
+
+	alert('You are being transfered because your browser does not support AJAX.');
+	document.location = location;
+  }
+
+  ajaxRequest.open("GET", url, true);
+  // the following trickery is interesting
+  ajaxRequest.onreadystatechange = function() { if(ajaxRequest.readyState ==4) { showContent(personalContentID) } };;	
+  ajaxRequest.send(null);
+
+}
+
+function showContent(contentID) {
+
+  var id;  var title; var url;
+
+  if(!ajaxRequest) {return;}
+  if(ajaxRequest.readyState == 4) {
+//	alert(ajaxRequest.responseText);
+    var response = ajaxRequest.responseText;
+    if(!response) {
+	
+      if(ajaxRequest.status && (ajaxRequest.status == 200)) {
+			alert('I was unable to get the Deck!');
+		}
+    }
+    else {
+
+	 document.getElementById("td_"+contentID).innerHTML = response;
+
+    } //else (response exists)
+
+  } // if readystate == 4
+
+}
+
+
+function submitContent(mycontent,myfolder,url,savediv) {
+//this is currently used by flashcards and personalcontent in the toolkit	
+
+  			 if (window.XMLHttpRequest) {
+      			ajaxRequest = new XMLHttpRequest();
+      			nodeTextType = 'textContent';
+  			} else if (window.ActiveXObject) {
+      			ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+      			nodeTextType = 'text';
+  			} else {
+				var location = document.URL;
+
+				alert('You are being transfered because your browser does not support AJAX.');
+				document.location = location;
+  			}
+
+  		ajaxRequest.open("GET", url, true);
+		ajaxRequest.onreadystatechange = function() { 
+		if(ajaxRequest.readyState ==4) { 
+			document.getElementById(savediv).style.display="block";
+			setTimeout('document.getElementById("'+savediv+'").style.display="none"', 3000);
+		}
+	
+		};;	
+  		ajaxRequest.send(null);	
 }

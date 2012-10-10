@@ -2,6 +2,7 @@
 	# some global variables
 	my $response_hash = {};
 	my $show_answers = 0;
+	my $hide_correct_answer = 0;
 </%shared>
 
 <%method display_quiz>
@@ -119,6 +120,7 @@ No Questions.
 		my $show_response_flag = (defined($response) && $show_answers) ? 1 : 0;
 		my $tr_style = ($count) ? 'padding-top:10px' : '';
 </%perl>	
+	<tr><td colspan="2">&nbsp;</td></tr>
 	<tr style="<% $tr_style %>">
 		<td valign="top" class="quiz_count" style="width:1%"><% ($is_section) ? $count++ : ++$count %>.</td>
 		<td class="quiz_item"><% $question->getBody() %></td>
@@ -159,6 +161,7 @@ No Questions.
 </%args>
 % 	my $quiz_id = $quiz->getPrimaryKeyID();
 % 	$show_answers = 1 unless ($save_submission);
+% 	$hide_correct_answer = $quiz->getHideCorrectAnswer();
 <& SELF:display_quiz, quiz_id => $quiz_id, result => $result, show_title => $show_title, question_count => $question_count, items => $items &>
 </%method>
 
@@ -174,6 +177,7 @@ No Questions.
 <%perl>
 	my ($your_answer, $feedback, $imgText, $correct_answer_text, $your_answer_text);
 	return unless (ref($response) eq 'TUSK::Quiz::Response');
+
  	if ($answer){
  		$feedback = $answer->getFeedback();
   	} else {
@@ -214,7 +218,7 @@ No Questions.
 <& SELF:display_question_feedback, question => $question &>
 
 %
-% if ($correct_answer_text) {
+% if ($correct_answer_text && !$hide_correct_answer) {
 <& /tmpl/element:field_display , params=>{ label => 'Correct&nbsp;Answer', value => $correct_answer_text} &>
 % }
 

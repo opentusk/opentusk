@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS tusk.x_battery_exam;
+DROP TABLE IF EXISTS tusk.x_battery_exam_history;
+DROP TABLE IF EXISTS tusk.x_battery_exam_test;
+DROP TABLE IF EXISTS tusk.x_battery_exam_test_history;
+DROP TABLE IF EXISTS tusk.x_exam_selection;
+DROP TABLE IF EXISTS tusk.x_exam_selection_history;
+DROP TABLE IF EXISTS tusk.x_phase_exam_exclusion;
+DROP TABLE IF EXISTS tusk.x_phase_exam_exclusion_history;
+DROP TABLE IF EXISTS tusk.x_phase_test_exclusion;
+DROP TABLE IF EXISTS tusk.x_phase_test_exclusion_history;
+DROP TABLE IF EXISTS tusk.x_test_selection;
+DROP TABLE IF EXISTS tusk.x_test_selection_history;

@@ -60,6 +60,7 @@ sub getEntries {
 
 	$sth->finish();
 
+	return (undef, undef, undef, undef) unless (keys %student_entries);
 	my $user_ids = join(",", map { "'$_'"} keys %student_entries);
 	my @students = HSDB4::SQLRow::User->lookup_conditions("user_id in ($user_ids) order by lastname,firstname");
 
@@ -80,21 +81,16 @@ sub getCheckList {
 	my ($self, $field_id) = @_;
 
 	my $sql = qq(
-				 select e.entry_id, r.field_id, r.item_id, j.item_name
-				 from tusk.form_builder_response as r
-				 right outer join tusk.form_builder_entry as e on (r.entry_id = e.entry_id and e.form_id = $self->{_form_id} and time_period_id in ($self->{_time_period_ids_string}))
-				 inner join (
-							  select ai.item_id, ai.item_name, ra.response_id from 
-							  tusk.form_builder_response_attribute as ra, tusk.form_builder_attribute_item as ai
-							  where ra.attribute_item_id = ai.item_id
-							  ) as j on (r.response_id = j.response_id) 
-				 where field_id = $field_id
+				 SELECT e.entry_id, r.item_id, ai.item_name 
+				 FROM tusk.form_builder_entry e, tusk.form_builder_response r, tusk.form_builder_response_attribute ra, tusk.form_builder_attribute_item ai 
+				 WHERE e.entry_id = r.entry_id and r.response_id = ra.response_id and ai.item_id = ra.attribute_item_id
+				 and form_id = $self->{_form_id} and time_period_id in ($self->{_time_period_ids_string}) and field_id = $field_id
 	);
 
 	my $sth = $self->{_form}->databaseSelect($sql);
 	my %data;  
 	### get a hash of responses keyed by entry_id, field_id and item_id
-	while (my ($entry_id, $field_id, $item_id, $attribute_item_name) = $sth->fetchrow_array()) {
+	while (my ($entry_id, $item_id, $attribute_item_name) = $sth->fetchrow_array()) {
 		$data{$entry_id}{$item_id} = $attribute_item_name;
 	}
 
@@ -112,7 +108,7 @@ sub getEssay {
 	my ($self, $field_id) = @_;
 
 	my $sql = qq(
-				 select e.entry_id, r.field_id, r.text
+				 select e.entry_id, r.text
 				 from tusk.form_builder_response as r
 				 right outer join tusk.form_builder_entry as e on (r.entry_id = e.entry_id and e.form_id = $self->{_form_id} and time_period_id in ($self->{_time_period_ids_string}))
 				 where field_id = $field_id
@@ -121,7 +117,7 @@ sub getEssay {
 	my $sth = $self->{_form}->databaseSelect($sql);
 	my %data;  
 	### get a hash of responses keyed by entry_id, field_id and item_id
-	while (my ($entry_id, $field_id, $text) = $sth->fetchrow_array()) {
+	while (my ($entry_id, $text) = $sth->fetchrow_array()) {
 		$data{$entry_id} = $text;
 	}
 

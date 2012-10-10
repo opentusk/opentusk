@@ -1,0 +1,55 @@
+<%once>
+	use HSDB45::Eval::MergedResults;
+	use HSDB45::Eval::MergedResults::Formatter;
+</%once>
+
+<%shared>
+	my $school   = $m->comp('SELF:schoolname');
+	my @path_ids = $m->comp("/tmpl/url:get_path_ids");
+	my ($filter, $filter_id, $eval_id);
+	if ( scalar(@path_ids) == 2 ) {
+		$filter    = "filtered_";
+		$filter_id = $path_ids[0];
+		$eval_id   = $path_ids[1];
+	} else {
+		$filter    = "";
+		$filter_id = "";
+		$eval_id   = $path_ids[0];
+	}
+	my $merged_eval_results = HSDB45::Eval::MergedResults->new( _school => $school, _id => $eval_id );
+	my $eval = $merged_eval_results->parent_eval();
+</%shared>
+
+<% $results_string %>
+
+<%init>
+	my $results_string;
+	my $formatter;
+	if(scalar($eval->users())) {
+		my @atts = ("HOST" => $r->header_in("Host"), 
+					"SVGURL" => "/mergedevalgraph",
+					"MERGED_ID" => $merged_eval_results->primary_key(),
+					"FILTER" => $filter,
+					"FILTER_ID" => $filter_id,
+					"COMPLETIONS" => 0,
+					"HIDEGROUPBY" => $ARGS{'HIDEGROUPBY' } ? 1 : 0);
+
+		$formatter = HSDB45::Eval::MergedResults::Formatter->new($merged_eval_results);
+		$results_string = HSDB45::StyleSheet::apply_global_stylesheet($ENV{XSL_ROOT} . "/Eval/eval_results.xsl", $formatter->get_xml_text(), @atts);
+	} else {
+		$results_string = '<b>No Results Available</b>';
+	}
+</%init>
+
+<%method stylearray>
+%	return ['/style/eval.css', '/style/style.css'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . " Eval Report: " . $merged_eval_results->field_value('title');
+</%method>
+

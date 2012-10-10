@@ -23,6 +23,7 @@ use TUSK::Case::PhaseVisit;
 	
 	my $title = $phase->getPhaseTitle();
 	$case->setUser($m->comp('SELF:user'));
+	my $report = $case->getReport();
 
 	if($case->isLinearNav() && !$case->prevPhaseVisited($phase)){
 		$m->redirect("/case/casestart/$type_path/$case_id");
@@ -30,26 +31,53 @@ use TUSK::Case::PhaseVisit;
 
 	my %ARGS = $m->request_args();
 
-	my $visit;
-	if (defined $ARGS{'phase_visit_id'}) {
-		$visit = TUSK::Case::PhaseVisit->lookupKey($ARGS{'phase_visit_id'});
-		$phase->setVisit($visit);
+
+	# only eval rules on first phase visit. once phase has been visited, rules can't keep user out
+	my @msgs;
+	unless ($phase->visited($report)) {
+		my $rules = $phase->getRules();
+		@msgs = $phase->evaluateRules($rules, $report);
 	}
-	else {
-		$visit = $case->visitPhase($phase,$m->comp('SELF:user'));
-		$phase->setVisit($visit)
+
+	# we don't want to register a phase visit if entry rules not met
+	unless (scalar @msgs) {
+		my $visit;
+		if (defined $ARGS{'phase_visit_id'}) {
+			$visit = TUSK::Case::PhaseVisit->lookupKey($ARGS{'phase_visit_id'});
+			$phase->setVisit($visit);
+		}
+		else {
+			$visit = $case->visitPhase($phase,$m->comp('SELF:user'));
+			$phase->setVisit($visit)
+		}
 	}
 
 	$title .= $m->comp('SELF:get_preview_text', case => $case);
 
-	my $report = $case->getReport();
-	
 	if ($ARGS{redirect}){
 		$m->comp('tmpl/element:transition', args => \%ARGS);
 	}
 </%shared>
 
 
+<& /tmpl/element:table &>
+<& tmpl/element:header_bar, label => $title &>
+
+
+% if (scalar @msgs) {
+<%doc>Needed to add following call to transition b/c without it, in global case, we cannot finish a case</%doc>
+<& /case/tmpl/element:transition,args=>\%ARGS &>
+%	my $errmsg = "Unfortunately, you did not meet all of the case author's criteria for entering this phase.<br/>Please see the author's feedback below, then use the case navigation to the left to determine which phase you will visit next.";
+%	my $alert;
+%	foreach my $m (@msgs) {
+%		$alert .= "<p>$m</p>"; 
+%	}
+<tr><td style="padding-top: 5px; padding-bottom: 5px;">
+<& /tmpl/prepend:traffic_light, use_tables => 0, args => {errmsg => $errmsg} &>
+<% $alert %>
+</td></tr>
+% }
+% else {
 
 <%perl>
 my $nav_buttons = $m->scomp('tmpl/' . $phase->getIncludeFile() . ':get_button_nav', phase => $phase, case => $case, args => \%ARGS);
@@ -58,21 +86,22 @@ if ($nav_buttons =~ /\S/) {
 } 
 </%perl>
 
-<& /tmpl/element:table &>
-<& tmpl/element:header_bar, label => $title &>
-
 <% $nav_buttons %>
 <tr><td style="padding-top: 5px; padding-bottom: 5px;">
 <& "tmpl/" . $phase->getIncludeFile(), case => $case, phase => $phase, args => \%ARGS &>
 </td></tr>
 <% $nav_buttons %>
-</table>
 
-<& /tmpl/wizard:include &>
 <& /tmpl/element:hidden_form_element, params => { 
 		name  => 'phase_visit_id', 
 		value => $phase->getVisit()->getPrimaryKeyID()} 
 &>
+
+% }
+
+</table>
+
+<& /tmpl/wizard:include &>
 </form>
 
 

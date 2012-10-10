@@ -1,0 +1,23 @@
+#! /usr/bin/perl -w
+
+use strict;
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use TUSK::Cron::Variable;
+use HSDB4::DateTime;
+
+
+my $cron_var = TUSK::Cron::Variable->new()->lookupReturnOne("cron_name='fts_index' and variable_name='LastRun'");
+my $last_run = $cron_var->getVariableValue();
+$last_run = HSDB4::DateTime->new()->in_mysql_timestamp($last_run);
+
+my $days = 2;
+my $past = HSDB4::DateTime->new();
+$past->subtract_days($days);
+
+
+if ($last_run->is_before($past)) {
+	print "The FTS Indexer has been running for more than $days days. Please make sure that it is still processing content successfully.\n";
+}
+

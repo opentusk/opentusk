@@ -1,0 +1,83 @@
+<%once>
+	use TUSK::FormBuilder::Form;
+	use TUSK::FormBuilder::FormType;
+	use TUSK::FormBuilder::Form::AttributeItem;
+	use TUSK::FormBuilder::LinkCourseForm;
+</%once>
+
+<%shared>
+	my ($time_period_id, $teaching_site_id);
+
+	unless ($m->base_comp->attr('no_check_path')) {
+		my $course = $m->comp("/tmpl/url:get_type_object");
+		if (my $time_period = $course->get_current_timeperiod()) {
+			$time_period_id = $time_period->primary_key();
+		} else {
+			$time_period_id = 0;
+		}
+	}
+
+	my $form_token = 'Assessment';
+	my $form_type = TUSK::FormBuilder::FormType->new()->lookupReturnOne("token = '$form_token'");
+</%shared>
+
+
+<%method get_form_rubrics>
+<%args>
+	$form_id
+</%args>
+<%perl>
+	my $rubrics = TUSK::FormBuilder::Form::AttributeItem->lookup(undef, ['form_builder_field_item.field_id', 'form_builder_form_attribute_item.sort_order'], undef, undef, [ 
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Form::AttributeFieldItem', { joinkey => 'attribute_item_id', jointype => 'left outer' }),
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::FieldItem', { joinkey => 'item_id', origkey => 'form_builder_form_attribute_field_item.field_item_id', jointype => 'inner' }),
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Form::Attribute', { joinkey => 'attribute_id', jointype => 'inner', joincond => "form_id = $form_id" }) ]);
+	my %field_rubrics = {};
+	foreach (@$rubrics) {
+		push @{$field_rubrics{$_->getJoinObject('TUSK::FormBuilder::FieldItem')->getFieldID()}}, $_;
+	}
+	return \%field_rubrics;
+</%perl>
+</%method>
+
+
+<%method get_nav_bars>
+<%perl>
+	return $m->comp("/tmpl/nav", 
+		'objects' => $m->comp("SELF:get_nav_bar_objects"),
+	    'prefix' => '/assessment',
+	    'hierarchy' => {
+			'preview' => [],
+		},
+	    'nav_entities_dependency' => {},
+		'type_path' => $m->comp("/tmpl/url:get_type_path"),
+	    'urls' => {},
+		'initial_nav_bar' => [ @{$m->comp("/tmpl/url:get_initial_nav_bars")}, { href => '/assessment/author/show/' . $m->comp("/tmpl/url:get_type_path"), label => 'Manage Assessment' } ]
+	);
+</%perl>
+</%method>
+
+<%method getFormType>
+%	return $form_type;
+</%method>
+
+<%method getFormTypeLabel>
+%	return $form_type->getLabel();
+</%method>
+
+<%method getFormToken>
+%	return $form_token;
+</%method>
+
+<%method get_time_period_id>
+% 	return ($time_period_id);
+</%method>
+
+<%method get_teaching_site_id>
+% 	return ($teaching_site_id);
+</%method>
+
+<%method stylearray>
+% 	return ['/style/style.css', '/style/calendar-blue.css', '/style/formbuilder.css'];
+</%method>
+
+<% $m->call_next %>

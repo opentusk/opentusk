@@ -20,25 +20,6 @@ use strict;
 my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
 my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
 
-sub delete_process{
-    my ($req) = @_;
-    my ($id, $link);
-
-    ## remove course link
-    my $dbh = HSDB4::Constants::def_db_handle();
-    my $db = HSDB4::Constants::get_school_db($req->{school});
-    my $board = Forum::Board->new();
-    $board->lookupKey($req->{discussion_id});
-
-    $board->setPrivate(1);
-    $board->save();
-
-    my $sth = $dbh->prepare("DELETE FROM mwforum.variables WHERE name = ?");
-    $sth->execute($req->{discussion_id}); 
-
-    return (1, "Discussion Deleted");
-}
-
 sub addedit_process{
     my ($req, $fdat, $udat) = @_;
     my ($rval, $msg);
@@ -65,7 +46,7 @@ sub addedit_process{
 	{
 		$courseId = $req->{course_id} || 0;
 		$categoryKey = ($req->{course}->type() =~ /group|thesis committee/i)? "$courseId-0-0" : "0-0-0";
-		$timeperiod = TUSK::Functions::get_time_period($req, $udat) || 0;
+		$timeperiod = $udat->{timeperiod} || 0;
 		$boardKey = Forum::ForumKey::createBoardKey($schoolId,$courseId,$timeperiod,$groupId);
 	}
 	else
@@ -108,12 +89,15 @@ sub addedit_process{
 
 
 	my $board = Forum::Board->new();
-    
+
+	$fdat->{'action'} = 'add';
+ 
     if ($req->{discussion_id}){
+		$fdat->{'action'} = 'edit';
 	    $board->lookupKey($req->{discussion_id});
 	}
     elsif ($req->{type} eq 'course'){
-	my $timeperiod = TUSK::Functions::get_time_period($req, $udat) || 0;
+	my $timeperiod = $udat->{timeperiod} || 0;
 	if ($timeperiod){
 	    my $time_period_obj = HSDB45::TimePeriod->new( _school => $req->{school})->lookup_key($timeperiod);
 	    $board->setStartDate($time_period_obj->field_value('start_date'));
@@ -267,23 +251,6 @@ sub add_user{
     $permission->save();
     
 }
-sub show_process{
-    my ($data, $req, $fdat) = @_;
-    my ($rval, $msg);
-
-    my ($index, $insert) = split('-', $fdat->{order});
-    splice(@{$data->{discussions}}, ($insert-1), 0, splice(@{$data->{discussions}}, ($index-1), 1));
-    
-    for(my $i=0; $i<$data->{disc_count}; $i++){
-	my $board = Forum::Board->new()->lookupKey((@{$data->{discussions}}[$i])->{id});
-	$board->setPos($i);
-	$board->save();
-    }
-    
-    delete($fdat->{order});
-    return(1, "Order Successfully Changed", $data);
-    
-}
 
 sub addedit_pre_process{
     my ($req, $fdat, $udat) = @_;
@@ -316,60 +283,6 @@ sub addedit_pre_process{
     return $data;
 }
 
-sub show_pre_process{
-    my ($req, $timeperiod, $udat) = @_;
-    my ($data, @forum_ids, $id, %foruminfo, @groups);
-
-    my $dbh = HSDB4::Constants::def_db_handle();
-    
-    my $schoolId = TUSK::Core::School->new->getSchoolID($req->{school});
-    $data->{discussions} = [];
-    
-    if ($req->{type} eq "course"){
-
-	$timeperiod = TUSK::Functions::course_time_periods_emb($req, $timeperiod, $udat);
-	    
-	eval {
-
-
-	    my @subgroups = $req->{course}->sub_user_groups($timeperiod);
-	    my %groupLabel = map {$_->{user_group_id}, $_->{label}} @subgroups;
-	    $groupLabel{0} = "All";
-	    
-	    my $boardKey = Forum::ForumKey::createBoardKey($schoolId, $req->{course}->primary_key, $timeperiod, '%');
-	    my $sth = $dbh->prepare("SELECT id, title, shortDesc, boardkey, pos
-                                     FROM mwforum.boards AS b
-				     WHERE b.boardkey like '$boardKey'
-                                     AND b.private = 0
-                                     ORDER by b.pos");
-	    $sth->execute();
-	    while(my @row = $sth->fetchrow_array()) {
-		my @boardkeyarray = split(/-/, $row[3]);
-		push (@{$data->{discussions}}, {id => shift(@row), title => shift(@row), shortDesc => shift(@row), boardkey => shift(@row), pos => shift(@row), label => $groupLabel{$boardkeyarray[3]}});
-	    }
-	    
-	};
-    }elsif ($req->{type} eq "school"){
-	eval {
-	    my $boardKey = Forum::ForumKey::createBoardKey($schoolId, 0, 0, 0);
-	    my $sth = $dbh->prepare("SELECT id, title, shortDesc, boardkey, pos 
-				     FROM mwforum.boards AS b 
-                                     WHERE b.boardkey like '$boardKey'
-                                     AND b.private = 0
-		                     ORDER BY b.pos");
-	    $sth->execute();
-	    while(my @row = $sth->fetchrow_array()) {
-		push (@{$data->{discussions}}, {id => shift(@row), title => shift(@row), shortDesc => shift(@row), boardkey => shift(@row), pos => shift(@row)});
-	    }
-	    
-	};
-    }
-
-    $data->{disc_count} = scalar(@{$data->{discussions}});
-    return $data;
-}
-
-
 sub users_process{
     #
     # manage forum users
@@ -399,32 +312,6 @@ sub users_process{
     }
 
     return (1, "Discussion Users Updated");
-}
-
-sub users_pre_process{
-    my ($req) = @_;
-    my $data;
-
-    $data->{board} = Forum::Board->new()->lookupKey($req->{discussion_id});
-
-    push(@{$req->{nav_bar}}, "/manage/discussions/addedit/" . $req->{selfpath} . "\tDiscussion: " . $data->{board}->getTitle());
-
-    my $permissions = Forum::Permission->new()->lookup("boardId='" . int($req->{discussion_id}) ."'", 
-						 ['lastname', 'firstname'], 
-						 undef, 
-						 undef, 
-						 [
-						  TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", { origkey => 'userName' })
-						  ]);
-
-    $data->{userarray} = [];
-
-    foreach my $permission (@$permissions){
-	my $userObj = $permission->getJoinObject("TUSK::Core::HSDB4Tables::User");
-	push (@{$data->{userarray}}, {permissionid => $permission->getPrimaryKeyID(), userid => $userObj->getPrimaryKeyID(), name => $userObj->getLastname() . ", " . $userObj->getFirstname(), permissions => $permission->getPermissions() });
-    }
-
-    return $data;
 }
 
 sub update_board_title{

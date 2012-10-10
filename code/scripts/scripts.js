@@ -261,7 +261,7 @@ function openhelp (node, content_id){
 	var win_name = 'quickhelp';
 
 	if(node > 0){
-		help_window = window.open("/hsdb4/truncate/" + content_id + "/?node="+node, win_name, param);
+		help_window = window.open("/view/truncate/" + content_id + "/?node="+node, win_name, param);
 		if (!help_window.opener) help_window.opener = self;
 	}
 	else {
@@ -422,7 +422,9 @@ function updatetime(form, label){
 
 function make_date_object(date_string){
 	var date_array = date_string.split(/[- :]/);
-	return new Date(date_array[0], date_array[1], date_array[2], date_array[3], date_array[4]);
+	// Date constructor needs month val from 0-11. cast string to integer and subtract 1
+	var month = (parseInt(date_array[1], 10)) - 1;
+	return new Date(date_array[0], month, date_array[2], date_array[3], date_array[4]);
 }
 
 function make_date_no_time_object(date_string){
@@ -728,9 +730,9 @@ function toggle_div(id){
 
 
 /*
-fx for form on /manage/course/modify/ and /manage/course/info/HSDB/1193
+fx for form on /management/course/modify/ and /management/course/info/
 */
-function adjustXtraFields(selection){
+function adjustXtraFields(selection, integrated){
 
 	var selectionTxt = selection[selection.selectedIndex].text;
 
@@ -741,11 +743,13 @@ function adjustXtraFields(selection){
 		document.getElementById('caeXtraFields').className = 'showAll';
 	}
 
-    if (!selectionTxt.match(/integrated course/i)){
-		document.getElementById('caeSubcourses').className = 'hideAll';
-	}
-	else {
-		document.getElementById('caeSubcourses').className = 'showAll';
+	if ( integrated ) {
+	    if (!selectionTxt.match(/integrated course/i)){
+			document.getElementById('caeSubcourses').className = 'hideAll';
+		}
+		else {
+			document.getElementById('caeSubcourses').className = 'showAll';
+		}
 	}
 }
 
@@ -1046,4 +1050,3 @@ function activateTab(active){
 	var activate_div = document.getElementById(active.parentNode.id + 'Area');
 	activate_div.className += ' activeArea';
 }
-

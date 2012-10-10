@@ -1,11 +1,15 @@
 package TUSK::Application::GradeBook::GradeBook;
 
 use strict;
+use TUSK::GradeBook::GradeScale;
+use TUSK::GradeBook::GradeScaleBounds;
+use TUSK::GradeBook::GradeEventGradeScale;
 use TUSK::GradeBook::GradeCategory;
 use TUSK::GradeBook::GradeEvent;
 use TUSK::GradeBook::GradeOffering;
 use TUSK::Application::GradeBook::FinalGrade::ByEvent;
 use TUSK::Functions;
+
 
 sub new {
     my ($class, $args) = @_;
@@ -321,26 +325,42 @@ sub calculateFinalGradeByEvent {
 	my $grade_records = $self->getAllGradeRecordsByStudent($events);
 
 	unless ($self->{final_grade}) {
-		unless ($self->{final_grade_event}) {
-			my $event = TUSK::GradeBook::GradeEvent->new();
-			$event->setEventName('Final Grade');
-			$event->setSchoolID($self->{course}->get_school()->getPrimaryKeyID());
-			$event->setCourseID($self->{course}->primary_key());
-			$event->setTimePeriodID($self->{time_period_id});
-			$event->setGradeCategoryID($self->getRootCategory()->getPrimaryKeyID());
-			$event->save({user => $self->{user_id}});
-			$self->{final_grade_event} = $event;
-
-			$self->{grade_offering}->setFinalGradeEventID($event->getPrimaryKeyID());
-			$self->{grade_offering}->save({user => $self->{user_id}});
-		}
-
+		$self->setFinalGradeEvent() unless ($self->{final_grade_event});
 		$self->{final_grade} = TUSK::Application::GradeBook::FinalGrade::ByEvent->new( { user_id => $self->{user_id}, final_grade_event => $self->{final_grade_event}, course => $self->{course} });
 	}
 
 	$self->{final_grade}->process($grade_records);
 }
 
+
+sub createGradeEvent {
+	my $self = shift;
+	my $event_name = shift || '';
+	my $event_description = shift || undef;
+
+	my $event = TUSK::GradeBook::GradeEvent->new();
+	$event->setEventName($event_name);
+	$event->setEventDescription($event_name);
+	$event->setSchoolID($self->{course}->get_school()->getPrimaryKeyID());
+	$event->setCourseID($self->{course}->primary_key());
+	$event->setTimePeriodID($self->{time_period_id});
+	$event->setGradeCategoryID($self->getRootCategory()->getPrimaryKeyID());
+	$event->save({user => $self->{user_id}});
+	return $event;
+}
+
+
+sub setFinalGradeEvent {
+	my ($self, $event) = @_;
+
+	if (!defined $event && ref $event ne 'TUSK::GradeBook::GradeEvent') {
+		$event = $self->createGradeEvent('Final Grade');
+	} 
+
+	$self->{grade_offering}->setFinalGradeEventID($event->getPrimaryKeyID());
+	$self->{grade_offering}->save({user => $self->{user_id}});
+	$self->{final_grade_event} = $event;
+}
 
 sub getFinalGradeEvent {
 	my ($self, $event_id) = @_;
@@ -354,6 +374,34 @@ sub getFinalGradeEvent {
 	}
 	return $self->{final_grade_event};
 }
+
+#########################################################################################
+
+sub getScaledGrade {
+	my ($self,$calculated_grade,$grade_event_id) = @_;
+	my $scaled_grade;
+	my $grade_event_scale = TUSK::GradeBook::GradeEventGradeScale->lookupReturnOne("grade_event_id = " . $grade_event_id);
+	my $scale_id = $grade_event_scale->{_field_values}->{'grade_scale_id'};
+
+	if (defined($scale_id)) {
+		my $scales = TUSK::GradeBook::GradeScaleBounds->lookup("grade_scale_id = $scale_id order by lower_bound desc");
+		my $j=0;
+		while( defined(@$scales[$j]) && !defined($scaled_grade) ) {
+			my $lower_bound = @$scales[$j]->getLowerBound();
+			if ($calculated_grade >= $lower_bound ) {
+				$scaled_grade = @$scales[$j]->getGradeSymbol();
+			}
+			$j++;
+		}
+	}
+
+	if( !defined($scaled_grade) ) {
+		$scaled_grade = "N/A";
+	}
+
+	return $scaled_grade;
+}
+
 
 
 1;

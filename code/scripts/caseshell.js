@@ -116,6 +116,35 @@ function open_quiz_window(type_path, phase_id, question_id){
 
 }
 
+function can_add_question_type(){
+	var dropdown = document.getElementById('question_type');
+
+	var dd_val = dropdown.options[dropdown.options.selectedIndex].value;
+	if (dd_val.match(/fillin|essay/i)) {
+		alert('Sorry, you cannot add questions of type "Fill In," "Multiple Fill In," or "Essay" to a quiz that has a rule requiring a minumum score.');
+		return false;
+	}
+	else {
+		return true;
+	}
+}
+
+function open_quiz_window_check(type_path, phase_id){
+	if (can_add_question_type()) {
+		open_quiz_window(type_path, phase_id);
+	}
+}
+
+function populate_answers_check(formname){
+	if (can_add_question_type()) {
+		populate_answers(formname);
+	}
+	else {
+		var dropdown = document.getElementById('question_type');
+		dropdown.options.selectedIndex = 0;
+		populate_answers(formname);
+	}
+}
 
 function toggle_panel(rowid){
 	var elem = document.getElementById(rowid+'-link');
@@ -143,7 +172,7 @@ function sim_check(checkid){
 		return;
 	}
 	if (inputElem.value == 'checked'){
-		inputElem.value = null;
+		inputElem.value = '';
 		imgElem.src = '/graphics/case/checkbox_empty.gif';
 	} else {
 		inputElem.value = 'checked';
@@ -407,7 +436,6 @@ function is_form_complete(){
 
 function complete_phase(formname, nextpage){
 	if (document.forms[formname] != null ){
-
 		var casedone = /casedone/;
 		if (nextpage.match(casedone)) {
 			if (!confirm_case_completion()) {
@@ -423,7 +451,19 @@ function complete_phase(formname, nextpage){
 		document.forms[formname].appendChild(currentElement);
 
 		save_and_continue(formname, nextpage);
+	}
+}
 
+function retake_quiz(formname) {
+	if (document.forms[formname] != null ){
+		var currentElement = document.createElement("input");
+		currentElement.setAttribute("type", "hidden");
+		currentElement.setAttribute("name", "retake_quiz");
+		currentElement.setAttribute("id", "retake_quiz");
+		currentElement.setAttribute("value", "1");
+		document.forms[formname].appendChild(currentElement);
+
+		document.forms[formname].submit();
 	}
 }
 
@@ -546,4 +586,52 @@ function showNotes(ajaxRequest){
 		var td = elt.getElementsByTagName('td')[0];
 		td.innerHTML = response;
 	}
+}
+
+/* *****
+** this function duplicates most of the behavior of a fx in home.js
+** if this functionality is used elsewhere, it would make sense to 
+** invest the time in promoting this fx to scripts.js and making it 
+** more generic.
+***** */
+function toggleView(caller) {
+	// anchor is in h4 (first parentNode), which is in a div (second parentNode)
+	// get that div
+	var parent = caller.parentNode.parentNode;
+
+	var elt = getElementsByClass({className: 'quizInfo', tag: 'div', node: parent})[0];
+
+	var action;
+	if(elt.className.match(/\sgDisplayNone/)){
+		elt.className = elt.className.replace(/\sgDisplayNone/, '');
+		caller.innerHTML = '[-]';
+		action = 'include';
+	}
+	else{
+		elt.className += ' gDisplayNone';
+		caller.innerHTML = '[+]';
+		action = 'exclude';
+	}
+}
+
+
+function addRuleToPhase(dd, type_path, caseid){
+	if (isEnabled(dd)) {
+		var phaseid = (dd.options[dd.options.selectedIndex].value);
+		if (phaseid) {
+			window.location = '/case/author/ruleaddedit/' +type_path+ '/' +caseid+ '/' +phaseid;
+		}
+	}
+}
+
+
+// ie7 doesn't disable options, so if disabled attribute is present, prevent its selection
+function isEnabled(dd) {
+	var disabled = $(dd).children(':selected').attr('disabled');
+	if (disabled) {
+		alert('You have selected an invalid option. Please try again.');
+		$(dd).get(0).selectedIndex = 0;
+		return 0;
+	}
+	return 1;
 }

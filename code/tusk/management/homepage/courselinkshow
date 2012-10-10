@@ -1,0 +1,56 @@
+<%once>
+	use TUSK::HomepageCourse;
+	use TUSK::HomepageCategory;
+</%once>
+
+<%perl>
+	my $school      = $m->comp("/tmpl/url:get_school");
+	my $category_id = @{$m->comp("/tmpl/url:get_path_ids")}[0];
+	my $category    = TUSK::HomepageCategory->new(_school => $school)->lookup_key( $category_id );
+    my @courselinks = $category->get_homepage_courses;
+
+	if ($ARGS{'order'}) {
+    	my ($index, $insert) = split('-', $ARGS{'order'});
+	
+	    splice(@courselinks, ($insert-1), 0, splice(@courselinks, ($index-1),1));
+    
+    	for(my $i=0; $i < scalar(@courselinks); $i++){
+			$courselinks[$i]->set_field_values( sort_order=>10*($i+1));
+			$courselinks[$i]->save();
+		}
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit => undef, 
+        name => 'category' } 
+&>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ { link_txt    => '/management/homepage/courselinkaddedit/school/' . $school . '/' . $category_id . '/0',
+		         display_txt => 'New Course Link' } ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+				sort_box => 1,
+				columns => [ {'label' => 'Label',         'field' => 'formatted_label' },
+				             {'label' => 'Course or URL', 'field' => 'formatted_course' },
+				             {'label' => 'Displaying',    'field' => 'displaying', 'align' => 'center' },
+					],
+				action_columns => [ 
+							{ 'label' => 'Modify', 'link' => '/management/homepage/courselinkaddedit' },
+							{ 'label' => 'Delete', 'link' => '/management/homepage/courselinkdelete' } 
+			  			], 
+				object_list => \@courselinks,
+				type_path => $m->comp("/tmpl/url:get_type_path") . '/' . $category_id,
+				name => "category",
+				empty_message => "No course links.",
+				}
+&>
+
+</form>
+
+<%method title>
+% return "Manage Course Links";
+</%method>

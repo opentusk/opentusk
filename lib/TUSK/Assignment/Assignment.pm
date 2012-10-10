@@ -38,6 +38,7 @@ use TUSK::Assignment::LinkAssignmentContent;
 use TUSK::Assignment::LinkAssignmentStudent;
 use TUSK::Assignment::LinkAssignmentUserGroup;
 use HSDB4::Constants;
+use HSDB4::DateTime;
 
 # Non-exported package globals go here
 use vars ();
@@ -395,7 +396,15 @@ sub containsFacultyContent {
     return (@{$links}) ? 1 : 0;
 }
 
-
+sub isOverDue {
+	my $self = shift;
+	if (my $due_date = $self->getDueDate()) {
+		my $now = HSDB4::DateTime->new();
+		my $due = HSDB4::DateTime->new()->in_mysql_date($due_date);
+		return (HSDB4::DateTime::compare($now, $due) > 0) ? 1 : 0;
+	}
+	return 0;
+}
 
 =head1 BUGS
 

@@ -429,7 +429,7 @@ sub do_question_edits {
 	($r, $msg) = $question->body()->set_num_columns($num_columns);
 	return wantarray ? ($r, $msg) : $r unless $r;
 	my @choices = ();
-	for my $num (0..19) {
+	for my $num (0..39) {
 	    my $choice = $fdat->{"q_$qid\_choice_$num"};
 	    push @choices, $choice if $choice;
 	}
@@ -489,7 +489,13 @@ sub check_field_values {
     if ($fdat->{available_date} && $fdat->{due_date}) {
 	my $adate = HSDB4::DateTime->new()->in_mysql_date($fdat->{available_date});
 	my $ddate = HSDB4::DateTime->new()->in_mysql_date($fdat->{due_date});
+	my $sdate = HSDB4::DateTime->new()->in_mysql_date($fdat->{submittable_date});
 	my $pdate = HSDB4::DateTime->new()->in_mysql_date($fdat->{prelim_due_date}) if $fdat->{prelim_due_date};
+
+	if ($ddate->has_value() && $sdate->has_value() && $sdate->out_unix_time() > $ddate->out_unix_time()) {
+		$res = 0;
+		$msg .= "Submittable date must be less than or equal to due date.\n";
+	}
 
 	if ($adate->has_value() && $ddate->has_value()) {
 	    unless ($adate->out_unix_time() <= $ddate->out_unix_time()) {

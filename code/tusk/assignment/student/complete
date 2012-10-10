@@ -12,7 +12,7 @@
 	my $student_user_id = $m->session->{'user'}->primary_key();
 	my ($assignment, $student, $contents, $submit_date, $assigned_groups, $assigned_groups_text);
 	my $group_assignment_problem = 0;
-	my ($notes, $resubmission_allowed, $submissions, $current_sequence);
+	my ($notes, $resubmission_allowed, $submissions, $current_sequence, $is_over_due);
 </%shared>
 
 
@@ -76,6 +76,7 @@
 		$submit_date = $student->getSubmitDate();
 	}
 
+	$is_over_due = (!defined $submit_date && $assignment->isOverDue()) ? 1 : 0;
 
 	if (defined($params{submit_check})) {
 
@@ -134,7 +135,7 @@
 	width 		=> "100%",
 	border		=> "0",
 	cellspacing	=> "0", 
-	cellpadding 	=> "0"
+	cellpadding => "0"
 } &>
 
 <& /tmpl/element:field_display, params=>{label => 'Title:', value => $assignment->getTitle()} &>
@@ -143,7 +144,7 @@
 
 <& /tmpl/element:field_display, params=>{label => 'Available Date:', value => $assignment->getFormattedAvailableDate()} &>
 
-<& /tmpl/element:field_display, params=>{label => 'Due Date:', value => $assignment->getFormattedDueDate()} &>
+<& /tmpl/element:field_display, params=>{label => 'Due Date:', value => $assignment->getFormattedDueDate() . (($is_over_due) ? ' &nbsp;&nbsp; <font color="red"><b><i>The assignment is overdue!</b></i></font>' : '')} &>
 
 <& /tmpl/element:field_display, params=>{label => 'Instructions:', value => $assignment->getFormattedInstruction()} &>
 
@@ -273,6 +274,8 @@
 <%method save_submit_assignment_button>
 % 	if (defined $submit_date && !($resubmission_allowed)) {
 <& /tmpl/element:field_display, params=>{label => '<font color="blue">Submit Date:</font>', value => "<font color=\"blue\">$submit_date</font>"} &>
+% 	} elsif ($is_over_due) {
+<%doc>do nothing here</%doc>
 % 	} else {
 
 <& /tmpl/element:save_button, params => {

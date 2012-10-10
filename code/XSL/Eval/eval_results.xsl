@@ -23,6 +23,7 @@
   <xsl:param name="SHOWUSERS"></xsl:param>
   <xsl:param name="FULLHTML"></xsl:param>
   <xsl:param name="PRETTYUSERLABEL"></xsl:param>
+  <xsl:param name="MERGED"></xsl:param>
 
   <xsl:template match="/">
     <ol>
@@ -304,35 +305,52 @@
           </ul>
         </xsl:when>
         <xsl:otherwise>
-          <table border="1" cellspacing="0">
-            <tr>
-              <th></th>
-              <th>N</th>
-              <th>%</th>
-            </tr>
-            <xsl:for-each select="$question_results/ResponseGroup/ResponseStatistics/Histogram/HistogramBin">
-              <xsl:sort select="." data-type="number"/>
-              <tr>
-                <td><xsl:value-of select="."/></td>
-                <td><xsl:value-of select="@count"/></td>
-                <td><xsl:value-of select="round(100 * (@count div ../../response_count))"/></td>
-              </tr>
-            </xsl:for-each>
-            <xsl:if test="$question_results/ResponseGroup/ResponseStatistics/no_response_count &gt; 0">
-              <tr>
-                <td>No Response</td>
-                <td><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/no_response_count"/></td>
-                <td><xsl:value-of select="round(100 * ($question_results/ResponseGroup/ResponseStatistics/no_response_count div ($question_results/ResponseGroup/ResponseStatistics/response_count + $question_results/ResponseGroup/ResponseStatistics/no_response_count + $question_results/ResponseGroup/ResponseStatistics/na_response_count)))"/></td>
-              </tr>
-            </xsl:if>
-            <xsl:if test="MultipleChoice">
-              <tr>
-                <td>All</td>
-                <td><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/response_count"/></td>
-                <td>100</td>
-              </tr>
-            </xsl:if>
-          </table>
+		<xsl:choose>
+			<xsl:when test="$MERGED != 1 and $completionsXml/@count = 1">
+				<!-- This is a one man show !-->
+				<xsl:choose>
+					<xsl:when test="$question_results/ResponseGroup/ResponseStatistics/no_response_count &gt; 0"><b>No Response</b></xsl:when>
+					<xsl:when test="$question_results/ResponseGroup/ResponseStatistics/na_response_count &gt; 0"><b>N/A</b></xsl:when>
+					<xsl:otherwise>
+						<xsl:for-each select="$question_results/ResponseGroup/ResponseStatistics/Histogram/HistogramBin">
+							<xsl:sort select="." data-type="number"/>
+							<xsl:if test="@count &gt; 0"><span style="padding-left:7px;"><b><xsl:value-of select="."/></b></span></xsl:if>
+						</xsl:for-each>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:when>
+			<xsl:otherwise>
+			          <table border="1" cellspacing="0">
+			            <tr>
+			              <th></th>
+			              <th>N</th>
+			              <th>%</th>
+			            </tr>
+			            <xsl:for-each select="$question_results/ResponseGroup/ResponseStatistics/Histogram/HistogramBin">
+			              <xsl:sort select="." data-type="number"/>
+			              <tr>
+			                <td><xsl:value-of select="."/></td>
+			                <td><xsl:value-of select="@count"/></td>
+			                <td><xsl:value-of select="round(100 * (@count div ../../response_count))"/></td>
+			              </tr>
+			            </xsl:for-each>
+			            <xsl:if test="$question_results/ResponseGroup/ResponseStatistics/no_response_count &gt; 0">
+			              <tr>
+			                <td>No Response</td>
+			                <td><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/no_response_count"/></td>
+			                <td><xsl:value-of select="round(100 * ($question_results/ResponseGroup/ResponseStatistics/no_response_count div ($question_results/ResponseGroup/ResponseStatistics/response_count + $question_results/ResponseGroup/ResponseStatistics/no_response_count + $question_results/ResponseGroup/ResponseStatistics/na_response_count)))"/></td>
+			              </tr>
+			            </xsl:if>
+			            <xsl:if test="MultipleChoice">
+			              <tr>
+			                <td>All</td>
+			                <td><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/response_count"/></td>
+			                <td>100</td>
+			              </tr>
+			            </xsl:if>
+			          </table>
+			</xsl:otherwise>
+		</xsl:choose>
         </xsl:otherwise>
       </xsl:choose>
     </div>
@@ -348,102 +366,121 @@
       <xsl:call-template name="question_text">
         <xsl:with-param name="text" select="$question//question_text"/>
       </xsl:call-template>
-        <div style="margin-left:75px;">
+        <div class="inner">
       <xsl:choose>
         <xsl:when test="$question_results/Categorization">
           <xsl:call-template name="categorizationHeader">
             <xsl:with-param name="question_results" select="$question_results"/>
           </xsl:call-template>
-          <div class="bargraph">
             <xsl:call-template name="catsvgembed">
               <xsl:with-param name="question_id" select="$question_id"/>
               <xsl:with-param name="num_cats" select="count($question_results/Categorization/ResponseGroup) + 1"/>
               <xsl:with-param name="school" select="$evalXml/@school"/>
               <xsl:with-param name="eval_id" select="$evalXml/@eval_id"/>
             </xsl:call-template>
-          </div>
         </xsl:when>
         <xsl:otherwise>
-          <table border="0" cellspacing="0">
-            <tr>
-              <td style="padding:2px; padding-right:20px;" valign="top" rowspan="2">
-                <div class="bargraph">
-                  <span class="tableTitleSpan"><b>Frequency:</b></span>
-                  <span class="tableContainerSpan" id="eval_question_H{$question_id}" width="100%">
-                    <img src="/graphics/spacer.gif" width="200px" height="1px"/><br/>
-                    Loading graph...
-                  </span>
-                </div>
-              </td>
-              <td valign="top" style="padding:2px; padding-right:20px; white-space:nowrap">
-                <div class="bargraph">
-                  <span class="tableTitleSpan" style="width:60px;"><b>Mean:</b></span>
-                  <span class="tableContainerSpan" id="eval_question_{$question_id}">
-                    <img src="/graphics/spacer.gif" width="200px" height="1px"/><br/>
-                    Loading graph...
-                  </span>
-                </div>
-              </td>
-              <td rowspan="2" valign="middle" style="white-space:nowrap; line-height:150%; padding:2px; padding-bottom:0px; font-size:10px;">
-                <b>N:</b><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/response_count"/>,
-                <b>NA:</b><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/na_response_count"/><br/>
-                <b><xsl:text>Mean:</xsl:text></b><xsl:choose>
-                  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/mean">
-                    <xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/mean"/>    
-                  </xsl:when>
-                  <xsl:otherwise>
-                    <xsl:text>--</xsl:text>
-                  </xsl:otherwise>
-                </xsl:choose>,
-                <b><xsl:text>Std Dev:</xsl:text></b><xsl:choose>
-                  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/standard_deviation">
-                    <xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/standard_deviation"/>
-                  </xsl:when>
-                  <xsl:otherwise>
-                    <xsl:text>--</xsl:text>
-                  </xsl:otherwise>
-                </xsl:choose><br/>
-                <b>Median:</b><xsl:choose>
-                  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/median">
-                    <xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/median"/>
-                  </xsl:when>
-                  <xsl:otherwise>
-                    <xsl:text>--</xsl:text>
-                  </xsl:otherwise>
-                </xsl:choose>,
-                <b>25%:</b><xsl:choose>
-                  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/median">
-                    <xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/median25"/>
-                  </xsl:when>
-                  <xsl:otherwise>
-                    <xsl:text>--</xsl:text>
-                  </xsl:otherwise>
-                </xsl:choose>,
-                <b>75%:</b><xsl:choose>
-                  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/median">
-                    <xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/median75"/>
-                  </xsl:when>
-                  <xsl:otherwise>
-                    <xsl:text>--</xsl:text>
-                  </xsl:otherwise>
-                </xsl:choose><br/>
-                <b>Mode:</b><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/mode"/><br/>
-              </td>
-            </tr>
-            <tr>
-              <td valign="top" style="padding:2px; padding-right:20px; white-space:nowrap">
-                <div class="bargraph">
-                  <span class="tableTitleSpan" style="width:60px;"><b>Median:</b></span>
-                  <span class="tableContainerSpan" id="eval_question_M{$question_id}">
-                    <img src="/graphics/spacer.gif" width="200px" height="1px"/><br/>
-                    Loading graph...
-		  </span>
-                </div>
-              </td>
 
-            </tr>
-          </table>
-
+		<xsl:choose>
+			<xsl:when test="$MERGED != 1 and $completionsXml/@count = 1">
+				<!-- This is a one man show !-->
+				On a scale of 
+				<xsl:for-each select="$question_results/ResponseGroup/ResponseStatistics/Histogram/HistogramBin">
+					<xsl:sort select="." data-type="number" order="ascending"/>
+					<xsl:if test="position()=1">
+						<xsl:value-of select="."/>
+					</xsl:if>
+				</xsl:for-each>
+				<!--(<xsl:value-of select="$question//low_text"/>)!--> to
+				<xsl:for-each select="$question_results/ResponseGroup/ResponseStatistics/Histogram/HistogramBin">
+					<xsl:sort select="." data-type="number" order="descending"/>
+					<xsl:if test="position()=1">
+						<xsl:value-of select="."/>
+					</xsl:if>
+				</xsl:for-each>
+				<!--(<xsl:value-of select="$question//high_text"/>)!-->:
+				<b>
+				<xsl:choose>
+					<xsl:when test="$question_results/ResponseGroup/ResponseStatistics/mean">
+						<xsl:value-of select="$question_results/ResponseGroup/Response"/>
+					</xsl:when>
+					<xsl:otherwise><xsl:text>--</xsl:text></xsl:otherwise>
+				</xsl:choose>
+				</b>
+			</xsl:when>
+			<xsl:otherwise>
+				<div class="bargraph">
+				  <span class="tableTitleSpan"><b>Frequency:</b></span>
+				  <span class="tableContainerSpan" id="eval_question_H{$question_id}">
+					<img src="/icons/transdot.gif" width="200px" height="1px"/><br/>
+					Loading graph...
+				  </span>
+				</div>
+				<div class="bargraph">
+					<div>
+					  <span class="tableTitleSpan"><b>Mean:</b></span>
+					  <span class="tableContainerSpan" id="eval_question_{$question_id}">
+						<img src="/icons/transdot.gif" width="200px" height="1px"/><br/>
+						Loading graph...
+					  </span>
+					</div>
+					<div>
+					  <span class="tableTitleSpan"><b>Median:</b></span>
+					  <span class="tableContainerSpan" id="eval_question_M{$question_id}">
+						<img src="/icons/transdot.gif" width="200px" height="1px"/><br/>
+						Loading graph...
+					 </span>
+					</div>
+				</div>
+				<p class="datastats">
+				<b>N:</b><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/response_count"/>,
+				<b>NA:</b><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/na_response_count"/><br/>
+				<b><xsl:text>Mean:</xsl:text></b><xsl:choose>
+				  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/mean">
+					<xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/mean"/>    
+				  </xsl:when>
+				  <xsl:otherwise>
+					<xsl:text>--</xsl:text>
+				  </xsl:otherwise>
+				</xsl:choose>,
+				<b><xsl:text>Std Dev:</xsl:text></b><xsl:choose>
+				  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/standard_deviation">
+					<xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/standard_deviation"/>
+				  </xsl:when>
+				  <xsl:otherwise>
+					<xsl:text>--</xsl:text>
+				  </xsl:otherwise>
+				</xsl:choose><br/>
+				<b>Median:</b><xsl:choose>
+				  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/median">
+					<xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/median"/>
+				  </xsl:when>
+				  <xsl:otherwise>
+					<xsl:text>--</xsl:text>
+				  </xsl:otherwise>
+				</xsl:choose>,
+				<b>25%:</b><xsl:choose>
+				  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/median">
+					<xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/median25"/>
+				  </xsl:when>
+				  <xsl:otherwise>
+					<xsl:text>--</xsl:text>
+				  </xsl:otherwise>
+				</xsl:choose>,
+				<b>75%:</b><xsl:choose>
+				  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/median">
+					<xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/median75"/>
+				  </xsl:when>
+				  <xsl:otherwise>
+					<xsl:text>--</xsl:text>
+				  </xsl:otherwise>
+				</xsl:choose><br/>
+				<b>Mode:</b><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/mode"/><br/>
+				</p>
+				<div class="clear"><xsl:text disable-output-escaping="yes">&amp;nbsp;</xsl:text></div>
+			</xsl:otherwise>
+		</xsl:choose>
+		
         </xsl:otherwise>
       </xsl:choose>
       </div>
@@ -539,14 +576,12 @@
         </xsl:for-each>
       </xsl:when>
       <xsl:otherwise>
-        <div class="bargraph">
           <xsl:call-template name="groupsvgembed">
             <xsl:with-param name="question_id" select="EvalQuestion/@eval_question_id"/>
             <xsl:with-param name="num_questions" select="count(*)"/>
             <xsl:with-param name="school" select="$evalXml/@school"/>
             <xsl:with-param name="eval_id" select="$evalXml/@eval_id"/>
           </xsl:call-template>
-        </div>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>

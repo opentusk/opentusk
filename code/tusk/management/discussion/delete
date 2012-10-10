@@ -1,0 +1,48 @@
+<%attr>
+        hintmsg => 'Are you sure you want to delete this discussion?'
+</%attr>
+
+<%once>
+	use TUSK::Constants;
+	use Forum::Board;
+</%once>
+
+<%shared>
+	my $board_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $board    = Forum::Board->new()->lookupKey( $board_id );
+</%shared>
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+                name => '' } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<& /tmpl/element:field_display, params=>{ label=>'Delete', value => $board->getTitle() }&>
+
+<& /tmpl/element:save_button, params=>{label=>'Delete',
+                cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/management/discussion/show") . "');",
+                name=>'submit'} &>
+</table>
+</form>
+
+<%init>
+if (defined($ARGS{'submit'})){
+	$board->setPrivate(1);
+	$board->save();
+
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my $sth = $dbh->prepare("DELETE FROM mwforum.variables WHERE name = ?");
+    $sth->execute($board_id); 
+
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/discussion/show", 'msg' => "Discussion Deleted"));
+}
+</%init>
+
+<%method title>
+% return "Delete Discussion";
+</%method>
+

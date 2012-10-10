@@ -76,7 +76,7 @@
 		$m->comp('SELF:courseSummaryByField');
 	} elsif ($params{rtype} eq 'ts') {
 		$m->comp('SELF:summary');
-		$m->comp('SELF:summaryByField');
+		$m->comp('SELF:studentSummaryByField');
 	} elsif ($params{rtype} eq 'ss') {
 		$m->comp('SELF:studentSummary');
 		$m->comp('SELF:summaryByField');
@@ -108,9 +108,10 @@
 	}
 
 	if ($results->{total}) {
+		$row++;
 		$worksheet->write($row, 0, 'Total');
-		for (my $col = 1; $col < @{$results->{total}}; $col++) {
-			$worksheet->write($row, $col, $results->{total}[$col]);		
+		for (my $col = 1; $col <= @{$results->{total}}; $col++) {
+			$worksheet->write($row, $col, $results->{total}[$col - 1]);		
 		}
 	}
 </%perl>
@@ -200,6 +201,18 @@
 </%method>
 
 
+<%method studentSummaryByField>
+<%perl>
+	foreach my $field (@$fields) {
+		my $worksheet = $workbook->add_worksheet($m->comp('SELF:formatLabel', label => $field->getFieldName()));
+		$row = 0;  ## reset a new running row 
+		my $results = $report->getFieldReportByStudent($field->getPrimaryKeyID());
+		$m->comp('SELF:tableDataByUsers', vheadings => $results->{rows}, data => $results->{data}, total_seen => $results->{total_seen}, total_reporting => $results->{total_reporting}, total_students => $results->{total_students}, worksheet => $worksheet, attribute_items => $results->{attribute_items}, labels => $results->{categorized_items}, contains_category => $results->{contains_category});
+	}
+</%perl>
+</%method>
+
+
 <%method allStudents>
 <%perl>
 	my $time_period_ids = $report->getTimePeriodIDs();
@@ -269,7 +282,8 @@
 		my $col = 1;
 		foreach (@{$labels}) {		
 			for (my $i = 0; $i < scalar @{$attribute_items}; $i++) {
-				$worksheet->write($row, $col++, $attribute_items->[$i]->getAbbreviation(), $header_format);
+				my $value = ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
+				$worksheet->write($row, $col++, $value, $header_format);
 			}
 		}
 		$row++;
@@ -316,7 +330,8 @@
 		foreach my $item (@{$items}) {
 	 		if ($item->getItemTypeToken() eq 'Item') {
 				for (my $i = 0; $i < scalar @{$attribute_items}; $i++) {
-					$worksheet->write($row, $col++, $attribute_items->[$i]->getAbbreviation(), $header_format);
+					my $value = ($attribute_items->[$i]->getAbbreviation()) ? $attribute_items->[$i]->getAbbreviation() : $attribute_items->[$i]->getItemName();
+					$worksheet->write($row, $col++, $value, $header_format);
 				}
 			}
 		}
@@ -419,5 +434,121 @@
 	}
 
 </%perl>
+</%method>
 
+
+
+<%method tableDataByUsers>
+<%args>
+	$worksheet
+	$data
+	$total_seen
+	$total_reporting
+	$total_students
+	$vheadings
+	$attribute_items => []
+	$labels => []
+	$contains_category
+</%args>
+<%perl>
+	foreach my $category (@$labels) {
+ 		# category title
+ 		if ($contains_category) {
+			$worksheet->write($row, 0, $category->{category_name}, $bold_format);
+			$row++;
+		}
+
+		# column headings (field item values) row
+		my $col = 1;
+		foreach my $item (@{$category->{category_items}}) {
+			$worksheet->write($row, $col, $item->{item_name}, $header_format);
+			if (scalar @$attribute_items > 0) {
+				$col = $col + scalar @$attribute_items;
+			}
+			else {
+				$col++;
+			}
+		}
+		$row++;
+
+		# attribute row (if needed)
+		if (scalar @$attribute_items > 0) {
+			my $col = 1;
+			foreach my $item (@{$category->{category_items}}) {
+				foreach my $attr (@$attribute_items) {
+					my $value = ($attr->getAbbreviation()) ? $attr->getAbbreviation() : $attr->getItemName();
+					$worksheet->write($row, $col, $value, $header_format);
+					$col++;
+				}
+ 			}
+		}
+		$row++;
+
+		# total rows
+		$col = 1;
+		$worksheet->write($row, 0, "# Patients Seen");		
+		foreach my $item (@{$category->{category_items}}) {
+			if (scalar @$attribute_items > 0) {
+				foreach my $attr (@$attribute_items) {
+					my $value = $total_seen->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+					$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+				}
+			}
+			else {
+				my $value = $total_seen->{$item->{item_id}} || 0;
+				$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+			}
+		}
+		$row++;
+		$col = 1;
+		$worksheet->write($row, 0, "# Patients Reporting");		
+		foreach my $item (@{$category->{category_items}}) {
+			if (scalar @$attribute_items > 0) {
+				foreach my $attr (@$attribute_items) {
+					my $value = $total_reporting->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+					$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+				}
+			}
+			else {
+				my $value = $total_reporting->{$item->{item_id}} || 0;
+				$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+			}
+		}
+		$row++;
+		$col = 1;
+		$worksheet->write($row, 0, "% Students Reporting");		
+		foreach my $item (@{$category->{category_items}}) {
+			if (scalar @$attribute_items > 0) {
+				foreach my $attr (@$attribute_items) {
+					$worksheet->write($row, $col++, sprintf("%.0f%", $total_reporting->{$item->{item_id}}->{$attr->getPrimaryKeyID()}/$total_students*100), ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+				}
+			}
+			else {
+				$worksheet->write($row, $col++, sprintf("%.0f%", $total_reporting->{$item->{item_id}}/$total_students*100), ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+			}
+		}
+		$row++;
+
+		# data rows, with user name in the first column
+		foreach my $user (@$vheadings) {
+			$worksheet->write($row, 0, $user->out_lastfirst_name());
+			$col = 1;
+			foreach my $item (@{$category->{category_items}}) {
+				if (scalar @$attribute_items > 0) {
+					foreach my $attr (@$attribute_items) {
+						my $value = $data->{$user->primary_key}->{$item->{item_id}}->{$attr->getPrimaryKeyID()} || 0;
+						$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+					}
+				}
+				else {
+					my $value = $data->{$user->primary_key}->{$item->{item_id}} || 0;
+					$worksheet->write($row, $col++, $value, ($item->{item_name} =~ /\*/) ? $bold_format : undef);
+				}
+			}
+			$row++;
+		}
+		$row++;
+	}
+
+</%perl>
 </%method>

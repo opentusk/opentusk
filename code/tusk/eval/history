@@ -1,0 +1,91 @@
+<%attr>
+	no_check_path => 1
+</%attr>
+
+<%once>
+	use HSDB45::Eval;
+    use HSDB45::Eval::Completion;
+</%once>
+
+<table cellpadding="20">
+    <tr>
+        <th class="title" align="left">Completed&nbsp;Evals</th>
+	<th class="title" align="left">Uncompleted&nbsp;Evals</th>
+	<th class="title" align="left">Past&nbsp;Due&nbsp;Evals</th>
+    </tr>
+    <tr>
+        <td valign="top">
+<%perl>
+	        my %sorted_by_school = ();
+	        foreach my $completion (sort {$a->out_label() cmp $b->out_label() } $user->eval_completions()) {
+			    unless($sorted_by_school{$completion->eval()->school()}) {
+					$sorted_by_school{$completion->eval()->school()} = [];
+		    	}
+			    push(@{$sorted_by_school{$completion->eval()->school()}}, $completion);
+			}
+</%perl>
+	    <table>
+%	    	foreach my $school (keys(%sorted_by_school)) {
+	        <tr><td><b><% $school %></b></td></tr>
+%				foreach my $completion (@{$sorted_by_school{$school}}) {
+	        <tr><td><% $completion->eval()->out_label() %></td></tr>
+%				}
+%			}
+	    </table>
+	</td>
+	<td valign="top">
+<%perl>
+	        %sorted_by_school = ();
+			foreach my $eval (sort {$a->out_label() cmp $b->out_label() } $user->current_evals()) {
+			    unless($sorted_by_school{$eval->school()}) {
+					$sorted_by_school{$eval->school()} = [];
+				}
+		    	push(@{$sorted_by_school{$eval->school()}}, $eval);
+			}
+</%perl>
+	    <table>
+%	    foreach my $school (keys(%sorted_by_school)) {
+	        <tr><td><b><% $school %></b></td></tr>
+%			foreach my $eval (@{$sorted_by_school{$school}}) {
+	        <tr><td>
+		    <a href="/protected/eval/complete/<% $eval->school() %>/<% $eval->field_value('eval_id') %>"><% $eval->out_label() %></a>
+		</td></tr>
+%			}
+%		}
+	    </table>
+	</td>
+        <td valign="top">
+<%perl>
+                %sorted_by_school = ();
+                foreach my $eval (sort {$a->out_label() cmp $b->out_label() } $user->overdue_evals()) {
+                    unless($sorted_by_school{$eval->school()}) {
+                        $sorted_by_school{$eval->school()} = [];
+                    }
+                    push(@{$sorted_by_school{$eval->school()}}, $eval);
+                }
+</%perl>
+            <table>
+%           foreach my $school (keys(%sorted_by_school)) {
+                <tr><td><b><% $school %></b></td></tr>
+%               foreach my $eval (@{$sorted_by_school{$school}}) {
+                <tr><td><% $eval->out_label() %></td></tr>
+%				}
+%			}
+            </table>
+        </td>
+
+    </tr>
+</table>
+
+<%init>
+	my $user = $m->session->{'user'};
+</%init>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return "Eval History";
+</%method>
+

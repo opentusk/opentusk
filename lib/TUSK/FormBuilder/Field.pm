@@ -67,7 +67,9 @@ sub new {
 					'required' => '',
 					'private' => '',
 					'fillin_size' => '',
+					'show_comment' => '',
 					'trailing_text' => '',
+					'weight' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -427,7 +429,79 @@ sub setTrailingText{
 }
 
 
+=cut
+
+#######################################################
+
+=item B<getWeight>
+
+    $string = $obj->getWeight();
+
+    Get the value of the weight field
+
+=cut
+
+sub getWeight{
+    my ($self) = @_;
+    return $self->getFieldValue('weight');
+}
+
+#######################################################
+
+=item B<setWeight>
+
+    $obj->setWeight($value);
+
+    Set the value of the weight field
+=cut
+
+sub setWeight {
+    my ($self, $value) = @_;
+    $self->setFieldValue('weight', $value);
+}
+
 =back
+
+
+=cut
+
+#######################################################
+
+=item B<getShowComment>
+
+    $string = $obj->getShowComment();
+
+    Get the value of the show_comment field
+
+=cut
+
+sub getShowComment{
+    my ($self) = @_;
+    return $self->getFieldValue('show_comment');
+}
+
+=back
+
+=cut
+
+#######################################################
+
+=item B<setShowComment>
+
+    $obj->setShowComment($value);
+
+    Set the value of the show_comment field
+
+=cut
+
+sub setShowComment{
+    my ($self, $value) = @_;
+    $self->setFieldValue('show_comment', $value);
+}
+
+
+=back
+
 
 =cut
 
@@ -613,6 +687,24 @@ sub isMultiSelectWithAttributes{
     return $field_type->checkToken('MultiSelectWithAttributes');
 }
 
+
+#######################################################
+
+=item B<isSingleSelect>
+
+    $int = $obj->isSingleSelect();
+
+    Check to see if this field object is a single select
+
+=cut
+
+sub isSingleSelectWithSubFields {
+    my ($self) = @_;
+    my $field_type =  $self->getFieldTypeObject();
+    return $field_type->checkToken('SingleSelectWithSubFields');
+}
+
+
 #######################################################
 
 =item B<isDynamicList>
@@ -710,6 +802,39 @@ sub isHeading {
     my ($self) = @_;
     my $field_type =  $self->getFieldTypeObject();
     return $field_type->checkToken('Heading');
+}
+
+#######################################################
+
+=item B<hasSubFields>
+
+    $int = $obj->hasSubFields();
+
+    Check to see if this field object has sub fields
+
+=cut
+
+sub hasSubFields {
+    my ($self) = @_;
+    my $field_type =  $self->getFieldTypeObject();
+    return $field_type->checkToken('ScalingWithSubFields') || $field_type->checkToken('SingleSelectWithSubFields');
+}
+
+
+#######################################################
+
+=item B<isRubric>
+
+    $int = $obj->isRubric();
+
+    Check to see if this field object is rubric
+
+=cut
+
+sub isRubric {
+    my ($self) = @_;
+    my $field_type =  $self->getFieldTypeObject();
+    return $field_type->checkToken('ScalingWithSubFields') || $field_type->checkToken('Scaling');
 }
 
 

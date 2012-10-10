@@ -55,6 +55,7 @@ sub new {
 					'time_period_id' => 'pk',
 					'modified' => '',
 					'teaching_site_id' => 'pk',
+					'elective' => '',
 				    },
 				    _attributes => {
 					save_history => 0,

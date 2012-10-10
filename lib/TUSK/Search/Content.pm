@@ -35,7 +35,7 @@ BEGIN {
 use vars @EXPORT_OK;
 use TUSK::Search::SearchQuery;
 use TUSK::Search::FTSFunctions;
-
+use Data::Dumper;
 # Non-exported package globals go here
 use vars ();
 
@@ -493,10 +493,11 @@ sub search{
     $sql .= " and search.child_content_id = content.content_id and search.parent_search_query_id = " . $parent_query->getPrimaryKeyID() if ($parent_query);
 
     $sql .= " order by computed_score desc limit 50" unless ($user_id);
-
+    
     if ($user_id){
 	my $results = $search_query->databaseSelect($sql);
 	while (my $array_ref = $results->fetchrow_arrayref()){
+		
 	    my $link = TUSK::Search::LinkSearchQueryContent->new();
 	    $link->setParentSearchQueryID($search_query->getPrimaryKeyID());
 	    $link->setChildContentID($array_ref->[0]);
@@ -505,6 +506,7 @@ sub search{
 	}
 	return $search_query;
     }else{
+		
 	my $results = $search_query->databaseSelect($sql);
 	my $array_ref = $results->fetchall_arrayref();
 	my @ids = map { $_->[0] } @$array_ref; 

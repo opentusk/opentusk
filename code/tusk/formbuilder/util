@@ -2,6 +2,7 @@
 	use TUSK::FormBuilder::Form;
 	use TUSK::FormBuilder::FormType;
 	use HSDB45::TimePeriod;
+	use TUSK::FormBuilder::EntryAssociation;
 </%once>
 
 <%shared>
@@ -14,21 +15,19 @@
 </%method>
 
 <%method get_form>
+<%args>
+	$join_objects => []
+</%args>
 <%perl>
-	my $form;
-
-	if ($form_id) {
-		$form = TUSK::FormBuilder::Form->new->lookupKey($form_id);
-	} else {
-		my $type_object = $m->comp("/tmpl/url:get_type_object");
-		if ($type_object->isa("HSDB45::Course")) {
-			$form = $type_object->get_patient_log();
-			unless ($form) {
-				$m->comp("/tmpl/url:redirect",message => "No patient log for this course.");
-			}	
-		}
+	unless ($form_id) {
+		$m->comp("/tmpl/url:redirect", message => "Missing Form ID");
 	}
-	return $form;
+
+ 	if (scalar @$join_objects) {
+		return TUSK::FormBuilder::Form->new()->lookupKey($form_id, $join_objects);
+	} else {
+		return TUSK::FormBuilder::Form->new()->lookupKey($form_id);
+	}
 </%perl>
 </%method>
 
@@ -72,8 +71,7 @@
 		if (scalar @students == 1){
 			$time_period_id = $students[0]->aux_info('time_period_id');
 			$teaching_site_id = $students[0]->aux_info('teaching_site_id');
-		}
-		elsif (scalar @students){
+		} elsif (scalar @students){
 			# need to look at the case where a student is associated to the course in more than one time period
 
 			# figure out all the time period ids and store the corresponding teaching site id
@@ -99,10 +97,37 @@
 </%perl>
 </%method>
 
-
 <%method getFormType>
 <%args>
 	$token
 </%args>
 %	return TUSK::FormBuilder::FormType->new()->lookupReturnOne("token = '$token'");
+</%method>
+
+<%method displayDate>
+<%args>
+	$entry
+	$date_label
+</%args>
+<& /tmpl/element:textbox, params =>{ 
+		label 		=> $date_label,
+		name        => 'encounter_date',
+		value       => ($entry) ? $entry->getDate() : HSDB4::DateTime->new()->out_mysql_date(),
+		size        => 10,
+		maxlength   => 10,
+		calendar    => 1,
+} &>
+</%method>
+
+<%method displayTimePeriod>
+<%args>
+	$entry
+</%args>
+% if (my $tp_id = ($entry) ? $entry->getTimePeriodID() : $m->comp('SELF:get_timeperiod_id')) {
+% 	my $tp = HSDB45::TimePeriod->new(_school => $m->comp('/tmpl/url:get_school'), _id => $tp_id);
+<& /tmpl/element:field_display, params => { 
+	label => 'Time Period',
+	value => $tp->out_display() . " <input type=\"hidden\" name=\"time_period_id\" value=\"$tp_id\" />",
+} &>
+% }
 </%method>

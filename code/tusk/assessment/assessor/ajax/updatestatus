@@ -1,0 +1,51 @@
+<%flags>
+	inherit => undef
+</%flags>
+
+<%once>
+	use TUSK::FormBuilder::SubjectAssessor;
+	use TUSK::Permission::UserRole;
+	use HSDB4::SQLRow::User;
+</%once>
+
+<%perl>
+	$m->clear_buffer();
+	$r->content_type('application/json');
+	$r->no_cache(1);
+</%perl>
+
+{ "id" : 1 }
+
+<%init>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my ($form_id, $tp_id) = $m->comp('/tmpl/url:get_path_ids');
+	my $link = TUSK::FormBuilder::SubjectAssessor->lookupReturnOne("subject_id = '$ARGS{student_id}' AND assessor_id = '$ARGS{assessor_id}' AND time_period_id = $tp_id AND form_id = $form_id");
+
+	if ($link && $link->getPrimaryKeyID()) {
+		$link->setStatus($ARGS{status});
+	} else {
+		$link = TUSK::FormBuilder::SubjectAssessor->new();
+		$link->setFieldValues({
+			subject_id => $ARGS{student_id},
+			assessor_id => $ARGS{assessor_id},
+			time_period_id => $tp_id,
+			form_id => $form_id,
+			status => $ARGS{status},
+		});			
+	}
+	$link->save({ user => $m->session->{user} });
+	my $user_roles = TUSK::Permission::UserRole->new()->getFeatureUserByRole('assessment', $form_id, 'NCSA');
+
+	if (scalar @$user_roles) {
+		my $student = HSDB4::SQLRow::User->new()->lookup_key($ARGS{student_id});
+		my $assessor = HSDB4::SQLRow::User->new()->lookup_key($ARGS{assessor_id});
+		my @users = HSDB4::SQLRow::User->new()->lookup_conditions('user_id in (' . join(',', map { "'" . $_->getUserID()  . "'" } @$user_roles) . ')'); 
+		foreach my $user (@users) {
+			$user->send_email(
+				"Notification of change in student's assessors", 
+				$course->title(),
+				$assessor->out_full_name() . ' has selected ' . (($ARGS{status}) ? '' : 'NOT') . ' to assess ' .  $student->out_full_name() . '.'
+			);
+		}
+	}
+</%init>

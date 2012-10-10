@@ -212,7 +212,7 @@ for my $school (HSDB4::Constants::course_schools()) {
 				   -child_class => 'HSDB4::SQLRow::User',
 				   -child_id_field => 'child_user_id',
 				   -order_by => [qw(link.time_period_id child.lastname child.firstname)],
-				   -link_fields => [ qw(time_period_id modified teaching_site_id) ],
+				   -link_fields => [ qw(time_period_id modified teaching_site_id elective) ],
 				   -school => $school,
 				   );
 

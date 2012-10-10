@@ -538,16 +538,15 @@ $visit => undef
 <!-- Begin Battery Phase -->
 <& element:transition,args=>$args &>
 % # only show instructions if there are any && we are not a history phase, since history phase
-% # shows instructions on its own (history's phase_type_id is 2)
-% if ($phase->getInstructions() && $phase->getPhaseTypeID() != 2){
+% # shows instructions on its own 
+% if ($phase->getInstructions() && ref($phase) !~ /History/){
 	<div class="text2"><% $phase->getInstructions() %></div>
-%
 % }
 %
 
 % # only show content if we are not a history phase, since history phase
-% # shows content on its own (history's phase_type_id is 2)
-% if ($phase->getPhaseTypeID() != 2){
+% # shows content on its own 
+% if (ref($phase) !~ /History/) {
 <& element:content_display,phase=>$phase &>
 % }
 
@@ -803,7 +802,7 @@ if (scalar keys %includedBatteries) {
 		}
 	}
 }
-elsif ($phase->getPhaseTypeID() != 2 && !$phase->getIsGeneric()) {
+elsif (ref($phase) !~ /History/ && !$phase->getIsGeneric()) {
 	$text .= '<tr><td><em>Nothing to report.</em></td></tr>';
 }
 $text .= '</table>';
@@ -979,7 +978,7 @@ if (defined($args->{'battery_submit'})){
 } 
 else {
 	if (scalar(@{$phase->getBatteries()})) {
-		my $label = ($phase->getPhaseTypeID() == 2)? 'Take History' : 'Perform Exam';
+		my $label = (ref($phase) =~ /History/)? 'Take History' : 'Perform Exam';
 		$m->comp('/tmpl/element:submit_button', params=>{ 
 			label => $label, 
 			name => 'battery_submit' 

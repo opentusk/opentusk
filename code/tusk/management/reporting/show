@@ -364,16 +364,20 @@
 	}
 
 	my $usergroups  = [ HSDB45::UserGroup->new(_school => $school)->lookup_conditions( "sub_group = 'No' order by label" ) ];
-	my $courses     = [ HSDB45::Course->new(_school => $school)->lookup_all( "order by title" ) ];
 	my $timeperiods = [ HSDB45::TimePeriod->new(_school => $school)->lookup_all( "order by start_date desc" ) ];
+	my $courses     = [ HSDB45::Course->new(_school => $school)->lookup_all( "order by title" ) ];
 
 	my $usergroup_options  = [];
-	my $course_options     = [];
 	my $timeperiod_options = [];
+	my $course_options     = [];
 
 	foreach (@{$usergroups})  { push @{$usergroup_options},  { 'label' => $_->out_label, 'value' => $_->primary_key }; }
-	foreach (@{$courses})     { push @{$course_options},     { 'label' => $_->out_label . ' (' . $_->course_id . ')', 'value' => $_->course_id }; }
 	foreach (@{$timeperiods}) {	push @{$timeperiod_options}, { 'label' => $_->out_label . ' (' . $_->field_value('academic_year') . ')', 'value' => $_->field_value('time_period_id')}; }
+	foreach (@{$courses})     { 
+		my $label = $_->out_label; 
+		$label .= ' (' . $_->oea_code . ')' if $_->oea_code; 
+		push @{$course_options}, { 'label' => $label, 'value' => $_->course_id }; 
+	}
 
 	my @tr_classes = ('even', 'odd');
 	my ($cur, $unused);

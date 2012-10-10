@@ -1231,7 +1231,7 @@ $options = [
 	name     => 'maxUserNameLen',
 	type     => 'text',
 	title    => "Max. length of usernames",
-	default  => 15,
+	default  => 24,
 	adv      => 1,
 },
 {

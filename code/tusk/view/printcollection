@@ -1,0 +1,180 @@
+<%attr>
+no_check_path => 1,
+page_header => '',
+page_footer => ''
+</%attr>
+
+<%once>
+	use HSDB4::SQLRow::Content;
+	use POSIX qw(ceil);
+	use TUSK::Constants;
+</%once>
+
+<%shared>
+	my $formats = {
+			'2' => { 'SlidesPerRow' => 1, 'Rows' => 2, 'MakeLines' => 0, 'Size' => '153', 'ReducedSize' => 145, 'MaxTitle' => 42 },
+			'4' => { 'SlidesPerRow' => 2, 'Rows' => 2, 'MakeLines' => 0, 'Size' => '89.5', 'ReducedSize' => 87.5, 'MaxTitle' => 42 },
+			'3' => { 'SlidesPerRow' => 1, 'Rows' => 3, 'MakeLines' => 1, 'Size' => '89.5', 'ReducedSize' => 87.5, 'MaxTitle' => 42},
+			'6' => { 'SlidesPerRow' => 2, 'Rows' => 3, 'MakeLines' => 0, 'Size' => '89.5', 'ReducedSize' => 87.5, 'MaxTitle' => 42},
+		};
+
+	my $reduced_size = 0;
+	if ($ENV{HTTP_USER_AGENT} =~ /MSIE/ or $ENV{HTTP_USER_AGENT} =~ /\bmac\b/i){
+		$reduced_size = 1;
+	}
+
+	my ($content_id, $format) = $m->comp('/tmpl/url:get_path_ids');
+	$format = 4 unless $formats->{$format};
+	my $doc;
+	if ($content_id){
+		$doc = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
+	}
+	unless ($doc and $doc->field_value('type') eq "Collection"){
+		$m->redirect("/tusk/printcontent/$content_id");
+	}
+
+	my @content = $doc->child_content;
+	@content = grep( $_->type eq "Slide", @content); 
+	my $total = scalar(@content);
+	my $pages = ceil($total / $format);
+	my $index = 0;
+	my ( $maxrows, $maxcols, $title );
+</%shared>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<style type="text/css">  
+body {
+	margin: 0;
+	padding:0;
+}
+
+.page{
+	page-break-after: always;
+}
+.row{
+	height:<% 8/($formats->{$format}->{Rows}) %>in;
+}
+
+.header{
+	width: 99%;
+	background-color: rgb(204,204,255);
+	border: 1px solid black;
+	font-size:8pt;
+	margin-bottom:4px;
+}
+
+.slides{
+	width: 100%;
+	height: 9in;
+	font-size:8pt;
+}
+
+.line{
+	border-top: thin solid black;
+	height: 33px;
+	width: 300px;
+	margin-left:10px;
+}	
+.cell{
+	width:3.5in;
+}
+
+.label{
+	padding-top:3px;
+	padding-bottom:6px;
+	font-size:8pt;
+	font-family: monospace;
+}
+@media print{
+	.noprint{
+		display: none;
+	}
+}
+</style>
+<script>
+  function printMe() {
+% if($ARGS{'preview'}) {
+    if(parent && parent.document && parent.document.printFrame) {
+      parent.document.printFrame.focus();
+      parent.document.printFrame.print();
+    }
+    else {window.print();}
+% }
+  }
+
+  var hexArray = new Array (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 'A', 'B', 'C', 'D', 'E', 'F');
+  var masterTimeOut;
+
+  function fadeTable(index) {
+    document.getElementById('fadeTable').style.color="#FF"+hexArray[index]+hexArray[index]+hexArray[index]+hexArray[index];
+    if (document.getElementById('hereLink')){
+    	document.getElementById('hereLink').style.color="#FF"+hexArray[index]+hexArray[index]+hexArray[index]+hexArray[index];
+    }
+    index++;
+    if(index == 16) {document.getElementById('fadeTable').style.display = 'none';}
+    else            {masterTimeOut = setTimeout("fadeTable("+index+")", 400);}
+  }
+
+  function closeBox() {
+    clearTimeout(masterTimeOut);
+    document.getElementById('fadeTable').style.display = 'none';
+  }
+</script>
+</head>
+<body onLoad="printMe(); fadeTable(0);">
+<div style="position:absolute; top:25px;">
+    <table class="noprint" align="center" id="fadeTable" style="color:#FF0000; background-color:white; border:2px solid black;">
+	<tr><td align="center" valign="center"><br><font size="+2" style="font-weight:bold;">Note - The images below might not render well in the browser, but appear crisp when printed</font>
+% if ($reduced_size && !$ARGS{changed_margins}) {
+<br><font size="+2" style="font-weight:bold;">If you have reduced your print margins, please click <a href="<% $ENV{SCRIPT_URI} %>?changed_margins=1" style="color:#FF0000" id="hereLink">here</a>.</font>
+% }
+<br><br></td></tr>
+        <tr><td align="right"><a href="#" onClick="closeBox();"><font color="blue" height="-1">Close</font></a></td></tr>
+    </table>
+</div>
+% foreach my $page (1..$pages) {
+<div class="<% $page == $pages ? "" : "page" %>">
+	<table class="header">
+		<tr>
+			<td rowspan="2" width="1" valign="middle"><img src="/icons/little/alhsdb4-style.gif" height="25"></td>
+			<td align="left" colspan="2"><% (length($doc->field_value('title')) > 80) ? substr($doc->field_value('title'), 0, 80). "..." : $doc->field_value('title') %></td>
+			<td rowspan="2" valign="middle" align="right">Page - <% $page %></td>
+		</tr>
+		<tr>
+			<td align="left"><% $TUSK::Constants::SchoolName %> (<% (length($doc->field_value('copyright')) > 60) ? substr($doc->field_value('copyright'), 0, 60) . "..." : $doc->field_value('copyright') %>)</td>
+		</tr>
+	</table>
+	<table class="slides" cellpadding="0" cellspacing="0">
+<%perl>
+if ($total - $index < $format){
+	$maxrows = ceil($formats->{$format}->{Rows}*($total - $index) / $format);
+}else{
+	$maxrows = $formats->{$format}->{Rows};
+}
+</%perl>
+% foreach my $row (1..$maxrows) {
+<tr class="row">
+<%perl> 
+if ($total - $index < $formats->{$format}->{SlidesPerRow}){
+	$maxcols = $total - $index;
+}else{
+	$maxcols = $formats->{$format}->{SlidesPerRow};
+}
+foreach (1..$maxcols) {
+	$title = $content[$index]->title();
+	$title =~ s/<br(\/|\\)?>//g;
+</%perl>
+<td class="cell"><table width="100%" cellspacing="0" cellpadding="0"><tr><td valign="top" width="1" class="label"><% ($index+1) %>.&nbsp;</td><td align="left" nowrap class="label"><% (length($title) > $formats->{$format}->{MaxTitle}) ? substr($title, 0, $formats->{$format}->{MaxTitle}) . "..." : $title %></td></tr><tr><td colspan="2" align="center" valign="center"><img class="slide" border="1" src="/orig/<% $content[$index]->primary_key %>" style="width:<% ($reduced_size && !$ARGS{changed_margins}) ? $formats->{$format}->{ReducedSize} : $formats->{$format}->{Size} %>mm"></td></tr></table></td>
+% $index++;
+% }
+% if ($formats->{$format}->{MakeLines}) {
+<td class="cell"><div class="line">&nbsp;</div><div class="line">&nbsp;</div><div class="line">&nbsp;</div><div class="line">&nbsp;</div><div class="line">&nbsp;</div><div class="line">&nbsp;</div></td>
+% }
+</tr>
+% }
+</table>
+</div>
+% }
+</body>
+</html>

@@ -17,7 +17,7 @@ BEGIN {
 				      eval_schools user_group_schools school_codes 
 				      code_by_school get_school_db school_code_regexp] ],
 		     );
-    $VERSION = do { my @r = (q$Revision: 1.130 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.132 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 # Non-exported package globals go here
@@ -111,7 +111,7 @@ sub get_school_db {
 	  'HSDB4::SQLRow::PersonalContent::Discussion' => '/management/content/personalcontent',
 	  'HSDB4::SQLRow::Content::External' => '/view/content',
 	  'HSDB45::Course' => '/view/course',
-	  'HSDB45::Eval' => '/protected/eval45',
+	  'HSDB45::Eval' => '/protected/eval/complete',
 	  'HSDB45::UserGroup' => '/view/usergroup',
 	  'HSDB45::ClassMeeting' => '/view/course',
 	  'daygif' => '/daygif',
@@ -138,6 +138,25 @@ sub get_eval_admin_group {
     my $school = lc shift;
     return $school_eags{$school}
 }
+
+
+sub get_registrar_group {
+    my $school = lc shift;
+    ## hash of registrar groups - users in the groups can manage registrars/grades
+	my %school_registrars = (
+					   'medical' => 0,
+					   'nutrition' => 0,
+					   'dental' => 0,
+					   'veterinary' => 0,
+					   'veterinarygp' => 0,
+					   'engineering' => 0,
+					   'sackler' => 0,
+					   'phpd' => 0,
+					   'fletcher' => 0,
+					   );
+    return $school_registrars{$school}
+}
+
 
 %EditURLs = ('HSDB4::SQLRow::User' => '/protected/useredit',
 	     'HSDB45::Eval' => '/protected/eval_edit',

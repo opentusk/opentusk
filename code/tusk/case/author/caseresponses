@@ -30,6 +30,9 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 % if ($case->getBillingTotal() && $total_cost) {
 <li id="cost"><a href="javascript:;" onclick="activateTab(this)">Cost</a></li>
 % }
+% if (defined $quiz_result_links && scalar @$quiz_result_links) {
+<li id="quiz_results"><a href="javascript:;" onclick="activateTab(this);">Quiz Results</a></li>
+% }
 </ul>
 
 <div id="responsesArea" class="tabArea activeArea">
@@ -38,32 +41,16 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 %	
 %	if (scalar(@$visited_phases)){	
 %		foreach my $phase (@{$visited_phases}){
-
 			<&  /tmpl/element:section_header_row, label=>$phase->getPhaseTitle() &>
 			<tr><td colspan="2">
 		<& "/case/author/tmpl/".$phase->getIncludeFile().":phaseReport", 
 				case=>$case, phase=>$phase, case_report=>$caseReport &>
 			</td></tr>
-% 		}
-%	
-%
-% 		my $quiz_results = $caseReport->getQuizResults();
-% 		my $quiz;
-% 		my $header_flag = 1;
-% 		foreach my $result (@{$quiz_results}) {
-%			$quiz = TUSK::Quiz::Quiz->lookupKey($result->getQuizID());
-% 			next if (!$quiz);
-% 			if ($header_flag){
-%				$m->comp("/tmpl/element:top_header_row", label=>'Quizzes');
-%				$header_flag = 0;
-%				}
-		<tr><td colspan ="2">
-		<& /quiz/tmpl/quizdisplay:display_responses,quiz=>$quiz,result=>$result &>
-		</td></tr>
-% 		}
-%	}else{
+%		}
+%	}
+%	else{
 <i>There are no responses.</i>
-% 	}
+%	}
 </table>
 </div> <!-- responsesArea -->
 
@@ -90,6 +77,18 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 </div> <!-- costArea -->
 % }
 
+
+% if (defined $quiz_result_links && scalar @$quiz_result_links) {
+<div id="quiz_resultsArea" class="tabArea">
+<& /tmpl/element:table &>
+<tr><td colspan="2">
+% $m->comp('/case/quiz_result_summary', quiz_result_links => $quiz_result_links);
+</td></tr>
+</table>
+</div> <!-- quiz_resultsArea -->
+% }
+
+
 </div> <!-- caseSummaries -->
 
 
@@ -103,6 +102,8 @@ foreach my $t (@$tests){
 	$total_cost += $t->getDefaultCost();
 	$cost_by_cat{$t->getBatteryObj()->getBatteryTitle()} += $t->getDefaultCost();
 }	
+
+my $quiz_result_links = $caseReport->getQuizResultLinks();
 </%init>
 
 <%method title>

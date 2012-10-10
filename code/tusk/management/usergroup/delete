@@ -76,6 +76,21 @@ if ($usergroup_id){
 }
 
 if (defined($ARGS{'submit'})) {
+	my $groups;
+	if ( $is_course_group ) {
+		$groups = [ $course->sub_user_groups( $m->comp("SELF:get_timeperiod_id") ) ]; 
+	} else {
+		$groups = [ HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'", "order by sort_order, upper(label)") ];
+	}
+
+	foreach ( @{$groups} ) {
+		my $cur_sort = $_->field_value( 'sort_order' );
+		if ( $cur_sort > $usergroup->field_value( 'sort_order' ) ) {
+			$_->field_value( 'sort_order', $cur_sort-1 );
+			$_->save;
+		}
+	}
+
 	$usergroup->delete();
 	$m->comp("/tmpl/url:redirect",
 		'destination' => '/management/usergroup/show/' . $self_path,

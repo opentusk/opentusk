@@ -6,7 +6,7 @@ BEGIN {
     use vars qw($VERSION @non_blob_fields %primary_keys);
     use base qw/HSDB4::SQLRow/;
     
-    $VERSION = do { my @r = (q$Revision: 1.126 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.137 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version {
@@ -353,21 +353,18 @@ sub remove_announcement {
 sub announcements { # namely, unexpired ones
     my $self = shift;
 
-    unless ($self->{-child_announcements}) {
-        $self->{-child_announcements} = $self->announcement_link()->get_children($self->primary_key);
-    }
+	unless ( $self->{-current_ann} ) {
+		my @ann = grep { $_->current() } $self->announcement_link()->get_children($self->primary_key)->children();
+		$self->{-current_ann} = \@ann;
+	}
 
-    return grep { $_->current() } $self->{-child_announcements}->children();
+    return @{$self->{-current_ann}};
 }
 
 sub all_announcements { # notably, including expired ones
     my $self = shift;
 
-    unless ($self->{-child_announcements}) {
-        $self->{-child_announcements} = $self->announcement_link()->get_children($self->primary_key);
-    }
-
-    return $self->{-child_announcements}->children();
+    return $self->announcement_link()->get_children($self->primary_key)->children();
 }
 
 sub body {
@@ -649,11 +646,9 @@ sub get_time_periods_for_enrollment{
 }
 
 sub get_time_periods{
-    #
-    #
-
     my ($self) = @_;
     my (@tp_ids, %checkperiod);
+	my $time_periods;
 
     unless ($self->{-time_periods}){
 	if ($self->associate_user_group){
@@ -688,22 +683,23 @@ sub get_time_periods{
 	    };
 	    confess $@, return if $@;
 	}
-    
+
 	if (scalar(@tp_ids)){
-	    @{$self->{-time_periods}} = HSDB45::TimePeriod->new( _school => $self->school() )->lookup_conditions("time_period_id IN (" . join(", ", @tp_ids) . ") order by start_date, end_date");
+	    @{$time_periods} = HSDB45::TimePeriod->new( _school => $self->school() )->lookup_conditions("time_period_id IN (" . join(", ", @tp_ids) . ") order by start_date desc, end_date desc");
 	}
 
     }
-    return ($self->{-time_periods});
+#	$self->{-time_periods} = $time_periods;
+    return $time_periods;
 }
 
 
 sub get_current_timeperiod{
     my ($self) = @_;
     my @tp_ids;
-    my $timeperiods = $self->get_time_periods();
  
     unless ($self->{-current_timeperiod}){
+    my $timeperiods = $self->get_time_periods();
 	$self->{-current_timeperiod} = 0;
 	if ($timeperiods and scalar(@$timeperiods)){
 	    foreach my $tp (@$timeperiods){
@@ -733,6 +729,30 @@ sub get_current_timeperiod{
     return ($self->{-current_timeperiod});
 }
 
+sub get_users_current_timeperiod{ 
+	my ($self, $user) = @_;	
+    my $timeperiods = $self->get_time_periods();
+	my ($tp, $tp_id);
+
+    my $dbh = HSDB4::Constants::def_db_handle;
+    my $db = $self->school_db();
+	my $sql = qq[select lcs.time_period_id from $db\.link_course_student lcs, $db\.time_period tp where parent_course_id = ? and child_user_id = ? and start_date <= curdate() and end_date >= curdate()];
+	
+	eval {
+		my $sth = $dbh->prepare($sql);
+		$sth->execute($self->primary_key(), $user);
+		($tp_id) = $sth->fetchrow_array();
+
+		$sth->finish;
+	};
+
+	if ( $tp_id ) {
+		($tp) = HSDB45::TimePeriod->new( _school => $self->school() )->lookup_conditions("time_period_id = $tp_id");
+	}
+
+	return $tp;
+}
+
 ### this will get the last element of time periods that is linked to the course.
 ### therefore, it could be future or past time period
 sub get_most_recent_timeperiod {
@@ -749,19 +769,27 @@ sub get_most_recent_timeperiod {
 
 sub get_students {
     #
-    # Get the students from this course (either from link_course_student or link_user_group_user
+    # Get the students from this course (either from link_course_student or link_user_group_user)
+    # with no time period (uses the current), single time period, or ref to an array of time periods
+    # students from multiple time periods will be returned sorted alphabetically by last name
     #
     my ($self, $timeperiod_id, $site_id) = @_;
+    my @students;
     
-    unless ($timeperiod_id){
+    if (!$timeperiod_id){
 		my $tp = $self->get_current_timeperiod;
 		return unless ($tp);
 		$timeperiod_id = $tp->primary_key;
     }
     
 	my $site_condition = (defined $site_id) ? "AND teaching_site_id = $site_id" : '';
-
-	my @students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id $site_condition")->children();
+    
+    if (ref($timeperiod_id) eq 'ARRAY') {
+		@students = sort { $a->{lastname} cmp $b->{lastname} } $self->student_link()->get_children($self->primary_key,"time_period_id IN(" . join(",", @$timeperiod_id) . ") $site_condition")->children();
+    }
+    else {
+		@students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id $site_condition")->children();
+    }
 	
 	return @students;
 }
@@ -786,6 +814,7 @@ sub child_users {
 
     my $self = shift;
     my @cond = @_;
+
     # Check cache...
     unless ($self->{-child_users} and !@cond) {
         # Get the link definition
@@ -921,7 +950,7 @@ sub add_child_student {
     #
 
     my $self = shift;
-    my ($u, $p, $username,$tp,$ts) = @_;
+    my ($u, $p, $username,$tp,$ts,$elective) = @_;
     my ($r, $msg);
     
     if ($self->associate_user_group()){
@@ -934,7 +963,8 @@ sub add_child_student {
 						       -child_id => $username,
 						       -parent_id => $self->primary_key,
 						       time_period_id=>$tp,
-						       teaching_site_id => $ts);
+						       teaching_site_id => $ts || 0,
+							   elective => $elective || 0 );
     }
     return ($r, $msg);
 }
@@ -979,13 +1009,14 @@ sub update_child_student {
     #
 
     my $self = shift;
-    my ($u, $p, $username,$tp,$ts) = @_;
+    my ($u, $p, $username,$tp,$ts,$elective) = @_;
 
 	my ($r, $msg) = $self->student_link()->update (-user => $u, -password => $p,
 						   -child_id => $username,
 						   -parent_id => $self->primary_key,
 						   time_period_id=>$tp,
 						   teaching_site_id =>$ts || 0,
+						   elective => $elective || 0,
 							-cond => ' AND time_period_id = ' . $tp );
     return ($r, $msg);
 }
@@ -1291,7 +1322,8 @@ sub sub_user_groups {
 	$timeperiod_id = $tp->primary_key;
     }
     unless ($self->{-sub_user_groups}) {
-	 $self->{-sub_user_groups} = $self->user_group_link()->get_children($self->primary_key,"sub_group='Yes' and time_period_id = ". $timeperiod_id);
+	$self->user_group_link()->{'-order_by'} = "sort_order";
+	$self->{-sub_user_groups} = $self->user_group_link()->get_children($self->primary_key,"sub_group='Yes' and time_period_id = ". $timeperiod_id);
     }
     return $self->{-sub_user_groups}->children();
 }
@@ -1304,8 +1336,8 @@ sub child_user_groups {
 
     my $self = shift;
     unless ($self->{-child_user_groups}) {
-	$self->{-child_user_groups} = 
-	    $self->user_group_link()->get_children( $self->primary_key(), "sub_group = 'No'" );
+		$self->user_group_link()->{'-order_by'} = "sort_order";
+		$self->{-child_user_groups} = $self->user_group_link()->get_children( $self->primary_key(), "sub_group = 'No'" );
     }
 
     # If there weren't any time_period_ids passed in, then return the whole list
@@ -1424,11 +1456,16 @@ sub get_course_codes{
 }
 
 sub get_self_assessment_quizzes{
-    my ($self) = @_;
+    my ($self, $user) = @_;
     my ($quizzes);
 
     my $school_id = TUSK::Core::School->new->getSchoolID($self->school);
-    my $tp = $self->get_current_timeperiod();
+    my $tp;
+	if ( $user ) { 
+		$tp = $self->get_users_current_timeperiod($user);
+	} else {
+		$tp = $self->get_current_timeperiod();
+	}
     my $tp_cond = "and time_period_id = " . $tp->primary_key() if $tp;
 
     my $sql = "select q.quiz_id, q.title from tusk.quiz q, tusk.link_course_quiz l where (school_id = '" . $school_id . "' and parent_course_id = " . $self->primary_key . ") and q.quiz_id = l.child_quiz_id and q.quiz_type = 'SelfAssessment' and available_date < now() and (due_date > now() or due_date is null) $tp_cond order by l.sort_order";
@@ -1552,6 +1589,7 @@ sub has_patient_log {
 	return 0;
     }
 }
+
 
 #
 # >>>>>  Input Methods <<<<<

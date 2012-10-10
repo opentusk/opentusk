@@ -8,7 +8,7 @@ BEGIN {
 
     use vars qw($VERSION);
     
-    $VERSION = do { my @r = (q$Revision: 1.37 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.38 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version { return $VERSION }
@@ -33,6 +33,7 @@ use HSDB45::TimePeriod;
 use TUSK::Constants;
 use TUSK::Schedule::ClassMeetingObjective;
 use TUSK::Schedule::ClassMeetingKeyword;
+use TUSK::ClassMeeting::Type;
 use GD;
 use Text::Wrap qw(wrap $columns);
 
@@ -44,18 +45,15 @@ my $UserID = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername} 
 my $Password = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword} ; 
 my $tablename = "class_meeting";
 my $primary_key_field = "class_meeting_id";
-my @fields = qw(class_meeting_id title oea_code course_id type
-                meeting_date starttime endtime location
-                modified flagtime body);
+
+my @fields = qw(class_meeting_id title oea_code course_id type_id
+                meeting_date starttime endtime location is_duplicate
+                is_mandatory modified flagtime body);
 my %blob_fields = (body => 1);
 my %numeric_fields = ();
 
 my %cache = ();
 
-my %types = (Lecture => 1, 'Small Group' => 1, Conference => 1,
-	     Laboratory => 1, Examination => 1, Reception => 1,
-	     Luncheon => 1, Holiday => 1, 'Study Day' => 1,
-	     Workshop => 1, Quiz => 1, Seminar => 1);
 
 # Creation methods
 
@@ -75,11 +73,10 @@ sub new {
 }
 
 # static method to check class meeting types
-sub check_type{
-    my ($self, $type) = @_;
+sub get_type_obj{
+	my ($self, $type_lbl, $school_id) = @_;
 
-    return $type if ($types{$type});
-    return '';
+	return TUSK::ClassMeeting::Type->new()->lookupReturnOne("school_id=$school_id AND label='$type_lbl'");
 }
 
 sub split_by_school { return 1; }
@@ -316,8 +313,41 @@ sub location {
 }
 
 sub type {
-    my $self = shift();
-    return $self->field_value('type');
+	my $self = shift;
+
+	my $lbl = '';
+	my $type_id = $self->type_id();
+	if (defined $type_id) {
+		my $type = TUSK::ClassMeeting::Type->new()->lookupKey($type_id);
+		$lbl = $type->getLabel();
+	}
+
+	return $lbl;
+}
+
+sub type_id {
+    my $self = shift;
+    return $self->field_value('type_id');
+}
+
+sub is_duplicate {
+	my $self = shift;
+	return $self->field_value('is_duplicate');
+}
+
+sub is_mandatory {
+	my $self = shift;
+	return $self->field_value('is_mandatory');
+}
+
+sub is_mandatory_answer {
+	my $self = shift;
+	if ($self->field_value('is_mandatory')) {
+		return 'Yes';
+	}
+	else {
+		return 'No';
+	}
 }
 
 sub title {
@@ -349,6 +379,13 @@ sub set_flagtime {
     my $self = shift;
     $self->set_field_values(flagtime => HSDB4::DateTime->new->out_mysql_timestamp());
     return;
+}
+
+sub set_type_id {
+	my $self = shift;
+	my $type_id = shift;
+
+	$self->field_value('type_id' => $type_id);
 }
 
 sub in_fdat_hash {
@@ -455,7 +492,7 @@ sub out_html_row {
     my $time = sprintf ("%s to %s", $self->out_starttime->out_string_time,
 			$self->out_endtime->out_string_time);
     my $title = sprintf("<B>%s: %s</B>", 
-			$self->get_field_values('type', 'title'));
+			$self->type(), $self->title());
     $title = sprintf ('<A HREF="%s">%s</A>', $self->out_url, $title);
     my $fac = join (' ', map { $_->field_value('lastname') } 
 		    $self->child_users);

@@ -6,7 +6,7 @@
 </%attr>
 
 <%once>
-	use TUSK::ShibbolethUser;
+	use TUSK::Shibboleth::User;
 	use TUSK::Course::CourseSharing;
 	use TUSK::Constants;
 </%once>
@@ -56,13 +56,13 @@
 				my $tempShibIdP;
 				my $message;
 				if($action eq 'modify')	{
-					$tempShibIdP = TUSK::ShibbolethUser->new()->lookupKey($userID);
+					$tempShibIdP = TUSK::Shibboleth::User->new()->lookupKey($userID);
 					unless($tempShibIdP->getPrimaryKeyID()) {
 						${$args}{errmsg} = 'Unable to modify Shib IdP, specified user could not be found!';
 					}
 					$message = 'Shib user modified successfully';
 				} else {
-					$tempShibIdP = TUSK::ShibbolethUser->new();
+					$tempShibIdP = TUSK::Shibboleth::User->new();
 					$message = 'Shib user added successfully';
 				}
 
@@ -95,7 +95,7 @@
 	} elsif($action eq 'delete') {
 		$title = "Delete Shib IdP";
 		if(${$args}{do_action}) {
-			my $tempShibIdP = TUSK::ShibbolethUser->new()->lookupKey($userID);
+			my $tempShibIdP = TUSK::Shibboleth::User->new()->lookupKey($userID);
 			unless($tempShibIdP->getPrimaryKeyID()) {
 				${$args}{errmsg} = 'Unable to delete Shib IdP, specified user could not be found!';
 			} else {
@@ -132,10 +132,10 @@
 	if(($action eq 'add') || $ARGS{add_shib_user}) {
 		$m->comp('SELF:newShibIdP', args => \%ARGS);
 	} elsif($action eq 'delete') {
-		my $user = TUSK::ShibbolethUser->new->lookupKey($userID);
+		my $user = TUSK::Shibboleth::User->new->lookupKey($userID);
 		$m->comp('SELF:deleteShibIdP', user => $user);
 	} elsif($action eq 'modify') {
-		my $user = TUSK::ShibbolethUser->new->lookupKey($userID);
+		my $user = TUSK::Shibboleth::User->new->lookupKey($userID);
 		$m->comp('SELF:newShibIdP', args => {
 			institution_name	=> $user->getShibbolethInstitutionName(),
 			user_name 		=> $user->getUserGreeting(),
@@ -155,7 +155,7 @@
 
 
 <%method default>
-%	my $shibIdPs = TUSK::ShibbolethUser->new()->lookup();
+%	my $shibIdPs = TUSK::Shibboleth::User->new()->lookup();
 	<br>
 	<& /tmpl/element:button, params => {
 		name  => 'new_shib_user',
@@ -232,7 +232,7 @@
 %		my $course;
 %		#Look up the shib user names and keep them in a hash for reference
 %		unless(exists($shibIdPs{ $share->getSharedWith() })) {
-%			$shibIdPs{ $share->getSharedWith() } = TUSK::ShibbolethUser->new()->lookupKey($share->getSharedWith())->getShibbolethInstitutionName();
+%			$shibIdPs{ $share->getSharedWith() } = TUSK::Shibboleth::User->new()->lookupKey($share->getSharedWith())->getShibbolethInstitutionName();
 %		}
 %		if($lastCourse != $share->getCourseID()) {
 %			$course = TUSK::Course->new()->lookupKey($share->getCourseID())->getHSDB45CourseFromTuskID();

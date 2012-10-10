@@ -10,16 +10,15 @@
 	method => 'POST',
 	class => 'no-padding',
 	enctype => 'multipart/form-data',
-	onsubmit =>'return checkform(this);",
-	name => 'data_form' } 
-
-&>
+	onsubmit =>'return checkform(this);',
+	name => 'data_form' } &>
 
 <& /tmpl/element:table, params => { 
 	width => "100%",
 	border =>"0",
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
+
 <tr>
 <td class="labelgray">Import type:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td>Test<input type="radio" name="save" value="0" checked></td><td align="right">Live<input type="radio" name="save" value="1"></td></tr></table><br>"Test" verifies data, but does not save. "Live" verifies and saves data.</td>
 </tr>
@@ -63,84 +62,6 @@ Enter a field name, and a corresponding value to limit the import to those recor
 <td class="labelgray">File:</td><td class="cell-left"><input type="file" name="datafile" class="formbutton" id="File__y"></td>
 </tr>
 
-<!--  THIS WAS COMMENTED OUT IN ORIG. EMBPERL, LEAVING IT JUST IN CASE...   (SCORDE01 -  1/25/2010)
-<tr>
-<td class="labelgray">User Groups:</td>
-<td class="cell-left">
-<table>
-
-<tr>
-<td class="cell-left">
-Code: <input type="text" size="8" class="textareawhite" name="user_group_course_code_1" value="[+ $fdat{user_group_course_code_1} +]">&nbsp;&nbsp;
-</td>
-<td class="cell-left">
-Group:
-<select name="user_group_1">
-<option>none</option>
-[- @user_groups = HSDB45::UserGroup->new(_school => $m->comp('/tmpl/url:get_school'))->lookup_conditions("order by label") -]
-[$ foreach $group (@user_groups) $]
-<option value="[+ $group->primary_key +]"[+ $fdat{user_group_1} == $group->primary_key ? " SELECTED" : ""+]>[+ $group->out_label +] ([+ $group->primary_key +])</option>
-[$ endforeach $]
-</select>
-</td>
-</tr>
-
-<tr>
-<td class="cell-left">
-Code: <input type="text" size="8" class="textareawhite" name="user_group_course_code_2" value="[+ $fdat{user_group_course_code_2} +]">&nbsp;&nbsp;
-</td>
-<td class="cell-left">
-Group:
-<select name="user_group_2">
-<option>none</option>
-[$ foreach $group (@user_groups) $]
-<option value="[+ $group->primary_key +]"[+ $fdat{user_group_2} == $group->primary_key ? " SELECTED" : ""+]>[+ $group->out_label +] ([+ $group->primary_key +])</option>
-[$ endforeach $]
-</select>
-</td>
-</tr>
-
-<tr>
-<td class="cell-left">
-Code: <input type="text" size="8" class="textareawhite" name="user_group_course_code_3" value="[+ $fdat{user_group_course_code_3} +]">&nbsp;&nbsp;
-</td>
-<td class="cell-left">
-Group:
-<select name="user_group_3">
-<option>none</option>
-[$ foreach $group (@user_groups) $]
-<option value="[+ $group->primary_key +]"[+ $fdat{user_group_3} == $group->primary_key ? " SELECTED" : ""+]>[+ $group->out_label +] ([+ $group->primary_key +])</option>
-[$ endforeach $]
-</select>
-</td>
-</tr>
-
-<tr>
-<td class="cell-left">
-Code: <input type="text" size="8" class="textareawhite" name="user_group_course_code_4" value="[+ $fdat{user_group_course_code_4} +]">&nbsp;&nbsp;
-</td>
-<td class="cell-left">
-Group:
-<select name="user_group_4">
-<option>none</option>
-[- @user_groups = HSDB45::UserGroup->new(_school => $req->{school})->lookup_conditions -]
-[$ foreach $group (@user_groups) $]
-<option value="[+ $group->primary_key +]"[+ $fdat{user_group_4} == $group->primary_key ? " SELECTED" : ""+]>[+ $group->out_label +] ([+ $group->primary_key +])</option>
-[$ endforeach $]
-</select>
-</td>
-</tr>
-
-</table>
-Enter the registration code and select a user group to enter all matching imported students in the course into a user group (optional).
-<br><br>
-<input type="checkbox" name="clean_group"> Remove existing users from group before adding new users.
-
-
-</td>
-</tr>
--->
-
 <tr>
 <td>&nbsp;</td><td class="cell-submit"><input type="submit" value="Process" class="formbutton"></td>
 </tr>
@@ -183,7 +104,12 @@ Enter the registration code and select a user group to enter all matching import
 			@file_fields = split(",",$ARGS{'fields'});
 		}
 		$import->set_fields(@file_fields);
-		$import->read_filehandle($ARGS{'datafile'},"\t");
+		
+		my $upload = $r->upload();
+	    $import->read_filehandle($upload->fh(),"\t") if ($upload);
+
+		##$import->read_filehandle($ARGS{'datafile'},"\t");
+
 		if ($ARGS{'limit_field'} && $ARGS{'limit_value'}) {
 			$import->grep_records($ARGS{'limit_field'},$ARGS{'limit_value'});
 		    	$import->add_log("summary","limiting records to where $ARGS{'limit_field'} = $ARGS{'limit_value'}");
@@ -243,16 +169,24 @@ Enter the registration code and select a user group to enter all matching import
 			if ($ARGS{'time_period_id'}) {
 				$time_period_id = $ARGS{'time_period_id'}; 
 			} else {
-				my $timeref = HSDB45::TimePeriod->new( _school => $m->comp('/tmpl/url:get_school'));
-    				@set = $timeref->lookup_conditions("period='".$record->get_field_value("time_period").
-					"' AND academic_year='".$record->get_field_value("academic_year")."'");
 
-				if (scalar @set != 1) {
-					$import->add_log("error","Record $line_no - Cannot find time period ".
-							$record->get_field_value("time_period")." in TUSK");
-					next;
+				eval { $record->get_field_value("time_period") && $record->get_field_value("academic_year") };
+
+				if($@) {
+					$import->add_log("error","Record $line_no - FILE IS MISSING FIELDS ");
+					last;
 				} else {
-					$time_period_id = $set[0]->primary_key;
+					my $timeref = HSDB45::TimePeriod->new( _school => $m->comp('/tmpl/url:get_school'));
+    					@set = $timeref->lookup_conditions("period='".$record->get_field_value("time_period").
+						"' AND academic_year='".$record->get_field_value("academic_year")."'");
+					if (scalar @set != 1) {
+						$import->add_log("error","Record $line_no - Cannot find time period ".
+								$record->get_field_value("time_period")." in TUSK");
+						next;
+					} else {
+						$time_period_id = $set[0]->primary_key;
+					}
+					
 				}
 			}			
 

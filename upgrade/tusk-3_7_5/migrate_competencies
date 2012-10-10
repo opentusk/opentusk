@@ -1,0 +1,77 @@
+#!/usr/bin/perl -w
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin/../../tusk/current/lib";
+
+use HSDB4::Constants;
+use MySQL::Password;
+use Carp;
+
+use TUSK::Core::School;
+use TUSK::Core::Competency;
+use TUSK::Core::CompetencyCompetency;
+
+my ($user_name, $password) = &get_user_pw();
+&HSDB4::Constants::set_user_pw($user_name, $password);
+
+my ($c_href, $dbh);
+
+foreach my $school_name (HSDB4::Constants::schools()) {
+	print "\n" . $school_name . "\n";
+
+	eval {
+		$dbh = HSDB4::Constants::def_db_handle();
+	};
+	die "$@\t...failed to obtain database handle!" if $@;
+
+	use Data::Dumper;
+	my $school = TUSK::Core::School->new()->lookup( "school_name = '$school_name'" );
+
+	my $data = getChildCompetencies( $c_href, '0', $school->[0]->getPrimaryKeyID, 0, '/' );
+
+	writeData( $data );
+}
+
+sub getChildCompetencies {
+	my ($c_href, $comp_id, $school_id, $depth, $lineage) = @_;
+
+	my $children;
+	my $new_lineage = $lineage;
+	if ( $comp_id != 0 ) {
+		$lineage = $lineage . $comp_id . "/";
+	}
+	foreach my $child ( @{TUSK::Core::CompetencyCompetency->new()->lookup( 'parent_competency_id = ' . $comp_id )} ) {
+		my $child_comp = $child->getChildCompetency();
+		next if $child_comp->getSchoolID != $school_id;
+
+		if ( !defined( $c_href->{$child_comp} ) ) {
+			$c_href->{$child_comp->getCompetencyID} = { 
+														school_id => $school_id, 
+														lineage   => $lineage, 
+														parent_competency_id => $comp_id,
+														child_competency_id  => $child_comp->getCompetencyID,
+														sort_order => $child->getSortOrder,
+														depth => $depth,
+														children => getChildCompetencies( $c_href, $child_comp->getCompetencyID, $school_id, $depth+1, $lineage ),
+													  };
+		}
+
+		push @{$children}, $c_href->{$child_comp->getCompetencyID};
+	}
+	return $children;
+}
+
+sub writeData {
+	my $data = shift;
+	my $query = "insert into tusk.competency_relationship( school_id, lineage, parent_competency_id, child_competency_id, sort_order, depth, created_by, modified_by ) values ( ?, ?, ?, ?, ?, ?, ?, ? )";
+
+	foreach (@{$data}) {
+		my $handle = $dbh->prepare($query);
+		$handle->execute( $_->{'school_id'}, $_->{'lineage'}, $_->{'parent_competency_id'}, $_->{'child_competency_id'}, $_->{'sort_order'}, $_->{'depth'}, 'migration script', 'migration script');
+		writeData( $_->{'children'} ) if ( $_->{'children'} );
+	}
+}
+
+1;
+

@@ -1,0 +1,37 @@
+<%attr>	
+	no_check_path => 1
+	allow_guests => 1
+</%attr>	
+
+
+
+<%once>
+use Apache::Constants qw(REDIRECT);
+</%once>
+
+<HTML>
+<HEAD>
+% ## OK, this isn't actually an HTML document.  We just use EmbPerl to do a redirect.  #]
+
+
+<%init>
+  my $debug = $r->dir_config('HSDBDebug') || 0;
+  my $orig_doc = $ENV{'REDIRECT_URL'};
+  my $qs = $ENV{'REDIRECT_QUERY_STRING'};
+  $qs = (!length($qs)? "": "?$qs");
+  my $open_port = 80;
+  $open_port = $r->get_server_port - 100
+	if ($r->get_server_port > 9000);
+  my $new_doc = "http://" . $r->get_server_name() . ":$open_port$orig_doc$qs";
+  $r->warn("Redirecting $orig_doc to $new_doc");
+
+  $r->header_out("Location" => $new_doc );
+  $r->status(REDIRECT);
+</%init>
+
+
+</HEAD><BODY>
+Redirecting <% $orig_doc %> to <% $new_doc %>.
+</BODY></HTML>
+
+

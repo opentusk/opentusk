@@ -22,6 +22,7 @@ use TUSK::Case::PhaseVisit;
 use TUSK::Case::LinkPhaseContent;
 use TUSK::Case::LinkPhaseQuiz;
 use TUSK::Case::TestSelection;
+use TUSK::Case::Rule;
 
 BEGIN {
     require Exporter;
@@ -770,14 +771,14 @@ For a given phase and case report, check if there is a phase visit record
 =cut
 
 sub visited{
-    my $self = shift;
-    my $report = shift || confess "Report object needed to continue";
-    my $phase_id = $self->getPrimaryKeyID() || confess "Phase Id not found";
-    my $report_id = $report->getPrimaryKeyID();
-    my $cond = sprintf(" phase.phase_id = %s and case_report_id = %s ",
-		       $phase_id,$report_id);
-    my $visits = TUSK::Case::PhaseVisit->lookup($cond);
-    if (scalar(@{$visits})){
+	my $self = shift;
+	my $report = shift || confess "Report object needed to continue";
+	my $phase_id = $self->getPrimaryKeyID() || confess "Phase Id not found";
+	my $report_id = $report->getPrimaryKeyID();
+	my $cond = sprintf(" phase.phase_id = %s and case_report_id = %s ",
+	           $phase_id,$report_id);
+	my $visits = TUSK::Case::PhaseVisit->lookup($cond);
+	if (scalar(@{$visits})){
 		return 1;
 	}
 	else{
@@ -923,6 +924,111 @@ sub getLastVisitWithSelections{
 		warn 'no last visit with selections: ' . $self->getPhaseTitle();
 	}
 	return undef;
+}
+
+#######################################################
+
+=item B<getMostRecentVisit>
+
+   $visit = $phase->getMostRecentVisit();
+
+Returns the most recent phase visit associated with this phase.
+
+=cut
+
+sub getMostRecentVisit{
+	my $self = shift;
+	my $case_report = shift;
+
+	if (defined($case_report) && !($case_report->isa('TUSK::Case::CaseReport'))){
+		confess "The parameter must be a TUSK::Case::CaseReport";
+	}
+	if (!defined($case_report->getPrimaryKeyID())){
+		confess "The case report must be initialized for getMostRecentVisit to work";
+	}
+
+	my $visit = TUSK::Case::PhaseVisit->lookupReturnOne('case_report_id = ' . $case_report->getPrimaryKeyID() . ' and case_phase_visit.phase_id = ' . $self->getPrimaryKeyID(), ['phase_visit_id DESC']);
+
+	if (defined $visit) {
+		return $visit;
+	}
+
+	return undef;
+}
+
+#######################################################
+
+=item B<isLastPhaseVisted>
+
+   $visit = $phase->isLastPhaseVisited();
+
+returns boolean whether the calling phase was the last phase visited for given report
+
+=cut
+
+sub isLastPhaseVisited{
+	my $self = shift;
+	my $case_report = shift;
+
+	if (defined($case_report) && !($case_report->isa('TUSK::Case::CaseReport'))){
+		confess "The parameter must be a TUSK::Case::CaseReport";
+	}
+	if (!defined($case_report->getPrimaryKeyID())){
+		confess "The case report must be initialized for isLastPhaseVisited to work";
+	}
+
+	my $last_visit = TUSK::Case::PhaseVisit->lookupReturnOne('case_report_id = ' . $case_report->getPrimaryKeyID(), ['phase_visit_id DESC']);
+
+	if (defined $last_visit) {
+		if ($self->getPrimaryKeyID() == $last_visit->getPhaseObject()->getPrimaryKeyID()) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+#######################################################
+
+=item B<getRules>
+
+   $rules = $phase->getRules();
+
+Returns an arrayref of rules that need to be satisfied in order
+to enter this phase.
+
+=cut
+
+sub getRules{
+	my $self = shift;
+
+	return TUSK::Case::Rule->new()->lookup('phase_id=' . $self->getPrimaryKeyID());
+}
+
+
+#######################################################
+
+=item B<evaluateRules>
+
+    @msgs = $obj->evaluateRules($arrayref, $casereport);
+
+Provided an arrayref of rule objects and a case report obj, 
+evaluate rules one at a time. Return an array containing a 
+message for each violated rule. If no rules violated, 
+array will be empty.
+
+=cut
+
+sub evaluateRules {
+	my ($self, $rules, $report) = @_;
+	
+	my @msgs;
+	foreach my $r (@$rules) {
+		if (!$r->isSatisfied($report)) {
+			push @msgs, $r->getMessage();
+		}
+	}
+
+	return @msgs;
 }
 
 =head1 AUTHOR

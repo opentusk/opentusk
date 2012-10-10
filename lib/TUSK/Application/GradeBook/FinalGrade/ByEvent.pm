@@ -30,8 +30,9 @@ sub calculate {
 		foreach my $record (@$records) {
 			my $weight = $record->getGradeEventObject()->getWeight();
 			my $grade = $record->getGrade();
+			my $max_possible_points = $record->getGradeEventObject()->getMaxPossiblePoints();
 			if (TUSK::Functions::isValidNumber($grade) && TUSK::Functions::isValidNumber($weight)) {
-				$final_grade += $grade * ($weight/100);
+				$final_grade += ($grade/$max_possible_points) * ($weight);
 			}
 		}
 		$self->{final_grade_records}{$student_id} = $final_grade;

@@ -22,7 +22,7 @@ my $date = $1 if($path=~s/\/(\d{4}-\d{1,2}-\d{1,2})\/?$//i);
 my $user_group = HSDB45::UserGroup->lookup_path($path);
 my $icsTimeZone = $TUSK::Constants::icsTimeZoneFile;
 my @gmtTimeComponents = gmtime(time());
-my $gmtTimeStamp = ($gmtTimeComponents[5] + 1900) . ($gmtTimeComponents[4]+1) . $gmtTimeComponents[3] . 'T' . $gmtTimeComponents[2] . $gmtTimeComponents[1] . $gmtTimeComponents[0] . 'Z';
+my $gmtTimeStamp = ($gmtTimeComponents[5] + 1900) . sprintf("%02d", $gmtTimeComponents[4]+1) . sprintf("%02d",$gmtTimeComponents[3]) . 'T' . sprintf("%02d",$gmtTimeComponents[2]) . sprintf("%02d",$gmtTimeComponents[1]) . sprintf("%02d",$gmtTimeComponents[0]) . 'Z';
 
 $icsTimeZone =~ s:\.:/:g;
 # go grab the meetings!!
@@ -39,16 +39,19 @@ foreach my $meeting (@meetings){
 	$location = "Unspecified";
     }
     
-    if ($meeting->field_value('type')){
-	$meeting_type = $meeting->field_value('type');
-    }else{
-	$meeting_type = "Unspecified";
-    }
+	if ($meeting->type()){
+		$meeting_type = $meeting->type();
+	}
+	else {
+		$meeting_type = "Unspecified";
+	}
+
     
     my @faculty = $meeting->child_users;
 
 
     my $title = $meeting->course->field_value('title') . ": " . $meeting->field_value('title');
+	$title .= ($meeting->is_mandatory())? ' (Attendance Mandatory)' : '';
     my $date = $meeting->field_value('meeting_date');
     my $start = $meeting->field_value('starttime');
     my $end = $meeting->field_value('endtime');

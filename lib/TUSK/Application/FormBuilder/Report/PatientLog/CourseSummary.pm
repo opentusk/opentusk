@@ -16,7 +16,6 @@ sub new {
 							   _form_id => $form_id,
 							   _tp_params => $tp_params,
 							   _report_flags => join(",", @{$TUSK::FormBuilder::Constants::report_flags_by_report_type->{1}}),
-
 							   );
 }
 
@@ -25,28 +24,21 @@ sub getReport {
 	my @results = ();
 
 	my $sql = qq(
-				 select
-				 teaching_site_id,
-				 (select site_name
-				  from $self->{_db}.teaching_site as b
-				  where a.teaching_site_id = b.teaching_site_id) as site_name,
-				 count(child_user_id),
-				 (select concat(count(distinct c.user_id), '_', count(*))
-				  from tusk.form_builder_entry as c
-				  where a.time_period_id = c.time_period_id  
-				  and form_id = $self->{_form_id}
-				  and c.user_id in (select d.child_user_id 
-									from $self->{_db}.link_course_student as d 
-									where d.time_period_id = a.time_period_id 
-									and d.parent_course_id = a.parent_course_id 
-									and d.teaching_site_id = a.teaching_site_id)
-				  ) as patients
-				 from $self->{_db}.link_course_student as a 
-				 where a.parent_course_id = $self->{_course_id}
-				 and time_period_id in ($self->{_time_period_ids_string})
-				 group by teaching_site_id
-				 order by site_name
-				 );
+				SELECT
+				 	a.teaching_site_id,
+				 	site_name,
+					count(child_user_id) AS students,
+					(SELECT CONCAT(COUNT(DISTINCT user_id), "_", count(*)) FROM tusk.form_builder_entry, $self->{_db}.link_course_student AS d WHERE form_id = $self->{_form_id} AND d.time_period_id IN ($self->{_time_period_ids_string}) AND parent_course_id = $self->{_course_id} AND user_id = child_user_id AND d.teaching_site_id = a.teaching_site_id) AS patients
+				FROM
+					$self->{_db}.link_course_student AS a,
+					$self->{_db}.teaching_site AS b
+				WHERE
+					a.teaching_site_id = b.teaching_site_id AND
+					a.parent_course_id = $self->{_course_id} AND 
+					time_period_id IN ($self->{_time_period_ids_string})
+				GROUP BY teaching_site_id
+				ORDER BY site_name
+				);
 
 	my $sth = $self->{_form}->databaseSelect($sql);
 	my ($total_num_students, $total_report_students, $total_patients);
@@ -67,21 +59,43 @@ sub getReport {
 
 sub getReportAllSites {
 	my ($self, $field_id) = @_;
-
+	my %data = ();
+	my ($attribute_items, $aids) = $self->getAttributeItems($field_id);
+	my @time_periods = split(",", $self->{_time_period_ids_string});
+	my $total_students = scalar $self->{_course}->get_students(\@time_periods);
+	
 	my $sql = qq(
-		 select item_id, attribute_item_id, count(*)
-		 from tusk.form_builder_response as a
-		 inner join tusk.form_builder_entry as b on (a.entry_id = b.entry_id)
-		 left outer join tusk.form_builder_response_attribute as c on (a.response_id = c.response_id)
-		 where time_period_id in ($self->{_time_period_ids_string})
-		 and form_id = $self->{_form_id} and field_id = $field_id 
-		 group by item_id, attribute_item_id 
-	);
-	my ($reported_data, $items, $attribute_items, $isCategory) = $self->getData($field_id, $sql, 'hash');
+				 select item_id, attribute_item_id, count(*), count(distinct user_id)
+				 from tusk.form_builder_response as a
+				 inner join
+				 (select user_id, entry_id
+				  from tusk.form_builder_entry b, $self->{_db}.link_course_student c
+				  where b.user_id = c.child_user_id
+				  and b.time_period_id = c.time_period_id
+				  and parent_course_id = $self->{_course_id}
+				  and b.time_period_id in ($self->{_time_period_ids_string})
+				  and form_id = $self->{_form_id}) as d 
+				 on (a.entry_id = d.entry_id)
+				 left outer join tusk.form_builder_response_attribute as c on (a.response_id = c.response_id)
+				 where field_id = $field_id
+				 and active_flag = 1
+				 group by item_id, attribute_item_id
+				 );
 
-	return { rows => $items, attribute_items => $attribute_items, data => $reported_data, contains_category => $isCategory };
+	my $sth = $self->{_form}->databaseSelect($sql);
+
+	while (my ($item_id, $attr_item_id, $patients, $students) = $sth->fetchrow_array()) {
+		my $i = (defined $attr_item_id) ? $aids->{$attr_item_id} : 0;
+		$data{$item_id}[0][$i] = $patients;
+		$data{$item_id}[1][$i] = $students;
+		$data{$item_id}[2][$i] = sprintf("%.0f%", $students/$total_students*100);
+	}
+    $sth->finish();
+
+	my $items = TUSK::FormBuilder::FieldItem->lookup("field_id = $field_id");
+
+	return { rows => $items, attribute_items => $attribute_items, data => \%data, contains_category => $self->isCategory($items->[0]), total_students => $total_students };
 }
-
 
 sub getReportBySite {
 	my ($self, $field_id) = @_;
@@ -101,6 +115,7 @@ sub getReportBySite {
 				  left outer join tusk.form_builder_response_attribute as e
 				  on (a.response_id = e.response_id)
 				  where field_id = $field_id
+				  and active_flag = 1
 				  group by teaching_site_id, item_id, attribute_item_id
 				  );
 
@@ -129,6 +144,7 @@ sub getReportByStudent {
 				  left outer join tusk.form_builder_response_attribute as e
 				  on (a.response_id = e.response_id)
 				  where field_id = $field_id
+				  and active_flag = 1
 				  group by user_id, item_id, attribute_item_id
 				  );
 

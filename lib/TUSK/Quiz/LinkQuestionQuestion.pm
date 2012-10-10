@@ -58,7 +58,7 @@ sub new {
 					'points' => '',
 				    },
 				    _attributes => {
-					save_history => 0,
+					save_history => 1,
 					tracking_fields => 1,	
 				    },
 				    _levels => {
@@ -243,6 +243,31 @@ sub getQuestionObject{
 sub lookupByRelation {
     my ($self, $parent_question_id, $child_question_id) = @_; 
     return $self->lookup("parent_question_id = $parent_question_id and child_question_id = $child_question_id");
+}
+
+# this is largely a copy of SQLRow's updateSortOrders.
+# indices here start at 0 and that is not handled by parent method.
+sub updateSortOrders{
+	my ($self, $index, $newindex, $question_id) = @_;
+
+	my $arrayref = TUSK::Quiz::LinkQuestionQuestion->new()->lookup("parent_question_id=$question_id", ['sort_order']);
+
+	return [] if scalar (@$arrayref == 0); #oops
+	return [] if ($index == $newindex); # oops
+	return [] if ($index < 0 or $index > scalar(@$arrayref)); #oops again
+
+	my $cond = "parent_question_id = " . $question_id;
+
+	my $field = @$arrayref[$index]->getPrimaryKey;
+	
+	splice(@$arrayref, ($newindex), 0,splice(@$arrayref, ($index), 1));
+
+	my $length = scalar(@$arrayref);
+	for(my $i=0; $i<$length; $i++){
+		TUSK::Quiz::LinkQuestionQuestion->new->update("sort_order=$i", $cond . " and " . $field . " = '" . $arrayref->[$i]->getPrimaryKeyID() . "'");
+	}
+
+	return $arrayref;
 }
 
 

@@ -1,0 +1,44 @@
+<%once>
+    use HSDB4::Constants;
+    use HSDB45::Eval::MergedResults;
+</%once>
+
+<%shared>
+	my $school = $m->comp('SELF:schoolname');
+</%shared>
+
+<& /tmpl/element:object_selection_box, params =>{
+	sort_box => 0,
+	no_add_button => 1,
+	no_table => 1,
+	columns => [ 
+		{'label' => 'ID', 'field' => 'id'},
+		{'label' => 'Title', 'field' => 'title'},
+	],
+	action_columns => [ 
+		{ 'label' =>'Edit',  'link' => '/protected/eval/administrator/merged_eval_edit/' . $school },
+		{ 'label' =>'Report','link' => '/protected/eval/merged_report/' . $school },
+		{ 'label' =>'Export','link' => '/protected/eval/administrator/export/' . $school, 'extra' => '?MERGED=1' },
+	],
+	rows => \@eval_array,
+	name => "merged_admin",
+} &>
+
+<%init>
+	$m->comp("/tmpl/element:cms_button_row", links => [ {link_txt=>'/protected/eval/administrator/merged_eval_edit/' . $school . '/0', display_txt=>'Create New Merged Evaluation'} ] );
+
+    my $merged_eval = HSDB45::Eval::MergedResults->new(_school=>$school);
+    my @evals = $merged_eval->lookup_all();
+	my @eval_array;
+	foreach my $eval (@evals) {
+		push (@eval_array, {id => $eval->field_value('merged_eval_results_id'), title => $eval->field_value('title') });
+	}
+</%init>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return $school . " Merged Evaluations Scoreboard";
+</%method>

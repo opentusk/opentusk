@@ -122,7 +122,9 @@ sub handler {
 		$title =~ s/ /_/g;
 		$title =~ s/\W//g;
 	}
-	my $file_title = $document->primary_key() . "-" . $title;
+	my $file_title;
+	$file_title  = $title . "-" if $title;
+	$file_title .= $document->primary_key();
 
 	#Send the download
 	$r->content_type($contentType);

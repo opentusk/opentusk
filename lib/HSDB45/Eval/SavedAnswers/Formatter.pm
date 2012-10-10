@@ -6,8 +6,9 @@ use base qw(XML::Formatter);
 use XML::Twig;
 use XML::EscapeText qw(:escape);
 use HSDB45::Eval::SavedAnswers;
+use TUSK::Constants;
 
-$VERSION = do { my @r = (q$Revision: 1.6 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.7 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 sub version { return $VERSION; }
 
@@ -30,7 +31,7 @@ sub new {
     my $object = shift;
     my $self = $incoming->SUPER::new($object);
     $self->{-doctype_decl} = 'saved_answers';
-    $self->{-dtd_decl} = 'http://tusk.tufts.edu/DTD/eval_answers.dtd';
+    $self->{-dtd_decl} = 'http://'. $TUSK::Constants::Domain .'/DTD/eval_answers.dtd';
     return $self;
 }
 
@@ -43,8 +44,8 @@ sub new_from_path {
     my $object = class_expected()->new_school_id($school, $id);
     my $self = $incoming->SUPER::new($object);
     $self->{-doctype_decl} = 'eval_saved_answers';
-    $self->{-dtd_decl} = 'http://tusk.tufts.edu/DTD/eval_saved_answers.dtd';
-    $self->{-stylesheet_decl} = 'http://tusk.tufts.edu/XSL/Eval/saved_answers.xsl';
+    $self->{-dtd_decl} = 'http://'. $TUSK::Constants::Domain .'/DTD/eval_saved_answers.dtd';
+    $self->{-stylesheet_decl} = 'http://'. $TUSK::Constants::Domain .'/XSL/Eval/saved_answers.xsl';
     return $self;
 }
 

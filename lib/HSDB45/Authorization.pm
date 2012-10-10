@@ -12,7 +12,7 @@ use TUSK::Constants;
 
 BEGIN {
     use vars qw($VERSION);
-    $VERSION = do { my @r = (q$Revision: 1.11 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.12 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version { return $VERSION }
@@ -74,7 +74,7 @@ sub can_user_view_content {
 
     # If we are the TUSK::Constants::ShibbolethUserID then we need to check the shib rules for courses and then see if this content is somehow related to this course
     my $shibUserID = -1;
-    $shibUserID = TUSK::ShibbolethUser->isShibUser($user_id);
+    $shibUserID = TUSK::Shibboleth::User->isShibUser($user_id);
     if($shibUserID > -1) {
 	my $courseShares = TUSK::Course::CourseSharing->new()->getCurrentSharedCourses($shibUserID);
 	if(scalar(@{$courseShares})) {return 1;}

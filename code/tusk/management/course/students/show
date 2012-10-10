@@ -39,70 +39,46 @@
 % } 
 
 % if (scalar(@{$data->{students}})) {
-
-% my @rows;
-% foreach my $i (0..(scalar(@{$data->{students}})-1)) {
-% my $usr = $data->{students}->[$i];
-% my $site_id;
-% if ($usr->aux_info('teaching_site_id')){
-%		$site_id = $usr->aux_info('teaching_site_id');
-%	}else{
-%		$site_id = 0;
-%	}
-% my $site_name='None';
-% if(exists $data->{sites}->{$site_id} ) { 
-%		$site_name = $data->{sites}->{$site_id}->field_value('site_name');
-% } 
-% $rows[$i] = { 
-%				'id' => $usr->field_value('user_id'), 
-% #				'lastname' => $usr->field_value('lastname'),
-% #				'firstname' => $usr->field_value('firstname'),
-%				'name' => $usr->field_value('lastname') . ", " . $usr->field_value('firstname'),
-%				'teachingsite' => $site_name,
-%				'affiliation' => $usr->field_value('affiliation') };
-% }
-
-% my $action_cols;
-% $action_cols =  [ 	{ 'label' =>'Modify','link' => '/management/course/students/addedit' } ];
-% if (!$course->associate_user_group() ) {
-%   $action_cols = [ 	{ 'label' =>'Modify','link' => '/management/course/students/addedit' }, { 'label' =>'Delete','link' => '/management/course/students/delete' } ]
-% } 
-
-
-% if ($is_school_admin) {
+%	my @rows;
+% 	foreach my $i (0..(scalar(@{$data->{students}})-1)) {
+% 		my $usr = $data->{students}->[$i];
+% 		my $site_id;
+% 		if ($usr->aux_info('teaching_site_id')){
+%			$site_id = $usr->aux_info('teaching_site_id');
+%		} else {
+%			$site_id = 0;
+%		}
+% 		my $site_name='None';
+% 		if (exists $data->{sites}->{$site_id} ) { 
+%			$site_name = $data->{sites}->{$site_id}->field_value('site_name');
+% 		} 
+%		$rows[$i] = { 
+%			'id' => $usr->field_value('user_id'), 
+%			'name' => $usr->field_value('lastname') . ", " . $usr->field_value('firstname'),
+%			'teachingsite' => $site_name,
+%			'affiliation' => $usr->field_value('affiliation'),
+%			'elective' => ($usr->aux_info('elective')) ? 'Yes' : 'No',
+%		};
+% 	}
+% 	my $action_cols;
+% 	$action_cols =  [ 	{ 'label' =>'Modify','link' => '/management/course/students/addedit' } ];
+% 	if (!$course->associate_user_group() ) {
+%   	$action_cols = [ 	{ 'label' =>'Modify','link' => '/management/course/students/addedit' }, { 'label' =>'Delete','link' => '/management/course/students/delete' } ]
+% 	} 
 
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [ 
-		{'label' => 'UserID', 'field' => 'id' , width => '15%'},
-		{'label' => 'Name', 'field' => 'name', width => '40%'},
+		{'label' => 'UserID', 'field' => 'id'},
+		{'label' => 'Name', 'field' => 'name'},
 		{'label' => 'Affiliation', 'field' => 'affiliation', align=>'center'},
 		{'label' => 'Teaching Site', 'field' => 'teachingsite', align=>'center'}, 
+		{'label' => 'Elective', 'field' => 'elective', align=>'center'}, 
 	],
-	action_columns => $action_cols,
-	action_column_align => 'center',
+	action_columns => ($is_school_admin) ? $action_cols : undef,
 	rows => \@rows,
 	type_path => $m->comp("/tmpl/url:get_type_path"),
 	name => "people",
 } &>
-
-% } else {
-
-<& /tmpl/element:object_selection_box, params => { 
-
-	columns => [ 
-		{'label' => 'UserID', 'field' => 'id' , width => '15%'},
-		{'label' => 'Name', 'field' => 'name', width => '10%'},
-		{'label' => 'Affiliation', 'field' => 'affiliation', align=>'center'},
-		{'label' => 'Teaching Site', 'field' => 'teachingsite', align=>'center'}, 
-	],
-	rows => \@rows,
-	type_path => $m->comp("/tmpl/url:get_type_path"),
-	name => "people",
-} &>
-
-
-% 		} # END ELSE
-
 % } # END IF data{students}
 
 </td>
@@ -111,7 +87,6 @@
 </form>
 
 <%init>
-
 	my $selfpath = $m->comp("/tmpl/url:get_full_path");
 	my $type_object =  $m->comp("/tmpl/url:get_type_object");
 	my $school = $m->comp("/tmpl/url:get_school");
@@ -130,9 +105,7 @@
                          };
 		}
 
-		push @$buttons, { link_txt    => '/management/course/students/teachingsites/' . $selfpath."/?timeperiod=".$time_period,
-				                           display_txt => 'Update All Teaching Sites'
-				                         };
+		push @$buttons, { link_txt    => '/management/course/students/teachingsites/' . $selfpath."/?timeperiod=".$time_period, display_txt => 'Update All Teaching Sites' };
 	}
 
 </%init>

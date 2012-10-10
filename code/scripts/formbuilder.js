@@ -14,7 +14,7 @@ function fieldaddedit_submit(form){
 	}
 
 	// good values are id#label
-	if (form.field_type_id.value && form.field_type_id.value == '#'){
+	if (form.field_type_id && form.field_type_id.value == '#'){
 		alert("Please select a field type.");
 		return false;
 	}
@@ -94,6 +94,30 @@ function change_display(element){
 	} else {
 		display_row('attributes_tr', 1);
 	}
+
+
+	if (selected_value.substring(selected_value.indexOf('#')+1) == 'SingleSelect' || selected_value.substring(selected_value.indexOf('#')+1) == 'SingleSelectWithSubFields') {
+		display_row('selection_options_tr', 1);
+	} else {
+		display_row('selection_options_tr', 0);
+	}
+
+
+	if (selected_value.substring(selected_value.indexOf('#')+1) == 'SingleSelectWithSubFields' || selected_value.substring(selected_value.indexOf('#')+1) == 'ScalingWithSubFields') {
+		display_row('subfield_tr', 1);
+	} else {
+		display_row('subfield_tr', 0);
+	}
+
+
+	if (selected_value.substring(selected_value.indexOf('#')+1) == 'Scaling' || selected_value.substring(selected_value.indexOf('#')+1) == 'ScalingWithSubFields') {
+		display_row('rubric_tr', 1);
+		display_row('header_rubric_tr', 1);
+	} else {
+		display_row('rubric_tr', 0);
+		display_row('header_rubric_tr', 0);
+	}
+
 }
 
 
@@ -161,10 +185,10 @@ function change_style(id, count){
 
 	if (document.getElementById(id).className == "unselected"){
 		document.getElementById(id).className = 'selected';
-		document.getElementById(id + '_selected').value = 1;
+		document.getElementById('multiwithattr_' + id + '_selected').value = 1;
 	}else{
 		document.getElementById(id).className = 'unselected';
-		document.getElementById(id + '_selected').value = 0;
+		document.getElementById('multiwithattr_' + id + '_selected').value = 0;
 	}
 	for (i=1; i<=count; i++){
 		state = toggle_row(id + '_select_' + i);
@@ -225,20 +249,64 @@ function check_required_fields(form, required_array){
 
 	for (var i=0; i < required_array.length; i++){
 		var obj = document.getElementById(required_array[i]['id']);
-		if (obj.nodeName == 'SELECT') {
+
+		if (obj && obj.nodeName == 'SELECT') {
 			if (obj.selectedIndex == 0){
 				alert('Please enter a value for ' + required_array[i]['message']);
 				document.getElementById(required_array[i]['id']).focus();
 				return false;
 			}
-		} else if (obj.nodeName == 'INPUT') {
+		} else if (required_array[i]['id'].match(/^checklist_/)) {
 			var checklist = document.getElementById(required_array[i]['id']);
 			if (checklist && checklist.value > 0) {
 				alert('Please complete the checklist for ' + required_array[i]['message']);
 				return false;
 			}
+		} else if (required_array[i]['id'].match(/^text_id_/)) {
+			var textboxes = document.getElementsByName(required_array[i]['id']);
+			for (var j = 0; j < textboxes.length; j++) {
+				var text_str = textboxes[j].value;
+				if (textboxes[j].style.display == 'inline' && text_str.match(/^\s*$/)) {
+					alert('Please complete the text description for ' + required_array[i]['message']);					
+					return false;
+				}
+			}
+		} else if (required_array[i]['id'].match(/^multiwithattr_/)) {
+			var items = getElementsByClassName(required_array[i]['id']);
+			var field_tokens = required_array[i]['id'].split('_');
+			var attribute_num = document.getElementById('attributes_' + field_tokens[1]).value;  // how many attributes there are
+			var errmsg = 'Please complete the required information for your selection(s) in the ' + required_array[i]['message'] + ' section.';
+			for (var j = 0; j < items.length; j++) {
+				if (items[j].value == 1) {
+					var field_item = items[j].name.split('_');
+					for (var p = 1; p <= attribute_num; p++) {
+						var attrs = getElementsByClassName('attribute-item_' + field_item[1] + '_' + field_item[2] + '_select_' + p);
+						if (attrs && attrs.length > 0) {
+							if (attrs[0].nodeName == 'SELECT' && attrs.length == 1) {  
+								if (attrs[0].selectedIndex == 0) {
+									alert(errmsg);
+									return false;
+								}
+							} else {  // if not dropdown then it must be radio!
+								var checked = 0;
+								for (var k = 0; k < attrs.length; k++) {
+									if (attrs[k].checked == true) {
+										checked = 1; break;
+									}
+								}
+								if (checked == 0) {
+									alert(errmsg);
+									return false;
+								}
+							}
+						}
+					}
+				} 
+
+			}
 		}
 	}
+
 	if (window.confirmMessage) {
 		return confirm("Are you sure you want to submit this form?");
 	}
@@ -391,6 +459,104 @@ function disableForm() {
 			}
 		}
 	}
+}
+
+function toggle_links(id,cid,indx){
+	var new_display = 'block';
+    
+	var el = document.getElementById("theWrapperDiv"+cid);
+	var href = document.getElementById("a"+cid);
+
+	if (el) {
+
+		if (el.style.display == 'block'){
+			new_display = 'none';
+			href.innerHTML="Show Links";
+		} else { href.innerHTML="Hide Links"; }
+		el.style.display = new_display;
+    } else {
+        href.innerHTML="Hide Links";
+		var cell_el = document.getElementById("td"+cid);
+		cell_el.innerHTML += " <div id='theWrapperDiv"+cid+"' style='display:block'></div>";
+		requestContent(cid);
+
+	} 
+}
+
+var ajaxRequest;
+
+function requestContent(contentID) {
+
+  var url = "/tusk/ajax/getCollectionSubContent/"+contentID;
+
+  if (window.XMLHttpRequest) {
+      ajaxRequest = new XMLHttpRequest();
+      nodeTextType = 'textContent';
+  } else if (window.ActiveXObject) {
+      ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
+      nodeTextType = 'text';
+  } else {
+	var location = document.URL;
+	if(location.search(/\/content\//) != -1) {location = location.replace(/content/, 'contentSimple');}
+	else {location = location+'?simple=1';}
+	alert('You are being transfered because your browser does not support AJAX.');
+	document.location = location;
+  }
+
+  ajaxRequest.open("GET", url, true);
+  // the following trickery is interesting
+  ajaxRequest.onreadystatechange = function() { if(ajaxRequest.readyState ==4) { showContent(contentID) } };;	
+  ajaxRequest.send(null);
+
+}
+
+function showContent(contentID) {
+
+  var id;  var title; var url;
+
+  if(!ajaxRequest) {return;}
+  if(ajaxRequest.readyState == 4) {
+    var response = ajaxRequest.responseXML;
+    if(!response) {
+	
+      if(ajaxRequest.status && (ajaxRequest.status == 200)) {
+			alert('I was unable to get the subcontent of this item!');
+		}
+    }
+    else {
+      var subContents = response.getElementsByTagName('subContent');
+      var myUL = document.createElement("UL");	
+
+	  myUL.setAttribute("class","gNoTopMargin");  
+	  document.getElementById("theWrapperDiv"+contentID).appendChild( myUL );
+
+      for(var index=0; index<subContents.length; index++) {
+        var id = 'Error';
+        var title = 'Error';
+        var url = 'Error';
+	
+        for(var index2=0; index2<subContents[index].childNodes.length; index2++) {
+          var node = subContents[index].childNodes[index2];
+          var nodeValue = '';
+          if(node[nodeTextType]) {nodeValue = node[nodeTextType];}
+          else if(node.firstChild && node.firstChild.nodeValue) {nodeValue = node.firstChild.nodeValue;}
+          if(node.nodeName == 'id')             {id = nodeValue;}
+          else if(node.nodeName == 'title')     {title = nodeValue;}
+          else if(node.nodeName == 'url')       {url = nodeValue;}
+    
+        }
+
+		var myLI = document.createElement("LI");
+		var titleToDisplay = '<a href="'+url+'" target="_blank"><font class="">'+title+'</font></a>'; 
+		myLI.innerHTML =titleToDisplay;
+		myUL.appendChild(myLI);
+					      
+    }
+
+    } //else (response exists)
+
+  } // if readystate == 4
+
 }
 
 

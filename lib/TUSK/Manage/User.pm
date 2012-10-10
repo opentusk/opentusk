@@ -102,7 +102,7 @@ sub addedit_process{
 				       midname => $fdat->{midname},
 				       suffix => $fdat->{suffix},
 				       gender => $fdat->{gender},
-				       expires => $fdat->{expires},
+				       expires => ($fdat->{expires})? $fdat->{expires} : undef,
 				       status => $fdat->{status},
 				       tufts_id => $fdat->{tufts_id},
 				       sid => $fdat->{sid},
@@ -131,14 +131,12 @@ sub addedit_pre_process{
     my $data;
     
 	my $useredit = HSDB4::SQLRow::User->new->lookup_key( $id );
-#    $useredit = HSDB4::SQLRow::User->new->lookup_key( $id );
     $data->{tr_flag} = 0;
     
     $data->{course_schools} = [ &HSDB4::Constants::course_schools ];
 
     if ($fdat->{page} eq "add"){
 		$useredit = HSDB4::SQLRow::User->new();
-###		$data->{$useredit} = HSDB4::SQLRow::User->new();
 
 		my $ldap = HSDB45::LDAP->new;
 		my ($res,$m) = $ldap->lookup_user_id($fdat->{userid});
@@ -153,17 +151,15 @@ sub addedit_pre_process{
 		}
 		
 	$data->{useredit} = $useredit;
-
 	my $user_id = $fdat->{userid};
 	$user_id =~ s#/#%2F#g;
 	$data->{userid} = $fdat->{userid};
 	
-	$data->{usergroups} = [ HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'", "order by label") ];
+	$data->{usergroups} = [ HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'", "order by sort_order") ];
 		
 	$data->{usergrouplabel} = "Assign to Groups:";
 
     } else {
-#		$data->{userid} = $useredit->primary_key;
 		$data->{userid} = $id;
 		$data->{usergroups} = [ $useredit->parent_user_groups ];
 		$data->{usergrouplabel} = "Groups:";

@@ -1,0 +1,65 @@
+<%attr>
+	no_check_path => 1
+</%attr>
+
+<%once>
+	use HSDB45::Course;
+</%once>
+
+<%perl>
+	my $rows = $m->session->{user}->get_assessments();
+	my ($courses, $forms);
+	my $uid = $m->session->{user}->uid();
+
+	foreach my $row (@$rows) {
+		unless (exists $courses->{$row->{course_id}}{title}) {
+			if (my $course = HSDB45::Course->new(_school => $row->{school_name}, _id => $row->{course_id})) {
+				$courses->{$row->{course_id}}{title} = $course->title();
+				$courses->{$row->{course_id}}{school} = $row->{school_name};			
+			}
+		}
+
+		unless (exists $forms->{$row->{course_id}}{$row->{form_id}}) {
+			$forms->{$row->{course_id}}{$row->{form_id}} = [ $row->{form_name}, $row->{form_description}, $row->{entry_id} ];
+		}
+	}
+</%perl>
+
+<br/>
+<& "/tmpl/element:table", params => { width => "70%", border =>"0", cellspacing => "0", cellpadding => "0" } &>
+%	foreach my $course_id (keys %$courses) {
+<tr><td colspan="3" style="margin:10px 0 5px 0;"><a href="/view/course/<% $courses->{$course_id}{school} . '/' . $course_id . '">Course - ' . $courses->{$course_id}{title} %></a><td></tr>
+
+<tr class="header"><th align="left">Title</th><th align="center">Status</th><th align="center">Actions</th></tr>
+%		my $i = 0;
+%		foreach my $form_id (sort keys %{$forms->{$course_id}}) {
+%			my $odd_even = ($i++ % 2 == 0) ? 'even' : 'odd';
+<tr class="<% $odd_even %>">
+<td style="padding:5px 10px 5px 2px;"><% $forms->{$course_id}{$form_id}[0] %></td>
+<td style="padding:5px 10px 5px 2px;" align="center">
+<% ($forms->{$course_id}{$form_id}[2]) ? 'completed' : 'pending' %>
+</td>
+<td style="padding:5px 10px 5px 2px;" align="center">
+%			if ($forms->{$course_id}{$form_id}[2]) {
+<a href="<% "/assessment/student/entry/course/$courses->{$course_id}{school}/$course_id/$form_id/$uid/$forms->{$course_id}{$form_id}[2]" %>">view assessment</a>
+%			} 
+</td>
+</tr>
+%		}
+<tr><td colspan="3"><br/><br/></td></tr>
+%	}
+</table>
+
+
+<%method red_header_text>
+% 	return 'Assessments';
+</%method>
+
+<%method title>
+% 	return 'Assessments';
+</%method>
+
+
+<%method get_nav_bars>
+%	return [{ href => '/home', label => 'Home' }];
+</%method>

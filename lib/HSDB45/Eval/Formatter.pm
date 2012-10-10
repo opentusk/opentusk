@@ -6,9 +6,10 @@ use base qw(XML::Formatter);
 use XML::Twig;
 use XML::EscapeText qw(:escape);
 use HSDB45::Eval;
+use TUSK::Constants;
 use Carp;
 
-$VERSION = do { my @r = (q$Revision: 1.22 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.23 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 sub version { return $VERSION; }
 
 my @mod_deps  = ('HSDB45::Eval');
@@ -30,8 +31,8 @@ sub new {
     my $object = shift;
     my $self = $incoming->SUPER::new($object);
     $self->{-doctype_decl} = 'Eval';
-    $self->{-dtd_decl} = 'http://tusk.tufts.edu/DTD/eval.dtd';
-    $self->{-stylesheet_decl} = 'http://tusk.tufts.edu/XSL/Eval/eval.xsl';
+    $self->{-dtd_decl} = 'http://'. $TUSK::Constants::Domain .'/DTD/eval.dtd';
+    $self->{-stylesheet_decl} = 'http://'. $TUSK::Constants::Domain .'/XSL/Eval/eval.xsl';
     return $self;
 }
 

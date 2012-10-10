@@ -14,7 +14,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.197 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.208 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::Constants qw(:school);
@@ -23,12 +23,15 @@ use TUSK::Core::JoinObject;
 use TUSK::GradeBook::GradeEvent;
 use TUSK::GradeBook::LinkUserGradeEvent;
 use TUSK::Assignment::Assignment;
-use TUSK::ShibbolethUser;
+use TUSK::Shibboleth::User;
 use TUSK::Course::CourseSharing;
 use HSDB45::Announcement;
 use HSDB45::TimePeriod;
 use TUSK::HomepageCategory;
 use Forum::MwfConfig;
+use TUSK::GradeBook::GradeEventEval;
+use TUSK::Application::GradeBook::GradeBook;
+
 
 use Data::Dumper;
 use overload ('cmp' => \&name_compare,
@@ -57,11 +60,11 @@ my $tablename         = 'user';
 my $primary_key_field = 'user_id';
 my @fields =       qw(user_id source status tufts_id sid trunk password email preferred_email profile_status modified 
 		      password_reset expires login previous_login lastname firstname midname suffix 
-		      degree affiliation gender body loggedout_flag
+		      degree affiliation gender body loggedout_flag uid
                       );
 
 my %numeric_fields = (
-		      );
+		      );   
 
 my %blob_fields =    (body => 1
 		      );
@@ -96,6 +99,11 @@ sub new {
 sub user_id {
     my $self = shift();
     return $self->field_value('user_id');
+}
+
+sub uid {
+	my $self = shift();
+	return $self->field_value('uid');
 }
 
 sub source {
@@ -152,10 +160,10 @@ sub set_preferred_email {
     my $self = shift();
     my $new_preferred_email = shift;
     # Send an email to someone... (either the old preferred or the origional email address)... that a new preferred email has been entered.
-    send_email($self, 'New preferred TUSK email entered', "The new email address being used with TUSK is $new_preferred_email");
+    send_email($self, "New preferred $TUSK::Constants::SiteAbbr email entered", "The new email address being used with $TUSK::Constants::SiteAbbr is $new_preferred_email");
     $self->set_field_values("preferred_email" => $new_preferred_email);
     $self->{saveForumData} = 1;
-    if($self->{primaryKey}) { $self->save(); }
+    if($self->primary_key()) { $self->save(); }
 }
 
 sub preferred_email {
@@ -185,6 +193,34 @@ sub previous_login {
     my $self = shift();
     return $self->field_value('previous_login');
 }
+
+sub get_new_uid {
+
+  my $dbh = HSDB4::Constants::def_db_handle ();
+  my $current_max;
+  
+  eval {
+		    my $sql = "select max(uid) from hsdb4.user";
+            my $sth = $dbh->prepare ($sql);
+	        $sth->execute ();
+			$current_max = $sth->fetchrow_array;
+			$sth->finish;
+  };
+  confess $@ if ($@);
+  
+  return ($current_max + 1);
+
+}
+
+sub lookup_by_uid {
+	my ($self, $uid) = @_;
+	my @objs = $self->lookup_conditions("uid = $uid");
+	if (scalar @objs == 1) {
+		return $objs[0];
+	} 
+	return undef;
+}
+
 
 #
 # >>>>> Linked objects <<<<<
@@ -234,28 +270,36 @@ sub check_admin{
 
     $roles->{tusk_session_is_admin} = 0;
     $roles->{tusk_session_is_eval_admin} = 0;
+    $roles->{tusk_session_is_registrar} = 0;
     
     if (!$self->primary_key()){
-	confess "check_author only works on initialized user objects"; 
+		confess "check_author only works on initialized user objects"; 
     }
+
     # Get the link definition
     foreach my $school (course_schools()){
-	my $db = get_school_db($school);
-	my $eval_gid = HSDB4::Constants::get_eval_admin_group($school);
-	my $admin_gid = $HSDB4::Constants::School_Admin_Group{$school};
-	my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_user_group_user"};
-	if ($eval_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $eval_gid")){
-	    $roles->{tusk_session_admin}->{$school} = 2;
-	    $roles->{tusk_session_is_eval_admin} = 1;
-	    $roles->{tusk_session_is_author} = 1;
-	    $roles->{tusk_session_is_admin} = 1;
-	}elsif($admin_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $admin_gid")){
-    	    $roles->{tusk_session_admin}->{$school} = 1;
-	    $roles->{tusk_session_is_author} = 1;
-	    $roles->{tusk_session_is_admin} = 1;
-	}else{
-	    $roles->{tusk_session_admin}->{$school} = 0;
-	}
+		my $db = get_school_db($school);
+		my $eval_gid = HSDB4::Constants::get_eval_admin_group($school);
+		my $registrar_gid = HSDB4::Constants::get_registrar_group($school);
+		my $admin_gid = $HSDB4::Constants::School_Admin_Group{$school};
+		my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_user_group_user"};
+
+		if ($registrar_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $registrar_gid")) {
+			$roles->{tusk_session_admin}->{$school} = 3;
+			$roles->{tusk_session_is_registrar} = 1;
+			$roles->{tusk_session_is_admin} = 1;
+		} elsif ($eval_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $eval_gid")) {
+			$roles->{tusk_session_admin}->{$school} = 2;
+			$roles->{tusk_session_is_eval_admin} = 1;
+			$roles->{tusk_session_is_author} = 1;
+			$roles->{tusk_session_is_admin} = 1;
+		} elsif ($admin_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $admin_gid")) {
+			$roles->{tusk_session_admin}->{$school} = 1;
+			$roles->{tusk_session_is_author} = 1;
+			$roles->{tusk_session_is_admin} = 1;
+		} else {
+			$roles->{tusk_session_admin}->{$school} = 0;
+		}
     }
 
     return $roles;
@@ -724,7 +768,7 @@ sub taken_quizzes{
 
     my $course_id = $course->primary_key();
 
-    my $tp = $course->get_current_timeperiod();
+    my $tp = $course->get_users_current_timeperiod($self->user_id);
     my $tp_cond = '';
     if ($tp) {
 	$tp_cond = 'and time_period_id = ' . $tp->primary_key();
@@ -774,7 +818,7 @@ sub current_quizzes{
 
     if ($coursearray and scalar(@$coursearray)){
 	foreach my $course (@$coursearray){
-	    my $tp = $course->get_current_timeperiod();
+	    my $tp = $course->get_users_current_timeperiod($self->user_id);
 	    next unless $tp;
 	    my $key = $course->school . "-" . $course->course_id;
 	    my $preview_value = 0;
@@ -818,7 +862,7 @@ sub current_quizzes{
 	}
 	
 	my $school_id = $schoolhash->{$course->school};
-	my $tp = $course->get_current_timeperiod();
+	my $tp = $course->get_users_current_timeperiod($self->user_id);
 	my $tp_cond = '';
 	if ($tp) {
 	    $tp_cond = " and time_period_id = " . $tp->primary_key();
@@ -988,7 +1032,7 @@ sub get_course_grades {
 		confess "Need to have valid user object passed";
 	}
 	my $school_id = $course->get_school->getPrimaryKeyID();
-	my $time_period = $course->get_current_timeperiod();
+	my $time_period = $course->get_users_current_timeperiod($self->user_id);
 
 	if ($time_period == 0 or !(defined($time_period->primary_key()))){
 		return [];
@@ -1036,7 +1080,7 @@ sub get_grades {
 		foreach my $schoolDatabase (@schoolDatabases) {
 
 			my $sql = qq(
-						 select luge.grade, luge.comments, ge.course_id, ge.school_id, ge.event_name, ge.sort_order, s.school_id, s.school_name, s.school_db, c.title, tp.start_date, tp.end_date, tp.time_period_id
+						 select luge.grade, luge.comments, ge.course_id, ge.school_id, ge.event_name, ge.grade_event_id, ge.sort_order, s.school_id, s.school_name, s.school_db, c.title, tp.start_date, tp.end_date, tp.time_period_id
 						 from tusk.link_user_grade_event luge, tusk.grade_event ge, tusk.school s, $schoolDatabase.time_period tp, $schoolDatabase.course c
 						 where luge.child_grade_event_id=ge.grade_event_id
 						 and luge.parent_user_id=? 
@@ -1048,8 +1092,18 @@ sub get_grades {
 			);
 			my $school_sth = $dbh->prepare($sql);
 			$school_sth->execute($user_id);
-			while (my $grade_row = $school_sth->fetchrow_hashref) {push (@$grades, $grade_row);}
-               $school_sth->finish;
+			while (my $grade_row = $school_sth->fetchrow_hashref) {
+				my $school_name = TUSK::Core::School->lookupReturnOne( "school_db = '" . $schoolDatabase . "'" )->getSchoolName();
+				my $eval_link   = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $grade_row->{grade_event_id} );
+				my $eval_id     = ($eval_link) ? $eval_link->getEvalID() : 0;
+				if ( $eval_id && !HSDB45::Eval->new( _school => $school_name )->lookup_key( $eval_id )->is_user_complete( $self ) ) {
+					$grade_row->{grade} = "<a href='/protected/eval/complete/" . $school_name . "/" . $eval_id . "'>Pending Eval Completion</a>";
+				}
+				$grade_row->{school_name} = $school_name;
+
+				push (@$grades, $grade_row);
+			}
+            $school_sth->finish;
 		}
 	};
 	if($@) {confess "$@";}
@@ -1068,9 +1122,20 @@ sub get_grades {
 					       }
 			);
 		}
-		$grade_row->{grade} = "No Grade" if (!defined($grade_row->{grade}));
+
+		my $scaled_grade;
+		if ( !defined( $grade_row->{grade} ) ) {
+			$grade_row->{grade} = "No Grade";
+			$scaled_grade = "No Grade";
+		} else {
+			my $course = HSDB45::Course->new( _school => $grade_row->{school_name})->lookup_key( $grade_row->{course_id} );
+			my $gb     = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $grade_row->{time_period_id}, user_id => $user_id });
+			$scaled_grade = $gb->getScaledGrade($grade_row->{grade}, $grade_row->{grade_event_id});
+		}
+
 		push @{$sorted_grades->[scalar(@$sorted_grades)-1]->{data}}, {
 			grade => $grade_row->{grade}, 
+			scaled_grade => $scaled_grade,
 			comments => $grade_row->{comments}, 
 			name => $grade_row->{event_name}, 
 		};
@@ -1412,7 +1477,7 @@ sub out_contact_info {
 	    }
 	    $valid_user = 1;
 	}
-	elsif (  (not HSDB4::Constants::is_guest($viewer->primary_key)) && (TUSK::ShibbolethUser::isShibUser($viewer->primary_key) == -1)  ) { 
+	elsif (  (not HSDB4::Constants::is_guest($viewer->primary_key)) && (TUSK::Shibboleth::User::isShibUser($viewer->primary_key) == -1)  ) { 
 	    $valid_user = 1;
 	}
     }
@@ -1877,7 +1942,7 @@ sub process_reset_password {
     $self->save();
     # Send them an e-mail message telling them what their new password is
     ($res,$msg) = $self->send_email ($TUSK::Constants::SiteAbbr." Password Change",
-		       sprintf ("Your ".$TUSK::Constants::SiteAbbr." (http://" . $TUSK::Constants::Domain . ") username is '%s'.",
+		       sprintf ("Your ".$TUSK::Constants::SiteAbbr." (http://" . $ENV{'HTTP_HOST'} . ") username is '%s'.",
 				$self->primary_key),
 		       "Your password has been reset to '$newpw'.",
 		       "",
@@ -1949,53 +2014,49 @@ EOM
 }
 
 
-sub get_director_patient_logs{
-    my ($self) = @_;
-    my $patientlogs = [];
+sub get_director_forms {
+    my ($self, $form_type_token) = @_;
+	croak "Missing Form Type" unless $form_type_token;
 
-    my $user_id = $self->primary_key();
-    my $affiliation = $self->affiliation();
-    my $schools = TUSK::Core::School->new->lookup("school_name = '$affiliation'");
-    return $patientlogs unless (scalar(@$schools));
+    my $forms = [];
+    my $school = TUSK::Core::School->lookupReturnOne("school_name = '" . $self->affiliation() . "'");
 
-    my $db = $schools->[0]->getSchoolDb();
-    my $school_id = $schools->[0]->getPrimaryKeyID();
+    return $forms unless (defined $school);
 
-    my $sql =<<EOM;
-select c.course_id as course_id, c.title as title, $school_id as school_id, s.school_name as school_name, fo.form_id as form_id, fo.form_name as form_name
-from 
-tusk.link_course_form f, 
-tusk.form_builder_form fo,
-tusk.form_builder_form_type ft,
-tusk.school s,
-$db\.link_course_user l, 
-$db\.course c
-where 
-f.school_id = ? and 
-f.parent_course_id = l.parent_course_id and 
-l.child_user_id = ? and
-(FIND_IN_SET('Director', l.roles) or
-FIND_IN_SET('Site Director', l.roles) or
-FIND_IN_SET('Manager', l.roles)) and
-c.course_id = l.parent_course_id and
-fo.form_id = f.child_form_id and
-s.school_id = f.school_id and
-fo.publish_flag = 1 and
-fo.form_type_id = ft.form_type_id and
-ft.token = 'PatientLog'
-EOM
+    my $db = $school->getSchoolDb();
+    my $school_id = $school->getPrimaryKeyID();
+
+    my $sql = qq(
+				 select c.course_id as course_id, c.title as title, $school_id as school_id, 
+				 s.school_name as school_name, fo.form_id as form_id, fo.form_name as form_name
+				 from tusk.link_course_form f, 
+				 tusk.form_builder_form fo,
+				 tusk.form_builder_form_type ft,
+				 tusk.school s,
+				 $db\.link_course_user l, 
+				 $db\.course c
+				 where f.school_id = ? and 
+				 f.parent_course_id = l.parent_course_id and 
+				 l.child_user_id = ? and
+				 (FIND_IN_SET('Director', l.roles) or
+				  FIND_IN_SET('Site Director', l.roles) or
+				  FIND_IN_SET('Manager', l.roles)) and
+				 c.course_id = l.parent_course_id and
+				 fo.form_id = f.child_form_id and
+				 s.school_id = f.school_id and
+				 fo.publish_flag = 1 and
+				 fo.form_type_id = ft.form_type_id and
+				 ft.token = ?
+				 );
+
     my $dbh = HSDB4::Constants::def_db_handle ();
-
     eval {
-	my $sth = $dbh->prepare ($sql);
-	$sth->execute ($school_id, $user_id);
-	$patientlogs = $sth->fetchall_arrayref({});
+		my $sth = $dbh->prepare($sql);
+		$sth->execute($school_id, $self->primary_key(), $form_type_token);
+		$forms = $sth->fetchall_arrayref({});
     };
-    if ($@){
-	confess "$@";
-    }
-
-    return $patientlogs;
+    confess "$@" if ($@);
+    return $forms;
 }
 
 
@@ -2039,6 +2100,70 @@ sub get_instructor_simulated_patients {
 	confess "$@" if ($@);
 
     return $simulated_patients;
+}
+
+sub get_assessments {
+	my ($self) = @_;
+	my $sql = qq(
+				 select s.school_id, s.school_name, parent_course_id as course_id,
+			 	 f.form_id as form_id, form_name, form_description, y.entry_id
+				 from tusk.form_builder_subject_assessor sa
+			     inner join tusk.link_course_form as cf on (sa.form_id = cf.child_form_id)
+				 inner join tusk.form_builder_form as f on (sa.form_id = f.form_id)
+				 inner join tusk.form_builder_form_type as ft on (f.form_type_id = ft.form_type_id) 
+				 inner join tusk.school as s on (cf.school_id = s.school_id)
+				 left outer join
+					(select form_id, e.entry_id
+					 from tusk.form_builder_entry e, tusk.form_builder_entry_association ea 
+					 where e.entry_id = ea.entry_id and ea.user_id = ? and complete_date is not NULL
+						 and is_final = 1) as y on (y.form_id = sa.form_id)
+				 where f.publish_flag = 1 
+				 and ft.token = 'Assessment' and status in (1,2)
+				 and sa.subject_id  = ?
+	);
+
+    my $dbh = HSDB4::Constants::def_db_handle ();
+	my $assessments = [];
+    eval {
+		my $sth = $dbh->prepare($sql);
+		$sth->execute($self->primary_key(),$self->primary_key());
+		$assessments = $sth->fetchall_arrayref({});
+    };
+
+	confess "$@" if ($@);
+    return $assessments;
+
+}
+
+sub get_instructor_assessments {
+	my ($self) = @_;
+	my $sql = qq(
+				 select distinct a.school_id, school_name, a.parent_course_id as course_id,
+				 b.form_id as form_id, form_name, form_description
+				 from tusk.link_course_form a,
+				 tusk.form_builder_form b, 
+				 tusk.form_builder_form_type c, 
+				 tusk.form_builder_subject_assessor d,
+				 tusk.school e
+				 where a.child_form_id = d.form_id
+				 and a.school_id = e.school_id
+				 and a.child_form_id  = b.form_id
+				 and publish_flag = 1
+				 and b.form_type_id = c.form_type_id
+				 and c.token = 'Assessment'
+				 and assessor_id = ?
+				 );
+
+    my $dbh = HSDB4::Constants::def_db_handle ();
+	my $assessments = [];
+    eval {
+		my $sth = $dbh->prepare($sql);
+		$sth->execute($self->primary_key());
+		$assessments = $sth->fetchall_arrayref({});
+    };
+
+	confess "$@" if ($@);
+    return $assessments;
 }
 
 
@@ -2161,7 +2286,7 @@ sub get_announcements_by_group_and_course{
 sub get_course_assignments {
 
     my ($self, $course) = @_;
-    my $tp = $course->get_current_timeperiod();
+    my $tp = $course->get_users_current_timeperiod($self->user_id);
     my $assignments = [];
 
     if (ref $tp eq 'HSDB45::TimePeriod' && $course->is_user_registered($self->primary_key(), $tp->primary_key())) {
@@ -2177,7 +2302,7 @@ sub makeGhost {
 	# Basically we need to set the primary_key and the user ID
 	if($user_id) {
 		$self->primary_key($TUSK::Constants::shibbolethUserID . $user_id);
-		$self->field_value('lastname', TUSK::ShibbolethUser->new()->lookupKey($user_id)->getUserGreeting()); 
+		$self->field_value('lastname', TUSK::Shibboleth::User->new()->lookupKey($user_id)->getUserGreeting()); 
 		$self->field_value('status', 'ghost');
 		$self->field_value('email', $TUSK::Constants::ErrorEmail);
 		$self->field_value('sid', $user_id);
@@ -2254,6 +2379,9 @@ sub save {
 	# Check to make sure we are not a "ghost" user
 	if($self->status eq 'ghost') {return 1;}
 	else {
+		if(!defined($self->{uid}) ) {
+			$self->{uid} = get_new_uid();
+		}
 		my $returnCode = $self->SUPER::save(@params);
 		if($returnCode && $self->{saveForumData}) {
 			my $dbh = HSDB4::Constants::def_db_handle();
@@ -2286,6 +2414,13 @@ sub set_first_name{
 	my $newFirstName = $params[0];
 	$self->field_value("firstname", $newFirstName);
 	$self->{saveForumData} = 1;
+}
+
+sub official_image {
+	my ($self) = @_;
+	return (-e $TUSK::Constants::userImagesPath . '/' . $self->uid() . '/official.jpg') 
+			? '/images/users/' . $self->uid() . '/official.jpg' 
+			: '/graphics/no-profile.gif';
 }
 
 1;

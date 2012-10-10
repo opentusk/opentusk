@@ -7,20 +7,26 @@
 
 <%shared>
 	my $quiz_previously_completed = 0;
-	my ($case_id, $phase_id, $quiz_id, $report_id) = $m->comp("/tmpl/url:get_path_ids");
+	my ($case_id, $phase_id, $quiz_id) = $m->comp("/tmpl/url:get_path_ids");
 	my $phase = TUSK::Case::Phase->lookupKey($phase_id);
 	my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
 	my $case = TUSK::Case::Case->lookupKey($case_id);
 	my $user_id = $m->comp('SELF:user');
 	my $preview_text = $m->comp('SELF:get_preview_text', case => $case);
 	my $report = $case->getReport();
+	my $report_id = $report->getPrimaryKeyID();
+
+	if($case->isLinearNav() && !$phase->isLastPhaseVisited($report)){
+		my $type_path = $m->comp('/tmpl/url:get_type_path');
+		$m->redirect("/case/dophase/$type_path/$case_id/$phase_id");
+	}
 
 	my %ARGS = $m->request_args();
 
 	my $quiz_submitted = 0;  
-	my $result = TUSK::Quiz::Result::findOpenResult($user_id, $quiz_id);
+	my $result = $report->getOpenQuiz($quiz_id);
 	my $has_result = $report->getCompletedQuiz($quiz_id);
-	if (defined($ARGS{'submit'})){
+	if (defined($ARGS{'submitquiz'})){
 		if (defined($result)){
 			my $quizItemHash = {};
 			my $quiz_items = $quiz->getQuizItems();
@@ -33,11 +39,18 @@
 			my $link = TUSK::Case::LinkCaseReportQuizResult->new();
 			$link->setParentCaseReportID($report_id);
 			$link->setChildQuizResultID($result->getPrimaryKeyID());
+
+			my $visit = $phase->getMostRecentVisit($report);
+			$link->setPhaseVisitID($visit->getPrimaryKeyID());
+
 			$link->save({ user => $user_id });
 			$quiz_submitted = 1;
 		}
 	} 
-	if (defined($has_result)){
+
+	if (defined($has_result) && (!defined($ARGS{'retake_quiz'}) || !$phase->getQuizLink()->getAllowResubmit()) ){
+		# user has already completed this quiz, and is only going to see result b/c they either didn't
+		# supply a param to retake the quiz, or the quiz is not permitted for retaking
 		$quiz_previously_completed = 1;
 		$result = $has_result;
 	} elsif (!defined($result)){
@@ -78,24 +91,41 @@
 % }
 
 % if (!$quiz_submitted and !$quiz_previously_completed){
-			<& /tmpl/element:save_button, params=>{
-					no_cancel_button => 1, 
-					one_column => 1, 
-					label => 'Submit Quiz',
-					name => 'submit',
-					td_class => '',
-					} &>
+	<& /tmpl/element:save_button, params=>{
+			no_cancel_button => 1, 
+			one_column => 1, 
+			label => 'Submit Quiz',
+			name => 'submitquiz',
+			td_class => '',
+			} 
+	&>
 % } else {
 	<tr>
-		<td class="no-button">
-			<& tmpl/element:transition_button, no_quiz => 1, no_submit => 1, case => $case, phase => $phase, args => \%ARGS, formname => 'takequiz' &>
-			<& /tmpl/wizard:include &>
-		</td>
+	<td class="no-button">
+%	if ($phase->getQuizLink()->getAllowResubmit()) {
+%		$m->comp('/tmpl/element:button', params=>{ 
+%			label => 'Retake Quiz', 
+%			onclick => "retake_quiz('takequiz');"
+%		} );
+%	}
+%	if ($case->isLinearNav()) {
+%		$m->comp('tmpl/element:transition_button', no_quiz => 1, no_submit => 1, case => $case, phase => $phase, args => \%ARGS, formname => 'takequiz');
+%	}
+	</td>
 	</tr>
 % }
+% # need to call 'wizard:include' so that we have a "next_page" input element on the page for the 
+% # "complete_phase()" js function
+% $m->comp('/tmpl/wizard:include');
+
 </table>
 </form>
 
+% # check_quiz() calls clickSubmit(). This was introduced to full implementation of quiz, but not 
+% # used in case. just adding an empty function so that check_quiz is not broken.
+<script>
+function clickSubmit() { return; }
+</script>
 
 
 <%method jsarray>
@@ -122,6 +152,7 @@
 
 <%method startup>
 <%perl>
+	$m->comp("SELF:set_no_cache");
 	if ($quiz_submitted){
 		if (!$case->isTest()){
 			$m->comp('SELF:set_msg', msg => 'Your quiz has been submitted, please review your answers');

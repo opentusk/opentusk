@@ -1,0 +1,86 @@
+<%once>
+	use TUSK::Manage::GroupLinks;
+</%once>
+
+<%shared>
+    my $usergroup = $m->comp('/tmpl/url:get_type_object');
+	my $usergroup_id = $usergroup->primary_key(); 
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $ugroup_name = $usergroup->out_label();
+</%shared>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<tr><td>
+
+<& /tmpl/element:cms_button_row, links => [
+				{	link_txt => '/management/grouplinks/addedit/' . $selfpath,
+					display_txt => "New Link" } ]
+&>
+
+</td></tr>
+</table>
+
+% if (scalar(@{$data->{courses}})) { 
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	class =>"tusk",
+	cellspacing =>"0",
+	cellpadding =>"0" } &>
+
+<tr class="header"> 
+<td class="header-left">Course Name</td>
+<td class="header-center">Time Period</td>
+<td class="header-center">Action</td>
+</tr>
+
+% foreach my $i (0..(scalar(@{$data->{courses}})-1)) {
+%	my $course = $data->{courses}->[$i];
+%	if ($i % 2 == 0){
+%		$data->{class} = "even";
+%	} else{
+%		$data->{class} = "odd";
+%	}
+
+<tr class="<% $data->{class} %>"> 
+<td class="layers-left"><a href="/management/grouplinks/addedit/<% $selfpath %>/<% $course->primary_key%>/<% $course->aux_info('time_period_id') %>"><% $course->field_value('title') %></a>
+</td>
+<td class="layers-center"><% $data->{timeperiods}->{ $course->aux_info('time_period_id') } %></td>
+
+<td class="layers-center"><a href="/management/grouplinks/addedit/<% $selfpath %>/<% $course->primary_key %>/<% $course->aux_info('time_period_id') %>" class="navsm">Modify</a><span class="littlespacing">|</span><a href="/management/grouplinks/delete/<% $selfpath %>/<% $course->primary_key %>/<% $course->aux_info('time_period_id') %>" class="navsm">Delete</a></td>
+</tr>
+
+% }  # END FOREACH
+
+</table>
+
+% } else { 
+	<i>Usergroup has no courses.</i>
+% } #END IF/ELSE
+
+<%init>
+
+unless ($ARGS{page}){ $ARGS{page}="add"; }	
+
+my	$data = TUSK::Manage::GroupLinks::show_pre_process($usergroup_id, $school);
+my  $selfpath = $m->comp("/tmpl/url:get_full_path");
+
+</%init>
+
+<%method title>
+% return "Manage UserGroup Links";
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method get_nav_bars>
+% return [{ href=> '/management/home', label => 'CMS Home' }, { href=>'', label=>'Admin - '.$school}, { href=>'/management/usergroup/show/school/'.$school,label=>'Manage Groups'}, { href=>'/management/usergroup/addedit/school/'.$school.'/'.$usergroup_id,label=> $ugroup_name }   ];
+</%method>

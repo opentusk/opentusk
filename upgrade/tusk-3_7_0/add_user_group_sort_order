@@ -1,0 +1,62 @@
+#!/usr/bin/perl -w
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin/../../tusk/current/lib";
+
+use HSDB4::Constants;
+use MySQL::Password;
+use Carp;
+
+my ($user_name, $password) = &get_user_pw();
+&HSDB4::Constants::set_user_pw($user_name, $password);
+
+foreach my $school_name (HSDB4::Constants::schools()) {
+	my $dbh;
+print "\n" . $school_name . "\n";
+	eval {
+		$dbh = HSDB4::Constants::def_db_handle();
+	};
+	die "$@\t...failed to obtain database handle!" if $@;
+
+	my $query = "alter table " . HSDB4::Constants::get_school_db( $school_name ) . ".user_group add `sort_order` tinyint(3) unsigned default NULL";
+	eval {
+		my $q_handle = $dbh->prepare($query);
+		$q_handle->execute();
+	};
+
+	$query = "select user_group_id from " . HSDB4::Constants::get_school_db( $school_name ) . ".user_group where sub_group = 'No' order by label";
+	eval {
+		my $q_handle = $dbh->prepare($query);
+		$q_handle->execute();
+
+		my $counter = 0;
+		while (my ($user_group_id) = $q_handle->fetchrow_array()) {
+			$dbh->prepare( "update " . HSDB4::Constants::get_school_db( $school_name ) . ".user_group set sort_order = $counter where user_group_id = $user_group_id" )->execute();
+			print $user_group_id . " -- " . $counter . "\n";
+			$counter++;
+		}
+	};
+
+	$query = "select parent_course_id, child_user_group_id, time_period_id from " . HSDB4::Constants::get_school_db( $school_name ) . ".link_course_user_group where child_user_group_id in (select user_group_id from " . HSDB4::Constants::get_school_db( $school_name ) . ".user_group where sub_group = 'Yes') order by parent_course_id, time_period_id";
+	eval {
+		my $q_handle = $dbh->prepare($query);
+		$q_handle->execute();
+
+		my ($counter, $l_course_id, $l_time_period_id) = (0,0,0);
+		while (my ($course_id, $user_group_id, $time_period_id) = $q_handle->fetchrow_array()) {
+			if ($l_course_id != $course_id) {
+				$l_course_id      = $course_id;
+				$l_time_period_id = $time_period_id;
+				$counter          = 0;
+			} elsif ( $l_time_period_id != $time_period_id ) {
+				$l_time_period_id = $time_period_id;
+				$counter          = 0;
+			}
+			
+			$dbh->prepare( "update " . HSDB4::Constants::get_school_db( $school_name ) . ".user_group set sort_order = $counter where user_group_id = $user_group_id" )->execute();
+			print $course_id . " -- " . $user_group_id . " -- " . $time_period_id . " -- " . $counter . "\n";
+			$counter++;
+		}
+	};
+}

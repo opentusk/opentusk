@@ -1,0 +1,35 @@
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+no_check_path => 1
+page_header => ''
+page_footer => ''
+</%attr>
+
+<%once>
+	use TUSK::Quiz::LinkQuizQuizItem;
+	use TUSK::Quiz::LinkQuestionQuestion;
+</%once>
+
+<%perl>
+	my ($type, $type_id) = $m->comp("/tmpl/url:get_path_ids");
+
+	print "{\n";
+	my $id = $ARGS{'droppedRow'};
+	$id =~ s/_[\d]+//;
+
+	my $index = $ARGS{originalPos};
+	my $newindex = $ARGS{newPos};
+
+	if ($type eq 'quiz') {
+		TUSK::Quiz::LinkQuizQuizItem->new()->updateSortOrders($index, $newindex, $type_id);	
+	}
+	elsif ($type eq 'question') {
+		TUSK::Quiz::LinkQuestionQuestion->new()->updateSortOrders($index, $newindex, $type_id);	
+	}
+
+	print "\"error\" : \"\"\n";
+	print "}";
+</%perl>

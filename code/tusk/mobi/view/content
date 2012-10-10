@@ -123,13 +123,17 @@ else {
 		}
 	} 
 	else{
+		my $dload_warn = "<p>The link below goes to a piece of content that may not be supported on your mobile device. Check that it can handle the file type and has the capacity for large files.</p>";
+		if ($ENV{HTTP_USER_AGENT} =~ /android/i) {
+			$dload_warn .= "<p><strong>Android users:</strong> to download a file, hold your thumb down on the file link until a menu appears and choose the \"Save link\" option from the list.</p>";
+		}
 		my $pretxt = '';
 		if( $content->type() eq 'DownloadableFile' || $content->type() eq 'PDF' ){
-			$pretxt = "<p>The link below goes to a piece of content that may not be supported on your mobile device. Check that it can handle the file type and has the capacity for large files.</p>";
+			$pretxt = $dload_warn;
 			$body = '<a href="/download/' . $content->primary_key() . '">' . $content->title  . '</a>';
 		}
 		elsif($content->type() =~ /Audio|Video|Fdlashpix/){
-			$pretxt = "<p>The link below goes to a piece of content that may not be supported on your mobile device. Check that it can handle the file type and has the capacity for large files.</p>";
+			$pretxt = $dload_warn;
 			my $url = $content->out_streaming_url();
 			$body = "<a href=\"$url\">" . $content->title() . '</a>';
 		}

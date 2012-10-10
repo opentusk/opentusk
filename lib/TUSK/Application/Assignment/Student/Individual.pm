@@ -111,7 +111,7 @@ sub setNotes {
 sub getCurrentAssignments {
     my ($self) = @_;
     my @assignment_links = ();
-    my $tp = $self->{course}->get_current_timeperiod();
+    my $tp = $self->{course}->get_users_current_timeperiod($self->{user_id});
 
     if (ref $tp eq 'HSDB45::TimePeriod' && $self->{course}->is_user_registered($self->{user_id}, $tp->primary_key)) {
 	my $assignments = TUSK::Assignment::Assignment->new()->lookup(

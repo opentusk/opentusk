@@ -174,7 +174,7 @@ sub processLogSummary {
 				}
 			}
 			if ($response_text =~ /\w+/) {
-				push @{$data{$entry->getDate()}{$entry->getPrimaryKeyID()}{$field->getPrimaryKeyID()}}, $response_text ;
+				push @{$data{$entry->getDate()}{$entry->getPrimaryKeyID()}{$field->getPrimaryKeyID()}}, [ $response_text, $response->getActiveFlag() ] ;
 			}
 		}
 		$reports{$entry->getPrimaryKeyID()} = 1;

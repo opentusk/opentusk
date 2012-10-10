@@ -190,7 +190,7 @@
 	my $start_in_unix = $s_t->out_unix_time + 7200;
 	my $end_in_unix   = $e_t->out_unix_time + 7200;
 
-	while ( $start_in_unix <= $end_in_unix ) {
+	while ( $start_in_unix <= $end_in_unix && @course_ids ) {
 		my $meeting_date = HSDB4::DateTime->new->in_unix_time($start_in_unix)->out_mysql_date;
 		my @class_meetings = HSDB45::ClassMeeting->new( _school => $school )->lookup_conditions( "meeting_date = '" . $meeting_date . 
 																						"' and course_id in (" . join( ",", @course_ids ) . ")" );
@@ -237,24 +237,31 @@
 				<td colspan="<% $column_count-1 %>">
 					<ol>
 <%perl>
+					my %objectives;
+					my $used = 0;
+
+					foreach my $objective_link ( @{$class_meeting->child_objectives} ) {
+						$used = 1;
+						my $objective = $objective_link->getObjective;
+						$objectives{'o' . $objective->getFieldValue('objective_id')} = $objective->getFieldValue('body');
+					}
+
  					my @content = $class_meeting->active_child_content();
  					if (scalar @content) {
-						my %objectives;
-						my $used = 0;
 						foreach my $content (@content) {
 							foreach my $objective ($content->child_objectives()) {
 								$used = 1;
 								$objectives{'o' . $objective->objective_id} = $objective->field_value('body');
 							}
 						}
+					}
+
+					if (!$used) {
+						print "No objectives listed.\n";
+					} else {
 						foreach my $ob_key (keys %objectives) {
 							print "<li>" . $objectives{$ob_key} . "</li>\n";
  						}
-						if (!$used) {
-							print "No objectives listed.\n";
- 						}
-					} else {
-						print "No objectives listed.\n";
 					}
 </%perl>
 					</ol>

@@ -176,16 +176,15 @@ sub checkToken{
 sub getFieldTypes {
 	my ($self, $form_token) = @_;
 
-	## Some application might not handle all different field types well
-	## as we add more and more field types, here is the place to exclude certain fields 
-	## for a form type
-	my $field_types_exclusion = {
-		PatientLog => [ 'Heading', 'CheckList' ],
+	my $field_types = {
+		PatientLog => [ 'FillIn', 'SingleSelect', 'SingleSelectAllowMulti', 'MultiSelect', 'MultiSelectWithAttributes', 'RadioSelect', 'Essay', 'DynamicList' ],
+		SP => [ 'FillIn', 'SingleSelect', 'SingleSelectAllowMulti',  'MultiSelectWithAttributes', 'RadioSelect', 'Essay', 'DynamicList', 'CheckList', 'Heading', ],
+        Assessment => [ 'Scaling' ],
 	};
 
 	my $cond = undef;
-	if (defined $form_token && exists $field_types_exclusion->{$form_token}) {
-		$cond = 'token not in (' . join(", ", map { "'$_'" } @{$field_types_exclusion->{$form_token}}) . ')';
+	if (defined $form_token && exists $field_types->{$form_token}) {
+		$cond = 'token in (' . join(", ", map { "'$_'" } @{$field_types->{$form_token}}) . ')';
 	}
 
 	return $self->lookup($cond, ['label']);

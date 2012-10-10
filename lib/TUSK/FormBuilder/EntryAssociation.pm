@@ -54,6 +54,7 @@ sub new {
 					'entry_association_id' => 'pk',
 					'entry_id' => '',
 					'user_id' => '',
+					'is_final' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -132,6 +133,37 @@ sub setUserID{
     $self->setFieldValue('user_id', $value);
 }
 
+
+
+#######################################################
+
+=item B<getIsFinal>
+
+my $string = $obj->getIsFinal();
+
+Get the value of the is_final field
+
+=cut
+
+sub getIsFinal{
+    my ($self) = @_;
+    return $self->getFieldValue('is_final');
+}
+
+#######################################################
+
+=item B<setIsFinal>
+
+$obj->setIsFinal($value);
+
+Set the value of the is_final field
+
+=cut
+
+sub setIsFinal{
+    my ($self, $value) = @_;
+    $self->setFieldValue('is_final', $value);
+}
 
 
 =back

@@ -1,0 +1,226 @@
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%once>
+	use TUSK::FormBuilder::SubjectAssessor;
+	use TUSK::FormBuilder::EntryGrade;
+</%once>
+
+<%shared>
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $form = $m->comp('/formbuilder/util:get_form', join_objects => [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }) ]);
+	my $assessment_form = $form->getJoinObject('TUSK::FormBuilder::Assessment');
+	my $show_images = $assessment_form->getShowImages();
+	my $form_id = $form->getPrimaryKeyID();
+	my $type_path = $m->comp('/tmpl/url:get_type_path');
+	my $elective_label = ($assessment_form->getShowElective()) ? { label => 'Elective', field => 'elective', align => 'center' } : {};
+	my ($tp_id, @students, $school_id);
+ 	my $has_multiple_assessors = $assessment_form->getMultiAssessors();
+</%shared>
+
+% if ($assessment_form->getScoreDisplay()) {
+<& 'SELF:getResultsWithGrades' &>
+% } else {
+<& 'SELF:getResults' &>
+% }
+
+<%init>
+	$tp_id = $ARGS{timeperiod} || $m->comp("SELF:get_timeperiod_id");
+	@students = $course->child_students("time_period_id = $tp_id");
+	$school_id = $course->get_school()->getPrimaryKeyID();
+</%init>
+
+<%method getResultsWithGrades>
+<%perl>
+ 	my ($completion_label, $average_score_label, $final_score_label, $assessor_label) = ({}, {}, {}, {});
+	my (%final_scores, %final_entries, %avg_scores, $completed_entries, %assessors, %statuses, %assessor_names);
+	my @rows = ();
+
+	### all final entries for all students
+	my $final_entries = TUSK::FormBuilder::Entry->lookup("form_builder_entry.form_id = $form_id AND form_builder_entry.time_period_id = $tp_id",undef,undef,undef, [ 
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "is_final = 1" }),
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }),
+ 		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Form::GradeEvent', { joinkey => 'form_id', jointype => 'inner' }),
+ 		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'form_builder_form_grade_event.grade_event_id', jointype => 'inner', joincond => "grade_event.time_period_id = $tp_id" }),
+ 		TUSK::Core::JoinObject->new('TUSK::GradeBook::LinkUserGradeEvent', { joinkey => 'child_grade_event_id', origkey => 'grade_event.grade_event_id', jointype => 'inner', joincond => 'parent_user_id = form_builder_entry_association.user_id'}),
+	 ]);
+
+	foreach my $entry (@$final_entries) {
+		my $student_id = $entry->getJoinObject('TUSK::FormBuilder::EntryAssociation')->getUserID();
+		$final_entries{$student_id} = $entry->getPrimaryKeyID();
+		$final_scores{$student_id} = $entry->getJoinObject('TUSK::GradeBook::LinkUserGradeEvent')->getGrade(); 
+		$statuses{$student_id} = ($entry->getCompleteDate()) ? 'Posted on ' . $entry->getCompleteDate() : (($entry) ? 'Saved on ' . $entry->getModifiedOn() : '-');
+	}
+
+	if ($has_multiple_assessors) {
+		$completion_label = {label => 'Completion', field => 'completion', align => 'center' };
+		$average_score_label = { label => 'Avg Assessor Score', field => 'average', align => 'center' };
+		$final_score_label = { label => 'Final Score', field => 'final', align => 'center' };
+
+		my $entry_grades = TUSK::FormBuilder::EntryGrade->lookup(undef,undef,undef,undef, [
+			TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id AND time_period_id = $tp_id AND complete_date is NOT NULL" }),
+			TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => 'is_final = 0' }),
+		]);
+
+		foreach my $entry_grade (@$entry_grades) {
+			my $assoc = $entry_grade->getJoinObject('TUSK::FormBuilder::EntryAssociation');
+			my $entry = $entry_grade->getJoinObject('TUSK::FormBuilder::Entry');
+			$avg_scores{$assoc->getUserID()} += $entry_grade->getScore();
+			$completed_entries->{$assoc->getUserID()}{$entry->getUserID()} = 1;
+		}
+	} else {
+		$final_score_label = { label => 'Score', field => 'final', align => 'center' };
+		$assessor_label = {label => 'Assessor', field => 'assessor', align => 'center' };
+	}
+
+	# all assesors assigned for each student
+	foreach (@{TUSK::FormBuilder::SubjectAssessor->lookup("form_id = $form_id AND time_period_id = $tp_id and form_builder_subject_assessor.status != 0", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Core::HSDB4Tables::User', { origkey => 'assessor_id', jointype => 'inner', joinkey => 'user_id' }), ])}) {
+
+		if ($has_multiple_assessors) {
+			push @{$assessors{$_->getSubjectID()}}, $_->getAssessorID();
+		} else {
+			$assessor_names{$_->getSubjectID()} = $_->getJoinObject('TUSK::Core::HSDB4Tables::User')->outLastFirstName();
+		}
+	}
+
+	my $i = 0;	
+	foreach my $student (@students) {
+		my $student_id = $student->primary_key();
+		my $id = $form_id . '/' . $student->uid();
+		$id .=  '/' . $final_entries{$student_id} if (exists $final_entries{$student_id});
+
+		my $student_img = ($show_images) ? '<img class="imgPreview" src="' . $student->official_image() . '" width="20px" height="20px" /> &nbsp; ' : '';
+
+		my $assessors_num = ($assessors{$student_id}) ? scalar @{$assessors{$student_id}} : 0;
+		my $complete_num = scalar keys %{$completed_entries->{$student_id}};
+
+		$rows[$i] = { 
+			name => $student_img . $student->out_lastfirst_name(),
+			elective => ($student->aux_info('elective')) ? 'Yes' : 'No',
+			assessor => $assessor_names{$student_id},
+			status => '<span class="xsm">' . $statuses{$student_id} . '</span>',
+			id => ($assessors_num || ($assessor_names{$student_id} && $final_entries{$student_id})) ? $id : undef,
+			use_alternate_action_columns => (exists $statuses{$student_id} && $statuses{$student_id} =~ /^Posted on/) ? 1 : 0,
+		};
+
+		my $average_score;
+		if ($has_multiple_assessors) {
+			$average_score = ($assessors_num && $avg_scores{$student_id}) ? sprintf("%.2f", $avg_scores{$student_id} / $complete_num) : '-';
+			$rows[$i]->{completion} = $complete_num . '/' . $assessors_num;
+			$rows[$i]->{average} = $average_score;
+		} 
+		$rows[$i]->{final} = ($final_scores{$student_id}) ? $final_scores{$student_id} : $average_score;
+		$i++;
+	}
+</%perl>
+
+<& "/tmpl/element:table", params => { width => "100%", border =>"0",cellspacing =>"0",cellpadding =>"0" } &>
+<tr>
+<td class="no-button">
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [
+		{label => 'Name', field => 'name' },
+		$elective_label,
+		$completion_label,
+		$assessor_label,
+		$average_score_label,
+		$final_score_label,
+		{label => 'Status', field => 'status', align => 'center' },
+	],
+	action_columns => [ 
+		{ 'label' =>'Summary Results','link' => '/assessment/author/resultsbystudent' },
+	],
+	alternate_action_columns => [ 
+		{ 'label' =>'Summary Results','link' => '/assessment/author/resultsbystudent' },
+		{ 'label' =>'Re-post Results','link' => '/assessment/author/resultsbystudent', extra => '?rp=1' },
+		{ 'label' =>'Student View','link' => '/assessment/author/entry' },
+	],
+	action_dropdown => 1,
+	rows => \@rows,
+	name => "Assessments",
+	sort_box => 0,
+	type_path => $type_path,
+	'norows-message' => '<br/>No assessment results associated with selected time period',
+} &>
+</td>
+</tr>
+</table>
+</%method>
+
+
+<%method getResults>
+<%perl>
+	my @rows = ();
+	my $sql = qq(
+					select sa.subject_id, sa.assessor_id, b.entry_id, complete_date, b.modified_on, lastname, firstname
+					from tusk.form_builder_subject_assessor sa
+					inner join hsdb4.user u on (u.user_id = sa.assessor_id)
+					left join 
+					(select form_id, e.user_id as assessor_id, ae.user_id as student_id, e.entry_id, complete_date, time_period_id, e.modified_on
+					from tusk.form_builder_entry e, tusk.form_builder_entry_association ae
+					where e.entry_id = ae.entry_id) b on (b.form_id = sa.form_id AND b.assessor_id = sa.assessor_id 
+					AND b.student_id = sa.subject_id AND b.time_period_id = sa.time_period_id)
+					where sa.form_id = $form_id and sa.time_period_id = $tp_id );
+
+	my $sth = $form->databaseSelect($sql);
+	my $data = $sth->fetchall_arrayref();
+	$sth->finish();
+
+	my %assigned_assessors = ();  
+	foreach (@$data) {
+		$assigned_assessors{$_->[0]} = [ $_->[5] . ', ' . $_->[6] ];
+		push @{$assigned_assessors{$_->[0]}}, ($_->[2], $_->[3], $_->[4]) if ($_->[2]);
+	}
+
+	foreach my $student (@students) {
+		my $student_id = $student->primary_key();
+		my $id = $form_id . '/' . $student->uid();
+		my $student_img = ($show_images) ? '<img class="imgPreview" src="' . $student->official_image() . '" width="20px" height="20px" /> &nbsp; ' : '';
+		push @rows, { 
+			name => $student_img . $student->out_lastfirst_name(), 
+			elective => ($student->aux_info('elective')) ? 'Yes' : 'No',
+			assessor => $assigned_assessors{$student_id}->[0],
+			status => ($assigned_assessors{$student_id}->[2]) 
+				? 'Completed on ' . $assigned_assessors{$student_id}->[2] 
+				: (($assigned_assessors{$student_id}->[1]) ? 'Last worked on ' .  $assigned_assessors{$student_id}->[3] : ''),
+			action => ($assigned_assessors{$student_id}->[1] && $assigned_assessors{$student_id}->[2]) ? "<a href=\"/assessment/author/entry/$type_path/$form_id/" .  $student->uid() . '/' . $assigned_assessors{$student_id}->[1] . '">view assessment</a>' : '',
+		};
+	}
+</%perl>
+<& "/tmpl/element:table", params => { width => "100%", border =>"0",cellspacing =>"0",cellpadding =>"0" } &>
+<tr>
+<td class="no-button">
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [
+		{label => 'Student', field => 'name' },
+		$elective_label,
+		{label => 'Assessor', field => 'assessor', },
+		{label => 'Status', field => 'status', align => 'center' },
+		{label => '', field => 'action', align => 'center' },
+	],
+	rows => \@rows,
+	name => "Assessments",
+	sort_box => 0,
+	'norows-message' => 'No Results',
+} &>
+</td>
+</tr>
+</table>
+</%method>
+
+<%method jsarray>
+%	return ['jquery/jquery.min.js', 'assessment/list.js'];
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:getFormTypeLabel') . ' Results: &nbsp;' . $form->getFormName();
+</%method>
+
+<%method title>
+% 	return $m->comp('SELF:getFormTypeLabel') . ' Results: &nbsp;' . $form->getFormName();
+</%method>
+
+<%method function_token>
+%	return 'results_assessment';
+</%method>

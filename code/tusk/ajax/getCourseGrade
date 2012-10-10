@@ -1,57 +1,56 @@
-<%args>
-</%args>
+<%flags>
+	inherit => undef
+</%flags>
 
 <%attr>
-        top_tab_type            => 'none'
-        displayLittleUserNavBar => '1'
-        default_path_type       => 'course'
-        no_header               => '1'
-        page_header             => undef
-        page_footer             => undef
-        allow_guests            => '0'
+no_check_path => 1
+page_header => ''
+page_footer => ''
 </%attr>
 
-<%shared>
-        my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
-	my $document = $m->comp('/tmpl/url:get_type_object');
-	my $isMyPasswordValid = 0;
-	my $course = $m->comp('/tmpl/url:get_type_object');
-	my $events = $m->session->{'user'}->get_course_grades($course);
-</%shared>
+<%once>
+ 	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::GradeBook::GradeStats;
+	use TUSK::GradeBook::GradeEventEval;
+	use TUSK::Application::GradeBook::GradeBook;
+	use HSDB45::Eval;
+	use HSDB45::Course;
+</%once>
 
-<%method startup>
-	<%args>
-		$args => {}
-	</%args>
-	<%perl>
-		$isMyPasswordValid = $m->comp("/tmpl/loginForm:verifyLogin", args=>$args);
-	</%perl>
-</%method>
+%	my $path_ids = $m->comp( '/tmpl/url:get_path_ids');
+%	my $course   = HSDB45::Course->new( _school => $path_ids->[0])->lookup_key( $path_ids->[1] );
+%
+%	my $events = $m->session->{'user'}->get_course_grades($course);
+%	if(scalar(@{$events})) {
+		<table border="0" width="100%" class="wide">
+			<tr><th align="left">Name</th><th align="left">Grade</th><th align="left">Scaled Grade</th><th align="left">Comments</th></tr>
 
-
-% $m->clear_buffer();
-% $r->content_type('text/html');
-% $r->no_cache(1);
-%	if($isMyPasswordValid) {
-%		if(scalar(@{$events})) {
-			<table border="0" width="100%" class="wide">
-				<tr><th align="left">Name</th><th align="left">Grade</th><th align="left">Comments</th></tr>
-
-%			foreach my $event (@{$events}) {
-%				my $grade = '';
-%				my $link = $event->getJoinObject("TUSK::GradeBook::LinkUserGradeEvent");
-%				if(!defined($link)){$grade = 'No Grade'} else {$grade = $link->getGrade();}
-					<tr>
-						<td class="html_row"><% $event->getEventName() %></td>
-						<td class="html_row"><% $grade %></td>
-						<td class="html_row"><% $link->getComments() %></td>
-					</tr>
-%				}
-			</table>
-%		} else {
-		<& '/tmpl/prepend:traffic_light', args => {'errmsg' => 'You do not have any grades for this course!'}, 'make_table' => 1 &>
-%		}
+%		foreach my $event (@{$events}) {
+%			my $grade = '';
+%			my $scaled_grade = '';
+%			my $link = $event->getJoinObject("TUSK::GradeBook::LinkUserGradeEvent");
+%			my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $event->getFieldValue('time_period_id'), user_id => $m->session->{'user'}->user_id });
+%			if(!defined($link)){
+%				$grade = 'No Grade';
+%				$scaled_grade = 'No Grade';
+%			} else {
+%				$grade = $link->getGrade();
+%				$scaled_grade = $gb->getScaledGrade($grade, $event->getGradeEventID);
+%			}
+%
+%			my $eval_link = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $event->getGradeEventID );
+%			my $eval_id   = ($eval_link) ? $eval_link->getEvalID() : 0;
+%			if ( $eval_id && !HSDB45::Eval->new( _school => $path_ids->[0])->lookup_key( $eval_id )->is_user_complete( $m->session->{'user'} ) ) {
+%				$grade = "<a href='/protected/eval/complete/" . $path_ids->[0] . "/" . $eval_id . "'>Pending Eval Completion</a>";
+%			}
+				<tr>
+					<td class="html_row"><% $event->getEventName() %></td>
+					<td class="html_row"><% $grade %></td>
+					<td class="html_row"><% $scaled_grade %></td>
+					<td class="html_row"><% $link->getComments() %></td>
+				</tr>
+%			}
+		</table>
 %	} else {
-		<& '/tmpl/prepend:traffic_light', args => {'errmsg' => 'Unable to validate password!<br>Please try again.'}, 'make_table' => 1 &>
-		<& '/tmpl/loginForm:redisplayPrivateLogin' &>
+	<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => 'You do not have any grades for this course!'}, 'make_table' => 1 &>
 %	}

@@ -13,7 +13,7 @@
 	$args
 </%args>
 <%perl>
-	unless ($ENV{HOSTNAME} =~ /tusk.tufts.edu/i && $m->comp('SELF:schoolname') eq 'Medical') {
+	unless ($ENV{HOSTNAME} =~ /tusk.tufts.edu/i && ($m->comp('SELF:schoolname') eq 'Medical' || $m->comp('SELF:schoolname') eq 'Dental') ) {
 		$m->comp('SELF:set_msg',, type => 'err', msg => 'Sorry. At this time, this page is not yet available.');
 		exit();
 	}
@@ -21,7 +21,7 @@
 </%method>
 
 <%init>
-	return unless ($ENV{HOSTNAME} =~ /tusk.tufts.edu/i && $m->comp('SELF:schoolname') eq 'Medical');
+	return unless ($ENV{HOSTNAME} =~ /tusk.tufts.edu/i && ($m->comp('SELF:schoolname') eq 'Medical' || $m->comp('SELF:schoolname') eq 'Dental') );
 
 	$m->comp('SELF:show_form');
 
@@ -86,15 +86,16 @@
 
 <%method create_evals>
 <%perl>
-    	my $tmpl = shift;
-    	my $codes = $tmpl->getCourseCodes();
-    	my (%created_evals, %existing_evals, %errors);
-    	my $school = $tmpl->getSchool()->getSchoolName();
+	my $tmpl = shift;
+	my $codes = $tmpl->getCourseCodes();
+	my (%created_evals, %existing_evals, %errors);
+	my $school = $tmpl->getSchool()->getSchoolName();
+	my $sync_errors;
 
-    	### ensure that teaching sites are in sync among link_course_student, 
-    	### course_code and link_course_teaching_site
-    	$tmpl->sync_teaching_sites();
-	my $sync_errors = $tmpl->getTeachingSiteSyncErrors();
+	### ensure that teaching sites are in sync among link_course_student, 
+	### course_code and link_course_teaching_site
+	$tmpl->sync_teaching_sites();
+	$sync_errors = $tmpl->getTeachingSiteSyncErrors();
 
 	foreach my $code (@{$codes}) {
 		$tmpl->setCourse($code->[0]);
@@ -110,28 +111,29 @@
 			my @existed_evals = $tmpl->evalExists();
 
 			if (@existed_evals) {
-	    			push @{$existing_evals{$key}}, @existed_evals;
+				push @{$existing_evals{$key}}, @existed_evals;
 			} else {
     			### creat an eval even though there is no teaching site
     			### there are more than one teaching site for some course
 				my $evalmaker = TUSK::Application::Eval::Maker->new({ 
-			    	school         => $school,
-			    	course         => $tmpl->getCourse(),
+				    school         => $school,
+				    course         => $tmpl->getCourse(),
 		    		time_period    => $tmpl->getTimePeriod(),
 		    		teaching_site  => $tmpl->getTeachingSite(),
 		    		available_date => $params{available_date},
-		    		due_date       => $params{due_date},
-		    		eval_title     => $eval_title,
+			    	due_date       => $params{due_date},
+			    	eval_title     => $eval_title,
 				});
 
 				if ($evalmaker->clone($tmpl->getPrototypeEvalID())) {
-	    				push @{$created_evals{$key}}, HSDB45::Eval->new(_school => $school)->lookup_key($evalmaker->getEvalID());
+					push @{$created_evals{$key}}, HSDB45::Eval->new(_school => $school)->lookup_key($evalmaker->getEvalID());
 				} else {
-			    		$errors{$key} = '';
+					$errors{$key} = '';
 				}
 			}
 		}
 	}
+
 	return (\%created_evals, \%existing_evals, \%errors, $sync_errors);
 </%perl>
 </%method>

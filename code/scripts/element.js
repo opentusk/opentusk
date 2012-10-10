@@ -87,7 +87,17 @@ function save_and_continue(formname,next_page,id,addtl_code){
 		} else {
 			document.forms[formname].elements['next_page'].value = next_page ;
 		}
-		document.forms[formname].submit();
+		// if we have an onsubmit defined...
+		if (document.forms[formname].onsubmit) {
+			// fire the onsubmit
+			if (document.forms[formname].onsubmit()) {				
+				document.forms[formname].submit();
+			}
+		}
+		else {
+			// otherwise, just submit the form
+			document.forms[formname].submit();
+		}
 		if (addtl_code != null) {
 			eval(addtl_code);
 		}

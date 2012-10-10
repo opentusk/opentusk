@@ -1,0 +1,42 @@
+####################
+## This release moves class_meeting.type into the class_meeting_type lookup
+## table in tusk db. It also introduces 'is_duplicate' and 'is_mandatory' flags
+## to class_meeting.
+
+## We need to migrate the "type" data. Before we do that, dump each of the 
+## hsdb45_[school]_admin.class_meeting tables with dump.pl.
+
+## first, run dump.pl in test mode... monitor output to screen
+./dump.pl
+
+## then, run dump.pl in live mode... monitor output... confirm dump(s) look good
+./dump.pl -l
+
+## if dumps, go well, now we want to actually migrate the data.
+## run sched.pl in test mode... you might want to redirect output to a file since 
+## quite a bit can be printed from script
+## confirm that output contains no errors or warnings that concern you.
+./sched.pl > sched_test_out.txt
+
+
+## run sched.pl in live mode... monitor output ... 
+./sched.pl -l 
+
+## it is an interactive script, so be prepared to determine if you want to drop the "type" field
+## for each school. this choice was mainly only inserted to assist with testing and development of this
+## release. it is recommended that you DO drop the type field when running the script; however, before
+## doing so, it is also recommended to confirm that you look at the db to confirm that the migration 
+## was successful. to confirm success, i'd recommend the following procedure:
+
+#### STEP 1: make sure that class_meeting_types were inserted for each school
+select school_id, count(1) from tusk.class_meeting_type group by school_id;
+
+#### STEP 2: go to db that was updated and run some queries to make sure that counts of types and 
+####         type_ids look identical
+select type, count(1) as c from class_meeting group by type;
+select type_id, count(1) as c from class_meeting group by type_id;
+
+## alternatively, before step #2, you can see if dump from dump.pl has any records, if no, then it is safe to delete type since nothing was migrated.
+
+# run medical_types.sql (for tufts u. only!)
+mysql tusk < medical_types.sql

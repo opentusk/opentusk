@@ -108,7 +108,7 @@ return $right_hdr_lnks;
 
 
 <%method jsarray>
-%	return [ "drag.js", "content.js" ];
+%	return [ "drag.js", "content.js", "flashcards.js" ];
 </%method>
 
 
@@ -146,8 +146,9 @@ return $right_hdr_lnks;
 %	if($document->overlay_data)                 {$tempSize = "large";}
 %	elsif($document->image_available("xlarge")) {$tempSize = "xlarge";}
 % }
-% if($SIZE) {$m->session->{'contentImageSize'} = $SIZE;}
-% else {
+% if($SIZE && ( $SIZE eq 'medium' || $SIZE eq 'orig' || $SIZE eq 'large' || $SIZE eq 'xlarge' )) {
+%	$m->session->{'contentImageSize'} = $SIZE;
+% } else {
 %	if($m->session->{'contentImageSize'}) {$ARGS{'SIZE'} = $m->session->{'contentImageSize'};}
 %	else                                  {$ARGS{'SIZE'} = $tempSize;}
 % }
@@ -426,7 +427,7 @@ return $right_hdr_lnks;
 <& SELF:displayContentOptionMenuItem,
                         menuItemText            => 'History',
                         menuItemHelpText        => 'Content History',
-                        onClick                 => "document.location='/hsdb4/content_history/" . $document->primary_key . "'",
+                        onClick                 => "document.location='/view/content_history/" . $document->primary_key . "'",
 			showArrow		=> 0,
                 &>
 %	}
@@ -790,11 +791,10 @@ return $right_hdr_lnks;
 
   <div id="theNotesForm" class="hiddenDiv" style="z-index:9999; left:<% $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'x'} %>px; top:<% $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'y'} %>px; width:402px; height:268px; display:none; overflow:hidden;">
     <& SELF:printDragHandleWithClose, formName => 'theNotesForm', title => 'Notes', imageName => 'displayNotesFormImage' &>
-    <iframe id="theNotesFormBody" src="<% $notesLocation %>" style="border:0px none; width:400px; height:250px;" scrolling="no">
+    <iframe id="theNotesFormBody" src="<% $notesLocation %>" style="border:0px none; width:400px; height:250px; overflow:hidden;">
     </iframe>
   </div>  
 </%method>
-
 
 
 <%method printObjectiveForm>
@@ -872,7 +872,7 @@ return $right_hdr_lnks;
 %        my $numberOfPages = ceil($numberOfSubContent/$numSlides);
 %	 if($numberOfPages != 1) {$numberOfPages = $numberOfPages . " pages";}
 %	 else                    {$numberOfPages = "1 page";}
-	      &nbsp; <input type="radio" name="slidesPerPage" value="/hsdb4/printcollection/<% $document->primary_key %>/<% $numSlides %>"><% $numSlides %> slides per page (<font style="font-size:6pt;"><% $numberOfPages %></font>)<br>
+	      &nbsp; <input type="radio" name="slidesPerPage" value="/view/printcollection/<% $document->primary_key %>/<% $numSlides %>"><% $numSlides %> slides per page (<font style="font-size:6pt;"><% $numberOfPages %></font>)<br>
 %      }
 	    </p>
 %	if($TUSK::Constants::PrintPDFHelp) {
@@ -935,16 +935,17 @@ return $right_hdr_lnks;
 %  $m->session->{'contentMenuLocation'}->{'theFlashCardsForm'}->{'x'} ||= $tempWidth;
 %  $m->session->{'contentMenuLocation'}->{'theFlashCardsForm'}->{'y'} ||= $defaultHeight;
 
- <div id="theFlashCardsForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theFlashCardsForm'}->{'y'} %>px; overflow:hidden;">
+ <div id="theFlashCardsForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theFlashCardsForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theFlashCardsForm'}->{'y'} %>px; overflow:hidden;">
     <& SELF:printDragHandleWithClose, formName => 'theFlashCardsForm', title => 'My Flash Cards', imageName => 'saveFormButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
-	 <form name="theTuskSaveForm" method="post" action="/management/flashcard/flashcard">
-        <input type="hidden" name="content_item" value="/<% $document->primary_key()  %>" />
+
+	<form name="theTuskSaveForm" id="theTuskSaveForm" method="post" action="" onsubmit="submitContent(this.content_item.value,document.getElementById('add_to_folder').value,'/tusk/management/flashcard/flashcard?content_item='+this.content_item.value+'&add_to_folder='+document.getElementById('add_to_folder').value, 'savedcard' );return false;"> 
+       <input type="hidden" name="content_item" value="/<% $document->primary_key()  %>" />
 	<table border="0" class="tableWithLittleFont">
           <tr><td><a href="/management/flashcard/flashcard">Manage Flash Card Decks</a></td></tr>
           <tr><td>Save in Deck:</td></tr>
           <tr><td>
-            <select name="add_to_folder" onChange="if(this[this.length-1].value == 'select') {this.length--;}">
+            <select id="add_to_folder" name="add_to_folder" onChange="if(this[this.length-1].value == 'select') {this.length--;}">
 %  foreach my $folder ($m->session->{'user'}->child_personal_content) {
 %  		if(	$folder->field_value('type') eq "Flash Card Deck" ){
               <option value="<% $folder->primary_key %>"><% $folder->out_label() %></option>
@@ -953,10 +954,18 @@ return $right_hdr_lnks;
               <option value="select" selected>Select</option>
             </select>
           </td></tr>
-          <tr><td><input type="submit" class="formbutton" onClick="if(document.theTuskSaveForm.add_to_folder[document.theTuskSaveForm.add_to_folder.selectedIndex].value == 'select') {alert('You must select a folder to save this content into'); return false;}" name="Add" value="Save"></td></tr>
+		  
+          <tr><td><input type="submit" class="formbutton" onClick="
+if(document.getElementById('add_to_folder').value == -1) { 
+	 document.getElementById('theTuskSaveForm').onsubmit='';  
+	 document.getElementById('theTuskSaveForm').action='/management/flashcard/flashcard'; 
+}
+if(document.getElementById('add_to_folder').value == 'select')
+ {alert('You must select a folder to save this content into');  return false;}"
+ name="Add" value="Save"></td></tr><tr></tr>
+		<tr><td><div id="savedcard" style="display:none;color:red;weight:bold;">Your card has been saved.</div></td></tr>
         </table>
       </form>      
-
     </div>
   </div>
 
@@ -971,13 +980,15 @@ return $right_hdr_lnks;
   <div id="theSaveForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'y'} %>px; overflow:hidden;">
     <& SELF:printDragHandleWithClose, formName => 'theSaveForm', title => 'My Folders', imageName => 'saveFormButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
-      <form name="theTuskSaveForm" method="post" action="/management/content/personalcontent">
+
+      <form name="theTuskSaveForm2" id="theTuskSaveForm2" method="post" action="" onsubmit="submitContent(this.content_item.value,document.getElementById('add_to_pfolder').value,'/tusk/management/content/personalcontent?content_item='+this.content_item.value+'&add_to_pfolder='+document.getElementById('add_to_pfolder').value, 'savedpcontent' );return false;">
+	<!-- /management/content/personalcontent -->
         <input type="hidden" name="content_item" value="/<% $document->primary_key()  %>" />
 	<table border="0" class="tableWithLittleFont">
           <tr><td><a href="/management/content/personalcontent">Manage Personal Folders</a></td></tr>
           <tr><td>Save in Personal Folder:</td></tr>
           <tr><td>
-            <select name="add_to_folder" onChange="if(this[this.length-1].value == 'select') {this.length--;}">
+            <select id="add_to_pfolder" name="add_to_pfolder" onChange="if(this[this.length-1].value == 'select') {this.length--;}">
 %  foreach my $folder ($m->session->{'user'}->child_personal_content) {
 % 		if(	$folder->field_value('type') ne "Flash Card Deck" ){
               <option value="<% $folder->primary_key %>"><% $folder->out_label() %></option>
@@ -986,7 +997,20 @@ return $right_hdr_lnks;
               <option value="select" selected>Select</option>
             </select>
           </td></tr>
-          <tr><td><input type="submit" class="formbutton" onClick="if(document.theTuskSaveForm.add_to_folder[document.theTuskSaveForm.add_to_folder.selectedIndex].value == 'select') {alert('You must select a folder to save this content into'); return false;}" name="Add" value="Save"></td></tr>
+          <tr><td>
+<input type="submit" class="formbutton" 
+onClick="
+if(document.getElementById('add_to_pfolder').value == -1) {
+         document.getElementById('theTuskSaveForm2').onsubmit='';
+         document.getElementById('theTuskSaveForm2').action='/management/content/personalcontent';
+}
+if(document.getElementById('add_to_pfolder').value == 'select')
+ {alert('You must select a folder to save this content into');  return false;}"
+ name="Add" value="Save">
+
+</td></tr>
+ <tr><td><div id="savedpcontent" style="display:none;color:red;weight:bold;">Your content has been saved.</div></td></tr>
+
         </table>
       </form>
     </div>
@@ -1258,7 +1282,7 @@ $justcontent => 0
 %my $xsl_dir = "$ENV{XSL_ROOT}/Content";
 %if($document->type() eq 'TUSKdoc' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
 %	if($summary) {$document->xsl_stylesheet($xsl_dir."/DocumentSummary.xsl");} else {$document->xsl_stylesheet($xsl_dir."/Document.xsl");}
-%} 
+%}
 % my $body = $document->out_html_body(%ARGS); 
 % if($document->error) {
 	  <div class="error">
@@ -1266,7 +1290,7 @@ $justcontent => 0
 	    if you have a question.</div>
 %		ErrorReport::sendErrorReport($r, {'Msg'=>$document->error()});
 %} else {
-%	if($document->content_type() eq 'Collection') {
+%	if ($document->content_type() eq 'Collection') {
 %		if($body) {
 	  <table width="75%"><tr><td width="1%" valign="top">Folder&nbsp;Notes:</td><td><% $body %></td></tr></table><br>
 %		}
@@ -1276,9 +1300,10 @@ $justcontent => 0
 %#        Here we need to see if there is a parent course or not!
 		<div id="theTableWrapperDiv">
 		</div>
-%		  $m->comp('/tmpl/content:drawContentTable', documentID => $contentPK, integrated_course => $is_integrated_course );
-%	       }
-%	} else {
+%			$m->comp('/tmpl/content:drawContentTable', documentID => $contentPK, integrated_course => $is_integrated_course );
+%		}
+%	} 
+%	else {
 	  <% $body %>
 %	}
 %}

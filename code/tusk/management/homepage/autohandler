@@ -1,0 +1,34 @@
+<%attr>
+check_cms_permissions => 0
+must_be_school_admin => 1
+top_tab_type => 'manage'
+</%attr>
+
+<%method leftnav>
+% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+my $category_id = @{$m->comp("/tmpl/url:get_path_ids")}[0];
+return $m->comp("/tmpl/nav", 
+					'objects' =>  $m->comp("SELF:get_nav_bar_objects"), 
+					'prefix' => '/management/homepage',
+					'hierarchy' => {	
+						'categoryshow' => [],
+						'categoryaddedit'   => ['categoryshow'],
+						'categorydelete'    => ['categoryshow'],
+						'courselinkshow'    => ['categoryshow'],
+						'courselinkaddedit' => ['categoryshow', 'courselinkshow'],
+						'courselinkdelete'  => ['categoryshow', 'courselinkshow'],
+					},
+					'nav_entities_dependency' => {},
+					'title_func' => {},
+					'initial_nav_bar' => $m->comp("/tmpl/url:get_initial_nav_bars"),
+					'urls' => {'categoryshow'   => {link => 'categoryshow',   label => 'Manage Categories'}, 
+					           'courselinkshow' => {link => 'courselinkshow', label => 'Manage Course Links', 'extra_path' => $category_id }}
+);
+</%perl>
+</%method>
+
+% $m->call_next();

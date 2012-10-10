@@ -30,7 +30,6 @@
 
 % if ($fcard->getContentID()) {
 
-
 % my $zoom_level;
 % if ( exists( $ARGS{'zoom_level'}) ) {
 % 		$zoom_level = $ARGS{'zoom_level'};
@@ -39,7 +38,6 @@
 % my $img_src = "/$zoom_level/".@$fcards[$indx]->getContentID;
 % my $img = "<img src=$img_src class='mainImg' id='mainImg' />";
 
-
 <input type="hidden" value="medium" name="zoom_level" id="zoom_level" />
 <%  HSDB4::SQLRow::Content::Slide->get_zoom_menu($img) %>
 
@@ -47,7 +45,6 @@
 </td></tr>
 <tr><td>
 </td><td align="left">
-
 
 % } # end if ($fcard->getContentID())
  
@@ -63,7 +60,24 @@
 <textarea  name="answer" cols="60" rows="5" class="textareawhite"><% $fcard->getAnswer() %></textarea>
 </td></tr>
 <tr><td></td><td>PLEASE NOTE: If no answer is provided, the content's title and description will be displayed as a default answer during testing. <br><br></td></tr>
-<tr><td></td><td>
+<tr><td></td>
+
+
+% if ($fcard->getContentID) {
+
+% my @content_notes = HSDB4::SQLRow::Content->new->lookup_key($fcard->getContentID)->child_personal_content($m->session->{'user'}->user_id());
+
+% if (scalar(@content_notes) > 0) {
+
+<tr><td><h2>Notes: </h2></td>
+<td>
+<textarea  name="notes" cols="60" rows="5"  disabled><% $content_notes[0]->field_value('body') %></textarea>
+</td></tr>
+
+% } # end if notes exist
+% } # end if contentid exists
+
+<td>
 
 % if ( ($indx > 0) ) {
 <input type="submit" name="submit" value="Previous Card" class="formbutton">

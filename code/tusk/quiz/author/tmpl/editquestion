@@ -1,9 +1,12 @@
 <%once>
 	use TUSK::Quiz::LinkQuestionQuestion;
+	use TUSK::Quiz::Quiz;
+	use TUSK::Core::IntegratedCourseQuizQuestion;
+	use TUSK::Core::QuizQuestionKeyword;
 
 	my $get_answer_data = sub {
 		my $answers = shift or confess "answers array required";
-	    	my $question_id = shift or confess "question_id required";
+	    my $question_id = shift or confess "question_id required";
 
 		return map { {
                         answer		  => $_->getValue(),
@@ -23,6 +26,7 @@
 <%args>
 	$question
 	$questionLink
+	$quiz_id	=> undef
 	$formname => 'foo'
 	$tool	=> 'Quiz'
 </%args>
@@ -137,12 +141,19 @@ function addTrueFalseAnswers(){
 <& /tmpl/element:field_display, params=>{ label => 'Question&nbsp;Type', value => $question->getFormattedType() } &>
 <& /tmpl/element:hidden_form_element, params => { name => 'question_type', value => $question->getType() } &>
 % } else {
+%	my $onchange = 'populate_answers';
+%	if ($tool eq 'Case') {
+%		my $quiz = TUSK::Quiz::Quiz->new()->lookupKey($quiz_id);
+%		my $has_score_rule = ($quiz->usedInScoreRule())? 1 : 0;
+%		$onchange .= ($has_score_rule)? '_check' : '';
+%	}
 <& /tmpl/element:dropdown, params=>{ label => 'Question&nbsp;Type',
                 name=>"question_type",
-                onchange=>"populate_answers('$formname');",
+                onchange=>"$onchange('$formname');",
                 selected=>$question->getType() ,
                 options=>$m->comp('/quiz/author/tmpl/process:question_type_data',include_empty=>1)} &>
 % }
+
 
 <& /tmpl/element:textarea, params=>{ 
 			label	 	=> 'Question&nbsp;Body',
@@ -180,6 +191,8 @@ function addTrueFalseAnswers(){
 %
 % }
 %
+
+
 <%perl>
 	my $num_fill_ins_display = "none";
 	my $num_fill_ins_selected = 2;
@@ -284,7 +297,95 @@ function addTrueFalseAnswers(){
 addTrueFalseAnswers();
 </script>
 %}
+
+ 
+%   my $type_object =  $m->comp("/tmpl/url:get_type_object");
+%	my $school = $m->comp("/tmpl/url:get_school");
+%	my $course_id = $type_object->course_id;
+%	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
+
+
+% if ($course->type() eq 'integrated course') {
+
+%   my $related_courses ; 
+%   if(defined($question_id)){
+%		$related_courses = $question->get_related_courses($question_id,$course_id,$school);
+%	}
+
+ <td class="labelgray">Related Courses
+</td> <td>
+
+%   my @coursearray;
+%	foreach my $subcourse (@{$course->get_subcourses()}) {
+%		my $course_hash_el;
+%		$course_hash_el->{'label'} = $subcourse->title();
+%		$course_hash_el->{'value'} = $subcourse->course_id();
+%		$course_hash_el->{'name'} = "related";
+%		foreach  my $rcourse (@$related_courses) {
+%			if( $rcourse->primary_key == $subcourse->course_id() ) {
+%				$course_hash_el->{'checked'} = "1";
+%			}
+%		} #foreach related course
+%		push(@coursearray,$course_hash_el);	
+%	} # foreach subcourse
+% 
+
+
+<& /tmpl/element:checkbox_table, label => 'Related Courses', objects => \@coursearray, formname	=> $formname, checkboxname => $coursearray[0]{'name'}, showcheckall => 0 &>
+
+</td>
+
+<tr>
+<td class="labelgray">UMLS Concepts & Keywords </td> 
+
+%		my $ids = $m->comp('/tmpl/url:get_path_ids');
+
+
+%		my $UMLSConceptsHREF = '/quiz/author/umlsconcepts/' . $m->comp('/tmpl/url:get_type_path');
+%		my $AuthorDefinedHREF = '/quiz/author/authordefinedkeywords/' . $m->comp('/tmpl/url:get_type_path');
+
+%		if (scalar @$ids){
+%			$UMLSConceptsHREF .= '/' . join '/', @$ids;
+%			$AuthorDefinedHREF .= '/' . join '/', @$ids;
+%		}
+
+<td>
+	
+%		$m->comp('/tmpl/element:button',
+%						params => {
+%								href	=> $UMLSConceptsHREF,
+%								label	=> 'Manage UMLS Concepts',
+%								name	=> 'UMLSConcepts',
+%							} );
+%		$m->comp('/tmpl/element:button',
+%						params => {
+%								href	=> $AuthorDefinedHREF,
+%								label	=> 'Manage Keywords',
+%								name	=> 'Keywords',
+%							} );
+
+%	if ( @$ids[1] ){  # if we're editing
+%   my $linkquestion = TUSK::Quiz::LinkQuizQuizItem->new->lookup("quiz_id = @$ids[0] AND quiz_item_id = @$ids[1] ");
+%	my $linkquestion_id;
+%	if($linkquestion) {
+%   		 $linkquestion_id = $linkquestion->[0]->{'_id'};
+%	}	 
+%	my $keyword_links = TUSK::Core::QuizQuestionKeyword->new()->lookup("parent_link_quiz_quiz_item_id =".$linkquestion_id );
+%   my @keywords;
+%	foreach my $keyword_link (@$keyword_links){
+% 		push (@keywords,$keyword_link->getKeywordObject());
+%	}
+%   $m->comp("/management/tmpl/content-comps:display_keywords", keywords => \@keywords);
+%	}
+
+
+</td>
+</tr>
+
+% } # END if course is integrated course
+
 </%method>
+
 
 <%method process_args>
 <%args>
@@ -336,12 +437,61 @@ addTrueFalseAnswers();
 		if ($type eq 'Quiz'){
 			my $questions = TUSK::Quiz::LinkQuizQuizItem->new->lookup("quiz_id = $id");
 			$questionLink->setSortOrder(scalar(@$questions));
+			
 		} elsif ($type eq 'Section'){
 			my $questions = TUSK::Quiz::LinkQuestionQuestion->new->lookup("parent_question_id = $id");
 			$questionLink->setSortOrder(scalar(@$questions));
 		}
 	}
 	$questionLink->save({'user'=>$user_id});
+    if($type eq 'Quiz') {
+	   my $type_object =  $m->comp("/tmpl/url:get_type_object");
+	   my $school = $m->comp("/tmpl/url:get_school");
+	   my $orig_course_id = $type_object->course_id;
+	   my $orig_course = HSDB45::Course->new( _school => $school )->lookup_key( $orig_course_id );
+
+	   #first delete any links that this question_id/orig_course combo has
+	   my $query_str = "child_quiz_question_id = $question_id AND originating_course_id = ".$orig_course->getTuskCourseID();
+	   my $linkICQs = TUSK::Core::IntegratedCourseQuizQuestion->new->lookup($query_str);
+	
+	   foreach my $lnk (@$linkICQs) {
+			$lnk->delete();
+	   }
+	  
+	   if(ref($args->{related}) eq 'ARRAY'){
+			foreach my $related_course_id (@{$args->{related}}){
+				my $related_course = HSDB45::Course->new( _school=>$school)->lookup_key($related_course_id);
+
+				#linkIntegratedCourseQuestion
+				my $linkICQ = TUSK::Core::IntegratedCourseQuizQuestion->new();
+	
+				#need to get TUSK course IDs for this use course->getTuskCourseID
+
+				$linkICQ->setParentIntegratedCourseID($related_course->getTuskCourseID());
+				$linkICQ->setOriginatingCourseID($orig_course->getTuskCourseID());
+				$linkICQ->setChildQuizQuestionID($question_id);
+				$linkICQ->save();
+
+			} # end foreach
+
+		} else {
+			if($args->{related}) {
+	   		my $related_course = HSDB45::Course->new( _school=>$school)->lookup_key($args->{related});
+
+			#linkIntegratedCourseQuestion
+			my $linkICQ = TUSK::Core::IntegratedCourseQuizQuestion->new();
+	
+			#need to get TUSK course IDs for this use course->getTuskCourseID
+			$linkICQ->setParentIntegratedCourseID($related_course->getTuskCourseID());
+			$linkICQ->setOriginatingCourseID($orig_course->getTuskCourseID());
+			$linkICQ->setChildQuizQuestionID($question_id);
+			$linkICQ->save();
+			}
+		}
+
+	} ### end if type eq 'Quiz'
+
+	
 	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^answersdiv');
 	foreach my $set (keys %{$rowHash}){
 		if ($rowHash->{$set}->{'fields'}->{'answer'}) {
@@ -353,7 +503,11 @@ addTrueFalseAnswers();
 
 	# do some wild stuff if this is a matching question
 	if ($question->getType() eq "Matching"){
+		my %submitted_child_ids = ();
 		foreach my $key (keys %$rowHash){
+			my $child_id = $rowHash->{$key}->{'fields'}->{'child_question_id'};
+			$submitted_child_ids{$child_id} = 1;
+
 			my $tmpHash = $rowHash->{$key};
 
 			if($tmpHash->{fields}->{question}){
@@ -366,6 +520,7 @@ addTrueFalseAnswers();
 				$child_question->setBody($tmpHash->{fields}->{question});
 				$child_question->setType('MatchingChild');
 				$child_question->save({ user => $user_id });
+
 
 				my $link = TUSK::Quiz::LinkQuestionQuestion->new();
 				if ($tmpHash->{fields}->{child_question_id}){
@@ -396,9 +551,25 @@ addTrueFalseAnswers();
 				$tmpHash->{fields}->{child_question_id} = 0;
 			}
 		}
+			
+		#Delete LinkQuestionQuestion and the child Question for any questions not submitted.
+		#XXX This reimplements functionality from /tmpl/process:manipulate_rows ...
+		for (my $i = 0; $i < scalar(@answers_data); $i++){
+			my $child_id = $answers_data[$i]->{'child_question_id'};
+			
+			if (!$submitted_child_ids{$child_id}){
+				my $parent_id = $answers_data[$i]->{'question_id'};
+				my $link_obj = TUSK::Quiz::LinkQuestionQuestion->new()->lookupByRelation($parent_id, $child_id);
+				# There should only ever be one link between a child and parent question.
+				@$link_obj[0]->delete( {user => $user_id} );
 
+				my $child_question_obj = TUSK::Quiz::Question->new()->lookupKey($child_id);
+				$child_question_obj->delete({user => $user_id});
+			}	
+		}
 	}
 	
+
 	if ($question->getType() eq "MultipleFillIn"){
 		my $links = $question->getSubQuestionLinks();
 
@@ -429,6 +600,7 @@ addTrueFalseAnswers();
 		}
 	}
 
+
 	$m->comp('/tmpl/process:manipulate_rows',
 		row_type => 'Direct',
 		user => $user_id,
@@ -441,6 +613,8 @@ addTrueFalseAnswers();
 				'child_question_id' => 'setChildQuestionID',
 				'correct'=>'setCorrect' },
 		display_data => \@answers_data );
+
+
 
 </%perl>
 </%method>
@@ -455,20 +629,72 @@ addTrueFalseAnswers();
 </%args>
 <%perl>
 	my $questions_data = [];
+	my $filter_hash;
+    my $type_object =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $orig_course_id = $type_object->course_id;
+	my $orig_course = HSDB45::Course->new( _school => $school )->lookup_key( $orig_course_id );
 
+	my $iterator = 0;
 	foreach my $link (@$links){
 		my $question = $link->getQuestionObject();
-		my $hash = { 	
+	
+        my $hash = { 	
 				label 		=> $link->getLabel(),
 				body		=> $question->getBody(),
 				title		=> $question->getTitle(),
 				type		=> $question->getFormattedType() ,
 				question_id	=> $question->getPrimaryKeyID() ,
-				quiz_id		=> $id 
+				quiz_id		=> $id ,		
+				id          => $link->getPrimaryKeyID(),
+				number      => ++$iterator,
 			};
+
+	   if( $orig_course->type() eq 'integrated course') {
+
+	   		#first delete any links that this question_id/orig_course combo has
+	   		my $query_str = "child_quiz_question_id = ".$question->getPrimaryKeyID()."  AND originating_course_id = ".$orig_course->getTuskCourseID();
+	   		my $linkICQs = TUSK::Core::IntegratedCourseQuizQuestion->new->lookup($query_str);
+
+	   		my $courses_str ;
+	   		my @courses_array;
+	   		my $is_first_time=0;
+	   		foreach my $lnk (@$linkICQs) {
+			
+					if ($is_first_time == 0) { $is_first_time++; }
+					else {
+						$courses_str .=", ";
+					}
+					my $i_tusk_course = TUSK::Course->new()->lookupKey( $lnk->getParentIntegratedCourseID() );
+					my $hsdb_course = $i_tusk_course->getHSDB45CourseFromTuskID();
+					my $title = $hsdb_course->title();
+					$title =~ tr# #_#;
+					$courses_str .= $title;			
+					push(@courses_array,$hsdb_course->title());
+	   		}# end foreach
+
+		$hash->{'related_crs'} = \@courses_array;
+
+	   } # end if
+	
 		push (@$questions_data, $hash);
-	}
- 	
+	} # end foreach
+		 	
+	my $subcourse_array;
+	push(@$subcourse_array,{ 'label' => "None", value => 'None'});
+
+	foreach my $subcourse (@{$orig_course->get_subcourses()}) {	
+		my $dropdown_element = { 'label' => $subcourse->title(), 'value' => $subcourse->title() };
+		push(@$subcourse_array,$dropdown_element);
+	} # foreach subcourse
+
+	 $filter_hash = { 	
+				label 		=> "Filter (Related Course): ",
+				prefix		=> "qstns",
+				filter_on	=> 'related_crs',
+				filters_dropdown	=> $subcourse_array ,
+			};
+
 	my $locations = { 
 				Quiz	=> '/quiz/author/questionaddedit',
 				Case	=> '/case/author/questionaddedit',
@@ -509,9 +735,61 @@ addTrueFalseAnswers();
 				},
 			};
 
+	my $list_fields = [  	
+					{ hide => 1, field => 'id' },
+					{ hide  => 1, field => 'question_id' },
+					{ hide  => 1, field => 'quiz_id' },
+					{ label => 'Number', field => 'number', width => '60' },
+                	{ label => 'Type', field => 'type' },	
+                	{ label => 'Body', field => 'body' }
+			 ] ;
+
+if ($orig_course->type() eq 'integrated course' ) {
+	push (@$list_fields,{ label=>'Related Courses', field => 'related_crs'} );
+}
+
 </%perl>
 
+
 % my $trailing_text = (scalar @$questions_data > 4) ? "$create_button_text $copy_button_text" : undef;
+
+% my $post_to = '/quiz/author/ajaxReorder/';
+% if ($type eq 'Quiz') {
+%	$post_to .= 'quiz/';
+% }
+% elsif ($type eq 'Section') {
+%	$post_to .= 'question/';
+% }
+% $post_to .= $id;
+
+
+%	if ($tool eq 'Quiz') {
+% 		my $path = $m->comp("/tmpl/url:get_full_path");
+
+<& /tmpl/element:jquery_sort_list, params => {
+				no_add_button => 1,
+				filter => $filter_hash,
+				append_instead => 'question_id',
+				width => "100%",
+				label => 'Questions:',
+				top_buttons => [ $create_button_text, $copy_button_text, $delete_button_text, ],
+				container => 'questionsdiv',
+				name => 'questions',
+				sort => 1,
+				no_nesting => 'sort-row',
+				action_width => 150,
+				action_columns => [
+				{'label' => 'Modify', 'link' => '/quiz/author/questionaddedit/'.$path},
+				{'label' => 'Delete', 'link' => '/quiz/author/questiondelete/'.$path} ] ,
+				fields => $list_fields,
+				data => $questions_data, 
+				post_to => $post_to,
+				numbered => 1,
+				empty_message => "No questions available." }
+&>
+
+% } else {
+
 
 <& /tmpl/element:sort_order_box, params => {
 	no_add_button 	=> '1',
@@ -541,4 +819,7 @@ addTrueFalseAnswers();
 	trailing_text => $trailing_text,
 
 } &>
+
+% }
+
 </%method>

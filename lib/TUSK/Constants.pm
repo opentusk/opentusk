@@ -77,11 +77,7 @@ our $icsTimeZoneFile = "America.New_York";
 
 ## should LDAP be checked for new users?
 our $UseLDAP = 1;
-our $externalPasswordReset = <<EOM;
-<p style="margin-top:0;">In general, most users can log in to Health Sciences School using their HS University username and password. If you have forgotten your password, it may be reset through the following resources:</p>
-
-<p>&lt;List of resources&gt;</p>
-EOM
+our $externalPasswordReset = "";
 
 our $emailWhenNewUserLogsIn = 1;
 # Set this to nothing if you do not want a new user notified if they do not have a group
@@ -93,6 +89,9 @@ our $PDFPath = '/data/html/web-auth/pdf';
 
 ## Location of spacer gif
 our $SpacerGIF = '/data/html/graphics/icons/spacer.gif';
+
+## Location of user (student) images
+our $userImagesPath = '/data/html/images/users';
 
 ## Text Extraction Utilities
 our $WordTextExtract = '/usr/local/bin/antiword';

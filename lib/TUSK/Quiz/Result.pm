@@ -2,6 +2,7 @@ package TUSK::Quiz::Result;
 
 use TUSK::Quiz::Response;
 use TUSK::Quiz::LinkQuizQuizItem;
+use TUSK::Quiz::LinkQuestionQuestion;
 use TUSK::Quiz::RandomQuestion;
 use HSDB4::DateTime;
 use TUSK::Constants;
@@ -192,6 +193,23 @@ sub getScore {
 	    $score += $response->getGradedPoints();
 	}
 	return ((int (100 * ($score + 0.005 * ($score <=> 0)))) / 100); # round the score to two decimal places
+}
+
+sub getScoreAsPercentage {
+	my $self = shift;
+	my $responses = $self->getResponses();
+	my $score = 0;
+	my $total_points = 0;
+
+	foreach my $response (@{$responses}) {
+	    $score += $response->getGradedPoints();
+		my $obj = ($response->getLinkType() eq 'link_question_question')? 
+			'TUSK::Quiz::LinkQuestionQuestion' : 'TUSK::Quiz::LinkQuizQuizItem';
+		my $link_obj = $obj->new()->lookupKey($response->getLinkID());
+		$total_points += $link_obj->getPoints();
+	}
+	my $percentage = ($score / $total_points) * 100;
+	return ((int (100 * ($percentage + 0.005 * ($percentage <=> 0)))) / 100); # round to two decimal places
 }
 
 sub needsGrading {

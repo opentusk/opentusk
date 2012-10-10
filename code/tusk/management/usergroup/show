@@ -11,10 +11,6 @@ if ( $is_course_group ) {
 }
 </%shared>
 
-<%method jsarray>
-% return ['layers.js','element.js'];
-</%method>
-
 <%method should_show_tp_dropdown>
 % return $is_course_group;
 </%method>
@@ -46,35 +42,68 @@ my $groups = [];
 
 if ( $is_course_group ) {
 	$groups = [ $course->sub_user_groups( $m->comp("SELF:get_timeperiod_id") ) ]; 
+} else {
+	$groups = [ HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'", "order by sort_order, upper(label)") ];
 }
-else {
-	$groups = [ HSDB45::UserGroup->new( _school => $school )->lookup_conditions("sub_group='No'", "order by upper(label)") ];
-}
+
+my $new_groups = [ map { id => $_->primary_key, label => "<a href='/management/usergroup/addedit/$self_path/" . $_->primary_key . "'>" . $_->label . "</a>", description => $_->description }, @{$groups} ];
 
 my $col_fields = [ {'label'=>'Group Name',  'field'=>'label', 'link'=>'/management/usergroup/addedit/' . $self_path},
                    {'label'=>'Description', 'field'=>'description'} ];
 my $action_columns = [];
 if (!$is_course_group) {
-	push @$action_columns, {'label' => 'Link Courses',         'link' => '/manage/grouplinks/show/usergroup/' . $school};
+	push @$action_columns, {'label' => 'Link Courses',         'link' => '/management/grouplinks/show/usergroup/' . $school};
 	push @$action_columns, {'label' => 'Student/Course Links', 'link' => '/management/usergroup/studentcourse/' . $self_path};
 }
 if (!$is_course_group || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
 	push @$action_columns, {'label'=>'Modify','link'=>"/management/usergroup/addedit/$self_path"};
 	push @$action_columns, {'label'=>'Delete','link'=>"/management/usergroup/delete/$self_path"};
 }
+
+my $post_to = '/management/usergroup/ajaxReorder/' . $school;
+if ( $is_course_group ) {
+	$post_to .= '/' . $type_object->course_id . '/' . $m->comp("SELF:get_timeperiod_id"); 
+}
+
 </%perl>
-<& /tmpl/element:object_selection_box, params => { 
-				columns         => $col_fields, 
-				nobutton        => 1, 
-				sort_box        => 0,
-				object_list     => $groups,
-				action_columns  => $action_columns,
+<& /tmpl/element:jquery_sort_list, params => {
+				width => "100%",
+				label => 'Usergroups',
+				no_table => 1,
+				no_add_button => 1,
+				container => 'usergroup_container',
+				name => 'usergroups',
+				sort => 1,
+				no_nesting => 'sort-row',
+				action_width => 150,
+				action_columns => $action_columns,
 				action_dropdown => 1,
-				empty_message   => 'No usergroups available.',
-				type_path       => "",
-				dd_class        => "navsm" }
+				fields => [
+					{ hide  => 1, field => 'id' },
+                	{ label => 'Group Name', field => 'label' },
+                	{ label => 'Description', field => 'description' }
+				],
+				data => $new_groups, 
+				post_to => $post_to,
+				empty_message => "No usergroups available." }
 &>
 
 <%init>
 $m->comp( "SELF:check_dynamic_permissions" );
 </%init>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js" 
+			];
+</%perl>
+</%method>

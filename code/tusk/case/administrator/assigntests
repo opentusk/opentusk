@@ -1,35 +1,27 @@
-<%shared>
-
-my $type_path = $m->comp('/tmpl/url:get_type_path');
-my $id = $m->comp("/tmpl/url:get_first_path_id");
-my $school = $m->comp('/tmpl/url:get_type_object');
-
-</%shared>
 <%args>
 $tests => []
 </%args>
 
-<%method title>
-<%perl>
-my $title = "Assign Tests to Patient Type";
-return $title;
-</%perl>
-</%method>
-
-<%method get_nav_bar_objects >
-% return {'TUSK::Case::PatientType' => TUSK::Case::PatientType->lookupKey($id)};
-</%method>
+<%shared>
+my $type_path = $m->comp('/tmpl/url:get_type_path');
+my $id = $m->comp("/tmpl/url:get_first_path_id");
+my $school = $m->comp('/tmpl/url:get_type_object');
+</%shared>
 
 
 % if(scalar(@$cats)){
 
-<form name="patient_tests">
+<& /tmpl/element:form, params => { 
+	'method' => 'post', 
+	'name'   => 'patient_tests',
+	'action' => "/case/administrator/assigntests/$type_path/$id",
+	} 
+&>
 
 <& /tmpl/element:hidden_form_element, params => {
 	'name' => 'phase_type',
 	'value' => $selected_phase
 	}
-
 &>
 
 <ul id="category_list">
@@ -77,11 +69,8 @@ return $title;
 
 <%init>
 
-
 my $patient = TUSK::Case::PatientType->lookupKey($id);
 my $selected_phase = $ARGS{'phase_type'};
-
-
 my $batteries = TUSK::Case::Battery->getSchoolBatteries($school);
 
 unless(scalar(@$batteries)){
@@ -91,7 +80,6 @@ unless(scalar(@$batteries)){
 my $cats = $patient->getUnassignedTests($selected_phase);
 
 if (defined ($ARGS{'submit'})){
-
 	if (defined($ARGS{'tests'})){
 		my $user_id = $m->comp('SELF:user');
 		my @test_ids = (ref($tests) eq "ARRAY")? @$tests : $tests;
@@ -109,7 +97,16 @@ if (defined ($ARGS{'submit'})){
 	my $reload_url = "/case/administrator/patienttypeaddedit" . $r->path_info();
 
 	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url  . "?phase_type=$selected_phase&msg=$msg" );
-
 }
-
 </%init>
+
+<%method title>
+<%perl>
+my $title = "Assign Tests to Patient Type";
+return $title;
+</%perl>
+</%method>
+
+<%method get_nav_bar_objects >
+% return {'TUSK::Case::PatientType' => TUSK::Case::PatientType->lookupKey($id)};
+</%method>

@@ -1,0 +1,209 @@
+<%once>
+	use TUSK::Core::LinkContentKeyword;
+	use TUSK::UMLS::UmlsConceptMention;
+	my @rank_options = ();
+
+
+	my $rank_counter = 0;
+
+	push @rank_options, 
+    		map { 'label' => $_,
+			          'value' => $rank_counter++ }, 
+			     ( 'N/A', 'Mentioned', 'Central' );
+</%once>
+<%shared>
+
+	my $question_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $ids = $m->comp('/tmpl/url:get_path_ids');
+	my $quiz_id = $ids->[0];
+
+    my $linkquestion = TUSK::Quiz::LinkQuizQuizItem->new->lookup("quiz_id = $quiz_id AND quiz_item_id = $question_id ");
+	my $linkquestion_id;
+	if($linkquestion) {
+   		 $linkquestion_id = $linkquestion->[0]->{'_id'}; 
+	}
+
+	my $back_url;
+	$back_url =$m->comp("/tmpl/url:construct_url", 'base_url'=>"/quiz/author/questionaddedit");
+   
+</%shared>
+
+<%method jsarray>
+% return ['layers.js'];
+</%method>
+
+
+<%method title>
+<%perl>
+	return 'UMLS Concepts';
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title');
+</%method>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	if ($args->{'submit_check'}){
+		$m->comp("SELF:set_msg", msg => "UMLS Concepts for this content have been updated");
+	}
+</%perl>
+</%method>
+
+
+<%doc>Reminder: Need to display bread crumbs (for both contexts)</%doc>
+
+% if ($suggested_flag) {
+<script>
+	function on_submit(){
+		if (confirm('Any concepts that are marked \"Not Rated\" will be removed from this list.  Are you sure you want to continue?')){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+</script>
+% }
+
+<& /tmpl/element:form, params => {
+                method => 'POST',
+              onsubmit => ($suggested_flag) ? 'return on_submit();' : '',
+                  name => 'keywordranking' } &>
+
+	
+<& /tmpl/element:table, params => { width => "100%",
+                border =>"0",
+		style => 'padding-top:10px',
+                cellspacing =>"0",
+                cellpadding =>"0" } &>
+
+<tr><td style="vertical-align:top;width:40%;">
+	<& /tmpl/element:sort_order_box , params =>{
+                no_table => 1,
+                no_add_button => 1,
+                layer_info => {
+                        scrollrows => 15,
+                        layer => 'conceptdiv',
+                        fields => ['concept_id', 'keyword', 'rank'],
+                        name => 'UMLS concepts',
+                        sort => { usage => 'No' },
+                        action => { usage => 'No' },
+                        display => [
+                                        { label => 'UMLS&nbsp;Concepts', field => 'keyword_with_info', align => 'left' },
+                                        { label => 'Relevance', field => 'rank', align => 'center', length => 75, radio_options => \@rank_options }
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => $concepts_data,
+                        }
+                } &>
+</td></tr>
+
+<& /tmpl/element:save_button, params => {
+					label => 'Save Changes',
+					name  => 'rank_submit',
+					td_class => 'cell-submit-no-padding',
+					one_column => 1,
+					no_cancel_button => 1,
+				buttons	=> [
+					
+						$m->scomp("/tmpl/element:button", params => {
+										label 	=> 'Find New Concepts', 
+										name 	=> 'UMLSKeywords',
+										onclick	=> "openwindow('conceptdiv')",
+									}),
+						$m->scomp("/tmpl/element:button", params => {
+										label 	=> 'Cancel', 
+										name 	=> 'back_to_content',
+										href	=> $back_url,
+									}),
+				],
+				} &>
+
+</table>
+</form>
+
+<%init>
+
+	my $concept_links = TUSK::Core::QuizQuestionKeyword->new()->lookup("parent_link_quiz_quiz_item_id =".$linkquestion_id." and concept_id is not null" );
+
+	if ($ARGS{'submit_check'}){
+		my $concept_links_hash =  { map { $_->getKeywordObject()->getConceptID() => \$_ } @$concept_links };
+
+		my $processed_data = $m->comp('/tmpl/process:process_fields', fields => \%ARGS, filter => '^' . 'conceptdiv');
+
+		foreach my $concept_data (values %$processed_data){
+
+			if (exists($concept_links_hash->{ $concept_data->{'pk'} })){
+				my $concept_link = ${$concept_links_hash->{ $concept_data->{'pk'} }};
+				$concept_link->setAuthorWeight($concept_data->{'fields'}->{'rank'});
+				$concept_link->save({ user => $m->comp('SELF:user') });
+			} else {
+
+				my $concept_link = TUSK::Core::QuizQuestionKeyword->new();
+				my $concept = TUSK::Core::Keyword->lookupReturnOne("concept_id = '" . $concept_data->{'pk'} . "'");
+
+				$concept_link->setAuthorWeight($concept_data->{'fields'}->{'rank'});
+				$concept_link->setChildKeywordID($concept->getPrimaryKeyID());
+				$concept_link->setParentLinkQuizQuizItemID($linkquestion_id) ;
+				$concept_link->pushJoinObject('TUSK::Core::Keyword', $concept);
+				$concept_link->save({ user => $m->comp('SELF:user') });
+
+				push (@$concept_links, $concept_link);
+			}
+		}
+	}
+
+	my $suggested_flag = 0;
+	my $concepts = {};
+	my $concepts_seen_hash = {};
+
+	foreach my $concept_link (@$concept_links){
+		my $concept = $concept_link->getKeywordObject();
+
+		$concepts_seen_hash->{ $concept->getConceptID() } = 1;
+
+		if ($concept_link->getAuthorWeight()){
+			$concepts->{ $concept->getKeywordNormalized() } = { weight => $concept_link->getAuthorWeight(), object => $concept };
+		}
+	}
+
+
+	my $concepts_data = [];
+	
+	foreach my $concept_key (sort keys %$concepts){
+		push (@$concepts_data, { 
+						concept_id => $concepts->{$concept_key}->{object}->getConceptID(), 
+						keyword => $concept_key, 
+						keyword_with_info => $concept_key . $m->scomp("/search/tmpl/element:display_def_and_syns", concept => $concepts->{$concept_key}->{object}),
+						rank => $concepts->{$concept_key}->{weight} 
+					});
+	}
+
+</%init>
+
+<%method get_nav_bars>
+<%perl>
+		my $nav_bars = $m->comp('PARENT:get_nav_bars');
+		my $allpaths = $m->comp("/tmpl/url:get_full_path");
+        my $quiz_question_object = TUSK::Quiz::Question->new()->lookupKey($question_id);
+
+		my $quiz_object = TUSK::Quiz::Quiz->new()->lookupKey($quiz_id);
+		my $quiz_title = substr($quiz_object->getTitle(),0,27)."...";
+		my @qpath_array = split('/',$allpaths);
+		pop(@qpath_array);
+		my $addedit_quiz_path = join('/',@qpath_array);
+		push (@$nav_bars,{ label => 'Quiz: '.$quiz_title, href => '/quiz/author/addedit/' . $addedit_quiz_path });
+
+		my $body = substr($quiz_question_object->getBody(),0,27)."...";
+		push (@$nav_bars,{ label => $body, href => '/quiz/author/questionaddedit/' . $allpaths });
+
+		return $nav_bars;
+</%perl>
+</%method>

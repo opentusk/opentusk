@@ -283,6 +283,12 @@ if (defined($id)){
 			$case->setCopyright($m->comp('/management/tmpl/content:get_default_copyright'));
 		}
 
+		my $rule_msg;
+		if ($case->hasRule() && 
+		   ($case->getNavigationType() eq 'Global' && $ARGS{navigation_type} eq 'Linear')) {
+			$rule_msg = '<br><br>You have switched your navigation type from Global to Linear, please be sure that this does not negatively impact any of the rules you have applied to this case.';
+		}
+
 		$case->setCaseTitle($ARGS{'title'});
 		$case->setCaseAuthorDesc($ARGS{'case_author_desc'});
 		$case->setPatientTypeID($ARGS{'patient_type_id'});
@@ -333,9 +339,14 @@ if (defined($id)){
 		my $msg = ($is_edit) ? "Case successfully updated." : "Case successfully added.";
 
 		my $msgtype = 'msg';
-		if ($case->isGlobalNav() && $case->hasQuiz()) {
+		if ($case->isGlobalNav() && $case->hasPopQuiz()) {
 			$msgtype = 'hintmsg';
-			$msg .= "<br>Globally navigable cases do not currently support quizzes. The quizzes embedded in this case will not be made visible to the users.";
+			$msg .= '<br><br>Globally navigable cases only support quizzes that are a part of a "Quiz" phase. Quizzes embedded in any other phase type will not be made visible to the users.';
+		}
+
+		if ($rule_msg) {
+			$msgtype = 'hintmsg';
+			$msg .= $rule_msg;
 		}
 
 		$m->comp('/tmpl/wizard:do_next',args=>\%ARGS,default_transition => $transition, msg => $msg, msgtype => $msgtype);	

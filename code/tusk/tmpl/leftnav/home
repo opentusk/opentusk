@@ -19,6 +19,7 @@ else {
 	$m->comp("SELF:printAnnouncements");
 	$m->comp("SELF:printEval");
 	$m->comp("SELF:printPatientLogs");
+	$m->comp("SELF:printAssessments");
 	$m->comp("SELF:printSimulatedPatients");
 	$m->comp("SELF:printGrades");
 	unless($m->session->{'user'}->isGhost()) {$m->comp("SELF:printQuizzes");}
@@ -30,7 +31,6 @@ else {
 
 
 </div> <!-- end gLeftNav -->
-
 
 
 <%method printLoginForm>
@@ -100,7 +100,7 @@ if (scalar @evals){
 </%perl>
 </ul>
 <br/>
-<a href="/hsdb45/eval/history"><strong>View History</strong></a>
+<a href="/eval/history"><strong>View History</strong></a>
 % }
 
 </%method>
@@ -108,7 +108,7 @@ if (scalar @evals){
 
 <%method printPatientLogs>
 %	my $patientlogs = $m->session->{user}->get_patient_logs();
-%	my $directorpatientlogs = $m->session->{user}->get_director_patient_logs();
+%	my $directorpatientlogs = $m->session->{user}->get_director_forms('PatientLog');
 %	if(scalar(@$patientlogs) || (defined($directorpatientlogs) && scalar(@$directorpatientlogs))) {
 		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Patient Logs'} &>
 %		if(scalar(@{$patientlogs})) {
@@ -130,8 +130,7 @@ if (scalar @evals){
 %	my $instructor_sps = $m->session->{user}->get_instructor_simulated_patients();
 %	if (scalar @{$instructor_sps}) {
 <& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Simulated Patients'} &>
-% # <a href="/protected/sp/actor/home/school/<% $instructor_sps->[0]{school_name}%>">View Simulated Patient</a>
-<a href="/protected/sp/actor/home">View Simulated Patient</a>
+<a href="/protected/sp/actor/home">View Simulated Patients</a>
 %	}
 </%method>
 
@@ -191,5 +190,28 @@ if (scalar @evals){
 <a href="/management/flashcard/flashcard">View Flash Cards</a>
 </%method>
 
+
+<%method printAssessments>
+% 	my $assessments = $m->session->{user}->get_assessments();
+%	my $instructor_assessments = $m->session->{user}->get_instructor_assessments();
+% 	my $director_assessments = $m->session->{user}->get_director_forms('Assessment');
+
+% 	if (scalar @$instructor_assessments || scalar @$assessments || scalar @$director_assessments) {
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Assessments'} &>
+% 		if (scalar @$assessments) {
+<div><a href="/protected/assessment/student/home">View Assessments</a></div>
+%		}
+% 		if (scalar @$instructor_assessments) {
+<div><a href="/protected/assessment/assessor/home">View Assessments</a></div>
+% 		}
+% 		if (scalar @$director_assessments) {
+<ul class="gArrow">
+%			foreach my $form_row (@$director_assessments) {
+<li><a href="/protected/assessment/author/show/course/<% $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $form_row->{form_name} %></a></li>
+%			}
+</ul>
+%		}
+% 	}
+</%method>
 
 

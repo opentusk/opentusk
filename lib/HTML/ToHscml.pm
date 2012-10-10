@@ -5,6 +5,7 @@ use XML::Twig;
 use XML::EscapeText qw(:escape);
 use XML::EscapeText::HSCML qw(:hscml :tagsub);
 use HTML::Tidy;
+use TUSK::Constants;
 use vars qw(@EXPORT);
 @EXPORT = qw(convert);
 
@@ -39,7 +40,10 @@ sub convert {
   my $body = $in_twig->first_elt('body');
 
   my $out_twig = new XML::Twig ();
-  $out_twig->parse (join ('', <DATA>));
+  my $xml_stub = '<?xml version="1.0" encoding="utf-8" standalone="no"?>' .
+		 '<!DOCTYPE db-content PUBLIC "-//Tufts HDSB Project//DTD database content//EN" "http://'. $TUSK::Constants::Domain .'/DTD/dbcontent.dtd">'.
+		 '<db-content><brief-header><mime-type>text/xml</mime-type></brief-header><associated-data></associated-data></db-content>';
+  $out_twig->parse ($xml_stub);
   my $header = $out_twig->first_elt ('brief-header');
   my $assocdata = $out_twig->first_elt ('associated-data');
 
@@ -762,13 +766,3 @@ sub fix_image {
 }
 
 1;
-__DATA__
-<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<!DOCTYPE db-content PUBLIC "-//Tufts HDSB Project//DTD database content//EN"
-    "http://tusk.tufts.edu/DTD/dbcontent.dtd">
-<db-content> 
-  <brief-header> 
-    <mime-type>text/xml</mime-type>
-  </brief-header> 
-  <associated-data></associated-data>
-</db-content>

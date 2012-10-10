@@ -6,6 +6,8 @@
 </%once>
 
 <%attr>
+	page_header => '/tmpl/prepend:manage_header_div_layout'
+	page_footer => '/tmpl/footer:footer_div'
 	skip_header_bar => 1
 	allow_guest => 0
 </%attr>
@@ -45,24 +47,13 @@
 	my $title = "Unknown Merged Eval Report";
 	if($merged_eval_results && $merged_eval_results->field_value('title')) {$title = $merged_eval_results->field_value('title');}
 </%shared>
-
-<style>
-	@media print {
-		.evalFluff {display:none;}
-	}
-	.theGraph {
-	}
-	.theGraphText {
-	}
-</style>
-
 <span class="evalFluff" style="float:right; text-align:right;">
 %	if($TUSK::Constants::HelpMap{evalStatisticsDef}) {
-		<a href="javascript:;" class="helpLnk" onClick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalStatisticsDef} %>'); return false;">Statistics Definitions</a>
+		<a href="javascript:;" class="helpLnk" onclick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalStatisticsDef} %>'); return false;">Statistics Definitions</a>
 %	}
 	&nbsp;
 %       if($TUSK::Constants::HelpMap{evalPrinting}) {
-		<a href="javascript:;" class="helpLnk" onClick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalPrinting} %>'); return false;">Printing Help</a>
+		<a href="javascript:;" class="helpLnk" onclick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalPrinting} %>'); return false;">Printing Help</a>
 %	}
 </span>
 <h2 class="title"><% $title %></h2>
@@ -80,23 +71,23 @@
 % }
 
 <div class="evalFluff">
-	<a href="/protected/eval/administrator/show/<% $merged_eval_results->school %>">Manage Evaluations</a><br>
-	<a id="graphLink" style="display:none;" href="" onClick="showHideGraphs(); return false;">Hide Graphs</a><br><br>
+	<a href="/protected/eval/administrator/show/<% $merged_eval_results->school %>">Manage Evaluations</a><br />
+	<a id="graphLink" style="display:none;" href="" onclick="showHideGraphs(); return false;">Hide Graphs</a>
 
 % my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
 % $evalLoadStats->setEval($merged_eval_results);
-	<center>
+	<p class="timeMessage">
 		This eval has been requested <% $evalLoadStats->totalLoads() %> times
 % if($evalLoadStats->totalLoads()) {
 	with an average of <% sprintf('%.1f', $evalLoadStats->average()) %> sec
 	and the longest time being <% sprintf('%.1f', $evalLoadStats->max()) %> secs.
 % }
 	You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.
-	</center>
+	</p>
 </div>
 <div id="graphicsLoadMessage" style="display:none;">
-	<br><br><center><font color="#CC6600"><span id="queueMessage">Loading Eval Graphs</span></font><br><img src="/graphics/icons/waiting_bar.gif"></center>
+	<p id="queueMessage">Loading Eval Graphs</p><img src="/graphics/icons/waiting_bar.gif" alt="" />
 </div>
 <div id="evalArea">
 </div>
-<script>loadEval('/tusk/ajax/evalMergedBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $merged_eval_results->school %>/<% $merged_eval_results->primary_key() %>', 1);</script>
+<script type="text/javascript">loadEval('/tusk/ajax/evalMergedBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $merged_eval_results->school %>/<% $merged_eval_results->primary_key() %>', 1);</script>

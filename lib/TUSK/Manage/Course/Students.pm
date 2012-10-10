@@ -6,6 +6,7 @@ use HSDB45::TeachingSite;
 use TUSK::Session;
 use TUSK::Functions;
 use TUSK::Constants;
+use TUSK::FormBuilder::SubjectAssessor;
 
 use strict;
 
@@ -75,18 +76,17 @@ sub addedit_pre_process{
 
 	if ($students[0]){
 	    $data->{cursite} = $students[0]->aux_info('teaching_site_id');
+	    $data->{elective} = $students[0]->aux_info('elective');
 	}
 	
 	$data->{showflag} = 1;
     
     if ($user){
-#		$req->{image} = "ModifyCourseStudent";
 		$data->{action}="edit";
 		my $userobj = HSDB4::SQLRow::User->new->lookup_key($user);
 		$data->{userarray} = [ {userid => $user, name => $userobj->out_lastfirst_name} ];
 		$data->{actionref} = {usage => 'No'};
     }else{
-#		$req->{image} = "CreateNewCourseStudents";
 		$data->{action}="add";
 		$data->{userarray} = [];
 		$data->{actionref} = {usage => 'Yes', length => 100, functions => [ {func=>'remove', label=>'Delete'} ]};
@@ -124,13 +124,13 @@ sub delete{
     my ($rval, $msg);
     
 	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
-## delete the course student relationship
+
+    ## delete the course student relationship
     ($rval, $msg) = $course->delete_child_student($un, $pw, $fdat->{user}, $tp);
     
     return ($rval, $msg) if ($rval == 0);
 
     ## delete the sub user group relationships
-
     my @usergroups = get_usergroupstp($req,$course_id, $school, $tp);
     foreach my $usergroup (@usergroups){
 		$usergroup->delete_child_user($un, $pw, $fdat->{user});
@@ -182,23 +182,9 @@ sub edit_user{
     my $user = $users[0];
     return (0, "User not found.") unless $user;
 
-	## my $timeperiod = TUSK::Functions::get_time_period($req, $udat);
-
 	my @students = get_students($req, $course_id, $school,  $timeperiod);
 
-	foreach my $student (@students){
-	    if (
-		$student->primary_key() eq $user->{pk} 
-		&& 
-		$student->aux_info('teaching_site_id') == $fdat->{teaching_site}
-		&&
-		$student->aux_info('time_period_id') == $timeperiod
-		){
-		return("0", "Could not modify teaching site as this student is already associated with the teaching site you selected.");
-	    }
-	}
-	
-	($rval, $msg) = $course->update_child_student($un, $pw, $user->{pk}, $timeperiod, $fdat->{teaching_site});
+	($rval, $msg) = $course->update_child_student($un, $pw, $user->{pk}, $timeperiod, $fdat->{teaching_site}, $fdat->{elective});
 	return($rval, $msg) if ($rval == 0);
 
     process_groups($user->{pk}, $course_id, $school, $timeperiod, $fdat, $req);
@@ -222,7 +208,7 @@ sub add_users{
 
     foreach my $user (@users){
 	unless ($seen{$user->{pk}}){
-	    ($rval, $msg) = $course->add_child_student($un, $pw, $user->{pk}, $timeperiod, $fdat->{teaching_site});
+	    ($rval, $msg) = $course->add_child_student($un, $pw, $user->{pk}, $timeperiod, $fdat->{teaching_site}, $fdat->{elective});
 	    return($rval, $msg) if ($rval == 0);
 	    
 	    ($rval, $msg) = process_groups($user->{pk}, $course_id, $school, $timeperiod, $fdat, $req);
@@ -244,8 +230,6 @@ sub process_groups{
     my ($rval, $msg, $pk);
     my @usergroups = get_usergroupstp($req, $course_id, $school, $timeperiod);
 
-
-
     # delete and/or add the usergroups	
     foreach my $usergroup (@usergroups){
 		$pk=$usergroup->primary_key;
@@ -264,6 +248,49 @@ sub process_groups{
 	}
 
     return 1;
+}
+
+sub get_assessor {
+	my ($req, $form_id, $tp_id) = @_;
+	my $links = TUSK::FormBuilder::SubjectAssessor->lookup("form_id = $form_id AND time_period_id = $tp_id");
+	return { map { $_->getSubjectID() . '__' . $_->getAssessorID() => [ $_->getPrimaryKeyID(),  $_->getStatus() ] } @$links };
+}
+
+sub assign_assessor {
+	my ($req, $form_id, $tp_id, $checked_student_assessor, $user_id, $existing) = @_;
+	my @student_assessors = ();
+	if (ref $checked_student_assessor eq 'ARRAY') {
+		@student_assessors = @$checked_student_assessor;
+	} elsif (ref $checked_student_assessor eq 'SCALAR') {
+		@student_assessors = ($checked_student_assessor);
+	}
+
+	foreach my $sa_id (@student_assessors) {
+		## if there, remove from the list-to-remove, otherwise add new one
+		next unless ($sa_id);
+		my ($student_id, $assessor_id, $ssid) = split(/__/, $sa_id);
+		if ($existing->{$student_id . '__' .  $assessor_id}) {
+			delete $existing->{$student_id . '__' . $assessor_id};  
+		} else {
+			my $link = TUSK::FormBuilder::SubjectAssessor->new();
+			$link->setFieldValues({  
+									 form_id => $form_id,
+									 time_period_id => $tp_id,
+									 subject_id => $student_id,
+									 assessor_id => $assessor_id });
+			$link->save({ user => $user_id });
+		}
+	}
+
+	## remove the ones that are not sent along
+	if (keys %$existing) {
+		if (my @saids = map { $_->[0] } values %$existing) {
+			my $links = TUSK::FormBuilder::SubjectAssessor->lookup('subject_assessor_id in (' . join(',', @saids) . ')');
+			foreach (@$links) {
+				$_->delete({ user => $user_id });
+			}
+		}
+	}
 }
 
 1;

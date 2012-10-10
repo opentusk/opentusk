@@ -50,7 +50,7 @@ sub new {
 					'database_handle' => '',
 					},
 				    _field_names => {
-					'parent_course_id' => '',
+					'parent_course_id' => 'pk',
 					'child_user_id' => 'pk',
 					'sort_order' => '',
 					'roles' => '',

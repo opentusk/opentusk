@@ -48,6 +48,7 @@ sub new {
 					'link_phase_quiz_id' => 'pk',
 					'parent_phase_id' => '',
 					'child_quiz_id' => '',
+					'allow_resubmit' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -126,6 +127,37 @@ sub setChildQuizID{
     $self->setFieldValue('child_quiz_id', $value);
 }
 
+
+#######################################################
+
+=item B<getAllowResubmit>
+
+   $string = $obj->getAllowResubmit();
+
+Get the value of the allow_resubmit field
+
+=cut
+
+sub getAllowResubmit{
+    my ($self) = @_;
+    return $self->getFieldValue('allow_resubmit');
+}
+
+#######################################################
+
+=item B<setAllowResubmit>
+
+    $string = $obj->setAllowResubmit($value);
+
+Set the value of the allow_resubmit field
+
+=cut
+
+sub setAllowResubmit{
+    my ($self, $value) = @_;
+    $self->setFieldValue('allow_resubmit', $value);
+}
+
 ######################################################
 
 
@@ -150,13 +182,28 @@ sub lookupByRelation{
 
     $objective_object = $obj->getQuiz();
 
-Use the link to get the child object of this relation.  Returns a HSDB4::SQLRow::User
+Use the link to get the child object of this relation.  Returns a TUSK::Quiz::Quiz
 
 =cut
 
 sub getQuiz {
+	my $self = shift;
+	return TUSK::Quiz::Quiz->new->lookupKey($self->getChildQuizID());
+}
+
+#######################################################
+
+=item B<getPhase>
+
+    $objective_object = $obj->getPhase();
+
+Use the link to get the parent object of this relation.
+
+=cut
+
+sub getPhase {
         my $self = shift;
-        return TUSK::Quiz::Quiz->new->lookupKey($self->getChildQuizID());
+        return TUSK::Case::Phase->new->lookupKey($self->getParentPhaseID());
 }
 
 
@@ -168,6 +215,11 @@ sub getQuiz {
 =cut
 
 ### Other Methods
+
+
+
+#######################################################
+
 
 =head1 AUTHOR
 

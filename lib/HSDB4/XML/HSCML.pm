@@ -4,6 +4,7 @@ use strict;
 use XML::Twig;
 use HSDB4::SQLRow::User;
 use XML::EscapeText;
+use TUSK::Constants;
 
 BEGIN {
     require Exporter;
@@ -14,7 +15,7 @@ BEGIN {
     @ISA = qw(Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.53 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.54 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use vars @EXPORT_OK;
@@ -158,7 +159,7 @@ sub out_html_body {
     use XML::LibXSLT;
 
     my $parser = XML::LibXML->new();
-    my $prolog = "<?xml version=\"1.0\"?><!DOCTYPE CONTENT SYSTEM \"http://tusk.tufts.edu/DTD/hscmlweb.dtd\">";
+    my $prolog = "<?xml version=\"1.0\"?><!DOCTYPE CONTENT SYSTEM \"http://". $TUSK::Constants::Domain ."/DTD/hscmlweb.dtd\">";
     my $source; 
     eval {
 	    $source = $parser->parse_string($prolog.$self->out_content_body);

@@ -45,7 +45,7 @@ function showlayer(){
 			overflow = "auto";
 		}
 		hasdata = 1;
-		string = '<table width="100%" cellspacing="0" class="tusk">';
+		string = '<table id="' + this.structure['table_id'] + '" width="100%" cellspacing="0" class="tusk">';
 		string += this.showrows();
 		string += '</table>';
 	}else{
@@ -179,10 +179,16 @@ function showrows(){
 			}
 			
 			else{
-				if ((this.editnum == i && display[j]['uneditable'] == null) || (((display[j]['type'] == 'textarea') || (display[j]['type'] == 'textbox')) && typeof(data[i]['isHeaderRow']) == 'undefined')){
+				if ((this.editnum == i && display[j]['uneditable'] == null) || (((display[j]['type'] == 'textarea') || (display[j]['type'] == 'textbox') || (display[j]['type'] == 'checkbox')) && typeof(data[i]['isHeaderRow']) == 'undefined')){
 					displayFieldValue = displayFieldValue.replace(new RegExp('&','g'), '&amp;');
 					if ((display[j]['edittype'] == 'textarea') || (display[j]['type'] == 'textarea')){
 						string += '<textarea class="textareawhite" id="' + elementname(this.layer, data[i][fields[0]], display[j]['field'], i) + '" name="' + elementname(this.layer, data[i][fields[0]], display[j]['field'], i) + '" onclick="edit_textarea_sob(this, \'' + this.layer + '\');" onChange="setfield(\'' + this.layer + '\', ' + i + ', \'' + display[j]['field'] + '\', this.value, this.form.' + changedname + ')" style="width:' + display[j]['length']  + 'px;height:70px">' + displayFieldValue + '</textarea>';
+					}else if ((display[j]['edittype'] == 'checkbox') || (display[j]['type'] == 'checkbox')){
+						string += '<input type="checkbox" name="' + elementname(this.layer, data[i][fields[0]], display[j]['field'], i) + '" '
+						if (displayFieldValue == 1){
+							string += ' CHECKED';
+						}
+						string += ' />';
 					}else{
 						displayFieldValue = displayFieldValue.replace(fieldRE, '&quot;');
 

@@ -1,0 +1,35 @@
+<%attr>
+	top_tab_type	=> 'manage'
+</%attr>
+
+<%method get_nav_bars>
+<%perl>
+	my $objects = $m->comp("SELF:get_nav_bar_objects");
+	my $course = $m->comp("/tmpl/url:get_type_object");
+
+	return $m->comp("/tmpl/nav", 
+		'objects' =>  $objects,
+		'prefix' => '/assessment/assessor',
+		'hierarchy' => {	
+			'home' => [],
+			'list' => ['home'],
+			'entry' => ['home', 'list'],
+		},
+		'nav_entities_dependency' => {
+			'list' => {'object' => 'TUSK::FormBuilder::Form', 'static_title' => 'Students List - '}, 
+		},
+		'title_func' => {
+		      'TUSK::FormBuilder::Form' => 'getFormName',
+		},
+		'urls' => { 
+			'home' => {link => 'home', label => 'Assessments'}, 
+		},
+		'initial_nav_bar' => [ 
+			{ href => '/manage/', label => 'CMS Home' },
+			{ href => '/management/course/display/' . $course->school() . '/'. $course->primary_key(), label => 'Course - ' . $course->out_title() },
+ ],
+	);
+</%perl>
+</%method>
+
+<% $m->call_next %>

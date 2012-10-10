@@ -97,7 +97,6 @@
 	my $course_cases = [];
 	my %case_hash = ();
 	my $events = [];
-	my $isMyPasswordValid = 0;
 	my @courseGroups = ();
 	my $schoolDisplayHashRef;
 	my $quizzes = [];
@@ -159,8 +158,6 @@ $args => {}
 		unless ($course->check_user_patient_log($m->session->{'user'}->primary_key())) {
 			$leftMenu{patientlogs}{style} = 'viewcourseleftnavEmpty';
 		}
-
-		$isMyPasswordValid = $m->comp("/tmpl/loginForm:verifyLogin", args=>$args);
 	}
 	if(scalar($course->child_teaching_sites()) >= 1) {
 	  push @{$leftMenu{'Communication'}}, 'teachsites';
@@ -222,7 +219,7 @@ $args => {}
         unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	  $quizzes = $m->session->{'user'}->current_quizzes([$course]);
 	  $taken_quizzes = $m->session->{'user'}->taken_quizzes($course);
-	  $self_assessment_quizzes = $course->get_self_assessment_quizzes();
+	  $self_assessment_quizzes = $course->get_self_assessment_quizzes($m->session->{'user'}->user_id);
 	  unless(
 		($quizzes && scalar(@$quizzes)) ||
 		($self_assessment_quizzes && scalar(@$self_assessment_quizzes)) ||
@@ -539,7 +536,8 @@ else {
 						<td class="pSchedCell">
 							<a href="/view/course/<% $course->school() %>/<% $courseNumber %>/schedule/<% $classMeeting->primary_key() %>">
 								<% $classMeeting->title() %>
-							</a> (<% $classMeeting->type() %>)
+							</a> (<% $classMeeting->type() %>) 
+							     <% ($classMeeting->is_mandatory())? '<span class="cmMandAtt"> - Attendance Mandatory</span>' : '' %>
 						</td>
 					</tr>
 %				}
@@ -693,7 +691,12 @@ else {
 %	} elsif($m->session->{'user'}->isGhost()) {
 		Grades are not avaliable to Shibboleth users.
 %	} else {
-%		$m->comp("/tmpl/loginForm:printPrivateLogin", 'ajaxComponent' => '/tusk/ajax/getCourseGrade/' . $course->school() . "/" . $course->primary_key());
+<& /tmpl/element:security_notice_start, 
+	user_fullname => $m->session->{'user'}->out_full_name(), 
+	js_code => '$.get( \'/tusk/ajax/getCourseGrade/' . $course->school . '/' . $course->primary_key . '\', function (data) { $(\'#notice_content\').html(data) } ); close_notice();',
+&>
+
+<& /tmpl/element:security_notice_end &>
 %	}
 
 %} elsif ($courseView eq 'assignments') {
@@ -761,3 +764,8 @@ else {
 	return $m->session->{timeperiod};
 </%perl>
 </%method>
+
+<%method jsarray>
+% 	return ['element.js', 'jquery/jquery.min.js'];
+</%method>
+

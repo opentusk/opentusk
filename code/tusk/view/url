@@ -13,7 +13,7 @@
 	my $iconWidth = 27;
 	my $printIconWidth = "width=\"$iconWidth\" height=\"$iconWidth\"";
 	my $document = $m->comp('/tmpl/url:get_type_object');
-	my $userObject = $m->session->{'user'}; #HSDB4::SQLRow::User->new->lookup_key($m->session->{'user'});
+	my $userObject = $m->session->{'user'}; 
 	my $iCanEdit = $document->can_user_edit($userObject);
 </%shared>
 
@@ -26,9 +26,8 @@
 <%doc>Redirect if we are not url</%doc>
 % unless($document->display_framed) {
 %       my $location = $ENV{SCRIPT_URI};
-%       $location =~ s/viewurl/viewcontent/;
-%       $r->header_out(Location => $location);
-%       $r->status('REDIRECT');
+%       $location =~ s/view\/url/view\/content/;
+%	    $m->redirect($location);
 %       exit;
 % }
 
@@ -44,12 +43,27 @@
 
 <%perl>
 	my $topURL = $ENV{SCRIPT_URI};
-	my $topRowHeight = "170";
+
+	my $topRowHeight = 90;
 	my $onload = '';
+
 	if($document->type() eq 'Document'){
+		$topRowHeight = 37;
 		$topURL =~ s/view\/url/view\/minStyTopFrame/;
-		$topRowHeight = "110";
 		$onload = 'setTargets(this.name);';
+	}
+	elsif($document->type() eq 'URL' || $document->type() eq 'External') {
+		$topRowHeight = 37;
+		$topURL =~ s/view\/url/view\/minStyTopFrame/;
+
+
+		# statref links cannot be shown in a frame. we called statref, they are unable or
+		# unwilling to fix this. therefore, if link is to statref, present the user with
+		# a link to launch the link in a new window (outside of the frame). this link 
+		# requires 23 extra pixels in the frame.
+		if($document->type() eq 'URL' && $document->out_external_url() =~ /http:\/\/online\.statref\.com/){
+			$topRowHeight += 23;
+		}
 	}
 	else {
 		$topURL =~ s/view\/url/view\/urlTopFrame/;
@@ -61,11 +75,11 @@
 		if ($source){
 			$goToURL = '/view/urlExternalContent/' . $document->primary_key();
 		}
-	}elsif($document->type() eq 'URL'){
-			$goToURL = $document->out_external_url();
-	}elsif($document->type() eq 'PDF'){
-                $goToURL = $document->out_external_url();
-	}elsif($document->type() eq 'Document'){
+	}elsif ($document->type() eq 'URL'){
+		$goToURL = $document->out_external_url();
+	}elsif ($document->type() eq 'PDF'){
+		$goToURL = $document->out_external_url();
+	}elsif ($document->type() eq 'Document'){
 		$goToURL = '/view/minStyle/content/' . $document->primary_key();
 	}else{
 		$goToURL = '/download/' . $document->primary_key();
@@ -73,12 +87,12 @@
 </%perl>
 
 % if($iCanEdit && !$document->is_active()) {
-  <frameset rows="210,*">
-% } else {
+%	$topRowHeight += 50;
+% } 
+
   <frameset rows="<% $topRowHeight %>,*">
-% }
-    <frame src="<% $topURL %>"  frameborder="0" scrolling="no">
-    <frame  frameborder="0" name="content" src="<% $goToURL %>" onload="<% $onload %>">
+    <frame src="<% $topURL %>"  frameborder="0" noresize scrolling="no">
+    <frame src="<% $goToURL %>" frameborder="0" noresize name="content" onload="<% $onload %>">
     <noframes>
 	Sorry, this is a frame based page.
     </noframes>

@@ -16,6 +16,7 @@
 	use HSDB4::SQLRow::PersonalContent;
 	use HSDB4::Constants;
 	use TUSK::Constants;
+	use Data::Dumper;
 </%once>
 
 
@@ -25,7 +26,7 @@
 	</%args>
 
 	<%perl>
-     
+
 	if(${$args}{'newfldr'} == 1 ) {
 			
 			my $folder = $m->session->{'user'}->new_child_personal_content_folder;
@@ -61,11 +62,11 @@
 			HSDB4::SQLLinkDefinition->update_children_sort_order(\%params_hash);
 
 	}
-		if(${$args}{'add_to_folder'}) {
+		if(${$args}{'add_to_pfolder'}) {
 
 			my $folder;
 			
-			if (${$args}{'add_to_folder'} == -1) {
+			if (${$args}{'add_to_pfolder'} == -1) {
 
 				$folder = $m->session->{'user'}->new_child_personal_content_folder;
 				my @personal_content = $m->session->{'user'}->child_personal_content( {'type' => 'type!="Flash Card Deck"'} );
@@ -83,7 +84,7 @@
 			} 
 			else {
 				$folder = HSDB4::SQLRow::PersonalContent->new;
-				$folder->lookup_key(${$args}{'add_to_folder'});
+				$folder->lookup_key(${$args}{'add_to_pfolder'});
 			}
 			
 			${$args}{'content_item'} =~ s!^.*/hsdb4/content!!g;
@@ -221,7 +222,7 @@ if($backbuttn) {
     <table border="0" cellpadding="3" align="center" cellspacing="0" class="wide" width="100%">
 %  my $i =1;
 %    foreach my $pieceOfContent (@personalContent) {
-      <& /tmpl/objects/PersonalContent:edit_PersonalContentCollection, lngth => $pcLength,  personalContentRef => \$pieceOfContent, i => $i &>
+      <& /tmpl/objects/PersonalContent:edit_PersonalContentCollectionDeck, lngth => $pcLength,  personalContentRef => \$pieceOfContent, i => $i &>
 %    $i++;
 %    }
     </table><br>

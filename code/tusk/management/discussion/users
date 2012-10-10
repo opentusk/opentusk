@@ -1,0 +1,122 @@
+<%once>
+	use Forum::ForumKey;
+	use Forum::Board;
+	use Forum::Permission;
+	use TUSK::Manage::Forums;
+</%once>
+
+<%shared>
+	my $board_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $board    = Forum::Board->new()->lookupKey( $board_id );
+</%shared>
+
+<%perl>
+    my $permissions = Forum::Permission->new()->lookup("boardId='" . $board_id ."'", 
+						 ['lastname', 'firstname'], 
+						 undef, 
+						 undef, 
+						 [ TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", { origkey => 'userName' }) ]);
+
+
+    foreach my $permission (@$permissions){
+		my $userObj = $permission->getJoinObject("TUSK::Core::HSDB4Tables::User");
+		push (@{$userarray}, {permissionid => $permission->getPrimaryKeyID(), userid => $userObj->getPrimaryKeyID(), name => $userObj->getLastname() . ", " . $userObj->getFirstname(), permissions => $permission->getPermissions() });
+    }
+
+	my $buttons = [];
+	if ( $perms_granted ) {
+		push @{$buttons}, {link_txt=>"javascript:openwindow('usersdiv')", display_txt=>'Add Users'};
+	}
+	$m->comp("/tmpl/element:cms_button_row", links => $buttons );
+
+	my $action_columns;
+	if ( $perms_granted ) {
+		$action_columns = {usage => 'Yes', length=>100, functions => [ {func=>'remove', label=>'Delete'} ] };
+	}
+</%perl>
+
+<& /tmpl/element:form, params => {
+        method => 'POST',
+        onsubmit => undef, 
+        name => 'tracking' } 
+&>
+
+<%perl>
+	my $layer_info = {
+						context_path => $m->comp("/tmpl/url:get_full_path"),
+						base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
+
+						layer => 'usersdiv',
+						fields => ['userid','name','permissions'],
+						name => 'users',
+						sort => {usage => 'No', length=>50},
+						action => $action_columns,
+						display => [
+								{field=>'name', align=>'left', length=>225,},
+								{field=>'userid', align=>'left', length=>75,},
+								{field=>'permissions', align=>'center', length=>100}
+				  			],
+						validate => {
+								usage => 'No'
+							},
+						data => $userarray,
+					};
+
+	if ( $perms_granted ) {
+		$layer_info->{display}->[2]->{options} = [
+										{label => 'User'}, 
+										{label => 'Moderator'}, 
+										{label => 'Banned'}, 
+										];
+	}
+
+</%perl>
+
+<& /tmpl/element:sort_order_box , params =>{
+        no_add_button => 1,
+        no_table => 1,
+        buttons => [],
+        layer_info => $layer_info
+	} &>
+
+%	if ( $perms_granted ) {
+<br/>
+<& /tmpl/element:submit_button, params=>{label=>'Save Changes',
+				name=>'submit'} &>
+%	}
+</form>
+
+<%init>
+	my $school               = $m->comp("/tmpl/url:get_school");
+    my $school_id            = TUSK::Core::School->new->getSchoolID($school);
+	my $type_object          = $m->comp("/tmpl/url:get_type_object");
+	my $self_path            = "school/" . $school;
+	my $is_course_discussion = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
+	my $course;
+	if ( $is_course_discussion ) {
+		$course              = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+		$self_path           = "course/" . $school . "/" . $type_object->course_id;
+	}
+    my $userarray            = [];
+	my $perms_granted        = (!$is_course_discussion || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user}));
+
+	if ( $ARGS{'submit'} ) {
+		TUSK::Manage::Forums::users_process($board_id, \%ARGS);
+	}
+</%init>
+
+<%method jsarray>
+% return ['layers.js','element.js'];
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return 'Discussion Users';
+</%method>
+
+<%method get_nav_bar_objects>
+% return {'Forum::Board' => $board};
+</%method>

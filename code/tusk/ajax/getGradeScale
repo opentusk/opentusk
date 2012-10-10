@@ -1,0 +1,84 @@
+<%once>
+	use TUSK::GradeBook::GradeScale;
+	use TUSK::GradeBook::GradeScaleBounds;
+</%once>
+<%attr>
+    top_tab_type            => 'none'
+	displayLittleUserNavBar => '1'
+	default_path_type	=> 'content'
+	no_header		=> '1'
+	page_header		=> undef
+	page_footer		=> undef
+	allow_guests		=> '1'
+</%attr>
+
+% use TUSK::Functions ;
+
+<%shared>
+    my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
+	my $isMyPasswordValid = 0;
+	my $pc_id = $m->comp('/tmpl/url:get_last_path_id')	;
+	my $cards = TUSK::FlashCard->lookup("parent_personal_content_id = ".$pc_id);
+</%shared>
+
+
+% $m->clear_buffer();
+% $r->content_type('text/html');
+% $r->no_cache(1);
+
+<%perl>
+	my $chosen_scale_id = $ARGS{scale_id}; 
+	my $bounds = TUSK::GradeBook::GradeScaleBounds->lookup("grade_scale_id = ".$chosen_scale_id." order by lower_bound desc");
+	foreach my $lnk (@$bounds){
+		my $scale_hash;
+	    $scale_hash->{'grade'} = $lnk->getGradeSymbol();
+		$scale_hash->{'number'} = $lnk->getLowerBound();
+		push(@$scale_array,$scale_hash);
+	}
+
+
+	$m->comp('/tmpl/element:sort_order_box', params =>{
+	
+		no_add_button=>1,
+        label=>'Existing Scale',
+		no_label=>1,
+		layer_info => {
+			layer => 'scalediv',
+			context_path => $m->comp("/tmpl/url:get_full_path"),
+			fields => ['link_grade_event_scale_id','grade', 'number','course_id','time_period','school_id'],
+			name => 'scale',
+			sort => {usage => 'No'},
+			action => {usage => 'No'},	
+			scrollrows => 10,
+			display => [
+				{label=>'Minimum %', field=>'number', align=>'center', length=>50,type=>'label'},
+				{label=>'Grade',field=>'grade', align=>'center', length=>50, type=>'label'},
+			],
+			validate => { usage => 'No', form => 'coursePreferences'},
+			data => $scale_array }	});
+
+print "</table></td></tr>";
+
+</%perl>
+
+
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	columns => [ 
+		{'label' => 'Thumb', 'field' => 'outCardThumbnail', align => 'left', width => '15%'},
+		{'label' => 'title', 'field' => 'outCardTitle', align => 'left', width => '35%'},
+		{'label' => 'Owner', 'field' => 'outCardOwner', align => 'left', width => '25%'}, 
+	],
+	action_columns => [ 
+		{ 'label' =>'Modify','link' => '/management/flashcard/editcard' },
+		{ 'label' => 'Delete','link' => '/management/flashcard/deletecard' },
+	],
+	type_path => '',
+	action_column_align => 'right',
+	object_list => $cards,
+	name => "cards",
+	no_header => 1,
+} &>
+
+

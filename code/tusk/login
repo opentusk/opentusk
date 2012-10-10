@@ -17,6 +17,7 @@ use Apache::Cookie;
 </%once>
 
 <%args>
+$user => ''
 $errmsg => ''
 $url => ''
 </%args>
@@ -53,6 +54,9 @@ my %cookies = Apache::Cookie->new($r)->fetch();
 my $message = $cookies{'login_error'} && $cookies{'login_error'}->value() ? $cookies{'login_error'}->value()
                   : $errmsg ? $errmsg
                   : '';
+my $failedLoginUser = $cookies{'failed_login_user'} && $cookies{'failed_login_user'}->value() ? $cookies{'failed_login_user'}->value()
+                  : $user ? $user
+                  : '';
 </%perl>
 
 
@@ -64,7 +68,7 @@ my $message = $cookies{'login_error'} && $cookies{'login_error'}->value() ? $coo
 %	$url = '/bigscreen';
 % }
 
-<& SELF:build_login_box, message => $message, url => $url &>
+<& SELF:build_login_box, message => $message, url => $url, failedLoginUser => $failedLoginUser &>
 
 <p id="logMessage" class="xsm"><% $TUSK::Constants::HomepageMessage %></p>
 
@@ -76,7 +80,7 @@ my $message = $cookies{'login_error'} && $cookies{'login_error'}->value() ? $coo
 <select name="address" onChange="javascript:location.href=this.options[this.selectedIndex].value;">
           <option value="" selected>-- Useful Links --</option>
           <option value="https://webmail.tufts.edu">Webmail</option>
-          <option value="http://www.library.tufts.edu/cgi-bin/ovid.pl">Ovid MEDLINE</option>
+          <option value="https://www.library.tufts.edu/ezproxy/ezproxy.asp?LOCATION=ovid">Ovid MEDLINE</option>
           <option value="/view/url/H1185C/580566/839836"><% $TUSK::Constants::SiteAbbr %> User Guide</option>
           <option value="/about/our_vision">About <% $TUSK::Constants::SiteAbbr %></option>
           <option value="http://directory.tufts.edu">Directory</option>
@@ -103,8 +107,8 @@ my $message = $cookies{'login_error'} && $cookies{'login_error'}->value() ? $coo
 
 % if($TUSK::Constants::useShibboleth){
 <select name="from" onChange="if(this[this.selectedIndex].value != 'Select') {document.location='https://<% $TUSK::Constants::shibbolethSP %>:<% $TUSK::Constants::shibSPSecurePort %>/shibboleth-login/provision/'+ this[this.selectedIndex].value;}">
-	<option value="Select" SELECTED>-- Partner Institutions --</option>
-%	my $shibbolethUsers = TUSK::ShibbolethUser->new->lookup();
+	<option value="Select" SELECTED>-- Shibboleth Access --</option>
+%	my $shibbolethUsers = TUSK::Shibboleth::User->new->lookup();
 %	foreach my $shibUserObject (@{$shibbolethUsers}){
 %		if($shibUserObject->ifIsEnabled()){
 %			my $apacheShibId = $shibUserObject->getShibbolethUserID();
@@ -131,16 +135,18 @@ my $message = $cookies{'login_error'} && $cookies{'login_error'}->value() ? $coo
 $message => ''
 $is_mobi => 0
 $url => ''
+$failedLoginUser => ''
 </%args>
 <div id="logLoginBox">
 <div id="errordiv">
 % if($message){
+%	$message =~ s/</&lt;/g;
+%	$message =~ s/>/&gt;/g;
 %	my $prefix = ($is_mobi)? '/mobi' : '';
 <p class="errTxt"><% $message %></p>
 <p class="xxsm">If you believe you got this message in error please <a href="<% $prefix %>/about/contact_us">contact us</a></p>
 % }
 </div>
-
 % my $ssrv = $r->dir_config('SecureLogin') || 'https://'.$TUSK::Constants::Domain.'/login';
 
 <& /tmpl/element:form, params => { action => $ssrv, method => 'post', name => 'login'} &>
@@ -148,14 +154,14 @@ $url => ''
 % if ($is_mobi && !$url) {
 %	$url = '/mobi/home';
 % }
-% if ($url) {
+% if ($url && $url =~ /^\// ) {
 %	$m->comp('/tmpl/element:hidden_form_element', params => { name => 'request_uri', value => $url });
 % }
 
 <div style="background:#fff 96% top no-repeat url('<% $themeImage %>');">
 <fieldset>
 <label for="user" class="xsm">Username:</label>
-<input name="user" type="text" class="textareawhite" size="20"/>
+<input name="user" type="text" class="textareawhite" size="20" value="<% $failedLoginUser %>"/>
 </fieldset>
 
 <fieldset>

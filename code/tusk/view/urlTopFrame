@@ -5,21 +5,52 @@
 </%args>
 
 <%attr>
-	top_tab_type            => 'none'
+	top_tab_type            => 'frame'
+	page_header             => '/tmpl/prepend:manage_header_div_layout'
+	page_footer             => '/tmpl/footer:footer_div'
 	displayLittleUserNavBar => '1'
-	default_path_type	=> 'content'
-	allow_guests		=> '1'
-	no_body			=> '0'
+	default_path_type       => 'content'
+	allow_guests            => '1'
+	no_body                 => '0'
+    body_id                 => 'topframe'
 </%attr>
 
 <%shared>
 	my $document = $m->comp('/tmpl/url:get_type_object');
-        my $iconWidth = 27;
-        my $printIconWidth = "width=\"$iconWidth\" height=\"$iconWidth\"";
+	my $iconWidth = 27;
+	my $printIconWidth = "width=\"$iconWidth\" height=\"$iconWidth\"";
 	my $imageDir = "/graphics";
-	my $userObject = $m->session->{'user'}; #HSDB4::SQLRow::User->new->lookup_key($m->session->{'user'});
+	my $userObject = $m->session->{'user'}; 
 	my $iCanEdit = $document->can_user_edit($userObject);
 </%shared>
+
+
+
+% unless($iCanEdit || $document->is_active()) {
+	<br><br>
+	<table border="0" width="100%">
+	  <tr><th><font size="+2">Sorry this content is not currently active.</font></th></tr>
+	</table>
+	<br><br>
+%   return();
+% }
+
+<& SELF:checkDocStatus &>
+<& SELF:tuskbar &>
+
+<%doc>
+statref links cannot be shown in a frame. we called statref, they are unable or
+unwilling to fix this. therefore, if link is to statref, present the user with
+a link to launch the link in a new window (outside of the frame).
+</%doc>
+% if($document->type() eq 'URL'){
+%	my $ext_url = $document->out_external_url();
+%	if($ext_url =~ /http:\/\/online\.statref\.com/){
+<div style="margin-top:2px; margin-bottom:0px; padding: 0 5px; border:1px solid black; background:#fff9df;">If the content below does not display correctly, you can view it in a <a href="<% $ext_url %>" target="_blank">new window</a>.</div>
+%	}
+% }
+
+
 
 <%method startup>
 <%args>
@@ -30,35 +61,63 @@ $args => {}
   </%perl>
 </%method>
 
+
 <%method title>
 %	return ucfirst($document->type) .": ". $document->out_label;
 </%method>
 
-<%doc>Redirect if we are not url</%doc>
-% unless($document->display_framed) {
-%	my $location = $ENV{SCRIPT_URI};
-%	$location =~ s/view\/url/view\/content/;
-%	$r->header_out(Location => $location);
-%	$r->status('REDIRECT');
-%	exit;
-% }
+
+<%method red_header_class>
+%	return 'blueHeaderBar';
+</%method>
 
 
-% unless($iCanEdit || $document->is_active()) {
-	<br><br>
-	<table border="0" width="100%">
-	  <tr><th><font size="+2">Sorry this content is not currently active.</font></th></tr>
-	</table>
-	<br><br>
-%    return();
-% }
+<%method red_header_text>
+%	return "<b>" . $document->out_label . "</b>";
+</%method>
 
+
+<%method right_header_text>
+<%doc>Method that returns a list of all the images to use to the right on the red header bar</%doc>
+<%perl>
+
+my $right_hdr_lnks = [];
+
+if($iCanEdit){
+	my $edit_lnk = $m->comp('/tmpl/url:get_edit_link', content => $document, target => '_top');
+	push @$right_hdr_lnks, $edit_lnk;
+}
+
+return $right_hdr_lnks;
+
+
+</%perl>
+</%method>
+
+
+<%method checkDocStatus>
 % if($iCanEdit && !$document->is_active()) {
 	<div style="border:2px solid red;font-size:14px; margin-top:2px; margin-bottom:0px;"><center>This content has expired!<br>You can only see the content because you are an author.</center></div>
 % }
+</%method>
 
 
-<div id="tuskbar" style="position:absolute; top:5px; left:50%; height: <% $iconWidth %>px; width:<% 3 * $iconWidth %>px; border:1px solid black; z-index:9999;">
+<%method tuskbar>
+<script> 
+function removeHighlighting(theImage) {
+	if(theImage.className != 'openedSubMenu') {theImage.className = '';}
+}
+
+function highlightButton(theImage) {
+	if(theImage.className != 'openedSubMenu') {theImage.className = 'mouseOverIcon';}
+}
+</script>
+<style type="text/css">
+.mouseOverIcon {background-color: yellow;}
+.openedSubMenu {background-color: #00CC66;}
+</style>
+
+<div id="tuskbar" style="position:absolute; top:2px; left:40%; height: <% $iconWidth %>px; width:<% 3 * $iconWidth %>px; border:1px solid black; z-index:9999;">
   <table border="0" cellspacing="0" cellpadding="0" width="100%">
     <tr>
       <td align="right" width="<% ($iconWidth+2) %>" valign="middle">
@@ -97,28 +156,4 @@ $args => {}
     </tr>
   </table>
 </div>
-
-<%method red_header_class>
-%	return 'blueHeaderBar';
-</%method>
-
-<%method red_header_text>
-%	return "<b>" . $document->out_label . "</b>";
-</%method>
-
-<%method right_header_text>
-<%doc>Method that returns a list of all the images to use to the right on the red header bar</%doc>
-<%perl>
-
-my $right_hdr_lnks = [];
-
-if($iCanEdit){
-	my $edit_lnk = $m->comp('/tmpl/url:get_edit_link', content => $document, target => '_top');
-	push @$right_hdr_lnks, $edit_lnk;
-}
-
-return $right_hdr_lnks;
-
-
-</%perl>
 </%method>

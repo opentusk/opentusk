@@ -12,7 +12,7 @@
 	$js_files => []
 </%args>
 <%perl>
-	my $files = ['layers.js', 'formbuilder.js', 'element.js', 'dynamiclist.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+	my $files = ['layers.js', 'formbuilder.js', 'element.js', 'dynamiclist.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js', 'getElementsByClassName.js'];
 	push @$files, @$js_files if (defined $js_files);
  	return $files;
 </%perl>
@@ -42,7 +42,7 @@
 	$date_label => ''
 	$dynamic_components => []
 	$button_component => undef
-	$extra_actions => []
+	$extra_actions => {}
 	$redirect_submit_url => undef
 	$has_save_button => undef
 </%args>
@@ -50,6 +50,7 @@
 <%perl>
 	my $form = $m->comp("/formbuilder/util:get_form");
 	if ($args->{submit_check}) {
+
 		my $new_entry_id = $m->comp("/formbuilder/process:entry", args => $args, form => $form, user_id => $m->session->{'user'}->user_id(), date => $args->{'encounter_date'}, entry_id => $args->{'entry_id'});
 
 		my $extra;			
@@ -62,17 +63,32 @@
 			if ($args->{save_submit}) { 	
 				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Successfully Saved'));
 			} elsif ($args->{form_submit}) {  
-				$m->comp('SELF:redirect', url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra);
-			}
-		} else {
-			if ($args->{form_submit}) { 
-				if ($args->{entry_id}){    
-					$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Entry Updated'));
-				} else {      
+				if ($args->{err_process_msg}) {
+					$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, msgtype => 'errmsg', msg => join('<br/>', @{$args->{err_process_msg}})));
+				} else {
 					$m->comp('SELF:redirect', url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra);
 				}
 			}
+		} else {
+			if ($args->{form_submit}) { 
+				if ($args->{entry_id}){  
+					my $eidmsg; 
+					if (ref($args->{entry_id}) eq 'ARRAY') {
+						$eidmsg = "Entry Updated&entry_id=".$args->{entry_id}[0]; 
+					} else {
+						$eidmsg = "Entry Updated&entry_id=".$args->{entry_id}; 
+					}
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => $eidmsg ));
+				} else {      
+					if ($args->{err_proces_msg}) {
+						$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, msgtype => 'errmsg',  msg => join('<br/>', @{$args->{err_process_msg}})));
+					} else {
+						$m->comp('SELF:redirect', url => $redirect_submit_url, msg => "Successfully Submitted&entry_id=$new_entry_id", extra => $extra);
+					}
+				}
+			}
 		}
+
 	}
 
 	$m->comp("SELF:showform", args => $args, form => $form, date_label => $date_label, dynamic_components => $dynamic_components, button_component => $button_component, onsubmit => $onsubmit);
@@ -97,16 +113,25 @@
 
 	foreach my $field (@$fields) {
 		next if ($field->getRequired() and $args->{hide_required});
-		next unless ($field->getFieldTypeToken() eq "SingleSelect"  || $field->getFieldTypeToken() eq "CheckList");
-
-		if ($field->getRequired()) {
+		if ($field->getFieldTypeToken() eq "SingleSelect"  || $field->getFieldTypeToken() eq "CheckList") {
+			if ($field->getRequired()) {
+				my $message = $field->getFieldName();
+				$message =~ s/'/\\'/g;
+				if ($field->getFieldTypeToken() eq "SingleSelect") {
+					push (@$js_arrayref, "{id:'id_" . $field->getPrimaryKeyID() . "', message:'" . $message . "'}");
+				} elsif ($field->getFieldTypeToken() eq "CheckList") {
+					push (@$js_arrayref, "{id:'checklist_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");
+				}
+			}
+		} elsif ($field->getFieldTypeToken() eq 'SingleSelectAllowMulti') {
 			my $message = $field->getFieldName();
 			$message =~ s/'/\\'/g;
-			if ($field->getFieldTypeToken() eq "SingleSelect") {
-				push (@$js_arrayref, "{id:'id_" . $field->getPrimaryKeyID() . "', message:'" . $message . "'}");
-			} elsif ($field->getFieldTypeToken() eq "CheckList") {
-				push (@$js_arrayref, "{id:'checklist_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");
-			}
+			push (@$js_arrayref, "{id:'text_id_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");			
+	
+		} elsif ($field->getFieldTypeToken() eq 'MultiSelectWithAttributes') {
+			my $message = $field->getFieldName();
+			$message =~ s/'/\\'/g;
+			push (@$js_arrayref, "{id:'multiwithattr_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");			
 		}
 	}
 
@@ -199,10 +224,10 @@
 
 	my $options = [];
 	push @$options, { label => 'Select', value => 0 };
-    if((%sites)) {
+    if (%sites) {
 		foreach my $tp (@time_periods) {
 			push @$options, {
-				label => $sites{$periods_sites{$tp->primary_key()}}->site_name() . ' &nbsp;[' . $tp->out_display() . ']', 
+				label => (($sites{$periods_sites{$tp->primary_key()}}) ? $sites{$periods_sites{$tp->primary_key()}}->site_name() : ' No Site ') . ' &nbsp;[' . $tp->out_display() . ']',
 				value => $tp->primary_key(),
 			};		
 		}
@@ -329,12 +354,25 @@
 		if ($field->getFieldTypeToken() eq 'SingleSelect'){
 			$selected = $response->[0]->getItemID() . '#0';  # need to figure out what to do if there is a "other" value selected for a single select box
 		} else {
-			$response_text = '<table style="width:500px;border-collapse: collapse;margin-bottom:5px;">';
+			$response_text = '<table id="f' . $field->getPrimaryKeyID . '" style="table-layout:fixed;width:500px;border-collapse: collapse;margin-bottom:5px;">';
 			foreach my $res (@$response){
 				my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
+			    my $cid = $item->getContentID(); 
 				my $extra = ($res->getText()) ? '&nbsp;(' . $res->getText() . ')' : '';
-				$response_text .= '<tr><td class="sm" style="border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td><td class="sm" align="right" style="border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>Delete</td></tr>';
-			}
+
+				$response_text .= '<tr valign="top" id ="tr' . $cid . '">
+					<td id="td' . $cid . '" class="sm" style="width:60%;border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td>';
+
+					if($cid > 0) {
+						$response_text .= '<td align="right" style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"><a href="" class="navsm" id="a' . $cid . '" onClick="toggle_links(' . $field->getPrimaryKeyID . ',' . $cid . ');return false;">Show Links</a></td>';
+					} else {
+						$response_text .= '<td style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"></td>';
+					}
+
+					$response_text .= '<td class="sm" align="right" style="width:15%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '-' . $res->getPrimaryKeyID() . '"/>Delete</td></tr>';
+
+			} # end foreach
+
 			$response_text .= '</table>';
 		}
 	}
@@ -363,7 +401,7 @@
 	$field
 	$response
 </%args>
-<& "field_dropdown", field => $field, multiple => 1, size => 6 &>
+<& "field_dropdown", field => $field, multiple => 1, size => 6, selected => { map { $_->getItemID() => 1 } @$response } &>
 </%def>
 
 <%def CheckList>
@@ -482,45 +520,58 @@
 					$extra = '&nbsp;(' . join(', ', @attribute_values) . ')';
 				}
 				
-				$response_text .= '<tr><td class="sm" nowrap style="border:1px solid rgb(239, 239, 239); border-right: 1px solid white">' . $item->getItemName() . $extra . '</td><td class="sm" align="right" style="border:1px solid rgb(239, 239, 239); border-left: 1px solid white" nowrap><input type="checkbox" name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>Delete</td></tr>';
+				my $cid = $item->getContentID(); 
+
+				$response_text .= '<tr valign="top" id ="tr' . $cid . '">
+				<td id="td' . $cid . '" class="sm" style="width:60%;border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td>';
+
+				if($cid > 0) {
+						$response_text .= '<td align="right" style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"><a href="" class="navsm" id="a' . $cid . '" onClick="toggle_links(' . $field->getPrimaryKeyID . ',' . $cid . ');return false;">Show Links</a></td>';
+				}else {
+						$response_text .= '<td style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"></td>';
+				}
+
+				$response_text .= '<td class="sm" align="right" style="width:15%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>Delete</td></tr>';
+
 			}
 			$response_text .= '</table>';
 			print $response_text;
 </%perl>
 <div class="multiselectdiv">
+%	my $items = $field->getItems();
+%	my $attributes = $field->getAttributes();
+%	my $field_id = $field->getPrimaryKeyID();
+<input type="hidden" id="attributes_<% $field_id %>" name="attributes_$field_id" value="<% scalar @$attributes %>">
 <table width="99%" cellspacing="0" cellpadding="5">
 <%perl>
-	my $items = $field->getItems();
-	my $attributes = $field->getAttributes();
 	foreach my $item (@$items){
-		my $item_id = $field->getPrimaryKeyID() . "_" . $item->getPrimaryKeyID();
-		print "<tr class=\"unselected\" id=\"" . $item_id . "\">";
-		print "<input type=\"hidden\" class=\"no-padding\" name=\"" . $item_id . "_selected" ."\" id=\"" . $item_id . "_selected" . "\" value=\"0\">";
+		my $field_item_id = $field_id . "_" . $item->getPrimaryKeyID();
+		print "<tr class=\"unselected\" id=\"" . $field_item_id . "\">";
+		print "<input type=\"hidden\" class=\"no-padding multiwithattr_" . $field_id . "\" name=\"multiwithattr_" . $field_item_id . "_selected" ."\" id=\"multiwithattr_" . $field_item_id . "_selected" . "\" value=\"0\">";
 		my $colspan = ($item->getAllowUserDefinedValue()) ? 1 : 2;
-		print "<td style=\"width:100%\" colspan=\"" . $colspan . "\" onmousedown=\"change_style('" . $item_id . "', " . scalar(@$attributes) . ");\" onmouseup=\"change_focus('" . $item_id . "', " . scalar(@$attributes) . ");\" nowrap>";
+		print "<td style=\"width:100%\" colspan=\"" . $colspan . "\" onmousedown=\"change_style('" . $field_item_id . "', " . scalar(@$attributes) . ");\" onmouseup=\"change_focus('" . $field_item_id . "', " . scalar(@$attributes) . ");\" nowrap>";
 		print "<span class=\"smallfont\">" . $item->getItemName() . "</span>";
 		if ($item->getAllowUserDefinedValue()){
 			print "</td><td class=\"formbuilder-multiselect-other-td\" nowrap>\n";
-			print "<input class=\"smallfont\" name=\"" . $item_id . "_user_defined\" id=\"" . $item_id . "_user_defined\" class=\"textareawhite\"  type=\"text\" style=\"display:none;margin-right:5px\">\n";
+			print "<input class=\"smallfont\" name=\"" . $field_item_id . "_user_defined\" id=\"" . $field_item_id . "_user_defined\" class=\"textareawhite\"  type=\"text\" style=\"display:none;margin-right:5px\">\n";
 		}
 		print "</td>\n";
 		my $attribute_count = 1;
 		foreach my $attribute (@$attributes){
-			my $attribute_form_name = $item_id . "_" . $attribute->getPrimaryKeyID();
-			my $attribute_id = $item_id . "_select_" . $attribute_count;
+			my $attribute_form_name = $field_item_id . "_" . $attribute->getPrimaryKeyID();
+			my $attribute_index = $field_item_id . "_select_" . $attribute_count;
 			print "<td class=\"formbuilder-attribute-dropdown-td\" nowrap>";
 			if ($attribute->getAttributeTypeToken() eq 'DropDown'){
-				print "<select class=\"smallfont\" style=\"display:none;\" class=\"formbuilder-attribute-dropdown\" name=\"" . $attribute_form_name . "\" id=\"" . $attribute_id . "\">";
+				print "<select class=\"smallfont formbuilder-attribute-dropdown attribute-item_$attribute_index\" style=\"display:none;\" name=\"" . $attribute_form_name . "\" id=\"" . $attribute_index . "\">";
+					print "<option value=\"\"></option>";
 				foreach my $attribute_item (@{$attribute->getItems()}){
 					print "<option class=\"smallfont\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "</option>";
 				}
 				print "</select>";
-			}elsif ($attribute->getAttributeTypeToken() eq 'RadioSelect'){
-				print "<div style=\"display:none;\" class=\"formbuilder-attribute-radio\" id=\"" . $attribute_id . "\">";
-				my $checked = "checked";
+			} elsif ($attribute->getAttributeTypeToken() eq 'RadioSelect') {
+				print "<div style=\"display:none;\" class=\"formbuilder-attribute-radio\" id=\"" . $attribute_index . "\">";
 				foreach my $attribute_item (@{$attribute->getItems()}){
-					print "<input type=\"radio\" $checked name=\"" . $attribute_form_name . "\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "\&nbsp;";
-					$checked = "" if ($checked);
+					print "<input type=\"radio\" class=\"attribute-item_$attribute_index\" name=\"" . $attribute_form_name . "\" value=\"" . $attribute_item->getPrimaryKeyID() . "\">" . $attribute_item->getItemName() . "\&nbsp;";
 				}
 				print "</div>";
 			}
@@ -576,7 +627,6 @@
 	}
 
 	push (@$items,   grep ($_->getItemTypeToken() ne 'CatEnd', @$field_items));
-
 </%perl>
 <& /tmpl/element:dropdown, params=>{ label => $field->getFieldName(),
 		size => $size,
@@ -657,7 +707,6 @@
 } &>
 % }
 </%def>
-
 
 
 

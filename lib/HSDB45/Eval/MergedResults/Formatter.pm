@@ -4,7 +4,7 @@ use strict;
 use base qw(HSDB45::Eval::Results::Formatter);
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.6 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.7 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 sub version { return $VERSION; }
 
@@ -34,6 +34,7 @@ BEGIN {
     require HSDB45::Eval::MergedResults::BarGraphCreator;
     require HSDB45::Eval::MergedResults;
     require HSDB45::Eval::Question::MergedResults;
+    require TUSK::Constants;
 }
 
 # Check size of this process; only works on Solaris
@@ -77,8 +78,8 @@ sub new_from_path {
 
     my $self = $incoming->SUPER::new($object);
     $self->{-doctype_decl} = 'Eval_Results';
-    $self->{-dtd_decl} = 'http://tusk.tufts.edu/DTD/Eval_Results.dtd';
-    $self->{-stylesheet_decl} = 'http://tusk.tufts.edu/XSL/Eval/eval_results.xsl';
+    $self->{-dtd_decl} = 'http://'. $TUSK::Constants::Domain .'/DTD/Eval_Results.dtd';
+    $self->{-stylesheet_decl} = 'http://'. $TUSK::Constants::Domain .'/XSL/Eval/eval_results.xsl';
     return $self;
 }
 
@@ -117,6 +118,7 @@ sub do_bar_graphs {
 warn ("Calling save_svg_graphs from Formatter.pm $bar_graph_creator\n");
     $bar_graph_creator->save_svg_graphs();
 }
+
 
 1;
 __END__

@@ -322,6 +322,13 @@ sub getUserNameFirstLast{
 }
 
 
+sub getUserNameFirstInitialLast{
+	my ($self) = @_;
+	my $user_obj = $self->getUserObject();
+	return (ref($user_obj) eq "TUSK::Core::HSDB4Tables::User") ? substr($user_obj->getFirstname(),0,1) . " " . $user_obj->getLastname() : '';
+}
+
+
 #######################################################
 
 =item B<setRoleToken>

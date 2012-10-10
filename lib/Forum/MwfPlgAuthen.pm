@@ -67,7 +67,7 @@ sub authenRequestHttp
 
 	    my $user = HSDB4::SQLRow::User->new();
 		my $shibUserID = -1;
-                $shibUserID = TUSK::ShibbolethUser->isShibUser($userName);
+                $shibUserID = TUSK::Shibboleth::User->isShibUser($userName);
                 if($shibUserID > -1) {
                         # If we are a shib user and we are allowing shib users then make a ghost user
                         $user->makeGhost($shibUserID);

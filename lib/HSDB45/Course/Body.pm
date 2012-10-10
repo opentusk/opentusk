@@ -4,10 +4,11 @@ use strict;
 use XML::Twig;
 use HSDB45::Course;
 use Carp qw(confess);
+use TUSK::Constants;
 
 BEGIN {
     use vars qw($VERSION);
-    $VERSION = do { my @r = (q$Revision: 1.8 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.9 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version { return $VERSION }
@@ -49,7 +50,7 @@ sub init {
     if (not $bodytext) {
 	my $id = $course->primary_key();
 	$bodytext = qq[<?xml version="1.0"?>\n];
-	$bodytext .= qq[<!DOCTYPE dbcourse SYSTEM "http://tusk.tufts.edu/DTD/course.dtd">\n];
+	$bodytext .= qq[<!DOCTYPE dbcourse SYSTEM "http://]. $TUSK::Constants::Domain .qq[/DTD/course.dtd">\n];
 	$bodytext .= qq[<dbcourse course-id="$id">\n];
 	for (qw(attendance-policy grading-policy course-description tutoring-services 
 		course-structure student-evaluation equipment-list course-other)) {

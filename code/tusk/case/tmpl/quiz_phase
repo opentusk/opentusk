@@ -1,0 +1,70 @@
+<%once>
+use TUSK::Case::LinkCaseReportQuizResult;
+</%once>
+
+<%perl>
+my $phase = $ARGS{'phase'};
+my $case = $ARGS{'case'};
+my $args = $ARGS{'args'};
+
+
+my $qlink = $phase->getQuizLink();
+if ($qlink) {
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $case_id   = $case->getPrimaryKeyID();
+	my $phase_id  = $phase->getPrimaryKeyID();
+	my $quiz_id   = $qlink->getChildQuizID();
+	my $location  = "/case/takequiz/$type_path/$case_id/$phase_id/$quiz_id"; 
+	$m->redirect($location);
+}
+</%perl>
+
+
+<!-- Begin Quiz Phase --> 
+<& /tmpl/element:table &>
+<& /tmpl/element:tr_tag &>
+<td>
+<& element:transition,args=>$args &>
+% if ($phase->getInstructions()) {
+<div class="text2"><% $phase->getInstructions() %></div>
+% }
+</td>
+</tr>
+
+<& element:divider_bar &>
+</table>
+<!-- End Quiz Phase --> 
+
+<%method chartInfo>
+<%args>
+$case
+$phase 
+$visit => undef
+</%args>
+<%perl>
+if (defined $visit && !$case->isTest()) {
+	my $qrls = TUSK::Case::LinkCaseReportQuizResult->new()->lookup('phase_visit_id=' . $visit->getPrimaryKeyID());
+	if (scalar @$qrls) {
+		return '<em>See Quiz Results tab</em>';
+	}
+	else {
+		return '<em>Nothing to report</em>';
+	}
+}
+else {
+	return '<em>Nothing to report</em>';
+}
+</%perl>
+</%method>
+
+
+<%method get_button_nav>
+<%args>
+$case
+$phase 
+$args
+</%args>
+% if($case->isLinearNav()) {
+<& element:transition_button, phase => $phase, case => $case, args => $args &>
+% }
+</%method>

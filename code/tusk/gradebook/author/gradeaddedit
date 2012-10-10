@@ -1,6 +1,7 @@
 <%once>
 	use TUSK::GradeBook::GradeEvent;
 	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::Application::GradeBook::GradeBook;
 </%once>
 
 <%shared>
@@ -10,6 +11,7 @@
 	my $type_object = $m->comp("/tmpl/url:get_type_object");
 	my $school = $type_object->get_school()->getSchoolName();
 	my ($grades_data, $saved_grades) = $event->getGradeRecords($type_object);
+	my $time_period_id = $m->comp('SELF:get_timeperiod_id');
 </%shared>
 
 
@@ -92,6 +94,17 @@
 
 		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/gradeaddedit", 'msg' => 'Successfully Saved'));
 	}
+
+
+my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id, user_id => $m->session->{'user'}->user_id()});
+
+foreach my $x (@$grades_data) {
+		my $calculated_grade = $x->{'grade'};
+		my $scaled_grade = $gb->getScaledGrade($calculated_grade, $event_id); 
+		$x->{'scaled_grade'} = $scaled_grade;
+	}
+
+
 </%init>
 
 
@@ -102,7 +115,8 @@
 		[
 			{label => 'Name',field => 'name', align=>'left', length => 150 },
 			{label => 'User&nbsp;ID', field => 'user_id', align => 'left', length => 20 },
-			{label => 'Grade', field=>'grade', align => 'center', length => 25, type => 'textbox'},
+			{label => 'Grade', field=>'grade', align => 'center', length => 40, type => 'textbox'},
+			{label => 'Scaled Grade', field=>'scaled_grade', align => 'center', length => 40, type => 'label'},
 			{label => 'Comments', field => 'comments', align => 'left', length => 300, type => 'textbox' }
 		]
 	);

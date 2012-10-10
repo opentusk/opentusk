@@ -2,8 +2,9 @@
 	$location => ''
 </%args><%init>
 	use Apache::Constants qw/REDIRECT NOT_FOUND/;
+#	use Apache::TicketTool;
 	use TUSK::Constants;
-	use TUSK::ShibbolethUser;
+	use TUSK::Shibboleth::User;
 	use Digest::MD5 qw(md5_hex);
 	use CGI::Cookie;
 	use CGI;
@@ -29,7 +30,22 @@
 	# Check and see how many schools we matched
 	my $shibUserId = $TUSK::Constants::shibbolethUserID . $shibbolethUserId;
 
-	my $hash = md5_hex($TUSK::Constants::CookieSecret . md5_hex(join ':', $TUSK::Constants::CookieSecret, $now, $expires, $shibUserId));
+	my $idForCookie = $shibUserId;
+#
+#	unless($TUSK::Constants::CookieUsesUserID) {
+#		# Build the session
+#		my %session;
+#		Apache::TicketTool::create_embperl_session(undef, \%session);
+#		$session{user} => $shibUserId;
+#		$idForCookie = $session{_session_id};
+#		# Undef to session to force a save and release the lock
+#		Apache::TicketTool::destroy_embperl_session(\%session);
+#	} else {
+#		$idForCookie = $shibUserId
+#	}
+
+	my $hash = md5_hex($TUSK::Constants::CookieSecret . md5_hex(join ':', $TUSK::Constants::CookieSecret, $now, $expires, $idForCookie));
+
 
 	# Build the cookie
 	my $cookie = new CGI::Cookie(
@@ -37,12 +53,13 @@
 		-path =>'/',
 		-value => {
 			'time' => $now,
-			'user' => $shibUserId,
+			'user' => $idForCookie,
 			'hash' => $hash,
 			'expires' => $expires,
 		},
 	);
-	unless($location) {$location = "http://" . $TUSK::Constants::Domain;}
+
+	unless($location) {$location = "/home";}
 	my $cgiObject = new CGI;
 	$m->clear_buffer;
 	$m->print($cgiObject->header(
@@ -52,3 +69,4 @@
 	));
 	$m->abort();
 </%init>
+

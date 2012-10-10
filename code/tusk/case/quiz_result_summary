@@ -1,0 +1,23 @@
+<%args>
+$quiz_result_links
+</%args>
+
+<%once>
+	use TUSK::Quiz::Quiz;
+</%once>
+
+
+% my %attempt;
+% foreach my $qrl (@$quiz_result_links) {
+%	my $qr = $qrl->getQuizResultObject();
+%	my $quiz = TUSK::Quiz::Quiz->lookupKey($qr->getQuizID());
+%	next if (!$quiz);
+%	$attempt{$quiz->getPrimaryKeyID()}++;
+
+<div class="pwStep">
+<h4 class="pwStepTitle"><a class="toggleView" href="javascript:;" onclick="toggleView(this);">[+]</a><% $quiz->getTitle %> (attempt <% $attempt{$quiz->getPrimaryKeyID()} %>)</h4>
+<div class="quizInfo gDisplayNone">
+%	$m->comp('/quiz/tmpl/quizdisplay:display_responses',quiz=>$quiz,result=>$qr);
+</div> <!-- chartInfo -->
+</div> <!-- pwStep -->
+% }

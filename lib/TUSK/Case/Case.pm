@@ -1092,7 +1092,11 @@ EOM
     
 	my $phases = TUSK::Case::LinkCasePhase->lookup($cond,['sort_order DESC', 'child_phase_id DESC'],undef,1,
 	    [TUSK::Core::JoinObject->new('TUSK::Case::Phase',{origkey=>'child_phase_id','joinkey'=>'phase_id'})]);
-	    return $phases->[0]->getPhaseObject;
+
+	if (scalar @$phases) {
+		return $phases->[0]->getPhaseObject();
+	}
+	return undef;
 }
 
 #######################################################
@@ -1602,29 +1606,54 @@ sub isReportComplete{
 
 #######################################################
 
-=item B<isReportComplete>
+=item B<hasPopQuiz>
 
-   $int = $self->isReportComplete();
+   $int = $self->hasPopQuiz();
 
-Return 1 if case report is complete; 0 otherwise.
+Return 1 if case has a phase that is not of type 'quiz' with 
+a linked quiz; 0 otherwise.
 
 =cut
 
-sub hasQuiz{
+sub hasPopQuiz{
 	my $self = shift;
 
 	my $phases = $self->availablePhases();
 
-	my $hasquiz = 0;
+	my $haspopquiz = 0;
 	my $quiz;
 	foreach my $p (@$phases) {
 		$quiz = $p->getQuiz();
-		if (defined $quiz) {
-			$hasquiz = 1;
+		if (defined $quiz && ref($p) !~ /Quiz$/) {
+			$haspopquiz = 1;
 			last;
 		}
 	}	
-	return $hasquiz;
+	return $haspopquiz;
+}
+
+#######################################################
+
+=item B<hasRule>
+
+   $int = $self->hasRule();
+
+Return 1 if case has a phase with a rule, 0 otherwise
+
+=cut
+
+sub hasRule{
+	my $self = shift;
+
+	my $phases = $self->availablePhases();
+
+	foreach my $p (@$phases) {
+		my $rule = $p->getRules();
+		if (scalar @$rule) {
+			return 1;
+		}
+	}	
+	return 0;
 }
 
 
