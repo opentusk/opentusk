@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%args>
 	$generateType => ''
 	$school => ''
@@ -8,18 +23,17 @@
 	$loadFile => ''
 </%args>
 <%attr>
-        top_tab_type            => 'none'
-        displayLittleUserNavBar => '1'
-        no_header               => '1'
-        page_header             => undef
-        page_footer             => undef
-        allow_guests            => '0'
-	no_check_path		=> 1
-	must_be_tusk_admin	=> 1
+	top_tab_type            => 'none'
+	displayLittleUserNavBar => '1'
+	no_header               => '1'
+	page_header             => undef
+	page_footer             => undef
+	allow_guests            => '0'
+	no_check_path			=> 1
+	must_be_tusk_admin		=> 1
 </%attr>
 <%once>
-	use Apache::File;
-	use Apache::Constants;
+	use Apache2::Const qw(:common);
 	use HSDB45::Eval;
 	use HSDB45::Eval::Formatter;
 	use HSDB45::Eval::Results;
@@ -30,21 +44,22 @@
 	use HSDB45::Eval::MergedResults::BarGraphCreator;
 	use HSDB45::Eval::Completion::Formatter;
 </%once>
+
 % if($loadFile) {
 <%perl>
-        #Send the download
-        $r->content_type("application/unknown");
-        $r->header_out("Accept-Ranges", "bytes");
-	my $fileName = $TUSK::Constants::evalSaveDir ."/". $loadFile;
-        $r->header_out("Content-Length", -s $fileName);
-        $r->header_out("Content-disposition","attachment; filename=$loadFile"); 
-        $r->no_cache(1);
-        $r->send_http_header;
-        my $fh = Apache::File->new($fileName) or return NOT_FOUND;
-                $r->send_fd($fh);
-        close $fh;
+	#Send the download
+	$r->content_type("application/unknown");
+	$r->headers_out->set("Accept-Ranges", "bytes");
+	my $fileName = $TUSK::Constants::EvalSaveDir ."/". $loadFile;
+	$r->headers_out->set("Content-Length", -s $fileName);
+	$r->headers_out->set("Content-disposition","attachment; filename=$loadFile"); 
+	$r->no_cache(1);
+	my $fh;
+	unless(open($fh, $fileName)) {return NOT_FOUND;}
+	$r->sendfile($fileName);
+	close $fh;
 	unlink $fileName;
-        return OK;
+	return OK;
 </%perl>
 % } else {
 <%perl>
@@ -123,7 +138,7 @@
 	}
 	my $savedFile = 'null';
 	if(!$error && $xml_text && $generateXMLFile) {
-		my $fileName = $TUSK::Constants::evalSaveDir ."/" .  $generateXMLFile;
+		my $fileName = $TUSK::Constants::EvalSaveDir ."/" .  $generateXMLFile;
 		unless(open(FILE, ">$fileName")) {$error = "Could not open file " . $fileName . " for writing ($!)";}
 		else {
 			print FILE $xml_text;

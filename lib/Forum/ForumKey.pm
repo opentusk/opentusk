@@ -26,6 +26,7 @@ use TUSK::Core::School;
 use TUSK::Constants;
 use Forum::MwfMain;
 use Data::Dumper;
+use Apache2::Request;
 
 #######################################################
 
@@ -400,20 +401,19 @@ sub setCfg {
 
 =item B<new_post_forums>
 
-    $new_post_forums = new_post_forums($forum_admin);
+    $new_post_forums = new_post_forums($r, $forum_admin);
 
     function that returns a data structure of the new/unread post info for a particular user.  Uses apache request to figure out the user.
 
 =cut
 
 sub new_post_forums {
+    my $r = shift;
     my $user_object = shift;
     my $forum_admin = shift;
     my $courses = shift;
     
     my $keys = [ Forum::ForumKey::getBoardKeys($user_object, $courses) ];
-    
-    my $r = Apache->request;
     
     my ($m, $cfg, $lng, $user) = MwfMain->new($r, $forum_admin, 1, $keys);
     
@@ -448,8 +448,7 @@ Returns the url of the user's blog if he/she has one.  Uses apache request to fi
 =cut
 
 sub blog_url {
-    my $r = Apache->request;
-    
+    my ($self, $r) = shift;
     my ($m, $cfg, $lng, $user) = MwfMain->new($r, 0, 1);
     
     my $blog_exists = $m->fetchArray("SELECT count(*) FROM $cfg->{dbPrefix}topics WHERE boardId= '-". $user->{id} . "'");

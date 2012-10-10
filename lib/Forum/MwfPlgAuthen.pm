@@ -25,7 +25,7 @@ use Forum::MwfMain;
 # TUSK - added
 use Forum::ForumKey;
 use Apache::TicketTool;
-use Apache::Constants qw(REDIRECT);
+use Apache2::Const qw(REDIRECT);
 use HSDB4::Constants;
 use HSDB4::SQLRow::User;
 use TUSK::ErrorReport;
@@ -198,8 +198,8 @@ sub logout
 {
     my @params = @_;
     my $user_id = $params[0];
+    my $r = $params[1];
 
-    my $r = Apache->request;
     my $m = MwfMain->new($r, 0, 1);
     my $cfg = $m->{"cfg"};
     my $user_idQ = $m->dbQuote($user_id);

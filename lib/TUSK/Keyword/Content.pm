@@ -1,7 +1,22 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 #
 # $Source: /data/cvs/tusk/lib/TUSK/Keyword/Content.pm,v $
 #
-# $Id: Content.pm,v 1.1 2006-07-05 18:52:28 bkessler Exp $
+# $Id: Content.pm,v 1.2 2012-04-20 16:52:40 scorbe01 Exp $
 #
 
 package TUSK::Keyword::Content; 
@@ -20,7 +35,7 @@ use HSDB4::SQLRow::Content;
 use vars qw($VERSION @EXPORT @EXPORT_OK %EXPORT_TAGS 
             %CONCEPTS $NUM_CONCEPTS );
 
-$VERSION =  sprintf("%d.%02d", q$Revision: 1.1 $ =~ /(\d+)\.(\d+)/);
+$VERSION =  sprintf("%d.%02d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/);
 
 ##
 ## Items to export into callers namespace by default. Note: do not export
@@ -204,6 +219,9 @@ B<Perl>
 =head1 REVISION HISTORY
 
  $Log: Content.pm,v $
+ Revision 1.2  2012-04-20 16:52:40  scorbe01
+ Committing ECL License header.
+
  Revision 1.1  2006-07-05 18:52:28  bkessler
  Justin Deri's initial coding of modules
 

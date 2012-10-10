@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%args>
 	$summary		=> 0
 	$SIZE			=> ''
@@ -7,7 +22,7 @@
 <%attr>
         top_tab_type            => 'none'
 	displayLittleUserNavBar => '1'
-	page_footer		=> '/tmpl/footer:footer_with_tufts_links'
+	page_footer		=> '/tmpl/footer:footer_with_school_links'
 	default_path_type	=> 'content'
 	allow_guests		=> '1'
 	allow_shib		=> '1'
@@ -687,26 +702,17 @@ $args => {}
 	      }
 	    }
 % } else {
-	    if(document.theTuskPrintForm.printType && document.theTuskPrintForm.printType[1].checked)
-	    {
-	      document.theTuskPrintForm.action = '/perl/content_pdf/<% $document->primary_key %>/full';
-	      document.theTuskPrintForm.target = 'tuskPDFWindow';
-	      document.theTuskPrintForm.submit();
-            }
-	    else
-	    {
-	      var selectedKeywords = '';
-	      if(document.theTuskWordForm.keyWords) {
-	        for(var index=0; index<document.theTuskWordForm.keyWords.length; index++) {
-		  if(document.theTuskWordForm.keyWords[index].checked) {
-		    selectedKeywords += document.theTuskWordForm.keyWords[index].value+'|';
-		  }
-	        }
-	      }
-	      document.theTuskPrintForm.action = '/tusk/view/printcontent/<% $document->primary_key %>';
-	      document.theTuskPrintForm.hiddenWords.value = selectedKeywords;
-	      document.theTuskPrintForm.submit();
-	    }
+	  var selectedKeywords = '';
+	  if(document.theTuskWordForm.keyWords) {
+		for(var index=0; index<document.theTuskWordForm.keyWords.length; index++) {
+	  if(document.theTuskWordForm.keyWords[index].checked) {
+		selectedKeywords += document.theTuskWordForm.keyWords[index].value+'|';
+	  }
+		}
+	  }
+	  document.theTuskPrintForm.action = '/tusk/view/printcontent/<% $document->primary_key %>';
+	  document.theTuskPrintForm.hiddenWords.value = selectedKeywords;
+	  document.theTuskPrintForm.submit();
 % }
 	  }
 
@@ -902,9 +908,6 @@ $args => {}
 	      &nbsp; <input type="radio" name="slidesPerPage" value="/view/printcollection/<% $document->primary_key %>/<% $numSlides %>"><% $numSlides %> slides per page (<font style="font-size:6pt;"><% $numberOfPages %></font>)<br>
 %      }
 	    </p>
-%	if($TUSK::Constants::PrintPDFHelp) {
-            &nbsp; <a href="<% $TUSK::Constants::PrintPDFHelp %>" target="tuskHELP">Click here for help printing to PDF</a>
-%	}
 %    } else {
             <p style="color:gray;">
               This collection has no slides.<br>
@@ -915,23 +918,6 @@ $args => {}
 %      $addPrintButton = 0;
 %    }
 %  } else {
-%    if($document->type() eq 'HSCML' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
-            <script>
-              function changePDF(pdfOrNothing) {
-                if(pdfOrNothing == 1) {
-                  document.getElementById('standardPrintOptions').style.color='lightgrey';
-                  document.theTuskPrintForm.Print.value = "Download";
-                } else {
-                  document.getElementById('standardPrintOptions').style.color='';
-                  document.theTuskPrintForm.Print.value = "Print";
-                }
-              }
-            </script>
-            <input type="radio" name="printType" value="standard" onClick="changePDF(0);" checked>Standard
-            <input type="radio" name="printType" value="pdf" onClick="changePDF(1);">PDF<br>
-%    } else {
-            <p style="color:gray;">PDF Not avaliable for this content.</p>
-%    }
             <p id="standardPrintOptions" style="font-color:red;">
               <input type="checkbox" name="addNotes" <% $m->session->{'contentPrintOptions'}->{addNotes} %>>Add my notes.<br>
               <input type="checkbox" name="addContentInfo" <% $m->session->{'contentPrintOptions'}->{addContentInfo} %>>Add content info.<br>
@@ -951,7 +937,7 @@ $args => {}
 %  }
         </table>
       </form>
-      <iframe name="printFrame" style="height:1; width:1; border:0px;"></iframe>
+      <iframe name="printFrame" style="height:1px; width:1px; border:0px;"></iframe>
     </div>
   </div>
 </%method>

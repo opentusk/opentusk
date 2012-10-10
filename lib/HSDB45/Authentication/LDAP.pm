@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB45::Authentication::LDAP;
 
 use strict;
@@ -53,7 +68,7 @@ sub verify {
 	my $firstname = $ldap->attr_values("givenname");
 	$firstname =~ s/ [a-z]$//i;
 	$user->set_first_name($firstname);
-	$user->field_value("trunk", $ldap->attr_values("siteTRUNK"));
+	$user->field_value("trunk",$ldap->attr_values("siteTRUNK"));
 	$user->set_email($ldap->email);
 	$user->field_value("password",my $null);
 	$user->field_value("source","external");
@@ -87,7 +102,7 @@ sub verify {
 	my $somethingElse = 
 	my $userGroupLabel = '';
 	if ($school =~ /(Default)/) {
-          $affiliation = "Veterinary";
+          $affiliation = "Default";
           $userGroupLabel = simpleUserGroup($date, $affiliation);
 	}
 
@@ -99,8 +114,8 @@ sub verify {
 		#OK, lets see if we can "auto-stuff" this user into a group
 		my $schoolCode = HSDB4::Constants::code_by_school( $affiliation );
 		if($schoolCode && $userGroupLabel) {
-			my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
-			my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+			my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+			my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 			#Does the User Group already exist?
 			my @userGroups = HSDB45::UserGroup->new(_school=>HSDB4::Constants::school_codes($schoolCode))->lookup_conditions("label='$userGroupLabel'");
 			if(scalar(@userGroups > 1))
@@ -144,30 +159,30 @@ sub verify {
 	
         # send off an email to TUSK admins
         if($TUSK::Constants::emailWhenNewUserLogsIn && $message) {
-				my $mail = TUSK::Application::Email->new({
-								to_addr => $TUSK::Constants::AdminEmail,
-								from_addr => $TUSK::Constants::AdminEmail,
-								subject => "New User Signon: ".$user->primary_key,
-								body => $message,
-				});
-				warn sprintf("Error sending email to TUSK admins: %s", $mail->getError()) unless $mail->send();
+                my $mail = TUSK::Application::Email->new({
+                        to_addr => $TUSK::Constants::AdminEmail,
+                        from_addr => $TUSK::Constants::AdminEmail,
+                        subject => "New User Signon: ".$user->primary_key,
+                        body => $message,
+                });
+                $mail->send();
         }
 
         # send off an email to new User
-        if($TUSK::Constants::emailUserWhenNoAffiliationOrGroup && $user->email && $sendUserEmail) {
+        if($TUSK::Constants::SendEmailUserWhenNoAffiliationOrGroup && $user->email && $sendUserEmail) {
                 my $mail = TUSK::Application::Email->new({
                         to_addr => $user->email,
                         from_addr => $TUSK::Constants::AdminEmail,
                         subject => "$TUSK::Constants::SiteAbbr User Account",
-                        body => $TUSK::Constants::emailUserWhenNoAffiliationOrGroup,
+                        body => $TUSK::Constants::EmailUserWhenNoAffiliationOrGroupText,
                 });
-				warn sprintf("Error sending email to new user %s: %s", $user->email, $mail->getError()) unless $mail->send();
+                $mail->send();
         }
 
     }
 
     ## update hsdb4.user password
-    $user->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+    $user->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
     return (undef, "Inactive Account $user_id") unless $user->active;
     return (undef, "Account Expired") if $user->is_expired;
     return (1,"Success");

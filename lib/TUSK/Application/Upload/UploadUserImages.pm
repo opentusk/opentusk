@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package TUSK::Application::Upload::UploadUserImages;
 
 use strict;
@@ -113,8 +128,7 @@ sub upload_file{
 	if ($found_user == 1) {
 
 		#user_path is the dir path that will contain all images for a given student
-		my $user_path = $TUSK::Constants::userImagesPath . "/".$uid;
-
+		my $user_path = $TUSK::Constants::BaseStaticPath . $TUSK::Constants::UserImagesPath . "/".$uid;
 		if (-d $user_path ) {} else { mkdir($user_path) };
 
 		opendir(DIR, $user_path) or die "can't opendir : $!";

@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%doc>Please refer to MasonPages for overview of autohandler use.</%doc>
 
 <%attr>
@@ -42,8 +57,9 @@ use_dynamic_wrapper => 0
 
 <%once>
 use HSDB4::SQLRow::User;
-use Apache::Constants qw/REDIRECT NOT_FOUND/;
-use Apache::Cookie;
+use Apache2::Const qw/REDIRECT NOT_FOUND/;
+use Apache2::Cookie;
+use ModPerl::Util;
 use Data::Dumper;
 use TUSK::Session;
 use TUSK::Core::Logger;
@@ -66,18 +82,17 @@ my $authentication = sub {
 	}
 
 	my ($user, $user_id);
-	unless ($user_id = $r->connection->user) {
-		if (my %cookies = Apache::Cookie->new($r)->parse) {
-			if (defined ($cookies{'Ticket'})){
-				my %ticket = $cookies{'Ticket'}->value;
-				$user_id = Apache::TicketTool::get_user_from_ticket(\%ticket);
-			}
+	unless ($user_id = $r->user) {
+		my $cookieJar = Apache2::Cookie::Jar->new($r);
+		if (defined ($cookieJar->cookies('Ticket'))){
+			my %ticket = $cookieJar->cookies('Ticket')->value;
+			$user_id = Apache::TicketTool::get_user_from_ticket(\%ticket);
 		}
 	}
 	if (!$user_id){ # redirect to login page
-		$r->header_out(Location => $home_url . '&errmsg=Please+login');
+		$r->headers_out->set('Location', $home_url . '&errmsg=Please+login');
 		$r->status(REDIRECT);
-		exit;
+		$m->abort(REDIRECT);
 	}
 	# If user is not an HSDB4::SQLRow::User or (we are not a ghost user and user_id ne user_id from obj)
 	if (
@@ -99,9 +114,9 @@ my $authentication = sub {
 		if(!$user->primary_key) {
 			# Returen that we are an unknown user
 			unless($m->base_comp->attr('allow_guests') == 1) {
-				$r->header_out(Location => $home_url . '&errmsg=Please+login');
+				$r->headers_out->set('Location',$home_url . '&errmsg=Please+login');
 				$r->status(REDIRECT);
-				exit;
+				$m->abort(REDIRECT);
 			}
 		}
 		$m->session->{'user'} = $user;
@@ -112,9 +127,9 @@ my $authentication = sub {
 		if (ref($typeObj) eq "HSDB45::Course"){
 			unless (TUSK::Session::is_school_admin($m->session, $typeObj->school(), $m->session->{'user'})){
 				if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR') == 0){
-					$r->header_out(Location => '/home?errmsg=Access+Denied');
+					$r->headers_out->set('Location','/home?errmsg=Access+Denied');
 					$r->status(REDIRECT);
-					exit;
+					$m->abort(REDIRECT);
 				}
 			}
 		}
@@ -288,18 +303,18 @@ my %req_hash = ( user => $localUser,
 
 <%method nocache>
 <%perl>
-	$r->header_out('Expires','Mon, 1 Jan 1990 05:00:00 GMT' );
-	$r->header_out('Pragma','no-cache');
-	$r->header_out('Cache-Control', 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0');
+	$r->headers_out->set('Expires','Mon, 1 Jan 1990 05:00:00 GMT' );
+	$r->headers_out->set('Pragma','no-cache');
+	$r->headers_out->set('Cache-Control', 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0');
 </%perl>
 </%method>
 
 <%method set_no_cache>
 	<%perl>
-                $r->header_out('Expires' => "Mon, 26 Jul 1997 05:00:00 GMT");
-                $r->header_out('Last-Modified' => time2str(time));
-                $r->header_out('Cache-Control' => " no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
-                $r->header_out('Pragma' =>  "no-cache");
+                $r->headers_out->add('Expires',"Mon, 26 Jul 1997 05:00:00 GMT");
+                $r->headers_out->add('Last-Modified',time2str(time));
+                $r->headers_out->add('Cache-Control'," no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
+                $r->headers_out->add('Pragma', "no-cache");
 
                 push @metaData, "<META HTTP-EQUIV=\"cache-control\" CONTENT=\"no-cache\">\n";
                 push @metaData, "<META HTTP-EQUIV=\"pragma\" CONTENT=\"no-cache\">\n";

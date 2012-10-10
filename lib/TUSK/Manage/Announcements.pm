@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package TUSK::Manage::Announcements;
 
 use HSDB4::Constants;
@@ -8,8 +23,8 @@ use TUSK::Constants;
 
 use strict;
 
-my $pw = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
-my $un = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
 sub get_usergroups{
     my ($req, $udat) = @_;
@@ -59,19 +74,19 @@ sub show_pre_process{
 		$req->{extratext}->[$cur_ind]->{text} .= "<select name=\"ug_id\" onchange=\"document.generic.submit();\" class=\"navsm\">";
 		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\"0\" class=\"navsm\">Entire Course\n";
 	}elsif ($req->{type} eq "school"){
-		$data->{usergroup_id} = $TUSK::Constants::SchoolWideUserGroup->{lc($req->{school})} unless ($data->{usergroup_id});
+		$data->{usergroup_id} = $TUSK::Constants::SchoolWideUserGroup{lc($req->{school})} unless ($data->{usergroup_id});
 		$req->{extratext}->[$cur_ind]->{name} = "Group";
 		$req->{extratext}->[$cur_ind]->{text} = "<select name=\"ug_id\" onchange=\"document.generic.submit();\" class=\"navsm\">";
-		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\"".$TUSK::Constants::SchoolWideUserGroup->{lc($req->{school})}."\" class=\"navsm\">Entire School\n";
+		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\"".$TUSK::Constants::SchoolWideUserGroup{lc($req->{school})}."\" class=\"navsm\">Entire School\n";
 	}
 
     $data->{usergroups} = get_usergroups($req, $udat);
     
     foreach my $group (@{$data->{usergroups}}){
-	if ($group->primary_key == $data->{usergroup_id} or (!$data->{usergroup_id} and $group->primary_key == $TUSK::Constants::SchoolWideUserGroup->{lc($group->school)})){
+	if ($group->primary_key == $data->{usergroup_id} or (!$data->{usergroup_id} and $group->primary_key == $TUSK::Constants::SchoolWideUserGroup{lc($group->school)})){
 	    $maingroup = $group;
 	}
-	unless ($group->primary_key == $TUSK::Constants::SchoolWideUserGroup->{lc($group->school)}) {
+	unless ($group->primary_key == $TUSK::Constants::SchoolWideUserGroup{lc($group->school)}) {
 	    $maingroup = $group if ($group->primary_key == $data->{usergroup_id});
 	    $req->{extratext}->[$cur_ind]->{text} .= "<option class=\"navsm\" value=\"" . $group->primary_key . "\" ";
 	    $req->{extratext}->[$cur_ind]->{text} .= "selected" if ($group->primary_key == $data->{usergroup_id});

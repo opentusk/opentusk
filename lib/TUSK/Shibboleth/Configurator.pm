@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package TUSK::Shibboleth::Configurator;
 
 =head1 NAME
@@ -22,7 +37,6 @@ B<TUSK::Shibboleth::Configurator> - Class for manipulating files in addons/shibb
 use strict;
 use TUSK::Constants;
 use TUSK::Shibboleth::User;
-use httpdconf;
 
 BEGIN {
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
@@ -63,12 +77,8 @@ Wtite the main config file from the template
 
 sub getConfigurationFiles {
 	my %hashOfVariables;
-	my $serverRoot;
-	my $logRoot;
-	if(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {
-		$serverRoot = "$hashOfVariables{'server_root'}";
-		$logRoot = "$hashOfVariables{'log_root'}";
-	}
+	my $serverRoot = $TUSK::Constants::ServerRoot;
+	my $logRoot = $TUSK::Constants::LogRoot;
 	unless($serverRoot) {$serverRoot = "/usr/local/tusk/current";}
 	unless($logRoot) {$logRoot = $serverRoot."/logs";}
 
@@ -84,20 +94,12 @@ sub writeConfigFiles {
 	my ($self) = @_;
 
 	# Get the SERVER_ROOT because its used in an open later
-	my $certFile = "";
-	my $keyFile = "";
-	my $serverRoot = '';
-	my %hashOfVariables;
-	if(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {
-		$certFile = "$hashOfVariables{'ssl_root'}/$hashOfVariables{'ssl_cert_file'}";
-		$keyFile = "$hashOfVariables{'ssl_root'}/$hashOfVariables{'ssl_key_file'}";
-		$serverRoot = "$hashOfVariables{'server_root'}";
-	} else {
-		return(0, "Unable to load httpdconf values", '');
-	}
+	my $certFile = "/usr/local/tusk/ssl_certificate/server.crt";
+	my $keyFile = "/usr/local/tusk/ssl_certificate/server.key";
+	my $serverRoot = $TUSK::Constants::ServerRoot;
 	unless($serverRoot && $certFile && $keyFile) {
 		my $hashValues = '';
-		return(0, "Unable to get values from httpdconf $hashValues.". '');
+		return(0, "Missing configuration values in tusk.conf.". '');
 	}
 
 	my $shibDir = "$serverRoot/addons/shibboleth";
@@ -168,6 +170,7 @@ sub writeConfigFiles {
 		} else {
 			s/TUSK_HOST_NAME/$TUSK::Constants::shibbolethSP/g;
 			s/TUSK_SECURE_PORT/$TUSK::Constants::shibSPSecurePort/g;
+			s/TUSK_EMAIL/$TUSK::Constants::SupportEmail/g;
 			s/TUSK_LOG_DIRECTORY/$ENV{LOG_ROOT}/g;
 			s/TUSK_CERT_KEY/$keyFile/g;
 			s/TUSK_CERT/$certFile/g;

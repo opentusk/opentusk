@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%once>
 	use TUSK::Application::Assignment::Upload;
 	use HSDB4::SQLRow::Content;
@@ -15,23 +30,25 @@
 
 <%perl>
 	my $upload;
+
 	if (ref $params->{files} eq 'ARRAY') {
 		my $i = 0;
-		for (my $r_upload = $r->upload; $r_upload; $r_upload = $r_upload->next) {
+		my @uploads = $r->upload('files');
+		foreach my $r_upload (@uploads) {
 			if ($r_upload->filename) {
 				$upload = TUSK::Application::Assignment::Upload->new({ 
 					user 		=> $m->session->{'user'},
 					school		=> $school,
 					course_id	=> $course_id,
 					role		=> $role,
-					assignment  	=> $assignment,
+					assignment  => $assignment,
 					sequence	=> $sequence,
 				});
 				$upload->uploadContent({
-					filename => $r_upload->filename,
-					filehandle => $r_upload->fh(),
-					group_id  => (ref $params->{group_id} eq 'ARRAY') ? $params->{group_id}[$i] : $params->{group_id},
-					user_id => (ref $params->{user_id} eq 'ARRAY') ? $params->{user_id}[$i] : $params->{user_id},
+					filename 	=> $r_upload->filename,
+					filehandle 	=> $r_upload->fh(),
+					group_id	=> (ref $params->{group_id} eq 'ARRAY') ? $params->{group_id}[$i] : $params->{group_id},
+					user_id 	=> (ref $params->{user_id} eq 'ARRAY') ? $params->{user_id}[$i] : $params->{user_id},
 				});
 				$i++;
 			}

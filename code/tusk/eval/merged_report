@@ -1,7 +1,22 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%once>
 	use HSDB45::Eval::MergedResults;
 	use HSDB45::Eval::MergedResults::Formatter;
-	use Apache::Constants qw (FORBIDDEN NOT_FOUND);
+	use Apache2::Const qw (FORBIDDEN NOT_FOUND);
 	use TUSK::Eval::EvalLoadTime;
 </%once>
 
@@ -48,21 +63,19 @@
 	if($merged_eval_results && $merged_eval_results->field_value('title')) {$title = $merged_eval_results->field_value('title');}
 </%shared>
 <span class="evalFluff" style="float:right; text-align:right;">
-%	if($TUSK::Constants::HelpMap{evalStatisticsDef}) {
+%	if(exists $TUSK::Constants::HelpMap{evalStatisticsDef}) {
 		<a href="javascript:;" class="helpLnk" onclick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalStatisticsDef} %>'); return false;">Statistics Definitions</a>
 %	}
 	&nbsp;
-%       if($TUSK::Constants::HelpMap{evalPrinting}) {
+%       if(exists $TUSK::Constants::HelpMap{evalPrinting}) {
 		<a href="javascript:;" class="helpLnk" onclick="openhelp(-1, '/view/content/<% $TUSK::Constants::HelpMap{evalPrinting} %>'); return false;">Printing Help</a>
 %	}
 </span>
 <h2 class="title"><% $title %></h2>
 % if($ENV{HTTPS}) {
-%	my %httpVars;
-%	httpdconf::setVariablesForServerEnvironment(\%httpVars);
 %	my $scriptURL = $ENV{SCRIPT_URL};
 %	$scriptURL =~ s/^\///;
-%	my $redirectURL = $httpVars{unsecure_server} . $scriptURL;
+%	my $redirectURL = $TUSK::Constants::Domain . '/' . $scriptURL;
 %	if($redirectURL !~ /^http/) {$redirectURL = "http://$redirectURL";}
 %#	$m->print("<center>I'm sorry, this page can not be successfully displayed over https at this time. Please <a href=\"". $redirectURL . "\">click here</a> to view this page.</center>");
 %	$m->clear_buffer;

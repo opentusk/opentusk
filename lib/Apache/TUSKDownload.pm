@@ -1,13 +1,28 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package Apache::TUSKDownload;
 
 use strict;
 
-use Apache::Constants qw(:common);
-use Apache::URI ();
-use Apache::File ();
+use Apache2::Const qw(:common);
+use Apache2::URI ();
 use Apache::AuthzHSDB;
 use HSDB4::SQLRow::Content;
 use TUSK::XMLRenderer;
+use TUSK::ErrorReport;
 use Devel::Size;
 
 my %noAttachmentExt = (
@@ -132,21 +147,30 @@ sub handler {
 	$file_title .= $document->primary_key();
 
 	#Send the download
-	$r->content_type($contentType);
-	$r->header_out("Accept-Ranges", "bytes");
-	$r->header_out("Content-Length", $fileSize);
-	$r->header_out("Content-disposition","$attachmentType; filename=" . $file_title . "." . $ext); 
+	$r->headers_out->set("Accept-Ranges", "bytes");
+	$r->headers_out->set("Content-Length", $fileSize);
+	$r->headers_out->set("Content-disposition","$attachmentType; filename=" . $file_title . "." . $ext); 
 	$r->no_cache(1);
-	$r->send_http_header;
+	$r->content_type($contentType);
 
 	if($filename) {
-	    
-	    my $fh = Apache::File->new($filename) or return NOT_FOUND;
-
-	    $r->send_fd($fh);
-	    
-	    close $fh;
-	} 
+            if (-e $filename) {
+		$r->sendfile($filename);
+            } else {
+                # file not found in the file system for some reason
+                # (this is bad in production)
+                my $msg = "Error in lib/Apache/TUSKDownload.pm: "
+                    . "File '$filename' referenced in database but file "
+                    . "not found in file system.\n";
+                $r->log_error($msg);
+		ErrorReport::sendErrorReport($r, {
+                    To => $TUSK::Constants::ErrorEmail,
+                    From => $TUSK::Constants::ErrorEmail,
+                    Msg => $msg,
+                });
+                return Apache2::Const::NOT_FOUND;
+            }
+	}
 	else {
 	    $r->print($blob);
 	}

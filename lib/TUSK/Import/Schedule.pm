@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package TUSK::Import::Schedule;
 
 use strict;
@@ -155,7 +170,7 @@ sub processData {
 			if ($testing) {
 		    	$self->add_log("info", "Deleted Class Meeting: " . $class_meeting->oea_code() . " (Test Mode)" );
 			} else {
-		    	$class_meeting->delete($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+		    	$class_meeting->delete($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 		    	$self->add_log("info", "Deleted Class Meeting: " . $class_meeting->oea_code());
 			}
 		}
@@ -316,7 +331,7 @@ sub update_object{
 
     my $save_type = ($class_meeting->primary_key()) ? "Updated" : "Inserted";
     # need to do this save so we can get a primary key id for inserting into link_class_meeting_user
-    $class_meeting->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}) if ($mode_flag eq "live");
+    $class_meeting->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}) if ($mode_flag eq "live");
 
 
     my $faculty_change = $self->set_faculty_list($class_meeting, $record->get_field_value('faculty_list'), $mode_flag );
@@ -324,7 +339,7 @@ sub update_object{
     if (scalar(@changed_fields) or $faculty_change){
 	$class_meeting->set_flagtime();
 	$self->add_log("info", $save_type . " Class Meeting: " . $class_meeting->oea_code() .  &test_mode_text($mode_flag));
-	$class_meeting->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}) if ($mode_flag eq "live");
+	$class_meeting->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}) if ($mode_flag eq "live");
     }
     
     return;
@@ -359,8 +374,8 @@ sub set_faculty_list {
 	    my $user = HSDB4::SQLRow::User->new()->lookup_key($user_id);
 	    next unless ($user->primary_key()); # check to make sure this is a valid user_id
 	
-	    $class_meeting->user_link()->insert(-user=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
-				   -password=>$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+	    $class_meeting->user_link()->insert(-user=> $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},
+				   -password=>$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword},
 				   -child_id => $user_id,
 				   -parent_id => $class_meeting->primary_key() ) if ($mode_flag eq "live");
 	    $change_flag = 1;
@@ -370,8 +385,8 @@ sub set_faculty_list {
     }
 
     foreach my $user_id (keys %current_users_hash){
-	$class_meeting->user_link()->delete(-user=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
-					    -password=>$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+	$class_meeting->user_link()->delete(-user=> $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},
+					    -password=>$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword},
 					    -child_id => $user_id,
 					    -parent_id => $class_meeting->primary_key() ) if ($mode_flag eq "live");
 	$change_flag = 1;

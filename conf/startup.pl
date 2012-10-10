@@ -1,18 +1,19 @@
 #!/usr/bin/perl 
 BEGIN {
     if ($ENV{DEVELOPER}){
-	use Apache::Status;
+	use Apache2::Status;
     }
 
-    use Apache ();
-    use Apache::Server;
-    use Apache::File ();
-    use Apache::Constants ();
-    use Apache::Table ();
-    use Apache::Log ();
-    use Apache::SizeLimit ();
-    use lib Apache->server_root_relative('lib');
     use Carp;
+    use CGI;
+    use Apache2::Const();
+    use Apache2::Log ();
+    use Apache2::ServerUtil;
+    use Apache2::SizeLimit ();
+    use APR::Const();
+    use APR::Table();
+    use ModPerl::Const();
+    use lib "/usr/local/tusk/current/lib";
     use HSDB4::SQLRow::Content;
     use HSDB45::Course;
     use HSDB4::SQLRow::User;
@@ -23,9 +24,9 @@ BEGIN {
     use TUSK::Core::Logger;
 
     # Limit size of the Apache processes
-    $Apache::SizeLimit::MAX_PROCESS_SIZE = $TUSK::Constants::maxApacheProcSize;
-    $Apache::SizeLimit::MAX_UNSHARED_SIZE = $TUSK::Constants::maxApacheProcSize;
-    $Apache::SizeLimit::CHECK_EVERY_N_REQUESTS = 10;
+    $Apache2::SizeLimit::MAX_PROCESS_SIZE = $TUSK::Constants::maxApacheProcSize;
+    $Apache2::SizeLimit::MAX_UNSHARED_SIZE = $TUSK::Constants::maxApacheProcSize;
+    $Apache2::SizeLimit::CHECK_EVERY_N_REQUESTS = 10;
 }
 1;
 

@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB4::SQLRow::Content;
 
 use strict;
@@ -40,7 +55,7 @@ BEGIN {
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
-    $VERSION = do { my @r = (q$Revision: 1.259.2.1 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.264 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 use HSDB4::SQLRow::ContentHistory;
@@ -309,7 +324,7 @@ sub save {
 	my $un = shift;
 	return (0,'No fields have been changed') if (!scalar($self->changed_fields));
 	$self->save_version("No note entered.",$un,"don't save");
-	my ($rval,$msg) = $self->SUPER::save($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});	
+	my ($rval,$msg) = $self->SUPER::save($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});	
 	return ($rval,$msg);
 }
 
@@ -333,10 +348,10 @@ sub save_version {
     $version->field_value ('modify_note', $note);
 
     # And save it
-    $version->save ($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+    $version->save ($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
 
     # Now save our actual object
-    my ($rval,$msg) = $self->SUPER::save ($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword}) unless($no_save);
+    my ($rval,$msg) = $self->SUPER::save ($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword}) unless($no_save);
     return ($rval,$msg);
 }
 
@@ -555,9 +570,9 @@ sub parent_personal_content {
     #
         
     my $self = shift;
-    my $user_id = shift or return;
-    if ($user_id->isa ('HSDB4::SQLRow::User')) { 
-	$user_id = $user_id->primary_key();
+    my $user_id = shift or return; # user_id must be a user ID string
+    if (ref($user_id) && $user_id->isa ('HSDB4::SQLRow::User')) {
+        $user_id = $user_id->primary_key();
     }
     # No cache for this object, since it's too dynamic
     # Get the link definition
@@ -627,9 +642,9 @@ sub root_parents {
 	push @parents, $self->context_parent;
 
 	foreach my $parent ( @parents ) {
-		if ( $parent && $parent->isa( "HSDB45::Course" ) ) {
+		if ( $parent && ref($parent) && $parent->isa( "HSDB45::Course" ) ) {
 			push @roots, $parent;
-		} elsif ( $parent && $parent->isa( "HSDB4::SQLRow::Content::Collection" ) ) {
+		} elsif ( $parent && ref($parent) && $parent->isa( "HSDB4::SQLRow::Content::Collection" ) ) {
 			foreach ( $parent->root_parents() ) {
 				push @roots, $_;
 			}
@@ -894,7 +909,7 @@ sub child_personal_content {
     # Get the user_id in question
     my $user_id = shift or return;
     # Now check to see if we got an object instead
-    if ($user_id->isa('HSDB4::SQLRow::User')) { 
+    if (ref($user_id) && $user_id->isa('HSDB4::SQLRow::User')) {
 	$user_id = $user_id->primary_key;
     }
 
@@ -1527,7 +1542,7 @@ sub make_annotation {
     my $self = shift;
     # Get the user_id, even if it's an object we've got
     my $user_id = shift;
-    if ($user_id->isa('HSDB4::SQLRow::User')) {
+    if (ref($user_id) && $user_id->isa('HSDB4::SQLRow::User')) {
 	$user_id = $user_id->primary_key;
     }
     # Get the note itself
@@ -3866,7 +3881,7 @@ sub out_file_path {
     return if (!defined($uri));
     my $uri_value = $uri->value();
 
-    my $filename = "/data/html" . $uri_value;
+    my $filename = $TUSK::Constants::BaseStaticPath . "/$uri_value";
     return $filename;
 }
 

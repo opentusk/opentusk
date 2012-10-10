@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB45::Eval::Authoring;
 
 use strict;
@@ -30,7 +45,7 @@ sub copy_eval_questions {
     my $dbh;
     my ($result, $msg) = (1, '');
     eval {
-	$dbh = get_dbh($school, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+	$dbh = get_dbh($school, $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 	my $ins = $dbh->prepare(q[INSERT INTO link_eval_eval_question (parent_eval_id,child_eval_question_id,label,sort_order,required,grouping,graphic_stylesheet) VALUES (?, ?, ?, ?, ?, ?, ?)]);
 	my $sel = $dbh->prepare(q[SELECT child_eval_question_id, label, sort_order, 
 				  required, grouping, graphic_stylesheet 
@@ -218,7 +233,9 @@ sub create_question {
     my ($school, $un, $pw, $eval, $type, $qid_after) = @_;
     my $dbh;
     if (!defined($un) && !defined($pw)){
-        ($un,$pw) =  ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+        ($un,$pw) =
+          ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},
+           $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
     }
     my ($qid, $msg) = (0, '');
     eval {
@@ -266,7 +283,7 @@ sub make_question_duplicate {
     my ($school, $un, $pw, $eval, $orig_qid) = @_;
     my $dbh;
     if (!defined($un) && !defined($pw)){
-	($un,$pw) =  ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+	($un,$pw) =  ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
     }
     my ($r, $qid, $msg) = (0, 0, '');
     my $q = $eval->question($orig_qid);
@@ -331,7 +348,7 @@ sub make_question_duplicate {
 # question specified in lieu of a sort_order
 sub edit_question {
     my ($eval, $question, $fdat) = @_;
-    my ($user,$password) =  ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+    my ($user,$password) =  ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 
     my $qid = $question->primary_key();
     my $preceding_qid = $fdat->{"q_${qid}_preceding_qid"};

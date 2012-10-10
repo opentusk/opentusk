@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%attr>
 	no_check_path => 1
 </%attr>
@@ -50,8 +65,8 @@
 <td class="cell-submit">
 <input type="submit" name="search" value="Search" class="formbutton">&nbsp;
 
-% if ($TUSK::Constants::HelpMap{'search'}) {
-<a href="/view/content/<% $TUSK::Constants::HelpMap{'search'} %>" target="help">Help</a>
+% if (exists $TUSK::Constants::HelpMap{SearchHelpTips}) {
+<a href="/view/content/<% $TUSK::Constants::HelpMap{SearchHelpTips} %>" target="help">Help</a>
 % }
 </td></tr>
 </table>
@@ -68,31 +83,30 @@
 <tr>
 	<td align="center">Type<br>
 % my %types = ( "All" => "", "Audio" => "Audio", "Collection" => "Collection", "Document" => "Document", "Downloadable File" => "DownloadableFile", "Flashpix" => "Flashpix", "PDF" => "PDF", "Shockwave" => "Shockwave", "Slide" => "Slide", "Student Notes" => "Student Notes", "URL" =>"URL", "Video" => "Video" );
-<select NAME="media_type" SIZE="6" MULTIPLE<% ($ENV{'QUERY_STRING'} =~ 'media_type') ? ' disabled="disabled" class="disabled"' : '' %>>
+	<select NAME="media_type" SIZE="6" MULTIPLE<% ($ENV{'QUERY_STRING'} =~ 'media_type') ? ' disabled="disabled" class="disabled"' : '' %>>
 % foreach my $option (sort keys %types) {
 %	if ($ENV{'QUERY_STRING'} =~ 'media_type') {
-	<option value="<% $types{$option} %>"<% ($ARGS{media_type} eq $types{$option}) ? ' selected="selected"' : '' %>><% $option %></option>
+		<option value="<% $types{$option} %>"<% ($ARGS{media_type} eq $types{$option}) ? ' selected="selected"' : '' %>><% $option %></option>
 %	} else {
-	<option value="<% $types{$option} %>"><% $option %></option>
+		<option value="<% $types{$option} %>"><% $option %></option>
 %	}
 % }
-</select>
+	</select>
 	</td>
 	<td VALIGN="top" ALIGN="center"></td>
 	<td align="center" valign="top">School<br>
-
-<select NAME="school" SIZE="6" MULTIPLE>
-<option VALUE=""<% ($ARGS{school}) ? '' : ' selected="selected"'  %>>All</option>
-% foreach my $search_school (@TUSK::Constants::SearchSchools) {
-<option VALUE="<% $search_school %>"<% ($ARGS{school} eq $search_school) ? ' selected="selected"' : ''  %>><% $search_school %></option>
+	<select NAME="school" SIZE="6">
+		<option VALUE=""<% ($ARGS{school}) ? '' : ' selected="selected"'  %>>All</option>
+% foreach my $search_school (keys %TUSK::Constants::Schools) {
+		<option VALUE="<% $search_school %>"<% ($ARGS{school} eq $search_school) ? ' selected="selected"' : ''  %>><% $search_school %></option>
 % } # END FOR EACH
-
 	</select>
-
 	</td>
 	</tr>
+%	unless ($ENV{'QUERY_STRING'} =~ 'media_type') {
 	<tr><td colspan="8" align="center"><div class="hinttext">press and hold the control (Ctrl) key while clicking
 to select multiple items</div></td></tr>
+%	}
 	</table>
 </td>
 </tr>

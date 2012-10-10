@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%attr>
 	default_path_type       => 'view'
 	no_check_path           => '1'
@@ -9,8 +24,7 @@
 <%once>
 	use TUSK::Constants;
 	use HSDB45::UserGroup;
-	use Apache::Constants qw(:response);
-	use Apache::Cookie;
+	use Apache2::Const;
 	use POSIX qw(floor);
 	use HSDB4::DateTime;
 	use HSDB4::Constants;
@@ -80,9 +94,9 @@
 
 	my $current_start_day = $meetings_days[0]->out_mysql_date; 
 	my ($year,$month,$day) = split(/-/,$current_start_day);
-	my $month_segment = floor(($month-1)/$TUSK::Constants::scheduleMonthsDisplayedAtOnce);
-	my $startMonth = $TUSK::Constants::scheduleMonthsDisplayedAtOnce * $month_segment;
-	my $endMonth = $TUSK::Constants::scheduleMonthsDisplayedAtOnce * ($month_segment+1) - 1;
+	my $month_segment = floor(($month-1)/$TUSK::Constants::ScheduleMonthsDisplayedAtOnce);
+	my $startMonth = $TUSK::Constants::ScheduleMonthsDisplayedAtOnce * $month_segment;
+	my $endMonth = $TUSK::Constants::ScheduleMonthsDisplayedAtOnce * ($month_segment+1) - 1;
 
 	my @monthOutput;
 	my $trOption = "style=\"cursor:pointer;\" onMouseOver=\"this.style.backgroundColor='lightblue';\" onMouseOut=\"this.style.backgroundColor='';\"";
@@ -361,7 +375,7 @@
 		<center><h3 class="subhead"><% $year %></h3></center>
 		<table border="0" align="center" cellspacing="1">
 			<tr>
-				<td colspan="<% $TUSK::Constants::scheduleDisplayMonthsInARow %>">
+				<td colspan="<% $TUSK::Constants::ScheduleDisplayMonthsInARow %>">
 					<table border="0" width="100%" cellpadding="0" cellspacing="0">
 						<tr>
 							<td align="left" width="50%"><a href="<% $ENV{SCRIPT_NAME} %>/<% $school %>/<% $group_no %>/<% $meetings_days[0]->get_prev_date() %>">Prev</a></td>
@@ -371,9 +385,9 @@
 				</td>
 			</tr>
 %			my $monthCounter = 0;
-%			while($monthCounter < $TUSK::Constants::scheduleMonthsDisplayedAtOnce) {
+%			while($monthCounter < $TUSK::Constants::ScheduleMonthsDisplayedAtOnce) {
 			<tr>
-%				foreach (1..$TUSK::Constants::scheduleDisplayMonthsInARow) {
+%				foreach (1..$TUSK::Constants::ScheduleDisplayMonthsInARow) {
 				<td valign="top"><% $monthOutput[$monthCounter] %></td>
 %					$monthCounter++;
 %				}
@@ -403,7 +417,7 @@
 </%method>
 
 <%method return_page_footer>
-%	if($printing) {return undef;} else {return "/tmpl/footer:footer_with_tufts_links";}
+%	if($printing) {return undef;} else {return "/tmpl/footer:footer_with_school_links";}
 </%method>
 
 <%method no_header>

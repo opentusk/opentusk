@@ -1,4 +1,19 @@
 <%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%doc>
 Library that contains methods that deal with parsing the url and handling redirection
 </%doc>
 
@@ -128,6 +143,8 @@ valid types: course, school, usergroup, content, case
 <%perl>
 	return if ($type_path);
 
+use Data::Dumper;
+
 	my $type = ($default_path_type) ? $default_path_type : shift @$path_ids;
 
 	if ($type eq "course"){
@@ -196,7 +213,9 @@ valid types: course, school, usergroup, content, case
 		}
 
 		# Build the content bread crumb here
-		$initial_nav_bars = $type_object->get_bread_crumb_from_path($path_ids);
+		if (scalar @$path_ids) {
+			$initial_nav_bars = $type_object->get_bread_crumb_from_path($path_ids);
+		}
 		# do permissions here
 	}elsif($type eq "classmeeting"){
 		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");

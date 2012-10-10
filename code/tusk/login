@@ -1,3 +1,18 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%attr>
 skip_auth     => 1
 no_check_path => 1
@@ -13,7 +28,7 @@ nostandardheader => 1
 <%once>
 use TUSK::Constants;
 use TUSK::Functions;
-use Apache::Cookie;
+use Apache2::Cookie;
 </%once>
 
 <%args>
@@ -43,18 +58,18 @@ $logoHash{'10-31'}{'image'} = '/graphics/icons/halloween3.gif';
 my ($sec, $min, $hour, $mday, $mon, $year, $wday, $isdst) = localtime(time());
 my $date = $mon+1 . '-' . $mday;
 
-if(exists($logoHash{$date})  && -f "/data/html$logoHash{$date}{image}") {
+if(exists($logoHash{$date})  && -f $TUSK::Constants::BaseStaticPath . $logoHash{$date}{image}) {
 	$themeImage = $logoHash{$date}{'image'};
 }
 </%shared>
 
 <%perl>
 # see if there is a 
-my %cookies = Apache::Cookie->new($r)->fetch();
-my $message = $cookies{'login_error'} && $cookies{'login_error'}->value() ? $cookies{'login_error'}->value()
+my $cookieJar = Apache2::Cookie::Jar->new($r);
+my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_error')->value() ? $cookieJar->cookies('login_error')->value()
                   : $errmsg ? $errmsg
                   : '';
-my $failedLoginUser = $cookies{'failed_login_user'} && $cookies{'failed_login_user'}->value() ? $cookies{'failed_login_user'}->value()
+my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->cookies('failed_login_user')->value() ? $cookieJar->cookies('failed_login_user')->value()
                   : $user ? $user
                   : '';
 </%perl>
@@ -75,35 +90,14 @@ my $failedLoginUser = $cookies{'failed_login_user'} && $cookies{'failed_login_us
 </div> <!-- logLoginContainer -->
 
 <div id="logDropdowns">
-
 <& /tmpl/element:form, params => { action => '', name => 'forwardTo'} &>
-<select name="address" onChange="javascript:location.href=this.options[this.selectedIndex].value;">
-          <option value="" selected>-- Useful Links --</option>
-          <option value="https://exchange.tufts.edu">Webmail</option>
-          <option value="https://www.library.tufts.edu/ezproxy/ezproxy.asp?LOCATION=ovid">Ovid MEDLINE</option>
-          <option value="/view/url/H1185C/580566/839836"><% $TUSK::Constants::SiteAbbr %> User Guide</option>
-          <option value="/about/our_vision">About <% $TUSK::Constants::SiteAbbr %></option>
-          <option value="http://directory.tufts.edu">Directory</option>
-</select>
-<select name="address" onChange="javascript:location.href=this.options[this.selectedIndex].value;">
-          <option value ="" selected>-- Schedules --</option>
-% foreach my $schoolName (HSDB4::Constants::schedule_schools()){
-%	foreach my $homepage_item (TUSK::HomepageCategory->new(_school => $schoolName)->lookup_conditions("schedule=1", "order by sort_order")){
-          <option value="/view/schedule/<% $schoolName %>/<% $homepage_item->get_primary_user_group_id %>"><% $schoolName %> <% $homepage_item->get_label() %></option>
+% foreach my $formname (keys %TUSK::Constants::LoginPage) {
+<select name="<% $formname %>" onChange="javascript:location.href=this.options[this.selectedIndex].value;">
+%	foreach my $optionref (@{$TUSK::Constants::LoginPage{$formname}}) {
+		<option value="<% $optionref->{'url'} %>"><% $optionref->{'label'} %></option>
 %	}
+</select>
 % }
-</select>
-<select name="address" onChange="javascript:location.href=this.options[this.selectedIndex].value;">
-          <option value="" selected>-- Schools & Libraries --</option>
-          <option value="http://www.tufts.edu">Tufts University</option>
-          <option value="http://www.tufts.edu/med/">School of Medicine</option>
-          <option value="http://www.tufts.edu/dental/">School of Dental Medicine</option>
-          <option value="http://www.tufts.edu/vet/">Cummings School of Veterinary Medicine</option>
-          <option value="http://nutrition.tufts.edu/">Friedman School of Nutrition Science and Policy</option>
-          <option value="http://www.tufts.edu/sackler">Sackler School of Graduate Biomedical Sciences</option>
-          <option value="http://www.library.tufts.edu/hhsl">Hirsh Health Sciences Library</option>
-          <option value="http://www.library.tufts.edu/vet/tulips.html">Webster Veterinary Library</option>
-</select>
 
 % if($TUSK::Constants::useShibboleth){
 <select name="from" onChange="if(this[this.selectedIndex].value != 'Select') {document.location='https://<% $TUSK::Constants::shibbolethSP %>:<% $TUSK::Constants::shibSPSecurePort %>/shibboleth-login/provision/'+ this[this.selectedIndex].value;}">
@@ -117,7 +111,6 @@ my $failedLoginUser = $cookies{'failed_login_user'} && $cookies{'failed_login_us
 %	}
 	</select>
 % }
-
 </form>
 </div> <!-- logDropdowns -->
 

@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB45::Course::Formatter;
 
 use strict;
@@ -8,7 +23,7 @@ use XML::EscapeText qw(:escape);
 use HSDB45::Course;
 use TUSK::Constants;
 
-$VERSION = do { my @r = (q$Revision: 1.11 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.13 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 sub version { return $VERSION; }
 
@@ -31,7 +46,7 @@ sub new {
     my $object = class_expected()->new(_school => $school, _id => $id);
     my $self = $incoming->SUPER::new($object);
     $self->{-doctype_decl} = 'course';
-    $self->{-dtd_decl} = 'http://'. $TUSK::Constants::Domain .'.tufts.edu/DTD/course.dtd';
+    $self->{-dtd_decl} = 'http://'. $TUSK::Constants::Domain .'/DTD/course.dtd';
     $self->{-stylesheet_decl} = 'http://'. $TUSK::Constants::Domain .'/XSL/Course/course.xsl';
     return $self;
 }
@@ -42,8 +57,8 @@ sub new_from_path {
     my $object = class_expected()->lookup_path($path);
     my $self = $incoming->SUPER::new($object);
     $self->{-doctype_decl} = 'course';
-    $self->{-dtd_decl} = 'http://tusk.tufts.edu/DTD/course.dtd';
-    $self->{-stylesheet_decl} = 'http://tusk.tufts.edu/XSL/Course/course.xsl';
+    $self->{-dtd_decl} = 'http://'. $TUSK::Constants::Domain .'/DTD/course.dtd';
+    $self->{-stylesheet_decl} = 'http://'. $TUSK::Constants::Domain .'/XSL/Course/course.xsl';
     return $self;
 }
 

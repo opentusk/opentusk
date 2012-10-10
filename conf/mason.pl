@@ -8,92 +8,79 @@
 
 {
 package TUSK::Mason;
-
-# Bring in main Mason package.
-use HTML::Mason 1.47;
-use MasonX::Request::WithApacheSession;
-use Apache::Constants qw(:common);
-
-# Bring in ApacheHandler, necessary for mod_perl integration.
-# Uncomment the second line (and comment the first) to use
-# Apache::Request instead of CGI.pm to parse arguments.
-use HTML::Mason::ApacheHandler;
-
-use strict;
-
-# List of modules that you want to use from components (see Admin
-# manual for details)
-{  package HTML::Mason::Commands;
-
-   # use ...
-   use Carp;
-   use Data::Dumper; 
-}
+	use strict;
+	use Apache2::RequestRec;
+	use Apache2::ServerUtil;
+	use Apache2::Const -compile => qw(:common :http);
+	use Apache2::Upload;
+	use APR::Const;
+	use Carp;
+	use Data::Dumper;
+	use HTML::Mason 1.47;
+	use HTML::Mason::ApacheHandler;
+	use MasonX::Request::WithApacheSession;
+	use ModPerl::Const;
 
 
-# Create ApacheHandler object
-#
-my $error_mode = "fatal";
-my $error_format = "text";
-my $use_object_files = 1;
-if (Apache->define('DEV')){
-	$error_mode = "output";
-	$error_format = "html";
-	$use_object_files = 0;
-}
+	# Define params for environment
+	#
+	my $error_mode = "fatal";
+	my $error_format = "text";
+	my $use_object_files = 1;
+	if (Apache2::ServerUtil::exists_config_define('DEV')) {
+		$error_mode = "output";
+		$error_format = "html";
+		$use_object_files = 0;
+	}
 
-my $ah =
-    new HTML::Mason::ApacheHandler
-        ( request_class => 'MasonX::Request::WithApacheSession',
-          session_class => 'Apache::Session::MySQL',
-          # Let MasonX::Request::WithApacheSession automatically
-          # set and read cookies containing the session id
-          session_use_cookie => 1,
-	  session_cookie_expires=>"",
-	  session_cookie_name => "TUSKMasonCookie",
-	  session_data_source => "DBI:mysql:hsdb4:$ENV{DATABASE_ADDRESS}",
-	  session_user_name => $ENV{HSDB_DATABASE_USER},
-	  session_password => $ENV{HSDB_DATABASE_PASSWORD},
-          session_lock_data_source => "DBI:mysql:hsdb4:$ENV{DATABASE_ADDRESS}",
-          session_lock_user_name => $ENV{HSDB_DATABASE_USER},
-          session_lock_password => $ENV{HSDB_DATABASE_PASSWORD},
-	  error_format=>$error_format, 
-	  use_object_files => $use_object_files,
-	  error_mode=>$error_mode, 
-          comp_root => "$ENV{CODE_ROOT}/tusk",
-	  data_dir => "$ENV{SERVER_ROOT}/mason_cache",
-	  plugins=>['MasonX::Plugin::UTF8', 'MasonX::Plugin::Defang']);
-          
+	# Check the directories
+	my ($serverRoot) = ($ENV{SERVER_ROOT} =~ /^(.*)$/g);
+	my $dataDir = "$serverRoot/mason_cache";
+	unless(-d $dataDir) {   unless(mkdir $dataDir) {die "Can't create mason cache dir $dataDir\n";} }
+	unless(opendir(DIR, $dataDir)) { die "Can't open mason cache dir $dataDir\n"; }
+	close(DIR);
 
-sub handler
-{
-    my ($r) = @_;
+	my ($codeRootEnv) = ($ENV{CODE_ROOT} =~ /^(.*)$/g);
+	my $codeRoot = "$codeRootEnv/tusk";
+	unless(-d $codeRoot) {	die "Masons code root does not exist ($codeRoot)\n"; }
+	unless(opendir(DIR, $dataDir)) { die "Can't open mason code root dir $codeRoot\n"; }
+	close(DIR);
 
-    # If you plan to intermix images in the same directory as
-    # components, activate the following to prevent Mason from
-    # evaluating image files as components.
-    #
-    #return -1 if $r->content_type && $r->content_type !~ m|^text/|io;
+	sub handler {
+		my ($r) = @_;
+		my $ah = HTML::Mason::ApacheHandler->new(
+			comp_root => $codeRoot,
+			data_dir => $dataDir,
+			args_method   => "mod_perl",
+			plugins=>['MasonX::Plugin::UTF8', 'MasonX::Plugin::Defang'],
 
-    my $status = eval { $ah->handle_request($r); };
-    if (my $err = $@) {
-	$r->pnotes(error => $err );
-	$r->log_error($err);
-	return SERVER_ERROR;
-
-    }
-    return $status;
-}
+			request_class => 'MasonX::Request::WithApacheSession',
+			session_class => 'Apache::Session::MySQL',
+			# Let MasonX::Request::WithApacheSession automatically
+			# set and read cookies containing the session id
+			session_use_cookie => 1,
+			session_cookie_expires=>"session",
+			session_cookie_name => "TUSKMasonCookie",
+			session_data_source => "DBI:mysql:hsdb4:$ENV{DATABASE_ADDRESS}",
+			session_user_name => $ENV{HSDB_DATABASE_USER},
+			session_password => $ENV{HSDB_DATABASE_PASSWORD},
+			session_lock_data_source => "DBI:mysql:hsdb4:$ENV{DATABASE_ADDRESS}",
+			session_lock_user_name => $ENV{HSDB_DATABASE_USER},
+			session_lock_password => $ENV{HSDB_DATABASE_PASSWORD},
+			error_format=>$error_format, 
+			use_object_files => $use_object_files,
+			error_mode=>$error_mode, 
+		);
+		my $status = eval { $ah->handle_request($r); };
+		if (my $err = $@) {
+			$r->pnotes(error => $err );
+			$r->log_error($err);
+			return Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+		}
+		return $status;
+	}
 
 1;
 }
 
 __END__
-
-In your httpd.conf, add something like this:
-
- PerlRequire /path/to/handler.pl
- <LocationMatch "\.html$">
-   SetHandler perl-script
-   PerlHandler MyApp::Mason
- </LocationMatch>

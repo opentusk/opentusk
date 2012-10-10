@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB45::Authentication::MySQL;
 
 use strict;
@@ -39,8 +54,8 @@ sub verify_password {
     } elsif ($db_pw eq $old_sqlpw) {
        ## matches on old password, update to new and return success
        $user->field_value ('password', $sqlpw);
-       $user->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
-	           $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+       $user->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},
+	           $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
        return 1;
     } elsif ($db_pw eq $cryptpw) {
        ## the password matches the temp password, return success

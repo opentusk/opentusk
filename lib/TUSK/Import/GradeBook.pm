@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package TUSK::Import::GradeBook;
 
 use strict;
@@ -74,13 +89,13 @@ sub findStudent {
 	my $input_id = shift;
 	my (@users,$user);
 	if ($input_id =~ /^\d+$/){
-		# it is a numeric id (tufts_id)
+		# it is a numeric id
 		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$input_id);
 		if (scalar(@users) > 1){
-			$self->add_log("error","There are two users with that Tufts ID : $input_id");
+			$self->add_log("error","There are two users with that ID : $input_id");
 			return;
 		} elsif (!scalar(@users)){
-			$self->add_log("error","There is no user with that Tufts ID : $input_id");
+			$self->add_log("error","There is no user with that ID : $input_id");
 			return;
 		}
 		$user = pop @users;

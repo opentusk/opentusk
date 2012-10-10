@@ -1,4 +1,19 @@
 #!/usr/bin/perl -w
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 
@@ -42,13 +57,13 @@ GetOptions ("zipfile=s" => \$zipfile,
 # same constants
 my $setup = {
     errorlog => "error.txt", # errors logged here
-    zipdir => "/data/ppt/processed",  # location where the zips are stored
-    pptdir => "/data/ppt/native", # location where the ppt are stored
-    archivedir => "/data/ppt/native-archive", # location where the ppt are archived
-    tempdir => "/data/ppt/temp", # location of temp dir
-    errordir => "/data/ppt/error", # location of error dir
+    zipdir => $TUSK::Constants::BasePPTPath . "/processed",  # location where the zips are stored
+    pptdir => $TUSK::Constants::BasePPTPath . "/native", # location where the ppt are stored
+    archivedir => $TUSK::Constants::BasePPTPath . "/native-archive", # location where the ppt are archived
+    tempdir => $TUSK::Constants::BasePPTPath . "/temp", # location of temp dir
+    errordir => $TUSK::Constants::BasePPTPath . "/error", # location of error dir
     unzip => "unzip",  # location of unzip tool
-    sendmail => "/usr/lib/sendmail", # location of sendmail
+    sendmail => $TUSK::Constants::EmailProgram, # location of sendmail
     to_address => [$TUSK::Constants::ErrorEmail], # email address to send errors to
     collection_sort_order => 10,
     };
@@ -263,7 +278,7 @@ sub parse_xml{
 	# therefore, replace all \r's that do not have a \n after them with a space
     $slidedata->{xml} =~ s/\r+([^\n])/ $1/g;
 
-    $slidedata->{xml} = XML::EscapeText::spec_chars_number($slidedata->{xml});
+    $slidedata->{xml} = XML::EscapeText::spec_chars_number($slidedata->{xml}, "latin1");
 
     $slidedata->{extraNote} = $1 if ($slidedata->{xml} =~ s/<notes><\!\[CDATA\[(.*)\]\]><\/notes>//sg);
     

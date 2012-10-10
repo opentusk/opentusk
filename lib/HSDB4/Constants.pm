@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB4::Constants;
 
 use strict;
@@ -11,85 +26,19 @@ BEGIN {
     use vars qw($VERSION @EXPORT @EXPORT_OK %EXPORT_TAGS);
     
     @EXPORT = qw();
-    @EXPORT_OK = qw(schools schedule_schools course_schools eval_schools survey_schools
+    @EXPORT_OK = qw(schools schedule_schools course_schools eval_schools
 		    user_group_schools school_codes code_by_school get_school_db school_code_regexp);
     %EXPORT_TAGS = ( 'school' => [ qw[schools schedule_schools course_schools 
 				      eval_schools user_group_schools school_codes 
 				      code_by_school get_school_db school_code_regexp] ],
 		     );
-    $VERSION = do { my @r = (q$Revision: 1.136 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.138 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 # Non-exported package globals go here
-use vars qw(%URLs %EditURLs $LDAP_SERVER $LDAP_DN $LDAP_PASSWORD
-            %School_Admin_Group %School_Edit_Group 
-	    %Eval_Admin_Group %Forum_School_Category @Course_Admin_Roles @Course_Edit_Roles 
-	    @Course_Add_Roles @Content_Edit_Roles @Content_Add_Roles @image_sizes %school_images);
-
-# File-private lexicals
-# my (...) = (...);
-sub schools { 
-    return qw(Default);
-}
-
-sub schedule_schools { 
-    return qw/Default/;
-}
-
-sub course_schools { 
-    return qw/Default/;
-}
-
-sub eval_schools { 
-    return qw/Default/;
-}
-
-sub survey_schools { 
-    return qw/Default/;
-}
-
-sub user_group_schools { 
-    return qw/Default/;
-}
-
-sub forum_schools {
-    return qw/Default/;
-}
- 
-sub homepage_course_schools {
-    return qw/Default/;
-}
-
-my %code_schools = ( D => 'Default',
-		    );
-sub school_code_regexp { return sprintf( '[%s]', join('', keys %code_schools) ) }
-
-sub school_codes {
-    my $code = shift;
-    return $code_schools{ uc $code };
-}
-
-my %school_codes = ( 'default' => 'D',
-		     );
-sub code_by_school {
-    my $school = lc shift;
-    return $school_codes{$school};
-}
+use vars qw(%URLs %EditURLs %School_Admin_Group %Eval_Admin_Group @image_sizes);
 
 
-my %school_dbs = ('default' => 'hsdb45_def_admin',
-		  );
-
-our %school_images = ('default' => 'DefaultSchool.gif',
-		  );
-
-sub get_school_db {
-    my $school = lc shift;
-    return $school_dbs{$school};
-}
-
-# Start defining lists of useful constants to be used in many HSDB4
-# modules and programs.
 %URLs = ( 'HSDB4::SQLRow::User' => '/view/user',
 	  'HSDB4::SQLRow::Content' => '/view/content',
 	  'HSDB4::SQLRow::Content::Slide' => '/view/content',
@@ -130,60 +79,73 @@ sub get_school_db {
 	  'overlay' => '/overlay',
 	  );
 
-## hash of eval admin groups - users is the groups can manage evaluations
-my %school_eags = ('default' => 2,
-		   );
-
-sub get_eval_admin_group {
-    my $school = lc shift;
-    return $school_eags{$school}
-}
-
-
-sub get_registrar_group {
-    my $school = lc shift;
-    ## hash of registrar groups - users in the groups can manage registrars/grades
-	my %school_registrars = (
-					   'medical' => 0,
-					   'nutrition' => 0,
-					   'dental' => 0,
-					   'veterinary' => 0,
-					   'veterinarygp' => 0,
-					   'engineering' => 0,
-					   'sackler' => 0,
-					   'phpd' => 0,
-					   'fletcher' => 0,
-					   );
-    return $school_registrars{$school}
-}
-
 
 %EditURLs = ('HSDB4::SQLRow::User' => '/protected/useredit',
 	     'HSDB45::Eval' => '/protected/eval_edit',
 	     'HSDB45::Eval::Question' => '/protected/eval_question_edit'
 	     );
 
-$LDAP_SERVER = "ldap.hss.edu";
-$LDAP_DN = "required parameters";
-$LDAP_PASSWORD = "pswd";
+%School_Admin_Group = map { $_ => $TUSK::Constants::Schools{$_}{Groups}{SchoolAdmin} } keys %TUSK::Constants::Schools;
 
-%School_Admin_Group = ('Default' => 1,
-		       );
-
-%School_Edit_Group = ('Default' => 1,
-		      );
-
-%Forum_School_Category = (
-	'Default' => 1,
-	 );
-
-@Course_Admin_Roles = ('Director','Manager','Administrator');
-@Course_Edit_Roles = ('Director','Manager','Administrator','Editor','Author');
-@Course_Add_Roles = ('Director','Manager','Administrator','Editor','Author');
-@Content_Edit_Roles = ('Director','Manager','Author','Editor','Student Manager','Contact-Person');
-@Content_Add_Roles = ('Director','Manager','Editor','Author','Student Manager');
 
 @image_sizes = qw(orig xlarge large medium small thumb icon resize);
+
+
+sub schools { 
+    return (keys %TUSK::Constants::Schools);
+}
+
+sub schedule_schools { 
+    return (keys %TUSK::Constants::Schools);
+}
+
+sub course_schools { 
+    return (keys %TUSK::Constants::Schools);
+}
+
+sub eval_schools { 
+    return (keys %TUSK::Constants::Schools);
+}
+
+sub user_group_schools { 
+    return (keys %TUSK::Constants::Schools);
+}
+
+sub forum_schools {
+    return (keys %TUSK::Constants::Schools);
+}
+ 
+sub homepage_course_schools {
+    return (keys %TUSK::Constants::Schools);
+}
+
+sub school_code_regexp { 
+    return sprintf( '[%s]', join('', map { $TUSK::Constants::Schools{$_}{Initial}  } keys %TUSK::Constants::Schools));
+}
+
+sub school_codes {
+    my $code = shift;
+    my %code_schools = map { $TUSK::Constants::Schools{$_}{Initial} => $_  } keys %TUSK::Constants::Schools;
+    return $code_schools{ uc $code };
+}
+
+sub code_by_school {
+    my $school = lc shift;
+    my %school_codes = map { lc $_ => $TUSK::Constants::Schools{$_}{Initial} } keys %TUSK::Constants::Schools;
+    return $school_codes{$school};
+}
+
+sub get_school_db {
+    my $school = lc shift;
+    my %school_dbs = map { lc $_ => 'hsdb45_' . $TUSK::Constants::Schools{$_}{ShortName} . '_admin' } keys %TUSK::Constants::Schools;
+    return $school_dbs{$school};
+}
+
+sub get_eval_admin_group {
+    my $school = lc shift;
+    my %school_codes = map { lc $_ => $TUSK::Constants::Schools{$_}{Groups}{EvalAdmin} } keys %TUSK::Constants::Schools;
+    return $school_codes{$school}
+}
 
 my ($db_name, $db_user, $db_pass);
 
@@ -214,8 +176,9 @@ sub db_connect {
 # are almost always the same. If we start using different servers for 
 # each, we will need to address this.
     my $dbc = "DBI:mysql:$db:".($ENV{DATABASE_ADDRESS} ? $ENV{DATABASE_ADDRESS} : $TUSK::Constants::DBParameters{Sys::Hostname::hostname}->{'WriteHost'});
-    my $user = $db_user || $ENV{HSDB_DATABASE_USER} || $TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername};
+    my $user = $db_user || $ENV{HSDB_DATABASE_USER} || $TUSK::Constants::DatabaseUsers{ContentManager}->{readusername};
     my $pw = $db_pass || $ENV{HSDB_DATABASE_PASSWORD} || '';
+    # warn "Password: $db_pass" if ($ENV{MOD_PERL} && $db_user == 'caper_user');
 
     return ($dbc, $user, $pw, {RaiseError => 1, mysql_enable_utf8 => 1});
 }

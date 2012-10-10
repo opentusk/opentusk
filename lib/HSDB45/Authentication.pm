@@ -1,13 +1,38 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB45::Authentication;
 
 use strict;
 # list of modules to use for authentication must be included here
 use HSDB45::Authentication::MySQL;
-use HSDB45::Authentication::LDAP;
+use TUSK::Constants;
 
-# array must match use statements above and an actual library file in the Authentication tree
-my @authen_modules = ("HSDB45::Authentication::LDAP","HSDB45::Authentication::MySQL");
+my @authen_modules;
+if ($TUSK::Constants::LDAP{UseLDAP}) {
+    my $ldap_module = 'HSDB45::Authentication::LDAP';
 
+    eval "use $ldap_module;";
+    if ($@) {
+	die "\n\nERROR: Missing LDAP module(s). Set UseLDAP = 0 in tusk.conf if LDAP is not being used for authentication.\n\n";
+    }
+    @authen_modules = ($ldap_module,"HSDB45::Authentication::MySQL");
+}
+else {
+	@authen_modules = ("HSDB45::Authentication::MySQL");
+}
 #
 # Sub takes a user object and a password string
 #

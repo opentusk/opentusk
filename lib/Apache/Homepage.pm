@@ -1,12 +1,28 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package Apache::Homepage;
 
 use strict;
 use HSDB4::SQLRow::User;
 use Apache::TicketTool;
-use Apache::Cookie;
 use TUSK::Shibboleth::User;
-use Apache::Constants qw(OK REDIRECT);
-use Apache::Request;
+use Apache2::Const qw(OK REDIRECT);
+use Apache2::Request;
+use Apache2::RequestRec;
+use Apache2::SubRequest;
 use TUSK::Mobile::Device;
 
 sub handler{
@@ -18,15 +34,15 @@ sub handler{
 	my ($res, $msg) = $ttool->verify_ticket($r);
 
 	my $shibUser = -1;
-	my $apr = Apache::Request->new($r);
+	my $apr = Apache2::Request->new($r);
 
 	if ($res) {
-		$shibUser = TUSK::Shibboleth::User->isShibUser($r->connection->user);
+		$shibUser = TUSK::Shibboleth::User->isShibUser($r->user);
 		if($shibUser > -1) {
 			$user->makeGhost($shibUser);
 		} 
 		else {
-			$user->lookup_key($r->connection->user);
+			$user->lookup_key($r->user);
 		}
 	}
 	else {
@@ -37,7 +53,7 @@ sub handler{
 			if ($res) {
 				my ($time,$user_name,$hash,$expires) = split('!!',$token);
 				my $cookie = $ttool->make_ticket($r, $user_name);
-				$cookie->bake;
+				$cookie->bake($r);
 				$user->lookup_key($user_name);
 			}
 		}

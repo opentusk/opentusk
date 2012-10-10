@@ -1,9 +1,24 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package Apache::TicketTool;
 
 use strict;
-use Apache::Cookie ();
+use Apache2::Cookie ();
 use Digest::MD5 qw(md5_hex);
-use Apache::URI ();
+use Apache2::URI ();
 use Apache::Session::MySQL;
 use HSDB4::Constants;
 use TUSK::Constants;
@@ -28,8 +43,8 @@ my %CACHE;  # cache objects by their parameters to minimize time-consuming opera
 
 # Set up default parameters by passing in a request object
 sub new {
-    my($class, $r) = @_;
-    my %self = ();
+my($class, $r) = @_;
+my %self = ();
     foreach (keys %DEFAULTS) {
 	# $self{$_} = $r->dir_config($_) || $DEFAULTS{$_};
 	$self{$_} = $DEFAULTS{$_};
@@ -93,7 +108,7 @@ sub make_ticket {
                  md5_hex(join ':', $secret, $now, $expires, $idForCookie)
                );
 
-    return Apache::Cookie->new($r,
+    return Apache2::Cookie->new($r,
 			       -name => 'Ticket',
 			       -path => '/',
 			       -value => {
@@ -120,42 +135,36 @@ sub make_string_ticket {
 # ($result,$msg) = $ticketTool->verify_ticket($r)
 sub verify_ticket {
     my($self, $r) = @_;
-    my %cookies = Apache::Cookie->new($r)->parse;
-    return (0, 'user has no cookies') unless %cookies;
-    return $self->delete_cookies(\%cookies, 0, 'user has no ticket') unless $cookies{'Ticket'};
-    my %ticket = $cookies{'Ticket'}->value;
-    return $self->delete_cookies(\%cookies, 0, 'malformed ticket') 
-	unless $ticket{'hash'} && $ticket{'user'} && 
-	    $ticket{'time'} && $ticket{'expires'};
-    return $self->delete_cookies(\%cookies, 0, 'ticket has expired')
-	unless (time - $ticket{'time'})/60 < $ticket{'expires'};
+    my $cookieJar = Apache2::Cookie::Jar->new($r);
+    my @cookieNames = $cookieJar->cookies();
+    unless(scalar(@cookieNames) > 0) {return (0, 'user has no cookies');}
+    my $ticketCookie = $cookieJar->cookies('Ticket');
+    unless($ticketCookie) {return $self->delete_cookies($cookieJar, 0, 'user has no ticket', $r);}
+    my %ticket = $ticketCookie->value();
+    unless($ticket{'hash'} && $ticket{'user'} && $ticket{'time'} && $ticket{'expires'}) { return $self->delete_cookies($cookieJar, 0, 'malformed ticket', $r); }
+    unless((time - $ticket{'time'})/60 < $ticket{'expires'}) { return $self->delete_cookies($cookieJar, 0, 'ticket has expired', $r); }
     my $secret;
-    return $self->delete_cookies(\%cookies, 0, "can't retrieve secret") 
-	unless $secret = $self->fetch_secret;
-    my $newhash = md5_hex($secret .
-			       md5_hex(join ':', $secret,
-					    @ticket{qw(time expires user)})
-			       );
+    unless($secret = $self->fetch_secret) { return $self->delete_cookies($cookieJar, 0, "can't retrieve secret", $r); }
+    my $newhash = md5_hex($secret .  md5_hex(join ':', $secret, @ticket{qw(time expires user)}));
     unless ($newhash eq $ticket{'hash'}) {
-	$self->invalidate_secret;  #maybe it's changed?
-
-	return $self->delete_cookies(\%cookies, 0, 'ticket mismatch');
+        $self->invalidate_secret;  #maybe it's changed?
+        return $self->delete_cookies($cookieJar, 0, 'ticket mismatch', $r);
     }
     my $user = get_user_from_ticket(\%ticket);
 
     if (!HSDB45::Authorization->valid_account($user)){
-	return (0,'invalid user account');
+        return (0,'invalid user account');
     }
-    $r->connection->user($user);
+    $r->user($user);
     my $cookie = $self->make_ticket($r, $user);
-    $cookie->bake;
+    $cookie->bake($r);
     return (1, 'ok');
 }
 
 sub delete_cookies{
-    my ($self, $cookies, $result, $msg) = @_;
-    $self->remove_cookie($cookies->{'TUSKMasonCookie'});
-    $self->remove_cookie($cookies->{'Ticket'});
+    my ($self, $cookieJar, $result, $msg, $r) = @_;
+    $self->remove_cookie('TUSKMasonCookie', $r) if $cookieJar->cookies('TUSKMasonCookie');
+    $self->remove_cookie('Ticket', $r) if $cookieJar->cookies('Ticket');
     return ($result, $msg);
 }
 
@@ -194,13 +203,15 @@ sub check_status {
     return undef;
 }
 
-sub remove_cookie{
-    my ($self, $cookie) = @_;
-    if ($cookie){
-	$cookie->value("");
-	$cookie->path("/");
-	$cookie->bake;
-    }
+sub remove_cookie {
+        my ($self, $cookieName, $r) = @_;
+        my $newCookie = Apache2::Cookie->new($r,
+                -name           => $cookieName,
+                -value          => '',
+                -expires        => '-3H',
+                -path           => '/',
+        );
+        $newCookie->bake($r);
 }
 
 sub get_user_from_ticket {

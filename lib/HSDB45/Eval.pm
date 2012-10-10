@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB45::Eval;
 
 use strict;
@@ -15,7 +30,7 @@ use TUSK::Constants;
 BEGIN {
     use vars qw($VERSION);
     
-    $VERSION = do { my @r = (q$Revision: 1.68 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.70 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version {
@@ -299,7 +314,7 @@ sub delete_child_question {
     my ($u,$p);
     # handling case where password is not passed to function;
     if (!defined($second) && !defined($qid)){
-	($u,$p) =  ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+	($u,$p) =  ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 	$qid = $first;
     } else {
 	($u,$p) = ($first,$second);
@@ -658,7 +673,7 @@ sub incomplete_users {
 
 sub save {
 	my $self = shift;
-        return $self->SUPER::save ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+        return $self->SUPER::save ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 }
 
 sub is_user_complete {
@@ -817,7 +832,7 @@ sub get_preceding_qid {
 sub automate_all_labels {
     my ($self) = shift;
 
-    my ($username,$password) = ($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+    my ($username,$password) = ($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
     my $type;
     foreach my $q ($self->questions()) {
 	$type = $q->body()->question_type();

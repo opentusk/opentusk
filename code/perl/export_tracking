@@ -1,4 +1,19 @@
 #!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 use TUSK::Tracking;
 use HSDB4::SQLRow::Content;
 use HSDB45::UserGroup;
@@ -6,13 +21,13 @@ use HSDB45::Course;
 use HSDB4::SQLRow::User;
 
 use strict;
-use Apache::Constants qw(REDIRECT);
+use Apache2::Const qw(REDIRECT);
 
 my $r = shift;
 
 # get the path
 my $path = $ENV{PATH_INFO};
-my $user_id = $r->connection->user;
+my $user_id = $r->user;
 
 my $user=HSDB4::SQLRow::User->new->lookup_key($user_id);
 
@@ -22,7 +37,7 @@ my $course_id=$2;
 
 my $course = HSDB45::Course->new(_school => $school)->lookup_key($course_id);
 	if (!$course->primary_key || !$course->can_user_edit($user)){
-		$r->header_out(Location => '/tusk/server/http/error/forbidden');
+		$r->headers_out->set(Location => '/tusk/server/http/error/forbidden');
 		$r->status(REDIRECT);
 		exit();
 	}
@@ -56,8 +71,7 @@ foreach my $tracking (@tracking){
 
 # we want to download the content
 $r->content_type("text/unknown"); 
-$r->header_out("Content-Disposition" => "attachment; filename=\"tracking.txt\""); 
-$r->send_http_header; 
+$r->headers_out->set("Content-Disposition" => "attachment; filename=\"tracking.txt\""); 
 print $output;
 
 

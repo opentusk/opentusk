@@ -1,13 +1,27 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package Apache::TicketRemove;
 
 use strict;
-use Apache::Constants qw(:common REDIRECT);
-use Apache::Cookie;
-use Apache::Request ();
+use Apache2::Const qw(:common REDIRECT);
+use Apache2::Cookie;
 use Apache::Session::MySQL;
+use Apache2::Request;
 use HSDB4::SQLRow::User;
-use Data::Dumper;
-use httpdconf;
+use TUSK::Constants;
 use URI::Escape;
 
 #TUSK added plugin
@@ -16,21 +30,22 @@ use Forum::MwfPlgAuthen;
 sub handler {
     my $r = shift;
 
-    my $apr = Apache::Request->new($r);
+    my $apr = Apache2::Request->new($r);
 
-    my %cookies = Apache::Cookie->new($r)->parse;
+    my $cookieJar = Apache2::Cookie::Jar->new($r);
     my $location = $apr->param('request_uri') || "/";
 
     # Shib login adds more cookies with stange names to lets kill those.
     # Also, shib adds a second ticket so lets be sure to kill both of those.
-    foreach my $cookieName (keys %cookies) {
+#    if($cookieJar->cookies('Ticket')) {
+    foreach my $cookieName ($cookieJar->cookies()) {
 	if($cookieName eq 'Ticket') {
-		my %ticket = $cookies{'Ticket'}->value;
+		my %ticket = $cookieJar->cookies('Ticket')->value;
 		my $user_id = Apache::TicketTool::get_user_from_ticket(\%ticket);
 		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 
 		# TUSK added logout
-		MwfPlgAuthen::logout($user_id);
+		MwfPlgAuthen::logout($user_id, $r);
 
 		# Destroy Apache Session
 		unless($TUSK::Constants::CookieUsesUserID) {
@@ -48,12 +63,8 @@ sub handler {
                         if($shibUserID) {
 				my $shibIdPObject = TUSK::Shibboleth::User->new()->lookupKey($shibUserID);
 				if($shibIdPObject && $shibIdPObject->getLogoutPage() && ($shibIdPObject->needsRegen() ne 'Y')) {
-					my %hashOfVariables;
-
-					my $sslServer = $TUSK::Constants::Domain;
-					if(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {$sslServer = $hashOfVariables{'server_name'} .':'. $hashOfVariables{'secure_port'};}
+					my $sslServer = $TUSK::Constants::Domain . ':' . $TUSK::Constants::securePort;
 					my $server = $TUSK::Constants::Domain;
-					if(httpdconf::setVariablesForServerEnvironment(\%hashOfVariables)) {$server = $hashOfVariables{'server_name'} .':'. $hashOfVariables{'main_port'};}
 					$location = "https://$sslServer/Shibboleth.sso/Logout?";
 					if($shibIdPObject->getLogoutPage()) {
 						$location.= "return=". uri_escape($shibIdPObject->getLogoutPage(). "?target=http://". $server . "/home");
@@ -62,16 +73,16 @@ sub handler {
                         }
                 }
 	}
-    	my $cookie =  Apache::Cookie->new($r,
+    	my $cookie =  Apache2::Cookie->new($r,
 	      -name => $cookieName,
 	      -path => '/',
 	      -expires => '-7d',
 	      -value => '',
 	);
-	$cookie->bake;
+	$cookie->bake($r);
     }
     # This needs to happen after the call to MwfPlgAuthen::logout($user_id);
-    $r->connection->user($ENV{'HSDB_GUEST_USERNAME'});
+    $r->user($ENV{'HSDB_GUEST_USERNAME'});
 
     $r->headers_out->{Location} = $location;
     return REDIRECT;

@@ -20,8 +20,8 @@ no warnings qw(uninitialized redefine);
 
 # Imports
 use Forum::MwfMain;
-use Apache::Request;
-use Apache::Constants qw(REDIRECT);
+use Apache2::RequestRec;
+use Apache2::Const qw(REDIRECT);
 
 #------------------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ else { $m->paramError($lng->{errParamMiss}) }
 # Redirect to user admin page
 if ($redirect_to_home){
     my $r = Apache->request();
-    $r->header_out(Location => '/?msg=All+discussions+messages+are+now+marked+as+read' );
+    $r->headers_out->set(Location => '/?msg=All+discussions+messages+are+now+marked+as+read' );
     $r->status(REDIRECT);
 }
 else{

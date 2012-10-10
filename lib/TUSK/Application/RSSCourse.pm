@@ -1,13 +1,26 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package TUSK::Application::RSSCourse;
 
 use strict;
-use Apache::Constants qw(:common);
 use HSDB4::Constants;
 use TUSK::Constants;
 use TUSK::Core::ServerConfig;
 use HSDB4::SQLRow::User;
 use HSDB4::SQLRow::Content;
-use Data::Dumper;
 
 
 ##----------------------------------------------------------
@@ -18,7 +31,7 @@ use Data::Dumper;
 sub runProcess {
 
 my $x = shift;
-my $r = Apache->request;
+my $r = Apache2::Request->new();
 my $crsID = shift;
 my $cSchool = shift;
 
@@ -27,11 +40,9 @@ my @allchildren = $course->active_child_content();
 my @allContent;
 
 $r->content_type("application/xml");
-$r->send_http_header;
-
 
 #the name of the RSS file is a concat of the course ID and the course school
-my $filename = "/data/feeds/".$course->course_id."_".$course->school.".rss";
+my $filename = $TUSK::Constants::FeedPath . "/".$course->course_id."_".$course->school.".rss";
 
 # define the school/id prefix for the URL
 my $prefix = getPrefix($cSchool, $crsID);
@@ -92,9 +103,8 @@ sub processCollection {
 
 	my $content = HSDB4::SQLRow::Content->new->lookup_key($colID);
 
-	my $r = Apache->request;
+	my $r = Apache2::Request->new();
 	$r->content_type("application/xml");
-	$r->send_http_header;
 
 	my @temparray = $content->active_child_content();
 	my @children = $content->active_child_content();
@@ -161,7 +171,7 @@ sub debugInfo
     my $csch = shift;
 
    
-    open (RSSdebug, ">> /data/feeds/debugInfo.txt") or die "cannot open file $!\n";
+    open (RSSdebug, ">> " . $TUSK::Constants::FeedPath . "/debugInfo.txt") or die "cannot open file $!\n";
     #print RSSdebug "courseid is $cid\n";
     #print RSSdebug "school is $csch\n";
     #print RSSdebug "<rss version='2.0' xmlns:dc='http://purl.org/dc/elements/1.1/'>\n";
@@ -268,7 +278,7 @@ sub createRSSEnd
 sub createRSSItem
 {
     my ($cntnt) = @_;
-    my $link = "tusk.tufts.edu/view/content/$cntnt->{url}"; 
+    my $link = "$TUSK::Constants::Domain/view/content/$cntnt->{url}"; 
     print "<item>\n";
     print "<title> ".encodeText($cntnt->{title})." </title>\n";
     print "<description> $cntnt->{school} : $cntnt->{type} </description>\n";

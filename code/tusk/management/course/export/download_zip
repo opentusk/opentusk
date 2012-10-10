@@ -1,5 +1,21 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%once>
 	use CGI;
+	use TUSK::Constants;
 </%once>
 <%attr>
 	default_path_type    => 'course'
@@ -18,23 +34,22 @@ if($zip =~ /\.\.\// || $zip !~ /\.zip$/){
 	$m->comp('/tmpl/url:redirect', message => 'Invalid file name.', msg_type => 'errmsg', always_homepage => 1);
 }
 
-my $file = "/data/temp/$zip";
+my $file = $TUSK::Constants::TempPath . "/$zip";
 my $fileSize = -s $file;
-
+my $fh;
 my $upload_file;
-unless($upload_file = Apache::File->new($file)) {
+unless($upload_file = open($fh, "<", $file)) {
 	$m->comp('/tmpl/url:redirect', message => 'Unable to open file.', msg_type => 'errmsg', always_homepage => 1);
 }
 $m->clear_buffer();
 $m->autoflush(1);
 $r->content_type('application/octet-stream');
-$r->header_out("Accept-Ranges", "bytes");
-$r->header_out("Content-Length", $fileSize);
-$r->header_out("Content-disposition","attachment; filename=". $zip);
+$r->headers_out->set("Accept-Ranges", "bytes");
+$r->headers_out->set("Content-Length", $fileSize);
+$r->headers_out->set("Content-disposition","attachment; filename=". $zip);
 $r->no_cache(1);
-$r->send_http_header;
-$r->send_fd($upload_file);
-close $upload_file;
+$r->sendfile($file);
+close $fh;
 $m->autoflush(0);
 $m->abort();
 </%init>

@@ -21,7 +21,7 @@ BEGIN {
     use vars qw($VERSION @non_blob_fields %primary_keys);
     use base qw/HSDB4::SQLRow/;
     
-    $VERSION = do { my @r = (q$Revision: 1.151 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.152 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
 sub version {
@@ -99,7 +99,7 @@ sub save {
 
     #start by saving myself.
     unless($self->primary_key()) {$addTuskCourse = 1;}
-    ($rval, $msg) = $self->SUPER::save($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+    ($rval, $msg) = $self->SUPER::save($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
 
     if($msg) {return ($rval, $msg);}
 
@@ -113,7 +113,7 @@ sub save {
       $tuskCourse->setSchoolCourseCode($self->primary_key());
       ($tuskCoursePK) = $tuskCourse->save({ user => $user });
       if(!$tuskCoursePK) {
-        $rval = $self->delete($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+        $rval = $self->delete($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
         if($rval) {return (-1, "Unable to save TUSK Course");}
         else      {return (-2, "Unable to add TUSk Course, Failed to delete HSDB Course! Please call for help!");}
       }
@@ -527,7 +527,7 @@ sub add_child_objective{
 sub update_objectives{
     my ($self, $array) = @_;
     my ($rval, $msg);
-    ($rval, $msg) = $self->delete_objectives($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+    ($rval, $msg) = $self->delete_objectives($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
     return (0,$msg) unless (defined($rval));
     return (1) unless $array;
     if (scalar @$array){
@@ -538,7 +538,7 @@ sub update_objectives{
 		
 		$objective->set_field_values(body => @$array[$i]->{body});
 		
-		($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+		($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
 		return (0, $msg) unless ($rval > 0);
 		
 		@$array[$i]->{pk} = $objective->primary_key;
@@ -547,11 +547,11 @@ sub update_objectives{
 		
 		$objective->set_field_values(body => @$array[$i]->{body});
 		
-		($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+		($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
 		return (0, $msg) unless ($rval > 0);
 	    }
 	    
-	    ($rval, $msg) = $self->add_child_objective($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword}, @$array[$i]->{pk}, ($i+10));	
+	    ($rval, $msg) = $self->add_child_objective($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword}, @$array[$i]->{pk}, ($i+10));	
 	    
 	    return (0, $msg) unless (defined($rval));
 	}

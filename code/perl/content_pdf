@@ -1,20 +1,31 @@
 #!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
 
+
+
+use Apache2::Const qw(REDIRECT);
+use HSDB4::SQLRow::Content;
 use TUSK::Constants;
-
-#use MySQL::Password;
-#HSDB4::Constants::set_user_pw (get_user_pw);
 
 #
 ## Some path variables
 my $r = shift; 
 
-$xml_path = "/data/html/fop-xml";
-$xsl_path = $r->server_root_relative("code/XSL")."/PDF";
-$pdf_path = "/data/html/fop-pdf"; 
-
-use HSDB4::SQLRow::Content;
-use Apache::Constants qw(REDIRECT);
+$xml_path = $TUSK::Constants::FOPXMLPath;
+$xsl_path = $TUSK::Constants::XSLRoot ."/PDF";
+$pdf_path = $TUSK::Constants::FOPPDFPath; 
 
 # append fop path to ENV{PATH}
 ($env_path) = $ENV{PATH} =~m/(.*)/; # untaint $ENV{PATH}
@@ -24,7 +35,7 @@ $ENV{PATH}="$env_path:$fop_path";
 $ENV{JAVA_HOME}="/usr/java" unless ($ENV{JAVA_HOME});
 
 # grab the user_id
-$user_id = $r->connection->user;
+$user_id = $r->user;
 
 ############
 ## here are the different pdf formats
@@ -108,17 +119,14 @@ if ($update_xml){
 # if generate_pdf = 1 then run fop and generate the new pdf file
 if ($generate_pdf){
     # store output in variable...we can do more with this later
-    $output = `$TUSK::Constants::fopCmd -c /usr/local/fop/conf/userconfig.xml -xml $xml_path/$id.xml -xsl $xsl_path/$format-content.xsl -pdf $pdf_path/$format-$id.pdf`;	
+    $output = `$TUSK::Constants::FopCmd -c /usr/local/fop/conf/userconfig.xml -xml $xml_path/$id.xml -xsl $xsl_path/$format-content.xsl -pdf $pdf_path/$format-$id.pdf`;	
 
     chmod(0664,"$pdf_path/$format-$id.pdf");
-    #&html_error($TUSK::Constants::fopCmd . " -c /usr/local/fop/conf/userconfig.xml -xml $xml_path/$id.xml -xsl $xsl_path/$format-content.xsl -pdf $pdf_path/$format-$id.pdf");	
-    #&html_error("$output");
 }
 
 ## show the pdf file to the browser
 
 $r->content_type ('application/pdf'); 
-$r->send_http_header; 
 
 open(PDF,"$pdf_path/$format-$id.pdf") or &html_error("Error accessing PDF file: $!");
 print <PDF>;
@@ -136,7 +144,7 @@ sub generate_xml{
 	$xml_start ="\n<db-content course=\"$course_title\" title=\"$content_title\">";
 	$xml=~s/<db-content[^>]*>/$xml_start/gis;
 
-	my $path = $r->server_root_relative("code/HSCML")."/Rules/";
+	my $path = $TUSK::Constants::XSLRoot ."/Rules/";
 
 	$xml=~s/<!DOCTYPE content SYSTEM "/<!DOCTYPE content SYSTEM "$path/;
 	$xml=~s/hscml.dtd/hscmlpdf.dtd/;

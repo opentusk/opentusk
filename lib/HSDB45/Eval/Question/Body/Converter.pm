@@ -1,8 +1,23 @@
-# $Id: Converter.pm,v 1.31 2006-01-18 21:49:05 mkruck01 Exp $
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+# $Id: Converter.pm,v 1.32 2012-04-20 16:52:38 scorbe01 Exp $
 # Package for converting old-style XML eval questions to new-style eval questions.
 # Specifically, it maps one XML::Twig::Elt object (the one stored in the database)
 # and makes a whole new one out of it.
-# $Revision: 1.31 $
+# $Revision: 1.32 $
 package HSDB45::Eval::Question::Body::Converter;
 
 use strict;

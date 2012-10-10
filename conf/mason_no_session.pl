@@ -12,7 +12,7 @@ package TUSK::MasonNoSession;
 # Bring in main Mason package.
 use HTML::Mason 1.47;
 use MasonX::Request::WithApacheSession;
-use Apache::Constants qw(:common);
+use Apache2::Const qw(:common);
 
 # Bring in ApacheHandler, necessary for mod_perl integration.
 # Uncomment the second line (and comment the first) to use
@@ -36,7 +36,7 @@ use strict;
 my $error_mode = "fatal";
 my $error_format = "text";
 my $use_object_files = 1;
-if (Apache->define('DEV')){
+if (Apache2::ServerUtil::exists_config_define('DEV')) {
 	$error_mode = "output";
 	$error_format = "html";
 	$use_object_files = 0;
@@ -76,11 +76,3 @@ sub handler
 }
 
 __END__
-
-In your httpd.conf, add something like this:
-
- PerlRequire /path/to/handler.pl
- <LocationMatch "\.html$">
-   SetHandler perl-script
-   PerlHandler MyApp::Mason
- </LocationMatch>

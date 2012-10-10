@@ -1,10 +1,25 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package Apache::TicketMaster;
 
 use strict;
-use Apache::Constants qw(:common REDIRECT);
+use Apache2::Const qw(:common REDIRECT);
 use Apache::TicketTool ();
-use Apache::Cookie;
-use Apache::Request ();
+use Apache2::Cookie;
+use Apache2::Request();
 use HSDB4::SQLRow::LogItem;
 use HSDB4::DateTime;
 use POSIX qw(strftime);
@@ -16,18 +31,18 @@ sub handler {
     my $r = shift;
     my $debug = $r->dir_config("HSDBDebug") || 0;
     $r->log_error("TicketMaster being handled") if ($debug >= 2);
-    my $apr = Apache::Request->new($r);
+    my $apr = Apache2::Request->new($r);
     my($user, $pass) = ($apr->param('user'),$apr->param('password'));
-	my $failedLoginUserCookie = Apache::Cookie->new ($r,
+	my $failedLoginUserCookie = Apache2::Cookie->new ($r,
 		-name => 'failed_login_user',
 		-value => '' ,
 		-expires=> '+3m', 
 		-path => '/'
 	);
 
-    my %cookies = Apache::Cookie->new($r)->fetch();
+    my $cookieJar = Apache2::Cookie::Jar->new($r);
     my $request_uri = $apr->param('request_uri') || 
-	    ($cookies{'request_uri'} && $cookies{'request_uri'}->value) ||
+	    ($cookieJar->cookies('request_uri') && $cookieJar->cookies('request_uri')->value) ||
 	    ($r->prev && $r->prev->uri) 
 	    || '/home';
 
@@ -44,19 +59,19 @@ sub handler {
 		my $ticket = $ticketTool->make_ticket($r, $user);
 		unless ($ticket) {
 			$r->log_error("Couldn't make ticket -- missing secret?");
-			$failedLoginUserCookie->bake();
+			$failedLoginUserCookie->bake($r);
 			return SERVER_ERROR;
 		}
 		logLogin($userObject);
 		$dest = $ticketTool->check_status($r, $userObject);
 		if ($dest) {
 			$r->log_error("TM redirecting $user to $dest") if ($debug >= 2);
-			$failedLoginUserCookie->bake();
+			$failedLoginUserCookie->bake($r);
 			return go_to_uri($r, $dest, $ticket);
 		} else {
 			$request_uri = setLoginMessage($userObject,$request_uri);
 			$r->log_error("TM redirecting $user to requested $request_uri") if ($debug >= 2);
-			$failedLoginUserCookie->bake();
+			$failedLoginUserCookie->bake($r);
 			return go_to_uri($r, $request_uri, $ticket);
 		}
 	}
@@ -70,7 +85,7 @@ sub handler {
     $r->log_error("TM going to login screen...") if ($debug >= 2);
 
     $failedLoginUserCookie->value($user);
-    $failedLoginUserCookie->bake();
+    $failedLoginUserCookie->bake($r);
     return go_to_uri($r,$request_uri,undef,$msg);
 }
 
@@ -81,14 +96,14 @@ sub go_to_uri {
 	if ($errmsg){ # indicates an error state, set cookies and go home
 		## 15 seconds is minimum for some browsers, although blackberry mobiles seem to need 3m
 		my $expires = ($requested_uri =~ /mobi/)? '+3m' : '+15s';
-		$errorCookie = Apache::Cookie->new ($r,
+		$errorCookie = Apache2::Cookie->new ($r,
 			-name => 'login_error',
 			-value => $errmsg ,
 			-expires=>$expires, 
 			-path => '/');
 		$requested_uri = "/";
 	} else {
-		$errorCookie = Apache::Cookie->new ($r,
+		$errorCookie = Apache2::Cookie->new ($r,
 			-name => 'login_error',
 			-value => '' ,
 			-expires=>'now',
@@ -97,10 +112,10 @@ sub go_to_uri {
 
 
 	if ($ticket){ 
-		$ticket->bake();
+		$ticket->bake($r);
 	}
-	$errorCookie->bake();
-	$r->header_out("Location",$requested_uri);
+	$errorCookie->bake($r);
+	$r->headers_out->set("Location",$requested_uri);
 	return REDIRECT;
 }
 

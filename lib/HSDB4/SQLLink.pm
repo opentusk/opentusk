@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package HSDB4::SQLLinkDefinition;
 
 use strict;
@@ -12,7 +27,7 @@ BEGIN {
     use vars qw($VERSION %LinkDefs);
 
     %LinkDefs = ();
-    $VERSION = do { my @r = (q$Revision: 1.45 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+    $VERSION = do { my @r = (q$Revision: 1.47 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
     sub new {
 	
@@ -335,8 +350,8 @@ sub update_children_sort_order {
 	my $length = scalar(@$aref);
 
 			for (my $i=0; $i < $length; $i++) {
-				my ($r, $msg) = $linkdef->update(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
-						-password=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
+				my ($r, $msg) = $linkdef->update(-user => $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},
+						-password=> $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword},
 						-parent_id => $params->{'parent_id'},
 						-child_id => @$aref[$i]->primary_key(),
 						sort_order => 10*($i+1),
@@ -731,7 +746,7 @@ use strict;
 use vars qw(@fields $VERSION);
 
 @fields = ();
-$VERSION = do { my @r = (q$Revision: 1.45 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.47 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 sub new {
     #
@@ -804,7 +819,7 @@ package HSDB4::SQLLinkSet;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = do { my @r = (q$Revision: 1.45 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.47 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 sub new {
     #

@@ -1,20 +1,41 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 package Apache::AuthzHSDB;
 
 use strict;
-use Apache::Constants qw(:common REDIRECT);
-use Apache::Cookie;
+use Apache2::Const qw(:common REDIRECT);
+use Apache2::Cookie;
+use Apache2::Connection;
 use Apache::TicketTool;
 use TUSK::Constants;
+use Socket;
+use Sys::Hostname;
 
 # Lookup the content page, and see if we're authorized to look at it.
 
 sub handler {
     my $r = shift;
 
-    ## automatically approve if the request came from the server itself
-    my $remote_ip = $r->connection->remote_ip();
-    if ($TUSK::Constants::PermissableIPs->{$remote_ip}) {
-	$r->connection->user("TUSKserver");
+    ## automatically approve if the request came from the server
+    ## itself or a list of authorized IP addresses
+    my $remote_ip = $r->connection()->remote_ip();
+    my $local_ip = inet_ntoa(scalar gethostbyname(hostname() || 'localhost'));
+    if ((grep { $_ eq $remote_ip } @TUSK::Constants::PermissibleIPs)
+        || ($remote_ip eq $local_ip)) {
+	$r->user("TUSKserver");
 	return OK;
     }
 
@@ -25,7 +46,7 @@ sub handler {
     $r->log_error("Authz: RowClass is ".sprintf($cls ? $cls : "undef")) if ($debug >= 2);
 
     unless ($cls) {
-	return OK if $r->connection->user ne $ENV{'HSDB_GUEST_USERNAME'};
+	return OK if $r->user ne $ENV{'HSDB_GUEST_USERNAME'};
 
 	# If we have no special RowClass, then we check to see what kind of 
 	# access to provide to guests.
@@ -52,7 +73,7 @@ sub handler {
     }
     
     # Save a header with logging information
-    $r->header_out('X-Log-Info', $doc->out_log_item) if $doc;
+    $r->headers_out->set('X-Log-Info', $doc->out_log_item) if $doc;
 
     my $user_id = get_user_id($r);
 
@@ -71,23 +92,24 @@ sub handler {
 sub get_user_id{
     my ($r) = @_;
 
-    my $user_id = $r->connection->user || $ENV{'HSDB_GUEST_USERNAME'};
+    my $user_id = $r->user || $ENV{'HSDB_GUEST_USERNAME'};
 
     ## look on the URL for a token, if the user doesn't exist
     if (!$user_id || $user_id eq $ENV{'HSDB_GUEST_USERNAME'}) {
 	my %args = $r->args;
 	my $ttool = Apache::TicketTool->new;
+        my $cookieJar = Apache2::Cookie::Jar->new($r);
 	if ($args{token}) {
 	    my ($status,$message) = $ttool->verify_string_ticket($args{token});
 	    if ($status) {
 		my ($time,$user,$hash,$timeout) = split("!!",$args{token});
 		$user_id = $user;
-		$r->connection->user($user_id);
+		$r->user($user_id);
 	    }
-	} elsif (my %cookies = Apache::Cookie->new($r)->parse) {
+	} elsif (scalar($cookieJar->cookies())) {
 		my($returnValue, $message) = $ttool->verify_ticket($r);
-		if($returnValue && $cookies{'Ticket'}) {
-			my %ticket = $cookies{'Ticket'}->value;
+		if($returnValue && $cookieJar->cookies('Ticket')) {
+			my %ticket = $cookieJar->cookies('Ticket')->value;
 			$user_id = Apache::TicketTool::get_user_from_ticket(\%ticket);
 
 		}

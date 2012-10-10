@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 #! /usr/bin/perl
 
 package TUSK::Manage::Course::Import;
@@ -225,7 +240,7 @@ sub importContent{
 		# to re-import, but create a new link record to the imported content.
 		# unless, this content is linked from a document, in which case we don't 
 		# want to create a link record at all
-		$parent->add_child_content($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, $xtra_params->{imported_content}->{$id}, 65535);
+		$parent->add_child_content($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}, $xtra_params->{imported_content}->{$id}, 65535);
 	}
 
 	return $xtra_params->{imported_content}->{$id};
@@ -271,12 +286,12 @@ sub importUsers{
 				            midname => $name_parts[2],
 				                       );
 
-				$user->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+				$user->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 				
 				$xtra_params->{imported_users}->{$id} = $new_id;
 			}
 			
-			my ($rval, $msg) = $content->add_child_user($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, $xtra_params->{imported_users}->{$id}, 10*(++$counter), 'author');
+			my ($rval, $msg) = $content->add_child_user($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}, $xtra_params->{imported_users}->{$id}, 10*(++$counter), 'author');
 			# $log .= "$msg\n" unless (defined($rval));
 		}
 	}
@@ -321,12 +336,12 @@ sub importObjectives{
 		unless(defined $objective){
 			$objective = HSDB4::SQLRow::Objective->new();
 			$objective->field_value(body => $obj_str);
-			($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword});
+			($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 		}
 
 		unless(defined $rval && $rval == 0){
 			$counter++;
-			$c->add_child_objective($TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword}, $objective->primary_key(), ($counter*10));
+			$c->add_child_objective($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}, $objective->primary_key(), ($counter*10));
 		}
 	}
 }
@@ -354,7 +369,7 @@ sub genTmpDir{
 sub unzip{
 	my $cont_pack = shift;
 
-	my $tmp_dir = genTmpDir('/data/temp/', 'unpacked_');
+	my $tmp_dir = genTmpDir($TUSK::Constants::TempPath . '/', 'unpacked_');
 
 	$ENV{PATH} = '/bin:/usr/bin';
 

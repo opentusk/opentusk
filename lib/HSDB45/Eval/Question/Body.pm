@@ -1,6 +1,21 @@
-# $Id: Body.pm,v 1.26 2011-05-17 00:39:48 jwestc01 Exp $
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+# $Id: Body.pm,v 1.27 2012-04-20 16:52:38 scorbe01 Exp $
 # Package for storing and accessing the attributes of a eval_question's body
-# $Revision: 1.26 $
+# $Revision: 1.27 $
 package HSDB45::Eval::Question::Body;
 
 use strict;

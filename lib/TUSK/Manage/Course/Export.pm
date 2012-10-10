@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 #! /usr/bin/perl
 
 package TUSK::Manage::Course::Export;
@@ -11,6 +26,7 @@ use TUSK::Course::CourseMetadataDisplay;
 use HSDB4::XML::HSCML;
 use HSDB4::XML::Content;
 use HSDB4::DateTime;
+use TUSK::Constants;
 use TUSK::Manage::Course::Import;
 
 use Archive::Zip; 
@@ -41,7 +57,7 @@ sub export{
 
 	#####
 	# make tmp file with random number. put this in lexical var and use that as dir for adds
-	my $tmp_dir = TUSK::Manage::Course::Import::genTmpDir('/data/temp/', 'tmp_'); 
+	my $tmp_dir = TUSK::Manage::Course::Import::genTmpDir($TUSK::Constants::TempPath . '/', 'tmp_'); 
 	$log .= "created tmp directory for content package.\n";
 
 	#####
@@ -308,7 +324,7 @@ sub packContent {
 
 		unless( -e $xtra_args->{tmp_dir} . "/hscml.css" ){
 			if( copy("$Bin/../code/style/hscml.css", $xtra_args->{tmp_dir} . "/hscml.css") ) {
-				my $elt_str = '<resource identifier="resHSCML" type="webcontent"><metadata><tom xmlns="http://tusk.tufts.edu/xsd/tuskv0p1"><tuskType>CSS</tuskType></tom></metadata><file href="hscml.css"/></resource>';
+				my $elt_str = '<resource identifier="resHSCML" type="webcontent"><metadata><tom xmlns="http://'.$TUSK::Constants::Domain.'/xsd/tuskv0p1"><tuskType>CSS</tuskType></tom></metadata><file href="hscml.css"/></resource>';
 				my $elt = parse XML::Twig::Elt($elt_str);
 				$elt->paste(last_child => $res_root);
 			}
@@ -340,7 +356,7 @@ sub exportTuskMeta {
 	my $md_types = $course->getSchoolMetadata();
 
 	# need to change this to real location when done testing!!!
-	my $elt_str = '<tusk xmlns="http://tusk.tufts.edu/xsd/tuskv0p1">';
+	my $elt_str = '<tusk xmlns="http://'.$TUSK::Constants::Domain.'/xsd/tuskv0p1">';
 	$elt_str .= "<courseSpan><startDate>$start</startDate><endDate>$end</endDate></courseSpan>";
 	$elt_str .= genMetadataString($course, $md_types);
 	$elt_str .= '</tusk>';
@@ -502,7 +518,7 @@ sub genContMetaData {
 	
 
 	# NOW EXPORT TUSK META
-	my $tom = XML::Twig::Elt->new('tom', {xmlns => 'http://tusk.tufts.edu/xsd/tuskv0p1'});
+	my $tom = XML::Twig::Elt->new('tom', {xmlns => 'http://'.$TUSK::Constants::Domain.'/xsd/tuskv0p1'});
 	$tom->paste(last_child=>$meta);
 
 	# let's convert tuskdocs and xmetal to plain ol' docs...	
@@ -606,8 +622,8 @@ sub getXML{
 	my $xml = XML::Twig->new();
 
 	my $mani_id = generateID();
-	$xml->parse('<manifest identifier="MAN' . $mani_id . '" xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" xmlns:md="http://www.imsglobal.org/xsd/imsmd_v1p2" xmlns:cp="http://www.imsglobal.org/xsd/imscp_v1p1" xmlns:ec="http://cosl.usu.edu/xsd/eduCommonsv1.1" xmlns:tmd="http://tusk.tufts.edu/xsd/tuskv0p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1  http://www.imsglobal.org/xsd/imscp_v1p2.xsd  http://www.imsglobal.org/xsd/imsmd_v1p2  http://www.imsglobal.org/xsd/imsmd_v1p2p4.xsd 
-http://tusk.tufts.edu/xsd/tuskv0p1 http://tusk.tufts.edu/xsd/tuskv0p1/tuskv0p1.xsd http://cosl.usu.edu/xsd/eduCommonsv1.1 http://cosl.usu.edu/xsd/educommonsv1.1.xsd"><metadata><lom xmlns="http://www.imsglobal.org/xsd/imsmd_v1p2"></lom></metadata><organizations default="toc001"><organization identifier="toc001"></organization></organizations><resources></resources></manifest>');
+	$xml->parse('<manifest identifier="MAN' . $mani_id . '" xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" xmlns:md="http://www.imsglobal.org/xsd/imsmd_v1p2" xmlns:cp="http://www.imsglobal.org/xsd/imscp_v1p1" xmlns:ec="http://cosl.usu.edu/xsd/eduCommonsv1.1" xmlns:tmd="http://'.$TUSK::Constants::Domain.'/xsd/tuskv0p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1  http://www.imsglobal.org/xsd/imscp_v1p2.xsd  http://www.imsglobal.org/xsd/imsmd_v1p2  http://www.imsglobal.org/xsd/imsmd_v1p2p4.xsd 
+http://'.$TUSK::Constants::Domain.'/xsd/tuskv0p1 http://'.$TUSK::Constants::Domain.'/xsd/tuskv0p1/tuskv0p1.xsd http://cosl.usu.edu/xsd/eduCommonsv1.1 http://cosl.usu.edu/xsd/educommonsv1.1.xsd"><metadata><lom xmlns="http://www.imsglobal.org/xsd/imsmd_v1p2"></lom></metadata><organizations default="toc001"><organization identifier="toc001"></organization></organizations><resources></resources></manifest>');
 
 	my $xml_root = $xml->root();
 
@@ -729,7 +745,7 @@ sub getPackageName{
 	$title =~ s/\"//g;
 	$title .= '_cp';
 
-	my $fn = TUSK::Manage::Course::Import::getRandomFile('/data/temp/', $title, '.zip');
+	my $fn = TUSK::Manage::Course::Import::getRandomFile($TUSK::Constants::TempPath . '/', $title, '.zip');
 	return $fn;
 }
 

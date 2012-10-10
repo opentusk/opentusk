@@ -1,7 +1,22 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 #
 # $Source: /data/cvs/tusk/lib/TUSK/Services/MMTx.pm,v $
 #
-# $Id: MMTx.pm,v 1.12 2007-06-21 18:05:38 psilev01 Exp $
+# $Id: MMTx.pm,v 1.13 2012-04-20 16:52:41 scorbe01 Exp $
 #
 
 package TUSK::Services::MMTx; 
@@ -22,7 +37,7 @@ $SIG{CHLD} = 'IGNORE';
 
 $NUM_CONCEPTS = 15;
 
-$VERSION =  sprintf("%d.%02d", q$Revision: 1.12 $ =~ /(\d+)\.(\d+)/);
+$VERSION =  sprintf("%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/);
 
 ##
 ## Items to export into callers namespace by default. Note: do not export
@@ -375,6 +390,9 @@ B<Perl>
 =head1 REVISION HISTORY
 
  $Log: MMTx.pm,v $
+ Revision 1.13  2012-04-20 16:52:41  scorbe01
+ Committing ECL License header.
+
  Revision 1.12  2007-06-21 18:05:38  psilev01
  * remove any M.D. from the text that gets parsed
  * fixed bug which was resuling in bad data getting inserted into the mapped_text field in umls_concept_mention

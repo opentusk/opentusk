@@ -1,14 +1,29 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 <%once>
 	use HSDB45::Eval;
 	use HSDB45::Eval::Formatter;
 	use HSDB45::Eval::SavedAnswers;
-	use Apache::Cookie;
-	use Apache::Constants qw/:common/;
+	use Apache2::Const qw/:common/;
 	use HSDB4::DateTime;
 	use HSDB45::Eval::Secret;
 	use HSDB45::StyleSheet;
 	use XML::LibXML;
 	use XML::LibXSLT;
+    use Data::Dumper;
 </%once>
 
 <%attr>
@@ -75,12 +90,30 @@
 	my $password = $fdat{'load_password'} || $fdat{'submit_password'};
 	my $pw_error = 0;
 	if ( $password ) {
-        if ($user->verify_password($password)) {
-			$answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
-		} else {
-			$pw_error = 1;
-			$m->comp('SELF:set_msg', msg => "Passwords do not match.", type => 'err' );
-		}
+        if ($fdat{save_submit} || $fdat{complete_submit}) {
+            # Save and Submit should verify
+            if ($user->verify_password($password)) {
+                $answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
+            } else {
+                $pw_error = 1;
+                $m->comp('SELF:set_msg', msg => "Passwords do not match.", type => 'err' );
+            }
+		} elsif ($fdat{load_submit}) {
+            # Load should try to fetch answers. If unsuccessful,
+            # suggest user try old password.
+            $answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
+            unless ($answers->has_answers()) {
+                $pw_error = 1;
+                if ($user->verify_password($password)) {
+                    $m->comp('SELF:set_msg',
+                             msg => "Oops! I can't find your saved answers. Did your password change? Please try Load Answers again with your old password.",
+                             type => 'err');
+                } else {
+                    $m->comp('SELF:set_msg', msg => "Passwords do not match.",
+                             type => 'err' );
+                }
+            }
+        }
 	} elsif ($fdat{load_submit} || $fdat{save_submit} || $fdat{complete_submit}) {
 		$pw_error = 1;
 		$m->comp('SELF:set_msg', msg => "Please enter your password.", type => 'err' );
@@ -266,7 +299,7 @@
 <table width="100%" border="0" cellspacing="0" cellpadding="0">
   <tr>
     <td width="350" valign="top">
-      <img src="/graphics/logo.gif" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" width="350" height="90">
+      <img src="<% $TUSK::Constants::Logo %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" />
     </td>
     <td>
       <& '/tmpl/prepend:traffic_light', args => \%ARGS, make_table => 1 &>

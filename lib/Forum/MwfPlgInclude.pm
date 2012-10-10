@@ -112,8 +112,6 @@ sub top
 
 	print $output . "\n";
 
-	    # Print static text
-	#print "<a href='http://victor.tusk.tufts.edu'>HOME</a><br>";
 }
 
 #------------------------------------------------------------------------------

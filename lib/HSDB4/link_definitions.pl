@@ -1,3 +1,18 @@
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
 require HSDB4::Constants;
 
 for my $school (HSDB4::Constants::schedule_schools()) {
@@ -498,23 +513,5 @@ for my $school (HSDB4::Constants::eval_schools()) {
 				   );
 
 }
-
-for my $school (HSDB4::Constants::survey_schools()) {
-    my $db = HSDB4::Constants::get_school_db($school) or next;
-    HSDB4::SQLLinkDefinition->new (-link_table => "$db\.link_survey_eval_question",
-				   -parent_class => "HSDB45::Survey",
-				   -parent_id_field => 'parent_survey_id',
-				   -child_class => "HSDB45::Eval::Question",
-				   -child_id_field => 'child_eval_question_id',
-				   -order_by => ['link.sort_order'],
-				   -link_fields => [ qw(label sort_order required grouping graphic_stylesheet) ],
-				   -school => $school,
-				   );
-
-}
-
-
-
-
 
 1;

@@ -1,4 +1,18 @@
-%
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
 
 <%attr>
         top_tab_type            => 'none'
@@ -7,12 +21,12 @@
         page_header             => undef
         page_footer             => undef
         allow_guests            => '1'
-	no_check_path		=> '1'
+		no_check_path			=> '1'
 </%attr>
 
 <%shared>
   my $contentID = '';
-  my $logFile = "$ENV{LOG_ROOT}/fop.log";
+  my $logFile = $TUSK::Constants::LogRoot . "/fop.log";
 </%shared>
 
 <%perl>
@@ -20,9 +34,11 @@
   $logFile =~ /(.*)/;
   $logFile = $1;
 
+warn "--in slidesPDF";
+
   use HSDB4::SQLRow::Content;
   use HSDB4::DateTime;
-  use Apache::Constants;
+  use Apache2::Const;
   use HSDB4::XML::PDF;
   use TUSK::Constants;
   use TUSK::Application::Email;
@@ -66,9 +82,9 @@
   $xml =~ s/[\0-\011\013-\037\177-\377]//g; # Remove unprintables
 
   ## Some path variables
-  my $xmlFile = "/data/html/fop-xml/$contentID.xml";
-  my $xsl_path = $r->server_root_relative("code/XSL")."/PDF";
-  my $pdf_path = "/data/html/fop-pdf"; 
+  my $xmlFile = $TUSK::Constants::FOPXMLPath . "/$contentID.xml";
+  my $xsl_path = $TUSK::Constants::XSLRoot ."/PDF";
+  my $pdf_path = $TUSK::Constants::FOPPDFPath; 
 
   # append fop path to ENV{PATH}
   my ($env_path) = $ENV{PATH} =~m/(.*)/; # untaint $ENV{PATH}
@@ -133,7 +149,7 @@
     }
 
     #Now lets log the command we are going to do, execute it and log and output
-    my $command = $TUSK::Constants::fopCMD . " -xml $xmlFile -xsl $xsl_path/$numberOfSlides-slides.xsl -pdf $pdf_path/$numberOfSlides-$contentID.pdf";
+    my $command = $TUSK::Constants::FopCmd . " -xml $xmlFile -xsl $xsl_path/$numberOfSlides-slides.xsl -pdf $pdf_path/$numberOfSlides-$contentID.pdf";
     $m->comp("SELF:logMessage", messageToLog => $command);
     my $output = `$command`;
     if($output) {$m->comp("SELF:logMessage", messageToLog => "fop output: $output");}
@@ -147,8 +163,7 @@
   $m->clear_buffer();
   $r->content_type('application/pdf');
   $r->no_cache(1);
-  unless($r->header_in('User-Agent')=~/MSIE/) {$r->header_out("Content-disposition","attachment; filename=$contentID\.pdf");}
-  $r->send_http_header; 
+  unless($r->header_in('User-Agent')=~/MSIE/) {$r->headers_out->set("Content-disposition","attachment; filename=$contentID\.pdf");}
   while(<PDF>) {$m->print($_);}
   close(PDF);
   $m->abort();

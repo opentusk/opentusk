@@ -42,7 +42,7 @@ sub getReport {
 				SELECT
 				 	a.teaching_site_id,
 				 	site_name,
-					count(distinct child_user_id) AS students,
+					count(child_user_id) AS students,
 					(SELECT 
 						CONCAT(COUNT(DISTINCT user_id), "_", count(*)) 
 					FROM 
@@ -50,7 +50,7 @@ sub getReport {
 						$self->{_db}.link_course_student AS d 
 					WHERE 
 						form_id = $self->{_form_id} AND 
-					        d.time_period_id IN ($self->{_time_period_ids_string}) AND
+						d.time_period_id = a.time_period_id AND 
 						e.time_period_id = d.time_period_id AND 
 						parent_course_id = $self->{_course_id} AND 
 						user_id = child_user_id AND 
@@ -64,8 +64,8 @@ sub getReport {
 					a.parent_course_id = $self->{_course_id} AND 
 					time_period_id IN ($self->{_time_period_ids_string})
 				GROUP BY teaching_site_id
-		                ORDER BY site_name
-		     );
+				ORDER BY site_name
+				);
 
 	my $sth = $self->{_form}->databaseSelect($sql);
 	my ($total_num_students, $total_report_students, $total_patients);

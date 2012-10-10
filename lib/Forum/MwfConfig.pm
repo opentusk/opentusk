@@ -20,16 +20,16 @@ $cfg->{baseUrl}        = "http://" . $TUSK::Constants::Domain;
 $cfg->{dataPath}       = "/addons/forums";
 
 # Database server host
-$cfg->{dbServer}       = $ENV{DATABASE_ADDRESS} ? $ENV{DATABASE_ADDRESS} : $TUSK::Constants::DBParameters{Sys::Hostname::hostname}->{'WriteHost'};
+$cfg->{dbServer}       = $ENV{DATABASE_ADDRESS} ? $ENV{DATABASE_ADDRESS} : $TUSK::Constants::Servers{Sys::Hostname::hostname}->{'WriteHost'};
 
 # Database name
 $cfg->{dbName}         = "hsdb4";
 
 # Database user
-$cfg->{dbUser}         = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
+$cfg->{dbUser}         = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
 # Database password
-$cfg->{dbPassword}     = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
+$cfg->{dbPassword}     = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
 
 # Database table prefix or schema (usually not required)
 $cfg->{dbPrefix}       = "mwforum.";
