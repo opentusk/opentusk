@@ -21,7 +21,7 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 
 <%method title>
 <%perl>
-my $title = "Reference Library";
+my $title = __("Reference Library");
 return $title;
 </%perl>
 </%method>
@@ -57,17 +57,17 @@ my $formname = 'referenceaddedit';
 		cellpadding =>"0" } &>
 
 <& /tmpl/element:sort_order_box , params =>{
-		button_label=>"Existing ". $TUSK::Constants::SiteAbbr ." Content/URL",
+		button_label=>__x("Existing {type} Content/URL", type => $TUSK::Constants::SiteAbbr),
 		no_label => 1,
 		td_class => 'button-left',
 		button_onclick=>"openwindow('referencediv')",
 		buttons => 	[
 				$m->scomp("/tmpl/element:button", params => { 	
-					label   => 'Upload New Content', 
+					label   => __('Upload New Content'), 
 					name    => 'upload_content', 
 					onclick => "open_upload_content_window('" . $m->comp('/tmpl/url:get_type_path') . "/" . $id . "', 'referencediv')" }),
 				$m->scomp("/tmpl/element:button", params => { 	
-					label   => 'Upload New URL', 
+					label   => __('Upload New URL'), 
 					name    => 'link_url', 
 					onclick => "open_upload_content_window('" . $m->comp('/tmpl/url:get_type_path') . "/" . $id . "', 'referencediv', 'url')" })
 				],
@@ -77,13 +77,13 @@ my $formname = 'referenceaddedit';
 				name => 'content',
 				sort => {usage => 'Yes', length=>50},
 				action => {usage => 'Yes', length=>100, functions => [
-					{func=>'preview_content', label=>'Preview'},
-					{func=>'modify_content', label=>'Modify'},
-					{func=>'remove', label=>'Delete'}
+					{func=>'preview_content', label=>__('Preview')},
+					{func=>'modify_content', label=>__('Modify')},
+					{func=>'remove', label=>__('Delete')}
 				]},
 				display => [ 
-					{label=>'Content&nbsp;ID',field=>'content_id', align=>'left', length=>50},
-					{label=>'References',field=>'title', align=>'left', length=>'5000'},
+					{label=>__('Content ID'),field=>'content_id', align=>'left', length=>50},
+					{label=>__('References'),field=>'title', align=>'left', length=>'5000'},
 				],
 				validate => { usage => 'No' },
 				data => \@reference_data 
@@ -105,7 +105,7 @@ use TUSK::Case::LinkCaseContent;
 <%init>
 my @reference_data = map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }  
 			map { $_->getContent } 
-			@{TUSK::Case::LinkCaseContent->lookup(" parent_case_id = $id  and link_type = 'Reference' ",['sort_order'] )};
+			@{TUSK::Case::LinkCaseContent->lookup(" parent_case_id = $id  and link_type = '".__("Reference")."' ",['sort_order'] )};
 
 if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 	my $args = \%ARGS;
@@ -121,13 +121,13 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
                 set_child => 'setChildContentID',
                 child_pk_field => 'content_id',
                 fields_data => $rowHash,
-		addtlRelationFields=> ['Reference'],
+		addtlRelationFields=> [__('Reference')],
                 display_data => \@reference_data );
 
 	@reference_data = map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
                         map { $_->getContent }
-                        @{TUSK::Case::LinkCaseContent->lookup(" parent_case_id = $id  and link_type = 'Reference' ",['sort_order'] )};
-	$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => 'References successfully updated');
+                        @{TUSK::Case::LinkCaseContent->lookup(" parent_case_id = $id  and link_type = '".__("Reference")."' ",['sort_order'] )};
+	$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => __('References successfully updated'));
 }
 </%init>
 
@@ -135,5 +135,5 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 <%args>
 	$args
 </%args>
-% $m->comp("SELF:set_msg", msg => 'References successfully updated') if ($m->comp('/tmpl/wizard:submitted',args => $args));
+% $m->comp("SELF:set_msg", msg => __('References successfully updated')) if ($m->comp('/tmpl/wizard:submitted',args => $args));
 </%method>

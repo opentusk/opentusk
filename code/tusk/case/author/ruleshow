@@ -39,7 +39,7 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
                 style =>"margin:10px 0;", } &>
 
 <& /tmpl/element:dropdown, params => { 
-		label => 'Create rule to restrict entrance to phase:',
+		label => __('Create rule to restrict entrance to phase').':',
 		name        => 'phase',
 		onchange    => "addRuleToPhase(this, '$type_path', $case_id);",
 		options     => $phase_array }
@@ -49,15 +49,15 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 
 <%perl>
 $m->comp('/tmpl/element:object_selection_box', params => {
-		columns => [ { label => 'Phase with Entrance Rule', field => 'getPhaseTitle' } ],
+		columns => [ { label => __('Phase with Entrance Rule'), field => 'getPhaseTitle' } ],
 		action_columns => [ 
-					{ label => 'Modify', 
+					{ label => __('Modify'), 
 					  link => '/case/author/ruleaddedit',
 					  appendbefore => '/' . $case->getPrimaryKeyID() . '/',
 					} ],
 		object_list   => $rules_data,
 		type_path     => $type_path,
-		empty_message => 'No rules are associated with any phases',
+		empty_message => __('No rules are associated with any phases'),
 		});
 </%perl>
 
@@ -76,10 +76,10 @@ $m->comp('/tmpl/element:object_selection_box', params => {
 
 <%init>
 # do some quick error checking
-$m->comp('/tmpl/url:redirect', message => 'Missing Case ID') unless (defined $case_id);
-$m->comp('/tmpl/url:redirect', message => 'Invalid Case ID') unless (defined $case);
+$m->comp('/tmpl/url:redirect', message => __('Missing Case ID')) unless (defined $case_id);
+$m->comp('/tmpl/url:redirect', message => __('Invalid Case ID')) unless (defined $case);
 
-$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => 'Rules succesfully updated');
+$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => __('Rules succesfully updated'));
 
 my $phases_w_rules = TUSK::Case::LinkCasePhase->new()->lookup("parent_case_id=$case_id", ['sort_order ASC', 'child_phase_id ASC'], undef, undef,
 		[ TUSK::Core::JoinObject->new('TUSK::Case::Rule', { joinkey => 'phase_id', origkey => 'child_phase_id', jointype => 'inner' }),
@@ -93,7 +93,7 @@ foreach my $phase_lnk (@$phases_w_rules) {
 
 
 <%method title>
-%	return "Manage Rules";
+%	return __("Manage Rules");
 </%method>
 
 <%method leftnav>
@@ -130,7 +130,7 @@ return {
 <%perl>
 my %phase_rule_map = map { $_->getChildPhaseID, 1 } @phases_w_rules;
 my $phases = $case->availablePhases();
-my $phase_array = [{'label' => 'Select Phase', 'value' => ''}];
+my $phase_array = [{'label' => __('Select Phase'), 'value' => ''}];
 my $first_phase = 1;
 foreach my $p (@$phases) {
 	if ($first_phase) {

@@ -22,7 +22,7 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 </%shared>
 <%method title>
 <%perl>
-my $title = "Modify Phase";
+my $title = __("Modify Phase");
 return $title;
 </%perl>
 </%method>
@@ -77,7 +77,7 @@ my $get_phases_sub = sub {
 					'phase_id'=>'',
 					'case_id'=>$case_id,
 					'phase_type'=> '<span class="gray">' . $phase_type->getTitle() . '</span>',
-					'phase_title'=> '<span class="gray">phase not defined</span>',
+					'phase_title'=> '<span class="gray">'.__("phase not defined").'</span>',
 					'phase_type_id'=> $phase_type->getPrimaryKeyID(),
 					_action => $not_found_actions });
 		}
@@ -99,7 +99,7 @@ my $get_phases_sub = sub {
 
 
 <& /tmpl/element:sort_order_box , params =>{
-                label=>'Phases',
+                label=>__('Phases'),
 		no_add_button=>1,
 		td_class=> 'no-button',
 		no_label=>1,
@@ -111,8 +111,8 @@ my $get_phases_sub = sub {
                         name => 'phase',
                         sort => {usage => 'Yes', length=>50},
 			action =>{usage => 'Yes', length=>500, functions => 'per row'},
-                        display => [ {label=>'Display Title',field=>'phase_title', align=>'left', length=>350},
-					 {label=>'Phases',field=>'phase_type', align=>'left', length=>350}
+                        display => [ {label=>__('Display Title'),field=>'phase_title', align=>'left', length=>350},
+					 {label=>__('Phases'),field=>'phase_type', align=>'left', length=>350}
                                   ],
                         validate => {
                                         usage => 'No',
@@ -132,18 +132,18 @@ my $get_phases_sub = sub {
 
 <%init>
 # do some quick error checking
-$m->comp('/tmpl/url:redirect', message => 'Missing Case ID') unless (defined $id);
-$m->comp('/tmpl/url:redirect', message => 'Invalid Case ID') unless (defined $case);
+$m->comp('/tmpl/url:redirect', message => __('Missing Case ID')) unless (defined $id);
+$m->comp('/tmpl/url:redirect', message => __('Invalid Case ID')) unless (defined $case);
 
 my $phase_types = TUSK::Case::PhaseType->lookup (" 1 = 1 ",['default_sort_order'] );
 my $phases = $case->availablePhases();
 
 my $found_actions =  {usage => 'Yes', length=>100, functions => [
-				{func=>'phase_edit', label=>'Modify'},
-				{func=>'remove', label=>'Delete'} ]};
+				{func=>'phase_edit', label=>__('Modify')},
+				{func=>'remove', label=>__('Delete')} ]};
 my $not_found_actions =  {usage => 'Yes', length=>100, functions => [
-				{func=>'phase_edit', label=>'Create'},
-				{func=>'remove', label=>'Delete'}
+				{func=>'phase_edit', label=>__('Create')},
+				{func=>'remove', label=>__('Delete')}
 	 ]};
 
 my $phasearray = $get_phases_sub->($id,$phases,$phase_types,$found_actions,$not_found_actions);
@@ -154,7 +154,7 @@ foreach my $phase_type (@{$phase_types}){
 	'value'=>$phase_type->getPrimaryKeyID};
 }
 my $phase_select = $m->scomp('/tmpl/element:dropdown',params=>{ 
-		before_text =>'Add phase to case above:',
+		before_text =>__('Add phase to case above').':',
                 name=>"phase_type",
 		onclick=>"phase_select($id,'$type_path');",
                 onchange=>undef,
@@ -181,7 +181,7 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 
 	$phases = $case->availablePhases();
 	$phasearray = $get_phases_sub->($id,$phases,$phase_types,$found_actions,$not_found_actions);
-	$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => 'Phases succesfully updated');
+	$m->comp('/tmpl/wizard:do_next',args=>\%ARGS, msg => __('Phases succesfully updated'));
 }
 </%init>
 
@@ -189,5 +189,5 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 <%args>
 	$args
 </%args>
-% $m->comp("SELF:set_msg", msg => 'Phases successfully updated') if ($m->comp('/tmpl/wizard:submitted',args => $args));
+% $m->comp("SELF:set_msg", msg => __('Phases successfully updated')) if ($m->comp('/tmpl/wizard:submitted',args => $args));
 </%method>

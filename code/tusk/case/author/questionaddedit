@@ -31,14 +31,14 @@ use TUSK::Case::Phase;
 	my $phase = TUSK::Case::Phase->new()->lookupKey($phase_id);
 	my $type_path = $m->comp('/tmpl/url:get_type_path');
 
-	my $type = 'Quiz';
+	my $type = __('Quiz');
 	my $question = TUSK::Quiz::Question->new();
 
 	if (scalar(@path) == 3 && !$m->request_args->{add}){
 		$question->lookupKey($path[-1]);
 		$is_edit = 1;
 	}elsif (scalar(@path) >= 3 ){
-		$type = 'Section'; 
+		$type = __('Section'); 
 
 		if ($m->request_args->{add}){
 			$id = $path[-1];
@@ -69,9 +69,9 @@ use TUSK::Case::Phase;
 <%method title>
 <%perl>
 if ($is_edit){
-	return "Edit Quiz Question";
+	return __("Edit Quiz Question");
 } 
-return 'Create Quiz Question';
+return __('Create Quiz Question');
 </%perl>
 </%method>
 
@@ -97,7 +97,7 @@ return 'Create Quiz Question';
                 cellpadding =>"0",
 		 } &>
 <tr><td style="vertical-align: top;background-color:#5F6F7D;padding:0px; width:1px; margin:0px"><img border="0" src="/graphics/case/summaryHeader_corner_right.gif" /></td>
-<td class="caseTab"><% $question->getFormattedType %> Question</td></tr>
+<td class="caseTab"><% $question->getFormattedType %> <%__("Question")%></td></tr>
 </table>
 </td></tr>
 <& /quiz/author/tmpl/editquestion:question_fields,question=>$question,
@@ -106,7 +106,7 @@ return 'Create Quiz Question';
 		quiz_id=>$quizLink->getChildQuizID(),
 		tool => 'Case' &>
 
-<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
 		onclick => '{return question_submit_all(this.form);}',
 		close_window_button => 1,
 		no_cancel_button => 1,
@@ -124,14 +124,14 @@ if (defined($phase_id)){
 	$quizLinks = [];
 }
 if (scalar (@{$quizLinks}) > 1 ){
-	$m->comp("/tmpl/error", msg=>"The phase has multiple quizzes");
+	$m->comp("/tmpl/error", msg=>__("The phase has multiple quizzes"));
 } elsif (!scalar(@{$quizLinks})){
 	$quiz = TUSK::Quiz::Quiz->new();
 	my $qtitle = $phase->getPhaseTitle();
 	# append the word ' Quiz' to the quiz title, unless our phase type is "Quiz"
-	$qtitle .= (ref($phase) !~ /Quiz$/)? ' Quiz' : '';
+	$qtitle .= (ref($phase) !~ /Quiz$/)? ' '.__('Quiz') : '';
 	$quiz->setTitle($qtitle);
-	$quiz->setQuizType('Quiz');
+	$quiz->setQuizType(__('Quiz'));
 	$quiz->save({'user'=>$user_id});	
 	$quizLink = TUSK::Case::LinkPhaseQuiz->new();
 	$quizLink->setParentPhaseID($phase_id);
@@ -142,14 +142,14 @@ if (scalar (@{$quizLinks}) > 1 ){
 }
 my $extra;
 my $question_type = $question->getType();# ||$m->comp("/tmpl/error", msg=>"Question ID is $question_id  but No question type passed");
-$id = $quizLink->getChildQuizID() if ($type eq 'Quiz');
+$id = $quizLink->getChildQuizID() if ($type eq __('Quiz'));
 my $questionLink;
 my $msg;
 if ($is_edit){
-	if ($type eq 'Quiz'){
+	if ($type eq __('Quiz')){
 		$questionLink = shift @{TUSK::Quiz::LinkQuizQuizItem->new()->lookupByRelation($id, $question->getPrimaryKeyID())};
 		unless(defined $questionLink){
-			$msg = 'You attempted to edit a question that has previously been deleted.';
+			$msg = __('You attempted to edit a question that has previously been deleted.');
 			$m->comp('/tmpl/error', msg => $msg); 
 		}
 
@@ -157,14 +157,14 @@ if ($is_edit){
 	}else{
 		$questionLink = shift @{TUSK::Quiz::LinkQuestionQuestion->new()->lookupByRelation($id, $question->getPrimaryKeyID())};
 	}
-	$msg = "Question successfully modified";
+	$msg = __("Question successfully modified");
 } else {
-	if ($type eq 'Quiz'){
+	if ($type eq __('Quiz')){
 		$questionLink = TUSK::Quiz::LinkQuizQuizItem->new();
 	}else{
 		$questionLink = TUSK::Quiz::LinkQuestionQuestion->new();
 	}
-	$msg = "Question successfully created";
+	$msg = __("Question successfully created");
 }
 if (defined($ARGS{'question_submit'})){
 	$m->comp('/quiz/author/tmpl/editquestion:process_args', question=>$question, 

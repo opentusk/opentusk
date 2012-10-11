@@ -19,7 +19,7 @@ my $user = $m->comp('SELF:user');
 </%shared>
 <%method title>
 <%perl>
-my $title = "Reuse Case";
+my $title = __("Reuse Case");
 return $title;
 </%perl>
 </%method>
@@ -51,7 +51,7 @@ my $formname = 'casereuse';
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
 <& /tmpl/element:vertical_spacing,size=>1 &>
-<& /tmpl/element:textbox,  params =>{ label => 'Case ID to Reuse',
+<& /tmpl/element:textbox,  params =>{ label => __('Case ID to Reuse'),
                 name => 'reuse_case_id',
                 value => undef,
                 size => 10,
@@ -61,7 +61,7 @@ my $formname = 'casereuse';
 				formname=>$formname &>
 </td>
 </tr>
-<& /tmpl/element:save_button, params=>{'label'=>'Reuse Case',
+<& /tmpl/element:save_button, params=>{'label'=>__('Reuse Case'),
 		'name'=>'reuse_submit'} &>
 <& /tmpl/element:vertical_spacing, size=>1 &>
 </table> 
@@ -74,19 +74,18 @@ if ($ARGS{'reuse_submit'}){
 	my $course_id = $course->course_id;
 	my $case = TUSK::Case::Case->lookupKey($ARGS{'reuse_case_id'});
 	if (!$case){
-		$errmsg = "The case ID ".$ARGS{'reuse_case_id'}." is not valid please try again ";
+		$errmsg = __x("The case ID {case_id} is not valid please try again ", case_id =>$ARGS{'reuse_case_id'});
 	} elsif (!$case->getShareCase){
-		$errmsg = "The case ID ".$ARGS{'reuse_case_id'}." is not being shared."
-		. " It is unavailable to use." ;
+		$errmsg = __x("The case ID {case_id} is not being shared. It is unavailable to use.", case_id => $ARGS{'reuse_case_id'});
 	} elsif (TUSK::Case::LinkCourseCase->exists(" parent_course_id = $course_id and child_case_id = ".$case->getPrimaryKeyID)){
-		$errmsg = "That case is already linked to this course";
+		$errmsg = __("That case is already linked to this course");
 	} else {
                 my $link = TUSK::Case::LinkCourseCase->new();
                 $link->setParentCourseID($course_id);
                 $link->setChildCaseID($case->getPrimaryKeyID());
                 $link->setSchoolID($course->get_school->getPrimaryKeyID());
                 $link->save({'user'=>$user});
-		$errmsg = "Case Reused.";
+		$errmsg = __("Case Reused.");
 		$msgtype = 'msg';
 	}
 
