@@ -45,13 +45,13 @@
 		cellspacing =>"0",
 		cellpadding =>"0" } &>
 	<tr>
-	<td class="labelgray">Label:</td>
+	<td class="labelgray"><%__("Label")%>:</td>
 	<td class="cell-left">
 	<input type="text" name="label" id="label__y" maxlength="100" size="60" class="textareawhite" value="<% $stylesheet->label() %>"/>
 	</td>
 	</tr>
 	<tr>
-	<td class="labelgray">Stylesheet Type:</td>
+	<td class="labelgray"><%__("Stylesheet Type")%>:</td>
 	<td class="cell-left"><select name="stylesheet_type_id">
 % 	foreach my $thistype (HSDB4::StyleSheetType->new(_school => $school)->lookup_all()) {
 	<option 
@@ -66,26 +66,26 @@
 	</select></td>
 	</tr>
 	<tr>
-	<td class="labelgray">Make Default:</td>
+	<td class="labelgray"><%__("Make Default")%>:</td>
 	<td class="cell-left"><select name="default">
 	<option value="no"
 %	 if ($type->default_stylesheet_id($school) ne $id) {
 	selected="true"
 %	 }
-	>No</option>
+	><%__("No")%></option>
 	<option value="yes"
 %	 if ($type->default_stylesheet_id($school) && $type->default_stylesheet_id($school) eq $id) {
 	selected="true"
 %	 }
-	>Yes</option>
+	><%__("Yes")%></option>
 	</select></td>
 	</tr>
 	<tr>
-	<td class="labelgray">Description:</td>
+	<td class="labelgray"><%__("Description")%>:</td>
 	<td class="cell-left"><textarea type="text" name="description" class="textareawhite" cols="80" rows="4"><% $stylesheet->description() %></textarea></td>
 	</tr>
 	<tr>
-	<td class="labelgray">Body:</td>
+	<td class="labelgray"><%__("Body")%>:</td>
 	<td class="cell-left"><textarea type="text" name="body" id="body__y" cols="80" class="textareawhite" rows="30"><% $stylesheet->body() %></textarea>
 	</td>
 	</tr>
@@ -93,13 +93,13 @@
 	<td></td>
 	<td class="cell-left">
 	<& /tmpl/element:submit_button, params=>{
-		label 			=> 'Submit',
+		label 			=> __('Submit'),
 		class 	=> 'formbutton',
 		name	=> 'Submit',
 		} 
 	&>
 	<& /tmpl/element:button, params => { 
-		label => 'Reset',
+		label => __('Reset'),
 		class 	=> 'formbutton',
 		reset => 1
 		}
@@ -110,7 +110,7 @@
 % }
 %# otherwise (stylesheet was not loaded -- invalid or no ID was passed) display error
 % else {
-	<p class="error">You've attempted to load a stylesheet that doesn't exist.</p>
+	<p class="error"><%__("You've attempted to load a stylesheet that doesn't exist.")%></p>
 % }
 
 <%init>
@@ -128,10 +128,10 @@
 			if (!$id) {
 				(my $rootURL = $ENV{SCRIPT_URL}) =~ s/\/*$//;
 				print $rootURL;
-				$m->comp("/tmpl/url:redirect",destination => $rootURL . "/" . $stylesheet->primary_key(), message => "Your new eval filter stylsheet has been created.", msg_type => "msg");
+				$m->comp("/tmpl/url:redirect",destination => $rootURL . "/" . $stylesheet->primary_key(), message => __("Your new eval filter stylsheet has been created."), msg_type => "msg");
 			}
 			else {
-				$m->comp("/tmpl/url:redirect", destination => $ENV{SCRIPT_URL}, message => "The eval filter stylsheet '" . $stylesheet->label() . "' has been updated.", msg_type => "msg");
+				$m->comp("/tmpl/url:redirect", destination => $ENV{SCRIPT_URL}, message => __x("The eval filter stylsheet '{name}' has been updated.", name => $stylesheet->label()), msg_type => "msg");
 			}
 		}
 		$type = HSDB4::StyleSheetType->new(_id => $stylesheet->stylesheet_type_id());
@@ -156,10 +156,10 @@
 
 <%method title>
 %	if ($mode eq "Add") {
-%		return $mode . " " . $school . " Eval Filter Stylesheet";
+%		return $mode . " " . $school . " ".__("Eval Filter Stylesheet");
 %	}
 %	else {
-%		return $mode . " " . $school . " Eval Filter Stylesheet (" . $id . ")";
+%		return $mode . " " . $school . " ".__("Eval Filter Stylesheet")." (" . $id . ")";
 %	}
 </%method>
 
