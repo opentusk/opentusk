@@ -44,19 +44,19 @@ my $case = TUSK::Case::Case->new()->lookupKey($case_id);
 
 <%perl>
 	if ($ARGS{'submit_check'}){
-		my $name = ($ARGS{'name'}) ? $ARGS{'name'} : "Anonymous";
-		my $email = ($ARGS{'email'}) ? $ARGS{'email'} : "Anonymous";
+		my $name = ($ARGS{'name'}) ? $ARGS{'name'} : __("Anonymous");
+		my $email = ($ARGS{'email'}) ? $ARGS{'email'} : __("Anonymous");
 
 		my $mail = TUSK::Application::Email->new({
 				to_addr   => $case->getFeedbackEmail(),
 				from_addr => $TUSK::Constants::SupportEmail,
-				subject   => "Case Feedback: " . $case->getCaseTitle(),
-				body      => "The following has been submitted as feedback to your case\n\nName: " . $name . "\nEmail: " . $email . "\n" . $ARGS{'feedback'},
+				subject   => __("Case Feedback").": " . $case->getCaseTitle(),
+				body      => __("The following has been submitted as feedback to your case")."\n\n".__("Name").": " . $name . "\n".__("Email").": " . $email . "\n" . $ARGS{'feedback'},
 				});
 		if ($mail->send()) {
-			$m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => 'Your feedback has been sent'});
+			$m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => __('Your feedback has been sent')});
 		}else{
-			$m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => 'Your feedback has been sent'});
+			$m->comp("/tmpl/prepend:traffic_light", make_table => 1, args => {'msg' => __('Your feedback has been sent')});
 		}
 	}
 </%perl>
@@ -70,25 +70,25 @@ my $case = TUSK::Case::Case->new()->lookupKey($case_id);
 		cellspacing =>"0",
 		cellpadding =>"0" } &>
 
-<& tmpl/element:header_bar, label=>"Send Feedback" &>
+<& tmpl/element:header_bar, label=>__("Send Feedback") &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Your Name',
+<& /tmpl/element:textbox, params =>{ label => __('Your Name'),
                 name => 'name',
                 size => 30,
-		trailing_text => '<i>(Optional)</i>',
+		trailing_text => '<i>('.__('Optional').')</i>',
                 length => 255 } &>
-<& /tmpl/element:textbox, params =>{ label => 'Your Email',
+<& /tmpl/element:textbox, params =>{ label => __('Your Email'),
                 name => 'email',
                 size => 30,
-		trailing_text => '<i>(Optional)</i>',
+		trailing_text => '<i>('.__('Optional').')</i>',
                 length => 255 } &>
-<& /tmpl/element:textarea, params=>{ label => 'Feedback',
+<& /tmpl/element:textarea, params=>{ label => __('Feedback'),
 		name=>"feedback",
 		cols=>"40",
 		rows=>"2",
   } &>
 	
-<& /tmpl/element:save_button,params=>{label=>'Send Feedback',
+<& /tmpl/element:save_button,params=>{label=>__('Send Feedback'),
 			no_cancel_button => 1,
 			close_window_button => 1,
 			name=>'case_submit'} &>
