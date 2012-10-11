@@ -21,9 +21,9 @@ my $id = $m->comp("/tmpl/url:get_first_path_id");
 
 <%method title>
 <%perl>
-my $title = "Create Patient Type";
+my $title = __("Create Patient Type");
 if (defined($id)){
-        $title = "Modify Patient Type";
+        $title = __("Modify Patient Type");
 }
 return $title;
 </%perl>
@@ -35,7 +35,7 @@ return $title;
 
 % if ($is_edit){
 <& /tmpl/element:cms_button_row, 
-	links => [{display_txt => 'Assign Tests',
+	links => [{display_txt => __('Assign Tests'),
 	           link_txt    => "/case/administrator/assigntests/$type_path/$id?phase_type=$selected_phase"} ]
 &>
 % }
@@ -52,7 +52,7 @@ return $title;
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Name',
+<& /tmpl/element:textbox, params =>{ label => __('Name'),
                 name => 'type_name',
                 value => $patient_type->getTypeName(),
                 size => 60,
@@ -61,7 +61,7 @@ return $title;
 
 % if (defined($id)) {
 
-<& /tmpl/element:section_header_row, label=>'Tests', skip_space=>1 &>
+<& /tmpl/element:section_header_row, label=>__('Tests'), skip_space=>1 &>
 
 <& /tmpl/element:sort_order_box , params =>{
         no_add_button => 1,
@@ -79,13 +79,13 @@ return $title;
             sort => {usage => 'No'},
             action => {usage => 'Yes', length=>100, functions => 'per row'},
             display => [
-                {label => 'Name',field => 'title', 
+                {label => __('Name'),field => 'title', 
                  align => 'left', length => 250},
-                {label => 'Value',field => 'default_value', 
+                {label => __('Value'),field => 'default_value', 
                  align => 'center', length => 150, type => 'textbox'},
-                {label => 'Content ID',field => 'default_content_id', 
+                {label => __('Content ID'),field => 'default_content_id', 
                  align => 'center', length => 75, type => 'textbox'},
-                {label => 'Source',field => 'source', 
+                {label => __('Source'),field => 'source', 
                  align => 'center', length => 75, type => 'textbox'},
                 ],
             validate => {
@@ -103,7 +103,7 @@ return $title;
 		one_column=>'1',
 		colspan=>'2',
 		td_class=>'no-button',
-		label=>'Save Changes',
+		label=>__('Save Changes'),
 		cancel_onclick=>"go_back('/case/administrator/patienttypeshow/$type_path')",
 		name=>'save_changes'} &>
 </form>
@@ -139,12 +139,12 @@ if (defined($id)){
 	$is_edit = 1;
 
 	my $phase_types = [
-	                   {label=>'Physical Exam', value=>'physical exam'},
-	                   {label=>'Diagnostic Studies', value=>'diagnostic studies'},
-	                   {label=>'History', value=>'history'}];
+	                   {label=>__('Physical Exam'), value=>'physical exam'},
+	                   {label=>__('Diagnostic Studies'), value=>'diagnostic studies'},
+	                   {label=>__('History'), value=>'history'}];
 
 	$drop_down = $m->scomp('/tmpl/element:dropdown', params=>
-	        {label 	=> 'Select Phase Type',
+	        {label 	=> __('Select Phase Type'),
 	         name		=> 'select_phase_type',
 	         onchange	=> "change_phase(this, '$reload_url');",
 	         multiple	=> 0,
@@ -189,7 +189,7 @@ if (defined($id)){
 				    source             => '',	       
 				    test_value_id     => $value->getPrimaryKeyID(), 
 				    _action => {usage => 'Yes', length=>100, functions => [
-				    {func=>'removemulti', label=>'Delete', extra_param=>[@$subtests + 1] } ]}
+				    {func=>'removemulti', label=>__('Delete'), extra_param=>[@$subtests + 1] } ]}
 				    };
 				foreach my $st (@$subtests){
 					my $value = $st->getJoinObject('subTestValue');
@@ -211,7 +211,7 @@ if (defined($id)){
 				    source             => $value->getSource(),	       
 				    test_value_id            => $value->getPrimaryKeyID(), 
 				    _action => {usage => 'Yes', length=>100, functions => [
-				    {func=>'remove', label=>'Delete'} ]}
+				    {func=>'remove', label=>__('Delete')} ]}
 	 			    };
 			}
 		} 
@@ -223,7 +223,7 @@ if (defined($id)){
 
 if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
 
-	my $msg = ($is_edit)? "Patient Type successfully modified" : "Patient Type successfully added";
+	my $msg = ($is_edit)? __("Patient Type successfully modified") : __("Patient Type successfully added");
 	my $errmsg;
 
 	$patient_type->setTypeName($ARGS{'type_name'});	
@@ -238,7 +238,7 @@ if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args =>
 	if ($patient_type->getTypeName()){
 		$patient_type->save({user=>$user_id})
 	} else {
-		$errmsg = 'No name provided for patient type. Therefore, nothing was created or saved.';
+		$errmsg = __('No name provided for patient type. Therefore, nothing was created or saved.');
 		$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?phase_type=$selected_phase&errmsg=$errmsg" );
 	}
 
