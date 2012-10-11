@@ -52,9 +52,9 @@ else {
 
 <& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Login'} &>
 <form action="https://<% $TUSK::Constants::Domain %>/login" method="post" class="loginForm">
-<strong>Username:</strong><br/>
+<strong><%__('Username:')%></strong><br/>
 <input class="textareawhite" name="user" type="text"><br/>
-<strong>Password:</strong><br/>
+<strong><%__('Password:')%></strong><br/>
 <input class="textareawhite" name="password" type="password">
 <input class="formbutton" name="Login" type="submit" value="Login">
 </form>
@@ -65,7 +65,7 @@ else {
 <%method printAnnouncements>
 %	my ($announcement_ref, $user_groups) = $m->session->{'user'}->get_annoucments_with_user_groups();
 %	if(scalar(@{$announcement_ref})) {
-<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Announcements'} &>
+<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>__('Announcements')} &>
 <ul class="gArrow">
 %		my $iter = 0;
 %		my $stripObj = TUSK::Application::HTML::Strip->new();
@@ -78,9 +78,9 @@ else {
 %				$grouping_lnk = '/hsdb45/course/' . $grouping->school() . '/' .  $grouping->course_id;
 
 %				my $course_title = $grouping->out_abbrev();
-%				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">$course_title Home</a>";
-%				$ann .= " | <a href=\"$grouping_lnk/ann\" onclick=\"clickFullText(event); return true;\">Course Announcements</a>";
-%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">Close [X]</a></div>';
+%				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">" . __x('{course_title} Home', course_title => $course_title) . "</a>";
+%				$ann .= " | <a href=\"$grouping_lnk/ann\" onclick=\"clickFullText(event); return true;\">" . __('Course Announcements') . "</a>";
+%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">' . __('Close') . '[X]</a></div>';
 %			} elsif($announcement->{type} eq 'user_group') {
 %				$grouping = $announcement->{school};
 %				$grouping_lnk = "/view/usergroup/$grouping/" . $announcement->{id};
@@ -88,7 +88,7 @@ else {
 %				my $ug = HSDB45::UserGroup->new(_school => $grouping)->lookup_key($announcement->{id});
 %				my $group_title = $ug->label();
 %				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">$group_title</a>";
-%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">Close [X]</a></div>';
+%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">' . __('Close') . '[X]</a></div>';
 %			}
   <li>
     <ul>
@@ -106,7 +106,7 @@ else {
 <%perl>
 my @evals = $m->session->{user}->current_evals;
 if (scalar @evals){
-	$m->comp('/tmpl/element:header_bar', params=>{'color' => 'gray', 'hdr_txt'=>'Evaluations'});
+	$m->comp('/tmpl/element:header_bar', params=>{'color' => 'gray', 'hdr_txt'=>__('Evaluations')});
 	$m->print('<ul class="gArrow">');
 	foreach my $eval (@evals) {
 		my $ddate = ($eval->prelim_due_date) ? $eval->prelim_due_date->out_string_date_short_short : $eval->due_date->out_string_date_short_short;
@@ -116,7 +116,7 @@ if (scalar @evals){
 </%perl>
 </ul>
 <br/>
-<a href="/eval/history"><strong>View History</strong></a>
+<a href="/eval/history"><strong><%__('View History')%></strong></a>
 % }
 
 </%method>
@@ -126,9 +126,9 @@ if (scalar @evals){
 %	my $patientlogs = $m->session->{user}->get_patient_logs();
 %	my $directorpatientlogs = $m->session->{user}->get_director_forms('PatientLog');
 %	if(scalar(@$patientlogs) || (defined($directorpatientlogs) && scalar(@$directorpatientlogs))) {
-		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Patient Logs'} &>
+		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>__('Patient Logs')} &>
 %		if(scalar(@{$patientlogs})) {
-<a href="/protected/patientlog/student/home">View Patient Logs</a>
+<a href="/protected/patientlog/student/home"><%__('View Patient Logs')%></a>
 %		}
 %		if(defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
 <ul class="gArrow">
@@ -145,8 +145,8 @@ if (scalar @evals){
 <%method printSimulatedPatients>
 %	my $instructor_sps = $m->session->{user}->get_instructor_simulated_patients();
 %	if (scalar @{$instructor_sps}) {
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Simulated Patients'} &>
-<a href="/protected/sp/actor/home">View Simulated Patients</a>
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>__('Simulated Patients')} &>
+<a href="/protected/sp/actor/home"><%__('View Simulated Patients')%></a>
 %	}
 </%method>
 
@@ -154,19 +154,19 @@ if (scalar @evals){
 <%method printGrades>
 % my $grades = $m->session->{user}->has_grades();
 % if($grades) {
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Grades'} &>
-<a href="/protected/gradebook/showgrades">View Grades</a>
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>__('Grades')} &>
+<a href="/protected/gradebook/showgrades"><%__('View Grades')%></a>
 %	}
 </%method>
 
 <%method printQuizzes>
 %	my $quizzes = $m->session->{user}->current_quizzes;
 %	if(defined($quizzes) && scalar(@$quizzes)) {
-		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Quizzes'} &>
+		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>__('Quizzes')} &>
 <ul class="gArrow">
 %		foreach my $quiz (@$quizzes) {
 %			my $title = $quiz->{title};
-%			if($quiz->{preview}) {$title .= "&nbsp;(Preview)";}
+%			if($quiz->{preview}) {$title .= "&nbsp;" . __("(Preview)");}
 %			my $link = "/protected/quiz/";
 %			$link .= ($quiz->{preview})? 'author/quizpreview' : 'quizstart';
 %			$link .= "/course/" .  $quiz->{school} . "/" . $quiz->{course_id} . "/" .  $quiz->{quiz_id};
@@ -184,7 +184,7 @@ if (scalar @evals){
 <%method printCases>
 %	my $cases = TUSK::Case::Case->getAvailableUserCases($m->session->{user});
 %	if(defined($cases) && scalar(@$cases)) {
-		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Cases'} &>
+		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>__('Cases')} &>
 <ul class="gArrow">
 %		foreach my $case (@$cases) {
 %			my $link = "/protected/case/casestart/" . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID();
@@ -196,14 +196,14 @@ if (scalar @evals){
 
 
 <%method printPersonalFolders>
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Personal Folders'} &>
-<a href="/management/content/personalcontent">View Personal Folders</a>
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>__('Personal Folders')} &>
+<a href="/management/content/personalcontent"><%__('View Personal Folders')%></a>
 </%method>
 
 
 <%method printFlashCards>
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Flash Cards'} &>
-<a href="/management/flashcard/flashcard">View Flash Cards</a>
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>__('Flash Cards')} &>
+<a href="/management/flashcard/flashcard"><%__('View Flash Cards')%></a>
 </%method>
 
 
@@ -213,12 +213,12 @@ if (scalar @evals){
 % 	my $director_assessments = $m->session->{user}->get_director_forms('Assessment');
 
 % 	if (scalar @$instructor_assessments || scalar @$assessments || scalar @$director_assessments) {
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Assessments'} &>
+<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>__('Assessments')} &>
 % 		if (scalar @$assessments) {
-<div><a href="/protected/assessment/student/home">View Assessments</a></div>
+<div><a href="/protected/assessment/student/home"><%__('View Assessments')%></a></div>
 %		}
 % 		if (scalar @$instructor_assessments) {
-<div><a href="/protected/assessment/assessor/home">View Assessments</a></div>
+<div><a href="/protected/assessment/assessor/home"><%__('View Assessments')%></a></div>
 % 		}
 % 		if (scalar @$director_assessments) {
 <ul class="gArrow">

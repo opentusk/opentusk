@@ -35,8 +35,8 @@
 </%args>
 
 <%perl>
-	my $field_label = ($args->{field_label}) ? $args->{field_label} : 'Fields';
-	my $create_field_label = ($args->{create_field_label}) ? $args->{create_field_label} : 'Field';
+	my $field_label = ($args->{field_label}) ? $args->{field_label} : __('Fields');
+	my $create_field_label = ($args->{create_field_label}) ? $args->{create_field_label} : __('Field');
 	my $basedir = $m->comp("/formbuilder/util:get_base_dir");
 	unless($form) {
 		my $form_id = $m->comp("/tmpl/url:get_last_path_id");
@@ -60,7 +60,7 @@
 			}
 	
 			if (defined($args->{'form_submit'}) or $m->comp("/tmpl/wizard:submitted", args => $args)){
-				$args->{'form_name'} = 'No Name' unless ($args->{'form_name'});
+				$args->{'form_name'} = __('No Name') unless ($args->{'form_name'});
 				$form->setFormName($args->{'form_name'});
 				$form->setFormDescription($args->{'form_description'});
 				$form->setPublishFlag($args->{'publish_flag'});
@@ -72,7 +72,7 @@
 						      		'class' => 'TUSK::FormBuilder::LinkFormField', 
 	                                              		'primary_key_field' => 'link_form_field_id');
 	
-				$m->comp("/tmpl/wizard:do_next", args => $args, default_transition => $m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msg' => 'Form successfully modified'));
+				$m->comp("/tmpl/wizard:do_next", args => $args, default_transition => $m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msg' => __('Form successfully modified')));
 			}
 
 			$formName = $form->getFormName();
@@ -95,45 +95,45 @@
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Title',
+<& /tmpl/element:textbox, params =>{ label => __('Title'),
                 name => 'form_name',
                 value => $formName,
                 size => 60,
                 length => 100 } &>
 
-<& /tmpl/element:textarea, params=>{ label => 'Description',
+<& /tmpl/element:textarea, params=>{ label => __('Description'),
                 name=>'form_description',
                 cols=>"60",
                 rows=>"4",
                 value=>$formDescription  } &>
 
 % if ( $params->{'require_approval'} ) {
-<& /tmpl/element:dropdown, params=>{ label => 'Require proctor approval?',
+<& /tmpl/element:dropdown, params=>{ label => __('Require proctor approval?'),
                 name=> "require_approval",
                 onchange=> "",
 				selected=> $formReqApproval,
-                options => [{ label => 'No', value => '0'}, { label => 'Yes', value => '1' } ] } &>
+                options => [{ label => __('No'), value => '0'}, { label => __('Yes'), value => '1' } ] } &>
 % }
 
-<& /tmpl/element:dropdown, params=>{ label => 'Posted?',
+<& /tmpl/element:dropdown, params=>{ label => __('Posted?'),
                 name=> "publish_flag",
                 onchange=> "",
 				selected=> $formPublished,
-                options => [{ label => 'No', value => '0'}, { label => 'Yes', value => '1' } ] } &>
+                options => [{ label => __('No'), value => '0'}, { label => __('Yes'), value => '1' } ] } &>
 
 % if ($display_metadata) {
 <& $display_metadata, form => $form, args => $args &>
 % }
 
 % if($form eq 'new') {
-<& /tmpl/element:save_button, params=>{label=>'Save And Continue', name=>'save_new_form', 'no_cancel_button' => 1} &>
+<& /tmpl/element:save_button, params=>{label=>__('Save And Continue'), name=>'save_new_form', 'no_cancel_button' => 1} &>
 % } else {
 %	my $button_text = '';
 %	$m->comp({store=> \$button_text},'/tmpl/element:button', 
 %			params => { 
 %				onclick => "window.location='" . $m->comp("/tmpl/url:construct_url", 'base_url' => $basedir . "/field") . "'",
 %				name => 'addfield',
-%				label => 'Add ' . $create_field_label });
+%				label => __('Add ' ). $create_field_label });
 
 
 <& /tmpl/element:sort_order_box , params => {
@@ -144,7 +144,7 @@
 	layer_info => {
 		context_path => $m->comp("/tmpl/url:get_full_path"),
 		base_path => $basedir,
-		empty_message => 'No questions for this form',
+		empty_message => __('No questions for this form'),
 		layer => 'fieldsdiv',
 		fields => ['field_id', 'link_form_field_id', 'field_name', 'field_type'],
 		name => 'field',
@@ -153,13 +153,13 @@
 			usage => 'Yes', 
 			length => 100, 
 			functions => [
-				{func=>'field_modify', label=>'Modify'},
-				{func=>'field_delete', label=>'Delete'} ]
+				{func=>'field_modify', label=>__('Modify')},
+				{func=>'field_delete', label=>__('Delete')} ]
 		},
 		display => [
-			{label=>'Name',field=>'field_name', align=>'left', length=>350},
-			{label=>'Type',field=>'field_type', align=>'left', length=>130},
-			{label=>'LinkFormField',field=>'link_form_field_id', length=> 0, type=> 'hidden'},
+			{label=>__('Name'),field=>'field_name', align=>'left', length=>350},
+			{label=>__('Type'),field=>'field_type', align=>'left', length=>130},
+			{label=>__('LinkFormField'),field=>'link_form_field_id', length=> 0, type=> 'hidden'},
 		],
 		validate => {
 			usage => 'No',
@@ -169,7 +169,7 @@
 	}
 } &>
 
-<& /tmpl/element:save_button, params=>{label=>'Save Changes', name=>'form_submit', 'no_cancel_button' => 1} &>
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'), name=>'form_submit', 'no_cancel_button' => 1} &>
 %}
 
 </table>
