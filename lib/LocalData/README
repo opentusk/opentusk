@@ -1,0 +1,48 @@
+
+-- INSTALLATION --
+
+1)	sudo yum -y install python-polib
+
+
+
+-- WORKFLOW --
+
+1) Switch into master branch
+2) Create new branch for feature that is being translated (ex: flashcards)
+3) Add translation marks in relevant files
+4) After that is finished, switch into i18n-integration branch, then merge the branch you just internationalized
+5) Cd into tusk_i18n folder, Run the following  commands:
+
+tuskgettext featurename_catalog.po
+pseudolocalize  featurename_catalog.po 
+msgfmt pseudolocalized_ featurename_catalog.po 
+mv messages.mo tusk.mo
+ mv tusk.mo fr/LC_MESSAGES/
+sudo /etc/init.d/httpd stop
+sudo /etc/init.d/httpd start
+
+6) Go onto local TUSK. Any words that are to be translated are marked as such: __word__. Look for any words without this marking, then make note of them. 
+7) If unmarked words were found, repeat steps 3 to 6 until are relevant words are marked.
+8)Once all relevant words are marked, switch back into the feature branch, then run
+
+tuskgettext featurename_catalog.po
+
+9)Scp featurename_catalog.po onto local machine.
+10) Email catalog to translators
+11)Recieve translation back, merge them into main catalog using python script.
+
+If you want to test the translations from the translation team, then run the following.
+
+Switch into i18n-integration
+Scp all translated catalogs onto server
+Rename previous master catalog
+tuskgettext master_catalog.po
+combine_catalogs previousmaster_catalog.po master_catalog.po
+combine_catalogs (any new translations) master_catalog.po
+msgfmt master_catalog.po
+mv messages.mo tusk.mo
+ mv tusk.mo fr/LC_MESSAGES/
+sudo /etc/init.d/httpd stop
+sudo /etc/init.d/httpd start
+
+

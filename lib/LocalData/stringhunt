@@ -1,0 +1,359 @@
+#!/usr/bin/perl 
+
+use warnings;
+use strict;
+use File::Find; 
+use Getopt::Std;
+use Term::ReadKey;
+use File::Path;
+use File::Copy;
+use Scalar::Util qw(openhandle);
+use Data::Dumper;
+
+$SIG{INT} = \&cleanup;
+BEGIN{ $| = 1};
+
+my %args;
+my $troublefile = "stringhunt.trouble"; 
+my $tempfile 	= ".stringhunt.temp";	
+my $resumefile  = ".stringhunt.resume";
+my $needsHandEdit = 0;
+my ($troublefile_handle, $tempfile_handle, $current_file, $current_line);
+
+ReadMode('cbreak');
+main();
+
+
+sub main {
+	setup();
+	processArgs();	
+	my $files_list = findSourceFiles();
+	findQuoteTokens($files_list);
+	cleanup();
+	return 1;
+}
+
+
+
+sub findSourceFiles() {
+	#If we've been given a file to work on directly:
+	return $ARGV[0] if (!$args{f} && !$args{d} && scalar(@ARGV));
+	
+	#If we've been given a file containing a list of files to process:
+	if ($args{f}) {
+		return processListFile($args{f});
+	}
+
+	#If we're processing a directory of source files:
+	if ($args{d}) {
+		our $files = ();
+		sub wanted { 
+			unless ($_ eq '.' || $_ eq '..' || -d $File::Find::name || $File::Find::name =~ /\/CVS/ ){
+				push @$files, $File::Find::name; 
+			} 
+		}
+
+		find({wanted =>\&wanted, no_chdir=>1}, $args{d});
+		return $files;
+	}
+}
+
+
+
+sub processListFile() {
+	my $listfile = shift;
+	my ($listfile_handle, $files_list);
+
+	open($listfile_handle, '<', $listfile) or quit("Couldn't open list file $listfile: $!\n");
+	map	{ chomp($_); push @$files_list, $_ } <$listfile_handle>;
+	map { quit("Invalid file: $_\n") unless (-e $_ || -e "./$_")  } @$files_list ;
+
+	close($listfile_handle);
+	return $files_list;
+}
+
+
+
+sub findQuoteTokens {
+	my $files_list = shift;
+	my $skipped_hash = {}; #Maintain a hash of all tokens skipped in the current file; don't repeat them.
+	my ($file_to_resume, $line_to_resume);
+	open($troublefile_handle, '>>', $troublefile) or quit("Couldn't open troublefile $troublefile: $!\n");
+
+	if ($args{r}) { 
+		($file_to_resume, $line_to_resume) = resume();
+	}
+
+	$files_list = [$files_list] unless ref $files_list eq "ARRAY";
+	foreach my $file (@$files_list) {
+		##Fast forward in the list of files to the file we want to resume.
+		##XXX This is based on the notion that the same file list will be generated every run, which
+		##	  may not always be true.
+		next if ($file_to_resume and $file ne $file_to_resume);
+
+		$current_file = $file;
+		print "\n\n===========================================\n";
+		print "Modifying file $file\n";
+		open(FILE, '<', $file) or quit("Couldn't open file $file: $!\n");
+		open($tempfile_handle, '>', $tempfile) or quit("Couldn't open tempfile $tempfile: $!\n");
+
+		$current_line = 1;
+		foreach my $line (<FILE>) {
+			## Fast forward to the line we left off at, if we're resuming.
+			if ($line_to_resume and $current_line != $line_to_resume) {
+				$current_line++;
+				next;
+			}
+			$line_to_resume = 0; ##Stop fast fowarding once we've caught up.
+			##XXX These regexes need to be improved...
+			if ($line =~ m/('|")(?:\\?.)*?\1/){
+				$line =~ s/(('|")(?:\\?.)*?$1)/surround($1, $file, $line, $current_line, $skipped_hash)/ge;
+			}
+			print $tempfile_handle $line;
+			if ($needsHandEdit != 0) {
+				doHandEdit($current_line, $tempfile);
+				$needsHandEdit = 0;
+			}
+			$current_line++;
+		}
+
+
+		close(FILE)	or quit("Couldn't close file $file: $!\n");		
+		close($tempfile_handle) or quit("Couldn't close tempfile $tempfile: $!\n");		
+		move($tempfile, $file) or quit("\nCouldn't rename $tempfile to $file: $!\n");
+
+		$skipped_hash = {};   #Reset hash for next file.
+		$file_to_resume = '' if $file_to_resume; #Done resuming.
+	}
+}
+
+
+
+sub surround {
+	my ($token, $file, $line, $line_num, $skipped_hash) = @_;
+	my $marking_method;     #Marking method (default maketext mark, or a plural pmaketext mark).
+
+	warn "Warning: Blank token\n", return $token if !$token;
+
+	unless (heuristics($token, $line, $skipped_hash)){
+		print "\n\nContext (line $line_num):\n";
+		print trim($line);
+		my $marking_method = confirm("Mark token $token? (m/p/s/i/t): ");
+		if ($marking_method) {
+			$token = &$marking_method($token, $line);
+		}
+		else { 
+			##This token was skipped; add it to the skipped hash and never see it again (for the rest of this file)!
+			$skipped_hash->{$token} = 1;
+		}
+	}	
+	return $token;	
+}
+
+
+
+sub heuristics {
+	my ($token, $line, $skipped_hash) = @_;
+
+	## Skip this token if it has already been skipped in this file.	
+	return 1 if ($skipped_hash->{$token});
+	
+	## Heuristics by token
+	return 1 if ($token =~ m/^('|")+$/);   # An empty string (probably an initialization).
+	return 1 if ($token =~ m/(\/\w+)+/);   # Some kind of URL, probably a Mason component call.
+	return 1 if ($token =~ m/SELF:/);      # A Mason call referring to the current file
+	return 1 if ($token =~ m/(POST|SET)/); # An HTTP method
+	return 1 if ($token =~ m/(\w*::)+/);   # Probably an isa(); some kind of namespace.
+	return 1 if ($token =~ m/^('|")(-|\/|\,|\.)('|")$/);   #Slash, dash, comma or dot in concatenation.	
+
+	## Heuristics by token's context in line (higher potential of false positives, XXX).
+	return 1 if ($line =~ m/field_value\(\Q$token\E\)/);# Ignore if it's a call to field_value to get a row value. 
+	return 1 if ($line =~ m/\Q$token\E\s*\=\>/);        # Ignore this token if it's a hash key in a hash declaration.
+	return 1 if ($line =~ m/{\s*\Q$token\E\s*}/);       # Same as above, only as a hash lookup.
+	return 1 if ($line =~ m/((^\#)|(\#.*\Q$token\E))/); # Ignore token if it was found in a comment.
+	return 1 if ($line =~ m/maketext\(\Q$token\E\)/);	# Ignore token if it's already wrapped in a maketext call
+		# XXX The below *COULD* indicate needed refactor, if some
+		#     string equality checking was being performed based on
+		#	  some kinda user input...
+	return 1 if ($line =~ m/(eq|ne)\s*\Q$token\E/);			# Ignore if used for string equality checking
+
+	#Heuristics TODO:
+	#	- HTML tags (any labels put in literal HTML tags probably indicate need for a refactor..)
+	#		- Could do this based on attribute.
+	
+
+	return; #All heuristics passed.
+}
+
+
+
+sub confirm {
+	my $msg = shift;
+	my $resp;	
+
+	print $msg;
+	$resp = ReadKey(0);
+
+	while(1) {
+		print $resp;
+
+		return if $resp eq 'i'; 	#User wanted to ignore this string.
+		if ($resp eq 'm' or $resp eq 'p') {
+			return ($resp eq 'm') ? \&singleMark : \&pluralMark;
+		}
+		if ($resp eq 's') {
+			return \&subMark;
+		}
+		elsif ($resp eq 't') {
+			return \&troubleLine;
+		}
+		else {
+			print "\nPlease enter (m)ark, (p)lural, (t)rouble or (i)gnore: ";
+			$resp = ReadKey(0);
+		}
+	}
+}
+
+
+
+sub troubleLine {
+	my ($token, $line) = @_;
+	print $troublefile_handle "Trouble line in file $current_file, line $current_line:\n$line\n\n";
+	return $token;
+}
+
+
+
+sub singleMark {
+	my $token = shift;
+	return "__($token)";  
+}
+
+
+
+###XXX TODO Refactor
+sub pluralMark {
+	$needsHandEdit = 1;
+	return shift;
+	
+}
+sub doHandEdit{
+	my $lineToEdit = shift;
+	my $fileToEdit = shift;
+	system("gedit $fileToEdit");
+}
+
+
+sub subMark {
+	my $token = shift;
+	my @variables;
+	my $counter = 1;
+
+	my $replaceVariables = sub { 
+		my $variableName = shift;
+		push @variables, substr($variableName, 1) . " => " . $variableName; 
+		return "{" . substr($variableName, 1) . "}";	
+	};
+
+	$token =~ s/(\$\w+)/$replaceVariables->($1)/ge; #There might be a problem .____O
+	
+	return "__x($token, " . join(", ", @variables) . ")";
+}
+
+
+#sub pluralsubMark {
+	#my $token = shift;
+	#my @variables;
+	#my $counter = 1;
+	#my $newtoken = "";
+	#my $replaceVariables = sub { 
+		#push @variables, shift; 
+		#return "[_$counter]";	
+	#};
+	#while (w/(".*?")/ge){
+		#$newtoken = $newtoken . $1;
+		#push @variables, $1;
+	#}
+	#while (w/(\$\w+)/ge){
+		#push @variables, $1;
+	#}
+	
+	#return "__nx($token, " . join(', ', @variables) . ")";
+#}
+
+
+
+
+sub processArgs {
+	usage() unless getopts("f:d:r", \%args);
+	usage() unless (scalar(@ARGV) || $args{f} || $args{d});
+	print "Error: -f and -d are mutually exclusive\n", usage() if ($args{f} and $args{d});
+}
+
+
+
+sub cleanup {
+	quit("\n\n\nDone hunting.\n", 1);
+}
+
+
+
+sub quit {
+	my ($message, $do_cleanup) = @_;
+	if ($do_cleanup) {
+		my $resumefile_handle;
+		open($resumefile_handle, '>', $resumefile) or quit("Couldn't open resumefile $resumefile: $!\n");
+		print $resumefile_handle "$current_file $current_line";
+		close($resumefile_handle)  or quit("Couldn't close resumefile $resumefile: $!\n");	
+	
+		#The tempfile is an incompletely processed file; close it and make sure to dump it.
+		#Keep our troublefile intact, since it's not really session dependent.
+		if (openhandle $tempfile_handle) {
+			close($tempfile_handle) or quit("Couldn't close tempfile $tempfile: $!\n");	
+		}
+		close($troublefile_handle) or quit("Couldn't close troublefile $troublefile: $!\n");	
+	
+		print "\n\nFinished Cleanup. Exiting...\n";
+	}
+	ReadMode('normal');
+	die $message;
+}
+
+
+
+sub resume {
+	my $resumefile_handle;
+	my $result = open($resumefile_handle, '<', $resumefile);
+	unless ($result) {
+		print "\nNO RESUME FILE FOUND.\nStarting from scratch.";
+		return;
+	}
+
+	my $resume_line = <$resumefile_handle>;
+	my ($file_to_resume, $line_to_resume) = split(/ /, $resume_line);
+	close($resumefile_handle)  or quit("Couldn't close resumefile $resumefile: $!\n");	
+
+	print "\nRESUMING from $resumefile...";
+	return ($file_to_resume, $line_to_resume);
+}
+
+
+
+sub trim {
+	my $string = shift;
+	$string =~ s/^\s+//;
+	return $string; 
+}
+
+
+
+sub usage {
+	ReadMode('normal');
+	quit("Usage: \nstringhunt [-r] [file_to_hunt] [-f list_file] [-d directory_to_hunt] \n\n");
+}
+
+
+
+sub setup {
+	return 1;
+}
