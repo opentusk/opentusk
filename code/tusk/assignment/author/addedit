@@ -40,7 +40,7 @@
 <%perl>
 	if (defined($assignment_id)){
 		$is_edit = 1;
-		$m->comp("/tmpl/url:redirect", message => "Invalid Assignment.") unless ($assignment= TUSK::Assignment::Assignment->new()->lookupKey($assignment_id));
+		$m->comp("/tmpl/url:redirect", message => __("Invalid Assignment.")) unless ($assignment= TUSK::Assignment::Assignment->new()->lookupKey($assignment_id));
 		$author = TUSK::Application::Assignment::Author->new({user_id => $author_user_id, assignment => $assignment, course => $course});
 		$grade_event = TUSK::GradeBook::GradeEvent->new()->lookupKey($assignment->getGradeEventID());
 		$time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($assignment->getTimePeriodID());
@@ -53,7 +53,7 @@
 	}
 
 	unless ($time_period_id = $time_period->primary_key()) {
-		$m->comp("/tmpl/url:redirect", message => "Invalid time period. Please logout and login again");
+		$m->comp("/tmpl/url:redirect", message => __("Invalid time period. Please logout and login again"));
 	}
 
 	unless ($args->{msg}) {
@@ -61,11 +61,11 @@
 			if ($already_submitted) {
 				$m->comp('SELF:set_msg', 
 		 			type 	=> 'err', 
-					msg	=> 'This assignment cannot be modified. Some students have already submitted it.' );
+					msg	=> __('This assignment cannot be modified. Some students have already submitted it.') );
 			} elsif ($assignment->isAlreadyWorkedOnByStudents()) {
 				$m->comp('SELF:set_msg', 
 		 			type 	=> 'hintmsg', 
-					msg	=> 'Do you want to modify the assignment? Some students have already worked on it.' );
+					msg	=> __('Do you want to modify the assignment? Some students have already worked on it.') );
 			}
 		}
 	}
@@ -110,9 +110,9 @@
 
 			if ($assignment->save({'user' => $author_user_id})) {
 				if ($is_edit) {
-			 		$msgtext = 'Your changes have been saved.';
+			 		$msgtext = __('Your changes have been saved.');
 				} else {
-					$msgtext = 'An assignment has been successfully created.';
+					$msgtext = __('An assignment has been successfully created.');
 					$assignment_id = $assignment->getPrimaryKeyID();
 					my $user_role = TUSK::Permission::UserRole->new();
 					$user_role->setUserID($author_user_id);
@@ -122,10 +122,10 @@
 
 				}
 			} else {
-				$msgtext = 'Failed to add/edit assignment table. '; 
+				$msgtext = __('Failed to add/edit assignment table. '); 
 			}
 		} else {
-			$msgtext = 'Failed to add/edit grade_event table. '; 
+			$msgtext = __('Failed to add/edit grade_event table. '); 
 		}
 
 		if (defined $params{group_id_list}) {
@@ -179,13 +179,13 @@
 } &>
 
 <& /tmpl/element:field_display, params =>{ 
-	label 	=> 'Time Period:',
+	label 	=> __('Time Period:'),
 	value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')',
 } &>
 
 
 <& /tmpl/element:textbox, params => { 
-    label 	=> 'Title:',
+    label 	=> __('Title:'),
     name 	=> 'title',
     value 	=> $assignment->getTitle(),
     size 	=> 70,
@@ -193,7 +193,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => { 
-    label 	=> 'Weight:',
+    label 	=> __('Weight:'),
     name 	=> 'weight',
     value 	=> $assignment->getWeight(),
     size 	=> 4,
@@ -201,7 +201,7 @@
 } &>
 
 <& /tmpl/element:textarea, params => { 
-    label 	=> 'Instructions:',
+    label 	=> __('Instructions:'),
     name 	=> 'instructions',
     value 	=> $assignment->getInstruction(),
     cols	=> "70",
@@ -209,7 +209,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label 		=> 'Available Date:',
+	label 		=> __('Available Date:'),
 	name 		=> 'available_date',
 	value 		=> $assignment->getFormattedAvailableDate(),
 	size 		=> 20,
@@ -221,7 +221,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label 		=> 'Due Date:',
+	label 		=> __('Due Date:'),
 	name 		=> 'due_date',
 	value 		=> $assignment->getFormattedDueDate(),
 	size 		=> 20,
@@ -245,17 +245,17 @@
 	$group_trailing_text = qq(<br/>
 <table border="0" id="group_list" style="display:$group_list_style;border-color:gray;">
 <tr><td>
-<span style="color:gray;font-size:85%;">+ Select assignment groups:</span> &nbsp;
-<a style="font-size:85%" href='' onclick="javascript:window.open('/tusk/group/author/checkdup/course/$school/$course_id/$time_period_id',null,'height=400,width=350,scrollbars=1,resizable=1,left=400,top=250'); return false;">check group members</a><br/>
+<span style="color:gray;font-size:85%;">+ <%__("Select assignment groups:")%></span> &nbsp;
+<a style="font-size:85%" href='' onclick="javascript:window.open('/tusk/group/author/checkdup/course/$school/$course_id/$time_period_id',null,'height=400,width=350,scrollbars=1,resizable=1,left=400,top=250'); return false;"><%__("check group members")%></a><br/>
 $group_checkbox
-<span style="color:gray;font-size:85%;">+ Each group has its own uploaded files:</span> &nbsp;\n ) . 
+<span style="color:gray;font-size:85%;">+ <%__("Each group has its own uploaded files:")%></span> &nbsp;\n ) . 
 $m->scomp('/tmpl/element:input_radio_buttons', params => {
         name => 'group_file_flag',
         buttons => [
-		{ value => "1", text => "Yes", 
+		{ value => "1", text => __("Yes"), 
  		  checked => ($group_file_flag == 1) ? 1 : 0,
 		  onclick => "assignGroup()"},
-                { value => "0", text => "No", 
+                { value => "0", text => __("No"), 
  		  checked => ($group_file_flag == 0) ? 1 : 0,
 		  onclick => "removeGroup()"} ],
 	nobreak => 1, }) . 
@@ -267,13 +267,13 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 
 
 <& /tmpl/element:radio_buttons, params => { 
-        label => 'Group Assignment:',
+        label => __('Group Assignment:'),
         name => 'group_flag',
         buttons => [
-		{ value => "1", text => "Yes", 
+		{ value => "1", text => __("Yes"), 
  		  checked => ($group_flag == 1) ? 1 : 0,
 		  onclick => "verifyGroup()"},
-                { value => "0", text => "No", 
+                { value => "0", text => __("No"), 
 		  checked => ($group_flag == 0) ? 1 : 0,
 		  onclick => "disableGroup()"} 
 		   ],
@@ -282,13 +282,13 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 
 
 <& /tmpl/element:radio_buttons, params =>{ 
-        label => 'Allow Resubmission:',
+        label => __('Allow Resubmission:'),
         name => 'resubmit_flag',
         buttons => [
-		{ value => "1", text => "Yes", 
+		{ value => "1", text => __("Yes"), 
  		  checked => ($resubmit_flag == 1) ? 1 : 0,
 		},
-                { value => "0", text => "No", 
+                { value => "0", text => __("No"), 
  		  checked => ($resubmit_flag == 0) ? 1 : 0,
 		 } ],
 	nobreak => 1,
@@ -298,13 +298,13 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 % unless ($already_submitted) {
 %	my $style = ($group_file_flag) ? 'inline' : 'none';
 	<& /tmpl/element:field_display, params => {
-		label => 'Files to upload:',
-		value => "<div id=\"content\"><input type=\"file\" name=\"files\" size=\"40\" /><select id=\"sub_group_0\" name=\"group_id\" style=\"display:$style;\">$first_group_selection</select><br/></div><span id=\"more\" style=\"color:#0000FF;cursor:pointer;text-decoration:underline;font-size:85%;\" onclick=\"addFile();\">Upload another file</span>" } &>
+		label => __('Files to upload:'),
+		value => "<div id=\"content\"><input type=\"file\" name=\"files\" size=\"40\" /><select id=\"sub_group_0\" name=\"group_id\" style=\"display:$style;\">$first_group_selection</select><br/></div><span id=\"more\" style=\"color:#0000FF;cursor:pointer;text-decoration:underline;font-size:85%;\" onclick=\"addFile();\">" . __("Upload another file") . "</span>" } &>
 % }
 
 % if (defined $assignment_id && $faculty_contents && scalar @$faculty_contents) {
 	<& /tmpl/element:field_display, params => {
-	label	=> 'Uploaded Files:', 
+	label	=> __('Uploaded Files:'), 
 	value 	=> $m->comp('/assignment/tmpl:get_content_links', 
 		contents => $faculty_contents,
 		checkbox => ($already_submitted) ? 0 : 1,
@@ -314,7 +314,7 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 
 % unless ($already_submitted) {
 <& /tmpl/element:save_button, params=>{
-	label	=>	'Save Changes',
+	label	=>	__('Save Changes'),
 	cancel_onclick => "go_back('/assignment/author/show/" . $m->comp("/tmpl/url:get_type_path") . "');",
 	name	=>	'submit'} &>
 % }
@@ -451,7 +451,7 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 
 
 <%method title>
-%	return ($is_edit) ? "Modify Assignment" : "Create New Assignment";
+%	return ($is_edit) ? __("Modify Assignment") : __("Create New Assignment");
 </%method>
 
 
