@@ -4,9 +4,9 @@ package TUSK::I18N::I18N;
 # define defaults hash?
 
 #use strict;
-#use warnings;
+use warnings;
 use Data::Dumper;
-use Carp qw(longmess shortmess);
+use Carp qw(longmess shortmess carp);
 use TUSK::Constants;
 use POSIX qw (setlocale LC_ALL);
 use Apache2::RequestRec ();
@@ -16,7 +16,7 @@ use Locale::TextDomain ();
 ##use Locale::Messages (:locale_h :libintl_h);
 use Locale::Messages;
 #require Exporter;
-use Exporter qw( import ); # avoid putting in @ISA
+##use Exporter qw( import ); # avoid putting in @ISA
 #my $r = Apache2::RequestUtil->request;
 #@ISA = ('Exporter');
 ## need to forcefullfy export mason doesn't like the more polite EXPORT_OK
@@ -180,9 +180,12 @@ sub import {
 #    	my $ref = &{Locale::TextDomain->$m;
 #    	*{$caller.'::'.$m} = sub {  return $ref; };
 #    } 
+{
+    no strict 'refs'; 
     foreach my $i (keys %methods) {
       *{$caller.'::'.$i} = $methods{$i};
     }
+}
   
     
   }
@@ -215,7 +218,7 @@ sub logger {
 sub setLanguage {
 	my $self = shift;
 	my $constKey = "SiteLang";
-	$lang = $self->_getI18NConstant($constKey) || 'C';
+	my $lang = $self->_getI18NConstant($constKey) || 'C';
 	if( $lang ) {
 		$self->language($lang);
 	}
@@ -275,9 +278,11 @@ sub setCatalogs {
 =cut
 sub addCatalog {
 	my ($self,$path) = @_;
+carp(Dumper($path));
 	my $key = 'catalogs';
+	$self->{$key} = [] unless(exists($self->{$key}));
 	if( $path ) {
-		push($self->{$key},$path);
+		push(@{$self->{$key}},$path);
 	}
 	$self->logger(Dumper($self->{$key}));
 	$self->logger("ref = " . ref $self->{$key});
@@ -311,8 +316,8 @@ sub setLocaleDomain {
 sub _getI18NConstant {
 	my ($self,$key) = @_;
 	return undef unless(defined($key));
-	return undef unless ( exists($TUSK::Constants::I18N{$key}));
-	return($TUSK::Constants::I18N{$key});
+	return undef unless ( exists($TUSK::Constants::Locale{$key}));
+	return($TUSK::Constants::Locale{$key});
 }
 sub serverObject {
 	my $self = shift;
