@@ -34,7 +34,7 @@ function showCourseUsers() {
 
 	    	if (!response) {
 		        if(xRequest.status && (xRequest.status == 200)) {
-				alert('Please select a course.');
+				alert(_('Please select a course.'));
 			}
 		} else {
 			var courseUsers = response.getElementsByTagName('courseUsers');

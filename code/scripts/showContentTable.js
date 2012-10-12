@@ -153,19 +153,19 @@ function requestSubContent(indentLength, contentID, documentType, documentAbbrev
 			var type_h = document.createElement("td");
   			type_h.style.borderBottom = '1px solid black';
 			type_h.width = 120;
-			type_h.innerHTML = '<font style="font-size:8pt;">Type</font>';
+			type_h.innerHTML = '<font style="font-size:8pt;">' + _('Type') + '</font>';
 
 			var document_h = document.createElement("td");
   			document_h.style.borderBottom = '1px solid black';
-			document_h.innerHTML = '<font style="font-size:8pt;">Document</font>';
+			document_h.innerHTML = '<font style="font-size:8pt;">' + _('Document') + '</font>';
 
 			var course_h   = document.createElement("td");
   			course_h.style.borderBottom = '1px solid black';
-			course_h.innerHTML = '<font style="font-size:8pt;">Course</font>';
+			course_h.innerHTML = '<font style="font-size:8pt;">' + _('Course') + '</font>';
 
 			var authors_h  = document.createElement("td");
   			authors_h.style.borderBottom = '1px solid black';
-			authors_h.innerHTML = '<font style="font-size:8pt;">Authors</font>';
+			authors_h.innerHTML = '<font style="font-size:8pt;">' + _('Authors') + '</font>';
 
 			head_row.appendChild( type_h );
 			head_row.appendChild( document_h );
@@ -197,7 +197,7 @@ function showSubContent() {
     var response = ajaxRequest.responseXML;
     if(!response) {
       hideLoading();
-      if(ajaxRequest.status && (ajaxRequest.status == 200)) {alert('I was unable to get the subcontent of this item!');}
+      if(ajaxRequest.status && (ajaxRequest.status == 200)) {alert(_('I was unable to get the subcontent of this item!'));}
     }
     else {
       var subContents = response.getElementsByTagName('subContent');
@@ -296,12 +296,12 @@ function createCell(id, passedInnerHTML, url, cellType) {
 
     if(theInnerHTML.search(/folder/) != -1) {
       tempCell.onclick = new Function ("displayContent("+currentIndentLength+", '"+idToUseForContent+"/"+id+"');");
-      tempCell.title = 'Expand content';
+      tempCell.title = _('Expand content');
       theInnerHTML = theInnerHTML.replace('="icon'+id, '="icon'+idToUseForContent+'/'+id);
       tempCell.id = 'folder_'+idToUseForContent+"/"+id;
     } else {
       tempCell.onclick = openContentFunction;
-      tempCell.title = 'Open this content';
+      tempCell.title = _('Open this content');
     }
   } else if (cellType == 'abstract') {
 	// don't want default opencontent so do nothing here
@@ -339,10 +339,10 @@ function displayContent(currentIndent, contentIDToRequest) {
   if(folderIcon.src.match(/minus/)) {
     displayType = 'none';
     folderIcon.src = plusImage.src;
-    folderIcon.title = "Expand Content";
+    folderIcon.title = _("Expand Content");
   } else {
     folderIcon.src = minusImage.src;
-    folderIcon.title = "Collapse Content";
+    folderIcon.title = _("Collapse Content");
   }
 
   if(loadedContentIDs[contentIDToRequest] == 1) {

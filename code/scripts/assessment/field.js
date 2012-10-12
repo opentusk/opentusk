@@ -23,7 +23,7 @@ $(function() {
 		if (types[1] == 'Scaling') {
 			$('#rubric_tr').show();
 			if ($('input[name="no_rubric"]').length) {
-				alert("Please create performance levels on the form page prior to adding data to this page.\n Otherwise, this criteria will NOT work properly.");
+				alert(_("Please create performance levels on the form page prior to adding data to this page.\n Otherwise, this criteria will NOT work properly."));
 			}
 		}
 	});

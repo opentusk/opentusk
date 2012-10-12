@@ -58,16 +58,16 @@ function checkForeignContent(export_form){
 }
 
 function tooMuchForCon(){
-	var html_str = '<p style="border:2px orange solid; font-size:12px; margin:0 0 10px 0; padding:10px;">Your course has more that 100 pieces of foreign content. To export the course (including all content that is considered foreign) click the "Approve for Export" button below. Otherwise, cancel the export and please review the course and make sure that the course and content authorship is attributed correctly.<br/>Thank you.</p>';
+	var html_str = '<p style="border:2px orange solid; font-size:12px; margin:0 0 10px 0; padding:10px;">' + _('Your course has more that 100 pieces of foreign content. To export the course (including all content that is considered foreign) click the "Approve for Export" button below. Otherwise, cancel the export and please review the course and make sure that the course and content authorship is attributed correctly.') + '<br/>' + _('Thank you.') + '</p>';
 
 	return html_str;
 }
 
 function buildForConList(fc_arr){
-	var html_str = '<p style="border:2px orange solid; font-size:12px; margin:0 0 10px 0; padding:10px;">You have attempted to export the following "foreign content". For copyright protection, we ask that you please specifically approve this content for export by checking the box next to its title.<br/>Thank you!</p>';
+	var html_str = '<p style="border:2px orange solid; font-size:12px; margin:0 0 10px 0; padding:10px;">' + _('You have attempted to export the following "foreign content". For copyright protection, we ask that you please specifically approve this content for export by checking the box next to its title.') + ' <br/>' + _('Thank you!') + '</p>';
 
 	html_str += '<div style="border:2px solid #999;">';
-	html_str += '<div class="hdrRow clearfix"><input type="checkbox" onclick="toggleForCon(this);" /><h2>Content Title</h2><h2 class="rightHdr">Action</h2></div>\n';
+	html_str += '<div class="hdrRow clearfix"><input type="checkbox" onclick="toggleForCon(this);" /><h2>' + _('Content Title') + '</h2><h2 class="rightHdr">Action</h2></div>\n';
 	html_str += genListHTML(fc_arr);
 	html_str += '</div>\n';
 
@@ -85,7 +85,7 @@ function buildForConList(fc_arr){
 function buildForConForm(export_form, fc_arr){
 	var html_str;
 	html_str  = '<form name="foreignContentForm" id="foreignContentForm">\n';
-	html_str += '<div id="forConHdr" class="clearfix"><h3>Foreign Content Selection</h3><a href="#" onclick="cancelExport(); return false;">Cancel [X]</a></div>\n';
+	html_str += '<div id="forConHdr" class="clearfix"><h3>' + _('Foreign Content Selection') + '</h3><a href="#" onclick="cancelExport(); return false;">Cancel [X]</a></div>\n';
 	html_str += '<div id="foreignContentContainer">\n';
 	html_str += '<div id="foreignContentList">\n';
 
@@ -96,8 +96,8 @@ function buildForConForm(export_form, fc_arr){
 		html_str += tooMuchForCon();
 	}
 
-	html_str += '<input class="formbutton submitBtn" type="button" value="Cancel Export" onclick="cancelExport()"/>'
-	html_str += '<input class="formbutton submitBtn" type="button" value="Approve for Export" onclick="approveExport(\'' + export_form.name + '\', \'foreignContentForm\')"/><br/>';
+	html_str += '<input class="formbutton submitBtn" type="button" value="' + _('Cancel Export') + '" onclick="cancelExport()"/>'
+	html_str += '<input class="formbutton submitBtn" type="button" value="' + _('Approve for Export')+'" onclick="approveExport(\'' + export_form.name + '\', \'foreignContentForm\')"/><br/>';
 	html_str += '</div>\n';
 	html_str += '</div>\n';
 	html_str += '</form>\n';
@@ -281,12 +281,12 @@ function checkDates(form){
 	if(form.start_date.value && form.end_date.value){
 		// cursory check of format
 		if(!form.start_date.value.match(/\d\d\d\d-\d\d-\d\d/)){
-			alert('Sorry, start date does not appear to be of the format: "YYYY-MM-DD"');
+			alert(_('Sorry, start date does not appear to be of the format: "YYYY-MM-DD"'));
 			form.start_date.focus();
 			return false;
 		}
 		if(!form.end_date.value.match(/\d\d\d\d-\d\d-\d\d/)){
-			alert('Sorry, end date does not appear to be of the format: "YYYY-MM-DD"');
+			alert(_('Sorry, end date does not appear to be of the format: "YYYY-MM-DD"'));
 			form.end_date.focus();
 			return false;
 		}

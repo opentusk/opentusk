@@ -28,14 +28,14 @@ $(function() {
 
 		var msg = ''; 
 		if (criteria_update && $("input[name='db_total_override_score']").val()) {
-			msg = "Previous Override Score was " + $("input[name='db_total_override_score']").val() + ".\n\n";
+			msg = _("Previous Override Score was {previous_score}", {previous_score : $("input[name='db_total_override_score']").val()}) + ".\n\n";
 		}
 
 		if (min_score && min_score > score) {
-			msg += "The minimum score to pass is " + min_score + ".\n Final score is " + score + ".\n\n";
+			msg += _("The minimum score to pass is {minimum_score}.",{minimum_score : min_score}) + "\n "+ _("Final score is {final_score}", {final_score : score}) + "\n\n";
 		} 
 
-		msg += "Are you sure you want to " + $("#post_submit").val() + "?";
+		msg += _("Are you sure you want to {perform_action}?",{ perform_action : $("#post_submit").val()});
 
 		if (confirm(msg) == false) {
 			return false;

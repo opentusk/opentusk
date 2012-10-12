@@ -136,7 +136,7 @@ function can_add_question_type(){
 
 	var dd_val = dropdown.options[dropdown.options.selectedIndex].value;
 	if (dd_val.match(/fillin|essay/i)) {
-		alert('Sorry, you cannot add questions of type "Fill In," "Multiple Fill In," or "Essay" to a quiz that has a rule requiring a minumum score.');
+		alert(_('Sorry, you cannot add questions of type "Fill In," "Multiple Fill In," or "Essay" to a quiz that has a rule requiring a minumum score.'));
 		return false;
 	}
 	else {
@@ -169,9 +169,9 @@ function toggle_panel(rowid){
 	}
 	var expand_occurred = toggle_row(rowid);
 	if (expand_occurred){
-		elem.innerHTML = 'Minimize Panel';
+		elem.innerHTML = _('Minimize Panel');
 	} else {
-		elem.innerHTML = 'Expand Panel';
+		elem.innerHTML = _('Expand Panel');
 	}
 }
 
@@ -313,7 +313,7 @@ function confirm_has_sub(){
 		}
 
 		//failed
-		alert('Please select whether this test will have sub-tests or not.');
+		alert(_('Please select whether this test will have sub-tests or not.'));
 		return false;
 	}
 }
@@ -324,7 +324,7 @@ function confirm_has_sub(){
 function validate_case_form(form_obj){
 	if(isBlank(form_obj.title)) {
 		//failed
-		alert('Please specify a Case Title.');
+		alert(_('Please specify a Case Title.'));
 		form_obj.title.className += ' focusField';	
 		form_obj.title.focus();	
 		return false;
@@ -442,7 +442,7 @@ function is_form_complete(){
 			}
 		}
 		return_value = false;
-		alert("Sorry. You cannot continue to the next phase until you have selected an option for each diagnosis.");
+		alert(_("Sorry. You cannot continue to the next phase until you have selected an option for each diagnosis."));
 		break;
 	}
 	document.forms[0].onsubmit = function(){ return return_value; };
@@ -484,7 +484,7 @@ function retake_quiz(formname) {
 
 
 function confirm_case_completion() {
-	return confirm("Are you sure you want to finish this case?\n\nIf you click 'OK', you will no longer be able to access information or make changes.");
+	return confirm(_("Are you sure you want to finish this case?")+"\n\n"+_("If you click 'OK', you will no longer be able to access information or make changes."));
 }
 
 /*
@@ -548,7 +548,7 @@ function showChart(ajaxRequest){
 	if(ajaxRequest.readyState == 4) {
 		var response = (ajaxRequest.status == 200)? ajaxRequest.responseText : '';
 		if(!response) {
-			response = 'Sorry, cannot retrieve patient chart at this time.';
+			response = _('Sorry, cannot retrieve patient chart at this time.');
 		}
 		else {
 			window.have_chart = 1;
@@ -592,7 +592,7 @@ function showNotes(ajaxRequest){
 	if(ajaxRequest.readyState == 4) {
 		var response = (ajaxRequest.status == 200)? ajaxRequest.responseText : '';
 		if(!response) {
-			response = 'Sorry, cannot retrieve notes at this time.';
+			response = _('Sorry, cannot retrieve notes at this time.');
 		}
 		else {
 			window.have_notes = 1;
@@ -644,7 +644,7 @@ function addRuleToPhase(dd, type_path, caseid){
 function isEnabled(dd) {
 	var disabled = $(dd).children(':selected').attr('disabled');
 	if (disabled) {
-		alert('You have selected an invalid option. Please try again.');
+		alert(_('You have selected an invalid option. Please try again.'));
 		$(dd).get(0).selectedIndex = 0;
 		return 0;
 	}

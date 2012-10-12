@@ -63,11 +63,11 @@ function toggle_button(id) {
 
 var e = document.getElementById(id);
  
-if (e.value.indexOf("Show") >= 0 ) {
-	e.value= e.value.replace("Show","Hide");
+if (e.value.indexOf(_("Show")) >= 0 ) {
+	e.value= e.value.replace(_("Show"),_("Hide"));
 
 } else {
-	e.value= e.value.replace("Hide","Show");
+	e.value= e.value.replace(_("Hide"),_("Show"));
 }
 
 }
@@ -91,7 +91,7 @@ function toggle_img(i){
 function submitform(itemID,isDeck)
 {
  
-	var sure= confirm("Are you sure you wish to delete?");
+	var sure= confirm(_("Are you sure you wish to delete?"));
 	if ( sure == true) {
 
  		if ( isDeck  == 1) {
@@ -109,7 +109,7 @@ function submitform(itemID,isDeck)
 function submitformpc(itemID,cntntID){
 
 
-	var sure= confirm("Are you sure you wish to delete?");
+	var sure= confirm(_("Are you sure you wish to delete?"));
 	if ( sure == true) {
 
  		if ( cntntID > 0) {
@@ -172,11 +172,11 @@ function submitnote(formName,id)
 
 function showOrHideHelp() {
 
-       if(document.getElementById('showHideDiv').innerHTML == 'Show') {
-         document.getElementById('showHideDiv').innerHTML = 'Hide';
+       if(document.getElementById('showHideDiv').innerHTML == _('Show')) {
+         document.getElementById('showHideDiv').innerHTML = _('Hide');
          document.getElementById('helpDiv').style.display = '';
        } else {
-         document.getElementById('showHideDiv').innerHTML = 'Show';
+         document.getElementById('showHideDiv').innerHTML = _('Show');
          document.getElementById('helpDiv').style.display = 'none';
        }
 }
@@ -196,7 +196,7 @@ function requestContent(personalContentID) {
   } else {
 	var location = document.URL;
 
-	alert('You are being transfered because your browser does not support AJAX.');
+	alert(_('You are being transfered because your browser does not support AJAX.'));
 	document.location = location;
   }
 
@@ -218,7 +218,7 @@ function showContent(contentID) {
     if(!response) {
 	
       if(ajaxRequest.status && (ajaxRequest.status == 200)) {
-			alert('I was unable to get the Deck!');
+			alert(_('I was unable to get the Deck!'));
 		}
     }
     else {
@@ -244,7 +244,7 @@ function submitContent(mycontent,myfolder,url,savediv) {
   			} else {
 				var location = document.URL;
 
-				alert('You are being transfered because your browser does not support AJAX.');
+				alert(_('You are being transfered because your browser does not support AJAX.'));
 				document.location = location;
   			}
 

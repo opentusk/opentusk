@@ -27,7 +27,7 @@ function formsubmit(action){
 		}
 	}
 	if (flag == false){
-		alert('Please check at least one piece of content.');
+		alert(_('Please check at least one piece of content.'));
 		return;
 	}
 	document.content.action=action;
