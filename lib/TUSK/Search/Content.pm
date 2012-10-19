@@ -510,14 +510,22 @@ sub search{
     
     if ($user_id){
 	my $results = $search_query->databaseSelect($sql);
-	while (my $array_ref = $results->fetchrow_arrayref()){
-		
-	    my $link = TUSK::Search::LinkSearchQueryContent->new();
-	    $link->setParentSearchQueryID($search_query->getPrimaryKeyID());
-	    $link->setChildContentID($array_ref->[0]);
-	    $link->setComputedScore($array_ref->[1]);
-	    $link->save();
-	}
+    # Save search results to tusk.link_search_query_content
+    my $delete_save_sql = qq{DELETE FROM tusk.link_search_query_content
+        WHERE parent_search_query_id = } . $search_query->getPrimaryKeyID();
+    $search_query->databaseDo($delete_save_sql);
+    my $results_ref = $results->fetchall_arrayref();
+    # create list of (search_query_id, content_id, computed_score)
+    my @insert_save_list = map {
+        "(" .
+            join(", ", $search_query->getPrimaryKeyID(), $_->[0], $_->[1]) .
+        ")"
+    } @$results_ref;
+    # insert list into table
+    my $insert_save_query = qq{INSERT INTO tusk.link_search_query_content
+        (parent_search_query_id, child_content_id, computed_score)
+        VALUES } . join(", ", @insert_save_list);
+    $search_query->databaseDo($insert_save_query);
 	return $search_query;
     }else{
     	if ($query_hashref->{limit}) {
