@@ -439,6 +439,31 @@ sub todays_sorted_meetings{
 }
 
 
+sub sorted_meetings_in_range {
+	my ($self, $start, $end) = @_;
+
+	my $startdate = HSDB4::DateTime->new->in_mysql_date($start);
+	my $enddate =  HSDB4::DateTime->new->in_mysql_date($end);
+	my @meetings;
+	my %class_meetings;
+	my %seen;
+
+	$enddate->add_days(1);
+	for (my $today = $startdate; $today != $enddate; $today->add_days(1)) {
+		@meetings = $self->sorted_meetings_on_date($today->out_mysql_date);
+		$class_meetings{$today->out_mysql_date} = ();
+		foreach my $meeting (@meetings) {
+			unless($seen{$meeting->primary_key()}){
+				push @{$class_meetings{ $meeting->meeting_date }}, $meeting;
+				$seen{$meeting->primary_key()} = 1;
+			}
+		}
+	}
+
+	return %class_meetings;
+}
+
+
 sub recently_modified {
     #
     # Get a set of the content that the user authored

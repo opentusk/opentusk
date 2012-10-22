@@ -28,6 +28,7 @@
 	use POSIX qw(floor);
 	use HSDB4::DateTime;
 	use HSDB4::Constants;
+	use HSDB4::SQLRow::User;
 	use Date::Calc;
 	use URI::Escape;
 </%once>
@@ -75,6 +76,7 @@
 	my $next_week;
 	my $prev_week;
 	my $accreditation_view;
+	my $uid;
 </%shared>
 
 <%perl>
@@ -89,8 +91,11 @@
 	# we do this to check to see if there are any meetings to get
 	# I was unable to find a blank vCal file that didn't crash Palm Desktop
 	# so if there are no meetings then do not display the links
-	my $user_group = HSDB45::UserGroup->lookup_path($school . "/".$group_no);
-	my $countOfTimePeriods = $user_group->count_time_period_meetings();
+	my $countOfTimePeriods = 0;
+	if ($school ne 'user') {
+		my $user_group = HSDB45::UserGroup->lookup_path($school . "/".$group_no);
+		$countOfTimePeriods = $user_group->count_time_period_meetings();
+	}
 
 	my $current_start_day = $meetings_days[0]->out_mysql_date; 
 	my ($year,$month,$day) = split(/-/,$current_start_day);
@@ -425,17 +430,19 @@
 </%method>
 
 <%method red_header_text>
-%	my $title = $group->field_value('label');
-%	if ( $accreditation_view ) { $title .= " Accreditation Schedule"; }
-%	else                       { $title .= " Academic Schedule"; }
+%	my $title;
+% 	if ($uid) {
+%		$title = "Schedule for " . HSDB4::SQLRow::User->new()->lookup_by_uid($uid)->out_full_name;
+%	}
 %	return "<b>" . $title . "</b>";
 </%method>
 
 
 <%method title>
-%	my $title = $group->field_value('label');
-%	if ( $accreditation_view ) { $title .= " Accreditation Schedule"; }
-%	else                       { $title .= " Academic"; }
+%	my $title;
+% 	if ($uid) {
+%		$title = "Schedule for " . HSDB4::SQLRow::User->new()->lookup_by_uid($uid)->out_full_name;
+%	}
 %	return $title;
 </%method>
 
@@ -478,15 +485,20 @@
 			$date = HSDB4::DateTime->new->out_mysql_date; 
 		}
 		if(! $school or ! $group_no) {$m->comp("/tmpl/url:redirect",message => "Invalid Schedule Request");}
-
-
-		$group = HSDB45::UserGroup->new( _school => $school )->lookup_key( $group_no );
-
 		my $s_t = HSDB4::DateTime->new->in_mysql_date ($date)->prev_sunday;
 		my $e_t = HSDB4::DateTime->new->in_mysql_date ($date)->next_sunday;
 		$s_t->add_days(1);      # Get to Monday
 		$e_t->subtract_days(2); # Get to Friday
-		%meetings_hash = $group->class_meetings( $s_t->out_mysql_date, $e_t->out_mysql_date );
+
+		if ($school ne 'user') {
+			$group = HSDB45::UserGroup->new( _school => $school )->lookup_key( $group_no );
+			%meetings_hash = $group->class_meetings( $s_t->out_mysql_date, $e_t->out_mysql_date );
+		}
+		else {
+			$uid = $group_no;
+			%meetings_hash = HSDB4::SQLRow::User->new()->lookup_by_uid($uid)->sorted_meetings_in_range($s_t->out_mysql_date, $e_t->out_mysql_date);
+		}
+
 		foreach (sort keys %meetings_hash) {
 			push @meetings_days, HSDB4::DateTime->new->in_mysql_date($_);
 		}
@@ -508,7 +520,12 @@
 				$temp_end->subtract_days(2);
 
 				# Load up @extra_meetings.
-				%new_week = $group->class_meetings( $s_t->out_mysql_date, $temp_end->out_mysql_date );
+				if ($uid) {
+					%new_week = HSDB4::SQLRow::User->new()->lookup_by_uid($uid)->sorted_meetings_in_range( $s_t->out_mysql_date, $temp_end->out_mysql_date);
+				}
+				else {
+					%new_week = $group->class_meetings( $s_t->out_mysql_date, $temp_end->out_mysql_date );
+				}
 				push @extra_meetings, \%new_week;
 
 				$s_t->in_unix_time($s_t->next_sunday->out_unix_time);
@@ -657,7 +674,12 @@ foreach my $current_day ( sort keys %{$week} ) {
 					my $link;
 					my $footer = join (' ', map { $_->field_value('lastname') } $meeting->child_users);
 
-					if ( !$accreditation_view ) { 
+					if ($uid) {
+						$link = "/view/course/" . $meeting->school() . "/" . $meeting->course->course_id . "/schedule/" . $meeting->class_meeting_id;
+						$footer .= '<br />' if $footer;
+						$footer .= $meeting->location; 
+					}
+					elsif ( !$accreditation_view ) { 
 						$link = "/view/course/" . $school . "/" . $meeting->course->course_id . "/schedule/" . $meeting->class_meeting_id;
 						$footer .= '<br />' if $footer;
 						$footer .= $meeting->location; 
