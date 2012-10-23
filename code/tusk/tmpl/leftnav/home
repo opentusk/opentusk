@@ -24,14 +24,16 @@
 $show_in_td => 1
 </%args>
 
-<div id="gLeftNav" class="<% $show_in_td? 'gTableNav' : '' %>">
+<div id="gLeftNav" class="home<% $show_in_td? ' gTableNav' : '' %>">
 
 <%perl>
 if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	$m->comp("SELF:printLoginForm");
 }
 else {
-	$m->comp("SELF:printAnnouncements");
+	$m->comp("SELF:printCommunications");
+	$m->comp("SELF:printMaterials");
+
 	$m->comp("SELF:printEval");
 	$m->comp("SELF:printPatientLogs");
 	$m->comp("SELF:printAssessments");
@@ -62,43 +64,43 @@ else {
 </%method>
 
 
-<%method printAnnouncements>
-%	my ($announcement_ref, $user_groups) = $m->session->{'user'}->get_annoucments_with_user_groups();
-%	if(scalar(@{$announcement_ref})) {
-<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Announcements'} &>
-<ul class="gArrow">
-%		my $iter = 0;
-%		my $stripObj = TUSK::Application::HTML::Strip->new();
-%		foreach my $announcement (@{$announcement_ref}) {
-%			my $lnk_txt = $stripObj->truncateAndRemoveHTML($announcement->{item}->field_value("body"));
-%			my $ann = $announcement->{item}->field_value("body");
-%			my ($grouping, $grouping_lnk);
-%			if($announcement->{type} eq 'course') {
-%				$grouping = $announcement->{course};
-%				$grouping_lnk = '/hsdb45/course/' . $grouping->school() . '/' .  $grouping->course_id;
-
-%				my $course_title = $grouping->out_abbrev();
-%				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">$course_title Home</a>";
-%				$ann .= " | <a href=\"$grouping_lnk/ann\" onclick=\"clickFullText(event); return true;\">Course Announcements</a>";
-%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">Close [X]</a></div>';
-%			} elsif($announcement->{type} eq 'user_group') {
-%				$grouping = $announcement->{school};
-%				$grouping_lnk = "/view/usergroup/$grouping/" . $announcement->{id};
-
-%				my $ug = HSDB45::UserGroup->new(_school => $grouping)->lookup_key($announcement->{id});
-%				my $group_title = $ug->label();
-%				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">$group_title</a>";
-%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">Close [X]</a></div>';
+<%method printCommunications>
+<%perl>
+	my $announcement_ref = $m->session->{'user'}->get_course_announcements();
+</%perl>
+<nav>
+	<hgroup>
+		<h1>Communications</h1>
+	</hgroup>
+	<div class="scrollcontainer">
+		<ul>
+% if (scalar @$announcement_ref) {
+%	my $stripObj = TUSK::Application::HTML::Strip->new();
+			<li>Announcements
+			<ul>
+%			foreach my $ann (@$announcement_ref) {
+%				my $grouping = $ann->{course};
+%				my $grouping_lnk = '/hsdb45/course/' . $grouping->school() . '/' .  $grouping->course_id;
+				<li><a href="<% $grouping_lnk %>"><% $stripObj->truncateAndRemoveHTML($ann->{item}->field_value("body")) %></a></li>
 %			}
-  <li>
-    <ul>
-      <li class="annSummary"><a class="winPartner_<% $iter++ %>" href="<% $grouping_lnk %>/ann" onmouseover="showFullText(event);" onmouseout="mouseoffFullText(event);"><% $lnk_txt %></a></li>
-      <li class="fullTxt"><% $ann %></li>
-    </ul>
-  </li>
-%		}
-</ul>
-%	} 
+			</u></li>
+% }
+		</ul>
+	</div>
+</nav>
+</%method>
+
+
+<%method printMaterials>
+<nav>
+	<hgroup>
+		<h1>My Materials</h1>
+	</hgroup>
+	<div class="scrollcontainer">
+		<ul>
+		</ul>
+	</div>
+</nav>
 </%method>
 
 

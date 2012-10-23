@@ -367,7 +367,6 @@ $extra_nav_text		=> ''
 $page
 $user
 </%args>
-
 <%perl>
 my @li_strings;
 
@@ -378,41 +377,45 @@ push @li_strings, "<a href=\"$TUSK::Constants::ContactURL\" target=\"_top\">Cont
 if ($TUSK::Constants::AboutURL && $page eq "login") {
 	push @li_strings, "<a href=\"$TUSK::Constants::AboutURL\" target=\"_top\">About</a>";
 }
-push @li_strings, '<a href="/smallscreen">Mobile</a>' if ($page eq 'login' || $page eq 'home');
-
 if (ref($user) eq 'HSDB4::SQLRow::User' && $user->primary_key && $page ne 'login'){
 	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
 		unshift @li_strings, '<a href="/view/user/' . $user->primary_key .'" target="_top">My Profile</a>';
 	}
-	push @li_strings, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time . '" target="_top">Logout</a>';
+	push @li_strings, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time . '" target="_top">Log Out</a>';
+}
+elsif ($page eq 'login') {
+	push @li_strings, "<a href=\"/smallscreen\" target=\"_top\">Mobile</a>";
 }
 
 </%perl>
-
-<ul class="gGlobalLnks">
-% my $class;
-% my $length = scalar @li_strings;
-% for(my $i=0; $i < $length; $i++){
-%	my $class = ($i+1 == $length)? ' class="gLastOne"' : '';
-    <li<% $class %>><% $li_strings[$i] %></li>
+<nav>
+<ul class="tools">
+% for(my $i=0; $i < scalar @li_strings; $i++){
+    <li><% $li_strings[$i] %></li>
 % }
 </ul>
+</nav>
 </%method>
 
 <%method logo>
 <%args>
 $hide_global_links
+$type
 </%args>
-
-<h1 id="gLogo">\
+<hgroup>
+<h1>
 % unless ($hide_global_links) {
 <a href="/home" target="_top">\
 % } else {
 <a href="#" target="_top">\
 % }
-<img src="<% $TUSK::Constants::Logo %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" border="0" />\
-</a>\
-</h1>\
+% if ($type eq 'login') {
+<img alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" src="<% $TUSK::Constants::LargeLogo %>">
+% } else {
+<img alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" src="<% $TUSK::Constants::SmallLogo %>">
+% }
+</a></h1>
+</hgroup>
 </%method>
 
 
@@ -423,36 +426,30 @@ $user
 $is_author => 0
 $hide_global_links
 </%args>
+<header>
+	<div class="container">
+<& SELF:logo, hide_global_links => $hide_global_links, type => $type &>
 
-<div id="gMasthead">
-
-<& SELF:logo, hide_global_links => $hide_global_links &>
-
-<div id="gTopNavs">
+% unless($type eq 'login' || $type eq 'frame'){
+	<nav>
+% 	my $active = $type;
+		<ul class="main <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
+		    <li class="<% $active eq 'home'  ? 'selected' : '' %>"><a href="/home" target="_top">Home</a></li>
+		    <li class="<% $active eq 'browse'? 'selected' : '' %>"><a href="/allcourses.htm" target="_top">Courses</a></li>
+% if($is_author){ 
+			<li class="<% $active eq 'manage'? 'selected' : '' %>"><a href="/protected/management/home" target="_top">Manage School</a></li>
+% 	}
+			<li class="<% $active eq 'schedule'? 'selected' : '' %>"><a href="/view/schedule/user/<% $user->uid %>" target="_top">Schedule</a></li>
+			<li class="<% $active eq 'search'? 'selected' : '' %>"><a href="/search/form" target="_top">Search</a></li>
+		</ul>
+	</nav>
+% }
 
 % unless($hide_global_links) {
 	<& SELF:global_links, page => $type, user => $user &>
 % }
-
-% if (ref($user) eq 'HSDB4::SQLRow::User' and $user->primary_key and $type ne 'login') {
-<span id="pHPuser">Welcome <% $user->out_full_name() %></span>
-% }
-
-% unless($type eq 'login' || $type eq 'frame'){
-% 	my $active = $type;
-<ul class="gTabNav <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
-    <li class="firstone<% $active eq 'home'  ? ' gCurPage' : '' %>"><a href="/home" target="_top">Home</a></li>
-    <li class="<% $active eq 'browse'? 'gCurPage' : '' %>"><a href="/allcourses.htm" target="_top">Browse All Courses</a></li>
-    <li class="<% $active eq 'search'? 'gCurPage' : '' %>"><a href="/search/form" target="_top">Search</a></li>
-% if($is_author){ 
-    <li class="<% $active eq 'manage'? 'gCurPage' : '' %>"><a href="/protected/management/home" target="_top">Manage Content</a></li>
-% 	}
-</ul>
-% }
-
-</div> <!-- gTopNavs -->
-
-</div> <!-- gMasthead -->
+	</div>
+</header>
 </%method>
 
 

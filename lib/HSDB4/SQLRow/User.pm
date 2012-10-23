@@ -2252,15 +2252,20 @@ sub get_annoucments_with_user_groups {
 			    id     => $TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup} }
 		      } HSDB45::Announcement::schoolwide_announcements($self->affiliation));
     }
+    my @parent_user_groups = $self->parent_user_groups();
+	my ($announce_ref) = $self->get_course_announcements(\@announcements, \@parent_user_groups);
+
+    return ($announce_ref, \@parent_user_groups);
+}
+
+sub get_course_announcements {
+    my ($self, $announcements, $user_groups) = @_;
 
     ### add announcments for courses in enrollments and user groups
     my @courses = $self->current_courses(); # enrollment
-    my @user_groups = ();
-    my @parent_user_groups = $self->parent_user_groups();
 
-    foreach my $ug (@parent_user_groups) {
-	push(@user_groups,$ug);
-	push(@announcements,  map { 
+    foreach my $ug (@$user_groups) {
+	push(@$announcements,  map { 
                             {  item   => $_, 
 			       type   => 'user_group', 
 			       school => $ug->school,
@@ -2276,13 +2281,13 @@ sub get_annoucments_with_user_groups {
 
 		my @course_announcements = $course->announcements();
 		foreach my $course_announcement (@course_announcements) {
-			push @announcements, { item   => $course_announcement, 
+			push @$announcements, { item   => $course_announcement, 
 								   type   => 'course',
 								   course =>  $course };
 		}
     }
-
-    return (\@announcements, \@user_groups);
+    
+    return ($announcements);
 }
 
 sub count_new_announcements{
