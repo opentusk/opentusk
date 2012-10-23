@@ -50,6 +50,7 @@ BEGIN {
 use vars @EXPORT_OK;
 use TUSK::Search::SearchQuery;
 use TUSK::Search::FTSFunctions;
+use HSDB4::Constants;
 use Data::Dumper;
 # Non-exported package globals go here
 use vars ();
@@ -415,7 +416,7 @@ sub search{
 
     foreach my $key (%$query_hashref){
 	$query_hashref->{$key} =~ s/\'/\\\'/g;
-	next if ($key eq 'media_type' or $key eq 'school' or $key eq 'concepts' or $key eq 'limit' or $key eq 'start');
+	next if ($key eq 'media_type' or $key eq 'school' or $key eq 'concepts' or $key eq 'limit' or $key eq 'start' or $key eq 'start_active_date' or $key eq 'end_active_date');
 	$query_hashref->{$key} = &TUSK::Search::FTSFunctions::add_plusses_to_search_string($query_hashref->{$key});
     }
 
@@ -499,6 +500,65 @@ sub search{
 	}
 
     }
+
+    # Restrict content to courses active in the given date range.
+    if ($query_hashref->{start_active_date}
+        || $query_hashref->{end_active_date}) {
+        # Build up content by schools.
+        my @schools;
+        if ($query_hashref->{school}) {
+            if (ref($query_hashref->{school}) eq 'ARRAY') {
+                my $school_ref = $query_hashref->{school};
+                @schools = @$school_ref;
+            }
+            else {
+                @schools = ($query_hashref->{school});
+            }
+        }
+        else {
+            @schools = HSDB4::Constants::schools();
+        }
+        my @schooldbs = map { HSDB4::Constants::get_school_db($_) } @schools;
+        my @actives;
+        if ($query_hashref->{start_active_date}) {
+            push(@actives,
+                 "tp.end_date > DATE('" .
+                 $query_hashref->{start_active_date} . "')");
+        }
+        if ($query_hashref->{end_active_date}) {
+            push(@actives,
+                 "tp.start_date < DATE('" .
+                 $query_hashref->{end_active_date} . "')");
+        }
+        my $active_cond = join(" AND ", @actives);
+        my %active_contents;
+        foreach my $db (@schooldbs) {
+            my $query = qq{SELECT child_content_id
+                FROM $db.link_course_content lcc
+                INNER JOIN $db.link_course_user_group lcug
+                ON lcc.parent_course_id = lcug.parent_course_id
+                INNER JOIN $db.time_period tp
+                ON lcug.time_period_id = tp.time_period_id
+                WHERE $active_cond
+                GROUP BY child_content_id};
+            my $results = $search_query->databaseSelect($query);
+            while ($results->rows()) {
+                my $ref = $results->fetchall_arrayref();
+                my @children = map { ($_->[0])[0]} @$ref;
+                @children = grep { ! exists $active_contents{$_} } @children;
+                @active_contents{@children} = ();
+                $query = qq{SELECT child_content_id
+                    FROM hsdb4.link_content_content
+                    WHERE parent_content_id != child_content_id
+                    AND parent_content_id IN (} . join(", ", @children) .
+                    qq{) GROUP BY child_content_id};
+                $results = $search_query->databaseSelect($query);
+            }
+        }
+        my $active_date_query = "content_id IN (" .
+            join(", ", (keys %active_contents)) . ")";
+        push(@$wheres, $active_date_query);
+    }
     $selects = [ 1 ] unless (scalar(@$selects));
 
     my $sql = "select content_id, (round(" . join(' + ', @$selects) . ") + if(strcmp(type,'Collection'), 0, 0.5))  as computed_score from tusk.full_text_search_content content";
@@ -507,17 +567,25 @@ sub search{
     $sql .= " and search.child_content_id = content.content_id and search.parent_search_query_id = " . $parent_query->getPrimaryKeyID() if ($parent_query);
 
     $sql .= " order by computed_score desc" unless ($user_id);
-    
+
     if ($user_id){
 	my $results = $search_query->databaseSelect($sql);
-	while (my $array_ref = $results->fetchrow_arrayref()){
-		
-	    my $link = TUSK::Search::LinkSearchQueryContent->new();
-	    $link->setParentSearchQueryID($search_query->getPrimaryKeyID());
-	    $link->setChildContentID($array_ref->[0]);
-	    $link->setComputedScore($array_ref->[1]);
-	    $link->save();
-	}
+    # Save search results to tusk.link_search_query_content
+    my $delete_save_sql = qq{DELETE FROM tusk.link_search_query_content
+        WHERE parent_search_query_id = } . $search_query->getPrimaryKeyID();
+    $search_query->databaseDo($delete_save_sql);
+    my $results_ref = $results->fetchall_arrayref();
+    # create list of (search_query_id, content_id, computed_score)
+    my @insert_save_list = map {
+        "(" .
+            join(", ", $search_query->getPrimaryKeyID(), $_->[0], $_->[1]) .
+        ")"
+    } @$results_ref;
+    # insert list into table
+    my $insert_save_query = qq{INSERT INTO tusk.link_search_query_content
+        (parent_search_query_id, child_content_id, computed_score)
+        VALUES } . join(", ", @insert_save_list);
+    $search_query->databaseDo($insert_save_query);
 	return $search_query;
     }else{
     	if ($query_hashref->{limit}) {
@@ -574,7 +642,7 @@ sub show_full_search_string{
     my ($query) = @_;
 
     my $string = $query->{'query'};
-    my $fields = ['title', 'author', 'course', 'content_id', 'copyright', 'media_type', 'school'];
+    my $fields = ['title', 'author', 'course', 'content_id', 'copyright', 'media_type', 'school', 'start_active_date', 'end_active_date'];
 
     foreach my $field (@$fields){
 	if (exists($query->{$field})){
