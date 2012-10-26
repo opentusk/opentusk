@@ -354,7 +354,7 @@ sub createResponses{
 
 	    my $answers = $question->getAnswers() || [];
 
-	    if ($response->getResponseText() && $question->getType() !~ /^FillIn|Essay$/) {
+	    if ($response->getResponseText() && $question->getType() !~ /^(FillIn|Essay)$/) {
 		### leave the graded flag undef in case of no answers or matching child
 		$response->setGradedFlag(1) if ($answers && scalar @$answers);
 
