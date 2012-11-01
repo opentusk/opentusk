@@ -201,19 +201,33 @@ sub setGradedPoints{
     $self->setFieldValue('graded_points', $value);
 }
 
+sub getLinkObject {
+    my $self = shift;
+    unless ($self->{_quiz_item_link}) {
+        if ($self->getLinkType() eq 'link_quiz_quiz_item') {
+            $self->{_quiz_item_link} =
+                TUSK::Quiz::LinkQuizQuizItem->lookupKey($self->getLinkID());
+        }
+        else {
+            $self->{_quiz_item_link} =
+                TUSK::Quiz::LinkQuestionQuestion->lookupKey($self->getLinkID());
+        }
+    }
+}
+
 sub getQuizItem {
-	my $self = shift or confess "Object required for getQuizItem";
-	unless ($self->{_quiz_item}){
-	    if ($self->getLinkType() eq 'link_quiz_quiz_item'){
-		my $quiz_item_link = TUSK::Quiz::LinkQuizQuizItem->lookupKey($self->getLinkID());
-		$self->{_quiz_item} =  $quiz_item_link->getQuizItem();
-	    }else{
-		my $quiz_item_link = TUSK::Quiz::LinkQuestionQuestion->lookupKey($self->getLinkID());
-		$self->{_quiz_item} =  $quiz_item_link->getQuizItem();
-	    }
-	}
-	return $self->{_quiz_item};
- }
+    my $self = shift or confess "Object required for getQuizItem";
+    unless ($self->{_quiz_item}) {
+        if ($self->getLinkType() eq 'link_quiz_quiz_item') {
+            $self->{_quiz_item} = $self->getLinkObject()->getQuizItem();
+        }
+        else {
+            $self->{_quiz_item} = TUSK::Quiz::Question->lookupKey(
+                $self->getLinkObject()->getChildQuestionID());
+        }
+    }
+    return $self->{_quiz_item};
+}
 
 sub getAnswer{
 	my $self = shift or croak "Need an object to proceed";
