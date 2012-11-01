@@ -204,21 +204,6 @@ sub check_content_permissions{
     return $grant;
 }
 
-sub cms_user_courses{
-	my $user = shift;
-	my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $user->parent_courses();
-	push(@courses,$user->admin_courses);
-
-	my $courses_hash;
-	for(my $i=0; $i<scalar @courses; $i++){
-		my $school = $courses[$i]->{_school};
-		my $key = $courses[$i]->out_title."\0".$courses[$i]->primary_key;
-		$courses_hash->{$school}->{$key}=$courses[$i];
-	}
-  
-	return $courses_hash;
-}
-
 sub is_tusk_admin{
 	my $user_id = shift;
 	unless($user_id) {return 0;}

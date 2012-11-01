@@ -255,32 +255,32 @@ sub check_author{
     }
     # Get the link definition
     for my $db (map { get_school_db($_) } course_schools()) {
-	my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_user"};
-	# And use it to get a LinkSet, if possible
-	if ($linkdef->get_parent_count($self->primary_key())){
-	    $roles->{tusk_session_is_author} = 1;
-		if (defined($roles->{tusk_session_is_admin})){
-		return ($roles);
-	    }else{
-		return ($self->check_admin($roles));
-	    }
-	}
+		my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_user"};
+		# And use it to get a LinkSet, if possible
+		if ($linkdef->get_parent_count($self->primary_key())){
+			$roles->{tusk_session_is_author} = 1;
+			if (defined($roles->{tusk_session_is_admin})){
+				return ($roles);
+			}else{
+				return ($self->check_admin($roles));
+			}
+		}
     }
     
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"link_content_user"};
     if ($linkdef->get_parent_count($self->primary_key())){
-	$roles->{tusk_session_is_author} = 1;
+		$roles->{tusk_session_is_author} = 1;
+		if (defined($roles->{tusk_session_is_admin})){
+			return ($roles);
+		}else{
+			return ($self->check_admin($roles));
+		}
+	}
+		
 	if (defined($roles->{tusk_session_is_admin})){
-	return ($roles);
-    }else{
-	return ($self->check_admin($roles));
-    }
-    }
-    
-    if (defined($roles->{tusk_session_is_admin})){
-	return ($roles);
-    }else{
-	return ($self->check_admin($roles));
+		return ($roles);
+	}else{
+		return ($self->check_admin($roles));
     }
 }
 
@@ -407,7 +407,7 @@ sub sorted_meetings_on_date{
 
 	my @meetings;
 
-	my $ug_courses = $self->user_group_courses('', $date);;
+	my $ug_courses = $self->user_group_courses('', $date);
 	my %seen;
 	foreach my $c_hash (@$ug_courses){
 		my $id = $c_hash->{course_id};
@@ -435,7 +435,6 @@ sub todays_sorted_meetings{
 	my $today = HSDB4::DateTime->new()->out_mysql_date;
 
 	return $self->sorted_meetings_on_date($today);
-		
 }
 
 
@@ -463,6 +462,87 @@ sub sorted_meetings_in_range {
 	return %class_meetings;
 }
 
+sub has_schedule {
+	my $user = shift;
+	my $school = shift || undef;
+	my ($start, $end) = get_schedule_start_end();
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my ($sth, @selects, @ids);
+	
+	if ($school) {
+		my $db = 'hsdb45_' . $TUSK::Constants::Schools{$school}{ShortName} . '_admin';
+		push @selects, "SELECT DISTINCT class_meeting_id FROM $db.class_meeting, $db.link_course_student WHERE class_meeting.course_id = parent_course_id AND child_user_id = ? AND meeting_date BETWEEN ? AND ?";
+		push (@ids, ($user->primary_key(), $start, $end));
+	}
+	else {
+		my @school_dbs = map { 'hsdb45_' . $TUSK::Constants::Schools{$_}{ShortName} . '_admin' } keys %TUSK::Constants::Schools;
+		foreach my $db (@school_dbs) {
+			push @selects, "(SELECT DISTINCT class_meeting_id FROM $db.class_meeting, $db.link_course_student WHERE class_meeting.course_id = parent_course_id AND child_user_id = ? AND meeting_date BETWEEN ? AND ?)";
+			push (@ids, ($user->primary_key(), $start, $end));
+		}
+	}	
+    my $sth = $dbh->prepare(join (' union ', @selects));
+    $sth->execute(@ids);
+    $sth->finish;
+    
+	return $sth->rows;
+}
+
+sub get_schedule_start_end {
+	my ($startdate, $enddate);
+	my $today = HSDB4::DateTime->new;
+	my $year = HSDB4::DateTime->new->current_year();
+	my $midyear_cutoff = HSDB4::DateTime->new->in_mysql_date("$year-05-31 23:59:59");
+	my $midyear = HSDB4::DateTime->new->in_mysql_date("$year-06-30 23:59:59");
+	my $endyear_cutoff = HSDB4::DateTime->new->in_mysql_date("$year-11-30 23:59:59");
+	my $endyear = HSDB4::DateTime->new->in_mysql_date("$year-12-31 23:59:59");
+
+	## we're in the first half of the year but not in June
+	if ($today < $midyear_cutoff) {
+		$startdate = "$year-01-01 00:00:00";
+		$enddate = "$year-06-30 23:59:59";
+	}
+	## we're in June
+	elsif ($today < $midyear) {
+		$startdate = "$year-01-01 00:00:00";
+		$enddate = "$year-12-31 23:59:59";
+	}
+	## we're in the second half of the year but not in December
+	elsif ($today < $endyear_cutoff) {
+		$startdate = "$year-07-01 00:00:00";
+		$enddate = "$year-12-31 23:59:59";
+	}
+	## we're in December
+	else {
+		$startdate = "$year-07-01 00:00:00";
+		$enddate = ($year + 1) . "-06-30 23:59:59";
+	}
+	return ($startdate, $enddate);
+}
+
+sub get_important_upcoming_dates {
+	my $user = shift;
+	my $school = shift;
+	my (undef, $end) = get_schedule_start_end();
+	my $enddate =  HSDB4::DateTime->new->in_mysql_date($end);
+	my (@meetings, %seen);
+
+	$enddate->add_days(1);
+	for (my $date = HSDB4::DateTime->new; $date <= $enddate; $date->add_days(1)) {
+		my $ug_courses = $user->user_group_courses('', $date);
+		foreach my $c_hash (@$ug_courses){
+			my $id = $c_hash->{course_id};
+			unless($seen{ $id }){
+				my $course = HSDB45::Course->new(_school => $c_hash->{$school})->lookup_key($id);
+				if ($course->primary_key) {
+					push @meetings, $course->meetings_on_date($date);
+				}
+				$seen{ $id } = 1;
+			}
+		}
+	}
+	return \@meetings;
+}
 
 sub recently_modified {
     #
@@ -802,6 +882,56 @@ sub admin_courses {
     return @{$self->{-admin_courses}};
 
 }
+
+
+sub cms_courses {
+	my $user = shift;
+	my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $user->parent_courses();
+
+	my $courses_hash;
+	for(my $i=0; $i<scalar @courses; $i++){
+		my $school = $courses[$i]->{_school};
+		my $key = $courses[$i]->out_title."\0".$courses[$i]->primary_key;
+		$courses_hash->{$school}->{$key}=$courses[$i];
+	}
+  
+	return $courses_hash;
+}
+
+sub cms_courses_sorted {
+	my $user = shift;
+	my $courses_hashref = cms_courses($user);
+	my $group_courses_hashref;
+	my $tc_courses_hashref;
+
+    foreach my $school (keys %{$courses_hashref}){
+	    foreach my $course (sort keys %{$courses_hashref->{$school}}){
+		    if($courses_hashref->{$school}->{$course}->type() ){
+		         if($courses_hashref->{$school}->{$course}->type() eq 'group'){
+			        $group_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
+				    delete $courses_hashref->{$school}->{$course};
+			    }
+			    elsif($courses_hashref->{$school}->{$course}->type() eq 'thesis committee'){
+			        $tc_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
+				    delete $courses_hashref->{$school}->{$course};
+			    }
+			}
+		}
+		# if we have deleted all courses from a school above, delete the school, itself
+		if(!(keys %{$courses_hashref->{$school}})){
+		    delete $courses_hashref->{$school};
+		}
+
+	}
+	return ($courses_hashref, $group_courses_hashref, $tc_courses_hashref);
+}
+
+sub check_cms {
+	my $user = shift;
+	my ($courses_hashref,  $group_courses_hashref, $tc_courses_hashref) = cms_courses_sorted($user);
+	return scalar keys %$courses_hashref;
+}
+
 
 sub taken_quizzes{
     my ($self, $course) = (@_);

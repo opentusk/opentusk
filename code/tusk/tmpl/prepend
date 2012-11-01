@@ -122,7 +122,7 @@ $doctype => 'html'
 <%method start_content_no_nav>
 <!-- Begin Start Content No Nav -->
 <table width="100%" border="0" cellspacing="0" cellpadding="0">
-<tr><td width="10" valign="top" bgcolor ="#E7EFF7">
+<tr><td width="10" valign="top">
 <img src="/graphics/spacer.gif" alt=" " width="10" height="1">
 <& SELF:end_left_nav, width => "10" &>
 </%method>
@@ -137,20 +137,25 @@ $doctype => 'html'
 <%method start_content>
 <%args>
 $width => 200 
+$top_tab_type => ''
 </%args>
 <!-- Begin Start Content -->
-<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr>
-<td width="<% $width %>" valign="top" bgcolor="#E7EFF7">
+<table width="100%" border="0" cellspacing="0" cellpadding="0"<% ($top_tab_type) ? ' class="' . $top_tab_type . 'tab"' : '' %>><tr>
+<td width="<% $width %>" valign="top" class="gLeftNavOuter">
 </%method>
 
 <%method end_left_nav>
 <%args>
 $width => 200 
+$top_tab_type => ''
 </%args>
 <br/>
 <img src= "/graphics/spacer.gif" alt=" " width="<% $width %>" height="1" border="0">
-</td><td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif">
+</td>
+% if ($top_tab_type ne 'browse') {
+<td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif">
 <img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+% }
 <td width="150%" valign="top">
 </%method>
 
@@ -423,8 +428,9 @@ $type
 <%args>
 $type => 'home'
 $user
-$is_author => 0
 $hide_global_links
+$can_cms => ''
+$has_schedule => ''
 </%args>
 <header>
 	<div class="container">
@@ -434,12 +440,14 @@ $hide_global_links
 	<nav>
 % 	my $active = $type;
 		<ul class="main <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
-		    <li class="<% $active eq 'home'  ? 'selected' : '' %>"><a href="/home" target="_top">Home</a></li>
+		    <li class="<% $active eq 'home'  ? 'selected' : '' %>"><a href="/home" target="_top">My Dashboard</a></li>
 		    <li class="<% $active eq 'browse'? 'selected' : '' %>"><a href="/allcourses.htm" target="_top">Courses</a></li>
-% if($is_author){ 
+% if($can_cms) { 
 			<li class="<% $active eq 'manage'? 'selected' : '' %>"><a href="/protected/management/home" target="_top">Manage School</a></li>
-% 	}
+% }
+% if($has_schedule) {
 			<li class="<% $active eq 'schedule'? 'selected' : '' %>"><a href="/view/schedule/user/<% $user->uid %>" target="_top">Schedule</a></li>
+% }
 			<li class="<% $active eq 'search'? 'selected' : '' %>"><a href="/search/form" target="_top">Search</a></li>
 		</ul>
 	</nav>
@@ -489,6 +497,11 @@ if (ref $leftnav eq 'HASH' and $leftnav->{component}){
 </%args>
 <%perl>
 my $req = \%req_hash;
+my ($can_cms, $has_schedule);
+if ($req->{user}) {
+	$can_cms = $req->{user}->check_cms();
+	$has_schedule = $req->{user}->has_schedule();
+}
 
 $m->comp('SELF:header', 
 		title=>$req->{pagetitle},
@@ -503,9 +516,11 @@ $m->comp('SELF:open_gContainer');
 $m->comp('SELF:masthead', 
 		type => $req->{top_tab_type}, 
 		user =>$req->{user}, 
-		is_author => $req->{is_author}, 
-		hide_global_links => $req->{hide_global_links}
+		hide_global_links => $req->{hide_global_links},
+		can_cms => $can_cms, 
+		has_schedule => $has_schedule
 		);
+
 $m->comp('SELF:open_gBody');
 if($req->{leftnav}){
 	$m->comp("SELF:do_leftnav", 
@@ -513,10 +528,13 @@ if($req->{leftnav}){
 		type_path=>$req->{type_path}
 		);
 }
-$m->comp('SELF:open_gContent');
-$m->comp('SELF:open_gMainContent');
+if($req->{top_tab_type} eq 'home'){
+	$m->comp("/tmpl/home:school_announcements", user => $req->{user});
+	$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
+}
+$m->comp('SELF:open_gContent', args =>\%ARGS);
 
-if($req->{top_tab_type} ne 'login'){
+if($req->{top_tab_type} ne 'login' && $req->{top_tab_type} ne 'home'){
 	$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
 }
 if (!$req->{nostandardheader}) { 
@@ -538,6 +556,11 @@ if (!$req->{nostandardheader}) {
 </%args>
 <%perl>
 my $req = \%req_hash;
+my ($has_schedule, $can_cms);
+if ($req->{user}) {
+	$can_cms = $req->{user}->check_cms();
+	$has_schedule = $req->{user}->has_schedule();
+}
 # figure out the alt text for the main image
 unless ($req->{skip_head_tag}){
 	$m->comp('SELF:header', title=>$req->{pagetitle},jsarray=>$req->{jsarray},stylearray=>$req->{stylearray}, metaData => $req->{metaData}, doctype => $req->{docType});
@@ -546,13 +569,13 @@ return if ($req->{'noheader'});
 unless ($req->{skip_head_tag}){
 	$m->comp('SELF:start_body', onload => $req_hash{onload}, onunload => $req_hash{onunload});
 }
-$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, is_author => $req->{is_author}, hide_global_links => $req->{hide_global_links});
+$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, hide_global_links => $req->{hide_global_links}, can_cms => $can_cms, has_schedule => $has_schedule);
 return if($req->{'nobody'}); 
 
         if ($req->{leftnav}){
-            $m->comp("SELF:start_content");
+            $m->comp("SELF:start_content", top_tab_type => $req->{top_tab_type});
 	        $m->comp("SELF:do_leftnav",leftnav=>$req->{leftnav},type_path=>$req->{type_path});
-	        $m->comp("SELF:end_left_nav");
+	        $m->comp("SELF:end_left_nav", top_tab_type => $req->{top_tab_type});
         }elsif($req->{no_leftbar}){
             $m->comp("SELF:start_content_no_left_bar");
         }else{
@@ -657,11 +680,10 @@ $has_nav => 1
 </%method>
 
 <%method open_gContent>
-<div id="gContent">
-</%method>
-
-<%method open_gMainContent>
-<div id="gMainContent">
+<%args>
+	$args
+</%args>
+<div id="gContent"<% ($args->{msg} or $args->{errmsg} or $args->{hintmsg}) ? ' class="withtrafficlight"' : '' %>>
 </%method>
 
 <%def right_header_links>
@@ -726,4 +748,3 @@ $has_nav => 1
   </tr>
 </table>
 </%method>
-

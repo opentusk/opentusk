@@ -17,6 +17,7 @@
     no_check_path => 1
 	skip_header_bar => 1
 	top_tab_type => 'manage'
+	nostandardheader => '1'
 </%attr>
 <%once>
     use HSDB4::SQLRow::PPTUpload;
@@ -80,40 +81,16 @@
 </td></tr></table>
 
 <%init>
-
-   # Fetch user's editable courses...
-   my $courses_hashref=TUSK::Session::cms_user_courses($user);
-   my $group_courses_hashref;
-   my $tc_courses_hashref;
-
-    foreach my $school (keys %{$courses_hashref}){
-	    foreach my $course (sort keys %{$courses_hashref->{$school}}){
-		    if($courses_hashref->{$school}->{$course}->type() ){
-		         if($courses_hashref->{$school}->{$course}->type() eq 'group'){
-			        $group_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
-				    delete $courses_hashref->{$school}->{$course};
-			    }
-			    elsif($courses_hashref->{$school}->{$course}->type() eq 'thesis committee'){
-			        $tc_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
-				    delete $courses_hashref->{$school}->{$course};
-			    }
-			}
-		}
-		# if we have deleted all courses from a school above, delete the school, itself
-		if(!(keys %{$courses_hashref->{$school}})){
-		    delete $courses_hashref->{$school};
-		}
-
-	}
+	# Fetch user's editable courses...
+	my ($courses_hashref,  $group_courses_hashref, $tc_courses_hashref) = $user->cms_courses_sorted();
 
 	# What has been recently modified
 	my @recently_modified=$user->recently_modified;
-
+	
 	# Any PPTs we need to know about
 	my @ppt_statuses = HSDB4::SQLRow::PPTUpload->new->lookup_user_ppt($user_id, 14);
-
+	
 	my $tuskdoc_statuses = TUSK::ProcessTracker::ProcessTracker->new()->getDistinctRecentByUser('tuskdoc', $user_id, undef, 14);
-   
 </%init>
 
 <%method leftnav>
