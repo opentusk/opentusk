@@ -1064,7 +1064,61 @@ sub check_cms {
 	return scalar keys %$courses_hashref;
 }
 
+<<<<<<< HEAD
 
+||||||| merged common ancestors
+=======
+
+sub cms_courses {
+	my $user = shift;
+	my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $user->parent_courses();
+
+	my $courses_hash;
+	for(my $i=0; $i<scalar @courses; $i++){
+		my $school = $courses[$i]->{_school};
+		my $key = $courses[$i]->out_title."\0".$courses[$i]->primary_key;
+		$courses_hash->{$school}->{$key}=$courses[$i];
+	}
+  
+	return $courses_hash;
+}
+
+sub cms_courses_sorted {
+	my $user = shift;
+	my $courses_hashref = cms_courses($user);
+	my $group_courses_hashref;
+	my $tc_courses_hashref;
+
+    foreach my $school (keys %{$courses_hashref}){
+	    foreach my $course (sort keys %{$courses_hashref->{$school}}){
+		    if($courses_hashref->{$school}->{$course}->type() ){
+		         if($courses_hashref->{$school}->{$course}->type() eq 'group'){
+			        $group_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
+				    delete $courses_hashref->{$school}->{$course};
+			    }
+			    elsif($courses_hashref->{$school}->{$course}->type() eq 'thesis committee'){
+			        $tc_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
+				    delete $courses_hashref->{$school}->{$course};
+			    }
+			}
+		}
+		# if we have deleted all courses from a school above, delete the school, itself
+		if(!(keys %{$courses_hashref->{$school}})){
+		    delete $courses_hashref->{$school};
+		}
+
+	}
+	return ($courses_hashref, $group_courses_hashref, $tc_courses_hashref);
+}
+
+sub check_cms {
+	my $user = shift;
+	my ($courses_hashref,  $group_courses_hashref, $tc_courses_hashref) = cms_courses_sorted($user);
+	return scalar keys %$courses_hashref;
+}
+
+
+>>>>>>> continuing to implement new home page and global header/footer design
 sub taken_quizzes{
     my ($self, $course) = (@_);
 
