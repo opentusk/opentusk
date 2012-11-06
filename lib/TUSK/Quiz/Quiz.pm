@@ -48,6 +48,7 @@ use HSDB45::Course;
 use HSDB4::DateTime;
 use TUSK::Case::RuleOperand;
 use TUSK::Case::RuleElementType;
+use Data::Dumper;
 
 # Non-exported package globals go here
 use vars ();
@@ -341,7 +342,15 @@ sub exportToGradeBook{
     my $nUnsub = scalar(@unsubQuizzes);
     if ($nUnsub) {
         # if due date has passed, force submit on commit
-        if ($grade_event->getDueDate() < HSDB4::DateTime->new()) {
+        my $course = $grade_event->getCourseObject();
+        my $dbh = $self->getDatabaseReadHandle();
+        my $link = TUSK::Quiz::LinkCourseQuiz->lookupReturnOne(
+            "parent_course_id = " . $dbh->quote($course->getPrimaryKeyID()) .
+            " AND school_id = " . $dbh->quote($course->school_id()) .
+            " AND child_quiz_id = " . $dbh->quote($self->getPrimaryKeyID()));
+        my $dueDate = HSDB4::DateTime->new();
+        $dueDate->in_mysql_timestamp($link->getDueDate());
+        if ($dueDate < HSDB4::DateTime->new()) {
             if ($commit) {
                 map {$_->submit()} @unsubQuizzes;
                 push @warnings, "$nUnsub previously unsubmitted quizzes " .
