@@ -14,8 +14,8 @@ function changeNavSate() {
 }
 
 function closeNotifications() {
-	$('.alert').hide();
-	$('#main').removeClass('withnote');
+	$('.notifications').hide();
+	$('#gContent').removeClass('withnote');
 }
 
 function changeTabState() {

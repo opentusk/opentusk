@@ -49,17 +49,15 @@ foreach my $course (@courses){
 		push (@{$course_hash{$course->school()}{"user_committees"}}, $course);
 	}
 	elsif ($course->type() eq 'community service' or $course->type() eq 'course' or $course->type() eq 'integrated course') {
-		if ($course->can_user_edit($user)) {
-			push (@{$course_hash{$course->school()}{"admin_courses"}}, $course);
-		}
-		else {
-			push (@{$course_hash{$course->school()}{"auth_courses"}}, $course);
-		}
+		push (@{$course_hash{$course->school()}{"admin_courses"}}, $course);
 	}  
 }
 
 my @current_courses = $user->current_courses( {'only_enrollment' => 1} );
 my @user_stud_courses = $user->user_stud_courses(@current_courses);
+foreach my $course (@user_stud_courses) {
+	push (@{$course_hash{$course->school()}{"stud_courses"}}, $course);
+}
 </%shared>
 
 <%method title>
@@ -71,7 +69,7 @@ my @user_stud_courses = $user->user_stud_courses(@current_courses);
 </%method>
 
 <%method stylearray>
-% return ['/style/style.css'];
+% return ['/style/style.css','/style/home.css'];
 </%method>
 
 <%method leftnav>
@@ -86,7 +84,7 @@ return \%someHash;
 
 <%perl>
 my $counter = 0;
-my $upcoming = 0;
+my $upcoming = {};
 my @schools;
 </%perl>
 <nav class="toptabs">
@@ -94,7 +92,11 @@ my @schools;
 % if (scalar keys %course_hash) {
 % 	foreach my $school (keys %course_hash) {
 	<li<% ($counter == 0) ? ' class="current"' : ''%>><a href="#schooltab<% $counter %>"><% $TUSK::Constants::Schools{$school}{'DisplayName'} %></a>
-%		$upcoming += scalar @{$user->get_important_upcoming_dates($school)};
+%		my $temp_arrayref = $user->get_important_upcoming_dates_by_school($school);
+%		$upcoming->{$school} = [];
+%		foreach my $meeting (@$temp_arrayref) {
+%			push @{$upcoming->{$school}}, $meeting;
+%		}
 %		$counter++;
 % 	}
 %	@schools = keys %course_hash;
@@ -102,26 +104,26 @@ my @schools;
 % else {
 	<li class="current"><a href="#schooltab0"><% $TUSK::Constants::Schools{$user->affiliation()}{'DisplayName'} %></a></li>
 %	@schools = ($user->affiliation());
+%	$upcoming->{$user->affiliation()} = $user->get_important_upcoming_dates_by_school($user->affiliation());
 % }
 </ul>
 </nav>
 % $counter = 0;
-% my @sorted_meetings = $user->todays_sorted_meetings();
-% my $calendar_tab;
-% if (scalar @sorted_meetings || $upcoming) {
-%	$calendar_tab = 1;
-% }
-
 % foreach my $school (@schools) {
+%	my @sorted_meetings = $user->todays_sorted_meetings();
+%	my $calendar_tab;
+%	if (scalar @sorted_meetings || scalar @{$upcoming->{$school}}) {
+%		$calendar_tab = 1;
+%	}
 % 	my @tabs;
 	<div id="schooltab<% $counter %>" class="toptab<% ($counter == 0) ? ' current' : ''%><% ($calendar_tab) ? '' : ' full' %>">
 		<div class="tabinner">
 			<h1 class="skip"><% $TUSK::Constants::Schools{$school}{'DisplayName'} %></h1>
 			<div class="courses tabgroup">
-				<nav class="tabs">
+				<nav class="tabs<% (scalar keys %{$course_hash{$school}} <= 1) ? ' single' : '' %>">
 					<ul>
-% 	if ($course_hash{$school}{"auth_courses"} && scalar @{$course_hash{$school}{"auth_courses"}}) {
-%		push @tabs, "auth_courses";
+% 	if ($course_hash{$school}{"stud_courses"} && scalar @{$course_hash{$school}{"stud_courses"}}) {
+%		push @tabs, "stud_courses";
 						<li<% ((scalar @tabs) == 1) ? ' class="current"' : '' %>><a href="#schooltab<% $counter %>coursetab<% (scalar @tabs) - 1 %>">Courses</a></li>
 % 	}
 % 	if ($course_hash{$school}{"user_groups"} && scalar @{$course_hash{$school}{"user_groups"}}) {
@@ -136,16 +138,24 @@ my @schools;
 %		push @tabs, "user_committees";
 						<li<% ((scalar @tabs) == 1) ? ' class="current"' : '' %>><a href="#schooltab<% $counter %>coursetab<% (scalar @tabs) - 1 %>">Committees</a></li>
 % 	}
+%	unless (scalar @tabs) {
+						<li class="current"><a href="#schooltab<% $counter %>coursetab0">Courses</a></li>
+%	}
 					</ul>
 				</nav>
 				<div class="tabcontainer">
 % 	my $tabcounter = 0;
+%	unless (scalar @tabs) {
+					<section id="schooltab<% $counter %>coursetab0" class="tab current">
+						<h1 class="skip">Courses</h1>
+					</section>
+%	}
 % 	foreach my $tab (@tabs) {
 %		if ($course_hash{$school}{$tab} && scalar @{$course_hash{$school}{$tab}}) {
 				<section id="schooltab<% $counter %>coursetab<% $tabcounter %>" class="tab<% ($tabcounter == 0) ? ' current' : '' %>">
 					<ul>
 %			foreach my $course (@{$course_hash{$school}{$tab}}) {
-						<li><a href="#"><% $course->out_title() %></a></li>
+						<li><a href="<% ($tab eq "admin_courses") ? "/management/course/display/" : "/view/course/" %><% "$school/" . $course->primary_key() %>"><% $course->out_title() %></a></li>
 %			}
 					</ul>
 				</section>
@@ -156,44 +166,36 @@ my @schools;
 			</div>
 %	if ($calendar_tab) {
 			<div class="calendar tabgroup">
-				<nav class="tabs">
+				<nav class="tabs<% (scalar @sorted_meetings && scalar @{$upcoming->{$school}}) ? '' : ' single' %>">
 					<ul>
 %		if (scalar @sorted_meetings) {
-						<li class="current"><a href="#schooltab1calendartab1">Today</a></li>
+						<li class="current"><a href="#schooltab<% $counter %>calendartab1">Today</a></li>
 %		}
-%		if (scalar @$upcoming) {
-						<li<% (scalar @sorted_meetings) ? '' : ' class="meetings"' %>><a href="#schooltab1calendartab2">To Do</a></li>
+%		if (scalar @{$upcoming->{$school}}) {
+						<li<% (scalar @sorted_meetings) ? '' : ' class="current"' %>><a href="#schooltab<% $counter %>calendartab2">To Do</a></li>
 %		}
 					</ul>
 				</nav>
 				<div class="tabcontainer">
 %		if (scalar @sorted_meetings) {
-					<section class="tab current" id="schooltab1calendartab1">
-						<h1 class="skip">Calendar</h1>
+					<section class="tab current" id="schooltab<% $counter %>calendartab1">
+						<h1 class="skip">Today</h1>
+%			foreach my $meeting (@sorted_meetings) {
 						<article>
-							<time datetime="2012-01-15T08:00:00">8:00am - 9:00am</time>
-							<h1><a href="#">Lore ipsum dolor sir amet</a></h1>
-							<p>Fusce convallis, quam ac ullamcorper accumsan</p>
+							<time><% sprintf ("%s - %s", $meeting->out_starttime->out_string_time_hm, $meeting->out_endtime->out_string_time) %></time>
+							<h1><a href="/view/course/<% $school %>/<% $meeting->course_id() %>/schedule/<% $meeting->primary_key() %>"><% $meeting->title() %></a></h1>
+							<p><% $meeting->location() %></p>
 						</article>
-						<article>
-							<time datetime="2012-01-15T10:00:00">10:00am - 11:00am</time>
-							<h1><a href="#">Vivamus blandit tellus sit amet</a><span class="mandatory">*</span></h1>
-							<p>Nulla scelerisque, leo molestie sagittis dignissim</p>
-						</article>
-						<article>
-							<time datetime="2012-01-17T09:00:00">9:00am - 10:30am</time>
-							<h1><a href="#">Ut eget imperdiet est</a></h1>
-							<p>Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia</p>
-						</article>
+%			}
 					</section>
 %		}
-%		if (scalar @$upcoming) {
-					<section class="tab" id="schooltab1calendartab2">
+%		if (scalar @{$upcoming->{$school}}) {
+					<section class="tab<% (scalar @sorted_meetings) ? '' : ' current"' %>" id="schooltab<% $counter %>calendartab2">
 						<h1 class="skip">To Do</h1>
-%			foreach my $meeting (@$upcoming) {
+%			foreach my $meeting (@{$upcoming->{$school}}) {
 						<article class="todo">
-							<time><% $meeting->meeting_date() %></time>
-							<h1><a href="#"><% $meeting->title() %></a></h1>
+							<time><% $meeting->{date} %> <strong><% $meeting->{time} %></strong></time>
+							<h1><a href="/view/course/<% $school %>/<% $meeting->{course_id} %>/schedule/<% $meeting->{class_meeting_id} %>"><% $meeting->{title} %></a></h1>
 						</article>
 %			}
 					</section>
@@ -208,56 +210,45 @@ my @schools;
 					</hgroup>
 					<div class="tabcontainer">
 						<section class="tab">
-							<& /tmpl/home:print_school_links, school =>  TUSK::Core::School->new->lookupReturnOne("school_name = '$school'") &>
+							<div class="scrollcontainer">
+								<& /tmpl/home:print_school_links, school =>  TUSK::Core::School->new->lookupReturnOne("school_name = '$school'") &>
+							</div>
 						</section>
 					</div>
 				</div>
 				<div class="content">
 					<nav class="tabs">
 						<ul>
-							<li class="current"><a href="#schooltab2contenttab1">Recently Viewed</a></li>
-							<li><a href="#schooltab2contenttab2">Popular</a></li>
+							<li class="current"><a href="#schooltab<% $counter %>contenttab1">Recently Viewed</a></li>
+							<li><a href="#schooltab<% $counter %>contenttab2">Popular</a></li>
 						</ul>
 					</nav>
 					<div class="tabcontainer">
-						<section id="schooltab2contenttab1" class="tab current">
+						<section id="schooltab<% $counter %>contenttab1" class="tab current">
 							<h1 class="skip">Recently Viewed</h1>
+							<div class="scrollcontainer">
+								<& SELF:recently_viewed &>
+							</div>
+						</section>
+						<section id="schooltab<% $counter %>contenttab2" class="tab">
+							<h1 class="skip">Popular</h1>
+							<div class="scrollcontainer">
+								<& SELF:pop_content &>
+							</div>
 						</section>
 					</div>
 				</div>
 			</div>
 		</div>
 		<div class="bottom">
+			<a href="/allcourses.htm" class="courses">all &raquo;</a>
+%	if ($calendar_tab) {
+			<a href="/view/schedule/user/<% $user->uid() %>" class="calendar">all &raquo;</a>
+%	}
 		</div>
 	</div>
 %	$counter++;
 % }
-
-
-<%doc>
-method to print the user's courses on the homepage.
-if the user does not have any relevant courses, the section is not printed.
-</%doc>
-<%method courses>
-<%args>
-$hp_section
-</%args>
-
-% if(defined $enum_cat or scalar @user_stud_courses){
-
-<div class="homeSection">
-
-<div class="toggled">
-
-<& /tmpl/home:print_courses, enum_cat => $enum_cat, user_stud_courses => \@user_stud_courses &>
-
-<a href="/allcourses.htm" class="xsm indented"><strong>Browse All Courses</strong></a>
-
-</div><!-- toggled -->
-</div>
-% }
-</%method>
-
 
 <%doc>
 method to print the homepage course dropdowns for the user's primary affiliation.
@@ -290,86 +281,15 @@ if ($school && $school->getPrimaryKeyID()){
 </%method>
 
 
-
-<%doc>
-method to print the user's discussions
-</%doc>
-<%method discussions>
-<%args>
-$hp_section
-</%args>
-
-<div class="homeSection">
-
-<div class="toggled">
-
-% my ($new_post_forums, $new_notifications_forums, $link) = Forum::ForumKey::new_post_forums($r, $user, undef, \@current_courses);
-
-<a href="/forum/forum.pl"><strong>All Discussions</strong></a>
-% if (defined $new_post_forums && scalar @$new_post_forums){
-&nbsp;-&nbsp;<a href="/forum/<% $link %>&amp;redirect_to_home=1"><strong>Mark All Posts as Old</strong></a>
-% }
-
-% if (scalar @$new_notifications_forums){
-<h4 class="homepageHdr">Notifications:</h4>
-<ul class="gNoBullets">
-%	foreach my $notification (@$new_notifications_forums){
-<li><% $notification->{timeStr} %>: <% $notification->{body} %></li>
-%	}
-</ul>
-% }
-<%doc>TUSK changed the evaluated exp for the if statement.  Given a hash to multiple boards, the following creates a flag that helps check for new and unread posts.</%doc>
-
-% my $categoryHeading = 0;
-% my $currentCategory = '';
-
-% if (defined $new_post_forums && scalar (@$new_post_forums)){
-%	my $first_forum = 1;
-%	foreach my $forum_ref (@$new_post_forums){
-%		$currentCategory = $forum_ref->{category};
-%		if ( $forum_ref->{numNew}){
-%			if (!$categoryHeading || ($categoryHeading ne $currentCategory)){
-%				$categoryHeading = $currentCategory;
-%				unless($first_forum){
-</ul>
-%				}
-<h4 class="homepageHdr"><% $categoryHeading %></h4>
-<ul class="gNoBullets">
-%			}
-
-<li><a href="/forum/board_show.pl?bid=<% $forum_ref->{bid} %>"><% $forum_ref->{title} %></a>: <% $forum_ref->{numNew} %> new</li>
-%		$first_forum = 0;
-%		}
-%	}
-</ul>
-% }
-% else{
-<em class="indented">no new posts</em>
-% }
-
-</div>
-</div>
-
-</%method>
-
-
 <%doc>
 method to print the user's recently viewed content 
 </%doc>
 <%method recently_viewed>
-<%args>
-$hp_section
-</%args>
 <%perl>
 my @recent_content = $user->available_recent_history;
 </%perl>
-
-<div class="homeSection">
-
-<div class="toggled">
-
 % if(scalar @recent_content){
-<ul class="gNoBullets">
+<ul>
 %	foreach my $c (@recent_content){
 %		if ($c->is_active()){
 <li><a href="<% $c->out_url %>"><% $c->out_label %></a> <em>(<% $c->course->out_label %>)</em></li>
@@ -378,10 +298,8 @@ my @recent_content = $user->available_recent_history;
 </ul>
 % }
 % else {
-<em class="indented">no recently viewed content</em>
+<p><em>no recently viewed content</em></p>
 % }
-</div>
-</div>
 </%method>
 
 
@@ -415,23 +333,14 @@ return unless defined $school;
 method to print the user's school's popular content 
 </%doc>
 <%method pop_content>
-<%args>
-$hp_section
-</%args>
 <%perl>
 my @groups = $user->parent_user_groups;
 </%perl>
-
-<div class="homeSection">
-
-<div class="toggled">
-
 % my $hot_content_count = 0;
 % foreach my $group (@groups){
 %	my @group_content = $group->hot_content();
 %	if (scalar @group_content){
-<h4 class="homepageHdr"><% $group->out_label() %></h4>
-<ul class="gNoBullets">
+<ul>
 %		foreach my $content (@group_content){
 %			if ($content->is_active()){
 <li><a href="/hsdb4/content/<% $content->primary_key %>"><% $content->out_label %></a> <em>(<% $content->course->out_label %>)</em></li>
@@ -442,9 +351,7 @@ my @groups = $user->parent_user_groups;
 %	}
 % }
 % if (!$hot_content_count){
-<em class="indented">no relevant content</em>
+<p><em>no relevant content</em></p>
 % }
-</div>
-</div>
 </%method>
 

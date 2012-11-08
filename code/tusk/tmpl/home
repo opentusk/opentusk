@@ -251,22 +251,13 @@ $school
 	$user
 </%args>
 <%perl>
-	use Data::Dumper;
-	my @all_announcements;
-
-	my %schools = map { $_->{school_name} => 1 } @{$user->user_group_courses()};
-	foreach my $school (keys %schools) {
-		my @announcements = HSDB45::Announcement::schoolwide_announcements($school);
-		foreach my $ann (@announcements) {
-			push @all_announcements, $ann;
-		}
-	}
+	my $all_announcements = $user->get_school_announcements();
 </%perl>
-% if (scalar @all_announcements) {
+% if (scalar @$all_announcements) {
 <section class="notifications">
 	<div class="close"><img src="/graphics/icon-home-close.png" alt=""></div>
 	<div class="scrollcontainer">
-%	foreach my $ann (@all_announcements) {
+%	foreach my $ann (@$all_announcements) {
 		<article><% $ann->field_value('body') %></article>
 % }
 	</div>

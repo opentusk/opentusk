@@ -46,7 +46,6 @@ use TUSK::HomepageCategory;
 use Forum::MwfConfig;
 use TUSK::GradeBook::GradeEventEval;
 use TUSK::Application::GradeBook::GradeBook;
-use Data::Dumper;
 
 use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
@@ -520,27 +519,29 @@ sub get_schedule_start_end {
 	return ($startdate, $enddate);
 }
 
-sub get_important_upcoming_dates {
+sub get_important_upcoming_dates_by_school {
 	my $user = shift;
 	my $school = shift;
-	my (undef, $end) = get_schedule_start_end();
-	my $enddate =  HSDB4::DateTime->new->in_mysql_date($end);
-	my (@meetings, %seen);
+	my @meetings;
+	my $db = get_school_db($school);
+	my (undef, $enddate) = get_schedule_start_end();
+	
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $sth = $dbh->prepare(qq(
+		SELECT class_meeting_id, course_id, title, DATE_FORMAT(meeting_date, '%b. %e, %Y') as date, DATE_FORMAT(starttime,'%h:%i %p') as time, location 
+		FROM $db.class_meeting, $db.link_course_student 
+		WHERE child_user_id = ? AND
+		parent_course_id = course_id AND
+		meeting_date BETWEEN NOW() AND ? 
+		ORDER BY time
+	));
 
-	$enddate->add_days(1);
-	for (my $date = HSDB4::DateTime->new; $date <= $enddate; $date->add_days(1)) {
-		my $ug_courses = $user->user_group_courses('', $date);
-		foreach my $c_hash (@$ug_courses){
-			my $id = $c_hash->{course_id};
-			unless($seen{ $id }){
-				my $course = HSDB45::Course->new(_school => $c_hash->{$school})->lookup_key($id);
-				if ($course->primary_key) {
-					push @meetings, $course->meetings_on_date($date);
-				}
-				$seen{ $id } = 1;
-			}
-		}
+    $sth->execute($user->primary_key, $enddate);
+    while (my $row = $sth->fetchrow_hashref) {
+		push @meetings, $row;
 	}
+
+    $sth->finish;
 	return \@meetings;
 }
 
@@ -870,37 +871,34 @@ sub admin_courses {
     # Get a list of courses this person has access to as an admin
     #
     my $self = shift;
-	my ($school,$group_id,@courses);
+	my ($school,$group_id,@admin_courses);
 	foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
 	    if ($self->check_school_permissions($school)){
-		my $course = HSDB45::Course->new(_school => $school);
-		push(@courses,$course->lookup_conditions());
+			my @courses = HSDB45::Course->new(_school => $school)->lookup_conditions();
+			push(@admin_courses, @courses);
 	    }
 	}
-	$self->{-admin_courses} = \@courses;
-
-    return @{$self->{-admin_courses}};
-
+    return \@admin_courses;
 }
 
 
 sub cms_courses {
 	my $user = shift;
 	my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $user->parent_courses();
+	push @courses, @{$user->admin_courses()};
 
 	my $courses_hash;
-	for(my $i=0; $i<scalar @courses; $i++){
-		my $school = $courses[$i]->{_school};
-		my $key = $courses[$i]->out_title."\0".$courses[$i]->primary_key;
-		$courses_hash->{$school}->{$key}=$courses[$i];
+	foreach my $course (@courses) {
+		my $school = $course->school;
+		my $key = $course->out_title."\0".$course->primary_key;
+		$courses_hash->{$school}->{$key} = $course;
 	}
-  
 	return $courses_hash;
 }
 
 sub cms_courses_sorted {
 	my $user = shift;
-	my $courses_hashref = cms_courses($user);
+	my $courses_hashref = $user->cms_courses();
 	my $group_courses_hashref;
 	my $tc_courses_hashref;
 
@@ -923,6 +921,7 @@ sub cms_courses_sorted {
 		}
 
 	}
+
 	return ($courses_hashref, $group_courses_hashref, $tc_courses_hashref);
 }
 
@@ -1474,11 +1473,10 @@ sub all_personal_content {
     # Make the condition (which we should quote properly...)
     my $condition = sprintf "user_id='%s'", $self->primary_key;
     # And get a list, if necessary
-    my @p_cont = 
-      HSDB4::SQLRow::PersonalContent->lookup_conditions ($condition);
+    my @p_cont = HSDB4::SQLRow::PersonalContent->lookup_conditions ($condition);
 
     # Return the list
-    return @p_cont;;
+    return @p_cont;
 }
 
 sub all_user_content {
@@ -2491,6 +2489,19 @@ sub get_course_assignments {
     return $assignments;
 }
 
+sub get_school_announcements {
+	my $self = shift;
+	my @all_announcements;
+
+	my %schools = map { $_->{school_name} => 1 } @{$self->user_group_courses()};
+	foreach my $school (keys %schools) {
+		my @announcements = HSDB45::Announcement::schoolwide_announcements($school);
+		foreach my $ann (@announcements) {
+			push @all_announcements, $ann;
+		}
+	}
+	return \@all_announcements;
+}
 
 sub makeGhost {
 	my ($self, $user_id, @params) = @_;

@@ -58,6 +58,7 @@ $doctype => 'html'
 <!-- siteabb: TUSK -->
 <!-- Script Running On: <% $ENV{HOSTNAME} %> under: <% $$ %> !-->
 <title><% $TUSK::Constants::SiteAbbr %> - <% $title %></title>
+<script type="text/javascript" src="/scripts/html5shiv.js?<% TUSK::Functions::get_tusk_version %>" ></script>
 % if (!scalar(@stylearray)){
 <link rel="stylesheet" href="/style/style.css?<% TUSK::Functions::get_tusk_version %>" type="text/css" />
 <style type="text/css">@import url(/style/calendar-blue.css);</style>
@@ -152,7 +153,7 @@ $top_tab_type => ''
 <br/>
 <img src= "/graphics/spacer.gif" alt=" " width="<% $width %>" height="1" border="0">
 </td>
-% if ($top_tab_type ne 'browse') {
+% if ($top_tab_type ne 'browse' && $top_tab_type ne 'course') {
 <td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif">
 <img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
 % }
@@ -499,7 +500,7 @@ if (ref $leftnav eq 'HASH' and $leftnav->{component}){
 my $req = \%req_hash;
 my ($can_cms, $has_schedule);
 if ($req->{user}) {
-	$can_cms = $req->{user}->check_cms();
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
 	$has_schedule = $req->{user}->has_schedule();
 }
 
@@ -532,7 +533,7 @@ if($req->{top_tab_type} eq 'home'){
 	$m->comp("/tmpl/home:school_announcements", user => $req->{user});
 	$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
 }
-$m->comp('SELF:open_gContent', args =>\%ARGS);
+$m->comp('SELF:open_gContent', user =>$req->{user}, type => $req->{top_tab_type}, msg => ($ARGS{msg} || $ARGS{errmsg} || $ARGS{hintmsg}));
 
 if($req->{top_tab_type} ne 'login' && $req->{top_tab_type} ne 'home'){
 	$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
@@ -558,7 +559,7 @@ if (!$req->{nostandardheader}) {
 my $req = \%req_hash;
 my ($has_schedule, $can_cms);
 if ($req->{user}) {
-	$can_cms = $req->{user}->check_cms();
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
 	$has_schedule = $req->{user}->has_schedule();
 }
 # figure out the alt text for the main image
@@ -681,9 +682,23 @@ $has_nav => 1
 
 <%method open_gContent>
 <%args>
-	$args
+	$user
+	$type
+	$msg
 </%args>
-<div id="gContent"<% ($args->{msg} or $args->{errmsg} or $args->{hintmsg}) ? ' class="withtrafficlight"' : '' %>>
+% if ($type eq 'home') {
+%	my $class = "";
+%	if ($msg) {
+%		$class .= "withtrafficlight ";
+%	}
+%	if (scalar @{$user->get_school_announcements()}) {
+%		$class .= "withnote ";
+%	}
+<div id="gContent"<% ($class) ? " class=\"$class\"" : '' %>>
+% }
+% else {
+<div id="gContent">
+% }
 </%method>
 
 <%def right_header_links>
