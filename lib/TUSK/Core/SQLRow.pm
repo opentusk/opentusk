@@ -1628,14 +1628,16 @@ Do a dbi execute on a $sql string :)  It is your job to call $sth->finish when y
 =cut
 
 sub databaseSelect{
-    my ($self, $sql) = @_;
+    my $self = shift;
+    my $sql = shift;
+    my @sqlArgs = @_;
 
-    my $dbh = $self->getDatabaseReadHandle;
+    my $dbh = $self->getDatabaseReadHandle();
 
     my $sth = $dbh->prepare($sql);
 
-    eval { 
-	    $sth->execute();
+    eval {
+	    $sth->execute(@sqlArgs);
     };
     croak "error : $@ query $sql failed for class " . ref($self) if ($@);
 
