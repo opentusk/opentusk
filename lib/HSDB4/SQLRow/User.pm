@@ -472,7 +472,6 @@ sub has_schedule {
 	}	
     my $sth = $dbh->prepare(join (' union ', @selects) . " ORDER BY num DESC");
     $sth->execute(@ids);
-
 	while (my ($school, $ug_id, $ug_label, undef) = $sth->fetchrow_array) {
 		push @{$ug_hash{$school}}, {id => $ug_id, label => $ug_label};
 	}
