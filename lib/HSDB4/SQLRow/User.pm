@@ -471,19 +471,20 @@ sub has_schedule {
 	
 	if ($school) {
 		my $db = 'hsdb45_' . $TUSK::Constants::Schools{$school}{ShortName} . '_admin';
-		push @selects, "SELECT DISTINCT '$school' AS schoolName, child_user_group_id, label FROM $db.class_meeting, $db.link_course_student, $db.link_course_user_group, $db.time_period, $db.user_group WHERE class_meeting.course_id = link_course_student.parent_course_id AND child_user_id = ? AND meeting_date BETWEEN ? AND ? AND link_course_student.parent_course_id = link_course_user_group.parent_course_id AND time_period.time_period_id = link_course_student.time_period_id AND NOW() BETWEEN start_date AND end_date AND child_user_group_id = user_group_id";
-		push (@ids, ($user->primary_key(), $start, $end));
+		push @selects, "SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ?";
+		push (@ids, ($start, $end, $user->primary_key()));
 	}
 	else {
 		my %school_dbs = map { $_ => 'hsdb45_' . $TUSK::Constants::Schools{$_}{ShortName} . '_admin' } keys %TUSK::Constants::Schools;
 		foreach my $school (keys %school_dbs) {
 			my $db = $school_dbs{$school};
-			push @selects, "(SELECT DISTINCT '$school' AS schoolName, child_user_group_id, label FROM $db.class_meeting, $db.link_course_student, $db.link_course_user_group, $db.time_period, $db.user_group WHERE class_meeting.course_id = link_course_student.parent_course_id AND child_user_id = ? AND meeting_date BETWEEN ? AND ? AND link_course_student.parent_course_id = link_course_user_group.parent_course_id AND time_period.time_period_id = link_course_student.time_period_id AND NOW() BETWEEN start_date AND end_date AND child_user_group_id = user_group_id)";
-			push (@ids, ($user->primary_key(), $start, $end));
+			push @selects, "(SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ?)";
+			push (@ids, ($start, $end, $user->primary_key()));
 		}
 	}	
     my $sth = $dbh->prepare(join (' union ', @selects));
     $sth->execute(@ids);
+
 	while (my ($school, $ug_id, $ug_label) = $sth->fetchrow_array) {
 		push @{$ug_hash{$school}}, {id => $ug_id, label => $ug_label};
 	}
