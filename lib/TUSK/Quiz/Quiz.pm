@@ -326,8 +326,8 @@ sub exportToGradeBook{
         $grade_event->setQuizID($self->getPrimaryKeyID());
         $grade_event->save({'user'=>$self->getUser()});
     } else {
-        confess "The Quiz is being exported to an invalid grade event. " .
-            "The grade event is associated to quiz $grade_event_quiz_id";
+        confess "The Quiz is being exported to an invalid grade event. "
+            . "The grade event is associated to quiz $grade_event_quiz_id";
     }
 
     my ($link, $links, $grade_event_id, $user_object, $user_id, $updatingLink,
@@ -345,41 +345,35 @@ sub exportToGradeBook{
         my $course = $grade_event->getCourseObject();
         my $dbh = $self->getDatabaseReadHandle();
         my $link = TUSK::Quiz::LinkCourseQuiz->lookupReturnOne(
-            "parent_course_id = " . $dbh->quote($course->getPrimaryKeyID()) .
-            " AND school_id = " . $dbh->quote($course->school_id()) .
-            " AND child_quiz_id = " . $dbh->quote($self->getPrimaryKeyID()));
+            "parent_course_id = " . $dbh->quote($course->getPrimaryKeyID())
+            . " AND school_id = " . $dbh->quote($course->school_id())
+            . " AND child_quiz_id = "
+            . $dbh->quote($self->getPrimaryKeyID()));
         my $dueDate = HSDB4::DateTime->new();
         $dueDate->in_mysql_timestamp($link->getDueDate());
         if ($dueDate < HSDB4::DateTime->new()) {
             if ($commit) {
                 map {$_->submit()} @unsubQuizzes;
-                push @warnings, "$nUnsub previously unsubmitted quizzes " .
-                    "were forceably submitted.";
-            }
-            else {
-                push @warnings, "The due date for this quiz has " .
-                    "passed. Continue export to force submit $nUnsub " .
-                    "quizzes.";
             }
         }
         # if due date has not yet passed, filter out results and print warning
         else {
             my @finished_results = grep {defined $_->getEndDate()} @{$results};
             $results = \@finished_results;
-            push @warnings, "Skipped $nUnsub quizzes that have not yet " .
-                "been submitted.";
+            push @warnings, "Skipped $nUnsub quizzes that have not yet "
+                . "been submitted.";
         }
     }
 
     # check for ungraded quizzes
     if (my $nGrading = scalar(grep {$_->needsGrading()} @{$results})) {
         if ($commit) {
-            push @warnings, "There are still $nGrading quizzes that need " .
-                "grading. Please re-export after grading.";
+            push @warnings, "There are still $nGrading quizzes that need "
+                . "grading. Please re-export after grading.";
         }
         else {
-            push @warnings, "There are still $nGrading quizzes that need " .
-                "grading.";
+            push @warnings, "There are still $nGrading quizzes that need "
+                . "grading.";
         }
     }
 
