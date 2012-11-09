@@ -229,14 +229,15 @@ sub getScoreAsPercentage {
 }
 
 sub needsGrading {
-	my $self = shift;
-	my $responses = $self->getResponses(); 
-        foreach my $response (@{$responses}){
-                unless ($response->getGradedFlag()) {
-			return 1;
-                }
+    my $self = shift;
+    my $responses = $self->getResponses();
+    foreach my $response (@{$responses}){
+        unless ($response->getGradedFlag()) {
+            return 1 if ($response->getQuizItem()->getType()
+                         =~ /^(FillIn|Essay)$/);
         }
-	return 0;
+    }
+    return 0;
 }
 
 ### Other Methods
@@ -381,7 +382,6 @@ sub submit {
 sub autogradeResponse {
     my $self = shift;
     my $response = shift;
-    # return if ($response->getLinkType() eq 'link_question_question');
     my $question = $response->getQuizItem();
     if (($response->getResponseText() || defined($self->getEndDate())) &&
         $question->getType() !~ /^(FillIn|Essay)$/) {
