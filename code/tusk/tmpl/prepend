@@ -24,6 +24,7 @@
 	use TUSK::Application::RSSCourse;
 	use HSDB4::Constants;
 	use HSDB4::DateTime;
+	use TUSK::Application::HTML::Strip;
 </%once>
 
 <& SELF:manage_header, %ARGS &>
@@ -446,10 +447,29 @@ $has_schedule => ''
 % if($can_cms) { 
 			<li class="<% $active eq 'manage'? 'selected' : '' %>"><a href="/protected/management/home" target="_top">Manage School</a></li>
 % }
-% if($has_schedule) {
-			<li class="<% $active eq 'schedule'? 'selected' : '' %>"><a href="/view/schedule/user/<% $user->uid %>" target="_top">Schedule</a></li>
-% }
 			<li class="<% $active eq 'search'? 'selected' : '' %>"><a href="/search/form" target="_top">Search</a></li>
+% if($has_schedule) {
+%	my @schedule_links;
+%	foreach my $school (keys %$has_schedule) {
+%		foreach my $ug (@{$has_schedule->{$school}}) {
+%			push @schedule_links, {link => "/view/schedule/" . $school . "/" . $ug->{id}, label => $ug->{label}};
+%		}
+%	}
+%	if (scalar @schedule_links > 1) {
+			<li class="calendar">
+% 		my $stripObj = TUSK::Application::HTML::Strip->new();
+			<select onchange="forward(this)">
+				<option value="">Schedule</option>
+%		foreach my $ug (@schedule_links) {
+				<option value="<% $ug->{link} %>"<% ($ug->{link} eq $ENV{'REQUEST_URI'}) ? ' selected="selected"' : '' %>><% $stripObj->truncateAndRemoveHTML($ug->{label}, 40) %></option>
+%		}
+			</select>
+% 	}
+%	else {
+			<li class="<% $active eq 'schedule'? 'selected' : '' %>"><a href="<% $schedule_links[0]->{link} %>"><% $schedule_links[0]->{label} %></a>
+%	}
+			</li>
+% }
 		</ul>
 	</nav>
 % }
