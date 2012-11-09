@@ -414,7 +414,7 @@ sub autogradeResponses {
     my @responses = @{$self->getResponses()};
     foreach my $response (@responses) {
         $self->autogradeResponse($response);
-        $self->addUpdateResponse($user_id, $response);
+        $response->save({ user => $user_id });
     }
 }
 
