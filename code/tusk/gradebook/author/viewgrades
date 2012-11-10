@@ -17,6 +17,8 @@
 	use TUSK::GradeBook::GradeEvent;
 	use TUSK::GradeBook::LinkUserGradeEvent;
 	use TUSK::Application::GradeBook::GradeBook;
+    use HSDB45::TimePeriod;
+    use TUSK::Core::School;
 </%once>
 
 <%shared>
@@ -26,6 +28,10 @@
 	my $event_name = $event->getEventName();
 	my $is_edit = 0;
 	my $type_object = $m->comp("/tmpl/url:get_type_object");
+    my $time_period = HSDB45::TimePeriod->new(
+            _school => TUSK::Core::School->lookupKey(
+                $event->getSchoolID() )->getSchoolName()
+        )->lookup_key( $event->getTimePeriodID() );
 
 	if (defined($event_id)){
 		$is_edit = 1;
@@ -47,7 +53,7 @@
 </%shared>
 
 
-<h2><% $event_name %> </h2>
+<h2><% $event_name %> &mdash; <% $time_period->out_display() %></h2>
 
 <%perl>
 if ($is_edit) {
