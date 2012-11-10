@@ -49,17 +49,19 @@ function verify(f) {
             }
 
             // Now check for fields that are supposed to be numeric.
-            if (e.numeric || (e.min != null) || (e.max != null)) { 
+            var emin = parseFloat(e.min);
+            var emax = parseFloat(e.max);
+            if (e.numeric || !isNaN(emin) || !isNaN(emax)) {
                 var v = parseFloat(e.value);
-                if (isNaN(v) || 
-                    ((e.min != null) && (v < e.min)) || 
-                    ((e.max != null) && (v > e.max))) {
+                if (isNaN(v) ||
+                    (!isNaN(emin) && (v < emin)) ||
+                    (!isNaN(emax) && (v > emax))) {
                     errors += "- The field " + e.name + " must be a number";
-                    if (e.min != null) 
+                    if (!isNaN(emin))
                         errors += " that is greater than " + e.min;
-                    if (e.max != null && e.min != null) 
+                    if (!isNaN(emin) && !isNaN(emin))
                         errors += " and less than " + e.max;
-                    else if (e.max != null)
+                    else if (!isNaN(emax))
                         errors += " that is less than " + e.max;
                     errors += ".\n";
                 }
