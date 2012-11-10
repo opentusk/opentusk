@@ -23,6 +23,7 @@ my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
 </%shared>
 <%once>
 use TUSK::Quiz::Quiz;
+use HTML::Entities;
 </%once>
 
 <%method function_token>
@@ -57,14 +58,14 @@ $quiz->setUser($m->session->{user}->user_id);
 my $export = $ARGS{'export'};
 my $no_grade_event = 0;
 my $course = $m->comp('/tmpl/url:get_type_object');
-my ($msg,$grade_event);
+my ($msg, $warnings, $grade_event);
 $grade_event = TUSK::GradeBook::GradeEvent->lookupKey($grade_event_id);
 my $commit = 1;
 if ($ARGS{'export_submit'}){
-	$msg = $quiz->exportToGradeBook($grade_event,$commit);	
+    ($msg, $warnings) = $quiz->exportToGradeBook($grade_event,$commit);
 } elsif ($ARGS{'preview_submit'}){
 	$commit = 0;
-	$msg = $quiz->exportToGradeBook($grade_event,$commit);	
+    ($msg, $warnings) = $quiz->exportToGradeBook($grade_event,$commit);
 }
 </%init>
 
@@ -96,20 +97,25 @@ if ($ARGS{'export_submit'}){
 
 % }
 
-<& show_msg, msg=>$msg &>
+<& show_msg, msg=>$msg, warnings=>$warnings &>
 </form>
 </table>
 
 <%def show_msg>
 <%args>
 $msg
+$warnings
 </%args>
 <%perl>
 unless ($msg) {
 	return;
 }
-my @lines = split /\n/,$msg;
-$m->print (join('',map { '<tr><td></td><td class="sm">'.$_.'</td></tr>' } @lines));
+$m->print(join("\n",
+               map {'<tr><td></td><td class="sm warn">' .
+                        encode_entities($_) . '</td></tr>' } @{$warnings}));
+$m->print(join("\n",
+               map {'<tr><td></td><td class="sm">' .
+                        encode_entities($_) . '</td></tr>' } @{$msg}));
 </%perl>
 
 </%def>
