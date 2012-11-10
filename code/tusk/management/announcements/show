@@ -41,11 +41,11 @@ my $maingroup;
 </%method>
 
 <%method right_header_text>
-%	return [ {txt => 'Preview', url => "/view/$self_path/ann" } ];
+%	return [ {txt => __('Preview'), url => "/view/$self_path/ann" } ];
 </%method>
 
 <%method title>
-% return 'Manage Announcements';
+% return __('Manage Announcements');
 </%method>
 
 <%method additional_extratext>
@@ -59,9 +59,9 @@ my $user_groups;
 $usergroup_id = (defined($args->{'ug_id'})) ? $args->{'ug_id'} : 0;
 
 if ($is_course_announcement) { 
-	$temp_hash->{name} = "Course Group";
+	$temp_hash->{name} = __("Course Group");
 	$temp_hash->{text} .= "<select name=\"ug_id\" onchange=\"document.generic.submit();\" class=\"navsm\">";
-	$temp_hash->{text} .= "<option value=\"0\" class=\"navsm\">Entire Course\n";
+	$temp_hash->{text} .= "<option value=\"0\" class=\"navsm\">".__("Entire Course")."\n";
 } else {
 	$usergroup_id = $TUSK::Constants::Schools{$school}{Groups}{SchoolWideUserGroup} unless ($usergroup_id);
 	$temp_hash->{name} = "Group";
@@ -95,7 +95,7 @@ return $temp_hash;
 
 <%perl>
 if (!$is_course_announcement || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
-	$m->comp("/tmpl/element:cms_button_row", links => [ {link_txt=>'/management/announcements/addedit/' . $self_path . '?ug_id=' . $usergroup_id, display_txt=>'New Announcement'} ] );
+	$m->comp("/tmpl/element:cms_button_row", links => [ {link_txt=>'/management/announcements/addedit/' . $self_path . '?ug_id=' . $usergroup_id, display_txt=>__('New Announcement')} ] );
 }
 
 my $announcements = [];
@@ -110,8 +110,8 @@ my $col_fields = [ {'label'=>'Start Date', 'field'=>'start_date', 'sort'=>'str'}
 my $action_columns = [];
 
 if (!$is_course_announcement || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
-	push @$action_columns, {'label'=>'Modify','link'=>"/management/announcements/addedit/$self_path", 'extra'=>'?ug_id=' . $usergroup_id};
-	push @$action_columns, {'label'=>'Delete','link'=>"/management/announcements/delete/$self_path"};
+	push @$action_columns, {'label'=>__('Modify'),'link'=>"/management/announcements/addedit/$self_path", 'extra'=>'?ug_id=' . $usergroup_id};
+	push @$action_columns, {'label'=>__('Delete'),'link'=>"/management/announcements/delete/$self_path"};
 }
 </%perl>
 
@@ -123,6 +123,6 @@ if (!$is_course_announcement || TUSK::Session::is_director($course, $m->session-
 				sort            => 'start_date',
 				object_list     => $announcements,
 				action_columns  => $action_columns,
-				empty_message   => 'No usergroups available.',
+				empty_message   => __('No usergroups available.'),
 				type_path       => "", }
 &>

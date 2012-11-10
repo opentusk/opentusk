@@ -83,13 +83,13 @@
 			if($contentObject->primary_key()) {push @contentObjectArray, $contentObject;}
 		}
 		if($rval || $msg)                      {$m->comp("SELF:set_msg", msg => $msg, type => 'err');}
-		elsif(scalar(@contentObjectArray) > 0) {$m->comp("SELF:set_msg", msg => "Are you sure you want to delete content?", type => 'hintmsg');}
-		else                                   {$m->comp("SELF:set_msg", msg => "No content was passed... nothing to delete!", type => 'err');}
+		elsif(scalar(@contentObjectArray) > 0) {$m->comp("SELF:set_msg", msg => __("Are you sure you want to delete content?"), type => 'hintmsg');}
+		else                                   {$m->comp("SELF:set_msg", msg => __("No content was passed... nothing to delete!"), type => 'err');}
 	</%perl>
 </%method>
 
 <%method title>
-%	return "Delete Content";
+%	return __("Delete Content");
 </%method>
 
 <%method jsarray>
@@ -101,7 +101,7 @@
 </%method>
 
 <%method red_header_text>
-%	return "Delete Content";
+%	return __("Delete Content");
 </%method>
 
 
@@ -141,30 +141,30 @@
 </%perl>
 
 <& /tmpl/element:hidden_form_element, params =>{ name=> 'goToWhenDone', value => $backURL } &>
-<& /tmpl/element:field_display, params =>{ label => 'Content To Remove', value => $contentToRemove } &>
-<& /tmpl/element:field_display, params=>{ label => 'Linked From', value=>$alsoLinkedFrom } &>
+<& /tmpl/element:field_display, params =>{ label => __('Content To Remove'), value => $contentToRemove } &>
+<& /tmpl/element:field_display, params=>{ label => __('Linked From'), value=>$alsoLinkedFrom } &>
 <& /tmpl/element:sort_order_box , params =>{
 		no_add_button => 1,
-		label => 'Associated Meetings',
+		label => __('Associated Meetings'),
 		buttons => [ ],
 		layer_info => {
 			context_path => $m->comp("/tmpl/url:get_full_path"),
 			base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
 			layer => 'meetingsdiv',
-			empty_message => 'Not linked to any class meetings',
+			empty_message => __('Not linked to any class meetings'),
 			fields => ['class_meeting_id', 'checkbox_delete', 'content_title', 'course_title', 'title', 'meeting_date','start_time', 'end_time'],
 			name => 'meetings',
 			sort => {usage => 'No'},
 			sortoninsert => {usage => 'Yes', sorton => 'name'},
 			action => {usage => 'No'},
 			display => [
-				{field=>'checkbox_delete', label=> 'Unlink', align=>'center', length=>40 },
-				{field=>'content_title', label=> 'Content', align=>'center' },
-				{field=>'course_title', label=> 'Course', align=>'center' },
-				{field=>'title', label=> 'Title', align=>'center' },
-				{field=>'meeting_date', label=>'Date', align=>'left', length=>50, },
-				{field=>'starttime', label=> 'Start', align=>'left', length=>50, },
-				{field=>'endtime', label=> 'End', align=>'left', length=>50, },
+				{field=>'checkbox_delete', label=> __('Unlink'), align=>'center', length=>40 },
+				{field=>'content_title', label=> __('Content'), align=>'center' },
+				{field=>'course_title', label=> __('Course'), align=>'center' },
+				{field=>'title', label=> __('Title'), align=>'center' },
+				{field=>'meeting_date', label=>__('Date'), align=>'left', length=>50, },
+				{field=>'starttime', label=> __('Start'), align=>'left', length=>50, },
+				{field=>'endtime', label=> __('End'), align=>'left', length=>50, },
 				],
 			validate => {
 					usage => 'No',
@@ -173,33 +173,30 @@
 		}
 	} &>
 % if(scalar(@contentObjectArray) > 0) {
-<& /tmpl/element:flexible_tr, params=>{ label => 'What do you want to do?' } &>
+<& /tmpl/element:flexible_tr, params=>{ label => __('What do you want to do?') } &>
 	<table width="100%" cellspacing="0" class="tusk">
 		<tr>
 			<td class="layers-left" width="10"> <input name="removeContent" type="radio" value="0" checked></td>
 			<td class="layers-left">
-				<b>Remove Content from This Folder Only</b> (Recommended)
+				<% __("<b>Remove Content from This Folder Only</b> (Recommended)") %>
 				<span class="navsm"><br>
-					Content will still be accessible from other folders and courses linking to it. <br>
-              				You will still be able to reuse this content in other folders and courses.<br>
-					If you are an author or editor of this content, and it no longer appears anywhere else, you will be able to use the search to locate it.
+					<% __("Content will still be accessible from other folders and courses linking to it. <br> You will still be able to reuse this content in other folders and courses.<br> If you are an author or editor of this content, and it no longer appears anywhere else, you will be able to use the search to locate it.") %>
 				</span>
 			</td>
 		</tr>
 		<tr>
 			<td class="layers-left" width="10" > <input type="radio" name="removeContent" value="1"></td>
 			<td class="layers-left">
-				<b>Delete Content</b><br>
+				<b><% __("Delete Content") %></b><br>
 				<span class="navsm">
-					Content will be completely removed and unavailable. <br>
-					ONLY authors and editors of content have this option, and ONLY IF it is not linked from another folder or course.
+				<% __("Content will be completely removed and unavailable. <br> ONLY authors and editors of content have this option, and ONLY IF it is not linked from another folder or course.") %>
 				</span>
 			</td>
 		</tr>
 	</table>
 </td></tr>
-% $backURL .= "?msg=" . uri_escape("Delete Canceled");
-<& /tmpl/element:save_button, params=>{label=>'Remove Content', name=>'form_submit', cancel_onclick=>"go_back('$backURL');" } &>
+% $backURL .= "?msg=" . uri_escape(__("Delete Canceled"));
+<& /tmpl/element:save_button, params=>{label=>__('Remove Content'), name=>'form_submit', cancel_onclick=>"go_back('$backURL');" } &>
 % }
 </table>
 

@@ -42,11 +42,11 @@
 
 
 <%method title>
-%	return "Add Group Members";
+%	return __("Add Group Members");
 </%method>
 
 <%method red_header_text>
-%	return 'Add Group Members';
+%	return __('Add Group Members');
 </%method>
 
 <%method leftnav>
@@ -63,12 +63,12 @@
 <form name="groups" action="" method="post" onsubmit="return checkform(this);" class="no-padding">
 <table width="100%" border="0" cellspacing="0" cellpadding="0">
     <tr> 
-      <td class="labelgray">Group(s):</td>
+      <td class="labelgray"><%__("Group(s):")%></td>
       <td>
 		<table width="75%" cellspacing="0" cellpadding="0">
 		<tr>
 			<td class="cell-left">
-				<input type="button" value="Add Groups" class="formbutton" onclick="openwindow('groupsdiv',0,0,{school:'<% $school->getSchoolName() %>'})">
+				<input type="button" value="<%__("Add Groups")%>" class="formbutton" onclick="openwindow('groupsdiv',0,0,{school:'<% $school->getSchoolName() %>'})">
 			</td>
 		</tr>
 		<tr>
@@ -81,7 +81,7 @@
 	</tr>
     <tr> 
       <td>&nbsp;</td>
-      <td class="cell-submit"><input class="formbutton" type="submit" name="submit" value="Save and Continue"><input type="hidden" name="action" value="add"></td>
+      <td class="cell-submit"><input class="formbutton" type="submit" name="submit" value="<%__("Save and Continue")%>"><input type="hidden" name="action" value="add"></td>
     </tr>
     <tr> 
       <td width="200"><img src="/graphics/spacer.gif" width="200" height="1"></td>
@@ -92,14 +92,14 @@
 
 <& /tmpl/layers:create_layer, struct=>{
 			layer => 'groupsdiv',
-			empty_message => 'Select groups to add their members.',
+			empty_message => __('Select groups to add their members.'),
 			fields => ['group_name', 'user_group_id'],
 			name => 'groups',
 			sort => {usage => 'No'},
-			action => {usage => 'Yes', length=>100, functions => [{func=>'remove', label=>'Delete'}]},
+			action => {usage => 'Yes', length=>100, functions => [{func=>'remove', label=>__('Delete')}]},
 			display => [
-					{field=>'user_group_id', label=>'Group ID', align=>'left', length=>225, type=>'hidden'},
-					{field=>'group_name', label=>'Group Name', align=>'left', length=>225,},
+					{field=>'user_group_id', label=>__('Group ID'), align=>'left', length=>225, type=>'hidden'},
+					{field=>'group_name', label=>__('Group Name'), align=>'left', length=>225,},
 				  ],
 			validate => {
 					usage => 'Yes',
@@ -120,8 +120,8 @@
 	my $args = \%ARGS;
 
 	unless($tp_id){
-		my $errmsg = 'No "eternity" time period with appropriate end date.';
-		$errmsg .= '<br>Please see administrator for assistance.';
+		my $errmsg = __('No "eternity" time period with appropriate end date.');
+		$errmsg .= '<br>' . __('Please see administrator for assistance.');
        	$m->comp('/tmpl/error', msg=>$errmsg);
 	}
 
@@ -140,7 +140,7 @@
 					$master_msg .= $course->add_child_members($un, $pw, \@members, $tp_id, '');
 				}
 				else {
-					$master_msg .= "No User Group found with name '$1'<br/>";
+					$master_msg .= __("No User Group found with name"). "'$1'<br/>";
 				}
 			}
 		}
@@ -149,7 +149,7 @@
         	$m->comp('/tmpl/error', msg=>$master_msg, destination=>'/management/course/users/addgroupmembers/course/' . $school->getSchoolName() . '/' . $course->primary_key());
 		}
 		else{
-			$master_msg = "Users successfully added.";
+			$master_msg = __("Users successfully added.");
 			$m->comp('/tmpl/wizard:do_next',
 				args => \%ARGS,
 			 	default_transition => '/management/course/users/show/' . $school->getSchoolName() . '/' . $course->primary_key(),

@@ -22,7 +22,7 @@ my @logs;
 my $school = $m->comp('/tmpl/url:get_school');
 	if ($ARGS{datafile}) {
 		$import = TUSK::Import->new;
-		$import->add_log("summary","test run, course links will not be created") unless ($ARGS{save});
+		$import->add_log("summary",__("test run, course links will not be created")) unless ($ARGS{save});
 		$struct = TUSK::Import::Structure->new;
 		## this set of conditionals is to account for different kinds of files, from different schools
 		if ($ARGS{preset_fields} eq "sisfeed") {
@@ -42,13 +42,13 @@ my $school = $m->comp('/tmpl/url:get_school');
 		if (!@errMsgs){
 			if ($ARGS{limit_field} && $ARGS{limit_value}) {
 				$import->grep_records($ARGS{limit_field},$ARGS{limit_value});
-				$import->add_log("summary","limiting records to where $ARGS{limit_field} = $ARGS{limit_value}");
+				$import->add_log("summary",__("limiting records to where")." $ARGS{limit_field} = $ARGS{limit_value}");
 			}
-			$import->add_log("summary","processing ".scalar $import->get_records." records");
+			$import->add_log("summary",__("processing ").scalar $import->get_records.__(" records"));
 			if ($ARGS{save} && $ARGS{clean_group}) {
 				$ug = HSDB45::UserGroup->new(_id => $ARGS{user_group_id}, _school => $school);
 				$ug->delete_children($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
-				$import->add_log("summary","removed existing users from ".$ug->out_label);
+				$import->add_log("summary",__x("removed existing users from {group}", group =>$ug->out_label));
 			}
 
 			my $rowcount = 1;
@@ -59,7 +59,7 @@ my $school = $m->comp('/tmpl/url:get_school');
 				(my $test_field = $user_id) =~ s/\s//g;
 				if (!$test_field) {
 					$fail++;
-					$import->add_log("error","row $rowcount: user_id missing");
+					$import->add_log("error",__x("row {$rowcount}: user_id missing",rowcount => $rowcount));
 					$rowcount++;
 					next;
 				}
@@ -182,10 +182,10 @@ my $school = $m->comp('/tmpl/url:get_school');
 				if ($ARGS{save}) {
 					if (!$user->primary_key) {
 						$user->primary_key($user_id);
-						$user_msg = "created account for $user_id";
+						$user_msg = __x("created account for {user_id}", user_id =>$user_id);
 					}
 					else {
-						$user_msg = "updated account for $user_id";
+						$user_msg = __x("updated account for {user_id}", user_id =>$user_id);
 					}
 
 					foreach my $field (@file_fields) {
@@ -218,16 +218,16 @@ my $school = $m->comp('/tmpl/url:get_school');
 					if ($ARGS{user_group_id}) {
 						$ug = HSDB45::UserGroup->new(_id => $ARGS{user_group_id}, _school => $school);
 						if ($ug->contains_user($user_id)) {
-							$import->add_log("warn", "$user_id already in ".$ug->out_label." user group");	
+							$import->add_log("warn", __x("{user_id} already in {group_label} user group", user_id => $user_id, group_label => $ug->out_label));	
 						} else {
 							$ug->add_user($user,$TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
-							$import->add_log("record", " $user_id added to ".$ug->out_label." user group");	
+							$import->add_log("record", __x("{user_id} added to {group_label} user group", user_id => $user_id, group_label => $ug->out_label));	
 						}
 					}									 
 
 				} # end if save
 			}
-			$import->add_log("summary","$fail failed records");
+			$import->add_log("summary",__x("{number_of} failed records", number_of => $fail));
 			@logs = $import->get_logs;
 		} # end of error msg state
 	}
@@ -236,17 +236,17 @@ my $school = $m->comp('/tmpl/url:get_school');
 <form name="data_form" action="" method="post" enctype="multipart/form-data" onsubmit="return checkform(this);" class="no-padding">
 <table cellpadding="0">
 <tr>
-<td class="labelgray">Import type:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td>Test<input type="radio" name="save" value="0" checked></td><td align="right">Live<input type="radio" name="save" value="1"></td></tr></table><br>"Test" verifies data, but does not save. "Live" verifies and saves data.</td>
+<td class="labelgray"><%__("Import type")%>:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td><%__("Test")%><input type="radio" name="save" value="0" checked></td><td align="right"><%__("Live")%><input type="radio" name="save" value="1"></td></tr></table><br><%__('"Test" verifies data, but does not save. "Live" verifies and saves data.')%></td>
 </tr>
 % if ($school) {
 <input type="hidden" name="school" value="<% $school %>">
-<tr><td class="labelgray">School: </td><td class="cell-left"><% $school %></td></tr>
+<tr><td class="labelgray"><%__("School")%>: </td><td class="cell-left"><% $school %></td></tr>
 % } else {
-<tr><td class="labelgray">School: </td><td class="cell-left">school not provided</div></td></tr>
+<tr><td class="labelgray"><%__("School")%>: </td><td class="cell-left"><%__("school not provided")%></div></td></tr>
 % }
 
 <tr>
-<td class="labelgray">Fields in File:</td>
+<td class="labelgray"><%__("Fields in File")%>:</td>
 <td class="cell-left">
 <input type="radio" name="preset_fields" value="sisfeed" checked="checked"> SIS file (sid,user_id,lastname,firstname,midname,email,trunk)<br>
 % if ($school eq "Medical") {
@@ -254,48 +254,45 @@ my $school = $m->comp('/tmpl/url:get_school');
 % }
 <br>
 <input type="radio" name="preset_fields" value="self"> <input name="fields" value="<% $ARGS{fields}%>" size="50" class="textareawhite"><br>
-<div> Either select a standard import format, or list the fields in the import file, separated by commas. Fields that align with column names in the TUSK user table will be saved along with the user.</div><br/>
-<div><b>Please note</b> that fields in any import file must be separated by a <strong>tab</strong>.</div>
+<div> <%__("Either select a standard import format, or list the fields in the import file, separated by commas. Fields that align with column names in the TUSK user table will be saved along with the user.")%></div><br/>
+<div><b><%__("Please note")%></b> <%__("that fields in any import file must be separated by a ")%><strong><%__("tab")%></strong>.</div>
 </td>
 </tr>
 
 <tr>
-<td class="labelgray">Limit Results:</td>
+<td class="labelgray"><%__("Limit Results")%>:</td>
 <td class="cell-left">
-Field: <input name="limit_field" value="<% $ARGS{limit_field} %>" size="20" class="textareawhite"> &nbsp;&nbsp;Value: <input name="limit_value" value="<% $ARGS{limit_value} %>" size="20" class="textareawhite"><br>
-<div> If you would like to selectively import only certain students from your import file, you may use these field to use only
-records that match a certain criteria.  Just input the name of a field to look at and a value to search for, and any record that meets 
-your criteria will be imported.  For example, the field could be &quot;lastname&quot; and the value could be &quot;Jones&quot;, this 
-combination would only import students who have Jones as their last name.</div>
+<%__("Field")%>: <input name="limit_field" value="<% $ARGS{limit_field} %>" size="20" class="textareawhite"> &nbsp;&nbsp;<%__("Value")%>: <input name="limit_value" value="<% $ARGS{limit_value} %>" size="20" class="textareawhite"><br>
+<div> <%__('If you would like to selectively import only certain students from your import file, you may use these field to use only records that match a certain criteria.  Just input the name of a field to look at and a value to search for, and any record that meets your criteria will be imported.  For example, the field could be &quot;lastname&quot; and the value could be &quot;Jones&quot;, this combination would only import students who have Jones as their last name.')%></div>
 </td>
 </tr>
 
 <tr>
-<td class="labelgray">File:</td><td class="cell-left"><input type="file" name="datafile" class="formbutton" id="File__y"></td>
+<td class="labelgray"><%__("File")%>:</td><td class="cell-left"><input type="file" name="datafile" class="formbutton" id="File__y"></td>
 </tr>
 
 <tr>
-<td class="labelgray">User Group:</td>
+<td class="labelgray"><%__("User Group")%>:</td>
 <td class="cell-left">
 <select name="user_group_id">
-<option value="0">none</option>
+<option value="0"><%__("none")%></option>
 % my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $group (HSDB45::UserGroup->new(_school => $school)->lookup_conditions("sub_group='No'","order by label")) {
 <option value="<% $group->primary_key %>"<% $ARGS{user_group_id} == $group->primary_key ? " SELECTED" : ""%>><% $stripObj->removeHTML($group->out_label) %> (<% $group->primary_key %>)</option>
 % }
 </select><br>
-Choose user group to add all users (optional)
+<%__("Choose user group to add all users (optional)")%>
 <br><br>
-<input type="checkbox" name="clean_group"> Remove existing users from group before adding new users.
+<input type="checkbox" name="clean_group"> <%__("Remove existing users from group before adding new users.")%>
 
 </td>
 </tr>
 <tr>
-	<td class="labelgray">Email Password:</td>
-	<td class="cell-left"><input name="reset_password" type="checkbox">Create/Reset and Email Password to User</td>
+	<td class="labelgray"><%__("Email Password")%>:</td>
+	<td class="cell-left"><input name="reset_password" type="checkbox"><%__("Create/Reset and Email Password to User")%></td>
 </tr>
 <tr>
-<td>&nbsp;</td><td class="cell-submit"><input type="submit" value="Process" class="formbutton"></td>
+<td>&nbsp;</td><td class="cell-submit"><input type="submit" value="<%__("Process")%>" class="formbutton"></td>
 </tr>
 </table>
 </form>
@@ -319,7 +316,7 @@ Choose user group to add all users (optional)
 % }
 
 <%method title>
-% return "Import Students";
+% return __("Import Students");
 </%method>
 
 <%method red_header_text>

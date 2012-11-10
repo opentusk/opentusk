@@ -67,9 +67,9 @@
 	# So if we had a shareID but no action then the action must be stored in the shareID
 	if($shareID && !$action) {$action = $shareID;}
 
-        $title = "Sharing for " . $course->title();
+        $title = __x("Sharing for {course}", course => $course->title());
         if(($action eq 'add') || ($action eq 'modify')) {
-                $title = ucfirst($action) . " share for " . $course->title();
+                $title = __x("{action} share for {course}", action => ucfirst($action), course => $course->title();
 		# If the save fails I want to re-display the new share page so lets specifically set this.
         	if(${$args}{do_action}) {
 			if( $course->primary_key() && ${$args}{share_with} && ${$args}{start_date} && ${$args}{end_date} ) {
@@ -78,12 +78,12 @@
 				if($action eq 'modify')	{
 					$tempShare = TUSK::Course::CourseSharing->new()->lookupKey($shareID);
 					unless($tempShare->getPrimaryKeyID()) {
-						${$args}{errmsg} = 'Unable to modify Course Share, specified course share could not be found!';
+						${$args}{errmsg} = __('Unable to modify Course Share, specified course share could not be found!');
 					}
-					$message = 'Course Share modified successfully';
+					$message = __('Course Share modified successfully');
 				} else {
 					$tempShare = TUSK::Course::CourseSharing->new();
-					$message = 'Course Share added successfully';
+					$message = __('Course Share added successfully');
 				}
 
 				unless(${$args}{errmsg}) {
@@ -94,7 +94,7 @@
 					$tempShare->setAuthorizingNote(${$args}{rte_note});
 
 					if($tempShare->save()) {
-						${$args}{msg} = 'Course Share ' . ucfirst($action);
+						${$args}{msg} = __('Course Share ') . ucfirst($action);
 						# The share was added correctly, lets re-direct to the main sharing page with a message.
 						$m->redirect(
 							$m->comp("/tmpl/url:construct_url",
@@ -105,24 +105,24 @@
 							)
 						);
 					} else {
-						${$args}{errmsg} = 'Course share ' . $action . ' Failed!';
+						${$args}{errmsg} = __('Course share ') . $action . __(' Failed!');
 					}
 				}
 			} else {
-				${$args}{errmsg} = 'Action failed:';
-				unless(${$args}{share_with}) {${$args}{errmsg} .= " missing share with,";}
-				unless(${$args}{start_date}) {${$args}{errmsg} .= " missing start date,";}
-				unless(${$args}{end_date})   {${$args}{errmsg} .= " missing end date,";}
+				${$args}{errmsg} = __('Action failed:');
+				unless(${$args}{share_with}) {${$args}{errmsg} .= __(" missing share with,");}
+				unless(${$args}{start_date}) {${$args}{errmsg} .= __(" missing start date,");}
+				unless(${$args}{end_date})   {${$args}{errmsg} .= __(" missing end date,");}
 				${$args}{errmsg} =~ s/,$//;
 				${$args}{errmsg}.= ".";
 			}
 		}
 	} elsif($action eq 'delete') {
-		$title = "Delete Course Share";
+		$title = __("Delete Course Share");
 		if(${$args}{do_action}) {
 			my $tempShare = TUSK::Course::CourseSharing->new()->lookupKey($shareID);
 			unless($tempShare->getPrimaryKeyID()) {
-				${$args}{errmsg} = 'Unable to delete course share, specified share could not be found!';
+				${$args}{errmsg} = __('Unable to delete course share, specified share could not be found!');
 			} else {
 				eval {$tempShare->delete();};
 				unless($@) {
@@ -130,13 +130,13 @@
 					$m->redirect(
 						$m->comp("/tmpl/url:construct_url",
 							'base_url' => "$baseScript",
-							'msg'      => "Course share successfully deleted",
+							'msg'      => __("Course share successfully deleted"),
 							'msgtype'  => 'msg',
 							'extra'    => '',
 						)
 					);
 				} else {
-					${$args}{errmsg} = "The course share could not be deleted!";
+					${$args}{errmsg} = __("The course share could not be deleted!");
 				}
 			}
 		}
@@ -149,18 +149,18 @@
 <script>
 	function checkForm() {
 		var msg = '';
-		if(document.theForm.start_date.value == '') {msg += "A start date must be specified in the format YYYY-MM-DD\n";}
+		if(document.theForm.start_date.value == '') {msg += _("A start date must be specified in the format YYYY-MM-DD") +"\n";}
 		else {
 			var dateObject = make_date_no_time_object(document.theForm.start_date.value);
-			if(dateObject == 'Invalid Date') {msg += "Start date must be in the format YYYY-MM-DD\n";}
+			if(dateObject == 'Invalid Date') {msg += _("Start date must be in the format YYYY-MM-DD")+"\n";}
 		}
-		if(document.theForm.end_date.value == '') {msg += "An end date must be specified in the format YYYY-MM-DD\n";}
+		if(document.theForm.end_date.value == '') {msg += _("An end date must be specified in the format YYYY-MM-DD")+"\n";}
 		else {
 			var dateObject = make_date_no_time_object(document.theForm.end_date.value);
-			if(dateObject == 'Invalid Date') {msg += "End date must be in the format YYYY-MM-DD\n";}
+			if(dateObject == 'Invalid Date') {msg += _("End date must be in the format YYYY-MM-DD")+"\n";}
 		}
 		if(msg == '') {return true;}
-		alert("You can not perform this action for the following reasons:\n" + msg);
+		alert(_("You can not perform this action for the following reasons:")+"\n" + msg);
 		return false;
 	}
 </script>
@@ -196,15 +196,15 @@
 %	if(scalar(@{$shibbolethUsers})) {
 		<& /tmpl/element:button, params => {
 			name  => 'new_share',
-			label => 'Add Share',
+			label => __('Add Share'),
 			onclick => "document.location='$baseScript/add';",
 		}&>
 %	} else {
-		You can not add a share becuase there are not shibboleth users defined.
+		<%__("You can not add a share becuase there are not shibboleth users defined.")%>
 %	}
 	<& /tmpl/element:button, params => {
 		name  => 'view_shares',
-		label => 'View All Shares',
+		label => __('View All Shares'),
 		onclick => "document.location='/tusk/management/shibboleth/manageIdPs/school/" . $course->school() . "/view_shares';",
 	}&>
 	<br><br>
@@ -213,13 +213,13 @@
 	<& /tmpl/element:object_selection_box, params => {
 		sort_box => 0,
 		columns => [
-			{'label' => 'Shared With', 'field' => 'getSharedWithName'},
-			{'label' => 'Start Date', 'field' => 'getAvaliableFrom'},
-			{'label' => 'End Date', 'field' => 'getAvaliableTo'},
+			{'label' => __('Shared With'), 'field' => 'getSharedWithName'},
+			{'label' => __('Start Date'), 'field' => 'getAvaliableFrom'},
+			{'label' => __('End Date'), 'field' => 'getAvaliableTo'},
 		],
 		action_columns => [
-			{ 'label' => 'Modify', 'link' => '/management/course/sharing', 'extra' => '/modify' },
-			{ 'label' => 'Delete', 'link' => '/management/course/sharing', 'extra' => '/delete' },
+			{ 'label' => __('Modify'), 'link' => '/management/course/sharing', 'extra' => '/modify' },
+			{ 'label' => __('Delete'), 'link' => '/management/course/sharing', 'extra' => '/delete' },
 		],
 		object_list => $shares,
 		type_path => $m->comp("/tmpl/url:get_type_path"),
@@ -243,17 +243,17 @@
 		cellpadding =>"0",
 	} &>
 	<& /tmpl/element:field_display, params =>{
-		label => 'Course',
+		label => __('Course'),
 		value => $course->title() . "(" . $course->primary_key() . ")",
 	} &>
 	<& /tmpl/element:dropdown, params => {
-		label => 'Share With',
+		label => __('Share With'),
 		selected => "${$args}{share_with}",
 		name => 'share_with',
 		options => $m->comp("/tmpl/element:make_dropdown_options", arrayref => $shibbolethUsers, label => "getShibbolethInstitutionName", value => "getShibbolethUserID"),
 	} &>
 	<& /tmpl/element:textbox, params =>{
-		label => 'Start Date',
+		label => __('Start Date'),
 		name => 'start_date',
 		value => "${$args}{start_date}",
 		size => 10,
@@ -261,7 +261,7 @@
 		calendar => 1,
 	} &>
 	<& /tmpl/element:textbox, params =>{
-		label => 'End Date',
+		label => __('End Date'),
 		name => 'end_date',
 		value => "${$args}{end_date}",
 		size => 10,
@@ -269,14 +269,14 @@
 		calendar => 1,
 	} &>
 	<& /tmpl/element:textarea, params => {
-		label => 'Note',
+		label => __('Note'),
 		htmleditor => 1,
 		value => "${$args}{note}",
 		name => 'note',
 	} &>
 	<& /tmpl/element:save_button, params => {
 		name => 'do_action',
-		label => ucfirst($action) . ' Share',
+		label => ucfirst($action) . __(' Share'),
 		cancel_onclick => "document.location='$baseScript?msg=Share+Add+Canceled';",
 		onclick => "return checkForm();",
 	} &>
@@ -297,28 +297,28 @@
 	} &>
 
 	<& /tmpl/element:field_display, params => {
-		label => 'Course',
+		label => __('Course'),
 		value => $course->title(),
 	} &>
 	<& /tmpl/element:field_display, params =>{
-		label => 'Share With',
+		label => __('Share With'),
 		value => $share->getSharedWithName(),
 	} &>
 	<& /tmpl/element:field_display, params =>{
-		label => 'Start Date',
+		label => __('Start Date'),
 		value => $share->getAvaliableFrom(),
 	} &>
 	<& /tmpl/element:field_display, params => {
-		label => 'End Date',
+		label => __('End Date'),
 		value => $share->getAvaliableTo(),
 	} &>
 	<& /tmpl/element:field_display, params => {
-		label => 'Note',
+		label => __('Note'),
 		value => $share->getAuthorizingNote(),
 	} &>
 	<& /tmpl/element:save_button, params => {
 		name => 'do_action',
-		label => 'Delete',
+		label => __('Delete'),
 		cancel_onclick => "document.location='$baseScript?msg=Delete+Course+Share+Canceled';",
 	} &>
 </%method>
