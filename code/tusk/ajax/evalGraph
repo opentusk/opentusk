@@ -47,10 +47,10 @@
 	}
 	my $error;
 	unless($validSchool) {
-		$error.= '<font color="red">Invalid school ('. $params[0] .'), unable to retreive graph.</font>';
+		$error.= '<font color="red">'.__x('Invalid school ({parameter}), unable to retreive graph.', parameter => $params[0]).'</font>';
 	}
 	if($params[1] !~ /^\d+$/) {
-		$error.= '<font color="red">Invalid eval ID ('. $params[1] .'), unable to retreive graph.</font>';
+		$error.= '<font color="red">'.__x('Invalid eval ID ({parameter}), unable to retreive graph.', parameter => $params[1]).'</font>';
 	}
 
 	my $bar;
@@ -91,7 +91,7 @@
 			$m->print($bar->get_graphic());
 		} else {
 			$r->content_type('text/html');
-			$m->print("<font color=\"red\">Graph requested could not be constructed</font>");
+			$m->print("<font color=\"red\">".__("Graph requested could not be constructed")."</font>");
 		}
 	} else {
 		$r->content_type('text/xml');
@@ -101,11 +101,11 @@
 			$graphData = $error;
 			$graphText = $error;
 		} elsif(!$bar || !$bar->primary_key) {
-			$graphData = '<font color="red">Sorry, this graph is currently unavailable.</font>';
+			$graphData = '<font color="red">'.__('Sorry, this graph is currently unavailable.').'</font>';
 			$graphText = $graphData;
 		} else {
 			if($bar->get_mime_type() eq 'image/svg-xml') {
-				$graphData = "<embed src=\"/evalgraph/$school/$evalID/$questionID.svg\" name=\"Bar Graph: Question $questionID\" ";
+				$graphData = "<embed src=\"/evalgraph/$school/$evalID/$questionID.svg\" name=\"".__('Bar Graph: Question')." $questionID\" ";
 				$graphData.= "height=\"". ($bar->get_height * 2) ."\" width=\"".  $bar->get_width ."\" ";
 				$graphData.= "type=\"image/svg-xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install\"/>";
 			} elsif($bar->get_mime_type() =~ /^image/) {
