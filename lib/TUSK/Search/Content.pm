@@ -545,14 +545,12 @@ sub search {
         }
         my $sqlTimeConstraint = join(" AND ", @tpactives);
         my $sqlHitConstraint = join(" AND ", @hitactives);
-        my @sqlUserQueries = map { qq{SELECT lugu.child_user_id as user_id
-                FROM $_.link_user_group_user lugu
-                INNER JOIN $_.link_course_user_group lcug
-                ON lugu.parent_user_group_id = lcug.child_user_group_id
+        my @sqlUserQueries = map { qq{SELECT lcs.child_user_id as user_id
+                FROM $_.link_course_student lcs
                 INNER JOIN $_.time_period tp
-                ON lcug.time_period_id = tp.time_period_id
+                ON lcs.time_period_id = tp.time_period_id
                 WHERE $sqlTimeConstraint
-                GROUP BY lugu.child_user_id} } @schooldbs;
+                GROUP BY lcs.child_user_id} } @schooldbs;
         $sqlHits = qq{SELECT li.content_id, COUNT(li.content_id) AS numhits
             FROM hsdb4.log_item li
             INNER JOIN (} .
