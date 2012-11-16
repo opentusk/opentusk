@@ -24,11 +24,18 @@
 	use TUSK::Application::RSSCourse;
 	use HSDB4::Constants;
 	use HSDB4::DateTime;
-	use TUSK::I18N::I18N;
 </%once>
 
 <& SELF:manage_header, %ARGS &>
+<%method i18n-gettext>
 
+% my $lang      = $r->dir_config('i18nLanguage') || 'C';
+% my $domain    = $r->dir_config('i18nDomain')   || 'tusk';
+    <link rel="gettext" type="application/x-po" href="/locale/<% $lang %>/LC_MESSAGES/<% $domain %>.po" />
+    <script type="text/javascript" src="/scripts/i18n/Gettext.js"></script>
+    <script type="text/javascript" src="/scripts/i18n/gettext_wrapper.js"></script>
+ 
+</%method>
 <%method header>  
 <%args>
 $title => undef
@@ -56,6 +63,7 @@ $doctype => 'html'
 <html>
 % }
 <head>
+<!-- i18n -->
 <!-- siteabb: TUSK -->
 <!-- Script Running On: <% $ENV{HOSTNAME} %> under: <% $$ %> !-->
 <title><% $TUSK::Constants::SiteAbbr %> - <% $title %></title>
@@ -83,6 +91,7 @@ $doctype => 'html'
 
 <link rel="shortcut icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
 <link rel="icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+% $m->comp('SELF:i18n-gettext');
 </head>
 </%method>
 
@@ -115,7 +124,9 @@ $doctype => 'html'
 % foreach my $js (@jsarray) {
 <SCRIPT language="JavaScript" src="/scripts/<% $js %>?<% TUSK::Functions::get_tusk_version %>" type=text/javascript></SCRIPT>
 % }
+
 <% join("", @metaData) %>
+% $m->comp('SELF:i18n-gettext');
 </head>
 </%method>
 
