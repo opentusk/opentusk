@@ -313,6 +313,7 @@ sub setLocaleDomain {
 	return($self->localeDomain($domain));			
 	}
 	
+	
 sub _getI18NConstant {
 	my ($self,$key) = @_;
 	return undef unless(defined($key));
