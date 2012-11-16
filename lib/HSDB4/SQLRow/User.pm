@@ -428,12 +428,17 @@ sub sorted_meetings_on_date{
 	return @sorted_meets;
 }
 
-sub todays_sorted_meetings{
+sub todays_sorted_meetings_by_school{
 	my $self = shift;
-
 	my $today = HSDB4::DateTime->new()->out_mysql_date;
+	my @meetings = $self->sorted_meetings_on_date($today);
+	my %sorted_meetings;
 
-	return $self->sorted_meetings_on_date($today);
+	foreach my $meeting (@meetings) {
+		push @{$sorted_meetings{$meeting->school}}, $meeting;
+	}
+
+	return \%sorted_meetings;
 }
 
 
@@ -471,21 +476,21 @@ sub has_schedule {
 	
 	if ($school) {
 		my $db = 'hsdb45_' . $TUSK::Constants::Schools{$school}{ShortName} . '_admin';
-		push @selects, "SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ?";
+		push @selects, "SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label, COUNT(meeting_date) AS num FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ? GROUP BY user_group_id ORDER BY num DESC";
 		push (@ids, ($start, $end, $user->primary_key()));
 	}
 	else {
 		my %school_dbs = map { $_ => 'hsdb45_' . $TUSK::Constants::Schools{$_}{ShortName} . '_admin' } keys %TUSK::Constants::Schools;
 		foreach my $school (keys %school_dbs) {
 			my $db = $school_dbs{$school};
-			push @selects, "(SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ?)";
+			push @selects, "(SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label, COUNT(meeting_date) AS num FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ? GROUP BY user_group_id)";
 			push (@ids, ($start, $end, $user->primary_key()));
 		}
 	}	
-    my $sth = $dbh->prepare(join (' union ', @selects));
+    my $sth = $dbh->prepare(join (' union ', @selects) . " ORDER BY num DESC");
     $sth->execute(@ids);
 
-	while (my ($school, $ug_id, $ug_label) = $sth->fetchrow_array) {
+	while (my ($school, $ug_id, $ug_label, undef) = $sth->fetchrow_array) {
 		push @{$ug_hash{$school}}, {id => $ug_id, label => $ug_label};
 	}
     
@@ -534,14 +539,11 @@ sub get_important_upcoming_dates_by_school {
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my $sth = $dbh->prepare(qq(
 		SELECT class_meeting_id, course_id, title, DATE_FORMAT(meeting_date, '%b. %e, %Y') as date, DATE_FORMAT(starttime,'%h:%i %p') as time, location 
-		FROM $db.class_meeting, $db.link_course_student 
-		WHERE child_user_id = ? AND
-		parent_course_id = course_id AND
-		meeting_date BETWEEN NOW() AND ? 
-		ORDER BY time
-	));
+		FROM $db.class_meeting, $db.link_course_student, $db.link_course_user_group, $db.time_period, $db.link_user_group_user 
+		WHERE link_course_student.child_user_id = ? AND link_user_group_user.child_user_id = ? AND parent_user_group_id = child_user_group_id AND link_course_student.parent_course_id = course_id AND link_course_user_group.parent_course_id = course_id AND link_course_user_group.time_period_id = time_period.time_period_id AND NOW() BETWEEN start_date AND end_date AND meeting_date BETWEEN NOW() AND ?
+							));
 
-    $sth->execute($user->primary_key, $enddate);
+    $sth->execute($user->primary_key, $user->primary_key, $enddate);
     while (my $row = $sth->fetchrow_hashref) {
 		push @meetings, $row;
 	}
@@ -2497,9 +2499,10 @@ sub get_course_assignments {
 sub get_school_announcements {
 	my $self = shift;
 	my @all_announcements;
+	my @courses = $self->current_courses();
+	my @schools = keys %{{ map {$_->school() => 1 } @courses }};
 
-	my %schools = map { $_->{school_name} => 1 } @{$self->user_group_courses()};
-	foreach my $school (keys %schools) {
+	foreach my $school (@schools) {
 		my @announcements = HSDB45::Announcement::schoolwide_announcements($school);
 		foreach my $ann (@announcements) {
 			push @all_announcements, $ann;

@@ -14,28 +14,25 @@
  limitations under the License.
 </%doc>
 <%attr>
-page_header      => '/tmpl/prepend:manage_header_div_layout'
-page_footer      => '/tmpl/footer:footer_div_with_school_links'
-no_check_path    => 1
-top_tab_type     => 'home'
-allow_shib       => 1
-nostandardheader => 1
-body_id          => 'home'
+	page_header      => '/tmpl/prepend:manage_header_div_layout'
+	page_footer      => '/tmpl/footer:footer_div_with_school_links'
+	no_check_path    => 1
+	top_tab_type     => 'home'
+	allow_shib       => 1
+	nostandardheader => 1
+	body_id          => 'home'
 </%attr>
 
 <%once>
-use Forum::ForumKey;
-use HSDB45::Course;
-use HSDB4::DateTime;
-use POSIX qw(strftime);
+	use Forum::ForumKey;
+	use HSDB45::Course;
+	use HSDB4::DateTime;
+	use POSIX qw(strftime);
 </%once>
 
 <%shared>
 my $user = $m->session->{'user'};
 my $user_id = $user->primary_key();
-
-my @list_cats = $user->get_list_cats();
-my $enum_cat = $user->get_enum_cat(@list_cats);
 my $affiliation = $user->affiliation();
 
 my %course_hash;
@@ -59,28 +56,6 @@ foreach my $course (@user_stud_courses) {
 	push (@{$course_hash{$course->school()}{"stud_courses"}}, $course);
 }
 </%shared>
-
-<%method title>
-% return $TUSK::Constants::SiteAbbr ." Home";
-</%method>
-
-<%method jsarray>
-% return ['jquery/jquery.min.js','home.js'];
-</%method>
-
-<%method stylearray>
-% return ['/style/style.css','/style/home.css'];
-</%method>
-
-<%method leftnav>
-<%perl>
-my %someHash = (
-                'component'   => "/tmpl/leftnav/home",
-                'show_in_td'  => 0,
-               );
-return \%someHash;
-</%perl>
-</%method>
 
 <%perl>
 my $counter = 0;
@@ -110,10 +85,10 @@ my @schools;
 </nav>
 % $counter = 0;
 % my $schedule_ugs = $user->has_schedule();
+% my $todays_meetings = $user->todays_sorted_meetings_by_school();
 % foreach my $school (@schools) {
-%	my @sorted_meetings = $user->todays_sorted_meetings();
 %	my $calendar_tab;
-%	if (scalar @sorted_meetings || scalar @{$upcoming->{$school}}) {
+%	if (($todays_meetings->{$school} && scalar @{$todays_meetings->{$school}}) || scalar @{$upcoming->{$school}}) {
 %		$calendar_tab = 1;
 %	}
 % 	my @tabs;
@@ -167,21 +142,21 @@ my @schools;
 			</div>
 %	if ($calendar_tab) {
 			<div class="calendar tabgroup">
-				<nav class="tabs<% (scalar @sorted_meetings && scalar @{$upcoming->{$school}}) ? '' : ' single' %>">
+				<nav class="tabs<% ($todays_meetings->{$school} && scalar @{$todays_meetings->{$school}} && scalar @{$upcoming->{$school}}) ? '' : ' single' %>">
 					<ul>
-%		if (scalar @sorted_meetings) {
+%		if ($todays_meetings->{$school} && scalar @{$todays_meetings->{$school}}) {
 						<li class="current"><a href="#schooltab<% $counter %>calendartab1">Today</a></li>
 %		}
 %		if (scalar @{$upcoming->{$school}}) {
-						<li<% (scalar @sorted_meetings) ? '' : ' class="current"' %>><a href="#schooltab<% $counter %>calendartab2">To Do</a></li>
+						<li<% ($todays_meetings->{$school} && scalar @{$todays_meetings->{$school}}) ? '' : ' class="current"' %>><a href="#schooltab<% $counter %>calendartab2">To Do</a></li>
 %		}
 					</ul>
 				</nav>
 				<div class="tabcontainer">
-%		if (scalar @sorted_meetings) {
+%		if ($todays_meetings->{$school} && scalar @{$todays_meetings->{$school}}) {
 					<section class="tab current" id="schooltab<% $counter %>calendartab1">
 						<h1 class="skip">Today</h1>
-%			foreach my $meeting (@sorted_meetings) {
+%			foreach my $meeting (@{$todays_meetings->{$school}}) {
 						<article>
 							<time><% sprintf ("%s - %s", $meeting->out_starttime->out_string_time_hm, $meeting->out_endtime->out_string_time) %></time>
 							<h1><a href="/view/course/<% $school %>/<% $meeting->course_id() %>/schedule/<% $meeting->primary_key() %>"><% $meeting->title() %></a></h1>
@@ -191,7 +166,7 @@ my @schools;
 					</section>
 %		}
 %		if (scalar @{$upcoming->{$school}}) {
-					<section class="tab<% (scalar @sorted_meetings) ? '' : ' current"' %>" id="schooltab<% $counter %>calendartab2">
+					<section class="tab<% ($todays_meetings->{$school} && scalar @{$todays_meetings->{$school}}) ? '' : ' current"' %>" id="schooltab<% $counter %>calendartab2">
 						<h1 class="skip">To Do</h1>
 %			foreach my $meeting (@{$upcoming->{$school}}) {
 						<article class="todo">
@@ -251,34 +226,26 @@ my @schools;
 %	$counter++;
 % }
 
-<%doc>
-method to print the homepage course dropdowns for the user's primary affiliation.
-</%doc>
-<%method school_courses>
-<%args>
-$hp_section
-</%args>
+<%method title>
+% return $TUSK::Constants::SiteAbbr ." Home";
+</%method>
+
+<%method jsarray>
+% return ['jquery/jquery.min.js','home.js'];
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css'];
+</%method>
+
+<%method leftnav>
 <%perl>
-my $school = TUSK::Core::School->new->lookupReturnOne("school_name = '$affiliation'");
-
-my $school_name = "School";
-
-if ($school && $school->getPrimaryKeyID()){
-	$school_name = $school->getSchoolDisplay();
-}
+my %someHash = (
+                'component'   => "/tmpl/leftnav/home",
+                'show_in_td'  => 0,
+               );
+return \%someHash;
 </%perl>
-
-% if(scalar @list_cats){
-
-<div class="homeSection">
-
-<div class="toggled">
-
-<& /tmpl/home:print_school_courses, list_cats => \@list_cats &>
-
-</div>
-</div>
-% }
 </%method>
 
 
