@@ -3,28 +3,25 @@ package TUSK::I18N::I18N;
 # Test if lang dir exists ?
 # define defaults hash?
 
-#use strict;
+use strict;
 use warnings;
 use Data::Dumper;
-use Carp qw(longmess shortmess carp);
+use Carp qw(longmess shortmess carp cluck);
 use TUSK::Constants;
 use POSIX qw (setlocale LC_ALL);
-use Apache2::RequestRec ();
-#use base qw(Locale::TextDomain);
-use Apache2::RequestUtil;
+#use Apache2::RequestRec ();
+#use Apache2::RequestUtil;
+use Apache2::ServerUtil ();
+use Apache2::Log;
 use Locale::TextDomain ();
-##use Locale::Messages (:locale_h :libintl_h);
-use Locale::Messages;
-#require Exporter;
-##use Exporter qw( import ); # avoid putting in @ISA
-#my $r = Apache2::RequestUtil->request;
-#@ISA = ('Exporter');
-## need to forcefullfy export mason doesn't like the more polite EXPORT_OK
-our @EXPORT = qw (__ __x __n __p __nx __xn  __px __np __npx $__ %__ 
-             N__ N__n N__p N__np);
+use Locale::Messages qw (bindtextdomain textdomain bind_textdomain_codeset);
+use TUSK::Application::Email;
+use Exporter;
+our @ISA = qw(Exporter);
+## need to forcefullfy export mason doesn't like the more polite EXPORT_OK ?
 our @EXPORT_OK = qw (__ __x __n __p __nx __xn  __px __np __npx $__ %__ 
              N__ N__n N__p N__np);
-             
+            
 # create some tags to limit name space pollution if desired
 our %EXPORT_TAGS = (
 		'basic'			=> [ qw(__ __x  __p)],
@@ -39,7 +36,6 @@ push @{$EXPORT_TAGS{all}}, grep {!$seen{$_}++} @{$EXPORT_TAGS{$_}} foreach keys 
 
 # start by turning off gettext
 BEGIN { $ENV{LANGUAGE} = $ENV{LANG} = "C"; }
-
 
 
 =head1 NAME
@@ -91,15 +87,15 @@ sub new {
 	my $class = shift;
 	my $self = {
 			init		 	=> 0,
-			debug			=> 0,
+			debug			=> 1,
 			serverObject	=> undef,  # apache2 server object
 			requestObject	=> undef,	# apache2 request object
-			catalogs		=> [],
-			catalog		=> $TUSK::Constants::LexiconRoot,
-			serverRoot		=> $TUSK::Constants::ServerRoot || '/usr/local/tusk/foo',
+			configLangKey	=> 'TUSK_LANGUAGE',
+			catalog		    => $TUSK::Constants::LexiconRoot,
+			serverRoot		=> $TUSK::Constants::ServerRoot || '/usr/local/tusk/current',
 			localeDomain	=> 'messages', 	# default for gettext
 			lang			=> 'en_US',
-			localeMethod	=> 'static' # statis = sitewide, dynamin = user/header choice
+			localeMethod	=> 'static' # static = sitewide, dynamin = user/header choice
 	};
 	bless $self, $class;
 	$self->init();
@@ -123,12 +119,20 @@ sub init {
 	$ENV{'LANG'} = $ENV{'LANGUAGE'} = $self->language;
 	my $catalog = $self->catalog;
 	my $domain = $self->localeDomain();
+	warn("pp import($domain,$catalog)");
 	Locale::TextDomain->import($domain,$catalog);
-	Locale::Messages->textdomain($domain);
-	Locale::Messages::bindtextdomain $domain => $catalog ;
-	Locale::Messages->select_package('gettext_pp');
-#	Locale::Messages->bind_textdomain_codeset $domain => 'utf-8';
+	#use Locale::TextDomain $domain, $catalog ;
+	my $selected = Locale::Messages->select_package('gettext_pp');
+	warn("selected = $selected");
+	textdomain($domain);
+	my $ok = bindtextdomain $domain => $catalog ;
+	warn("xx bindtextdomain $domain => $catalog = " . $ok ? $ok : 'NG');
+	bind_textdomain_codeset $domain => 'utf-8';
+    Locale::Messages->turn_utf_8_on(my $utf);	
 	$self->{init} = 1;
+	$self->cache_language();
+	#$self->cache_language();
+	warn("login = " . __('Login'));
 }
 
 =head2 import
@@ -136,7 +140,7 @@ sub init {
 	This is called when involking the 'use' statement.
 	It is invollked as follows.
 	
-		use TUSK::I18N::I18N;  	# imports all @EXPORT methods/variables
+		use TUSK::I18N::I18N;  	# imports all @EXPORT_OK methods/variables
 		use TUSK::I18N::I18N (); # ignores this function
 		use TUSK::I18N::I18N qw(:common) # exports a tag from %EXPORT_TAGS
 	
@@ -147,48 +151,88 @@ sub init {
 
 =cut
 sub import {
-	use Carp;
     my $caller = caller;
-    my $pkg = __PACKAGE__->new();
-    my $r = Apache2::RequestUtil->request;
-    my $s = Apache2::ServerUtil->server;
-    my $port   = $r->get_server_port();
-    $s->log_error("2 caller = $caller port $port");
-    #	__() __x() __n() __p() __nx() __xn()  __px() __np() __npx() 
-	#$__() %__() N__() N__n() N__p() N__np()
-    my %methods = (
-      __ 		=> sub {  return &Locale::TextDomain::__; },
-      __x 		=> sub {  return &Locale::TextDomain::__x; },
-      __n 		=> sub {  return &Locale::TextDomain::__n; }, 
-      __p 		=> sub {  return &Locale::TextDomain::__p; }, 
-      __nx 		=> sub {  return &Locale::TextDomain::__nx; }, 
-      __xn 		=> sub {  return &Locale::TextDomain::__xn; }, 
-      __px 		=> sub {  return &Locale::TextDomain::__px; }, 
-      __np 		=> sub {  return &Locale::TextDomain::__np; }, 
-      N__ 		=> sub {  return &Locale::TextDomain::N__;  }, 
-      N__n 		=> sub {  return &Locale::TextDomain::N__n; }, 
-      N__p 		=> sub {  return &Locale::TextDomain::N__p; }, 
-      N__np 	=> sub {  return &Locale::TextDomain::N__np; } 
-      # we currently don't support the below constructs for description see: man gettext
-#      $__ 	=> sub {  return Locale::TextDomain::$__(shift); }, # perhaps manually prototype
-#      %__ 	=> sub {  return Locale::TextDomain::%__(shift); }, 
-     
-    );
-    
-# figure out a way to get this working
-#    foreach my $m (@EXPORT) {
-#    	my $ref = &{Locale::TextDomain->$m;
-#    	*{$caller.'::'.$m} = sub {  return $ref; };
-#    } 
-{
-    no strict 'refs'; 
-    foreach my $i (keys %methods) {
-      *{$caller.'::'.$i} = $methods{$i};
-    }
-}
-  
-    
+    my $pkg = __PACKAGE__->new();	
+    # since we have defined import we need to run export_to_level
+     __PACKAGE__->export_to_level(1, @_); 
   }
+  
+=head2 cache_lang
+
+	caches current language in dir_config primarily for use downstream
+	such as javascript deciding where to read it's catalog file from.
+
+=cut
+
+sub cache_language {
+	my $this = shift;
+	$this->errorEmail("cache language");
+	my $s = Apache2::ServerUtil->server;
+	my $config_key = $this->configkey;
+	if(defined($config_key)) {
+		my $lang = $this->language;
+		if(defined($lang)) {
+			my $config_lang = $s->dir_config($config_key);
+			# test if it has changed (?) if so reset.
+			if(defined($config_lang)) {
+				if($config_lang ne $lang ) {
+					warn("I18N: Switching $lang to $config_lang" );
+					$s->dir_config($config_key => $lang);
+				}
+			} else {
+				warn("I18N:first time setting $config_key => $lang");
+				$s->dir_config($config_key => $lang);
+			}
+			
+		} else {
+			warn("I18N:Setting to default language");
+			$s->dir_config($config_key => 'en');
+		}
+		
+	} else {
+		warn("I18N: config key not set");
+	}
+	
+}
+=head2 errorEmail
+
+	Sends error mail to address listed in $TUSK::Constants::ErrorEmail
+=cut
+sub errorEmail {
+	my ($self,$errmsg) = @_;
+	my $x = longmess();
+	my $count = Apache2::ServerUtil::restart_count();
+	$errmsg = sprintf("count = %s",Apache2::ServerUtil::restart_count());
+	if($count > 1 ) {
+			my $body=<<EOM;
+$x
+EOM
+		my $mailer = TUSK::Application::Email->new({
+	        		to_addr   => $TUSK::Constants::ErrorEmail,
+	                from_addr => $TUSK::Constants::ErrorEmail,
+	                subject   => "Foo",
+	                body      => $errmsg
+	                });
+	     cluck(sprintf("Mail Error: )%s)",$mailer->getError())) unless($mailer->send());
+		
+	}
+
+       
+		
+}
+=head2 configkey
+
+	Returns the confuguration key to use to set PerSerVar config
+
+=cut
+
+sub configkey {
+	my $self = shift;
+	my $key = 'configLangKey';
+	$self->{$key} = shift if(@_);
+	return($self->{$key});
+	
+}
 =head2 logger
 
 	Define our own logger function for debugging. Under mod_perl this should
@@ -200,7 +244,7 @@ sub logger {
 	my ($self,$msg) = @_;
 	return unless($msg);
 	if( $self->serverObject) {
-		$self->serverObject->log_error($msg);
+	#	$self->serverObject->log_error($msg);
 	} else {
 		carp($msg);
 	}
@@ -235,6 +279,18 @@ sub language {
 	$self->{$key} = shift if(@_);
 	return($self->{$key});
 }
+
+=head2 debug
+
+	Set on off via 'SiteDebug' in tusk.conf.
+
+=cut
+sub debug {
+	my $self = shift;
+	my $key = 'debug';
+	$self->{$key} = shift if(@_);
+	return($self->{$key});
+}
 =head2 setCatalog
 
 =cut
@@ -253,40 +309,7 @@ sub setCatalog {
 	return($self->catalog($catalog));
 			
 	}
-=head2 setCatalogs
 
-=cut
-sub setCatalogs {
-	my $self = shift;
-	my $constKey = "SiteLocales";
-	$self->logger("setCatalogs");
-	my $catalogs = $self->_getI18NConstant($constKey) || [];
-	my $docRoot = $self->serverRoot();
-	$docRoot = $1 if( $docRoot =~ /(.*)\/$/ ); # strip trailing slash for concat below.
-	foreach my $path (@$catalogs) {
-		# concider all paths with leading '/' explicit all othere relitive to doc root
-		if( $path !~ /^\// ) {
-			$path = $self->serverRoot() . '/' . $path; 
-		}
-		$self->addCatalog($path);
-	}
-	$self->logger(Dumper($self->{catalogs}));
-	return($self->catalogs());			
-	}
-=head2 addCatalog
-
-=cut
-sub addCatalog {
-	my ($self,$path) = @_;
-carp(Dumper($path));
-	my $key = 'catalogs';
-	$self->{$key} = [] unless(exists($self->{$key}));
-	if( $path ) {
-		push(@{$self->{$key}},$path);
-	}
-	$self->logger(Dumper($self->{$key}));
-	$self->logger("ref = " . ref $self->{$key});
-}
 =head2 catalog
 
 	This is the setter and getter for the current language locale.
@@ -298,14 +321,7 @@ sub catalog {
 	$self->{$key} = shift if(@_);
 	return($self->{$key});
 }
-sub catalogs {
-	my $self = shift;
-	my $key = 'catalogs';
-	$self->{$key} = shift if(@_);
-#	$self->logger("test");
-	#carp("catalogs: " . ref $self->{$key});
-	return($self->{$key});
-}
+
 sub setLocaleDomain {
 	my $self = shift;
 	my $constKey = "SiteDomain";	
@@ -317,10 +333,6 @@ sub setLocaleDomain {
 sub _getI18NConstant {
 	my ($self,$key) = @_;
 	return undef unless(defined($key));
-<<<<<<< HEAD
-	return undef unless ( exists($TUSK::Constants::Locale{$key}));
-	return($TUSK::Constants::Locale{$key});
-=======
 	if( ! exists($TUSK::Constants::I18N{$key})) {
 		warn ("NO TUSK::Constants::I18N{$key}");
 	}
@@ -328,7 +340,6 @@ sub _getI18NConstant {
 	return undef unless ( exists($TUSK::Constants::I18N{$key}));
 	warn("YES TUSK::Constants::I18N key $key = " . $TUSK::Constants::I18N{$key});
 	return($TUSK::Constants::I18N{$key});
->>>>>>> 08436ea... changed the Constants call from Locale to I18N
 }
 sub serverObject {
 	my $self = shift;
@@ -350,6 +361,28 @@ sub localeDomain {
 }
 
 
+
+sub Locale::TextDomain::__x ($@)
+			{
+			    my ($msgid, %vars) = @_;
+			    my $textdomain = 'tusk';
+			    my $msgstr = Locale::TextDomain::__expand ((Locale::TextDomain::dgettext $textdomain => $msgid), %vars);
+			     if($msgstr eq $msgid) {
+			     	carp("I18N: hash: ($msgid, $msgstr) no match from:");			     
+			     }			    
+			    return $msgstr;
+			};
+sub Locale::TextDomain::__ ($)
+			{
+				my $msgid = shift;
+			    my $package = caller;
+			    my $textdomain = 'tusk';
+			    my $msgstr = Locale::TextDomain::dgettext $textdomain => $msgid;
+			     if($msgstr eq $msgid) {
+			     	carp("I18N: string: ($msgid, $msgstr) no match from: ");
+			     }		    
+			    return $msgstr;
+			};
 =head2 function2
 
 =cut
@@ -400,11 +433,6 @@ See http://dev.perl.org/licenses/ for more information.
 __END__
 
 
-
-
-package TUSK::I18N::I18N;
-#use strict;
-#use warnings;
 
 
 
