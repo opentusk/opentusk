@@ -317,8 +317,18 @@ sub setLocaleDomain {
 sub _getI18NConstant {
 	my ($self,$key) = @_;
 	return undef unless(defined($key));
+<<<<<<< HEAD
 	return undef unless ( exists($TUSK::Constants::Locale{$key}));
 	return($TUSK::Constants::Locale{$key});
+=======
+	if( ! exists($TUSK::Constants::I18N{$key})) {
+		warn ("NO TUSK::Constants::I18N{$key}");
+	}
+	warn("NO TUSK::Constants::I18N key $key") unless ( exists($TUSK::Constants::I18N{$key}));
+	return undef unless ( exists($TUSK::Constants::I18N{$key}));
+	warn("YES TUSK::Constants::I18N key $key = " . $TUSK::Constants::I18N{$key});
+	return($TUSK::Constants::I18N{$key});
+>>>>>>> 08436ea... changed the Constants call from Locale to I18N
 }
 sub serverObject {
 	my $self = shift;
