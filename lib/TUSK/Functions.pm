@@ -17,7 +17,6 @@ package TUSK::Functions;
 
 use strict;
 use HSDB45::TimePeriod;
-use FindBin;
 
 
 sub truncate_string {
@@ -308,14 +307,28 @@ sub set_eternity_timeperiod {
 
 
 sub get_tusk_version {
-	my $release = 'Unknown';
-	my $temp_release = $FindBin::Bin;
-	if($temp_release =~ /^.*\/tusk\/([^\/]*)\//) {$release = $1;}
-	$release =~ s/_/./g;
-	$release =~ s/^tusk-//g;
-	return $release;
+ 	my $ver_regex 	= qr/^\s*release\s*:\s*(\d{1,2}\.\d{1,2}\.\d{1,3})\s*$/i;
+ 	my $release    	= file2version($ver_regex);
+   	return $release ? $release : 'Unknown';
 }
 
+sub file2version {
+	my $regx = shift;
+	my $rootpath = defined $TUSK::Constants::ServerRoot 	? $TUSK::Constants::ServerRoot  : '/usr/local/tusk/current';
+	my $filename = defined $TUSK::Constants::VersionFile 	? $TUSK::Constants::VersionFile : 'VERSION';
+	my $path 	 = sprintf("%s/%s",$rootpath,$filename);
+	my $version = undef;
+	open(my $fh, '<', $path);
+	if($fh) {
+		my @lines = <$fh>;
+		foreach my $line (@lines) {
+			$version = $1 if( $line =~ /$regx/ );
+		}
+		
+	}
+	
+	return $version;
+}
 
 sub unique {
 	my ($list) = @_;
