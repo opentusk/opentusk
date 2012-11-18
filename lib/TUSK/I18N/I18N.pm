@@ -9,10 +9,9 @@ use Data::Dumper;
 use Carp qw(longmess shortmess carp cluck);
 use TUSK::Constants;
 use POSIX qw (setlocale LC_ALL);
-#use Apache2::RequestRec ();
-#use Apache2::RequestUtil;
 use Apache2::ServerUtil ();
 use Apache2::Log;
+use Apache2::Const -compile => 'OK';
 use Locale::TextDomain ();
 use Locale::Messages qw (bindtextdomain textdomain bind_textdomain_codeset);
 use TUSK::Application::Email;
@@ -30,7 +29,7 @@ our %EXPORT_TAGS = (
 		'dummys'		=> [ qw( N__ N__n N__p N__np ) ]
 		
 );
-# create a :all (from perldoc Export)
+# create an :all tag (from perldoc Export)
 my %seen = ();
 push @{$EXPORT_TAGS{all}}, grep {!$seen{$_}++} @{$EXPORT_TAGS{$_}} foreach keys %EXPORT_TAGS;
 
@@ -60,13 +59,13 @@ our $VERSION = '0.01';
 	__()
 	__x()
 
-This class relys on Exporter's import method to get things going.
+This class relies on Exporter's import method to get things going.
 
     use TUSK::I18N::I18N;    # exports all macro's
         or
     use TUSK::I18N::I18N qw(:all);
     
-    use TUSK::I18N::I18N qw(:common);    # exports onli __() and __x()
+    use TUSK::I18N::I18N qw(:basic);    # exports only __() and __x()
 
 
 =head1 EXPORT
@@ -78,7 +77,7 @@ This class relys on Exporter's import method to get things going.
 
 =head2 new
 
-	The new function called via the import method that is involked via 'use'.
+	The new function called via the import method that is invoked via 'use'.
 	This method while not really needed for static localization will be needed
 	for each child process in more dynamic language handling.
 
@@ -88,14 +87,15 @@ sub new {
 	my $self = {
 			init		 	=> 0,
 			debug			=> 1,
-			serverObject	=> undef,  # apache2 server object
-			requestObject	=> undef,	# apache2 request object
-			configLangKey	=> 'TUSK_LANGUAGE',
-			catalog		    => $TUSK::Constants::LexiconRoot,
+			serverObject	=> undef,             # apache2 server object
+			configLangKey	=> 'TUSK_LANGUAGE',   # used 
+			catalog		    => 'locale',          # default can be overwritten in tusk.conf
+			category        => 'LC_MESSAGES',     # gettext category we support, static
 			serverRoot		=> $TUSK::Constants::ServerRoot || '/usr/local/tusk/current',
-			localeDomain	=> 'messages', 	# default for gettext
-			lang			=> 'en_US',
-			localeMethod	=> 'static' # static = sitewide, dynamin = user/header choice
+			serverObj       => undef,             # server object is used for logging, dir_config, ...
+			domain	        => 'messages', 	      # default for gettext overridden in tusk.conf typically 'tusk'
+			language		=> 'C',               # standard gettext default overridden in tusk.conf
+			errSubj         => 'I18N Error'
 	};
 	bless $self, $class;
 	$self->init();
@@ -111,28 +111,32 @@ sub new {
 	
 =cut
 sub init {
-	my $self = shift;	
-	$self->serverObject(Apache2::ServerUtil->server);
-	$self->setLocaleDomain();
-	$self->setCatalog();
-	$self->setLanguage();
-	$ENV{'LANG'} = $ENV{'LANGUAGE'} = $self->language;
-	my $catalog = $self->catalog;
-	my $domain = $self->localeDomain();
-	warn("pp import($domain,$catalog)");
-	Locale::TextDomain->import($domain,$catalog);
-	#use Locale::TextDomain $domain, $catalog ;
+	my $this = shift;;	
+	$this->serverObject(Apache2::ServerUtil->server);
+	$this->setLocaleDomain();
+	$this->setCatalog();
+	$this->setLanguage();	
+	
+	if(! $this->validMoFile) {
+	    my $msg = sprintf("Invalid language (%s) catalog [%s.mo] doesn't exist.",$this->language,$this->domainPath);
+	    $this->errorEmail($msg);
+	    $this->language('C'); # we don't have a valid language set back to default
+	    $this->catalog('');   # remove catalog from search path for performance.
+	}
+	my $catalog = $this->catalog;
+	$ENV{'LANG'} = $ENV{'LANGUAGE'} = $this->language;
+	my $domain = $this->domain();
+	Locale::TextDomain->import($domain,$catalog);  # this is where we export markup
 	my $selected = Locale::Messages->select_package('gettext_pp');
-	warn("selected = $selected");
 	textdomain($domain);
 	my $ok = bindtextdomain $domain => $catalog ;
-	warn("xx bindtextdomain $domain => $catalog = " . $ok ? $ok : 'NG');
+	$this->logger("xx bindtextdomain $domain => $catalog = " . $ok ? $ok : 'NG');
 	bind_textdomain_codeset $domain => 'utf-8';
-    Locale::Messages->turn_utf_8_on(my $utf);	
-	$self->{init} = 1;
-	$self->cache_language();
-	#$self->cache_language();
-	warn("login = " . __('Login'));
+    Locale::Messages->turn_utf_8_on(my $utf);
+    $this->cache_language();
+    my $count = Apache2::ServerUtil::restart_count();	 
+	$this->errorEmail("test startup [$$] ($count)");
+	
 }
 
 =head2 import
@@ -152,11 +156,11 @@ sub init {
 =cut
 sub import {
     my $caller = caller;
-    my $pkg = __PACKAGE__->new();	
+     my $pkg = __PACKAGE__->new();	
     # since we have defined import we need to run export_to_level
      __PACKAGE__->export_to_level(1, @_); 
   }
-  
+
 =head2 cache_lang
 
 	caches current language in dir_config primarily for use downstream
@@ -166,31 +170,32 @@ sub import {
 
 sub cache_language {
 	my $this = shift;
-	$this->errorEmail("cache language");
-	my $s = Apache2::ServerUtil->server;
-	my $config_key = $this->configkey;
-	if(defined($config_key)) {
-		my $lang = $this->language;
-		if(defined($lang)) {
-			my $config_lang = $s->dir_config($config_key);
-			# test if it has changed (?) if so reset.
-			if(defined($config_lang)) {
-				if($config_lang ne $lang ) {
-					warn("I18N: Switching $lang to $config_lang" );
+	my $s = $this->serverObj;
+	if($s) {
+		my $config_key = $this->configkey;
+		if(defined($config_key)) {
+			my $lang = $this->language;
+			if(defined($lang)) {
+				my $config_lang = $s->dir_config($config_key);
+				# test if it has changed (?) if so reset.
+				if(defined($config_lang)) {
+					if($config_lang ne $lang ) {
+						$this->logger("I18N: Switching $lang to $config_lang" );
+						$s->dir_config($config_key => $lang);
+					}
+				} else {
+					$this->logger("I18N:first time setting $config_key => $lang");
 					$s->dir_config($config_key => $lang);
 				}
+				
 			} else {
-				warn("I18N:first time setting $config_key => $lang");
-				$s->dir_config($config_key => $lang);
+				$this->logger("I18N:Setting to default language");
+				$s->dir_config($config_key => 'en');
 			}
 			
 		} else {
-			warn("I18N:Setting to default language");
-			$s->dir_config($config_key => 'en');
+			$this->logger("I18N: config key not set");
 		}
-		
-	} else {
-		warn("I18N: config key not set");
 	}
 	
 }
@@ -199,25 +204,19 @@ sub cache_language {
 	Sends error mail to address listed in $TUSK::Constants::ErrorEmail
 =cut
 sub errorEmail {
-	my ($self,$errmsg) = @_;
-	my $x = longmess();
+	my ($this,$msg) = @_;
+	
 	my $count = Apache2::ServerUtil::restart_count();
-	$errmsg = sprintf("count = %s",Apache2::ServerUtil::restart_count());
-	if($count > 1 ) {
-			my $body=<<EOM;
-$x
-EOM
-		my $mailer = TUSK::Application::Email->new({
-	        		to_addr   => $TUSK::Constants::ErrorEmail,
-	                from_addr => $TUSK::Constants::ErrorEmail,
-	                subject   => "Foo",
-	                body      => $errmsg
-	                });
-	     cluck(sprintf("Mail Error: )%s)",$mailer->getError())) unless($mailer->send());
-		
+	if( $count > 1) {
+	    my $mailer = TUSK::Application::Email->new({
+        		to_addr   => $TUSK::Constants::ErrorEmail,
+                from_addr => $TUSK::Constants::ErrorEmail,
+                subject   => $this->{errSubj},
+                body      => "Error: $msg [$count]"
+         });
+        $this->logger(sprintf("Mail Error: )%s)",$mailer->getError())) unless($mailer->send());
 	}
 
-       
 		
 }
 =head2 configkey
@@ -227,10 +226,10 @@ EOM
 =cut
 
 sub configkey {
-	my $self = shift;
+	my $this = shift;;
 	my $key = 'configLangKey';
-	$self->{$key} = shift if(@_);
-	return($self->{$key});
+	$this->{$key} = shift if(@_);
+	return($this->{$key});
 	
 }
 =head2 logger
@@ -241,14 +240,36 @@ sub configkey {
 =cut
 
 sub logger {
-	my ($self,$msg) = @_;
+	my ($this,$msg) = @_;
 	return unless($msg);
-	if( $self->serverObject) {
-	#	$self->serverObject->log_error($msg);
+	if( $this->serverObject) {
+		$this->serverObject->log_error("I18n:$msg");
 	} else {
-		carp($msg);
+		carp("I18N:CARP:$msg");
 	}
 	
+}
+=head2 setServerObj
+=cut
+	
+sub setServerObj {
+    my $this = shift;
+    my $s = undef;
+    eval {
+        $s = Apache2::ServerUtil->server;
+    }; 
+	return($this->serverObj($s));
+}
+  
+=head2 serverObj
+=cut
+
+sub serverObj {
+    my $this = shift;
+    my $key = 'serverObj';
+  	$this->{$key} = shift if(@_);
+	return($this->{$key});
+  
 }
 =head2 setLanguage
 
@@ -260,11 +281,11 @@ sub logger {
 	Currently we only support option #1 set in tusk.conf
 =cut
 sub setLanguage {
-	my $self = shift;
-	my $constKey = "SiteLang";
-	my $lang = $self->_getI18NConstant($constKey) || 'C';
+	my $this = shift;;
+	my $constKey = "SiteLanguage";
+	my $lang = $this->_getI18NConstant($constKey) || 'C';
 	if( $lang ) {
-		$self->language($lang);
+		$this->language($lang);
 	}
 }
 
@@ -274,10 +295,10 @@ sub setLanguage {
 
 =cut
 sub language {
-	my $self = shift;
-	my $key = 'lang';
-	$self->{$key} = shift if(@_);
-	return($self->{$key});
+	my $this = shift;;
+	my $key = 'language';
+	$this->{$key} = shift if(@_);
+	return($this->{$key});
 }
 
 =head2 debug
@@ -286,27 +307,27 @@ sub language {
 
 =cut
 sub debug {
-	my $self = shift;
+	my $this = shift;;
 	my $key = 'debug';
-	$self->{$key} = shift if(@_);
-	return($self->{$key});
+	$this->{$key} = shift if(@_);
+	return($this->{$key});
 }
 =head2 setCatalog
 
 =cut
 
 sub setCatalog {
-	my $self = shift;
+	my $this = shift;;
 	my $constKey = "SiteLocale";
 	
-	my $catalog = $self->_getI18NConstant($constKey) || "lib/LocalData";
-	my $docRoot = $self->serverRoot();
+	my $catalog = $this->_getI18NConstant($constKey) || $this->catalog;
+	my $docRoot = $this->serverRoot();
 	$docRoot = $1 if( $docRoot =~ /(.*)\/$/ ); # strip trailing slash for concat below.
 	if( $catalog !~ /^\// ) {
-			$catalog = $self->serverRoot() . '/' . $catalog; 
+			$catalog = $this->serverRoot() . '/' . $catalog; 
 		}
-	$self->logger("setCatalog ($catalog)");
-	return($self->catalog($catalog));
+	$this->logger("setCatalog ($catalog)");
+	return($this->catalog($catalog));
 			
 	}
 
@@ -316,50 +337,122 @@ sub setCatalog {
 
 =cut
 sub catalog {
-	my $self = shift;
+	my $this = shift;;
 	my $key = 'catalog';
-	$self->{$key} = shift if(@_);
-	return($self->{$key});
+	$this->{$key} = shift if(@_);
+	return($this->{$key});
+}
+=head2 category
+
+	Getter/setter for gettext category defined as 'LC_MESSAGES'
+
+=cut
+sub category {
+	my $this = shift;;
+	my $key = 'category';
+	$this->{$key} = shift if(@_);
+	return($this->{$key});
+}
+=head2 domainPath
+
+    Builds a path used for out .po .mo catalogs
+=cut
+sub domainPath {
+    my $this = shift;
+    my $path = sprintf("%s/%s/%s/%s",
+	   $this->catalog,$this->language,$this->category,$this->domain);
+	return($path);
+}
+=head2 validMoFile
+
+	Checks if we have a valid <domain>.mo compiled hash index for text lookups.
+	This is the compiles hash used by gettext via our markup.
+
+=cut
+sub validMoFile {
+	my $this = shift;
+	my $mo_path = sprintf("%s.mo",$this->domainPath);
+	return(1) if( -f $mo_path );
+    return(0);
+}
+=head2 validPoFile
+
+	Checks if we have a valid <domain>.  hash index for javascript markup lookups.
+	This is the human readable hash used by gettext.js.
+
+=cut
+sub validPoFile {
+	my $this = shift;
+	my $mo_path = sprintf("%s.po",$this->domainPath);
+	return(1) if( -f $mo_path );
+    return(0);
 }
 
+
+=head2 setLocaleDomain
+
+
+=cut
 sub setLocaleDomain {
-	my $self = shift;
+	my $this = shift;;
 	my $constKey = "SiteDomain";	
-	my $domain = $self->_getI18NConstant($constKey) || 'messages';
-	return($self->localeDomain($domain));			
+	my $domain = $this->_getI18NConstant($constKey) || 'messages';
+	return($this->domain($domain));			
 	}
-	
-	
+
+=head2 serverObject
+
+=cut
+sub serverObject {
+	my $this = shift;;
+	my $key = 'serverObject';
+	$this->{$key} = shift if(@_);
+	return($this->{$key});
+}
+=head2 serverRoot
+
+
+=cut
+sub serverRoot {
+	my $this = shift;;
+	my $key = 'serverRoot';
+	$this->{$key} = shift if(@_);
+	return($this->{$key});
+}
+=head2 domain
+
+
+=cut
+sub domain {
+	my $this = shift;;
+	my $key = 'domain';
+	$this->{$key} = shift if(@_);
+	return($this->{$key});
+}
+
+=head2 getLanguages
+
+
+=cut
+sub getLanguages {
+	my $this = shift;;	
+}
+
+=head2 _getI18NConstant
+
+
+=cut
 sub _getI18NConstant {
-	my ($self,$key) = @_;
+	my ($this,$key) = @_;
 	return undef unless(defined($key));
 	if( ! exists($TUSK::Constants::I18N{$key})) {
-		warn ("NO TUSK::Constants::I18N{$key}");
+		$this->logger("NO TUSK::Constants::I18N{$key}");
 	}
-	warn("NO TUSK::Constants::I18N key $key") unless ( exists($TUSK::Constants::I18N{$key}));
+	$this->logger("NO TUSK::Constants::I18N key $key") unless ( exists($TUSK::Constants::I18N{$key}));
 	return undef unless ( exists($TUSK::Constants::I18N{$key}));
-	warn("YES TUSK::Constants::I18N key $key = " . $TUSK::Constants::I18N{$key});
+	$this->logger("YES TUSK::Constants::I18N key $key = " . $TUSK::Constants::I18N{$key});
 	return($TUSK::Constants::I18N{$key});
 }
-sub serverObject {
-	my $self = shift;
-	my $key = 'serverObject';
-	$self->{$key} = shift if(@_);
-	return($self->{$key});
-}
-sub serverRoot {
-	my $self = shift;
-	my $key = 'serverRoot';
-	$self->{$key} = shift if(@_);
-	return($self->{$key});
-}
-sub localeDomain {
-	my $self = shift;
-	my $key = 'localeDomain';
-	$self->{$key} = shift if(@_);
-	return($self->{$key});
-}
-
 
 
 sub Locale::TextDomain::__x ($@)
@@ -383,12 +476,7 @@ sub Locale::TextDomain::__ ($)
 			     }		    
 			    return $msgstr;
 			};
-=head2 function2
 
-=cut
-
-sub function2 {
-}
 
 =head1 AUTHOR
 
