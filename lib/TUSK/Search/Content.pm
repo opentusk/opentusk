@@ -500,79 +500,41 @@ sub search {
     }
 
     # Restrict content to courses active in the given date range.
-    my $sqlHits;
+    my $sqlHits = 0;
     if ($query_hashref->{start_active_date}
         || $query_hashref->{end_active_date}) {
-        # Build up content by schools.
-        my @schools;
-        if ($query_hashref->{school}) {
-            if (ref($query_hashref->{school}) eq 'ARRAY') {
-                my $school_ref = $query_hashref->{school};
-                @schools = @$school_ref;
-            }
-            else {
-                @schools = ($query_hashref->{school});
-            }
+        $sqlHits = 1;
+        push(@$selects, 'LOG(COUNT(li.content_id))');
+        push(@$wheres, 'li.log_item_type_id = 2');
+        if ($query_hashref->{start_active_date}
+            && $query_hashref->{end_active_date}) {
+            push(@$wheres, 'li.hit_date BETWEEN '
+                 . $dbh->quote($query_hashref->{start_active_date})
+                 . " AND "
+                 . $dbh->quote($query_hashref->{end_active_date}));
+        }
+        elsif ($query_hashref->{start_active_date}) {
+            push(@$wheres, 'li.hit_date > '
+                 . $dbh->quote($query_hashref->{start_active_date}));
         }
         else {
-            @schools = HSDB4::Constants::schools();
+            push(@$wheres, 'li.hit_date < '
+                 . $dbh->quote($query_hashref->{start_active_date}));
         }
-        my @schooldbs = map { HSDB4::Constants::get_school_db($_) } @schools;
-        my @tpactives;
-        my @hitactives;
-        if ($query_hashref->{start_active_date}) {
-            push(@tpactives,
-                 "tp.end_date > DATE(" .
-                 $dbh->quote($query_hashref->{start_active_date}) . ")");
-            push(@hitactives,
-                 "li.hit_date > DATE(" .
-                 $dbh->quote($query_hashref->{start_active_date}) . ")");
-        }
-        if ($query_hashref->{end_active_date}) {
-            push(@tpactives,
-                 "tp.start_date < DATE(" .
-                 $dbh->quote($query_hashref->{end_active_date}) . ")");
-            push(@hitactives,
-                 "li.hit_date < DATE(" .
-                 $dbh->quote($query_hashref->{end_active_date}) . ")");
-        }
-        if ($query_hashref->{start_active_date} && $query_hashref->{end_active_date}) {
-            @hitactives = ("li.hit_date BETWEEN DATE(" .
-                           $dbh->quote($query_hashref->{start_active_date}) .
-                           ") AND DATE(" .
-                           $dbh->quote($query_hashref->{end_active_date}) .
-                           ")");
-        }
-        my $sqlTimeConstraint = join(" AND ", @tpactives);
-        my $sqlHitConstraint = join(" AND ", @hitactives);
-        my @sqlUserQueries = map { qq{SELECT lcs.child_user_id as user_id
-                FROM $_.link_course_student lcs
-                INNER JOIN $_.time_period tp
-                ON lcs.time_period_id = tp.time_period_id
-                WHERE $sqlTimeConstraint
-                GROUP BY lcs.child_user_id} } @schooldbs;
-        $sqlHits = qq{SELECT li.content_id, COUNT(li.content_id) AS numhits
-            FROM hsdb4.log_item li
-            INNER JOIN (} .
-            join(" UNION ", @sqlUserQueries) .
-            qq{) user
-            ON li.user_id = user.user_id
-            WHERE $sqlHitConstraint
-            GROUP BY li.content_id};
-        push(@$selects, "LOG(hits.numhits)");
     }
     $selects = [ 1 ] unless (scalar(@$selects));
 
     my $sql = "SELECT content.content_id, (ROUND(" .
         join(' + ', @$selects) .
         ") + IF(STRCMP(type, 'Collection'), 0, 0.5)) AS computed_score FROM tusk.full_text_search_content content ";
-    $sql .= "INNER JOIN ($sqlHits) hits ON content.content_id = hits.content_id " if ($sqlHits);
+    $sql .= "INNER JOIN hsdb4.log_item li ON content.content_id = li.content_id " if ($sqlHits);
     $sql .= "INNER JOIN tusk.link_search_query_content search " .
         "ON content.content_id = search.child_content_id " if ($parent_query);
     $sql .= "WHERE " . join(' AND ', @$wheres) if (scalar(@$wheres));
     $sql .= (scalar(@$wheres) ? " AND " : " WHERE ") .
         "search.parent_search_query_id = " .
         $dbh->quote($parent_query->getPrimaryKeyID()) if ($parent_query);
+    $sql .= " GROUP BY li.content_id " if ($sqlHits);
     $sql .= " ORDER BY computed_score DESC" unless ($user_id);
 
     if ($user_id) {
