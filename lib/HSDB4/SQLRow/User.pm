@@ -428,7 +428,7 @@ sub sorted_meetings_on_date{
 	return @sorted_meets;
 }
 
-sub todays_sorted_meetings_by_school{
+sub todays_sorted_meetings_by_school {
 	my $self = shift;
 	my $today = HSDB4::DateTime->new()->out_mysql_date;
 	my @meetings = $self->sorted_meetings_on_date($today);
