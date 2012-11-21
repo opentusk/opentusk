@@ -307,10 +307,10 @@ sub set_eternity_timeperiod {
 
 
 sub get_tusk_version {
- 	my $ver_regex 	= qr/^\s*release\s*:\s*(\d{1,2}\.\d{1,2}\.\d{1,3})\s*$/i;
  	my $key = defined $TUSK::Constants::VersionTag 	? $TUSK::Constants::VersionTag : 'TUSK_VERSION';
  	my $release = Apache2::ServerUtil->server->dir_config($key);
  	unless($release) {
+ 		my $ver_regex    = qr/^\s*release\s*:\s*(\d{1,2}\.\d{1,2}\.\d{1,3})\s*$/i;
  	    $release    	= file2version($ver_regex);
  	    Apache2::ServerUtil->server->dir_config($key => $release) if($release); 	    
  	} 
