@@ -61,7 +61,7 @@ sub initConfigs {
 
 
 sub getConfig {
-    my $file = '/usr/local/tusk/conf/tusk.conf';
+    my $file = $ENV{TUSKRC} || '/usr/local/tusk/conf/tusk.conf';
     local $/;
     open( my $fh, '<', $file );
     my $data   = <$fh>;
