@@ -310,7 +310,7 @@ sub get_tusk_version {
  	my $key = defined $TUSK::Constants::VersionTag 	? $TUSK::Constants::VersionTag : 'TUSK_VERSION';
  	my $release = Apache2::ServerUtil->server->dir_config($key);
  	unless($release) {
- 		my $ver_regex    = qr/^\s*release\s*:\s*(\d{1,2}\.\d{1,2}\.\d{1,3})\s*$/i;
+ 		my $ver_regex    = qr/^\s*release\s*:\s*(\d{1,2}\.\d{1,2}\.\d{1,3})(-[a-z]+\d{0,2})?\s*$/i;
  	    $release    	= file2version($ver_regex);
  	    Apache2::ServerUtil->server->dir_config($key => $release) if($release); 	    
  	} 
@@ -326,12 +326,12 @@ sub file2version {
 	open(my $fh, '<', $path);
 	if($fh) {
 		my @lines = <$fh>;
-		foreach my $line (@lines) {
-			$version = $1 if( $line =~ /$regx/ );
+		foreach my $line (@lines) {			
+			next if /^\s*#/;
+			$version = $1 . $2 if( $line =~ /$regx/ );
 		}
 		
 	} 
-	
 	return $version;
 }
 
