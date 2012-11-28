@@ -519,7 +519,7 @@ sub search {
         }
         else {
             push(@$wheres, 'li.hit_date < '
-                 . $dbh->quote($query_hashref->{start_active_date}));
+                 . $dbh->quote($query_hashref->{end_active_date}));
         }
     }
     $selects = [ 1 ] unless (scalar(@$selects));
