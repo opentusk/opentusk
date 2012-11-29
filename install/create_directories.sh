@@ -1,55 +1,14 @@
 #! /bin/bash
 
-mkdir /data
-mkdir /data/eval_data
-mkdir /data/mysql
-mkdir /data/ppt
-mkdir /data/ppt/native-archive
-mkdir /data/ppt/native
-mkdir /data/ppt/error
-mkdir /data/ppt/processed
-mkdir /data/ppt/temp
-mkdir /data/.ppt
-mkdir /data/forum_data
-mkdir /data/TUSKdoc
-mkdir /data/TUSKdoc/native-archive
-mkdir /data/TUSKdoc/native
-mkdir /data/TUSKdoc/processed
-mkdir /data/temp
-mkdir /data/streaming
-mkdir /data/streaming/flashpix
-mkdir /data/streaming/smil
-mkdir /data/streaming/code
-mkdir /data/streaming/video
-mkdir /data/html
-mkdir /data/html/shockwave
-mkdir /data/html/HSDB-doc
-mkdir /data/html/ramfiles
-mkdir /data/html/web-auth
-mkdir /data/html/web-auth/pdf
-mkdir /data/html/images
-mkdir /data/html/slide
-mkdir /data/html/slide/orig/
-mkdir /data/html/slide/small/
-mkdir /data/html/slide/icon/
-mkdir /data/html/slide/thumb/
-mkdir /data/html/slide/medium/
-mkdir /data/html/slide/large/
-mkdir /data/html/slide/xlarge/
-mkdir /data/html/slide/overlay/
-mkdir /data/html/slide/overlay/orig/
-mkdir /data/html/slide/overlay/small/
-mkdir /data/html/slide/overlay/medium/
-mkdir /data/html/slide/overlay/large/
-mkdir /data/html/slide/overlay/xlarge/
-mkdir /data/html/smil
-mkdir /data/html/web
-mkdir /data/html/downloadable_file
-mkdir /data/html/fop-pdf
-mkdir /data/html/fop-xml
-mkdir /usr/local/tusk
-mkdir /usr/local/tusk/conf
-mkdir /usr/local/tusk/ssl
-mkdir /usr/local/tusk/ssl_certificate
-mkdir /usr/local/tusk/current/mason_cache/cache
-mkdir /usr/local/tusk/current/mason_cache/obj
+mkdir -p  /data/{eval_data,mysql}
+mkdir -p  /data/ppt/{native-archive,native,error,processed,temp}
+mkdir -p  /data/{.ppt,forum_data,temp}
+mkdir -p  /data/TUSKdoc/{native-archive,native,processed}
+mkdir -p  /data/streaming/{flashpix,smil,code,video}
+mkdir -p  /data/html/{shockwave,HSDB-doc,ramfiles,smil,web,downloadable_file,fop-pdf,fop-xml}
+mkdir -p  /data/html/web-auth/pdf
+mkdir -p  /data/html/images
+mkdir -p  /data/html/slide/{orig,small,icon,thumb,medium,large,xlarge}
+mkdir -p  /data/html/slide/overlay/{orig,small,medium,large,xlarge}
+mkdir -p  /usr/local/tusk/{conf,ssl_certificate}
+mkdir -p  /usr/local/tusk/current/mason_cache/{cache,obj}
