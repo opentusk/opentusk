@@ -207,8 +207,7 @@ sub getScore {
 	foreach my $response (@{$responses}) {
 	    $score += $response->getGradedPoints();
 	}
-    # round the score to two decimal places
-    return ((int (100 * ($score + 0.005 * ($score <=> 0)))) / 100);
+	return ((int (100 * ($score + 0.005 * ($score <=> 0)))) / 100); # round the score to two decimal places
 }
 
 sub getScoreAsPercentage {
@@ -229,15 +228,14 @@ sub getScoreAsPercentage {
 }
 
 sub needsGrading {
-    my $self = shift;
-    my $responses = $self->getResponses();
-    foreach my $response (@{$responses}){
-        unless ($response->getGradedFlag()) {
-            return 1 if ($response->getQuizItem()->getType()
-                         =~ /^(FillIn|Essay)$/);
+	my $self = shift;
+	my $responses = $self->getResponses(); 
+        foreach my $response (@{$responses}){
+                unless ($response->getGradedFlag()) {
+			return 1;
+                }
         }
-    }
-    return 0;
+	return 0;
 }
 
 ### Other Methods
@@ -336,88 +334,50 @@ sub createResponses{
     my $quiz_id = $self->getQuizID;
     my $result_id = $self->getPrimaryKeyID;
 
-    my $dbh = $self->getDatabaseReadHandle();
-
     foreach my $key (keys %$quizItems){
-        my $quizItem = $quizItems->{$key};
-        my $question = $quizItem->getQuestionObject();
+	my $quizItem = $quizItems->{$key};
+	my $question = $quizItem->getQuestionObject();
 
-        if ($question->getType() eq "Matching" or
-            $question->getType() eq "Section" or
-            $question->getType() eq "MultipleFillIn") {
-            $self->createResponses($user,
-                                   $question->getSubQuestionLinks("hash"),
-                                   $responses, "link_question_question");
-        } else {
-            my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
-            my $response = TUSK::Quiz::Response->lookupReturnOne(
-                "quiz_result_id = " . $dbh->quote($result_id) .
-                " AND link_id = " . $dbh->quote($quizItem->getPrimaryKeyID()) .
-                " AND link_type = " . $dbh->quote($link_type)
-                );
-            $response = TUSK::Quiz::Response->new() unless (defined $response);
+	if ($question->getType() eq "Matching" or $question->getType() eq "Section" or $question->getType() eq "MultipleFillIn"){
+	    $self->createResponses($user, $question->getSubQuestionLinks("hash"), $responses, "link_question_question");	    
+	} else {
+	    my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+	    my $response = TUSK::Quiz::Response->lookupReturnOne("quiz_result_id = $result_id and link_id = " . $quizItem->getPrimaryKeyID() . " and link_type = '$link_type'");
+	    $response = TUSK::Quiz::Response->new() unless (defined $response);
+		
+	    $response->setFieldValues({
+		quiz_result_id => $result_id,
+		graded_flag  => 0,
+		link_id      => $quizItem->getPrimaryKeyID(),
+		link_type    => $link_type,
+		response_text  => $responses->{$question->getPrimaryKeyID()} });
 
-            $response->setFieldValues({
-                quiz_result_id => $result_id,
-                graded_flag  => 0,
-                link_id      => $quizItem->getPrimaryKeyID(),
-                link_type    => $link_type,
-                response_text  => $responses->{$question->getPrimaryKeyID()} });
+	    my $answers = $question->getAnswers() || [];
 
-            $self->autogradeResponse($response);
-            $self->addUpdateResponse($user, $response);
-        }
+	    if ($response->getResponseText() && $question->getType() !~ /^(FillIn|Essay)$/) {
+		### leave the graded flag undef in case of no answers or matching child
+		$response->setGradedFlag(1) if ($answers && scalar @$answers);
+
+		foreach my $answer (@{$answers}){
+		    ### response_text is still a primarky key id of the answer
+		    ### then reset the response text based on the answer object
+		    if ($response->getResponseText() == $answer->getPrimaryKeyID()){
+
+			$response->setFieldValues({
+			    graded_points  => $answer->getCorrect() * $quizItem->getPoints(),
+			    quiz_answer_id => $answer->getPrimaryKeyID(),
+			    response_text  => $answer->getValue() });
+			last;
+		    }
+		}
+	    }
+	    $self->addUpdateResponse($user, $response);
+	}
     }
 
 }
 
-sub submit {
-    my $self = shift;
-    my $quiz = TUSK::Quiz::Quiz->lookupKey($self->getQuizID());
-    $self->setEndDate();
-    $self->setCurrentQuestionIndex(scalar(@{$quiz->getQuizItemsWithAnswers()}));
-    $self->autogradeResponses();
-}
-
-sub autogradeResponse {
-    my $self = shift;
-    my $response = shift;
-    my $question = $response->getQuizItem();
-    if (($response->getResponseText() || defined($self->getEndDate())) &&
-        $question->getType() !~ /^(FillIn|Essay)$/) {
-        ### leave the graded flag undef in case of no answers
-        ### or matching child
-        my $answers = $question->getAnswers();
-        $response->setGradedFlag(1) if ($answers && scalar @$answers);
-        $response->setGradedPoints(0.0) if ! defined($response->getGradedPoints());
-        foreach my $answer (@{$answers}) {
-            ### response_text is still a primary key id of the answer
-            ### then reset the response text based on the answer object
-            if ($response->getResponseText() ==
-                $answer->getPrimaryKeyID()) {
-                $response->setFieldValues(
-                    {quiz_answer_id => $answer->getPrimaryKeyID(),
-                     response_text  => $answer->getValue()});
-                last;
-            }
-        }
-        if ($response->getAnswerID()) {
-            $response->setGradedPoints($response->getAnswer()->getCorrect() *
-                                       $response->getLinkObject()->getPoints());
-        }
-    }
-}
-
-sub autogradeResponses {
-    my $self = shift;
-    my $user_id = $self->getUserID();
-    my @responses = @{$self->getResponses()};
-    foreach my $response (@responses) {
-        $self->autogradeResponse($response);
-        $response->save({ user => $user_id });
-    }
-}
-
+    
 sub trim{
     my ($string) = @_;
     $string =~ s/^\s*//;
