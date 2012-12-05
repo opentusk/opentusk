@@ -1,0 +1,44 @@
+# This file is used for internal tufts tusk group use.
+# Feel free to not include this file or customize to your needs.
+
+
+
+## Overriding combined is not possible in some apache versions (CentOS) so we will use our own
+## tusk_combined log format explained from http://httpd.apache.org/docs/2.2/mod/mod_log_config.html#logformat
+# %h	- Remote host
+# %l	- Remote logname (from identd, if supplied). This will return a dash unless mod_ident is present and IdentityCheck is set On.
+# %u    - Remote user (from auth; may be bogus if return status (%s) is 401)
+# %t	- Time the request was received (standard english format)
+# %r 	- First line of request
+# %>s	- Status. For requests that got internally redirected, this is the status of the *original* request --- %>s for the last.
+# %O	- Bytes sent, including headers, cannot be zero. 
+# %{Referer}i - Referer page.
+# %{User-agent}i - .
+# %a	- Remote IP-address
+# %X	- Connection status [ X = aborted + = connection may be kept alive - connection will be closed after the response is sent.]
+# %A	- Local IP-address
+# %P    - The process ID of the child that serviced the request.
+# %T    - The time taken to serve the request, in seconds. 
+
+LogFormat "%h\t%l\t%u\t%t\t\"%r\"\t%>s\t%O\t\"%{Referer}i\"\t\"%{User-agent}i\"\t%a\t%X\t%A\t%P\t%T" tusk_combined
+#LogFormat "%h\t%l\t%u\t%t\t\"%r\"\t%>s\t%O\t\"[%{SCRIPT_NAME}e] [%{REQUEST_URI}e]\"\t\"%{User-agent}i\"\t%a\t%X\t%A\t%P\t%T" tusk_combined
+LogFormat "%h\t%t\t\"%{Cookie}i\"\t%a\t%A\t%P" cookieLog
+LogFormat "%h\t%t\t\"%U\"\t%a\t%A\t%P" lbLog
+
+#  split out requests into separate log file
+SetEnvIf Request_URI "^/(icons|graphics|style|scripts)/" minorlog
+#SetEnvIf Request_URI ".(gif|jpg|js|css|ico|png|jpeg)$" minorlog
+
+# rule for load balancer request
+SetEnvIf Request_URI "public/lb$" lblog
+
+CustomLog logs/minor_log tusk_combined env=minorlog
+CustomLog logs/access_log tusk_combined env=!minorlog
+CustomLog logs/cookie_log cookieLog env=!minorlog
+
+## The custom log below separate tufts tusk load balancer 
+## input from regular logs. They may be kept or sent to
+## /dev/null. If your load balancer uses a url you can 
+## modift the lblog SetEnvIf and add your own url
+CustomLog logs/lb_log lbLog env=lblog
+#CustomLog /dev/null combined env=lblog
