@@ -28,6 +28,7 @@
 	use HSDB45::Course;
 	use HSDB4::DateTime;
 	use POSIX qw(strftime);
+	use TUSK::Core::School;
 </%once>
 
 <%shared>
@@ -65,12 +66,29 @@ my @schools;
 <nav class="toptabs">
 <ul>
 % if (scalar keys %course_hash) {
+% use Data::Dumper;
 % 	foreach my $school (keys %course_hash) {
 	<li<% ($counter == 0) ? ' class="current"' : ''%>><a href="#schooltab<% $counter %>"><% $TUSK::Constants::Schools{$school}{'DisplayName'} %></a>
 %		my $temp_arrayref = $user->get_important_upcoming_dates_by_school($school);
+%
 %		$upcoming->{$school} = [];
-%		foreach my $meeting (@$temp_arrayref) {
-%			push @{$upcoming->{$school}}, $meeting;
+%		foreach my $event (@$temp_arrayref) {
+%			if ($event->{type} eq "schedule") {
+%				$event->{link} = "/view/course/$school/" . $event->{course_id} . "/schedule/" . $event->{id};
+%			}
+%			elsif ($event->{type} eq "quiz") {
+%				$event->{link} = "/quiz/quizstart/course/$school/" . $event->{course_id} . "/" . $event->{id};
+%			}
+%			elsif ($event->{type} eq "case") {
+%				$event->{link} = "/case/casestart/" . TUSK::Core::School->new->getSchoolID($school) . "/" . $event->{course_id} . "/" . $event->{id};
+%			}
+%			elsif ($event->{type} eq "eval") {
+%				$event->{link} = "/eval/complete/$school/" . $event->{id};
+%			}
+%			elsif ($event->{type} eq "assignment") {
+%				$event->{link} = "/assignment/student/complete/course/$school/" . $event->{course_id} . "/" . $event->{id};
+%			}
+%			push @{$upcoming->{$school}}, $event;
 %		}
 %		$counter++;
 % 	}
@@ -168,10 +186,10 @@ my @schools;
 %		if (scalar @{$upcoming->{$school}}) {
 					<section class="tab<% ($todays_meetings->{$school} && scalar @{$todays_meetings->{$school}}) ? '' : ' current"' %>" id="schooltab<% $counter %>calendartab2">
 						<h1 class="skip">To Do</h1>
-%			foreach my $meeting (@{$upcoming->{$school}}) {
+%			foreach my $event (@{$upcoming->{$school}}) {
 						<article class="todo">
-							<time><% $meeting->{date} %> <strong><% $meeting->{time} %></strong></time>
-							<h1><a href="/view/course/<% $school %>/<% $meeting->{course_id} %>/schedule/<% $meeting->{class_meeting_id} %>"><% $meeting->{title} %></a></h1>
+							<time><% $event->{date} %> <strong><% $event->{time} %></strong></time>
+							<h1><a href="<% $event->{link} %>"><% $event->{title} %></a></h1>
 						</article>
 %			}
 					</section>
