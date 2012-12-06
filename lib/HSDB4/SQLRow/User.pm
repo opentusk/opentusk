@@ -532,24 +532,155 @@ sub get_schedule_start_end {
 sub get_important_upcoming_dates_by_school {
 	my $user = shift;
 	my $school = shift;
-	my @meetings;
+	my @dates;
 	my $db = get_school_db($school);
 	my (undef, $enddate) = get_schedule_start_end();
 	
 	my $dbh = HSDB4::Constants::def_db_handle();
-	my $sth = $dbh->prepare(qq(
-		SELECT class_meeting_id, course_id, title, DATE_FORMAT(meeting_date, '%b. %e, %Y') as date, DATE_FORMAT(starttime,'%h:%i %p') as time, location 
-		FROM $db.class_meeting, $db.link_course_student, $db.link_course_user_group, $db.time_period, $db.link_user_group_user 
-		WHERE link_course_student.child_user_id = ? AND link_user_group_user.child_user_id = ? AND parent_user_group_id = child_user_group_id AND link_course_student.parent_course_id = course_id AND link_course_user_group.parent_course_id = course_id AND link_course_user_group.time_period_id = time_period.time_period_id AND NOW() BETWEEN start_date AND end_date AND meeting_date BETWEEN NOW() AND ?
-							));
+	my $sth = $dbh->prepare("SELECT
+course_id,
+'schedule' AS type,
+class_meeting_id AS id,
+title,
+DATE_FORMAT(meeting_date, '%b. %e, %Y') as date,
+DATE_FORMAT(starttime,'%h:%i %p') as time
+FROM
+$db.class_meeting,
+$db.link_course_user_group,
+$db.link_user_group_user,
+$db.time_period,
+tusk.class_meeting_type,
+tusk.school
+WHERE
+class_meeting_type_id = type_id AND
+school_name = 'Medical' AND
+(label = 'Holiday' OR label = 'Examination') AND
+school.school_id = class_meeting_type.school_id AND
+NOW() BETWEEN start_date AND end_date AND
+meeting_date BETWEEN NOW() AND '$enddate' AND
+link_course_user_group.time_period_id = time_period.time_period_id AND
+parent_user_group_id = child_user_group_id AND
+parent_course_id = course_id AND
+child_user_id = '" . $user->primary_key() . "'
 
-    $sth->execute($user->primary_key, $user->primary_key, $enddate);
+UNION
+
+SELECT
+link_course_student.parent_course_id AS course_id,
+'quiz' AS type,
+child_quiz_id AS id,
+title,
+DATE_FORMAT(due_date, '%b. %e, %Y') as date,
+NULL as time
+FROM
+tusk.quiz,
+tusk.link_course_quiz,
+tusk.school,
+$db.time_period,
+$db.link_course_student
+WHERE
+quiz_id = child_quiz_id AND
+school.school_id = link_course_quiz.school_id AND
+school_name = 'Medical' AND
+available_date < NOW() AND
+NOW() BETWEEN start_date AND end_date AND
+due_date BETWEEN NOW() AND '$enddate' AND
+link_course_quiz.time_period_id = link_course_student.time_period_id AND
+time_period.time_period_id = link_course_student.time_period_id AND
+link_course_student.parent_course_id = link_course_quiz.parent_course_id AND
+child_user_id = '" . $user->primary_key() . "'
+
+UNION
+
+SELECT
+link_course_student.parent_course_id AS course_id,
+'case' AS type,
+case_header_id AS id,
+case_title AS title,
+DATE_FORMAT(grade_event.due_date, '%b. %e, %Y') as date,
+NULL as time
+FROM
+tusk.grade_event,
+tusk.case_header,
+tusk.link_case_grade_event,
+tusk.link_course_case,
+tusk.school,
+$db.time_period,
+$db.link_course_student
+WHERE
+case_header_id = parent_case_id AND
+case_header_id = child_case_id AND
+grade_event_id = child_grade_event_id AND
+school.school_id = link_course_case.school_id AND	
+school_name = 'Medical' AND
+available_date < NOW() AND
+NOW() BETWEEN start_date AND end_date AND
+grade_event.due_date BETWEEN NOW() AND '$enddate' AND
+time_period.time_period_id = link_course_student.time_period_id AND
+link_course_student.parent_course_id = link_course_case.parent_course_id AND
+child_grade_event_id = grade_event_id AND
+child_user_id = '" . $user->primary_key() . "' AND 
+case_header.publish_flag = 1
+
+UNION
+
+SELECT
+link_course_student.parent_course_id AS course_id,
+'eval' AS type,
+eval_id AS id,
+title,
+DATE_FORMAT(due_date, '%b. %e, %Y') as date,
+NULL as time
+FROM
+$db.eval,
+$db.time_period,
+$db.link_course_student
+WHERE
+NOW() BETWEEN start_date AND end_date AND
+due_date BETWEEN NOW() AND '$enddate' AND
+available_date < NOW() AND
+eval.time_period_id = link_course_student.time_period_id AND
+time_period.time_period_id = link_course_student.time_period_id AND
+link_course_student.parent_course_id = course_id AND
+child_user_id = '" . $user->primary_key() . "'
+
+UNION
+
+SELECT
+course_id,
+'assignment' AS type,
+assignment_id AS id,
+event_name AS title,
+DATE_FORMAT(assignment.due_date, '%b. %e, %Y') as date,
+NULL as time
+FROM
+tusk.grade_event,
+tusk.assignment,
+tusk.school,
+tusk.link_assignment_student,
+$db.time_period
+WHERE
+school_name = 'Medical' AND
+school.school_id = grade_event.school_id AND
+available_date < NOW() AND
+NOW() BETWEEN start_date AND end_date AND
+assignment.due_date BETWEEN NOW() AND '$enddate' AND
+grade_event.time_period_id = time_period.time_period_id AND
+assignment.grade_event_id = grade_event.grade_event_id AND
+parent_assignment_id = assignment_id AND
+child_user_id = '" . $user->primary_key() . "' AND
+publish_flag = 1
+
+ORDER BY
+date, time");
+
+    $sth->execute();
     while (my $row = $sth->fetchrow_hashref) {
-		push @meetings, $row;
+		push @dates, $row;
 	}
 
     $sth->finish;
-	return \@meetings;
+	return \@dates;
 }
 
 sub recently_modified {
