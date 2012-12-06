@@ -553,7 +553,7 @@ tusk.class_meeting_type,
 tusk.school
 WHERE
 class_meeting_type_id = type_id AND
-school_name = 'Medical' AND
+school_name = '$school' AND
 (label = 'Holiday' OR label = 'Examination') AND
 school.school_id = class_meeting_type.school_id AND
 NOW() BETWEEN start_date AND end_date AND
@@ -581,7 +581,7 @@ $db.link_course_student
 WHERE
 quiz_id = child_quiz_id AND
 school.school_id = link_course_quiz.school_id AND
-school_name = 'Medical' AND
+school_name = '$school' AND
 available_date < NOW() AND
 NOW() BETWEEN start_date AND end_date AND
 due_date BETWEEN NOW() AND '$enddate' AND
@@ -612,7 +612,7 @@ case_header_id = parent_case_id AND
 case_header_id = child_case_id AND
 grade_event_id = child_grade_event_id AND
 school.school_id = link_course_case.school_id AND	
-school_name = 'Medical' AND
+school_name = '$school' AND
 available_date < NOW() AND
 NOW() BETWEEN start_date AND end_date AND
 grade_event.due_date BETWEEN NOW() AND '$enddate' AND
@@ -660,7 +660,7 @@ tusk.school,
 tusk.link_assignment_student,
 $db.time_period
 WHERE
-school_name = 'Medical' AND
+school_name = '$school' AND
 school.school_id = grade_event.school_id AND
 available_date < NOW() AND
 NOW() BETWEEN start_date AND end_date AND
