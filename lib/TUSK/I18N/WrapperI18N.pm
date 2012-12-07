@@ -19,6 +19,7 @@ sub post_config {
 	#
 	# 
       package HTML::Mason::Commands;      
+      use utf8;
       use TUSK::I18N::I18N qw(:basic);
   
     } 

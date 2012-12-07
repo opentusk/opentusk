@@ -1,8 +1,4 @@
 package TUSK::I18N::I18N;
-# Notes: turn on strict/warn
-# Test if lang dir exists ?
-# define defaults hash?
-
 use strict;
 use warnings;
 use Data::Dumper;
@@ -17,7 +13,7 @@ use Locale::Messages qw (bindtextdomain textdomain bind_textdomain_codeset);
 use TUSK::Application::Email;
 use Exporter;
 our @ISA = qw(Exporter);
-## need to forcefullfy export mason doesn't like the more polite EXPORT_OK ?
+## Using EXPORT_OK ?
 our @EXPORT_OK = qw (__ __x __n __p __nx __xn  __px __np __npx $__ %__ 
              N__ N__n N__p N__np);
             
@@ -33,7 +29,7 @@ our %EXPORT_TAGS = (
 my %seen = ();
 push @{$EXPORT_TAGS{all}}, grep {!$seen{$_}++} @{$EXPORT_TAGS{$_}} foreach keys %EXPORT_TAGS;
 
-# start by turning off gettext
+# start by turning off gettext translation
 BEGIN { $ENV{LANGUAGE} = $ENV{LANG} = "C"; }
 
 
