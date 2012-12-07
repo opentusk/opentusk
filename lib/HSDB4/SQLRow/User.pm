@@ -571,7 +571,7 @@ link_course_student.parent_course_id AS course_id,
 child_quiz_id AS id,
 title,
 DATE_FORMAT(due_date, '%b. %e, %Y') as date,
-NULL as time
+DATE_FORMAT(due_date,'%h:%i %p') as time
 FROM
 tusk.quiz,
 tusk.link_course_quiz,
@@ -597,28 +597,23 @@ link_course_student.parent_course_id AS course_id,
 'case' AS type,
 case_header_id AS id,
 case_title AS title,
-DATE_FORMAT(grade_event.due_date, '%b. %e, %Y') as date,
-NULL as time
+DATE_FORMAT(link_course_case.due_date, '%b. %e, %Y') as date,
+DATE_FORMAT(link_course_case.due_date,'%h:%i %p') as time
 FROM
-tusk.grade_event,
 tusk.case_header,
-tusk.link_case_grade_event,
 tusk.link_course_case,
 tusk.school,
 $db.time_period,
 $db.link_course_student
 WHERE
-case_header_id = parent_case_id AND
 case_header_id = child_case_id AND
-grade_event_id = child_grade_event_id AND
 school.school_id = link_course_case.school_id AND	
 school_name = '$school' AND
-available_date < NOW() AND
+(available_date IS NULL OR available_date < NOW()) AND
 NOW() BETWEEN start_date AND end_date AND
-grade_event.due_date BETWEEN NOW() AND '$enddate' AND
+link_course_case.due_date BETWEEN NOW() AND '$enddate' AND
 time_period.time_period_id = link_course_student.time_period_id AND
 link_course_student.parent_course_id = link_course_case.parent_course_id AND
-child_grade_event_id = grade_event_id AND
 child_user_id = '" . $user->primary_key() . "' AND 
 case_header.publish_flag = 1
 
@@ -652,7 +647,7 @@ course_id,
 assignment_id AS id,
 event_name AS title,
 DATE_FORMAT(assignment.due_date, '%b. %e, %Y') as date,
-NULL as time
+DATE_FORMAT(assignment.due_date,'%h:%i %p') as time
 FROM
 tusk.grade_event,
 tusk.assignment,
@@ -675,7 +670,11 @@ ORDER BY
 date, time");
 
     $sth->execute();
+use Data::Dumper;
     while (my $row = $sth->fetchrow_hashref) {
+
+warn Dumper $row;
+
 		push @dates, $row;
 	}
 
