@@ -669,7 +669,11 @@ ORDER BY
 date, time");
 
     $sth->execute();
+use Data::Dumper;
     while (my $row = $sth->fetchrow_hashref) {
+
+warn Dumper $row;
+
 		push @dates, $row;
 	}
 
