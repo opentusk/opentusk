@@ -429,6 +429,9 @@ sub sorted_meetings_on_date{
 }
 
 sub todays_sorted_meetings_by_school {
+    #
+    # Get meetings, split out by school, for a student for current day
+	#
 	my $self = shift;
 	my $today = HSDB4::DateTime->new()->out_mysql_date;
 	my @meetings = $self->sorted_meetings_on_date($today);
@@ -441,32 +444,12 @@ sub todays_sorted_meetings_by_school {
 	return \%sorted_meetings;
 }
 
-
-sub sorted_meetings_in_range {
-	my ($self, $start, $end) = @_;
-
-	my $startdate = HSDB4::DateTime->new->in_mysql_date($start);
-	my $enddate =  HSDB4::DateTime->new->in_mysql_date($end);
-	my @meetings;
-	my %class_meetings;
-	my %seen;
-
-	$enddate->add_days(1);
-	for (my $today = $startdate; $today != $enddate; $today->add_days(1)) {
-		@meetings = $self->sorted_meetings_on_date($today->out_mysql_date);
-		$class_meetings{$today->out_mysql_date} = ();
-		foreach my $meeting (@meetings) {
-			unless($seen{$meeting->primary_key()}){
-				push @{$class_meetings{ $meeting->meeting_date }}, $meeting;
-				$seen{$meeting->primary_key()} = 1;
-			}
-		}
-	}
-
-	return %class_meetings;
-}
-
 sub has_schedule {
+    #
+    # Find out if user has calendar events in the current period
+    #	- limited by school if passed as argument
+    #	- see comments for get_schedule_start_end for definition of 'current period'
+	#
 	my $user = shift;
 	my $school = shift || undef;
 	my ($start, $end) = get_schedule_start_end();
@@ -498,6 +481,12 @@ sub has_schedule {
 }
 
 sub get_schedule_start_end {
+    #
+    # Get start and end date for user's current period:
+    #	- 6 month period (either Jan. - June. or July - Dec.) depending on the current date
+    #	- if it's December, includes next Jan. - June
+    #	- if it's June, includes July - Dec.
+	#
 	my ($startdate, $enddate);
 	my $today = HSDB4::DateTime->new;
 	my $year = HSDB4::DateTime->new->current_year();
@@ -530,6 +519,14 @@ sub get_schedule_start_end {
 }
 
 sub get_important_upcoming_dates_by_school {
+    #
+    # Get items with upcoming due dates:
+	#	- Exams and Holidays (pulled from the user group schedule where meeting type is exam or holiday)
+	#	- All quizzes with due dates
+	#	- All cases with due dates
+	#	- Evals
+	#	- Assignments
+    #
 	my $user = shift;
 	my $school = shift;
 	my @dates;
