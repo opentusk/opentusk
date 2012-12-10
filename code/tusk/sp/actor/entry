@@ -26,7 +26,7 @@
 </%attr>
 
 <%shared>
-	my $form_type_label = 'Simulated Patient';
+	my $form_type_label = __('Simulated Patient');
 	my ($form_id, $user_group_id, $student_id, $entry_id) = $m->comp('/tmpl/url:get_path_ids');
 	my $form = TUSK::FormBuilder::Form->lookupKey($form_id);
 	my ($student,$user_group);
@@ -43,7 +43,7 @@
 <div style="margin:5px 0 0 15px;">
 <& "/formbuilder/display:page", 
 	args => { %ARGS, hide_required => 0, entry_id => $entry_id, student_id => $student_id },
-	date_label => 'Encounter Date', 
+	date_label => __('Encounter Date'), 
 	dynamic_components => ['/sp/actor/entry:displayStudentName', '/sp/actor/entry:printHiddenInput'],
 	extra_actions => ($entry_id) ? {} : { new_entry => '/sp/actor/entry:updateEntryAssociation' },
 	button_component => '/sp/actor/entry:printButtons',
@@ -59,16 +59,16 @@
 </%args>
 <%perl>
 	$m->comp('SELF:nocache');
-	$m->redirect($url . '?errmsg=Missing Form ID') unless ($form_id);
-	$m->redirect($url . '?errmsg=Missing Form ID') unless ($student_id);
+	$m->redirect($url . '?errmsg='.__('Missing Form ID')) unless ($form_id);
+	$m->redirect($url . '?errmsg='.__('Missing Form ID')) unless ($student_id);
 	$student = HSDB4::SQLRow::User->new()->lookup_key($student_id);
-	$m->redirect($url . '?errmsg=Invalid Student ID') unless ($student);
+	$m->redirect($url . '?errmsg='.__('Invalid Student ID')) unless ($student);
 
 	my $entry = TUSK::FormBuilder::Entry->lookupReturnOne("form_builder_entry.user_id = '$user_id' AND form_id = $form_id", undef, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::FormBuilder::EntryAssociation", { origkey => 'entry_id', joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '$student_id'"}) ]);
 
 	if (defined $entry) {
 		if ($entry->getCompleteDate()) {
-			$m->redirect($url . "?errmsg=You have already submitted the SP form") 
+			$m->redirect($url . "?errmsg=".__("You have already submitted the SP form")) 
 		}
 		if (!$entry_id && $entry->getPrimaryKeyID()) {
 			$entry_id = $entry->getPrimaryKeyID();
@@ -80,7 +80,7 @@
 
 <%method displayStudentName>
 <& /tmpl/element:field_display, params => { 
-	label => 'Student',
+	label => __('Student'),
 	value => $student->out_full_name(),
 
 } &>
@@ -112,7 +112,7 @@
 <%method printJscript>
 <script language="JavaScript"  type="text/javascript">
 
-var message = 'Please complete the form';
+var message = __('Please complete the form');
 var checkNotRequired = 0;
 var confirmMessage = 1;
 disableRightClick(message);
@@ -131,23 +131,23 @@ function clickSave() {
 
 <%method printButtons>
 <& /tmpl/element:save_button, params => {
-	label 				=> 'Submit', 
+	label 				=> __('Submit'), 
 	name				=> 'form_submit', 
 	onmouseup			=> 'this.blur();', 
 	'no_cancel_button' 	=> 1,
 	onclick		 		=> 'clickSubmit();',
-	buttons 			=> [ $m->scomp('/tmpl/element:button', params => { label => 'Save', name => 'save_submit', type	=> 'submit', onclick => 'clickSave();'}) ],
+	buttons 			=> [ $m->scomp('/tmpl/element:button', params => { label => __('Save'), name => 'save_submit', type	=> 'submit', onclick => 'clickSave();'}) ],
 } &>
 </%method>
 
 
 <%method red_header_text>
-% 	return "$form_type_label Entry Form: &nbsp;" . $form->getFormName();
+% 	return "$form_type_label ".__("Entry Form").": &nbsp;" . $form->getFormName();
 </%method>
 
 
 <%method title>
-% 	return "$form_type_label Entry Form: &nbsp;" . $form->getFormName();
+% 	return "$form_type_label ".__("Entry Form").": &nbsp;" . $form->getFormName();
 </%method>
 
 
