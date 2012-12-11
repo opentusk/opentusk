@@ -22,7 +22,6 @@ use Apache2::Cookie;
 use Apache2::Request();
 use HSDB4::SQLRow::LogItem;
 use HSDB4::DateTime;
-use POSIX qw(strftime);
 
 # This is the log-in screen that provides authentication cookies.
 # There should already be a cookie named "request_uri" that tells
@@ -123,8 +122,9 @@ sub go_to_uri {
 sub logLogin {
 	my $user_obj = shift;
 	my $li = HSDB4::SQLRow::LogItem->new();
-	$li->save_loglist( [ $user_obj->user_id, strftime("%Y-%m-%d %X", localtime),
-			 'Log-in', undef, undef, undef ] );
+	$li->save_loglist( [ $user_obj->user_id,
+                         HSDB4::DateTime->new()->out_mysql_timestamp(),
+                         'Log-in', undef, undef, undef ] );
 	$user_obj->update_previous_login();
 }
 

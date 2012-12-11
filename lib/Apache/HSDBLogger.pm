@@ -19,7 +19,6 @@ use strict;
 use Apache2::Const qw(:common);
 use HSDB4::SQLRow::LogItem;
 use HSDB4::DateTime;
-use POSIX qw(strftime);
 
 # Send log information to the database.  We can get much of the
 # information from the output headers.
