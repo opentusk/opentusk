@@ -18,6 +18,7 @@ package Apache::HSDBLogger;
 use strict;
 use Apache2::Const qw(:common);
 use HSDB4::SQLRow::LogItem;
+use HSDB4::DateTime;
 use POSIX qw(strftime);
 
 # Send log information to the database.  We can get much of the
@@ -28,7 +29,7 @@ use POSIX qw(strftime);
 sub handler {
   my $r = shift;
   my $user = $r->user;
-  my $date = strftime "%Y-%m-%d %X",localtime;
+  my $date = HSDB4::DateTime->new()->out_mysql_timestamp();
   my ($type, $course_id, $content_id, $p_content_id);
   
   # get most information from the X-Log-Info;
