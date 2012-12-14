@@ -42,9 +42,9 @@ my  $ssrv = $r->dir_config('SecureLogin') || 'https://'.$TUSK::Constants::Domain
 
 </%init>
 
-You must login before viewing the requested page. You may be receiving this because 
+<p>You must login before viewing the requested page. You may be receiving this because 
 you've been signed on for too long and your session has expired. If you are a guest 
-user, the page you are requesting does not allow guest access.
+user, the page you are requesting does not allow guest access.</p>
 
 <div id ="logLoginContainer">
 
@@ -58,6 +58,13 @@ my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_e
                   : $errmsg ? $errmsg
                   : '';
 </%perl>
+
+%# see if the user is using IE7 or older
+% if ($ENV{HTTP_USER_AGENT} =~ /MSIE (\d+)\.\d*;/ || $ENV{REDIRECT_HTTP_USER_AGENT} =~ /MSIE (\d+)\.\d*;/) {
+%	if (int($1) <= 7) {
+		<p class="errTxt">You are using an old version of Internet Explorer which will not display TUSK properly</p>
+%	}
+% }
 
 % if ($message) {
 <H4 CLASS="error">Could not log in: <%$message%></H4>
@@ -89,7 +96,7 @@ my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_e
 % if($TUSK::Constants::FaqURL) { 
 see our <a href="<% $TUSK::Constants::FaqURL %>">FAQ</a> or 
 % } 
-send email containing your name and affiliation to <a href="mailto:<% $TUSK::Constants::SupportEmail %>"><% $TUSK::Constants::SupportEmail %></a></td></tr>
+send email containing your name and affiliation to <a href="mailto:<% $TUSK::Constants::Institution{Email} %>"><% $TUSK::Constants::Institution{Email} %></a>.</td></tr>
 </table>
 </form>
 
