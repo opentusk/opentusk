@@ -81,16 +81,17 @@ This class relies on Exporter's import method to get things going.
 sub new {
 	my $class = shift;
 	my $self = {
-			init		 	=> 0,
-			debug			=> 1,
+			init	 	=> 0,
+			debug		=> 1,
 			serverObject	=> undef,             # apache2 server object
-			configLangKey	=> 'TUSK_LANGUAGE',   # used 
-			catalog		    => 'locale',          # default can be overwritten in tusk.conf
+			configLangKey	=> 'TUSK_LANGUAGE',   # used by gettext js
+			configDomainKey	=> 'TUSK_DOMAIN',     # used by gettext js
+			catalog	        => 'locale',          # default can be overwritten in tusk.conf
 			category        => 'LC_MESSAGES',     # gettext category we support, static
-			serverRoot		=> $TUSK::Constants::ServerRoot || '/usr/local/tusk/current',
+			serverRoot	=> $TUSK::Constants::ServerRoot || '/usr/local/tusk/current',
 			serverObj       => undef,             # server object is used for logging, dir_config, ...
-			domain	        => 'messages', 	      # default for gettext overridden in tusk.conf typically 'tusk'
-			language		=> 'C',               # standard gettext default overridden in tusk.conf
+			domain	        => 'tusk', 	      # default for gettext overridden in tusk.conf typically 'tusk'
+			language	=> 'C',               # standard gettext default overridden in tusk.conf
 			errSubj         => 'I18N Error'
 	};
 	bless $self, $class;
@@ -112,15 +113,15 @@ sub init {
 	$this->setLocaleDomain();
 	$this->setCatalog();
 	$this->setLanguage();	
-	
 	if(! $this->validMoFile) {
-	    my $msg = sprintf("Invalid language (%s) catalog [%s.mo] doesn't exist.",$this->language,$this->domainPath);
+	    my $msg = sprintf("Invalid language (%s) catalog [%s.mo] doesn't exist.",
+   	    $this->language,$this->domainPath);
 	    $this->errorEmail($msg);
 	    $this->language('C'); # we don't have a valid language set back to default
 	    $this->catalog('');   # remove catalog from search path for performance.
 	}
 	my $catalog = $this->catalog;
-	$ENV{'LANG'} = $ENV{'LANGUAGE'} = $this->language;
+	$ENV{'LANG'} = $ENV{'LC_ALL'} = $ENV{'LANGUAGE'} = $this->language;
 	my $domain = $this->domain();
 	Locale::TextDomain->import($domain,$catalog);  # this is where we export markup
 	my $selected = Locale::Messages->select_package('gettext_pp');
@@ -128,10 +129,11 @@ sub init {
 	my $ok = bindtextdomain $domain => $catalog ;
 	$this->logger("xx bindtextdomain $domain => $catalog = " . $ok ? $ok : 'NG');
 	bind_textdomain_codeset $domain => 'utf-8';
-    Locale::Messages->turn_utf_8_on(my $utf);
-    $this->cache_language();
-    my $count = Apache2::ServerUtil::restart_count();	 
-	$this->errorEmail("test startup [$$] ($count)");
+        Locale::Messages->turn_utf_8_on(my $utf);
+        # try and cache language for gettext javascript
+        $this->cache_language();
+        my $count = Apache2::ServerUtil::restart_count();	 
+#	$this->errorEmail("test startup [$$] ($count)");
 	
 }
 
@@ -161,37 +163,36 @@ sub import {
 
 	caches current language in dir_config primarily for use downstream
 	such as javascript deciding where to read it's catalog file from.
+	We use ENV instead of dir_config to cache since this module may be
+        called from startup.pl and may nor have access to the server object.
 
 =cut
 
 sub cache_language {
 	my $this = shift;
-	my $s = $this->serverObj;
-	if($s) {
-		my $config_key = $this->configkey;
-		if(defined($config_key)) {
-			my $lang = $this->language;
-			if(defined($lang)) {
-				my $config_lang = $s->dir_config($config_key);
-				# test if it has changed (?) if so reset.
-				if(defined($config_lang)) {
-					if($config_lang ne $lang ) {
-						$this->logger("I18N: Switching $lang to $config_lang" );
-						$s->dir_config($config_key => $lang);
+	my $config_key = $this->configkey;
+	if(defined($config_key)) {
+		my $lang = $this->language;
+		if(defined($lang)) {
+			my $config_lang = $ENV{$config_key};
+			# test if it has changed (?) if so reset.
+			if(defined($config_lang)) {
+				if($config_lang ne $lang ) {
+					$this->logger("I18N: Switching $lang to $config_lang" );
+					$ENV{$config_key} = $lang;
 					}
-				} else {
-					$this->logger("I18N:first time setting $config_key => $lang");
-					$s->dir_config($config_key => $lang);
-				}
-				
 			} else {
-				$this->logger("I18N:Setting to default language");
-				$s->dir_config($config_key => 'en');
+				$this->logger("I18N:first time setting $config_key => $lang");
+				$ENV{$config_key} = $lang;
+			}
+				
+		} else {
+			$this->logger("I18N:Setting to default language");
+			$ENV{$config_key} = 'en';
 			}
 			
-		} else {
-			$this->logger("I18N: config key not set");
-		}
+	} else {
+		$this->logger("I18N: config key not set");
 	}
 	
 }
@@ -392,9 +393,11 @@ sub validPoFile {
 sub setLocaleDomain {
 	my $this = shift;;
 	my $constKey = "SiteDomain";	
-	my $domain = $this->_getI18NConstant($constKey) || 'messages';
-	return($this->domain($domain));			
+	if($this->_getI18NConstant($constKey)) {
+		$this->domain($this->_getI18NConstant($constKey));
 	}
+	return($this->domain);			
+}
 
 =head2 serverObject
 
@@ -456,9 +459,13 @@ sub Locale::TextDomain::__x ($@)
 			    my ($msgid, %vars) = @_;
 			    my $textdomain = 'tusk';
 			    my $msgstr = Locale::TextDomain::__expand ((Locale::TextDomain::dgettext $textdomain => $msgid), %vars);
-			     if($msgstr eq $msgid) {
+			     if($msgstr eq $msgid ) {
 			     	carp("I18N: hash: ($msgid, $msgstr) no match from:");			     
-			     }			    
+				$msgstr = "--($msgstr)--";
+
+			     } else {
+				$msgstr = "++($msgstr)++";
+				}		    
 			    return $msgstr;
 			};
 sub Locale::TextDomain::__ ($)
@@ -467,9 +474,12 @@ sub Locale::TextDomain::__ ($)
 			    my $package = caller;
 			    my $textdomain = 'tusk';
 			    my $msgstr = Locale::TextDomain::dgettext $textdomain => $msgid;
-			     if($msgstr eq $msgid) {
+			     if($msgstr eq $msgid ) {
 			     	carp("I18N: string: ($msgid, $msgstr) no match from: ");
-			     }		    
+				$msgstr = "--($msgstr)--";
+			     } else {
+				$msgstr = "++($msgstr)++";
+				}		    
 			    return $msgstr;
 			};
 
