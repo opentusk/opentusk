@@ -127,7 +127,7 @@ sub init {
 	my $selected = Locale::Messages->select_package('gettext_pp');
 	textdomain($domain);
 	my $ok = bindtextdomain $domain => $catalog ;
-	$this->logger("xx bindtextdomain $domain => $catalog = " . $ok ? $ok : 'NG');
+	#$this->logger("xx bindtextdomain $domain => $catalog = " . $ok ? $ok : 'NG');
 	bind_textdomain_codeset $domain => 'utf-8';
         Locale::Messages->turn_utf_8_on(my $utf);
         # try and cache language for gettext javascript
@@ -178,16 +178,16 @@ sub cache_language {
 			# test if it has changed (?) if so reset.
 			if(defined($config_lang)) {
 				if($config_lang ne $lang ) {
-					$this->logger("I18N: Switching $lang to $config_lang" );
+				#	$this->logger("I18N: Switching $lang to $config_lang" );
 					$ENV{$config_key} = $lang;
 					}
 			} else {
-				$this->logger("I18N:first time setting $config_key => $lang");
+				#$this->logger("I18N:first time setting $config_key => $lang");
 				$ENV{$config_key} = $lang;
 			}
 				
 		} else {
-			$this->logger("I18N:Setting to default language");
+			#$this->logger("I18N:Setting to default language");
 			$ENV{$config_key} = 'en';
 			}
 			
@@ -323,7 +323,7 @@ sub setCatalog {
 	if( $catalog !~ /^\// ) {
 			$catalog = $this->serverRoot() . '/' . $catalog; 
 		}
-	$this->logger("setCatalog ($catalog)");
+	#$this->logger("setCatalog ($catalog)");
 	return($this->catalog($catalog));
 			
 	}
@@ -447,13 +447,15 @@ sub _getI18NConstant {
 	if( ! exists($TUSK::Constants::I18N{$key})) {
 		$this->logger("NO TUSK::Constants::I18N{$key}");
 	}
-	$this->logger("NO TUSK::Constants::I18N key $key") unless ( exists($TUSK::Constants::I18N{$key}));
+#	$this->logger("NO TUSK::Constants::I18N key $key") unless ( exists($TUSK::Constants::I18N{$key}));
 	return undef unless ( exists($TUSK::Constants::I18N{$key}));
-	$this->logger("YES TUSK::Constants::I18N key $key = " . $TUSK::Constants::I18N{$key});
+#	$this->logger("YES TUSK::Constants::I18N key $key = " . $TUSK::Constants::I18N{$key});
 	return($TUSK::Constants::I18N{$key});
 }
 
-
+# gettext debug method overrides. To be removed before production
+{
+no warnings 'redefine';
 sub Locale::TextDomain::__x ($@)
 			{
 			    my ($msgid, %vars) = @_;
@@ -461,29 +463,31 @@ sub Locale::TextDomain::__x ($@)
 			    my $msgstr = Locale::TextDomain::__expand ((Locale::TextDomain::dgettext $textdomain => $msgid), %vars);
 			     if($msgstr eq $msgid ) {
 			     	carp("I18N: hash: ($msgid, $msgstr) no match from:");			     
-				$msgstr = "--($msgstr)--";
+				$msgstr = "x($msgstr)-";
 
 			     } else {
-				$msgstr = "++($msgstr)++";
+				$msgstr = "x($msgid)+";
+				#$msgstr = "x($msgstr)+";
 				}		    
 			    return $msgstr;
 			};
 sub Locale::TextDomain::__ ($)
 			{
-				my $msgid = shift;
+			    my $msgid = shift;
 			    my $package = caller;
 			    my $textdomain = 'tusk';
 			    my $msgstr = Locale::TextDomain::dgettext $textdomain => $msgid;
 			     if($msgstr eq $msgid ) {
 			     	carp("I18N: string: ($msgid, $msgstr) no match from: ");
-				$msgstr = "--($msgstr)--";
+				$msgstr = "($msgstr)-";
 			     } else {
-				$msgstr = "++($msgstr)++";
+				$msgstr = "($msgid)+";
+				#$msgstr = "x($msgstr)+";
 				}		    
 			    return $msgstr;
 			};
 
-
+}
 =head1 AUTHOR
 
 your name here, C<< <your_email at somewhere.com> >>
