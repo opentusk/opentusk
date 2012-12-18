@@ -17,6 +17,7 @@
 	use TUSK::SchoolLink::SchoolLink;
 	use HSDB45::Announcement;
 	use TUSK::Constants;
+	use TUSK::UserAnnouncementHide;
 </%once>
 
 <%doc>
@@ -223,15 +224,17 @@ $school
 	$user
 </%args>
 <%perl>
-	my $all_announcements = $user->get_school_announcements();
+	my $all_announcements = TUSK::UserAnnouncementHide->new()->get_nonhidden_announcements_by_school($user->primary_key());
 </%perl>
-% if (scalar @$all_announcements) {
+% if (scalar keys %$all_announcements) {
 <section class="notifications">
 	<div class="close"><img src="/graphics/icon-home-close.png" alt=""></div>
 	<div class="scrollcontainer">
-%	foreach my $ann (@$all_announcements) {
-		<article><% $ann->field_value('body') %></article>
-% }
+%	foreach my $school (keys %$all_announcements) {
+%		foreach my $ann_id (keys %{$all_announcements->{$school}}) {
+		<article><% $all_announcements->{$school}->{$ann_id}->field_value('body') %></article>
+% 		}
+%	}
 	</div>
 </section>	
 % }

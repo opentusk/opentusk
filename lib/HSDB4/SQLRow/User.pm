@@ -2621,17 +2621,17 @@ sub get_course_assignments {
 
 sub get_school_announcements {
 	my $self = shift;
-	my @all_announcements;
+	my %all_announcements;
 	my @courses = $self->current_courses();
 	my @schools = keys %{{ map {$_->school() => 1 } @courses }};
 
 	foreach my $school (@schools) {
 		my @announcements = HSDB45::Announcement::schoolwide_announcements($school);
 		foreach my $ann (@announcements) {
-			push @all_announcements, $ann;
+			$all_announcements{$school}{$ann->primary_key()} = $ann;
 		}
 	}
-	return \@all_announcements;
+	return \%all_announcements;
 }
 
 sub makeGhost {

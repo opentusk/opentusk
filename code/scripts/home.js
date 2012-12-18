@@ -16,6 +16,16 @@ function changeNavSate() {
 function closeNotifications() {
 	$('.notifications').hide();
 	$('#gContent').removeClass('withnote');
+
+	// AJAX call to hide user's current announcements
+	var url = '/tusk/ajax/hideCurrentAnnouncements';
+	var xRequest = new initXMLHTTPRequest();
+	if (xRequest) {
+		xRequest.open("POST", url, true);
+		xRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+		xRequest.send();
+	}
+
 }
 
 function changeTabState() {
