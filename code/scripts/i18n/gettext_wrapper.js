@@ -12,7 +12,35 @@
 
 //Include main gettext lib, so the caller doesn't have to include it explicitly.
 
-var params = { "domain" : "tusk" };
+/* Try and extract the 'domain' and 'lang' from parameters in the 'gettext' link we 
+ * use for the .po href.
+ * The domain/lang are set by I18N.pm using $ENV{'TUSK_LANGUAGE'} and $ENV{'TUSK_DOMAIN'}
+*/
+
+/* Here we use an anon function at startup to strip script query arguments from calling 
+ * element.
+ * It depends on script=id='i18n-gettext-js' being set.
+ * It should parse and put into the params hash any number of arguments but currently
+ * only 'domain' is used by gettext.
+*/
+var params = { "domain" : "tusk", "lang" : "C" };
+(function(){
+    	var scripts = document.getElementsByTagName("script");
+	// Could use scripts[scripts.length - 1] here but breaks on async I used the 'id' attr instead
+	for (var i=0; i<scripts.length; i++) {
+		// script id supported http://www.w3schools.com/tags/ref_standardattributes.asp
+		if (scripts[i].id == 'i18n-gettext-js') {
+			// tokenize 'src' tag like script.js?foo=bar&bar=foo
+			var tokens = scripts[i].src.split("?").pop().split("&");
+			for(var j=0; j<tokens.length; j++) {
+        			var pairs = tokens[j].split("=");
+        			params[pairs[0]] = pairs[1];
+			}
+			
+		}
+	}	
+	
+}());
 
 var gt = new Gettext(params);
 
