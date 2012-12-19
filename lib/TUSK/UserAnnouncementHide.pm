@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and 
 # limitations under the License.
 
+
+##### NOTE ######
+# At some point in the future, when User.pm is no longer using HSDB4::SQLRow,
+# UserAnnouncementHide should become a data access object for the User model
+#################
+
+
 package TUSK::UserAnnouncementHide;
 
 use strict;
@@ -68,6 +75,8 @@ sub new {
     return $self;
 }
 
+## Get/Set methods ##
+
 sub setUserID {
     my ($self, $value) = @_;
     return $self->setFieldValue('user_id', $value);
@@ -108,7 +117,9 @@ sub getHideOn {
     return $self->getFieldValue('hide_on');
 }
 
-# Return a nice DateTime object of the hide on timestamp
+## Other methods ###
+
+# Return a DateTime object of the hide_on timestamp
 sub out_timestamp {
     my $self = shift;
     return HSDB4::DateTime->new->in_mysql_date($self->getHideOn());
@@ -116,18 +127,19 @@ sub out_timestamp {
 
 # Return 1 or 0, depending on if user has unhidden announcements to display
 sub user_has_unhidden_announcements {
-    my ($self, $user_id) = @_;
-	if (scalar keys %{$self->get_nonhidden_announcements_by_school($user_id)}) {
+    my ($user_id) = @_;
+	if (scalar keys %{get_nonhidden_announcements_by_school($user_id)}) {
 		return 1;
 	}
 	return 0;
 }
 
-# given a user_id, return announcements the user has not chosen to hide
-# if announcement has been modified since they chose to hide it, it will be included
+# given a user_id, return hash ref of announcements the user has not chosen to hide
+# if announcement has been modified since they chose to hide it, it will be included;
+# organized by school
 sub get_nonhidden_announcements_by_school {
-    my ($self, $user_id) = @_;
-	my $hidden = $self->get_hidden_announcements_by_school($user_id);
+    my ($user_id) = @_;
+	my $hidden = get_hidden_announcements_by_school($user_id);
 	my $announcements = HSDB4::SQLRow::User->new->lookup_key($user_id)->get_school_announcements();
 	my $schoolObj = TUSK::Core::School->new();
 
@@ -151,11 +163,11 @@ sub get_nonhidden_announcements_by_school {
 	return $announcements;
 }
 
-# given a user_id, return all announcements they have chosen to hide and when they chose to hide them
-# in a DateTime object; organized by school
+# given a user_id, return hash ref of announcements they have chosen to hide and, when they
+# chose to hide them, in a DateTime object; organized by school
 sub get_hidden_announcements_by_school {
-    my ($self, $user_id) = @_;
-	my $announcements = $self->lookup("user_id = '$user_id'");
+    my ($user_id) = @_;
+	my $announcements = TUSK::UserAnnouncementHide->new()->lookup("user_id = '$user_id'");
 	my %hidden;
 
 	foreach my $annHide (@$announcements) {
