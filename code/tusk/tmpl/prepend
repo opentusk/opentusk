@@ -18,13 +18,14 @@
 </%doc>
 
 <%once>
+	use HSDB4::Constants;
+	use HSDB4::DateTime;
 	use TUSK::Session;
 	use TUSK::Constants;
 	use TUSK::Functions;
 	use TUSK::Application::RSSCourse;
-	use HSDB4::Constants;
-	use HSDB4::DateTime;
 	use TUSK::Application::HTML::Strip;
+	use TUSK::UserAnnouncementHide;
 </%once>
 
 <& SELF:manage_header, %ARGS &>
@@ -708,7 +709,7 @@ $has_nav => 1
 %	if ($msg) {
 %		$class .= "withtrafficlight ";
 %	}
-%	if (scalar keys %{$user->get_school_announcements()}) {
+%	if (TUSK::UserAnnouncementHide->new()->user_has_unhidden_announcements($user->primary_key())) {
 %		$class .= "withnote ";
 %	}
 <div id="gContent"<% ($class) ? " class=\"$class\"" : '' %>>

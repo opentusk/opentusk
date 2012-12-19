@@ -114,6 +114,15 @@ sub out_timestamp {
     return HSDB4::DateTime->new->in_mysql_date($self->getHideOn());
 }
 
+# Return 1 or 0, depending on if user has unhidden announcements to display
+sub user_has_unhidden_announcements {
+    my ($self, $user_id) = @_;
+	if (scalar keys %{$self->get_nonhidden_announcements_by_school($user_id)}) {
+		return 1;
+	}
+	return 0;
+}
+
 # given a user_id, return announcements the user has not chosen to hide
 # if announcement has been modified since they chose to hide it, it will be included
 sub get_nonhidden_announcements_by_school {
