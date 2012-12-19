@@ -18,6 +18,7 @@
 	use HSDB45::Announcement;
 	use TUSK::Constants;
 	use TUSK::UserAnnouncementHide;
+	use TUSK::UserLink;
 </%once>
 
 <%doc>
@@ -144,6 +145,7 @@ method to print the tab(s) of user data for the home page
 					</hgroup>
 					<div class="tabcontainer">
 						<section class="tab">
+							<& /tmpl/home:print_user_links, links => TUSK::UserLink::getAllLinks($user->primary_key()) &>
 							<div class="scrollcontainer">
 								<& /tmpl/home:print_school_links, school =>  TUSK::Core::School->new->lookupReturnOne("school_name = '$school'") &>
 							</div>
@@ -185,6 +187,21 @@ method to print the tab(s) of user data for the home page
 % }
 </%method>
 
+
+<%method print_user_links>
+<%args>
+$links
+</%args>
+<form>
+<select class="linklist" onchange="forward(this.options[this.selectedIndex])">
+	<option value="">My links...</option>
+% foreach my $link (@$links) {
+	<option value="<% $link->getUrl() %>"><% $link->getLabel() %></option>
+% }
+</select>
+<input type="button" value="manage" />
+</form>
+</%method>
 
 <%method print_school_links>
 <%args>
