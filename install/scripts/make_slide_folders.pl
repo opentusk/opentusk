@@ -14,8 +14,9 @@
 # limitations under the License.
 
 
+use File::Path;
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use lib "$FindBin::Bin/../../lib";
 
 use strict;
 use TUSK::UploadContent;
@@ -51,5 +52,6 @@ foreach my $cur_size ( @HSDB4::Constants::image_sizes ) {
 
 sub doMkDir {
 	my $dir = shift;
-	unless(mkdir($dir)) {print "Unable to mkdir $dir : $!\n";}
+	print "doMkDir($dir)\n";
+	unless(mkpath($dir)) {print "Unable to mkdir $dir : $!\n";}
 }
