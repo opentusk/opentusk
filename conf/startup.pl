@@ -22,6 +22,7 @@ BEGIN {
     use HSDB45::TimePeriod;
     use TUSK::Constants;
     use TUSK::Core::Logger;
+    $SIG{__WARN__} = \&Apache2::ServerRec::warn;
 
     # Limit size of the Apache processes
     $Apache2::SizeLimit::MAX_PROCESS_SIZE = $TUSK::Constants::maxApacheProcSize;
