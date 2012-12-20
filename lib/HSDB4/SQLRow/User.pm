@@ -577,6 +577,9 @@ $db.time_period,
 $db.link_course_student
 WHERE
 quiz_id = child_quiz_id AND
+quiz_id NOT IN (
+	select quiz_id from tusk.quiz_result where user_id = '" . $user->primary_key() . "' AND end_date IS NOT NULL
+	) AND
 school.school_id = link_course_quiz.school_id AND
 school_name = '$school' AND
 available_date < NOW() AND
