@@ -148,7 +148,7 @@ sub getAllLinks {
 
 	my $links = [];
 	if($user_id){
-		$links = TUSK::UserLink->new()->lookup('user_id="' . $user_id . '"', ['sort_order DESC']);
+		$links = TUSK::UserLink->new()->lookup('user_id="' . $user_id . '"', ['sort_order ASC']);
 	}
 
 	return $links;
