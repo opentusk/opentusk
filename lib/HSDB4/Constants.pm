@@ -111,6 +111,14 @@ sub user_group_schools {
     return (keys %TUSK::Constants::Schools);
 }
 
+sub school_wide_user_group_id {
+    my $school = lc(shift);
+    my %user_groups = map {
+            lc $_ => $TUSK::Constants::Schools{$_}{Groups}{SchoolWideUserGroup}
+        } user_group_schools();
+    return $user_groups{$school};
+}
+
 sub forum_schools {
     return (keys %TUSK::Constants::Schools);
 }
