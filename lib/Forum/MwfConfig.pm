@@ -53,7 +53,7 @@ $cfg->{maxAttachLen}   = $TUSK::Constants::MaxAttachLen;
 # the online form for security reasons.
 
 # Sendmail executable (only used with sendmail mailer)
-$cfg->{sendmail}       = $TUSK::Constants::emailProgram;
+$cfg->{sendmail}       = $TUSK::Constants::EmailProgram;
 
 # Filesystem path for attachments
 $cfg->{attachFsPath}   = $TUSK::Constants::ForumAttachments;

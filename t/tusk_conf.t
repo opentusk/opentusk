@@ -135,7 +135,6 @@ ok(defined $TUSK::Constants::Mailer, "Mailer defined");
 ok(defined $TUSK::Constants::MaxAttachLen, "MaxAttachLen defined");
 ok(defined $TUSK::Constants::ForumEmail, "ForumEmail defined");
 ok(defined $TUSK::Constants::WebError, "WebError defined");
-ok(defined $TUSK::Constants::emailProgram, "emailProgram defined");
 ok(defined $TUSK::Constants::WebError, "WebError defined");
 ok(defined $TUSK::Constants::FeedPath, "FeedPath defined");
 
