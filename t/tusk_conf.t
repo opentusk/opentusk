@@ -83,7 +83,7 @@ ok(scalar(@TUSK::Constants::evalGraphicsFormats) > 0,
    "evalGraphicsFormats defined");
 ok(defined $TUSK::Constants::mmtxExecutable,
    "mmtxExecutable defined");
-ok(scalar(@TUSK::Constants::siteAdmins), "siteAdmins exist");
+ok(defined @TUSK::Constants::siteAdmins, "siteAdmins exist");
 ok(defined $TUSK::Constants::ServerRoot,
    "ServerRoot defined");
 ok(defined $TUSK::Constants::LogRoot,
