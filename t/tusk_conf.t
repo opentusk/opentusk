@@ -77,8 +77,6 @@ ok(defined $TUSK::Constants::EvalDTD,
    "EvalDTD defined");
 ok(defined $TUSK::Constants::release_stamp_3_6_1,
    "release_stamp_3_6_1 defined");
-ok(defined $TUSK::Constants::WordTextExtract,
-   "WordTextExtract defined");
 ok(scalar(@TUSK::Constants::evalGraphicsFormats) > 0,
    "evalGraphicsFormats defined");
 ok(defined @TUSK::Constants::siteAdmins, "siteAdmins exist");
@@ -103,8 +101,14 @@ dir_contains_ok($TUSK::Constants::ServerRoot . "/addons/ics",
                 "icsTimeZoneFile file found");
 
 # Indexer
+# Some of these are optional components.
+# TODO: Find a graceful way to test presence/absence of optional components.
 if (defined $TUSK::Constants::mmtxExecutable) {
     ok(-e $TUSK::Constants::mmtxExecutable, "mmtxExecutable file found");
+}
+if (defined $TUSK::Constants::WordTextExtract) {
+    ok(-e $TUSK::Constants::WordTextExtract,
+       "WordTextExtract executable found");
 }
 
 # LDAP
