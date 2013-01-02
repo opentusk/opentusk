@@ -133,7 +133,7 @@ sub upload_file{
 	if ($found_user == 1) {
 
 		#user_path is the dir path that will contain all images for a given student
-		my $user_path = $TUSK::Constants::userImagesPath . "/".$uid;
+		my $user_path = $TUSK::Constants::UserImagesPath . "/".$uid;
 		if (-d $user_path ) {} else { mkdir($user_path) };
 
 		#determine how many images are already in the user's dir

@@ -97,8 +97,6 @@ ok(defined $TUSK::Constants::BaseStreamPath,
    "BaseStreamPath defined");
 ok(defined $TUSK::Constants::BaseTUSKDocPath,
    "BaseTUSKDocPath defined");
-ok(defined $TUSK::Constants::userImagesPath,
-   "userImagesPath defined");
 ok(defined $TUSK::Constants::FOPXMLPath,
    "FOPXMLPath defined");
 ok(defined $TUSK::Constants::XSLRoot,
