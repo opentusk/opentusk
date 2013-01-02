@@ -44,7 +44,6 @@ ok(defined $TUSK::Constants::DefaultDB, "DefaultDB defined");
 
 # Top-level definitions
 ok(defined $TUSK::Constants::BaseStaticPath, "BaseStaticPath defined");
-ok(defined $TUSK::Constants::PDFTextExtract, "PDFTextExtract defined");
 ok(defined $TUSK::Constants::flvplayer_skin_color,
    "flvplayer_skin_color defined");
 ok(defined $TUSK::Constants::TempPath, "TempPath defined");
@@ -106,6 +105,8 @@ if (defined $TUSK::Constants::WordTextExtract) {
     ok(-e $TUSK::Constants::WordTextExtract,
        "WordTextExtract executable found");
 }
+ok(defined $TUSK::Constants::PDFTextExtract, "PDFTextExtract defined");
+ok(-e $TUSK::Constants::PDFTextExtract, "PDFTextExtract executable found");
 
 # LDAP
 ok(exists $TUSK::Constants::LDAP{UseLDAP}, "LDAP has UseLDAP");
