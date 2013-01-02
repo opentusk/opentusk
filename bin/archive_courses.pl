@@ -48,7 +48,7 @@ my $home = $ENV{'HOME'} || $ENV{'LOGDIR'} ||
 use Getopt::Long;
 my $GetOptArchiveSchool = 'archive';
 my ($GetOptCourseID, $GetOptHelp);
-$ENV{'DATABASE_ADDRESS'} = $TUSK::Constants::DBParameters{Sys::Hostname::hostname}->{'WriteHost'};
+$ENV{'DATABASE_ADDRESS'} ||= $TUSK::Constants::Servers{Sys::Hostname::hostname}->{'WriteHost'};
 
 
 my $GetOptResult = GetOptions("course_id=i"      => \$GetOptCourseID,

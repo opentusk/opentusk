@@ -24,20 +24,20 @@ ok(exists $TUSK::Constants::DatabaseUsers{ContentManager}{readpassword},
    "ContentManager has readpassword");
 ok(exists $TUSK::Constants::DatabaseUsers{ContentManager}{writepassword},
    "ContentManager has writepassword");
-ok(exists $TUSK::Constants::DBParameters{Sys::Hostname::hostname},
-  "DBParameters has entry for hostname " . Sys::Hostname::hostname);
-foreach my $dbhost (keys %TUSK::Constants::DBParameters) {
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{ReadHost},
+ok(exists $TUSK::Constants::Servers{Sys::Hostname::hostname},
+  "Servers has entry for hostname " . Sys::Hostname::hostname);
+foreach my $dbhost (keys %TUSK::Constants::Servers) {
+  ok(exists $TUSK::Constants::Servers{$dbhost}{ReadHost},
      "ReadHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{WriteHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{WriteHost},
      "WriteHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{SearchHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{SearchHost},
      "SearchHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{VideoHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{VideoHost},
      "VideoHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{AudioHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{AudioHost},
      "AudioHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{FlashPixHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{FlashPixHost},
      "FlashPixHost defined for hostname " . $dbhost);  
 }
 ok(defined $TUSK::Constants::DefaultDB, "DefaultDB defined");
