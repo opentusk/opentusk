@@ -69,10 +69,6 @@ ok(defined $TUSK::Constants::UserImagesPath, "UserImagesPath defined");
 ok(defined $TUSK::Constants::XMLRulesPath, "XMLRulesPath defined");
 ok(defined $TUSK::Constants::emailWhenNewUserLogsIn,
    "emailWhenNewUserLogsIn defined");
-ok(defined $TUSK::Constants::SendEmailUserWhenNoAffiliationOrGroup,
-  "SendEmailUserWhenNoAffiliationOrGroup defined");
-ok(defined $TUSK::Constants::EmailUserWhenNoAffiliationOrGroupText,
-   "EmailUserWhenNoAffiliationOrGroupText defined");
 ok(defined $TUSK::Constants::EvalDTD,
    "EvalDTD defined");
 ok(defined $TUSK::Constants::release_stamp_3_6_1,
@@ -113,6 +109,12 @@ if (defined $TUSK::Constants::WordTextExtract) {
 
 # LDAP
 ok(exists $TUSK::Constants::LDAP{UseLDAP}, "LDAP has UseLDAP");
+if ($TUSK::Constants::LDAP{UseLDAP}) {
+    ok(defined $TUSK::Constants::SendEmailUserWhenNoAffiliationOrGroup,
+       "SendEmailUserWhenNoAffiliationOrGroup defined");
+    ok(defined $TUSK::Constants::EmailUserWhenNoAffiliationOrGroupText,
+       "EmailUserWhenNoAffiliationOrGroupText defined");
+}
 
 # Shibboleth
 ok(defined $TUSK::Constants::useShibboleth, "useShibboleth defined");
