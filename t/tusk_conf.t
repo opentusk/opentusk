@@ -109,6 +109,9 @@ ok(defined $TUSK::Constants::FopCmd,
    "FopCmd defined");
 ok(defined $TUSK::Constants::icsTimeZoneFile,
    "icsTimeZoneFile defined");
+dir_contains_ok($TUSK::Constants::ServerRoot . "/addons/ics",
+                [$TUSK::Constants::icsTimeZoneFile . '.tz'],
+                "icsTimeZoneFile file found");
 
 # LDAP
 ok(exists $TUSK::Constants::LDAP{UseLDAP}, "LDAP has UseLDAP");
