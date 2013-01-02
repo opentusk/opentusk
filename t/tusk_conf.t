@@ -158,8 +158,6 @@ foreach my $school (keys %TUSK::Constants::Schools) {
      "SchoolAdmin defined for school $school");
   ok(exists $TUSK::Constants::Schools{$school}{Groups}{EvalAdmin},
      "EvalAdmin defined for school $school");
-  ok(exists $TUSK::Constants::SchoolWideUserGroup{lc($school)},
-    "SchoolWideUserGroup has school $school");
 }
 
 done_testing();

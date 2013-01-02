@@ -45,6 +45,7 @@ sub get_file_deps {
 }
 
 use Carp qw(confess cluck);
+use HSDB4::Constants;
 require HSDB45::Course;
 require HSDB45::ClassMeeting;
 require HSDB4::SQLRow::Content;
@@ -798,7 +799,8 @@ sub systemwide_usergroup {
 
 sub schoolwide_usergroup {
     my $school = lc(shift);
-    my $user_group_id = $TUSK::Constants::SchoolWideUserGroup{$school} || $TUSK::Constants::SystemWideUserGroup;
+    my $user_group_id = HSDB4::Constants::school_wide_user_group_id($school)
+          || $TUSK::Constants::SystemWideUserGroup;
     return HSDB45::UserGroup->new(_school => $school, _id => $user_group_id);
 }
 
