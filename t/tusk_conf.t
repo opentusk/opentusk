@@ -105,8 +105,6 @@ ok(defined $TUSK::Constants::XSLRoot,
    "XSLRoot defined");
 ok(defined $TUSK::Constants::FOPPDFPath,
    "FOPPDFPath defined");
-ok(defined $TUSK::Constants::FopCmd,
-   "FopCmd defined");
 ok(defined $TUSK::Constants::icsTimeZoneFile,
    "icsTimeZoneFile defined");
 dir_contains_ok($TUSK::Constants::ServerRoot . "/addons/ics",
