@@ -81,8 +81,6 @@ ok(defined $TUSK::Constants::WordTextExtract,
    "WordTextExtract defined");
 ok(scalar(@TUSK::Constants::evalGraphicsFormats) > 0,
    "evalGraphicsFormats defined");
-ok(defined $TUSK::Constants::mmtxExecutable,
-   "mmtxExecutable defined");
 ok(defined @TUSK::Constants::siteAdmins, "siteAdmins exist");
 ok(defined $TUSK::Constants::ServerRoot,
    "ServerRoot defined");
@@ -103,6 +101,11 @@ ok(defined $TUSK::Constants::icsTimeZoneFile,
 dir_contains_ok($TUSK::Constants::ServerRoot . "/addons/ics",
                 [$TUSK::Constants::icsTimeZoneFile . '.tz'],
                 "icsTimeZoneFile file found");
+
+# Indexer
+if (defined $TUSK::Constants::mmtxExecutable) {
+    ok(-e $TUSK::Constants::mmtxExecutable, "mmtxExecutable file found");
+}
 
 # LDAP
 ok(exists $TUSK::Constants::LDAP{UseLDAP}, "LDAP has UseLDAP");
