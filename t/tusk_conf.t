@@ -55,7 +55,6 @@ ok(defined $TUSK::Constants::SupportEmail, "SupportEmail defined");
 ok(defined $TUSK::Constants::PageEmail, "PageEmail defined");
 ok(defined $TUSK::Constants::CookieSecret, "CookieSecret defined");
 ok(defined $TUSK::Constants::CookieUsesUserID, "CookieUsesUserID defined");
-ok(defined $TUSK::Constants::shibbolethUserID, "shibbolethUserID defined");
 ok(defined $TUSK::Constants::Domain, "Domain defined");
 ok(defined $TUSK::Constants::securePort, "securePort defined");
 ok(defined $TUSK::Constants::ScheduleMonthsDisplayedAtOnce,
@@ -89,10 +88,6 @@ ok(defined $TUSK::Constants::ServerRoot,
    "ServerRoot defined");
 ok(defined $TUSK::Constants::LogRoot,
    "LogRoot defined");
-ok(defined $TUSK::Constants::shibbolethSP,
-   "shibbolethSP defined");
-ok(defined $TUSK::Constants::shibSPSecurePort,
-   "shibSPSecurePort defined");
 ok(defined $TUSK::Constants::BaseStreamPath,
    "BaseStreamPath defined");
 ok(defined $TUSK::Constants::BaseTUSKDocPath,
@@ -111,6 +106,16 @@ dir_contains_ok($TUSK::Constants::ServerRoot . "/addons/ics",
 
 # LDAP
 ok(exists $TUSK::Constants::LDAP{UseLDAP}, "LDAP has UseLDAP");
+
+# Shibboleth
+ok(defined $TUSK::Constants::useShibboleth, "useShibboleth defined");
+if ($TUSK::Constants::useShibboleth) {
+    ok(defined $TUSK::Constants::shibbolethUserID, "shibbolethUserID defined");
+    ok(defined $TUSK::Constants::shibbolethSP,
+       "shibbolethSP defined");
+    ok(defined $TUSK::Constants::shibSPSecurePort,
+       "shibSPSecurePort defined");
+}
 
 # Institution
 ok(exists $TUSK::Constants::Institution{Email}, "Institution{Email}");
