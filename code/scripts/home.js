@@ -115,7 +115,7 @@ function addPersonalLink() {
 		$("#personalLinks").html(displayPersonalLinks());
 	}
 	else {
-		alert('Please fill out both the label and URL fields to add a new link.');
+		alert('Please fill out both the Label and URL fields to add a new link.');
 	}
 }
 
