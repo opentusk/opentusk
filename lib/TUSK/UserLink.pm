@@ -29,6 +29,7 @@ BEGIN {
 }
 
 use vars @EXPORT_OK;
+use JSON;
 
 # Non-exported package globals go here
 use vars ();
@@ -53,7 +54,7 @@ sub new {
 					'sort_order' => '',
 				    },
 				    _attributes => {
-					save_history => 1,
+					save_history => 0,
 					tracking_fields => 1,	
 				    },
 				    _default_order_bys => ['sort_order'],
@@ -118,27 +119,19 @@ sub delete {
 
 	my $sort_order = $self->getSortOrder();
 	my $links = getAllLinks($self->getUserID());
-	
+	my $start = $self->getSortOrder();	
 	my $retval = $self->SUPER::delete($params);
 
 	if($retval){
 		foreach my $l (@$links){
 			my $order = $l->getSortOrder();
-			$l->setSortOrder( ($order - 10) );
+			if ($order > $start) {
+				$l->setSortOrder( ($order - 1) );
+			}
 			$l->save($params);
 		}
 	}
 	return $retval; 
-}
-
-sub updateSortOrders {
-    my ($self, $user_id,  $change_order_string, $arrayref) = @_;
-    return [] unless $user_id;
-
-    my $cond = "user_id = " . $user_id ;
-    
-    my ($index, $newindex) = split ("-", $change_order_string);
-    return $self->SUPER::updateSortOrders($index, $newindex, $cond, $arrayref);
 }
 
 
@@ -153,6 +146,20 @@ sub getAllLinks {
 
 	return $links;
 }
+
+# output JSON for object
+sub TO_JSON {
+	my $self = shift;
+	my %objHash;
+	$objHash{id} = $self->getPrimaryKeyID();
+	$objHash{user_id} = $self->getUserID();
+	$objHash{label} = $self->getLabel();
+	$objHash{url} = $self->getUrl();
+	$objHash{sort_order} = $self->getSortOrder();
+	
+	return JSON->new()->allow_blessed(1)->convert_blessed(1)->encode(\%objHash);
+}
+
 
 1;
 

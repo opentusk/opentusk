@@ -192,15 +192,23 @@ method to print the tab(s) of user data for the home page
 <%args>
 $links
 </%args>
+% my $json = "var links = [\n";
+% my $counter = 1;
 <form>
 <select class="linklist" onchange="forward(this.options[this.selectedIndex])">
-	<option value="">My links...</option>
-% foreach my $link (@$links) {
-	<option value="<% $link->getUrl() %>"><% $link->getLabel() %></option>
-% }
 </select>
+% foreach my $link (@$links) {
+%	$json .= "{\n\tid:\t'" . $link->getPrimaryKeyID() . "',\n\tsort_order:\t'" . $link->getSortOrder() . "',\n\tlabel:\t'" . $link->getLabel() . "',\n\turl:\t'" . $link->getUrl() . "'\n}";
+%	if ($counter++ != (scalar @$links)) {
+%		$json .= ",\n";
+%	}
+% }
+% $json .= "\n];";
 <input type="button" value="manage" />
 </form>
+<script type="text/javascript">
+<% $json %>
+</script>
 </%method>
 
 <%method print_school_links>
@@ -311,5 +319,3 @@ my @groups = $user->parent_user_groups;
 <p><em>no relevant content</em></p>
 % }
 </%method>
-
-
