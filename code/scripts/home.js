@@ -127,7 +127,6 @@ function savePersonalLinks() {
 		ajax.onreadystatechange = resetAllLinkData;
 		ajax.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 		ajax.send("data=" + encodeURIComponent(JSON.stringify(links)));
-		$($dialog).dialog( "close" );
 	}
 	else {
 		alert('There was an error saving the link data.');
@@ -136,14 +135,21 @@ function savePersonalLinks() {
 }
 
 function resetAllLinkData() {
-	if (this.readyState == this.DONE && this.responseText) {
-		var tmpArray = eval(this.responseText);
-		links.length = 0;
-		$(tmpArray).each(function() {
-			links.push(JSON.parse(this));
-		});
-		makeLinksDropDown();
-		$("#personalLinks").html(displayPersonalLinks());
+	if (this.readyState == 4) {
+		if (this.status == 200 && this.responseText) {
+			var tmpArray = eval(this.responseText);
+			links.length = 0;
+			$(tmpArray).each(function() {
+				links.push(JSON.parse(this));
+			});
+			makeLinksDropDown();
+			$("#personalLinks").html(displayPersonalLinks());
+			$($dialog).dialog( "close" );
+		}
+		else{
+			alert("An error has occurred while attempting to save.");
+			return false;
+		}
 	}
 }
 
