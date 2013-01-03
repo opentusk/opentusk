@@ -111,6 +111,14 @@ sub user_group_schools {
     return (keys %TUSK::Constants::Schools);
 }
 
+sub school_wide_user_group_id {
+    my $school = lc(shift);
+    my %user_groups = map {
+            lc $_ => $TUSK::Constants::Schools{$_}{Groups}{SchoolWideUserGroup}
+        } user_group_schools();
+    return $user_groups{$school};
+}
+
 sub forum_schools {
     return (keys %TUSK::Constants::Schools);
 }
@@ -175,7 +183,9 @@ sub db_connect {
 # with TUSK. We selected WriteHost (as opposed to ReadHost). These
 # are almost always the same. If we start using different servers for 
 # each, we will need to address this.
-    my $dbc = "DBI:mysql:$db:".($ENV{DATABASE_ADDRESS} ? $ENV{DATABASE_ADDRESS} : $TUSK::Constants::DBParameters{Sys::Hostname::hostname}->{'WriteHost'});
+    my $dbc = "DBI:mysql:$db:" . ($ENV{DATABASE_ADDRESS}
+                                  ? $ENV{DATABASE_ADDRESS}
+                                  : $TUSK::Constants::Servers{Sys::Hostname::hostname}->{'WriteHost'});
     my $user = $db_user || $ENV{HSDB_DATABASE_USER} || $TUSK::Constants::DatabaseUsers{ContentManager}->{readusername};
     my $pw = $db_pass || $ENV{HSDB_DATABASE_PASSWORD} || '';
     # warn "Password: $db_pass" if ($ENV{MOD_PERL} && $db_user == 'caper_user');

@@ -24,27 +24,26 @@ ok(exists $TUSK::Constants::DatabaseUsers{ContentManager}{readpassword},
    "ContentManager has readpassword");
 ok(exists $TUSK::Constants::DatabaseUsers{ContentManager}{writepassword},
    "ContentManager has writepassword");
-ok(exists $TUSK::Constants::DBParameters{Sys::Hostname::hostname},
-  "DBParameters has entry for hostname " . Sys::Hostname::hostname);
-foreach my $dbhost (keys %TUSK::Constants::DBParameters) {
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{ReadHost},
+ok(exists $TUSK::Constants::Servers{Sys::Hostname::hostname},
+  "Servers has entry for hostname " . Sys::Hostname::hostname);
+foreach my $dbhost (keys %TUSK::Constants::Servers) {
+  ok(exists $TUSK::Constants::Servers{$dbhost}{ReadHost},
      "ReadHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{WriteHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{WriteHost},
      "WriteHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{SearchHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{SearchHost},
      "SearchHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{VideoHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{VideoHost},
      "VideoHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{AudioHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{AudioHost},
      "AudioHost defined for hostname " . $dbhost);
-  ok(exists $TUSK::Constants::DBParameters{$dbhost}{FlashPixHost},
+  ok(exists $TUSK::Constants::Servers{$dbhost}{FlashPixHost},
      "FlashPixHost defined for hostname " . $dbhost);  
 }
 ok(defined $TUSK::Constants::DefaultDB, "DefaultDB defined");
 
 # Top-level definitions
 ok(defined $TUSK::Constants::BaseStaticPath, "BaseStaticPath defined");
-ok(defined $TUSK::Constants::PDFTextExtract, "PDFTextExtract defined");
 ok(defined $TUSK::Constants::flvplayer_skin_color,
    "flvplayer_skin_color defined");
 ok(defined $TUSK::Constants::TempPath, "TempPath defined");
@@ -55,7 +54,6 @@ ok(defined $TUSK::Constants::SupportEmail, "SupportEmail defined");
 ok(defined $TUSK::Constants::PageEmail, "PageEmail defined");
 ok(defined $TUSK::Constants::CookieSecret, "CookieSecret defined");
 ok(defined $TUSK::Constants::CookieUsesUserID, "CookieUsesUserID defined");
-ok(defined $TUSK::Constants::shibbolethUserID, "shibbolethUserID defined");
 ok(defined $TUSK::Constants::Domain, "Domain defined");
 ok(defined $TUSK::Constants::securePort, "securePort defined");
 ok(defined $TUSK::Constants::ScheduleMonthsDisplayedAtOnce,
@@ -70,48 +68,64 @@ ok(defined $TUSK::Constants::UserImagesPath, "UserImagesPath defined");
 ok(defined $TUSK::Constants::XMLRulesPath, "XMLRulesPath defined");
 ok(defined $TUSK::Constants::emailWhenNewUserLogsIn,
    "emailWhenNewUserLogsIn defined");
-ok(defined $TUSK::Constants::SendEmailUserWhenNoAffiliationOrGroup,
-  "SendEmailUserWhenNoAffiliationOrGroup defined");
-ok(defined $TUSK::Constants::EmailUserWhenNoAffiliationOrGroupText,
-   "EmailUserWhenNoAffiliationOrGroupText defined");
 ok(defined $TUSK::Constants::EvalDTD,
    "EvalDTD defined");
 ok(defined $TUSK::Constants::release_stamp_3_6_1,
    "release_stamp_3_6_1 defined");
-ok(defined $TUSK::Constants::WordTextExtract,
-   "WordTextExtract defined");
 ok(scalar(@TUSK::Constants::evalGraphicsFormats) > 0,
    "evalGraphicsFormats defined");
-ok(defined $TUSK::Constants::mmtxExecutable,
-   "mmtxExecutable defined");
-ok(scalar(@TUSK::Constants::siteAdmins), "siteAdmins exist");
+ok(defined @TUSK::Constants::siteAdmins, "siteAdmins exist");
 ok(defined $TUSK::Constants::ServerRoot,
    "ServerRoot defined");
 ok(defined $TUSK::Constants::LogRoot,
    "LogRoot defined");
-ok(defined $TUSK::Constants::shibbolethSP,
-   "shibbolethSP defined");
-ok(defined $TUSK::Constants::shibSPSecurePort,
-   "shibSPSecurePort defined");
 ok(defined $TUSK::Constants::BaseStreamPath,
    "BaseStreamPath defined");
 ok(defined $TUSK::Constants::BaseTUSKDocPath,
    "BaseTUSKDocPath defined");
-ok(defined $TUSK::Constants::userImagesPath,
-   "userImagesPath defined");
 ok(defined $TUSK::Constants::FOPXMLPath,
    "FOPXMLPath defined");
 ok(defined $TUSK::Constants::XSLRoot,
    "XSLRoot defined");
 ok(defined $TUSK::Constants::FOPPDFPath,
    "FOPPDFPath defined");
-ok(defined $TUSK::Constants::FopCmd,
-   "FopCmd defined");
 ok(defined $TUSK::Constants::icsTimeZoneFile,
    "icsTimeZoneFile defined");
+dir_contains_ok($TUSK::Constants::ServerRoot . "/addons/ics",
+                [$TUSK::Constants::icsTimeZoneFile . '.tz'],
+                "icsTimeZoneFile file found");
+
+# Indexer
+# Some of these are optional components.
+# TODO: Find a graceful way to test presence/absence of optional components.
+if (defined $TUSK::Constants::mmtxExecutable) {
+    ok(-e $TUSK::Constants::mmtxExecutable, "mmtxExecutable file found");
+}
+if (defined $TUSK::Constants::WordTextExtract) {
+    ok(-e $TUSK::Constants::WordTextExtract,
+       "WordTextExtract executable found");
+}
+ok(defined $TUSK::Constants::PDFTextExtract, "PDFTextExtract defined");
+ok(-e $TUSK::Constants::PDFTextExtract, "PDFTextExtract executable found");
 
 # LDAP
 ok(exists $TUSK::Constants::LDAP{UseLDAP}, "LDAP has UseLDAP");
+if ($TUSK::Constants::LDAP{UseLDAP}) {
+    ok(defined $TUSK::Constants::SendEmailUserWhenNoAffiliationOrGroup,
+       "SendEmailUserWhenNoAffiliationOrGroup defined");
+    ok(defined $TUSK::Constants::EmailUserWhenNoAffiliationOrGroupText,
+       "EmailUserWhenNoAffiliationOrGroupText defined");
+}
+
+# Shibboleth
+ok(defined $TUSK::Constants::useShibboleth, "useShibboleth defined");
+if ($TUSK::Constants::useShibboleth) {
+    ok(defined $TUSK::Constants::shibbolethUserID, "shibbolethUserID defined");
+    ok(defined $TUSK::Constants::shibbolethSP,
+       "shibbolethSP defined");
+    ok(defined $TUSK::Constants::shibSPSecurePort,
+       "shibSPSecurePort defined");
+}
 
 # Institution
 ok(exists $TUSK::Constants::Institution{Email}, "Institution{Email}");
@@ -135,7 +149,6 @@ ok(defined $TUSK::Constants::Mailer, "Mailer defined");
 ok(defined $TUSK::Constants::MaxAttachLen, "MaxAttachLen defined");
 ok(defined $TUSK::Constants::ForumEmail, "ForumEmail defined");
 ok(defined $TUSK::Constants::WebError, "WebError defined");
-ok(defined $TUSK::Constants::emailProgram, "emailProgram defined");
 ok(defined $TUSK::Constants::WebError, "WebError defined");
 ok(defined $TUSK::Constants::FeedPath, "FeedPath defined");
 
@@ -158,8 +171,6 @@ foreach my $school (keys %TUSK::Constants::Schools) {
      "SchoolAdmin defined for school $school");
   ok(exists $TUSK::Constants::Schools{$school}{Groups}{EvalAdmin},
      "EvalAdmin defined for school $school");
-  ok(exists $TUSK::Constants::SchoolWideUserGroup{lc($school)},
-    "SchoolWideUserGroup has school $school");
 }
 
 done_testing();

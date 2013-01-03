@@ -50,7 +50,6 @@ sub dbWriteDefaultDB {
 sub dbReadHost {
     my $hostname = Sys::Hostname::hostname;
     return $TUSK::Constants::Servers{$hostname}->{"ReadHost"};
-##    return $TUSK::Constants::DBParameters{$hostname}->{"ReadHost"};
 }
 
 sub dbWriteHost {
