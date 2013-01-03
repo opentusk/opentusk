@@ -1,6 +1,5 @@
 $(document).ready(function(){
-	// attach behavior to nav "more" links
-	$('ul img.more').click(changeNavSate);
+	$('ul img.more').click(changeState);
 	$('.notifications .close').click(closeNotifications);
 	$('nav.tabs li a').click(changeTabState);
 	$('nav.toptabs li a').click(changeTabState);
@@ -10,7 +9,8 @@ $(document).ready(function(){
 
 var $dialog;
 
-function changeNavSate() {
+// toggle nested list state between open and closed
+function changeState() {
 	var item = $(this).parent('li');
 	$(item).toggleClass('open');
 	$(item).toggleClass('closed');
@@ -42,11 +42,13 @@ function changeTabState() {
 	return false;
 }
 
+/* begin Personal Links */
+
 // show dialog box for managing personal links
 function managePersonalLinks() {
 	if (!$dialog) {
 		$dialog = $('<div></div>')
-			.html('<form onsubmit="return savePersonalLinks()"><h2>Add New Link</h2><p><label>Label</label><input type="text" id="newlabel" /><span class="spacer">&nbsp;</span><label>URL</label><input type="text" id="newurl" /><span class="spacer">&nbsp;</span><input type="button" value="add" onclick="addPersonalLink()" /></p><hr /><h2>Modify Existing Links</h2><div id="personalLinks">' + displayPersonalLinks() + '</div><p class="buttons"><input type="submit" value="save"></p></form>')
+			.html('<form onsubmit="return savePersonalLinks()"><h2>Add New Link</h2><p><label>Label</label><input type="text" id="newlabel" /><span class="spacer">&nbsp;</span><label>URL</label><input type="text" id="newurl" /><span class="spacer">&nbsp;</span><input type="button" value="add" onclick="addPersonalLink()" /></p><hr /><h2>Modify Existing Links</h2><p>To delete an existing link, leave both the Label and URL fields blank.</p><div id="personalLinks">' + displayPersonalLinks() + '</div><p class="buttons"><input type="submit" value="save"></p></form>')
 			.dialog({
 				autoOpen: false,
 				title: 'Manage your personal links',
@@ -114,12 +116,41 @@ function addPersonalLink() {
 		$("#personalLinks").html(displayPersonalLinks());
 	}
 	else {
-		alert('Please fill out both the label and URL fields to add a new link.');
+		alert('Please fill out both the Label and URL fields to add a new link.');
 	}
 }
 
 // submit links via AJAX and regenerate drop down of links
 function savePersonalLinks() {
+	// validate form data to make sure the necessary fields have been filled out
+	var counter = 1;
+	var error = '';
+	$(".label").each(function() {
+		var thislabel = $(this).val();
+		var thisurl =  $(this).parent('td').siblings().children(".url").val();
+		if(!(/^([a-z]([a-z]|\d|\+|-|\.)*):(\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?((\[(|(v[\da-f]{1,}\.(([a-z]|\d|-|\.|_|~)|[!\$&'\(\)\*\+,;=]|:)+))\])|((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=])*)(:\d*)?)(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*|(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)){0})(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(thisurl))) {
+			error = 'The URL in row ' + counter + ' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.';
+		}
+
+		if(!error && !(/[\S]+$/.test(thislabel))) {
+			error = 'The Label in row ' + counter + ' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.';
+		}
+		else if(!(/[\S]+$/.test(thislabel))) {
+			error = '';
+		}
+
+		if (error != '') {
+			return false;
+		}
+		counter += 1;
+	});
+
+	if (error != '') {
+		alert(error);
+		return false;
+	}
+
+	// no error, so go ahead and send the AJAX request to save the data
 	updateLinksArray();
 	var ajax = new initXMLHTTPRequest();
 	if (ajax) {
@@ -134,6 +165,9 @@ function savePersonalLinks() {
 	return false;
 }
 
+// either use the JSON returned from the AJAX call to rebuild the links array, 
+// dropdown and dialog fields
+// or let the user know that there was a problem
 function resetAllLinkData() {
 	if (this.readyState == 4) {
 		if (this.status == 200 && this.responseText) {
@@ -182,3 +216,6 @@ function makeLinksDropDown() {
 	});
 	$("select.linklist").html(options);
 }
+
+/* end Personal Links */
+
