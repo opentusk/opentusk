@@ -84,8 +84,6 @@ function displayPersonalLinks() {
 				}
 				html += counter;
 				html += "</option>\n";
-console.log("num: " + num + " thisvalue: " + thisvalue + " row.sort_order: " + row.sort_order + " counter: " + counter);
-				counter += 1;
 			});
 			html += "</select></td>\n<td><input type='text' class='label' name='label_";
 			html += row.id;
