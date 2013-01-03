@@ -69,32 +69,31 @@ function displayPersonalLinks() {
     });
 
 	$.each(links, function(index, row) { 
-		if (row.label != '' && row.url != '') {
-			html += "<tr>\n<td><select class='sort_order' name='sort_order_";
-			html += row.id;
-			html += "'>\n";
-			var counter = 1;
-			$.each(orders, function(num, thisvalue) {
-				html += "<option";
-				if (row.sort_order == thisvalue) {
-					html += " selected='selected'>";
-				}
-				else {
-					html += ">";
-				}
-				html += counter;
-				html += "</option>\n";
-			});
-			html += "</select></td>\n<td><input type='text' class='label' name='label_";
-			html += row.id;
-			html += "' value='";
-			html += row.label;
-			html += "' /></td>\n<td><input type='text' class='url' name='url_";
-			html += row.id;
-			html += "' value='";
-			html += row.url;
-			html += "' /></td>\n</tr>";
-		}
+		html += "<tr>\n<td><select class='sort_order' name='sort_order_";
+		html += row.id;
+		html += "'>\n";
+		var counter = 1;
+		$.each(orders, function(num, thisvalue) {
+			html += "<option";
+			if (row.sort_order == thisvalue) {
+				html += " selected='selected'>";
+			}
+			else {
+				html += ">";
+			}
+			html += counter;
+			html += "</option>\n";
+			counter += 1;
+		});
+		html += "</select></td>\n<td><input type='text' class='label' name='label_";
+		html += row.id;
+		html += "' value='";
+		html += row.label;
+		html += "' /></td>\n<td><input type='text' class='url' name='url_";
+		html += row.id;
+		html += "' value='";
+		html += row.url;
+		html += "' /></td>\n</tr>";
 	});
 	html += "</tbody></table>";
 	return html;
