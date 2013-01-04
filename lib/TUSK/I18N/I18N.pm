@@ -466,8 +466,8 @@ sub Locale::TextDomain::__x ($@)
 				$msgstr = "x($msgstr)-";
 
 			     } else {
-				$msgstr = "x($msgid)+";
-				#$msgstr = "x($msgstr)+";
+				#$msgstr = "x($msgid)+";
+				$msgstr = "x($msgstr)+";
 				}		    
 			    return $msgstr;
 			};
@@ -481,8 +481,9 @@ sub Locale::TextDomain::__ ($)
 			     	carp("I18N: string: ($msgid, $msgstr) no match from: ");
 				$msgstr = "($msgstr)-";
 			     } else {
-				$msgstr = "($msgid)+";
-				#$msgstr = "x($msgstr)+";
+				#$msgstr = "($msgid)+";
+			     	carp("I18N: string: ($msgid, $msgstr) yes match from: ");
+				$msgstr = "($msgstr)+";
 				}		    
 			    return $msgstr;
 			};
