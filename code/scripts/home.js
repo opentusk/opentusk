@@ -203,6 +203,7 @@ function updateLinksArray() {
 	links.sort(function(a,b){return a.sort_order - b.sort_order});
 }
 
+// use JSON links array to generate select form element of personal links
 function makeLinksDropDown() {
 	var options = "<option value=''>My links...</option>";
 	$.each(links, function(index, hash) {
