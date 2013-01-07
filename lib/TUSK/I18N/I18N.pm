@@ -12,6 +12,8 @@ use Locale::TextDomain ();
 use Locale::Messages qw (bindtextdomain textdomain bind_textdomain_codeset);
 use TUSK::Application::Email;
 use Exporter;
+use utf8;
+use Encode;
 our @ISA = qw(Exporter);
 ## Using EXPORT_OK ?
 our @EXPORT_OK = qw (__ __x __n __p __nx __xn  __px __np __npx $__ %__ 
@@ -30,7 +32,8 @@ my %seen = ();
 push @{$EXPORT_TAGS{all}}, grep {!$seen{$_}++} @{$EXPORT_TAGS{$_}} foreach keys %EXPORT_TAGS;
 
 # start by turning off gettext translation
-BEGIN { $ENV{LANGUAGE} = $ENV{LANG} = "C"; }
+BEGIN { $ENV{LANGUAGE} = $ENV{LANG} = "C"; 
+}
 
 
 =head1 NAME
@@ -152,12 +155,13 @@ sub init {
 			to get into the Mason command/component namespace.
 
 =cut
-sub import {
+sub importx {
     my $caller = caller;
      my $pkg = __PACKAGE__->new();	
     # since we have defined import we need to run export_to_level
      __PACKAGE__->export_to_level(1, @_); 
   }
+
 
 =head2 cache_lang
 
@@ -467,11 +471,12 @@ sub Locale::TextDomain::__x ($@)
 
 			     } else {
 				#$msgstr = "x($msgid)+";
-				$msgstr = "x($msgstr)+";
+#				$msgstr = "x($msgstr)+";
 				}		    
-			    return $msgstr;
+			    #return $msgstr;
+			    return decode("UTF-8",$msgstr);
 			};
-sub Locale::TextDomain::__ ($)
+sub Locale::TextDomain::__N ($)
 			{
 			    my $msgid = shift;
 			    my $package = caller;
@@ -483,9 +488,9 @@ sub Locale::TextDomain::__ ($)
 			     } else {
 				#$msgstr = "($msgid)+";
 			     	carp("I18N: string: ($msgid, $msgstr) yes match from: ");
-				$msgstr = "($msgstr)+";
+#				$msgstr = "($msgstr)+";
 				}		    
-			    return $msgstr;
+			    return decode("UTF-8",$msgstr);
 			};
 
 }
