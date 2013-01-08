@@ -155,7 +155,7 @@ sub init {
 			to get into the Mason command/component namespace.
 
 =cut
-sub importx {
+sub import {
     my $caller = caller;
      my $pkg = __PACKAGE__->new();	
     # since we have defined import we need to run export_to_level
@@ -476,7 +476,7 @@ sub Locale::TextDomain::__x ($@)
 			    #return $msgstr;
 			    return decode("UTF-8",$msgstr);
 			};
-sub Locale::TextDomain::__N ($)
+sub Locale::TextDomain::__ ($)
 			{
 			    my $msgid = shift;
 			    my $package = caller;
