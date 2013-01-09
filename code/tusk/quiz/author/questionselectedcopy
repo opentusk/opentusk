@@ -30,11 +30,11 @@
 </%shared>
 
 <%method title>
-%	return "Selective Quiz Questions Copy";
+%	return __("Selective Quiz Questions Copy");
 </%method>
 
 <%method red_header_text>
-%	return "Selective Quiz Questions Copy";
+%	return __("Selective Quiz Questions Copy");
 </%method>
 
 <%method function_token>
@@ -58,10 +58,10 @@
 
 	if (scalar keys %$links > 1 ) {
 		$display = 'display:none';
-		$display_label = 'Show';
+		$display_label = __('Show');
 	} else {
 		$display = 'display:inline';
-		$display_label = 'Hide';
+		$display_label = __('Hide');
 	}
 
 	foreach my $id (keys %$links) {
@@ -124,27 +124,27 @@
         cellpadding => "0" } &>
 
 <& /tmpl/element:field_display, params => {
-	label => 'Quiz Title:',
+	label => __('Quiz Title').':',
         value => $quiz->getTitle()} &>
 
 <& /tmpl/element:field_display, params =>{ 
-	label 	=> 'Time Period:',
+	label 	=> __('Time Period').':',
 	value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')',
 } &>
 
 
 <& /tmpl/element:field_display, params =>{ 
-	label 	=> 'Questions to Copy from:',
+	label 	=> __('Questions to Copy from').':',
 	value 	=> $m->scomp('SELF:display_questions_in_checkboxes', links => \%links),
 } &>
 
 
 <& /tmpl/element:radio_buttons, params => { 
-        label => 'Include Quiz Answers:',
+        label => __('Include Quiz Answers').':',
         name => 'include_answers',
         buttons => [
-		{ value => "1", text => "Yes (copy both questions and answers)", checked => ($include_answers) ? 1 : 0 },
-                { value => "0", text => "No (copy only questions)", checked => ($include_answers) ? 0 : 1 }
+		{ value => "1", text => __("Yes (copy both questions and answers)"), checked => ($include_answers) ? 1 : 0 },
+                { value => "0", text => __("No (copy only questions)"), checked => ($include_answers) ? 0 : 1 }
 	],
         size => 60,
         length => 255 } &>
@@ -152,7 +152,7 @@
 
 <& /tmpl/element:save_button, params=> {
 		name  => 'copy_quiz_questions',
-                label => 'Copy Selected Quiz Questions',
+                label => __('Copy Selected Quiz Questions'),
                 cancel_onclick => "go_back('$back_url');"} &>
 
 </table>
@@ -185,29 +185,29 @@
 		}
 
 		if (%question_ids) {
-			$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/addedit", 'pathref' => [$quiz_id], 'msg' => 'Quiz questions copied successfully', msgtype => 'msg'));
+			$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/addedit", 'pathref' => [$quiz_id], 'msg' => __('Quiz questions copied successfully'), msgtype => 'msg'));
 		} else {
-			$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/addedit" , 'msg' => 'No quiz questions to copy', msgtype => 'errmsg'));
+			$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/addedit" , 'msg' => __('No quiz questions to copy'), msgtype => 'errmsg'));
 		}
 
 	} else {  ## from questionscopy page
 		my $msg = '';
 		unless (@source_quiz_ids) {
-			$msg .= 'Missing template quiz id(s) to copy questions from<br/>';
+			$msg .= __('Missing template quiz id(s) to copy questions from').'<br/>';
 		} else {
 			foreach my $source_quiz_id (@source_quiz_ids) {
 				next unless $source_quiz_id;
 				my $copy_quiz = TUSK::Quiz::Quiz->lookupKey($source_quiz_id);
 
 				unless (defined $copy_quiz) {
-					$msg .= "Invalid template quiz id [$source_quiz_id].<br/> ";
+					$msg .= __("Invalid template quiz id")." [$source_quiz_id].<br/> ";
 					next;
 				}
 
 				$links{$source_quiz_id}{items} = TUSK::Quiz::LinkQuizQuizItem->new()->getQuestions("quiz_id = " . $source_quiz_id);
 				$links{$source_quiz_id}{title} = $copy_quiz->getTitle();
 
-				$msg .= "The provided template quiz [$source_quiz_id] contains no questions.<br/> " unless scalar(@{$links{$source_quiz_id}{items}});
+				$msg .= __x("The provided template quiz [{source_quiz_id}] contains no questions.", source_quiz_id => $source_quiz_id)."<br/> " unless scalar(@{$links{$source_quiz_id}{items}});
 			}
 		}
 
