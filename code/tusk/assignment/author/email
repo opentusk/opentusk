@@ -27,8 +27,10 @@
 	args 	=> { 
 		%ARGS,
 		subject => $assignment->getTitle() . ' - ' . $course->title(),
-		body	=> $assignment->getInstruction() . "Reminder, this assignment is due on " . $assignment->getFormattedDueDate() . " and can be found at http://$ENV{'HTTP_HOST'}/assignment/student/complete/" . $m->comp("/tmpl/url:get_type_path") . "/$assignment_id.",
-		school  => $school_name,
+		body	=> $assignment->getInstruction() . 
+			__x("Reminder, this assignment is due on {due_date} and can be found at {url}",
+				due_date => $assignment->getFormattedDueDate(), 
+				url => "http://$ENV{'HTTP_HOST'}/assignment/student/complete/" . $m->comp("/tmpl/url:get_type_path") . "/$assignment_id")
 	},
 	recipients_checkboxes 	=> $students,
 	cancel_url				=> "/assignment/author/show/$type_path",
@@ -38,7 +40,7 @@
 &>
 % } else {
 <br/>
-<em>No students assoicated</em>
+<em><%__("No students associated")%></em>
 % }
 
 
@@ -55,7 +57,7 @@
 
 	unless ($m->comp('SELF:is_date_valid')) {
 		$is_valid_date = 0;
-		$m->comp('SELF:set_msg', type => 'hint', msg => "Available and/or due dates are invalid." );
+		$m->comp('SELF:set_msg', type => 'hint', msg => __("Available and/or due dates are invalid."));
 	}
 
 	$m->comp('/tmpl/email:startup', args => $args, school => $school_name) if (defined $args->{submit_check});
@@ -69,7 +71,7 @@
 	my $list; 
 	if ($assignment->getGroupFlag()) {
 		my @groups = $course->sub_user_groups($assignment->getTimePeriodID());
-		$list .= (scalar @groups > 1) ? "&nbsp;<input type=\"checkbox\" name=\"checkall\" value=\"\" /><span class=\"xsm\">select/unselect all</span><br/>" : '';
+		$list .= (scalar @groups > 1) ? "&nbsp;<input type=\"checkbox\" name=\"checkall\" value=\"\" /><span class=\"xsm\">" . __("select/unselect all") . "</span><br/>" : '';
 		$list .= "<table>\n";
 		foreach my $group (@groups) {
 			$list .=  "<tr><td><input type=\"checkbox\" name=\"to\" value=\"" . $group->primary_key() . "\"><a class=\"xsm\" href=\"\" onclick=\"javascript:window.open('/tusk/group/members/$type_path/" . $group->primary_key() . "',null,'height=400,width=350,scrollbars=1,resizable=1,left=400,top=250'); return false;\">" . $group->out_label() . "</a></td></tr>\n";
@@ -104,13 +106,13 @@
 
 
 <%method show_dates>
-<& /tmpl/element:field_display, params => { label => 'Available Date:', value => $avail_date  } &>
-<& /tmpl/element:field_display, params => { label => 'Due  Date:', value => $due_date . (($is_valid_date) ? '' : " &nbsp;&nbsp;&nbsp; <a class=\"xsm\" href=\"/assignment/author/addedit/$type_path/$assignment_id\">edit available/due dates</a>") } &>
+<& /tmpl/element:field_display, params => { label => __('Available Date:'), value => $avail_date  } &>
+<& /tmpl/element:field_display, params => { label => __('Due  Date:'), value => $due_date . (($is_valid_date) ? '' : " &nbsp;&nbsp;&nbsp; <a class=\"xsm\" href=\"/assignment/author/addedit/$type_path/$assignment_id\">" . __("edit available/due dates") . "</a>") } &>
 </%method>
 
 
 <%method title>
-% 	return "Email Assignment";
+% 	return __("Email Assignment");
 </%method>
 
 

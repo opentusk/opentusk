@@ -21,7 +21,7 @@ use TUSK::Permission::UserRole;
 </%init>
 
 <%method hintmessage>
-% return 'Please remember to hit \'Save Changes\' once you are done making changes.';
+% return __('Please remember to hit \'Save Changes\' once you are done making changes.');
 </%method>
 
 <%method jsarray>
@@ -49,8 +49,8 @@ $role_label => ''
 
 	my $roles = TUSK::Permission::Role->new()->getRoles($feature_type_token);
 	my @roles_array = map { { label => $_->getPrettyRoleToken(), value => $_->getPrimaryKeyID() } } @$roles;
-	my $functions = ($allow_duplicate) ? [ {func=>'duplicate_row', label => 'Another Role'} ] : [];
-	push (@$functions, {func=>'remove', label=>'Remove'});
+	my $functions = ($allow_duplicate) ? [ {func=>'duplicate_row', label => __('Another Role')} ] : [];
+	push (@$functions, {func=>'remove', label=>__('Remove')});
 </%perl>
 
 <& /tmpl/element:form, params => { 
@@ -81,7 +81,7 @@ $role_label => ''
 </%perl>
 
 <& /tmpl/element:field_display, params => { 
-	label 	=> 'Available course users:',
+	label 	=> __('Available course users:'),
 	value 	=> '<div id="courseusersdiv"></div>' } &>
 
 <& /tmpl/layers:create_layer, struct => {
@@ -90,11 +90,11 @@ $role_label => ''
 	name => 'users',
 	sort => {usage => 'No'},
 	scrollrows => 6,
-	action => { usage => 'Yes', length => 70, functions => [{func => 'addUser', label=> 'Add'}] },
+	action => { usage => 'Yes', length => 70, functions => [{func => 'addUser', label=> __('Add')}] },
 	display => [ 
-		{label=>'Name',field=>'name', align=>'left', length=>250},
-		{label=>'User ID',field=>'userid', align=>'left', length=>90},
-		{label=>'Course Role',field=>'role', align=>'left', length=>150, }, 
+		{label=>__('Name'),field=>'name', align=>'left', length=>250},
+		{label=>__('User ID'),field=>'userid', align=>'left', length=>90},
+		{label=>__('Course Role'),field=>'role', align=>'left', length=>150, }, 
 	],
 	validate => { usage => 'No', },
 	data => \@selected_course_users,
@@ -111,8 +111,8 @@ function addUser(layer, index){
 
 <& /tmpl/element:sort_order_box , params =>{
 	no_add_button 	=> 1,
-	label => 'Current Users',
-	buttons => [ '&nbsp;' . $m->scomp("/tmpl/element:button", params => {label => 'Add Names', onclick => "openwindow('userdiv');" }) ],
+	label => __('Current Users'),
+	buttons => [ '&nbsp;' . $m->scomp("/tmpl/element:button", params => {label => __('Add Names'), onclick => "openwindow('userdiv');" }) ],
 	td_class => 'button-left',
 	layer_info => {
         	layer => 'userdiv',
@@ -122,15 +122,15 @@ function addUser(layer, index){
 		scrollrows => 10,
 		action => { usage => 'Yes', length=> 200, functions => $functions },
 		display => [ 
-			{label=>'Name',field=>'name', align=>'left', length=>250},
-			{label=>'User ID',field=>'userid', align=>'left', length=>90},
-			{label=>"$role_label Role",field=>'role', align=>'center', length=>150,options=>\@roles_array }, ],
+			{label=>__('Name'),field=>'name', align=>'left', length=>250},
+			{label=>__('User ID'),field=>'userid', align=>'left', length=>90},
+			{label=>__x("{role_label} Role", role_label => $role_label),field=>'role', align=>'center', length=>150,options=>\@roles_array }, ],
 		validate => {usage => 'No',},
 		data => \@data }
 } &>
 
 <& /tmpl/element:save_button, params => {
-	label => 'Save Changes', 
+	label => __('Save Changes'), 
 	name => 'form_submit', 
 	no_cancel_button => 1,
 	onclick => 'this.form.submit();',
@@ -140,7 +140,7 @@ function addUser(layer, index){
 
 <& /tmpl/element:sort_order_box , params =>{
                 no_label=>'Yes',
-		label => 'User',
+		label => __('User'),
                 button_onclick=>"openwindow('userdiv')",
 		buttons => [ $m->scomp("/tmpl/element:button", params => {label => 'Save Changes', name => 'form_submit', onclick => 'this.form.submit();' }) ],
 		td_class => 'button-left',
@@ -152,9 +152,9 @@ function addUser(layer, index){
 			scrollrows => 10,
                         action => { usage => 'Yes', length=>300, functions => $functions },
                         display => [ 
-					{label=>'Name',field=>'name', align=>'left', length=>250},
-					{label=>'User ID',field=>'userid', align=>'left', length=>90},
-					{label=>'Role',field=>'role', 
+					{label=>__('Name'),field=>'name', align=>'left', length=>250},
+					{label=>__('User ID'),field=>'userid', align=>'left', length=>90},
+					{label=>__('Role'),field=>'role', 
 						align=>'center', length=>150,options=>\@roles_array },
                                   ],
                         validate => {
@@ -195,7 +195,7 @@ foreach my $role (@$roles){
 	
 	$body .= "</ul>";
 
-	$body = "No defined functions." unless ($body_flag);
+	$body = __("No defined functions.") unless ($body_flag);
 
 	my $extra_text = ($role->getRoleDesc()) ? " - " . $role->getRoleDesc() : "";
 
@@ -241,7 +241,7 @@ $m->comp('/tmpl/process:manipulate_rows',
 					},
 		display_data => $data );
 
-$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msg' => "Roles successfully updated."));
+$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'msg' => __("Roles successfully updated.")));
 </%perl>
 </%method>
 
@@ -280,7 +280,7 @@ $feature_id
 					} );
 	if ($function_token){
 		unless ($m->comp("SELF:check_permission", function_token => $function_token)){
-			$m->comp("/tmpl/url:redirect",message => "Permission Denied");
+			$m->comp("/tmpl/url:redirect",message => __("Permission Denied"));
 		}
 	}
 

@@ -15,7 +15,7 @@
 </%doc>
 <%once>
 my $phase_option_sub = sub {
-	my $phase = shift or confess "phase is a required parameter";
+	my $phase = shift or confess __("phase is a required parameter");
 	my @rankarray = map { { 'option_text'=>$_->getOptionText(),
                         'correct'=>$_->getCorrect(),
                         'feedback'=> $_->getFeedback(),
@@ -32,13 +32,13 @@ use TUSK::Case::PhaseTestExclusion;
 %params
 $phase
 </%args>
-<& /tmpl/element:collapse_section, params=>{label=>'Attributions',
+<& /tmpl/element:collapse_section, params=>{label=>__('Attributions'),
                  name=>'attributions',
                 section=>'start',
                  check_function => undef } &>
 
 <& /tmpl/element:sort_order_box , params =>{
-                label=>'Authors &amp; Editors',
+                label=>__('Authors').' &amp; '.__('Editors'),
 		button_onclick=>"openwindow('authorsdiv')",
                 layer_info => {
                         layer => 'authorsdiv',
@@ -46,14 +46,14 @@ $phase
                         name => 'users',
                         sort => {usage => 'Yes', length=>50},
                         action => {usage => 'Yes', length=>100, functions => [
-                                                                        {func=>'remove', label=>'Delete'}
+                                                                        {func=>'remove', label=>__('Delete')}
                                                                 ]},
                         display => [
-                                        {label=>'name',field=>'name', align=>'left', length=>225,},
-                                        {label=>'user Id',field=>'userid', align=>'left', length=>75,},
-                                        {label=>'role',field=>'role', length=>100, options=>[
-                                                                                {label=>'Editor'}, 
-                                                                                {label=> 'Author'}
+                                        {label=>__('name'),field=>'name', align=>'left', length=>225,},
+                                        {label=>__('user Id'),field=>'userid', align=>'left', length=>75,},
+                                        {label=>__('role'),field=>'role', length=>100, options=>[
+                                                                                {label=>__('Editor')}, 
+                                                                                {label=> __('Author')}
                                                                                 ]}
                                   ],
                         validate => {
@@ -62,19 +62,19 @@ $phase
                         data => $params{'attributionarray'}
                         }
 		} &>
-<& /tmpl/element:textbox, params =>{ label => 'Source',
+<& /tmpl/element:textbox, params =>{ label => __('Source'),
                 name => 'source',
                 value => $phase->getSource,
                 size => 60,
                 length => 255 } &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Copyright',
+<& /tmpl/element:textbox, params =>{ label => __('Copyright'),
                 name => 'copyright',
                 value => $phase->getCopyright(),
                 size => 60,
                 length => 255 } &>
 
-<& /tmpl/element:collapse_section, params=>{label=>'Attributions',
+<& /tmpl/element:collapse_section, params=>{label=>__('Attributions'),
                  name=>'attributions',
                  section=>'end',
                  check_function => undef } &>
@@ -85,13 +85,13 @@ $phase
 $phase
 $case
 </%args>
-% $m->comp('/tmpl/error',msg=>'Case not found') if (!defined($case));
+% $m->comp('/tmpl/error',msg=>__('Case not found')) if (!defined($case));
 % my $patient_type_obj = $case->getPatientType();
-% my $patient_type_label = ($patient_type_obj && $patient_type_obj->getPrimaryKeyID()) ? $patient_type_obj->getTypeName() : "Undefined";
+% my $patient_type_label = ($patient_type_obj && $patient_type_obj->getPrimaryKeyID()) ? $patient_type_obj->getTypeName() : __("Undefined");
 <table>
-<tr><td class="navsm">Case : <% $case->getCaseTitle() %></td></tr>
-<tr><td class="navsm">Patient Type : <% $patient_type_label %></td></tr>
-<tr><td class="navsm">Phase : <% $phase->getPhaseType->getTitle() %></td></tr>
+<tr><td class="navsm"><%__("Case")%> : <% $case->getCaseTitle() %></td></tr>
+<tr><td class="navsm"><%__("Patient Type")%> : <% $patient_type_label %></td></tr>
+<tr><td class="navsm"><%__("Phase")%> : <% $phase->getPhaseType->getTitle() %></td></tr>
 </table>
 </%method>
 
@@ -113,7 +113,7 @@ $label
 		contentarray 		=> \@referencearray,
 		buttons 		=> 	[
 							$m->scomp("/tmpl/element:button", params => { 	
-												label 	=> 'Upload Reference', 
+												label 	=> __('Upload Reference'), 
 												name 	=> 'upload_reference', 
 												onclick => "open_upload_content_window('" . $m->comp('/tmpl/url:get_type_path') . "/" . $m->comp('SELF:get_case_id') . "', 'referencesdiv')",
 											}),
@@ -139,15 +139,15 @@ $show_display_type => 0
 	push (@$fields, 'display_type') if ($show_display_type);
 
 	my $display = [ 
-			{ label => 'Content&nbsp;ID', field => 'content_id', align => 'left', length => 40},
-			{ label => 'Title', field => 'title', align => 'left', length => 400},
+			{ label => __('Content ID'), field => 'content_id', align => 'left', length => 40},
+			{ label => __('Title'), field => 'title', align => 'left', length => 400},
 			];
 	push (@$display, { 
-				label 	=> 'Display Type', 
+				label 	=> __('Display Type'), 
 				field 	=> 'display_type', 
 				align 	=> 'center', 
 				length 	=> 150, 
-				options => [ { label => 'As Link', value => 'Link' }, { label => 'On Page', value => 'Inline' } ] } ) if ($show_display_type);
+				options => [ { label => __('As Link'), value => 'Link' }, { label => __('On Page'), value => 'Inline' } ] } ) if ($show_display_type);
 </%perl>
 <& /tmpl/element:sort_order_box , params =>{
 		label		   => $label,
@@ -162,8 +162,8 @@ $show_display_type => 0
 						usage     => 'Yes', 
 						length    => 100,  
 						functions => [ 
-							{ func => 'preview_content', label => 'Preview' },
-							{ func => 'remove', label => 'Delete' },
+							{ func => 'preview_content', label => __('Preview') },
+							{ func => 'remove', label => __('Delete') },
 						] },
                         	display 	=> $display,
                         	validate 	=> { usage => 'No' },
@@ -175,13 +175,13 @@ $show_display_type => 0
 <%args>
 @keywordarray
 </%args>
-<& /tmpl/element:collapse_section, params=>{label=>'Keywords',
+<& /tmpl/element:collapse_section, params=>{label=>__('Keywords'),
                 name=>'keywords',
                 section=>'start',
                 check_function => undef } &>
 
 <& /tmpl/element:sort_order_box , params =>{
-                label=>'Keywords',
+                label=>__('Keywords'),
                 button_onclick=>"openwindow('keywordsdiv')",
                 layer_info => {
                         layer => 'keywordsdiv',
@@ -189,10 +189,10 @@ $show_display_type => 0
                         name => 'keywords',
                         sort => {usage => 'Yes', length=>50},
                         action => {usage => 'Yes', length=>100, functions => [
-                                                        {func=>'remove', label=>'Delete'} ]},
+                                                        {func=>'remove', label=>__('Delete')} ]},
                         display => [
-                                        {label=>'keyword',field=>'keyword', align=>'left', length=>350},
-                                        {label=>'umls',field=>'umls', align=>'left', length=>50}
+                                        {label=>__('keyword'),field=>'keyword', align=>'left', length=>350},
+                                        {label=>__('umls'),field=>'umls', align=>'left', length=>50}
                                   ],
                         validate => {
                                         usage => 'No',
@@ -201,7 +201,7 @@ $show_display_type => 0
                 } &>
 
 
-<& /tmpl/element:collapse_section, params=>{label=>'Keywords',
+<& /tmpl/element:collapse_section, params=>{label=>__('Keywords'),
                 name=>'keywords',
                 section=>'end',
                 check_function => undef } &>
@@ -213,14 +213,14 @@ $show_display_type => 0
 	%params
 </%args>
 <%perl>
-	my $phase = $params{'phase'} or confess " no phase passed ";
+	my $phase = $params{'phase'} or confess __(" no phase passed ");
 
 	my $dropdown_name = "phase_option_type";
 
 	my $rankarray = [];
 	
 	if (ref($phase) eq 'TUSK::Case::Phase::Diagnosis' and !$phase->getPrimaryKeyID()){
-		my $diff_diag_phases = TUSK::Case::Phase->new->lookup("parent_case_id = " . $m->comp('SELF:get_case_id') . " and phase_type.title = 'Differential Diagnosis'", undef, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Case::LinkCasePhase", {origkey=>'phase_id', joinkey=>'child_phase_id', })]);
+		my $diff_diag_phases = TUSK::Case::Phase->new->lookup("parent_case_id = " . $m->comp('SELF:get_case_id') . " and phase_type.title = '".__("Differential Diagnosis")."'", undef, undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Case::LinkCasePhase", {origkey=>'phase_id', joinkey=>'child_phase_id', })]);
 		foreach my $diff_diag_phase (@$diff_diag_phases){
 			$rankarray = $phase_option_sub->($diff_diag_phase);
 			foreach my $rank (@$rankarray){
@@ -252,7 +252,7 @@ $show_display_type => 0
 % my $style = "";
 % if (defined($optionHash->{'rank_tr'})){
 <& /tmpl/element:sort_order_box , params =>{
-                label=>'Rank Choices',
+                label=>__('Rank Choices'),
 		name=>'rank',
 		style=> $style,
 		button_onclick=>"addDefaultData('rankdiv');",
@@ -263,11 +263,11 @@ $show_display_type => 0
                         sort => {usage => 'Yes', length=>50},
                         action => {usage => 'Yes', length=>100,
                                 functions => [
-					{func=>'remove', label=>'Delete'}, ]},
+					{func=>'remove', label=>__('Delete')}, ]},
                         display => [
-                                        {label=>'diagnosis',field=>'option_text',
+                                        {label=>__('diagnosis'),field=>'option_text',
 						align=>'left', type=>'textarea',length=>200, htmleditor=>'1'},
-                                        {label=>'feedback',field=>'feedback',
+                                        {label=>__('feedback'),field=>'feedback',
 						align=>'left', type=>'textarea',length=>200, htmleditor=>'1'}
                                   ],
                         validate => {
@@ -282,12 +282,12 @@ $show_display_type => 0
 % if (defined($optionHash->{'likely_tr'})){
 <%perl>
 my $phase_type_name = $phase->getPhaseType()->getTitle();
-my $option_array = [{'label'=>'Unlikely','value'=>0}];
-push @$option_array, {'label'=>'Less Likely', 'value'=>2} if ($phase_type_name ne 'Treatment');
-push @$option_array, {'label'=>'Likely', 'value'=>1};
+my $option_array = [{'label'=>__('Unlikely'),'value'=>0}];
+push @$option_array, {'label'=>__('Less Likely'), 'value'=>2} if ($phase_type_name ne __('Treatment'));
+push @$option_array, {'label'=>__('Likely'), 'value'=>1};
 </%perl>
 <& /tmpl/element:sort_order_box , params =>{
-            label=>'Selection',
+            label=>__('Selection'),
             name=>'likely',
             button_onclick=>"addDefaultData('likelydiv');",
             style=> $style,
@@ -297,15 +297,15 @@ push @$option_array, {'label'=>'Likely', 'value'=>1};
                     name => 'diagnosis',
                     sort => {usage => 'Yes', length=>50},
                     action => {usage => 'Yes', length=>100,
-                               functions => [ {func=>'remove', label=>'Delete'} ]},
+                               functions => [ {func=>'remove', label=>__('Delete')} ]},
                     display => [
-                                {label=>'selection',field=>'option_text',
+                                {label=>__('selection'),field=>'option_text',
                                  'type'=>'textarea', align=>'left', length=>200, htmleditor=>'1'},
-                                {label=>'answer',field=>'correct',
+                                {label=>__('answer'),field=>'correct',
                                  align=>'left', length=>50,
                                  options=>$option_array,
                                 },
-                                {label=>'feedback',field=>'feedback',
+                                {label=>__('feedback'),field=>'feedback',
                                  align=>'left', type=>'textarea', length=>200, htmleditor=>'1'}
                               ],
                     validate => { usage => 'No',},
@@ -316,7 +316,7 @@ push @$option_array, {'label'=>'Likely', 'value'=>1};
 %}
 %if (defined($optionHash->{'free_text_tr'})){
 <& /tmpl/element:sort_order_box , params =>{
-                label=>'Free Text',
+                label=>__('Free Text'),
                 name=>'free_text',
 		button_onclick=>"addDefaultData('freetextdiv');",
                 style=> $style,
@@ -327,11 +327,11 @@ push @$option_array, {'label'=>'Likely', 'value'=>1};
                         sort => {usage => 'Yes', length=>50},
                         action => {usage => 'Yes', length=>100,
                                 functions => [
-						{func=>'remove', label=>'Delete'} ]},
+						{func=>'remove', label=>__('Delete')} ]},
                         display => [
-                                        {label=>'question',field=>'option_text',
+                                        {label=>__('question'),field=>'option_text',
                                                 align=>'left', type=>'textarea', length=>200, htmleditor=>'1'},
-                                        {label=>'feedback',field=>'feedback',
+                                        {label=>__('feedback'),field=>'feedback',
                                                 align=>'left', type=>'textarea', length=>200, htmleditor=>'1'}
                                   ],
                         validate => {
@@ -380,7 +380,7 @@ if ($phase_option_type eq 'Free Text'){
 } elsif ($phase_option_type eq 'LikelyUnlikely'){
 	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^likelydiv');
 } else {
-	confess "Invalid value for phase_option_type : $phase_option_type";
+	confess __("Invalid value for phase_option_type")." : $phase_option_type";
 }
 
 my $pk = $phase->getPrimaryKeyID();
@@ -428,7 +428,7 @@ my %phase_battery_lookup = map { ($_->getPrimaryKeyID(), 1) } @{$phase_batteries
 <& /tmpl/element:top_header_row, label=>$phase_title &>
 
 % if (!$phase_id){
-% 	$m->comp('/tmpl/element:note',msg=>'Please save the phase before changing the exams');
+% 	$m->comp('/tmpl/element:note',msg=>__('Please save the phase before changing the exams'));
 % } else {
 <%perl>
 $batteries = TUSK::Case::Battery->getBatteries($phase, $m->comp("/tmpl/url:get_school"));
@@ -443,10 +443,10 @@ foreach my $battery (@{$batteries}){
 </%perl>
 <& /tmpl/tree:tree_box, params=>{
 		column_labels=>[
-			{label=>'Categories'},
-			{label=>'Results'},
-			{label=>'Normal<br>Range'},
-			{label=>'Priority'} ],
+			{label=>__('Categories')},
+			{label=>__('Results')},
+			{label=>__('Normal').'<br>'.__('Range')},
+			{label=>__('Priority')} ],
 		all_checked=>$all_checked,
 		name_prefix => ['b','e','t'],
 		column_values=>[
@@ -455,7 +455,7 @@ foreach my $battery (@{$batteries}){
 			['title_with_units','display_value','def_value','priority']],
 		checked_func=>'include',
 		action_columns => [ 
-			{label => 'Edit',
+			{label => __('Edit'),
 			 link  => '/case/author/examaddedit/'
 			          .$type_path.'/'
 			          .$case->getPrimaryKeyID().'/'
@@ -592,7 +592,7 @@ return ($phase_title,$phase_name);
 <%args>
 $case
 </%args>
-% my $header = 'Case : '.$case->getCaseTitle();
+% my $header = __('Case').' : '.$case->getCaseTitle();
 <& /tmpl/element:note, msg=>$header &>
 </%method>
 
@@ -609,7 +609,7 @@ my $uri = $r->filename() ;
 # get just the last part of the file name 
 $uri =~ s/.*\///g;
 my $case_id = $case->getPrimaryKeyID() 
-	or $m->comp('/tmpl/error',msg=>'Invalid case passed to case_footer');
+	or $m->comp('/tmpl/error',msg=>__('Invalid case passed to case_footer'));
 my $continue_hash = { 	'caseaddedit'=>'goaladdedit',
 			'goaladdedit'=>'keywordaddedit',
 			'keywordaddedit'=>'phaseshow',
@@ -630,12 +630,12 @@ my $cancel_page = (defined $cancel_hash->{$uri})? $cancel_hash->{$uri} : 'casead
 <td class="cell-submit-right" colspan="2">
 <& /tmpl/element:button, params=>{'name'=>'cancel_button',
                 'onclick'=>"window.location = '/case/author/$cancel_page/$type_path/$case_id';",
-                'label'=>'Cancel'} &>
+                'label'=>__('Cancel')} &>
 % if ($use_save) {
 <& /tmpl/element:submit_button, params=>{'name'=>'case_submit',
-                'label'=>'Save'} &>
+                'label'=>__('Save')} &>
 % }
-<& /tmpl/wizard:next_button,formname=>$formname,label=>'Save and Continue',
+<& /tmpl/wizard:next_button,formname=>$formname,label=>__('Save and Continue'),
 		next_page=>$next_page,extra=>$type_path.'/'.$case_id &>
 <%perl>
 	foreach my $button (@$buttons){
@@ -663,10 +663,10 @@ $patient_type_id
                 border =>"0",
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
-<tr class="header"><td class="header-left" >&nbsp;</td><td class="header-left" >Values</td><td class="header-left" >Content</td><td class="header-left" >Action</td></tr>
-<tr ><td class="layers-left">Normal</td><td class="layers-left"><% $exam->getDefaultValue($patient_type_id) %></td>
+<tr class="header"><td class="header-left" >&nbsp;</td><td class="header-left" ><%__("Values")%></td><td class="header-left" ><%__("Content")%></td><td class="header-left" ><%__("Action")%></td></tr>
+<tr ><td class="layers-left"><%__("Normal")%></td><td class="layers-left"><% $exam->getDefaultValue($patient_type_id) %></td>
 <td class="layers-left"><% $exam->getDefaultContentID($patient_type_id) %><td>&nbsp;</td></tr>
-<tr class="odd"><td class="layers-left">Result</td>
+<tr class="odd"><td class="layers-left"><%__("Result")%></td>
 <td class="layers-left"><& /tmpl/element:input_textarea, params=>{rows => 2, cols => 50, name=>$prefix."__alternate_value__$exam_id",
                         value=>$examExclusion->getAlternateValue(),length=>255,size=>60 }&></td>
 % my $input_name = $prefix."__alternate_content_id__$exam_id";
@@ -683,17 +683,17 @@ $patient_type_id
 
 
 <& /tmpl/element:dropdown, params=>{ 
-		label => 'Priority',
+		label => __('Priority'),
                 name=>$prefix."__priority__$exam_id",
                 onchange=>undef,
                 selected=>$examExclusion->getPriority(),
                 options=>[
-                        {'label'=>'Low','value'=>'Low'},
-                        {'label'=>'Medium','value'=>'Medium'},
-                        {'label'=>'High','value'=>'High'},
+                        {'label'=>__('Low'),'value'=>'Low'},
+                        {'label'=>__('Medium'),'value'=>'Medium'},
+                        {'label'=>__('High'),'value'=>'High'},
 			 ] } &>
 
-<& /tmpl/element:textarea, params=>{ label => 'Feedback',
+<& /tmpl/element:textarea, params=>{ label => __('Feedback'),
                 name=>$prefix."__feedback__$exam_id",
                 cols=>"60",
                 rows=>"4",

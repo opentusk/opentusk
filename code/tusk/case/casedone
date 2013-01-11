@@ -29,14 +29,14 @@
 	my $report = TUSK::Case::CaseReport->lookupKey($case_report_id);
 
 	if ($report->getUserID() ne $user_id) {
-		warn "User with id $user_id cannot see this page. Reason: not owner of case report.";
-		$m->comp('/tmpl/error', msg => "$user_id cannot see the requested report because the report is owned by a different user.");
+		warn __x("User with id {user_id} cannot see this page. Reason: not owner of case report.", user_id => $user_id);
+		$m->comp('/tmpl/error', msg => __x("{user_id} cannot see the requested report because the report is owned by a different user.", user_id => $user_id));
 	}
 
 	$case->setUser($user_id);
 
 	if (!defined $report) {
-		$m->comp('/tmpl/error', msg=>'Invalid Case Report ID passed');
+		$m->comp('/tmpl/error', msg=>__('Invalid Case Report ID passed'));
 	}
 	else {
 		my $last_phase = $case->getLastPhase();
@@ -65,18 +65,17 @@
 
 <& /tmpl/element:table &>
 
-<& tmpl/element:header_bar, label=>'Summary' . $preview_text &>
+<& tmpl/element:header_bar, label=>__('Summary') . $preview_text &>
 
 % # my $score = $case->getScore($report);
 % my $objectives = $case->getObjectives();
 
-<tr><td class="text1">You have completed this case.</td></tr>
+<tr><td class="text1"><%__("You have completed this case.")%></td></tr>
 
 
 % if (scalar(@{$objectives})){
-<tr><td class="text1" style="padding-top:10px; padding-bottom:10px;">Take a minute to review the goals and objectives to summarize the important points
-of this case:</td></tr>
-<tr><td class="subhead1" >Objectives</td></tr>
+<tr><td class="text1" style="padding-top:10px; padding-bottom:10px;"><%__("Take a minute to review the goals and objectives to summarize the important points of this case:")%></td></tr>
+<tr><td class="subhead1" ><%__("Objectives")%></td></tr>
 
 % my $objective_string ;
 % 	foreach my $objective (@{$objectives}){
@@ -86,8 +85,8 @@ of this case:</td></tr>
 % }
 
 % if (my $feedback = $case->getFeedbackEmail()){
-<tr><td class="subhead1" >Feedback</td></tr>
-<tr><td class="text1">You can send feedback about this case to:</td></tr>
+<tr><td class="subhead1" ><%__("Feedback")%></td></tr>
+<tr><td class="text1"><%__("You can send feedback about this case to:")%></td></tr>
 <tr><td class="text1"><a href="mailto:<% $feedback %>"><% $feedback %></a></td></tr>
 % } 
 <tr><td>
@@ -97,15 +96,15 @@ of this case:</td></tr>
 <& /tmpl/element:tr_tag &><td>
 % if ($report){
 <& /tmpl/element:button, params=>{'onclick'=>'show_print_version('.$case_id.','.$case_report_id.');',
-	name=>'print','label'=>'View Printable Case Summary' } &>
+	name=>'print','label'=>__('View Printable Case Summary') } &>
 % } 
 % my $type_object = $m->comp("/tmpl/url:get_type_object");
 % if ($type_object and ref($type_object) eq 'HSDB45::Course') {
 <& /tmpl/element:button, params=>{'href'=>'/hsdb45/course/' . $type_object->school() . '/' . $type_object->course_id(),
-	name=>'course_exit','label'=> 'Course Home' } &>
+	name=>'course_exit','label'=> __('Course Home') } &>
 % }
 <& /tmpl/element:button, params=>{'href'=>'/home',
-	name=>'home_exit','label'=>$TUSK::Constants::SiteAbbr . ' Home' } &>
+	name=>'home_exit','label'=>$TUSK::Constants::SiteAbbr ." ". __('Home') } &>
 </td></tr>
 </table>
 
@@ -116,7 +115,7 @@ of this case:</td></tr>
 </%method>
 
 <%method title>
-% return "Case Finished" . $preview_text;
+% return __("Case Finished") . $preview_text;
 </%method>
 
 

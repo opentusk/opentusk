@@ -34,7 +34,7 @@ function validateImportForm(form){
 		return true;
 	}
 	else {
-		alert('Please supply a valid filename.');
+		alert(_('Please supply a valid filename.'));
 		form.zip_file.focus();
 		return false;
 	}

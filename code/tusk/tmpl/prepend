@@ -30,6 +30,17 @@
 
 <& SELF:manage_header, %ARGS &>
 
+<%doc>Javascript gettext handlers using ENV settings from I18N.pm.</%doc>
+<%method i18n-gettext>
+
+% my $lang      = $ENV{'TUSK_LANGUAGE'} || 'C';
+% my $domain    = $ENV{'TUSK_DOMAIN'}   || 'tusk';
+    <link  rel="gettext" type="application/x-po" href="/locale/<%$lang%>/LC_MESSAGES/<%$domain%>.po" lang="<%$lang%>" domain="<%$domain%>" />
+    <script type="text/javascript" src="/scripts/i18n/Gettext.js"></script>
+    <script id="i18n-gettext-js" type="text/javascript" 
+			src="/scripts/i18n/gettext_wrapper.js?domain=<%$domain%>&lang=<%$lang%>"></script>
+ 
+</%method>
 <%method header>  
 <%args>
 $title => undef
@@ -57,6 +68,7 @@ $doctype => 'html'
 <html>
 % }
 <head>
+<!-- i18n -->
 <!-- siteabb: TUSK -->
 <!-- Script Running On: <% $ENV{HOSTNAME} %> under: <% $$ %> !-->
 <title><% $TUSK::Constants::SiteAbbr %> - <% $title %></title>
@@ -85,6 +97,7 @@ $doctype => 'html'
 
 <link rel="shortcut icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
 <link rel="icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+% $m->comp('SELF:i18n-gettext');
 </head>
 </%method>
 
@@ -117,7 +130,9 @@ $doctype => 'html'
 % foreach my $js (@jsarray) {
 <SCRIPT language="JavaScript" src="/scripts/<% $js %>?<% TUSK::Functions::get_tusk_version %>" type=text/javascript></SCRIPT>
 % }
+
 <% join("", @metaData) %>
+% $m->comp('SELF:i18n-gettext');
 </head>
 </%method>
 
@@ -256,12 +271,12 @@ $user
             <tr>
               <td align="right" nowrap>
                 <font class="xxsm">
-                  Welcome <% $user->out_full_name %>  |
+                  <%__x('Welcome {username}', username => $user->out_full_name)%>  |
 %	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
-                  <a href="/view/user/<% $user->primary_key %>" target="_top">My Profile</a>  | 
-                  <a href="/tusk/management/content/personalcontent" target="_top"> Personal Folders</a>  |  
+                  <a href="/view/user/<% $user->primary_key %>" target="_top"><%__('My Profile')%></a>  | 
+                  <a href="/tusk/management/content/personalcontent" target="_top"> <%__('Personal Folders')%></a>  |  
 %	}
-                  <a href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>" target="_top">Logout</a>
+                  <a href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>" target="_top"><%__('Logout')%></a>
                 &nbsp;
                 </font>
               </td>
@@ -296,12 +311,12 @@ $user
       <tr>
         <td align="right" nowrap>
 	<span class="emphasis_font">
-&nbsp;Welcome <strong><% $user->out_full_name %></strong>  |  
+&nbsp;<%__x('Welcome <strong>{username}</strong>', username => $user->out_full_name)%>  |  
 %	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
-		<a href="/view/user/<% $user->primary_key %>">My Profile</a>  | 
-		<a href="/tusk/management/content/personalcontent"> Personal Folders</a>  |  
+		<a href="/view/user/<% $user->primary_key %>"><%__('My Profile')%></a>  | 
+		<a href="/tusk/management/content/personalcontent"><%__('Personal Folders')%></a>  |  
 % }
-<a class="logout" href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>">Logout</a></span>&nbsp;</td></tr>
+<a class="logout" href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>"><%__('Logout')%></a></span>&nbsp;</td></tr>
           <tr>
             <td>
                 <img src="/graphics/spacer.gif" alt=" " width="1" height="5" border="0"></td>
@@ -346,9 +361,9 @@ $extra_nav_text		=> ''
 %	   && $context_parent->isa('HSDB45::Course')
 %	   && TUSK::Application::RSSCourse->remoteCheckPodcast( $context_parent->primary_key(), $context_parent->school(), $obj->primary_key()) ) {
 
-%		my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => 683356, text => 'Podcast Help', not_xmetal => 1, class => 'helpLnk'});
+%		my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => 683356, text => __('Podcast Help'), not_xmetal => 1, class => 'helpLnk'});
 
-<a class="podcastLnk" href="/tusk/rss/rss?cid=<% $context_parent->primary_key() %>&sc=<% $context_parent->school %>&colid=<% $obj->primary_key() %>">Subscribe to Podcast</a> <% $help_lnk %>
+<a class="podcastLnk" href="/tusk/rss/rss?cid=<% $context_parent->primary_key() %>&sc=<% $context_parent->school %>&colid=<% $obj->primary_key() %>"><%__('Subscribe to Podcast')%></a> <% $help_lnk %>
 
 %	}
 % }
@@ -380,19 +395,19 @@ my @li_strings;
 
 my $helpurl = ($page eq "manage") ? $TUSK::Constants::HelpMap{ManageHelpURL}
                                   : $TUSK::Constants::HelpMap{HelpURL};
-push @li_strings, "<a href=\"$helpurl\" target=\"help\">Help</a>";
-push @li_strings, "<a href=\"$TUSK::Constants::ContactURL\" target=\"_top\">Contact</a>";
+push @li_strings, "<a href=\"$helpurl\" target=\"help\">" . __('Help') . "</a>";
+push @li_strings, "<a href=\"$TUSK::Constants::ContactURL\" target=\"_top\">" . __('Contact') . "</a>";
 if ($TUSK::Constants::AboutURL && $page eq "login") {
-	push @li_strings, "<a href=\"$TUSK::Constants::AboutURL\" target=\"_top\">About</a>";
+	push @li_strings, "<a href=\"$TUSK::Constants::AboutURL\" target=\"_top\">" . __('About') . "</a>";
 }
 if (ref($user) eq 'HSDB4::SQLRow::User' && $user->primary_key && $page ne 'login'){
 	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
-		unshift @li_strings, '<a href="/view/user/' . $user->primary_key .'" target="_top">My Profile</a>';
+		unshift @li_strings, '<a href="/view/user/' . $user->primary_key .'" target="_top">' . __('My Profile') . '</a>';
 	}
-	push @li_strings, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time . '" target="_top">Log Out</a>';
+	push @li_strings, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time . '" target="_top">' . __('Log Out') . '</a>';
 }
 elsif ($page eq 'login') {
-	push @li_strings, "<a href=\"/smallscreen\" target=\"_top\">Mobile</a>";
+	push @li_strings, "<a href=\"/smallscreen\" target=\"_top\">" . __('Mobile') . "</a>";
 }
 
 </%perl>
@@ -442,12 +457,12 @@ $has_schedule => ''
 	<nav>
 % 	my $active = $type;
 		<ul class="main <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
-		    <li class="<% $active eq 'home'  ? 'selected' : '' %>"><a href="/home" target="_top">My Dashboard</a></li>
-		    <li class="<% $active eq 'browse'? 'selected' : '' %>"><a href="/allcourses.htm" target="_top">Courses</a></li>
+		    <li class="<% $active eq 'home'  ? 'selected' : '' %>"><a href="/home" target="_top"><% __('My Dashboard') %></a></li>
+		    <li class="<% $active eq 'browse'? 'selected' : '' %>"><a href="/allcourses.htm" target="_top"><% __('Courses') %></a></li>
 % if($can_cms) { 
-			<li class="<% $active eq 'manage'? 'selected' : '' %>"><a href="/protected/management/home" target="_top">Manage Content</a></li>
+			<li class="<% $active eq 'manage'? 'selected' : '' %>"><a href="/protected/management/home" target="_top"><% __('Manage Content') %></a></li>
 % }
-			<li class="<% $active eq 'search'? 'selected' : '' %>"><a href="/search/form" target="_top">Search</a></li>
+			<li class="<% $active eq 'search'? 'selected' : '' %>"><a href="/search/form" target="_top"><% __('Search') %></a></li>
 % if(scalar keys %$has_schedule) {
 %	my @schedule_links;
 %	foreach my $school (keys %$has_schedule) {
@@ -456,7 +471,7 @@ $has_schedule => ''
 %		}
 %	}
 %	if (scalar @schedule_links > 1) {
-			<li class="schedule<% $active eq 'schedule'? ' selected' : '' %>"><a href="#">Schedule</a>
+			<li class="schedule<% $active eq 'schedule'? ' selected' : '' %>"><a href="#"><% __('Schedule') %></a>
 			<ul>
 %		foreach my $ug (@schedule_links) {
 				<li><a href="<% $ug->{link} %>"><% $ug->{label} %></a></li>
@@ -464,7 +479,7 @@ $has_schedule => ''
 			</ul>
 % 	}
 %	else {
-			<li class="<% $active eq 'schedule'? ' selected' : '' %>"><a href="<% $schedule_links[0]->{link} %>">Schedule</a>
+			<li class="<% $active eq 'schedule'? ' selected' : '' %>"><a href="<% $schedule_links[0]->{link} %>"><% __('Schedule') %></a>
 %	}
 			</li>
 % }

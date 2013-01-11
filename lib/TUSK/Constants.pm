@@ -35,7 +35,7 @@ sub initConfigs {
 
 	foreach my $category (keys %{$data}) {
 	    foreach my $item (keys %{$data->{$category}}) {		
-		if ($item !~ /^([A-z]+)(_*)([A-z]+)$/) {
+		if ($item !~ /^([A-z]+)([0-9_]*)([A-z]+)$/) {
 		    carp "Bad Variable Name: $item\n"  unless $category eq 'Servers';
 		}
 

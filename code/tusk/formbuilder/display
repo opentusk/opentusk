@@ -76,12 +76,12 @@
 
 		if ($has_save_button) {
 			if ($args->{save_submit}) { 	
-				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Successfully Saved'));
+				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => __('Successfully Saved')));
 			} elsif ($args->{form_submit}) {  
 				if ($args->{err_process_msg}) {
 					$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, msgtype => 'errmsg', msg => join('<br/>', @{$args->{err_process_msg}})));
 				} else {
-					$m->comp('SELF:redirect', url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra);
+					$m->comp('SELF:redirect', url => $redirect_submit_url, msg => __('Successfully Submitted'), extra => $extra);
 				}
 			}
 		} else {
@@ -89,16 +89,16 @@
 				if ($args->{entry_id}){  
 					my $eidmsg; 
 					if (ref($args->{entry_id}) eq 'ARRAY') {
-						$eidmsg = "Entry Updated&entry_id=".$args->{entry_id}[0]; 
+						$eidmsg = __("Entry Updated")."&entry_id=".$args->{entry_id}[0]; 
 					} else {
-						$eidmsg = "Entry Updated&entry_id=".$args->{entry_id}; 
+						$eidmsg = __("Entry Updated")."&entry_id=".$args->{entry_id}; 
 					}
 	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => $eidmsg ));
 				} else {      
 					if ($args->{err_proces_msg}) {
 						$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, msgtype => 'errmsg',  msg => join('<br/>', @{$args->{err_process_msg}})));
 					} else {
-						$m->comp('SELF:redirect', url => $redirect_submit_url, msg => "Successfully Submitted&entry_id=$new_entry_id", extra => $extra);
+						$m->comp('SELF:redirect', url => $redirect_submit_url, msg => __("Successfully Submitted")."&entry_id=$new_entry_id", extra => $extra);
 					}
 				}
 			}
@@ -160,7 +160,7 @@
 	if ($args->{entry_id}){
 		$entry = TUSK::FormBuilder::Entry->new()->lookupKey($args->{entry_id});
 		if (!$entry || !$entry->getPrimaryKeyID() || ($read_access && $entry->getUserID() ne $m->session->{'user'}->user_id())){
-			$m->comp("/tmpl/url:redirect",message => "You do not have access to that entry.");
+			$m->comp("/tmpl/url:redirect",message =>__("You do not have access to that entry."));
 		}
 		
 		my $responses = $entry->getFullResponses();
@@ -242,7 +242,7 @@
     if (%sites) {
 		foreach my $tp (@time_periods) {
 			push @$options, {
-				label => (($sites{$periods_sites{$tp->primary_key()}}) ? $sites{$periods_sites{$tp->primary_key()}}->site_name() : ' No Site ') . ' &nbsp;[' . $tp->out_display() . ']',
+				label => (($sites{$periods_sites{$tp->primary_key()}}) ? $sites{$periods_sites{$tp->primary_key()}}->site_name() : ' '.__('No Site ')) . ' &nbsp;[' . $tp->out_display() . ']',
 				value => $tp->primary_key(),
 			};		
 		}
@@ -254,7 +254,7 @@
 </script>
 
 <& /tmpl/element:dropdown, params => { 
-	label => 'Site and Time Period',
+	label => __('Site and Time Period'),
 	selected => $args->{selected_time_period_id},
 	name => 'time_period_id',
 	options => $options,

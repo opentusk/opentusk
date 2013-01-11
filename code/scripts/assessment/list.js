@@ -22,9 +22,9 @@ $(function() {
 function changeSelection() {
 	var cbox = $(this);
 	var tokens = cbox.val().split('__');
-	var choice = (cbox.attr('checked') == false) ? "do NOT" : '';
-	var email_notification = ($('#email_notification').val())  ? 'An email will be sent to Director.' : '';
-	if (confirm("Are you sure you " + choice + " want to assess this student?\n" + email_notification) == false) {
+	var choice = (cbox.attr('checked') == false) ? _("Are you sure you do NOT want to assess this student?") : _("Are you sure you want to assess this student?");
+	var email_notification = ($('#email_notification').val())  ? _('An email will be sent to Director.') : '';
+	if (confirm( choice + "\n" + email_notification) == false) {
 		var val = (cbox.attr('checked') == false) ? true : false;
 		cbox.attr('checked', val);
 		return;
@@ -52,7 +52,7 @@ function changeSelection() {
 			}
 		},
 		error		: function(xhr, ajaxOptions, thrownError) {
-            alert('Error: ' + thrownError);
+            alert(_('Error: ') + thrownError);
         }    
     });
 }
@@ -66,7 +66,7 @@ this.imagePreview = function() {
 		this.t = this.title;
 		this.title = "";	
 		var c = (this.t != "") ? "<br/>" + this.t : "";
-		$("body").append("<p id='imgPreview'><img src='"+ this.src +"' alt='Image preview' width='100px' height='100px' />"+ c +"</p>");								 
+		$("body").append("<p id='imgPreview'><img src='"+ this.src +"' alt='" + _("Image preview") + ' width='100px' height='100px' />"+ c +"</p>");								 
 		$("#imgPreview")
 			.css("top",(e.pageY - xOffset) + "px")
 			.css("left",(e.pageX + yOffset) + "px")

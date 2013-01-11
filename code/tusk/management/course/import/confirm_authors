@@ -30,7 +30,7 @@
 </%shared>
 
 <%method title>
-%	return "Confirm Authors";
+%	return __("Confirm Authors");
 </%method>
 
 <%method red_header_text>
@@ -63,7 +63,7 @@
 
 %  if(scalar @native_authors){
 
-<p class="pnaInstruction">The following list of author id's from the course you are importing matched existing user id's within your system. If the id from the course refers to the same person referenced in your system, please check the appropriate box.</p>
+<p class="pnaInstruction"><%__("The following list of author id's from the course you are importing matched existing user id's within your system. If the id from the course refers to the same person referenced in your system, please check the appropriate box.")%></p>
 
 <& /tmpl/element:form, params => { 
 		action => $r->uri(),
@@ -73,7 +73,7 @@
 <input type="hidden" name="tmp_dir" value="<% $tmp_dir %>" />
 
 <ul class="pnaNativeAuthors">
-<li class="pnaHdrRow"><input type="checkbox" name="toggle_authors" value="" onclick="toggleAuthors(this);" /> <strong>Author Name</strong></li>
+<li class="pnaHdrRow"><input type="checkbox" name="toggle_authors" value="" onclick="toggleAuthors(this);" /> <strong><%__("Author Name")%></strong></li>
 
 % my $rowType = 'pnaHighlight';
 % foreach my $a (@native_authors){
@@ -84,14 +84,14 @@
 
 <& /tmpl/element:submit_button, params=>{
 		'class' => 'submitBtn', 
-		'label' => 'Confirm Authors'} &>
+		'label' => __('Confirm Authors')} &>
 
 </form>
 %  }
 %  else {
 
 <p id="importWarning">
-Sorry. Importing a course can be tough work. If the course is large, it might take several minutes to complete the process.<br/><br/><strong>Please do not reload this page.</strong> Thank you for your patience.<br/>
+<%__("Sorry. Importing a course can be tough work. If the course is large, it might take several minutes to complete the process.")%><br/><br/><strong><%__("Please do not reload this page.")%></strong> <%__("Thank you for your patience.")%><br/>
 <span style="display:block; text-align:center; margin:10px 0;">
 <img src="/graphics/icons/waiting_bar.gif" width="220" height="19" />
 </span>
@@ -118,7 +118,7 @@ Sorry. Importing a course can be tough work. If the course is large, it might ta
 	# do not allow '../' || any chars except: alphanumerics, spaces, 
 	# underscores, dots, forward slashes and hyphens
 	if($tmp_dir =~ /\.\.\// || $tmp_dir =~ /[^\w\s_.\/-]/){
-		my $msg = 'Potential security breach detected. Please try again. Thank you.';
+		my $msg = __('Potential security breach detected. Please try again. Thank you.');
 		$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'errmsg', destination => "/management/course/import/import/$type_path");
 	}
 
@@ -128,7 +128,7 @@ Sorry. Importing a course can be tough work. If the course is large, it might ta
 	}
 	my $course = TUSK::Manage::Course::Import::importCourse($school->getSchoolName(), $tmp_dir, $m->session->{user}, \@approved_authors);
 
-	my $msg = 'Course created successfully.';
+	my $msg = __('Course created successfully.');
 	my $url = '/management/course/display/' . $school->getSchoolName() . '/' . $course->primary_key();
 
 	print "<head><meta http-equiv=\"REFRESH\" content=\"1;url=$url?msg=$msg\" /></head>";

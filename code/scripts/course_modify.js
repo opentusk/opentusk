@@ -15,7 +15,7 @@
 
 function addToLayer(){
 	if (!(document.forms.course.code.value)){
-		alert('Please enter a course code.');
+		alert(_('Please enter a course code.'));
 		return false;
 	}
 	var newdata = {course_code_id:'0',code_type:'SIS',code:document.forms.course.code.value};
