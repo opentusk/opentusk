@@ -125,15 +125,20 @@ TUSK::ScriptLog::openlog("fts_index.log");
 ## get the last time that fts was run succesfully updated
 my $lastRunTime = $processVariables->getValue('LastRun');
 
+# dispatch to one of the indexing functions
+# TODO: Extract to main function?
 if ($content_id) {
   foreach my $contentID (split(",", $content_id)) {
     index_content_id($contentID);
   }
-} elsif ($update) {
+}
+elsif ($update) {
   runUpdate();
-} elsif ($all) {
+}
+elsif ($all) {
   runAll();
-} elsif ($idFile) {
+}
+elsif ($idFile) {
   if (! -f $idFile) {
     die "File doesn't exist : $idFile";
   }
@@ -231,6 +236,7 @@ sub index_users($$) {
   TUSK::ScriptLog::log("$ii users/non_users. ");
 }
 
+# Only called from runAll procedure. Why?
 sub index_content_id_all($) {
   my $content_sid = shift;
   my $indexer = TUSK::Search::Indexer->new();
@@ -300,11 +306,11 @@ sub disconnect($) {
   $dbh->disconnect;
 }
 
+# TODO: Is this the same as HSDB4::Constants::def_db_handle
 sub dbConnect() {
-  my $aDbh = DBI->connect ("dbi:mysql:fts:$ENV{DATABASE_ADDRESS}",
-                           get_user_pw (),
-                           {
-                            RaiseError => 1 });
+  my $aDbh = DBI->connect("dbi:mysql:fts:$ENV{DATABASE_ADDRESS}",
+                          get_user_pw(),
+                          { RaiseError => 1 });
   return $aDbh;
 }
 
@@ -335,7 +341,7 @@ sub runAll() {
       }
       $tableName = '';
     }
-    unless($tableName) {
+    unless ($tableName) {
       my $archiveClause = ', "Archive" ';
       if ($archive) {
         $archiveClause = '';
@@ -366,7 +372,7 @@ sub runAll() {
     }
   }
   #Remove old instances of this converter (incase the entire thing died before)
-  unless($dbh->do("UPDATE multi_fts SET converting_host='none', converting_pid=NULL WHERE converting_host='$hostname'")) {
+  unless ($dbh->do("UPDATE multi_fts SET converting_host='none', converting_pid=NULL WHERE converting_host='$hostname'")) {
     warn "I could not reset unfinished encounters of the indexer for this host";
     $needsPause++;
   }
@@ -588,9 +594,6 @@ sub runAll() {
 
   TUSK::ScriptLog::log("Ended ".&time_stamp."\n");
 }
-
-
-
 
 sub runUpdate() {
   my $pid = $processVariables->getValue('Pid');
