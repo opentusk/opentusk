@@ -236,39 +236,29 @@ sub index_users($$) {
   TUSK::ScriptLog::log("$ii users/non_users. ");
 }
 
-# Only called from runAll procedure. Why?
-sub index_content_id_all($) {
-  my $content_sid = shift;
-  my $indexer = TUSK::Search::Indexer->new();
-  my $content_obj = HSDB4::SQLRow::Content->new->lookup_key($content_sid);
-  my $validCourses = 1;
-  if ($content_obj->course->title() =~ /^OCW: /) {
-    $validCourses = 0;
-  }
-  if ($content_obj->display and $content_obj->is_active() and $validCourses) {
-    $content_obj->out_html_body;
-    if ($content_obj->error) {
-      print "\tIndexing failed for $content_sid: ".$content_obj->error."\n";
-    } else {
-      eval {
-        $indexer->indexContent($content_obj,$noUMLSIndexing ? 0 : 1, 0);
-      };
-      if ($@) {
-        print "\tFailed Indexing $content_sid : $@";
-      }
-    }
-  } else {
-    eval {
-      $indexer->unindexContent($content_sid);
-    };
-    if ($@) {
-      print "\tFailed UnIndexing $content_sid : $@";
-    }
-  }
-}
-
+# Index an individual piece of content.
+# Optional arguments:
+#   die_on_failure: die if content fails to index, otherwise print failure
+#                   (default is true)
+#   use_umls_index: default is negation of script global (!$noUMLSIndexing)
+#   verbose       : default is negation of script global (!$noprint)
+# Examples:
+# index_content_id($id)
+# index_content_id($id, {die_on_failure => 0, verbose => 1})
 sub index_content_id($) {
-  my $content_sid = shift;
+  my ($content_sid, $arg_ref) = @_;
+
+  # Set defaults
+  my $die_on_failure = exists $arg_ref->{die_on_failure}
+    ?   $arg_ref->{die_on_failure}
+      : 1;
+  my $use_umls_index = exists $arg_ref->{index_umls}
+    ?   $arg_ref->{use_umls_index}
+      : !$noUMLSIndexing;
+  my $verbose = exists $arg_ref->{verbose}
+    ?   $arg_ref->{verbose}
+      : !$noprint;
+
   my $indexer = TUSK::Search::Indexer->new();
   my $content_obj = HSDB4::SQLRow::Content->new->lookup_key($content_sid);
   my $validCourses = 1;
@@ -281,23 +271,35 @@ sub index_content_id($) {
       print "Indexing failed for $content_sid: ".$content_obj->error."\n";
     } else {
       eval {
-        $indexer->indexContent($content_obj,$noUMLSIndexing ? 0 : 1, $noprint ? 0 : 1);
+        $indexer->indexContent($content_obj, $use_umls_index, $verbose);
       };
       if ($@) {
-        die "Failed Indexing $content_sid : $@";
+        my $err_msg = "Failed Indexing $content_sid : $@";
+        if ($die_on_failure) {
+          die $err_msg;
+        }
+        else {
+          print "\t$err_msg";
+        }
       }
-      print "Indexed $content_sid\n" if (!$noprint);
+      print "Indexed $content_sid\n" if ($verbose);
     }
   } else {
     eval {
       $indexer->unindexContent($content_sid);
     };
     if ($@) {
-      die "Failed UnIndexing $content_sid : $@";
+      my $err_msg = "Failed UnIndexing $content_sid : $@";
+      if ($die_on_failure) {
+        die $err_msg;
+      }
+      else {
+        print "\t$err_msg";
+      }
     }
-    print "Dropped from index: $content_sid" if(!$noprint);
-    print " (OCW content)" if(!$noprint && !$validCourses);
-    print "\n" if(!$noprint);
+    print "Dropped from index: $content_sid" if($verbose);
+    print " (OCW content)" if($verbose && !$validCourses);
+    print "\n" if($verbose);
   }
 }
 
@@ -479,7 +481,7 @@ sub runAll() {
                 if ($contentIdToConvert) {
                   #Convert it
                   TUSK::ScriptLog::log("($$) Starting with content id $contentIdToConvert");
-                  index_content_id_all($contentIdToConvert);
+                  index_content_id($contentIdToConvert, {die_on_failure => 0});
                   TUSK::ScriptLog::log("($$) Done with content id $contentIdToConvert");
 
                   #delete the content id that i completed
