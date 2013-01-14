@@ -1,4 +1,4 @@
-#!/usr/bin/perl  
+#!/usr/bin/perl
 
 # Copyright 2012 Tufts University 
 #
@@ -14,9 +14,14 @@
 # See the License for the specific language governing permissions and 
 # limitations under the License.
 #
+
+# Usually /usr/local/tusk/current/lib
 use FindBin;
 use lib "$FindBin::Bin/../lib";
+
 use strict;
+use utf8;
+
 use POSIX;
 use Time::Local;
 use TUSK::Core::ServerConfig;
@@ -42,9 +47,6 @@ sub disconnect($);
 sub runAll();
 sub runUpdate();
 
-$ENV{XSL_ROOT} = "$FindBin::Bin/../code/XSL";
-$ENV{SERVER_ROOT} = "$FindBin::Bin/../";
-
 my (
     $content_id,
     $all,
@@ -69,10 +71,8 @@ GetOptions( "content-id=s" => \$content_id,
             "num-children=i" => \$numChildren,
           );
 
-BEGIN {
-  # Make sure we have arguments
-  unless (@ARGV) {
-    print <<'END_USAGE';
+sub usage {
+  return <<'END_USAGE';
 Usage: fts_index [--recent  | --all | --id-file=<file name> |
                   --content-id=<content_id>[,<content_id>,. . .]
                   --include-archive --no-umls-indexing
@@ -92,19 +92,31 @@ Usage: fts_index [--recent  | --all | --id-file=<file name> |
      no-umls-indexing : turn off UMLS Indexing to increase performance
 
 END_USAGE
+}
+
+BEGIN {
+  # Make sure we have arguments
+  unless (@ARGV) {
+    print usage();
     exit;
   }
 }
 
+# Set environment variables
+# Note: Should prefix with TUSK_ for future-proofing
+$ENV{XSL_ROOT} = "$FindBin::Bin/../code/XSL";
+$ENV{SERVER_ROOT} = "$FindBin::Bin/../";
+$ENV{DATABASE_ADDRESS} = exists $ENV{DATABASE_ADDRESS}
+  ? $ENV{DATABASE_ADDRESS}
+  : TUSK::Core::ServerConfig::dbWriteHost;
+die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
+
+# Get variables from tusk.cron_job_variable with cron_name of fts_index
 my $processVariables = TUSK::Cron::VariableManager->new();
 
+# Use MySQL password from .my.cnf (or ask user for name/pw)
 HSDB4::Constants::set_user_pw (get_user_pw);
 my $starttime = &time_stamp;
-
-if (!defined($ENV{DATABASE_ADDRESS})) {
-  $ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost;
-}
-die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
 
 TUSK::ScriptLog::openlog("fts_index.log");
 
@@ -138,7 +150,7 @@ END {
 }
 
 sub time_stamp() {
-  my @time = split(" ",scalar(localtime(time())));
+  my @time = split(" ", scalar(localtime(time())));
   return $time[3];
 }
 
@@ -147,12 +159,17 @@ sub index_objective($$) {
   my $dbh = shift;
   my $modified = shift;
   my $fts = DBIx::FullTextSearch->open($dbh,"fts_objective");
-  my $query = "select objective_id,body from hsdb4.objective";
-  $query .= " where modified > '$modified'" if ($modified);
+  my $query = 'select objective_id, body from hsdb4.objective';
+  $query .= ' where modified > ?' if ($modified);
   my $sth = $dbh->prepare($query);
-  $sth->execute();
+  if ($modified) {
+    $sth->execute($modified);
+  }
+  else {
+    $sth->execute();
+  }
   my $ii = 0;
-  while (my ($id,$string) = $sth->fetchrow_array) {
+  while (my ($id,$string) = $sth->fetchrow_array()) {
     $fts->index_document($id,$string);
     sleep (1);
     $ii++;
