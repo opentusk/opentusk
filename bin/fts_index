@@ -57,7 +57,8 @@ my (
     $update,
     $debug,
     $numChildren,
-    $restartAll
+    $restartAll,
+    $show_help,
    );
 GetOptions( "content-id=s" => \$content_id,
             "all!" => \$all,
@@ -69,37 +70,38 @@ GetOptions( "content-id=s" => \$content_id,
             "debug!" => \$debug,
             "id-file=s" => \$idFile,
             "num-children=i" => \$numChildren,
+            "help" => \$show_help,
           );
 
 sub usage {
   return <<'END_USAGE';
 Usage: fts_index [--recent  | --all | --id-file=<file name> |
-                  --content-id=<content_id>[,<content_id>,. . .]
+                  --content-id=<content_id>[,<content_id>,. . .]]
                   --include-archive --no-umls-indexing
                   --num-children=<number of child processes>
                   --noprint
 
-  You must use of of the four options to run fts:
+  You must use one of the four options to run fts:
      recent     : indexes content that has changed, started or ended since
                   last run
      all        : indexes all content
      content-id : takes a list of content ids to index
      id-file    : takes the name of a file that has a list of content ids to
                   index
+  Or:
+     help       : Print this message and exit
   Optional Parameters:
-     num-children    : number of child processes to spawn when running --all
-     include-archive : includes the archive school in the index
+     num-children     : number of child processes to spawn when running --all
+     include-archive  : includes the archive school in the index
      no-umls-indexing : turn off UMLS Indexing to increase performance
 
 END_USAGE
 }
 
-BEGIN {
-  # Make sure we have arguments
-  unless (@ARGV) {
-    print usage();
-    exit;
-  }
+# Make sure we have arguments
+if ($show_help || !(scalar @ARGV)) {
+  print usage();
+  exit;
 }
 
 # Set environment variables
