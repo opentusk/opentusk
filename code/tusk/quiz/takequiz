@@ -61,7 +61,7 @@
 		}
 	} else {
 		if ($preview) {
-			$m->redirect('/quiz/author/quizpreview/' . $type_path . '/' . $quiz_id . '?preview=1&hintmsg=Please use Preview button or link to preview the quiz.');
+			$m->redirect('/quiz/author/quizpreview/' . $type_path . '/' . $quiz_id . '?preview=1&hintmsg='.__('Please use Preview button or link to preview the quiz.'));
 		} 
 	}
 
@@ -71,28 +71,28 @@
 	}
 
 	if (defined($args{save_submit})) {
-		$m->comp('SELF:set_msg', msg => 'Quiz successfully saved');
+		$m->comp('SELF:set_msg', msg => __('Quiz successfully saved'));
 	}
 
 	if ($args{finish_submit}){
 		if ($quiz->isSelfAssessment() || $quiz->isFeedbackQuiz()){
 			if ($quiz->getQuestionsPerPage()){
-				$m->comp("SELF:set_msg", msg => "Your quiz has been successfully submitted");
+				$m->comp("SELF:set_msg", msg => __("Your quiz has been successfully submitted"));
 			} else {
-				$m->comp("SELF:set_msg", msg => "Your quiz has been successfully submitted. Please review your answers");
+				$m->comp("SELF:set_msg", msg => __("Your quiz has been successfully submitted. Please review your answers"));
 			}
 		} else {
-			$m->comp("SELF:set_msg", msg => "Your quiz has been successfully submitted");
+			$m->comp("SELF:set_msg", msg => __("Your quiz has been successfully submitted"));
 		}
 	} 
 
 	if (defined $result && $total_items_count <= $result->getCurrentQuestionIndex() && !($result->getEndDate()) && !$preview) {
-		$m->comp('SELF:set_msg', msg => "There is something wrong about your quiz. Please contact $TUSK::Constants::SiteAbbr for help.", type => 'err');
+		$m->comp('SELF:set_msg', msg => __x("There is something wrong about your quiz. Please contact {site} for help.", site => $TUSK::Constants::SiteAbbr), type => 'err');
 		$err = 1;
 	}
 
 	if ($quiz->hasUserCompleted($user_id,$preview) && !$quiz->isSelfAssessment() && !$preview) {
-		$m->comp("SELF:set_msg", msg => "You have already submitted this quiz", type => 'err');
+		$m->comp("SELF:set_msg", msg => __("You have already submitted this quiz"), type => 'err');
 		$err = 1;
 	}
 
@@ -136,12 +136,12 @@
 
 <script language="JavaScript"  type="text/javascript">
 
-var message = 'Please only use the navigation buttons or links on the quiz page';
+var message = __('Please only use the navigation buttons or links on the quiz page');
 disableRightClick(message);
 
 function warnUser() {
 	if (document.takequiz && document.takequiz.submit_click.value != 1) {
-		alert("Please only use the navigation buttons or links on the quiz page.\n If you are taken out of the quiz in error, you may resume the quiz.");
+		alert("<%__("Please only use the navigation buttons or links on the quiz page.\n If you are taken out of the quiz in error, you may resume the quiz.")%>");
 	}
 }
 
@@ -168,7 +168,7 @@ function countdown(secs, layer, starttime) {
 
 	if (timeleft == 0) {
 		hideClock();
-		alert("Time for taking this quiz is up.\n\nClick 'OK' to submit the quiz.");
+		alert("<%__("Time for taking this quiz is up.\n\nClick 'OK' to submit the quiz.")%>");
 		document.takequiz.auto_submit.value = 1;
 		document.takequiz.submit_check.value = 1;
 		clickSubmit();
@@ -178,11 +178,11 @@ function countdown(secs, layer, starttime) {
 	min_s = (min > 1) ? 's' : '';
 	sec_s = (sec > 1) ? 's' : '';
 	
-	var display_string = "<font color='blue'>" + min + " minute" + min_s + " and " + sec + " second" + sec_s + " left</font>";
+	var display_string = "<font color='blue'>" + min + " "+ _("minute") + min_s + " "+_("and")+" " + sec + " "+ _("second") + sec_s + " "+ _("left")+"</font>";
 
 	// this message should not be display now. In case we might want to change the logic again.
 	if (timeleft <= 0) {
-		display_string = "<font color='red'>Time has expired (over by " + display_string + ").</font>";
+		display_string = "<font color='red'>"+_("Time has expired (over by")+" " + display_string + ").</font>";
     }
      	
 	if (document.layers){
@@ -237,14 +237,14 @@ function hideClock() {
 	push @links, '<strong>' . $m->session->{user}->out_full_name() . '</strong>';
 
 	if ($args{preview}) {
-		push @links, '<a href="/quiz/author/show/' . $type_path . '" onclick="clickSubmit();">Manage Quizzes</a>';
-		push @links, '<a href="/quiz/author/addedit/' . $type_path . '/' . $quiz_id . '" onclick="clickSubmit();">Modify Quiz</a>';
+		push @links, '<a href="/quiz/author/show/' . $type_path . '" onclick="clickSubmit();">'.__('Manage Quizzes').'</a>';
+		push @links, '<a href="/quiz/author/addedit/' . $type_path . '/' . $quiz_id . '" onclick="clickSubmit();">'.__('Modify Quiz').'</a>';
 	} else {
-		push @links, '<a href="/" onclick="clickSubmit();">Home Page</a>';
-		push @links, '<a href="/view/' . $type_path . '/quizzes" onclick="clickSubmit();">Course Quizzes</a>';
+		push @links, '<a href="/" onclick="clickSubmit();">'.__('Home Page').'</a>';
+		push @links, '<a href="/view/' . $type_path . '/quizzes" onclick="clickSubmit();">'.__('Course Quizzes').'</a>';
 	}
 
-	push @links, '<a class="logout" href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time() . '" onclick="clickSubmit();">Logout</a>';
+	push @links, '<a class="logout" href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time() . '" onclick="clickSubmit();">'.__('Logout').'</a>';
 
 	return \@links;
 </%perl>
@@ -286,24 +286,24 @@ function hideClock() {
 			if ($total_items_count == $result->getCurrentQuestionIndex()) {
 				$done_with_feedback_and_quiz = 1;
 			} else {
-				$button_text = 'Continue';
+				$button_text = __('Continue');
 				$button_name = 'feedback_submit';
 			}
 		} else {
 			if ($total_items_count <= $result->getCurrentQuestionIndex() + $quiz->getQuestionsPerPage()) {				
-				$button_text = 'Submit & Complete Quiz';
+				$button_text = __('Submit & Complete Quiz');
 				$button_name = 'finish_submit';
 			} else {
 				if ($quiz->isGradedQuiz()) {
-					$button_text = 'Next Page';
+					$button_text = __('Next Page');
 				} else {
-					$button_text = 'Submit Answer(s)';
+					$button_text = __('Submit Answer(s)');
 				}
 				$button_name = 'continue_submit';
 			}
 		}
 	} else {  ### all questions in one page
-			$button_text = 'Submit Quiz';
+			$button_text = __('Submit Quiz');
 			$button_name = 'finish_submit';
 	}
 
@@ -322,7 +322,7 @@ function hideClock() {
 	my $prev_save_buttons = '';
 	if ($quiz->getQuestionsPerPage() && $result->getCurrentQuestionIndex() && !$quiz->isSelfAssessment() && !$quiz->isFeedbackQuiz()) {
 		$prev_save_buttons = $m->scomp('/tmpl/element:button', params => {
-			label		=> 'Previous Page',
+			label		=> __('Previous Page'),
 			name		=> 'back_submit',
 			type		=> 'submit',
 			onclick		=> 'clickSubmit();',
@@ -332,7 +332,7 @@ function hideClock() {
 
 	if (($quiz->isFeedbackQuiz() || $quiz->isGradedQuiz()) && !$show_feedback) {
 		$prev_save_buttons .= $m->scomp('/tmpl/element:button', params => {
-			label		=> 'Save Quiz',
+			label		=> __('Save Quiz'),
 			name		=> 'save_submit',
 			type		=> 'submit',
 			onclick		=> 'clickSubmit();',
@@ -374,7 +374,7 @@ function hideClock() {
 % if (scalar(@{$items})){
 %	if ($done_with_feedback_and_quiz) {
 		<tr><td></td><td>
-%		$m->print("<span style=\"font-size:90%;color:blue;font-weight:bold;\">You have completed the quiz on " . $result->getEndDate() . "</span><br/>");
+%		$m->print("<span style=\"font-size:90%;color:blue;font-weight:bold;\">".__x("You have completed the quiz on {enddate}", enddate => $result->getEndDate()) . "</span><br/>");
 		<& SELF:display_done_quiz_page &>	
 		</td></tr>
 %	} else {
@@ -428,7 +428,7 @@ function hideClock() {
 
 <%perl>
 	$button = $m->scomp( '/tmpl/element:button', params => {
-			label		=> 'Repeat Quiz',
+			label		=> __('Repeat Quiz'),
 			name		=> 'repeat_quiz_submit',
 			type		=> 'submit',
 			onclick		=> 'clickSubmit();',
@@ -506,7 +506,7 @@ function hideClock() {
     <td align="right" valign="bottom"><span class="emphasis_font"> <% join(' | ', @{$m->comp('SELF:add_links')}) %></span> &nbsp;</td>
   </tr>
   <tr class="redHeaderBar">
-    <td align="center" colspan="3">Quiz: <% $quiz->getTitle %> </td>
+    <td align="center" colspan="3"><%__("Quiz")%>: <% $quiz->getTitle %> </td>
   </tr>
 </table>
 </%method>
