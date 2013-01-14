@@ -47,10 +47,10 @@ function changeTabState() {
 function managePersonalLinks() {
 	if (!$dialog) {
 		$dialog = $('<div></div>')
-			.html('<form onsubmit="return savePersonalLinks()"><h2>Add New Link</h2><p><label>Label</label><input type="text" id="newlabel" /><span class="spacer">&nbsp;</span><label>URL</label><input type="text" id="newurl" /><span class="spacer">&nbsp;</span><input type="button" value="add" onclick="addPersonalLink()" /></p><hr /><h2>Modify Existing Links</h2><p>To delete an existing link, leave both the Label and URL fields blank.</p><div id="personalLinks">' + displayPersonalLinks() + '</div><p class="buttons"><input type="submit" value="save"></p></form>')
+			.html('<form onsubmit="return savePersonalLinks()"><h2>' + _("Add New Link") + '</h2><p><label>Label</label><input type="text" id="newlabel" /><span class="spacer">&nbsp;</span><label>URL</label><input type="text" id="newurl" /><span class="spacer">&nbsp;</span><input type="button" value="add" onclick="addPersonalLink()" /></p><hr /><h2>' + _("Modify Existing Links") + '</h2><p>' + _("To delete an existing link, leave both the Label and URL fields blank.") + '</p><div id="personalLinks">' + displayPersonalLinks() + '</div><p class="buttons"><input type="submit" value="' + _("save") + '"></p></form>')
 			.dialog({
 				autoOpen: false,
-				title: 'Manage your personal links',
+				title: _("Manage your personal links"),
 				modal: true,
 				width: '50%'
 			});
@@ -63,7 +63,7 @@ function managePersonalLinks() {
 // loop through links JSON array and output HTML table of links
 // will re-set order to continuous increments starting with 1 in case there are gaps
 function displayPersonalLinks() {
-	var html = "<table>\n<thead>\n<tr>\n<th>Order</th><th>Label</th><th>URL</th>\n</tr>\n</thead>\n<tbody>";
+	var html = "<table>\n<thead>\n<tr>\n<th>" + _("Order") + "</th><th>" + _("Label") + "</th><th>" + _("URL") + "</th>\n</tr>\n</thead>\n<tbody>";
 		
 	var orders = jQuery.map(links, function(n, i){
       return (n.sort_order);
@@ -115,7 +115,7 @@ function addPersonalLink() {
 		$("#personalLinks").html(displayPersonalLinks());
 	}
 	else {
-		alert('Please fill out both the Label and URL fields to add a new link.');
+		alert(_("Please fill out both the Label and URL fields to add a new link."));
 	}
 }
 
@@ -128,11 +128,11 @@ function savePersonalLinks() {
 		var thislabel = $(this).val();
 		var thisurl =  $(this).parent('td').siblings().children(".url").val();
 		if(!(/^([a-z]([a-z]|\d|\+|-|\.)*):(\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?((\[(|(v[\da-f]{1,}\.(([a-z]|\d|-|\.|_|~)|[!\$&'\(\)\*\+,;=]|:)+))\])|((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=])*)(:\d*)?)(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*|(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)){0})(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(thisurl))) {
-			error = 'The URL in row ' + counter + ' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.';
+			error = _('The URL in row ') + counter + _(' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
 
 		if(!error && !(/[\S]+$/.test(thislabel))) {
-			error = 'The Label in row ' + counter + ' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.';
+			error = _('The Label in row ') + counter + _(' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
 		else if(!(/[\S]+$/.test(thislabel))) {
 			error = '';
@@ -180,7 +180,7 @@ function resetAllLinkData() {
 			$($dialog).dialog( "close" );
 		}
 		else{
-			alert("An error has occurred while attempting to save.");
+			alert(_("An error has occurred while attempting to save."));
 			return false;
 		}
 	}
