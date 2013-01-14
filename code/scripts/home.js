@@ -204,7 +204,7 @@ function updateLinksArray() {
 
 // use JSON links array to generate select form element of personal links
 function makeLinksDropDown() {
-	var options = "<option value=''>My links...</option>";
+	var options = "<option value=''>" + _("My links") + "...</option>";
 	$.each(links, function(index, hash) {
 		if (hash.label != '' && hash.url != '') {
 			options += '<option value="';
