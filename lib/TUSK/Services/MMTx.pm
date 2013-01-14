@@ -170,140 +170,143 @@ sub scoreText {
 =cut
 
 sub find_concepts {
-    my $self = shift;
+  my $self = shift;
 
-    my $file = shift;
-    
-    my $verbose = shift || 0;
+  my $file = shift;
 
-    my ($text, $mmtx_output); 
-    my %concepts = ();
+  my $verbose = shift || 0;
 
-    return () unless (defined($file));
+  my ($text, $mmtx_output);
+  my %concepts = ();
 
-    if (ref($file) ne 'IO::File' ) {
+  return () unless (defined($file));
 
-        if ( $file !~ /\n/ && -e $file ) {
-            my $fh = new IO::File $file, "r";  # open read-only
-	    
-            if ( ! defined $fh ) {
-                throw Error::Simple( "Unable to open $file: $!" );
-            } else {
-                local $/;
-                $/ = undef;
-                $text = <$fh>;
-            }
-        } else {
-            $text = $file;
-        }
-	
-    } else {
+  if (ref($file) ne 'IO::File' ) {
+
+    if ( $file !~ /\n/ && -e $file ) {
+      my $fh = new IO::File $file, "r"; # open read-only
+
+      if ( ! defined $fh ) {
+        throw Error::Simple( "Unable to open $file: $!" );
+      }
+      else {
         local $/;
         $/ = undef;
-        $text = <$file>;
+        $text = <$fh>;
+      }
     }
-    
-
-    ### We have found that common every day things get matched by the MetaMapper
-    $text =~ s/\bP\.?H\.?D\.?\b//gi; # remove Ph.D. which might appear
-    $text =~ s/\bM\.?D\.?\b//gi; # remove Ph.D. which might appear
-    
-    # strip out an HTML/XML tags
-    $text =~ s#</?[^> ][^>]*>##g;
-    
-    # strip out the odd \n characters
-    $text =~ s#\\n##g;
-    
-    # now make in to all one line so that the mmtx tool doesn't stop at
-    # newline
-    $text =~ s#[\r\n]#  #g;
-	
-	my $temp_file = "/tmp/mmtx_temp_file.$$.txt";
-
-    open TMP_FILE, ">", $temp_file || die "Unable to open $temp_file: $!";
-    
-    print TMP_FILE $text;
-    
-    close TMP_FILE;
-    
-    my $cmd = $TUSK::Constants::mmtxExecutable.' '.
-	'--restrict_to_sts=aapp,antb,bacs,carb,chvf,chvs,clnd,eico,elii,enzy,hops,horm,imft,irda,inch,lipd,nsba,nnon,orch,opco,phsu,rcpt,strd,vita,amas,crbs,mosq,gngm,nusq,celf,clna,genf,moft,dsyn,bpoc,gngm,blor,bsoj,orgf,ortf,genf,patf,mobd,evnt,hlca,diap,topp,aggp,sosy,bact ' .
-	'-X --machine_output --fileName='.$temp_file;
-    $cmd .= " 2>>/tmp/mmtx_err.$$.txt" unless ($verbose);
-
-    if ((! -f $TUSK::Constants::mmtxExecutable) || (! -x $TUSK::Constants::mmtxExecutable)) {
-	confess "MMTx program not found at $TUSK::Constants::mmtxExecutable";
-    }
-    $mmtx_output = `$cmd`;
-    
-    print $mmtx_output ."\n" if ($verbose);
-
-    unlink $temp_file;
-    unlink "/tmp/mmtx_err.$$.txt" unless ($verbose);
-    
-    # to keep track of which "phrase" we're getting concepts from
-    my $current_phrase = '';
-    
-    for ( split "\n", $mmtx_output ) {
-	
-	if ( /utterance\((.*?[^\\])\)\./ms ) {
-	    next;
-	}
-	elsif ( /phrase\((.*?[^\\])\)\./ms ) {
-	    
-	    my ( $tagging_info );
-	    ( $current_phrase, $tagging_info ) = $1 =~ /
-                ^\s*
-		[\'\"]*(.*?)[\'\"]*
-		\s*,\s*
-		(\[.*?\])
-                \s*$
-		/x;
-	    next;
-	    
-	}
-	elsif ( /candidates\((.*?[^\\])\)\./ms ) {
-	    next;
-	}
-	elsif ( /mappings\((.*?[^\\])\)\./ms ) {
-	    unless ( $1 =~ /^\s*\[\]\s*$/ ) {
-		my @mappings = split /\)\s*,\s*map\(/, $1;
-		
-		for ( @mappings ) {
-		    s/^\s*\[map\(//;  # strip out the leading 'map('
-		    s/\)\]\s*$//;    # strip out any trailng ')]'
-		    
-		    my ($overall_score, $ev_list) = $_ =~ /^(-*\d+),(.*)/;
-		    
-		    for my $ev ( split /\)\s*ev\(/, $ev_list ) {
-			$ev =~ s/^\s*\[ev\(//;  # strip out the leading 'ev('
-			$ev =~ s/\)\]\s*$//;    # strip out any trailng ')]'
-			
-			# now grab the actual candidate data
-			my %parse_ev = &parse_ev($ev);
-
-			if ( %parse_ev ) {
-			    unless ( $concepts{$parse_ev{'concept'}} ) {
-				$concepts{$parse_ev{'concept'}} = {
-				    %parse_ev,
-				    score => 0,
-				    };
-			    }
-                            $concepts{$parse_ev{'concept'}}{'score'} += $overall_score;
-			    $concepts{$parse_ev{'concept'}}{'num_of_occurrences'}++;
-			    
-			    push (@{$concepts{$parse_ev{'concept'}}{'mapped_text'}}, $current_phrase);
-			}
-		    }
-		    
-		}
-	    }
-	}
-	elsif ( /'EOU'\./ ) {	    
-	}
+    else {
+      $text = $file;
     }
 
-    return values %concepts;
+  }
+  else {
+    local $/;
+    $/ = undef;
+    $text = <$file>;
+  }
+
+
+  ### We have found that common every day things get matched by the MetaMapper
+  $text =~ s/\bP\.?H\.?D\.?\b//gi; # remove Ph.D. which might appear
+  $text =~ s/\bM\.?D\.?\b//gi;     # remove Ph.D. which might appear
+
+  # strip out an HTML/XML tags
+  $text =~ s#</?[^> ][^>]*>##g;
+
+  # strip out the odd \n characters
+  $text =~ s#\\n##g;
+
+  # now make in to all one line so that the mmtx tool doesn't stop at
+  # newline
+  $text =~ s#[\r\n]#  #g;
+
+  my $temp_file = "/tmp/mmtx_temp_file.$$.txt";
+
+  open TMP_FILE, ">", $temp_file || die "Unable to open $temp_file: $!";
+
+  print TMP_FILE $text;
+
+  close TMP_FILE;
+
+  my $cmd = $TUSK::Constants::mmtxExecutable.' '.
+    '--restrict_to_sts=aapp,antb,bacs,carb,chvf,chvs,clnd,eico,elii,enzy,hops,horm,imft,irda,inch,lipd,nsba,nnon,orch,opco,phsu,rcpt,strd,vita,amas,crbs,mosq,gngm,nusq,celf,clna,genf,moft,dsyn,bpoc,gngm,blor,bsoj,orgf,ortf,genf,patf,mobd,evnt,hlca,diap,topp,aggp,sosy,bact ' .
+      '-X --machine_output --fileName='.$temp_file;
+  $cmd .= " 2>>/tmp/mmtx_err.$$.txt" unless ($verbose);
+
+  if ((! -f $TUSK::Constants::mmtxExecutable) || (! -x $TUSK::Constants::mmtxExecutable)) {
+    confess "MMTx program not found at $TUSK::Constants::mmtxExecutable";
+  }
+  $mmtx_output = `$cmd`;
+
+  print $mmtx_output ."\n" if ($verbose);
+
+  unlink $temp_file;
+  unlink "/tmp/mmtx_err.$$.txt" unless ($verbose);
+
+  # to keep track of which "phrase" we're getting concepts from
+  my $current_phrase = '';
+
+  for ( split "\n", $mmtx_output ) {
+
+    if ( /utterance\((.*?[^\\])\)\./ms ) {
+      next;
+    }
+    elsif ( /phrase\((.*?[^\\])\)\./ms ) {
+
+      my ( $tagging_info );
+      ( $current_phrase, $tagging_info ) = $1 =~ /
+                                                   ^\s*
+                                                   [\'\"]*(.*?)[\'\"]*
+                                                   \s*,\s*
+                                                   (\[.*?\])
+                                                   \s*$
+                                                 /x;
+      next;
+
+    }
+    elsif ( /candidates\((.*?[^\\])\)\./ms ) {
+      next;
+    }
+    elsif ( /mappings\((.*?[^\\])\)\./ms ) {
+      unless ( $1 =~ /^\s*\[\]\s*$/ ) {
+        my @mappings = split /\)\s*,\s*map\(/, $1;
+
+        for ( @mappings ) {
+          s/^\s*\[map\(//;      # strip out the leading 'map('
+          s/\)\]\s*$//;         # strip out any trailng ')]'
+
+          my ($overall_score, $ev_list) = $_ =~ /^(-*\d+),(.*)/;
+
+          for my $ev ( split /\)\s*ev\(/, $ev_list ) {
+            $ev =~ s/^\s*\[ev\(//; # strip out the leading 'ev('
+            $ev =~ s/\)\]\s*$//;   # strip out any trailng ')]'
+
+            # now grab the actual candidate data
+            my %parse_ev = &parse_ev($ev);
+
+            if ( %parse_ev ) {
+              unless ( $concepts{$parse_ev{'concept'}} ) {
+                $concepts{$parse_ev{'concept'}} = {
+                                                   %parse_ev,
+                                                   score => 0,
+                                                  };
+              }
+              $concepts{$parse_ev{'concept'}}{'score'} += $overall_score;
+              $concepts{$parse_ev{'concept'}}{'num_of_occurrences'}++;
+
+              push (@{$concepts{$parse_ev{'concept'}}{'mapped_text'}}, $current_phrase);
+            }
+          }
+
+        }
+      }
+    }
+    elsif ( /'EOU'\./ ) {
+    }
+  }
+
+  return values %concepts;
 }
 
 #  find_top_concepts takes a list of concept hashes and sorts them by 'score'
