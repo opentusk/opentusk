@@ -141,7 +141,7 @@
 	my $label = ($params{course_id}) ? $course->title() : $time_period_text;
 
 	if ($count > 0) {	
-		$m->print('<br/><table width="100%"><tr><td class="layers-left"><span class="med"><b>'.__x('Evaluations for {label}', label => $label).'</b></span><br/><span style="font-size:65%;color:green;">* '.__('Click on column heading to sort.').'</span></td><td class="layers-right" style="font-size:80%;color:blue;" align="right"># '.__('Evaluations').': &nbsp;$count</td></tr></table>');
+		$m->print('<br/><table width="100%"><tr><td class="layers-left"><span class="med"><b>'.__x('Evaluations for {label}', label => $label).'</b></span><br/><span style="font-size:65%;color:green;">* '.__('Click on column heading to sort.').'</span></td><td class="layers-right" style="font-size:80%;color:blue;" align="right"># '.__('Evaluations').': &nbsp;' . $count . '</td></tr></table>');
 
 		$m->print("
 <style>
@@ -177,7 +177,7 @@ table.sortable thead {
 		my $completions = sprintf("%.0f", ($complete_users / $total_users)*100) . "% <span style=\"font-size:80%;color:gray;\">($complete_users\/$total_users)</span>" if ($total_users > 0);
 		my $eval_id = $eval->primary_key();
 
-		my $delete_option = ($eval->is_notyetavailable() && $eval->is_editable()) ?  qq(<option value="/protected/eval/administrator/delete/$school/$eval_id">Delete</option>) : '';
+		my $delete_option = ($eval->is_notyetavailable() && $eval->is_editable()) ?  '<option value="/protected/eval/administrator/delete/' . $school . '/' . $eval_id . '">Delete</option>' : '';
 		$m->print("
 <tr>
 <td class=\"layers-center\" style=\"border-bottom:1px solid #99CCCC;\">$eval_id &nbsp;</td>
@@ -186,14 +186,14 @@ table.sortable thead {
 <td class=\"layers-center\" style=\"border-bottom:1px solid #99CCCC;\">" . $eval->field_value('due_date') . " &nbsp;</td>
 <td class=\"layers-center\" style=\"border-bottom:1px solid #99CCCC;\">$completions &nbsp;</td>" .
 '<td style="border-bottom:1px solid #99CCCC;" align="center"><form name="act" method="POST" class="no-padding">
-	<select name="address" onChange="verifyForward(this, $eval_id)">
+	<select name="address" onChange="verifyForward(this, ' . $eval_id . ')">
 	<option value="">-- '.__('select').' --</option>
-	<option value="/protected/eval/complete/$school/$eval_id">'.__('Preview').'</option>
-	<option value="/protected/eval/administrator/eval_edit/$school/$eval_id">'.__('Edit').'</option>
-	<option value="/protected/eval/administrator/completion/show/$school/$eval_id">'.__('Completion').'</option>
-	<option value="/protected/eval/report/$school/$eval_id">'.__("Report").'</option>
+	<option value="/protected/eval/complete/' . $school . '/' . $eval_id . '">'.__('Preview').'</option>
+	<option value="/protected/eval/administrator/eval_edit/' . $school . '/' . $eval_id . '">'.__('Edit').'</option>
+	<option value="/protected/eval/administrator/completion/show/' . $school . '/' . $eval_id . '">'.__('Completion').'</option>
+	<option value="/protected/eval/report/' . $school . '/' . $eval_id . '">'.__("Report").'</option>' .
 	$delete_option
-        </select>
+        . '</select>
 </form></td>
 </tr>');
 	}
