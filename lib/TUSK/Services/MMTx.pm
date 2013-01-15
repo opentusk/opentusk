@@ -229,15 +229,33 @@ sub find_concepts {
 
   close TMP_FILE;
 
-  my $cmd = $TUSK::Constants::mmtxExecutable.' '.
-    '--restrict_to_sts=aapp,antb,bacs,carb,chvf,chvs,clnd,eico,elii,enzy,hops,horm,imft,irda,inch,lipd,nsba,nnon,orch,opco,phsu,rcpt,strd,vita,amas,crbs,mosq,gngm,nusq,celf,clna,genf,moft,dsyn,bpoc,gngm,blor,bsoj,orgf,ortf,genf,patf,mobd,evnt,hlca,diap,topp,aggp,sosy,bact ' .
-      '-X --machine_output --fileName='.$temp_file;
-  $cmd .= " 2>>/tmp/mmtx_err.$$.txt" unless ($verbose);
+  my $SPACE = q{ };
+  my $cmd = $TUSK::Constants::mmtxExecutable
+    . $SPACE
+    . '--restrict_to_sts=aapp,antb,bacs,carb,chvf,chvs,clnd,eico,elii,enzy,'
+    . 'hops,horm,imft,irda,inch,lipd,nsba,nnon,orch,opco,phsu,rcpt,strd,vita,'
+    . 'amas,crbs,mosq,gngm,nusq,celf,clna,genf,moft,dsyn,bpoc,gngm,blor,bsoj,'
+    . 'orgf,ortf,genf,patf,mobd,evnt,hlca,diap,topp,aggp,sosy,bact'
+    . $SPACE
+    . '-X --machine_output --fileName='
+    . $temp_file;
+  $cmd .= $SPACE . "2>>/tmp/mmtx_err.$$.txt" unless ($verbose);
 
   if ((! -f $TUSK::Constants::mmtxExecutable) || (! -x $TUSK::Constants::mmtxExecutable)) {
     confess "MMTx program not found at $TUSK::Constants::mmtxExecutable";
   }
-  $mmtx_output = `$cmd`;
+
+  # Get the MMTx output, timing out in case MMTx hangs (has been a problem)
+  # See http://perldoc.perl.org/functions/alarm.html for details on timeout
+  eval {
+    local $SIG{ALRM} = sub { die "MMTx indexing timed out\n" }; # \n required
+    alarm $TUSK::Constants::MMTxIndexTimeout;
+    $mmtx_output = `$cmd`;
+    alarm 0;
+  };
+  if ($@) {
+    die "MMTx indexing timed out";
+  }
 
   print $mmtx_output ."\n" if ($verbose);
 
