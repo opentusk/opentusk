@@ -49,13 +49,13 @@
 	my $periods = $typeObj->get_time_periods();
 
 	unless (defined $periods) {
-		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/show", msgtype => 'errmsg', msg => 'Please add a time period prior to creating a new quiz.'));
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/show", msgtype => 'errmsg', msg => __('Please add a time period prior to creating a new quiz.')));
 	}
 		
 	unless ($time_period->primary_key()) {
 		$m->comp('SELF:set_msg', 
  			type 	=> 'err', 
-			msg	=> 'Time period is not yet selected. Select one.');
+			msg	=> __('Time period is not yet selected. Select one.'));
 
 		$time_period_text .= "<select name=\"timeperiod\" onchange=\"document.generic.submit();\" class=\"navsm\">";
 		$time_period_text .= "<option class=\"navsm\" value=\"\" SELECTED>";
@@ -86,9 +86,9 @@ return $m->comp("/quiz/tmpl/nav", 'prefix'=>$m->comp("SELF:url_prefix"),
 
 <%method title>
 <%perl>
-my $title = "Create Quiz";
+my $title = __("Create Quiz");
 if (defined($id)){
-        $title = "Modify Quiz";
+        $title = __("Modify Quiz");
 }
 return $title;
 </%perl>
@@ -109,12 +109,12 @@ return $title;
 				} &>
 
 <& /tmpl/element:field_display, params =>{ 
-	label 	=> 'Time Period:',
+	label 	=> __('Time Period').':',
 	value 	=> $time_period_text,
 } &>
 
 <& /tmpl/element:textbox, params => { 
-		label	=> 'Quiz Title:',
+		label	=> __('Quiz Title').':',
                 name	=> 'title',
                 value	=> $quiz->getTitle(),
                 size	=> 60,
@@ -122,22 +122,22 @@ return $title;
 			} &>
 
 <& /tmpl/element:dropdown, params => { 
-		label 		=> 'Quiz Type:',
+		label 		=> __('Quiz Type').':',
                 name 		=> 'quiz_type',
                 onchange	=> undef,
                 selected	=> $quiz->getQuizType() ,
                 options		=> [
-					{ label => 'Self Assessment', 	value => 'SelfAssessment' },
-					{ label => 'Graded Quiz', 	value => 'Quiz' },
-					{ label => 'Feedback Quiz', 	value => 'FeedbackQuiz' },
+					{ label => __('Self Assessment'), 	value => 'SelfAssessment' },
+					{ label => __('Graded Quiz'), 	value => 'Quiz' },
+					{ label => __('Feedback Quiz'), 	value => 'FeedbackQuiz' },
 				] } &>
 
 <& /tmpl/element:dropdown, params => { 
-		label		=> 'Questions per Page:',
+		label		=> __('Questions per Page').':',
                 name		=> 'questions_per_page',
                 selected	=> $quiz->getQuestionsPerPage(),
                 options		=> [ 
-					{ label => 'All', value=> '0'   }, 
+					{ label => __('All'), value=> '0'   }, 
 					{ label => '1',   value => '1'  }, 
 					{ label => '2',   value => '2'  }, 
 					{ label => '3',   value => '3'  }, 
@@ -152,12 +152,12 @@ return $title;
                 value		=> $quiz->getDuration(),
                 size 		=> 10,
                 length		=> 10,
-		'optional-label'=> 'None',
+		'optional-label'=> __('None'),
 				 } &>
 
 % if (ref($typeObj) eq "HSDB45::Course"){
 <& /tmpl/element:textbox, params => { 
-				label 		=> 'Available Date:',
+				label 		=> __('Available Date').':',
 				name 		=> 'available_date',
 				value 		=> $linkobj->getFormattedAvailableDate(),
 				size 		=> 20,
@@ -168,7 +168,7 @@ return $title;
 } &>
 
 <& /tmpl/element:textbox, params => { 
-				label 		=> 'Due Date:',
+				label 		=> __('Due Date').':',
 				name 		=> 'due_date',
 				value 		=> $linkobj->getFormattedDueDate(),
 				size 		=> 20,
@@ -181,13 +181,13 @@ return $title;
 
 % my $random_question_flag = (defined $id) ? $quiz->getRandomQuestionLevel() : 0;
 <& /tmpl/element:radio_buttons, params => { 
-        label => 'Randomized Questions:',
+        label => __('Randomized Questions').':',
         name => 'random_question_flag',
 	nobreak => 1,
         buttons => [
-		{ value => "1", text => "Yes", 
+		{ value => "1", text => __("Yes"), 
  		  checked => ($random_question_flag == 1) ? 1 : 0,},
-                { value => "0", text => "No", 
+                { value => "0", text => __("No"), 
 		  checked => ($random_question_flag == 0) ? 1 : 0, }
 		   ],
 	}
@@ -195,7 +195,7 @@ return $title;
 
 % my $show_all_feedback = (defined $id) ? $quiz->getShowAllFeedback() : 0;
 <& /tmpl/element:radio_buttons, params => { 
-        label => 'Show All Feedback (Multiple Choice Questions):',
+        label => __('Show All Feedback (Multiple Choice Questions):'),
         name => 'show_all_feedback',
 	nobreak => 1,
         buttons => [
@@ -207,13 +207,13 @@ return $title;
 	}
 &>
 
-<& /tmpl/element:textarea, params=>{ label => 'Quiz Instructions:',
+<& /tmpl/element:textarea, params=>{ label => __('Quiz Instructions').':',
                 name=>"instructions",
                 cols=>"60",
                 rows=>"4",
                 value=>$quiz->getInstructions()  } &>
 
-<& /tmpl/element:textarea, params=>{ label => 'Ending Message<br>(shown on completion)',
+<& /tmpl/element:textarea, params=>{ label => __('Ending Message<br>(shown on completion)'),
                 name=>"ending_message",
                 cols=>"60",
                 rows=>"4",
@@ -225,7 +225,7 @@ return $title;
 % }
 
 
-<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
                 cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/show") . "');",
                 name=>'submit'} &>
 
@@ -248,7 +248,7 @@ if (defined($ARGS{'submit_check'})){
 	if (ref($typeObj)){
 		if ($ARGS{'available_date'}
 		    && $ARGS{'available_date'} !~ /^\s*\d\d\d\d\-\d?\d\-\d?\d\s*\d\d?:\d?\d\s*$/){
-			$msg = "Available Date must be in the format YYYY-MM-DD HH:MM";
+			$msg = __("Available Date must be in the format YYYY-MM-DD HH:MM");
 			$save = 0;
 		}
 		if ($ARGS{'available_date'}){
@@ -256,7 +256,7 @@ if (defined($ARGS{'submit_check'})){
 		}
 		if ($ARGS{'due_date'}
 		    && $ARGS{'due_date'} !~ /^\s*\d\d\d\d\-\d?\d\-\d?\d\s*\d\d?:\d?\d\s*$/){
-			$msg = "Due Date must be in the format YYYY-MM-DD HH:MM";
+			$msg = __("Due Date must be in the format YYYY-MM-DD HH:MM");
 			$save = 0;
 		}
 	
@@ -291,10 +291,10 @@ if (defined($ARGS{'submit_check'})){
 
 		my $msgtxt;
 		if ($is_edit){
-			$msgtxt = "Quiz successfully modified";
+			$msgtxt = __("Quiz successfully modified");
 		}else{
 			$extra = $id;
-			$msgtxt = "Quiz successfully created";
+			$msgtxt = __("Quiz successfully created");
 			my $user_role = TUSK::Permission::UserRole->new();
 			$user_role->setUserID($m->comp('SELF:user'));
 			$user_role->setRoleToken('quiz', 'manager');
