@@ -115,7 +115,9 @@ $test_count += 3;
 # TODO: Find a graceful way to test presence/absence of optional components.
 if (defined $TUSK::Constants::MMTxExecutable) {
     ok(-e $TUSK::Constants::MMTxExecutable, "MMTxExecutable file found");
-    $test_count++;
+    cmp_ok($TUSK::Constants::MMTxIndexerTimeout, '>=', 1,
+           "MMTxIndexerTimeout >= 1 second");
+    $test_count+= 2;
 }
 if (defined $TUSK::Constants::WordTextExtract) {
     ok(-e $TUSK::Constants::WordTextExtract,
