@@ -31,6 +31,8 @@ use vars qw($VERSION @EXPORT @EXPORT_OK %EXPORT_TAGS
 use DBI;
 use Digest::MD5 qw( md5_hex );
 use IO::File;
+use threads;
+use threads::shared;
 
 # since we're forking some processes off, don't wait for child processes
 $SIG{CHLD} = 'IGNORE';
@@ -241,20 +243,32 @@ sub find_concepts {
     . $temp_file;
   $cmd .= $SPACE . "2>>/tmp/mmtx_err.$$.txt" unless ($verbose);
 
-  if ((! -f $TUSK::Constants::mmtxExecutable) || (! -x $TUSK::Constants::mmtxExecutable)) {
-    confess "MMTx program not found at $TUSK::Constants::mmtxExecutable";
+  if ((! -f $TUSK::Constants::MMTxExecutable) || (! -x $TUSK::Constants::MMTxExecutable)) {
+    confess "MMTx program not found at $TUSK::Constants::MMTxExecutable";
   }
 
   # Get the MMTx output, timing out in case MMTx hangs (has been a problem)
-  # See http://perldoc.perl.org/functions/alarm.html for details on timeout
-  eval {
-    local $SIG{ALRM} = sub { die "MMTx indexing timed out\n" }; # \n required
-    alarm $TUSK::Constants::MMTxIndexTimeout;
-    $mmtx_output = `$cmd`;
-    alarm 0;
-  };
-  if ($@) {
-    die "MMTx indexing timed out";
+  my $mmtx_pid :shared;
+  my $mmtx_thread_output :shared;
+  my $mmtx_is_finished :shared;
+  my $mmtx_timeout_seconds = $TUSK::Constants::MMTxIndexerTimeout;
+  $mmtx_is_finished = 0;
+  async {
+    $mmtx_pid = open my $mmtx_fh, "$cmd |" or die "$!, $^E";
+    local $/;
+    $mmtx_thread_output = <$mmtx_fh>;
+    $mmtx_is_finished = 1;
+  }->detach();
+  sleep 1 while (!$mmtx_is_finished && $mmtx_timeout_seconds--);
+  if ($mmtx_is_finished) {
+    # copy over threaded output to unthreaded variable
+    $mmtx_output = $mmtx_thread_output;
+  }
+  else {
+    # Signal that something went wrong. Probably that the Java process
+    # hung. We don't know why this happens.
+    killfam SIGKILL, $mmtx_pid;
+    die "MMTx indexing timeout";
   }
 
   print $mmtx_output ."\n" if ($verbose);
