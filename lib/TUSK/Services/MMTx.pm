@@ -232,7 +232,7 @@ sub find_concepts {
   close TMP_FILE;
 
   my $SPACE = q{ };
-  my $cmd = $TUSK::Constants::mmtxExecutable
+  my $cmd = $TUSK::Constants::MMTxExecutable
     . $SPACE
     . '--restrict_to_sts=aapp,antb,bacs,carb,chvf,chvs,clnd,eico,elii,enzy,'
     . 'hops,horm,imft,irda,inch,lipd,nsba,nnon,orch,opco,phsu,rcpt,strd,vita,'

@@ -115,7 +115,7 @@ sub indexContent{
 	# check for umls_concept_mentions (ie this content has run through UMLS before)
 	my $umls_concept_mentions = TUSK::UMLS::UmlsConceptMention->lookup("content_id = '" . $contentObject->getPrimaryKeyID() . "'", ['map_weight desc'], undef, 5);
 
-	if (-e $TUSK::Constants::mmtxExecutable && $UMLSIndex && !scalar(@$umls_concept_mentions)){
+	if (-e $TUSK::Constants::MMTxExecutable && $UMLSIndex && !scalar(@$umls_concept_mentions)){
 	    $self->UMLSIndexContent($contentObject, $verbose);
 	    
 	    # we didn't have any umls_concept_mentions before lets go get the freshly created ones
