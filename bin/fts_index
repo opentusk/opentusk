@@ -129,7 +129,7 @@ my $lastRunTime = $processVariables->getValue('LastRun');
 # TODO: Extract to main function?
 if ($content_id) {
   foreach my $contentID (split(",", $content_id)) {
-    index_content_id($contentID);
+    index_content_id( $contentID, { die_on_failure => 0 } );
   }
 }
 elsif ($update) {
@@ -147,7 +147,7 @@ elsif ($idFile) {
   foreach my $id (@ids) {
     chomp $id;
     next if ($id !~ /^\d+$/);
-    index_content_id($id);
+    index_content_id( $id, { die_on_failure => 0 } );
   }
   close IDFILE;
 }
@@ -242,11 +242,15 @@ sub index_users($$) {
 #                   (default is true)
 #   use_umls_index: default is negation of script global (!$noUMLSIndexing)
 #   verbose       : default is negation of script global (!$noprint)
+# Return a list of errors that occurred while indexing; for example in case
+# of UMLS indexing timeout.
 # Examples:
-# index_content_id($id)
-# index_content_id($id, {die_on_failure => 0, verbose => 1})
+# @errs = index_content_id($id)
+# @errs = index_content_id($id, {die_on_failure => 0, verbose => 1})
 sub index_content_id($) {
   my ($content_sid, $arg_ref) = @_;
+
+  my @errs = ();
 
   # Set defaults
   my $die_on_failure = exists $arg_ref->{die_on_failure}
@@ -265,22 +269,25 @@ sub index_content_id($) {
   if ($content_obj->course->title() =~ /^OCW: /) {
     $validCourses = 0;
   }
-  if ($content_obj->display and $content_obj->is_active() and $validCourses) {
+  if ($content_obj->display() and $content_obj->is_active() and $validCourses) {
     $content_obj->out_html_body;
     if ($content_obj->error) {
       print "Indexing failed for $content_sid: ".$content_obj->error."\n";
     } else {
       eval {
-        $indexer->indexContent($content_obj, $use_umls_index, $verbose);
+        my @indexer_errs = $indexer->indexContent($content_obj,
+                                                  $use_umls_index, $verbose);
+        if (scalar @indexer_errs) {
+          # record that there was an issue, probably with UMLS
+          push @errs, @indexer_errs;
+          print join("\n", @indexer_errs) . "\n";
+        }
       };
       if ($@) {
         my $err_msg = "Failed Indexing $content_sid : $@";
-        if ($die_on_failure) {
-          die $err_msg;
-        }
-        else {
-          print "\t$err_msg";
-        }
+        die $err_msg if ($die_on_failure);
+        push @errs, $err_msg;
+        print "\t$err_msg";
       }
       print "Indexed $content_sid\n" if ($verbose);
     }
@@ -290,17 +297,15 @@ sub index_content_id($) {
     };
     if ($@) {
       my $err_msg = "Failed UnIndexing $content_sid : $@";
-      if ($die_on_failure) {
-        die $err_msg;
-      }
-      else {
-        print "\t$err_msg";
-      }
+      die $err_msg if ($die_on_failure);
+      push @errs, $err_msg;
+      print "\t$err_msg";
     }
     print "Dropped from index: $content_sid" if($verbose);
     print " (OCW content)" if($verbose && !$validCourses);
     print "\n" if($verbose);
   }
+  return @errs;
 }
 
 sub disconnect($) {
@@ -601,6 +606,8 @@ sub runUpdate() {
   my $pid = $processVariables->getValue('Pid');
   print "Got pid $pid \n" if (!$noprint);
 
+  my @update_errs;
+
   if ($pid) {
     my $progName = $0;
     $progName =~ s/^.*\///g;
@@ -608,13 +615,17 @@ sub runUpdate() {
     if (kill (0,$pid)) {
       # the process is running
       print "The process $pid is alive \n" if (!$noprint);
-      # We used to check here to see if the pid that we just found was actually running fts_index but that
-      # required know where ps was and forking for a pipe, seems like a waste.
-      print "Please check to make sure that $pid is actually running the FTS program and if not update the Pid variable in the databse!\n" if (!$noprint);
+      # We used to check here to see if the pid that we just found was
+      # actually running fts_index but that required know where ps was
+      # and forking for a pipe, seems like a waste.
+      unless($noprint) {
+        print "Please check to make sure that $pid is actually running the "
+          . "FTS program and if not update the Pid variable in the "
+          . "database!\n";
+      }
       exit (0);
     } else {
       print "Unable to check pid $pid :$!\n" if (!$noprint);
-      #exit(255);
     }
   }
   $processVariables->setValue("Pid", $$);
@@ -623,9 +634,11 @@ sub runUpdate() {
 
   TUSK::ScriptLog::log("Update started $starttime.");
 
-  # if I have not run error out with a message that --all needs to be run or something to get the LastRun time in the database
-  unless($lastRunTime) {
-    TUSK::ScriptLog::log("No LastRun time was found, perhaps $0 needs to be run with --all to start the indexing?");
+  # if I have not run error out with a message that --all needs to be
+  # run or something to get the LastRun time in the database
+  unless ($lastRunTime) {
+    TUSK::ScriptLog::log("No LastRun time was found, perhaps $0 needs "
+                         . "to be run with --all to start the indexing?");
     print "There was not LastRunTime\n" if (!$noprint);
   }
   else {
@@ -636,17 +649,21 @@ sub runUpdate() {
 
     my $newRunTime = HSDB4::DateTime->new->out_mysql_timestamp;
     print "Getting content ids to index..." if (!$noprint);
-    my @content_ids = TUSK::Search::Content->get_content_that_needs_indexing($lastRunTime, $newRunTime);
+    my @content_ids = TUSK::Search::Content->get_content_that_needs_indexing(
+      $lastRunTime, $newRunTime);
     print "OK\n" if (!$noprint);
 
-    print "Found " . scalar(@content_ids) . " pieces of content to index . . .\n" if (!$noprint);
+    unless ($noprint) {
+      print "Found " . scalar(@content_ids)
+        . " pieces of content to index . . .\n";
+    }
     TUSK::ScriptLog::log(scalar @content_ids." contents. ");
 
     my $ii = 1;
     foreach (@content_ids) {
       next if ($_ =~ /^$/);
       print "$ii - indexing $_: " if (!$noprint);
-      index_content_id($_);
+      index_content_id( $_, { die_on_failure => 0 } );
       print "done.\n" if (!$noprint);
       $ii++;
     }
