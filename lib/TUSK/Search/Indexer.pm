@@ -17,16 +17,23 @@ package TUSK::Search::Indexer;
 
 =head1 NAME
 
-B<TUSK::Search::Indexer> - Class for manipulating entries in table
-search_query in tusk database
+B<TUSK::Search::Indexer> - Index TUSK content, with optional UMLS
 
 =head1 SYNOPSIS
 
-This module is to be used as an interface between the content object and the
-indexing system.  The rules used to index content are in this module.
+  use TUSK::Search::Indexer;
+  my $indexer = TUSK::Search::Indexer->new();
+  $indexer->indexContent($content_obj, $index_with_umls, $verbose);
 
 =head1 DESCRIPTION
 
+This module is an interface between the content object and the
+indexing system. The rules used to index content are in this module.
+Content must be indexed before it is searchable.
+
+Content can also be indexed with the Unified Medical Language System
+(UMLS) if available. UMLS indexing uses the 2006 version of the UMLS
+Metamapper.
 
 =head1 INTERFACE
 
@@ -35,7 +42,7 @@ indexing system.  The rules used to index content are in this module.
 =cut
 
 use strict;
-use Carp qw(confess);
+use Carp qw(confess carp);
 use TUSK::Services::MMTx;
 use TUSK::UMLS::UmlsConceptMention;
 use TUSK::Search::Content;
@@ -64,19 +71,37 @@ sub new {
 
 $obj->indexContent($contentObject, $UMLSIndex, $verbose);
 
-The method takes two parameters: a content object and an optional flag
-that indicates whether to search the content for UMLS Concepts. A true
+The method takes a content object and optional flags. The $UMLSIndex
+flag indicates whether to search the content for UMLS Concepts. A true
 value will cause the content to be searched, with no value passed the
-content is not searched.
+content is not searched. The $verbose flag will produce more output if
+set to true.
+
+Return a list. The first element is true if indexing was successful.
+The rest of the list contains any errors or warnings that occurred.
+For example, if UMLS indexing times out but overall indexing succeeds,
+the return value might be (1, "MMTx indexing timeout").
+
+If UMLS indexing fails but otherwise indexing succeeds as normal,
+return the UMLS failure in the error list. This can happen if e.g.
+UMLS process times out.
+
+Return a list of errors that occur during indexing. An empty list
+indicates we didn't notice any errors.
 
 =cut
 
 sub indexContent {
   my ($self, $contentObject, $UMLSIndex, $verbose) = @_;
 
+  my @errs = ();
+
+  my $content_id = $contentObject->getPrimaryKeyID();
+  confess "Invalid content object passed" unless (defined $content_id);
+
   # check to see if the display is on, if it's off then make sure and unindex it
-  if (!$contentObject->display) {
-    return $self->unindexContent($contentObject->primary_key);
+  if (!$contentObject->display()) {
+    return $self->unindexContent($content_id);
   }
 
   if ($contentObject->type() eq 'Collection') {
@@ -85,17 +110,17 @@ sub indexContent {
     $contentObject->field_value('title', "$title " x 5);
   }
   my $contentIndex = TUSK::Search::Content->new()->lookupReturnOne(
-      "content_id = " . $contentObject->primary_key()
+      "content_id = " . $content_id
     );
 
   unless (ref ($contentIndex)) {
     $contentIndex = TUSK::Search::Content->new();
   }
 
-  $contentIndex->setContentID($contentObject->primary_key());
+  $contentIndex->setContentID($content_id);
 
   my $keyword_links = TUSK::Core::LinkContentKeyword->new()->lookup(
-      "parent_content_id = " . $contentObject->primary_key()
+      "parent_content_id = " . $content_id
     );
 
   my $keywords = [];
@@ -121,21 +146,28 @@ sub indexContent {
   # check for umls_concept_mentions (ie this content has run through
   # UMLS before)
   my $umls_concept_mentions = TUSK::UMLS::UmlsConceptMention->lookup(
-      "content_id = '" . $contentObject->getPrimaryKeyID() . "'",
+      "content_id = '" . $content_id . "'",
       ['map_weight desc'], undef, 5
     );
 
   if (-e $TUSK::Constants::MMTxExecutable && $UMLSIndex
       && !scalar(@$umls_concept_mentions)) {
 
-    $self->UMLSIndexContent($contentObject, $verbose);
-
-    # we didn't have any umls_concept_mentions before lets go get the
-    # freshly created ones
-    $umls_concept_mentions = TUSK::UMLS::UmlsConceptMention->lookup(
-        "content_id = '" . $contentObject->getPrimaryKeyID() . "'",
-        ['map_weight desc'], undef, 5
-      );
+    eval {
+      $self->UMLSIndexContent($contentObject, $verbose);
+    };
+    if ($@) {
+      my $umls_err = "UMLS indexing error for $content_id : $@";
+      push(@errs, $umls_err);
+    }
+    else {
+      # we didn't have any umls_concept_mentions before let's go get the
+      # freshly created ones
+      $umls_concept_mentions = TUSK::UMLS::UmlsConceptMention->lookup(
+          "content_id = '" . $content_id . "'",
+          ['map_weight desc'], undef, 5
+        );
+    }
   }
 
   if ($use_suggested_concepts) {
@@ -156,7 +188,7 @@ sub indexContent {
   my $abstract = '';
   if ($contentObject->type() eq 'External') {
     if (my $metadata = TUSK::Content::External::MetaData->lookupReturnOne(
-          "content_id = " . $contentObject->primary_key())) {
+          "content_id = " . $content_id)) {
 
       my $external_authors = $metadata->getAuthor();
       $external_authors =~ s/;//g;
@@ -192,7 +224,7 @@ sub indexContent {
 
   $contentIndex->save();
 
-  return();
+  return @errs;
 }
 
 #######################################################
@@ -254,19 +286,19 @@ EOM
 
 $obj->UMLSIndexContent($contentObject);
 
-The method takes a content object and sends it to a
-UMLS service that examines it for UMLS Concepts. The
-concepts are then saved as a UMLSConceptMention, if
-it does not already appear as a mention.
+The method takes a content object and sends it to a UMLS service that
+examines it for UMLS Concepts. The concepts are then saved as a
+UMLSConceptMention, if it does not already appear as a mention.
 
 =cut
 
-sub UMLSIndexContent{
+sub UMLSIndexContent {
   my $self = shift;
   my $content = shift;
   my $verbose = shift;
 
-  confess "Invalid content object passed" if (!$content->primary_key);
+  my $content_id = $content->getPrimaryKeyID();
+  confess "Invalid content object passed" unless (defined $content_id);
 
   my $mmtx = TUSK::Services::MMTx->new(
                                        content_id =>$content->primary_key ,
@@ -287,6 +319,7 @@ sub UMLSIndexContent{
     my $keyword = TUSK::Core::Keyword->lookup(
       "concept_id = '" . $concept->{concept} . "'" );
 
+    # skip if we can't find matching keyword
     if (! @$keyword ) {
       next;
     }
@@ -302,6 +335,7 @@ sub UMLSIndexContent{
     $mention->setMapWeight( abs($concept->{'score'}) );
     $mention->save( { user => 'indexer' } );
   }
+  return 1;
 }
 
 1;
