@@ -629,38 +629,55 @@ sub show_full_search_string{
     return $string;
 }
 
+# Really should use prepared statements for this sort of thing
+sub _get_content_update_query {
+  my ($lastRunTime, $currentRunTime) = @_;
+  return <<"END_QUERY";
+(
+  select content_id
+  from hsdb4.content
+  where
+    modified > '$lastRunTime'
+    or
+    start_date between '$lastRunTime' and '$currentRunTime'
+)
+union
+(
+  select c.content_id
+  from
+    hsdb4.content c
+    inner join
+    tusk.full_text_search_content f
+    on f.content_id = c.content_id
+  where end_date < '$currentRunTime'
+)
+union
+(
+  select c.content_id
+  from
+    hsdb4.content c
+    inner join
+    tusk.full_text_search_content f
+    on f.content_id = c.content_id
+  where start_date > '$currentRunTime'
+)
+END_QUERY
+}
+
 sub get_content_that_needs_indexing {
-	my $self = shift;
-	my $lastRunTime = shift;
-	my $currentRunTime = shift;
-	# Give me all the content that
-	#       (has modified since I last ran) OR
-	#       (Has started since I last ran) OR
-	#       (Has ended since I last ran)
-	my $query = "
-                    (
-                      select content_id
-                      from hsdb4.content
-                      where modified > '$lastRunTime'
-                     )
-                     union
-                     (
-                       select c.content_id
-                       from hsdb4.content c inner join tusk.full_text_search_content f on (f.content_id = c.content_id)
-                       where end_date < '$currentRunTime'
-                     )
-                    union
-                    (
-                      select c.content_id
-                      from hsdb4.content c inner join tusk.full_text_search_content f on (f.content_id = c.content_id)
-                      where start_date > '$currentRunTime'
-                    )
-";
-	my $search_query = TUSK::Search::SearchQuery->new();;
-        my $results = $search_query->databaseSelect($query);
-        my $array_ref = $results->fetchall_arrayref();
-        my @content_ids = map { $_->[0] } @$array_ref; 
-        return @content_ids;
+    my $self = shift;
+    my $lastRunTime = shift;
+    my $currentRunTime = shift;
+    # Give me all the content that
+    #       (has modified since I last ran) OR
+    #       (Has started since I last ran) OR
+    #       (Has ended since I last ran)
+    my $query = _get_content_update_query($lastRunTime, $currentRunTime);
+    my $search_query = TUSK::Search::SearchQuery->new();;
+    my $results = $search_query->databaseSelect($query);
+    my $array_ref = $results->fetchall_arrayref();
+    my @content_ids = map { $_->[0] } @$array_ref;
+    return @content_ids;
 }
 
 
