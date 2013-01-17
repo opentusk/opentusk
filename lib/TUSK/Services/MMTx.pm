@@ -31,8 +31,11 @@ use vars qw($VERSION @EXPORT @EXPORT_OK %EXPORT_TAGS
 use DBI;
 use Digest::MD5 qw( md5_hex );
 use IO::File;
+use TUSK::Constants;
 use threads;
 use threads::shared;
+use POSIX;
+use Proc::Killfam;
 
 # since we're forking some processes off, don't wait for child processes
 $SIG{CHLD} = 'IGNORE';
@@ -244,7 +247,7 @@ sub find_concepts {
   $cmd .= $SPACE . "2>>/tmp/mmtx_err.$$.txt" unless ($verbose);
 
   if ((! -f $TUSK::Constants::MMTxExecutable) || (! -x $TUSK::Constants::MMTxExecutable)) {
-    confess "MMTx program not found at $TUSK::Constants::MMTxExecutable";
+    confess "MMTx program not found at " . $TUSK::Constants::MMTxExecutable;
   }
 
   # Get the MMTx output, timing out in case MMTx hangs (has been a problem)
@@ -259,6 +262,8 @@ sub find_concepts {
     $mmtx_thread_output = <$mmtx_fh>;
     $mmtx_is_finished = 1;
   }->detach();
+  # poll indexer every second to see if it's finished or timed out
+  # TODO more elegant way to do this?
   sleep 1 while (!$mmtx_is_finished && $mmtx_timeout_seconds--);
   if ($mmtx_is_finished) {
     # copy over threaded output to unthreaded variable
