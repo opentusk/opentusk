@@ -41,7 +41,7 @@ use TUSK::Search::Indexer;
 sub time_stamp();
 sub index_objective($$);
 sub index_users($$);
-sub index_content_id($);
+sub index_content_id($$);
 sub dbConnect();
 sub disconnect($);
 sub runAll();
@@ -99,7 +99,15 @@ END_USAGE
 }
 
 # Make sure we have arguments
-if ($show_help || !(scalar @ARGV)) {
+BEGIN {
+  # wrap in begin because GetOptions shifts off argument list
+  # TODO figure out more elegant approach based on args
+  if (!(scalar @ARGV)) {
+    print usage();
+    exit;
+  }
+}
+if ($show_help) {
   print usage();
   exit;
 }
@@ -247,7 +255,7 @@ sub index_users($$) {
 # Examples:
 # @errs = index_content_id($id)
 # @errs = index_content_id($id, {die_on_failure => 0, verbose => 1})
-sub index_content_id($) {
+sub index_content_id($$) {
   my ($content_sid, $arg_ref) = @_;
 
   my @errs = ();
@@ -280,11 +288,13 @@ sub index_content_id($) {
         if (scalar @indexer_errs) {
           # record that there was an issue, probably with UMLS
           push @errs, @indexer_errs;
-          print join("\n", @indexer_errs) . "\n";
+          print join("\n", @indexer_errs);
+          TUSK::ScriptLog::log(join("\n", @indexer_errs));
         }
       };
       if ($@) {
         my $err_msg = "Failed Indexing $content_sid : $@";
+        TUSK::ScriptLog::log($err_msg);
         die $err_msg if ($die_on_failure);
         push @errs, $err_msg;
         print "\t$err_msg";
@@ -297,6 +307,7 @@ sub index_content_id($) {
     };
     if ($@) {
       my $err_msg = "Failed UnIndexing $content_sid : $@";
+      TUSK::ScriptLog::log($err_msg . "\n");
       die $err_msg if ($die_on_failure);
       push @errs, $err_msg;
       print "\t$err_msg";
@@ -663,21 +674,58 @@ sub runUpdate() {
     foreach (@content_ids) {
       next if ($_ =~ /^$/);
       print "$ii - indexing $_: " if (!$noprint);
-      index_content_id( $_, { die_on_failure => 0 } );
+      eval {
+        index_content_id( $_, { die_on_failure => 0 } );
+      };
+      if ($@) {
+        my $err_msg = "Failed indexing $_ : $@";
+        print $err_msg;
+        TUSK::ScriptLog::log($err_msg);
+      }
       print "done.\n" if (!$noprint);
       $ii++;
     }
 
     my $dbh = dbConnect();
-    index_users($dbh,$lastRunTime);
-    index_objective($dbh,$lastRunTime);
+    eval {
+      index_users($dbh,$lastRunTime);
+    };
+    if ($@) {
+      my $err_msg = "Failed indexing users in run started $starttime : $@";
+      print $err_msg;
+      TUSK::ScriptLog::log($err_msg);
+    }
+    eval {
+      index_objective($dbh,$lastRunTime);
+    };
+    if ($@) {
+      my $err_msg = "Failed indexing objectives in run started $starttime : $@";
+      print $err_msg;
+      TUSK::ScriptLog::log($err_msg);
+    }
 
     ## save new modified time
-    $processVariables->setValue('LastRun', $newRunTime);
-    $processVariables->saveValue('LastRun');
+    eval {
+      $processVariables->setValue('LastRun', $newRunTime);
+      $processVariables->saveValue('LastRun');
+    };
+    if ($@) {
+      my $err_msg = "Failed to update LastRun cron variable for run "
+        . "started $starttime : $@";
+      print $err_msg;
+      TUSK::ScriptLog::log($err_msg);
+    }
   }
-  $processVariables->setValue("Pid", '');
-  $processVariables->saveValue("Pid");
+  eval {
+    $processVariables->setValue("Pid", '');
+    $processVariables->saveValue("Pid");
+  };
+  if ($@) {
+    my $err_msg = "Failed to update Pid cron variable for run "
+      . "started $starttime : $@";
+    print $err_msg;
+    TUSK::ScriptLog::log($err_msg);
+  }
 
-  TUSK::ScriptLog::log("Ended ".&time_stamp."\n");
+  TUSK::ScriptLog::log("Ended run started $starttime at ".&time_stamp."\n");
 }
