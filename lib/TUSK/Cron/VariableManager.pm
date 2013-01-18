@@ -193,6 +193,7 @@ sub saveValue{
   unless (exists($variables{$variableName})) {
     $variables{$variableName} = buildNewVariable($variableName);
   }
+  $variables{$variableName}->setVariableHostname(hostname());
   $variables{$variableName}->save();
 }
 
