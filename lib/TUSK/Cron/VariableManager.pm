@@ -125,7 +125,14 @@ sub new {
 				    @_
 				  );
     # Finish initialization...
-    my $tempArrayRef = TUSK::Cron::Variable->new()->lookup("cron_name='".getProcess()."' and host_name='".hostname()."'");
+
+    # Was looking up by host_name, but I removed. If this causes a
+    # problem, add it back.
+    # my $tempArrayRef = TUSK::Cron::Variable->new()->lookup(
+    #   "cron_name='".getProcess()."' and host_name='".hostname()."'");
+    # TODO Properly escape process name SQL query
+    my $tempArrayRef = TUSK::Cron::Variable->new()->lookup(
+      "cron_name=" . q{'} . getProcess() . q{'});
     foreach my $variable (@{$tempArrayRef}) {
 	$variables{ $variable->getVariableName() } = $variable;
     }
