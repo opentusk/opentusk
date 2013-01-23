@@ -273,7 +273,7 @@ sub find_concepts {
     # Signal that something went wrong. Probably that the Java process
     # hung. We don't know why this happens.
     killfam SIGKILL, $mmtx_pid;
-    die "MMTx indexing timeout";
+    confess "MMTx indexing timeout";
   }
 
   print $mmtx_output ."\n" if ($verbose);
