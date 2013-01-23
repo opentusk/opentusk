@@ -18,7 +18,7 @@
 	my $concept;
 	my $concepts;
 	my $isSearch = 0;
-	my $titleString = 'Concept Error';
+	my $titleString = __('Concept Error');
 	my $reverseSort = 0;
 </%shared>
 
@@ -60,16 +60,16 @@
 			$concepts = TUSK::Core::Keyword->lookup(" concept_id = '$concept_id' ");
 			if (scalar (@{$concepts})){
 				$concept = $concepts->[0];
-				$titleString = "Concept : ".$concept->getKeyword;
+				$titleString = __("Concept")." : ".$concept->getKeyword;
 			} else {
-				${$args}{errmsg} = "Concept $concept_id does not exist.";
+				${$args}{errmsg} = __x("Concept {concept_id} does not exist.", concept_id => $concept_id);
 			}
 		} elsif(${$args}{searchString}) {
 			$isSearch = 1;
 			$concepts = TUSK::Search::UserSearch->findSimilarUMLSConcepts(${$args}{searchString});
 			$titleString = "Concept Search for ${$args}{searchString}";
 		} else {
-			${$args}{errmsg} = "No Concept ID or query was detected.";
+			${$args}{errmsg} = __("No Concept ID or query was detected.");
 		}   
 	</%perl>
 </%method>
@@ -78,8 +78,8 @@
 	<tr>
 		<td style="border-right:1px solid lightgrey;" valign="top" align="left" width="1%">
 			<form action="<% $ENV{SCRIPT_NAME} %>" method="post">
-				<font class="med">Search UMLS Concepts</font>
-				<table border="0"><tr><td><input name="searchString" type="text" size="20"></td><td><input type="submit" value="Search"></td></tr></table>
+				<font class="med"><%__("Search UMLS Concepts")%></font>
+				<table border="0"><tr><td><input name="searchString" type="text" size="20"></td><td><input type="submit" value="<%__("Search")%>"></td></tr></table>
 			</form>
 
 
@@ -89,10 +89,10 @@
 %	if(scalar(@{$concepts})) {
 %		my $word = 'Term';
 %		if(scalar(@{$concepts}) > 1) {$word = 'Terms';}
-		<p> Search for <span style="font-weight:bold"><% $searchString %></span> complete. Please select a concept to view. </p>
-		<p style="font-weight: bold; color:red"> <% scalar(@{$concepts}) %> Matching <% $word %>.</p>            
+		<p> <%__x('Search for <span style="font-weight:bold">{searchString}</span> complete. Please select a concept to view.', searchString => $searchString)%> </p>
+		<p style="font-weight: bold; color:red"> <% scalar(@{$concepts}) %> <%__("Matching")%> <% $word %>.</p>            
 %	} else {
-		<p style="color:red">No Matching Terms.</p>
+		<p style="color:red"><%__("No Matching Terms.")%></p>
 %	}
 	<ul>
 %	foreach my $concept (sort {$a->getKeyword cmp $b->getKeyword } @{$concepts}) {
@@ -128,23 +128,23 @@
 %		$contentCounter++;
 %	}
 %	if($semanticTypeString) {
-                <font class="med">Concept Types</font>
+                <font class="med"><%__("Concept Types")%></font>
                 <ul class="sm"><li><% $semanticTypeString %></li></ul> 
 %	}
 %	if(@{$defns}) {
-		<font class="med">Definition</font>
+		<font class="med"><%__("Definition")%></font>
 		<ul class="sm">
 %		foreach my $defn (@{$defns}) {
 			<li>
 			<% $defn->getDefinition %><br>
-			<span class="xsm" style="white-space:nowrap">[ <span style="font-weight: bold">Source:</span> <% $defn->getUmlsDefinitionTypeObject->getDefinitionTypeName() %> ]</span>
+			<span class="xsm" style="white-space:nowrap">[ <span style="font-weight: bold"><%__("Source")%>:</span> <% $defn->getUmlsDefinitionTypeObject->getDefinitionTypeName() %> ]</span>
 			</li>
 %		}
 		</ul>
 %	}
 
 %	if(@strings) {
-		<font class="med">Synonyms</font>
+		<font class="med"><%__("Synonyms")%></font>
 		<ul class="sm">
 %			foreach my $string (@strings) {
 				<li><% $string %></li>
@@ -156,14 +156,14 @@
 		<td valign="top">
 
 %	if($contentCounter) {
-		<center><font class="med">Related Documents (<font class="sm"><% $contentCounter %></font>)</font></center>
+		<center><font class="med"><%__("Related Documents")%> (<font class="sm"><% $contentCounter %></font>)</font></center>
 		<table border="0" width="100%" cellspacing="0" cellpadding="3" align="center">
                 	<tr>
-				<td style="border-bottom: 1px solid black;" width="60px"><font class="xxsm">Type</font></td>
-				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('document'); return(false);">Document</a>&nbsp;(Sorts by modified time)</font></td>
-				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('author'); return(false);">Author</a></font></td>
-				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('school'); return(false);">School</a></font></td>
-				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('course'); return(false);">Course</a></font></td>
+				<td style="border-bottom: 1px solid black;" width="60px"><font class="xxsm"><%__("Type")%></font></td>
+				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('document'); return(false);"><%__("Document")%></a>&nbsp;<%__("(Sorts by modified time)")%></font></td>
+				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('author'); return(false);"><%__("Author")%></a></font></td>
+				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('school'); return(false);"><%__("School")%></a></font></td>
+				<td style="border-bottom: 1px solid black;" width=""><font class="xxsm"><a href="" onClick="doSort('course'); return(false);"><%__("Course")%></a></font></td>
 			</tr>
 %		my @keys = sort keys %sortHash;
 %		if($reverseSort) {@keys = reverse @keys;}
@@ -184,7 +184,7 @@
 %					if($created_time->is_null()) {undef $created_time;}
 %				}
 %				unless($created_time) {$created_time = $mod_time;}
-					<div class="xsm">ID: <% $subdoc->primary_key() %> &nbsp;&nbsp;Created: <% $created_time->out_mysql_date() %>&nbsp;&nbsp;Modified: <% $mod_time->out_mysql_date() %></div>
+					<div class="xsm"><%__("ID")%>: <% $subdoc->primary_key() %> &nbsp;&nbsp;<%__("Created")%>: <% $created_time->out_mysql_date() %>&nbsp;&nbsp;<%__("Modified")%>: <% $mod_time->out_mysql_date() %></div>
 				</td>
 				<td style="border-bottom: 1px solid lightgrey; vertical-align: top;" onClick="document.location='<% $subdoc->out_url %>';">
 					<font style="font-size: 8pt;"><% $subdoc->out_html_authors(1) %></font>
