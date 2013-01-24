@@ -57,14 +57,14 @@
           my $theNodeOfTheItemPassedIn;
           #If we are explicity changing a node value.
           if($nodeToModify) {
-print "<debug>There was something existing</debug>\n";
+print "<debug>" . __("There was something existing") . "</debug>\n";
             $globalModifying = 1;
             $theNodeOfTheItemPassedIn = TUSK::Course::CourseMetadata->new;
             if($theNodeOfTheItemPassedIn->lookupKey($nodeToModify)) {
 print "<debug>It was valid</debug>\n";
               #If a change was requested to the value of the node then lets change it.
               if($ARGS{ $theNodeOfTheItemPassedIn->getMetadataType() }) {
-print "<debug>I am changing it</debug>\n";
+print "<debug>" . __("I am changing it") . "</debug>\n";
                 $theNodeOfTheItemPassedIn->setValue( $ARGS{ $theNodeOfTheItemPassedIn->getMetadataType() } );
                 $theNodeOfTheItemPassedIn->setUser( $m->session->{'user'}->primary_key() );
                 unless($theNodeOfTheItemPassedIn->save()) {$numFailed++;}
@@ -78,11 +78,11 @@ print "<debug>I am changing it</debug>\n";
               $theNodeOfTheItemPassedIn->setValue( $ARGS{$propertyType} );
               $theNodeOfTheItemPassedIn->setUser( $m->session->{'user'}->primary_key() );
               unless($theNodeOfTheItemPassedIn->save()) {$numFailed++;}
-print "<debug>Using an old top level node</debug>\n";
+print "<debug>" . __("Using an old top level node") . "</debug>\n";
             } else {
               $globalModifying = 0;
 	      #Now create the node that we really wanted to.
-print "<debug>Creating a new node of type $propertyType</debug>\n";
+print "<debug>" . __x("Creating a new node of type {propertyType}",propertyType => $propertyType) . "</debug>\n";
               $theNodeOfTheItemPassedIn = $m->comp("SELF:addNewCourseMetadata", parentID => $parentID, type => $propertyType, value => $ARGS{$propertyType});
               $m->print("<newItemNumber>", $theNodeOfTheItemPassedIn->getPrimaryKeyID(), "</newItemNumber>");
             }
@@ -200,7 +200,7 @@ print "<debug>Creating a new node of type $propertyType</debug>\n";
             }
           } 
         } else {
-print "<debug>Does the arg exist for ", $childCourseMetadataDisplayObject->getPrimaryKeyID(), "?: ", exists(${$args}{ $childCourseMetadataDisplayObject->getPrimaryKeyID() }), "</debug>\n";
+print "<debug>" , __("Does the arg exist for "), $childCourseMetadataDisplayObject->getPrimaryKeyID(), "?: ", exists(${$args}{ $childCourseMetadataDisplayObject->getPrimaryKeyID() }), "</debug>\n";
           #Now check for an existing node of this type.
           my @possibleNodes = @{ TUSK::Course::CourseMetadata->lookup("metadata_type='$childCourseMetadataDisplayObject->getPrimaryKeyID()' and course_id='$globalParentCourseID'") };
           if(scalar(@possibleNodes)) {

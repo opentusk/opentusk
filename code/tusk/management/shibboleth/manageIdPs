@@ -73,12 +73,12 @@
 				if($action eq 'modify')	{
 					$tempShibIdP = TUSK::Shibboleth::User->new()->lookupKey($userID);
 					unless($tempShibIdP->getPrimaryKeyID()) {
-						${$args}{errmsg} = 'Unable to modify Shib IdP, specified user could not be found!';
+						${$args}{errmsg} = __('Unable to modify Shib IdP, specified user could not be found!');
 					}
-					$message = 'Shib user modified successfully';
+					$message = __('Shib user modified successfully');
 				} else {
 					$tempShibIdP = TUSK::Shibboleth::User->new();
-					$message = 'Shib user added successfully';
+					$message = __('Shib user added successfully');
 				}
 
 				unless(${$args}{errmsg}) {
@@ -100,11 +100,11 @@
 							)
 						);
 					} else {
-						${$args}{errmsg} = 'Shib IdP ' . $action . ' Failed!';
+						${$args}{errmsg} = 'Shib IdP ' . $action . __(' Failed!');
 					}
 				}
 			} else {
-				${$args}{errmsg} = 'Action failed, missing input';
+				${$args}{errmsg} = __('Action failed, missing input');
 			}
 		}
 	} elsif($action eq 'delete') {
@@ -112,7 +112,7 @@
 		if(${$args}{do_action}) {
 			my $tempShibIdP = TUSK::Shibboleth::User->new()->lookupKey($userID);
 			unless($tempShibIdP->getPrimaryKeyID()) {
-				${$args}{errmsg} = 'Unable to delete Shib IdP, specified user could not be found!';
+				${$args}{errmsg} = __('Unable to delete Shib IdP, specified user could not be found!');
 			} else {
 				eval {$tempShibIdP->delete();};
 				unless($@) {
@@ -120,18 +120,18 @@
 					$m->redirect(
 						$m->comp("/tmpl/url:construct_url",
 							'base_url' => "$baseScript",
-							'msg'      => "Shib IdP successfully deleted",
+							'msg'      => __("Shib IdP successfully deleted"),
 							'msgtype'  => 'msg',
 							'extra'    => '',
 						)
 					);
 				} else {
-					${$args}{errmsg} = "The shib user could not be deleted, check and see if there are course shares related to this user!";
+					${$args}{errmsg} = __("The shib user could not be deleted, check and see if there are course shares related to this user!");
 				}
 			}
 		}
 	} elsif($action eq 'view_shares') {
-		$title = "View " . $TUSK::Constants::SiteAbbr . " Course Shares";
+		$title = "View " . $TUSK::Constants::SiteAbbr . __(" Course Shares");
 	}
   </%perl>
 </%method>
@@ -174,7 +174,7 @@
 	<br>
 	<& /tmpl/element:button, params => {
 		name  => 'new_shib_user',
-		label => 'Add Shibboleth IdP',
+		label => __('Add Shibboleth IdP'),
 		onclick => "document.location='$baseScript/add';",
 	}&>
 	<& /tmpl/element:button, params => {
@@ -184,7 +184,7 @@
 	}&>
 	<& /tmpl/element:button, params => {
 		name  => 'view_shib_shares',
-		label => 'View Course Shares',
+		label => __('View Course Shares'),
 		onclick => "document.location='$baseScript/view_shares';",
 	}&>
 	<br><br>
@@ -192,10 +192,10 @@
 	<& /tmpl/element:object_selection_box, params => {
 		sort_box => 0,
 		columns => [
-			{'label' => 'Institution Name', 'field' => 'getShibbolethInstitutionName'},
-			{'label' => 'User Greeting', 'field' => 'getUserGreeting'},
-			{'label' => 'Enabled', 'field' => 'isEnabled'},
-			{'label' => 'Is Out Of Date', 'field' => 'needsRegen'},
+			{'label' => __('Institution Name'), 'field' => 'getShibbolethInstitutionName'},
+			{'label' => __('User Greeting'), 'field' => 'getUserGreeting'},
+			{'label' => __('Enabled'), 'field' => 'isEnabled'},
+			{'label' => __('Is Out Of Date'), 'field' => 'needsRegen'},
 		],
 		modify_link => "$baseScript/modify",
 		delete_link => "$baseScript/delete",
@@ -212,8 +212,8 @@
 %	}
 %	if($printWarning) {
 			<font color="red"><b>
-				<% $printWarning %> IdP<% $plural %> out of date!<br>
-				Please use the "<% $genButtontext %>" button above to fix this.
+				<% $printWarning %> IdP<% $plural %> <%__("out of date!")%><br>
+				<%__("Please use the")%> "<% $genButtontext %>" <%__("button above to fix this.")%>
 			</b></font>
 %	}
 	</center>
@@ -230,15 +230,15 @@
 	<table class="tusk" cellspacing="0" width="100%">
 	<tbody>
 		<tr class="header">
-			<td colspan="5" class="header-left">Course Title</td>
-			<td class="header-right">Action</td>
+			<td colspan="5" class="header-left"><%__("Course Title")%></td>
+			<td class="header-right"><%__("Action")%></td>
 		</tr>
 		<tr class="header">
 			<td class="header-left" style="border-top: 1px grey solid"></td>
-			<td class="header-left" style="border-top: 1px grey solid">Shared With</td>
-			<td class="header-left" style="border-top: 1px grey solid">Avaliable Date</td>
-			<td class="header-left" style="border-top: 1px grey solid">End Date</td>
-			<td class="header-left" style="border-top: 1px grey solid" colspan="2">Shared Note</td>
+			<td class="header-left" style="border-top: 1px grey solid"><%__("Shared With")%></td>
+			<td class="header-left" style="border-top: 1px grey solid"><%__("Avaliable Date")%></td>
+			<td class="header-left" style="border-top: 1px grey solid"><%__("End Date")%></td>
+			<td class="header-left" style="border-top: 1px grey solid" colspan="2"><%__("Shared Note")%></td>
 		</tr>
 
 %	my $lastCourse;
@@ -285,31 +285,31 @@
 		cellpadding =>"0",
 	} &>
 	<& /tmpl/element:textbox, params => {
-		label => 'Institution Name',
+		label => __('Institution Name'),
 		value => "${$args}{institution_name}",
 		name => 'institution_name',
 	} &>
 	<& /tmpl/element:textbox, params => {
-		label => 'User Display Name',
+		label => __('User Display Name'),
 		value => "${$args}{user_name}",
 		name => 'user_name',
 	} &>
 	<& /tmpl/element:dropdown, params => {
-		label => 'Enabled',
+		label => __('Enabled'),
 		name => 'enabled',
 		options => [
-			{ label => 'Yes', value => 'Yes' },
-			{ label => 'No', value => 'No' },
+			{ label => __('Yes'), value => 'Yes' },
+			{ label => __('No'), value => 'No' },
 		],
 		selected => "${$args}{enabled}",
 	} &>
 	<& /tmpl/element:textbox, params => {
-		label => 'Logout Page',
+		label => __('Logout Page'),
 		value => "${$args}{logout_page}",
 		name => 'logout_page',
 	} &>
 	<& /tmpl/element:textarea, params => {
-		label => 'IdP XML',
+		label => __('IdP XML'),
 		value => "${$args}{IdPXML}",
 		name => 'IdPXML',
 		cols => 80,
@@ -336,37 +336,38 @@
 		cellpadding =>"0",
 	} &>
 	<& /tmpl/element:field_display, params => {
-		label => 'Institution Name',
+		label => __('Institution Name'),
 		value => $user->getShibbolethInstitutionName(),
 	} &>
 	<& /tmpl/element:field_display, params => {
-		label => 'User Display Name',
+		label => __('User Display Name'),
 		value => $user->getUserGreeting(),
 	} &>
 	<& /tmpl/element:field_display, params => {
-		label => 'Enabled',
+		label => __('Enabled'),
 		value => $user->isEnabled(),
 	} &>
 	<& /tmpl/element:field_display, params => {
-		label => 'Logout Page',
+		label => __('Logout Page'),
 		value => $user->getLogoutPage(),
 	} &>
 %	my $courseShares = TUSK::Course::CourseSharing->new->lookup("shared_with='" . $user->getPrimaryKeyID() . "'");
+%       my $cancel_msg = __("Delete+Shib+IdP+Canceled");
 %	if(scalar(@{$courseShares}) > 0) {
 		<tr><td>&nbsp;</td><td>
 		<& /tmpl/element:button, params => {
 			name => 'cancel',
-			label => 'Cancel',
-			onclick => "document.location='$baseScript?msg=Delete+Shib+IdP+Canceled';",
+			label => __('Cancel'),
+			onclick => "document.location='$baseScript?msg=$cancel_msg';",
 		} &>
 		</td><tr>
 		</table><br>
-		<b><center>This Shib IdP can not be deleted because there are course shares related to the user.</center></b>
+		<b><center><%__("This Shib IdP can not be deleted because there are course shares related to the user.")%></center></b>
 %	} else {
 		<& /tmpl/element:save_button, params => {
 			name => 'do_action',
-			label => 'Delete',
-			cancel_onclick => "document.location='$baseScript?msg=Delete+Shib+IdP+Canceled';",
+			label => __('Delete'),
+			cancel_onclick => "document.location='$baseScript?msg=$cancel_msg';",
 		} &>
 %	}
 </%method>
