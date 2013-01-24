@@ -57,9 +57,9 @@ $display
 $onclick => ''
 </%args>
 <%perl>
-my $text = 'Expand Panel'; 
+my $text = __('Expand Panel'); 
 if ($display){
-	$text = 'Minimize Panel';
+	$text = __('Minimize Panel');
 }
 </%perl>
 <a href="javascript:toggle_panel('<% $name %>');" class="smAction" id="<% $name %>-link" onclick="<% $onclick %>"><% $text %></a>
@@ -83,10 +83,10 @@ if ($display){
 	undef $duration if ($duration eq '00:00:00');
 	$duration = 'Untimed' unless ($duration);
 
-	$output_string .= "Author(s): " . $case->getCaseAuthors({credentials => 1}) . "<br>\n";
+	$output_string .= __("Author(s)").": " . $case->getCaseAuthors({credentials => 1}) . "<br>\n";
 	$output_string .= $duration_string . $duration . "<br>\n";
 
-	$output_string .= "Overview: " . $case->getCaseUserDesc() . "<br>\n" if ($case->getCaseUserDesc());
+	$output_string .= __("Overview").": " . $case->getCaseUserDesc() . "<br>\n" if ($case->getCaseUserDesc());
 
 	if ($case->getCaseType() eq 'Self-Assessment'){
 		my $objective_string;
@@ -96,7 +96,7 @@ if ($display){
 			$objective_string .= $objective->getBody()."<br>";
 		}
 		
-		$output_string .= 'Objectives: ' .  $objective_string . "<br>\n" if ($objective_string);
+		$output_string .= __('Objectives').': ' .  $objective_string . "<br>\n" if ($objective_string);
 	}
 
 	$m->comp('SELF:body', body_title => $body_title, body => '<span class="text1">' . $output_string . '</span>', name => 'case_panel');
@@ -114,7 +114,7 @@ my $output_string = '<table cellspacing="0" cellpadding="0" border="0">';
 
 my $nav_type = $case->getNavigationType();
 if($nav_type eq 'Global') {
-	$output_string .= '<tr><td colspan="2">This case has a <strong>global</strong> navigation, which means users can freely navigate by clicking on the phases below in any order they choose.</td></tr>';
+	$output_string .= '<tr><td colspan="2">'.__('This case has a <strong>global</strong> navigation, which means users can freely navigate by clicking on the phases below in any order they choose.').'</td></tr>';
 }
 
 my $phases = $case->availablePhases();
@@ -160,7 +160,7 @@ if($nav_type eq 'Global' && $m->request_comp()->title() !~ /casedone/){
 	my $formname  = ($m->request_comp()->title() =~ /takequiz/)? 'takequiz' : 'dophase';
 
 	my $btn_txt = $m->scomp('/tmpl/element:button', params=> {
-	                 label    => 'Finish Case',
+	                 label    => __('Finish Case'),
 	                 onclick  => "complete_phase('$formname', '/case/casedone/$type_path/$case_id/$report_id');",
 	                 style    => 'margin-top:9px',
 	                 name     => 'next_button',
@@ -188,15 +188,15 @@ $case
 </%args>
 <%perl>
 my $report = $case->getReport();
-my $out_str = 'Sorry, cannot retrieve patient chart at this time.';
+my $out_str = __('Sorry, cannot retrieve patient chart at this time.');
 my $onclick = '';
 if (defined $report) {
 	my $repid = $report->getPrimaryKeyID();
 	$onclick = "getChart($repid)";
-	$out_str = 'Retrieving patient chart. One moment...';
+	$out_str = __('Retrieving patient chart. One moment...');
 }
 else {
-	warn 'Cannot retrieve patient chart: no case report.';
+	warn __('Cannot retrieve patient chart: no case report.');
 }
 $m->comp('SELF:body',body=>$out_str,'name'=>'chart_panel','onclick'=>$onclick);
 </%perl>
@@ -212,7 +212,7 @@ my $output_string ;
 my ($name,$body,$content,$links,@content_links);
 my $idName; 
 if (!scalar(@{$chartStruct})){
-	$output_string = '<span class="smHeader1">The chart is currently empty</span>';
+	$output_string = '<span class="smHeader1">'.__('The chart is currently empty').'</span>';
 } else {
 	$output_string = '';
 	my $count = 0;
@@ -243,12 +243,12 @@ $phase
 $case
 </%args>
 <%perl>
-	my $body_title = 'Access References'; 
+	my $body_title = __('Access References'); 
 	my $output_string = $m->comp('SELF:get_references_panel_text', case => $case, phase => $phase);
 	
 	return unless ($output_string);
 	
-	$m->comp('element:header', title => 'References');
+	$m->comp('element:header', title => __('References'));
 	$m->comp('SELF:body', body => $output_string, body_title => $body_title, name =>'references_panel' );
 </%perl>
 </%method>
@@ -307,10 +307,10 @@ $phase
 $case
 </%args>
 <%perl>
-my $body_title = 'Make notes as you go along';
+my $body_title = __('Make notes as you go along');
 my $report = $case->getReport();
 
-my $output_string  = '<div id="getNoteMsg">Retrieving notepad.</div>';
+my $output_string  = '<div id="getNoteMsg">'.__('Retrieving notepad.').'</div>';
 $m->comp('SELF:body',body=>$output_string,'body_title'=>$body_title,'name'=>'notepad_panel',onclick=>'getNotes(' . $report->getPrimaryKeyID()  . ')');
 </%perl>
 </%method>
@@ -323,11 +323,11 @@ $case
 <%perl>
 my $user;
 if (!($user = $m->comp('SELF:user'))) {
-	$m->comp('/tmpl/error',msg=>'User is not defined');
+	$m->comp('/tmpl/error',msg=>__('User is not defined'));
 }
 
 my $tests = $case->getTestsWithCosts($user);
-my $body_title = 'View the cost incurred for this patient care.';
+my $body_title = __('View the cost incurred for this patient care.');
 my $total;
 my $output_string = '<table cellspacing="0" cellpadding="0" border="0" width="100%">';
 foreach my $test (@{$tests}){
@@ -337,7 +337,7 @@ foreach my $test (@{$tests}){
 }
 if($total){
 	$total = sprintf("%.2f", $total);
-	$output_string .= '<tr><td class="smTextTwo"><strong>Total</strong></td>';
+	$output_string .= '<tr><td class="smTextTwo"><strong>'.__('Total').'</strong></td>';
 	$output_string .= "<td class=\"smTextTwo\" align=\"right\"><strong>$total</strong></td></tr>";
 }
 $output_string .='</table>';

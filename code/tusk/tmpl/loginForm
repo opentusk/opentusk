@@ -45,11 +45,11 @@
 				#Do we want to be nasty and auto log people out after a specific number of tries?
 				unless($passwordVerified) {
 					#Display Login Not Valid
-					$args->{errmsg} = "Invalid Password";
+					$args->{errmsg} = __("Invalid Password");
 				}
 				else {$passwordVerified = 1;}
 			} else {
-				$args->{errmsg} = "The ammount of time that this page will be displayed has expired";
+				$args->{errmsg} = __("The amount of time that this page will be displayed has expired");
 			}
 		}
 		return $passwordVerified;
@@ -75,10 +75,10 @@
 	<div id="gradeDiv" style="display:none; width:100%;">
 	</div>
 	<div id="printPrivateLoginDiv" style="display:block;">
-		<h2>Important Privacy Notice</h2>
-		You are currently logged in as <b><% $m->session->{'user'}->out_full_name() %></b>.<br>
-		This section of <% $TUSK::Constants::SiteAbbr %> contains private information.<br>
-		If you are not <b><% $m->session->{'user'}->out_full_name() %></b> please <a href="/dologout">Click Here</a>.<br>
+		<h2><%__("Important Privacy Notice")%></h2>
+		<%__x("You are currently logged in as <b>{user}</b>", user => $m->session->{'user'}->out_full_name()) %></b>.<br>
+		<%__x('This section of {SiteAbbr} contains private information.', $TUSK::Constants::SiteAbbr)%><br>
+		<%__x('If you are not <b>{user}</b> please <a href="/dologout">Click Here</a>', user => $m->session->{'user'}->out_full_name())%>.<br>
 		<br><% $TUSK::Constants::PrivacyNotice %><br><br>
 		<script language="JavaScript"><!--
 			var ajaxRequest;
@@ -94,17 +94,17 @@
 				if(document.getElementById('doLogin')) {
 					if(document.getElementById('printPrivateLoginDiv')) {
 						document.getElementById('printPrivateLoginDiv').style.display='block';
-					} else {alert('Error: could not get login message');}
+					} else {alert('<%__('Error: could not get login message')%>');}
 				}
 				if(document.getElementById('doGrade')) {
 					if(document.getElementById('gradeDiv')) {
 						document.getElementById('gradeDiv').style.display='none';
-					} else {alert("Error: could not get this section div to hide... very strange!");}
+					} else {alert("<%__("Error: could not get this section div to hide... very strange!")%>");}
 				}
 			}
 			function checkPassword() {
 				if(document.theForm.userPassword.value=='') {
-					alert('Please enter a password to login!');
+					alert('<%__('Please enter a password to login!')%>');
 					document.theForm.userPassword.style.backgroundColor='yellow';
 					return false;
 				}
@@ -118,7 +118,7 @@
 				} else if (window.ActiveXObject) {
 					ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
 				} else {
-					alert('You can not view this section because your browser does not support AJAX.');
+					alert('<%__('You can not view this section because your browser does not support AJAX.')%>');
 				}
 				if(ajaxRequest) {
 					var parameters = 'userPassword=' + encodeURI( document.theForm.userPassword.value );
@@ -146,15 +146,15 @@
 		//!--></script>
 		<%doc>The return false prevents the form being submitted with the enter key</%doc>
 		<form name="theForm" action="" method="post" onsubmit="document.theForm.showGrades.click(); return false;">
-			If you are <% $m->session->{'user'}->out_full_name() %> please enter your <% $TUSK::Constants::SiteAbbr %> password to view this section:
+			<%__x('If you are {user} please enter your {SiteAbbr} password to view this section:',user => $m->session->{'user'}->out_full_name(), SiteAbbr => $TUSK::Constants::SiteAbbr)%>
 			<input type="password" name="userPassword" value="" class="textareawhite" size="20">
-			<input type="button" name="showGrades" value="Show Grade" class="formbutton" onClick="return checkPassword();">
+			<input type="button" name="showGrades" value="<%__("Show Grade")%>" class="formbutton" onClick="return checkPassword();">
 			<input type="hidden" name="genTime" value="<% time()+30 %>">
 			<br>
 		</form>
 	</div>
 	<br>
 	<font class="bold_emphasis_font">
-		*<% $TUSK::Constants::SiteAbbr %> recommends that you logout after viewing this section to prevent other people from seeing this section.
+		*<%__x("{site} recommends that you logout after viewing this section to prevent other people from seeing this section.", site => $TUSK::Constants::SiteAbbr)%>
 	</font>
 </%method>
