@@ -30,7 +30,7 @@
 
 
 <%method title>
-%return "Student Grades";
+%return __("Student Grades");
 </%method>
 
 
@@ -77,7 +77,7 @@ if (ref($type_object) eq "HSDB45::Course")
 }
 else
 {
-	$m->comp("/tmpl/url:redirect", message => "FAILURE");
+	$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
 }
 
 # student contains the UTLN (which is primary key) of the student whose data we're viewing
@@ -130,11 +130,11 @@ $m->comp('/tmpl/element:sort_order_box', params =>{
 			action => {usage => 'No'},
 			scrollrows => 10,
 			display => [
-				{label=>'Event Name', field=>'event_name', align=>'left', length=>500},
-				{label=>'Grade',field=>'grade', align=>'center', length=>50, type=>'textbox'},
-				{label=>'Comments',field=>'comments', align=>'left', length=>300, type=>'textbox' },
-				{label=>'EventID' ,field=>'event_id', align=>'right', length=>40 ,type=>'hidden'},	
-				{label=>'user_id' ,field=>'user_id', align=>'right', length=>40 ,type=>'hidden'}
+				{label=>__('Event Name'), field=>'event_name', align=>'left', length=>500},
+				{label=>__('Grade'),field=>'grade', align=>'center', length=>50, type=>'textbox'},
+				{label=>__('Comments'),field=>'comments', align=>'left', length=>300, type=>'textbox' },
+				{label=>__('EventID') ,field=>'event_id', align=>'right', length=>40 ,type=>'hidden'},	
+				{label=>__('user_id') ,field=>'user_id', align=>'right', length=>40 ,type=>'hidden'}
 			],
 			validate => { usage => 'No', form => 'showGrades'},
 			data => \@grades_array }	});
@@ -163,13 +163,12 @@ my $scaleTypeID = $linkScaleType->getGradeScaleTypeID();
 print "<input type='hidden' name='avg' value='$total'>";
 print "<input type='hidden' name='scaleType' value='$scaleTypeID'>";
 
-
-printf "<tr><td>Average is %4.2f </td></tr>",$total;
+printf	__x("Average is {avg} </td></tr>", avg => sprintf("%4.2f",$total));
 
 if ($scaleTypeID eq "1" || $scaleTypeID eq "4")
 {
 	print "<input type='hidden' name='gradeWScale' value='$gradeWithScale'>";
-	print "<tr><td><b> Estimated Final Grade : $gradeWithScale </b> </td></tr>";
+	print __x("<tr><td><b> Estimated Final Grade : {gws} </b> </td></tr>", gws => $gradeWithScale);
 }
 if ($scaleTypeID eq "3")
 {
@@ -182,7 +181,7 @@ if ($scaleTypeID eq "3")
 		 $val=$linkUCGrades->getCourseGrade(); 
 	}
 
-	print "<tr><td>Final Grade:  <input type='text' size=20 maxlength=80 name='ManualFinalGrade' value='$val' /> </tr>";
+	print __x("<tr><td>Final Grade:  <input type='text' size=20 maxlength=80 name='ManualFinalGrade' value='{val}' /> </tr>",val => $val);
 }
 
 </%perl>
@@ -257,7 +256,7 @@ if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args =>
        
 
 	my $reload_url = $r->uri();
-   	my $msgtxt = "Changes successfully saved";
+   	my $msgtxt = __("Changes successfully saved");
 	$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msgtxt");
 
        
