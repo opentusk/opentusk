@@ -74,19 +74,21 @@ sub show_pre_process{
 		$req->{extratext}->[$cur_ind]->{text} .= "<select name=\"ug_id\" onchange=\"document.generic.submit();\" class=\"navsm\">";
 		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\"0\" class=\"navsm\">Entire Course\n";
 	}elsif ($req->{type} eq "school"){
-		$data->{usergroup_id} = $TUSK::Constants::SchoolWideUserGroup{lc($req->{school})} unless ($data->{usergroup_id});
+		$data->{usergroup_id} = HSDB4::Constants::school_wide_user_group_id($req->{school}) unless ($data->{usergroup_id});
 		$req->{extratext}->[$cur_ind]->{name} = "Group";
 		$req->{extratext}->[$cur_ind]->{text} = "<select name=\"ug_id\" onchange=\"document.generic.submit();\" class=\"navsm\">";
-		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\"".$TUSK::Constants::SchoolWideUserGroup{lc($req->{school})}."\" class=\"navsm\">Entire School\n";
+		$req->{extratext}->[$cur_ind]->{text} .= "<option value=\""
+            . HSDB4::Constants::school_wide_user_group_id($req->{school})
+            . "\" class=\"navsm\">Entire School\n";
 	}
 
     $data->{usergroups} = get_usergroups($req, $udat);
     
     foreach my $group (@{$data->{usergroups}}){
-	if ($group->primary_key == $data->{usergroup_id} or (!$data->{usergroup_id} and $group->primary_key == $TUSK::Constants::SchoolWideUserGroup{lc($group->school)})){
+	if ($group->primary_key == $data->{usergroup_id} or (!$data->{usergroup_id} and $group->primary_key == HSDB4::Constants::school_wide_user_group_id($group->school))) {
 	    $maingroup = $group;
 	}
-	unless ($group->primary_key == $TUSK::Constants::SchoolWideUserGroup{lc($group->school)}) {
+	unless ($group->primary_key == HSDB4::Constants::school_wide_user_group_id($group->school)) {
 	    $maingroup = $group if ($group->primary_key == $data->{usergroup_id});
 	    $req->{extratext}->[$cur_ind]->{text} .= "<option class=\"navsm\" value=\"" . $group->primary_key . "\" ";
 	    $req->{extratext}->[$cur_ind]->{text} .= "selected" if ($group->primary_key == $data->{usergroup_id});
