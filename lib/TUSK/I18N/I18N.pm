@@ -285,6 +285,7 @@ sub setLanguage {
 	my $this = shift;;
 	my $constKey = "SiteLanguage";
 	my $lang = $this->_getI18NConstant($constKey) || 'C';
+	$lang 	= 'C' if( $lang eq 'en' || $lang eq "" );
 	if( $lang ) {
 		$this->language($lang);
 	}
@@ -464,6 +465,7 @@ sub Locale::TextDomain::__x ($@)
 			{
 			    my ($msgid, %vars) = @_;
 			    my $textdomain = 'tusk';
+			    return($msgid) if($ENV{LANG} eq 'C');
 			    my $msgstr = Locale::TextDomain::__expand ((Locale::TextDomain::dgettext $textdomain => $msgid), %vars);
 			     if($msgstr eq $msgid ) {
 			     	carp("I18N: hash: ($msgid, $msgstr) no match from:");			     
@@ -481,6 +483,7 @@ sub Locale::TextDomain::__ ($)
 			    my $msgid = shift;
 			    my $package = caller;
 			    my $textdomain = 'tusk';
+			    return($msgid) if($ENV{LANG} eq 'C');
 			    my $msgstr = Locale::TextDomain::dgettext $textdomain => $msgid;
 			     if($msgstr eq $msgid ) {
 			     	carp("I18N: string: ($msgid, $msgstr) no match from: ");
