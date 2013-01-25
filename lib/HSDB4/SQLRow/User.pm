@@ -636,6 +636,7 @@ available_date < NOW() AND
 eval.time_period_id = link_course_student.time_period_id AND
 time_period.time_period_id = link_course_student.time_period_id AND
 link_course_student.parent_course_id = course_id AND
+eval_id NOT IN (SELECT eval_id FROM $db.eval_completion WHERE status = 'Done') AND
 child_user_id = '" . $user->primary_key() . "'
 
 UNION
