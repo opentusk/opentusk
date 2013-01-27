@@ -83,7 +83,7 @@
 			course_id		=> $course_id,
 			school_id		=> TUSK::Core::School->new()->getSchoolID($school),
 			grade_event_type_id	=> 3,
-			group_flag		=> $params{group_flag},
+			group_flag		=> ($already_submitted) ? $assignment->getGroupFlag() : $params{group_flag},
 		});
 		$grade_event->setDueDate($params{due_date}) if $params{due_date};
 
@@ -93,7 +93,7 @@
 		}
 
 		## clean up group link if it is reset to individual assignment
-		$author->cleanupStudentsLinks(1) if (defined $author && $params{group_flag} == 0);
+		$author->cleanupStudentsLinks(1) if (defined $author && $params{group_flag} == 0 && !$already_submitted);
 
 		$grade_event->setWeight($params{weight}) if $params{weight};
 
@@ -101,7 +101,7 @@
 			$assignment->setGradeEventID($grade_event->getPrimaryKeyID());
 			$assignment->setAvailableDate($params{available_date} ? $params{available_date} : undef);
 			$assignment->setDueDate($params{due_date} ? $params{due_date} : undef);
-			$assignment->setGroupFileFlag($params{group_file_flag});
+			$assignment->setGroupFileFlag($params{group_file_flag}) unless $already_submitted;
 			$assignment->setResubmitFlag($params{resubmit_flag});
 
 			if ($assignment->save({'user' => $author_user_id})) {
@@ -124,15 +124,15 @@
 			$msgtext = 'Failed to add/edit grade_event table. '; 
 		}
 
-		if (defined $params{group_id_list}) {
+		if (defined $params{group_id_list} && !$already_submitted) {
 			$m->comp('SELF:update_group_id_list');
 		}
 
-		if (defined $params{uploaded_group_id}) {
+		if (defined $params{uploaded_group_id} && !$already_submitted) {
 			$m->comp('SELF:update_uploaded_groups');
 		}
 
-		if (defined $params{files}) {
+		if (defined $params{files} && !$already_submitted) {
 			$msgtext .= $m->comp('/assignment/tmpl:upload_content', 
 					params 		=> \%params,
 					role   		=> 'Author',
@@ -184,6 +184,7 @@
 		label 	=> 'Title:',
 		value 	=> $assignment->getTitle(),
 	} &>
+<input type="hidden" name="title" value="<% $assignment->getTitle() %>"/>
 % }
 % else {
 	<& /tmpl/element:textbox, params => { 
@@ -242,7 +243,7 @@
 
 % my $group_trailing_text;
 % if (scalar @$checkbox) {
-% 	my $group_checkbox =  $m->scomp("/tmpl/element:checkbox_table", objects => $checkbox, formname => $form_name, checkboxname => $checkbox->[0]->{name}, allchecked => $allchecked, onclickcheckall => 'checkUncheckAllMulti');
+% 	my $group_checkbox =  $m->scomp("/tmpl/element:checkbox_table", objects => $checkbox, formname => $form_name, checkboxname => $checkbox->[0]->{name}, allchecked => $allchecked, onclickcheckall => 'checkUncheckAllMulti', disabled => ($already_submitted) ? 1 : 0);
 <%perl>
 	$group_trailing_text = qq(<br/>
 <table border="0" id="group_list" style="display:$group_list_style;border-color:gray;">
@@ -256,9 +257,11 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
         buttons => [
 		{ value => "1", text => "Yes", 
  		  checked => ($group_file_flag == 1) ? 1 : 0,
+		  disabled => ($already_submitted) ? 1 : 0,
 		  onclick => "assignGroup()"},
                 { value => "0", text => "No", 
  		  checked => ($group_file_flag == 0) ? 1 : 0,
+		  disabled => ($already_submitted) ? 1 : 0,
 		  onclick => "removeGroup()"} ],
 	nobreak => 1, }) . 
 "</td></tr></table>\n";
@@ -283,8 +286,6 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 		   ],
         nobreak => 1,
 	trailing_text => $group_trailing_text } &>
-
-
 <& /tmpl/element:radio_buttons, params =>{ 
         label => 'Allow Resubmission:',
         name => 'resubmit_flag',
