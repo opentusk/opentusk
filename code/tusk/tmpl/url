@@ -142,9 +142,6 @@ valid types: course, school, usergroup, content, case
 </%doc>
 <%perl>
 	return if ($type_path);
-
-use Data::Dumper;
-
 	my $type = ($default_path_type) ? $default_path_type : shift @$path_ids;
 
 	if ($type eq "course"){
@@ -207,6 +204,13 @@ use Data::Dumper;
 		if ($@) {
 			$m->comp("SELF:redirect",message => "Invalid Content: $content_id");
 		}
+		
+		if ($type_object->field_value('course_id') && $type_object->course()->primary_key()) {
+			$type_path = "course/" . $type_object->school() . "/" . $type_object->course()->primary_key();
+		}
+		else {
+			$type_path = "content/" . $content_id;
+		}
 
 		unless ($type_object->primary_key()){
 			$m->comp("SELF:redirect",message => "Invalid Content: $content_id");
@@ -216,7 +220,6 @@ use Data::Dumper;
 		if (scalar @$path_ids) {
 			$initial_nav_bars = $type_object->get_bread_crumb_from_path($path_ids);
 		}
-		# do permissions here
 	}elsif($type eq "classmeeting"){
 		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");
 		my $cm_id = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing class meeting id");
@@ -235,6 +238,9 @@ use Data::Dumper;
 		$type_path = "classmeeting/" . $school . "/" . $cm_id;
 	}elsif($type eq "view"){
 		$type_path = '';
+	}elsif($type =~ /^\d+$/) {
+			$type_object = HSDB4::SQLRow::Content->new()->lookup_path($type);
+			$type_path = "content/" . $type;		
 	}else{
 		# some failure occurs
 		$m->comp("SELF:redirect",message => "FAILURE : Invalid Type : $url_path");
@@ -354,6 +360,7 @@ return $p_hash->{$p};
 
 	my ($course_id, $school_name);
 	my $path_ids = $m->comp('SELF:get_path_ids');
+
 	if($course_context =~ /(\D)(\d+)C/){ # if first path id is of form 'H1345C'
 		my $school_code = $1;
 		$school_name = HSDB4::Constants::school_codes($school_code);
@@ -369,7 +376,10 @@ return $p_hash->{$p};
 		my $path = join('/', @$path_ids);
 
 		return {txt => 'Edit', url => "/protected/management/folders/course/$school_name/$course_id/$path" . '?page=edit', target => $target };
-	} 
+	}
+	elsif (!$school_name || !$course_id) {
+		return {txt => 'Edit', url => "/protected/management/content/addedit/" . $content->primary_key() . "?content_id=" . $content->primary_key() . '&page=edit', target => $target };
+	}
 	else {
 		pop @$path_ids; 
 		my $path = join('/', @$path_ids);

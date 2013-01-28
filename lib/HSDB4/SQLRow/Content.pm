@@ -1263,6 +1263,38 @@ sub get_bread_crumb_from_path {
 	return \@crumbArray;
 }
 
+sub get_bread_crumb_ids {
+    # 
+    # tries to reverse engineer list of breadcrumb content ids for a given piece of content
+    # 
+	my $self = shift;
+	my @path_ids;
+	my $counter = 0;			## this is to bail out of a possible infinite loop
+
+	if ($self->course()->primary_key() && $self->parent_content()) {
+		my @content_parents = $self->parent_content();
+		my $parent_course_id = $self->course()->primary_key();
+		my $new_parent;
+		do {
+			$new_parent = undef;
+			foreach my $parent_content (@content_parents) {
+				my $counted_already = grep {$_ eq $parent_content->primary_key()} @path_ids;
+				if (!$counted_already && ($parent_content->course()->primary_key() eq $parent_course_id)) {
+					$new_parent = $parent_content;
+					last;
+				}
+			}
+			if ($new_parent) {
+				unshift @path_ids, $new_parent->primary_key();
+				@content_parents = $new_parent->parent_content();		
+			}
+			$counter += 1;
+		} while ($new_parent && $new_parent->parent_content() && $counter < 100);
+	}
+	return \@path_ids;
+}
+
+
 sub context_parent {
     #
     # Given a path, find the parent and sibling objects for this document
@@ -1446,7 +1478,9 @@ sub can_user_edit {
 	return 1 if $role;
 
 	## allow if school admin
-    return 1 if $user->check_school_permissions($self->school());
+	if ($self->field_value('school')) {
+	    return 1 if $user->check_school_permissions($self->school());
+	}
 	
     ## allow if user has role in course that allows editing of other
     ## people's content
