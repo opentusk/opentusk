@@ -1415,6 +1415,27 @@ sub is_user_author {
     return 0;
 }
 
+# TODO Make Readonly
+# Readonly my @CONTENT_EDIT_ROLES =>
+my @CONTENT_EDIT_ROLES = (
+    'Director',
+    'Manager',
+    'Author',
+    'Editor',
+    'Student Manager',
+    'Contact-Person',
+);
+
+# TODO Make Readonly
+# Readonly my @CONTENT_ADD_ROLES =>
+my @CONTENT_ADD_ROLES = (
+    'Director',
+    'Manager',
+    'Editor',
+    'Author',
+    'Student Manager',
+);
+
 sub can_user_edit {
     my $self = shift;
     my $user = shift;
@@ -1427,8 +1448,10 @@ sub can_user_edit {
 	## allow if school admin
     return 1 if $user->check_school_permissions($self->school());
 	
-	## allow if user has role in course that allows editing of other people's content
-    return 1 if (join(",",@HSDB4::Constants::Content_Edit_Roles) =~ $self->course()->user_primary_role($user->primary_key));
+    ## allow if user has role in course that allows editing of other
+    ## people's content
+    return 1 if (join(q{,}, @CONTENT_EDIT_ROLES)
+                 =~ $self->course()->user_primary_role($user->primary_key));
 }
 
 sub can_user_add {
@@ -1436,7 +1459,7 @@ sub can_user_add {
     my $user = shift;
     # first check the user's role in this course
     my $role = $self->user_primary_role($user->primary_key);
-    return 1 if ($role && join(",",@HSDB4::Constants::Content_Add_Roles) =~ /$role/);
+    return 1 if ($role && join(q{,}, @CONTENT_ADD_ROLES) =~ /$role/);
     return 1 if ($self->course()->can_user_add($user));
 }
 
