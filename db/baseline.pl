@@ -2,7 +2,11 @@
 
 # TODO Fix script to work with system root's my.cnf.
 
-use Modern::Perl;
+# use Modern::Perl;
+use strict;
+use warnings;
+use utf8;
+
 use Getopt::Long;
 use Readonly;
 use DBI;
@@ -49,8 +53,6 @@ my (
     $create_admin,
 );
 
-$school_admin //= 'admin';
-
 GetOptions(
     'help' => \$show_help,
     'verbose' => \$verbose,
@@ -64,7 +66,8 @@ if ($show_help) {
     exit;
 }
 
-$school_admin //= 'admin';
+# $school_admin //= 'admin';
+$school_admin = defined $school_admin ? $school_admin : 'admin';
 
 my $my_cnf = "$ENV{HOME}/.my.cnf";
 my $hostname = hostname;

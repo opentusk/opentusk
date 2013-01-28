@@ -1,6 +1,10 @@
 package TUSK::DB::Baseline;
 
-use Modern::Perl;
+# use Modern::Perl;
+use strict;
+use warnings;
+use utf8;
+
 use File::Spec;
 use Carp;
 use Readonly;
@@ -13,7 +17,7 @@ use TUSK::DB::Util qw(sql_file_path);
 use Moose::Util::TypeConstraints;
 
 use Moose;
-use namespace::autoclean;
+# use namespace::autoclean;
 
 # Restrict database name for now. Makes things easier.
 Readonly my $valid_dbname_regex => qr{\A [A-Za-z0-9_]+ \z}xms;
@@ -596,5 +600,7 @@ sub validate_user {
 }
 
 __PACKAGE__->meta->make_immutable;
+
+no Moose;
 
 1;

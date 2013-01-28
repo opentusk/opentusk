@@ -1,6 +1,10 @@
 package TUSK::DB::Util;
 
-use Modern::Perl;
+# use Modern::Perl;
+use strict;
+use warnings;
+use utf8;
+
 use File::Spec;
 
 use TUSK::Constants;

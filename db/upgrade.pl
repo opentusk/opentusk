@@ -1,6 +1,10 @@
 #! /usr/bin/env perl
 
-use Modern::Perl;
+# use Modern::Perl;
+use strict;
+use warnings;
+use utf8;
+
 use Getopt::Long;
 use Readonly;
 use DBI;

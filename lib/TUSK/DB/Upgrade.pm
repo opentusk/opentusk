@@ -1,6 +1,10 @@
 package TUSK::DB::Upgrade;
 
-use Modern::Perl;
+# use Modern::Perl;
+use strict;
+use warnings;
+use utf8;
+
 use Carp;
 use Readonly;
 use File::Spec;
@@ -9,7 +13,7 @@ use TUSK::Constants;
 use TUSK::DB::Util qw(sql_file_path);
 
 use Moose;
-use namespace::autoclean;
+# use namespace::autoclean;
 
 has dbh => (
     is => 'ro',
@@ -248,5 +252,7 @@ sub upgrade_scripts_for_db {
 }
 
 __PACKAGE__->meta->make_immutable;
+
+no Moose;
 
 1;
