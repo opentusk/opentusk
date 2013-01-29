@@ -84,7 +84,7 @@ ok(defined $TUSK::Constants::release_stamp_3_6_1,
    "release_stamp_3_6_1 defined");
 ok(scalar(@TUSK::Constants::evalGraphicsFormats) > 0,
    "evalGraphicsFormats defined");
-ok(defined @TUSK::Constants::siteAdmins, "siteAdmins exist");
+cmp_ok(scalar @TUSK::Constants::siteAdmins, '>', 0, "siteAdmins exist");
 ok(defined $TUSK::Constants::ServerRoot,
    "ServerRoot defined");
 $test_count += 5;
