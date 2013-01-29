@@ -27,7 +27,7 @@
 	my $school = $course->get_school()->getSchoolName();
 	my $course_id = $course->primary_key();
 	my $author_user_id = $m->session->{'user'}->primary_key();
-	my ($assignment, $grade_event, $author, $time_period, $already_submitted,$group_flag,%assignment_groups,$group_file_flag,$time_period_id,$faculty_contents,$resubmit_flag);
+	my ($assignment, $grade_event, $author, $time_period, $group_flag, %assignment_groups, $group_file_flag, $time_period_id, $faculty_contents, $resubmit_flag);
 	my $form_name = 'addeditassignment';
 	my $is_edit = 0;
 </%shared>
@@ -44,7 +44,6 @@
 		$author = TUSK::Application::Assignment::Author->new({user_id => $author_user_id, assignment => $assignment, course => $course});
 		$grade_event = TUSK::GradeBook::GradeEvent->new()->lookupKey($assignment->getGradeEventID());
 		$time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($assignment->getTimePeriodID());
-		$already_submitted = $assignment->isAlreadySubmitted();
 		$faculty_contents = $author->getFacultyContent(0);
 	} else {
 	  	$assignment = TUSK::Assignment::Assignment->new();
@@ -58,11 +57,7 @@
 
 	unless ($args->{msg}) {
 		if (defined $assignment) {
-			if ($already_submitted) {
-				$m->comp('SELF:set_msg', 
-		 			type 	=> 'err', 
-					msg	=> __('This assignment cannot be modified. Some students have already submitted it.') );
-			} elsif ($assignment->isAlreadyWorkedOnByStudents()) {
+			if ($assignment->isAlreadyWorkedOnByStudents()) {
 				$m->comp('SELF:set_msg', 
 		 			type 	=> 'hintmsg', 
 					msg	=> __('Do you want to modify the assignment? Some students have already worked on it.') );
@@ -295,29 +290,25 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 } &>
 
 
-% unless ($already_submitted) {
-%	my $style = ($group_file_flag) ? 'inline' : 'none';
+% my $style = ($group_file_flag) ? 'inline' : 'none';
 	<& /tmpl/element:field_display, params => {
 		label => __('Files to upload:'),
 		value => "<div id=\"content\"><input type=\"file\" name=\"files\" size=\"40\" /><select id=\"sub_group_0\" name=\"group_id\" style=\"display:$style;\">$first_group_selection</select><br/></div><span id=\"more\" style=\"color:#0000FF;cursor:pointer;text-decoration:underline;font-size:85%;\" onclick=\"addFile();\">" . __("Upload another file") . "</span>" } &>
-% }
 
 % if (defined $assignment_id && $faculty_contents && scalar @$faculty_contents) {
 	<& /tmpl/element:field_display, params => {
 	label	=> __('Uploaded Files:'), 
 	value 	=> $m->comp('/assignment/tmpl:get_content_links', 
 		contents => $faculty_contents,
-		checkbox => ($already_submitted) ? 0 : 1,
+		checkbox => 1,
 		groupselection => ($group_file_flag) ? 1 : 0,
 		assignmentgroups => \%assignment_groups )} &>
 % }
 
-% unless ($already_submitted) {
 <& /tmpl/element:save_button, params=>{
 	label	=>	__('Save Changes'),
 	cancel_onclick => "go_back('/assignment/author/show/" . $m->comp("/tmpl/url:get_type_path") . "');",
 	name	=>	'submit'} &>
-% }
 
 </table>	
 </form>
