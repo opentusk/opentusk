@@ -27,7 +27,7 @@
 	my $school = $course->get_school()->getSchoolName();
 	my $course_id = $course->primary_key();
 	my $author_user_id = $m->session->{'user'}->primary_key();
-	my ($assignment, $grade_event, $author, $time_period, $group_flag, %assignment_groups, $group_file_flag, $time_period_id, $faculty_contents, $resubmit_flag);
+	my ($assignment, $grade_event, $author, $time_period, $already_submitted, $group_flag, %assignment_groups, $group_file_flag, $time_period_id, $faculty_contents, $resubmit_flag);
 	my $form_name = 'addeditassignment';
 	my $is_edit = 0;
 </%shared>
@@ -44,6 +44,7 @@
 		$author = TUSK::Application::Assignment::Author->new({user_id => $author_user_id, assignment => $assignment, course => $course});
 		$grade_event = TUSK::GradeBook::GradeEvent->new()->lookupKey($assignment->getGradeEventID());
 		$time_period = HSDB45::TimePeriod->new(_school => $school)->lookup_key($assignment->getTimePeriodID());
+		$already_submitted = $assignment->isAlreadySubmitted();
 		$faculty_contents = $author->getFacultyContent(0);
 	} else {
 	  	$assignment = TUSK::Assignment::Assignment->new();
@@ -60,7 +61,7 @@
 			if ($assignment->isAlreadyWorkedOnByStudents()) {
 				$m->comp('SELF:set_msg', 
 		 			type 	=> 'hintmsg', 
-					msg	=> __('Do you want to modify the assignment? Some students have already worked on it.') );
+					msg	=> 'Do you want to modify the assignment? Some students have already worked on it.' );
 			}
 		}
 	}
@@ -76,7 +77,7 @@
 	my $msgtext;
 	if (defined($params{'submit_check'})) {
 		$grade_event->setFieldValues({
-			event_name		=> $params{title},
+			event_name		=> ($already_submitted) ? $assignment->getTitle() : $params{title},
 			event_description	=> $params{instructions},
 			time_period_id 		=> $time_period_id,
 			course_id		=> $course_id,
@@ -178,14 +179,21 @@
 	value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')',
 } &>
 
-
-<& /tmpl/element:textbox, params => { 
-    label 	=> 'Title:',
-    name 	=> 'title',
-    value 	=> $assignment->getTitle(),
-    size 	=> 70,
-    length 	=> 255 
-} &>
+% if ($already_submitted)  {
+	<& /tmpl/element:field_display, params =>{ 
+		label 	=> 'Title:',
+		value 	=> $assignment->getTitle(),
+	} &>
+% }
+% else {
+	<& /tmpl/element:textbox, params => { 
+		label 	=> 'Title:',
+		name 	=> 'title',
+		value 	=> $assignment->getTitle(),
+		size 	=> 70,
+		length 	=> 255 
+	} &>
+% }
 
 <& /tmpl/element:textbox, params => { 
     label 	=> 'Weight:',
@@ -211,8 +219,7 @@
 	maxlength 	=> 20,
 	calendar    => 1,
 	calendar_type => 'datetime',
-	default_time => 'midnight',
-	
+	default_time => 'midnight',		
 } &>
 
 <& /tmpl/element:textbox, params => { 
@@ -267,9 +274,11 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
         buttons => [
 		{ value => "1", text => "Yes", 
  		  checked => ($group_flag == 1) ? 1 : 0,
+		  disabled => ($already_submitted) ? 1 : 0,
 		  onclick => "verifyGroup()"},
                 { value => "0", text => "No", 
 		  checked => ($group_flag == 0) ? 1 : 0,
+		  disabled => ($already_submitted) ? 1 : 0,
 		  onclick => "disableGroup()"} 
 		   ],
         nobreak => 1,
@@ -283,7 +292,7 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 		{ value => "1", text => "Yes", 
  		  checked => ($resubmit_flag == 1) ? 1 : 0,
 		},
-                { value => "0", text => "No", 
+        { value => "0", text => "No", 
  		  checked => ($resubmit_flag == 0) ? 1 : 0,
 		 } ],
 	nobreak => 1,
@@ -292,9 +301,8 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 
 % my $style = ($group_file_flag) ? 'inline' : 'none';
 	<& /tmpl/element:field_display, params => {
-		label => __('Files to upload:'),
-		value => "<div id=\"content\"><input type=\"file\" name=\"files\" size=\"40\" /><select id=\"sub_group_0\" name=\"group_id\" style=\"display:$style;\">$first_group_selection</select><br/></div><span id=\"more\" style=\"color:#0000FF;cursor:pointer;text-decoration:underline;font-size:85%;\" onclick=\"addFile();\">" . __("Upload another file") . "</span>" } &>
-
+		label => 'Files to upload:',
+		value => "<div id=\"content\"><input type=\"file\" name=\"files\" size=\"40\" /><select id=\"sub_group_0\" name=\"group_id\" style=\"display:$style;\">$first_group_selection</select><br/></div><span id=\"more\" style=\"color:#0000FF;cursor:pointer;text-decoration:underline;font-size:85%;\" onclick=\"addFile();\">Upload another file</span>" } &>
 % if (defined $assignment_id && $faculty_contents && scalar @$faculty_contents) {
 	<& /tmpl/element:field_display, params => {
 	label	=> 'Uploaded Files:', 
