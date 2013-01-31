@@ -465,17 +465,25 @@ sub Locale::TextDomain::__x ($@)
 			{
 			    my ($msgid, %vars) = @_;
 			    my $textdomain = 'tusk';
-			    return($msgid) if($ENV{LANG} eq 'C');
-			    my $msgstr = Locale::TextDomain::__expand ((Locale::TextDomain::dgettext $textdomain => $msgid), %vars);
-			     if($msgstr eq $msgid ) {
-			     	carp("I18N: hash: ($msgid, $msgstr) no match from:");			     
-				$msgstr = "x($msgstr)-";
-
-			     } else {
-				#$msgstr = "x($msgid)+";
-#				$msgstr = "x($msgstr)+";
-				}		    
-			    #return $msgstr;
+			    my ($msgstr, $substring);
+				if ($ENV{LANG} eq 'C') {
+			    	$msgstr = Locale::TextDomain::__expand ($msgid, %vars);
+			    	$substring = $msgid;
+				}
+				else {
+					$substring = Locale::TextDomain::dgettext $textdomain => $msgid;
+			    	$msgstr = Locale::TextDomain::__expand ($substring, %vars);
+				}
+				if ($TUSK::Constants::I18N{Debug}) {
+					if ($substring eq $msgid) {
+						carp("I18N: hash: ($msgid, $msgstr) no match from:");			     
+						$msgstr = "($msgstr)-";
+					}
+					else {
+						$msgstr = "($msgstr)+";
+					}		    
+				}
+			    return $msgstr;
 			    return decode("UTF-8",$msgstr);
 			};
 sub Locale::TextDomain::__ ($)
@@ -483,16 +491,23 @@ sub Locale::TextDomain::__ ($)
 			    my $msgid = shift;
 			    my $package = caller;
 			    my $textdomain = 'tusk';
-			    return($msgid) if($ENV{LANG} eq 'C');
-			    my $msgstr = Locale::TextDomain::dgettext $textdomain => $msgid;
-			     if($msgstr eq $msgid ) {
-			     	carp("I18N: string: ($msgid, $msgstr) no match from: ");
-				$msgstr = "($msgstr)-";
-			     } else {
-				#$msgstr = "($msgid)+";
-			     	carp("I18N: string: ($msgid, $msgstr) yes match from: ");
-#				$msgstr = "($msgstr)+";
-				}		    
+			    my $msgstr;
+			    if ($ENV{LANG} eq 'C') {
+					$msgstr = $msgid;
+				}
+				else {
+					$msgstr = Locale::TextDomain::dgettext $textdomain => $msgid;
+				}
+				if ($TUSK::Constants::I18N{Debug}) {
+					if ($msgstr eq $msgid ) {
+						carp("I18N: string: ($msgid, $msgstr) no match from: ");
+						$msgstr = "($msgstr)-";
+					}
+					else {
+						$msgstr = "($msgid)+</span>";
+						carp("I18N: string: ($msgid, $msgstr) yes match from: ");
+					}		    
+				}
 			    return decode("UTF-8",$msgstr);
 			};
 
