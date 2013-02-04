@@ -452,9 +452,13 @@ sub _getI18NConstant {
 	if( ! exists($TUSK::Constants::I18N{$key})) {
 		$this->logger("NO TUSK::Constants::I18N{$key}");
 	}
-#	$this->logger("NO TUSK::Constants::I18N key $key") unless ( exists($TUSK::Constants::I18N{$key}));
+	if ($TUSK::Constants::I18N{Debug}) {
+		$this->logger("NO TUSK::Constants::I18N key $key") unless ( exists($TUSK::Constants::I18N{$key}));
+	}
 	return undef unless ( exists($TUSK::Constants::I18N{$key}));
-#	$this->logger("YES TUSK::Constants::I18N key $key = " . $TUSK::Constants::I18N{$key});
+	if ($TUSK::Constants::I18N{Debug}) {
+		$this->logger("YES TUSK::Constants::I18N key $key = " . $TUSK::Constants::I18N{$key});
+	}
 	return($TUSK::Constants::I18N{$key});
 }
 
@@ -476,7 +480,7 @@ sub Locale::TextDomain::__x ($@)
 				}
 				if ($TUSK::Constants::I18N{Debug}) {
 					if ($substring eq $msgid) {
-						carp("I18N: hash: ($msgid, $msgstr) no match from:");			     
+						carp("I18N: hash: ($msgid, $msgstr) no $ENV{LANG} match");			     
 						$msgstr = "($msgstr)-";
 					}
 					else {
@@ -500,12 +504,12 @@ sub Locale::TextDomain::__ ($)
 				}
 				if ($TUSK::Constants::I18N{Debug}) {
 					if ($msgstr eq $msgid ) {
-						carp("I18N: string: ($msgid, $msgstr) no match from: ");
+						carp("I18N: string: ($msgid, $msgstr) no $ENV{LANG} match");
 						$msgstr = "($msgstr)-";
 					}
 					else {
-						$msgstr = "($msgid)+</span>";
-						carp("I18N: string: ($msgid, $msgstr) yes match from: ");
+						$msgstr = "($msgid)+";
+						carp("I18N: string: ($msgid, $msgstr) yes $ENV{LANG} match");
 					}		    
 				}
 			    return decode("UTF-8",$msgstr);
