@@ -27,11 +27,11 @@ package TUSK::Mason;
 	my $error_mode = "fatal";
 	my $error_format = "text";
 	my $use_object_files = 1;
-#	if (Apache2::ServerUtil::exists_config_define('DEV')) {
+	if (Apache2::ServerUtil::exists_config_define('DEV')) {
 		$error_mode = "output";
 		$error_format = "html";
 		$use_object_files = 0;
-#	}
+	}
 
 	# Check the directories
 	my ($serverRoot) = ($ENV{SERVER_ROOT} =~ /^(.*)$/g);
