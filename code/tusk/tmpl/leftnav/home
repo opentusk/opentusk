@@ -73,7 +73,7 @@ else {
 	foreach my $ann (@$announcement_ref) {
 		my $grouping = $ann->{course};
 		my $link = '<a href="/hsdb45/course/' . $grouping->school() . '/' .  $grouping->course_id . '/ann">' . $stripObj->truncateAndRemoveHTML($ann->{item}->field_value("body"), $charLimit) . '</a>';
-		push @announcement_links, $link;
+		push @announcement_links, {shortlink => $link, fulltext => "<p>" . $stripObj->removeHTML($ann->{item}->field_value("body")) . "</p>"};
 	}
 
 	## course discussions
@@ -102,7 +102,7 @@ else {
 			<li><% __('Announcements') %>
 			<ul>
 %		foreach my $link (@announcement_links) {
-				<li><% $link %></li>
+				<li class="rollcontainer"><% $link->{shortlink} %><div class="rollover"><% $link->{fulltext} %></div></li>
 %		}
 			</ul></li>
 %	}
