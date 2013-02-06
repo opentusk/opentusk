@@ -27,7 +27,7 @@
 	my $school = $course->get_school()->getSchoolName();
 	my $course_id = $course->primary_key();
 	my $author_user_id = $m->session->{'user'}->primary_key();
-	my ($assignment, $grade_event, $author, $time_period, $already_submitted, $group_flag, %assignment_groups, $group_file_flag, $time_period_id, $faculty_contents, $resubmit_flag);
+	my ($assignment, $grade_event, $author, $time_period, $group_flag, $already_submitted, %assignment_groups, $group_file_flag, $time_period_id, $faculty_contents, $resubmit_flag, $email_flag);
 	my $form_name = 'addeditassignment';
 	my $is_edit = 0;
 </%shared>
@@ -103,6 +103,7 @@
 			$assignment->setDueDate($params{due_date} ? $params{due_date} : undef);
 			$assignment->setGroupFileFlag($params{group_file_flag}) unless $already_submitted;
 			$assignment->setResubmitFlag($params{resubmit_flag});
+			$assignment->setEmailFlag($params{email_flag});
 
 			if ($assignment->save({'user' => $author_user_id})) {
 				if ($is_edit) {
@@ -237,6 +238,7 @@
 
 % $group_flag = (defined $grade_event && $grade_event->getGroupFlag()) ? $grade_event->getGroupFlag() : 0;
 % $resubmit_flag = (defined $assignment) ? $assignment->getResubmitFlag() : 0;
+% $email_flag = (defined $assignment) ? $assignment->getEmailFlag() : 0;
 % $group_file_flag = (defined $assignment && $assignment->getGroupFileFlag()) ? $assignment->getGroupFileFlag() : 0;
 % my $group_list_style = ($group_flag == 1) ? 'inline' : 'none';
 % my ($checkbox, $allchecked, $first_group_selection) = $m->comp('SELF:get_course_groups');
@@ -299,7 +301,18 @@ $m->scomp('/tmpl/element:input_radio_buttons', params => {
 		 } ],
 	nobreak => 1,
 } &>
-
+<& /tmpl/element:radio_buttons, params =>{ 
+        label => 'Email Notification:',
+        name => 'email_flag',
+        buttons => [
+		{ value => "1", text => __("Yes"), 
+ 		  checked => ($email_flag == 1) ? 1 : 0,
+		},
+                { value => "0", text => __("No"), 
+ 		  checked => ($email_flag == 0) ? 1 : 0,
+		 } ],
+	nobreak => 1
+} &>
 
 % my $style = ($group_file_flag) ? 'inline' : 'none';
 	<& /tmpl/element:field_display, params => {

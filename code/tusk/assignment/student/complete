@@ -16,6 +16,8 @@
 <%once>
 	use TUSK::Application::Assignment::Student::Individual;
 	use TUSK::Application::Assignment::Student::Group;
+	use TUSK::Constants;
+	use TUSK::Manage::Email;
 	use HSDB45::UserGroup;
 </%once>
 
@@ -118,9 +120,15 @@
 
 			$student->setStudentComments($params{comments}) if $params{comments};
 
-			if ($params{submit} eq 'Submit Assignment') {
+			if ($params{submit} eq __('Submit Assignment')) {
 				if (@{$contents}){
 					$student->setSubmitDate();
+					if($assignment->getEmailFlag()) {
+						my $user = $m->session->{'user'};
+						my %email_params = (senddirectors => 1, subject => 'Submission for assignment: ' . $assignment->getTitle());
+						$email_params{'body'} = __x("This email is to notify you that {name} has uploaded a file for assignment: {title}.\n\nTo view and/or grade, go to https://{host}/assignment/author/grade/course/{school}/{course}/{id} .", name => $user->out_full_name(), title => $assignment->getTitle(), host => $TUSK::Constants::Domain, school => $course->get_school()->getSchoolName(), course => $course->primary_key(), id => $assignment->getPrimaryKeyID());
+						my $data = TUSK::Manage::Email::email_process($user, \%email_params, $course->get_school()->getSchoolName(), $course, undef);
+					}
 					$msgtext = __('Your assignment has been submitted successfully.');
 					$msgtype = 'msg';
 				} else {
@@ -128,7 +136,7 @@
 					}
 			} else {
 				$msgtype = 'msg';
-				$msgtext = __('Your changes has been saved.') unless defined $msgtext;
+				$msgtext = __('Your changes have been saved.') unless defined $msgtext;
 			}
 		}
 
@@ -427,7 +435,7 @@
 <%method invalid_action>
 <%perl>
 	if (defined $submit_date) {
-		if ($params{submit} =~ /Save Changes|Submit Assignment/i) {
+		if ($params{submit} =~ /__("Save Changes")|__("Submit Assignment")/i) {
 			if (defined $params{comments} || defined $params{files} || defined $params{del_content_id}) {
 				return 1;
 			}
