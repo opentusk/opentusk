@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 use strict;
 my $dir = "./vzic-1.3/zoneinfo";
 
