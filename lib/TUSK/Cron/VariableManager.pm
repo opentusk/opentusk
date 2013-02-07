@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -43,9 +43,9 @@ Not intended for external usage.
 =cut
 
 sub getProcess{
-    my $processName = $0;
-    $processName =~ s/^.*\///;
-    return ($processName);
+  my $processName = $0;
+  $processName =~ s/^.*\///;
+  return ($processName);
 }
 
 
@@ -59,12 +59,12 @@ Not intended for external usage.
 =cut
 
 sub buildNewVariable{
-	my ($variableName) = @_;
-	my $variable = TUSK::Cron::Variable->new();
-        $variable->setVariableName($variableName);
-        $variable->setVariableCronName(getProcess());
-        $variable->setVariableHostname(hostname());
-	return $variable;
+  my ($variableName) = @_;
+  my $variable = TUSK::Cron::Variable->new();
+  $variable->setVariableName($variableName);
+  $variable->setVariableCronName(getProcess());
+  $variable->setVariableHostname(hostname());
+  return $variable;
 }
 
 
@@ -79,14 +79,14 @@ use TUSK::Cron::Variable;
 use Sys::Hostname;
 
 BEGIN {
-    require Exporter;
-    require TUSK::Core::SQLRow;
+  require Exporter;
+  require TUSK::Core::SQLRow;
 
-    use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
-    
-    @ISA = qw(TUSK::Core::SQLRow Exporter);
-    @EXPORT = qw( );
-    @EXPORT_OK = qw( );
+  use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
+
+  @ISA = qw(TUSK::Core::SQLRow Exporter);
+  @EXPORT = qw( );
+  @EXPORT_OK = qw( );
 }
 
 use vars @EXPORT_OK;
@@ -97,39 +97,46 @@ use vars ();
 my %variables;
 
 sub new {
-    # Find out what class we are
-    my $class = shift;
-    $class = ref $class || $class;
-    # Call the super-class's constructor and give it all the values
-    my $self = $class->SUPER::new ( 
-				    _datainfo => {
-					'database' => 'tusk',
-					'tablename' => 'cron_job_variables',
-					'usertoken' => 'ContentManager',
-					'database_handle' => '',
-					},
-				    _field_names => {
-					'cron_job_variable_id' => 'pk',
-					'cron_name' => '',
-					'variable_name' => '',
-					'variable_value' => '',
-				    },
-				    _attributes => {
-					save_history => 0,
-					tracking_fields => 0,	
-				    },
-				    _levels => {
-					reporting => 'cluck',
-					error => 0,
-				    },
-				    @_
-				  );
-    # Finish initialization...
-    my $tempArrayRef = TUSK::Cron::Variable->new()->lookup("cron_name='".getProcess()."' and host_name='".hostname()."'");
-    foreach my $variable (@{$tempArrayRef}) {
-	$variables{ $variable->getVariableName() } = $variable;
-    }
-    return $self;
+  # Find out what class we are
+  my $class = shift;
+  $class = ref $class || $class;
+  # Call the super-class's constructor and give it all the values
+  my $self = $class->SUPER::new (
+      _datainfo => {
+                    'database' => 'tusk',
+                    'tablename' => 'cron_job_variables',
+                    'usertoken' => 'ContentManager',
+                    'database_handle' => '',
+                   },
+      _field_names => {
+                       'cron_job_variable_id' => 'pk',
+                       'cron_name' => '',
+                       'variable_name' => '',
+                       'variable_value' => '',
+                      },
+      _attributes => {
+                      save_history => 0,
+                      tracking_fields => 0,
+                     },
+      _levels => {
+                  reporting => 'cluck',
+                  error => 0,
+                 },
+      @_
+    );
+  # Finish initialization...
+
+  # Was looking up by host_name, but I removed. If this causes a
+  # problem, add it back.
+  # my $tempArrayRef = TUSK::Cron::Variable->new()->lookup(
+  #   "cron_name='".getProcess()."' and host_name='".hostname()."'");
+  # TODO Properly escape process name SQL query
+  my $tempArrayRef = TUSK::Cron::Variable->new()->lookup(
+    "cron_name=" . q{'} . getProcess() . q{'});
+  foreach my $variable (@{$tempArrayRef}) {
+    $variables{ $variable->getVariableName() } = $variable;
+  }
+  return $self;
 }
 
 ### Get/Set methods
@@ -146,9 +153,11 @@ Returns the value of the Variable named $variableName
 =cut
 
 sub getValue{
-    my ($self, $variableName) = @_;
-    unless(exists($variables{$variableName})) {$variables{$variableName} = buildNewVariable($variableName);}
-    return $variables{$variableName}->getVariableValue();
+  my ($self, $variableName) = @_;
+  unless (exists($variables{$variableName})) {
+    $variables{$variableName} = buildNewVariable($variableName);
+  }
+  return $variables{$variableName}->getVariableValue();
 }
 
 #######################################################
@@ -162,9 +171,11 @@ Set the name of the variable $variableName to $variableValue
 =cut
 
 sub setValue{
-    my ($self, $variableName, $variableValue) = @_;
-    unless(exists($variables{$variableName})) {$variables{$variableName} = buildNewVariable($variableName);}
-    $variables{$variableName}->setVariableValue($variableValue);
+  my ($self, $variableName, $variableValue) = @_;
+  unless (exists($variables{$variableName})) {
+    $variables{$variableName} = buildNewVariable($variableName);
+  }
+  $variables{$variableName}->setVariableValue($variableValue);
 }
 
 #######################################################
@@ -178,9 +189,12 @@ Save the value of the variable named $variableName to the database
 =cut
 
 sub saveValue{
-    my ($self, $variableName) = @_;
-    unless(exists($variables{$variableName})) {$variables{$variableName} = buildNewVariable($variableName);}
-    $variables{$variableName}->save();
+  my ($self, $variableName) = @_;
+  unless (exists($variables{$variableName})) {
+    $variables{$variableName} = buildNewVariable($variableName);
+  }
+  $variables{$variableName}->setVariableHostname(hostname());
+  $variables{$variableName}->save();
 }
 
 
