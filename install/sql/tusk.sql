@@ -2284,7 +2284,7 @@ CREATE TABLE `content_external_source` (
   PRIMARY KEY  (`source_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
-INSERT INTO `content_external_source` VALUES (1,'Ovid Medline/PubMed','medline','','isathi01','2008-07-09 14:16:45','isathi01','2008-07-09 14:16:45'),(2,'Ovid CAB Abstracts','caba','','isathi01','2008-07-09 14:16:45','isathi01','2008-07-09 14:16:45'),(3,'Ovid EBM Reviews - ACP Journal Club','acp','','isathi01','2008-07-09 14:16:45','acp','2008-07-09 14:16:45'),(4,'Ovid EBM Reviews - Cochrane Database of Systematic Reviews (CSR)','coch','','isathi01','2008-07-09 14:16:45','isathi01','2008-07-09 14:16:45'),(5,'Ovid EBM Reviews - Database of Abstracts of Reviews of Effects (DARE)','dare','','isathi01','2008-07-09 14:16:45','isathi01','2008-07-09 14:16:45');
+INSERT INTO `content_external_source` VALUES (1,'Medline/PubMed','medline','','isathi01','2008-07-09 14:16:45','isathi01','2008-07-09 14:16:45');
 
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
