@@ -49,8 +49,9 @@ BEGIN {
 
 use vars @EXPORT_OK;
 use TUSK::Content::External::Field;
-use TUSK::Content::External::Source::OVID;
-use TUSK::Content::External::Source::OVID::Medline;
+use TUSK::Core::Plugins;
+use Carp;
+use Data::Dumper;
 
 # Non-exported package globals go here
 use vars ();
@@ -85,6 +86,10 @@ sub new {
 				    @_
 				  );
     # Finish initialization...
+
+    # Create the $object_hashes for external connections 
+    $self->getHash();
+    
     return $self;
 }
 
@@ -165,26 +170,47 @@ sub getFields{
 
 }
 
+=head2 getHash()
+ 	
+    Uses Apache2::RequestUtil request pnotes to simulate a singleton.
+    We only want one involcation og the TUSK::Core::Plugins class since
+    this class is called quit frequently.
 
-my $object_hash = { 
-    medline => 'TUSK::Content::External::Source::OVID::Medline',
-    acp  => 'TUSK::Content::External::Source::OVID',
-    caba => 'TUSK::Content::External::Source::OVID',
-    dare => 'TUSK::Content::External::Source::OVID',
-    coch => 'TUSK::Content::External::Source::OVID',
-};
+=cut
+sub getHash {
+	my $self = shift;
+	my $obj_hash = {};
+	my $r = Apache2::RequestUtil->request;
+	my $key = "tusk_obj_hash";
+	if($r->pnotes($key)) {
+		$obj_hash = $r->pnotes($key);
+	} else {
+		my $plugins   = TUSK::Core::Plugins->new( 
+			debug		=> 0,
+			methods 	=> [ 'metadata', 'getToken' ]);
+		$plugins->getplugins;
+		foreach my $plugin ($plugins->plugins) {
+			my $token = $plugin->getToken;
+			$obj_hash->{$token} = $plugin;
+		}
+		$r->pnotes($key => $obj_hash);
+	}
+	return $obj_hash;
+}
+
 
 sub redirect{
     my ($self, $content, $user) = @_;
+    my $object_hash = $self->getHash;
     if ($object_hash->{$self->getToken()}) {
-	my $source = $object_hash->{ $self->getToken() }->new();
+	my $source = $object_hash->{ $self->getToken() };
 	return $source->redirect($content, $user, $self->getToken());
     }
 }
 
 sub metadata{
     my ($self, $content, $formdata) = @_;
-
+    my $object_hash = $self->getHash;
     my $data = {};
     my $fields = $self->getFields();
     foreach my $field (@$fields){
@@ -192,7 +218,8 @@ sub metadata{
     }
 
     if ($object_hash->{$self->getToken()}) {
-	my $source = $object_hash->{ $self->getToken() }->new();
+
+	my $source = $object_hash->{ $self->getToken() };
 	$data->{user} = $formdata->{user};
 	$data->{token} = $self->getToken();
 
