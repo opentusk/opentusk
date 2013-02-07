@@ -78,6 +78,7 @@
 	};
 
 	my $type_object = $m->comp('/tmpl/url:get_type_object');
+	my $path_ids;
 </%shared>
 
 
@@ -739,14 +740,26 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 
 <%method get_nav_bars>
 <%perl>
+	# if the user got here by clicking through course contents, get breadcrumb info from URL
 	my $nav_bars = $m->comp('/tmpl/url:get_initial_nav_bars');
-	
-	if ($type_object->isa('HSDB4::SQLRow::Content')){
-		$nav_bars = [ { href => '/management/home', label => 'CMS Home' } ];
-	}
-	my $path_ids = $m->comp('/tmpl/url:get_path_ids');
-	my $parent_ids = [];
+	$path_ids = $m->comp('/tmpl/url:get_path_ids');
 
+	# otherwise, try to reconstruct it
+	if (scalar @$path_ids < 1 && $type_object->isa('HSDB4::SQLRow::Content')){
+		if (scalar @$nav_bars < 1) {
+			$nav_bars = [ { href => '/management/home', label => 'CMS Home' }];
+			if ($type_object->course()->primary_key()) {
+				push @$nav_bars, {'href' => "/management/course/display/" . $type_object->school() . "/" . $type_object->course()->primary_key() . "/", label => 'Course - ' . $type_object->course()->out_title()};
+			}
+		}
+
+		$path_ids = $type_object->get_bread_crumb_ids();
+	}
+	elsif (scalar @$path_ids < 1 && !$type_object->isa('HSDB45::Course')) {
+		$m->comp('/tmpl/url:redirect', msg_type => 'errmsg', message => 'Error: attempted to retrieve object of type: ' . ref $type_object);
+	}
+
+	my $parent_ids = [];
 	foreach my $path_id (@$path_ids){
 		next unless ($path_id > 0);
 		next if ($path_id == $content->primary_key());
@@ -883,21 +896,33 @@ my $trailing_text = "<div style=\"margin-top:15px;\">\n$additional_lnks</div>";
 </%doc>
 
 <%perl>
-	
+
 my $content_id = $content->primary_key();
+my $path;
 if($content_id){
-	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $type_object = $m->comp('/tmpl/url:get_type_object');
+	my $course;
+	if (ref $type_object eq 'HSDB45::Course') {
+		$course = $type_object;
+		$path = join('/', @$path_ids);
+	}
+	elsif ($type_object->isa('HSDB4::SQLRow::Content')) {
+		$course = $type_object->course();
+		$path = join('/',  @$path_ids);
+	}
+	else {
+		$m->comp('/tmpl/url:redirect', msg_type => 'errmsg', message => 'Error: attempted to modify object of type: ' . ref $type_object);
+	}
+
  	my $args = $m->request_args();
-	my $course_context = HSDB4::Constants::code_by_school($course->school) . $course->primary_key() . 'C';
-
-	my $path = join('/', $m->comp('/tmpl/url:get_path_ids'));
+	my $course_context = ($course->primary_key()) ? HSDB4::Constants::code_by_school($course->school) . $course->primary_key() . 'C/' : "";
 	$path .= '/' if ($path);
-	my $url = "javascript:confirm_departure('/view/content/$course_context/$path$content_id')";
+	my $url = "javascript:confirm_departure('/view/content/$course_context$path$content_id')";
 
-	return [ {txt => 'Preview', url => $url } ];
+	return $url;
 }
 else{
-	return [];
+	return "";
 }
 
 </%perl>

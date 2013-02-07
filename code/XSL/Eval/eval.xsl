@@ -159,7 +159,16 @@
         <!-- Due Date -->
         <tr>
           <td align="right"><b>Due Date:</b></td>
-          <td align="left"><xsl:value-of select="/Eval/due_date"/></td>
+          <td align="left">
+			<xsl:choose>
+				<xsl:when test="/Eval/prelim_due_date != '0000-00-00'">
+					<xsl:value-of select="/Eval/prelim_due_date"/>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="/Eval/due_date"/>
+				</xsl:otherwise>
+			</xsl:choose>
+          </td>
         </tr>
 
         <!--  Num Users -->
