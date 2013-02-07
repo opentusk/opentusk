@@ -147,23 +147,21 @@ use TUSK::Manage::User;
 </tr>
 <tr>
 
-%  @drop_options = map { {'label'=> $_, 'value' => $_ } } @genders;
 <& /tmpl/element:dropdown, params => {
 	label => __('Gender').':',
 	name => 'gender',
 	selected => $useredit->{gender},
-	options => \@drop_options 
+	options => \@genders 
 
 } &>
 
 </tr>
 <tr>
-%  @drop_options = map { {'label'=> $_, 'value' => $_ } } @statuses;
 <& /tmpl/element:dropdown, params => {
-	label => 'Status:',
+	label => __('Status:'),
 	name => 'status',
 	selected => $useredit->{status},
-	options => \@drop_options 
+	options => \@statuses 
 
 } &>
 
@@ -219,32 +217,25 @@ use TUSK::Manage::User;
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
 
-% my $stripObj = TUSK::Application::HTML::Strip->new();
-% foreach my $ug (@{$data->{usergroups}}) {
-%	if ($data->{tr_flag} == 0){
-%		print  "<tr>";
-%	}
-
-% 
+%	my $stripObj = TUSK::Application::HTML::Strip->new();
+%	foreach my $ug (@{$data->{usergroups}}) {
+%		if ($data->{tr_flag} == 0){
+%			print  "<tr>";
+%		}
 <td width="50%" class="layers-left">
-%  if ($ARGS{page} eq "add") {
+%		if ($ARGS{page} eq "add") {
 <input type="checkbox" name="groups" value="<% $ug->primary_key %>">
-% }
-
+%		}
 <% $stripObj->removeHTML($ug->field_value('label')) %>
-
-% if ($ARGS{page} eq "edit") {
+%		if ($ARGS{page} eq "edit") {
 &nbsp;(<% $ug->school %>)
-% }
-
+%		}
 </td>
-
-%	if ($data->{tr_flag} == 1) {
-%		print OUT "</tr>";
-%	}
-%	$data->{tr_flag} = ($data->{tr_flag} + 1) % 2; # flip the flag
-% } # END FOREACH
-
+%		if ($data->{tr_flag} == 1) {
+%			print OUT "</tr>";
+%		}
+%		$data->{tr_flag} = ($data->{tr_flag} + 1) % 2; # flip the flag
+%	} # END FOREACH
 </table>
 
 % } else {
@@ -312,8 +303,13 @@ use TUSK::Manage::User;
 
 	my @degrees = @TUSK::Constants::Degrees;
 	my @suffices = ('', 'II', 'III', 'IV', __('Jr.'), __('Sr.'));
-	my @statuses = (__('Active'),__('Inactive'),__('Restricted'),__('Test'));
-	my @genders = (__('Unknown'), __('Female'), __('Male'));
+	my @statuses = (	{ 'label' =>  __('Active'), 'value' => 'Active'}, 
+						{ 'label' => __('Inactive'), 'value' => 'Inactive'},
+						{ 'label' => __('Restricted'), 'value' => 'Restricted'},
+						{ 'label' => __('Test'), 'value' => 'Test'}	);
+	my @genders = (		{ 'label' => __('Unknown'), 'value' => 'Unknown'},
+						{ 'label' => __('Female'), 'value' => 'Female'},
+						{ 'label' => __('Male'), 'value' => 'Male' });
 	my %source_label = ('internal' => $TUSK::Constants::SiteAbbr);
 
 	unless ($ARGS{userid}) {
