@@ -487,8 +487,7 @@ function forward(destination) {
 	if (result == null) {
 		return false;
 	}
-
-	location.href = dest;
+	window.open(dest);
 }
 
 // used by admin left nav to hide show case sub navigation
