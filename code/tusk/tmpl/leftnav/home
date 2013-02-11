@@ -77,16 +77,13 @@ else {
 	}
 
 	## course discussions
-	my ($db, $cfg, $lng, $user) = MwfMain->new($r);
-	my @courses = $m->session->{user}->all_courses();
-	my @allboards;
-	foreach my $course (@courses) {
-		my $course_key = $course->school_id() . '-' . $course->primary_key() . '-%-%';
-		my $boards = Forum::ForumKey::getBoardsHashnoHidden($db, $user, $course_key);
-		if (scalar @$boards) {
-			foreach my $board (@$boards) {
-				my $link = '<a href="/forum/board_show.pl?bid=' . $board->{id} . '">' . $stripObj->truncateAndRemoveHTML($board->{title}, $charLimit) . '</a>';
-				push @discussion_links, $link;
+	my @current_courses = $m->session->{user}->current_courses( {'only_enrollment' => 1} );
+	my ($new_post_forums, $new_notifications_forums, undef) = Forum::ForumKey::new_post_forums($r, undef, \@current_courses);
+
+	if (defined $new_post_forums && scalar (@$new_post_forums)){
+		foreach my $forum_ref (@$new_post_forums){
+			if ( $forum_ref->{numNew}){
+				push @discussion_links, '<a href="/forum/board_show.pl?bid=' . $forum_ref->{bid} . '">' . $forum_ref->{title} . '</a>:' . $forum_ref->{numNew} . ' new';
 			}
 		}
 	}
