@@ -84,7 +84,18 @@ if (scalar keys %course_hash) {
 		}
 		$counter++;
  	}
-	@schools = keys %course_hash;
+	## if user has an affiliation in the school list, make that the first so it's the active tab on the home page
+	if ( grep { $_ eq $user->affiliation() } keys %course_hash ) {
+		@schools = ($user->affiliation());
+		foreach my $school (keys %course_hash) {
+			if ($school ne $user->affiliation()) {
+				push @schools, $school;
+			}
+		}
+	}
+	else {
+		@schools = keys %course_hash;
+	}
 }
 else {
 	@schools = ($user->affiliation());
