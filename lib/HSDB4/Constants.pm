@@ -187,7 +187,10 @@ sub db_connect {
                                   ? $ENV{DATABASE_ADDRESS}
                                   : $TUSK::Constants::Servers{Sys::Hostname::hostname}->{'WriteHost'});
     my $user = $db_user || $ENV{HSDB_DATABASE_USER} || $TUSK::Constants::DatabaseUsers{ContentManager}->{readusername};
-    my $pw = $db_pass || $ENV{HSDB_DATABASE_PASSWORD} || '';
+    my $pw = $db_pass
+        || $ENV{HSDB_DATABASE_PASSWORD}
+        || $TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword}
+        || '';
     # warn "Password: $db_pass" if ($ENV{MOD_PERL} && $db_user == 'caper_user');
 
     return ($dbc, $user, $pw, {RaiseError => 1, mysql_enable_utf8 => 1});

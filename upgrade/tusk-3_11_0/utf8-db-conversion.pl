@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 
 # do-db-conversion.pl :
 #     Converts an existing TUSK database to use UTF-8 as the character encoding on text fields.

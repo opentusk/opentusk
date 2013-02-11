@@ -7,7 +7,7 @@
 
 
 {
-package TUSK::Mason;
+    package TUSK::Mason;
 	use strict;
 	use Apache2::RequestRec;
 	use Apache2::ServerUtil;
@@ -20,10 +20,10 @@ package TUSK::Mason;
 	use HTML::Mason::ApacheHandler;
 	use MasonX::Request::WithApacheSession;
 	use ModPerl::Const;
-
+    use TUSK::Constants;
+    use Sys::Hostname;
 
 	# Define params for environment
-	#
 	my $error_mode = "fatal";
 	my $error_format = "text";
 	my $use_object_files = 1;
@@ -33,23 +33,42 @@ package TUSK::Mason;
 		$use_object_files = 0;
 	}
 
-	# Check the directories
-	my ($serverRoot) = ($ENV{SERVER_ROOT} =~ /^(.*)$/g);
+	# Check mason cache directory
+    my $serverRoot = $TUSK::Constants::ServerRoot;
 	my $dataDir = "$serverRoot/mason_cache";
-	unless(-d $dataDir) {   unless(mkdir $dataDir) {die "Can't create mason cache dir $dataDir\n";} }
-	unless(opendir(DIR, $dataDir)) { die "Can't open mason cache dir $dataDir\n"; }
+    if (! -d $dataDir) {
+        if (! (mkdir $dataDir)) {
+            confess "Can't create mason cache dir $dataDir";
+        }
+    }
+    if (! opendir(DIR, $dataDir)) {
+        confess "Can't open mason cache dir $dataDir";
+    }
 	close(DIR);
 
-	my ($codeRootEnv) = ($ENV{CODE_ROOT} =~ /^(.*)$/g);
-	my $codeRoot = "$codeRootEnv/tusk";
-	unless(-d $codeRoot) {	die "Masons code root does not exist ($codeRoot)\n"; }
-	unless(opendir(DIR, $dataDir)) { die "Can't open mason code root dir $codeRoot\n"; }
+    # Check for TUSK code root
+	my $codeRoot = $TUSK::Constants::CodeRoot;
+	my $tuskCodeRoot = "$codeRoot/tusk";
+    if (! -d $tuskCodeRoot) {
+        confess "Mason's code root does not exist ($tuskCodeRoot)";
+    }
+    if (! opendir(DIR, $dataDir)) {
+        confess "Can't open mason code root dir $tuskCodeRoot";
+    }
 	close(DIR);
+
+    # get database info
+    # TODO: Encapsulate in TUSK::Constants or HSDB4::Constants
+    my $db_info_ref = $TUSK::Constants::Servers{Sys::Hostname::hostname};
+    my $database_address = $db_info_ref->{WriteHost};
+    my $content_manager_ref = $TUSK::Constants::DatabaseUsers{ContentManager};
+    my $db_user = $content_manager_ref->{writeusername};
+    my $db_pw = $content_manager_ref->{writepassword};
 
 	sub handler {
 		my ($r) = @_;
 		my $ah = HTML::Mason::ApacheHandler->new(
-			comp_root => $codeRoot,
+			comp_root => $tuskCodeRoot,
 			data_dir => $dataDir,
 			args_method   => "mod_perl",
 			plugins=>['MasonX::Plugin::UTF8', 'MasonX::Plugin::Defang'],
@@ -61,12 +80,12 @@ package TUSK::Mason;
 			session_use_cookie => 1,
 			session_cookie_expires=>"session",
 			session_cookie_name => "TUSKMasonCookie",
-			session_data_source => "DBI:mysql:hsdb4:$ENV{DATABASE_ADDRESS}",
-			session_user_name => $ENV{HSDB_DATABASE_USER},
-			session_password => $ENV{HSDB_DATABASE_PASSWORD},
-			session_lock_data_source => "DBI:mysql:hsdb4:$ENV{DATABASE_ADDRESS}",
-			session_lock_user_name => $ENV{HSDB_DATABASE_USER},
-			session_lock_password => $ENV{HSDB_DATABASE_PASSWORD},
+			session_data_source => "DBI:mysql:hsdb4:$database_address",
+			session_user_name => $db_user,
+			session_password => $db_pw,
+			session_lock_data_source => "DBI:mysql:hsdb4:$database_address",
+			session_lock_user_name => $db_user,
+			session_lock_password => $db_pw,
 			error_format=>$error_format, 
 			use_object_files => $use_object_files,
 			error_mode=>$error_mode, 
