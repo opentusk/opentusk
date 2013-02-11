@@ -47,7 +47,7 @@ function changeTabState() {
 function managePersonalLinks() {
 	if (!$dialog) {
 		$dialog = $('<div></div>')
-			.html('<form onsubmit="return savePersonalLinks()"><h2>' + _("Add New Link") + '</h2><p><label>Label</label><input type="text" id="newlabel" /><span class="spacer">&nbsp;</span><label>URL</label><input type="text" id="newurl" /><span class="spacer">&nbsp;</span><input type="button" value="add" onclick="addPersonalLink()" /></p><hr /><h2>' + _("Modify Existing Links") + '</h2><p>' + _("To delete an existing link, leave both the Label and URL fields blank.") + '</p><div id="personalLinks">' + displayPersonalLinks() + '</div><p class="buttons"><input type="submit" value="' + _("save") + '"></p></form>')
+			.html('<form onsubmit="return savePersonalLinks()"><h2>' + _("Add New Link") + '</h2><p><label>' + _("Label") + '</label><input type="text" id="newlabel" /><span class="spacer">&nbsp;</span><label>' + _("URL") + '</label><input type="text" id="newurl" /><span class="spacer">&nbsp;</span><input type="button" value="' + _("add") + '" onclick="addPersonalLink()" /></p><hr /><h2>' + _("Modify Existing Links") + '</h2><p>' + _("To delete an existing link, leave both the Label and URL fields blank.") + '</p><div id="personalLinks">' + displayPersonalLinks() + '</div><p class="buttons"><input type="submit" value="' + _("save") + '"></p></form>')
 			.dialog({
 				autoOpen: false,
 				title: _("Manage your personal links"),
@@ -123,21 +123,20 @@ function addPersonalLink() {
 function savePersonalLinks() {
 	// validate form data to make sure the necessary fields have been filled out
 	var counter = 1;
-	var error = '';
+	var error;
 	$(".label").each(function() {
+		error = '';
 		var thislabel = $(this).val();
-		var thisurl =  $(this).parent('td').siblings().children(".url").val();
-		if(!(/^([a-z]([a-z]|\d|\+|-|\.)*):(\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?((\[(|(v[\da-f]{1,}\.(([a-z]|\d|-|\.|_|~)|[!\$&'\(\)\*\+,;=]|:)+))\])|((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=])*)(:\d*)?)(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*|(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)){0})(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(thisurl))) {
+		var thisurl =  $(this).parent('td').siblings().children(".url").val();		
+		if (!(/^((https?|ftp):\/\/)?(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(thisurl))) {
 			error = _('The URL in row ') + counter + _(' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
-
-		if(!error && !(/[\S]+$/.test(thislabel))) {
-			error = _('The Label in row ') + counter + _(' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
+		if(!(/\S+/.test(thislabel))) {
+			error = _('The Label in row ') + counter + _(' is blank.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
-		else if(!(/[\S]+$/.test(thislabel))) {
+		if(!(/\S+/.test(thisurl)) && !(/\S+/.test(thislabel))) {
 			error = '';
 		}
-
 		if (error != '') {
 			return false;
 		}
