@@ -52,6 +52,11 @@ foreach my $cur_size ( @HSDB4::Constants::image_sizes ) {
 
 sub doMkDir {
 	my $dir = shift;
-	print "doMkDir($dir)\n";
-	unless(mkpath($dir)) {print "Unable to mkdir $dir : $!\n";}
+	# umask will affect permissions no matter what tou give
+	my $mask = umask();
+	umask(0);
+	unless(-d $dir) {
+		print "Unable to mkdir $dir : $!\n" unless(mkpath($dir,0,0775));
+	}
+	umask($mask);
 }
