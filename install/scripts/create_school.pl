@@ -7,6 +7,7 @@ use MySQL::Password;
 use TUSK::Core::School;
 use TUSK::Course::CourseMetadataDisplay;
 use TUSK::Constants;
+use File::Find qw(find);
 use DBI;
 use Getopt::Std;
 
@@ -214,15 +215,33 @@ sub insertSchoolEnum {
     $sth->finish();
 }
 
+## Avoid hardcoded paths if possible search install tree for sql template
+sub findSchoolTempl {
+        my $templ_file = 'create_school_tables.sql';
+        my $server_root = $TUSK::Constants::ServerRoot || '/usr/local/tusk/current';
+        my $search_root = "$server_root/install";
+        my $done = 0;
+        find({
+                wanted => sub {
+                        return if($done);
+                        if( $_ eq $templ_file ) {
+                                $File::Find::prune = 1; # prevent subdirs
+                                $templ_file = $File::Find::name;
+                                $done = 1;
+                                return;
+                        }
+
+                }
+        }, $search_root);
+        return($templ_file);
+}
 
 sub createSchoolDatabase {
     my $new_school = shift;
     my $school_db = $new_school->getSchoolDb();
     my $sql = undef;
-
-    my $file = 'sql/create_school_tables.sql';
+    my $file = findSchoolTempl();
     open( my $fh, '<', $file ) or die "Missing $file\n";
-
     while (<$fh>) {
         ### skip comment and and blank lines
 	next if (/(^--|^$)/);
