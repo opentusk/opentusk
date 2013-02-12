@@ -16,6 +16,7 @@
 <%once>
 	use TUSK::SchoolLink::SchoolLink;
 	use HSDB45::Announcement;
+	use TUSK::Application::HTML::Strip;
 	use TUSK::Constants;
 	use TUSK::UserAnnouncementHide;
 	use TUSK::UserLink;
@@ -45,6 +46,7 @@ method to print the tab(s) of user data for the home page
 </ul>
 </nav>
 % $counter = 0;
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $school (@$schools) {
 %	my $calendar_tab;
 %	if (($today->{$school} && scalar @{$today->{$school}}) || scalar @{$upcoming->{$school}}) {
@@ -91,7 +93,7 @@ method to print the tab(s) of user data for the home page
 					<div class="scrollcontainer">
 					<ul>
 %			foreach my $course (@{$course_hash->{$school}{$tab}}) {
-						<li><a href="<% ($tab eq "admin_courses") ? "/management/course/display/" : "/view/course/" %><% "$school/" . $course->primary_key() %>"><% $course->out_title() %></a></li>
+						<li><a href="<% ($tab eq "admin_courses") ? "/management/course/display/" : "/view/course/" %><% "$school/" . $course->primary_key() %>"><% $stripObj->removeHTML($course->out_title()) %></a></li>
 %			}
 					</ul>
 					</div>
@@ -120,8 +122,8 @@ method to print the tab(s) of user data for the home page
 %			foreach my $meeting (@{$today->{$school}}) {
 						<article>
 							<time><% sprintf ("%s - %s", $meeting->out_starttime->out_string_time_hm, $meeting->out_endtime->out_string_time) %></time>
-							<h1><a href="/view/course/<% $school %>/<% $meeting->course_id() %>/schedule/<% $meeting->primary_key() %>"><% $meeting->title() %></a><% ($meeting->is_mandatory()) ? '<span class="mandatory">*</span>' : '' %></h1>
-							<p><% $meeting->location() %></p>
+							<h1><a href="/view/course/<% $school %>/<% $meeting->course_id() %>/schedule/<% $meeting->primary_key() %>"><% $stripObj->removeHTML($meeting->title()) %></a><% ($meeting->is_mandatory()) ? '<span class="mandatory">*</span>' : '' %></h1>
+							<p><% $stripObj->removeHTML($meeting->location()) %></p>
 						</article>
 %			}
 					</section>
@@ -132,7 +134,7 @@ method to print the tab(s) of user data for the home page
 %			foreach my $event (@{$upcoming->{$school}}) {
 						<article class="todo">
 							<time><% $event->{date} %> <strong><% $event->{time} %></strong></time>
-							<h1><a href="<% $event->{link} %>"><% $event->{title} %></a></h1>
+							<h1><a href="<% $event->{link} %>"><% $stripObj->removeHTML($event->{title}) %></a></h1>
 						</article>
 %			}
 					</section>
@@ -219,22 +221,23 @@ $school
 </%args>
 
 % my $links = $school->getHomepageSchoolLinks();
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 
 % if (scalar @$links) {
 <ul class="gNoBullets">
 %	foreach my $l (@$links) {
 %		my $subLinks = $l->getJoinObjects('subLink'); 
 %		if (scalar @$subLinks) {
-<li class="closed"><h2><% $l->getLabel() %></h2><img src="/graphics/spacer.gif" class="more" alt="">
+<li class="closed"><h2><% $stripObj->removeHTML($l->getLabel()) %></h2><img src="/graphics/spacer.gif" class="more" alt="">
 	<ul>
 %			foreach my $sl (@$subLinks) {	
-	<li><a href="<% $sl->getUrl() %>"><% $sl->getLabel() %></a></li>
+	<li><a href="<% $sl->getUrl() %>"><% $stripObj->removeHTML($sl->getLabel()) %></a></li>
 %			}
 	</ul>
 </li>
 %		}
 %		else {
-<li><a href="<% $l->getUrl() %>"><% $l->getLabel() %></a></li>
+<li><a href="<% $l->getUrl() %>"><% $stripObj->removeHTML($l->getLabel()) %></a></li>
 %		}
 %	}
 </ul>
@@ -276,12 +279,13 @@ method to print the user's recently viewed content
 </%args>
 <%perl>
 my @recent_content = $user->available_recent_history;
+my $stripObj = TUSK::Application::HTML::Strip->new();
 </%perl>
 % if(scalar @recent_content){
 <ul>
 %	foreach my $c (@recent_content){
 %		if ($c->is_active()){
-<li><a href="<% $c->out_url %>"><% $c->out_label %></a> <em>(<% $c->course->out_label %>)</em></li>
+<li><a href="<% $c->out_url %>"><% $stripObj->removeHTML($c->out_label) %></a> <em>(<% $stripObj->removeHTML($c->course->out_label) %>)</em></li>
 %		}
 %	}
 </ul>
@@ -301,6 +305,7 @@ method to print the user's school's popular content
 </%args>
 <%perl>
 my @groups = $user->parent_user_groups;
+my $stripObj = TUSK::Application::HTML::Strip->new();
 </%perl>
 % my $hot_content_count = 0;
 % foreach my $group (@groups){
@@ -309,7 +314,7 @@ my @groups = $user->parent_user_groups;
 <ul>
 %		foreach my $content (@group_content){
 %			if ($content->is_active()){
-<li><a href="/hsdb4/content/<% $content->primary_key %>"><% $content->out_label %></a> <em>(<% $content->course->out_label %>)</em></li>
+<li><a href="/hsdb4/content/<% $content->primary_key %>"><% $stripObj->removeHTML($content->out_label) %></a> <em>(<% $stripObj->removeHTML($content->course->out_label) %>)</em></li>
 %				$hot_content_count++;
 %			}
 %		}

@@ -1064,6 +1064,7 @@ CREATE TABLE `assignment` (
   `due_date` datetime default NULL,
   `group_file_flag` int(1) unsigned NOT NULL default '0',
   `resubmit_flag` tinyint(3) unsigned NOT NULL default '0',
+  `email_flag` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `sort_order` smallint(6) unsigned NOT NULL default '0',
   `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
   `created_on` datetime default NULL,
@@ -6938,3 +6939,31 @@ CREATE TABLE `umls_string` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 SET character_set_client = @saved_cs_client;
 
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE `user_announcement_hide` (
+  `user_announcement_hide_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(24) NOT NULL,
+  `announcement_id` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `hide_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_announcement_hide_id`),
+  KEY `user_id` (`user_id`,`announcement_id`,`school_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE `user_link` (
+  `user_link_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(24) NOT NULL,
+  `label` varchar(255) NOT NULL,
+  `url` text NOT NULL,
+  `sort_order` int(10) NOT NULL,
+  `created_by` varchar(24) NOT NULL,
+  `created_on` datetime NOT NULL,
+  `modified_by` varchar(24) NOT NULL,
+  `modified_on` datetime NOT NULL,
+  PRIMARY KEY (`user_link_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+SET character_set_client = @saved_cs_client;
