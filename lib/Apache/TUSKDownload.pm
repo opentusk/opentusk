@@ -19,6 +19,7 @@ use strict;
 
 use Apache2::Const qw(:common);
 use Apache2::URI ();
+use Apache2::ServerUtil;
 use Apache::AuthzHSDB;
 use HSDB4::SQLRow::Content;
 use TUSK::XMLRenderer;
@@ -89,7 +90,7 @@ sub handler {
 	} 
 	elsif($document->content_type() eq "Document") {
 		$ext = "html";
-		$blob = &TUSK::XMLRenderer::transform($document->field_value('body'), $r->server_root_relative("code/XSL")."/Content/edit_text.xsl");
+		$blob = &TUSK::XMLRenderer::transform($document->field_value('body'), $TUSK::Constants::XSLRoot . "/Content/edit_text.xsl");
 	} 
 	elsif($document->content_type() eq "PDF") {
 		$ext = "pdf";
