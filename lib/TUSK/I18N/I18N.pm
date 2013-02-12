@@ -480,7 +480,7 @@ sub Locale::TextDomain::__x ($@)
 				}
 				if ($TUSK::Constants::I18N{Debug}) {
 					if ($substring eq $msgid) {
-						carp("I18N: hash: ($msgid, $msgstr) no $ENV{LANG} match");			     
+						carp("I18N: hash: ($msgid, $msgstr) no $ENV{LANG} match") if(0);			     
 						$msgstr = "($msgstr)-";
 					}
 					else {
@@ -504,12 +504,12 @@ sub Locale::TextDomain::__ ($)
 				}
 				if ($TUSK::Constants::I18N{Debug}) {
 					if ($msgstr eq $msgid ) {
-						carp("I18N: string: ($msgid, $msgstr) no $ENV{LANG} match");
+						carp("I18N: string: ($msgid, $msgstr) no $ENV{LANG} match") if(0);
 						$msgstr = "($msgstr)-";
 					}
 					else {
 						$msgstr = "($msgid)+";
-						carp("I18N: string: ($msgid, $msgstr) yes $ENV{LANG} match");
+						carp("I18N: string: ($msgid, $msgstr) yes $ENV{LANG} match") if(0);
 					}		    
 				}
 			    return decode("UTF-8",$msgstr);
