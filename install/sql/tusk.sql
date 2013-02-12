@@ -1064,6 +1064,7 @@ CREATE TABLE `assignment` (
   `due_date` datetime default NULL,
   `group_file_flag` int(1) unsigned NOT NULL default '0',
   `resubmit_flag` tinyint(3) unsigned NOT NULL default '0',
+  `email_flag` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `sort_order` smallint(6) unsigned NOT NULL default '0',
   `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
   `created_on` datetime default NULL,
@@ -6937,4 +6938,3 @@ CREATE TABLE `umls_string` (
   FULLTEXT KEY `string_text` (`string_text`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 SET character_set_client = @saved_cs_client;
-
