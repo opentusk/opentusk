@@ -24,6 +24,7 @@ to the DB and then returns JSON of the updated data.
 </%flags>
 
 <%once>
+	use TUSK::Application::HTML::Strip;
 	use TUSK::UserLink;
 	use JSON -convert_blessed_universally;
 </%once>
@@ -32,6 +33,7 @@ to the DB and then returns JSON of the updated data.
 	my $user = $m->session->{'user'};
 	my $data = decode_json($ARGS{data});
 	my $numDeleted = 0;
+	my $stripObj = TUSK::Application::HTML::Strip->new();
 	
 	foreach my $link (@$data) {
 		my $linkObj;
@@ -60,7 +62,7 @@ to the DB and then returns JSON of the updated data.
 
 		$linkObj->setSortOrder($link->{sort_order} - $numDeleted);
 		$linkObj->setUrl($link->{url});
-		$linkObj->setLabel($link->{label});
+		$linkObj->setLabel($stripObj->removeHTML($link->{label}));
 		$linkObj->save({'user'=>$m->session->{'user'}});
 	}
 	
