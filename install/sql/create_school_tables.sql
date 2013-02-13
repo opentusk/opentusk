@@ -10,7 +10,7 @@ use ##DB_NAME##
 
 CREATE TABLE `announcement` (
   `announcement_id` int(10) unsigned NOT NULL auto_increment,
-  `created` timestamp NOT NULL,`start_date` date NOT NULL default '0000-00-00',
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `expire_date` date NOT NULL default '0000-00-00',
   `username` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
   `user_group_id` int(10) unsigned NOT NULL default '0',
