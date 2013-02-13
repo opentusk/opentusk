@@ -143,7 +143,7 @@ function savePersonalLinks() {
 		counter += 1;
 	});
 
-	if (error != '') {
+	if (error && error != '') {
 		alert(error);
 		return false;
 	}
