@@ -22,6 +22,11 @@ echo "Getting OpenTUSK branch $mybranch from $myrepo ..."
 
 mkdir -p /usr/local/tusk
 cd /usr/local/tusk
+if [ -d Opentusk ] ; then
+    mytmp=`mktemp -d`
+    echo "Moving old Opentusk clone out of the way to $mytmp ..."
+    mv Opentusk "$mytmp"
+fi
 git clone --branch $mybranch $myrepo
 
 echo "Installing opentusk.repo ..."
