@@ -189,7 +189,7 @@ function showlayer(){
 			if (this.structure['empty_message']){
 				string += this.structure['empty_message'];
 			}else{
-				string = _x('No {item} associated.', {'item' : this.structure['name']});
+				string = 'No ' + this.structure['name'] + ' ' + _("associated") + '.';
 			}
 			string += '</i></span><br>';
 		}else{
