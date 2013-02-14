@@ -575,7 +575,7 @@ function edit(layer, index, id){
 
 function openwindow(layer, width, height, xtraParams){
 	if (!width){
-		width = 600;
+		width = 620;
 	}	
 	if (!height){
 		height = 500
