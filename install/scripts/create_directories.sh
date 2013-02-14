@@ -83,9 +83,6 @@ mkdir --parents "$mymasoncache/obj"
 mkdir --parents "$mytusklogs"
 ln --force --symbolic "$mytusklogs" "$mytuskroot/current/logs"
 
-# slide folders
-perl "$mytuskroot/current/install/scripts/make_slide_folders.pl"
-
 # permissions
 chown --recursive tusk:tusk "$mytusklogs"
 chown --recursive tusk:tusk "$mytuskroot"
