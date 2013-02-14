@@ -44,15 +44,19 @@ if ($ENV{HTTPS} eq 'on' && $ENV{HTTP_USER_AGENT} =~ /Win/i && $ENV{HTTP_USER_AGE
 	$prefix = '/unprotected'
 }
 
-my $params = [{ link_txt    => '/management/content/addedit/' . $selfpath . '?content_type=Collection&page=add',
+my $params = [];
+
+if ($content_object->can_user_edit($user_object)) {
+	$params = [{ link_txt    => '/management/content/addedit/' . $selfpath . '?content_type=Collection&page=add',
                 display_txt => __('New Folder')
               },
               { link_txt    => "$prefix/management/content/addedit/" . $selfpath,
                 display_txt => __('Upload New Content')
               },
              ];
+}
 
-if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR')){
+if ($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')){
 	push @$params, { link_txt    => '/management/reuse/' . $selfpath,
 	                 display_txt => __x('Reuse {site_abbreviation} Content', site_abbreviation => $TUSK::Constants::SiteAbbr)
 	               };
