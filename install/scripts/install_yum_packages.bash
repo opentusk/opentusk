@@ -1,5 +1,8 @@
 #! /bin/bash
 
+# IMPORTANT: In order for the following to work, first copy
+# the file install/opentusk.repo to /etc/yum.repos.d/opentusk.repo
+
 # Utility functions
 
 function _yum_install {
