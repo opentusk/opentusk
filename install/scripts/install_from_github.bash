@@ -8,9 +8,14 @@ mycwd="$PWD"
 myrepo="https://github.com/mprentice/Opentusk.git"
 mybranch="installer6"
 
-echo "Installing EPEL and git ..."
+echo "Installing OpenTUSK and EPEL repos ..."
 
+cd /etc/yum.repos.d
+curl -O https://raw.github.com/mprentice/Opentusk/$mybranch/install/opentusk.repo
 yum install epel-release
+
+echo "Installing git ..."
+
 yum install git
 
 echo "Getting OpenTUSK branch $mybranch from $myrepo ..."
