@@ -4,8 +4,8 @@
 # progress! Run as root.
 
 # Run with:
-# curl -O https://raw.github.com/mprentice/Opentusk/installer6/install/scripts/install_from_github.bash
-# bash install_from_github.bash
+# curl -O https://raw.github.com/mprentice/Opentusk/installer6/install/scripts/bootstrap_from_github.bash
+# bash bootstrap_from_github.bash
 
 mycwd="$PWD"
 
