@@ -27,6 +27,7 @@ _yum_install_rpmforge rpmforge-release
 
 # Disable rpmforge to avoid unexpected upgrades
 
+_yum_install yum-utils
 yum-config-manager --disable rpmforge
 
 # Install httpd, sometimes called Apache 2, and MySQL for our LAMP stack
