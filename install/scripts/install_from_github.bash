@@ -12,11 +12,11 @@ echo "Installing OpenTUSK and EPEL repos ..."
 
 cd /etc/yum.repos.d
 curl -O https://raw.github.com/mprentice/Opentusk/$mybranch/install/opentusk.repo
-yum install epel-release
+yum install --quiet -y epel-release
 
 echo "Installing git ..."
 
-yum install git
+yum install --quiet -y git
 
 echo "Getting OpenTUSK branch $mybranch from $myrepo ..."
 
