@@ -6,15 +6,16 @@
 # Utility functions
 
 function _yum_install {
-    yum install --quiet --assumeyes "$1"
+    # --assumeyes too new for 5.x
+    yum install --quiet -y "$1"
 }
 
 function _yum_install_nocheck {
-    yum install --nogpgcheck --quiet --assumeyes "$1"
+    yum install --nogpgcheck --quiet -y "$1"
 }
 
 function _yum_install_rpmforge {
-    yum install --quiet --assumeyes --enablerepo=rpmforge "$1"
+    yum install --quiet -y --enablerepo=rpmforge "$1"
 }
 
 # Install repos
