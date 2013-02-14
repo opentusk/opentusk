@@ -5,8 +5,18 @@
 
 # Utility functions
 
+function _os_release {
+    local _os_value=`grep -o '[Rr]elease [[:digit:]]\.\?[[:digit:]]*' /etc/redhat-release`
+    echo "$_os_value"
+}
+function _os_major_version {
+    local _os_maj=$(_os_release)
+    echo `echo "$_os_maj" | sed 's/^[Rr]elease \([0-9]\).*$/\1/'`
+}
+myversion=$(_os_major_version)
+
 function _yum_install {
-    # --assumeyes too new for 5.x
+    # --assumeyes not available in CentOS 5.x
     yum install --quiet -y "$1"
 }
 
@@ -28,8 +38,16 @@ _yum_install_rpmforge rpmforge-release
 
 # Disable rpmforge to avoid unexpected upgrades
 
-_yum_install yum-utils
-yum-config-manager --disable rpmforge
+if [ "$myversion" = 5 ] ; then
+    # yum-config-manager not available in CentOS 5.8
+    sed -i 's/^enabled\s*=\s*1/enabled = 0/g' /etc/yum.repos.d/rpmforge.repo
+elif [ "$myversion" = 6 ] ; then
+    _yum_install yum-utils
+    yum-config-manager --disable rpmforge
+else
+    echo "Unrecognized OS major version: $myversion"
+    exit 1
+fi
 
 # Install httpd, sometimes called Apache 2, and MySQL for our LAMP stack
 # Note: This will create the 'apache' and 'mysql' users and groups we use later
