@@ -1471,7 +1471,7 @@ sub can_user_edit {
     my $role = $self->user_primary_role($user->primary_key);
 
 	## allow if user is associated with content
-	return 1 if $role;
+	return 1 if ($role eq 'Editor' || $role eq 'Author');
 
 	## allow if school admin
 	if ($self->field_value('school')) {
