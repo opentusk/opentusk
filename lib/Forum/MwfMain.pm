@@ -2060,7 +2060,7 @@ EOSCRIPT
 
 	print
 		"</head>\n",
-		"<body class='$env->{script}'>\n\n";
+		"<body class='forum $env->{script}'>\n\n";
 
 	# Call include plugin
 	$m->callPlugin($cfg->{includePlg}{top});
