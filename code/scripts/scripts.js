@@ -487,6 +487,18 @@ function forward(destination) {
 	if (result == null) {
 		return false;
 	}
+	window.location.href = dest;
+}
+
+function fowardToNew(destination) {
+	// do nothing if there is no url provided
+	var word = /\w+/;  
+	var dest = destination.value;
+	var result = dest.match(word);
+	destination.selectedIndex = 0;
+	if (result == null) {
+		return false;
+	}
 	window.open(dest);
 }
 
