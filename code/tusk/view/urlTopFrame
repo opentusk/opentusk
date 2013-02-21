@@ -32,8 +32,6 @@
 
 <%shared>
 	my $document = $m->comp('/tmpl/url:get_type_object');
-	my $iconWidth = 27;
-	my $printIconWidth = "width=\"$iconWidth\" height=\"$iconWidth\"";
 	my $imageDir = "/graphics";
 	my $userObject = $m->session->{'user'}; 
 	my $iCanEdit = $document->can_user_edit($userObject);
@@ -129,55 +127,43 @@ return $right_hdr_lnks;
 
 
 <%method tuskbar>
-<script> 
-function removeHighlighting(theImage) {
-	if(theImage.className != 'openedSubMenu') {theImage.className = '';}
-}
-
-function highlightButton(theImage) {
-	if(theImage.className != 'openedSubMenu') {theImage.className = 'mouseOverIcon';}
-}
-</script>
 <style type="text/css">
-.mouseOverIcon {background-color: yellow;}
 .openedSubMenu {background-color: #00CC66;}
 </style>
 
-<div id="tuskbar" style="position:absolute; top:2px; left:40%; height: <% $iconWidth %>px; width:<% 3 * $iconWidth %>px; border:1px solid black; z-index:9999;">
-  <table border="0" cellspacing="0" cellpadding="0" width="100%">
+<div id="tuskbar">
+  <table border="0" cellspacing="0" cellpadding="0">
     <tr>
-      <td align="right" width="<% ($iconWidth+2) %>" valign="middle">
+      <td align="right" valign="middle" nowrap="nowrap">
 %       my $prev = $document->context_prev;
 %       my $title = __("Previous Document");
-%       my $background = 'style="background-color:lightgrey;"';
+%       my $background;
 %       if($prev) {
 %         $title.= ": " . $prev->out_abbrev();
-%         $background = "onClick=\"parent.location='" . $prev->out_url() .
-%                       "';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\"";
+%         $background = "onClick=\"parent.location='" . $prev->out_url() . "';\"";
 %       }
-        <img src="<% $imageDir %>/previous.gif" title="<% $title %>" <% $background %> <% $printIconWidth %> alt="Previous">
+        <span class="contentbutton <% ($prev) ? 'active ': '' %>previous" title="<% $title %>" <% $background %>><% __('prev') %></span>
       </td>
-      <td align="right" width="<% ($iconWidth+2) %>" valign="middle">
+      <td align="right" valign="middle" nowrap="nowrap">
 %       my $collection = $document->context_parent;
 %       $title = __("To Collection");
-%       $background = 'style="background-color: lightgrey;"';
+%		$background = '';
 %       if($collection) {
 %         $title.= ": " . $collection->out_abbrev();
-%         $background = "onClick=\"parent.location='" . $collection->out_url() .
-%                       "';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this)\";"
+%         $background = "onClick=\"parent.location='" . $collection->out_url() . "';\"";
 %       }
-        <img src="<% $imageDir %>/content_up.gif" <% $printIconWidth %> title="<% $title %>" <% $background %> alt=<%__("To Collection")%>>
+        <span class="contentbutton <% ($collection) ? 'active ': '' %>up" title="<% $title %>" <% $background %>><% __('up') %></span>
       </td>
-      <td align="right" width="<% ($iconWidth+2) %>" valign="middle">
+      <td align="right" valign="middle" nowrap="nowrap">
 %       my $next = $document->context_next;
 %       $title = __("Next Document");
-%       $background = 'style="background-color: lightgrey;"';
+%		$background = '';
+%		$title = '';
 %       if($next) {
 %         $title.= ": " . $next->out_abbrev();
-%         $background = "onClick=\"parent.location='" . $next->out_url() .
-%                       "';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this)\";"
+%         $background = "onClick=\"parent.location='" . $next->out_url() . "';\"";
 %       }
-        <img src="<% $imageDir %>/next.gif" <% $printIconWidth %> title="<% $title %>" <% $background %> alt="Next">
+        <span class="contentbutton <% ($next) ? 'active ': '' %>next" title="<% $title %>" <% $background %>><% __('next') %></span>
       </td>
     </tr>
   </table>
