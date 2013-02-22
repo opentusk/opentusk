@@ -99,6 +99,15 @@ Copy template files:
 
   sudo cp /usr/local/tusk/current/install/templates/conf/apache2/tusk_* /etc/httpd/conf.d/
 
+Comment out mime_magic:
+
+  sudo sed -i 's/^LoadModule mime_magic_module/#LoadModule mime_magic_module/g' /etc/httpd/conf/httpd.conf
+
+Remove the default https server:
+
+  sudo cp /etc/httpd/conf.d/ssl.conf /tmp
+  sudo sh -c "sed -n '/<VirtualHost _default_:443>/q;p' /tmp/ssl.conf > /etc/httpd/conf.d/ssl.conf"
+
 Find-replace with your site information:
 
   sudo find /etc/httpd/conf.d/ -name "*.conf" -exec sed -i 's/MYWEBMASTER/<your local admin email>/g' {} \;
