@@ -374,11 +374,12 @@ $extra_nav_text		=> ''
 <%args>
 	$onload
 	$onunload
+	$class => ''
 </%args>
 % my $onload_attr = ($onload ne '') ? " onload=\"$onload\"" : '';
 % my $onunload_attr = ($onunload ne '') ? " onunload=\"$onunload\"" : '';
 <%doc>This is where header stops and your new content starts.</%doc>
-<body<% $onload_attr %><% $onunload_attr %>>
+<body<% $onload_attr %><% $onunload_attr %><% ($class) ? ' class="' . $class . '"' : '' %>>
 <!-- Begin Main Outer Table -->
 <table width="100%" border="0" cellspacing="0" cellpadding="0" class="outerContainer">
 <tr>
@@ -601,24 +602,26 @@ if ($req->{user}) {
 unless ($req->{skip_head_tag}){
 	$m->comp('SELF:header', title=>$req->{pagetitle},jsarray=>$req->{jsarray},stylearray=>$req->{stylearray}, metaData => $req->{metaData}, doctype => $req->{docType});
 }
-return if ($req->{'noheader'});
-unless ($req->{skip_head_tag}){
-	$m->comp('SELF:start_body', onload => $req_hash{onload}, onunload => $req_hash{onunload});
+if (!$req->{skip_head_tag} || $req->{'noheader'}){
+	$m->comp('SELF:start_body', class => $req_hash{body_class}, onload => $req_hash{onload}, onunload => $req_hash{onunload});
 }
-$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, hide_global_links => $req->{hide_global_links}, can_cms => $can_cms, has_schedule => $has_schedule);
+
+if (!$req->{'noheader'}) {
+	$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, hide_global_links => $req->{hide_global_links}, can_cms => $can_cms, has_schedule => $has_schedule);
+}
 return if($req->{'nobody'}); 
 
-        if ($req->{leftnav}){
-            $m->comp("SELF:start_content", top_tab_type => $req->{top_tab_type});
-	        $m->comp("SELF:do_leftnav",leftnav=>$req->{leftnav},type_path=>$req->{type_path});
-	        $m->comp("SELF:end_left_nav", top_tab_type => $req->{top_tab_type});
-        }elsif($req->{no_leftbar}){
-            $m->comp("SELF:start_content_no_left_bar");
-        }else{
-            $m->comp("SELF:start_content_no_nav");
-        }
- 
-		$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
+if ($req->{leftnav} && !$req->{'noheader'}){
+	$m->comp("SELF:start_content", top_tab_type => $req->{top_tab_type});
+	$m->comp("SELF:do_leftnav",leftnav=>$req->{leftnav},type_path=>$req->{type_path});
+	$m->comp("SELF:end_left_nav", top_tab_type => $req->{top_tab_type});
+}elsif($req->{no_leftbar} || $req->{'noheader'}){
+	$m->comp("SELF:start_content_no_left_bar");
+}else{
+	$m->comp("SELF:start_content_no_nav");
+}
+
+$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
 
 </%perl>
 <!-- Begin Full Content Table -->
@@ -631,7 +634,7 @@ only affect the content within the fullContentTable
    <tr>
     <td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
     <td width="100%" valign="top">
-% if (!$req->{nostandardheader}) { 
+% if (!$req->{nostandardheader} || !$req->{noheader}) { 
 <!-- Begin CMS Nav Table -->
         <table width="100%" border="0" cellspacing="6" cellpadding="1">
   <tr>
