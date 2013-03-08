@@ -92,7 +92,7 @@ method to print the tab(s) of user data for the home page
 				<section id="schooltab<% $counter %>coursetab<% $tabcounter %>" class="tab<% ($tabcounter == 0) ? ' current' : '' %>">
 					<div class="scrollcontainer">
 					<ul>
-%			foreach my $course (@{$course_hash->{$school}{$tab}}) {
+%			foreach my $course (sort {$a->out_title() cmp $b->out_title()} @{$course_hash->{$school}{$tab}}) {
 						<li><a href="<% ($tab eq "admin_courses") ? "/management/course/display/" : "/view/course/" %><% "$school/" . $course->primary_key() %>"><% $stripObj->removeHTML($course->out_title()) %></a></li>
 %			}
 					</ul>
@@ -149,11 +149,13 @@ method to print the tab(s) of user data for the home page
 			<div class="personal tabgroup">
 				<div class="links">
 					<hgroup>
-						<h1><% __('School Links') %></h1>
+						<h1><% __('Links') %></h1>
 					</hgroup>
 					<div class="tabcontainer">
 						<section class="tab">
+							<h2>Personal</h2>
 							<& /tmpl/home:print_user_links, links => TUSK::UserLink::getAllLinks($user->primary_key()) &>
+							<h2>School</h2>
 							<div class="scrollcontainer">
 								<& /tmpl/home:print_school_links, school =>  TUSK::Core::School->new->lookupReturnOne("school_name = '$school'") &>
 							</div>
