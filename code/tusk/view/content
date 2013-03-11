@@ -1221,7 +1221,6 @@ $document
 $justcontent => 0
 </%args>
 
-% my $margin = ($justcontent)? '20px' : '10px 30px 20px 125px';
 %	my ($course_uri_id, $garbage) = split( "/", $document->aux_info('uri_path') );
 %	my ($school_code, $course_code) = $course_uri_id =~ /([A-Z])(\d+).*/;
 %	my $course;
@@ -1231,7 +1230,8 @@ $justcontent => 0
 %	if($document->aux_info('uri_path')) {$contentPK = $document->aux_info('uri_path') . "/" . $document->primary_key();}
 
 % my $additional_class = ($document->content_type() eq 'TUSKdoc' && !$iCanEdit)? 'tdNotEdit' : '';
-<div id="pageContent" class="<% $additional_class %>" style="margin:<% $margin %>; padding: 5px 30px; background-color:#FFFFFF; border-right:3px solid black; border-bottom:3px solid black; border-top:1px solid <% $redColor %>; border-left:2px solid <% $redColor %>; z-index:99;">
+% $additional_class .= ($justcontent) ? ' justcontent' : '';
+<div id="pageContent" class="<% $additional_class %>">
 % if ( $is_integrated_course && $document->content_type() eq 'Collection' ) {
 		<script type="text/javascript">
 		function update_view() {
@@ -1240,10 +1240,9 @@ $justcontent => 0
 			requestSubContent(0, '<% $contentPK %>', '', '');
 		}
 		</script>
-		<br>
-		<table cellpadding="3" cellspacing="3">
+		<table cellpadding="3" cellspacing="3" class="viewby">
 			<tr>
-				<td>View By:</td>
+				<td><% __('View By') %>:</td>
 				<td>
 					<select id="view_by" onchange="update_view();">
 						<option value=""><% $course->title %></option>
@@ -1261,7 +1260,6 @@ $justcontent => 0
 				</td>
 			</tr>
 		</table>
-		<br>
 % }
 %my $xsl_dir = "$ENV{XSL_ROOT}/Content";
 %if($document->type() eq 'TUSKdoc' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
@@ -1301,14 +1299,14 @@ $justcontent => 0
 % my $mtime = HSDB4::DateTime->new;
 % $ctime->in_mysql_timestamp($document->field_value("created"));
 % $mtime->in_mysql_timestamp($document->field_value("modified"));
-  <table style="font-size:10px;" width="100%">
+  <table class="contentmeta">
     <tr>
 % if($ctime->out_string_date eq '') {
       <td><b><%__('Created:')%></b></td><td><%__('Unknown')%></td>
 % } else {
       <td><b><%__('Created:')%></b></td><td nowrap style="white-space:nowrap;"><% $ctime->out_string_date %></td>
 % }
-      <td rowspan="2" align="right">
+      <td align="right">
 % if($document->out_html_appendix() eq '') {
         &nbsp;
 % } else {
@@ -1318,7 +1316,7 @@ $justcontent => 0
       </td>
     </tr>
 % unless($mtime->out_string_date eq '') {
-    <tr><td><b><%__('Modified:')%></b></td><td nowrap style="white-space:nowrap;"><% $mtime->out_string_date %></td></tr>
+    <tr><td><b><%__('Modified:')%></b></td><td nowrap style="white-space:nowrap;"><% $mtime->out_string_date %></td><td>&nbsp;</td></tr>
 % }
   </table>
 % }
