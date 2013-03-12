@@ -2703,13 +2703,16 @@ sub get_enum_cat{
 sub user_stud_courses{
 	my $self = shift;
 	my @current_courses = @_;
+	my %ids;
+	
 	unless (scalar @current_courses){
 		@current_courses = $self->current_courses({'only_enrollment' => 1});
 	}
 
 	my @user_stud_courses;
 	foreach my $course (@current_courses){
-		push @user_stud_courses, $course if ($course->type() !~ /group|thesis committee/);
+		push @user_stud_courses, $course if ($course->type() !~ /group|thesis committee/ && !(exists $ids{$course->primary_key()}));
+		$ids{$course->primary_key()} = 1;
 	}
 
 	return @user_stud_courses;
