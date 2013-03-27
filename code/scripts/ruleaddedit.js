@@ -274,7 +274,7 @@ function popNextStep(elt, type_path, pop_elt_id) {
 	isEnabled(elt);
 
 	var type = $(elt).children(':selected').attr('class').replace(/_opt/,'');
-	var id   = $(elt).children(':selected').val();
+	var id   = $(elt).children(':selected').attr('value');
 
 	// quizzes are a child of a phase, so we partner phase and quiz ids in one 
 	// id. to wit, quizzes have a value in the 'rule_phase' dropdown that is phase_id-quiz_id
