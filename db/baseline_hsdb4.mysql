@@ -1,0 +1,448 @@
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `content` (
+  `content_id` int(10) unsigned NOT NULL auto_increment,
+  `type` enum('Document','Audio','Video','Flashpix','Collection','Figure','Slide','Shockwave','URL','PDF','Question','Multidocument','Quiz','DownloadableFile','Student Notes','Reuse','External','TUSKdoc') NOT NULL default 'Document',
+  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `course_id` int(10) unsigned NOT NULL default '0',
+  `school` enum('Default') default NULL,
+  `system` set('Cardiovascular','Digestive','Endocrine','Hemic','Immune','Musculoskeletal','Nervous','Reproductive','Respiratory','Sense Organs','Skin','Urinary Tract') NOT NULL default '',
+  `copyright` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default 'Tufts University',
+  `source` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `body` mediumtext CHARACTER SET utf8,
+  `hscml_body` mediumtext CHARACTER SET utf8,
+  `style` enum('Medical','Veterinary','Dental','NEMC','Sackler','hsdb4-style','hscml','Liver','minimal') default 'hsdb4-style',
+  `x_data_id` int(10) unsigned default NULL,
+  `x_small_data_id` int(10) unsigned default NULL,
+  `x_thumbnail_id` int(10) unsigned default NULL,
+  `x_orig_data_id` int(10) unsigned default NULL,
+  `x_xlg_data_id` int(10) unsigned default NULL,
+  `x_lg_data_id` int(10) unsigned default NULL,
+  `x_med_data_id` int(10) unsigned default NULL,
+  `x_sm_data_id` int(10) unsigned default NULL,
+  `x_thumb_data_id` int(10) unsigned default NULL,
+  `x_icon_data_id` int(10) unsigned default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `created` datetime default NULL,
+  `read_access` enum('Authors','Course Faculty','Course Users','HSDB Users','All Users','Guests','None') NOT NULL default 'HSDB Users',
+  `write_access` enum('None','First author','All authors','Course authors') default NULL,
+  `checked_out_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `check_out_time` datetime default NULL,
+  `conversion_status` int(1) default NULL,
+  `display` int(1) default '1',
+  `reuse_content_id` int(10) unsigned NOT NULL default '0',
+  `start_date` date default NULL,
+  `end_date` date default NULL,
+  PRIMARY KEY  (`content_id`),
+  KEY `course_id` (`course_id`),
+  KEY `system` (`system`),
+  KEY `title` (`title`),
+  KEY `type` (`type`),
+  KEY `modified` (`modified`),
+  KEY `start_date` (`start_date`),
+  KEY `end_date` (`end_date`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `content_history` (
+  `content_history_id` int(10) unsigned NOT NULL auto_increment,
+  `content_id` int(10) unsigned NOT NULL default '0',
+  `type` enum('Document','Audio','Video','Flashpix','Collection','Figure','Slide','Shockwave','URL','PDF','Question','Multidocument','Quiz','DownloadableFile','Student Notes','Reuse','External','TUSKdoc') NOT NULL default 'Document',
+  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `course_id` int(10) unsigned NOT NULL default '0',
+  `school` enum('Default') NOT NULL,
+  `system` set('Cardiovascular','Digestive','Endocrine','Hemic','Immune','Musculoskeletal','Nervous','Reproductive','Respiratory','Sense Organs','Skin','Urinary Tract') NOT NULL default '',
+  `copyright` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `source` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `body` mediumtext CHARACTER SET utf8,
+  `hscml_body` mediumtext CHARACTER SET utf8,
+  `style` enum('Medical','Veterinary','Dental','NEMC','Sackler','hsdb4-style','hscml','Liver','minimal') default NULL,
+  `data_id` int(10) unsigned default NULL,
+  `small_data_id` int(10) unsigned default NULL,
+  `thumbnail_id` int(10) unsigned default NULL,
+  `orig_data_id` int(10) default NULL,
+  `xlg_data_id` int(10) default NULL,
+  `lg_data_id` int(10) unsigned default NULL,
+  `med_data_id` int(10) unsigned default NULL,
+  `sm_data_id` int(10) unsigned default NULL,
+  `thumb_data_id` int(10) unsigned default NULL,
+  `icon_data_id` int(10) unsigned default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `created` datetime default NULL,
+  `read_access` enum('None','Authors','Course Faculty','Course Users','HSDB Users','Guests') default NULL,
+  `write_access` enum('None','First author','All authors','Course authors') default NULL,
+  `checked_out_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `check_out_time` datetime default NULL,
+  `conversion_status` int(1) default NULL,
+  `display` int(1) default '1',
+  `reuse_content_id` int(10) unsigned NOT NULL default '0',
+  `modify_note` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `start_date` date default NULL,
+  `end_date` date default NULL,
+  PRIMARY KEY  (`content_history_id`),
+  KEY `content_id` (`content_id`,`modified`),
+  KEY `course_id` (`course_id`),
+  KEY `system` (`system`),
+  KEY `title` (`title`),
+  KEY `type` (`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_content_content` (
+  `parent_content_id` int(10) unsigned NOT NULL default '0',
+  `child_content_id` int(10) unsigned NOT NULL default '0',
+  `sort_order` smallint(6) unsigned NOT NULL default '65535',
+  `label` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`parent_content_id`,`child_content_id`),
+  KEY `child_content_id` (`child_content_id`),
+  KEY `parent_content_id` (`parent_content_id`,`sort_order`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_content_non_user` (
+  `parent_content_id` int(10) unsigned NOT NULL default '0',
+  `child_non_user_id` int(10) unsigned NOT NULL default '0',
+  `roles` set('Author','Contact-Person','Director','Editor','Unknown') NOT NULL default '',
+  `sort_order` smallint(6) unsigned NOT NULL default '65535',
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`parent_content_id`,`child_non_user_id`,`roles`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_content_objective` (
+  `parent_content_id` int(10) unsigned NOT NULL default '0',
+  `child_objective_id` int(10) unsigned NOT NULL default '0',
+  `sort_order` smallint(6) unsigned NOT NULL default '65535',
+  `relationship` enum('Prerequisite','Goal') default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`parent_content_id`,`child_objective_id`),
+  KEY `child_objective_id` (`child_objective_id`),
+  KEY `parent_content_id` (`parent_content_id`,`sort_order`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_content_personal_content` (
+  `parent_content_id` int(10) unsigned NOT NULL default '0',
+  `child_personal_content_id` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`parent_content_id`,`child_personal_content_id`),
+  KEY `child_personal_content_id` (`child_personal_content_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_content_user` (
+  `parent_content_id` int(10) unsigned NOT NULL default '0',
+  `child_user_id` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `roles` set('Director','Author','Editor','Contact-Person','Student-Author','Student-Editor','Unknown') NOT NULL default 'Unknown',
+  `sort_order` smallint(6) unsigned NOT NULL default '65535',
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`parent_content_id`,`child_user_id`,`roles`),
+  KEY `child_user_id` (`child_user_id`),
+  KEY `parent_content_id` (`parent_content_id`,`sort_order`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_course_user` (
+  `parent_course_id` int(10) unsigned NOT NULL default '0',
+  `child_user_id` char(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `sort_order` smallint(6) unsigned NOT NULL default '65535',
+  `roles` set('Director','Editor','Author','Lecturer','Instructor','Lab Instructor','Librarian','MERC Representative') default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`parent_course_id`,`child_user_id`),
+  KEY `child_user_id` (`child_user_id`),
+  KEY `parent_course_id` (`parent_course_id`,`sort_order`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_forum_user` (
+  `parent_forum_id` int(10) default NULL,
+  `child_user_id` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `roles` set('Admin','User') default 'User',
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_personal_content_content` (
+  `parent_personal_content_id` int(10) unsigned NOT NULL default '0',
+  `child_content_id` int(10) unsigned NOT NULL default '0',
+  `sort_order` smallint(6) unsigned NOT NULL default '65535',
+  PRIMARY KEY  (`parent_personal_content_id`,`child_content_id`),
+  KEY `child_content_id` (`child_content_id`),
+  KEY `parent_personal_content_id` (`parent_personal_content_id`,`sort_order`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_personal_content_personal_content` (
+  `parent_personal_content_id` int(10) unsigned NOT NULL default '0',
+  `child_personal_content_id` int(10) unsigned NOT NULL default '0',
+  `sort_order` smallint(6) unsigned NOT NULL default '65535',
+  PRIMARY KEY  (`parent_personal_content_id`,`child_personal_content_id`),
+  KEY `child_personal_content_id` (`child_personal_content_id`),
+  KEY `parent_personal_content_id` (`parent_personal_content_id`,`sort_order`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_user_group_user` (
+  `parent_user_group_id` int(10) unsigned NOT NULL default '0',
+  `child_user_id` char(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`parent_user_group_id`,`child_user_id`),
+  KEY `child_user_id` (`child_user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `link_user_personal_content` (
+  `parent_user_id` char(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `child_personal_content_id` int(10) unsigned NOT NULL default '0',
+  `sort_order` smallint(6) unsigned NOT NULL default '65535',
+  PRIMARY KEY  (`parent_user_id`,`child_personal_content_id`),
+  KEY `parent_user_id` (`parent_user_id`,`sort_order`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `log_item` (
+  `log_item_id` int(10) unsigned NOT NULL auto_increment,
+  `user_id` char(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `hit_date` datetime default NULL,
+  `log_item_type_id` int(10) NOT NULL default '0',
+  `course_id` int(10) unsigned default NULL,
+  `content_id` int(10) unsigned default NULL,
+  `personal_content_id` int(10) unsigned default NULL,
+  PRIMARY KEY  (`log_item_id`),
+  KEY `user_id` (`user_id`,`hit_date`),
+  KEY `hit_date` (`hit_date`),
+  KEY `log_item_i01` (`course_id`),
+  KEY `log_item_i02` (`content_id`),
+  KEY `log_item_i03` (`personal_content_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `non_user` (
+  `non_user_id` int(10) NOT NULL auto_increment,
+  `email` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `institution` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `lastname` varchar(40) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `firstname` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `midname` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `suffix` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `degree` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `body` text CHARACTER SET utf8,
+  PRIMARY KEY  (`non_user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `objective` (
+  `objective_id` int(10) unsigned NOT NULL auto_increment,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `body` text CHARACTER SET utf8,
+  PRIMARY KEY  (`objective_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `personal_content` (
+  `personal_content_id` int(10) unsigned NOT NULL auto_increment,
+  `user_id` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `type` enum('Collection','Note','URL','Annotation','Discussion Comment','Di\nscussion Answer','Discussion Question','Discussion Suggestion','Discussion Tip','Discussion URL','Flash Card Deck') default NULL,
+  `course_id` int(10) unsigned default NULL,
+  `content_id` int(10) unsigned NOT NULL default '0',
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `body` text CHARACTER SET utf8,
+  PRIMARY KEY  (`personal_content_id`),
+  KEY `user_id` (`user_id`),
+  KEY `content_id` (`content_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `ppt_upload_status` (
+  `ppt_upload_status_id` int(10) NOT NULL auto_increment,
+  `username` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `course_id` int(10) unsigned default NULL,
+  `filename` varchar(50) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `statustime` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `copyright` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `saved_filename` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `school` enum('Default') NOT NULL,
+  `content_id` int(10) default NULL,
+  `author` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `status` enum('Uploaded','Processing','Completed','Error') default NULL,
+  `title` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  PRIMARY KEY  (`ppt_upload_status_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `query` (
+  `query_id` int(10) unsigned NOT NULL auto_increment,
+  `user_id` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `created` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `textkeys` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `query_text` text CHARACTER SET utf8,
+  `matches` int(10) unsigned default NULL,
+  PRIMARY KEY  (`query_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `recent_log_item` (
+  `recent_log_item_id` int(10) unsigned NOT NULL auto_increment,
+  `user_id` char(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `hit_date` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `log_item_type_id` int(10) NOT NULL default '0',
+  `course_id` int(10) unsigned default NULL,
+  `content_id` int(10) unsigned default NULL,
+  `personal_content_id` int(10) unsigned default NULL,
+  PRIMARY KEY  (`recent_log_item_id`),
+  KEY `user_id` (`user_id`,`hit_date`),
+  KEY `hit_date` (`hit_date`),
+  KEY `recent_log_item_i01` (`course_id`),
+  KEY `recent_log_item_i02` (`content_id`),
+  KEY `recent_log_item_i03` (`personal_content_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `sessions` (
+  `id` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `a_session` text CHARACTER SET utf8,
+  `modified_on` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`),
+  KEY `sessions_modified` (`modified_on`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `stylesheet_type` (
+  `stylesheet_type_id` int(10) unsigned NOT NULL auto_increment,
+  `stylesheet_type_label` varchar(50) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `global_stylesheet` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `format` char(3) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  PRIMARY KEY  (`stylesheet_type_id`),
+  UNIQUE KEY `stylesheet_type_label` (`stylesheet_type_label`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+INSERT ignore INTO `stylesheet_type` VALUES (1,'Eval','/Eval/eval.xsl','2002-11-01 17:50:11',NULL),(2,'EvalResults','/Eval/eval_results.xsl','2002-11-01 17:50:40',NULL);
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `teaching_site` (
+  `teaching_site_id` int(10) unsigned NOT NULL auto_increment,
+  `site_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `site_city_state` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`teaching_site_id`),
+  KEY `site_name` (`site_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `user` (
+  `user_id` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `source` set('internal','external') default NULL,
+  `status` set('Active','Inactive','Restricted','Test') default 'Active',
+  `tufts_id` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `sid` int(10) default NULL,
+  `trunk` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `password` varchar(50) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `email` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `preferred_email` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `profile_status` set('UpdateInfo','ChangePassword') default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `password_reset` datetime default NULL,
+  `expires` date default NULL,
+  `login` datetime default '2000-01-01 00:00:00',
+  `previous_login` datetime default '2000-01-01 00:00:00',
+  `lastname` varchar(40) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `firstname` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `midname` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `suffix` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `degree` varchar(60) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `affiliation` set('Default') default NULL,
+  `gender` enum('Male','Female','Unknown') NOT NULL default 'Unknown',
+  `body` text CHARACTER SET utf8,
+  `loggedout_flag` int(1) unsigned default '1',
+  `uid` int(11) NOT NULL,
+  PRIMARY KEY  (`user_id`),
+  UNIQUE KEY `uid` (`uid`),
+  KEY `lastname` (`lastname`,`firstname`),
+  KEY `affiliation` (`affiliation`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `user_group` (
+  `user_group_id` int(10) unsigned NOT NULL auto_increment,
+  `school` enum('Medical','Veterinary','Dental','NEMC','Sackler','OGDP') NOT NULL default 'Medical',
+  `label` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `schedule_flag_time` datetime default NULL,
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`user_group_id`),
+  KEY `school` (`school`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `xml_cache` (
+  `formatter_name` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `school` enum('Default') NOT NULL,
+  `object_id` int(10) unsigned NOT NULL default '0',
+  `modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `formatter_version` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `body` longtext CHARACTER SET utf8,
+  PRIMARY KEY  (`formatter_name`,`school`,`object_id`),
+  KEY `school` (`school`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+create table if not exists schema_change_log (
+  id int unsigned not null auto_increment,
+  major_release_number varchar(2) not null,
+  minor_release_number varchar(2) not null,
+  point_release_number varchar(4) not null,
+  script_name varchar(50) not null,
+  date_applied datetime not null,
+  primary key (id)
+);
