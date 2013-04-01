@@ -26,6 +26,16 @@ ok(exists $TUSK::Constants::Servers{Sys::Hostname::hostname},
   "Servers has entry for hostname " . Sys::Hostname::hostname);
 $test_count += 8;
 
+ok(exists $TUSK::Constants::Databases{mwforum},
+   "mwforum database defined");
+ok(exists $TUSK::Constants::Databases{fts},
+   "fts database defined");
+ok(exists $TUSK::Constants::Databases{hsdb4},
+   "hsdb4 database defined");
+ok(exists $TUSK::Constants::Databases{tusk},
+   "tusk database defined");
+$test_count += 4;
+
 foreach my $dbhost (keys %TUSK::Constants::Servers) {
   ok(exists $TUSK::Constants::Servers{$dbhost}{ReadHost},
      "ReadHost defined for hostname " . $dbhost);
