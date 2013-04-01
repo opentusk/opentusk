@@ -790,13 +790,13 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`link_user_group_forum` TO
 ;
 GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`link_course_user` TO '##CONTENT_USER##'@'%'
 ;
-GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`eval` TO '##EVAL_USER##'@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`eval` TO '##EVAL_ADMIN##'@'%'
 ;
-GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`eval_question` TO '##EVAL_USER##'@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`eval_question` TO '##EVAL_ADMIN##'@'%'
 ;
-GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`link_eval_eval_question` TO '##EVAL_USER##'@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`link_eval_eval_question` TO '##EVAL_ADMIN##'@'%'
 ;
-GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`merged_eval_results` TO '##EVAL_USER##'@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`merged_eval_results` TO '##EVAL_ADMIN##'@'%'
 ;
 GRANT SELECT, INSERT, UPDATE, DELETE ON `##DB_NAME##`.`link_course_teaching_site` TO '##CONTENT_USER##'@'%'
 ;
