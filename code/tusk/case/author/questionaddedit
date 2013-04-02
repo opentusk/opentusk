@@ -31,14 +31,14 @@ use TUSK::Case::Phase;
 	my $phase = TUSK::Case::Phase->new()->lookupKey($phase_id);
 	my $type_path = $m->comp('/tmpl/url:get_type_path');
 
-	my $type = __('Quiz');
+	my $type = 'Quiz';
 	my $question = TUSK::Quiz::Question->new();
 
 	if (scalar(@path) == 3 && !$m->request_args->{add}){
 		$question->lookupKey($path[-1]);
 		$is_edit = 1;
 	}elsif (scalar(@path) >= 3 ){
-		$type = __('Section'); 
+		$type = 'Section'; 
 
 		if ($m->request_args->{add}){
 			$id = $path[-1];
@@ -133,7 +133,7 @@ if (scalar (@{$quizLinks}) > 1 ){
 	# append the word ' Quiz' to the quiz title, unless our phase type is "Quiz"
 	$qtitle .= (ref($phase) !~ /Quiz$/)? ' '.__('Quiz') : '';
 	$quiz->setTitle($qtitle);
-	$quiz->setQuizType(__('Quiz'));
+	$quiz->setQuizType('Quiz');
 	$quiz->save({'user'=>$user_id});	
 	$quizLink = TUSK::Case::LinkPhaseQuiz->new();
 	$quizLink->setParentPhaseID($phase_id);
@@ -143,12 +143,12 @@ if (scalar (@{$quizLinks}) > 1 ){
 	$quizLink = pop @{$quizLinks};
 }
 my $extra;
-my $question_type = $question->getType();# ||$m->comp("/tmpl/error", msg=>"Question ID is $question_id  but No question type passed");
-$id = $quizLink->getChildQuizID() if ($type eq __('Quiz'));
+my $question_type = $question->getType();# ||$m->comp("/tmpl/error", msg=>"__('Question ID is $question_id  but No question type passed')");
+$id = $quizLink->getChildQuizID() if ($type eq 'Quiz');
 my $questionLink;
 my $msg;
 if ($is_edit){
-	if ($type eq __('Quiz')){
+	if ($type eq 'Quiz'){
 		$questionLink = shift @{TUSK::Quiz::LinkQuizQuizItem->new()->lookupByRelation($id, $question->getPrimaryKeyID())};
 		unless(defined $questionLink){
 			$msg = __('You attempted to edit a question that has previously been deleted.');
@@ -161,7 +161,7 @@ if ($is_edit){
 	}
 	$msg = __("Question successfully modified");
 } else {
-	if ($type eq __('Quiz')){
+	if ($type eq 'Quiz'){
 		$questionLink = TUSK::Quiz::LinkQuizQuizItem->new();
 	}else{
 		$questionLink = TUSK::Quiz::LinkQuestionQuestion->new();

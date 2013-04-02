@@ -37,7 +37,7 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 my @ids = $m->comp('/tmpl/url:get_path_ids') ;
 if (scalar @ids < 3){
 	my $msg = __x("There was a problem with your request, please try again. If the problem persists, please contact {person} for assistance", person =>$TUSK::Constants::SiteAbbr);
-	$m->comp('print_json', msg => $msg, msg_type => 'alert');
+	$m->print($msg);
 	exit;
 }
 
@@ -127,6 +127,9 @@ elsif ($type eq 'score') {
 
 # if at least one option present, make a dropdown containing it
 if (scalar @opts) {
+use Data::Dumper;
+warn Dumper \@opts;
+
 	$msg .= $label;
 	$msg .= $m->scomp('/tmpl/element:dropdown', params => {
 		multiple => $multiple,
@@ -141,26 +144,9 @@ if (scalar @opts) {
 elsif (!$msg) {
 	$msg = '<em>'.__('This phase does not have any optional elements to select.').'</em>'
 }
-
-$m->comp('print_json', msg => $msg, msg_type => $msg_type);
-
 </%perl>
 
-
-
-<%def print_json>
-<%args>
-$msg
-$msg_type
-</%args>
-% $msg =~ s/"/\\"/g;
-% $msg =~ s/\r|\n/ /g;
-
-{ 
-  "msg": "<% $msg %>",
-  "msgType": "<% $msg_type %>"
-}
-</%def>
+<% $msg %>
 
 <%def create_test_options>
 <%args>
