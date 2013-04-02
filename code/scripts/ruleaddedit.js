@@ -366,7 +366,6 @@ function validateRuleForm(myform) {
 			valid_form = false;
 		}
 		if (CKEDITOR.instances[$(this).find('.crRuleMsg').attr('name')].getData().match(/^\s*$/)) {
-alert('failed second if');
 			valid_form = false;
 		}
 	});
