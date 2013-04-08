@@ -228,7 +228,7 @@ that 'minimal' style is applied to this piece of content
 									{ label => __('Standard Folder'),	value => 'Collection' },
 									{ label => __('Multidocument'),	value => 'Multidocument' },
 								],
-					trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { node => 7066, text => __('About Folder Formats') }), 
+					trailing_text 	=> $m->scomp("/tmpl/element:link_to_help", text => __('About Folder Formats'), topic => 'folder_formats'), 
 				} &>
 
 <& SELF:html_textarea, content => $content &>
@@ -389,7 +389,7 @@ that 'minimal' style is applied to this piece of content
 			if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
 			$m->comp("/tmpl/element:flexible_tr", params => { label => __('What do you want to do<br>with your document?') } );
 			$m->print('<input name="'. $name .'" type="radio" value="" checked>' . __('Leave as Word Document (Downloadable File)') . '<br>');
-			$m->print('<input name="'. $name .'" type="radio" value="1">Convert to TUSKdoc (<strong style="color:red">New!</strong>)' . $m->scomp('/tmpl/element:help_link', params => {content_id => '1251559', text => __('More about TUSKdoc'), not_xmetal => 1, class => 'help'}) . '<br>');
+			$m->print('<input name="'. $name .'" type="radio" value="1">Convert to TUSKdoc (<strong style="color:red">New!</strong>)' . $m->scomp('/tmpl/element:link_to_help', text => __('More about TUSKdoc'), topic => '') . '<br>');
 			$m->print('</td>');
 			$m->print('</tr>');
 		}
@@ -730,7 +730,7 @@ that 'minimal' style is applied to this piece of content
 					name		=> 'source',
 					value 		=> $content->source(), 
 					size 		=> 60, 
-					trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { node => 7919, text => __('What is Source?') }), 
+					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => __('What is Source?'), topic => 'content_source') . '</b>', 
 				} &>
 % }
 
@@ -764,7 +764,7 @@ that 'minimal' style is applied to this piece of content
 					id		=> 'Copyright__y',
 					value 		=> $content->copyright(), 
 					size 		=> 60, 
-					trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { node => 4143, text => __('Copyright FAQ') }), 
+					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => __('Copyright FAQ'), topic => 'copyright_faq') . '</b>', 
 				} &>
 % }
 
@@ -782,7 +782,7 @@ that 'minimal' style is applied to this piece of content
 </%perl>
 
 <& /tmpl/element:sort_order_box , params =>{
-                	label		=> __('Reuse Authors &amp; Transcribers:'),
+            label		=> __('Reuse Authors &amp; Transcribers:'),
 			button_label	=> __('Add Names'),
 			name 		=> "reuseusers",
 			width		=> '100%',
@@ -875,22 +875,22 @@ that 'minimal' style is applied to this piece of content
 	id		=> 'ExternalAuthors__y',
 	value		=> ($args->{metadata}) ? $args->{metadata}->getAuthor() : '',
 	size 		=> 60, 
-	trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { node => 4143, text => 'External Authors FAQ' }), 
+	trailing_text 	=> $m->scomp("/tmpl/element:link_to_help", topic => 'copyright_faq', text => 'External Authors FAQ'), 
 } &>
 
 % } 
 
 
 <& /tmpl/element:sort_order_box , params =>{
-                	label		=> ($content->reuse_content_id()) ? __('Original ') : __('Authors &amp; Transcribers:'),
+            label		=> ($content->reuse_content_id()) ? __('Original ') : '' . __('Authors &amp; Transcribers:'),
 			button_label	=> __('Add Names'),
 			name 		=> "users",
 			width		=> '100%',
 			no_add_button	=> ($content->reuse_content_id()) ? 1 : 0,
 			button_onclick	=> "openwindow('authorsdiv')",
 			help_info	=> {
-						node		=> 9665,
-						text		=> __('More About Authors &amp; Transcribers'),
+						topic		=> 'authors_and_transcribers',
+						text		=> __('More About Authors &amp; Transcribers')
 					   },
                 	layer_info 	=> {
 						empty_message 	=> __('No users associated for this content'),
@@ -931,9 +931,8 @@ that 'minimal' style is applied to this piece of content
 			name 		=> "objectives",
 			button_onclick	=> "openwindow('objectivesdiv')",
 			help_info	=> {
-						content_id => 789685,
-						not_xmetal => 1, 
-						text       => __('Tips for Selecting Objectives'),
+						topic		=> 'create_objectives',
+						text		=> __('Tips for Selecting Objectives'),
 					   },
                 	layer_info 	=> {
 						empty_message 	=> __('No objectives associated for this content'),
@@ -974,7 +973,7 @@ that 'minimal' style is applied to this piece of content
 					name		=> 'read_access',
 					selected	=> $content->read_access(), 
 					options		=> $options,
-					trailing_text 	=> $m->scomp("/tmpl/element:help_link", params => { content_id => 166258, node => 6221, text => __('More About These Options') }) . $content_access_trailing_text, 
+					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => __('More About These Options'), topic => 'content_access') . $content_access_trailing_text . '</b>', 
 				} &>
 
 <& /tmpl/element:dropdown, params => { 

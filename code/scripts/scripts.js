@@ -263,6 +263,13 @@ function openhelp (node, content_id){
 	}
 }
 
+function openHelp (link) {
+	var param = "directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=" + 650 + ",height=" + 450;
+	var win_name = 'quickhelp';
+	help_window = window.open(link, win_name, param);
+	if (!help_window.opener) help_window.opener = self;
+}
+
 function openJustContent(content_id, win_name, params){
 	if(!win_name) win_name = 'just_content';
 	if(!params) params = "directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=" + 650 + ",height=" + 450;

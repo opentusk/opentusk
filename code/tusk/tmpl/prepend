@@ -361,9 +361,9 @@ $extra_nav_text		=> ''
 %	   && $context_parent->isa('HSDB45::Course')
 %	   && TUSK::Application::RSSCourse->remoteCheckPodcast( $context_parent->primary_key(), $context_parent->school(), $obj->primary_key()) ) {
 
-%		my $help_lnk = $m->scomp('/tmpl/element:help_link', params => {content_id => 683356, text => __('Podcast Help'), not_xmetal => 1, class => 'helpLnk'});
+%		my $help_lnk = $m->scomp('/tmpl/element:link_to_help', text => __('Podcast Help'), topic => 'what_is_a_podcast_and_how_can_i_subscribe_to_it');
 
-<a class="podcastLnk" href="/tusk/rss/rss?cid=<% $context_parent->primary_key() %>&sc=<% $context_parent->school %>&colid=<% $obj->primary_key() %>"><%__('Subscribe to Podcast')%></a> <% $help_lnk %>
+<a class="podcastLnk" href="/tusk/rss/rss?cid=<% $context_parent->primary_key() %>&sc=<% $context_parent->school %>&colid=<% $obj->primary_key() %>"><% __('Subscribe to Podcast') %></a> <% $help_lnk %>
 
 %	}
 % }
@@ -393,11 +393,8 @@ $user
 </%args>
 <%perl>
 my @li_strings;
-
-my $helpurl = ($page eq "manage") ? $TUSK::Constants::HelpMap{ManageHelpURL}
-                                  : $TUSK::Constants::HelpMap{HelpURL};
-push @li_strings, "<a href=\"$helpurl\" target=\"help\">" . __('Help') . "</a>";
-push @li_strings, "<a href=\"$TUSK::Constants::ContactURL\" target=\"_top\">" . __('Contact') . "</a>";
+push @li_strings, $m->scomp('/tmpl/element:link_to_help', text => __('Help'), topic => 'contents');
+push @li_strings, "<a href=\"$TUSK::Constants::ContactURL\" target=\"_top\">Contact</a>";
 if ($TUSK::Constants::AboutURL && $page eq "login") {
 	push @li_strings, "<a href=\"$TUSK::Constants::AboutURL\" target=\"_top\">" . __('About') . "</a>";
 }
