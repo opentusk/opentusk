@@ -29,22 +29,22 @@ has dbh => (
 has mwforum => (
     is => 'ro',
     isa => 'DBName',
-    default => 'mwforum',
+    default => $TUSK::Constants::Databases{mwforum},
 );
 has fts => (
     is => 'ro',
     isa => 'DBName',
-    default => 'fts',
+    default => $TUSK::Constants::Databases{fts},
 );
 has hsdb4 => (
     is => 'ro',
     isa => 'DBName',
-    default => 'hsdb4',
+    default => $TUSK::Constants::Databases{hsdb4},
 );
 has tusk => (
     is => 'ro',
     isa => 'DBName',
-    default => 'tusk',
+    default => $TUSK::Constants::Databases{tusk},
 );
 has create_school => (
     is => 'rw',
