@@ -248,21 +248,6 @@ function closeIt() {
   close();
 }
 
-function openhelp (node, content_id){
-	if (content_id == 0){
-		content_id = 123396;
-	}
-	var param = "directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=" + 650 + ",height=" + 450;
-	var win_name = 'quickhelp';
-	if(node > 0){
-		help_window = window.open("/view/truncate/" + content_id + "/?node="+node, win_name, param);
-		if (!help_window.opener) help_window.opener = self;
-	}
-	else {
-		openJustContent(content_id, win_name, param);
-	}
-}
-
 function openHelp (link) {
 	var param = "directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=" + 650 + ",height=" + 450;
 	var win_name = 'quickhelp';
@@ -494,8 +479,19 @@ function forward(destination) {
 	if (result == null) {
 		return false;
 	}
+	window.location.href = dest;
+}
 
-	location.href = dest;
+function fowardToNew(destination) {
+	// do nothing if there is no url provided
+	var word = /\w+/;  
+	var dest = destination.value;
+	var result = dest.match(word);
+	destination.selectedIndex = 0;
+	if (result == null) {
+		return false;
+	}
+	window.open(dest);
 }
 
 // used by admin left nav to hide show case sub navigation
