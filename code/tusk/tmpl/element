@@ -206,7 +206,7 @@ Method to make the row needed for a form submit button.  If an array ref of butt
 % unless (defined($params{'no_cancel_button'})){
 <& SELF:button, params=>{'onclick'=>$params{'cancel_onclick'},
 			'reset'=>'Y',
-			'label'=>__('Cancel'),
+			'label'=>'Cancel',
 			'name'=>'cancel' } &>
 % }
 % $m->print($params{'trailing_text'}) if ($params{'trailing_text'});
@@ -238,7 +238,7 @@ name="<% $params{'name'} %>" id="<% $params{'name'} %>" value="<% $params{'label
 </%args>
 <%doc>Method to create an html button that implements javascript window.close() when clicked.</%doc>
 <input class="formbutton" type="button"
-name="Close_Window" value="<%__("Close Window")%>" onclick="window.close();">
+name="Close_Window" value="Close Window" onclick="window.close();">
 </%method>
 
 <%method select_all_button>
@@ -250,10 +250,10 @@ name="Close_Window" value="<%__("Close Window")%>" onclick="window.close();">
 <td style="text-align:left" colspan="<% $default_colspan %>">
 <& SELF:button, params=>{'name'=>'select_all',
 		'onclick'=>$params{'select_onclick'},
-		'label'=>__('Select All')} &>
+		'label'=>'Select All'} &>
 <& SELF:button, params=>{'name'=>'clear_all',
 		'onclick'=>$params{'clear_onclick'},
-		'label'=>__('Clear All')} &>
+		'label'=>'Clear All'} &>
 </td></tr>
 </%method> 
 
@@ -643,7 +643,7 @@ align="<% $align %>">
 	my $no_tables = 1 if(defined($params{'notables'}));
 
 	if (defined($params{'multiple'}) and $params{'multiple'}){
-		$multiple = 'multiple="multiple"';
+		$multiple = "multiple";
 	}
 	if (defined($params{'onchange'})){
 		$onchange = $params{'onchange'};
@@ -720,9 +720,8 @@ style="<% $params{'style'} %>"
 		$label = $opt;
 		$value = $opt;
 	}
-	## strip out HTML tags and whitespace from text that will appear as the label
+	## strip out HTML tags from text that will appear as the label
 	$label = $stripObj->removeHTML($label);
-	$label =~ s/[\n|\r|\t|\f]//gs;
 </%perl>
 	<option class="<% $option_class %>" style="<% $style %>" value="<% $value %>" <% $selected %> <% $disabled %>><% $label %></option>
 % }
@@ -730,7 +729,7 @@ style="<% $params{'style'} %>"
 % if (defined($params{'submit_form_button'}) || defined($params{'onclick'})){ 
 <& SELF:button, params=>{'name'=>$params{'name'}.'_button',
                 'onclick'=>$params{'onclick'}? $params{'onclick'} : "dropdown_submit('".$params{'submit_form_button'}."');",
-                'label'=>__('Select')}  &>
+                'label'=>'Select'}  &>
 % } 
 % if (!$no_label) {
 % if (defined($params{'trailing_text'}) and $params{'trailing_text'}){
@@ -867,7 +866,7 @@ if (defined($params{'button_onclick'})){
 % if (!$params{'no_add_button'}) {
                         <td class="<% $td_class %>">
 				<& SELF:button, params=>{
-				'label'=>($params{'button_label'}) ? $params{'button_label'} : __x('Add {label}', label => $params{'label'}) ,
+				'label'=>($params{'button_label'}) ? $params{'button_label'} : 'Add ' . $params{'label'} ,
 				'onclick'=>$onclick,
 				'name'=>'add_item' } &>
                         </td>
@@ -944,7 +943,7 @@ if (defined($params{'object_list'})){
 		if ($params{'empty_message'}){
 			$m->print("<i>" . $params{'empty_message'} . "</i>");
 		} else { 
-			$m->print("<i>" . __x("No {name} associated.",name => $params{'name'}) . "</i><br><br>");
+			$m->print("<i>No $params{'name'} associated.</i><br><br>");
 		}
 		return;
 	}
@@ -1024,7 +1023,7 @@ unless (exists($params{toggle_field})){
 % unless ($params{'no_header'}) {
 <tr class="header"> 
 % if ($params{'sort_box'}){
-<td class="header-center<% $header_size %>" width="1%"><%__('Sort')%></td>
+<td class="header-center<% $header_size %>" width="1%">Sort</td>
 % }
 % foreach my $col (@{$params{'columns'}}) {
 % my $align = $col->{'align'} || "left";
@@ -1039,7 +1038,7 @@ unless (exists($params{toggle_field})){
 % }
 % if ($has_action_columns) {
 <td class="header-center<% $header_size %>" width="1%">
-<% __('Actions') %>
+Actions
 </td>
 % }
 % if($params{'has_checkboxes'}) {
@@ -1128,7 +1127,7 @@ unless (exists($params{toggle_field})){
 % 	if (defined ($params{'modify_link'}) && defined($params{'delete_link'})) {
 <td class="<% $td_class %>-center" nowrap>
 % 	if ($row->{id}){
-	<a href="<% $params{'modify_link'} %>/<% $row->{'id'} %>"  class="navsm"><% __('Modify') %></a>|<a href="<% $params{'delete_link'} %>/<% $row->{'id'} %>" class="navsm">Delete</a>
+	<a href="<% $params{'modify_link'} %>/<% $row->{'id'} %>"  class="navsm">Modify</a>|<a href="<% $params{'delete_link'} %>/<% $row->{'id'} %>" class="navsm">Delete</a>
 %	} else {
 	-
 %	}
@@ -1214,6 +1213,9 @@ $text => ''
 </%args>
 % if ($topic) {
 % 	my $link = $TUSK::Constants::HelpURLRoot . $topic;
+
+% warn "---$topic";
+
 % 	if (!$text) {
 %		$text = "<span class=\"icon\">&nbsp;</span>";
 % 	}
@@ -1412,7 +1414,7 @@ return $options;
 % if (defined($params{'label'})) {
       <td class="labelgray"><% $params{'label'} %></td>
 % }
-      <td class="cell-left"><input class="formbutton" type="file" name="<% $params{'name'} %>" <%$is_multiple%> onchange="<% $onchange %>" value=<%__("Browse...")%>>
+      <td class="cell-left"><input class="formbutton" type="file" name="<% $params{'name'} %>" <%$is_multiple%> onchange="<% $onchange %>" value="Browse...">
 % $m->print($params{'trailing_text'}) if ($params{'trailing_text'});
       </td></tr>
 </%method>
@@ -1421,7 +1423,7 @@ return $options;
 <%args>
 $user_fullname
 $link_url => ""
-$link_text => __("Continue")
+$link_text => "Continue"
 $skip_notice => 0
 $extra_text => ''
 $js_code => ''
@@ -1462,7 +1464,7 @@ You are currently logged in as <b><% $user_fullname %></b>.  This section of <% 
 	</tr>
 	<tr>
 		<td><b>No</b>, I am <b>NOT</b> <b><% $user_fullname %></b>, I need to logout.</td>
-		<td valign="middle" align="center"><input type="button" value="<% __("Logout") %>" onclick="location.href='/dologout'" class="formbutton">
+		<td valign="middle" align="center"><input type="button" value="Logout" onclick="location.href='/dologout'" class="formbutton">
 	</tr>
 </table>
 <br><br>		
@@ -1486,7 +1488,7 @@ You are currently logged in as <b><% $user_fullname %></b>.  This section of <% 
 <%args>
 $user_fullname
 $link_url => ""
-$link_text => __("Continue")
+$link_text => "Continue"
 $skip_notice => 0
 $extra_text => ''
 </%args>
@@ -1497,7 +1499,7 @@ $extra_text => ''
 
 <%method date>
 <%args>
-$label => __('Date')
+$label => 'Date'
 $mysql_date => undef
 </%args>
 <%doc>
@@ -1596,11 +1598,11 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 	$selected
 	$onchange => undef
 </%args>
-<& /tmpl/element:dropdown, params=>{ label => __x('Post to {site_abbreviation}?', site_abbreviation => $TUSK::Constants::SiteAbbr),
+<& /tmpl/element:dropdown, params=>{ label => 'Post to ' . $TUSK::Constants::SiteAbbr . '?',
 		name => "publish_flag",
 		onchange => $onchange,
 		selected => $selected,
-		options => [ { label => __('Not Posted'), value => 0 }, { label => __('Posted'), value => 1 } ] } &>
+		options => [ { label => 'Not Posted', value => 0 }, { label => 'Posted', value => 1 } ] } &>
 </%method>
 
 <%method input_radio_buttons>
@@ -1655,7 +1657,7 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 	@links
 	$style => ''
 </%args>
-<div class="gCMSButtonRow" style="<% $style %>">
+<div class="gCMSButtonRow clearfix" style="<% $style %>">
 % foreach my $link (@links) {
 <a href="<% $link->{link_txt} %>"><% $link->{display_txt} %></a>
 % }
@@ -1685,7 +1687,7 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 	my @parents = $content->other_parents();
 	
 	if (scalar(@parents)){
-		$m->comp('/tmpl/element:flexible_tr', params => { label => __('Also linked from:') });
+		$m->comp('/tmpl/element:flexible_tr', params => { label => 'Also linked from:' });
 		foreach my $parent (@parents){
 			$m->print('<div>');
 			if ($parent->isa('HSDB4::SQLRow::Content')){
@@ -1924,10 +1926,10 @@ if (!$params{'no_table'}) {
 %				$col_counter++;
 %				}
 %				if ( $has_action_columns ) {
-				<li class="header-center head<% $col_counter %>"><%__('Actions')%></li>
+				<li class="header-center head<% $col_counter %>">Actions</li>
 				<script type="text/javascript">
 					params.columns[<% $col_counter %>]            = new Object();
-					params.columns[<% $col_counter %>].align      = 'right';
+					params.columns[<% $col_counter %>].align      = 'center';
 					params.columns[<% $col_counter %>].head_align = 'center';
 					params.columns[<% $col_counter %>].width      = <% $params{'action_width'} || 0 %>;
 
