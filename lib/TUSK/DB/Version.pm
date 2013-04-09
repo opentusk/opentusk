@@ -108,4 +108,6 @@ END_SQL
     return $version_ref;
 }
 
+__PACKAGE__->meta->make_immutable;
+
 1;
