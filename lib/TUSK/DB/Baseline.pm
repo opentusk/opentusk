@@ -8,6 +8,7 @@ use HSDB4::Constants qw(get_school_db);
 use TUSK::Constants;
 use TUSK::Core::School;
 use TUSK::Course::CourseMetadataDisplay;
+use TUSK::DB::Util qw(sql_file_path);
 
 use Moose::Util::TypeConstraints;
 
@@ -24,7 +25,7 @@ subtype 'DBName',
 has dbh => (
     is => 'ro',
     isa => 'Object',
-    required => 1
+    default => sub { HSDB4::Constants::def_db_handle() },
 );
 has mwforum => (
     is => 'ro',
@@ -89,7 +90,7 @@ sub create_baseline {
         $dbh->do($create_db_sql) or confess $dbh->errstr;
         print "done.\n" if $verbose;
 
-        my $sql_file = _sql_file_path($sql_file_for{$db_name});
+        my $sql_file = sql_file_path($sql_file_for{$db_name});
         print "Populating database from `$sql_file` ...\n" if $verbose;
         system("mysql '$db_name' < '$sql_file'");
         if ( $? == -1 ) {
@@ -152,16 +153,6 @@ END_SQL
     }
 }
 
-sub _sql_file_path {
-    my $basefile = shift;
-    my $sql_file = File::Spec->catfile(
-        $TUSK::Constants::ServerRoot,
-        'db',
-        $basefile,
-    );
-    return $sql_file;
-}
-
 sub _init_schema_sql {
     return <<END_SQL;
 insert ignore into
@@ -192,7 +183,7 @@ sub _create_school_database {
     my $tusk_admin = $options_ref->{school_admin};
     my $dbh = $self->dbh();
     my $sth;
-    my $file = _sql_file_path('baseline_hsdb45_admin.mysql');
+    my $file = sql_file_path('baseline_hsdb45_admin.mysql');
 
     $dbh->do("create database if not exists `$school_db` ;") or
         confess $dbh->errstr;
