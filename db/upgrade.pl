@@ -1,6 +1,5 @@
 #! /usr/bin/env perl
 
-# use Modern::Perl;
 use strict;
 use warnings;
 use utf8;
@@ -9,6 +8,7 @@ use Getopt::Long;
 use Readonly;
 use DBI;
 use Carp;
+
 use TUSK::DB::Upgrade;
 use TUSK::DB::Util qw(get_dsn get_my_cnf);
 use MySQL::Password qw(get_prompt_pw);
@@ -108,7 +108,7 @@ foreach my $db (keys %{ $scripts_for }) {
         # print opening comments in upgrade script
         if ($verbose) {
             print "\n";
-            print "$update_script summary:\n\n";
+            print "$update_script summary:\n";
             my $script_info = $upgrade_obj->script_info($update_script);
             open my $fh, '<', $script_info->{path};
           COMMENTS:

@@ -67,8 +67,6 @@ my (
     $db_pw,
 );
 
-$school_admin //= 'admin';
-
 GetOptions(
     'help' => \$show_help,
     'verbose' => \$verbose,
@@ -84,7 +82,8 @@ if ($show_help) {
     exit;
 }
 
-$school_admin //= 'admin';
+# $school_admin //= 'admin';
+$school_admin = defined $school_admin ? $school_admin : 'admin';
 
 my $dsn = get_dsn({
     default => 'localhost',

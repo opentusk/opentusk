@@ -1,6 +1,9 @@
 package TUSK::DB::Baseline;
 
-use Modern::Perl;
+use strict;
+use warnings;
+use utf8;
+
 use File::Spec;
 use Carp;
 use Readonly;
@@ -13,7 +16,6 @@ use TUSK::DB::Util qw(sql_file_path);
 use Moose::Util::TypeConstraints;
 
 use Moose;
-use namespace::autoclean;
 
 extends qw(TUSK::DB::Object);
 
@@ -582,5 +584,7 @@ sub validate_user {
 }
 
 __PACKAGE__->meta->make_immutable;
+
+no Moose;
 
 1;
