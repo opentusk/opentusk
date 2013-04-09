@@ -1,6 +1,5 @@
 package TUSK::DB::Util;
 
-# use Modern::Perl;
 use strict;
 use warnings;
 use utf8;
@@ -12,6 +11,7 @@ use IPC::Run3;
 use TUSK::Constants;
 
 use base qw(Exporter);
+
 our @EXPORT_OK = qw(sql_dir
                     sql_file_path
                     mysql_with_file
