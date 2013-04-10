@@ -96,10 +96,8 @@ sub create_baseline {
 
         my $sql_file = sql_file_path($sql_file_for{$db_name});
         print "Populating database from `$sql_file` ...\n" if $verbose;
-        system("mysql '$db_name' < '$sql_file'");
-        if ( $? == -1 ) {
-            confess "mysql command failed: $!";
-        }
+        my @sysargs = ("mysql '$db_name' < '$sql_file'",);
+        system(@sysargs) == 0 or confess "mysql command failed: $?, $!";
 
         print "Setting baseline version ...\n" if $verbose;
         $dbh->do("use `$db_name` ;") or confess $dbh->errstr;
@@ -193,10 +191,8 @@ sub _create_school_database {
         confess $dbh->errstr;
     $dbh->do("use `$school_db` ;") or confess $dbh->errstr;
 
-    system("mysql '$school_db' < $file");
-    if ( $? == -1 ) {
-        confess "mysql command failed: $!";
-    }
+    my @sysargs = ("mysql '$school_db' < $file",);
+    system(@sysargs) == 0 or confess "mysql command failed: $?, $!";
 
     # set current user as default admin
     $sth = $dbh->prepare(

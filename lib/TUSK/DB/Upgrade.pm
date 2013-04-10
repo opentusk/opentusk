@@ -58,15 +58,9 @@ sub apply_script {
     my $script_file = sql_file_path($script);
     confess "Can't find file $script_file\n" if (! -e $script_file);
     print "Applying update $script to `$db` ... " if $verbose;
-    if ($ext eq 'pl') {
-        system('perl', $script_file);
-    }
-    else {
-        system("mysql '$db' < '$script_file'");
-    }
-    if ( $? == -1 ) {
-        confess "Upgrade script $script failed: $!";
-    }
+    my @sysargs = $ext eq 'pl' ? ('perl', $script_file)
+        :                        ("mysql '$db' < '$script_file'",);
+    system(@sysargs) == 0 or confess "Upgrade script $script failed: $?, $!";
     print "done.\n" if $verbose;
     print "Updating `$db`.schema_change_log ... " if $verbose;
 
