@@ -13,16 +13,7 @@ use TUSK::Constants;
 use Moose;
 # use namespace::autoclean;
 
-has dbh => (
-    is => 'ro',
-    isa => 'Object',
-    default => sub { HSDB4::Constants::def_db_handle() },
-);
-has verbose => (
-    is => 'rw',
-    isa => 'Bool',
-    default => undef,
-);
+extends qw(TUSK::DB::Object);
 
 sub tusk_version {
     my $self = shift;

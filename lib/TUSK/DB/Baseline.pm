@@ -19,6 +19,8 @@ use Moose::Util::TypeConstraints;
 use Moose;
 # use namespace::autoclean;
 
+extends qw(TUSK::DB::Object);
+
 # Restrict database name for now. Makes things easier.
 Readonly my $valid_dbname_regex => qr{\A [A-Za-z0-9_]+ \z}xms;
 subtype 'DBName',
@@ -26,11 +28,6 @@ subtype 'DBName',
     where { $_ =~ $valid_dbname_regex },
     message { "`$_` is not a valid database name\n" };
 
-has dbh => (
-    is => 'ro',
-    isa => 'Object',
-    default => sub { HSDB4::Constants::def_db_handle() },
-);
 has mwforum => (
     is => 'ro',
     isa => 'DBName',
@@ -66,11 +63,6 @@ has create_admin => (
     isa => 'Bool',
     default => undef,
 );
-has verbose => (
-    is => 'rw',
-    isa => 'Bool',
-    default => undef,
-);
 
 # Optional params:
 #   create_school, school_admin
@@ -96,8 +88,7 @@ sub create_baseline {
 
         my $sql_file = sql_file_path($sql_file_for{$db_name});
         print "Populating database from `$sql_file` ...\n" if $verbose;
-        my @sysargs = ("mysql '$db_name' < '$sql_file'",);
-        system(@sysargs) == 0 or confess "mysql command failed: $?, $!";
+        $self->_call_mysql_with_file($sql_file, $db_name);
 
         print "Setting baseline version ...\n" if $verbose;
         $dbh->do("use `$db_name` ;") or confess $dbh->errstr;
@@ -191,10 +182,9 @@ sub _create_school_database {
         confess $dbh->errstr;
     $dbh->do("use `$school_db` ;") or confess $dbh->errstr;
 
-    my @sysargs = ("mysql '$school_db' < $file",);
-    system(@sysargs) == 0 or confess "mysql command failed: $?, $!";
+    $self->_call_mysql_with_file($file, $school_db);
 
-    # set current user as default admin
+    # set school admin user as default admin
     $sth = $dbh->prepare(
         'insert ignore into link_user_group_user values (1, ?, now())'
     );

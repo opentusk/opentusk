@@ -15,16 +15,7 @@ use TUSK::DB::Util qw(sql_file_path);
 use Moose;
 # use namespace::autoclean;
 
-has dbh => (
-    is => 'ro',
-    isa => 'Object',
-    default => sub { HSDB4::Constants::def_db_handle() },
-);
-has verbose => (
-    is => 'rw',
-    isa => 'Bool',
-    default => undef,
-);
+extends qw(TUSK::DB::Object);
 
 Readonly my $upgrade_re => qr{
     \A                         # beginning of string
@@ -58,9 +49,19 @@ sub apply_script {
     my $script_file = sql_file_path($script);
     confess "Can't find file $script_file\n" if (! -e $script_file);
     print "Applying update $script to `$db` ... " if $verbose;
-    my @sysargs = $ext eq 'pl' ? ('perl', $script_file)
-        :                        ("mysql '$db' < '$script_file'",);
-    system(@sysargs) == 0 or confess "Upgrade script $script failed: $?, $!";
+    if ($ext eq 'pl') {
+        my @sysargs = ('perl', $script_file);
+        system(@sysargs) == 0 or
+            confess "Upgrade script $script failed: $?, $!\n";
+    }
+    else {
+        eval {
+            $self->_call_mysql_with_file($script_file, $db);
+        };
+        if ($@) {
+            confess "Upgrade script $script failed: $@\n";
+        }
+    }
     print "done.\n" if $verbose;
     print "Updating `$db`.schema_change_log ... " if $verbose;
 

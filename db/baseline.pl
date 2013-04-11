@@ -7,29 +7,39 @@ use strict;
 use warnings;
 use utf8;
 
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
 use Getopt::Long;
 use Readonly;
 use DBI;
 use Carp;
 use Sys::Hostname;
 use TUSK::Constants;
+use HSDB4::Constants;
 use TUSK::DB::Baseline;
+use TUSK::DB::Util qw(get_dsn get_my_cnf);
+use MySQL::Password qw(get_prompt_pw);
 
 Readonly my $help_text => <<END_HELP;
 Usage: perl baseline.pl [--create-admin]
                         [--create-school [--school-admin=<user>]]
+                        [--dbuser=<user> [--dbpw=<password>]]
                         [--verbose]
 
 Set up a developer database for use with tusk. This script should be
 run before upgrade.pl to set up a baseline database which can then be
 upgraded to the latest development version.
 
-This script relies on your ~/.my.cnf to connect to the MySQL database
-with your username and password. To create schools your user must have
-grant privileges.
+If dbuser and dbpw are not set, this script tries to use your
+~/.my.cnf to connect to the MySQL database with your username and
+password. To create schools your user must have grant privileges. If
+no my.cnf file can be find, this script will interactively prompt for
+a database admin username and password.
 
 The database connection information is read from tusk.conf. tusk.conf
-must be properly configured before this script is run.
+must be properly configured before this script is run. If no database
+host can be found, defaults to localhost.
 
 Examples:
   perl baseline.pl --verbose
@@ -42,6 +52,8 @@ Options:
     <user>
   --create-admin    Automatically create admin user with [default: false]
                     default password
+  --dbuser=<user>   MySQL database admin user
+  --dbpw=<password> MySQL database admin password
   --verbose         Show database creation progress      [default: false]
 END_HELP
 
@@ -51,14 +63,18 @@ my (
     $run_create_school,
     $school_admin,
     $create_admin,
+    $db_user,
+    $db_pw,
 );
 
 GetOptions(
     'help' => \$show_help,
     'verbose' => \$verbose,
     'create-school' => \$run_create_school,
-    'school-admin' => \$school_admin,
+    'school-admin=s' => \$school_admin,
     'create-admin' => \$create_admin,
+    'dbuser=s' => \$db_user,
+    'dbpw=s' => \$db_pw,
 );
 
 if ($show_help) {
@@ -69,13 +85,18 @@ if ($show_help) {
 # $school_admin //= 'admin';
 $school_admin = defined $school_admin ? $school_admin : 'admin';
 
-my $my_cnf = "$ENV{HOME}/.my.cnf";
-my $hostname = hostname;
-my $dbserver = $TUSK::Constants::Servers{$hostname} || 'localhost';
-my $dbhost = $dbserver->{'WriteHost'};
-my $dsn = "DBI:mysql:mysql:$dbhost;mysql_read_default_file=$my_cnf";
-my $dbh = DBI->connect($dsn, undef, undef, { RaiseError => 1 });
+my $dsn = get_dsn({
+    default => 'localhost',
+    verbose => $verbose,
+    use_my_cnf => (! $db_user),
+});
+if ( (! $db_user) && (! -r get_my_cnf() )) {
+    # no username or my.cnf available, so prompt
+    ($db_user, $db_pw) = get_prompt_pw();
+}
+my $dbh = DBI->connect($dsn, $db_user, $db_pw, { RaiseError => 1 });
 confess $DBI::errstr if (! $dbh);
+HSDB4::Constants::set_def_db_handle($dbh);
 
 my $db_baseline = TUSK::DB::Baseline->new({
     dbh => $dbh,
@@ -83,6 +104,8 @@ my $db_baseline = TUSK::DB::Baseline->new({
     create_school => $run_create_school,
     school_admin => $school_admin,
     create_admin => $create_admin,
+    db_user => $db_user,
+    db_pw => $db_pw,
 });
 $db_baseline->create_baseline();
 
