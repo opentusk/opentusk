@@ -8,7 +8,7 @@ use utf8;
 use Carp;
 use Readonly;
 use File::Spec;
-use HSDB4::Constants qw(get_school_db);
+use HSDB4::Constants qw(:school);
 use TUSK::Constants;
 use TUSK::DB::Util qw(sql_file_path);
 
@@ -47,19 +47,30 @@ sub apply_script {
     my $db = $script_info->{db};
     my $ext = $script_info->{ext};
     my $script_file = sql_file_path($script);
-    confess "Can't find file $script_file\n" if (! -e $script_file);
+    confess "Can't find file $script_file\n" if (! -r $script_file);
     print "Applying update $script to `$db` ... " if $verbose;
     if ($ext eq 'pl') {
-        my @sysargs = ('perl', $script_file);
+        my @sysargs;
+        push @sysargs, 'perl';
+        push @sysargs, '--dbuser=' . $self->db_user() if $self->db_user();
+        push @sysargs, '--dbpw=' . $self->db_pw() if $self->db_pw();
+        push @sysargs, '--verbose' if $self->verbose();
+        push @sysargs, $script_file;
         system(@sysargs) == 0 or
             confess "Upgrade script $script failed: $?, $!\n";
     }
     else {
-        eval {
-            $self->_call_mysql_with_file($script_file, $db);
-        };
-        if ($@) {
-            confess "Upgrade script $script failed: $@\n";
+        my @database_names
+            = $db eq 'hsdb45' ? school_db_list()
+            :                   ($TUSK::Constants::Databases{$db},);
+        foreach my $dbname (@database_names) {
+            eval {
+                $self->_call_mysql_with_file($script_file, $dbname);
+            };
+            if ($@) {
+                confess "Upgrade script $script failed on database "
+                    . "$dbname: $@\n";
+            }
         }
     }
     print "done.\n" if $verbose;
@@ -153,7 +164,7 @@ sub upgrades_in_db {
         $TUSK::Constants::Databases{fts},
         $TUSK::Constants::Databases{hsdb4},
         $TUSK::Constants::Databases{tusk},
-        map { get_school_db($_) } keys %TUSK::Constants::Schools,
+        school_db_list(),
     );
     my %upgrades_in;
     foreach my $db (@dbs) {
