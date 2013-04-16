@@ -26,12 +26,30 @@ BEGIN {
     use vars qw($VERSION @EXPORT @EXPORT_OK %EXPORT_TAGS);
     
     @EXPORT = qw();
-    @EXPORT_OK = qw(schools schedule_schools course_schools eval_schools
-		    user_group_schools school_codes code_by_school get_school_db school_code_regexp);
-    %EXPORT_TAGS = ( 'school' => [ qw[schools schedule_schools course_schools 
-				      eval_schools user_group_schools school_codes 
-				      code_by_school get_school_db school_code_regexp] ],
-		     );
+    @EXPORT_OK = qw(schools
+                    schedule_schools
+                    course_schools
+                    eval_schools
+                    user_group_schools
+                    school_codes
+                    code_by_school
+                    get_school_db
+                    school_code_regexp
+                    school_db_list);
+    %EXPORT_TAGS = (
+        'school' => [
+            qw(schools
+               schedule_schools
+               course_schools 
+               eval_schools
+               user_group_schools
+               school_codes 
+               code_by_school
+               get_school_db
+               school_db_list
+               school_code_regexp)
+        ],
+    );
     $VERSION = do { my @r = (q$Revision: 1.138 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
@@ -141,6 +159,13 @@ sub code_by_school {
     my $school = lc shift;
     my %school_codes = map { lc $_ => $TUSK::Constants::Schools{$_}{Initial} } keys %TUSK::Constants::Schools;
     return $school_codes{$school};
+}
+
+sub school_db_list {
+    my @school_dbs = map {
+        get_school_db($_)
+    } keys %TUSK::Constants::Schools;
+    return @school_dbs;
 }
 
 sub get_school_db {
