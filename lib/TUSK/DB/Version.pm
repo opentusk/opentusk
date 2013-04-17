@@ -93,7 +93,7 @@ END_SQL
     # check for database
     $sth = $dbh->prepare("show databases like ?");
     $sth->execute($dbname) or confess $sth->errstr;
-    return if (! defined ($sth->fetchrow_arrayref()));
+    return $version_ref if (! defined ($sth->fetchrow_arrayref()));
     $dbh->do("use `$dbname` ;") or confess $dbh->errstr;
 
     # check for schema_change_log
