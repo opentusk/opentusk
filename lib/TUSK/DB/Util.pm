@@ -8,6 +8,7 @@ use utf8;
 use Carp;
 use File::Spec;
 use IPC::Run3;
+use Sys::Hostname;
 
 use TUSK::Constants;
 
@@ -41,10 +42,12 @@ sub mysql_with_file {
     my $db = $opt_ref->{db};
     my $user = $opt_ref->{user};
     my $pw = $opt_ref->{password};
+    my $host = $TUSK::Constants::Servers{hostname()}->{WriteHost};
     confess "mysql_with_file called without file\n" if (! $file);
     my @sysargs = ('mysql',);
     push @sysargs, '--user=' . $user if defined $user;
     push @sysargs, '--password=' . $pw if defined $pw;
+    push @sysargs, '--host=' . $host if ($host ne 'localhost');
     push @sysargs, $db if defined $db;
     run3 \@sysargs, $file;
     if ($? != 0) {
