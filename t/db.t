@@ -29,6 +29,7 @@ $test_count += 4;
 foreach my $school_name (keys %TUSK::Constants::Schools) {
     my $school = $TUSK::Constants::Schools{$school_name};
     my $school_db = get_school_db($school_name);
+    $dbh->do('use `' . $TUSK::Constants::Databases{tusk} . '`;');
     all_row_ok(
         table => 'school',
         where => [ school_name => $school_name ],
