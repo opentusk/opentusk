@@ -90,8 +90,13 @@ order by date_applied desc
 limit 1;
 END_SQL
 
-    # check for schema_change_log
+    # check for database
+    $sth = $dbh->prepare("show databases like ?");
+    $sth->execute($dbname) or confess $sth->errstr;
+    return if (! defined ($sth->fetchrow_arrayref()));
     $dbh->do("use `$dbname` ;") or confess $dbh->errstr;
+
+    # check for schema_change_log
     $sth = $dbh->prepare(q{show tables like 'schema_change_log'});
     $sth->execute() or confess $sth->errstr;
 

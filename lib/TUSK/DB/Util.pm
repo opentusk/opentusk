@@ -58,7 +58,7 @@ sub mysql_with_file {
 sub get_db_host {
     my $opt_ref = shift || {};
     my $default = $opt_ref->{default};
-    my $hostname = $TUSK::Constants::Domain;
+    my $hostname = hostname();
     my $dbhost;
     if (exists $TUSK::Constants::Servers{$hostname}) {
         my $dbserver = $TUSK::Constants::Servers{$hostname};
