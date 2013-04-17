@@ -12,6 +12,7 @@ use TUSK::Constants;
 use TUSK::Core::School;
 use TUSK::Course::CourseMetadataDisplay;
 use TUSK::DB::Util qw(sql_file_path);
+use TUSK::DB::Version;
 
 use Moose::Util::TypeConstraints;
 
@@ -78,7 +79,18 @@ sub create_baseline {
         $self->tusk() => 'baseline_tusk.mysql',
     );
 
+    my %version_of = %{ TUSK::DB::Version->new()->version_string_hashref() };
+
+  MAIN_DB_LOOP:
     foreach my $db_name (keys %sql_file_for) {
+        if ($version_of{$db_name} ne 'unversioned') {
+            if ($verbose) {
+                print "$db_name already at version "
+                    . $version_of{$db_name}
+                    . ". Skipping.\n";
+            }
+            next MAIN_DB_LOOP;
+        }
         print "Creating database $db_name ... " if $verbose;
         my $create_db_sql = "create database if not exists $db_name ;";
         $dbh->do($create_db_sql) or confess $dbh->errstr;
@@ -362,8 +374,20 @@ sub create_school_baseline {
 
     $self->validate_user();
 
+    my %version_of = %{ TUSK::DB::Version->new()->version_string_hashref() };
+
+  SCHOOL_DB_LOOP:
     foreach my $school (keys %TUSK::Constants::Schools) {
         my $db_name = _verify_db_name(get_school_db($school));
+
+        if ($version_of{$db_name} ne 'unversioned') {
+            if ($verbose) {
+                print "$db_name already at version "
+                    . $version_of{$db_name}
+                    . ". Skipping.\n";
+            }
+            next SCHOOL_DB_LOOP;
+        }
 
         print "Creating database $db_name ... \n" if $verbose;
         $self->_create_school_database({
