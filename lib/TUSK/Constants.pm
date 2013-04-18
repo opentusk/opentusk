@@ -72,7 +72,7 @@ sub getConfig {
     eval {
 	$conf = decode_json($data);
     };
-    confess "Error reading tusk.conf: $@\n" if $@;
+    confess "Error reading tusk.conf: $@" if $@;
     return $conf;
 }
 
