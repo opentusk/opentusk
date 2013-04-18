@@ -63,15 +63,16 @@ sub initConfigs {
 sub getConfig {
     my $file = $ENV{TUSKRC} || '/usr/local/tusk/conf/tusk.conf';
     local $/;
+    confess "Cannot read tusk.conf file: $file\n" if (! -r $file);
     open( my $fh, '<', $file );
-    my $data   = <$fh>;
+    my $data = <$fh>;
     close $fh;
 
     my $conf;
     eval {
 	$conf = decode_json($data);
     };
-    print $@ if $@;
+    confess "Error reading tusk.conf: $@\n" if $@;
     return $conf;
 }
 
