@@ -5,6 +5,9 @@ use strict;
 use warnings;
 use utf8;
 
+use FindBin;
+use lib qq($FindBin::Bin/../lib);
+
 use Getopt::Long;
 use Readonly;
 use DBI;
