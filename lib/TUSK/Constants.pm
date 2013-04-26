@@ -63,15 +63,16 @@ sub initConfigs {
 sub getConfig {
     my $file = $ENV{TUSKRC} || '/usr/local/tusk/conf/tusk.conf';
     local $/;
+    confess "Cannot read tusk.conf file: $file\n" if (! -r $file);
     open( my $fh, '<', $file );
-    my $data   = <$fh>;
+    my $data = <$fh>;
     close $fh;
 
     my $conf;
     eval {
 	$conf = decode_json($data);
     };
-    print $@ if $@;
+    confess "Error reading tusk.conf: $@" if $@;
     return $conf;
 }
 
@@ -113,6 +114,13 @@ EOM
     " or call " . $TUSK::Constants::Institution{Phone} . ".  Thank you for your patience.";
 
     our $EmailUserWhenNoAffiliationOrGroupText = "Hello and thank you for using the $TUSK::Constants::SiteAbbr system.\nWe were unable to determine the school or group with which you are affiliated.\nPlease reply to this email and let us know your school affiliation and, if you are a student, please include your year of graduation.\n\n$TUSK::Constants::SiteAbbr Support\n$TUSK::Constants::Institution{Email}\n$TUSK::Constants::Institution{Phone}\n" . join("\n", @{$TUSK::Constants::Institution{Address}}); 
+
+    our %Databases = (
+        mwforum => 'mwforum',
+        fts => 'fts',
+        hsdb4 => 'hsdb4',
+        tusk => 'tusk',
+    );
 }
 
 
