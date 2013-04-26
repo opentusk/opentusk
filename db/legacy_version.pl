@@ -76,6 +76,8 @@ sub value_exists {
 }
 
 my @legacy_version_checks = (
+    '4.0/OpenTUSK (already version tracked, run version.pl)' =>
+        table_exists($tusk, 'schema_change_log'),
     'Pre 3.6.14' => negate(column_exists($hsdb4, 'user', 'uid')),
     '3.6.14 and 3.6.15' => negate(table_exists($tusk, 'competency')),
     '3.7.0 and 3.7.1' => sub {
@@ -114,8 +116,6 @@ my @legacy_version_checks = (
     },
     '3.11.0/3.12.0/4.0/OpenTUSK (ready to run baseline.pl)' =>
         negate(table_exists($tusk, 'schema_change_log')),
-    '4.0/OpenTUSK (already version tracked, run version.pl)' =>
-        sub { return 1; },
 );
 
 my $len = scalar @legacy_version_checks;
