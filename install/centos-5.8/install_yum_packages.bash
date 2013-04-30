@@ -17,15 +17,15 @@ myversion=$(_os_major_version)
 
 function _yum_install {
     # --assumeyes not available in CentOS 5.x
-    yum install --quiet -y "$1"
+    yum install --quiet -y "$1" 2>&1 >/dev/null
 }
 
 function _yum_install_nocheck {
-    yum install --nogpgcheck --quiet -y "$1"
+    yum install --nogpgcheck --quiet -y "$1" 2>&1 >/dev/null
 }
 
 function _yum_install_rpmforge {
-    yum install --quiet -y --enablerepo=rpmforge "$1"
+    yum install --quiet -y --enablerepo=rpmforge "$1" 2>&1 >/dev/null
 }
 
 # Install repos
@@ -74,6 +74,7 @@ _yum_install poppler-utils
 _yum_install ncftp
 _yum_install xorg-x11-xauth
 _yum_install wget
+_yum_install python-demjson
 
 # Install Perl modules
 

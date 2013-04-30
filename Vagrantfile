@@ -26,7 +26,7 @@ Vagrant.configure("2") do |config|
   # using a specific IP.
   config.vm.network :private_network, ip: "192.168.56.150"
 
-  config.vm.provision :shell, :path => "install/centos-5.8/bootstrap.sh"
+  config.vm.provision :shell, :path => "install/vagrant/bootstrap-centos-5.8.sh"
 
   # Create a public network, which generally matched to bridged network.
   # Bridged networks make the machine appear as another physical device on
@@ -49,7 +49,8 @@ Vagrant.configure("2") do |config|
   
     # Use VBoxManage to customize the VM. For example to change memory:
     vb.customize ["modifyvm", :id, "--memory", "1024"]
-    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    # vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    # vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
   end
   #
   # View the documentation for the provider you're using for more
