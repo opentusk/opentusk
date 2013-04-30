@@ -77,6 +77,9 @@ _yum_install wget
 
 # Install Perl modules
 
+_yum_install 'perl(Readonly)'
+_yum_install 'perl(IPC::Run3)'
+_yum_install 'perl(Moose)'
 _yum_install 'perl(Apache::DBI)'
 _yum_install 'perl(Apache::Session::Wrapper)'
 _yum_install 'perl(Apache2::Request)'
