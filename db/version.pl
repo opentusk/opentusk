@@ -66,7 +66,7 @@ foreach my $db (keys %{$version_string_ref}) {
 }
 if ($is_legacy) {
     my @version_list = $legacy_version->version_list();
-    print "Legacy database for TUSK version: "
+    print "Legacy database for TUSK version(s): "
         . join(q{, }, @version_list)
         . "\n";
 }
