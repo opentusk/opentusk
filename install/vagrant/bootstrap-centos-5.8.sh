@@ -2,6 +2,8 @@
 
 # Installing OpenTUSK and EPEL repos
 
+set -e
+
 sn=`basename $0`
 
 echo "[$sn] Configuring from Vagrant bootstrap ..."
@@ -9,7 +11,12 @@ if [ -d /vagrant ] ; then
     # Fix /etc/resolv.conf on base CentOS box:
     /sbin/dhclient -q eth0
     mkdir --parents /usr/local/tusk
-    ln -s /vagrant /usr/local/tusk/current
+    [[ -L /usr/local/tusk/current ]] || ln -s /vagrant /usr/local/tusk/current
+    if [[ -z "`grep vagrant-c5-x86_64 /etc/hosts`" ]]; then
+        echo -e "192.168.56.150\tvagrant-c5-x86_64" >> /etc/hosts
+    fi
+    mkdir --parents /var/www/mason_cache
+    chown --recursive apache:apache /var/www/mason_cache
 fi
 
 PERL5LIB="/usr/local/tusk/current/lib:$PERL5LIB"
@@ -30,7 +37,7 @@ echo "[$sn] Creating TUSK directories and data tree ..."
 bash /usr/local/tusk/current/install/scripts/create_directories.sh
 
 echo "[$sn] Creating a self-signed SSL certificate ..."
-bash /usr/local/tusk/current/install/scripts/create_ssl_cert.bash
+bash /usr/local/tusk/current/install/centos-5.8/create_ssl_cert.bash
 
 echo "[$sn] Setting up tusk.conf ..."
 mkdir --parents /usr/local/tusk/conf
@@ -40,7 +47,7 @@ perl /usr/local/tusk/current/install/vagrant/setup_tusk_conf.pl \
 
 echo "[$sn] Setting up MySQL and loading TUSK databases ..."
 if [[ `/sbin/service mysqld status` =~ "stopped" ]] ; then
-    /sbin/service mysqld start
+    /sbin/service mysqld start 2>&1 >/dev/null
 fi
 /sbin/chkconfig mysqld on
 printf "grant all on *.* to '%s'@'%s' identified by '%s' with grant option;\n" \
@@ -57,7 +64,7 @@ printf "grant all on *.* to '%s'@'%s' identified by '%s';\n" \
     | mysql -u root
 perl /usr/local/tusk/current/install/bin/baseline.pl \
     --create-admin --create-school --dbuser=root
-perl /usr/local/tusk/current/bin/upgrade.pl --all
+perl /usr/local/tusk/current/bin/upgrade.pl --all --dbuser=root
 cat <<EOF > /usr/local/tusk/.my.cnf
 [client]
 user=tusk
@@ -77,11 +84,11 @@ find /etc/httpd/conf.d/ -name "*.conf" -exec \
     sed -i "s/MYFQDN/`hostname`/g" {} \;
 find /etc/httpd/conf.d/ -name "*.conf" -exec \
     sed -i "s/TUSKFQDN/`hostname`/g" {} \;
-/sbin/service httpd start
+/sbin/service httpd start 2>&1 >/dev/null
 /sbin/chkconfig httpd on
 
 echo "[$sn] Setting up crontabs ..."
-su tusk -c "perl /usr/local/tusk/current/bin/fts_index --all"
+su tusk -c "perl /usr/local/tusk/current/bin/fts_index --all 2>&1 >/dev/null"
 cat <<EOF > /usr/local/tusk/crontab
 ### Session Tracking
 1 1 * * * /usr/local/tusk/current/bin/clean_session_table 2>&1 | /usr/local/tusk/current/bin/mail_cron_error "Old Session Cleaner"
@@ -108,4 +115,5 @@ echo "[$sn] Add `hostname` to /etc/hosts on your VM host."
 printf "[%s] Mac: sudo bash -c \"%s >> /private/etc/hosts\"\n" \
     "$sn" \
     "printf \\\"%s\\\t%s\\\n\\\" \\\"192.168.56.150\\\" \\\"`hostname`\\\""
+echo "[$sn] (Only needed once.)"
 echo "[$sn] Then connect to http://`hostname` to test."

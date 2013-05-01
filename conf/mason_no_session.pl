@@ -42,6 +42,8 @@ if (Apache2::ServerUtil::exists_config_define('DEV')) {
 	$use_object_files = 0;
 }
 
+my $dataDir = defined $TUSK::Constants::MasonCacheRoot ?
+    $TUSK::Constants::MasonCacheRoot : "$ENV{SERVER_ROOT}/mason_cache";
 my $ah =
     new HTML::Mason::ApacheHandler
         ( request_class => 'HTML::Mason::Request::ApacheHandler',
@@ -49,7 +51,7 @@ my $ah =
 	  use_object_files => $use_object_files,
 	  error_mode=>$error_mode, 
           comp_root => "$ENV{CODE_ROOT}/tusk_no_session",
-	  data_dir => "$ENV{SERVER_ROOT}/mason_cache");
+	  data_dir => $dataDir);
           
 
 sub handler
