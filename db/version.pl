@@ -59,7 +59,7 @@ foreach my $db (keys %{$version_string_ref}) {
     my $is_versioned = $ver ne 'unversioned';
     $is_legacy = 1 if (! $is_versioned);
     $scripts_for->{$db} = [] if (! exists $scripts_for->{$db});
-    print "$db version: ";
+    print "$db schema version: ";
     print $ver;
     print ' (run baseline.pl to setup versioning)' if (! $is_versioned);
     if ($is_versioned && scalar(@{ $scripts_for->{$db} }) > 0) {
