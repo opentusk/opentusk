@@ -48,10 +48,7 @@ my $legacy_version = TUSK::DB::Legacy->new();
 my $is_legacy;
 
 my $upgrade_obj = TUSK::DB::Upgrade->new();
-my $scripts_for = {};
-eval {
-    $scripts_for = $upgrade_obj->upgrade_scripts_to_run();
-};
+my $scripts_for = $upgrade_obj->upgrade_scripts_to_run();
 
 my $version_string_ref = $db_version->version_string_hashref();
 foreach my $db (keys %{$version_string_ref}) {
