@@ -138,7 +138,7 @@ onsubmit="<% $params{'onsubmit'} %>">
 %params
 </%args>
 <%doc>
-Method creates an html form button.  Class defaults to "formbutton" unless type is highlight in which case it is "highligtbutton".  Params{reset} makes the button an html form reset button.  Params{help_info} constructs a help link to the left of the button (using method help_link).
+Method creates an html form button.  Class defaults to "formbutton" unless type is highlight in which case it is "highligtbutton".  Params{reset} makes the button an html form reset button.  Params{help_info} constructs a help link to the left of the button (using method link_to_help).
 </%doc>
 <%perl>
 my $class = $params{'class'} || "formbutton";
@@ -171,7 +171,7 @@ id="<% $params{'name'} %>"
 
  value="<% $params {'label'} %>" style="<% $params{'style'} %>"/>
 % if ($params{'help_info'}){
-&nbsp;<span class="xsm"><& SELF:help_link, params=>$params{'help_info'} &></span>
+&nbsp;<span class="xsm"><& SELF:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></span>
 % }
 </%method>
 
@@ -874,24 +874,21 @@ if (defined($params{'button_onclick'})){
 % my $num_buttons = 1;
 % foreach my $button (@{$params{buttons}}){
 % $num_buttons++;
-<td class="<% $td_class %>">
-<% $button %>
-</td>	
+				<td class="<% $td_class %>">
+				<% $button %>
+				</td>	
 % }
 % if (defined($params{'help_info'})){
 % $num_buttons++;
 				<td class="<% $td_class %>">
-                                <span class="xsm">
-                                        <& SELF:help_link,
-                                        params=>$params{'help_info'} &></span>
+    				<b><& SELF:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></b>
 				</td>
 % }
 
 % if (defined($params{'starting_text'})){
 % $num_buttons++;
 				<td class="<% $td_class %>">
-                                <span class="xsm"><% $params{'starting_text'} %></span>
-                                        
+                   <span class="xsm"><% $params{'starting_text'} %></span>
 				</td>
 % }
 
@@ -1204,32 +1201,25 @@ Actions
 % }
 </%method>
 
-<%doc>
-- Method for making a help link.
-- This was initially built for help docs that were xMetal documents.
-- We have retired xMetal, so this has been modified to handle other
-  types of TUSK content types.
-- the param 'not_xmetal' should be passed in by any call that will reference
-  content that is not - well - of type 'xMetal'. 
-- the non-xMetal link also depends upon the DeelHelpLinksOn constant because
-  i am assuming that is how we keep non-Tufts installations from displaying links
-  to help documents not in their content table.
-</%doc>
-<%method help_link> 
-<%args>
-%params
-</%args>
-% my $class = $params{class} || 'help';
 
-% if ($TUSK::Constants::DeepHelpLinksOn &&
-%    ($params{node} || ($params{not_xmetal} && $params{content_id}))) {
-%        $params{'content_id'} = 0 unless ($params{'content_id'});
-%        $params{'node'} = -1 unless ($params{'node'});
-%
-         <a class="<% $class %>" href="javascript:;" onClick="openhelp(<% $params{'node'} %>, '<% $params{'content_id'} %>'); return false;"><b><% $params{text} %></b></a>
+<%doc>
+the newest incarnation of help, which uses conf settings and passed parameters to generate a 
+link to help documentation in separate wiki installation
+</%doc>
+<%method link_to_help>
+<%args>
+$topic
+$text => ''
+</%args>
+% if ($topic) {
+% 	my $link = $TUSK::Constants::HelpURLRoot . $topic;
+% 	if (!$text) {
+%		$text = "<span class=\"icon\">&nbsp;</span>";
+% 	}
+	<a href="javascript:openHelp('<% $link %>#bar__top')" class="helpLink"><% $text %></a>
 % }
-%
 </%method>
+
 
 <%method note_text>
 <%args>
@@ -1333,7 +1323,7 @@ $align
 		if (ref($button) eq 'HASH'){
 			$m->print('<a href="' . $button->{link} . '"><img src="' . $button->{file} . '" alt="' .$button->{alt} . '" border="0"></a>');
 			if ($button->{'help_info'}){
-				$m->print('&nbsp;<span class="xsm">' . $m->scomp('SELF:help_link', params=>$button->{'help_info'}) . '</span>');
+				$m->print('&nbsp;<span class="xsm">' . $m->scomp('SELF:link_to_help', text => $button->{'help_info'}->{'text'}, topic => $button->{'help_info'}->{'topic'}) . '</span>');
 			}
 		}
 		else {
@@ -1872,7 +1862,7 @@ if (!$params{'no_table'}) {
 			<li class="buttonRow"><% $button %></li>
 %		}
 %		if (defined($params{'help_info'})){
-			<li class="buttonRow"><span class="xsm"><& '/tmpl/element:help_link', params=>$params{'help_info'} &></span></li>
+			<li class="buttonRow"><span class="xsm"><& SELF:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></span></li>
 %		}
 		</ol>
 
@@ -2016,7 +2006,7 @@ if (!$params{'no_table'}) {
 			<li class="buttonRow"><% $button %></li>
 %		}
 %		if (defined($params{'help_info'})){
-			<li class="buttonRow"><span class="xsm"><& '/tmpl/element:help_link', params=>$params{'help_info'} &></span></li>
+			<li class="buttonRow"><span class="xsm"><& SELF:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></span></li>
 %		}
 		</ol>
 
