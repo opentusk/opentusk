@@ -1,6 +1,5 @@
 package TUSK::DB::Version;
 
-# use Modern::Perl;
 use strict;
 use warnings;
 use utf8;
@@ -11,7 +10,6 @@ use HSDB4::Constants qw(get_school_db);
 use TUSK::Constants;
 
 use Moose;
-# use namespace::autoclean;
 
 extends qw(TUSK::DB::Object);
 

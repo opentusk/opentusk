@@ -1,6 +1,5 @@
 package TUSK::DB::Upgrade;
 
-# use Modern::Perl;
 use strict;
 use warnings;
 use utf8;
@@ -13,7 +12,6 @@ use TUSK::Constants;
 use TUSK::DB::Util qw(sql_file_path);
 
 use Moose;
-# use namespace::autoclean;
 
 extends qw(TUSK::DB::Object);
 
@@ -155,6 +153,14 @@ sub upgrade_scripts_to_run {
     return \%scripts_to_run_for;
 }
 
+sub change_log_exists_for {
+    my $self = shift;
+    my $db = shift;
+    return (defined $self->dbh()->selectrow_arrayref(
+        "show tables in `$db` like 'schema_change_log'"
+    ));
+}
+
 sub upgrades_in_db {
     my $self = shift;
     my $dbh = $self->dbh();
@@ -167,7 +173,10 @@ sub upgrades_in_db {
         school_db_list(),
     );
     my %upgrades_in;
+  DB_LOOP:
     foreach my $db (@dbs) {
+        $upgrades_in{$db} = [];
+        next DB_LOOP if (! $self->change_log_exists_for($db));
         $sth = $dbh->prepare(
             "select script_name from `$db`.schema_change_log"
             . q{ where script_name <> 'initial install' }
