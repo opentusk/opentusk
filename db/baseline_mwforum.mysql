@@ -1,0 +1,456 @@
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `attachments` (
+  `id` int(11) NOT NULL auto_increment,
+  `postId` int(11) NOT NULL default '0',
+  `webImage` tinyint(4) NOT NULL default '0',
+  `fileName` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  PRIMARY KEY  (`id`),
+  KEY `attachments_postId` (`postId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `boardAdminGroups` (
+  `groupId` int(11) NOT NULL default '0',
+  `boardId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`groupId`,`boardId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `boardAdmins` (
+  `userId` int(11) NOT NULL default '0',
+  `boardId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`boardId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `boardHiddenFlags` (
+  `userId` int(11) NOT NULL default '0',
+  `boardId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`boardId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `boardMemberGroups` (
+  `groupId` int(11) NOT NULL default '0',
+  `boardId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`groupId`,`boardId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `boardMembers` (
+  `userId` int(11) NOT NULL default '0',
+  `boardId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`boardId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `boards` (
+  `id` int(11) NOT NULL auto_increment,
+  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `categoryId` int(11) NOT NULL default '0',
+  `pos` smallint(6) NOT NULL default '0',
+  `expiration` smallint(6) NOT NULL default '0',
+  `locking` smallint(6) NOT NULL default '0',
+  `approve` tinyint(4) NOT NULL default '0',
+  `private` tinyint(4) NOT NULL default '0',
+  `list` tinyint(4) NOT NULL default '0',
+  `anonymous` tinyint(4) NOT NULL default '0',
+  `unregistered` tinyint(4) NOT NULL default '0',
+  `announce` tinyint(4) NOT NULL default '0',
+  `flat` tinyint(4) NOT NULL default '0',
+  `attach` tinyint(4) NOT NULL default '0',
+  `shortDesc` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `longDesc` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `postNum` int(11) NOT NULL default '0',
+  `lastPostTime` int(11) NOT NULL default '0',
+  `boardkey` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `start_date` date default '0000-00-00',
+  `end_date` date default '9999-12-31',
+  PRIMARY KEY  (`id`),
+  KEY `boardkey` (`boardkey`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `boardSubscriptions` (
+  `userId` int(11) NOT NULL default '0',
+  `boardId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`boardId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `categories` (
+  `id` int(11) NOT NULL auto_increment,
+  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `pos` smallint(6) NOT NULL default '0',
+  `categorykey` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `chat` (
+  `id` int(11) NOT NULL auto_increment,
+  `userId` int(11) NOT NULL default '0',
+  `postTime` int(11) NOT NULL default '0',
+  `body` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `config` (
+  `name` varchar(14) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `value` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `parse` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  PRIMARY KEY  (`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+INSERT ignore INTO `config` VALUES ('forumName','',''),('boardJumpList','1',''),('styles','Default=default\nDefault2=default2\n','hash'),('styleSnippets','','hash'),('showOnlUsers','2',''),('showNewUsers','2',''),('showBdayUsers','0',''),('showNewBlgTpcs','1',''),('allowTopicTags','1',''),('tagButtons','2',''),('showPostIp','0',''),('topicHits','1',''),('sigStart','</div>\n<div class=\'ccl sig\'>\n',''),('anonName','anonymous',''),('userTitles','','array'),('userRanks','','array'),('languages','English=MwfEnglish\nGerman=MwfGerman\n','hash'),('languageCodes','de=German\nen=English\n','hash'),('tags','','hash'),('reservedNames','','array'),('hostnameBlocks','','array'),('ipBlocks','','array'),('censorWords','','array'),('userList','2',''),('policyTitle','Forum Terms of Service',''),('policy','policy stuff blah blah',''),('logPlg','','array'),('lastUpdate','1185911052',''),('boardPageDesc','1',''),('avatars','1',''),('avatarUpload','1',''),('avatarGallery','1',''),('avatarResize','0',''),('attachUrlPath','',''),('attachments','1',''),('attachImg','1',''),('attachImgThb','1',''),('attachList','3',''),('subscriptions','1',''),('authenPlg','login=\nrequest=MwfPlgAuthen::authenRequestHttp\n','hash'),('authzPlg','attach=\ndeletePost=\neditPost=\nnewPost=\nnewTopic=\nregUser=\nuserOpt=\nviewBoard=MwfPlgAuthz::viewBoard\n','hash'),('includePlg','bottom=MwfPlgInclude::bottom\nhtmlHeader=\nhttpHeader=\nmiddle=MwfPlgInclude::middle\ntop=MwfPlgInclude::top\n','hash'),('hideCopyright','1',''),('forumEmail','',''),('smtpServer','',''),('rssLink','1',''),('logLevel','0',''),('debug','0',''),('homeUrl','',''),('chat','0',''),('homeTitle','',''),('maxTopicsPP','50',''),('maxPostsPP','20',''),('scriptUrlPath','',''),('maxListUsers','10',''),('blogs','1',''),('advForumOpt','1',''),('noEmailReq','0',''),('buttonIcons','1',''),('microsummary','1',''),('showAdvOpt','0',''),('showSearchBody','0',''),('styleOptions','Default=\nDefault2=buttonIcons=\"1\" excludeUA=\"MSIE (?:4|5|6)\"\n','hash'),('adminEmail','tusk@tufts.edu',''),('msgNotify','1',''),('style','Default',''),('avatarMaxSize','100000',''),('avatarWidth','100',''),('avatarHeight','100',''),('topicTags','attachment=attach.png Attachment\nmoney=money.png Deals\nnews=newspaper.png News\npicture=photo.png Picture\nquestion=help.png Question\nworddoc=page_word.png WordDoc\n','hash'),('mailer','SMTP',''),('forumStyle','tusk.css','');
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `groupMembers` (
+  `userId` int(11) NOT NULL default '0',
+  `groupId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`groupId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `groups` (
+  `id` int(11) NOT NULL auto_increment,
+  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `log` (
+  `level` tinyint(4) NOT NULL default '0',
+  `entity` char(6) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `action` char(8) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `userId` int(11) NOT NULL default '0',
+  `boardId` int(11) NOT NULL default '0',
+  `topicId` int(11) NOT NULL default '0',
+  `postId` int(11) NOT NULL default '0',
+  `extraId` int(11) NOT NULL default '0',
+  `logTime` int(11) NOT NULL default '0',
+  `ip` char(15) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `logStrings` (
+  `id` int(11) NOT NULL auto_increment,
+  `string` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `messages` (
+  `id` int(11) NOT NULL auto_increment,
+  `senderId` int(11) NOT NULL default '0',
+  `receiverId` int(11) NOT NULL default '0',
+  `sendTime` int(11) NOT NULL default '0',
+  `hasRead` tinyint(4) NOT NULL default '0',
+  `inbox` tinyint(4) NOT NULL default '0',
+  `sentbox` tinyint(4) NOT NULL default '0',
+  `subject` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `body` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  PRIMARY KEY  (`id`),
+  KEY `messages_senderId` (`senderId`),
+  KEY `messages_receiverId` (`receiverId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `notes` (
+  `id` int(11) NOT NULL auto_increment,
+  `userId` int(11) NOT NULL default '0',
+  `sendTime` int(11) NOT NULL default '0',
+  `body` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  PRIMARY KEY  (`id`),
+  KEY `notes_userId` (`userId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `permissions` (
+  `id` int(11) NOT NULL auto_increment,
+  `userName` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
+  `boardId` int(11) default NULL,
+  `permissions` enum('User','Moderator','Banned') default 'User',
+  PRIMARY KEY  (`id`),
+  KEY `user_name_permissions` (`userName`,`permissions`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `pollOptions` (
+  `id` int(11) NOT NULL auto_increment,
+  `pollId` int(11) NOT NULL default '0',
+  `title` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `votes` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  KEY `pollOptions_pollId` (`pollId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `polls` (
+  `id` int(11) NOT NULL auto_increment,
+  `title` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `locked` tinyint(4) NOT NULL default '0',
+  `multi` tinyint(4) NOT NULL default '0',
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `pollVotes` (
+  `pollId` int(11) NOT NULL default '0',
+  `userId` int(11) NOT NULL default '0',
+  `optionId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`pollId`,`userId`,`optionId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `postReports` (
+  `userId` int(11) NOT NULL default '0',
+  `postId` int(11) NOT NULL default '0',
+  `reason` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  PRIMARY KEY  (`userId`,`postId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `posts` (
+  `id` int(11) NOT NULL auto_increment,
+  `userId` int(11) NOT NULL default '0',
+  `userNameBak` varchar(60) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `boardId` int(11) NOT NULL default '0',
+  `topicId` int(11) NOT NULL default '0',
+  `parentId` int(11) NOT NULL default '0',
+  `approved` tinyint(4) NOT NULL default '0',
+  `ip` varchar(15) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `postTime` int(11) NOT NULL default '0',
+  `editTime` int(11) NOT NULL default '0',
+  `body` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  PRIMARY KEY  (`id`),
+  KEY `posts_userId` (`userId`),
+  KEY `posts_topicId` (`topicId`),
+  KEY `posts_parentId` (`parentId`),
+  KEY `posts_postTime` (`postTime`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `postTodos` (
+  `userId` int(11) NOT NULL default '0',
+  `postId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`postId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `sessions` (
+  `id` char(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `userId` int(11) NOT NULL default '0',
+  `lastOnTime` int(11) NOT NULL default '0',
+  `ip` char(15) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `tickets` (
+  `id` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `userId` int(11) NOT NULL default '0',
+  `issueTime` int(11) NOT NULL default '0',
+  `type` varchar(6) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `data` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `topicReadTimes` (
+  `userId` int(11) NOT NULL default '0',
+  `topicId` int(11) NOT NULL default '0',
+  `lastReadTime` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`topicId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `topics` (
+  `id` int(11) NOT NULL auto_increment,
+  `subject` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `tag` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `boardId` int(11) NOT NULL default '0',
+  `basePostId` int(11) NOT NULL default '0',
+  `pollId` int(11) NOT NULL default '0',
+  `locked` tinyint(4) NOT NULL default '0',
+  `sticky` tinyint(4) NOT NULL default '0',
+  `hitNum` int(11) NOT NULL default '0',
+  `postNum` int(11) NOT NULL default '0',
+  `lastPostTime` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  KEY `topics_lastPostTime` (`lastPostTime`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `topicSubscriptions` (
+  `userId` int(11) NOT NULL default '0',
+  `topicId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`topicId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `userBans` (
+  `userId` int(11) NOT NULL default '0',
+  `banTime` int(11) NOT NULL default '0',
+  `duration` smallint(6) NOT NULL default '0',
+  `reason` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `intReason` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  PRIMARY KEY  (`userId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `userIgnores` (
+  `userId` int(11) NOT NULL default '0',
+  `ignoredId` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`userId`,`ignoredId`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` int(11) NOT NULL auto_increment,
+  `userName` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `realName` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `email` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `password` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `salt` int(11) NOT NULL default '0',
+  `title` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `admin` tinyint(4) NOT NULL default '0',
+  `hideEmail` tinyint(4) NOT NULL default '0',
+  `dontEmail` tinyint(4) NOT NULL default '0',
+  `notify` tinyint(4) NOT NULL default '0',
+  `msgNotify` tinyint(4) NOT NULL default '0',
+  `manOldMark` tinyint(4) NOT NULL default '0',
+  `tempLogin` tinyint(4) NOT NULL default '0',
+  `secureLogin` tinyint(4) NOT NULL default '0',
+  `privacy` tinyint(4) NOT NULL default '0',
+  `homepage` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `occupation` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `hobbies` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `location` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `icq` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `avatar` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `signature` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `extra1` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `extra2` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `extra3` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `birthyear` smallint(6) NOT NULL default '0',
+  `birthday` varchar(5) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `timezone` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `language` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `style` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `fontFace` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `fontSize` tinyint(4) NOT NULL default '0',
+  `boardDescs` tinyint(4) NOT NULL default '0',
+  `showDeco` tinyint(4) NOT NULL default '0',
+  `showAvatars` tinyint(4) NOT NULL default '0',
+  `showImages` tinyint(4) NOT NULL default '0',
+  `showSigs` tinyint(4) NOT NULL default '0',
+  `collapse` tinyint(4) NOT NULL default '0',
+  `indent` tinyint(4) NOT NULL default '0',
+  `topicsPP` smallint(6) NOT NULL default '0',
+  `postsPP` smallint(6) NOT NULL default '0',
+  `regTime` int(11) NOT NULL default '0',
+  `lastOnTime` int(11) NOT NULL default '0',
+  `prevOnTime` int(11) NOT NULL default '0',
+  `fakeReadTime` int(11) NOT NULL default '0',
+  `lastTopicId` int(11) NOT NULL default '0',
+  `lastTopicTime` int(11) NOT NULL default '0',
+  `chatReadTime` int(11) NOT NULL default '0',
+  `lastIp` varchar(15) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `userAgent` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `postNum` int(11) NOT NULL default '0',
+  `bounceNum` int(11) NOT NULL default '0',
+  `bounceAuth` int(11) NOT NULL default '0',
+  `sourceAuth` int(11) NOT NULL default '0',
+  `gpgKeyId` varchar(18) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `gpgCompat` tinyint(4) NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `users_userName` (`userName`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE IF NOT EXISTS `variables` (
+  `name` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  `userId` int(11) NOT NULL default '0',
+  `value` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
+  PRIMARY KEY  (`name`,`userId`),
+  KEY `userId_value` (`userId`,`value`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+INSERT ignore INTO variables (name, value) VALUES ('version', '2.11.2');
+
+create table if not exists schema_change_log (
+  id int unsigned not null auto_increment,
+  major_release_number varchar(2) not null,
+  minor_release_number varchar(2) not null,
+  point_release_number varchar(4) not null,
+  script_name varchar(50) not null,
+  date_applied datetime not null,
+  primary key (id)
+);
