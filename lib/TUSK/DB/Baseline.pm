@@ -1,6 +1,5 @@
 package TUSK::DB::Baseline;
 
-# use Modern::Perl;
 use strict;
 use warnings;
 use utf8;
@@ -18,7 +17,6 @@ use TUSK::DB::Version;
 use Moose::Util::TypeConstraints;
 
 use Moose;
-# use namespace::autoclean;
 
 extends qw(TUSK::DB::Object);
 
