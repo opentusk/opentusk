@@ -1,17 +1,17 @@
 #! /usr/bin/env perl
 
-# use Modern::Perl;
 use strict;
 use warnings;
 use utf8;
 
 use FindBin;
-use lib qq($FindBin::Bin/../lib);
+use lib qq($FindBin::Bin/../../lib);
 
 use Getopt::Long;
 use Readonly;
 use DBI;
 use Carp;
+
 use TUSK::DB::Upgrade;
 use TUSK::DB::Util qw(get_dsn get_my_cnf);
 use MySQL::Password qw(get_prompt_pw);
@@ -111,7 +111,7 @@ foreach my $db (keys %{ $scripts_for }) {
         # print opening comments in upgrade script
         if ($verbose) {
             print "\n";
-            print "$update_script summary:\n\n";
+            print "$update_script summary:\n";
             my $script_info = $upgrade_obj->script_info($update_script);
             open my $fh, '<', $script_info->{path};
           COMMENTS:
@@ -121,7 +121,7 @@ foreach my $db (keys %{ $scripts_for }) {
                 # ignore blank lines
                 next COMMENTS if $line eq q{};
                 # Perl comments start with #, SQL comments with --
-                my $comment_re = $script_info->{ext} eq 'pl' ? qr{\A \s* #}xms
+                my $comment_re = $script_info->{ext} eq 'pl' ? qr{\A \s* \#}xms
                     :                                          qr{\A \s* --}xms;
                 print "$line\n" if $line =~ $comment_re;
                 # Check if we're done with comments

@@ -1,0 +1,50 @@
+-- [TUS-2710] Add missing columns to eval_results_graphics,
+-- eval_results_histogram, and eval_results_supporting_graphs.
+
+delimiter $$
+drop procedure if exists sc_hsdb45_01_00_0001;
+create procedure sc_hsdb45_01_00_0001()
+begin
+    declare _count int;
+    set _count = (
+        select count(*)
+               from information_schema.columns
+               where table_schema like 'hsdb45_%_admin' and
+                     table_name = 'eval_results_graphics' and 
+                     column_name = 'graphic_text'
+    );
+    if _count = 0 then
+        alter table `eval_results_graphics`
+            add column `graphic_text` text character set utf8
+            after `graphic`;
+    end if;
+    set _count = (
+        select count(*)
+               from information_schema.columns
+               where table_schema like 'hsdb45_%_admin' and
+                     table_name = 'eval_results_histogram' and 
+                     column_name = 'graphic_text'
+    );
+    if _count = 0 then
+        alter table `eval_results_histogram`
+            add column `graphic_text` text character set utf8
+            after `graphic`;
+    end if;
+    set _count = (
+        select count(*)
+               from information_schema.columns
+               where table_schema like 'hsdb45_%_admin' and
+                     table_name = 'eval_results_supporting_graphs' and 
+                     column_name = 'graphic_text'
+    );
+    if _count = 0 then
+        alter table `eval_results_supporting_graphs`
+            add column `graphic_text` text character set utf8
+            after `graphic`;
+    end if;
+end $$
+delimiter ;
+
+call sc_hsdb45_01_00_0001();
+
+drop procedure sc_hsdb45_01_00_0001;
