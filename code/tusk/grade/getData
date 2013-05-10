@@ -28,13 +28,14 @@
 	use JSON -convert_blessed_universally;
 	use TUSK::Core::School;
 	use TUSK::Core::JoinObject;
+	use TUSK::GradeBook::LinkUserGradeEvent;
 	use Data::Dumper;
 </%once>
 
 <%shared>
 	my ($school_id, $type) = $m->comp("/tmpl/url:get_path_ids");
 	my $schoolObj = TUSK::Core::School->new()->lookupReturnOne("school_id = '" . $school_id . "'");
-	my %data;
+	my @data;
 	my ($tp_ids, $course_ids, $student_ids);
 	my $event_type_id = 6;				## this can be set by input from the user later on, if necessary
 </%shared>
@@ -48,34 +49,60 @@
 		$course_ids = $ARGS{courses};
 		$m->comp('SELF:studentData');
 	}
+	elsif ($type eq "grades") {
+		$course_ids = $ARGS{courses};
+		my @students = split(",",  $ARGS{students});
+		$student_ids = "'" . join ("','", @students) . "'";
+		$m->comp('SELF:gradeData');
+	}
+	elsif ($type eq "audit") {
+		$course_ids = $ARGS{courses};
+		my @students = split(",",  $ARGS{students});
+		$student_ids = "'" . join ("','", @students) . "'";
+		$m->comp('SELF:auditData');
+	}
+
+#	warn Dumper \@data;
 
 	$m->clear_buffer();
 	$r->content_type('application/json');
 	$r->no_cache(1);
 </%perl>
-<% JSON->new()->allow_blessed(1)->convert_blessed(1)->encode(\%data) %>
+<% JSON->new()->allow_blessed(1)->convert_blessed(1)->encode(\@data) %>
 
 <%method courseData>
 <%perl>
 	my $grade_events = TUSK::GradeBook::GradeEvent->lookup("school_id='$school_id' AND time_period_id IN($tp_ids) AND grade_event.grade_event_type_id = $event_type_id");
 	my $courseObj = HSDB45::Course->new(_school => $schoolObj->getSchoolName());
-	%data = map { ($_->getCourseID() => $courseObj->lookup_key($_->getCourseID())->title()) } @$grade_events;		
+	@data = map { { id => $_->getCourseID(), value => $courseObj->lookup_key($_->getCourseID())->title()} } @$grade_events;	
+
+	## sort by last name and then put back in the id => name format
+	@data = sort { $a->{value} cmp $b->{value} } @data;
+	@data = map { { $_->{id} => $_->{value} } } @data;
 </%perl>
 </%method>
 
 <%method studentData>
 <%perl>
-	my $joinobj = TUSK::Core::JoinObject->new("TUSK::GradeBook::GradeEvent", { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "grade_event_type_id = $event_type_id AND school_id = $school_id AND time_period_id IN ($tp_ids) AND course_id IN ($course_ids)"});	
-	my $grade_events = TUSK::GradeBook::LinkUserGradeEvent->lookup(undef,undef,['parent_user_id'], undef, [$joinobj]);
-
-	%data = map { ($_->getParentUserID() => HSDB4::SQLRow::User->new()->lookup_key($_->getParentUserID())->out_full_name()) } @$grade_events;
-	
+	my $students = TUSK::GradeBook::LinkUserGradeEvent->new()->getGradeEventUsers($school_id, $event_type_id, $tp_ids, $course_ids);
+	if ($students) {
+		@data = @{$students};
+	}
 </%perl>
 </%method>
 
+<%method gradeData>
+<%perl>
+	my $grades = TUSK::GradeBook::LinkUserGradeEvent->new()->getGradeEventData($school_id, $event_type_id, $tp_ids, $course_ids, $student_ids);
+	if ($grades) {
+		@data = @{$grades};
+	}
+</%perl>
+</%method>
 
+<%method auditData>
+<%perl>
 
-
-
-
+</%perl>
+</%method>
 

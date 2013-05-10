@@ -409,6 +409,106 @@ sub getGradeMultipleObjects {
 	return $self->getJoinObjects("TUSK::GradeBook::GradeMultiple");
 }
 
+
+#######################################################
+
+=item B<getGradeEventUserData>
+
+=cut
+
+sub getGradeEventUsers {
+    my ($self, $school_id, $grade_type_id, $time_period_ids, $course_ids) = @_;
+
+	my $sth = $self->databaseSelect(qq(
+		SELECT
+			user_id,
+			firstname,
+			lastname
+		FROM
+			hsdb4.user,
+			tusk.link_user_grade_event,
+			tusk.grade_event
+		WHERE
+			school_id = ? AND
+			grade_event_type_id = ? AND
+			parent_user_id = user_id AND
+			grade_event_id = child_grade_event_id AND
+			time_period_id IN(?) AND
+			course_id IN (?)
+		ORDER BY
+			lastname;
+	), $school_id, $grade_type_id, $time_period_ids, $course_ids);
+
+	my $data;
+
+	while (my($user_id, $firstname, $lastname) = $sth->fetchrow_array()) {
+		push @$data, {$user_id => $firstname . ' ' . $lastname};
+	}
+	return $data;
+}
+
+
+# user_id => {
+#				name => 'First Last',
+#				time_period_id => {
+#					course_id => grade,
+#					course_id => grade
+#				},
+#				time_period_id => {
+#					course_id => grade,
+#					course_id => grade
+#				}
+#			 },
+#			.....
+#
+
+	sub getGradeEventData {
+    my ($self, $school_id, $grade_type_id, $time_period_ids, $course_ids, $student_ids) = @_;
+
+	my $sth = $self->databaseSelect("
+		SELECT
+			user_id,
+			firstname,
+			lastname,
+			time_period_id,
+			course_id,
+			grade
+		FROM
+			hsdb4.user,
+			tusk.link_user_grade_event,
+			tusk.grade_event
+		WHERE
+			school_id = $school_id AND
+			grade_event_type_id = $grade_type_id AND
+			parent_user_id = user_id AND
+			grade_event_id = child_grade_event_id AND
+			time_period_id IN($time_period_ids) AND
+			course_id IN ( $course_ids) AND
+			user_id IN ($student_ids)
+		ORDER BY
+			lastname;
+	");													## TODO: get to work with parameters
+	
+	my %tmpHash;
+
+	while (my($user_id, $firstname, $lastname, $time_period_id, $course_id, $grade) = $sth->fetchrow_array()) {	
+
+		if (exists $tmpHash{$user_id}) {
+			push (@{$tmpHash{$user_id}{$time_period_id}}, {$course_id => $grade});
+		}
+		else {
+			$tmpHash{$user_id}{firstname} = $firstname;
+			$tmpHash{$user_id}{lastname} = $lastname;
+			push (@{$tmpHash{$user_id}{$time_period_id}}, {$course_id => $grade});
+		}
+	}
+
+	my @data = sort { $a->{lastname} cmp $b->{lastname} } values %tmpHash;
+
+
+	return \@data;
+}
+
 =head1 BUGS
 
 None Reported.
