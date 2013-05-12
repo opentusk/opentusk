@@ -36,7 +36,7 @@
 	# Check mason cache directory
     my $serverRoot = $TUSK::Constants::ServerRoot;
     my $dataDir = defined $TUSK::Constants::MasonCacheRoot ?
-        $TUSK::Constants::MasonCacheRoot : "$serverRoot/mason_cache";
+        $TUSK::Constants::MasonCacheRoot : "/var/cache/mason";
     if (! -d $dataDir) {
         if (! (mkdir $dataDir)) {
             confess "Can't create mason cache dir $dataDir";
@@ -53,7 +53,7 @@
     if (! -d $tuskCodeRoot) {
         confess "Mason's code root does not exist ($tuskCodeRoot)";
     }
-    if (! opendir(DIR, $dataDir)) {
+    if (! opendir(DIR, $tuskCodeRoot)) {
         confess "Can't open mason code root dir $tuskCodeRoot";
     }
 	close(DIR);

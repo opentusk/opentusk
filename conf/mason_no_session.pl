@@ -43,7 +43,7 @@ if (Apache2::ServerUtil::exists_config_define('DEV')) {
 }
 
 my $dataDir = defined $TUSK::Constants::MasonCacheRoot ?
-    $TUSK::Constants::MasonCacheRoot : "$ENV{SERVER_ROOT}/mason_cache";
+    $TUSK::Constants::MasonCacheRoot : "/var/cache/mason";
 my $ah =
     new HTML::Mason::ApacheHandler
         ( request_class => 'HTML::Mason::Request::ApacheHandler',
