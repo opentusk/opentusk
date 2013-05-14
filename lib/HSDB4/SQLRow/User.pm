@@ -1390,32 +1390,30 @@ sub get_grades {
 	};
 	if($@) {confess "$@";}
 
-
 	eval {
 		foreach my $schoolDatabase (@schoolDatabases) {
-
+			my $schoolObj = TUSK::Core::School->lookupReturnOne( "school_db = '" . $schoolDatabase . "'" );
 			my $sql = qq(
 						 select luge.grade, luge.comments, ge.course_id, ge.school_id, ge.event_name, ge.grade_event_id, ge.sort_order, s.school_id, s.school_name, s.school_db, c.title, tp.start_date, tp.end_date, tp.time_period_id
 						 from tusk.link_user_grade_event luge, tusk.grade_event ge, tusk.school s, $schoolDatabase.time_period tp, $schoolDatabase.course c
 						 where luge.child_grade_event_id=ge.grade_event_id
 						 and luge.parent_user_id=? 
-						 and s.school_id=ge.school_id
+						 and s.school_id=?
+						 and ge.school_id=?
 						 and c.course_id = ge.course_id
 						 and tp.time_period_id = ge.time_period_id
 						 and ge.publish_flag = 1
 						 order by tp.start_date desc, tp.end_date desc, c.title, ge.sort_order;
 			);
 			my $school_sth = $dbh->prepare($sql);
-			$school_sth->execute($user_id);
+			$school_sth->execute($user_id, $schoolObj->getPrimaryKeyID(), $schoolObj->getPrimaryKeyID());
 			while (my $grade_row = $school_sth->fetchrow_hashref) {
-				my $school_name = TUSK::Core::School->lookupReturnOne( "school_db = '" . $schoolDatabase . "'" )->getSchoolName();
 				my $eval_link   = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $grade_row->{grade_event_id} );
 				my $eval_id     = ($eval_link) ? $eval_link->getEvalID() : 0;
-				if ( $eval_id && !HSDB45::Eval->new( _school => $school_name )->lookup_key( $eval_id )->is_user_complete( $self ) ) {
-					$grade_row->{grade} = "<a href='/protected/eval/complete/" . $school_name . "/" . $eval_id . "'>Pending Eval Completion</a>";
+				if ( $eval_id && !HSDB45::Eval->new( _school => $schoolObj->getSchoolName() )->lookup_key( $eval_id )->is_user_complete( $self ) ) {
+					$grade_row->{grade} = "<a href='/protected/eval/complete/" . $schoolObj->getSchoolName() . "/" . $eval_id . "'>Pending Eval Completion</a>";
 				}
-				$grade_row->{school_name} = $school_name;
-
+				$grade_row->{school_name} = $schoolObj->getSchoolName();
 				push (@$grades, $grade_row);
 			}
             $school_sth->finish;
