@@ -386,24 +386,37 @@ sub setBody{
 $obj->search($query_hashref, $user_id, $parent_query);
 
 Method that searches full_text_search_content based on the query hashref that is passed in.
+
 =cut
 
 sub search {
-    my ($self, $query_hashref, $user_id, $parent_query) = @_;
-    my $search_query = TUSK::Search::SearchQuery->new();
-    $query_hashref = &split_search_string($query_hashref);
+    my ($self, $query_ref, $user_id, $parent_query) = @_;
+    $query_ref = &split_search_string($query_ref);
     my $dbh = $self->getDatabaseReadHandle();
+    my @selects;
+    my @select_args;
+    my @wheres;
+    my @where_args;
 
-    my $wheres = [];
-    my $selects = [];
+    # useful constants
+    my $EMPTY = q{};
+    my $SPACE = q{ };
+    my $COMMA = q{,};
+    my $COMMASEP = q{, };
+    my $LPAREN = '(';
+    my $RPAREN = ')';
 
+    # setup TUSK::Search::SearchQuery for user
+    my $search_query = TUSK::Search::SearchQuery->new();
     if ($user_id) {
         $search_query->setUserID($user_id);
-        $search_query->setSearchQuery($query_hashref->{query}) if ($query_hashref->{query});
+        if ($query_ref->{query}) {
+            $search_query->setSearchQuery($query_ref->{query});
+        }
         $search_query->save({user => $user_id});
+        $search_query->saveQuery($query_ref, $user_id);
 
-        $search_query->saveQuery($query_hashref, $user_id);
-
+        # add parent query if exists
         if ($parent_query) {
             my $link = TUSK::Search::LinkSearchQuerySearchQuery->new();
             $link->setParentSearchQueryID($parent_query->getPrimaryKeyID());
@@ -412,133 +425,165 @@ sub search {
         }
     }
 
-    foreach my $key (%$query_hashref) {
-        $query_hashref->{$key} =~ s/\'/\\\'/g;
-        next if ($key eq 'media_type' or $key eq 'school' or $key eq 'concepts' or $key eq 'limit' or $key eq 'start' or $key eq 'start_active_date' or $key eq 'end_active_date');
-        $query_hashref->{$key} = &TUSK::Search::FTSFunctions::add_plusses_to_search_string($query_hashref->{$key});
+    # massage search string for full text search by adding + operator
+    foreach my $key (%$query_ref) {
+        next if ($key eq 'media_type'
+                     or $key eq 'school'
+                     or $key eq 'concepts'
+                     or $key eq 'limit'
+                     or $key eq 'start'
+                     or $key eq 'start_active_date'
+                     or $key eq 'end_active_date');
+        $query_ref->{$key}
+            = TUSK::Search::FTSFunctions::add_plusses_to_search_string(
+                $query_ref->{$key}
+            );
     }
 
-    if ($query_hashref->{query} or $query_hashref->{concepts}){
+    if ($query_ref->{query} or $query_ref->{concepts}) {
+        my $match = $query_ref->{query};
 
-        my @where_pieces = ();
+        # add concepts to match clause if they are in query
+        if ($query_ref->{concepts}){
+            # quote concept IDs
+            my $concept_lookup = 'concept_id in ('
+                . join($COMMASEP,
+                       map { $dbh->quote($_) } @{ $query_ref->{concepts} })
+                . ')';
 
-        my $match = $query_hashref->{query};
-
-        if ($query_hashref->{concepts}){
-            my $concepts = TUSK::Core::Keyword->new()->lookup("concept_id in (" . join(', ', map { "'" . $_ . "'" } @{$query_hashref->{concepts}}) . ")");
-
-            my $concept_names = [];
-
+            my $concepts = TUSK::Core::Keyword->new()->lookup($concept_lookup);
+            my @concept_names;
             foreach my $concept (@$concepts){
                 my $keyword = $concept->getKeyword();
                 if ($keyword =~ / /){
-                    push (@$concept_names, '"' . $keyword . '"');
+                    push (@concept_names, qq("$keyword"));
                 }else{
-                    push (@$concept_names, $keyword);
+                    push (@concept_names, $keyword);
                 }
             }
-
-            $match = '(' . $match . ') ' . join(' ', @{$query_hashref->{concepts}}) . ' ' . join(' ', @$concept_names);
+            $match = "($match) "
+                . join($SPACE, @{ $query_ref->{concepts} })
+                . $SPACE
+                . join($SPACE, @concept_names);
         }
 
-        push (@$wheres, "match(title, body, copyright, authors, keywords) against ('" . $match . "' in boolean mode)");
+        push @wheres, "match(title, body, copyright, authors, keywords) "
+            . "against (? in boolean mode)";
+        push @where_args, $match;
 
-        push (@$selects, "match(title, body, copyright, authors, keywords) against ('". $match .  "')");
-        push (@$selects, "3 * match(title) against ('". $query_hashref->{query} . "')");
-        push (@$selects, "match(keywords) against ('". $query_hashref->{query} . "')");
-        push (@$selects, "3 * match(keywords) against ('". join(' ' , @{$query_hashref->{concepts}}) . "')") if ($query_hashref->{concepts});
+        push @selects, "match(title, body, copyright, authors, keywords) "
+            . "against (?)";
+        push @select_args, $match;
 
-    }
-
-    if ($query_hashref->{title}){
-        push (@$wheres, "match(title) against ('". $query_hashref->{title} . "' in boolean mode)");
-        push (@$selects, "match(title) against ('". $query_hashref->{title} . "')");
-    }
-
-    if ($query_hashref->{author}){
-        push (@$wheres, "match(authors) against ('". $query_hashref->{author} . "' in boolean mode)");
-        push (@$selects, "match(authors) against ('". $query_hashref->{author} . "')");
-    }
-
-    if ($query_hashref->{course}){
-        push (@$wheres, "match(courses) against ('". $query_hashref->{course} . "' in boolean mode)");
-        push (@$selects, "match(courses) against ('". $query_hashref->{course} . "')");
-    }
-
-    if ($query_hashref->{copyright}){
-        push (@$wheres, "match(copyright) against ('". $query_hashref->{copyright} . "' in boolean mode)");
-        push (@$selects, "match(copyright) against ('". $query_hashref->{copyright} . "')");
-    }
-
-    if ($query_hashref->{media_type}){
-        if (ref($query_hashref->{media_type}) eq 'ARRAY'){
-            push (@$wheres, "type IN (" . join(', ', map { "'" . $_ . "'" } @{$query_hashref->{media_type}}) . ")");
-        }
-        else{
-            push (@$wheres, "type = '" . $query_hashref->{media_type} . "'");
+        push @selects, "3 * match(title) against (?)";
+        push @select_args, $query_ref->{query};
+        push @selects, "match(keywords) against (?)";
+        push @select_args, $query_ref->{query};
+        if ($query_ref->{concepts}) {
+            push @selects, '3 * match(keywords) against (?)';
+            push @select_args, join($SPACE, @{ $query_ref->{concepts} });
         }
     }
 
-    if ($query_hashref->{school}){
-        if (ref($query_hashref->{school}) eq 'ARRAY'){
-    	    push (@$wheres, "school IN (" . join(', ', map { "'" . $_ . "'" } @{$query_hashref->{school}}) . ")");
-        }
-        else{
-            push (@$wheres, "school = '" . $query_hashref->{school} . "'");
+    foreach my $key (qw(title author course copyright)) {
+        if ($query_ref->{$key}) {
+            push @wheres, "match($key) against (? in boolean mode)";
+            push @where_args, $query_ref->{$key};
+            push @selects, "match($key) against (?)";
+            push @select_args, $query_ref->{$key};
         }
     }
 
-    if ($query_hashref->{content_id}){
-        if ($query_hashref->{content_id} =~ s/[\*\%]/\%/g){
-            push (@$wheres, "content_id like '" . $query_hashref->{content_id} . "'");
+    if ($query_ref->{media_type}) {
+        if (ref($query_ref->{media_type}) eq 'ARRAY') {
+            push @wheres, 'type in ('
+                . join($COMMASEP,
+                       ('?',) x scalar(@{ $query_ref->{media_type} }))
+                . ')';
+            push @where_args, @{ $query_ref->{media_type} };
         }
-        else{
-            $query_hashref->{content_id} =~ s/\D//g;
-            push (@$wheres, "content_id = " . $query_hashref->{content_id});
+        else {
+            push @wheres, 'type = ?';
+            push @where_args, $query_ref->{media_type};
+        }
+    }
+
+    if ($query_ref->{school}) {
+        if (ref($query_ref->{school}) eq 'ARRAY') {
+            push @wheres, 'school in ('
+                . join($COMMASEP,
+                       ('?',) x scalar(@{ $query_ref->{school} }))
+                . ')';
+            push @where_args, @{ $query_ref->{school} };
+        }
+        else {
+            push @wheres, 'school = ?';
+            push @where_args, $query_ref->{school};
+        }
+    }
+
+    if ($query_ref->{content_id}){
+        if ($query_ref->{content_id} =~ s/[\*\%]/\%/g) {
+            push @wheres, 'content_id like ?';
+            push @where_args, $query_ref->{content_id};
+        }
+        else {
+            $query_ref->{content_id} =~ s/\D//g;
+            push @wheres, 'content_id = ?';
+            push @where_args, $query_ref->{content_id};
         }
 
     }
 
     # Restrict content to courses active in the given date range.
     my $sqlHits = 0;
-    if ($query_hashref->{start_active_date}
-        || $query_hashref->{end_active_date}) {
+    if ($query_ref->{start_active_date}
+        || $query_ref->{end_active_date}) {
         $sqlHits = 1;
-        push(@$selects, 'LOG(COUNT(li.content_id))');
-        push(@$wheres, 'li.log_item_type_id = 2');
-        if ($query_hashref->{start_active_date}
-            && $query_hashref->{end_active_date}) {
-            push(@$wheres, 'li.hit_date BETWEEN '
-                 . $dbh->quote($query_hashref->{start_active_date})
-                 . " AND "
-                 . $dbh->quote($query_hashref->{end_active_date}));
+        push @selects, 'LOG(COUNT(li.content_id))';
+        push @wheres, 'li.log_item_type_id = 2';
+        if ($query_ref->{start_active_date}
+            && $query_ref->{end_active_date}) {
+            push @wheres, 'li.hit_date BETWEEN ? AND ?';
+            push @where_args, ($query_ref->{start_active_date},
+                               $query_ref->{end_active_date});
         }
-        elsif ($query_hashref->{start_active_date}) {
-            push(@$wheres, 'li.hit_date > '
-                 . $dbh->quote($query_hashref->{start_active_date}));
+        elsif ($query_ref->{start_active_date}) {
+            push @wheres, 'li.hit_date > ?';
+            push @where_args, $query_ref->{start_active_date};
         }
         else {
-            push(@$wheres, 'li.hit_date < '
-                 . $dbh->quote($query_hashref->{end_active_date}));
+            push @wheres, 'li.hit_date < ?';
+            push @where_args, $query_ref->{end_active_date};
         }
     }
-    $selects = [ 1 ] unless (scalar(@$selects));
+    @selects = ( 1, ) unless (scalar(@selects));
 
-    my $sql = "SELECT content.content_id, (ROUND(" .
-        join(' + ', @$selects) .
-        ") + IF(STRCMP(type, 'Collection'), 0, 0.5)) AS computed_score FROM tusk.full_text_search_content content ";
-    $sql .= "INNER JOIN hsdb4.log_item li ON content.content_id = li.content_id " if ($sqlHits);
-    $sql .= "INNER JOIN tusk.link_search_query_content search " .
-        "ON content.content_id = search.child_content_id " if ($parent_query);
-    $sql .= "WHERE " . join(' AND ', @$wheres) if (scalar(@$wheres));
-    $sql .= (scalar(@$wheres) ? " AND " : " WHERE ") .
-        "search.parent_search_query_id = " .
-        $dbh->quote($parent_query->getPrimaryKeyID()) if ($parent_query);
+    # build SQL query string
+    my $sql = 'SELECT content.content_id, (ROUND(';
+    $sql .= join(' + ', @selects);
+    $sql .= ") + IF(STRCMP(type, 'Collection'), 0, 0.5)) AS computed_score ";
+    $sql .= "FROM tusk.full_text_search_content content ";
+    if ($sqlHits) {
+        $sql .= "INNER JOIN hsdb4.log_item li ";
+        $sql .= "ON content.content_id = li.content_id ";
+    }
+    if ($parent_query) {
+        $sql .= "INNER JOIN tusk.link_search_query_content search " .
+            "ON content.content_id = search.child_content_id ";
+    }
+    $sql .= "WHERE " . join(' AND ', @wheres) if (scalar(@wheres));
+    if ($parent_query) {
+        $sql .= scalar(@wheres) ? " AND " : " WHERE ";
+        $sql .= "search.parent_search_query_id = ?";
+        push @where_args, $parent_query->getPrimaryKeyID();
+    }
     $sql .= " GROUP BY li.content_id " if ($sqlHits);
-    $sql .= " ORDER BY computed_score DESC" unless ($user_id);
+    $sql .= " ORDER BY computed_score DESC" if (! $user_id);
+    my @sql_args = (@select_args, @where_args);
 
     if ($user_id) {
-        my $results = $search_query->databaseSelect($sql);
+        my $results = $search_query->databaseSelect($sql, @sql_args);
         # Save search results to tusk.link_search_query_content
         my $delete_save_sql = qq{DELETE FROM tusk.link_search_query_content
         WHERE parent_search_query_id = } . $search_query->getPrimaryKeyID();
@@ -558,21 +603,21 @@ sub search {
         return $search_query;
     }
     else {
-    	if ($query_hashref->{limit}) {
-			$sql .= " LIMIT ";
-			if ($query_hashref->{start}) {
-				$sql .= $query_hashref->{start}
-			}
-			else {
-				$sql .= "0";
-			}
-			$sql .= ",";
-			$sql .= $query_hashref->{limit};
-    	}
-		my $results = $search_query->databaseSelect($sql);
-		my $array_ref = $results->fetchall_arrayref();
-		my @ids = map { $_->[0] } @$array_ref;
-		return \@ids;
+        if ($query_ref->{limit}) {
+            $sql .= " LIMIT ";
+            if ($query_ref->{start}) {
+                $sql .= 0 + $query_ref->{start};
+            }
+            else {
+                $sql .= "0";
+            }
+            $sql .= ",";
+            $sql .= 0 + $query_ref->{limit};
+        }
+        my $results = $search_query->databaseSelect($sql, @sql_args);
+        my $array_ref = $results->fetchall_arrayref();
+        my @ids = map { $_->[0] } @$array_ref;
+        return \@ids;
     }
 }
 
