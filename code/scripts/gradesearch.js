@@ -26,7 +26,7 @@ $(document).ready(function(){
 			deselectAll($(select));
 			switch ($(select).attr("id")) {
 				case "tp_id":
-					$("table.data").removeClass("active");
+					$("table.data").hide();
 					$("fieldset.radio").parent().removeClass("active");
 					$("fieldset.radio input").prop("checked", false);
 					$("select#student").parent().removeClass("active");
@@ -35,14 +35,14 @@ $(document).ready(function(){
 					deselectAll($("select#course"));
 					break;
 				case "course":
-					$("table.data").removeClass("active");
+					$("table.data").hide();
 					$("fieldset.radio").parent().removeClass("active");
 					$("fieldset.radio input").prop("checked", false);
 					$("select#student").parent().removeClass("active");
 					deselectAll($("select#student"));
 					break;
 				case "student":
-					$("table.data").removeClass("active");
+					$("table.data").hide();
 					$("fieldset.radio").parent().removeClass("active");
 					$("fieldset.radio input").prop("checked", false);
 					break;
@@ -51,8 +51,11 @@ $(document).ready(function(){
 	});
 	
 	$(".filter input[value='select all']").click(function() {
-		selectAll($(this).parent().parent().children("select"));
-		$(this).parent().parent().children("select").trigger('change');
+		var select = $(this).parent().parent().children("select");
+		if (!$(select).attr('disabled')) {
+			selectAll($(select));
+			$(select).trigger('change');
+		}
 	});
 
 	var d = new Date();
@@ -115,12 +118,13 @@ function getGradeData(formObj) {
 function generateDataTable(data) {
 	$("table.data").html();
 	var rows;
-	var html;
+	var html = "";
 	$.each(data, function() {
 		html += "<tr>";
-		
+		html += "<td>" + this.firstname + " " + this.lastname + "</td>";
 		html += "</tr>";		
 	});
+	$("table.data").html(html).show();
 }
 
 function deselectAll(select) {
@@ -131,5 +135,8 @@ function deselectAll(select) {
 
 
 function selectAll(select) {
-	$(select).children("option").prop('selected',true);
+	if (!$(select).attr('disabled')) {
+		$(select).children("option").prop('selected',true);
+	}
+	return false;
 }

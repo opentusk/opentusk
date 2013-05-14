@@ -435,6 +435,8 @@ sub getGradeEventUsers {
 			grade_event_id = child_grade_event_id AND
 			time_period_id IN(?) AND
 			course_id IN (?)
+		GROUP BY
+			user_id
 		ORDER BY
 			lastname;
 	), $school_id, $grade_type_id, $time_period_ids, $course_ids);
@@ -492,7 +494,6 @@ sub getGradeEventUsers {
 	my %tmpHash;
 
 	while (my($user_id, $firstname, $lastname, $time_period_id, $course_id, $grade) = $sth->fetchrow_array()) {	
-
 		if (exists $tmpHash{$user_id}) {
 			push (@{$tmpHash{$user_id}{$time_period_id}}, {$course_id => $grade});
 		}
