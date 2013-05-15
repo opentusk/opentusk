@@ -78,28 +78,35 @@ function populateNextOptions(select) {
 			courses = encodeURI($(select).val());
 			url += "/students?tp_ids=" + tps + "&courses=" + courses;
 			target = 'select#student';
+			$("select#tp_id").attr('disabled', 'disabled');			
 			break;
 		case "student":
 			students = encodeURI($(select).val());
 			url += "/grades?tp_ids=" + tps + "&courses=" + courses + "&students=" + students;
 			target = 'fieldset';
+			$("select#course").attr('disabled', 'disabled');			
 			break;
 	}
 	$(target).parent().addClass("processing");
 
+	$(target).html('');
 	var ajax = $.getJSON(url, function(data) {
 		var items = [];
 		$.each(data, function() {
 			$.each(this, function(id, name) {
-				items.push('<option value="' + id + '">' + name + '</option>');
+				if ($("option[value='" + id + "']").size() == 0) {
+					items.push('<option value="' + id + '">' + name + '</option>');
+				}
 			});
 		});
 		if (target != "fieldset" && $(items).size()) {
 			$(target).html(items.join("\n"));
 		}
 	})
-	.done(function() { 	$(target).parent().removeClass("processing"); $(target).parent().addClass("active"); $(select).attr('disabled', 'disabled'); })
-	.fail(function() { alert('failed to get data'); });
+	.done(function() { $(target).parent().addClass("active"); })
+	.fail(function() { alert('no data available'); });
+	
+	$(target).parent().removeClass("processing");
 }
 
 function getGradeData(formObj) {
@@ -110,21 +117,38 @@ function getGradeData(formObj) {
 			var ajax = $.getJSON(url, function(data) {
 				generateDataTable(data);
 			})
-			.fail(function() { alert('failed to get data'); });
+			.done(function() { $("select#course").attr('disabled', 'disabled'); })
+			.fail(function() { alert('no grade data available'); });
 			break;
 	}
 }
 
 function generateDataTable(data) {
 	$("table.data").html();
-	var rows;
-	var html = "";
-	$.each(data, function() {
-		html += "<tr>";
-		html += "<td>" + this.firstname + " " + this.lastname + "</td>";
-		html += "</tr>";		
+	var headers = '<tr><th>Student</th>';
+	var rows = '</tr>'
+	var counter = 0;
+	$.each(students.split(','), function(index, user_id) {
+		rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
+		rows += "<td>" + $("option[value='" + user_id + "']").text() + "</td>";
+		$.each(data, function(tp_id, course_ids) {
+			$.each(course_ids, function(course_id, user_ids) {
+				if (data[tp_id][course_id]) {
+					if (!counter) {
+						headers += "<th>" + $("option[value='" + course_id + "']").text() + "<br/>" + $("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'') + "</th>";
+					}
+					rows += "<td>"
+					if (data[tp_id][course_id][user_id]) {
+						rows += data[tp_id][course_id][user_id];
+					}
+					rows += "&nbsp;</td>";
+				}
+			});
+		});
+		rows += "</tr>";
+		counter++;
 	});
-	$("table.data").html(html).show();
+	$("table.data").html(headers + rows).show();
 }
 
 function deselectAll(select) {

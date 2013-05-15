@@ -429,17 +429,17 @@ sub getGradeEventUsers {
 			tusk.link_user_grade_event,
 			tusk.grade_event
 		WHERE
-			school_id = ? AND
-			grade_event_type_id = ? AND
+			school_id = $school_id AND
+			grade_event_type_id = $grade_type_id AND
 			parent_user_id = user_id AND
 			grade_event_id = child_grade_event_id AND
-			time_period_id IN(?) AND
-			course_id IN (?)
+			time_period_id IN($time_period_ids) AND
+			course_id IN ($course_ids)
 		GROUP BY
 			user_id
 		ORDER BY
 			lastname;
-	), $school_id, $grade_type_id, $time_period_ids, $course_ids);
+	));
 
 	my $data;
 
@@ -450,28 +450,27 @@ sub getGradeEventUsers {
 }
 
 
-# user_id => {
-#				name => 'First Last',
-#				time_period_id => {
-#					course_id => grade,
-#					course_id => grade
-#				},
-#				time_period_id => {
-#					course_id => grade,
-#					course_id => grade
-#				}
-#			 },
-#			.....
-#
-
+#	data = {  'tp_id' => {
+#							course_id => {
+#											user_id =>	grade,
+#											...,
+#											...,
+#										  },
+#							course_id => {
+#											...,
+#										  },
+#							...
+#						  },
+#			   'tp_id =>  {
+#							...
+#							
+										
 	sub getGradeEventData {
     my ($self, $school_id, $grade_type_id, $time_period_ids, $course_ids, $student_ids) = @_;
 
 	my $sth = $self->databaseSelect("
 		SELECT
 			user_id,
-			firstname,
-			lastname,
 			time_period_id,
 			course_id,
 			grade
@@ -488,26 +487,15 @@ sub getGradeEventUsers {
 			course_id IN ( $course_ids) AND
 			user_id IN ($student_ids)
 		ORDER BY
-			lastname;
+			time_period_id, course_id, user_id;
 	");													## TODO: get to work with parameters
 	
-	my %tmpHash;
+	my %data;
 
-	while (my($user_id, $firstname, $lastname, $time_period_id, $course_id, $grade) = $sth->fetchrow_array()) {	
-		if (exists $tmpHash{$user_id}) {
-			push (@{$tmpHash{$user_id}{$time_period_id}}, {$course_id => $grade});
-		}
-		else {
-			$tmpHash{$user_id}{firstname} = $firstname;
-			$tmpHash{$user_id}{lastname} = $lastname;
-			push (@{$tmpHash{$user_id}{$time_period_id}}, {$course_id => $grade});
-		}
+	while (my($user_id, $time_period_id, $course_id, $grade) = $sth->fetchrow_array()) {	
+		$data{$time_period_id}{$course_id}{$user_id} = $grade;
 	}
-
-	my @data = sort { $a->{lastname} cmp $b->{lastname} } values %tmpHash;
-
-
-	return \@data;
+	return \%data;
 }
 
 =head1 BUGS
