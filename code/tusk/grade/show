@@ -20,22 +20,11 @@
 </%once>
 
 <%shared>
-	my $permissions;
 	my $school_obj =  $m->comp("/tmpl/url:get_type_object");
 	my $school_id = $school_obj->getPrimaryKeyID();
 </%shared>
 
 <%perl>
-	$permissions = $m->comp('/tmpl/permission:get_permissions');
-
-	unless (defined $permissions) {
-		$m->comp("/tmpl/permission:lookup_permissions", 
-			feature_type_token => $m->comp("SELF:feature_type_token"),
-			feature_id => $m->comp("SELF:feature_id"),
-			function_token => $m->comp("SELF:function_token"));
-		$permissions = $m->comp("/tmpl/permission:get_permissions");
-	}
-
 	my $event_type_id = 6;				## this can be set by input from the user later on, if necessary
 	my %data;
 	my $grade_events = TUSK::GradeBook::GradeEvent->lookup("school_id='$school_id' AND grade_event.grade_event_type_id = $event_type_id");
@@ -88,7 +77,7 @@
 % }
 </nav>
 <p class="timestamp"></p>
-<table class="data">
+<table class="data tusk" cellspacing="0">
 </table>
 
 <%method jsarray>

@@ -22,6 +22,8 @@ $(document).ready(function(){
 	
 	$(".filter input[value=reset]").click(function() {
 		var select = $(this).parent().siblings("select");
+		$("div.processing").removeClass("processing");
+
 		if ($(select).val()) {
 			deselectAll($(select));
 			switch ($(select).attr("id")) {
@@ -68,29 +70,40 @@ $(document).ready(function(){
 
 function populateNextOptions(select) {
 	var url = "/tusk/grade/getData/" + encodeURI($("input[name=school_id]").val());
+	var request = {};
 	switch ($(select).attr("name")) {
 		case "tp_id":
-			tps = encodeURI($(select).val());
-			url += "/courses?tp_ids=" + tps;
+			tps = $(select).val();
+			url += "/courses";
+			request.tps = JSON.stringify(tps);
 			target = 'select#course';
 			break;
 		case "course":
-			courses = encodeURI($(select).val());
-			url += "/students?tp_ids=" + tps + "&courses=" + courses;
+			courses = $(select).val();
+			url += "/students";
+			request.tps = JSON.stringify(tps);
+			request.courses = JSON.stringify(courses);
 			target = 'select#student';
 			$("select#tp_id").attr('disabled', 'disabled');			
 			break;
 		case "student":
-			students = encodeURI($(select).val());
-			url += "/grades?tp_ids=" + tps + "&courses=" + courses + "&students=" + students;
+			students = $(select).val();
+			url += "/grades";
+			request.tps = JSON.stringify(tps);
+			request.courses = JSON.stringify(courses);
+			request.students = JSON.stringify(students);
 			target = 'fieldset';
 			$("select#course").attr('disabled', 'disabled');			
 			break;
 	}
 	$(target).parent().addClass("processing");
-
 	$(target).html('');
-	var ajax = $.getJSON(url, function(data) {
+
+	$.ajax({
+		type: "POST",
+		url: url,
+		data: request
+	}).done(function(data) {
 		var items = [];
 		$.each(data, function() {
 			$.each(this, function(id, name) {
@@ -105,16 +118,22 @@ function populateNextOptions(select) {
 	})
 	.done(function() { $(target).parent().addClass("active"); })
 	.fail(function() { alert('no data available'); });
-	
-	$(target).parent().removeClass("processing");
 }
 
 function getGradeData(formObj) {
-	students = encodeURI($("select#student").val());
-	var url = "/tusk/grade/getData/" + encodeURI($("input[name=school_id]").val()) + "/grades?tp_ids=" + tps + "&courses=" + courses + "&students=" + students;
+	students = $("select#student").val();
+	var url = "/tusk/grade/getData/" + encodeURI($("input[name=school_id]").val()) + "/grades";
+	var request = {};
+	request.tps = JSON.stringify(tps);
+	request.courses = JSON.stringify(courses);
+	request.students = JSON.stringify(students);
 	switch(formObj.get(0).type) {
 		case "select-multiple":
-			var ajax = $.getJSON(url, function(data) {
+			$.ajax({
+				type: "POST",
+				url: url,
+				data: request
+			}).done(function(data) {
 				generateDataTable(data);
 			})
 			.done(function() { $("select#course").attr('disabled', 'disabled'); })
@@ -125,23 +144,25 @@ function getGradeData(formObj) {
 
 function generateDataTable(data) {
 	$("table.data").html();
-	var headers = '<tr><th>Student</th>';
+	var headers = '<tr class="header"><th class="header-left">Student</th>';
 	var rows = '</tr>'
 	var counter = 0;
-	$.each(students.split(','), function(index, user_id) {
+	$.each(students, function(index, user_id) {
 		rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
-		rows += "<td>" + $("option[value='" + user_id + "']").text() + "</td>";
+		rows += "<td class='line-left'>" + $("option[value='" + user_id + "']").text() + "</td>";
 		$.each(data, function(tp_id, course_ids) {
 			$.each(course_ids, function(course_id, user_ids) {
 				if (data[tp_id][course_id]) {
+					// make header row
 					if (!counter) {
-						headers += "<th>" + $("option[value='" + course_id + "']").text() + "<br/>" + $("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'') + "</th>";
+						headers += "<th class='header-left'>" + $("option[value='" + course_id + "']").text() + "<br/>" + $("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'') + "</th>";
 					}
-					rows += "<td>"
+					// made grade cell
+					rows += "<td class='line-center'>"
 					if (data[tp_id][course_id][user_id]) {
 						rows += data[tp_id][course_id][user_id];
 					}
-					rows += "&nbsp;</td>";
+					rows += "</td>";
 				}
 			});
 		});

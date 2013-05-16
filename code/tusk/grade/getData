@@ -41,27 +41,25 @@
 </%shared>
 
 <%perl>
-	$tp_ids = $ARGS{tp_ids};
+	$tp_ids =  "'" . join ("','", @{decode_json($ARGS{tps})}) . "'";
+
 	if ($type eq "courses") {
 		$m->comp('SELF:courseData');
 	}
 	elsif ($type eq "students") {
-		$course_ids = $ARGS{courses};
+		$course_ids = "'" . join ("','", @{decode_json($ARGS{courses})}) . "'";
 		$m->comp('SELF:studentData');
 	}
 	elsif ($type eq "grades") {
-		$course_ids = $ARGS{courses};
-		my @students = split(",",  $ARGS{students});
-		$student_ids = "'" . join ("','", @students) . "'";
+		$course_ids = "'" . join ("','", @{decode_json($ARGS{courses})}) . "'";
+		$student_ids = "'" . join ("','", @{decode_json($ARGS{students})}) . "'";
 		$m->comp('SELF:gradeData');
 	}
 	elsif ($type eq "audit") {
-		$course_ids = $ARGS{courses};
-		my @students = split(",",  $ARGS{students});
-		$student_ids = "'" . join ("','", @students) . "'";
+		$course_ids = "'" . join ("','", @{decode_json($ARGS{courses})}) . "'";
+		$student_ids = "'" . join ("','", @{decode_json($ARGS{students})}) . "'";
 		$m->comp('SELF:auditData');
 	}
-
 
 	$m->clear_buffer();
 	$r->content_type('application/json');
