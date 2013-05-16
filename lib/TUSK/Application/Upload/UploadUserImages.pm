@@ -131,7 +131,7 @@ sub upload_file{
 		my $user_path = $TUSK::Constants::BaseStaticPath . $TUSK::Constants::UserImagesPath . "/".$uid;
 		if (-d $user_path ) {} else { mkdir($user_path) };
 
-		opendir(DIR, $user_path) or die "can't opendir : $!";
+		opendir(DIR, $user_path) or die "can't opendir $user_path : $!";
 		my @thefiles = readdir(DIR);
 		foreach my $tfile (@thefiles) {
 			if($tfile ne "." && $tfile ne "..") {
