@@ -3,18 +3,25 @@ $(document).ready(function(){
 	var tps;
 	var courses;
 	var students;
+	var display;
 	
 	$("nav input[type=radio]").click(function() {
 		getGradeData($(this));
 	});
 	
-	$("nav .filter select").not(':last').change(function() {
+	$("nav .report .filter select").not(':last').on('change', function() {
 		if ($(this).val()) {
 			populateNextOptions($(this));
 		}
 	});
 	
-	$("nav .filter select:last").change(function() {
+	$("nav .audit .filter select").on('change', function() {
+		if ($(this).val()) {
+			populateNextOptions($(this));
+		}
+	});
+	
+	$("nav .report .filter select:last").on('change', function() {
 		if ($(this).val()) {
 			getGradeData($(this));
 		}
@@ -23,30 +30,31 @@ $(document).ready(function(){
 	$(".filter input[value=reset]").click(function() {
 		var select = $(this).parent().siblings("select");
 		$("div.processing").removeClass("processing");
-
+		$("div.data").hide();
+		$("div.data table").html('');
 		if ($(select).val()) {
 			deselectAll($(select));
 			switch ($(select).attr("id")) {
 				case "tp_id":
-					$("table.data").hide();
 					$("fieldset.radio").parent().removeClass("active");
 					$("fieldset.radio input").prop("checked", false);
 					$("select#student").parent().removeClass("active");
 					deselectAll($("select#student"));
+					students = '';
 					$("select#course").parent().removeClass("active");
 					deselectAll($("select#course"));
+					courses = '';
 					break;
 				case "course":
-					$("table.data").hide();
 					$("fieldset.radio").parent().removeClass("active");
 					$("fieldset.radio input").prop("checked", false);
 					$("select#student").parent().removeClass("active");
 					deselectAll($("select#student"));
+					students = '';
 					break;
 				case "student":
-					$("table.data").hide();
-					$("fieldset.radio").parent().removeClass("active");
-					$("fieldset.radio input").prop("checked", false);
+					$("fieldset.radio").parent("div").removeClass("active");
+					$("fieldset.radio input").attr("checked", false);
 					break;
 			}
 		}
@@ -69,14 +77,18 @@ $(document).ready(function(){
 });
 
 function populateNextOptions(select) {
-	var url = "/tusk/grade/getData/" + encodeURI($("input[name=school_id]").val());
+	var url = "/tusk/grade/gradedata/" + encodeURI($("input[name=school_id]").val());
 	var request = {};
+	$("fieldset.radio input").prop("checked", false);
+	$("div.data table").html('');
+	$("div.data").hide();
 	switch ($(select).attr("name")) {
 		case "tp_id":
 			tps = $(select).val();
 			url += "/courses";
 			request.tps = JSON.stringify(tps);
 			target = 'select#course';
+			$(target).html('');
 			break;
 		case "course":
 			courses = $(select).val();
@@ -84,6 +96,7 @@ function populateNextOptions(select) {
 			request.tps = JSON.stringify(tps);
 			request.courses = JSON.stringify(courses);
 			target = 'select#student';
+			$(target).html('');
 			$("select#tp_id").attr('disabled', 'disabled');			
 			break;
 		case "student":
@@ -97,7 +110,6 @@ function populateNextOptions(select) {
 			break;
 	}
 	$(target).parent().addClass("processing");
-	$(target).html('');
 
 	$.ajax({
 		type: "POST",
@@ -122,13 +134,16 @@ function populateNextOptions(select) {
 
 function getGradeData(formObj) {
 	students = $("select#student").val();
-	var url = "/tusk/grade/getData/" + encodeURI($("input[name=school_id]").val()) + "/grades";
+	var url = "/tusk/grade/gradedata/" + encodeURI($("input[name=school_id]").val());
 	var request = {};
 	request.tps = JSON.stringify(tps);
 	request.courses = JSON.stringify(courses);
 	request.students = JSON.stringify(students);
+	$("div.data").show();
+	$("div.data").addClass("processing");
 	switch(formObj.get(0).type) {
 		case "select-multiple":
+			url += "/grades";
 			$.ajax({
 				type: "POST",
 				url: url,
@@ -136,46 +151,123 @@ function getGradeData(formObj) {
 			}).done(function(data) {
 				generateDataTable(data);
 			})
-			.done(function() { $("select#course").attr('disabled', 'disabled'); })
+			.done(function() { $("select#course").attr('disabled', 'disabled');	$("div.data").removeClass("processing");
+ })
+			.fail(function() { alert('no grade data available'); });
+			break;
+		case "radio":
+			url += "/audit";
+			display = $("input[type=radio][name=display]:checked").val();
+			request.display = JSON.stringify(display);
+			$.ajax({
+				type: "POST",
+				url: url,
+				data: request
+			}).done(function(data) {
+				generateAuditTrail(data);
+			})
+			.done(function() { $("select#course").attr('disabled', 'disabled'); $("div.data").removeClass("processing"); })
 			.fail(function() { alert('no grade data available'); });
 			break;
 	}
 }
 
 function generateDataTable(data) {
-	$("table.data").html();
-	var headers = '<tr class="header"><th class="header-left">Student</th>';
-	var rows = '</tr>'
-	var counter = 0;
-	$.each(students, function(index, user_id) {
-		rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
-		rows += "<td class='line-left'>" + $("option[value='" + user_id + "']").text() + "</td>";
-		$.each(data, function(tp_id, course_ids) {
-			$.each(course_ids, function(course_id, user_ids) {
-				if (data[tp_id][course_id]) {
-					// make header row
-					if (!counter) {
-						headers += "<th class='header-left'>" + $("option[value='" + course_id + "']").text() + "<br/>" + $("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'') + "</th>";
+	$("div.data table").html('');
+	if(data) {
+		var headers = '<tr class="header"><th class="header-left">Student</th>';
+		var rows = '</tr>'
+		var counter = 0;
+		$.each(students, function(index, user_id) {
+			rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
+			rows += "<td class='line-left'>" + $("option[value='" + user_id + "']").text() + "</td>";
+			$.each(data, function(tp_id, course_ids) {
+				$.each(course_ids, function(course_id, user_ids) {
+					if (data[tp_id][course_id]) {
+						// make header row
+						if (!counter) {
+							headers += "<th class='header-left'>" + $("option[value='" + course_id + "']").text() + "<br/>" + $("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'') + "</th>";
+						}
+						// made grade cell
+						rows += "<td class='line-center'>"
+						if (data[tp_id][course_id][user_id]) {
+							rows += data[tp_id][course_id][user_id];
+						}
+						rows += "</td>";
 					}
-					// made grade cell
-					rows += "<td class='line-center'>"
-					if (data[tp_id][course_id][user_id]) {
-						rows += data[tp_id][course_id][user_id];
-					}
-					rows += "</td>";
-				}
+				});
 			});
+			rows += "</tr>";
+			counter++;
 		});
-		rows += "</tr>";
-		counter++;
-	});
-	$("table.data").html(headers + rows).show();
+		$("div.data table").html(headers + rows);
+	}
+	else {
+		$("div.data table").html("<tr><td>No grades found.</td></tr>").show();
+	}
+}
+
+function generateAuditTrail(data) {
+	var html = '';
+	$("div.data").html('');
+	switch(display) {
+		case "tp_id":
+			// data{$time_period_id}{$course_id}{$user_id}
+			$.each(data, function(tp_id, course_ids) {
+				html += "<h1>" + $("option[value='" + tp_id + "']").text() + "</h1>";	
+				$.each(course_ids, function(course_id, user_ids) {
+					html += "<h2>" + $("option[value='" + course_id + "']").text() + "</h2>";	
+					var rows = '';
+					html += '<table class="data tusk audit" cellspacing="0">';
+					var headers = ['<th class="header-left">Grade History</th>'];
+					var counter = 0;
+					$.each(user_ids, function(user_id, grades) {
+						var prevGrade = '';
+						var prevUser = '';
+						rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
+						rows += "<td class='layers-left'>" + $("option[value='" + user_id + "']").text() + "</td>";
+						var cols = 1;
+						$.each(grades, function() {
+							rows += "<td class='layers-left'>";
+							if (cols > headers.length) {
+								headers.push('<th class="header-left">&nbsp;</th>');
+							}
+							if (this.grade != prevGrade) {
+								rows += this.grade + " <em class='xsm'>(" + this.modified_by + " " + this.modified_on + ")</em>";
+
+								prevGrade = this.grade;
+								prevUser = this.modified_by;
+							}
+							cols++;
+							rows += '</td>';
+						});
+						rows += "</tr>";
+						counter++;
+					});
+					html += '<tr class="header"><th class="header-left">Student</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
+				});
+			});
+			break;
+		case "course":
+			// data{$course_id}{$time_period_id}{$user_id}
+			$.each(data, function(course_id, tp_ids) {
+			});
+			break;
+		case "user":
+			// data{$user_id}{$time_period_id}{$course_id}
+			$.each(data, function(user_id, tp_ids) {
+			});
+			break;
+	}
+	$("div.data").html(html);
+	$("div.data").show();
 }
 
 function deselectAll(select) {
 	$(select).val(null);
 	$(select).removeAttr('disabled');
 	$(select).children("option").prop('selected',false);;
+	$(select).trigger('change');
 }
 
 
@@ -183,5 +275,4 @@ function selectAll(select) {
 	if (!$(select).attr('disabled')) {
 		$(select).children("option").prop('selected',true);
 	}
-	return false;
 }

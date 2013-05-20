@@ -465,7 +465,7 @@ sub getGradeEventUsers {
 #							...
 #							
 										
-	sub getGradeEventData {
+sub getGradeEventData {
     my ($self, $school_id, $grade_type_id, $time_period_ids, $course_ids, $student_ids) = @_;
 
 	my $sth = $self->databaseSelect("
@@ -495,6 +495,75 @@ sub getGradeEventUsers {
 	while (my($user_id, $time_period_id, $course_id, $grade) = $sth->fetchrow_array()) {	
 		$data{$time_period_id}{$course_id}{$user_id} = $grade;
 	}
+	return \%data;
+}
+										
+sub getGradeEventAudit {
+    my ($self, $school_id, $grade_type_id, $time_period_ids, $course_ids, $student_ids, $display) = @_;
+
+	my $sth = $self->databaseSelect("
+		(SELECT
+			user_id,
+			time_period_id,
+			course_id,
+			link_user_grade_event_history.grade,
+			link_user_grade_event_history.modified_by,
+			link_user_grade_event_history.modified_on
+		FROM
+			hsdb4.user,
+			tusk.link_user_grade_event,
+			tusk.link_user_grade_event_history,
+			tusk.grade_event
+		WHERE
+			school_id = $school_id AND
+			grade_event_type_id = $grade_type_id AND
+			link_user_grade_event.parent_user_id = user_id AND
+			grade_event_id = link_user_grade_event.child_grade_event_id AND
+			time_period_id IN($time_period_ids) AND
+			course_id IN ( $course_ids) AND
+			user_id IN ($student_ids) AND
+			link_user_grade_event_history.link_user_grade_event_id = link_user_grade_event.link_user_grade_event_id)
+		UNION
+		(SELECT
+			user_id,
+			time_period_id,
+			course_id,
+			grade,
+			link_user_grade_event.modified_by,
+			link_user_grade_event.modified_on
+		FROM
+			hsdb4.user,
+			tusk.link_user_grade_event,
+			tusk.grade_event
+		WHERE
+			school_id = $school_id AND
+			grade_event_type_id = $grade_type_id AND
+			link_user_grade_event.parent_user_id = user_id AND
+			grade_event_id = link_user_grade_event.child_grade_event_id AND
+			time_period_id IN($time_period_ids) AND
+			course_id IN ( $course_ids) AND
+			user_id IN ($student_ids))
+		ORDER BY
+			user_id ASC, modified_on DESC;
+	");													## TODO: get to work with parameters
+
+
+
+	
+	my %data;
+
+	while (my($user_id, $time_period_id, $course_id, $grade, $modified_by, $modified_on) = $sth->fetchrow_array()) {	
+		if ($display eq "tp_id") {
+			push (@{$data{$time_period_id}{$course_id}{$user_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $modified_on }); 
+		}
+		elsif ($display eq "course") {
+			push (@{$data{$course_id}{$time_period_id}{$user_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $modified_on });
+		}
+		elsif ($display eq "user") {
+			push (@{$data{$user_id}{$time_period_id}{$course_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $modified_on });
+		}
+	}
+
 	return \%data;
 }
 

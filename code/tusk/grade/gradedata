@@ -1,0 +1,128 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%doc>
+
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%once>
+	use HSDB4::SQLRow::User;
+	use TUSK::GradeBook::GradeEvent;
+	use JSON -convert_blessed_universally;
+	use TUSK::Core::School;
+	use TUSK::Core::JoinObject;
+	use TUSK::GradeBook::LinkUserGradeEvent;
+	use Data::Dumper;
+</%once>
+
+<%shared>
+	my ($school_id, $type) = $m->comp("/tmpl/url:get_path_ids");
+	my $schoolObj = TUSK::Core::School->new()->lookupReturnOne("school_id = '" . $school_id . "'");
+	my $data;
+	my ($tp_ids, $course_ids, $student_ids, $display);
+	my $event_type_id = 6;				## this can be set by input from the user later on, if necessary
+</%shared>
+
+<%perl>
+	$tp_ids =  "'" . join ("','", @{decode_json($ARGS{tps})}) . "'";
+
+	if ($type eq "courses") {
+		$m->comp('SELF:courseData');
+	}
+	elsif ($type eq "students") {
+		$course_ids = "'" . join ("','", @{decode_json($ARGS{courses})}) . "'";
+		$m->comp('SELF:studentData');
+	}
+	elsif ($type eq "grades") {
+		$course_ids = "'" . join ("','", @{decode_json($ARGS{courses})}) . "'";
+		$student_ids = "'" . join ("','", @{decode_json($ARGS{students})}) . "'";
+		$m->comp('SELF:gradeData');
+	}
+	elsif ($type eq "audit") {
+		$course_ids = "'" . join ("','", @{decode_json($ARGS{courses})}) . "'";
+		$student_ids = "'" . join ("','", @{decode_json($ARGS{students})}) . "'";
+		$display = $ARGS{display};
+		$display =~ s/^('|")(.*)('|")$/$2/g;
+		$m->comp('SELF:auditData');
+	}
+
+	$m->clear_buffer();
+	$r->content_type('application/json');
+	$r->no_cache(1);
+</%perl>
+<% JSON->new()->allow_blessed(1)->convert_blessed(1)->encode($data) %>
+
+<%method courseData>
+<%perl>
+	my $grade_events = TUSK::GradeBook::GradeEvent->lookup("school_id='$school_id' AND time_period_id IN($tp_ids) AND grade_event.grade_event_type_id = $event_type_id GROUP BY course_id");
+	if ($grade_events) {
+		my $courseObj = HSDB45::Course->new(_school => $schoolObj->getSchoolName());
+		@$data = map { { id => $_->getCourseID(), value => $courseObj->lookup_key($_->getCourseID())->title()} } @$grade_events;	
+
+		## sort by last name and then put back in the id => name format
+		@$data = sort { $a->{value} cmp $b->{value} } @$data;
+		@$data = map { { $_->{id} => $_->{value} } } @$data;
+	}
+	else {
+		$data = [];
+	}
+
+</%perl>
+</%method>
+
+<%method studentData>
+<%perl>
+	my $students = [];
+	$students = TUSK::GradeBook::LinkUserGradeEvent->new()->getGradeEventUsers($school_id, $event_type_id, $tp_ids, $course_ids);
+	if ($students) {
+		$data = $students;
+	}
+	else {
+		$data = [];
+	}
+</%perl>
+</%method>
+
+<%method gradeData>
+<%perl>
+	my $grades = {};
+	$grades = TUSK::GradeBook::LinkUserGradeEvent->new()->getGradeEventData($school_id, $event_type_id, $tp_ids, $course_ids, $student_ids, 'tp_id');
+	if ($grades) {
+		$data = $grades;
+	}
+	else {
+		$data = {};
+	}
+</%perl>
+</%method>
+
+<%method auditData>
+<%perl>
+	my $grades = {};
+	$grades = TUSK::GradeBook::LinkUserGradeEvent->new()->getGradeEventAudit($school_id, $event_type_id, $tp_ids, $course_ids, $student_ids, $display);
+	if ($grades) {
+		$data = $grades;
+	}
+	else {
+		$data = {};
+	}
+</%perl>
+</%method>
+
