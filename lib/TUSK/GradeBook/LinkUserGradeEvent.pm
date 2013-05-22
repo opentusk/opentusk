@@ -468,6 +468,9 @@ sub getGradeEventUsers {
 sub getGradeEventData {
     my ($self, $school_id, $grade_type_id, $time_period_ids, $course_ids, $student_ids) = @_;
 
+##	hsdb4.user is only included because the test and dev databases have data corresponding to users
+##  that don't have actual entries in the hsdb4.user table, so no first names and last names can
+##  be retrieved for them
 	my $sth = $self->databaseSelect("
 		SELECT
 			user_id,
@@ -501,6 +504,9 @@ sub getGradeEventData {
 sub getGradeEventAudit {
     my ($self, $school_id, $grade_type_id, $time_period_ids, $course_ids, $student_ids, $display) = @_;
 
+##	hsdb4.user is only included because the test and dev databases have data corresponding to users
+##  that don't have actual entries in the hsdb4.user table, so no first names and last names can
+##  be retrieved for them
 	my $sth = $self->databaseSelect("
 		(SELECT
 			user_id,

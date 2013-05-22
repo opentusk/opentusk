@@ -219,16 +219,16 @@ function generateAuditTrailTable(data) {
 					var rows = '';
 					html += '<table class="data tusk audit" cellspacing="0">';
 					var headers = ['<th class="header-left">Grade History</th>'];
-					var counter = 0;
 					$.each(user_ids, function(user_id, grades) {
 						var prevGrade = '';
 						var prevUser = '';
-						rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
+						rows += "<tr>";
 						rows += "<td class='layers-left'>" + $("option[value='" + user_id + "']").text() + "</td>";
 						var cols = 1;
 						$.each(grades, function() {
 							rows += "<td class='layers-left'>";
 							if (cols > headers.length) {
+								console.log(cols);
 								headers.push('<th class="header-left">&nbsp;</th>');
 							}
 							if (this.grade != prevGrade) {
@@ -241,7 +241,6 @@ function generateAuditTrailTable(data) {
 							rows += '</td>';
 						});
 						rows += "</tr>";
-						counter++;
 					});
 					html += '<tr class="header"><th class="header-left">Student</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
 				});
@@ -256,11 +255,10 @@ function generateAuditTrailTable(data) {
 					var rows = '';
 					html += '<table class="data tusk audit" cellspacing="0">';
 					var headers = ['<th class="header-left">Grade History</th>'];
-					var counter = 0;
 					$.each(user_ids, function(user_id, grades) {
 						var prevGrade = '';
 						var prevUser = '';
-						rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
+						rows += "<tr>";
 						rows += "<td class='layers-left'>" + $("option[value='" + user_id + "']").text() + "</td>";
 						var cols = 1;
 						$.each(grades, function() {
@@ -278,7 +276,6 @@ function generateAuditTrailTable(data) {
 							rows += '</td>';
 						});
 						rows += "</tr>";
-						counter++;
 					});
 					html += '<tr class="header"><th class="header-left">Student</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
 				});
@@ -293,11 +290,10 @@ function generateAuditTrailTable(data) {
 					var rows = '';
 					html += '<table class="data tusk audit" cellspacing="0">';
 					var headers = ['<th class="header-left">Grade History</th>'];
-					var counter = 0;
 					$.each(course_ids, function(course_id, grades) {
 						var prevGrade = '';
 						var prevUser = '';
-						rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
+						rows += "<tr>";
 						rows += "<td class='layers-left'>" + $("option[value='" + course_id + "']").text() + "</td>";
 						var cols = 1;
 						$.each(grades, function() {
@@ -315,7 +311,6 @@ function generateAuditTrailTable(data) {
 							rows += '</td>';
 						});
 						rows += "</tr>";
-						counter++;
 					});
 					html += '<tr class="header"><th class="header-left">Course</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
 				});

@@ -1,7 +1,8 @@
-<%method generateForm >
+<%method generateForm>
 <%args>
 	$type
 	$time_periods => {}
+	$school_id
 </%args>
 
 <nav>
@@ -9,7 +10,7 @@
 	<form class="audit">
 	<input type="hidden" name="school_id" value="<% $school_id %>" />
    	<div class="filter active">
-  		<label for="tp_id">Time Period(s)</label>
+  		<label for="tp_id"><% __('Time Period(s)') %></label>
   		<select id="tp_id" name="tp_id" multiple="multiple">
 % 	foreach my $tp_id (keys %$time_periods) {
 	<option value="<% $tp_id %>"><% $time_periods->{$tp_id}->field_value('period') . ', ' . $time_periods->{$tp_id}->field_value('academic_year') . ' (' . $time_periods->{$tp_id}->field_value('start_date') . ' to ' . $time_periods->{$tp_id}->field_value('end_date') . ')'  %></option>
@@ -22,7 +23,7 @@
 	</fieldset>
 	</div>
  	<div class="filter">
-  		<label for="course">Course(s)</label>
+  		<label for="course"><% __('Course(s)') %></label>
   		<select id="course" name="course" multiple="multiple" class="">
   		</select>
    		<img src="/graphics/icons/waiting_bar.gif" class="waiting" />
@@ -31,8 +32,8 @@
  		<input type="button" name="course-all" value="select all" class="formbutton all" />
 	</fieldset>
 	</div>
-  	<div class="filter">
-   		<label for="student">Student(s)</label>
+  	<div class="<% ($type eq "report") ? 'getgradedata' : 'filter' %>">
+   		<label for="student"><% __('Student(s)') %></label>
  		<select id="student" name="student" multiple="multiple">
   		</select>
     	<img src="/graphics/icons/waiting_bar.gif" class="waiting" />
@@ -41,20 +42,22 @@
  		<input type="button" name="student-all" value="select all" class="formbutton all" />
 	</fieldset>
 	</div>
-  	<div class="filter">
-  		<label for="display">Organize Display by</label>
-		<fieldset class="radio">
-			<div class="radio">
-				<input type="radio" name="display" value="tp_id" id="display-tp"><label for="display-tp">Time Period</label>
-			</div>
-			<div class="radio">
-				<input type="radio" name="display" value="course" id="display-course"><label for="display-course">Course</label>
-			</div>
-			<div class="radio">
-				<input type="radio" name="display" value="user" id="display-user"><label for="display-user">Student</label>
-			</div>
-		</fieldset>
-	</div>
+% if ($type eq "audit") {
+		<div class="filter">
+			<label for="display"><% __('Organize Display by') %></label>
+			<fieldset class="radio">
+				<div class="radio">
+					<input type="radio" name="display" value="tp_id" id="display-tp"><label for="display-tp"><% __('Time Period') %></label>
+				</div>
+				<div class="radio">
+					<input type="radio" name="display" value="course" id="display-course"><label for="display-course"><% __('Course') %></label>
+				</div>
+				<div class="radio">
+					<input type="radio" name="display" value="user" id="display-user"><label for="display-user"><% __('Student') %></label>
+				</div>
+			</fieldset>
+		</div>
+% }
 	</form>
 % } else {
 	<& "/tmpl/prepend:traffic_light", make_table => 1, args => {'hintmsg' => __('There are no final grades available.')} &>

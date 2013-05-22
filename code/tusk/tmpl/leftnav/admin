@@ -15,6 +15,8 @@
 </%doc>
 <%once>
 	use TUSK::Session;
+	use TUSK::Permission;
+	use TUSK::Core::School;
 </%once>
 
 <%args>
@@ -22,6 +24,18 @@ $type_path
 $school_name
 $show_in_td => 1
 </%args>
+
+<div id="gLeftNav" class="<% $show_in_td? 'gTableNav' : '' %>">
+<%perl>
+if (TUSK::Session::is_admin($m->session)) {
+	$m->comp("SELF:print_admin_nav", school_name => $school_name);
+} 
+if (TUSK::Session::is_eval_admin($m->session)) {
+ 	$m->comp("SELF:print_eval_nav");
+}
+$m->comp("SELF:print_grade_nav");
+</%perl>
+</div> <!-- end gLeftNav -->
 
 <%method print_admin_nav>
 <%args>
@@ -55,6 +69,7 @@ function check_links(){
 		</select></form>
 	</li>
 	<li><a href="javascript:submit_form('/management/announcements/show')" class="admintext"><% __("Announcements") %></a></li>
+	<li><a href="javascript:submit_form('/management/school/users')" class="admintext"><% __("Authorization") %></a></li>
 	<li><a href="javascript:toggle_case_subnav('caseSubNav');" class="admintext nodots"><% __("Case Administrator") %>&nbsp;|&nbsp;<span id="case_sub_link"><% ($r->uri =~ /^\/case\/administrator/)? '-' : '+' %></span></a>
 		<div id="caseSubNav" class="<% ($r->uri =~ /^\/case\/administrator/)? 'showNav' : 'hideNav' %>">
 			<a href="javascript:submit_form('/case/administrator/batteryshow')" class="admintext"><% __("Manage Categories / Tests") %></a>
@@ -93,18 +108,33 @@ check_links();
 <& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Eval&nbsp;Admin'} &>
 <ul class="adminLeftNavList">
 % foreach my $school (TUSK::Session::get_eval_schools($m->session)) {
-	<li><a href="/eval/administrator/show/<% $school %>" class="admintext"><% __("$school") %></a></li>
+	<li><a href="/eval/administrator/show/<% $school %>" class="admintext"><% "$school" %></a></li>
 % }
 </ul>
 </%method>
 
-<div id="gLeftNav" class="<% $show_in_td? 'gTableNav' : '' %>">
+<%method print_grade_nav>
 <%perl>
-if (TUSK::Session::is_admin($m->session)) {
-	$m->comp("SELF:print_admin_nav", school_name => $school_name);
-} 
-if (TUSK::Session::is_eval_admin($m->session)) {
- 	$m->comp("SELF:print_eval_nav");
+my @grade_nav_schools;
+my $perm;
+foreach my $school (@{TUSK::Core::School->lookup()}) {
+	$perm = TUSK::Permission->new({
+		   'user_id'=> $m->session->{'user'}->primary_key, 
+		   'feature_type_token' => 'school', 
+		   'feature_id' => $school->getPrimaryKeyID(),
+	});
+	if ($perm->check('view_school_grades')){ 
+		push @grade_nav_schools, $school;
+	}
 }
 </%perl>
-</div> <!-- end gLeftNav -->
+% if (scalar @grade_nav_schools) {
+	<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Grade&nbsp;Admin'} &>
+	<ul class="adminLeftNavList">
+%	foreach my $school (@grade_nav_schools) {
+		<li><a href="/grade/show/school/<% $school->getSchoolName() %>" class="admintext"><% $school->getSchoolName() . ' ' . __('Report') %></a></li>
+		<li><a href="/grade/list/school/<% $school->getSchoolName() %>" class="admintext"><% $school->getSchoolName() . ' ' . __('Audit') %></a></li>
+%	}
+	</ul>
+% }
+</%method>
