@@ -149,8 +149,6 @@ function saveNewOp(){
 	// get selected tests/treatments/quiz questions from appropriate phase/quiz
 	var child_elts = $('ul.selectlist-list input[type="hidden"][value!=""]');
 
-console.log(child_elts);
-
 	if ($('select#quiz_alt').size()) {
 		if ( !($('select#quiz_alt').children(':selected').attr('value')) ) {
 			alert("You must select an option from 'Step 2'");
@@ -221,7 +219,7 @@ console.log(child_elts);
 	else {
 		var id = parentDiv.id.replace(/^ruleSec/,'');
 		var has_duped_data = 0;
-alert(elt_id);
+
 		// in adduniquedata(), we want to compare following vals. due to s.o.box, existing, 
 		// undefined vals from db will be '', but new ones, just created, will be undef. they will
 		// not be equal. set undef values to empty string here for that comparison later.
