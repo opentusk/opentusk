@@ -111,25 +111,30 @@ function populateNextOptions(select) {
 	}
 	$(target).parent().addClass("processing");
 
-	$.ajax({
-		type: "POST",
-		url: url,
-		data: request
-	}).done(function(data) {
-		var items = [];
-		$.each(data, function() {
-			$.each(this, function(id, name) {
-				if ($("option[value='" + id + "']").size() == 0) {
-					items.push('<option value="' + id + '">' + name + '</option>');
-				}
+	if (target != "fieldset") {
+		$.ajax({
+			type: "POST",
+			url: url,
+			data: request
+		}).done(function(data) {
+			var items = [];
+			$.each(data, function() {
+				$.each(this, function(id, name) {
+					if ($("option[value='" + id + "']").size() == 0) {
+						items.push('<option value="' + id + '">' + name + '</option>');
+					}
+				});
 			});
-		});
-		if (target != "fieldset" && $(items).size()) {
-			$(target).html(items.join("\n"));
-		}
-	})
-	.done(function() { $(target).parent().addClass("active"); })
-	.fail(function() { alert('no data available'); });
+			if (target != "fieldset" && $(items).size()) {
+				$(target).html(items.join("\n"));
+			}
+			$(target).parent().addClass("active");
+		})
+		.fail(function() { alert('no data available'); });
+	}
+	else {
+		$(target).parent().addClass("active");
+	}
 }
 
 function getGradeData(formObj) {
@@ -139,8 +144,12 @@ function getGradeData(formObj) {
 	request.tps = JSON.stringify(tps);
 	request.courses = JSON.stringify(courses);
 	request.students = JSON.stringify(students);
-	$("div.data").show();
+	$("div.data").hide();
+	$("div.data table").remove();
+	$("div.data h1").remove();
+	$("div.data h2").remove();
 	$("div.data").addClass("processing");
+	$("div.data").show();
 	switch(formObj.get(0).type) {
 		case "select-multiple":
 			url += "/grades";
@@ -151,8 +160,8 @@ function getGradeData(formObj) {
 			}).done(function(data) {
 				generateDataTable(data);
 			})
-			.done(function() { $("select#course").attr('disabled', 'disabled');	$("div.data").removeClass("processing");
- })
+			.done(function() { $("select#course").attr('disabled', 'disabled'); })
+			.always(function () { $("div.data").removeClass("processing"); })
 			.fail(function() { alert('no grade data available'); });
 			break;
 		case "radio":
@@ -166,14 +175,14 @@ function getGradeData(formObj) {
 			}).done(function(data) {
 				generateAuditTrail(data);
 			})
-			.done(function() { $("select#course").attr('disabled', 'disabled'); $("div.data").removeClass("processing"); })
+			.done(function() { $("select#course").attr('disabled', 'disabled'); })
+			.always(function () { $("div.data").removeClass("processing"); })
 			.fail(function() { alert('no grade data available'); });
 			break;
 	}
 }
 
 function generateDataTable(data) {
-	$("div.data table").html('');
 	if(data) {
 		var headers = '<tr class="header"><th class="header-left">Student</th>';
 		var rows = '</tr>'
@@ -200,16 +209,15 @@ function generateDataTable(data) {
 			rows += "</tr>";
 			counter++;
 		});
-		$("div.data table").html(headers + rows);
+		$("div.data").html($("div.data").html() + '<table class="tusk" cellspacing="0">' + headers + rows + '</table>');
 	}
 	else {
-		$("div.data table").html("<tr><td>No grades found.</td></tr>").show();
+		$("div.data").html($("div.data").html() + '<table class="tusk" cellspacing="0"><tr><td>No grades found.</td></tr></table>');
 	}
 }
 
 function generateAuditTrail(data) {
 	var html = '';
-	$("div.data").html('');
 	switch(display) {
 		case "tp_id":
 			// data{$time_period_id}{$course_id}{$user_id}
@@ -251,15 +259,79 @@ function generateAuditTrail(data) {
 		case "course":
 			// data{$course_id}{$time_period_id}{$user_id}
 			$.each(data, function(course_id, tp_ids) {
+				html += "<h1>" + $("option[value='" + course_id + "']").text() + "</h1>";	
+				$.each(tp_ids, function(tp_id, user_ids) {
+					html += "<h2>" + $("option[value='" + tp_id + "']").text() + "</h2>";	
+					var rows = '';
+					html += '<table class="data tusk audit" cellspacing="0">';
+					var headers = ['<th class="header-left">Grade History</th>'];
+					var counter = 0;
+					$.each(user_ids, function(user_id, grades) {
+						var prevGrade = '';
+						var prevUser = '';
+						rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
+						rows += "<td class='layers-left'>" + $("option[value='" + user_id + "']").text() + "</td>";
+						var cols = 1;
+						$.each(grades, function() {
+							rows += "<td class='layers-left'>";
+							if (cols > headers.length) {
+								headers.push('<th class="header-left">&nbsp;</th>');
+							}
+							if (this.grade != prevGrade) {
+								rows += this.grade + " <em class='xsm'>(" + this.modified_by + " " + this.modified_on + ")</em>";
+
+								prevGrade = this.grade;
+								prevUser = this.modified_by;
+							}
+							cols++;
+							rows += '</td>';
+						});
+						rows += "</tr>";
+						counter++;
+					});
+					html += '<tr class="header"><th class="header-left">Student</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
+				});
 			});
 			break;
 		case "user":
 			// data{$user_id}{$time_period_id}{$course_id}
 			$.each(data, function(user_id, tp_ids) {
+				html += "<h1>" + $("option[value='" + user_id + "']").text() + "</h1>";	
+				$.each(tp_ids, function(tp_id, course_ids) {
+					html += "<h2>" + $("option[value='" + tp_id + "']").text() + "</h2>";	
+					var rows = '';
+					html += '<table class="data tusk audit" cellspacing="0">';
+					var headers = ['<th class="header-left">Grade History</th>'];
+					var counter = 0;
+					$.each(course_ids, function(course_id, grades) {
+						var prevGrade = '';
+						var prevUser = '';
+						rows += "<tr class='" + ((counter%2 == 0)? "even" : "odd" ) + "'>";
+						rows += "<td class='layers-left'>" + $("option[value='" + course_id + "']").text() + "</td>";
+						var cols = 1;
+						$.each(grades, function() {
+							rows += "<td class='layers-left'>";
+							if (cols > headers.length) {
+								headers.push('<th class="header-left">&nbsp;</th>');
+							}
+							if (this.grade != prevGrade) {
+								rows += this.grade + " <em class='xsm'>(" + this.modified_by + " " + this.modified_on + ")</em>";
+
+								prevGrade = this.grade;
+								prevUser = this.modified_by;
+							}
+							cols++;
+							rows += '</td>';
+						});
+						rows += "</tr>";
+						counter++;
+					});
+					html += '<tr class="header"><th class="header-left">Course</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
+				});
 			});
 			break;
 	}
-	$("div.data").html(html);
+	$("div.data").html($("div.data").html() + html);
 	$("div.data").show();
 }
 
