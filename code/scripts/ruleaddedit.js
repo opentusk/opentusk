@@ -149,8 +149,6 @@ function saveNewOp(){
 	// get selected tests/treatments/quiz questions from appropriate phase/quiz
 	var child_elts = $('ul.selectlist-list input[type="hidden"][value!=""]');
 
-console.log(child_elts);
-
 	if ($('select#quiz_alt').size()) {
 		if ( !($('select#quiz_alt').children(':selected').attr('value')) ) {
 			alert("You must select an option from 'Step 2'");
