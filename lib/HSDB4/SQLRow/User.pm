@@ -46,6 +46,8 @@ use TUSK::HomepageCategory;
 use Forum::MwfConfig;
 use TUSK::GradeBook::GradeEventEval;
 use TUSK::Application::GradeBook::GradeBook;
+use TUSK::Core::School;
+use TUSK::Permission;
 
 use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
@@ -281,6 +283,25 @@ sub check_author{
 	}else{
 		return ($self->check_admin($roles));
     }
+}
+
+sub check_grade_admin {
+	my ($self) = @_;
+	my $perm;
+	if ($self->primary_key()) {
+		my $schools = TUSK::Core::School->lookup();
+		foreach my $school (@$schools) {
+			$perm = TUSK::Permission->new({
+				   'user_id'=> $self->primary_key(), 
+				   'feature_type_token' => 'school', 
+				   'feature_id' => $school->getPrimaryKeyID(),
+			});
+			if ($perm->check('view_school_grades')){ 
+				return 1;
+			}
+		}
+	}
+	return 0;
 }
 
 sub check_admin{

@@ -20,6 +20,7 @@
 <%once>
 	use HSDB4::Constants;
 	use HSDB4::DateTime;
+	use HSDB4::SQLRow::User;
 	use TUSK::Session;
 	use TUSK::Constants;
 	use TUSK::Functions;
@@ -537,7 +538,7 @@ if (ref $leftnav eq 'HASH' and $leftnav->{component}){
 my $req = \%req_hash;
 my ($can_cms, $has_schedule);
 if ($req->{user} && $req->{user}->isa("HSDB4::SQLRow::User")) {
-	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin() || $req->{user}->check_grade_admin();
 	$has_schedule = $req->{user}->has_schedule();
 }
 
@@ -595,7 +596,7 @@ if (!$req->{nostandardheader}) {
 my $req = \%req_hash;
 my ($has_schedule, $can_cms);
 if ($req->{user}) {
-	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin() || $req->{user}->check_grade_admin();
 	$has_schedule = $req->{user}->has_schedule();
 }
 # figure out the alt text for the main image
