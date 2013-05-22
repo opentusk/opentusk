@@ -228,7 +228,6 @@ function generateAuditTrailTable(data) {
 						$.each(grades, function() {
 							rows += "<td class='layers-left'>";
 							if (cols > headers.length) {
-								console.log(cols);
 								headers.push('<th class="header-left">&nbsp;</th>');
 							}
 							if (this.grade != prevGrade) {

@@ -1,7 +1,7 @@
 // Author: Jerome Clyde C. Bulanadi
 //
-// change by rebecca: replaced children().first() with children(":first") 
-// to work with older (v1.3.2) version of jQuery
+// change by rebecca: replaced references to jQuery.browser with navigator object
+// to work with 1.9+ versions of jQuery
 
 jQuery.fn.scrollableFixedHeaderTable = scrollableFixedHeaderTable;
 
@@ -176,7 +176,7 @@ sfht.adjustHeader = function($sfhtHeader, $sfhtData, $mainTable) {
 	var scrollBarSize = containerWidth - containerInnerWidth;
 	var dataTableWidth = $mainTable.width();
 
-	if (!(jQuery.browser.mozilla || jQuery.browser.msie || jQuery.browser.opera)) {
+	if (!(navigator.userAgent.match(/mozilla/) || navigator.userAgent.match(/msie/) || navigator.userAgent.match(/opera/))) {
 		containerInnerWidth = dataTableWidth >= containerWidth ? containerWidth - 17 : containerWidth;
 	}
 
@@ -259,13 +259,13 @@ sfht.cloneHeader = function(parentDiv, headerRowSize) {
 	if (jQuery.fn.listAttrs) {
 	  var $container = jQuery("<div><table><thead></thead></table></div>");
 		var $clone = $container.find('table:eq(0)');
-		var tableNode = jQuery(parentDiv).children(":first");
+		var tableNode = jQuery(parentDiv).children().first();
 		sfht.loadAttributes($clone,tableNode);
-		sfht.loadAttributes($clone.children(":first"),tableNode.children(":first"));
+		sfht.loadAttributes($clone.children().first(),tableNode.children().first());
 
 		var $thead = $clone.find('thead');
 		for (var _i = 0; _i <= rowIndex; _i++) {
-			var $rowHeaderNode = tableNode.children(":first").children(':nth(' + _i + ')');
+			var $rowHeaderNode = tableNode.children().first().children(':nth(' + _i + ')');
 			var $cloneRow = jQuery('<tr></tr>');
 			sfht.loadAttributes($cloneRow,$rowHeaderNode);
 			$cloneRow.html($rowHeaderNode.html());
@@ -274,7 +274,7 @@ sfht.cloneHeader = function(parentDiv, headerRowSize) {
 	  return $container.html();
 	} else {
 		var $cloned = jQuery(parentDiv).clone();
-		$cloned.children(":first").children().children('tr:gt(' + headerRowSize + ')').remove();
+		$cloned.children().first().children().children('tr:gt(' + headerRowSize + ')').remove();
 		return $cloned.html();
 	}
 }
@@ -327,7 +327,7 @@ function freezeFirstColumnSorter(tableId, lastColIndex){
 
 	/* added by rebecca --
 	   browser-specific code for IE7 and IE6 to correct 1px discrepancy between static column and the rest of the table */
-	if (jQuery.browser.msie && parseInt(jQuery.browser.version) < 8) {
+	if (navigator.userAgent.match(/msie/) && parseInt(navigator.appVersion) < 8) {
 		$colDiv.height(scrollHeight - 1);
 	} else {
 		$colDiv.height(scrollHeight);
@@ -347,7 +347,7 @@ function freezeFirstColumnSorter(tableId, lastColIndex){
 	
 	/* added by rebecca --
 	   browser-specific code for IE7 and IE6 to correct 1px discrepancy between static column and the rest of the table */
-	if (jQuery.browser.msie && parseInt(jQuery.browser.version) < 8) {
+	if (navigator.userAgent.match(/msie/) && parseInt(navigator.appVersion) < 8) {
 		$colDiv.css("margin-top", "1px");
 	}
 
