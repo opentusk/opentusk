@@ -92,8 +92,6 @@ EOF
     /bin/sed -i "s/MYFQDN/`hostname`/g" {} \;
 /usr/bin/find /etc/httpd/conf.d/ -name "*.conf" -exec \
     /bin/sed -i "s/TUSKFQDN/`hostname`/g" {} \;
-/bin/mkdir --parents /var/www/mason_cache
-/bin/chown --recursive apache:apache /var/www/mason_cache
 /sbin/service httpd start &>/dev/null
 /sbin/chkconfig httpd on
 
