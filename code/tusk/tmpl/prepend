@@ -20,6 +20,7 @@
 <%once>
 	use HSDB4::Constants;
 	use HSDB4::DateTime;
+	use HSDB4::SQLRow::User;
 	use TUSK::Session;
 	use TUSK::Constants;
 	use TUSK::Functions;
@@ -460,9 +461,6 @@ $has_schedule => ''
 		<ul class="main <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
 		    <li class="<% $active eq 'home'  ? 'selected' : '' %>"><a href="/home" target="_top"><% __('My Dashboard') %></a></li>
 		    <li class="<% $active eq 'browse'? 'selected' : '' %>"><a href="/allcourses.htm" target="_top"><% __('Courses') %></a></li>
-% if($can_cms) { 
-			<li class="<% $active eq 'manage'? 'selected' : '' %>"><a href="/protected/management/home" target="_top"><% __('Manage Content') %></a></li>
-% }
 			<li class="<% $active eq 'search'? 'selected' : '' %>"><a href="/search/form" target="_top"><% __('Search') %></a></li>
 % if(scalar keys %$has_schedule) {
 %	my @schedule_links;
@@ -483,6 +481,9 @@ $has_schedule => ''
 			<li class="<% $active eq 'schedule'? ' selected' : '' %>"><a href="<% $schedule_links[0]->{link} %>"><% __('Schedule') %></a>
 %	}
 			</li>
+% }
+% if($can_cms) { 
+			<li class="<% $active eq 'manage'? 'selected' : '' %>"><a href="/protected/management/home" target="_top"><% __('Manage Content') %></a></li>
 % }
 		</ul>
 	</nav>
@@ -537,7 +538,7 @@ if (ref $leftnav eq 'HASH' and $leftnav->{component}){
 my $req = \%req_hash;
 my ($can_cms, $has_schedule);
 if ($req->{user} && $req->{user}->isa("HSDB4::SQLRow::User")) {
-	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin() || $req->{user}->check_grade_admin();
 	$has_schedule = $req->{user}->has_schedule();
 }
 
@@ -595,7 +596,7 @@ if (!$req->{nostandardheader}) {
 my $req = \%req_hash;
 my ($has_schedule, $can_cms);
 if ($req->{user}) {
-	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin() || $req->{user}->check_grade_admin();
 	$has_schedule = $req->{user}->has_schedule();
 }
 # figure out the alt text for the main image
