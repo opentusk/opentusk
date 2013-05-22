@@ -11,7 +11,4 @@ mkdir -p  /data/html/images
 mkdir -p  /data/html/slide/{orig,small,icon,thumb,medium,large,xlarge}
 mkdir -p  /data/html/slide/overlay/{orig,small,medium,large,xlarge}
 mkdir -p  /usr/local/tusk/{conf,ssl_certificate}
-mkdir -p  /usr/local/tusk/current/mason_cache/{cache,obj}
 mkdir -p /var/log/tusk
-ln -f -s /var/log/tusk /usr/local/tusk/current/logs
-
