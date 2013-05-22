@@ -242,7 +242,7 @@ function generateAuditTrailTable(data) {
 						});
 						rows += "</tr>";
 					});
-					html += '<tr class="header"><th class="header-left">Student</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
+					html += '<tr class="header"><th class="header-left">' + _('Student') + '</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
 				});
 			});
 			break;
@@ -277,7 +277,7 @@ function generateAuditTrailTable(data) {
 						});
 						rows += "</tr>";
 					});
-					html += '<tr class="header"><th class="header-left">Student</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
+					html += '<tr class="header"><th class="header-left">' + _('Student') + '</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
 				});
 			});
 			break;
@@ -312,7 +312,7 @@ function generateAuditTrailTable(data) {
 						});
 						rows += "</tr>";
 					});
-					html += '<tr class="header"><th class="header-left">Course</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
+					html += '<tr class="header"><th class="header-left">' + _('Course') + '</th>' + headers.join(' ') + "</tr>" + rows + '</table>';
 				});
 			});
 			break;
