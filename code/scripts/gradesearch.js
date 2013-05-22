@@ -5,29 +5,20 @@ $(document).ready(function(){
 	var students;
 	var display;
 	
-	$("nav input[type=radio]").click(function() {
-		getGradeData($(this));
-	});
-	
-	$("nav .report .filter select").not(':last').on('change', function() {
+	// event handlers for form inputs
+	$("nav .filter select").on('change', function() {
 		if ($(this).val()) {
 			populateNextOptions($(this));
 		}
 	});
-	
-	$("nav .audit .filter select").on('change', function() {
-		if ($(this).val()) {
-			populateNextOptions($(this));
-		}
-	});
-	
-	$("nav .report .filter select:last").on('change', function() {
+	$("nav .getgradedata select, nav input[type=radio]").on('change', function() {
 		if ($(this).val()) {
 			getGradeData($(this));
 		}
 	});
 	
-	$(".filter input[value=reset]").click(function() {
+	// functionality for 'reset' buttons
+	$("input.reset").click(function() {
 		var select = $(this).parent().siblings("select");
 		$("div.processing").removeClass("processing");
 		$("div.data").hide();
@@ -60,7 +51,8 @@ $(document).ready(function(){
 		}
 	});
 	
-	$(".filter input[value='select all']").click(function() {
+	// functionality for 'select all' buttons
+	$("input.all").click(function() {
 		var select = $(this).parent().parent().children("select");
 		if (!$(select).attr('disabled')) {
 			selectAll($(select));
@@ -68,6 +60,7 @@ $(document).ready(function(){
 		}
 	});
 
+	// populate timestamp on page
 	var d = new Date();
 	var curr_date = d.getDate();
 	var curr_month = d.getMonth();
@@ -145,9 +138,7 @@ function getGradeData(formObj) {
 	request.courses = JSON.stringify(courses);
 	request.students = JSON.stringify(students);
 	$("div.data").hide();
-	$("div.data table").remove();
-	$("div.data h1").remove();
-	$("div.data h2").remove();
+	$("div.data .data").remove();
 	$("div.data").addClass("processing");
 	$("div.data").show();
 	switch(formObj.get(0).type) {
@@ -173,7 +164,7 @@ function getGradeData(formObj) {
 				url: url,
 				data: request
 			}).done(function(data) {
-				generateAuditTrail(data);
+				generateAuditTrailTable(data);
 			})
 			.done(function() { $("select#course").attr('disabled', 'disabled'); })
 			.always(function () { $("div.data").removeClass("processing"); })
@@ -209,22 +200,22 @@ function generateDataTable(data) {
 			rows += "</tr>";
 			counter++;
 		});
-		$("div.data").html($("div.data").html() + '<table class="tusk" cellspacing="0">' + headers + rows + '</table>');
+		$("div.data").html($("div.data").html() + '<table class="tusk data" cellspacing="0">' + headers + rows + '</table>');
 	}
 	else {
-		$("div.data").html($("div.data").html() + '<table class="tusk" cellspacing="0"><tr><td>No grades found.</td></tr></table>');
+		$("div.data").html($("div.data").html() + '<table class="tusk data" cellspacing="0"><tr><td>No grades found.</td></tr></table>');
 	}
 }
 
-function generateAuditTrail(data) {
+function generateAuditTrailTable(data) {
 	var html = '';
 	switch(display) {
 		case "tp_id":
 			// data{$time_period_id}{$course_id}{$user_id}
 			$.each(data, function(tp_id, course_ids) {
-				html += "<h1>" + $("option[value='" + tp_id + "']").text() + "</h1>";	
+				html += "<h1 class='data'>" + $("option[value='" + tp_id + "']").text() + "</h1>";	
 				$.each(course_ids, function(course_id, user_ids) {
-					html += "<h2>" + $("option[value='" + course_id + "']").text() + "</h2>";	
+					html += "<h2 class='data'>" + $("option[value='" + course_id + "']").text() + "</h2>";	
 					var rows = '';
 					html += '<table class="data tusk audit" cellspacing="0">';
 					var headers = ['<th class="header-left">Grade History</th>'];
@@ -259,9 +250,9 @@ function generateAuditTrail(data) {
 		case "course":
 			// data{$course_id}{$time_period_id}{$user_id}
 			$.each(data, function(course_id, tp_ids) {
-				html += "<h1>" + $("option[value='" + course_id + "']").text() + "</h1>";	
+				html += "<h1 class='data'>" + $("option[value='" + course_id + "']").text() + "</h1>";	
 				$.each(tp_ids, function(tp_id, user_ids) {
-					html += "<h2>" + $("option[value='" + tp_id + "']").text() + "</h2>";	
+					html += "<h2 class='data'>" + $("option[value='" + tp_id + "']").text() + "</h2>";	
 					var rows = '';
 					html += '<table class="data tusk audit" cellspacing="0">';
 					var headers = ['<th class="header-left">Grade History</th>'];
@@ -296,9 +287,9 @@ function generateAuditTrail(data) {
 		case "user":
 			// data{$user_id}{$time_period_id}{$course_id}
 			$.each(data, function(user_id, tp_ids) {
-				html += "<h1>" + $("option[value='" + user_id + "']").text() + "</h1>";	
+				html += "<h1 class='data'>" + $("option[value='" + user_id + "']").text() + "</h1>";	
 				$.each(tp_ids, function(tp_id, course_ids) {
-					html += "<h2>" + $("option[value='" + tp_id + "']").text() + "</h2>";	
+					html += "<h2 class='data'>" + $("option[value='" + tp_id + "']").text() + "</h2>";	
 					var rows = '';
 					html += '<table class="data tusk audit" cellspacing="0">';
 					var headers = ['<th class="header-left">Grade History</th>'];
@@ -335,6 +326,7 @@ function generateAuditTrail(data) {
 	$("div.data").show();
 }
 
+// functions for select-related buttons
 function deselectAll(select) {
 	$(select).val(null);
 	$(select).removeAttr('disabled');
