@@ -2213,7 +2213,9 @@ sub get_annoucments_with_user_groups {
                     } @systemwide_announcements;
     }
 
-    if ($self->affiliation && ($self->affiliation ne $TUSK::Constants::SystemWideUserGroupSchool)) {
+    if ($self->affiliation
+        && ($self->affiliation ne $TUSK::Constants::SystemWideUserGroupSchool)
+        && _member_of_schools($self->affiliation)) {
 		my $affiliation = $self->affiliation;
 		## get school user group id from constants file by affiliation; if affiliation is not a school, 
 		## then use the system-wide user group id
