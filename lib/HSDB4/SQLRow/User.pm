@@ -2349,12 +2349,17 @@ sub isGhost {
 	return(0);
 }
 
+sub _member_of_schools {
+    my $elt = shift;
+    return scalar(grep { $_ eq $elt } keys %TUSK::Constants::Schools) > 0;
+}
+
 sub get_list_cats{
 	my $self = shift;
 
 	my $affiliation = $self->affiliation();
 	my @categories;
-	if ($affiliation) {
+	if ($affiliation && _member_of_schools($affiliation)) {
 		my $cat = TUSK::HomepageCategory->new(_school => $affiliation);
 		@categories = $cat->lookup_conditions("order by sort_order");
 	}
