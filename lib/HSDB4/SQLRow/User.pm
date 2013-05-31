@@ -761,21 +761,18 @@ sub check_school_permissions{
 	
 
 sub admin_courses {
-    #
-    # Get a list of courses this person has access to as an admin
-    #
+    # Get a list of courses this person has access to as an admin.
+    # Don't cache because it makes the user object too big to fit in
+    # hsdb4.sessions.a_session column in MySQL
     my $self = shift;
-	my ($school,$group_id,@courses);
-	foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
-	    if ($self->check_school_permissions($school)){
-		my $course = HSDB45::Course->new(_school => $school);
-		push(@courses,$course->lookup_conditions());
-	    }
-	}
-	$self->{-admin_courses} = \@courses;
-
-    return @{$self->{-admin_courses}};
-
+    my ($school, $group_id, @courses);
+    foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
+        if ($self->check_school_permissions($school)) {
+            my $course = HSDB45::Course->new( _school => $school );
+            push( @courses, $course->lookup_conditions() );
+        }
+    }
+    return @courses;
 }
 
 sub taken_quizzes{
