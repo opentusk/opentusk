@@ -75,6 +75,8 @@ _yum_install ncftp
 _yum_install xorg-x11-xauth
 _yum_install wget
 _yum_install python-demjson
+_yum_install gd
+_yum_install gd-devel
 
 # Install Perl modules
 
@@ -114,6 +116,7 @@ _yum_install 'perl(Test::Deep)'
 _yum_install 'perl(Linux::Pid)'
 _yum_install 'perl(XML::SAX::Writer)'
 _yum_install 'perl(YAML)'
+_yum_install 'perl(Statistics::Descriptive)'
 _yum_install_nocheck 'perl(HTML::Defang)'
 _yum_install_nocheck 'perl(HTML::Mason)'
 _yum_install_nocheck 'perl(MasonX::Request::WithApacheSession)'
