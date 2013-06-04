@@ -17,15 +17,15 @@ myversion=$(_os_major_version)
 
 function _yum_install {
     # --assumeyes not available in CentOS 5.x
-    yum install --quiet -y "$1" &>/dev/null
+    yum install --quiet -y "$1"
 }
 
 function _yum_install_nocheck {
-    yum install --nogpgcheck --quiet -y "$1" &>/dev/null
+    yum install --nogpgcheck --quiet -y "$1"
 }
 
 function _yum_install_rpmforge {
-    yum install --quiet -y --enablerepo=rpmforge "$1" &>/dev/null
+    yum install --quiet -y --enablerepo=rpmforge "$1"
 }
 
 # Install repos
