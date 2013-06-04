@@ -35,6 +35,7 @@ my $case = $ARGS{'case'};
 my $args = $ARGS{'args'};
 my $optionLabel = $ARGS{'optionLabel'};
 my $phase_type_name = $phase->getPhaseType->getTitle();
+my $phase_name = $phase->getPhaseTitle();
 $m->comp('element:transition',args=>$args);
 my $phase_options = $phase->getPhaseOptions();
 my $selected_phase_options = $phase->getPhaseOptions($case->getReport);
@@ -43,6 +44,9 @@ if ($m->comp('/tmpl/wizard:submitted',args=>$args)){
         $submit_mode = 1 ;
 }
 </%perl>
+
+% # Don't show answer key for Test case type
+% if ( ( ! $submit_mode ) || ( ! $case->isTest() ) ) {
 <!-- Begin <% $phase_type_name %> Phase -->
 <& /tmpl/element:table &>
 <& /tmpl/element:tr_tag &>
@@ -100,7 +104,10 @@ if ($m->comp('/tmpl/wizard:submitted',args=>$args)){
 <& element:divider_bar &>
 </table>
 <!-- End <% $phase_type_name %> Phase -->
-
+% }
+% elsif ( $submit_mode && $case->isTest() ) {
+    <div class="success"><% $phase_name %> answers saved.</div>
+% }
 </%method>
 
 <%def likelySubmit>
@@ -147,6 +154,7 @@ foreach my $field (keys %args){
 }
 if ($case->isTest()) {
     $m->comp('element:transition',args=>\%args);
+    # $m->abort();
 }
 </%perl>
 
@@ -193,6 +201,7 @@ foreach my $field (keys %args){
 }
 if ($case->isTest()) {
    $m->comp('element:transition',args=>\%args);
+   # $m->abort();
 }
 </%perl>
 % foreach my $option (@phase_options){
@@ -365,6 +374,7 @@ foreach my $field (keys %args){
 }
 if ($case->isTest()) {
    $m->comp('element:transition',args=>\%args);
+   # $m->abort();
 }
 </%perl>
 
@@ -866,6 +876,7 @@ foreach my $field (keys %args){
 }
 if ($case->isTest()){
 	$m->comp('element:transition',args=>\%args);
+    # $m->abort();
 }
 my $selected_phase_options = $phase->getPhaseOptions($case->getReport);
 </%perl>
