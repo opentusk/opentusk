@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 
