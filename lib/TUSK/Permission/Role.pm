@@ -69,6 +69,7 @@ sub new {
 					'role_token' => '',
 					'role_desc' => '',
 					'feature_type_id' => '',
+					'virtual_role' => ''
 				    },
 				    _attributes => {
 					save_history => 1,

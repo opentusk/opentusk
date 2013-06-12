@@ -85,6 +85,11 @@ sub new {
 	@_
 	};
 
+	# HSDB45Tables::* have database undefined. This will make your life simpler.
+	$self->{_datainfo}{database} = $_ for grep { defined } delete $self->{database};
+	# Use 'id' instead of '_id';
+	$self->{_id} = $_ for grep { defined } delete $self->{id};
+
     bless $self, $class;
 
     # figure out which field is the pk
@@ -1024,6 +1029,13 @@ sub getJoinObject{
 	}else{
 		return [];
 	}
+}
+
+sub get_first_join_object
+{
+	my ($this, $object_class) = @_;
+	my $x = $this->{_join_objects} || undef; # no uninitialized warning
+	return $x && $x->{$object_class} && $x->{$object_class}[0]; # no autovivification
 }
 
 #######################################################

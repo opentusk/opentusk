@@ -13,16 +13,19 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%attr>
-	top_tab_type            => 'manage'
-	check_cms_permissions	=> 1
-    default_path_type	=> 'course'
+	top_tab_type          => 'manage'
+	check_cms_permissions => 1
+	default_path_type     => 'course'
 </%attr>
 
 <%once>
-	use TUSK::Manage::Course::Students;	
-	use TUSK::Manage::Course::Users;
+	use TUSK::Core::HSDB45Tables::TimePeriod;
+	use TUSK::Course::User;
 	use TUSK::Functions;
+	use TUSK::Manage::Course::Students;	
+	use TUSK::Manage::Course::Users2;
 </%once>
 
 
@@ -30,28 +33,29 @@
 	method => 'POST',
 	class => 'no-padding',
 	onsubmit => "return checkform(this);",
-	name => 'usersf' } 
-
-&>
+	name => 'usersf',
+} &>
 
 <& /tmpl/element:table, params => { 
 	width => "100%",
 	cellspacing =>"0",
-	cellpadding =>"0" } &>
+	cellpadding =>"0"
+} &>
 
 <tr> 
-<td class="labelgray"><%__("User")%>:</td>
+<td class="labelgray"><% __('User') %>:</td>
 <td class="cell-left">
 
-% if ( $user ) {
-% 	my @rows;
-% 	my $usr = $data->{user};
-% 	push(@rows, { 
-%				'id' => $usr->primary_key, 
-%				'lastname' => $usr->field_value('lastname'),
-%				'firstname' => $usr->field_value('firstname'),
-%				'email' => $usr->field_value('email'),
-%				'affiliation' => $usr->field_value('affiliation') } );
+% if ($user_id) { 
+<%perl>
+	my @rows;
+	push @rows, { 
+		'id' => $user_id,
+		'timeperiod' => $time_period_obj->getFieldValue('period') . ' (' . $time_period_obj->getFieldValue('academic_year') . ')',
+		# $user_obj may be undef if db is messed up
+		map { ($_ => $user_obj && $user_obj->getFieldValue($_)) } qw(lastname firstname email affiliation)
+	};
+</%perl>
 
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [ 
@@ -59,6 +63,7 @@
 		{'label' => __('Last Name'), 'field' => 'lastname'},
 		{'label' => __('First Name'), 'field' => 'firstname'},
 		{'label' => __('Email'), 'field' => 'email'},
+		{'label' => __('Time Period'), 'field' => 'timeperiod'},
 		{'label' => __('Affiliation'), 'field' => 'affiliation'}, 
 	],
 	rows => \@rows,
@@ -67,70 +72,57 @@
 } &>
 
 % } else {
-	<b> <%__("No user selected.")%> </b>
-% }
+<b> <%__("No user selected.")%> </b>
+% } # if-1
 
-<br>
-        &nbsp;<i><%__("Please confirm that you want these users removed from this course")%></i>
-                          </td>
-    </tr>
-    <tr> 
-      <td>&nbsp;</td>
-      <td class="cell-submit"> 
+&nbsp;<i><%__("Please confirm that you want these users removed from this course")%></i>
+</td>
+</tr>
 
-<& /tmpl/element:save_button, params=>{
-	label 			=> __('Delete and Continue'),
-	one_column => 1,
-	no_cancel_button => 1,
-	class 	=> 'formbutton',
-	name			=> 'action',
-	} 
-&>
+<& /tmpl/element:save_button, params => {
+	td_class => 'cell-submit',
+	label => __('Delete'),
+	class => 'formbutton',
+	name => 'action',
+	cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_back_url", base_url =>"/management/course/users/show") . ')",
+} &>
 
-<input type="hidden" name="user" value="<% $user %>">
-
-</td></tr>
 </table>
-
+<input type="hidden" name="user" value="<% $user_id %>">
+<input type="hidden" name="course_user" value="<% $course_user_id %>">
 </form>
 
 <%init>
-
-	my $selfpath = $m->comp("/tmpl/url:get_full_path");
-	my $type_object =  $m->comp("/tmpl/url:get_type_object");
 	my $school = $m->comp("/tmpl/url:get_school");
-	my $time_period = $m->comp("SELF:get_timeperiod_id");
-	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
-	my ($rval, $msg); 
-	my $is_group_course;
-	my $user;
-	
-	if ($ARGS{user}) { $user = $ARGS{user}; }
-	else { $user = $m->comp("/tmpl/url:get_last_path_id"); }
+	my $course_user_id = $ARGS{course_user} || $m->comp("/tmpl/url:get_last_path_id");
 
-	unless ($ARGS{page}){ $ARGS{page}="add"; }
+	my $helper = TUSK::Manage::Course::Users2->new;
 
-	if ($ARGS{action}){
-		($rval, $msg) = TUSK::Manage::Course::Users::delete($r, $user, $type_object->course_id, $school, $time_period);
+	my $course_user = $helper->get_course_user_and_all_related($course_user_id);
+	my $course_id = $course_user->getCourseID();
+	my $user_id  = $course_user->getUserID(); 
+	my $user = $course_user->getJoinObject('TUSK::Core::HSDB4Tables::User'); 
+	my $time_period_id  = $course_user->getFieldValue('time_period_id');
+	my $time_period = TUSK::Core::HSDB45Tables::TimePeriod->new(database => $helper->get_school_db($school), id => $time_period_id);
 
-		$is_group_course = ($course->type() eq 'group')? 1 : 0;
-		if($is_group_course && $rval == 1){
-            my $tp = TUSK::Functions::set_eternity_timeperiod($course,$m->session);
-			($rval, $msg) = TUSK::Manage::Course::Students::delete($r,  $m->session->{timeperiod}, $type_object->course_id, $school, \%ARGS);
+	if ($ARGS{action}) {
+		my ($rval, $msg) = $helper->delete($course_user_id);
+
+		my $course = HSDB45::Course->new(_school => $school)->lookup_key($course_id);
+		my $is_group_course = $course->type eq 'group';
+		if ($is_group_course && $rval == 1) {
+            my $tp = TUSK::Functions::set_eternity_timeperiod($course, $m->session);
+			($rval, $msg) = TUSK::Manage::Course::Students::delete($r, $m->session->{timeperiod}, $course_id, $school, \%ARGS);
 		}
-
-
 		if ($rval == 1) {
-		
-			$m->comp("/tmpl/url:redirect", destination=>"/management/course/users/show/".$school."/".$type_object->course_id, message => $msg, msg_type => 'msg');
+			$m->comp("/tmpl/url:redirect", destination=>"/management/course/users/show/".$school."/".$course_id, message => $msg, msg_type => 'msg');
 		}
 	}
-
-	my $data = TUSK::Manage::Course::Users::delete_pre_process($user);
 </%init>
 
+
 <%method title>
-% return __("Delete Faculty and Staff");
+% return "Delete Faculty and Staff";
 </%method>
 
 <%method red_header_text>
@@ -140,14 +132,3 @@
 <%method cms_min_course_role>
 % return 'DIRECTORNONSTUDENT';
 </%method>
-
-
-
-
-
-
-
-
-
-
-

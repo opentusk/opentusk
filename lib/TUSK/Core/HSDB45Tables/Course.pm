@@ -444,27 +444,31 @@ sub getLinkTeachingSiteObjects {
 
 }
 
-
-sub getWithUsers {
-    my ($self, $school, $cond,$orderby, $fields, $limit) = @_;
-
-    my $database = HSDB4::Constants::get_school_db($school);
-    $self->setDatabase($database);
-    
-    $orderby = ['user_id', 'firstname', 'lastname'] unless ($orderby);
-
-    return $self->lookup($cond, $orderby, $fields, $limit, [
-							    TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseUser", { 'origkey' => 'course_id', 'joinkey' => 'parent_course_id', database => $database}),
-							    TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", { 'joinkey' => 'user_id', 'origkey' => 'link_course_user.child_user_id', 'objtree' => ['TUSK::Core::HSDB45Tables::LinkCourseUser'], database => 'hsdb4'}),
-							    ]);
-
-}
-
-sub getLinkUserObjects {
-    my ($self) = @_;
-    return $self->getJoinObjects("TUSK::Core::HSDB45Tables::LinkCourseUser");
-
-}
+# Following two methods are removed. They are currently not used. They are no
+# longer valid because TUSK::Core::HSDB45Tables::LinkCourseUser is no longer
+# valid.
+#
+#sub getWithUsers {
+#    my ($self, $school, $cond,$orderby, $fields, $limit) = @_;
+#
+#    my $database = HSDB4::Constants::get_school_db($school);
+#    $self->setDatabase($database);
+#    
+#    $orderby = ['user_id', 'firstname', 'lastname'] unless ($orderby);
+#
+#    return $self->lookup($cond, $orderby, $fields, $limit, [
+#							    TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseUser", { 'origkey' => 'course_id', 'joinkey' => 'parent_course_id', database => $database}),
+#							    TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", { 'joinkey' => 'user_id', 'origkey' => 'link_course_user.child_user_id', 'objtree' => ['TUSK::Core::HSDB45Tables::LinkCourseUser'], database => 'hsdb4'}),
+#							    ]);
+#
+#}
+#
+#
+#sub getLinkUserObjects {
+#    my ($self) = @_;
+#    return $self->getJoinObjects("TUSK::Core::HSDB45Tables::LinkCourseUser");
+#
+#}
 
 
 =head1 BUGS
