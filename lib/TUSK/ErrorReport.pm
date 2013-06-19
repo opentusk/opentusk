@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and 
 # limitations under the License.
 
-
+# Should be TUSK::ErrorReport to match the file path and use
+# statements. Will require refactor of several files.
 package ErrorReport;
 
 use strict;

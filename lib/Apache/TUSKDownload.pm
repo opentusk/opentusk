@@ -43,7 +43,9 @@ my %ImageTypes =  (
 sub _handle_err {
     my ($r, $err) = @_;
     $r->log_error($err);
-    TUSK::ErrorReport::sendErrorReport($r, {
+    # Should be TUSK::ErrorReport to match the file path and use
+    # statement. Will require refactor of several files.
+    ErrorReport::sendErrorReport($r, {
         To => $TUSK::Constants::ErrorEmail,
         From => $TUSK::Constants::ErrorEmail,
         Msg => $err,
