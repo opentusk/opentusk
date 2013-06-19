@@ -24,6 +24,7 @@ use HSDB4::SQLRow::Content;
 use TUSK::XMLRenderer;
 use TUSK::ErrorReport;
 use Devel::Size;
+use Devel::StackTrace;
 
 my %noAttachmentExt = (
     'doc'  => 'application/msword',
@@ -42,13 +43,15 @@ my %ImageTypes =  (
 
 sub _handle_err {
     my ($r, $err) = @_;
-    $r->log_error($err);
+    my $trace = Devel::StackTrace->new()->as_string();
+    my $msg = "$err at $trace";
+    $r->log_error($msg);
     # Should be TUSK::ErrorReport to match the file path and use
     # statement. Will require refactor of several files.
     ErrorReport::sendErrorReport($r, {
         To => $TUSK::Constants::ErrorEmail,
         From => $TUSK::Constants::ErrorEmail,
-        Msg => $err,
+        Msg => $msg,
     });
 }
 
