@@ -66,7 +66,7 @@ this.imagePreview = function() {
 		this.t = this.title;
 		this.title = "";	
 		var c = (this.t != "") ? "<br/>" + this.t : "";
-		$("body").append("<p id='imgPreview'><img src='"+ this.src +"' alt='" + _("Image preview") + ' width='100px' height='100px' />"+ c +"</p>");								 
+		$("body").append("<p id='imgPreview'><img src='" + this.src + "' alt='Image preview' width='100px' height='100px' />" + c + "</p>");								 
 		$("#imgPreview")
 			.css("top",(e.pageY - xOffset) + "px")
 			.css("left",(e.pageX + yOffset) + "px")
