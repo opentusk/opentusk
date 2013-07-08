@@ -22,34 +22,33 @@ $(function() {
 function changeSelection() {
 	var cbox = $(this);
 	var tokens = cbox.val().split('__');
-	var choice = (cbox.attr('checked') == false) ? _("Are you sure you do NOT want to assess this student?") : _("Are you sure you want to assess this student?");
+	var choice = (cbox.is(':checked')) ?  _("Are you sure you want to assess this student?") : _("Are you sure you do NOT want to assess this student?");
 	var email_notification = ($('#email_notification').val())  ? _('An email will be sent to Director.') : '';
 	if (confirm( choice + "\n" + email_notification) == false) {
-		var val = (cbox.attr('checked') == false) ? true : false;
-		cbox.attr('checked', val);
+		cbox.prop("checked", (cbox.is(':checked')) ? false : true);
 		return;
 	}
 
-	var new_status = (cbox.attr('checked') == true) ? $("input[name=selected_by_assessor]").val() : $("input[name=deselected_by_assessor]").val();
+	var new_status = (cbox.is(':checked')) ? $("input[name=selected_by_assessor]").val() : $("input[name=deselected_by_assessor]").val();
 	var target_id = 'action__' + tokens[0] + '__' + tokens[1];
 
-    $.ajax({
+	$.ajax({
 		type		: 'POST',
-		url			: tokens[3],
+		url		: tokens[3],
 		dataType	: 'json',
 		data		: { 
-			'status' 		: new_status,
+			'status'	: new_status,
 			'assessor_id'	: tokens[0],
 			'student_id' 	: tokens[1],
-			'form_id'		: tokens[2]
+			'form_id'	: tokens[2]
 			
 		},
-        success		: function(response) {
-			if (cbox.attr('checked') == true) {
-				$('#' + target_id).show();
-			} else {
-				$('#' + target_id).hide();
-			}
+	        success		: function(response) {
+					if (cbox.is(':checked')) {
+						$('#' + target_id).show();
+					} else {
+						$('#' + target_id).hide();
+					}
 		},
 		error		: function(xhr, ajaxOptions, thrownError) {
             alert(_('Error: ') + thrownError);
