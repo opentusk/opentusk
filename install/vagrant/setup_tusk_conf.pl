@@ -33,6 +33,6 @@ $cm->{readpassword} = 'vagrant';
 $cm->{writeusername} = 'content_mgr';
 $cm->{writepassword} = 'vagrant';
 
-$json->{Path}->{MasonCacheRoot} = '/var/www/mason_cache';
+$json->{Path}->{MasonCacheRoot} = '/var/cache/mason';
 
 print JSON::PP->new()->pretty()->sort_by(1)->encode($json);

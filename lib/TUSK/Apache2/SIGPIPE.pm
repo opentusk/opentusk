@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 # Copyright 2012 Tufts University 
 #
 # Licensed under the Educational Community License, Version 1.0 (the "License"); 
@@ -13,26 +12,33 @@
 # See the License for the specific language governing permissions and 
 # limitations under the License.
 
-
+# This module captures mod_perl/mason sigpipe errors
+# See: Apache::SIG from Apache 1.x
+package TUSK::Apache2::SIGPIPE;
 
 use strict;
-use FindBin;
-use lib "$FindBin::Bin/../lib";
+use Apache2::RequestRec ();
+use Apache2::Const -compile => qw( OK DECLINED );
+use ModPerl::Util;
 
-use TUSK::ProcessTracker::ProcessTracker;
-use MySQL::Password;
 
-die "script can only accept one argument" if scalar @ARGV > 1;
-my $doc = shift @ARGV or die "need to pass one document";
 
-# isolate content id from filename
-die "argument not of valid format" unless ($doc =~ /^(\d+)\.docx?$/);
-my $cid = $1;
+sub handler {
+	my $r = shift;
+	$SIG{PIPE} = \&PIPE unless ($r->main);
+	return Apache2::Const::OK;
+}
 
-my $tracker = TUSK::ProcessTracker::ProcessTracker->getMostRecentTracker(undef, $cid, 'tuskdoc');
+sub PIPE { 
+	my($signal) = @_;
+	if( $signal eq 'PIPE' ) {
+		warn("Caught fixup signal ($signal) exiting child");
+	} else {
+		warn("Caught fixup signal ($signal)");
+	}
+	CORE::exit();
+}
 
-$tracker->setStatus('tuskdoc_processing');
+1;
 
-my ($uid, $pw) = get_user_pw();
-
-$tracker->save({user => $uid});
+__END__

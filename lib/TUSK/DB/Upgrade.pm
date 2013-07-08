@@ -46,7 +46,10 @@ sub apply_script {
     my $ext = $script_info->{ext};
     my $script_file = sql_file_path($script);
     confess "Can't find file $script_file\n" if (! -r $script_file);
-    print "Applying update $script to `$db` ... " if $verbose;
+    my @database_names
+        = $db eq 'hsdb45' ? school_db_list()
+        :                   ($TUSK::Constants::Databases{$db},);
+    print "Applying update $script ... " if $verbose;
     if ($ext eq 'pl') {
         my @sysargs;
         push @sysargs, 'perl';
@@ -58,9 +61,6 @@ sub apply_script {
             confess "Upgrade script $script failed: $?, $!\n";
     }
     else {
-        my @database_names
-            = $db eq 'hsdb45' ? school_db_list()
-            :                   ($TUSK::Constants::Databases{$db},);
         foreach my $dbname (@database_names) {
             eval {
                 $self->_call_mysql_with_file($script_file, $dbname);
@@ -72,11 +72,12 @@ sub apply_script {
         }
     }
     print "done.\n" if $verbose;
-    print "Updating `$db`.schema_change_log ... " if $verbose;
 
-    $dbh->do("use `$db` ;") or confess $dbh->errstr;
+    print "Updating schema_change_log ... " if $verbose;
+    foreach my $dbname (@database_names) {
+        $dbh->do("use `$dbname` ;") or confess $dbh->errstr;
 
-    my $sql = <<END_SQL;
+        my $sql = <<END_SQL;
 insert into
 schema_change_log (
   major_release_number,
@@ -88,14 +89,14 @@ schema_change_log (
 values (?, ?, ?, ?, now());
 END_SQL
 
-    $sth = $dbh->prepare($sql);
-    $sth->execute(
-        $script_info->{major},
-        $script_info->{minor},
-        $script_info->{point},
-        $script_info->{file},
-    ) or confess $sth->errstr;
-
+        $sth = $dbh->prepare($sql);
+        $sth->execute(
+            $script_info->{major},
+            $script_info->{minor},
+            $script_info->{point},
+            $script_info->{file},
+        ) or confess $sth->errstr;
+    }
     print "done.\n" if $verbose;
 }
 

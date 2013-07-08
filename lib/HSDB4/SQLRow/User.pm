@@ -761,21 +761,18 @@ sub check_school_permissions{
 	
 
 sub admin_courses {
-    #
-    # Get a list of courses this person has access to as an admin
-    #
+    # Get a list of courses this person has access to as an admin.
+    # Don't cache because it makes the user object too big to fit in
+    # hsdb4.sessions.a_session column in MySQL
     my $self = shift;
-	my ($school,$group_id,@courses);
-	foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
-	    if ($self->check_school_permissions($school)){
-		my $course = HSDB45::Course->new(_school => $school);
-		push(@courses,$course->lookup_conditions());
-	    }
-	}
-	$self->{-admin_courses} = \@courses;
-
-    return @{$self->{-admin_courses}};
-
+    my ($school, $group_id, @courses);
+    foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
+        if ($self->check_school_permissions($school)) {
+            my $course = HSDB45::Course->new( _school => $school );
+            push( @courses, $course->lookup_conditions() );
+        }
+    }
+    return @courses;
 }
 
 sub taken_quizzes{
@@ -1104,32 +1101,30 @@ sub get_grades {
 	};
 	if($@) {confess "$@";}
 
-
 	eval {
 		foreach my $schoolDatabase (@schoolDatabases) {
-
+			my $schoolObj = TUSK::Core::School->lookupReturnOne( "school_db = '" . $schoolDatabase . "'" );
 			my $sql = qq(
 						 select luge.grade, luge.comments, ge.course_id, ge.school_id, ge.event_name, ge.grade_event_id, ge.sort_order, s.school_id, s.school_name, s.school_db, c.title, tp.start_date, tp.end_date, tp.time_period_id
 						 from tusk.link_user_grade_event luge, tusk.grade_event ge, tusk.school s, $schoolDatabase.time_period tp, $schoolDatabase.course c
 						 where luge.child_grade_event_id=ge.grade_event_id
 						 and luge.parent_user_id=? 
-						 and s.school_id=ge.school_id
+						 and s.school_id=?
+						 and ge.school_id=?
 						 and c.course_id = ge.course_id
 						 and tp.time_period_id = ge.time_period_id
 						 and ge.publish_flag = 1
 						 order by tp.start_date desc, tp.end_date desc, c.title, ge.sort_order;
 			);
 			my $school_sth = $dbh->prepare($sql);
-			$school_sth->execute($user_id);
+			$school_sth->execute($user_id, $schoolObj->getPrimaryKeyID(), $schoolObj->getPrimaryKeyID());
 			while (my $grade_row = $school_sth->fetchrow_hashref) {
-				my $school_name = TUSK::Core::School->lookupReturnOne( "school_db = '" . $schoolDatabase . "'" )->getSchoolName();
 				my $eval_link   = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $grade_row->{grade_event_id} );
 				my $eval_id     = ($eval_link) ? $eval_link->getEvalID() : 0;
-				if ( $eval_id && !HSDB45::Eval->new( _school => $school_name )->lookup_key( $eval_id )->is_user_complete( $self ) ) {
-					$grade_row->{grade} = "<a href='/protected/eval/complete/" . $school_name . "/" . $eval_id . "'>Pending Eval Completion</a>";
+				if ( $eval_id && !HSDB45::Eval->new( _school => $schoolObj->getSchoolName() )->lookup_key( $eval_id )->is_user_complete( $self ) ) {
+					$grade_row->{grade} = "<a href='/protected/eval/complete/" . $schoolObj->getSchoolName() . "/" . $eval_id . "'>Pending Eval Completion</a>";
 				}
-				$grade_row->{school_name} = $school_name;
-
+				$grade_row->{school_name} = $schoolObj->getSchoolName();
 				push (@$grades, $grade_row);
 			}
             $school_sth->finish;
@@ -2215,7 +2210,9 @@ sub get_annoucments_with_user_groups {
                     } @systemwide_announcements;
     }
 
-    if ($self->affiliation && ($self->affiliation ne $TUSK::Constants::SystemWideUserGroupSchool)) {
+    if ($self->affiliation
+        && ($self->affiliation ne $TUSK::Constants::SystemWideUserGroupSchool)
+        && _member_of_schools($self->affiliation)) {
 		my $affiliation = $self->affiliation;
 		## get school user group id from constants file by affiliation; if affiliation is not a school, 
 		## then use the system-wide user group id
@@ -2351,12 +2348,17 @@ sub isGhost {
 	return(0);
 }
 
+sub _member_of_schools {
+    my $elt = shift;
+    return scalar(grep { $_ eq $elt } keys %TUSK::Constants::Schools) > 0;
+}
+
 sub get_list_cats{
 	my $self = shift;
 
 	my $affiliation = $self->affiliation();
 	my @categories;
-	if ($affiliation) {
+	if ($affiliation && _member_of_schools($affiliation)) {
 		my $cat = TUSK::HomepageCategory->new(_school => $affiliation);
 		@categories = $cat->lookup_conditions("order by sort_order");
 	}

@@ -5,7 +5,7 @@ use warnings;
 use utf8;
 
 use FindBin;
-use lib qq($FindBin::Bin/../lib);
+use lib qq($FindBin::Bin/../../lib);
 
 use Getopt::Long;
 use Readonly;
@@ -121,7 +121,7 @@ foreach my $db (keys %{ $scripts_for }) {
                 # ignore blank lines
                 next COMMENTS if $line eq q{};
                 # Perl comments start with #, SQL comments with --
-                my $comment_re = $script_info->{ext} eq 'pl' ? qr{\A \s* #}xms
+                my $comment_re = $script_info->{ext} eq 'pl' ? qr{\A \s* \#}xms
                     :                                          qr{\A \s* --}xms;
                 print "$line\n" if $line =~ $comment_re;
                 # Check if we're done with comments
