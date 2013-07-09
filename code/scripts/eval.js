@@ -40,7 +40,7 @@ function doQuickRefWindow(url) {
         'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
 }
 
-
+// TODO: This sort of browser fiddling would be better done with jQuery
 function satisfy(qid, type) {
   var imgname="flag_"+qid;
   var fieldname = "eval_q_"+qid;
@@ -63,6 +63,16 @@ function satisfy(qid, type) {
 	requiredSatisfied(qid);
         image.src = "/icons/transdot.gif";
       } 
+    }
+    else if (element.hasOwnProperty('value')) {
+      // check if element's value is non-empty
+      if (element.value.length == 0) {
+        image.src = "/icons/reddot.gif";
+      }
+      else {
+        requiredSatisfied(qid);
+        image.src = "/icons/transdot.gif";
+      }
     }
     else {
       // It's probably OK, and we can just mark it as such
