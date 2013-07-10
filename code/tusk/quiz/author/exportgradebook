@@ -54,19 +54,20 @@ if (ref($typeObj) eq "HSDB45::Course"){
 </%method>
 
 <%init>
-$quiz->setUser($m->session->{user}->user_id);
-my $export = $ARGS{'export'};
-my $no_grade_event = 0;
-my $course = $m->comp('/tmpl/url:get_type_object');
-my ($msg, $warnings, $grade_event);
-$grade_event = TUSK::GradeBook::GradeEvent->lookupKey($grade_event_id);
-my $commit = 1;
-if ($ARGS{'export_submit'}){
-    ($msg, $warnings) = $quiz->exportToGradeBook($grade_event,$commit);
-} elsif ($ARGS{'preview_submit'}){
-	$commit = 0;
-    ($msg, $warnings) = $quiz->exportToGradeBook($grade_event,$commit);
-}
+	$quiz->setUser($m->session->{user}->user_id);
+	my $export = $ARGS{'export'};
+	my $no_grade_event = 0;
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $msgs = [];
+	my $grade_event = TUSK::GradeBook::GradeEvent->lookupKey($grade_event_id);
+	my $commit = 1;
+
+	if ($ARGS{'export_submit'}) {
+		$msgs = $quiz->exportToGradeBook($grade_event,$commit);
+	} elsif ($ARGS{'preview_submit'}){
+		$commit = 0;
+		$msgs = $quiz->exportToGradeBook($grade_event,$commit);
+	}
 </%init>
 
 
@@ -97,25 +98,17 @@ if ($ARGS{'export_submit'}){
 
 % }
 
-<& show_msg, msg=>$msg, warnings=>$warnings &>
+<& show_msg, msgs =>$msgs &>
 </form>
 </table>
 
 <%def show_msg>
 <%args>
-$msg
-$warnings
+	$msgs
 </%args>
-<%perl>
-unless ($msg) {
-	return;
-}
-$m->print(join("\n",
-               map {'<tr><td></td><td class="sm warn">' .
-                        encode_entities($_) . '</td></tr>' } @{$warnings}));
-$m->print(join("\n",
-               map {'<tr><td></td><td class="sm">' .
-                        encode_entities($_) . '</td></tr>' } @{$msg}));
-</%perl>
+
+% if (scalar @$msgs) {
+%	$m->print(join("\n", map {'<tr><td></td><td class="sm">' . encode_entities($_) . '</td></tr>' } @{$msgs}));
+% }
 
 </%def>
