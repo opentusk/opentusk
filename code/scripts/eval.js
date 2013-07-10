@@ -64,7 +64,7 @@ function satisfy(qid, type) {
         image.src = "/icons/transdot.gif";
       } 
     }
-    else if (element.hasOwnProperty('value')) {
+    else if ('value' in element) {
       // check if element's value is non-empty
       if (element.value.length == 0) {
         image.src = "/icons/reddot.gif";
