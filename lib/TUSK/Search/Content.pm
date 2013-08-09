@@ -485,7 +485,7 @@ sub search {
         }
     }
 
-    foreach my $key (qw(title author course copyright)) {
+    foreach my $key (qw(title authors courses copyright)) {
         if ($query_ref->{$key}) {
             push @wheres, "match($key) against (? in boolean mode)";
             push @where_args, $query_ref->{$key};

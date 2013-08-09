@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+
 # Copyright 2012 Tufts University 
 #
 # Licensed under the Educational Community License, Version 1.0 (the "License"); 
@@ -13,9 +14,8 @@
 # See the License for the specific language governing permissions and 
 # limitations under the License.
 
-
-
-use Apache2::Const qw(REDIRECT);
+use Carp;
+use Apache2::Const qw(:http :common);
 use HSDB4::SQLRow::Content;
 use TUSK::Constants;
 
@@ -54,7 +54,7 @@ $domain = "http://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}" ;
 $path=~s/\/(\w*)\/?$/\//;
 $format = $1;
 
-&html_error("Invalid Call") unless ($format);
+&html_error("Invalid Call", HTTP_BAD_REQUEST) unless ($format);
 
 $format = "full" unless ($pdf_formats{$format});
 
@@ -62,18 +62,20 @@ $format = "full" unless ($pdf_formats{$format});
 $doc = HSDB4::SQLRow::Content->new()->lookup_path ($path);
 
 # check to see if a collection was returned
-&html_error("Invalid Document") unless ($doc);
+&html_error("Invalid Document", HTTP_UNPROCESSABLE_ENTITY) unless ($doc);
 
 # check to make sure this is a collection
-&html_error("Invalid Document") unless ($doc->field_value("type") eq "Document");
+&html_error("Invalid Document", HTTP_UNPROCESSABLE_ENTITY)
+    unless ($doc->field_value("type") eq "Document");
 
 # check to make sure this user can access the content
-&html_error("Access denied") unless $doc->is_user_authorized($user_id);
+&html_error("Access denied", HTTP_UNAUTHORIZED)
+    unless $doc->is_user_authorized($user_id);
 
 # get the xml content from the database
 $xml = &generate_xml;
 
-&html_error("Document has no data") unless ($xml);
+&html_error("Document has no data", HTTP_NO_CONTENT) unless ($xml);
 
 
 # get the content id
@@ -82,7 +84,7 @@ $id = $doc->field_value("content_id");
 ($id) = $id  =~ m/(.*)/; # one way to untaint a var
 
 # check to make sure there is a returned id
-&html_error("Invalid Document") unless ($id);
+&html_error("Invalid Document", HTTP_NOT_FOUND) unless ($id);
 
 undef $/;
 
@@ -96,7 +98,8 @@ $update_xml = 1;
 if (-e "$xml_path/$id.xml"){
 	
 	# get the xml content and compare from the database
-	open(XML_OLD,"$xml_path/$id.xml") or &html_error("Error accessing XML file");
+	open(XML_OLD,"$xml_path/$id.xml")
+            or &html_error("Error accessing XML file", HTTP_NOT_FOUND);
 	$xml_old=<XML_OLD>;
 	close(XML_OLD);
 
@@ -109,7 +112,8 @@ if (-e "$xml_path/$id.xml"){
 
 # if update_xml = 1 then update the xml that is used with fop
 if ($update_xml){
-	open(XML,">$xml_path/$id.xml") or &html_error("Error accessing XML file");
+	open(XML,">$xml_path/$id.xml")
+            or &html_error("Error accessing XML file", HTTP_NOT_FOUND);
 	print XML $xml;
 	close(XML);
 	chmod(0664,"$xml_path/$id.xml");
@@ -128,7 +132,8 @@ if ($generate_pdf){
 
 $r->content_type ('application/pdf'); 
 
-open(PDF,"$pdf_path/$format-$id.pdf") or &html_error("Error accessing PDF file: $!");
+open(PDF,"$pdf_path/$format-$id.pdf")
+    or &html_error("Error accessing PDF file: $!", HTTP_NOT_FOUND);
 print <PDF>;
 close(PDF);
 
@@ -164,7 +169,7 @@ sub generate_xml{
 }
 
 # this function removes all pdf files for an id (we need this when the collection's contents has changed
-sub remove_pdfs{
+sub remove_pdfs {
 	my $id = shift;
 	foreach $key (keys %pdf_formats){
 		unlink "$pdf_path/$key-$id.pdf" if (-e "$pdf_path/$key-$id.pdf");
@@ -172,8 +177,9 @@ sub remove_pdfs{
 }
 
 # html error sub...maybe should make a little better template for this in the future :p
-sub html_error{
-	my $html_error = shift;
+sub html_error {
+	my ($html_error, $status) = @_;
+        $r->status($status);
 	print "<h1>" . $html_error . "</h1>";
-	exit;
+        confess "$status: $html_error";
 }
