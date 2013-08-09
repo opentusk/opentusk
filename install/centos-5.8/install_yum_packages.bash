@@ -17,15 +17,15 @@ myversion=$(_os_major_version)
 
 function _yum_install {
     # --assumeyes not available in CentOS 5.x
-    yum install --quiet -y "$1" &>/dev/null
+    yum install --quiet -y "$1"
 }
 
 function _yum_install_nocheck {
-    yum install --nogpgcheck --quiet -y "$1" &>/dev/null
+    yum install --nogpgcheck --quiet -y "$1"
 }
 
 function _yum_install_rpmforge {
-    yum install --quiet -y --enablerepo=rpmforge "$1" &>/dev/null
+    yum install --quiet -y --enablerepo=rpmforge "$1"
 }
 
 # Install repos
@@ -75,6 +75,8 @@ _yum_install ncftp
 _yum_install xorg-x11-xauth
 _yum_install wget
 _yum_install python-demjson
+_yum_install gd
+_yum_install gd-devel
 
 # Install Perl modules
 
@@ -91,6 +93,7 @@ _yum_install 'perl(DBD::mysql)'
 _yum_install 'perl(Email::Date::Format)'
 _yum_install 'perl(GD)'
 _yum_install 'perl(GD::Text)'
+_yum_install 'perl(GD::Graph)'
 _yum_install 'perl(IO::Stringy)'
 _yum_install 'perl(Image::ExifTool)'
 _yum_install 'perl(Image::Size)'
@@ -114,6 +117,7 @@ _yum_install 'perl(Test::Deep)'
 _yum_install 'perl(Linux::Pid)'
 _yum_install 'perl(XML::SAX::Writer)'
 _yum_install 'perl(YAML)'
+_yum_install 'perl(Statistics::Descriptive)'
 _yum_install_nocheck 'perl(HTML::Defang)'
 _yum_install_nocheck 'perl(HTML::Mason)'
 _yum_install_nocheck 'perl(MasonX::Request::WithApacheSession)'

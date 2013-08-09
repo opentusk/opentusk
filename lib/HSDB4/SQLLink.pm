@@ -99,6 +99,9 @@ sub child_select {
     # Get the name of the child class, for convenience
     my $child_class = $self->child_class ();
 
+    # For $dbh->quote function
+    my $dbh = HSDB4::Constants::def_db_handle();
+
     # Define some SQLTables:
     # ...the child table
     my $c_tab = HSDB4::SQLTable->new (-table => $child_class->table($self->school),
@@ -111,14 +114,15 @@ sub child_select {
 				      -fields => $self->link_fields);
     # Define the conditions, to restrict the links to those relevant to the
     # parent, and to link to the actual child object
-    my $cond_temp = 
-      HSDB4::SQLCondition->new ('AND',
-				sprintf ("link.%s='%s'", 
-					 $self->parent_id_field,
-					 $parent_id),
-				sprintf ("link.%s=child.%s", 
-					 $self->child_id_field,
-					 $child_class->primary_key_field($self->school())));
+    my $cond_temp = HSDB4::SQLCondition->new(
+            'AND',
+            sprintf("link.%s = %s",
+                    $self->parent_id_field,
+                    $dbh->quote($parent_id), ),
+            sprintf("link.%s = child.%s",
+                    $self->child_id_field,
+                    $child_class->primary_key_field($self->school()), ),
+        );
     # If there are more arguments, assume that they are intended to be added
     # conditions on the arrangement, so add them in
 

@@ -144,16 +144,28 @@ sub is_school_eval_admin {
     else {return(0);}
 }
 
-sub get_schools{
-    my ($hash, $user) = @_;
-    return grep { $hash->{roles}->{tusk_session_admin}->{$_} }(keys %{$hash->{roles}->{tusk_session_admin}}) 
-	if (defined($hash->{roles}->{tusk_session_admin}));
+# Get sorted list of schools for which current session user has admin
+sub get_schools {
+    my ($session_hashref,) = @_;
+
+    # tusk_session_admin is set in HSDB4::SQLRow::User
+    return if ! defined $session_hashref->{roles}{tusk_session_admin};
+
+    my $school_hashref = $session_hashref->{roles}{tusk_session_admin};
+    my @admin_schools = sort(grep { $school_hashref->{$_} == 1 } keys %{ $school_hashref });
+    return @admin_schools;
 }
 
-sub get_eval_schools{
-    my ($hash, $user) = @_;
-    return grep { $hash->{roles}->{tusk_session_eval_admin}->{$_} == 1 }(keys %{$hash->{roles}->{tusk_session_eval_admin}}) 
-	if (defined($hash->{roles}->{tusk_session_eval_admin}));
+# Get sorted list of schools for which current session user has eval admin
+sub get_eval_schools {
+    my ($session_hashref,) = @_;
+
+    # tusk_session_eval_admin is set in HSDB4::SQLRow::User
+    return if ! defined $session_hashref->{roles}{tusk_session_eval_admin};
+
+    my $school_hashref = $session_hashref->{roles}{tusk_session_eval_admin};
+    my @eval_schools = sort(grep { $school_hashref->{$_} == 1 } keys %{ $school_hashref });
+    return @eval_schools;
 }
 
 sub check_content_key{
