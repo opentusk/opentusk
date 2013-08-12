@@ -109,7 +109,7 @@ sub starts_in_future {
 
 
 sub systemwide_announcements {
-    return schoolwide_announcements($TUSK::Constants::SystemWideUserGroupSchool);
+    return schoolwide_announcements($TUSK::Constants::Default{School});
 }
 
 sub schoolwide_announcements {
