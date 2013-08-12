@@ -92,7 +92,7 @@ my $upgrade_obj = TUSK::DB::Upgrade->new({
 my $scripts_for = $upgrade_obj->upgrade_scripts_to_run();
 
 print "Available upgrades to run:\n" if $verbose;
-foreach my $db (keys %{ $scripts_for }) {
+foreach my $db (sort(keys %{ $scripts_for })) {
     my @scripts = @{ $scripts_for->{$db} };
     print "$db: " if $verbose;
     if (scalar @scripts) {
@@ -104,7 +104,7 @@ foreach my $db (keys %{ $scripts_for }) {
     print "\n" if $verbose;
 }
 DATABASE:
-foreach my $db (keys %{ $scripts_for }) {
+foreach my $db (sort(keys %{ $scripts_for })) {
     my @scripts = @{ $scripts_for->{$db} };
   SCRIPT:
     foreach my $update_script (@scripts) {
