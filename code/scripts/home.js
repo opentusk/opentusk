@@ -21,7 +21,7 @@ function closeNotifications() {
 	$('.notifications').hide();
 	$('#gContent').removeClass('withnote');
 	// AJAX call to hide user's current announcements
-	var url = '/tusk/ajax/hideCurrentAnnouncements';
+	var url = '/user/ajax/hideCurrentAnnouncements';
 	var xRequest = new initXMLHTTPRequest();
 	if (xRequest) {
 		xRequest.open("POST", url, true);
@@ -152,7 +152,7 @@ function savePersonalLinks() {
 	updateLinksArray();
 	var ajax = new initXMLHTTPRequest();
 	if (ajax) {
-		ajax.open("POST", '/tusk/ajax/savePersonalLinks', true);
+		ajax.open("POST", '/user/ajax/savePersonalLinks', true);
 		ajax.onreadystatechange = resetAllLinkData;
 		ajax.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 		ajax.send("data=" + encodeURIComponent(JSON.stringify(links)));

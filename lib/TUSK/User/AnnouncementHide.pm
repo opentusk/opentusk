@@ -15,11 +15,11 @@
 
 ##### NOTE ######
 # At some point in the future, when User.pm is no longer using HSDB4::SQLRow,
-# UserAnnouncementHide should become a data access object for the User model
+# User::AnnouncementHide should become a data access object for the User model
 #################
 
 
-package TUSK::UserAnnouncementHide;
+package TUSK::User::AnnouncementHide;
 
 use strict;
 
@@ -62,7 +62,7 @@ sub new {
 					'hide_on' => '',
 				    },
 				    _attributes => {
-					save_history => 0,
+					save_history => 1,
 					tracking_fields => 0,	
 				    },
 				    _levels => {
@@ -167,7 +167,7 @@ sub get_nonhidden_announcements_by_school {
 # chose to hide them, in a DateTime object; organized by school
 sub get_hidden_announcements_by_school {
     my ($user_id) = @_;
-	my $announcements = TUSK::UserAnnouncementHide->new()->lookup("user_id = '$user_id'");
+	my $announcements = TUSK::User::AnnouncementHide->new()->lookup("user_id = '$user_id'");
 	my %hidden;
 
 	foreach my $annHide (@$announcements) {

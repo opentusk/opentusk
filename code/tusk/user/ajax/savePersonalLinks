@@ -25,7 +25,7 @@ to the DB and then returns JSON of the updated data.
 
 <%once>
 	use TUSK::Application::HTML::Strip;
-	use TUSK::UserLink;
+	use TUSK::User::Link;
 	use JSON -convert_blessed_universally;
 </%once>
 
@@ -40,14 +40,14 @@ to the DB and then returns JSON of the updated data.
 		## if this is an existing link, retrieve from DB; otherwise, create a new one
 		## if user_ids don't match, something is wrong, so create a new one
 		if ($link->{id}) {
-			$linkObj = TUSK::UserLink->lookupKey($link->{id});			
+			$linkObj = TUSK::User::Link->lookupKey($link->{id});			
 			if ($linkObj->getUserID() ne $user->primary_key()) {
-				$linkObj = TUSK::UserLink->new();
+				$linkObj = TUSK::User::Link->new();
 				$linkObj->setUserID($user->primary_key());
 			}
 		}
 		else {
-			$linkObj = TUSK::UserLink->new();
+			$linkObj = TUSK::User::Link->new();
 			$linkObj->setUserID($user->primary_key());
 		}
 
@@ -67,7 +67,7 @@ to the DB and then returns JSON of the updated data.
 	}
 	
 	## get updated links data and send back out as JSON
-	my $links = TUSK::UserLink::getAllLinks($user->primary_key());
+	my $links = TUSK::User::Link::getAllLinks($user->primary_key());
 	$m->clear_buffer();
 	$r->content_type('application/json');
 	$r->no_cache(1);

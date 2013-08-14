@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-package TUSK::UserLink;
+package TUSK::User::Link;
 
 use strict;
 
@@ -54,7 +54,7 @@ sub new {
 					'sort_order' => '',
 				    },
 				    _attributes => {
-					save_history => 0,
+					save_history => 1,
 					tracking_fields => 1,	
 				    },
 				    _default_order_bys => ['sort_order'],
@@ -141,7 +141,7 @@ sub getAllLinks {
 
 	my $links = [];
 	if($user_id){
-		$links = TUSK::UserLink->new()->lookup('user_id="' . $user_id . '"', ['sort_order ASC']);
+		$links = TUSK::User::Link->new()->lookup('user_id="' . $user_id . '"', ['sort_order ASC']);
 	}
 
 	return $links;

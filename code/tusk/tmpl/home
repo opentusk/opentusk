@@ -13,13 +13,14 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use TUSK::SchoolLink::SchoolLink;
 	use HSDB45::Announcement;
 	use TUSK::Application::HTML::Strip;
 	use TUSK::Constants;
-	use TUSK::UserAnnouncementHide;
-	use TUSK::UserLink;
+	use TUSK::User::AnnouncementHide;
+	use TUSK::User::Link;
 </%once>
 
 <%doc>
@@ -49,7 +50,7 @@ method to print the tab(s) of user data for the home page
 % my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $school (@$schools) {
 %	my $calendar_tab;
-%	if (($today->{$school} && scalar @{$today->{$school}}) || scalar @{$upcoming->{$school}}) {
+%	if (($today->{$school} && scalar @{$today->{$school}}) || (($upcoming->{$school} && scalar @{$upcoming->{$school}}))) {
 %		$calendar_tab = 1;
 %	}
 % 	my @tabs;
@@ -154,7 +155,7 @@ method to print the tab(s) of user data for the home page
 					<div class="tabcontainer">
 						<section class="tab">
 							<h2>Personal</h2>
-							<& /tmpl/home:print_user_links, links => TUSK::UserLink::getAllLinks($user->primary_key()) &>
+							<& /tmpl/home:print_user_links, links => TUSK::User::Link::getAllLinks($user->primary_key()) &>
 							<h2>School</h2>
 							<div class="scrollcontainer">
 								<& /tmpl/home:print_school_links, school =>  TUSK::Core::School->new->lookupReturnOne("school_name = '$school'") &>
@@ -187,7 +188,7 @@ method to print the tab(s) of user data for the home page
 			</div>
 		</div>
 		<div class="bottom">
-			<a href="/allcourses.htm" class="courses"><% __('all') %> &raquo;</a>
+			<a href="/view/courses" class="courses"><% __('all') %> &raquo;</a>
 %	if ($calendar_tab && $schedule_ugs->{$school}) {
 			<a href="/view/schedule/<% $school %>/<% $schedule_ugs->{$school}->[0]->{id} %>" class="calendar"><% __('all') %> &raquo;</a>
 %	}
@@ -196,7 +197,6 @@ method to print the tab(s) of user data for the home page
 %	$counter++;
 % }
 </%method>
-
 
 <%method print_user_links>
 <%args>
@@ -259,7 +259,7 @@ $school
 	$user
 </%args>
 <%perl>
-	my $all_announcements = TUSK::UserAnnouncementHide::get_nonhidden_announcements_by_school($user->primary_key());
+	my $all_announcements = TUSK::User::AnnouncementHide::get_nonhidden_announcements_by_school($user->primary_key());
 </%perl>
 % if (scalar keys %$all_announcements) {
 <section class="notifications">
