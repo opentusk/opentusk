@@ -29,81 +29,69 @@
 </%once>
 
 <%shared>
-my $user = $m->session->{'user'};
-my $user_id = $user->primary_key();
-my $affiliation = $user->affiliation();
-
-my %course_hash;
-my @courses = $user->parent_courses();
+	my $user = $m->session->{'user'};
+	my $user_id = $user->primary_key();
+	my %course_hash;
+	my @courses = $user->parent_courses();
 </%shared>
 
 <%perl>
-foreach my $course (@courses){
-	if ($course->type() eq 'group'){
-		push (@{$course_hash{$course->school()}{"user_groups"}}, $course);
+	foreach my $course (@courses){
+		if ($course->type() eq 'group'){
+			push (@{$course_hash{$course->school()}{"user_groups"}}, $course);
+		} elsif ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
+			push (@{$course_hash{$course->school()}{"user_committees"}}, $course);
+		} elsif ($course->type() eq 'community service' or $course->type() eq 'course' or $course->type() eq 'integrated course') {
+			push (@{$course_hash{$course->school()}{"admin_courses"}}, $course);
+		}  
 	}
-	elsif ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
-		push (@{$course_hash{$course->school()}{"user_committees"}}, $course);
+
+	my @current_courses = $user->current_courses();
+	my @user_stud_courses = $user->user_stud_courses(@current_courses);
+	foreach my $course (@user_stud_courses) {
+		push (@{$course_hash{$course->school()}{"stud_courses"}}, $course);
 	}
-	elsif ($course->type() eq 'community service' or $course->type() eq 'course' or $course->type() eq 'integrated course') {
-		push (@{$course_hash{$course->school()}{"admin_courses"}}, $course);
-	}  
-}
 
-my @current_courses = $user->current_courses();
-my @user_stud_courses = $user->user_stud_courses(@current_courses);
-foreach my $course (@user_stud_courses) {
-	push (@{$course_hash{$course->school()}{"stud_courses"}}, $course);
-}
+	my $upcoming = {};
+	my @schools = ();
+	my $counter = 0;
+	my $affiliation = $user->affiliation_or_default_school();
 
-my $upcoming = {};
-my @schools;
-my $counter = 0;
+	if (scalar keys %course_hash) {
+ 		foreach my $school (keys %course_hash) {
+			my $temp_arrayref = $user->get_important_upcoming_dates_by_school($school);
+			$upcoming->{$school} = [];
+			foreach my $event (@$temp_arrayref) {
+				if ($event->{type} eq "schedule") {
+					$event->{link} = "/view/course/$school/" . $event->{course_id} . "/schedule/" . $event->{id};
+				} elsif ($event->{type} eq "quiz") {
+					$event->{link} = "/quiz/quizstart/course/$school/" . $event->{course_id} . "/" . $event->{id};
+				} elsif ($event->{type} eq "case") {
+					$event->{link} = "/case/casestart/" . TUSK::Core::School->new->getSchoolID($school) . "/" . $event->{course_id} . "/" . $event->{id};
+				} elsif ($event->{type} eq "eval") {
+					$event->{link} = "/eval/complete/$school/" . $event->{id};
+				} elsif ($event->{type} eq "assignment") {
+					$event->{link} = "/assignment/student/complete/course/$school/" . $event->{course_id} . "/" . $event->{id};
+				} 
+				push @{$upcoming->{$school}}, $event;
+			}
+			$counter++;
+	 	}
 
-if (scalar keys %course_hash) {
- 	foreach my $school (keys %course_hash) {
-		my $temp_arrayref = $user->get_important_upcoming_dates_by_school($school);
-		$upcoming->{$school} = [];
-		foreach my $event (@$temp_arrayref) {
-			if ($event->{type} eq "schedule") {
-				$event->{link} = "/view/course/$school/" . $event->{course_id} . "/schedule/" . $event->{id};
-			}
-			elsif ($event->{type} eq "quiz") {
-				$event->{link} = "/quiz/quizstart/course/$school/" . $event->{course_id} . "/" . $event->{id};
-			}
-			elsif ($event->{type} eq "case") {
-				$event->{link} = "/case/casestart/" . TUSK::Core::School->new->getSchoolID($school) . "/" . $event->{course_id} . "/" . $event->{id};
-			}
-			elsif ($event->{type} eq "eval") {
-				$event->{link} = "/eval/complete/$school/" . $event->{id};
-			}
-			elsif ($event->{type} eq "assignment") {
-				$event->{link} = "/assignment/student/complete/course/$school/" . $event->{course_id} . "/" . $event->{id};
-			}
-			push @{$upcoming->{$school}}, $event;
+		## if user has an affiliation in the school list, make that the first so it's the active tab on the home page
+		if ( grep { $_ eq $affiliation } keys %course_hash ) {
+			push @schools, $affiliation;
+			push @schools, grep { $_ ne $affiliation } keys %course_hash;
+		} else {
+			@schools = ((keys %course_hash), $affiliation);
 		}
-		$counter++;
- 	}
-	## if user has an affiliation in the school list, make that the first so it's the active tab on the home page
-	if ( grep { $_ eq $user->affiliation() } keys %course_hash ) {
-		@schools = ($user->affiliation());
-		foreach my $school (keys %course_hash) {
-			if ($school ne $user->affiliation()) {
-				push @schools, $school;
-			}
-		}
+	} else {
+		push @schools, $affiliation;
+		$upcoming->{$affiliation} = $user->get_important_upcoming_dates_by_school($affiliation);
 	}
-	else {
-		@schools = keys %course_hash;
-	}
-}
-else {
-	@schools = ($user->affiliation());
-	$upcoming->{$user->affiliation()} = $user->get_important_upcoming_dates_by_school($user->affiliation());
-}
 
-$m->comp("/tmpl/home:school_announcements", user => $user);
-$m->comp("/tmpl/home:main_user_tabs", user => $user, course_hash => \%course_hash, upcoming => $upcoming, today => $user->todays_sorted_meetings_by_school(), schools => \@schools, schedule_ugs => $user->has_schedule());
+	$m->comp("/tmpl/home:school_announcements", user => $user);
+	$m->comp("/tmpl/home:main_user_tabs", user => $user, course_hash => \%course_hash, upcoming => $upcoming, today => $user->todays_sorted_meetings_by_school(), schools => \@schools, schedule_ugs => $user->has_schedule());
 </%perl>
 
 <%method title>
