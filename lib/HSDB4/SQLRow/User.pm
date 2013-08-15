@@ -169,6 +169,16 @@ sub affiliation {
     return $self->field_value('affiliation');
 }
 
+sub affiliation_or_default_school {
+    my $self = shift;
+
+    unless ($self->{-affiliation_or_default_school}) {
+	$self->{-affiliation_or_default_school} = (exists $TUSK::Constants::Schools{$self->field_value('affiliation')}) ? $self->field_value('affiliation') : $TUSK::Constants::Default{School};
+    }
+
+    return $self->{-affiliation_or_default_school};
+}
+
 sub set_preferred_email {
     my $self = shift();
     my $new_preferred_email = shift;
@@ -470,7 +480,7 @@ sub has_schedule {
 			push (@ids, ($start, $end, $user->primary_key()));
 		}
 	}	
-    my $sth = $dbh->prepare(join (' union ', @selects) . " ORDER BY num DESC");
+    $sth = $dbh->prepare(join (' union ', @selects) . " ORDER BY num DESC");
     $sth->execute(@ids);
 	while (my ($school, $ug_id, $ug_label, undef) = $sth->fetchrow_array) {
 		push @{$ug_hash{$school}}, {id => $ug_id, label => $ug_label};
@@ -2482,47 +2492,28 @@ sub get_instructor_assessments {
     return $assessments;
 }
 
-
-sub get_annoucments_with_user_groups {
-
+### include school, course and course group announcements for the affiliation
+sub get_all_announcements {
     my $self = shift;
     my @announcements = ();
-    my @systemwide_announcements = ();
 
-    if ( @systemwide_announcements = HSDB45::Announcement::systemwide_announcements()) {
-		@announcements = map { 
-		       { item   => $_,
-		         type   => 'user_group',
-		         school => $self->affiliation,
-		         id     => $TUSK::Constants::SystemWideUserGroup }
-                    } @systemwide_announcements;
-    }
-
-    if ($self->affiliation && ($self->affiliation ne $TUSK::Constants::SystemWideUserGroupSchool)) {
-		my $affiliation = $self->affiliation;
-		## get school user group id from constants file by affiliation; if affiliation is not a school, 
-		## then use the system-wide user group id
-		my $user_group = ($TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup}) ? $TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup} : $TUSK::Constants::SystemWideUserGroup;
-		push(@announcements, map {
+    if (my $affiliation = $self->affiliation_or_default_school()) {
+	push @announcements, map {
                           { item   => $_, 
 			    type   => 'user_group',
-			    school => $self->affiliation, 
+			    school => $affiliation, 
 			    id     => $TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup} }
-		      } HSDB45::Announcement::schoolwide_announcements($self->affiliation));
+		      } HSDB45::Announcement::schoolwide_announcements($affiliation);
     }
-    my @parent_user_groups = $self->parent_user_groups();
-	my ($announce_ref) = $self->get_course_announcements(\@announcements, \@parent_user_groups);
 
-    return ($announce_ref, \@parent_user_groups);
+    return [ @announcements, @{$self->get_course_announcements()} ];
 }
 
 sub get_course_announcements {
-    my ($self, $announcements, $user_groups) = @_;
+    my $self = shift;
+    my $announcements = ();
 
-    ### add announcments for courses in enrollments and user groups
-    my @courses = $self->current_courses(); # enrollment
-
-    foreach my $ug (@$user_groups) {
+    foreach my $ug ($self->parent_user_groups()) {   ### course group announcements
 	push(@$announcements,  map { 
                             {  item   => $_, 
 			       type   => 'user_group', 
@@ -2533,24 +2524,24 @@ sub get_course_announcements {
     }
 
     my $seen_courses = {};
-	foreach my $course (@courses) {
-		next if ($seen_courses->{ $course->primary_key() });
-		$seen_courses->{ $course->primary_key() } = 1;
+    foreach my $course ($self->current_courses()) {   ###  course announcements
+	next if ($seen_courses->{ $course->primary_key() });
+	$seen_courses->{$course->primary_key()} = 1;
 
-		my @course_announcements = $course->announcements();
-		foreach my $course_announcement (@course_announcements) {
-			push @$announcements, { item   => $course_announcement, 
-								   type   => 'course',
-								   course =>  $course };
-		}
+	my @course_announcements = $course->announcements();
+	foreach my $course_announcement (@course_announcements) {
+		push @$announcements, { item   => $course_announcement, 
+					type   => 'course',
+					course =>  $course };
+	}
     }
-    
-    return ($announcements);
+
+    return $announcements;
 }
 
 sub count_new_announcements{
 	my $self = shift;
-	my ($anns, $dd) = $self->get_annoucments_with_user_groups();
+	my $anns = $self->get_all_announcements();
 	my $base_date = HSDB4::DateTime->new();
 	$base_date->subtract_days(5);
 	my $new_cnt = 0;
@@ -2568,7 +2559,7 @@ sub count_new_announcements{
 sub get_announcements_by_start{
 	my $self = shift;
 
-	my ($anns) = $self->get_annoucments_with_user_groups();
+	my $anns = $self->get_all_announcements();
 
 	my @sorted = sort { $b->{item}->field_value('start_date') cmp $a->{item}->field_value('start_date') } @$anns;
     return \@sorted;
@@ -2578,7 +2569,7 @@ sub get_announcements_by_start{
 sub get_announcements_by_group_and_course{
 	my $self = shift;
 
-	my ($anns) = $self->get_annoucments_with_user_groups();
+	my $anns = $self->get_all_announcements();
 
 	my @ug_anns;
 	while(scalar @$anns){
@@ -2658,9 +2649,9 @@ sub isGhost {
 sub get_list_cats{
 	my $self = shift;
 
-	my $affiliation = $self->affiliation();
+	my $affiliation = (exists $TUSK::Constants::Schools{$self->affiliation()}) ? $self->affiliation() : $TUSK::Constants::Default{School} ;
 	my @categories;
-	if ($affiliation) {
+	if ($affiliation && defined ) {
 		my $cat = TUSK::HomepageCategory->new(_school => $affiliation);
 		@categories = $cat->lookup_conditions("order by sort_order");
 	}
