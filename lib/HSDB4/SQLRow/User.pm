@@ -2506,7 +2506,11 @@ sub get_all_announcements {
 		      } HSDB45::Announcement::schoolwide_announcements($affiliation);
     }
 
-    return [ @announcements, @{$self->get_course_announcements()} ];
+    if (my $course_announcements = $self->get_course_announcements()) {
+	push @announcements, @$course_announcements;
+    }
+
+    return \@announcements;
 }
 
 sub get_course_announcements {
