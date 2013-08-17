@@ -1,0 +1,125 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Constants;
+</%once>
+
+
+<%shared>
+	my $lnk_prefix = '/mobi/view/course';
+</%shared>
+
+
+<%method print_courses>
+<%args>
+	$enum_cat          => undef
+	@user_stud_courses => ()
+</%args>
+
+% if (defined $enum_cat or scalar @user_stud_courses) {
+<!-- enrolled courses -->
+
+%	if (scalar @user_stud_courses) {
+<h4 class="homepageHdr">Enrolled Courses</h4>
+<ul class="gNoBullets courseList">
+%		foreach my $user_course (@user_stud_courses){
+%			my $url = $user_course->out_url_mobi();
+<li><a href="<% $url %>"><% $user_course->out_label %></a> (<% $user_course->school %>)</li>
+%		}
+</ul>
+%	}
+
+<!-- usergroup courses -->
+%	if (defined $enum_cat) {
+%		my $school = $enum_cat->school;
+
+%		if ($enum_cat->get_label) {
+<h4 class="inlineHdr"><% $enum_cat->get_label %></h4> 
+%		}
+<ul class="gNoBullets courseList">
+%		my ($course_id, $courseURL, $lastLabel, $lastLabelIndent);
+%		$lastLabel = '';
+%		$lastLabelIndent = 0;
+%		foreach my $hp_course ($enum_cat->get_homepage_courses){
+%			$course_id = $hp_course->get_course_id();
+%			$courseURL = '';
+% # If we have a valid course_id then see if we are related to a current group
+% # If we do not have a valid course_id then we are a label, save us incase we have a course under us that is valid
+%			if ($course_id) {
+%				$courseURL = "$lnk_prefix/$school/$course_id";
+%			} elsif ($hp_course->get_url) {
+%				$courseURL = $hp_course->get_url;
+%			} else {
+%				my $indent = $hp_course->get_indent() * 10;
+%				$lastLabel = "<h4 class=\"inlineHdr\" style=\"margin-left:${indent}px\">" . $hp_course->get_label . "</h4>";
+%				$lastLabelIndent = $hp_course->get_indent;
+%			}
+
+%			if ($courseURL && $hp_course->isCurrent()) {
+%				# Here we are going to print a label and clear the var if there was a label set
+%				if ($lastLabel){
+%					$m->print("<li>$lastLabel</li>");
+%					$lastLabel = '';
+%					$lastLabelIndent = 0;
+%				} elsif ($lastLabelIndent >= $hp_course->get_indent) {
+% 					# At this point we came across a label and we have moved back out the previous 
+%					# indentation without needing to print the label so reset it
+%					$lastLabelIndent = 0;
+%				}
+%				my $indent = $hp_course->get_indent() * 10;
+<li><a style="margin-left:<% $indent %>px" href="<% $courseURL %>"><% $hp_course->get_label %></a></li>
+%			}
+%		}
+</ul>
+
+% 	}
+% } else {
+<em>You are not associated as a student with any courses in <% $TUSK::Constants::SiteAbbr %>. If you feel this is an error, please contact the <% $TUSK::Constants::SiteAbbr %> administrator for your school.</em>
+% }
+</%method>
+
+
+<%method print_admin_courses>
+<%args>
+	@user_committees    => ()
+	@user_auth_courses  => ()
+</%args>
+
+% if (@user_auth_courses || @user_committees){
+<!-- section with speficically linked courses as an author (link_course_user) -->
+<h4 class="homepageHdr">Course Admin</h4>
+<ul class="gNoBullets courseList">
+%	foreach my $user_course (@user_auth_courses){
+<li><a href="<% $lnk_prefix %>/<% $user_course->school ."/". $user_course->primary_key %>"><% $user_course->out_label %></a> (<% $user_course->school %>)</li>
+%	}
+%	if (!@user_auth_courses){
+<li><em>no courses</em></li>
+%	}
+</ul>
+<h4 class="homepageHdr">Committees</h4>
+<ul class="gNoBullets courseList">
+%	foreach my $user_course (@user_committees){
+<li><a href="<% $lnk_prefix %>/<% $user_course->school ."/". $user_course->primary_key %>"><% $user_course->out_label %></a> (<% $user_course->school %>)</li>
+%	}
+%	if (!@user_committees){
+<li><em>no committees</em></li>
+%	}
+</ul>
+
+% }
+</%method>
+

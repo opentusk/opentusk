@@ -13,40 +13,37 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%attr>
-no_check_path => 1
+	no_check_path => 1
 </%attr>
 
 
 <%method header_text>
-% return __('My Courses');
+% 	return __('My Courses');
 </%method>
 
 <%perl>
-my $user = $m->session->{'user'};
-my $enum_cat = $user->get_enum_cat();
-my @user_stud_courses = $user->user_stud_courses();
+	my $user = $m->session->{'user'};
+	my $enum_cat = $user->get_enum_cat();
+	my @user_stud_courses = $user->user_stud_courses();
 
-my @courses = $user->parent_courses();
-my (@user_auth_courses, @user_committees);
+	my @courses = $user->parent_courses();
+	my (@user_auth_courses, @user_committees);
 
-foreach my $course (@courses){
-	if ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
-		push @user_committees, $course;
+	foreach my $course (@courses){
+		if ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
+			push @user_committees, $course;
+		} elsif ($course->type() eq 'community service' or $course->type() eq 'course') {
+			push @user_auth_courses, $course;
+		}  
 	}
-	elsif ($course->type() eq 'community service' or $course->type() eq 'course') {
-		push @user_auth_courses, $course;
-	}  
-}
 </%perl>
 
-<& /tmpl/home:print_courses, 
-                is_mobile         => 1, 
+<& /mobi/tmpl/home:print_courses, 
                 enum_cat          => $enum_cat, 
                 user_stud_courses => \@user_stud_courses &>
 
-<& /tmpl/home:print_admin_courses, 
-                is_mobile         => 1, 
-                user              => $user,
+<& /mobi/tmpl/home:print_admin_courses, 
                 user_committees   => \@user_committees,
                 user_auth_courses => \@user_auth_courses &>
