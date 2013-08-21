@@ -2650,12 +2650,11 @@ sub isGhost {
 	return(0);
 }
 
-sub get_list_cats{
+sub get_course_categories {
 	my $self = shift;
+	my @categories = ();
 
-	my $affiliation = (exists $TUSK::Constants::Schools{$self->affiliation()}) ? $self->affiliation() : $TUSK::Constants::Default{School} ;
-	my @categories;
-	if ($affiliation && defined ) {
+	if (my $affiliation = $self->affiliation_or_default_school()) {
 		my $cat = TUSK::HomepageCategory->new(_school => $affiliation);
 		@categories = $cat->lookup_conditions("order by sort_order");
 	}
@@ -2663,11 +2662,11 @@ sub get_list_cats{
 	return @categories;
 }
 
-sub get_enum_cat{
+sub get_enum_cat {
 	my $self = shift;
 	my @cats = @_;
 	unless (scalar @cats){
-		@cats = $self->get_list_cats();
+		@cats = $self->get_course_categories();
 	}
 
 	my $affiliation = $self->affiliation();
