@@ -528,169 +528,228 @@ sub get_schedule_start_end {
 }
 
 sub get_important_upcoming_dates_by_school {
-    #
     # Get items with upcoming due dates:
-	#	- Exams and Holidays (pulled from the user group schedule where meeting type is exam or holiday)
-	#	- All quizzes with due dates
-	#	- All cases with due dates
-	#	- Evals
-	#	- Assignments
-    #
-	my $user = shift;
-	my $school = shift;
-	my @dates;
-	my $db = get_school_db($school);
-	my (undef, $enddate) = get_schedule_start_end();
-	
-	my $dbh = HSDB4::Constants::def_db_handle();
-	my $sth = $dbh->prepare("SELECT
-course_id,
-'schedule' AS type,
-class_meeting_id AS id,
-title,
-DATE_FORMAT(meeting_date, '%b. %e, %Y') as date,
-DATE_FORMAT(starttime,'%h:%i %p') as time,
-DATE_ADD(meeting_date, INTERVAL starttime HOUR_SECOND) as exact_time
-FROM
-$db.class_meeting,
-$db.link_course_user_group,
-$db.link_user_group_user,
-$db.time_period,
-tusk.class_meeting_type,
-tusk.school
-WHERE
-class_meeting_type_id = type_id AND
-school_name = '$school' AND
-(label = 'Holiday' OR label = 'Examination') AND
-school.school_id = class_meeting_type.school_id AND
-NOW() BETWEEN start_date AND end_date AND
-meeting_date BETWEEN NOW() AND '$enddate' AND
-link_course_user_group.time_period_id = time_period.time_period_id AND
-parent_user_group_id = child_user_group_id AND
-parent_course_id = course_id AND
-child_user_id = '" . $user->primary_key() . "'
+    #	- Exams and Holidays (pulled from the user group schedule where meeting type is exam or holiday)
+    #	- All quizzes with due dates
+    #	- All cases with due dates
+    #	- Evals
+    #	- Assignments
 
-UNION
+    my $user = shift;
+    my $school = shift;
+    my @dates;
+    my $db = get_school_db($school);
+    my (undef, $enddate) = get_schedule_start_end();
 
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my @sql_values;
+
+    my $schedule_sql = <<"END_SQL";
 SELECT
-link_course_student.parent_course_id AS course_id,
-'quiz' AS type,
-child_quiz_id AS id,
-title,
-DATE_FORMAT(due_date, '%b. %e, %Y') as date,
-DATE_FORMAT(due_date,'%h:%i %p') as time,
-due_date as exact_time
+  c.course_id AS course_id,
+  'schedule' AS type,
+  cm.class_meeting_id AS id,
+  cm.title AS title,
+  DATE_FORMAT(cm.meeting_date, '%b. %e, %Y') AS date,
+  DATE_FORMAT(cm.starttime,'%h:%i %p') AS time,
+  DATE_ADD(cm.meeting_date, INTERVAL cm.starttime HOUR_SECOND) AS exact_time,
+  c.title AS course_title
 FROM
-tusk.quiz,
-tusk.link_course_quiz,
-tusk.school,
-$db.time_period,
-$db.link_course_student
+  $db.course c
+  INNER JOIN $db.class_meeting cm
+    ON c.course_id = cm.course_id
+  INNER JOIN $db.link_course_user_group lcug
+    ON c.course_id = lcug.parent_course_id
+  INNER JOIN $db.link_user_group_user lugu
+    ON lcug.child_user_group_id = lugu.parent_user_group_id
+  INNER JOIN $db.time_period tp
+    ON lcug.time_period_id = tp.time_period_id
+  INNER JOIN tusk.class_meeting_type cmt
+    ON cm.type_id = cmt.class_meeting_type_id
+  INNER JOIN tusk.school s
+    ON s.school_id = cmt.school_id
 WHERE
-quiz_id = child_quiz_id AND
-quiz_id NOT IN (
-	select quiz_id from tusk.quiz_result where user_id = '" . $user->primary_key() . "' AND end_date IS NOT NULL
-	) AND
-school.school_id = link_course_quiz.school_id AND
-school_name = '$school' AND
-available_date < NOW() AND
-NOW() BETWEEN start_date AND end_date AND
-due_date BETWEEN NOW() AND '$enddate' AND
-link_course_quiz.time_period_id = link_course_student.time_period_id AND
-time_period.time_period_id = link_course_student.time_period_id AND
-link_course_student.parent_course_id = link_course_quiz.parent_course_id AND
-child_user_id = '" . $user->primary_key() . "'
+  s.school_name = ?
+  AND
+  (cmt.label = 'Holiday' OR cmt.label = 'Examination')
+  AND
+  NOW() BETWEEN tp.start_date AND tp.end_date
+  AND
+  cm.meeting_date BETWEEN NOW() AND ?
+  AND
+  lugu.child_user_id = ?
+END_SQL
+    push @sql_values, ($school, $enddate, $user->primary_key());
 
-UNION
-
+    my $quiz_sql = <<"END_SQL";
 SELECT
-link_course_student.parent_course_id AS course_id,
-'case' AS type,
-case_header_id AS id,
-case_title AS title,
-DATE_FORMAT(link_course_case.due_date, '%b. %e, %Y') as date,
-DATE_FORMAT(link_course_case.due_date,'%h:%i %p') as time,
-link_course_case.due_date as exact_time
+  c.course_id AS course_id,
+  'quiz' AS type,
+  q.quiz_id AS id,
+  q.title AS title,
+  DATE_FORMAT(lcq.due_date, '%b. %e, %Y') AS date,
+  DATE_FORMAT(lcq.due_date,'%h:%i %p') AS time,
+  lcq.due_date AS exact_time,
+  c.title AS course_title
 FROM
-tusk.case_header,
-tusk.link_course_case,
-tusk.school,
-$db.time_period,
-$db.link_course_student
+  tusk.quiz q
+  INNER JOIN tusk.link_course_quiz lcq
+    ON q.quiz_id = lcq.child_quiz_id
+  INNER JOIN $db.course c
+    ON c.course_id = lcq.parent_course_id
+  INNER JOIN tusk.school s
+    ON lcq.school_id = s.school_id
+  INNER JOIN $db.link_course_student lcs
+    ON lcs.parent_course_id = c.course_id
+  INNER JOIN $db.time_period tp
+    ON lcs.time_period_id = tp.time_period_id
 WHERE
-case_header_id = child_case_id AND
-school.school_id = link_course_case.school_id AND	
-school_name = '$school' AND
-(available_date IS NULL OR available_date < NOW()) AND
-NOW() BETWEEN start_date AND end_date AND
-link_course_case.due_date BETWEEN NOW() AND '$enddate' AND
-time_period.time_period_id = link_course_student.time_period_id AND
-link_course_student.parent_course_id = link_course_case.parent_course_id AND
-child_user_id = '" . $user->primary_key() . "' AND 
-case_header.publish_flag = 1
+  s.school_name = ?
+  AND
+  lcq.available_date < NOW()
+  AND
+  NOW() BETWEEN tp.start_date AND tp.end_date
+  AND
+  lcq.due_date BETWEEN NOW() AND ?
+  AND
+  child_user_id = ?
+  AND
+  q.quiz_id NOT IN (
+    SELECT qr.quiz_id
+    FROM tusk.quiz_result qr
+    WHERE user_id = ? AND qr.end_date IS NOT NULL
+  )
+END_SQL
+    push @sql_values, ($school, $enddate, $user->primary_key(),
+                       $user->primary_key());
 
-UNION
-
+    my $case_sql = <<"END_SQL";
 SELECT
-link_course_student.parent_course_id AS course_id,
-'eval' AS type,
-eval_id AS id,
-title,
-DATE_FORMAT(due_date, '%b. %e, %Y') as date,
-NULL as time,
-due_date as exact_time
+  c.course_id AS course_id,
+  'case' AS type,
+  ch.case_header_id AS id,
+  ch.case_title AS title,
+  DATE_FORMAT(lcc.due_date, '%b. %e, %Y') AS date,
+  DATE_FORMAT(lcc.due_date,'%h:%i %p') AS time,
+  lcc.due_date AS exact_time,
+  c.title AS course_title
 FROM
-$db.eval,
-$db.time_period,
-$db.link_course_student
+  tusk.case_header ch
+  INNER JOIN tusk.link_course_case lcc
+    ON ch.case_header_id = lcc.child_case_id
+  INNER JOIN tusk.school s
+    ON s.school_id = lcc.school_id
+  INNER JOIN $db.course c
+    ON c.course_id = lcc.parent_course_id
+  INNER JOIN $db.link_course_student lcs
+    ON c.course_id = lcs.parent_course_id
+  INNER JOIN $db.time_period tp
+    ON tp.time_period_id = lcs.time_period_id
 WHERE
-NOW() BETWEEN start_date AND end_date AND
-due_date BETWEEN NOW() AND '$enddate' AND
-available_date < NOW() AND
-eval.time_period_id = link_course_student.time_period_id AND
-time_period.time_period_id = link_course_student.time_period_id AND
-link_course_student.parent_course_id = course_id AND
-eval_id NOT IN (SELECT eval_id FROM $db.eval_completion WHERE status = 'Done') AND
-child_user_id = '" . $user->primary_key() . "'
+  s.school_name = ?
+  AND
+  (lcc.available_date IS NULL OR lcc.available_date < NOW())
+  AND
+  NOW() BETWEEN tp.start_date AND tp.end_date AND
+  lcc.due_date BETWEEN NOW() AND ?
+  AND
+  child_user_id = ?
+  AND 
+  ch.publish_flag = 1
+END_SQL
+    push @sql_values, ($school, $enddate, $user->primary_key());
 
-UNION
-
+    my $eval_sql = <<"END_SQL";
 SELECT
-course_id,
-'assignment' AS type,
-assignment_id AS id,
-event_name AS title,
-DATE_FORMAT(assignment.due_date, '%b. %e, %Y') as date,
-DATE_FORMAT(assignment.due_date,'%h:%i %p') as time,
-assignment.due_date as exact_time
+  c.course_id AS course_id,
+  'eval' AS type,
+  e.eval_id AS id,
+  e.title AS title,
+  DATE_FORMAT(e.due_date, '%b. %e, %Y') AS date,
+  NULL AS time,
+  e.due_date AS exact_time,
+  c.title AS course_title
 FROM
-tusk.grade_event,
-tusk.assignment,
-tusk.school,
-tusk.link_assignment_student,
-$db.time_period
+  $db.eval e
+  INNER JOIN $db.time_period tp
+    ON e.time_period_id = tp.time_period_id
+  INNER JOIN $db.course c
+    ON e.course_id = c.course_id
+  INNER JOIN $db.link_course_student lcs
+    ON (
+      lcs.time_period_id = tp.time_period_id
+      AND
+      lcs.parent_course_id = c.course_id
+    )
 WHERE
-school_name = '$school' AND
-school.school_id = grade_event.school_id AND
-available_date < NOW() AND
-NOW() BETWEEN start_date AND end_date AND
-assignment.due_date BETWEEN NOW() AND '$enddate' AND
-grade_event.time_period_id = time_period.time_period_id AND
-assignment.grade_event_id = grade_event.grade_event_id AND
-parent_assignment_id = assignment_id AND
-child_user_id = '" . $user->primary_key() . "' AND
-publish_flag = 1
+  NOW() BETWEEN tp.start_date AND tp.end_date
+  AND
+  e.due_date BETWEEN NOW() AND ?
+  AND
+  e.available_date < NOW()
+  AND
+  e.eval_id NOT IN (
+    SELECT ec.eval_id FROM $db.eval_completion ec WHERE status = 'Done'
+  )
+  AND
+  child_user_id = ?
+END_SQL
+    push @sql_values, ($enddate, $user->primary_key());
 
-ORDER BY
-exact_time");
+    my $assignment_sql = <<"END_SQL";
+SELECT
+  c.course_id AS course_id,
+  'assignment' AS type,
+  a.assignment_id AS id,
+  ge.event_name AS title,
+  DATE_FORMAT(a.due_date, '%b. %e, %Y') AS date,
+  DATE_FORMAT(a.due_date,'%h:%i %p') AS time,
+  a.due_date AS exact_time,
+  c.title AS course_title
+FROM
+  tusk.grade_event ge
+  INNER JOIN tusk.school s
+    ON ge.school_id = s.school_id
+  INNER JOIN $db.time_period tp
+    ON ge.time_period_id = tp.time_period_id
+  INNER JOIN tusk.assignment a
+    ON a.grade_event_id = ge.grade_event_id
+  INNER JOIN tusk.link_assignment_student las
+    ON a.assignment_id = las.parent_assignment_id
+  INNER JOIN $db.course c
+    ON ge.course_id = c.course_id
+WHERE
+  s.school_name = ?
+  AND
+  a.available_date < NOW()
+  AND
+  NOW() BETWEEN tp.start_date AND tp.end_date
+  AND
+  a.due_date BETWEEN NOW() AND ?
+  AND
+  child_user_id = ?
+  AND
+  publish_flag = 1
+END_SQL
+    push @sql_values, ($school, $enddate, $user->primary_key());
 
-    $sth->execute();
-    while (my $row = $sth->fetchrow_hashref) {
-		push @dates, $row;
-	}
+    my $sql_query = join(
+        "\nUNION\n",
+        $schedule_sql,
+        $quiz_sql,
+        $case_sql,
+        $eval_sql,
+        $assignment_sql,
+    ) . "\nORDER BY exact_time";
 
+    my $sth = $dbh->prepare($sql_query);
+    $sth->execute(@sql_values);
+    while ( my $row = $sth->fetchrow_hashref() ) {
+        push @dates, $row;
+    }
     $sth->finish;
-	return \@dates;
+
+    return \@dates;
 }
 
 sub recently_modified {
