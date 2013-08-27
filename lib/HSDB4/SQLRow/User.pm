@@ -549,7 +549,8 @@ course_id,
 class_meeting_id AS id,
 title,
 DATE_FORMAT(meeting_date, '%b. %e, %Y') as date,
-DATE_FORMAT(starttime,'%h:%i %p') as time
+DATE_FORMAT(starttime,'%h:%i %p') as time,
+DATE_ADD(meeting_date, INTERVAL starttime HOUR_SECOND) as exact_time
 FROM
 $db.class_meeting,
 $db.link_course_user_group,
@@ -577,7 +578,8 @@ link_course_student.parent_course_id AS course_id,
 child_quiz_id AS id,
 title,
 DATE_FORMAT(due_date, '%b. %e, %Y') as date,
-DATE_FORMAT(due_date,'%h:%i %p') as time
+DATE_FORMAT(due_date,'%h:%i %p') as time,
+due_date as exact_time
 FROM
 tusk.quiz,
 tusk.link_course_quiz,
@@ -607,7 +609,8 @@ link_course_student.parent_course_id AS course_id,
 case_header_id AS id,
 case_title AS title,
 DATE_FORMAT(link_course_case.due_date, '%b. %e, %Y') as date,
-DATE_FORMAT(link_course_case.due_date,'%h:%i %p') as time
+DATE_FORMAT(link_course_case.due_date,'%h:%i %p') as time,
+link_course_case.due_date as exact_time
 FROM
 tusk.case_header,
 tusk.link_course_case,
@@ -634,7 +637,8 @@ link_course_student.parent_course_id AS course_id,
 eval_id AS id,
 title,
 DATE_FORMAT(due_date, '%b. %e, %Y') as date,
-NULL as time
+NULL as time,
+due_date as exact_time
 FROM
 $db.eval,
 $db.time_period,
@@ -657,7 +661,8 @@ course_id,
 assignment_id AS id,
 event_name AS title,
 DATE_FORMAT(assignment.due_date, '%b. %e, %Y') as date,
-DATE_FORMAT(assignment.due_date,'%h:%i %p') as time
+DATE_FORMAT(assignment.due_date,'%h:%i %p') as time,
+assignment.due_date as exact_time
 FROM
 tusk.grade_event,
 tusk.assignment,
@@ -677,7 +682,7 @@ child_user_id = '" . $user->primary_key() . "' AND
 publish_flag = 1
 
 ORDER BY
-date, time");
+exact_time");
 
     $sth->execute();
     while (my $row = $sth->fetchrow_hashref) {
