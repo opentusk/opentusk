@@ -241,6 +241,7 @@ function report_submit(form){
 }
 
 function check_required_fields(form, required_array) {
+    // TODO: Also implement server-side logic to verify.
 
     if (form.encounter_date) {
         if (!isValidDate(form.encounter_date)) {
@@ -262,44 +263,73 @@ function check_required_fields(form, required_array) {
         return false;
     }
 
-    for (var i=0; i < required_array.length; i++){
-        var obj = document.getElementById(required_array[i]['id']);
+    for (var i=0; i < required_array.length; i++) {
+        var obj_id = required_array[i]['id'];
+        var msg = required_array[i]['message'];
+        var obj = document.getElementById(obj_id);
 
         if (obj && obj.nodeName == 'SELECT') {
-            if (obj.selectedIndex == 0){
-                alert('Please enter a value for '
-                      + required_array[i]['message']);
-                document.getElementById(required_array[i]['id']).focus();
+            if (obj.multiple) {
+                if (obj.selectedIndex == -1) {
+                    alert('Please select an option for ' + msg);
+                    obj.focus();
+                    return false;
+                }
+            }
+            else {
+                if (obj.selectedIndex == 0) {
+                    alert('Please select an option for ' + msg);
+                    obj.focus();
+                    return false;
+                }
+            }
+        }
+        else if (obj_id.match(/^checklist_/)) {
+            if (obj && obj.value > 0) {
+                alert('Please complete the checklist for ' + msg);
                 return false;
             }
         }
-        else if (required_array[i]['id'].match(/^checklist_/)) {
-            var checklist = document.getElementById(required_array[i]['id']);
-            if (checklist && checklist.value > 0) {
-                alert('Please complete the checklist for '
-                      + required_array[i]['message']);
-                return false;
-            }
-        }
-        else if (required_array[i]['id'].match(/^text_id_/)) {
-            var textboxes = document.getElementsByName(required_array[i]['id']);
+        else if (obj_id.match(/^text_id_/)) {
+            // I don't understand the logic here. TODO: Examine "single
+            // select allow multiple" formbuilder element.
+            var textboxes = document.getElementsByName(obj_id);
             for (var j = 0; j < textboxes.length; j++) {
                 var text_str = textboxes[j].value;
                 if (textboxes[j].style.display == 'inline'
                     && text_str.match(/^\s*$/)) {
-                    alert('Please complete the text description for '
-                          + required_array[i]['message']);
+                    alert('Please complete the text description for ' + msg);
+                    return false;
+                }
+                else if (textboxes[j].style.display == 'none') {
+                    // Added to handle "single select allow multiple"
+                    var item_id = obj_id.substr(8);
+                    var table_obj = document.getElementById('f' + item_id);
+                    var select_obj = document.getElementById('id_' + item_id);
+                    if ((! table_obj) && (select_obj.selectedIndex == 0)) {
+                        alert ('Please select an option for ' + msg);
+                        return false
+                    }
+                }
+            }
+        }
+        else if (obj_id.match(/^id_/)) {
+            if (obj.nodeName.toLowerCase() == 'textarea'
+                || (obj.nodeName.toLowerCase() == 'input'
+                    && obj.type.toLowerCase() == 'text')) {
+                if (obj.value.length == 0) {
+                    alert ('Please complete the text description for ' + msg);
                     return false;
                 }
             }
-        } else if (required_array[i]['id'].match(/^multiwithattr_/)) {
-            var items = getElementsByClassName(required_array[i]['id']);
-            var field_tokens = required_array[i]['id'].split('_');
+        }
+        else if (obj_id.match(/^multiwithattr_/)) {
+            var items = getElementsByClassName(obj_id);
+            var field_id = obj_id.split('_')[1];
             var attribute_count = document.getElementById(
-                'attributes_' + field_tokens[1]).value;
-            var errmsg = 'Please complete the required information for your selection(s) in the ' +
-                required_array[i]['message'] +
-                ' section.';
+                'attributes_' + field_id).value;
+            var errmsg = 'Please complete the required information for ' +
+                'your selection(s) in the ' + msg + ' section.';
             for (var j = 0; j < items.length; j++) {
                 if (items[j].value == 1) {
                     var field_item = items[j].name.split('_');

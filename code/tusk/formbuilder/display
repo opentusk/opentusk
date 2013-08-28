@@ -19,6 +19,8 @@
 	use TUSK::FormBuilder::Entry;
 	use HSDB4::DateTime;
 	use TUSK::Application::FormBuilder::DynamicList;
+	use HTML::Entities;
+	use JSON;
 </%once>
 
 
@@ -118,42 +120,42 @@
     $date_label => ''
     $dynamic_components => []
     $button_component => undef
-    $onsubmit => "check_required_fields"
+    $onsubmit => ''
     $read_access => 0
 </%args>
 
 <%perl>
 my $fields = $form->getFields();
-my @js_fields_to_check;
+my @fields_to_check;
+
+my %ID_STRING_FOR = (
+    FillIn => 'id_%d',
+    SingleSelect => 'id_%d',
+    SingleSelectAllowMulti => 'text_id_%d',
+    MultiSelectWithAttributes => 'multiwithattr_%d',
+    Essay => 'id_%d',
+    DynamicList => 'id_%d',
+    CheckList => 'checklist_%d',
+);
 
 foreach my $field (@$fields) {
-    next if ($field->getRequired() and $args->{hide_required});
+    next if ( ! $field->getRequired() );
+    next if ( $field->getRequired() and $args->{hide_required} );
+
     my $fid = $field->getPrimaryKeyID();
     my $tok = $field->getFieldTypeToken();
     my $message = $field->getFieldName();
-    $message =~ s/'/\\'/g;
-    if ($tok eq "SingleSelect" || $tok eq "CheckList") {
-        if ($field->getRequired()) {
-            if ($tok eq "SingleSelect") {
-                push @js_fields_to_check, "{id:'id_$fid', message:'$message'}";
-            }
-            elsif ($tok eq "CheckList") {
-                push @js_fields_to_check,
-                    "{id:'checklist_$fid', message:'$message'}";
-            }
-        }
-    }
-    elsif ($tok eq 'SingleSelectAllowMulti') {
-        push @js_fields_to_check, "{id:'text_id_$fid', message:'$message'}";
-    }
-    elsif ($tok eq 'MultiSelectWithAttributes') {
-        push @js_fields_to_check,
-            "{id:'multiwithattr_$fid', message:'$message'}";
-    }
+
+    next if (! exists $ID_STRING_FOR{$tok});
+
+    push @fields_to_check, { id => sprintf($ID_STRING_FOR{$tok}, $fid),
+                             message => $message };
 }
 
-my $jsoutput = join(", ", @js_fields_to_check);
-$onsubmit = "return $onsubmit(this, [$jsoutput])";
+my $check_fields_json = to_json(\@fields_to_check);
+my $check_fields_html = encode_entities($check_fields_json);
+$onsubmit ||= 'check_required_fields';
+$onsubmit = "return $onsubmit(this, $check_fields_html)";
 
 my $entry;
 my $response_hash = {};
@@ -573,7 +575,7 @@ if ($args->{entry_id}) {
 <div class="multiselectdiv"<% ($height) ? ' style="height:' . $height . 'px"' : '' %>>
 %	my $attributes = $field->getAttributes();
 %	my $field_id = $field->getPrimaryKeyID();
-<input type="hidden" id="attributes_<% $field_id %>" name="attributes_$field_id" value="<% scalar @$attributes %>">
+<input type="hidden" id="attributes_<% $field_id %>" name="attributes_<% $field_id %>" value="<% scalar @$attributes %>">
 <table width="99%" cellspacing="0" cellpadding="5">
 <%perl>
 	foreach my $item (@$items){
