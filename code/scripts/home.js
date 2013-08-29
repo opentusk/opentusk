@@ -86,11 +86,11 @@ function displayPersonalLinks() {
 			html += "</option>\n";
 			counter += 1;
 		});
-		html += "</select></td>\n<td><input type='text' class='label' name='label_";
+		html += "</select></td>\n<td><input type='text' class='js-personal-link-label' name='label_";
 		html += row.id;
 		html += "' value='";
 		html += row.label;
-		html += "' /></td>\n<td><input type='text' class='url' name='url_";
+		html += "' /></td>\n<td><input type='text' class='js-personal-link-url' name='url_";
 		html += row.id;
 		html += "' value='";
 		html += row.url;
@@ -124,10 +124,10 @@ function savePersonalLinks() {
 	// validate form data to make sure the necessary fields have been filled out
 	var counter = 1;
 	var error;
-	$(".label").each(function() {
+	$(".js-personal-link-label").each(function() {
 		error = '';
 		var thislabel = $(this).val();
-		var thisurl =  $(this).parent('td').siblings().children(".url").val();		
+		var thisurl =  $(this).parent('td').siblings().children(".js-personal-link-url").val();
 		if (!(/^((https?|ftp):\/\/)?(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(thisurl))) {
 			error = _('The URL in row ') + counter + _(' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
@@ -188,14 +188,14 @@ function resetAllLinkData() {
 // update JSON array of links from input fields, ordered by sort_order field
 function updateLinksArray() {
 	links.length = 0;
-	$(".label").each(function() {
+	$(".js-personal-link-label").each(function() {
 		var matches = $(this).attr("name").match(/label_(.*)/);
 		var id = matches[1];
 		var newItem = new Object();
 		newItem.id = id;
 		newItem.sort_order = $(this).parent('td').siblings().children(".sort_order").val();
 		newItem.label = $(this).val();
-		newItem.url =  $(this).parent('td').siblings().children(".url").val();
+		newItem.url =  $(this).parent('td').siblings().children(".js-personal-link-url").val();
 		links.push(newItem);
 	});
 	links.sort(function(a,b){return a.sort_order - b.sort_order});
