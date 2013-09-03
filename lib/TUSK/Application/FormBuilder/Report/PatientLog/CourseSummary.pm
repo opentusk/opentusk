@@ -54,24 +54,24 @@ sub _report_sql {
 SELECT
   lcs1.teaching_site_id,
   ts.site_name,
-  count(lcs1.child_user_id) AS students,
+  COUNT(DISTINCT lcs1.child_user_id) AS students,
   (SELECT
-     CONCAT(COUNT(DISTINCT fbe.user_id), "_", count(*))
+     CONVERT(CONCAT(COUNT(DISTINCT fbe.user_id), '_', count(*)) USING utf8)
    FROM
      tusk.form_builder_entry fbe
      INNER JOIN $db.link_course_student lcs2
-       ON (fbe.time_period_id = lcs2.time_period_id
+       ON (fbe.user_id = lcs2.child_user_id
            AND
-           fbe.user_id = lcs2.child_user_id)
+           fbe.time_period_id = lcs2.time_period_id)
    WHERE
      fbe.form_id = ?
      AND
+     lcs2.time_period_id IN ($time_period_prep)
+     AND
      lcs2.parent_course_id = ?
      AND
-     lcs2.time_period_id = lcs1.time_period_id
-     AND
      lcs2.teaching_site_id = lcs1.teaching_site_id
-    ) AS patients
+  ) AS patients
 FROM
   $db.link_course_student lcs1
   INNER JOIN $db.teaching_site ts
@@ -93,11 +93,14 @@ sub getReport {
     my $tp_prep = sql_prep_list( @{ $self->{_time_period_ids} } );
 
     my $sql = $self->_report_sql();
-    my $sth = $self->{_form}->databaseSelect($sql,
-                                             $self->{_form_id},
-                                             $self->{_course_id},
-                                             $self->{_course_id},
-                                             @{ $self->{_time_period_ids} });
+    my $sth = $self->{_form}->databaseSelect(
+        $sql,
+        $self->{_form_id},
+        @{ $self->{_time_period_ids} },
+        $self->{_course_id},
+        $self->{_course_id},
+        @{ $self->{_time_period_ids} }
+    );
     my ($total_num_students, $total_report_students, $total_patients);
     while (my ($site_id, $site_name, $num_students, $count)
                = $sth->fetchrow_array()) {
