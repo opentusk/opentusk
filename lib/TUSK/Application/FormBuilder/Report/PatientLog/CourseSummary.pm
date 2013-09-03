@@ -46,13 +46,11 @@ sub ratio_pct {
     return $denom > 0 ? $num / $denom * 100 : 0;
 }
 
-sub getReport {
+sub _report_sql {
     my $self = shift;
-    my @results = ();
-
     my $db = $self->{_db};
-    my $tp_prep = sql_prep_list( @{ $self->{_time_period_ids} } );
-    my $sql = <<"END_SQL";
+    my $time_period_prep = sql_prep_list( @{ $self->{_time_period_ids} } );
+    return <<"END_SQL";
 SELECT
   lcs1.teaching_site_id,
   ts.site_name,
@@ -81,11 +79,20 @@ FROM
 WHERE
   lcs1.parent_course_id = ?
   AND
-  lcs1.time_period_id IN ($tp_prep)
+  lcs1.time_period_id IN ($time_period_prep)
 GROUP BY ts.teaching_site_id
 ORDER BY ts.site_name
 END_SQL
+}
 
+sub getReport {
+    my $self = shift;
+    my @results = ();
+
+    my $db = $self->{_db};
+    my $tp_prep = sql_prep_list( @{ $self->{_time_period_ids} } );
+
+    my $sql = $self->_report_sql();
     my $sth = $self->{_form}->databaseSelect($sql,
                                              $self->{_form_id},
                                              $self->{_course_id},
