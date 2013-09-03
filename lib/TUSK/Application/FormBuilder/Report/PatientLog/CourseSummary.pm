@@ -16,6 +16,9 @@
 package TUSK::Application::FormBuilder::Report::PatientLog::CourseSummary;
 
 use strict;
+use utf8;
+use warnings;
+use Carp;
 use base qw(TUSK::Application::FormBuilder::Report);
 use TUSK::Core::School;
 use TUSK::FormBuilder::FieldItem;
