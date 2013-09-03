@@ -26,63 +26,87 @@ use TUSK::FormBuilder::AttributeItem;
 
 sub new {
     my ($class, $form_id, $course, $tp_params) = @_;
-    die "Missing form_id, and/or course_id\n" unless ($form_id && $course);
+    confess "Missing form_id" unless ($form_id);
+    confess "Missing course_id" unless ($course);
     $class = ref $class || $class;
     # Call the super-class's constructor and give it all the values
+    my $flags_ref
+        = $TUSK::FormBuilder::Constants::report_flags_by_report_type->{1};
     return $class->SUPER::new(
         _course => $course,
         _form_id => $form_id,
         _tp_params => $tp_params,
-        _report_flags => join(",", @{$TUSK::FormBuilder::Constants::report_flags_by_report_type->{1}}),
+        _report_flags => join(q{,}, @{$flags_ref}),
     );
 }
 
+sub ratio_pct {
+    my ($num, $denom) = @_;
+    return $denom > 0 ? $num / $denom * 100 : 0;
+}
+
 sub getReport {
-    my ($self) = @_;
+    my $self = shift;
     my @results = ();
 
-    my $sql = qq(
-                                SELECT
-                                        a.teaching_site_id,
-                                        site_name,
-                                        count(child_user_id) AS students,
-                                        (SELECT
-                                                CONCAT(COUNT(DISTINCT user_id), "_", count(*))
-                                        FROM
-                                                tusk.form_builder_entry e,
-                                                $self->{_db}.link_course_student AS d
-                                        WHERE
-                                                form_id = $self->{_form_id} AND
-                                                d.time_period_id = a.time_period_id AND
-                                                e.time_period_id = d.time_period_id AND
-                                                parent_course_id = $self->{_course_id} AND
-                                                user_id = child_user_id AND
-                                                d.teaching_site_id = a.teaching_site_id
-                                        ) AS patients
-                                FROM
-                                        $self->{_db}.link_course_student AS a,
-                                        $self->{_db}.teaching_site AS b
-                                WHERE
-                                        a.teaching_site_id = b.teaching_site_id AND
-                                        a.parent_course_id = $self->{_course_id} AND
-                                        time_period_id IN ($self->{_time_period_ids_string})
-                                GROUP BY teaching_site_id
-                                ORDER BY site_name
-                                );
+    my $db = $self->{_db};
+    my $tp_prep = join(q{,},
+                       ('?') x scalar( @{ $self->{_time_period_ids} } ));
+    my $sql = <<"END_SQL";
+SELECT
+  lcs1.teaching_site_id,
+  ts.site_name,
+  count(lcs1.child_user_id) AS students,
+  (SELECT
+     CONCAT(COUNT(DISTINCT fbe.user_id), "_", count(*))
+   FROM
+     tusk.form_builder_entry fbe
+     INNER JOIN $db.link_course_student lcs2
+       ON (fbe.time_period_id = lcs2.time_period_id
+           AND
+           fbe.user_id = lcs2.child_user_id)
+   WHERE
+     fbe.form_id = ?
+     AND
+     lcs2.parent_course_id = ?
+     AND
+     lcs2.time_period_id = lcs1.time_period_id
+     AND
+     lcs2.teaching_site_id = lcs1.teaching_site_id
+    ) AS patients
+FROM
+  $db.link_course_student lcs1
+  INNER JOIN $db.teaching_site ts
+    ON lcs1.teaching_site_id = ts.teaching_site_id
+WHERE
+  lcs1.parent_course_id = ?
+  AND
+  lcs1.time_period_id IN ($tp_prep)
+GROUP BY ts.teaching_site_id
+ORDER BY ts.site_name
+END_SQL
 
-    my $sth = $self->{_form}->databaseSelect($sql);
+    my $sth = $self->{_form}->databaseSelect($sql,
+                                             $self->{_form_id},
+                                             $self->{_course_id},
+                                             $self->{_course_id},
+                                             @{ $self->{_time_period_ids} });
     my ($total_num_students, $total_report_students, $total_patients);
-    while (my ($site_id, $site_name, $num_students, $count) = $sth->fetchrow_array()) {
+    while (my ($site_id, $site_name, $num_students, $count)
+               = $sth->fetchrow_array()) {
         my ($report_students, $patients) = split(/_/, $count);
-        my $ratio = ($num_students > 0) ? $report_students / $num_students * 100 : 0;
-        push @results, [$site_id, $site_name, $num_students, $report_students, sprintf("%.0f", $ratio), $patients];
+        my $ratio = ratio_pct($report_students, $num_students);
+        push @results, [ $site_id, $site_name, $num_students,
+                         $report_students, sprintf("%.0f", $ratio),
+                         $patients, ];
         $total_num_students += $num_students;
         $total_report_students += $report_students;
         $total_patients += $patients;
     }
 
-    my $total_ratio = ($total_num_students > 0) ? $total_report_students / $total_num_students * 100 : 0;
-    my $total = [$total_num_students, $total_report_students, sprintf("%.0f", $total_ratio), $total_patients];
+    my $total_ratio = ratio_pct($total_report_students, $total_num_students);
+    my $total = [ $total_num_students, $total_report_students,
+                  sprintf("%.0f", $total_ratio), $total_patients ];
     return { rows => \@results, total => $total };
 }
 
