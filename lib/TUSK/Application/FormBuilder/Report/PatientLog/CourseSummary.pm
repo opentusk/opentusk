@@ -23,6 +23,7 @@ use base qw(TUSK::Application::FormBuilder::Report);
 use TUSK::Core::School;
 use TUSK::FormBuilder::FieldItem;
 use TUSK::FormBuilder::AttributeItem;
+use TUSK::DB::Util qw(sql_prep_list);
 
 sub new {
     my ($class, $form_id, $course, $tp_params) = @_;
@@ -50,8 +51,7 @@ sub getReport {
     my @results = ();
 
     my $db = $self->{_db};
-    my $tp_prep = join(q{,},
-                       ('?') x scalar( @{ $self->{_time_period_ids} } ));
+    my $tp_prep = sql_prep_list( @{ $self->{_time_period_ids} } );
     my $sql = <<"END_SQL";
 SELECT
   lcs1.teaching_site_id,
