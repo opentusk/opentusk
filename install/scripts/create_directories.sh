@@ -13,3 +13,4 @@ mkdir -p  /data/html/slide/overlay/{orig,small,medium,large,xlarge}
 mkdir -p  /usr/local/tusk/{conf,ssl_certificate}
 mkdir -p /var/log/tusk
 chown tusk:tusk /var/log/tusk
+ln -s /var/log/tusk /usr/local/tusk/current/logs
