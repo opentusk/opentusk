@@ -728,8 +728,6 @@ WHERE
   a.due_date BETWEEN NOW() AND ?
   AND
   las.child_user_id = ?
-  AND
-  ge.publish_flag = 1
 END_SQL
     push @sql_values, ($school, $enddate, $user->primary_key());
 
