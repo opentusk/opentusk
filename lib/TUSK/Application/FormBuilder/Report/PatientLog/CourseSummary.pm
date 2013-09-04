@@ -133,7 +133,7 @@ FROM
   INNER JOIN (
       SELECT fbe.user_id, fbe.entry_id
       FROM
-        tusk.form_builder_entry fbe,
+        tusk.form_builder_entry fbe
         INNER JOIN $db.link_course_student lcs
           ON (fbe.user_id = lcs.child_user_id
               AND
@@ -180,7 +180,7 @@ FROM
     WHERE
       lcs.parent_course_id = ?
       AND
-      fbe.time_period_id in ($time_period_prep)
+      fbe.time_period_id IN ($time_period_prep)
       AND
       fbe.form_id = ?
   ) d
@@ -230,11 +230,11 @@ sub getReportAllSites {
         $data{$item_id}[0][$i] = $patients;
         $data{$item_id}[1][$i] = $students;
         $data{$item_id}[2][$i]
-            = sprintf("%.0f%", ratio_pct($students, $total_students));
+            = sprintf("%.0f%%", ratio_pct($students, $total_students));
         if (scalar (keys %$aids)) {
             my $pct = ratio_pct($attribute_summary->{$item_id}{either},
                                 $total_students);
-            $data{$item_id}[3] = sprintf("%.0f%", $pct);
+            $data{$item_id}[3] = sprintf("%.0f%%", $pct);
         }
     }
     $sth->finish();
@@ -527,7 +527,7 @@ sub getPercentagesBySite {
         my $pct = ratio_pct( $responses,
                              $total_students->{$teaching_site_id}->{total} );
         $reported_data->{$teaching_site_id}->{$item_id}->{either}
-            = sprintf("%.0f%", $pct);
+            = sprintf("%.0f%%", $pct);
     }
 
     $sql = $self->_pct_by_site_sql2();
@@ -543,7 +543,7 @@ sub getPercentagesBySite {
         my $pct = ratio_pct($responses,
                             $total_students->{$teaching_site_id}->{total});
         $reported_data->{$teaching_site_id}->{$item_id}->{$attribute_item_id}
-            = sprintf("%.0f%", $pct);
+            = sprintf("%.0f%%", $pct);
     }
 
     my $items = TUSK::FormBuilder::FieldItem->lookup("field_id = $field_id");
