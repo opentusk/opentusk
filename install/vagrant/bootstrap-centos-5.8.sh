@@ -68,9 +68,9 @@ _grant_mysql 'vagrant' '%' 'vagrant' 'with grant option'
 _grant_mysql 'vagrant' 'localhost' 'vagrant' 'with grant option'
 _grant_mysql 'content_mgr' 'localhost' 'vagrant'
 _grant_mysql 'tusk' 'localhost' 'vagrant'
-/usr/bin/perl $install_dir/bin/baseline.pl \
+/usr/bin/perl $install_dir/bin/db/baseline.pl \
     --create-admin --create-school --dbuser=root &>/dev/null
-/usr/bin/perl $base_dir/bin/upgrade.pl --all --dbuser=root
+/usr/bin/perl $base_dir/bin/db/upgrade.pl --all --dbuser=root
 cat <<EOF > /usr/local/tusk/.my.cnf
 [client]
 user=tusk
