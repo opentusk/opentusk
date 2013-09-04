@@ -35,4 +35,6 @@ $cm->{writepassword} = 'vagrant';
 
 $json->{Path}->{MasonCacheRoot} = '/var/cache/mason';
 
+$json->{Path}->{LogRoot} = '/var/log/tusk';
+
 print JSON::PP->new()->pretty()->sort_by(1)->encode($json);
