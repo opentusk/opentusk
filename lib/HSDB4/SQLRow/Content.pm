@@ -1459,7 +1459,8 @@ sub is_user_author {
 # Readonly my @CONTENT_EDIT_ROLES =>
 my @CONTENT_EDIT_ROLES = (
     'Director',
-    'Manager'
+    'Manager',
+    'Student Manager',
 );
 
 # TODO Make Readonly
