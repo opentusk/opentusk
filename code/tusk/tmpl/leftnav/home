@@ -69,6 +69,23 @@ else {
 	my $stripObj = TUSK::Application::HTML::Strip->new();
 	my (@announcement_links, @discussion_links);
 
+        # school announcements
+        my $school_ann_ref = $m->session->{user}->get_school_announcements();
+        foreach my $school (sort keys %$school_ann_ref) {
+            my $swug = $TUSK::Constants::Schools{$school}->{Groups}{SchoolWideUserGroup};
+            foreach my $ann_id (sort keys %{ $school_ann_ref->{$school} }) {
+                my $ann = $school_ann_ref->{$school}{$ann_id};
+                my $body = $ann->field_value('body');
+                my $link = "<a href='/view/usergroup/$school/$swug'>"
+                    . $stripObj->truncateAndRemoveHTML($body, $charLimit)
+                    . '</a>';
+                # my $body_p = '<p>' . $stripObj->removeHTML($body) . '</p>';
+                push @announcement_links, {
+                    shortlink => $link,
+                    fulltext => $body,
+                };
+            }
+        }
 	## course announcements
 	my $announcement_ref = $m->session->{'user'}->get_course_announcements();
 	foreach my $ann (@$announcement_ref) {
@@ -88,9 +105,9 @@ else {
 			}
 		}
 	}
-	if (scalar @announcement_links || scalar @discussion_links) {
+	#if (scalar @announcement_links || scalar @discussion_links) {
 		$hasCommunicationContent = 1;
-	}
+	#}
 </%perl>
 % if ($hasCommunicationContent) {
 <nav class="communications">
@@ -107,14 +124,14 @@ else {
 %		}
 			</ul></li>
 %	}
-%	if (scalar @discussion_links) {
-			<li><% __('Discussions') %>
+%#	if (scalar @discussion_links) {
+			<li><a href="/forum/forum.pl"><% __('All Discussions') %></a>
 			<ul>
 %		foreach my $link (@discussion_links) {
 				<li><% $link %></li>
 %		}
 			</ul></li>
-%	}
+%#	}
 		</ul>
 	</div>
 </nav>

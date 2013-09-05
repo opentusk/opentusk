@@ -19,7 +19,13 @@ our @EXPORT_OK = qw(sql_dir
                     get_db_host
                     get_dsn
                     get_my_cnf
+                    sql_prep_list
                );
+
+sub sql_prep_list {
+    my $count = scalar(@_);
+    return join( q{,}, ('?') x $count );
+}
 
 sub sql_dir {
     return File::Spec->catdir(

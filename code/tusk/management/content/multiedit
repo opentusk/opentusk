@@ -303,8 +303,13 @@
 				unless(opendir(DIR, $directory)) {
 					$traffic_light = { type => 'errmsg', text => __('Unable to open directory for multicontent upload..') };
 				} else {
-					# make this a recursive read
-					foreach my $fileName (grep !/^\./, readdir(DIR)) {
+					# make this a recursive read sorted by a Schwartzian transform (http://en.wikipedia.org/wiki/Schwartzian_transform)
+					foreach my $fileName (
+						map  { $_->[0] }
+             					sort { $a->[1] <=> $b->[1] }
+             					map  { [$_, $_=~/(\d+)/] }
+						grep !/^\./, readdir(DIR))
+					{
 						my %tempHash;
 						if( -d "$directory/$fileName" ) {
 							$tempHash{'previewImage'} = '<img src="/icons/ico-folder.gif">';
