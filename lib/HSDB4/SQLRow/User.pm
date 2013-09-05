@@ -51,7 +51,7 @@ use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
 
 use Carp;
-require HSDB4::DateTime;
+use HSDB4::DateTime;
 require HSDB4::SQLRow::Content;
 require HSDB4::SQLRow::Preference;
 require HSDB45::Authentication;
@@ -2663,17 +2663,42 @@ sub get_announcements_by_group_and_course{
 }
 
 sub get_course_assignments {
-
     my ($self, $course) = @_;
-	my $tps = $course->get_users_active_timeperiods($self->user_id);
-	my @tp_ids = map { $_->primary_key() } @$tps;
+    my $tps = $course->get_users_active_timeperiods($self->user_id);
+    my @tp_ids = map { $_->primary_key() } @$tps;
     my $assignments = [];
 
-	if (@tp_ids and scalar(@tp_ids)) {
-		$assignments = TUSK::Assignment::Assignment->new()->lookup("course_id = " . $course->primary_key() . " AND time_period_id in (" . join(',', @tp_ids)  . ") AND school_id = " . $course->get_school->getPrimaryKeyID() . " AND available_date != '0000-00-00 00:00:00' AND available_date <= now() AND assignment.due_date != '0000-00-00 00:00:00'");
-	}
+    if (@tp_ids and scalar(@tp_ids)) {
+        $assignments = TUSK::Assignment::Assignment->new()->lookup(
+            'course_id = '
+                . $course->primary_key()
+                . ' AND time_period_id IN ('
+                . join(',', @tp_ids)
+                . ') AND school_id = '
+                . $course->get_school->getPrimaryKeyID()
+                . " AND available_date != '0000-00-00 00:00:00' "
+                . ' AND available_date <= NOW() '
+                . " AND assignment.due_date != '0000-00-00 00:00:00'"
+            );
+    }
 
     return $assignments;
+}
+
+sub get_upcoming_course_assignments {
+    my ($self, $course) = @_;
+
+    # filter for assignment due dates in the future
+    my @assignments = grep {
+        my $assign = $_;
+        my $assign_due_date = HSDB4::DateTime->new()->in_mysql_timestamp(
+            $assign->getDueDate()
+        );
+        my $now = HSDB4::DateTime->new();
+        ($assign_due_date <=> $now) > 0
+    } @{ $self->get_course_assignments($course) };
+
+    return \@assignments;
 }
 
 sub get_school_announcements {
