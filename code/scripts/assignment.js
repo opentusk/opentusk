@@ -44,7 +44,7 @@ function verifyAuthorAddedit(form) {
 
 	if (form.group_flag[0].checked) {
 		if (!isCheckedAtLeastOne(form.group_id_list)) {
-			errmsg.push(_("Please select at least one assignment group.")."\n");
+			errmsg.push(_("Please select at least one assignment group.") + "\n");
 		}
 	}
 
