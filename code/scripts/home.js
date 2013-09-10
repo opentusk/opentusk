@@ -217,3 +217,15 @@ function makeLinksDropDown() {
 }
 
 /* end Personal Links */
+
+function toggleMaterialLinks(material, obj){
+	var materialLinks = document.getElementById(material);
+	if (materialLinks.style.display  == 'inline'){
+		materialLinks.style.display = 'none';
+		obj.src = "/graphics/icon-nav-closed.png";
+	}
+	else{
+		materialLinks.style.display = 'inline';
+		obj.src = "/graphics/icon-nav-open.png";
+	}
+}
