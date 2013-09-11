@@ -14,9 +14,6 @@
 
 
 
-
-
-
 package HSDB45::Authorization;
 
 use strict;
@@ -36,7 +33,6 @@ sub version { return $VERSION }
 my @mod_deps  = ('HSDB4::SQLRow::User',
 		 'HSDB45::Course');
 my @file_deps = ();
-my $blank_user;
 
 sub get_mod_deps {
     return @mod_deps;
@@ -139,13 +135,12 @@ sub can_user_view_content {
 sub valid_account {
 	my $self = shift;
 	my $user_id = shift;
-	unless ($blank_user) {
-		$blank_user = HSDB4::SQLRow::User->new();
-	};
 	my $shibUser = $TUSK::Constants::shibbolethUserID;
 	return 1 if ($user_id =~ /$shibUser/);
-	my $user = $blank_user->lookup_key($user_id);
+
+	my $user = HSDB4::SQLRow::User->new()->lookup_key($user_id);
 	return 1 if ($user->active && !$user->is_expired);
 	return 0;
 }
+
 1;
