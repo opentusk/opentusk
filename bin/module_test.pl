@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 # Copyright 2012 Tufts University 
 #
 # Licensed under the Educational Community License, Version 1.0 (the "License"); 
@@ -13,7 +14,6 @@
 # limitations under the License.
 
 
-#!/usr/bin/perl
 use strict;
 use FindBin;
 use lib "$FindBin::Bin/../lib";

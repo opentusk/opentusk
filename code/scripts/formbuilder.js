@@ -240,92 +240,137 @@ function report_submit(form){
 	return true;
 }
 
-function check_required_fields(form, required_array){
+function check_required_fields(form, required_array) {
+    // TODO: Also implement server-side logic to verify.
 
-	if (form.encounter_date) {
-		if (!isValidDate(form.encounter_date)) {
-			return false;
-		}
-	}
+    if (form.encounter_date) {
+        if (!isValidDate(form.encounter_date)) {
+            return false;
+        }
+    }
 
-	if (window.checkNotRequired == 1) {
-		return true;
-	}
+    if (window.checkNotRequired == 1) {
+        return true;
+    }
 
 
-	if (document.getElementById("check_required").value == 0) {
-		return true;
-	}
+    if (document.getElementById("check_required").value == 0) {
+        return true;
+    }
 
-	if (window.checkTimePeriod && form.time_period_id.value == 0) {
-		alert('Please select a site and time period');
-		return false;
-	}
+    if (window.checkTimePeriod && form.time_period_id.value == 0) {
+        alert('Please select a site and time period');
+        return false;
+    }
 
-	for (var i=0; i < required_array.length; i++){
-		var obj = document.getElementById(required_array[i]['id']);
+    for (var i=0; i < required_array.length; i++) {
+        var obj_id = required_array[i]['id'];
+        var msg = required_array[i]['message'];
+        var obj = document.getElementById(obj_id);
 
-		if (obj && obj.nodeName == 'SELECT') {
-			if (obj.selectedIndex == 0){
-				alert('Please enter a value for ' + required_array[i]['message']);
-				document.getElementById(required_array[i]['id']).focus();
-				return false;
-			}
-		} else if (required_array[i]['id'].match(/^checklist_/)) {
-			var checklist = document.getElementById(required_array[i]['id']);
-			if (checklist && checklist.value > 0) {
-				alert('Please complete the checklist for ' + required_array[i]['message']);
-				return false;
-			}
-		} else if (required_array[i]['id'].match(/^text_id_/)) {
-			var textboxes = document.getElementsByName(required_array[i]['id']);
-			for (var j = 0; j < textboxes.length; j++) {
-				var text_str = textboxes[j].value;
-				if (textboxes[j].style.display == 'inline' && text_str.match(/^\s*$/)) {
-					alert('Please complete the text description for ' + required_array[i]['message']);					
-					return false;
-				}
-			}
-		} else if (required_array[i]['id'].match(/^multiwithattr_/)) {
-			var items = getElementsByClassName(required_array[i]['id']);
-			var field_tokens = required_array[i]['id'].split('_');
-			var attribute_num = document.getElementById('attributes_' + field_tokens[1]).value;  // how many attributes there are
-			var errmsg = 'Please complete the required information for your selection(s) in the ' + required_array[i]['message'] + ' section.';
-			for (var j = 0; j < items.length; j++) {
-				if (items[j].value == 1) {
-					var field_item = items[j].name.split('_');
-					for (var p = 1; p <= attribute_num; p++) {
-						var attrs = getElementsByClassName('attribute-item_' + field_item[1] + '_' + field_item[2] + '_select_' + p);
-						if (attrs && attrs.length > 0) {
-							if (attrs[0].nodeName == 'SELECT' && attrs.length == 1) {  
-								if (attrs[0].selectedIndex == 0) {
-									alert(errmsg);
-									return false;
-								}
-							} else {  // if not dropdown then it must be radio!
-								var checked = 0;
-								for (var k = 0; k < attrs.length; k++) {
-									if (attrs[k].checked == true) {
-										checked = 1; break;
-									}
-								}
-								if (checked == 0) {
-									alert(errmsg);
-									return false;
-								}
-							}
-						}
-					}
-				} 
+        if (obj && obj.nodeName == 'SELECT') {
+            if (obj.multiple) {
+                if (obj.selectedIndex == -1) {
+                    alert('Please select an option for ' + msg);
+                    obj.focus();
+                    return false;
+                }
+            }
+            else {
+                if (obj.selectedIndex == 0) {
+                    alert('Please select an option for ' + msg);
+                    obj.focus();
+                    return false;
+                }
+            }
+        }
+        else if (obj_id.match(/^checklist_/)) {
+            if (obj && obj.value > 0) {
+                alert('Please complete the checklist for ' + msg);
+                return false;
+            }
+        }
+        else if (obj_id.match(/^text_id_/)) {
+            // I don't understand the logic here. TODO: Examine "single
+            // select allow multiple" formbuilder element.
+            var textboxes = document.getElementsByName(obj_id);
+            for (var j = 0; j < textboxes.length; j++) {
+                var text_str = textboxes[j].value;
+                if (textboxes[j].style.display == 'inline'
+                    && text_str.match(/^\s*$/)) {
+                    alert('Please complete the text description for ' + msg);
+                    return false;
+                }
+                else if (textboxes[j].style.display == 'none') {
+                    // Added to handle "single select allow multiple"
+                    var item_id = obj_id.substr(8);
+                    var table_obj = document.getElementById('f' + item_id);
+                    var select_obj = document.getElementById('id_' + item_id);
+                    if ((! table_obj) && (select_obj.selectedIndex == 0)) {
+                        alert ('Please select an option for ' + msg);
+                        return false
+                    }
+                }
+            }
+        }
+        else if (obj_id.match(/^id_/)) {
+            if (obj.nodeName.toLowerCase() == 'textarea'
+                || (obj.nodeName.toLowerCase() == 'input'
+                    && obj.type.toLowerCase() == 'text')) {
+                if (obj.value.length == 0) {
+                    alert ('Please complete the text description for ' + msg);
+                    return false;
+                }
+            }
+        }
+        else if (obj_id.match(/^multiwithattr_/)) {
+            var items = getElementsByClassName(obj_id);
+            var field_id = obj_id.split('_')[1];
+            var attribute_count = document.getElementById(
+                'attributes_' + field_id).value;
+            var errmsg = 'Please complete the required information for ' +
+                'your selection(s) in the ' + msg + ' section.';
+            for (var j = 0; j < items.length; j++) {
+                if (items[j].value == 1) {
+                    var field_item = items[j].name.split('_');
+                    for (var p = 1; p <= attribute_count; p++) {
+                        var attrs = getElementsByClassName('attribute-item_' +
+                                                           field_item[1] +
+                                                           '_' +
+                                                           field_item[2] +
+                                                           '_select_' +
+                                                           p);
+                        if (attrs && attrs.length > 0) {
+                            if (attrs[0].nodeName == 'SELECT'
+                                && attrs.length == 1) {
+                                if (attrs[0].selectedIndex == 0) {
+                                    alert(errmsg);
+                                    return false;
+                                }
+                            } else {  // if not dropdown then it must be radio!
+                                var checked = 0;
+                                for (var k = 0; k < attrs.length; k++) {
+                                    if (attrs[k].checked == true) {
+                                        checked = 1; break;
+                                    }
+                                }
+                                if (checked == 0) {
+                                    alert(errmsg);
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                }
 
-			}
-		}
-	}
+            }
+        }
+    }
 
-	if (window.confirmMessage) {
-		return confirm("Are you sure you want to submit this form?");
-	}
-	return true;
+    if (window.confirmMessage) {
+        return confirm("Are you sure you want to submit this form?");
+    }
+    return true;
 }
 
 /* check a given element in the form if it contains a numeric ID without leading zeroes */
