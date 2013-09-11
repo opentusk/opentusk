@@ -229,77 +229,19 @@ else {
 	</hgroup>
 	<div id="materialsScrollContainer" class="scrollcontainer">
 		<ul>
-%	if (scalar @assessment_links) {
-			<li><% __('Assessments') %>
-%			my $assessmentsCount = $#assessment_links + 1;
-			(<% $assessmentsCount %>)
-			<input type="image" src="/graphics/icon-nav-closed.png" onclick='toggleMaterialLinks("assessmentsLinks", this)' />
-			<ul id="assessmentsLinks" class="materiallinks">
-%		foreach my $link (@assessment_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
-%	if (scalar @assignment_links) {
-			<li><% __('Assignments') %>
-%			my $assignmentsCount = $#assignment_links + 1;
-			(<% $assignmentsCount %>)
-			<input type="image" src="/graphics/icon-nav-closed.png" onclick='toggleMaterialLinks("assignmentsLinks", this)' />
-			<ul id="assignmentsLinks" class="materiallinks">
-%		foreach my $link (@assignment_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
-%	if (scalar @case_links) {
-			<li><% __('Cases') %>
-%			my $casesCount = $#case_links + 1;
-			(<% $casesCount %>)
-			<input type="image" src="/graphics/icon-nav-closed.png" onclick='toggleMaterialLinks("casesLinks", this)' />
-			<ul id="casesLinks" class="materiallinks">
-%		foreach my $link (@case_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
-%	if (scalar @eval_links) {
-			<li><% __('Course Evaluations') %>
-%			my $courseEvaluationsCount = $#eval_links + 1;
-			(<% $courseEvaluationsCount %>)
-			<input type="image" src="/graphics/icon-nav-closed.png" onclick='toggleMaterialLinks("courseEvaluationsLinks", this)' />
-			<ul id="courseEvaluationsLinks" class="materiallinks">
-%		foreach my $link (@eval_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
+
+%	my @materialLinksTop = ( [ \@assessment_links, 'Assessments', 'assessments_links'],  [ \@assignment_links, 'Assignments', 'assignment_links'], [ \@case_links, 'Cases', 'case_links'], [ \@eval_links, 'Course Evaluations', 'eval_links'] );
+<& SELF:populateMaterials, materialLinks => \@materialLinksTop &>
+
 %	if ($grade_link) {
 			<li><% $grade_link %></li>
 %	}
 			<li><a href="/management/flashcard/flashcard"><% __('Flash Cards') %></a>
 			<li><a href="/management/content/personalcontent"><% __('Folders') %></a></li>
-%	if (scalar @log_links) {
-			<li><% __('Patient Logs') %>
-%			my $patientLogsCount = $#log_links + 1;
-			(<% $patientLogsCount %>)
-			 <input type="image" src="/graphics/icon-nav-closed.png" onclick='toggleMaterialLinks("patientloglinks", this)' />
-			<ul id="patientloglinks" class="materiallinks">
-%		foreach my $link (@log_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
-%	if (scalar @quiz_links) {
-			<li><% __('Quizzes') %>
-%			my $quizzesCount = $#quiz_links + 1;
-			(<% $quizzesCount %>)
-			<input type="image" src="/graphics/icon-nav-closed.png" alt="more" onclick='toggleMaterialLinks("quizLinks", this)' />
-			<ul id="quizLinks" class="materiallinks">
-%		foreach my $link (@quiz_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
+
+%	my @materialLinksBottom = ([ \@log_links, 'Patient Logs', 'log_links'], [ \@quiz_links, 'Quizzes', 'quiz_links']);
+<& SELF:populateMaterials, materialLinks => \@materialLinksBottom &>
+
 %	if ($sp_link) {
 			<li><% $sp_link %></li>
 %	}
@@ -308,4 +250,21 @@ else {
 </nav>
 </%method>
 
+<%method populateMaterials>
+<%args>
+	$materialLinks
+</%args>
+%	foreach my $links (@$materialLinks){
+%		if (scalar @{$links->[0]}){
+			<li><% @$links[1] %>
+			(<% $#{$links->[0]} + 1 %>)
+			<input type="image" src="/graphics/icon-nav-closed.png" onclick='toggleMaterialLinks("<% @$links[2] %>", this)' />
+			<ul id="<% @$links[2] %>" class = "materiallinks">
+%			foreach my $link (@{$links->[0]}){
+				<li><% $link %></li>
+%			}
+			</ul></li>
+%		}
+%	}	
 
+</%method>
