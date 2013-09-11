@@ -218,16 +218,15 @@ function makeLinksDropDown() {
 
 /* end Personal Links */
 
-function toggleMaterialLinks(material, obj){
-	var materialLinks = document.getElementById(material);
-	if ($('#' + material).css( "display") == "inline"){
-		$('#' + material).css( "display", "none");
-		$(obj).attr("src", "/graphics/icon-nav-closed.png");	
-	}
-	else{
-		$('#' + material).css( "display", "inline");
-		$(obj).attr("src", "/graphics/icon-nav-open.png");	
-		var scrollBoxHeight = $('#schooltab0').height() - $('#communicationsBox').height() - $('#communicationsBox').css("padding-bottom");
-		$('#materialsScrollContainer').css("max-height", scrollBoxHeight);
+function toggleMaterialLinks( material, obj ){
+	var materialLinks = document.getElementById( material );
+	if ( $( '#' + material ).css( "display" ) == "inline" ){
+		$( '#' + material ).css( "display", "none" );
+		$( obj ).attr( "src", "/graphics/icon-nav-closed.png" );	
+	} else{
+		$( '#' + material ).css( "display", "inline" );
+		$( obj ).attr( "src", "/graphics/icon-nav-open.png" );	
+		var scrollBoxHeight = $( '#schooltab0' ).height() - $( '#communicationsBox' ).height() - $( '#communicationsBox' ).css( "padding-bottom" );
+		$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );
 	}		
 }
