@@ -220,12 +220,14 @@ function makeLinksDropDown() {
 
 function toggleMaterialLinks(material, obj){
 	var materialLinks = document.getElementById(material);
-	if (materialLinks.style.display  == 'inline'){
-		materialLinks.style.display = 'none';
-		obj.src = "/graphics/icon-nav-closed.png";
+	if ($('#' + material).css( "display") == "inline"){
+		$('#' + material).css( "display", "none");
+		$(obj).attr("src", "/graphics/icon-nav-closed.png");	
 	}
 	else{
-		materialLinks.style.display = 'inline';
-		obj.src = "/graphics/icon-nav-open.png";
-	}
+		$('#' + material).css( "display", "inline");
+		$(obj).attr("src", "/graphics/icon-nav-open.png");	
+		var scrollBoxHeight = $('#schooltab0').height() - $('#communicationsBox').height() - $('#communicationsBox').css("padding-bottom");
+		$('#materialsScrollContainer').css("max-height", scrollBoxHeight);
+	}		
 }
