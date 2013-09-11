@@ -23,6 +23,10 @@
 	use TUSK::User::Link;
 </%once>
 
+<%shared>
+	 my $stripObj = TUSK::Application::HTML::Strip->new();
+</%shared>
+
 <%doc>
 method to print the tab(s) of user data for the home page
 </%doc>
@@ -36,89 +40,113 @@ method to print the tab(s) of user data for the home page
 	$schools
 </%args>
 
-% my $counter = 0;
+% my $school_counter = 0;
 
 <nav class="toptabs">
 <ul>
 % 	foreach my $school (@$schools) {
-	<li<% ($counter == 0) ? ' class="current"' : ''%>><a href="#schooltab<% $counter %>"><% $TUSK::Constants::Schools{$school}{'DisplayName'} %></a>
-%	$counter++;
-% }
+	<li<% ($school_counter == 0) ? ' class="current"' : ''%>><a href="#schooltab<% $school_counter %>"><% $TUSK::Constants::Schools{$school}{'DisplayName'} %></a>
+%		$school_counter++;
+% 	}
 </ul>
 </nav>
-% $counter = 0;
-% my $stripObj = TUSK::Application::HTML::Strip->new();
+
+% $school_counter = 0;
 % foreach my $school (@$schools) {
 %	my $calendar_tab;
 %	if (($today->{$school} && scalar @{$today->{$school}}) || (($upcoming->{$school} && scalar @{$upcoming->{$school}}))) {
 %		$calendar_tab = 1;
 %	}
-% 	my @tabs;
-	<div id="schooltab<% $counter %>" class="toptab<% ($counter == 0) ? ' current' : ''%><% ($calendar_tab) ? '' : ' full' %>">
+% 	my @course_tabs;
+	<div id="schooltab<% $school_counter %>" class="toptab<% ($school_counter == 0) ? ' current' : ''%><% ($calendar_tab) ? '' : ' full' %>">
 		<div class="tabinner">
 			<h1 class="skip"><% $TUSK::Constants::Schools{$school}{'DisplayName'} %></h1>
 			<div class="courses tabgroup">
 				<nav class="tabs<% (scalar keys %{$course_hash->{$school}} <= 1) ? ' single' : '' %>">
 					<ul>
-% 	if ($course_hash->{$school}{"stud_courses"} && scalar @{$course_hash->{$school}{"stud_courses"}}) {
-%		push @tabs, "stud_courses";
-						<li<% ((scalar @tabs) == 1) ? ' class="current"' : '' %>><a href="#schooltab<% $counter %>coursetab<% (scalar @tabs) - 1 %>"><% __('Courses') %></a></li>
+
+%       #### course types and labels
+%	my $course_types = [	[ 'student_courses',  'Courses'    ],
+%				[ 'my_groups', 	      'Groups'     ],
+%				[ 'admin_courses',    'Upload/Edit'      ],
+%				[ 'user_committees',  'Committees' ] ];
+
+%	foreach my $course_type (@$course_types) {
+%		if (exists $course_hash->{$school}{$course_type->[0]}) {
+%			push @course_tabs, $course_type->[0];
+						<li<% ((scalar @course_tabs) == 1) ? ' class="current"' : '' %>><a href="#schooltab<% $school_counter %>coursetab<% (scalar @course_tabs) - 1 %>"><% __($course_type->[1]) %></a></li>
+%		}
+
 % 	}
-% 	if ($course_hash->{$school}{"user_groups"} && scalar @{$course_hash->{$school}{"user_groups"}}) {
-%		push @tabs, "user_groups";
-						<li<% ((scalar @tabs) == 1) ? ' class="current"' : '' %>><a href="#schooltab<% $counter %>coursetab<% (scalar @tabs) - 1 %>"><% __('Groups') %></a></li>
-% 	}
-% 	if ($course_hash->{$school}{"admin_courses"} && scalar @{$course_hash->{$school}{"admin_courses"}}) {
-%		push @tabs, "admin_courses";
-						<li<% ((scalar @tabs) == 1) ? ' class="current"' : '' %>><a href="#schooltab<% $counter %>coursetab<% (scalar @tabs) - 1 %>"><% __('Upload/Edit') %></a></li>
-% 	}
-% 	if ($course_hash->{$school}{"user_committees"} && scalar @{$course_hash->{$school}{"user_committees"}}) {
-%		push @tabs, "user_committees";
-						<li<% ((scalar @tabs) == 1) ? ' class="current"' : '' %>><a href="#schooltab<% $counter %>coursetab<% (scalar @tabs) - 1 %>"><% __('Committees') %></a></li>
-% 	}
-%	unless (scalar @tabs) {
-						<li class="current"><a href="#schooltab<% $counter %>coursetab0">Courses</a></li>
+
+%	unless (scalar @course_tabs) {
+						<li class="current"><a href="#schooltab<% $school_counter %>coursetab0">Courses</a></li>
 %	}
 					</ul>
 				</nav>
 				<div class="tabcontainer">
-% 	my $tabcounter = 0;
-%	unless (scalar @tabs) {
-					<section id="schooltab<% $counter %>coursetab0" class="tab current">
+
+%	unless (scalar @course_tabs) {
+					<section id="schooltab<% $school_counter %>coursetab0" class="tab current">
 						<h1 class="skip"><% __('Courses') %></h1>
 					</section>
 %	}
-% 	foreach my $tab (@tabs) {
-%		if ($course_hash->{$school}{$tab} && scalar @{$course_hash->{$school}{$tab}}) {
-				<section id="schooltab<% $counter %>coursetab<% $tabcounter %>" class="tab<% ($tabcounter == 0) ? ' current' : '' %>">
+
+% 	my $course_tab_counter = 0;
+
+%       ## student_courses are different so we print them out first
+% 	if ($course_hash->{$school}{"student_courses"}) {
+				<section id="schooltab<% $school_counter %>coursetab<% $course_tab_counter %>" class="tab<% ($course_tab_counter == 0) ? ' current' : '' %>">
 					<div class="scrollcontainer">
 					<ul>
-%			foreach my $course (sort {$a->out_title() cmp $b->out_title()} @{$course_hash->{$school}{$tab}}) {
-						<li><a href="<% ($tab eq "admin_courses") ? "/management/course/display/" : "/view/course/" %><% "$school/" . $course->primary_key() %>"><% $stripObj->removeHTML($course->out_title()) %></a></li>
+%		### enrollment courses
+%		if (exists $course_hash->{$school}{"student_courses"}{"enrollment"}) {
+%			foreach my $course (sort {$a->out_title() cmp $b->out_title()} @{$course_hash->{$school}{"student_courses"}{"enrollment"}}) {
+						<li><a href="/view/course/<% "$school/" . $course->primary_key() %>"><% $stripObj->removeHTML($course->out_title()) %></a></li>
 %			}
+%		}
+
+
+%		### user_group courses with managed categories
+%		if (exists $course_hash->{$school}{"student_courses"}{"user_group"}) {
+%			foreach my $category_sort_order (sort keys %{$course_hash->{$school}{"student_courses"}{"user_group"}}) {
+						<li><h2 class="course-category"><% $course_hash->{$school}{"student_courses"}{"user_group"}{$category_sort_order}{label} %></h2></li>
+%				foreach my $course (@{$course_hash->{$school}{"student_courses"}{"user_group"}{$category_sort_order}{courses}}) {
+						<li style="margin-left:<% $course->{indentation} * 10 %>px"><% $course->{id} ? '<a  href="' . (($course->{url}) ? $course->{url} : "/view/course/$school/$course->{id}") . '">' . $stripObj->removeHTML($course->{title}) . '</a>' : $stripObj->removeHTML($course->{title}) %></li>
+%				}
+%			}
+%		}
 					</ul>
-					</div>
+					</div> <!-- scrollcontainer -->
 				</section>
-% 			$tabcounter++;
+%		$course_tab_counter++;
+%		@course_tabs = @course_tabs[1 .. $#course_tabs];
+%	}
+
+% 	foreach my $tab (@course_tabs) {
+%		if ($course_hash->{$school}{$tab} && scalar @{$course_hash->{$school}{$tab}}) {
+%			$m->comp('SELF:print_school_tab', school_counter => $school_counter, course_tab_counter => $course_tab_counter, school => $school, courses => $course_hash->{$school}{$tab}, course_url_prefix => ($tab eq "admin_courses") ? "/management/course/display/" : "/view/course/");
+% 			$course_tab_counter++;
 %		}
 % 	}
-				</div>
-			</div>
+				</div> <!-- tabcontainer -->
+			</div> <!-- courses tabgroup -->
+
 %	if ($calendar_tab) {
 			<div class="calendar tabgroup">
-				<nav class="tabs<% ($today->{$school} && scalar @{$today->{$school}} && scalar @{$upcoming->{$school}}) ? '' : ' single' %>">
+				<nav class="tabs<% ($today->{$school} && scalar @{$today->{$school}} && $upcoming->{$school} && scalar @{$upcoming->{$school}}) ? '' : ' single' %>">
 					<ul>
 %		if ($today->{$school} && scalar @{$today->{$school}}) {
-						<li class="current"><a href="#schooltab<% $counter %>calendartab1"><% __('Today') %></a></li>
+						<li class="current"><a href="#schooltab<% $school_counter %>calendartab1"><% __('Today') %></a></li>
 %		}
-%		if (scalar @{$upcoming->{$school}}) {
-						<li<% ($today->{$school} && scalar @{$today->{$school}}) ? '' : ' class="current"' %>><a href="#schooltab<% $counter %>calendartab2"><% __('To Do') %></a></li>
+%		if ($upcoming->{$school} && scalar @{$upcoming->{$school}}) {
+						<li<% ($today->{$school} && scalar @{$today->{$school}}) ? '' : ' class="current"' %>><a href="#schooltab<% $school_counter %>calendartab2"><% __('To Do') %></a></li>
 %		}
 					</ul>
 				</nav>
 				<div class="tabcontainer">
 %		if ($today->{$school} && scalar @{$today->{$school}}) {
-					<section class="tab current" id="schooltab<% $counter %>calendartab1">
+					<section class="tab current" id="schooltab<% $school_counter %>calendartab1">
 					<div class="scrollcontainer">
 						<h1 class="skip"><% __('Today') %></h1>
 %			foreach my $meeting (@{$today->{$school}}) {
@@ -131,8 +159,8 @@ method to print the tab(s) of user data for the home page
 					</div>
 					</section>
 %		}
-%		if (scalar @{$upcoming->{$school}}) {
-					<section class="tab<% ($today->{$school} && scalar @{$today->{$school}}) ? '' : ' current"' %>" id="schooltab<% $counter %>calendartab2">
+%		if ($upcoming->{$school} && scalar @{$upcoming->{$school}}) {
+					<section class="tab<% ($today->{$school} && scalar @{$today->{$school}}) ? '' : ' current"' %>" id="schooltab<% $school_counter %>calendartab2">
 					<div class="scrollcontainer">
 					<h1 class="skip"><% __('To Do') %></h1>
 %			foreach my $event (@{ $upcoming->{$school} }) {
@@ -166,18 +194,18 @@ method to print the tab(s) of user data for the home page
 				<div class="content">
 					<nav class="tabs">
 						<ul>
-							<li class="current"><a href="#schooltab<% $counter %>contenttab1"><% __('Recently Viewed') %></a></li>
-							<li><a href="#schooltab<% $counter %>contenttab2"><% __('Popular') %></a></li>
+							<li class="current"><a href="#schooltab<% $school_counter %>contenttab1"><% __('Recently Viewed') %></a></li>
+							<li><a href="#schooltab<% $school_counter %>contenttab2"><% __('Popular') %></a></li>
 						</ul>
 					</nav>
 					<div class="tabcontainer">
-						<section id="schooltab<% $counter %>contenttab1" class="tab current">
+						<section id="schooltab<% $school_counter %>contenttab1" class="tab current">
 							<h1 class="skip"><% __('Recently Viewed') %></h1>
 							<div class="scrollcontainer">
 								<& SELF:recently_viewed, user => $user &>
 							</div>
 						</section>
-						<section id="schooltab<% $counter %>contenttab2" class="tab">
+						<section id="schooltab<% $school_counter %>contenttab2" class="tab">
 							<h1 class="skip"><% __('Popular') %></h1>
 							<div class="scrollcontainer">
 								<& SELF:pop_content, user => $user &>
@@ -194,8 +222,27 @@ method to print the tab(s) of user data for the home page
 %	}
 		</div>
 	</div>
-%	$counter++;
+%	$school_counter++;
 % }
+</%method>
+
+<%method print_school_tab>
+<%args>
+	$school_counter
+	$course_tab_counter
+	$school
+	$courses
+	$course_url_prefix
+</%args>
+				<section id="schooltab<% $school_counter %>coursetab<% $course_tab_counter %>" class="tab<% ($course_tab_counter == 0) ? ' current' : '' %>">
+					<div class="scrollcontainer">
+					<ul>
+%	foreach my $course (sort {$a->out_title() cmp $b->out_title()} @$courses) {
+						<li><a href="<% $course_url_prefix %><% "$school/" . $course->primary_key() %>"><% $stripObj->removeHTML($course->out_title()) %></a></li>
+%	}
+					</ul>
+					</div>
+				</section>
 </%method>
 
 <%method print_user_links>
@@ -331,3 +378,5 @@ my $stripObj = TUSK::Application::HTML::Strip->new();
 <p><em><% __('no relevant content') %></em></p>
 % }
 </%method>
+
+
