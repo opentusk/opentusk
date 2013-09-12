@@ -225,8 +225,13 @@ function toggleMaterialLinks( material, obj ){
 		$( obj ).attr( "src", "/graphics/icon-nav-closed.png" );	
 	} else{
 		$( '#' + material ).css( "display", "inline" );
-		$( obj ).attr( "src", "/graphics/icon-nav-open.png" );	
-		var scrollBoxHeight = $( '#schooltab0' ).height() + $( '#gTrafficLight' ).height() - $( '#communicationsBox' ).height() - 10
+		$( obj ).attr( "src", "/graphics/icon-nav-open.png" );
+		var paddingAdjustment = 70; //px
+		var trafficLightHeight = ( $( '#gTrafficLight' ).height() ) || 0;
+		if ( trafficLightHeight > 0 ){
+			paddingAdjustment = paddingAdjustment - 25;
+		};
+		var scrollBoxHeight = $( '#gContent' ).height() + trafficLightHeight - $( '#communicationsBox' ).height() - paddingAdjustment;
 		$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );
 	}		
 }
