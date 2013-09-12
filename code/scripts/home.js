@@ -28,6 +28,7 @@ function closeNotifications() {
 		xRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 		xRequest.send();
 	}
+	materialsHeightAdjust();
 }
 
 // change class of clicked on tab to current and make previous tab not current anymore
@@ -226,12 +227,22 @@ function toggleMaterialLinks( material, obj ){
 	} else{
 		$( '#' + material ).css( "display", "inline" );
 		$( obj ).attr( "src", "/graphics/icon-nav-open.png" );
-		var paddingAdjustment = 70; //px
-		var trafficLightHeight = ( $( '#gTrafficLight' ).height() ) || 0;
-		if ( trafficLightHeight > 0 ){
-			paddingAdjustment = paddingAdjustment - 25;
-		};
-		var scrollBoxHeight = $( '#gContent' ).height() + trafficLightHeight - $( '#communicationsBox' ).height() - paddingAdjustment;
-		$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );
-	}		
+		materialsHeightAdjust();
+	}
+}	
+
+function materialsHeightAdjust(){	
+	var paddingAdjustment = 70; //px
+	var trafficLightHeight = ( $( '#gTrafficLight' ).height() ) || 0;
+	if ( trafficLightHeight > 0 ){
+		paddingAdjustment = paddingAdjustment - 25;
+	};
+	var scrollBoxHeight = $( '#gContent' ).height() + trafficLightHeight - $( '#communicationsBox' ).height() - paddingAdjustment;
+	$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );		
 }
+
+
+
+
+	
+	
