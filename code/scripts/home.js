@@ -226,7 +226,7 @@ function toggleMaterialLinks( material, obj ){
 	} else{
 		$( '#' + material ).css( "display", "inline" );
 		$( obj ).attr( "src", "/graphics/icon-nav-open.png" );	
-		var scrollBoxHeight = $( '#schooltab0' ).height() - $( '#communicationsBox' ).height() - $( '#communicationsBox' ).css( "padding-bottom" );
+		var scrollBoxHeight = $( '#schooltab0' ).height() + $( '#gTrafficLight' ).height() - $( '#communicationsBox' ).height() - 10
 		$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );
 	}		
 }
