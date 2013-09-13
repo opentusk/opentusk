@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%attr>
 	page_header      => '/tmpl/prepend:manage_header_div_layout'
 	page_footer      => '/tmpl/footer:footer_div_with_school_links'
@@ -32,13 +33,13 @@
 	my $user = $m->session->{'user'};
 	my $user_id = $user->primary_key();
 	my %course_hash;
-	my @courses = $user->parent_courses();
 </%shared>
 
 <%perl>
-	foreach my $course (@courses){
+	my @author_courses = $user->author_courses();
+	foreach my $course (@author_courses){
 		if ($course->type() eq 'group'){
-			push (@{$course_hash{$course->school()}{"user_groups"}}, $course);
+			push (@{$course_hash{$course->school()}{"my_groups"}}, $course);
 		} elsif ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
 			push (@{$course_hash{$course->school()}{"user_committees"}}, $course);
 		} elsif ($course->type() eq 'community service' or $course->type() eq 'course' or $course->type() eq 'integrated course') {
@@ -46,16 +47,21 @@
 		}  
 	}
 
-	my @current_courses = $user->current_courses();
-	my @user_stud_courses = $user->user_stud_courses(@current_courses);
-	foreach my $course (@user_stud_courses) {
-		push (@{$course_hash{$course->school()}{"stud_courses"}}, $course);
+	my $user_group_courses = $user->get_user_group_courses_with_categories();
+	foreach my $school (keys %$user_group_courses) {
+		$course_hash{$school}{"student_courses"}{"user_group"} = $user_group_courses->{$school};
 	}
+
+	foreach my $enrollment_course ($user->get_enrollment_courses()) {
+		push (@{$course_hash{$enrollment_course->school()}{"student_courses"}{"enrollment"}}, $enrollment_course);
+	}
+
 
 	my $upcoming = {};
 	my @schools = ();
 	my $counter = 0;
 	my $affiliation = $user->affiliation_or_default_school();
+	my $max_school_tabs = 3;
 
 	if (scalar keys %course_hash) {
  		foreach my $school (keys %course_hash) {
@@ -91,7 +97,14 @@
 	}
 
 	$m->comp("/tmpl/home:school_announcements", user => $user);
-	$m->comp("/tmpl/home:main_user_tabs", user => $user, course_hash => \%course_hash, upcoming => $upcoming, today => $user->todays_sorted_meetings_by_school(), schools => \@schools, schedule_ugs => $user->has_schedule());
+
+	$m->comp("/tmpl/home:main_user_tabs", 
+		user => $user, 
+		course_hash => \%course_hash, 
+		upcoming => $upcoming, 
+		today => $user->todays_sorted_meetings_by_school(), 
+		schools => (scalar @schools >= $max_school_tabs) ? [ @schools[0..$max_school_tabs-1] ] : \@schools, 
+		schedule_ugs => $user->has_schedule());
 </%perl>
 
 <%method title>

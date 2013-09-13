@@ -61,6 +61,7 @@ require HSDB45::Eval::Completion;
 require HSDB45::UserGroup;
 require TUSK::Application::Email;
 
+
 use vars @EXPORT_OK;
 
 # Non-exported package globals go here
@@ -321,9 +322,9 @@ sub check_admin{
     return $roles;
 }
 
-sub parent_courses {
+sub author_courses {
     #
-    # Return the courses the user is a part of teaching
+    # Return the courses the user is a part of teaching for 'course' course_type  or course admin for other course_types.
     #
     
     my $self = shift;
@@ -924,7 +925,7 @@ sub all_courses{
 }
 
 sub user_group_courses{
-    # Get the user's current user group courses
+    # Get the user's current student's user group courses
 	# unless a date is passed in, in which case, get the groups linked on that date
 
     my $self = shift;
@@ -982,18 +983,20 @@ sub current_courses {
     #
 
     my $self = shift;
-	my $params = shift || ();
+    my $params = shift || ();
+
+    $self->{_current_courses_calls}++;
 
 	# We need to cache all possible parameter options...
-	if ($params->{'all_courses'} && $params->{'only_enrollment'}) {
-		return @{$self->{'-all_enrollment_courses'}} if ($self->{'-all_enrollment_courses'});
-	} elsif ($params->{'all_courses'} && !$params->{'only_enrollment'}) {
-		return @{$self->{'-all_courses'}} if ($self->{'-all_courses'});
-	} elsif (!$params->{'all_courses'} && $params->{'only_enrollment'}) {
-		return @{$self->{'-current_enrollment_courses'}} if ($self->{'-current_enrollment_courses'});
-	} elsif (!$params->{'all_courses'} && !$params->{'only_enrollment'}) {
-		return @{$self->{'-current_courses'}} if ($self->{'-current_courses'});
-	}
+#	if ($params->{'all_courses'} && $params->{'only_enrollment'}) {
+#		return @{$self->{'-all_enrollment_courses'}} if ($self->{'-all_enrollment_courses'});
+#	} elsif ($params->{'all_courses'} && !$params->{'only_enrollment'}) {
+#		return @{$self->{'-all_courses'}} if ($self->{'-all_courses'});
+#	} elsif (!$params->{'all_courses'} && $params->{'only_enrollment'}) {
+#		return @{$self->{'-current_enrollment_courses'}} if ($self->{'-current_enrollment_courses'});
+#	} elsif (!$params->{'all_courses'} && !$params->{'only_enrollment'}) {
+#		return @{$self->{'-current_courses'}} if ($self->{'-current_courses'});
+#	}
 
     my $where = '';
     $where = "and t.start_date <= curdate() and t.end_date >= curdate()" unless ($params->{'all_courses'});
@@ -1006,22 +1009,25 @@ sub current_courses {
 	    my @timeperiod_ids = ();
 	    eval {
 		my $sql = qq[SELECT parent_course_id, l.time_period_id 
-						    FROM $db\.course c, $db\.link_course_student l, $db\.time_period t 
-						    WHERE l.child_user_id=? 
-						    AND l.time_period_id=t.time_period_id 
-						    AND l.parent_course_id=c.course_id ];
+			     FROM $db\.course c, $db\.link_course_student l, $db\.time_period t 
+			     WHERE l.child_user_id=? 
+			     AND l.time_period_id=t.time_period_id 
+			     AND l.parent_course_id=c.course_id ];
 		if ($params->{'only_enrollment'}) { $sql .= " AND c.associate_users='Enrollment' "; }
 		$sql .= $where;
 		
 		my $sth = $dbh->prepare($sql);
+
 		$sth->execute ($self->primary_key);
 
 		while (my ($course_id, $timeperiod_id) = $sth->fetchrow_array) {
 		    push @course_ids, $course_id;
 		    push @timeperiod_ids, $timeperiod_id
 		}
-          $sth->finish;
+		$sth->finish;
+
 	    };
+
 	    for (my $i=0; $i<scalar(@course_ids); $i++){
 		my $c = HSDB45::Course->new( _school => $school, _id => $course_ids[$i] );
 		$c->set_aux_info(time_period_id => $timeperiod_ids[$i]);
@@ -1076,36 +1082,36 @@ sub admin_courses {
     # Get a list of courses this person has access to as an admin
     #
     my $self = shift;
-	my ($school,$group_id,@admin_courses);
-	foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
-	    if ($self->check_school_permissions($school)){
-			my @courses = HSDB45::Course->new(_school => $school)->lookup_conditions();
-			push(@admin_courses, @courses);
-	    }
+    my ($school,$group_id,@admin_courses);
+    foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
+	if ($self->check_school_permissions($school)){
+	    my @courses = HSDB45::Course->new(_school => $school)->lookup_conditions();
+	    push(@admin_courses, @courses);
 	}
+    }
     return \@admin_courses;
 }
 
 
 sub cms_courses {
-	my $user = shift;
-	my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $user->parent_courses();
-	push @courses, @{$user->admin_courses()};
+    my $self = shift;
+    my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $self->author_courses();
+    push @courses, @{$self->admin_courses()};
 
-	my $courses_hash;
-	foreach my $course (@courses) {
-		my $school = $course->school;
-		my $key = $course->out_title."\0".$course->primary_key;
-		$courses_hash->{$school}->{$key} = $course;
-	}
-	return $courses_hash;
+    my $courses_hash;
+    foreach my $course (@courses) {
+	my $school = $course->school;
+	my $key = $course->out_title."\0".$course->primary_key;
+	$courses_hash->{$school}->{$key} = $course;
+    }
+    return $courses_hash;
 }
 
 sub cms_courses_sorted {
-	my $user = shift;
-	my $courses_hashref = $user->cms_courses();
-	my $group_courses_hashref;
-	my $tc_courses_hashref;
+    my $self = shift;
+    my $courses_hashref = $self->cms_courses();
+    my $group_courses_hashref;
+    my $tc_courses_hashref;
 
     foreach my $school (keys %{$courses_hashref}){
 	    foreach my $course (sort keys %{$courses_hashref->{$school}}){
@@ -1131,9 +1137,9 @@ sub cms_courses_sorted {
 }
 
 sub check_cms {
-	my $user = shift;
-	my ($courses_hashref,  $group_courses_hashref, $tc_courses_hashref) = cms_courses_sorted($user);
-	return scalar keys %$courses_hashref;
+    my $self = shift;
+    my ($courses_hashref,  $group_courses_hashref, $tc_courses_hashref) = $self->cms_courses_sorted();
+    return scalar keys %$courses_hashref;
 }
 
 sub taken_quizzes{
@@ -1231,7 +1237,7 @@ sub current_quizzes{
 			}
 		}
 	
-		foreach my $course ($self->parent_courses){
+		foreach my $course ($self->author_courses){
 		    my $roles = "," . $course->aux_info('roles') . ',';
 		    next unless ($roles =~ /,(Author|Editor|Director|Manager|),/);
 		    my $key = $course->school . "-" . $course->course_id;
@@ -2705,8 +2711,7 @@ sub get_school_announcements {
 	my $self = shift;
 	my %all_announcements;
 	my @courses = $self->current_courses();
-	my @admincourses = $self->parent_courses();
-	push @courses, @admincourses;
+	push @courses, $self->author_courses();
 
 	my @schools = keys %{{ map {$_->school() => 1 } @courses }};
 	foreach my $school (@schools) {
@@ -2737,12 +2742,11 @@ sub isGhost {
 	return(0);
 }
 
-sub get_list_cats{
+sub get_course_categories {
 	my $self = shift;
+	my @categories = ();
 
-	my $affiliation = (exists $TUSK::Constants::Schools{$self->affiliation()}) ? $self->affiliation() : $TUSK::Constants::Default{School} ;
-	my @categories;
-	if ($affiliation && defined ) {
+	if (my $affiliation = $self->affiliation_or_default_school()) {
 		my $cat = TUSK::HomepageCategory->new(_school => $affiliation);
 		@categories = $cat->lookup_conditions("order by sort_order");
 	}
@@ -2750,52 +2754,60 @@ sub get_list_cats{
 	return @categories;
 }
 
-sub get_enum_cat{
-	my $self = shift;
-	my @cats = @_;
-	unless (scalar @cats){
-		@cats = $self->get_list_cats();
-	}
 
-	my $affiliation = $self->affiliation();
+### for a given school, return a list of user group courses with categories
+sub get_user_group_courses_with_categories {
+    my $self = shift;
+    my $dbh = HSDB4::Constants::def_db_handle ();
+    my %categories = ();
 
-	foreach my $cat (@cats) {
-		## some schools (sackler) don't have user_groups for courses, but still want a course list
-		## if there is just one category then we can enumerate, otherwise better do all dropdowns
-		my @ids = $cat->get_user_group_ids();
-		if (!@ids) {
-			if (scalar @cats eq 1) {
-				return $cat;
-			}
-		} 
-		else {      
-			foreach my $id (@ids) {
-				my $ug = HSDB45::UserGroup->new(_id => $id, _school => $affiliation);
-				if ($ug->contains_user($self->primary_key())) {
-					return $cat;
-				}
-			}         
-		}           
+    foreach my $school ( course_schools() ) {
+    my $db = get_school_db($school);
+
+    my $sql = qq(
+		 SELECT hc.course_id, hc.label as course_label, hcat.label as category_label, indent, url, hc.sort_order, hcat.sort_order
+		 FROM $db.homepage_course hc, $db.homepage_category hcat, $db.link_user_group_user lug
+		 WHERE hc.category_id = hcat.id
+		 AND hc.show_date <= date(now()) AND  (hc.hide_date >= date(now()) OR hc.hide_date = '0000-00-00')
+		 AND (lug.parent_user_group_id = hcat.primary_user_group_id OR lug.parent_user_group_id = hcat.secondary_user_group_id)
+		 AND lug.child_user_id = ?
+		 ORDER BY hcat.sort_order, hc.sort_order
+		 );
+    eval {
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($self->primary_key());
+
+	while (my ($course_id, $course_title, $category, $indentation, $course_url, $course_sort_order, $category_sort_order) = $sth->fetchrow_array) {
+	    $categories{$school}{$category_sort_order}{label} = $category;
+	    push @{$categories{$school}{$category_sort_order}{courses}}, { 
+		id => $course_id, 
+		title => $course_title, 
+		url => $course_url,
+		indentation => $indentation 
+		};
 	}
-	return undef;
+	$sth->finish();
+    };
+
+	print $@ if ($@);
+}
+    return \%categories;
 }
 
-sub user_stud_courses{
-	my $self = shift;
-	my @current_courses = @_;
+
+sub get_enrollment_courses {
+        my $self = shift;
 	my %ids;
-	
-	unless (scalar @current_courses){
-		@current_courses = $self->current_courses({'only_enrollment' => 1});
-	}
 
-	my @user_stud_courses;
+	my @enrollment_courses;
+	my @current_courses = $self->current_courses({'only_enrollment' => 1});
+
 	foreach my $course (@current_courses){
-		push @user_stud_courses, $course if ($course->type() !~ /group|thesis committee/ && !(exists $ids{$course->primary_key()}));
-		$ids{$course->primary_key()} = 1;
+	    push @enrollment_courses, $course if ($course->type() !~ /group|thesis committee/ && !(exists $ids{$course->primary_key()}));
+	    $ids{$course->primary_key()} = 1;
 	}
 
-	return @user_stud_courses;
+	return @enrollment_courses;
 }
 
 sub save {
@@ -2944,7 +2956,7 @@ what they've written.
 
 =head1 Linked Objects
 
-B<parent_content()>, B<parent_courses()>, B<parent_class_meetings()>,
+B<parent_content()>, B<author_courses()>, B<parent_class_meetings()>,
 B<parent_small_groups()>, B<parent_user_groups()>,
 B<personal_content()>: Get the appropriate sets of linked objects for
 the given $user object.
