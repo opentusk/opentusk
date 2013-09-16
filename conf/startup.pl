@@ -13,6 +13,7 @@ BEGIN {
     use APR::Const();
     use APR::Table();
     use ModPerl::Const();
+    use lib "/usr/local/tusk/current/local/lib/perl5";
     use lib "/usr/local/tusk/current/lib";
     use HSDB4::SQLRow::Content;
     use HSDB45::Course;
