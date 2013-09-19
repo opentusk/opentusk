@@ -2677,11 +2677,9 @@ SELECT
 FROM
     tusk.assignment a
 INNER JOIN
-    tusk.grade_event g ON 
-        (a.grade_event_id = g.grade_event_id)
+    tusk.grade_event g ON (a.grade_event_id = g.grade_event_id)
 INNER JOIN
-    tusk.school s ON 
-        (g.school_id = s.school_id)
+    tusk.school s ON (g.school_id = s.school_id)
 INNER JOIN
     $_[0].link_course_student l 
     ON
@@ -2694,7 +2692,7 @@ WHERE
     a.due_date >=curdate()
 ORDER BY
     a.due_date
-END_SQL    
+END_SQL
 }
 
 sub get_course_assignments {
