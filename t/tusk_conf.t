@@ -51,8 +51,9 @@ foreach my $dbhost (keys %TUSK::Constants::Servers) {
      "FlashPixHost defined for hostname " . $dbhost);
   $test_count += 6;
 }
-ok(defined $TUSK::Constants::DefaultDB, "DefaultDB defined");
-$test_count++;
+ok(defined $TUSK::Constants::Default{DB}, "Default{DB} defined");
+ok(defined $TUSK::Constants::Default{School}, "Default{School} defined");
+$test_count += 2;
 
 # Top-level definitions
 ok(defined $TUSK::Constants::BaseStaticPath, "BaseStaticPath defined");
@@ -79,15 +80,11 @@ ok(defined $TUSK::Constants::SiteAbbr, "SiteAbbr defined");
 ok(defined $TUSK::Constants::SiteName, "SiteName defined");
 $test_count += 5;
 
-ok(defined $TUSK::Constants::SystemWideUserGroup,
-   "SystemWideUserGroup defined");
-ok(defined $TUSK::Constants::SystemWideUserGroupSchool,
-   "SystemWideUserGroupSchool defined");
 ok(defined $TUSK::Constants::UserImagesPath, "UserImagesPath defined");
 ok(defined $TUSK::Constants::XMLRulesPath, "XMLRulesPath defined");
 ok(defined $TUSK::Constants::emailWhenNewUserLogsIn,
    "emailWhenNewUserLogsIn defined");
-$test_count += 5;
+$test_count += 3;
 
 ok(defined $TUSK::Constants::EvalDTD,
    "EvalDTD defined");
