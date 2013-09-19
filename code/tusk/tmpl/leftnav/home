@@ -158,14 +158,15 @@ else {
 		my $link = '<a href="/protected/assessment/author/show/course/' . $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $stripObj->truncateAndRemoveHTML($form_row->{form_name}, $charLimit) . '</a>';
 		push @assessment_links, $link;
 	}
-		
-	## assignments
-	my @courses = $m->session->{user}->all_courses();
-	foreach my $course (@courses) {
-		my $assignments = $m->session->{user}->get_upcoming_course_assignments($course);
-		foreach my $assignment (@$assignments) {
-			push @assignment_links, '<a href="/assignment/student/complete/course/' . $course->school() . '/' .  $course->primary_key() . '/' . $assignment->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($assignment->getTitle(), $charLimit) . '</a>';
-		}
+	
+	my $course_assignments = $m->session->{user}->get_course_assignments();
+
+	foreach my $assignment (@$course_assignments){
+		#Here: $assignment->[2] = course_id, $assignment->[0] = assignment_id and $assignment->[1] = event_name
+		my $now = HSDB4::DateTime->new();
+	                                                                                                                                          
+        #($assign_due_date <=> $now) > 0   
+		push @assignment_links, '<a href="/assignment/student/complete/course/'. $assignment->[3] . '/' . $assignment->[2] . '/' . $assignment->[0] .  '">'. $assignment->[1].'</a>';
 	}
 
 	## cases
