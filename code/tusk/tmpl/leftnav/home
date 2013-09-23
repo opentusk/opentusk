@@ -162,11 +162,7 @@ else {
 	my $course_assignments = $m->session->{user}->get_course_assignments();
 
 	foreach my $assignment (@$course_assignments){
-		#Here: $assignment->[2] = course_id, $assignment->[0] = assignment_id and $assignment->[1] = event_name
-		my $now = HSDB4::DateTime->new();
-	                                                                                                                                          
-        #($assign_due_date <=> $now) > 0   
-		push @assignment_links, '<a href="/assignment/student/complete/course/'. $assignment->[3] . '/' . $assignment->[2] . '/' . $assignment->[0] .  '">'. $assignment->[1].'</a>';
+		push @assignment_links, '<a href="/assignment/student/complete/course/'. $assignment->{'school_name'} . '/' . $assignment->{'course_id'} . '/' . $assignment->{'assignment_id'} .  '">'. $assignment->{'event_name'}.'</a>';
 	}
 
 	## cases
@@ -262,13 +258,13 @@ else {
 <%args>
 	$materialLinks
 </%args>
-%	foreach my $links ( @$materialLinks ){
-%		if ( scalar @{ $links->[0] } ){
+%	foreach my $links ( @$materialLinks ) {
+%		if ( scalar @{ $links->[0] } ) {
 			<li><% @$links[1] %>
 			(<% $#{ $links->[0] } + 1 %>)
-			<input type="image" src="/graphics/icon-nav-closed.png" class="materials_button" onclick='toggleMaterialLinks("<% @$links[2] %>", this)' />
+			<input type="image" src="/graphics/icon-nav-closed.png" class="materials_button" onclick='toggleMaterialLinks( "<% @$links[2] %>", this )' />
 			<ul id="<% @$links[2] %>" class = "materiallinks">
-%			foreach my $link (@{ $links->[0] }){
+%			foreach my $link ( @{ $links->[0]  }) {
 				<li><% $link %></li>
 %			}
 			</ul></li>

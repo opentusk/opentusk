@@ -2670,7 +2670,6 @@ sub get_announcements_by_group_and_course{
 
 sub _get_course_assignments_sql {
     my $self = shift;
-    my $db = $self->{_db};
     return <<"END_SQL";
 SELECT
     a.assignment_id, g.event_name, g.course_id, s.school_name
@@ -2701,29 +2700,25 @@ sub get_course_assignments {
 
     my @courses = $self->current_courses();
     my @schools_dbs;
-    
-    foreach my $course(@courses){
-	push(@schools_dbs, $course->{'_tablename'}); 
+
+    foreach my $course(@courses) {
+	push(@schools_dbs, $course->school_db());
     }
-    
+
     #remove multible database name by using hash and grep
     my %schools_dbs_hash;
     my @schools_dbs_unique = grep{ !$schools_dbs_hash{$_}++ } @schools_dbs;
 
-    #split the string to just get the databasename
-    foreach my $school_db(@schools_dbs_unique){
-	my @temp_split_array = split ( /\./, $school_db );
-	$school_db = $temp_split_array[0];
-    }
-
     my @all_assignments;
     
-    foreach my $school(@schools_dbs_unique){
+    foreach my $school(@schools_dbs_unique) {
 	my $sql = $self-> _get_course_assignments_sql($school);
 	my $sth = TUSK::Core::SQLRow->new()->databaseSelect($sql);
-	my $assignments = $sth->fetchall_arrayref();
-	foreach my $assignment (@$assignments){
-	    push(@all_assignments, $assignment);
+
+	my $assignments = $sth->fetchall_hashref('assignment_id');
+
+	while (my ($key, $value) = each(%$assignments) ){
+	    push(@all_assignments, $value);
 	}
     }
 
