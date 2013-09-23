@@ -1,7 +1,7 @@
 package TUSK::Import::EnrollListingTest;
 
 use strict;
-use base qw/Test::Unit::TestCase/;
+use base Test::Unit::TestCase;
 use Test::Unit;
 use TUSK::Import::EnrollListing;
 use TUSK::Import;
