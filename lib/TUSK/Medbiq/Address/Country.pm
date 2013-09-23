@@ -12,37 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Country;
+package TUSK::Medbiq::Address::Country;
 
 use 5.008;
 use strict;
 use warnings;
-use version;
+use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
 
-use TUSK::Medbiq::Types;
+use TUSK::Types qw(NonNullString);
+use TUSK::Meta::Attribute::Trait::Namespaced;
 
 use Moose;
 
 with 'TUSK::XML::Object';
 
-our $VERSION = qv('0.0.1');
+Readonly my $_default_namespace => 'http://ns.medbiq.org/address/v1/';
 
 ####################
 # Class attributes #
 ####################
 
 has CountryName => (
+    traits => [ qw(Namespaced) ],
     is => 'ro',
-    isa => 'NonNullString',
+    isa => NonNullString,
     required => 0,
 );
 
 has CountryCode => (
+    traits => [ qw(Namespaced) ],
     is => 'ro',
-    isa => 'NonNullString',
+    isa => NonNullString,
     required => 0,
 );
 
@@ -51,15 +54,11 @@ has CountryCode => (
 ###################
 
 sub _build_namespace {
-    return 'http://ns.medbiq.org/address/v1/';
+    return $_default_namespace;
 }
 
-sub _build_tagName {
-    return 'Country';
-}
-
-sub _build_content_list {
-    return [ qw{ CountryName CountryCode } ];
+sub _build_xml_content {
+    return [ qw( CountryName CountryCode ) ];
 }
 
 __PACKAGE__->meta->make_immutable;
@@ -70,15 +69,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Country - A representation of a country and country code
+TUSK::Medbiq::Address::Country - A representation of a country and country code
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Country> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Address::Country> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Country;
+  use TUSK::Medbiq::Address::Country;
 
 =head1 DESCRIPTION
 

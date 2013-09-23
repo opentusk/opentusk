@@ -51,7 +51,7 @@ sub _build_tagName { 'ReportID' }
 
 sub _build_attribute_list { [ qw(domain) ] }
 
-sub _build_content { [ $self->id ] }
+sub _build_content { my $self = shift; return [ $self->id ]; }
 
 __PACKAGE__->meta->make_immutable;
 no Moose;

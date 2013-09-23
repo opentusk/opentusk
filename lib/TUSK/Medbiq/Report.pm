@@ -24,8 +24,8 @@ use Readonly;
 
 use XML::Writer;
 
-use TUSK::Types;
-use TUSK::Medbiq::Types;
+use TUSK::Types qw(School Medbiq_CurriculumInventory);
+use TUSK::Medbiq::Namespaces ':all';
 use TUSK::Medbiq::CurriculumInventory;
 
 use Moose;
@@ -38,14 +38,14 @@ our $VERSION = qv('0.0.1');
 
 has school => (
     is => 'ro',
-    isa => 'TUSK::Types::School',
+    isa => School,
     coerce => 1,
     required => 1,
 );
 
 has CurriculumInventory => (
     is => 'ro',
-    isa => 'TUSK::Medbiq::CurriculumInventory',
+    isa => Medbiq_CurriculumInventory,
     lazy => 1,
     builder => '_build_CurriculumInventory',
 );
@@ -62,6 +62,7 @@ sub write_report {
     my $writer = $self->writer;
 
     # Set up curriculum inventory with proper namespaces
+    $writer->xmlDecl();
     $self->CurriculumInventory->write_xml($writer);
 
     # Finish up
@@ -75,16 +76,29 @@ sub write_report {
 
 sub _build_writer {
     return XML::Writer->new(
-        NEWLINES => 1,
+        ENCODING => 'utf-8',
         DATA_MODE => 1,
+        DATA_INDENT => 2,
         NAMESPACES => 1,
+        FORCED_NS_DECLS => [
+            curriculum_inventory_ns(),
+            lom_ns(),
+            address_ns(),
+            competency_framework_ns(),
+            competency_object_ns(),
+            extend_ns(),
+            member_ns(),
+            xml_schema_instance_ns(),
+        ],
         PREFIX_MAP => {
-            'http://ns.medbiq.org/curriculuminventory/v1/' => q{},
-            'http://ltsc.ieee.org/xsd/LOM' => 'lom',
-            'http://ns.medbiq.org/address/v1/' => 'a',
-            'http://ns.medbiq.org/competencyframework/v1/' => 'cf',
-            'http://ns.medbiq.org/lom/extend/v1/' => 'hx',
-            'http://ns.medbiq.org/member/v1/' => 'm',
+            curriculum_inventory_ns() => q(),
+            lom_ns() => 'lom',
+            address_ns() => 'a',
+            competency_framework_ns() => 'cf',
+            competency_object_ns() => 'co',
+            extend_ns() => 'hx',
+            member_ns() => 'm',
+            xml_schema_instance_ns() => 'xsi',
         },
     );
 }

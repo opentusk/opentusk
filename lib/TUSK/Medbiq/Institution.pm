@@ -17,20 +17,20 @@ package TUSK::Medbiq::Institution;
 use 5.008;
 use strict;
 use warnings;
-use version;
+use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
 
 use TUSK::Constants;
 use TUSK::Medbiq::Address;
-use TUSK::Medbiq::Types;
+use TUSK::Medbiq::UniqueID;
+
+use TUSK::Types qw(NonNullString Medbiq_UniqueID Medbiq_Address);
 
 use Moose;
 
 with 'TUSK::XML::Object';
-
-our $VERSION = qv('0.0.1');
 
 ####################
 # Class attributes #
@@ -38,20 +38,20 @@ our $VERSION = qv('0.0.1');
 
 has InstitutionName => (
     is => 'ro',
-    isa => 'NonNullString',
+    isa => NonNullString,
     lazy => 1,
     builder => '_build_InstitutionName',
 );
 
 has InstitutionID => (
     is => 'ro',
-    isa => 'TUSK::Medbiq::UniqueID',
-    required => 0,
+    isa => Medbiq_UniqueID,
+    builder => '_build_InstitutionID',
 );
 
 has Address => (
     is => 'ro',
-    isa => 'TUSK::Medbiq::Address',
+    isa => Medbiq_Address,
     lazy => 1,
     builder => '_build_Address',
 );
@@ -64,13 +64,17 @@ has Address => (
 # Private methods #
 ###################
 
-sub _build_tagName { 'Institution' }
-sub _build_namespace { 'http://ns.medbiq.org/curriculuminventory/v1/' }
-sub _build_content_list { [ qw( InstitutionName InstitutionID Address ) ] }
+sub _build_namespace { 'http://ns.medbiq.org/member/v1/' }
+sub _build_xml_content { [ qw( InstitutionName InstitutionID Address ) ] }
 
 sub _build_InstitutionName {
     return $TUSK::Constants::Institution{LongName};
 };
+
+sub _build_InstitutionID {
+    return TUSK::Medbiq::UniqueID->new(domain => 'idd:aamc.org:institution',
+                                       id => 'DUMMYID');
+}
 
 sub _build_Address {
     return TUSK::Medbiq::Address->new;

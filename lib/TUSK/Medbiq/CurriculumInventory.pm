@@ -22,13 +22,15 @@ use utf8;
 use Carp;
 use Readonly;
 
-use TUSK::Types;
-use TUSK::Medbiq::Types;
-use TUSK::Medbiq::ReportID;
+use MooseX::Types::Moose qw(Str);
+use TUSK::Types qw(School Medbiq_UniqueID Medbiq_Institution);
+use TUSK::Medbiq::UniqueID;
+use TUSK::Medbiq::Institution;
+use TUSK::Medbiq::Program;
 
 use Moose;
 
-with 'TUSK::XML::Object';
+with 'TUSK::XML::RootObject';
 
 our $VERSION = qv('0.0.1');
 
@@ -38,35 +40,44 @@ our $VERSION = qv('0.0.1');
 
 has school => (
     is => 'ro',
-    isa => 'TUSK::Types::School',
+    isa => School,
     coerce => 1,
     required => 1,
 );
 
+has schemaLocation => (
+    traits => [qw/Namespaced/],
+    is => 'ro',
+    isa => Str,
+    lazy => 1,
+    builder => '_build_schemaLocation',
+    namespace => 'http://www.w3.org/2001/XMLSchema-instance',
+);
+
 has ReportID => (
     is => 'ro',
-    isa => 'TUSK::Medbiq::ReportID',
+    isa => Medbiq_UniqueID,
     lazy => 1,
     builder => '_build_ReportID',
+);
+
+has Institution => (
+    is => 'ro',
+    isa => Medbiq_Institution,
+    lazy => 1,
+    builder => '_build_Institution',
+);
+
+has Program => (
+    is => 'ro',
+    isa => 'TUSK::Medbiq::Program',
+    lazy => 1,
+    builder => '_build_Program',
 );
 
 #################
 # Class methods #
 #################
-
-sub write_xml {
-    my ($self, $writer) = @_;
-
-    # Set up curriculum inventory with proper namespaces
-    $writer->startTag('CurriculumInventory');
-
-    # Report metadata
-    $self->ReportID->write_xml($writer);
-
-    # Finish up
-    $writer->endTag();
-    return;
-}
 
 ###################
 # Private methods #
@@ -74,10 +85,25 @@ sub write_xml {
 
 sub _build_namespace { 'http://ns.medbiq.org/curriculuminventory/v1/' }
 sub _build_tagName { 'CurriculumInventory' }
-sub _build_content_list { qw( ReportID Institution ) }
+sub _build_xml_content { [ qw( ReportID Institution Program ) ] }
+sub _build_xml_attributes { [ qw( schemaLocation ) ] }
+
+sub _build_schemaLocation {
+    return 'http://ns.medbiq.org/curriculuminventory/v1/curriculuminventory.xsd';
+}
 
 sub _build_ReportID {
-    return TUSK::Medbiq::ReportID->new;
+    return TUSK::Medbiq::UniqueID->new;
+}
+
+sub _build_Institution {
+    return TUSK::Medbiq::Institution->new;
+}
+
+sub _build_Program {
+    my $self = shift;
+    my $name = $self->school->getSchoolName . ' Degree Program';
+    return TUSK::Medbiq::Program->new( ProgramName => $name );
 }
 
 __PACKAGE__->meta->make_immutable;

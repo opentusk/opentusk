@@ -17,58 +17,37 @@ package TUSK::XML::Object;
 use 5.008;
 use strict;
 use warnings;
-use version;
+use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
 
 use MooseX::Types::Moose qw(ArrayRef HashRef Str);
 use TUSK::Types qw(XML_Object);
+use TUSK::Meta::Attribute::Trait::Namespaced;
+use TUSK::Meta::Attribute::Trait::Tagged;
 
 use Moose::Role;
-use Moose::Util qw{does_role};
+use Moose::Util qw(does_role);
 
-our $VERSION = qv('0.0.1');
-
-############
-# Requires #
-############
-
-# TUSK classes that implement this role must have the following
-# attributes and methods.
-
-requires '_build_tagName';
+requires '_build_namespace';
 
 ###################
 # Role attributes #
 ###################
 
-has attributes => (
+has xml_attributes => (
     is => 'ro',
-    isa => HashRef[Str],
+    isa => ArrayRef[ Str ],
     lazy => 1,
-    builder => '_build_attributes',
+    builder => '_build_xml_attributes',
 );
 
-has attributes_list => (
+has xml_content => (
     is => 'ro',
-    isa => ArrayRef[Str],
+    isa => (Str | ArrayRef[ Str ]),
     lazy => 1,
-    builder => '_build_attributes_list',
-);
-
-has content => (
-    is => 'ro',
-    isa => ArrayRef[Str | XML_Object | HashRef],
-    lazy => 1,
-    builder => '_build_content',
-);
-
-has content_list => (
-    is => 'ro',
-    isa => ArrayRef[Str],
-    lazy => 1,
-    builder => '_build_content_list',
+    builder => '_build_xml_content',
 );
 
 has namespace => (
@@ -78,37 +57,48 @@ has namespace => (
     builder => '_build_namespace',
 );
 
-has tagName => (
-    is => 'ro',
-    isa => Str,
-    lazy => 1,
-    builder => '_build_tagName',
-);
-
 ################
 # Role methods #
 ################
 
 sub write_xml {
     my ($self, $writer) = @_;
-    $self->_open_tag({ writer => $writer, ns => $self->namespace,
-                       tag => $self->tagName, attrs => $self->attributes });
-    $self->write_content($writer);
-    $writer->endTag;
+    if (does_role($self, 'TUSK::XML::RootObject')) {
+        my @xml_attrs = $self->_attribute_map_of($self);
+        $writer->startTag( [ $self->namespace, $self->tagName ], @xml_attrs );
+    }
+    if ( ref($self->xml_content) eq 'ARRAY' ) {
+        foreach my $attr_name ( @{ $self->xml_content } ) {
+            next unless (defined $self->$attr_name);
+            $self->write_xml_content($attr_name, $writer);
+        }
+    }
+    else {
+        $writer->characters($self->xml_content);
+    }
+    if (does_role($self, 'TUSK::XML::RootObject')) {
+        $writer->endTag;
+    }
     return;
 }
 
-sub write_content {
-    my ($self, $writer) = @_;
-    foreach my $content ( @{ $self->content } ) {
-        if (does_role($content, 'TUSK::XML::Object')) {
-            $self->_write_obj($writer, $content);
-        }
-        elsif (ref($content) eq 'HASH') {
-            $self->_write_element($writer, $content);
+sub write_xml_content {
+    my ($self, $attr_name, $writer) = @_;
+    my $ns = $self->_namespace_of($attr_name);
+    my $tag = $self->_tag_of($attr_name);
+    # An XML content can be one of Str, XML object, or ArrayRef of those
+    my $contents_ref = _is_array($self->$attr_name) ? $self->$attr_name
+        :                                             [ $self->$attr_name ];
+    foreach my $xml_content ( @{ $contents_ref } ) {
+        my $is_xml_object = does_role($xml_content, 'TUSK::XML::Object');
+        if ($is_xml_object) {
+            my @xml_attrs = $self->_attribute_map_of($xml_content);
+            $writer->startTag( [$ns, $tag], @xml_attrs );
+            $xml_content->write_xml($writer);
+            $writer->endTag;
         }
         else {
-            $writer->characters($content);
+            $writer->dataElement( [$ns, $tag], $xml_content );
         }
     }
     return;
@@ -118,96 +108,55 @@ sub write_content {
 # Private methods #
 ###################
 
-sub _build_namespace {
-    return q{};
+sub _build_xml_attributes { return []; }
+sub _build_xml_content { return []; }
+
+sub _is_array {
+    my $obj = shift;
+    return (ref($obj) eq 'ARRAY');
 }
 
-sub _build_attributes {
-    my $self = shift;
-    my %attrs;
-    foreach my $attr_name ( @{ $self->attributes_list } ) {
-        next if (! defined $self->$attr_name);
-        $attrs{$attr_name} = $self->$attr_name;
+sub _attribute_map_of {
+    my ($self, $xmlobj) = @_;
+    my @attr_map;
+    foreach my $attr_name ( @{ $xmlobj->xml_attributes } ) {
+        next unless (defined $xmlobj->$attr_name);
+        my $xml_attr_key = $xmlobj->_attribute_for($attr_name);
+        my $xml_attr_value = $xmlobj->$attr_name;
+        push @attr_map, $xml_attr_key, $xml_attr_value;
     }
-    return \%attrs;
-};
-
-sub _build_attributes_list {
-    return [];
+    return @attr_map;
 }
 
-# Convenience function to automatically build contents from an
-# implementing object's content_list. Implementing objects can
-# override this for custom behavior.
-sub _build_content {
-    my $self = shift;
-    my @contents;
-    foreach my $content ( @{ $self->content_list } ) {
-        next if (! defined $self->$content);
-        if (does_role($self->$content, 'TUSK::XML::Object')) {
-            # Pass xml objects through to content as is
-            push @contents, $self->$content ;
-        }
-        elsif (ref($self->$content) eq 'ARRAY') {
-            # Add an array of subelements with the same tag name
-            foreach my $elt ( @{ $self->$content } ) {
-                push @contents, { $content => $elt };
-            }
-        }
-        else {
-            # Add a single subelement with its tag name
-            push @contents, { $content => $self->$content };
-        }
+sub _attribute_for {
+    my ($self, $attr_name) = @_;
+    my $key = $self->_tag_of($attr_name);
+    # get XML attribute namespace, if any (different from XML tag's namespace)
+    my $ns;
+    my $attr = $self->meta->get_attribute($attr_name);
+    if ( $attr->does('Namespaced') && $attr->has_namespace ) {
+        $ns = $attr->namespace;
     }
-    return \@contents;
-};
-
-# If the implementing object wants to use the _build_content
-# convenience function, it can override _build_content_list with a
-# list of attributes.
-# Example:
-#   package TUSK::Example;
-#   use Moose;
-#   with 'TUSK::XML::Object';
-#   has CountryName => ( isa => 'Str' );
-#   has CountryCode => ( isa => 'Str' );
-#   sub _build_content_list { [ qw(CountryName CountryCode ) ] }
-sub _build_content_list {
-    return [];
-};
-
-sub _write_obj {
-    my ($self, $writer, $content) = @_;
-    $content->write_xml($writer);
-    return;
+    return $key unless (defined $ns);
+    return [$ns, $key];
 }
 
-sub _write_element {
-    my ($self, $writer, $content) = @_;
-    $self->_open_tag({
-        writer => $writer,
-        ns => $self->namespace,
-        tag => keys %{ $content },
-        attrs => {}
-    });
-    $writer->characters(values %{ $content });
-    $writer->endTag;
-    return;
+sub _namespace_of {
+    my ($self, $attr_name) = @_;
+    my $attr = $self->meta->get_attribute($attr_name);
+    if ( $attr->does('Namespaced') && $attr->has_namespace ) {
+        return $attr->namespace;
+    }
+    return $self->namespace;
 }
 
-sub _open_tag {
-    my ($self, $arg_ref) = @_;
-    my $writer = $arg_ref->{writer};
-    my $ns = $arg_ref->{ns};
-    my $tag = $arg_ref->{tag};
-    my $attr_ref = $arg_ref->{attrs};
-    if ($ns) {
-        $writer->startTag( [ $ns, $tag ], %$attr_ref );
+sub _tag_of {
+    my ($self, $attr_name) = @_;
+    my $attr = $self->meta->get_attribute($attr_name);
+    if ( $attr->does('Tagged') && $attr->has_tag ) {
+        return $attr->tag;
     }
-    else {
-        $writer->startTag( $tag, %$attr_ref );
-    }
-    return;
+    return $attr_name;
 }
 
 no Moose::Role;

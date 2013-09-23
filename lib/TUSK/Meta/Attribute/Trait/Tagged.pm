@@ -17,7 +17,7 @@ package TUSK::Meta::Attribute::Trait::Tagged;
 use 5.008;
 use strict;
 use warnings;
-use version;
+use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
@@ -28,8 +28,6 @@ use MooseX::Types::Moose qw( Str );
 use Moose::Role;
 use Moose::Util;
 Moose::Util::meta_attribute_alias('Tagged');
-
-our $VERSION = qv('0.0.1');
 
 ####################
 # Class attributes #

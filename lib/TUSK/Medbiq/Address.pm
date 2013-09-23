@@ -17,7 +17,7 @@ package TUSK::Medbiq::Address;
 use 5.008;
 use strict;
 use warnings;
-use version;
+use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
@@ -29,7 +29,7 @@ use Moose;
 
 with 'TUSK::XML::Object';
 
-our $VERSION = qv('0.0.1');
+Readonly my $_default_namespace => 'http://ns.medbiq.org/address/v1/';
 
 ####################
 # Class attributes #
@@ -111,14 +111,13 @@ has restrictions => (
 # Private methods #
 ###################
 
-sub _build_tagName { 'Address' }
-sub _build_namespace { 'http://ns.medbiq.org/member/v1/' }
+sub _build_namespace { return $_default_namespace; }
 
-sub _build_attributes_list {
+sub _build_xml_attributes {
     return [ qw( addressCategory restrictions ) ];
 }
 
-sub _build_content_list {
+sub _build_xml_content {
     return [ qw( ID Organization StreetAddressLine City StateOrProvince
                  PostalCode Region District Country ) ];
 }

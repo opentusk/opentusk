@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::UniqueID;
+package TUSK::XML::RootObject;
 
 use 5.008;
 use strict;
@@ -22,76 +22,54 @@ use utf8;
 use Carp;
 use Readonly;
 
-use Data::UUID;
+use MooseX::Types::Moose qw( Str );
+# use TUSK::Types qw( UnsignedInt UnsignedNum StrHashRef StrArrayRef );
 
-use TUSK::Constants;
-
-use TUSK::Types qw( Medbiq_Domain NonNullString XML_Object );
-
-use Moose;
+use Moose::Role;
 
 with 'TUSK::XML::Object';
 
-Readonly my $_default_namespace => 'http://ns.medbiq.org/member/v1/';
+requires '_build_tagName';
 
-###################
-# Role attributes #
-###################
+####################
+# Class attributes #
+####################
 
-has domain => (
+has tagName => (
     is => 'ro',
-    isa => Medbiq_Domain,
+    isa => Str,
     lazy => 1,
-    builder => '_build_domain',
+    builder => '_build_tagName',
 );
 
-has id => (
-    is => 'ro',
-    isa => NonNullString,
-    lazy => 1,
-    builder => '_build_id',
-);
-
-################
-# Role methods #
-################
+#################
+# Class methods #
+#################
 
 ###################
 # Private methods #
 ###################
 
-sub _build_namespace { return $_default_namespace; }
+###########
+# Cleanup #
+###########
 
-sub _build_domain { 'idd:' . $TUSK::Constants::Domain . ':uuid' }
-
-sub _build_id {
-    my $ug = Data::UUID->new;
-    return $ug->to_string( $ug->create );
-}
-
-sub _build_xml_attributes { [ qw(domain) ] }
-sub _build_xml_content {
-    my $self = shift;
-    return $self->id;
-}
-
-__PACKAGE__->meta->make_immutable;
-no Moose;
+no Moose::Role;
 1;
 
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::UniqueID - A role for objects of UniqueIDType to implement
+TUSK::XML::RootObject - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::UniqueID> v0.0.1.
+This documentation refers to L<TUSK::XML::RootObject> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::UniqueID;
+  use TUSK::XML::RootObject;
 
 =head1 DESCRIPTION
 

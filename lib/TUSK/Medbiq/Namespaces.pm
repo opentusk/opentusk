@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::UniqueID;
+package TUSK::Medbiq::Namespaces;
 
 use 5.008;
 use strict;
@@ -22,76 +22,68 @@ use utf8;
 use Carp;
 use Readonly;
 
-use Data::UUID;
-
-use TUSK::Constants;
-
-use TUSK::Types qw( Medbiq_Domain NonNullString XML_Object );
-
-use Moose;
-
-with 'TUSK::XML::Object';
-
-Readonly my $_default_namespace => 'http://ns.medbiq.org/member/v1/';
-
-###################
-# Role attributes #
-###################
-
-has domain => (
-    is => 'ro',
-    isa => Medbiq_Domain,
-    lazy => 1,
-    builder => '_build_domain',
-);
-
-has id => (
-    is => 'ro',
-    isa => NonNullString,
-    lazy => 1,
-    builder => '_build_id',
-);
-
-################
-# Role methods #
-################
-
-###################
-# Private methods #
-###################
-
-sub _build_namespace { return $_default_namespace; }
-
-sub _build_domain { 'idd:' . $TUSK::Constants::Domain . ':uuid' }
-
-sub _build_id {
-    my $ug = Data::UUID->new;
-    return $ug->to_string( $ug->create );
+our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
+BEGIN {
+    require Exporter;
+    @ISA = qw(Exporter);
+    @EXPORT_OK = qw( curriculum_inventory_ns
+                     lom_ns
+                     address_ns
+                     competency_framework_ns
+                     competency_object_ns
+                     extend_ns
+                     member_ns
+                     xml_schema_instance_ns );
+    %EXPORT_TAGS = ( all => [ @EXPORT_OK ] );
 }
 
-sub _build_xml_attributes { [ qw(domain) ] }
-sub _build_xml_content {
-    my $self = shift;
-    return $self->id;
+sub curriculum_inventory_ns {
+    return "http://ns.medbiq.org/curriculuminventory/v1/";
 }
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
+sub lom_ns {
+    return "http://ltsc.ieee.org/xsd/LOM";
+}
+
+sub address_ns {
+    return "http://ns.medbiq.org/address/v1/";
+}
+
+sub competency_framework_ns {
+    return "http://ns.medbiq.org/competencyframework/v1/";
+}
+
+sub competency_object_ns {
+    return "http://ns.medbiq.org/competencyobject/v1/";
+}
+
+sub extend_ns {
+    return "http://ns.medbiq.org/lom/extend/v1/";
+}
+
+sub member_ns {
+    return "http://ns.medbiq.org/member/v1/";
+}
+
+sub xml_schema_instance_ns {
+    return "http://www.w3.org/2001/XMLSchema-instance";
+}
+
 1;
 
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::UniqueID - A role for objects of UniqueIDType to implement
+TUSK::Medbiq::Namespaces - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::UniqueID> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Namespaces> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::UniqueID;
+  use TUSK::Medbiq::Namespaces;
 
 =head1 DESCRIPTION
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::UniqueID;
+package TUSK::Medbiq::Program;
 
 use 5.008;
 use strict;
@@ -22,58 +22,65 @@ use utf8;
 use Carp;
 use Readonly;
 
-use Data::UUID;
-
-use TUSK::Constants;
-
-use TUSK::Types qw( Medbiq_Domain NonNullString XML_Object );
+use MooseX::Types::Moose ':all';
+use TUSK::Types ':all';
+use TUSK::Medbiq::Namespaces qw(curriculum_inventory_ns);
 
 use Moose;
 
 with 'TUSK::XML::Object';
 
-Readonly my $_default_namespace => 'http://ns.medbiq.org/member/v1/';
+####################
+# Class attributes #
+####################
 
-###################
-# Role attributes #
-###################
-
-has domain => (
-    is => 'ro',
-    isa => Medbiq_Domain,
-    lazy => 1,
-    builder => '_build_domain',
-);
-
-has id => (
+has ProgramName => (
     is => 'ro',
     isa => NonNullString,
-    lazy => 1,
-    builder => '_build_id',
+    required => 1,
 );
 
-################
-# Role methods #
-################
+has ProgramID => (
+    is => 'ro',
+    isa => Medbiq_UniqueID,
+    lazy => 1,
+    builder => '_build_ProgramID',
+);
+
+has EducationalContext => (
+    is => 'ro',
+    isa => Medbiq_ContextValues,
+);
+
+has Profession => (
+    is => 'ro',
+    isa => Medbiq_VocabularyTerm,
+);
+
+has Specialty => (
+    is => 'ro',
+    isa => Medbiq_VocabularyTerm,
+);
+
+#################
+# Class methods #
+#################
 
 ###################
 # Private methods #
 ###################
 
-sub _build_namespace { return $_default_namespace; }
+sub _build_namespace { curriculum_inventory_ns }
+sub _build_xml_content { [ qw( ProgramName ProgramID EducationalContext
+                               Profession Specialty ) ] }
 
-sub _build_domain { 'idd:' . $TUSK::Constants::Domain . ':uuid' }
-
-sub _build_id {
-    my $ug = Data::UUID->new;
-    return $ug->to_string( $ug->create );
+sub _build_ProgramID {
+    return TUSK::Medbiq::UniqueID->new;
 }
 
-sub _build_xml_attributes { [ qw(domain) ] }
-sub _build_xml_content {
-    my $self = shift;
-    return $self->id;
-}
+###########
+# Cleanup #
+###########
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
@@ -83,15 +90,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::UniqueID - A role for objects of UniqueIDType to implement
+TUSK::Medbiq::Program - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::UniqueID> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Program> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::UniqueID;
+  use TUSK::Medbiq::Program;
 
 =head1 DESCRIPTION
 

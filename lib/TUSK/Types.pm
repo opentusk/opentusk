@@ -17,7 +17,7 @@ package TUSK::Types;
 use 5.008;
 use strict;
 use warnings;
-use version;
+use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
@@ -25,24 +25,27 @@ use Readonly;
 use TUSK::Core::School;
 
 use MooseX::Types -declare => [
-    qw(
-          UnsignedInt
-          UnsignedNum
-          URI
-          StrHashRef
-          StrArrayRef
-          School
-          XML_Object
-          NonNullString
-          Medbiq_Domain
-          Medbiq_Address_Category
-          Medbiq_Address_Restriction
-  )
+    qw( UnsignedInt
+        UnsignedNum
+        URI
+        StrHashRef
+        StrArrayRef
+        School
+        XML_Object
+        NonNullString
+        Medbiq_Domain
+        Medbiq_Address
+        Medbiq_Country
+        Medbiq_Address_Category
+        Medbiq_Address_Restriction
+        Medbiq_ContextValues
+        Medbiq_UniqueID
+        Medbiq_Institution
+        Medbiq_VocabularyTerm
+        Medbiq_CurriculumInventory )
 ];
 
-use MooseX::Types::Moose qw(Int Num Str HashRef ArrayRef);
-
-our $VERSION = qv('0.0.1');
+use MooseX::Types::Moose ':all';
 
 #################
 # General Types #
@@ -69,7 +72,7 @@ coerce School,
         )
     };
 
-class_type XML_Object, { class => 'TUSK::XML::Object' };
+role_type XML_Object, { role => 'TUSK::XML::Object' };
 
 #############
 # XSD Types #
@@ -87,11 +90,23 @@ subtype Medbiq_Domain,
     as Str,
     where { m/ \A idd: .+ : .+ \z /xms };
 
+class_type Medbiq_UniqueID, { class => 'TUSK::Medbiq::UniqueID' };
+class_type Medbiq_Address, { class => 'TUSK::Medbiq::Address' };
+class_type Medbiq_Country, { class => 'TUSK::Medbiq::Address::Country' };
+class_type Medbiq_Institution, { class => 'TUSK::Medbiq::Institution' };
+class_type Medbiq_CurriculumInventory, {
+    class => 'TUSK::Medbiq::CurriculumInventory'
+};
+class_type Medbiq_VocabularyTerm, { class => 'TUSK::Medbiq::VocabularyTerm' };
+
 enum Medbiq_Address_Category,
     qw( Residential Business Undeliverable );
 
 enum Medbiq_Address_Restriction,
     qw( Unrestricted Restricted Confidential );
+
+enum Medbiq_ContextValues,
+    ('school', 'higher education', 'training', 'other');
 
 1;
 

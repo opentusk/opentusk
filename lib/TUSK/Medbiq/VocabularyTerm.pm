@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::UniqueID;
+package TUSK::Medbiq::VocabularyTerm;
 
 use 5.008;
 use strict;
@@ -22,58 +22,54 @@ use utf8;
 use Carp;
 use Readonly;
 
-use Data::UUID;
-
-use TUSK::Constants;
-
-use TUSK::Types qw( Medbiq_Domain NonNullString XML_Object );
+use MooseX::Types::Moose ':all';
+use TUSK::Types ':all';
+use TUSK::Medbiq::Namespaces ':all';
 
 use Moose;
 
 with 'TUSK::XML::Object';
 
-Readonly my $_default_namespace => 'http://ns.medbiq.org/member/v1/';
+####################
+# Class attributes #
+####################
 
-###################
-# Role attributes #
-###################
-
-has domain => (
+has content => (
     is => 'ro',
-    isa => Medbiq_Domain,
-    lazy => 1,
-    builder => '_build_domain',
+    isa => NonNullString,
+    required => 1,
 );
 
-has id => (
+has source => (
     is => 'ro',
     isa => NonNullString,
     lazy => 1,
-    builder => '_build_id',
+    builder => '_build_source',
 );
 
-################
-# Role methods #
-################
+has sourceID => (
+    is => 'ro',
+    isa => NonNullString,
+    required => 1,
+);
+
+#################
+# Class methods #
+#################
 
 ###################
 # Private methods #
 ###################
 
-sub _build_namespace { return $_default_namespace; }
+sub _build_namespace { curriculum_inventory_ns }
+sub _build_xml_content { $self->content }
+sub _build_xml_attributes { [ qw(source sourceID) ] }
 
-sub _build_domain { 'idd:' . $TUSK::Constants::Domain . ':uuid' }
+sub _build_source { 'HEALTHCARE_LOMv1' }
 
-sub _build_id {
-    my $ug = Data::UUID->new;
-    return $ug->to_string( $ug->create );
-}
-
-sub _build_xml_attributes { [ qw(domain) ] }
-sub _build_xml_content {
-    my $self = shift;
-    return $self->id;
-}
+###########
+# Cleanup #
+###########
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
@@ -83,15 +79,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::UniqueID - A role for objects of UniqueIDType to implement
+TUSK::Medbiq::VocabularyTerm - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::UniqueID> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::VocabularyTerm> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::UniqueID;
+  use TUSK::Medbiq::VocabularyTerm;
 
 =head1 DESCRIPTION
 
