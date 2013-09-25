@@ -594,35 +594,24 @@ SELECT
   c.title AS course_title
 FROM
   tusk.quiz q
-  INNER JOIN tusk.link_course_quiz lcq
-    ON q.quiz_id = lcq.child_quiz_id
-  INNER JOIN $db.course c
-    ON c.course_id = lcq.parent_course_id
-  INNER JOIN tusk.school s
-    ON lcq.school_id = s.school_id
-  INNER JOIN $db.link_course_student lcs
-    ON lcs.parent_course_id = c.course_id
-  INNER JOIN $db.time_period tp
-    ON lcs.time_period_id = tp.time_period_id
+  INNER JOIN tusk.link_course_quiz lcq ON (q.quiz_id = lcq.child_quiz_id)
+  INNER JOIN $db.course c ON (c.course_id = lcq.parent_course_id)
+  INNER JOIN tusk.school s ON (lcq.school_id = s.school_id)
+  INNER JOIN $db.link_course_student lcs ON (lcs.parent_course_id = c.course_id AND lcq.time_period_id = lcs.time_period_id)
+  INNER JOIN $db.time_period tp ON (lcs.time_period_id = tp.time_period_id)
 WHERE
   s.school_name = ?
-  AND
-  lcq.available_date < NOW()
-  AND
-  NOW() BETWEEN tp.start_date AND tp.end_date
-  AND
-  lcq.due_date BETWEEN NOW() AND ?
-  AND
-  child_user_id = ?
-  AND
-  q.quiz_id NOT IN (
+  AND lcq.available_date < NOW()
+  AND NOW() BETWEEN tp.start_date AND tp.end_date
+  AND lcq.due_date BETWEEN NOW() AND ?
+  AND child_user_id = ?
+  AND q.quiz_id NOT IN (
     SELECT qr.quiz_id
     FROM tusk.quiz_result qr
     WHERE user_id = ? AND qr.end_date IS NOT NULL
   )
 END_SQL
-    push @sql_values, ($school, $enddate, $user->primary_key(),
-                       $user->primary_key());
+    push @sql_values, ($school, $enddate, $user->primary_key(), $user->primary_key());
 
     my $case_sql = <<"END_SQL";
 SELECT
