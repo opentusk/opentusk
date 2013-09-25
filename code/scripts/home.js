@@ -219,14 +219,12 @@ function makeLinksDropDown() {
 
 /* end Personal Links */
 
-function toggleMaterialLinks( material, obj ) {
+function toggleMaterialLinks( material) {
 	var materialLinks = document.getElementById( material );
 	if ( $( '#' + material ).css( "display" ) == "inline" ) {
 		$( '#' + material ).css( "display", "none" );
-		$( obj ).attr( "src", "/graphics/icon-nav-closed.png" );	
 	} else {
 		$( '#' + material ).css( "display", "inline" );
-		$( obj ).attr( "src", "/graphics/icon-nav-open.png" );
 		materialsHeightAdjust();
 	}
 }	
