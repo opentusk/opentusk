@@ -2699,27 +2699,16 @@ sub get_course_assignments {
     my $self = shift;
 
     my @courses = $self->current_courses();
-    my @schools_dbs;
-
-    foreach my $course(@courses) {
-	push(@schools_dbs, $course->school_db());
-    }
-
-    #remove multible database name by using hash and grep
-    my %schools_dbs_hash;
-    my @schools_dbs_unique = grep{ !$schools_dbs_hash{$_}++ } @schools_dbs;
-
-    my @all_assignments;
     
-    foreach my $school(@schools_dbs_unique) {
+    my %schools_dbs = map { $_->school_db() => 1} @courses;
+        
+    my @all_assignments;
+   
+    foreach my $school(keys %schools_dbs) {
 	my $sql = $self-> _get_course_assignments_sql($school);
 	my $sth = TUSK::Core::SQLRow->new()->databaseSelect($sql);
-
-	my $assignments = $sth->fetchall_hashref('assignment_id');
-
-	while (my ($key, $value) = each(%$assignments) ){
-	    push(@all_assignments, $value);
-	}
+	
+	push @all_assignments, values %{$sth->fetchall_hashref('assignment_id')};
     }
 
     return \@all_assignments;
