@@ -670,32 +670,18 @@ SELECT
   NULL AS time,
   e.due_date AS exact_time,
   c.title AS course_title
-FROM
-  $db.eval e
-  INNER JOIN $db.time_period tp
-    ON e.time_period_id = tp.time_period_id
-  INNER JOIN $db.course c
-    ON e.course_id = c.course_id
-  INNER JOIN $db.link_course_student lcs
-    ON (
-      lcs.time_period_id = tp.time_period_id
-      AND
-      lcs.parent_course_id = c.course_id
-    )
+FROM $db.eval e
+INNER JOIN $db.time_period tp ON (e.time_period_id = tp.time_period_id AND now() BETWEEN tp.start_date AND tp.end_date)
+INNER JOIN $db.course c ON (e.course_id = c.course_id)
+INNER JOIN $db.link_course_student lcs ON 
+  (lcs.time_period_id = tp.time_period_id AND lcs.parent_course_id = c.course_id AND child_user_id = ?
+   AND ((c.associate_users = 'User Group' AND lcs.teaching_site_id = e.teaching_site_id) OR c.associate_users = 'Enrollment'))
 WHERE
-  NOW() BETWEEN tp.start_date AND tp.end_date
-  AND
-  e.due_date BETWEEN NOW() AND ?
-  AND
-  e.available_date < NOW()
-  AND
-  e.eval_id NOT IN (
-    SELECT ec.eval_id FROM $db.eval_completion ec WHERE status = 'Done'
-  )
-  AND
-  child_user_id = ?
+  e.due_date BETWEEN now() AND ?
+  AND e.available_date < now()
+  AND e.eval_id NOT IN (SELECT ec.eval_id FROM $db.eval_completion ec WHERE status = 'Done' AND ec.user_id = child_user_id)
 END_SQL
-    push @sql_values, ($enddate, $user->primary_key());
+    push @sql_values, ($user->primary_key(), $enddate);
 
     my $assignment_sql = <<"END_SQL";
 SELECT
