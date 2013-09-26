@@ -219,7 +219,7 @@ function makeLinksDropDown() {
 
 /* end Personal Links */
 
-function toggleMaterialLinks( material, obj) {
+function toggleMaterialLinks( material, obj ) {
 	var materialLinks = document.getElementById( material );
 	if ( $( '#' + material ).css( "display" ) == "inline" ) {
 		$( '#' + material ).css( "display", "none" );
@@ -241,7 +241,15 @@ function materialsHeightAdjust() {
 	$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );		
 }
 
-
+function toggleLinksLinks( material, obj ) {
+	if ( $( '#' + material ).css( "display" ) == "none" ) {
+		$( '#' + material ).css( "display", "block");
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
+	} else {
+		$( '#' + material ).css( "display", "none");
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png");
+	}
+}
 
 
 	
