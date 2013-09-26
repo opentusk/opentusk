@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Report;
+package TUSK::Medbiq::Events;
 
 ###########
 # * Imports
@@ -21,20 +21,21 @@ package TUSK::Medbiq::Report;
 use 5.008;
 use strict;
 use warnings;
-use version;
+use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
 
-use XML::Writer;
-
+use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
 use TUSK::Medbiq::Namespaces ':all';
-use TUSK::Medbiq::CurriculumInventory;
+
+#########
+# * Setup
+#########
 
 use Moose;
-
-our $VERSION = qv('0.0.1');
+with 'TUSK::XML::Object';
 
 ####################
 # * Class attributes
@@ -43,93 +44,33 @@ our $VERSION = qv('0.0.1');
 has school => (
     is => 'ro',
     isa => School,
-    coerce => 1,
     required => 1,
 );
 
-has start_date => (
+has Event => (
     is => 'ro',
-    isa => Sys_DateTime,
-    coerce => 1,
-    required => 1,
-);
-
-has end_date => (
-    is => 'ro',
-    isa => Sys_DateTime,
-    coerce => 1,
-    required => 1,
-);
-
-has CurriculumInventory => (
-    is => 'ro',
-    isa => Medbiq_CurriculumInventory,
+    isa => ArrayRef[Medbiq_Event],
     lazy => 1,
-    builder => '_build_CurriculumInventory',
+    builder => '_build_Event',
 );
 
-has writer => ( is => 'ro', isa => 'XML::Writer',
-                lazy => 1, builder => '_build_writer' );
+
 
 ############
 # * Builders
 ############
 
-sub _build_writer {
-    return XML::Writer->new(
-        ENCODING => 'utf-8',
-        DATA_MODE => 1,
-        DATA_INDENT => 2,
-        NAMESPACES => 1,
-        FORCED_NS_DECLS => [
-            curriculum_inventory_ns(),
-            lom_ns(),
-            address_ns(),
-            competency_framework_ns(),
-            competency_object_ns(),
-            extend_ns(),
-            member_ns(),
-            xml_schema_instance_ns(),
-        ],
-        PREFIX_MAP => {
-            curriculum_inventory_ns() => q(),
-            lom_ns() => 'lom',
-            address_ns() => 'a',
-            competency_framework_ns() => 'cf',
-            competency_object_ns() => 'co',
-            extend_ns() => 'hx',
-            member_ns() => 'm',
-            xml_schema_instance_ns() => 'xsi',
-        },
-    );
-}
+sub _build_namespace { curriculum_inventory_ns }
+sub _build_xml_content { [ qw( Event ) ] }
 
-sub _build_CurriculumInventory {
+sub _build_Event {
     my $self = shift;
-    return TUSK::Medbiq::CurriculumInventory->new(
-        school => $self->school,
-        ReportingStartDate => $self->start_date,
-        ReportingEndDate => $self->end_date,
-    );
+    return [];
 }
-
 
 #################
 # * Class methods
 #################
-
-sub write_report {
-    my $self = shift;
-    my $writer = $self->writer;
-
-    # Set up curriculum inventory with proper namespaces
-    $writer->xmlDecl();
-    $self->CurriculumInventory->write_xml($writer);
-
-    # Finish up
-    $writer->end;
-    return;
-}
 
 ###################
 # * Private methods
@@ -151,42 +92,21 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Report - Generates a curriculum inventory report
+TUSK::Medbiq::Events - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Report> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Events> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Report;
-  my $report = TUSK::Medbiq::Report( school => 'Default' );
-  $report->write_report;
+  use TUSK::Medbiq::Events;
 
 =head1 DESCRIPTION
 
-This module generates a report for the curriculum inventory. By
-default it will write to C<STDOUT>.
-
 =head1 ATTRIBUTES
 
-=over 4
-
-=item * school
-
-=item * CurriculumInventory
-
-=item * writer
-
-=back
-
 =head1 METHODS
-
-=over 4
-
-=item write_report
-
-=back
 
 =head1 DIAGNOSTICS
 

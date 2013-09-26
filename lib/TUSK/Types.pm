@@ -14,6 +14,10 @@
 
 package TUSK::Types;
 
+###########
+# * Imports
+###########
+
 use 5.008;
 use strict;
 use warnings;
@@ -24,6 +28,10 @@ use Readonly;
 
 use TUSK::Core::School;
 
+#########
+# * Setup
+#########
+
 use MooseX::Types -declare => [
     qw( UnsignedInt
         UnsignedNum
@@ -32,6 +40,9 @@ use MooseX::Types -declare => [
         StrArrayRef
         School
         XML_Object
+        xs_date
+        Sys_DateTime
+        TUSK_DateTime
         NonNullString
         Medbiq_Domain
         Medbiq_Address
@@ -41,6 +52,13 @@ use MooseX::Types -declare => [
         Medbiq_ContextValues
         Medbiq_UniqueID
         Medbiq_Institution
+        Medbiq_Program
+        Medbiq_Events
+        Medbiq_Event
+        Medbiq_Expectations
+        Medbiq_AcademicLevels
+        Medbiq_Sequence
+        Medbiq_Integration
         Medbiq_VocabularyTerm
         Medbiq_CurriculumInventory )
 ];
@@ -48,7 +66,7 @@ use MooseX::Types -declare => [
 use MooseX::Types::Moose ':all';
 
 #################
-# General Types #
+# * General Types
 #################
 
 subtype UnsignedInt, as Int, where { $_ >= 0 };
@@ -59,8 +77,17 @@ subtype StrHashRef, as HashRef[Str];
 subtype StrArrayRef, as ArrayRef[Str];
 coerce StrArrayRef, from Str, via { [ $_ ] };
 
+class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
+class_type Sys_DateTime, { class => 'DateTime' };
+coerce TUSK_DateTime,
+    from Sys_DateTime,
+    via { HSDB4::DateTime->new->in_unix_time( $_->epoch ) };
+coerce Sys_DateTime,
+    from TUSK_DateTime,
+    via { DateTime->from_epoch( epoch => $_->out_unix_time ) };
+
 ##############
-# TUSK Types #
+# * TUSK Types
 ##############
 
 class_type School, { class => 'TUSK::Core::School' };
@@ -75,11 +102,24 @@ coerce School,
 role_type XML_Object, { role => 'TUSK::XML::Object' };
 
 #############
-# XSD Types #
+# * XSD Types
 #############
 
+subtype xs_date, as Str,
+    where { $_ =~ m{ \A -?
+                     \d{4,} - \d{2} - \d{2}   # date
+                     (([-+]) \d{2}:\d{2} | Z) # timezone
+                     \z }xms };
+
+coerce xs_date,
+    from TUSK_DateTime,
+    via { $_->out_mysql_date . "Z" },
+    from Sys_DateTime,
+    via { $_->ymd . "Z" };
+
+
 ######################
-# Medbiquitous Types #
+# * Medbiquitous Types
 ######################
 
 subtype NonNullString,
@@ -98,6 +138,13 @@ class_type Medbiq_CurriculumInventory, {
     class => 'TUSK::Medbiq::CurriculumInventory'
 };
 class_type Medbiq_VocabularyTerm, { class => 'TUSK::Medbiq::VocabularyTerm' };
+class_type Medbiq_Program, { class => 'TUSK::Medbiq::Program' };
+class_type Medbiq_Events, { class => 'TUSK::Medbiq::Events' };
+class_type Medbiq_Expectations, { class => 'TUSK::Medbiq::Expectations' };
+class_type Medbiq_AcademicLevels, { class => 'TUSK::Medbiq::AcademicLevels' };
+class_type Medbiq_Sequence, { class => 'TUSK::Medbiq::Sequence' };
+class_type Medbiq_Integration, { class => 'TUSK::Medbiq::Integration' };
+class_type Medbiq_Event, { class => 'TUSK::Medbiq::Event' };
 
 enum Medbiq_Address_Category,
     qw( Residential Business Undeliverable );
@@ -109,6 +156,11 @@ enum Medbiq_ContextValues,
     ('school', 'higher education', 'training', 'other');
 
 1;
+
+
+###########
+# * Perldoc
+###########
 
 __END__
 

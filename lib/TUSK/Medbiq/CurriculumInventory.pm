@@ -14,6 +14,10 @@
 
 package TUSK::Medbiq::CurriculumInventory;
 
+###########
+# * Imports
+###########
+
 use 5.008;
 use strict;
 use warnings;
@@ -21,12 +25,18 @@ use version;
 use utf8;
 use Carp;
 use Readonly;
+use POSIX qw(strftime);
+use DateTime;
 
-use MooseX::Types::Moose qw(Str);
-use TUSK::Types qw(School Medbiq_UniqueID Medbiq_Institution);
+use MooseX::Types::Moose ':all';
+use TUSK::Types ':all';
+use TUSK::Medbiq::Namespaces ':all';
 use TUSK::Medbiq::UniqueID;
 use TUSK::Medbiq::Institution;
 use TUSK::Medbiq::Program;
+use TUSK::Medbiq::Events;
+use TUSK::Medbiq::Expectations;
+use TUSK::Medbiq::AcademicLevels;
 
 use Moose;
 
@@ -35,7 +45,7 @@ with 'TUSK::XML::RootObject';
 our $VERSION = qv('0.0.1');
 
 ####################
-# Class attributes #
+# * Class attributes
 ####################
 
 has school => (
@@ -51,7 +61,7 @@ has schemaLocation => (
     isa => Str,
     lazy => 1,
     builder => '_build_schemaLocation',
-    namespace => 'http://www.w3.org/2001/XMLSchema-instance',
+    namespace => xml_schema_instance_ns,
 );
 
 has ReportID => (
@@ -70,23 +80,135 @@ has Institution => (
 
 has Program => (
     is => 'ro',
-    isa => 'TUSK::Medbiq::Program',
+    isa => Medbiq_Program,
     lazy => 1,
     builder => '_build_Program',
 );
 
-#################
-# Class methods #
-#################
+has Title => (
+    is => 'ro',
+    isa => NonNullString,
+    lazy => 1,
+    builder => '_build_Title',
+);
 
-###################
-# Private methods #
-###################
+has ReportDate => (
+    is => 'ro',
+    isa => xs_date,
+    coerce => 1,
+    lazy => 1,
+    builder => '_build_ReportDate',
+);
 
-sub _build_namespace { 'http://ns.medbiq.org/curriculuminventory/v1/' }
+has ReportingStartDate => (
+    is => 'ro',
+    isa => xs_date,
+    coerce => 1,
+    required => 1,
+);
+
+has ReportingEndDate => (
+    is => 'ro',
+    isa => xs_date,
+    coerce => 1,
+    required => 1,
+);
+
+has Language => (
+    is => 'ro',
+    isa => NonNullString,
+    lazy => 1,
+    builder => '_build_Language',
+);
+
+has Description => (
+    is => 'ro',
+    isa => NonNullString,
+    lazy => 1,
+    builder => '_build_Description',
+);
+
+has SupportingLink => (
+    is => 'ro',
+    isa => URI,
+    required => 0,
+);
+
+has Events => (
+    is => 'ro',
+    isa => Medbiq_Events,
+    lazy => 1,
+    builder => '_build_Events',
+);
+
+has Expectations => (
+    is => 'ro',
+    isa => Medbiq_Expectations,
+    lazy => 1,
+    builder => '_build_Expectations',
+);
+
+has AcademicLevels => (
+    is => 'ro',
+    isa => Medbiq_AcademicLevels,
+    lazy => 1,
+    builder => '_build_AcademicLevels',
+);
+
+has Sequence => (
+    is => 'ro',
+    isa => Medbiq_Sequence,
+    required => 0,
+);
+
+has Integration => (
+    is => 'ro',
+    isa => Medbiq_Integration,
+    required => 0,
+);
+
+
+######################
+# * Private attributes
+######################
+
+has _now => (
+    is => 'ro',
+    isa => 'DateTime',
+    lazy => 1,
+    builder => '_build__now',
+);
+
+
+############
+# * Builders
+############
+
+sub _build_namespace { curriculum_inventory_ns }
 sub _build_tagName { 'CurriculumInventory' }
-sub _build_xml_content { [ qw( ReportID Institution Program ) ] }
+
+sub _build_xml_content {
+    return [ qw( ReportID
+                 Institution
+                 Program
+                 ReportDate
+                 ReportingStartDate
+                 ReportingEndDate
+                 Language
+                 Description
+                 SupportingLink
+                 Events
+                 Expectations
+                 AcademicLevels
+                 Sequence
+                 Integration ) ];
+}
+
 sub _build_xml_attributes { [ qw( schemaLocation ) ] }
+
+sub _build__now {
+    return DateTime->now;
+}
 
 sub _build_schemaLocation {
     return 'http://ns.medbiq.org/curriculuminventory/v1/curriculuminventory.xsd';
@@ -102,13 +224,57 @@ sub _build_Institution {
 
 sub _build_Program {
     my $self = shift;
-    my $name = $self->school->getSchoolName . ' Degree Program';
+    # my $name = $self->school->getSchoolName . ' Degree Program';
+    my $name = '! PLACEHOLDER PROGRAM NAME !';
     return TUSK::Medbiq::Program->new( ProgramName => $name );
 }
+
+sub _build_Title {
+    my $self = shift;
+    return '! PLACEHOLDER TITLE !';
+}
+
+sub _build_Description {
+    return '! PLACEHOLDER DESCRIPTION !';
+}
+
+sub _build_ReportDate {
+    return shift->_now;
+}
+
+sub _build_Language {
+    return 'en-US';
+}
+
+sub _build_Events {
+    return TUSK::Medbiq::Events->new(school => shift->school);
+}
+
+sub _build_Expectations {
+    return TUSK::Medbiq::Expectations->new(school => shift->school);
+}
+
+sub _build_AcademicLevels {
+    return TUSK::Medbiq::AcademicLevels->new(school => shift->school);
+}
+
+
+#################
+# * Class methods
+#################
+
+###################
+# * Private methods
+###################
+
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
+
+###########
+# * Perldoc
+###########
 
 __END__
 
