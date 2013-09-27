@@ -8,6 +8,7 @@ requires 'URI::Encode', '0.09';
 requires 'MooseX::Types', '0.37';
 requires 'XML::Writer', '0.623';
 requires 'MooseX::Types::XMLSchema', '0.06';
+requires 'MooseX::NonMoose', '0.24';
 
 # Testing
 requires 'Test::Files', '0.14';
