@@ -33,34 +33,42 @@ use TUSK::Core::School;
 #########
 
 use MooseX::Types -declare => [
-    qw( UnsignedInt
-        UnsignedNum
-        URI
-        StrHashRef
-        StrArrayRef
-        School
-        XML_Object
-        xs_date
-        Sys_DateTime
-        TUSK_DateTime
-        NonNullString
-        Medbiq_Domain
-        Medbiq_Address
-        Medbiq_Country
-        Medbiq_Address_Category
-        Medbiq_Address_Restriction
-        Medbiq_ContextValues
-        Medbiq_UniqueID
-        Medbiq_Institution
-        Medbiq_Program
-        Medbiq_Events
-        Medbiq_Event
-        Medbiq_Expectations
-        Medbiq_AcademicLevels
-        Medbiq_Sequence
-        Medbiq_Integration
-        Medbiq_VocabularyTerm
-        Medbiq_CurriculumInventory )
+    qw(
+          Medbiq_AcademicLevels
+          Medbiq_Address
+          Medbiq_Address_Category
+          Medbiq_Address_Restriction
+          Medbiq_AssessmentMethod
+          Medbiq_CompetencyObjectReference
+          Medbiq_ContextValues
+          Medbiq_Country
+          Medbiq_CurriculumInventory
+          Medbiq_Domain
+          Medbiq_Event
+          Medbiq_Events
+          Medbiq_Expectations
+          Medbiq_Institution
+          Medbiq_InstructionalMethod
+          Medbiq_Integration
+          Medbiq_Keyword
+          Medbiq_Program
+          Medbiq_Sequence
+          Medbiq_UniqueID
+          Medbiq_VocabularyTerm
+          NonNullString
+          School
+          StrArrayRef
+          StrHashRef
+          Sys_DateTime
+          TUSK_DateTime
+          URI
+          UnsignedInt
+          UnsignedNum
+          XML_Object
+          xs_boolean
+          xs_date
+          xs_duration
+  )
 ];
 
 use MooseX::Types::Moose ':all';
@@ -77,27 +85,16 @@ subtype StrHashRef, as HashRef[Str];
 subtype StrArrayRef, as ArrayRef[Str];
 coerce StrArrayRef, from Str, via { [ $_ ] };
 
-class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
 class_type Sys_DateTime, { class => 'DateTime' };
-coerce TUSK_DateTime,
-    from Sys_DateTime,
-    via { HSDB4::DateTime->new->in_unix_time( $_->epoch ) };
-coerce Sys_DateTime,
-    from TUSK_DateTime,
-    via { DateTime->from_epoch( epoch => $_->out_unix_time ) };
 
 ##############
 # * TUSK Types
 ##############
 
+class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
+
 class_type School, { class => 'TUSK::Core::School' };
-coerce School,
-    from Str,
-    via {
-        TUSK::Core::School->lookupReturnOne(
-            qq{ school_name = '$_' }
-        )
-    };
+class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 
 role_type XML_Object, { role => 'TUSK::XML::Object' };
 
@@ -111,12 +108,20 @@ subtype xs_date, as Str,
                      (([-+]) \d{2}:\d{2} | Z) # timezone
                      \z }xms };
 
-coerce xs_date,
-    from TUSK_DateTime,
-    via { $_->out_mysql_date . "Z" },
-    from Sys_DateTime,
-    via { $_->ymd . "Z" };
+subtype xs_duration, as Str,
+    where { $_ =~ m{ \A -?
+                     P
+                     (?:[0-9]+Y)?
+                     (?:[0-9]+M)?
+                     (?:[0-9]+D)?
+                     (?:T
+                         (?:[0-9]+H)?
+                         (?:[0-9]+M)?
+                         (?:[0-9]+(?:\.[0-9]+)?S)?
+                     )?
+                     \z }xms };
 
+enum xs_boolean, qw( 0 1 true false );
 
 ######################
 # * Medbiquitous Types
@@ -125,6 +130,16 @@ coerce xs_date,
 subtype NonNullString,
     as Str,
     where { length($_) > 0 };
+
+subtype Medbiq_CompetencyObjectReference,
+    as Str,
+    where { $_ =~ m{ \A \s*
+                     /CurriculumInventory/Expectations/CompetencyObject
+                     \[ lom:lom/lom:general/lom:identifier/lom:entry
+                     \s? = \s?
+                     ' [^']+ '
+                     \]
+                     \s* \z }xms };
 
 subtype Medbiq_Domain,
     as Str,
@@ -145,6 +160,7 @@ class_type Medbiq_AcademicLevels, { class => 'TUSK::Medbiq::AcademicLevels' };
 class_type Medbiq_Sequence, { class => 'TUSK::Medbiq::Sequence' };
 class_type Medbiq_Integration, { class => 'TUSK::Medbiq::Integration' };
 class_type Medbiq_Event, { class => 'TUSK::Medbiq::Event' };
+class_type Medbiq_Keyword, { class => 'TUSK::Medbiq::Keyword' };
 
 enum Medbiq_Address_Category,
     qw( Residential Business Undeliverable );
@@ -155,8 +171,63 @@ enum Medbiq_Address_Restriction,
 enum Medbiq_ContextValues,
     ('school', 'higher education', 'training', 'other');
 
-1;
 
+#############
+# * Coercions
+#############
+
+coerce TUSK_DateTime,
+    from Sys_DateTime,
+    via { HSDB4::DateTime->new->in_unix_time( $_->epoch ) },
+    from xs_date,
+    via {
+        my $xsd = $_;
+        $xsd =~ m{ \A -?
+                   (\d{4,}) - (\d{2}) - (\d{2})
+                   (([-+]) \d{2}:\d{2} | Z)
+                   \z }xms;
+        my $year = $1;
+        my $month = $2;
+        my $day = $3;
+        HSDB4::DateTime->new->in_mysql_date(
+            sprintf('%s-%s-%s', $year, $month, $day)
+        )
+    }
+    ;
+
+coerce Sys_DateTime,
+    from TUSK_DateTime,
+    via { DateTime->from_epoch( epoch => $_->out_unix_time ) },
+    from xs_date,
+    via {
+        my $xsd = $_;
+        $xsd =~ m{ \A -?
+                   (\d{4,}) - (\d{2}) - (\d{2})
+                   (([-+]) \d{2}:\d{2} | Z)
+                   \z }xms;
+        my $year = $1;
+        my $month = $2;
+        my $day = $3;
+        DateTime->new(year => $year, month => $month, day => $day)
+    }
+    ;
+
+coerce School,
+    from Str,
+    via {
+        TUSK::Core::School->lookupReturnOne(
+            qq{ school_name = '$_' }
+        )
+    };
+
+coerce xs_date,
+    from TUSK_DateTime,
+    via { $_->out_mysql_date . "Z" },
+    from Sys_DateTime,
+    via { $_->ymd . "Z" };
+
+
+1;
 
 ###########
 # * Perldoc

@@ -247,7 +247,12 @@ sub _build_Language {
 }
 
 sub _build_Events {
-    return TUSK::Medbiq::Events->new(school => shift->school);
+    my $self = shift;
+    return TUSK::Medbiq::Events->new(
+        school => $self->school,
+        start_date => $self->ReportingStartDate,
+        end_date => $self->ReportingEndDate,
+    );
 }
 
 sub _build_Expectations {

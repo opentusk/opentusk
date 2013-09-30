@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Events;
-
-###########
-# * Imports
-###########
+package TUSK::Medbiq::AssessmentMethod;
 
 use 5.008;
 use strict;
@@ -29,125 +25,75 @@ use Readonly;
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
 use TUSK::Medbiq::Namespaces ':all';
-use HSDB4::Constants;
-use HSDB45::ClassMeeting;
-use TUSK::Medbiq::Event;
-
-#########
-# * Setup
-#########
 
 use Moose;
+
 with 'TUSK::XML::Object';
 
 ####################
-# * Class attributes
+# Class attributes #
 ####################
 
-has school => (
+has content => (
     is => 'ro',
-    isa => School,
+    isa => NonNullString,
     required => 1,
-    coerce => 1,
 );
 
-has start_date => (
+has purpose => (
     is => 'ro',
-    isa => TUSK_DateTime,
+    isa => enum(qw(Formative Summative)),
     required => 1,
-    coerce => 1,
 );
 
-has end_date => (
+has source => (
     is => 'ro',
-    isa => TUSK_DateTime,
-    required => 1,
-    coerce => 1,
-);
-
-has Event => (
-    is => 'ro',
-    isa => ArrayRef[Medbiq_Event],
+    isa => NonNullString,
     lazy => 1,
-    builder => '_build_Event',
+    builder => '_build_source',
 );
 
+has sourceID => (
+    is => 'ro',
+    isa => NonNullString,
+    required => 1,
+);
 
+#################
+# Class methods #
+#################
 
-############
-# * Builders
-############
+###################
+# Private methods #
+###################
 
 sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( Event ) ] }
+sub _build_xml_content { $self->content }
+sub _build_xml_attributes { [ qw(purpose source sourceID) ] }
 
-sub _build_Event {
-    my $self = shift;
-    my @class_meetings = $self->_class_meetings;
-    my @event_list;
-    my $i = 0;
-    my $limit = 10;
-    foreach my $cm ( @class_meetings ) {
-        push @event_list, TUSK::Medbiq::Event->new(
-            dao => $cm,
-        );
-        $i++;
-        last unless $i < $limit;
-    }
-    return \@event_list;
-}
-
-#################
-# * Class methods
-#################
-
-###################
-# * Private methods
-###################
-
-sub _class_meetings {
-    my $self = shift;
-    my $cm = HSDB45::ClassMeeting->new(
-        _school => $self->school->getSchoolName
-    );
-    my $dbh = HSDB4::Constants::def_db_handle();
-    return $cm->lookup_conditions(
-        join(
-            ' AND ',
-            sprintf(
-                'meeting_date BETWEEN %s AND %s',
-                $dbh->quote( $self->start_date->out_mysql_date ),
-                $dbh->quote( $self->end_date->out_mysql_date ),
-            ),
-         ),
-    );
-}
+sub _build_source { 'http://medbiq.org/curriculum/vocabularies.pdf' }
 
 ###########
-# * Cleanup
+# Cleanup #
 ###########
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-###########
-# * Perldoc
-###########
-
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Events - A short description of the module's purpose
+TUSK::Medbiq::AssessmentMethod - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Events> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::AssessmentMethod> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Events;
+  use TUSK::Medbiq::AssessmentMethod;
 
 =head1 DESCRIPTION
 

@@ -28,6 +28,7 @@ use Readonly;
 
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
+use TUSK::Medbiq::Namespaces ':all';
 
 #########
 # * Setup
@@ -40,11 +41,131 @@ with 'TUSK::XML::Object';
 # * Class attributes
 ####################
 
+has dao => (
+    is => 'ro',
+    isa => ClassMeeting,
+    required => 1,
+);
+
+has id => (
+    is => 'ro',
+    isa => Str,
+    lazy => 1,
+    builder => '_build_id',
+);
+
+has Title => (
+    is => 'ro',
+    isa => NonNullString,
+    lazy => 1,
+    builder => '_build_Title',
+);
+
+has EventDuration => (
+    is => 'ro',
+    isa => xs_duration,
+    lazy => 1,
+    builder => '_build_EventDuration',
+);
+
+has Description => (
+    is => 'ro',
+    isa => Maybe[Str],
+    lazy => 1,
+    builder => '_build_Description',
+);
+
+has Keyword => (
+    is => 'ro',
+    isa => ArrayRef[Medbiq_Keyword],
+    lazy => 1,
+    builder => '_build_Keyword',
+);
+
+has Interprofessional => (
+    is => 'ro',
+    isa => Maybe[xs_boolean],
+    lazy => 1,
+    builder => '_build_Interprofessional',
+);
+
+has CompetencyObjectReference => (
+    is => 'ro',
+    isa => ArrayRef[Medbiq_CompetencyObjectReference],
+    lazy => 1,
+    builder => '_build_CompetencyObjectReference',
+);
+
+has ResourceType => (
+    is => 'ro',
+    isa => ArrayRef[Medbiq_VocabularyTerm],
+    lazy => 1,
+    builder => '_build_ResourceType',
+);
+
+has InstructionalMethod => (
+    is => 'ro',
+    isa => ArrayRef[Medbiq_InstructionalMethod],
+    lazy => 1,
+    builder => '_build_InstructionalMethod',
+);
+
+has AssessmentMethod => (
+    is => 'ro',
+    isa => ArrayRef[Medbiq_AssessmentMethod],
+    lazy => 1,
+    builder => '_build_AssessmentMethod',
+);
 
 
 ############
 # * Builders
 ############
+
+sub _build_namespace { return curriculum_inventory_ns(); }
+sub _build_xml_attributes { [ qw(id) ] }
+sub _build_xml_content {
+    return [ qw( Title EventDuration Description Keyword Interprofessional
+                 CompetencyObjectReference ResourceType InstructionalMethod
+                 AssessmentMethod ) ];
+}
+
+sub _build_Title {
+    my $self = shift;
+}
+
+sub _build_EventDuration {
+    my $self = shift;
+}
+
+sub _build_Description {
+    my $self = shift;
+}
+
+sub _build_Keyword {
+    my $self = shift;
+}
+
+sub _build_Interprofessional {
+    my $self = shift;
+}
+
+sub _build_CompetencyObjectReference {
+    my $self = shift;
+}
+
+sub _build_ResourceType {
+    my $self = shift;
+}
+
+sub _build_InstructionalMethod {
+    my $self = shift;
+}
+
+sub _build_AssessmentMethod {
+    my $self = shift;
+}
+
 
 #################
 # * Class methods
