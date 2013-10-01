@@ -14,45 +14,52 @@
 	top_tab_type            => 'manage'
 	check_cms_permissions	=> 1
 </%attr>
+
 <%once>
 	use TUSK::Manage::Reuse;
 </%once>
+
+
 <& /tmpl/element:form, params => {
 	method => 'POST',
 	class => 'no-padding',
 	action => "",
 	name => 'content' } 
+
 &>
+
 <& /tmpl/element:table, params => { 
 	width => "100%",
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
+
     <tr> 
-      <td class="labelgray"><% $TUSK::Constants::SiteAbbr %> Content ID:</td>
+      <td class="labelgray"><% __x('{site_abbreviation} Content ID:', site_abbreviation => $TUSK::Constants::SiteAbbr)%></td>
       <td class="cell-left"><input class="textareawhite" name="content_id" type="text" size="15">&nbsp;&nbsp;
 <span class="xsm">
-<a href="javascript:open_window('/management/searchpages/content/?type=content&parent=opener.document.content.content_id.value','menubar=no,toolbar=yes,scrollbars=yes,resizable=yes,width=800,height=700');" class="chooser">find content ids</a></span>
+<a href="javascript:open_window('/management/searchpages/content/?type=content&parent=opener.document.content.content_id.value','menubar=no,toolbar=yes,scrollbars=yes,resizable=yes,width=800,height=700');" class="chooser"><%__('find content ids')%></a></span>
 </td></tr>
     <tr> 
-      <td class="labelgray">How do you want to reuse this content?</td>
+      <td class="labelgray"><%__('How do you want to reuse this content?')%></td>
       <td class="cell-left">
 		<table cellspacing="0" cellpadding="0" width="75%" class="tusk"> 
 			<tr>
-				<td class="cell-left"><input type="radio" name="selection" value="1" checked>Use this Exact Content&nbsp;(Link to ID)</td>
+				<td class="cell-left"><input type="radio" name="selection" value="1" checked><%__('Use this Exact Content&nbsp;(Link to ID)')%></td>
 			</tr>
 			<tr>
-				<td class="layers-left"><input type="radio" name="selection" value="2" >Make an Editable Copy (Create New ID)</td>
+				<td class="layers-left"><input type="radio" name="selection" value="2" ><%__('Make an Editable Copy (Create New ID)')%></td>
 			</tr>
 			<tr>
-				<td class="layers-left">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input name="keywords" type="checkbox" value="1" checked>Copy Keywords</td>
+				<td class="layers-left">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input name="keywords" type="checkbox" value="1" checked><%__('Copy Keywords')%></td>
 			</tr>
 			<tr>
-				<td class="layers-left">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" name="objectives" value="1" checked>Copy Objectives</td>
+				<td class="layers-left">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" name="objectives" value="1" checked><%__('Copy Objectives')%></td>
 			</tr>
 			<tr>
 				<td class="layers-left">
-%			 my $hlp=$m->scomp("/tmpl/element:link_to_help", text => 'more about these options', topic => 'reusing_content_exact_content_vs._editable_copy' );
+%			 my $hlp=$m->scomp("/tmpl/element:link_to_help", text => __('more about these options'), topic => 'reusing_content_exact_content_vs._editable_copy' );
                    <span class="xsm">     <% $hlp %> </span>
+
 				</td>
 			</tr>
 		</table>
@@ -61,8 +68,9 @@
     <tr> 
       <td>&nbsp;</td>
       <td class="cell-submit">
+
 <& /tmpl/element:save_button, params=>{
-	label 			=> 'Save and Continue',
+	label 			=> __('Save and Continue'),
 	no_cancel_button => 1,
 	class 	=> 'formbutton',
 	name			=> 'submit',
@@ -73,7 +81,9 @@
     </tr>
   </table>
 </form>
+
 <%init>
+
 	my $selfpath = $m->comp("/tmpl/url:get_full_path");
 	my $classpath = $m->comp("/tmpl/url:get_course_type_path");
 	my $type_object =  $m->comp("/tmpl/url:get_type_object");
@@ -89,9 +99,11 @@
 	if (!$is_parent_content) { $is_parent_content = 0; }	
 	else { $is_parent_content = $m->comp("/tmpl/url:get_last_path_id"); }
 	
+
 	if ($ARGS{content_id}){
 		
 		($rval, $msg) = TUSK::Manage::Reuse::process_reuse($r,$course_id, $school, $is_parent_content, $user_id, \%ARGS);
+
 		my $d;
 		if($is_parent_content == 0 ){
 			$d = "/management/course/display/".$classpath;
@@ -105,13 +117,19 @@
 		}
 	    $m->comp("/tmpl/url:redirect", destination=> $d, message => $msg, msg_type => $msgtype );
 	}
+
 </%init>
+
 <%method title>
-% return "Reuse Content";
+% return __("Reuse Content");
 </%method>
+
 <%method red_header_text>
 % return $m->comp("SELF:title");
 </%method>
+
 <%method leftnav>
 % return { component => "/tmpl/leftnav/course", school_name => $m->comp("/tmpl/url:get_school") };
 </%method>
+
+

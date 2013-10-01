@@ -1,0 +1,44 @@
+#! /usr/bin/perl
+
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use DBI;
+use MySQL::Password;
+my $dbh;
+my ($un, $pw) = get_user_pw();
+
+
+eval {
+    $dbh = DBI->connect("DBI:mysql:tusk:localhost;mysql_socket=/var/run/mysql/mysql.sock", $un, $pw, {RaiseError => 1, PrintError => 0});
+};
+die "\nFailure: Could not connect to database: $@\n" if $@;
+
+
+my $stmt = "show slave status";
+
+my $sth = $dbh->prepare($stmt);
+
+eval {
+	 $sth->execute();
+};
+die "Failure - could not check slave status: $@" if $@;
+
+my $row = $sth->fetchrow_hashref();
+
+my $io_run = $row->{Slave_IO_Running};
+my $sql_run = $row->{Slave_SQL_Running};
+my $secs = $row->{Seconds_Behind_Master};
+
+$secs = 'NULL' unless defined $secs;
+
+if ($io_run ne 'Yes' || $sql_run ne 'Yes' || $secs eq 'NULL' || $secs > 60) {
+	print qq [
+Problem with replication.
+Slave_IO_Running: $io_run
+Slave_SQL_Running: $sql_run
+Seconds_Behind_Master: $secs
+];
+}

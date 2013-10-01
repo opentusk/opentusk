@@ -28,7 +28,7 @@
 			var course_id     = document.getElementById('course_id').value;
 			var timeperiod_id = document.getElementById('c_timeperiod_id').value;
 			if ( timeperiod_id == '' ) {
-				alert ( 'Please select a time period.' );
+				alert ( '<%__('Please select a time period.')%>' );
 				return false;
 			}
 			document.location = '/management/reporting/show/school/<% $school %>/course/' + course_id + '/' + timeperiod_id;
@@ -43,7 +43,7 @@
 			}
 
 			if ( timeperiod_id == '' ) {
-				alert ( 'Please select a time period.' );
+				alert ( '<%__('Please select a time period.')%>' );
 				return false;
 			}
 
@@ -56,8 +56,8 @@
 <br />
 
 <ul id="reportsTabs" class="genTabNav clearfix">
-	<li id="usergroup" class="<% $usergroup_tab %>"><a href="javascript:;" onclick="activateTab(this)">Usergroup Reports</a></li>
-	<li id="course" class="<% $course_tab %>"><a href="javascript:;" onclick="activateTab(this)">Course Reports</a></li>
+	<li id="usergroup" class="<% $usergroup_tab %>"><a href="javascript:;" onclick="activateTab(this)"><%__("Usergroup Reports")%></a></li>
+	<li id="course" class="<% $course_tab %>"><a href="javascript:;" onclick="activateTab(this)"><%__("Course Reports")%></a></li>
 </ul>
 
 <div id="usergroupArea" class="tabArea <% $usergroup_area %>">
@@ -71,19 +71,19 @@
 				cellspacing =>"0",
 				cellpadding =>"0" } &>
 
-<& /tmpl/element:dropdown, params =>{ label => 'Usergroup:',
+<& /tmpl/element:dropdown, params =>{ label => __('Usergroup').':',
 				name => 'usergroup_id',
 				options => $usergroup_options,
 				selected => $usergroup_id } &>
 
-<& /tmpl/element:dropdown, params =>{ label => 'Time Period(s):',
+<& /tmpl/element:dropdown, params =>{ label => __('Time Period(s)').':',
 				name => 'u_timeperiod_id',
 				multiple => 'multiple',
 				size => 5,
 				options => $timeperiod_options,
 				selected => \%timeperiod_id_hash } &>
 
-<& /tmpl/element:save_button, params=>{ label=>'Update', 
+<& /tmpl/element:save_button, params=>{ label=>__('Update'), 
 				no_cancel_button => 1,
 				name => 'update' } &>
 </table>
@@ -100,18 +100,18 @@
 				cellspacing =>"0",
 				cellpadding =>"0" } &>
 
-<& /tmpl/element:dropdown, params =>{ label => 'Course:',
+<& /tmpl/element:dropdown, params =>{ label => __('Course').':',
 				name => 'course_id',
 				options => $course_options,
 				selected => $course_id } &>
 
-<& /tmpl/element:dropdown, params =>{ label => 'Time Period:',
+<& /tmpl/element:dropdown, params =>{ label => __('Time Period').':',
 				name => 'c_timeperiod_id',
 				size => 5,
 				options => $timeperiod_options,
 				selected => $timeperiod_id } &>
 
-<& /tmpl/element:save_button, params=>{ label=>'Update', 
+<& /tmpl/element:save_button, params=>{ label=>__('Update'), 
 				no_cancel_button => 1,
 				name => 'update' } &>
 </table>
@@ -123,11 +123,11 @@
 <div id="reportDetails">
 % 	if ( $report_type && $object_id && $timeperiod_id ) {
 	<ul id="detailsTabs" class="genTabNav clearfix">
-		<li id="class_meetings" class="activeTab"><a href="javascript:;" onclick="activateTab(this)">Class Meetings</a></li>
+		<li id="class_meetings" class="activeTab"><a href="javascript:;" onclick="activateTab(this)"><%__("Class Meetings")%></a></li>
 %		if ( $report_type eq 'course' ) {
-		<li id="objectives"><a href="javascript:;" onclick="activateTab(this)">Objectives</a></li>
-		<li id="umls_keywords"><a href="javascript:;" onclick="activateTab(this)">UMLS Keywords</a></li>
-		<li id="user_defined_keywords"><a href="javascript:;" onclick="activateTab(this)">User-Defined Keywords</a></li>
+		<li id="objectives"><a href="javascript:;" onclick="activateTab(this)"><%__("Objectives")%></a></li>
+		<li id="umls_keywords"><a href="javascript:;" onclick="activateTab(this)"><%__("UMLS Keywords")%></a></li>
+		<li id="user_defined_keywords"><a href="javascript:;" onclick="activateTab(this)"><%__("User-Defined Keywords")%></a></li>
 %		}
 	</ul>
 %	}
@@ -136,14 +136,14 @@
 %		my $tp = HSDB45::TimePeriod->new( _school => $school, _id => $timeperiod_id );
 	<div id="class_meetingsArea" class="tabArea activeArea">
 		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
-%		$m->comp("SELF:class_types_row", 'label' => 'Course', 'types' => \@types );
+%		$m->comp("SELF:class_types_row", 'label' => __('Course'), 'types' => \@types );
 %		if ( scalar(@types) ) {
 		<tr class="even">
 			<td class="layers-left">
 				<a href="/view/course/<% $school %>/<% $course->primary_key %>"><% $course->out_title %></a>
 %				my $parent_course = $course->is_a_subcourse();
 %				if ($parent_course) {
-					<br /><span class="xsm">&nbsp;&nbsp;&nbsp;This course is a child course of <% $parent_course->out_title %></span>
+					<br /><span class="xsm">&nbsp;&nbsp;&nbsp;<%__x("This course is a child course of {parent_course}", parent_course => $parent_course->out_title) %></span>
 %				}
 			</td>
 %		foreach my $type ( @types ) {
@@ -152,7 +152,7 @@
 %		}
 		</tr>
 %		} else {
-		<tr class="even"><td class="layers-left"><i>No classes scheduled for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+		<tr class="even"><td class="layers-left"><i><%__x("No classes scheduled for {course} in {label} ({year})", course => $course->out_title, label => $tp->out_label, year => $tp->field_value('academic_year'))%></i></td>
 %		}
 		</table>
 	</div>
@@ -160,7 +160,7 @@
 	<div id="objectivesArea" class="tabArea">
 		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
 <%perl>
-		$m->comp("SELF:class_types_row", 'label' => 'Objective', 'types' => \@types );
+		$m->comp("SELF:class_types_row", 'label' => __('Objective'), 'types' => \@types );
 		$cur = 0;
 		if (scalar(keys %{$objectives})) {
 			foreach my $objective_id ( keys %{$objectives} ) {
@@ -169,8 +169,8 @@
 				$cur = !$cur;
 			}
 		} else {
-</%perl>
-		<tr class="even"><td class="layers-left"><i>No objectives available for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+</%perl> <tr class="even"><td class="layers-left"><i><%__x("No objectives assigned for {course} in {label} ({year})", course => $course->out_title, label => $tp->out_label, year => $tp->field_value('academic_year'))%></i></td>
+
 %		}
 		</table>
 	</div>
@@ -178,7 +178,7 @@
 	<div id="umls_keywordsArea" class="tabArea">
 		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
 <%perl>
-		$m->comp("SELF:class_types_row", 'label' => 'UMLS Keyword', 'types' => \@types );
+		$m->comp("SELF:class_types_row", 'label' => __('UMLS Keyword'), 'types' => \@types );
 		$cur = 0;
 		$unused = 1;
 		foreach my $keyword_id ( keys %{$keywords} ) {
@@ -189,8 +189,8 @@
 			$cur = !$cur;
 		}
 		if ( $unused ) {
-</%perl>
-		<tr class="even"><td class="layers-left"><i>No UMLS keywords available for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+</%perl> <tr class="even"><td class="layers-left"><i><%__x("No UMLS keywords available for {course} in {label} ({year})", course => $course->out_title, label => $tp->out_label, year => $tp->field_value('academic_year'))%></i></td>
+
 %		}
 		</table>
 	</div>
@@ -198,7 +198,7 @@
 	<div id="user_defined_keywordsArea" class="tabArea">
 		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
 <%perl>
-		$m->comp("SELF:class_types_row", 'label' => 'User-Defined Keyword', 'types' => \@types );
+		$m->comp("SELF:class_types_row", 'label' => __('User-Defined Keyword'), 'types' => \@types );
 		$cur = 0;
 		$unused = 1;
 		foreach my $keyword_id ( keys %{$keywords} ) {
@@ -210,7 +210,8 @@
 		}
 		if ( $unused ) {
 </%perl>
-		<tr class="even"><td class="layers-left"><i>No user-defined keywords available for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+ <tr class="even"><td class="layers-left"><i><%__x("No user-defined keywords available for {course} in {label} ({year})", course => $course->out_title, label => $tp->out_label, year => $tp->field_value('academic_year'))%></i></td>
+
 %		}
 		</table>
 	</div>
@@ -228,7 +229,7 @@
 	<div id="class_meetingsArea" class="tabArea activeArea">
 		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
 <%perl>
-		$m->comp("SELF:class_types_row", 'label' => 'Courses', 'types' => \@types, 'exclude_column' => 1 );
+		$m->comp("SELF:class_types_row", 'label' => __('Courses'), 'types' => \@types, 'exclude_column' => 1 );
 		$cur = 0;
 		if ( scalar( keys %{$class_meetings} ) ) {
 
@@ -245,7 +246,7 @@
 %						my $indent = '';
 %						if ( grep { $_ == $parent_course->course_id } @sorted_course_ids ) { $indent = '&nbsp;&nbsp;&nbsp;'; }
 						<% $indent %><a href="/view/course/<% $school %>/<% $course->primary_key %>"><% $course->out_title %></a>
-						<br /><% $indent %><span class="xsm">&nbsp;&nbsp;This course is a child course of <% $parent_course->out_title %></span>
+						<br /><% $indent %><span class="xsm">&nbsp;&nbsp;<%__x("This course is a child course of {parent}", parent => $parent_course->out_title) %></span>
 %					} else {
 						<a href="/view/course/<% $school %>/<% $course->primary_key %>"><% $course->out_title %></a>
 %					}
@@ -259,12 +260,12 @@
 %			}
 			</tr>
 %			} else {
-			<tr class="<% $tr_classes[$cur] %>"><td class="layers-left"><i>No classes scheduled for <% $course->out_title %> in <% $tp->out_label . " (" . $tp->field_value('academic_year') . ")" %>.</i></td>
+			<tr class="<% $tr_classes[$cur] %>"><td class="layers-left"><i><%__x("No classes scheduled for {course} in {label} ({year})", course => $course->out_title, label => $tp->out_label, year => $tp->field_value('academic_year'))%></i></td>
 %			}
 %			$cur = !$cur;
 %		}
 %		} else {
-			<tr class="<% $tr_classes[$cur] %>"><td class="layers-left"><i>No courses associated with <% $usergroup->out_label %> in the listed time period(s).</i></td>
+			<tr class="<% $tr_classes[$cur] %>"><td class="layers-left"><i><%__x("No courses associated with {usergroup} in the listed time period(s).", usergroup => $usergroup->out_label) %></i></td>
 %		}
 		</table>
 %		if ( defined($excluded_courses) && @{$excluded_courses} ) {
@@ -272,7 +273,7 @@
 		<table cellpadding="0" cellspacing="0" width="100%" class="tusk">
 			<tr class="header">
 				<td></td>
-				<td class="header-left" width="100%">Excluded Courses</td>
+				<td class="header-left" width="100%"><%__("Excluded Courses")%></td>
 			</tr>
 <%perl>
 			$cur = 0;
@@ -464,9 +465,9 @@
 </%method>
 
 <%method red_header_text>
-% return "Reporting";
+% return __("Reporting");
 </%method>
 
 <%method title>
-% return "Reporting";
+% return __("Reporting");
 </%method>

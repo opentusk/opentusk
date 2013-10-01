@@ -1,0 +1,86 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Constants;
+</%once>
+
+
+<%shared>
+	my $lnk_prefix = '/mobi/view/course';
+</%shared>
+
+
+
+
+
+
+<%method build_sched_table>
+<%args>
+	@meetings
+</%args>
+
+<& /tmpl/element:table, params=>{class => 'schedTable', width => '100%'} &>
+% my $iter = 1;
+% foreach my $meet (@meetings){
+%	$iter++;
+%	my $course = $meet->course();
+  <tr class="<% ($iter % 2) ? 'highlight' : '' %>">
+    <td class="time"><% sprintf ("%s - %s", $meet->out_starttime->out_string_time_hm, $meet->out_endtime->out_string_time) %></td>
+    <td class="course"><a href="<% $course->out_url_mobi() %>"><% $course->out_abbrev() %></a></td>
+
+%	my $disp_title = $meet->title();
+%	$disp_title .= $disp_title? ' - ' : '';
+%	$disp_title .= $meet->type();
+%	$disp_title .= ($meet->is_mandatory())? ' <span class="cmMandAtt">(Attendance Mandatory)</span>' : '';
+%	$disp_title = '<a href="' . $meet->out_url_mobi() . '">' . $disp_title . '</a>';
+    <td class="meeting"><% $disp_title %></td>
+    <td class="location">
+<% $meet->location() %>
+    </td>
+  </tr> 
+% }
+</table>
+</%method>
+
+
+<%method print_school_courses>
+<%args>
+	@list_cats
+</%args>
+<!-- then the course lists -->
+% foreach my $list_cat (@list_cats){
+%	my $school = $list_cat->school;
+<h4 class="inlineHdr"><% $list_cat->get_label %></h4>
+<form class="homeCourseList no-padding" action="" method="get">
+<select name="gotocourse" onchange="location.href=this.options[this.selectedIndex].value;this.selectedIndex = 0;">
+	<option value=""><%__('Select a course')%></option> 
+%	foreach my $hp_course ($list_cat->get_homepage_courses){
+%		my $course_id = $hp_course->get_course_id;
+%		if ($course_id){
+	<option value="<% $lnk_prefix %>/<% $school ."/". $course_id %>"><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
+%		}
+%		elsif ($hp_course->get_url){
+	<option value="<% $hp_course->get_url %>"><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
+%		}
+%		else{
+	<option value=""><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
+%		}
+%	}
+</select> 
+</form>
+% }
+</%method>

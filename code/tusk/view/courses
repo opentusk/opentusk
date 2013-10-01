@@ -1,0 +1,104 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+
+<%attr>
+	no_check_path		=> '1'
+	top_tab_type		=> 'browse'
+	allow_guests		=> '1'
+	allow_shib		=> '1'
+	page_footer		=> '/tmpl/footer:footer_with_school_links'
+	skip_header_bar		=> '1'
+	nostandardheader 	=> '1'
+</%attr>
+
+<%once>
+	use TUSK::HomepageCategory;
+	use HSDB4::Constants;
+</%once>
+
+<!-- Begin Inner Main Content Table -->
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+	<tr>
+		<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
+		<td width="100%" valign="top">
+
+%  my $user = $m->session->{'user'};
+%  my @school_list = ();
+
+%  foreach my $school (HSDB4::Constants::homepage_course_schools) {
+%	if ($user && $school eq $user->affiliation()) {
+%     		unshift(@school_list,$school);
+%	} else {
+%		push(@school_list, $school);}
+%  	}
+
+%  	foreach my $schoolObject (@school_list) {
+%		my $blank_cat = TUSK::HomepageCategory->new(_school => $schoolObject );
+%		my @hp_cats = $blank_cat->lookup_conditions("order by sort_order");
+%		if(@hp_cats) {
+<& /tmpl/element:header_bar, params => {color => 'blue', hdr_txt => $schoolObject} &>
+			<form action="" method="get">
+				<table width="100%" cellpadding="2" cellspacing="4">
+%			foreach my $cat (@hp_cats) {
+%				if ($cat->get_label) {
+					<tr><td class="xsm"><b><% $cat->get_label %><% $cat->get_schedule ? " - <a href=\"/view/schedule/".$schoolObject."/".$cat->get_primary_user_group_id."\" class=\"schedule\">Schedule</a>" : "" %></b></td></tr>
+%				}
+	    				<tr>
+	    					<td>
+	    						<select width="50" name="gotocourse" onChange="javascript:location.href=this.options[this.selectedIndex].value;">
+	    							<option value=""><% __('Select a course') %></option>
+%				foreach my $hp_course ($cat->get_homepage_courses) {
+%					my $course_id = $hp_course->get_course_id;
+%					if($course_id) {
+								<option value="/hsdb45/course/<% $schoolObject."/".$course_id %>"><% '&nbsp;'x($hp_course->get_indent()*3) %><% $hp_course->get_label %></option>
+%					} elsif($hp_course->get_url) {
+								<option value="<% $hp_course->get_url %>"><% '&nbsp;'x($hp_course->get_indent()*3) %><% $hp_course->get_label %></option>
+%					} else {
+								<option value=""><% '&nbsp;'x($hp_course->get_indent()*3) %><% $hp_course->get_label %></option>
+%					}
+%				}
+							</select>
+						</td>
+					</tr>
+%			} ### courses
+				</table>
+			</form>
+%		}  ### category
+%  	}  ### schools
+		</td>
+		<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
+	</tr> 
+</table>
+
+
+<%method title>
+%	return("All Courses");
+</%method>
+
+<%method stylearray>
+%       return ['/style/style.css','/style/home.css'];
+</%method>
+
+ <%method leftnav>
+ <%perl>
+	 my %someHash = (
+	     'component'           => "/tmpl/leftnav/home",
+	     'user_obj'            => $m->session->{user},
+	 );
+	 return \%someHash;
+ </%perl>
+ </%method>

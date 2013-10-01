@@ -22,17 +22,17 @@
 </%shared>
 
 <%attr>
-hintmsg => 'Deleting will also delete any associated tests and sub tests'
+hintmsg => __('Deleting will also delete any associated tests and sub tests');
 </%attr>
 
 <%method title>
-% return "Delete Category";
+% return __("Delete Category");
 </%method>
 
 <%perl>
 my $battery = TUSK::Case::Battery->lookupKey($id);
 if (!defined($battery->getPrimaryKeyID())){
-	$m->comp("/case/tmpl/error",msg=>"Category $id not found");
+	$m->comp("/case/tmpl/error",msg=>__x("Category {id} not found", id => $id));
 }
 
 </%perl>
@@ -46,12 +46,12 @@ if (!defined($battery->getPrimaryKeyID())){
                 cellspacing =>"0	",
                 cellpadding =>"0" } &>
 
-<& /tmpl/element:field_display, params=>{'label'=>'Category Name',
+<& /tmpl/element:field_display, params=>{'label'=>__('Category Name'),
 		'value'=>$battery->getBatteryTitle()} 
 		&>
 
 <& /tmpl/element:save_button,params=>{name=>'delete_battery', 
-					label=>'Delete Category',
+					label=>__('Delete Category'),
 					cancel_onclick=>'go_back(\'' . $back_url . '\');'} &>
 </form>
 </table>
@@ -76,6 +76,6 @@ if (defined($ARGS{'delete_battery'})){
 	}
 	
 	$battery->delete();
-	$m->redirect($back_url . "?msg=Category+successfully+deleted");
+	$m->redirect($back_url . "?msg=".__("Category successfully deleted"));
 }
 </%init>

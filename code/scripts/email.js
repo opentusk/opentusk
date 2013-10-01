@@ -16,11 +16,11 @@
 $(function() {
 	$('#emailsubmit').click(function() {
 		if (!$('input[name="to"]:checked').length) {
-			alert('Please select at least one email recipient.');
+			alert(_('Please select at least one email recipient.'));
 			return false;
 		}
 
-		if (confirm("Are you sure you want to send this email?") == false) {
+		if (confirm(_("Are you sure you want to send this email?")) == false) {
 			return false;
 		}
 	});

@@ -64,10 +64,10 @@ my $get_phases = sub {
 
 
 <%perl>
-my $goalsText = 'Enter Goals Text Here';
-my $referenceText = 'Enter References Text Here';
-my $metadataText = 'Enter Metadata Text Here';
-my $phaseText = 'Enter Phases Text Here';
+my $goalsText = __('Enter Goals Text Here');
+my $referenceText = __('Enter References Text Here');
+my $metadataText = __('Enter Metadata Text Here');
+my $phaseText = __('Enter Phases Text Here');
 my $formname = 'caseaddedit';
 </%perl>
 
@@ -90,18 +90,18 @@ if (defined($id)){
 		type_path=>$type_path, 
 		formname=>$formname);
 } else {
-	$m->comp('/tmpl/element:save_button', params=>{label=>'Save Changes', name=>'case_submit'});
+	$m->comp('/tmpl/element:save_button', params=>{label=>__('Save Changes'), name=>'case_submit'});
 }
 </%perl>
 
 
-<& /tmpl/element:textbox, params =>{ label => 'Case Title',
+<& /tmpl/element:textbox, params =>{ label => __('Case Title'),
 		name => 'title',
 		value => $case->getCaseTitle(),
 		size => 60,
 		length => 255 } &>
 
-<& /tmpl/element:textarea, params=>{ label => 'Author Notes',
+<& /tmpl/element:textarea, params=>{ label => __('Author Notes'),
 		name=>"case_author_desc",
 		cols=>"60",
 		rows=>"2",
@@ -110,38 +110,45 @@ if (defined($id)){
 	cke_params=> {height => '120', width => '710'}
  &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Copyright',
+<& /tmpl/element:textbox, params =>{ label => __('Copyright'),
                 name => 'copyright',
                 value => $case->getCopyright,
                 size => 60,
                 length => 255 } &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Source',
+<& /tmpl/element:textbox, params =>{ label => __('Source'),
                 name => 'source',
                 value => $case->getSource,
                 size => 60,
                 length => 255 } &>
 
-<& /tmpl/element:dropdown, params=>{ label => 'Patient Type',
+<& /tmpl/element:dropdown, params=>{ label => __('Patient Type'),
                 name=>"patient_type_id",
                 onchange=>undef,
                 selected=>$case->getPatientTypeID(),
                 options=>$patientTypeArrayRef } &>
 
 
-<& /tmpl/element:dropdown, params=>{ label => 'Type of Assessment',
+<& /tmpl/element:dropdown, params=>{ label => __('Type of Assessment'),
 		name=>"case_type",
 		onchange=>undef,
 		selected=>$case->getCaseType(),
-		options=>['Self-Assessment','Reviewed','Test'] } &>
+		options=>[
+			{'label' => __('Self-Assessment'), 'value' => 'Self-Assessment'},
+			{'label' => __('Reviewed'), 'value' => 'Reviewed'},
+			{'label' => __('Test'), 'value' => 'Test'}
+		] } &>
 
-<& /tmpl/element:dropdown, params=>{ label => 'Navigation Type',
-                name=>"navigation_type",
-                onchange=>undef,
-                selected=>$case->getNavigationType(),
-                options=>['Linear', 'Global'] } &>
+<& /tmpl/element:dropdown, params=>{ label => __('Navigation Type'),
+		name=>"navigation_type",
+		onchange=>undef,
+		selected=>$case->getNavigationType(),
+		options=>[
+			{'label' => __('Linear'), 'value' => 'Linear'},
+			{'label' => __('Global'), 'value' => 'Global'}
+        ] } &>
 
-<& /tmpl/element:textarea, params=>{ label => 'Case Overview',
+<& /tmpl/element:textarea, params=>{ label => __('Case Overview'),
         name=>"case_user_desc",
         cols=>"60",
         rows=>"4",
@@ -151,16 +158,16 @@ if (defined($id)){
  &>
 
 
-<& /tmpl/element:textbox, params =>{ label => 'Feedback Email',
+<& /tmpl/element:textbox, params =>{ label => __('Feedback Email'),
                 name => 'feedback_email',
                 value => $case->getFeedbackEmail(),
                 size => 60,
                 length => 255 } &>
 
 %
-% if ($case->getCaseType() eq 'Self-Assessment' or $is_edit == 0){
+% if ($case->getCaseType() eq __('Self-Assessment') or $is_edit == 0){
 %
-<& /tmpl/element:textbox, params =>{ label => 'Case Duration',
+<& /tmpl/element:textbox, params =>{ label => __('Case Duration'),
                 name => 'duration',
                 value => $case->getDurationText(),
                 size => 60,
@@ -168,25 +175,25 @@ if (defined($id)){
 %
 % } else {
 %
-<& /tmpl/element:timebox, params =>{ label => 'Case Duration',
+<& /tmpl/element:timebox, params =>{ label => __('Case Duration'),
                 name => 'duration',
                 value => $case->getDuration(),
                 size => 10,
                 length => 10,
-		'optional-label' => "None" } &>
+		'optional-label' => __("None") } &>
 %
 % }
 %
 
 
-<& /tmpl/element:dropdown, params=>{ label => 'Grade Event',
+<& /tmpl/element:dropdown, params=>{ label => __('Grade Event'),
                 name=>"grade_event_id",
                 onchange=>undef,
                 selected=>$case->getGradeEventID(),
                 options=>$gradeEventArrayRef } &>
 
 <& /tmpl/element:textbox, params => { 
-				label 		=> 'Available Date',
+				label 		=> __('Available Date'),
 				name 		=> 'available_date',
 				value 		=> $link->getFormattedAvailableDate(),
 				size 		=> 20,
@@ -197,7 +204,7 @@ if (defined($id)){
 } &>
 
 <& /tmpl/element:textbox, params => { 
-				label 		=> 'Due Date',
+				label 		=> __('Due Date'),
 				name 		=> 'due_date',
 				value 		=> $link->getFormattedDueDate(),
 				size 		=> 20,
@@ -207,34 +214,34 @@ if (defined($id)){
 				default_time => 'endofday',
 } &>
 
-<& /tmpl/element:section_header_row, label=>"Cost of Patient Care" &>
+<& /tmpl/element:section_header_row, label=>__("Cost of Patient Care") &>
 
-<& /tmpl/element:dropdown, params=>{ label => 'Display&nbsp;expenses&nbsp;of&nbsp;patient&nbsp;care&nbsp;as&nbsp;they are incurred ?',
+<& /tmpl/element:dropdown, params=>{ label => __('Display expenses of patient care as they are incurred ?'),
                 name=>"billing_total",
                 onchange=>undef,
                 selected=>$case->getBillingTotal(),
                 options=>[
-                        {'label'=>'Yes','value'=>'1'},
-                        {'label'=>'No','value'=>'0'} ] } &>
+                        {'label'=>__('Yes'),'value'=>'1'},
+                        {'label'=>__('No'),'value'=>'0'} ] } &>
 
-<& /tmpl/element:section_header_row, label=>'Case Access' &>
+<& /tmpl/element:section_header_row, label=>__('Case Access') &>
 
-<& /tmpl/element:dropdown, params=>{ label => 'Usage Permission',
+<& /tmpl/element:dropdown, params=>{ label => __('Usage Permission'),
                 name=>"share_case",
                 onchange=>undef,
                 selected=>$case->getShareCase(),
                 options=>[
-                        {'label'=>'Share Case as Read-Only','value'=>'1'},
-						{'label'=>'Do not share case','value'=>'0'}
+                        {'label'=>__('Share Case as Read-Only'),'value'=>'1'},
+						{'label'=>__('Do not share case'),'value'=>'0'}
                          ] } &>
 
-<& /tmpl/element:dropdown, params=>{ label => 'Restricted Access',
+<& /tmpl/element:dropdown, params=>{ label => __('Restricted Access'),
                 name=>"restricted_access",
                 onchange=>undef,
                 selected=>$case->getRestrictedAccess(),
                 options=>[
-                        {'label'=>'Allow all ' . $TUSK::Constants::SiteAbbr . ' users','value'=>'0'},
-						{'label'=>'Allow only course users','value'=>'1'}
+                        {'label'=>__x('Allow all {site_abbr} users', site_abbr => $TUSK::Constants::SiteAbbr),'value'=>'0'},
+						{'label'=>__('Allow only course users'),'value'=>'1'}
                          ] } &>
 
 <& /tmpl/element:posted_dropdown, selected => $case->getPublishFlag() &>
@@ -246,7 +253,7 @@ if (defined($id)){
 		type_path=>$type_path, 
 		formname=>$formname);
 } else {
-	$m->comp('/tmpl/element:save_button', params=>{label=>'Save Changes', name=>'case_submit'});
+	$m->comp('/tmpl/element:save_button', params=>{label=>__('Save Changes'), name=>'case_submit'});
 }
 </%perl>
 
@@ -265,14 +272,14 @@ if (defined($id)){
 
 	my $school_obj = $type_object->get_school();
 
-	my $patientTypeArrayRef = [ {'label'=>'Select Patient Type', 'value'=>''} ];
+	my $patientTypeArrayRef = [ {'label'=>__('Select Patient Type'), 'value'=>''} ];
 	foreach my $patient_type (@{TUSK::Case::PatientType->new()->getSchoolPatientTypes($school_obj)}){
 		my $hashref = {'label'=>$patient_type->getTypeName(),
 		               'value'=>$patient_type->getPrimaryKeyID() };
 		push @{$patientTypeArrayRef}, $hashref;
 	}
 
-	my $gradeEventArrayRef = [{'label'=>'No Grade Event', 'value'=>''}];
+	my $gradeEventArrayRef = [{'label'=>__('No Grade Event'), 'value'=>''}];
 	foreach my $ge (@{TUSK::GradeBook::GradeEvent->new->getCourseEvents($school_obj->getSchoolName(), $type_object->course_id())}){
 		my $tp = HSDB45::TimePeriod->new(_school => $school_obj->getSchoolName())->lookup_key($ge->getTimePeriodID());
 		my $hashref = {'label'=>$ge->getEventName() . ' (' . $tp->period() . ')',
@@ -287,7 +294,7 @@ if (defined($id)){
         	$case->lookupKey($id);
         
 		if (!defined($case) || !defined($case->getPrimaryKeyID())){
-       	        	$m->comp('/tmpl/error',msg=>"Case not found for ID : $id");
+       	        	$m->comp('/tmpl/error',msg=>__("Case not found for ID")." : $id");
 	                $m->abort();
        		}
 	
@@ -304,8 +311,8 @@ if (defined($id)){
 
 		my $rule_msg;
 		if ($case->hasRule() && 
-		   ($case->getNavigationType() eq 'Global' && $ARGS{navigation_type} eq 'Linear')) {
-			$rule_msg = '<br><br>You have switched your navigation type from Global to Linear, please be sure that this does not negatively impact any of the rules you have applied to this case.';
+		   ($case->getNavigationType() eq __('Global') && $ARGS{navigation_type} eq __('Linear'))) {
+			$rule_msg = '<br><br>'.__('You have switched your navigation type from Global to Linear, please be sure that this does not negatively impact any of the rules you have applied to this case.');
 		}
 
 		$case->setCaseTitle($ARGS{'title'});
@@ -314,7 +321,7 @@ if (defined($id)){
 		$case->setCaseType($ARGS{'case_type'});
 		$case->setNavigationType($ARGS{'navigation_type'});
 	
-		if ($case->getCaseType() eq 'Self-Assessment'){
+		if ($case->getCaseType() eq __('Self-Assessment')){
 			$case->setDurationText($ARGS{'duration'});
 		}else{
 			$case->setDuration($ARGS{'duration'});
@@ -355,12 +362,12 @@ if (defined($id)){
 		$link->setDueDate(($ARGS{due_date}) ? $ARGS{due_date} : undef);
 		$link->save({ user => $user_id });
 	
-		my $msg = ($is_edit) ? "Case successfully updated." : "Case successfully added.";
+		my $msg = ($is_edit) ? __("Case successfully updated.") : __("Case successfully added.");
 
 		my $msgtype = 'msg';
 		if ($case->isGlobalNav() && $case->hasPopQuiz()) {
 			$msgtype = 'hintmsg';
-			$msg .= '<br><br>Globally navigable cases only support quizzes that are a part of a "Quiz" phase. Quizzes embedded in any other phase type will not be made visible to the users.';
+			$msg .= '<br><br>'.__('Globally navigable cases only support quizzes that are a part of a "Quiz" phase. Quizzes embedded in any other phase type will not be made visible to the users.');
 		}
 
 		if ($rule_msg) {
@@ -385,9 +392,9 @@ if (defined($id)){
 
 <%method title>
 <%perl>
-my $title = "Create Case";
+my $title = __("Create Case");
 if (defined($id)){
-	$title = "Modify Case";	
+	$title = __("Modify Case");	
 }
 return $title;
 </%perl>

@@ -48,14 +48,14 @@ no_filter => 1
 
 <%method title>
 <%perl>
-	my $title = "Quiz Responses : ".$quiz->getTitle();
+	my $title = __("Quiz Responses")." : ".$quiz->getTitle();
 	return $title;
 </%perl>
 </%method>
 
 
 <%method red_header_text>
-%	return "Quiz Response:";
+%	return __("Quiz Response").":";
 </%method>
 
 
@@ -92,9 +92,9 @@ no_filter => 1
 
 	my $buttons;
 	if ($m->comp("/tmpl/permission:check_permission", function_token => 'edit_grades') && $requested_comp eq 'quizresponses'){
-		$buttons = "<input class=\"formbutton\" type=\"submit\" name=\"submit\" value=\"Save Changes\">\n<input class=\"formbutton\" type=\"reset\" onclick=\"go_back('/quiz/author/quizresults/$type_path#" . $result->getPrimaryKeyID() . "');\" name=\"cancel\" id=\"cancel\" value=\"Go Back\"/>";
+		$buttons = "<input class=\"formbutton\" type=\"submit\" name=\"submit\" value=\"".__("Save Changes")."\">\n<input class=\"formbutton\" type=\"reset\" onclick=\"go_back('/quiz/author/quizresults/$type_path#" . $result->getPrimaryKeyID() . "');\" name=\"cancel\" id=\"cancel\" value=\"".__("Go Back")."\"/>";
 	} else {
-		$buttons = "Not authorized for grading";
+		$buttons = __("Not authorized for grading");
 	}
 
 	if ($show_answers) {
@@ -103,14 +103,14 @@ no_filter => 1
                 	name => 'quizresponses',
         	        onsubmit => undef } );
 
-		my $quiz_taker = ($pquiz->isSelfAssessment()) ? '' : "Name: &nbsp;&nbsp;" . HSDB4::SQLRow::User->new()->lookup_key($result->getUserID());
+		my $quiz_taker = ($pquiz->isSelfAssessment()) ? '' : __("Name").": &nbsp;&nbsp;" . HSDB4::SQLRow::User->new()->lookup_key($result->getUserID());
 		$m->print("<table width=\"100%\">\n<tr><td class=\"med\">$quiz_taker</td><td align=\"right\"><div style=\"margin-bottom:1px;\">$buttons</div></td></tr>\n</table>\n");
 	}
 
 	$m->comp('SELF:display_quiz_items', show_answers => $show_answers, response_hash => $response_hash, quiz => $pquiz);
 
 	if ($show_answers) {
-		$m->print ("<div align=\"right\" style=\"margin-top:3px;\">$buttons</div>\n") if ($count > 4 && $buttons && $buttons ne 'Not authorized for grading');
+		$m->print ("<div align=\"right\" style=\"margin-top:3px;\">$buttons</div>\n") if ($count > 4 && $buttons && $buttons ne __('Not authorized for grading'));
 		$m->print("</form>\n");
 	}
 
@@ -140,16 +140,16 @@ no_filter => 1
 	}
 
 	my $columns = [
-			{ field => 'question', label => 'Question' },
-			{ field => 'answer', label => 'Correct Answer' },
+			{ field => 'question', label => __('Question') },
+			{ field => 'answer', label => __('Correct Answer') },
 		      ];
 
 	if ($show_answers){
-		push (@$columns, { field => 'response', label => 'Response'});
-		push (@$columns, { field => 'points', label => 'Points', align => 'center' });
-		push (@$columns, { field => 'graded_points', label => 'Graded Points<span style="color:red;font-size:80%;">*</span>', align => 'center', html => 1 });
+		push (@$columns, { field => 'response', label => __('Response')});
+		push (@$columns, { field => 'points', label => __('Points'), align => 'center' });
+		push (@$columns, { field => 'graded_points', label => __('Graded Points').'<span style="color:red;font-size:80%;">*</span>', align => 'center', html => 1 });
 	} elsif ($quiz->getQuizType() ne 'SelfAssessment'){
-		push (@$columns, { field => 'points', label => 'Points', align => 'center', html => 1 });
+		push (@$columns, { field => 'points', label => __('Points'), align => 'center', html => 1 });
 	}
 	
 	my $selection_params = {columns  => $columns,
@@ -255,7 +255,7 @@ no_filter => 1
 			db_responses => $responses,
 		);
 
-		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/quizresponses/$type_path/$id",'msg' => "Changes successfully saved"));
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/quizresponses/$type_path/$id",'msg' => __("Changes successfully saved")));
 	}
 
 	$m->comp('SELF:display_quiz');

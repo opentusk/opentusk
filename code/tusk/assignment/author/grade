@@ -25,14 +25,14 @@
 
 <%perl>
 	$assignment = $m->comp('SELF:getAssignment');
-	my $type = ($assignment->getGroupFlag()) ? 'Group' : 'Student';
+	my $type = ($assignment->getGroupFlag()) ? __('Group') : __('Student');
 	my $col_fields = [ 
-		{label => "$type Name", field => 'name', 'html' => 1},
-		{label => 'Submit Date', field => 'submit_date'},
-		{label => "$type Comment", field => 'student_comment'},
-		{label => "$type Files", field => 'files'},
-		{label => 'Grade', field => 'grade', align => 'center'},
-		{label => 'Instructor Feedback', field => 'instructor_comment', 'html' => 1},
+		{label => __x("{type} Name", type => $type), field => 'name'},
+		{label => __('Submit Date'), field => 'submit_date'},
+		{label => __x("{type} Comment", type => $type), field => 'student_comment'},
+		{label => __x("{type} Files", type => $type), field => 'files'},
+		{label => __('Grade'), field => 'grade', align => 'center'},
+		{label => __('Instructor Feedback'), field => 'instructor_comment'},
 	];
 	$author = TUSK::Application::Assignment::Author->new({
 			user_id => $m->session->{'user'}->user_id(), 
@@ -45,12 +45,12 @@
 <tr><td>
 % if (@$rows) {
 <form method="POST" class="no-padding" action="/gradebook/author/addedit/<% $typePath %>/<% $assignment->getGradeEventID() %>">
-<input type="submit" class="formbutton" value=" Post Grades ">
+<input type="submit" class="formbutton" value=<%__(" Post Grades ")%>>
 </form>
 % }
 </td>
 % if ($assignment->getPublishFlag()) {
-<td style="font-size:80%;color:blue;">&nbsp; * Grade event for this assignment is already posted.</td> 
+<td style="font-size:80%;color:blue;">&nbsp; *<%__("Grade event for this assignment is already posted.")%></td> 
 % } 
 </tr>
 </table>
@@ -63,13 +63,13 @@
 	ellpadding 	=> "0" 
 } &>
 
-% my $actions = [ { label => 'Update Grade', link => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/gradeupdate' }, ];
+% my $actions = [ { label => __('Update Grade'), link => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/gradeupdate' }, ];
 <%doc>temporary removing this option as there is a bug  for individual resubmission</%doc>
 % # push @$actions, { label => 'Allow Resubmission', link => $m->comp('/tmpl/element:check_for_firefox_upload_bug') . '/assignment/author/resubmit' } unless ($assignment->getResubmitFlag());
 
 <& /tmpl/element:object_selection_box, params => { 
 	columns 	=> $col_fields,
-	'norows-message' => 'No students have submitted the assignment.',
+	'norows-message' => __('No students have submitted the assignment.'),
 	rows		=> $rows,
 	type_path	=> "$typePath/" . $assignment->getPrimaryKeyID(),
 	name 		=> "assignments",
@@ -156,11 +156,11 @@
 
 
 <%method title>
-% 	return "Grade Assignment: &nbsp;" . $m->comp('SELF:getAssignment')->getTitle();
+% 	return __("Grade Assignment") . ": &nbsp;" . $m->comp('SELF:getAssignment')->getTitle();
 </%method>
 
 <%method red_header_text>
-% 	return "Grade Assignment: &nbsp; <span style=\"font-size:75%\">" . $m->comp('SELF:getAssignment')->getTitle() . "</span>";
+% 	return __("Grade Assignment") . ": &nbsp; <span style=\"font-size:75%\">" . $m->comp('SELF:getAssignment')->getTitle() . "</span>";
 </%method>
 
 

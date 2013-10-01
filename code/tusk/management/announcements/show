@@ -1,12 +1,9 @@
 <%doc>
  Copyright 2012 Tufts University 
-
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
  you may not use this file except in compliance with the License. 
  You may obtain a copy of the License at 
-
  http://www.opensource.org/licenses/ecl1.php 
-
  Unless required by applicable law or agreed to in writing, software 
  distributed under the License is distributed on an "AS IS" BASIS, 
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
@@ -28,6 +25,40 @@ my $usergroup_id;
 my $maingroup;
 </%shared>
 
+<%perl>
+if (!$is_course_announcement || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+	$m->comp("/tmpl/element:cms_button_row", links => [ {link_txt=>'/management/announcements/addedit/' . $self_path . '?ug_id=' . $usergroup_id, display_txt=>'New Announcement'} ] );
+}
+
+my $announcements = [];
+
+if ($usergroup_id == 0) {
+	$announcements = [ $course->all_announcements ] if ( defined $course );
+} else {
+	$announcements = [ $maingroup->all_announcements ] if ( defined $maingroup );
+}
+
+my $col_fields = [ {'label'=>'Start Date', 'field'=>'start_date', 'sort'=>'str'}, {'label'=>'Announcement', 'field'=>'body'} ];
+my $action_columns = [];
+
+if (!$is_course_announcement || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
+	push @$action_columns, {'label'=>__('Modify'),'link'=>"/management/announcements/addedit/$self_path", 'extra'=>'?ug_id=' . $usergroup_id};
+	push @$action_columns, {'label'=>__('Delete'),'link'=>"/management/announcements/delete/$self_path"};
+}
+</%perl>
+
+<& /tmpl/element:object_selection_box, params => { 
+				columns         => $col_fields, 
+				nobutton        => 1, 
+				sort_box        => 0,
+				toggle          => 1,
+				sort            => 'start_date',
+				object_list     => $announcements,
+				action_columns  => $action_columns,
+				empty_message   => __('No usergroups available.'),
+				type_path       => "", }
+&>
+
 <%method jsarray>
 % return ['layers.js','element.js'];
 </%method>
@@ -41,11 +72,11 @@ my $maingroup;
 </%method>
 
 <%method right_header_text>
-%	return [ {txt => 'Preview', url => "/view/$self_path/ann" } ];
+%	return [ {txt => __('Preview'), url => "/view/$self_path/ann" } ];
 </%method>
 
 <%method title>
-% return 'Manage Announcements';
+% return __('Manage Announcements');
 </%method>
 
 <%method additional_extratext>
@@ -59,9 +90,11 @@ my $user_groups;
 $usergroup_id = (defined($args->{'ug_id'})) ? $args->{'ug_id'} : 0;
 
 if ($is_course_announcement) { 
-	$temp_hash->{name} = "Course Group";
+	$temp_hash->{name} = __("Course Group");
 	$temp_hash->{text} .= "<select name=\"ug_id\" onchange=\"document.generic.submit();\" class=\"navsm\">";
-	$temp_hash->{text} .= "<option value=\"0\" class=\"navsm\">Entire Course\n";
+	$temp_hash->{text} .= "<option value=\"0\" class=\"navsm\">";
+	$temp_hash->{text} .= __("Entire Course");
+	$temp_hash->{text} .= "\n";
 } else {
 	$usergroup_id = $TUSK::Constants::Schools{$school}{Groups}{SchoolWideUserGroup} unless ($usergroup_id);
 	$temp_hash->{name} = "Group";
@@ -92,37 +125,3 @@ $temp_hash->{text} .= "</select>";
 return $temp_hash;
 </%perl>
 </%method>
-
-<%perl>
-if (!$is_course_announcement || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
-	$m->comp("/tmpl/element:cms_button_row", links => [ {link_txt=>'/management/announcements/addedit/' . $self_path . '?ug_id=' . $usergroup_id, display_txt=>'New Announcement'} ] );
-}
-
-my $announcements = [];
-
-if ($usergroup_id == 0) {
-	$announcements = [ $course->all_announcements ] if ( defined $course );
-} else {
-	$announcements = [ $maingroup->all_announcements ] if ( defined $maingroup );
-}
-
-my $col_fields = [ {'label'=>'Start Date', 'field'=>'start_date', 'sort'=>'str'}, {'label'=>'Announcement', 'field'=>'body'} ];
-my $action_columns = [];
-
-if (!$is_course_announcement || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
-	push @$action_columns, {'label'=>'Modify','link'=>"/management/announcements/addedit/$self_path", 'extra'=>'?ug_id=' . $usergroup_id};
-	push @$action_columns, {'label'=>'Delete','link'=>"/management/announcements/delete/$self_path"};
-}
-</%perl>
-
-<& /tmpl/element:object_selection_box, params => { 
-				columns         => $col_fields, 
-				nobutton        => 1, 
-				sort_box        => 0,
-				toggle          => 1,
-				sort            => 'start_date',
-				object_list     => $announcements,
-				action_columns  => $action_columns,
-				empty_message   => 'No usergroups available.',
-				type_path       => "", }
-&>

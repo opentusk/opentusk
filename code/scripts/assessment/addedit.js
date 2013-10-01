@@ -75,6 +75,6 @@ function showHideUA() {
 
 function deletePerformanceLevel() {
 	if ($('#num_performance_criteria_id').val() > 0) {
-		return confirm("Deleting a Performance Level will remove the level and its associated comments from each criteria in this assessment.\nAre you sure you want to continue?");
+		return confirm(_("Deleting a Performance Level will remove the level and its associated comments from each criteria in this assessment.\nAre you sure you want to continue?"));
 	}
 }

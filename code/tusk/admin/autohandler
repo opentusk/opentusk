@@ -1,0 +1,152 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+#	use TUSK::Configuration;
+#	use TUSK::Configuration::Server;
+</%once>
+
+<%attr>
+	no_check_path		=> '1'
+	must_be_tusk_admin	=> '1'
+	top_tab_type		=> 'tuskAdmin'
+	add_save		=> '1'
+	form_onSubmit		=> ''
+	saveMessage		=> 'Save completed locally.'
+</%attr>
+
+<%method title>
+%	return "Administration";
+</%method>
+
+<%method format_trailing_text>
+        <%args>
+                $text
+        </%args>
+%	$text = '<font class="xsm">' . $text . '</font>';
+%	return($text);
+</%method>
+
+<%method format_trailing_text_after>
+        <%args>
+                $text
+        </%args>
+%	$text = '<br><font class="xsm">' . $text . '</font>';
+%	return($text);
+</%method>
+
+<%method afterForm></%method>
+
+<%method saveOtherServers>
+%	my $webServers;# = TUSK::Configuration::Server->lookup("type='web'");
+%	my $thisServer = "$ENV{HOSTNAME}:$ENV{SERVER_PORT}";
+	<script>
+	var reloadMessages;
+	function reloadObject(host) {
+		var self=this;
+		this.ajaxObject;
+		this.host = host;
+		this.url = '/public/reloadCache?server='+ encodeURI(host);
+		this.status = 'Not Completed';
+                if (window.XMLHttpRequest)      {this.ajaxObject = new XMLHttpRequest();}
+		else if (window.ActiveXObject) {
+			var avers = ["Microsoft.XmlHttp", "MSXML2.XmlHttp", "MSXML2.XmlHttp.3.0",  "MSXML2.XmlHttp.4.0", "MSXML2.XmlHttp.5.0"];
+			for (var i = avers.length -1; i >= 0; i--) {
+				try {
+					this.ajaxObject = new ActiveXObject(avers[i]);
+				} catch(e) {}
+			}
+		}
+		if(!this.ajaxObject) {throw new Error('XMLHttp (AJAX) not supported');}
+
+		this.processRequest = function() {
+			if(self.ajaxObject && self.ajaxObject.readyState == 4) {
+				if(self.ajaxObject.status && (self.ajaxObject.status == 200)) {
+					var returnText = self.ajaxObject.responseText;
+					self.updateDiv(returnText);
+				} else{
+					self.updateDiv('Communication Failed ('+ self.ajaxObject.status +')');
+				}
+			} 
+		}
+
+		this.get = function() {
+			self.updateDiv('Requested');
+			self.ajaxObject.open('GET', escape(self.url), true);
+			self.ajaxObject.onreadystatechange = self.processRequest;
+			self.ajaxObject.send(null);
+		}
+
+		this.updateDiv = function(newStatus) {
+			self.status = newStatus;
+			if(document.getElementById('serverSave'+ self.host)) {document.getElementById('serverSave'+ self.host).innerHTML = newStatus;}
+			for(var index=0; index<ajaxReloadRequests.length; index++) {
+				//If something had an error set the class of the traffic light to red and return
+				if(ajaxReloadRequests[index].status.indexOf('Failed') != -1) {
+					if(document.getElementById('gTrafficLight')) {document.getElementById('gTrafficLight').className='gLighterror';}
+					return;
+				}
+				//If something did not have an error but was still not a success just return
+				if(ajaxReloadRequests[index].status.indexOf('Success') == -1) {
+					return;
+				}
+			}
+			if(document.getElementById('gTrafficLight')) {document.getElementById('gTrafficLight').className='gLightsuccess';}
+		}
+	}
+
+	var ajaxReloadRequests = new Array();
+%#	if($#{$webServers} >= 1) {
+%	if($#{$webServers} >= 0) {
+		if(document.getElementById('gTrafficLight')) {document.getElementById('gTrafficLight').innerHTML+= '<br>Pushing to other servers:<br>';}
+
+%		foreach my $webServer (@{$webServers}) {
+%			my $tempName = $webServer->getHostname() .':'. $webServer->getPort();
+%#			if($tempName ne $thisServer) {
+	var aReloadObject = new reloadObject('<% $tempName %>');
+	ajaxReloadRequests.push(aReloadObject);
+	if(document.getElementById('gTrafficLight')) {document.getElementById('gTrafficLight').innerHTML += '&nbsp;&nbsp;<% $tempName %>-&nbsp;<span id="serverSave<% $tempName %>">'+ aReloadObject.status +'</span>';}
+%#			}
+%		}
+%	} else {
+	if(document.getElementById('gTrafficLight')) {document.getElementById('gTrafficLight').className='gLightsuccess';}
+%	}
+	function reloadWebServers() {
+		for(var index=0; index<ajaxReloadRequests.length; index++) {
+			try {
+				ajaxReloadRequests[index].get();
+			} catch(e) {alert('ajax exception\n'+e.message);}
+		}
+	}
+	reloadWebServers();
+	</script>
+</%method>
+
+% if(exists($ARGS{'perform_save'}) && exists($ARGS{'submit_check'})) {$m->comp("SELF:saveOtherServers");}
+
+<& /tmpl/element:form, params=>{ 'id' => 'theForm', 'name' => 'theForm', 'method' => 'post', onsubmit => $m->base_comp->attr('form_onSubmit') } &>
+% $m->call_next;
+% if($m->base_comp->attr('add_save')) {
+<table border="0">
+<& /tmpl/element:save_button, params=>{
+	'name'			=> 'perform_save',
+	'label'			=> 'Save',
+	'no_cancel_button'	=> 1,
+} &>
+</table>
+% }
+</form>
+
+%	$m->comp("SELF:afterForm");

@@ -50,7 +50,7 @@ function addFile() {
 	new_text.setAttribute('id','child_attachment_text_' + form_count);
 
 	//set element HTML to produce 'remove' text link 
-	new_text.innerHTML = '&nbsp; <span style="color:#0000FF;cursor:pointer;text-decoration:underline;font-size:75%;" onclick="remove(' + form_count + ');">remove</span> <br/>';
+	new_text.innerHTML = '&nbsp; <span style="color:#0000FF;cursor:pointer;text-decoration:underline;font-size:75%;" onclick="remove(' + form_count + ');">' + _("remove") + '</span> <br/>';
 
 	//append newly created element to < span id="content" > tree
 	document.getElementById('content').appendChild(new_text);
@@ -59,7 +59,7 @@ function addFile() {
 	form_count++;
 
 	//if an attachment has been added, change text to "Attach another file"
-	document.getElementById('more').innerHTML = 'Upload another file';
+	document.getElementById('more').innerHTML = _('Upload another file');
  } 
 
 //remove file attachment form and associated elements
@@ -77,6 +77,6 @@ function remove(remove_form_num) {
 	//if all forms are removed, change text back to "Attach a file"
 	if (form_count == 0)
 	{
-     	  	document.getElementById('more').innerHTML = 'Upload a file';
+     	  	document.getElementById('more').innerHTML = _('Upload a file');
 	}
 }

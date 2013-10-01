@@ -48,7 +48,7 @@
 
 %	# warn user if the assessment form in question has no assessors assigned to it
 %	if (!scalar @$user_roles) {
-<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => 'There are no assessors associated with this assessment form.'}, 'make_table' => 1 &>
+<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => __('There are no assessors associated with this assessment form.')}, 'make_table' => 1 &>
 %	}
 % 	if ($assessment_form && $assessment_form->getMultiAssessors()) {
 <& SELF:display_multi_assessors &>
@@ -57,7 +57,7 @@
 % 	}
 </td></tr>
 <& /tmpl/element:save_button, params=>{
-	label 			=> 'Save',
+	label 			=> __('Save'),
 	cancel_onclick  => "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/assessment/author/show") . "');",
 	name			=> 'save_changes',
 	one_column		=> 1,
@@ -71,7 +71,7 @@
 
 	if ($ARGS{submit_check}){
 		TUSK::Manage::Course::Students::assign_assessor($r, $form_id, $time_period_id, $ARGS{student_assessor}, $m->session->{'user'}->user_id(), $student_data);
-		$m->comp("/tmpl/url:redirect", destination=> "/assessment/author/assessors/course/" . $school->getSchoolName() . "/$course_id/$form_id",  message => 'Successfully updated', msg_type => 'msg' );
+		$m->comp("/tmpl/url:redirect", destination=> "/assessment/author/assessors/course/" . $school->getSchoolName() . "/$course_id/$form_id",  message => __('Successfully updated'), msg_type => 'msg' );
 	}
 
 	@students = $type_object->get_students($time_period_id);
@@ -86,7 +86,7 @@
 	my $course = $m->comp('/tmpl/url:get_type_object');
 	if (!$time_period_id || ($m->session->{timeperiod_course} ne $course->school() . '-' . $course->primary_key())) {
 		my $type_path = $m->comp('/tmpl/url:get_type_path');
-		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/assessors/$type_path/$form_id", message => "Something wrong with time period! Try again.");
+		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/assessors/$type_path/$form_id", message => __("Something wrong with time period! Try again."));
 	}
 </%perl>
 </%method> 
@@ -125,7 +125,7 @@
 				}
 				$ssid .= '__' . $student_data->{$ssid}[0];
 			}
-			$data{$student->primary_key()}->{$ur->getUserID()} = "<span class=\"student_assessor\"><input type=\"checkbox\" name=\"student_assessor\" value=\"$ssid\" title=\"Student:" . $student->out_lastfirst_name() . "    Assessor: " . $ur->getFullUserName() . " \"$checked /></span><span class=\"mark\">";
+			$data{$student->primary_key()}->{$ur->getUserID()} = "<span class=\"student_assessor\"><input type=\"checkbox\" name=\"student_assessor\" value=\"$ssid\" title=\"" . __("Student:") . $student->out_lastfirst_name() . "    " . __("Assessor: ") . $ur->getFullUserName() . " \"$checked /></span><span class=\"mark\">";
 			$data{$student->primary_key()}->{$ur->getUserID()} .= (exists $completed_forms{$ur->getUserID()}->{$student_id}) ? $completed_forms{$ur->getUserID()}->{$student_id} : ' &nbsp;';
 			$data{$student->primary_key()}->{$ur->getUserID()} .= "</span>";
 		}
@@ -133,16 +133,16 @@
 </%perl>
 <div class="tablediv">
 <table class="topbox"><tr>
-<td><input type="checkbox" checked="checked" disabled="disabled" /> Original Assignment</td>
-<td class="selection"><input type="checkbox" checked="checked" disabled="disabled" /> Selection from assessor</td>
-<td class="deselection"><input type="checkbox" disabled="disabled"> De-Selection from assessor</td>
-<td><input type="checkbox" checked="checked" disabled="disabled" /> <b>*</b> Assessor has completed the form</td>
-<td><input type="checkbox" checked="checked" disabled="disabled" /> <b>!</b> Assessor is working on the form</td>
+<td><input type="checkbox" checked="checked" disabled="disabled" /> <%__('Original Assignment')%></td>
+<td class="selection"><input type="checkbox" checked="checked" disabled="disabled" /> <%__('Selection from assessor')%></td>
+<td class="deselection"><input type="checkbox" disabled="disabled"> <%__('De-Selection from assessor')%></td>
+<td><input type="checkbox" checked="checked" disabled="disabled" /> <b>*</b> <%__('Assessor has completed the form')%></td>
+<td><input type="checkbox" checked="checked" disabled="disabled" /> <b>!</b> <%__('Assessor is working on the form')%></td>
 </tr>
 </table>
 <br/>
 <& /tmpl/element:scrollable_display_table, table_id => "studentassessors",
-	corner_text => 'Name',
+	corner_text => __('Name'),
 	cell_data => \%data,
 	cell_css => \%styles,
 	colheaders => [\@colheaders],
@@ -161,7 +161,7 @@
 </%args>
 <table>
 <tr>
-<th>Name</th>
+<th><%__('Name')%></th>
 % 	foreach my $heading (@$top_headers) {	
 <th><% $heading %></th>
 % 	}
@@ -228,7 +228,7 @@
 
 
 <%method title>
-% 	return "Assign Assessor to students";
+% 	return __("Assign Assessor to students");
 </%method>
 
 <%method red_header_text>

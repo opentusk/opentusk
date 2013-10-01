@@ -45,10 +45,10 @@
 	$args
 </%args>
 <%perl>
-	$m->comp("/tmpl/url:redirect", message => "Invalid Patient log") unless ($form);
+	$m->comp("/tmpl/url:redirect", message => __("Invalid Patient log")) unless ($form);
 	### minimum role is site director to access report
 	unless ($m->comp("SELF:check_course_permissions", token => 'SITEDIRECTOR')) {
-		$m->comp("/tmpl/url:redirect", message => "Invalid Permission");
+		$m->comp("/tmpl/url:redirect", message => __("Invalid Permission"));
 	}
 </%perl>
 </%method>
@@ -96,15 +96,15 @@
 <%perl>
 	my $column_headings = {
 		cs => {
-			summary => [ 'Site', '# Students', '# Students Reporting', '% Student Reporting', '# Patients Seen'],
+			summary => [ __('Site'), __('# Students'), __('# Students Reporting'), __('% Student Reporting'), __('# Patients Seen') ],
 		},
 		ts => {
-			summary => [ 'Student', '# Patients Seen' ],
-			byfield => [ '# Patients Seen', '# Students Reporting', '% Students Reporting' ],
+			summary => [ __('Student'), __('# Patients Seen') ],
+			byfield => [ __('# Patients Seen'), __('# Students Reporting'), __('% Students Reporting')],
 		},
 		ss => {
-			summary => [ '# Total', '# Distinct', '# Patients Seen' ],
-			byfield => [ '# Patients Seen' ],
+			summary => [ __('# Total'), __('# Distinct'), __('# Patients Seen') ],
+			byfield => [ __('# Patients Seen') ],
 		},
 	};
 	return $column_headings->{$report_type}{$type};
@@ -122,7 +122,7 @@
 		$map = {
 			bysite => { 
 				func => 'getReportBySite', 
-				label => 'View by Site', 
+				label => __('View by Site'), 
 				template => 'courseSummaryByField', 
 				title_func => 'site_name', 
 				colname => 'Site', 
@@ -130,14 +130,14 @@
 				rtype => 'ts' },
 			bysitepercentages => { 
 				func => 'getPercentagesBySite', 
-				label => 'View by Site (summary percentages)', 
+				label => __('View by Site (summary percentages)'), 
 				template => 'coursePercentagesBySite', 
 				title_func => 'site_name', 
 				colname => 'Site', 
 				key => 'tsid' }, 
 			bystudent => {
 				func => 'getReportByStudent', 
-				label => 'View by Student', 
+				label => __('View by Student'), 
 				template => 'courseSummaryByField',
 				title_func => 'out_lastfirst_name', 
 				colname => 'Student', 
@@ -145,9 +145,9 @@
 				rtype => 'ss' },
 			allsites => { 
 				func => 'getReportAllSites', 
-				label => 'Summary View', 
+				label => __('Summary View'), 
 				template => 'courseSummaryByField',
-				column_headings => [ '# Patients Seen','# Students Reporting', '% Students Reporting', '% Students'  ],
+				column_headings => [ __('# Patients Seen'),__('# Students Reporting'), __('% Students Reporting') , __('% Students')  ],
 			},
 		};
 	}
@@ -155,7 +155,7 @@
 		$map = {
 			bysite => { 
 				func => 'getReportBySite', 
-				label => 'View by Site', 
+				label => __('View by Site'), 
 				template => 'courseSummaryByField', 
 				title_func => 'site_name', 
 				colname => 'Site', 
@@ -163,7 +163,7 @@
 				rtype => 'ts' },
 			bystudent => {
 				func => 'getReportByStudent', 
-				label => 'View by Student', 
+				label => __('View by Student'), 
 				template => 'courseSummaryByField',
 				title_func => 'out_lastfirst_name', 
 				colname => 'Student', 
@@ -171,7 +171,7 @@
 				rtype => 'ss' },
 			allsites => { 
 				func => 'getReportAllSites', 
-				label => 'Summary View', 
+				label => __('Summary View'), 
 				template => 'courseSummaryByField',
 				column_headings => [ '# Patients Seen','# Students Reporting', '% Students Reporting', '% Students'  ],
 			},
@@ -251,16 +251,16 @@
 		},
 	    'nav_entities_dependency' => {
 			'form' =>{'object'=>undef, 'depend'=>[]}, 
-			'field' =>{'object'=>"TUSK::FormBuilder::Field", 'depend'=>[], 'static_title'=>'Field: '}, 
+			'field' =>{'object'=>"TUSK::FormBuilder::Field", 'depend'=>[], 'static_title'=>__('Field').': '}, 
 		},
 	    'title_func' => {'TUSK::FormBuilder::Field' => 'getFieldName'},
 		'type_path' => $m->comp("/tmpl/url:get_type_path") . '/' . $form_id,
 	    'urls' => {
-		    'form' => {link => 'form', label => 'Manage Patient Logs'},
-			'customreports' => {link => 'customreports', label => 'Custom Reports'},
-			'defaultreports' => {link => 'report', label => 'Default Reports'},
-			'links' => {link => 'links', label => 'Literature Links'}},
-		'initial_nav_bar' => [ @{$m->comp("/tmpl/url:get_initial_nav_bars")}, { href => '/patientlog/author/show/' . $m->comp("/tmpl/url:get_type_path"), label => 'Manage Patient Logs' } ]
+		    'form' => {link => 'form', label => __('Manage Patient Logs')},
+			'customreports' => {link => 'customreports', label => __('Custom Reports')},
+			'defaultreports' => {link => 'report', label => __('Default Reports')},
+			'links' => {link => 'links', label => __('Literature Links')}},
+		'initial_nav_bar' => [ @{$m->comp("/tmpl/url:get_initial_nav_bars")}, { href => '/patientlog/author/show/' . $m->comp("/tmpl/url:get_type_path"), label => __('Manage Patient Logs') } ]
 	);
 </%perl>
 </%method>
@@ -269,8 +269,8 @@
 <%method right_header_text>
 <%perl>
 	my $links = [ 
-		{ url => '', onclick => "window.open('/hsdb4/content/" . $TUSK::Constants::HelpMap{PatientLogs} . "');return false;", txt => "Help" },
-		{ url => '', onclick => "window.open('/patientlog/preview/" . $m->comp("/tmpl/url:get_type_path") . '/'. $m->comp('/tmpl/url:get_last_path_id') . "');return false;", txt => "Preview" },
+		{ url => '', onclick => "window.open('/hsdb4/content/" . $TUSK::Constants::HelpMap{ PatientLogs } . "');return false;", txt => __("Help") },
+		{ url => '', onclick => "window.open('/patientlog/preview/" . $m->comp("/tmpl/url:get_type_path") . '/'. $m->comp('/tmpl/url:get_last_path_id') . "');return false;", txt => __("Preview") },
 	];
 	return $links;
 </%perl>
@@ -278,11 +278,11 @@
 
 
 <%method red_header_text>
-%  return 'Patient Log Report: &nbsp;' . $form->getFormName();
+%  return __('Patient Log Report').': &nbsp;' . $form->getFormName();
 </%method>
 
 <%method title>
-%  return 'Patient Log Report: &nbsp;' . $form->getFormName();
+%  return __('Patient Log Report').': &nbsp;' . $form->getFormName();
 </%method>
 
 

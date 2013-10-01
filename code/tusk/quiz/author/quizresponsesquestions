@@ -41,12 +41,12 @@ no_filter => 1
 </%shared>
 
 <%method red_header_text>
-%	return "Quiz Responses: " . $quiz->getTitle();
+%	return __("Quiz Responses") .": " . $quiz->getTitle();
 </%method>
 
 
 <%method title>
-%	return "Quiz Responses: " . $quiz->getTitle();
+%	return __("Quiz Responses").": " . $quiz->getTitle();
 </%method>
 
 <%method function_token>
@@ -119,7 +119,7 @@ no_filter => 1
 	my $results = $result->lookup("quiz_id = $quiz_id and link_id = $link_id and link_type = '$link_type_text' and preview_flag = 0", ['lastname'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User"), TUSK::Core::JoinObject->new("TUSK::Quiz::Response", {joinkey => 'quiz_result_id', jointype => 'inner'})]);
 
 	foreach my $result (@{$results}){	
-		my $name = ($quiz->isSelfAssessment()) ? "Anonymous" : $result->getUserObject->out_lastfirst_name();
+		my $name = ($quiz->isSelfAssessment()) ? __("Anonymous") : $result->getUserObject->out_lastfirst_name();
 		my $response = $result->getJoinObject('TUSK::Quiz::Response');
 		my $response_text;
 
@@ -187,15 +187,15 @@ no_filter => 1
 <table width="100%">
 <tr><td>
 <table>
-<tr><th class="sm" valign="top" align="right">Question:</th><td><% $question->getBody() %>
+<tr><th class="sm" valign="top" align="right"><%__("Question")%>:</th><td><% $question->getBody() %>
 % if ($question->getType() eq 'Matching' ) {
 	<br/>
 	<& SELF:display_matching_questions &>
 % }
 </td></tr>
-<tr><th class="sm" align="right">Points:</th><td><% $points %></td></tr>
+<tr><th class="sm" align="right"><%__("Points")%>:</th><td><% $points %></td></tr>
 % if ($answer_text && $answer_text ne '') {
-<tr><th class="sm" valign="top" align="right">Correct Answer:</th><td valign="top"><% $answer_text %></td></tr>
+<tr><th class="sm" valign="top" align="right"><%__("Correct Answer")%>:</th><td valign="top"><% $answer_text %></td></tr>
 % }
 </table>
 </td></tr>
@@ -210,31 +210,31 @@ no_filter => 1
 	                onsubmit => undef } &>
 
 		<div style="margin-bottom:2px;">
-		<input class="formbutton" type="submit" name="submit" value="Save Changes" onmouseup="" onmousedown="" onclick="">
-		<input class="formbutton" type="reset" onclick="go_back('/quiz/author/quizresultsquestions/<% $type_path . '#' . $question_id %>');" name="cancel" id="cancel" value="Back To View Results"/>
+		<input class="formbutton" type="submit" name="submit" value="<%__("Save Changes")%>" onmouseup="" onmousedown="" onclick="">
+		<input class="formbutton" type="reset" onclick="go_back('/quiz/author/quizresultsquestions/<% $type_path . '#' . $question_id %>');" name="cancel" id="cancel" value="<%__("Back To View Results")%>"/>
 		</div>
 
 		<& /tmpl/element:object_selection_box, params=>{ columns => [
-			{field => 'name', label => 'Name', html => 1},
-			{field => 'response',label => 'Response'},
-			{field => 'graded_points', label => 'Graded Points<span style="color:red;font-size:80%;">*</span>', html => 1},],
-			'norows-message' => 'No results',
+			{field => 'name', label => __('Name'), html => 1},
+			{field => 'response',label => __('Response')},
+			{field => 'graded_points', label => __('Graded Points').'<span style="color:red;font-size:80%;">*</span>', html => 1},],
+			'norows-message' => __('No results'),
 	                rows => $result_rows, } &>
 
 %		if (scalar @$result_rows > 10) {
 		<div style="margin-top:3px;">
-		<input class="formbutton" type="submit" name="submit" value="Save Changes" onmouseup="" onmousedown="" onclick="">
-		<input class="formbutton" type="reset" onclick="go_back('/quiz/author/quizresultsquestions/<% $type_path . '#' . $question_id %>');" name="cancel" id="cancel" value="Back To View Results"/>
+		<input class="formbutton" type="submit" name="submit" value="<%__("Save Changes")%>" onmouseup="" onmousedown="" onclick="">
+		<input class="formbutton" type="reset" onclick="go_back('/quiz/author/quizresultsquestions/<% $type_path . '#' . $question_id %>');" name="cancel" id="cancel" value="<%__("Back To View Results")%>"/>
 		</div>
 %		}
 		</form>
 	</div>
 	<& '/quiz/author/tmpl/grade:help_grade_note' &>
 %	} else {
-		<i>Not authorized for grading</i>
+		<i><%__("Not authorized for grading")%></i>
 %	}
 % } else {
-	<i>No Results</i>
+	<i><%__("No Results")%></i>
 % }
 </td></tr>
 </table>
@@ -256,7 +256,7 @@ no_filter => 1
 			db_responses => $responses
 		);
 
-		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/quizresponsesquestions",'msg' => "Changes successfully saved"));
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/quizresponsesquestions",'msg' => __("Changes successfully saved")));
 	}
 
 	$m->comp('SELF:display_responses');

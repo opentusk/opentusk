@@ -36,34 +36,34 @@
 		<input TYPE="hidden" NAME="limit" VALUE="50">
 		<input TYPE="hidden" NAME="start" VALUE="0">
 	<tr>
-		<td class="labelgray">Keywords:</td>
+		<td class="labelgray"><%__("Keywords")%>:</td>
 		<td class="cell-left"><input TYPE="TEXT" SIZE=35 NAME="query" VALUE="<% $ARGS{query} %>" SIZE="50"></td>
 	</tr>
 
 	<tr>
-		<td class="labelgray" >Document Title:</td>
+		<td class="labelgray" ><%__("Document Title")%>:</td>
 		<td class="cell-left"><input TYPE="TEXT" SIZE=35 NAME="title" VALUE="<% $ARGS{title} %>" SIZE="50"></td>
 	</tr>
 %	 if (defined($ARGS{mycontent})) {
 		<input type="hidden" name="author" value="<% $user %>">
 %	} else {
 	<tr>
-		<td class="labelgray">Author:</td>
+		<td class="labelgray"><%__("Author")%>:</td>
 		<td class="cell-left"><input TYPE="TEXT" SIZE=35 NAME="author" VALUE="<% $ARGS{author} %>"></td>
 	</tr>
 %	}
 
         <tr>
-                <td class="labelgray">Course Title:</td>
+                <td class="labelgray"><%__("Course Title")%>:</td>
                 <td class="cell-left"><input TYPE="TEXT" SIZE="35" NAME="course" VALUE="<% $ARGS{course} %>"></td>
         </tr>
         <tr>
-                <td class="labelgray">Content ID:</td>
+                <td class="labelgray"><%__("Content ID")%>:</td>
                 <td class="cell-left"><input TYPE="TEXT" SIZE="10" NAME="content_id" VALUE="<% $ARGS{content_id} %>"></td>
         </tr>
 		<tr><td>&nbsp;</td>
 <td class="cell-submit">
-<input type="submit" name="search" value="Search" class="formbutton">&nbsp;
+<input type="submit" name="search" value="<%__("Search")%>" class="formbutton">&nbsp;
 
 % if (exists $TUSK::Constants::HelpMap{SearchHelpTips}) {
 <a href="/view/content/<% $TUSK::Constants::HelpMap{SearchHelpTips} %>" target="help">Help</a>
@@ -73,7 +73,6 @@
 
 </td>
 <td>&nbsp;</td>
-
 % if ($ARGS{media_type}) {
 <input type="hidden" name="media_type" value="<% $ARGS{media_type} %>">
 % }
@@ -81,22 +80,22 @@
 <td VALIGN="top">
 	<table>
 <tr>
-	<td align="center">Type<br>
-% my %types = ( "All" => "", "Audio" => "Audio", "Collection" => "Collection", "Document" => "Document", "Downloadable File" => "DownloadableFile", "Flashpix" => "Flashpix", "PDF" => "PDF", "Shockwave" => "Shockwave", "Slide" => "Slide", "Student Notes" => "Student Notes", "URL" =>"URL", "Video" => "Video" );
+	<td align="center"><%__("Type")%><br>
+% my %types = ( __("All") => "", __("Audio") => "Audio", __("Collection") => "Collection", __("Document") => "Document", __("Downloadable File") => "DownloadableFile", __("Flashpix") => "Flashpix", __("PDF") => "PDF", __("Shockwave") => "Shockwave", __("Slide") => "Slide", __("Student Notes") => "Student Notes", __("URL") =>"URL", __("Video") => "Video" );
 	<select NAME="media_type" SIZE="6" MULTIPLE<% ($ENV{'QUERY_STRING'} =~ 'media_type') ? ' disabled="disabled" class="disabled"' : '' %>>
 % foreach my $option (sort keys %types) {
 %	if ($ENV{'QUERY_STRING'} =~ 'media_type') {
-		<option value="<% $types{$option} %>"<% ($ARGS{media_type} eq $types{$option}) ? ' selected="selected"' : '' %>><% $option %></option>
+		<option value="<% $types{$option} %>"<% ($ARGS{media_type} eq $types{$option}) ? ' selected="selected"' : '' %>><% __($option) %></option>
 %	} else {
-		<option value="<% $types{$option} %>"><% $option %></option>
+		<option value="<% $types{$option} %>"><% __($option) %></option>
 %	}
 % }
 	</select>
 	</td>
 	<td VALIGN="top" ALIGN="center"></td>
-	<td align="center" valign="top">School<br>
+	<td align="center" valign="top"><%__("School")%><br>
 	<select NAME="school" SIZE="6">
-		<option VALUE=""<% ($ARGS{school}) ? '' : ' selected="selected"'  %>>All</option>
+		<option VALUE=""<% ($ARGS{school}) ? '' : ' selected="selected"'  %>><%__("All")%></option>
 % foreach my $search_school (keys %TUSK::Constants::Schools) {
 		<option VALUE="<% $search_school %>"<% ($ARGS{school} eq $search_school) ? ' selected="selected"' : ''  %>><% $search_school %></option>
 % } # END FOR EACH
@@ -104,8 +103,7 @@
 	</td>
 	</tr>
 %	unless ($ENV{'QUERY_STRING'} =~ 'media_type') {
-	<tr><td colspan="8" align="center"><div class="hinttext">press and hold the control (Ctrl) key while clicking
-to select multiple items</div></td></tr>
+	<tr><td colspan="8" align="center"><div class="hinttext"><%__("press and hold the control (Ctrl) key while clicking to select multiple items")%></div></td></tr>
 %	}
 	</table>
 </td>
@@ -119,9 +117,9 @@ to select multiple items</div></td></tr>
 		<table width="100%">
 		<tr>
 		<td colspan="2">
-		<% $totalNumResults %> matching entr<% ($totalNumResults == 1)? "y" : "ies" %><% ($totalNumResults)? ":" : "" %>
+		<% $totalNumResults %> <% ($totalNumResults == 1)? __("matching entry") : __("matching entries") %><% ($totalNumResults)? ":" : "" %>
 %	if ($totalNumResults > 1) {
-		showing <% $ARGS{start} + 1 %> to <% $ARGS{start} + $numResults %>
+		<%__x("showing {start} to {end}", start => $ARGS{start} + 1, end => $ARGS{start} + $numResults) %>
 %	}
 		
 		</tr>
@@ -148,12 +146,12 @@ to select multiple items</div></td></tr>
 		<tr>
 		<td width="50%">
 %	if ($ARGS{start}) {
-		<a href="/management/searchpages/content/?<% $prevquerystring %>" class="titletext">&lt;&lt;&lt; PREV</a>
+		<a href="/management/searchpages/content/?<% $prevquerystring %>" class="titletext">&lt;&lt;&lt; <%__("PREV")%></a>
 %	}
 		</td>
 		<td align="right" width="50%">
 %	if ($ARGS{start} + 50 < $totalNumResults) {
-		<a href="/management/searchpages/content/?<% $nextquerystring %>" class="titletext">NEXT &gt;&gt;&gt;</a>
+		<a href="/management/searchpages/content/?<% $nextquerystring %>" class="titletext"><%__("NEXT")%> &gt;&gt;&gt;</a>
 %	}
 		</td>
 % }
@@ -186,12 +184,12 @@ to select multiple items</div></td></tr>
                                         {field=>'author', align=>'left', length=>300,}
 			  ];
 	my $action = { usage => 'Yes', length => 100, functions => [
-                                                                        { func => 'update_parent', label => 'Select' }
+                                                                        { func => 'update_parent', label => __('Select') }
                                                                 ]};
 	if (defined($ARGS{mycontent})){
 			
 		$action = { usage => 'Yes', length => 100, functions => [
-                                                                        { func => 'view', label => 'View' }
+                                                                        { func => 'view', label => __('View') }
                                                                 ]};
 	}
       

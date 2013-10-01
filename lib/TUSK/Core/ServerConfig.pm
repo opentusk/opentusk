@@ -40,11 +40,11 @@ sub dbWritePassword {
 }
 
 sub dbReadDefaultDB {
-    return $TUSK::Constants::DefaultDB;
+    return $TUSK::Constants::Default{DB};
 }
 
 sub dbWriteDefaultDB {
-    return $TUSK::Constants::DefaultDB;
+    return $TUSK::Constants::Default{DB};
 }
 
 sub dbReadHost {

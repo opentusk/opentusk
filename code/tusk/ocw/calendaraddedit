@@ -1,0 +1,143 @@
+<%shared>
+my $id = $m->comp('/tmpl/url:get_first_path_id') ;
+my $calendarEntry;
+my $is_edit = 0;
+my $user_id = $m->comp('SELF:user');
+my @calendarContent;
+my $action_page = "/ocw/calendaraddedit/";
+</%shared>
+
+<%once>
+use TUSK::OCW::OcwCourseConfig;
+use TUSK::OCW::OcwCalendarConfig;
+use TUSK::OCW::OcwCalendarContentConfig;
+use TUSK::Core::ClassMeetingContentType;
+</%once>
+<%method title>
+<%perl>
+my $title = "Create Calendar Entry";
+if (defined($id)){
+	$title = "Modify Calendar Entry";	
+}
+return $title;
+</%perl>
+</%method>
+
+<%perl>
+my $formname = 'calendaraddedit';
+my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimaryKeyID()} }
+		@{ TUSK::Core::ClassMeetingContentType->lookup(" 1 = 1")};
+my @OCWCourses = map { { 'label'=>$_->getCourseTitle(),'value'=>$_->getPrimaryKeyID() } }
+		@{ TUSK::OCW::OcwCourseConfig->lookup (" 1 = 1 ")};
+if ($is_edit){
+	@calendarContent = map { { 'content_id'=>$_->getContentID(),
+				'ocw_calendar_content_config_id'=>$_->getPrimaryKeyID(),
+				'title'=>$_->getContentObject->title(),
+				'class_meeting_type_id'=>$_->getClassMeetingContentTypeID() }}
+			@{TUSK::OCW::OcwCalendarContentConfig->lookup(" ocw_calendar_config_id = $id ")};
+}
+</%perl>
+
+
+<& /tmpl/element:form, params => {
+		method => 'POST',
+		name => $formname,
+		onsubmit => undef } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Calendar Date',
+		name => 'calendar_date',
+		value => $calendarEntry->getCalendarDate(),
+		size => 60,
+		length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Calendar Label',
+		name => 'calendar_label',
+		value => $calendarEntry->getCalendarLabel(),
+		size => 60,
+		length => 255 } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'OCW Course Configuration',
+                name=>"ocw_course_config_id",
+                onchange=>undef,
+                selected=>$calendarEntry->getOcwCourseConfigID(),
+                options=>\@OCWCourses } &>
+
+
+<& /tmpl/element:sort_order_box , params =>{
+                label=>"Calendar Content",
+		button_onclick=>"openwindow('contentdiv',700);",
+                layer_info => {
+                        layer => 'contentdiv',
+                        fields => [ 'ocw_calendar_content_config_id',
+				'content_id','title','class_meeting_type_id'],
+                        name => 'content',
+                        sort => {usage => 'No', length=>50},
+                        action => {usage => 'Yes', length=>100,
+                                functions => [{func=>'remove', label=>'Delete'} ]},
+                        display => [
+                                        {label=>__('title'),field=>'title', align=>'left', length=>400},
+                                        {label=>__('Content ID'),field=>'content_id', align=>'left', length=>400},
+                                        {label=>__('Class Meeting Type'),field=>'class_meeting_type_id', 
+						align=>'left', length=>400,options=>\@classMeetingDropdown }
+                                  ],
+                        validate => {
+                                        usage => 'No',
+                                },
+                        data => \@calendarContent 
+                        }
+                } &></%method>
+
+<& /tmpl/element:save_button, params=>{'name'=>'calendar_submit','label'=>'Save'} &>
+
+</form>
+</table>
+
+<%init>
+if (defined($id)){
+        $calendarEntry = TUSK::OCW::OcwCalendarConfig->lookupKey($id);
+        if (!defined($calendarEntry) || !defined($calendarEntry->getPrimaryKeyID())){
+                $m->comp('/tmpl/error',msg=>'Calendar Entry not found');
+                $m->abort();
+        }
+        $is_edit = 1;
+} else {
+        $calendarEntry = TUSK::OCW::OcwCalendarConfig->new();
+}
+if ($ARGS{'calendar_submit'}){
+	$calendarEntry->setCalendarDate($ARGS{'calendar_date'});
+	$calendarEntry->setCalendarLabel($ARGS{'calendar_label'});
+	$calendarEntry->setOcwCourseConfigID($ARGS{'ocw_course_config_id'});
+	if (!$is_edit){
+		$id = $calendarEntry->save({'user'=>$user_id});
+	} else {
+		$calendarEntry->save({'user'=>$user_id});
+	}
+	my $user_id = $m->comp('SELF:user');
+	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=>\%ARGS,filter=>'^contentdiv');
+
+        $m->comp('/tmpl/process:manipulate_rows',
+                row_type => 'Direct',
+                user => $user_id,
+                object_name => 'TUSK::OCW::OcwCalendarContentConfig',
+                fields_data => $rowHash,
+                default_field_data=>{'ocw_calendar_config_id'=>$id },
+                field_function_map => {
+                                'content_id'=>'setContentID',
+                                'ocw_calendar_config_id'=>'setOcwCalendarConfigID',
+                                'class_meeting_type_id'=>'setClassMeetingContentTypeID' },
+                display_data => \@calendarContent );
+
+	        @calendarContent = map { { 'content_id'=>$_->getContentID(),
+                                'title'=>$_->getContentObject->title(),
+				'ocw_calendar_content_config_id'=>$_->getPrimaryKeyID(),
+                                'class_meeting_type_id'=>$_->getClassMeetingContentTypeID() }}
+                        @{TUSK::OCW::OcwCalendarContentConfig->lookup(" ocw_calendar_config_id = $id ")};
+
+	 $m->redirect('/ocw/calendaraddedit/'.$id);
+}
+</%init>

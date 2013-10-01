@@ -1,0 +1,162 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use strict;
+use TUSK::Constants;
+use TUSK::Core::ServerConfig;
+use Getopt::Long;
+
+sub getPasswordsAndStuff();
+sub removeOldData();
+
+# If you change this machine make sure that there is a my.cnf file for the root user so that the user can log into the machine.
+my $backupServer = "finch.tusknet";
+my $command = '';
+my @theDatabases;
+my $user = "";
+my $userPassword;
+my $mysqlUID = 3306;
+my $mysqlGID = 3306;
+my ($help, @skipTables);
+my %oldDBNames;
+my $mysqlDir = $TUSK::Constants::MySQLDir;
+
+GetOptions (
+	"help" => \$help,
+	"server=s" => \$backupServer,
+	"skip-table=s" => \@skipTables,
+);
+
+if ( $help ) {
+	print "$0: [options]\n";
+	print "\t--help\t\t\tThis help page\n";
+	print "\t--server <server>\tThe MySQL Server to connect to (defaults to $backupServer)\n";
+	print "\t--skip-table <table>\tTables to skip syncing over\n";
+	exit 0;
+}
+
+getPasswordsAndStuff();
+
+removeOldData();
+
+ 
+
+# Get the tables from the databases
+my $dbCounter = 1;
+foreach my $dbName (@theDatabases) {
+  chomp $dbName;
+  print "Working on DB $dbCounter ($dbName)\n";
+  $dbCounter++;
+
+  print "\tGetting tables...";
+  $command = "$mysqlDir/mysql --host=$backupServer --skip-column-names --user=$user $userPassword --batch --execute=\"show tables;\" $dbName";
+  unless(open(TABLE_COMMAND, "$command |")) {print "Error: Unable to get tables!\n"; next;}
+  my @tables = <TABLE_COMMAND>;
+  print "Done [", $#tables + 1,  "]\n";
+
+  print "\tImporting tables...\r";
+  my $tableCounter = 1;
+  foreach my $table (@tables) {
+    chomp $table;
+    if ( grep /$dbName.$table/, @skipTables ) {
+       print "\tSkipping table ($dbName.$table)...                                         \r";
+    } else {
+       print "\tImporting table $tableCounter ($dbName.$table)...                          \r";
+       $tableCounter ++;
+       $command = "$mysqlDir/mysqldump --extended-insert --disable-keys --quick --user=$user $userPassword --host=$backupServer $dbName $table | sed 's/^\$/ USE $dbName;/' | $mysqlDir/mysql --batch mysql";
+       `$command`;
+       print "Done                                                                         \r";
+    }
+  }
+  print "\tImporting tables...Done                              \n";
+}
+
+
+exit(0);
+
+
+
+
+
+
+sub getPasswordsAndStuff() {
+  # Confirm that it everything will go away
+  print "Are you sure you want to delete the entire test database and re-sync from the $backupServer database? (y/n) ";
+  my $answer = <STDIN>;
+  chomp $answer;
+  if($answer =~ /n/i) {exit();}
+
+  # Get the username and password for the mysql database
+  $user = TUSK::Core::ServerConfig::dbReadUser();
+  $userPassword = TUSK::Core::ServerConfig::dbReadPassword();
+  if($userPassword) {$userPassword = "--password=$userPassword";}
+  print "\n";
+  system("stty echo");
+}
+
+
+
+
+sub removeOldData() {
+  my @theOldDatabases;
+
+  print "\n\nChecking databases...\n";
+  # Remove all of the tables
+  print "\tGetting old databases...";
+  $command = "$mysqlDir/mysql --skip-column-names --batch --user=$user $userPassword --execute=\"show databases;\"";
+  unless(open(DB_COMMAND, "$command |")) {die "Could not open the local database command!\n  ($command)\n";}
+    @theOldDatabases = <DB_COMMAND>;
+  close(DB_COMMAND);
+  print "Done [", $#theOldDatabases + 1, "]\n";
+  foreach my $dbName (@theOldDatabases) {chomp $dbName; $oldDBNames{$dbName}++;}
+
+  # Get the databases in the backup server
+  print "\tGetting new databases...";
+  $command = "$mysqlDir/mysql --host=$backupServer --skip-column-names --batch --user=$user $userPassword --execute=\"show databases;\"";
+  push @theDatabases, 'mysql';
+  unless(open(DB_COMMAND, "$command |")) {die "Could not open the database command!\n  ($command)\n";}
+    while(<DB_COMMAND>) {
+    chomp;
+    unless(/mysql/) {push @theDatabases, $_;}
+  }
+  close(DB_COMMAND);
+  print "Done [", $#theDatabases + 1, "]\n";
+
+  print "\tCreating new databases...\r";
+  my $dbCounter = 1;
+  foreach my $dbName (@theDatabases) {
+    chomp $dbName;
+    delete($oldDBNames{$dbName});
+    print "\tCreating new database $dbCounter ($dbName)...                     \r";
+    $dbCounter++;
+    $command = "$mysqlDir/mysqldump --disable-keys --quick --user=$user $userPassword --no-create-info --no-data --host=$backupServer --databases $dbName | $mysqlDir/mysql --batch";
+    `$command`;
+    print "Done                          \r";
+  }
+  print "\tCreating new databases...Done                                               \n";
+
+
+  print "\tDeleting old unused databases...";
+  my $numDBsDeleted = 0;
+  foreach my $dbName (keys %oldDBNames) {
+    $command = "$mysqlDir/mysql --batch --user=$user $userPassword --execute=\"drop database $dbName;\"";
+    `$command`;
+    $numDBsDeleted++;
+  }
+  print "Done [$numDBsDeleted]\n";
+}

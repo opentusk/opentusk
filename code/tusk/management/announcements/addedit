@@ -40,9 +40,9 @@ my $form_action;
 <script type="text/javascript">
 	function checkThisForm() {
 		if (CKEDITOR) {
-		CKEDITOR.instances['rte_announcement_text'].updateElement();
+		CKEDITOR.instances['announcement_text'].updateElement();
 	}
-		if((CKEDITOR && CKEDITOR.instances['rte_announcement_text'].getData() == '') || (CKEDITOR == null && document.addedit.rte_announcement_text.value == '')) {alert('Please enter some text for this announcement.'); return false;}
+		if((CKEDITOR && CKEDITOR.instances['announcement_text'].getData() == '') || (CKEDITOR == null && document.addedit.announcement_text.value == '')) {alert(_('Please enter some text for this announcement.')); return false;}
 		return checkform(document.addedit);
 	}
 </script>
@@ -62,7 +62,7 @@ my $form_action;
 % if ($is_course_announcement) {
 % my %temphash = ( 'timeperiod' => $timeperiod );
 <& /tmpl/element:field_display, params =>{ 
-				label  => 'Time Period',
+				label  => __('Time Period'),
 				value  => TUSK::Functions::get_selected_timeperiod_display( $school, \%temphash ) } &>
 % }
 
@@ -75,7 +75,7 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 	$announcement_for    = $usergroup->field_value('label');
 	$hidden_usergroup_id = $usergroup_id;
 } elsif ( $is_course_announcement ) {
-	$announcement_for    = "All " . $course->field_value('title');
+	$announcement_for    = __x("All {course_title}", course_title => $course->field_value('title'));
 	$hidden_usergroup_id = 0;
 } else {
 	$announcement_for    = "Schoolwide";
@@ -83,7 +83,7 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 }
 </%perl>
 <& /tmpl/element:field_display, params =>{ 
-				label  => 'Announcement For',
+				label  => __('Announcement For'),
 				value  => $announcement_for } &>
 
 <& /tmpl/element:hidden_form_element, params =>{ 
@@ -91,8 +91,8 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 				value  => $hidden_usergroup_id } &>
 
 <& /tmpl/element:textarea, params =>{ 
-				label       => 'Announcement Text',
-				name        => 'rte_announcement_text',
+				label       => __('Announcement Text'),
+				name        => 'announcement_text',
 				cols        => '60',
 				rows        => '3',
 				htmleditor  => 1,
@@ -100,21 +100,21 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 				value       => $announcement->field_value('body') } &>
 
 <& /tmpl/element:textbox, params =>{ 
-				label    => 'Start Date',
+				label    => __('Start Date'),
 				name     => 'start_date__yy',
 				value    => (defined($announcement->field_value('start_date'))) ? $announcement->field_value('start_date') : 'YYYY-MM-DD',
 				size     => '12',
  				calendar => '1' } &>
 
 <& /tmpl/element:textbox, params =>{ 
-				label    => 'Expiration Date',
+				label    => __('Expiration Date'),
 				name     => 'expire_date__yy',
 				value    => (defined($announcement->field_value('expire_date'))) ? $announcement->field_value('expire_date') : 'YYYY-MM-DD',
 				size     => '12',
  				calendar => '1' } &>
 
 <& /tmpl/element:checkbox, params =>{ 
-				label    => 'Email',
+				label    => __('Email'),
 				name     => 'email',
 				value    => '1' } &>	
 
@@ -122,7 +122,7 @@ if ( defined($usergroup_id) && $usergroup_id != 0 && $usergroup_id != $TUSK::Con
 				name   => 'action',
 				value  => $form_action } &>
 
-<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
 				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/management/announcements/show") . "');",
 				name=>'submit'} &>
 </table>
@@ -144,7 +144,7 @@ my ($msg,$msgtype) = (undef,"errmsg");
 my $extra = "";
 
 if ( defined($ARGS{'submit_check'}) ) {
-	my $text   = $ARGS{'rte_announcement_text'}; 
+	my $text   = $ARGS{'announcement_text'}; 
 	my $expire = $ARGS{'expire_date__yy'}; 
 	my $start  = $ARGS{'start_date__yy'};
 
@@ -168,16 +168,16 @@ if ( defined($ARGS{'submit_check'}) ) {
 		my $ug = HSDB45::UserGroup->new(_school => $school)->lookup_key($ARGS{'usergroup_id'});
 		$ug->add_announcement("", "", $announcement->primary_key) if ($ARGS{'action'} eq "add");
 
-		$ug->email_child_users("Announcement for '".$ug->field_value('label')."'",$email_from, "<html><body>Announcement: $text<br>\nStart Date: $start<br>\nEnd Date: $expire<br>\n</body></html>") if ($ARGS{'email'});
+		$ug->email_child_users(__("Announcement for")." '".$ug->field_value('label')."'",$email_from, "<html><body>Announcement: $text<br>\n".__("Start Date").": $start<br>\n".__("End Date").": $expire<br>\n</body></html>") if ($ARGS{'email'});
 	}else{
 		$course->add_announcement("", "", $announcement->primary_key) if ($ARGS{'action'} eq "add");
 
-		$course->email_child_users("Announcement for '".$course->field_value('title')."'",$email_from,$timeperiod, "<html><body>Announcement: $text<br>\nStart Date: $start<br>\nEnd Date: $expire<br>\n</body></html>") if ($ARGS{'email'});
+		$course->email_child_users(__("Announcement for")." '".$course->field_value('title')."'",$email_from,$timeperiod, "<html><body>".__("Announcement").": $text<br>\n".__("Start Date").": $start<br>\n".__("End Date").__(": $expire<br>\n</body></html>")) if ($ARGS{'email'});
 	}
 	
 	if ($ARGS{'action'} eq "add") {
 		$ARGS{'page'} = "edit";
-		$msg = "Announcement Successfully Added";
+		$msg = __("Announcement Successfully Added");
 		$msgtype = "msg";
 	} else {
 		$msg = "Announcement Successfully Updated";

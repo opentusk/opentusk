@@ -32,7 +32,7 @@
 
 	if($course->type() =~ /thesis committee/i){
 		if(${$metadataHashRef}{$propertyNumber}{'displayName'} =~ /other/i){
-			${$metadataHashRef}{$propertyNumber}{'displayName'} = 'Guidelines';
+			${$metadataHashRef}{$propertyNumber}{'displayName'} = __('Guidelines');
 		}
 	}
 </%shared>
@@ -51,7 +51,7 @@
 
 <%method right_header_text>
 <%perl>
-	return [ {txt => 'Preview', 
+	return [ {txt => __('Preview'), 
 	          url => "/view/course/$type_path/" . ${$metadataHashRef}{$propertyNumber}{'displayName'} }];
 </%perl>
 </%method>
@@ -90,23 +90,23 @@
           #These text areas have a parent of NULL so we dont set it.
 
           $localObject->setUser( $m->session->{'user'}->primary_key() );
-          unless($localObject->save()) {${$args}{errmsg} = 'Failed to create '. ${$metadataHashRef}{$propertyNumber}{'displayName'};}
-          else                         {${$args}{msg} = ${$metadataHashRef}{$propertyNumber}{'displayName'} . ' created';}
+          unless($localObject->save()) {${$args}{errmsg} = __x('Failed to create {name}', coursename => ${$metadataHashRef}{$propertyNumber}{'displayName'});}
+          else                         {${$args}{msg} = __x("{name} created", course => ${$metadataHashRef}{$propertyNumber}{'displayName'})}
         }
       } elsif(scalar(@currentObjects) == 1) {
         #Save it
         if(${$args}{'rte_newValue'}) {
           $currentObjects[0]->setValue( ${$args}{'rte_newValue'} );
           $currentObjects[0]->setUser( $m->session->{'user'}->primary_key() );
-          unless($currentObjects[0]->save()) {${$args}{errmsg} = 'Failed to update '. ${$metadataHashRef}{$propertyNumber}{'displayName'};}
-          else                               {${$args}{msg} = ${$metadataHashRef}{$propertyNumber}{'displayName'} . ' updated';}
+          unless($currentObjects[0]->save()) {${$args}{errmsg} = __x('Failed to update {name}', course => ${$metadataHashRef}{$propertyNumber}{'displayName'})}
+          else                               {${$args}{msg} = __x("{name} updated", course => ${$metadataHashRef}{$propertyNumber}{'displayName'})}
         } else {
-          unless($currentObjects[0]->delete()) {${$args}{errmsg} = 'Failed to remove '. ${$metadataHashRef}{$propertyNumber}{'displayName'};}
-          else                               {${$args}{msg} = ${$metadataHashRef}{$propertyNumber}{'displayName'} . ' removed';}
+          unless($currentObjects[0]->delete()) {${$args}{errmsg} = __x('Failed to remove {name}', name => ${$metadataHashRef}{$propertyNumber}{'displayName'})}
+          else                               {${$args}{msg} = __x("{name} removed", name => ${$metadataHashRef}{$propertyNumber}{'displayName'})}
         }
       } else {
         #Bomb an error!
-        ${$args}{errmsg} = 'There were too many ' . ${$metadataHashRef}{$propertyNumber}{'displayName'} . ' for this course!';
+        ${$args}{errmsg} = __x('There were too many {name} for this course!', name => ${$metadataHashRef}{$propertyNumber}{'displayName'});
       }
     }
   </%perl>
@@ -277,10 +277,10 @@
   <div id="deleteDiv" style="position:absolute; background-color:white; top:0; left:0; display:none;">
     <form>
       <table border="0" style="border:1px solid;">
-        <tr id="deleteDivHandle" class="header"><td class="border-header" colspan="2">Confirm&nbsp;Delete</td></tr>
+        <tr id="deleteDivHandle" class="header"><td class="border-header" colspan="2"><%__("Confirm")%>&nbsp;<%__("Delete")%></td></tr>
 	<tr>
-          <td align="center" width="50%"><input type="button" id="confirmDeleteButton" value="Delete Item" class="formButton"></td>
-          <td align="center" width="50%"><input type="button" value="Cancel Delete" class="formButton" onClick="closeCancel();"></td>
+          <td align="center" width="50%"><input type="button" id="confirmDeleteButton" value="<%__("Delete Item")%>" class="formButton"></td>
+          <td align="center" width="50%"><input type="button" value="<%__("Cancel Delete")%>" class="formButton" onClick="closeCancel();"></td>
         </tr>
       </table>
     </form>
@@ -298,24 +298,24 @@
   <& SELF:editTopLevelText &>
 % } elsif(${$metadataHashRef}{$propertyNumber}{'editType'} eq 'table') {
     <table width="100%" id="previewDiv" cellpadding="0" cellspacing="0" style="border:2px solid black;">
-      <tr class="header"><td class="header-center">Preview</td></tr>
+      <tr class="header"><td class="header-center"><%__("Preview")%></td></tr>
       <tr><td>
   <& SELF:editTopLevelTable &>
       </td></tr>
     </table>
 % } else {
-    An error has occurred.<br>
-    You are trying to edit a <% ${$metadataHashRef}{$propertyNumber}{'editType'} %> which is not allowed.<br>
+    <%__("An error has occurred.")%><br>
+    <%__x("You are trying to edit a {object_type} which is not allowed", object_type => ${$metadataHashRef}{$propertyNumber}{'editType'})%><br>
 % }
 
 
 <%method editTopLevelText>
-  This is a text.
+ <%__("This is a text.")%>
 </%method>
 
 
 <%method editTopLevelRadio>
-  This is a radio.
+  <%__("This is a radio.")%>
 </%method>
 
 
@@ -355,11 +355,11 @@
       if(ajaxRequest.readyState == 4) {
         var response = undefined;
 	response = ajaxRequest.responseXML;
-        if(!response) {alert('I was unable to modify this item!');}
+        if(!response) {alert(_('I was unable to modify this item!'));}
         else {
           var numFailures = getNumberOfFailures(response)
-          if(numFailures == -1) {alert('There was a problem saving this item!');}
-          else if(numFailures > 0) {alert('Failed to modify this item!');}
+          if(numFailures == -1) {alert(_("There was a problem saving this item!"));}
+          else if(numFailures > 0) {alert(_("Failed to modify this item!"));}
           else {
             turnOffForm('textTableForm');
             document.getElementById('textDiv'+lastEditedText).innerHTML = document.textForm.textValue.value;
@@ -396,7 +396,7 @@
           url += "&nodeToModify="+ lastEditedTextArea;
         } else {
           if(textAreaIDFromAjax != '') {url += "&nodeToModify="+ textAreaIDFromAjax;}
-          document.getElementById('textAreaLink').innerHTML='Modify';
+          document.getElementById('textAreaLink').innerHTML= "<% __("Modify") %>";
         }
 // document.open();
 // document.writeln(url);
@@ -411,18 +411,18 @@
       if(ajaxRequest.readyState == 4) {
         var response = undefined;
         response = ajaxRequest.responseXML;
-        if(!response) {alert('I was unable to modify this item!');}
+        if(!response) {alert(_('I was unable to modify this item!'));}
         else {
           var numFailures = getNumberOfFailures(response)
-          if(numFailures == -1) {alert('There was a problem saving this item!');}
-          else if(numFailures > 0) {alert('Failed to modify this item!');}
+          if(numFailures == -1) {alert(_('There was a problem saving this item!'));}
+          else if(numFailures > 0) {alert(_('Failed to modify this item!'));}
           else {
             turnOffForm('textAreaTableForm');
             if(document.getElementById('textAreaDiv'+lastEditedTextArea))
               {document.getElementById('textAreaDiv'+lastEditedTextArea).innerHTML = document.textAreaForm.newValue.value;}
             if((lastEditedTextArea == 'New') && (textAreaIDFromAjax == '')) {
               newItemNumbers = response.getElementsByTagName('newItemNumber');
-              if((newItemNumbers.length != 1) || (newItemNumbers[0][nodeTextType] == '')) {alert('Failed to get the new item number!');}
+              if((newItemNumbers.length != 1) || (newItemNumbers[0][nodeTextType] == '')) {alert(_('Failed to get the new item number!'));}
               else                                                                        {textAreaIDFromAjax = newItemNumbers[0][nodeTextType];}
             }
           }
@@ -462,7 +462,7 @@
             }
           }
         }
-        if(warning > 0) {alert('Please fix the errors on your page before proceding'); showAjaxElements();}
+        if(warning > 0) {alert(_('Please fix the errors on your page before proceding')); showAjaxElements();}
         else {
 //document.open();
 //document.writeln(url);
@@ -478,14 +478,14 @@
       if(ajaxRequest.readyState == 4) {
         var response = undefined;
 	response = ajaxRequest.responseXML;
-        if(!response) {alert('I was unable to add this item!');}
+        if(!response) {alert(_('I was unable to add this item!'));}
         else {
           var numFailures = getNumberOfFailures(response)
-          if(numFailures == -1) {alert('There was a problem saving this item!');}
-          else if(numFailures > 0) {alert('There was one or more failures causing the save to fail!');}
+          if(numFailures == -1) {alert(_('There was a problem saving this item!'));}
+          else if(numFailures > 0) {alert(_('There was one or more failures causing the save to fail!'));}
           else {
             var newItemNumbers = response.getElementsByTagName('newItemNumber');
-            if((newItemNumbers.length < 1) || (newItemNumbers[0][nodeTextType] == '')) {alert('Failed to get the new item number!');}
+            if((newItemNumbers.length < 1) || (newItemNumbers[0][nodeTextType] == '')) {alert(_('Failed to get the new item number!'));}
             else {
               var newItemNumber = newItemNumbers[0][nodeTextType];
               var tempItem = document.createElement('LI');
@@ -500,9 +500,9 @@
                   {
                   tempItem.innerHTML = '<div id="textDiv'+ newItemNumber + '">'+ document.theAddNewListItemForm[index].value +'</div>';
                   tempItem.innerHTML+= "<a href=\"\" onClick=\"editText('"+ newItemNumber +"' ,'" + document.theAddNewListItemForm[index].name +
-                                       "', '<% $propertyNumber %>'); return false;\" class=\"navsm\">Modify</a>" +
+                                       "', '<% $propertyNumber %>'); return false;\" class=\"navsm\"><% __("Modify") %></a>" +
                                        "&nbsp;<span class=\"littlespacing\">|</span>&nbsp;" +
-                                       "<a href=\"\" onClick=\"confirmDelete('"+ newItemNumber +"', 'deleteListItem'); return false;\" class=\"navsm\">Delete</a>&nbsp;";
+                                       "<a href=\"\" onClick=\"confirmDelete('"+ newItemNumber +"', 'deleteListItem'); return false;\" class=\"navsm\"><% __("Delete") %></a>&nbsp;";
                 }
               }
 
@@ -541,14 +541,14 @@
       if(ajaxRequest.readyState == 4) {
         var response = undefined;
 	response = ajaxRequest.responseXML;
-        if(!response) {alert('I was unable to delete this item!');}
+        if(!response) {alert(_('I was unable to delete this item!'));}
         else {
           var itemsFailed = response.getElementsByTagName('itemsFailed');
-          if(itemsFailed.length != 1) {alert('There was an error when deleting the object!');}
+          if(itemsFailed.length != 1) {alert(_('There was an error when deleting the object!'));}
           else {
             var numFailed = itemsFailed[0][nodeTextType];
 
-            if(numFailed > 0) {alert('Failed to delete this item!');}
+            if(numFailed > 0) {alert(_('Failed to delete this item!'));}
             else {
               //No delete the row in the table for itemToDelete
               var list = document.getElementById('theMainList');
@@ -567,14 +567,14 @@
 % my $needAnInputForm = 0;
 % my $newListItemType = 0;
   <table width="100%" id="previewDiv" cellpadding="0" cellspacing="0" style="border:2px solid black;">
-    <tr class="header"><td class="header-center">Preview</td></tr>
+    <tr class="header"><td class="header-center"><%__("Preview")%></td></tr>
     <tr><td>
       <ul id="theMainList">
 %    my @bullets = @{ ${$metadataHashRef}{$propertyNumber}{'children'}{metadataOrder} };
 %    my $printCategories = 0;
 %    my $needButtonToAddListItems = 1;
 %  if( ($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) && !${$metadataHashRef}{$propertyNumber}{'locked'}) {
-      <input type="button" name="newItem" class="boldformbutton" value="Add Another Item To The List" onClick="alert('No supported yet!');">
+      <input type="button" name="newItem" class="boldformbutton" value="<%__("Add Another Item To The List")%>" onClick="alert('No supported yet!');">
 %  }
 %    if($#bullets > 0) {$needButtonToAddListItems = 0; $printCategories = 1;}
 
@@ -586,7 +586,7 @@
 %          $newListItemType = $bulletOrder;
 <& /tmpl/element:cms_button_row, 
     links => [ 
-	          {display_txt => 'Add Another ' . ${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'},
+	          {display_txt => __x('Add Another {name}', name => ${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'}),
                link_txt    => "javascript:addAnotherListItem('" . ${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'} . "');"}
 	         ]
 &>
@@ -605,14 +605,14 @@
 %          unless($divID) {$divID = $aMetadataItem->getPrimaryKeyID();}
 %          $myParent = $aMetadataItem->getParent();
 %        }
-%        if(scalar(@metadataItems) < 1) {$divDisplayValue = 'None'; $divID = 'New';}
+%        if(scalar(@metadataItems) < 1) {$divDisplayValue = __('None'); $divID = 'New';}
          <div id="textAreaDiv<% $divID %>"><% $divDisplayValue %></div>
 %        if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
            <a href="" id="textAreaLink" onClick="editTextArea('<% $divID %>', '<% $bulletOrder %>', '<% $propertyNumber %>', '<% $myParent %>'); return false;" class="navsm">
 %          if(scalar(@metadataItems) < 1) {
-             Add
+             <%__("Add")%>
 %          } else {
-             Modify
+             <%__("Modify")%>
 %          }
            </a><br>
 %        }
@@ -624,7 +624,7 @@
 %        if($printCategories) {print "<b>${$metadataHashRef}{$propertyNumber}{'children'}{$bulletOrder}{'displayName'}</b><br>";}
 <div id="textDiv<% $aMetadataItem->getPrimaryKeyID() %>"><% $aMetadataItem->getFieldValue('value') %></div>
 %          if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
-         <a href="" onClick="editText('<% $aMetadataItem->getPrimaryKeyID() %>', '<% $bulletOrder %>', '<% $propertyNumber %>'); return false;" class="navsm">Modify</a>&nbsp;<span class="littlespacing">|</span>&nbsp;<a href="" onClick="confirmDelete('<% $aMetadataItem->getPrimaryKeyID() %>', 'deleteListItem'); return false;" class="navsm">Delete</a>&nbsp;
+         <a href="" onClick="editText('<% $aMetadataItem->getPrimaryKeyID() %>', '<% $bulletOrder %>', '<% $propertyNumber %>'); return false;" class="navsm"><%__("Modify")%></a>&nbsp;<span class="littlespacing">|</span>&nbsp;<a href="" onClick="confirmDelete('<% $aMetadataItem->getPrimaryKeyID() %>', 'deleteListItem'); return false;" class="navsm"><%__("Delete")%></a>&nbsp;
 %          }
         </li>
 %        }
@@ -660,8 +660,8 @@
         <td class="no-button">
           <table width="100%" cellspacing="0" cellpadding="0" class="tusk">
             <tr class="header" id="textAreaTableFormHandle">
-              <td class="border-header">Edit</td>
-              <td class="border-header">Preview</td>
+              <td class="border-header"><%__("Edit")%></td>
+              <td class="border-header"><%__("Preview")%></td>
             </tr>
             <tr class="even">
               <td valign="top" width="50%" class="border-center">
@@ -677,8 +677,8 @@
       </tr>
       <tr>
         <td>
-          <input type="button" name="action" value="Save" onClick="saveTextArea();" class="formbutton">
-          <input type="button" name="" class="formbutton" value="Cancel" onClick="turnOffForm('textAreaTableForm');"><br><br>
+          <input type="button" name="action" value="<%__("Save")%>" onClick="saveTextArea();" class="formbutton">
+          <input type="button" name="" class="formbutton" value="<%__("Cancel")%>" onClick="turnOffForm('textAreaTableForm');"><br><br>
         </td>
       </tr>
     </table>
@@ -688,16 +688,16 @@
   <form method="post" name="textForm">
     <table id="textTableForm" cellspacing="0" cellpadding="0" style="top:140px; left:120px; border:2px solid black; background-color:white; position:absolute; display:none;">
       <tr class="header">
-        <td class="border-header" colspan="2" id="textTableFormHandle">Edit Value</td>
+        <td class="border-header" colspan="2" id="textTableFormHandle"><%__("Edit Value")%></td>
       </tr>
       <tr>
-        <td>Modify Value:</td>
+        <td><%__("Modify Value")%>:</td>
         <td><input type="text" name="textValue" value="">
       </tr>
       <tr>
         <td>
-          <input type="button" name="action" value="Save" onClick="saveText();" class="formbutton">
-          <input type="button" name="" class="formbutton" value="Cancel" onClick="turnOffForm('textTableForm');"><br><br>
+          <input type="button" name="action" value="<%__("Save")%>" onClick="saveText();" class="formbutton">
+          <input type="button" name="" class="formbutton" value="<%__("Cancel")%>" onClick="turnOffForm('textTableForm');"><br><br>
         </td>
       </tr>
     </table>
@@ -708,19 +708,19 @@
   <form method="post" name="theAddNewListItemForm">
     <table id="theAddNewListItemTableForm" style="top:140px; left:120px; border:2px solid black; background-color:white; position:absolute; display:none;">
       <tr class="header" style="cursor:move;">
-        <td class="border-header" colspan="2" id="theAddNewListItemTableFormHandle">Add New <span id="addNewTextArea"></span></td>
+        <td class="border-header" colspan="2" id="theAddNewListItemTableFormHandle"><%__("Add New")%> <span id="addNewTextArea"></span></td>
       </tr>
       <tr>
-        <td>Enter new value:</td>
+        <td><%__("Enter new value:")%></td>
 %      if($needAnInputForm eq 'text') {
         <td><input type="text" name="<% $newListItemType %>" value="">
 %      }
       </tr>
       <tr>
         <td colspan="2">
-          <input type="button" name="addNew" value="Add" onClick="addNewItem(1, '<% $propertyNumber %>');" class="formbutton">
-          <input type="button" name="" class="formbutton" value="Cancel" onClick="turnOffForm('theAddNewListItemTableForm');">
-          <input type="button" name="addNewAndAnother" value="Add + Add Another" onClick="addNewItem(0, '<% $propertyNumber %>');" class="formbutton">
+          <input type="button" name="addNew" value="<%__("Add")%>" onClick="addNewItem(1, '<% $propertyNumber %>');" class="formbutton">
+          <input type="button" name="" class="formbutton" value="<%__("Cancel")%>" onClick="turnOffForm('theAddNewListItemTableForm');">
+          <input type="button" name="addNewAndAnother" value="<%__("Add + Add Another")%>" onClick="addNewItem(0, '<% $propertyNumber %>');" class="formbutton">
         </td>
       </tr>
     </table>
@@ -743,16 +743,16 @@
         <table width="100%" cellspacing="0" cellpadding="0" class="tusk">
           <tr class="header">
 %   if ($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
-            <td class="border-header">Edit</td>
+            <td class="border-header"><%__("Edit")%></td>
           </tr>
           <tr class="even">
             <td valign="top" align="center">
               <& /tmpl/element:input_textarea, params=>{'name' => "rte_newValue", 'htmleditor'=>"1", 'value'=>$value, 'rows'=>"10", 'cols'=>"40"} &>
               <br><br>
-              <input type="submit" name="action" value="Save" class="formbutton">
+              <input type="submit" name="action" value="<%__("Save")%>" class="formbutton">
             </td>
 %   } else {
-            <td class="border-header">Preview</td>
+            <td class="border-header"><%__("Preview")%></td>
           </tr>
           <tr class="even">
             <td valign="top" class="border-left">
@@ -811,7 +811,7 @@
 %        $numHeaders++;
 %      }
 %      if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
-            <td style="border-bottom:1px solid black;" width="1%" align="right" valign="bottom"><b>Actions</b></td>
+            <td style="border-bottom:1px solid black;" width="1%" align="right" valign="bottom"><b><%__("Actions")%></b></td>
 %           $numHeaders++;
 %      }
           </tr>
@@ -830,13 +830,13 @@
 %        }
 %        if($m->comp("SELF:check_course_permissions", token => 'DIRECTOR')) {
             <td style="border-bottom:1px solid lightgrey;">
-              <a href="" onClick="openEdit('Modify', '<% $tableDataRow %>'); return false;" class="navsm">Modify</a>&nbsp;<span class="littlespacing">|</span>&nbsp;<a href="" onClick="confirmDelete('<% $tableDataRow %>', deleteItem); return false;" class="navsm">Delete</a>&nbsp;
+              <a href="" onClick="openEdit('Modify', '<% $tableDataRow %>'); return false;" class="navsm"><%__("Modify")%></a>&nbsp;<span class="littlespacing">|</span>&nbsp;<a href="" onClick="confirmDelete('<% $tableDataRow %>', deleteItem); return false;" class="navsm"><%__("Delete")%></a>&nbsp;
             </td>
 %        }
           </tr>
 %      }
 %      unless($numberOfItems) {
-          <tr id="NoneTR"><td colspan="<% $numHeaders %>"><center>None</center></td></tr>
+          <tr id="NoneTR"><td colspan="<% $numHeaders %>"><center><%__("None")%></center></td></tr>
 %      }
 %    }
 %  }
@@ -846,7 +846,7 @@
     <form method="post" class="no-padding" name="theForm<% $tableName %>" onSubmit="return false;">
       <input type="hidden" name="addOrModify" value="">
       <table border="0" cellspacing="0" width="1%"  cellpadding="0" id="modifyTableDiv" style="top:140px; left:120px; border:2px solid black; background-color:white; position:absolute; display:none;">
-        <tr class="header" id="modifyTableDivHandle"><td colspan="2" class="header-center"><div id="modifyTableDivTitle">Add</div></td></tr>
+        <tr class="header" id="modifyTableDivHandle"><td colspan="2" class="header-center"><div id="modifyTableDivTitle"><%__("Add")%></div></td></tr>
 %     foreach my $rowID (@{  ${$tableTag}{'children'}{'metadataOrder'}  }) {
 %       if(${$tableTag}{'children'}{$rowID}{'editType'} eq 'table row') {
 %         foreach my $cellID (@{  ${$tableTag}{'children'}{$rowID}{'children'}{'metadataOrder'}  }) {
@@ -858,16 +858,16 @@
             <input type="text" name="<% $cellID %>" value="" size="30" class="textareawhite">
 %           } elsif (${$cellReference}{'editType'} eq 'radio') {
             <select name="<% $cellID %>" onChange="if(this[this.length-1].value == 'SELECT') {this.length--;}">
-              <option value="NO">No</option>
-              <option value="YES">Yes</option>
-              <option value="SELECT" selected>Select</option>
+              <option value="NO"><%__("No")%></option>
+              <option value="YES"><%__("Yes")%></option>
+              <option value="SELECT" selected><%__("Select")%></option>
             </select>
 %           } elsif (${$cellReference}{'editType'} eq 'select') {
             <select name="<% $cellID %>" onChange="if(this[this.length-1].value == 'SELECT') {this.length--;}">
 %              foreach my $optionID (@{ ${$cellReference}{'children'}{'metadataOrder'}  }) {
               <option value="<% ${$cellReference}{'children'}{$optionID}{'displayName'} %>"><% ${$cellReference}{'children'}{$optionID}{'displayName'} %></option>
 %              }
-              <option value="SELECT" selected>Select</option>
+              <option value="SELECT" selected><%__("Select")%></option>
             </select>
 %           }
 %           if(${$cellReference}{'editComment'}) {
@@ -878,9 +878,9 @@
 %         }
         <tr>
           <td colspan="2" call="cell-submit">
-            <input type="button" name="addNew" value="Add" onClick="addTableRow(1, '<% ${${$tableTag}{'children'}{'metadataOrder'} }[0] %>');" class="formbutton">
-            <input type="button" name="cancel" onClick="turnOffForm('modifyTableDiv'); lastRowChanged='';" value="Cancel" class="formbutton">
-            <input type="button" name="addNewAndAnother" onClick="addTableRow(0, '<% ${${$tableTag}{'children'}{'metadataOrder'} }[0] %>');" value="Add + Add Another" class="formbutton">
+            <input type="button" name="addNew" value="<%__("Add")%>" onClick="addTableRow(1, '<% ${${$tableTag}{'children'}{'metadataOrder'} }[0] %>');" class="formbutton">
+            <input type="button" name="cancel" onClick="turnOffForm('modifyTableDiv'); lastRowChanged='';" value="<%__("Cancel")%>" class="formbutton">
+            <input type="button" name="addNewAndAnother" onClick="addTableRow(0, '<% ${${$tableTag}{'children'}{'metadataOrder'} }[0] %>');" value="<%__("Add + Add Another")%>" class="formbutton">
           </td>
         </tr>
 %       }
@@ -931,7 +931,7 @@
                 }
               }
             }
-            else {alert('you need to think about a '+document.theForm<% $tableName %>[index].type);}
+            else {alert(_('you need to think about a ')+document.theForm<% $tableName %>[index].type);}
           }
         }
       }
@@ -967,7 +967,7 @@
             }
           }
         }
-        if(warning > 0) {alert('Please fix the errors on your page before proceding'); showAjaxElements();}
+        if(warning > 0) {alert(_('Please fix the errors on your page before proceding')); showAjaxElements();}
         else {
 // document.open();
 // document.writeln(url);
@@ -1001,7 +1001,7 @@
       if(ajaxRequest.readyState == 4) {
         var response = undefined;
 	response = ajaxRequest.responseXML;
-        if(!response) {alert('I was unable to add this item!');}
+        if(!response) {alert(_('I was unable to add this item!'));}
         else {
           var errorMessages = response.getElementsByTagName('errorMessage');
           if(errorMessages.length > 0) {
@@ -1036,7 +1036,7 @@
       if(ajaxRequest.readyState == 4) {
         var response = undefined;
         response = ajaxRequest.responseXML;
-        if(!response) {alert('I was unable to add this item!');}
+        if(!response) {alert(_('I was unable to add this item!'));}
         else {
           var errorMessages = response.getElementsByTagName('errorMessage');
           if(errorMessages.length > 0) {
@@ -1049,7 +1049,7 @@
           }
           else {
             var newItemNumbers = response.getElementsByTagName('newItemNumber');
-            if((newItemNumbers.length < 1) || (newItemNumbers[0][nodeTextType] == '')) {alert('Failed to get the new item number!');}
+            if((newItemNumbers.length < 1) || (newItemNumbers[0][nodeTextType] == '')) {alert(_('Failed to get the new item number!'));}
             else {
               var newItemNumber = newItemNumbers[0][nodeTextType];
 
@@ -1079,9 +1079,9 @@
               var tempCell = document.createElement("TD");
               tempCell.style.borderBottom = '1px solid lightgrey';
               tempCell.style.verticalAlign = 'top';
-              tempCell.innerHTML = "<a href=\"\" onClick=\"openEdit('Modify', '"+ newItemNumber +"'); return false;\" class=\"navsm\">Modify</a>";
+              tempCell.innerHTML = "<a href=\"\" onClick=\"openEdit('Modify', '"+ newItemNumber +"'); return false;\" class=\"navsm\"><% __("Modify") %></a>";
               tempCell.innerHTML+= "&nbsp;<span class=\"littlespacing\">|</span>&nbsp;";
-              tempCell.innerHTML+= "<a href=\"\" onClick=\"confirmDelete('"+ newItemNumber +"', 'deleteItem'); return false;\" class=\"navsm\">Delete</a>&nbsp;";
+              tempCell.innerHTML+= "<a href=\"\" onClick=\"confirmDelete('"+ newItemNumber +"', 'deleteItem'); return false;\" class=\"navsm\"><% __("Delete") %></a>&nbsp;";
               tempRow.appendChild(tempCell);
 
               var table = document.getElementById('<% $tableName %>');
@@ -1099,14 +1099,14 @@
       if(ajaxRequest.readyState == 4) {
         var response = undefined;
         response = ajaxRequest.responseXML;
-        if(!response) {alert('I was unable to delete this item!');}
+        if(!response) {alert(_('I was unable to delete this item!'));}
         else {
           var itemsFailed = response.getElementsByTagName('itemsFailed');
-          if(itemsFailed.length != 1) {alert('There was an error when deleting the object!');}
+          if(itemsFailed.length != 1) {alert(_('There was an error when deleting the object!'));}
           else {
             var numFailed = itemsFailed[0][nodeTextType];
             
-            if(numFailed > 0) {alert('Failed to delete this item!');}
+            if(numFailed > 0) {alert(_('Failed to delete this item!'));}
             else {
               //No delete the row in the table for itemToDelete
               var table = document.getElementById('<% $tableName %>').getElementsByTagName("tbody").item(0);

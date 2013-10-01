@@ -62,7 +62,7 @@
 
 <& /tmpl/element:hidden_form_element, params =>{ name => 'time_period_id',
                 value => $time_period->field_value('time_period_id') } &>
-<& /tmpl/element:field_display, params =>{ label => 'Time Period:',
+<& /tmpl/element:field_display, params =>{ label => __('Time Period').':',
 				value 	=> $time_period->field_value('period') . ' (' . $time_period->field_value('academic_year') . ')' } &>
 
 <%perl>
@@ -74,13 +74,13 @@ if ($is_edit) {
 <& /tmpl/element:hidden_form_element, params =>{ name => 'content_id',
                 value => $tracking->field_value('content_id') } &>
 
-<& /tmpl/element:field_display, params =>{ label => 'Content Id:',
+<& /tmpl/element:field_display, params =>{ label => __('Content Id').':',
                 value => $content_value } &>
 <%perl>
 } else {
 </%perl>
 <%perl>
-	my $options = [ {'label' => '| Course Homepage', 'value' => '0'} ];
+	my $options = [ {'label' => '| '.__('Course Homepage'), 'value' => '0'} ];
 	my $tree = new TUSK::ContentTree($course->child_contentref, "Collection");
 	for (my $i=0; $i<scalar (@{$tree->{branches}}); $i++){
 	    my $branch = @{$tree->{branches}}[$i];
@@ -90,10 +90,10 @@ if ($is_edit) {
 	    my $id = $branch->{content}->primary_key;
 	    push @{$options}, { 'label' => $dashes . "\\_ " . $label, 'value' => $id };
 	}
-	my $or_content_id = "<br><br> <span class='xsm'><b>- OR -</b></span><br> <br> <span class='xsm'>Track a Specific Content ID:</span> <input name='content_id' type='text' class='textareawhite' size='15'> 
-                         <span class='xsm'><a href='javascript:open_window(\"/management/searchpages/content/?type=content&parent=opener.document.tracking.content_id.value\",\"directories=no,menubar=no,toolbar=yes,scrollbars=yes,resizable=yes,width=800,height=700\");' class='chooser'>find content ids</a><br></span>";
+	my $or_content_id = "<br><br> <span class='xsm'><b>- OR -</b></span><br> <br> <span class='xsm'>".__("Track a Specific Content ID").":</span> <input name='content_id' type='text' class='textareawhite' size='15'> 
+                         <span class='xsm'><a href='javascript:open_window(\"/management/searchpages/content/?type=content&parent=opener.document.tracking.content_id.value\",\"directories=no,menubar=no,toolbar=yes,scrollbars=yes,resizable=yes,width=800,height=700\");' class='chooser'>".__("find content ids")."</a><br></span>";
 </%perl>
-<& /tmpl/element:dropdown, params =>{ label => 'Track this Content/Data:',
+<& /tmpl/element:dropdown, params =>{ label => __('Track this Content/Data').':',
 				name => 'folder',
                 options => $options,
 				trailing_text => $or_content_id } &>
@@ -104,14 +104,14 @@ if ($is_edit) {
 <%perl>
 	my $all_dates = ($tracking->field_value('start_date') eq '1000-01-01' && $tracking->field_value('end_date') eq '2037-12-31');
 </%perl>
-<& /tmpl/element:radio_buttons, params =>{ label => 'Dates:',
+<& /tmpl/element:radio_buttons, params =>{ label => __('Dates').':',
                 name => 'alldates',
         		buttons => [
-					{ value => "1", text => "All Dates", 
+					{ value => "1", text => __("All Dates"), 
  			  		checked => $all_dates,
 					onclick => 'show_hide_dates()'
 					},
-	        		{ value => "0", text => "Between ...", 
+	        		{ value => "0", text => __("Between ..."), 
 			  		checked => !$all_dates,
 					onclick => 'show_hide_dates()'
 					} 
@@ -121,7 +121,7 @@ if ($is_edit) {
 my $start_value = '';
 $start_value = $tracking->field_value('start_date') if ($is_edit && $tracking->field_value('start_date') ne '1000-01-01');
 </%perl>
-<& /tmpl/element:textbox, params =>{ label => '&nbsp;&nbsp;&nbsp;Start Date:',
+<& /tmpl/element:textbox, params =>{ label => '&nbsp;&nbsp;&nbsp;'.__('Start Date').':',
 				tr_name => 'start_row',
                 name => 'start_date',
                 value => $start_value,
@@ -133,7 +133,7 @@ $start_value = $tracking->field_value('start_date') if ($is_edit && $tracking->f
 my $end_value = '';
 $end_value = $tracking->field_value('end_date') if ($is_edit && $tracking->field_value('end_date') ne '2037-12-31');
 </%perl>
-<& /tmpl/element:textbox, params =>{ label => '&nbsp;&nbsp;&nbsp;End Date:',
+<& /tmpl/element:textbox, params =>{ label => '&nbsp;&nbsp;&nbsp;'.__('End Date').':',
 				tr_name => 'end_row',
                 name => 'end_date',
                 value => $end_value,
@@ -143,7 +143,7 @@ $end_value = $tracking->field_value('end_date') if ($is_edit && $tracking->field
 
 <script language="javascript">show_hide_dates()</script>
 
-<& /tmpl/element:save_button, params=>{label=>'Save Changes', name=>'form_submit', 'no_cancel_button' => 1} &>
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'), name=>'form_submit', 'no_cancel_button' => 1} &>
 
 </table>
 </form>
@@ -166,9 +166,9 @@ $end_value = $tracking->field_value('end_date') if ($is_edit && $tracking->field
 
 		my $msgtxt;
 		if ($is_edit){
-			$msgtxt = "Report updated";
+			$msgtxt = __("Report updated");
 		}else{
-			$msgtxt = "Report added";
+			$msgtxt = __("Report added");
 		}
 	
 		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/tracking/show", 'extra' => '', 'msg' => $msgtxt));
@@ -177,9 +177,9 @@ $end_value = $tracking->field_value('end_date') if ($is_edit && $tracking->field
 
 <%method title>
 <%perl>
-	my $title = "Create New Report";
+	my $title = __("Create New Report");
 	if ($is_edit){
-	        $title = "Modify Report";
+	        $title = __("Modify Report");
 	}
 	return $title;
 </%perl>

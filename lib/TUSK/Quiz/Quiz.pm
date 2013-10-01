@@ -323,8 +323,8 @@ sub exportToGradeBook{
 	} else {
 		confess "The Quiz is being exported to an invalid grade event. The grade event is associated to quiz $grade_event_quiz_id";
 	}
-	my ($link,$links,$grade_event_id,$user_object,$user_id,$updatingLink,$score,$user_name,$old_score,$msg);
-	$msg = '';
+	my ($link,$links,$grade_event_id,$user_object,$user_id,$updatingLink,$score,$user_name,$old_score);
+	my @msgs = ();
 	my $record_count = 0;
 	$grade_event_id = $grade_event->getPrimaryKeyID();
 	foreach my $result (@{$results}){
@@ -351,24 +351,24 @@ sub exportToGradeBook{
 		$record_count++;
 		if ($commit){
 			if ($updatingLink && ($old_score ne $score)){
-				$msg .= "Changing Grade for $user_name from $old_score to $score \n";
+				push @msgs, "Changing Grade for $user_name from $old_score to $score.";
 			}
 			$link->save({'user'=>$self->getUser()});
 		} else {
 			if ($updatingLink && ($old_score ne $score)){
-				$msg .= "The grade for $user_name would change from $old_score to $score \n";
+			    push @msgs, "The grade for $user_name would change from $old_score to $score.";
 			}
 		}
 	}
 	if ($commit){
-		$msg .= "Export complete -- $record_count records exported";
+		push @msgs, "Export complete -- $record_count records exported";
 	} else {
-		$msg .= "Test complete -- $record_count records would be exported.";
+		push @msgs, "Test complete -- $record_count records would be exported.";
 	}
 	if (!scalar(@{$results})){
-		$msg = 'There are no eligible results to export for this quiz.';
+		push @msgs, 'There are no eligible results to export for this quiz.';
 	}
-	return $msg;
+	return \@msgs;
 }
 
 

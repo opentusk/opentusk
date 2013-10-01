@@ -65,10 +65,11 @@ $test_count += 5;
 
 ok(defined $TUSK::Constants::ErrorEmail, "ErrorEmail defined");
 ok(defined $TUSK::Constants::SupportEmail, "SupportEmail defined");
+ok(defined $TUSK::Constants::SupportPhone, "SupportPhone defined");
 ok(defined $TUSK::Constants::PageEmail, "PageEmail defined");
 ok(defined $TUSK::Constants::CookieSecret, "CookieSecret defined");
 ok(defined $TUSK::Constants::CookieUsesUserID, "CookieUsesUserID defined");
-$test_count += 5;
+$test_count += 6;
 
 ok(defined $TUSK::Constants::Domain, "Domain defined");
 ok(defined $TUSK::Constants::securePort, "securePort defined");

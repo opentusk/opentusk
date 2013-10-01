@@ -32,8 +32,6 @@
 
 <%shared>
 	my $document = $m->comp('/tmpl/url:get_type_object');
-	my $iconWidth = 27;
-	my $printIconWidth = "width=\"$iconWidth\" height=\"$iconWidth\"";
 	my $imageDir = "/graphics";
 	my $userObject = $m->session->{'user'}; 
 	my $iCanEdit = $document->can_user_edit($userObject);
@@ -44,7 +42,7 @@
 % unless($iCanEdit || $document->is_active()) {
 	<br><br>
 	<table border="0" width="100%">
-	  <tr><th><font size="+2">Sorry this content is not currently active.</font></th></tr>
+	  <tr><th><font size="+2"><%__("Sorry this content is not currently active.")%></font></th></tr>
 	</table>
 	<br><br>
 %   return();
@@ -73,7 +71,7 @@ to launch the contentin a new window (outside of the frame).
 % }
 
 % if($document->type() eq 'URL' || $document->type() eq 'PDF' || $document->type() eq 'External'){
-<div style="margin-top:2px; margin-bottom:0px; padding: 0 5px; border:1px solid black; background:#fff9df;">If the content below does not display correctly, you can view it in a <a href="<% $content_url %>" target="_blank">new window</a>.</div>
+<div style="margin-top:2px; margin-bottom:0px; padding: 0 5px; border:1px solid black; background:#fff9df;"><%__("If the content below does not display correctly, you can view it in a")%> <a href="<% $content_url %>" target="_blank"><%__("new window")%></a>.</div>
 % }
 
 
@@ -123,61 +121,49 @@ return $right_hdr_lnks;
 
 <%method checkDocStatus>
 % if($iCanEdit && !$document->is_active()) {
-	<div style="border:2px solid red;font-size:14px; margin-top:2px; margin-bottom:0px;"><center>This content has expired!<br>You can only see the content because you are an author.</center></div>
+	<div style="border:2px solid red;font-size:14px; margin-top:2px; margin-bottom:0px;"><center><%__("This content has expired!<br>You can only see the content because you are an author.")%></center></div>
 % }
 </%method>
 
 
 <%method tuskbar>
-<script> 
-function removeHighlighting(theImage) {
-	if(theImage.className != 'openedSubMenu') {theImage.className = '';}
-}
-
-function highlightButton(theImage) {
-	if(theImage.className != 'openedSubMenu') {theImage.className = 'mouseOverIcon';}
-}
-</script>
 <style type="text/css">
-.mouseOverIcon {background-color: yellow;}
 .openedSubMenu {background-color: #00CC66;}
 </style>
 
-<div id="tuskbar" style="position:absolute; top:2px; left:40%; height: <% $iconWidth %>px; width:<% 3 * $iconWidth %>px; border:1px solid black; z-index:9999;">
-  <table border="0" cellspacing="0" cellpadding="0" width="100%">
+<div id="tuskbar">
+  <table border="0" cellspacing="0" cellpadding="0">
     <tr>
-      <td align="right" width="<% ($iconWidth+2) %>" valign="middle">
+      <td align="right" valign="middle" nowrap="nowrap">
 %       my $prev = $document->context_prev;
-%       my $title = "Previous Document";
-%       my $background = 'style="background-color:lightgrey;"';
+%       my $title = __("Previous Document");
+%       my $background;
 %       if($prev) {
 %         $title.= ": " . $prev->out_abbrev();
-%         $background = "onClick=\"parent.location='" . $prev->out_url() .
-%                       "';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\"";
+%         $background = "onClick=\"parent.location='" . $prev->out_url() . "';\"";
 %       }
-        <img src="<% $imageDir %>/previous.gif" title="<% $title %>" <% $background %> <% $printIconWidth %> alt="Previous">
+        <span class="contentbutton <% ($prev) ? 'active ': '' %>previous" title="<% $title %>" <% $background %>><% __('prev') %></span>
       </td>
-      <td align="right" width="<% ($iconWidth+2) %>" valign="middle">
+      <td align="right" valign="middle" nowrap="nowrap">
 %       my $collection = $document->context_parent;
-%       $title = "To Collection";
-%       $background = 'style="background-color: lightgrey;"';
+%       $title = __("To Collection");
+%		$background = '';
 %       if($collection) {
 %         $title.= ": " . $collection->out_abbrev();
-%         $background = "onClick=\"parent.location='" . $collection->out_url() .
-%                       "';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this)\";"
+%         $background = "onClick=\"parent.location='" . $collection->out_url() . "';\"";
 %       }
-        <img src="<% $imageDir %>/content_up.gif" <% $printIconWidth %> title="<% $title %>" <% $background %> alt="To Collection">
+        <span class="contentbutton <% ($collection) ? 'active ': '' %>up" title="<% $title %>" <% $background %>><% __('up') %></span>
       </td>
-      <td align="right" width="<% ($iconWidth+2) %>" valign="middle">
+      <td align="right" valign="middle" nowrap="nowrap">
 %       my $next = $document->context_next;
-%       $title = "Next Document";
-%       $background = 'style="background-color: lightgrey;"';
+%       $title = __("Next Document");
+%		$background = '';
+%		$title = '';
 %       if($next) {
 %         $title.= ": " . $next->out_abbrev();
-%         $background = "onClick=\"parent.location='" . $next->out_url() .
-%                       "';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this)\";"
+%         $background = "onClick=\"parent.location='" . $next->out_url() . "';\"";
 %       }
-        <img src="<% $imageDir %>/next.gif" <% $printIconWidth %> title="<% $title %>" <% $background %> alt="Next">
+        <span class="contentbutton <% ($next) ? 'active ': '' %>next" title="<% $title %>" <% $background %>><% __('next') %></span>
       </td>
     </tr>
   </table>

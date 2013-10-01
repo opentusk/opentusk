@@ -27,8 +27,13 @@ LogFormat "%h\t%t\t\"%{REQUEST_URI}e\"\t%a\t%A\t%P" lbLog
 
 #  split out requests into separate log file
 SetEnvIf Request_URI "^/public/lb$" lblog
-SetEnvIf Request_URI "^/(icons|graphics|style|scripts)/" minorlog
+SetEnvIf Request_URI "^/(favicon.ico|robots.txt)$" minorlog
+SetEnvIf Request_URI "^/(icons|icon|graphics|style|scripts|DTD)/" minorlog
 SetEnvIf Request_URI ".(gif|jpg|js|css|ico|png|jpeg)$" minorlog
+# apache2 loopback client process check "Apache (internal dummy connection)"
+SetEnvIf Remote_Addr "::1" minorlog
+SetEnvIf Remote_Addr "127\.0\.0\.1" minorlog
+
 
 # rule for load balancer request
 SetEnvIf lblog 1 no_access=1

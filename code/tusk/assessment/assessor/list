@@ -47,7 +47,7 @@
 	name => "Assessments",
 	sort_box => 0,
 	type_path => $type_path,
-	'norows-message' => '<br/>No students assigned',
+	'norows-message' => '<br/>'.__('No students assigned'),
 } &>
 </td>
 </tr>
@@ -61,7 +61,7 @@
 	my $show_assigned = $assessment_form->getShowAssigned();
 	my $school_id = $course->get_school()->getPrimaryKeyID();
 	my $user_roles = [];
-	my @column_headings = {label => 'Name', field => 'name', html => 1 };
+	my @column_headings = {label =>__('Name'), field => 'name' };
 
 	my $student_assessors = TUSK::FormBuilder::SubjectAssessor->lookup(" form_id = $form_id AND time_period_id = $tp_id AND assessor_id = '$assessor_id' and status != 0");
 
@@ -79,17 +79,17 @@
 			my $entry = $entries{$student_id}; 
 			my $checked = '';
 			my $status = '';
-			my $action_label = 'Assess';
+			my $action_label = __('Assess');
 			my $action_style = 'display:none;';
 			my $disabled = '';
 
 			if ($entry) {
 				$id .= '/' . $entries{$student_id}->getPrimaryKeyID();
 				if ($entry->getCompleteDate()) {
-					$status = 'Completed ' . $entry->getCompleteDate();
-					$action_label = 'View Assessment';
+					$status = __x('Completed {date} ', date => $entry->getCompleteDate());
+					$action_label = __('View Assessment');
 				} else {
-					$status = 'Last saved ' . $entry->getModifiedOn();
+					$status = __x('Last saved {date}', date => $entry->getModifiedOn());
 				}
 				$disabled = 'disabled="disabled"';
 			}
@@ -104,7 +104,7 @@
 			my $student_image = ($show_image) ? '<img class="imgPreview" src="' . $student->official_image() . '" width="20px" height="20px" /> &nbsp; ' : '';
 			push @rows, { 
 				name => $student_image . $student->out_lastfirst_name(), 
-				elective => ($student->aux_info('elective')) ? '<span class="sm">Yes</span>' : '<span class="sm">No</span>',
+				elective => ($student->aux_info('elective')) ? '<span class="sm">' .__('Yes') . '</span>' : '<span class="sm">'.__('No').'</span>',
 				selection => "<input type=\"checkbox\" name=\"selection\" value=\"" . $assessor_id . '__' . $student_id . '__' . $form_id . '__' . "$url\" $disabled $checked />",
 				submitted => ($entry) ? $entry->getCompleteDate() : '-',
 				status =>  $status,
@@ -112,11 +112,11 @@
 			};
 		}
 
-		push @column_headings, {label => 'Elective', field => 'elective', align => 'center', html => 1 } if ($show_elective);
-		push @column_headings, {label => 'Select/Deselect', field => 'selection', align => 'center', html => 1 } if ($assessment_form->getStudentSelection());
+		push @column_headings, {label => __('Elective'), field => 'elective', align => 'center' } if ($show_elective);
+		push @column_headings, {label => __('Select/Deselect'), field => 'selection', align => 'center', html => 1 } if ($assessment_form->getStudentSelection());
 		push @column_headings, (		
-			{label => 'Action', field => 'action', align => 'center' },
-			{label => 'Status', field => 'status', align => 'center' },
+			{label => __('Action'), field => 'action', align => 'center', html => 1 },
+			{label => __('Status'), field => 'status', align => 'center' },
 		);
 		$user_roles = TUSK::Permission::UserRole->new()->getFeatureUserByRole('assessment', $form_id, 'NCSA');
 	}

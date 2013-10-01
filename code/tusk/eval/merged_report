@@ -32,7 +32,7 @@
 </%method>
 
 <%method title>
-%       return "Merged Eval Report: $title";
+%       return __("Merged Eval Report").": $title";
 </%method>
 
 <%method stylearray>
@@ -59,17 +59,17 @@
 		$r->status(FORBIDDEN);
 		$m->abort();
 	}
-	my $title = "Unknown Merged Eval Report";
+	my $title = __("Unknown Merged Eval Report");
 	if($merged_eval_results && $merged_eval_results->field_value('title')) {$title = $merged_eval_results->field_value('title');}
 </%shared>
 <span class="evalFluff" style="float:right; text-align:right;">
 	<& /tmpl/element:link_to_help, 
-		text => 'Statistics Definitions',
+		text => __('Statistics Definitions'),
 		topic => 'evaluation_reports_-_statistics'
 	 &>
 	&nbsp;
 	<& /tmpl/element:link_to_help, 
-		text => 'Printing Help',
+		text => __('Printing Help'),
 		topic => 'evaluation_reports_-_printing_and_backgrounds'
 	 &>
 </span>
@@ -86,22 +86,31 @@
 % }
 
 <div class="evalFluff">
-	<a href="/protected/eval/administrator/show/<% $merged_eval_results->school %>">Manage Evaluations</a><br />
-	<a id="graphLink" style="display:none;" href="" onclick="showHideGraphs(); return false;">Hide Graphs</a>
+	<a href="/protected/eval/administrator/show/<% $merged_eval_results->school %>"><%__("Manage Evaluations")%></a><br />
+	<a id="graphLink" style="display:none;" href="" onclick="showHideGraphs(); return false;"><%__("Hide Graphs")%></a>
 
 % my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
 % $evalLoadStats->setEval($merged_eval_results);
 	<p class="timeMessage">
-		This eval has been requested <% $evalLoadStats->totalLoads() %> times
+		<%__x("This eval has been requested {num} times", num => $evalLoadStats->totalLoads()) %>
 % if($evalLoadStats->totalLoads()) {
-	with an average of <% sprintf('%.1f', $evalLoadStats->average()) %> sec
-	and the longest time being <% sprintf('%.1f', $evalLoadStats->max()) %> secs.
-% }
-	You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.
+	<%__x("This eval has been requested {num} times with an average of {avg} sec and the longest time being {max} secs.", num => $evalLoadStats->totalLoads(), avg => sprintf('%.1f', $evalLoadStats->average()), max => sprintf('%.1f', $evalLoadStats->max()))%>
+% }else{
+	<%__x("This eval has been requested {num} times.", num => $evalLoadStats->totalLoads()) %>
+%}
+	<%__('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.')%>
 	</p>
 </div>
 <div id="graphicsLoadMessage" style="display:none;">
-	<p id="queueMessage">Loading Eval Graphs</p><img src="/graphics/icons/waiting_bar.gif" alt="" />
+	<p id="queueMessage"><%__("Loading Eval Graphs")%></p><img src="/graphics/icons/waiting_bar.gif" alt="" />
+</div>
+<div id="evalArea">
+</div>
+<script type="text/javascript">loadEval('/tusk/ajax/evalMergedBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $merged_eval_results->school %>/<% $merged_eval_results->primary_key() %>', 1);</script>
+	</p>
+</div>
+<div id="graphicsLoadMessage" style="display:none;">
+	<p id="queueMessage"><%__("Loading Eval Graphs")%></p><img src="/graphics/icons/waiting_bar.gif" alt="" />
 </div>
 <div id="evalArea">
 </div>

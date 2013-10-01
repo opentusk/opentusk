@@ -1,0 +1,290 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use Getopt::Long;
+my ($file,$save,$grepyear,$verbose);
+
+BEGIN {
+    GetOptions("file=s" => \$file,
+	    "save!" => \$save,
+	    "year=s" => \$grepyear,
+	    "verbose" => \$verbose,
+	    );
+    if (!$file) {
+	print "Usage: sync_medical_students --file=<file> [--year=3|4] [--save]\n";
+	exit;
+    }
+}
+
+use MySQL::Password;
+use HSDB4::Constants;
+use HSDB4::SQLRow::User;
+use HSDB45::TimePeriod;
+use HSDB45::Course;
+use TUSK::Import;
+use TUSK::Constants;
+use HSDB4::DateTime;
+
+my $db_user = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
+my $db_password = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+
+my $record_count = 0;
+my %site_map = ("MetroWest" => "MetroWest Medical Center",
+		"Metro West" => "MetroWest Medical Center",
+		"St. Elizabeth's" => "St. Elizabeth's Medical Center",
+		"Newton-Wellesley" => "Newton-Wellesley Hospital",
+		"NEMC/INPATIENT" => "New England Medical Center Inpt",
+		"NEMC/CONSULT" => "New England Medical Center C/L",
+		"St. Anne's" => "St. Anne's Hospital",
+		"Lemuel Shattuck" => "Lemuel Shattuck Hospital",
+		"Cambridge City Hospital" => "Cambridge Hospital",
+		"Faulkner" => "Faulkner Hospital",
+		"Winchester" => "Winchester Hospital",
+		"NEMC/Faulkner Regional Clrkshp" => "NEMC/Faulkner",
+		"NEMC/Winchester Regional Clrk" => "NEMC/Winchester",
+		);
+
+HSDB4::Constants::set_user_pw(get_user_pw);
+
+my $dbh = HSDB4::Constants::def_db_handle;
+
+my $import = TUSK::Import->new;
+$import->set_ignore_empty_fields(1);
+
+print "##\n--save not specified, no changes will be made\n##\n" unless ($save);
+
+$import->set_fields(qw(SID UTLN LastName FirstName MiddleName 
+		       	AcademicYear ClassYear SubjectCode SiteCode Period 
+		       StartDate EndDate Description Site AddDate DropDate CourseDirectorKey));
+
+#			CourseDirectorKey CourseDirector 
+#			CourseDirector2Key CourseDirector2 
+#			CourseDirector3Key CourseDirector3 
+#			ModifiedDate));
+
+$import->read_file($file,"\t");
+
+$import->grep_records("ClassYear",$grepyear) if ($grepyear);
+
+if (@{$import->get_err_msgs}) {
+    print "Some errors processing the file:\n";
+    foreach (@{$import->get_err_msgs}) {
+	print $_,"\n";
+    }    
+    exit;
+}
+
+my @records = $import->get_records();
+for (my $i = 0; $i< scalar(@records); $i++){
+    if ($i < (scalar(@records)-1)){
+	if (&compare_records($records[$i], $records[$i+1])){
+	    $record_count++;
+	    print "Record $record_count: Skipping delete record because next line adds it back\n" if ($verbose);
+	    next;
+	}
+    }
+    &process_record($records[$i],1);
+}
+
+print "Error Log:\n";
+foreach my $log ($import->get_logs) {
+    print $log->get_message,"\n";
+}
+
+sub process_record{
+    my ($record, $increment_counter) = @_;
+
+    my $utln = $record->get_field_value("UTLN");
+
+    ## skip if this is a column-definition line
+    next if $utln eq "UTLN";
+
+    ## put the record increment here so it doesn't have to be before all the next statements
+    $record_count++ if ($increment_counter);
+
+    ## do logic for special sites here
+    my $site = $record->get_field_value("Site");
+    if ($site eq "NEMC/Faulkner Regional Clrkshp" or $site eq "NEMC/Winchester Regional Clrk"){
+	print "Record $record_count: Found special site - " . $site . "\n" if ($verbose);
+	if ($site eq "NEMC/Faulkner Regional Clrkshp"){
+	    $record->set_field_value('Site', 'New England Medical Center');
+	    &process_record($record);
+	    $record->set_field_value('Site', 'Faulkner Hospital');
+	    &process_record($record);
+	}else{
+	    $record->set_field_value('Site', 'New England Medical Center');
+	    &process_record($record);
+	    $record->set_field_value('Site', 'Winchester Hospital');
+	    &process_record($record);
+	}
+	return();
+    }    
+
+    my $ay = $record->get_field_value("AcademicYear");
+    my $cy = $record->get_field_value("ClassYear");    
+    my $subjectcode = $record->get_field_value("SubjectCode");
+    my $sitecode = $record->get_field_value("SiteCode");
+    my $period = $record->get_field_value("Period");
+
+    if ($period =~ /^0/) {
+	print "Converted period ".$period if ($verbose);
+	$period =~ s/^0//;
+	print " to $period\n" if ($verbose);
+    }
+
+    my $add_date = $record->get_field_value("AddDate");
+    my $drop_date = $record->get_field_value("DropDate");
+
+    ## check UTLN
+    my $user_id = &_check_user_id($utln);
+    unless ($user_id) {
+	$import->add_log("error","Record $record_count: Can't find user $utln in TUSK");
+	next;
+    }
+
+    ## find time period
+    my $tp_id = &_get_time_period_id($period,$ay);
+    unless ($tp_id) {
+	$import->add_log("error","Record $record_count: Can't find time period for academic year $ay, period $period");
+	#$import->add_log("error","AY $ay, period $period");
+	next;
+    }
+
+    ## find course
+    my $course = &_get_course($subjectcode);
+    unless ($course) {
+	$import->add_log("error","Record $record_count: Can't find course for subject code $subjectcode");
+	next;	
+    }
+
+    ## get teaching site
+    my $ts_id = &_get_teaching_site_id($site,$course);
+    unless ($ts_id) {
+	$import->add_log("error","Record $record_count: Can't find teaching site $site for course_id ".$course->primary_key);
+	next;	
+    }
+
+    ## see if TUSK has a record for this person
+    my $enrolled = &_is_user_enrolled($course,$user_id,$tp_id,$ts_id);
+
+    my ($dropped,$date,$discard);
+    if ($drop_date) {
+	($date,$discard) = split(" ",$drop_date);
+	my $time = HSDB4::DateTime->new;
+	my ($year,$month,$day) = split("-",$date); 
+	$time->create_date($month,$day,$year);
+	$dropped = 1 if (time() > $time->out_unix_time);
+    }
+
+    ## see if the user has dropped the course
+    if ($dropped) {
+	if ($enrolled) {
+	    ## need to actually do some work
+	    if ($save) {
+		$course->delete_child_student($db_user,$db_password,$user_id,$tp_id,$ts_id);
+	        print "Record $record_count: $user_id removed - course ".$course->primary_key.", time period $tp_id, site $ts_id\n";
+	    } else {
+		print "Record $record_count: $user_id needs removed from course ".$course->primary_key," ($subjectcode)\n";
+	    }
+	}
+	else {
+	    print "Record $record_count: data matches - $user_id previously dropped from course ".$course->primary_key." ($subjectcode)\n" if ($verbose);
+	}
+    } else {
+	if (!$enrolled) {
+	    if ($save) {
+		$course->add_child_student($db_user,$db_password,$user_id,$tp_id,$ts_id);
+		## here's where we need to do some work
+		print "Record $record_count: $user_id added - course ".$course->primary_key.", time period $tp_id, site $ts_id\n";
+	    } else {
+		print "Record $record_count: $user_id needs added to course ".$course->primary_key," ($subjectcode)\n";
+	    }
+	}
+	else {
+	    print "Record $record_count: data matches - $user_id previously added to course ".$course->primary_key." ($subjectcode)\n" if ($verbose);
+	}
+    }
+    return();
+}
+
+sub _check_user_id {
+    my $user_id = shift;
+    my $user = HSDB4::SQLRow::User->new;
+    $user->lookup_key($user_id);
+    return $user->primary_key;
+}
+
+sub _get_time_period_id {
+    my $time_period = shift;
+    my $ay = shift;
+    my $timeref = HSDB45::TimePeriod->new( _school => "Medical" );
+    my @set = $timeref->lookup_conditions("period='$time_period' AND academic_year='$ay'");
+    return unless (@set);
+    return if (@set > 1);
+    return $set[0]->field_value('time_period_id');
+}
+
+sub _get_course {
+    my $oea_code = shift;
+    ## lookup the course_id based on the SubjectCode
+    my $course = HSDB45::Course->new(_school => "Medical");    
+    my @set = $course->lookup_conditions("oea_code='$oea_code'");
+    # log and return 0 if no records found or more then one record found
+    return if (!@set);
+    return if (@set > 1);
+    return $set[0];
+}
+
+##
+## getting the teaching site is a soft science
+##
+
+sub _get_teaching_site_id {
+    my ($site_name,$course) = @_;
+    $site_name = $site_map{$site_name} if ($site_map{$site_name});
+    ## see if there's just one course teaching site
+    my @course_sites = $course->child_teaching_sites;
+    return $course_sites[0]->primary_key if (scalar @course_sites == 1);
+    return unless ($site_name);
+
+    ## if more than one course teaching site, see if one has the right name
+    @course_sites = grep { $_->field_value("site_name") eq $site_name } @course_sites;
+    return $course_sites[0]->primary_key if (scalar @course_sites == 1);
+
+    ## otherwise, do a lookup based on name in the teaching_site table
+    my $teaching_site = HSDB45::TeachingSite->new(_school => "Medical");
+    $site_name =~ s/\'/\'\'/g;
+    my @sites = $teaching_site->lookup_conditions("site_name='$site_name'");
+    return unless (@sites);
+    return if (@sites > 1);
+    return $sites[0]->primary_key;
+}
+
+sub _is_user_enrolled {
+    my ($course,$user_id,$tp_id,$ts_id) = @_;
+    my @set = $course->child_students("child_user_id='$user_id'","time_period_id=$tp_id","teaching_site_id=$ts_id");
+    return if (!@set);
+    return if (@set > 1);
+    return $set[0];    
+}
+
+# check to see if the next record readds what the current record is going to delete
+sub compare_records{
+    my ($record, $next_record) = @_;
+
+    my @fields = $record->get_fields_order();
+    foreach my $field (@fields){
+	next if ($field eq 'DropDate' or $field eq 'AddDate' or $field eq 'CourseDirectorKey');
+	if ($record->get_field_value($field) ne $next_record->get_field_value($field)){
+	    return 0;
+	}
+    }
+
+    if ($record->get_field_value('DropDate') eq $next_record->get_field_value('AddDate')){
+	return 1;
+    }else{
+	return 0;
+    }
+}

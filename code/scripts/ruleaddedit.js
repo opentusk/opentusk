@@ -15,7 +15,7 @@
 
 var new_rule_markup;			// store markup for additional rules
 var new_rule_count = 1;			// to make ids of new rules unique
-var ajax_cache = new Object();	// cache our ajax calls so we don't need to repeat
+var ajax_cache = [];	// cache our ajax calls so we don't need to repeat
 var retake_quiz_alerted = new Object();	// keep track of whether we have alerted user to need to set 'retake quiz'
 
 $(document).ready(function() {
@@ -136,7 +136,7 @@ function saveNewOp(){
 
 	var phase_id, parent_lbl, elt_id, elt_lbl, elt_type_id, relation_type_id, relation_value;
 	
-	phase_id = $('select#rule_phase').children(':selected').val();
+	phase_id = $('select#rule_phase').children(':selected').attr('value');
 
 	if (!phase_id) {
 		alert("At a minimum, you must select at least one phase for the rule.");
@@ -150,7 +150,7 @@ function saveNewOp(){
 	var child_elts = $('ul.selectlist-list input[type="hidden"][value!=""]');
 
 	if ($('select#quiz_alt').size()) {
-		if ( !($('select#quiz_alt').children(':selected').val()) ) {
+		if ( !($('select#quiz_alt').children(':selected').attr('value')) ) {
 			alert("You must select an option from 'Step 2'");
 			return;
 		}
@@ -162,32 +162,32 @@ function saveNewOp(){
 		var quiz_id = phase_id.replace(/\d+-/,'');
 		phase_id = phase_id.replace(/-\d+/,'');
 
-		if ($('select#quiz_alt').children(':selected').val() == 'completion') {
+		if ($('select#quiz_alt').children(':selected').attr('value') == 'completion') {
 			elt_id = quiz_id;
 			elt_lbl = '';
 			elt_type_id = $('select#quiz_alt').children(':selected').attr('class').replace(/type_/,'');
 		}
 		else if ($('select#quiz_elt').size()) {
-			if ( !child_elts.length ) {
+			if ( !($('select#quiz_elt').children(':selected').attr('value')) ) {
 				alert("You must select at least one option from 'Step 3'");
 				return;
 			}
 		}
 		else if ($('input#min_score').length) {
-			if ( !($('input#min_score').val()) || $('input#min_score').val().match(/\D/) ) {
+			if ( !($('input#min_score').attr('value')) || $('input#min_score').attr('value').match(/\D/) ) {
 				alert("You must insert a numeric value for 'Step 3'");
 				return;
 			}
-			if ( $('input#min_score').val() > 100 ) {
+			if ( $('input#min_score').attr('value') > 100 ) {
 				alert("The minimum score must be 100 or less.");
 				return;
 			}
 			elt_id = quiz_id;
-			elt_lbl = 'Quiz Score >= ' + $('input#min_score').val() + '%';
+			elt_lbl = 'Quiz Score >= ' + $('input#min_score').attr('value') + '%';
 			var class_str = $('input#min_score').attr('class');
 			elt_type_id = class_str.replace(/type_(\d+)_relate_\d+/,"$1");
 			relation_type_id = class_str.replace(/type_\d+_relate_(\d+)/,"$1"); 
-			relation_value = $('input#min_score').val(); 
+			relation_value = $('input#min_score').attr('value'); 
 		}
 	}
 
@@ -219,7 +219,7 @@ function saveNewOp(){
 	else {
 		var id = parentDiv.id.replace(/^ruleSec/,'');
 		var has_duped_data = 0;
-
+alert(elt_id);
 		// in adduniquedata(), we want to compare following vals. due to s.o.box, existing, 
 		// undefined vals from db will be '', but new ones, just created, will be undef. they will
 		// not be equal. set undef values to empty string here for that comparison later.
@@ -274,7 +274,7 @@ function popNextStep(elt, type_path, pop_elt_id) {
 	isEnabled(elt);
 
 	var type = $(elt).children(':selected').attr('class').replace(/_opt/,'');
-	var id   = $(elt).children(':selected').val();
+	var id   = $(elt).children(':selected').attr('value');
 
 	// quizzes are a child of a phase, so we partner phase and quiz ids in one 
 	// id. to wit, quizzes have a value in the 'rule_phase' dropdown that is phase_id-quiz_id
@@ -295,18 +295,34 @@ function popNextStep(elt, type_path, pop_elt_id) {
 	// and then put the children in dropdown for selection
 	if (id) {
 		var date = new Date();
-		var case_id = $('input#key_id').val();
-		var page_args = type_path +'/'+ case_id +'/'+ type +'/'+ id
+		var page_args = type_path +'/'+ $('input#key_id').attr('value') +'/'+ type +'/'+ id;
 
-		if (!ajax_cache[page_args]) {
-			$.getJSON('/case/author/get_elements/' + page_args + '?' + date.getTime(), function(data){
-				ajax_cache[page_args] = data;
-				showNextStep(elt, pop_elt_id, page_args);
-			});
-		}
-		else {
-			showNextStep(elt, pop_elt_id, page_args);
-		}
+		$("#" + pop_elt_id).load('/case/author/get_elements/' + page_args + '?' + date.getTime(), function(response, status, xhr) {
+			if (status == "error") {
+				var msg = "Sorry but there was an error: ";
+				$("#" + pop_elt_id).html(msg + xhr.status + " " + xhr.statusText);
+			}
+
+			// attach the selectlist functionality to dropdown
+			$('#' + pop_elt_id + ' > select[multiple]').selectList({
+				onAdd: function (select, value, text) {
+					var item = $('ul.selectlist-list li:last-child');
+					// all option elts have same class that indicates the id of type of elements
+					// in dropdown. i should say, all have same class except for first one, which is 
+					// generated by selectlist and has no class.
+					// therefore, just get class of last element, as it will be guaranteed to be what we need.
+					var type = $('select.selectlist-select').children('option:last').attr('class');
+					if (type) {
+						$(item).append('<input type="hidden" name="' + $(select).attr('name') + '" value="' + value + '" class="' + type + '" >');
+					}
+					else {
+						$(item).append('<input type="hidden" name="' + $(select).attr('name') + '" value="' + value + '">');
+					}
+					// add the "operand type" as class so we can retrieve it when putting element 
+					// in sort order box.
+				}
+			}); 
+		});		
 	}
 	// if no id from dropdown, we selected the default, 'no option' option, so clear 
 	// the dropdown of the 'next step' of any sub elements that were present before.
@@ -326,7 +342,7 @@ function warnRetakeThenPop(elt, type_path, pop_elt_id){
 	// id. to wit, quizzes have a value in the 'rule_phase' dropdown that is phase_id-quiz_id
 	// this replace will do nothing to all other <option> values since none of them 
 	// *should* match the regex.
-	var id   = $(elt).children(':selected').val();
+	var id   = $(elt).children(':selected').attr('value');
 	id = id.replace(/\d+-/, '');
 
 	if ((type == 'quiz_elt' || type == 'score') && !retake_quiz_alerted[id]) {
@@ -334,44 +350,6 @@ function warnRetakeThenPop(elt, type_path, pop_elt_id){
 		retake_quiz_alerted[id] = true;
 	}
 	popNextStep(elt, type_path, pop_elt_id);
-}
-
-
-function showNextStep(elt, pop_elt_id, page_args) {
-	if (ajax_cache[page_args].msgType == 'html') {
-		$('#' + pop_elt_id).html(ajax_cache[page_args].msg);
-
-		// attach the selectlist functionality to dropdown
-		$('#' + pop_elt_id + ' > select[multiple]').selectList({
-			addAnimate: function (item, callback) {
-				var value = $(item).children('input').val();
-				// some elements are disabled, although selectable in ie7 (since it doesn't recognize
-				// disabled options). Therefore, only animate if there is a value in option.
-				if (value) {
-					var myHTML = $(item).html().replace(/^(?:&nbsp;)+/, '');
-					$(item).html(myHTML)
-					$(item).slideDown(500, callback);
-				}
-			},
-			onAdd: function (select, value, text) {
-				// all option elts have same class that indicates the id of type of elements
-				// in dropdown. i should say, all have same class except for first one, which is 
-				// generated by selectlist and has no class.
-				// therefore, just get class of last element, as it will be guaranteed to be what we need.
-				var type = $(select).children(':last').attr('class');
-				// add the "operand type" as class so we can retrieve it when putting element 
-				// in sort order box.
-				$('ul.selectlist-list input[type="hidden"][value="' + value + '"]').addClass(type);
-			}
-		}); 
-	}
-	// if we received an error msg from element retrieval, show that now
-	else {
-		alert(ajax_cache[page_args].msg);
-		ajax_cache[page_args] = undefined;
-		elt.selectedIndex = 0;
-		$('#' + pop_elt_id).html('');
-	}
 }
 
 
@@ -385,7 +363,7 @@ function validateRuleForm(myform) {
 		if (!inputs.length) {
 			valid_form = false;
 		}
-		if ($(this).find('.crRuleMsg').val().match(/^\s*$/)) {
+		if (CKEDITOR.instances[$(this).find('.crRuleMsg').attr('name')].getData().match(/^\s*$/)) {
 			valid_form = false;
 		}
 	});

@@ -46,7 +46,8 @@
 <%init>
 	my $form = $m->comp("SELF:get_form");
 	$m->comp("SELF:previous_log_dropdown", args => {%ARGS, hide_required => 0}, form => $form);
-	$m->comp("SELF:showform", args => {%ARGS, hide_required => 0}, form => $form, date_label => 'Patient Encounter Date');
+	my $ped = __('Patient Encounter Date');
+	$m->comp("SELF:showform", args => {%ARGS, hide_required => 0}, form => $form, date_label => $ped);
 </%init>
 
 
@@ -99,8 +100,8 @@
 
 	if( $args->{'entry_id'} ) {
 		my $i=0;
-		print "<br><span>Jump to: <select name='questions' id='questions' onchange='reload_entry_form(". $args->{'entry_id'} .",this.options[this.selectedIndex].value)'>";
-		print "<option value=''>Question</option>";
+		print "<br><span>" . __("Jump to") . ": <select name='questions' id='questions' onchange='reload_entry_form(". $args->{'entry_id'} .",this.options[this.selectedIndex].value)'>";
+		print "<option value=''>" . __("Question") . "</option>";
 		foreach my $f (@$fields) {
 			if( $array_index == $i ){
 				print " <option value='$i'> >>".$f->getFieldName()." </option> ";
@@ -139,14 +140,21 @@
 						}
 					}
 					if (!$value) {
-						print "<br><b>Error: </b>" . @$fields[$args->{index}]->getFieldName() . "<b> field requires a value.</b><br>";
+						print sprintf("<br><b>%s: </b>%s<b> %s.</b><br>",
+        						__("Error"),
+							 @$fields[$args->{index}]->getFieldName(),
+							__("field requires a value"));
+
 						$dont_save =1;
 					}
 				}
 				## otherwise, just a simple check
 				else {
 					if ($args->{"id_".$field_id} eq '' ){
-						print "<br><b>Error: </b>" . @$fields[$args->{index}]->getFieldName() . "<b> field requires a value.</b><br>";
+						print sprintf("<br><b>%s: </b>%s<b> %s.</b><br>",
+        						__("Error"),
+							 @$fields[$args->{index}]->getFieldName(),
+							__("field requires a value"));
 						$dont_save =1;
 					}
 				}				
@@ -182,6 +190,7 @@ if ($dont_save == 0 ) {
 }
 else {
     # if we're not saving because a check failed, revert to previous index
+	# note: was markup already done?
 	if(defined($args->{'Previous'}) ){
 		$array_index = $array_index + 1;
 	}
@@ -208,7 +217,7 @@ else {
 	if ($args->{entry_id}){
 		$entry = TUSK::FormBuilder::Entry->new()->lookupKey($args->{entry_id});
 		if (!$entry || !$entry->getPrimaryKeyID() || ($read_access && $entry->getUserID() ne $m->session->{'user'}->user_id())){
-			$m->comp("/tmpl/url:redirect",message => "You do not have access to that entry.");
+			$m->comp("/tmpl/url:redirect",message => __("You do not have access to that entry") .".");
 	}	
 		
 		my $responses = $entry->getFullResponses();
@@ -243,8 +252,8 @@ else {
 
 <br><br>
 % if ($array_index == $lngth) {
-% 	print "Patient Log Completed.<BR><BR>";
-%   print '<span><a href="/mobi/patientlog/home"> Return to Patient Logs Home </a> </span>';
+% 	print __("Patient Log Completed") .".<BR><BR>";
+%   print '<span><a href="/mobi/patientlog/home"> ' . __("Return to Patient Logs Home") . ' </a> </span>';
 % }
 
 
@@ -257,7 +266,7 @@ else {
 %   else {
 %		$onclck ="document.forms[0].action=\"?Next=1\"; document.forms[0].submit();return false"; 
 % 	}
-%   print "<input type='button' name='Next' id='Next' value='Save & Continue' onClick='$onclck' />";
+%   print "<input type='button' name='Next' id='Next' value='" . __('Save & Continue') . "' onClick='$onclck' />";
 % }
 
 % if ($array_index < $lngth ){ 
@@ -267,12 +276,12 @@ else {
 %	}  else {
 %		$onclck ="document.forms[0].action=\"\"; document.forms[0].submit();return false"; 
 % 	}
-%   print "<input type='button' name='saveonly' id='saveonly' value='Save' onClick='$onclck' />";
+%   print "<input type='button' name='saveonly' id='saveonly' value='" . __('Save') . "' onClick='$onclck' />";
 % }
 
 
 <br><br>
-<input type="button" name="Cancel" id="Cancel" value="Cancel" onClick="go_back('/mobi/patientlog/home')" />
+<input type="button" name="Cancel" id="Cancel" value="<% __("Cancel")%>" onClick="go_back('/mobi/patientlog/home')" />
 
 
 </form>
@@ -374,7 +383,7 @@ else {
 
 Patient:
 <select name="entry_id" id="entry_id" onchange="reload_entry_form(this.options[this.selectedIndex].value)">
-<option value="">New Patient</option>
+<option value=""><% __("New Patient")%></option>
 <%perl>
 	foreach my $option (@$options){
 		my $string = join(", ", @{$option->{'data'}});
@@ -385,7 +394,7 @@ Patient:
 </%perl>
 </select>
 % if (!$args->{entry_id}) {
-<br><span class="smallfont"><b>New Patient</b> is for the first encounter with a patient.  To add data to a previous patient, select from the list.</font>
+<br><span class="smallfont"><b><%__("New Patient")%></b> <%__("is for the first encounter with a patient")%>.  <%__("To add data to a previous patient, select from the list")%>.</font>
 % }
 
 </%method>
@@ -421,7 +430,7 @@ Patient:
 		if ($type_object->isa("HSDB45::Course")) {
 			$form = $type_object->get_patient_log();
 			unless ($form) {
-				$m->comp("/tmpl/url:redirect",message => "No patient log for this course.");
+				$m->comp("/tmpl/url:redirect",message => __("No patient log for this course") .".");
 			}	
 		}
 	}
@@ -434,11 +443,11 @@ Patient:
 <%method red_header_text>
 %   my $form = $m->comp("SELF:get_form");
 %   my $name  = $form->getFormName();
-% 	return "<a href='/mobi/patientlog/home'>Patient Log Homepage</a> > $name";
+% 	return "<a href='/mobi/patientlog/home'>" . __("Patient Log Homepage") ."</a> > $name";
 </%method>
 
 <%method title>
-% 	return "Patient Log Homepage";
+% 	return __("Patient Log Homepage");
 </%method>
 
 <%method jsarray>

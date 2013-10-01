@@ -52,14 +52,14 @@
 	cellpadding =>"0" } &>
 
 <& /tmpl/element:textbox, params => { 
-	label => 'Event Name',
+	label => __('Event Name'),
 	name => 'event_name',
 	value => $event->getEventName(),
 	size => 60,
 	length => 255 } &>
 
 <& /tmpl/element:textarea, params => {
-	label 	=> 	'Event Description',
+	label 	=> 	__('Event Description'),
 	name	=>	'event_description',
 	cols	=>	"60",
 	rows	=>	"4",
@@ -67,7 +67,7 @@
 
 
 <& /tmpl/element:dropdown, params => { 
-	label 		=> 'Category',
+	label 		=> __('Category'),
 	name		=> "category_id",
 	onchange	=> undef,
 	selected	=> $category_id,
@@ -75,7 +75,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label => 'Weight',
+	label => __('Weight'),
 	name => 'weight',
 	value => ($event->getWeight()) ? $event->getWeight : '',
 	size => 10,
@@ -83,7 +83,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label => 'Maximum Possible Points',
+	label => __('Maximum Possible Points'),
 	name => 'max_possible_points',
 	value => ($event->getMaxPossiblePoints()) ? $event->getMaxPossiblePoints : '100',
 	size => 10,
@@ -98,14 +98,14 @@
 % else { $show_scale = $current_scale; }
 
 <& /tmpl/element:dropdown, params => {
-	label => 'Choose a grade scale: ',
+	label => __('Choose a grade scale: '),
 	name  => 'available_scales',
 	tr_style =>"width:10%;",
 	td_style =>"width:10%;",
 	onchange => 'reload_scale(this.options[this.selectedIndex].value)',
 	selected=> (defined($show_scale)) ? $show_scale : '',
 	options=> $scales_dropdown_array_ref,
-	trailing_text => "<a href='/gradebook/author/showscales/".$type_path."'>Add/Modify Scales</a>",
+	trailing_text => "<a href='/gradebook/author/showscales/".$type_path."'>" . __("Add/Modify Scales") . "</a>",
 	
 } &>
 
@@ -136,8 +136,8 @@ if(defined($show_scale)) {
 			action => {usage => 'No'},	
 			scrollrows => 10,
 			display => [
-				{label=>'Minimum Score', field=>'number', align=>'center', length=>50,type=>'label'},
-				{label=>'Grade',field=>'grade', align=>'center', length=>50, type=>'label'},
+				{label=>__('Minimum Score'), field=>'number', align=>'center', length=>50,type=>'label'},
+				{label=>__('Grade'),field=>'grade', align=>'center', length=>50, type=>'label'},
 			],
 			validate => { usage => 'No', form => 'coursePreferences'},
 			data => $scale_array }	});
@@ -157,7 +157,7 @@ print "</table></td></tr>";
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label 		=> 'Due Date:',
+	label 		=> __('Due Date:'),
 	name 		=> 'due_date',
 	value 		=> $event->getFormattedDueDate(),
 	size 		=> 20,
@@ -170,7 +170,7 @@ print "</table></td></tr>";
 <& /tmpl/element:posted_dropdown, selected => $event->getPublishFlag() &>
 
 <& /tmpl/element:radio_buttons, params => { 
-        label => 'Exclude from final grade calculation?',
+        label => __('Exclude from final grade calculation?'),
         name => 'waive_grade',
         buttons => [
 			{ value => "1", text => "Yes", 
@@ -190,13 +190,13 @@ print "</table></td></tr>";
 %		$grade_release = $grade_event_eval->getEvalID();
 %	}
 % }
-% my $evals = [ { label => "N/A", value => '' } ];
+% my $evals = [ { label => __("N/A"), value => '' } ];
 % foreach ( HSDB45::Eval->new(_school => $school)->lookup_conditions("course_id = '$course_id' and time_period_id = '$time_period_id'") ) {
 %	push @{$evals}, { label => $_->title, value => $_->primary_key };
 % }
 
 <& /tmpl/element:dropdown, params => { 
-	label 		=> 'Grade Release Tied to Eval Completion?',
+	label 		=> __('Grade Release Tied to Eval Completion?'),
 	name		=> "grade_release",
 	onchange	=> undef,
 	selected	=> $grade_release,
@@ -206,12 +206,12 @@ print "</table></td></tr>";
 % }
 
 <& /tmpl/element:save_button, params=>{
-	label 			=> 'Save Changes',
+	label 			=> __('Save Changes'),
 	cancel_onclick  => "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
 	name			=> 'save_changes',
 	buttons			=> ($is_edit) 
-		? [ $m->scomp('/tmpl/element:button', params => { label => 'Add/Edit Grades', onclick => "window.location='/gradebook/author/gradeaddedit/$type_path/$event_id'" }),
-			$m->scomp('/tmpl/element:button', params => { label => 'New Grade Event', onclick => "window.location='/gradebook/author/addedit/$type_path'" }) ] 
+		? [ $m->scomp('/tmpl/element:button', params => { label => __('Add/Edit Grades'), onclick => "window.location='/gradebook/author/gradeaddedit/$type_path/$event_id'" }),
+			$m->scomp('/tmpl/element:button', params => { label => __('New Grade Event'), onclick => "window.location='/gradebook/author/addedit/$type_path'" }) ] 
 		: '',
 } &>
 </table>
@@ -270,7 +270,7 @@ print "</table></td></tr>";
 
 			my $url = $r->uri();
 			if ($is_edit) {
-				$msgtxt = "Grade event successfully modified";
+				$msgtxt = __("Grade event successfully modified");
 			} else {
 				$url .= "/" . $event->getPrimaryKeyID();
 				$msgtxt = "Grade event successfully created";	
@@ -294,7 +294,7 @@ print "</table></td></tr>";
 			$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $url . "?msg=$msgtxt");
 
 		} else {  #something is wrong with timeperiod 
-			$m->comp("/tmpl/url:redirect", message => "The Time Period has not been set.");
+			$m->comp("/tmpl/url:redirect", message => __("The Time Period has not been set."));
 		}
 	}	
 </%init>
@@ -317,7 +317,7 @@ print "</table></td></tr>";
 	} else {
 		### still not sure why time period is not set to session from show page
 		unless (defined($m->comp("SELF:get_timeperiod_id")) && $m->comp("SELF:get_timeperiod_id") > -1) {
-			$m->comp("/tmpl/url:redirect", message => "Something wrong with Time Period!");
+			$m->comp("/tmpl/url:redirect", message => __("Something wrong with Time Period!"));
 		}
 	    $event = TUSK::GradeBook::GradeEvent->new();
 		$time_period_id = $m->comp("SELF:get_timeperiod_id");
@@ -339,7 +339,7 @@ print "</table></td></tr>";
 
 
 <%method title>
-%	return ($is_edit) ? "Modify Grade Event" : "Create New Grade Event";
+%	return ($is_edit) ? __("Modify Grade Event") : __("Create New Grade Event");
 </%method>
 
 <%method red_header_text>

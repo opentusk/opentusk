@@ -34,17 +34,18 @@
 <%method show_other_eval_tools>
 <table>
 <tr>
-<td class="layers-left" nowrap="nowrap">Evaluation Tools:&nbsp;&nbsp;</td>
+<td class="layers-left" nowrap="nowrap"><%__("Evaluation Tools")%>:&nbsp;&nbsp;</td>
 <td class="layers-left" nowrap="nowrap">
 <form name="other_eval_tools" method="POST" class="no-padding" onsubmit="return verifyOtherEvalTools();" action="javascript:forwardOtherEvalTools();">
 	<select name="url">
-	<option value="">------ select ------</option>
-	<option value="/protected/eval/administrator/merged_admin/<% $school %>">View merged eval report scoreboard</option>
-	<option value="/protected/eval/administrator/overdue_evals/<% $school %>">View users with overdue evals</option>
-	<option value="/protected/eval/administrator/search/form/<% $school %>">Search evaluations</option>
-	<option value="/protected/eval/administrator/eval_edit/<% $school %>">Create an evaluation</option>
-	<option value="/protected/eval/administrator/byuser/show/<% $school %>">Manage evaluations by faculty/staff</option>
-	<option value="/protected/eval/administrator/createbyperiod/<% $school %>">Create batch evals by time period</option>
+	<option value="">------ <%__("select")%> ------</option>
+	<option value="/protected/eval/administrator/merged_admin/<% $school %>"><%__("View merged eval report scoreboard")%></option>
+	<option value="/protected/eval/administrator/overdue_evals/<% $school %>"><%__("View users with overdue evals")%></option>
+	<option value="/protected/eval/administrator/search/form/<% $school %>"><%__("Search evaluations")%></option>
+	<option value="/protected/eval/administrator/eval_edit/<% $school %>"><%__("Create an evaluation")%></option>
+	<option value="/protected/eval/administrator/byuser/show/<% $school %>"><%__("Manage evaluations by faculty/staff")%></option>
+	<option value="/protected/eval/administrator/createbyperiod/<% $school %>"><%__("Create batch evals by time period")%></option>
+
         </select>
 <input type="submit" value="Go" class="formbutton">
 </form>
@@ -94,10 +95,10 @@
 
 
 <& /tmpl/element:dropdown, params => { 
-	label 		=> 'Evals by course:',
+	label 		=> __('Evals by course').':',
 	name		=> 'course_id',
 	options		=> $m->comp('/eval/administrator/tmpl:get_courses', course_id => $params{course_id}),
-	trailing_text   => '<input type="submit" value="View" class="formbutton">'
+	trailing_text   => '<input type="submit" value="'.__("View").'" class="formbutton">'
 } &>
 
 </table>
@@ -140,7 +141,7 @@
 	my $label = ($params{course_id}) ? $course->title() : $time_period_text;
 
 	if ($count > 0) {	
-		$m->print(qq(<br/><table width="100%"><tr><td class="layers-left"><span class="med"><b>Evaluations for $label</b></span><br/><span style="font-size:65%;color:green;">* Click on column heading to sort.</span></td><td class="layers-right" style="font-size:80%;color:blue;" align="right"># Evaluations: &nbsp;$count</td></tr></table>));
+		$m->print('<br/><table width="100%"><tr><td class="layers-left"><span class="med"><b>'.__x('Evaluations for {label}', label => $label).'</b></span><br/><span style="font-size:65%;color:green;">* '.__('Click on column heading to sort.').'</span></td><td class="layers-right" style="font-size:80%;color:blue;" align="right"># '.__('Evaluations').': &nbsp;' . $count . '</td></tr></table>');
 
 		$m->print("
 <style>
@@ -150,22 +151,22 @@ table.sortable thead {
 </style>
 <table class=\"sortable\" border=\"0\" cellspacing=\"0\" cellspadding=\"0\" width=\"100%\">
 <tr class=\"header\">
-<th>ID</th>
-<th>Title</th>
-<th>Available Date</th>
-<th>Due Date</th>
-<th>Completions</th>
-<th>Actions</th>
+<th>".__("ID")."</th>
+<th>".__("Title")."</th>
+<th>".__("Available Date")."</th>
+<th>".__("Due Date")."</th>
+<th>".__("Completions")."</th>
+<th>".__("Actions")."</th>
 </tr>");
 
 	} else {
 		if ($params{course_id}) {
-			$m->print("<br/><em>No evaluations for " . $course->title() . "</em>");
+			$m->print("<br/><em>".__x("No evaluations for {course_title}.", course_title => $course->title()). "</em>");
 		} else {
 			if ($time_period_text) {
-				$m->print("<br/><em>No evaluations for $time_period_text.</em>");
+				$m->print("<br/><em>".__x("No evaluations for {time_period}.",time_period => $time_period_text)."</em>");
 			} else {
-				$m->print("<br/><em>There is no current time period.</em>");
+				$m->print("<br/><em>".__("There is no current time period.")."</em>");
 			}
 		}
 	}
@@ -176,7 +177,7 @@ table.sortable thead {
 		my $completions = sprintf("%.0f", ($complete_users / $total_users)*100) . "% <span style=\"font-size:80%;color:gray;\">($complete_users\/$total_users)</span>" if ($total_users > 0);
 		my $eval_id = $eval->primary_key();
 
-		my $delete_option = ($eval->is_notyetavailable() && $eval->is_editable()) ?  qq(<option value="/protected/eval/administrator/delete/$school/$eval_id">Delete</option>) : '';
+		my $delete_option = ($eval->is_notyetavailable() && $eval->is_editable()) ?  '<option value="/protected/eval/administrator/delete/' . $school . '/' . $eval_id . '">Delete</option>' : '';
 		$m->print("
 <tr>
 <td class=\"layers-center\" style=\"border-bottom:1px solid #99CCCC;\">$eval_id &nbsp;</td>
@@ -184,17 +185,17 @@ table.sortable thead {
 <td class=\"layers-center\" style=\"border-bottom:1px solid #99CCCC;\">" . $eval->field_value('available_date') . " &nbsp;</td>
 <td class=\"layers-center\" style=\"border-bottom:1px solid #99CCCC;\">" . $eval->field_value('due_date') . " &nbsp;</td>
 <td class=\"layers-center\" style=\"border-bottom:1px solid #99CCCC;\">$completions &nbsp;</td>" .
-qq(<td style="border-bottom:1px solid #99CCCC;" align="center"><form name="act" method="POST" class="no-padding">
-	<select name="address" onChange="verifyForward(this, $eval_id)">
-	<option value="">-- select --</option>
-	<option value="/protected/eval/complete/$school/$eval_id">Preview</option>
-	<option value="/protected/eval/administrator/eval_edit/$school/$eval_id">Edit</option>
-	<option value="/protected/eval/administrator/completion/show/$school/$eval_id">Completion</option>
-	<option value="/protected/eval/report/$school/$eval_id">Report</option>
+'<td style="border-bottom:1px solid #99CCCC;" align="center"><form name="act" method="POST" class="no-padding">
+	<select name="address" onChange="verifyForward(this, ' . $eval_id . ')">
+	<option value="">-- '.__('select').' --</option>
+	<option value="/protected/eval/complete/' . $school . '/' . $eval_id . '">'.__('Preview').'</option>
+	<option value="/protected/eval/administrator/eval_edit/' . $school . '/' . $eval_id . '">'.__('Edit').'</option>
+	<option value="/protected/eval/administrator/completion/show/' . $school . '/' . $eval_id . '">'.__('Completion').'</option>
+	<option value="/protected/eval/report/' . $school . '/' . $eval_id . '">'.__("Report").'</option>' .
 	$delete_option
-        </select>
+        . '</select>
 </form></td>
-</tr>));
+</tr>');
 	}
 	$m->print("</table>");
 </%perl>
@@ -221,12 +222,12 @@ qq(<td style="border-bottom:1px solid #99CCCC;" align="center"><form name="act" 
 	my @time_periods = ();
 
 	push @time_periods, { value => '', label => '' };
-	push @time_periods, { value => '', label => '------ Current Evaluations ------' };
-	push @time_periods, { value => 'current', label => 'All Current Evaluations ' };
+	push @time_periods, { value => '', label => '------ '.__("Current Evaluations").' ------' };
+	push @time_periods, { value => 'current', label => __('All Current Evaluations').' ' };
 
 	if (@current_time_periods) {
 		push @time_periods, { value => '', label => '' };
-		push @time_periods, { value => '', label => '------ Current Time Periods ------' };
+		push @time_periods, { value => '', label => '------ '.__('Current Time Periods').' ------' };
 	}
 
 	foreach (@current_time_periods) {
@@ -242,7 +243,7 @@ qq(<td style="border-bottom:1px solid #99CCCC;" align="center"><form name="act" 
 	}
 
 	push @time_periods, { value => '', label => '' };
-	push @time_periods, { value => '', label => '------ Past Time Periods ------' } if (@past_time_periods);
+	push @time_periods, { value => '', label => '------ '.__('Past Time Periods').' ------' } if (@past_time_periods);
 	foreach (@past_time_periods) {
 		push @time_periods, { 
 			value  => $_->primary_key(),
@@ -259,7 +260,7 @@ qq(<td style="border-bottom:1px solid #99CCCC;" align="center"><form name="act" 
 
 
 <& /tmpl/element:dropdown, params => { 
-	label 		=> 'Evals by time period:',
+	label 		=> __('Evals by time period').':',
 	name		=> 'time_period_id',
 	options		=> \@time_periods,
 	trailing_text   => '<input type="submit" value="View" class="formbutton">'
@@ -269,7 +270,7 @@ qq(<td style="border-bottom:1px solid #99CCCC;" align="center"><form name="act" 
 
 
 <%method title>
-% 	return "Manage Evaluations";
+% 	return __("Manage Evaluations");
 </%method>
 
 <%method jsarray>

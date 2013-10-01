@@ -13,73 +13,110 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%attr>
-page_header      => '/tmpl/prepend:manage_header_div_layout'
-page_footer      => '/tmpl/footer:footer_div_with_school_links'
-no_check_path    => 1
-top_tab_type     => 'home'
-allow_shib       => 1
-nostandardheader => 1
-body_id          => 'home'
+	page_header      => '/tmpl/prepend:manage_header_div_layout'
+	page_footer      => '/tmpl/footer:footer_div_with_school_links'
+	no_check_path    => 1
+	top_tab_type     => 'home'
+	allow_shib       => 1
+	nostandardheader => 1
+	body_id          => 'home'
 </%attr>
 
 <%once>
-use TUSK::HomepageCategory;
-use TUSK::Homepage::Exclusion;
-use TUSK::Homepage::Section;
-use Forum::ForumKey;
-use HSDB45::Course;
-use HSDB4::DateTime;
-use POSIX qw(strftime);
-
-my $make_toggle_lnk = sub {
-	my $no_display = shift;
-	my $user_id = shift;
-	my $id = shift;
-
-	my $toggle = $no_display? '+' : '-';
-	return "<a class=\"gToggle\" href=\"javascript:;\" onclick=\"toggleHdr(this, '$user_id', '$id')\">[$toggle]</a>";
-};
+	use TUSK::Core::School;
+	use TUSK::Constants;
 </%once>
 
 <%shared>
-my $user = $m->session->{'user'};
-my $user_id = $user->primary_key();
-
-my @list_cats = $user->get_list_cats();
-my $enum_cat = $user->get_enum_cat(@list_cats);
-my $affiliation = $user->affiliation();
-
-my (@courses, @user_auth_courses, @user_group_courses, @user_committees, @user_stud_courses);
-
-@courses = $user->parent_courses();
-
-foreach my $course (@courses){
-	if ($course->type() eq 'group'){
-		push @user_group_courses, $course;
-	}
-	elsif ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
-		push @user_committees, $course;
-	}
-	elsif ($course->type() eq 'community service' or $course->type() eq 'course' or $course->type() eq 'integrated course') {
-		push @user_auth_courses, $course;
-	}  
-}
-
-my @current_courses = $user->current_courses( {'only_enrollment' => 1} );
-@user_stud_courses = $user->user_stud_courses(@current_courses);
-
-my $excluded_sections = TUSK::Homepage::Exclusion->lookup("user_id='$user_id'");
-my %excluded = map { ($_->getSectionToken => $_) } @$excluded_sections;
-
+	my $user = $m->session->{'user'};
+	my $user_id = $user->primary_key();
+	my %course_hash;
 </%shared>
 
+<%perl>
+	my @author_courses = $user->author_courses();
+	foreach my $course (@author_courses){
+		if ($course->type() eq 'group'){
+			push (@{$course_hash{$course->school()}{"my_groups"}}, $course);
+		} elsif ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
+			push (@{$course_hash{$course->school()}{"user_committees"}}, $course);
+		} elsif ($course->type() eq 'community service' or $course->type() eq 'course' or $course->type() eq 'integrated course') {
+			push (@{$course_hash{$course->school()}{"admin_courses"}}, $course);
+		}  
+	}
+
+	my $user_group_courses = $user->get_user_group_courses_with_categories();
+	foreach my $school (keys %$user_group_courses) {
+		$course_hash{$school}{"student_courses"}{"user_group"} = $user_group_courses->{$school};
+	}
+
+	foreach my $enrollment_course ($user->get_enrollment_courses()) {
+		push (@{$course_hash{$enrollment_course->school()}{"student_courses"}{"enrollment"}}, $enrollment_course);
+	}
+
+
+	my $upcoming = {};
+	my @schools = ();
+	my $counter = 0;
+	my $affiliation = $user->affiliation_or_default_school();
+	my $max_school_tabs = 3;
+
+	if (scalar keys %course_hash) {
+ 		foreach my $school (keys %course_hash) {
+			my $temp_arrayref = $user->get_important_upcoming_dates_by_school($school);
+			$upcoming->{$school} = [];
+			foreach my $event (@$temp_arrayref) {
+				if ($event->{type} eq "schedule") {
+					$event->{link} = "/view/course/$school/" . $event->{course_id} . "/schedule/" . $event->{id};
+				} elsif ($event->{type} eq "quiz") {
+					$event->{link} = "/quiz/quizstart/course/$school/" . $event->{course_id} . "/" . $event->{id};
+				} elsif ($event->{type} eq "case") {
+					$event->{link} = "/case/casestart/" . TUSK::Core::School->new->getSchoolID($school) . "/" . $event->{course_id} . "/" . $event->{id};
+				} elsif ($event->{type} eq "eval") {
+					$event->{link} = "/eval/complete/$school/" . $event->{id};
+				} elsif ($event->{type} eq "assignment") {
+					$event->{link} = "/assignment/student/complete/course/$school/" . $event->{course_id} . "/" . $event->{id};
+				} 
+				push @{$upcoming->{$school}}, $event;
+			}
+			$counter++;
+	 	}
+
+		## if user has an affiliation in the school list, make that the first so it's the active tab on the home page
+		if ( grep { $_ eq $affiliation } keys %course_hash ) {
+			push @schools, $affiliation;
+			push @schools, grep { $_ ne $affiliation } keys %course_hash;
+		} else {
+			@schools = ((keys %course_hash), $affiliation);
+		}
+	} else {
+		push @schools, $affiliation;
+		$upcoming->{$affiliation} = $user->get_important_upcoming_dates_by_school($affiliation);
+	}
+
+	$m->comp("/tmpl/home:school_announcements", user => $user);
+
+	$m->comp("/tmpl/home:main_user_tabs", 
+		user => $user, 
+		course_hash => \%course_hash, 
+		upcoming => $upcoming, 
+		today => $user->todays_sorted_meetings_by_school(), 
+		schools => (scalar @schools >= $max_school_tabs) ? [ @schools[0..$max_school_tabs-1] ] : \@schools, 
+		schedule_ugs => $user->has_schedule());
+</%perl>
+
 <%method title>
-% return $TUSK::Constants::SiteAbbr ." Home";
+% return $TUSK::Constants::SiteAbbr ." ".__("Home");
 </%method>
 
 <%method jsarray>
-% return ['home.js'];
+% return ['jquery/jquery.min.js','jquery/jquery.ui.core.min.js','jquery/jquery.ui.widget.min.js','jquery/jquery.ui.position.min.js','jquery/jquery.ui.dialog.min.js','jquery/jquery.ui.button.min.js','home.js'];
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css'];
 </%method>
 
 <%method leftnav>
@@ -90,443 +127,5 @@ my %someHash = (
                );
 return \%someHash;
 </%perl>
-</%method>
-
-
-
-<div id="gMajorContent">
-
-% my $maj_sections = TUSK::Homepage::Section->getMajorSections();
-
-% foreach my $s (@$maj_sections){
-%	$m->comp('SELF:' . $s->getToken(), hp_section=>$s);
-% }
-
-<%doc>
-This nbsp is present because in the unlikely situation that a user has no data to display in the center
-column, this ensures that the surrounding div still takes up its ~60% of screen in ff and safari.
-without it, the div collapses and the right column content moves to the center of screen
-</%doc>
-&nbsp;
-
-</div> <!-- gMajorContent -->
-
-<div id="gMinorContent">
-
-% my $min_sections = TUSK::Homepage::Section->getMinorSections();
-
-% foreach my $s (@$min_sections){
-%	$m->comp('SELF:' . $s->getToken(), hp_section=>$s);
-% }
-
-</div> <!-- gMinorContent -->
-
-
-
-<%doc>
-method to print the schedule table on the homepage.
-if the user does not have any scheduled events for that day, no table is printed.
-</%doc>
-<%method schedule>
-<%args>
-$hp_section
-</%args>
-
-<%perl>
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-
-my @sorted_meetings = $user->todays_sorted_meetings();
-</%perl>
-
-% if(scalar @sorted_meetings){
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel,
-		} &> 
-
-<div class="toggled <% $no_display %>">
-<& /tmpl/home:build_sched_table, meetings => \@sorted_meetings &>
-</div>
-</div>
-% }
-</%method>
-
-<%doc>
-method to print the user's courses on the homepage.
-if the user does not have any relevant courses, the section is not printed.
-</%doc>
-<%method courses>
-<%args>
-$hp_section
-</%args>
-<%perl>
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-</%perl>
-
-% if(defined $enum_cat or scalar @user_stud_courses){
-
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel(),
-		} &> 
-
-<div class="toggled <% $no_display %>">
-
-<& /tmpl/home:print_courses, enum_cat => $enum_cat, user_stud_courses => \@user_stud_courses &>
-
-<a href="/allcourses.htm" class="xsm indented"><strong>Browse All Courses</strong></a>
-
-</div><!-- toggled -->
-</div>
-% }
-</%method>
-
-
-<%doc>
-method to print the courses for which the user is involved with teaching
-or committees of which the user is a member.
-if the user does not have any relevant courses, the section is not printed.
-</%doc>
-<%method admin_committees>
-<%args>
-$hp_section
-</%args>
-<%perl>
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-</%perl>
-
-% if (@user_auth_courses || @user_committees){
-
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel(),
-		} &> 
-
-<div class="toggled <% $no_display %>">
-<& /tmpl/home:print_admin_courses, 
-                user              => $user,
-                user_committees   => \@user_committees,
-                user_auth_courses => \@user_auth_courses &>
-
-</div>
-</div>
-% }
-</%method>
-
-
-<%doc>
-method to print the homepage course dropdowns for the user's primary affiliation.
-</%doc>
-<%method school_courses>
-<%args>
-$hp_section
-</%args>
-<%perl>
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-
-my $school = TUSK::Core::School->new->lookupReturnOne("school_name = '$affiliation'");
-
-my $school_name = "School";
-
-if ($school && $school->getPrimaryKeyID()){
-	$school_name = $school->getSchoolDisplay();
-}
-</%perl>
-
-% if(scalar @list_cats){
-
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel() . " $school_name",
-		} &> 
-
-<div class="toggled <% $no_display %>">
-
-<& /tmpl/home:print_school_courses, list_cats => \@list_cats &>
-
-</div>
-</div>
-% }
-</%method>
-
-
-
-<%doc>
-method to print the user's discussions
-</%doc>
-<%method discussions>
-<%args>
-$hp_section
-</%args>
-<%perl>
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-</%perl>
-
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel(),
-		} &> 
-
-<div class="toggled <% $no_display %>">
-
-% my ($new_post_forums, $new_notifications_forums, $link) = Forum::ForumKey::new_post_forums($r, $user, undef, \@current_courses);
-
-<a href="/forum/forum.pl"><strong>All Discussions</strong></a>
-% if (defined $new_post_forums && scalar @$new_post_forums){
-&nbsp;-&nbsp;<a href="/forum/<% $link %>&amp;redirect_to_home=1"><strong>Mark All Posts as Old</strong></a>
-% }
-
-% if (scalar @$new_notifications_forums){
-<h4 class="homepageHdr">Notifications:</h4>
-<ul class="gNoBullets">
-%	foreach my $notification (@$new_notifications_forums){
-<li><% $notification->{timeStr} %>: <% $notification->{body} %></li>
-%	}
-</ul>
-% }
-
-<%doc>TUSK changed the evaluated exp for the if statement.  Given a hash to multiple boards, the following creates a flag that helps check for new and unread posts.</%doc>
-
-% my $categoryHeading = 0;
-% my $currentCategory = '';
-
-% if (defined $new_post_forums && scalar (@$new_post_forums)){
-%	my $first_forum = 1;
-%	foreach my $forum_ref (@$new_post_forums){
-%		$currentCategory = $forum_ref->{category};
-%		if ( $forum_ref->{numNew}){
-%			if (!$categoryHeading || ($categoryHeading ne $currentCategory)){
-%				$categoryHeading = $currentCategory;
-%				unless($first_forum){
-</ul>
-%				}
-<h4 class="homepageHdr"><% $categoryHeading %></h4>
-<ul class="gNoBullets">
-%			}
-
-<li><a href="/forum/board_show.pl?bid=<% $forum_ref->{bid} %>"><% $forum_ref->{title} %></a>: <% $forum_ref->{numNew} %> new</li>
-%		$first_forum = 0;
-%		}
-%	}
-</ul>
-% }
-% else{
-<em class="indented">no new posts</em>
-% }
-
-</div>
-</div>
-
-</%method>
-
-
-<%doc>
-method to print the user's 'My Groups' 
-</%doc>
-<%method my_groups>
-<%args>
-$hp_section
-</%args>
-<%perl>
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-</%perl>
-
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel(),
-		} &> 
-
-<div class="toggled <% $no_display %>">
-
-% if (@user_group_courses){
-
-<ul class="gNoBullets">
-%	my $my_groups_count = 0;
-%	foreach my $g_course (@user_group_courses){
-%		$my_groups_count++;
-% # at some point, we are going to want to limit # of links that show up here... 
-% # at that time, uncomment this if/else control struct and make a page for 
-% # 'more groups' to link to
-% #		 if ($my_groups_count <= 10){
-<li><a href="/hsdb45/course/<% $g_course->school . '/' . $g_course->primary_key %>"><% $g_course->title() %></a> <a href="/protected/management/course/display/<% $g_course->school . '/' . $g_course->primary_key %>">Upload/Edit</a></li>
-% #		 } 
-% #		 else {
-% #		 <a href="">More groups</a>
-% #		 last;
-% #	     }
-%	}
-</ul>
-% }
-% else {
-<em class="indented">no groups</em>
-% }
-
-</div>
-</div>
-</%method>
-
-
-<%doc>
-method to print the user's recently viewed content 
-</%doc>
-<%method recently_viewed>
-<%args>
-$hp_section
-</%args>
-<%perl>
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-
-my @recent_content = $user->available_recent_history;
-</%perl>
-
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel(),
-		} &> 
-
-<div class="toggled <% $no_display %>">
-
-% if(scalar @recent_content){
-<ul class="gNoBullets">
-%	foreach my $c (@recent_content){
-%		if ($c->is_active()){
-<li><a href="<% $c->out_url %>"><% $c->out_label %></a> <em>(<% $c->course->out_label %>)</em></li>
-%		}
-%	}
-</ul>
-% }
-% else {
-<em class="indented">no recently viewed content</em>
-% }
-</div>
-</div>
-</%method>
-
-
-<%doc>
-method to print the "school links" for the user's primary affiliation
-</%doc>
-<%method school_links>
-<%args>
-$hp_section
-</%args>
-<%perl>
-
-return if ($m->session->{'user'}->isGhost());
-
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-
-my $school = TUSK::Core::School->new->lookupReturnOne("school_name = '$affiliation'");
-return unless defined $school;
-</%perl>
-
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel(),
-		} &> 
-
-<div class="toggled <% $no_display %>">
-
-<& /tmpl/home:print_school_links, school => $school &>
-
-</div>
-</div>
-</%method>
-
-
-<%doc>
-method to print the user's school's popular content 
-</%doc>
-<%method pop_content>
-<%args>
-$hp_section
-</%args>
-<%perl>
-my $sec_token = $hp_section->getToken();
-my $no_display = $excluded{$sec_token}? 'gDisplayNone' : '';
-
-my @groups = $user->parent_user_groups;
-</%perl>
-
-<div class="homeSection">
-
-% my $pre_str = $make_toggle_lnk->($no_display, $user_id, $sec_token);
-
-<& /tmpl/element:header_bar, params => 
-		{ color => 'blue', 
-		  pre_txt => $pre_str, 
-		  hdr_txt => $hp_section->getLabel(),
-		} &> 
-
-<div class="toggled <% $no_display %>">
-
-% my $hot_content_count = 0;
-% foreach my $group (@groups){
-%	my @group_content = $group->hot_content();
-%	if (scalar @group_content){
-<h4 class="homepageHdr"><% $group->out_label() %></h4>
-<ul class="gNoBullets">
-%		foreach my $content (@group_content){
-%			if ($content->is_active()){
-<li><a href="/hsdb4/content/<% $content->primary_key %>"><% $content->out_label %></a> <em>(<% $content->course->out_label %>)</em></li>
-%				$hot_content_count++;
-%			}
-%		}
-</ul>
-%	}
-% }
-% if (!$hot_content_count){
-<em class="indented">no relevant content</em>
-% }
-</div>
-</div>
 </%method>
 

@@ -16,6 +16,8 @@
 <%once>
 	use TUSK::Application::Assignment::Student::Individual;
 	use TUSK::Application::Assignment::Student::Group;
+	use TUSK::Constants;
+	use TUSK::Manage::Email;
 	use HSDB45::UserGroup;
 </%once>
 
@@ -37,11 +39,11 @@
 </%args>
 <%perl>
 	unless ($assignment= TUSK::Assignment::Assignment->new()->lookupKey($assignment_id)) {
-		$m->comp("/tmpl/url:redirect", message => "Invalid Assignment.");
+		$m->comp("/tmpl/url:redirect", message => __("Invalid Assignment."));
 	}
 
 	unless ($course->is_user_registered($student_user_id, $assignment->getTimePeriodID())) {
-		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/home", msg => 'Access Denied', msgtype => 'errmsg' ));	
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/home", msg => __('Access Denied'), msgtype => 'errmsg' ));	
 	}
 
 	## a user can  be either a student or a member of the group of students
@@ -58,14 +60,14 @@
 				$assigned_groups_text = join(", ", map { $_->out_label() } @{$assigned_groups}); 
 				$m->comp('SELF:set_msg', 
 	 				type 	=> 'err', 
-					msg	=> 'Please contact "Course Director" for group assignment. You are currently assigned to more than one group.' );
+					msg	=> __('Please contact "Course Director" for group assignment. You are currently assigned to more than one group.') );
 
 				$group_assignment_problem = 1;
 			}
 		} else {
 			$m->comp('SELF:set_msg', 
  				type 	=> 'err', 
-				msg	=> 'Please contact "Course Director" for group assignment. You are not assigned to any group.' );
+				msg	=> __('Please contact "Course Director" for group assignment. You are not assigned to any group.') );
 			$group_assignment_problem = 1;
 		}
 	} else {
@@ -98,11 +100,11 @@
 		if ($params{submit_notes}) {
 			if ($params{notes}) {
 				$student->setNotes($params{notes});
-				$msgtext = 'Your notes have been saved.';
+				$msgtext = __('Your notes have been saved.');
 				$msgtype = 'msg';
 			}
 		} elsif ($m->comp('SELF:invalid_action')) {
-			$msgtext = 'Invalid Action. The assignment has already been submitted';
+			$msgtext = __('Invalid Action. The assignment has already been submitted');
 			$msgtext .= $submit_date . "." if ($submit_date);
 		} else {
 			if ($params{files}) {
@@ -118,17 +120,23 @@
 
 			$student->setStudentComments($params{comments}) if $params{comments};
 
-			if ($params{submit} eq 'Submit Assignment') {
+			if ($params{submit} eq __('Submit Assignment')) {
 				if (@{$contents}){
 					$student->setSubmitDate();
-					$msgtext = 'Your assignment has been submitted successfully.';
+					if($assignment->getEmailFlag()) {
+						my $user = $m->session->{'user'};
+						my %email_params = (senddirectors => 1, subject => 'Submission for assignment: ' . $assignment->getTitle());
+						$email_params{'body'} = __x("This email is to notify you that {name} has uploaded a file for assignment: {title}.\n\nTo view and/or grade, go to https://{host}/assignment/author/grade/course/{school}/{course}/{id} .", name => $user->out_full_name(), title => $assignment->getTitle(), host => $TUSK::Constants::Domain, school => $course->get_school()->getSchoolName(), course => $course->primary_key(), id => $assignment->getPrimaryKeyID());
+						my $data = TUSK::Manage::Email::email_process($user, \%email_params, $course->get_school()->getSchoolName(), $course, undef);
+					}
+					$msgtext = __('Your assignment has been submitted successfully.');
 					$msgtype = 'msg';
 				} else {
-					$msgtext = 'Please upload your assignment files. They are missing.';	
+					$msgtext = __('Please upload your assignment files. They are missing.');	
 					}
 			} else {
 				$msgtype = 'msg';
-				$msgtext = 'Your changes has been saved.' unless defined $msgtext;
+				$msgtext = __('Your changes have been saved.') unless defined $msgtext;
 			}
 		}
 
@@ -153,21 +161,21 @@
 	cellpadding => "0"
 } &>
 
-<& /tmpl/element:field_display, params=>{label => 'Title:', value => $assignment->getTitle()} &>
+<& /tmpl/element:field_display, params=>{label => __('Title:'), value => $assignment->getTitle()} &>
 
-<& /tmpl/element:field_display, params=>{label => 'Weight:', value => $assignment->getWeight()} &>
+<& /tmpl/element:field_display, params=>{label => __('Weight:'), value => $assignment->getWeight()} &>
 
-<& /tmpl/element:field_display, params=>{label => 'Available Date:', value => $assignment->getFormattedAvailableDate()} &>
+<& /tmpl/element:field_display, params=>{label => __('Available Date:'), value => $assignment->getFormattedAvailableDate()} &>
 
-<& /tmpl/element:field_display, params=>{label => 'Due Date:', value => $assignment->getFormattedDueDate() . (($is_over_due) ? ' &nbsp;&nbsp; <font color="red"><b><i>The assignment is overdue!</b></i></font>' : '')} &>
+<& /tmpl/element:field_display, params=>{label => __('Due Date:'), value => $assignment->getFormattedDueDate() . (($is_over_due) ? ' &nbsp;&nbsp; <font color="red"><b><i>' . __("The assignment is overdue!") . '</b></i></font>' : '')} &>
 
-<& /tmpl/element:field_display, params=>{label => 'Instructions:', value => $assignment->getFormattedInstruction()} &>
+<& /tmpl/element:field_display, params=>{label => __('Instructions:'), value => $assignment->getFormattedInstruction()} &>
 
 % unless ($group_assignment_problem) {
 % 	my $faculty_contents = $student->getFacultyContent();
 % 	if (@{$faculty_contents}) {
 <& /tmpl/element:field_display, params => { 
-	label => 'Assignment Files:', 
+	label => __('Assignment Files:'), 
 	value => $m->comp('/assignment/tmpl:get_content_links', 
 			contents	=> $faculty_contents,
 			checkbox 	=> 0,
@@ -176,13 +184,13 @@
 % }
 
 % if (ref $student eq 'TUSK::Application::Assignment::Student::Group') {
-<& /tmpl/element:field_display, params=>{label => 'Assigned Group:', value => $assigned_groups_text} &>
+<& /tmpl/element:field_display, params=>{label => __('Assigned Group:'), value => $assigned_groups_text} &>
 % }
 
 % unless ($group_assignment_problem) {
 
 <tr><td colspan="2" style="line-height:1em">&nbsp;</td></tr>
-<tr><td colspan="2" class="med" bgcolor="#EEEEEE"><b>Assignment Submission</b></td></tr>
+<tr><td colspan="2" class="med" bgcolor="#EEEEEE"><b><%__("Assignment Submission")%></b></td></tr>
 
 <& SELF:comments_and_upload &>
 
@@ -215,7 +223,7 @@
 
 
 <%method comments_and_upload>
-% my $label = 'Comments to Faculty:';
+% my $label = __('Comments to Faculty:');
 % my $comments = $student->getStudentComments($current_sequence);
 % if ($resubmission_allowed) {
 <& /tmpl/element:textarea, params =>{ label => $label,
@@ -226,8 +234,8 @@
 		valign   => "top"  } &>
 
 <& /tmpl/element:field_display, params => {
-	label => 'Files to upload:',
-	value =>  qq(<input type="file" name="files" size="40"/><div id="content"></div><div id="more" style="font-size:85%;color:#0000FF;cursor:pointer;text-decoration:underline;" onclick="addFile();">Upload another file</div>) } &>
+	label => __('Files to upload:'),
+	value =>  qq(<input type="file" name="files" size="40"/><div id="content"></div><div id="more" style="font-size:85%;color:#0000FF;cursor:pointer;text-decoration:underline;" onclick="addFile();">) . __("Upload another file") . qq(</div>) } &>
 % } else {
 % 	if (defined $submit_date) {
 <& /tmpl/element:field_display, params=>{label => $label, value => $comments} &>
@@ -240,14 +248,14 @@
 		valign   => "top"  } &>
 
 <& /tmpl/element:field_display, params => {
-	label => 'Files to upload:',
-	value =>  qq(<input type="file" name="files" size="40"/><div id="content"></div><div id="more" style="font-size:85%;color:#0000FF;cursor:pointer;text-decoration:underline;" onclick="addFile();">Upload another file</div>) } &>
+	label => __('Files to upload:'),
+	value =>  qq(<input type="file" name="files" size="40"/><div id="content"></div><div id="more" style="font-size:85%;color:#0000FF;cursor:pointer;text-decoration:underline;" onclick="addFile();">) . __("Upload another file") . qq(</div>) } &>
 %	}
 % }
 
 % if ($contents && scalar @$contents) {
 <& /tmpl/element:field_display, params => {
-	label => 'Uploaded Files:', 
+	label => __('Uploaded Files:'), 
 	value => $m->comp('/assignment/tmpl:get_content_links', 
 		contents => $contents,
 		checkbox => (defined $submit_date) ? 0 : 1,
@@ -265,19 +273,19 @@
 % foreach my $i (1 .. $submissions) {
 % 	my ($comments,$files);
 % 	if (my $text = $student->getStudentComments($i)) {
-% 		$comments = "<div style=\"font-size:90%;margin-top:5px;color:gray;\">Comments to Faculty:</div>\n<div style=\"border:1px solid gray;padding:5px;\">$text</div>\n";
+% 		$comments = "<div style=\"font-size:90%;margin-top:5px;color:gray;\">" . __("Comments to Faculty:") . "</div>\n<div style=\"border:1px solid gray;padding:5px;\">$text</div>\n";
 % 	}
 %	if (my $submitted_contents = $student->getContent($i)) {
-%		$files = "<div style=\"font-size:90%;margin-top:5px;color:gray\">Submitted Files:</div>\n<div style=\"border:1px solid gray;padding:5px;\">" . $m->comp('/assignment/tmpl:get_content_links', contents => $submitted_contents, checkbox => 0, shownames => (defined $assigned_groups && @{$assigned_groups}) ? 1 : 0) . "</div>\n";
+%		$files = "<div style=\"font-size:90%;margin-top:5px;color:gray\">" . __("Submitted Files:") . "</div>\n<div style=\"border:1px solid gray;padding:5px;\">" . $m->comp('/assignment/tmpl:get_content_links', contents => $submitted_contents, checkbox => 0, shownames => (defined $assigned_groups && @{$assigned_groups}) ? 1 : 0) . "</div>\n";
 %	}
 
 <& /tmpl/element:field_display, params => {
 	nowrap => 1,
 	label => "<div align=\"right\">Submission #$i</div>", 
-	value => "<div style=\"color:blue;\">submitted on " . $student->getSubmitDate($i) . "&nbsp;" . $m->scomp('/tmpl/element:button', params => {
+	value => "<div style=\"color:blue;\">" . __x("{assignment} submitted on {date}", assignment => "", date => $student->getSubmitDate($i)) . "&nbsp;" . $m->scomp('/tmpl/element:button', params => {
 			class		=> 'formbutton',
 			onclick		=> "showHideSubmission(this,'submit_$i')",
-			label		=> "Show",
+			label		=> __("Show"),
 			name		=> 'toggle_submissions_button'}) .
 		"</div>" .
 		"<div id=\"submit_$i\" style=\"display:none;\">$comments $files</div>\n",
@@ -288,23 +296,23 @@
 
 <%method save_submit_assignment_button>
 % 	if (defined $submit_date && !($resubmission_allowed)) {
-<& /tmpl/element:field_display, params=>{label => '<font color="blue">Submit Date:</font>', value => "<font color=\"blue\">$submit_date</font>"} &>
+<& /tmpl/element:field_display, params=>{label => '<font color="blue">'. __("Submit Date:") . '</font>', value => "<font color=\"blue\">$submit_date</font>"} &>
 % 	} elsif ($is_over_due) {
 <%doc>do nothing here</%doc>
 % 	} else {
 
 <& /tmpl/element:save_button, params => {
-	label => 'Save Changes',
+	label => __('Save Changes'),
         cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/view", 'pathref' => ["assignments"]) . "');",
         name => 'submit',
 	onclick => 'return verifyStudentSave();',	
 } &>
 
 
-% my $trailing_text = ($resubmission_allowed && $submissions) ? undef : '&nbsp;&nbsp;<font color="red">Your assignment is not yet submitted.</font>';
+% my $trailing_text = ($resubmission_allowed && $submissions) ? undef : '&nbsp;&nbsp;<font color="red">' . __("Your assignment is not yet submitted.") . '</font>';
 
 <& /tmpl/element:save_button, params => {
-	label => 'Submit Assignment', 
+	label => __('Submit Assignment'), 
 	name => 'submit', 
 	no_cancel_button => 1, 
 	onclick => 'return verifyStudentSubmit();',
@@ -323,38 +331,38 @@
 				next unless $student->shouldFeedbackBePosted($i);
 				my ($text,$files);
 				if (my $comments = $student->getFacultyComments($i)) {
-					$text = "<div style=\"font-size:90%;margin-top:5px;color:gray;\">Feedback:</div>\n<div style=\"border:1px solid gray;padding:5px;\">$comments</div>\n";
+					$text = "<div style=\"font-size:90%;margin-top:5px;color:gray;\">" . __("Feedback:") . "</div>\n<div style=\"border:1px solid gray;padding:5px;\">$comments</div>\n";
 				}
 				my $feedback_files = $student->getFacultyContent($i);
 
 	 			if (defined $feedback_files && scalar @$feedback_files > 0) {
-					$files = "<div style=\"font-size:90%;margin-top:5px;color:gray;\">Files:</div>\n<div style=\"border:1px solid gray;padding:5px;\">" . $m->comp('/assignment/tmpl:get_content_links', contents => $feedback_files, checkbox => 0, modified => 0) . "</div>\n";
+					$files = "<div style=\"font-size:90%;margin-top:5px;color:gray;\">" . __("Files:") . "</div>\n<div style=\"border:1px solid gray;padding:5px;\">" . $m->comp('/assignment/tmpl:get_content_links', contents => $feedback_files, checkbox => 0, modified => 0) . "</div>\n";
 				}
 
 	 			if ($text || $files) {	
-					$feedback_text .= $m->scomp('/tmpl/element:field_display', params => { nowrap => 1, label => "<div align=\"right\">Submission #$i</div>", value => $m->scomp('/tmpl/element:button', params => { class => 'formbutton', onclick => "showHideSubmission(this,'feedback_$i')", label => "Show", name => 'toggle_feedbacks_button'}) . " <div id=\"feedback_$i\" style=\"display:none;\">$text $files</div>\n" });
+					$feedback_text .= $m->scomp('/tmpl/element:field_display', params => { nowrap => 1, label => "<div align=\"right\">" . __("Submission") . " #$i</div>", value => $m->scomp('/tmpl/element:button', params => { class => 'formbutton', onclick => "showHideSubmission(this,'feedback_$i')", label => __("Show"), name => 'toggle_feedbacks_button'}) . " <div id=\"feedback_$i\" style=\"display:none;\">$text $files</div>\n" });
 				}
 	 		}
 		} else {
 			if (my $comments = $student->getFacultyComments(1)) {
-					$feedback_text .= $m->scomp('/tmpl/element:field_display', params => {label => 'Feedback:',value =>  $comments });
+					$feedback_text .= $m->scomp('/tmpl/element:field_display', params => {label => __('Feedback:'),value =>  $comments });
 			}
 
 			my $feedback_files = $student->getFacultyContent(1);
 			if (defined $feedback_files && scalar @$feedback_files > 0) {
-				$feedback_text .= $m->scomp('/tmpl/element:field_display', params => {label => 'Feedback File:',value =>  $m->comp('/assignment/tmpl:get_content_links', contents => $feedback_files, checkbox => 0, modified => 0 )} );
+				$feedback_text .= $m->scomp('/tmpl/element:field_display', params => {label => __('Feedback File:'),value =>  $m->comp('/assignment/tmpl:get_content_links', contents => $feedback_files, checkbox => 0, modified => 0 )} );
 			}
 		}
 
 		if ($feedback_text =~ /\w+/) { 
 			$m->print( qq(
 <tr><td colspan="2" style="line-height:1em">&nbsp;</td></tr>
-<tr><td colspan="2" class="med" bgcolor="#EEEEEE"><b>Feedback from Faculty</b></td></tr>$feedback_text	));
+<tr><td colspan="2" class="med" bgcolor="#EEEEEE"><b>) . __("Feedback from Faculty") . qq(</b></td></tr>$feedback_text	));
 	 	}
 
 		if ($student->getGrade()) {
 			$m->print( qq(
-<tr><td>&nbsp;</td><td style="color:blue;font-size:75%;">* To view your grade, please click on grades link  on left navigation.</td></tr>));
+<tr><td>&nbsp;</td><td style="color:blue;font-size:75%;">* ) . __("To view your grade, please click on grades link on left navigation.") . qq(</td></tr>));
 		}
 	}
 </%perl>
@@ -365,11 +373,11 @@
 <tr><td colspan="2" style="line-height:1em">&nbsp;</td></tr>
 
 % if (ref $student eq 'TUSK::Application::Assignment::Student::Group') {
-<tr><td colspan="2" class="med" bgcolor="#EEEEEE"><b>Group Notes</b> &nbsp;&nbsp;
+<tr><td colspan="2" class="med" bgcolor="#EEEEEE"><b><% __("Group Notes") %></b> &nbsp;&nbsp;
 
 <div id="save_note_button" style="display:none;">
 <& /tmpl/element:submit_button, params => {
-	label => 'Save New Note',
+	label => __('Save New Note'),
 	no_cancel_button => 1,
         name => 'submit_notes',
 	onclick => 'return verifyStudentSave();',	
@@ -379,7 +387,7 @@
 <& /tmpl/element:button, params => {
 	class		=> 'formbutton',
 	onclick		=> "addNote(this,'note_area', 'save_note_button')",
-	label		=> "Add Note",
+	label		=> __("Add Note"),
 	name		=> 'toggle_feedbacks_button'} &>
 
 
@@ -395,7 +403,7 @@
 
 
 %	foreach my $note (@{$student->getMemberNotes()}) {
-<div style="color:gray;font-size:70%;margin-top:10px;">By <% HSDB4::SQLRow::User->new()->lookup_key($note->getModifiedBy()) %> &nbsp; on <em><% $note->getModifiedOn() %> </em></div>
+<div style="color:gray;font-size:70%;margin-top:10px;"><%__x("By {user} on {date}", user => qq(HSDB4::SQLRow::User->new()->lookup_key($note->getModifiedBy())) . qq (&nbsp), date => qq(<em>) . qq( $note->getModifiedOn()) . qq(</em>))%></div>
 <div style="font-size:85%;border-top:solid 1px gray;width:600px;"> <% $note->getFormattedBody() %></div>
 </div>
 %	}
@@ -403,9 +411,9 @@
 </td></tr>
 
 % } else {
-<tr><td colspan="2" class="med" bgcolor="#EEEEEE"><b>Personal Notes</b> &nbsp;&nbsp;
+<tr><td colspan="2" class="med" bgcolor="#EEEEEE"><b><%__("Personal Notes")%></b> &nbsp;&nbsp;
 <& /tmpl/element:submit_button, params => {
-	label => 'Save Note',
+	label => __('Save Note'),
 	no_cancel_button => 1,
         name => 'submit_notes',
 	onclick => 'return verifyStudentSave();',	
@@ -427,7 +435,7 @@
 <%method invalid_action>
 <%perl>
 	if (defined $submit_date) {
-		if ($params{submit} =~ /Save Changes|Submit Assignment/i) {
+		if ($params{submit} =~ /__("Save Changes")|__("Submit Assignment")/i) {
 			if (defined $params{comments} || defined $params{files} || defined $params{del_content_id}) {
 				return 1;
 			}
@@ -439,11 +447,11 @@
 </%method>
 
 <%method title>
-% 	return $course->title() . ": view/complete assignment";
+% 	return $course->title() . __( ": view/complete assignment");
 </%method>
 
 <%method red_header_text>
-% 	return $course->title() . " &gt; <span class=\"xxsm\">view/complete assignment</span>";
+% 	return $course->title() . " &gt; <span class=\"xxsm\">" . __("view/complete assignment") . "</span>";
 </%method>
 
 
@@ -454,6 +462,11 @@
 
 <%method leftnav>
 %	return $m->comp('/view/course:leftnav');
+</%method>
+
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css'];
 </%method>
 
 

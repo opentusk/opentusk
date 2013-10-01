@@ -65,7 +65,7 @@ eval {
 		my $uploadObject;
 		$uploadObject = TUSK::Content::MultiContentManager->new->lookupKey($multiContentId);
 		if(!$uploadObject) {
-			$xml .= "<error>Object $multiContentId does not exist</error>";
+			$xml .= "<error>".__x("Object {multiContentId} does not exist", multiContentId => $multiContentId)."</error>";
 		}  else {
 			if($contentAction eq 'upload') {
 				# we are uploading a zip file
@@ -82,16 +82,16 @@ eval {
 					if(scalar(@uploadedFiles) == 1) {
 						my $returnValue = $uploadObject->uploadZipFile($r->upload('zipfile')->filename, $r->upload('zipfile')->fh);
 						if($returnValue)	{$uploadWorked = 1;}
-						else			{$error = 'an error occurred while uploading the zip file:<br>' . $uploadObject->getError();}
+						else			{$error = __('an error occurred while uploading the zip file').':<br>' . $uploadObject->getError();}
 					} else {
-						$error = "One or more errors occurred while uploading the selected files:<br>";
+						$error = __("One or more errors occurred while uploading the selected files:")."<br>";
 						$uploadWorked = 1;
 						foreach my $apacheUploadObject (@uploadedFiles) {
 							next unless($apacheUploadObject->filename);
 							my $returnValue = $uploadObject->upload($apacheUploadObject->filename, $apacheUploadObject->fh);
 							unless($returnValue) {
 								$uploadWorked = 0;
-								$error.=" &nbsp; Unable to upload ". $apacheUploadObject->filename .": ". $uploadObject->getError();
+								$error.=" &nbsp; ".__("Unable to upload")." ". $apacheUploadObject->filename .": ". $uploadObject->getError();
 							}
 						}
 						$uploadObject->setUploadComplete();
@@ -107,7 +107,7 @@ eval {
 					}
 				} else {
 					$uploadObject->setStatus('errored');
-					$uploadObject->setError('No file specified to upload');
+					$uploadObject->setError(__('No file specified to upload'));
 					$uploadObject->save({ user => $m->comp('SELF:user') });
 					$xml .= "<error>". $uploadObject->getError() ."</error>";
 				}
@@ -119,30 +119,30 @@ eval {
 				# generate the previews
 				$uploadObject->generatePreviews();
 			} elsif($contentAction eq 'check' && $multiContentId) {
-				my $defaultLabel = "Pending";
+				my $defaultLabel = __("Pending");
 				my $uploadStatus = $defaultLabel;
 				my $unzipStatus = $defaultLabel;
 				my $previewStatus = $defaultLabel;
 				my $error;
 	
-				my $uploadCompleteMessage = "Completed ". $uploadObject->getPrettySize();
-				my $unzipCompleteMessage = "Completed ". $uploadObject->getZipEntitiesExtracted() .' file';
+				my $uploadCompleteMessage = __("Completed")." ". $uploadObject->getPrettySize();
+				my $unzipCompleteMessage = __("Completed")." ". $uploadObject->getZipEntitiesExtracted() .' file';
 				if($uploadObject->getZipEntitiesExtracted() != 1)  {$unzipCompleteMessage .= 's';}
 				$unzipCompleteMessage .= ' unzipped';
 				my $failureAt = '';
 				if($uploadObject->getStatus() eq 'initial') {
-					$uploadStatus = 'Waiting for upload';
+					$uploadStatus = __('Waiting for upload');
 					$failureAt = 'upload';
 				} elsif($uploadObject->getStatus() eq 'uploading') {
-					$uploadStatus = "Uploading ". $uploadObject->getPrettySize();
+					$uploadStatus = __("Uploading")." ". $uploadObject->getPrettySize();
 					$failureAt = 'upload';
 				} elsif($uploadObject->getStatus() eq 'upload complete') {
 					$uploadStatus = $uploadCompleteMessage;
-					$unzipStatus = "Waiting for unzip to begin";
+					$unzipStatus = __("Waiting for unzip to begin");
 					$failureAt = 'upload';
 				} elsif($uploadObject->getStatus() eq 'extracting') {
 					$uploadStatus = $uploadCompleteMessage;
-					$unzipStatus = 'Unzipping '. $uploadObject->getZipEntitiesExtracted() .'/'. $uploadObject->getZipEntities();
+					$unzipStatus = __('Unzipping').' '. $uploadObject->getZipEntitiesExtracted() .'/'. $uploadObject->getZipEntities();
 					$failureAt = 'zip';
 				} elsif($uploadObject->getStatus() eq 'extraction complete') {
 					$uploadStatus = $uploadCompleteMessage;
@@ -151,19 +151,23 @@ eval {
 				} elsif($uploadObject->getStatus() eq 'previews') {
 					$uploadStatus = $uploadCompleteMessage;
 					$unzipStatus = $unzipCompleteMessage;
-					$previewStatus = 'Generating preview';
+					$previewStatus = __('Generating preview');
 					if($uploadObject->getPreviewsToGenerate() != 1) {$previewStatus .= 's';}
 					$previewStatus.= ': '. $uploadObject->getPreviewsGenerated() .'/'. $uploadObject->getPreviewsToGenerate();
-					$previewStatus.= ' generated';
+					$previewStatus.= ' '.__('generated');
 				} elsif($uploadObject->getStatus() eq 'previews complete') {
 					$uploadStatus = $uploadCompleteMessage;
 					$unzipStatus = $unzipCompleteMessage;
-					$previewStatus = 'Completed '. $uploadObject->getPreviewsGenerated() .' preview';
-					if($uploadObject->getPreviewsGenerated() != 1) {$previewStatus .= 's';}
-					$previewStatus .=' generated';
+					$previewStatus = __('Completed') . ' ' . $uploadObject->getPreviewsGenerated() . ' ' . __('preview');
+					if($uploadObject->getPreviewsGenerated() != 1) {
+						$previewStatus = __x('Completed {num_previews) previews generated', num_previews => $uploadObject->getPreviewsGenerated());
+					}else{
+						$previewStatus = __x('Completed {num_previews) preview generated', num_previews => $uploadObject->getPreviewsGenerated());
+
+					}
 					$xml .= '<completed>true</completed>';
 				} else {
-					$error = 'Status is unknown at this time ('. $uploadObject->getStatus() .')';
+					$error = __('Status is unknown at this time').' ('. $uploadObject->getStatus() .')';
 				}
 	
 
@@ -171,21 +175,21 @@ eval {
 				if($error) {
 					$xml .= '<error>'. $error ."</error>\n";
 					if($failureAt eq 'upload') {
-						$uploadStatus = 'Failed';
-						$unzipStatus = 'N/A';
-						$previewStatus = 'N/A';
+						$uploadStatus = __('Failed');
+						$unzipStatus = __('N/A');
+						$previewStatus = __('N/A');
 					} elsif($failureAt eq 'zip') {
-						$unzipStatus = 'Failed';
-						$previewStatus = 'N/A';
+						$unzipStatus = __('Failed');
+						$previewStatus = __('N/A');
 					} elsif($failureAt eq 'generate') {
-						$previewStatus = 'Failed';
+						$previewStatus = __('Failed');
 					}
 				}
 				$xml .= '<upload>'. $uploadStatus ."</upload>\n";
 				$xml .= '<unzip>'. $unzipStatus ."</unzip>\n";
 				$xml .= '<preview>'. $previewStatus ."</preview>\n";
 			} else {
-				$xml .= '<error>Not enough information was provided to determine what action to take</error>';
+				$xml .= '<error>'.__("Not enough information was provided to determine what action to take").'</error>';
 			}
 		}
 	}

@@ -20,13 +20,13 @@ var max_form_count = form_count;
 
 function disableGroup() {
 	if (groupsWithContent.length > 0) {
-		alert("There are assignment files assigned to student groups. Please delete assignment files prior to resetting this flag.");
+		alert(_("There are assignment files assigned to student groups. Please delete assignment files prior to resetting this flag."));
 		document.addeditassignment.group_flag[0].checked = true;
 		return;
 	}
 
 	if (document.addeditassignment.group_file_flag[0].checked == true) {
-		if (confirm("Do you want to set group assignment file to 'No'?  This will reset the 'Each Group has its own uploaded files flag' to 'No' as well.")) {
+		if (confirm(_("Do you want to set group assignment file to 'No'?  This will reset the 'Each Group has its own uploaded files flag' to 'No' as well."))) {
 			document.getElementById('group_list').style.display = "none";
 			document.addeditassignment.group_file_flag[1].checked = true;
 			removeGroup();
@@ -54,7 +54,7 @@ function verifyGroup() {
 		document.getElementById('group_list').style.display = "inline";
 		return true;
 	} else {
-		alert("There are no groups associated with this course. Please create groups.\n\nNote that you might need to refresh this page if you have just created groups.");
+		alert(_("There are no groups associated with this course. Please create groups.\n\nNote that you might need to refresh this page if you have just created groups."));
 		document.addeditassignment.group_flag[1].checked = true;
 		return false;
 	}
@@ -94,15 +94,15 @@ function assignGroup() {
 			}
 
 			if (alreadyUploadedFormCount > 0) {
-				alert("Please save changes first. Then, you will be able to select group for each assignment files that you have already uploaded.\n");
+				alert(_("Please save changes first. Then, you will be able to select group for each assignment files that you have already uploaded.\n"));
 			}
 
 		} else {
-			alert("Please select appropriate assignment groups from the list.\n");
+			alert(_("Please select appropriate assignment groups from the list.\n"));
 			document.addeditassignment.group_file_flag[1].checked = true;
 		}
 	} else {
-		alert("Please select 'Yes' to group assignment, then select appropriate assignment groups from the list.\n");
+		alert(_("Please select 'Yes' to group assignment, then select appropriate assignment groups from the list.\n"));
 		document.addeditassignment.group_file_flag[1].checked = true;
 	}
 
@@ -112,7 +112,7 @@ function assignGroup() {
 function removeGroup() {
 
 	if (groupsWithContent.length > 0) {
-		alert("Please delete all the uploaded files prior to changing this flag");
+		alert(_("Please delete all the uploaded files prior to changing this flag"));
 		document.addeditassignment.group_file_flag[0].checked = true;
 		return;
 	}
@@ -245,7 +245,7 @@ function addFile() {
 
 	var new_text = document.createElement('span');
 	new_text.setAttribute('id','child_attachment_text_' + form_count);
-	new_text.innerHTML = '&nbsp; <span style="color:#0000FF;cursor:pointer;text-decoration:underline;font-size:75%;" onclick="remove(' + form_count + ');">remove</span><br/>';
+	new_text.innerHTML = '&nbsp; <span style="color:#0000FF;cursor:pointer;text-decoration:underline;font-size:75%;" onclick="remove(' + form_count + ');">' + _("remove") + '</span><br/>';
 	nodeToAdd.appendChild(new_text);
 
 	//increase the form count
@@ -253,7 +253,7 @@ function addFile() {
 	max_form_count = form_count;
 
 	//if an attachment has been added, change text to "Attach another file"
-	document.getElementById('more').innerHTML = 'Upload another file';
+	document.getElementById('more').innerHTML = _('Upload another file');
  } 
 
 
@@ -279,7 +279,7 @@ function remove(remove_form_num) {
 
 	//if all forms are removed, change text back to "Attach a file"
 	if (form_count == 0) {
-     	  	document.getElementById('more').innerHTML = 'Upload a file';
+     	  	document.getElementById('more').innerHTML = _('Upload a file');
 	}
 }
 
@@ -292,7 +292,7 @@ function checkUncheckAll(checkboxes,checkall) {
 		}
 	} else {
 		if (groupsWithContent.length > 0) {
-			alert("Please delete uploaded assignment files prior to deselecting these groups.");
+			alert(_("Please delete uploaded assignment files prior to deselecting these groups."));
 			checkall.checked = true;
 		} else {
 			if (document.addeditassignment.group_file_flag[1].checked == true) {
@@ -301,7 +301,7 @@ function checkUncheckAll(checkboxes,checkall) {
 
 				}
 			} else {
-				alert("Please reset 'Each group has its own uploaded files' to 'no' prior to deselecting all the groups.");
+				alert(_("Please reset 'Each group has its own uploaded files' to 'no' prior to deselecting all the groups."));
 				checkall.checked = true;
 			}
 

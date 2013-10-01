@@ -63,7 +63,7 @@ my @rowheaders;
 				value  => 'enroll' } 
 &>
 
-<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
 				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
 				'base_url' => "/management/usergroup/show") . "');",
 				name=>'submit'} &>
@@ -74,21 +74,21 @@ my @rowheaders;
 if ( $is_course_group ) {
 	$m->comp("/tmpl/url:redirect",
 		'destination' => '/management/usergroup/show/course/' . $school . '/' . $type_object->course_id,
-		'message'     => 'Cannot link student to individual courses in a course group.',
+		'message'     => __('Cannot link student to individual courses in a course group.'),
 		'msgtype'     => 'errmsg');
-	$m->abort();
+	exit;
 }
 
 if ( !scalar(@$time_periods) ) {
-	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>'/management/usergroup/show/school/' . $school, 'msg'=>'No time periods associated.', 'msgtype'=>'errmsg'));
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>'/management/usergroup/show/school/' . $school, 'msg'=>__('No time periods associated.'), 'msgtype'=>'errmsg'));
 }
 
 if ( !$usergroup_id ) {
 	$m->comp("/tmpl/url:redirect",
 		'destination' => '/management/usergroup/show/course/' . $self_path,
-		'message'     => 'No user group ID provided.',
+		'message'     => __('No user group ID provided.'),
 		'msgtype'     => 'errmsg');
-	$m->abort();
+	exit;
 }
 
 
@@ -127,7 +127,7 @@ if ( defined($ARGS{'submit'}) && $ARGS{'action'} eq "enroll" ) {
 		}
 	}
 
-	$msg = "Student/Course Links Successfully Updated";
+	$msg = __("Student/Course Links Successfully Updated");
 	$msgtype = "msg";
 
 	# Need to refresh the data, since we just changed some things.
@@ -160,7 +160,7 @@ foreach my $course (@courses) {
 }
 
 # create arrray of users for row header array and populate data hash
-push @rowheaders, {id => 'all', name => '<em>Select All</em>', class => 'summary'};
+push @rowheaders, {id => 'all', name => '<em>' . __('Select All').'</em>', class => 'summary'};
 foreach my $user ( @users ) {
 	push @rowheaders, {id => $user->user_id, name => $user->out_lastfirst_name};
 	foreach my $course ( @courses ) {		
@@ -205,10 +205,9 @@ foreach my $user ( @users ) {
 </%method>
 
 <%method title>
-%	return $usergroup->label . ' Student/Course Links';
+%	return $usergroup->label . __(' Student/Course Links');
 </%method>
 
 <%method leftnav>
 % return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
 </%method>
-

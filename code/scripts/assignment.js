@@ -20,31 +20,31 @@ function verifyAuthorAddedit(form) {
 	var due_date;
 
 	if (!form.title.value) {
-		errmsg.push('Please enter an assignment title.');
+		errmsg.push(_('Please enter an assignment title.'));
 	}
 
 
 	if (form.available_date.value) {
 		available_date = make_date_object(form.available_date.value);
 		if (available_date == 'Invalid Date'){
-			errmsg.push("Please use the format YYYY-MM-DD HH:MM for the available date.");
+			errmsg.push(_("Please use the format YYYY-MM-DD HH:MM for the available date."));
 		}
 	}
 
 	if (form.due_date.value) {
 		due_date = make_date_object(form.due_date.value);
 		if (due_date == 'Invalid Date'){
-			errmsg.push("Please use the format YYYY-MM-DD HH:MM for due date.");
+			errmsg.push(_("Please use the format YYYY-MM-DD HH:MM for due date."));
 		}
 	}
 
 	if (available_date > due_date) {
-		errmsg.push("Please make sure that the due date is after the available date.");
+		errmsg.push(_("Please make sure that the due date is after the available date."));
 	} 
 
 	if (form.group_flag[0].checked) {
 		if (!isCheckedAtLeastOne(form.group_id_list)) {
-			errmsg.push("Please select at least one assignment group.\n");
+			errmsg.push(_("Please select at least one assignment group.") + "\n");
 		}
 	}
 
@@ -80,7 +80,7 @@ function isCheckedAtLeastOne(groups) {
 function verifyGradeUpdate(form) {
 	var grade = form.grade;
 	if (!isblank(grade)) {
-		alert("Grade is required. " + grade.value);
+		alert(_("Grade is required. ") + grade.value);
 		return false;
 	}
 	return true;
@@ -93,20 +93,20 @@ function verifyStudentSubmit() {
 		if (del instanceof NodeList) {
 			for (var i = 0; i < del.length; i++) {
 				if (del[i].checked) {
-					alert('You cannot delete files and submit assignment at the same time');
+					alert(_('You cannot delete files and submit assignment at the same time'));
 					return false;
 				}
 			}
 		} else {
 			if (del && del.checked) {
-				alert('You cannot delete files and submit assignment at the same time');
+				alert(_('You cannot delete files and submit assignment at the same time'));
 				return false;
 			}
 		}
 	}
 
 
-	if (confirm("Do you want to submit your assignment?")) {
+	if (confirm(_("Do you want to submit your assignment?"))) {
 		return true;
 	} else {
 		return false;
@@ -128,12 +128,12 @@ function confirmDelete(del) {
 	if (del instanceof NodeList) {
 		for (var i = 0; i < del.length; i++) {
 			if (del[i].checked) {
-				return (confirm("Do you want to delete your assignment file(s)?")) ? true : false;
+				return (confirm(_("Do you want to delete your assignment file(s)?"))) ? true : false;
 			}
 		}
 	} else {
 		if (del && del.checked) {
-			return (confirm("Do you want to delete your assignment file(s)?")) ? true : false;
+			return (confirm(_("Do you want to delete your assignment file(s)?"))) ? true : false;
 		}
 	}
 

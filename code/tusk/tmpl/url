@@ -145,27 +145,27 @@ valid types: course, school, usergroup, content, case
 	my $type = ($default_path_type) ? $default_path_type : shift @$path_ids;
 
 	if ($type eq "course"){
-		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");
-		my $course_id = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing Course ID");
+		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => __("Missing School"));
+		my $course_id = shift @$path_ids or $m->comp("SELF:redirect",message => __("Missing Course ID"));
 		eval {
 			$type_object = HSDB45::Course->new(_school => $school)->lookup_key($course_id);
 		};
 		if ($@) {
-			$m->comp("SELF:redirect",message => "Invalid Course");
+			$m->comp("SELF:redirect",message => __("Invalid Course"));
 		}
 
 		unless ($type_object->primary_key()){
-			$m->comp("SELF:redirect",message => "Invalid Course");
+			$m->comp("SELF:redirect",message => __("Invalid Course"));
 		}
 
 		$type_path = "course/" unless ($default_path_type);
 		$type_path .= $school . "/" . $course_id;
 
-		push (@$initial_nav_bars, { href => '/management/home', label => 'CMS Home'});
-		push (@$initial_nav_bars, { href => '/management/course/display/' . $school . '/' . $course_id, label => 'Course - ' . $type_object->out_title() });
+		push (@$initial_nav_bars, { href => '/management/home', label => __('CMS Home')});
+		push (@$initial_nav_bars, { href => '/management/course/display/' . $school . '/' . $course_id, label => __x('Course - {course_title}', course_title => $type_object->out_title()) });
 		# do permissions here
 	}elsif($type eq "school"){
-		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School in Path");
+		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => __("Missing School in Path"));
 
 		if (int($school)){
 			$type_object = TUSK::Core::School->new()->lookupKey($school);
@@ -175,7 +175,7 @@ valid types: course, school, usergroup, content, case
 		}
 		$type_path = "school/" unless ($default_path_type);
 		$type_path .= $school;
-		push (@$initial_nav_bars, { href => '/management/home', label => 'CMS Home'});
+		push (@$initial_nav_bars, { href => '/management/home', label => __('CMS Home')});
 		# do permissions here
 	}elsif($type eq "usergroup"){
 		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");
@@ -184,7 +184,7 @@ valid types: course, school, usergroup, content, case
 			$type_object = HSDB45::UserGroup->new( _school => $school )->lookup_key( $user_group_id );
 		};
 		if ($@) {
-			$m->comp("SELF:redirect",message => "Invalid User Group: $user_group_id");
+			$m->comp("SELF:redirect",message => __x("Invalid User Group: {user_group_id}", user_group_id => $user_group_id));
 		}
 		my $course_id = shift @$path_ids || "";
 		$type_path = "usergroup/" . $school . "/" . $user_group_id;
@@ -195,14 +195,14 @@ valid types: course, school, usergroup, content, case
 		# do permissions here
 	}elsif($type eq "content"){
 		my $content_id = join("/", @$path_ids) || $m->request_args->{content_id};
-                $content_id or $m->comp("SELF:redirect",message => "Missing Content ID");
+                $content_id or $m->comp("SELF:redirect",message => __("Missing Content ID"));
 		$type_path = "content/" . $content_id;
 		#Build the content object HERE
 		eval {
 			$type_object = HSDB4::SQLRow::Content->new()->lookup_path($content_id);
 		};
 		if ($@) {
-			$m->comp("SELF:redirect",message => "Invalid Content: $content_id");
+			$m->comp("SELF:redirect",message => __x("Invalid Content: {content_id}", content_id => $content_id));
 		}
 		
 		if ($type_object->field_value('course_id') && $type_object->course()->primary_key()) {
@@ -213,7 +213,7 @@ valid types: course, school, usergroup, content, case
 		}
 
 		unless ($type_object->primary_key()){
-			$m->comp("SELF:redirect",message => "Invalid Content: $content_id");
+			$m->comp("SELF:redirect",message => __x("Invalid Content: {content_id}", content_id => $content_id));
 		}
 
 		# Build the content bread crumb here
@@ -221,18 +221,18 @@ valid types: course, school, usergroup, content, case
 			$initial_nav_bars = $type_object->get_bread_crumb_from_path($path_ids);
 		}
 	}elsif($type eq "classmeeting"){
-		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing School");
-		my $cm_id = shift @$path_ids or $m->comp("SELF:redirect",message => "Missing class meeting id");
+		my $school = shift @$path_ids or $m->comp("SELF:redirect",message => __("Missing School"));
+		my $cm_id = shift @$path_ids or $m->comp("SELF:redirect",message => __("Missing class meeting id"));
 
 		eval {
 			$type_object = HSDB45::ClassMeeting->new(_school => $school)->lookup_key($cm_id);
 		};
 		if ($@) {
-			$m->comp("SELF:redirect",message => "Invalid Class Meeting");
+			$m->comp("SELF:redirect",message => __("Invalid Class Meeting"));
 		}
 
 		unless ($type_object->primary_key()){
-			$m->comp("SELF:redirect",message => "Invalid Class Meeting");
+			$m->comp("SELF:redirect",message => __("Invalid Class Meeting"));
 		}
 
 		$type_path = "classmeeting/" . $school . "/" . $cm_id;
@@ -374,16 +374,16 @@ return $p_hash->{$p};
 	if($content->field_value('type') =~ /Collection|Multidocument/){
 		my $path = join('/', @$path_ids);
 
-		return {txt => 'Edit', url => "/protected/management/folders/course/$school_name/$course_id/$path" . '?page=edit', target => $target };
+		return {txt => __('Edit'), url => "/protected/management/folders/course/$school_name/$course_id/$path" . '?page=edit', target => $target };
 	}
 	elsif (!$school_name || !$course_id) {
-		return {txt => 'Edit', url => "/protected/management/content/addedit/" . $content->primary_key() . "?content_id=" . $content->primary_key() . '&page=edit', target => $target };
+		return {txt => __('Edit'), url => "/protected/management/content/addedit/" . $content->primary_key() . "?content_id=" . $content->primary_key() . '&page=edit', target => $target };
 	}
 	else {
 		pop @$path_ids; 
 		my $path = join('/', @$path_ids);
 
-		return {txt => 'Edit', url => "/protected/management/content/addedit/course/$school_name/$course_id/$path?content_id=" . $content->primary_key . '&page=edit', target => $target };
+		return {txt => __('Edit'), url => "/protected/management/content/addedit/course/$school_name/$course_id/$path?content_id=" . $content->primary_key . '&page=edit', target => $target };
 	}
 </%perl>
 </%method>

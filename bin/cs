@@ -1,0 +1,107 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use MySQL::Password;
+use HSDB45::Eval;
+use HSDB45::Eval::Completion;
+use HSDB45::Eval::Results;
+use HSDB45::Eval::Question;
+use HSDB45::Eval::Question::Body;
+use HSDB45::Eval::Question::Results;
+use HSDB45::Eval::Question::Response;
+use XML::Twig;
+
+use constant DEBUG => 0;
+
+HSDB4::Constants::set_user_pw(get_user_pw());
+
+my $school  = shift(@ARGV) or finish("first argument should have been school");
+my $eval_id = shift(@ARGV) or finish("second argument should have been eval id");
+my $location_question = shift(@ARGV) or finish("third argument should have been position of location question");
+my $location_question_index = $location_question - 1;
+
+my $eval = HSDB45::Eval->new(_school => $school, _id => $eval_id);
+my $results = HSDB45::Eval::Results->new($eval);
+my @questions = $eval->questions();
+my @question_results = $results->question_results();
+
+# extract info from the location selection question
+my %user_code_hash;
+my %locations = ();
+foreach my $response ($question_results[$location_question_index]->responses()) {
+    $locations{$response->interpreted_response()} = 1;
+    $user_code_hash{$response->user_code()} = $response->interpreted_response();
+}
+# copy the evals
+my %new_evals;
+foreach my $location (keys(%locations)) {
+    $new_evals{$location} = HSDB45::Eval->new(_school => $eval->school());
+    $new_evals{$location}->set_field_values(course_id           => $eval->field_value('course_id'),
+					    time_period_id      => $eval->field_value('time_period_id'),
+					    available_date      => $eval->field_value('available_date'),
+					    modified            => $eval->field_value('modified'),
+					    due_date            => $eval->field_value('due_date'),
+					    prelim_due_date     => $eval->field_value('prelim_due_date'),
+					    question_stylesheet => $eval->field_value('question_stylesheet'),
+					    results_stylesheet  => $eval->field_value('results_stylesheet'),
+					    title               => $eval->field_value('title') . ' (' . $location . ')');
+    my ($res, $msg) = $new_evals{$location}->save();
+}
+
+# copy the question links
+my $db = HSDB4::Constants::get_school_db($school);
+my $link = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_eval_eval_question"};
+foreach my $question ($eval->questions()) {
+    foreach my $location (keys(%locations)) {
+	$link->insert(-parent_id => $new_evals{$location}->primary_key(),
+		      -child_id  => $question->primary_key(),
+		      label => $question->aux_info('label'),
+		      sort_order => $question->aux_info('sort_order'),
+		      required => $question->aux_info('required'),
+		      graphic_stylesheet => $question->aux_info('graphic_stylesheet'));
+    }
+}
+
+# copy the responses
+foreach my $question_results (@question_results) {
+    foreach my $response ($question_results->responses()) {
+	next unless $new_evals{$user_code_hash{$response->user_code()}};
+
+	my $cloned_response = HSDB45::Eval::Question::Response->new(_school => $school);
+	$cloned_response->field_value(response => $response->response());
+	$cloned_response->primary_key($response->user_code(),
+				      $new_evals{$user_code_hash{$response->user_code()}}->primary_key(),
+				      $question_results->question()->primary_key());
+	$cloned_response->save();
+    }
+}
+
+print "New Evals Created:\n";
+foreach my $location (sort { $new_evals{$a}->primary_key() <=> $new_evals{$b}->primary_key() } keys(%new_evals)) {
+    print $new_evals{$location}->primary_key() . ": " . $location . "\n";
+}
+
+
+sub finish{
+	my $msg = shift;
+
+	print "\nERROR: $msg \n\n";
+	print <<EOM;
+
+This script requires three arguments:
+1) The school that the eval is in (medical,dental, etc.)
+2) The id of the eval to be split
+3) The position of the question that is the location question.  So, if there are 
+five questions on the eval and the question that asks where 
+the course was taken is the third question, then this parameter would be '3'.  
+It is asking which question based on the order displayed on the eval screen 
+is the teaching site question.
+
+Please email tusk\@tufts.edu if you have any questions.
+
+EOM
+exit 1;
+
+}

@@ -14,14 +14,18 @@
  limitations under the License.
 </%doc>
 <%doc>
-	footer will be called if no sub component is specified
+	footer_with_school_links will be called if no sub component is specified
 </%doc>
 
 <%once>
 	use TUSK::Functions;
 </%once>
-
-<& SELF:footer &>
+% if (!$ARGS{req_hash}{"no_footer"}) {
+<& SELF:footer_with_school_links &>
+% }
+% else {
+<& SELF:footer, add_links => 0 &>
+% }
 
 <%method footer_with_school_links>
 <& SELF:footer, add_links => 1 &>
@@ -45,17 +49,16 @@
 </%args>
 
   </td>
-  <td width="1" valign="top" bgcolor="#003366">
-	  <img src="/graphics/spacer.gif" width="1" height="32"></td>
+  <td width="1" valign="top"><img src="/graphics/spacer.gif" width="1" height="32"></td>
   </tr>
 	</table>
+%	if($addLinks) {$m->comp("schoolFooter:add_school_footer");}
+%	else {
+		<footer class="empty">
+		</footer>
+%	}
 	</td>
 	</tr>
-  <tr>
-  	<td width="150%" valign="top" background="/graphics/bg-dotshorz.gif">
-	   <img src="/graphics/spacer.gif" alt=" " width="759" height="1" border="0"></td>
-  </tr>  
-%  if($addLinks) {$m->comp("/tmpl/schoolFooter:add_school_footer");}
   </table>
   <!-- End Full Content Table -->
   <& SELF:end_body &>
@@ -76,15 +79,12 @@
 </%args>
 
 <%perl>
-$m->comp('SELF:close_div', id => 'gMainContent');
 $m->comp('SELF:close_div', id => 'gContent');
 $m->comp('SELF:close_div', id => 'gBody');
-
-if($add_links){
-	$m->comp('/tmpl/schoolFooter:add_school_footer', 'show_in_td' => 0);
-}
-
 $m->comp('SELF:close_div', id => 'gContainer');
+if($add_links){
+	$m->comp('schoolFooter:add_school_footer', 'show_in_td' => 0);
+}
 $m->comp('SELF:end_body');
 </%perl>
 </%method>

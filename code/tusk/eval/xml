@@ -32,7 +32,7 @@
 	must_be_tusk_admin => 1
 </%attr>
 <%method title>
-%       return 'Eval XML Tool';
+%       return __('Eval XML Tool');
 </%method>
 <script>
         var ajaxRequest;
@@ -48,7 +48,7 @@
 			else if (window.ActiveXObject)  {ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");}
 			if(ajaxRequest) {
 				document.getElementById('perform_save').style.display = 'none';
-				document.getElementById('xmlResults').innerHTML = '<br><br><center>Generating XML... this can take a very long time.<br><img src="/graphics/icons/waiting_bar.gif"></center>';
+				document.getElementById('xmlResults').innerHTML = '<br><br><center>'+_('Generating XML... this can take a very long time.')+'<br><img src="/graphics/icons/waiting_bar.gif"></center>';
 				var parameters = '';
 				for(var i=0; i<document.theForm.generateType.length; i++) {
 					if(document.theForm.generateType[i].checked) {
@@ -70,10 +70,10 @@
                                 ajaxRequest.onreadystatechange = doXMLLoad;
                                 ajaxRequest.send(parameters);
                         } else {
-				finishForm('<font color="red">Error requesting eval.</font>');
+				finishForm('<font color="red">'+_('Error requesting eval.')+'</font>');
                         }
 		} catch(error) {
-			finishForm('<center>Error in eval ajax request:<br>'+error.description+'</center>');
+			finishForm('<center>'+_('Error in eval ajax request:')+'<br>'+error.description+'</center>');
 		}
 	}
 
@@ -91,7 +91,7 @@
 						displayXML = displayXML.replace(/</g, "&lt;").replace(/>/g, '&gt;');
 						var message = '';
 						var results = 'Success';
-						if(status == 'Error') {results='Failure';}
+						if(status == 'Error') {results=_('Failure');}
 
 						message += '<h2 style="padding-left:35px;">'+ results +'</h2><br>';
 						if(error != 'null') {message += '<pre><font color="red">'+ error +'</font></pre>';}
@@ -101,19 +101,19 @@
 							document.getElementById('loadFileHere').src='/tusk/ajax/evalXML?loadFile='+newFileName;
 						}
 					} else {
-						finishForm('<h2 style="padding-left:35px;">Unknown Error</h2><br>'+ajaxRequest.responseText);
+						finishForm('<h2 style="padding-left:35px;">'+_('Unknown Error')+'</h2><br>'+ajaxRequest.responseText);
 						//window.location.reload();
 					}
 				} else if(ajaxRequest.status && (ajaxRequest.status == 500)) {
-					finishForm('<center><font color="red">Error loading results.</font></center>');
+					finishForm('<center><font color="red">'+_('Error loading results.')+'</font></center>');
 				} else if(ajaxRequest.status && (ajaxRequest.status == 302)) {
-					finishForm('<center><font color="red">Got a redirect.</font></center>');
+					finishForm('<center><font color="red">'+_('Got a redirect.')+'</font></center>');
 				} else {
-					finishForm('<br><br><center><font color="red">Unspecified error loading results... possible timeout.</font><center><'+ +'!-- '+ ajaxRequest.status +' --!>');
+					finishForm('<br><br><center><font color="red">'+_('Unspecified error loading results... possible timeout.')+'</font><center><'+ +'!-- '+ ajaxRequest.status +' --!>');
 				}
 			}
 		} catch(error) {
-			finishForm('<center>Error processing eval ajax request:<br>'+error.description+'</center>');
+			finishForm('<center>'+_("Error processing eval ajax request:")+'<br>'+error.description+'</center>');
 		}
 	}
 </script>
@@ -137,76 +137,68 @@
 <& /tmpl/element:dropdown, params => {
         'options'       => \@schoolOptions,
         'name'          => "school",
-        'label'         => "School:",
+        'label'         => __("School").":",
 }&>
 <& /tmpl/element:textbox, params => {
         'name'          => "evalID",
-        'label'         => "Eval ID:",
+        'label'         => __("Eval ID").":",
         'size'          => 10,
 }&>
 <& /tmpl/element:radio_buttons, params => {
-	label => 'Generate XML For:',
+	label => __('Generate XML For:'),
 	name => 'generateObjectType',
 	nobreak => 0,
 	buttons => [
-		{ value => "e", text => "Eval", checked => 1,},
-		{ value => "r", text => "Eval Results", checked => 0, },
-		{ value => "m", text => "Eval Merged Results", checked => 0,},
-		{ value => "c", text => "Eval Completions", checked => 0, },
+		{ value => "e", text => __("Eval"), checked => 1,},
+		{ value => "r", text => __("Eval Results"), checked => 0, },
+		{ value => "m", text => __("Eval Merged Results"), checked => 0,},
+		{ value => "c", text => __("Eval Completions"), checked => 0, },
 	],
 }&>
 <& /tmpl/element:radio_buttons, params => {
-	label => 'Regeneration Type:',
+	label => __('Regeneration Type:'),
 	name => 'generateType',
 	nobreak => 0,
 	buttons => [
-		{ value => "m", text => "Minor Regeneration", checked => 1,},
-		{ value => "f", text => "Total Regeneration", checked => 0,},
-		{ value => "g", text => "Just Bar Graphs", checked => 0, },
+		{ value => "m", text => __("Minor Regeneration"), checked => 1,},
+		{ value => "f", text => __("Total Regeneration"), checked => 0,},
+		{ value => "g", text => __("Just Bar Graphs"), checked => 0, },
 	],
 }&>
 <& /tmpl/element:checkbox, params => {
-	label => 'Generate XML File:',
+	label => __('Generate XML File:'),
 	name => 'generateXMLFile',
 	checked => 0,
 }&>
 <& /tmpl/element:checkbox, params => {
-	label => 'Display XML:',
+	label => __('Display XML:'),
 	name => 'displayXML',
 	checked => 0,
 }&>
 <& /tmpl/element:save_button, params=>{
         'name'                  => 'perform_save',
-        'label'                 => 'Generate XML',
+        'label'                 => __('Generate XML'),
         'no_cancel_button'      => 1,
 } &>
 </table>
 </td><td>
 <div style="border:1px solid gray; padding:3px;">
-	<center><b>Help</b></center>
-	Generate XML for:
+	<center><b><%__("Help")%></b></center>
+	<%__("Generate XML for:")%>
 	<p style="margin-left:5px; margin-top:1px; padding-top:1px;">
-		Selects the object type to regenerated for the eval.<br>
-		Eval = HSDB45::Eval::Formatter<br>
-		Eval Results = HSDB45::Eval::Results<br>
-		Eval Merged Results = HSDB45::Eval::MergedResults<br>
-		Eval Completions = HSDB45::Eval::Results and HSDB45::Eval::Completion::Formatter<br>
+		<%__("Selects the object type to regenerated for the eval.<br> Eval = HSDB45::Eval::Formatter<br> Eval Results = HSDB45::Eval::Results<br> Eval Merged Results = HSDB45::Eval::MergedResults<br> Eval Completions = HSDB45::Eval::Results and HSDB45::Eval::Completion::Formatter<br>")%>
 	</p>
 
-	Regeneration Type:
+	<%__("Regeneration Type:")%>
 	<p style="margin-left:5px; margin-top:1px; padding-top:1px;">
-		Selects how muych information should be regenerated by this process.<br>
-		Total Regenration will completly regenerate all results for the selected eval.<br>
-		Just Bar Graphs will only regenerate data for the bar graphs.<br>
-		Minor Regeneration will only regenreate the xml realted to the eval but not the graphs.<br>
-		<b>Note:</b>Regeneration is only valid if you are generating xml for Eval Results or Eval Merged Results.<br>
+		<%__("Selects how much information should be regenerated by this process.<br> Total Regenration will completly regenerate all results for the selected eval.<br> Just Bar Graphs will only regenerate data for the bar graphs.<br> Minor Regeneration will only regenerate the xml related to the eval but not the graphs.<br><b>Note:</b>Regeneration is only valid if you are generating xml for Eval Results or Eval Merged Results.<br>")%>
 	</p>
 
-	Display XML
-	<p style="margin-left:5px; padding-top:1px; margin-top:1px;">This option will render the xml that was regenerated on the screen.</p>
+	<%__("Display XML")%>
+	<p style="margin-left:5px; padding-top:1px; margin-top:1px;"><%__("This option will render the xml that was regenerated on the screen.")%></p>
 
-	Generate XML File:
-	<p style="margin-left:5px; padding-top:1px; margin-top:1px;">This will cause the browser to download the xml that was regenerated.</p>
+	<%__("Generate XML File:")%>
+	<p style="margin-left:5px; padding-top:1px; margin-top:1px;"><%__("This will cause the browser to download the xml that was regenerated.")%></p>
 </div>
 </td></tr></table>
 </form>

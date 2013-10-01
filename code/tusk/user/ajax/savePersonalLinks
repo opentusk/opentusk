@@ -1,0 +1,75 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%doc>
+This component takes in JSON from an ajax call of personal link data, saves it
+to the DB and then returns JSON of the updated data.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%once>
+	use TUSK::Application::HTML::Strip;
+	use TUSK::User::Link;
+	use JSON -convert_blessed_universally;
+</%once>
+
+<%perl>
+	my $user = $m->session->{'user'};
+	my $data = decode_json($ARGS{data});
+	my $numDeleted = 0;
+	my $stripObj = TUSK::Application::HTML::Strip->new();
+	
+	foreach my $link (@$data) {
+		my $linkObj;
+		## if this is an existing link, retrieve from DB; otherwise, create a new one
+		## if user_ids don't match, something is wrong, so create a new one
+		if ($link->{id}) {
+			$linkObj = TUSK::User::Link->lookupKey($link->{id});			
+			if ($linkObj->getUserID() ne $user->primary_key()) {
+				$linkObj = TUSK::User::Link->new();
+				$linkObj->setUserID($user->primary_key());
+			}
+		}
+		else {
+			$linkObj = TUSK::User::Link->new();
+			$linkObj->setUserID($user->primary_key());
+		}
+
+		## if fields are blank, delete link and increment counter so that the sort orders can be changed accordingly
+		if ($link->{url} eq '' && $link->{label} eq '') {
+			if ($link->{id}) {
+				$linkObj->delete({'user'=>$m->session->{'user'}});
+				$numDeleted++;
+			}
+			next;
+		}
+
+		$linkObj->setSortOrder($link->{sort_order} - $numDeleted);
+		$linkObj->setUrl($link->{url});
+		$linkObj->setLabel($stripObj->removeHTML($link->{label}));
+		$linkObj->save({'user'=>$m->session->{'user'}});
+	}
+	
+	## get updated links data and send back out as JSON
+	my $links = TUSK::User::Link::getAllLinks($user->primary_key());
+	$m->clear_buffer();
+	$r->content_type('application/json');
+	$r->no_cache(1);
+</%perl>
+<% JSON->new()->allow_blessed(1)->convert_blessed(1)->encode($links) %>

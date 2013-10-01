@@ -52,8 +52,9 @@ function resizeColumns( params ) {
 	var perCol     = Math.floor( tempWidth/(columns-params.sized_columns) );
 
 	var colTypes = ['head','col'];
-	for ( var idx in colTypes ) {
+	for (var idx = 0; idx < colTypes.length; idx++) {
 		var classname = colTypes[idx];
+
 		$('li[class*=' + classname + '0]').each( function() {
 			var thisDepth = 0;
 			// Need to get the OL that we're in, which is four levels back:  <ol><li><div><ul><li>...

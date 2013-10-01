@@ -27,7 +27,7 @@
 </%shared>
 
 <%method title>
-% return 'Move Content';
+% return __('Move Content');
 </%method>
 
 <%init>
@@ -82,7 +82,7 @@
 				} &>			
 
 <& /tmpl/element:flexible_tr, params => { 
-				label 		=> 'Content to Move',
+				label 		=> __('Content to Move'),
 				} &>
 
 <& /tmpl/element:table, params => { 
@@ -106,23 +106,23 @@
 </tr>
 
 <& /tmpl/element:dropdown, params => {
-				label 		=> 'Select a Course',
+				label 		=> __('Select a Course'),
 		                name 		=> 'course',
 		                onchange	=> 'reloadForm()',
 		                selected	=> $course->school() . '-' . $course->primary_key(),
 		                options		=> $m->comp('SELF:courses_dropdown'),
 					 } &>
 <& /tmpl/element:dropdown, params => {
-				label 		=> 'Move to Folder',
+				label 		=> __('Move to Folder'),
 		                name 		=> 'movelocation',
 		                onchange	=> "document.getElementById('folder_content_id').value ='';",
 		                selected	=> '' ,
 		                options		=> $m->comp('SELF:collection_dropdown', course => $course),
-				trailing_text	=> '<br><b>-OR-</b><br>type in the content_id of the folder:&nbsp;' . 
+				trailing_text	=> __('<br><b>-OR-</b><br>type in the content_id of the folder:&nbsp;') . 
 						   $m->scomp('/tmpl/element:input_textbox', params => { name => 'folder_content_id', value => $ARGS{folder_content_id} } ),
 						 } &>
 <& /tmpl/element:save_button, params=> {
-				label=>'Move Content',
+				label=>__('Move Content'),
 				name=> 'Submit',
 				no_cancel_button => 1,
 				} &>
@@ -131,7 +131,7 @@
 
 <%method courses_dropdown>
 <%perl>
-	my $courses = TUSK::Session::cms_user_courses($m->session->{'user'});
+	my $courses = $m->session->{'user'}->cms_courses();
 	my $course_options = [];
 
 	foreach my $school (keys %$courses){
@@ -152,7 +152,7 @@
 </%args>
 <%perl>
 	my $tree = new TUSK::ContentTree($course->child_contentref, "Collection");
-	my $collection_options = [ {label => 'Course Homepage', value => 'course-' . $course->primary_key() . '-' . $course->school() } ];
+	my $collection_options = [ {label => __('Course Homepage'), value => 'course-' . $course->primary_key() . '-' . $course->school() } ];
 	
 	foreach my $branch (@{$tree->{branches}}){
 		my $dashes = "&nbsp;&nbsp;&nbsp;" x $branch->{tab};
@@ -192,17 +192,17 @@
 			my $folder_content = HSDB4::SQLRow::Content->new()->lookup_key($ARGS{folder_content_id});
 
 			if (!$folder_content or !$folder_content->primary_key()){
-				$m->redirect($error_redirect_path . 'Invalid+destination+folder');
+				$m->redirect($error_redirect_path . __('Invalid destination folder'));
 			}elsif($folder_content->primary_key() == $last_path_id){
-				$m->redirect($error_redirect_path . 'Destination+location+is+same+as+start+location');
+				$m->redirect($error_redirect_path . __('Destination+location+is+same+as+start+location'));
 			}elsif ($folder_content->type() ne 'Collection'){
-				$m->redirect($error_redirect_path . 'Content+id+specified+is+not+a+folder');
+				$m->redirect($error_redirect_path . __('Content+id+specified+is+not+a+folder'));
 			}elsif (! TUSK::Session::check_content_permissions($m->session, 
 									$folder_content->course(), 
 									$folder_content, 
 									TUSK::Session::course_user_role($folder_content->course(), $m->session->{'user'}->user_id()),
 									$m->session->{'user'})){
-				$m->redirect($error_redirect_path . 'Sorry%2c+you+do+not+have+permission+to+move+content+into+folder+specified+by+content+id ' . $ARGS{folder_content_id});
+				$m->redirect($error_redirect_path . __x('Sorry, you do not have permission to move content into folder specified by content id {content_id}'), content_id => $ARGS{folder_content_id});
 			}
 			$new_type = "content";
 			$new_id = $ARGS{folder_content_id};
@@ -215,7 +215,7 @@
 			$redirect_path = "/management/folders/course/" . $new_path . "/" . $new_id;
 			$destinationContentId=$new_id;
 			if ($last_path_id == $new_id){
-				$m->redirect($error_redirect_path . 'Destination+location+is+same+as+start+location');
+				$m->redirect($error_redirect_path . __('Destination+location+is+same+as+start+location'));
 			}
 		}elsif($new_type eq "course"){
 			my $schooldb = HSDB4::Constants::get_school_db($new_path);
@@ -224,7 +224,7 @@
 
 			my $type_object = $m->comp('/tmpl/url:get_type_object');
 			if (!$last_path_id && $new_path eq $type_object->school() && $new_id == $type_object->primary_key()){
-				$m->redirect($error_redirect_path . 'Destination+location+is+same+as+start+location');
+				$m->redirect($error_redirect_path . __('Destination+location+is+same+as+start+location'));
 			}
 	    	}
 		
@@ -263,11 +263,13 @@
 		
 		# If we moved into ourself than print a warning message
 		if($movingFolderIntoItsSelf) {
-			my $errorString = CGI::escape("The folder <b>$movingFolderIntoItsSelf</b> could not be moved into itself");
-			if(scalar(@children) > 1) {$errorString.=CGI::escape(", but the rest of the content was moved into the selected folder");}
+			my $errorString = CGI::escape(__x("The folder <b>{folder_name}</b> could not be moved into itself", folder_name => $movingFolderIntoItsSelf));
+			if(scalar(@children) > 1) {
+				$errorString =CGI::escape(__x("The folder <b>{folder_name}</b> could not be moved into itself, but the rest of the content was moved into the selected folder", folder_name => $movingFolderIntoItsSelf));
+			}
 			$m->redirect($redirect_path . "?hintmsg=$errorString");
 		} else {
-			$m->redirect($redirect_path . '?msg=Content+successfully+moved');
+			$m->redirect($redirect_path . '?msg=' . uri_escape(__('Content successfully moved')));
 		}
 	}
 </%init>

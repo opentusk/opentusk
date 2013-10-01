@@ -37,16 +37,16 @@
 	$items = TUSK::Core::SessionTimePeriod::course_time_periods($typeObj, $args->{timeperiod}, $m->session);
 
 	if (defined $items && $items eq '-1') {
-		$m->comp('SELF:set_msg', type => 'err', msg => 'No time period associated with the course.<br/> Please add time period(s) in order to create a new quiz.');
+		$m->comp('SELF:set_msg', type => 'err', msg => __('No time period associated with the course.<br/> Please add time period(s) in order to create a new quiz.'));
 	} else {
-		$m->comp('SELF:set_msg', type => 'hintmsg', msg => 'This application uses time periods. To view past quizzes, select the appropriate time period from the dropdown menu at the top of the page. Note that questions may also be copied from past quizzes to a new quiz. If you need help, contact TUSK User Support at: ' . $TUSK::Constants::SupportEmail);
+		$m->comp('SELF:set_msg', type => 'hintmsg', msg => __x('This application uses time periods. To view past quizzes, select the appropriate time period from the dropdown menu at the top of the page. Note that questions may also be copied from past quizzes to a new quiz. If you need help, contact TUSK User Support at: {email}', email => $TUSK::Constants::SupportEmail));
 	}
 </%perl>
 </%method>		
 
 
 <%method title>
-% 	return "Manage Quizzes";
+% 	return __("Manage Quizzes");
 </%method>
 
 
@@ -87,17 +87,17 @@
 			};
 		}
 	} else {
-		$m->comp("/tmpl/url:redirect", message => "FAILURE");
+		$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
 	}
 
 </%init>
 
 <%perl>
-	my $col_fields = [ {'label' => 'Name', 'field' => 'title', 'link' => '/quiz/author/addedit/' . $typePath },
-                	   {'label' => 'Type', 'field' => 'type'},
-                	   {'label' => 'Time Limit', 'field' => 'duration'},
-                	   {'label' => 'Available Date', 'field' => 'available_date'},
-                	   {'label' => 'Due Date', 'field' => 'due_date'},
+	my $col_fields = [ {'label' => __('Name'), 'field' => 'title', 'link' => '/quiz/author/addedit/' . $typePath },
+                	   {'label' => __('Type'), 'field' => 'type'},
+                	   {'label' => __('Time Limit'), 'field' => 'duration'},
+                	   {'label' => __('Available Date'), 'field' => 'available_date'},
+                	   {'label' => __('Due Date'), 'field' => 'due_date'},
 			];
 </%perl>
 
@@ -111,7 +111,7 @@
 % unless (defined $items && $items eq '-1') {
 <& /tmpl/element:cms_button_row, 
     links => [ 
-              {display_txt => 'New Quiz',
+              {display_txt => __('New Quiz'),
                link_txt    => '/quiz/author/addedit/' . $typePath}
 	         ]
 &>
@@ -120,7 +120,7 @@
 
 % my $quizzes_without_tp = TUSK::Quiz::LinkCourseQuiz->lookup("time_period_id = 0 and parent_course_id = " . $typeObj->primary_key() . " and school_id = $school_id");
 % if (@$quizzes_without_tp) {
-	<a class="help" href="/quiz/author/shownotp/<% $typePath %>">Quizzes without time period</a>
+	<a class="help" href="/quiz/author/shownotp/<% $typePath %>"><%__("Quizzes without time period")%></a>
 % }
 </td></tr></table>
 
@@ -128,18 +128,18 @@
 	sort_box	=> 1,
 	columns 	=> $col_fields,
 	action_columns 	=> [ 
-		{ label =>'Modify', link => '/quiz/author/addedit', function_token => 'edit_quiz', },
-		{ label =>'Preview', link => '/quiz/author/quizpreview', function_token => 'preview_quiz'},
-		{ label =>'Users', link => '/quiz/author/users', function_token => 'users_quiz', },
-		{ label => 'Grade/View', link => undef, function_token => 'edit_grades' },
-		{ label => ' &nbsp;-By Students', link => '/quiz/author/quizresults', function_token => 'edit_grades' },
-		{ label => ' &nbsp;-By Questions', link => '/quiz/author/quizresultsquestions', function_token => 'edit_grades' },
+		{ label =>__('Modify'), link => '/quiz/author/addedit', function_token => 'edit_quiz', },
+		{ label =>__('Preview'), link => '/quiz/author/quizpreview', function_token => 'preview_quiz'},
+		{ label =>__('Users'), link => '/quiz/author/users', function_token => 'users_quiz', },
+		{ label => __('Grade/View'), link => undef, function_token => 'edit_grades' },
+		{ label => ' &nbsp;-'.__('By Students'), link => '/quiz/author/quizresults', function_token => 'edit_grades' },
+		{ label => ' &nbsp;-'.__('By Questions'), link => '/quiz/author/quizresultsquestions', function_token => 'edit_grades' },
 		{ label => 'Reports', link => undef, function_token => 'reports_quiz' },
-		{ label => ' &nbsp;-Completion Status', link => '/quiz/author/completion', function_token => 'quiz_completion' },
-		{ label => ' &nbsp;-Answer Key', link => '/quiz/author/answerkey', function_token => 'answer_key_quiz' },
-		{ label => ' &nbsp;-Item Analysis', link => '/quiz/author/itemanalysis', function_token => 'reports_quiz' },
-		{ label => ' &nbsp;-Export to GradeBook', link => '/quiz/author/showexport', function_token => 'export_quiz' },
-		{ label => 'Delete', link => '/quiz/author/delete', function_token => 'delete_quiz' },
+		{ label => ' &nbsp;-'.__('Completion Status'), link => '/quiz/author/completion', function_token => 'quiz_completion' },
+		{ label => ' &nbsp;-'.__('Answer Key'), link => '/quiz/author/answerkey', function_token => 'answer_key_quiz' },
+		{ label => ' &nbsp;-'.__('Item Analysis'), link => '/quiz/author/itemanalysis', function_token => 'reports_quiz' },
+		{ label => ' &nbsp;-'.__('Export to GradeBook'), link => '/quiz/author/showexport', function_token => 'export_quiz' },
+		{ label => __('Delete'), link => '/quiz/author/delete', function_token => 'delete_quiz' },
   			],
 	action_dropdown  => 1,
 	feature_token 	=> 'quiz',

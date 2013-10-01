@@ -1,0 +1,355 @@
+#!/usr/bin/perl 
+##################################################################
+# Processing enrollment data
+#
+##################################################################
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use Getopt::Long;
+my ($file,$save,$grepyear,$verbose,$savedir);
+
+BEGIN {
+    GetOptions("file=s" => \$file,
+	       "save!" => \$save,
+	       "year=s" => \$grepyear,
+	       "verbose" => \$verbose,
+	       "savedir=s" => \$savedir,
+	       );
+
+    if (!$file) {
+	print "Usage: sync_medical_registration --file=<file> [--year=3|4] [--save] [--savedir=<location to copy file to>] [--verbose]\n";
+	exit;
+    }
+}
+
+use MySQL::Password;
+use HSDB4::Constants;
+use TUSK::Constants;
+use HSDB4::SQLRow::User;
+use HSDB45::TimePeriod;
+use HSDB45::Course;
+use TUSK::Import;
+use TUSK::Core::CourseCode;
+use TUSK::Core::HSDB45Tables::LinkCourseTeachingSite;
+use File::Copy;
+
+
+my $school = 'Medical';
+my $school_id = 1;
+
+HSDB4::Constants::set_user_pw(get_user_pw);
+my $username = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
+my $pwd = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
+
+my $import;
+my %delete_records = ();
+my %error_records = ();
+
+
+main();
+
+
+sub main {
+  # Check the time of the passed file
+  die "The file $file does not exist\n" unless(-f $file);
+
+  die "The save location $savedir dies not exist\n"
+    if ($savedir && !-d $savedir);
+
+  if ((time - (stat($file))[9]) > (60*60*24)) {
+    print "$file wasn't synced from shared drive last night\n";
+  }
+
+  if ($savedir) {
+    my $fileName = $file;
+    $fileName =~ s/^.*\//$savedir\//;
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+    my $date= ($year+1900) . sprintf("%02d", $mon+1) . sprintf("%02d", $mday);
+    $fileName =~ s/(\.[^\.]*)$/$date$1/;
+    warn "Unable to copy $file to $fileName\n"
+      unless (copy($file, "$fileName"));
+  }
+
+  $import = TUSK::Import->new;
+  $import->set_ignore_empty_fields(1);
+  print "##\n--save not specified, no changes will be made\n##\n"
+    unless ($save);
+
+  ### column names in the input file do not need to match what is defined here;
+  ### however the order needs to match
+  my @fields = qw(StudentGlobalId StudentTUSKId LastName FirstName MiddleName
+                  AcademicYear ClassYear Period StartDate EndDate
+                  CourseCode CourseTitle
+                  SiteCode SiteName SiteCity SiteState
+                  AddDate DropDate ModifiedDate
+                  CourseDirectorGlobalId CourseDirector
+                  CourseDirector2GlobalId CourseDirector2
+                  CourseDirector3GlobalId CourseDirector3
+                );
+
+  $import->set_fields(@fields);
+  $import->read_file($file,"\t");
+  $import->grep_records("ClassYear",$grepyear) if ($grepyear);
+
+  my @records = $import->get_records();
+
+  ### grab delete records. so that we could do insanity check that input file
+  ### doesn't contain adding/deleting the same record
+  %delete_records = map {
+    join('_', ($_->get_field_value("StudentTUSKId"),
+               $_->get_field_value("AcademicYear"),
+               $_->get_field_value("Period"),
+               $_->get_field_value("CourseCode"),
+               $_->get_field_value("SiteCode"))) =>
+                 $_->get_field_value("DropDate") }
+    grep { $_->get_field_value("DropDate") =~ /\d+/ } @records;
+
+  ### process all EXCEPT the column names row (1st row)
+  for (my $i = 1; $i < scalar(@records); $i++) {
+    process_record($records[$i],$i);
+  }
+
+  if (%error_records) {
+    print "\nErrors:\n";
+    foreach my $key (sort keys %error_records) {
+      my ($start_date, $end_date, $academic_year, $period) = split("_", $key);
+      print "\nPERIOD: $period, $academic_year";
+      print " ($start_date - $end_date)" if ($start_date && $end_date);
+      print "\n";
+
+      if ($error_records{$key}{missing_timeperiod}) {
+        print "\tCannot find time period. Number of records NOT processed: " .
+          "$error_records{$key}{missing_timeperiod}\n";
+      } else {
+        foreach (@{$error_records{$key}{errs}}) {
+          print "\t$_\n";
+        }
+      }
+    }
+  }
+}
+
+
+sub process_record {
+  my ($record, $record_count) = @_;
+
+  my ($has_err, $course, $student_id, $tp_id, $ts_id) =
+    _get_enrollment_data($record, $record_count);
+
+  ## error exit due to problem with parsing/validating the record
+  return if $has_err;
+
+  my $enrolled = _is_student_enrolled($course, $student_id, $tp_id, $ts_id);
+  my $course_code = $record->get_field_value("CourseCode");
+
+  ############################
+  ## Add / Delete records
+  ############################
+  if (my $drop_date = $record->get_field_value("DropDate")) { ### DROP
+    if ($enrolled) {
+      if ($save) {
+        my $raw_record_key =
+          join('_', ($record->get_field_value("StudentTUSKId"),
+                     $record->get_field_value("AcademicYear"),
+                     $record->get_field_value("Period"),
+                     $record->get_field_value("CourseCode"),
+                     $record->get_field_value("SiteCode")));
+
+        if (exists $delete_records{$raw_record_key}) {
+          $course->delete_child_student($username, $pwd, $student_id,
+                                        $tp_id, $ts_id);
+          delete $delete_records{$raw_record_key};
+        }
+      } else {
+        print "Record $record_count: $student_id needs removed from course " .
+          $course->primary_key, " ($course_code)\n";
+      }
+    } else {
+      print "Record $record_count: data matches - $student_id previously " .
+        "dropped from course " . $course->primary_key .
+          " ($course_code)\n" if ($verbose);
+    }
+  } else {                      ## ADD
+    if ($enrolled) {
+      ### do nothing
+      print "Record $record_count: data matches - $student_id previously " .
+        "added to course " . $course->primary_key . " ($course_code)\n"
+          if ($verbose);
+    } else {
+      if ($save) {
+        $course->add_child_student($username,$pwd,$student_id,$tp_id,$ts_id);
+      } else {
+        print "Record $record_count: $student_id needs added to course " .
+          $course->primary_key," ($course_code)\n";
+      }
+    }
+  }
+}
+
+
+sub _get_enrollment_data {
+    my ($record, $record_count) = @_;
+
+    my $ay = $record->get_field_value("AcademicYear");
+    my $period = $record->get_field_value("Period");
+    my $time_period_key = $record->get_field_value("StartDate") . '_' . $record->get_field_value("EndDate") . '_' .  $ay . '_' . $period;
+    my $course_code = $record->get_field_value("CourseCode");
+
+    ############################
+    ## check student user_id
+    ############################
+    my $student_user_id = $record->get_field_value("StudentTUSKId");
+    my $student_id = &_check_user_id($student_user_id);
+    unless ($student_id) {
+	push @{$error_records{$time_period_key}{errs}}, "Record $record_count: Can't find user [$student_user_id, $course_code]";
+	return 1;
+    }
+
+    ############################
+    ## find time period
+    ############################
+    if ($period =~ /^0/) {
+	print "Converted period ".$period if ($verbose);
+	$period =~ s/^0//;
+	print " to $period\n" if ($verbose);
+    }
+
+    my $tp_id = &_get_time_period_id($period,$ay);
+    unless ($tp_id) {
+	$error_records{$time_period_key}{missing_timeperiod}++;
+	return 1;
+    }
+
+    ############################
+    ## find course
+    ############################
+    my $course = &_get_course($course_code);
+    unless ($course) {
+	push @{$error_records{$time_period_key}{errs}}, "Record $record_count: Can't find course [$course_code, $student_user_id]";
+	return 1;	
+    }
+
+    ############################    
+    ## get teaching site
+    ############################
+    my $site = $record->get_field_value("SiteName");
+    my $ts_id = &_get_teaching_site_id($site,$course,$course_code);
+    unless ($ts_id) {
+	push @{$error_records{$time_period_key}{errs}}, "Record $record_count: Can't find teaching site [\"$site\", $course_code, $student_user_id, cid:" . $course->primary_key()  . ']';
+	return 1;	
+    }
+
+    ### 0 means that we have no error getting data
+    return (0, $course, $student_id, $tp_id, $ts_id);
+}
+
+
+sub _check_user_id {
+    my $user_id = shift;
+    my $user = HSDB4::SQLRow::User->new;
+    $user->lookup_key($user_id);
+    return $user->primary_key;
+}
+
+
+sub _get_time_period_id {
+    my $time_period = shift;
+    my $ay = shift;
+    my $timeref = HSDB45::TimePeriod->new( _school => $school );
+    my @set = $timeref->lookup_conditions("period='$time_period' AND academic_year='$ay'");
+    return unless (@set);
+    return if (@set > 1);
+    return $set[0]->field_value('time_period_id');
+}
+
+
+sub _get_course {
+    my $course_code = shift;
+    ## lookup the course_id based on the CourseCode
+
+    my $codes = TUSK::Core::CourseCode->new()->lookup("code = '$course_code' and school_id = $school_id");
+    if (@{$codes} > 1) {
+	return undef unless _isSingleCourse($codes);
+    }
+
+    my $course;
+    if (defined $codes->[0]) {
+	$course = HSDB45::Course->new(_school => $school)->lookup_key($codes->[0]->getCourseID());    
+    }
+    
+    return (defined $course) ? $course : undef;
+}
+
+
+sub _isSingleCourse {
+    my $codes = shift;
+    my %saw = ();
+    my @uniqs = grep(!$saw{$_}++, map {$_->getCourseID()} @{$codes});
+    return (scalar @uniqs == 1) ? 1 : 0;
+}
+
+
+sub _get_teaching_site_id {
+    my ($site_name,$course,$course_code) = @_;
+
+    # print "SiteName: '$site_name' \n" if $verbose;
+
+    my $codes = TUSK::Core::CourseCode->new()->lookup("code = '$course_code' and school_id = $school_id");
+    if (@{$codes} > 1) {
+	return 0 unless _isSingleCourse($codes);
+    } else {
+	return $codes->[0]->getTeachingSiteID();
+    }
+
+    ## see if there's just one course teaching site
+    my @course_sites = $course->child_teaching_sites;
+    return $course_sites[0]->primary_key if (scalar @course_sites == 1);
+    return unless ($site_name);
+
+    # map { print "$course_code: " . $_->field_value('site_name') . "\n" } @course_sites if $verbose;
+
+    ## if more than one course teaching site, see if one has the right name
+    @course_sites = grep { $_->field_value("site_name") eq $site_name } @course_sites;
+    return $course_sites[0]->primary_key if (scalar @course_sites == 1);
+
+    ## otherwise, do a lookup based on name in the teaching_site table and link course and site
+    my $teaching_site = HSDB45::TeachingSite->new(_school => $school);
+    $site_name =~ s/\'/\'\'/g;
+    if (my @sites = $teaching_site->lookup_conditions("site_name='$site_name'")) {
+	if (scalar @sites == 1) {
+	    _add_course_teaching_site($course->primary_key(),$sites[0]->primary_key());
+	    return $sites[0]->primary_key();
+	}
+    }
+}
+
+
+sub _is_student_enrolled {
+    my ($course,$student_id,$tp_id,$ts_id) = @_;
+
+    unless (defined $course->field_value('course_id')) {
+	print "undefined course: $student_id,$tp_id,$ts_id\n";
+	return 0;
+    }
+    my @wheres = ("child_user_id='$student_id'","time_period_id=$tp_id");
+    push (@wheres, "teaching_site_id=$ts_id") if ($ts_id);
+    my @set = $course->child_students(@wheres);
+
+    return if (!@set);
+    return if (@set > 1);
+    return $set[0];    
+}
+
+sub _add_course_teaching_site {
+    my ($courseid, $teachingsiteid) = @_;
+    my $cts = TUSK::Core::HSDB45Tables::LinkCourseTeachingSite->new();
+	
+    $cts->setParentCourseID($courseid);
+    $cts->setChildTeachingSiteID($teachingsiteid);
+    $cts->save({ user => $username });
+}
+
+

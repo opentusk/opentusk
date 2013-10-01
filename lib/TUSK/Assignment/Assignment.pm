@@ -77,6 +77,7 @@ sub new {
 					'due_date' => '',
 					'group_file_flag' => '',
 					'resubmit_flag' => '',
+					'email_flag' => '',
 					'sort_order'	=> '',
 				    },
 				    _attributes => {
@@ -286,6 +287,36 @@ Set the value of the resubmit_flag field
 sub setResubmitFlag{
     my ($self, $value) = @_;
     $self->setFieldValue('resubmit_flag', $value);
+}
+
+#######################################################
+
+=item B<getEmailFlag>
+
+my $string = $obj->getEmailFlag();
+
+Get the value of the email_flag field
+
+=cut
+
+sub getEmailFlag{
+    my ($self) = @_;
+    return $self->getFieldValue('email_flag');
+}
+
+#######################################################
+
+=item B<setEmailFlag>
+
+$obj->setEmailFlag($value);
+
+Set the value of the email_flag field
+
+=cut
+
+sub setEmailFlag{
+    my ($self, $value) = @_;
+    $self->setFieldValue('email_flag', $value);
 }
 
 #######################################################

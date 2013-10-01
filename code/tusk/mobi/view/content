@@ -90,6 +90,8 @@ return $lnks;
 
  	my $prntURL = "/mobi/view/course/$sc/$parent_id"; 
  	my $nav_bars = []; 
+	# test for markup
+	# $nav_bars = [ { href => $prntURL, label => __('Course Home') , title => __('Course Home')  } ];
  	$nav_bars = [ { href => $prntURL, label => 'Course Home', title => 'Course Home' } ];
  	return $nav_bars;
 </%perl>
@@ -100,10 +102,10 @@ return $lnks;
 
 % unless($content->is_active()) {
 %	if($iCanEdit){
-<p style="border:2px solid red;">This content has expired!<br>You are only able to see it because you are an editor</p>
+<p style="border:2px solid red;"><%__("This content has expired")%>!<br><%__("You are only able to see it because you are an editor")%></p>
 %	}
 %	else{
-<em>Sorry this content is not currently active.</em>
+<em><%__("Sorry this content is not currently active")%>.</em>
 %	return();
 %	}
 % }
@@ -118,29 +120,41 @@ if($content->type() eq 'Slide'){
 my $body = $content->out_html_body(%ARGS); 
 
 if($content->error) {
-	print "<div class=\"error\">This document cannot be displayed at this time.  Please email <a href=\"$TUSK::Constants::SupportEmail\">$TUSK::Constants::SupportEmail</a> if you have a question.</div>";
+	print sprintf("<div class=\"error\">%s. %s <a href=\"%s\">%s</a>%s.</div>",
+                __("This document cannot be displayed at this time"),
+                $TUSK::Constants::SupportEmail,
+                $TUSK::Constants::SupportEmail,
+                __("Please email"),
+                __("if you have a question"));
+
 	ErrorReport::sendErrorReport($r, {'Msg'=>$content->error()});
 } 
 elsif(!$content->is_mobile_ready()){
-	print "<p>This piece of content is not currently supported on the mobile version of $TUSK::Constants::SiteAbbr. We are sorry for any inconvenience.</p>";
+	print sprintf("<p>%s %s. %s.</p>",
+		__("This piece of content is not currently supported on the mobile version of"),
+		$TUSK::Constants::SiteAbbr,
+		__("We are sorry for any inconvenience"));
 }
 else {
 	if($content->type() eq 'Collection') {
 		if($body) {
-			print "<strong>Folder Notes:</strong><p class=\"folderNotes\">$body</p>";
+			print sprintf("<strong>%s:</strong><p class=\"folderNotes\">%s</p>",__("Folder Notes"),$body);
 		}
 		my @subContent = $content->active_child_content();
 		if($content->display_child_content && scalar @subContent) {
 			$m->comp('/tmpl/content:drawMobileContent', contentArray => \@subContent, course => $course, integrated_course => $integrated_course);
 		}
 		else {
-			print 'There are no documents, slides or other multimedia in this collection.';
+			print __('There are no documents, slides or other multimedia in this collection') . '.';
+
 		}
 	} 
 	else{
-		my $dload_warn = "<p>The link below goes to a piece of content that may not be supported on your mobile device. Check that it can handle the file type and has the capacity for large files.</p>";
+		my $dload_warn = "<p>" . __("The link below goes to a piece of content that may not be supported on your mobile device. Check that it can handle the file type and has the capacity for large files") .".</p>";
 		if ($ENV{HTTP_USER_AGENT} =~ /android/i) {
-			$dload_warn .= "<p><strong>Android users:</strong> to download a file, hold your thumb down on the file link until a menu appears and choose the \"Save link\" option from the list.</p>";
+			$dload_warn .= sprintf("<p><strong>%s:</strong> %s.</p>",
+        			__("Android users"),
+        			__("to download a file, hold your thumb down on the file link until a menu appears and choose the \"Save link\" option from the list"));
 		}
 		my $pretxt = '';
 		if( $content->type() eq 'DownloadableFile' || $content->type() eq 'PDF' ){
@@ -162,7 +176,10 @@ else {
 			$pretxt = "<div id=\"subNav\">$lnk_str</div>";
 		}
 		elsif($content->display_framed()) {
-			$pretxt = "<p>To view this content, follow the link below. Warning: you will be leaving the $TUSK::Constants::SiteAbbr site and will need to use your browser's 'back' button to return.</p>";
+			$pretxt = sprintf("<p>%s %s %s.</p>",
+        				__("To view this content, follow the link below. Warning: you will be leaving the"),
+        				$TUSK::Constants::SiteAbbr,
+        				__("site and will need to use your browser's 'back' button to return"));
 			if($content->type() eq 'Document'){
 				$body = '<a href="/view/minStyle/content/' . $content->primary_key() . '">' . $content->title . '</a>';
 			}
@@ -177,19 +194,26 @@ else {
 	$ctime->in_mysql_timestamp($content->field_value("created"));
 	$mtime->in_mysql_timestamp($content->field_value("modified"));
 	my @authors = $content->child_authors();
+	# we should have a large hash of translated common tags in prepend
+	my $tags = {
+		created 	=> __("Created"),
+		author		=> __("Author"),
+		modified	=> __("Modified"),
+		unknown		=> __("Unknown"),
 
+	};
 	print "<p>\n";
-	print '<b>Author(s):</b> ' . join('; ', @authors) . "<br/>\n" if (scalar @authors);
+	print '<b>' .$tags->{author} . '(s):</b> ' . join('; ', @authors) . "<br/>\n" if (scalar @authors);
 
 
 	if($ctime->out_string_date eq '') {
-		print "<b>Created:</b> Unknown<br/>\n";
+		print "<b>$tags->{created}:</b> $tags->{unknown}<br/>\n";
 	} 
 	else {
-		print "<b>Created:</b> " . $ctime->out_string_date . "<br/>\n";
+		print "<b>$tags->{created}:</b> " . $ctime->out_string_date . "<br/>\n";
 	}
 	unless($mtime->out_string_date eq '') {
-		print "<b>Modified:</b> " . $mtime->out_string_date . "\n";
+		print "<b>$tags->{modified}:</b> " . $mtime->out_string_date . "\n";
 	}
 	print "</p>\n";
 

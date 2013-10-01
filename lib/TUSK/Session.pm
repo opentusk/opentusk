@@ -144,16 +144,28 @@ sub is_school_eval_admin {
     else {return(0);}
 }
 
-sub get_schools{
-    my ($hash, $user) = @_;
-    return grep { $hash->{roles}->{tusk_session_admin}->{$_} }(keys %{$hash->{roles}->{tusk_session_admin}}) 
-	if (defined($hash->{roles}->{tusk_session_admin}));
+# Get sorted list of schools for which current session user has admin
+sub get_schools {
+    my ($session_hashref,) = @_;
+
+    # tusk_session_admin is set in HSDB4::SQLRow::User
+    return if ! defined $session_hashref->{roles}{tusk_session_admin};
+
+    my $school_hashref = $session_hashref->{roles}{tusk_session_admin};
+    my @admin_schools = sort(grep { $school_hashref->{$_} == 1 } keys %{ $school_hashref });
+    return @admin_schools;
 }
 
-sub get_eval_schools{
-    my ($hash, $user) = @_;
-    return grep { $hash->{roles}->{tusk_session_eval_admin}->{$_} == 1 }(keys %{$hash->{roles}->{tusk_session_eval_admin}}) 
-	if (defined($hash->{roles}->{tusk_session_eval_admin}));
+# Get sorted list of schools for which current session user has eval admin
+sub get_eval_schools {
+    my ($session_hashref,) = @_;
+
+    # tusk_session_eval_admin is set in HSDB4::SQLRow::User
+    return if ! defined $session_hashref->{roles}{tusk_session_eval_admin};
+
+    my $school_hashref = $session_hashref->{roles}{tusk_session_eval_admin};
+    my @eval_schools = sort(grep { $school_hashref->{$_} == 1 } keys %{ $school_hashref });
+    return @eval_schools;
 }
 
 sub check_content_key{
@@ -202,21 +214,6 @@ sub check_content_permissions{
     
     set_content_key($udat, $content->primary_key, $grant);
     return $grant;
-}
-
-sub cms_user_courses{
-	my $user = shift;
-	my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $user->parent_courses();
-	push(@courses,$user->admin_courses);
-
-	my $courses_hash;
-	for(my $i=0; $i<scalar @courses; $i++){
-		my $school = $courses[$i]->{_school};
-		my $key = $courses[$i]->out_title."\0".$courses[$i]->primary_key;
-		$courses_hash->{$school}->{$key}=$courses[$i];
-	}
-  
-	return $courses_hash;
 }
 
 sub is_tusk_admin{

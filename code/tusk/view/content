@@ -59,7 +59,6 @@
 	use TUSK::Functions;
 	use TUSK::ErrorReport;
 	use POSIX;
-    use Data::Dumper;
 </%once>
 
 
@@ -84,7 +83,7 @@ $args => {}
 
 		unless($canView) {
 			# We cant view this so re-direct my to /home with a message saying that a shib user is not allowed to view the document.
-			$m->comp("/tmpl/url:redirect",message => "FAILURE : Content was not shared with you");
+			$m->comp("/tmpl/url:redirect",message => __("FAILURE : Content was not shared with you"));
 		}
 	}
 #print pre_dump($m->session);
@@ -151,7 +150,7 @@ return $right_hdr_lnks;
 % unless($iCanEdit || $document->is_active()) {
 	<br><br>
 	<table border="0" width="100%">
-	  <tr><th><font size="+2">Sorry this content is not currently active.</font></th></tr>
+	  <tr><th><font size="+2"><%__('Sorry this content is not currently active.')%></font></th></tr>
 	</table>
 	<br><br>
 %    return();
@@ -212,14 +211,14 @@ return $right_hdr_lnks;
 &nbsp;
 <img align="left" border="0" width="1px" src="/graphics/spacer.gif" height="325px">
 
-<noscript><center><b>Your browser does not support JavaScript!<br>Try using the non-scripted content page by <a href="<% $nonScriptPage %>">clicking here</a></b></center></noscript>
+<noscript><center><b><%__x('Your browser does not support JavaScript!<br>Try using the non-scripted content page by <a href="{non_script_url}">clicking here</a></b>', non_script_url => $nonScriptPage)%></center></noscript>
 <%doc>Create the floating navigation bar.</%doc>
 <& SELF:printNavBardwithJavaScripts, SIZE => $ARGS{'SIZE'}, summary => $summary &>
 
 <%doc>This anchor was in the legacy content.</%doc>
 <a name="_top"></a>
 % if($iCanEdit && !$document->is_active()) {
-	<center><div style="margin-top:10px; margin-right:30px; margin-bottom:20px; margin-left:125px; border:2px solid red; background-color:white;">This content has expired!<br>You are only able to see it because you are an editor</div></center>
+	<center><div style="margin-top:10px; margin-right:30px; margin-bottom:20px; margin-left:125px; border:2px solid red; background-color:white;"><%__('This content has expired!<br>You are only able to see it because you are an editor')%></div></center>
 % }
 
 <& SELF:display_content, summary => $summary, document => $document, %ARGS &>
@@ -303,46 +302,44 @@ return $right_hdr_lnks;
 % my $rowspan = 11;
 % if($document->type() eq 'TUSKdoc' or (defined($document->conversion_status) && $document->conversion_status > 0)) {$rowspan++;}
 % if($iCanEdit && $userObject->primary_key) {$rowspan+=2;}
-	        <td width="<% $iconWidth %>" style="border-bottom:1px solid lightgrey; cursor:pointer;">
+	        <td class="button" nowrap="nowrap">
 %			my $prev = $document->context_prev;
-%			my $title = "Previous Document";
-%			my $background = 'style="background-color:lightgrey;"';
+%			my $title = __("Previous Document");
+%			my $background = '';
 %			if($prev) {
 %			  $title.= ": " . $prev->out_abbrev();
-%			  $background = "onClick=\"document.location='" . $prev->out_url() .
-%					"';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\"";
+%			  $background = "onClick=\"document.location='" . $prev->out_url() . "';\"";
 %			}
-	          <img src="<% $imageDir %>/previous.gif" title="<% $title %>" <% $background %> <% $printIconWidth %> alt="Previous">
+        		<span class="contentbutton <% ($prev) ? 'active ': '' %>previous" title="<% $title %>" <% $background %>><% __('prev') %></span>
 	        </td>
 
-	        <td width="<% $iconWidth %>" style="border-bottom:1px solid lightgrey; cursor:pointer;">
+	        <td class="button" nowrap="nowrap">
 %		my $collection = $document->context_parent;
-%		$title = "To Collection";
-%		$background = 'style="background-color: lightgrey;"';
+%		$title = __("To Collection");
+%		$background = '';
 %		if($collection) {
 %		  $title.= ": " . $collection->out_abbrev();
-%		  $background = "onClick=\"document.location='" . $collection->out_url() .
-%				"';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this)\";"
+%		  $background = "onClick=\"document.location='" . $collection->out_url() . "';\"";
 %		}
-	        <img src="<% $imageDir %>/content_up.gif" <% $printIconWidth %> title="<% $title %>" <% $background %> alt="To Collection">
+	        	<span class="contentbutton  <% ($collection) ? 'active ': '' %>up" title="<% $title %>" <% $background %>><% __('up') %></span>
 	        </td>
 
-	        <td width="<% $iconWidth %>" style="border-bottom:1px solid lightgrey; cursor:pointer;">
+	        <td class="button" nowrap="nowrap">
 %		my $next = $document->context_next;
-%		$title = "Next Document";
+%		$title = __("Next Document");
 %		$background = 'style="background-color: lightgrey;"';
 %		if($next) {
 %		  $title.= ": " . $next->out_abbrev();
-%		  $background = "onClick=\"document.location='" . $next->out_url() .
-%				"';\" onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this)\";"
+%		  $background = "onClick=\"document.location='" . $next->out_url() . "';\"";
 %		}
-	        <img src="<% $imageDir %>/next.gif" <% $printIconWidth %> title="<% $title %>" <% $background %> alt="Next">
+	        	<span class="contentbutton  <% ($next) ? 'active ': '' %>next" title="<% $title %>" <% $background %>><% __('next') %></span>
+
 	        </td>
 	      </tr>
 
 <%doc>check on the active attribute below</%doc>
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Keywords',
+                        menuItemText            => __('Keywords'),
                         menuItemHelpText        => 'Keywords/UMLS Concepts',
                         onClick                 => "displayForm('theKeyWordForm', this);",
 			active			=> (scalar(@keyWords) || scalar(@concepts)),
@@ -350,14 +347,14 @@ return $right_hdr_lnks;
 %	if($document->type() eq 'TUSKdoc' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
 %		if ($summary) {
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Full Doc',
-                        menuItemHelpText        => 'View Full Document',
+                        menuItemText            => __('Full Doc'),
+                        menuItemHelpText        => __('View Full Document'),
                         onClick                 => "document.location='$ENV{SCRIPT_URI}?summary=0';",
                 &>
 %		} else {
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Doc Summary',
-                        menuItemHelpText        => 'View Document Summary',
+                        menuItemText            => __('Doc Summary'),
+                        menuItemHelpText        => __('View Document Summary'),
                         onClick                 => "document.location='$ENV{SCRIPT_URI}?summary=1';",
                 &>
 
@@ -365,8 +362,8 @@ return $right_hdr_lnks;
 % }
 
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Objectives',
-                        menuItemHelpText        => 'View Content Objectives',
+                        menuItemText            => __('Objectives'),
+                        menuItemHelpText        => __('View Content Objectives'),
                         onClick                 => "displayForm('theContentObjectiveForm', this);",
 			active			=> scalar(@objectives),
                 &>
@@ -380,23 +377,23 @@ return $right_hdr_lnks;
 %                   }
 %	  	  }
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Notes&nbsp;',
-                        menuItemHelpText        => 'View Notes',
+                        menuItemText            => __('Notes&nbsp;'),
+                        menuItemHelpText        => __('View Notes'),
 			onClick			=> "displayForm('theNotesForm', this);",
 			extraImg		=> $imageIcon,
                 &>
 %		  if($document->content_type() eq 'Collection') {
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Full&nbsp;Notes',
-                        menuItemHelpText        => 'Show full content notes',
+                        menuItemText            => __('Full&nbsp;Notes'),
+                        menuItemHelpText        => __('Show full content notes'),
 			onClick			=> 'displayContentNotes(this);',
 			showArrow		=> 0,
                 &>
 % my $collectionNotesPage = $ENV{SCRIPT_URI};
 % $collectionNotesPage =~ s/view\/content[^\/]*/view\/collectionnotes/;
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Folder&nbsp;Notes',
-                        menuItemHelpText        => 'Take notes on all items in collection',
+                        menuItemText            => __('Folder&nbsp;Notes'),
+                        menuItemHelpText        => __('Take notes on all items in collection'),
 			onClick			=> "document.location='$collectionNotesPage'",
 			showArrow		=> 0,
                 &>
@@ -404,57 +401,57 @@ return $right_hdr_lnks;
 %		}
 
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Linked&nbsp;From',
-                        menuItemHelpText        => 'View Linked Documents',
+                        menuItemText            => __('Linked&nbsp;From'),
+                        menuItemHelpText        => __('View Linked Documents'),
                         onClick                 => "displayForm('theLinkedDocsForm', this);",
 			active			=> $linkedFrom,
                 &>
 %		if(($document->type eq "Slide") || ($document->type eq "Flashpix"))
 %		{
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Image&nbsp;Zoom',
-                        menuItemHelpText        => 'Zoom Image',
+                        menuItemText            => __('Image&nbsp;Zoom'),
+                        menuItemHelpText        => __('Zoom Image'),
                         onClick                 => "displayForm('theZoomForm', this);",
 			menuID			=> 'topZoomImage',
                 &>
 %		}
 %		unless($iAmAGuest || $iAmAShibUser) {
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'My&nbsp;Folders',
-                        menuItemHelpText        => 'Folder',
+                        menuItemText            => __('My&nbsp;Folders'),
+                        menuItemHelpText        => __('Folder'),
                         onClick                 => "displayForm('theSaveForm', this);",
                 &>
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'My&nbsp;Flash&nbsp;Cards',
-                        menuItemHelpText        => 'Folder',
+                        menuItemText            => __('My&nbsp;Flash&nbsp;Cards'),
+                        menuItemHelpText        => __('Folder'),
                         onClick                 => "displayForm('theFlashCardsForm', this);",
                 &>
 %		}
 <& SELF:displayContentOptionMenuItem,   
-                        menuItemText            => 'Print',
-                        menuItemHelpText        => 'Print Document',
+                        menuItemText            => __('Print'),
+                        menuItemHelpText        => __('Print Document'),
                         onClick                 => "displayForm('thePrintForm', this);",
                 &>
 %	if($iCanEdit && $userObject->primary_key) {
 
 % if ($document->type() eq 'TUSKdoc'){
 <& SELF:displayContentOptionMenuItem,
-                        menuItemText            => 'TUSKdoc&nbsp;Msgs',
-                        menuItemHelpText        => 'Show messages generated by the Word to TUSKdoc process.',
+                        menuItemText            => __('TUSKdoc&nbsp;Msgs'),
+                        menuItemHelpText        => __('Show messages generated by the Word to TUSKdoc process.'),
                         onClick                 => 'showTUSKdocMessages()',
 			showArrow		=> 0,
                 &>
 % }
 <& SELF:displayContentOptionMenuItem,
-                        menuItemText            => 'History',
-                        menuItemHelpText        => 'Content History',
+                        menuItemText            => __('History'),
+                        menuItemHelpText        => __('Content History'),
                         onClick                 => "document.location='/view/content_history/" . $document->primary_key . "'",
 			showArrow		=> 0,
                 &>
 %	}
 <& SELF:displayContentOptionMenuItem,
-                        menuItemText            => 'Info',
-                        menuItemHelpText        => 'View Content Info',
+                        menuItemText            => __('Info'),
+                        menuItemHelpText        => __('View Content Info'),
                         onClick                 => "displayForm('theContentInfoForm', this);",
                 &>
 	    </table>
@@ -574,7 +571,7 @@ return $right_hdr_lnks;
 	  var alreadySaidOK = 0;
 	  function highlightWords() {
 	    if(theContent == '') {
-	      alert('Please wait for the page to finish loading.');
+	      alert(_('Please wait for the page to finish loading.'));
 	      for(var index=l; index<document.theTuskWordForm.keyWords.length; index++) {
 	        document.theTuskWordForm.keyWords[index].selected = false;
 	      }
@@ -582,7 +579,7 @@ return $right_hdr_lnks;
 	    }
 %  if($document->content_type() eq 'Collection') {
             //Check if we are making an ajax call.
-            if(loadingContent) {alert('Please wait for the content to finish loading.'); return;}
+            if(loadingContent) {alert(_('Please wait for the content to finish loading.')); return;}
             //Load all of the content again.
             theContent = document.getElementById('pageContent').innerHTML;
 %  }
@@ -599,9 +596,7 @@ return $right_hdr_lnks;
 	    var tempContent = theContent;
 	    if(selectedKeyWords != '') {
 	      if((numberOfSelectedKeyWords > 10) && !alreadSaidOK) {
-	        var tooMany = "You have selected more than 10 key words.\n" +
-	                      "I can highlight them all but it may take some time.\n" +
-	                      "Do you want me to continue? (I wont ask again on this page if you say ok)";
+	        var tooMany = _("You have selected more than 10 key words.\nI can highlight them all but it may take some time.\nDo you want me to continue? (I wont ask again on this page if you say ok)");
 	        if(!confirm(tooMany)) {return true;} else {alreadySaidOK = 1;}
 	      }
 	      var theRegExp = new RegExp("([^_\/\"])("+selectedKeyWords+")[^<]", 'i');
@@ -677,7 +672,7 @@ return $right_hdr_lnks;
 	      if(document.theTuskPrintForm.slidesPerPage[index].checked) {
 		var slidesPerPage = document.theTuskPrintForm.slidesPerPage[index].value.substr(-1,1);
 	        document.theTuskPrintForm.action = document.theTuskPrintForm.slidesPerPage[index].value;
-	        if((<% $numberOfContent %>/slidesPerPage) > 10) {alert('This collection contains more than ten pages of images.\nWe suggest you print five pages at a time.');}
+	        if((<% $numberOfContent %>/slidesPerPage) > 10) {alert(_('This collection contains more than ten pages of images.\nWe suggest you print five pages at a time.'));}
 	        document.theTuskPrintForm.submit();
 	      }
 	    }
@@ -730,7 +725,7 @@ return $right_hdr_lnks;
           <td valign="middle" align="left"><font style="color:lightgrey; font-size:10px;"><% $title %></font></td>
 	  <td valign="middle" align="right">
             <font style="color:lightgrey; font-size:10px; cursor:pointer;" onClick="displayForm('<% $formName %>');">
-              Close
+              <%__('Close')%>
               <font style="border:1px solid lightgrey;">&nbsp;<b>X</b>&nbsp;</font>
             </font>
           </td>
@@ -749,18 +744,18 @@ return $right_hdr_lnks;
 %  $m->session->{'contentMenuLocation'}->{'theContentInfoForm'}->{'y'} ||= $defaultHeight;
 
   <div id="theContentInfoForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theContentInfoForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theContentInfoForm'}->{'y'} %>px; overflow:hidden;">
-    <& SELF:printDragHandleWithClose, formName => 'theContentInfoForm', title => 'Info', imageName => 'infoButton' &>
+    <& SELF:printDragHandleWithClose, formName => 'theContentInfoForm', title => __('Info'), imageName => 'infoButton' &>
     <div style="z-index:9996; width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
       <table border="0" cellspacing="0" width="100%" class="tableWithLittleFont">
-        <tr><td align="right"><b>School:</b></td><td><% ucfirst($document->field_value("school")) %></td></tr>
-        <tr><td align="right"><b>Content&nbsp;ID:</b></td><td><% $document->primary_key %></td></tr>
+        <tr><td align="right"><b><%__('School')%>:</b></td><td><% ucfirst($document->field_value("school")) %></td></tr>
+        <tr><td align="right"><b><%__('Content&nbsp;ID')%>:</b></td><td><% $document->primary_key %></td></tr>
 %  if($document->course) {
-        <tr><td align="right" valign="top"><b>Course</b>:</td><td><% $document->course->out_html_label %></td></tr>
+        <tr><td align="right" valign="top"><b><%__('Course')%></b>:</td><td><% $document->course->out_html_label %></td></tr>
 %  }
 	
 %  if(@authors) {
         <tr>
-          <td valign="top" align="right"><b>Authors</b>:</td>
+          <td valign="top" align="right"><b><%__('Authors')%></b>:</td>
           <td valign="top">
 %  if(scalar(@authors) > 4) {$m->print('<div id="authorsDiv" class="multiselectdiv">');}
             <ul style="padding-left:20px;">
@@ -802,7 +797,7 @@ return $right_hdr_lnks;
 %  $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'y'} ||= $defaultHeight;
 
   <div id="theNotesForm" class="hiddenDiv" style="z-index:9999; left:<% $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'x'} %>px; top:<% $m->session->{'contentMenuLocation'}->{'theNotesForm'}->{'y'} %>px; width:402px; height:268px; display:none; overflow:hidden;">
-    <& SELF:printDragHandleWithClose, formName => 'theNotesForm', title => 'Notes', imageName => 'displayNotesFormImage' &>
+    <& SELF:printDragHandleWithClose, formName => 'theNotesForm', title => __('Notes'), imageName => 'displayNotesFormImage' &>
     <iframe id="theNotesFormBody" src="<% $notesLocation %>" style="border:0px none; width:400px; height:250px; overflow:hidden;">
     </iframe>
   </div>  
@@ -821,7 +816,7 @@ return $right_hdr_lnks;
 %  $m->session->{'contentMenuLocation'}->{'theContentObjectiveForm'}->{'y'} ||= $defaultHeight;
 
   <div id="theContentObjectiveForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theContentObjectiveForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theContentObjectiveForm'}->{'y'} %>px; overflow:hidden;">
-    <& SELF:printDragHandleWithClose, formName => 'theContentObjectiveForm', title => 'Objectives', imageName => 'objectiveButton' &>
+    <& SELF:printDragHandleWithClose, formName => 'theContentObjectiveForm', title => __('Objectives'), imageName => 'objectiveButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
 %  if(@objectives) {
       <ul style=""padding-left:20px;">
@@ -830,7 +825,7 @@ return $right_hdr_lnks;
 %    }
       </ul>
 %  } else {
-      <b><center>None</center></b>
+      <b><center><%__('None')%></center></b>
 %  }
     </div>
   </div>
@@ -859,7 +854,7 @@ return $right_hdr_lnks;
   </%perl>
 
   <div id="thePrintForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'thePrintForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'thePrintForm'}->{'y'} %>px; overflow:hidden;">
-% my $title = "Print Content";
+% my $title = __("Print Content");
 % if($document->type() eq 'TUSKdoc' or (defined($document->conversion_status) && $document->conversion_status > 0)) {$title = "Print or Download Content";}
 
     <script>
@@ -884,34 +879,31 @@ return $right_hdr_lnks;
 %        my $numberOfPages = ceil($numberOfSubContent/$numSlides);
 %	 if($numberOfPages != 1) {$numberOfPages = $numberOfPages . " pages";}
 %	 else                    {$numberOfPages = "1 page";}
-	      &nbsp; <input type="radio" name="slidesPerPage" value="/view/printcollection/<% $document->primary_key %>/<% $numSlides %>"><% $numSlides %> slides per page (<font style="font-size:6pt;"><% $numberOfPages %></font>)<br>
+	      &nbsp; <input type="radio" name="slidesPerPage" value="/view/printcollection/<% $document->primary_key %>/<% $numSlides %>"><% $numSlides %> <%__('slides per page')%> (<font style="font-size:6pt;"><% $numberOfPages %></font>)<br>
 %      }
 	    </p>
 %    } else {
             <p style="color:gray;">
-              This collection has no slides.<br>
-              Thus and can not be printed.<br><br>
-              If you are trying to print a collection of slides which is under this collection,
-              click on the name of the collection then use the print option on that page.
+              <%__('This collection has no slides.<br>Thus it could not be printed.<br><br>If you are trying to print a collection of slides which is under this collection, click on the name of the collection then use the print option on that page.')%>
             </p>
 %      $addPrintButton = 0;
 %    } 
 %  } else {
             <p id="standardPrintOptions" style="font-color:red;">
-              <input type="checkbox" name="addNotes" <% $m->session->{'contentPrintOptions'}->{addNotes} %>>Add my notes.<br>
-              <input type="checkbox" name="addContentInfo" <% $m->session->{'contentPrintOptions'}->{addContentInfo} %>>Add content info.<br>
-              <input type="checkbox" name="addKeywords" <% $m->session->{'contentPrintOptions'}->{addKeywords} %>>Add key words.<br>
-              <input type="checkbox" name="addUMLS" <% $m->session->{'contentPrintOptions'}->{addUMLS} %>>Add UMLS Concepts.<br>
-              <input type="checkbox" name="addObjectives" <% $m->session->{'contentPrintOptions'}->{addObjectives} %>>Add Objectives.<br>
-              <input type="checkbox" name="addLinkedTo" <% $m->session->{'contentPrintOptions'}->{addLinkedTo} %>>Add linked to.<br>
-              <input type="checkbox" name="addLinkedFrom" <% $m->session->{'contentPrintOptions'}->{addLinkedFrom} %>>Add linked from.<br>
+              <input type="checkbox" name="addNotes" <% $m->session->{'contentPrintOptions'}->{addNotes} %>><%__('Add my notes.')%><br>
+              <input type="checkbox" name="addContentInfo" <% $m->session->{'contentPrintOptions'}->{addContentInfo} %>><%__('Add content info.')%><br>
+              <input type="checkbox" name="addKeywords" <% $m->session->{'contentPrintOptions'}->{addKeywords} %>><%__('Add key words')%>.<br>
+              <input type="checkbox" name="addUMLS" <% $m->session->{'contentPrintOptions'}->{addUMLS} %>><%__('Add UMLS Concepts.')%><br>
+              <input type="checkbox" name="addObjectives" <% $m->session->{'contentPrintOptions'}->{addObjectives} %>><%__('Add Objectives.')%><br>
+              <input type="checkbox" name="addLinkedTo" <% $m->session->{'contentPrintOptions'}->{addLinkedTo} %>><%__('Add linked to.')%><br>
+              <input type="checkbox" name="addLinkedFrom" <% $m->session->{'contentPrintOptions'}->{addLinkedFrom} %>><%__('Add linked from.')%><br>
             </p>
 %  }
           </td></tr>
 %  if($addPrintButton) {
           <tr><td align="center">
-            <input type="button" name="previewButton" class="formbutton" value="Print Preview" onClick="submitToPrint(true);">
-            <input type="button" name="Print" class="formbutton" value="Print" onClick="submitToPrint(false);">
+            <input type="button" name="previewButton" class="formbutton" value="<%__("Print Preview")%>" onClick="submitToPrint(true);">
+            <input type="button" name="Print" class="formbutton" value=<%__("Print")%> onClick="submitToPrint(false);">
           </td></tr>
 %  }
         </table>
@@ -928,22 +920,22 @@ return $right_hdr_lnks;
 %  $m->session->{'contentMenuLocation'}->{'theFlashCardsForm'}->{'y'} ||= $defaultHeight;
 
  <div id="theFlashCardsForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theFlashCardsForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theFlashCardsForm'}->{'y'} %>px; overflow:hidden;">
-    <& SELF:printDragHandleWithClose, formName => 'theFlashCardsForm', title => 'My Flash Cards', imageName => 'saveFormButton' &>
+    <& SELF:printDragHandleWithClose, formName => 'theFlashCardsForm', title => __('My Flash Cards'), imageName => 'saveFormButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
 
 	<form name="theTuskSaveForm" id="theTuskSaveForm" method="post" action="" onsubmit="submitContent(this.content_item.value,document.getElementById('add_to_folder').value,'/tusk/management/flashcard/flashcard?content_item='+this.content_item.value+'&add_to_folder='+document.getElementById('add_to_folder').value, 'savedcard' );return false;"> 
        <input type="hidden" name="content_item" value="/<% $document->primary_key()  %>" />
 	<table border="0" class="tableWithLittleFont">
-          <tr><td><a href="/management/flashcard/flashcard">Manage Flash Card Decks</a></td></tr>
-          <tr><td>Save in Deck:</td></tr>
+          <tr><td><a href="/management/flashcard/flashcard"><%__('Manage Flash Card Decks')%></a></td></tr>
+          <tr><td><%__('Save in Deck:')%></td></tr>
           <tr><td>
             <select id="add_to_folder" name="add_to_folder" onChange="if(this[this.length-1].value == 'select') {this.length--;}">
 %  foreach my $folder ($m->session->{'user'}->child_personal_content) {
 %  		if(	$folder->field_value('type') eq "Flash Card Deck" ){
               <option value="<% $folder->primary_key %>"><% $folder->out_label() %></option>
 % } }  
-              <option value="-1"> * Add New Deck * </option>
-              <option value="select" selected>Select</option>
+              <option value="-1"> * <%__('Add New Deck')%> * </option>
+              <option value="select" selected><%__('Select')%></option>
             </select>
           </td></tr>
 		  
@@ -953,9 +945,9 @@ if(document.getElementById('add_to_folder').value == -1) {
 	 document.getElementById('theTuskSaveForm').action='/management/flashcard/flashcard'; 
 }
 if(document.getElementById('add_to_folder').value == 'select')
- {alert('You must select a folder to save this content into');  return false;}"
- name="Add" value="Save"></td></tr><tr></tr>
-		<tr><td><div id="savedcard" style="display:none;color:red;weight:bold;">Your card has been saved.</div></td></tr>
+ {alert(_('You must select a folder to save this content into'));  return false;}"
+ name="Add" value="<%__('Save')%>"</td></tr><tr></tr>
+		<tr><td><div id="savedcard" style="display:none;color:red;weight:bold;"><%__('Your card has been saved')%>.</div></td></tr>
         </table>
       </form>      
     </div>
@@ -970,23 +962,23 @@ if(document.getElementById('add_to_folder').value == 'select')
 %  $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'y'} ||= $defaultHeight;
 
   <div id="theSaveForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theSaveForm'}->{'y'} %>px; overflow:hidden;">
-    <& SELF:printDragHandleWithClose, formName => 'theSaveForm', title => 'My Folders', imageName => 'saveFormButton' &>
+    <& SELF:printDragHandleWithClose, formName => 'theSaveForm', title => __('My Folders'), imageName => 'saveFormButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
 
       <form name="theTuskSaveForm2" id="theTuskSaveForm2" method="post" action="" onsubmit="submitContent(this.content_item.value,document.getElementById('add_to_pfolder').value,'/tusk/management/content/personalcontent?content_item='+this.content_item.value+'&add_to_pfolder='+document.getElementById('add_to_pfolder').value, 'savedpcontent' );return false;">
 	<!-- /management/content/personalcontent -->
         <input type="hidden" name="content_item" value="/<% $document->primary_key()  %>" />
 	<table border="0" class="tableWithLittleFont">
-          <tr><td><a href="/management/content/personalcontent">Manage Personal Folders</a></td></tr>
-          <tr><td>Save in Personal Folder:</td></tr>
+          <tr><td><a href="/management/content/personalcontent"><%__('Manage Personal Folders')%></a></td></tr>
+          <tr><td><%__('Save in Personal Folder:')%></td></tr>
           <tr><td>
             <select id="add_to_pfolder" name="add_to_pfolder" onChange="if(this[this.length-1].value == 'select') {this.length--;}">
 %  foreach my $folder ($m->session->{'user'}->child_personal_content) {
 % 		if(	$folder->field_value('type') ne "Flash Card Deck" ){
               <option value="<% $folder->primary_key %>"><% $folder->out_label() %></option>
 %  } }
-              <option value="-1"> * Add New Folder * </option>
-              <option value="select" selected>Select</option>
+              <option value="-1"> * <%__('Add New Folder')%> * </option>
+              <option value="select" selected><%__('Select')%></option>
             </select>
           </td></tr>
           <tr><td>
@@ -997,11 +989,11 @@ if(document.getElementById('add_to_pfolder').value == -1) {
          document.getElementById('theTuskSaveForm2').action='/management/content/personalcontent';
 }
 if(document.getElementById('add_to_pfolder').value == 'select')
- {alert('You must select a folder to save this content into');  return false;}"
- name="Add" value="Save">
+ {alert(_('You must select a folder to save this content into'));  return false;}"
+ name="Add" value="<%__('Save')%>">
 
 </td></tr>
- <tr><td><div id="savedpcontent" style="display:none;color:red;weight:bold;">Your content has been saved.</div></td></tr>
+ <tr><td><div id="savedpcontent" style="display:none;color:red;weight:bold;"><%__('Your content has been saved.')%></div></td></tr>
 
         </table>
       </form>
@@ -1019,7 +1011,7 @@ if(document.getElementById('add_to_pfolder').value == 'select')
 %  $m->session->{'contentMenuLocation'}->{'theZoomForm'}->{'y'} ||= $defaultHeight;
 
   <div id="theZoomForm" class="hiddenDiv" style="z-index:9999; display:none; width:<% 4*($iconWidth+1) %>px; height:<% $iconWidth+2+$closeHandleHeight %>px; left:<% $m->session->{'contentMenuLocation'}->{'theZoomForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theZoomForm'}->{'y'} %>px; overflow:hidden;">
-    <& SELF:printDragHandleWithClose, formName => 'theZoomForm', title => 'Image Zoom', imageName => 'topZoomImage' &>
+    <& SELF:printDragHandleWithClose, formName => 'theZoomForm', title => __('Image Zoom'), imageName => 'topZoomImage' &>
 %  my $style = 'style="border:0px none gray; padding:0px; margin:0px;"';
 %  my $background;
       <table border="0" width="<% (4 * $iconWidth)+2 %>" cellspacing="0" cellpadding="0">
@@ -1028,24 +1020,24 @@ if(document.getElementById('add_to_pfolder').value == 'select')
 %  if(  (($document->type eq "Slide") || ($document->type eq "Flashpix")) && ($SIZE ne 'medium')  )
 %    {$background = "onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\" onClick=\"loadImage(this.id);\"";}
 %  else {$background = 'style="background-color: lightgrey;"';}
-            <img id="medium" src="<% $imageDir %>/zoommedium.gif" <% $background %> <% $style %> title="Zoom Medium" alt="Zoom Medium">
+            <img id="medium" src="<% $imageDir %>/zoommedium.gif" <% $background %> <% $style %> title=__("Zoom Medium") alt=__("Zoom Medium")>
           </td>
           <td style="border-right:1px solid lightgrey;">
 %  if(  (($document->type eq "Slide") || ($document->type eq "Flashpix")) && ($SIZE ne 'large')  )
 %    {$background = "onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\" onClick=\"loadImage(this.id);\"";}
 %  else {$background = 'style="background-color: lightgrey;"';}
-            <img id="large" src="<% $imageDir %>/zoomlarge.gif" <% $background %> <% $style %> title="Zoom Large" alt="Zoom Large">
+            <img id="large" src="<% $imageDir %>/zoomlarge.gif" <% $background %> <% $style %> title=__("Zoom Large") alt=__("Zoom Large")>
           </td>
           <td style="border-right:1px solid lightgrey;">
 %  if(  (($document->type eq "Slide") || ($document->type eq "Flashpix")) && ($SIZE ne 'xlarge')  )
 %    {$background = "onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\" onClick=\"loadImage(this.id);\"";}
 %  else {$background = 'style="background-color: lightgrey;"';}
-            <img id="xlarge" src="<% $imageDir %>/zoomxlarge.gif" <% $background %> <% $style %> title="Zoom Extra Large" alt="Zoom Extra Large">
+            <img id="xlarge" src="<% $imageDir %>/zoomxlarge.gif" <% $background %> <% $style %> title=__("Zoom Extra Large") alt=__("Zoom Extra Large")>
           </td>
 %  if(  (($document->type eq "Slide") || ($document->type eq "Flashpix")) && ($SIZE ne 'orig')  )
 %    {$background = "onMouseOver=\"highlightButton(this);\" onMouseOut=\"removeHighlighting(this);\" onClick=\"loadImage(this.id);\"";}
 %  else {$background = 'style="background-color: lightgrey;"';}
-          <td><img id="orig" src="<% $imageDir %>/zoomorig.gif" <% $background %> <% $style %> title="Zoom Original" alt="Zoom Original"></td>
+          <td><img id="orig" src="<% $imageDir %>/zoomorig.gif" <% $background %> <% $style %> title=__("Zoom Original") alt=__("Zoom Original")></td>
         </tr>
       </table>
     <form name="theZoomForm" method="get">
@@ -1064,8 +1056,8 @@ if(document.getElementById('add_to_pfolder').value == 'select')
 
 %  my @keyWords = @{$keyWordsRef};
 %  my @concepts = @{$conceptsRef};
-%  my $keywordsTitle = "Click to highlight keywords in document";
-%  my $conceptTitle = "Click to view concept";
+%  my $keywordsTitle = __("Click to highlight keywords in document");
+%  my $conceptTitle = __("Click to view concept");
 %  my $formWidth = 400;
 %  my $formHeight = 400;
 %  $m->session->{'contentMenuLocation'}->{'theKeyWordForm'}->{'x'} ||= $tempWidth;
@@ -1075,11 +1067,11 @@ if(document.getElementById('add_to_pfolder').value == 'select')
 %  elsif((scalar(@concepts) == 0) || (scalar(@keyWords) == 0)) {$formHeight = 300;}
 
   <div id="theKeyWordForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theKeyWordForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theKeyWordForm'}->{'y'} %>px; overflow:hidden;">
-    <& SELF:printDragHandleWithClose, formName => 'theKeyWordForm', title => 'Keywords', imageName => 'keywordsButton' &>
+    <& SELF:printDragHandleWithClose, formName => 'theKeyWordForm', title => __('Keywords'), imageName => 'keywordsButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
       <form name="theTuskWordForm">
         <table border="0" class="tableWithLittleFont" width="100%">
-          <tr><td title="<% $conceptTitle %>"><b>UMLS Concepts</b>:</td></tr>
+          <tr><td title="<% $conceptTitle %>"><b><%__('UMLS Concepts')%></b>:</td></tr>
           <tr>
             <td align="center" title="<% $conceptTitle %>">
 %  if(scalar(@concepts) > 0) {
@@ -1098,11 +1090,11 @@ if(document.getElementById('add_to_pfolder').value == 'select')
                 </table>
               </div>
 %  } else {
-There are no UMLS concepts.
+<%__('There are no UMLS concepts.')%>
 %  } 
             </td>
           </tr>
-          <tr><td title="<% $keywordsTitle %>"><b>Keywords</b>:</td></tr>
+          <tr><td title="<% $keywordsTitle %>"><b><%__('Keywords')%></b>:</td></tr>
           <tr>
             <td align="center" title="<% $keywordsTitle %>" width="100%">
 %  if($#keyWords >= 0) {
@@ -1110,7 +1102,7 @@ There are no UMLS concepts.
 %    foreach (sort {lc $a cmp lc $b} @keyWords) {$m->print("<option value=\"$_\">$_</option>");}
               </select>
 %  } else {
-There are no keywords.
+<%__('There are no keywords.')%>
 %  }
             </td>
           </tr>
@@ -1141,10 +1133,10 @@ There are no keywords.
 %  else             {$formHeight = 300;}
 
   <div id="theLinkedDocsForm" class="hiddenDiv" style="z-index:9999; width:<% $formWidth %>px; height:<% $formHeight %>px; display:none; left:<% $m->session->{'contentMenuLocation'}->{'theLinkedDocsForm'}->{'x'} %>px; top: <% $m->session->{'contentMenuLocation'}->{'theLinkedDocsForm'}->{'y'} %>px; overflow:hidden;">
-    <& SELF:printDragHandleWithClose, formName => 'theLinkedDocsForm', title => 'Linked Documents', imageName => 'linkedToButton' &>
+    <& SELF:printDragHandleWithClose, formName => 'theLinkedDocsForm', title => __('Linked Documents'), imageName => 'linkedToButton' &>
     <div id="innerObjectiveDiv" style="width:<% $formWidth %>px; height: <% $formHeight - $closeHandleHeight %>px; overflow:auto;">
       <table border="0" width="100%" class="tableWithLittleFont">
-          <tr><td><b>Also Linked From</b>:</td></tr>
+          <tr><td><b><%__('Also Linked From')%></b>:</td></tr>
           <tr>
             <td align="center">
 %  if($linkedFrom) {
@@ -1160,7 +1152,7 @@ There are no keywords.
                 </table>
               </div>
 %  } else {
-              <p>Not Linked From Other Documents.</p>
+              <p><%__('Not Linked From Other Documents.')%></p>
 %  } 
             </td>
           </tr>
@@ -1230,7 +1222,6 @@ $document
 $justcontent => 0
 </%args>
 
-% my $margin = ($justcontent)? '20px' : '10px 30px 20px 125px';
 %	my ($course_uri_id, $garbage) = split( "/", $document->aux_info('uri_path') );
 %	my ($school_code, $course_code) = $course_uri_id =~ /([A-Z])(\d+).*/;
 %	my $course;
@@ -1240,7 +1231,8 @@ $justcontent => 0
 %	if($document->aux_info('uri_path')) {$contentPK = $document->aux_info('uri_path') . "/" . $document->primary_key();}
 
 % my $additional_class = ($document->content_type() eq 'TUSKdoc' && !$iCanEdit)? 'tdNotEdit' : '';
-<div id="pageContent" class="<% $additional_class %>" style="margin:<% $margin %>; padding: 5px 30px; background-color:#FFFFFF; border-right:3px solid black; border-bottom:3px solid black; border-top:1px solid <% $redColor %>; border-left:2px solid <% $redColor %>; z-index:99;">
+% $additional_class .= ($justcontent) ? ' justcontent' : '';
+<div id="pageContent" class="<% $additional_class %>">
 % if ( $is_integrated_course && $document->content_type() eq 'Collection' ) {
 		<script type="text/javascript">
 		function update_view() {
@@ -1249,10 +1241,9 @@ $justcontent => 0
 			requestSubContent(0, '<% $contentPK %>', '', '');
 		}
 		</script>
-		<br>
-		<table cellpadding="3" cellspacing="3">
+		<table cellpadding="3" cellspacing="3" class="viewby">
 			<tr>
-				<td>View By:</td>
+				<td><% __('View By') %>:</td>
 				<td>
 					<select id="view_by" onchange="update_view();">
 						<option value=""><% $course->title %></option>
@@ -1270,7 +1261,6 @@ $justcontent => 0
 				</td>
 			</tr>
 		</table>
-		<br>
 % }
 %my $xsl_dir = "$ENV{XSL_ROOT}/Content";
 %if($document->type() eq 'TUSKdoc' or (defined($document->conversion_status) && $document->conversion_status > 0)) {
@@ -1279,13 +1269,13 @@ $justcontent => 0
 % my $body = $document->out_html_body(%ARGS); 
 % if($document->error) {
 	  <div class="error">
-	    This document cannot be displayed at this time.  Please email <a href="<% $TUSK::Constants::SupportEmail %>"><% $TUSK::Constants::SupportEmail %></a>
-	    if you have a question.</div>
+	    <%__x('This document cannot be displayed at this time.  Please email <a href="{support_email}">{support_email}</a> if you have a question.', support_email => $TUSK::Constants::SupportEmail)%>
+	 </div>
 %		ErrorReport::sendErrorReport($r, {'Msg'=>$document->error()});
 %} else {
 %	if ($document->content_type() eq 'Collection') {
 %		if($body) {
-	  <table width="75%"><tr><td width="1%" valign="top">Folder&nbsp;Notes:</td><td><% $body %></td></tr></table><br>
+	  <table width="75%"><tr><td width="1%" valign="top"><%__('Folder&nbsp;Notes:')%></td><td><% $body %></td></tr></table><br>
 %		}
 %		my %displayedCollections;
 %		my @subContent = $document->active_child_content();
@@ -1310,14 +1300,14 @@ $justcontent => 0
 % my $mtime = HSDB4::DateTime->new;
 % $ctime->in_mysql_timestamp($document->field_value("created"));
 % $mtime->in_mysql_timestamp($document->field_value("modified"));
-  <table style="font-size:10px;" width="100%">
+  <table class="contentmeta">
     <tr>
 % if($ctime->out_string_date eq '') {
-      <td><b>Created:</b></td><td>Unknown</td>
+      <td><b><%__('Created:')%></b></td><td><%__('Unknown')%></td>
 % } else {
-      <td><b>Created:</b></td><td nowrap style="white-space:nowrap;"><% $ctime->out_string_date %></td>
+      <td><b><%__('Created:')%></b></td><td nowrap style="white-space:nowrap;"><% $ctime->out_string_date %></td>
 % }
-      <td rowspan="2" align="right">
+      <td align="right">
 % if($document->out_html_appendix() eq '') {
         &nbsp;
 % } else {
@@ -1327,7 +1317,7 @@ $justcontent => 0
       </td>
     </tr>
 % unless($mtime->out_string_date eq '') {
-    <tr><td><b>Modified:</b></td><td nowrap style="white-space:nowrap;"><% $mtime->out_string_date %></td></tr>
+    <tr><td><b><%__('Modified:')%></b></td><td nowrap style="white-space:nowrap;"><% $mtime->out_string_date %></td><td>&nbsp;</td></tr>
 % }
   </table>
 % }

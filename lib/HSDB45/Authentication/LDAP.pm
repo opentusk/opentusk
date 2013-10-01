@@ -68,7 +68,7 @@ sub verify {
 	my $firstname = $ldap->attr_values("givenname");
 	$firstname =~ s/ [a-z]$//i;
 	$user->set_first_name($firstname);
-	$user->field_value("trunk",$ldap->attr_values("siteTRUNK"));
+	$user->field_value("trunk",$ldap->attr_values("tuftsEduTRUNK"));
 	$user->set_email($ldap->email);
 	$user->field_value("password",my $null);
 	$user->field_value("source","external");
@@ -101,9 +101,38 @@ sub verify {
 	my $school = $ldap->school_info;
 	my $somethingElse = 
 	my $userGroupLabel = '';
-	if ($school =~ /(Default)/) {
-          $affiliation = "Default";
-          $userGroupLabel = simpleUserGroup($date, $affiliation);
+	if ($school =~ /(Veterinary)/) {
+	    $affiliation = "Veterinary";
+		$userGroupLabel = simpleUserGroup($date, $affiliation);
+	}
+	elsif ($school =~ /(Dental)/) {
+	    $affiliation = "Dental";
+		$userGroupLabel = simpleUserGroup($date, $affiliation);
+	}
+	elsif ($school =~ /(Sackler)/) {
+	    $affiliation = "Sackler";
+		$userGroupLabel = simpleUserGroup($date, $affiliation);
+	}
+	elsif ($school =~ /(Nutrition)/) {
+	    $affiliation = "Nutrition";
+		$userGroupLabel = "Entering Fall $date";
+	}
+	elsif ($school =~ /(Engineering)/) {
+	    $affiliation = "Engineering";
+	}
+	elsif ($school =~ /(Central)/) {
+	    $affiliation = "Administration";
+	}
+        elsif ($school =~ /School of Medicine - Graduate Studies/) {
+	    $affiliation = "PHPD";
+		$userGroupLabel = "PHPD Fall " . HSDB4::DateTime->current_year();
+        }
+	elsif ($school =~ /(Medical|Medicine|Clinical\ Faculty)/) {
+	    $affiliation = "Medical";
+	    $userGroupLabel = simpleUserGroup($date, $affiliation) if ($school !~ /Clinical Faculty/);
+	}
+	elsif ($school =~ /(Liberal|Arts)/) {
+	    $affiliation = "ArtsSciences";
 	}
 
 	#once we have saved, lets whip out an email if the admins want them
@@ -153,7 +182,7 @@ sub verify {
 		$sendUserEmail++;
 	}
                 
-	$message .= "UserID: ".$user->primary_key."\n";
+	$message .= "UTLN: ".$user->primary_key."\n";
 	$message .= "Email: ".$user->email."\n"; 
 	$message .= "\nPlease change information that is not correct.\n";
 	

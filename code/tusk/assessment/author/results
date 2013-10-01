@@ -29,7 +29,7 @@
 	my $show_images = $assessment_form->getShowImages();
 	my $form_id = $form->getPrimaryKeyID();
 	my $type_path = $m->comp('/tmpl/url:get_type_path');
-	my $elective_label = ($assessment_form->getShowElective()) ? { label => 'Elective', field => 'elective', align => 'center' } : {};
+	my $elective_label = ($assessment_form->getShowElective()) ? { label => __('Elective'), field => 'elective', align => 'center' } : {};
 	my ($tp_id, @students, $school_id);
  	my $has_multiple_assessors = $assessment_form->getMultiAssessors();
 </%shared>
@@ -65,13 +65,13 @@
 		my $student_id = $entry->getJoinObject('TUSK::FormBuilder::EntryAssociation')->getUserID();
 		$final_entries{$student_id} = $entry->getPrimaryKeyID();
 		$final_scores{$student_id} = $entry->getJoinObject('TUSK::GradeBook::LinkUserGradeEvent')->getGrade(); 
-		$statuses{$student_id} = ($entry->getCompleteDate()) ? 'Posted on ' . $entry->getCompleteDate() : (($entry) ? 'Saved on ' . $entry->getModifiedOn() : '-');
+		$statuses{$student_id} = ($entry->getCompleteDate()) ? __x('Posted on {date}', date=> $entry->getCompleteDate()) : (($entry) ? __x('Saved on {date}', date=> $entry->getModifiedOn()) : '-');
 	}
 
 	if ($has_multiple_assessors) {
-		$completion_label = {label => 'Completion', field => 'completion', align => 'center' };
-		$average_score_label = { label => 'Avg Assessor Score', field => 'average', align => 'center' };
-		$final_score_label = { label => 'Final Score', field => 'final', align => 'center' };
+		$completion_label = {label => __('Completion'), field => 'completion', align => 'center' };
+		$average_score_label = { label => __('Avg Assessor Score'), field => 'average', align => 'center' };
+		$final_score_label = { label => __('Final Score'), field => 'final', align => 'center' };
 
 		my $entry_grades = TUSK::FormBuilder::EntryGrade->lookup(undef,undef,undef,undef, [
 			TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id AND time_period_id = $tp_id AND complete_date is NOT NULL" }),
@@ -85,8 +85,8 @@
 			$completed_entries->{$assoc->getUserID()}{$entry->getUserID()} = 1;
 		}
 	} else {
-		$final_score_label = { label => 'Score', field => 'final', align => 'center' };
-		$assessor_label = {label => 'Assessor', field => 'assessor', align => 'center' };
+		$final_score_label = { label => __('Score'), field => 'final', align => 'center' };
+		$assessor_label = {label => __('Assessor'), field => 'assessor', align => 'center' };
 	}
 
 	# all assesors assigned for each student
@@ -112,7 +112,7 @@
 
 		$rows[$i] = { 
 			name => $student_img . $student->out_lastfirst_name(),
-			elective => ($student->aux_info('elective')) ? 'Yes' : 'No',
+			elective => ($student->aux_info('elective')) ? __('Yes') : __('No'),
 			assessor => $assessor_names{$student_id},
 			status => '<span class="xsm">' . $statuses{$student_id} . '</span>',
 			id => ($assessors_num || ($assessor_names{$student_id} && $final_entries{$student_id})) ? $id : undef,
@@ -135,28 +135,28 @@
 <td class="no-button">
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [
-		{label => 'Name', field => 'name', 'html' => 1 },
+		{label => __('Name'), field => 'name', , 'html' => 1 },
 		$elective_label,
 		$completion_label,
 		$assessor_label,
 		$average_score_label,
 		$final_score_label,
-		{label => 'Status', field => 'status', align => 'center' },
+		{label => __('Status'), field => 'status', align => 'center' },
 	],
 	action_columns => [ 
-		{ 'label' =>'Summary Results','link' => '/assessment/author/resultsbystudent' },
+		{ 'label' =>__('Summary Results'),'link' => '/assessment/author/resultsbystudent' },
 	],
 	alternate_action_columns => [ 
-		{ 'label' =>'Summary Results','link' => '/assessment/author/resultsbystudent' },
-		{ 'label' =>'Re-post Results','link' => '/assessment/author/resultsbystudent', extra => '?rp=1' },
-		{ 'label' =>'Student View','link' => '/assessment/author/entry' },
+		{ 'label' =>__('Summary Results'),'link' => '/assessment/author/resultsbystudent' },
+		{ 'label' =>__('Re-post Results'),'link' => '/assessment/author/resultsbystudent', extra => '?rp=1' },
+		{ 'label' =>__('Student View'),'link' => '/assessment/author/entry' },
 	],
 	action_dropdown => 1,
 	rows => \@rows,
 	name => "Assessments",
 	sort_box => 0,
 	type_path => $type_path,
-	'norows-message' => '<br/>No assessment results associated with selected time period',
+	'norows-message' => '<br/>'.__('No assessment results associated with selected time period'),
 } &>
 </td>
 </tr>
@@ -194,12 +194,12 @@
 		my $student_img = ($show_images) ? '<img class="imgPreview" src="' . $student->official_image() . '" width="20px" height="20px" /> ' : '';
 		push @rows, { 
 			name => $student_img . $student->out_lastfirst_name(), 
-			elective => ($student->aux_info('elective')) ? 'Yes' : 'No',
+			elective => ($student->aux_info('elective')) ? __('Yes') : __('No'),
 			assessor => $assigned_assessors{$student_id}->[0],
 			status => ($assigned_assessors{$student_id}->[2]) 
-				? 'Completed on ' . $assigned_assessors{$student_id}->[2] 
-				: (($assigned_assessors{$student_id}->[1]) ? 'Last worked on ' .  $assigned_assessors{$student_id}->[3] : ''),
-			action => ($assigned_assessors{$student_id}->[1] && $assigned_assessors{$student_id}->[2]) ? "<a href=\"/assessment/author/entry/$type_path/$form_id/" .  $student->uid() . '/' . $assigned_assessors{$student_id}->[1] . '">view assessment</a>' : '',
+				? __x('Completed on {date}', date=> $assigned_assessors{$student_id}->[2]) 
+				: (($assigned_assessors{$student_id}->[1]) ? __x('Last worked on {date}', date=> $assigned_assessors{$student_id}->[3]) : ''),
+			action => ($assigned_assessors{$student_id}->[1] && $assigned_assessors{$student_id}->[2]) ? "<a href=\"/assessment/author/entry/$type_path/$form_id/" .  $student->uid() . '/' . $assigned_assessors{$student_id}->[1] . '">'.__('view assessment').'</a>' : '',
 		};
 	}
 </%perl>
@@ -208,16 +208,16 @@
 <td class="no-button">
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [
-		{label => 'Student', field => 'name' },
+		{label => __('Student'), field => 'name', 'html' => 1 },
 		$elective_label,
-		{label => 'Assessor', field => 'assessor', },
-		{label => 'Status', field => 'status', align => 'center' },
+		{label => __('Assessor'), field => 'assessor', },
+		{label => __('Status'), field => 'status', align => 'center' },
 		{label => '', field => 'action', align => 'center' },
 	],
 	rows => \@rows,
 	name => "Assessments",
 	sort_box => 0,
-	'norows-message' => 'No Results',
+	'norows-message' => __('No Results'),
 } &>
 </td>
 </tr>
@@ -229,11 +229,11 @@
 </%method>
 
 <%method red_header_text>
-% 	return $m->comp('SELF:getFormTypeLabel') . ' Results: ' . $form->getFormName();
+% 	return $m->comp('SELF:getFormTypeLabel') . __(' Results: ') . $form->getFormName();
 </%method>
 
 <%method title>
-% 	return $m->comp('SELF:getFormTypeLabel') . ' Results: ' . $form->getFormName();
+% 	return $m->comp('SELF:getFormTypeLabel') . __(' Results: ') . $form->getFormName();
 </%method>
 
 <%method function_token>

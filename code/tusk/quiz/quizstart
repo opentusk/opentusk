@@ -38,7 +38,7 @@
 <%perl>
  	if ($quiz->hasUserCompleted($user_id,$preview) && !$quiz->isSelfAssessment() && !$preview){
      		$quiz_completed = 1;
-		$m->comp("SELF:set_msg", msg => "You have already submitted this quiz", type => 'err');
+		$m->comp("SELF:set_msg", msg => __("You have already submitted this quiz"), type => 'err');
 	}
 </%perl>
 </%method>
@@ -48,8 +48,8 @@
 <%perl>
 	if ($preview) {
 		return [ 
-		{ url => "/quiz/author/show/" . $m->comp("/tmpl/url:get_type_path"), txt => "Manage Quizzes"},
-		{ url => "/quiz/author/addedit/" . $m->comp("/tmpl/url:get_type_path") . "/" . $quiz_id, txt => "Modify"},
+		{ url => "/quiz/author/show/" . $m->comp("/tmpl/url:get_type_path"), txt => __("Manage Quizzes")},
+		{ url => "/quiz/author/addedit/" . $m->comp("/tmpl/url:get_type_path") . "/" . $quiz_id, txt => __("Modify")},
 		];
 	} 
 
@@ -68,7 +68,7 @@
 
 <%method title>
 <%perl>
-	my $title = "Starting Quiz ".$quiz->getTitle();
+	my $title = __("Starting Quiz")." ".$quiz->getTitle();
 	return $title;
 </%perl>
 </%method>
@@ -78,7 +78,7 @@
 </%method>
 
 <%method red_header_text>
-% 	return "Quiz";
+% 	return __("Quiz");
 </%method>
 
 % $next_url .= '?preview=1' if ($preview);
@@ -86,34 +86,33 @@
 %	if ($quiz->isSelfAssessment()){
 %		$m->redirect($next_url);
 %	} else {
-		<br><div class="med">Starting Quiz</div><br>
-		<div class="sm">Title: <% $quiz->getTitle() %></div>
-		<div class="sm">Duration:
+		<br><div class="med"><%__("Starting Quiz")%></div><br>
+		<div class="sm"><%__("Title")%>: <% $quiz->getTitle() %></div>
+		<div class="sm"><%__("Duration")%>:
 %		if ($duration_text){
 <% $duration_text %>
 %		}else{
-Unlimited
+<%__("Unlimited")%>
 %		}
 <br/>
 <h4>To avoid errors in your quiz submission, please review the following guidelines:</h4>
 <ol>
-	<li>Do not navigate away from the quiz page, or close the browser window, once you have started the quiz.</li>
-	<li>For timed quizzes, use the quiz timer in the top right corner of the screen (do not use a different clock or watch).</li>
+	<%__("<li>Do not navigate away from the quiz page, or close the browser window, once you have started the quiz.</li><li>For timed quizzes, use the quiz timer in the top right corner of the screen (do not use a different clock or watch).</li>")%>
 % if ($duration_text) {
-	<li><span style="color:red;font-weight:bold;">*WARNING: Clicking "Take Quiz" will start the timer!*   Once you click the "Take Quiz" button, you CANNOT stop the clock.  If you log out
-without finishing the exam, you CANNOT log back in and resume.</span></li>
+	<li><span style="color:red;font-weight:bold;"><%__('*WARNING: Clicking "Take Quiz" will start the timer!*   Once you click the "Take Quiz" button, you CANNOT stop the clock.  If you log out without finishing the exam, you CANNOT log back in and resume.')%></span></li>
 % }
-<li><span style="color:red;font-weight:bold;">If you are allowed to navigate away from this exam to other parts of <% $TUSK::Constants::SiteAbbr %> or the web, you MUST open a new window.</span></li>
+<li><span style="color:red;font-weight:bold;"><%__x("If you are allowed to navigate away from this exam to other parts of {site} or the web, you MUST open a new window.", site => $TUSK::Constants::SiteAbbr)%></span></li>
 
-	<li>Click the "Save Quiz" button regularly to save your work. Click the "Submit" button only when you are ready to submit your answers.</li>
+
+	<li><%__('Click the "Save Quiz" button regularly to save your work. Click the "Submit" button only when you are ready to submit your answers.')%></li>
 </ol>
 </div>
 <br><hr width="100%" align="left" color="black" style="color:black" noshade="true">
 
 % my $result = TUSK::Quiz::Result->lookupReturnOne("user_id = '$user_id' and quiz_id = $quiz_id and preview_flag = $preview");
-% my $link_text = (defined $result && $result->getStartDate()) ? 'Continue Quiz' : 'Take Quiz';
+% my $link_text = (defined $result && $result->getStartDate()) ? __('Continue Quiz') : __('Take Quiz');
 % my $extra_text = '';
-% $extra_text = '<br /><span style="color:red;font-weight:bold;">WARNING:  Clicking "Take Quiz" will start the timer!</span>' if $duration_text;
+% $extra_text = '<br /><span style="color:red;font-weight:bold;">'.__('WARNING:  Clicking "Take Quiz" will start the timer!').'</span>' if $duration_text;
 <& /tmpl/element:security_notice, user_fullname=>$m->session->{'user'}->out_full_name(), link_url=>$next_url, link_text=> $link_text, extra_text => $extra_text &>
 
 %	}

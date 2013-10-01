@@ -1,0 +1,61 @@
+#!/usr/bin/perl
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+# batch_reset_pw
+# this is a dnagerous program
+# 
+use strict;
+use MySQL::Password;
+use HSDB4::Constants;
+use HSDB4::SQLRow::User;
+
+unless ($ARGV[0] =~ /SAVE/) {
+    print "Usage: $0 SAVE < <file with usernames, one per line>\n";
+    exit;
+}
+
+my @tufts_ids = <STDIN>;
+
+print "This program will rest for 5 seconds before resetting the passwords in case you change your mind. If you wish to stop, press CTRL-C in the next five seconds.\n";
+
+sleep(5);
+
+my @completed;
+HSDB4::Constants::set_user_pw (get_user_pw);
+
+foreach (@tufts_ids) {
+    my $r;
+    my $msg;
+    $_ =~ s/(.*)\n*/$1/;
+    my $user_id = $_;
+    my $user = HSDB4::SQLRow::User->new->lookup_key ($user_id);
+    unless ($user->primary_key) {
+	print "Could not find a user \"$user_id\"\n";
+	next;
+    }
+    unless ($user->field_value('email')) {
+	print "Could not find an email for user \"$user_id\"\n";
+	next;
+    }
+    ($r,$msg) = $user->admin_reset_password;
+    push(@completed,$user_id);
+}
+
+print "Passwords reset for: ".join(",",@completed)."\n";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

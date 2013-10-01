@@ -30,35 +30,21 @@
 	my $caseType = $case->getCaseType();
 	my $caseNav  = $case->getNavigationType();
 	my $introSentence;
-	if ($caseType eq 'Self-Assessment'){
-		$introSentence = <<EOM;
-		<p>A Self-Assessment case is to be used for self-study.  Your choices are neither reported nor graded.  Go through the case at your own pace.</p>
-EOM
+	if ($caseType eq __('Self-Assessment')){
+		$introSentence = "<p>".__("A Self-Assessment case is to be used for self-study.  Your choices are neither reported nor graded.  Go through the case at your own pace.")."</p>";
 
-	} elsif ($caseType eq 'Reviewed') {
-		$introSentence = <<EOM;
-		<p>This is a Reviewed case. Your selections are reported but not graded. You may go through the case at your own pace unless a time limit has been noted.  If a time limit was noted, the time it took you to complete the case will be reported.</p>
-EOM
-	} elsif ($caseType eq 'Test'){
-		$introSentence = <<EOM;
-		<p>This case is a Test.  Your choices are reported and graded.  You may go through the case at your own pace unless a time limit has been noted.  If a time limit was noted, the time it took you to complete the case will be reported.</p>
-EOM
+	} elsif ($caseType eq __('Reviewed')) {
+		$introSentence = "<p>".__("This is a Reviewed case. Your selections are reported but not graded. You may go through the case at your own pace unless a time limit has been noted.  If a time limit was noted, the time it took you to complete the case will be reported.")."</p>";
+	} elsif ($caseType eq __('Test')){
+		$introSentence = "<p>".__("This case is a Test.  Your choices are reported and graded.  You may go through the case at your own pace unless a time limit has been noted.  If a time limit was noted, the time it took you to complete the case will be reported.")."</p>";
 	}
-	if ($caseNav eq 'Global') {
-		$introSentence .= '<p>This case employs a <strong>Global</strong> navigation style. This means that you will be able to freely navigate through the case phases in any order you choose. Use the links in the "Phases" navigation on the left-hand side of the screen to move around within the case. Some phases will present light-blue buttons at the top and bottom of the main portion of your screen (e.g., Perform Exam, Submit, etc.), and these are to be used to record your interactions within that particular phase. To begin, click the "Start Case" button. When you have finished all of the phases you wish to see, click the "Complete Case" button to end the case and submit your responses.</p>';
+	if ($caseNav eq __('Global')) {
+		$introSentence .= '<p>'.__('This case employs a <strong>Global</strong> navigation style. This means that you will be able to freely navigate through the case phases in any order you choose. Use the links in the "Phases" navigation on the left-hand side of the screen to move around within the case. Some phases will present light-blue buttons at the top and bottom of the main portion of your screen (e.g., Perform Exam, Submit, etc.), and these are to be used to record your interactions within that particular phase. To begin, click the "Start Case" button. When you have finished all of the phases you wish to see, click the "Complete Case" button to end the case and submit your responses.').'</p>';
 	}
 
-	my $body =<<EOM;
-<span class="smText1">
-$introSentence
-
-Faculty may have provided feedback for some of your responses.</p>
-
-<p>Patient findings are stored in the patient chart for your review.</p>
-
-<p>Refer to the help documents for in-depth explanations on how to use the Case Simulator.</p>
-</span>
-
+	my $body ='<span class="smText1">'.$introSentence.'<p>'.__('Faculty may have provided feedback for some of your responses.').'</p><p>'.__('Patient findings are stored in the patient chart for your review.').'</p><p>'.__('Refer to the help documents for in-depth explanations on how to use the Case Simulator.').'</p></span>';
+	$body = <<EOM;
+	$body
 EOM
 	my $preview_text = $m->comp('SELF:get_preview_text', case => $case);
 </%shared>
@@ -66,7 +52,7 @@ EOM
 
 
 <& /tmpl/element:table &>
-<& tmpl/element:header_bar, label=>'Welcome' . $preview_text &>
+<& tmpl/element:header_bar, label=>__('Welcome') . $preview_text &>
 <& /tmpl/element:set_default_colspan, new_colspan=>1 &>
 
 <tr><td>
@@ -74,10 +60,10 @@ EOM
 	my ($duration_field, $duration);
 	
 	if ($case->isTest()){
-	 	$duration_field = 'Time&nbsp;Limit:';
+	 	$duration_field = __('Time Limit').':';
 		$duration = $case->getDuration();
 	 } else {
-		$duration_field = 'Approximate&nbsp;Duration:';
+		$duration_field = __('Approximate Duration').':';
 		$duration = $case->getDurationText();
 	 }
 
@@ -86,16 +72,16 @@ EOM
 </%perl>
 <& /tmpl/element:table, params => { width => '' } &>
 <& tmpl/element:field_display, params=>{'label'=>'','value'=>''} &>
-<& tmpl/element:field_display, params=>{'label'=>'Case Title:','bold'=>1,'value'=>$case->getCaseTitle()} &>
-<& tmpl/element:field_display, params=>{'label'=>'Case Author(s):','value'=>$case->getCaseAuthors( { credentials => 1 } )} &>
+<& tmpl/element:field_display, params=>{'label'=>__('Case Title').':','bold'=>1,'value'=>$case->getCaseTitle()} &>
+<& tmpl/element:field_display, params=>{'label'=>__('Case Author(s)').':','value'=>$case->getCaseAuthors( { credentials => 1 } )} &>
 <& tmpl/element:field_display, params=>{'label'=>'','value'=>''} &>
-<& tmpl/element:field_display, params=>{'label'=>'Type of Case:','value'=>$case->getCaseType()} &>
-<& tmpl/element:field_display, params=>{'label'=>'Type of Navigation:','value'=>$case->getNavigationType()} &>
+<& tmpl/element:field_display, params=>{'label'=>__('Type of Case').':','value'=>$case->getCaseType()} &>
+<& tmpl/element:field_display, params=>{'label'=>__('Type of Navigation').':','value'=>$case->getNavigationType()} &>
 <& tmpl/element:field_display, params=>{label => $duration_field, value => ($duration) ? $duration : 'Untimed'} &>
 %
 % if ($case->getCaseUserDesc()){
 %
-<& tmpl/element:field_display, params=>{'label'=>'Case Overview:','value'=>$case->getCaseUserDesc()} &>
+<& tmpl/element:field_display, params=>{'label'=>__('Case Overview').':','value'=>$case->getCaseUserDesc()} &>
 %
 % }
 %
@@ -108,7 +94,7 @@ EOM
 			$objective_string .= $objective->getBody()."<br>";
 		}
 		
-		$m->comp("tmpl/element:field_display", params => { label => 'Objectives:', value => $objective_string } ) if ($objective_string);
+		$m->comp("tmpl/element:field_display", params => { label => __('Objectives').':', value => $objective_string } ) if ($objective_string);
 	}
 </%perl>
 
@@ -124,7 +110,7 @@ EOM
 <& /tmpl/element:button, params=>{'label'=>'Start Case','href'=>"/case/dophase/" . $type_object->school() . "/" . $type_object->course_id() . "/$case_id/$phase_id"} &>
 %
 % } else {
-Note - this case is in development and has no phases.
+<%__("Note - this case is in development and has no phases.")%>
 %
 % }
 %
@@ -134,11 +120,11 @@ Note - this case is in development and has no phases.
 
 
 <%method title>
-% return "Starting the Case ..." . $preview_text;
+% return __("Starting the Case ...") . $preview_text;
 </%method>
 
 <%method leftnav>
-% return {component=>'/case/tmpl/leftnav/generic','title'=>'How it works','body'=>$body};
+% return {component=>'/case/tmpl/leftnav/generic','title'=>__('How it works'),'body'=>$body};
 </%method>
 
 

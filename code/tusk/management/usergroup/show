@@ -36,21 +36,21 @@ if ( $is_course_group ) {
 </%method>
 
 <%method right_header_text>
-%	return [ {txt => 'Preview', url => "/view/$self_path/groups" } ];
+%	return [ {txt => __('Preview'), url => "/view/$self_path/groups" } ];
 </%method>
 
 <%method title>
 <%perl>
 if ( $is_course_group ) {
-	if ( $course->type() eq 'group' ) {	return 'Manage Sub-Groups'; }
-	else { return 'Manage Course Groups'; }
+	if ( $course->type() eq 'group' ) {	return __('Manage Sub-Groups'); }
+	else { return __('Manage Course Groups'); }
 }
-else { return 'Manage Groups'; }
+else { return __('Manage Groups'); }
 </%perl>
 </%method>
 
 % if (!$is_course_group || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
-<& /tmpl/element:cms_button_row, links => [ {link_txt=>'/management/usergroup/addedit/' . $self_path, display_txt=>'New Group'} ] &>
+<& /tmpl/element:cms_button_row, links => [ {link_txt=>'/management/usergroup/addedit/' . $self_path, display_txt=>__('New Group')} ] &>
 % }
 
 <%perl>
@@ -68,16 +68,16 @@ foreach my $group (@{$groups}) {
 	push (@$new_groups, { id => $group->primary_key, label => "<a href='/management/usergroup/addedit/$self_path/" . $group->primary_key . "'>" . $stripObj->removeHTML($group->label) . "</a>", description => $group->description });
 }
 
-my $col_fields = [ {'label'=>'Group Name',  'field'=>'label', 'link'=>'/management/usergroup/addedit/' . $self_path},
-                   {'label'=>'Description', 'field'=>'description'} ];
+my $col_fields = [ {'label'=>__('Group Name'),  'field'=>'label', 'link'=>'/management/usergroup/addedit/' . $self_path},
+                   {'label'=>__('Description'), 'field'=>'description'} ];
 my $action_columns = [];
 if (!$is_course_group) {
-	push @$action_columns, {'label' => 'Link Courses',         'link' => '/management/grouplinks/show/usergroup/' . $school};
-	push @$action_columns, {'label' => 'Student/Course Links', 'link' => '/management/usergroup/studentcourse/' . $self_path};
+	push @$action_columns, {'label' => __('Link Courses'),         'link' => '/management/grouplinks/show/usergroup/' . $school};
+	push @$action_columns, {'label' => __('Student/Course Links'), 'link' => '/management/usergroup/studentcourse/' . $self_path};
 }
 if (!$is_course_group || TUSK::Session::is_director($course, $m->session->{user}->{user_id}) || TUSK::Session::is_admin($m->session, $m->session->{user})) {
-	push @$action_columns, {'label'=>'Modify','link'=>"/management/usergroup/addedit/$self_path"};
-	push @$action_columns, {'label'=>'Delete','link'=>"/management/usergroup/delete/$self_path"};
+	push @$action_columns, {'label'=>__('Modify'),'link'=>"/management/usergroup/addedit/$self_path"};
+	push @$action_columns, {'label'=>__('Delete'),'link'=>"/management/usergroup/delete/$self_path"};
 }
 
 my $post_to = '/management/usergroup/ajaxReorder/' . $school;
@@ -88,24 +88,23 @@ if ( $is_course_group ) {
 </%perl>
 <& /tmpl/element:jquery_sort_list, params => {
 				width => "100%",
-				label => 'Usergroups',
+				label => __('Usergroups'),
 				no_table => 1,
 				no_add_button => 1,
 				container => 'usergroup_container',
 				name => 'usergroups',
 				sort => 1,
 				no_nesting => 'sort-row',
-				action_width => 150,
 				action_columns => $action_columns,
 				action_dropdown => 1,
 				fields => [
 					{ hide  => 1, field => 'id' },
-                	{ label => 'Group Name', field => 'label' },
-                	{ label => 'Description', field => 'description' }
+                	{ label => __('Group Name'), field => 'label' },
+                	{ label => __('Description'), field => 'description' }
 				],
 				data => $new_groups, 
 				post_to => $post_to,
-				empty_message => "No usergroups available." }
+				empty_message => __("No usergroups available.") }
 &>
 
 <%method startup>

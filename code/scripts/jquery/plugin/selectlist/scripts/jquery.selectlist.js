@@ -1,302 +1,125 @@
-/*
+/*!
  * selectList jQuery plugin
- * version 0.3.3
+ * version 0.6.1
  *
- * Copyright (c) 2009-2010 Michal Wojciechowski (odyniec.net)
+ * Copyright (c) 2009-2013 Michal Wojciechowski (odyniec.net)
  *
- * Dual licensed under the MIT (MIT-LICENSE.txt)
- * and GPL (GPL-LICENSE.txt) licenses.
+ * Dual licensed under the MIT (http://opensource.org/licenses/MIT)
+ * and GPL (http://opensource.org/licenses/GPL-2.0) licenses.
  *
  * http://odyniec.net/projects/selectlist/
  *
  */
-
 (function($) {
-
-$.selectList = function(select, options) {
-    var
-
-        name = $(select).attr('name'),
-
-        $list,
-
-        $item, $newItem,
-
-        $option,
-
-        keyEvent,
-
-        ready,
-
-        first = 0,
-
-        change, click, keypress, enter;
-
-    function show($item, callback) {
-        if (options.addAnimate && ready)
-            if (typeof options.addAnimate == 'function')
-                options.addAnimate($item.hide().get(0), callback);
-            else
-                $item.hide().fadeIn(300, callback);
-        else {
-            $item.show();
-            if (callback)
-                callback.call($item.get(0));
+    $.selectList = function(select, options) {
+        function show($item, callback) {
+            options.addAnimate && ready ? "function" == typeof options.addAnimate ? options.addAnimate($item.hide()[0], callback) : ($item.hide().fadeIn(300, callback), 
+            $item[0].style.display = "") : ($item[0].style.display = "", callback && callback.call($item[0]));
         }
-    }
-
-    function hide($item, callback) {
-        if (options.removeAnimate && ready)
-            if (typeof options.removeAnimate == 'function')
-                options.removeAnimate($item.get(0), callback);
-            else
-                $item.fadeOut(300, callback);
-        else {
-            $item.hide();
-            if (callback)
-                callback.call($item.get(0));
+        function hide($item, callback) {
+            options.removeAnimate && ready ? "function" == typeof options.removeAnimate ? options.removeAnimate($item[0], callback) : $item.fadeOut(300, callback) : ($item.hide(), 
+            callback && callback.call($item[0]));
         }
-    }
-
-    function cmp(item1, item2) {
-        return typeof options.sort == 'function' ?
-            options.sort(item1, item2)
-            : ($(item1).data('text') > $(item2).data('text'))
-                == (options.sort != 'desc');
-    }
-
-    function add(value, text, callHandler) {
-        $option = null;
-
-        if ($(value).is('option')) {
-            $option = $(value);
-
-            if ($option.get(0).index < first)
-                return;
-
-            if (!options.duplicates)
-                $option.attr('disabled', 'disabled')
-                    .data('disabled', 1);
-
-            value = $option.val();
-            text = $option.text();
+        function cmp(item1, item2) {
+            return "function" == typeof options.sort ? options.sort(item1, item2) : $(item1).data("text") > $(item2).data("text") == ("desc" != options.sort);
         }
-
-        $newItem = $(options.template.replace(/%text%/g,
-            $('<b/>').text(text).html()).replace(/%value%/g, value)).hide();
-
-        $('<input type="hidden" />').appendTo($newItem)
-                .attr({name: name, value: value});
-
-        $newItem.data('value', value).data('text', text);
-        if ($option)
-            $newItem.data('option', $option);
-
-        $newItem.addClass(options.classPrefix + '-item');
-
-        if (options.clickRemove)
-            $newItem.click(function () {
-                remove($(this));
+        function add(value, text, callHandler) {
+            if ($(value).is("option")) {
+                if ($option = $(value), first > $option[0].index) return;
+                value = $option.val(), text = $option.text();
+            } else $option = $selectSingle.find('option[value="' + value.replace("'", '\\"') + '"]'), 
+            $option = $option.length ? $option.filter(function() {
+                return !text || $(this).text() == text;
+            }).add($option).eq(0) : null;
+            void 0 === text && (text = $option ? $option.text() : value), $option && !options.duplicates && $option.attr("disabled", "disabled").data("disabled", 1), 
+            $newItem = $(options.template.replace(/%text%/g, $("<b/>").text(text).html()).replace(/%value%/g, value)).hide(), 
+            $newItem.data("value", value).data("text", text).data("option", $option).addClass(options.classPrefix + "-item"), 
+            $newItem.click(function() {
+                options.clickRemove && remove($(this));
             });
-
-        if (first && !keypress)
-            select.selectedIndex = 0;
-
-        var callback = function () {
-            if (callHandler !== false)
-                options.onAdd(select, value, text);
-
-        };
-
-        if (options.sort && ($item = $list.children().eq(0)).length) {
-            while ($item.length && cmp($newItem.get(0), $item.get(0)))
-                $item = $item.next();
-
-            show($item.length ? $newItem.insertBefore($item)
-                : $newItem.appendTo($list), callback);
+            var callback = function() {
+                callHandler !== !1 && options.onAdd(select, value, text);
+            };
+            if (options.sort && ($item = $list.children().eq(0)).length) {
+                for (;$item.length && cmp($newItem[0], $item[0]); ) $item = $item.next();
+                show($item.length ? $newItem.insertBefore($item) : $newItem.appendTo($list), callback);
+            } else show($newItem.appendTo($list), callback);
+            $(select).empty(), $list.children().each(function() {
+                $(select).append($("<option/>").attr({
+                    value: $(this).data("value"),
+                    selected: "selected"
+                }));
+            }), checkValidation();
         }
-        else
-            show($newItem.appendTo($list), callback);
-
-        checkValidation();
-    }
-
-    function remove($item, callHandler) {
-        hide($item, function () {
-            var value = $(this).data('value'),
-                text = $(this).data('text');
-
-            if ($(this).data('option'))
-                $(this).data('option').removeAttr('disabled')
-                    .removeData('disabled');
-
-            $(this).remove();
-
-            checkValidation();
-
-            if (callHandler !== false)
-                options.onRemove(select, value, text);
-        });
-    }
-
-    function checkValidation() {
-        if ($(select.form).validate && $(select).is('.' +
-
-                $(select.form).validate().settings.errorClass))
-            $(select.form).validate().element(select);
-    }
-
-    this.val = function () {
-        var values = [];
-
-        $list.find('input[name=' + name + ']')
-            .each(function () {
-                values.push($(this).val());
+        function remove($item, callHandler) {
+            hide($item, function() {
+                var value = $(this).data("value"), text = $(this).data("text");
+                $(this).data("option") && $(this).data("option").removeAttr("disabled").removeData("disabled"), 
+                $(this).remove(), $(select).find('option[value="' + value + '"]').remove(), checkValidation(), 
+                callHandler !== !1 && options.onRemove(select, value, text);
             });
-
-        return values;
-    };
-
-    this.add = function (value, text) {
-        add(value, text);
-    };
-
-    this.remove = function (value) {
-        $list.children().each(function () {
-            if ($(this).data('value') == value)
-                remove($(this));
-        });
-    };
-
-    this.setOptions = function (newOptions) {
-        var sort = newOptions.sort && newOptions.sort != options.sort;
-
-        options = $.extend(options, newOptions);
-
-        if (sort)
-            $list.children().slice(first).each(function () {
-                add($(this).data('value'), $(this).data('text'), false);
-            }).remove();
-    };
-
-    this.setOptions(options = $.extend({
-        addAnimate: true,
-        classPrefix: 'selectlist',
-        clickRemove: true,
-        removeAnimate: true,
-        template: '<li>%text%</li>',
-        onAdd: function () {},
-        onRemove: function () {}
-    }, options));
-
-    ($list = $(options.list || $('<ul />').insertAfter($(select))))
-        .addClass(options.classPrefix + '-list');
-
-    $(select).find(':selected').each(function () {
-        add($(this), null, false);
-    });
-
-    $(select).removeAttr('multiple').removeAttr('size');
-
-    if ($(select).attr('title')) {
-        $(select).prepend($('<option />').text($(select).attr('title')));
-        first = 1;
-        select.selectedIndex = 0;
-    }
-
-    keyEvent = $.browser.msie || $.browser.safari ? 'keydown' : 'keypress';
-
-    $(select).bind(keyEvent, function (event) {
-        keypress = true;
-
-        if ((event.keyCode || event.which) == 13) {
-            enter = true;
-            $(select).change();
-            keypress = true;
-            return false;
         }
-    })
-    .change(function() {
-        if (!keypress && !click) return;
-        change = true;
-        $option = $(select).find('option:selected');
-        if (!$option.data('disabled') && (!keypress || enter))
-            add($option);
-
-        if (keypress)
-            keypress = change = click = false;
-
-        enter = false;
-    })
-    .mousedown(function () {
-        click = true;
-    });
-
-    $(select).find('option').click(function (event) {
-        if ($.browser.mozilla && event.pageX >= $(select).offset().left &&
-                event.pageX <= $(select).offset().left + $(select).outerWidth() &&
-                event.pageY >= $(select).offset().top &&
-                event.pageY <= $(select).offset().top + $(select).outerHeight())
-            return false;
-
-        click = true;
-
-        if (!($(this).attr('disabled') || $(this).data('disabled')
-                || keypress || change))
-
-            add($(this));
-
-        if (!keypress)
-            change = click = false;
-
-        return false;
-    });
-
-    $(select.form).submit(function () {
-        if ($(select.form).validate && !$(select.form).valid())
-            return;
-
-        $(select).removeAttr('name');
-    });
-
-    $(window).bind('beforeunload', function () {
-        $(select).removeAttr('name');
-    });
-
-    if ($.validator) {
-        validatorGetLength = $.validator.prototype.getLength;
-
-        $.validator.prototype.getLength = function (value, element) {
-            return $(element).is('select') && $(element).data('selectList') ?
-                $(element).data('selectList').val().length
-                : validatorGetLength(value, element);
+        function checkValidation() {
+            select.form && "function" == typeof $(select.form).validate && $(select).add($selectSingle).hasClass($(select.form).validate().settings.errorClass) && $(select.form).validate().element(select);
+        }
+        var $selectSingle, $list, $item, $newItem, $option, keyEvent, ready, change, click, keypress, enter, first = 0, ua = navigator.userAgent;
+        this.val = function(value) {
+            return void 0 !== value && ($("option", $selectSingle).prop("disabled", !1).removeData("disabled"), 
+            $list.empty(), null !== value && $.each($.makeArray(value), function(index, value) {
+                add(value);
+            })), $(select).val();
+        }, this.add = function(value, text) {
+            add(value, text);
+        }, this.remove = function(value) {
+            $list.children().each(function() {
+                ($(this).data("value") == value || value === void 0) && remove($(this));
+            });
+        }, this.setOptions = function(newOptions) {
+            var sort = newOptions.sort && newOptions.sort != options.sort;
+            if (options = $.extend(options, newOptions), sort) {
+                var items = [];
+                $list.children().each(function() {
+                    items[items.length] = $(this).data("value"), items[items.length] = $(this).data("text");
+                }), $list.empty();
+                for (var i = 0; items.length > i; i += 2) add(items[i], items[i + 1], !1);
+            }
         };
-    }
-
-    ready = true;
-};
-
-$.fn.selectList = function (options) {
-    options = options || {};
-
-    this.filter('select').each(function () {
-        if ($(this).data('selectList'))
-            $(this).data('selectList').setOptions(options);
-        else
-            $(this).data('selectList', new $.selectList(this, options));
-    });
-
-    if (options.instance)
-        return $(this).filter('select').data('selectList');
-
-    return this;
-};
-
-var jQueryVal = $.fn.val, validatorGetLength;
-
-$.fn.val = function (value) {
-    return (typeof value == 'undefined' && this.data('selectList') ?
-        this.data('selectList').val : jQueryVal).call(this, value);
-};
-
+        var msie = (/msie ([\w.]+)/i.exec(ua) || [])[1], safari = /webkit/i.test(ua) && !/chrome/i.test(ua);
+        this.setOptions(options = $.extend({
+            addAnimate: !0,
+            classPrefix: "selectlist",
+            clickRemove: !0,
+            removeAnimate: !0,
+            template: "<li>%text%</li>",
+            onAdd: function() {},
+            onRemove: function() {}
+        }, options)), $selectSingle = $(select).clone(), $selectSingle.removeAttr("id").removeAttr("name").addClass(options.classPrefix + "-select").insertAfter($(select)), 
+        $(select).empty().hide(), ($list = $(options.list || $("<ul/>").insertAfter($selectSingle))).addClass(options.classPrefix + "-list"), 
+        $selectSingle.find(":selected").each(function() {
+            add($(this), null, !1);
+        }), $selectSingle.removeAttr("multiple"), $selectSingle[0].removeAttribute("size"), 
+        $selectSingle.attr("title") && ($selectSingle.prepend($("<option/>").text($selectSingle.attr("title"))), 
+        first = 1, $selectSingle[0].selectedIndex = 0), keyEvent = msie || safari ? "keydown" : "keypress", 
+        $selectSingle.bind(keyEvent, function(event) {
+            return keypress = !0, 13 == (event.keyCode || event.which) ? (enter = !0, $selectSingle.change(), 
+            keypress = !0, !1) : void 0;
+        }).change(function() {
+            (keypress || click) && (change = !0, $option = $selectSingle.find("option:selected"), 
+            $option.data("disabled") || keypress && !enter || add($option), keypress ? keypress = change = click = !1 : first && ($selectSingle[0].selectedIndex = 0), 
+            enter = !1);
+        }).mousedown(function() {
+            click = !0;
+        }), $selectSingle.find("option").click(function() {
+            return click = !0, $(this).attr("disabled") || $(this).data("disabled") || keypress || change || add($(this)), 
+            keypress || (change = click = !1), !1;
+        }), ready = !0;
+    }, $.fn.selectList = function(options) {
+        return options = options || {}, this.filter("select").each(function() {
+            $(this).data("selectList") ? $(this).data("selectList").setOptions(options) : $(this).data("selectList", new $.selectList(this, options));
+        }), options.instance ? this.filter("select").data("selectList") : this;
+    };
+    var hookSet = $.valHooks.select.set;
+    $.valHooks.select.set = function(elem, value) {
+        return $(elem).data("selectList") ? $(elem).data("selectList").val(value) : hookSet(elem, value);
+    };
 })(jQuery);

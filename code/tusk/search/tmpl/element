@@ -21,7 +21,6 @@
 	use TUSK::Search::Content;
 	use URI::Escape;
 	use HSDB4::DateTime;
-        use Data::Dumper;
 	my $defaultResultSetLimit = 10;
 	my $pageName =  '/search/form';
 </%once>
@@ -44,12 +43,12 @@
        		$userQuery = TUSK::Search::SearchQuery->lookupKey($userQueryID);
 
 	        if ($userQuery && ($user ne $userQuery->getUserID())){
-       	        	$m->comp('/tmpl/error',msg=>'That query does not belong to you.');
+       	        	$m->comp('/tmpl/error',msg=>__('That query does not belong to you.'));
 	                $m->abort();
 	        }
 
        		if (! defined($userQuery)){
-                	$m->comp('/tmpl/error',msg=>'That query is not defined :'.$userQueryID);
+                	$m->comp('/tmpl/error',msg=>__('That query is not defined :').$userQueryID);
 	                $m->abort();
        		}
 
@@ -230,7 +229,7 @@
 	}
 </%perl>
 <& /tmpl/element:textbox, params =>{ 
-			label 		=> 'Keyword',
+			label 		=> __('Keyword'),
 			name 		=> 'query',
 			value 		=> $keyword_value,
 			size 		=> 60,
@@ -240,7 +239,7 @@
 % if ($settings->{'advancedView'}){
 
 <& /tmpl/element:textbox, params => {
-			label   	=> 'Document Title',
+			label   	=> __('Document Title'),
 			name    	=> 'title',
 			value   	=> $query->{'title'},
 			size    	=> 30,
@@ -248,7 +247,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => {
-	                label   	=> 'Author ',
+	                label   	=> __('Author '),
        	        	name    	=> 'author',
 	                value   	=> $query->{'author'},
        	        	size    	=> 30,
@@ -256,7 +255,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => {
-	                label   	=> 'Course Title',
+	                label   	=> __('Course Title'),
 	                name    	=> 'course',
 	                value   	=> $query->{'course'},
 	                size    	=> 30,
@@ -264,7 +263,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => {
-	                label   	=> 'Content ID',
+	                label   	=> __('Content ID'),
 	                name    	=> 'content_id',
 	                value   	=> $query->{'content_id'},
 	                size    	=> 10,
@@ -272,7 +271,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => {
-	                label   	=> 'Copyright',
+	                label   	=> __('Copyright'),
 	                name    	=> 'copyright',
 	                value   	=> $query->{'copyright'},
 	                size    	=> 30,
@@ -305,32 +304,32 @@
 	my $multiple = 1;
 	my $dropdown_size = 6;
 	my $mediaOptions = [ 
-                                        { label => 'Any', 		value => '0' }, 
-                                        { label => 'Audio',   		value => 'audio' }, 
-                                        { label => 'Collection',   	value => 'collection' }, 
-                                        { label => 'Document',   	value => 'document' }, 
-                                        { label => 'Downloadable File',	value => 'downloadablefile' }, 
-                                        { label => 'Flashpix',   	value => 'flashpix'  }, 
-                                        { label => 'PDF',  		value => 'pdf' }, 
-					{ label => 'Shockwave', 	value =>'shockwave' },
-					{ label => 'Slide', 		value => 'slide' },
-					{ label => 'Student Notes', 	value => 'student' },
-					{ label => 'URL', 		value => 'url' },
-					{ label => 'Video', 		value => 'video' },
+                                        { label => __('Any'), 		value => '0' }, 
+                                        { label => __('Audio'),   		value => 'audio' }, 
+                                        { label => __('Collection'),   	value => 'collection' }, 
+                                        { label => __('Document'),   	value => 'document' }, 
+                                        { label => __('Downloadable File'),	value => 'downloadablefile' }, 
+                                        { label => __('Flashpix'),   	value => 'flashpix'  }, 
+                                        { label => __('PDF'),  		value => 'pdf' }, 
+					{ label => __('Shockwave'), 	value =>'shockwave' },
+					{ label => __('Slide'), 		value => 'slide' },
+					{ label => __('Student Notes'), 	value => 'student' },
+					{ label => __('URL'), 		value => 'url' },
+					{ label => __('Video'), 		value => 'video' },
 			];
 
 	if ($settings->{limitedMediaOptions}){
 		$multiple = 0;
 		$dropdown_size = 1;
 		$mediaOptions = [	
-				 { label => 'Document',          value => 'document' },
-				 { label => 'Slide',             value => 'slide' },
+				 { label => __('Document'),          value => 'document' },
+				 { label => __('Slide'),             value => 'slide' },
 			];
 	}
 </%perl>
 
 <& /tmpl/element:dropdown, params => { 
-                label           => 'Media Type',
+                label           => __('Media Type'),
 		size		=> $dropdown_size,
 		multiple	=> $multiple,
                 name            => 'media_type',
@@ -367,7 +366,7 @@
 </%perl>
 
 <& /tmpl/element:dropdown, params => {
-                label           => 'School',
+                label           => __('School'),
                 size            => (scalar(@schoolOptions) > 6) ? 6 : scalar(@schoolOptions),
                 multiple        => 1,
                 name            => 'school',
@@ -376,10 +375,10 @@
 } &>
 
 <tr id="available_tr">
-<td class="labelgray">Dates viewed between</td>
+<td class="labelgray"><%__('Available between')%></td>
 <td class="cell-left">
 <& /tmpl/element:input_calendar, params => {
-    label => 'Available between dates',
+    label => __('Available between dates'),
     name => 'start_active_date',
     size => 10,
     maxlength => 10,
@@ -396,7 +395,7 @@
 
 
 <& /tmpl/element:dropdown, params=>{ 
-		label 		=> 'Results per page',
+		label 		=> __('Results per page'),
                 name		=> 'resultSetLimit',
                 onchange	=> undef,
                 selected	=> $settings->{'resultSetLimit'},
@@ -407,13 +406,13 @@
 % unless ($settings->{'skipUMLS'}){
 <& /tmpl/element:tr_tag &>
 	<td>&nbsp;</td>
-	<td class="cell-submit"><input type="checkbox" checked="1" name="include_umls"/>Include matching UMLS concepts</td>
+	<td class="cell-submit"><input type="checkbox" checked="1" name="include_umls"/><%__("Include matching UMLS concepts")%></td>
 </tr>
 % }
 <& /tmpl/element:tr_tag &><td>&nbsp;</td><td class="cell-submit">
 <& /tmpl/element:submit_button, params=>{
 		name		=> 'Search',
-		label		=> 'Search',
+		label		=> __('Search'),
 } &>
 
 				</td>
@@ -431,7 +430,7 @@
                 href		=> '/tusk/search/form/' . $userQueryID . '?refine=1',
 		use_div 	=> 1,
 		style		=> 'font-size:10pt',
-                label		=> 'Refine Search'} 
+                label		=> __('Refine Search')} 
 &>
 % }
 
@@ -439,16 +438,16 @@
                 href		=> '/tusk/search/form?' . ($settings->{'advancedView'} ? 'advanced=1' : ''),
 		use_div 	=> 1,
 		style		=> 'font-size:10pt',
-                label		=> 'New Search'} 
+                label		=> __('New Search')} 
 &>
 <& /tmpl/element:link, params=>{
                 href		=> '/tusk/search/mysearches',
 		use_div 	=> 1,
 		style		=> 'font-size:10pt',
-                label		=> 'View Past Searches'} 
+                label		=> __('View Past Searches')} 
 &>
 						<div style="font-size:10pt"><b>
-						<& /tmpl/element:link_to_help, text => "Search Help Tips", topic => 'search_help' &>
+						<& /tmpl/element:link_to_help, text => __("Search Help Tips"), topic => 'search_help' &>
 						</b></div>
 					</td>
 				</tr>
@@ -497,10 +496,10 @@
 		my $resultEnd = $settings->{'resultSetLimit'} + $settings->{'resultSetStart'};
 		my $endRange = ($resultCount < $resultEnd) ? $resultCount : $resultEnd;
 </%perl>
-	<div align="left"><br />Export:  <a href="/search/export/<% $userQuery->getFieldValue('search_query_id') %>?resultSetLimit=<% $settings->{'resultSetLimit'}%>&start=<% $settings->{'resultSetStart'} %>" target="_blank">This Page</a> | <a href="/search/export/<% $userQuery->getFieldValue('search_query_id') %>" target="_blank">All</a><br /><br /></div>
-	<div class="med" style="padding-left:5px">Displaying <% $settings->{'resultSetStart'} + 1 %> - <% $endRange %> of <% $resultCount %> results</div>
+	<div align="left"><br /><%__("Export")%>:  <a href="/search/export/<% $userQuery->getFieldValue('search_query_id') %>?resultSetLimit=<% $settings->{'resultSetLimit'}%>&start=<% $settings->{'resultSetStart'} %>" target="_blank"><%__("This Page")%></a> | <a href="/search/export/<% $userQuery->getFieldValue('search_query_id') %>" target="_blank"><%__("All")%></a><br /><br /></div>
+	<div class="med" style="padding-left:5px"><%__x("Displaying {name} - {number} of {total} results", name => $settings->{'resultSetStart'} + 1, number=> $endRange, total =>  $resultCount) %></div>
 		<table cellpadding="5" class="sm" style="width:100%;padding-left:5px">
-	<tr style="font-weight:bold"><td style="text-align:center">Type</td><td>Document</td><td>Authors</td><td>Course</td><td>Linked Meetings</td><td>School</td></tr>
+	<tr style="font-weight:bold"><td style="text-align:center"><%__("Type")%></td><td><%__("Document")%></td><td><%__("Authors")%></td><td><%__("Course")%></td><td><%__("Linked Meetings")%></td><td><%__("School")%></td></tr>
  
 %		my $rowCount = $settings->{'resultSetStart'} + 1;
 
@@ -538,7 +537,7 @@
 					$created_time = $mod_time;
 				}
 			</%perl>
-				<div class="xsm">ID: <% $content->primary_key() %> &nbsp;&nbsp;Created: <% $created_time->out_mysql_date() %>&nbsp;&nbsp;Modified: <% $mod_time->out_mysql_date() %>
+				<div class="xsm"><%__("ID")%>: <% $content->primary_key() %> &nbsp;&nbsp;<%__("Created")%>: <% $created_time->out_mysql_date() %>&nbsp;&nbsp;<%__("Modified")%>: <% $mod_time->out_mysql_date() %>
 			<%perl>
 				my @parents = $content->parent_content;
 				my @parent_links;
@@ -547,7 +546,7 @@
 				}
 
 				if ( scalar( @parent_links ) ) {
-					$m->print( "<br />Parent content:<br />" . join( "<br />", @parent_links ) );
+					$m->print( "<br />".__("Parent content").":<br />" . join( "<br />", @parent_links ) );
 				}
 			</%perl>
 					</div>
@@ -605,7 +604,7 @@
 			</div>
 
 %	} else {
-		<div class="med" style="padding-left:5px">No Results Found.</div>
+		<div class="med" style="padding-left:5px"><%__("No Results Found.")%></div>
 %	}
 </%method>
 
@@ -678,10 +677,10 @@
 	<tr>
 		<td>&nbsp;</td>
 		<td class="cell-submit">
-			<& /tmpl/element:submit_button,params=>{name=>'Search',label=>'Search'} &>
+			<& /tmpl/element:submit_button,params=>{name=>'Search',label=>__('Search')} &>
 		</td>
 		<td>
-			<& /tmpl/element:link_to_help, text => "Search Help Tips", topic => 'search_help' &>
+			<& /tmpl/element:link_to_help, text => __("Search Help Tips"), topic => 'search_help' &>
 		</td>
 	</tr>
 </table>
@@ -702,7 +701,7 @@
 					} 
  				@{$concept->getDefinitions()});
 	if ($definitionText){
-		$print .= '&nbsp;[<a href="javascript:toggle_div(\'' . $concept->getConceptID() . '_def\')">definition</a>]';
+		$print .= '&nbsp;[<a href="javascript:toggle_div(\'' . $concept->getConceptID() . '_def\')">'.__('definition').'</a>]';
 	}
 	my $synonyms_obj = $concept->getConceptStrings();
 	my $synonyms = [];
@@ -714,7 +713,7 @@
 	}
 
 	if (scalar(@$synonyms)){
-		$print .= '&nbsp;[<a href="javascript:toggle_div(\'' . $concept->getConceptID() . '_syn\')">synonyms</a>]';
+		$print .= '&nbsp;[<a href="javascript:toggle_div(\'' . $concept->getConceptID() . '_syn\')">' . __('synonyms') . '</a>]';
 	}
 
 	if ($definitionText){

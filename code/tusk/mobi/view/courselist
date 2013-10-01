@@ -13,40 +13,90 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%attr>
-no_check_path => 1
+	no_check_path => 1
 </%attr>
 
+<%shared>
+	my $link_prefix = '/mobi/view/course';
+	my $user = $m->session->{'user'};
+</%shared>
 
-<%method header_text>
-% return 'My Courses';
+
+<& SELF:print_courses &>
+<& SELF:print_author_courses &>
+
+
+<%method print_courses>
+%	my $user_group_courses = $user->get_user_group_courses_with_categories();
+% 	my @enrollment_courses = $user->get_enrollment_courses();
+
+% 	if (scalar keys %$user_group_courses or scalar @enrollment_courses) {
+<!-- enrolled courses -->
+%		if (scalar @enrollment_courses) {
+<h4 class="homepageHdr">Enrolled Courses</h4>
+<ul class="gNoBullets courseList">
+%			foreach my $enrollment_course (@enrollment_courses){
+%				my $url = $enrollment_course->out_url_mobi();
+<li><a href="<% $url %>"><% $enrollment_course->out_label %></a> (<% $enrollment_course->school %>)</li>
+%			}
+</ul>
+%		}
+
+%		foreach my $school (sort keys %$user_group_courses) {
+%			foreach my $category_sort_order (sort keys %{$user_group_courses->{$school}}) {
+<h4 class="inlineHdr"><% $user_group_courses->{$school}{$category_sort_order}{label} . " ($school)" %></h4> 
+<ul class="gNoBullets courseList">
+%				foreach my $course (@{$user_group_courses->{$school}{$category_sort_order}{courses}}) {
+<li style="margin-left:<% $course->{indentation} * 10 %>px"><% $course->{id} ? '<a  href="' . (($course->{url}) ? $course->{url} : "/mobi/view/course/$school/$course->{id}") . '">' . $course->{title} . '</a>' : $course->{title} %></li>
+%				}
+%			}
+</ul>
+%		}
+% 	} else {
+<em><% __("You are not associated as a student with any courses in $TUSK::Constants::SiteAbbr. If you feel this is an error, please contact the $TUSK::Constants::SiteAbbr administrator for your school.") %></em>
+% 	}
 </%method>
 
+
+<%method print_author_courses>
 <%perl>
-my $user = $m->session->{'user'};
-my $enum_cat = $user->get_enum_cat();
-my @user_stud_courses = $user->user_stud_courses();
-
-my @courses = $user->parent_courses();
-my (@user_auth_courses, @user_committees);
-
-foreach my $course (@courses){
-	if ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
-		push @user_committees, $course;
+	my (@author_courses, @committees);
+	foreach my $course ($user->author_courses()) {
+		if ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
+			push @committees, $course;
+		} elsif ($course->type() eq 'community service' or $course->type() eq 'course') {
+			push @author_courses, $course;
+		}  
 	}
-	elsif ($course->type() eq 'community service' or $course->type() eq 'course') {
-		push @user_auth_courses, $course;
-	}  
-}
 </%perl>
 
-<& /tmpl/home:print_courses, 
-                is_mobile         => 1, 
-                enum_cat          => $enum_cat, 
-                user_stud_courses => \@user_stud_courses &>
+% if (@author_courses || @committees){
+<!-- section with speficically linked courses as an author (link_course_user) -->
+<h4 class="homepageHdr">Course Admin</h4>
+<ul class="gNoBullets courseList">
+%	foreach my $course (@author_courses){
+<li><a href="<% $link_prefix %>/<% $course->school ."/". $course->primary_key %>"><% $course->out_label %></a> (<% $course->school %>)</li>
+%	}
+%	if (!@author_courses) {
+<li><em><% __('No Courses') %></em></li>
+%	}
+</ul>
+<h4 class="homepageHdr">Committees</h4>
+<ul class="gNoBullets courseList">
+%	foreach my $committee (@committees){
+<li><a href="<% $link_prefix %>/<% $committee->school ."/". $committee->primary_key %>"><% $committee->out_label %></a> (<% $committee->school %>)</li>
+%	}
+%	if (!@committees) {
+<li><em><% __('No Committees') %></em></li>
+%	}
+</ul>
 
-<& /tmpl/home:print_admin_courses, 
-                is_mobile         => 1, 
-                user              => $user,
-                user_committees   => \@user_committees,
-                user_auth_courses => \@user_auth_courses &>
+% }
+
+</%method>
+
+<%method header_text>
+% 	return __('My Courses');
+</%method>

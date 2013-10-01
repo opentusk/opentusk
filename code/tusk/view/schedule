@@ -16,7 +16,7 @@
 <%attr>
 	default_path_type       => 'view'
 	no_check_path           => '1'
-	top_tab_type            => 'none'
+	top_tab_type            => 'schedule'
 	displayLittleUserNavbar => '1'
 	allow_guests            => '0'
 </%attr>
@@ -313,7 +313,7 @@
 						<tr>
 							<td>&nbsp;</td>
 %	foreach ( @meetings_days ) {
-							<td align="center"><% $_->out_weekday %></td>
+							<td align="center"><% __($_->out_weekday) %></td>
 %	}
 						</tr>
 % } else {
@@ -406,8 +406,8 @@
 
 <%method weeknav>
 	<tr>
-		<td colspan="3"><a href="<% $ENV{SCRIPT_NAME} %>/<% $prev_week %>">Previous Week</a></td>
-		<td colspan="3" align="RIGHT"><a href="<% $ENV{SCRIPT_NAME} %>/<% $next_week %>">Next week</a></td>
+		<td colspan="3"><a href="<% $ENV{SCRIPT_NAME} %>/<% $prev_week %>"><% __("Previous Week") %></a></td>
+		<td colspan="3" align="RIGHT"><a href="<% $ENV{SCRIPT_NAME} %>/<% $next_week %>"><% __("Next week") %></a></td>
 	</tr>
 </%method>
 
@@ -471,16 +471,16 @@
 		}
 
 		if ( $date ne '' && ( $date !~ /[0-9]{4}-[0-9]{2}-[0-9]{2}/ || !Date::Calc::check_date( split("-", $date) ) ) ) {
-			$m->comp("/tmpl/url:redirect",destination => $ENV{SCRIPT_NAME}."/".$school."/".$group_no."/", message => "Invalid Date or Format - ($date) Please enter dates as YYYY-MM-DD.");
+			$m->comp("/tmpl/url:redirect",destination => $ENV{SCRIPT_NAME}."/".$school."/".$group_no."/", message => __x("Invalid Date or Format - ({date}) Please enter dates as YYYY-MM-DD.",date => $date));
 		}
 		if ( $printing && $end_date ne '' && ( $end_date !~ /[0-9]{4}-[0-9]{2}-[0-9]{2}/ || !Date::Calc::check_date( split("-", $end_date) ) ) ) {
-			$m->comp("/tmpl/url:redirect",destination => $ENV{SCRIPT_NAME}."/".$school."/".$group_no."/", message => "Invalid Date or Format - ($end_date) Please enter dates as YYYY-MM-DD.");
+			$m->comp("/tmpl/url:redirect",destination => $ENV{SCRIPT_NAME}."/".$school."/".$group_no."/", message => __x("Invalid Date or Format - ({end_date}) Please enter dates as YYYY-MM-DD.",end_date => $end_date));
 		}
 
 		if ( $date eq '' ) { 
 			$date = HSDB4::DateTime->new->out_mysql_date; 
 		}
-		if(! $school or ! $group_no) {$m->comp("/tmpl/url:redirect",message => "Invalid Schedule Request");}
+		if(! $school or ! $group_no) {$m->comp("/tmpl/url:redirect",message => __("Invalid Schedule Request"));}
 
 
 		$group = HSDB45::UserGroup->new( _school => $school )->lookup_key( $group_no );

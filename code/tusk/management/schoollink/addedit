@@ -39,7 +39,7 @@ my $school = $m->comp("/tmpl/url:get_type_object");
 &>
 
 <& /tmpl/element:textbox, params =>{ 
-        label  => 'Label',
+        label  => __('Label'),
         name   => 'label',
         value  => $school_link->getLabel(),
         size   => 60,
@@ -47,7 +47,7 @@ my $school = $m->comp("/tmpl/url:get_type_object");
 &>
 
 <& /tmpl/element:textbox, params =>{ 
-        label  => 'URL',
+        label  => __('URL'),
         name   => 'url',
         value  => $school_link->getUrl(),
         size   => 60,
@@ -56,7 +56,7 @@ my $school = $m->comp("/tmpl/url:get_type_object");
 &>
 
 <& /tmpl/element:textbox, params =>{ 
-        label         => 'Show Date',
+        label         => __('Show Date'),
         name          => 'show_date',
         value         => $school_link->getShowDate(),
         size          => 10,
@@ -67,7 +67,7 @@ my $school = $m->comp("/tmpl/url:get_type_object");
 &>
 
 <& /tmpl/element:textbox, params =>{ 
-        label         => 'Hide Date',
+        label         => __('Hide Date'),
         name          => 'hide_date',
         value         => $school_link->getHideDate(),
         size          => 10,
@@ -78,7 +78,7 @@ my $school = $m->comp("/tmpl/url:get_type_object");
 &>
 
 <& /tmpl/element:section_header_row,
-		label=>'Sublinks', 
+		label=>__('Sublinks'), 
 		top_space => 1, 
 		skip_space => 1,
 		trailing_text => $m->scomp('/tmpl/element:link_to_help', text => '', topic => 'school_links_and_sublinks')
@@ -93,7 +93,7 @@ my $button = $m->scomp('/tmpl/element:button', params=>{
                     show_date:'',
                     hide_date:''
                     });",
-               'label'=>'Add New Sublink'});
+               'label'=>__('Add New Sublink')});
 
 
 my $sublinks = $school_link->getChildLinks();
@@ -121,13 +121,13 @@ foreach my $sl (@$sublinks) {
             name   => 'sublinks',
             sort   => {usage => 'Yes', length=>50},
             action => {usage => 'Yes', length=>50, functions => [
-                {func=>'remove', label=>'Delete'} 
+                {func=>'remove', label=>__('Delete')} 
                 ]},
             display => [ 
-                {label => 'Label', field => 'label', align=>'left', length=>200, type=>'textbox' },
-                {label => 'URL', field => 'url', align=>'left', length=>200, type=>'textarea' },
-                {label => 'Show Date', field => 'show_date', align=>'left', length=>85, type=>'textbox', onclick=>'setupCal(this);' }, 
-                {label => 'Hide Date', field => 'hide_date', align=>'left', length=>85, type=>'textbox', onclick=>'setupCal(this);' },
+                {label => __('Label'), field => 'label', align=>'left', length=>200, type=>'textbox' },
+                {label => __('URL'), field => 'url', align=>'left', length=>200, type=>'textarea' },
+                {label => __('Show Date'), field => 'show_date', align=>'left', length=>85, type=>'textbox', onclick=>'setupCal(this);' }, 
+                {label => __('Hide Date'), field => 'hide_date', align=>'left', length=>85, type=>'textbox', onclick=>'setupCal(this);' },
                 ] ,
             validate => {
                 usage => 'No',
@@ -143,7 +143,7 @@ foreach my $sl (@$sublinks) {
 <& /tmpl/element:save_button, params=>{
 		one_column=>'1',
 		colspan=>'2',
-        label => 'Save and Continue',
+        label => __('Save and Continue'),
         name => 'submit',
         cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/management/schoollink/show") . "');",
         } 
@@ -160,7 +160,7 @@ my ($msg,$msgtype) = (undef,'');
 if ($school_link_id){
 	$school_link = TUSK::SchoolLink::SchoolLink->lookupKey($school_link_id);
 	unless(defined $school_link){
-		$m->comp('/tmpl/url:redirect', message => 'Invalid School Link ID passed.');
+		$m->comp('/tmpl/url:redirect', message => __('Invalid School Link ID passed.'));
 	}
 } 
 else {
@@ -190,12 +190,12 @@ if ($m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
 		$school_link->save({'user'=>$user_id});
 
 		if (!$school_link_id){
-			$msg = "School link successfully created.";
+			$msg = __("School link successfully created.");
 
 			# school_link_id is needed for sort order box below when link and subs are created in one go
 			$school_link_id = $school_link->getPrimaryKeyID();
 		}else{
-			$msg = "School link successfully modified.";
+			$msg = __("School link successfully modified.");
 		}
 		$msgtype = 'msg';
 
@@ -248,7 +248,7 @@ if ($m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
 		
 	} 
 	else {
-		$msg = "Label is a required field";
+		$msg = __("Label is a required field");
 		$msgtype = 'errmsg';
 	}
 
@@ -270,8 +270,8 @@ if ($m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
 
 
 <%method title>
-% my $title = ($school_link_id)? 'Modify' : 'Create';
-% $title .= ' School Link';
+% my $title = ($school_link_id)? __('Modify') : __('Create');
+% $title .= ' '.__('School Link');
 % return $title;
 </%method>
 

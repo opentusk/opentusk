@@ -1,0 +1,1173 @@
+#!/usr/bin/perl
+
+use strict;
+use Carp;
+use Data::Dumper;
+use XML::Twig;
+use TUSK::Graphics::Annotate; 
+use TUSK::OCW::OcwCourseConfig;
+use TUSK::OCW::OcwSchool;
+use TUSK::Constants;
+use HSDB4::XML::PDF;
+use HSDB4::Constants;
+use HSDB4::SQLRow::Content;
+use MySQL::Password;
+use DBI;
+use POSIX qw(strftime);
+use Archive::Zip;
+
+#############
+#############
+use Getopt::Long;
+my ($GetOptContentID, $GetOptCourseID, $GetOptHelp, $GetOptSkipImages, $GetOptSchools, $GetOptSkipContent, $GetOptPages, $ArchiveCourseID, $GetOptDebugging, $doDraftCourses, $ServersToUse);
+my $GetOptResult = GetOptions(
+			      "ocw_course_id=i"     => \$GetOptCourseID,
+			      "schools"             => \$GetOptSchools,
+			      "content_id=i"        => \$GetOptContentID,
+			      "skip_images"         => \$GetOptSkipImages,
+			      "skip_content"        => \$GetOptSkipContent,
+			      "pages"               => \$GetOptPages,
+			      "debugging"           => \$GetOptDebugging,
+			      "drafts"              => \$doDraftCourses,
+			      "servers=s"           => \$ServersToUse,
+			      "archive_course_id=i" => \$ArchiveCourseID,
+			      "help|h"              => \$GetOptHelp);
+#############
+#############
+
+my $servers_hash = {
+    dev => {
+	name => 'Dev',
+	host => 'kato.tusknet.tusk.tufts.edu',
+	db => 'ocw',
+    },
+
+    test => {
+	name => 'Test',
+	host => 'peleus.tusk.tufts.edu',
+	db => 'ocw',
+    },
+    prod => {
+	name => 'Prod',
+	host => 'cheiron.tusk.tufts.edu',
+	db => 'ocw',
+    }
+    
+};
+
+my $servers = [];
+
+foreach my $server (split(',', $ServersToUse)){
+    $server = lc ($server);
+    $server =~ s/^ *//; # trim
+    $server =~ s/ *$//; # trim
+    if (exists($servers_hash->{ $server })){
+	push (@$servers, $servers_hash->{ $server });
+    }else{
+	die "Server " . $server . " not found";
+    }
+}
+
+$servers = [ $servers_hash->{test} ] unless (scalar(@$servers));
+
+my ($user, $pass) = &get_user_pw();
+HSDB4::Constants::set_user_pw ($user, $pass);
+
+&logExtract();
+
+if ($GetOptHelp){
+    &do_usage();
+}
+if ($GetOptContentID && !$GetOptCourseID){
+    print "ERROR: Course ID Required to Regenerate Content";
+    &do_usage();
+}
+
+if ($GetOptSkipImages){
+    print "\n\nWARNING : No New Images will be produced in this Extract \n\n";
+}
+
+if ($GetOptSkipContent){
+    print "\n\nWARNING : No content will be produced in this Extract \n\n";
+}
+
+if ($GetOptDebugging && !$ArchiveCourseID){
+    print "\n\nWARNING : Debugging only available when archiving.\n\n";
+	&do_usage();
+}
+
+die "No XSL_ROOT set" if (!$ENV{XSL_ROOT});
+
+my $temp_path = '/tmp/ocw';
+my $ocw_path = ".";
+
+if ($ENV{OCW_PATH}) {
+    $ocw_path = $ENV{OCW_PATH};
+    print "extracting to $ocw_path/servers\n";
+    chdir $ENV{OCW_PATH};
+}
+
+$ocw_path .= "/servers";
+
+&make_dir($ocw_path);
+foreach my $server (@$servers){
+    &make_dir($ocw_path . "/" . $server->{name});
+}
+
+&make_dir($temp_path);
+
+my $XSLPath = "$ENV{XSL_ROOT}/OCW/";
+$ENV{JAVA_HOME}="/usr/java" unless ($ENV{JAVA_HOME});
+my $processed_content = {}; # used to keep track of all content that was processed
+
+if ($GetOptCourseID){
+    print "Generating information for course id $GetOptCourseID \n\n";
+    &process_course($GetOptCourseID);
+} elsif ($GetOptSchools){
+    print "Generating school pages only."; 	
+    &process_school();
+} elsif ($GetOptPages){
+    &add_graphics();
+    &add_stylesheets();
+    &generate_pages();
+} elsif ($ArchiveCourseID){
+	&archive_course($ArchiveCourseID);
+} else {
+    &complete_extract();
+}
+
+&setup_db_connections();
+
+# Debugging is currently only available when archiving. Therefore, only allow
+# debugging when archiving... simple enough, right?
+if ($GetOptDebugging && $ArchiveCourseID) {
+	foreach my $server (@$servers){
+		print "\n*** SQL STATEMENTS FOR SERVER: " . $server->{name} . " ***\n";
+		foreach my $sql (@{$server->{sql_statements}}){
+			print "$sql\n";
+		}
+	}
+}
+else {
+	&do_sql(); # ok, no errors lets do all the sql statements
+}
+
+if ($ArchiveCourseID) {
+	&archive_binaries($ArchiveCourseID);
+}
+
+
+print "\nRun Successful.\n\n\n";
+
+print "Export Complete.\n";
+
+
+##########
+## SUBROUTINES
+		
+sub process_school{
+    my $schools = TUSK::OCW::OcwSchool->lookup("ocw_school.status = 'Active'",["sort_order"]);
+    my $sort_order = 0;
+    foreach my $school (@$schools){
+	$sort_order += 10;
+	&push_sql(
+		&create_insert('school',
+			       {
+				   school_id => $school->getPrimaryKeyID(),
+				   school_label => $school->getSchoolLabel(),
+				   school_image => $school->getSchoolImage(),
+				   school_desc => $school->getSchoolDesc(),
+				   sort_order  => $sort_order,
+			       }
+			       )
+		);
+    }
+    &push_sql("update school set state=state+1 where state != 'Archived'");
+}
+
+sub process_course{
+    my $CourseID = shift;
+    my $courses = [];
+
+    if (!$CourseID){
+	my $courseCondition = "='Published'";
+	$courseCondition = "!='Unpublished'" if $doDraftCourses;
+	$courses = TUSK::OCW::OcwCourseConfig->lookup("ocw_course_config.status $courseCondition");
+    } else {
+	$courses = [ TUSK::OCW::OcwCourseConfig->lookupKey($CourseID) ];
+    }
+    
+    foreach my $course (@$courses){
+	next if ($doDraftCourses && $course->getStatus() ne 'Draft');
+
+	if (!defined($course)){
+	    print "\n\nThat course does not exist. \n\n";
+	    next;
+	}
+	my ($lecturers, $assistants) = $course->getCourseStaff();
+	
+	my @objectives	    = $course->getCourseObjectives();
+	@objectives = map { $_->field_value('body') } @objectives;
+	
+	my @authors = map { $_->first_name() . " " . $_->last_name() } @$lecturers;
+	my @assistants = map { $_->first_name() . " " . $_->last_name() } @$assistants;
+	
+	if (!$course->getShowFaculty() or !scalar(@authors)){
+	    @authors = ('Tufts University Faculty');
+	    @assistants = ();
+	}
+	
+	my $timeperiod = $course->getTimePeriod();
+	my $small_graphic = $course->getSmallGraphic();
+	my $graphic_name = $course->getGraphicName();
+	
+	unless ($small_graphic =~ m#/graphics/#){
+	    $small_graphic = '/graphics/' . $small_graphic;
+	}
+
+	unless ($graphic_name =~ m#/graphics/#){
+	    $graphic_name = '/graphics/' . $graphic_name;
+	}
+	
+	&push_sql(
+		&create_insert('course',
+			       {
+				   course_id => $course->getPrimaryKeyID(),
+				   course_code => $course->getMetadataCourse()->registrar_code(),
+				   school_id => $course->getOcwSchoolID,
+				   title => $course->getCourseLabel(),
+				   time_period => $timeperiod->period(),
+				   graphic_name => $graphic_name, 
+				   graphic_caption => $course->getGraphicCaption(),
+				   small_graphic => $small_graphic,
+				   short_description => $course->getShortDescription(),
+				   course_length => $course->getTotalTime(),
+				   level_label => $course->getLevelLabel(),
+				   description => $course->getCourseDesc(),
+				   highlights => $course->getHighlights(),
+				   additional_metadata => $course->getAdditionalMetadata(),
+				   objectives => join("\t", @objectives),
+				   authors => join("\t", @authors),
+				   assistants => join("\t", @assistants),
+				   subject => $course->getSubject(),
+				   pub_year => $course->getPubYear(),
+				   pub_month => $course->getPubMonth(),
+				   keywords => $course->getKeywords(),
+				   }
+			       )
+		);
+	
+	my $output_dir = $course->getPrimaryKeyID();
+	
+	&server_make_dir($output_dir);
+	
+	
+	unless ($GetOptSkipContent){
+	    &actualize_course_content($course, $output_dir) 
+	}
+	
+	my $order=3;
+	my $sort_order;
+	my $courseOptions = $course->getCourseOptions();
+
+	foreach my $page (@TUSK::OCW::OcwCourseConfig::coursePages){
+	    next if (!$courseOptions->{$page});
+	    if ($page eq 'CourseHome') {
+		$sort_order = 1;
+	    }elsif ($page eq 'Syllabus') {
+		$sort_order = 2;
+	    }elsif ($page eq 'Calendar') {
+		$sort_order = 3;
+	    }else{ 	
+		$sort_order = ++$order;
+	    }
+	    &course_category($course, $page, $sort_order);
+	}
+	
+	&update_tables($course->getPrimaryKeyID());
+	print "\n\n";
+	print Dumper($courseOptions);
+	print "\n\nCourse ".$course->getCourseTitle." Completed (".$course->getPrimaryKeyID.")\n\n";
+    }
+}
+
+sub update_tables{
+    my $course_id = shift;
+    
+    &push_sql("update course set state = state + 1 where course_id = $course_id and state != 'Archived';");    
+    &push_sql("update course_session set state=state+1 where course_id = $course_id and state != 'Archived';");   
+    &push_sql("update course_category set state=state+1 where course_id = $course_id and state != 'Archived';");  
+    &push_sql("update link_course_category_content set state=state+1 where course_id = $course_id and state != 'Archived'");
+    
+	if ($GetOptContentID){
+		if (scalar(keys %$processed_content)){
+			&push_sql("update content set state=state+1 where content_id in (" . join(',', keys %$processed_content) . ") and course_id = $course_id and state != 'Archived'");
+			&push_sql("update link_content_content set state = state+1 where course_id = $course_id and  parent_content_id in (" . join(',', keys %$processed_content) . ") and state!='Archived'");
+		}
+	}elsif(!$GetOptSkipContent){
+		&push_sql("update link_content_content set state= state+1 where state!= 'Archived' and course_id=$course_id");
+		&push_sql("update content set state=state+1 where course_id = $course_id and state!='Archived'");
+	}
+}
+
+sub course_category{
+    my ($course, $page, $sort_order)= @_;
+    
+    my $display_type_token = {
+	'Labs' => 'Links',
+	'Exams' => 'Links',
+	'ExamsAndQuizzes' => 'Links',
+	'ImageGallery' => 'Links',
+	'SmallGroups' => 'Links',
+	'Cases' => 'Links',
+	'SupplementaryMaterial' => 'Links',  
+	'Assignments' => 'Calendar',
+	'LectureNotes' => 'Calendar',
+	'SeminarNotes' => 'Calendar',
+	'Readings' => 'Calendar',
+	'Projects' => 'Links',
+	'StudentNotes' => 'Calendar',
+	'StudentWork' => 'Links',
+	'LectureHandouts' => 'Links',
+	'CourseHome' => 'Document',
+	'Syllabus' => 'Document',
+	'Calendar' => 'Calendar',
+	'CourseDocuments' => 'Links',
+	'Tools' => 'Links',
+	'Activities' => 'Calendar',
+	'Lessons' => 'Calendar',
+	'Topics' => 'Calendar',
+	'LearningUnits' => 'Calendar',
+	};
+    
+    my $display_type =  $display_type_token->{ $page };
+    my $category_name = $page;
+    $category_name =~ s/([a-z])([A-Z])/$1 $2/g;
+
+    $category_name = 'Lectures' if ($category_name eq 'Lecture Notes');
+    $category_name = 'Exams and Quizzes' if ($category_name eq 'Exams' or $category_name eq 'Exams And Quizzes');
+    $category_name = 'Other Class Meetings' if ($category_name eq 'Small Groups');
+
+    &push_sql(
+	    &create_insert('course_category', 
+			   {
+			       course_category_token =>  &get_category_token($page),
+			       category_name => $category_name,
+			       course_id => $course->getPrimaryKeyID(),
+			       display_type => $display_type,
+			       sort_order => $sort_order,
+			       description => $course->getFolderHeader($page),
+			   }
+			   )
+	    );
+    
+    if ($display_type eq 'Calendar'){
+	&course_session($course, $page);
+    }
+    
+    if ($display_type eq 'Links') {
+	&course_category_content($course, $page);
+    }
+}
+
+sub course_session{                
+    my ($course, $page) = @_;
+    
+    my ($meetings, $calendarConfigs)= $course->getCourseCalendar();
+
+    my $contentType_token = {
+	'Assignments'=>'Assignments',
+	'Cases'=>'Cases',
+	'Exams'=>'Exams',
+	'ImageGallery'=>'Image Gallery',
+	'Labs'=>'Labs',
+	'LectureHandouts'=>'Lecture Handouts',
+	'LectureNotes'=> 'Lectures',
+	'Readings'=>'Readings',
+	'SeminarNotes'=>'Seminars',
+	'SmallGroups'=>'SmallGroups',
+	'StudentNotes'=> 'Student Notes',
+	'SupplementaryMaterial'=>'SupplementaryMaterial',
+	'LearningUnits' => 'Learning Units',
+	'Topics' => 'Topics',
+	'Lessons' => 'Lessons',
+	'Activities' => 'Activities',
+	};
+    
+    my $contentType = $contentType_token->{ $page };
+    
+    my $contentTypeID = 0;
+    if ($contentType and ($page ne 'Calendar')){
+	my $classMeetingContentType = TUSK::Core::ClassMeetingContentType->lookup(" label = '$contentType' " );
+	if (!defined($classMeetingContentType) || !scalar(@{$classMeetingContentType})){
+	    die "Invalid content type passed : $contentType"; 
+	}
+	$contentTypeID = $classMeetingContentType->[0]->getPrimaryKeyID();
+    }       
+    
+    my $course_session_sort_order = 1;
+    
+    foreach my $meeting (@$meetings){
+	my $course_session_id = $meeting->primary_key();
+	if ($page eq 'Calendar') {			
+	    &push_sql(
+		    &create_insert('course_session',
+				   {
+				       course_session_id => $course_session_id,
+				       course_id => $course->getPrimaryKeyID(), 
+				       type => $meeting->type(), 
+				       title => $meeting->field_value('title'), 
+				       sort_order => $course_session_sort_order++,
+				   }
+				   )
+		    );
+	}else{
+	    my @content = $meeting->child_content("class_meeting_content_type_id = $contentTypeID");
+	    my $link_sort_order = 1;
+	    foreach my $content (@content) {
+		&push_sql(
+			&create_insert('link_course_category_content',
+				       {
+					   parent_course_category_token => &get_category_token($page),
+					   child_content_id => $content->primary_key(),
+					   course_id => $course->getPrimaryKeyID(), 
+					   course_session_id => $course_session_id,
+					   label => $content->aux_info('label'),
+					   anchor_label => $content->aux_info('anchor_label'), 
+					   sort_order => $link_sort_order++,
+				       }
+				       )
+			);
+	    }
+	}
+    }
+}
+
+sub course_category_content{
+    my ($course, $page) = @_;
+    
+    my $contents = $course->getFolderContent($page);
+    my $sort_order = 1;
+
+    foreach my $content (@$contents) {
+	next if ($content->title() eq 'OCW Project: Instructions' or $content->title() eq 'Instructions');
+	my $anchor_label=($content->aux_info('anchor_label') ? '#_'.$content->aux_info('anchor_label') : '');
+	&push_sql(
+		&create_insert('link_course_category_content',
+			       {
+				   parent_course_category_token => &get_category_token($page),
+				   child_content_id => $content->primary_key(),
+				   course_id => $course->getPrimaryKeyID(), 
+				   course_session_id => 0,
+				   anchor_label => $anchor_label, 
+				   sort_order => $sort_order++, 
+			       }
+			       )
+		);
+    }
+}
+
+sub actualize_course_content{
+    my ($course, $outputDir) = @_;
+
+    my $courseContent = $course->getContent();
+    
+    if ($GetOptContentID){
+	@$courseContent = grep { $_->{'content'}->primary_key() == $GetOptContentID } @$courseContent;
+	confess "Content not found in course" unless (scalar(@$courseContent) == 1);
+    }
+    
+    foreach my $content_row (@{$courseContent}){
+	my $content = $content_row->{'content'};
+	next if ($content->title() =~ /^(OCW Project: )?Removed/ && $content->type() eq 'Collection');
+	&process_content($course, $content, $outputDir);
+    }
+}
+
+sub process_content{
+    my ($course, $content, $outputDir) = @_;
+    
+    my $fileName = sprintf("%s/%d", $outputDir, $content->primary_key());
+    my $copyright= $content->field_value('copyright');
+    my $title    = $content->title();
+    $title =~ s/OCW Project: ?//;
+    $title =~ s/ - Lecture Slides// if ($content->type eq "Collection");
+    $content->field_value('title', $title);
+
+    $processed_content->{ $content->primary_key() } = 1;
+
+    my $body;
+    
+    if ($content->type eq 'Collection'){
+	&handle_collection($content, $course, $outputDir);
+	$body = $content->out_html_body();
+    }elsif ($content->type eq 'PDF'){
+	$body = $content->get_file_body(); 
+	&handle_file($content->out_file_path(), $fileName . '.pdf');
+    }elsif ($content->type() eq 'Slide'){
+	&save_binary($content, $outputDir, ['thumb', 'xlarge', 'large']); 
+
+	my $table_is_open = 0;
+	
+	if ($content->out_stain()) {
+	    $body = '<table><tr><td valign="top"><b>Stain:</b></td><td>' . $content->out_stain() . '</td></tr>';
+	    $table_is_open = 1;
+	}
+
+	my $xml_body = $content->body();
+	if ($xml_body){
+	    my ($html) = $xml_body->tag_values ('html');
+	    $html = ($html) ? $html->value() : '';
+	    if ($html){
+		$body = '<table>' unless ($table_is_open);
+		$body .= '<tr><td valign="top"><b>Description:</b></td><td>' . $html . '</td></tr>';
+		$table_is_open = 1;
+	    }
+	}
+
+	$body .= '</table>' if ($table_is_open);
+	
+    }elsif ($content->type() eq 'Document' or $content->type() eq 'TUSKdoc'){
+	if ($content->type() eq 'TUSKdoc'){
+    	    $content->field_value('type', 'Document');
+    	    $content->field_value('conversion_status', 2);
+
+	}
+
+	if ($content->field_value('conversion_status') eq '2'){
+
+	    my $hscml_body = $content->field_value('hscml_body');
+	    #
+	    # this is a bad hack to make sure the entities don't get processed by XSLT
+	    # 
+	    $hscml_body =~ s/\&([^#])/\&amp;$1/g; 
+	    $content->field_value('hscml_body', $hscml_body);
+	    #
+	    #
+	    #
+
+	    my $outputMode = 'Summary';
+	    if (fullOutputMode($content)){
+		&extractDocumentImages($content,$outputDir);
+		$outputMode = 'Full';
+	    }       
+	    
+	    if ($outputMode eq 'Summary'){
+		$content->xsl_stylesheet($ENV{'XSL_ROOT'}.'/OCW/DocumentSummary.xsl');
+	    } elsif ($outputMode eq 'Full') {
+		$content->xsl_stylesheet($ENV{'XSL_ROOT'}.'/OCW/Document.xsl');
+	    }
+
+	    $body = $content->out_html_body();
+
+	    #
+	    # this is a bad hack to make sure the entities don't get processed by XSLT
+	    # 
+	    $body =~ s/\&amp;([A-z0-9]+);/\&$1;/g;
+	    #
+	    #
+	    #
+
+	    die $content->error if ($content->error);
+	} else {
+	    $body = $content->out_html_body();
+	}
+    }elsif ($content->type() eq 'DownloadableFile'){
+	my $path = $content->out_file_path();
+	$path =~ /\.(.*)$/;
+	my $ext = $1;
+	$body = "." . $ext if ($ext);
+	my $filename = $fileName . $body;
+	&handle_file($content->out_file_path(), $filename);
+    }elsif ($content->type() eq 'Shockwave'){
+	$body = $content->body();
+	if ($body){
+	    my ($inFile) = $body->tag_values ('shockwave_uri');
+	    if ($inFile){
+		&handle_file('/data/html' . $inFile->value(), $fileName . '.swf');
+	    }else{  
+		print "Problem moving swf: " . $content->primary_key();
+	    }
+	}else{
+	    print "Problem moving swf: " . $content->primary_key();
+	} 
+	$body = $content->out_html_body(); #this body is for process content table
+	my $new_location = '/data/' . $fileName . '.swf';
+	$body =~ s/\/downloadable_file\/\d*\.swf/$new_location/g;
+    }else {  
+	my $xml_body = $content->body(); 
+	my ($html) = $xml_body->tag_values ('html') if $xml_body;
+	$body = $html->value() if $html;
+    }
+    
+    my @authors = ();
+    if ($course->getShowFaculty()) {
+	@authors = map { $_->out_full_name() } $content->child_authors();
+    }
+
+    my @objectives = map { $_->out_label } $content->child_objectives();
+    
+    &push_sql(
+	    &create_insert('content',
+			   {
+			       content_id => $content->primary_key(), 
+			       type => $content->type(), 
+			       title => $title, 
+			       body => $body, 
+			       copyright => $copyright, 
+			       objectives => join("\t", @objectives), 
+			       authors => join("\t", @authors), 
+			       course_id => $course->getPrimaryKeyID(),
+			   }
+			   )
+	    );
+}
+
+sub handle_collection {
+    my ($content, $course, $outputDir) = @_;
+    
+    my $dirName = sprintf("%s/%d", $outputDir, $content->primary_key());
+    &server_make_dir($dirName);
+    
+    my @child_content = $content->child_content();
+    my $sort_order =1;
+    foreach my $child_content (@child_content) {
+	next if ($child_content->title() =~ /^(OCW Project: )?Removed/ && $content->type() eq 'Collection');
+	&push_sql(
+		&create_insert('link_content_content',
+			       {
+				   parent_content_id => $content->primary_key(), 
+				   child_content_id => $child_content->primary_key(), 
+				   course_id => $course->getPrimaryKeyID(),
+				   sort_order => $sort_order++,			      
+			       }
+			       )
+		);
+	&process_content($course, $child_content, $dirName);
+    }   
+    
+    &generate_pdf_content($content, $outputDir);
+}
+
+sub handle_file{ 
+    my $inFile = shift;
+    my $outFile = shift;
+ 
+    if (! -f $inFile ){
+        warn "File $inFile doesn't exist for extract";
+        return;
+    }
+
+    &server_copy($inFile, $outFile);
+
+    if ($?){
+        warn "Couldn't copy $inFile to $outFile";
+    }
+    print "Moved file $inFile\n";
+}
+
+sub save_binary {
+	my $contentObject = shift;
+	my $dirName = shift;
+	my $sizes = shift;
+
+	my $pk = $contentObject->primary_key();
+	my $modifiedTime = HSDB4::DateTime->in_mysql_timestamp($contentObject->field_value('modified'));
+	my $useContentIDs = 0;
+	if (ref $sizes ne 'ARRAY'){
+		# if there are going to be multiple sized images 
+		# use the binary id , else the content id should be fine
+		$useContentIDs = 1 ;
+		$sizes = [$sizes];
+	}
+    
+	my ($bin,$binName,$copyrightText,$blobText);
+	if ($GetOptSkipImages){
+		print "Did Not Save Image : $pk \n";
+		return;
+	} 
+    
+    my $overlay = $contentObject->overlay_data();
+
+	print "Checking for changes in image binary for Content ID $pk ... \n";
+	foreach my $size (@{$sizes}){
+		my $ext;
+		if ($overlay && $size ne 'thumb'){
+			print "Using overlay image\n";
+			$ext = $contentObject->image_available( $size, $overlay );
+		}
+		else {
+			$ext = $contentObject->image_available( $size );
+		}
+
+		next if ( !defined( $ext ) );
+
+		my $location = $contentObject->get_image_location();
+
+		my $filename = $TUSK::UploadContent::path{'slide'};
+		$filename   .= "/overlay" if ($overlay && $size ne 'thumb');
+		$filename   .= $HSDB4::Constants::URLs{$size} . '/' . $location . '.' . $ext;
+		my $img = Image::Magick->new();
+		$img->Read( $filename );
+		$bin = $img->ImageToBlob();
+		next if (!defined($bin));
+
+		$binName = sprintf ("%s/%d_$size.%s", $dirName, $contentObject->primary_key(), $ext);
+		my $generateBinary = 0;
+		if (-f $binName && !-z $binName ){
+			my $mtime = (stat($binName))[9];
+			if (defined($mtime) && ($mtime < $modifiedTime->out_unix_time())){
+				print "Generating $binName, File last modifed ".localtime($mtime)." \n";
+				$generateBinary = 1;
+			}
+		} else {
+			print "Generating $binName\n";
+			$generateBinary = 1;
+		}
+		if ($generateBinary){
+			$copyrightText = generate_copyright_text($contentObject);
+			if ($size ne 'thumb'){
+				$blobText = TUSK::Graphics::Annotate::annotateImage($bin, $copyrightText);
+			} else {
+				$blobText = $bin;
+			}
+			&server_save_file($binName, $blobText);
+		}
+	}
+}
+
+sub generate_copyright_text{
+    my $content = shift;
+    my $copyright = $content->field_value('copyright');
+    $copyright =~ s/copyright/\(c\)/i;
+    $copyright =~ s/all\s+rights\s+reserved//gi;
+    return $copyright;
+}
+
+sub generate_pdf_content {
+    my ($content,$outputDir) = @_;  
+    my $year = (localtime)[5] + 1900;
+    $content->field_value('copyright', '&#169; ' . $year . ' Tufts University');
+    my $xml = HSDB4::XML::PDF::generate_slide_xml($content, 'servers/' . $servers->[0]->{name} . '/' . $outputDir . "/" . $content->primary_key() . "/");
+    my $pk = $content->primary_key();
+    my $xmlFile = $temp_path . "/" . $pk . ".xml";
+    
+    print "Preparing to Generate PDF from Document #". $pk . "\n";
+    open XML, ">$xmlFile" or die "Unable to open XML File $xmlFile : $!";
+    print XML $xml;
+    close XML;
+    if ( -z $xmlFile ) {
+	print "Content ID $pk is not a Slide Collection, so no PDF generated\n"; 
+	return;
+    }
+    my $fopCmd = $TUSK::Constants::fopCmd . " -q -xml " . $xmlFile . " -xsl " . $XSLPath . "/PDF.xsl -pdf " . $temp_path . "/" . $pk . ".pdf";
+    my $output = `$fopCmd`;
+    if ($output){
+	die "Unable to generate PDF : $output with command $fopCmd";
+    }
+    &server_copy($temp_path . "/" . $pk . ".pdf", $outputDir . "/" . $pk . ".pdf")
+
+}
+
+sub fullOutputMode{
+    my $content = shift;
+    my $imageIDs;
+    if (($content->type eq 'Document' )
+	&& ($content->field_value('conversion_status') eq '2')){
+	my @parent_content = grep { $_->title eq 'Summarized Lecture Documents' } $content->parent_content();
+	if (@parent_content){
+	    $content->set_aux_info('-summary_view',1);
+	    return 0;
+	}
+    }
+    return 1;
+}
+
+sub extractDocumentImages{
+    my $content = shift;
+    my $outputDir = shift;
+    return unless ($content->is_xmetal_doc());
+    $content->xsl_stylesheet($ENV{'XSL_ROOT'}.'/OCW/ImageExtract.xsl');
+    my $imageIDs = $content->out_html_body();
+    confess $content->error if ($content->error);
+    return if (!$imageIDs);	
+	print "Preparing to Extract Images from Document #".$content->primary_key()."\n";
+    my $twig = XML::Twig->new();
+    
+    eval {
+	$twig->parse($imageIDs);
+    };
+    if ($@){
+	confess "Error Parsing Image IDs : ".$imageIDs;
+    }
+    my @contentIDs = map { $_->text } $twig->root->children();
+     # print "\n\nCONTENT : ".join("\n",map { $_->text } @contentIDs);
+    my %contentHash = map { ($_,HSDB4::SQLRow::Content->new->lookup_key($_)) } @contentIDs;
+    my $dirName = sprintf('%s/%d',$outputDir,$content->primary_key());
+    &server_make_dir($dirName) if (scalar(keys %contentHash));
+    foreach my $key (keys %contentHash){
+	die "Bad Content ID $key in image extraction" if (!defined($contentHash{$key}->primary_key()));
+	&save_binary($contentHash{$key},$dirName,'medium');
+    }
+}
+
+sub add_stylesheets{
+    &server_make_dir("styles");
+    &server_copy('styles/*.css', 'styles/');
+}
+
+sub add_images{
+    &server_make_dir("images");
+    &server_remove('images/*');
+    &server_copy('images/*.*', 'images/');
+}
+
+# graphics for course homepages
+sub add_graphics{
+    &server_make_dir('graphics');
+    &server_remove('graphics/*');
+    &server_copy('graphics/*.*', 'graphics/');
+}
+
+sub add_js{
+    &server_make_dir('js');
+    &server_copy('js/functions.js', 'js/');
+}
+
+sub generate_pages{
+
+    &do_aux_files();
+    
+    opendir(my $dir, "pages") or die "couldn't open pages dir: $!";
+    while (my $page = readdir($dir)){
+
+	next if (-d "pages/" . $page);
+	next if ($page =~ /~/ or $page =~ /\./);
+	print "Generating $page page\n";
+	my ($body, $title);
+
+	open (my $fh, "pages/" . $page) or die "Couldn't open page $page: $!";
+
+	while (my $line = <$fh>){
+	    $body .= $line;
+	}
+
+
+	if ($body =~ s/^<title>(.*)<\/title>\n//){
+	    $title = $1;
+	} else {
+	    $title = $page;
+	    $title =~ s/([a-z])([A-Z])/$1 $2/g;
+	}
+	&push_sql(
+		&create_insert('page',
+			       {
+				   token => lc($page),
+				   body => $body,
+				   title => $title,
+			       })
+		);
+    }	
+
+    &push_sql("update page set state=state+1 where state!='Archived'");
+
+    closedir($dir);
+}
+
+sub do_aux_files{
+    &add_stylesheets();
+    &add_images();
+    &add_graphics();
+    &add_js();
+}
+
+sub complete_extract {
+    &do_aux_files();
+    &process_school();
+    &process_course();
+    &generate_pages();
+}
+
+sub do_usage{
+    print <<EOM;
+
+ocw_extract --drafts --ocw_course_id=[OCW Course ID] --content_id=[Content ID]
+	--skip_images --schools --pages --servers --archive_course_id=[OCW Course ID] 
+	--debugging
+
+ocw_extract creates html dumps of content for the OCW project from the
+TUSK system.
+
+Supplying a OCW Course ID will regenerate just a particular course.
+
+Supplying a OCW Course ID and a Content ID  will just regenerate that
+Content ID for that Course.  The Course ID is required to do this.
+
+    --drafts only courses marked draft will have their content extracted (published courses will have their metadata extracted)
+
+    --skip_images will turn off the saving of images, this should
+		be used only when trying to get an update of the text.
+
+    --skip_content will turn off the saving of content, this should
+		be used only when trying to get an update of the category pages.
+
+    --schools will only do the school pages to allow a new course
+		to appear in the navigation
+
+    --pages will only generate the non course/content pages
+
+    --servers a comma delimited list of servers to send extract data to, choices are dev,test,prod
+
+    --archive_course_id will archive the provided ocw course, as long as that course
+      has a status of 'unpublished' in TUSK. one can pass in the --servers param if
+      one would like to remove the course from qa, prod, or both
+
+    --debugging is ONLY FUNCTIONAL WHEN ARCHIVING. Given the nature of the ocw project, time was
+      not available to incorporate debugging into pre-existing functionality. if this flag is 
+      passed, the actual archiving will not occur, but one will see the actions that the script 
+      would have taken.
+EOM
+	exit;
+
+}
+
+sub logExtract{
+    my $path = $ENV{OCW_PATH} || ".";
+    open (LOGFILE, ">>", $path . "/extract.log");
+    my $login = getlogin() || (getpwuid($<))[0] || die "unable to ascertain who is running the script";
+    my $originalARGS = join (" ",@ARGV);
+    print LOGFILE sprintf("%s : %s : %s \n",scalar(localtime()),$login,$originalARGS);	
+    close LOGFILE;
+}
+
+# we added this sub together
+sub get_category_token{
+    my ($category_name) = @_;
+    $category_name =~ s/ //g;
+    $category_name = lc ($category_name);
+    $category_name = 'exams' if ($category_name eq 'examsandquizzes'); # a Paul hack...
+    return $category_name;
+}
+
+sub setup_db_connections{
+	foreach my $server (@$servers){
+		$server->{dbh} = DBI->connect("dbi:mysql:dbname=" . $server->{db} . ";host=" . $server->{host}, 'tuskocw', 'tuskocw123', { RaiseError => 1 }) or
+			die "Error connecting to the " . $server->{name} . " database: $DBI::errstr\n";
+		$server->{dbh}->do("set character set utf8");
+        $server->{dbh}->do("set names utf8");
+	}
+}
+
+# better to push all sql statements and than run at the end...that way if program dies data is not out of sync
+sub push_sql{
+    my ($sql) = @_;
+    die "missing sql\n" unless ($sql);
+
+    foreach my $server (@$servers){
+	push (@{$server->{sql_statements}}, $sql);
+    }
+}
+
+sub do_sql{
+	foreach my $server (@$servers){
+
+		# make sure there is no hidden records before we start adding new ones
+		$server->{dbh}->do("update content set state = 'Error' where state = 'Hidden'");
+		$server->{dbh}->do("update course set state = 'Error' where state = 'Hidden'");
+		$server->{dbh}->do("update course_category set state = 'Error' where state = 'Hidden'");
+		$server->{dbh}->do("update course_session set state = 'Error' where state = 'Hidden'");
+		$server->{dbh}->do("update link_content_content set state = 'Error' where state = 'Hidden'");
+		$server->{dbh}->do("update link_course_category_content set state = 'Error' where state = 'Hidden'");
+		$server->{dbh}->do("update page set state = 'Error' where state = 'Hidden'");
+		$server->{dbh}->do("update school set state = 'Error' where state = 'Hidden'");
+
+		foreach my $sql (@{$server->{sql_statements}}){
+			$server->{dbh}->do($sql);
+			if ($server->{dbh}->errstr){
+				open(my $fh,"/tmp/ocw_mysql_log." . strftime("%D", localtime()));
+				print $fh "error line: $sql\n\n";
+				print $fh join("\n", @{$server->{sql_statements}});
+				close($fh);
+				die "Database " . $server->{name} . ": SQL failed (and logged in tmp dir) - " . $sql;
+			}
+		}
+	}
+	print "Content inserted into database\n";
+}
+
+sub create_insert{
+    my ($table, $hash) = @_;
+
+    foreach my $key (keys %$hash){
+	$hash->{ $key } = "'" . &quote($hash->{ $key }) . "'";
+    }
+    $hash->{created_on} = "now()";
+    $hash->{created_by} = "'" . $user . "'";
+
+    return "insert into " . $table . " ( " . join (',', keys %$hash) . ") values (" . join(',', values %$hash) . ")";
+}
+
+sub quote{
+    my ($string) = @_;
+    $string =~ s/'/\\'/g;
+    return $string;
+}
+
+sub make_dir{
+    my $dir = shift;
+    unless (-d $dir){
+	mkdir($dir) or die ("Could not make $dir: $!");
+    }
+}
+
+sub server_make_dir{
+    my $dir = shift;
+    foreach my $server (@$servers){
+	my $server_dir = $ocw_path ."/" . $server->{name} . "/" . $dir;
+
+	&make_dir($server_dir);
+    }
+}
+
+sub server_copy{
+    my ($from, $to) = @_;
+    foreach my $server (@$servers){
+	my $full_command = "cp " . $from . " " . $ocw_path . "/" . $server->{name} . "/" . $to;
+	system($full_command);
+	die ("Problem with $full_command: ($?) $!") if ($?);
+	my $star = ($to =~ /\/$/) ? '*' : '';
+	#system("chgrp tusk " . $ocw_path . "/" . $server->{name} . "/" . $to . $star);
+    }
+}
+
+sub server_remove{
+    my ($location) = @_;
+    foreach my $server (@$servers){
+	my $full_command = "rm -f " . $ocw_path . "/" . $server->{name} . "/" . $location;
+	system($full_command);
+	die ("Problem with $full_command: ($?) $!") if ($?);
+    }
+}
+
+sub server_save_file{
+    my ($binName, $blobText) = @_;
+
+    foreach my $server (@$servers){
+	open my $fh, ">", $ocw_path . "/" . $server->{name} . "/" . $binName or die "Unable to open output bin file $binName : $!";
+	binmode $fh;
+	print $fh $blobText; 
+	close $fh;
+    }
+}
+
+
+##########
+# this sub takes care of the db side of archiving
+# basically increments all of the content, course records so their state becomes 'archived'
+sub archive_course{
+	my $course_id = shift;
+
+	my $course = TUSK::OCW::OcwCourseConfig->lookupReturnOne("ocw_course_config_id = $course_id and ocw_course_config.status ='unpublished'");
+    
+	if (defined $course) {
+		print "Preparing to archive course...\n";
+		&update_tables($course->getPrimaryKeyID());
+	}
+	else {
+		print "ERROR: Course with id $course_id either does not exist, or is not set to 'unpublished'.\nERROR: Nothing done, script aborted.\n";
+		exit;
+	}
+}
+
+##########
+# simple utility sub to get a string of format YYYYmmdd.HHMMSS
+sub out_YMDHMS {
+	return strftime ( "%Y%m%d.%H%M%S", localtime() );
+}
+
+##########
+# when archiving, we place all binaries in a zip. this sub takes care of that.
+sub zip_binaries {
+	my ($dir) = @_;
+
+	my $date = out_YMDHMS();
+
+	my $zip = Archive::Zip->new();
+
+	print "\n*** ZIP CONTENTS ***\n";
+	print "Preparing to zip contents of $dir\n";
+	$zip->addTree($dir, '', sub { $_ !~ m!/content_archive! } );
+
+	# if in debug mode, don't zip, just print the names of files that would have been zipped
+	if ($GetOptDebugging) {
+		my @names = $zip->memberNames();
+		foreach my $n (@names) {
+			print "$n\n";
+		}
+	}
+	else {
+		# zip needs to be placed in content_archive dir, 
+		# and that dir needs to be created if it doesnt already exist.
+		$dir .= '/content_archive';
+		make_dir($dir);
+	
+		my $zip_file = $dir . '/' . $date . '.zip';
+		if ($zip->writeToFileNamed($zip_file) == Archive::Zip::AZ_OK) {
+			print "Zip file successfully written as: $zip_file\n";
+		}
+		else {
+			die "Error: could not zip binary content!\n";
+		} 
+	}
+}
+
+##########
+# this method removes files or directories.
+# perhaps server_remove should call this for parallel w/ &server_make_dir and &make_dir?
+sub remove {
+	my ($location) = @_;
+
+	my $full_command = "rm -rf $location";
+	print "$full_command\n";
+	if(! $GetOptDebugging){
+		system($full_command);
+		die ("Problem with $full_command: ($?) $!") if ($?);			
+	}
+}
+
+##########
+# during archiving, we need to remove all content that is stored as binary
+# file on filesystem. This sub takes care of that. 
+sub remove_binaries{
+	my ($dir) = @_;
+
+	print "\n*** REMOVING BINARIES ***\n";
+	opendir(DIR, $dir) or die "can't opendir $dir: $!";
+	while (defined(my $file = readdir(DIR))) {
+		next if $file =~ /^\.\.?$/;     # skip . and ..
+		next if $file =~ /^content_archive$/;   # skip content_archive dir
+
+		my $filepath = "$dir/$file";
+		remove($filepath);
+	}
+	closedir(DIR);
+}
+
+##########
+# sub name says it all. get all content that is stored as binary on file system, 
+# zip it up for storage, and then remove the loose files
+sub archive_binaries {
+	my $id = shift;
+
+	foreach my $server (@$servers){
+		my $dir = $ocw_path . '/' . $server->{name} . '/' . $id;
+
+		if(-d $dir) {
+			&zip_binaries($dir);
+			&remove_binaries($dir);		
+		}
+		else {
+			print "The dir $dir does not exist, so no files to zip or rm\n";
+		}
+	}
+}

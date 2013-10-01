@@ -13,204 +13,260 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
-use TUSK::SchoolLink::SchoolLink;
+	use TUSK::SchoolLink::SchoolLink;
+	use HSDB45::Announcement;
+	use TUSK::Application::HTML::Strip;
+	use TUSK::Constants;
+	use TUSK::User::AnnouncementHide;
+	use TUSK::User::Link;
 </%once>
 
-<%method build_sched_table>
+<%shared>
+	 my $stripObj = TUSK::Application::HTML::Strip->new();
+</%shared>
+
+<%doc>
+method to print the tab(s) of user data for the home page
+</%doc>
+<%method main_user_tabs>
 <%args>
-@meetings
-$is_mobi => 0
+	$user
+	$course_hash
+	$schedule_ugs
+	$today
+	$upcoming
+	$schools
 </%args>
 
-<& /tmpl/element:table, params=>{class => 'schedTable', width => '100%'} &>
-% my $iter = 1;
-% foreach my $meet (@meetings){
-%	$iter++;
-%	my $course = $meet->course();
-  <tr class="<% ($is_mobi && $iter % 2)? 'highlight' : '' %>">
-    <td class="time"><% sprintf ("%s - %s", $meet->out_starttime->out_string_time_hm, $meet->out_endtime->out_string_time) %></td>
-%	my $url = $is_mobi? $course->out_url_mobi() : $course->out_url();
-    <td class="course"><a href="<% $url %>"><% $course->out_abbrev() %></a></td>
+% my $school_counter = 0;
 
-%	my $disp_title = $meet->title();
-%	$disp_title .= $disp_title? ' - ' : '';
-%	$disp_title .= $meet->type();
-%	$disp_title .= ($meet->is_mandatory())? ' <span class="cmMandAtt">(Attendance Mandatory)</span>' : '';
-%	my $cm_url = $is_mobi? $meet->out_url_mobi() : $meet->out_url();
-%	$disp_title = '<a href="' . $cm_url . '">' . $disp_title . '</a>';
-    <td class="meeting"><% $disp_title %></td>
-    <td class="location">
-%	if($is_mobi){
-<% $meet->location() %>
-%	}
-%	else {
-<& /tmpl/element:excess_text_popup, str => $meet->location(), length=>12 &>
-%	}
-    </td>
-  </tr> 
-% }
-</table>
-</%method>
-
-
-<%method print_courses>
-<%args>
-$enum_cat          => undef
-@user_stud_courses => ()
-$is_mobile         => 0
-</%args>
-
-% if(defined $enum_cat or scalar @user_stud_courses){
-%	my $lnk_prefix = $is_mobile? '/mobi/view/course' : '/view/course';
-<!-- enrolled courses -->
-
-%	if(scalar @user_stud_courses){
-
-<h4 class="homepageHdr">Enrolled Courses</h4>
-<ul class="gNoBullets courseList">
-%		foreach my $user_course (@user_stud_courses){
-%			my $url = $is_mobile? $user_course->out_url_mobi() : $user_course->out_url();
-<li><a href="<% $url %>"><% $user_course->out_label %></a> (<% $user_course->school %>)</li>
-%		}
+<nav class="toptabs">
+<ul>
+% 	foreach my $school (@$schools) {
+	<li<% ($school_counter == 0) ? ' class="current"' : ''%>><a href="#schooltab<% $school_counter %>"><% $TUSK::Constants::Schools{$school}{'DisplayName'} %></a>
+%		$school_counter++;
+% 	}
 </ul>
+</nav>
+
+% $school_counter = 0;
+% foreach my $school (@$schools) {
+%	my $calendar_tab;
+%	if (($today->{$school} && scalar @{$today->{$school}}) || (($upcoming->{$school} && scalar @{$upcoming->{$school}}))) {
+%		$calendar_tab = 1;
 %	}
+% 	my @course_tabs;
+	<div id="schooltab<% $school_counter %>" class="toptab<% ($school_counter == 0) ? ' current' : ''%><% ($calendar_tab) ? '' : ' full' %>">
+		<div class="tabinner">
+			<h1 class="skip"><% $TUSK::Constants::Schools{$school}{'DisplayName'} %></h1>
+			<div class="courses tabgroup">
+				<nav class="tabs<% (scalar keys %{$course_hash->{$school}} <= 1) ? ' single' : '' %>">
+					<ul>
 
-<!-- usergroup courses -->
-%	if(defined $enum_cat){
-%		my $school = $enum_cat->school;
+%       #### course types and labels
+%	my $course_types = [	[ 'student_courses',  'Courses'    ],
+%				[ 'my_groups', 	      'Groups'     ],
+%				[ 'admin_courses',    'Upload/Edit'      ],
+%				[ 'user_committees',  'Committees' ] ];
 
-%		if($enum_cat->get_label){
-<h4 class="inlineHdr"><% $enum_cat->get_label %></h4> 
-%			if($enum_cat->get_schedule && !$is_mobile){
-- <a href="/view/schedule/<% $school %>/<% $enum_cat->get_primary_user_group_id %>" class="schedule">Schedule</a>
-%			}
+%	foreach my $course_type (@$course_types) {
+%		if (exists $course_hash->{$school}{$course_type->[0]}) {
+%			push @course_tabs, $course_type->[0];
+						<li<% ((scalar @course_tabs) == 1) ? ' class="current"' : '' %>><a href="#schooltab<% $school_counter %>coursetab<% (scalar @course_tabs) - 1 %>"><% __($course_type->[1]) %></a></li>
 %		}
-<ul class="gNoBullets courseList">
-%		my ($course_id, $courseURL, $lastLabel, $lastLabelIndent);
-%		$lastLabel = '';
-%		$lastLabelIndent = 0;
-%		foreach my $hp_course ($enum_cat->get_homepage_courses){
-%			$course_id = $hp_course->get_course_id();
-%			$courseURL = '';
-% # If we have a valid course_id then see if we are related to a current group
-% # If we do not have a valid course_id then we are a label, save us incase we have a course under us that is valid
-%			if($course_id){
-%				$courseURL = "$lnk_prefix/$school/$course_id";
-%			}
-%			elsif($hp_course->get_url){
-%				$courseURL = $hp_course->get_url;
-%			}
-%			else{
-%				my $indent = $hp_course->get_indent() * 10;
-%				$lastLabel = "<h4 class=\"inlineHdr\" style=\"margin-left:${indent}px\">" . $hp_course->get_label . "</h4>";
-%				$lastLabelIndent = $hp_course->get_indent;
-%			}
-
-%			if($courseURL && $hp_course->isCurrent()){
-%			# Here we are going to print a label and clear the var if there was a label set
-%				if ($lastLabel){
-%					$m->print("<li>$lastLabel</li>");
-%					$lastLabel = '';
-%					$lastLabelIndent = 0;
-%				}
-%				elsif($lastLabelIndent >= $hp_course->get_indent){
-% 				# At this point we came across a label and we have moved back out the previous 
-%				# indentation without needing to print the label so reset it
-%					$lastLabelIndent = 0;
-%				}
-%				my $indent = $hp_course->get_indent() * 10;
-<li><a style="margin-left:<% $indent %>px" href="<% $courseURL %>"><% $hp_course->get_label %></a></li>
-%			}
-%		}
-</ul>
 
 % 	}
-% }
-% else{
-<em>You are not associated as a student with any courses in <% $TUSK::Constants::SiteAbbr %>. If you feel this is an error, please contact the <% $TUSK::Constants::SiteAbbr %> administrator for your school.</em>
-% }
 
+%	unless (scalar @course_tabs) {
+						<li class="current"><a href="#schooltab<% $school_counter %>coursetab0">Courses</a></li>
+%	}
+					</ul>
+				</nav>
+				<div class="tabcontainer">
+
+%	unless (scalar @course_tabs) {
+					<section id="schooltab<% $school_counter %>coursetab0" class="tab current">
+						<h1 class="skip"><% __('Courses') %></h1>
+					</section>
+%	}
+
+% 	my $course_tab_counter = 0;
+
+%       ## student_courses are different so we print them out first
+% 	if ($course_hash->{$school}{"student_courses"}) {
+				<section id="schooltab<% $school_counter %>coursetab<% $course_tab_counter %>" class="tab<% ($course_tab_counter == 0) ? ' current' : '' %>">
+					<div class="scrollcontainer">
+					<ul>
+%		### enrollment courses
+%		if (exists $course_hash->{$school}{"student_courses"}{"enrollment"}) {
+%			foreach my $course (sort {$a->out_title() cmp $b->out_title()} @{$course_hash->{$school}{"student_courses"}{"enrollment"}}) {
+						<li><a href="/view/course/<% "$school/" . $course->primary_key() %>"><% $stripObj->removeHTML($course->out_title()) %></a></li>
+%			}
+%		}
+
+
+%		### user_group courses with managed categories
+%		if (exists $course_hash->{$school}{"student_courses"}{"user_group"}) {
+%			foreach my $category_sort_order (sort keys %{$course_hash->{$school}{"student_courses"}{"user_group"}}) {
+						<li><h2 class="course-category"><% $course_hash->{$school}{"student_courses"}{"user_group"}{$category_sort_order}{label} %></h2></li>
+%				foreach my $course (@{$course_hash->{$school}{"student_courses"}{"user_group"}{$category_sort_order}{courses}}) {
+						<li style="margin-left:<% $course->{indentation} * 10 %>px"><% $course->{id} ? '<a  href="' . (($course->{url}) ? $course->{url} : "/view/course/$school/$course->{id}") . '">' . $stripObj->removeHTML($course->{title}) . '</a>' : $stripObj->removeHTML($course->{title}) %></li>
+%				}
+%			}
+%		}
+					</ul>
+					</div> <!-- scrollcontainer -->
+				</section>
+%		$course_tab_counter++;
+%		@course_tabs = @course_tabs[1 .. $#course_tabs];
+%	}
+
+% 	foreach my $tab (@course_tabs) {
+%		if ($course_hash->{$school}{$tab} && scalar @{$course_hash->{$school}{$tab}}) {
+%			$m->comp('SELF:print_school_tab', school_counter => $school_counter, course_tab_counter => $course_tab_counter, school => $school, courses => $course_hash->{$school}{$tab}, course_url_prefix => ($tab eq "admin_courses") ? "/management/course/display/" : "/view/course/");
+% 			$course_tab_counter++;
+%		}
+% 	}
+				</div> <!-- tabcontainer -->
+			</div> <!-- courses tabgroup -->
+
+%	if ($calendar_tab) {
+			<div class="calendar tabgroup">
+				<nav class="tabs<% ($today->{$school} && scalar @{$today->{$school}} && $upcoming->{$school} && scalar @{$upcoming->{$school}}) ? '' : ' single' %>">
+					<ul>
+%		if ($today->{$school} && scalar @{$today->{$school}}) {
+						<li class="current"><a href="#schooltab<% $school_counter %>calendartab1"><% __('Today') %></a></li>
+%		}
+%		if ($upcoming->{$school} && scalar @{$upcoming->{$school}}) {
+						<li<% ($today->{$school} && scalar @{$today->{$school}}) ? '' : ' class="current"' %>><a href="#schooltab<% $school_counter %>calendartab2"><% __('To Do') %></a></li>
+%		}
+					</ul>
+				</nav>
+				<div class="tabcontainer">
+%		if ($today->{$school} && scalar @{$today->{$school}}) {
+					<section class="tab current" id="schooltab<% $school_counter %>calendartab1">
+					<div class="scrollcontainer">
+						<h1 class="skip"><% __('Today') %></h1>
+%			foreach my $meeting (@{$today->{$school}}) {
+						<article>
+							<time><% sprintf ("%s - %s", $meeting->out_starttime->out_string_time_hm, $meeting->out_endtime->out_string_time) %></time>
+							<h1><a href="/view/course/<% $school %>/<% $meeting->course_id() %>/schedule/<% $meeting->primary_key() %>"><% $stripObj->removeHTML($meeting->title()) %></a><% ($meeting->is_mandatory()) ? '<span class="mandatory">*</span>' : '' %></h1>
+							<p><% $stripObj->removeHTML($meeting->location()) %></p>
+						</article>
+%			}
+					</div>
+					</section>
+%		}
+%		if ($upcoming->{$school} && scalar @{$upcoming->{$school}}) {
+					<section class="tab<% ($today->{$school} && scalar @{$today->{$school}}) ? '' : ' current"' %>" id="schooltab<% $school_counter %>calendartab2">
+					<div class="scrollcontainer">
+					<h1 class="skip"><% __('To Do') %></h1>
+%			foreach my $event (@{ $upcoming->{$school} }) {
+						<article class="todo">
+							<time><% $event->{date} %> <strong><% $event->{time} %></strong></time>
+							<h1><a href="<% $event->{link} %>"><% $event->{course_title} %>: <% $stripObj->removeHTML( $event->{title} ) %></a></h1>
+						</article>
+%			}
+					</div>
+					</section>
+%		}
+				</div>
+			</div>
+% 	}
+			<div class="personal tabgroup">
+				<div class="links">
+					<hgroup>
+						<h1><% __('Links') %></h1>
+					</hgroup>
+					<div class="tabcontainer">
+						<section class="tab">
+							<h2>Personal</h2>
+							<& /tmpl/home:print_user_links, links => TUSK::User::Link::getAllLinks($user->primary_key()) &>
+							<h2>School</h2>
+							<div class="scrollcontainer">
+								<& /tmpl/home:print_school_links, school =>  TUSK::Core::School->new->lookupReturnOne("school_name = '$school'") &>
+							</div>
+						</section>
+					</div>
+				</div>
+				<div class="content">
+					<nav class="tabs">
+						<ul>
+							<li class="current"><a href="#schooltab<% $school_counter %>contenttab1"><% __('Recently Viewed') %></a></li>
+							<li><a href="#schooltab<% $school_counter %>contenttab2"><% __('Popular') %></a></li>
+						</ul>
+					</nav>
+					<div class="tabcontainer">
+						<section id="schooltab<% $school_counter %>contenttab1" class="tab current">
+							<h1 class="skip"><% __('Recently Viewed') %></h1>
+							<div class="scrollcontainer">
+								<& SELF:recently_viewed, user => $user &>
+							</div>
+						</section>
+						<section id="schooltab<% $school_counter %>contenttab2" class="tab">
+							<h1 class="skip"><% __('Popular') %></h1>
+							<div class="scrollcontainer">
+								<& SELF:pop_content, user => $user &>
+							</div>
+						</section>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="bottom">
+			<a href="/view/courses" class="courses"><% __('all') %> &raquo;</a>
+%	if ($calendar_tab && $schedule_ugs->{$school}) {
+			<a href="/view/schedule/<% $school %>/<% $schedule_ugs->{$school}->[0]->{id} %>" class="calendar"><% __('all') %> &raquo;</a>
+%	}
+		</div>
+	</div>
+%	$school_counter++;
+% }
 </%method>
 
-
-<%method print_admin_courses>
+<%method print_school_tab>
 <%args>
-@user_committees    => ()
-@user_auth_courses  => ()
-$is_mobile          => 0
-$user
+	$school_counter
+	$course_tab_counter
+	$school
+	$courses
+	$course_url_prefix
 </%args>
-
-% if (@user_auth_courses || @user_committees){
-%	my $lnk_prefix = $is_mobile? '/mobi/view/course' : '/view/course';
-<!-- section with speficically linked courses as an author (link_course_user) -->
-<h4 class="homepageHdr">Course Admin</h4>
-<ul class="gNoBullets courseList">
-%	foreach my $user_course (@user_auth_courses){
-<li><a href="<% $lnk_prefix %>/<% $user_course->school ."/". $user_course->primary_key %>"><% $user_course->out_label %></a> (<% $user_course->school %>)
-%		if (!$is_mobile && $user_course->can_user_edit($user)){
-<a href="/protected/management/course/display/<% $user_course->school . "/" . $user_course->primary_key %>">Upload/Edit</a>
-%		}
-</li>
+				<section id="schooltab<% $school_counter %>coursetab<% $course_tab_counter %>" class="tab<% ($course_tab_counter == 0) ? ' current' : '' %>">
+					<div class="scrollcontainer">
+					<ul>
+%	foreach my $course (sort {$a->out_title() cmp $b->out_title()} @$courses) {
+						<li><a href="<% $course_url_prefix %><% "$school/" . $course->primary_key() %>"><% $stripObj->removeHTML($course->out_title()) %></a></li>
 %	}
-%	if (!@user_auth_courses){
-<li><em>no courses</em></li>
-%	}
-</ul>
-<h4 class="homepageHdr">Committees</h4>
-<ul class="gNoBullets courseList">
-%	foreach my $user_course (@user_committees){
-<li><a href="<% $lnk_prefix %>/<% $user_course->school ."/". $user_course->primary_key %>"><% $user_course->out_label %></a> (<% $user_course->school %>)
-%		if (!$is_mobile && $user_course->can_user_edit($user)){
-<a href="/protected/management/course/display/<% $user_course->school . "/" . $user_course->primary_key %>">Upload/Edit</a>
-%		}
-</li>
-%	}
-%	if (!@user_committees){
-<li><em>no committees</em></li>
-%	}
-</ul>
-
-% }
-
+					</ul>
+					</div>
+				</section>
 </%method>
 
-
-<%method print_school_courses>
+<%method print_user_links>
 <%args>
-@list_cats
-$is_mobile => 0
+$links
 </%args>
-%	my $lnk_prefix = $is_mobile? '/mobi/view/course' : '/view/course';
-<!-- then the course lists -->
-% foreach my $list_cat (@list_cats){
-%	my $school = $list_cat->school;
-<h4 class="inlineHdr"><% $list_cat->get_label %></h4>
-%	if(!$is_mobile && $list_cat->get_schedule){
- - <strong><a href="/view/schedule/<% $school %>/<% $list_cat->get_primary_user_group_id %>" class="schedule">Schedule</a></strong>
+% my $json = "var links = [\n";
+% my $counter = 1;
+<form>
+<select class="linklist" onchange="fowardToNew(this.options[this.selectedIndex])">
+</select>
+% foreach my $link (@$links) {
+%	$json .= "{\n\tid:\t'" . $link->getPrimaryKeyID() . "',\n\tsort_order:\t'" . $link->getSortOrder() . "',\n\tlabel:\t'" . $link->getLabel() . "',\n\turl:\t'" . $link->getUrl() . "'\n}";
+%	if ($counter++ != (scalar @$links)) {
+%		$json .= ",\n";
 %	}
-<form class="homeCourseList no-padding" action="" method="get">
-<select name="gotocourse" onchange="location.href=this.options[this.selectedIndex].value;this.selectedIndex = 0;">
-	<option value="">Select a course</option> 
-%	foreach my $hp_course ($list_cat->get_homepage_courses){
-%		my $course_id = $hp_course->get_course_id;
-%		if ($course_id){
-	<option value="<% $lnk_prefix %>/<% $school ."/". $course_id %>"><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
-%		}
-%		elsif ($hp_course->get_url){
-	<option value="<% $hp_course->get_url %>"><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
-%		}
-%		else{
-	<option value=""><% "&nbsp;"x($hp_course->get_indent*3) %><% $hp_course->get_label %></option>
-%		}
-%	}
-</select> 
+% }
+% $json .= "\n];";
+<input type="button" value="<% __('manage') %>" />
 </form>
-% }
-
+<script type="text/javascript">
+<% $json %>
+</script>
 </%method>
-
 
 <%method print_school_links>
 <%args>
@@ -218,28 +274,111 @@ $school
 </%args>
 
 % my $links = $school->getHomepageSchoolLinks();
+% my $stripObj = TUSK::Application::HTML::Strip->new();
 
 % if (scalar @$links) {
 <ul class="gNoBullets">
 %	foreach my $l (@$links) {
 %		my $subLinks = $l->getJoinObjects('subLink'); 
 %		if (scalar @$subLinks) {
-<li><div class="closed" onclick="toggleSublinkDisplay(this);"><h4 class="inlineHdr gPointer"><% $l->getLabel() %></h4> <a href="javascript:;">[+]</a></div>
-	<ul class="gDisplayNone gNoBullets nestedList">
+%	my $linkName = $stripObj->removeHTML($l->getLabel());
+%	$linkName =~ s{\s+}{}gxms; #remove spaces
+<li class="closed"><h2><a href="#" onclick='toggleLinksLinks( "<% $linkName %>", this )'><% $stripObj->removeHTML($l->getLabel()) %><img src="/graphics/icon-nav-closed.png" class="more" alt=""></a></h2>
+	<ul id ="<% $linkName %>">
 %			foreach my $sl (@$subLinks) {	
-	<li><a href="<% $sl->getUrl() %>"><% $sl->getLabel() %></a></li>
+	<li><a href="<% $sl->getUrl() %>"><% $stripObj->removeHTML($sl->getLabel()) %></a></li>
 %			}
 	</ul>
 </li>
 %		}
 %		else {
-<li><a href="<% $l->getUrl() %>"><% $l->getLabel() %></a></li>
+<li><a href="<% $l->getUrl() %>"><% $stripObj->removeHTML($l->getLabel()) %></a></li>
 %		}
 %	}
 </ul>
 % }
 % else {
-<em class="indented">no school links</em>
+<p><em><% __('no school links') %></em></p>
 % }
-
 </%method>
+
+
+<%method school_announcements>
+<%args>
+	$user
+</%args>
+<%perl>
+	my $all_announcements = TUSK::User::AnnouncementHide::get_nonhidden_announcements_by_school($user->primary_key());
+</%perl>
+% if (scalar keys %$all_announcements) {
+<section class="notifications">
+	<div class="close"><img src="/graphics/icon-home-close.png" alt=""></div>
+	<div class="scrollcontainer">
+%	foreach my $school (keys %$all_announcements) {
+%		foreach my $ann_id (keys %{$all_announcements->{$school}}) {
+		<article><% $all_announcements->{$school}->{$ann_id}->field_value('body') %></article>
+% 		}
+%	}
+	</div>
+</section>	
+% }
+</%method>
+
+
+<%doc>
+method to print the user's recently viewed content 
+</%doc>
+<%method recently_viewed>
+<%args>
+	$user
+</%args>
+<%perl>
+my @recent_content = $user->available_recent_history;
+my $stripObj = TUSK::Application::HTML::Strip->new();
+</%perl>
+% if(scalar @recent_content){
+<ul>
+%	foreach my $c (@recent_content){
+%		if ($c->is_active()){
+<li><a href="<% $c->out_url %>"><% $stripObj->removeHTML($c->out_label) %></a> <em>(<% $stripObj->removeHTML($c->course->out_label) %>)</em></li>
+%		}
+%	}
+</ul>
+% }
+% else {
+<p><em><% __('no recently viewed content') %></em></p>
+% }
+</%method>
+
+
+<%doc>
+method to print the user's school's popular content 
+</%doc>
+<%method pop_content>
+<%args>
+	$user
+</%args>
+<%perl>
+my @groups = $user->parent_user_groups;
+my $stripObj = TUSK::Application::HTML::Strip->new();
+</%perl>
+% my $hot_content_count = 0;
+% foreach my $group (@groups){
+%	my @group_content = $group->hot_content();
+%	if (scalar @group_content){
+<ul>
+%		foreach my $content (@group_content){
+%			if ($content->is_active()){
+<li><a href="/hsdb4/content/<% $content->primary_key %>"><% $stripObj->removeHTML($content->out_label) %></a> <em>(<% $stripObj->removeHTML($content->course->out_label) %>)</em></li>
+%				$hot_content_count++;
+%			}
+%		}
+</ul>
+%	}
+% }
+% if (!$hot_content_count){
+<p><em><% __('no relevant content') %></em></p>
+% }
+</%method>
+
+

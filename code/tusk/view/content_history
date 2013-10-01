@@ -33,9 +33,9 @@ no_check_path => 1,
 <a name="_top"></a>
 
 % if (!defined($history_doc) || !$history_doc->primary_key()) {
-<a href="/hsdb4/content/<% $orig_doc->primary_key() %>">Return to Original Content Page</A>
+<a href="/hsdb4/content/<% $orig_doc->primary_key() %>"><%__('Return to Original Content Page')%></A>
 <p>
-Please select history record to view:
+<%__('Please select history record to view:')%>
 </p>
 %	my $time = HSDB4::DateTime->new;
 %	my $blank_user = HSDB4::SQLRow::User->new();
@@ -43,7 +43,8 @@ Please select history record to view:
 % foreach my $history_item (@docs) {
 % $time->in_mysql_timestamp($history_item->field_value("modified"));
 % my $history_user = $blank_user->lookup_key($history_item->field_value('modified_by'));
-% my $history_name = sprintf("%s (Record as of %s) Modified By %s",$history_item->field_value('title'),	$time->out_string_date,$history_user->out_full_name()? $history_user->out_full_name : $history_item->field_value('modified_by'));
+% my $modified_user = $history_user->out_full_name()? $history_user->out_full_name : $history_item->field_value('modified_by');
+% my $history_name = __x('{content_name} (Record as of {date}) Modified By {user_name}', content_name => $history_item->field_value('title'), date => $time->out_string_date, user_name => $modified_user);
 <tr><td>
 <a href="/view/content_history/<% $orig_doc->primary_key %>/<% $history_item->primary_key %>">
 <% $history_name %>
@@ -55,12 +56,12 @@ Please select history record to view:
 % }
 </table>
 % } else {
-<a href="/view/content_history/<% $orig_doc->primary_key() %>">Return to View History Page</A>
+<a href="/view/content_history/<% $orig_doc->primary_key() %>"><%__('Return to View History Page')%></A>
 % my $doc = $history_doc->get_content_object;
 % $doc->xsl_stylesheet($ENV{XSL_ROOT}."/Content/Document.xsl");
 % my $body = $doc->out_html_body();
 % if ($doc->error) {
-<div class="error">This document cannot be displayed at this time.  Please email <% $TUSK::Constants::SupportEmail %> if you have a question.</div>
+<div class="error"><%__x('This document cannot be displayed at this time.  Please email {site_abbr} if you have a question.', site_abbr => $TUSK::Constants::SupportEmail)%></div>
 %        use TUSK::ErrorReport ;
 %        ErrorReport::sendErrorReport($r,{'Msg'=>$doc->error()});
 % } else {
@@ -91,9 +92,9 @@ Please select history record to view:
 		}
 
 		if (!scalar(@docs) && !defined($history_doc)) {
-			$m->comp('SELF:set_msg', type => 'hintmsg', msg => "No history found for content $content_id");
+			$m->comp('SELF:set_msg', type => 'hintmsg', msg => __x('No history found for content {content_id}', content_id => $content_id));
 		} elsif (defined($history_doc) && !$history_doc->primary_key()){
-			$m->comp('SELF:set_msg', type => 'hintmsg', msg => "History record not found for content $history_id");
+			$m->comp('SELF:set_msg', type => 'hintmsg', msg => __x("History record not found for content {history_id}", history_id => $history_id));
 		}
 
 		if ($orig_doc->field_value('style')) {

@@ -46,17 +46,17 @@ warn "--in slidesPDF";
   #Lets start by checking to make sure we got arguments.
   my @pathElements = $m->comp('/tmpl/url:get_path_ids');
   $contentID = shift(@pathElements);
-  unless($contentID) {$m->comp("/tmpl/error_display:displayError", message => "No content id was specified");}
-  unless($contentID =~ /^\d*$/) {$m->comp("/tmpl/error_display:displayError", message => "Content ids can only contain numbers");}
+  unless($contentID) {$m->comp("/tmpl/error_display:displayError", message => __("No content id was specified"));}
+  unless($contentID =~ /^\d*$/) {$m->comp("/tmpl/error_display:displayError", message => __("Content ids can only contain numbers"));}
   
   my $numberOfSlides = shift(@pathElements);
 
   #Now lets see if we can make a content from the passed arguments.
   my $document;
   eval {$document = HSDB4::SQLRow::Content->new()->lookup_path($contentID);};
-  if($@) {$m->comp("/tmpl/error_display:displayError", message => "Invalid Content: $contentID");}
+  if($@) {$m->comp("/tmpl/error_display:displayError", message => __("Invalid Content") . ": $contentID");}
   # This one should never really happen but just in case
-  unless($document->primary_key()) {$m->comp("/tmpl/error_display:displayError", message => "Invalid Content: $contentID");}
+  unless($document->primary_key()) {$m->comp("/tmpl/error_display:displayError", message => __("Invalid Content") . ": $contentID");}
 
   #Now lets see if we can view the content we created above.
   unless($document->is_user_authorized($m->session->{'user'}->primary_key)) {
@@ -66,17 +66,17 @@ warn "--in slidesPDF";
 
   #Did we create a collection?
   unless($document->content_type() eq 'Collection')
-    {$m->comp("/tmpl/error_display:displayError", message => "Only collections can be printed in PDF format <!-- " . $document->content_type() . "!-->");}
+    {$m->comp("/tmpl/error_display:displayError", message => __("Only collections can be printed in PDF format") . " <!-- " . $document->content_type() . "!-->");}
 
   my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
   unless($document->is_active()) {
     unless(!$iAmAGuest && $document->can_user_edit($m->session->{'user'}))
-     {$m->comp("/tmpl/error_display:displayError", message => "That content is not currently active");}
+     {$m->comp("/tmpl/error_display:displayError", message => __("That content is not currently active"));}
   }
 
   #Can we get the xml content of these slides?
   my $xml = HSDB4::XML::PDF::generate_slide_xml($document);
-  unless($xml) {$m->comp("/tmpl/error_display:displayError", message => "Collection has no slides");}
+  unless($xml) {$m->comp("/tmpl/error_display:displayError", message => __("Collection has no slides"));}
   #We need to convert any & chars
   $xml=~s/\&/\&amp;/gm;
   $xml =~ s/[\0-\011\013-\037\177-\377]//g; # Remove unprintables
@@ -179,7 +179,7 @@ warn "--in slidesPDF";
   <%perl>
     $m->comp("SELF:logMessage", messageToLog => "$log");
     $m->comp("SELF:sendMail", message => $log);
-    $m->comp("/tmpl/error_display:displayError", message => "Unable to retrieve PDF file.");
+    $m->comp("/tmpl/error_display:displayError", message => __("Unable to retrieve PDF file."));
   </%perl>
 </%method>
 
@@ -190,7 +190,8 @@ warn "--in slidesPDF";
   </%args>
 
   <%perl>
-    unless(open(LOG_FILE, ">>$logFile")) {$m->comp("SELF:sendMail", message => "Unable to log: $messageToLog from PID $$ in $logFile\n$!");}
+    unless(open(LOG_FILE, ">>$logFile")) {$m->comp("SELF:sendMail", message => __x("Unable to log: {messageToLog} from PID {pid} in {logFile}\n$!",messageToLog => $messageToLog, pid => $$, logFile => $logFile));}
+
     else {
       print LOG_FILE "$$: $messageToLog\n";
       close(LOG_FILE);

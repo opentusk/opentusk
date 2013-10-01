@@ -38,26 +38,17 @@
 	my $boardKey;
 </%shared>
 
-<& /tmpl/element:form, params => {
-        method => 'POST',
-        onsubmit => undef, 
-        name => 'tracking' } 
-&>
-
 <& /tmpl/element:object_selection_box, params => { 
 				columns         => $col_fields, 
 				nobutton        => 1, 
 				sort_box        => (TUSK::Session::is_admin($m->session, $m->session->{user}) || ($is_course_discussion && $course && TUSK::Session::check_course_permissions(TUSK::Session::course_user_role($course, $m->session->{user}->{user_id}), 'Author'))),
 				object_list     => $discussions,
 				action_columns  => $action_columns,
-				empty_message   => 'No discussions available.',
+				empty_message   => __('No discussions available.'),
 				type_path       => "", }
 &>
 
-</form>
-
 <%init>
-    my $dbh = HSDB4::Constants::def_db_handle();
     if ($is_course_discussion) {
 		my $time_period_id = $m->comp("SELF:get_timeperiod_id");
 		my @subgroups = $course->sub_user_groups($time_period_id);
@@ -97,9 +88,9 @@
 		$local_req{'user'}      = $m->session->{'user'};
 
 		my %local_fdat;
-		foreach my $board ('Advisor-Student', 'Advisor-Committee', 'All'){
+		foreach my $board (__('Advisor-Student'), __('Advisor-Committee'), __('All')){
 			$local_fdat{title} = $board;
-			$local_fdat{shortDesc}   = "Discussion board for $board";
+			$local_fdat{shortDesc}   = __x("Discussion board for {board}",board => $board);
 			$local_fdat{longDesc}    = '';
 			$local_fdat{anonymous}   = 0;
 			$local_fdat{usergroup}   = 0;
@@ -109,24 +100,24 @@
 			TUSK::Manage::Forums::addedit_process(\%local_req, \%local_fdat, \%local_udat);
 		}
 
-		$m->redirect( $base_url . 'show/' .  $self_path . "?msg=Default Discussions Added" );
+		$m->redirect( $base_url . 'show/' .  $self_path . "?msg=" . __("Default Discussions Added") );
 	}
 
 	my $buttons = [];
 	if (TUSK::Session::is_admin($m->session, $m->session->{user}) || ($is_course_discussion && $course && TUSK::Session::check_course_permissions(TUSK::Session::course_user_role($course, $m->session->{user}->{user_id}), 'Author'))) {
-		push @{$buttons}, {link_txt=>'/management/discussion/addedit/' . $self_path, display_txt=>'New Discussion'};
+		push @{$buttons}, {link_txt=>'/management/discussion/addedit/' . $self_path, display_txt=>__('New Discussion')};
 	}
 	if (($is_thesis_comm && !scalar @{$discussions}) && (scalar @tc_members && scalar @tc_student)) {
-		push @{$buttons}, {link_txt=>'/management/discussion/show/' . $self_path . '?create_standard=true', display_txt=>'Create Default Discussions'};
+		push @{$buttons}, {link_txt=>'/management/discussion/show/' . $self_path . '?create_standard=true', display_txt=>__('Create Default Discussions')};
 	}
 	$m->comp("/tmpl/element:cms_button_row", links => $buttons );
 
-	my $col_fields = [ {'label'=>'Discussion Boards', 'field'=>'title_and_desc'}, {'label'=>'Available To','field'=>'available_to'} ];
+	my $col_fields = [ {'label'=>__('Discussion Boards'), 'field'=>'title_and_desc'}, {'label'=>__('Available To'),'field'=>'available_to'} ];
 
-	my $action_columns = [ {'label'=>'View Board','link'=>"/forum/board_show.pl?bid=", 'is_query_string'=>1}, {'label'=>'Users','link'=>"/management/discussion/users/$self_path"} ];
+	my $action_columns = [ {'label'=>__('View Board'),'link'=>"/forum/board_show.pl?bid=", 'is_query_string'=>1}, {'label'=>__('Users'),'link'=>"/management/discussion/users/$self_path"} ];
 	if (TUSK::Session::is_admin($m->session, $m->session->{user}) || ($is_course_discussion && $course && TUSK::Session::check_course_permissions(TUSK::Session::course_user_role($course, $m->session->{user}->{user_id}), 'Author'))) {
-		push @$action_columns, {'label'=>'Modify','link'=>"/management/discussion/addedit/$self_path"};
-		push @$action_columns, {'label'=>'Delete','link'=>"/management/discussion/delete/$self_path"};
+		push @$action_columns, {'label'=>__('Modify'),'link'=>"/management/discussion/addedit/$self_path"};
+		push @$action_columns, {'label'=>__('Delete'),'link'=>"/management/discussion/delete/$self_path"};
 	}
 </%init>
 
@@ -143,5 +134,6 @@
 </%method>
 
 <%method title>
-% return 'Manage Discussions';
+% return __('Manage Discussions');
 </%method>
+

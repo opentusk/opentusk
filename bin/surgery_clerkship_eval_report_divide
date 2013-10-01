@@ -1,0 +1,141 @@
+#!/usr/bin/perl -l
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+
+use MySQL::Password;
+use HSDB4::Constants;
+use HSDB4::SQLRow::Eval;
+use HSDB4::SQLRow::EvalQuestion;
+use Getopt::Long;
+
+HSDB4::Constants::set_user_pw (get_user_pw);
+
+sub show_usage {
+    print STDERR "Usage:";
+    print STDERR "$0 --eval_id=<eval_id> [ --start_date=<date> ] [ --end_date=<date> ]";
+}
+
+my ($eval_id, $startdate, $stopdate);
+GetOptions ("eval_id=s" => \$eval_id,
+	    "start_date:s" => \$startdate,
+	    "end_date:s" => \$stopdate);
+
+my $eval = HSDB4::SQLRow::Eval->new->lookup_key ($eval_id);
+$eval->primary_key or show_usage, exit -1;
+
+my ($n, $mean, $groups) = (0, 0, 0);
+sub rezero { ($n, $mean, $groups) = (0, 0, 0); }
+sub make {
+    my ($a, $b) = @_;
+    $n += $a;
+    $mean += $a * $b;
+    $groups++;
+    return sprintf "<b>Mean</b>: %.2f (N=%d)</td>", $b, $a;
+}
+
+sub radio_clean_up {
+    my $out = shift;
+    $out =~ s!<tr><td colspan=4><img src="/icons/transdot.gif"[^>]+></td></tr>\n!!msg;
+    rezero ();
+    $out =~ s!<b>N</b>: (\d+)<br>\n<b>Mean:</b> ([\d\.]+)<br>[^%]+%</td>!make($1,$2)!msge;
+    $out =~ s!<b>N:</b> (\d+)\n<br><b>Value:</b> (\d+)\n</td>!make ($1, $2)!msge;
+#    $out .= sprintf ("<tr><td>&nbsp;</td><td colspan=3><b>Total Mean:</b> %.2f</td></tr>\n",
+#		     $mean/$n) if $groups > 1;
+    $out =~ s/<td width="20%">/<td>/g;
+    $out .= "<tr><td colspan=4>&nbsp;</td></tr>\n";
+    return $out;
+}
+
+sub clean_up {
+    my $out = shift;
+    $out =~ s!<tr><td colspan=4><img src="/icons/transdot.gif"[^>]+></td></tr>\n!!msg;
+    $out =~ s/<td width="20%">/<td>/g;
+    $out .= "<tr><td colspan=4>&nbsp;</td></tr>\n";
+    return $out;
+}
+
+my $cond = "";
+if ($startdate && $stopdate) {
+    $cond = "unix_timestamp(year) between unix_timestamp(\"$startdate\") and unix_timestamp(\"$stopdate\")"}
+elsif ($startdate) {
+    $cond = "unix_timestamp(year) >= unix_timestamp(\"$startdate\")";
+}
+elsif ($stopdate) {
+    $cond = "unix_timestamp(year) <= unix_timestamp(\"$stopdate\")";
+}
+
+my @questions = $eval->child_eval_questions;
+print '<html><head><title>Evaluation Report</title>';
+print '<base href="http://hsdb.hsl.tufts.edu/">';
+print '<body>';
+print '<h3 class="title">Evaluation Report: ' . $eval->out_label () . '</h3>';
+print '<h4 class="title">Start Date: ' . $startdate . '</h4>' if $startdate;
+print '<h4 class="title">End Date: ' . $stopdate . '</h4>' if $stopdate;
+print '<table class="wide" cellspacing="2">';
+
+my %fw_hash = ();
+foreach my $response ($questions[1]->child_eval_responses) {
+    $fw_hash{$response->field_value('user_code')} = ($questions[1]->translate_response($response->response));
+}
+
+my %output = ();
+my %header = ();
+
+foreach my $question (7..79) {
+    my $current_question = $questions[$question];
+    my $current_fw_question = $questions[$question+75];
+    $current_question->set_block_condition ($cond) if $cond;
+    $current_fw_question->set_block_condition ($cond) if $cond;
+
+    if($questions[$question]->question_type eq 'fill-in') {
+	my %resp_groups = $current_question->group_responses;
+	my $outval = $current_question->out_html_response_head;
+	$resp_groups{'NEMC'} = [];
+	$resp_groups{'Faulkner'} = [];
+	$resp_groups{'Winchester'} = [];
+
+	foreach my $key (keys(%resp_groups)) {
+	    my $translated_response = $current_question->group_question->translate_response($key);
+	    if(($translated_response eq 'NEMC/Faulkner') || ($translated_response eq 'NEMC/Winchester')) {
+		push(@{$resp_groups{'NEMC'}}, @{$resp_groups{$key}});
+		delete $resp_groups{$key};
+	    }
+	}
+	
+	foreach my $fw_response ($current_fw_question->child_eval_responses) {
+	    if($fw_hash{$fw_response->field_value('user_code')} eq 'NEMC/Faulkner') {
+		push(@{$resp_groups{'Faulkner'}}, $fw_response);
+	    }
+	    elsif($fw_hash{$fw_response->field_value('user_code')} eq 'NEMC/Winchester') {
+		push(@{$resp_groups{'Winchester'}}, $fw_response);
+	    }
+	    else {
+		# I really hope execution never gets here...
+	    }
+	}
+	
+	foreach my $resp_group (keys(%resp_groups)) {
+	      $header{$resp_group} = $current_question->out_html_group_head($resp_group);
+	      $output{$resp_group}[$question] .= $current_question->out_html_response_head;
+	      $output{$resp_group}[$question] .= $current_question->out_html_response_group (@{$resp_groups{$resp_group}});
+	}
+    }
+}
+
+my $output = "";
+foreach my $resp_group (keys(%output)) {
+  next unless $header{$resp_group};
+  $output .= $header{$resp_group};
+  foreach my $response (@{$output{$resp_group}}) {
+     $output .= $response;
+  }
+}
+
+print $output;
+
+print '</table></body></html>';
+
+1;
+__END__

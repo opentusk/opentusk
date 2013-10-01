@@ -63,7 +63,7 @@
 </%shared>
 
 <%method title>
-%       return "Multi Content Editor";
+%       return __("Multi Content Editor");
 </%method>
 
 <%method jsarray>
@@ -79,7 +79,7 @@
 </%method>
 
 <%method red_header_text>
-%	return "Multi Content Meta Data (applies to all content)";
+%	return __("Multi Content Meta Data (applies to all content)");
 </%method>
 
 
@@ -155,8 +155,9 @@
 				my $msg = '';
 				($rval, $msg, $parentFolder) = TUSK::UploadContent::add_content_sub(\%parentFolderTempHash, %$args);
 				unless($rval) {
-					warn("Unable to create parent folder ${$args}{title}: $msg\n");
-					$messages.="Unable to create parent folder ${$args}{title}: $msg<br>";
+					my $text = __x("Unable to create parent folder {title}: {msg}",title => ${$args}{title},msg => $msg);
+					warn("$text\n");
+					$messages.="$text<br>";
 				}
 				$m->comp('SELF:save_metadata_keywords', args => $args, content => $parentFolder) if $args->{content_type} eq 'External';
 				delete(${$args}{content_type});
@@ -273,11 +274,11 @@
 						if(!exists($metadata{source}) || ($metadata{source}{array}[0] ne $source)) {push @{$metadata{source}{array}}, $source;}
 						$metadata{source}{hash}{$source}++;
 					} else {
-						$contentLoadWarnings = 'Unable to edit content with ID $content_id';
+						$contentLoadWarnings = __x('Unable to edit content with ID {content_id}',content_id => $content_id);
 					}
 				} else {
 					# For some reason we couldn't look up this content ID, let the user know and continue
-					$contentLoadWarnings = 'Unable to load content with ID $content_id';
+					$contentLoadWarnings = __x('Unable to load content with ID {content_id}', content_id => $content_id);
 				}
 			}
 #$m->print("<br><br><br><br><center><b>The number of unique srouces was ". scalar(@{$metadata{source}{array}}) ."</b><br>");
@@ -293,17 +294,22 @@
 
 			# First lets see if we got a valid multi content, then check if we were the ones who uploaded it.
 			if(!$uploadObject) {
-				$traffic_light = { type => 'errmsg', text => 'Unable to create a multicontnet upload object from passed ID.' };
+				$traffic_light = { type => 'errmsg', text => __('Unable to create a multicontnet upload object from passed ID.') };
 			} elsif(!$uploadObject->is_user_authorized($m->session->{'user'}->primary_key)) {
-				$m->comp('/tmpl/url:redirect', message => 'You are not authorized to work with this upload.')
+				$m->comp('/tmpl/url:redirect', message => __('You are not authorized to work with this upload.'))
 			} else {
 				$directory = $uploadObject->getDirectory();
 				my $previewDirectory = $uploadObject->getPreviewDirectory();
 				unless(opendir(DIR, $directory)) {
-					$traffic_light = { type => 'errmsg', text => 'Unable to open directory for multicontent upload..' };
+					$traffic_light = { type => 'errmsg', text => __('Unable to open directory for multicontent upload..') };
 				} else {
-					# make this a recursive read
-					foreach my $fileName (grep !/^\./, readdir(DIR)) {
+					# make this a recursive read sorted by a Schwartzian transform (http://en.wikipedia.org/wiki/Schwartzian_transform)
+					foreach my $fileName (
+						map  { $_->[0] }
+             					sort { $a->[1] <=> $b->[1] }
+             					map  { [$_, $_=~/(\d+)/] }
+						grep !/^\./, readdir(DIR))
+					{
 						my %tempHash;
 						if( -d "$directory/$fileName" ) {
 							$tempHash{'previewImage'} = '<img src="/icons/ico-folder.gif">';
@@ -320,7 +326,8 @@
                 					$tempHash{'stain'}		= '';
                 					if($tempHash{'contentType'} eq 'URL') {
 								# If we are a URL load the first line from the file and set it as the body.
-								unless(open(URL_FILE, "$directory/$fileName")) {$tempHash{'description'} = "Unable to open $fileName: $!";}
+								unless(open(URL_FILE, "$directory/$fileName")) {$tempHash{'description'} = 
+ 									__x("Unable to open {fileName}: {syserr}",fileName => $fileName, syserr => $!);}
 								else {
 									$tempHash{'description'} = <URL_FILE>;
 									chomp $tempHash{'description'};
@@ -328,7 +335,8 @@
 								}
 							} elsif($tempHash{'contentType'} eq 'Document') {
 								# If we are a Document (htm[l]) load the file as the body
-								unless(open(HTML_FILE, "$directory/$fileName")) {$tempHash{'description'} = "Unable to open $fileName: $!";}
+								unless(open(HTML_FILE, "$directory/$fileName")) {$tempHash{'description'} = 
+									__x("Unable to open {fileName}: {syserr}",fileName => $fileName, syserr => $!);}
 								else {
 									while(<HTML_FILE>) { $tempHash{'description'}.= $_; }
 									close(HTML_FILE);
@@ -364,7 +372,7 @@
 			}
 			$buttonValue = "Import";
 		} else {
-			$traffic_light = { type => 'errmsg', text => 'No content was specified for multi content editor.' };
+			$traffic_light = { type => 'errmsg', text => __('No content was specified for multi content editor.') };
 		}
 		if($traffic_light)	{ $m->comp("SELF:set_msg", msg => $traffic_light->{text}, type => $traffic_light->{type}); }
 		else			{ $m->comp("SELF:set_msg", msg => ''); ${$args}{'errmsg'} = ''; }
@@ -380,7 +388,7 @@
 
 	function editContent(divID) {
 		if(lastEditedContentID) {uneditContent(lastEditedContentID);}
-		$('#hdnrte_contentInfo_'+ divID +'_textDescription').value = document.getElementById(divID +'_displayText').innerHTML;
+		$('#cke_contentInfo_'+ divID +'_textDescription').val(document.getElementById(divID +'_displayText').innerHTML);
 		lastTextSize[0] = $("#"+ divID +'_displayText').css('height').replace(/[^0-9]/g, '');
 		lastTextSize[1] = $("#"+ divID +'_displayText').css('width').replace(/[^0-9]/g, '');
 		if(lastTextSize[0] == '') {lastTextSize[0] = 0;}
@@ -412,7 +420,7 @@
 
 	function uneditContent(divID) {
 //		if(divID != lastEditedContentID) {return;}
-		newText = document.getElementById('hdnrte_contentInfo_'+ divID +'_textDescription').value;
+		newText = $('#cke_contentInfo_'+ divID +'_textDescription').val();
 		document.getElementById(divID +'_displayText').innerHTML = newText;
 		$("#"+ divID +'_editText').toggle();
 		$("#"+ divID +'_displayText').toggle();
@@ -442,10 +450,10 @@
 } &>
 % if(scalar(@documentsToEdit) > 0) {
 	<& /tmpl/element:table, params => { id => 'contentMetaData', } &>
- 		<& "/tmpl/element:flexible_tr", params => { 'label' => 'Number of Files', tr_name => "num_files_in_zip" } &>
+ 		<& "/tmpl/element:flexible_tr", params => { 'label' => __('Number of Files'), tr_name => "num_files_in_zip" } &>
  			<% scalar(@documentsToEdit) %>
  		</td></tr>
-		<& "/tmpl/element:flexible_tr", params => { 'label' => 'Parent Folder Name', tr_name => "parent_folder" } &>
+		<& "/tmpl/element:flexible_tr", params => { 'label' => __('Parent Folder Name'), tr_name => "parent_folder" } &>
 %			my @timeElements = localtime(time());
 %			my $uploadTimeStamp = sprintf("%.4d%.2d%.2d_%.2d%.2d", ($timeElements[5]+1900), ($timeElements[4]+1), $timeElements[3], $timeElements[2], $timeElements[1]);
 %			my $titlePrefix = 'MultiContentUpload_';
@@ -466,7 +474,7 @@
  		<& /management/tmpl/content:addedit_multi_common_page, args => {}, course => $course &>
  	</table>
 	<br><br>
-	<& /tmpl/prepend:header_bar_table, req => { 'redHeaderBarText' => 'Multi Content Data (applies to a specific piece of content)'} &>
+	<& /tmpl/prepend:header_bar_table, req => { 'redHeaderBarText' => __('Multi Content Data (applies to a specific piece of content)')} &>
 	<input type="hidden" name="uploadDirectory" value="<% $directory %>">
 	<input type="hidden" name="ajax_save" value="">
 	<input type="hidden" name="saveContent" value="">
@@ -504,9 +512,9 @@
 %				if($buttonValue eq 'Import') {
 					<table border="0" cellspacing="0" cellpadding="0"><tr><td>
 %					if($fileType ne 'folder') {
-						<input type="checkbox" name="contentInfo_<% $contentCounter %>_dne" value="DNE" <% $title =~ /^__MACOSX/ ? 'checked' : q{} %> ></td><td>Do&nbsp;Not&nbsp;Import</td>
+						<input type="checkbox" name="contentInfo_<% $contentCounter %>_dne" value="DNE" <% $title =~ /^__MACOSX/ ? 'checked' : q{} %> ></td><td><% __("Do&nbsp;Not&nbsp;Import") %></td>
 %					} else {
-						<font color="gray">Ignoring</font>
+						<font color="gray"><%__('Ignoring')%></font>
 %					}
 					</td></tr></table>
 %				}
@@ -515,7 +523,7 @@
 %				}
 				<input type="hidden" name="contentInfo_<% $contentCounter %>_id" value="<% $uid %>">
 			</td>
-			<& /tmpl/element:labelbox, style=>"width:$headerWidth" ,label=> 'Title:', align => 'left' &>
+			<& /tmpl/element:labelbox, style=>"width:$headerWidth" ,label=> __('Title') . ':', align => 'left' &>
 			<td id="<% $contentCounter %>_1">
 %				if($fileType eq 'folder') {
 					<% $title %>
@@ -568,9 +576,9 @@
 						<a href="javascript:" onclick="uneditContent('<% $contentCounter %>'); return false;">Close Editor</a>
 					</div>
 %				} elsif($fileType eq 'folder') {
-					<font color="gray"><i>Ignoring - Folder structure not imported with this tool.</i></font>
+					<font color="gray"><i><%__("<Ignoring - Folder structure not imported with this tool.")%></i></font>
 %				} else {
-					<font color="gray"><i>Description not required for this content type.</i></font>
+					<font color="gray"><i><%__("Description not required for this content type.")%></i></font>
 %				}
 				</td>
 				<td valign="top" id="<% $contentCounter %>_additionalID">
@@ -616,7 +624,7 @@
 %		$contentCounter++;
 %	}
 		<& /tmpl/element:save_button, params=>{
-			label		=> "$buttonValue Content",
+			label		=> __x("{buttonValue} Content",buttonValue => $buttonValue),
 			name		=> 'multi_content_save',
 			onclick		=> "runImportContent(); return false;",
 			cancel_onclick	=> "go_back('$redirect');",
@@ -628,7 +636,7 @@
 % } else {	# Close if number of content > 0
 %	# Lets give them a back button
 	<br><& /tmpl/element:button, params=>{
-		label		=> "Go Back",
+		label		=> __("Go Back"),
 		name		=> 'go_back',
 		href		=> $redirect,
 	} &>
@@ -689,10 +697,10 @@
 
 <div id="grayOutDiv"></div>
 <div id="multistatus">
-	<font style="font-weight: bold; font-size: 10pt;">Multi Content Save Status</font><br>
+	<font style="font-weight: bold; font-size: 10pt;"><%__("Multi Content Save Status")%></font><br>
 	<center>
 		<div id="savingmessages">
-			Saving <span id="currentNumber">1</span> of <span id="totalNumber">Y</span>
+			<%__("Saving")%> <span id="currentNumber">1</span> of <span id="totalNumber">Y</span>
 			<table border="0" style="border:1px solid black; width:350px;"><tr><td style="width:100%;">
 				<div id="percentBar" style="background-color: blue; width:0px; height:15px; border:1px solid gray;"></div>
 			</td></tr></table>

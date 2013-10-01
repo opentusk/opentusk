@@ -35,30 +35,30 @@ use TUSK::Manage::User;
 
 
 <& /tmpl/element:field_display, params => { 
-	label => 'UserID:',
+	label => __("UserID") . ':',
 	value => $usrid . "\n<input type=\"hidden\" name=\"userid\" value=\"$usrid\">",
 } &>
 
 % if ($isldap) {
 <& /tmpl/element:field_display, params => { 
-	label => 'First Name:',
+	label =>  __("First Name") . ':',
 	value => $useredit->{firstname},
 } &>
 
 <& /tmpl/element:field_display, params => { 
-	label => 'Last Name:',
+	label => __('Last Name') . ':',
 	value => $useredit->{lastname},
 } &>
 
 <& /tmpl/element:field_display, params => { 
-	label => 'Email:',
+	label => __('Email') . ':',
 	value => $useredit->{email},
 } &>
 
 % } else {
 
 <& /tmpl/element:textbox, params => { 
-	label => 'First Name:',
+	label => __('First Name') . ":",
 	name => 'firstname',
 	id => 'First_Name__y',
         size => 24,
@@ -68,7 +68,7 @@ use TUSK::Manage::User;
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label => 'Middle Name:',
+	label => __('Middle Name').':',
 	name => 'midname',
 	id => '',
         size => 24,
@@ -78,7 +78,7 @@ use TUSK::Manage::User;
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label => 'Last Name:',
+	label => __('Last Name').':',
 	name => 'lastname',
 	id => 'Last_Name__y',
         size => 24,
@@ -88,7 +88,7 @@ use TUSK::Manage::User;
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label => 'Email:',
+	label => __('Email').':',
 	name => 'email',
 	id => 'Email__y',
         size => 24,
@@ -101,7 +101,7 @@ use TUSK::Manage::User;
 
 
 <tr>
-<td class="labelgray">Affiliation:</td>
+<td class="labelgray"><%__("Affiliation")%>:</td>
 <td class="cell-left">
 <select name="affiliation">
 % foreach my $item (@affiliations) {
@@ -115,7 +115,7 @@ use TUSK::Manage::User;
 </td></tr>
 
 <tr>
-<td class="labelgray">Degree:</td>
+<td class="labelgray"><%__("Degree")%>:</td>
 <td class="cell-left"><select name="degree" onchange="check_degree(this);">
 %	my  $degree_in_dropdown = 0; 
 %	foreach my $item (@degrees) {
@@ -126,7 +126,7 @@ use TUSK::Manage::User;
 			<option ><% $item %></option>
 %		}
 %	} # END FOREACH
-			<option value="Other">Other</option>
+			<option value="Other"><%__("Other")%></option>
 </select>
 
 <div id="degree_text" style=<%(!$degree_in_dropdown)? 'margin-left:10px;display:none;' : 'margin-left:10px;display:inline;'%> <input name="degree_text" maxlength="60" size="24" class="textareawhite" value="<%($degree_in_dropdown == 0)? $useredit->{degree} : '' %>"> 
@@ -137,7 +137,7 @@ use TUSK::Manage::User;
 <tr>
 % my @drop_options = map { {'label'=> $_, 'value' => $_ } } @suffices;
 <& /tmpl/element:dropdown, params => {
-	label => 'Suffix:',
+	label => __('Suffix').':',
 	name => 'suffix',
 	selected => $useredit->{suffix},
 	options => \@drop_options 
@@ -147,30 +147,28 @@ use TUSK::Manage::User;
 </tr>
 <tr>
 
-%  @drop_options = map { {'label'=> $_, 'value' => $_ } } @genders;
 <& /tmpl/element:dropdown, params => {
-	label => 'Gender:',
+	label => __('Gender').':',
 	name => 'gender',
 	selected => $useredit->{gender},
-	options => \@drop_options 
+	options => \@genders 
 
 } &>
 
 </tr>
 <tr>
-%  @drop_options = map { {'label'=> $_, 'value' => $_ } } @statuses;
 <& /tmpl/element:dropdown, params => {
-	label => 'Status:',
+	label => __('Status:'),
 	name => 'status',
 	selected => $useredit->{status},
-	options => \@drop_options 
+	options => \@statuses 
 
 } &>
 
 </tr>
 
 <& /tmpl/element:textbox , params => { 	
-	label => 'Expires',
+	label => __('Expires'),
 	name =>  'expires',
 	size =>  '24',
 	maxlength =>  '20',
@@ -180,7 +178,7 @@ use TUSK::Manage::User;
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label => 'SID:',
+	label => __('SID') . ':',
 	name => 'sid',
 	size => 24,
 	maxlength => 20,
@@ -189,7 +187,7 @@ use TUSK::Manage::User;
 } &>
 
 <tr>
-<td class="labelgray">User Source:</td>
+<td class="labelgray"><%__("User Source")%>:</td>
 <td class="cell-left"><select name="source">
 <%perl>
 				my $user_source;
@@ -219,36 +217,29 @@ use TUSK::Manage::User;
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
 
-% my $stripObj = TUSK::Application::HTML::Strip->new();
-% foreach my $ug (@{$data->{usergroups}}) {
-%	if ($data->{tr_flag} == 0){
-%		print  "<tr>";
-%	}
-
-% 
+%	my $stripObj = TUSK::Application::HTML::Strip->new();
+%	foreach my $ug (@{$data->{usergroups}}) {
+%		if ($data->{tr_flag} == 0){
+%			print  "<tr>";
+%		}
 <td width="50%" class="layers-left">
-%  if ($ARGS{page} eq "add") {
+%		if ($ARGS{page} eq "add") {
 <input type="checkbox" name="groups" value="<% $ug->primary_key %>">
-% }
-
+%		}
 <% $stripObj->removeHTML($ug->field_value('label')) %>
-
-% if ($ARGS{page} eq "edit") {
+%		if ($ARGS{page} eq "edit") {
 &nbsp;(<% $ug->school %>)
-% }
-
+%		}
 </td>
-
-%	if ($data->{tr_flag} == 1) {
-%		print OUT "</tr>";
-%	}
-%	$data->{tr_flag} = ($data->{tr_flag} + 1) % 2; # flip the flag
-% } # END FOREACH
-
+%		if ($data->{tr_flag} == 1) {
+%			print OUT "</tr>";
+%		}
+%		$data->{tr_flag} = ($data->{tr_flag} + 1) % 2; # flip the flag
+%	} # END FOREACH
 </table>
 
 % } else {
-None
+<%__("None")%>
 % }
 
 </td>
@@ -256,19 +247,19 @@ None
 
 % if (!($isldap)) {
 <tr>
-<td class="labelgray">Reset Password:</td>
+<td class="labelgray"><%__("Reset Password")%>:</td>
 <td class="cell-left">
 % my $ischkd = $ARGS{page} eq "add" ? " CHECKED" : "";
 <input name="reset_password" type="checkbox" <% $ischkd %> >
 % my $set_or_reset = $ARGS{page} eq "add" ? "Set" : "Reset";
-<% $set_or_reset %> and Email Password to User
+<% $set_or_reset %> <%__("and Email Password to User")%>
 </td>
 </tr>
 % }
 
 <tr> 
 <& /tmpl/element:save_button, params=>{
-	label 			=> 'Save',
+	label 			=> __('Save'),
 	no_cancel_button => 1,
 	class 	=> 'formbutton',
 	name	=> 'Submit',
@@ -311,9 +302,14 @@ None
 	my @affiliations = sort keys %{ { map { $_ => 1 } @TUSK::Constants::Affiliations, @schools} };
 
 	my @degrees = @TUSK::Constants::Degrees;
-	my @suffices = ('', 'II', 'III', 'IV', 'Jr.', 'Sr.');
-	my @statuses = ('Active','Inactive','Restricted','Test');
-	my @genders = ('Unknown', 'Female', 'Male');
+	my @suffices = ('', 'II', 'III', 'IV', __('Jr.'), __('Sr.'));
+	my @statuses = (	{ 'label' =>  __('Active'), 'value' => 'Active'}, 
+						{ 'label' => __('Inactive'), 'value' => 'Inactive'},
+						{ 'label' => __('Restricted'), 'value' => 'Restricted'},
+						{ 'label' => __('Test'), 'value' => 'Test'}	);
+	my @genders = (		{ 'label' => __('Unknown'), 'value' => 'Unknown'},
+						{ 'label' => __('Female'), 'value' => 'Female'},
+						{ 'label' => __('Male'), 'value' => 'Male' });
 	my %source_label = ('internal' => $TUSK::Constants::SiteAbbr);
 
 	unless ($ARGS{userid}) {
@@ -323,7 +319,7 @@ None
 	my $isldap = 0; 
 	if (exists($TUSK::Constants::LDAP{UseLDAP}) && $TUSK::Constants::LDAP{UseLDAP}) {
 		$isldap = 1 if ($useredit->{source} eq "external");
-	    	$source_label{'external'} = $TUSK::Constants::Institution{ShortName}." Authentication";
+	    	$source_label{'external'} = $TUSK::Constants::Institution{ShortName}. __(" Authentication");
 	}
 	
 </%init>
@@ -333,7 +329,7 @@ None
 </%method>
 
 <%method title>
-% return "Add/Edit Users";
+% return __("Add/Edit Users");
 </%method>
 
 <%method red_header_text>

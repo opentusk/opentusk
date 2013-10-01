@@ -24,7 +24,7 @@
 % if (scalar @$fields) {
 <& SELF:display_form &>
 % } else {
-<em>No Performance Criteria Associated</em>
+<em><% __("No Performance Criteria Associated")%></em>
 % }
 
 <%init>
@@ -35,7 +35,7 @@
 		}
 		$assessment_form->setTotalWeight($ARGS{total_weight});
 		$assessment_form->save({'user' => $m->session->{'user'}->user_id()});
-	    $m->comp('/tmpl/wizard:do_next', args => \%ARGS, default_transition => $r->uri() . '?msg=Successfully saved');
+	    $m->comp('/tmpl/wizard:do_next', args => \%ARGS, default_transition => $r->uri() . '?msg='.__('Successfully saved'));
 	}
 </%init>
 
@@ -51,13 +51,13 @@
 	cellspacing	=> "0",
 	cellpadding	=> "" 
 } &>
-<tr><td colspan="3" class="error" align="right" >Note that total weight should add up to 100% &nbsp; </td></tr>
-<tr class="header"><td class="header-left"></td><td class="header-center" style="padding:0 10px 0 10px;">Required</td><td class="header-right" style="padding:0 10px 0 10px;">Weight <span class="xsm">(%)</span></td></tr>
+<tr><td colspan="3" class="error" align="right" ><%__('Note that total weight should add up to 100%')%> &nbsp; </td></tr>
+<tr class="header"><td class="header-left"></td><td class="header-center" style="padding:0 10px 0 10px;"><%__('Required')%></td><td class="header-right" style="padding:0 10px 0 10px;"><%__('Weight')%> <span class="xsm">(%)</span></td></tr>
 % foreach my $field (@$fields) {
 %	my $weight = ($field->getWeight()) ? $field->getWeight() : '';
 <tr>
-<td style="padding-right:30px;"><a href="/assessment/author/field/<% $m->comp("/tmpl/url:get_type_path") . '/' . $form->getPrimaryKeyID() . '/' . $field->getPrimaryKeyID() . '">' . $field->getFieldName() . '</a>'%></td>
-<td class="sm" align="center"><% ($field->getRequired) ? 'Yes' : 'No' %></td>
+<td style="padding-right:30px;"><a href="/assessment/author/field/<% $m->comp("/tmpl/url:get_type_path") . '/' . $form->getPrimaryKeyID() . '/' . $field->getPrimaryKeyID() . '">' . $field->getFieldName() . '</a>'%>"</td>
+<td class="sm" align="center"><% ($field->getRequired) ? __('Yes') : __('No') %></td>
 <td align="right">
 <input type="text" class="weight" size="5" name="oid_<% $field->getPrimaryKeyID() %>" value="<% $weight %>" />
 </td>
@@ -65,7 +65,7 @@
 %  	$total_weight += $field->getWeight();
 % }
 <tr class="header">
-<td colspan="3" class="header-right" style="padding-right:10px;"> Total Weight: &nbsp;
+<td colspan="3" class="header-right" style="padding-right:10px;"><%__("Total Weight:")%> &nbsp;
 <span id="totalweighttext"><% $total_weight %></span><span class="xsm">%</span>
 <input type="hidden" id="total_weight" name="total_weight" value="<% $total_weight %>" />
 </td>
@@ -74,13 +74,13 @@
 <table>
 <& /tmpl/element:save_button, params=>{
 	one_column		=> 1,
-	label			=> 'Save Changes',
+	label			=> __('Save Changes'),
     cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/assessment/author/addedit") . "');",
     name			=> 'save_changes',
 	trailing_text   => '<div style="padding:2px;"></div>',
 } &>
 </table>
-<tr><td colspan="3" class="error" align="right" >Note that total weight should add up to 100% &nbsp; </td></tr>
+<tr><td colspan="3" class="error" align="right" ><%__('Note that total weight should add up to 100%')%> &nbsp; </td></tr>
 </table>
 </form>
 </%method>
@@ -90,7 +90,7 @@
 </%method>
 
 <%method title>
-%	return "Performance Criteria -  Weights";
+%	return __("Performance Criteria -  Weights");
 </%method>
 
 <%method red_header_text>

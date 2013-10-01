@@ -54,15 +54,15 @@
 
 % 	if (scalar @rows > 15) {
 <& /tmpl/element:save_button, params=>{
-	label			=> 'Save Changes',
+	label			=> __('Save Changes'),
     cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
     name			=> 'save_changes',
 } &>
 % 	}
 
 <tr class="header"> 
-<td class="header-left">Title</td>
-<td class="header-right">Weight</td>
+<td class="header-left"><%__('Title')%></td>
+<td class="header-right"><%__('Weight')%></td>
 </tr>
 
 % 	foreach my $row (@rows) {
@@ -78,7 +78,7 @@
 </tr>
 
 <& /tmpl/element:save_button, params=>{
-	label			=> 'Save Changes',
+	label			=> __('Save Changes'),
     cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
     name			=> 'save_changes',
 
@@ -86,7 +86,7 @@
 </table>
 </form>
 % } else {
-<br/><em>No Grade Events Associated</em>
+<br/><em><%__("No Grade Events Associated")%></em>
 % }
 
 <%init>
@@ -97,7 +97,7 @@
 			$event->save({'user' => $m->session->{'user'}->user_id()});
 		}
                       
-	    $m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $r->uri() . "?msg=Successfully saved");
+	    $m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $r->uri() . "?msg=" . __("Successfully saved"));
 
 	}
 
@@ -133,7 +133,7 @@
 <%perl>
 	my $uncategorized_events = TUSK::GradeBook::GradeEvent->new()->lookup("grade_category_id = " . $root_category->getPrimaryKeyID(), ['sort_order']);
 	if (scalar @$uncategorized_events) {
-		push @rows, { title => '<b>Uncategorized</b>' };
+		push @rows, { title => '<b>' . __('Uncategorized') .'</b>' };
 		$m->comp('SELF:update_event_rows', events => $uncategorized_events);
 	}
 </%perl>
@@ -160,14 +160,14 @@
 <%method right_header_text>
 <%perl>
 	return [ 
-		{ help => '1', topic => 'grade_book_-_weighted_grades', txt => "Help" }
+		{ help => '1', topic => 'grade_book_-_weighted_grades', txt => __("Help") }
 	];
 </%perl>
 </%method>
 
 
 <%method title>
-%	return "Balance Event Weights";
+%	return __("Balance Event Weights");
 </%method>
 
 <%method red_header_text>

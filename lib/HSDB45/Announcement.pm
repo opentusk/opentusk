@@ -108,13 +108,8 @@ sub starts_in_future {
 }
 
 
-sub systemwide_announcements {
-    return schoolwide_announcements($TUSK::Constants::SystemWideUserGroupSchool);
-}
-
 sub schoolwide_announcements {
     my ($school) = @_;
-    return if ($school eq "hsdb");
     my $usergroup = HSDB45::UserGroup::schoolwide_usergroup($school);
     return $usergroup->announcements();
 }

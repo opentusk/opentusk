@@ -1,0 +1,216 @@
+#! /usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use TUSK::Core::SQLRow;
+use TUSK::Core::ServerConfig;
+use TUSK::Mobile::Device;
+use HSDB4::DateTime;
+require LWP::UserAgent;
+use TUSK::Constants;
+use Getopt::Long;
+use DBI;
+
+use MySQL::Password;
+my ($user_name, $password) = get_user_pw();
+HSDB4::Constants::set_user_pw($user_name, $password);
+
+if(!defined($ENV{DATABASE_ADDRESS})) {
+    $ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost;
+}
+die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
+
+
+
+##########
+## OPTIONS
+my $verbose = ""; 
+my $help    = "";
+GetOptions ("verbose" => \$verbose,
+			"help"     => \$help);
+
+printhelp() if($help);
+
+
+##########
+## CONSTANTS
+my $ua           = LWP::UserAgent->new;
+my $wurfl_url    = 'http://downloads.sourceforge.net/wurfl/wurfl-latest.zip';
+my $wurfl_dir    = '/home/tusk/wurfl/';
+my $wurfl_zip    = $wurfl_dir . 'wurfl-latest.zip';
+my $wurfl_file   = $wurfl_dir . 'wurfl.xml';
+my @to_addresses = ($TUSK::Constants::ErrorEmail); # email address to send errors to
+my $sendmail     = "/usr/lib/sendmail";
+
+
+##########
+## GET ON WITH THE SHOW...
+my (@loc_stats) = getLocalStats();
+my (@rem_stats) = getRemoteStats();
+
+# at this point, only write to log if we succeed, or if no need for action
+# other messages will be mailed to developers.
+if(files_differ(@loc_stats, @rem_stats)){
+	if( retrieve_wurfl() && unzip_wurfl() ){
+		my $pre_count = get_count();
+		process_wurfl();
+		my $post_count = get_count();
+
+		my $msg  = "tusk.mobile_device successfully updated. ";
+		$msg    .= "(added: " . ($post_count - $pre_count) . " records.)";
+
+		sendmail($msg);
+		update_log($msg);
+	}
+}
+else {
+	update_log('wurfl file has not been updated since last running. no action taken.')
+}
+
+
+
+##########
+## BUNCH O' SUBS
+sub retrieve_wurfl{
+	my $response = $ua->get( 
+							 $wurfl_url,
+							 ':content_file' => $wurfl_zip
+							);
+	unless ($response->is_success){
+		sendmail("Failed to get wurfl: " . $response->status_line);
+		exit;
+	}
+	return 1;
+}
+
+sub unzip_wurfl{
+	$ENV{PATH} = '/bin:/usr/bin';
+
+	if( -e $wurfl_zip ){
+		system "unzip -qq -o $wurfl_zip -d $wurfl_dir";
+	
+		return 1;
+	}
+	return 0;
+
+}
+
+sub get_count{
+	my $dbh;
+
+	eval {
+		$dbh = DBI->connect("DBI:mysql:tusk:$ENV{DATABASE_ADDRESS}", $user_name, $password, {RaiseError => 1, PrintError => 0});
+	};
+	die "\nFailure: Could not connect to database: $@\n" if $@;
+    
+	my $sql = 'select count(1) from tusk.mobile_device';	
+	my $sth = $dbh->prepare($sql);
+	eval {
+		$sth->execute;
+	};
+	die "error checking database. please try again.\n" if $@;
+
+	my @res = $sth->fetchrow_array();
+
+	$sth->finish();
+	$dbh->disconnect();
+
+	return $res[0];
+}
+
+sub files_differ{
+	my ($loc_length, $loc_mod, $rem_length, $rem_mod) = @_;
+
+	if($loc_length != $rem_length || $loc_mod < $rem_mod){
+		return 1;
+	}
+	return 0;
+}
+
+sub process_wurfl{
+	open my $fh, "<$wurfl_file" or die $!;
+
+	while(my $line = <$fh>){
+		if($line =~ /user_agent="([^"]+)"/){
+			my $ua = $1;
+			my $escaped_ua = TUSK::Core::SQLRow::sql_escape($ua);
+			my $device = TUSK::Mobile::Device->new()->lookupReturnOne("user_agent=$escaped_ua");
+			unless(defined $device){
+				$device = TUSK::Mobile::Device->new();
+				$device->setUserAgent($ua);
+				$device->save({user => $user_name});
+			}
+		}
+	}
+}
+
+sub getRemoteStats{
+	my $response = $ua->head( $wurfl_url );
+	my $msg = '';
+	$msg = 'Could not retrieve remote wurlf.xml: ' . $response->status_line . "\n" unless $response->is_success;
+	$msg = "can't get remote content_length\n" unless $response->content_length;
+	$msg = "can't get last_modified\n" unless $response->last_modified;
+	if($msg){
+		sendmail($msg);
+		exit;
+	}
+	return ( $response->content_length, $response->last_modified );
+}
+
+sub getLocalStats{
+	return ( 0, 0 ) unless -e $wurfl_zip;
+	return ( stat $wurfl_zip )[ 7,9 ];
+}
+
+sub sendmail{
+	my $message = shift;
+
+	if($verbose) {
+		print $message . "\n";
+	}
+	else {
+		# open a pipe to sendmail and send the message
+		open(MAIL, "| $sendmail -t") or die "open: $!";
+		print MAIL 'From: ' . $TUSK::Constants::ErrorEmail . "\n";
+		print MAIL "To: " . join(', ', @to_addresses) . "\n";
+		print MAIL "Subject: update_useragents message\n\n";
+		print MAIL "/bin/update_useragents has the following message:\n";
+		print MAIL $message;
+		print MAIL ".\n";
+		close(MAIL);
+    }
+}
+
+sub update_log{
+	my $msg = shift;
+
+	my $today = HSDB4::DateTime->new();
+	open my $fh, '>>/home/tusk/wurfl/wurfl_log' or warn "couldn't write to log: $!";
+	print $fh $today->out_mysql_date() . ": $msg\n";
+	close $fh;
+}
+
+sub printhelp{
+	print qq{\tUsage notes:
+\t./update_uas [--verbose] [--help]
+\t--verbose - print messages to the screen instead of generating an email
+\t--help    - print this help text
+};
+	exit;
+}

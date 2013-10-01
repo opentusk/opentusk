@@ -42,7 +42,7 @@ use TUSK::Case::LinkPhaseKeyword;
 	if (defined($case_id)){
        		$case = TUSK::Case::Case->new()->lookupKey($case_id);
 	} else {
-        	$m->comp('/tmpl/error',msg=>'Case ID $case_id not found');
+        	$m->comp('/tmpl/error',msg=>__x('Case ID {case_id} not found', case_id => $case_id));
 	}
 	
 	if (defined($phase_id)){
@@ -75,13 +75,13 @@ use TUSK::Case::LinkPhaseKeyword;
 
 <& tmpl/sections:case_footer, case => $case, type_path => $type_path, formname => $form_name, buttons => $buttons &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Phase Title',
+<& /tmpl/element:textbox, params =>{ label => __('Phase Title'),
 		name => 'phase_title',
 		value => $phase->getPhaseTitle() || $phase->getPhaseType->getTitle(),
 		size => 60,
 		length => 255 } &>
 
-<& /tmpl/element:textarea, params=>{ label => 'Author Notes',
+<& /tmpl/element:textarea, params=>{ label => __('Author Notes'),
 		name=>"phase_desc",
 		cols=>"60",
 		rows=>"2",
@@ -89,7 +89,7 @@ use TUSK::Case::LinkPhaseKeyword;
 		htmleditor=>1}, 
 	cke_params=> {height => '120'} &>
 
-<& /tmpl/element:textarea, params=>{ label => 'Phase Instructions',
+<& /tmpl/element:textarea, params=>{ label => __('Phase Instructions'),
         name=>"instructions",
         cols=>"60",
         rows=>"2",
@@ -98,7 +98,7 @@ use TUSK::Case::LinkPhaseKeyword;
 	cke_params=> {height => '120'} &>
 
 <& /tmpl/element:dropdown, params => {
-		label		=> 'Encounter',
+		label		=> __('Encounter'),
 		name		=> 'encounter',
 		selected	=> $phase->getEncounter(),
 		options		=> [ 1, 2, 3, 4, 5],
@@ -119,7 +119,7 @@ use TUSK::Case::LinkPhaseKeyword;
 # addressed.
 #		buttons 		=> 	[
 #							$m->scomp("/tmpl/element:button", params => { 	
-#												label 	=> 'Upload Content', 
+#												label 	=> __('Upload Content'), 
 #												name 	=> 'upload_content', 
 #												onclick => "open_upload_content_window('" . $m->comp('/tmpl/url:get_type_path') . "/" . $case_id . "', 'contentdiv')",
 #											}),
@@ -130,7 +130,7 @@ use TUSK::Case::LinkPhaseKeyword;
 % # Global cases cannot have linked quizzes (due to lack of "continue" button),
 % # UNLESS the phase type is "Quiz"
 % if ($case->isLinearNav() || ref($phase) eq 'TUSK::Case::Phase::Quiz') {
-<& /tmpl/element:section_header_row, label=>'Phase Assessment (Quiz)' &>
+<& /tmpl/element:section_header_row, label=>__('Phase Assessment (Quiz)') &>
 %	if ($is_edit) {
 <& /tmpl/element:note, msg=>$question_select &>
 
@@ -145,46 +145,46 @@ use TUSK::Case::LinkPhaseKeyword;
                 name => 'questions',
                 sort => {usage => 'Yes', length=>50},
                 action => {usage => 'Yes', length => 500, functions => [
-                       {func=>'question_edit', label=>'Modify'} ,
-                       {func=>'remove', label=>'Delete'},
+                       {func=>'question_edit', label=>__('Modify')} ,
+                       {func=>'remove', label=>__('Delete')},
                        ]},
                 display => [ 
-                       {label=>'Question',field=>'body', align=>'left', length=>150},
-                       {label=>'Type',field=>'type', align=>'left', length=>150} ] , 
+                       {label=>__('Question'),field=>'body', align=>'left', length=>150},
+                       {label=>__('Type'),field=>'type', align=>'left', length=>150} ] , 
                 validate => {
                             usage => 'No',
                             },
                 data => \@question_data }
                 } &>
 % 	} else {
-<& /tmpl/element:note, msg=>'Please Save the Phase before adding questions.' &>
+<& /tmpl/element:note, msg=>__('Please Save the Phase before adding questions.') &>
 %	}
 % }
 
-<& /tmpl/element:top_header_row, label=>'References' &>
+<& /tmpl/element:top_header_row, label=>__('References') &>
 
-<& tmpl/sections:references, label=>'Local References',referencearray =>\@referencearray &>
+<& tmpl/sections:references, label=>__('Local References'),referencearray =>\@referencearray &>
 
-<& /tmpl/element:top_header_row, label=>'Phase Metadata' &>
+<& /tmpl/element:top_header_row, label=>__('Phase Metadata') &>
 
 <& tmpl/sections:metadata,  keywordarray=>\@keywordarray &>
 
 <& tmpl/sections:attributions, phase=>$phase, params => {attributionarray=>\@attributionarray } &>
 
-<& /tmpl/element:collapse_section, params=>{label=>'Content Access',
+<& /tmpl/element:collapse_section, params=>{label=>__('Content Access'),
                 name=>'content_access',
                 section=>'start',
                 check_function => undef } &>
 
-<& /tmpl/element:dropdown, params=>{ label => 'Usage Permission',
+<& /tmpl/element:dropdown, params=>{ label => __('Usage Permission'),
                 name=>"shared",
                 onchange=>undef,
                 selected=>$phase->getShared(),
                 options=>[
-                        {'label'=>'Do not share phase','value'=>'0'},
-                        {'label'=>'Share phase as Read Only','value'=>'1'} ] } &>
+                        {'label'=>__('Do not share phase'),'value'=>'0'},
+                        {'label'=>__('Share phase as Read Only'),'value'=>'1'} ] } &>
 
-<& /tmpl/element:collapse_section, params=>{label=>'Content Access',
+<& /tmpl/element:collapse_section, params=>{label=>__('Content Access'),
                 name=>'content_access',
                 section=>'end',
                 check_function => undef } &>
@@ -225,7 +225,7 @@ if (scalar(@{$links})){
 }
 
 my $onclick = ($has_score_rule)? 'open_quiz_window_check' : 'open_quiz_window';
-my $question_select = 'Add new question of type:'.$m->scomp('/tmpl/element:dropdown',params=>{ 
+my $question_select = __('Add new question of type:').$m->scomp('/tmpl/element:dropdown',params=>{ 
 	name     => "question_type",
 	onclick  => "$onclick('$type_path/$case_id', $phase_id);",
 	onchange      => undef,
@@ -235,7 +235,7 @@ $question_select .= '<br>' . $m->scomp('/tmpl/element:input_checkbox', params=> 
 	name    => 'retake_quiz',
 	value   => '1',
 	checked => $chk_allow_resubmit,
-	txt     => 'Allow user to retake quiz.',
+	txt     => __('Allow user to retake quiz.'),
 	});
 
 # tests should not have the ability to check the box next to "hide correct answers;" since
@@ -257,7 +257,7 @@ else {
 		name    => 'hide_correct_answer',
 		value   => '1',
 		checked => $chk_hide_correct,
-		txt     => 'Hide correct answers from user after quiz submission.',
+		txt     => __('Hide correct answers from user after quiz submission.'),
 		});
 }
 
@@ -281,11 +281,11 @@ if (defined($phase_id)){
 	@referencearray =  map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
 					map { $_->getContent() }
 				@{TUSK::Case::LinkPhaseContent->lookup(" parent_phase_id = $phase_id
-					  and link_type = 'Reference' ",
+					  and link_type = '".__("Reference")."' ",
 				['sort_order'] )};
 
 	foreach my $link_phase_content (@{TUSK::Case::LinkPhaseContent->lookup(" parent_phase_id = $phase_id
-                                          and link_type = 'Narrative' ",
+                                          and link_type = '".__("Narrative")."' ",
                                 ['sort_order'] )}){
 		my $content = $link_phase_content->getContent();
 		push (@contentarray, { content_id => $content->primary_key(), title => $content->title(), display_type => $link_phase_content->getDisplayType() });
@@ -354,13 +354,13 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
                 child_pk_field => 'content_id',
                 fields_data => $rowHash,
                 field_function_map => {'display_type'=>'setDisplayType' },
-                addtlRelationFields=> ['Reference'],
+                addtlRelationFields=> [__('Reference')],
                 display_data => \@referencearray );
 
 	@referencearray =  map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
                         map { $_->getContent() }
                         @{TUSK::Case::LinkPhaseContent->lookup(" parent_phase_id = $phase_id
-                                          and link_type = 'Reference' ",
+                                          and link_type = '".__("Reference")."' ",
                                 ['sort_order'] )};
 
 
@@ -393,16 +393,16 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
                 set_parent => 'setParentPhaseID',
                 set_child => 'setChildContentID',
                 child_pk_field => 'content_id',
-                default_field_data => { 'link_type'=>'Narrative' },
+                default_field_data => { 'link_type'=>__('Narrative') },
                 field_function_map => {'link_type'=>'setLinkType', display_type => 'setDisplayType' },
                 fields_data => $rowHash,
-                addtlRelationFields=> ['Narrative'],
+                addtlRelationFields=> [__('Narrative')],
                 display_data => \@contentarray );
 
 	@contentarray =  map { {'content_id'=>$_->primary_key(),'title'=>$_->title() } }
                         map { $_->getContent() }
                         @{TUSK::Case::LinkPhaseContent->lookup(" parent_phase_id = $phase_id
-                                          and link_type = 'Narrative' ",
+                                          and link_type = '".__("Narrative")."' ",
                                 ['sort_order'] )};
 
 	$rowHash = $m->comp('/tmpl/process:process_fields',fields=>$args,filter=>'^authorsdiv');
@@ -464,7 +464,7 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 
 		my $qtitle = $phase->getPhaseTitle();
 		# append the word ' Quiz' to the quiz title, unless our phase type is "Quiz"
-		$qtitle .= (ref($phase) !~ /Quiz$/)? ' Quiz' : '';
+		$qtitle .= (ref($phase) !~ /Quiz$/)? ' '.__('Quiz') : '';
 		$q->setTitle($qtitle);
 
 		$q->save($userHash);
@@ -478,7 +478,7 @@ if ($m->comp('/tmpl/wizard:submitted',args =>\%ARGS)){
 			phase   =>$phase, 
 			params  =>\%ARGS);
 
-	my $msg = ($is_edit) ? "Phase successfully modified" : "Phase successfully created";
+	my $msg = ($is_edit) ? __("Phase successfully modified") : __("Phase successfully created");
 
 	$m->comp('/tmpl/wizard:do_next',
 			args               => \%ARGS,

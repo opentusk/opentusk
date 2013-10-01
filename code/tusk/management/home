@@ -17,6 +17,7 @@
     no_check_path => 1
 	skip_header_bar => 1
 	top_tab_type => 'manage'
+	nostandardheader => '1'
 </%attr>
 <%once>
     use HSDB4::SQLRow::PPTUpload;
@@ -30,13 +31,7 @@
     my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 </%shared>
 
-<!-- Begin Manage Content Header Table -->
-
- <table width="99%" border="0" cellpadding="0" cellspacing="0" background="/graphics/bg-redline.gif">
-<tr><td  valign="top"><img src="/graphics/header-managecontent.gif" alt="Manage Content" border="0" vspace="5"></td>
-	<td width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="20" height="20"></td></tr>
-</table>
-<!-- End Manage Content Header Table -->
+<h1 class="cmsHeader"><%__('Manage Content')%></h1>
 
 <& /tmpl/element:table, params => { 
 	width => "100%",
@@ -44,7 +39,7 @@
 	cellpadding =>"0" } &>
 
 <tr>             
-<td width="50%" valign="top" colspan="3">Select a course to manage or add content to:</td>
+<td width="50%" valign="top" colspan="3"><%__("Select a course to manage or add content to:")%></td>
 	<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
                 <td width="50%" valign="top">&nbsp;</td>
 	<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
@@ -73,47 +68,23 @@
 
 
 <table cellspacing="0" cellpadding="0"><tr>
-<td class="cell-left"><br><a href="/management/myfolders/content">My Folders</a></td>
+<td class="cell-left"><br><a href="/management/myfolders/content"><%__('My Folders')%></a></td>
 </tr><tr>
-<td class="cell-left"><a href="/management/mycontent" class="cell-left">Search My Content</a></b></p><br><br>
+<td class="cell-left"><a href="/management/mycontent" class="cell-left"><%__('Search My Content')%></a></b></p><br><br>
 </td></tr></table>
 </td></tr></table>
 
 <%init>
-
-   # Fetch user's editable courses...
-   my $courses_hashref=TUSK::Session::cms_user_courses($user);
-   my $group_courses_hashref;
-   my $tc_courses_hashref;
-
-    foreach my $school (keys %{$courses_hashref}){
-	    foreach my $course (sort keys %{$courses_hashref->{$school}}){
-		    if($courses_hashref->{$school}->{$course}->type() ){
-		         if($courses_hashref->{$school}->{$course}->type() eq 'group'){
-			        $group_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
-				    delete $courses_hashref->{$school}->{$course};
-			    }
-			    elsif($courses_hashref->{$school}->{$course}->type() eq 'thesis committee'){
-			        $tc_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
-				    delete $courses_hashref->{$school}->{$course};
-			    }
-			}
-		}
-		# if we have deleted all courses from a school above, delete the school, itself
-		if(!(keys %{$courses_hashref->{$school}})){
-		    delete $courses_hashref->{$school};
-		}
-
-	}
+	# Fetch user's editable courses...
+	my ($courses_hashref,  $group_courses_hashref, $tc_courses_hashref) = $user->cms_courses_sorted();
 
 	# What has been recently modified
-	my @recently_modified=$user->recently_modified;
-
+	my @recently_modified = $user->recently_modified;
+	
 	# Any PPTs we need to know about
 	my @ppt_statuses = HSDB4::SQLRow::PPTUpload->new->lookup_user_ppt($user_id, 14);
-
+	
 	my $tuskdoc_statuses = TUSK::ProcessTracker::ProcessTracker->new()->getDistinctRecentByUser('tuskdoc', $user_id, undef, 14);
-   
 </%init>
 
 <%method leftnav>
@@ -125,5 +96,5 @@
 </%method>
 
 <%method title>
-% return "Manage Content";
+% return __("Manage Content");
 </%method>

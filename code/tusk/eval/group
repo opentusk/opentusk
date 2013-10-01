@@ -43,18 +43,18 @@
 <%perl>
 	my $msg;
 	unless (defined $eval_group_id) {
-		$msg = 'Missing Eval Group ID';
+		$msg = __('Missing Eval Group ID');
 	}
 	
 	unless ($time_period) {
-		$msg = 'No Current Time Period';
+		$msg = __('No Current Time Period');
 	} else {
 		unless ($course->is_user_registered($student->primary_key(), $time_period->primary_key()) || TUSK::Session::is_school_eval_admin($m->session, $school, $student)) {
-			$msg = 'Permisson Denied';
+			$msg = __('Permisson Denied');
 		}
 	}
 
-	$msg = "Evaluations are no longer available" if ($eval_group->isOverdue());
+	$msg = __("Evaluations are no longer available") if ($eval_group->isOverdue());
 
 	if ($msg) {
 		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/home", msg => $msg, msgtype => 'errmsg' ));	
@@ -74,12 +74,12 @@
 } &>
 
 <& /tmpl/element:field_display, params => { 
-	label 		=> 'Instructions:',
+	label 		=> __('Instructions').':',
 	value		=> $eval_group->getInstructions(),
 } &>	
 
 <& /tmpl/element:field_display, params => { 
-	label 		=> 'Due Date:',
+	label 		=> __('Due Date').':',
 	value		=> $eval_group->getFormattedDueDate(),
 } &>	
 
@@ -96,7 +96,7 @@
 %		my $title = ($eval_group->getShowNameFlag()) ? HSDB4::SQLRow::User->new(_id => $eval_group_eval->getUserID())->out_full_name() : $eval->title();
 
 %	    	if ($comp->primary_key && $comp->field_value('status') eq 'Done') {
-	<tr><td style="font-size:85%;color:gray;"><% $title %></td><td style="font-size:85%;color:gray;"> &nbsp;&nbsp; completed on <% $comp->field_value('created') %></td></tr>
+	<tr><td style="font-size:85%;color:gray;"><% $title %></td><td style="font-size:85%;color:gray;"> &nbsp;&nbsp; <%__('completed on')%> <% $comp->field_value('created') %></td></tr>
 %		} else {
 	<tr><td><a style="text-decoration:none;" href="/protected/eval/complete/<% $school %>/<% $eval->primary_key() %>"><% $title %></a></td><td>&nbsp;</td></tr>
 %		}
@@ -106,13 +106,13 @@
 
 
 <%method title>
-%	return 'Evaluations: ' . $eval_group->getTitle();
+%	return __('Evaluations')': ' . $eval_group->getTitle();
 </%method>
 
 <%method right_header_text>
 <%perl>
 	if (TUSK::Session::is_school_eval_admin($m->session,$school,$student)) {
-		return [ {txt => 'Manage Evaluations By Faculty/Staff', url => "/eval/administrator/byuser/show/$school" } ];
+		return [ {txt => __('Manage Evaluations By Faculty/Staff'), url => "/eval/administrator/byuser/show/$school" } ];
 	}
 </%perl>
 </%method>

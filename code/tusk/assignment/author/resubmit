@@ -27,7 +27,7 @@
 	if ($submissions > 1) {
 		$m->comp('SELF:set_msg', 
 			type 	=> 'hintmsg', 
-			msg	=> $student->getName() . ' has already resubmitted assignments. If you disallow resubmission, all the subsequent submissions will not visible.' );
+			msg	=> __x("{student} has already resubmitted assignments. If you disallow resubmission, all the subsequent submissions will not visible.", student => $student->getName()) );
 	}
 </%perl>
 
@@ -41,10 +41,10 @@
 	$author = TUSK::Application::Assignment::Author->new({user_id => $m->session->{'user'}->user_id(), assignment => $assignment, course => $m->comp("/tmpl/url:get_type_object")});
 	if ($assignment->getGroupFlag()) {
 		$student = TUSK::Application::Assignment::Student::Group->new({ group_id => $m->comp("/tmpl/url:get_last_path_id"), assignment => $assignment, course => $m->comp('/tmpl/url:get_type_object')});
-		$student_label = 'Group';
+		$student_label = __('Group');
 	} else {
 		$student = TUSK::Application::Assignment::Student::Individual->new({ user_id => $m->comp("/tmpl/url:get_last_path_id"), assignment => $assignment});
-		$student_label = 'Student';
+		$student_label = __('Student');
 	}
 
 	$resubmit_flag = $student->getIndividualResubmitFlag();
@@ -56,7 +56,7 @@
 
 		$m->redirect($m->comp("/tmpl/url:construct_url", 
 			base_url => "/assignment/author/grade", 
-			msg => 'You have successfully allowed resubmission for ' . $student->getName() . '.'));
+			msg => __x("You have successfully allowed resubmission for {student}.", student => $student->getName())));
 	}
 </%init>
 
@@ -76,30 +76,30 @@
 } &>
 
 <& /tmpl/element:field_display, params => {
-	label 	=> 'Assignment Title:', 
+	label 	=> __('Assignment Title:'), 
 	value	=> $assignment->getTitle(),
 } &>
 
 <& /tmpl/element:field_display, params => {
-	label => "$student_label Name:", 
+	label => __x("{student_label} Name:", student_label => $student_label), 
 	value => $student->getName(),
 } &>
 
 <& /tmpl/element:radio_buttons, params =>{ 
-        label => 'Allow Resubmission:',
+        label => __('Allow Resubmission:'),
         name => 'allow_resubmit',
         buttons => [
-		{ value => "1", text => "Yes", 
+		{ value => "1", text => __("Yes"), 
  		  checked => ($resubmit_flag == 1) ? 1 : 0,
 		},
-                { value => "0", text => "No", 
+                { value => "0", text => __("No"), 
  		  checked => ($resubmit_flag == 0) ? 1 : 0,
 		 } ],
 	nobreak => 1,
 } &>
 
 <& /tmpl/element:save_button, params=>{
-	label		=> 'Save Changes',
+	label		=> __('Save Changes'),
 	cancel_onclick 	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/assignment/author/grade",) . "');",
 	name		=> 'submit'
 } &>
@@ -108,7 +108,7 @@
 </form>
 
 <%method title>
-% 	return "Assignment Resubmission";
+% 	return __("Assignment Resubmission");
 </%method>
 
 <%method get_nav_bar_objects>

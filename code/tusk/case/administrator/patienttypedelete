@@ -21,13 +21,13 @@
 use TUSK::Case::PatientType;
 </%once>
 <%method title>
-% return "Delete  Patient Type";
+% return __("Delete  Patient Type");
 </%method>
 
 <%perl>
 my $patient_type = TUSK::Case::PatientType->lookupKey($id);
 if (!defined($patient_type->getPrimaryKeyID())){
-	$m->comp("/case/tmpl/error",msg=>"Patient Type $id not found");
+	$m->comp("/case/tmpl/error",msg=>__x("Patient Type {id} not found", id => $id));
 }
 </%perl>
 <& /tmpl/element:form, params => { 
@@ -40,12 +40,12 @@ if (!defined($patient_type->getPrimaryKeyID())){
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
 
-<& /tmpl/element:field_display, params=>{'label'=>'Patient Type Name',
+<& /tmpl/element:field_display, params=>{'label'=>__('Patient Type Name'),
 		'value'=>$patient_type->getTypeName()} 
 		&>
 
 <& /tmpl/element:save_button,params=>{name=>'delete_patient_type', 
-					label=>'Delete Patient Type',
+					label=>__('Delete Patient Type'),
 					cancel_onclick=>'go_back(\'' . $back_url . '\');'} &>
 </form>
 </table>
@@ -57,6 +57,6 @@ my $back_url = "/case/administrator/patienttypeshow/$type_path";
 if (defined($ARGS{'delete_patient_type'})){
 	my $patient_type = TUSK::Case::PatientType->lookupKey($id);
 	$patient_type->delete();
-	$m->redirect($back_url . "?msg=Patient+Type+successfully+deleted");
+	$m->redirect($back_url . "?msg=".__("Patient Type successfully deleted"));
 }
 </%init>

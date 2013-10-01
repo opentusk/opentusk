@@ -20,7 +20,7 @@
 </%once>
 
 <%shared>
-	my $form_type_label = 'Simulated Patient';
+	my $form_type_label = __('Simulated Patient');
 	my $user = $m->session->{'user'}->user_id();
 	my $course = $m->comp('/tmpl/url:get_type_object');
 	my ($form_id, $user_group_id) = $m->comp('/tmpl/url:get_path_ids');
@@ -59,7 +59,7 @@
 			submitted => ($entry) ? $entry->getCompleteDate() : '-',
 			complete => ($entry && $entry->getCompleteDate()) 
 				? '<img src="/graphics/greencheckmark.gif">'
-				: '<a href="/sp/actor/entry/' . $m->comp('/tmpl/url:get_type_path') . "/$id\">Entry Form</a>", 
+				: '<a href="/sp/actor/entry/' . $m->comp('/tmpl/url:get_type_path') . "/$id\">".__("Entry Form")."</a>", 
 		};
 	}
 </%init>
@@ -69,11 +69,11 @@
 %		my @groups = HSDB45::UserGroup->new(_school => $course->school())->lookup_conditions("user_group_id in (" . join(",", map { $_->getUserGroupID() } @$course_groups) . ")");
 %		if (scalar @groups) {
 <table>
-<tr><th class="cell-left">Group: </th>
+<tr><th class="cell-left"><%__("Group")%>: </th>
 <td>
 <form name="sp_home" action="" method="POST" class="no-padding"> 
 <select name="address" onChange="forward(this);">
-<option value="">select</option>
+<option value=""><%__("select")%></option>
 %			foreach my $group (@groups) {
 %				my $selected = ($user_group && $user_group_id == $group->primary_key()) ? 'SELECTED' : '';
 %				$m->print("<option value=\"/sp/actor/list/" . $m->comp('/tmpl/url:get_type_path') . "/$form_id/" . $group->primary_key() . "\"$selected>" . $group->label() . '</option>');
@@ -93,12 +93,12 @@
 <td class="no-button">
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [
-		{label => 'Student Name', field => 'name', width => "25%" },
-		{label => 'Submit Date', field => 'submitted', width => "25%", align => 'center' },
-		{label => 'Action', field => 'complete', width => "25%", align => 'center'. html => 1 },
+		{label => __('Student Name'), field => 'name', width => "25%" },
+		{label => __('Submit Date'), field => 'submitted', width => "25%", align => 'center' },
+		{label => __('Action'), field => 'complete', width => "25%", align => 'center'. html => 1 },
 	],
 	rows => \@rows,
-	name => "Simulated Patients",
+	name => __("Simulated Patients"),
 	sort_box => 0,
 	type_path => $m->comp('/tmpl/url:get_type_path'),
 	'norows-message' => '&nbsp;',

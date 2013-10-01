@@ -93,7 +93,7 @@ if ($m->comp('/tmpl/wizard:submitted',args=>$args)){
 		<& freeTextTable,phase_options=>$phase_options,selected_phase_options=>$selected_phase_options &>
 %	}
 % } else {
-%	$m->comp('/tmpl/error', msg=>"Invalid phase option type : $phase_option_type");
+%	$m->comp('/tmpl/error', msg=>__("Invalid phase option type")." : $phase_option_type");
 % } 
 </table>
 
@@ -211,9 +211,9 @@ if ($case->isTest()) {
 % foreach my $option (@phase_options){
 % $pk = $option->getPrimaryKeyID();
 <tr><td class="text1"><% $option->getOptionText() %></td></tr>
-<tr><td class="subhead1">My Answer:</td></tr>
+<tr><td class="subhead1"><%__("My Answer")%>:</td></tr>
 <tr><td class="text1"><% $userSelections->{$pk} %></td></tr>
-<tr><td class="subhead1">Expert Answer:</td></tr>
+<tr><td class="subhead1"><%__("Expert Answer")%>:</td></tr>
 <tr><td class="text1"><% $option->getFeedback() %></td></tr>
 % }
 </%def>
@@ -247,7 +247,7 @@ if ($case->isTest()) {
 <%args>
 @phase_options
 %selections => ()
-$optionLabel => 'Diagnosis'
+$optionLabel => __('Diagnosis')
 @selected_phase_options => ()
 %args => ()
 </%args>
@@ -258,10 +258,10 @@ my %selected_phase_hash = map { ($_->getPrimaryKeyID(), $_) } @selected_phase_op
 </%perl>
 % if (!$submit_mode){
 <& element:table_header &><td style="padding-left:5px"><% $optionLabel %></td>
-<td>Likely</td><td>Less Likely</td><td>Unlikely</td><td>Explain Your Choices</td></tr>
+<td><%__("Likely")%></td><td><%__("Less Likely")%></td><td><%__("Unlikely")%></td><td><%__("Explain Your Choices")%></td></tr>
 % } else {
 <& element:table_header &><td style="padding-left:5px"><% $optionLabel %></td>
-<td>Likely</td><td>Less Likely</td><td>Unlikely</td><td>Feedback</td><td>Explain Your Choices</td></tr>
+<td><%__("Likely")%></td><td><%__("Less Likely")%></td><td><%__("Unlikely")%></td><td><%__("Feedback")%></td><td><%__("Explain Your Choices")%></td></tr>
 % }
 %    my ($likely_gif,$lesslikely_gif,$unlikely_gif,$unlikely_value,$lesslikely_value,$likely_value);
 %    foreach my $option (@phase_options){
@@ -397,11 +397,11 @@ if ($case->isTest()) {
 % my $optionSelection;
 % my %selected_phase_hash = map { ($_->getPrimaryKeyID(), $_) } @selected_phase_options;
 % if ($submit_mode){
-<& element:table_header &><td style="padding-left:1px">Your Rank</td><td>Expert Rank</td><td>Possible Diagnosis</td>
-<td>Feedback</td><td>Explain Your Choices</td></tr>
+<& element:table_header &><td style="padding-left:1px"><%__("Your Rank")%></td><td><%__("Expert Rank")%></td><td><%__("Possible Diagnosis")%></td>
+<td><%__("Feedback")%></td><td><%__("Explain Your Choices")%></td></tr>
 % } else {
-<& element:table_header &><td style="padding-left:5px">Rank</td><td>Possible Diagnosis</td>
-<td>Explain Your Choices</td></tr>
+<& element:table_header &><td style="padding-left:5px"><%__("Rank")%></td><td><%__("Possible Diagnosis")%></td>
+<td><%__("Explain Your Choices")%></td></tr>
 % }
 % my $rankCount = 1;
 % my $optArray = ['--', (1 .. (scalar(@phase_options)))];
@@ -462,7 +462,7 @@ $visit => undef
 </%args>
 <%perl>
 	my $phase_option_type = $phase->getPhaseOptionType();
-	my $display_type = ($phase_option_type eq 'Rank Choices') ? 'Rank' : 'Answer';
+	my $display_type = ($phase_option_type eq 'Rank Choices') ? __('Rank') : __('Answer');
 	my $text = '<span class="smTextTwo">'.$phase->getMainText().'</span>';
 	$text .= '<table cellpadding="0" cellspacing="0" border="0" style="" width="100%">';
 	my $selections;
@@ -478,7 +478,7 @@ $visit => undef
 	my %optionHash = map { $_->getPrimaryKeyID => $_ } @$options;
 
 	if(scalar @$selections){
-		$text .= '<tr><td width="25%" class="header2">Item</td><td class="header2" style="padding-left:8px" width="25%">My ' . $display_type . '</td><td class="header2" width="50%">Expert ' . $display_type . '</td></tr>';
+		$text .= '<tr><td width="25%" class="header2">'.__('Item').'</td><td class="header2" style="padding-left:8px" width="25%">'.__x('My {type}', type =>  $display_type) . '</td><td class="header2" width="50%">'.__x('Expert {type}', type => $display_type) . '</td></tr>';
 
 		foreach my $sel (@{$selections}) {
 			my $answer = $sel->getShortAnswerText();
@@ -486,14 +486,14 @@ $visit => undef
 	
 			my $option = $optionHash{ $sel->getPhaseOptionID() };
 			next unless ($option);
-			my $correct_text = ($option->getCorrect()) ? " <i>(correct)</i>" : "";
+			my $correct_text = ($option->getCorrect()) ? " <i>(".__("correct").")</i>" : "";
 			$text .= '<tr><td class="smHighlight2">'.$sel->getOptionText()
 			      .  '</td><td style="padding-left:8px" class="smHighlight2">'. $answer . '</td><td class="smHighlight2">' .
 				$option->getFeedback() . $correct_text . '</td></tr>';
 		}
 	} 
 	else {
-		$text .= '<tr><td><em>Nothing to report.</em></td></tr>';
+		$text .= '<tr><td><em>'.__('Nothing to report.').'</em></td></tr>';
 	}
 	$text .= '</table>';
 	return $text;
@@ -621,7 +621,7 @@ foreach my $battery (@{$batteries}){
 		return if ($table_type eq 'submit' && !(scalar(@checked_exams)));
 		return if ($table_type eq 'expert' && !(scalar(@checked_exams) + scalar(@expert_selections)));
 	}
-	my $exam_priority = ($is_test) ? '' : '<td width="10%">Exam Priority</td>';
+	my $exam_priority = ($is_test) ? '' : '<td width="10%">'.__('Exam Priority').'</td>';
 </%perl>
 %
 % if (scalar(@exams)) {
@@ -650,7 +650,7 @@ foreach my $battery (@{$batteries}){
 %
 % if ($table_type eq 'submit' or $table_type eq 'expert') {
 %
-	<td width="20%">Result</td><td width="20%">Normal Range</td><td width="10%">Media</td><td width="10%">Feedback</td><% $exam_priority %>
+	<td width="20%"><%__('Result')%></td><td width="20%"><%__("Normal Range")%></td><td width="10%"><%__("Media")%></td><td width="10%"><%__("Feedback")%></td><% $exam_priority %>
 %
 % }
 %
@@ -759,9 +759,9 @@ foreach my $battery (@{$batteries}){
 		<td class="<% $class %>"><& element:media_link, content_id=> $content_id, else_print => '&nbsp;' &></td>
 		<td class="<% $class %>">
 % if ($body->{'feedback'}){
-		<a href="javascript:;" onclick="showTxtWin(this, 'txtWin_<% $pk %>');">Feedback</a>
+		<a href="javascript:;" onclick="showTxtWin(this, 'txtWin_<% $pk %>');"><%__("Feedback")%></a>
 		<div id="txtWin_<% $pk %>" class="hideTxtWin">
-			<span class="txtWinClose"><a href="javascript:;" onclick="hideTxtWin('txtWin_<% $pk %>');">Close [X]</a></span>
+			<span class="txtWinClose"><a href="javascript:;" onclick="hideTxtWin('txtWin_<% $pk %>');"><%__("Close")%> [X]</a></span>
 			<p class="txtWinText"><% $body->{'feedback'} %></p>
 		</div>
 % } else {
@@ -829,7 +829,7 @@ if (scalar keys %includedBatteries) {
 	}
 }
 elsif (ref($phase) !~ /History/ && !$phase->getIsGeneric()) {
-	$text .= '<tr><td><em>Nothing to report.</em></td></tr>';
+	$text .= '<tr><td><em>'.__('Nothing to report.').'</em></td></tr>';
 }
 $text .= '</table>';
 return $text;
@@ -853,7 +853,7 @@ foreach my $field (keys %args){
 		if ($field =~ m/^option_(\d+)/){
 			($pk) = ($1);
 			# choice should be 1 -- Likely or 2 -- Unlikely
-			$choiceText = 'Likely';
+			$choiceText = __('Likely');
 			$userSelections->{$pk} = $choiceText;
 			$phase_option = $phase_option_lookup{$pk};
 			$case_report_id = $case->getReport->getPrimaryKeyID();
@@ -894,7 +894,7 @@ selections=>$userSelections &>
 <%args>
 @phase_options
 %selections => ()
-$optionLabel => 'Diagnosis'
+$optionLabel => __('Diagnosis')
 @selected_phase_options => ()
 </%args>
 <%perl>
@@ -904,10 +904,10 @@ my ($explanation, $myExplanation);
 </%perl>
 % if (!$submit_mode){
 <& element:table_header &><td style="padding-left:7px">&nbsp;</td><td style="padding-left:2px"><% $optionLabel %></td>
-<td>Explain Your Choices</td></tr>
+<td><%__('Explain Your Choices')%></td></tr>
 % } else {
 <& element:table_header &><td style="padding-left:7px">&nbsp;</td><td style="padding-left:2px"><% $optionLabel %></td>
-<td>&nbsp;</td><td>Feedback</td><td>Explain Your Choices</td></tr>
+<td>&nbsp;</td><td><%__('Feedback')%></td><td><%__('Explain Your Choices')%></td></tr>
 % }
 % 	my ($answer,$likely_gif,$unlikely_gif,$unlikely_value,$likely_value,$phaseSelection);
 %	foreach my $option (@phase_options){
@@ -989,13 +989,13 @@ if (defined($args->{'battery_submit'})){
 	my ($case_id, $phase_id) = ($case->getPrimaryKeyID(), $phase->getPrimaryKeyID());
 
 	$m->comp('/tmpl/element:button', params=>{ 
-		label	=> 'See patient again for more exams', 
+		label	=> __('See patient again for more exams'), 
 		onclick => "go_back('/case/dophase/" . $m->comp('/tmpl/url:get_type_path') . "/$case_id/$phase_id')"
 		} );
 
 	unless ($case->isTest()) {
 		$m->comp('/tmpl/element:button', params=>{ 
-			label => 'See expert selections', 
+			label => __('See expert selections'), 
 			onclick => "expert_window($case_id, $phase_id, " . $case->getReport()->getPrimaryKeyID() . ");"
 		} );
 	}
@@ -1005,7 +1005,7 @@ if (defined($args->{'battery_submit'})){
 } 
 else {
 	if (scalar(@{$phase->getBatteries()})) {
-		my $label = (ref($phase) =~ /History/)? 'Take History' : 'Perform Exam';
+		my $label = (ref($phase) =~ /History/)? __('Take History') : __('Perform Exam');
 		$m->comp('/tmpl/element:submit_button', params=>{ 
 			label => $label, 
 			name => 'battery_submit' 
@@ -1026,7 +1026,7 @@ $submit_onclick => ''
 $args
 </%args>
 % if (!$m->comp('/tmpl/wizard:submitted',args=>$args)) {
-<& /tmpl/element:submit_button, params=>{'label'=>'Submit', onclick=>$submit_onclick} &>
+<& /tmpl/element:submit_button, params=>{'label'=>__('Submit'), onclick=>$submit_onclick} &>
 % }
 % elsif ($case->isLinearNav()) {
 <& element:transition_button, no_submit => 1, case => $case, phase => $phase, args => $args &>

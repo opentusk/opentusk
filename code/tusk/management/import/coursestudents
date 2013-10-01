@@ -35,54 +35,54 @@
 	cellpadding =>"0" } &>
 
 <tr>
-<td class="labelgray">Import type:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td>Test<input type="radio" name="save" value="0" checked></td><td align="right">Live<input type="radio" name="save" value="1"></td></tr></table><br>"Test" verifies data, but does not save. "Live" verifies and saves data.</td>
+<td class="labelgray"><%__("Import type")%>:</td><td class="cell-left"><table class="tusk" width="50%"><tr><td><%__("Test")%><input type="radio" name="save" value="0" checked></td><td align="right"><%__("Live")%><input type="radio" name="save" value="1"></td></tr></table><br><%__('"Test" verifies data, but does not save. "Live" verifies and saves data.')%></td>
 </tr>
 % if ($m->comp('/tmpl/url:get_school') ) {
 <input type="hidden" name="school" value="<% $m->comp('/tmpl/url:get_school') %>">
-<tr><td class="labelgray">School: </td><td class="cell-left"><% $m->comp('/tmpl/url:get_school') %></td></tr>
+<tr><td class="labelgray"><%__("School")%>: </td><td class="cell-left"><% $m->comp('/tmpl/url:get_school') %></td></tr>
 % } else {
-<tr><td class="labelgray">School: </td>
-<td class="cell-left"><td class="cell-left">school not provided</td></tr>
+<tr><td class="labelgray"><%__("School")%>: </td>
+<td class="cell-left"><td class="cell-left"><%__("school not provided")%></td></tr>
 % }
 
-<tr><td class="labelgray">Time Period: </td>
+<tr><td class="labelgray"><%__("Time Period")%>: </td>
 <td class="cell-left">
 <select name="time_period_id">
-<option value="0">no time period</option>
+<option value="0"><%__("no time period")%></option>
 % foreach my $tp (@time_periods) {
 <option value="<% $tp->primary_key %>"><% $tp->out_label %></option>
 % }
-</select>  Choose a time period, or select "no time period" if the time period is in the file.
+</select> <%__('Choose a time period, or select "no time period" if the time period is in the file.')%>
 </td></tr>
 
 <tr>
-<td class="labelgray">Fields in File:</td>
+<td class="labelgray"><%__("Fields in File")%>:</td>
 <td class="cell-left">
-<input type="radio" name="preset_fields" value="preferred" checked="checked"> Preferred (course_code, user_id, time_period, academic_year, teaching_site)
+<input type="radio" name="preset_fields" value="preferred"><%__("Preferred")%> (course_code, user_id, time_period, academic_year, teaching_site)
 <br>
 <input type="radio" name="preset_fields" value="self"> <input name="fields" value="<% $ARGS{fields}%>" size="50" class="textareawhite"><br>
-Either select the preferred import format, or list the fields in the import file, separated by commas. The uploaded file should be tab-delimited, and should not contain a row of column names.
+<%__("Either select the preferred import format, or list the fields in the import file, separated by commas. The uploaded file should be tab-delimited, and should not contain a row of column names.")%>
 </td>
 </tr>
 
 <tr>
-<td class="labelgray">Limit Results:</td>
+<td class="labelgray"><%__("Limit Results")%>:</td>
 <td class="cell-left">
-Field: <input name="limit_field" value="<% $ARGS{limit_field} %>" size="20" class="textareawhite"> &nbsp;&nbsp;Value: <input name="limit_value" value="<% $ARGS{limit_value} %>" size="20" class="textareawhite"><br>
-Enter a field name, and a corresponding value to limit the import to those records only.
+<%__("Field")%>: <input name="limit_field" value="<% $ARGS{limit_field} %>" size="20" class="textareawhite"> &nbsp;&nbsp;<%__("Value")%>: <input name="limit_value" value="<% $ARGS{limit_value} %>" size="20" class="textareawhite"><br>
+<%__("Enter a field name, and a corresponding value to limit the import to those records only.")%>
 </td>
 </tr>
 
 <tr>
-<td class="labelgray">File:</td><td class="cell-left"><input type="file" name="datafile" class="formbutton" id="File__y"></td>
+<td class="labelgray"><%__("File")%>:</td><td class="cell-left"><input type="file" name="datafile" class="formbutton" id="File__y"></td>
 </tr>
 
 <tr>
-<td>&nbsp;</td><td class="cell-submit"><input type="submit" value="Process" class="formbutton"></td>
+<td>&nbsp;</td><td class="cell-submit"><input type="submit" value="<%__("Process")%>" class="formbutton"></td>
 </tr>
 </table>
 </form>
-<h4>Alerts:</h4>
+<h4><%__("Alerts")%>:</h4>
 % foreach my $err (@err_logs) {
 	<div class="error"><% $err %></div>
 % }
@@ -91,7 +91,7 @@ Enter a field name, and a corresponding value to limit the import to those recor
 		<div class="<% $log->get_type %>"><% $log->get_message %></div>
 %	}
 % }
-<h4>Messages:</h4>
+<h4><%__("Messages")%>:</h4>
 % foreach my $log (@logs) {
 	<div class="<% $log->get_type %>"><% $log->get_type %> <% $log->get_message %></div>
 % }
@@ -104,7 +104,7 @@ Enter a field name, and a corresponding value to limit the import to those recor
 	my @err_logs;
 	if ($ARGS{'datafile'}) {
 		my $import = TUSK::Import->new;
-		$import->add_log("error","test run, course links will not be created") unless ($ARGS{'save'});
+		$import->add_log("error",__("test run, course links will not be created")) unless ($ARGS{'save'});
 
 		my $db_user = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername};
 		my $db_password = $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword};
@@ -127,7 +127,7 @@ Enter a field name, and a corresponding value to limit the import to those recor
 
 		if ($ARGS{'limit_field'} && $ARGS{'limit_value'}) {
 			$import->grep_records($ARGS{'limit_field'},$ARGS{'limit_value'});
-		    	$import->add_log("summary","limiting records to where $ARGS{'limit_field'} = $ARGS{'limit_value'}");
+		    	$import->add_log("summary",__("limiting records to where") ." $ARGS{'limit_field'} = $ARGS{'limit_value'}");
 		}
 		my $line_no = 0;
 		foreach my $record ($import->get_records) {
@@ -139,8 +139,7 @@ Enter a field name, and a corresponding value to limit the import to those recor
 				push (@users,$user->lookup_conditions("tufts_id='".$record->get_field_value("sid")."'"));
 				if (scalar @users != 1) {
 					#$import->add_log("error",$record->get_field_value("sid")." ".$record->get_field_value("name"));
-					$import->add_log("error","Record $line_no - User ".$record->get_field_value("sid").
-							" not found in TUSK");
+					$import->add_log("error",__x("Record {number} - User {id} not found in TUSK.", number => $line_no, id => $record->get_field_value("sid")));
 					next;
 				}
 				$user = $users[0];
@@ -149,8 +148,7 @@ Enter a field name, and a corresponding value to limit the import to those recor
 			}
 
 			if (!$user->primary_key) {
-				$import->add_log("error","Record $line_no - User ".$record->get_field_value("user_id").
-							" not found in TUSK");
+				$import->add_log("error",__x("Record {number} - User {id} not found in TUSK.", number => $line_no, id =>$record->get_field_value("user_id")));
 				next;
 			}
 			my $user_id = $user->primary_key;
@@ -162,8 +160,7 @@ Enter a field name, and a corresponding value to limit the import to those recor
 			if (join("-",$import->get_fields) =~ /course_id/) {
 				$course = HSDB45::Course->new(_school => $m->comp('/tmpl/url:get_school'), _id => $record->get_field_value("course_id"));
 				if (!$course->primary_key) {
-					$import->add_log("error","Record $line_no - Cannot find course ".
-							$record->get_field_value("course_id")." in TUSK");
+					$import->add_log("error",__x("Record {number} - Cannot find course {id} in TUSK.", number => $line_no, id => $record->get_field_value("course_id")));
 					next;					
 				}
 			} else {
@@ -171,8 +168,7 @@ Enter a field name, and a corresponding value to limit the import to those recor
 				@set = $course->lookup_conditions("oea_code='".$record->get_field_value("course_code")."'");
 
 				if (scalar @set != 1) {
-					$import->add_log("error","Record $line_no - Cannot find course ".
-							$record->get_field_value("course_code")." in TUSK");
+					$import->add_log("error",__x("Record {number} - Cannot find course {id} in TUSK", number => $line_no, id => $record->get_field_value("course_code")));
 					next;
 				} else {
 					$course = $set[0];
@@ -188,15 +184,14 @@ Enter a field name, and a corresponding value to limit the import to those recor
 				eval { $record->get_field_value("time_period") && $record->get_field_value("academic_year") };
 
 				if($@) {
-					$import->add_log("error","Record $line_no - FILE IS MISSING FIELDS ");
+					$import->add_log("error",__x("Record {number} - FILE IS MISSING FIELDS ", number => $line_no));
 					last;
 				} else {
 					my $timeref = HSDB45::TimePeriod->new( _school => $m->comp('/tmpl/url:get_school'));
     					@set = $timeref->lookup_conditions("period='".$record->get_field_value("time_period").
 						"' AND academic_year='".$record->get_field_value("academic_year")."'");
 					if (scalar @set != 1) {
-						$import->add_log("error","Record $line_no - Cannot find time period ".
-								$record->get_field_value("time_period")." in TUSK");
+						$import->add_log("error",__x("Record {number} - Cannot find time period {timeperiod} in TUSK", number => $line_no, timeperiod => $record->get_field_value("time_period")));
 						next;
 					} else {
 						$time_period_id = $set[0]->primary_key;
@@ -213,13 +208,12 @@ Enter a field name, and a corresponding value to limit the import to those recor
 				## look up  the teaching site
 				@set = HSDB45::TeachingSite->new(_school => $m->comp('/tmpl/url:get_school'), _id => $record->get_field_value("teaching_site"));
 				if( scalar @set != 1) {
-					$import->add_log("warning","Record $line_no - Cannot find teaching site ".
-						$record->get_field_value("teaching_site")." using none");
+					$import->add_log("warning",__x("Record {number} - Cannot find teaching site {id} using none", number => $line_no, id => $record->get_field_value("teaching_site")));
 					next;
 				} else {
 					$teaching_site = $set[0]->primary_key;
 					unless(exists($courseTeachingSites{$teaching_site})) {
-						$import->add_log("error", "Record $line_no - Teaching site ". $record->get_field_value("teaching_site") . " is not linked to course");
+						$import->add_log("error", __x("Record {number} - Teaching site {id} is not linked to course", number => $line_no, id => $record->get_field_value("teaching_site")));
 						next;
 					}
 				}
@@ -229,8 +223,7 @@ Enter a field name, and a corresponding value to limit the import to those recor
 			my $msg;
 			@set = $course->child_students("user_id='".$user_id."'","time_period_id=".$time_period_id);
 			if (@set > 0) {
-				$import->add_log("message","Record $line_no - $user_id already in course ".
-					$course->primary_key);
+				$import->add_log("message",__x("Record {number} - {user_id} already in course {id}", number => $line_no, user_id => $user_id, id => $course->primary_key));
 				next; 
 			} else {
 				if ($ARGS{'save'}) {
@@ -239,14 +232,14 @@ Enter a field name, and a corresponding value to limit the import to those recor
 				if ($r) {
 					$msg = "OK";
 				}
-				my $line = "Record $line_no - adding $user_id to course ". $course->primary_key ." for period $time_period_id, teaching site ";
-				if($teaching_site) {$line .= $teaching_site;} else {$line .= "None";}
+				my $line = __x("Record {number} - adding {user_id} to course {id} for period {time_period}, teaching site", number => $line_no, user_id => $user_id, id => $course->primary_key, time_period => $time_period_id);
+				if($teaching_site) {$line .= $teaching_site;} else {$line .= __("None");}
 				if($msg) {$line .= " - $msg";}
 				$import->add_log("message",$line);
 			}
 		}
 
-		$import->add_log("summary","processing ".scalar $import->get_records." records");
+		$import->add_log("summary",__("processing") .scalar $import->get_records.__(" records"));
 		@logs = $import->get_logs;
 		@err_logs = @{$import->get_err_msgs};
 	}
@@ -256,7 +249,7 @@ my @time_periods = $tp->nonpast_time_periods;
 </%init>
 
 <%method title>
-% return "Import Students";
+% return __("Import Students");
 </%method>
 
 <%method red_header_text>

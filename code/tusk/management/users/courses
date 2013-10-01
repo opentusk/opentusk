@@ -2,20 +2,19 @@
 	use TUSK::Manage::User;
 	use HSDB4::SQLRow::User;
 	use HSDB4::Constants;
-	use Data::Dumper;
 </%once>
 
 <%shared>
 	my $schl = $m->comp("/tmpl/url:get_school");
-	our $user = HSDB4::SQLRow::User->new->lookup_key($m->comp("/tmpl/url:get_last_path_id"));
+	my $user = HSDB4::SQLRow::User->new->lookup_key($m->comp("/tmpl/url:get_last_path_id"));
 </%shared>
 
 <br>
 % if (!$user) {
-<i>User not found.</i>
+<i><%__("User not found.")%></i>
 % } else {
 % 	if (@coursearray) {
-<div style="font-weight:bold" class="sm">Enrolled Courses</div>
+<div style="font-weight:bold" class="sm"><%__("Enrolled Courses")%></div>
 <br>
 <div id="coursesdiv"></div>
                                 
@@ -26,13 +25,12 @@
                         sort => {usage=>'No'},
                         action => {usage=>'No'},
                         display => [
-                                        {field=>'course_id', 'label'=>'Course ID',
-						align=>'left', length=>100},
+                                        {field=>'course_id', 'label'=>__('Course id'), align=>'left', length=>100},
                                         {field=>'title', align=>'left', length=>400},
                                         {field=>'school', align=>'left', length=>200},
-										{field=>'start_date', align=>'left', 'label'=>'Start Date', 'align'=>'center', length=>150},
-										{field=>'end_date', align=>'left', 'label'=>'End Date', 'align'=>'center', length=>150},
-                                        {field=>'oea_code', label=>'Reg. Code', align=>'center', length=>200}
+					{field=>'start_date', align=>'left', 'label'=>__('Start date'), 'align'=>'center', length=>150},
+					{field=>'end_date', align=>'left', 'label'=>__('End date'), 'align'=>'center', length=>150},
+                                        {field=>'oea_code', label=>__('Reg. code'), align=>'center', length=>200}
                                   ],
                         validate => {
                                         usage => 'No',
@@ -55,12 +53,10 @@
                         sort => {usage=>'No'},
                         action => {usage=>'No'},
                         display => [
-                                        {field=>'course_id', 'label'=>'Course ID',
-                                                align=>'left', length=>100},
+                                        {field=>'course_id', 'label'=>__('Course ID'),  align=>'left', length=>100},
                                         {field=>'title', align=>'left', length=>400},
                                         {field=>'school', align=>'left', length=>100},
-                                        {field=>'roles', label=>'Roles',
-                                                align=>'left', length=>300}
+                                        {field=>'roles', label=>__('Roles'), align=>'left', length=>300}
                                   ],
                         validate => {
                                         usage => 'No',
@@ -72,56 +68,53 @@
 <br><br>
 % }
 % if (!@coursearray & !@facultycoursearray) {
-<div class="sm"> This user has no associated course information.</div>
+<div class="sm"> <%__("This user has no associated course information.")%></div>
 % }
 % }
 
 
 <%init>
-	
-	
-	our (@all_courses,@faculty_courses);
+	my (@all_courses, @author_courses);
 
 	if ($user){
-	    #my @user_group_courses = map { $_->current_courses } $user->parent_user_groups();	# KIGER - Removed for usergroup migration.
+	    #my @user_group_courses = map { $_->current_courses } $user->parent_user_groups();	# kiger - removed for usergroup migration.
 		my @user_group_courses;
 	    my @linked_courses = $user->current_courses();
 	    @all_courses = ( @user_group_courses,@linked_courses);
-	    @faculty_courses = $user->parent_courses();
+	    @author_courses = $user->author_courses();
 	}
 
-	our @coursearray = sort {$a->{'title'} cmp $b->{'title'} } map { {'course_id'=>$_->primary_key,
+	my @coursearray = sort {$a->{'title'} cmp $b->{'title'} } map { {'course_id'=>$_->primary_key,
 					'title'=>$_->title(),
 					'school'=>$_->school(),
 					'oea_code'=>$_->field_value('oea_code'),
 					'start_date'=> (HSDB45::TimePeriod->new(_school=>$_->school())->lookup_key($_->aux_info('time_period_id'))->start_date() )->out_string_date_short_year(),	
 				 	'end_date'=> (HSDB45::TimePeriod->new(_school=>$_->school())->lookup_key($_->aux_info('time_period_id'))->end_date() )->out_string_date_short_year(),
-						} } @all_courses;
+			} } @all_courses;
 
-	our @facultycoursearray = sort {$a->{'title'} cmp $b->{'title'} } map { {'course_id'=>$_->primary_key,
+	my @facultycoursearray = sort {$a->{'title'} cmp $b->{'title'} } map { {'course_id'=>$_->primary_key,
 					'title'=>$_->title(),
 					'school'=>$_->school(),
 					'roles'=>$_->aux_info('roles'),
-					 } } @faculty_courses;
-	
+					 } } @author_courses;
 </%init>
 
 <%method jsarray>
-% return ['layers.js'];
+% 	return ['layers.js'];
 </%method>
 
 <%method title>
-% return "View Course Info";
+% 	return __("View Course Info");
 </%method>
 
 <%method red_header_text>
-% return $m->comp("SELF:title");
+% 	return $m->comp("SELF:title");
 </%method>
 
 <%method get_nav_bars>
 <%perl>
 	my $nav_bars =[];
-	$nav_bars = [ { href=>'/management/home', label=> 'CMS Home' },{ href=>'', label=> 'Admin - '.$user->affiliation() }, { href=>'/management/users/show/school/'.$schl, label=> 'Find Users' } ];
+	$nav_bars = [ { href=>'/management/home', label=> __('CMS Home') },{ href=>'', label=> __('Admin').' - '.$user->affiliation() }, { href=>'/management/users/show/school/'.$schl, label=> __('Find Users') } ];
 	return $nav_bars;
 </%perl>
 </%method>

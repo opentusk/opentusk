@@ -1,197 +1,257 @@
-// Copyright 2012 Tufts University 
-//
-// Licensed under the Educational Community License, Version 1.0 (the "License"); 
-// you may not use this file except in compliance with the License. 
-// You may obtain a copy of the License at 
-//
-// http://www.opensource.org/licenses/ecl1.php 
-//
-// Unless required by applicable law or agreed to in writing, software 
-// distributed under the License is distributed on an "AS IS" BASIS, 
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-// See the License for the specific language governing permissions and 
-// limitations under the License.
+$(document).ready(function(){
+	$('ul img.more').click(changeState);
+	$('.notifications .close').click(closeNotifications);
+	$('nav.tabs li a').click(changeTabState);
+	$('nav.toptabs li a').click(changeTabState);
+	$('.personal .tab input[type=button]').click(managePersonalLinks);
+	makeLinksDropDown();
+});
 
+var $dialog;
 
-/* 
-the first time we mouse over an announcement, make a full text window for display.
-the elt passed in is the link that was moused over to show the fullTextWin
-*/
-function makeFullTextWin(elt){
-	var new_win = document.createElement('div');
-
-	// the elt (link) has a classname that uniquely identifies the link.
-	// take that name, give it to the new_win so that we can easily identify
-	// window/link pairs so that we can treat the link/window as one entity
-	// for mouseover/off considerations. that is, when user moves mouse from window
-	// to link, do not consider that a mouseoff but a continued mouseover
-	new_win.className = 'fullTxtWin ' + elt.className;
-	new_win.regex = elt.regex = new RegExp(elt.className);
-
-	new_win.onmouseout = function(event) { mouseoffFullText(event) };
-
-	positionWin(elt, new_win);
-
-	// each announcement is in a two member ul
-	// the first member is the abbreviated announcement.
-	// the second is the full text, get that one.
-	var parentUL = elt.parentNode.parentNode
-	var sibling = parentUL.getElementsByTagName('li')[1];
-	var txt = sibling.innerHTML;
-
-	new_win.innerHTML  = '<div class="fullTxt">' + txt + '</div>';
-	return new_win;
+// toggle nested list state between open and closed
+function changeState() {
+	var item = $(this).parent('li');
+	$(item).toggleClass('open');
+	$(item).toggleClass('closed');
 }
 
-// make window appear 100px to the right of the upper left corner of the link
-function positionWin(elt, new_win){
-	var xy = findPos(elt);
-	var x = xy[0] + 100;
-	var y = xy[1];
-	new_win.style.top = (y) + 'px'; 
-	new_win.style.left = (x) + 'px';
-}
-
-
-function showFullText(e){
-	if(!e) e = window.event;
-	var elt = getElt(e);
-
-	if(!elt.currently_over){
-		elt.currently_over = true;
-		if(!elt.fullTxtWin){
-			var ft_win = makeFullTextWin(elt);
-
-			ft_win.lnk = elt;
-			elt.fullTxtWin = ft_win;
-
-			document.body.appendChild(ft_win);
-		}
-		elt.fullTxtWin.style.display = 'block';
-	}
-}
-
-
-function hideFullText(full_text_win){
-	var anchor = full_text_win.lnk;
-
-	anchor.currently_over = false;
-	full_text_win.style.display = 'none';
-}
-
-
-function clickFullText(e){
-	if(!e) e = window.event;
-	var elt = getElt(e);
-
-	// bubble up from the "close" link to find the fullTextWindow.
-	// we will know when we have reached it because of the class on the dom element
-	while(!elt.className.match(/winPartner/)){
-		elt = elt.parentNode;
-	}
-
-	hideFullText(elt);
-
-}
-
-function mouseoffFullText(e){
-	if(!e) e = window.event;
-	var elt = getElt(e);
-
-	var to_elt = e.relatedTarget || e.toElement;
-
-	// do not consider a mouseoff from link to the fulltextwin or vice-versa a mouseoff
-	// both elt's will have a class of winPartner_[integer]
-
-	// a little complex b/c if the fulltxtwin contained a span elt, mousing over that
-	// span will constitute a mouseoff the fulltxtwin.
-	// so, when we generate a mouseoff event, we want to bubble-up from the moused over
-	// elt until we either reach the fulltextwin (with class matching winPartner) or
-	// a parent element that has a class (say the body element).
-	// this will make sure that we didn't mouseoff the fulltxtwin by mousing over an
-	// elt contained within the fulltxtwin.
-	while(!to_elt.className.match(/winPartner/)){
-		if(typeof to_elt.parentNode.className != 'undefined'){
-			to_elt = to_elt.parentNode;
-		}
-		else {
-			break;
-		}
-	}
-
-	// we are either mousing off the link in the left nav, the fullTextwin, or
-	// some elt contained within the fulltxtwin. for reason explained immediately 
-	// above, if we are in the last case, bubble up until we are the fulltxtwin, itself.
-	while(!elt.className.match(/winPartner/)){
-		elt = elt.parentNode;
-	}
-
-	// if we moused off the fulltxtwin for the announcement link or vice versa,
-	// do not consider that a mouseoff
-	if(to_elt.className.match(elt.regex)){
-		return;
-	}
-
-	var full_text_win = (elt.fullTxtWin)? elt.fullTxtWin : elt;
-
-	hideFullText(full_text_win);
-}
-
-
-
-function toggleHdr(caller, uid, section){
-	// anchor is in h3 (first parentNode), which is in a div (second parentNode)
-	// get that div
-	var parent = caller.parentNode.parentNode;
-
-	var elt = getElementsByClass({className: 'toggled', tag: 'div', node: parent})[0];
-
-	var action;
-	if(elt.className.match(/\sgDisplayNone/)){
-		elt.className = elt.className.replace(/\sgDisplayNone/, '');
-		caller.innerHTML = '[-]';
-		action = 'include';
-	}
-	else{
-		elt.className += ' gDisplayNone';
-		caller.innerHTML = '[+]';
-		action = 'exclude';
-	}
-	exclude(action, uid, section);
-}
-
-// make ajax call to mason page that will ex/include this section
-// for display to user
-function exclude(action, uid, section){
-	xRequest = initXMLHTTPRequest();
+// hide school announcements currently being displayed and save preference to database
+function closeNotifications() {
+	$('.notifications').hide();
+	$('#gContent').removeClass('withnote');
+	// AJAX call to hide user's current announcements
+	var url = '/user/ajax/hideCurrentAnnouncements';
+	var xRequest = new initXMLHTTPRequest();
 	if (xRequest) {
-		var params = 'action=' + action + '&uid=' + uid + '&section=' + section;
-		xRequest.open("POST", '/tusk/ajax/home_section_exclusion', true);
+		xRequest.open("POST", url, true);
 		xRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-		xRequest.send(params);
+		xRequest.send();
 	}
+	materialsHeightAdjust();
 }
 
+// change class of clicked on tab to current and make previous tab not current anymore
+function changeTabState() {
+	var tab = $($(this).attr('href'));
+	tab.addClass('current');
+	tab.siblings().removeClass('current');
+	var item = $(this).parent('li');
+	item.addClass('current');
+	item.siblings().removeClass('current');
+	return false;
+}
 
-// if user clicks on a parent sublink label, toggle the display of the 
-// sublinks.
-function toggleSublinkDisplay(elt){
+/* begin Personal Links */
 
-	var nested_uls = getElementsByClass({ node: elt.parentNode, className: 'nestedList', tag: 'ul'}); 
-
-	if (elt.className == 'closed') {
-		elt.innerHTML = elt.innerHTML.replace(/\[\+\]/, '[-]');
-		if (nested_uls[0]) {
-			nested_uls[0].className = nested_uls[0].className.replace(/\s?gDisplayNone\s?/, '');
+// show dialog box for managing personal links
+function managePersonalLinks() {
+	if (!$dialog) {
+		$dialog = $('<div></div>')
+			.html('<form onsubmit="return savePersonalLinks()"><h2>' + _("Add New Link") + '</h2><p><label>' + _("Label") + '</label><input type="text" id="newlabel" /><span class="spacer">&nbsp;</span><label>' + _("URL") + '</label><input type="text" id="newurl" /><span class="spacer">&nbsp;</span><input type="button" value="' + _("add") + '" onclick="addPersonalLink()" /></p><hr /><h2>' + _("Modify Existing Links") + '</h2><p>' + _("To delete an existing link, leave both the Label and URL fields blank.") + '</p><div id="personalLinks">' + displayPersonalLinks() + '</div><p class="buttons"><input type="submit" value="' + _("save") + '"></p></form>')
+			.dialog({
+				autoOpen: false,
+				title: _("Manage your personal links"),
+				modal: true,
+				width: '50%'
+			});
 		}
+	$dialog.dialog('open');
+	// prevent the default action (following a link)
+	return false;
+}
+
+// loop through links JSON array and output HTML table of links
+// will re-set order to continuous increments starting with 1 in case there are gaps
+function displayPersonalLinks() {
+	var html = "<table>\n<thead>\n<tr>\n<th>" + _("Order") + "</th><th>" + _("Label") + "</th><th>" + _("URL") + "</th>\n</tr>\n</thead>\n<tbody>";
+		
+	var orders = jQuery.map(links, function(n, i){
+      return (n.sort_order);
+    });
+
+	$.each(links, function(index, row) { 
+		html += "<tr>\n<td><select class='sort_order' name='sort_order_";
+		html += row.id;
+		html += "'>\n";
+		var counter = 1;
+		$.each(orders, function(num, thisvalue) {
+			html += "<option";
+			if (row.sort_order == thisvalue) {
+				html += " selected='selected'>";
+			}
+			else {
+				html += ">";
+			}
+			html += counter;
+			html += "</option>\n";
+			counter += 1;
+		});
+		html += "</select></td>\n<td><input type='text' class='js-personal-link-label' name='label_";
+		html += row.id;
+		html += "' value='";
+		html += row.label;
+		html += "' /></td>\n<td><input type='text' class='js-personal-link-url' name='url_";
+		html += row.id;
+		html += "' value='";
+		html += row.url;
+		html += "' /></td>\n</tr>";
+	});
+	html += "</tbody></table>";
+	return html;
+}
+
+// add new element to JSON array of links from form fields and re-display table
+function addPersonalLink() {
+	updateLinksArray();
+	if ($("#newlabel").val() && $("#newurl").val()) {
+		var newItem = new Object();
+		newItem.id = '';
+		newItem.sort_order = links.length + 1;
+		newItem.label = $("#newlabel").val();
+		newItem.url =  $("#newurl").val();
+		links.push(newItem);
+		$("#newlabel").val('');
+		$("#newurl").val('');
+		$("#personalLinks").html(displayPersonalLinks());
 	}
 	else {
-		elt.innerHTML = elt.innerHTML.replace(/\[-\]/, '[+]');
-		if (nested_uls[0]) {
-			nested_uls[0].className = nested_uls[0].className += ' gDisplayNone';
+		alert(_("Please fill out both the Label and URL fields to add a new link."));
+	}
+}
+
+// submit links via AJAX and regenerate drop down of links
+function savePersonalLinks() {
+	// validate form data to make sure the necessary fields have been filled out
+	var counter = 1;
+	var error;
+	$(".js-personal-link-label").each(function() {
+		error = '';
+		var thislabel = $(this).val();
+		var thisurl =  $(this).parent('td').siblings().children(".js-personal-link-url").val();
+		if (!(/^((https?|ftp):\/\/)?(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(thisurl))) {
+			error = _('The URL in row ') + counter + _(' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
+		if(!(/\S+/.test(thislabel))) {
+			error = _('The Label in row ') + counter + _(' is blank.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
+		}
+		if(!(/\S+/.test(thisurl)) && !(/\S+/.test(thislabel))) {
+			error = '';
+		}
+		if (error != '') {
+			return false;
+		}
+		counter += 1;
+	});
+
+	if (error && error != '') {
+		alert(error);
+		return false;
 	}
 
-	elt.className = (elt.className == 'closed')? 'open' : 'closed';
-
+	// no error, so go ahead and send the AJAX request to save the data
+	updateLinksArray();
+	var ajax = new initXMLHTTPRequest();
+	if (ajax) {
+		ajax.open("POST", '/user/ajax/savePersonalLinks', true);
+		ajax.onreadystatechange = resetAllLinkData;
+		ajax.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		ajax.send("data=" + encodeURIComponent(JSON.stringify(links)));
+	}
+	else {
+		alert('There was an error saving the link data.');
+	}
+	return false;
 }
+
+// either use the JSON returned from the AJAX call to rebuild the links array, 
+// dropdown and dialog fields
+// or let the user know that there was a problem
+function resetAllLinkData() {
+	if (this.readyState == 4) {
+		if (this.status == 200 && this.responseText) {
+			var tmpArray = eval(this.responseText);
+			links.length = 0;
+			$(tmpArray).each(function() {
+				links.push(JSON.parse(this));
+			});
+			makeLinksDropDown();
+			$("#personalLinks").html(displayPersonalLinks());
+			$($dialog).dialog( "close" );
+		}
+		else{
+			alert(_("An error has occurred while attempting to save."));
+			return false;
+		}
+	}
+}
+
+// update JSON array of links from input fields, ordered by sort_order field
+function updateLinksArray() {
+	links.length = 0;
+	$(".js-personal-link-label").each(function() {
+		var matches = $(this).attr("name").match(/label_(.*)/);
+		var id = matches[1];
+		var newItem = new Object();
+		newItem.id = id;
+		newItem.sort_order = $(this).parent('td').siblings().children(".sort_order").val();
+		newItem.label = $(this).val();
+		newItem.url =  $(this).parent('td').siblings().children(".js-personal-link-url").val();
+		links.push(newItem);
+	});
+	links.sort(function(a,b){return a.sort_order - b.sort_order});
+}
+
+// use JSON links array to generate select form element of personal links
+function makeLinksDropDown() {
+	var options = "<option value=''>" + _("My links") + "...</option>";
+	$.each(links, function(index, hash) {
+		if (hash.label != '' && hash.url != '') {
+			options += '<option value="';
+			options += hash.url
+			options += '">';
+			options += hash.label;
+			options += "</option>\n";
+		}
+	});
+	$("select.linklist").html(options);
+}
+
+/* end Personal Links */
+
+function toggleMaterialLinks( material, obj ) {
+	var materialLinks = document.getElementById( material );
+	if ( $( '#' + material ).css( "display" ) == "inline" ) {
+		$( '#' + material ).css( "display", "none" );
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png" );
+	} else {
+		$( '#' + material ).css( "display", "inline" );
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
+		materialsHeightAdjust();
+	}
+}	
+
+function materialsHeightAdjust() {	
+	var paddingAdjustment = 70; //px
+	var trafficLightHeight = ( $( '#gTrafficLight' ).height() ) || 0;
+	if ( trafficLightHeight > 0 ) {
+		paddingAdjustment = paddingAdjustment - 25;
+	};
+	var scrollBoxHeight = $( '#gContent' ).height() + trafficLightHeight - $( '#communicationsBox' ).height() - paddingAdjustment;
+	$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );		
+}
+
+function toggleLinksLinks( material, obj ) {
+	if ( $( '#' + material ).css( "display" ) == "none" ) {
+		$( '#' + material ).css( "display", "block");
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
+	} else {
+		$( '#' + material ).css( "display", "none");
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png");
+	}
+}
+
+
+	
+	
+

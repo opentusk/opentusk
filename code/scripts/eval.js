@@ -40,7 +40,7 @@ function doQuickRefWindow(url) {
         'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
 }
 
-
+// TODO: This sort of browser fiddling would be better done with jQuery
 function satisfy(qid, type) {
   var imgname="flag_"+qid;
   var fieldname = "eval_q_"+qid;
@@ -64,6 +64,16 @@ function satisfy(qid, type) {
         image.src = "/icons/transdot.gif";
       } 
     }
+    else if ('value' in element) {
+      // check if element's value is non-empty
+      if (element.value.length == 0) {
+        image.src = "/icons/reddot.gif";
+      }
+      else {
+        requiredSatisfied(qid);
+        image.src = "/icons/transdot.gif";
+      }
+    }
     else {
       // It's probably OK, and we can just mark it as such
       requiredSatisfied(qid);
@@ -76,7 +86,7 @@ function satisfy(qid, type) {
 function checkLoadPassword() {
   var element = document.forms['load_form'].elements['load_password'];
   if (element.value.length == 0) {
-    alert("Please enter your password before selecting \"Load\".");
+    alert(_('Please enter your password before selecting "Load".'));
     return false;
   }
   return true;
@@ -88,7 +98,7 @@ function lengthCheck(qid,type,length){
   var element = document.forms['eval_form'].elements[fieldname];
   if (element.value.length >= length) {
 	element.value = element.value.substring(0,length );
-	alert("Your answer must be less than "+length+" characters.");
+	alert(_("Your answer must be less than ")+length+_(" characters."));
 	return false ;
   } 
   return true;
@@ -130,27 +140,27 @@ function verifyDates(available_date, due_date) {
 	if (available_date.value){
 		available_date_object = make_date_no_time_object(available_date.value);
 		if (available_date_object == 'Invalid Date') {
-			errmsg.push("Please use the format YYYY-MM-DD for the available date.");
+			errmsg.push(_("Please use the format YYYY-MM-DD for the available date."));
 			check_date_range = 0;
 		}
 	} else {
-		errmsg.push("Please enter the available date (YYYY-MM-DD).");
+		errmsg.push(_("Please enter the available date (YYYY-MM-DD)."));
 	}
 
 	if (due_date.value){
 		due_date_object = make_date_no_time_object(due_date.value);
 		if (due_date_object == 'Invalid Date'){
-			errmsg.push("Please use the format YYYY-MM-DD for due date.");
+			errmsg.push(_("Please use the format YYYY-MM-DD for due date."));
 			check_date_range = 0;
 		}
 	} else {
-		errmsg.push("Please enter the due date (YYYY-MM-DD).");
+		errmsg.push(_("Please enter the due date (YYYY-MM-DD)."));
 	}
 
 
 	if (check_date_range && due_date.value && available_date.value){
 		if (due_date_object < available_date_object){
-			errmsg.push("Please make sure the due date is after the available date.");
+			errmsg.push(_("Please make sure the due date is after the available date."));
 		}
 	}
 
@@ -188,23 +198,23 @@ function verifyCreateEvalsByUser() {
 	}
 
 	if (!document.bulkevalsbyuser.template_eval_id.value) {
-		errmsg.push('Please enter a Template Eval ID.');
+		errmsg.push(_('Please enter a Template Eval ID.'));
 	}
 
 	if (!document.bulkevalsbyuser.title.value) {
-		errmsg.push('Please enter a title.');
+		errmsg.push(_('Please enter a title.'));
 	}
 
 	if (!document.bulkevalsbyuser.time_period_id.value) {
-		errmsg.push('Please select a time period.');
+		errmsg.push(_('Please select a time period.'));
 	}
 
 	if (!document.bulkevalsbyuser.course_id.value) {
-		errmsg.push('Please select a course.');
+		errmsg.push(_('Please select a course.'));
 	}
 
 	if (!isCourseUserSelected(document.bulkevalsbyuser.course_user)) {
-		errmsg.push('Please select at least one faculty/staff.');
+		errmsg.push(_('Please select at least one faculty/staff.'));
 	}
 
 	if (errmsg.length){
@@ -212,7 +222,7 @@ function verifyCreateEvalsByUser() {
 		return false;
 	} 
 
-	if (confirm('Do you want to create evaluations ?')) {
+	if (confirm(_('Do you want to create evaluations?'))) {
 		return true;
 	} else {
 		return false;
@@ -232,7 +242,7 @@ function verify_create_bulk_evals_submit() {
 	}
 
 	if (!document.createbulkevals.time_period_id.value) {
-		errmsg.push('Please select a time period.');
+		errmsg.push(_('Please select a time period.'));
 	}
 
 	if (errmsg.length){
@@ -240,7 +250,7 @@ function verify_create_bulk_evals_submit() {
 		return false;
 	} 
 
-	if (confirm('Do you want to create evaluations for selected time period?')) {
+	if (confirm(_('Do you want to create evaluations for selected time period?'))) {
 		return true;
 	} else {
 		return false;
@@ -259,7 +269,7 @@ function verifyForward(destination, eval_id) {
 				location.href = dest;
 			}
 		} else {
-			if (confirm('Do you want to delete eval id ' + eval_id + ' ?')) {
+			if (confirm(_('Do you want to delete eval id ') + eval_id + ' ?')) {
 				location.href = dest;
 			} 
 		} 
@@ -272,7 +282,7 @@ function verifyForward(destination, eval_id) {
 function verifyOtherEvalTools() {
 	var destination = document.other_eval_tools.url;
 	if (!destination.value) {
-		alert('Please select an evaluation tool.');
+		alert(_('Please select an evaluation tool.'));
 		return false;
 	} else {
 		return true;
@@ -294,7 +304,7 @@ function forwardOtherEvalTools() {
 function verifyShowEvalsByTimePeriod() {
 	var time_period = document.show_evals_by_time_period.time_period_id;
 	if (!time_period.value) {
-		alert('Please select a time period.');
+		alert(_('Please select a time period.'));
 		return false;
 	} 
 	return true;
@@ -304,7 +314,7 @@ function verifyShowEvalsByTimePeriod() {
 function verifyShowEvalsByCourse() {
 	var course = document.show_evals_by_course.course_id;
 	if (!course.value) {
-		alert('Please select a course.');
+		alert(_('Please select a course.'));
 		return false;
 	} 
 	return true;

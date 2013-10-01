@@ -28,16 +28,16 @@
 </%once>
 
 <%method title>
-% return ("Where Are You From?");
+% return __("Where Are You From?");
 </%method>
 
 <%perl>
 	my $shibRunning = 0;
 	my $checkError;
 	# Lets check to see if there is a pid file and if so is that process actually running and is it a shib process?
-	unless(-e "$ENV{LOG_ROOT}/shibd.pid") {$checkError = "The shibd.pid file does not exist at $ENV{LOG_ROOT}/shibd.pid.\nDid you move it? Is \$ENV{LOG_ROOT} incorrect?";}
+	unless(-e "$ENV{LOG_ROOT}/shibd.pid") {$checkError = __x("The shibd.pid file does not exist at {env}/shibd.pid.\nDid you move it? Is /{env} incorrect?", env => $ENV{LOG_ROOT});}
 	else {
-		unless(open(PID, "$ENV{LOG_ROOT}/shibd.pid")) {$checkError = "Unable to open shibd.pid for read under $ENV{LOG_ROOT} : $!";}
+		unless(open(PID, "$ENV{LOG_ROOT}/shibd.pid")) {$checkError = __x("Unable to open shibd.pid for read under {env}: {sym}", env => $ENV{LOG_ROOT} : sym => $!);}
 		else {
 			my $pid = <PID>;
 			chomp($pid);
@@ -45,7 +45,7 @@
 
 			# Untaint path
 			if($ENV{PATH} =~ /(.*)/) {$ENV{PATH} = $1;}
-			unless(open(COMMAND, "/bin/ps -ef |")) {$checkError = "Could not run ps -ef : $!\n";}
+			unless(open(COMMAND, "/bin/ps -ef |")) {$checkError = __x("Could not run ps -ef : {sym}\n", sym => $!);}
 			else {
 				while(<COMMAND>) {
 					my $line = $_;
@@ -56,7 +56,7 @@
 					}
 				}
 				unless($shibRunning) {
-					$checkError = "Unable to determine if shibd was running" . $checkError;
+					$checkError = __("Unable to determine if shibd was running") . $checkError;
 				}
 			}
 		}
@@ -73,9 +73,9 @@
 </script>
 <br><br><br><center>
 <form>
-Please select the institution you are from to start an external login
+<%__("Please select the institution you are from to start an external login")%>
 <select name="from" onChange="startLogin(this[this.selectedIndex].value);">
-	<option value="Select" SELECTED>Select</option>
+	<option value="Select" SELECTED><%__("Select")%></option>
 %	my $shibbolethUsers = TUSK::Shibboleth::User->new->lookup();
 %	foreach my $shibUserObject (@{$shibbolethUsers}) {
 %		if($shibUserObject->ifIsEnabled()) {
@@ -88,28 +88,28 @@ Please select the institution you are from to start an external login
 %	my $mail = TUSK::Application::Email->new({
 %		to_addr => $TUSK::Constants::ErrorEmail,
 %		from_addr => $TUSK::Constants::ErrorEmail,
-%		subject => "Attempted Shib Login with Shibd Down",
-%		body => "A user wanted to use the shibboleth login but as far as I can tell shibd is down.\n" . $checkError . "\nPlease check the shibd is running... there is no way to notify the user unless they called.",
+%		subject => __("Attempted Shib Login with Shibd Down"),
+%		body => __("A user wanted to use the shibboleth login but as far as I can tell shibd is down.")."\n" . $checkError . "\n".__("Please check the shibd is running... there is no way to notify the user unless they called."),
 %	});
 
-	I'm sorry, the shibboleth daemon does not appear to be running. This will prevent you from being able to login. <br>
+	<%__("I'm sorry, the shibboleth daemon does not appear to be running. This will prevent you from being able to login.")%> <br>
 %	if ($mail->send()) {
-		I have already notified the administrators of the system.
+		<%__("I have already notified the administrators of the system.")%>
 %		if($TUSK::Constants::ContactURL) {
-			<br>If you would like to follow up on this issue, please view the <a href="<% $TUSK::Constants::ContactURL %>">Contact Us Page</a>
+			<br><%__x('If you would like to follow up on this issue, please view the <a href="{ContactURL}">Contact Us Page</a>', ContactURL => $TUSK::Constants::ContactURL)%>
 %		}
 %	} else {
-%		warn("Unable to send email\n" . $mail->getError() . "Shibd error: " . $checkError);
+%		warn(__("Unable to send email")."\n" . $mail->getError() . __("Shibd error: ") . $checkError);
 %		if($TUSK::Constants::ContactURL) {
-			<br>Pplease contact the administrators of this system using the <a href="<% $TUSK::Constants::ContactURL %>">Contact Us Page</a>
+			<br><%__x('Please contact the administrators of this system using the <a href="{ContactURL}">Contact Us Page</a>', ContactURL => $TUSK::Constants::ContactURL)%>
 %		} else {
-			<br>Please contact the administrators of this system.
+			<br><%__("Please contact the administrators of this system.")%>
 %		}
 %	}
 % }
 
 <br><br>
-<input type="button" class="formbutton" value="Return To Login Screen" onClick="document.location='/';">
+<input type="button" class="formbutton" value="<%__("Return To Login Screen")%>" onClick="document.location='/';">
 </form>
 </center><br><br><br>
 

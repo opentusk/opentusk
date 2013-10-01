@@ -1,0 +1,474 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+# use strict;
+use Getopt::Long;
+my ($school,$time_period,$file,$save,$saveuser);
+
+BEGIN {
+    print "import_enroll_listing has been converted to a web-based tool. Please request information from TUSK user support.\n";
+    exit;
+    GetOptions( "school=s" => \$school,
+	    "time-period=s" => \$time_period,
+	    "file=s" => \$file,
+	    "save!" => \$save,
+	    "saveuser!" => \$saveuser,
+	    );
+    if (!$school || !$file || !$time_period) {
+	print "Usage: import_enroll_listing --school=<school> --file=<file> --time-period=<time_period_id,time_period_id ...> --save\n";
+	exit;
+    }
+}
+
+use MySQL::Password;
+use HSDB4::Constants qw(:school);
+use HSDB4::SQLRow::User;
+use HSDB45::TimePeriod;
+
+HSDB4::Constants::set_user_pw(get_user_pw);
+
+my $db = get_school_db($school);
+
+# turn on verbose mode (spits out debug information)
+$verbose = 1;
+
+## variables
+my $errors_file = ">$file".".errors";
+my ($live,$createeval);
+my @time_periods = split(",",$time_period);
+$live = 1 if ($save);
+
+## an little secret to use if you don't want to create evals
+$createeval = 1 unless ($saveuser);
+
+print "!!!!!!!!!!\nTHIS IS LIVE\n!!!!!!!!!!\n" if ($live);
+
+my ($user_name,$user_pass) = get_user_pw();
+
+if (!$user_name || !$user_pass) {
+    print "Can't locate authentication information for database transaction.\n";
+    exit;
+}
+
+# open the file handles
+open ERRORFILE, $errors_file;
+
+open FILE, $file;
+
+my ($oeamsg,$oeamsg2,$tmmsg,%eval_list);
+$ssnmsg2="";
+$ssnmsg="";
+
+%fields;
+
+$lines_completed = 0;
+$lines_looked_at = 0;
+
+while (<FILE>) {
+    
+    # undefine the two global hashes (just in case)
+    undef %var, %fields;
+    
+    # create the first global hash (var) which contains variables used for processing
+    $var{line} = $_;
+
+    ## skip if there is no line
+    next if ($var{line} =~ /^$/ || $var{line} =~ /SocSecNum/);
+    
+    $lines_looked_at++;
+    
+    my $fields_ref;
+    
+    # get the values and put them in a hash
+    next unless (%fields = &get_values($var{line}));
+
+    next unless (&time_period_match);
+		
+    # look up the user_id
+    next unless ($var{user_id} = &look_up_user_id($fields{SocSecNum}));
+	
+    # look up the course_id and course_title
+    next unless (($var{course_id}, $var{course_title}) = &look_up_course_id);
+
+    # get the course level
+    $var{course_level} = $fields{SubjectCode};
+    $var{course_level} =~ s/.+?(\d\d+)/$1/;
+
+    # get the time period
+    next unless ($var{time_period} = &get_time_period);
+      
+    # get the time period id
+    next unless ($var{time_period_id} = &get_time_period_id($var{time_period}));
+   
+    # get the epoch start and end dates (put dates in Mysql terms)
+    ($var{epoch_start}, $var{epoch_end}) = &get_epoch_dates;
+     
+    if ($live) {
+	# create link in link_course_user only if LIVE
+       	&create_link_course_user($db);
+
+       	# create eval records if needed only if LIVE
+       	if ($createeval) {
+	    next unless ($var{eval_id} = &create_eval);
+	}
+    }
+	
+    # print user info to the screen
+    if ($verbose) {
+	&print_user_info;
+    }
+    $lines_completed++;
+}
+
+# close the file handles
+close FILE;
+
+close ERRORFILE;
+
+chop($ssnmsg);
+chop($ssnmsg2);
+chop($oeamsg2);
+chop($oeamsg);
+chop($tmmsg);
+
+# print summary
+print "Number of matching records: $lines_completed\n";
+print "---------------------------------------------\n";
+print "Problem Summary\n";
+print "---------------------------------------------\n";
+print "Tufts IDs not found:" . $ssnmsg . ".\n" if ($ssnmsg);
+print "Tufts ID duplicates found:".$ssnmsg2 . ".\n" if ($ssnmsg2);
+print "OEA codes not found:" . $oeamsg . ".\n" if ($oeamsg);
+print "OEA code duplicates found:" . $oeamsg2 . ".\n" if ($oeamsg2);
+print "Time periods not found:" . $tmmsg . ".\n" if ($tmmsg);
+
+# takes the comma delimted list and places the values into a hash
+# checks to make sure there is a SocSecNum, SubjectCode and CrsPeriod
+sub get_values {
+    my $line = shift;
+    
+    ## split fields into hash
+    ($fields{SocSecNum},
+    	$fields{LastName},
+    	$fields{FirstName},
+    	$fields{MiddleName},
+    	$fields{AcademicYear},
+    	$fields{SchClassYear},
+    	$fields{CrsPeriod},
+    	$fields{CrsStartDate},
+    	$fields{CrsEndDate},
+    	$fields{SubjectCode},
+    	$fields{CourseKey},
+    	$fields{Description},
+    	$fields{CourseDirector},
+    	$fields{Site},
+    	$fields{AddDate},
+        $fields{UTLN}) = split(/\t/,$line);
+    
+    # grab data (without quotes)
+    foreach my $key (keys %fields) {
+	$fields{$key} =~ s/\"(.*)\"/$1/;
+    }
+
+    ## strip off front 0 from time period
+    $fields{CrsPeriod} =~ s/^0(.+)/$1/;
+
+    return %fields;
+}
+
+# connect to the database and lookup the User's user_id
+sub look_up_user_id {
+	
+    my $SocSecNum = shift;
+    ## lookup the SSN and get the user_id
+    my $userref = HSDB4::SQLRow::User->new();
+    my @set = $userref->lookup_conditions("tufts_id='$SocSecNum'");
+    
+    # log and return 0 if no records found or more then one record found
+    if (!@set) {
+		$ssnmsg .= " $SocSecNum,";
+		&log_error("Error: No user found with user_id: $SocSecNum");
+		return 0;
+    }
+    
+    if (@set > 1) {
+		$ssnmsg2 .= " $SocSecNum,";
+		&log_error("Error: Multiple users found with the same user_id: $SocSecNum");
+		return 0;
+    }
+    
+    # here is the user_id!!! 
+    my $user_id = $set[0]->field_value('user_id');
+    return $user_id;
+
+}
+
+# connect to the database and lookup the course_id
+sub look_up_course_id{
+
+    ## lookup the course_id based on the SubjectCode
+    my $courseref = HSDB45::Course->new( _school => $school );
+    
+    my @set = $courseref->lookup_conditions("oea_code='$fields{SubjectCode}'");
+    
+    # log and return 0 if no records found or more then one record found
+    if (!@set) {
+		$oeamsg .= " $fields{SubjectCode}," if ($oeamsg !~ /$fields{SubjectCode}/);
+		&log_error("Error: No course found with that OEA: $fields{SubjectCode}");
+		return (0,0);
+    }
+    if (@set > 1) {
+		$oeamsg2 .= " $fields{SubjectCode}," if ($oeamsg2 !~ /$fields{SubjectCode}/);
+		&log_error("Error: More then one course found with OEA: $fields{SubjectCode}");
+		return(0,0);
+    }
+        
+    # here is the course_id
+    my $course_id = $set[0]->field_value('course_id');
+    # here is the course_title
+    my $course_title = $set[0]->field_value('title');
+    return($course_id, $course_title);
+}
+
+# use information on course dates to figure out time_period
+sub get_time_period{
+    my $time_period = $fields{CrsPeriod};    
+
+    # check to see if the time_period is in the right format
+    # if the time period has a number and A, then it's 6 week
+    if ($time_period =~ /^\dA$/) {
+		## get information on the years and dates
+#		my (@start) = split("/",$fields{CrsStartDate});
+#		my (@end) = split("/",$fields{CrsEndDate});
+
+		# figure out how many weeks in the class
+#		my $days = ($end[0]-$start[0])*30;
+#		$days += (30-$start[0]);
+#		$days += $end[0];
+#		my $weeks = $days/7;
+#
+#		$weeks = ($weeks > 10 ? "twelve" : "six");
+#
+		$time_period .= " 6 weeks";
+	    }
+   if ($time_period =~ /\d/) {
+       $time_period = $time_period;
+   } else {
+       $tmmsg .= " $time_period," if ($tmmsg !~ /$time_period/);
+       &log_error("Invalid Time Period: $time_period");
+       return 0;
+   }
+   return $time_period;
+}
+
+# connect to the database and lookup the time_period_id
+sub get_time_period_id{
+	my $time_period = shift;
+	
+	my $timeref = HSDB45::TimePeriod->new( _school => $school );
+	
+	my @set = $timeref->lookup_conditions("period='$time_period' AND academic_year='$fields{AcademicYear}'");
+	
+	# log and return 0 if no records found or more then one record found
+	if (!@set) {
+		$tmmsg .= " $time_period," if ($tmmsg !~ /$time_period/);
+		&log_error("No time_period_id found for period: $time_period and academic year: $fields{AcademicYear}");
+		return 0;
+	}
+	if (@set > 1) {
+		$tmmsg .= " $time_period," if ($tmmsg !~ /$time_period/);
+		&log_error("Multiple time_period_ids found for period: $time_period and academic year: $fields{AcademicYear}");
+		return 0;
+    }
+    
+    # here is the time_period_id
+	my $time_period_id = $set[0]->field_value('time_period_id');
+	
+	return ($time_period_id);
+
+}
+
+# put the dates into Mysql format
+# NOTE - what errors does HSDB4::DateTime generate?
+sub get_epoch_dates{
+
+	$fields{CrsStartDate}=~s/\/(\d\d)$/\/20$1/;
+	$fields{CrsEndDate}=~s/\/(\d\d)$/\/20$1/;
+	
+	my $timeref_start = HSDB4::DateTime->new;
+	my $epoch_start = $timeref_start->in_mysql_date($timeref_start->m_d_yyyy_to_yyyy_mm_dd($fields{CrsEndDate}));
+	$timeref_start->subtract_days(7);
+	$epoch_start = $timeref_start->out_mysql_date();
+
+	my $timeref_end = HSDB4::DateTime->new;
+	my $epoch_end = $timeref_end->in_mysql_date($timeref_end->m_d_yyyy_to_yyyy_mm_dd($fields{CrsEndDate}));
+	$timeref_end->add_days(35);
+	$epoch_end = $timeref_end->out_mysql_date();
+	
+	return ($epoch_start, $epoch_end);
+}
+
+# connect to the database and create the link_course_user record
+sub create_link_course_user {
+        my $db = shift;
+	## insert link into link_course_user
+	my $linkref = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_student"};
+
+	my ($r,$msg) = $linkref->insert(-user_id => $user_name,
+					-password => $user_pass,
+					-parent_id => $var{course_id},
+					-child_id => $var{user_id},
+					time_period_id => $var{time_period_id},
+					);
+	# log error if returned value is 0 
+	&log_error("Error: Table link_course_user - Database error: $msg") unless ($r);
+	&log_error("Created link between course: $var{course_id} and user: $var{user_id}") if ($r);
+	return $r;
+}
+
+# connect to the database and create the eval record if needed
+sub create_eval{
+	# create identifyer so we know we have already inserted for this course/time period
+	my $eval_identifyer = $var{course_id}.$var{time_period_id};
+	my $prototype_eval_id;
+	unless ($eval_list{$eval_identifyer}) {
+		if ($var{course_level} =~ /3\d\d/) {
+                    # put the third year prototype eval id into a hash to be used below
+		    $third_year_prototype_eval{"PSY300"}=2354; 
+		    $third_year_prototype_eval{"PED300"}=2353; 
+		    $third_year_prototype_eval{"OBG300"}=2352; 
+		    $third_year_prototype_eval{"MED300"}=2358; 
+		    $third_year_prototype_eval{"SGN300"}=2359; 
+		    #this is a 3rd year course
+		    my $block_abbrev = $var{time_period};
+		    $block_abbrev =~ s/(.).+/$1/;
+		    $var{eval_title} = "$var{course_title} Evaluation Block $fields{CrsPeriod}";
+		    $prototype_eval_id = $third_year_prototype_eval{$fields{SubjectCode}};
+		} else {
+		    # this is a 4th year course
+			# figure out the prototype eval id for a 4th year course
+			if ($fields{SubjectCode}=~/FAM4/ && $fields{Description} !~ /subinternship/i) {
+				$prototype_eval_id = 2242;
+				$var{eval_title} = "Family Medicine Clerkship Evaluation Block $var{time_period} - AY $fields{AcademicYear}";
+			}else{
+				$prototype_eval_id = 2243;
+				$var{eval_title} = "Fourth Year Elective Evaluation: $var{course_title} Block $var{time_period} - AY $fields{AcademicYear}";
+			}
+		}
+
+		&log_error("Error: No prototype eval id found for course: $fields{SubjectCode}") unless ($prototype_eval_id);
+		return unless ($prototype_eval_id);
+		
+	        ## insert 1 record into eval & link to questions
+			my $evalref = HSDB45::Eval->new( _school => $school );
+			$evalref->set_field_values(course_id => $var{course_id},
+					   time_period_id => $var{time_period_id},
+					   title => $var{eval_title},
+					   available_date => $var{epoch_start},
+					   due_date => $var{epoch_end});
+			($r,$msg)=$evalref->save($user_name,$user_pass) if ($live);
+			my $eval_id = $r;
+			$eval_list{$eval_identifyer} = $eval_id;
+		&log_error("Error: Eval table: $r - $msg") unless ($r);
+		&log_error("Created eval id $eval_id for course: $var{course_id}, time period: $var{time_period_id}") if ($r);
+
+		my $dbh = DBI->connect(HSDB4::Constants::db_connect());
+					
+		# insert the correct eval questions
+		my $ins = $dbh->prepare ("INSERT INTO $db\.link_eval_eval_question (parent_eval_id,child_eval_question_id,label,sort_order) VALUES (?, ?, ?, ?)");
+		my $sel = $dbh->prepare ("SELECT child_eval_question_id, label, sort_order FROM $db\.link_eval_eval_question WHERE parent_eval_id=$prototype_eval_id");	
+		$sel->execute();
+		while (my ($qid, $lab, $sort) = $sel->fetchrow_array ) {
+		      $ins->execute($eval_id, $qid, $lab, $sort);
+		}
+		&log_error("Copied questions for eval id $eval_id from eval $prototype_eval_id") if ($r);
+
+		$dbh->disconnect if ($dbh);
+
+	    } else {
+	    	my $eval_id = $eval_list{$eval_identifyer};
+	    }
+	
+	# log error if returned value is 0 
+	&log_error("Table eval - Database error: $msg") unless ($eval_id);
+	return $eval_id;
+}
+
+# connect to the database and create the link_eval_user record
+sub create_link_eval_user{
+
+	## insert link into link_eval_user
+	my $linkref = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_eval_user"};
+	my ($r,$msg) = $linkref->insert(-user_id => $user_name,
+					-password => $user_pass,
+					-parent_id => $var{eval_id},
+					-child_id => $var{user_id},
+					);
+	
+	# log error if returned value is 0 
+	&log_error("Error: $msg") unless ($r);
+	
+	return $r;
+}
+
+sub print_user_info{
+        my $block_abbrev = $var{time_period};
+        $block_abbrev =~ s/(.).+/$1/;
+	print "$fields{LastName}, $fields{FirstName} ($fields{SocSecNum}): 
+           user_id = $var{user_id}
+           oeacode = $fields{SubjectCode}
+           course_id = $var{course_id}
+           course_title = $var{course_title}
+           course_level = $var{course_level}
+           available_date = $var{epoch_start}
+           due_date = $var{epoch_end}
+           time_period = $var{time_period}
+           time_period_abbrev = $block_abbrev
+           time_period_id = $var{time_period_id}
+           teaching_site = $fields{Site}\n";
+	
+}
+
+sub time_period_match {
+    foreach (@time_periods) {
+	return 1 if ($_ =~ /^$fields{CrsPeriod}$/);
+    }
+}
+
+sub log_error{
+	my $message = shift;
+	chomp($message);
+
+	print ERRORFILE $lines_looked_at , " - " , $message , "\n";
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

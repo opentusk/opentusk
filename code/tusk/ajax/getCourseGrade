@@ -36,7 +36,7 @@
 %	my $events = $m->session->{'user'}->get_course_grades($course);
 %	if(scalar(@{$events})) {
 		<table border="0" width="100%" class="wide">
-			<tr><th align="left">Name</th><th align="left">Grade</th><th align="left">Scaled Grade</th><th align="left">Comments</th></tr>
+			<tr><th align="left"><%__("Name")%></th><th align="left"><%__("Grade")%></th><th align="left"><%__("Scaled Grade")%></th><th align="left"><%__("Comments")%></th></tr>
 
 %		foreach my $event (@{$events}) {
 %			my $grade = '';
@@ -44,8 +44,8 @@
 %			my $link = $event->getJoinObject("TUSK::GradeBook::LinkUserGradeEvent");
 %			my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $event->getFieldValue('time_period_id'), user_id => $m->session->{'user'}->user_id });
 %			if(!defined($link)){
-%				$grade = 'No Grade';
-%				$scaled_grade = 'No Grade';
+%				$grade = __('No Grade');
+%				$scaled_grade = __('No Grade');
 %			} else {
 %				$grade = $link->getGrade();
 %				$scaled_grade = $gb->getScaledGrade($grade, $event->getGradeEventID);
@@ -54,7 +54,7 @@
 %			my $eval_link = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $event->getGradeEventID );
 %			my $eval_id   = ($eval_link) ? $eval_link->getEvalID() : 0;
 %			if ( $eval_id && !HSDB45::Eval->new( _school => $path_ids->[0])->lookup_key( $eval_id )->is_user_complete( $m->session->{'user'} ) ) {
-%				$grade = "<a href='/protected/eval/complete/" . $path_ids->[0] . "/" . $eval_id . "'>Pending Eval Completion</a>";
+%				$grade = "<a href='/protected/eval/complete/" . $path_ids->[0] . "/" . $eval_id . "'>".__("Pending Eval Completion")."</a>";
 %			}
 				<tr>
 					<td class="html_row"><% $event->getEventName() %></td>
@@ -65,5 +65,5 @@
 %			}
 		</table>
 %	} else {
-	<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => 'You do not have any grades for this course!'}, 'make_table' => 1 &>
+	<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => __('You do not have any grades for this course!')}, 'make_table' => 1 &>
 %	}

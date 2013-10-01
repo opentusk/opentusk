@@ -33,7 +33,7 @@
 		unless (HSDB45::UserGroup->new(_school => $school)->lookup_key($group_id)->primary_key()) {
 			$m->redirect($m->comp("/tmpl/url:construct_url", 
 				base_url => "/assignment/author/grade", 
-				msg 	 => "Invalid/Missing student's group id.",
+				msg 	 => __("Invalid/Missing student's group id."),
 				msgtype	 => 'errmsg' ));
 		}
 
@@ -53,7 +53,7 @@
 		unless (HSDB4::SQLRow::User->new()->lookup_key($student_user_id)->primary_key()) {
 			$m->redirect($m->comp("/tmpl/url:construct_url", 
 				base_url => "/assignment/author/grade", 
-				msg 	 => "Invalid/Missing student's userid.",
+				msg 	 => __("Invalid/Missing student's userid."),
 				msgtype	 => 'errmsg' ));
 		}
 
@@ -104,7 +104,7 @@
 
 		$m->redirect($m->comp("/tmpl/url:construct_url", 
 			'base_url' => "/assignment/author/grade", 
-			'msg' => 'You have successfully updated the grade for ' . $student->getName()));	
+			'msg' => __x("You have successfully updated the grade for {student}", student => $student->getName())));	
 	}
 </%init>
 
@@ -124,56 +124,56 @@
 } &>
 
 % my $sname = (ref $student eq 'TUSK::Application::Assignment::Student::Group') ? "<a href=\"\" onclick=\"javascript:window.open('/tusk/group/members/course/$school/" . $course->primary_key . "/$group_id',null,'height=400,width=350,scrollbars=1,resizable=1,left=400,top=250'); return false;\">" . $student->getName() . "</a>"  : $student->getName() . "&nbsp;(". $student->getID() . ")";
-% $label = (ref $student eq 'TUSK::Application::Assignment::Student::Group') ? 'Group' : 'Student';
+% $label = (ref $student eq 'TUSK::Application::Assignment::Student::Group') ? __('Group') : __('Student');
 <& /tmpl/element:field_display, params => {
 	label => "$label:", 
 	value => $sname,
 } &>
 
 <& /tmpl/element:field_display, params => {
-	label => 'Title:', 
+	label => __('Title:'), 
 	value => $assignment->getTitle()
 } &>
 
 
 <& /tmpl/element:field_display, params => {
-	label => 'Weight:', 
+	label => __('Weight:'), 
 	value => $assignment->getWeight()
 } &>
 
 <& /tmpl/element:field_display, params => {
-	label => 'Due Date:', 
+	label => __('Due Date:'), 
 	value => $assignment->getFormattedDueDate()
 } &>
 
 % if ($submissions) {
 % 	my $num = $submissions + 1;
 <& /tmpl/element:field_display, params => {
-	label => 'Current Submission:', 
+	label => __('Current Submission:'), 
 	value => "<font color=\"green\">Submission #$num</font>",
 } &>
 % }
 
 
 <& /tmpl/element:field_display, params => {
-	label => 'Submit Date:', 
+	label => __('Submit Date:'), 
 	value => $student->getSubmitDate()
 } &>
 
 <& /tmpl/element:field_display, params => {
-	label => "Comments from $label:", 
+	label => __x("Comments from {label}:", label => $label), 
 	value => $student->getStudentComments()
 } &>
 
 <& /tmpl/element:field_display, params => {
-	label => "$label Files:", 
+	label => __x("{label} Files:", label => $label), 
 	value => (defined $submit_date) 
 			? $m->comp('/assignment/tmpl:get_students_files', students => $student)
 			: '',
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label 	=> 'Grade',
+	label 	=> __('Grade'),
 	name 	=> 'grade',
 	value 	=> $student->getGrade(),
 	size 	=> 4,
@@ -181,7 +181,7 @@
 } &>
 
 <& /tmpl/element:textarea, params => { 
-	label 	=> "Feedback to $label:",
+	label 	=> __x("Feedback to {label}:", label => $label),
 	name 	=> 'comments',
 	value 	=> $student->getFacultyComments(),
 	cols	=> "80",
@@ -189,14 +189,14 @@
 } &>
 
 <& /tmpl/element:field_display, params => {
-	label => 'Files to upload:',
-	value =>  qq(<input type="file" name="files" size="40"/><div id="content"></div><div id="more" style="font-size:85%;color:#0000FF;cursor:pointer;text-decoration:underline;" onclick="addFile();">Upload another file</div>) } &>
+	label => __('Files to upload:'),
+	value =>  qq(<input type="file" name="files" size="40"/><div id="content"></div><div id="more" style="font-size:85%;color:#0000FF;cursor:pointer;text-decoration:underline;" onclick="addFile();">) . __("Upload another file") . qq(</div>) } &>
 
 
 % my $faculty_content = $student->getFacultyContent($student->getCurrentSubmission());
 % if (scalar @$faculty_content) {
 <& /tmpl/element:field_display, params => {
-	label => 'Uploaded Files:', 
+	label => __('Uploaded Files:'), 
 	value => $m->comp('/assignment/tmpl:get_content_links', 
 		contents => $faculty_content,
 		checkbox => 1)
@@ -208,7 +208,7 @@
 <tr><td></td><td style="padding:15px 0 0 0;font-size:85%;"> <input type="checkbox" name="feedback_post_flag" value="Y" <% $checked %>/> Make this feedback visible to student(s) now.</td></tr>
 
 <& /tmpl/element:save_button, params => {
-	label 	=> 'Save Changes',
+	label 	=> __('Save Changes'),
 	cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/assignment/author/grade",) . "');",
 	name	=> 'submit',
 } &>
@@ -216,7 +216,7 @@
 % if ($submissions) {
 <tr><td colspan="2">&nbsp;</td></tr>
 <& /tmpl/element:field_display, params => {
-	label => 'Previous Submissions:', 
+	label => __('Previous Submissions:'), 
 	value => $m->scomp('SELF:show_previous_submissions', submissions => $submissions),
 } &>
 % }
@@ -237,21 +237,21 @@
 <& /tmpl/element:button, params => {
 	class	=> 'formbutton',
 	onclick => "showHideSubmission(this,'feedback_$i')",
-	label	=> "Show",
+	label	=> __("Show"),
 	name	=> 'toggle_feedbacks_button'} &>
 </div>
 
 <div id="feedback_<% $i %>" style="display:none;">
 <table style="font-size:85%;color:gray;" bgcolor="#EEFFFF">
 
-<tr><th align="right" valign="top">Submit Date:</th><td width="5px">&nbsp;</td><td><% $student->getSubmitDate($i) %></td></tr>
-<tr><th align="right" valign="top"><% $label %> Comments:</th><td width="5px">&nbsp;</td><td><% $student->getStudentComments($i) %></td></tr>
+<tr><th align="right" valign="top"><%__("Submit Date:")%></th><td width="5px">&nbsp;</td><td><% $student->getSubmitDate($i) %></td></tr>
+<tr><th align="right" valign="top"><% $label %> <%__("Comments:")%></th><td width="5px">&nbsp;</td><td><% $student->getStudentComments($i) %></td></tr>
 % if (my $student_files = $student->getContent($i)) {
-<tr><th align="right" valign="top"><% $label %> Files:</th><td width="5px">&nbsp;</td><td><% $m->comp('/assignment/tmpl:get_content_links', contents => $student_files, checkbox => 0, modified => 0) %> </td></tr>
+<tr><th align="right" valign="top"><% $label %> <%__("Files:")%></th><td width="5px">&nbsp;</td><td><% $m->comp('/assignment/tmpl:get_content_links', contents => $student_files, checkbox => 0, modified => 0) %> </td></tr>
 %}
-<tr><th align="right" valign="top">Faculty Feedback:</th><td width="5px">&nbsp;</td><td><% $student->getFacultyComments($i) %></td></tr>
+<tr><th align="right" valign="top"><%__("Faculty Feedback:")%></th><td width="5px">&nbsp;</td><td><% $student->getFacultyComments($i) %></td></tr>
 % if (my $feedback_files = $student->getFacultyContent($i)) {
-<tr><th align="right" valign="top">Faculty Files:</th><td width="5px">&nbsp;</td><td>
+<tr><th align="right" valign="top"><%__("Faculty Files:")%></th><td width="5px">&nbsp;</td><td>
 <% $m->comp('/assignment/tmpl:get_content_links', contents => $feedback_files, checkbox => 0, modified => 0) %>
 </td></tr>
 % }
@@ -263,7 +263,7 @@
 
 
 <%method title>
-% 	return "Grade Update";
+% 	return __("Grade Update");
 </%method>
 
 

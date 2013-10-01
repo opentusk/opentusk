@@ -30,7 +30,7 @@ $is_new_test => undef
 my $patient_types;
 if (!$read_only){
 	if (!$school){
-		$m->comp('/tmpl/error',msg=>'Need school to do exam row');
+		$m->comp('/tmpl/error',msg=>__('Need school to do exam row'));
 	}
 	$patient_types = TUSK::Case::PatientType->getSchoolPatientTypes($school);
 }
@@ -49,30 +49,30 @@ my $pk = $exam->getPrimaryKeyID() || 0;
 
 % if ($read_only){
 
-<& /tmpl/element:field_display,params=>{'label'=> 'Test Title',
+<& /tmpl/element:field_display,params=>{'label'=> __('Test Title'),
         value => $exam->getTitle() } &>
 
-<& /tmpl/element:field_display,params=>{'label'=> 'Cost',
+<& /tmpl/element:field_display,params=>{'label'=> __('Cost'),
         value => $exam->getDefaultCost() } &>
 
-<& /tmpl/element:field_display,params=>{'label'=> 'Units',
+<& /tmpl/element:field_display,params=>{'label'=> __('Units'),
         value => $exam->getUnits() } &>
 
 
 % } else { 
-<& /tmpl/element:textbox, params =>{ label => 'Test Title',
+<& /tmpl/element:textbox, params =>{ label => __('Test Title'),
         name => 'title',
         value => $exam->getTitle(),
         size => 60,
         length => 255 } &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Cost',
+<& /tmpl/element:textbox, params =>{ label => __('Cost'),
         name => 'default_cost',
         value => $exam->getDefaultCost(),
         size => 60,
         length => 255 } &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Units',
+<& /tmpl/element:textbox, params =>{ label => __('Units'),
         name => 'units',
         value => $exam->getUnits(),
         size => 60,
@@ -80,10 +80,10 @@ my $pk = $exam->getPrimaryKeyID() || 0;
 
 %	if ($is_new_test){
 <& /tmpl/element:radio_buttons, params =>{ 
-        label => 'Does this test have sub-tests?',
+        label => __('Does this test have sub-tests?'),
         name => 'has_sub',
-        buttons => [{value => "yes", text=> "yes"},
-                    {value => "no", text=> "no"} ],
+        buttons => [{value => "yes", text=> __("yes")},
+                    {value => "no", text=> __("no")} ],
         size => 60,
         length => 255 } &>
 
@@ -102,7 +102,7 @@ my $pk = $exam->getPrimaryKeyID() || 0;
 
 my $patient_types = $exam->getUnassignedPatients();
 
-my $patient_ref = [ {'label' => 'Patient Type', 'value' => '' } ];
+my $patient_ref = [ {'label' => __('Patient Type'), 'value' => '' } ];
 
 foreach my $type (@{$patient_types}){
 	push @{$patient_ref}, 
@@ -110,13 +110,13 @@ foreach my $type (@{$patient_types}){
 		 'value'=>$type->getPrimaryKeyID() };
 }
 
-my $drop_down = '<!-- subtest does not want a drop-down here -->';
+my $drop_down = '<!-- '.__('subtest does not want a drop-down here').' -->';
 my $layer_action = {'usage' => 'no'};
 
 unless($exam->isSubTest()){
 
 	$drop_down = $m->scomp('/tmpl/element:dropdown', params=>
-			{ label 	=> 'Associate Patient Type',
+			{ label 	=> __('Associate Patient Type'),
 			  name		=> 'patient_list',
 			  onchange	=> "add_patient_type(this,'patientdiv',
                    {patient_type_id:document.examaddedit.patient_list.value,
@@ -147,24 +147,24 @@ foreach my $tv (@{$test_values}){
 }
 
 my $display_array = [
-                {label => 'Patient Type', field => 'patient_type', align=>'left', length=>125 },
-                {label => 'Patient Type ID', field =>'patient_type_id', length=>0, type=>'hidden' } 
+                {label => __('Patient Type'), field => 'patient_type', align=>'left', length=>125 },
+                {label => __('Patient Type ID'), field =>'patient_type_id', length=>0, type=>'hidden' } 
                  ];
 
 if(!$exam->isMasterTest()){
 	push @$display_array, (
-                {label => 'Default Value',field=>'default_value', 
+                {label => __('Default Value'),field=>'default_value', 
                  type => 'textbox', align=>'left', length=>200}  ,
-                {label =>'Default&nbsp;Content&nbsp;ID', field => 'default_content_id',
+                {label =>__('Default&nbsp;Content&nbsp;ID'), field => 'default_content_id',
                  type => 'textbox', align=>'left', length=>150},
-                {label => 'Source', field => 'source',type =>'textbox',
+                {label => __('Source'), field => 'source',type =>'textbox',
                  align=>'left', length=>100}
                 );
 }
 
 </%perl>
 
-<& /tmpl/element:section_header_row,label=>'Patient Types' &>
+<& /tmpl/element:section_header_row,label=>__('Patient Types') &>
 
 <& /tmpl/element:sort_order_box , params =>{
         no_add_button=>1,
@@ -172,7 +172,7 @@ if(!$exam->isMasterTest()){
         no_label=>'1',
         td_class=>'no-button',
         layer_info => {
-            empty_message => 'No patients for this test',
+            empty_message => __('No patients for this test'),
             layer => 'patientdiv',
             fields => ['test_value_id'],
             name => 'patients',
@@ -214,11 +214,11 @@ my $button = $m->scomp('/tmpl/element:button', params=>{
                      default_cost:'',
                      units:''
                      });",
-                'label'=>'Add New Sub Test'});
+                'label'=>__('Add New Sub Test')});
 
 </%perl>
 
-<& /tmpl/element:section_header_row,label=>'Sub Tests' &>
+<& /tmpl/element:section_header_row,label=>__('Sub Tests') &>
 <& /tmpl/element:sort_order_box , params =>{
         no_add_button=>1,
         buttons=>[$button],
@@ -227,18 +227,18 @@ my $button = $m->scomp('/tmpl/element:button', params=>{
         layer_info => {
             context_path => $m->comp("/tmpl/url:get_full_path"),
             base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
-            empty_message => 'No sub tests exist',
+            empty_message => __('No sub tests exist'),
             layer => 'subtestdiv',
             fields => ['test_id'],
             name => 'tests',
             sort => {usage => 'Yes', length=>50},
             action => {usage => 'Yes', length=>50, functions => [
-                {func=>'subtest_modify', label=>'Modify'},
-                {func=>'remove', label=>'Delete'} ]},
+                {func=>'subtest_modify', label=>__('Modify')},
+                {func=>'remove', label=>__('Delete')} ]},
             display => [ 
-                {label => 'Sub Test Title', field => 'test_name', align=>'left', length=>250, type=>'textbox' },
-                {label => 'Cost', field => 'default_cost', align=>'left', length=>75, type=>'textbox' },
-                {label => 'Units', field => 'units', align=>'left', length=>150, type=>'textbox' } ] ,
+                {label => __('Sub Test Title'), field => 'test_name', align=>'left', length=>250, type=>'textbox' },
+                {label => __('Cost'), field => 'default_cost', align=>'left', length=>75, type=>'textbox' },
+                {label => __('Units'), field => 'units', align=>'left', length=>150, type=>'textbox' } ] ,
             validate => {
                 usage => 'No',
                 form  => 'examaddedit'

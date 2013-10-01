@@ -43,12 +43,12 @@
 
 
 <%method red_header_text>
-%       return "Notes For: <b>" . $document->out_label . "</b>";
+%       return __x("Notes For: <b>{document_label}</b>", document_label => $document->out_label);
 </%method>
 
 
 <%method title>
-%       return "Notes For: " . ucfirst($document->type) .": ". $document->out_label;
+%       return __x("Notes For: {document_type}:{document_label}", document_type => ucfirst($document->type), document_label => $document->out_label);
 </%method>
 
 
@@ -131,7 +131,7 @@
            <table border="0" width="100%" cellpadding="0" cellspacing="0">
              <tr>
                <td valign="top" align="left"><font size="+1"><b><% $aSubContent->title() %></b></font></td>
-               <td valign="bottom" align="right"><font size="-1">Content <% $counter %> of <% $totalSubContent %></td>
+               <td valign="bottom" align="right"><font size="-1"><%__x('Content {counter} of {total}', counter => $counter, total => $totalSubContent)%></td>
              </tr>
            </table>
          </td>
@@ -142,12 +142,13 @@
            <table border="0">
              <tr><td align="center" valign="bottom" style="height:45px;">
 	       <div id="<% $aSubContent->primary_key %>_resetValue" style="display:none"><% $combinedNote %></div>
-               <input type="button" name="<% $aSubContent->primary_key %>_resetButton" class="formbutton" value="Reset Note" onClick="resetNote('<% $aSubContent->primary_key %>');">
+%				my $reset_label = __('Reset Note');
+               <input type="button" name="<% $aSubContent->primary_key %>_resetButton" class="formbutton" value="<%$reset_label%>" onClick="resetNote('<% $aSubContent->primary_key %>');">
                <span id="<% $aSubContent->primary_key %>_checkSpan" style="padding:5px 3px 3px 3px; border:2px solid white; text-align:center;">
                  <input type="checkbox" onClick="highlightButton('<% $aSubContent->primary_key %>');" name="<% $aSubContent->primary_key %>_check">
                </span>
                </td></tr>
-             <tr><td align="center" valign="bottom" style="height:50px;"><div id="<% $aSubContent->primary_key %>_notSavedDiv" style="display:none;" class="navsm"><font color="red">Not Saved</font></div></td></tr>
+             <tr><td align="center" valign="bottom" style="height:50px;"><div id="<% $aSubContent->primary_key %>_notSavedDiv" style="display:none;" class="navsm"><font color="red"><%__('Not Saved')%></font></div></td></tr>
            </table>
          </td>
          <td valign="top" align="right"><textarea name="<% $aSubContent->primary_key %>_note" style="width:450px; height:270px" tabindex="<% $tabIndexCounter %>" onFocus="this.style.backgroundColor='white';this.style.border='2px solid black';" onBlur="this.style.backgroundColor=''; this.style.border='';" onChange="document.getElementById(''+<% $aSubContent->primary_key %>+'_notSavedDiv').style.display='block';"><% $combinedNote %></textarea></td>
@@ -170,8 +171,11 @@
 %	my $viewCollectionLink = $ENV{SCRIPT_URI};
 %	$viewCollectionLink =~ s/collectionnotes/content/;
 	<tr>
-		<td align="left"><input type="button" class="formbutton" name="return" value="Return to View Collection" onClick="document.location='<% $viewCollectionLink %>';"></td>
-		<td align="center"><input type="button" class="formbutton" name="summary" value="Show All Notes" onClick="showCollectionNotes();"></td>
-		<td align="right"><input type="submit" class="formbutton" name="save" value="Save Notes"></td>
+%		my $return_label = __('Return to View Collection');
+%		my $show_notes_label = __('Show All Notes');
+%		my $save_notes_label = __('Save Notes');
+		<td align="left"><input type="button" class="formbutton" name="return" value="<%$return_label%>" onClick="document.location='<% $viewCollectionLink %>';"></td>
+		<td align="center"><input type="button" class="formbutton" name="summary" value="<%$show_notes_label%>" onClick="showCollectionNotes();"></td>
+		<td align="right"><input type="submit" class="formbutton" name="save" value="<%$save_notes_label%>"></td>
 	</tr>
 </%method>

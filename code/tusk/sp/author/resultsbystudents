@@ -27,7 +27,7 @@
 </%attr>
 
 <%shared>
-	my $form_type_label = 'Simulated Patient';
+	my $form_type_label = __('Simulated Patient');
 	my $course = $m->comp('/tmpl/url:get_type_object');
 	my @rows = ();
 	my %args = $m->request_args();
@@ -53,7 +53,7 @@
 
 		if ($args{allow_resubmit}) {
 			$m->comp('SELF:allowResubmit');
-			$msg = 'Successfully Allow Resubmission';
+			$msg = __('Successfully Allow Resubmission');
 		}
 
 		$m->redirect($ENV{SCRIPT_URL} . "?" . $group_query_string . "msg=$msg");
@@ -87,7 +87,7 @@
 				$entry = $entries{$student_id . '_' . $form->getPrimaryKeyID()};
 				if ($submit_date = $entry->getCompleteDate()) {
 					my $group_id = ($user_group_id) ? "/$user_group_id" : '';
-					$view_link = '<a href="/sp/author/entry/' . $m->comp('/tmpl/url:get_type_path') . '/' . $entry->getFormID() . '/' . $entry->getPrimaryKeyID() .  "$group_id\">View</a>";
+					$view_link = '<a href="/sp/author/entry/' . $m->comp('/tmpl/url:get_type_path') . '/' . $entry->getFormID() . '/' . $entry->getPrimaryKeyID() .  "$group_id\">".__("View")."</a>";
 					if (my $actor = HSDB4::SQLRow::User->new()->lookup_key($entry->getUserID())) {
 					$actor_name = $actor->out_full_name();
 					}
@@ -122,7 +122,7 @@
 <td align="right">
 <form name="sp_home" action="" method="POST" class="no-padding"> 
 <select name="address" onChange="forward(this);">
-<option value="">select group</option>
+<option value=""><%__("select group")%></option>
 %			foreach my $group (@groups) {
 %				my $selected = ($user_group && $user_group_id == $group->primary_key()) ? 'SELECTED' : '';
 %				$m->print("<option value=\"/sp/author/resultsbystudents/" . $m->comp('/tmpl/url:get_type_path') . "?gid=" . $group->primary_key() . "\"$selected>" . $group->label() . '</option>');
@@ -148,25 +148,25 @@
 <tr><td >
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [
-		{label => 'Student', field => 'student_name', width => '20%' },
-		{label => 'Form', field => 'form_name', width => '25%' },
-		{label => 'Submitted By', field => 'actor_name'},
-		{label => 'Submitted On', field => 'submit_date', align => 'center' },
-		{label => 'Action', field => 'view_link', align => 'center', html => 1 },
+		{label => __('Student'), field => 'student_name', width => '20%' },
+		{label => __('Form'), field => 'form_name', width => '25%' },
+		{label => __('Submitted By'), field => 'actor_name'},
+		{label => __('Submitted On'), field => 'submit_date', align => 'center' },
+		{label => __('Action'), field => 'view_link', align => 'center', html => 1 },
 		{label => $checkall_box, field => 'sp_entry', html => 1},
 	],
 	rows => \@rows,
-	name => "Simulated Patients",
+	name => __("Simulated Patients"),
 	sort_box => 0,
 	type_path => $m->comp('/tmpl/url:get_type_path'),
-	'norows-message' => '<div align="center">No Results</div>',
+	'norows-message' => '<div align="center">'.__('No Results').'</div>',
 } &>
 </td></tr>
 %	if (scalar @rows && $can_resubmit) {
 <tr>
 <td align="right" style="padding-top:5px;">
 <input class="formbutton" style="" type="submit"
-name="allow_resubmit" id="resubmit" value="Allow Resubmission" onmouseup="" onmousedown="" onclick="">
+name="allow_resubmit" id="resubmit" value="<%__("Allow Resubmission")%>" onmouseup="" onmousedown="" onclick="">
 </td>
 </tr>
 % 	}
@@ -190,10 +190,10 @@ name="allow_resubmit" id="resubmit" value="Allow Resubmission" onmouseup="" onmo
 </%method>
 
 <%method red_header_text>
-% 	return "$form_type_label Results by Students";
+% 	return "$form_type_label ".__("Results by Students");
 </%method>
 
 <%method title>
-% 	return "$form_type_label Results by Students";
+% 	return "$form_type_label ".__("Results by Students");
 </%method>
 

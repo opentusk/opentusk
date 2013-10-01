@@ -1460,10 +1460,7 @@ sub is_user_author {
 my @CONTENT_EDIT_ROLES = (
     'Director',
     'Manager',
-    'Author',
-    'Editor',
     'Student Manager',
-    'Contact-Person',
 );
 
 # TODO Make Readonly
@@ -1483,7 +1480,7 @@ sub can_user_edit {
     my $role = $self->user_primary_role($user->primary_key);
 
 	## allow if user is associated with content
-	return 1 if $role;
+	return 1 if ($role eq 'Editor' || $role eq 'Author');
 
 	## allow if school admin
 	if ($self->field_value('school')) {
@@ -1492,8 +1489,9 @@ sub can_user_edit {
 	
     ## allow if user has role in course that allows editing of other
     ## people's content
-    return 1 if (join(q{,}, @CONTENT_EDIT_ROLES)
-                 =~ $self->course()->user_primary_role($user->primary_key));
+	if ($self->course()->user_primary_role($user->primary_key)) {
+		return 1 if (join(q{,}, @CONTENT_EDIT_ROLES) =~ $self->course()->user_primary_role($user->primary_key));
+	}
 }
 
 sub can_user_add {

@@ -66,7 +66,7 @@
 	cellpadding => "0" } &>
 
 <& /tmpl/element:textbox, params => { 
-	label => 'Field Name',
+	label => __('Field Name'),
 	name => 'field_name',
 	value => $field->getFieldName(),
 	size => 60,
@@ -77,18 +77,18 @@
 	value => $parent_field_id, } &>
 
 <& /tmpl/element:dropdown, params =>{ 
-	label => 'Default Report',
+	label => __('Default Report'),
 	name => "default_report",
 	onchange => "",
 	selected => $field->getDefaultReport(),
     options => [ { label => 'No', value => '0'}, { label => 'Yes', value => '1' } ] } &>
 
 <& /tmpl/element:dropdown, params => { 
-	label => 'Item Sort',
+	label => __('Item Sort'),
 	name => "item_sort",
 	onchange => "",
 	selected => $field->getItemSort(),
-	options => [{ label => 'Alphanumeric', value => 'Alphanumeric'}, { label => 'User-Defined', value => 'User-Defined' } ] } &>
+	options => [{ label => __('Alphanumeric'), value => 'Alphanumeric'}, { label => __('User-Defined'), value => 'User-Defined' } ] } &>
 
 <%perl>
 	my $parent_field = TUSK::FormBuilder::Field->lookupKey($parent_field_id);
@@ -96,7 +96,7 @@
 	my $button_text =  $m->scomp('/tmpl/element:button', params => {
 		onclick => "layers['itemsdiv'].adddata({child_item_id:'0',name:'', parent_item_id:'0', root_field_id:'$root_field_id',parent_field_id:'$parent_field_id',child_field_id:'$child_field_id',link_field_field_id:'$link_field_field_id',link_field_item_item_id:'0'},0);",
 		name => 'addnewitem',
-		label => 'Add New Item'});
+		label => __('Add New Item')});
 
 	my @parent_item_options = ();
 	foreach my $p_item (@$parent_items) {
@@ -107,18 +107,18 @@
 
 <& /tmpl/element:sort_order_box , params =>{
 	no_add_button => '1',
-	label => 'Items',
+	label => __('Items'),
 	name => "items",
 	buttons => [$button_text],
 	layer_info => {
-		empty_message => 'No items defined for this field',
+		empty_message => __('No items defined for this field'),
 		layer => 'itemsdiv',
 		scrollrows => 0,
        	fields => ['child_item_id','name','parent_item_id','root_field_id','parent_field_id','child_field_id','link_field_field_id','link_field_item_item_id'],
 		name => 'item',
 		sort => { 
 			usage => 'Yes', length => 50},
-			action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
+			action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => __('Delete')} ] },
 			display => [
           		{ label => 'Name', field => 'name', type => 'textbox', align => 'left', length => 300 },
 				{ label => $parent_field_name, field => 'parent_item_id', align => 'center', length => 200, options => \@parent_item_options },
@@ -133,7 +133,7 @@
 		data => $items_data }
 } &>
 
-<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
 	cancel_onclick => "go_back('" . $m->comp("/formbuilder/util:get_base_dir") . "/field/" . $m->comp('/tmpl/url:get_type_path') . "/" . $form->getPrimaryKeyID() . "/$root_field_id');", 
 	name => 'form_submit'} &>
 
@@ -236,20 +236,20 @@
 		my $msg_type = 'msg';
 
 		if (scalar @duplicates) {
-			my $duplicate_text = 'Please check for duplicate item(s): '  . join(", ", @duplicates);
+			my $duplicate_text = __('Please check for duplicate item(s): ')  . join(", ", @duplicates);
 			$msg_type = 'errmsg';
 			if ($is_edit){
-				$msg = "Field modified. $duplicate_text";
+				$msg = __("Field modified.")." $duplicate_text";
 			} else {
 				$extra = $field_id;
-				$msg = "Field created. $duplicate_text";
+				$msg = __("Field created.")." $duplicate_text";
 			}
 		} else {
 			if ($is_edit){
-				$msg = 'Field successfully modified';
+				$msg = __('Field successfully modified');
 			} else {
 				$extra = $field_id;
-				$msg = 'Field successfully created';
+				$msg = __('Field successfully created');
 			}
 		}
 		$m->comp("/tmpl/wizard:do_next", args => $args, default_transition => $m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, extra => $extra, msgtype => $msg_type, msg => $msg ));
@@ -259,7 +259,7 @@
 
 
 <%method title>
-% 	return ($is_edit) ? "Modify Dynamic List Field" : "Create New Dynamic List Field";
+% 	return ($is_edit) ? __("Modify Dynamic List Field") : __("Create New Dynamic List Field");
 </%method>
 
 

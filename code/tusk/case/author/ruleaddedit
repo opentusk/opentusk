@@ -48,7 +48,6 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 		name => $form_name, 
 		onsubmit => 'return validateRuleForm(this)' } &>
 
-
 <& /tmpl/element:hidden_form_element, params => { name => 'key_id', id => 'key_id', value => $case_id } &>
 
 <& /tmpl/element:table, params => { width => "100%",
@@ -70,9 +69,9 @@ my $type_path = $m->comp('/tmpl/url:get_type_path');
 my $fields = ['rule_operand_id', 'parent_label', 'phase_id', 'elt_label', 'elt_id', 'elt_type_id', 'relation_type_id', 'relation_value'];
 
 my $display = [
-               {label => 'Phase/Quiz', field => 'parent_label', align => 'left', length => 300 },
+               {label => __('Phase/Quiz'), field => 'parent_label', align => 'left', length => 300 },
                {label => 'phase_id', field => 'phase_id', type => 'hidden'},
-               {label => 'Element', field => 'elt_label', align => 'left', length => 300},
+               {label => __('Element'), field => 'elt_label', align => 'left', length => 300},
                {field => 'elt_id', type => 'hidden',},
                {field => 'elt_type_id', type => 'hidden',},
                {field => 'relation_type_id', type => 'hidden',},
@@ -89,8 +88,8 @@ foreach my $r (@$rules) {
 </%perl>
 
 <div class="crNewRuleTxt">
-Would you like to add more rule definitions to this phase?<br>
-<a href="javascript:;" onclick="addRuleDef(this);">Add New Rule Definition [+]</a>
+<%__("Would you like to add more rule definitions to this phase?")%><br>
+<a href="javascript:;" onclick="addRuleDef(this);"><%__("Add New Rule Definition")%> [+]</a>
 </div>
 
 </td>
@@ -152,7 +151,7 @@ if ($m->comp('/tmpl/wizard:submitted', args =>\%ARGS)){
 		$m->comp('process_operands', rule => $rule, user_id => $user_id, row_hash => $row_hash, current_operands => []);
 	}
 
-	my $msg = 'Phase rule(s) successfully modified.';
+	my $msg = __('Phase rule(s) successfully modified.');
 
 	$m->comp('/tmpl/wizard:do_next',
 			args               => \%ARGS,
@@ -179,26 +178,26 @@ $display
 <div id="crWrapper<% $id %>">
 % }
 <div id="ruleSec<% $id %>" class="crRuleDef">
-<h4 class="crRuleHdr clearfix"><span class="crRuleHdrMainTxt">Rule Definition<& /tmpl/element:link_to_help, topic => 'case_rules_tip_sheet' &></span> <a href="javascript:;" onclick="delrule(this.parentNode.parentNode)" class="crDeleteLnk">delete</a></h4>
+<h4 class="crRuleHdr clearfix"><span class="crRuleHdrMainTxt"><%__("Rule Definition")%><& /tmpl/element:link_to_help, topic => 'case_rules_tip_sheet' &></span> <a href="javascript:;" onclick="delrule(this.parentNode.parentNode)" class="crDeleteLnk">delete</a></h4>
 
-<p class="crPreamble">To <strong>enter</strong> the <em><% $phase->getPhaseTitle() %></em> phase, the student must have completed the following:</p>
+<p class="crPreamble"><%__x("To {t1}enter{t2} the {phasetitle} phase, the student must have completed the following", t1 => "<strong>", t2 => "</strong>", phasetitle => "<em>". $phase->getPhaseTitle() . "</em>")%></p>
 
 <div>
-<h5 class="crStepHdr crFirstStepHdr">Step 1</h5>
-Identify whether the student needs to complete <strong>ALL</strong> of the rule definitions, <strong>OR</strong> at least one of a possible set.<br>
+<h5 class="crStepHdr crFirstStepHdr"><%__("Step 1")%></h5>
+<%__x("Identify whether the student needs to complete {t1}ALL{t2} of the rule definitions, {t1}OR{t2} at least one of a possible set.", t1 => "<strong>", t2 => "</strong>")%><br>
 % my $operator_type_id = $rule->getRuleOperatorTypeID() || 1;
 % $m->comp('/tmpl/element:input_radio_buttons', params => { 
 %		name => 'ruletype' . $id, 
 %		nobreak => 1,
-%		buttons => [ {value => '1', checked => ($operator_type_id == 1)? 1 : 0, text => 'All of the below <strong style="margin:0 30px">OR</strong>'},
-%		             {value => '2', checked => ($operator_type_id == 2)? 1 : 0, text => 'At least one from the list below'},
+%		buttons => [ {value => '1', checked => ($operator_type_id == 1)? 1 : 0, text => __x('All of the below {t1}OR{t2}', t1 => '<strong style="margin:0 30px">', t2 => '</strong>')},
+%		             {value => '2', checked => ($operator_type_id == 2)? 1 : 0, text => __('At least one from the list below')},
 %		           ]
 %		});
 </div>
 
 <div>
-<h5 class="crStepHdr">Step 2</h5>
-<p class="crStepTwoTxt">Identify the phases and phase elements (e.g. a quiz question or diagnostic study) the student needs to have completed before entering the <em><% $phase->getPhaseTitle() %></em> phase. You may select multiple phases and elements.</p>
+<h5 class="crStepHdr"><%__("Step 2")%></h5>
+<p class="crStepTwoTxt"><%__x("Identify the phases and phase elements (e.g. a quiz question or diagnostic study) the student needs to have completed before entering the {phrase_title} phase. You may select multiple phases and elements.", phrase_title => "<em>".$phase->getPhaseTitle()."</em>")%></p>
 <table>
 
 <%perl>
@@ -210,7 +209,7 @@ unless ($id eq 'NewRule0') {
 my $add_btn = $m->scomp('/tmpl/element:button', params=>{
                 'name'    => 'add_elt_btn_' . $id,
                 'onclick' => 'addOperand(this)',
-                'label'   => 'Select Phases and Elements'} );
+                'label'   => __('Select Phases and Elements')} );
 
 $m->comp('/tmpl/element:sort_order_box' , params =>{
 		no_label => 1,
@@ -224,12 +223,12 @@ $m->comp('/tmpl/element:sort_order_box' , params =>{
 						usage     => 'Yes', 
 						length    => 100,  
 						functions => [ 
-								{ func => 'delElt', label => 'Delete' },
+								{ func => 'delElt', label => __('Delete') },
 						] 
 				},
 				display       => $display,
 				validate      => { usage => 'No' },
-				empty_message => 'No phases/elements have been selected yet.',
+				empty_message => __('No phases/elements have been selected yet.'),
 				data          => $rules_data,
 		}
 });
@@ -238,9 +237,9 @@ $m->comp('/tmpl/element:sort_order_box' , params =>{
 
 </div>
 
-<h5 class="crStepHdr">Step 3</h5>
-Provide a warning message that will be shown to a student who tries to enter the <em><% $phase->getPhaseTitle() %></em> phase without first completing the criteria selected above.<br><br>
-<span class="crLabel">Message:</span>
+<h5 class="crStepHdr"><%__("Step 3")%></h5>
+<%__x("Provide a warning message that will be shown to a student who tries to enter the {phase_title} phase without first completing the criteria selected above.", phase_title => "<em>". $phase->getPhaseTitle()."</em>")%><br><br>
+<span class="crLabel"><%__("Message")%>:</span>
 
 % $m->comp('/tmpl/element:input_textarea', params=>{
 %		name =>  'msg' . $id, 
@@ -336,11 +335,11 @@ return $rules_data;
 		onsubmit => 'return false' } &>
 
 
-<h4 id="crSelItmHdr">Configure Rule</h4>
+<h4 id="crSelItmHdr"><%__("Configure Rule")%></h4>
 <div id="crOperandSteps">
-<p id="crOperandIns">Select a phase (required) and the specific elements within the phase (optional) using the dropdown menus below.</p>
+<p id="crOperandIns"><%__("Select a phase (required) and the specific elements within the phase (optional) using the dropdown menus below.")%></p>
 <div id="crStep1">
-Step 1: Select Phase<br>
+<%__("Step 1: Select Phase")%><br>
 
 <%perl>
 my $opts = [ {label => 'select', value => ''} ];
@@ -474,7 +473,7 @@ $m->comp('/tmpl/process:manipulate_rows',
 
 
 <%method title>
-%	return "Modify Entrance Rule";
+%	return __("Modify Entrance Rule");
 </%method>
 
 <%method jsarray>

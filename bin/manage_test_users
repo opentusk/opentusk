@@ -1,0 +1,82 @@
+#!/bin/sh
+#
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+
+ACTION=$1;
+
+if [ "$ACTION" != "delete" -a "$ACTION" != "refresh" ]
+then
+    echo "\tmanage_test_users [delete|refresh]"
+    echo "\t\tdelete - delete test accounts"
+    echo "\t\trefresh - refresh test accounts"
+    exit
+fi
+
+mysql -e "
+# first delete users in case they exist
+delete from hsdb4.user where user_id in ('test_admin', 'test_director', 'test_author', 'test_studenteditor', 'test_student', 'test_manager', 'test_editor', 'test_studentmanager', 'test_sitedirector');
+
+# delete course roles if they exist
+delete from hsdb45_hsdb_admin.link_course_user where child_user_id in ('test_admin', 'test_director', 'test_author', 'test_studenteditor', 'test_manager', 'test_editor', 'test_studentmanager', 'test_sitedirector');
+
+# delete test_admin from the admin group
+delete from hsdb45_hsdb_admin.link_user_group_user where child_user_id = 'test_admin';
+
+# remove test_student from link_course_student table
+delete from hsdb45_hsdb_admin.link_course_student where child_user_id = 'test_student';
+
+"
+if [ "$ACTION" = "delete" ]
+then
+    echo "Deleted test accounts"
+    exit
+fi
+
+mysql -e "
+# add the test users
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_admin', Password('xx'), 'tusk@tufts.edu', 'Test', 'Admin', 'HSDB');
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_director', Password('xx'), 'tusk@tufts.edu', 'Test', 'Director', 'HSDB');
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_manager', Password('xx'), 'tusk@tufts.edu', 'Test', 'Manager', 'HSDB');
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_author', Password('xx'), 'tusk@tufts.edu', 'Test', 'Author', 'HSDB');
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_editor', Password('xx'), 'tusk@tufts.edu', 'Test', 'Editor', 'HSDB');
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_studenteditor', Password('xx'), 'tusk@tufts.edu', 'Test', 'Student Editor', 'HSDB');
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_student', Password('xx'), 'tusk@tufts.edu', 'Test', 'Student', 'HSDB');
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_studentmanager', Password('xx'), 'tusk@tufts.edu', 'Test', 'Student Manager', 'HSDB');
+
+insert into hsdb4.user (user_id, password, email, firstname, lastname, affiliation) values ('test_sitedirector', Password('xx'), 'tusk@tufts.edu', 'Test', 'Site Director', 'HSDB');
+
+# create course roles
+insert into hsdb45_hsdb_admin.link_course_user (parent_course_id, child_user_id, roles) values (1193, 'test_director', 'Director');
+insert into hsdb45_hsdb_admin.link_course_user (parent_course_id, child_user_id, roles) values (1193, 'test_manager', 'Manager');
+insert into hsdb45_hsdb_admin.link_course_user (parent_course_id, child_user_id, roles) values (1193, 'test_author', 'Author');
+insert into hsdb45_hsdb_admin.link_course_user (parent_course_id, child_user_id, roles) values (1193, 'test_editor', 'Editor');
+insert into hsdb45_hsdb_admin.link_course_user (parent_course_id, child_user_id, roles) values (1193, 'test_studenteditor', 'Student Editor');
+insert into hsdb45_hsdb_admin.link_course_user (parent_course_id, child_user_id, roles) values (1193, 'test_studentmanager', 'Student Manager');
+insert into hsdb45_hsdb_admin.link_course_user (parent_course_id, child_user_id, roles) values (1193, 'test_sitedirector', 'Site Director');
+
+# make test_admin a hsdb admin
+insert into hsdb45_hsdb_admin.link_user_group_user (parent_user_group_id, child_user_id) values (2, 'test_admin');
+
+# make sure course_id 1193 is set to enrollment
+update hsdb45_hsdb_admin.course set associate_users = 'Enrollment' where course_id = 1193;
+
+
+# add student using Forever time period which will expire in 2010
+insert into hsdb45_hsdb_admin.link_course_student (parent_course_id, child_user_id, time_period_id) values (1193, 'test_student', 5);
+"
+
+echo "Refreshed test accounts"

@@ -14,7 +14,7 @@
 
 
 window.onerror=function(msg, url, linenumber){
-        document.getElementById('evalArea').innerHTML = '<font color="red">Eval load failed due to script error.</font><br><b>'+msg+'</b><br>At line '+linenumber+' of '+url;
+        document.getElementById('evalArea').innerHTML = '<font color="red">'+_('Eval load failed due to script error.')+'</font><br><b>'+msg+'</b><br>At line '+linenumber+' of '+url;
 }
 
 var elements = new Array();
@@ -32,7 +32,7 @@ var pathInfo = '';
 
 // Queue up all of the graphs into arrays
 function queueEvalGraphsToLoad() {
-	if(!window.XMLHttpRequest && !window.ActiveXObject) {alert('Your browser does not support ajax, unable to load graphs.'); return;}
+	if(!window.XMLHttpRequest && !window.ActiveXObject) {alert(i_('Your browser does not support ajax, unable to load graphs.')); return;}
 	document.getElementById('graphicsLoadMessage').style.display = '';
 	if(document.getElementById('evalArea')) {
 		try {
@@ -44,7 +44,7 @@ function queueEvalGraphsToLoad() {
 		if(spans[index].id.match("eval_question_")) {
 			var questionID = spans[index].id.replace("eval_question_", "");
 			var url="/tusk/ajax/evalGraph/"+ pathInfo +"/"+ questionID +"?merged="+ merged +"&random="+ new Date().getTime();
-			spans[index].innerHTML = '<font color="green">Queued for Load</font>';
+			spans[index].innerHTML = '<font color="green">'+_('Queued for Load')+'</font>';
 			elements.push(spans[index]);
 			urls.push(url);
 		}
@@ -58,11 +58,11 @@ var nodeTextType = '';
 function processQueue() {
 	var url = urls.shift();
 	processingElement = elements.shift();
-	document.getElementById('queueMessage').innerHTML= "Loading Eval Graph "+ queueCounter++ +" of "+ queueLength;
+	document.getElementById('queueMessage').innerHTML= _("Loading Eval Graph ")+ queueCounter++ +" of "+ queueLength;
 	//processingElement will always be set since its global
 	if(!url) {
 		document.getElementById('graphLink').style.display = '';
-		document.getElementById('graphicsLoadMessage').inerHTML="Completed";
+		document.getElementById('graphicsLoadMessage').innerHTML=_("Completed");
 		document.getElementById('graphicsLoadMessage').style.display='none';
 		document.getElementById('evalArea').style.backgroundColor = '';
 		return;
@@ -80,7 +80,7 @@ function processQueue() {
 		ajaxRequest.onreadystatechange = doGraphLoad;
 		ajaxRequest.send(null);
 	} else {
-		processingElement.innerHTML = '<font color="red">Error requesting graph.</font>';
+		processingElement.innerHTML = '<font color="red">'+_("Error requesting graph.")+'</font>';
 		processQueue();
 	}
 }
@@ -108,7 +108,7 @@ function GraphObject(parentDiv) {
 
 function doGraphLoad() {
 	if(processingElement) {
-		processingElement.innerHTML = "<font color=\"#CC6600\">Returning Image</font>";
+		processingElement.innerHTML = "<font color=\"#CC6600\">"+_("Returning Image")+"</font>";
 		if(ajaxRequest && ajaxRequest.readyState == 4) {
 			if(ajaxRequest.status && (ajaxRequest.status == 200)) {
 				if(ajaxRequest.responseText.search("Unknown User") == -1 && ajaxRequest.responseText.search("Login") == -1) {
@@ -120,7 +120,7 @@ function doGraphLoad() {
 						var nodeValue = '';
 						if(xmlNode[nodeTextType]) {nodeValue = xmlNode[nodeTextType];}
 						else if(xmlNode.firstChild && xmlNode.firstChild.nodeValue) {nodeValue = xmlNode.firstChild.nodeValue;}
-						else {nodeValue = 'Unable to decypher graph XML';}
+						else {nodeValue = _('Unable to decypher graph XML');}
 
 						var skipNode = false;
 						if(xmlNode.nodeName == 'visual') {
@@ -135,22 +135,22 @@ function doGraphLoad() {
 					aGraph.displayGraph();
 					processQueue();
 				} else {
-					processingElement.innerHTML = '<font color="red">Your session timed out.</font>';
+					processingElement.innerHTML = '<font color="red">'+_('Your session timed out.')+'</font>';
 					processQueue();
 				}
 			} else if(ajaxRequest.status && (ajaxRequest.status == 403)) {
-				processingElement.innerHTML = '<font color="red">Your session timed out.</font>';
+				processingElement.innerHTML = '<font color="red">'+_('Your session timed out.')+'</font>';
 				processQueue();
 			} else if(ajaxRequest.status && (ajaxRequest.status == 500)) {
-				processingElement.innerHTML = '<font color="red">Error loading graph.</font>';
+				processingElement.innerHTML = '<font color="red">'+_('Error loading graph.')+'</font>';
 				processQueue();
 			} else {
-				processingElement.innerHTML = '<font color="red">Graph load canceled.</font>';
+				processingElement.innerHTML = '<font color="red">'+_('Graph load canceled.')+'</font>';
 				processQueue();
 			}
 		}
 	} else {
-		alert('Error: mislocated current processing element');
+		alert(_('Error: mislocated current processing element'));
 	}
 }
 
@@ -168,11 +168,11 @@ function loadEval(url, siteAbbr, path, doMerged) {
 	var isNotIE8 = true;
         try {
 		if(document.documentMode == 8) {
-			var message =	'You appear to be using Internet Explorer 8 which has known issues displaying eval results.<br>'+
-					'We are working to resolve these issues but until that time, please enable compatibility mode by selecting "Compatibility View" from the Tools menu.<br>'+
-					'If we have detected this incorrectly or you have questions or require assistance, please use the Contact page.';
+			var message =	_('You appear to be using Internet Explorer 8 which has known issues displaying eval results.')+'<br>'+
+					_('We are working to resolve these issues but until that time, please enable compatibility mode by selecting "Compatibility View" from the Tools menu.')+'<br>'+
+					_('If we have detected this incorrectly or you have questions or require assistance, please use the Contact page.');
 			if(document.getElementById('evalArea')) {
-				document.getElementById('evalArea').innerHTML = '<center><b><font color="red">'+ message +'</font></b></center>';
+				document.getElementById('evalArea').innerHTML = '<center><b><font color="red">' + message + '</font></b></center>';
 			} else {
 				alert(message);
 			}
@@ -190,10 +190,10 @@ function loadEval(url, siteAbbr, path, doMerged) {
 				ajaxRequest.onreadystatechange = doEvalLoad;
 				ajaxRequest.send(null);
 			} else {
-				processingElement.innerHTML = '<font color="red">Error requesting eval.</font>';
+				processingElement.innerHTML = '<font color="red">'+_('Error requesting eval.')+'</font>';
 			}
 		} catch(error) {
-			alert('Error in eval ajax request:\n'+error.description);
+			alert(_('Error in eval ajax request')+':\n'+error.description);
 		}
 	}
 }
@@ -201,33 +201,35 @@ function loadEval(url, siteAbbr, path, doMerged) {
 function doEvalLoad() {
 	try {
 		if(document.getElementById('evalArea')) {
-			document.getElementById('evalArea').innerHTML= "<br><br><center><font color=\"#CC6600\">Loading Eval</font><br><img src=\"/graphics/icons/waiting_bar.gif\"></center>";
+			document.getElementById('evalArea').innerHTML= "<br><br><center><font color=\"#CC6600\">"+_('Loading Eval')+"</font><br><img src=\"/graphics/icons/waiting_bar.gif\"></center>";
 			if(ajaxRequest && ajaxRequest.readyState == 4) {
 				if(ajaxRequest.status && (ajaxRequest.status == 200)) {
 					document.getElementById('evalArea').innerHTML = ajaxRequest.responseText;
 					queueEvalGraphsToLoad();
 				} else if(ajaxRequest.status && (ajaxRequest.status == 500)) {
-					processingElement.innerHTML = '<font color="red">Error loading eval.</font>';
+					processingElement.innerHTML = '<font color="red">'+_('Error loading eval.')+'</font>';
 				} else if(ajaxRequest.status && (ajaxRequest.status == 302)) {
-					processingElement.innerHTML = '<font color="red">Got a redirect.</font>';
+					processingElement.innerHTML = '<font color="red">'+_('Got a redirect.')+'</font>';
 				} else {
-					document.getElementById('evalArea').innerHTML = '<br><br><center><font color="red">Error loading eval.</font><center>';
+					document.getElementById('evalArea').innerHTML = '<br><br><center><font color="red">'+_('Error loading eval.')+'</font><center>';
 				}
 				clearTimeout(timerTimeout);
 				document.getElementById('waitMessage').innerHTML = 'waited';
 			}
 		} else {
-			alert('Error: mislocated eval element');
+			alert(_('Error: mislocated eval element'));
 		}
 	} catch(error) {
 		if(timerTimeout) {clearTimeout(timerTimeout);}
 		if(document.getElementById('waitMessage')) {document.getElementById('waitMessage').innerHTML = 'waited';}
 		if(document.getElementById('graphicsLoadMessage')) {document.getElementById('graphicsLoadMessage').style.display = 'none';}
 		if(document.getElementById('evalArea')) {
-			document.getElementById('evalArea').innerHTML = '<center><font color="red">Im sorry, an error has occurred while requesting this eval. Please contact '+ siteAbbreviation +' for support.<font></center>';
+			document.getElementById('evalArea').innerHTML = '<center><font color="red">'+_('Im sorry, an error has occurred while requesting this eval. Please contact here for support:')+ siteAbbreviation +'<font></center>';
 			if(error.description) {document.getElementById('evalArea').innerHTML += '<br><center>Error was: '+error.description+'</center>';}
-			if(ajaxRequest && ajaxRequest.status) {document.getElementById('evalArea').innerHTML += '<br><center>Ajax Return Code: '+ajaxRequest.status+'</center>';}
-		} else {alert('There was an error processing eval ajax request. Please contant '+ siteAbbreviation +' for support.');}
+			if(ajaxRequest && ajaxRequest.status) {
+				document.getElementById('evalArea').innerHTML += '<br><center>' + _('Ajax Return Code:') + ajaxRequest.status + '</center>';
+			}
+		} else {alert(_('There was an error processing eval ajax request. Please contact here for support: ')+ siteAbbreviation);}
 	}
 }
 
@@ -240,7 +242,7 @@ function showHideGraphs() {
 	} else {
 		linkText = "Hide";
 	}
-	linkText += " Graphs";
+	linkText += " "+_("Graphs");
 
 	if(document.getElementById('graphLink')) {document.getElementById('graphLink').innerHTML = linkText;}
 	for(var index=0; index<graphs.length; index++) {

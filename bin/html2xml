@@ -1,0 +1,1281 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+#########################################################################
+#
+# html2xml
+#
+# Tool to convert HTML in the body of content objects to HSCML (XML)
+# Tarik Alkasab
+# Original Date: August 1, 2001
+# $Revision: 1.23 $
+# $Date: 2012-08-27 15:27:33 $
+#
+# Todo:
+#  1. Break out most of the HTML -> XML conversion as a module of its own
+#  2. Deal with <div> tags. This is complicated; <div> tags that enclose lots of 
+#     stuff need to be basically eliminated (and their contents moved up). <div> 
+#     tags that enclose inline stuff need to be turned inta <para>s.
+#  5. Deal with forms and buttons. (Yuck.)
+#  6. Add validation to the end of the process; make sure we actually succeed in the conversion.
+#
+# To test:
+#  3. Deal with <pre> tags (<span class="pre">)
+#  7. Make sure web-cites don't get link-type attribute.
+#  4. Deal with problem of <h3> (et al.) tags used as inline markup
+#
+# Done: 
+#  x. Deal with the associated data better from the HTML.
+#  x. Deal with the links appropriately
+#  x. Does spacing need to be dealt with, still?
+#  x. Deal with adding node-ids
+#  x. Put the document back into content when we're done
+#  x. I think pop-ups should be OK
+#  x. Deal with weird stuff in these documents, like real-audio, 
+#     and other strangenesses
+#  x. Internal links (and anchors)
+#
+#########################################################################
+
+
+use HSDB4::Constants;
+use HSDB4::SQLRow::Content;
+use HTML::Tidy;
+use MySQL::Password;
+use XML::Twig;
+use XML::LibXML;
+use Image::Size;
+use FileHandle;
+use Getopt::Long;
+use TUSK::Constants;
+use utf8;
+
+sub break_para;
+sub do_sections;
+sub fix_align;
+sub set_nodeid;
+sub check_for_link;
+sub empty_check;
+sub fix_anchor;
+sub check_inline;
+
+my ($html_file, $save, $content_id, $verbose, $novalid);
+
+GetOptions ("save!" => \$save,
+	    "html-file=s" => \$html_file,
+	    "content-id=i" => \$content_id,
+	    "verbose" => \$verbose,
+	    "novalid" => \$novalid,
+	    );
+
+$usage=<<END;
+Usage:
+    $0 --content-id=<id> [ --save ] [ --html-file=<filename> ]
+END
+
+unless ($content_id) {
+    print $usage;
+    exit 1;
+}
+
+my %nodeids = ( 0 => 1);
+my @nodetags = qw(enumerated-list itemized-list definition-list
+		  para equation figure table hsdb-cite-include
+		  section-level-1 section-level-2 section-level-3
+		  section-level-4 section-level-5 section-level-6);
+for (@nodetags) { $nodetags{$_} =1 }
+my %assocdata = (question_info => 1,
+		 slide_info => 1,
+		 flashpix_uri => 1,
+		 realvideo_uri => 1,
+		 realaudio_uri => 1,
+		 external_uri => 1,
+		 pdf_uri => 1,
+		 shockwave_uri => 1);
+
+# Form the twig; we're going to do a lot of substitutions right at.
+my %handlers = ( p => \&make_para, ul => \&make_itemized_list,
+		 ol => \&make_enumerated_list, li => \&make_list_item,
+		 dl => \&make_definition_list, dt => \&make_definition_term,
+		 dd => \&make_definition_data, u => \&make_emph,
+		 strong => \&empty_check, em => \&make_emph,
+		 i => \&make_emph, b => \&make_emph,
+		 sup => \&make_super, span => \&span_check,
+		 a => \&fix_link, img => \&fix_image,
+		 blockquote => \&make_block_quote,
+		 hr => \&hr_kill, # div => \&div_to_para,
+		 pre => \&pre_to_span, h1 => \&empty_check, 
+		 h2 => \&empty_check, h3 => \&empty_check,
+		 h4 => \&empty_check, h5 => \&empty_check,
+		 h6 => \&empty_check
+		 );
+my $twig = 
+    new XML::Twig ( TwigHandlers => \%handlers, 
+		    #CharHandler => \&no_spaces ,
+		    LoadDTD => 0,
+		    );
+my $content = HSDB4::SQLRow::Content->new;
+
+# Make a new Twig to be the output object, and suck up the template in <DATA>
+# to form its basis
+
+my $out_twig = new XML::Twig ();
+$out_twig->parse (join ('', <DATA>));
+
+# set DTD address based on hostname in Constants file
+$out_twig->{'twig_doctype'}->{'sysid'} = "http://$TUSK::Constants::Domain/DTD/dbcontent.dtd";
+
+# Get the header object 
+my $header = $out_twig->first_elt ('brief-header');
+my $assocdata = $out_twig->first_elt ('associated-data');
+
+# Get the XML from the database, and make a string out of it
+{
+  HSDB4::Constants::set_user_pw (get_user_pw);
+    # Get the content object specified
+    print "Looking up content_id=$content_id\n" if $verbose;
+    $content->lookup_key($content_id);
+    die "Cannot figure out how to look up document." 
+	unless ($content->primary_key);
+    # Get the bit of HTML in the body, tidy it, and parse it
+    my $html;
+    if ($html_file) {
+	open HTML, $html_file or die "Cannot open HTML file $html_file";
+	$html = join ('', <HTML>);
+	close HTML;
+    }
+    else { $html = $content->out_html_body }
+    $html =~ s!(<a [^>]*name=\"([^\"]+)\"[^>]*>)!$1</a>!g;
+    $html =~ s/\&nbsp\;//g;
+    print "Tidying HTML\n" if $verbose;
+    my $string = HTML::Tidy::tidyString($html, 0);
+    print "Parsing XHTML\n" if $verbose;
+    my $count = $string =~ s/\xdf/\&beta\;/sg;
+    print "Put in $count replacements.\n" if $verbose;
+    eval { $twig->parse($string) };
+    if ($@) {
+	open HTML, ">$content_id\.html";
+	print HTML $string;
+	die "Failed to parse the html file: $@\nDumped the HTML to $content_id\.html.\n";
+    }
+    my $bodytwig = new XML::Twig ();
+    my $bodystring = $content->body->out_xml ();
+    $bodytwig->parse ($bodystring);
+    for (map { $_->copy } $bodytwig->first_elt ('html')->prev_siblings ()) {
+	if ($assocdata{$_->gi}) { $_->paste ('last_child', $assocdata) }
+	else { 
+	    $_->set_gi ('source');
+	    $_->paste ('last_child', $header); 
+	}
+    }
+}
+
+# Get the body object
+my $body = $twig->first_elt ('body');
+# Break all of the <para>'s on <br/>'s
+print "Breaking up <para>'s on <br>'s\n" if $verbose;
+for ($body->descendants ('para')) { break_para $_ }
+# Delete the rest of the <br/>'s
+for ($body->descendants ('br')) { $_->delete }
+# Find everything in the tables, and make sure the alignment is fixed right
+for my $table ($body->descendants ('table')) {
+    fix_align $table;
+    for ($table->descendants) {	fix_align $_ }
+}
+# Kill empty <para>'s
+print "Killing empty <para>'s\n" if $verbose;
+for ($body->descendants ('para')) { 
+    $_->delete unless ($_->text =~ /\S/);
+}
+
+print "Checking inline contents\n" if $verbose;
+# Now, go look at a bunch of elements and see if they get fixed
+for (qw/para list-item td/) {
+    for my $elt ($body->descendants ($_)) {
+	check_inline ($elt);
+    }
+}
+
+
+print "Working on sectioning\n" if $verbose;
+# Figure out the sectioning; what are the section levels used, and it what order?
+my @levels = ();
+my @headers = ();
+my %headers = ();
+for my $child ($body->children) {
+    if ($child->gi =~ /^h[1-6]$/) { $headers{$child->gi} = 1 }
+}
+# Now, go through the document and put the pieces in place; make up the lists
+# of stuff to go to do_section
+my $levelcount = 1;
+for (1..6) { 
+    if ($headers{"h$_"}) { 
+	push @levels, $levelcount++;
+	push @headers, $_;
+    } 
+}
+# Now, do the sectioning
+my @sections = do_section ($body, \@levels, \@headers);
+# And take the pieces and make a new body out of it
+$body = XML::Twig::Elt->new ('body', @sections);
+
+print "Fixing anchors\n" if $verbose;
+# Now, fix the anchors which may have been misplaced
+for my $anchor ($body->get_xpath('.//anchor')) {
+    if ($anchor->is_empty()) { $anchor->delete() }
+    elsif ($anchor->text() !~ /\w/) { $anchor->delete() }
+    else { fix_anchor $anchor }
+}
+
+print "Fixing <hsdb-graphic>'s\n" if $verbose;
+# For all the images, check if they're where they belong
+for my $graphic ($body->descendants ('hsdb-graphic')) {
+    check_for_link $graphic;
+    $graphic->set_content('#EMPTY');
+    $graphic->set_empty();
+}
+
+print "Fixing <realmedia-ref>'s\n" if $verbose;
+# For the <realmedia-ref>'s find out if they've got the icon
+# as their first child
+for my $rm ($body->descendants ('realmedia-ref')) {
+    if ($rm->first_child->gi eq 'web-graphic') {
+	if ($rm->first_child->att ('uri') =~ m!/icons!) {
+	    # If they do, then delete that icon, and change the attribute
+	    # instead
+	    $rm->first_child->delete;
+	    $rm->set_att ('show-icon', 'yes');
+	}
+    }
+}
+
+print "Fixing <span class=foo>'s\n" if $verbose;
+# Make all the <span class="strong"> just into <strong>
+for my $span ($body->get_xpath('.//span[@class="strong"]')) {
+    $span->del_atts();
+    $span->set_gi('strong');
+}
+for my $span ($body->get_xpath('.//span[@class="super"]')) {
+    $span->del_atts();
+    $span->set_gi('super');
+}
+for my $span ($body->get_xpath('.//span[@class="emph"]')) {
+    $span->del_atts();
+    $span->set_gi('emph');
+}
+
+print "Fixing <span class=div>'s\n" if $verbose;
+# Deleting all the <span class="div"> just into <super>
+for my $span ($body->get_xpath('.//span[@class="div"]')) {
+    for (map { $_->copy() } $span->children()) { $_->paste('after', $span) }
+    $span->delete();
+}
+
+print "Guaranteeing empty tags are just that.\n" if $verbose;
+# Make sure empties are empty
+for my $gr ($body->get_xpath('.//web-graphic'),
+	    $body->get_xpath('.//hsdb-graphic'),
+	    $body->get_xpath('.//hsdb-cite-include')) {
+    $gr->set_content('#EMPTY');
+    $gr->set_empty();
+}
+
+sub fix_div {
+    my $div = shift;
+    # Maybe it contains a bunch of paragraphs
+    print sprintf("\tFixing <%s><%s>...</%s></%s>\n", $div->parent()->gi(), $div->gi(),
+		 $div->gi(), $div->parent()->gi()) if $verbose;
+    if ($div->children('para')) {
+	print "\tMoving <div>'s contents up\n" if $verbose;
+	my @children = ();
+	for my $child (map { $_->copy() } $div->children()) {
+	    if ($child->is_text()) { $child = XML::Twig::Elt->new('para', $child) }
+	    print sprintf("\t\tMaking a <%s> after a <%s> in a <%s>.\n", 
+			 $child->gi(), $div->gi(), $div->parent()->gi()) if $verbose;
+	    $child->paste('after', $div);
+	}
+	$div->delete();
+    }
+    # or maybe it's just a paragraph
+    else {
+	print "\tConverting <div> to <para>\n" if $verbose;
+	$div->set_gi('para');
+    }
+}
+
+sub fix_section_div {
+    my $section_elt = shift;
+    my $level = shift;
+    if ($level < 6) {
+	my @subsect_elts = $section_elt->children( sprintf("section-level-%d", $level+1) );
+	for (@subsect_elts) { fix_section_div($_, $level + 1) }
+    }
+    for my $div ($section_elt->children('div')) { fix_div($div) }
+}
+
+print "Fixing structural <div>'s\n" if $verbose;
+fix_section_div($body, 0);
+
+print "Fixing <div>'s in <para>'s\n" if $verbose;
+for my $div ($body->descendants('div')) {
+    my $para = $div->parent();
+    next unless $para->gi() eq 'para';
+    my $last_para = $para;
+    my $new_para = XML::Twig::Elt->new('para', $para->atts());
+    print "\tSplitting a <div>-containing <para>\n" if $verbose;
+    for my $child (map { $_->copy() } $para->children()) {
+	if ($child->gi() eq 'div') {
+	    $new_para->paste('after', $last_para);
+	    $last_para = $new_para;
+	    $new_para = XML::Twig::Elt->new( 'para', 
+					     $child->atts(), 
+					     map { $_->copy() } $child->children()
+					     );
+	    $new_para->paste('after', $last_para);
+	    $last_para = $new_para;
+	    $new_para = XML::Twig::Elt->new( 'para', $para->atts() );
+	}
+	else {
+	    $child->paste('last_child', $new_para);
+	}
+    }
+    $new_para->paste('after', $last_para);
+    $para->delete();
+}
+
+print "Fixing the <para><...list>...</...list></para> structure.\n" if $verbose;
+for my $para ($body->descendants('para')) {
+    if ($para->children() == 1 && ($para->first_child()->gi() eq 'itemized-list' ||
+				   $para->first_child()->gi() eq 'enumerated-list' ) ) {
+	$para->first_child()->copy()->paste('after', $para);
+	$para->delete();
+    }
+    if ($para->children() == 2 && $para->first_child->gi() eq 'strong' && 
+	(($para->child(1)->gi() eq 'itemized-list' ||
+	  $para->child(1)->gi() eq 'enumerated-list') )) {
+      XML::Twig::Elt->new('list-title', map { $_->copy() } $para->first_child()->children());
+    }
+}
+
+print "Fixing bad attributes\n" if $verbose;
+# Find screwed up attributes in things
+my %bad_atts = ( table => ['bgcolor', 'align', 'height'],
+		 tr => ['bgcolor', 'align'],
+		 td => ['width', 'height'],
+		 th => ['width', 'height'],
+		 'list-item' => ['type', 'value'],
+		 'enumerated-list' => ['type'],
+		 'itemized-list' => ['type'],
+		 'hsdb-graphic' => ['border'],
+		 );
+while (my ($gi, $atts) = each %bad_atts) {
+    for my $att (@{$atts}) {
+	# for my $elt ($body->get_xpath(".//$gi\[\@$att]")) { 
+	for my $elt ($body->descendants("$gi")) {
+	    next unless $elt->att($att);
+	    $elt->del_att($att);
+	}
+    }
+}
+
+print "Deal with alignment stuff.\n" if $verbose;
+for ($body->descendants()) { 
+    next unless $_->att('align') && $_->att('align') eq 'align';
+    $_->del_att('align');
+}
+for ($body->descendants('td')) { 
+    next unless $_->att('align') && $_->att('align') eq 'top';
+    $_->del_att('align'); 
+    $_->set_att('valign' => 'top');
+}
+
+print "Looking for empty sections\n" if $verbose;
+for my $level (1..6) {
+    for my $section ($body->descendants("section-level-$level")) {
+	my $last = $section->last_child();
+	if ($last->gi() eq 'section-title') {
+	    print "\tFilling in an empty <section-level-$level>\n" if $verbose;
+	    my $new_para = XML::Twig::Elt->new('para', { class => "FIXME" }, "FIXME: Empty Section");
+	    $new_para->paste('last_child', $section);
+	}
+    }
+}
+
+print "Fixing <td><para>...</para></td> structure\n" if $verbose;
+for my $td ($body->descendants('td')) {
+    if ($td->children() == 1 && $td->first_child()->gi() eq 'para') {
+	$td->set_content( map { $_->copy } $td->first_child()->children() );
+    }
+}
+
+print "Fixing <definition-data><para>...</para></definition-data> structure\n" if $verbose;
+for my $dd ($body->descendants('definition-data')) {
+    if ($dd->children() == 1 && $dd->first_child()->gi() eq 'para') {
+	$dd->set_content( map { $_->copy } $dd->first_child()->children() );
+    }
+}
+
+print "Fixing <list-item><para>...</para></list-item> structure\n" if $verbose;
+for my $item ($body->descendants('list-item')) {
+    if ($item->children() == 1 && $item->first_child()->gi eq 'para') {
+	for (map { $_->copy() } $item->first_child()->children()) { 
+	    $_->paste('after', $item->first_child());
+	}
+	$item->first_child()->delete();
+    }
+    elsif ($item->children() == 2 && $item->child(0)->gi() eq 'para' && $item->child(1)->gi() =~ /(itemized|enumerated)-list/) {
+	my $list = $item->child(1)->copy();
+	$item->set_content( map { $_->copy } $item->first_child()->children(),  );
+	$list->paste('last_child', $item);
+    }
+}
+
+print "Fix <para class=para>\n" if $verbose;
+for my $gi (qw/para span/) {
+    for my $elt ($body->descendants("$gi")) {
+	next unless $elt->att('class') && $elt->att('class') eq $gi;
+	$elt->del_att('class');
+    }
+}
+
+print "Setting node IDs for ".scalar @nodetags." node types\n" if $verbose;
+# For all the tags which should have node-ids, set them
+for my $element (@nodetags) {
+    for my $elt ($body->descendants ($element)) { 
+	set_nodeid $elt;
+    }
+}
+
+
+print "Pasting in the body\n" if $verbose;
+# Paste in the body
+$body->paste('after', $assocdata);
+
+unless ($novalid) {
+    print "Validating data...\n" if $verbose;
+    my $parser = XML::LibXML->new();
+    print "Loading dtd ...\n" if $verbose;
+    $parser->load_ext_dtd(1);
+    print "Loading composed XML ...\n" if $verbose;    
+    my $doc = $parser->parse_string($out_twig->sprint());
+    print "Validating XML against dtd ...\n" if $verbose;
+    if ($doc->is_valid()) { 
+	print "Created XML is valid.\n";
+    }
+    else {
+	print "Oops... XML is invalid; saving to file ($content_id\.xml). (Sorry.)\n";
+	$save = 0;
+    }
+}
+
+# And put it back in the database, if that's what we're doing
+if ($save) {
+    print "Saving back to the database\n" if $verbose;
+    $content->set_field_values ('hscml_body', $out_twig->sprint,
+				'conversion_status', 1);
+    $content->save;
+}
+# ... or print it out, if it's not
+else {
+    print "Saving to $content_id\.xml\n" if $verbose;
+    my $fh = new FileHandle ">$content_id\.xml" or die "Cannot open file $content_id\.xml";
+    $out_twig->print($fh);
+    $fh->close();
+}
+
+sub check_inline {
+    #
+    # Look at an element that should only take inline stuff and make sure
+    # it's not cheating, especially with <h3> tags, etc.
+    #
+    # INPUT:
+    #   An XML::Twig::Elt object.
+    # RETURN:
+    #   None, but it modifies the Elt (or its descendants)
+    #
+
+    my ($elt) = @_;
+    # What are the bad tags, and what should we change them to?
+    my %naughty_tags = (h1 => 'strong',
+			h2 => 'strong',
+			h3 => 'strong',
+			h4 => 'strong',
+			h5 => 'strong',
+			h6 => 'strong',
+			div => 'span');
+
+    # OK, now we look for them, one tag at a time
+    for my $tag (keys %naughty_tags) {
+	for my $subelt ($elt->descendants ($tag)) {
+	    # When we find one, we change it, and set its attribute
+	    $subelt->set_gi ($naughty_tags{$tag});
+	    $subelt->set_att (class => $tag);
+	}
+    }
+}
+
+sub break_para {
+    # 
+    # Make a paragraph with <br/> elements in it multiple paragraphs split up
+    # at the old locations of the <br/>'s.  That is, make this...
+    # 
+    # <para>foo<br/>bar<br/>baz</para>
+    #
+    # into...
+    #
+    # <para>foo</para>
+    # <para>bar</para>
+    # <para>baz</para>
+    #
+    # INPUT:
+    #   A XML::Twig::Elt object with GI "para".
+    # RETURN:
+    #   None, but it modifies the <para> Elt, and pastes new ones after it in 
+    #   the tree.
+    #
+    my ($para) = @_;
+    # Don't do anything if this <para> has no <br/>'s
+    return unless ($para->children ('br'));
+    # Find the first <br/>
+    my $br = $para->first_child ('br');
+    # Get a copy of everything after it, and make a new <para> out of it
+    my @postpara = map { $_->copy } $br->next_siblings;
+    my $postpara = new XML::Twig::Elt ('para', @postpara);
+    # Now, change the current paragraph to be everything before it
+    $para->set_content ($br->prev_siblings);
+    # Delete the <br/>
+    $br->delete;
+    # And stick in the later paragraph, and check it for <br/>, too
+    $postpara->paste ('after', $para);
+    break_para ($postpara);
+}
+
+sub do_section {
+    #
+    # Take a big blob of HTML and make the sectioning work with it. That is,
+    # make something like...
+    # 
+    #   <h2>Title</h2>
+    #     <para>...</para>
+    #     <h4>Subtitle</h4>
+    #       <para>...</para>
+    #       <para>...</para>
+    #   <h2>Another title</h2>
+    #     <para>...</para>
+    # 
+    # into...
+    #
+    #   <section-level-1>
+    #     <title>Title</title>
+    #     <para>...</para>
+    #     <section-level-2>
+    #       <title>Subtitle</title>
+    #       <para>...</para>
+    #       <para>...</para>
+    #     </section-level-2>
+    #   </section-level-1>
+    #   <section-level-1>
+    #     <title>Another title</title>
+    #     <para>...</para>
+    #   </section-level-1>
+    #
+    # INPUT: 
+    #   1: An XML::Twig::Elt object to do the dirty work on
+    #   2: An array-ref of the section-levels remaining to go in sub-elements
+    #   3: An array-ref of the HTML heading levels that correspond with 2.
+    #
+    # RETURN:
+    #
+    #   A list of the elements which are the result.
+    # So for the above example, it would be...
+    #
+    #   $body = new XML::Twig::Elt ('body', 
+    #                               do_section ($elt, [ 1, 2 ], [ 2, 4 ]));
+    #
+    # ...which would make a new <body> element with the <section-level-1> 
+    # elements as its children
+    
+    my ($inelt, $levels, $headings) = @_;
+    my $level = shift @$levels;
+    my $heading = shift @$headings;
+
+    my @elts = ();
+    # Check to make sure there are actually appropriate children. If there
+    # aren't, then just return a copy of the children
+    unless ($heading && $inelt->children ("h$heading")) { 
+	for ($inelt->children) {
+	    push @elts, $_->copy;
+	}
+	return @elts;
+    }
+
+    # Now, for each child, see if it's the right heading. If it is, then make
+    # an appropriate element. If not, add it to the current section.
+    my $substart = 0;
+    my @section =  ();
+    for my $child ($inelt->children) {
+	if ($child->gi eq "h$heading") {
+	    $substart = 1;
+	    # If there's stuff in the section, make up the new element, and
+	    # add it to the big list, and reset
+	    if (@section) {
+		my $elt = new XML::Twig::Elt ("section-level-$level", 
+					      @section);
+		push @elts, $elt;
+	    }
+	    # Reset the section
+	    @section = ();
+	    # Make a copy of this element to be the section title, and
+	    # push it onto the new section
+	    my @children = ();
+	    for ($child->children) { push @children, $_->copy }
+	    push @section,  new XML::Twig::Elt ('section-title', @children);
+	}
+	# Copy and add to the current section
+	elsif ($substart) {
+	    push @section, $child->copy;
+	}
+	else {
+	    push @elts, $child->copy;
+	}
+    }
+
+    # If there's a leftover current section, let's close it
+    if (@section) {
+	my $elt = new XML::Twig::Elt ("section-level-$level", 
+				      @section);
+	push @elts, $elt;
+    }
+	    
+    # If there's no more down to go, then just return the list of elements
+    unless (@{$levels} && @{$headings}) {
+	return @elts;
+    }
+
+    # Otherwise, let's go through the sections we've formed, and do the next
+    # level down, if there's more down to go
+    my @newelts = ();
+    for (@elts) {
+	if ($_->gi eq 'section-title') {
+	    push @newelts, $_;
+	    next;
+	}
+	my @sections = do_section ($_, [ @$levels ], [ @$headings ]);
+	push @newelts, new XML::Twig::Elt ($_->gi, @sections);
+    }
+    return @newelts;
+}
+
+sub fix_anchor {
+    #
+    # Find the nearest appropriate neighbor for sticking this label on
+    #
+    my $elt = shift;
+    # Get the name
+    my $anchorname = $elt->att ('name');
+    # Check the next sibling first
+    my $node = $elt->next_sibling;
+    # And if it's good, then use it
+    unless ($node && $nodetags{$node->gi}) {
+	# Otherwise, start checking parents
+      PARENT: for ($elt->ancestors) { 
+	    if ($nodetags{$_->gi}) {
+		$node = $_;
+		last PARENT;
+	    }
+	}
+    }
+    # Set the ID attribute, and put it in the used list
+    $node->set_id ($anchorname);
+    $nodeids{$anchorname} = 1;
+    # Then, delete the anchor
+    $elt->delete;
+    return 1;
+}
+
+#perl -nle 'print unless m%http://(?!hsdb)%' links.txt | grep -v ovid.com | grep -v ramgen | grep -v ramfiles | egrep -v '^\#' | grep -v 'hsdb4/content' | grep -v mailto | grep -v '/images/'
+
+# Types of links:
+# x. Outside HSDB: no problem, default web-cite
+# 2. Ovid.com: make an medline-cite
+# 3. Real: ramgen/ramfiles: realmedia-ref
+# x. hsdb4/content: easy, make hsdb-cite-content
+# x. Mailto: default web-cite
+# x. Images: default web-cite
+
+sub fix_link {
+    #
+    # Figure out what to do with an <a> element
+    #
+    my ($t, $elt) = @_;
+    my $uri = $elt->att ('href');
+    if (! $uri && $elt->att ('name')) {
+	$elt->set_gi ('anchor');
+	return 1;
+    }
+    # If it's an internal link...
+    if ($uri =~ /^\#(.+)$/) {
+	$elt->set_gi ('hsdb-cite-content');
+	$elt->del_att ('href');
+	$elt->set_att ('content-id', $content->primary_key);
+	$elt->set_att ('node-id', $1);
+    }
+    # Or if it's a medline link...
+#    elsif ($uri =~ m!ovidweb\.cgi\?.*AN=(\d+-\d+-\d+)&!) {
+#	$elt->del_att ('href');
+#	$elt->set_gi ('medline-ref');
+#	$elt->set_att ('accession-no', $1)
+#    }
+    elsif ($uri =~ m!ovidweb\.cgi\?.*AN=(\d+-\d+-\d+)&!) {
+	$elt->del_att ('href');
+	$elt->set_gi ('web-cite');
+	$elt->set_att ('uri', $1);
+    }
+    # Or if it's a real media link...
+    elsif ($uri =~ m!\.edu:8080(/ramgen/.+)$!) {
+	$elt->del_att ('href');
+	$elt->set_gi ('realmedia-ref');
+	$elt->set_att ('uri', $1);
+    }
+    # Or if it referes to some content...
+    elsif (my ($content_id) = $uri =~ m!/hsdb4/content/(?:.+/)*(\d+)!) {
+	$elt->set_gi ('hsdb-cite-content');
+	$elt->del_att ('href');
+	$elt->set_att ('content-id', $content_id);
+	# Check to see if there's an internal link as well
+	if ($uri =~ /$content_id\#(\w+)/) {
+	    $elt->set_att ('node-id', $1);
+	}
+    }
+    # Otherwise, just make a regular link
+    else {
+	$elt->set_gi ('web-cite');
+	$elt->del_att ('href');
+	$elt->set_att ('uri', $uri);
+    }
+
+    # Set the link-type to deal well with the a popup situation
+    if ($uri =~ m!javascript:openWindow\(&apos;(.+)&apos;!) {
+	$elt->set_att ('link-type', 'popup');
+	$elt->set_att ('uri', $1) if ($elt->gi eq 'web-cite');
+    }
+    elsif ($elt->gi ne 'web-cite') {
+	$elt->set_att ('link-type', 'link');
+    }
+
+    return 1;
+}
+
+sub check_for_link {
+    #
+    # Figure out if the immediate parent is a link, and if it is, then
+    # set the link-type attributes
+    #
+    my $elt = shift;
+    my $parent = $elt->parent;
+    if ($parent->gi eq 'hsdb-cite-content' &&
+	$parent->children () == 1 &&
+	$elt->att ('content-id') eq $parent->att ('content-id')) {
+	# Make a copy of the image
+	my $new_elt = $elt->copy;
+	# Get the link-type from the link
+	$new_elt->set_att ('link-type', $parent->att ('link-type'));
+	# Flag this as empty...
+	$new_elt->set_content('#EMPTY');
+	$new_elt->set_empty();
+	# ...and make sure this is it
+	$new_elt->replace ($parent);
+    }
+}
+
+sub set_nodeid {
+    #
+    # Sets a random nodeid
+    #
+    my $elt = shift;
+    # Return of the node already has an ID
+    return if ($elt->id && $elt->id =~ /^[A-za-z_]/);
+    # Make a random one we haven't already used
+    my $nodeid = 0;
+    while ($nodeids{$nodeid}) { $nodeid = "_" . int(rand (9999) + 1) }
+    $nodeids{$nodeid} = 1;
+    # And set it for the element
+    $elt->set_id ($nodeid);
+}
+
+sub fix_image {
+    my %icons = 
+	("ell.gif" => '&liter;',
+	 "gror=.gif" => '&ge;',
+	 "uparrow.gif" => '&uarr;',
+	 "epsilonlowercase.gif" => '&epsilon;',
+	 "deltalowercase.gif" => '&delta;',
+	 "pi.gif" => '&pi;',
+	 "not_equal_to.gif" => '&ne;',
+	 "plus_minus.gif" => '&plusmn;',
+	 "deltalowercasebold.gif" => '&delta;',
+	 "betalowercase.gif " => '&beta;',
+	 "rightarrowbold.gif" => '&rarr;',
+	 "alphalowercasebold.gif" => '&alpha;',
+	 "zetalowercase.gif" => '&zeta;',
+	 "psilowercase.gif" => '&psi;',
+	 "gammalowercasebold.gif" => '&gamma;',
+	 "alpha.gif" => '&alpha;',
+	 "uparrow1.gif" => '&uarr;',
+	 "Downarrow.gif" => '&darr;',
+	 "downarrow.gif" => '&darr;',
+	 "philowercase.gif" => '&phi;',
+	 "darrow1.gif" => '&darr;',
+	 "almost.gif" => '&asymp;',
+	 "downarrow1.gif" => '&darr;',
+	 "pilowercase.gif" => '&pi;',
+	 "alphalowercase.gif" => '&alpha;',
+	 "lsor=.gif" => '&le;',
+	 "sigmalowercase.gif" => '&sigma;',
+	 "lambda.gif" => '&lambda;',
+	 "triangledots.gif" => '&there4;',
+	 "plus_minus.gif" => '&plusmn;',
+	 "filledcircle.gif" => '&bull;',
+	 "delta.gif" => '&Delta;',
+	 "approximately.gif" => '&cong;',
+	 "betalowercas.gif" => '&beta;',
+	 "rightarrow.gif" => '&rarr;',
+	 "beta.gif" => '&beta;',
+	 "gammalowercase.gif" => '&gamma;',
+	 "mu.gif" => '&mu;',
+	 "sigma_capital.gif" => '&Sigma;',
+	 "infinity.gif" => '&infin;',
+	 "chilowercase.gif" => '&chi;',
+	 "alpha.gif" => '&alpha;',
+	 "deltauppercase.gif" => '&Delta;',
+	 "gamma.gif" => '&gamma;',
+	 "betafontsize09.gif" => '&beta;',
+	 "psiuppercase.gif" => '&Psi;',
+	 "rho.gif" => '&rho;',
+	 "leftarrow.gif" => '&larr;',
+	 "square_root.gif" => '&radic;',
+	 "Uparrow.gif" => '&uarr;',
+	 "two_arrows_opposite_directions.gif" => '&rolarr;',
+	 "bothwaysarrow.gif" => '&harr;',
+	 "decrease.gif" => '&darr;',
+	 "circle.gif" => '&deg;',
+	 "chiuppercase.gif" => '&Chi;',
+	 "lambdauppercase.gif" => '&Lambda;',
+	 "omegauppercase.gif" => '&Omega;',
+	 "phiuppercase.gif" => '&Phi;',
+	 "piuppercase.gif" => '&Pi;',
+	 "thetauppercase.gif" => '&Theta;',
+	 "upsilonuppercase.gif" => '&Upsilon;',
+	 "xiuppercase.gif" => '&Xi;',
+	 "etalowercase.gif" => '&eta;',
+	 "gammalowercase.gif" => '&gamma;',
+	 "iotalowercase.gif" => '&iota;',
+	 "kappalowercase.gif" => '&kappa;',
+	 "nulowercase.gif" => '&nu;',
+	 "omegalowercase.gif" => '&omega;',
+	 "omicronlowercase.gif" => '&omicron;',
+	 "taulowercase.gif" => '&tau;',
+	 "thetalowercase.gif" => '&theta;',
+	 "upsilonlowercase.gif" => '&upsilon;',
+	 "xilowercase.gif" => '&xi;',
+	 "alpha" => '&alpha;',
+	 "beta" => '&beta;',
+	 "gamma" => '&gamma;',
+	 );
+
+    my %content_ids = 
+	("4028-08" => 410,
+	 "4028-03" => 405,
+	 "4028-26" => 1326,
+	 "4028-12" => 414,
+	 "4028-35" => 1333,
+	 "4028-58" => 1354,
+	 "4025-89" => 425,
+	 "4028-21" => 1755,
+	 "4025-98" => 434,
+	 "4028-15" => 417,
+	 "4028-30" => 1328,
+	 "4028-53" => 1350,
+	 "4025-93" => 429,
+	 "4028-05" => 407,
+	 "4028-28" => 1327,
+	 "4028-37" => 1335,
+	 "4028-23" => 1756,
+	 "4028-46" => 1377,
+	 "4028-17" => 419,
+	 "4028-32" => 1330,
+	 "4028-55" => 1352,
+	 "4025-86" => 422,
+	 "4028-41" => 1339,
+	 "4025-95" => 431,
+	 "4028-50" => 1347,
+	 "4025-90" => 426,
+	 "4028-07" => 409,
+	 "4028-39" => 1337,
+	 "4028-02" => 404,
+	 "4028-25" => 1325,
+	 "4028-48" => 1345,
+	 "4028-19" => 421,
+	 "4028-11" => 413,
+	 "4028-34" => 1332,
+	 "4028-57" => 1353,
+	 "4025-88" => 424,
+	 "4028-20" => 1758,
+	 "4028-43" => 1341,
+	 "4025-97" => 433,
+	 "4028-14" => 416,
+	 "4028-52" => 1349,
+	 "4028-61" => 1357,
+	 "4025-92" => 428,
+	 "4028-09" => 411,
+	 "4028-04" => 406,
+	 "4028-27" => 1375,
+	 "4028-13" => 415,
+	 "4028-36" => 1334,
+	 "4028-59" => 1355,
+	 "4028-45" => 1343,
+	 "4025-99" => 435,
+	 "4028-16" => 418,
+	 "4028-31" => 1329,
+	 "4028-54" => 1351,
+	 "4028-40" => 1338,
+	 "4025-94" => 430,
+	 "4028-06" => 408,
+	 "4028-29" => 1376,
+	 "4025-00" => 436,
+	 "4028-38" => 1336,
+	 "4028-01" => 402,
+	 "4028-24" => 1757,
+	 "4028-47" => 1344,
+	 "4028-18" => 420,
+	 "4028-10" => 412,
+	 "4028-33" => 1331,
+	 "4025-87" => 423,
+	 "4025-96" => 432,
+	 "4028-51" => 1348,
+	 "4028-60" => 1356,
+	 "4025-91" => 427,
+	 );
+
+    #
+    # Figure out what to do with a <img> element
+    #
+    my ($t, $elt) = @_;
+    my $src = $elt->att ('src');
+    # See if it's a content link (full data)
+    if ($src =~ m!data/(\d+)(\.gif|\.jpeg)?$!) {
+	$elt->set_gi ('hsdb-graphic');
+	$elt->del_att ('src');
+	$elt->set_att ('image-class', 'full');
+	$elt->set_att ('content-id', $1);
+    }
+    # See if it's a content link (thumbnail)
+    elsif ($src =~ m!thumbnail/(\d+)$!) {
+	$elt->set_gi ('hsdb-graphic');
+	$elt->del_att ('src');
+	$elt->set_att ('image-class', 'thumb');
+	$elt->set_att ('content-id', $1);
+    }
+    # See if it's a content link (small_data)
+    elsif ($src =~ m!small_data/(\d+)$!) {
+	$elt->set_gi ('hsdb-graphic');
+	$elt->del_att ('src');
+	$elt->set_att ('image-class', 'half');
+	$elt->set_att ('content-id', $1);
+    }
+    # Now see if it's in our entities; if it is, then let's put in the
+    # appropriate entity instead of a graphic of any kind
+    # (we can also wrap it in a <span> element)
+    elsif ($src =~ m!(symbols|icons)/([^/]+\.gif)$! && $icons{$2}
+	   or $src =~ m!/(images)/(alpha|beta|gamma)lc.gif!) {
+	my $span = new XML::Twig::Elt ('span', { class => "unicode" },
+				       $icons{$2});
+	$span->replace ($elt);
+	# We don't worry about anything else
+	return 1;
+    }
+    # Now check to see if we know what the content_id is from the filename
+    elsif ($src =~ m!\D(\d\d\d+-\d\d+)\.! && $content_ids{$1}) {
+	$elt->set_gi ('hsdb-graphic');
+	$elt->del_att ('src');
+	$elt->set_att ('content-id', $content_ids{$1});
+	# See if there's a hint about the class in the file
+	if ($src =~ m!\.h\.!) { $elt->set_att ('image-class', 'half') }
+	elsif ($src =~ m!\.t\.!) { $elt->set_att ('image-class', 'thumbnail') }
+	else { $elt->set_att ('image-class', 'full') }
+    }
+    # And if we can't do anything else, then we make it a <web-graphic>, and
+    # set the URI
+    else {
+	$elt->set_gi ('web-graphic');
+	$elt->del_att ('src');
+	$elt->set_att ('uri', $src);
+	$elt->set_content('#EMPTY');
+	$elt->set_empty();
+    }
+
+    # If the alt tag is set, use it as a description attribute
+    if ($elt->att ('alt')) {
+	$elt->set_att ('description', $elt->att ('alt'));
+	$elt->del_att ('alt');
+    }
+    # Otherwise, get the label
+    else {
+	$elt->set_att ('description', '');
+	$elt->del_att ('alt');
+    }
+
+    # Now, if we've got an <hsdb-graphic>, we have to make sure
+    # it's all set; proper attributes defined, etc.
+    if ($elt->gi eq 'hsdb-graphic') {
+	# Get the relevant content object
+	my $content = HSDB4::SQLRow::Content->new;
+	$content->lookup_key ($elt->att ('content-id'));
+	# Unless width and height are set...
+	unless ($elt->att ('width') && $elt->att ('height')) {
+	    # go find the data object, and use its width and height
+	    my $dataobj;
+	    if ($elt->att ('image-class') eq 'half') {
+		$dataobj = $content->small_data;
+	    }
+	    elsif ($elt->att ('image-class') eq 'thumbnail') {
+		$dataobj = $content->thumbnail;
+	    }
+	    else { $dataobj = $content->data }
+	    $elt->set_att ('width', $dataobj->field_value ('width'));
+	    $elt->set_att ('height', $dataobj->field_value ('height'));
+	}
+	# Unless we already have a description, set it from the content
+	# title
+	unless ($elt->att ('description')) {
+	    $elt->set_att ('description', $content->out_label);
+	}
+    }
+    # For an external graphic, it's harder to find width and height
+    else {
+	unless ($elt->att ('width') && $elt->att ('height')) {
+	    # Figure out if it's a filename
+	    my $uri = $elt->att ('uri');
+	    my $filename = $TUSK::Constants::BaseStaticPath . "/$uri";
+	    # And if it is, then use the file size to set our attributes
+	    if ($filename && -e $filename) {
+		my ($w, $h) = imgsize ($filename);
+		$elt->set_att ('width', $w);
+		$elt->set_att ('height', $w);
+	    }
+	    # We don't want to deal with that (and we shouldn't have to)
+	    else { die "Can't figure out image size: $uri" }
+	}
+    }
+
+    # A depressing state of affairs; set "description" to "Unknown image".
+    # How embarassing.
+    unless ($elt->att ('description')) {
+	$elt->set_att ('description', 'Unknown image');
+    }
+
+    return 1;
+}
+
+sub make_para { 
+    #
+    # Convert a <p> to <para>
+    # (TwigHandler)
+    #
+    $_[1]->set_gi ('para');
+}
+
+sub make_emph { 
+    #
+    # Convert a <dd> to <definition-data>
+    # (TwigHandler)
+    #
+    if (empty_check (@_)) { $_[1]->set_gi ('emph') }
+}
+
+sub make_enumerated_list {
+    #
+    # Convert a <ol> to <enumerated-list>
+    # (TwigHandler)
+    #
+    $_[1]->set_gi ('enumerated-list');
+}
+
+sub make_itemized_list {
+    #
+    # Convert a <ul> to <itemized-list>
+    # (TwigHandler)
+    #
+    $_[1]->set_gi ('itemized-list');
+}
+
+sub make_list_item {
+    #
+    # Convert a <li> to <list-item>
+    # (TwigHandler)
+    #
+    $_[1]->set_gi ('list-item');
+}
+
+sub make_definition_list {
+    #
+    # Convert a <dl> to <definition-list>
+    # (TwigHandler)
+    #
+    $_[1]->set_gi ('definition-list');
+}
+
+sub make_definition_term {
+    #
+    # Convert a <dt> to <definition-term>
+    # (TwigHandler)
+    #
+    $_[1]->set_gi ('definition-term');
+}
+
+sub make_definition_data { 
+    #
+    # Convert a <dd> to <definition-data>
+    # (TwigHandler)
+    #
+    $_[1]->set_gi ('definition-data') ;
+}
+
+sub make_strong { 
+    #
+    # Converts an element to <strong>
+    # (Twig Handler)
+    #
+    if (empty_check (@_)) { $_[1]->set_gi ('strong') }
+}
+
+sub make_super { 
+    #
+    # Converts <sup> to <super> (and does an empty check)
+    # (TwigHandler)
+    #
+    if (empty_check (@_)) { $_[1]->set_gi ('super') }
+}
+
+sub make_block_quote { 
+    #
+    # Converts <sup> to <super> (and does an empty check)
+    # (TwigHandler)
+    #
+    if (empty_check (@_)) { $_[1]->set_gi ('block-quote') }
+}
+
+sub empty_check {
+    #
+    # Deletes an element if it has no non-space characters
+    # (TwigHandler)
+    #
+    my ($t, $elt) = @_;
+    unless ($elt->text () =~ /\S/) { 
+	$elt->delete (); 
+	return 0;
+    }
+    return 1;
+}
+
+sub hr_kill {
+    #
+    # Deletes <hr> elements
+    #
+    my ($t, $elt) = @_;
+    $elt->delete ();
+    return 1;
+}
+
+sub div_to_para {
+    #
+    # Turns <div> elements to <para> elements
+    #
+    my ($t, $elt) = @_;
+    $elt->set_gi ('para');
+    return 1;
+}
+
+sub pre_to_span {
+    #
+    # Turns <pre> elements to <span class="pre"> elements
+    #
+    my ($t, $elt) = @_;
+    $elt->set_gi ('span');
+    $elt->set_att ('class', 'pre');
+    return 1;
+}
+
+sub span_check {
+    # 
+    # Deletes a span element if it has no class or style attribute set
+    # (TwigHandler)
+    #
+    my ($t, $elt) = @_;
+    unless ($elt->att ('class') || $elt->att('style')) {
+	$elt->delete ();
+    }
+    return 1;
+}
+
+sub no_spaces {
+    #
+    # Tries to take out multiple spaces, or spaces at the beginning or end
+    # (CharHandler)
+    #
+    $_ = shift;
+    s/^\s+//gs;
+    s/\s+$//gs;
+    s/ +/ /gs;
+    $_;
+}
+
+sub lcase_att {
+    #
+    # Takes a element and a attribute name, and makes sure it's in lower case.
+    #
+    my ($elt, $att) = @_;
+    if ($elt->att ($att)) {
+	my $a = $elt->att ($att);
+	$a =~ tr/A-Z/a-z/;
+	$elt->set_att ($att, $a);
+    }
+}
+
+sub fix_align {
+    #
+    # Takes an element, and if it has any "align" or "valign" attributes, makes sure
+    # that they're in lower case (especially for tables
+    #
+    my $elt = shift;
+    lcase_att ($elt, 'align');
+    lcase_att ($elt, 'valign');
+}
+
+1;
+__DATA__
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE db-content PUBLIC "-//Tufts HDSB Project//DTD database content//EN"
+    "http://www.hsdb.tufts.edu/DTD/dbcontent.dtd">
+<db-content> 
+  <brief-header> 
+    <mime-type>text/xml</mime-type>
+  </brief-header> 
+  <associated-data></associated-data>
+</db-content>

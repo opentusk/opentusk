@@ -46,13 +46,12 @@ use TUSK::HomepageCategory;
 use Forum::MwfConfig;
 use TUSK::GradeBook::GradeEventEval;
 use TUSK::Application::GradeBook::GradeBook;
-use Data::Dumper;
 
 use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
 
 use Carp;
-require HSDB4::DateTime;
+use HSDB4::DateTime;
 require HSDB4::SQLRow::Content;
 require HSDB4::SQLRow::Preference;
 require HSDB45::Authentication;
@@ -61,6 +60,7 @@ require HSDB45::Eval;
 require HSDB45::Eval::Completion;
 require HSDB45::UserGroup;
 require TUSK::Application::Email;
+
 
 use vars @EXPORT_OK;
 
@@ -170,6 +170,16 @@ sub affiliation {
     return $self->field_value('affiliation');
 }
 
+sub affiliation_or_default_school {
+    my $self = shift;
+
+    unless ($self->{-affiliation_or_default_school}) {
+	$self->{-affiliation_or_default_school} = (exists $TUSK::Constants::Schools{$self->field_value('affiliation')}) ? $self->field_value('affiliation') : $TUSK::Constants::Default{School};
+    }
+
+    return $self->{-affiliation_or_default_school};
+}
+
 sub set_preferred_email {
     my $self = shift();
     my $new_preferred_email = shift;
@@ -255,32 +265,32 @@ sub check_author{
     }
     # Get the link definition
     for my $db (map { get_school_db($_) } course_schools()) {
-	my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_user"};
-	# And use it to get a LinkSet, if possible
-	if ($linkdef->get_parent_count($self->primary_key())){
-	    $roles->{tusk_session_is_author} = 1;
-		if (defined($roles->{tusk_session_is_admin})){
-		return ($roles);
-	    }else{
-		return ($self->check_admin($roles));
-	    }
-	}
+		my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_user"};
+		# And use it to get a LinkSet, if possible
+		if ($linkdef->get_parent_count($self->primary_key())){
+			$roles->{tusk_session_is_author} = 1;
+			if (defined($roles->{tusk_session_is_admin})){
+				return ($roles);
+			}else{
+				return ($self->check_admin($roles));
+			}
+		}
     }
     
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"link_content_user"};
     if ($linkdef->get_parent_count($self->primary_key())){
-	$roles->{tusk_session_is_author} = 1;
+		$roles->{tusk_session_is_author} = 1;
+		if (defined($roles->{tusk_session_is_admin})){
+			return ($roles);
+		}else{
+			return ($self->check_admin($roles));
+		}
+	}
+		
 	if (defined($roles->{tusk_session_is_admin})){
-	return ($roles);
-    }else{
-	return ($self->check_admin($roles));
-    }
-    }
-    
-    if (defined($roles->{tusk_session_is_admin})){
-	return ($roles);
-    }else{
-	return ($self->check_admin($roles));
+		return ($roles);
+	}else{
+		return ($self->check_admin($roles));
     }
 }
 
@@ -312,9 +322,9 @@ sub check_admin{
     return $roles;
 }
 
-sub parent_courses {
+sub author_courses {
     #
-    # Return the courses the user is a part of teaching
+    # Return the courses the user is a part of teaching for 'course' course_type  or course admin for other course_types.
     #
     
     my $self = shift;
@@ -407,7 +417,7 @@ sub sorted_meetings_on_date{
 
 	my @meetings;
 
-	my $ug_courses = $self->user_group_courses('', $date);;
+	my $ug_courses = $self->user_group_courses('', $date);
 	my %seen;
 	foreach my $c_hash (@$ug_courses){
 		my $id = $c_hash->{course_id};
@@ -429,15 +439,292 @@ sub sorted_meetings_on_date{
 	return @sorted_meets;
 }
 
-sub todays_sorted_meetings{
+sub todays_sorted_meetings_by_school {
+    #
+    # Get meetings, split out by school, for a student for current day
+	#
 	my $self = shift;
-
 	my $today = HSDB4::DateTime->new()->out_mysql_date;
+	my @meetings = $self->sorted_meetings_on_date($today);
+	my %sorted_meetings;
 
-	return $self->sorted_meetings_on_date($today);
-		
+	foreach my $meeting (@meetings) {
+		push @{$sorted_meetings{$meeting->school}}, $meeting;
+	}
+
+	return \%sorted_meetings;
 }
 
+sub has_schedule {
+    #
+    # Find out if user has calendar events in the current period
+    #	- limited by school if passed as argument
+    #	- see comments for get_schedule_start_end for definition of 'current period'
+	#
+	my $user = shift;
+	my $school = shift || undef;
+	my ($start, $end) = get_schedule_start_end();
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my ($sth, @selects, @ids);
+	my %ug_hash;
+	
+	if ($school) {
+		my $db = 'hsdb45_' . $TUSK::Constants::Schools{$school}{ShortName} . '_admin';
+		push @selects, "SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label, COUNT(meeting_date) AS num FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ? GROUP BY user_group_id ORDER BY num DESC";
+		push (@ids, ($start, $end, $user->primary_key()));
+	}
+	else {
+		my %school_dbs = map { $_ => 'hsdb45_' . $TUSK::Constants::Schools{$_}{ShortName} . '_admin' } keys %TUSK::Constants::Schools;
+		foreach my $school (keys %school_dbs) {
+			my $db = $school_dbs{$school};
+			push @selects, "(SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label, COUNT(meeting_date) AS num FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ? GROUP BY user_group_id)";
+			push (@ids, ($start, $end, $user->primary_key()));
+		}
+	}	
+    $sth = $dbh->prepare(join (' union ', @selects) . " ORDER BY num DESC");
+    $sth->execute(@ids);
+	while (my ($school, $ug_id, $ug_label, undef) = $sth->fetchrow_array) {
+		push @{$ug_hash{$school}}, {id => $ug_id, label => $ug_label};
+	}
+    
+	return \%ug_hash;
+}
+
+sub get_schedule_start_end {
+    #
+    # Get start and end date for user's current period:
+    #	- 6 month period (either Jan. - June. or July - Dec.) depending on the current date
+    #	- if it's December, includes next Jan. - June
+    #	- if it's June, includes July - Dec.
+	#
+	my ($startdate, $enddate);
+	my $today = HSDB4::DateTime->new;
+	my $year = HSDB4::DateTime->new->current_year();
+	my $midyear_cutoff = HSDB4::DateTime->new->in_mysql_date("$year-05-31 23:59:59");
+	my $midyear = HSDB4::DateTime->new->in_mysql_date("$year-06-30 23:59:59");
+	my $endyear_cutoff = HSDB4::DateTime->new->in_mysql_date("$year-11-30 23:59:59");
+	my $endyear = HSDB4::DateTime->new->in_mysql_date("$year-12-31 23:59:59");
+
+	## we're in the first half of the year but not in June
+	if ($today < $midyear_cutoff) {
+		$startdate = "$year-01-01 00:00:00";
+		$enddate = "$year-06-30 23:59:59";
+	}
+	## we're in June
+	elsif ($today < $midyear) {
+		$startdate = "$year-01-01 00:00:00";
+		$enddate = "$year-12-31 23:59:59";
+	}
+	## we're in the second half of the year but not in December
+	elsif ($today < $endyear_cutoff) {
+		$startdate = "$year-07-01 00:00:00";
+		$enddate = "$year-12-31 23:59:59";
+	}
+	## we're in December
+	else {
+		$startdate = "$year-07-01 00:00:00";
+		$enddate = ($year + 1) . "-06-30 23:59:59";
+	}
+	return ($startdate, $enddate);
+}
+
+sub get_important_upcoming_dates_by_school {
+    # Get items with upcoming due dates:
+    #	- Exams and Holidays (pulled from the user group schedule where meeting type is exam or holiday)
+    #	- All quizzes with due dates
+    #	- All cases with due dates
+    #	- Evals
+    #	- Assignments
+
+    my $user = shift;
+    my $school = shift;
+    my @dates;
+    my $db = get_school_db($school);
+    my (undef, $enddate) = get_schedule_start_end();
+
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my @sql_values;
+
+    my $schedule_sql = <<"END_SQL";
+SELECT
+  c.course_id AS course_id,
+  'schedule' AS type,
+  cm.class_meeting_id AS id,
+  cm.title AS title,
+  DATE_FORMAT(cm.meeting_date, '%b. %e, %Y') AS date,
+  DATE_FORMAT(cm.starttime,'%h:%i %p') AS time,
+  DATE_ADD(cm.meeting_date, INTERVAL cm.starttime HOUR_SECOND) AS exact_time,
+  c.title AS course_title
+FROM
+  $db.course c
+  INNER JOIN $db.class_meeting cm
+    ON c.course_id = cm.course_id
+  INNER JOIN $db.link_course_user_group lcug
+    ON c.course_id = lcug.parent_course_id
+  INNER JOIN $db.link_user_group_user lugu
+    ON lcug.child_user_group_id = lugu.parent_user_group_id
+  INNER JOIN $db.time_period tp
+    ON lcug.time_period_id = tp.time_period_id
+  INNER JOIN tusk.class_meeting_type cmt
+    ON cm.type_id = cmt.class_meeting_type_id
+  INNER JOIN tusk.school s
+    ON s.school_id = cmt.school_id
+WHERE
+  s.school_name = ?
+  AND
+  (cmt.label = 'Holiday' OR cmt.label = 'Examination')
+  AND
+  NOW() BETWEEN tp.start_date AND tp.end_date
+  AND
+  cm.meeting_date BETWEEN NOW() AND ?
+  AND
+  lugu.child_user_id = ?
+END_SQL
+    push @sql_values, ($school, $enddate, $user->primary_key());
+
+    my $quiz_sql = <<"END_SQL";
+SELECT
+  c.course_id AS course_id,
+  'quiz' AS type,
+  q.quiz_id AS id,
+  q.title AS title,
+  DATE_FORMAT(lcq.due_date, '%b. %e, %Y') AS date,
+  DATE_FORMAT(lcq.due_date,'%h:%i %p') AS time,
+  lcq.due_date AS exact_time,
+  c.title AS course_title
+FROM
+  tusk.quiz q
+  INNER JOIN tusk.link_course_quiz lcq ON (q.quiz_id = lcq.child_quiz_id)
+  INNER JOIN $db.course c ON (c.course_id = lcq.parent_course_id)
+  INNER JOIN tusk.school s ON (lcq.school_id = s.school_id)
+  INNER JOIN $db.link_course_student lcs ON (lcs.parent_course_id = c.course_id AND lcq.time_period_id = lcs.time_period_id)
+  INNER JOIN $db.time_period tp ON (lcs.time_period_id = tp.time_period_id)
+WHERE
+  s.school_name = ?
+  AND lcq.available_date < NOW()
+  AND NOW() BETWEEN tp.start_date AND tp.end_date
+  AND lcq.due_date BETWEEN NOW() AND ?
+  AND child_user_id = ?
+  AND q.quiz_id NOT IN (
+    SELECT qr.quiz_id
+    FROM tusk.quiz_result qr
+    WHERE user_id = ? AND qr.end_date IS NOT NULL
+  )
+END_SQL
+    push @sql_values, ($school, $enddate, $user->primary_key(), $user->primary_key());
+
+    my $case_sql = <<"END_SQL";
+SELECT
+  c.course_id AS course_id,
+  'case' AS type,
+  ch.case_header_id AS id,
+  ch.case_title AS title,
+  DATE_FORMAT(lcc.due_date, '%b. %e, %Y') AS date,
+  DATE_FORMAT(lcc.due_date,'%h:%i %p') AS time,
+  lcc.due_date AS exact_time,
+  c.title AS course_title
+FROM
+  tusk.case_header ch
+  INNER JOIN tusk.link_course_case lcc
+    ON ch.case_header_id = lcc.child_case_id
+  INNER JOIN tusk.school s
+    ON s.school_id = lcc.school_id
+  INNER JOIN $db.course c
+    ON c.course_id = lcc.parent_course_id
+  INNER JOIN $db.link_course_student lcs
+    ON c.course_id = lcs.parent_course_id
+  INNER JOIN $db.time_period tp
+    ON tp.time_period_id = lcs.time_period_id
+WHERE
+  s.school_name = ?
+  AND
+  (lcc.available_date IS NULL OR lcc.available_date < NOW())
+  AND
+  NOW() BETWEEN tp.start_date AND tp.end_date AND
+  lcc.due_date BETWEEN NOW() AND ?
+  AND
+  child_user_id = ?
+  AND 
+  ch.publish_flag = 1
+END_SQL
+    push @sql_values, ($school, $enddate, $user->primary_key());
+
+    my $eval_sql = <<"END_SQL";
+SELECT
+  c.course_id AS course_id,
+  'eval' AS type,
+  e.eval_id AS id,
+  e.title AS title,
+  DATE_FORMAT(e.due_date, '%b. %e, %Y') AS date,
+  NULL AS time,
+  e.due_date AS exact_time,
+  c.title AS course_title
+FROM $db.eval e
+INNER JOIN $db.time_period tp ON (e.time_period_id = tp.time_period_id AND now() BETWEEN tp.start_date AND tp.end_date)
+INNER JOIN $db.course c ON (e.course_id = c.course_id)
+INNER JOIN $db.link_course_student lcs ON 
+  (lcs.time_period_id = tp.time_period_id AND lcs.parent_course_id = c.course_id AND child_user_id = ?
+   AND ((c.associate_users = 'User Group' AND lcs.teaching_site_id = e.teaching_site_id) OR c.associate_users = 'Enrollment'))
+WHERE
+  e.due_date BETWEEN now() AND ?
+  AND e.available_date < now()
+  AND e.eval_id NOT IN (SELECT ec.eval_id FROM $db.eval_completion ec WHERE status = 'Done' AND ec.user_id = child_user_id)
+END_SQL
+    push @sql_values, ($user->primary_key(), $enddate);
+
+    my $assignment_sql = <<"END_SQL";
+SELECT
+  c.course_id AS course_id,
+  'assignment' AS type,
+  a.assignment_id AS id,
+  ge.event_name AS title,
+  DATE_FORMAT(a.due_date, '%b. %e, %Y') AS date,
+  DATE_FORMAT(a.due_date,'%h:%i %p') AS time,
+  a.due_date AS exact_time,
+  c.title AS course_title
+FROM
+  tusk.grade_event ge
+  INNER JOIN tusk.school s
+    ON ge.school_id = s.school_id
+  INNER JOIN $db.time_period tp
+    ON ge.time_period_id = tp.time_period_id
+  INNER JOIN tusk.assignment a
+    ON a.grade_event_id = ge.grade_event_id
+  INNER JOIN tusk.link_assignment_student las
+    ON a.assignment_id = las.parent_assignment_id
+  INNER JOIN $db.course c
+    ON ge.course_id = c.course_id
+WHERE
+  s.school_name = ?
+  AND
+  a.available_date < NOW()
+  AND
+  NOW() BETWEEN tp.start_date AND tp.end_date
+  AND
+  a.due_date BETWEEN NOW() AND ?
+  AND
+  las.child_user_id = ?
+END_SQL
+    push @sql_values, ($school, $enddate, $user->primary_key());
+
+    my $sql_query = join(
+        "\nUNION\n",
+        $schedule_sql,
+        $quiz_sql,
+        $case_sql,
+        $eval_sql,
+        $assignment_sql,
+    ) . "\nORDER BY exact_time";
+
+    my $sth = $dbh->prepare($sql_query);
+    $sth->execute(@sql_values);
+    while ( my $row = $sth->fetchrow_hashref() ) {
+        push @dates, $row;
+    }
+    $sth->finish;
+
+    return \@dates;
+}
 
 sub recently_modified {
     #
@@ -613,7 +900,7 @@ sub all_courses{
 }
 
 sub user_group_courses{
-    # Get the user's current user group courses
+    # Get the user's current student's user group courses
 	# unless a date is passed in, in which case, get the groups linked on that date
 
     my $self = shift;
@@ -629,7 +916,7 @@ sub user_group_courses{
     foreach my $school (@$schools){
 	$lookup->{ $school->getSchoolName() } = $school;
     }
-	
+
     my $courses = [];
     my @school_joins = ();
 
@@ -671,18 +958,20 @@ sub current_courses {
     #
 
     my $self = shift;
-	my $params = shift || ();
+    my $params = shift || ();
+
+    $self->{_current_courses_calls}++;
 
 	# We need to cache all possible parameter options...
-	if ($params->{'all_courses'} && $params->{'only_enrollment'}) {
-		return @{$self->{'-all_enrollment_courses'}} if ($self->{'-all_enrollment_courses'});
-	} elsif ($params->{'all_courses'} && !$params->{'only_enrollment'}) {
-		return @{$self->{'-all_courses'}} if ($self->{'-all_courses'});
-	} elsif (!$params->{'all_courses'} && $params->{'only_enrollment'}) {
-		return @{$self->{'-current_enrollment_courses'}} if ($self->{'-current_enrollment_courses'});
-	} elsif (!$params->{'all_courses'} && !$params->{'only_enrollment'}) {
-		return @{$self->{'-current_courses'}} if ($self->{'-current_courses'});
-	}
+#	if ($params->{'all_courses'} && $params->{'only_enrollment'}) {
+#		return @{$self->{'-all_enrollment_courses'}} if ($self->{'-all_enrollment_courses'});
+#	} elsif ($params->{'all_courses'} && !$params->{'only_enrollment'}) {
+#		return @{$self->{'-all_courses'}} if ($self->{'-all_courses'});
+#	} elsif (!$params->{'all_courses'} && $params->{'only_enrollment'}) {
+#		return @{$self->{'-current_enrollment_courses'}} if ($self->{'-current_enrollment_courses'});
+#	} elsif (!$params->{'all_courses'} && !$params->{'only_enrollment'}) {
+#		return @{$self->{'-current_courses'}} if ($self->{'-current_courses'});
+#	}
 
     my $where = '';
     $where = "and t.start_date <= curdate() and t.end_date >= curdate()" unless ($params->{'all_courses'});
@@ -695,22 +984,25 @@ sub current_courses {
 	    my @timeperiod_ids = ();
 	    eval {
 		my $sql = qq[SELECT parent_course_id, l.time_period_id 
-						    FROM $db\.course c, $db\.link_course_student l, $db\.time_period t 
-						    WHERE l.child_user_id=? 
-						    AND l.time_period_id=t.time_period_id 
-						    AND l.parent_course_id=c.course_id ];
+			     FROM $db\.course c, $db\.link_course_student l, $db\.time_period t 
+			     WHERE l.child_user_id=? 
+			     AND l.time_period_id=t.time_period_id 
+			     AND l.parent_course_id=c.course_id ];
 		if ($params->{'only_enrollment'}) { $sql .= " AND c.associate_users='Enrollment' "; }
 		$sql .= $where;
 		
 		my $sth = $dbh->prepare($sql);
+
 		$sth->execute ($self->primary_key);
 
 		while (my ($course_id, $timeperiod_id) = $sth->fetchrow_array) {
 		    push @course_ids, $course_id;
 		    push @timeperiod_ids, $timeperiod_id
 		}
-          $sth->finish;
+		$sth->finish;
+
 	    };
+
 	    for (my $i=0; $i<scalar(@course_ids); $i++){
 		my $c = HSDB45::Course->new( _school => $school, _id => $course_ids[$i] );
 		$c->set_aux_info(time_period_id => $timeperiod_ids[$i]);
@@ -765,14 +1057,64 @@ sub admin_courses {
     # Don't cache because it makes the user object too big to fit in
     # hsdb4.sessions.a_session column in MySQL
     my $self = shift;
-    my ($school, $group_id, @courses);
+    my ($school,$group_id,@admin_courses);
     foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
-        if ($self->check_school_permissions($school)) {
-            my $course = HSDB45::Course->new( _school => $school );
-            push( @courses, $course->lookup_conditions() );
-        }
+	if ($self->check_school_permissions($school)){
+	    my @courses = HSDB45::Course->new(_school => $school)->lookup_conditions();
+	    push(@admin_courses, @courses);
+	}
     }
-    return @courses;
+    return \@admin_courses;
+}
+
+
+sub cms_courses {
+    my $self = shift;
+    my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $self->author_courses();
+    push @courses, @{$self->admin_courses()};
+
+    my $courses_hash;
+    foreach my $course (@courses) {
+	my $school = $course->school;
+	my $key = $course->out_title."\0".$course->primary_key;
+	$courses_hash->{$school}->{$key} = $course;
+    }
+    return $courses_hash;
+}
+
+sub cms_courses_sorted {
+    my $self = shift;
+    my $courses_hashref = $self->cms_courses();
+    my $group_courses_hashref;
+    my $tc_courses_hashref;
+
+    foreach my $school (keys %{$courses_hashref}){
+	    foreach my $course (sort keys %{$courses_hashref->{$school}}){
+		    if($courses_hashref->{$school}->{$course}->type() ){
+		         if($courses_hashref->{$school}->{$course}->type() eq 'group'){
+			        $group_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
+				    delete $courses_hashref->{$school}->{$course};
+			    }
+			    elsif($courses_hashref->{$school}->{$course}->type() eq 'thesis committee'){
+			        $tc_courses_hashref->{$school}->{$course} = $courses_hashref->{$school}->{$course};
+				    delete $courses_hashref->{$school}->{$course};
+			    }
+			}
+		}
+		# if we have deleted all courses from a school above, delete the school, itself
+		if(!(keys %{$courses_hashref->{$school}})){
+		    delete $courses_hashref->{$school};
+		}
+
+	}
+
+	return ($courses_hashref, $group_courses_hashref, $tc_courses_hashref);
+}
+
+sub check_cms {
+    my $self = shift;
+    my ($courses_hashref,  $group_courses_hashref, $tc_courses_hashref) = $self->cms_courses_sorted();
+    return scalar keys %$courses_hashref;
 }
 
 sub taken_quizzes{
@@ -870,7 +1212,7 @@ sub current_quizzes{
 			}
 		}
 	
-		foreach my $course ($self->parent_courses){
+		foreach my $course ($self->author_courses){
 		    my $roles = "," . $course->aux_info('roles') . ',';
 		    next unless ($roles =~ /,(Author|Editor|Director|Manager|),/);
 		    my $key = $course->school . "-" . $course->course_id;
@@ -1314,11 +1656,10 @@ sub all_personal_content {
     # Make the condition (which we should quote properly...)
     my $condition = sprintf "user_id='%s'", $self->primary_key;
     # And get a list, if necessary
-    my @p_cont = 
-      HSDB4::SQLRow::PersonalContent->lookup_conditions ($condition);
+    my @p_cont = HSDB4::SQLRow::PersonalContent->lookup_conditions ($condition);
 
     # Return the list
-    return @p_cont;;
+    return @p_cont;
 }
 
 sub all_user_content {
@@ -2194,45 +2535,33 @@ sub get_instructor_assessments {
     return $assessments;
 }
 
-
-sub get_annoucments_with_user_groups {
-
+### include school, course and course group announcements for the affiliation
+sub get_all_announcements {
     my $self = shift;
     my @announcements = ();
-    my @systemwide_announcements = ();
 
-    if ( @systemwide_announcements = HSDB45::Announcement::systemwide_announcements()) {
-		@announcements = map { 
-		       { item   => $_,
-		         type   => 'user_group',
-		         school => $self->affiliation,
-		         id     => $TUSK::Constants::SystemWideUserGroup }
-                    } @systemwide_announcements;
-    }
-
-    if ($self->affiliation
-        && ($self->affiliation ne $TUSK::Constants::SystemWideUserGroupSchool)
-        && _member_of_schools($self->affiliation)) {
-		my $affiliation = $self->affiliation;
-		## get school user group id from constants file by affiliation; if affiliation is not a school, 
-		## then use the system-wide user group id
-		my $user_group = ($TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup}) ? $TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup} : $TUSK::Constants::SystemWideUserGroup;
-		push(@announcements, map {
+    if (my $affiliation = $self->affiliation_or_default_school()) {
+	push @announcements, map {
                           { item   => $_, 
 			    type   => 'user_group',
-			    school => $self->affiliation, 
+			    school => $affiliation, 
 			    id     => $TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup} }
-		      } HSDB45::Announcement::schoolwide_announcements($self->affiliation));
+		      } HSDB45::Announcement::schoolwide_announcements($affiliation);
     }
 
-    ### add announcments for courses in enrollments and user groups
-    my @courses = $self->current_courses(); # enrollment
-    my @user_groups = ();
-    my @parent_user_groups = $self->parent_user_groups();
+    if (my $course_announcements = $self->get_course_announcements()) {
+	push @announcements, @$course_announcements;
+    }
 
-    foreach my $ug (@parent_user_groups) {
-	push(@user_groups,$ug);
-	push(@announcements,  map { 
+    return \@announcements;
+}
+
+sub get_course_announcements {
+    my $self = shift;
+    my $announcements = ();
+
+    foreach my $ug ($self->parent_user_groups()) {   ### course group announcements
+	push(@$announcements,  map { 
                             {  item   => $_, 
 			       type   => 'user_group', 
 			       school => $ug->school,
@@ -2242,24 +2571,24 @@ sub get_annoucments_with_user_groups {
     }
 
     my $seen_courses = {};
-	foreach my $course (@courses) {
-		next if ($seen_courses->{ $course->primary_key() });
-		$seen_courses->{ $course->primary_key() } = 1;
+    foreach my $course ($self->current_courses()) {   ###  course announcements
+	next if ($seen_courses->{ $course->primary_key() });
+	$seen_courses->{$course->primary_key()} = 1;
 
-		my @course_announcements = $course->announcements();
-		foreach my $course_announcement (@course_announcements) {
-			push @announcements, { item   => $course_announcement, 
-								   type   => 'course',
-								   course =>  $course };
-		}
+	my @course_announcements = $course->announcements();
+	foreach my $course_announcement (@course_announcements) {
+		push @$announcements, { item   => $course_announcement, 
+					type   => 'course',
+					course =>  $course };
+	}
     }
 
-    return (\@announcements, \@user_groups);
+    return $announcements;
 }
 
 sub count_new_announcements{
 	my $self = shift;
-	my ($anns, $dd) = $self->get_annoucments_with_user_groups();
+	my $anns = $self->get_all_announcements();
 	my $base_date = HSDB4::DateTime->new();
 	$base_date->subtract_days(5);
 	my $new_cnt = 0;
@@ -2277,7 +2606,7 @@ sub count_new_announcements{
 sub get_announcements_by_start{
 	my $self = shift;
 
-	my ($anns) = $self->get_annoucments_with_user_groups();
+	my $anns = $self->get_all_announcements();
 
 	my @sorted = sort { $b->{item}->field_value('start_date') cmp $a->{item}->field_value('start_date') } @$anns;
     return \@sorted;
@@ -2287,7 +2616,7 @@ sub get_announcements_by_start{
 sub get_announcements_by_group_and_course{
 	my $self = shift;
 
-	my ($anns) = $self->get_annoucments_with_user_groups();
+	my $anns = $self->get_all_announcements();
 
 	my @ug_anns;
 	while(scalar @$anns){
@@ -2314,20 +2643,68 @@ sub get_announcements_by_group_and_course{
     return \@sorted;
 }
 
-sub get_course_assignments {
-
-    my ($self, $course) = @_;
-	my $tps = $course->get_users_active_timeperiods($self->user_id);
-	my @tp_ids = map { $_->primary_key() } @$tps;
-    my $assignments = [];
-
-	if (@tp_ids and scalar(@tp_ids)) {
-		$assignments = TUSK::Assignment::Assignment->new()->lookup("course_id = " . $course->primary_key() . " AND time_period_id in (" . join(',', @tp_ids)  . ") AND school_id = " . $course->get_school->getPrimaryKeyID() . " AND available_date != '0000-00-00 00:00:00' AND available_date <= now() AND assignment.due_date != '0000-00-00 00:00:00'");
-	}
-
-    return $assignments;
+sub _get_course_assignments_sql {
+    my $self = shift;
+    return <<"END_SQL";
+SELECT
+    a.assignment_id, g.event_name, g.course_id, s.school_name
+FROM
+    tusk.assignment a
+INNER JOIN
+    tusk.grade_event g ON (a.grade_event_id = g.grade_event_id)
+INNER JOIN
+    tusk.school s ON (g.school_id = s.school_id)
+INNER JOIN
+    $_[0].link_course_student l 
+    ON
+        (g.course_id = l.parent_course_id AND l.child_user_id = '$self->{'user_id'}' AND g.time_period_id = l.time_period_id)
+INNER JOIN
+    $_[0].time_period t 
+    ON
+        (t.time_period_id = l.time_period_id AND t.start_date <= curdate() AND t.end_date >= curdate())
+WHERE 
+    a.due_date >=curdate()
+ORDER BY
+    a.due_date
+END_SQL
 }
 
+sub get_course_assignments {
+    
+    my $self = shift;
+
+    my @courses = $self->current_courses();
+    
+    my %schools_dbs = map { $_->school_db() => 1} @courses;
+        
+    my @all_assignments;
+   
+    foreach my $school(keys %schools_dbs) {
+	my $sql = $self-> _get_course_assignments_sql($school);
+	my $sth = TUSK::Core::SQLRow->new()->databaseSelect($sql);
+	
+	push @all_assignments, values %{$sth->fetchall_hashref('assignment_id')};
+    }
+
+    return \@all_assignments;
+}
+
+sub get_school_announcements {
+	my $self = shift;
+	my %all_announcements;
+	my @courses = $self->current_courses();
+	push @courses, $self->author_courses();
+
+	my @schools = keys %{{ map {$_->school() => 1 } @courses }};
+	
+	foreach my $school (@schools) {
+		my @announcements = HSDB45::Announcement::schoolwide_announcements($school);
+		foreach my $ann (@announcements) {
+			$all_announcements{$school}{$ann->primary_key()} = $ann;
+		}
+	}
+	return \%all_announcements;
+}
 
 sub makeGhost {
 	my ($self, $user_id, @params) = @_;
@@ -2348,17 +2725,11 @@ sub isGhost {
 	return(0);
 }
 
-sub _member_of_schools {
-    my $elt = shift;
-    return scalar(grep { $_ eq $elt } keys %TUSK::Constants::Schools) > 0;
-}
-
-sub get_list_cats{
+sub get_course_categories {
 	my $self = shift;
+	my @categories = ();
 
-	my $affiliation = $self->affiliation();
-	my @categories;
-	if ($affiliation && _member_of_schools($affiliation)) {
+	if (my $affiliation = $self->affiliation_or_default_school()) {
 		my $cat = TUSK::HomepageCategory->new(_school => $affiliation);
 		@categories = $cat->lookup_conditions("order by sort_order");
 	}
@@ -2366,49 +2737,60 @@ sub get_list_cats{
 	return @categories;
 }
 
-sub get_enum_cat{
-	my $self = shift;
-	my @cats = @_;
-	unless (scalar @cats){
-		@cats = $self->get_list_cats();
-	}
 
-	my $affiliation = $self->affiliation();
+### for a given school, return a list of user group courses with categories
+sub get_user_group_courses_with_categories {
+    my $self = shift;
+    my $dbh = HSDB4::Constants::def_db_handle ();
+    my %categories = ();
 
-	foreach my $cat (@cats) {
-		## some schools (sackler) don't have user_groups for courses, but still want a course list
-		## if there is just one category then we can enumerate, otherwise better do all dropdowns
-		my @ids = $cat->get_user_group_ids();
-		if (!@ids) {
-			if (scalar @cats eq 1) {
-				return $cat;
-			}
-		} 
-		else {      
-			foreach my $id (@ids) {
-				my $ug = HSDB45::UserGroup->new(_id => $id, _school => $affiliation);
-				if ($ug->contains_user($self->primary_key())) {
-					return $cat;
-				}
-			}         
-		}           
+    foreach my $school ( course_schools() ) {
+    my $db = get_school_db($school);
+
+    my $sql = qq(
+		 SELECT hc.course_id, hc.label as course_label, hcat.label as category_label, indent, url, hc.sort_order, hcat.sort_order
+		 FROM $db.homepage_course hc, $db.homepage_category hcat, $db.link_user_group_user lug
+		 WHERE hc.category_id = hcat.id
+		 AND hc.show_date <= date(now()) AND  (hc.hide_date >= date(now()) OR hc.hide_date = '0000-00-00')
+		 AND (lug.parent_user_group_id = hcat.primary_user_group_id OR lug.parent_user_group_id = hcat.secondary_user_group_id)
+		 AND lug.child_user_id = ?
+		 ORDER BY hcat.sort_order, hc.sort_order
+		 );
+    eval {
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($self->primary_key());
+
+	while (my ($course_id, $course_title, $category, $indentation, $course_url, $course_sort_order, $category_sort_order) = $sth->fetchrow_array) {
+	    $categories{$school}{$category_sort_order}{label} = $category;
+	    push @{$categories{$school}{$category_sort_order}{courses}}, { 
+		id => $course_id, 
+		title => $course_title, 
+		url => $course_url,
+		indentation => $indentation 
+		};
 	}
-	return undef;
+	$sth->finish();
+    };
+
+	print $@ if ($@);
+}
+    return \%categories;
 }
 
-sub user_stud_courses{
-	my $self = shift;
-	my @current_courses = @_;
-	unless (scalar @current_courses){
-		@current_courses = $self->current_courses({'only_enrollment' => 1});
-	}
 
-	my @user_stud_courses;
+sub get_enrollment_courses {
+        my $self = shift;
+	my %ids;
+
+	my @enrollment_courses;
+	my @current_courses = $self->current_courses({'only_enrollment' => 1});
+
 	foreach my $course (@current_courses){
-		push @user_stud_courses, $course if ($course->type() !~ /group|thesis committee/);
+	    push @enrollment_courses, $course if ($course->type() !~ /group|thesis committee/ && !(exists $ids{$course->primary_key()}));
+	    $ids{$course->primary_key()} = 1;
 	}
 
-	return @user_stud_courses;
+	return @enrollment_courses;
 }
 
 sub save {
@@ -2557,7 +2939,7 @@ what they've written.
 
 =head1 Linked Objects
 
-B<parent_content()>, B<parent_courses()>, B<parent_class_meetings()>,
+B<parent_content()>, B<author_courses()>, B<parent_class_meetings()>,
 B<parent_small_groups()>, B<parent_user_groups()>,
 B<personal_content()>: Get the appropriate sets of linked objects for
 the given $user object.

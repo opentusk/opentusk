@@ -14,7 +14,11 @@
  limitations under the License.
 </%doc>
 <%attr>	
-     no_check_path => 1
+	no_check_path => 1
+	page_header   =>'/tmpl/prepend:manage_header_div_layout'
+	page_footer   =>'/tmpl/footer:footer_div_with_school_links'	
+	top_tab_type  => 'util'
+	nostandardheader => 1
 </%attr>
 
 
@@ -23,24 +27,21 @@
 my $user = $m->session->{'user'};
 my $user_id = $user->primary_key();
 
+
 </%init>
-
+<div class="shortpage">
 % if ($user->primary_key()) {
-<H4 class="error">Access to <% $user->out_short_name %> Forbidden</H4> 
-<P>I'm sorry, but the page you tried to reach won't give you access. 
-If you believe you should have access to this page please contact <% $TUSK::Constants::SiteAbbr %> by emailing <A HREF="mailto:<% $TUSK::Constants::SupportEmail %>"><% $TUSK::Constants::SupportEmail %></A> or calling <% $TUSK::Constants::SupportPhone %>. You may also want go back to the <a href="/home">home page</a>, or try to <A href="/dologout">log in again.</A></P>
+<h4 class="error"><%__x('Access to {name} Forbidden', name => $user->out_short_name) %></h4> 
+<p><%__x("I'm sorry, but the page you tried to reach won't give you access. If you believe you should have access to this page please contact {SiteAbbr} by emailing <a href=\"mailto:{SupportEmail}\">{SupportEmail}</a> or calling {SupportPhone}. You may also want go back to the <a href=\"/home\">home page</a>, or try to <a href=\"/dologout\">log in again.</a></p>", SiteAbbr => $TUSK::Constants::SiteAbbr, SupportEmail => $TUSK::Constants::SupportEmail, SupportPhone => $TUSK::Constants::SupportPhone)%>
 % } else {
-<H4 class="error">Access Forbidden: Unrecognized User</H4>
+<h4 class="error"><%__("Access Forbidden: Unrecognized User")%></h4>
 
-<P>I'm sorry, but we seem to have crossed wires somewhere.  I recommend <A HREF="/dologout">logging out</A> and logging in again, and we'll see if we can do better.</P>
+<p><%__("I'm sorry, but we seem to have crossed wires somewhere.  I recommend <a href=\"/dologout\">logging out</a> and logging in again, and we'll see if we can do better.")%></p>
 
 % }
-
+</div>
 
 <%method title>
-%	return "ACCESS DENIED";
+%	return __("ACCESS DENIED");
 </%method>
 
-<%method red_header_text>
-% 	return $m->comp('SELF:title');
-</%method>

@@ -51,7 +51,7 @@
 	cellpadding	=> "0" 
 } &>
 
-<& /tmpl/element:textbox, params =>{ label => 'Category Name',
+<& /tmpl/element:textbox, params =>{ label => __('Category Name'),
 	name => 'category_name',
 	value => $category->getGradeCategoryName(),
 	size => 60,
@@ -90,8 +90,19 @@
 } &>
 </%doc>
 
+<%perl>
+	# in an effort to keep translation segmented we break up this paragraph.
+	my $para = {
+		note	=> __('Note'),
+		sen1	=> __("This option is available to only top level categories."),
+		sen2	=> __("All sub categories will inherit this feature."),
+		sen3	=> __("Sites will be displayed on 'grade by category' page."),
+		sen4	=> __("Make sure that teaching sites are added to the course")
+	};
+</%perl>
+
 <& /tmpl/element:radio_buttons, params => { 
-        label => 'Display sites for grading',
+        label => __('Display sites for grading'),
         name => 'multi_site',
         buttons => [
 			{ value => "1", text => "Yes", 
@@ -102,21 +113,21 @@
 			} 
 	   	],
 		nobreak => 1, 
-		trailing_text => qq(<br/><span style="font-size:85%">Note: This option is available to only top level categories. All sub categories will inherit this feature.<br/>  Sites will be displayed on 'grade by category' page. Make sure that teaching sites are added to the course.</span>),
+		trailing_text => qq(<br/><span style="font-size:85%">$para->{note}: $para->{sen1} $para->{sen2}<br/>  $para->{sen3} $para->{sen4}</span>),
 } &>
 
 <& SELF:print_assign_code &>
 
 <& /tmpl/element:save_button, params => {
-	label 			=> 'Save Changes',
+	label 			=> __('Save Changes'),
 	cancel_onclick	=> "go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/gradebook/author/show") . "');",
 	name			=> 'save_changes',
 	buttons			=> ($is_edit) 
-		? [ $m->scomp('/tmpl/element:button', params => { label => 'New Grade Category', onclick => "window.location='/gradebook/author/categoryaddedit/$type_path'" }),
-			$m->scomp('/tmpl/element:button', params => { label => 'Add/Edit Grades', onclick => "window.location='/gradebook/author/gradelistbystudent/$type_path/$category_id'" }),
-			$m->scomp('/tmpl/element:button', params => { label => 'Sort Categories', onclick => "window.location='/gradebook/author/categorysort/$type_path/$category_id'" }),
-			$m->scomp('/tmpl/element:button', params => { label => 'Sort Events', onclick => "window.location='/gradebook/author/eventsort/$type_path/$category_id'" }),
-			$m->scomp('/tmpl/element:button', params => { label => 'Delete Category', onclick => "window.location='/gradebook/author/categorydelete/$type_path/$category_id'" }),
+		? [ $m->scomp('/tmpl/element:button', params => { label => __('New Grade Category'), onclick => "window.location='/gradebook/author/categoryaddedit/$type_path'" }),
+			$m->scomp('/tmpl/element:button', params => { label => __('Add/Edit Grades'), onclick => "window.location='/gradebook/author/gradelistbystudent/$type_path/$category_id'" }),
+			$m->scomp('/tmpl/element:button', params => { label => __('Sort Categories'), onclick => "window.location='/gradebook/author/categorysort/$type_path/$category_id'" }),
+			$m->scomp('/tmpl/element:button', params => { label => __('Sort Events'), onclick => "window.location='/gradebook/author/eventsort/$type_path/$category_id'" }),
+			$m->scomp('/tmpl/element:button', params => { label => __('Delete Category'), onclick => "window.location='/gradebook/author/categorydelete/$type_path/$category_id'" }),
 		  ] 
 		: [],
 } &>
@@ -153,7 +164,7 @@
 
 	if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)) {
 		my ($msgtxt, $extra, $grade_offering);
-		$ARGS{'category_name'} = "Untitled" unless ($ARGS{'category_name'});
+		$ARGS{'category_name'} = __("Untitled") unless ($ARGS{'category_name'});
 		$category->setGradeCategoryName($ARGS{'category_name'});
 		$category->setMultiSite($ARGS{'multi_site'});
 		$category->setGradeOfferingID($root_category->getGradeOfferingID()) unless ($is_edit);
@@ -170,10 +181,10 @@
 
 		my $url = $r->uri();
 		if ($is_edit) {
-			$msgtxt = "Grade category successfully modified";
+			$msgtxt = __("Grade category successfully modified");
 		} else {
 			$url .= "/" . $category->getPrimaryKeyID();
-			$msgtxt = "Grade category successfully created";
+			$msgtxt = __("Grade category successfully created");
 		}
 		$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $url . "?msg=$msgtxt");
 	}
@@ -220,7 +231,7 @@
 	foreach my $key (keys %$row_hash){
 		$row_hash->{$key}->{fields}->{grade_category_id} = $category_id;
 		if ($row_hash->{$key}->{fields}->{coding_code_id} == -1) {
-			$m->comp("/tmpl/url:redirect", message => "Please select only code", destination => $ENV{SCRIPT_URI});
+			$m->comp("/tmpl/url:redirect", message => __("Please select only code"), destination => $ENV{SCRIPT_URI});
 		}
 	}
 
@@ -262,7 +273,7 @@
 </%perl>
 
 <& /tmpl/element:sort_order_box, params => {
-	label			=> 'Assign code for grading',
+	label			=> __('Assign code for grading'),
 	no_add_button 	=> 0,
 	button_onclick	=> "addnewdata('codingdiv',{ grade_category_coding_code_id:'0', coding_code_id:'0', name:'' });",
 	button_label	=> 'Add Code',
@@ -276,14 +287,14 @@
 		action => {	usage => 'Yes', 
 					length=> 150,
                    	functions => [
-						{func => 'remove', label => 'Delete'},
+						{func => 'remove', label => __('Delete')},
 					]
 		},
 		scrollrows => 15,
 		object_list => [],
 		formname => 'categoryaddedit',
 		display => 	[ 
-			{ label => 'Code', field => 'coding_code_id', align => 'center', length => '200', options => $coding_options },
+			{ label => __('Code'), field => 'coding_code_id', align => 'center', length => '200', options => $coding_options },
 		],
 		validate => { usage => 'No'},
 		data => $coding_data 
@@ -296,7 +307,7 @@
 </%method>
 
 <%method title>
-%	return ($is_edit) ? "Modify Grade Category" : "Create New Grade Category" ;
+%	return ($is_edit) ? __("Modify Grade Category") : __("Create New Grade Category") ;
 </%method>
 
 <%method red_header_text>

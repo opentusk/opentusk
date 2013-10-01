@@ -1,0 +1,261 @@
+#!/usr/bin/perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use strict;
+use Getopt::Std;
+use Carp;
+
+our ($opt_D,$opt_t,$opt_d,$opt_h,$opt_n,$opt_m);
+
+my $pwd = `pwd`;
+chomp $pwd;
+my $cvs_tag_command  = "cvs tag" ;
+my $cvs_co_command   = "cvs co";
+my $tempDir =  "tusk_temp_tag_dir";
+my $module = "tusk";
+
+
+getopts ("D:dt:nmh");
+
+#Check the options
+if($opt_h) {usage();}
+
+if(!$opt_d) {
+  if(!defined($ENV{HOME})) {confess "You need to have the home variable set";}
+  chdir $ENV{HOME};
+} else {print " ******\nDEBUG MODE\n ******\n";}
+if ($opt_D){
+	if ($opt_t || $opt_n || $opt_m) {usage("The -D switch can't be used with -t,-n,-m");}
+}
+if ($opt_m && $opt_n) {usage("You may only have -m or -t, not both");}
+if ($opt_m && $opt_t) {usage("You may only have -m or -t, not both");}
+if ($opt_n && $opt_t) {usage("You may only have -n or -t, not both");}
+if (!$opt_m && !$opt_n && !$opt_t && !$opt_D) {usage ("You must have one of -n, -D,-m or -t");}
+
+
+my $log_reference_file = "tusk/current/bin/tag_tusk";
+if(! -f $log_reference_file ) {confess "That is an invalid log_reference_file $log_reference_file";}
+
+checkout_snapshot($opt_t);
+
+if ($opt_t){delta_release($opt_t);}
+
+if ($opt_n) {minor_release();}
+
+if ($opt_m) {major_release();}
+
+if ($opt_D) {delete_tag($opt_D);}
+finish();
+
+
+
+
+
+
+sub delete_tag {
+	my $tag = shift or confess "Need to have a tag passed to delete_tag";
+	print "Preparing to delete tag $tag \n";
+	confirm();
+	system("$cvs_tag_command -d $tag $tempDir");
+	if($?) {confess "cvs command failed $!";}
+}
+
+
+sub delta_release {
+	my $tag = shift or confess "Need to have a tag passed to delta_release";
+	if(!valid_tag($tag)) {confess "The tag $tag is not a vaild tag.  You need the format tusk-<number>_<number>_<number>.";}
+	my $new_tag = next_tag('delta',$tag);
+	print "New Tag is $new_tag \n";
+	confirm();
+	my $the_cvs_command ;
+	$the_cvs_command = "$cvs_tag_command -r $tag $new_tag $tempDir";
+	system($the_cvs_command);
+	if($?) {confess "cvs command failed ( $the_cvs_command ) :  $!";}
+}
+
+
+sub major_release {
+	my $new_tag = next_tag('major');
+	print "New Tag is $new_tag \n";
+	confirm();
+	system("$cvs_tag_command -rHEAD $new_tag $tempDir");
+	if($?) {confess "cvs command failed $!";}
+}
+
+
+sub minor_release {
+	my $new_tag = next_tag('minor');
+	print "New Tag is $new_tag \n";
+	confirm();
+	system("$cvs_tag_command -rHEAD $new_tag $tempDir");
+	if($?) {confess "cvs command failed $!";}
+}
+
+
+sub next_tag{
+	my $release_type = shift or confess "Need a release type";
+	my $delta_tag = shift;
+	if(($release_type eq 'delta') && (!defined($delta_tag))) {confess "release type delta requires a delta tag";}
+	my $tag = read_tag();
+	if(!defined ($tag)) {confess "Tag not found";}
+	my ($major,$minor,$delta) = decipher_tag($tag);
+	my $separator = "_";
+	my $prefix = "tusk-";
+	if ($release_type eq 'major') {return $prefix.(++$major).$separator."0".$separator."0";}
+	if ($release_type eq 'minor') {return $prefix.$major.$separator.(++$minor).$separator."0";}
+	if ($release_type eq 'delta'){
+		if (confirm_build_tag_from_delta($delta_tag)){
+			($major,$minor,$delta) = decipher_tag($delta_tag);
+			return $prefix.$major.$separator.$minor.$separator.(++$delta);
+		} else {return $prefix.$major.$separator.$minor.$separator.(++$delta);}
+	}
+}
+
+
+sub valid_tag {
+	my $tag = shift;
+	if ($tag =~ m/^tusk-(\d+)_(\d+)_(\d+)$/) {return 1;}
+	return 0;
+}
+
+
+sub decipher_tag {
+	my $tag = shift;
+	my ($major,$minor,$delta) = ( $tag =~ /^tusk-(\d+)_(\d+)_(\d+)$/);
+	return ($major,$minor,$delta) ;
+}
+
+
+sub read_tag{
+	my $line ;
+	my $in_tag_section = 0;
+	my $greatest_tag;
+	open CVSLOG, "cvs log -h $log_reference_file |";
+	while (<CVSLOG>){
+		chomp $_;
+		$line = $_;
+		if ($in_tag_section){
+			$line =~ s/\s*(.*):.*/$1/;
+			if ($line =~ /^tusk-(\d+)_(\d+)_(\d+)\s*$/){
+				#print "comparing tag \n";
+				if (greater_than_tag ($line, $greatest_tag)){
+					$greatest_tag = $line;
+				}	
+			}
+			next;
+		}
+		if ($line =~ /^symbolic names:/){
+			$in_tag_section = 1;
+			#print "in tag section \n";
+		} else {next;}
+
+	}
+	close CVSLOG;
+	print "Current Greatest Tag is $greatest_tag \n";
+	return $greatest_tag;
+}
+
+
+sub greater_than_tag {
+	my ($a, $b) = @_;
+	if (!defined ($b) && defined($a)) {return 1;}
+	my ($amajor,$aminor,$adelta) = ($a =~ /^tusk-(\d+)_(\d+)_(\d+)/);
+	my ($bmajor,$bminor,$bdelta) = ($b =~ /^tusk-(\d+)_(\d+)_(\d+)/);
+	if (!defined ($amajor) || !defined($bmajor)) {confess "tags in CVS do not correspond to release patterns"}
+	if($amajor > $bmajor)    {return 1;}
+        elsif($amajor < $bmajor) {return 0;}
+	if ($aminor > $bminor)   {return 1;}
+	elsif($aminor < $bminor) {return 0;}
+	if ($adelta > $bdelta)   {return 1;}
+	elsif($adelta < $bdelta) {return 0;}
+	confess "This means that two tags are equal and CVS shouldn't allow this";
+}
+
+
+sub finish{
+	my $param = shift;
+	$param ||= '';
+	if ($param ne "no clean"){
+		print "\nCleaning snapshot directories ...\n";
+		system("rm -rf $tempDir");
+		print "Deleting $tempDir \n";
+		#if(!$opt_d) {confirm();}
+		system("rm -rf $tempDir");
+	}
+	chdir $pwd or die "Unable to chdir back : $pwd";
+	exit 1;
+}
+
+sub confirm {
+	print "Do you want to continue (yes/no)? ";
+	my $line = <STDIN>;
+	if ($line !~ /^yes$/){
+		print "\n\nExiting...\n\n";
+		finish();
+	}	
+
+}
+
+sub confirm_build_tag_from_delta{
+	my $tag = shift;
+	print "Would you like to name the next tag off of $tag, as opposed to the top tag? (yes/no)";
+	my $line = <STDIN>;
+	if ($line !~ /^yes$/){
+		print "\nUsing the top tag ... \n";
+		return 0;
+	}	
+	return 1; 
+}
+
+sub checkout_snapshot{
+	my $tag = shift || 'HEAD';
+	my $cmd = "$cvs_co_command -d $tempDir -r $tag $module";
+	system($cmd);
+	if ($?){
+		print "Checkout command $cmd failed. Code : $?";
+		finish();
+	}
+}
+
+
+sub usage {
+	my $msg = shift;
+	print "ERROR : $msg" if $msg;
+	print <<EOM;
+
+
+$0 [-D tag | -t tag | -n | -m ] [-d ]
+
+	-t : indicates that a new release should be tagged off this tag in CVS 
+		(DELTA RELEASE) 
+		can't be used with -n,-t 
+	-n : indicates that a new release should be tagged off of the head in CVS
+		(MINOR RELEASE)
+		can't be used with -t,-m 
+	-m : indicates that a new release should be tagged off head in CVS 
+		and the major number is incremented
+		(MAJOR RELEASE) 
+		can't be used with -n,-t 
+	-h : gives you this help text 
+	-d : debug mode and doesn't chdir to main repository
+	-D : delete a given tag in the repository
+		not used with -t,-n,-m
+
+EOM
+	finish("no clean");
+}

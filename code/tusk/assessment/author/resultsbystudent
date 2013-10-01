@@ -72,7 +72,7 @@
 <& /formbuilder/util:displayTimePeriod, entry => $entry &>	
 
 % if (scalar @rows) {
-<& /formbuilder/util:displayDate, entry => ($entry->getPrimaryKeyID()) ? $entry : undef, date_label => 'Assessment Date' &>
+<& /formbuilder/util:displayDate, entry => ($entry->getPrimaryKeyID()) ? $entry : undef, date_label => __('Assessment Date') &>
 % 	if (scalar @$assessors) {
 %		my @assessors = (); 
 %		foreach (@$assessors) {
@@ -82,10 +82,10 @@
 
 <& /tmpl/element:field_display, params=>{ 
 	label => 'Assessor(s)',
-	value => join("; &nbsp; ", @assessors) . (($all_assessors_completed) ? '' : '<div class="xsm" style="padding-top:3px;"><span class="errTxt">*</span> Assessor who has NOT completed the assessment</div>') } &>
+	value => join("; &nbsp; ", @assessors) . (($all_assessors_completed) ? '' : '<div class="xsm" style="padding-top:3px;"><span class="errTxt">*</span> '.__('Assessor who has NOT completed the assessment').'</div>') } &>
 %	}
 % 	if ($entry->getCompleteDate()) {
-<& /tmpl/element:field_display, params => { label => 'Post Date & Time', value => $entry->getCompleteDate() } &>
+<& /tmpl/element:field_display, params => { label => __('Post Date & Time'), value => $entry->getCompleteDate() } &>
 % 	}
 % }
 </table>
@@ -100,7 +100,7 @@
 	name => "assessments",
 	sort_box => 0,
 	type_path => $type_path,
-	'norows-message' => '<br/>No assessor assigned to this student',
+	'norows-message' => '<br/>'.__('No assessor assigned to this student'),
 	border_bottom_tr => 1,
 } &>
 </td>
@@ -110,10 +110,10 @@
 %	if (($repost_grade)) {
 %		$repost_text = 'Re-';
 %	} else {
-%		$buttons = [ $m->scomp('/tmpl/element:button', params => { label => 'Save Changes', name => 'save_submit', type => 'submit',}) ];
+%		$buttons = [ $m->scomp('/tmpl/element:button', params => { label => __('Save Changes'), name => 'save_submit', type => 'submit',}) ];
 %	}
 <& /tmpl/element:save_button, params => {
-	label				=>	$repost_text . 'Post Result', 
+	label				=>	$repost_text . __('Post Result'), 
 	name				=>	'post_submit', 
 	no_cancel_button 	=> 	1,
 	one_column			=> 	1,
@@ -163,10 +163,10 @@
 		if ($ARGS{post_submit}) {		
 			$entry->setCompleteDate(HSDB4::DateTime->new()->out_mysql_timestamp());
 			$entry->save({user => $user_id});
-			$msg = 'Successfully Submitted';
+			$msg = __('Successfully Submitted');
 			$url = "/assessment/author/results/$type_path/$form_id";
 		} elsif  ($ARGS{save_submit}) {	
-			$msg = 'Successfully saved';
+			$msg = __('Successfully saved');
 			$url = $ENV{SCRIPT_NAME} . "/$type_path/$form_id/$uid/$entry_id";
 		}
 		$m->comp("/tmpl/url:redirect", destination => $url,  message => $msg, msg_type => 'msg' );
@@ -185,7 +185,7 @@
 	$m->comp('SELF:nocache');
 
 	if (!$time_period_id || ($m->session->{timeperiod_course} ne $course->school() . '-' . $course->primary_key())) {
-		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/results/$type_path/$form_id/$uid", message => "Something wrong with time period! Try again.");
+		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/results/$type_path/$form_id/$uid", message => __("Something wrong with time period! Try again."));
 	}
 
 	if ($entry_id) {
@@ -257,7 +257,7 @@
 
 		if ($edit_mode) {
 			if ($repost_grade) {
-				$m->comp('SELF:set_msg', msg => 'You may edit/repost grades. They are already posted to students and registrar', type => 'hint');
+				$m->comp('SELF:set_msg', msg => __('You may edit/repost grades. They are already posted to students and registrar'), type => 'hint');
 			}
 		} 
 	}
@@ -275,22 +275,22 @@
 		$comments{final} = $student_grade->getComments();
 	}
 
-	$column_headers = [ {label => 'Performance Criteria', field => 'field' } ];
+	$column_headers = [ {label => __('Performance Criteria'), field => 'field' } ];
 
 	if ($assessment_form->getMultiAssessors()) {
 		push @$column_headers, (		
-			{label => 'Frequency', field => 'frequency', align => 'center', 'html' => 1 },
-			{label => '<span style="cursor:pointer;" title="Number of assessors who has assessed"> N </span>', field => 'assessors', align => 'center', 'html' => 1 },
-			{label => '<span style="font-size:80%">Calc Avg Score</span>', field => 'calc_avg_score', align => 'center', 'html' => 1 },
+			{label => __('Frequency'), field => 'frequency', align => 'center', html => 1 },
+			{label => '<span style="cursor:pointer;" title="'.__('Number of assessors who has assessed').'"> N </span>', field => 'assessors', align => 'center' },
+			{label => '<span style="font-size:80%">' . __('Calc Avg Score') . '</span>', field => 'calc_avg_score', align => 'center' => 1, html => 1 },
 		);
 	}
 
-	push @$column_headers, {label => 'Score', field => 'avg_score', align => 'center', 'html' => 1 };
+	push @$column_headers, {label => __('Score'), field => 'avg_score', align => 'center', html => 1 };
 
 	if ($total_weight) {
 		push @$column_headers, (
-			{label => 'Weight', field => 'weight', align => 'center', 'html' => 1 },
-			{label => 'Weighted Score %', field => 'weighted_avg', align => 'center', 'html' => 1 },
+			{label => __('Weight'), field => 'weight', align => 'center', html => 1 },
+			{label => __('Weighted Score %'), field => 'weighted_avg', align => 'center', html => 1 },
 		);
 	}
 
@@ -306,11 +306,14 @@
 		$rows[$i]->{row_class} 	= 'master';
 
 		if ($assessment_form->getMultiAssessors()) {
-			my $title = join("   ", map { $_  . ': ' . $scores{field}{$fid}{assessors}{$_} } sort keys %{$scores{field}{$fid}{assessors}});
+			my $title =  join("   ", map { $_  . ': ' . $scores{field}{$fid}{assessors}{$_} } sort keys %{$scores{field}{$fid}{assessors}});
 			my $assessors_per_field = scalar grep { /^\d+$/ } values %{$scores{field}{$fid}{assessors}};
 
 			$rows[$i]->{assessors}	= $assessors_per_field;
-			$rows[$i]->{frequency} 	= '<table align="center"><tr><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[0] . "</td><td><span class=\"inlinebar\" title=\"$title\">" . join(",", map { (exists $scores{field}{$fid}{frequency}{$_}) ? $scores{field}{$fid}{frequency}{$_} : 0 } ($scores{range}{$fid}->[0] .. $scores{range}{$fid}->[1])) . '</span></td><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[1] . '</td></tr></table>';
+			$rows[$i]->{frequency} 	= '<table align="center"><tr><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[0] . 
+						"</td><td> <span class='inlinebar' title='". $title . "'>" . 
+						join(",", map { (exists $scores{field}{$fid}{frequency}{$_}) ? $scores{field}{$fid}{frequency}{$_} : 0 } ($scores{range}{$fid}->[0] .. $scores{range}{$fid}->[1])) . 
+						'</span></td><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[1] . '</td></tr></table>';
 
 			if ($assessors_per_field > 0 && $scores{field}{$fid}{sum}) {
 				my $calc_avg = sprintf("%.2f", $scores{field}{$fid}{sum} / $assessors_per_field);
@@ -351,15 +354,15 @@
 	} ## loop each field
 
 	push @rows, {  	## total scores row
-		field => '<span style="font-size:10pt;font-weight:bold;">Total</span>', 
+		field => '<span style="font-size:10pt;font-weight:bold;">' . __('Total') . '</span>', 
 		calc_avg_score => $scores{total}{average} . ((exists $scores{total}{final_override} && $scores{total}{final_override}) ? "<input type=\"hidden\" name=\"db_total_override_score\" value=\"$scores{total}{final_override}\" />" : ''),
 		weight => ($total_weight) ? "<span id=\"total_weight\">$total_weight</span>" . '<span class="xxsm">%</span>' : '',
 		avg_score => ($total_weight) 
 			? '<span id="total_avg_score"></span>'
 			: '<table align="center"><tr><td class="xxsm" align="right">calculated:</td><td><input type="text" class="totalValue" name="total_final_score" size="4" value="" READONLY/></td></tr><tr><td class="xxsm" align="right">override:</td><td><input type="text" class="totalValue" name="total_override_score" size="4" value="' . sprintf("%.2f", $scores{total}{final_override}) . '" /></td></tr></table>',
 		weighted_avg => '<table align="center">' . 
-(($edit_mode && $total_weight && $assessment_form->getMinScore()) ? '<tr><td class="xxsm" align="right">minimum score to pass:</td><td><input type="text" class="totalValue gray" name="min_score" value="' .  $assessment_form->getMinScore() . '" size="4" DISABLED /></td></tr>' : '') .
-'<tr><td class="xxsm" align="right">calculated:</td><td><input tyoe="text" class="totalValue blue" name="total_final_score" size="4" value="" READONLY /></td></tr>
+(($edit_mode && $total_weight && $assessment_form->getMinScore()) ? '<tr><td class="xxsm" align="right">' . __('minimum score to pass:') . '</td><td><input type="text" class="totalValue gray" name="min_score" value="' .  $assessment_form->getMinScore() . '" size="4" DISABLED /></td></tr>' : '') .
+'<tr><td class="xxsm" align="right">'.__('calculated:').'</td><td><input type="text" class="totalValue blue" name="total_final_score" size="4" value="" READONLY /></td></tr>
 <tr><td class="xxsm" align="right">override:</td><td><input type="text" class="totalValue green" name="total_override_score" size="4" value="' . $scores{total}{final_override} . '" /></td></tr>
 </table>',
 		arrow => '<div class="row"><div class="arrow"></div></div>',
@@ -368,7 +371,7 @@
 	push @rows,  {  	## total comments row
 		colspan => 1, 
 		row_class => 'line-bgcolor', 
-		text => '<div style="margin:5px 10px 5px 10px;"><span style="font-weight:bold;color:#565051;">Summary Comments:</span>' . $m->scomp('/formbuilder/view:displayCommentBox', key => 'final', additional_comments => $m->comp('SELF:get_comments', key => 'final'), comment => $comments{final}) . '</div>',
+		text => '<div style="margin:5px 10px 5px 10px;"><span style="font-weight:bold;color:#565051;">'.__('Summary Comments:').'</span>' . $m->scomp('/formbuilder/view:displayCommentBox', key => 'final', additional_comments => $m->comp('SELF:get_comments', key => 'final'), comment => $comments{final}) . '</div>',
 	};
 </%perl>
 </%method>
@@ -388,11 +391,11 @@
 </%method>
 
 <%method red_header_text>
-% 	return $m->comp('SELF:getFormTypeLabel') . ' Summary Results: &nbsp;' . $student->out_full_name();
+% 	return $m->comp('SELF:getFormTypeLabel') .__(' Summary Results:').' &nbsp;' . $student->out_full_name();
 </%method>
 
 <%method title>
-% 	return $m->comp('SELF:getFormTypeLabel') . ' Summary Results: &nbsp;' . $student->out_full_name();
+% 	return $m->comp('SELF:getFormTypeLabel') . __(' Summary Results:').' &nbsp;' . $student->out_full_name();
 </%method>
 
 <%method function_token>

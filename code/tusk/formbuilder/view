@@ -83,7 +83,7 @@
 <input type="hidden" id="weight_<% $fid %>" name="weight_<% $fid %>" value="<% $field->getWeight() %>" />
 % 	}
 &nbsp;
-<label for="id_<% $fid %>" class="field-error">Required</label>
+<label for="id_<% $fid %>" class="field-error"><%__("Required")%></label>
 </td>
 </tr>
 <& 'SELF:' . $field->getFieldTypeToken(), 
@@ -97,7 +97,7 @@
 % my $comment_text = $args->{summary_comment_text} ? $args->{summary_comment_text} : $entry_grade->getComments();
 <tr><td colspan="2" style="margin:5px;">
 <br/>
-<div class="med"><% $question_count++ %>. Summary Comments</div>
+<div class="med"><% $question_count++ %>. <%__("Summary Comments")%></div>
 <& /tmpl/element:input_textarea, params =>{ 
 	name => 'final_comment',
 	value => $comment_text,
@@ -111,7 +111,7 @@
 <& $button_component &>
 % } else {
 <& /tmpl/element:save_button, params => {
-	label 		=> 'Submit', 
+	label 		=> __('Submit'), 
 	name		=> 'form_submit', 
 	onmouseup	=> 'this.blur();', 
 	'no_cancel_button' => 1,
@@ -133,16 +133,16 @@
 		my $extra = (!defined($args->{entry_id}) && $new_entry_id) ? $new_entry_id : '';
 		if ($has_save_button) {
 			if ($args->{save_submit}) { 	
-				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Successfully Saved'));
+				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => __('Successfully Saved')));
 			} elsif ($args->{form_submit}) {  
-				$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra));
+				$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $redirect_submit_url, msg => __('Successfully Submitted'), extra => $extra));
 			}
 		} else {
 			if ($args->{form_submit}) { 
 				if ($args->{entry_id}){    
-					$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Entry Updated'));
+					$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => __('Entry Updated')));
 				} else {      
-					$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra));
+					$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $redirect_submit_url, msg => __('Successfully Submitted'), extra => $extra));
 				}
 			}
 		}
@@ -154,7 +154,7 @@
 	if ($args->{entry_id}){
 		$entry = TUSK::FormBuilder::Entry->new()->lookupKey($args->{entry_id});
 		if (!$entry || !$entry->getPrimaryKeyID() || ($read_access && $entry->getUserID() ne $m->session->{'user'}->user_id())){
-			$m->comp("/tmpl/url:redirect",message => "You do not have access to that entry.");
+			$m->comp("/tmpl/url:redirect",message => __("You do not have access to that entry."));
 		}
 		
 		my $responses = $entry->getFullResponses();
@@ -169,7 +169,7 @@
 
 <%method displayCompleteDate>
 <& /tmpl/element:field_display, params => { 
-	label => 'Submit Date & Time',
+	label => __('Submit Date & Time'),
 	value => $entry->getCompleteDate(),
 } &>
 </%method>
@@ -262,11 +262,11 @@
 </td>
 % 	} ## @$field_rubrics
 %	if ($show_grade) {
-<th align="left" valign="top" NOWRAP>Score: <% (defined $resp_score) ? (($resp_score) ? $resp_score : 'N/A') : '-' %></th>
+<th align="left" valign="top" NOWRAP><%__("Score")%>: <% (defined $resp_score) ? (($resp_score) ? $resp_score : 'N/A') : '-' %></th>
 %	} else {
 % 		if ($unable_to_assess && !$score_display) {
 <td valign="top" align="center" NOWRAP>
-<span><input type="radio" name="id_<% $fid %>" value="0" <% (defined $resp_item_id && $resp_item_id == 0) ? 'CHECKED' : '' %> /> <span class="level-title">N/A</span> &nbsp;</span>
+<span><input type="radio" name="id_<% $fid %>" value="0" <% (defined $resp_item_id && $resp_item_id == 0) ? 'CHECKED' : '' %> /> <span class="level-title"><%__("N/A")%></span> &nbsp;</span>
 </td>
 % 		}
 %	}
@@ -277,10 +277,10 @@
 % if ($field->getShowComment()) {
 % 	my $comments = TUSK::FormBuilder::FieldComment->lookup('field_id = ' . $field->getPrimaryKeyID(), ['sort_order']);
 <div style="margin:5px;">
-<span style="font-weight:bold;color:#565051;">Comments:</span>
+<span style="font-weight:bold;color:#565051;"><%__("Comments")%>:</span>
 %	if ($comment_required_check) {
  &nbsp;&nbsp; <input type="hidden" name="comment_required_field" value="<% $fid %>" />
-<label for="comment_<% $fid %>" class="field-error">Required Comments</label>
+<label for="comment_<% $fid %>" class="field-error"><%__("Required Comments")%></label>
 %	}
 <br/>
 <& SELF:displayCommentBox, key => $fid, comments => $comments, additional_comments => $additional_comments, comment => $comment &>
@@ -300,7 +300,7 @@
 <div id="container_<% $key %>" class="comment">
 <div class="comment_section" style="margin-left: 5px">
 %		if (scalar @$comments) {
-<div class="xsm">Predefined Comments</div>
+<div class="xsm"><%__("Predefined Comments")%></div>
 <ul class="gArrow" >
 % 			foreach (@$comments) {
 <li><span class="placeholder_<% $key %> gPointer"><% $_->getComment %> </span></li>

@@ -30,7 +30,7 @@
 	</%args>
 %	if ($reuseContent){
 		<& /tmpl/element:field_display, params => {
-			label	=> 'Stain',
+			label	=> __('Stain'),
 			value	=> ($stain) ? $stain : '&nbsp;',
 		}&>
 %	} else {
@@ -38,7 +38,7 @@
 %		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
 		<& /tmpl/element:textbox, params => { 
 			name		=> $name,
-			label 		=> 'Stain:', 
+			label 		=> __('Stain:'), 
 			value 		=> $stain,
 			size 		=> $size, 
 		}&>
@@ -51,7 +51,7 @@
 	$args
 </%args>
 
-<& /tmpl/element:flexible_tr, params => { label => 'Slide Preview' } &>
+<& /tmpl/element:flexible_tr, params => { label => __('Slide Preview') } &>
 
 <%perl>
 	print '<img src="';
@@ -72,7 +72,7 @@
 
 </td></tr>
 
-<& SELF:html_textarea, content => $content, label => 'Text Description:' &>
+<& SELF:html_textarea, content => $content, label => __('Text Description:') &>
 <& SELF:SlideOptions, stain => $stain, reuseContent => $content->reuse_content_id() &>
 
 </%method>
@@ -87,9 +87,9 @@
 % if (!$content->primary_key() or !$content->is_xmetal_doc() or $content->reuse_content_id()){
 %
 <%perl>
-	my $label = 'Description:';
+	my $label = __('Description:');
 	if ($content->reuse_content_id()){
-		$label .= '<br>(the reused content appears after your description)';
+		$label = __('Description:<br>(the reused content appears after your description)');
 	}
 
 	my $want_editor = ($content->field_value('style') eq 'minimal')? 0 : 1;
@@ -127,12 +127,12 @@ that 'minimal' style is applied to this piece of content
 %	my $name = 'real_change';
 %	if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
 <& /tmpl/element:dropdown, params => { 
-					label 		=> 'Media Type:', 
+					label 		=> __('Media Type:'), 
 					selected	=> $contentType,
 					name		=> $name,
 					options		=> 	[
-									{ label => 'Video',			value => 'Video' },
-									{ label => 'Audio',			value => 'Audio' },
+									{ label => __('Video'),			value => 'Video' },
+									{ label => __('Audio'),			value => 'Audio' },
 								],
 				} &>
 % } 
@@ -140,13 +140,13 @@ that 'minimal' style is applied to this piece of content
 %	my $name = 'displaytype';
 %	if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
 <& /tmpl/element:dropdown, params => { 
-					label 		=> 'Display Type:', 
+					label 		=> __('Display Type:'), 
 					selected	=> $displayType,
 					name		=> $name,
 					options		=> 	[
-									{ label => 'Stream and Downloadable',	value => 'Both' },
-									{ label => 'Stream Only',		value => 'Stream' },
-									{ label => 'Downloadable Only',		value => 'Downloadable' },
+									{ label => __('Stream and Downloadable'),	value => 'Both' },
+									{ label => __('Stream Only'),		value => 'Stream' },
+									{ label => __('Downloadable Only'),		value => 'Downloadable' },
 								],
 				} &>
 
@@ -221,14 +221,14 @@ that 'minimal' style is applied to this piece of content
 </%args>
 
 <& /tmpl/element:dropdown, params => { 
-					label 		=> 'Folder Format:', 
+					label 		=> __('Folder Format:'), 
 					selected	=> $content->type(),
 					name		=> 'folderformat',
 					options		=> 	[
-									{ label => 'Standard Folder',	value => 'Collection' },
-									{ label => 'Multidocument',	value => 'Multidocument' },
+									{ label => __('Standard Folder'),	value => 'Collection' },
+									{ label => __('Multidocument'),	value => 'Multidocument' },
 								],
-					trailing_text 	=> $m->scomp("/tmpl/element:link_to_help", text => 'About Folder Formats', topic => 'folder_formats'), 
+					trailing_text 	=> $m->scomp("/tmpl/element:link_to_help", text => __('About Folder Formats'), topic => 'folder_formats'), 
 				} &>
 
 <& SELF:html_textarea, content => $content &>
@@ -305,7 +305,7 @@ that 'minimal' style is applied to this piece of content
 </%args>
 
 <& /tmpl/element:textbox, params => { 
-	label 	=> 'URL:', 
+	label 	=> __('URL:'), 
 	name	=> 'body',
 	value 	=> 
 		($content->body() && $content->body()->tag_values('external_uri')) 
@@ -341,7 +341,7 @@ that 'minimal' style is applied to this piece of content
 			my $width	= 600;
 			my $height 	= 400;
 
-			$m->comp("/tmpl/element:flexible_tr", params => { label => 'Preview:' } );
+			$m->comp("/tmpl/element:flexible_tr", params => { label => __('Preview:') } );
 </%perl>
 		<applet code="zoom2dapplet" archive="zoom2dapplet.jar" codeBase="<% $media_server %>/obj=delivery,1.0&cmd=retrieve&fif=servercomponents/code" width="<% $width %>" height="<% $height %>">
 			<param name="url" value="<% $media_server %>/fif=<% $file %>">
@@ -376,22 +376,20 @@ that 'minimal' style is applied to this piece of content
 		if($TUSK::Constants::PPTServiceEnabled && !$params{contentID} && TUSK::UploadContent::isa_powerpoint($params{extension})) {
 			my $name = 'ppt_change';
 			if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
-			$m->comp("/tmpl/element:flexible_tr", params => { label => 'What do you want to do<br>with your presentation?' } );
-            $m->print('<input name="'. $name .'" type="radio" value="2" checked >Convert to Image Collection and keep a downloadable version (can not be undone) *<br>');
-			$m->print('<input name="'. $name .'" type="radio" value="1" >Convert to Image Collection (can not be undone)<br>');
-			$m->print('<input name="'. $name .'" type="radio" value="" >Leave as PowerPoint (Downloadable File)<br>');
-			$m->print('<br><span style="font-style:italic;%">* Please '
-                      . 'note that the default option has changed.'
-                      . '</span><br>');
+			$m->comp("/tmpl/element:flexible_tr", params => { label => __('What do you want to do<br>with your presentation?') } );
+            $m->print('<input name="'. $name .'" type="radio" value="2" checked >' . __('Convert to Image Collection and keep a downloadable version (can not be undone)') . '*<br>');
+			$m->print('<input name="'. $name .'" type="radio" value="1" >' . __('Convert to Image Collection (can not be undone)') . '<br>');
+			$m->print('<input name="'. $name .'" type="radio" value="" >' . __('Leave as PowerPoint (Downloadable File)') . '<br>');
+			$m->print('<br><span style="font-style:italic;%">* ' . __('Please note that the default option has changed.') . '</span><br>');
 			$m->print('</td>');
 			$m->print('</tr>');
 		}
 		if($TUSK::Constants::TUSKdocServiceEnabled && !$params{contentID} && TUSK::UploadContent::isa_worddoc($params{extension})) {
 			my $name = 'doc_change';
 			if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
-			$m->comp("/tmpl/element:flexible_tr", params => { label => 'What do you want to do<br>with your document?' } );
-			$m->print('<input name="'. $name .'" type="radio" value="" checked>Leave as Word Document (Downloadable File)<br>');
-			$m->print('<input name="'. $name .'" type="radio" value="1">Convert to TUSKdoc (<strong style="color:red">New!</strong>)' . $m->scomp('/tmpl/element:link_to_help', text => 'More about TUSKdoc', topic => '') . '<br>');
+			$m->comp("/tmpl/element:flexible_tr", params => { label => __('What do you want to do<br>with your document?') } );
+			$m->print('<input name="'. $name .'" type="radio" value="" checked>' . __('Leave as Word Document (Downloadable File)') . '<br>');
+			$m->print('<input name="'. $name .'" type="radio" value="1">Convert to TUSKdoc (<strong style="color:red">New!</strong>)' . $m->scomp('/tmpl/element:link_to_help', text => __('More about TUSKdoc'), topic => '') . '<br>');
 			$m->print('</td>');
 			$m->print('</tr>');
 		}
@@ -431,13 +429,13 @@ that 'minimal' style is applied to this piece of content
 	</%perl>
 
 	<& /tmpl/element:dropdown, params => { 
-		label 		=> 'Display Type:', 
+		label 		=> __('Display Type:'), 
 		selected	=> $displayType,
 		name		=> $name,
 		options		=> 	[
-			{ label => 'Stream and Downloadable',	value => 'Both' },
-			{ label => 'Stream Only',		value => 'Stream' },
-			{ label => 'Downloadable Only',		value => 'Downloadable' },
+			{ label => __('Stream and Downloadable'),	value => 'Both' },
+			{ label => __('Stream Only'),		value => 'Stream' },
+			{ label => __('Downloadable Only'),		value => 'Downloadable' },
 		],
 	} &>
 
@@ -469,7 +467,7 @@ that 'minimal' style is applied to this piece of content
 			}
 		}
 	</%perl>
-	<& /tmpl/element:flexible_tr, params => { label => 'Preview:'} &>
+	<& /tmpl/element:flexible_tr, params => { label => __('Preview:')} &>
 			<% $shockwave->make_object_tag($filename, $width, $height, $display_type) %>
 		</td>
 	</tr>
@@ -485,12 +483,12 @@ that 'minimal' style is applied to this piece of content
 
 % if ($content->type() eq 'Document' && $content->reuse_content_id()){
 <& /tmpl/element:field_display, params => {
-						label	=> 'Title',
+						label	=> __('Title'),
 						value	=> $content->title(),
 					} &>
 % } else {
 <& /tmpl/element:textbox, params => { 
-					label 		=> 'Title:', 
+					label 		=> __('Title:'), 
 					name		=> 'title',
 					id		=> 'Title__y',
 					value 		=> $content->title(), 
@@ -562,7 +560,7 @@ that 'minimal' style is applied to this piece of content
 
 	if ($content->type() && exists $links->{ $content->type() } && scalar(@{$links->{ $content->type() }})){
 		
-		$m->comp("/tmpl/element:flexible_tr", params => { label => 'Actions:' } );
+		$m->comp("/tmpl/element:flexible_tr", params => { label => __('Actions:') } );
 
 		my @actions_link = ();
 
@@ -585,15 +583,15 @@ that 'minimal' style is applied to this piece of content
 				$url = $actions->{ $link }->{'url'};
 			}
 
-			push (@actions_link, '<a class="navsm" target="' . $actions->{ $link }->{'target'} . '" href="' . $url . '">' . $link_name . '</a>');
+			push (@actions_link, '<a class="navsm" target="' . $actions->{ $link }->{'target'} . '" href="' . $url . '">' . __($link_name) . '</a>');
 		}
 		
-		push (@actions_link, '<a class="navsm" target="_blank" href="/view/content/' . $content->reuse_content_id() . '">Preview Original</a>') if ($content->reuse_content_id());
+		push (@actions_link, '<a class="navsm" target="_blank" href="/view/content/' . $content->reuse_content_id() . '">' . __("Preview Original") . '</a>') if ($content->reuse_content_id());
 
 		print join('&nbsp;|&nbsp;', @actions_link);
 
 		if ($content->type() eq 'External') {
-			print "&nbsp; <span style=\"color:blue;font-size:8pt;\">* If url link cannot be previewed, enter an article url below, save and preview the link.</span>";
+			print "&nbsp; <span style=\"color:blue;font-size:8pt;\">* " . __("If url link cannot be previewed, enter an article url below, save and preview the link.") . "</span>";
 		}
 		print "</td></tr>";
 	}
@@ -661,7 +659,7 @@ that 'minimal' style is applied to this piece of content
 		}
 </%perl>
 		<& /tmpl/element:dropdown, params => { 
-						label 		=> 'Originating Course:', 
+						label 		=> __('Originating Course:'), 
 						name		=> 'originating_course',
 						selected	=> $selected, 
 						options		=> $options,
@@ -669,10 +667,10 @@ that 'minimal' style is applied to this piece of content
 <%perl>
 	}
 	
-	$m->comp('/tmpl/element:flexible_tr', params => { label => 'UMLS Concepts &amp; Keywords:' });
+	$m->comp('/tmpl/element:flexible_tr', params => { label => __('UMLS Concepts &amp; Keywords:') });
 	if (!$content->primary_key()){
 		unless ($default_keywords) {
-			$m->print("Please save the document first before adding UMLS Concepts &amp; Keywords.");
+			$m->print(__("Please save the document first before adding UMLS Concepts &amp; Keywords."));
 		} else {
 			$m->comp('SELF:display_keywords', keywords => $default_keywords, add => 1);
 		}
@@ -699,13 +697,13 @@ that 'minimal' style is applied to this piece of content
 		$m->comp('/tmpl/element:button',
 						params => {
 								href	=> $UMLSConceptsHREF,
-								label	=> 'Manage UMLS Concepts',
+								label	=> __('Manage UMLS Concepts'),
 								name	=> 'UMLSConcepts',
 							} );
 		$m->comp('/tmpl/element:button',
 						params => {
 								href	=> $AuthorDefinedHREF,
-								label	=> 'Manage Keywords',
+								label	=> __('Manage Keywords'),
 								name	=> 'Keywords',
 							} );
 
@@ -721,31 +719,31 @@ that 'minimal' style is applied to this piece of content
 % if ($content->field_value('reuse_content_id')){
 
 <& /tmpl/element:field_display, params => {
-						label	=> 'Source',
+						label	=> __('Source'),
 						value	=> $content->source(),
 					} &>
 
 % } else {
 
 <& /tmpl/element:textbox, params => { 
-					label 		=> 'Source:', 
+					label 		=> __('Source:'), 
 					name		=> 'source',
 					value 		=> $content->source(), 
 					size 		=> 60, 
-					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => 'What is Source?', topic => 'content_source') . '</b>', 
+					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => __('What is Source?'), topic => 'content_source') . '</b>', 
 				} &>
 % }
 
 % if ($content->field_value('reuse_content_id')){
 
 <& /tmpl/element:field_display, params => {
-						label	=> 'Contributor',
+						label	=> __('Contributor'),
 						value	=> $content->contributor(),
 					} &>
 % } else {
 
 <& /tmpl/element:textbox, params => { 
-					label 		=> 'Contributor:',
+					label 		=> __('Contributor:'),
 					name		=> 'contributor', 
 					value 		=> $content->contributor(), 
 					size 		=> 60 
@@ -755,18 +753,18 @@ that 'minimal' style is applied to this piece of content
 % if ($content->is_xmetal_doc() or $content->field_value('reuse_content_id')){
 
 <& /tmpl/element:field_display, params => {
-						label	=> 'Copyright',
+						label	=> __('Copyright'),
 						value	=> $content->copyright(),
 					} &>
 % } else {
 
 <& /tmpl/element:textbox, params => { 
-					label 		=> 'Copyright:',
+					label 		=> __('Copyright:'),
 					name		=> 'copyright', 
 					id		=> 'Copyright__y',
 					value 		=> $content->copyright(), 
 					size 		=> 60, 
-					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => 'Copyright FAQ', topic => 'copyright_faq') . '</b>', 
+					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => __('Copyright FAQ'), topic => 'copyright_faq') . '</b>', 
 				} &>
 % }
 
@@ -784,33 +782,33 @@ that 'minimal' style is applied to this piece of content
 </%perl>
 
 <& /tmpl/element:sort_order_box , params =>{
-            label		=> 'Reuse Authors &amp; Transcribers:',
-			button_label	=> 'Add Names',
+            label		=> __('Reuse Authors &amp; Transcribers:'),
+			button_label	=> __('Add Names'),
 			name 		=> "reuseusers",
 			width		=> '100%',
 			button_onclick	=> "openwindow('reuseauthorsdiv')",
 			help_info	=> {
 						node		=> 9665,
-						text		=> 'More About Authors &amp; Transcribers',
+						text		=> __('More About Authors &amp; Transcribers'),
 					   },
                 	layer_info 	=> {
-						empty_message 	=> 'No users associated for this content',
+						empty_message 	=> __('No users associated for this content'),
                         			layer 		=> 'reuseauthorsdiv',
 						scrollrows 	=> 6,
 						editnum		=> -1,
                         			fields 		=> ['userid','name', 'role'],
                         			name 		=> 'users',
                         			sort 		=> { usage => 'Yes', length => 50},
-                        			action 		=> { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete', prompt => 'Yes'} ] },
+                        			action 		=> { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => __('Delete'), prompt => 'Yes'} ] },
                         			display 	=> [
-                                        				{ field => 'name', align => 'left', length => 225,},
-									{ field => 'userid', align => 'left', label => 'UserID', length => 75,},
-									{ field => 'role', length => 100, options => [
-												                        { label => 'Author' },
-															{ label => 'Transcriber', value => 'Editor' },
-												                        { label => 'Contact-Person' },
-                                  				                                                     ], },
-                                                                   ],
+										{ field => 'name', align => 'left', length => 225,},
+										{ field => 'userid', align => 'left', label => __('UserID'), length => 75,},
+										{ field => 'role', length => 100, options => [
+											{ label => __('Author'), value => 'Author' },
+											{ label => __('Transcriber'), value => 'Editor' },
+											{ label => __('Contact-Person'), value => 'Contact-Person' },
+										], },
+									],
                         			validate 	=> { 
 									usage 	=> 'Yes',
 									form 	=> 'content',
@@ -833,13 +831,13 @@ that 'minimal' style is applied to this piece of content
 				} @$child_users;
 
 	my $roles = [
-                        { label => 'Author'},
-			{ label => 'Transcriber', value => 'Editor'},
-                        { label => 'Contact-Person'},
+					{ label => __('Author'), value => 'Author' },
+					{ label => __('Transcriber'), value => 'Editor' },
+					{ label => __('Contact-Person'), value => 'Contact-Person' },
                     ];
 	if ($content->primary_key() and $content->is_xmetal_doc()){
-		push (@$roles,  { label => 'Author / Contact-Person', value => 'Author,Contact-Person'},
-				{ label => 'Transcriber / Contact-Person', value => 'Editor,Contact-Person'} );
+		push (@$roles,  { label => __('Author / Contact-Person'), value => 'Author,Contact-Person'},
+				{ label => __('Transcriber / Contact-Person'), value => 'Editor,Contact-Person'} );
 	}
 
 	my $role_hashref;
@@ -857,7 +855,7 @@ that 'minimal' style is applied to this piece of content
 
 <& /tmpl/element:textarea, params => {
 	name		=> 'abstract',
-	label		=> 'Abstract',
+	label		=> __('Abstract'),
 	value		=> ($args->{metadata}) ? $args->{metadata}->getAbstract() : '', 
 	htmleditor	=> 1,
 	no_onsubmit     => 1,
@@ -865,14 +863,14 @@ that 'minimal' style is applied to this piece of content
 
 
 <& /tmpl/element:textbox, params => { 
-	label		=> 'Article URL:',
+	label		=> __('Article URL:'),
 	name		=> 'url', 
 	value		=> ($args->{metadata}) ? $args->{metadata}->getUrl() : '',
 	size 		=> 60, 
 } &>
 
 <& /tmpl/element:textbox, params => { 
-	label		=> 'External Authors:',
+	label		=> __('External Authors:'),
 	name		=> 'external_authors', 
 	id		=> 'ExternalAuthors__y',
 	value		=> ($args->{metadata}) ? $args->{metadata}->getAuthor() : '',
@@ -884,28 +882,28 @@ that 'minimal' style is applied to this piece of content
 
 
 <& /tmpl/element:sort_order_box , params =>{
-            label		=> ($content->reuse_content_id()) ? 'Original ' : '' . 'Authors &amp; Transcribers:',
-			button_label	=> 'Add Names',
+            label		=> ($content->reuse_content_id()) ? __('Original ') : '' . __('Authors &amp; Transcribers:'),
+			button_label	=> __('Add Names'),
 			name 		=> "users",
 			width		=> '100%',
 			no_add_button	=> ($content->reuse_content_id()) ? 1 : 0,
 			button_onclick	=> "openwindow('authorsdiv')",
 			help_info	=> {
 						topic		=> 'authors_and_transcribers',
-						text		=> 'More About Authors &amp; Transcribers'
+						text		=> __('More About Authors &amp; Transcribers')
 					   },
                 	layer_info 	=> {
-						empty_message 	=> 'No users associated for this content',
+						empty_message 	=> __('No users associated for this content'),
                         			layer 		=> 'authorsdiv',
 						scrollrows 	=> 6,
 						editnum		=> -1,
                         			fields 		=> ['userid','name', 'role'],
                         			name 		=> 'users',
                         			sort 		=> { usage => ($content->reuse_content_id()) ? 'No' : 'Yes', length => 50},
-                        			action 		=> { usage => ($content->reuse_content_id()) ? 'No' : 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete', prompt => 'Yes'} ] },
+                        			action 		=> { usage => ($content->reuse_content_id()) ? 'No' : 'Yes', length => 100, functions => [ { func => 'remove', label => __('Delete'), prompt => 'Yes'} ] },
                         			display 	=> [
                                         				{ field => 'name', align => 'left', length => 225,},
-									{ field => 'userid', align => 'left', label => 'UserID', length => 75,},
+									{ field => 'userid', align => 'left', label => __('UserID'), length => 75,},
 									$role_hashref,
                                   				    ],
                         			validate 	=> { 
@@ -929,26 +927,26 @@ that 'minimal' style is applied to this piece of content
 </%perl>
 
 <& /tmpl/element:sort_order_box , params =>{
-                	label		=> 'Objectives:',
+                	label		=> __('Objectives:'),
 			name 		=> "objectives",
 			button_onclick	=> "openwindow('objectivesdiv')",
 			help_info	=> {
 						topic		=> 'create_objectives',
-						text		=> 'Tips for Selecting Objectives',
+						text		=> __('Tips for Selecting Objectives'),
 					   },
                 	layer_info 	=> {
-						empty_message 	=> 'No objectives associated for this content',
+						empty_message 	=> __('No objectives associated for this content'),
                         			layer 		=> 'objectivesdiv',
 						scrollrows 	=> 6,
                         			fields 		=> ['objective_id', 'body'],
                         			name 		=> 'objectives',
                         			sort 		=> { usage => 'Yes', length => 50},
                         			action 		=> { usage => 'Yes', length => 100, functions => 	[ 
-																{func=>'edit', label=>'Edit'},
-																{ func => 'remove', label => 'Delete'} 
+																{func=>'edit', label=>__('Edit')},
+																{ func => 'remove', label => __('Delete')} 
 															] },
                         			display 	=> [
-                                        				{ label => 'Body', field => 'body', align => 'left', length => 450, edittype => 'textarea' },
+                                        				{ label => __('Body'), field => 'body', align => 'left', length => 450, edittype => 'textarea' },
                                   				    ],
                         			validate 	=> { usage => 'No', },
                         			data 		=> \@objectives_data, 
@@ -956,35 +954,35 @@ that 'minimal' style is applied to this piece of content
                 } &>
 
 <%perl>
-	my $content_access_trailing_text = ($content->type() eq 'Collection') ? '<i>(all non-folder content within this folder will be changed to this value)</i>' : '';
+	my $content_access_trailing_text = ($content->type() eq 'Collection') ? '<i>' . __("(all non-folder content within this folder will be changed to this value)") . '</i>' : '';
 
 	my $options = [
-	               { label => 'Unrestricted', 		value => 'Guests' },
-	               { label => 'All ' . $TUSK::Constants::SiteAbbr . ' Users', value => 'HSDB Users' },
-	               { label => 'Course Users',		value => 'Course Users' },
-	               { label => 'Course Faculty',		value => 'Course Faculty' },
-	               { label => 'Content Authors/Editors', 	value => 'Authors'},
+	               { label => __('Unrestricted'), 		value => 'Guests' },
+	               { label => __x('All {site_abbreviation} Users', site_abbreviation => $TUSK::Constants::SiteAbbr), value => 'HSDB Users' },
+	               { label => __('Course Users'),		value => 'Course Users' },
+	               { label => __('Course Faculty'),		value => 'Course Faculty' },
+	               { label => __('Content Authors/Editors'), 	value => 'Authors'},
 	              ];
 	if(defined $course && $course->type() eq 'group'){
 		splice(@$options, 3, 2);
-		$options->[2]->{label} = 'Group Members';
+		$options->[2]->{label} = __('Group Members');
 	}
 </%perl>
 <& /tmpl/element:dropdown, params => { 
-					label 		=> 'Content Access:', 
+					label 		=> __('Content Access:'), 
 					name		=> 'read_access',
 					selected	=> $content->read_access(), 
 					options		=> $options,
-					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => 'More About These Options', topic => 'content_access') . $content_access_trailing_text . '</b>', 
+					trailing_text 	=> '<b>' . $m->scomp("/tmpl/element:link_to_help", text => __('More About These Options'), topic => 'content_access') . $content_access_trailing_text . '</b>', 
 				} &>
 
 <& /tmpl/element:dropdown, params => { 
-					label 		=> 'Searchable:', 
+					label 		=> __('Searchable:'), 
 					selected	=> $content->display(),
 					name		=> 'display',
 					options		=> 	[
-									{ label => 'Yes',	value => '1' },
-									{ label => 'No',	value => '0' },
+									{ label => __('Yes'),	value => '1' },
+									{ label => __('No'),	value => '0' },
 								],
 				} &>
 
@@ -992,40 +990,40 @@ that 'minimal' style is applied to this piece of content
 % if ($content->reuse_content_id()){
 
 <& /tmpl/element:field_display, params => {
-						label	=> 'Display Date:',
+						label	=> __('Display Date:'),
 						value	=> ($content->start_date()) ? $content->start_date() : 'No Restriction',
 					} &>
 
 % } else {
 
 <& /tmpl/element:textbox, params =>{ 
-				label         => 'Display Date:',
+				label         => __('Display Date:'),
 				name          => 'start_date',
 				value         => $content->start_date(),
 				size          => 10,
 				maxlength     => 10,
 				calendar      => 1,
-				trailing_text => '<i>(optional; date to display content' . $date_trailing_text . ')</i>',
+				trailing_text => __x("<i>(optional; date to display content {date_trailing_text} </i>", date_trailing_text => $date_trailing_text),
 			 } &>
 % }
 
 % if ($content->reuse_content_id()){
 
 <& /tmpl/element:field_display, params => {
-						label	=> 'Hide Date:',
+						label	=> __('Hide Date:'),
 						value	=> ($content->end_date()) ? $content->end_date() : 'No Restriction',
 					} &>
 
 % } else {
 
 <& /tmpl/element:textbox, params =>{ 
-				label 			=> 'Hide Date:',
+				label 			=> __('Hide Date:'),
                 		name 			=> 'end_date',
                 		value 			=> $content->end_date(),
                 		size 			=> 10,
 				maxlength 		=> 10,
 				calendar 		=> 1, 
-				trailing_text		=> '<i>(optional; date to hide content' . $date_trailing_text . ')</i>',
+				trailing_text		=> __x("<i>(optional; date to hide content {date_trailing_text} </i>", date_trailing_text => $date_trailing_text),
 			} &>
 % }
 
@@ -1035,7 +1033,7 @@ if ( defined( $course ) && ref( $course ) eq 'HSDB45::Course' ) {
 my $school = $m->comp("/tmpl/url:get_school");
 my $button_text = $m->scomp('/tmpl/element:button', params=>{'name'=>'add_meeting_button',
                 'onclick'=>"openwindow('meetingsdiv',800,500,{school:'" . $school . "', course:'" . $course->course_id . "'});",
-                'label'=>'Find Meetings'} );
+                'label'=>__('Find Meetings')} );
 my @class_meetings = $content->parent_class_meetings(1);  # Need to tell this call to ignore the cache
 foreach (@class_meetings) {
     my $course = HSDB45::Course->new( _school => $_->school, _id => $_->{'course_id'} );
@@ -1044,24 +1042,24 @@ foreach (@class_meetings) {
 </%perl>
 <& /tmpl/element:sort_order_box , params =>{
 		no_add_button => 1,
-		label => 'Associate this Content with Course Meetings:',
+		label => __('Associate this Content with Course Meetings:'),
 		buttons => [ $button_text ],
 		layer_info => {
 			context_path => $m->comp("/tmpl/url:get_full_path"),
 			base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
 			layer => 'meetingsdiv',
-			empty_message => 'Click "Find Meetings" to look for classes in the course schedule to associate with this piece of content.',
+			empty_message => __('Click "Find Meetings" to look for classes in the course schedule to associate with this piece of content.'),
 			fields => ['class_meeting_id', 'course_title', 'title', 'meeting_date','start_time', 'end_time'],
 			name => 'meetings',
 			sort => {usage => 'No'},
 			sortoninsert => {usage => 'Yes', sorton => 'name'},
-			action => {usage => 'Yes', length=>50, functions => [{func=>'remove', label=>'Delete'}]},
+			action => {usage => 'Yes', length=>50, functions => [{func=>'remove', label=>__('Delete')}]},
 			display => [
-				{field=>'course_title', label=> 'Course', align=>'center', length=>150, },
-				{field=>'title', label=> 'Title', align=>'center', length=>150, },
-				{field=>'meeting_date', label=>'Date', align=>'left', length=>50, },
-				{field=>'starttime', label=> 'Start', align=>'left', length=>50, },
-				{field=>'endtime', label=> 'End', align=>'left', length=>50, },
+				{field=>'course_title', label=> __('Course'), align=>'center', length=>150, },
+				{field=>'title', label=> __('Title'), align=>'center', length=>150, },
+				{field=>'meeting_date', label=>__('Date'), align=>'left', length=>50, },
+				{field=>'starttime', label=> __('Start'), align=>'left', length=>50, },
+				{field=>'endtime', label=> __('End'), align=>'left', length=>50, },
 				],
 			validate => {
 					usage => 'No',
@@ -1086,7 +1084,7 @@ foreach (@class_meetings) {
 
 	<& /tmpl/element:save_button, params =>{
 				no_cancel_button	=> 1,
-				label			=> 'Save Changes',
+				label			=> __('Save Changes'),
 				name			=> 'Submit',
 				buttons			=> $args->{'buttons'},
 			} &>
@@ -1126,7 +1124,7 @@ foreach (@class_meetings) {
 			}
 		}
 	} else {
-		$m->print('<i>No concepts or keywords associated.</u>');
+		$m->print(__('<i>'.__("No concepts or keywords associated.").'</u>'));
 	}	
 	
 	$m->print('</div>');
@@ -1150,7 +1148,7 @@ foreach (@class_meetings) {
 % 	if ($reuseContentID){
 
 <& /tmpl/element:field_display, params => {
-						label	=> 'Width:',
+						label	=> __('Width:'),
 						value	=> $width,
 					} &>
 
@@ -1158,7 +1156,7 @@ foreach (@class_meetings) {
 %		my $name = 'width';
 %		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
 <& /tmpl/element:textbox, params => { 
-					label    => 'Width (px):', 
+					label    => __('Width (px):'), 
 					name     => $name,
 					value    => $width, 
 					size     => 10, 
@@ -1174,7 +1172,7 @@ foreach (@class_meetings) {
 %	if ($reuseContentID){
 
 <& /tmpl/element:field_display, params => {
-						label	=> 'Height:',
+						label	=> __('Height:'),
 						value	=> $height,
 					} &>
 
@@ -1182,7 +1180,7 @@ foreach (@class_meetings) {
 %		my $name = 'height';
 %		if($multiContentID) { $name ="contentInfo_${multiContentID}_${name}"; }
 <& /tmpl/element:textbox, params => { 
-					label    => 'Height (px):', 
+					label    => __('Height (px):'), 
 					name     => $name,
 					value    => $height, 
 					size     => 10, 
@@ -1197,7 +1195,7 @@ foreach (@class_meetings) {
 <%method html_textarea>
 <%args>
 	$content
-	$label => 'Text Description:'
+	$label => __('Text Description:')
 	$want_editor => 1
 </%args>
 

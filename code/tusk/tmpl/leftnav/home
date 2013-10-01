@@ -18,29 +18,31 @@
 	use HSDB45::UserGroup;
 	use TUSK::Case::Case;
 	use TUSK::Application::HTML::Strip;
+	use Forum::MwfMain;
+	use Forum::ForumKey;
+	use Apache2::RequestRec;
 </%once>
 
 <%args>
 $show_in_td => 1
 </%args>
 
-<div id="gLeftNav" class="<% $show_in_td? 'gTableNav' : '' %>">
+<%shared>
+## modify this variable to change the character limit for sublinks in navgation
+my $charLimit = 20;
+my $hasCommunicationContent;
+</%shared>
+
+<div id="gLeftNav" class="home<% $show_in_td? ' gTableNav' : '' %>">
 
 <%perl>
+
 if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	$m->comp("SELF:printLoginForm");
 }
 else {
-	$m->comp("SELF:printAnnouncements");
-	$m->comp("SELF:printEval");
-	$m->comp("SELF:printPatientLogs");
-	$m->comp("SELF:printAssessments");
-	$m->comp("SELF:printSimulatedPatients");
-	$m->comp("SELF:printGrades");
-	unless($m->session->{'user'}->isGhost()) {$m->comp("SELF:printQuizzes");}
-	$m->comp("SELF:printCases");
-	$m->comp("SELF:printPersonalFolders");
-	$m->comp("SELF:printFlashCards");
+	$m->comp("SELF:printCommunications");
+	$m->comp("SELF:printMaterials");
 }
 </%perl>
 
@@ -52,9 +54,9 @@ else {
 
 <& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Login'} &>
 <form action="https://<% $TUSK::Constants::Domain %>/login" method="post" class="loginForm">
-<strong>Username:</strong><br/>
+<strong><%__('Username:')%></strong><br/>
 <input class="textareawhite" name="user" type="text"><br/>
-<strong>Password:</strong><br/>
+<strong><%__('Password:')%></strong><br/>
 <input class="textareawhite" name="password" type="password">
 <input class="formbutton" name="Login" type="submit" value="Login">
 </form>
@@ -62,172 +64,211 @@ else {
 </%method>
 
 
-<%method printAnnouncements>
-%	my ($announcement_ref, $user_groups) = $m->session->{'user'}->get_annoucments_with_user_groups();
-%	if(scalar(@{$announcement_ref})) {
-<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Announcements'} &>
-<ul class="gArrow">
-%		my $iter = 0;
-%		my $stripObj = TUSK::Application::HTML::Strip->new();
-%		foreach my $announcement (@{$announcement_ref}) {
-%			my $lnk_txt = $stripObj->truncateAndRemoveHTML($announcement->{item}->field_value("body"));
-%			my $ann = $announcement->{item}->field_value("body");
-%			my ($grouping, $grouping_lnk);
-%			if($announcement->{type} eq 'course') {
-%				$grouping = $announcement->{course};
-%				$grouping_lnk = '/hsdb45/course/' . $grouping->school() . '/' .  $grouping->course_id;
+<%method printCommunications>
+<%perl>
+	my $stripObj = TUSK::Application::HTML::Strip->new();
+	my (@announcement_links, @discussion_links);
 
-%				my $course_title = $grouping->out_abbrev();
-%				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">$course_title Home</a>";
-%				$ann .= " | <a href=\"$grouping_lnk/ann\" onclick=\"clickFullText(event); return true;\">Course Announcements</a>";
-%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">Close [X]</a></div>';
-%			} elsif($announcement->{type} eq 'user_group') {
-%				$grouping = $announcement->{school};
-%				$grouping_lnk = "/view/usergroup/$grouping/" . $announcement->{id};
+        # school announcements
+        my $school_ann_ref = $m->session->{user}->get_school_announcements();
+        foreach my $school (sort keys %$school_ann_ref) {
+            my $swug = $TUSK::Constants::Schools{$school}->{Groups}{SchoolWideUserGroup};
+            foreach my $ann_id (sort keys %{ $school_ann_ref->{$school} }) {
+                my $ann = $school_ann_ref->{$school}{$ann_id};
+                my $body = $ann->field_value('body');
+                my $link = "<a href='/view/usergroup/$school/$swug'>"
+                    . $stripObj->truncateAndRemoveHTML($body, $charLimit)
+                    . '</a>';
+                # my $body_p = '<p>' . $stripObj->removeHTML($body) . '</p>';
+                push @announcement_links, {
+                    shortlink => $link,
+                    fulltext => $body,
+                };
+            }
+        }
+	## course announcements
+	my $announcement_ref = $m->session->{'user'}->get_course_announcements();
+	foreach my $ann (@$announcement_ref) {
+		my $grouping = $ann->{course};
+		my $link = '<a href="/hsdb45/course/' . $grouping->school() . '/' .  $grouping->course_id . '/ann">' . $stripObj->truncateAndRemoveHTML($ann->{item}->field_value("body"), $charLimit) . '</a>';
+		push @announcement_links, {shortlink => $link, fulltext => "<p>" . $stripObj->removeHTML($ann->{item}->field_value("body")) . "</p>"};
+	}
 
-%				my $ug = HSDB45::UserGroup->new(_school => $grouping)->lookup_key($announcement->{id});
-%				my $group_title = $ug->label();
-%				$ann .= "<br/><br/><div class=\"annLnks\"><a href=\"$grouping_lnk\" onclick=\"clickFullText(event); return true;\">$group_title</a>";
-%				$ann .= ' | <a href="javascript:;" onclick="clickFullText(event)">Close [X]</a></div>';
-%			}
-  <li>
-    <ul>
-      <li class="annSummary"><a class="winPartner_<% $iter++ %>" href="<% $grouping_lnk %>/ann" onmouseover="showFullText(event);" onmouseout="mouseoffFullText(event);"><% $lnk_txt %></a></li>
-      <li class="fullTxt"><% $ann %></li>
-    </ul>
-  </li>
+	## course discussions
+	my @current_courses = $m->session->{user}->current_courses( {'only_enrollment' => 1} );
+	my ($new_post_forums, $new_notifications_forums, undef) = Forum::ForumKey::new_post_forums($r, $m->session->{user}, undef, \@current_courses);
+
+	if (defined $new_post_forums && scalar (@$new_post_forums)){
+		foreach my $forum_ref (@$new_post_forums){
+			if ( $forum_ref->{numNew}){
+				push @discussion_links, '<a href="/forum/board_show.pl?bid=' . $forum_ref->{bid} . '">' . $forum_ref->{title} . '</a>: ' . $forum_ref->{numNew} . __(' new');
+			}
+		}
+	}
+	#if (scalar @announcement_links || scalar @discussion_links) {
+		$hasCommunicationContent = 1;
+	#}
+</%perl>
+% if ($hasCommunicationContent) {
+<nav id="communicationsBox" class="communications">
+	<hgroup>
+		<h1><% __('Communications') %></h1>
+	</hgroup>
+	<div class="scrollcontainer">
+		<ul>
+%	if (scalar @announcement_links) {
+			<li><% __('Announcements') %>
+			<ul>
+%		foreach my $link (@announcement_links) {
+				<li class="rollcontainer"><% $link->{shortlink} %><div class="rollover"><% $link->{fulltext} %></div></li>
 %		}
-</ul>
-%	} 
+			</ul></li>
+%	}
+%#	if (scalar @discussion_links) {
+			<li><a href="/forum/forum.pl"><% __('All Discussions') %></a>
+			<ul>
+%		foreach my $link (@discussion_links) {
+				<li><% $link %></li>
+%		}
+			</ul></li>
+%#	}
+		</ul>
+	</div>
+</nav>
+% }
 </%method>
 
 
-<%method printEval>
+<%method printMaterials>
 <%perl>
-my @evals = $m->session->{user}->current_evals;
-if (scalar @evals){
-	$m->comp('/tmpl/element:header_bar', params=>{'color' => 'gray', 'hdr_txt'=>'Evaluations'});
-	$m->print('<ul class="gArrow">');
+	my $stripObj = TUSK::Application::HTML::Strip->new();
+	my (@assessment_links, @assignment_links, @case_links, @eval_links, $grade_link, @log_links, @quiz_links, $sp_link);
+
+	## assessments
+	my $assessments = $m->session->{user}->get_assessments();
+	my $instructor_assessments = $m->session->{user}->get_instructor_assessments();
+	my $director_assessments = $m->session->{user}->get_director_forms('Assessment');
+	if (scalar @$assessments) {
+		push @assessment_links , '<a href="/protected/assessment/student/home">View Assessments</a>';
+	}
+	if (scalar @$instructor_assessments) {
+		push @assessment_links , '<a href="/protected/assessment/assessor/home">Assess Students</a>';
+	}
+	foreach my $form_row (@$director_assessments) {
+		my $link = '<a href="/protected/assessment/author/show/course/' . $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $stripObj->truncateAndRemoveHTML($form_row->{form_name}, $charLimit) . '</a>';
+		push @assessment_links, $link;
+	}
+	
+	my $course_assignments = $m->session->{user}->get_course_assignments();
+
+	foreach my $assignment (@$course_assignments){
+		push @assignment_links, '<a href="/assignment/student/complete/course/'. $assignment->{'school_name'} . '/' . $assignment->{'course_id'} . '/' . $assignment->{'assignment_id'} .  '">'. $assignment->{'event_name'}.'</a>';
+	}
+
+	## cases
+	my $cases = TUSK::Case::Case->getAvailableUserCases($m->session->{user});
+	foreach my $case (@$cases) {
+		my $link = '<a href="/protected/case/casestart/' . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($case->getCaseTitle(), $charLimit) . '</a>';
+		push @case_links, $link;
+	}
+
+	## evaluations
+	my @evals = $m->session->{user}->current_evals;
 	foreach my $eval (@evals) {
 		my $ddate = ($eval->prelim_due_date) ? $eval->prelim_due_date->out_string_date_short_short : $eval->due_date->out_string_date_short_short;
-		my $label = $eval->out_html_label . " (due $ddate)<br/>";
-		$m->print("<li>$label</li>");
+		my $link = $eval->out_html_label;
+		push @eval_links, $link;
+	}
+	
+	## grades
+	if($m->session->{user}->has_grades()) {
+		$grade_link = '<a href="/protected/gradebook/showgrades">' . __('Grades') . '</a>';
+	}
+	
+	## patient logs
+	my $patientlogs = $m->session->{user}->get_patient_logs();
+	my $directorpatientlogs = $m->session->{user}->get_director_forms('PatientLog');
+	if(scalar(@$patientlogs) || (defined($directorpatientlogs) && scalar(@$directorpatientlogs))) {
+		if(scalar(@{$patientlogs})) {
+			push @log_links, '<a href="/protected/patientlog/student/home">View Patient Logs</a>';
+		}
+		if(defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
+			foreach my $logrow (@$directorpatientlogs) {
+				my $link = '<a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $stripObj->truncateAndRemoveHTML($logrow->{form_name}, $charLimit) . '</a>';
+				push @log_links, $link;
+			}
+		}
+	}
+
+	## quizzes
+	my $quizzes = $m->session->{user}->current_quizzes;
+	foreach my $quiz (@$quizzes) {
+		my $title = $quiz->{title};
+		if($quiz->{preview}) {$title .= "&nbsp;(Preview)";}
+		my $link = "/protected/quiz/";
+		$link .= ($quiz->{preview})? 'author/quizpreview' : 'quizstart';
+		$link .= "/course/" .  $quiz->{school} . "/" . $quiz->{course_id} . "/" .  $quiz->{quiz_id};
+		my $xtra_txt = '';
+		if($quiz->{start_date}) {$xtra_txt .= 'style="color:red" ';}
+		if($quiz->{preview})    {$xtra_txt .= 'target="preview"';}
+		push @quiz_links, '<a href="' . $link . '" ' . $xtra_txt . '>' . $stripObj->truncateAndRemoveHTML($title, $charLimit) . '</a>';
+	}
+	
+	## simulated patients
+	my $instructor_sps = $m->session->{user}->get_instructor_simulated_patients();
+	if (scalar @{$instructor_sps}) {
+		$sp_link = '<a href="/protected/sp/actor/home">Simulated Patients</a>';
 	}
 </%perl>
-</ul>
-<br/>
-<a href="/eval/history"><strong>View History</strong></a>
-% }
+<nav class="materials<% (!$hasCommunicationContent) ? ' tall' : ''  %>">
+	<hgroup>
+		<h1><% __('My Materials') %></h1>
+	</hgroup>
+	<div id="materialsScrollContainer" class="scrollcontainer">
+		<ul>
 
+%	my @materialLinksTop = ( [ \@assessment_links, 'Assessments', 'assessments_links' ],
+%				 [ \@assignment_links, 'Assignments', 'assignment_links' ],
+%				 [ \@case_links, 'Cases', 'case_links' ],
+%				 [ \@eval_links, 'Course Evaluations', 'eval_links' ] );
+
+
+<& SELF:populateMaterials, materialLinks => \@materialLinksTop &>
+
+%	if ($grade_link) {
+			<li><% $grade_link %></li>
+%	}
+			<li><a href="/management/flashcard/flashcard"><% __('Flash Cards') %></a>
+			<li><a href="/management/content/personalcontent"><% __('Folders') %></a></li>
+
+%	my @materialLinksBottom = ([ \@log_links, 'Patient Logs', 'log_links' ],
+%				   [ \@quiz_links, 'Quizzes', 'quiz_links' ]);
+
+<& SELF:populateMaterials, materialLinks => \@materialLinksBottom &>
+
+%	if ($sp_link) {
+			<li><% $sp_link %></li>
+%	}
+		</ul>
+	</div>
+</nav>
 </%method>
 
-
-<%method printPatientLogs>
-%	my $patientlogs = $m->session->{user}->get_patient_logs();
-%	my $directorpatientlogs = $m->session->{user}->get_director_forms('PatientLog');
-%	if(scalar(@$patientlogs) || (defined($directorpatientlogs) && scalar(@$directorpatientlogs))) {
-		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Patient Logs'} &>
-%		if(scalar(@{$patientlogs})) {
-<a href="/protected/patientlog/student/home">View Patient Logs</a>
-%		}
-%		if(defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
-<ul class="gArrow">
-%			foreach my $logrow (@$directorpatientlogs) {
-%				my $label = '<li><a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $logrow->{form_name} . '</a></li>';
-%				$m->print($label);
+<%method populateMaterials>
+<%args>
+	$materialLinks
+</%args>
+%	foreach my $links ( @$materialLinks ) {
+%		if ( scalar @{ $links->[0] } ) {
+			<li>
+			<a class="materials_header" href="#" onclick='toggleMaterialLinks( "<% $links->[2] %>", this )'><% $links->[1] %>
+			(<% $#{ $links->[0] } + 1 %>)<img class="materials_button" src="/graphics/icon-nav-closed.png"></a>
+			<ul id="<% @$links[2] %>" class = "materiallinks">
+%			foreach my $link ( @{ $links->[0]  }) {
+				<li><% $link %></li>
 %			}
-</ul>
+			</ul></li>
 %		}
-%	}
+%	}	
+
 </%method>
-
-
-<%method printSimulatedPatients>
-%	my $instructor_sps = $m->session->{user}->get_instructor_simulated_patients();
-%	if (scalar @{$instructor_sps}) {
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Simulated Patients'} &>
-<a href="/protected/sp/actor/home">View Simulated Patients</a>
-%	}
-</%method>
-
-
-<%method printGrades>
-% my $grades = $m->session->{user}->has_grades();
-% if($grades) {
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Grades'} &>
-<a href="/protected/gradebook/showgrades">View Grades</a>
-%	}
-</%method>
-
-<%method printQuizzes>
-%	my $quizzes = $m->session->{user}->current_quizzes;
-%	if(defined($quizzes) && scalar(@$quizzes)) {
-		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Quizzes'} &>
-<ul class="gArrow">
-%		foreach my $quiz (@$quizzes) {
-%			my $title = $quiz->{title};
-%			if($quiz->{preview}) {$title .= "&nbsp;(Preview)";}
-%			my $link = "/protected/quiz/";
-%			$link .= ($quiz->{preview})? 'author/quizpreview' : 'quizstart';
-%			$link .= "/course/" .  $quiz->{school} . "/" . $quiz->{course_id} . "/" .  $quiz->{quiz_id};
-%			my $xtra_txt = '';
-%			if($quiz->{start_date}) {$xtra_txt .= 'style="color:red" ';}
-%			if($quiz->{preview})    {$xtra_txt .= 'target="preview"';}
-<li><a href="<% $link %>" <% $xtra_txt %>><% $title %></a></li>
-%		}
-</ul>
-%	}
-</%method>
-
-
-
-<%method printCases>
-%	my $cases = TUSK::Case::Case->getAvailableUserCases($m->session->{user});
-%	if(defined($cases) && scalar(@$cases)) {
-		<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Cases'} &>
-<ul class="gArrow">
-%		foreach my $case (@$cases) {
-%			my $link = "/protected/case/casestart/" . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID();
-<li><a href="<% $link %>"><% $case->getCaseTitle() %></a></li>
-%		}
-</ul>
-%	}
-</%method>
-
-
-<%method printPersonalFolders>
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Personal Folders'} &>
-<a href="/management/content/personalcontent">View Personal Folders</a>
-</%method>
-
-
-<%method printFlashCards>
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Flash Cards'} &>
-<a href="/management/flashcard/flashcard">View Flash Cards</a>
-</%method>
-
-
-<%method printAssessments>
-% 	my $assessments = $m->session->{user}->get_assessments();
-%	my $instructor_assessments = $m->session->{user}->get_instructor_assessments();
-% 	my $director_assessments = $m->session->{user}->get_director_forms('Assessment');
-
-% 	if (scalar @$instructor_assessments || scalar @$assessments || scalar @$director_assessments) {
-<& /tmpl/element:header_bar, params=>{'color'=>'gray', 'hdr_txt'=>'Assessments'} &>
-% 		if (scalar @$assessments) {
-<div><a href="/protected/assessment/student/home">View Assessments</a></div>
-%		}
-% 		if (scalar @$instructor_assessments) {
-<div><a href="/protected/assessment/assessor/home">View Assessments</a></div>
-% 		}
-% 		if (scalar @$director_assessments) {
-<ul class="gArrow">
-%			foreach my $form_row (@$director_assessments) {
-<li><a href="/protected/assessment/author/show/course/<% $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $form_row->{form_name} %></a></li>
-%			}
-</ul>
-%		}
-% 	}
-</%method>
-
-

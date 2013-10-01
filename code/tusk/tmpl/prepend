@@ -18,16 +18,29 @@
 </%doc>
 
 <%once>
+	use HSDB4::Constants;
+	use HSDB4::DateTime;
 	use TUSK::Session;
 	use TUSK::Constants;
 	use TUSK::Functions;
 	use TUSK::Application::RSSCourse;
-	use HSDB4::Constants;
-	use HSDB4::DateTime;
+	use TUSK::Application::HTML::Strip;
+	use TUSK::User::AnnouncementHide;
 </%once>
 
 <& SELF:manage_header, %ARGS &>
 
+<%doc>Javascript gettext handlers using ENV settings from I18N.pm.</%doc>
+<%method i18n-gettext>
+
+% my $lang      = $ENV{'TUSK_LANGUAGE'} || 'C';
+% my $domain    = $ENV{'TUSK_DOMAIN'}   || 'tusk';
+    <link  rel="gettext" type="application/x-po" href="/locale/<%$lang%>/LC_MESSAGES/<%$domain%>.po" lang="<%$lang%>" domain="<%$domain%>" />
+    <script type="text/javascript" src="/scripts/i18n/Gettext.js"></script>
+    <script id="i18n-gettext-js" type="text/javascript" 
+			src="/scripts/i18n/gettext_wrapper.js?domain=<%$domain%>&lang=<%$lang%>"></script>
+ 
+</%method>
 <%method header>  
 <%args>
 $title => undef
@@ -55,9 +68,11 @@ $doctype => 'html'
 <html>
 % }
 <head>
+<!-- i18n -->
 <!-- siteabb: TUSK -->
 <!-- Script Running On: <% $ENV{HOSTNAME} %> under: <% $$ %> !-->
 <title><% $TUSK::Constants::SiteAbbr %> - <% $title %></title>
+<script type="text/javascript" src="/scripts/html5shiv.js?<% TUSK::Functions::get_tusk_version %>" ></script>
 % if (!scalar(@stylearray)){
 <link rel="stylesheet" href="/style/style.css?<% TUSK::Functions::get_tusk_version %>" type="text/css" />
 <style type="text/css">@import url(/style/calendar-blue.css);</style>
@@ -82,6 +97,7 @@ $doctype => 'html'
 
 <link rel="shortcut icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
 <link rel="icon" href="/favicon.ico" type="image/vnd.microsoft.icon"/>
+% $m->comp('SELF:i18n-gettext');
 </head>
 </%method>
 
@@ -114,22 +130,24 @@ $doctype => 'html'
 % foreach my $js (@jsarray) {
 <SCRIPT language="JavaScript" src="/scripts/<% $js %>?<% TUSK::Functions::get_tusk_version %>" type=text/javascript></SCRIPT>
 % }
+
 <% join("", @metaData) %>
+% $m->comp('SELF:i18n-gettext');
 </head>
 </%method>
 
 
 <%method start_content_no_nav>
 <!-- Begin Start Content No Nav -->
-<table width="100%" border="0" cellspacing="0" cellpadding="0">
-<tr><td width="10" valign="top" bgcolor ="#E7EFF7">
+<table width="100%" border="0" cellspacing="0" cellpadding="0" class="outerContainer">
+<tr><td width="10" valign="top">
 <img src="/graphics/spacer.gif" alt=" " width="10" height="1">
 <& SELF:end_left_nav, width => "10" &>
 </%method>
 
 <%method start_content_no_left_bar>
 <!-- Begin Start Content No Left Bar -->
-<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<table width="100%" border="0" cellspacing="0" cellpadding="0" class="outerContainer">
 <tr>
 <td width="150%" valign="top">
 </%method>
@@ -137,20 +155,25 @@ $doctype => 'html'
 <%method start_content>
 <%args>
 $width => 200 
+$top_tab_type => ''
 </%args>
 <!-- Begin Start Content -->
-<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr>
-<td width="<% $width %>" valign="top" bgcolor="#E7EFF7">
+<table width="100%" border="0" cellspacing="0" cellpadding="0"<% ($top_tab_type) ? ' class="' . $top_tab_type . 'tab"' : '' %>><tr>
+<td width="<% $width %>" valign="top" class="gLeftNavOuter">
 </%method>
 
 <%method end_left_nav>
 <%args>
 $width => 200 
+$top_tab_type => ''
 </%args>
 <br/>
 <img src= "/graphics/spacer.gif" alt=" " width="<% $width %>" height="1" border="0">
-</td><td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif">
+</td>
+% if ($top_tab_type ne 'browse' && $top_tab_type ne 'course') {
+<td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif">
 <img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+% }
 <td width="150%" valign="top">
 </%method>
 
@@ -239,7 +262,7 @@ $user
 
 % if (ref($user) eq 'HSDB4::SQLRow::User' and $user->primary_key) {
   <!-- Begin user Table -->
-    <table border="0" cellspacing="0" cellpadding="0" valign="top">
+    <table border="0" cellspacing="0" cellpadding="0" valign="top" class="outerContainer">
       <tr valign="top">
         <td align="right" width="440">
         <!-- Begin User Profile Table -->
@@ -248,12 +271,12 @@ $user
             <tr>
               <td align="right" nowrap>
                 <font class="xxsm">
-                  Welcome <% $user->out_full_name %>  |
+                  <%__x('Welcome {username}', username => $user->out_full_name)%>  |
 %	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
-                  <a href="/view/user/<% $user->primary_key %>" target="_top">My Profile</a>  | 
-                  <a href="/tusk/management/content/personalcontent" target="_top"> Personal Folders</a>  |  
+                  <a href="/view/user/<% $user->primary_key %>" target="_top"><%__('My Profile')%></a>  | 
+                  <a href="/tusk/management/content/personalcontent" target="_top"> <%__('Personal Folders')%></a>  |  
 %	}
-                  <a href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>" target="_top">Logout</a>
+                  <a href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>" target="_top"><%__('Logout')%></a>
                 &nbsp;
                 </font>
               </td>
@@ -288,12 +311,12 @@ $user
       <tr>
         <td align="right" nowrap>
 	<span class="emphasis_font">
-&nbsp;Welcome <strong><% $user->out_full_name %></strong>  |  
+&nbsp;<%__x('Welcome <strong>{username}</strong>', username => $user->out_full_name)%>  |  
 %	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
-		<a href="/view/user/<% $user->primary_key %>">My Profile</a>  | 
-		<a href="/tusk/management/content/personalcontent"> Personal Folders</a>  |  
+		<a href="/view/user/<% $user->primary_key %>"><%__('My Profile')%></a>  | 
+		<a href="/tusk/management/content/personalcontent"><%__('Personal Folders')%></a>  |  
 % }
-<a class="logout" href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>">Logout</a></span>&nbsp;</td></tr>
+<a class="logout" href="/dologout?request_uri=/home?<% HSDB4::DateTime->new()->out_unix_time %>"><%__('Logout')%></a></span>&nbsp;</td></tr>
           <tr>
             <td>
                 <img src="/graphics/spacer.gif" alt=" " width="1" height="5" border="0"></td>
@@ -338,9 +361,9 @@ $extra_nav_text		=> ''
 %	   && $context_parent->isa('HSDB45::Course')
 %	   && TUSK::Application::RSSCourse->remoteCheckPodcast( $context_parent->primary_key(), $context_parent->school(), $obj->primary_key()) ) {
 
-%		my $help_lnk = $m->scomp('/tmpl/element:link_to_help', text => 'Podcast Help', topic => 'what_is_a_podcast_and_how_can_i_subscribe_to_it');
+%		my $help_lnk = $m->scomp('/tmpl/element:link_to_help', text => __('Podcast Help'), topic => 'what_is_a_podcast_and_how_can_i_subscribe_to_it');
 
-<a class="podcastLnk" href="/tusk/rss/rss?cid=<% $context_parent->primary_key() %>&sc=<% $context_parent->school %>&colid=<% $obj->primary_key() %>">Subscribe to Podcast</a> <% $help_lnk %>
+<a class="podcastLnk" href="/tusk/rss/rss?cid=<% $context_parent->primary_key() %>&sc=<% $context_parent->school %>&colid=<% $obj->primary_key() %>"><% __('Subscribe to Podcast') %></a> <% $help_lnk %>
 
 %	}
 % }
@@ -351,67 +374,68 @@ $extra_nav_text		=> ''
 <%args>
 	$onload
 	$onunload
+	$class => ''
 </%args>
 % my $onload_attr = ($onload ne '') ? " onload=\"$onload\"" : '';
 % my $onunload_attr = ($onunload ne '') ? " onunload=\"$onunload\"" : '';
 <%doc>This is where header stops and your new content starts.</%doc>
-<body<% $onload_attr %><% $onunload_attr %>>
+<body<% $onload_attr %><% $onunload_attr %><% ($class) ? ' class="' . $class . '"' : '' %>>
 <!-- Begin Main Outer Table -->
-<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<table width="100%" border="0" cellspacing="0" cellpadding="0" class="outerContainer">
 <tr>
     <td width="150%" valign="top">
 </%method> 
+
 
 <%method global_links>
 <%args>
 $page
 $user
 </%args>
-
 <%perl>
 my @li_strings;
 if (ref($user) || $page eq 'login'){
-	push @li_strings, $m->scomp('/tmpl/element:link_to_help', text => 'Help', topic => 'contents');
+	push @li_strings, $m->scomp('/tmpl/element:link_to_help', text => __('Help'), topic => 'contents');
 	push @li_strings, "<a href=\"$TUSK::Constants::ContactURL\" target=\"_top\">Contact</a>";
 }
 if ($TUSK::Constants::AboutURL && $page eq "login") {
-	push @li_strings, "<a href=\"$TUSK::Constants::AboutURL\" target=\"_top\">About</a>";
+	push @li_strings, "<a href=\"$TUSK::Constants::AboutURL\" target=\"_top\">" . __('About') . "</a>";
 }
-push @li_strings, '<a href="/smallscreen">Mobile</a>' if ($page eq 'login' || $page eq 'home');
-
 if (ref($user) eq 'HSDB4::SQLRow::User' && $user->primary_key && $page ne 'login'){
 	unless(HSDB4::Constants::is_guest($user) || (TUSK::Shibboleth::User->isShibUser($user) != -1)) {
-		unshift @li_strings, '<a href="/view/user/' . $user->primary_key .'" target="_top">My Profile</a>';
+		unshift @li_strings, '<a href="/view/user/' . $user->primary_key .'" target="_top">' . __('My Profile') . '</a>';
 	}
-	push @li_strings, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time . '" target="_top">Logout</a>';
+	push @li_strings, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time . '" target="_top">' . __('Log Out') . '</a>';
+}
+elsif ($page eq 'login') {
+	push @li_strings, "<a href=\"/smallscreen\" target=\"_top\">" . __('Mobile') . "</a>";
 }
 
 </%perl>
-
-<ul class="gGlobalLnks">
-% my $class;
-% my $length = scalar @li_strings;
-% for(my $i=0; $i < $length; $i++){
-%	my $class = ($i+1 == $length)? ' class="gLastOne"' : '';
-    <li<% $class %>><% $li_strings[$i] %></li>
+<nav>
+<ul class="tools">
+% for(my $i=0; $i < scalar @li_strings; $i++){
+    <li><% $li_strings[$i] %></li>
 % }
 </ul>
+</nav>
 </%method>
 
 <%method logo>
 <%args>
 $hide_global_links
+$type
 </%args>
-
-<h1 id="gLogo">\
+<hgroup>
+<h1>
 % unless ($hide_global_links) {
 <a href="/home" target="_top">\
 % } else {
 <a href="#" target="_top">\
 % }
-<img src="<% $TUSK::Constants::Logo %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" border="0" />\
-</a>\
-</h1>\
+<img alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" src="<% ($type eq 'login') ? $TUSK::Constants::Logo{Large} : $TUSK::Constants::Logo{Small} %>">
+</a></h1>
+</hgroup>
 </%method>
 
 
@@ -419,39 +443,55 @@ $hide_global_links
 <%args>
 $type => 'home'
 $user
-$is_author => 0
 $hide_global_links
+$can_cms => ''
+$has_schedule => ''
 </%args>
-
-<div id="gMasthead">
-
-<& SELF:logo, hide_global_links => $hide_global_links &>
-
-<div id="gTopNavs">
+<header>
+	<div class="container">
+<& SELF:logo, hide_global_links => $hide_global_links, type => $type &>
+% unless($type eq 'login' || $type eq 'frame'|| $type eq 'util'){
+	<nav>
+% 	my $active = $type;
+		<ul class="main <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
+		    <li class="<% $active eq 'home'  ? 'selected' : '' %>"><a href="/home" target="_top"><% __('My Dashboard') %></a></li>
+		    <li class="<% $active eq 'browse'? 'selected' : '' %>"><a href="/view/courses" target="_top"><% __('All Courses') %></a></li>
+			<li class="<% $active eq 'search'? 'selected' : '' %>"><a href="/search/form" target="_top"><% __('Search') %></a></li>
+% if(scalar keys %$has_schedule) {
+%	my @schedule_links;
+%	foreach my $school (keys %$has_schedule) {
+%		foreach my $ug (@{$has_schedule->{$school}}) {
+%			push @schedule_links, {link => "/view/schedule/" . $school . "/" . $ug->{id}, label => $ug->{label}};
+%		}
+%	}
+%	if (scalar @schedule_links > 1) {
+			<li class="schedule<% $active eq 'schedule'? ' selected' : '' %>"><a href="#"><% __('Schedule') %></a>
+			<ul>
+%		foreach my $ug (@schedule_links) {
+				<li><a href="<% $ug->{link} %>"><% $ug->{label} %></a></li>
+%		}
+			</ul>
+% 	}
+%	else {
+			<li class="<% $active eq 'schedule'? ' selected' : '' %>"><a href="<% $schedule_links[0]->{link} %>"><% __('Schedule') %></a>
+%	}
+			</li>
+% }
+% if($can_cms) { 
+			<li class="<% $active eq 'manage'? 'selected' : '' %>"><a href="/protected/management/home" target="_top"><% __('Manage Content') %></a></li>
+% }
+		</ul>
+	</nav>
+% }
 
 % unless($hide_global_links) {
 	<& SELF:global_links, page => $type, user => $user &>
 % }
-
-% if (ref($user) eq 'HSDB4::SQLRow::User' and $user->primary_key and $type ne 'login') {
-<span id="pHPuser">Welcome <% $user->out_full_name() %></span>
+% if($user && $user->isa("HSDB4::SQLRow::User")) {
+	<p class="welcome"><% __("Welcome") %> <% $user->out_full_name() %></p>
 % }
-
-% unless($type eq 'login' || $type eq 'frame'){
-% 	my $active = $type;
-<ul class="gTabNav <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
-    <li class="firstone<% $active eq 'home'  ? ' gCurPage' : '' %>"><a href="/home" target="_top">Home</a></li>
-    <li class="<% $active eq 'browse'? 'gCurPage' : '' %>"><a href="/allcourses.htm" target="_top">Browse All Courses</a></li>
-    <li class="<% $active eq 'search'? 'gCurPage' : '' %>"><a href="/search/form" target="_top">Search</a></li>
-% if($is_author){ 
-    <li class="<% $active eq 'manage'? 'gCurPage' : '' %>"><a href="/protected/management/home" target="_top">Manage Content</a></li>
-% 	}
-</ul>
-% }
-
-</div> <!-- gTopNavs -->
-
-</div> <!-- gMasthead -->
+	</div>
+</header>
 </%method>
 
 
@@ -491,6 +531,11 @@ if (ref $leftnav eq 'HASH' and $leftnav->{component}){
 </%args>
 <%perl>
 my $req = \%req_hash;
+my ($can_cms, $has_schedule);
+if ($req->{user} && $req->{user}->isa("HSDB4::SQLRow::User")) {
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
+	$has_schedule = $req->{user}->has_schedule();
+}
 
 $m->comp('SELF:header', 
 		title=>$req->{pagetitle},
@@ -505,9 +550,11 @@ $m->comp('SELF:open_gContainer');
 $m->comp('SELF:masthead', 
 		type => $req->{top_tab_type}, 
 		user =>$req->{user}, 
-		is_author => $req->{is_author}, 
-		hide_global_links => $req->{hide_global_links}
+		hide_global_links => $req->{hide_global_links},
+		can_cms => $can_cms, 
+		has_schedule => $has_schedule
 		);
+
 $m->comp('SELF:open_gBody');
 if($req->{leftnav}){
 	$m->comp("SELF:do_leftnav", 
@@ -515,10 +562,12 @@ if($req->{leftnav}){
 		type_path=>$req->{type_path}
 		);
 }
-$m->comp('SELF:open_gContent');
-$m->comp('SELF:open_gMainContent');
+if($req->{top_tab_type} eq 'home'){
+	$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
+}
+$m->comp('SELF:open_gContent', user =>$req->{user}, type => $req->{top_tab_type}, msg => ($ARGS{msg} || $ARGS{errmsg} || $ARGS{hintmsg}));
 
-if($req->{top_tab_type} ne 'login'){
+if($req->{top_tab_type} ne 'login' && $req->{top_tab_type} ne 'home'){
 	$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
 }
 if (!$req->{nostandardheader}) { 
@@ -540,28 +589,31 @@ if (!$req->{nostandardheader}) {
 </%args>
 <%perl>
 my $req = \%req_hash;
+my ($has_schedule, $can_cms);
+if ($req->{user} && ref($req->{user}) eq 'HSDB4::SQLRow::User') {
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
+	$has_schedule = $req->{user}->has_schedule();
+}
 # figure out the alt text for the main image
-unless ($req->{skip_head_tag}){
-	$m->comp('SELF:header', title=>$req->{pagetitle},jsarray=>$req->{jsarray},stylearray=>$req->{stylearray}, metaData => $req->{metaData}, doctype => $req->{docType});
+$m->comp('SELF:header', title=>$req->{pagetitle},jsarray=>$req->{jsarray},stylearray=>$req->{stylearray}, metaData => $req->{metaData}, doctype => $req->{docType});
+$m->comp('SELF:start_body', class => $req_hash{body_class}, onload => $req_hash{onload}, onunload => $req_hash{onunload});
+
+if (!$req->{'noheader'}) {
+	$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, hide_global_links => $req->{hide_global_links}, can_cms => $can_cms, has_schedule => $has_schedule);
 }
-return if ($req->{'noheader'});
-unless ($req->{skip_head_tag}){
-	$m->comp('SELF:start_body', onload => $req_hash{onload}, onunload => $req_hash{onunload});
-}
-$m->comp('SELF:masthead',type => $req->{top_tab_type}, user =>$req->{user}, displayLittleUserNavBar => $req->{displayLittleUserNavBar}, is_author => $req->{is_author}, hide_global_links => $req->{hide_global_links});
 return if($req->{'nobody'}); 
 
-        if ($req->{leftnav}){
-            $m->comp("SELF:start_content");
-	        $m->comp("SELF:do_leftnav",leftnav=>$req->{leftnav},type_path=>$req->{type_path});
-	        $m->comp("SELF:end_left_nav");
-        }elsif($req->{no_leftbar}){
-            $m->comp("SELF:start_content_no_left_bar");
-        }else{
-            $m->comp("SELF:start_content_no_nav");
-        }
- 
-		$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
+if ($req->{leftnav} && !$req->{'noheader'}){
+	$m->comp("SELF:start_content", top_tab_type => $req->{top_tab_type});
+	$m->comp("SELF:do_leftnav",leftnav=>$req->{leftnav},type_path=>$req->{type_path});
+	$m->comp("SELF:end_left_nav", top_tab_type => $req->{top_tab_type});
+}elsif($req->{no_leftbar} || $req->{'noheader'}){
+	$m->comp("SELF:start_content_no_left_bar");
+}else{
+	$m->comp("SELF:start_content_no_nav");
+}
+
+$m->comp("SELF:traffic_light", args => \%ARGS, use_tables => 0);
 
 </%perl>
 <!-- Begin Full Content Table -->
@@ -574,7 +626,7 @@ only affect the content within the fullContentTable
    <tr>
     <td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
     <td width="100%" valign="top">
-% if (!$req->{nostandardheader}) { 
+% if (!$req->{nostandardheader} || !$req->{noheader}) { 
 <!-- Begin CMS Nav Table -->
         <table width="100%" border="0" cellspacing="6" cellpadding="1">
   <tr>
@@ -590,7 +642,7 @@ only affect the content within the fullContentTable
 
 </table>
 % 	unless ($req->{skip_header_bar}){
-		<& SELF:header_bar_table, req => $req &> 
+		<& SELF:header_bar_table, req => $req &>
 % 	}
 % }
 </%method>
@@ -659,11 +711,24 @@ $has_nav => 1
 </%method>
 
 <%method open_gContent>
+<%args>
+	$user
+	$type
+	$msg
+</%args>
+% if ($type eq 'home') {
+%	my $class = "";
+%	if ($msg) {
+%		$class .= "withtrafficlight ";
+%	}
+%	if (TUSK::User::AnnouncementHide::user_has_unhidden_announcements($user->primary_key())) {
+%		$class .= "withnote ";
+%	}
+<div id="gContent"<% ($class) ? " class=\"$class\"" : '' %>>
+% }
+% else {
 <div id="gContent">
-</%method>
-
-<%method open_gMainContent>
-<div id="gMainContent">
+% }
 </%method>
 
 <%def right_header_links>
@@ -713,10 +778,10 @@ $has_nav => 1
 
 <& 'SELF:start_body', onload => $onload, onunload => $onunload &>
 
-<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<table width="100%" border="0" cellspacing="0" cellpadding="0" class="outerContainer">
   <tr>
     <td width="350" valign="top">
-      <img src="<% $TUSK::Constants::Logo %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" width="350" height="90">
+      <img src="<% $TUSK::Constants::Logo{Small} %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" width="350" height="90">
     </td>
     <td>
       <& 'SELF:traffic_light', args => $args, make_table => 1 &>
@@ -731,4 +796,3 @@ $has_nav => 1
   </tr>
 </table>
 </%method>
-

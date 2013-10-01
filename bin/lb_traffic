@@ -1,0 +1,81 @@
+#!/usr/bin/perl
+
+#  Copyright 2012 Tufts University 
+# 
+#  Licensed under the Educational Community License, Version 1.0 (the "License"); 
+#  you may not use this file except in compliance with the License. 
+#  You may obtain a copy of the License at 
+# 
+#  http://www.opensource.org/licenses/ecl1.php 
+# 
+#  Unless required by applicable law or agreed to in writing, software 
+#  distributed under the License is distributed on an "AS IS" BASIS, 
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+#  See the License for the specific language governing permissions and 
+#  limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use strict;
+use Getopt::Long;
+
+sub blockServer();
+sub unBlockServer();
+sub showUsage();
+
+my ($help, $block, $unblock);
+GetOptions ("help" => \$help,
+            "block" => \$block,
+            "unblock" => \$unblock);
+
+my $lbFile = "/usr/local/tusk/current/code/tusk/public/lb";
+my $baseFile = "/usr/local/tusk/current/code/tusk/public/lbcheck";
+my $accessLog = "/usr/local/tusk/current/logs/access_log";
+
+if($help) {showUsage();}
+elsif($block && $unblock) {print "You can only block or unblock, not both!\n"; showUsage();}
+elsif(!$block && !$unblock) {
+	my $mode;
+	if(-e $lbFile) {print "The server appears to currently in rotation would you like to block it? [Y/N]: "; $mode = 'block';}
+	else           {print "The server appears to currently not in rotation would you like to add it back in? [Y/N]: "; $mode = 'unblock';}
+	my $answer = <STDIN>;
+	chomp $answer;
+	if($answer =~ /^Y/i) {
+		if($mode eq 'block')      {blockServer();}
+		elsif($mode eq 'unblock') {unBlockServer();}
+	} else {print "Doing nothing!\n";}
+} elsif($block) {blockServer();}
+else {unBlockServer();}
+exit();
+
+
+
+sub blockServer() {
+	if(!-e $lbFile) {print STDERR "I was asked to block the server but the file is already gont!\n";}
+	else {
+		unless(unlink($lbFile)) {print STDERR "I was unable to remove the lb file $lbFile : $!\n";}
+		else {
+			print "The server should now be blocked.\n";
+			print "Don't forget to tail -f $accessLog to make sure this worked :)\n";
+		}
+	}
+}
+
+sub unBlockServer() {
+	if(-e $lbFile) {print STDERR "I was asked to unblock the server but the file already exists!\n";}
+	else {
+		unless(link($baseFile, $lbFile)) {print STDERR "I was unable to link $baseFile to $lbFile : $!\n";}
+		else {
+			print "The server should now be unblocked.\n";
+			print "Don't forget to tail -f $accessLog to make sure this worked :)\n";
+		}
+	}
+}
+
+sub showUsage() {
+	print STDERR "Usage:";
+	print STDERR "$0 --help [ --block |  --unblock ]\n";
+	exit();
+}
+

@@ -17,7 +17,7 @@
 	page_header	  => '/tmpl/prepend:manage_header_div_layout'
 	page_footer	  => '/tmpl/footer:footer_div_with_school_links'
 	no_check_path	=> 1
-    hintmsg => 'Are you sure you wish to delete this flash card?'
+    hintmsg => __('Are you sure you wish to delete this flash card?')
 </%attr>
 
 
@@ -59,21 +59,21 @@
  
 </td></tr>
 <tr>
-<td><h2>Question:</h2></td> 
+<td><h2><%__('Question:')%></h2></td> 
 <td>
 <textarea  name="question" cols="60" rows="5" class="textareawhite"><% $fcard->getQuestion() %></textarea>
 </td></tr>
 
-<tr><td><h2>Answer: </h2></td>
+<tr><td><h2><%__('Answer:')%> </h2></td>
 <td>
 <textarea  name="answer" cols="60" rows="5" class="textareawhite"><% $fcard->getAnswer() %></textarea>
 </td></tr>
 <tr><td></td><td>
 
-<input type="submit" name="submit" value="Delete" class="formbutton">
+<input type="submit" name="delete" value="<%__('Delete')%>" class="formbutton">
 
 
-<input type="reset" style="" value="Cancel" id="cancel" name="cancel" onclick="go_back('/management/flashcard/flashcard');" class="formbutton"/>
+<input type="reset" style="" value="<%__('Cancel')%>" id="cancel" name="cancel" onclick="go_back('/management/flashcard/flashcard');" class="formbutton"/>
 
 </td></tr>
 
@@ -95,14 +95,15 @@
 
  if (defined($ARGS{'submit_check'}) or $m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
 	    my $reload_url = "/management/flashcard/flashcard";        
-	    if ($ARGS{'submit'} eq 'Delete' ) {
+	    if ( defined($ARGS{'delete'}) ) {
+			my $msgtxt;
 			if ($fcard) {
 		    	$fcard->delete();	
-				my $msgtxt = "Flash Card Deleted";						
+				$msgtxt = __("Flash Card Deleted");						
 				$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?msg=$msgtxt");
 			}
 			else {
-				my $msgtxt ="You attempted to delete a Flash Card that does not exist, perhaps it has already been deleted.";
+				$msgtxt = __("You attempted to delete a Flash Card that does not exist, perhaps it has already been deleted.");
 				$m->comp("/tmpl/wizard:do_next", args => \%ARGS, default_transition => $reload_url . "?hintmsg=$msgtxt");
 			}
 		}
@@ -123,9 +124,9 @@
 <%method title> 
 %   my $fc = TUSK::FlashCard->new->lookupKey($m->comp("/tmpl/url:get_last_path_id"));
 %   if ($fc) {
-%   	return $TUSK::Constants::SiteAbbr . " Flash Card: " . $fc->outCardTitleNoLink;
+%		return __x("{site_abbr} Flash Card: {flash_card_title}", site_abbr => $TUSK::Constants::SiteAbbr, flash_card_title => $fc->outCardTitleNoLink); 
 %	} else {
-%   	return $TUSK::Constants::SiteAbbr . "NO CARD";
+%   	return __x("{site_abbr} NO CARD", site_abbr => $TUSK::Constants::SiteAbbr);
 %	}
 
 </%method>

@@ -1,0 +1,209 @@
+<%shared>
+my $id = $m->comp('/tmpl/url:get_first_path_id') ;
+my $course;
+my $is_edit = 0;
+my $user_id = $m->comp('SELF:user');
+my $action_page = "/ocw/courseaddedit/";
+</%shared>
+
+<%method jsarray>
+%	return ['ckeditor/ckeditor.js', 'ckeditor/tusk.js'];
+</%method>
+<%once>
+use TUSK::OCW::OcwCourseConfig;
+use TUSK::OCW::OcwSchool;
+</%once>
+<%method title>
+<%perl>
+my $title = "Create New Course";
+if (defined($id)){
+	$title = "Modify Course";	
+}
+return $title;
+</%perl>
+</%method>
+
+<%perl>
+my $schools = TUSK::Core::School->lookup (" 1 ");
+my @TUSKSchoolDropdown = map { {'label'=>$_->getSchoolDisplay,'value'=>$_->getPrimaryKeyID() }} @{$schools};
+my $ocw_schools = TUSK::OCW::OcwSchool->lookup(" 1 " );
+my @OCWSchoolDropdown = map { {'label'=>$_->getSchoolLabel,'value'=>$_->getPrimaryKeyID() }} @{$ocw_schools};
+my $formname = 'courseaddedit';
+</%perl>
+
+
+<& /tmpl/element:form, params => {
+		method => 'POST',
+		name => $formname, } &>
+
+<& /tmpl/element:table, params => { width => "100%",
+		border =>"0",
+		cellspacing =>"0",
+		cellpadding =>"0" } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Status',
+		name=>"status",
+		onchange=>undef,
+		selected=>$course->getStatus(),
+		options=>[{'label'=>'Published','value'=>'Published'},
+			{'label'=>'Draft','value'=>'Draft'},
+			{'label'=>'Unpublished','value'=>'Unpublished'}] } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Metadata Course ID',
+		name => 'metadata_course_id',
+		value => $course->getMetadataCourseID(),
+		size => 60,
+		length => 255 } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Metadata Course School',
+                name=>"metadata_school_id",
+                onchange=>undef,
+                selected=>$course->getMetadataSchoolID(),
+                options=>\@TUSKSchoolDropdown } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Content Course ID',
+		name => 'content_course_id',
+		value => $course->getContentCourseID(),
+		size => 60,
+		length => 255 } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Content Course School',
+                name=>"content_school_id",
+                onchange=>undef,
+                selected=>$course->getContentSchoolID(),
+                options=>\@TUSKSchoolDropdown } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Time Period ID',
+		name => 'time_period_id',
+		value => $course->getTimePeriodID(),
+		size => 60,
+		length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Level Label',
+		name => 'level_label',
+		value => $course->getLevelLabel(),
+		size => 60,
+		length => 255 } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'OCW School',
+                name=>"ocw_school_id",
+                onchange=>undef,
+                selected=>$course->getOcwSchoolID(),
+                options=>\@OCWSchoolDropdown } &>
+
+<& /tmpl/element:dropdown, params=>{ label => 'Show Faculty',
+		name=>"show_faculty",
+		onchange=>undef,
+		selected=>$course->getShowFaculty(),
+		options=>[{'label'=>'Yes','value'=>1},
+			{'label'=>'No','value'=>0}]} &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Graphic Name',
+                name => 'graphic_name',
+                value => $course->getGraphicName(),
+                size => 60,
+                length => 255 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Graphic Caption',
+                name => 'graphic_caption',
+                value => $course->getGraphicCaption(),
+                size => 60,
+                length => 350 } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Course Highlights',
+                name=>"highlights",
+                cols=>"60",
+                rows=>"4",
+		htmleditor=>1,
+                value=>$course->getHighlights()  } &>
+
+<& /tmpl/element:textarea, params=>{ label => 'Short Description',
+                name=>"short_description",
+                cols=>"60",
+                rows=>"4",
+		htmleditor=>1,
+                value=>$course->getShortDescription()  } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Thumbnail Name',
+                name => 'small_graphic',
+                value => $course->getSmallGraphic(),
+                size => 60,
+                length => 255 } &>
+<%perl>
+	my $subject_selected_hash = { map { $_ => 1 } split(';', $course->getSubject()) };
+</%perl>
+<& /tmpl/element:dropdown, params=>{ label => 'Subject',
+		name => "subject",
+		onchange => undef,
+		multiple => 1,
+		selected => $subject_selected_hash,
+		options=>['Arts','Business','Humanities','Mathematics and Statistics',
+			'Science and Technology','Social Sciences']
+		} 
+		&>
+
+<& /tmpl/element:textbox, params =>{ label => 'Publish Year',
+		name => 'publish_year',
+		value => $course->getPubYear(),
+		size => 4,
+		maxlength => 4 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Publish Month',
+		name => 'publish_month',
+		value => $course->getPubMonth(),
+		size => 2,
+		maxlength => 2 } &>
+
+<& /tmpl/element:textbox, params =>{ label => 'Keywords',
+		name => 'keywords',
+		value => $course->getKeywords(),
+		size => 60,
+		 } &>
+
+<& /tmpl/element:save_button, params=>{'name'=>'course_submit','label'=>'Save'} &>
+
+</table>
+</form>
+
+<%init>
+if (defined($id)){
+        $course = TUSK::OCW::OcwCourseConfig->lookupKey($id);
+        if (!defined($course) || !defined($course->getPrimaryKeyID())){
+                $m->comp('/tmpl/error',msg=>'Course not found');
+                $m->abort();
+        }
+        $is_edit = 1;
+} else {
+        $course = TUSK::OCW::OcwCourseConfig->new();
+}
+if ($ARGS{'course_submit'}){
+	$course->setStatus($ARGS{'status'});
+	$course->setMetadataCourseID($ARGS{'metadata_course_id'});
+	$course->setMetadataSchoolID($ARGS{'metadata_school_id'});
+	$course->setContentCourseID($ARGS{'content_course_id'});
+	$course->setContentSchoolID($ARGS{'content_school_id'});
+	$course->setTimePeriodID($ARGS{'time_period_id'});
+	$course->setOcwSchoolID($ARGS{'ocw_school_id'});
+	$course->setShowFaculty($ARGS{'show_faculty'});
+	$course->setLevelLabel($ARGS{'level_label'});
+	$course->setGraphicName($ARGS{'graphic_name'});
+	$course->setGraphicCaption($ARGS{'graphic_caption'});
+	$course->setHighlights($ARGS{'highlights'});
+	$course->setSmallGraphic($ARGS{'small_graphic'});
+	$course->setShortDescription($ARGS{'short_description'});
+
+	$course->setPubYear($ARGS{'publish_year'});
+	$course->setPubMonth($ARGS{'publish_month'});
+	$course->setKeywords($ARGS{'keywords'});
+
+	my $subjects = (ref($ARGS{'subject'})) ? $ARGS{'subject'} : [ $ARGS{'subject'} ];
+	$course->setSubject(join(';', @$subjects));
+	
+	if (!$is_edit){
+		$id = $course->save({'user'=>$user_id});
+	} else {
+		$course->save({'user'=>$user_id});
+	}
+	 $m->redirect('/ocw/courseaddedit/'.$id);
+}
+</%init>

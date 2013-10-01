@@ -1,0 +1,175 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my %args = $m->request_args;
+	my %errs = ();
+	my $pswd_help_url = "/about/contact_us";
+</%shared>
+
+
+<%attr>
+	no_check_path => 1
+	skip_auth => 1
+	page_footer => '/tmpl/footer:footer_with_school_links'
+</%attr>
+
+<table width="60%">
+<tr><td>
+<%perl>
+if (defined $args{user} && defined $args{email}) {
+	if ( $args{user} =~ /\w+/ && $args{email} =~ /\w+/) {
+		my $valid = $m->comp('SELF:isValid');
+
+		if ($valid == 1) {
+			$m->comp('SELF:confirm');
+		} elsif ($valid == -1) {
+			$m->comp('SELF:external_user');
+		} elsif ($valid == -2) {
+			$m->comp('SELF:too_many_reset');
+		} else {
+			$m->comp('SELF:intro');
+			$m->comp('SELF:no_email') if ($errs{email} =~ /No email record/);
+		}
+	} else {
+		$errs{user} = '* Missing userid' unless $args{user} =~ /\w+/;
+		$errs{email} = '* Missing email' unless $args{email} =~ /\w+/;
+		$m->comp('SELF:intro');
+	}
+} else {   ### start message and form
+    	$m->comp('SELF:intro');
+}
+</%perl>
+</td></tr>
+</table>
+
+
+
+<%method intro>
+<p class="sm"><strong>Have a temporary  or a non-Tufts account (e.g. a user id with '_cap' or an '_nt')?</strong><br />
+If you are <strong>not</strong> a Tufts-affiliated user (or if you have a temporary/local account) and have forgotten your TUSK password:</p>
+<p class="sm"><% __("Please enter your username and email address below. We will find your password and set it to something random.  We'll then email you the random password and you can log in using it.  As soon as you log in, you will be asked to change it to something you can remember.") %></p>
+<br/>
+<form action="pswdreset_nt" method="POST">
+<table>
+<tr><td class="header-left">Userid:</td><td>
+
+<& /tmpl/element:input_textbox, params => {
+                name => 'user',
+                value => $args{user},
+                size => 30,
+                length => 100,
+		trailing_text => " &nbsp;<span style=\"font-size:8pt;color:red;\">$errs{user}</span>" } &>
+</td></tr>
+
+<tr><td class="header-left">Email:</td><td>
+<& /tmpl/element:input_textbox, params => { 
+                name => 'email',
+                value => $args{email},
+                size => 30,
+                length => 100,
+		trailing_text => " &nbsp;<span style=\"font-size:8pt;color:red;\">$errs{email}</span>" } &>
+</td></tr>
+
+<tr><td colspan="2" align="center">
+<& /tmpl/element:button, params => { 
+		label => 'reset password',
+		type => 'submit' } &>
+		
+<br /><br /></td></tr>
+</table>
+</form>
+<br/>
+<p class="sm">If you need further assistance, please go to <a href="<% $pswd_help_url %>">contact us page</a>.</p><br /><br /><br />
+</%method>
+
+
+<%method isValid>
+<%perl>
+	my $user = HSDB4::SQLRow::User->new()->lookup_key($args{user});
+	
+	if ($user->field_value('source') eq 'external') {
+		return -1;
+	}
+
+	unless ($user->primary_key) {
+		$errs{user} = '* Invalid userid';
+		$errs{email} = '* Invalid email address';
+		return 0;
+	}
+
+	if (defined $user->field_value('email')) {
+	   	if ($user->field_value('email') eq $args{'email'}) {
+		       	my ($result, $msg) = $user->reset_password;
+			return ( ($result == 1) ? 1 : -2 );
+		} else { 
+			$errs{email} = '* Invalid Email Address';
+		}
+	} else {
+		$errs{email} = '* No email record in database.';			
+	}
+
+	return 0;
+</%perl>
+</%method>
+
+
+<%method confirm>
+<p class="sm">Your password has been reset, and the new password e-mailed to
+<b><% $args{email} %></b>.  As soon as it arrives, you may use it to <a
+href="/">log in</a>, at which point you will be asked to change your
+password to something easier to remember.  <b>You will not be able to
+reset your password in this way for 24 hours.</b> If you have any further
+problems, your first stop should be the <a href="<% $pswd_help_url %>">contact us page</a>.</p>
+</%method>
+
+
+<%method no_email>
+<table>
+<tr><td valign="top"><img src="/graphics/red.gif"></td>
+<td>
+<p class="sm">We found your account, but we don't have an e-mail address on file.  This means we can't automatically reset your password.  Please go to <a href="<% $pswd_help_url %>">contact us page</a> and describe your situation, and we'll try to help you as soon as possible.</p>
+</td></tr>
+</table>
+</%method>
+
+<%method too_many_reset>
+<table>
+<tr><td valign="top"><img src="/graphics/red.gif"></td>
+<td>
+<p class="sm">Password can be reset once a day. According to our record, your password was reset within the past 24 hours.  If you need further assistance, please go to <a href="<% $pswd_help_url %>">contact us page</a>.</p>
+</td></tr>
+</table>
+</%method>
+
+<%method external_user>
+<table>
+<tr><td valign="top"><img src="/graphics/red.gif"></td>
+<td>
+<p class="sm">The userid you have just entered does not have a password in the <% $TUSK::Constants::SiteAbbr %>. This may be because another source is being used for permission to use <% $TUSK::Constants::SiteAbbr %> (ie, <% $TUSK::Constants::SchoolProtocol %>).</p>
+
+<p class="sm">If the user has a <% $TUSK::Constants::SchoolShort %> <% $TUSK::Constants::SchoolUniqueId %> and email password, please contact <% $TUSK::Constants::SchoolSupportGroup %> to have the password reset.</p>
+</td></tr>
+</table>
+</%method>
+
+<%method red_header_text>
+% 	return 'Reset Password';	
+</%method>
+
+<%method title>
+% 	return 'Reset Password';	
+</%method>
+

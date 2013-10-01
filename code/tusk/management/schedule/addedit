@@ -19,7 +19,7 @@ use TUSK::Core::ClassMeetingContentType;
 
 <%method title>
 <%perl>
-my $title = "Modify Schedule";
+my $title = __("Modify Schedule");
 return $title;
 </%perl>
 </%method>
@@ -37,10 +37,10 @@ my $type_object = $m->comp("/tmpl/url:get_type_object");
 if (defined($class_meeting_id)){
 	$class_meeting = HSDB45::ClassMeeting->new(_school=>$type_object->school)->lookup_key($class_meeting_id);
 	if (!$class_meeting->primary_key()){
-		$m->comp('/tmpl/error', msg=>'Invalid schedule id passed');
+		$m->comp('/tmpl/error', msg=>__('Invalid schedule id passed'));
 	}
 } else {
-	$m->comp('/tmpl/error', msg=>'No schedule id passed');
+	$m->comp('/tmpl/error', msg=>__('No schedule id passed'));
 }
 
 my $school_id = $class_meeting->course->get_school()->getPrimaryKeyID();
@@ -70,21 +70,21 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
 
-<& /tmpl/element:field_display, params =>{ label => 'Event Title',
+<& /tmpl/element:field_display, params =>{ label => __('Event Title'),
                 value => $class_meeting->field_value('title') } &>
 
-<& /tmpl/element:field_display, params =>{ label => 'Event Date',
+<& /tmpl/element:field_display, params =>{ label => __('Event Date'),
                 value => $class_meeting->field_value('meeting_date') } &>
 
-<& /tmpl/element:field_display, params =>{ label => 'Start Time',
+<& /tmpl/element:field_display, params =>{ label => __('Start Time'),
                 value => $class_meeting->field_value('starttime') } &>
 
-<& /tmpl/element:field_display, params =>{ label => 'End Time',
+<& /tmpl/element:field_display, params =>{ label => __('End Time'),
                 value => $class_meeting->field_value('endtime') } &>
 
 <%perl>
 	$m->comp('/tmpl/element:sort_order_box', params =>{
-		label=>'Content',
+		label=>__('Content'),
 		button_onclick=>"openwindow('contentdiv',700);",
 		buttons => [],
 		layer_info => {
@@ -92,13 +92,13 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 			fields => ['link_class_meeting_content_id','content_id', 'title', 'anchor_label','label', 'class_meeting_content_type_id'],
 			name => 'content',
 			sort => {usage => 'Yes'},
-			action => {usage => 'Yes', length=>100, functions => [ {func=>'remove', label=>'Delete'} ]},
+			action => {usage => 'Yes', length=>100, functions => [ {func=>'remove', label=>__('Delete')} ]},
 			scrollrows => 10,
-			display => [{ label => 'Title',field => 'title', align => 'left', uneditable => 1, length => 300 },
-			            { label => 'Show on Schedule as', field => 'class_meeting_content_type_id', align => 'left', length => 50, options => \@classMeetingDropdown },
+			display => [{ label => __('Title'),field => 'title', align => 'left', uneditable => 1, length => 300 },
+			            { label => __('Show on Schedule as'), field => 'class_meeting_content_type_id', align => 'left', length => 50, options => \@classMeetingDropdown },
 			            { field => 'content_id', type => 'hidden', length => 100},
-			            { label => 'Label', field => 'label', type => 'textbox', length => 50 },
-			            { label => 'Section', field => 'anchor_label', type => 'textbox', align => 'left', length => 50 } ],
+			            { label => __('Label'), field => 'label', type => 'textbox', length => 50 },
+			            { label => __('Section'), field => 'anchor_label', type => 'textbox', align => 'left', length => 50 } ],
 			validate => { usage => 'No', },
 			data => \@link_data 
 		}
@@ -109,25 +109,25 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 </%perl>
 
 <& /tmpl/element:sort_order_box , params =>{
-			label          => 'Objectives',
+			label          => __('Objectives'),
 			name           => "objectives",
 			button_onclick => "openwindow('objectivesdiv')",
 			help_info      => {
 								topic		=> 'create_objectives',
-								text		=> 'Tips for Selecting Objectives'
+								text		=> __('Tips for Selecting Objectives')
 							 },
 			layer_info 	=> {
-				empty_message => 'No objectives associated for this content',
+				empty_message => __('No objectives associated for this content'),
 				layer 	      => 'objectivesdiv',
 				scrollrows    => 6,
 				fields        => ['objective_id', 'body'],
 				name          => 'objectives',
 				sort          => { usage => 'Yes', length => 50},
 				action        => { usage => 'Yes', length => 100, functions => 	[ 
-					{ func=>'edit',     label=>'Edit'},
-					{ func => 'remove', label => 'Delete'} 
+					{ func=>'edit',     label=>__('Edit')},
+					{ func => 'remove', label => __('Delete')} 
 					] },
-				display	 => [ { label => 'Body', field => 'body', align => 'left', length => 450, editsize => 75 } ],
+				display	 => [ { label => __('Body'), field => 'body', align => 'left', length => 450, editsize => 75 } ],
 				validate => { usage => 'No', },
 				data     => \@objectives_data, 
 			} } &>
@@ -135,7 +135,7 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 <%perl>
 	my @rank_options = ();
 	my $rank_counter = 0;
-	push @rank_options, map { 'label' => $_, 'value' => $rank_counter++ }, ( 'N/A', 'Mentioned', 'Central' );
+	push @rank_options, map { 'label' => $_, 'value' => $rank_counter++ }, ( __('N/A'), __('Mentioned'), __('Central') );
 
 	my $concepts = {};
 	foreach my $concept_link (@{$class_meeting->child_umls_concepts(1)}){
@@ -156,7 +156,7 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 	}
 </%perl>
 <& /tmpl/element:sort_order_box , params =>{
-		label => 'UMLS Concepts and Keywords',
+		label => __('UMLS Concepts and Keywords'),
 		button_onclick => "openwindow('conceptdiv')",
 		layer_info => {
 			scrollrows => 15,
@@ -166,8 +166,8 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 			sort => { usage => 'No' },
 			action => { usage => 'No' },
 			display => [
-				{ label => 'UMLS&nbsp;Concepts', field => 'keyword_with_info', align => 'left' },
-				{ label => 'Relevance', field => 'rank', align => 'center', length => 75, radio_options => \@rank_options }
+				{ label => __('UMLS Concepts'), field => 'keyword_with_info', align => 'left' },
+				{ label => __('Relevance'), field => 'rank', align => 'center', length => 75, radio_options => \@rank_options }
 			],
 			validate => { usage => 'No', },
 			data => $concepts_data,
@@ -186,12 +186,12 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 		$m->scomp( '/tmpl/element:input_textbox', params => { name => 'keyword' } ),
 		$m->scomp( '/tmpl/element:button', params => {
 								onclick	=> 'addToLayer();',
-								label	=> 'Add Keyword',
+								label	=> __('Add Keyword'),
 							} )
 	);
 </%perl>
 <& /tmpl/element:sort_order_box , params =>{
-				label => 'User-Defined Keywords',
+				label => __('User-Defined Keywords'),
 				no_add_button => 1,
 				buttons => \@keyword_buttons,
 				layer_info => {
@@ -200,9 +200,9 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 					fields => ['keyword_id', 'keyword'],
 					name => 'Keywords',
 					sort => { usage => 'No' },
-					action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
+					action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => __('Delete')} ] },
 					display => [
-						{ label => 'Keyword', field => 'keyword', align => 'left', length => '5' },
+						{ label => __('Keyword'), field => 'keyword', align => 'left', length => '5' },
 					],
 					validate => { usage => 'No', },
 					data => $keywords_data,
@@ -211,7 +211,7 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 
 <%perl>
         $m->comp('/tmpl/element:sort_order_box', params =>{
-                label=>'Users',
+                label=>__('Users'),
 		no_add_button=>1,
                 layer_info => {
                         layer => 'userdiv',
@@ -220,7 +220,7 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
                         sort => {usage => 'No'},
                         action => {usage => 'No'},
                         scrollrows => 10,
-                        display => [{label=>'Name',field=>'name', align=>'left', length=>300 }
+                        display => [{label=>__('Name'),field=>'name', align=>'left', length=>300 }
                         ],
                         validate => {
                                         usage => 'No',
@@ -230,7 +230,7 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 
 </%perl>
 
-<& /tmpl/element:save_button, params=>{label=>'Save Changes',
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
                 cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
 			'base_url' => "/management/schedule/show") . "');",
                 name=>'submit'} &>
@@ -366,7 +366,7 @@ if (defined($ARGS{'submit'})){
 		$keyword_link->delete({ user => $m->comp('SELF:user') });
 	}
 
-	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/schedule/addedit", 'extra' => '', 'msg' => 'Class meeting updated.'));
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/management/schedule/addedit", 'extra' => '', 'msg' => __('Class meeting updated.')));
 }
 </%init>
 

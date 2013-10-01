@@ -36,8 +36,8 @@ use TUSK::Quiz::Quiz;
 my $type_path = $m->comp('/tmpl/url:get_type_path');
 my @ids = $m->comp('/tmpl/url:get_path_ids') ;
 if (scalar @ids < 3){
-	my $msg = "There was a problem with your request, please try again. If the problem persists, please contact $TUSK::Constants::SiteAbbr for assistance";
-	$m->comp('print_json', msg => $msg, msg_type => 'alert');
+	my $msg = __x("There was a problem with your request, please try again. If the problem persists, please contact {person} for assistance", person =>$TUSK::Constants::SiteAbbr);
+	$m->print($msg);
 	$m->abort();
 }
 
@@ -57,7 +57,7 @@ my $msg_type = 'html';
 if ($type eq 'phase_elt') {
 	$dd_name = 'phase_elt';
 	$multiple = 1;
-	$label = 'Step 2: Select a specific element within the phase (optional):<br>';
+	$label = __('Step 2: Select a specific element within the phase (optional):').'<br>';
 	my $phase = TUSK::Case::Phase->new()->lookupKey($parent_id);
 
 	if (ref($phase) =~ /Hist|Phys|Diagnost/i) {
@@ -73,7 +73,7 @@ if ($type eq 'phase_elt') {
 }
 elsif ($type eq 'quiz_alt') {
 	$dd_name = 'quiz_alt';
-	$label = 'Step 2: Select one of the quiz options below<br>';
+	$label = __('Step 2: Select one of the quiz options below').'<br>';
 
 	my $linkpq = TUSK::Case::LinkPhaseQuiz->new()->lookupReturnOne("child_quiz_id=$parent_id");
 	my $func = ($linkpq->getAllowResubmit())? 'popNextStep' : 'warnRetakeThenPop';
@@ -82,13 +82,13 @@ elsif ($type eq 'quiz_alt') {
 	my $elt_type = TUSK::Case::RuleElementType->new()->lookupReturnOne("label='quiz'");
 	@opts = ( { label => 'select', 
 	            value => '' },
-	          { label => 'Quiz Completion', 
+	          { label => __('Quiz Completion'), 
 	            value => 'completion',
 	            class => 'type_' . $elt_type->getPrimaryKeyID() },
-	          { label => 'Must have correctly answered...', 
+	          { label => __('Must have correctly answered...'), 
 	            value => $parent_id,
 	            class => 'quiz_elt_opt' },
-	          { label => 'Minimum Score', 
+	          { label => __('Minimum Score'), 
 	            value => $parent_id,
 	            class => 'score_opt' },
 	         );
@@ -96,7 +96,7 @@ elsif ($type eq 'quiz_alt') {
 elsif ($type eq 'quiz_elt') {
 	$dd_name = 'quiz_elt';
 	$multiple = 1;
-	$label = 'Step 3: Select question(s) that need to be correctly answered<br>';
+	$label = __('Step 3: Select question(s) that need to be correctly answered').'<br>';
 	$onchange = 'isEnabled(this)';
 	my $quiz = TUSK::Quiz::Quiz->new()->lookupKey($parent_id);
 	$title = 'select';
@@ -110,7 +110,7 @@ elsif ($type eq 'score') {
 		my $elt_type = TUSK::Case::RuleElementType->new()->lookupReturnOne("label='quiz_score'");
 		my $relation_type = TUSK::Case::RuleRelationType->new()->lookupReturnOne("label='>='");
 
-		$msg .= 'Step 3: Minimum score percentage<br>';
+		$msg .= __('Step 3: Minimum score percentage').'<br>';
 		$msg .= $m->scomp('/tmpl/element:input_textbox', params => {
 			name  => 'min_score',
 			size  => 3,
@@ -121,12 +121,15 @@ elsif ($type eq 'score') {
 	}
 	else {
 		$msg_type = 'alert';
-		$msg = 'Sorry, you cannot place a minimum score rule on a quiz that has questions of type "Fill In," "Multiple Fill In," or "Essay".';
+		$msg = __('Sorry, you cannot place a minimum score rule on a quiz that has questions of type "Fill In," "Multiple Fill In," or "Essay".');
 	}
 }
 
 # if at least one option present, make a dropdown containing it
 if (scalar @opts) {
+use Data::Dumper;
+warn Dumper \@opts;
+
 	$msg .= $label;
 	$msg .= $m->scomp('/tmpl/element:dropdown', params => {
 		multiple => $multiple,
@@ -139,28 +142,11 @@ if (scalar @opts) {
 	);
 }
 elsif (!$msg) {
-	$msg = '<em>This phase does not have any optional elements to select.</em>'
+	$msg = '<em>'.__('This phase does not have any optional elements to select.').'</em>'
 }
-
-$m->comp('print_json', msg => $msg, msg_type => $msg_type);
-
 </%perl>
 
-
-
-<%def print_json>
-<%args>
-$msg
-$msg_type
-</%args>
-% $msg =~ s/"/\\"/g;
-% $msg =~ s/\r|\n/ /g;
-
-{ 
-  "msg": "<% $msg %>",
-  "msgType": "<% $msg_type %>"
-}
-</%def>
+<% $msg %>
 
 <%def create_test_options>
 <%args>

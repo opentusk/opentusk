@@ -15,7 +15,7 @@
 
 $(function() {
 	updateCommentBox();
-	$("#myform").before("<div id=\"error-container\">\n Some required data is missing. &nbsp; See details below. </div>");
+	$("#myform").before("<div id=\"error-container\">\n" + _("Some required data is missing.") + "&nbsp; " + _("See details below.") + " </div>");
 	$('#error-container').hide();
 
 	$('#form_submit').click(function() {
@@ -46,11 +46,14 @@ $(function() {
 
 			var min_score = $("#myform input[name='min_score']").val();
 			if ( min_score && min_score > $('#total_score').val()) {
-				if (confirm("The minimum score to pass is " + min_score + ".\n The calculated score is " + $('#total_score').val() + ".\n Are you sure you want to submit?") == false ) {
+				if (confirm(
+					_("The minimum score to pass is {minimum_score}.",{minimum_score : min_score}) +  "\n " + 
+					_("The calculated score is {total_score}.",{total_score : $('#total_score').val()}) + "\n " + 
+					_("Are you sure you want to submit?")) == false ) {
 					return false;
 				}
 			} else {
-				if (confirm("Are you sure you want to submit?") == false ) {
+				if (confirm(_("Are you sure you want to submit?")) == false ) {
 					return false;
 				}
 			}

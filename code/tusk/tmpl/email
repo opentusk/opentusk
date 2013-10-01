@@ -37,7 +37,7 @@
 
 % if ($args->{submit_check}) {
 <div class="sm">
-<div><b>To:</b> &nbsp;&nbsp; 
+<div><b><%__('To')%>:</b> &nbsp;&nbsp; 
 % if ($args->{email_list}) {
 <% (ref($args->{to}) eq 'ARRAY') 
 	? join(', ', map { $_->out_full_name() } HSDB4::SQLRow::User->new()->lookup_conditions('user_id in (' . join(',',  map { "'" . $_ . "'" } @{$args->{to}}) . ')'))
@@ -47,8 +47,8 @@
 <% (ref($args->{to}) eq 'ARRAY') ? join(', ', map { HSDB45::UserGroup->new(_school => $args->{school})->lookup_key($_)->out_label() } @{$args->{to}}) : HSDB45::UserGroup->new(_school => $args->{school})->lookup_key($args->{to})->out_label() %>
 % }
 </div>
-<div><b>From:</b> &nbsp;&nbsp; <% $user->out_full_name() %> (<% $user->email() %>)</div>
-<div><b>Subject:</b> &nbsp;&nbsp;  <% $args->{subject} %></div>
+<div><b><%__('From')%>:</b> &nbsp;&nbsp; <% $user->out_full_name() %> (<% $user->email() %>)</div>
+<div><b><%__('Subject')%>:</b> &nbsp;&nbsp;  <% $args->{subject} %></div>
 <div class="labelgray"><br/><% $args->{body} %></div>
 </div>
 % } else {
@@ -75,19 +75,19 @@
 </%perl>
 % } else {
 <& /tmpl/element:field_display, params => { 
-	label => 'To:',
+	label => __('To:'),
 	value => $recipients_checkboxes . $to_trailing_text} &>
 % }
 
-<& /tmpl/element:field_display, params =>{ label => 'From:',
+<& /tmpl/element:field_display, params =>{ label => __('From:'),
 	name => 'from_name',
 	value => $user->out_full_name() . ' (' . $user->email() . ')' } &>
-<& /tmpl/element:textbox, params =>{ label => 'Subject:',
+<& /tmpl/element:textbox, params =>{ label => __('Subject:'),
 	name => 'subject',
 	value => $args->{subject},
 	size => 70,
 	length => 255 } &>
-<& /tmpl/element:textarea, params =>{ label => 'Message:',
+<& /tmpl/element:textarea, params =>{ label => __('Message:'),
 	name => 'body',
 	value => $args->{body},
 	cols =>"70",
@@ -98,11 +98,11 @@
 % if ($sendself) {
 <tr><td>&nbsp;</td>
 <td class="cell-submit">
-<input type="checkbox" name="sendself" value="1" /> Send a copy of this message to myself (<% $user->email() %>)<br/><br/>
+<input type="checkbox" name="sendself" value="1" /><%__("Send a copy of this message to myself")%> (<% $user->email() %>)<br/><br/>
 </td></tr>
 % }
 <& /tmpl/element:save_button, params => { 
-	label 	=>	'Send Email', 
+	label 	=>	__('Send Email'), 
     cancel_onclick => "go_back('$cancel_url');",
 	name	=>	'emailsubmit' } &>
 </table>
@@ -126,11 +126,11 @@
  	if (defined $data) {
 		$m->comp('SELF:set_msg', 
  			type 	=> 'msg', 
-			msg 	=> 'You have successfully sent the email.' );
+			msg 	=> __('You have successfully sent the email.') );
 	} else {
 		$m->comp('SELF:set_msg', 
  			type 	=> 'err', 
-			msg 	=> 'There is a problem sending the email.' );
+			msg 	=> __('There is a problem sending the email.') );
 	}
 	$args->{body} =~ s/\n/<br\/>/gi;
 </%perl>

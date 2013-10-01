@@ -57,9 +57,9 @@
 		my @users = HSDB4::SQLRow::User->new()->lookup_conditions('user_id in (' . join(',', map { "'" . $_->getUserID()  . "'" } @$user_roles) . ')'); 
 		foreach my $user (@users) {
 			$user->send_email(
-				"Notification of change in student's assessors", 
+				__("Notification of change in student's assessors"), 
 				$course->title(),
-				$assessor->out_full_name() . ' has selected ' . (($ARGS{status}) ? '' : 'NOT') . ' to assess ' .  $student->out_full_name() . '.'
+				(($ARGS{status}) ? __x('{assessor} has selected to assess {student}.', assessor => $assessor->out_full_name(), student => $student->out_full_name()) : __x('{assessor} has selected NOT to assess {student}.', assessor => $assessor->out_full_name(), student => $student->out_full_name()))
 			);
 		}
 	}

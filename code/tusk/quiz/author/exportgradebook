@@ -17,12 +17,13 @@
 my ($quiz_id,$grade_event_id) = $m->comp("/tmpl/url:get_path_ids");
 my $no_grade_event = 0;
 if (!defined($grade_event_id)){
-	$m->comp('/tmpl/error',msg=>'No Grade Event ID Passed');
+	$m->comp('/tmpl/error',msg=>__('No Grade Event ID Passed'));
 }
 my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
 </%shared>
 <%once>
 use TUSK::Quiz::Quiz;
+use HTML::Entities;
 </%once>
 
 <%method function_token>
@@ -31,7 +32,7 @@ use TUSK::Quiz::Quiz;
 
 <%method title>
 <%perl>
-return 'Export to Grade Book';
+return __('Export to Grade Book');
 </%perl>
 </%method>
 
@@ -53,19 +54,20 @@ if (ref($typeObj) eq "HSDB45::Course"){
 </%method>
 
 <%init>
-$quiz->setUser($m->session->{user}->user_id);
-my $export = $ARGS{'export'};
-my $no_grade_event = 0;
-my $course = $m->comp('/tmpl/url:get_type_object');
-my ($msg,$grade_event);
-$grade_event = TUSK::GradeBook::GradeEvent->lookupKey($grade_event_id);
-my $commit = 1;
-if ($ARGS{'export_submit'}){
-	$msg = $quiz->exportToGradeBook($grade_event,$commit);	
-} elsif ($ARGS{'preview_submit'}){
-	$commit = 0;
-	$msg = $quiz->exportToGradeBook($grade_event,$commit);	
-}
+	$quiz->setUser($m->session->{user}->user_id);
+	my $export = $ARGS{'export'};
+	my $no_grade_event = 0;
+	my $course = $m->comp('/tmpl/url:get_type_object');
+	my $msgs = [];
+	my $grade_event = TUSK::GradeBook::GradeEvent->lookupKey($grade_event_id);
+	my $commit = 1;
+
+	if ($ARGS{'export_submit'}) {
+		$msgs = $quiz->exportToGradeBook($grade_event,$commit);
+	} elsif ($ARGS{'preview_submit'}){
+		$commit = 0;
+		$msgs = $quiz->exportToGradeBook($grade_event,$commit);
+	}
 </%init>
 
 
@@ -78,38 +80,35 @@ if ($ARGS{'export_submit'}){
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
 
-<& /tmpl/element:field_display, params=>{'label'=>'Grade Event','value'=>$grade_event->getEventName()} &>
-<& /tmpl/element:field_display, params=>{'label'=>'Quiz Title','value'=>$quiz->getTitle()} &>
+<& /tmpl/element:field_display, params=>{'label'=>__('Grade Event'),'value'=>$grade_event->getEventName()} &>
+<& /tmpl/element:field_display, params=>{'label'=>__('Quiz Title'),'value'=>$quiz->getTitle()} &>
 % if ($export && $commit) {
 <& /tmpl/element:vertical_spacing, size=>1 &>
 % } elsif ($export) {
 <input type="hidden" value="1" name="export" />
-<& /tmpl/element:save_button, params=>{'label'=>'Export to Grade Book',
+<& /tmpl/element:save_button, params=>{'label'=>__('Export to Grade Book'),
 			'name'=>'export_submit',
 			'cancel_onclick'=>"window.location='/quiz/author/showexport/"
 				.$m->comp('/tmpl/url:get_type_path')."/$quiz_id'"} &>
 % } else {
 <input type="hidden" value="1" name="export" />
-<& /tmpl/element:save_button, params=>{'label'=>'Preview Export',
+<& /tmpl/element:save_button, params=>{'label'=>__('Preview Export'),
 			'name'=>'preview_submit',
 			'cancel_onclick'=>'window.history.back()'} &>
 
 % }
 
-<& show_msg, msg=>$msg &>
+<& show_msg, msgs =>$msgs &>
 </form>
 </table>
 
 <%def show_msg>
 <%args>
-$msg
+	$msgs
 </%args>
-<%perl>
-unless ($msg) {
-	return;
-}
-my @lines = split /\n/,$msg;
-$m->print (join('',map { '<tr><td></td><td class="sm">'.$_.'</td></tr>' } @lines));
-</%perl>
+
+% if (scalar @$msgs) {
+%	$m->print(join("\n", map {'<tr><td></td><td class="sm">' . encode_entities($_) . '</td></tr>' } @{$msgs}));
+% }
 
 </%def>

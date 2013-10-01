@@ -37,18 +37,6 @@ $errmsg => ''
 $url => ''
 </%args>
 
-<%method title>
-% return "$TUSK::Constants::SiteAbbr Login";
-</%method>
-
-<%method stylearray>
-% return ['/style/style.css', '/style/login.css'];
-</%method>
-
-<%method startup>
-% $m->comp("SELF:set_no_cache");
-</%method>
-
 <%shared>
 my $themeImage = '/graphics/icons/spacer.gif';
 
@@ -64,18 +52,13 @@ if(exists($logoHash{$date})  && -f $TUSK::Constants::BaseStaticPath . $logoHash{
 </%shared>
 
 <%perl>
-# see if there is a 
+# see if there is a error message to display
 my $cookieJar = Apache2::Cookie::Jar->new($r);
-my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_error')->value() ? $cookieJar->cookies('login_error')->value()
-                  : $errmsg ? $errmsg
-                  : '';
+my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_error')->value() ? $cookieJar->cookies('login_error')->value() : '';
 my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->cookies('failed_login_user')->value() ? $cookieJar->cookies('failed_login_user')->value()
                   : $user ? $user
                   : '';
 </%perl>
-
-
-
 
 <div id="logLoginContainer">
 
@@ -83,7 +66,7 @@ my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->co
 %	$url = '/bigscreen';
 % }
 
-<& SELF:build_login_box, message => $message, url => $url, failedLoginUser => $failedLoginUser &>
+<& SELF:build_login_box, message => $message, errmsg => $errmsg, url => $url, failedLoginUser => $failedLoginUser &>
 
 <p id="logMessage" class="xsm"><% $TUSK::Constants::HomepageMessage %></p>
 
@@ -101,7 +84,7 @@ my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->co
 
 % if($TUSK::Constants::useShibboleth){
 <select name="from" onChange="if(this[this.selectedIndex].value != 'Select') {document.location='https://<% $TUSK::Constants::shibbolethSP %>:<% $TUSK::Constants::shibSPSecurePort %>/shibboleth-login/provision/'+ this[this.selectedIndex].value;}">
-	<option value="Select" SELECTED>-- Shibboleth Access --</option>
+	<option value="Select" SELECTED>-- <%__('Shibboleth Access')%> --</option>
 %	my $shibbolethUsers = TUSK::Shibboleth::User->new->lookup();
 %	foreach my $shibUserObject (@{$shibbolethUsers}){
 %		if($shibUserObject->ifIsEnabled()){
@@ -115,7 +98,7 @@ my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->co
 </div> <!-- logDropdowns -->
 
 % my $release = TUSK::Functions::get_tusk_version;
-<p class="logRelease xsm">Release : <% $release %></p>
+<p class="logRelease xsm"><%__x("Release : {release_number}", release_number => $release)%></p>
 
 
 % if($TUSK::Constants::UseTracking){
@@ -126,6 +109,7 @@ my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->co
 <%method build_login_box>
 <%args>
 $message => ''
+$errmsg => ''
 $is_mobi => 0
 $url => ''
 $failedLoginUser => ''
@@ -137,7 +121,14 @@ $failedLoginUser => ''
 %	$message =~ s/>/&gt;/g;
 %	my $prefix = ($is_mobi)? '/mobi' : '';
 <p class="errTxt"><% $message %></p>
+<p class="errTxt"><% $errmsg %></p>
 <p class="xxsm">If you believe you got this message in error please <a href="<% $prefix %>/about/contact_us">contact us</a></p>
+% }
+% # see if the user is using IE7 or older
+% if ($ENV{HTTP_USER_AGENT} =~ /MSIE (\d+)\.\d*;/ || $ENV{REDIRECT_HTTP_USER_AGENT} =~ /MSIE (\d+)\.\d*;/) {
+%	if (int($1) <= 7) {
+		<p class="errTxt">You are using an old version of Internet Explorer which will not display TUSK properly</p>
+%	}
 % }
 </div>
 % my $ssrv = $r->dir_config('SecureLogin') || 'https://'.$TUSK::Constants::Domain.'/login';
@@ -153,21 +144,21 @@ $failedLoginUser => ''
 
 <div style="background:#fff 96% top no-repeat url('<% $themeImage %>');">
 <fieldset>
-<label for="user" class="xsm">Username:</label>
+<label for="user" class="xsm"><%__('Username:')%></label>
 <input name="user" type="text" class="textareawhite" size="20" value="<% $failedLoginUser %>"/>
 </fieldset>
 
 <fieldset>
-<label for="password" class="xsm">Password:</label>
+<label for="password" class="xsm"><%__('Password:')%></label>
 <input name="password" type="password" class="textareawhite" size="20"/><br/>
 </fieldset>
 
 <div class="loginButtons">
 
-<& /tmpl/element:submit_button, params => { name => 'Submit', label => 'Login', class => 'btnLogin' } &>
+<& /tmpl/element:submit_button, params => { name => 'Submit', label => __('Login'), class => 'btnLogin' } &>
 
 % unless($is_mobi){
-<& /tmpl/element:button, params => { name => 'guest_access', label => 'Guest Access', onclick => "location.href='allcourses.htm'" } &>
+<& /tmpl/element:button, params => { name => 'guest_access', label => __('Guest Access'), onclick => "location.href='/view/courses'" } &>
 % }
 </div>
 </div>
@@ -175,7 +166,7 @@ $failedLoginUser => ''
 % unless($is_mobi){
 <script type="text/javascript">isValidTUSKBrowser();</script>
 <p class="xsm loginHelp">
-<a href="/tusk/tools/pswdreset">Forgot your password?</a>
+<a href="/tusk/tools/pswdreset"><%__('Forgot your password?')%></a>
 </p>
 % }
 
@@ -187,3 +178,14 @@ document.forms['login'].elements['user'].focus();
 
 </%method>
 
+<%method title>
+% return "$TUSK::Constants::SiteAbbr Login";
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css', '/style/login.css'];
+</%method>
+
+<%method startup>
+% $m->comp("SELF:set_no_cache");
+</%method>

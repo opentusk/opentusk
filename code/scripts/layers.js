@@ -189,7 +189,7 @@ function showlayer(){
 			if (this.structure['empty_message']){
 				string += this.structure['empty_message'];
 			}else{
-				string = 'No ' + this.structure['name']  + ' associated.';
+				string = 'No ' + this.structure['name'] + ' ' + _("associated") + '.';
 			}
 			string += '</i></span><br>';
 		}else{
@@ -391,8 +391,9 @@ function actionstring(action,id){
 			var linkid =  link_action + '_' + id;
 			string += '<a class="navsm" id="' + linkid + '" href="javascript:';
 			if (action['functions'][k]['prompt'] == 'Yes'){
-				string += '{if (confirm(\'Are you sure you want to ' 
-					+ action['functions'][k]['label'].toLowerCase()  + '?\')){';
+				var act = action['functions'][k]['label'].toLowerCase();
+				var msg = _x("'Are you sure you want to {action}?'", {'action' : act });
+				string += '{if (confirm(' + msg +  ')){';
 			}
 			string += link_action + '(\'' + this.layer + '\', ' + id;
 
@@ -429,7 +430,7 @@ function header(structure){
 	var align;
 
 	if (structure['sort']['usage'] == 'Yes'){
-		string += '<td class="header-center" align="center" valign="top" width="1%">Sort</td>';
+		string += '<td class="header-center" align="center" valign="top" width="1%">' + _('Sort') + '</td>';
 	}
 	for (var i=0; i<structure['display'].length; i++){
 		if (structure['display'][i]['type'] == 'hidden'){
@@ -462,7 +463,7 @@ function header(structure){
 		string += '</td>';
 	}
 	if (structure['action'] && structure['action']['length'] && structure['action']['usage'] == 'Yes'){
-		string += '<td class="header-center" width="1%" nowrap>Action</td>';
+		string += '<td class="header-center" width="1%" nowrap>' + _('Action') + '</td>';
 	}
 	string += '</tr>';
 
@@ -574,7 +575,7 @@ function edit(layer, index, id){
 
 function openwindow(layer, width, height, xtraParams){
 	if (!width){
-		width = 600;
+		width = 640;
 	}	
 	if (!height){
 		height = 500
@@ -656,13 +657,13 @@ function add(layer, index, parentlayer){
 		if (msg.charAt(msg.length-1) == 's'){
 			msg = msg.substr(0, msg.length-1);
 		}
-		alert(msg + " already exists.");
+		alert(msg + _(" already exists."));
 	}
 	remove(layer, index);
 	if (layers[layer].structure.data.length > 0){
-		display("count", layers[layer].structure.data.length + " matching entries:"	);
+		display("count", layers[layer].structure.data.length + _(" matching entries:"	));
 	}else{
-		display("count", "No matching entries");
+		display("count", _("No matching entries"));
 	}
 }
 

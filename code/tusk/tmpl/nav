@@ -35,7 +35,7 @@ $type_path => undef
 	my $nav_items = (ref($initial_nav_bar) eq "ARRAY") ? $initial_nav_bar : $m->comp("/tmpl/url:get_initial_nav_bars");
 
 	if (!defined($hierarchy->{$page_token})) { 
-		$m->print("Need to have valid page_token, received : $page_token");
+		$m->print(__x("Need to have valid page_token, received : {page_token}", page_token => $page_token));
 		return;
 	}
 
@@ -46,7 +46,7 @@ $type_path => undef
 			my ($url, $label, $extra, $extra_path) = @{$urls->{$page}}{'link','label','extra', 'extra_path'};
 
 			if (!defined($url)){
-				$m->print("The entity for page $page is not defined");
+				$m->print(__x("The entity for page {page} is not defined", page => $page));
 				return;
 			} else {
 				my $href = $prefix . "/" . $url . "/" . $type_path;
@@ -60,12 +60,12 @@ $type_path => undef
 		my $func = $title_func->{$ent}; 
 
 		if (!defined($func)){
-			$m->print("The function for entity $ent is not defined");
+			$m->print(__x("The function for entity {ent} is not defined", ent => $ent));
 			return;
 		}
 
 		if (!defined($objects->{$ent})){
-			$m->print("Missing necessary object for entity $ent");
+			$m->print(__x("Missing necessary object for entity {ent}", ent => $ent));
 			return;
 		}
 
@@ -73,11 +73,11 @@ $type_path => undef
 		my $id_string = "";
 		foreach my $depend (@{$nav_entities_dependency->{$page}->{'depend'}}){
 			if (!defined($objects->{$depend})){
-				$m->print("Missing necessary object for entity $depend in id generation");
+				$m->print(__x("Missing necessary object for entity {depend} in id generation", depend => $depend));
 				return;
 			}
 			unless ($objects->{$depend}->getPrimaryKeyID()){
-				$m->print("The Dependency $depend for the URL is not defined");
+				$m->print(__x("The Dependency {depend} for the URL is not defined", depend => $depend));
 			}
 			$id_string .= "/" . $objects->{$depend}->getPrimaryKeyID();
 		}
@@ -87,7 +87,7 @@ $type_path => undef
 		### suffix can be used but be careful if you pass an empty object, see below
 		foreach my $suffix (@{$nav_entities_dependency->{$page}->{'suffix'}}){
 			if (!defined($objects->{$suffix})){
-				$m->print("Missing necessary object for entity $suffix");
+				$m->print(__x("Missing necessary object for entity {suffix}", suffix => $suffix));
 				return;
 			}
 			## handle case that the suffix might not be needed  ie caller passes an empty object

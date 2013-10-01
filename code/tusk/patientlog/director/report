@@ -151,7 +151,7 @@
 <& $report_template &>
 </table>
 % 	} else {
-<div align="center">No results</div>
+<div align="center"><%__("No results")%></div>
 % 	}
 </%method>
 
@@ -175,7 +175,7 @@
 			$qstring =~ s/&*uid=[A-z0-9]*//;
 			$qstring = '?' . $qstring if ($qstring);
 		}
-	 	$nav =  "<a href=\"/patientlog/director/report/$type_path/$form_id" . $qstring . "\">Course Summary</a> &gt;";
+	 	$nav =  "<a href=\"/patientlog/director/report/$type_path/$form_id" . $qstring . "\">".__("Course Summary")."</a> &gt;";
 	}
 
 
@@ -190,37 +190,37 @@
 
 		my $site = HSDB45::TeachingSite->new(_school => $course->get_school()->getSchoolName(), _id => $params{tsid});
 		if ($params{rtype} eq 'ts') {
-			$nav .=	 ' <span class="bold_emphasis_font">Site Summary: ' . $site->site_name() . '</span>'; 
+			$nav .=	 ' <span class="bold_emphasis_font">'.__('Site Summary').': ' . $site->site_name() . '</span>'; 
 		} else {
 			my $qstring = $concat_extra_query_string;
 			$qstring =~ s/&*uid=[A-z0-9]*//;
 			if (ref $site eq 'HSDB45::TeachingSite' && $site->primary_key()) {
-				$nav .= " <a href=\"/patientlog/director/report/$type_path/$form_id?rtype=ts$qstring\">Site Summary: " . $site->site_name() . "</a> &gt;";
+				$nav .= " <a href=\"/patientlog/director/report/$type_path/$form_id?rtype=ts$qstring\">".__("Site Summary").": " . $site->site_name() . "</a> &gt;";
 			}
 		}
-		$nav .= " <span class=\"bold_emphasis_font\">Student Summary: $results->{fullname}" if ($params{rtype} eq 'ss');
+		$nav .= " <span class=\"bold_emphasis_font\">".__("Student Summary").": $results->{fullname}" if ($params{rtype} eq 'ss');
 	}
 </%perl>
 
 
 
 <div>
-Time Period(s): <% $report->displayTimePeriods() %><br/>
+<%__("Time Period(s)")%>: <% $report->displayTimePeriods() %><br/>
 <% $nav %>
 </div>
 
 <div id="plogNavs" class="outerNav">
 <ul class="gTabNav allInactive"> 
 % my $extra = "rtype=$params{rtype}" . $concat_extra_query_string;
-	<li class="<% ($params{fid} || $params{comments} || $params{logs}) ? '' : 'gCurColorPage' %>"><a href="/patientlog/director/report/<% $type_path %>/<% $form_id %>?<% $extra %>">Summary</a></li>
+	<li class="<% ($params{fid} || $params{comments} || $params{logs}) ? '' : 'gCurColorPage' %>"><a href="/patientlog/director/report/<% $type_path %>/<% $form_id %>?<% $extra %>"><%__("Summary")%></a></li>
 %	foreach my $field (@{$fields}) {
     <li class="<% ($params{fid} && $params{fid} == $field->getPrimaryKeyID()) ? 'gCurColorPage' : '' %>"><a href="/patientlog/director/report/<% $type_path . '/'. $form_id . '?fid=' . $field->getPrimaryKeyID() . '&' . $extra %>" target="_top"><% $field->getFieldName() %></a></li>
 %	}
 %	if ($has_comments) {
-	<li class="<% ($params{comments}) ? 'gCurColorPage' : '' %>"><a href="/patientlog/director/report/<% $type_path . '/'. $form_id . '?comments=1&' . $extra  %>" target="_top">Comments</a></li>
+	<li class="<% ($params{comments}) ? 'gCurColorPage' : '' %>"><a href="/patientlog/director/report/<% $type_path . '/'. $form_id . '?comments=1&' . $extra  %>" target="_top"><%__("Comments")%></a></li>
 %	}
 %	if ($params{rtype} eq 'ss') {
-	<li class="<% ($params{logs}) ? 'gCurColorPage' : '' %>"><a href="/patientlog/director/report/<% $type_path . '/'. $form_id . '?logs=1&' . $extra  %>" target="_top">Logs</a></li>
+	<li class="<% ($params{logs}) ? 'gCurColorPage' : '' %>"><a href="/patientlog/director/report/<% $type_path . '/'. $form_id . '?logs=1&' . $extra  %>" target="_top"><%__("Logs")%></a></li>
 %	}
 </ul>
 </div>
@@ -264,7 +264,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 %	}
 
 <tr class="header">
-<th align="left">Total</th>
+<th align="left"><%__("Total")%></th>
 <td align="center"><% $results->{total}[0] %></td>
 <td align="center"><% $results->{total}[1] %></td>
 <td align="center"><% $results->{total}[2] %>%</td>
@@ -276,16 +276,10 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <%def courseSummaryByField>
 % my $columns = ($params{view} eq 'allsites') ? 3 : scalar @{$results->{items}};
 <& SELF:fieldViewNav, columns => $columns, field_id => $params{fid} &>
-% my $labels;
-%		if (defined $results->{attribute_items} && scalar @{$results->{attribute_items}}) {
-%			$labels = [ '# Patients Seen','# Students Reporting', '% Students Reporting', '% Students'];
-%		}
-%		else {
-%			$labels = [ '# Patients Seen','# Students Reporting', '% Students Reporting'];
-%		}
+% my $labels = [ __('# Patients Seen'),__('# Students Reporting'), __('% Students Reporting')];
 
 % if ($params{view} eq 'allsites') { ## ALL SITES
-<tr><td colspan="<% $columns %>">Total Number of Students: &nbsp; <% $results->{total_students} %></td></tr>
+<tr><td colspan="<% $columns %>"><%__("Total Number of Students")%>: &nbsp; <% $results->{total_students} %></td></tr>
 % 	if ($results->{contains_category}) {
 <& SELF:showHideButtonRow, columns => $columns &>
 % 	} else {
@@ -422,14 +416,14 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 </%method>
 
 <%def siteSummary>
-<tr><td colspan="2">Total Number of Students: &nbsp; <% $results->{all_students} %></td></tr>
-<tr><td colspan="2">Total Number of Students Reporting: &nbsp; <% $results->{report_students} %></td></tr>
-<tr><td colspan="2">Total Number of Patients Seen: &nbsp; <% $results->{all_patients} %><br/><br/></td></tr>
+<tr><td colspan="2"><%__("Total Number of Students")%>: &nbsp; <% $results->{all_students} %></td></tr>
+<tr><td colspan="2"><%__("Total Number of Students Reporting")%>: &nbsp; <% $results->{report_students} %></td></tr>
+<tr><td colspan="2"><%__("Total Number of Patients Seen")%>: &nbsp; <% $results->{all_patients} %><br/><br/></td></tr>
 <tr class="header">
-<th style="padding:0 10px 0 10px;" align="left">Students</th>
-<th style="padding:0 10px 0 10px;"># Patients Seen</th>
+<th style="padding:0 10px 0 10px;" align="left"><%__("Students")%></th>
+<th style="padding:0 10px 0 10px;"><%__("# Patients Seen")%></th>
 % 	if ( $form->getRequireApproval() ) {
-<th style="padding:0 10px 0 10px;">Approved</th>
+<th style="padding:0 10px 0 10px;"><%__("Approved")%></th>
 %	}
 </tr>
 % 	my $i = 0;
@@ -439,7 +433,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <td class="line-center"><% $row->[2] %></td>
 % 	if ( $form->getRequireApproval() ) {
 %		my $approval = TUSK::Core::PatientLogApproval->new()->lookupReturnOne( "user_id = '" . $row->[0] . "' and form_id = '" . $form_id . "'" );
-%		my $app_string = ($approval ? '<span style="color: green;">Yes : ' . $approval->getApprovedBy . ' : ' . $approval->getApprovalTime . '</span>' : '<span style="color: red;">No</span>');
+%		my $app_string = ($approval ? '<span style="color: green;">'.__('Yes').' : ' . $approval->getApprovedBy . ' : ' . $approval->getApprovalTime . '</span>' : '<span style="color: red;">'.__('No').'</span>');
 <td class="line-center"><% $app_string %></td>
 %	}
 </tr>
@@ -448,8 +442,8 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 </%def>
 
 <%def siteFieldSummaryByStudent>
-<tr><td>Total Number of Students: &nbsp;<% $results->{total_students} %></td></tr>
-<tr><td>Total Number of Students Reporting: &nbsp;<% $results->{reporting_students} %>&nbsp;<span style="font-size:85%;color:gray;">(<% sprintf("%.0f%", $results->{reporting_students}/$results->{total_students}*100) %>)</span></td></tr>
+<tr><td><%__("Total Number of Students")%>: &nbsp;<% $results->{total_students} %></td></tr>
+<tr><td><%__("Total Number of Students Reporting")%>: &nbsp;<% $results->{reporting_students} %>&nbsp;<span style="font-size:85%;color:gray;">(<% sprintf("%.0f%", $results->{reporting_students}/$results->{total_students}*100) %>)</span></td></tr>
 <tr>
 <td>
 <div class="tablediv">
@@ -487,9 +481,9 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 
 	## set up row header array
 	my $rowheaders;
-	push(@$rowheaders, {id => "total_seen", name => "# Patients Seen", class => "summary"});
-	push(@$rowheaders, {id => "total_reporting", name => "# Students Reporting", class => "summary"});
-	push(@$rowheaders, {id => "percent_reporting", name => "% Students Reporting", class => "summary"});
+	push(@$rowheaders, {id => "total_seen", name => __("# Patients Seen"), class => "summary"});
+	push(@$rowheaders, {id => "total_reporting", name => __("# Students Reporting"), class => "summary"});
+	push(@$rowheaders, {id => "percent_reporting", name => __("% Students Reporting"), class => "summary"});
 	foreach my $row (@{$results->{rows}}) {
 		push(@$rowheaders, {id => $row->primary_key, name => $row->out_lastfirst_name()});
 	}
@@ -529,11 +523,11 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 
 
 <%def studentSummary>
-<tr><td colspan="4">Total Number of Patients Seen: &nbsp; <% $results->{num_patients} %><br/><br/></td></tr>
+<tr><td colspan="4"><%__("Total Number of Patients Seen")%>: &nbsp; <% $results->{num_patients} %><br/><br/></td></tr>
 <tr class="header"><th>&nbsp;</th>
-<th style="padding:0 10px 0 10px;"># Total</th>
-<th style="padding:0 10px 0 10px;"># Distinct</th>
-<th style="padding:0 10px 0 10px;"># Patients Seen</th></tr>
+<th style="padding:0 10px 0 10px;"><%__("# Total")%></th>
+<th style="padding:0 10px 0 10px;"><%__("# Distinct")%></th>
+<th style="padding:0 10px 0 10px;"><%__("# Patients Seen")%></th></tr>
 
 % foreach my $field (@{$results->{fields}}) {
 %	my $field_id = $field->getPrimaryKeyID();
@@ -563,9 +557,9 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <tr>
 	<td colspan="4" align="center"><br /><br />
 %	if ( $approval ) {
-		<span style="color: green;">Approved : <% $approval->getApprovedBy %> : <% $approval->getApprovalTime %></span><br /><br /><input type="button" class="formbutton" value="Update Approval" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
+		<span style="color: green;"><%__("Approved")%> : <% $approval->getApprovedBy %> : <% $approval->getApprovalTime %></span><br /><br /><input type="button" class="formbutton" value="<%__("Update Approval")%>" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
 %	} else {
-		<span style="color: red;">Not yet approved</span><br /><br /><input type="button" class="formbutton" value="Approve Logs" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
+		<span style="color: red;"><%__("Not yet approved")%></span><br /><br /><input type="button" class="formbutton" value="<%__("Approve Logs")%>" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
 %	}
 	</td>
 </tr>
@@ -574,15 +568,15 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 
 
 <%def studentSummaryByField>
-% 	my $labels = ['# Patients Seen'];
+% 	my $labels = [__('# Patients Seen')];
 
-<tr><td colspan="<% scalar @$labels + 1 %>">Total Number of Patients Seen: &nbsp; <% $results->{num_patients} %><br/></td></tr>
+<tr><td colspan="<% scalar @$labels + 1 %>"><%__("Total Number of Patients Seen")%>: &nbsp; <% $results->{num_patients} %><br/></td></tr>
 
 % 	if ($results->{items_with_category}) {
 <& SELF:showHideButtonRow, columns => scalar @$labels &>
 %	} else {
 %		my $colspan = (defined $results->{attribute_items}) ? scalar @{$results->{attribute_items}} : 1;
-<tr class="header"><th>&nbsp;</th><th style="padding:0 10px 0 10px;" colspan="<% $colspan %>"># Patients Seen</th></tr>
+<tr class="header"><th>&nbsp;</th><th style="padding:0 10px 0 10px;" colspan="<% $colspan %>"><%__("# Patients Seen")%></th></tr>
 % 	}
 
 %	if (defined $results->{attribute_items} && scalar @{$results->{attribute_items}}) {
@@ -612,10 +606,10 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 
 
 <%def logSummary>
-<div>Total Number of Patients Seen: &nbsp; <% $results->{num_reports} %></div>
+<div><%__("Total Number of Patients Seen")%>: &nbsp; <% $results->{num_reports} %></div>
 <br/>
 <table border="0" cellspacing="0" cellpadding="0" width="100%" class="tusk">
-<tr class="header"><th align="left">Date</th><th align="left">Field</th><th align="left" style="padding-left:20px;">Response</th></tr>
+<tr class="header"><th align="left"><%__("Date")%></th><th align="left"><%__("Field")%></th><th align="left" style="padding-left:20px;"><%__("Response")%></th></tr>
 % foreach my $date (@{$results->{rows}}) {
 % 	foreach my $entry_id (keys %{$results->{data}{$date}}) {
 %		my $j = 0;
@@ -658,9 +652,9 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <tr>
 	<td colspan="3" align="center"><br /><br />
 %	if ( $approval ) {
-		<span style="color: green;">Approved : <% $approval->getApprovedBy %> : <% $approval->getApprovalTime %></span><br /><br /><input type="button" class="formbutton" value="Update Approval" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
+		<span style="color: green;"><%__("Approved")%> : <% $approval->getApprovedBy %> : <% $approval->getApprovalTime %></span><br /><br /><input type="button" class="formbutton" value="<%__("Update Approval")%>" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
 %	} else {
-		<span style="color: red;">Not yet approved</span><br /><br /><input type="button" class="formbutton" value="Approve Logs" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
+		<span style="color: red;"><%__("Not yet approved")%></span><br /><br /><input type="button" class="formbutton" value="<%__("Approve Logs")%>" onclick="window.location='/patientlog/director/report/<% $type_path . '/'. $form_id . '?approve=1&' . $params_str %>';" /><br /><br />
 %	}
 	</td>
 </tr>
@@ -689,7 +683,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 %		foreach my $category (@{$results->{categorized_items}}) {
 %			push(@$options, { label => $category->{category_name}, value => 'reportdiv' . $tablecounter++});
 %		}
-<label for="showhidetable">Select a category to display:</label>
+<label for="showhidetable"><%__("Select a category to display")%>:</label>
 <& /tmpl/element:dropdown, params => { 
 	name => "showhidetable",
 	selected => "reportdiv1",
@@ -699,7 +693,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 	onchange => "showhidetable(this.value)",
 	options =>  $options } &>
 <& /tmpl/element:button, params=>{
-	label => "show all",
+	label => __("show all"),
 	onclick => "showhidetable('all')",
 	name => "showhidebutton" } &>
 </fieldset>
@@ -771,7 +765,7 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <& /tmpl/element:button, params => {
 			class		=> 'formbutton',
 			onclick		=> "showHideRows(this)",
-			label		=> "Show 'Should See' only", 
+			label		=> __("Show 'Should See' only"), 
 			name		=> 'showhiderows'} &>
 </td></tr>
 </%method>
@@ -857,13 +851,13 @@ Time Period(s): <% $report->displayTimePeriods() %><br/>
 <%method right_header_text>
 <%perl>
 	my $links = [ 
-		{ url => '', onclick => "window.open('/hsdb4/content/" . $TUSK::Constants::HelpMap{PatientLogs} . "');return false;", txt => "Help" },
-		{ url => '', onclick => "window.open('/patientlog/preview/" . $m->comp("/tmpl/url:get_type_path") . '/'. $m->comp('/tmpl/url:get_last_path_id') . "');return false;", txt => "Preview" },
+		{ url => '', onclick => "window.open('/hsdb4/content/" . $TUSK::Constants::HelpMap{ PatientLogs } . "');return false;", txt => __("Help") },
+		{ url => '', onclick => "window.open('/patientlog/preview/" . $m->comp("/tmpl/url:get_type_path") . '/'. $m->comp('/tmpl/url:get_last_path_id') . "');return false;", txt => __("Preview") },
 		{ url => '/patientlog/director/export/' . $m->comp("/tmpl/url:get_type_path") . "/$form_id?rtype=$params{rtype}" . $concat_extra_query_string, txt => "Export" },
 	];
 	if ($params{rtype} eq 'ts') {
 		unless (ref $params{tpid} eq 'ARRAY') {
-			push @$links, { url => '/patientlog/director/export/' . $m->comp("/tmpl/url:get_type_path") . "/$form_id?rtype=ssc" . $concat_extra_query_string, txt => "Export All Students" },
+			push @$links, { url => '/patientlog/director/export/' . $m->comp("/tmpl/url:get_type_path") . "/$form_id?rtype=ssc" . $concat_extra_query_string, txt => __("Export All Students") },
 		}
 	}
 	return $links;

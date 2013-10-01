@@ -1,0 +1,51 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%once>
+	use HSDB4::DateTime;
+	use TUSK::User::AnnouncementHide;
+	use TUSK::Core::School;
+</%once>
+
+<%perl>
+	my $user = $m->session->{'user'};
+	my $announcements = TUSK::User::AnnouncementHide::get_nonhidden_announcements_by_school($user->primary_key());
+	my $schoolObj = TUSK::Core::School->new();
+
+	# loop through user's visible announcements
+	foreach my $school (keys %$announcements) {
+		my $school_id = $schoolObj->getSchoolID($school);
+		foreach my $ann_id (keys %{$announcements->{$school}}) {
+			my $annHideObj = TUSK::User::AnnouncementHide->new();
+			my $conditions = "user_id = '" . $user->primary_key() . "' AND announcement_id = '$ann_id' AND school_id = '$school_id'";
+
+			# does the user already have a row for this announcement?
+			# if so, update; if not, create a new entry
+			if ($annHideObj->exists($conditions)) {
+				$annHideObj = $annHideObj->lookupReturnOne($conditions);
+			}
+			$annHideObj->setUserID($user->primary_key());
+			$annHideObj->setAnnouncementID($ann_id);
+			$annHideObj->setSchoolID($school_id);
+			$annHideObj->setHideOn(HSDB4::DateTime->new()->out_mysql_timestamp());
+			$annHideObj->save();
+		}
+	}
+</%perl>

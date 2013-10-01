@@ -19,6 +19,8 @@
 	use TUSK::FormBuilder::Entry;
 	use HSDB4::DateTime;
 	use TUSK::Application::FormBuilder::DynamicList;
+	use HTML::Entities;
+	use JSON;
 </%once>
 
 
@@ -76,12 +78,12 @@
 
 		if ($has_save_button) {
 			if ($args->{save_submit}) { 	
-				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => 'Successfully Saved'));
+				$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => __('Successfully Saved')));
 			} elsif ($args->{form_submit}) {  
 				if ($args->{err_process_msg}) {
 					$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, msgtype => 'errmsg', msg => join('<br/>', @{$args->{err_process_msg}})));
 				} else {
-					$m->comp('SELF:redirect', url => $redirect_submit_url, msg => 'Successfully Submitted', extra => $extra);
+					$m->comp('SELF:redirect', url => $redirect_submit_url, msg => __('Successfully Submitted'), extra => $extra);
 				}
 			}
 		} else {
@@ -89,16 +91,16 @@
 				if ($args->{entry_id}){  
 					my $eidmsg; 
 					if (ref($args->{entry_id}) eq 'ARRAY') {
-						$eidmsg = "Entry Updated&entry_id=".$args->{entry_id}[0]; 
+						$eidmsg = __("Entry Updated")."&entry_id=".$args->{entry_id}[0]; 
 					} else {
-						$eidmsg = "Entry Updated&entry_id=".$args->{entry_id}; 
+						$eidmsg = __("Entry Updated")."&entry_id=".$args->{entry_id}; 
 					}
 	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => $ENV{SCRIPT_NAME}, 'extra' => $extra, 'msg' => $eidmsg ));
 				} else {      
 					if ($args->{err_proces_msg}) {
 						$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $ENV{SCRIPT_NAME}, msgtype => 'errmsg',  msg => join('<br/>', @{$args->{err_process_msg}})));
 					} else {
-						$m->comp('SELF:redirect', url => $redirect_submit_url, msg => "Successfully Submitted&entry_id=$new_entry_id", extra => $extra);
+						$m->comp('SELF:redirect', url => $redirect_submit_url, msg => __("Successfully Submitted")."&entry_id=$new_entry_id", extra => $extra);
 					}
 				}
 			}
@@ -113,76 +115,83 @@
 
 <%method showform>
 <%args>
-	$args
-	$form
-	$date_label => ''
-	$dynamic_components => []
-	$button_component => undef
-	$onsubmit => ""
-	$read_access => 0
+    $args
+    $form
+    $date_label => ''
+    $dynamic_components => []
+    $button_component => undef
+    $onsubmit => ''
+    $read_access => 0
 </%args>
 
 <%perl>
-	my $fields = $form->getFields();
-	my $js_arrayref = [];
+my $fields = $form->getFields();
+my @fields_to_check;
 
-	foreach my $field (@$fields) {
-		next if ($field->getRequired() and $args->{hide_required});
-		if ($field->getFieldTypeToken() eq "SingleSelect"  || $field->getFieldTypeToken() eq "CheckList") {
-			if ($field->getRequired()) {
-				my $message = $field->getFieldName();
-				$message =~ s/'/\\'/g;
-				if ($field->getFieldTypeToken() eq "SingleSelect") {
-					push (@$js_arrayref, "{id:'id_" . $field->getPrimaryKeyID() . "', message:'" . $message . "'}");
-				} elsif ($field->getFieldTypeToken() eq "CheckList") {
-					push (@$js_arrayref, "{id:'checklist_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");
-				}
-			}
-		} elsif ($field->getFieldTypeToken() eq 'SingleSelectAllowMulti') {
-			my $message = $field->getFieldName();
-			$message =~ s/'/\\'/g;
-			push (@$js_arrayref, "{id:'text_id_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");			
-	
-		} elsif ($field->getFieldTypeToken() eq 'MultiSelectWithAttributes') {
-			my $message = $field->getFieldName();
-			$message =~ s/'/\\'/g;
-			push (@$js_arrayref, "{id:'multiwithattr_" .  $field->getPrimaryKeyID() . "', message:'" . $message . "'}");			
-		}
-	}
+my %ID_STRING_FOR = (
+    FillIn => 'id_%d',
+    SingleSelect => 'id_%d',
+    SingleSelectAllowMulti => 'text_id_%d',
+    MultiSelectWithAttributes => 'multiwithattr_%d',
+    Essay => 'id_%d',
+    DynamicList => 'id_%d',
+    CheckList => 'checklist_%d',
+);
 
-	my $jsoutput = join(", ", @$js_arrayref);
-	$onsubmit = "check_required_fields" unless ($onsubmit);
-	$onsubmit = "return " . $onsubmit . "(this, [$jsoutput])";
+foreach my $field (@$fields) {
+    next if ( ! $field->getRequired() );
+    next if ( $field->getRequired() and $args->{hide_required} );
 
-	my $entry;
-	my $response_hash = {};
+    my $fid = $field->getPrimaryKeyID();
+    my $tok = $field->getFieldTypeToken();
+    my $message = $field->getFieldName();
 
-	if ($args->{entry_id}){
-		$entry = TUSK::FormBuilder::Entry->new()->lookupKey($args->{entry_id});
-		if (!$entry || !$entry->getPrimaryKeyID() || ($read_access && $entry->getUserID() ne $m->session->{'user'}->user_id())){
-			$m->comp("/tmpl/url:redirect",message => "You do not have access to that entry.");
-		}
-		
-		my $responses = $entry->getFullResponses();
+    next if (! exists $ID_STRING_FOR{$tok});
 
-		foreach my $response (@$responses){
-			push (@{$response_hash->{ $response->getFieldID() }}, $response);
-		}
-		$args->{selected_time_period_id} = $entry->getTimePeriodID();		
-	}
+    push @fields_to_check, { id => sprintf($ID_STRING_FOR{$tok}, $fid),
+                             message => $message };
+}
+
+my $check_fields_json = to_json(\@fields_to_check);
+my $check_fields_html = encode_entities($check_fields_json);
+$onsubmit ||= 'check_required_fields';
+$onsubmit = "return $onsubmit(this, $check_fields_html)";
+
+my $entry;
+my $response_hash = {};
+
+if ($args->{entry_id}) {
+    $entry = TUSK::FormBuilder::Entry->new()->lookupKey($args->{entry_id});
+    if (!$entry
+            || !$entry->getPrimaryKeyID()
+            || ($read_access
+                    && ($entry->getUserID()
+                            ne $m->session->{user}->user_id()))) {
+        $m->comp("/tmpl/url:redirect",
+                 message => __("You do not have access to that entry."));
+    }
+                
+    my $responses = $entry->getFullResponses();
+
+    foreach my $response (@$responses) {
+        push @{$response_hash->{ $response->getFieldID() }}, $response;
+    }
+    $args->{selected_time_period_id} = $entry->getTimePeriodID();           
+}
 </%perl>
 
 <& /tmpl/element:form, params => {
-	method => 'POST',
-	onsubmit => $onsubmit,
-	name => 'myform' } &>
-<input type="hidden" name="check_required" id="check_required" value="1" class="no-padding">
+        method => 'POST',
+        onsubmit => $onsubmit,
+        name => 'myform' } &>
+<input type="hidden" name="check_required"
+    id="check_required" value="1" class="no-padding">
 
 <& /tmpl/element:table, params => { width => "100%",
                 border =>"0",
                 cellspacing =>"0",
                 cellpadding =>"0" } &>
-% if ($form->getFormDescription()){
+% if ($form->getFormDescription()) {
 <tr> 
 <td colspan="2" class="no-button">
 <span class="sm"><% $form->getFormDescription() %><br><br></span>
@@ -190,33 +199,37 @@
 </tr>
 % }
 
-%	foreach my $comp (@$dynamic_components){
-%		$m->comp($comp, form => $form, args => $args);
-%	}
+%       foreach my $comp (@$dynamic_components) {
+%               $m->comp($comp, form => $form, args => $args);
+%       }
 
-% 	if ($date_label and !$args->{hide_required}) {
-<& /tmpl/element:textbox, params =>{ 
-		label 		=> $date_label,
-		name        => 'encounter_date',
-		value       => ($args->{entry_id}) ? $entry->getDate() : HSDB4::DateTime->new()->out_mysql_date(),
-		size        => 10,
-		maxlength   => 10,
-		calendar    => 1,
+%       if ($date_label and !$args->{hide_required}) {
+<& /tmpl/element:textbox, params => {
+    label       => $date_label,
+    name        => 'encounter_date',
+    value       => ($args->{entry_id}) ? $entry->getDate()
+        : HSDB4::DateTime->new()->out_mysql_date(),
+    size        => 10,
+    maxlength   => 10,
+    calendar    => 1,
 } &>
-% 	}
+%       }
 
-<& "/formbuilder/display:fields", fields => $fields, hide_required => $args->{hide_required}, response_hash => $response_hash &>
+<& "/formbuilder/display:fields",
+    fields => $fields,
+    hide_required => $args->{hide_required},
+    response_hash => $response_hash &>
 
-% 	if ($button_component) {
+%       if ($button_component) {
 <& $button_component &>
 % } else {
 <& /tmpl/element:save_button, params => {
-	label 		=> 'Submit', 
-	name		=> 'form_submit', 
-	onmouseup	=> 'this.blur();', 
-	'no_cancel_button' => 1,
+        label           => __('Submit'), 
+        name            => 'form_submit', 
+        onmouseup       => 'this.blur();', 
+        'no_cancel_button' => 1,
 } &>
-% 	}
+%       }
 
 </table>
 </form>
@@ -238,11 +251,11 @@
 	my %sites = map { $_->primary_key() => $_ } HSDB45::TeachingSite->new(_school => $course->school())->lookup_conditions('teaching_site_id in (' . join(', ', values %periods_sites) . ')');
 
 	my $options = [];
-	push @$options, { label => 'Select', value => 0 };
+	push @$options, { label => __('Select'), value => 0 };
     if (%sites) {
 		foreach my $tp (@time_periods) {
 			push @$options, {
-				label => (($sites{$periods_sites{$tp->primary_key()}}) ? $sites{$periods_sites{$tp->primary_key()}}->site_name() : ' No Site ') . ' &nbsp;[' . $tp->out_display() . ']',
+				label => (($sites{$periods_sites{$tp->primary_key()}}) ? $sites{$periods_sites{$tp->primary_key()}}->site_name() : ' '.__('No Site ')) . ' &nbsp;[' . $tp->out_display() . ']',
 				value => $tp->primary_key(),
 			};		
 		}
@@ -254,7 +267,7 @@
 </script>
 
 <& /tmpl/element:dropdown, params => { 
-	label => 'Site and Time Period',
+	label => __('Site and Time Period'),
 	selected => $args->{selected_time_period_id},
 	name => 'time_period_id',
 	options => $options,
@@ -408,7 +421,7 @@
 	$response
 </%args>
 % my $abbreviation = ($field->getAbbreviation()) ? '&nbsp;' . $field->getAbbreviation() : "";
-<& "SingleSelect", field => $field, response => $response, extra_trailing_text => '<span id="dont_copy" style="margin-left:10px;vertical-align:middle;"><a href="javascript:" class="navsm" onclick="return add(\'singleselect_' . $field->getPrimaryKeyID() . '\');">Add Another' . $abbreviation . '</a></span>' &>
+<& "SingleSelect", field => $field, response => $response, extra_trailing_text => '<span id="dont_copy" style="margin-left:10px;vertical-align:middle;"><a href="javascript:" class="navsm" onclick="return add(\'singleselect_' . $field->getPrimaryKeyID() . '\');">'.__('Add Another') . $abbreviation . '</a></span>' &>
 </%def>
 
 <%def MultiSelect>
@@ -424,7 +437,7 @@
 	$field
 	$response
 </%args>
-% my $required = ($field->getRequired()) ? ' &nbsp;<span style="font-size:80%;color:red">(required)</span>' : '';
+% my $required = ($field->getRequired()) ? ' &nbsp;<span style="font-size:80%;color:red">('.__('required').')</span>' : '';
 <& /tmpl/element:flexible_tr, params => { 
 	label => $field->getFieldName() . $required } &>
 <div class="checklistdiv">
@@ -541,12 +554,12 @@
 				<td id="td' . $cid . '" class="sm" style="width:60%;border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td>';
 
 				if($cid > 0) {
-						$response_text .= '<td align="right" style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"><a href="" class="navsm" id="a' . $cid . '" onClick="toggle_links(' . $field->getPrimaryKeyID . ',' . $cid . ');return false;">Show Links</a></td>';
+						$response_text .= '<td align="right" style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"><a href="" class="navsm" id="a' . $cid . '" onClick="toggle_links(' . $field->getPrimaryKeyID . ',' . $cid . ');return false;">'.__('Show Links').'</a></td>';
 				}else {
 						$response_text .= '<td style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"></td>';
 				}
 
-				$response_text .= '<td class="sm" align="right" style="width:15%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>Delete</td></tr>';
+				$response_text .= '<td class="sm" align="right" style="width:15%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>'.__('Delete').'</td></tr>';
 
 			}
 			$response_text .= '</table>';
@@ -562,7 +575,7 @@
 <div class="multiselectdiv"<% ($height) ? ' style="height:' . $height . 'px"' : '' %>>
 %	my $attributes = $field->getAttributes();
 %	my $field_id = $field->getPrimaryKeyID();
-<input type="hidden" id="attributes_<% $field_id %>" name="attributes_$field_id" value="<% scalar @$attributes %>">
+<input type="hidden" id="attributes_<% $field_id %>" name="attributes_<% $field_id %>" value="<% scalar @$attributes %>">
 <table width="99%" cellspacing="0" cellpadding="5">
 <%perl>
 	foreach my $item (@$items){

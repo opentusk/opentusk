@@ -1710,10 +1710,11 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 	$allchecked => ''
 	$showcheckall => 1
 	$onclickcheckall => 'checkUncheckAllMulti'  ###  formbuilder.js  REQUIRED if using checkall
+	$disabled => 0
 </%args>
 <%perl>
 	if ($showcheckall && scalar @$objects > 1) {
-		$m->print("&nbsp;<input type=\"checkbox\" name=\"checkall_$checkboxname\" onclick=\"$onclickcheckall(document\.$formname\.$checkboxname, document\.$formname\.checkall_$checkboxname);\" $allchecked/><span class=\"xsm\">select/unselect all</span><br/>");
+		$m->print("&nbsp;<input type=\"checkbox\" name=\"checkall_$checkboxname\" onclick=\"$onclickcheckall(document\.$formname\.$checkboxname, document\.$formname\.checkall_$checkboxname);\"" . (($disabled) ? " disabled=\"disabled\"" : "") . " $allchecked/><span class=\"xsm\">select/unselect all</span><br/>");
 	}
 
 	$columns = (scalar @$objects == 4 && !defined $columns) ? 2 : 3;
@@ -1723,7 +1724,7 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 		my $onclick = (defined $obj->{onclick}) ? $obj->{onclick} : "checkUncheckAllUpdate(document\.$formname\.$checkboxname, document\.$formname.checkall_$checkboxname)";
 		$m->print("<td><input type=\"checkbox\" name=\"$obj->{name}\" value=\"$obj->{value}\" label=\"$obj->{label}\" onclick=\"$onclick\"");
 		$m->print(" checked") if $obj->{checked};
-		$m->print("><span class=\"xsm\">$obj->{label}</span></td>");
+		$m->print((($disabled) ? " disabled=\"disabled\"" : "") . "><span class=\"xsm\">$obj->{label}</span></td>");
 		$m->print("</tr>\n<tr>") if $i % $columns == 0;
 		$i++;
 	}
