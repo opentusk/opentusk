@@ -130,40 +130,59 @@ sub _build_xml_content {
                  AssessmentMethod ) ];
 }
 
+sub _build_id {
+    my $self = shift;
+    return $self->dao->primary_key;
+}
+
 sub _build_Title {
     my $self = shift;
+    my $title = $self->dao->title || 'Untitled Event';
+    return $title;
 }
 
 sub _build_EventDuration {
     my $self = shift;
+    my $start = $self->dao->start_time;
+    my $end = $self->dao->end_time;
+    return $self->_duration_string_from_mysql_times({
+        start => $start, end => $end
+    });
 }
 
 sub _build_Description {
     my $self = shift;
+    return undef;
 }
 
 sub _build_Keyword {
     my $self = shift;
+    return [];
 }
 
 sub _build_Interprofessional {
     my $self = shift;
+    return undef;
 }
 
 sub _build_CompetencyObjectReference {
     my $self = shift;
+    return [];
 }
 
 sub _build_ResourceType {
     my $self = shift;
+    return [];
 }
 
 sub _build_InstructionalMethod {
     my $self = shift;
+    return [];
 }
 
 sub _build_AssessmentMethod {
     my $self = shift;
+    return [];
 }
 
 
@@ -174,6 +193,27 @@ sub _build_AssessmentMethod {
 ###################
 # * Private methods
 ###################
+
+sub _duration_string_from_mysql_times {
+    my ($self, $arg_ref) = @_;
+    my $start = $arg_ref->{start};
+    my $end = $arg_ref->{end};
+    my ($hh1, $mm1) = $start =~ m{ \A (\d{2}) : (\d{2}) : \d{2}
+                                   (?: \. \d+)? \z }xms;
+    my ($hh2, $mm2) = $end   =~ m{ \A (\d{2}) : (\d{2}) : \d{2}
+                                   (?: \. \d+)? \z }xms;
+    my $minute_diff = 0 + $mm2 - $mm1;
+    my $hour_diff   = 0 + $hh2 - $hh1;
+    if ($minute_diff < 0) {
+        $hour_diff -= 1;
+        $minute_diff += 60;
+    }
+    my $duration_string = 'PT';
+    $duration_string .= $hour_diff . 'H' if $hour_diff;
+    $duration_string .= $minute_diff . 'M' if $minute_diff;
+    return $duration_string;
+}
+
 
 ###########
 # * Cleanup

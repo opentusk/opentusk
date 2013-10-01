@@ -34,6 +34,7 @@ use TUSK::Core::School;
 
 use MooseX::Types -declare => [
     qw(
+          ClassMeeting
           Medbiq_AcademicLevels
           Medbiq_Address
           Medbiq_Address_Category
