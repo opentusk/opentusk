@@ -1460,6 +1460,8 @@ sub is_user_author {
 my @CONTENT_EDIT_ROLES = (
     'Director',
     'Manager',
+    'Author',
+    'Editor',
     'Student Manager',
 );
 
