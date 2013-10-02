@@ -32,6 +32,8 @@ use TUSK::Medbiq::Namespaces ':all';
 use HSDB4::Constants;
 use HSDB45::ClassMeeting;
 use TUSK::Medbiq::Event;
+use TUSK::Medbiq::InstructionalMethod;
+use TUSK::Medbiq::AssessmentMethod;
 
 #########
 # * Setup
@@ -84,15 +86,16 @@ sub _build_xml_content { [ qw( Event ) ] }
 sub _build_Event {
     my $self = shift;
     my @class_meetings = $self->_class_meetings;
+    @class_meetings = grep { $self->_keep_meeting($_) } @class_meetings;
     my @event_list;
     my $i = 0;
-    my $limit = 10;
+    # my $limit = 10;
     foreach my $cm ( @class_meetings ) {
         push @event_list, TUSK::Medbiq::Event->new(
             dao => $cm,
         );
         $i++;
-        last unless $i < $limit;
+        # last unless $i < $limit;
     }
     return \@event_list;
 }
@@ -104,6 +107,14 @@ sub _build_Event {
 ###################
 # * Private methods
 ###################
+
+sub _keep_meeting {
+    my $self = shift;
+    my $cm = shift;
+    my $type = $cm->type;
+    return ( TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($type)
+          || TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type) );
+}
 
 sub _class_meetings {
     my $self = shift;

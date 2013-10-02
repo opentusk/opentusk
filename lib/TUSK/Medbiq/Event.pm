@@ -29,6 +29,8 @@ use Readonly;
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
 use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Medbiq::InstructionalMethod;
+use TUSK::Medbiq::AssessmentMethod;
 
 #########
 # * Setup
@@ -132,7 +134,7 @@ sub _build_xml_content {
 
 sub _build_id {
     my $self = shift;
-    return $self->dao->primary_key;
+    return 'event-' . $self->dao->primary_key;
 }
 
 sub _build_Title {
@@ -177,12 +179,28 @@ sub _build_ResourceType {
 
 sub _build_InstructionalMethod {
     my $self = shift;
-    return [];
+    my $type = $self->dao->type;
+    my @methods;
+    if (TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($type)) {
+        push @methods, TUSK::Medbiq::InstructionalMethod->medbiq_method({
+            class_meeting_type => $type,
+            primary => 1,
+        });
+    }
+    return \@methods;
 }
 
 sub _build_AssessmentMethod {
     my $self = shift;
-    return [];
+    my $type = $self->dao->type;
+    my @methods;
+    if (TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type)) {
+        push @methods, TUSK::Medbiq::AssessmentMethod->medbiq_method({
+            class_meeting_type => $type,
+            purpose => 'Formative',
+        });
+    }
+    return \@methods;
 }
 
 
