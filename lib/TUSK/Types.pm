@@ -162,6 +162,10 @@ class_type Medbiq_Sequence, { class => 'TUSK::Medbiq::Sequence' };
 class_type Medbiq_Integration, { class => 'TUSK::Medbiq::Integration' };
 class_type Medbiq_Event, { class => 'TUSK::Medbiq::Event' };
 class_type Medbiq_Keyword, { class => 'TUSK::Medbiq::Keyword' };
+class_type Medbiq_InstructionalMethod,
+    { class => 'TUSK::Medbiq::InstructionalMethod' };
+class_type Medbiq_AssessmentMethod,
+    { class => 'TUSK::Medbiq::AssessmentMethod' };
 
 enum Medbiq_Address_Category,
     qw( Residential Business Undeliverable );
