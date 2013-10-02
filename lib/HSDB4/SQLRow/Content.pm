@@ -1488,12 +1488,6 @@ sub can_user_edit {
 	if ($self->field_value('school')) {
 	    return 1 if $user->check_school_permissions($self->school());
 	}
-	
-    ## allow if user has role in course that allows editing of other
-    ## people's content
-	if ($self->course()->user_primary_role($user->primary_key)) {
-		return 1 if (join(q{,}, @CONTENT_EDIT_ROLES) =~ $self->course()->user_primary_role($user->primary_key));
-	}
 }
 
 sub can_user_add {
