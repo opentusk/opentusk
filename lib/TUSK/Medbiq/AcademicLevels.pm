@@ -28,12 +28,14 @@ use Readonly;
 
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
+use TUSK::Medbiq::Namespaces ':all';
 
 #########
 # * Setup
 #########
 
 use Moose;
+with 'TUSK::XML::Object';
 
 ####################
 # * Class attributes
@@ -44,6 +46,8 @@ use Moose;
 ############
 # * Builders
 ############
+
+sub _build_namespace { curriculum_inventory_ns }
 
 #################
 # * Class methods

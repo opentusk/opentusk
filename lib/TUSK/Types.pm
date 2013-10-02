@@ -40,6 +40,8 @@ use MooseX::Types -declare => [
           Medbiq_Address_Category
           Medbiq_Address_Restriction
           Medbiq_AssessmentMethod
+          Medbiq_CompetencyFramework
+          Medbiq_CompetencyObject
           Medbiq_CompetencyObjectReference
           Medbiq_ContextValues
           Medbiq_Country
@@ -48,12 +50,16 @@ use MooseX::Types -declare => [
           Medbiq_Event
           Medbiq_Events
           Medbiq_Expectations
+          Medbiq_Identifier
           Medbiq_Institution
           Medbiq_InstructionalMethod
           Medbiq_Integration
           Medbiq_Keyword
+          Medbiq_LOM
           Medbiq_Program
+          Medbiq_Relation
           Medbiq_Sequence
+          Medbiq_SupportingInformation
           Medbiq_UniqueID
           Medbiq_VocabularyTerm
           NonNullString
@@ -62,6 +68,7 @@ use MooseX::Types -declare => [
           StrHashRef
           Sys_DateTime
           TUSK_DateTime
+          TUSK_Objective
           URI
           UnsignedInt
           UnsignedNum
@@ -80,11 +87,11 @@ use MooseX::Types::Moose ':all';
 
 subtype UnsignedInt, as Int, where { $_ >= 0 };
 subtype UnsignedNum, as Num, where { $_ >= 0.0 };
+subtype URI, as Str;
 
 subtype StrHashRef, as HashRef[Str];
 
 subtype StrArrayRef, as ArrayRef[Str];
-coerce StrArrayRef, from Str, via { [ $_ ] };
 
 class_type Sys_DateTime, { class => 'DateTime' };
 
@@ -93,7 +100,7 @@ class_type Sys_DateTime, { class => 'DateTime' };
 ##############
 
 class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
-
+class_type TUSK_Objective, { class => 'HSDB4::SQLRow::Objective' };
 class_type School, { class => 'TUSK::Core::School' };
 class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 
@@ -166,6 +173,18 @@ class_type Medbiq_InstructionalMethod,
     { class => 'TUSK::Medbiq::InstructionalMethod' };
 class_type Medbiq_AssessmentMethod,
     { class => 'TUSK::Medbiq::AssessmentMethod' };
+class_type Medbiq_CompetencyObject,
+    { class => 'TUSK::Medbiq::CompetencyObject' };
+class_type Medbiq_CompetencyFramework,
+    { class => 'TUSK::Medbiq::CompetencyFramework' };
+class_type Medbiq_SupportingInformation,
+    { class => 'TUSK::Medbiq::SupportingInformation' };
+class_type Medbiq_Identifier,
+    { class => 'TUSK::Medbiq::Identifier' };
+class_type Medbiq_Relation,
+    { class => 'TUSK::Medbiq::Relation' };
+class_type Medbiq_LOM,
+    { class => 'TUSK::Medbiq::LOM' };
 
 enum Medbiq_Address_Category,
     qw( Residential Business Undeliverable );
@@ -180,6 +199,8 @@ enum Medbiq_ContextValues,
 #############
 # * Coercions
 #############
+
+coerce StrArrayRef, from Str, via { [ $_ ] };
 
 coerce TUSK_DateTime,
     from Sys_DateTime,

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Expectations;
+package TUSK::Medbiq::CompetencyObject;
 
 ###########
 # * Imports
@@ -26,10 +26,10 @@ use utf8;
 use Carp;
 use Readonly;
 
-use HSDB4::Constants;
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
 use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Meta::Attribute::Trait::Namespaced;
 
 #########
 # * Setup
@@ -42,24 +42,59 @@ with 'TUSK::XML::Object';
 # * Class attributes
 ####################
 
-has CompetencyObject => (
+has dao => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_CompetencyObject],
-    lazy => 1,
-    builder => '_build_CompetencyObject',
-);
-
-has CompetencyFramework => (
-    is => 'ro',
-    isa => ArrayRef[Medbiq_CompetencyFramework],
-    lazy => 1,
-    builder => '_build_CompetencyFramework',
-);
-
-has events => (
-    is => 'ro',
-    isa => ArrayRef[Medbiq_Events],
+    isa => TUSK_Objective,
     required => 1,
+);
+
+has lom => (
+    traits => [qw(Namespaced)],
+    is => 'ro',
+    isa => Medbiq_LOM,
+    lazy => 1,
+    builder => '_build_lom',
+    namespace => lom_ns,
+);
+
+has Status => (
+    is => 'ro',
+    isa => Maybe[Medbiq_Status],
+    required => 0,
+);
+
+has Replaces => (
+    is => 'ro',
+    isa => ArrayRef[URI],
+    lazy => 1,
+    builder => '_build_Replaces',
+);
+
+has IsReplacedBy => (
+    is => 'ro',
+    isa => ArrayRef[URI],
+    lazy => 1,
+    builder => '_build_IsReplacedBy',
+);
+
+has Category => (
+    is => 'ro',
+    isa => ArrayRef[Medbiq_Category],
+    lazy => 1,
+    builder => '_build_Category',
+);
+
+has References => (
+    is => 'ro',
+    isa => Maybe[Medbiq_References],
+    required => 0,
+);
+
+has SupportingInformation => (
+    is => 'ro',
+    isa => Maybe[Medbiq_SupportingInformation],
+    lazy => 1,
+    builder => '_build_SupportingInformation',
 );
 
 
@@ -67,30 +102,9 @@ has events => (
 # * Builders
 ############
 
-sub _build_CompetencyObject {
-    my $self = shift;
-    my %competency_from_id;
-    foreach my $e ( @{ $self->events } ) {
-        foreach my $link ( @{ $e->child_objectives } ) {
-            my $id = $link->getObjectiveID();
-            if ( ! exists $competency_from_id{$id} ) {
-                my $o = $link->getObjective();
-                $competency_from_id{$id}
-                    = TUSK::Medbiq::CompetencyObject->new(dao => $o);
-            }
-        }
-    }
-    my @competencies = values %competency_from_id;
-    return \@competencies;
-}
-
-sub _build_CompetencyFramework {
-    my $self = shift;
-    return [];
-}
-
-sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw(CompetencyObject CompetencyFramework) ] }
+sub _build_namespace { competency_object_ns }
+sub _build_xml_content { [ qw( lom Status Replaces IsReplacedBy Category
+                               References SupportingInformation ) ] }
 
 #################
 # * Class methods
@@ -116,15 +130,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Expectations - A short description of the module's purpose
+TUSK::Medbiq::CompetencyObject - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Expectations> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::CompetencyObject> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Expectations;
+  use TUSK::Medbiq::CompetencyObject;
 
 =head1 DESCRIPTION
 

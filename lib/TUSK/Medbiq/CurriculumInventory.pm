@@ -256,7 +256,10 @@ sub _build_Events {
 }
 
 sub _build_Expectations {
-    return TUSK::Medbiq::Expectations->new(school => shift->school);
+    return TUSK::Medbiq::Expectations->new(
+        school => shift->school,
+        events => $self->events,
+    );
 }
 
 sub _build_AcademicLevels {

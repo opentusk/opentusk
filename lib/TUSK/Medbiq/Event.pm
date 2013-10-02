@@ -169,7 +169,14 @@ sub _build_Interprofessional {
 
 sub _build_CompetencyObjectReference {
     my $self = shift;
-    return [];
+    my $co_ref_fmt = q{/CurriculumInventory/Expectations/CompetencyObject}
+        . q{[lom:lom/lom:general/lom:identifier/lom:entry='objective-%d']};
+    my @competency_links;
+    foreach my $obj_link ( @{ $self->dao->child_objectives } ) {
+        push @competency_links,
+            sprintf($co_ref_fmt, $obj_link->getObjectiveID());
+    }
+    return \@competency_links;
 }
 
 sub _build_ResourceType {
