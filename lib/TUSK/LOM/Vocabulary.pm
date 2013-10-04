@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Program;
+package TUSK::LOM::Vocabulary;
+
+###########
+# * Imports
+###########
 
 use 5.008;
 use strict;
@@ -21,84 +25,81 @@ use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
+use DateTime;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
-use TUSK::Namespaces qw(curriculum_inventory_ns);
+use Types::Standard qw( Maybe );
+use Types::XSD qw( Token );
+use TUSK::LOM::Types -types;
+use TUSK::Namespaces ':all';
+
+#########
+# * Setup
+#########
 
 use Moose;
-
 with 'TUSK::XML::Object';
 
 ####################
-# Class attributes #
+# * Class attributes
 ####################
 
-has ProgramName => (
+has source => (
     is => 'ro',
-    isa => NonNullString,
-    required => 1,
-);
-
-has ProgramID => (
-    is => 'ro',
-    isa => Medbiq_UniqueID,
+    isa => Maybe[CharacterString],
     lazy => 1,
-    builder => '_build_ProgramID',
+    builder => '_build_source',
 );
 
-has EducationalContext => (
+has value => (
     is => 'ro',
-    isa => Medbiq_ContextValues,
+    isa => Maybe[Token],
+    lazy => 1,
+    builder => '_build_value',
 );
 
-has Profession => (
-    is => 'ro',
-    isa => Medbiq_VocabularyTerm,
-);
 
-has Specialty => (
-    is => 'ro',
-    isa => Medbiq_VocabularyTerm,
-);
+############
+# * Builders
+############
+
+sub _build_namespace { lom_ns }
+sub _build_xml_content { [ qw( source value ) ] }
+sub _build_source { return; }
+sub _build_value { return; }
 
 #################
-# Class methods #
+# * Class methods
 #################
 
 ###################
-# Private methods #
+# * Private methods
 ###################
-
-sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( ProgramName ProgramID EducationalContext
-                               Profession Specialty ) ] }
-
-sub _build_ProgramID {
-    return TUSK::Medbiq::UniqueID->new;
-}
 
 ###########
-# Cleanup #
+# * Cleanup
 ###########
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
+###########
+# * Perldoc
+###########
+
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Program - A short description of the module's purpose
+TUSK::LOM::Vocabulary - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Program> v0.0.1.
+This documentation refers to L<TUSK::LOM::Vocabulary> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Program;
+  use TUSK::LOM::Vocabulary;
 
 =head1 DESCRIPTION
 

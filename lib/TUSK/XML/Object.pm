@@ -63,11 +63,12 @@ has namespace => (
 
 sub write_xml {
     my ($self, $writer) = @_;
-    if (does_role($self, 'TUSK::XML::RootObject')) {
+    my $is_root = does_role($self, 'TUSK::XML::RootObject');
+    if ($is_root) {
         my @xml_attrs = $self->_attribute_map_of($self);
         $writer->startTag( [ $self->namespace, $self->tagName ], @xml_attrs );
     }
-    if ( ref($self->xml_content) eq 'ARRAY' ) {
+    if ( _is_array($self->xml_content) ) {
         foreach my $attr_name ( @{ $self->xml_content } ) {
             next unless (defined $self->$attr_name);
             $self->write_xml_content($attr_name, $writer);
@@ -76,7 +77,7 @@ sub write_xml {
     else {
         $writer->characters($self->xml_content);
     }
-    if (does_role($self, 'TUSK::XML::RootObject')) {
+    if ($is_root) {
         $writer->endTag;
     }
     return;

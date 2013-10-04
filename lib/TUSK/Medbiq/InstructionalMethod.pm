@@ -29,7 +29,7 @@ use Readonly;
 use Moose::Util::TypeConstraints;
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
-use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Namespaces ':all';
 
 #########
 # * Setup
@@ -102,7 +102,7 @@ Readonly my %METHOD_FROM_UID => (
     IM027 => 'Team-Building',
     IM028 => 'Tutorial',
     IM029 => 'Ward Rounds',
-    IM030 => 'Workshop Assessment',
+    IM030 => 'Workshop',
 );
 
 Readonly my %UID_FROM_TYPE => (
@@ -110,7 +110,7 @@ Readonly my %UID_FROM_TYPE => (
     'Small Group' => 'IM008',
     'Conference' => 'IM005',
     'Laboratory' => 'IM012',
-    'Seminar' => 'IM023',
+    'Seminar' => 'IM030',
     'Workshop' => 'IM030',
 );
 

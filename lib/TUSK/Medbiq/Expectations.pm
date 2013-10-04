@@ -27,9 +27,10 @@ use Carp;
 use Readonly;
 
 use HSDB4::Constants;
+use TUSK::Medbiq::CompetencyObject;
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
-use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Namespaces ':all';
 
 #########
 # * Setup
@@ -58,7 +59,7 @@ has CompetencyFramework => (
 
 has events => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_Events],
+    isa => Medbiq_Events,
     required => 1,
 );
 
@@ -69,18 +70,17 @@ has events => (
 
 sub _build_CompetencyObject {
     my $self = shift;
-    my %competency_from_id;
-    foreach my $e ( @{ $self->events } ) {
-        foreach my $link ( @{ $e->child_objectives } ) {
-            my $id = $link->getObjectiveID();
-            if ( ! exists $competency_from_id{$id} ) {
-                my $o = $link->getObjective();
-                $competency_from_id{$id}
-                    = TUSK::Medbiq::CompetencyObject->new(dao => $o);
+    my %objective_from_id;
+    foreach my $e ( @{ $self->events->Event } ) {
+        foreach my $obj ( values %{ $e->objectives } ) {
+            my $id = $obj->getPrimaryKeyID();
+            if ( ! exists $objective_from_id{$id} ) {
+                $objective_from_id{$id}
+                    = TUSK::Medbiq::CompetencyObject->new(dao => $obj);
             }
         }
     }
-    my @competencies = values %competency_from_id;
+    my @competencies = values %objective_from_id;
     return \@competencies;
 }
 

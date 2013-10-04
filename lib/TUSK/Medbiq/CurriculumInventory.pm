@@ -30,7 +30,7 @@ use DateTime;
 
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
-use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Namespaces ':all';
 use TUSK::Medbiq::UniqueID;
 use TUSK::Medbiq::Institution;
 use TUSK::Medbiq::Program;
@@ -256,9 +256,10 @@ sub _build_Events {
 }
 
 sub _build_Expectations {
+    my $self = shift;
     return TUSK::Medbiq::Expectations->new(
-        school => shift->school,
-        events => $self->events,
+        school => $self->school,
+        events => $self->Events,
     );
 }
 

@@ -29,7 +29,7 @@ use Readonly;
 use XML::Writer;
 
 use TUSK::Types ':all';
-use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Namespaces ':all';
 use TUSK::Medbiq::CurriculumInventory;
 
 use Moose;

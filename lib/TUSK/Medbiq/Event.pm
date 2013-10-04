@@ -26,9 +26,10 @@ use utf8;
 use Carp;
 use Readonly;
 
+use TUSK::Core::Objective;
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
-use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Namespaces ':all';
 use TUSK::Medbiq::InstructionalMethod;
 use TUSK::Medbiq::AssessmentMethod;
 
@@ -47,6 +48,13 @@ has dao => (
     is => 'ro',
     isa => ClassMeeting,
     required => 1,
+);
+
+has objectives => (
+    is => 'ro',
+    isa => HashRef[TUSK_Objective],
+    lazy => 1,
+    builder => '_build_objectives',
 );
 
 has id => (
@@ -167,15 +175,33 @@ sub _build_Interprofessional {
     return undef;
 }
 
+sub _build_objectives {
+    my $self = shift;
+    my %objective_from_id;
+    foreach my $cm_link ( @{ $self->dao->child_objectives } ) {
+        my $id = $cm_link->getObjectiveID();
+        if ( ! exists $objective_from_id{$id} ) {
+            $objective_from_id{$id} = $cm_link->getObjective();
+        }
+    }
+    foreach my $content ( $self->dao->child_content() ) {
+        foreach my $c_link ( $content->child_objectives() ) {
+            my $id = $c_link->primary_key();
+            if ( ! exists $objective_from_id{$id} ) {
+                $objective_from_id{ $id }
+                    = TUSK::Core::Objective->new->lookupKey($id);
+            }
+        }
+    }
+    return \%objective_from_id;
+}
+
 sub _build_CompetencyObjectReference {
     my $self = shift;
     my $co_ref_fmt = q{/CurriculumInventory/Expectations/CompetencyObject}
         . q{[lom:lom/lom:general/lom:identifier/lom:entry='objective-%d']};
-    my @competency_links;
-    foreach my $obj_link ( @{ $self->dao->child_objectives } ) {
-        push @competency_links,
-            sprintf($co_ref_fmt, $obj_link->getObjectiveID());
-    }
+    my @competency_links
+        = map { sprintf($co_ref_fmt, $_) } keys %{ $self->objectives };
     return \@competency_links;
 }
 

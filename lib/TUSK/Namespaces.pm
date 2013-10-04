@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Program;
+package TUSK::Namespaces;
 
 use 5.008;
 use strict;
@@ -22,83 +22,68 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
-use TUSK::Namespaces qw(curriculum_inventory_ns);
-
-use Moose;
-
-with 'TUSK::XML::Object';
-
-####################
-# Class attributes #
-####################
-
-has ProgramName => (
-    is => 'ro',
-    isa => NonNullString,
-    required => 1,
-);
-
-has ProgramID => (
-    is => 'ro',
-    isa => Medbiq_UniqueID,
-    lazy => 1,
-    builder => '_build_ProgramID',
-);
-
-has EducationalContext => (
-    is => 'ro',
-    isa => Medbiq_ContextValues,
-);
-
-has Profession => (
-    is => 'ro',
-    isa => Medbiq_VocabularyTerm,
-);
-
-has Specialty => (
-    is => 'ro',
-    isa => Medbiq_VocabularyTerm,
-);
-
-#################
-# Class methods #
-#################
-
-###################
-# Private methods #
-###################
-
-sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( ProgramName ProgramID EducationalContext
-                               Profession Specialty ) ] }
-
-sub _build_ProgramID {
-    return TUSK::Medbiq::UniqueID->new;
+our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
+BEGIN {
+    require Exporter;
+    @ISA = qw(Exporter);
+    @EXPORT_OK = qw( curriculum_inventory_ns
+                     lom_ns
+                     address_ns
+                     competency_framework_ns
+                     competency_object_ns
+                     extend_ns
+                     member_ns
+                     xml_schema_instance_ns );
+    %EXPORT_TAGS = ( all => [ @EXPORT_OK ] );
 }
 
-###########
-# Cleanup #
-###########
+sub curriculum_inventory_ns {
+    return "http://ns.medbiq.org/curriculuminventory/v1/";
+}
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
+sub lom_ns {
+    return "http://ltsc.ieee.org/xsd/LOM";
+}
+
+sub address_ns {
+    return "http://ns.medbiq.org/address/v1/";
+}
+
+sub competency_framework_ns {
+    return "http://ns.medbiq.org/competencyframework/v1/";
+}
+
+sub competency_object_ns {
+    return "http://ns.medbiq.org/competencyobject/v1/";
+}
+
+sub extend_ns {
+    return "http://ns.medbiq.org/lom/extend/v1/";
+}
+
+sub member_ns {
+    return "http://ns.medbiq.org/member/v1/";
+}
+
+sub xml_schema_instance_ns {
+    return "http://www.w3.org/2001/XMLSchema-instance";
+}
+
 1;
 
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Program - A short description of the module's purpose
+TUSK::Namespaces - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Program> v0.0.1.
+This documentation refers to L<TUSK::Namespaces> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Program;
+  use TUSK::Namespaces;
 
 =head1 DESCRIPTION
 

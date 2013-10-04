@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Namespaces;
+package TUSK::LOM::DateTime;
+
+###########
+# * Imports
+###########
 
 use 5.008;
 use strict;
@@ -21,69 +25,80 @@ use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
+use DateTime;
 
-our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
-BEGIN {
-    require Exporter;
-    @ISA = qw(Exporter);
-    @EXPORT_OK = qw( curriculum_inventory_ns
-                     lom_ns
-                     address_ns
-                     competency_framework_ns
-                     competency_object_ns
-                     extend_ns
-                     member_ns
-                     xml_schema_instance_ns );
-    %EXPORT_TAGS = ( all => [ @EXPORT_OK ] );
-}
+use Types::Standard qw( Maybe );
+use TUSK::LOM::Types -types;
+use TUSK::Namespaces ':all';
 
-sub curriculum_inventory_ns {
-    return "http://ns.medbiq.org/curriculuminventory/v1/";
-}
+#########
+# * Setup
+#########
 
-sub lom_ns {
-    return "http://ltsc.ieee.org/xsd/LOM";
-}
+use Moose;
+with 'TUSK::XML::Object';
 
-sub address_ns {
-    return "http://ns.medbiq.org/address/v1/";
-}
+####################
+# * Class attributes
+####################
 
-sub competency_framework_ns {
-    return "http://ns.medbiq.org/competencyframework/v1/";
-}
+has dateTime => (
+    is => 'ro',
+    isa => Maybe[DateTimeString],
+    lazy => 1,
+    builder => '_build_dateTime',
+);
 
-sub competency_object_ns {
-    return "http://ns.medbiq.org/competencyobject/v1/";
-}
+has description => (
+    is => 'ro',
+    isa => Maybe[LangString],
+    lazy => 1,
+    builder => '_build_description',
+);
 
-sub extend_ns {
-    return "http://ns.medbiq.org/lom/extend/v1/";
-}
 
-sub member_ns {
-    return "http://ns.medbiq.org/member/v1/";
-}
+############
+# * Builders
+############
 
-sub xml_schema_instance_ns {
-    return "http://www.w3.org/2001/XMLSchema-instance";
-}
+sub _build_namespace { lom_ns }
+sub _build_xml_content { [ qw( dateTime description ) ] }
+sub _build_dateTime { return; }
+sub _build_description { return; }
 
+#################
+# * Class methods
+#################
+
+###################
+# * Private methods
+###################
+
+###########
+# * Cleanup
+###########
+
+__PACKAGE__->meta->make_immutable;
+no Moose;
 1;
+
+###########
+# * Perldoc
+###########
 
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Namespaces - A short description of the module's purpose
+TUSK::LOM::DateTime - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Namespaces> v0.0.1.
+This documentation refers to L<TUSK::LOM::DateTime> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Namespaces;
+  use TUSK::LOM::DateTime;
 
 =head1 DESCRIPTION
 

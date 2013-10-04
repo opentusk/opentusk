@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Program;
+package TUSK::LOM::General;
+
+###########
+# * Imports
+###########
 
 use 5.008;
 use strict;
@@ -22,83 +26,129 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
-use TUSK::Namespaces qw(curriculum_inventory_ns);
+use Types::Standard qw( ArrayRef Maybe );
+use TUSK::LOM::Types qw( Identifier LangString LanguageCode Vocabulary );
+use TUSK::Namespaces ':all';
+
+#########
+# * Setup
+#########
 
 use Moose;
-
 with 'TUSK::XML::Object';
 
 ####################
-# Class attributes #
+# * Class attributes
 ####################
 
-has ProgramName => (
+has identifier => (
     is => 'ro',
-    isa => NonNullString,
-    required => 1,
-);
-
-has ProgramID => (
-    is => 'ro',
-    isa => Medbiq_UniqueID,
+    isa => ArrayRef[Identifier],
     lazy => 1,
-    builder => '_build_ProgramID',
+    builder => '_build_identifier',
 );
 
-has EducationalContext => (
+has title => (
     is => 'ro',
-    isa => Medbiq_ContextValues,
+    isa => Maybe[LangString],
+    lazy => 1,
+    builder => '_build_title',
 );
 
-has Profession => (
+has language => (
     is => 'ro',
-    isa => Medbiq_VocabularyTerm,
+    isa => ArrayRef[LanguageCode],
+    lazy => 1,
+    builder => '_build_language',
 );
 
-has Specialty => (
+has description => (
     is => 'ro',
-    isa => Medbiq_VocabularyTerm,
+    isa => ArrayRef[LangString],
+    lazy => 1,
+    builder => '_build_description',
 );
+
+has keyword => (
+    is => 'ro',
+    isa => ArrayRef[LangString],
+    lazy => 1,
+    builder => '_build_keyword',
+);
+
+has coverage => (
+    is => 'ro',
+    isa => ArrayRef[LangString],
+    lazy => 1,
+    builder => '_build_coverage',
+);
+
+has structure => (
+    is => 'ro',
+    isa => Maybe[Vocabulary],
+    lazy => 1,
+    builder => '_build_structure',
+);
+
+has aggregationLevel => (
+    is => 'ro',
+    isa => Maybe[Vocabulary],
+    lazy => 1,
+    builder => '_build_aggregationLevel',
+);
+
+
+############
+# * Builders
+############
+
+sub _build_namespace { return lom_ns; }
+sub _build_xml_content { return [ qw( identifier title language description
+                                      keyword coverage structure
+                                      aggregationLevel ) ]; }
+
+sub _build_identifier { return []; }
+sub _build_title { return; }
+sub _build_language { return []; }
+sub _build_description { return []; }
+sub _build_keyword { return []; }
+sub _build_coverage { return []; }
+sub _build_structure { return; }
+sub _build_aggregationLevel { return; }
 
 #################
-# Class methods #
+# * Class methods
 #################
 
 ###################
-# Private methods #
+# * Private methods
 ###################
-
-sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( ProgramName ProgramID EducationalContext
-                               Profession Specialty ) ] }
-
-sub _build_ProgramID {
-    return TUSK::Medbiq::UniqueID->new;
-}
 
 ###########
-# Cleanup #
+# * Cleanup
 ###########
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
+###########
+# * Perldoc
+###########
+
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Program - A short description of the module's purpose
+TUSK::LOM::General - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Program> v0.0.1.
+This documentation refers to L<TUSK::LOM::General> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Program;
+  use TUSK::LOM::General;
 
 =head1 DESCRIPTION
 

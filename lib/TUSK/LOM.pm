@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Program;
+package TUSK::LOM;
+
+###########
+# * Imports
+###########
 
 use 5.008;
 use strict;
@@ -22,83 +26,137 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
-use TUSK::Namespaces qw(curriculum_inventory_ns);
+use Types::Standard qw( Maybe ArrayRef );
+use TUSK::LOM::Types -types;
+use TUSK::Namespaces ':all';
+
+#########
+# * Setup
+#########
 
 use Moose;
-
 with 'TUSK::XML::Object';
 
 ####################
-# Class attributes #
+# * Class attributes
 ####################
 
-has ProgramName => (
+has general => (
     is => 'ro',
-    isa => NonNullString,
-    required => 1,
-);
-
-has ProgramID => (
-    is => 'ro',
-    isa => Medbiq_UniqueID,
+    isa => Maybe[General],
     lazy => 1,
-    builder => '_build_ProgramID',
+    builder => '_build_general',
 );
 
-has EducationalContext => (
+has lifeCycle => (
     is => 'ro',
-    isa => Medbiq_ContextValues,
+    isa => Maybe[LifeCycle],
+    lazy => 1,
+    builder => '_build_lifeCycle',
 );
 
-has Profession => (
+has metaMetadata => (
     is => 'ro',
-    isa => Medbiq_VocabularyTerm,
+    isa => Maybe[MetaMetadata],
+    lazy => 1,
+    builder => '_build_metaMetadata',
 );
 
-has Specialty => (
+has technical => (
     is => 'ro',
-    isa => Medbiq_VocabularyTerm,
+    isa => Maybe[Technical],
+    lazy => 1,
+    builder => '_build_technical',
 );
+
+has educational => (
+    is => 'ro',
+    isa => ArrayRef[Educational],
+    lazy => 1,
+    builder => '_build_educational',
+);
+
+has rights => (
+    is => 'ro',
+    isa => Maybe[Rights],
+    lazy => 1,
+    builder => '_build_rights',
+);
+
+has relation => (
+    is => 'ro',
+    isa => ArrayRef[Relation],
+    lazy => 1,
+    builder => '_build_relation',
+);
+
+has annotation => (
+    is => 'ro',
+    isa => ArrayRef[Annotation],
+    lazy => 1,
+    builder => '_build_annotation',
+);
+
+has classification => (
+    is => 'ro',
+    isa => ArrayRef[Classification],
+    lazy => 1,
+    builder => '_build_classification',
+);
+
+
+############
+# * Builders
+############
+
+sub _build_namespace { lom_ns }
+sub _build_xml_content { [ qw( general lifeCycle metaMetadata technical
+                               educational rights relation annotation
+                               classification ) ] }
+
+sub _build_general { return; }
+sub _build_lifeCycle { return; }
+sub _build_metaMetadata { return; }
+sub _build_technical { return; }
+sub _build_educational { [] }
+sub _build_rights { return; }
+sub _build_relation { [] }
+sub _build_annotation { [] }
+sub _build_classification { [] }
 
 #################
-# Class methods #
+# * Class methods
 #################
 
 ###################
-# Private methods #
+# * Private methods
 ###################
-
-sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( ProgramName ProgramID EducationalContext
-                               Profession Specialty ) ] }
-
-sub _build_ProgramID {
-    return TUSK::Medbiq::UniqueID->new;
-}
 
 ###########
-# Cleanup #
+# * Cleanup
 ###########
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
+###########
+# * Perldoc
+###########
+
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Program - A short description of the module's purpose
+TUSK::LOM - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Program> v0.0.1.
+This documentation refers to L<TUSK::LOM> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Program;
+  use TUSK::LOM;
 
 =head1 DESCRIPTION
 

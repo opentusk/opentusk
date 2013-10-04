@@ -25,11 +25,19 @@ use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
+use Encode qw( encode decode );
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
-use TUSK::Medbiq::Namespaces ':all';
+use TUSK::LOM;
+use TUSK::LOM::General;
+use TUSK::LOM::Identifier;
+use TUSK::LOM::LangString;
+
+use TUSK::Namespaces ':all';
 use TUSK::Meta::Attribute::Trait::Namespaced;
+use Types::Standard qw( Maybe ArrayRef );
+use TUSK::LOM::Types qw( LOM );
+use TUSK::Types qw( TUSK_Objective Medbiq_Status Medbiq_Category
+                    Medbiq_References Medbiq_SupportingInformation URI );
 
 #########
 # * Setup
@@ -51,7 +59,7 @@ has dao => (
 has lom => (
     traits => [qw(Namespaced)],
     is => 'ro',
-    isa => Medbiq_LOM,
+    isa => LOM,
     lazy => 1,
     builder => '_build_lom',
     namespace => lom_ns,
@@ -60,7 +68,8 @@ has lom => (
 has Status => (
     is => 'ro',
     isa => Maybe[Medbiq_Status],
-    required => 0,
+    lazy => 1,
+    builder => '_build_Status',
 );
 
 has Replaces => (
@@ -87,7 +96,8 @@ has Category => (
 has References => (
     is => 'ro',
     isa => Maybe[Medbiq_References],
-    required => 0,
+    lazy => 1,
+    builder => '_build_References',
 );
 
 has SupportingInformation => (
@@ -105,6 +115,35 @@ has SupportingInformation => (
 sub _build_namespace { competency_object_ns }
 sub _build_xml_content { [ qw( lom Status Replaces IsReplacedBy Category
                                References SupportingInformation ) ] }
+
+sub _build_lom {
+    my $self = shift;
+    my $identifier = TUSK::LOM::Identifier->new(
+        catalog => 'TUSK Objectives',
+        entry => 'objective-' . $self->dao->getPrimaryKeyID(),
+    );
+    my $title = TUSK::LOM::LangString->new(
+        string => $self->dao->getBody(),
+    );
+    my $general = TUSK::LOM::General->new(
+        identifier => [ $identifier ],
+        title => $title,
+    );
+    return TUSK::LOM->new( general => $general );
+}
+
+sub _build_Status { return; }
+
+sub _build_Replaces { return []; }
+
+sub _build_IsReplacedBy { return []; }
+
+sub _build_Category { return []; }
+
+sub _build_References { return; }
+
+sub _build_SupportingInformation { return; }
+
 
 #################
 # * Class methods

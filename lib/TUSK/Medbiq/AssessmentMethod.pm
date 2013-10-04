@@ -29,7 +29,7 @@ use Readonly;
 use Moose::Util::TypeConstraints;
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
-use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Namespaces ':all';
 
 #########
 # * Setup

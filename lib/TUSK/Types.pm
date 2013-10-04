@@ -40,6 +40,7 @@ use MooseX::Types -declare => [
           Medbiq_Address_Category
           Medbiq_Address_Restriction
           Medbiq_AssessmentMethod
+          Medbiq_Category
           Medbiq_CompetencyFramework
           Medbiq_CompetencyObject
           Medbiq_CompetencyObjectReference
@@ -57,8 +58,10 @@ use MooseX::Types -declare => [
           Medbiq_Keyword
           Medbiq_LOM
           Medbiq_Program
+          Medbiq_References
           Medbiq_Relation
           Medbiq_Sequence
+          Medbiq_Status
           Medbiq_SupportingInformation
           Medbiq_UniqueID
           Medbiq_VocabularyTerm
@@ -100,7 +103,7 @@ class_type Sys_DateTime, { class => 'DateTime' };
 ##############
 
 class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
-class_type TUSK_Objective, { class => 'HSDB4::SQLRow::Objective' };
+class_type TUSK_Objective, { class => 'TUSK::Core::Objective' };
 class_type School, { class => 'TUSK::Core::School' };
 class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 
@@ -183,8 +186,12 @@ class_type Medbiq_Identifier,
     { class => 'TUSK::Medbiq::Identifier' };
 class_type Medbiq_Relation,
     { class => 'TUSK::Medbiq::Relation' };
-class_type Medbiq_LOM,
-    { class => 'TUSK::Medbiq::LOM' };
+class_type Medbiq_Status,
+    { class => 'TUSK::Medbiq::Status' };
+class_type Medbiq_Category,
+    { class => 'TUSK::Medbiq::Category' };
+class_type Medbiq_References,
+    { class => 'TUSK::Medbiq::References' };
 
 enum Medbiq_Address_Category,
     qw( Residential Business Undeliverable );

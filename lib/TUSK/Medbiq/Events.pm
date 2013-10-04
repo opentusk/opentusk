@@ -28,7 +28,7 @@ use Readonly;
 
 use MooseX::Types::Moose ':all';
 use TUSK::Types ':all';
-use TUSK::Medbiq::Namespaces ':all';
+use TUSK::Namespaces ':all';
 use HSDB4::Constants;
 use HSDB45::ClassMeeting;
 use TUSK::Medbiq::Event;
@@ -75,7 +75,6 @@ has Event => (
 );
 
 
-
 ############
 # * Builders
 ############
@@ -88,14 +87,10 @@ sub _build_Event {
     my @class_meetings = $self->_class_meetings;
     @class_meetings = grep { $self->_keep_meeting($_) } @class_meetings;
     my @event_list;
-    my $i = 0;
-    # my $limit = 10;
     foreach my $cm ( @class_meetings ) {
         push @event_list, TUSK::Medbiq::Event->new(
             dao => $cm,
         );
-        $i++;
-        # last unless $i < $limit;
     }
     return \@event_list;
 }
