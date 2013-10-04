@@ -85,7 +85,6 @@
 			$m->comp("SELF:set_msg", msg => __("Your quiz has been successfully submitted"));
 		}
 	} 
-
 	if (defined $result && $total_items_count <= $result->getCurrentQuestionIndex() && !($result->getEndDate()) && !$preview) {
 		$m->comp('SELF:set_msg', msg => __x("There is something wrong about your quiz. Please contact {site} for help.", site => $TUSK::Constants::SiteAbbr), type => 'err');
 		$err = 1;
@@ -228,28 +227,6 @@ function hideClock() {
 <%method red_header_text>
 % 	return "Quiz: ".$quiz->getTitle();
 </%method>
-
-
-<%method add_links>
-<%perl>
-	my @links;
-
-	push @links, '<strong>' . $m->session->{user}->out_full_name() . '</strong>';
-
-	if ($args{preview}) {
-		push @links, '<a href="/quiz/author/show/' . $type_path . '" onclick="clickSubmit();">'.__('Manage Quizzes').'</a>';
-		push @links, '<a href="/quiz/author/addedit/' . $type_path . '/' . $quiz_id . '" onclick="clickSubmit();">'.__('Modify Quiz').'</a>';
-	} else {
-		push @links, '<a href="/" onclick="clickSubmit();">'.__('Home Page').'</a>';
-		push @links, '<a href="/view/' . $type_path . '/quizzes" onclick="clickSubmit();">'.__('Course Quizzes').'</a>';
-	}
-
-	push @links, '<a class="logout" href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time() . '" onclick="clickSubmit();">'.__('Logout').'</a>';
-
-	return \@links;
-</%perl>
-</%method>
-
 
 <%method display_continued_or_single_quiz_page>
 <%perl> 
@@ -495,23 +472,24 @@ function hideClock() {
 </%perl>
 </%method>
 
-<%method header_with_title_msg>
-<table width="100%" border="0" cellspacing="0" cellpadding="0">
-  <tr>
-    <td width="350" valign="top">
-      <img src="<% $TUSK::Constants::Logo{Small} %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" />
-    </td>
-    <td>
-      <& '/tmpl/prepend:traffic_light', args => \%ARGS, make_table => 1 &>
-    </td>
-    <td align="right" valign="bottom"><span class="emphasis_font"> <% join(' | ', @{$m->comp('SELF:add_links')}) %></span> &nbsp;</td>
-  </tr>
-  <tr class="redHeaderBar">
-    <td align="center" colspan="3"><%__("Quiz")%>: <% $quiz->getTitle %> </td>
-  </tr>
-</table>
-</%method>
+<%method right_header_text>
+<%perl>
+	my @links;
 
+	if ($args{preview}) {
+		push @links, {txt => 'Manage Quizzes',  url => '/quiz/author/show/' . $type_path , onclick => 'clickSubmit();'};
+		push @links, {txt => 'Modify Quiz', url => '/quiz/author/addedit/' . $type_path . '/' . $quiz_id , onlick => 'clickSubmit();'};
+	} else {
+		push @links, {txt => 'Home Page', url => '/', onclick => 'clickSubmit();'};
+		push @links, {txt => 'Course Quizzes', url => '/view/' . $type_path . '/quizzes', onclick => 'clickSubmit();'};
+	}
+
+	push @links, {txt => 'My Profile', url => '/view/user/' . $m->session->{user}->user_id(), onclick => 'clickSubmit();'};     
+	push @links, {txt => 'Logout', url => '/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time(), onclick => 'clickSubmit();' };
+
+	return \@links;
+</%perl>
+</%method>
 
 <%method float_clock>
 <%args>
@@ -533,7 +511,7 @@ function hideClock() {
 
 <%init>
 	$m->print("<body onunload=\"warnUser();\">\n");
-	$m->comp('SELF:header_with_title_msg');
+	#$m->comp('SELF:header_with_title_msg');
 	$m->comp('SELF:print_jscript');
 	$m->abort() if $err;
 
