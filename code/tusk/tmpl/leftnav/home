@@ -158,14 +158,11 @@ else {
 		my $link = '<a href="/protected/assessment/author/show/course/' . $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $stripObj->truncateAndRemoveHTML($form_row->{form_name}, $charLimit) . '</a>';
 		push @assessment_links, $link;
 	}
-		
-	## assignments
-	my @courses = $m->session->{user}->all_courses();
-	foreach my $course (@courses) {
-		my $assignments = $m->session->{user}->get_upcoming_course_assignments($course);
-		foreach my $assignment (@$assignments) {
-			push @assignment_links, '<a href="/assignment/student/complete/course/' . $course->school() . '/' .  $course->primary_key() . '/' . $assignment->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($assignment->getTitle(), $charLimit) . '</a>';
-		}
+	
+	my $course_assignments = $m->session->{user}->get_course_assignments();
+
+	foreach my $assignment (@$course_assignments){
+		push @assignment_links, '<a href="/assignment/student/complete/course/'. $assignment->{'school_name'} . '/' . $assignment->{'course_id'} . '/' . $assignment->{'assignment_id'} .  '">'. $assignment->{'event_name'}.'</a>';
 	}
 
 	## cases
@@ -235,6 +232,7 @@ else {
 %				 [ \@case_links, 'Cases', 'case_links' ],
 %				 [ \@eval_links, 'Course Evaluations', 'eval_links' ] );
 
+
 <& SELF:populateMaterials, materialLinks => \@materialLinksTop &>
 
 %	if ($grade_link) {
@@ -260,13 +258,13 @@ else {
 <%args>
 	$materialLinks
 </%args>
-%	foreach my $links ( @$materialLinks ){
-%		if ( scalar @{ $links->[0] } ){
-			<li><% @$links[1] %>
-			(<% $#{ $links->[0] } + 1 %>)
-			<input type="image" src="/graphics/icon-nav-closed.png" onclick='toggleMaterialLinks("<% @$links[2] %>", this)' />
+%	foreach my $links ( @$materialLinks ) {
+%		if ( scalar @{ $links->[0] } ) {
+			<li>
+			<a class="materials_header" href="#" onclick='toggleMaterialLinks( "<% $links->[2] %>", this )'><% $links->[1] %>
+			(<% $#{ $links->[0] } + 1 %>)<img class="materials_button" src="/graphics/icon-nav-closed.png"></a>
 			<ul id="<% @$links[2] %>" class = "materiallinks">
-%			foreach my $link (@{ $links->[0] }){
+%			foreach my $link ( @{ $links->[0]  }) {
 				<li><% $link %></li>
 %			}
 			</ul></li>

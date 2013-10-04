@@ -219,30 +219,39 @@ function makeLinksDropDown() {
 
 /* end Personal Links */
 
-function toggleMaterialLinks( material, obj ){
+function toggleMaterialLinks( material, obj ) {
 	var materialLinks = document.getElementById( material );
-	if ( $( '#' + material ).css( "display" ) == "inline" ){
+	if ( $( '#' + material ).css( "display" ) == "inline" ) {
 		$( '#' + material ).css( "display", "none" );
-		$( obj ).attr( "src", "/graphics/icon-nav-closed.png" );	
-	} else{
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png" );
+	} else {
 		$( '#' + material ).css( "display", "inline" );
-		$( obj ).attr( "src", "/graphics/icon-nav-open.png" );
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
 		materialsHeightAdjust();
 	}
 }	
 
-function materialsHeightAdjust(){	
+function materialsHeightAdjust() {	
 	var paddingAdjustment = 70; //px
 	var trafficLightHeight = ( $( '#gTrafficLight' ).height() ) || 0;
-	if ( trafficLightHeight > 0 ){
+	if ( trafficLightHeight > 0 ) {
 		paddingAdjustment = paddingAdjustment - 25;
 	};
 	var scrollBoxHeight = $( '#gContent' ).height() + trafficLightHeight - $( '#communicationsBox' ).height() - paddingAdjustment;
 	$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );		
 }
 
-
+function toggleLinksLinks( material, obj ) {
+	if ( $( '#' + material ).css( "display" ) == "none" ) {
+		$( '#' + material ).css( "display", "block");
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
+	} else {
+		$( '#' + material ).css( "display", "none");
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png");
+	}
+}
 
 
 	
 	
+
