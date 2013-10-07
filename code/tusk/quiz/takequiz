@@ -473,22 +473,36 @@ function hideClock() {
 </%method>
 
 <%method right_header_text>
+<div id="aboveHeader">
+<a target="_top" href="/home">
+<img src="/graphics/logo_sm.gif" alt="TUSK: Tufts University Sciences Knowledgebase">
+</a>
+</div>
+<nav>
+<ul id="quizLinks">
 <%perl>
-	my @links;
-
-	if ($args{preview}) {
-		push @links, {txt => __('Manage Quizzes'),  url => '/quiz/author/show/' . $type_path , onclick => 'clickSubmit();'};
-		push @links, {txt => __('Modify Quiz'), url => '/quiz/author/addedit/' . $type_path . '/' . $quiz_id , onlick => 'clickSubmit();'};
-	} else {
-		push @links, {txt => __('Home Page'), url => '/', onclick => 'clickSubmit();'};
-		push @links, {txt => __('Course Quizzes'), url => '/view/' . $type_path . '/quizzes', onclick => 'clickSubmit();'};
-	}
-
-	push @links, {txt => __('My Profile'), url => '/view/user/' . $m->session->{user}->user_id(), onclick => 'clickSubmit();'};     
-	push @links, {txt => __('Logout'), url => '/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time(), onclick => 'clickSubmit();' };
-
-	return \@links;
+my @quizLinks;
+if ($args{preview}){
+	push @quizLinks,  "<a href=\"/quiz/author/show/" . $type_path . "\" onclick = \"clickSubmit();\">Manage Quizzes</a>";
+	push @quizLinks, "<a href=\"/quiz/author/addedit/" . $type_path . "/" . $quiz_id . "\" onclick = \"clickSubmit();\">Modify Quiz</a>";
+} else {
+	push @quizLinks, "<a href=\"/\" onclick=\"clickSubmit();\">Home Page</a>";
+	push @quizLinks, "<a href=\"/view/" . $type_path . "/quizzes\" onclick=\"clickSubmit();\">Course Quizzes</a>";
+}
+push @quizLinks, "<a href=\"/view/user/" . $m->session->{user}->user_id() . "\"onclick=\"clickSubmit();\">My Profile</a>";
+push @quizLinks, "<a href=\"/dologout?request_uri=/home?" . HSDB4::DateTime->new()->out_unix_time() . "\"onclick = \"clickSubmit();\">Logout</a>";
+foreach my $quiz (@quizLinks){
+	print '<li>' . $quiz . ' </li>';
+}
 </%perl>
+</ul>
+</nav>
+<%perl>
+my @links;
+push @links, {txt => $m->session->{user}->user_id(), url=> '/view/user/' . $m->session->{user}->user_id()};
+return \@links;
+</%perl>
+
 </%method>
 
 <%method float_clock>
