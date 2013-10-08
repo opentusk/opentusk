@@ -26,9 +26,8 @@ use utf8;
 use Carp;
 use Readonly;
 
-use Moose::Util::TypeConstraints;
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use Type::Utils -all;
+use TUSK::Medbiq::Types qw( NonNullString );
 use TUSK::Namespaces ':all';
 
 #########

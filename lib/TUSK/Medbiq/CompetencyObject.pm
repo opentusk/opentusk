@@ -36,8 +36,8 @@ use TUSK::Namespaces ':all';
 use TUSK::Meta::Attribute::Trait::Namespaced;
 use Types::Standard qw( Maybe ArrayRef );
 use TUSK::LOM::Types qw( LOM );
-use TUSK::Types qw( TUSK_Objective Medbiq_Status Medbiq_Category
-                    Medbiq_References Medbiq_SupportingInformation URI );
+use TUSK::Medbiq::Types;
+use TUSK::Types qw( TUSK_Objective URI );
 
 #########
 # * Setup
@@ -67,7 +67,7 @@ has lom => (
 
 has Status => (
     is => 'ro',
-    isa => Maybe[Medbiq_Status],
+    isa => Maybe[TUSK::Medbiq::Types::Status],
     lazy => 1,
     builder => '_build_Status',
 );
@@ -88,21 +88,21 @@ has IsReplacedBy => (
 
 has Category => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_Category],
+    isa => ArrayRef[TUSK::Medbiq::Types::Category],
     lazy => 1,
     builder => '_build_Category',
 );
 
 has References => (
     is => 'ro',
-    isa => Maybe[Medbiq_References],
+    isa => Maybe[TUSK::Medbiq::Types::References],
     lazy => 1,
     builder => '_build_References',
 );
 
 has SupportingInformation => (
     is => 'ro',
-    isa => Maybe[Medbiq_SupportingInformation],
+    isa => Maybe[TUSK::Medbiq::Types::SupportingInformation],
     lazy => 1,
     builder => '_build_SupportingInformation',
 );

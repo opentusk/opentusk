@@ -24,7 +24,7 @@ use Readonly;
 
 use List::MoreUtils qw(all);
 
-use MooseX::Types::Moose qw( Bool );
+use Types::Standard qw( Bool );
 use TUSK::Types qw( UnsignedInt UnsignedNum );
 
 use Moose;

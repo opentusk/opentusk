@@ -28,7 +28,9 @@ use Readonly;
 
 use XML::Writer;
 
-use TUSK::Types ':all';
+use Types::Standard qw( ArrayRef Int );
+use TUSK::Medbiq::Types;
+use TUSK::Types qw( School Sys_DateTime );
 use TUSK::Namespaces ':all';
 use TUSK::Medbiq::CurriculumInventory;
 
@@ -61,9 +63,15 @@ has end_date => (
     required => 1,
 );
 
+has user_groups => (
+    is => 'ro',
+    isa => ArrayRef[Int],
+    required => 1,
+);
+
 has CurriculumInventory => (
     is => 'ro',
-    isa => Medbiq_CurriculumInventory,
+    isa => TUSK::Medbiq::Types::CurriculumInventory,
     lazy => 1,
     builder => '_build_CurriculumInventory',
 );
@@ -110,6 +118,7 @@ sub _build_CurriculumInventory {
         school => $self->school,
         ReportingStartDate => $self->start_date,
         ReportingEndDate => $self->end_date,
+        user_groups => $self->user_groups,
     );
 }
 

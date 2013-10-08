@@ -26,10 +26,9 @@ use Data::UUID;
 
 use TUSK::Constants;
 
-use TUSK::Types qw( Medbiq_Domain NonNullString XML_Object );
+use TUSK::Medbiq::Types qw( Domain NonNullString );
 
 use Moose;
-
 with 'TUSK::XML::Object';
 
 Readonly my $_default_namespace => 'http://ns.medbiq.org/member/v1/';
@@ -40,7 +39,7 @@ Readonly my $_default_namespace => 'http://ns.medbiq.org/member/v1/';
 
 has domain => (
     is => 'ro',
-    isa => Medbiq_Domain,
+    isa => Domain,
     lazy => 1,
     builder => '_build_domain',
 );

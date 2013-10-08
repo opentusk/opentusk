@@ -28,8 +28,8 @@ use Readonly;
 
 use HSDB4::Constants;
 use TUSK::Medbiq::CompetencyObject;
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use Types::Standard qw( ArrayRef );
+use TUSK::Medbiq::Types;
 use TUSK::Namespaces ':all';
 
 #########
@@ -45,21 +45,21 @@ with 'TUSK::XML::Object';
 
 has CompetencyObject => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_CompetencyObject],
+    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyObject],
     lazy => 1,
     builder => '_build_CompetencyObject',
 );
 
 has CompetencyFramework => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_CompetencyFramework],
+    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyFramework],
     lazy => 1,
     builder => '_build_CompetencyFramework',
 );
 
 has events => (
     is => 'ro',
-    isa => Medbiq_Events,
+    isa => TUSK::Medbiq::Types::Events,
     required => 1,
 );
 

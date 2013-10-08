@@ -26,8 +26,9 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use TUSK::Medbiq::Types;
+use TUSK::Types qw( School TUSK_DateTime );
+use Types::Standard qw( ArrayRef );
 use TUSK::Namespaces ':all';
 use HSDB4::Constants;
 use HSDB45::ClassMeeting;
@@ -69,7 +70,7 @@ has end_date => (
 
 has Event => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_Event],
+    isa => ArrayRef[TUSK::Medbiq::Types::Event],
     lazy => 1,
     builder => '_build_Event',
 );

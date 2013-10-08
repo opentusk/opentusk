@@ -22,8 +22,8 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose qw(ArrayRef HashRef Str);
-use TUSK::Types qw(XML_Object);
+use Types::Standard qw( ArrayRef HashRef Str );
+use TUSK::Types qw( XML_Object );
 use TUSK::Meta::Attribute::Trait::Namespaced;
 use TUSK::Meta::Attribute::Trait::Tagged;
 

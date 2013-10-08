@@ -26,8 +26,8 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use Types::Standard qw( Int ArrayRef );
+use TUSK::Medbiq::Types;
 use TUSK::Namespaces ':all';
 
 #########
@@ -41,6 +41,19 @@ with 'TUSK::XML::Object';
 # * Class attributes
 ####################
 
+has LevelsInProgram => (
+    is => 'ro',
+    isa => Int,
+    lazy => 1,
+    builder => '_build_LevelsInProgram',
+    init_arg => undef,
+);
+
+has Level => (
+    is => 'ro',
+    isa => ArrayRef[TUSK::Medbiq::Types::Level],
+    required => 1,
+);
 
 
 ############
@@ -48,6 +61,11 @@ with 'TUSK::XML::Object';
 ############
 
 sub _build_namespace { curriculum_inventory_ns }
+sub _build_xml_content { [ qw( LevelsInProgram Level )]}
+sub _build_LevelsInProgram {
+    my $self = shift;
+    return scalar @{ $self->Level };
+}
 
 #################
 # * Class methods

@@ -27,8 +27,7 @@ use Carp;
 use Readonly;
 
 use TUSK::Namespaces ':all';
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use Types::Standard qw( Maybe Str );
 
 #########
 # * Setup

@@ -32,71 +32,40 @@ use TUSK::Core::School;
 # * Setup
 #########
 
-use MooseX::Types -declare => [
-    qw(
-          ClassMeeting
-          Medbiq_AcademicLevels
-          Medbiq_Address
-          Medbiq_Address_Category
-          Medbiq_Address_Restriction
-          Medbiq_AssessmentMethod
-          Medbiq_Category
-          Medbiq_CompetencyFramework
-          Medbiq_CompetencyObject
-          Medbiq_CompetencyObjectReference
-          Medbiq_ContextValues
-          Medbiq_Country
-          Medbiq_CurriculumInventory
-          Medbiq_Domain
-          Medbiq_Event
-          Medbiq_Events
-          Medbiq_Expectations
-          Medbiq_Identifier
-          Medbiq_Institution
-          Medbiq_InstructionalMethod
-          Medbiq_Integration
-          Medbiq_Keyword
-          Medbiq_LOM
-          Medbiq_Program
-          Medbiq_References
-          Medbiq_Relation
-          Medbiq_Sequence
-          Medbiq_Status
-          Medbiq_SupportingInformation
-          Medbiq_UniqueID
-          Medbiq_VocabularyTerm
-          NonNullString
-          School
-          StrArrayRef
-          StrHashRef
-          Sys_DateTime
-          TUSK_DateTime
-          TUSK_Objective
-          URI
-          UnsignedInt
-          UnsignedNum
-          XML_Object
-          xs_boolean
-          xs_date
-          xs_duration
-  )
-];
-
-use MooseX::Types::Moose ':all';
+use Type::Library
+    -base,
+    -declare => qw(
+                      ClassMeeting
+                      NonNullString
+                      School
+                      StrArrayRef
+                      StrHashRef
+                      Sys_DateTime
+                      TUSK_DateTime
+                      TUSK_Objective
+                      TUSK_XSD_Date
+                      URI
+                      UserGroup
+                      UnsignedInt
+                      UnsignedNum
+                      XML_Object
+              );
+use Type::Utils -all;
+use Types::Standard qw( Int Num Str HashRef ArrayRef );
+use Types::XSD;
+use TUSK::Medbiq::Types qw();
 
 #################
 # * General Types
 #################
 
-subtype UnsignedInt, as Int, where { $_ >= 0 };
-subtype UnsignedNum, as Num, where { $_ >= 0.0 };
-subtype URI, as Str;
-
-subtype StrHashRef, as HashRef[Str];
-
-subtype StrArrayRef, as ArrayRef[Str];
-
+declare UnsignedInt, as Int, where { $_ >= 0 };
+declare UnsignedNum, as Num, where { $_ >= 0.0 };
+declare URI, as Str;
+declare StrHashRef, as HashRef[Str];
+declare StrArrayRef, as ArrayRef[Str];
 class_type Sys_DateTime, { class => 'DateTime' };
+
 
 ##############
 # * TUSK Types
@@ -106,101 +75,9 @@ class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
 class_type TUSK_Objective, { class => 'TUSK::Core::Objective' };
 class_type School, { class => 'TUSK::Core::School' };
 class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
-
 role_type XML_Object, { role => 'TUSK::XML::Object' };
-
-#############
-# * XSD Types
-#############
-
-subtype xs_date, as Str,
-    where { $_ =~ m{ \A -?
-                     \d{4,} - \d{2} - \d{2}   # date
-                     (([-+]) \d{2}:\d{2} | Z) # timezone
-                     \z }xms };
-
-subtype xs_duration, as Str,
-    where { $_ =~ m{ \A -?
-                     P
-                     (?:[0-9]+Y)?
-                     (?:[0-9]+M)?
-                     (?:[0-9]+D)?
-                     (?:T
-                         (?:[0-9]+H)?
-                         (?:[0-9]+M)?
-                         (?:[0-9]+(?:\.[0-9]+)?S)?
-                     )?
-                     \z }xms };
-
-enum xs_boolean, qw( 0 1 true false );
-
-######################
-# * Medbiquitous Types
-######################
-
-subtype NonNullString,
-    as Str,
-    where { length($_) > 0 };
-
-subtype Medbiq_CompetencyObjectReference,
-    as Str,
-    where { $_ =~ m{ \A \s*
-                     /CurriculumInventory/Expectations/CompetencyObject
-                     \[ lom:lom/lom:general/lom:identifier/lom:entry
-                     \s? = \s?
-                     ' [^']+ '
-                     \]
-                     \s* \z }xms };
-
-subtype Medbiq_Domain,
-    as Str,
-    where { m/ \A idd: .+ : .+ \z /xms };
-
-class_type Medbiq_UniqueID, { class => 'TUSK::Medbiq::UniqueID' };
-class_type Medbiq_Address, { class => 'TUSK::Medbiq::Address' };
-class_type Medbiq_Country, { class => 'TUSK::Medbiq::Address::Country' };
-class_type Medbiq_Institution, { class => 'TUSK::Medbiq::Institution' };
-class_type Medbiq_CurriculumInventory, {
-    class => 'TUSK::Medbiq::CurriculumInventory'
-};
-class_type Medbiq_VocabularyTerm, { class => 'TUSK::Medbiq::VocabularyTerm' };
-class_type Medbiq_Program, { class => 'TUSK::Medbiq::Program' };
-class_type Medbiq_Events, { class => 'TUSK::Medbiq::Events' };
-class_type Medbiq_Expectations, { class => 'TUSK::Medbiq::Expectations' };
-class_type Medbiq_AcademicLevels, { class => 'TUSK::Medbiq::AcademicLevels' };
-class_type Medbiq_Sequence, { class => 'TUSK::Medbiq::Sequence' };
-class_type Medbiq_Integration, { class => 'TUSK::Medbiq::Integration' };
-class_type Medbiq_Event, { class => 'TUSK::Medbiq::Event' };
-class_type Medbiq_Keyword, { class => 'TUSK::Medbiq::Keyword' };
-class_type Medbiq_InstructionalMethod,
-    { class => 'TUSK::Medbiq::InstructionalMethod' };
-class_type Medbiq_AssessmentMethod,
-    { class => 'TUSK::Medbiq::AssessmentMethod' };
-class_type Medbiq_CompetencyObject,
-    { class => 'TUSK::Medbiq::CompetencyObject' };
-class_type Medbiq_CompetencyFramework,
-    { class => 'TUSK::Medbiq::CompetencyFramework' };
-class_type Medbiq_SupportingInformation,
-    { class => 'TUSK::Medbiq::SupportingInformation' };
-class_type Medbiq_Identifier,
-    { class => 'TUSK::Medbiq::Identifier' };
-class_type Medbiq_Relation,
-    { class => 'TUSK::Medbiq::Relation' };
-class_type Medbiq_Status,
-    { class => 'TUSK::Medbiq::Status' };
-class_type Medbiq_Category,
-    { class => 'TUSK::Medbiq::Category' };
-class_type Medbiq_References,
-    { class => 'TUSK::Medbiq::References' };
-
-enum Medbiq_Address_Category,
-    qw( Residential Business Undeliverable );
-
-enum Medbiq_Address_Restriction,
-    qw( Unrestricted Restricted Confidential );
-
-enum Medbiq_ContextValues,
-    ('school', 'higher education', 'training', 'other');
+declare TUSK_XSD_Date, as Types::XSD::Date;
+class_type UserGroup, { class => 'HSDB45::UserGroup' };
 
 
 #############
@@ -212,7 +89,7 @@ coerce StrArrayRef, from Str, via { [ $_ ] };
 coerce TUSK_DateTime,
     from Sys_DateTime,
     via { HSDB4::DateTime->new->in_unix_time( $_->epoch ) },
-    from xs_date,
+    from Types::XSD::Date,
     via {
         my $xsd = $_;
         $xsd =~ m{ \A -?
@@ -231,7 +108,7 @@ coerce TUSK_DateTime,
 coerce Sys_DateTime,
     from TUSK_DateTime,
     via { DateTime->from_epoch( epoch => $_->out_unix_time ) },
-    from xs_date,
+    from Types::XSD::Date,
     via {
         my $xsd = $_;
         $xsd =~ m{ \A -?
@@ -253,12 +130,15 @@ coerce School,
         )
     };
 
-coerce xs_date,
+coerce TUSK_XSD_Date,
     from TUSK_DateTime,
     via { $_->out_mysql_date . "Z" },
     from Sys_DateTime,
     via { $_->ymd . "Z" };
 
+###########
+# * Cleanup
+###########
 
 1;
 

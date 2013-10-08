@@ -22,12 +22,11 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use TUSK::Medbiq::Types qw( NonNullString UniqueID ContextValues
+                            VocabularyTerm );
 use TUSK::Namespaces qw(curriculum_inventory_ns);
 
 use Moose;
-
 with 'TUSK::XML::Object';
 
 ####################
@@ -42,24 +41,24 @@ has ProgramName => (
 
 has ProgramID => (
     is => 'ro',
-    isa => Medbiq_UniqueID,
+    isa => UniqueID,
     lazy => 1,
     builder => '_build_ProgramID',
 );
 
 has EducationalContext => (
     is => 'ro',
-    isa => Medbiq_ContextValues,
+    isa => ContextValues,
 );
 
 has Profession => (
     is => 'ro',
-    isa => Medbiq_VocabularyTerm,
+    isa => VocabularyTerm,
 );
 
 has Specialty => (
     is => 'ro',
-    isa => Medbiq_VocabularyTerm,
+    isa => VocabularyTerm,
 );
 
 #################

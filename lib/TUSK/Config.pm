@@ -29,8 +29,7 @@ use Sys::Hostname;
 
 use JSON;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use Types::Standard -types;
 
 use TUSK::Constants;            # for now, get statics
 

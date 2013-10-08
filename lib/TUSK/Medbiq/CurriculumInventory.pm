@@ -28,8 +28,9 @@ use Readonly;
 use POSIX qw(strftime);
 use DateTime;
 
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use Types::Standard qw( Str ArrayRef Int );
+use TUSK::Medbiq::Types qw( UniqueID NonNullString );
+use TUSK::Types qw( School URI TUSK_XSD_Date );
 use TUSK::Namespaces ':all';
 use TUSK::Medbiq::UniqueID;
 use TUSK::Medbiq::Institution;
@@ -37,6 +38,7 @@ use TUSK::Medbiq::Program;
 use TUSK::Medbiq::Events;
 use TUSK::Medbiq::Expectations;
 use TUSK::Medbiq::AcademicLevels;
+use TUSK::Medbiq::Level;
 
 use Moose;
 
@@ -55,6 +57,12 @@ has school => (
     required => 1,
 );
 
+has user_groups => (
+    is => 'ro',
+    isa => ArrayRef[Int],
+    required => 1,
+);
+
 has schemaLocation => (
     traits => [qw/Namespaced/],
     is => 'ro',
@@ -66,21 +74,21 @@ has schemaLocation => (
 
 has ReportID => (
     is => 'ro',
-    isa => Medbiq_UniqueID,
+    isa => UniqueID,
     lazy => 1,
     builder => '_build_ReportID',
 );
 
 has Institution => (
     is => 'ro',
-    isa => Medbiq_Institution,
+    isa => TUSK::Medbiq::Types::Institution,
     lazy => 1,
     builder => '_build_Institution',
 );
 
 has Program => (
     is => 'ro',
-    isa => Medbiq_Program,
+    isa => TUSK::Medbiq::Types::Program,
     lazy => 1,
     builder => '_build_Program',
 );
@@ -94,7 +102,7 @@ has Title => (
 
 has ReportDate => (
     is => 'ro',
-    isa => xs_date,
+    isa => TUSK_XSD_Date,
     coerce => 1,
     lazy => 1,
     builder => '_build_ReportDate',
@@ -102,14 +110,14 @@ has ReportDate => (
 
 has ReportingStartDate => (
     is => 'ro',
-    isa => xs_date,
+    isa => TUSK_XSD_Date,
     coerce => 1,
     required => 1,
 );
 
 has ReportingEndDate => (
     is => 'ro',
-    isa => xs_date,
+    isa => TUSK_XSD_Date,
     coerce => 1,
     required => 1,
 );
@@ -136,34 +144,34 @@ has SupportingLink => (
 
 has Events => (
     is => 'ro',
-    isa => Medbiq_Events,
+    isa => TUSK::Medbiq::Types::Events,
     lazy => 1,
     builder => '_build_Events',
 );
 
 has Expectations => (
     is => 'ro',
-    isa => Medbiq_Expectations,
+    isa => TUSK::Medbiq::Types::Expectations,
     lazy => 1,
     builder => '_build_Expectations',
 );
 
 has AcademicLevels => (
     is => 'ro',
-    isa => Medbiq_AcademicLevels,
+    isa => TUSK::Medbiq::Types::AcademicLevels,
     lazy => 1,
     builder => '_build_AcademicLevels',
 );
 
 has Sequence => (
     is => 'ro',
-    isa => Medbiq_Sequence,
+    isa => TUSK::Medbiq::Types::Sequence,
     required => 0,
 );
 
 has Integration => (
     is => 'ro',
-    isa => Medbiq_Integration,
+    isa => TUSK::Medbiq::Types::Integration,
     required => 0,
 );
 
@@ -264,7 +272,23 @@ sub _build_Expectations {
 }
 
 sub _build_AcademicLevels {
-    return TUSK::Medbiq::AcademicLevels->new(school => shift->school);
+    my $self = shift;
+    my @levels;
+    my $i = 1;
+    my $school_name = $self->school->getSchoolName();
+    foreach my $ugid ( @{ $self->user_groups } ) {
+        push @levels, TUSK::Medbiq::Level->new(
+            number => $i,
+            dao => HSDB45::UserGroup->new(
+                _school => $school_name
+            )->lookup_key($ugid),
+        );
+        $i++;
+    }
+    return TUSK::Medbiq::AcademicLevels->new(
+        school => $self->school,
+        Level => \@levels,
+    );
 }
 
 

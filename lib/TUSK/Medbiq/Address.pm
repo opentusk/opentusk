@@ -22,11 +22,11 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose qw(ArrayRef);
-use TUSK::Types qw(NonNullString);
+use Types::Standard qw( ArrayRef );
+use TUSK::Medbiq::Types qw( NonNullString Address_Category
+                            Address_Restriction );
 
 use Moose;
-
 with 'TUSK::XML::Object';
 
 Readonly my $_default_namespace => 'http://ns.medbiq.org/address/v1/';
@@ -87,19 +87,19 @@ has District => (
 
 has Country => (
     is => 'ro',
-    isa => 'TUSK::Medbiq::Country',
+    isa => TUSK::Medbiq::Types::Country,
     required => 0,
 );
 
 has addressCategory => (
     is => 'ro',
-    isa => 'TUSK::Medbiq::Types::Address::Category',
+    isa => Address_Category,
     required => 0,
 );
 
 has restrictions => (
     is => 'ro',
-    isa => 'TUSK::Medbiq::Types::Address::Restriction',
+    isa => Address_Restriction,
     required => 0,
 );
 

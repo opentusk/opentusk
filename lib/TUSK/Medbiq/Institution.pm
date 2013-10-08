@@ -26,7 +26,7 @@ use TUSK::Constants;
 use TUSK::Medbiq::Address;
 use TUSK::Medbiq::UniqueID;
 
-use TUSK::Types qw(NonNullString Medbiq_UniqueID Medbiq_Address);
+use TUSK::Medbiq::Types qw( NonNullString UniqueID );
 
 use Moose;
 
@@ -45,13 +45,13 @@ has InstitutionName => (
 
 has InstitutionID => (
     is => 'ro',
-    isa => Medbiq_UniqueID,
+    isa => UniqueID,
     builder => '_build_InstitutionID',
 );
 
 has Address => (
     is => 'ro',
-    isa => Medbiq_Address,
+    isa => TUSK::Medbiq::Types::Address,
     lazy => 1,
     builder => '_build_Address',
 );

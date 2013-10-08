@@ -27,8 +27,10 @@ use Carp;
 use Readonly;
 
 use TUSK::Core::Objective;
-use MooseX::Types::Moose ':all';
-use TUSK::Types ':all';
+use TUSK::Medbiq::Types qw( NonNullString VocabularyTerm );
+use TUSK::Types qw( TUSK_Objective ClassMeeting );
+use Types::Standard qw( HashRef Str Maybe ArrayRef );
+use Types::XSD qw( Duration Boolean );
 use TUSK::Namespaces ':all';
 use TUSK::Medbiq::InstructionalMethod;
 use TUSK::Medbiq::AssessmentMethod;
@@ -73,7 +75,7 @@ has Title => (
 
 has EventDuration => (
     is => 'ro',
-    isa => xs_duration,
+    isa => Duration,
     lazy => 1,
     builder => '_build_EventDuration',
 );
@@ -87,42 +89,42 @@ has Description => (
 
 has Keyword => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_Keyword],
+    isa => ArrayRef[TUSK::Medbiq::Types::Keyword],
     lazy => 1,
     builder => '_build_Keyword',
 );
 
 has Interprofessional => (
     is => 'ro',
-    isa => Maybe[xs_boolean],
+    isa => Maybe[Boolean],
     lazy => 1,
     builder => '_build_Interprofessional',
 );
 
 has CompetencyObjectReference => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_CompetencyObjectReference],
+    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyObjectReference],
     lazy => 1,
     builder => '_build_CompetencyObjectReference',
 );
 
 has ResourceType => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_VocabularyTerm],
+    isa => ArrayRef[VocabularyTerm],
     lazy => 1,
     builder => '_build_ResourceType',
 );
 
 has InstructionalMethod => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_InstructionalMethod],
+    isa => ArrayRef[TUSK::Medbiq::Types::InstructionalMethod],
     lazy => 1,
     builder => '_build_InstructionalMethod',
 );
 
 has AssessmentMethod => (
     is => 'ro',
-    isa => ArrayRef[Medbiq_AssessmentMethod],
+    isa => ArrayRef[TUSK::Medbiq::Types::AssessmentMethod],
     lazy => 1,
     builder => '_build_AssessmentMethod',
 );

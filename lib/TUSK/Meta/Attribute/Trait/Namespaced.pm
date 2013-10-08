@@ -22,8 +22,7 @@ use utf8;
 use Carp;
 use Readonly;
 
-use MooseX::Types::Moose qw( Str );
-# use TUSK::Types qw( UnsignedInt UnsignedNum StrHashRef StrArrayRef );
+use Types::Standard qw( Str );
 
 use Moose::Role;
 use Moose::Util;

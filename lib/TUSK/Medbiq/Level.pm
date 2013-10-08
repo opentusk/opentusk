@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::VocabularyTerm;
+package TUSK::Medbiq::Level;
+
+###########
+# * Imports
+###########
 
 use 5.008;
 use strict;
@@ -22,71 +26,105 @@ use utf8;
 use Carp;
 use Readonly;
 
+use Types::Standard qw( Int Maybe );
 use TUSK::Medbiq::Types qw( NonNullString );
+use TUSK::Types qw( UserGroup );
 use TUSK::Namespaces ':all';
 
-use Moose;
+#########
+# * Setup
+#########
 
+use Moose;
 with 'TUSK::XML::Object';
 
 ####################
-# Class attributes #
+# * Class attributes
 ####################
 
-has content => (
+has dao => (
     is => 'ro',
-    isa => NonNullString,
+    isa => UserGroup,
     required => 1,
 );
 
-has source => (
+has number => (
+    is => 'ro',
+    isa => Int,
+    required => 1,
+);
+
+has Label => (
     is => 'ro',
     isa => NonNullString,
     lazy => 1,
-    builder => '_build_source',
+    builder => '_build_Label',
 );
 
-has sourceID => (
+has Description => (
     is => 'ro',
-    isa => NonNullString,
-    required => 1,
+    isa => Maybe[NonNullString],
+    lazy => 1,
+    builder => '_build_Description',
 );
 
-#################
-# Class methods #
-#################
 
-###################
-# Private methods #
-###################
+############
+# * Builders
+############
 
 sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { $self->content }
-sub _build_xml_attributes { [ qw(source sourceID) ] }
+sub _build_xml_attributes { [ qw( number ) ] }
+sub _build_xml_content { [ qw( Label Description ) ] }
 
-sub _build_source { 'HEALTHCARE_LOMv1' }
+sub _build_Label {
+    my $self = shift;
+    my $label = $self->dao->label;
+    chomp $label;
+    return $label;
+}
+
+sub _build_Description {
+    my $self = shift;
+    my $desc = $self->dao->description;
+    return undef unless $desc;
+    chomp $desc;
+    return $desc;
+}
+
+#################
+# * Class methods
+#################
+
+###################
+# * Private methods
+###################
 
 ###########
-# Cleanup #
+# * Cleanup
 ###########
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
+###########
+# * Perldoc
+###########
+
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::VocabularyTerm - A short description of the module's purpose
+TUSK::Medbiq::Level - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::VocabularyTerm> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Level> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::VocabularyTerm;
+  use TUSK::Medbiq::Level;
 
 =head1 DESCRIPTION
 
