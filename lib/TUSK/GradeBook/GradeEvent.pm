@@ -739,7 +739,8 @@ sub getCourseEvents{
 	if (defined($event_type)){
 		$addtl_join_obj = [TUSK::Core::JoinObject->new("TUSK::GradeBook::GradeEventType", { 'cond' => " grade_event_type_name = '$event_type'"} )];
 	}
-	return $self->lookup( $cond, undef, undef, undef, $addtl_join_obj );
+        my $order_by = ['grade_category_id', 'sort_order'];
+	return $self->lookup( $cond, $order_by, undef, undef, $addtl_join_obj );
 
 }
 
