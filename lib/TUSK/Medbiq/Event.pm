@@ -26,6 +26,7 @@ use utf8;
 use Carp;
 use Readonly;
 
+use TUSK::Constants;
 use TUSK::Core::Objective;
 use TUSK::Medbiq::Types qw( NonNullString VocabularyTerm );
 use TUSK::Types qw( TUSK_Objective ClassMeeting );
@@ -150,6 +151,7 @@ sub _build_id {
 sub _build_Title {
     my $self = shift;
     my $title = $self->dao->title || 'Untitled Event';
+    chomp $title;
     return $title;
 }
 
@@ -200,8 +202,13 @@ sub _build_objectives {
 
 sub _build_CompetencyObjectReference {
     my $self = shift;
-    my $co_ref_fmt = q{/CurriculumInventory/Expectations/CompetencyObject}
-        . q{[lom:lom/lom:general/lom:identifier/lom:entry='objective-%d']};
+    my $co_ref_fmt
+        = '/CurriculumInventory/Expectations/CompetencyObject'
+        . "[lom:lom/lom:general/lom:identifier/lom:entry='"
+        . 'http://'
+        . $TUSK::Constants::Domain
+        . '/objective#%d'
+        . "']";
     my @competency_links
         = map { sprintf($co_ref_fmt, $_) } keys %{ $self->objectives };
     return \@competency_links;

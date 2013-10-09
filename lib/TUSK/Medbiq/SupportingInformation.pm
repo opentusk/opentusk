@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Namespaces;
+package TUSK::Medbiq::SupportingInformation;
+
+###########
+# * Imports
+###########
 
 use 5.008;
 use strict;
@@ -22,73 +26,82 @@ use utf8;
 use Carp;
 use Readonly;
 
-our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
-BEGIN {
-    require Exporter;
-    @ISA = qw(Exporter);
-    @EXPORT_OK = qw( curriculum_inventory_ns
-                     lom_ns
-                     address_ns
-                     competency_framework_ns
-                     competency_object_ns
-                     extend_ns
-                     member_ns
-                     xhtml_ns
-                     xml_schema_instance_ns );
-    %EXPORT_TAGS = ( all => [ @EXPORT_OK ] );
-}
+use TUSK::Meta::Attribute::Trait::Namespaced;
+use TUSK::Namespaces ':all';
+use Types::Standard qw( Str );
+use Types::XSD qw( AnyURI );
+use TUSK::Types qw( XHTML_Object );
 
-sub curriculum_inventory_ns {
-    return "http://ns.medbiq.org/curriculuminventory/v1/";
-}
+#########
+# * Setup
+#########
 
-sub lom_ns {
-    return "http://ltsc.ieee.org/xsd/LOM";
-}
+use Moose;
+with 'TUSK::XML::Object';
 
-sub address_ns {
-    return "http://ns.medbiq.org/address/v1/";
-}
+####################
+# * Class attributes
+####################
 
-sub competency_framework_ns {
-    return "http://ns.medbiq.org/competencyframework/v1/";
-}
+has Link => (
+    is => 'ro',
+    isa => Maybe[AnyURI],
+    lazy => 1,
+    builder => '_build_Link',
+);
 
-sub competency_object_ns {
-    return "http://ns.medbiq.org/competencyobject/v1/";
-}
+has div => (
+    traits => [ qw(Namespaced) ],
+    is => 'ro',
+    isa => Maybe[Str | XHTML_Object],
+    lazy => 1,
+    builder => '_build_div',
+    namespace => xhtml_ns,
+);
 
-sub extend_ns {
-    return "http://ns.medbiq.org/lom/extend/v1/";
-}
 
-sub member_ns {
-    return "http://ns.medbiq.org/member/v1/";
-}
+############
+# * Builders
+############
 
-sub xhtml_ns {
-    return "http://www.w3.org/1999/xhtml";
-}
+sub _build_namespace { competency_framework_ns }
+sub _build_xml_content { [ qw( Link div ) ] }
+sub _build_Link { return; }
+sub _build_div { return; }
 
-sub xml_schema_instance_ns {
-    return "http://www.w3.org/2001/XMLSchema-instance";
-}
+#################
+# * Class methods
+#################
 
+###################
+# * Private methods
+###################
+
+###########
+# * Cleanup
+###########
+
+__PACKAGE__->meta->make_immutable;
+no Moose;
 1;
+
+###########
+# * Perldoc
+###########
 
 __END__
 
 =head1 NAME
 
-TUSK::Namespaces - A short description of the module's purpose
+TUSK::Medbiq::SupportingInformation - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Namespaces> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::SupportingInformation> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Namespaces;
+  use TUSK::Medbiq::SupportingInformation;
 
 =head1 DESCRIPTION
 

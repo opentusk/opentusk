@@ -49,6 +49,7 @@ use Type::Library
                       UnsignedInt
                       UnsignedNum
                       XML_Object
+                      XHTML_Object
               );
 use Type::Utils -all;
 use Types::Standard qw( Int Num Str HashRef ArrayRef );
@@ -76,6 +77,7 @@ class_type TUSK_Objective, { class => 'TUSK::Core::Objective' };
 class_type School, { class => 'TUSK::Core::School' };
 class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 role_type XML_Object, { role => 'TUSK::XML::Object' };
+declare XHTML_Object, as XML_Object;
 declare TUSK_XSD_Date, as Types::XSD::Date;
 class_type UserGroup, { class => 'HSDB45::UserGroup' };
 

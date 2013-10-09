@@ -40,6 +40,9 @@ use Type::Library
                       Address_Restriction
                       AssessmentMethod
                       Category
+                      CFIncludes
+                      CFLOM
+                      CFRelationship
                       CompetencyFramework
                       CompetencyObject
                       CompetencyObjectReference
@@ -56,7 +59,6 @@ use Type::Library
                       Integration
                       Keyword
                       Level
-                      LOM
                       Program
                       References
                       Relation
@@ -67,13 +69,25 @@ use Type::Library
                       VocabularyTerm
               );
 use Type::Utils -all;
-use Types::Standard qw( Str );
+use Types::Standard qw( Str ArrayRef );
+use TUSK::LOM::Types qw( LOM );
 
 ###############################
 # * Medbiquitous Standard Types
 ###############################
 
 declare NonNullString, as Str, where { length($_) > 0 };
+
+declare CFLOM,
+    as LOM,
+    where {
+        my $lom = $_;
+        ( $lom->general
+              && $lom->general->identifier
+              && $lom->general->identifier->catalog
+              && $lom->general->identifier->entry
+              && $lom->general->title )
+    };
 
 declare CompetencyObjectReference,
     as Str,
@@ -128,6 +142,10 @@ class_type References,
 class_type Level,
     { class => 'TUSK::Medbiq::Level' };
 
+declare CFIncludes,
+    as ArrayRef[Identifier],
+    where { scalar(@{$_}) > 0 };
+
 enum Address_Category,
     [ qw( Residential Business Undeliverable ) ];
 
@@ -136,6 +154,11 @@ enum Address_Restriction,
 
 enum ContextValues,
     [ 'school', 'higher education', 'training', 'other' ];
+
+enum CFRelationship,
+    [ 'http://www.w3.org/2004/02/skos/core#broader',
+      'http://www.w3.org/2004/02/skos/core#narrower',
+      'http://www.w3.org/2004/02/skos/core#related', ];
 
 ###########
 # * Cleanup

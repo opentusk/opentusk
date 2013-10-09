@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::CompetencyObject;
+package TUSK::Medbiq::CompetencyFramework;
 
 ###########
 # * Imports
@@ -25,19 +25,12 @@ use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
-use Encode qw( encode decode );
 
-use TUSK::LOM;
-use TUSK::LOM::General;
-use TUSK::LOM::Identifier;
-use TUSK::LOM::LangString;
-
-use TUSK::Namespaces ':all';
 use TUSK::Meta::Attribute::Trait::Namespaced;
+use TUSK::Namespaces ':all';
+use TUSK::Medbiq::Types qw( CFIncludes CFLOM );
 use Types::Standard qw( Maybe ArrayRef );
-use TUSK::LOM::Types qw( LOM );
-use TUSK::Medbiq::Types;
-use TUSK::Types qw( TUSK_Objective URI );
+use Types::XSD qw( Date AnyURI );
 
 #########
 # * Setup
@@ -50,61 +43,60 @@ with 'TUSK::XML::Object';
 # * Class attributes
 ####################
 
-has dao => (
-    is => 'ro',
-    isa => TUSK_Objective,
-    required => 1,
-);
-
 has lom => (
-    traits => [qw(Namespaced)],
+    traits => [ qw(Namespaced) ],
     is => 'ro',
-    isa => LOM,
-    lazy => 1,
-    builder => '_build_lom',
+    isa => CFLOM,
+    required => 1,
     namespace => lom_ns,
 );
 
-has Status => (
+has EffectiveDate => (
     is => 'ro',
-    isa => Maybe[TUSK::Medbiq::Types::Status],
+    isa => Maybe[Date],
     lazy => 1,
-    builder => '_build_Status',
+    builder => '_build_EffectiveDate',
+);
+
+has RetiredDate => (
+    is => 'ro',
+    isa => Maybe[Date],
+    lazy => 1,
+    builder => '_build_RetiredDate',
 );
 
 has Replaces => (
     is => 'ro',
-    isa => ArrayRef[URI],
+    isa => ArrayRef[AnyURI],
     lazy => 1,
     builder => '_build_Replaces',
 );
 
 has IsReplacedBy => (
     is => 'ro',
-    isa => ArrayRef[URI],
+    isa => ArrayRef[AnyURI],
     lazy => 1,
     builder => '_build_IsReplacedBy',
 );
 
-has Category => (
-    is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::Category],
-    lazy => 1,
-    builder => '_build_Category',
-);
-
-has References => (
-    is => 'ro',
-    isa => Maybe[TUSK::Medbiq::Types::References],
-    lazy => 1,
-    builder => '_build_References',
-);
-
 has SupportingInformation => (
     is => 'ro',
-    isa => Maybe[TUSK::Medbiq::Types::SupportingInformation],
+    isa => ArrayRef[TUSK::Medbiq::Types::SupportingInformation],
     lazy => 1,
     builder => '_build_SupportingInformation',
+);
+
+has Includes => (
+    is => 'ro',
+    isa => CFIncludes,
+    required => 1,
+);
+
+has Relation => (
+    is => 'ro',
+    isa => ArrayRef[TUSK::Medbiq::Types::Relation],
+    lazy => 1,
+    builder => '_build_Relation',
 );
 
 
@@ -112,41 +104,17 @@ has SupportingInformation => (
 # * Builders
 ############
 
-sub _build_namespace { competency_object_ns }
-sub _build_xml_content { [ qw( lom Status Replaces IsReplacedBy Category
-                               References SupportingInformation ) ] }
+sub _build_namespace { competency_framework_ns }
+sub _build_xml_content { [ qw( lom EffectiveDate RetiredDate Replaces
+                               IsReplacedBy SupportingInformation Includes
+                               Relation ) ] }
 
-sub _build_lom {
-    my $self = shift;
-    my $title_string = $self->dao->getBody();
-    chomp $title_string;
-    my $pk = $self->dao->getPrimaryKeyID();
-    my $uri = 'http://' . $TUSK::Constants::Domain . '/objective#' . $pk;
-    my $identifier = TUSK::LOM::Identifier->new(
-        catalog => 'URI',
-        entry => $uri,
-    );
-    my $title = TUSK::LOM::LangString->new(
-        string => $title_string,
-    );
-    my $general = TUSK::LOM::General->new(
-        identifier => [ $identifier ],
-        title => $title,
-    );
-    return TUSK::LOM->new( general => $general );
-}
-
-sub _build_Status { return; }
-
-sub _build_Replaces { return []; }
-
-sub _build_IsReplacedBy { return []; }
-
-sub _build_Category { return []; }
-
-sub _build_References { return; }
-
-sub _build_SupportingInformation { return; }
+sub _build_EffectiveDate { return; }
+sub _build_RetiredDate { return; }
+sub _build_Replaces { [] }
+sub _build_IsReplacedBy { [] }
+sub _build_SupportingInformation { [] }
+sub _build_Relation { [] }
 
 
 #################
@@ -173,15 +141,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::CompetencyObject - A short description of the module's purpose
+TUSK::Medbiq::CompetencyFramework - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::CompetencyObject> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::CompetencyFramework> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::CompetencyObject;
+  use TUSK::Medbiq::CompetencyFramework;
 
 =head1 DESCRIPTION
 
