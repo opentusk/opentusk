@@ -9,6 +9,7 @@ requires 'XML::Writer', '0.623';
 requires 'MooseX::NonMoose', '0.24';
 requires 'Type::Tiny', '0.028';
 requires 'Types::XSD', '0.003';
+requires 'DBD::mysql', '4.024';
 
 # Testing
 requires 'Test::Files', '0.14';
