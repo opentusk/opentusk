@@ -93,6 +93,7 @@ Readonly my %METHOD_FROM_UID => (
 
 Readonly my %UID_FROM_TYPE => (
     'Examination' => 'AM004',
+    'Laboratory Practical' => 'AM015',
     'Quiz' => 'AM017',
 );
 

@@ -105,6 +105,13 @@ Readonly my %METHOD_FROM_UID => (
 );
 
 Readonly my %UID_FROM_TYPE => (
+    'Case-based Lecture' => 'IM001',
+    'Case-based Small Group' => 'IM001',
+    'Clinical Experiences' => 'IM003',
+    'Clinical Pathologic Conference (CPC)' => 'IM005',
+    'Clinical Skills Development' => 'IM003',
+    'Computer-assisted instruction' => 'IM023',
+    'Group Presentation' => 'IM016',
     'Lecture' => 'IM013',
     'Small Group' => 'IM008',
     'Conference' => 'IM005',
