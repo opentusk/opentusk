@@ -139,7 +139,7 @@ sub upload_file{
 		#determine how many images are already in the user's dir
 		my $file_count =0;
 		my $files;
-		opendir(DIR, $user_path) or die "can't opendir : $!";
+		opendir(DIR, $user_path) or die "can't opendir $user_path: $!";
 		while (defined($files = readdir(DIR))) {
 			$file_count++;
 		}
