@@ -33,7 +33,8 @@ use Readonly;
 use Type::Library
     -base,
     -declare => qw(
-                      NonNullString
+                      AcademicLevelID
+                      AcademicLevelReference
                       AcademicLevels
                       Address
                       Address_Category
@@ -49,27 +50,37 @@ use Type::Library
                       ContextValues
                       Country
                       CurriculumInventory
+                      Dates
                       Domain
                       Event
+                      EventReferenceXpath
                       Events
                       Expectations
                       Identifier
                       Institution
                       InstructionalMethod
                       Integration
+                      IntegrationBlock
+                      IntegrationBlockList
                       Keyword
                       Level
+                      NonNullString
                       Program
                       References
                       Relation
                       Sequence
+                      SequenceBlock
+                      SequenceBlockEvent
+                      SequenceBlockReference
+                      SequenceBlockReferenceXpath
                       Status
                       SupportingInformation
+                      Timing
                       UniqueID
                       VocabularyTerm
               );
 use Type::Utils -all;
-use Types::Standard qw( Str ArrayRef );
+use Types::Standard qw( Int Str ArrayRef );
 use TUSK::LOM::Types qw( LOM );
 
 ###############################
@@ -89,12 +100,33 @@ declare CFLOM,
               && $lom->general->title )
     };
 
+declare AcademicLevelReference,
+    as Str,
+    where { $_ =~ m{ \A \s*
+                     /CurriculumInventory/AcademicLevels/Level
+                     \[ \@number \s* = \s* ' \d+ ' \]
+                     \s* \z }xms };
+
+declare SequenceBlockReferenceXpath,
+    as Str,
+    where { $_ =~ m{ \A \s*
+                     /CurriculumInventory/Sequence/SequenceBlock
+                     \[ \@id \s* = \s* ' [^']+ ' \]
+                     \s* \z }xms };
+
+declare EventReferenceXpath,
+    as Str,
+    where { $_ =~ m{ \A \s*
+                     /CurriculumInventory/Events/Event
+                     \[ \@id \s* = \s* ' [^']+ ' \]
+                     \s* \z }xms };
+
 declare CompetencyObjectReference,
     as Str,
     where { $_ =~ m{ \A \s*
                      /CurriculumInventory/Expectations/CompetencyObject
                      \[ lom:lom/lom:general/lom:identifier/lom:entry
-                     \s? = \s?
+                     \s* = \s*
                      ' [^']+ '
                      \]
                      \s* \z }xms };
@@ -105,7 +137,7 @@ declare Domain,
 
 class_type UniqueID, { class => 'TUSK::Medbiq::UniqueID' };
 class_type Address, { class => 'TUSK::Medbiq::Address' };
-class_type Country, { class => 'TUSK::Medbiq::Address::Country' };
+class_type Country, { class => 'TUSK::Medbiq::Country' };
 class_type Institution, { class => 'TUSK::Medbiq::Institution' };
 class_type CurriculumInventory, {
     class => 'TUSK::Medbiq::CurriculumInventory'
@@ -116,6 +148,9 @@ class_type Events, { class => 'TUSK::Medbiq::Events' };
 class_type Expectations, { class => 'TUSK::Medbiq::Expectations' };
 class_type AcademicLevels, { class => 'TUSK::Medbiq::AcademicLevels' };
 class_type Sequence, { class => 'TUSK::Medbiq::Sequence' };
+class_type SequenceBlock, { class => 'TUSK::Medbiq::SequenceBlock' };
+class_type SequenceBlockReference,
+    { class => 'TUSK::Medbiq::SequenceBlockReference' };
 class_type Integration, { class => 'TUSK::Medbiq::Integration' };
 class_type Event, { class => 'TUSK::Medbiq::Event' };
 class_type Keyword, { class => 'TUSK::Medbiq::Keyword' };
@@ -141,9 +176,19 @@ class_type References,
     { class => 'TUSK::Medbiq::References' };
 class_type Level,
     { class => 'TUSK::Medbiq::Level' };
+class_type Timing, { class => 'TUSK::Medbiq::Timing' };
+class_type Dates, { class => 'TUSK::Medbiq::Dates' };
+class_type SequenceBlockEvent,
+    { class => 'TUSK::Medbiq::SequenceBlockEvent' };
+class_type IntegrationBlock,
+    { class => 'TUSK::Medbiq::IntegrationBlock' };
 
 declare CFIncludes,
     as ArrayRef[Identifier],
+    where { scalar(@{$_}) > 0 };
+
+declare IntegrationBlockList,
+    as ArrayRef[IntegrationBlock],
     where { scalar(@{$_}) > 0 };
 
 enum Address_Category,

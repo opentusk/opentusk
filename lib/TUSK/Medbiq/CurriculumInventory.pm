@@ -166,7 +166,8 @@ has AcademicLevels => (
 has Sequence => (
     is => 'ro',
     isa => TUSK::Medbiq::Types::Sequence,
-    required => 0,
+    lazy => 1,
+    builder => '_build_Sequence',
 );
 
 has Integration => (
@@ -288,6 +289,14 @@ sub _build_AcademicLevels {
     return TUSK::Medbiq::AcademicLevels->new(
         school => $self->school,
         Level => \@levels,
+    );
+}
+
+sub _build_Sequence {
+    my $self = shift;
+    return TUSK::Medbiq::Sequence->new(
+        school => $self->school,
+        events => $self->Events,
     );
 }
 

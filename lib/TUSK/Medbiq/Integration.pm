@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Address::Country;
+package TUSK::Medbiq::Integration;
+
+###########
+# * Imports
+###########
 
 use 5.008;
 use strict;
@@ -22,62 +26,77 @@ use utf8;
 use Carp;
 use Readonly;
 
-use TUSK::Types qw(NonNullString);
-use TUSK::Meta::Attribute::Trait::Namespaced;
+use TUSK::Namespaces ':all';
+use Types::Standard qw( Maybe ArrayRef );
+use TUSK::Medbiq::Types qw( NonNullString IntegrationBlockList );
+
+#########
+# * Setup
+#########
 
 use Moose;
-
 with 'TUSK::XML::Object';
 
-Readonly my $_default_namespace => 'http://ns.medbiq.org/address/v1/';
-
 ####################
-# Class attributes #
+# * Class attributes
 ####################
 
-has CountryName => (
-    traits => [ qw(Namespaced) ],
+has Description => (
     is => 'ro',
-    isa => NonNullString,
-    required => 0,
+    isa => Maybe[NonNullString],
+    lazy => 1,
+    builder => '_build_Description',
 );
 
-has CountryCode => (
-    traits => [ qw(Namespaced) ],
+has IntegrationBlock => (
     is => 'ro',
-    isa => NonNullString,
-    required => 0,
+    isa => IntegrationBlockList,
+    required => 1,
 );
 
+
+############
+# * Builders
+############
+
+sub _build_namespace { curriculum_inventory_ns }
+sub _build_xml_content { [ qw( Description IntegrationBlock ) ] }
+
+sub _build_Description { return; }
+
+#################
+# * Class methods
+#################
+
 ###################
-# Private methods #
+# * Private methods
 ###################
 
-sub _build_namespace {
-    return $_default_namespace;
-}
-
-sub _build_xml_content {
-    return [ qw( CountryName CountryCode ) ];
-}
+###########
+# * Cleanup
+###########
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
+###########
+# * Perldoc
+###########
+
 __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Address::Country - A representation of a country and country code
+TUSK::Medbiq::Integration - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Address::Country> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Integration> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Address::Country;
+  use TUSK::Medbiq::Integration;
 
 =head1 DESCRIPTION
 
