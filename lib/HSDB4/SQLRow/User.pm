@@ -675,7 +675,7 @@ INNER JOIN $db.time_period tp ON (e.time_period_id = tp.time_period_id AND now()
 INNER JOIN $db.course c ON (e.course_id = c.course_id)
 INNER JOIN $db.link_course_student lcs ON 
   (lcs.time_period_id = tp.time_period_id AND lcs.parent_course_id = c.course_id AND child_user_id = ?
-   AND ((c.associate_users = 'User Group' AND lcs.teaching_site_id = e.teaching_site_id) OR c.associate_users = 'Enrollment'))
+   AND lcs.teaching_site_id = e.teaching_site_id)
 WHERE
   e.due_date BETWEEN now() AND ?
   AND e.available_date < now()
