@@ -594,35 +594,24 @@ SELECT
   c.title AS course_title
 FROM
   tusk.quiz q
-  INNER JOIN tusk.link_course_quiz lcq
-    ON q.quiz_id = lcq.child_quiz_id
-  INNER JOIN $db.course c
-    ON c.course_id = lcq.parent_course_id
-  INNER JOIN tusk.school s
-    ON lcq.school_id = s.school_id
-  INNER JOIN $db.link_course_student lcs
-    ON lcs.parent_course_id = c.course_id
-  INNER JOIN $db.time_period tp
-    ON lcs.time_period_id = tp.time_period_id
+  INNER JOIN tusk.link_course_quiz lcq ON (q.quiz_id = lcq.child_quiz_id)
+  INNER JOIN $db.course c ON (c.course_id = lcq.parent_course_id)
+  INNER JOIN tusk.school s ON (lcq.school_id = s.school_id)
+  INNER JOIN $db.link_course_student lcs ON (lcs.parent_course_id = c.course_id AND lcq.time_period_id = lcs.time_period_id)
+  INNER JOIN $db.time_period tp ON (lcs.time_period_id = tp.time_period_id)
 WHERE
   s.school_name = ?
-  AND
-  lcq.available_date < NOW()
-  AND
-  NOW() BETWEEN tp.start_date AND tp.end_date
-  AND
-  lcq.due_date BETWEEN NOW() AND ?
-  AND
-  child_user_id = ?
-  AND
-  q.quiz_id NOT IN (
+  AND lcq.available_date < NOW()
+  AND NOW() BETWEEN tp.start_date AND tp.end_date
+  AND lcq.due_date BETWEEN NOW() AND ?
+  AND child_user_id = ?
+  AND q.quiz_id NOT IN (
     SELECT qr.quiz_id
     FROM tusk.quiz_result qr
     WHERE user_id = ? AND qr.end_date IS NOT NULL
   )
 END_SQL
-    push @sql_values, ($school, $enddate, $user->primary_key(),
-                       $user->primary_key());
+    push @sql_values, ($school, $enddate, $user->primary_key(), $user->primary_key());
 
     my $case_sql = <<"END_SQL";
 SELECT
@@ -927,7 +916,7 @@ sub user_group_courses{
     foreach my $school (@$schools){
 	$lookup->{ $school->getSchoolName() } = $school;
     }
-	
+
     my $courses = [];
     my @school_joins = ();
 
@@ -1064,9 +1053,9 @@ sub check_school_permissions{
 	
 
 sub admin_courses {
-    #
-    # Get a list of courses this person has access to as an admin
-    #
+    # Get a list of courses this person has access to as an admin.
+    # Don't cache because it makes the user object too big to fit in
+    # hsdb4.sessions.a_session column in MySQL
     my $self = shift;
     my ($school,$group_id,@admin_courses);
     foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
@@ -2654,43 +2643,50 @@ sub get_announcements_by_group_and_course{
     return \@sorted;
 }
 
-sub get_course_assignments {
-    my ($self, $course) = @_;
-    my $tps = $course->get_users_active_timeperiods($self->user_id);
-    my @tp_ids = map { $_->primary_key() } @$tps;
-    my $assignments = [];
-
-    if (@tp_ids and scalar(@tp_ids)) {
-        $assignments = TUSK::Assignment::Assignment->new()->lookup(
-            'course_id = '
-                . $course->primary_key()
-                . ' AND time_period_id IN ('
-                . join(',', @tp_ids)
-                . ') AND school_id = '
-                . $course->get_school->getPrimaryKeyID()
-                . " AND available_date != '0000-00-00 00:00:00' "
-                . ' AND available_date <= NOW() '
-                . " AND assignment.due_date != '0000-00-00 00:00:00'"
-            );
-    }
-
-    return $assignments;
+sub _get_course_assignments_sql {
+    my $self = shift;
+    return <<"END_SQL";
+SELECT
+    a.assignment_id, g.event_name, g.course_id, s.school_name
+FROM
+    tusk.assignment a
+INNER JOIN
+    tusk.grade_event g ON (a.grade_event_id = g.grade_event_id)
+INNER JOIN
+    tusk.school s ON (g.school_id = s.school_id)
+INNER JOIN
+    $_[0].link_course_student l 
+    ON
+        (g.course_id = l.parent_course_id AND l.child_user_id = '$self->{'user_id'}' AND g.time_period_id = l.time_period_id)
+INNER JOIN
+    $_[0].time_period t 
+    ON
+        (t.time_period_id = l.time_period_id AND t.start_date <= curdate() AND t.end_date >= curdate())
+WHERE 
+    a.due_date >=curdate()
+ORDER BY
+    a.due_date
+END_SQL
 }
 
-sub get_upcoming_course_assignments {
-    my ($self, $course) = @_;
+sub get_course_assignments {
+    
+    my $self = shift;
 
-    # filter for assignment due dates in the future
-    my @assignments = grep {
-        my $assign = $_;
-        my $assign_due_date = HSDB4::DateTime->new()->in_mysql_timestamp(
-            $assign->getDueDate()
-        );
-        my $now = HSDB4::DateTime->new();
-        ($assign_due_date <=> $now) > 0
-    } @{ $self->get_course_assignments($course) };
+    my @courses = $self->current_courses();
+    
+    my %schools_dbs = map { $_->school_db() => 1} @courses;
+        
+    my @all_assignments;
+   
+    foreach my $school(keys %schools_dbs) {
+	my $sql = $self-> _get_course_assignments_sql($school);
+	my $sth = TUSK::Core::SQLRow->new()->databaseSelect($sql);
+	
+	push @all_assignments, values %{$sth->fetchall_hashref('assignment_id')};
+    }
 
-    return \@assignments;
+    return \@all_assignments;
 }
 
 sub get_school_announcements {
@@ -2700,6 +2696,7 @@ sub get_school_announcements {
 	push @courses, $self->author_courses();
 
 	my @schools = keys %{{ map {$_->school() => 1 } @courses }};
+	
 	foreach my $school (@schools) {
 		my @announcements = HSDB45::Announcement::schoolwide_announcements($school);
 		foreach my $ann (@announcements) {
