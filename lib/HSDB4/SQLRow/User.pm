@@ -1421,93 +1421,206 @@ EOM
 
 }
 
+sub databases_with_grade_events {
+    my ($self) = @_;
+    my $user_id = $self->primary_key;
+    my @school_dbs;
+    my $sql = <<'END_SQL';
+        SELECT DISTINCT s.school_db
+        FROM
+          tusk.school s
+          INNER JOIN tusk.grade_event ge
+            ON s.school_id = ge.school_id
+          INNER JOIN tusk.link_user_grade_event luge
+            ON ge.grade_event_id = luge.child_grade_event_id
+        WHERE luge.parent_user_id = ?;
+END_SQL
+    my $sth = $self->dbh->prepare($sql);
+    $sth->execute($user_id);
+    while ( my $row = $sth->fetchrow_hashref ) {
+        push @school_dbs, $row->{school_db};
+    }
+    $sth->finish;
+    return @school_dbs;
+}
+
+sub grades_list_sql {
+    my ($school_db) = @_;
+    my $sql = <<"END_SQL";
+        SELECT
+          luge.grade,
+          luge.comments,
+          ge.course_id,
+          ge.school_id,
+          ge.event_name,
+          ge.grade_event_id,
+          ge.sort_order,
+          s.school_id,
+          s.school_name,
+          s.school_db,
+          c.title,
+          tp.start_date,
+          tp.end_date,
+          tp.time_period_id
+        FROM
+          tusk.link_user_grade_event luge
+          INNER JOIN tusk.grade_event ge
+            ON luge.child_grade_event_id = ge.grade_event_id
+          INNER JOIN tusk.school s
+            ON ge.school_id = s.school_id
+          INNER JOIN $school_db.time_period tp
+            ON ge.time_period_id = tp.time_period_id
+          INNER JOIN $school_db.course c
+            ON ge.course_id = c.course_id
+        WHERE
+          luge.parent_user_id = ?
+          AND s.school_id = ?
+          AND ge.publish_flag = 1
+        ORDER BY
+          tp.start_date DESC,
+          tp.end_date DESC,
+          c.title,
+          ge.grade_category_id,
+          ge.sort_order;
+END_SQL
+    return $sql;
+}
+
+sub pending_eval_link {
+    my ($school_name, $eval_id) = @_;
+    return sprintf(
+        '<a href="/protected/eval/complete/%s/%d">Pending Eval Completion</a>',
+        $school_name, $eval_id
+    );
+}
+
+sub grade_link {
+    my ($self, $grade_ref, $school_name) = @_;
+    my $link;
+    my $eval_link = TUSK::GradeBook::GradeEventEval->lookupReturnOne(
+        "grade_event_id = " . $grade_ref->{grade_event_id} );
+    if ($eval_link) {
+        my $eval_id = $eval_link->getEvalID();
+        my $eval_obj = HSDB45::Eval->new(
+            _school => $school_name )->lookup_key( $eval_id );
+        if ( $eval_obj->is_user_complete($self) ) {
+            $link = pending_eval_link($school_name, $eval_id);
+        }
+    }
+    return $link;
+}
+
+sub grades_for_school {
+    my ($self, $school_obj) = @_;
+    my $school_db = $school_obj->getSchoolDb();
+    my $school_name = $school_obj->getSchoolName();
+    my $school_id = $school_obj->getPrimaryKeyID();
+    my @grades;
+    my $sql = grades_list_sql($school_db);
+    my $sth = $self->dbh->prepare($sql);
+    $sth->execute($self->primary_key, $school_id);
+    while ( my $grade_ref = $sth->fetchrow_hashref ) {
+        my $grade_eval_link = $self->grade_link($grade_ref, $school_name);
+        $grade_ref->{grade} = $grade_eval_link if $grade_eval_link;
+        push @grades, $grade_ref;
+    }
+    $sth->finish;
+    return @grades;
+}
+
+sub sorted_grades_list {
+    my ($self) = @_;
+    my @school_dbs = $self->databases_with_grade_events();
+    my @grades;
+    foreach my $school_db (@school_dbs) {
+        my $school_obj = TUSK::Core::School->lookupReturnOne(
+            "school_db = '$school_db'" );
+
+        # grades sorted by time period, course title, and grade event
+        my @school_grades = $self->grades_for_school($school_obj);
+        push @grades, @school_grades;
+    }
+    return @grades;
+}
+
 sub get_grades {
-        my ($self) = @_;
-        my $user_id = $self->primary_key();
-	my @schoolDatabases = ();
-	my $grades = [];
+    my ($self) = @_;
 
-#        This only tell you what grades you have. It does not tell you if there is a grade event that you are related to but do not have a grade yet.
-	
-	my $sql = "select distinct(s.school_db)
-                     from tusk.school s, tusk.link_user_grade_event luge, tusk.grade_event ge
-                    where luge.parent_user_id= ? and ge.school_id=s.school_id and luge.child_grade_event_id=ge.grade_event_id;";
-	my $dbh = HSDB4::Constants::def_db_handle();
-	eval {
-		my $sth = $dbh->prepare($sql);
-		$sth->execute($user_id);
-		while (my $row = $sth->fetchrow_hashref) {
-			push @schoolDatabases, $row->{'school_db'};
-		}
-          $sth->finish;
-	};
-	if($@) {confess "$@";}
+    # helper variables
+    my $user_id = $self->primary_key;
 
-	eval {
-		foreach my $schoolDatabase (@schoolDatabases) {
-			my $schoolObj = TUSK::Core::School->lookupReturnOne( "school_db = '" . $schoolDatabase . "'" );
-			my $sql = qq(
-						 select luge.grade, luge.comments, ge.course_id, ge.school_id, ge.event_name, ge.grade_event_id, ge.sort_order, s.school_id, s.school_name, s.school_db, c.title, tp.start_date, tp.end_date, tp.time_period_id
-						 from tusk.link_user_grade_event luge, tusk.grade_event ge, tusk.school s, $schoolDatabase.time_period tp, $schoolDatabase.course c
-						 where luge.child_grade_event_id=ge.grade_event_id
-						 and luge.parent_user_id=? 
-						 and s.school_id=?
-						 and ge.school_id=?
-						 and c.course_id = ge.course_id
-						 and tp.time_period_id = ge.time_period_id
-						 and ge.publish_flag = 1
-						 order by tp.start_date desc, tp.end_date desc, c.title, ge.sort_order;
-			);
-			my $school_sth = $dbh->prepare($sql);
-			$school_sth->execute($user_id, $schoolObj->getPrimaryKeyID(), $schoolObj->getPrimaryKeyID());
-			while (my $grade_row = $school_sth->fetchrow_hashref) {
-				my $eval_link   = TUSK::GradeBook::GradeEventEval->lookupReturnOne( "grade_event_id = " . $grade_row->{grade_event_id} );
-				my $eval_id     = ($eval_link) ? $eval_link->getEvalID() : 0;
-				if ( $eval_id && !HSDB45::Eval->new( _school => $schoolObj->getSchoolName() )->lookup_key( $eval_id )->is_user_complete( $self ) ) {
-					$grade_row->{grade} = "<a href='/protected/eval/complete/" . $schoolObj->getSchoolName() . "/" . $eval_id . "'>Pending Eval Completion</a>";
-				}
-				$grade_row->{school_name} = $schoolObj->getSchoolName();
-				push (@$grades, $grade_row);
-			}
-            $school_sth->finish;
-		}
-	};
-	if($@) {confess "$@";}
+    # This only tells you what grades you have. It does not tell you
+    # if there is a grade event that you are related to but do not
+    # have a grade yet.
 
-	my $course_placeholder = '';
-	my $sorted_grades = [];
+    # TODO: This is the third place I've found where we should sort
+    # grade events by category and sort order; all have been
+    # inconsistent. We should create one consistent way to access
+    # grade events that can be tuned for student and admin users.
 
-	foreach my $grade_row (@$grades) {
-		unless ($course_placeholder eq $grade_row->{school_id} . "-" . $grade_row->{course_id} . "-" . $grade_row->{time_period_id}) {
-			push (@$sorted_grades, {data => [], 
-						title => $grade_row->{title}, 
-						time_period_id => $grade_row->{time_period_id}, 
-						school_id => $grade_row->{school_id}, 
-						school_name => $grade_row->{school_name},
-						course_id => $grade_row->{course_id},
-					       }
-			);
-		}
+    # get grades sorted by time period, course title, grade event
+    my @sorted_grades = $self->sorted_grades_list();
 
-		my $scaled_grade;
-		if ( !defined( $grade_row->{grade} ) ) {
-			$grade_row->{grade} = "No Grade";
-			$scaled_grade = "No Grade";
-		} else {
-			my $course = HSDB45::Course->new( _school => $grade_row->{school_name})->lookup_key( $grade_row->{course_id} );
-			my $gb     = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $grade_row->{time_period_id}, user_id => $user_id });
-			$scaled_grade = $gb->getScaledGrade($grade_row->{grade}, $grade_row->{grade_event_id});
-		}
+    # Group grades by (school, time period, course title).
+    #
+    # Result grouped_grades is an array of hashrefs.
+    #
+    # Each hashref contains a data arrayref, which contains grade
+    # event data for that group sorted by grade category and display
+    # sort order.
+    my $current_group = '';
+    my $current_data_ref;
+    my @grouped_grades;
+    foreach my $grade_row (@sorted_grades) {
+        # helper variables
+        my $school_id = $grade_row->{school_id};
+        my $school_name = $grade_row->{school_name};
+        my $course_id = $grade_row->{course_id};
+        my $time_period_id = $grade_row->{time_period_id};
+        my $this_group = join('-', $school_id, $course_id, $time_period_id);
 
-		push @{$sorted_grades->[scalar(@$sorted_grades)-1]->{data}}, {
-			grade => $grade_row->{grade}, 
-			scaled_grade => $scaled_grade,
-			comments => $grade_row->{comments}, 
-			name => $grade_row->{event_name}, 
-		};
-		$course_placeholder = $grade_row->{school_id} . "-" . $grade_row->{course_id} . "-" . $grade_row->{time_period_id};
-	}
-	return $sorted_grades;
+        # add a new group to the grouped grades list
+        if ($current_group ne $this_group) {
+            $current_data_ref = [];
+            push @grouped_grades, {
+                data => $current_data_ref,
+                title => $grade_row->{title},
+                time_period_id => $time_period_id,
+                school_id => $school_id,
+                school_name => $school_name,
+                course_id => $course_id,
+            };
+            $current_group = $this_group;
+        }
+
+        # get the scaled grade if a grade exists
+        my $scaled_grade;
+        if ( defined( $grade_row->{grade} ) ) {
+            my $course = HSDB45::Course->new(
+                _school => $school_name )->lookup_key( $course_id );
+            my $gb = TUSK::Application::GradeBook::GradeBook->new({
+                course => $course,
+                time_period_id => $time_period_id,
+                user_id => $user_id
+            });
+            $scaled_grade = $gb->getScaledGrade(
+                $grade_row->{grade}, $grade_row->{grade_event_id} );
+        }
+        else {
+            $grade_row->{grade} = "No Grade";
+            $scaled_grade = "No Grade";
+        }
+
+        # add the grade to the current data arrayref
+        push @{$current_data_ref}, {
+            grade => $grade_row->{grade},
+            scaled_grade => $scaled_grade,
+            comments => $grade_row->{comments},
+            name => $grade_row->{event_name},
+        };
+    }
+
+    return \@grouped_grades;
 }
 
 

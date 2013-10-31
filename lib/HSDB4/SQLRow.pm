@@ -88,6 +88,12 @@ sub new {
     return $self;
 }
 
+sub dbh {
+    my ($self) = @_;
+    $self->{_dbh} = HSDB4::Constants::def_db_handle() unless $self->{_dbh};
+    return $self->{_dbh};
+}
+
 #
 # >>>>>  Table Methods <<<<<
 #
