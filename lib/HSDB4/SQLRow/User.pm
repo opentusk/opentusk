@@ -32,6 +32,7 @@ BEGIN {
     $VERSION = do { my @r = (q$Revision: 1.232 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 }
 
+use HTML::Entities;
 use HSDB4::Constants qw(:school);
 use TUSK::Constants;
 use TUSK::Core::JoinObject;
@@ -1450,6 +1451,7 @@ sub grades_list_sql {
         SELECT
           luge.grade,
           luge.comments,
+          gc.grade_category_name,
           ge.course_id,
           ge.school_id,
           ge.event_name,
@@ -1472,6 +1474,8 @@ sub grades_list_sql {
             ON ge.time_period_id = tp.time_period_id
           INNER JOIN $school_db.course c
             ON ge.course_id = c.course_id
+          INNER JOIN tusk.grade_category gc
+            ON ge.grade_category_id = gc.grade_category_id
         WHERE
           luge.parent_user_id = ?
           AND s.school_id = ?
@@ -1558,6 +1562,9 @@ sub get_grades {
     # inconsistent. We should create one consistent way to access
     # grade events that can be tuned for student and admin users.
 
+    # TODO: Grade category handling isn't done here yet. We should
+    # walk the grade category hierarchy as done in the author view.
+
     # get grades sorted by time period, course title, grade event
     my @sorted_grades = $self->sorted_grades_list();
 
@@ -1568,8 +1575,9 @@ sub get_grades {
     # Each hashref contains a data arrayref, which contains grade
     # event data for that group sorted by grade category and display
     # sort order.
-    my $current_group = '';
+    my $current_group = q();
     my $current_data_ref;
+    my $current_category = q();
     my @grouped_grades;
     foreach my $grade_row (@sorted_grades) {
         # helper variables
@@ -1578,10 +1586,12 @@ sub get_grades {
         my $course_id = $grade_row->{course_id};
         my $time_period_id = $grade_row->{time_period_id};
         my $this_group = join('-', $school_id, $course_id, $time_period_id);
+        my $this_category = encode_entities($grade_row->{grade_category_name});
 
         # add a new group to the grouped grades list
         if ($current_group ne $this_group) {
             $current_data_ref = [];
+            $current_category = q();
             push @grouped_grades, {
                 data => $current_data_ref,
                 title => $grade_row->{title},
@@ -1611,12 +1621,25 @@ sub get_grades {
             $scaled_grade = "No Grade";
         }
 
+        # add category if a new one
+        if ($current_category ne $this_category) {
+            push @{$current_data_ref}, {
+                grade => q(),
+                scaled_grade => q(),
+                comments => q(),
+                name => "<b>$this_category</b>",
+            };
+            $current_category = $this_category;
+        }
+
         # add the grade to the current data arrayref
+        my $event_name = encode_entities($grade_row->{event_name});
+        $event_name = "&nbsp;&nbsp;$event_name" if $current_category;
         push @{$current_data_ref}, {
             grade => $grade_row->{grade},
             scaled_grade => $scaled_grade,
             comments => $grade_row->{comments},
-            name => $grade_row->{event_name},
+            name => $event_name,
         };
     }
 
