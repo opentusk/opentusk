@@ -55,9 +55,11 @@ sub clean_args {
       } else {
         if (ref $arg eq 'ARRAY') {
           foreach my $subarg (@$arg) {
+            next if $subarg eq '0';
             $subarg = $df->defang($subarg);
           }
         } else {
+          next if $arg eq '0';
           $arg = $df->defang($arg);
         }
       }
