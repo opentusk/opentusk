@@ -18,13 +18,10 @@ package TUSK::Medbiq::InstructionalMethod;
 # * Imports
 ###########
 
-use 5.008;
 use strict;
 use warnings;
-use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
-use Readonly;
 
 use Type::Utils -all;
 use TUSK::Medbiq::Types qw( NonNullString );
@@ -54,24 +51,24 @@ has primary => (
     builder => '_build_primary',
 );
 
-has source => (
-    is => 'ro',
-    isa => NonNullString,
-    lazy => 1,
-    builder => '_build_source',
-);
+# has source => (
+#     is => 'ro',
+#     isa => NonNullString,
+#     lazy => 1,
+#     builder => '_build_source',
+# );
 
-has sourceID => (
-    is => 'ro',
-    isa => NonNullString,
-    required => 1,
-);
+# has sourceID => (
+#     is => 'ro',
+#     isa => NonNullString,
+#     required => 1,
+# );
 
 ######################################
 # * Medbiquitous instructional methods
 ######################################
 
-Readonly my %METHOD_FROM_UID => (
+my %METHOD_FROM_UID => (
     IM001 => 'Case-Based Instruction/Learning',
     IM002 => 'Clinical Experience - Ambulatory',
     IM003 => 'Clinical Experience - Inpatient',
@@ -104,7 +101,7 @@ Readonly my %METHOD_FROM_UID => (
     IM030 => 'Workshop',
 );
 
-Readonly my %UID_FROM_TYPE => (
+my %UID_FROM_TYPE => (
     'Case-based Lecture' => 'IM001',
     'Case-based Small Group' => 'IM001',
     'Clinical Experiences' => 'IM003',
@@ -136,11 +133,10 @@ sub medbiq_method {
             . "class meeting type $type";
     }
     my $sourceID = $UID_FROM_TYPE{$type};
-    my $content = $METHOD_FROM_UID{$sourceID};
+    # my $content = $METHOD_FROM_UID{$sourceID};
     return $class->new(
-        sourceID => $sourceID,
+        content => $sourceID,
         primary => $primary,
-        content => $content,
     );
 }
 
@@ -154,9 +150,9 @@ sub medbiq_method {
 
 sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_content { shift->content }
-sub _build_xml_attributes { [ qw(primary source sourceID) ] }
+sub _build_xml_attributes { [ qw(primary) ] }
 
-sub _build_source { 'http://medbiq.org/curriculum/vocabularies.pdf' }
+# sub _build_source { 'http://medbiq.org/curriculum/vocabularies.pdf' }
 sub _build_primary { 'false' }
 
 ###########
@@ -175,11 +171,8 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::InstructionalMethod - A short description of the module's purpose
-
-=head1 VERSION
-
-This documentation refers to L<TUSK::Medbiq::InstructionalMethod> v0.0.1.
+TUSK::Medbiq::InstructionalMethod - Represent an InstructionalMethod
+element for the Medbiquitous Curriculum Inventory
 
 =head1 SYNOPSIS
 
