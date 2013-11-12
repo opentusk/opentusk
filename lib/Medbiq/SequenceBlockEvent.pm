@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::SequenceBlockEvent;
+package Medbiq::SequenceBlockEvent;
 
 ###########
 # * Imports
@@ -29,7 +29,7 @@ use Readonly;
 use Type::Utils -all;
 use Types::Standard qw(Maybe);
 use Types::XSD qw(Date);
-use TUSK::Medbiq::Types qw(EventReferenceXpath);
+use Medbiq::Types qw(EventReferenceXpath);
 use TUSK::Namespaces ':all';
 
 #########
@@ -105,15 +105,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::SequenceBlockEvent - A short description of the module's purpose
+Medbiq::SequenceBlockEvent - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::SequenceBlockEvent> v0.0.1.
+This documentation refers to L<Medbiq::SequenceBlockEvent> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::SequenceBlockEvent;
+  use Medbiq::SequenceBlockEvent;
 
 =head1 DESCRIPTION
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::CompetencyFramework;
+package Medbiq::CompetencyFramework;
 
 ###########
 # * Imports
@@ -28,7 +28,7 @@ use Readonly;
 
 use TUSK::Meta::Attribute::Trait::Namespaced;
 use TUSK::Namespaces ':all';
-use TUSK::Medbiq::Types qw( CFIncludes CFLOM );
+use Medbiq::Types qw( CFIncludes CFLOM );
 use Types::Standard qw( Maybe ArrayRef );
 use Types::XSD qw( Date AnyURI );
 
@@ -81,7 +81,7 @@ has IsReplacedBy => (
 
 has SupportingInformation => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::SupportingInformation],
+    isa => ArrayRef[Medbiq::Types::SupportingInformation],
     lazy => 1,
     builder => '_build_SupportingInformation',
 );
@@ -94,7 +94,7 @@ has Includes => (
 
 has Relation => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::Relation],
+    isa => ArrayRef[Medbiq::Types::Relation],
     lazy => 1,
     builder => '_build_Relation',
 );
@@ -141,15 +141,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::CompetencyFramework - A short description of the module's purpose
+Medbiq::CompetencyFramework - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::CompetencyFramework> v0.0.1.
+This documentation refers to L<Medbiq::CompetencyFramework> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::CompetencyFramework;
+  use Medbiq::CompetencyFramework;
 
 =head1 DESCRIPTION
 

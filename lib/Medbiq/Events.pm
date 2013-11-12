@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Events;
+package Medbiq::Events;
 
 ###########
 # * Imports
@@ -26,15 +26,15 @@ use utf8;
 use Carp;
 use Readonly;
 
-use TUSK::Medbiq::Types;
+use Medbiq::Types;
 use TUSK::Types qw( School TUSK_DateTime );
 use Types::Standard qw( ArrayRef );
 use TUSK::Namespaces ':all';
 use HSDB4::Constants;
 use HSDB45::ClassMeeting;
-use TUSK::Medbiq::Event;
-use TUSK::Medbiq::InstructionalMethod;
-use TUSK::Medbiq::AssessmentMethod;
+use Medbiq::Event;
+use Medbiq::InstructionalMethod;
+use Medbiq::AssessmentMethod;
 
 #########
 # * Setup
@@ -70,7 +70,7 @@ has end_date => (
 
 has Event => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::Event],
+    isa => ArrayRef[Medbiq::Types::Event],
     lazy => 1,
     builder => '_build_Event',
 );
@@ -89,7 +89,7 @@ sub _build_Event {
     @class_meetings = grep { $self->_keep_meeting($_) } @class_meetings;
     my @event_list;
     foreach my $cm ( @class_meetings ) {
-        push @event_list, TUSK::Medbiq::Event->new(
+        push @event_list, Medbiq::Event->new(
             dao => $cm,
         );
     }
@@ -108,8 +108,8 @@ sub _keep_meeting {
     my $self = shift;
     my $cm = shift;
     my $type = $cm->type;
-    return ( TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($type)
-          || TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type) );
+    return ( Medbiq::InstructionalMethod->has_medbiq_translation($type)
+          || Medbiq::AssessmentMethod->has_medbiq_translation($type) );
 }
 
 sub _class_meetings {
@@ -146,15 +146,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Events - A short description of the module's purpose
+Medbiq::Events - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Events> v0.0.1.
+This documentation refers to L<Medbiq::Events> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Events;
+  use Medbiq::Events;
 
 =head1 DESCRIPTION
 

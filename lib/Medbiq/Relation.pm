@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Relation;
+package Medbiq::Relation;
 
 ###########
 # * Imports
@@ -31,8 +31,8 @@ use TUSK::Namespaces ':all';
 use Types::Standard qw( Str );
 use Types::XSD qw( AnyURI );
 use TUSK::Types qw( XHTML_Object );
-use TUSK::Medbiq::Types qw( Identifier CFRelationship );
-use TUSK::Medbiq::Identifier;
+use Medbiq::Types qw( Identifier CFRelationship );
+use Medbiq::Identifier;
 
 #########
 # * Setup
@@ -122,15 +122,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Relation - A short description of the module's purpose
+Medbiq::Relation - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Relation> v0.0.1.
+This documentation refers to L<Medbiq::Relation> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Relation;
+  use Medbiq::Relation;
 
 =head1 DESCRIPTION
 

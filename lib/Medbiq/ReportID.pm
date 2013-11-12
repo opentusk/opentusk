@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::ReportID;
+package Medbiq::ReportID;
 
 use 5.008;
 use strict;
@@ -25,12 +25,12 @@ use Readonly;
 use Data::UUID;
 
 use TUSK::Constants;
-use TUSK::Medbiq::Types;
+use Medbiq::Types;
 
 use Moose;
 
 with ( 'TUSK::XML::Object',
-       'TUSK::Medbiq::UniqueID' );
+       'Medbiq::UniqueID' );
 
 our $VERSION = qv('0.0.1');
 
@@ -61,23 +61,23 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::ReportID - Represents the ReportID element of a
-L<TUSK::Medbiq::CurriculumInventory> document
+Medbiq::ReportID - Represents the ReportID element of a
+L<Medbiq::CurriculumInventory> document
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::ReportID> v0.0.1.
+This documentation refers to L<Medbiq::ReportID> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::ReportID;
-  my $rid = TUSK::Medbiq::ReportID->new;
+  use Medbiq::ReportID;
+  my $rid = Medbiq::ReportID->new;
   print "Domain: " . $rid->domain . "\n";
   print "ID: " . $rid->id . "\n";
 
 =head1 DESCRIPTION
 
-L<TUSK::Medbiq::ReportID> is a container object for a domain and report ID
+L<Medbiq::ReportID> is a container object for a domain and report ID
 for a curriculum inventory report. Unless otherwise specified via an
 attribute it will generate a UUID.
 

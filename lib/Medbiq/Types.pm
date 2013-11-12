@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Types;
+package Medbiq::Types;
 
 ###########
 # * Imports
@@ -135,53 +135,53 @@ declare Domain,
     as Str,
     where { m/ \A idd: .+ : .+ \z /xms };
 
-class_type UniqueID, { class => 'TUSK::Medbiq::UniqueID' };
-class_type Address, { class => 'TUSK::Medbiq::Address' };
-class_type Country, { class => 'TUSK::Medbiq::Country' };
-class_type Institution, { class => 'TUSK::Medbiq::Institution' };
+class_type UniqueID, { class => 'Medbiq::UniqueID' };
+class_type Address, { class => 'Medbiq::Address' };
+class_type Country, { class => 'Medbiq::Country' };
+class_type Institution, { class => 'Medbiq::Institution' };
 class_type CurriculumInventory, {
-    class => 'TUSK::Medbiq::CurriculumInventory'
+    class => 'Medbiq::CurriculumInventory'
 };
-class_type VocabularyTerm, { class => 'TUSK::Medbiq::VocabularyTerm' };
-class_type Program, { class => 'TUSK::Medbiq::Program' };
-class_type Events, { class => 'TUSK::Medbiq::Events' };
-class_type Expectations, { class => 'TUSK::Medbiq::Expectations' };
-class_type AcademicLevels, { class => 'TUSK::Medbiq::AcademicLevels' };
-class_type Sequence, { class => 'TUSK::Medbiq::Sequence' };
-class_type SequenceBlock, { class => 'TUSK::Medbiq::SequenceBlock' };
+class_type VocabularyTerm, { class => 'Medbiq::VocabularyTerm' };
+class_type Program, { class => 'Medbiq::Program' };
+class_type Events, { class => 'Medbiq::Events' };
+class_type Expectations, { class => 'Medbiq::Expectations' };
+class_type AcademicLevels, { class => 'Medbiq::AcademicLevels' };
+class_type Sequence, { class => 'Medbiq::Sequence' };
+class_type SequenceBlock, { class => 'Medbiq::SequenceBlock' };
 class_type SequenceBlockReference,
-    { class => 'TUSK::Medbiq::SequenceBlockReference' };
-class_type Integration, { class => 'TUSK::Medbiq::Integration' };
-class_type Event, { class => 'TUSK::Medbiq::Event' };
-class_type Keyword, { class => 'TUSK::Medbiq::Keyword' };
+    { class => 'Medbiq::SequenceBlockReference' };
+class_type Integration, { class => 'Medbiq::Integration' };
+class_type Event, { class => 'Medbiq::Event' };
+class_type Keyword, { class => 'Medbiq::Keyword' };
 class_type InstructionalMethod,
-    { class => 'TUSK::Medbiq::InstructionalMethod' };
+    { class => 'Medbiq::InstructionalMethod' };
 class_type AssessmentMethod,
-    { class => 'TUSK::Medbiq::AssessmentMethod' };
+    { class => 'Medbiq::AssessmentMethod' };
 class_type CompetencyObject,
-    { class => 'TUSK::Medbiq::CompetencyObject' };
+    { class => 'Medbiq::CompetencyObject' };
 class_type CompetencyFramework,
-    { class => 'TUSK::Medbiq::CompetencyFramework' };
+    { class => 'Medbiq::CompetencyFramework' };
 class_type SupportingInformation,
-    { class => 'TUSK::Medbiq::SupportingInformation' };
+    { class => 'Medbiq::SupportingInformation' };
 class_type Identifier,
-    { class => 'TUSK::Medbiq::Identifier' };
+    { class => 'Medbiq::Identifier' };
 class_type Relation,
-    { class => 'TUSK::Medbiq::Relation' };
+    { class => 'Medbiq::Relation' };
 class_type Status,
-    { class => 'TUSK::Medbiq::Status' };
+    { class => 'Medbiq::Status' };
 class_type Category,
-    { class => 'TUSK::Medbiq::Category' };
+    { class => 'Medbiq::Category' };
 class_type References,
-    { class => 'TUSK::Medbiq::References' };
+    { class => 'Medbiq::References' };
 class_type Level,
-    { class => 'TUSK::Medbiq::Level' };
-class_type Timing, { class => 'TUSK::Medbiq::Timing' };
-class_type Dates, { class => 'TUSK::Medbiq::Dates' };
+    { class => 'Medbiq::Level' };
+class_type Timing, { class => 'Medbiq::Timing' };
+class_type Dates, { class => 'Medbiq::Dates' };
 class_type SequenceBlockEvent,
-    { class => 'TUSK::Medbiq::SequenceBlockEvent' };
+    { class => 'Medbiq::SequenceBlockEvent' };
 class_type IntegrationBlock,
-    { class => 'TUSK::Medbiq::IntegrationBlock' };
+    { class => 'Medbiq::IntegrationBlock' };
 
 declare CFIncludes,
     as ArrayRef[Identifier],
@@ -219,15 +219,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Types - A short description of the module's purpose
+Medbiq::Types - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Types> v0.0.1.
+This documentation refers to L<Medbiq::Types> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Types;
+  use Medbiq::Types;
 
 =head1 DESCRIPTION
 

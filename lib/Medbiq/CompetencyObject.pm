@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::CompetencyObject;
+package Medbiq::CompetencyObject;
 
 ###########
 # * Imports
@@ -36,7 +36,7 @@ use TUSK::Namespaces ':all';
 use TUSK::Meta::Attribute::Trait::Namespaced;
 use Types::Standard qw( Maybe ArrayRef );
 use TUSK::LOM::Types qw( LOM );
-use TUSK::Medbiq::Types;
+use Medbiq::Types;
 use TUSK::Types qw( TUSK_Objective URI );
 
 #########
@@ -67,7 +67,7 @@ has lom => (
 
 has Status => (
     is => 'ro',
-    isa => Maybe[TUSK::Medbiq::Types::Status],
+    isa => Maybe[Medbiq::Types::Status],
     lazy => 1,
     builder => '_build_Status',
 );
@@ -88,21 +88,21 @@ has IsReplacedBy => (
 
 has Category => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::Category],
+    isa => ArrayRef[Medbiq::Types::Category],
     lazy => 1,
     builder => '_build_Category',
 );
 
 has References => (
     is => 'ro',
-    isa => Maybe[TUSK::Medbiq::Types::References],
+    isa => Maybe[Medbiq::Types::References],
     lazy => 1,
     builder => '_build_References',
 );
 
 has SupportingInformation => (
     is => 'ro',
-    isa => Maybe[TUSK::Medbiq::Types::SupportingInformation],
+    isa => Maybe[Medbiq::Types::SupportingInformation],
     lazy => 1,
     builder => '_build_SupportingInformation',
 );
@@ -173,15 +173,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::CompetencyObject - A short description of the module's purpose
+Medbiq::CompetencyObject - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::CompetencyObject> v0.0.1.
+This documentation refers to L<Medbiq::CompetencyObject> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::CompetencyObject;
+  use Medbiq::CompetencyObject;
 
 =head1 DESCRIPTION
 

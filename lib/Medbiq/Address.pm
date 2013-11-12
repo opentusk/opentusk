@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Address;
+package Medbiq::Address;
 
 use 5.008;
 use strict;
@@ -23,7 +23,7 @@ use Carp;
 use Readonly;
 
 use Types::Standard qw( ArrayRef );
-use TUSK::Medbiq::Types qw( NonNullString Address_Category
+use Medbiq::Types qw( NonNullString Address_Category
                             Address_Restriction );
 
 use Moose;
@@ -87,7 +87,7 @@ has District => (
 
 has Country => (
     is => 'ro',
-    isa => TUSK::Medbiq::Types::Country,
+    isa => Medbiq::Types::Country,
     required => 0,
 );
 
@@ -138,19 +138,19 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Address - Container for Medbiquitous address information
+Medbiq::Address - Container for Medbiquitous address information
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Address> v0.0.1.
+This documentation refers to L<Medbiq::Address> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Address;
+  use Medbiq::Address;
 
 =head1 DESCRIPTION
 
-L<TUSK::Medbiq::Address> is a container for the Medbiquitous address
+L<Medbiq::Address> is a container for the Medbiquitous address
 type. See the address specification at
 L<http://ns.medbiq.org/address/v1/>.
 

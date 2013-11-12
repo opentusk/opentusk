@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::UniqueID;
+package Medbiq::UniqueID;
 
 use 5.008;
 use strict;
@@ -26,7 +26,7 @@ use Data::UUID;
 
 use TUSK::Constants;
 
-use TUSK::Medbiq::Types qw( Domain NonNullString );
+use Medbiq::Types qw( Domain NonNullString );
 
 use Moose;
 with 'TUSK::XML::Object';
@@ -82,15 +82,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::UniqueID - A role for objects of UniqueIDType to implement
+Medbiq::UniqueID - A role for objects of UniqueIDType to implement
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::UniqueID> v0.0.1.
+This documentation refers to L<Medbiq::UniqueID> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::UniqueID;
+  use Medbiq::UniqueID;
 
 =head1 DESCRIPTION
 

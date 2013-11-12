@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Event;
+package Medbiq::Event;
 
 ###########
 # * Imports
@@ -28,13 +28,13 @@ use Readonly;
 
 use TUSK::Constants;
 use TUSK::Core::Objective;
-use TUSK::Medbiq::Types qw( NonNullString VocabularyTerm );
+use Medbiq::Types qw( NonNullString VocabularyTerm );
 use TUSK::Types qw( TUSK_Objective ClassMeeting );
 use Types::Standard qw( HashRef Str Maybe ArrayRef );
 use Types::XSD qw( Duration Boolean );
 use TUSK::Namespaces ':all';
-use TUSK::Medbiq::InstructionalMethod;
-use TUSK::Medbiq::AssessmentMethod;
+use Medbiq::InstructionalMethod;
+use Medbiq::AssessmentMethod;
 
 #########
 # * Setup
@@ -90,7 +90,7 @@ has Description => (
 
 has Keyword => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::Keyword],
+    isa => ArrayRef[Medbiq::Types::Keyword],
     lazy => 1,
     builder => '_build_Keyword',
 );
@@ -104,7 +104,7 @@ has Interprofessional => (
 
 has CompetencyObjectReference => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyObjectReference],
+    isa => ArrayRef[Medbiq::Types::CompetencyObjectReference],
     lazy => 1,
     builder => '_build_CompetencyObjectReference',
 );
@@ -118,14 +118,14 @@ has ResourceType => (
 
 has InstructionalMethod => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::InstructionalMethod],
+    isa => ArrayRef[Medbiq::Types::InstructionalMethod],
     lazy => 1,
     builder => '_build_InstructionalMethod',
 );
 
 has AssessmentMethod => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::AssessmentMethod],
+    isa => ArrayRef[Medbiq::Types::AssessmentMethod],
     lazy => 1,
     builder => '_build_AssessmentMethod',
 );
@@ -223,8 +223,8 @@ sub _build_InstructionalMethod {
     my $self = shift;
     my $type = $self->dao->type;
     my @methods;
-    if (TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($type)) {
-        push @methods, TUSK::Medbiq::InstructionalMethod->medbiq_method({
+    if (Medbiq::InstructionalMethod->has_medbiq_translation($type)) {
+        push @methods, Medbiq::InstructionalMethod->medbiq_method({
             class_meeting_type => $type,
             primary => 1,
         });
@@ -236,8 +236,8 @@ sub _build_AssessmentMethod {
     my $self = shift;
     my $type = $self->dao->type;
     my @methods;
-    if (TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type)) {
-        push @methods, TUSK::Medbiq::AssessmentMethod->medbiq_method({
+    if (Medbiq::AssessmentMethod->has_medbiq_translation($type)) {
+        push @methods, Medbiq::AssessmentMethod->medbiq_method({
             class_meeting_type => $type,
             purpose => 'Formative',
         });
@@ -291,15 +291,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Event - A short description of the module's purpose
+Medbiq::Event - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Event> v0.0.1.
+This documentation refers to L<Medbiq::Event> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Event;
+  use Medbiq::Event;
 
 =head1 DESCRIPTION
 

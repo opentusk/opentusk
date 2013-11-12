@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::VocabularyTerm;
+package Medbiq::VocabularyTerm;
 
 use 5.008;
 use strict;
@@ -22,7 +22,7 @@ use utf8;
 use Carp;
 use Readonly;
 
-use TUSK::Medbiq::Types qw( NonNullString );
+use Medbiq::Types qw( NonNullString );
 use TUSK::Namespaces ':all';
 
 use Moose;
@@ -78,15 +78,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::VocabularyTerm - A short description of the module's purpose
+Medbiq::VocabularyTerm - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::VocabularyTerm> v0.0.1.
+This documentation refers to L<Medbiq::VocabularyTerm> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::VocabularyTerm;
+  use Medbiq::VocabularyTerm;
 
 =head1 DESCRIPTION
 

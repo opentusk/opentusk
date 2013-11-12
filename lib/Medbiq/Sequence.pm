@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Sequence;
+package Medbiq::Sequence;
 
 ###########
 # * Imports
@@ -29,7 +29,7 @@ use Readonly;
 use TUSK::Namespaces ':all';
 use TUSK::Types;
 use Types::Standard qw( Maybe ArrayRef HashRef );
-use TUSK::Medbiq::Types qw( NonNullString SequenceBlock );
+use Medbiq::Types qw( NonNullString SequenceBlock );
 
 #########
 # * Setup
@@ -50,7 +50,7 @@ has school => (
 
 has events => (
     is => 'ro',
-    isa => TUSK::Medbiq::Types::Events,
+    isa => Medbiq::Types::Events,
     required => 1,
 );
 
@@ -132,15 +132,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Sequence - A short description of the module's purpose
+Medbiq::Sequence - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Sequence> v0.0.1.
+This documentation refers to L<Medbiq::Sequence> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Sequence;
+  use Medbiq::Sequence;
 
 =head1 DESCRIPTION
 

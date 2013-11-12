@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Country;
+package Medbiq::Country;
 
 use 5.008;
 use strict;
@@ -69,15 +69,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Country - A representation of a country and country code
+Medbiq::Country - A representation of a country and country code
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Country> v0.0.1.
+This documentation refers to L<Medbiq::Country> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Country;
+  use Medbiq::Country;
 
 =head1 DESCRIPTION
 
