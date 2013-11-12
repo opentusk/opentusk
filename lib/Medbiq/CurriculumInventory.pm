@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::CurriculumInventory;
+package TUSK::Medbiq::CurriculumInventory;
 
 ###########
 # * Imports
@@ -29,16 +29,16 @@ use POSIX qw(strftime);
 use DateTime;
 
 use Types::Standard qw( Str ArrayRef Int );
-use Medbiq::Types qw( UniqueID NonNullString );
+use TUSK::Medbiq::Types qw( UniqueID NonNullString );
 use TUSK::Types qw( School URI TUSK_XSD_Date );
 use TUSK::Namespaces ':all';
-use Medbiq::UniqueID;
-use Medbiq::Institution;
-use Medbiq::Program;
-use Medbiq::Events;
-use Medbiq::Expectations;
-use Medbiq::AcademicLevels;
-use Medbiq::Level;
+use TUSK::Medbiq::UniqueID;
+use TUSK::Medbiq::Institution;
+use TUSK::Medbiq::Program;
+use TUSK::Medbiq::Events;
+use TUSK::Medbiq::Expectations;
+use TUSK::Medbiq::AcademicLevels;
+use TUSK::Medbiq::Level;
 
 use Moose;
 
@@ -81,14 +81,14 @@ has ReportID => (
 
 has Institution => (
     is => 'ro',
-    isa => Medbiq::Types::Institution,
+    isa => TUSK::Medbiq::Types::Institution,
     lazy => 1,
     builder => '_build_Institution',
 );
 
 has Program => (
     is => 'ro',
-    isa => Medbiq::Types::Program,
+    isa => TUSK::Medbiq::Types::Program,
     lazy => 1,
     builder => '_build_Program',
 );
@@ -144,35 +144,35 @@ has SupportingLink => (
 
 has Events => (
     is => 'ro',
-    isa => Medbiq::Types::Events,
+    isa => TUSK::Medbiq::Types::Events,
     lazy => 1,
     builder => '_build_Events',
 );
 
 has Expectations => (
     is => 'ro',
-    isa => Medbiq::Types::Expectations,
+    isa => TUSK::Medbiq::Types::Expectations,
     lazy => 1,
     builder => '_build_Expectations',
 );
 
 has AcademicLevels => (
     is => 'ro',
-    isa => Medbiq::Types::AcademicLevels,
+    isa => TUSK::Medbiq::Types::AcademicLevels,
     lazy => 1,
     builder => '_build_AcademicLevels',
 );
 
 has Sequence => (
     is => 'ro',
-    isa => Medbiq::Types::Sequence,
+    isa => TUSK::Medbiq::Types::Sequence,
     lazy => 1,
     builder => '_build_Sequence',
 );
 
 has Integration => (
     is => 'ro',
-    isa => Medbiq::Types::Integration,
+    isa => TUSK::Medbiq::Types::Integration,
     required => 0,
 );
 
@@ -224,18 +224,18 @@ sub _build_schemaLocation {
 }
 
 sub _build_ReportID {
-    return Medbiq::UniqueID->new;
+    return TUSK::Medbiq::UniqueID->new;
 }
 
 sub _build_Institution {
-    return Medbiq::Institution->new;
+    return TUSK::Medbiq::Institution->new;
 }
 
 sub _build_Program {
     my $self = shift;
     # my $name = $self->school->getSchoolName . ' Degree Program';
     my $name = '! PLACEHOLDER PROGRAM NAME !';
-    return Medbiq::Program->new( ProgramName => $name );
+    return TUSK::Medbiq::Program->new( ProgramName => $name );
 }
 
 sub _build_Title {
@@ -257,7 +257,7 @@ sub _build_Language {
 
 sub _build_Events {
     my $self = shift;
-    return Medbiq::Events->new(
+    return TUSK::Medbiq::Events->new(
         school => $self->school,
         start_date => $self->ReportingStartDate,
         end_date => $self->ReportingEndDate,
@@ -266,7 +266,7 @@ sub _build_Events {
 
 sub _build_Expectations {
     my $self = shift;
-    return Medbiq::Expectations->new(
+    return TUSK::Medbiq::Expectations->new(
         school => $self->school,
         events => $self->Events,
     );
@@ -278,7 +278,7 @@ sub _build_AcademicLevels {
     my $i = 1;
     my $school_name = $self->school->getSchoolName();
     foreach my $ugid ( @{ $self->user_groups } ) {
-        push @levels, Medbiq::Level->new(
+        push @levels, TUSK::Medbiq::Level->new(
             number => $i,
             dao => HSDB45::UserGroup->new(
                 _school => $school_name
@@ -286,7 +286,7 @@ sub _build_AcademicLevels {
         );
         $i++;
     }
-    return Medbiq::AcademicLevels->new(
+    return TUSK::Medbiq::AcademicLevels->new(
         school => $self->school,
         Level => \@levels,
     );
@@ -294,7 +294,7 @@ sub _build_AcademicLevels {
 
 sub _build_Sequence {
     my $self = shift;
-    return Medbiq::Sequence->new(
+    return TUSK::Medbiq::Sequence->new(
         school => $self->school,
         events => $self->Events,
     );
@@ -322,28 +322,28 @@ __END__
 
 =head1 NAME
 
-Medbiq::CurriculumInventory - Container object for a curriculum
+TUSK::Medbiq::CurriculumInventory - Container object for a curriculum
 inventory report
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::CurriculumInventory> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::CurriculumInventory> v0.0.1.
 
 =head1 SYNOPSIS
 
   use XML::Writer;
-  use Medbiq::CurriculumInventory;
-  my $ci = Medbiq::CurriculumInventory->new( school => 'Default' );
+  use TUSK::Medbiq::CurriculumInventory;
+  my $ci = TUSK::Medbiq::CurriculumInventory->new( school => 'Default' );
   my $writer = XML::Writer->new;
   $ci->write_xml($writer);
 
 =head1 DESCRIPTION
 
-Given a L<TUSK::Core::School> object, L<Medbiq::CurriculumInventory>
+Given a L<TUSK::Core::School> object, L<TUSK::Medbiq::CurriculumInventory>
 will contain the necessary information for a curriculum inventory
 report.
 
-This object is meant to be constructed by L<Medbiq::Report>.
+This object is meant to be constructed by L<TUSK::Medbiq::Report>.
 
 See the Medbiquitous curriculum inventory specification at
 L<http://ns.medbiq.org/curriculuminventory/v1/> for more information.
@@ -354,7 +354,7 @@ L<http://ns.medbiq.org/curriculuminventory/v1/> for more information.
 
 =item school
 
-A required attribute of type L<Medbiq::Types>::School.
+A required attribute of type L<TUSK::Medbiq::Types>::School.
 
 =back
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::Timing;
+package TUSK::Medbiq::Timing;
 
 ###########
 # * Imports
@@ -28,7 +28,7 @@ use Readonly;
 
 use Types::Standard qw(Maybe);
 use Types::XSD;
-use Medbiq::Types;
+use TUSK::Medbiq::Types;
 use TUSK::Namespaces ':all';
 
 #########
@@ -51,7 +51,7 @@ has Duration => (
 
 has Dates => (
     is => 'ro',
-    isa => Maybe[Medbiq::Types::Dates],
+    isa => Maybe[TUSK::Medbiq::Types::Dates],
     lazy => 1,
     builder => '_build_Dates',
 );
@@ -88,15 +88,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::Timing - A short description of the module's purpose
+TUSK::Medbiq::Timing - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::Timing> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Timing> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::Timing;
+  use TUSK::Medbiq::Timing;
 
 =head1 DESCRIPTION
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::Institution;
+package TUSK::Medbiq::Institution;
 
 use 5.008;
 use strict;
@@ -23,10 +23,10 @@ use Carp;
 use Readonly;
 
 use TUSK::Constants;
-use Medbiq::Address;
-use Medbiq::UniqueID;
+use TUSK::Medbiq::Address;
+use TUSK::Medbiq::UniqueID;
 
-use Medbiq::Types qw( NonNullString UniqueID );
+use TUSK::Medbiq::Types qw( NonNullString UniqueID );
 
 use Moose;
 
@@ -51,7 +51,7 @@ has InstitutionID => (
 
 has Address => (
     is => 'ro',
-    isa => Medbiq::Types::Address,
+    isa => TUSK::Medbiq::Types::Address,
     lazy => 1,
     builder => '_build_Address',
 );
@@ -72,12 +72,12 @@ sub _build_InstitutionName {
 };
 
 sub _build_InstitutionID {
-    return Medbiq::UniqueID->new(domain => 'idd:aamc.org:institution',
+    return TUSK::Medbiq::UniqueID->new(domain => 'idd:aamc.org:institution',
                                        id => 'DUMMYID');
 }
 
 sub _build_Address {
-    return Medbiq::Address->new;
+    return TUSK::Medbiq::Address->new;
 };
 
 __PACKAGE__->meta->make_immutable;
@@ -88,15 +88,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::Institution - Container for institution info
+TUSK::Medbiq::Institution - Container for institution info
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::Institution> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Institution> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::Institution;
+  use TUSK::Medbiq::Institution;
 
 =head1 DESCRIPTION
 

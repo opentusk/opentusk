@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::InstructionalMethod;
+package TUSK::Medbiq::InstructionalMethod;
 
 ###########
 # * Imports
@@ -24,7 +24,7 @@ use utf8;
 use Carp;
 
 use Type::Utils -all;
-use Medbiq::Types qw( NonNullString );
+use TUSK::Medbiq::Types qw( NonNullString );
 use TUSK::Namespaces ':all';
 
 #########
@@ -171,12 +171,12 @@ __END__
 
 =head1 NAME
 
-Medbiq::InstructionalMethod - Represent an InstructionalMethod
+TUSK::Medbiq::InstructionalMethod - Represent an InstructionalMethod
 element for the Medbiquitous Curriculum Inventory
 
 =head1 SYNOPSIS
 
-  use Medbiq::InstructionalMethod;
+  use TUSK::Medbiq::InstructionalMethod;
 
 =head1 DESCRIPTION
 

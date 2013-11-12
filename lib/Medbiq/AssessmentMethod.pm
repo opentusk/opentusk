@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::AssessmentMethod;
+package TUSK::Medbiq::AssessmentMethod;
 
 ###########
 # * Imports
@@ -27,7 +27,7 @@ use Carp;
 use Readonly;
 
 use Type::Utils -all;
-use Medbiq::Types qw( NonNullString );
+use TUSK::Medbiq::Types qw( NonNullString );
 use TUSK::Namespaces ':all';
 
 #########
@@ -151,15 +151,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::AssessmentMethod - A short description of the module's purpose
+TUSK::Medbiq::AssessmentMethod - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::AssessmentMethod> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::AssessmentMethod> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::AssessmentMethod;
+  use TUSK::Medbiq::AssessmentMethod;
 
 =head1 DESCRIPTION
 

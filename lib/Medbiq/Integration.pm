@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::Integration;
+package TUSK::Medbiq::Integration;
 
 ###########
 # * Imports
@@ -28,7 +28,7 @@ use Readonly;
 
 use TUSK::Namespaces ':all';
 use Types::Standard qw( Maybe ArrayRef );
-use Medbiq::Types qw( NonNullString IntegrationBlockList );
+use TUSK::Medbiq::Types qw( NonNullString IntegrationBlockList );
 
 #########
 # * Setup
@@ -88,15 +88,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::Integration - A short description of the module's purpose
+TUSK::Medbiq::Integration - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::Integration> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Integration> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::Integration;
+  use TUSK::Medbiq::Integration;
 
 =head1 DESCRIPTION
 

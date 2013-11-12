@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::SequenceBlock;
+package TUSK::Medbiq::SequenceBlock;
 
 ###########
 # * Imports
@@ -30,7 +30,7 @@ use Type::Utils -all;
 use Types::Standard qw( Maybe );
 use Types::XSD qw( NonNegativeInteger PositiveInteger );
 use TUSK::Namespaces ':all';
-use Medbiq::Types qw( NonNullString AcademicLevelID
+use TUSK::Medbiq::Types qw( NonNullString AcademicLevelID
                             CompetencyObjectReference
                             SequenceBlockReference );
 
@@ -101,7 +101,7 @@ has Description => (
 
 has Timing => (
     is => 'ro',
-    isa => Medbiq::Types::Timing,
+    isa => TUSK::Medbiq::Types::Timing,
     lazy => 1,
     builder => '_build_Timing',
 );
@@ -150,7 +150,7 @@ has SequenceBlockEvent => (
 
 has SequenceBlockReference => (
     is => 'ro',
-    isa => ArrayRef[Medbiq::Types::SequenceBlockReference],
+    isa => ArrayRef[TUSK::Medbiq::Types::SequenceBlockReference],
     lazy => 1,
     builder => '_build_SequenceBlockReference',
 );
@@ -195,15 +195,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::SequenceBlock - A short description of the module's purpose
+TUSK::Medbiq::SequenceBlock - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::SequenceBlock> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::SequenceBlock> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::SequenceBlock;
+  use TUSK::Medbiq::SequenceBlock;
 
 =head1 DESCRIPTION
 

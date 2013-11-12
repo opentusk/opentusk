@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::Program;
+package TUSK::Medbiq::Program;
 
 use 5.008;
 use strict;
@@ -22,7 +22,7 @@ use utf8;
 use Carp;
 use Readonly;
 
-use Medbiq::Types qw( NonNullString UniqueID ContextValues
+use TUSK::Medbiq::Types qw( NonNullString UniqueID ContextValues
                             VocabularyTerm );
 use TUSK::Namespaces qw(curriculum_inventory_ns);
 
@@ -74,7 +74,7 @@ sub _build_xml_content { [ qw( ProgramName ProgramID EducationalContext
                                Profession Specialty ) ] }
 
 sub _build_ProgramID {
-    return Medbiq::UniqueID->new;
+    return TUSK::Medbiq::UniqueID->new;
 }
 
 ###########
@@ -89,15 +89,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::Program - A short description of the module's purpose
+TUSK::Medbiq::Program - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::Program> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Program> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::Program;
+  use TUSK::Medbiq::Program;
 
 =head1 DESCRIPTION
 

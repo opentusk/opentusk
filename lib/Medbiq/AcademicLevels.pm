@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::AcademicLevels;
+package TUSK::Medbiq::AcademicLevels;
 
 ###########
 # * Imports
@@ -27,7 +27,7 @@ use Carp;
 use Readonly;
 
 use Types::Standard qw( Int ArrayRef );
-use Medbiq::Types;
+use TUSK::Medbiq::Types;
 use TUSK::Namespaces ':all';
 
 #########
@@ -51,7 +51,7 @@ has LevelsInProgram => (
 
 has Level => (
     is => 'ro',
-    isa => ArrayRef[Medbiq::Types::Level],
+    isa => ArrayRef[TUSK::Medbiq::Types::Level],
     required => 1,
 );
 
@@ -91,15 +91,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::AcademicLevels - A short description of the module's purpose
+TUSK::Medbiq::AcademicLevels - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::AcademicLevels> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::AcademicLevels> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::AcademicLevels;
+  use TUSK::Medbiq::AcademicLevels;
 
 =head1 DESCRIPTION
 

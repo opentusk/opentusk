@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::IntegrationBlock;
+package TUSK::Medbiq::IntegrationBlock;
 
 ###########
 # * Imports
@@ -28,7 +28,7 @@ use Readonly;
 
 use TUSK::Namespaces ':all';
 use Types::Standard qw( Maybe ArrayRef );
-use Medbiq::Types qw( NonNullString EventReferenceXpath
+use TUSK::Medbiq::Types qw( NonNullString EventReferenceXpath
                             SequenceBlockReferenceXpath );
 
 #########
@@ -63,7 +63,7 @@ has Description => (
 
 has CompetencyObjectReference => (
     is => 'ro',
-    isa => ArrayRef[Medbiq::Types::CompetencyObjectReference],
+    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyObjectReference],
     lazy => 1,
     builder => '_build_CompetencyObjectReference',
 );
@@ -116,15 +116,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::IntegrationBlock - A short description of the module's purpose
+TUSK::Medbiq::IntegrationBlock - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::IntegrationBlock> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::IntegrationBlock> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::IntegrationBlock;
+  use TUSK::Medbiq::IntegrationBlock;
 
 =head1 DESCRIPTION
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::Object;
+package TUSK::Medbiq::Object;
 
 use 5.008;
 use strict;
@@ -27,11 +27,11 @@ our $VERSION = qv('0.0.1');
 
 =head1 NAME
 
-C<Medbiq::Object> - Base class for Medbiquitous curriculum inventory objects
+C<TUSK::Medbiq::Object> - Base class for Medbiquitous curriculum inventory objects
 
 =head1 VERSION
 
-This documentation refers to C<Medbiq::Object> v0.0.1.
+This documentation refers to C<TUSK::Medbiq::Object> v0.0.1.
 
 =head1 SYNOPSIS
 
@@ -39,14 +39,14 @@ Extend this class to use. Do not instantiate objects of this class
 directory.
 
   package Example;
-  use Medbiq::Object;
+  use TUSK::Medbiq::Object;
   use Moose;
-  extends 'Medbiq::Object';
+  extends 'TUSK::Medbiq::Object';
   ...
 
 =head1 DESCRIPTION
 
-C<Medbiq::Object> serves as an abstract base class for the objects
+C<TUSK::Medbiq::Object> serves as an abstract base class for the objects
 in the TUSK implementation of the Medbiquitous curriculum inventory
 standard. See the L<curriculum inventory working
 group|http://www.medbiq.org/curriculum_inventory> at

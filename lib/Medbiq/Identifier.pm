@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::Identifier;
+package TUSK::Medbiq::Identifier;
 
 ###########
 # * Imports
@@ -27,7 +27,7 @@ use Carp;
 use Readonly;
 
 use TUSK::Namespaces ':all';
-use Medbiq::Types qw( NonNullString );
+use TUSK::Medbiq::Types qw( NonNullString );
 
 #########
 # * Setup
@@ -87,15 +87,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::Identifier - A short description of the module's purpose
+TUSK::Medbiq::Identifier - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::Identifier> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Identifier> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::Identifier;
+  use TUSK::Medbiq::Identifier;
 
 =head1 DESCRIPTION
 

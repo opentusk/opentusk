@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::Level;
+package TUSK::Medbiq::Level;
 
 ###########
 # * Imports
@@ -27,7 +27,7 @@ use Carp;
 use Readonly;
 
 use Types::Standard qw( Int Maybe );
-use Medbiq::Types qw( NonNullString );
+use TUSK::Medbiq::Types qw( NonNullString );
 use TUSK::Types qw( UserGroup );
 use TUSK::Namespaces ':all';
 
@@ -116,15 +116,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::Level - A short description of the module's purpose
+TUSK::Medbiq::Level - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::Level> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Level> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::Level;
+  use TUSK::Medbiq::Level;
 
 =head1 DESCRIPTION
 

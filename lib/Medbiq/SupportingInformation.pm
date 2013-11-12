@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::SupportingInformation;
+package TUSK::Medbiq::SupportingInformation;
 
 ###########
 # * Imports
@@ -93,15 +93,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::SupportingInformation - A short description of the module's purpose
+TUSK::Medbiq::SupportingInformation - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::SupportingInformation> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::SupportingInformation> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::SupportingInformation;
+  use TUSK::Medbiq::SupportingInformation;
 
 =head1 DESCRIPTION
 

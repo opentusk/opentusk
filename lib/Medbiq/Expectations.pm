@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package Medbiq::Expectations;
+package TUSK::Medbiq::Expectations;
 
 ###########
 # * Imports
@@ -27,9 +27,9 @@ use Carp;
 use Readonly;
 
 use HSDB4::Constants;
-use Medbiq::CompetencyObject;
+use TUSK::Medbiq::CompetencyObject;
 use Types::Standard qw( ArrayRef );
-use Medbiq::Types;
+use TUSK::Medbiq::Types;
 use TUSK::Namespaces ':all';
 
 #########
@@ -45,21 +45,21 @@ with 'TUSK::XML::Object';
 
 has CompetencyObject => (
     is => 'ro',
-    isa => ArrayRef[Medbiq::Types::CompetencyObject],
+    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyObject],
     lazy => 1,
     builder => '_build_CompetencyObject',
 );
 
 has CompetencyFramework => (
     is => 'ro',
-    isa => ArrayRef[Medbiq::Types::CompetencyFramework],
+    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyFramework],
     lazy => 1,
     builder => '_build_CompetencyFramework',
 );
 
 has events => (
     is => 'ro',
-    isa => Medbiq::Types::Events,
+    isa => TUSK::Medbiq::Types::Events,
     required => 1,
 );
 
@@ -76,7 +76,7 @@ sub _build_CompetencyObject {
             my $id = $obj->getPrimaryKeyID();
             if ( ! exists $objective_from_id{$id} ) {
                 $objective_from_id{$id}
-                    = Medbiq::CompetencyObject->new(dao => $obj);
+                    = TUSK::Medbiq::CompetencyObject->new(dao => $obj);
             }
         }
     }
@@ -116,15 +116,15 @@ __END__
 
 =head1 NAME
 
-Medbiq::Expectations - A short description of the module's purpose
+TUSK::Medbiq::Expectations - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<Medbiq::Expectations> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Expectations> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use Medbiq::Expectations;
+  use TUSK::Medbiq::Expectations;
 
 =head1 DESCRIPTION
 
