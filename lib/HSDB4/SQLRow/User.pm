@@ -1513,7 +1513,7 @@ sub _grade_link {
         my $eval_id = $eval_link->getEvalID();
         my $eval_obj = HSDB45::Eval->new(
             _school => $school_name )->lookup_key( $eval_id );
-        if ( $eval_obj->is_user_complete($self) ) {
+        if ( ! $eval_obj->is_user_complete($self) ) {
             $link = _pending_eval_link($school_name, $eval_id);
         }
     }
@@ -1714,17 +1714,20 @@ sub _grade_event_data_hash {
     my $user_id = $self->primary_key;
     my $indent = '&nbsp;&nbsp;' x $depth;
 
-    my $scaled_grade;
+    my $scaled_grade = q();
     if ( defined( $grade_info->{grade} ) ) {
-        my $course = HSDB45::Course->new(
-            _school => $school_name )->lookup_key( $course_id );
-        my $gb = TUSK::Application::GradeBook::GradeBook->new({
-            course => $course,
-            time_period_id => $time_period_id,
-            user_id => $user_id
-        });
-        $scaled_grade = $gb->getScaledGrade(
-            $grade_info->{grade}, $grade_info->{grade_event_id} );
+        # skip if eval is pending completion
+        if ( $grade_info->{grade} !~ /Pending Eval Completion/ ) {
+            my $course = HSDB45::Course->new(
+                _school => $school_name )->lookup_key( $course_id );
+            my $gb = TUSK::Application::GradeBook::GradeBook->new({
+                course => $course,
+                time_period_id => $time_period_id,
+                user_id => $user_id
+            });
+            $scaled_grade = $gb->getScaledGrade(
+                $grade_info->{grade}, $grade_info->{grade_event_id} );
+        }
     }
     else {
         $grade_info->{grade} = "No Grade";
