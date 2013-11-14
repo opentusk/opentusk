@@ -1698,6 +1698,15 @@ sub _keys_in_start_date_order {
     return _keys_in_alpha_order_by_field($hashref, 'start_date');
 }
 
+sub _keys_in_time_period_order {
+    my ($hashref) = @_;
+    return sort {
+        my $t1 = $hashref->{$a}{start_date} . $hashref->{$a}{end_date};
+        my $t2 = $hashref->{$b}{start_date} . $hashref->{$b}{end_date};
+        $t1 cmp $t2
+    } keys %$hashref;
+}
+
 sub _keys_in_course_title_order {
     my ($hashref) = @_;
     return _keys_in_alpha_order_by_field($hashref, 'course_title');
@@ -1816,7 +1825,8 @@ sub _collapse_grade_tree {
         my $school_name = $school->{school_name};
 
         # iterate over time periods
-        my @tp_id_list = _keys_in_start_date_order($school->{time_periods});
+        my @tp_id_list
+            = reverse _keys_in_time_period_order($school->{time_periods});
         foreach my $tpid (@tp_id_list) {
             my $tp = $school->{time_periods}{$tpid};
 
