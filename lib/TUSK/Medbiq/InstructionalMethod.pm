@@ -68,7 +68,8 @@ has primary => (
 # * Medbiquitous instructional methods
 ######################################
 
-my %METHOD_FROM_UID => (
+# TODO: put in database
+my %METHOD_FROM_UID = (
     IM001 => 'Case-Based Instruction/Learning',
     IM002 => 'Clinical Experience - Ambulatory',
     IM003 => 'Clinical Experience - Inpatient',
@@ -101,7 +102,8 @@ my %METHOD_FROM_UID => (
     IM030 => 'Workshop',
 );
 
-my %UID_FROM_TYPE => (
+# TODO: put in database
+my %UID_FROM_TYPE = (
     'Case-based Lecture' => 'IM001',
     'Case-based Small Group' => 'IM001',
     'Clinical Experiences' => 'IM003',

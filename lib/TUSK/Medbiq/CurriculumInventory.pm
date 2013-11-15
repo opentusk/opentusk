@@ -39,6 +39,7 @@ use TUSK::Medbiq::Events;
 use TUSK::Medbiq::Expectations;
 use TUSK::Medbiq::AcademicLevels;
 use TUSK::Medbiq::Level;
+use TUSK::Medbiq::Sequence;
 
 use Moose;
 

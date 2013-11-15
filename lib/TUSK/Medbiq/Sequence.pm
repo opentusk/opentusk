@@ -29,7 +29,7 @@ use Readonly;
 use TUSK::Namespaces ':all';
 use TUSK::Types;
 use Types::Standard qw( Maybe ArrayRef HashRef );
-use TUSK::Medbiq::Types qw( NonNullString SequenceBlock );
+use TUSK::Medbiq::Types qw( NonNullString );
 
 #########
 # * Setup
@@ -63,7 +63,7 @@ has Description => (
 
 has SequenceBlock => (
     is => 'ro',
-    isa => ArrayRef[SequenceBlock],
+    isa => ArrayRef[TUSK::Medbiq::Types::SequenceBlock],
     lazy => 1,
     builder => '_build_SequenceBlock',
 );
