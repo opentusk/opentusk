@@ -1513,7 +1513,7 @@ sub _grade_link {
         my $eval_id = $eval_link->getEvalID();
         my $eval_obj = HSDB45::Eval->new(
             _school => $school_name )->lookup_key( $eval_id );
-        if ( $eval_obj->is_user_complete($self) ) {
+        if ( ! $eval_obj->is_user_complete($self) ) {
             $link = _pending_eval_link($school_name, $eval_id);
         }
     }
@@ -1698,6 +1698,15 @@ sub _keys_in_start_date_order {
     return _keys_in_alpha_order_by_field($hashref, 'start_date');
 }
 
+sub _keys_in_time_period_order {
+    my ($hashref) = @_;
+    return sort {
+        my $t1 = $hashref->{$a}{start_date} . $hashref->{$a}{end_date};
+        my $t2 = $hashref->{$b}{start_date} . $hashref->{$b}{end_date};
+        $t1 cmp $t2
+    } keys %$hashref;
+}
+
 sub _keys_in_course_title_order {
     my ($hashref) = @_;
     return _keys_in_alpha_order_by_field($hashref, 'course_title');
@@ -1714,17 +1723,20 @@ sub _grade_event_data_hash {
     my $user_id = $self->primary_key;
     my $indent = '&nbsp;&nbsp;' x $depth;
 
-    my $scaled_grade;
+    my $scaled_grade = q();
     if ( defined( $grade_info->{grade} ) ) {
-        my $course = HSDB45::Course->new(
-            _school => $school_name )->lookup_key( $course_id );
-        my $gb = TUSK::Application::GradeBook::GradeBook->new({
-            course => $course,
-            time_period_id => $time_period_id,
-            user_id => $user_id
-        });
-        $scaled_grade = $gb->getScaledGrade(
-            $grade_info->{grade}, $grade_info->{grade_event_id} );
+        # skip if eval is pending completion
+        if ( $grade_info->{grade} !~ /Pending Eval Completion/ ) {
+            my $course = HSDB45::Course->new(
+                _school => $school_name )->lookup_key( $course_id );
+            my $gb = TUSK::Application::GradeBook::GradeBook->new({
+                course => $course,
+                time_period_id => $time_period_id,
+                user_id => $user_id
+            });
+            $scaled_grade = $gb->getScaledGrade(
+                $grade_info->{grade}, $grade_info->{grade_event_id} );
+        }
     }
     else {
         $grade_info->{grade} = "No Grade";
@@ -1813,7 +1825,8 @@ sub _collapse_grade_tree {
         my $school_name = $school->{school_name};
 
         # iterate over time periods
-        my @tp_id_list = _keys_in_start_date_order($school->{time_periods});
+        my @tp_id_list
+            = reverse _keys_in_time_period_order($school->{time_periods});
         foreach my $tpid (@tp_id_list) {
             my $tp = $school->{time_periods}{$tpid};
 
