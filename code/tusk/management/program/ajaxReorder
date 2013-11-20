@@ -1,0 +1,84 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+no_check_path => 1
+page_header => ''
+page_footer => ''
+</%attr>
+
+<%once>
+	use TUSK::Core::School;
+	use HSDB45::UserGroup;
+	use HSDB4::Constants;
+</%once>
+
+<%perl>
+	my ($school_name, $course_id, $timeperiod_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $school    = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $school_name . "'");
+	my $school_id = $school->getSchoolID;
+	my $school_db = $school->getSchoolDb;
+
+	my ($dbh, $query);
+	eval {
+		$dbh = HSDB4::Constants::def_db_handle();
+	};
+	die "$@\t... " . __("failed to obtain database handle!") if $@;
+
+	print "{\n";
+	my $id = $ARGS{'droppedRow'};
+	$id =~ s/_[\d]+//;
+
+	my ($update_str, $start, $end);
+	if ( $ARGS{'originalPos'} < $ARGS{'newPos'} ) {
+		$update_str = "sort_order-1";
+		$start      = $ARGS{'originalPos'} + 1;
+		$end        = $ARGS{'newPos'};
+	} else {
+		$update_str = "sort_order+1";
+		$start      = $ARGS{'newPos'};
+		$end        = $ARGS{'originalPos'} - 1;
+	}
+
+	$query = "update $school_db.user_group set sort_order = $update_str where sort_order >= ? and sort_order <= ? and sub_group = ?";
+	if ( $course_id && $timeperiod_id ) {
+		$query .= " and user_group_id in (select child_user_group_id from $school_db.link_course_user_group where parent_course_id = ? and time_period_id = ?)";
+	}
+	eval {
+		my $handle = $dbh->prepare($query);
+		if ( $course_id && $timeperiod_id ) {
+			$handle->execute($start, $end, 'Yes', $course_id, $timeperiod_id);
+		} else {
+			$handle->execute($start, $end, 'No');
+		}
+	};
+	die "$@\t... " . __("failed to update user_group!") if $@;
+
+	$query = "update $school_db.user_group set sort_order = ? where user_group_id = ?";
+	eval {
+		my $handle = $dbh->prepare($query);
+		$handle->execute($ARGS{'newPos'}, $id);
+	};
+	die "$@\t... " . __("failed to update user_group!") if $@;
+
+
+	print "\"error\" : \"\"\n";
+	print "}";
+</%perl>
+

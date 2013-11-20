@@ -1,0 +1,213 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+show_tp_dropdown_without_course => 1
+use_dynamic_wrapper => 0
+page_header   => '/tmpl/prepend'
+page_footer   => '/tmpl/footer'
+</%attr>
+
+<%shared>
+my $usergroup_id    = $m->comp("/tmpl/url:get_last_path_id");
+my $school          = $m->comp("/tmpl/url:get_school");
+my $type_object     = $m->comp("/tmpl/url:get_type_object");
+my $self_path       = "school/" . $school;
+my $is_course_group = (ref($m->comp("/tmpl/url:get_type_object")) eq "HSDB45::Course");
+my $base_url		= "/management/usergroup/studentcourse";
+
+my $usergroup;
+if ($usergroup_id) {
+	$usergroup = HSDB45::UserGroup->new( _school => $school )->lookup_key($usergroup_id);
+}
+my $time_periods = [ $usergroup->time_periods() ];
+my $time_period_id;
+
+my @users;
+my @courses;
+
+my %data;
+my $course_student_members;
+my @colheaders;
+my @rowheaders;
+</%shared>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>undef,
+				name => 'studentcourse' } &>
+
+<div class="tablediv">
+<& /tmpl/element:scrollable_display_table, table_id => "studentcourselinks",
+				corner_text => 'Name',
+				zebra_striping => 1,
+				cell_data => \%data,
+				colheaders => [\@colheaders],
+				rowheaders => [\@rowheaders] &>
+</div>
+
+<& /tmpl/element:hidden_form_element, params =>{ 
+				name   => 'action',
+				value  => 'enroll' } 
+&>
+
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
+				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+				'base_url' => "/management/usergroup/show") . "');",
+				name=>'submit'} &>
+</table>
+</form>
+</div>
+<%init>
+if ( $is_course_group ) {
+	$m->comp("/tmpl/url:redirect",
+		'destination' => '/management/usergroup/show/course/' . $school . '/' . $type_object->course_id,
+		'message'     => __('Cannot link student to individual courses in a course group.'),
+		'msgtype'     => 'errmsg');
+	exit;
+}
+
+if ( !scalar(@$time_periods) ) {
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>'/management/usergroup/show/school/' . $school, 'msg'=>__('No time periods associated.'), 'msgtype'=>'errmsg'));
+}
+
+if ( !$usergroup_id ) {
+	$m->comp("/tmpl/url:redirect",
+		'destination' => '/management/usergroup/show/course/' . $self_path,
+		'message'     => __('No user group ID provided.'),
+		'msgtype'     => 'errmsg');
+	exit;
+}
+
+
+$time_period_id = $m->session->{timeperiod};
+
+# These two lines must take place in the init section.  If they occur earlier, the page does not update properly.
+@users   = $usergroup->child_users();
+@courses = $usergroup->courses( $m->session->{timeperiod} );
+
+my ($msg,$msgtype) = (undef,"errmsg");
+my $rval = 0;
+my $extra = "";
+
+if ( defined($ARGS{'submit'}) && $ARGS{'action'} eq "enroll" ) {
+	my $link_course_student = $HSDB4::SQLLinkDefinition::LinkDefs{ HSDB4::Constants::get_school_db($school) . '.link_course_student' };
+
+	foreach my $course (@courses) {
+		my $course_student_members;
+		my $members = $usergroup->getStudentMembers($course, $time_period_id, 1);
+		foreach my $member (@$members) {
+			$course_student_members->{$course->primary_key()}{$member} = 1;
+		}
+
+		foreach my $user (@users) {
+			my $form_value = ($ARGS{$user->user_id . '_checkbox_' . $course->course_id} eq "on") ? 1 : 0;
+			my $db_value   = (exists $course_student_members->{$course->primary_key()}{$user->user_id}) ? 1 : 0;
+
+			if ( $form_value != $db_value ) {
+				if ( $form_value ) {
+					$link_course_student->insert( '-parent_id' => $course->course_id, '-child_id' => $user->user_id, 'time_period_id' => $time_period_id );
+				}
+				else {
+					$link_course_student->delete( '-parent_id' => $course->course_id, '-child_id' => $user->user_id, 'cond' => ' AND time_period_id = ' . $time_period_id );
+				}
+			}
+		}
+	}
+
+	$msg = __("Student/Course Links Successfully Updated");
+	$msgtype = "msg";
+
+	# Need to refresh the data, since we just changed some things.
+	@users   = $usergroup->child_users();
+	@courses = $usergroup->courses( $m->session->{timeperiod} );
+}
+
+if ( $msg ) {
+	$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url'=>$base_url, 'msg'=>$msg, 'msgtype'=>$msgtype, 'extra'=>$extra));
+}
+
+$m->comp( "SELF:fill_table_data_vars" ); 
+</%init>
+
+<%method fill_table_data_vars>
+<%perl>
+
+# populate column headers array
+# and set up temporary data array (faster than using $course->get_single_student method)
+my $course_student_members;
+foreach my $course (@courses) {
+	my $label = $course->abbreviation;
+	if ( $label eq "" ) { $label = $course->title; }
+	push @colheaders, {id => $course->course_id, name => $label};
+
+	my $members = $usergroup->getStudentMembers($course, $time_period_id, 1);
+	foreach my $member (@$members) {
+		$course_student_members->{$course->primary_key()}{$member} = 1;
+	}
+}
+
+# create arrray of users for row header array and populate data hash
+push @rowheaders, {id => 'all', name => '<em>' . __('Select All').'</em>', class => 'summary'};
+foreach my $user ( @users ) {
+	push @rowheaders, {id => $user->user_id, name => $user->out_lastfirst_name};
+	foreach my $course ( @courses ) {		
+		my $checked;
+		if (exists $course_student_members->{$course->primary_key()}{$user->user_id}) {
+			$checked = ' checked="checked"';
+		}		
+		$data{'all'}{$course->primary_key()} = '<span class="checkbox"><input name="all_checkbox_' . $course->primary_key() . '" id="all_checkbox_' . $course->primary_key() . '" onclick="checkbox_action(\'all_checkbox_' . $course->primary_key() . '\');" type="checkbox"></span>';
+		$data{$user->primary_key()}{$course->primary_key()} = '<span class="checkbox"><input name="' . $user->primary_key() . '_checkbox_' . $course->primary_key() . '" id="' . $user->primary_key() . '_checkbox_' . $course->primary_key() . '"' . $checked . ' type="checkbox" /></span>';
+	}
+}
+</%perl>
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [
+		'jquery/jquery.min.js',
+		'jquery/plugin/scrollablefixedheadertable/scripts/wrapper.min.js',
+		'usergroup.js',
+	];
+</%perl>
+</%method>
+
+<%method stylearray>
+<%perl>
+	return [
+		'/style/style.css',
+		'/style/calendar-blue.css',
+		'/scripts/jquery/plugin/scrollablefixedheadertable/css/scrollableFixedHeaderTable.css',
+		'/style/studentcourse.css',
+	];
+</%perl>
+</%method>
+
+<%method get_timeperiods>
+%	return $time_periods;
+</%method>
+
+<%method red_header_text>
+%	return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+%	return $usergroup->label . __(' Student/Course Links');
+</%method>
+
+<%method leftnav>
+% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+</%method>
