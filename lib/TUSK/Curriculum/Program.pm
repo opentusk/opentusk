@@ -47,6 +47,9 @@ BEGIN {
     @EXPORT_OK = qw( );
 }
 
+use HSDB4::Constants;
+use TUSK::Core::School;
+
 use vars @EXPORT_OK;
 
 # Non-exported package globals go here
@@ -69,9 +72,10 @@ sub new {
 					'school_id' => '',
 					'name' => '',
 					'description' => '',
+					'sort_order' => '',
 				    },
 				    _attributes => {
-					save_history => 1,
+					save_history => 0,
 					tracking_fields => 1,	
 				    },
 				    _levels => {
@@ -82,6 +86,18 @@ sub new {
 				  );
     # Finish initialization...
     return $self;
+}
+
+sub nextSortOrder {
+    my ($self,) = @_;
+    my $dbh = HSDB4::Constants::def_db_handle;
+    my $school_id = TUSK::Core::School->getSchoolID( $self->{_school} );
+    my $sql = 'SELECT MAX(sort_order) FROM tusk.program WHERE school_id = ?';
+    my $sth = $dbh->prepare($sql);
+    $sth->execute($school_id);
+    my $row = $sth->fetchrow_arrayref;
+    my $next = $row ? ( 10 + $row->[0] ) : 10;
+    return $next;
 }
 
 ### Get/Set methods
@@ -176,6 +192,37 @@ Set the value of the description field
 sub setDescription{
     my ($self, $value) = @_;
     $self->setFieldValue('description', $value);
+}
+
+
+#######################################################
+
+=item B<getSortOrder>
+
+my $string = $obj->getSortOrder();
+
+Get the value of the sort_order field
+
+=cut
+
+sub getSortOrder{
+    my ($self) = @_;
+    return $self->getFieldValue('sort_order');
+}
+
+#######################################################
+
+=item B<setSortOrder>
+
+$obj->setSortOrder($value);
+
+Set the value of the sort_order field
+
+=cut
+
+sub setSortOrder{
+    my ($self, $value) = @_;
+    $self->setFieldValue('sort_order', $value);
 }
 
 

@@ -17,7 +17,7 @@
 use TUSK::Curriculum::Program;
 </%once>
 <%shared>
-my program_id       = $m->comp("/tmpl/url:get_last_path_id");
+my $program_id      = $m->comp("/tmpl/url:get_last_path_id");
 my $school          = $m->comp("/tmpl/url:get_school");
 my $type_object     = $m->comp("/tmpl/url:get_type_object");
 my $base_url        = "/management/program/addedit";
@@ -40,7 +40,7 @@ my $form_action;
 <& /tmpl/element:textbox, params => {
      label  => __('Program Name'),
      name   => 'program_name',
-     value  => $program->getProgramName(),
+     value  => $program->getName(),
      size   => 60,
      length => 255,
   } &>
@@ -50,116 +50,22 @@ my $form_action;
      name  => 'program_description',
      cols  => '60',
      rows  => '4',
-     value => $program->getProgramDescription(),
+     value => $program->getDescription(),
   } &>
 
-% if ($is_course_group) {
+<& /tmpl/element:hidden_form_element, params => {
+     name   => 'action',
+     value  => $form_action
+   } &>
 
-<script language="Javascript">
-function addmember(layer, index){
-        data = layers[layer].structure.data[index];
-        remove(layer, index);
-        layers['membersdiv'].adddata(data, 1);
-}
-</script>
-<& /tmpl/element:sort_order_box , params =>{
-        no_add_button => 1,
-        label => __('Available Members'),
-        buttons => [ ],
-        layer_info => {
-                                                context_path => $m->comp("/tmpl/url:get_full_path"),
-                                                base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
-
-                                                layer => 'rosterdiv',
-                                                fields => ['userid','name'],
-                                                name => 'users',
-                                                sort => {usage => 'No'},
-                                                sortoninsert => {usage => 'Yes', sorton => 'name'},
-                                                action => {usage => 'Yes', length=>100, functions => [{func=>'addmember', label=>__('Add')}]},
-                                                display => [
-                                                                                {field=>'name', align=>'left', length=>225,},
-                                                                                {field=>'userid', label=>__('UserID'), align=>'left', length=>75,}
-                                                                        ],
-                                                validate => {
-                                                                                usage => 'No',
-                                                                        },
-                                                data => \@studentarray
-                                        }
-            } &>
-% } else {
-<%perl>
-my %selected_hash;
-foreach my $selected( split( ",", $usergroup->field_value('homepage_info') ) ) {
-        $selected_hash{$selected} = 1;
-}
-</%perl>
-<& /tmpl/element:dropdown, params=>{
-                                label    => __('Homepage Info'),
-                                name     => 'homepage_info',
-                                size     => '4',
-                                multiple => 'multiple',
-                                options  => [
-                                                        { label => __("Hot Content"),   value => "Hot Content" },
-                                                        { label => __("Announcements"), value => "Announcements" },
-                                                        { label => __("Evals"),         value => "Evals" },
-                                                        { label => __("Discussion"),    value => "Discussion" }
-                                                        ],
-                                selected => \%selected_hash,
-                                 } &>
-
-<& /tmpl/element:textbox, params =>{
-                                label    => __('Schedule Flag Time'),
-                                name     => 'schedule_flag_time',
-                                value    => $usergroup->field_value( 'schedule_flag_time' ),
-                                size     => '12',
-                                calendar => '1' } &>
-% }
-
-<%perl>
-my ($button_text, $empty_msg);
-if ( !$is_course_group ) {
-        $button_text = $m->scomp('/tmpl/element:button', params=>{'name'=>'add_user_button',
-                                                         'onclick'=>"openwindow('membersdiv');",
-                                                         'label'=>__('Add Names')} );
-        $empty_msg = __('Click \"Add Names\" to add members.');
-} else {
-        $empty_msg = __('Select users from above.');
-}
-</%perl>
-<& /tmpl/element:sort_order_box , params =>{
-        no_add_button => 1,
-        label => __('Current Members'),
-        buttons => [ $button_text ],
-        layer_info => {
-                                                context_path => $m->comp("/tmpl/url:get_full_path"),
-                                                base_path =>  $m->comp("/formbuilder/util:get_base_dir"),
-
-                                                layer => 'membersdiv',
-                                                empty_message => $empty_msg,
-                                                fields => ['userid','name'],
-                                                name => 'users',
-                                                sort => {usage => 'No'},
-                                                sortoninsert => {usage => 'Yes', sorton => 'name'},
-                                                action => {usage => 'Yes', length=>100, functions => [{func=>'remove', label=>__('Delete')}]},
-                                                display => [
-                                                                                {field=>'name', align=>'left', length=>225,},
-                                                                                {field=>'userid', label=>__('UserID'), align=>'left', length=>75,}
-                                                                        ],
-                                                validate => {
-                                                                                usage => 'No',
-                                                                        },
-                                                data => \@userarray
-                                        }
-            } &>
-
-<& /tmpl/element:hidden_form_element, params =>{
-                                name   => 'action',
-                                value  => $form_action } &>
-
-<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
-                                cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url",
-                                'base_url' => "/management/usergroup/show") . "');",
-                                name=>'submit'} &>
+<& /tmpl/element:save_button, params=> {
+     label => __('Save Changes'),
+     cancel_onclick => "go_back('"
+       . $m->comp( "/tmpl/url:construct_url",
+                   base_url => "/management/program/show" )
+       . "');",
+     name=>'submit',
+   } &>
 
 </table>
 </form>
@@ -171,6 +77,8 @@ if ( $program_id ) {
 }
 else {
   $program = TUSK::Curriculum::Program->new( _school => $school );
+  my $school_id = TUSK::Core::School->getSchoolID($school);
+  $program->setSortOrder( $program->nextSortOrder() );
   $form_action = 'add';
 }
 
@@ -182,9 +90,10 @@ my $extra = "";
 if ( defined $ARGS{submit} ) {
   $program->setName($ARGS{program_name});
   $program->setDescription($ARGS{program_description});
-  ($rval, $msg) = $program->save();
+  ($rval, $msg) = $program->save({ user => $m->session->{user} });
 
   if ( $ARGS{action} eq 'add' ) {
+    $extra = $rval;             # new Program ID
     $ARGS{page} = 'edit';
     $msg = __("Program Successfully Added");
   }
