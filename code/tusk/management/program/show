@@ -13,13 +13,15 @@
 <%once>
 use TUSK::Application::HTML::Strip;
 use TUSK::Curriculum::Program;
+use TUSK::Core::School;
 </%once>
 
 <%shared>
-my $school             = $m->comp("/tmpl/url:get_school");
-my $type_object        = $m->comp("/tmpl/url:get_type_object");
-my $base_url           = "/management/program/show";
-my $self_path          = "school/$school";
+my $school      = $m->comp("/tmpl/url:get_school");
+my $school_id   = TUSK::Core::School->getSchoolID($school);
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my $base_url    = "/management/program/show";
+my $self_path   = "school/$school";
 </%shared>
 
 <%method red_header_text>
@@ -47,7 +49,7 @@ my $self_path          = "school/$school";
 
 <%perl>
 my $programs = TUSK::Curriculum::Program->new(_school => $school)->lookup(
-    q(), ['sort_order']
+    "school_id = $school_id", ['sort_order']
 );
 my @program_data = map {
   {
