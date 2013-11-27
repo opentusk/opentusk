@@ -30,7 +30,8 @@ use Type::Utils -all;
 use Types::Standard qw( Maybe );
 use Types::XSD qw( NonNegativeInteger PositiveInteger );
 use TUSK::Namespaces ':all';
-use TUSK::Medbiq::Types qw( NonNullString AcademicLevelID
+use TUSK::Medbiq::Types qw( NonNullString
+                            AcademicLevelReference
                             CompetencyObjectReference
                             SequenceBlockReference );
 
@@ -108,7 +109,7 @@ has Timing => (
 
 has Level => (
     is => 'ro',
-    isa => AcademicLevelID,
+    isa => AcademicLevelReference,
     lazy => 1,
     builder => '_build_Level',
 );

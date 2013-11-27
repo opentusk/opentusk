@@ -33,7 +33,6 @@ use Readonly;
 use Type::Library
     -base,
     -declare => qw(
-                      AcademicLevelID
                       AcademicLevelReference
                       AcademicLevels
                       Address

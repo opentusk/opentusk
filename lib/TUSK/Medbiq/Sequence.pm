@@ -86,7 +86,34 @@ sub _build_xml_content { [ qw( Description SequenceBlock ) ] }
 sub _build_Description { return; }
 
 sub _build_SequenceBlock {
-    return [];
+    my $self = shift;
+    my @blocks;
+    my $cm = $self->_course_map;
+    foreach my $course_id ( keys %{ $self->_course_map } ) {
+        my $course = $self->_course_map->{$course_id}{course};
+        my $required_type = 'Optional';
+        my $timing = TUSK::Medbiq::Timing->new(
+            Dates => TUSK::Medbiq::Dates->new(
+                StartDate => ?,
+                EndDate => ?
+            )
+        );
+        my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number=1]";
+        my $seq_block = TUSK::Medbiq::SequenceBlock->new(
+            id => "course_$course_id",
+            required => $required_type,
+            Title => $course->title,
+            Timing => $timing,
+            Level => $academic_level,
+            CompetencyObjectReference => [],
+            Precondition => $precondition,
+            Postcondition => $postcondition,
+            SequenceBlockEvent => \@block_events,
+            SequenceBlockReference => \@block_refs,
+        );
+        push @blocks, $seq_block;
+    }
+    return \@blocks;
 }
 
 sub _build__course_map {
