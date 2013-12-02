@@ -30,6 +30,10 @@ use TUSK::Namespaces ':all';
 use TUSK::Types;
 use Types::Standard qw( Maybe ArrayRef HashRef );
 use TUSK::Medbiq::Types qw( NonNullString );
+use TUSK::Medbiq::SequenceBlock;
+use TUSK::Medbiq::SequenceBlockEvent;
+use TUSK::Medbiq::Timing;
+use TUSK::Medbiq::Dates;
 
 #########
 # * Setup
@@ -91,14 +95,33 @@ sub _build_SequenceBlock {
     my $cm = $self->_course_map;
     foreach my $course_id ( keys %{ $self->_course_map } ) {
         my $course = $self->_course_map->{$course_id}{course};
+        my $events = $self->_course_map->{$course_id}{events};
         my $required_type = 'Optional';
+        my $min_date = $events->[0]->dao->meeting_date;
+        my $max_date = $events->[0]->dao->meeting_date;
+        my @block_events;
+        my @block_refs;
+        foreach my $evt ( @$events ) {
+            my $meeting = $evt->dao;
+            my $evt_id = $evt->id;
+            my $event_ref = "/CurriculumInventory/Events/Event[\@id='$evt_id']";
+            my $seq_block_event = TUSK::Medbiq::SequenceBlockEvent->new(
+                required => 'false',
+                EventReference => $event_ref,
+                StartDate => $meeting->meeting_date,
+                EndDate => $meeting->meeting_date,
+            );
+            push @block_events, $seq_block_event;
+            $min_date = $meeting->meeting_date if $min_date gt $meeting->meeting_date;
+            $max_date = $meeting->meeting_date if $max_date lt $meeting->meeting_date;
+        }
         my $timing = TUSK::Medbiq::Timing->new(
             Dates => TUSK::Medbiq::Dates->new(
-                StartDate => ?,
-                EndDate => ?
+                StartDate => $min_date,
+                EndDate => $max_date,
             )
         );
-        my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number=1]";
+        my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number='1']";
         my $seq_block = TUSK::Medbiq::SequenceBlock->new(
             id => "course_$course_id",
             required => $required_type,
@@ -106,8 +129,6 @@ sub _build_SequenceBlock {
             Timing => $timing,
             Level => $academic_level,
             CompetencyObjectReference => [],
-            Precondition => $precondition,
-            Postcondition => $postcondition,
             SequenceBlockEvent => \@block_events,
             SequenceBlockReference => \@block_refs,
         );
@@ -118,21 +139,21 @@ sub _build_SequenceBlock {
 
 sub _build__course_map {
     my $self = shift;
-    my %meetings_for;
+    my %events_for;
     my @events = @{ $self->events->Event };
     foreach my $evt ( @events ) {
         my $meeting = $evt->dao;
         my $course = $meeting->course;
         my $course_id = $meeting->course_id;
-        if (! exists $meetings_for{$course_id}) {
-            $meetings_for{$course_id} = {
+        if (! exists $events_for{$course_id}) {
+            $events_for{$course_id} = {
                 course => $course,
-                meetings => [],
+                events => [],
             };
         }
-        push @{ $meetings_for{$course_id}->{meetings} }, $meeting;
+        push @{ $events_for{$course_id}->{events} }, $evt;
     }
-    return \%meetings_for;
+    return \%events_for;
 }
 
 #################

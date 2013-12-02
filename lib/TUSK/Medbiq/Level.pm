@@ -81,6 +81,7 @@ sub _build_Label {
     my $self = shift;
     my $label = $self->dao->label;
     chomp $label;
+    $label =~ s{\s* \z}{}xms;
     return $label;
 }
 
@@ -89,6 +90,7 @@ sub _build_Description {
     my $desc = $self->dao->description;
     return undef unless $desc;
     chomp $desc;
+    $desc =~ s{\s* \z}{}xms;
     return $desc;
 }
 

@@ -27,13 +27,12 @@ use Carp;
 use Readonly;
 
 use Type::Utils -all;
-use Types::Standard qw( Maybe );
+use Types::Standard qw( Maybe ArrayRef );
 use Types::XSD qw( NonNegativeInteger PositiveInteger );
 use TUSK::Namespaces ':all';
 use TUSK::Medbiq::Types qw( NonNullString
-                            AcademicLevelReference
-                            CompetencyObjectReference
-                            SequenceBlockReference );
+                            AcademicLevelReference );
+
 
 #########
 # * Setup
@@ -89,8 +88,7 @@ has track => (
 has Title => (
     is => 'ro',
     isa => NonNullString,
-    lazy => 1,
-    builder => '_build_Title',
+    required => 1,
 );
 
 has Description => (
@@ -103,15 +101,13 @@ has Description => (
 has Timing => (
     is => 'ro',
     isa => TUSK::Medbiq::Types::Timing,
-    lazy => 1,
-    builder => '_build_Timing',
+    required => 1,
 );
 
 has Level => (
     is => 'ro',
     isa => AcademicLevelReference,
-    lazy => 1,
-    builder => '_build_Level',
+    required => 1,
 );
 
 has ClerkshipModel => (
@@ -123,7 +119,7 @@ has ClerkshipModel => (
 
 has CompetencyObjectReference => (
     is => 'ro',
-    isa => ArrayRef[CompetencyObjectReference],
+    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyObjectReference],
     lazy => 1,
     builder => '_build_CompetencyObjectReference',
 );
@@ -162,8 +158,11 @@ has SequenceBlockReference => (
 # * Builders
 ############
 
-sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_attributes { [ qw( id required order minimum maximum track ) ] }
+sub _build_namespace { return curriculum_inventory_ns; }
+
+sub _build_xml_attributes {
+    return [ qw( id required order minimum maximum track ) ];
+}
 
 sub _build_xml_content {
     return [ qw( Title Description Timing Level ClerkshipModel
@@ -171,6 +170,18 @@ sub _build_xml_content {
                  Postcondition SequenceBlockEvent
                  SequenceBlockReference ) ];
 }
+
+sub _build_order { return; }
+sub _build_minimum { return; }
+sub _build_maximum { return; }
+sub _build_track { return 'false'; }
+sub _build_Description { return; }
+sub _build_ClerkshipModel { return; }
+sub _build_CompetencyObjectReference { return []; }
+sub _build_Precondition { return; }
+sub _build_Postcondition { return; }
+sub _build_SequenceBlockReference { return []; }
+sub _build_SequenceBlockEvent { return []; }
 
 #################
 # * Class methods

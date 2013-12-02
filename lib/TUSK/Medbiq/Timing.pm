@@ -64,6 +64,9 @@ has Dates => (
 sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_content { [ qw( Duration Dates )]}
 
+sub _build_Duration { return; }
+sub _build_Dates { return; }
+
 #################
 # * Class methods
 #################
