@@ -75,7 +75,7 @@ sub new {
 					'sort_order' => '',
 				    },
 				    _attributes => {
-					save_history => 0,
+					save_history => 1,
 					tracking_fields => 1,	
 				    },
 				    _levels => {
@@ -96,7 +96,7 @@ sub nextSortOrder {
     my $sth = $dbh->prepare($sql);
     $sth->execute($school_id);
     my $row = $sth->fetchrow_arrayref;
-    my $next = $row ? ( 10 + $row->[0] ) : 10;
+    my $next = $row ? ( 1 + $row->[0] ) : 1;
     return $next;
 }
 
