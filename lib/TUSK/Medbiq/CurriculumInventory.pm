@@ -201,6 +201,7 @@ sub _build_xml_content {
     return [ qw( ReportID
                  Institution
                  Program
+                 Title
                  ReportDate
                  ReportingStartDate
                  ReportingEndDate
