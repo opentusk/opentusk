@@ -23,7 +23,6 @@ use Carp;
 use Readonly;
 
 use Types::Standard qw( Str );
-# use TUSK::Types qw( UnsignedInt UnsignedNum StrHashRef StrArrayRef );
 
 use Moose::Role;
 
@@ -61,23 +60,41 @@ __END__
 
 =head1 NAME
 
-TUSK::XML::RootObject - A short description of the module's purpose
-
-=head1 VERSION
-
-This documentation refers to L<TUSK::XML::RootObject> v0.0.1.
+TUSK::XML::RootObject - A role to represent the root document element in XML
 
 =head1 SYNOPSIS
 
-  use TUSK::XML::RootObject;
+  package TUSK::XML::Doc;
+  use Moose;
+  with 'TUSK::XML::RootObject';
+
+  has Elt => ( is => 'ro', isa => 'TUSK::XML::Elt', required => 1 );
+
+  sub _build_xml_content { return [ 'Elt' ]; }
+  sub _build_tagName { return 'Doc'; }
 
 =head1 DESCRIPTION
 
+Implementing this role is just like implementing L<TUSK::XML::Object>,
+with the additional requirement of a L<_build_tagName> method.
+L<tagName> is used as the root document element tag.
+
+Classes that implement L<TUSK::XML::RootObject> are intended to be at
+the root of a document hierarchy. For an example, see
+L<TUSK::Medbiq::CurriculumInventory>, which acts as the root document
+element of a curriculum inventory XML document.
+
 =head1 ATTRIBUTES
 
-=head1 METHODS
+=over 4
 
-=head1 DIAGNOSTICS
+=item * tagName
+
+The tag name of the root document element. For example,
+``CurriculumInventory'' is the tag name of a curriculum inventory root
+document element.
+
+=back
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

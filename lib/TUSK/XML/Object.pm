@@ -169,28 +169,100 @@ __END__
 
 TUSK::XML::Object - A role for TUSK objects that represent XML nodes
 
-=head1 VERSION
-
-This documentation refers to L<TUSK::XML::Object> v0.0.1.
-
 =head1 SYNOPSIS
 
-  package TUSK::Example;
+  package TUSK::XML::Address;
   use Moose;
   with 'TUSK::XML::Object';
-  has namespace => (
-      is => 'ro',
-      isa => 'Str',
-      default => 'http://
+
+  has Street => ( is => 'ro', isa => 'Str', required => 1 );
+  has City   => ( is => 'ro', isa => 'Str', required => 1 );
+  has State  => ( is => 'ro', isa => 'Str', required => 1 );
+  has Zip    => ( is => 'ro', isa => 'Str', required => 1 );
+
+  sub _build_namespace { return 'http://example.com/address.xsd'; }
+  sub _build_xml_content { return [ qw( Street City State Zip ) ]; }
+  sub _build_xml_attributes { return []; } # no attributes
+
+  ...
+
+  # some other package or script
+  use TUSK::XML::Address;
+  use XML::Writer;
+
+  my $address = TUSK::XML::Address->new(
+    Street => '124 Example Rd',
+    City => 'Boston',
+    State => 'MA',
+    Zip => '12345'
   );
+  $address->write_xml( XML::Writer->new );
+
+  # Outputs (all on one line):
+  # <Street>124 Example Rd</Street>
+  # <City>Boston</City>
+  # <State>MA</State>
+  # <Zip>12345</Zip>
 
 =head1 DESCRIPTION
 
+Classes that implement L<TUSK::XML::Object> represent internal XML
+nodes. For the root document element, implement
+L<TUSK::XML::RootObject>. The difference is that a root object will
+print its own tag name. For all others, the tag name is determined by
+the name of the attribute.
+
+Implementing classes are required to have a L<_build_namespace>
+method. Add XML content with L<_build_xml_content> and
+L<_build_xml_attributes> methods.
+
 =head1 ATTRIBUTES
+
+=over 4
+
+=item * xml_attributes
+
+A list of attribute names to be output as XML attributes of the
+current tag. For example:
+
+  has domain => ( is => 'ro', isa => 'Str' );
+  sub _build_xml_attributes { return [ 'domain' ]; }
+
+When L<write_xml> is called, domain="..." will be an attribute of the
+current tag.
+
+See L<TUSK::Medbiq::Address> for an example.
+
+=item * xml_content
+
+Either a string to be output, or a list of attribute names. The
+attributes can be either a plain string, in which case the tag and
+string will be printed, or another L<TUSK::XML::Object> on which
+L<write_xml> will be called.
+
+=item * namespace
+
+The default namespace of the current XML object. All XML objects are
+required to implement L<_build_namespace>.
+
+=back
 
 =head1 METHODS
 
-=head1 DIAGNOSTICS
+=over 4
+
+=item * write_xml
+
+This is the method to call when serializing the object to an XML
+document. The method takes as input an L<XML::Writer> object.
+
+=item * write_xml_content
+
+This method is a helper method for L<write_xml> and will not usually
+be called directly. It takes as input an attribute name and an
+L<XML::Writer> object.
+
+=back
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
