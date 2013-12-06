@@ -27,54 +27,65 @@ page_footer => ''
 use TUSK::Core::School;
 use TUSK::Curriculum::Program;
 use HSDB4::Constants;
+use Data::Dumper;
 </%once>
 
 <%perl>
-my ($school_name, $program_id) = $m->comp("/tmpl/url:get_path_ids");
-my $school = TUSK::Core::School->new->lookupReturnOne(
-    "school_name = '$school_name'"
-);
-my $school_id = $school->getSchoolID;
-my $school_db = $school->getSchoolDb;
+warn "*** MikeP: path_info: " . $r->path_info;
+warn "*** MikeP: path_ids: " . join(q{, }, $m->comp("/tmpl/url:get_path_ids"));
+my ($school_name,) = $m->comp("/tmpl/url:get_path_ids");
+warn "*** MikeP: school_name: $school_name";
+my $school_id = TUSK::Core::School->new->getSchoolID($school_name);
+warn "*** MikeP: school_id: $school_id";
 
 my $dbh = HSDB4::Constants::def_db_handle()
     or die "Failed to obtain database handle!";
-my $query;
+my $old_autocommit = $dbh->{AutoCommit};
+my $old_raiseerror = $dbh->{RaiseError};
+$dbh->{AutoCommit} = 0;
+$dbh->{RaiseError} = 1;
 
-my $id = $ARGS{droppedRow};
-$id =~ s/_[\d]+//;
+my $program_id = $ARGS{droppedRow};
+$program_id =~ s/_[\d]+//;
+my $originalPos = 1 + $ARGS{originalPos}; # 0-based to 1-based index
+my $newPos      = 1 + $ARGS{newPos};
 
-my ($update_str, $start, $end);
-if ( $ARGS{originalPos} < $ARGS{newPos} ) {
-    $update_str = "sort_order-1";
-    $start      = $ARGS{originalPos} + 1;
-    $end        = $ARGS{newPos};
-}
-else {
-    $update_str = "sort_order+1";
-    $start      = $ARGS{newPos};
-    $end        = $ARGS{originalPos} - 1;
-}
+my $dragged_down = $originalPos < $newPos;
+my $inc   = $dragged_down ? -1               : 1;
+my $start = $dragged_down ? 1 + $originalPos : $newPos;
+my $end   = $dragged_down ? $newPos          : $originalPos - 1;
 
-$query = <<"END_SQL";
-  UPDATE tusk.program SET sort_order = $update_str
-  WHERE sort_order >= ? AND sort_order <= ? AND school_id = ?
-END_SQL
+warn "*** MikeP: school id: $school_id, inc: $inc, start: $start, end: $end";
 
 eval {
-    my $sth = $dbh->prepare($query);
-    $sth->execute($start, $end, 'No');
+    my $current_program = TUSK::Curriculum::Program->new(
+        _school => $school_name )->lookupKey($program_id);
+    my $programs = $current_program->lookup(
+        join( ' AND ',
+              "school_id = $school_id",
+              "sort_order >= $start",
+              "sort_order <= $end" )
+    );
+
+    warn "*** MikeP: programs: " . scalar(@$programs);
+    foreach my $prog ( @$programs ) {
+        $prog->setSortOrder($prog->getSortOrder() + $inc);
+        $prog->save;
+    }
+
+    $current_program->setSortOrder( $newPos );
+    $current_program->save;
+    $dbh->commit;
+    $dbh->{AutoCommit} = $old_autocommit;
+    $dbh->{RaiseError} = $old_raiseerror;
 };
 if ($@) {
-    die "$@\t...failed to update program!";
+    my $err = $@;
+    eval { $dbh->rollback };
+    $dbh->{AutoCommit} = $old_autocommit;
+    $dbh->{RaiseError} = $old_raiseerror;
+    die "Failed to update program. Reason: $err";
 }
-
-$query = "UPDATE tusk.program set sort_order = ? where user_group_id = ?";
-eval {
-    my $handle = $dbh->prepare($query);
-    $handle->execute($ARGS{'newPos'}, $id);
-};
-die "$@\t... " . __("failed to update user_group!") if $@;
 </%perl>
 
 { "error" : "" }
