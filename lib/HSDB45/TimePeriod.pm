@@ -83,6 +83,12 @@ sub nonpast_time_periods {
 				    'ORDER BY start_date DESC, end_date DESC');
 }
 
+sub future_time_periods {
+    my $self = shift;
+    return $self->lookup_conditions('start_date > curdate() AND end_date > curdate()',
+				    'ORDER BY start_date DESC, end_date DESC');
+}
+
 sub time_periods_for_date {
     my $self = shift;
     my $date = shift;

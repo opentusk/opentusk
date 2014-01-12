@@ -15,16 +15,20 @@
 </%doc>
 
 <%attr>
-	top_tab_type            	=> 'manage'
-	check_cms_permissions		=> 1
-	default_path_type		=> 'course'
 	show_tp_dropdown_no_cache 	=> 1 
 </%attr>
 
-<%once>
-	use TUSK::Manage::Course::Users2;
-</%once>
-
+<%shared>
+	my $selfpath = $m->comp("/tmpl/url:get_full_path");
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $school = $course->get_school();
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+	my @usergroups = $course->sub_user_groups($time_period_id); 
+	my $is_group_course = $course->type eq 'group';
+	my $is_director_nonstudent = $m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT');
+	my $is_thesis_comm = $course->type eq 'thesis committee';
+</%shared>
 
 <& /tmpl/element:table, params => { 
 	width => "100%",
@@ -48,8 +52,11 @@
 	<& /tmpl/element:cms_button_row, links => [
 		{ link_txt    => '/management/course/users/addedit/' . $selfpath,
 		  display_txt => __('New Faculty') . '&amp; ' . __('Staff')
-		} ]
-	&>
+		},
+		{ link_txt    => '/management/course/users/copy/' . $selfpath,
+		  display_txt => __('Copy By Time Period')
+		},
+	] &>
 % }
 
 </td></tr>
@@ -59,7 +66,7 @@
 	<tr><td class="no-button">
 % }
 
-% if ($data->{usercount}) {
+% if ($users && scalar @$users) {
 <& /tmpl/element:form, params => {
 	method => 'POST',
 	class => 'no-padding',
@@ -77,12 +84,12 @@
 
 <%perl>
 	my @rows = ();
-	foreach my $course_user (@{$data->{users}}) {
-		push @subrows, $m->comp('SELF:set_row', course_user => $course_user);
+	foreach my $user (@{$users}) {
+		push @rows, $m->comp('SELF:set_row', user => $user);
 	}
 
 	my $sort_box = 0;
-	my action_column_align = undef;
+	my $action_column_align = undef;
 	if ($is_director_nonstudent && !$is_group_course) {
 		$sort_box = 1;
 		$action_column_align = 'left';
@@ -92,11 +99,11 @@
 <& /tmpl/element:object_selection_box, params => { 
 	sort_box => $sort_box,
 	columns => [ 
-		{'label' => __('UserID'), 'field' => 'id' },
 		{'label' => __('Name'), 'field' => 'name'},
-		{'label' => __('Role(s)'), 'field' => 'roles'}, 
+		{'label' => __('UserID'), 'field' => 'userid' },
+		{'label' => __('Role'), 'field' => 'roles'}, 
 		{'label' => __('Label(s)'), 'field' => 'labels'}, 
-		{'label' => __('Teaching Sites'), 'field' => 'teaching_sites'},
+		{'label' => __('Teaching Site(s)'), 'field' => 'teaching_sites'},
 		{'label' => __('Affiliation'), 'field' => 'affiliation'},
 	],
 	action_columns => [ 
@@ -105,39 +112,35 @@
 	],
 	action_column_align => $action_column_align,
 	rows => \@rows,
-	type_path => $m->comp("/tmpl/url:get_type_path"),
+	type_path => $type_path,
 	name => "people",
 } &>
 
-
-<%perl>
-% if ($data->{subusercount}) {
-	my @subrows;
-	foreach my $key (sort keys %{$data->{subusers}}) {
-		foreach my $sub_course_user (@{$data->{subusers}{$key}}) {
-			push @subrows, $m->comp('SELF:set_row', course_user => $sub_course_user);
-		}
-	}
-</%perl>
-
-<h2 style="color: #CC3300; padding: 25px 0 1px 0; margin: 0;">Subcourse Faculty</h2>
-
+%	if (scalar @$sub_courses) {
+%		print scalar @$sub_courses;
+%		foreach my $sub_course (sort { $a->title() <=> $b->title() } @$sub_courses) {
+<h4 style="color: #CC3300; padding: 25px 0 1px 0; margin: 0;"><% __('Subcourse') . ' - ' . $sub_course->title()  %></h2>
+%			my @subrows = ();
+%			foreach my $sub_course_user (@{$sub_course_users->{$sub_course->primary_key()}}) {
+%				push @subrows, $m->comp('SELF:set_row', user => $sub_course_user);
+%			}
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [ 
-		{'label' => __('UserID'), 'field' => 'id' },
 		{'label' => __('Name'), 'field' => 'name'},
-		{'label' => __('Course'), 'field' => 'course'},
-		{'label' => __('Role(s)'), 'field' => 'roles'}, 
-		{'label' => __('Lables'), 'field' => 'labels'}, 
-		{'label' => __('Teaching Site'), 'field' => 'teaching_site'}
+		{'label' => __('UserID'), 'field' => 'userid' },
+		{'label' => __('Role'), 'field' => 'roles'}, 
+		{'label' => __('Title(s)'), 'field' => 'labels'}, 
+		{'label' => __('Teaching Site(s)'), 'field' => 'teaching_site'},
 		{'label' => __('Affiliation'), 'field' => 'affiliation'}
 	],
 	rows => \@subrows,
 	type_path => $m->comp("/tmpl/url:get_type_path"),
 	name => "subpeople",
 } &>
-% } # if subusercount
-% } # if usercount
+%		}
+
+% 	} # subcourse users
+% } # course users
 
 </form>
 </td>
@@ -145,64 +148,57 @@
 </table>
 
 <%init>
-	my $selfpath = $m->comp("/tmpl/url:get_full_path");
-	my $school = $m->comp("/tmpl/url:get_school");
-	my $course_id = $m->comp("/tmpl/url:get_type_object")->course_id;
-	my $course = HSDB45::Course->new( _school => $school )->lookup_key($course_id);
-	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
-	my @usergroups = $course->sub_user_groups($time_period_id); 
-	my $is_group_course = $course->type eq 'group';
-	my $is_thesis_comm = $course->type eq 'thesis committee';
-	my $is_director_nonstudent = $m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT');
+	my $users = $course->users($time_period_id);
+	my $sub_courses = [];
+	my $sub_course_users = {};
 
-	my $helper = TUSK::Manage::Course::Users2->new();
-	my $data = $helper->show_pre_process($school, $course_id, $time_period_id, undef);
+	if ($course->type() eq 'integrated course') {
+		$sub_courses = $course->get_subcourses();
+		foreach my $sub_course (@$sub_courses) {
+			$sub_course_users->{$sub_course->primary_key()} = $sub_course->users($time_period_id);
+		}
+	}
 
 	if (defined($ARGS{order})) {
-		$helper->change_order(delete $ARGS{order}, $data->{users});
+		my ($current, $new) = split '-', $ARGS{order}; 
+		splice(@$users, ($new-1), 0, splice(@$users, ($current-1), 1));
+
+		for (my $i = 0; $i < scalar @$users; $i++) {
+			$users->[$i]->setSortOrder(10*($i+1), $m->session->{'user'}->primary_key());
+		}
 	}
 </%init>
 
 
 <%method set_row>
 <%args>
-	$course_user
+	$user
 </%args>
 <%perl>
-	my $user_id = $course_user->getUserID();
-	my ($name, $affiliation = ('', '');
-	if (my $user = $course_user->getJoinObject('TUSK::Core::HSDB4Tables::User')) {
-		$name = $user->outLastFirstName();
-		$affiliation = $user->getAffiliation();
-	} 
-
-	my $teaching_sites = join ',  ', sort { lc($a) cmp lc($b) } map { $_->getSiteName() } 
-				grep { defined $_->getJoinObject('TUSK::Core::HSDB45Tables::TeachingSite') } 
-				@{$_->getJoinObjects('TUSK::Course::User::Site')}
-
-	my $roles = join ', ', sort { lc($a) cmp lc($b) } map { $_->getRoleDesc() } 
-				grep { ! $_->getFieldValue('virtual_role') } 
-				grep { defined $_->get_first_join_object('TUSK::Permission::Role') }
-				@{$_->getJoinObjects('TUSK::Permission::UserRole')}
-
-	my $labels = join ', ', sort { lc($a) cmp lc($b) } map { $_->getFieldValue('role_desc') } grep { $_->getFieldValue('virtual_role') } @$roles; 
+	my $teaching_sites = $user->getFormattedSites();
+	my $role = $user->getRoleDesc();
+	my $labels = $user->getFormattedLabels(); 
 
 	if ($is_thesis_comm) {
-		s/director/Advisor/i for $role, $labels;
-		s/author/Committee Member/i for $role, $labels;
+		$role =~ s/Director/Advisor/i;
+		$labels =~ s/Director/Advisor/i;
+
+		$role =~ s/Author/Committee Member/i; 
+		$labels =~ s/Author/Committee Member/i;
 	}
 
 	return {
-		user_id => $user_id,
-		name => $name,
-		role => $role,
-		labels => $labels,
-		teaching_sites => $teaching_sites,
-		affiliation => $affiliation,
-		id => $course_user->getPrimaryKeyID(),
+		userid => $user->getPrimaryKeyID(),
+		name => $user->outLastFirstName(),
+		roles => $role || '-',
+		labels => $labels || '-',
+		teaching_sites => $teaching_sites || '-',
+		affiliation => $user->getAffiliation(),
+		id => $user->getCourseUserID(),
 	};
 </%perl>
 </%method>
+
 
 <%method title>
 % 	return __("Manage Faculty and Staff");

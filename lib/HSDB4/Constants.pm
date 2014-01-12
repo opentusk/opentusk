@@ -58,6 +58,7 @@ use vars qw(%URLs %EditURLs %School_Admin_Group %Eval_Admin_Group @image_sizes);
 
 
 %URLs = ( 'HSDB4::SQLRow::User' => '/view/user',
+	  'TUSK::Core::HSDB4Tables::User' => '/view/user',
 	  'HSDB4::SQLRow::Content' => '/view/content',
 	  'HSDB4::SQLRow::Content::Slide' => '/view/content',
 	  'HSDB4::SQLRow::Content::TUSKdoc' => '/view/content',

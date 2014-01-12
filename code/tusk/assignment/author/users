@@ -13,21 +13,29 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%shared>
 	$m->comp("SELF:set_msg", msg => $m->comp("/tmpl/permission:hintmessage"), type => 'hintmsg');
 	my ($assignment_id) = $m->comp("/tmpl/url:get_path_ids");
 	my $course = $m->comp("/tmpl/url:get_type_object");
 </%shared>
 
+
+% $m->comp("/tmpl/permission:page", feature_type_token => 'assignment', feature_id => $assignment_id, args => \%ARGS, users =>  $course->users($assignment->getTimePeriodID()), role_label => __('Assignment'));
+
+<%init>
+	my $assignment;
+	unless ($assignment = TUSK::Assignment::Assignment->lookupKey($assignment_id)) {
+		$m->redirect($m->comp("/tmpl/url:construct_back_url", 
+			base_url	=> "/assignment/author/show", 
+			msg 		=> 'Invalid Assignment ID',
+			msgtype		=> 'errmsg'));
+	}
+</%init>
+
 <%method jsarray>
 % 	return $m->comp("/tmpl/permission:jsarray");
 </%method>
-
-<%doc>
-<%method get_nav_bar_objects>
-% 	return { 'quiz'=>$m->comp("SELF:get_quiz") };
-</%method>
-</%doc>
 
 <%method function_token>
 % 	return 'users_assignment';
@@ -42,4 +50,3 @@
 </%method>
 
 
-% $m->comp("/tmpl/permission:page", feature_type_token => 'assignment', feature_id => $assignment_id, args => \%ARGS, course_users => [ $course->child_users() ], role_label => __('Assignment'));

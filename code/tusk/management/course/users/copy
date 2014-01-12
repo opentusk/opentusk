@@ -1,0 +1,151 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Application::Course::User;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my %source_time_periods = ();
+</%shared>
+
+
+<& /tmpl/element:form, params => {
+	method => 'POST',
+	class => 'no-padding',
+	onsubmit => "",
+	name => 'copyusers',
+} &>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	cellspacing =>"0",
+	cellpadding =>"0"
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label 	=> __('Source Time Period') . ':',
+	value 	=> $m->scomp('SELF:print_source_timeperiods'),
+} &>
+
+% my $options = $m->comp('SELF:get_target_timeperiods');
+
+<& /tmpl/element:field_display, params => {
+	label	=> __('Target Time Period') . ':',
+	value 	=>  (scalar @$options) 
+			? $m->scomp('/tmpl/element:dropdown', params => { name => 'target_tp_id', options => $options })
+		        : '<em>No future time periods available.</em>'
+} &>
+
+% if (scalar @$options) {
+<& /tmpl/element:save_button, params => {
+	name		=> 'copybutton',
+	td_class 	=> 'cell-submit',
+	label 		=> __('Copy'),
+	class 		=> 'formbutton',
+	cancel_onclick 	=> "go_back('" . $m->comp("/tmpl/url:construct_back_url", base_url =>"/management/course/users/show") . "')",
+} &>
+% }
+</table>
+</form>
+
+<%init>
+	if ($ARGS{submit_check}) {
+		
+		my $users = $course->users($ARGS{source_tp_id});
+		if (scalar @$users) {
+			my $app = TUSK::Application::Course::User->new({course => $course});
+			foreach my $user (@$users) {
+				my $role = $user->getRole();
+				$app->add({ 
+					user_id	=> $user->getPrimaryKeyID(), 
+					time_period_id => $ARGS{target_tp_id},
+					site_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getSites()} ],
+					role_id => (defined $role) ? $role->getPrimaryKeyID() : undef,
+					virtual_role_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getLabels()} ],
+					author => $m->session->{user}->primary_key(),
+				});
+			}
+			$m->comp("/tmpl/url:redirect", destination=> "/management/course/users/show/" . $course->school() . '/' . $course->primary_key(),
+				message => __('Successfully copied'),
+				msg_type => 'msg',
+				extra_params => [ { name => 'timeperiod', value => $ARGS{target_tp_id} } ],
+			);
+		}
+	}
+	
+</%init>
+
+<%method print_source_timeperiods>
+%	my ($time_periods, $cnts) = $course->get_users_time_periods();
+%	if (scalar @$time_periods) {
+<div class="scrollChecklist">
+<table>			
+<tr>
+<th align="center">Time Period</th>
+<th width="10px"></th>
+<th align="center">Start/End Dates</th>
+<th width="10px"></th>
+<th align="center">#Users</th>
+</tr>
+%		foreach my $tp (@$time_periods) {
+<tr>
+<td><input type ="radio" name="source_tp_id" value="<% $tp->primary_key()%>" /><% $tp->out_display() %></td>
+<td width="10px"></td>
+<td> <% $tp->out_date_range()  %></td>
+<td width="10px"></td>
+<td align="center"> <% $cnts->{$tp->primary_key()} %></td>
+</tr>
+%			$source_time_periods{$tp->primary_key()} = $cnts->{$tp->primary_key()};
+%		}
+</table>
+</div>
+%	} else {
+<div class="xsm">Not Available</div>
+% }
+</%method>
+
+
+<%method get_target_timeperiods>
+<%perl>
+	my @choices = ();
+	if (my @time_periods = HSDB45::TimePeriod->new(_school => $course->school())->future_time_periods()) {
+		foreach my $tp (@time_periods) {
+			unless (exists $source_time_periods{$tp->primary_key()}) {
+				push @choices, { value => $tp->primary_key(), label => $tp->out_display() . ' &nbsp;[' . $tp->out_date_range() . ']'};
+			}
+		}
+		unshift @choices, { value => '', label => '' } if (scalar @choices);
+	}
+	return \@choices;
+</%perl>
+</%method>
+
+
+<%method jsarray>
+% 	return [ 'jquery/jquery.min.js', 'jquery/plugin/validate.js', 'management/courseusercopy.js', ];
+</%method>
+
+
+<%method title>
+% 	return __('Copy Faculty and Staff');
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp("SELF:title");
+</%method>

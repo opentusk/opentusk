@@ -181,6 +181,37 @@ sub setFeatureTypeID{
 
 
 
+#######################################################
+
+=item B<getVirtualRole>
+
+my $string = $obj->getVirtualRole();
+
+Get the value of the virtual_role field
+
+=cut
+
+sub getVirtualRole{
+    my ($self) = @_;
+    return $self->getFieldValue('virtual_role');
+}
+
+#######################################################
+
+=item B<setVirtualRole>
+
+$obj->setVirtualRole($value);
+
+Set the value of the virtual_role field
+
+=cut
+
+sub setVirtualRole{
+    my ($self, $value) = @_;
+    $self->setFieldValue('virtual_role', $value);
+}
+
+
 =back
 
 =cut

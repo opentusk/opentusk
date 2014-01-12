@@ -36,6 +36,7 @@
 
   <xsl:variable name="courseXml"><xsl:value-of select="$URLPREFIX"/>XMLObject/course/<xsl:value-of select="/Eval/@school"/>/<xsl:value-of select="/Eval/@course_id"/></xsl:variable>
   <xsl:variable name="timePeriodXml"><xsl:value-of select="$URLPREFIX"/>XMLLister/timeperiod/<xsl:value-of select="/Eval/@school"/></xsl:variable>
+  <xsl:variable name="time_period_id" select="/Eval/@time_period_id"/>
 
   <!-- Top level thing:  Put in a comment for the saved answers, and then run the rest. -->
   <xsl:template match="Eval">
@@ -59,6 +60,7 @@
     </xsl:comment>
     <xsl:text>&#10;</xsl:text>
   </xsl:template>
+
 
   <!-- Make the InfoBox element. -->
   <xsl:template name="InfoBox">
@@ -85,13 +87,13 @@
 
         <!-- Course Directors -->
         <xsl:variable name="dir_count">
-          <xsl:value-of select="count(document($courseXml)/course/faculty-list/course-user[course-user-role[@role='Director']])"/>
+          <xsl:value-of select="count(document($courseXml)/course/faculty-list/time-period[@id=$time_period_id]/course-user[course-user-role[@role='director']])"/>
         </xsl:variable>
         <xsl:if test="$dir_count &gt; 0">
           <tr>
             <td valign="top" align="right"><b>Course Director<xsl:if test="$dir_count &gt; 1">s</xsl:if>:</b></td>
             <td align="left">
-              <xsl:for-each select="document($courseXml)/course/faculty-list/course-user[course-user-role[@role='Director']]">
+              <xsl:for-each select="document($courseXml)/course/faculty-list/time-period[@id=$time_period_id]/course-user[course-user-role[@role='director']]">
                 <xsl:element name="a">
                   <xsl:attribute name="href">/view/user/<xsl:value-of select="@user-id"/></xsl:attribute>
                   <xsl:value-of select="@name"/>
@@ -147,7 +149,6 @@
 
         <!-- Time Period -->
         <tr>
-          <xsl:variable name="time_period_id"><xsl:value-of select="/Eval/@time_period_id"/></xsl:variable>
           <td align="right"><b>Time Period:</b></td>            
           <td align="left">
             <xsl:value-of select="document($timePeriodXml)/TimePeriodList/time_period[@time_period_id=$time_period_id]/title"/> 

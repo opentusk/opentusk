@@ -15,19 +15,19 @@
 </%doc>
 
 <%attr>
-	top_tab_type          => 'manage'
-	check_cms_permissions => 1
-	default_path_type     => 'course'
+	hintmsg => __("Are you sure you want to remove this user from this course?")
 </%attr>
 
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $user;
+</%shared>
+
 <%once>
-	use TUSK::Core::HSDB45Tables::TimePeriod;
-	use TUSK::Course::User;
 	use TUSK::Functions;
 	use TUSK::Manage::Course::Students;	
-	use TUSK::Manage::Course::Users2;
+	use TUSK::Application::Course::User;
 </%once>
-
 
 <& /tmpl/element:form, params => {
 	method => 'POST',
@@ -42,93 +42,88 @@
 	cellpadding =>"0"
 } &>
 
-<tr> 
-<td class="labelgray"><% __('User') %>:</td>
-<td class="cell-left">
-
-% if ($user_id) { 
-<%perl>
-	my @rows;
-	push @rows, { 
-		'id' => $user_id,
-		'timeperiod' => $time_period_obj->getFieldValue('period') . ' (' . $time_period_obj->getFieldValue('academic_year') . ')',
-		# $user_obj may be undef if db is messed up
-		map { ($_ => $user_obj && $user_obj->getFieldValue($_)) } qw(lastname firstname email affiliation)
-	};
-</%perl>
-
-<& /tmpl/element:object_selection_box, params => { 
-	columns => [ 
-		{'label' => __('UserID'), 'field' => 'id' },
-		{'label' => __('Last Name'), 'field' => 'lastname'},
-		{'label' => __('First Name'), 'field' => 'firstname'},
-		{'label' => __('Email'), 'field' => 'email'},
-		{'label' => __('Time Period'), 'field' => 'timeperiod'},
-		{'label' => __('Affiliation'), 'field' => 'affiliation'}, 
-	],
-	rows => \@rows,
-	type_path => $m->comp("/tmpl/url:get_type_path"),
-	name => "users",
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> __('User ID') . ':',
+	value 	=> $user->getPrimaryKeyID(),
 } &>
 
-% } else {
-<b> <%__("No user selected.")%> </b>
-% } # if-1
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> __('Name') . ':',
+	value 	=> $user->outLastFirstName(),
+} &>
 
-&nbsp;<i><%__("Please confirm that you want these users removed from this course")%></i>
-</td>
-</tr>
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> __('Role') . ':',
+	value 	=> $user->getRoleDesc() || '-',
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> __('Label(s)') . ':',
+	value 	=> $user->getFormattedLabels()|| '-',
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> __('Teaching Site(s)') . ':',
+	value 	=> $user->getFormattedSites() || '-',
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> __('Course Group(s)') . ':',
+	value 	=> $m->scomp('SELF:get_course_groups')
+} &>
 
 <& /tmpl/element:save_button, params => {
 	td_class => 'cell-submit',
 	label => __('Delete'),
 	class => 'formbutton',
 	name => 'action',
-	cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_back_url", base_url =>"/management/course/users/show") . ')",
+	cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_back_url", base_url =>"/management/course/users/show") . "')",
 } &>
 
 </table>
-<input type="hidden" name="user" value="<% $user_id %>">
-<input type="hidden" name="course_user" value="<% $course_user_id %>">
 </form>
 
 <%init>
-	my $school = $m->comp("/tmpl/url:get_school");
-	my $course_user_id = $ARGS{course_user} || $m->comp("/tmpl/url:get_last_path_id");
+	my $school = $course->school();
+	my $course_id = $course->primary_key();
+	my $course_user_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $app = TUSK::Application::Course::User->new({course => $course});
+	$user = $app->findUser($course_user_id);	
 
-	my $helper = TUSK::Manage::Course::Users2->new;
-
-	my $course_user = $helper->get_course_user_and_all_related($course_user_id);
-	my $course_id = $course_user->getCourseID();
-	my $user_id  = $course_user->getUserID(); 
-	my $user = $course_user->getJoinObject('TUSK::Core::HSDB4Tables::User'); 
-	my $time_period_id  = $course_user->getFieldValue('time_period_id');
-	my $time_period = TUSK::Core::HSDB45Tables::TimePeriod->new(database => $helper->get_school_db($school), id => $time_period_id);
-
-	if ($ARGS{action}) {
-		my ($rval, $msg) = $helper->delete($course_user_id);
-
-		my $course = HSDB45::Course->new(_school => $school)->lookup_key($course_id);
-		my $is_group_course = $course->type eq 'group';
-		if ($is_group_course && $rval == 1) {
-            my $tp = TUSK::Functions::set_eternity_timeperiod($course, $m->session);
-			($rval, $msg) = TUSK::Manage::Course::Students::delete($r, $m->session->{timeperiod}, $course_id, $school, \%ARGS);
+	if ($ARGS{submit_check}) {
+		unless ($user) {
+			$m->comp("/tmpl/url:redirect", destination => "/management/course/users/show/$school/$course_id", message => 'Invalid User', msg_type => 'errmsg');
 		}
+		my ($rval, $msg) = $app->delete($user, \%ARGS, $m->session->{user}->primary_key());
 		if ($rval == 1) {
-			$m->comp("/tmpl/url:redirect", destination=>"/management/course/users/show/".$school."/".$course_id, message => $msg, msg_type => 'msg');
+			if ($course->type() eq 'group') {
+	      			my $tp = TUSK::Functions::set_eternity_timeperiod($course, $m->session);
+				($rval, $msg) = TUSK::Manage::Course::Students::delete($r, $m->session->{timeperiod}, $course_id, $school, \%ARGS);
+			}
+			$m->comp("/tmpl/url:redirect", destination => "/management/course/users/show/$school/$course_id", message => $msg, msg_type => 'msg');
 		}
 	}
+
 </%init>
 
+<%method get_course_groups>
+% my @assigned_groups = ();
+%		if (my @course_groups = $course->sub_user_groups($user->getCourseUser()->getTimePeriodID())) {
+%			foreach my $group (@course_groups) {
+%				my @members = $group->child_users("child_user_id = '" . $user->getPrimaryKeyID() . "'");
+%				push @assigned_groups, $group if (scalar @members);
+<input type="hidden" name="newgroup-<% $group->primary_key %>" value="0" /> 
+<input type="hidden" name="oldgroup-<% $group->primary_key %>" value="<% (scalar @members) ? '1' : '0' %>" />
+%			}
+%		}
+<% (scalar @assigned_groups) ? join(', ', sort { lc($a) cmp lc($b) } map { $_->label() } @assigned_groups) : ' - ' %>
+</%method>
 
 <%method title>
-% return "Delete Faculty and Staff";
+% 	return "Delete Faculty and Staff";
 </%method>
 
 <%method red_header_text>
-% return $m->comp("SELF:title");
+% 	return $m->comp("SELF:title");
 </%method>
 
-<%method cms_min_course_role>
-% return 'DIRECTORNONSTUDENT';
-</%method>

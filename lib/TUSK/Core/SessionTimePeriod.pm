@@ -27,7 +27,7 @@ sub course_time_periods{
 
     check_session_timeperiod($course, $session);
 
-    $periods = $course->get_time_periods();
+    $periods = $course->get_universal_time_periods();
 	unless ($periods){
 		$session->{timeperiod} = -1;
 		return -1;
@@ -60,7 +60,8 @@ sub course_time_periods{
 
 		foreach my $period (@$periods){
 			$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"" . $period->primary_key . "\" ";
-			$extratext->[1]->{text} .= ">" . $period->out_display . "</option>\n";
+##			$extratext->[1]->{text} .= ">" . $period->out_display . "</option>\n";
+			$extratext->[1]->{text} .= ">" . $period->out_display . ' &nbsp;&nbsp; (' . $period->out_date_range() . ")</option>\n";
 		}
 		$extratext->[1]->{text} .= "</select>";
     }

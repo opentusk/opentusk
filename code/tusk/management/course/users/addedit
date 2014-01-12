@@ -14,20 +14,18 @@
  limitations under the License.
 </%doc>
 
-<%attr>
-	top_tab_type          => 'manage'
-	check_cms_permissions => 1
-	default_path_type     => 'course'
-</%attr>
-
-
 <%once>
 	use TUSK::Manage::Course::Students;
 	use TUSK::Functions;
-	use TUSK::Manage::Course::Users2;
-	#use TUSK::Manage::Course::Users;
-	use TUSK::Core::HSDB45Tables::TimePeriod;
+	use TUSK::Application::Course::User;
 </%once>
+
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $school_name = $course->school();
+	my $course_user_id = $m->comp("/tmpl/url:get_last_path_id");
+</%shared>
 
 
 <& /tmpl/element:form, params => {
@@ -62,178 +60,148 @@
 	</tr>
 </table>
 
+<%perl>
+</%perl>
+
 <& /tmpl/layers:create_layer, struct => {
 	layer => 'usersdiv',
 	fields => ['userid','name'],
 	name => 'users',
 	sort => {usage => 'No'},
-	action => $data->{actionref},
+	action => $actions,
 	display => [
-		{field=>'name', align=>'left', length=>225,},
-		{field=>'userid', align=>'left', length=>75,}
+		{field => 'name', align => 'left', length => 225,},
+		{field => 'userid', align => 'left', length => 75,}
 	],
 	validate => {
 		usage => 'Yes',
 		form => 'users',
 		element => 'users'
 	},
-	data => $data->{userarray},
+	data => $users,
 } &>
-
 </td>
 </tr>
 
-<!-- row 2: role -->
 <tr>
-<td class="labelgray"><% __("Roles:") %></td>
-
+<td class="labelgray"><% __("Role:") %></td>
 <td class="cell-left">
 <div class="cauRoles">
 <ul class="clearfix">
 
-<%perl>
-	my $out = '';
-	foreach my $k (sort { lc($a) cmp lc($b) } keys %{$data->{all_roles}}) {
-		my $v = $data->{all_roles}{$k};
-		$v->{virtual_role} and next;
-		$v->{role_token} =~ /^(director|manager|author)$/ or !($is_group_course || $is_thesis_comm) or next;
-		$out .= qq|<li><input type="radio" name="roles" value="$v->{role_id}"|;
-		{
-			$out .= qq| checked|, last if exists $data->{roles}{$k};
-			$out .= qq| checked|, last if $v->{role_token} eq 'author' && ($is_group_course || $is_thesis_comm) && $data->{shownone};
-		}
-		$out .= qq|>|;
-		{
-			$out .= $v->{role_desc}, last unless $is_thesis_comm;
-			$out .= __('Advisor'), last if $v->{role_token} =~ /^director$/;
-			$out .= __('Committee Member'), last if $v->{role_token} =~ /^author$/;
-			$out .= $v->{role_desc};
-		}
-		$out .= qq|</li>\n|;
-	}
+% ## user could have one role but many virtual roles (titles)
+% my %user_virtual_role_ids = ();
+% my $user_role_id = 0;   ## no role selection 
+% foreach my $user_role (@{$faculty->getRoleLabels()}) {
+%	if ($user_role->getVirtualRole()) {
+%		$user_virtual_role_ids{$user_role->getPrimaryKeyID()} = 1;
+%	} else {
+%		$user_role_id = $user_role->getPrimaryKeyID();
+%	}
+% }
 
-	unless ($is_group_course || $is_thesis_comm) {
-		$out .= qq|<li><input type="radio" name="roles" value=""|;
-		$out .= qq| checked| if $data->{shownone};
-		$out .= '> ' . __('None') . "</li>\n";
-	}
-	$m->print($out);
-</%perl>
+% my $all_roles = TUSK::Permission::Role->lookup("permission_feature_type.feature_type_token = 'course'", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', origkey => 'permission_role.feature_type_id', } ) ]);
+
+% foreach my $role (grep { !($_->getVirtualRole()) } @$all_roles) {
+%	my $role_label = __($role->getRoleDesc());
+% 	# course has all roles,  but my group and thesis committee has only director/manager/author roles
+%	next if ($role->getRoleToken() =~ /^(director|manager|author)$/ && ($is_group_course || $is_thesis_comm));
+
+%	if ($is_thesis_comm) {
+%		if ($role->getRoleToken() eq 'director') {
+%			$role_label = __('Advisor');
+%		} elsif ($role->getRoleToken() eq 'author') {
+%			$role_label = __('Commiteee Member');
+%		} 
+%	}
+
+<li><input type="radio" name="role_id" value="<% $role->getPrimaryKeyID() %>" <% (($user_role_id == $role->getPrimaryKeyID()) || ($role->getRoleToken() eq 'author' && ($is_group_course || $is_thesis_comm) && $user_role_id == 0)) ? 'checked' : '' %> /> <% $role_label %></li>
+% } ## foreach
+
+% unless ($is_group_course || $is_thesis_comm) {
+<li><input type="radio" name="role_id"  value="0" <% ($user_role_id == 0) ? 'checked' : '' %> ><%__("None")%></li>
+% }
 </ul>
 </div>
 </td>
 </tr>
 
-% if (!($is_group_course || $is_thesis_comm)) { 
-%	 if (@{$data->{all_teaching_sites}}) { 
+<tr> 
+<td class="labelgray"><% __('Label(s)') %>:<br> <span class="xsm">(<%__("Labels are used for sorting and display purposes only")%>)</span></td>
+<td class="cell-left">
+<div class="cauRoles">
+<ul class="clearfix">
+
+% foreach my $label (grep { ($_->getVirtualRole()) } @$all_roles) {
+<li><input type="checkbox" name="virtual_role_id" value="<% $label->getPrimaryKeyID() %>" <% (exists $user_virtual_role_ids{$label->getPrimaryKeyID()}) ? ' checked' : '' %> /><% __($label->getRoleDesc()) %></li>
+% } ## foreach label
+
+</ul>
+</div>
+</td>
+</tr>
+
+% unless ($is_group_course || $is_thesis_comm) { 
+%	if (my @teaching_sites = $course->child_teaching_sites()) {
 <tr>
-<td class="labelgray">__('Teaching Site'):</td>
+<td class="labelgray"><% __('Teaching Site') %>:</td>
 <td class="cell-left">
-
-<%perl>
-	my @ts = sort { lc($a->getFieldValue('site_name')) cmp lc($b->getFieldValue('site_name')) }
-			map { $_->get_first_join_object('TUSK::Core::HSDB45Tables::TeachingSite') }
-			@{$data->{all_teaching_sites}};
-	
-	my %ts = map { ($_->getFieldValue('teaching_site_id') => 1) } @{$data->{teaching_sites}};
-	my $out = '';
-	my $count = 0;
-	$out .= qq|<table width="75%" border="0" cellpadding="0" class="tusk">\n|;
-	foreach my $ts (@ts) {
-		my ($ts_id, $ts_name) = map { $ts->getFieldValue($_) } qw(teaching_site_id site_name);
-		++$count;
-		$out .= qq|<tr>\n| if $count % 2;
-		$out .= qq|<td class="layers-left" width="50%"><input type="checkbox" name="teaching_sites" value="$ts_id"|;
-		$out .= qq| checked| if exists $ts{$ts_id};
-		$out .= qq|>$ts_name</td>\n|;
-		$out .= qq|</tr>\n| unless $count % 2;
-	}
-	$out .= qq|</table>\n|;
-	$m->print($out);
-</%perl>
+<div class="cauRoles">
+<ul class="clearfix">
+%		foreach my $site (@teaching_sites) {
+<li><input type="checkbox" name="site_id" value="<% $site->primary_key() %>" <% (exists $user_sites{$site->primary_key()}) ? 'checked' : '' %> /> <% $site->site_name() %></li>
+%		}
+</ul>
+</div>
 </td>
 </tr>
-% } 
+%	}
+% }
+
 
 <tr> 
-<td class="labelgray"><% __('Labels') %>:<br> <span class="xsm">(<% __("labels are used for sorting <br> and display purposes only") %>)</span></td>
+<td class="labelgray"><% __('Assign to Course Groups') %>:</td>
 <td class="cell-left">
-<table width="75%" border="0" cellpadding="0" class="tusk">
-<%perl>
-	my $out = '';
-	my $count = 0;
-	for my $k (sort { lc($a) cmp lc($b) } keys %{$data->{all_roles}}) {
-		my $v = $data->{all_roles}{$k};
-		$v->{virtual_role} or next;
-		++$count;
-		$out .= qq|<tr>\n| if $count % 2;
-		$out .= qq|<td class="layers-left" width="50%"><input type="checkbox" name="labels" value="$v->{role_id}"|;
-		$out .= qq| checked| if exists $data->{roles}{$k};
-		$out .= qq|>$v->{role_desc}</td>\n|;
-		$out .= qq|</tr>\n| unless $count % 2;
-	}
-	$m->print($out);
-</%perl>
-</table>
-</td>
-</tr>
-
-<tr> 
-<td class="labelgray"><% __'Assign to Course Groups') %>:</td>
-<td class="cell-left"><table width="75%" border="0" cellspacing="0" class="tusk">
-% if ($data->{usergroupcount}) { 
-%	foreach my $usergroup (@{$data->{usergroups}}) {
-%		my @usersroles=$usergroup->child_users("child_user_id='" . $user_id . "'") if ($user_id); 
-%		# check the each of the groups to the first user in the array
+<table width="75%" border="0" cellspacing="0" class="tusk">
+% if (my @course_groups = $course->sub_user_groups($time_period_id)) { 
+%	foreach my $group (@course_groups) {
+%		my @members = $group->child_users("child_user_id = '$user_id'");
 <tr> 
 <td class="layers-left"> 
-<input type="checkbox" name="newgroup-<% $usergroup->primary_key %>" value="1" <% ($usersroles[0])? "checked": ""%> > <% $usergroup->field_value('label') %> 
-<input type="hidden" name="oldgroup-<% $usergroup->primary_key %>" value="<% ($usersroles[0])? '1': '0' %>"></td>
+<input type="checkbox" name="newgroup-<% $group->primary_key %>" value="1" <% (scalar @members) ? 'checked' : '' %> /> <% $group->label() %> 
+<input type="hidden" name="oldgroup-<% $group->primary_key %>" value="<% (scalar @members) ? '1' : '0' %>">
+</td>
 </tr>
 %	}
 % } else { 
 <tr><td><i><% __('No course groups') %>.</i></td></tr>
 % } 
-</table></td>
+</table>
+</td>
 </tr>
-% } 
+
 
 <tr> 
 <td>&nbsp;</td>
 <td class="cell-submit">
 <& /tmpl/element:save_button, params => {
-	label => <% __('Save') %>,
-	no_cancel_button => 1,
+	label => __('Save'),
 	class => 'formbutton',
-	name  => 'actionb',
+	name  => 'action',
+	cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_back_url", base_url =>"/management/course/users/show") . "')",
 } &>
-<input type="hidden" name="action" value="<% $data->{action} %>"></td>
 </tr>
-
-<!--
-<tr> 
-<td width="200"><img src="/graphics/spacer.gif" width="200" height="1"></td>
-<td><img src="/graphics/spacer.gif" width="356" height="1"></td>
-</tr>
--->
-
 </table>
 </form>
 
-
 <%init>
-	my $school = $m->comp("/tmpl/url:get_school");
-	my $course_id = $m->comp("/tmpl/url:get_type_object")->course_id;
-	my $course_user_id = $ARGS{course_user} || $m->comp("/tmpl/url:get_last_path_id");
-
-	my $course = HSDB45::Course->new(_school => $school)->lookup_key($course_id);
 	my $is_group_course = $course->type eq 'group';
 	my $is_thesis_comm = $course->type eq 'thesis committee';
-
+	my $course_id = $course->primary_key();
 	if ($is_group_course) {
 		unless (TUSK::Functions::set_eternity_timeperiod($course,$m->session)) {
 			 $m->comp("/tmpl/url:redirect",
-				destination => "/management/course/users/show/$school/$course_id",
+				destination => "/management/course/users/show/$school_name/$course_id",
 				message => __('No "eternity" time period with appropriate end date.') . '<br/>' . __('Please see administrator for assistance.'),
 				msg_type => 'errmsg',
 			);
@@ -241,50 +209,72 @@
 	}
 
 	my $time_period_id = $m->session->{timeperiod};
-	my @usergroups = $course->sub_user_groups($time_period_id); 
-
-	my $helper = TUSK::Manage::Course::Users2->new();
-	my $user_id = $course_user_id && $helper->get_course_user($course_user_id)->getFieldValue('user_id'); # can be a bogus user if db is messed up
-
-=for
-	if (0 && $course_user_id) # remove if really unnecessary {
-		my ($course_user_obj, $user_obj, $time_period_obj);
-		$course_user_obj = $helper->get_course_user_and_all_related($course_user_id);
-		$user_id = $course_user_obj->getFieldValue('user_id'); # can be a bogus user if db is messed up
-		$user_obj = $course_user_obj->get_first_join_object('TUSK::Core::HSDB4Tables::User'); # can be undef if db is messed up
-		$time_period_id = $course_user_obj->getFieldValue('time_period_id');
-		$time_period_obj = $course_user_obj->get_first_join_object('TUSK::Core::HSDB4Tables::TimePeriod'); # can be undef?
-	}
-=cut
-
-	if ($ARGS{action}) {
-		my ($rval, $msg, $xtra) = $helper->addedit_users($course_user_id, $school, $course_id, $time_period_id, { %ARGS, session_user =>  $m->session->{user} });
-		if ($is_group_course && $rval == 1) {
-			($rval, $msg) = TUSK::Manage::Course::Students::addedit_users($r, $course_id, $school, $time_period_id, \%ARGS);
+	my $user_id = undef;
+	my $actions = { usage => 'No'};
+	my $users = [];
+	my $app = TUSK::Application::Course::User->new({course => $course});
+	my %user_sites = ();
+	my $faculty = undef;
+	if ($course_user_id) {  ## EDIT
+		$faculty = $app->findUser($course_user_id);
+		unless (ref $faculty eq 'TUSK::Core::HSDB4Tables::User') {
+			$m->comp("/tmpl/url:redirect",
+				destination=> "/management/course/users/show/$school_name/$course_id",
+				message => 'Invalid User!',
+				msg_type => 'errmg',
+			);
 		}
+		$user_id = $faculty->getPrimaryKeyID();
+		$users = [{ userid => $user_id, name => $faculty->outLastFirstName() }];
+		%user_sites = map { $_->getPrimaryKeyID() } @{$faculty->getSites()};
+	} else {   ## ADD
+		$faculty = TUSK::Core::HSDB4Tables::User->new();;
+		$actions = { usage => 'Yes', length => 100, functions => [{ func => 'remove', label => 'Delete' }] };
+	}
+	
+	if ($ARGS{submit_check}) {
+		my ($rval, $msg) = TUSK::Manage::Course::Students::addedit_users($r, $course_id, $school_name, $time_period_id, \%ARGS) if ($is_group_course);
+
+		if ($course_user_id) {
+			$app->edit({%ARGS, course_user_id => $course_user_id, author => $m->session->{user}->primary_key() } );
+			$msg .= ' User modified';
+		} else {
+			my @user_structs = TUSK::Functions::get_users(\%ARGS);
+			my %existing_users = ();
+			if (scalar @user_structs) {
+				%existing_users = map { $_->getPrimaryKeyID() => $_ } @{$course->users($time_period_id, "course_user.user_id in (" . join(',', map { "'" . $_->{userid} . "'" } @user_structs) . ")")};
+			} 
+			my @duplicates = (); my $added_users = 0;
+			my $app = TUSK::Application::Course::User->new({course => $course});
+			foreach my $user (@user_structs) {
+				if (exists $existing_users{$user->{userid}}) {
+					push @duplicates, $user->{userid};
+				} else {
+					$app->add({ %ARGS, author => $m->session->{user}->primary_key(), user_id => $user->{userid}, time_period_id => $time_period_id });
+					$added_users++;
+				}
+			}
+	
+			$msg .= __(' User(s) added.') if ($added_users > 0) ;
+			$msg .= __(' Duplicate User(s): ') . join(',', @duplicates) if (scalar @duplicates);
+		}
+
 		$m->comp("/tmpl/url:redirect",
-			destination=> "/management/course/users/show/$school/$course_id",
+			destination=> "/management/course/users/show/$school_name/$course_id",
 			message => $msg,
 			msg_type => 'msg',
 		);
 	}
-
-	my $data = $helper->addedit_pre_process($course_user_id, $school, $course_id, $time_period_id);
 </%init>
-
 
 <%method jsarray>
 % 	return ['layers.js'];
 </%method>
 
 <%method title>
-% 	return "Create New Faculty & Staff";
+% 	return __("Create New Faculty & Staff");
 </%method>
 
 <%method red_header_text>
 % 	return $m->comp("SELF:title");
 </%method> 	
-
-<%method cms_min_course_role>
-% 	return 'DIRECTORNONSTUDENT';
-</%method>

@@ -101,15 +101,10 @@ sub delete{
 sub delete_course_link{
     my ($self, $course, $un, $pw) = @_;
 
-    # change teaching_site_id to 0 for all matching link_course_user records
-    my @users = $course->child_users();
-    foreach my $user (@users){
-	if ($user->aux_info('teaching_site_id') == $self->primary_key()){
-	    my ($r, $msg) = $course->user_link()->update(-user => $un, -password => $pw,
-					 -parent_id => $course->primary_key(),
-					 -child_id => $user->primary_key(),
-					 teaching_site_id => 0);
-	}
+    # remove course_user_site
+    my $user_sites =TUSK::Course::User::Site->lookup("teaching_site_id = " . $self->primary_key(), undef, undef, undef, [TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'user_id', jointype => 'inner', joincond => "course_id = " . $course->primary_key() . " AND school_id = " . $course->getSchool()->getPrimaryKeyID() })]);
+    foreach my $user_site (@$user_sites) {
+	$user_site->delete({user => $un});
     }
 
     # change teaching_site_id to 0 for all matching link_course_student records
@@ -127,10 +122,6 @@ sub delete_course_link{
     my ($r, $msg) =  $self->course_link()->delete (-user => $un, -password => $pw,
 						   -parent_id => $course->primary_key(),
 						   -child_id => $self->primary_key());
-
-
-
-
 }
 
 #
@@ -152,20 +143,6 @@ sub parent_courses {
     return $self->{-parent_courses}->parents();
 }
 
-sub user_link {
-    my $self = shift;
-    my $db = $self->school_db();
-    return $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_teaching_site_user"};
-}
-
-sub child_users {
-    my $self = shift;
-    unless ($self->{-child_users}) {
-	$self->{-child_users} = 
-	    $self->user_link()->get_children( $self->primary_key() );
-    }
-    return $self->{-child_users}->children();
-}
 
 #
 # >>>>>  Input Methods <<<<<

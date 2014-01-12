@@ -85,11 +85,12 @@ sub new {
 	@_
 	};
 
+=for
 	# HSDB45Tables::* have database undefined. This will make your life simpler.
 	$self->{_datainfo}{database} = $_ for grep { defined } delete $self->{database};
 	# Use 'id' instead of '_id';
 	$self->{_id} = $_ for grep { defined } delete $self->{id};
-
+=cut
     bless $self, $class;
 
     # figure out which field is the pk
@@ -781,6 +782,30 @@ sub getFieldValue{
 
 #######################################################
 
+=item B<getFieldValues>
+
+    $string = $obj->getFieldValues($fields);
+
+Get the values of fields
+
+=cut
+
+sub getFieldValues{
+    my ($self, $fields) = @_;
+
+    my @values = ();
+    foreach my $field (@$fields) {
+	unless (exists ($self->{_field_values}->{$field})){
+	    $self->lookupFields([$field]) if ($self->getPrimaryKeyID);
+	}
+	push @values, $self->{_field_values}->{$field};
+    }
+    return \@values;
+}
+
+
+#######################################################
+
 =item B<setFieldValue>
 
     $obj->setFieldValue($field, $value);
@@ -1031,12 +1056,6 @@ sub getJoinObject{
 	}
 }
 
-sub get_first_join_object
-{
-	my ($this, $object_class) = @_;
-	my $x = $this->{_join_objects} || undef; # no uninitialized warning
-	return $x && $x->{$object_class} && $x->{$object_class}[0]; # no autovivification
-}
 
 #######################################################
 
@@ -1217,6 +1236,11 @@ sub lookupReturnOne{
     }else{
 	return();
     }
+}
+
+sub lookupCourseSchool {
+
+
 }
 
 #######################################################

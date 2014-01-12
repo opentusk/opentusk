@@ -251,10 +251,11 @@ valid types: course, school, usergroup, content, case
 <%method redirect>
 <%doc>Method to redirect user.  Tries to take the user back one page or back to the homepage (back to the homepage if $always_homepage is set or the last page was the same as the current page)</%doc>
 <%args>
-$message
-$always_homepage => 0
-$msg_type => 'errmsg'
-$destination => ''
+	$message
+	$always_homepage => 0
+	$msg_type => 'errmsg'
+	$destination => ''
+	$extra_params => []  ## arrayref of { name => '', value => '' }
 </%args>
 <%perl>
 	my $url;
@@ -267,6 +268,10 @@ $destination => ''
 	$url .= "?" unless ($url=~/\?/);
 	$url .= "\&" unless ($url=~/\?$/);
 	$url .= $msg_type . "=" . uri_escape($message);
+	
+	if (scalar @$extra_params) {  
+		$url .= '&' . join('&', map { $_->{name} . '=' . uri_escape($_->{value}) } @$extra_params);
+	}
 
 	$m->redirect($url);
 </%perl>

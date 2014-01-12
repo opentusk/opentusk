@@ -37,13 +37,14 @@
 
 <%perl>
 	my @author_courses = $user->author_courses();
-	foreach my $course (@author_courses){
-		if ($course->type() eq 'group'){
-			push (@{$course_hash{$course->school()}{"my_groups"}}, $course);
-		} elsif ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
-			push (@{$course_hash{$course->school()}{"user_committees"}}, $course);
-		} elsif ($course->type() eq 'community service' or $course->type() eq 'course' or $course->type() eq 'integrated course') {
-			push (@{$course_hash{$course->school()}{"admin_courses"}}, $course);
+	foreach my $course (@author_courses) {
+		my $school_name = $course->getJoinObject('TUSK::Core::School')->getSchoolName();
+		if ($course->getType() eq 'group') {
+			push (@{$course_hash{$school_name}{"my_groups"}}, $course);
+		} elsif ($course->getType() eq 'committee' || $course->getType() eq 'thesis committee') {
+			push (@{$course_hash{$school_name}{"user_committees"}}, $course);
+		} elsif ($course->getType() eq 'community service' or $course->getType() eq 'course' or $course->getType() eq 'integrated course') {
+			push (@{$course_hash{$school_name}{"admin_courses"}}, $course);
 		}  
 	}
 

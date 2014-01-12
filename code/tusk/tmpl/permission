@@ -13,37 +13,39 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%doc>Library file that handles adding/editing/deleting permissions within a feature (fearture_type_token) and interfacing with the permission engine (TUSK::Permission check the perldoc).</%doc>
+
 <%init>
-use TUSK::Permission;
-use TUSK::Permission::Role;
-use TUSK::Permission::UserRole;
+	use TUSK::Permission;
+	use TUSK::Permission::Role;
+	use TUSK::Permission::UserRole;
 </%init>
 
 <%method hintmessage>
-% return __('Please remember to hit \'Save Changes\' once you are done making changes.');
+% 	return __('Please remember to hit \'Save Changes\' once you are done making changes.');
 </%method>
 
 <%method jsarray>
 <%doc>any pages that want to manage permissions needs to load these js files</%doc>
-% return ['layers.js', 'element.js'];
+% 	return ['layers.js', 'element.js'];
 </%method>
 
 <%method page>
 <%args>
-$args
-$feature_type_token
-$feature_id
-$allow_duplicate => 1
-$course_users => undef
-$role_label => ''
+	$args
+	$feature_type_token
+	$feature_id
+	$allow_duplicate => 1
+	$users => undef     ### if passed, it requires TUSK::Core::HSDB4Tables::User
+	$role_label => ''
 </%args>
 
 <%doc>Method that makes a permission add/edit/delete screen for a particular feature_type_token</%doc>
 
 <%perl>
-	my $users = TUSK::Permission::UserRole->new()->lookupFeature($feature_type_token, $feature_id);
-	my @data = map { {  'user_role_id' => $_->getPrimaryKeyID(), userid => $_->getUserID(), role => $_->getRoleID(), name => $_->getFullUserName() } } @$users;
+	my $user_roles = TUSK::Permission::UserRole->new()->lookupFeature($feature_type_token, $feature_id);
+	my @data = map { {  'user_role_id' => $_->getPrimaryKeyID(), userid => $_->getUserID(), role => $_->getRoleID(), name => $_->getFullUserName() } } @$user_roles;
 
 	$m->comp("SELF:actions", args => $args, data => \@data, feature_id => $feature_id) if ($args->{'submit_check'});
 
@@ -64,19 +66,20 @@ $role_label => ''
 		cellpadding =>"0" } &>
 
 
-% if ($course_users) {
-
+% if ($users) {
 <%perl>
-	my %app_users = map { $_->getUserID() => 1 } @$users;
-	my @selected_course_users = ();
-	foreach my $user (@$course_users) {
-		next if exists $app_users{$user->primary_key()};
-		push @selected_course_users, { 
-			name => $user->out_lastfirst_name(),
-			userid => $user->primary_key(),
-			role => $user->roles(), 
-			uid => $user->primary_key(),
-		};
+	my %assigned_users = map { $_->getUserID() => 1 } @$user_roles;
+	my @non_selected_users = ();
+	my $cnt = 1;
+	foreach my $user (@$users) {
+		unless ($assigned_users{$user->getPrimaryKeyID()}) {
+			push @non_selected_users, { 
+				name => $user->outLastFirstName(),
+				userid => $user->getPrimaryKeyID(),
+				role => $user->getFormattedRoleLabels(), 
+				uid => $user->getUID(),
+			};
+		}
 	}
 </%perl>
 
@@ -97,7 +100,7 @@ $role_label => ''
 		{label=>__('Course Role'),field=>'role', align=>'left', length=>150, }, 
 	],
 	validate => { usage => 'No', },
-	data => \@selected_course_users,
+	data => \@non_selected_users,
 } &>
 
 <script>

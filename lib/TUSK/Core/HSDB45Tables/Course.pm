@@ -49,6 +49,7 @@ BEGIN {
 
 use vars @EXPORT_OK;
 use HSDB4::Constants;
+require TUSK::Application::HTML::Strip;
 
 # Non-exported package globals go here
 use vars ();
@@ -469,6 +470,30 @@ sub getLinkTeachingSiteObjects {
 #    return $self->getJoinObjects("TUSK::Core::HSDB45Tables::LinkCourseUser");
 #
 #}
+
+
+sub outTitle {
+    my $self = shift;
+    my $title = $self->getTitle();
+    return "" if ( ! length ($title) );
+    $title = uc(substr($title,0,1)).substr($title,1,length($title));
+    $title=substr($title,0,50)."..."     if (length($title) > 50);
+
+    if (my $oea_code = $self->getOeaCode()) {
+	    my $stripObj = TUSK::Application::HTML::Strip->new();
+		$oea_code = $stripObj->removeHTML($oea_code);
+		unless ($title=~/^$oea_code/i){
+			$title .= " (".$oea_code.")";
+		}
+    }
+
+    return $title;
+}
+
+sub getFormattedRoleLabels {
+    my $self = shift;
+    return join ', ', sort { lc($a) cmp lc($b) }  map { $_->getRoleDesc() } @{$self->getJoinObjects('TUSK::Permission::Role')};
+}
 
 
 =head1 BUGS
