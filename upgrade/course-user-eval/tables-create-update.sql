@@ -86,12 +86,12 @@ INSERT INTO permission_role VALUES
 (0, 'editor', 'Editor', last_insert_id(), 0, 'script', now(), 'script', now()),
 (0, 'author', 'Author', last_insert_id(), 0, 'script', now(), 'script', now()),
 (0, 'student_editor', 'Student Editor', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'lecturer', 'Lecturer', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'instructor', 'Instructor', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'lab_instructor', 'Lab Instructor', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'librarian', 'Librarian', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'merc_representative', 'MERC Representative', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'teaching_assistant', 'Teaching Assistant', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'attending', 'Attending', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'resident', 'Resident', last_insert_id(), 0, 'script', now(), 'script', now())
+(0, 'lecturer', 'Lecturer', last_insert_id(), 1, 'script', now(), 'script', now()),
+(0, 'instructor', 'Instructor', last_insert_id(), 1, 'script', now(), 'script', now()),
+(0, 'lab_instructor', 'Lab Instructor', last_insert_id(), 1, 'script', now(), 'script', now()),
+(0, 'librarian', 'Librarian', last_insert_id(), 1, 'script', now(), 'script', now()),
+(0, 'merc_representative', 'MERC Representative', last_insert_id(), 1, 'script', now(), 'script', now()),
+(0, 'teaching_assistant', 'Teaching Assistant', last_insert_id(), 1, 'script', now(), 'script', now()),
+(0, 'attending', 'Attending', last_insert_id(), 1, 'script', now(), 'script', now()),
+(0, 'resident', 'Resident', last_insert_id(), 1, 'script', now(), 'script', now())
 ;
