@@ -1465,6 +1465,7 @@ my @CONTENT_EDIT_ROLES = (
 
 # TODO Make Readonly
 # Readonly my @CONTENT_ADD_ROLES =>
+## when we refactor this, make sure this should match role_token in 'course' permission_role
 my @CONTENT_ADD_ROLES = (
     'Director',
     'Manager',
@@ -1478,20 +1479,21 @@ sub can_user_edit {
     my $user = shift;
     # first check the user's role in this content
     my $role = $self->user_primary_role($user->primary_key);
+    
+    ## allow if user is associated with content
+    return 1 if ($role eq 'Editor' || $role eq 'Author');
 
-	## allow if user is associated with content
-	return 1 if ($role eq 'Editor' || $role eq 'Author');
-
-	## allow if school admin
-	if ($self->field_value('school')) {
-	    return 1 if $user->check_school_permissions($self->school());
-	}
+    ## allow if school admin
+    if ($self->field_value('school')) {
+	return 1 if $user->check_school_permissions($self->school());
+    }
 	
-    ## allow if user has role in course that allows editing of other
-    ## people's content
-	if ($self->course()->user_primary_role($user->primary_key)) {
-		return 1 if (join(q{,}, @CONTENT_EDIT_ROLES) =~ $self->course()->user_primary_role($user->primary_key));
+    ## allow if user has role in course that allows editing of other people's content
+    if (my $user_role = $self->course()->user_primary_role($user->primary_key())) {
+	foreach (@CONTENT_EDIT_ROLES) {
+	    return 1 if ($user_role->getRoleToken() eq lc $_);
 	}
+    }
 }
 
 sub can_user_add {

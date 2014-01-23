@@ -1003,26 +1003,42 @@ sub get_single_student {
     return $students[0];
 }
 
-=item
+
+=item <B><users>
     All users for a given time period
 =cut
+
 sub users {
     my ($self, $time_period_id, $conditions, $sort_orders) = @_;
     confess "missing time period id" unless defined $time_period_id;
 
     $sort_orders = ['course_user.sort_order', 'lastname', 'firstname'] unless defined $sort_orders;
 
-    return $self->get_users($conditions, $sort_orders, $time_period_id);
+    return $self->find_users($conditions, $sort_orders, $time_period_id);
 }
 
-=item
+
+=item <B><user_primary_role
+  Parmeter: user_id
+  Return: a user permission_role object if exists, else undef
+=cut
+
+sub user_primary_role {
+    my ($self, $user_id) = @_;
+    my $users = $self->find_users("course_user.user_id = '$user_id'");
+    return (scalar @$users) ? $users->[0]->getRole() : undef;
+}
+
+
+=item <B><users_by_period>
     All users grouped by time period
 =cut
+
 sub users_by_period {
     my ($self, $conditions, $sort_orders) = @_;
     $sort_orders = ['course_user.time_period_id', 'course_user.sort_order', 'lastname', 'firstname'] unless defined $sort_orders;
 
-    my $users = $self->get_users($conditions, $sort_orders);
+    my $users = $self->find_users($conditions, $sort_orders);
     my %users = ();
     push @{$users{$_->getCourseUser()->getTimePeriodID()}}, $_ foreach (@$users);
     return \%users;
@@ -1031,7 +1047,7 @@ sub users_by_period {
 =item
     All users from all time periods with unique roles, sites. 
 
-  Output:  
+  Return:  
     A reference to an array of user structs  
 {
     user => TUSK::Core::HSDB4Tables::User, 
@@ -1039,11 +1055,12 @@ sub users_by_period {
     sites => { site_id => TUSK::Core::HSDB4Tables::TeachingSite }
 }
 =cut
+
 sub unique_users {
     my ($self, $conditions, $sort_orders) = @_;
     $sort_orders = ['lastname', 'firstname', 'course_user.user_id'] unless defined $sort_orders;
 
-    my $users = $self->get_users($conditions, $sort_orders);
+    my $users = $self->find_users($conditions, $sort_orders);
     my %unique_users = ();
 
     foreach my $user (@$users) {
@@ -1072,7 +1089,7 @@ sub unique_users {
 =item
     Generic method to get a list of users
 =cut
-sub get_users {
+sub find_users {
     my ($self, $conditions, $sort_orders, $tp_id) = @_;
     my $school = $self->get_school() or confess "missing school object";
     return TUSK::Core::HSDB4Tables::User->lookup($conditions, $sort_orders, undef, undef, [
@@ -1084,7 +1101,6 @@ sub get_users {
 		   TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', origkey => 'permission_role.feature_type_id', joincond => "feature_type_token = 'course'" }),
     ]);
 }
-
 
 
 sub child_students {
