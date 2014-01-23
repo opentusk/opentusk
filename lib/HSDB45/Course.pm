@@ -698,7 +698,7 @@ sub get_time_periods_for_enrollment{
 sub get_time_periods{
     my ($self) = @_;
     my (@tp_ids, %checkperiod);
-	my $time_periods;
+    my $time_periods;
 
     unless ($self->{-time_periods}){
 	if ($self->associate_user_group){
@@ -711,7 +711,6 @@ sub get_time_periods{
 	    
 	}else{
 	    my $timeperiod_sql = "";
-
 	    @tp_ids = $self->get_time_periods_for_enrollment();
 
 	    if (scalar(@tp_ids)){
@@ -720,8 +719,8 @@ sub get_time_periods{
 
 	    my $dbh = HSDB4::Constants::def_db_handle;
 	    my $db = $self->school_db();
-
 	    my $sql = "select time_period_id from $db\.time_period where (start_date <= curdate() and end_date >= curdate()) $timeperiod_sql";
+
 	    eval {
 		my $sth = $dbh->prepare ($sql);
 		$sth->execute ();
@@ -729,7 +728,7 @@ sub get_time_periods{
 		while (my ($tp_id) = $sth->fetchrow_array()) {
 		    push (@tp_ids, $tp_id);
 		}
-          $sth->finish;
+		$sth->finish;
 	    };
 	    confess $@, return if $@;
 	}
@@ -742,6 +741,11 @@ sub get_time_periods{
     return $time_periods;
 }
 
+=item <B><get_universal_time_periods>
+    We now have time periods in both link_course_student and tusk.course_user
+    Return a list of time period objects for both link_course_student and tusk.course_user
+=cut
+
 sub get_universal_time_periods {
     my $self = shift;
     my $dbh = HSDB4::Constants::def_db_handle;
@@ -749,13 +753,17 @@ sub get_universal_time_periods {
     my $course_id = $self->primary_key();
     my $school_id = $self->school_id();
     my $sql = qq(
-SELECT distinct time_period_id 
-FROM $db.link_course_student 
-WHERE parent_course_id = $course_id
-UNION
-SELECT distinct time_period_id 
-FROM tusk.course_user 
-WHERE course_id = $course_id AND school_id = $school_id
+		 SELECT distinct time_period_id 
+		 FROM $db.link_course_student 
+		 WHERE parent_course_id = $course_id
+		 UNION
+		 SELECT distinct time_period_id 
+		 FROM tusk.course_user 
+		 WHERE course_id = $course_id AND school_id = $school_id
+		 UNION
+		 SELECT time_period_id 
+		 FROM $db\.time_period 
+		 WHERE (start_date <= curdate() and end_date >= curdate())
 		 );
     my @tp_ids = ();    
     eval {
