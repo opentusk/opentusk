@@ -241,15 +241,6 @@ function materialsHeightAdjust() {
 	$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );		
 }
 
-function toggleLinksLinks( material, obj ) {
-	if ( $( '#' + material ).css( "display" ) == "none" ) {
-		$( '#' + material ).css( "display", "block");
-		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
-	} else {
-		$( '#' + material ).css( "display", "none");
-		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png");
-	}
-}
 
 
 	

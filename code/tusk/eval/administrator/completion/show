@@ -13,8 +13,11 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use TUSK::Email::Template;	
+	use HSDB45::Eval;
+	use TUSK::Eval::Role;
 </%once>
 
 
@@ -35,8 +38,14 @@
 <td valign="top">
 <h4 class="title"><%__("Completions")%> (<% scalar(@complete) %>)</h4>
 <ul>
-% foreach my $user (@complete) {
-	<li><a class="sm" href="/view/user/<% $user->user_id() %>"><% $user->out_lastfirst_name() %></a></li>
+% if ($eval->is_teaching_eval()) {
+<& SELF:display_teaching_eval_non_completes &>
+% } else {
+% 	foreach my $user (@incomplete) {
+<li>
+<a class="sm" href="/view/user/<% $user->user_id() %>"><% $user->out_lastfirst_name() %></a> 
+</li>
+%       }
 % }
 </ul>
 </td>
@@ -69,11 +78,44 @@
 %	}
              </td>
 	</tr>
-% }	
+% }
 </table>
 </td>
 </tr>
 </table>
+
+<%method display_teaching_eval_non_completes>
+<%perl>
+ 	my $completions_by_evaluators =  $eval->get_teaching_eval_completions_by_evaluators();
+	my @roles = (); my $total_required = 0;
+	my $eval_roles = TUSK::Eval::Role->lookup("eval_id = $eval_id and school_id = $school_id", ['sort_order'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', jointype => 'inner'})]);
+
+	foreach my $er (@$eval_roles) {
+		push @roles, {
+			label => ($er->getJoinObject('TUSK::Permission::Role')) ? $er->getJoinObject('TUSK::Permission::Role')->getRoleDesc() : '',
+			id    => $er->getRoleID(),
+			required_evals => $er->getRequiredEvals()
+		};
+		$total_required += $er->getRequiredEvals();
+	}
+
+ 	foreach my $user (@incomplete) {
+		my $user_id = $user->primary_key();
+		my $user_incomplete_string = '';
+		foreach my $role (@roles) {
+			$user_incomplete_string .= $role->{label} . ': ' . ((exists $completions_by_evaluators->{$user_id}{$role->{id}}) ? exists $completions_by_evaluators->{$user_id}{$role->{id}} : 0) . '/' . $role->{required_evals} . '  ';
+		}
+
+</%perl>
+	<li>
+	<a class="sm" href="/view/user/<% $user_id %>"><% $user->out_lastfirst_name() %></a> 
+	<span style="cursor:pointer;" title="<% $user_incomplete_string %>">
+	(<% ((exists $completions_by_evaluators->{$user_id}{total}) ? $completions_by_evaluators->{$user_id}{total} : 0) . '/' . $total_required %>)
+	</span>
+	</li>
+% 	}
+</%method>
+
 
 <%method red_header_text>
 % 	return $m->comp('SELF:title');

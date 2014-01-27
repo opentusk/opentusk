@@ -28,6 +28,8 @@
   <xsl:param name="NUM_USERS">0</xsl:param>
   <!-- Who should this eval go back to if there is a problem? -->
   <xsl:param name="HTML_EVAL_ERROR_MESSAGE"></xsl:param>
+  <xsl:param name="SITE_NAME"></xsl:param>
+  <xsl:param name="EVALUATEE_NAME"></xsl:param>
 
   <xsl:key name="eval_question_id" match="EvalQuestion" use="@eval_question_id"/>
 
@@ -105,6 +107,11 @@
             </td>
           </tr>
         </xsl:if>
+
+        <!-- Teaching Site for course eval-->
+        <xsl:variable name="eval_type"><xsl:value-of select="/Eval/@eval_type"/></xsl:variable>
+        <xsl:choose>
+        <xsl:when test="$eval_type = 'course'">
         
         <!-- Teaching Site -->
         <xsl:variable name="site_count">
@@ -146,6 +153,18 @@
           </tr>
         </xsl:if>
 
+        </xsl:when>
+        <xsl:when test="$eval_type = 'teaching'">
+          <tr>
+            <td valign="top" align="right"><b>Teaching Site:</b></td>
+            <td align="left"> <xsl:value-of select="$SITE_NAME"/> </td>
+          </tr>
+          <tr>
+            <td valign="top" align="right"><b>Evaluatee:</b></td>
+            <td align="left"> <xsl:value-of select="$EVALUATEE_NAME"/> </td>
+          </tr>
+        </xsl:when>
+        </xsl:choose>
 
         <!-- Time Period -->
         <tr>

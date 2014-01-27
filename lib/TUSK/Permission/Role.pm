@@ -280,9 +280,9 @@ Returns all the roles and associated functions for a particular $feature_type_to
 =cut
 
 sub getRoles{
-    my ($self, $feature_type_token) = @_;
+    my ($self, $feature_type_token, $sort_order) = @_;
     my $roles = $self->lookup("permission_feature_type.feature_type_token='" . $feature_type_token . "'", 
-			      undef, 
+			      $sort_order,
 			      undef, 
 			      undef, 
 			      [ 

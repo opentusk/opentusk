@@ -262,7 +262,7 @@ sub check_author{
 	confess "check_author only works on initialized user objects"; 
     }
 
-    if (scalar @{TUSK::Course::User->lookup("user_id = " . $self->primary_key())}) {
+    if (scalar @{TUSK::Course::User->lookup("user_id = '" . $self->primary_key() . "'")}) {
 	$roles->{tusk_session_is_author} = 1;
 	return (defined($roles->{tusk_session_is_admin})) ? $roles : $self->check_admin($roles);
     }
@@ -286,7 +286,7 @@ sub check_author{
 
 sub check_admin {
     my ($self, $roles) = @_;
-    warn "checking admin - $roles";
+
     if (!$self->primary_key()){
 	confess "check_author only works on initialized user objects"; 
     }
@@ -1278,6 +1278,10 @@ sub current_evals {
     #
 
     my $self = shift;
+    my $dbh = HSDB4::Constants::def_db_handle ();
+    my %courses = ();
+    my %course_evals = ();
+    my %current_evals = ();
 
     # Get the user groups, then filter out the ones that aren't allowed
     # (probably because they're already filled out)
@@ -1289,35 +1293,53 @@ sub current_evals {
     for my $school ( eval_schools() ) {
 	my $db = get_school_db($school);
 	my @eval_ids = ();
+
 	eval {
-            my $sth = $dbh->prepare (qq[SELECT eval_id FROM
-                                        $db\.eval e,
-                                        $db\.link_course_student l
-                                        WHERE l.child_user_id=?
-                                        AND l.parent_course_id=e.course_id
-                                        AND l.time_period_id=e.time_period_id
-                                        AND to_days(e.available_date) <= to_days(now())
-                                        AND to_days(e.due_date) >= to_days(now())
-                                        AND (e.teaching_site_id is null 
-						OR e.teaching_site_id = l.teaching_site_id)]);
+	    my $sql = qq[SELECT eval_id, t.token, c.title, c.course_id
+			 FROM $db\.eval e, $db\.link_course_student l, tusk.eval_type t, $db\.course c
+			 WHERE l.child_user_id=?
+			 AND l.parent_course_id=e.course_id
+			 AND l.time_period_id=e.time_period_id
+			 AND to_days(e.available_date) <= to_days(now())
+			 AND to_days(e.due_date) >= to_days(now())
+			 AND (e.teaching_site_id is null OR e.teaching_site_id = 0 OR e.teaching_site_id = l.teaching_site_id)
+			 AND e.eval_type_id = t.eval_type_id
+			 AND parent_course_id = c.course_id
+			 AND eval_id not in (SELECT eval_id FROM $db\.eval_completion WHERE user_id = l.child_user_id)
+			 ];
 
-	    $sth->execute ($self->primary_key);
+            my $sth = $dbh->prepare($sql);
+	    $sth->execute($self->primary_key);
 
-	    while (my ($eval_id) = $sth->fetchrow_array) {
+	    while (my ($eval_id, $eval_type, $course_title, $course_id) = $sth->fetchrow_array) {
+		if ($eval_type eq 'teaching') {
+		    $courses{$school . '/' . $course_id} = $course_title;
+		    ## delete from course evals list so we could display only clinical eval
+		    if (exists $course_evals{$school . '/' . $course_id}) {
+			delete $course_evals{$school . '/' . $course_id};
+		    }
+		} elsif ($eval_type eq 'course') {
+		    ## weed out course evals that has clinical evals
+		    unless (exists $courses{$school . '/' . $course_id}) {
+			push @{$course_evals{$school . '/' . $course_id}}, $eval_id;
+		    }
+		}
 		push @eval_ids, $eval_id;
 	    }
-         $sth->finish;
+	    $sth->finish;
+
+	    if (scalar @eval_ids) {
+		my @evals = HSDB45::Eval->new( _school => $school)->new()->lookup_conditions('eval_id in (' . join(',', @eval_ids) . ')');
+		foreach my $eval (@evals) {
+##		    if ($eval->primary_key && ($eval->is_user_allowed ($self))[0]) {
+			push @{$current_evals{$school . '/' . $eval->field_value('course_id')}}, $eval; 
+##		    }
+		}
+	    }
 	};
 	confess $@ if ($@);
-	for my $eval_id (@eval_ids) {
-	    my $e = HSDB45::Eval->new( _school => $school, _id => $eval_id );
-	    push @evals, $e 
-		if $e->primary_key && ($e->is_user_allowed ($self))[0];
-	}
     }
-
-    # Now, add in the the user_group evals;
-    return @evals;
+    return (\%current_evals, \%courses, \%course_evals);
 }
 
 

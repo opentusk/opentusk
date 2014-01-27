@@ -1,0 +1,192 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Constants;
+	use HSDB45::Eval;
+	use TUSK::Course::User;
+	use TUSK::Eval::Entry;
+	use TUSK::Eval::Association;
+	use TUSK::Eval::Role;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $evaluator = $m->session->{'user'};
+	my %evals = ();
+	my $school_object = $course->get_school();
+	my $school = $school_object->getSchoolName();
+	my $time_period = $course->get_current_timeperiod();
+	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period->primary_key());
+</%shared>
+
+<div class="subhead"><% __('Current Course Evaluations') %></div>
+
+<& /tmpl/element:table, params => { 
+	width		=> "80%",
+	border 		=> "0",
+	cellspacing 	=> "0",
+	cellpadding 	=> "0" 
+} &>
+
+<%perl>
+	my @course_evals = ();
+	if (exists $evals{course} && scalar @{$evals{course}}) {
+		my @comps = HSDB45::Eval::Completion->new( _school => $school)->lookup_conditions("user_id = '" . $evaluator->primary_key() . "' and eval_id in (" . join(',', map { $_->primary_key() } @{$evals{course}}) . ")"); 
+		my %completed_evals = map { $_->eval_id() => $_->field_value('created') } @comps;
+	 	foreach my $eval (@{$evals{course}}) {
+			my $eval_id = $eval->primary_key();
+			push @course_evals, { 
+				title => $eval->title(), 
+				due_date => $eval->student_due_date(), 
+				status => (exists $completed_evals{$eval_id}) 
+					? 'Completed on ' . $completed_evals{$eval_id} 
+					: (($eval->is_overdue()) ? __('Past Due') : "<a href=\"/protected/eval/student/complete/$school/$eval_id\">" . __('Evaluate') . "</a>")
+			};
+		}
+	}
+</%perl>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	columns => [
+	   {'label' => __('Title'), 'field' => 'title', width => "20%"},
+	   {'label' => __('Due Date'), 'field' => 'due_date', width => "20%"},
+	   {'label' => '', 'field' => 'status', width => "20%", html => "1"},
+	],
+	rows => \@course_evals,
+	name => "course_evaluations",
+	'nobutton' => 1,
+	'norows-message' => '&nbsp; ' . __('No Current Course Evaluations')
+} &>
+</table>
+
+% my $num_teaching_evals = (exists $evals{teaching}) ? scalar @{$evals{teaching}} : 0;
+
+<div class="subhead">
+<% __('Current Teaching Evaluations') %> &nbsp; &nbsp;<span style="font-family:Georgia; font-weight:none; font-size: 8pt">(<% __('Site') %>: &nbsp;<% $student_site->site_name() %>)</span> 
+<span style="font-family:Georgia; font-weight:none; float:right; text-align:right;"># <% __('Teaching Evals') %>: &nbsp;<% $num_teaching_evals %> </span>
+</div>
+
+<div style="margin-left:1em">
+% if (exists $evals{teaching} && $num_teaching_evals) {
+<ul class="gNoBullets">
+%	foreach my $eval (@{$evals{teaching}}) {
+%		my $teval_id = 'eval_' . $eval->primary_key();
+<li class="closed">
+<a class="med" href="#" onclick="toggleLinks('<% $teval_id %>', this)"><% $eval->title() %><img src="/graphics/icon-nav-closed.png" class="more" alt="showhide" /></a>
+<span style="padding-left:50px;font-size:1em"><em>(<% __('Due') %>: <% $eval->student_due_date() %>)</em></span>
+%		if (my $evaluatees = $m->comp('SELF:get_teaching_eval_info', eval => $eval)) {
+%			my $role_completions = $eval->get_teaching_eval_completions_by_roles($evaluator);
+<ul id="<% $teval_id %>" class="gNoBullets">
+% 			foreach my $role_completion (@{$role_completions}) {
+<li>
+<table width="100%"
+<tr>
+<td> &nbsp; <span class="med"><% $role_completion->{role_label} %>s</span> </td>
+<td align="right">
+% if ($role_completion->{required_evals}) {
+&nbsp; &nbsp; <span class="sm"># <% __('Completed') %>:<b> <% $role_completion->{completed_evals} . '</b> &nbsp; # ' . __('Required') . ': <b>' . $role_completion->{required_evals} %></b></span>
+% }
+</td>
+</table>
+<& /tmpl/element:object_selection_box, params => { 
+	columns => [
+			{label => __('Name'), field => 'name', align => 'left', width => '15%' },
+			{label => __('Select/Deselect'), field => 'selection', align => 'center', html => 1, width => '40%' },
+			{label => __('Status'), field => 'status', align => 'left', width => '15%' },
+			{label => __('Action'), field => 'action', align => 'center', width => '25%' },
+	],
+	rows => (exists $evaluatees->{$role_completion->{role_label}}) ? $evaluatees->{$role_completion->{role_label}} : [],
+	name => "teaching_evaluations",
+	sort_box => 0,
+	'norows-message' => ' &nbsp; ' .  __('No Rows') . '.<br/>',
+} &>
+</li>
+%			} ## foreach role
+</ul>
+%		}
+</li>
+%	} ## foreach teaching eval
+</ul>
+% } else {
+&nbsp; <em><% __('No Current Teaching Evaluations') %></em>
+% }
+</div>
+
+<%method get_teaching_eval_info>
+<%args>
+	$eval 
+</%args>
+<%perl>
+	my $teaching_eval_id = $eval->primary_key();
+	my $past_due = $eval->is_overdue();
+	my $evaluator_id = $evaluator->primary_key();
+	my $student_site_id = $student_site->primary_key();
+	my %evaluatees = ();
+
+	if ($student_site_id) {
+		my $course_id = $course->primary_key();
+		my $course_user = TUSK::Course::User->new();
+		my $url = "/eval/student/ajax/updateselection/school/$school/$teaching_eval_id";
+
+		my $sql = qq(
+				SELECT firstname, lastname, r.role_id, r.role_desc, c.user_id, uid, d.display_name, e.status_date, e.eval_association_id
+				FROM tusk.course_user c
+				INNER JOIN tusk.course_user_site s on (c.course_user_id = s.course_user_id and teaching_site_id = $student_site_id)
+				INNER JOIN hsdb4.user u on (u.user_id = c.user_id)
+				INNER JOIN tusk.permission_user_role p on (u.user_id = p.user_id and feature_id = c.course_user_id)
+				INNER JOIN tusk.permission_role r on (p.role_id = r.role_id)
+				INNER JOIN tusk.eval_role er on (r.role_id = er.role_id and c.school_id = er.school_id and er.eval_id = $teaching_eval_id)
+				INNER JOIN tusk.permission_feature_type f on (f.feature_type_id = r.feature_type_id and feature_type_token = 'course')
+				LEFT OUTER JOIN tusk.eval_association e on (evaluator_id = '$evaluator_id' and evaluatee_id = c.user_id and e.eval_id = er.eval_id   and e.school_id =  c.school_id )
+				LEFT OUTER JOIN tusk.enum_data d on (e.status_enum_id =  d.enum_data_id and namespace = 'eval_association.status')
+		);
+		$sql .=	'WHERE c.school_id = ' . $course->school_id() . ' and course_id = ' . $course->primary_key() . ' and time_period_id = ' . $time_period->primary_key() . ' ORDER by r.role_desc, lastname, firstname';
+
+		my $sth = $course_user->databaseSelect($sql);
+
+		while (my ($firstname, $lastname, $role_id,  $role, $evaluatee_id, $evaluatee_uid, $status, $status_date, $eval_association_id) = $sth->fetchrow_array()) {
+			my $action_style = 'display:none;'; ### by default, not showing 'evaluate' link
+			my $disabled = ($status_date && $status || $past_due) ? 'disabled="disabled"' : '';
+			my $checked = (defined $eval_association_id) ? 'CHECKED' : '' ;
+
+
+			if (defined $eval_association_id && $status ne 'Completed' && !$past_due) {
+				$action_style = '';
+			}
+
+			push @{$evaluatees{$role}}, { 
+				name => $lastname . ', ' . $firstname,
+				selection => "<input type=\"checkbox\" name=\"selection\" value=\"" . $course->school_id() . '__' . $teaching_eval_id . '__' .  $evaluator->primary_key() . '__' .  $evaluatee_id . '__' . $evaluatee_uid . '__' . $role_id . "__$url\" $disabled $checked />",
+				status => ($status) ? "$status on $status_date" : (($past_due && defined $eval_association_id) ? __('Past Due') : ''),
+				action => "<span id=\"action__" . $role_id . '__' . $evaluatee_uid  . "\" style=\"$action_style\"><a href=\"/eval/student/complete/$school/$teaching_eval_id/$evaluatee_uid/$student_site_id\">" . __('Evaluate') . "</a></span>",
+			};
+		}
+	}
+	return \%evaluatees;
+</%perl>
+</%method>
+
+<%init>
+	my @all_course_evals = $course->get_evals();
+	foreach my $eval (@all_course_evals) {
+		if (my $eval_type = $eval->eval_type()->getToken()) {
+			push @{$evals{$eval_type}}, $eval;
+		}
+	}
+</%init>
+

@@ -13,19 +13,29 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
-    use HSDB4::Constants;
-    use HSDB45::Eval::Authoring;
-    use HSDB45::Survey;
-    use TUSK::Application::HTML::Strip;
+	use HSDB4::Constants;
+	use HSDB45::Eval::Authoring;
+	use TUSK::Application::HTML::Strip;
 	use TUSK::Core::HSDB45Tables::Course;
 	use TUSK::FTS::Eval::Index;
 	use XML::LibXML;
 	use XML::LibXSLT;
+	use TUSK::Permission::Role;
+	use TUSK::Eval::Role;
 </%once>
 
 <%shared>
-	my $school = $m->comp('SELF:schoolname');
+	my $school_object = $m->comp('SELF:school');
+	my $school = $school_object->getSchoolName();
+	my $eval_id = $m->comp("/tmpl/url:get_last_path_id");
+	my ($eval, $eval_editable, @questions);
+	my $blank_eval = HSDB45::Eval->new( _school => $school );
+	my ($res, $msg) = (1, '');
+	my $courses = TUSK::Core::HSDB45Tables::Course->new()->getWithTeachingSites($school);
+	my $stripObj = TUSK::Application::HTML::Strip->new();
+	my @roles_data = ();
 </%shared>
 
 %	if ($eval_id) {
@@ -52,181 +62,244 @@
 <div class="error"><%__("Eval has been answered; questions may only be added, and its dates/stylesheets may be edited.")%></div>
 %	}
 
+
+% if ($eval_id) {
+% 	if ($eval_editable) {
+<div><%__x('You can {strongtag1}edit the eval information{strongtag2} here: that is, its title, course, time period, due date information, and stylesheet information. To cause the changes to take effect, enter your user name and password and choose "Save Changes". When you do, the eval will be changed, and you will continue to work with this eval. If you need to create new courses or new time periods, you can do that {linktag1}here{linktag2}.', strongtag1 => '<strong>', strongtag2 => '</strong>', linktag1 => '<a href="management/home">', linktag2 => '</a>')%></div>
+% 	}
+% } else {
+<div>
+<%__x('To {strongtag}create a new eval{strongtag2}, enter the title, course, time period, date and stylesheet information below. Then, enter your user name and password and choose "Create New Eval". After you do this, a new eval will be created, and you will be able to add questions to it (either from scratch or by copying them from another eval). If you need to create new courses or new time periods, you can do that {linktag1}here{linktag2}', strongtag => '<strong>', strongtag2 => '</strong>', linktag1 =>'<a href="/management/home">', linktag2 => '</a>')%>.</div>
+% }
+
 <form name="eval_create" id="eval_create" method="post">
 <table border="0" cellpadding="3" width="100%">
-%	if ($eval && $eval->primary_key()) {
-%		if ($eval_editable) {
-	<tr><td align="left" colspan="2"><%__x('You can {strongtag1}edit the eval information{strongtag2} here: that is, its title, course, time period, due date information, and stylesheet information. To cause the changes to take effect, enter your user name and password and choose "Save Changes". When you do, the eval will be changed, and you will continue to work with this eval. If you need to create new courses or new time periods, you can do that {linktag1}here{linktag2}.', strongtag1 => '<strong>', strongtag2 => '</strong>', linktag1 => '<a href="management/home">', linktag2 => '</a>')%></td></tr>
-%		} else {
-	<tr><td align="left" colspan="2"><%__x('Because this eval has already been answered, its title, course, teaching site and time period information cannot be changed. However, if necessary, you can {strongtag1}change its date and stylesheet information{strongtag2} here.', strongtag1 => <strong>, strongtag2 => </strong>)%></td></tr>
-%		}
-	<tr>
-	 	<td align="right"><b><%__("Eval ID")%>:</b></td>
-		<td align="left"><% $eval->primary_key() %> (<a href="/eval/complete/<% $school %>/<% $eval->primary_key() %>" target="_blank" ><%__("Preview this eval")%></a>.)</td>
-	</tr>
-%	} else {
-	<tr><td align="left" colspan="2"><%__x('To {strongtag}create a new eval{strongtag2}, enter the title, course, time period, date and stylesheet information below. Then, enter your user name and password and choose "Create New Eval". After you do this, a new eval will be created, and you will be able to add questions to it (either from scratch or by copying them from another eval). If you need to create new courses or new time periods, you can do that {linktag1}here{linktag2}', strongtag => '<strong>', strongtag2 => '</strong>', linktag1 =>'<a href="/management/home">', linktag2 => '</a>')%>.</td></tr>
-%	}
-
-	<tr>
-		<td align="right"><b><%__("Title")%>:</b></td>
-		<td align="left">
-%		my $eval_title = $ARGS{'title'} || $eval->field_value('title');
-%		if ($eval_editable) {
-			<input type="text" name="title" size="50" value="<% $eval_title %>" />
-%		} else {
-			<span class="title"><% $ARGS{title} %></span><input type="hidden" name="title" value="<% $eval_title %>" />
-%		}
-		</td>
-	</tr>
-
-	<tr>
-		<td align="right" valign="top"><b><%__("Course")%>:</b></td>
-		<td align="left">
-%		my $eval_course_id = $ARGS{'course_id'} || $eval->field_value('course_id');
-%		my $stripObj = TUSK::Application::HTML::Strip->new();
-%		if ($eval_editable) {
-			<select name="course_id" size="6"  onChange="displayList(this.selectedIndex)">
-%			foreach my $course (@$courses) {
-				<option value="<% $course->getPrimaryKeyID() %>"<% ($eval_course_id == $course->getPrimaryKeyID) ? " selected" : "" %>><% $stripObj->removeHTML($course->getTitle()) %> (<% $course->getPrimaryKeyID() %>)</option>
-%			}
-			</select>
-%		} else {
-%			my $course = $eval->course();
-			<% ($course->field_value('oea_code')) ? $course->field_value('oea_code') : '-' %> : <% $course->out_label() %> (<% $course->primary_key() %>)
-			<input type="hidden" name="course_id" value="<% $eval_course_id %>" />
-%		}
-		</td>
-	</tr>
-
-	<tr>
-		<td align="right" valign="top"><b><%__("Teaching Site")%>:</b></td>
-		<td align="left">
-			<select name="teaching_site_id" size="4" style="width: 450px" onClick="alertMissing(this);"></select>
-		</td>
-	</tr>
-
-	<tr>
-		<td align="right" valign="top"><b><%__("Time Period")%>:</b></td>
-		<td align="left">
-%		my $eval_time_period_id = $ARGS{'time_period_id'} || $eval->field_value('time_period_id');
-%		if ($eval_editable) {
-			<select name="time_period_id" size="4">
-%			foreach my $tp (sort { $b <=> $a } @timeperiods) {
-				<option value="<% $tp->primary_key() %>"<% ($eval_time_period_id == $tp->primary_key) ? " selected" : "" %>>
-					<% $tp->primary_key() %>: <% $stripObj->removeHTML($tp->out_label()) %>
-%				if ($tp->start_date()->has_value() && $tp->end_date()->has_value()) {
-					(<% $tp->start_date()->out_mysql_date() %> to <% $tp->end_date()->out_mysql_date() %>)
-%				}
-				</option>
-%			}
-			</select>
-%		} else {
-%			my $tp = $eval->time_period();
-%			$tp->out_label();
-%			if ($tp->start_date()->has_value() && $tp->end_date()->has_value()) {
-				(<% $tp->start_date()->out_mysql_date() %> to <% $tp->end_date()->out_mysql_date() %>)
-				<input type="hidden" name="time_period_id" value="<% $eval_time_period_id %>" />
-%			}
-%		}
-		</td>
-	</tr>
 
 <%perl>
-my $a_date = $ARGS{'available_date'} || $eval->field_value('available_date');
-$a_date = '' if $a_date eq '0000-00-00';
-my $avail_params =
-             { 	label => '<b>'.__("Available Date").':</b>',
-				td_class => '',
-				td_align => 'right',
-				input_td_class => '',
-				input_td_align => 'left',
-				name =>  'available_date',
-				value => $a_date,
-				calendar => 1,
-             };
-
-my $submittable_date = $ARGS{'submittable_date'} || $eval->field_value('submittable_date');
-$submittable_date = '' if $submittable_date eq '0000-00-00';
-my $submittable_params =  
-             { 	label => '<b>'.__('Submittable Date').':</b>',
-				td_class => '',
-				td_align => 'right',
-				input_td_class => '',
-				input_td_align => 'left',
-				name =>  'submittable_date',
-				value => $submittable_date,
-				calendar => 1,
-             };
-
-my $p_due_date = $ARGS{'prelim_due_date'} || $eval->field_value('prelim_due_date');
-$p_due_date = '' if $p_due_date eq '0000-00-00';
-my $p_due_params =  
-             { 	label => '<b>'.__('Preliminary Due Date').':</b>',
-				td_class => '',
-				td_align => 'right',
-				input_td_class => '',
-				input_td_align => 'left',
-				name =>  'prelim_due_date',
-				value => $p_due_date,
-				calendar => 1,
-             };
-
-my $due_date = $ARGS{'due_date'} || $eval->field_value('due_date');
-$due_date = '' if $due_date eq '0000-00-00';
-my $due_params = 
-             { 	label => '<b>'.__('Due Date').':</b>',
-				td_class => '',
-				td_align => 'right',
-				input_td_class => '',
-				input_td_align => 'left',
-				name =>  'due_date',
-				value => $due_date,
-				calendar => 1,
-             } ;
+	my $eval_type = ($eval_id) ? $eval->eval_type()->getToken() : 'course';
+	my ($teaching_site_style, $role_style) = ('', '');
+	if ($eval_type eq 'course') {
+		$role_style = 'display:none';
+	} else {
+		$teaching_site_style = 'display:none';
+	}		
 </%perl>
 
-<& /tmpl/element:textbox, params => $avail_params &>
-<& /tmpl/element:textbox, params => $submittable_params &>
-<& /tmpl/element:textbox, params => $p_due_params &>
-<& /tmpl/element:textbox, params => $due_params &>
+<& /tmpl/element:radio_buttons, params => { 
+        label => 'Eval Type:',
+        name => 'eval_type_id',
+        buttons => [
+		{ value => "1", text => "Course", 
+ 		  checked => ($eval_type eq 'course') ? 1 : 0,
+		  disabled => ($eval_editable) ? 0 : 1,
+		  onclick => "showHideFields()",
+		},
+	        { value => "2", text => "Teaching", 
+ 		  checked => ($eval_type eq 'teaching') ? 1 : 0,
+		  disabled => ($eval_editable) ? 0 : 1,
+		  onclick => "showHideFields()",
+		} 
+	],
+	nobreak => 1,
+} &>
 
-	<tr>
-		<td align="right"><b><%__('Question Stylesheet')%>:</b></td>
-		<td align="left">
-			<select name="question_stylesheet">
-				<option value=""><%__("Default Question Stylesheet")%></option>
-%				my $qss_id = $ARGS{'question_stylesheet'} || $eval->question_stylesheet_id;
-%				foreach my $stylesheet ($eval->question_stylesheets()) {
-				<option value="<% $stylesheet->stylesheet_id() %>"<% ($qss_id == $stylesheet->stylesheet_id) ? " selected" : "" %>><% $stylesheet->stylesheet_id() %>: <% $stripObj->removeHTML($stylesheet->label()) %></option>
-%				}
-			</select>
-		</td>
-	</tr>
+% if ($eval_id) {
+<& /tmpl/element:field_display, params => { 
+	label 	=> 'Eval ID:',
+	value 	=> $eval->primary_key() . " (<a href=\"/eval/student/complete/$school/" . $eval->primary_key() . '" target="_blank" >Preview this eval</a>.)',
+} &>
+% }
 
-	<tr>
-		<td align="right"><b><%__('Results Stylesheet')%>:</b></td>
-		<td align="left">
-			<select name="results_stylesheet">
-				(<option value=""><%__('Default Results Stylesheet')%></option>
-%				my $rss_id = $ARGS{'results_stylesheet'} || $eval->results_stylesheet_id;
-%				foreach my $stylesheet ($eval->results_stylesheets()) {
-				<option value="<% $stylesheet->stylesheet_id() %>"<% ($rss_id == $stylesheet->stylesheet_id) ? " selected" : "" %>><% $stylesheet->stylesheet_id() %>: <% $stripObj->removeHTML($stylesheet->label()) %></option>
-%				}
-			</select>
-		</td>
-	</tr>
+% my $eval_title = $ARGS{title} || $eval->field_value('title');
+% if ($eval_editable) {
+<& /tmpl/element:textbox, params => { 
+	label 	=> 'Title:',
+	name 	=> 'title',
+	value 	=> $eval_title,
+	size 	=> 60,
+	length 	=> 255 
+} &>
+% } else {
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Title:',
+	value 	=> qq[$ARGS{title}<input type="hidden" name="title" value="$eval_title" />],
+} &>
+% }
+
+
+% if ($eval_editable) {
+%	my @course_options = ();
+%	foreach my $course (@$courses) {
+%		push @course_options, { 
+%			label => $stripObj->removeHTML($course->getTitle()) . ' (' . $course->getPrimaryKeyID() . ')',
+%			value => $course->getPrimaryKeyID()
+%		};
+%	}
+<& /tmpl/element:dropdown, params => { 
+label 	=> 'Course:',
+	name 	=> 'course_id',
+	options => \@course_options,
+	size    => 6,
+	selected => $ARGS{'course_id'} || $eval->field_value('course_id'),
+	onchange => "displayList(this.selectedIndex)"
+} &>
+% } else {
+%	my $course = $eval->course();
+% 	my $course_code = ($course->field_value('oea_code')) ? $course->field_value('oea_code') . ' - ' : '';
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Course:',
+	value 	=> (($course->field_value('oea_code')) ? $course->field_value('oea_code') . ' - ' : '') . $course->out_label() . ' (' . $course->primary_key() . ')' .
+		    ' <input type="hidden" name="course_id" value="' . $course->primary_key() . '" />'
+} &>
+% }
+
+
+<& /tmpl/element:field_display, params =>{ 
+	tr_name => 'teaching_site_id',
+	style   => $teaching_site_style,
+	label 	=> 'Teaching Site:',
+	value 	=> '<select id="teaching_site_id" name="teaching_site_id" size="4" style="width: 450px" onClick="alertMissing(this);"></select>'
+
+} &>
+
+
+% if ($eval_editable) {
+%	my @tp_options = ();
+%	foreach my $tp (sort { $b <=> $a } HSDB45::TimePeriod->new( _school => $school )->nonpast_time_periods()) {
+%		push @tp_options, { 
+%			label => $tp->primary_key() . ': ' . $stripObj->removeHTML($tp->out_label()) . ' (' . $tp->out_mysql_date_range() . ')',
+%			value => $tp->getPrimaryKeyID()
+%		};
+%	}
+<& /tmpl/element:dropdown, params => { 
+	label 	=> 'Time Period:',
+	name 	=> 'time_period_id',
+	options => \@tp_options,
+	size 	=> 4,
+	selected => $ARGS{'time_period_id'} || $eval->field_value('time_period_id')
+} &>
+% } else {
+%	my $tp = $eval->time_period();
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Time Period:',
+	value 	=> $stripObj->removeHTML($tp->out_label()) . ' (' . $tp->out_mysql_date_range() . ')' . 
+		   '<input type="hidden" name="time_period_id" value="' .  $tp->primary_key()  . '" />'
+} &>
+% }
+
+
+% my $avail_date = $ARGS{'available_date'} || $eval->field_value('available_date');
+<& /tmpl/element:textbox, params => { 
+	label 		=> 'Available Date:',
+	name 		=> 'available_date',
+	value 		=> ($avail_date eq '0000-00-00') ? '' : $avail_date,
+	calendar    	=> 1
+} &>
+
+
+% my $submittable_date = $ARGS{'submittable_date'} || $eval->field_value('submittable_date');
+<& /tmpl/element:textbox, params => { 
+	label 		=> 'Submittable Date:',
+	name 		=> 'submittable_date',
+	value 		=> ($submittable_date eq '0000-00-00') ? '' : $submittable_date,
+	calendar    	=> 1
+} &>
+
+
+% my $prelim_due_date = $ARGS{'prelim_due_date'} || $eval->field_value('prelim_due_date');
+<& /tmpl/element:textbox, params => { 
+	label 		=> 'Preliminary Due Date:',
+	name 		=> 'prelim_due_date',
+	value 		=> ($prelim_due_date eq '0000-00-00') ? '' : $prelim_due_date,
+	calendar    	=> 1
+} &>
+
+
+% my $due_date = $ARGS{'due_date'} || $eval->field_value('due_date');
+<& /tmpl/element:textbox, params => { 
+	label 		=> 'Due Date:',
+	name 		=> 'due_date',
+	value 		=> ($due_date eq '0000-00-00') ? '' : $due_date,
+	calendar    	=> 1
+} &>
+
+% my @q_stylesheet_options = ({ label => 'Default Stylesheet', value => '' });
+% foreach my $stylesheet ($eval->question_stylesheets()) {
+% 	push @q_stylesheet_options, {
+%		label => $stripObj->removeHTML($stylesheet->label()),
+%		value => $stylesheet->stylesheet_id()
+%		};
+% }
+
+<& /tmpl/element:dropdown, params => { 
+	label 	=> 'Question Stylesheet:',
+	name 	=> 'question_stylesheet',
+	options => \@q_stylesheet_options,
+	selected => $ARGS{'question_stylesheet'} || $eval->question_stylesheet_id
+} &>
+
+
+% my @r_stylesheet_options = ({ label => 'Default Results Stylesheet', value => '' });
+% foreach my $stylesheet ($eval->results_stylesheets()) {
+% 	push @r_stylesheet_options, {
+%		label => $stripObj->removeHTML($stylesheet->label()),
+%		value => $stylesheet->stylesheet_id()
+%		};
+% }
+-
+<& /tmpl/element:dropdown, params => { 
+	label 	=> 'Results Stylesheet:',
+	name 	=> 'results_stylesheet',
+	options => \@r_stylesheet_options,
+	selected => $ARGS{'results_stylesheet'} || $eval->results_stylesheet_id
+} &>
+
 <%perl>
-	if ($eval->primary_key()) {
-		$m->comp('SELF:action_row', name => "edit_eval", value => __("Save Changes"));
-	} else {
-		$m->comp('SELF:action_row', name => "new_eval", value => __("Create New Eval"));
+	my @role_options = map {{'label' => $_->getRoleDesc(), 'value' => $_->getPrimaryKeyID()}} (@{TUSK::Permission::Role->new()->getRoles('course', ['role_desc'])});
+	my $button_text =  $m->scomp('/tmpl/element:button', params => {
+		onclick => "layers['rolesdiv'].adddata({eval_role_id:'0', role:'', required_evals:''},0);",
+		name => 'addnewrole',
+		label => 'Add New Role/Label'});
+	if ($eval_id) {
+		@roles_data = map {{ eval_role_id => $_->getPrimaryKeyID(), role => $_->getRoleID(), required_evals => $_->getRequiredEvals() }} @{TUSK::Eval::Role->lookup("school_id = " . $school_object->getPrimaryKeyID() . " AND eval_id = $eval_id", ['sort_order'])};
 	}
 </%perl>
+
+<& /tmpl/element:sort_order_box , params =>{	
+	no_add_button => '1',
+	label => 'Roles/Labels',
+	style => $role_style,
+	name => "roles",
+	buttons => [$button_text],
+	layer_info => {
+		empty_message => 'No Role/Label',
+		layer => 'rolesdiv',
+		scrollrows => 6,
+       	fields => ['eval_role_id', 'role', 'required_evals'],
+		name => 'role',
+		sort => { usage => 'Yes', length => 50},
+		action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
+		display => [
+			{ label => 'Role/Label', field => 'role', align => 'center', length => '200', options => \@role_options },
+			{ label => 'Required Num of Evaluations', field => 'required_evals', type => 'textbox', align => 'center', length => 20 },
+		],
+		validate => { usage => 'No', },
+		data => \@roles_data }
+} &>
+
+
+% my ($button_name, $button_label) = ($eval->primary_key()) ? ('edit_eval', 'Save Changes') : ('new_eval', 'Create Eval');
+				
+<& /tmpl/element:save_button, params=>{
+	label		=>	$button_label,
+	cancel_onclick 	=> 	"go_back('/eval/administrator/show/" . $m->comp("/tmpl/url:get_type_path") . "');",
+	name		=>	$button_name,
+} &>
+
 </table>
 </form>
 
-	<script type="text/javascript">
+<script type="text/javascript">
 	var courses = document.eval_create.course_id;
 	var teaching_sites_group = document.eval_create.teaching_site_id;
 	var teaching_site_id = new Array();
@@ -283,7 +356,17 @@ my $due_params =
 			alert(__('Please click on a course to get a list of corresponding teaching sites.'));
 		}
 	}
-	</script>
+
+	function showHideFields() {
+		if (document.eval_create.eval_type_id[0].checked == true) {
+			document.getElementById('teaching_site_id_tr').style.display = "";
+			document.getElementById('roles_tr').style.display = "none";
+		} else {
+			document.getElementById('teaching_site_id_tr').style.display = "none";
+			document.getElementById('roles_tr').style.display = "";
+		}
+ 	}
+</script>
 
 %	if ($eval->primary_key() && @questions && ! $eval_editable) {
 <hr />
@@ -408,15 +491,43 @@ my $due_params =
 	</form>
 %	}
 
-<%init>
-	my $eval_id = $m->comp("/tmpl/url:get_last_path_id");
-	my ($eval, $eval_editable, @questions);
-	my $blank_eval = HSDB45::Eval->new( _school => $school );
-	my ($res, $msg) = (1, '');
-	my $courses = TUSK::Core::HSDB45Tables::Course->new()->getWithTeachingSites($school);
-	my @timeperiods = HSDB45::TimePeriod->new( _school => $school )->nonpast_time_periods();
 
-	# If we're trying to create a new one...
+<%method saveRoles>
+<%args>
+	$args
+	$eval_id
+</%args>
+<%perl>
+	my $rowHash = $m->comp('/tmpl/process:process_fields', fields => $args, filter => '^rolesdiv');
+
+	foreach my $key (keys %$rowHash) {
+		$rowHash->{$key}{fields}{eval_id} = $eval_id;
+		$rowHash->{$key}{fields}{school_id} = $school_object->getPrimaryKeyID();
+	}
+
+	if ($eval_id) {
+		@roles_data = map {{ eval_role_id => $_->getPrimaryKeyID(), role => $_->getRoleID(), required_evals => $_->getRequiredEvals() }} @{TUSK::Eval::Role->lookup("school_id = " . $school_object->getPrimaryKeyID() . " AND eval_id = $eval_id", ['sort_order'])};
+	} 
+</%perl>
+
+<& '/tmpl/process:manipulate_rows',
+	row_type 	=> 'Direct',
+	user 		=> $m->session->{'user'}->user_id(),
+	object_name 	=> 'TUSK::Eval::Role',
+	fields_data 	=> $rowHash,
+	field_function_map => {
+		'school_id' 	=>	'setSchoolID',
+		'eval_id' 	=>	'setEvalID',
+		'role'		=>	'setRoleID',
+		'sortorder'	=>	'setSortOrder',
+		'required_evals' => 	'setRequiredEvals',
+	},
+	display_data 	=> \@roles_data 
+&>
+</%method>
+
+
+<%init>
 	if ($ARGS{new_eval}) {
 		($res, $msg) = HSDB45::Eval::Authoring::check_field_values(\%ARGS);
 		if ($res) {
@@ -436,18 +547,14 @@ my $due_params =
 			($res, $msg) = $new_eval->save();
 
 			if ($res) {
+				$m->comp('SELF:saveRoles', args => \%ARGS, eval_id => $new_eval->primary_key()) if ($new_eval->is_teaching_eval());
 				$m->redirect( '/protected/eval/administrator/eval_edit/' . $school . "/" . $new_eval->primary_key . "?NEW_EVAL=" . $new_eval->primary_key );
-	    	}
-	    }
+		    	}
+		}
 	}
 
 	if ($eval_id) {
-		if ($eval_id =~ /S/) {
-			$eval_id =~ s/S//g;
-			$eval = HSDB45::Survey->new(_school => $school, _id => $eval_id);
-		} else {
-		    $eval = HSDB45::Eval->new( _school => $school, _id => $eval_id );
-		}
+		$eval = HSDB45::Eval->new( _school => $school, _id => $eval_id );
 		$eval_editable = $eval->is_editable();
 
 		my @fields = qw(title course_id time_period_id teaching_site_id available_date prelim_due_date due_date);
@@ -462,32 +569,29 @@ my $due_params =
 
 		if ($ARGS{edit_eval}) {
 			($res, $msg) = HSDB45::Eval::Authoring::check_field_values(\%ARGS);
-			if ($res && $eval_editable) {
-				$eval->set_field_values(
-					title            => $ARGS{title},
-					course_id        => $ARGS{course_id},
-					time_period_id   => $ARGS{time_period_id},
-					teaching_site_id => $ARGS{teaching_site_id},
-					available_date   => $ARGS{available_date},
-					submittable_date => $ARGS{submittable_date},
-					prelim_due_date  => $ARGS{prelim_due_date},
-					due_date         => $ARGS{due_date},
-					question_stylesheet => $ARGS{question_stylesheet},
-					results_stylesheet  => $ARGS{results_stylesheet},
-				);
-			} elsif ($res) {
-				$eval->set_field_values(
-					available_date   => $ARGS{available_date},
-					submittable_date => $ARGS{submittable_date},
-					due_date         => $ARGS{due_date},
-					prelim_due_date  => $ARGS{prelim_due_date},
-					question_stylesheet => $ARGS{question_stylesheet},
-					results_stylesheet  => $ARGS{results_stylesheet},
-				);
-			}
-
 			if ($res) {
+				if ($eval_editable) {
+					$eval->set_field_values(
+						title            => $ARGS{title},
+						course_id        => $ARGS{course_id},
+						time_period_id   => $ARGS{time_period_id},
+						teaching_site_id => $ARGS{teaching_site_id} || undef,
+						eval_type_id     => $ARGS{eval_type_id},
+					);
+				}
+				
+				$eval->set_field_values(
+					available_date   => $ARGS{available_date},
+					submittable_date => $ARGS{submittable_date},
+					due_date         => $ARGS{due_date},
+					prelim_due_date  => $ARGS{prelim_due_date},
+					question_stylesheet => $ARGS{question_stylesheet},
+					results_stylesheet  => $ARGS{results_stylesheet},
+				);
+
+
 				($res, $msg) = $eval->save(); 
+				$m->comp('SELF:saveRoles', args => \%ARGS, eval_id => $eval_id) if ($eval->is_teaching_eval());
 			}
 		} else {
 			for my $field (@fields) { 
@@ -686,8 +790,10 @@ my $due_params =
 <%args>
 	$eval_editable
 </%args>
+%	my $is_teaching_eval = $eval->is_teaching_eval();
 	<select name="new_q_type">
 %	foreach my $qtype (HSDB45::Eval::Question::Body->question_types()) {
+%		next if ($qtype eq 'TeachingSite' && $is_teaching_eval);
 %		if (($eval_editable) || (($qtype ne 'Instruction') && ($qtype ne 'Title'))) {
 		<option value="<% $qtype %>"><% $qtype %></option>
 %		}
@@ -842,6 +948,6 @@ my $due_params =
 </%method>
 
 <%method jsarray>
-%	return ['calendar.js', 'calendar-en.js', 'calendar-setup.js', 'eval.js', 'scripts.js', 'formbuilder.js'];
+%	return ['calendar.js', 'calendar-en.js', 'calendar-setup.js', 'eval.js', 'scripts.js', 'formbuilder.js', 'layers.js'];
 </%method>
 

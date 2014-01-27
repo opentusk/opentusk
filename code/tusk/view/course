@@ -63,7 +63,7 @@
 		__('Communication')	=> [ 'ann', 'disc', 'groups', 'schedule', ],
 		'Patient Logs'	=> [ ],
 		#This has will always get extra stuff added for patient logs begore the last entry which should be grades.
-		__('Material')	=> [ 'content', 'quizzes', 'cases', 'grades', 'assignments', 'patientlogs' ],
+		__('Material')	=> [ 'content', 'quizzes', 'cases', 'grades', 'assignments', 'patientlogs', 'evaluations' ],
 
 		'content'	=> { 'title'=>__('Content'),		'link'=>"$baseLink/content",
 				     'style'=>$defaultStyle,		'preText'=>'',
@@ -97,6 +97,9 @@
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'patientlogs'	=> { 'title'=>__('Patient Logs'), 'link'=> "/protected$baseLink/patientlogs",
+ 				     'style'=>$defaultStyle,		'preText'=>'',
+				   },
+		'evaluations'	=> { 'title'=>'Evaluations',            'link'=> "/protected$baseLink/evaluations",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'disc'		=> { 'title'=>__('Discussion'),
@@ -463,6 +466,9 @@
 
 	<& /patientlog/student/view, course => $course &>
 
+%} elsif ($courseView eq 'evaluations') {
+	<& /eval/student/view, course => $course &>
+
 %} elsif (exists($leftMenu{$courseView})) {
 	<%perl>
 	  my $localHashRef = \%{${$schoolDisplayHashRef}{ $leftMenu{$courseView}{metadataIDNumber} }};
@@ -535,6 +541,9 @@ $args => {}
 
 		unless ($course->check_user_patient_log($m->session->{'user'}->primary_key())) {
 			$leftMenu{patientlogs}{style} = 'viewcourseleftnavEmpty';
+		}
+		unless (my @evals = $course->get_evals()) {
+			$leftMenu{evaluations}{style} = 'viewcourseleftnavEmpty';			
 		}
 	}
 
@@ -781,15 +790,12 @@ else {
 </%method>
 
 <%method stylearray>
-% return ['/style/style.css','/style/home.css'];
+% 	return ['/style/style.css','/style/home.css'];
 </%method>
 
-
-
-
-
-
 <%method jsarray>
-% 	return ['element.js', 'jquery/jquery.min.js'];
+% 	my $jsarray =  ['element.js', 'jquery/jquery.min.js'];
+%	push @$jsarray, 'scripts-jq.js', 'eval/view.js' if ($courseView eq 'evaluations');
+%	return $jsarray;
 </%method>
 

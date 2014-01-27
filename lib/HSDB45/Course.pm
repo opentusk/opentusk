@@ -1004,6 +1004,25 @@ sub get_single_student {
 }
 
 
+sub get_student_site {
+    my ($self, $student_id, $timeperiod_id) = @_;
+
+    my $dbh = HSDB4::Constants::def_db_handle;
+    my $db = $self->school_db();
+    my $ts_id = undef;
+
+    eval {
+	$ts_id = $dbh->selectrow_array("select teaching_site_id from $db\.link_course_student where parent_course_id = " . $self->primary_key() . " and child_user_id = '$student_id' and time_period_id = $timeperiod_id");
+    };
+
+    if ($@) {
+	confess $@, return;
+    } else {
+	return HSDB45::TeachingSite->new(_school => $self->school())->lookup_key($ts_id);
+    }
+}
+
+
 =item <B><users>
     All users for a given time period
 =cut
@@ -1663,6 +1682,7 @@ sub get_evals {
 		    return ();	
             }		
     }
+
     eval {
         my $db = $self->school_db();
         # Do a lookup to get all the appropriate evals: that is, evals where

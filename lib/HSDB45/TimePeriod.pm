@@ -238,6 +238,13 @@ sub out_date_range {
     return $self->start_date->out_string_date_short_year . " - " . $self->end_date->out_string_date_short_year;
 }
 
+sub out_mysql_date_range {
+    my $self = shift;
+    return ($self->start_date()->has_value() && $self->end_date()->has_value()) 
+	? $self->start_date()->out_mysql_date() . ' to ' . $self->end_date()->out_mysql_date() . ')'
+	: '';
+}
+
 sub out_abbrev {
     #
     # An abbreviation for the object: the first twenty characters of its

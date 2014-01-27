@@ -1,0 +1,60 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%once>
+	use TUSK::Eval::Association;
+</%once>
+
+<%perl>
+	$m->clear_buffer();
+	$r->content_type('application/json');
+	$r->no_cache(1);
+</%perl>
+
+{ 
+	"status" : "<% $status %>",
+	"evaluatee" : "<% $evaluatee %>"
+}
+
+<%init>
+	my $link = TUSK::Eval::Association->lookupReturnOne("school_id = $ARGS{school_id} AND eval_id = $ARGS{eval_id} AND evaluator_id = '$ARGS{evaluator_id}' AND evaluatee_id = '$ARGS{evaluatee_id}'", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Core::HSDB4Tables::User', { origkey => 'evaluatee_id', joinkey => 'user_id', jointype => 'inner'}) ]);
+	my $status = 1;  ### successfully deleted or inserted
+	my $evaluatee = '';
+
+	if ($link && $link->getPrimaryKeyID()) {
+		if ($ARGS{action} eq 'delete') {
+			$link->delete();
+		} elsif ($ARGS{action} eq 'insert') {
+			$status = 2;  ### duplicate entry. already linked to the same evaluatee on the same role
+			$evaluatee = $link->getJoinObject('TUSK::Core::HSDB4Tables::User')->outLastFirstName();
+		}
+	} else {
+		if ($ARGS{action} eq 'insert') {
+			$link = TUSK::Eval::Association->new();
+			$link->setFieldValues({
+				school_id => $ARGS{school_id},
+				eval_id => $ARGS{eval_id},
+				evaluator_id => $ARGS{evaluator_id},
+				evaluatee_id => $ARGS{evaluatee_id},
+			});			
+			$link->save({ user => $m->session->{user} });
+		}
+	}
+</%init>

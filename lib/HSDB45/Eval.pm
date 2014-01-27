@@ -25,7 +25,8 @@ use HSDB45::Course;
 use HSDB45::StyleSheet;
 use HSDB4::StyleSheetType;
 use TUSK::Constants;
-
+use TUSK::Eval::Type;
+use TUSK::Enum::Data;
 
 BEGIN {
     use vars qw($VERSION);
@@ -58,7 +59,7 @@ sub get_file_deps {
 my $tablename = "eval";
 my $primary_key_field = "eval_id";
 my @fields = qw(eval_id course_id time_period_id teaching_site_id title available_date modified
-                due_date prelim_due_date submittable_date question_stylesheet results_stylesheet);
+                due_date prelim_due_date submittable_date question_stylesheet results_stylesheet eval_type_id);
 my %blob_fields = ();
 my %numeric_fields = ();
 
@@ -109,8 +110,19 @@ sub question_stylesheet_id {
 }
 
 sub title {
-	my $self = shift;
-	return $self->field_value('title');
+    my $self = shift;
+    return $self->field_value('title');
+}
+
+sub eval_type {
+    my $self = shift;
+    return TUSK::Eval::Type->lookupReturnOne("eval_type_id = " . $self->field_value('eval_type_id'));
+}
+
+sub is_teaching_eval {
+    my $self = shift;
+    my $eval_type = $self->eval_type();
+    return (ref $eval_type eq 'TUSK::Eval::Type' && $eval_type->getToken eq 'teaching') ? 1 : 0;
 }
 
 sub question_stylesheet_ids {
@@ -397,6 +409,21 @@ sub prelim_due_date {
     return $self->{-prelim_due_date};
 }
 
+sub student_short_due_date {
+    #
+    # Return (Month, date) that student needs to submit by
+    #
+    my $self = shift;
+    return ($self->prelim_due_date) ? $self->prelim_due_date->out_string_date_short_short : $self->due_date->out_string_date_short_short;
+}
+
+sub student_due_date {
+    #
+    # Return a date that student needs to submit by
+    #
+    my $self = shift;
+    return ($self->prelim_due_date) ? $self->prelim_due_date()->out_string_date() : $self->due_date()->out_string_date();
+}
 
 sub academic_year {
     my $self = shift();
@@ -505,17 +532,10 @@ sub is_user_allowed {
 
 sub users {
     my $self = shift;
-    
-    # Cache...
-    unless ($self->{-users}) {
-        # Set up the output list
-	my @users;
 
-    push @users, $self->link_enrolled_users();
-
-	$self->{-users} = [ sort { $a cmp $b } @users ];
+    unless ($self->{-users}) {     # Cache...
+	$self->{-users} = [ sort { $a cmp $b } $self->link_enrolled_users() ];
     }
-    
     return @{$self->{-users}};
 }
 
@@ -544,11 +564,11 @@ sub link_enrolled_users {
 		 FROM $db\.link_course_student
 		 WHERE parent_course_id=?
 		 AND time_period_id=?];
-    if (defined($self->field_value('teaching_site_id'))
-	 && $self->field_value('teaching_site_id') ne ''){
-		$sql .= " AND ( teaching_site_id IS NULL OR  teaching_site_id = "
-			.$self->field_value('teaching_site_id') . " )";
-	}
+
+    if ($self->field_value('teaching_site_id') && $self->field_value('teaching_site_id') ne '') {
+	$sql .= " AND ( teaching_site_id IS NULL OR  teaching_site_id = " . $self->field_value('teaching_site_id') . " )";
+    }
+
     eval {
 	my $sth = $dbh->prepare($sql);
 	$sth->execute($self->field_value('course_id'), 
@@ -710,6 +730,7 @@ sub validate_form {
     return @problems;
 }
 
+
 sub answer_form {
     #
     # Actually fill in all the user's answers
@@ -717,35 +738,164 @@ sub answer_form {
 
     my ($self, $user, $fdat) = @_;
 
+    my $is_teaching_eval = $self->is_teaching_eval();
+
     # Make the user code
-    my $code = $user->out_user_code ($fdat->{submit_password});
+    my $user_code = $user->out_user_code($fdat->{submit_password});
+    my $evaluator_code = ($is_teaching_eval && $fdat->{evaluatee_id}) ? $user->out_user_code($fdat->{submit_password}, $fdat->{evaluatee_id}) : '';
+
 
     my ($result, $msg) = (0, '');
     eval {
 	# Go through the list of keys
 	foreach my $key (keys %{$fdat}) {
 	    next unless my ($q_id) = $key =~ /eval_q_(\d+)/;
-	    my $resp = 
-	      HSDB45::Eval::Question::Response->new ( _school => $self->school() );
-	    $resp->primary_key ($code, $self->primary_key(), $q_id);
+	    my $resp = HSDB45::Eval::Question::Response->new ( _school => $self->school() );
+	    $resp->primary_key ($evaluator_code, $self->primary_key(), $q_id);
 	    $resp->field_value ('response', $fdat->{$key});
 	    my ($r, $msg) = $resp->save;
 	    die "Could not save $q_id ($r) [$fdat->{$key}]: $msg" unless $r;
 	}
 
-	# Now do the completion token
-	my $comp = HSDB45::Eval::Completion->new ( _school => $self->school() );
-	$comp->primary_key ($user->primary_key, $self->primary_key);
-	$comp->field_value ('status' => 'Done');
-	my ($r, $msg) = $comp->save;
-	die "Could not save the completion token: $msg" unless $r;
+        ## by default we complete for both course and teaching evals. yet teaching eval could be reset later
+	my $is_complete = 1;  
+
+	if ($is_teaching_eval) {
+	    my $entry = TUSK::Eval::Entry->new();
+	    $entry->setFieldValues({
+		school_id => $self->school_id(),
+		eval_id => $self->primary_key(),
+		evaluator_code => $evaluator_code,
+		evaluatee_id => $fdat->{evaluatee_id},
+		teaching_site_id => $fdat->{site_id},
+	    });
+	    $entry->save({user => $user_code});
+	    $self->set_teaching_eval_entry_status($user, $fdat->{evaluatee_id}, 'completed');
+	    $is_complete = 0 unless $self->is_user_teaching_eval_complete($user);
+	} 
+
+	if ($is_complete) {
+	    # Now do the completion token for course_eval
+	    my $comp = HSDB45::Eval::Completion->new ( _school => $self->school() );
+	    $comp->primary_key ($user->primary_key, $self->primary_key);
+	    $comp->field_value ('status' => 'Done');
+	    my ($r, $msg) = $comp->save;
+	    die "Could not save the completion token: $msg" unless $r;
+	}
 
 	# Phew! We got there.
 	$result = 1;
     };
     die $@ if $@;
-    return (1, '');
+    return ($result, '');
 }
+
+
+sub set_teaching_eval_entry_status {
+    my ($self, $evaluator, $evaluatee_id, $entry_status) = @_;
+
+    if (my $link = TUSK::Eval::Association->lookupReturnOne("school_id = " . $self->school_id() . " and eval_id = " . $self->primary_key() . " and evaluator_id = '" . $evaluator->primary_key() . "' and evaluatee_id = '$evaluatee_id'")) {
+	if (my $status_enum = TUSK::Enum::Data->lookupReturnOne("namespace = 'eval_association.status' and short_name = '$entry_status'")) {
+	    $link->setStatusEnumID($status_enum->getPrimaryKeyID());
+	    $link->setStatusDate(HSDB4::DateTime->new()->out_mysql_timestamp());
+	    $link->save({user => $evaluator->primary_key()});
+	}
+    }
+}
+
+sub is_user_teaching_eval_complete {
+    my ($self, $evaluator) = @_;
+
+    my $completions = $self->get_teaching_eval_completions_by_roles($evaluator);
+    my ($done, $required) = (0, 0); 
+    foreach (@$completions) {
+	$done += $_->{completed_evals};
+	$required += $_->{required_evals};
+    }
+
+    return ($done == $required) ? 1 : 0;
+}
+
+sub get_teaching_eval_completions_by_roles {
+    my ($self, $evaluator) = @_;
+
+    unless (defined $self->{teaching_eval_completions_by_role}) {
+	my $db = $self->school_db();    
+	my $sql = qq(
+		     SELECT ur.role_id, count(*),
+		     (SELECT count(status_enum_id) 
+		      FROM tusk.enum_data ed 
+		      WHERE ea.status_enum_id = enum_data_id and ed.namespace = 'eval_association.status' and ed.short_name = 'completed') as completions
+		     FROM tusk.eval_association ea
+		     INNER JOIN $db\.eval e on (ea.eval_id = e.eval_id)
+		     INNER JOIN tusk.course_user cs on (ea.evaluatee_id = cs.user_id and cs.course_id = e.course_id and cs.time_period_id = e.time_period_id and cs.school_id = ea.school_id)
+		     INNER JOIN tusk.permission_user_role ur on (cs.user_id = ur.user_id and ur.feature_id = cs.course_user_id)
+		     INNER JOIN tusk.eval_role er on (er.role_id = ur.role_id and er.eval_id = ea.eval_id and er.school_id = ea.school_id)
+		     WHERE ea.eval_id = ? and ea.school_id = ? and evaluator_id = ?
+		     GROUP BY ur.role_id
+		     );
+
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($self->primary_key(), $self->school_id(), $evaluator->primary_key());
+
+	my %completions = ();
+	while (my ($role_id, $total, $completions) = $sth->fetchrow_array) {
+	    $completions{$role_id} = { total_evals => $total, completed_evals => $completions };
+	}
+
+	my @completions_by_role = ();
+	foreach my $eval_role (@{TUSK::Eval::Role->lookup('eval_id = ' . $self->primary_key() . ' and school_id = ' . $self->school_id(), ['sort_order'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', jointype => 'inner'})],)}) {
+	    my $role_id = $eval_role->getRoleID();
+	    push @completions_by_role, {
+		role_id    => $role_id,
+		role_label => $eval_role->getJoinObject('TUSK::Permission::Role')->getRoleDesc(),
+		total_evals => $completions{$role_id}{total_evals} || 0, 
+		completed_evals => $completions{$role_id}{completed_evals} || 0,
+		required_evals => $eval_role->getRequiredEvals(),
+		sort_order => $eval_role->getSortOrder(),
+	    };
+	}
+
+	$self->{teaching_eval_completions} = \@completions_by_role;
+    }
+
+    return $self->{teaching_eval_completions};
+}
+
+sub get_teaching_eval_completions_by_evaluators {
+    my $self = shift;
+
+    unless (defined $self->{teaching_eval_completions_by_evaluator}) {
+	my $sql = qq(
+		     SELECT evaluator_id, er.role_id, count(*)
+		     FROM tusk.eval_association ea
+		     INNER JOIN hsdb45_med_admin.eval e on (ea.eval_id = e.eval_id)
+		     INNER JOIN tusk.enum_data ed on (ea.status_enum_id = enum_data_id and ed.namespace = 'eval_association.status' and ed.short_name = 'completed')
+		     INNER JOIN tusk.course_user cs on (cs.user_id = ea.evaluatee_id and cs.course_id = e.course_id and cs.time_period_id = e.time_period_id and cs.school_id = ea.school_id)
+		     INNER JOIN tusk.permission_user_role ur on (ur.user_id = cs.user_id and ur.feature_id = cs.course_user_id)
+		     INNER JOIN tusk.permission_role r on (r.role_id = ur.role_id)
+		     INNER JOIN tusk.eval_role er on (er.role_id = ur.role_id and er.eval_id = ea.eval_id and er.school_id = ea.school_id)
+		     WHERE er.eval_id = ? and er.school_id = ?
+		     group by evaluator_id, er.role_id;
+		     );
+
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($self->primary_key(), $self->school_id());
+
+	my %completions = ();
+	while (my ($evaluator_id, $role_id, $completions) = $sth->fetchrow_array) {
+	    $completions{$evaluator_id}{$role_id} = $completions;
+	    $completions{$evaluator_id}{total} += $completions;
+	}
+	$self->{teaching_eval_completions_by_evaluator} = \%completions;
+
+    }
+
+    return $self->{teaching_eval_completions_by_evaluator};
+}
+
 
 sub required_questions {
     #
@@ -854,29 +1004,26 @@ sub count_users {
     eval {
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my $admin_group_id = HSDB4::Constants::get_eval_admin_group($self->school());
-    $sth = $dbh->prepare(qq(
+	$sth = $dbh->prepare(qq(
 		SELECT count(child_user_id) 
 		FROM $db\.link_course_student a, $db\.eval b 
 		WHERE parent_course_id = course_id 
 		and a.time_period_id = b.time_period_id 
-		and b.time_period_id = ?
 		and eval_id = ?
-		and a.teaching_site_id = b.teaching_site_id
-		and b.teaching_site_id = ? 
+		and (a.teaching_site_id = b.teaching_site_id or b.teaching_site_id is null or b.teaching_site_id = 0)
 	        AND child_user_id not in 
 		    (select child_user_id 
 		    from $db\.link_user_group_user 
 		    where parent_user_group_id = $admin_group_id)
 	    ));
-    $sth->execute($self->field_value('time_period_id'), $self->primary_key(), $self->field_value('teaching_site_id'));
+	$sth->execute($self->primary_key());
 
 	$count = $sth->fetchrow_array();
 	$sth->finish();
     };
 
     if ($@) {
-	warn sprintf("Could not find the number of all users for eval_id=%d",
-		     $self->primary_key());
+	warn sprintf("Could not find the number of all users for eval_id=%d", $self->primary_key());
     }
 
     return $count;
