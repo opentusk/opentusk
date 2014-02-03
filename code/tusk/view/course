@@ -295,7 +295,15 @@ $args => {}
 if(exists($leftMenu{$courseView})) {
 	# If we have a specific ID, then we're looking at a meeting.
 	if ( $courseView eq "schedule" && $specific_id =~ /[0-9]+/ ) {
-		$class = HSDB45::ClassMeeting->new(_school => $course->school())->lookup_key($specific_id); 
+		$class = HSDB45::ClassMeeting->new(_school => $course->school())->lookup_key($specific_id);
+                my $errmsg =
+                    __x('The scheduled event in {course_title} not found. Please contact {support_email} if you believe this to be in error. Please provide us with the following information: Class meeting ID: {class_meeting_id}, Course ID: {course_id}, School: {school}.',
+                        class_meeting_id => $specific_id,
+                        school => $course->school,
+                        course_title => $course->title,
+                        course_id => $course->course_id,
+                        support_email => $TUSK::Constants::SupportEmail);
+                $m->redirect("/home?errmsg=$errmsg", NOT_FOUND) if (! $class->primary_key);
 
 		my $date = HSDB4::DateTime->new();
 		$date->in_mysql_date ($class->field_value('meeting_date'));
@@ -388,6 +396,7 @@ else {
 
 
 <%once>
+        use HTML::Mason::Escapes;
 	use HSDB4::Constants;
 	use TUSK::Constants;
 	use HSDB45::Course;
@@ -396,6 +405,7 @@ else {
 	use TUSK::Case::Case;
 	use TUSK::Application::HTML::Strip;
 	use HSDB45::ClassMeeting;
+        use Apache2::Const qw(NOT_FOUND);
 </%once>
 
 

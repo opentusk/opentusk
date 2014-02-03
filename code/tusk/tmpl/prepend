@@ -20,13 +20,12 @@
 <%once>
 	use HSDB4::Constants;
 	use HSDB4::DateTime;
-	use HSDB4::SQLRow::User;
 	use TUSK::Session;
 	use TUSK::Constants;
 	use TUSK::Functions;
 	use TUSK::Application::RSSCourse;
 	use TUSK::Application::HTML::Strip;
-	use TUSK::UserAnnouncementHide;
+	use TUSK::User::AnnouncementHide;
 </%once>
 
 <& SELF:manage_header, %ARGS &>
@@ -434,11 +433,7 @@ $type
 % } else {
 <a href="#" target="_top">\
 % }
-% if ($type eq 'login') {
-<img alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" src="<% $TUSK::Constants::LargeLogo %>">
-% } else {
-<img alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" src="<% $TUSK::Constants::SmallLogo %>">
-% }
+<img alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" src="<% ($type eq 'login') ? $TUSK::Constants::Logo{Large} : $TUSK::Constants::Logo{Small} %>">
 </a></h1>
 </hgroup>
 </%method>
@@ -460,7 +455,7 @@ $has_schedule => ''
 % 	my $active = $type;
 		<ul class="main <% ($active =~ /home|browse|search|manage/)? '' : 'allInactive' %>">
 		    <li class="<% $active eq 'home'  ? 'selected' : '' %>"><a href="/home" target="_top"><% __('My Dashboard') %></a></li>
-		    <li class="<% $active eq 'browse'? 'selected' : '' %>"><a href="/allcourses.htm" target="_top"><% __('Courses') %></a></li>
+		    <li class="<% $active eq 'browse'? 'selected' : '' %>"><a href="/view/courses" target="_top"><% __('All Courses') %></a></li>
 			<li class="<% $active eq 'search'? 'selected' : '' %>"><a href="/search/form" target="_top"><% __('Search') %></a></li>
 % if(scalar keys %$has_schedule) {
 %	my @schedule_links;
@@ -538,7 +533,7 @@ if (ref $leftnav eq 'HASH' and $leftnav->{component}){
 my $req = \%req_hash;
 my ($can_cms, $has_schedule);
 if ($req->{user} && $req->{user}->isa("HSDB4::SQLRow::User")) {
-	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin() || $req->{user}->check_grade_admin();
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
 	$has_schedule = $req->{user}->has_schedule();
 }
 
@@ -595,8 +590,8 @@ if (!$req->{nostandardheader}) {
 <%perl>
 my $req = \%req_hash;
 my ($has_schedule, $can_cms);
-if ($req->{user}) {
-	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin() || $req->{user}->check_grade_admin();
+if ($req->{user} && ref($req->{user}) eq 'HSDB4::SQLRow::User') {
+	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
 	$has_schedule = $req->{user}->has_schedule();
 }
 # figure out the alt text for the main image
@@ -647,7 +642,7 @@ only affect the content within the fullContentTable
 
 </table>
 % 	unless ($req->{skip_header_bar}){
-		<& SELF:header_bar_table, req => $req &> 
+		<& SELF:header_bar_table, req => $req &>
 % 	}
 % }
 </%method>
@@ -726,7 +721,7 @@ $has_nav => 1
 %	if ($msg) {
 %		$class .= "withtrafficlight ";
 %	}
-%	if (TUSK::UserAnnouncementHide::user_has_unhidden_announcements($user->primary_key())) {
+%	if (TUSK::User::AnnouncementHide::user_has_unhidden_announcements($user->primary_key())) {
 %		$class .= "withnote ";
 %	}
 <div id="gContent"<% ($class) ? " class=\"$class\"" : '' %>>
@@ -786,7 +781,7 @@ $has_nav => 1
 <table width="100%" border="0" cellspacing="0" cellpadding="0" class="outerContainer">
   <tr>
     <td width="350" valign="top">
-      <img src="<% $TUSK::Constants::SmallLogo %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" width="350" height="90">
+      <img src="<% $TUSK::Constants::Logo{Small} %>" alt="<% $TUSK::Constants::SiteAbbr %>: <% $TUSK::Constants::SiteName %>" width="350" height="90">
     </td>
     <td>
       <& 'SELF:traffic_light', args => $args, make_table => 1 &>

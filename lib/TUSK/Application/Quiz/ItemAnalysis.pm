@@ -19,7 +19,7 @@ use strict;
 use TUSK::Quiz::Quiz;
 use TUSK::Quiz::LinkQuizQuizItem;
 use Statistics::Descriptive;
-use Data::Dumper;
+
 sub new {
     my ($class, $args) = @_;
 
@@ -275,7 +275,7 @@ sub getQuestions {
 
     my $cond = "quiz_id = $self->{_quiz_id} and type in ('MultipleChoice', 'Section')";
 
-    my $links = TUSK::Quiz::LinkQuizQuizItem->new()->lookup($cond, ['link_quiz_quiz_item.sort_order'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Quiz::Answer", { origkey => 'quiz_item_id', joinkey => 'quiz_question_id', joincond => 'correct = 1', jointype => 'inner'}), TUSK::Core::JoinObject->new("TUSK::Quiz::Question", { origkey => 'quiz_item_id', joinkey => 'quiz_question_id', jointype => 'inner'}) ]);
+    my $links = TUSK::Quiz::LinkQuizQuizItem->new()->lookup($cond, ['link_quiz_quiz_item.sort_order'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Quiz::Answer", { origkey => 'quiz_item_id', joinkey => 'quiz_question_id', joincond => 'correct = 1' }), TUSK::Core::JoinObject->new("TUSK::Quiz::Question", { origkey => 'quiz_item_id', joinkey => 'quiz_question_id', jointype => 'inner'}) ]);
 
     $self->setQuestions($links);
     return $self->{_all_mc_questions};

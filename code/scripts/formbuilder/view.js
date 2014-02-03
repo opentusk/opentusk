@@ -46,7 +46,10 @@ $(function() {
 
 			var min_score = $("#myform input[name='min_score']").val();
 			if ( min_score && min_score > $('#total_score').val()) {
-				if (confirm(_("The minimum score to pass is {minimum_score}.",{minimum_score : min_score}) +  "\n " + _("The calculated score is {total_score}.",{total_score : $('#total_score').val()}) + "\n " + _("Are you sure you want to submit?") == false ) {
+				if (confirm(
+					_("The minimum score to pass is {minimum_score}.",{minimum_score : min_score}) +  "\n " + 
+					_("The calculated score is {total_score}.",{total_score : $('#total_score').val()}) + "\n " + 
+					_("Are you sure you want to submit?")) == false ) {
 					return false;
 				}
 			} else {

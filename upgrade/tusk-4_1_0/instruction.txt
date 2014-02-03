@@ -1,0 +1,69 @@
+#################################################################################################
+##
+##  New/changed key/values in tusk.conf.  
+##  The following changes are in install/templates/conf/tusk/tusk.conf 
+##  But make changes in your /usr/local/tusk/conf/tusk.conf
+##
+##  Use http://jsonlint.com/ to validate your JSON changes
+##
+#################################################################################################
+
+  *** site logo in "SiteWide" category
+
+-	"Logo"                  : "/graphics/logo_sm.jpg",
++	"Logo"				: {
++		"Large"		: "/graphics/logo_sm.gif",
++		"Small"		: "/graphics/logo-tusk-nav.png"
++	},
+
+  *** default key/values in "SiteWide" category
+-	"DefaultDB"				: "hsdb4",
+-	"SystemWideUserGroup"			: "666",
+-	"SystemWideUserGroupSchool"		: "default",
++       "Default"		: {
++		"DB"		: "hsdb4",
++		"School" 	: "Default"
++	},
+
+
+  *** combine keys/values in "FooterLeft" and "FooterRight" to "Footer" in "Link" category
+
+-  	"FooterLeft" : [
++  	"Footer" : [
+-	],
+-  	"FooterRight" : [
+
+  *** new "Internatinalization" category and its keys/values
+
++  "Internationalization"	: {
++	"I18N"	: {
++		"SiteLanguage"	: "en",
++		"SiteDomain"	: "tusk",
++		"SiteEnCoding"	: "utf-8",
++		"SiteLocale"	: "locale",
++		"Debug"		: "0"
++       }
++  }
+
+
+#################################################################################################
+
+Make following changes to both tusk_http.conf and tusk_https.conf
+
+*** to add a "user" folder to rewriterule
+
+- RewriteRule ^/(tools|ws|public|search|service|case|quiz|assignment|gradebook|patientlog|sp|assessment|management|eval|ocw|admin|registrar)/(.*) /tusk/$1/$2 [PT]
++ RewriteRule ^/(tools|ws|public|search|service|case|quiz|assignment|gradebook|patientlog|sp|assessment|management|user|eval|ocw|admin|registrar)/(.*) /tusk/$1/$2 [PT]
+
+*** to remove redirect. new file is /view/courses
+
+- RedirectMatch ^/allcourses.htm(.*)$ /tusk/allcourses.htm$1
+
+
+#################################################################################################
+   
+Database changes: 
+*** new email_flag column in tusk.assignment
+*** new tables for redesign
+
+> mysql -e 'source /usr/local/tusk/current/upgrade/tusk-4_1_0/tables.sql'

@@ -279,18 +279,18 @@
 
 	if ($assessment_form->getMultiAssessors()) {
 		push @$column_headers, (		
-			{label => __('Frequency'), field => 'frequency', align => 'center' },
+			{label => __('Frequency'), field => 'frequency', align => 'center', html => 1 },
 			{label => '<span style="cursor:pointer;" title="'.__('Number of assessors who has assessed').'"> N </span>', field => 'assessors', align => 'center' },
-			{label => '<span style="font-size:80%">'.__('Calc Avg Score'),'</span>', field => 'calc_avg_score', align => 'center' },
+			{label => '<span style="font-size:80%">' . __('Calc Avg Score') . '</span>', field => 'calc_avg_score', align => 'center' => 1, html => 1 },
 		);
 	}
 
-	push @$column_headers, {label => __('Score'), field => 'avg_score', align => 'center' };
+	push @$column_headers, {label => __('Score'), field => 'avg_score', align => 'center', html => 1 };
 
 	if ($total_weight) {
 		push @$column_headers, (
-			{label => __('Weight'), field => 'weight', align => 'center' },
-			{label => __('Weighted Score %'), field => 'weighted_avg', align => 'center' },
+			{label => __('Weight'), field => 'weight', align => 'center', html => 1 },
+			{label => __('Weighted Score %'), field => 'weighted_avg', align => 'center', html => 1 },
 		);
 	}
 
@@ -306,11 +306,14 @@
 		$rows[$i]->{row_class} 	= 'master';
 
 		if ($assessment_form->getMultiAssessors()) {
-			my $title = join("   ", map { $_  . ': ' . $scores{field}{$fid}{assessors}{$_} } sort keys %{$scores{field}{$fid}{assessors}});
+			my $title =  join("   ", map { $_  . ': ' . $scores{field}{$fid}{assessors}{$_} } sort keys %{$scores{field}{$fid}{assessors}});
 			my $assessors_per_field = scalar grep { /^\d+$/ } values %{$scores{field}{$fid}{assessors}};
 
 			$rows[$i]->{assessors}	= $assessors_per_field;
-			$rows[$i]->{frequency} 	= '<table align="center"><tr><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[0] . "</td><td><span class=\"inlinebar\" title=\"$title\">" . join(",", map { (exists $scores{field}{$fid}{frequency}{$_}) ? $scores{field}{$fid}{frequency}{$_} : 0 } ($scores{range}{$fid}->[0] .. $scores{range}{$fid}->[1])) . '</span></td><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[1] . '</td></tr></table>';
+			$rows[$i]->{frequency} 	= '<table align="center"><tr><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[0] . 
+						"</td><td> <span class='inlinebar' title='". $title . "'>" . 
+						join(",", map { (exists $scores{field}{$fid}{frequency}{$_}) ? $scores{field}{$fid}{frequency}{$_} : 0 } ($scores{range}{$fid}->[0] .. $scores{range}{$fid}->[1])) . 
+						'</span></td><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[1] . '</td></tr></table>';
 
 			if ($assessors_per_field > 0 && $scores{field}{$fid}{sum}) {
 				my $calc_avg = sprintf("%.2f", $scores{field}{$fid}{sum} / $assessors_per_field);
@@ -358,7 +361,7 @@
 			? '<span id="total_avg_score"></span>'
 			: '<table align="center"><tr><td class="xxsm" align="right">calculated:</td><td><input type="text" class="totalValue" name="total_final_score" size="4" value="" READONLY/></td></tr><tr><td class="xxsm" align="right">override:</td><td><input type="text" class="totalValue" name="total_override_score" size="4" value="' . sprintf("%.2f", $scores{total}{final_override}) . '" /></td></tr></table>',
 		weighted_avg => '<table align="center">' . 
-(($edit_mode && $total_weight && $assessment_form->getMinScore()) ? '<tr><td class="xxsm" align="right">'.__('minimum score to pass:').'</td><td><input type="text" class="totalValue gray" name="min_score" value="' .  $assessment_form->getMinScore() . '" size="4" DISABLED /></td></tr>' : '') .
+(($edit_mode && $total_weight && $assessment_form->getMinScore()) ? '<tr><td class="xxsm" align="right">' . __('minimum score to pass:') . '</td><td><input type="text" class="totalValue gray" name="min_score" value="' .  $assessment_form->getMinScore() . '" size="4" DISABLED /></td></tr>' : '') .
 '<tr><td class="xxsm" align="right">'.__('calculated:').'</td><td><input type="text" class="totalValue blue" name="total_final_score" size="4" value="" READONLY /></td></tr>
 <tr><td class="xxsm" align="right">override:</td><td><input type="text" class="totalValue green" name="total_override_score" size="4" value="' . $scores{total}{final_override} . '" /></td></tr>
 </table>',

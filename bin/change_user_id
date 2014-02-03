@@ -22,6 +22,7 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 
 use TUSK::Core::DB;
+use TUSK::Core::ServerConfig;
 use TUSK::Constants;
 use Getopt::Long;
 
@@ -44,9 +45,9 @@ my $spinning_index = 0;
 
 print "Finding Matches: " . $spinning_wheel->[$spinning_index++ % 4];
 
-my $table_hash = find_fields();
-
 my $dbh = TUSK::Core::DB::getWriteHandle('ContentManager') or die ("Could not connect to the database");
+
+my $table_hash = find_fields($dbh);
 
 my $matches_hash = check_for_matches($table_hash, $dbh, $old_user_id);
 
@@ -74,23 +75,48 @@ while (1){
     }
 }
 
-# sub that finds all the tables that have an utln in them...I swipped this from the old script...probably not the best to be using back ticks.
+# find all the tables that have an utln in them
 sub find_fields {
+    my ($dbh,) = @_;
+
     my $table_hash = {};
 
-    my $mysql = $TUSK::Constants::MySQLDir . '/mysql';
-    foreach my $database (split("\n",`$mysql -NBr -e 'show databases'`)) {
-	next if ($database !~ /^hsdb4|mwforum|tusk/);
-	foreach my $table (split("\n",`$mysql -NBr -e 'show tables' $database`)) {
-	    next if ($table eq 'log_item');
-	    foreach my $column (split("\n",`$mysql -NBr -e 'show columns from $table' $database`)) {
-		$column =~ s/(\w.+?)\t.+/$1/;
-		if ($column =~ /^(parent_user_id|child_user_id|user_id|username|created_by|modified_by)$/i){
-		    push @{$table_hash->{ $database . "." . $table }}, $column;
+    # fetch database names
+    my $db_sth = $dbh->prepare('show databases;') or die $dbh->errstr;
+    $db_sth->execute() or die $db_sth->errstr;
+
+  DB_LOOP:
+    while (my $db_row = $db_sth->fetchrow_arrayref()) {
+        my $database = $db_row->[0];
+        next DB_LOOP if $database !~ m/^hsdb4|mwforum|tusk/;
+
+        # fetch table names
+        my $tbl_sth = $dbh->prepare("show tables in $database;")
+            or die $dbh->errstr;
+        $tbl_sth->execute() or die $tbl_sth->errstr;
+
+      TBL_LOOP:
+        while (my $tbl_row = $tbl_sth->fetchrow_arrayref()) {
+            my $table = $tbl_row->[0];
+            next TBL_LOOP if $table eq 'log_item';
+
+            # fetch column names
+            my $col_sth
+                = $dbh->prepare("show columns from $table in $database;")
+                    or die $dbh->errstr();
+            $col_sth->execute() or die $col_sth->errstr;
+
+          COL_LOOP:
+            while (my $col_row = $col_sth->fetchrow_hashref()) {
+                my $column = $col_row->{Field};
+
+                # push id columns into an array in table_hash
+                if ($column =~ m/^(parent_user_id|child_user_id|user_id|username|created_by|modified_by)$/i) {
+		    push @{ $table_hash->{ "$database.$table" } }, $column;
 		    print "\b" . $spinning_wheel->[$spinning_index++ % 4];
-		}
-	    }
-	}
+                }
+            }
+        }
     }
     
     return $table_hash;

@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and 
 # limitations under the License.
 
-
+# Should be TUSK::ErrorReport to match the file path and use
+# statements. Will require refactor of several files.
 package ErrorReport;
 
-use strict; 
+use strict;
+use Carp;
 use Apache2::ServerUtil;
 use Apache2::Cookie;
 use Apache2::Connection;
@@ -142,27 +144,25 @@ sub send404Report {
 
 }
 
-sub sendDefaultReport{
-        if (Apache2::ServerUtil::exists_config_define('PROD')){
-		Carp::cluck "Error Sending ERROR REPORT";
-		my $msgBody = <<EOM;
+sub sendDefaultReport {
+    Carp::cluck "Error Sending ERROR REPORT";
+    my $msgBody = <<EOM;
 This message has been sent because the Error Reporter was called incorrectly.
 Most likely request object was not sent.  This Report will trigger a cluck and a
 message to go into the Apache Log.
 EOM
-                my $mail = TUSK::Application::Email->new({ 
-					to_addr   => $TUSK::Constants::ErrorEmail,
-					from_addr => $TUSK::Constants::ErrorEmail,
-					subject   => "Error Report Incorrectly Called",
-					body      => $msgBody
-				});
+    my $mail = TUSK::Application::Email->new({ 
+        to_addr   => $TUSK::Constants::ErrorEmail,
+        from_addr => $TUSK::Constants::ErrorEmail,
+        subject   => "Error Report Incorrectly Called",
+        body      => $msgBody
+    });
 
-                if (!(my $err = $mail->send())) {
-                        Carp::cluck $mail->getError();
-                }
-        }
+    if ( ! ( my $err = $mail->send() ) ) {
+        Carp::cluck $mail->getError();
+    }
 
-	exit 1;
+    confess "Error sending ERROR REPORT";
 }
 
 sub readPost {

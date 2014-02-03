@@ -69,6 +69,23 @@ else {
 	my $stripObj = TUSK::Application::HTML::Strip->new();
 	my (@announcement_links, @discussion_links);
 
+        # school announcements
+        my $school_ann_ref = $m->session->{user}->get_school_announcements();
+        foreach my $school (sort keys %$school_ann_ref) {
+            my $swug = $TUSK::Constants::Schools{$school}->{Groups}{SchoolWideUserGroup};
+            foreach my $ann_id (sort keys %{ $school_ann_ref->{$school} }) {
+                my $ann = $school_ann_ref->{$school}{$ann_id};
+                my $body = $ann->field_value('body');
+                my $link = "<a href='/view/usergroup/$school/$swug'>"
+                    . $stripObj->truncateAndRemoveHTML($body, $charLimit)
+                    . '</a>';
+                # my $body_p = '<p>' . $stripObj->removeHTML($body) . '</p>';
+                push @announcement_links, {
+                    shortlink => $link,
+                    fulltext => $body,
+                };
+            }
+        }
 	## course announcements
 	my $announcement_ref = $m->session->{'user'}->get_course_announcements();
 	foreach my $ann (@$announcement_ref) {
@@ -79,7 +96,7 @@ else {
 
 	## course discussions
 	my @current_courses = $m->session->{user}->current_courses( {'only_enrollment' => 1} );
-	my ($new_post_forums, $new_notifications_forums, undef) = Forum::ForumKey::new_post_forums($r, undef, \@current_courses);
+	my ($new_post_forums, $new_notifications_forums, undef) = Forum::ForumKey::new_post_forums($r, $m->session->{user}, undef, \@current_courses);
 
 	if (defined $new_post_forums && scalar (@$new_post_forums)){
 		foreach my $forum_ref (@$new_post_forums){
@@ -88,12 +105,12 @@ else {
 			}
 		}
 	}
-	if (scalar @announcement_links || scalar @discussion_links) {
+	#if (scalar @announcement_links || scalar @discussion_links) {
 		$hasCommunicationContent = 1;
-	}
+	#}
 </%perl>
 % if ($hasCommunicationContent) {
-<nav class="communications">
+<nav id="communicationsBox" class="communications">
 	<hgroup>
 		<h1><% __('Communications') %></h1>
 	</hgroup>
@@ -107,14 +124,14 @@ else {
 %		}
 			</ul></li>
 %	}
-%	if (scalar @discussion_links) {
-			<li><% __('Discussions') %>
+%#	if (scalar @discussion_links) {
+			<li><a href="/forum/forum.pl"><% __('All Discussions') %></a>
 			<ul>
 %		foreach my $link (@discussion_links) {
 				<li><% $link %></li>
 %		}
 			</ul></li>
-%	}
+%#	}
 		</ul>
 	</div>
 </nav>
@@ -141,14 +158,11 @@ else {
 		my $link = '<a href="/protected/assessment/author/show/course/' . $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $stripObj->truncateAndRemoveHTML($form_row->{form_name}, $charLimit) . '</a>';
 		push @assessment_links, $link;
 	}
-		
-	## assignments
-	my @courses = $m->session->{user}->all_courses();
-	foreach my $course (@courses) {
-		my $assignments = $m->session->{user}->get_course_assignments($course);
-		foreach my $assignment (@$assignments) {
-			push @assignment_links, '<a href="/assignment/student/complete/course/' . $course->school() . '/' .  $course->primary_key() . '/' . $assignment->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($assignment->getTitle(), $charLimit) . '</a>';
-		}
+	
+	my $course_assignments = $m->session->{user}->get_course_assignments();
+
+	foreach my $assignment (@$course_assignments){
+		push @assignment_links, '<a href="/assignment/student/complete/course/'. $assignment->{'school_name'} . '/' . $assignment->{'course_id'} . '/' . $assignment->{'assignment_id'} .  '">'. $assignment->{'event_name'}.'</a>';
 	}
 
 	## cases
@@ -210,61 +224,28 @@ else {
 	<hgroup>
 		<h1><% __('My Materials') %></h1>
 	</hgroup>
-	<div class="scrollcontainer">
+	<div id="materialsScrollContainer" class="scrollcontainer">
 		<ul>
-%	if (scalar @assessment_links) {
-			<li><% __('Assessments') %>
-			<ul>
-%		foreach my $link (@assessment_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
-%	if (scalar @assignment_links) {
-			<li><% __('Assignments') %>
-			<ul>
-%		foreach my $link (@assignment_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
-%	if (scalar @case_links) {
-			<li><% __('Cases') %>
-			<ul>
-%		foreach my $link (@case_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
-%	if (scalar @eval_links) {
-			<li><% __('Course Evaluations') %>
-			<ul>
-%		foreach my $link (@eval_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
+
+%	my @materialLinksTop = ( [ \@assessment_links, 'Assessments', 'assessments_links' ],
+%				 [ \@assignment_links, 'Assignments', 'assignment_links' ],
+%				 [ \@case_links, 'Cases', 'case_links' ],
+%				 [ \@eval_links, 'Course Evaluations', 'eval_links' ] );
+
+
+<& SELF:populateMaterials, materialLinks => \@materialLinksTop &>
+
 %	if ($grade_link) {
 			<li><% $grade_link %></li>
 %	}
 			<li><a href="/management/flashcard/flashcard"><% __('Flash Cards') %></a>
 			<li><a href="/management/content/personalcontent"><% __('Folders') %></a></li>
-%	if (scalar @log_links) {
-			<li><% __('Patient Logs') %>
-			<ul>
-%		foreach my $link (@log_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
-%	if (scalar @quiz_links) {
-			<li><% __('Quizzes') %>
-			<ul>
-%		foreach my $link (@quiz_links) {
-				<li><% $link %></li>
-%		}
-			</ul></li>
-%	}
+
+%	my @materialLinksBottom = ([ \@log_links, 'Patient Logs', 'log_links' ],
+%				   [ \@quiz_links, 'Quizzes', 'quiz_links' ]);
+
+<& SELF:populateMaterials, materialLinks => \@materialLinksBottom &>
+
 %	if ($sp_link) {
 			<li><% $sp_link %></li>
 %	}
@@ -273,4 +254,21 @@ else {
 </nav>
 </%method>
 
+<%method populateMaterials>
+<%args>
+	$materialLinks
+</%args>
+%	foreach my $links ( @$materialLinks ) {
+%		if ( scalar @{ $links->[0] } ) {
+			<li>
+			<a class="materials_header" href="#" onclick='toggleMaterialLinks( "<% $links->[2] %>", this )'><% $links->[1] %>
+			(<% $#{ $links->[0] } + 1 %>)<img class="materials_button" src="/graphics/icon-nav-closed.png"></a>
+			<ul id="<% @$links[2] %>" class = "materiallinks">
+%			foreach my $link ( @{ $links->[0]  }) {
+				<li><% $link %></li>
+%			}
+			</ul></li>
+%		}
+%	}	
 
+</%method>

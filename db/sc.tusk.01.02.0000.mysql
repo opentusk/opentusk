@@ -1,59 +1,89 @@
--- Add new role for registrar that allows access to the grade admin pages
--- and remove existing (but not used) admin role at the school level [TUS-2026]
+-- Add support for redesign (TUSK 4.1)
+-- Add tables and history for: user_link and user_announcement_hide
+-- Add email_flag column to assignment table and history
 
-START TRANSACTION;
+CREATE TABLE IF NOT EXISTS `user_link` (
+  `user_link_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(24) NOT NULL,
+  `label` varchar(255) NOT NULL,
+  `url` text NOT NULL,
+  `sort_order` int(10) NOT NULL,
+  `created_by` varchar(24) NOT NULL,
+  `created_on` datetime NOT NULL,
+  `modified_by` varchar(24) NOT NULL,
+  `modified_on` datetime NOT NULL,
+  PRIMARY KEY (`user_link_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-USE tusk;
+CREATE TABLE IF NOT EXISTS `user_link_history` (
+  `user_link_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_link_id` int(10) unsigned NOT NULL,
+  `user_id` varchar(24) NOT NULL,
+  `label` varchar(255) NOT NULL,
+  `url` text NOT NULL,
+  `sort_order` int(10) NOT NULL,
+  `created_by` varchar(24) NOT NULL,
+  `created_on` datetime NOT NULL,
+  `modified_by` varchar(24) NOT NULL,
+  `modified_on` datetime NOT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`user_link_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-DELETE FROM permission_role WHERE role_id = 5;
-DELETE FROM permission_user_role WHERE role_id = 5;
-DELETE FROM permission_role_function WHERE role_id = 5;
+CREATE TABLE IF NOT EXISTS `user_announcement_hide` (
+  `user_announcement_hide_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(24) NOT NULL,
+  `announcement_id` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `hide_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_announcement_hide_id`),
+  KEY `user_id` (`user_id`,`announcement_id`,`school_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-COMMIT;
+CREATE TABLE IF NOT EXISTS `user_announcement_hide_history` (
+  `user_announcement_hide_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_announcement_hide_id` int(10) unsigned NOT NULL,
+  `user_id` varchar(24) NOT NULL,
+  `announcement_id` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `hide_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`user_announcement_hide_history_id`),
+  KEY `user_id` (`user_id`,`announcement_id`,`school_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+delimiter $$
+drop procedure if exists sc_tusk_01_02_0000;
+create procedure sc_tusk_01_02_0000()
+begin
+    declare _count int;
+    set _count = (
+        select count(*)
+               from information_schema.columns
+               where table_schema = 'tusk' and
+                     table_name = 'assignment' and 
+                     column_name = 'email_flag'
+    );
+    if _count = 0 then
+        alter table `assignment`
+            add column `email_flag` tinyint(1) unsigned not null default 0
+            after `resubmit_flag`;
+    end if;
+    set _count = (
+        select count(*)
+               from information_schema.columns
+               where table_schema = 'tusk' and
+                     table_name = 'assignment_history' and 
+                     column_name = 'email_flag'
+    );
+    if _count = 0 then
+        alter table `assignment_history`
+            add column `email_flag` tinyint(1) unsigned not null default 0
+            after `resubmit_flag`;
+    end if;
+end $$
+delimiter ;
 
-START TRANSACTION;
+call sc_tusk_01_02_0000();
 
-USE tusk;
-
-INSERT IGNORE
-INTO permission_function
-VALUES
-(
-  27,
-  'view_school_grades',
-  'View grades for a particular school',
-  'rasch01',
-  CURDATE(),
-  'rasch01',
-  CURDATE()
-);
-
-INSERT IGNORE
-INTO permission_role
-VALUES
-(
-  17,
-  'registrar',
-  'Ability to view grades for a particular school',
-  2,
-  'rasch01',
-  CURDATE(),
-  'rasch01',
-  CURDATE()
-);
-
-INSERT IGNORE
-INTO permission_role_function
-VALUES
-(
-  48,
-  17,
-  27,
-  'rasch01',
-  CURDATE(),
-  'rasch01',
-  CURDATE()
-);
-
-COMMIT;
+drop procedure sc_tusk_01_02_0000;

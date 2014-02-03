@@ -1,7 +1,21 @@
+# Copyright 2013 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
 package TUSK::I18N::I18N;
+
 use strict;
 use warnings;
-use Data::Dumper;
 use Carp qw(longmess shortmess carp cluck);
 use TUSK::Constants;
 use POSIX qw (setlocale LC_ALL);
@@ -15,6 +29,7 @@ use Exporter;
 use utf8;
 use Encode;
 our @ISA = qw(Exporter);
+
 ## Using EXPORT_OK ?
 our @EXPORT_OK = qw (__ __x __n __p __nx __xn  __px __np __npx $__ %__ 
              N__ N__n N__p N__np);
@@ -27,6 +42,7 @@ our %EXPORT_TAGS = (
 		'dummys'		=> [ qw( N__ N__n N__p N__np ) ]
 		
 );
+
 # create an :all tag (from perldoc Export)
 my %seen = ();
 push @{$EXPORT_TAGS{all}}, grep {!$seen{$_}++} @{$EXPORT_TAGS{$_}} foreach keys %EXPORT_TAGS;

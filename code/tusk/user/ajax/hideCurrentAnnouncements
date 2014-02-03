@@ -15,25 +15,25 @@
 </%doc>
 
 <%flags>
-  inherit => undef
+	inherit => undef
 </%flags>
 
 <%once>
 	use HSDB4::DateTime;
-	use TUSK::UserAnnouncementHide;
+	use TUSK::User::AnnouncementHide;
 	use TUSK::Core::School;
 </%once>
 
 <%perl>
 	my $user = $m->session->{'user'};
-	my $announcements = TUSK::UserAnnouncementHide::get_nonhidden_announcements_by_school($user->primary_key());
+	my $announcements = TUSK::User::AnnouncementHide::get_nonhidden_announcements_by_school($user->primary_key());
 	my $schoolObj = TUSK::Core::School->new();
 
 	# loop through user's visible announcements
 	foreach my $school (keys %$announcements) {
 		my $school_id = $schoolObj->getSchoolID($school);
 		foreach my $ann_id (keys %{$announcements->{$school}}) {
-			my $annHideObj = TUSK::UserAnnouncementHide->new();
+			my $annHideObj = TUSK::User::AnnouncementHide->new();
 			my $conditions = "user_id = '" . $user->primary_key() . "' AND announcement_id = '$ann_id' AND school_id = '$school_id'";
 
 			# does the user already have a row for this announcement?

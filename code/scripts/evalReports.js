@@ -172,7 +172,7 @@ function loadEval(url, siteAbbr, path, doMerged) {
 					_('We are working to resolve these issues but until that time, please enable compatibility mode by selecting "Compatibility View" from the Tools menu.')+'<br>'+
 					_('If we have detected this incorrectly or you have questions or require assistance, please use the Contact page.');
 			if(document.getElementById('evalArea')) {
-				document.getElementById('evalArea').innerHTML = '<center><b><font color="red">'+ message +'</font></b></center>';
+				document.getElementById('evalArea').innerHTML = '<center><b><font color="red">' + message + '</font></b></center>';
 			} else {
 				alert(message);
 			}
@@ -226,7 +226,9 @@ function doEvalLoad() {
 		if(document.getElementById('evalArea')) {
 			document.getElementById('evalArea').innerHTML = '<center><font color="red">'+_('Im sorry, an error has occurred while requesting this eval. Please contact here for support:')+ siteAbbreviation +'<font></center>';
 			if(error.description) {document.getElementById('evalArea').innerHTML += '<br><center>Error was: '+error.description+'</center>';}
-			if(ajaxRequest && ajaxRequest.status) {document.getElementById('evalArea').innerHTML += '<br><center>'+_('Ajax Return Code:')+ '+ajaxRequest.status+'</center>';}
+			if(ajaxRequest && ajaxRequest.status) {
+				document.getElementById('evalArea').innerHTML += '<br><center>' + _('Ajax Return Code:') + ajaxRequest.status + '</center>';
+			}
 		} else {alert(_('There was an error processing eval ajax request. Please contact here for support: ')+ siteAbbreviation);}
 	}
 }

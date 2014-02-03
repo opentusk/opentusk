@@ -78,6 +78,7 @@ my $sources = {
 
 my $browser = LWP::UserAgent->new();
 $browser->agent($ENV{HTTP_USER_AGENT});
+push @{ $browser->requests_redirectable }, 'POST';
 
 sub new {
     # Find out what class we are

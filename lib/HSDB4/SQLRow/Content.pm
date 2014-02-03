@@ -854,10 +854,18 @@ sub child_user_roles {
     #
     my ($self, $user_id) = @_;
 
+    # Check for error; TODO how can this happen?
+    my $pkey = $self->primary_key();
+    confess "Unexpected content primary key ID not defined" if (! defined $pkey);
+
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
 
     # And use it to get a LinkSet of users
-    my $child_users = $linkdef->get_children($self->primary_key, "child_user_id = '$user_id'");
+    my $child_users = $linkdef->get_children(
+        $pkey,
+        sprintf("child_user_id = %s",
+                HSDB4::Constants::def_db_handle()->quote($user_id)),
+    );
 
     my @users = $child_users->children();
 
@@ -1451,7 +1459,8 @@ sub is_user_author {
 # Readonly my @CONTENT_EDIT_ROLES =>
 my @CONTENT_EDIT_ROLES = (
     'Director',
-    'Manager'
+    'Manager',
+    'Student Manager',
 );
 
 # TODO Make Readonly

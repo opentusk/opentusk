@@ -794,13 +794,13 @@ sub has_announcements {
 }
 
 sub systemwide_usergroup {
-    return schoolwide_usergroup($TUSK::Constants::SystemWideUserGroupSchool);
+    return schoolwide_usergroup($TUSK::Constants::Default{School});
 }
 
 sub schoolwide_usergroup {
     my $school = lc(shift);
     my $user_group_id = HSDB4::Constants::school_wide_user_group_id($school)
-          || $TUSK::Constants::SystemWideUserGroup;
+          || $TUSK::Constants::Schools{$TUSK::Constants::Default{School}}{Groups}{SchoolWideUserGroup};
     return HSDB45::UserGroup->new(_school => $school, _id => $user_group_id);
 }
 

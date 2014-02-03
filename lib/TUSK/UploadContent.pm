@@ -54,6 +54,7 @@ our %fileTypes = (
 		'html'=> 'Document',
 		'pdf' => 'PDF',
 		'jpg' => 'Slide',
+		'jpeg' => 'Slide',
 		'gif' => 'Slide',
 		'png' => 'Slide',
 		'swf' => 'Shockwave',

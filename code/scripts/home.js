@@ -21,13 +21,14 @@ function closeNotifications() {
 	$('.notifications').hide();
 	$('#gContent').removeClass('withnote');
 	// AJAX call to hide user's current announcements
-	var url = '/tusk/ajax/hideCurrentAnnouncements';
+	var url = '/user/ajax/hideCurrentAnnouncements';
 	var xRequest = new initXMLHTTPRequest();
 	if (xRequest) {
 		xRequest.open("POST", url, true);
 		xRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 		xRequest.send();
 	}
+	materialsHeightAdjust();
 }
 
 // change class of clicked on tab to current and make previous tab not current anymore
@@ -86,11 +87,11 @@ function displayPersonalLinks() {
 			html += "</option>\n";
 			counter += 1;
 		});
-		html += "</select></td>\n<td><input type='text' class='label' name='label_";
+		html += "</select></td>\n<td><input type='text' class='js-personal-link-label' name='label_";
 		html += row.id;
 		html += "' value='";
 		html += row.label;
-		html += "' /></td>\n<td><input type='text' class='url' name='url_";
+		html += "' /></td>\n<td><input type='text' class='js-personal-link-url' name='url_";
 		html += row.id;
 		html += "' value='";
 		html += row.url;
@@ -124,10 +125,10 @@ function savePersonalLinks() {
 	// validate form data to make sure the necessary fields have been filled out
 	var counter = 1;
 	var error;
-	$(".label").each(function() {
+	$(".js-personal-link-label").each(function() {
 		error = '';
 		var thislabel = $(this).val();
-		var thisurl =  $(this).parent('td').siblings().children(".url").val();		
+		var thisurl =  $(this).parent('td').siblings().children(".js-personal-link-url").val();
 		if (!(/^((https?|ftp):\/\/)?(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(thisurl))) {
 			error = _('The URL in row ') + counter + _(' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
@@ -152,7 +153,7 @@ function savePersonalLinks() {
 	updateLinksArray();
 	var ajax = new initXMLHTTPRequest();
 	if (ajax) {
-		ajax.open("POST", '/tusk/ajax/savePersonalLinks', true);
+		ajax.open("POST", '/user/ajax/savePersonalLinks', true);
 		ajax.onreadystatechange = resetAllLinkData;
 		ajax.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 		ajax.send("data=" + encodeURIComponent(JSON.stringify(links)));
@@ -188,14 +189,14 @@ function resetAllLinkData() {
 // update JSON array of links from input fields, ordered by sort_order field
 function updateLinksArray() {
 	links.length = 0;
-	$(".label").each(function() {
+	$(".js-personal-link-label").each(function() {
 		var matches = $(this).attr("name").match(/label_(.*)/);
 		var id = matches[1];
 		var newItem = new Object();
 		newItem.id = id;
 		newItem.sort_order = $(this).parent('td').siblings().children(".sort_order").val();
 		newItem.label = $(this).val();
-		newItem.url =  $(this).parent('td').siblings().children(".url").val();
+		newItem.url =  $(this).parent('td').siblings().children(".js-personal-link-url").val();
 		links.push(newItem);
 	});
 	links.sort(function(a,b){return a.sort_order - b.sort_order});
@@ -217,3 +218,40 @@ function makeLinksDropDown() {
 }
 
 /* end Personal Links */
+
+function toggleMaterialLinks( material, obj ) {
+	var materialLinks = document.getElementById( material );
+	if ( $( '#' + material ).css( "display" ) == "inline" ) {
+		$( '#' + material ).css( "display", "none" );
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png" );
+	} else {
+		$( '#' + material ).css( "display", "inline" );
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
+		materialsHeightAdjust();
+	}
+}	
+
+function materialsHeightAdjust() {	
+	var paddingAdjustment = 70; //px
+	var trafficLightHeight = ( $( '#gTrafficLight' ).height() ) || 0;
+	if ( trafficLightHeight > 0 ) {
+		paddingAdjustment = paddingAdjustment - 25;
+	};
+	var scrollBoxHeight = $( '#gContent' ).height() + trafficLightHeight - $( '#communicationsBox' ).height() - paddingAdjustment;
+	$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );		
+}
+
+function toggleLinksLinks( material, obj ) {
+	if ( $( '#' + material ).css( "display" ) == "none" ) {
+		$( '#' + material ).css( "display", "block");
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
+	} else {
+		$( '#' + material ).css( "display", "none");
+		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png");
+	}
+}
+
+
+	
+	
+

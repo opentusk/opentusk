@@ -126,9 +126,8 @@ my $authentication = sub {
 	if ($m->base_comp->attr('check_cms_permissions')){
 		my $typeObj = $m->comp("/tmpl/url:get_type_object");
 		if (ref($typeObj) eq "HSDB45::Course"){
-
 			unless (TUSK::Session::is_school_admin($m->session, $typeObj->school(), $m->session->{'user'})){
-				if ($m->comp("SELF:check_course_permissions", token => $m->comp('SELF:cms_min_course_role')) == 0){
+				if ($m->comp("SELF:check_course_permissions", token => 'AUTHOR') == 0){
 					$r->headers_out->set('Location','/home?errmsg=Access+Denied');
 					$r->status(REDIRECT);
 					$m->abort(REDIRECT);

@@ -28,11 +28,13 @@ has verbose => (
 has db_user => (
     is => 'ro',
     isa => 'Maybe[Str]',
+    required => 0,
     default => undef,
 );
 has db_pw => (
     is => 'ro',
     isa => 'Maybe[Str]',
+    required => 0,
     default => undef,
 );
 

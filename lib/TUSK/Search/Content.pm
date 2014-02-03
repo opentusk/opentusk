@@ -487,9 +487,12 @@ sub search {
 
     foreach my $key (qw(title author course copyright)) {
         if ($query_ref->{$key}) {
-            push @wheres, "match($key) against (? in boolean mode)";
+            # kludge for author -> authors, course -> courses
+            my $col = $key;
+            $col .= 's' if ($key eq 'author' || $key eq 'course');
+            push @wheres, "match($col) against (? in boolean mode)";
             push @where_args, $query_ref->{$key};
-            push @selects, "match($key) against (?)";
+            push @selects, "match($col) against (?)";
             push @select_args, $query_ref->{$key};
         }
     }
