@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use TUSK::Session;
 	use TUSK::Permission;
@@ -20,20 +21,20 @@
 </%once>
 
 <%args>
-$type_path
-$school_name
-$show_in_td => 1
+	$type_path
+	$school_name
+	$show_in_td => 1
 </%args>
 
 <div id="gLeftNav" class="<% $show_in_td? 'gTableNav' : '' %>">
 <%perl>
-if (TUSK::Session::is_admin($m->session)) {
-	$m->comp("SELF:print_admin_nav", school_name => $school_name);
-} 
-if (TUSK::Session::is_eval_admin($m->session)) {
- 	$m->comp("SELF:print_eval_nav");
-}
-$m->comp("SELF:print_grade_nav");
+	if (TUSK::Session::is_admin($m->session)) {
+		$m->comp("SELF:print_admin_nav", school_name => $school_name);
+	} 
+	if (TUSK::Session::is_eval_admin($m->session)) {
+ 		$m->comp("SELF:print_eval_nav");
+	}
+	$m->comp("SELF:print_grade_nav");
 </%perl>
 </div> <!-- end gLeftNav -->
 
@@ -115,18 +116,21 @@ check_links();
 
 <%method print_grade_nav>
 <%perl>
-my @grade_nav_schools;
-my $perm;
-foreach my $school (@{TUSK::Core::School->lookup()}) {
-	$perm = TUSK::Permission->new({
-		   'user_id'=> $m->session->{'user'}->primary_key, 
-		   'feature_type_token' => 'school', 
-		   'feature_id' => $school->getPrimaryKeyID(),
-	});
-	if ($perm->check('view_school_grades')){ 
-		push @grade_nav_schools, $school;
+	my @grade_nav_schools;
+
+	foreach my $school (@{TUSK::Core::School->new()->getTUSKConfSchools()}) {
+
+		my $perm = TUSK::Permission->new({
+			'user_id'=> $m->session->{'user'}->primary_key, 
+		   	'feature_type_token' => 'school', 
+			'feature_id' => $school->getPrimaryKeyID(),
+		});
+
+		if ($perm->check('view_school_grades')){ 
+			warn $school->getSchoolName() . ',' . $school->getPrimaryKeyID();
+			push @grade_nav_schools, $school;
+		}
 	}
-}
 </%perl>
 % if (scalar @grade_nav_schools) {
 	<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=>'Grade&nbsp;Admin'} &>

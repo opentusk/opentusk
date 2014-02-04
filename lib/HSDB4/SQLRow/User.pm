@@ -300,22 +300,22 @@ sub check_author{
 
 sub check_grade_admin {
     my ($self) = @_;
-    my $perm;
 
     if ($self->primary_key()) {
-	my $schools = TUSK::Core::School->lookup("school_name in (" . join(',' map { "'" . $_ . "'" } keys $TUSK::Contants::Schools)  . ")");
+	my $schools = TUSK::Core::School->new()->getTUSKConfSchools();
 	foreach my $school (@$schools) {
-			$perm = TUSK::Permission->new({
-				   'user_id'=> $self->primary_key(), 
-				   'feature_type_token' => 'school', 
-				   'feature_id' => $school->getPrimaryKeyID(),
-			});
-			if ($perm->check('view_school_grades')){ 
-				return 1;
-			}
-		}
+	    my $perm = TUSK::Permission->new({
+		'user_id'=> $self->primary_key(), 
+		'feature_type_token' => 'school', 
+		'feature_id' => $school->getPrimaryKeyID(),
+	    });
+
+	    if ($perm->check('view_school_grades')){ 
+		return 1;
+	    }
 	}
-	return 0;
+    }
+    return 0;
 }
 
 sub check_admin{
@@ -925,38 +925,29 @@ sub all_courses{
 
 sub user_group_courses{
     # Get the user's current student's user group courses
-	# unless a date is passed in, in which case, get the groups linked on that date
+    # unless a date is passed in, in which case, get the groups linked on that date
 
     my $self = shift;
     my $cond = shift || "";
-	my $date = shift || HSDB4::DateTime->new()->out_mysql_date;
-
-    my $dbh = HSDB4::Constants::def_db_handle();
-
-    my $schools = TUSK::Core::School->lookup("school_name in (" . join(',' map { "'" . $_ . "'" } keys $TUSK::Contants::Schools)  . ")");
-
-    my $lookup = {};
-
-    foreach my $school (@$schools){
-	$lookup->{ $school->getSchoolName() } = $school;
-    }
+    my $date = shift || HSDB4::DateTime->new()->out_mysql_date;
+    my $lookup = { map { $_->getSchoolName() => $_ } TUSK::Core::School->new()->getTUSKConfSchools() };
 
     my $courses = [];
     my @school_joins = ();
 
-    foreach my $school ( course_schools() ){
+    foreach my $school (course_schools()) {
 	my $db = get_school_db($school);
 	my $school_id = $lookup->{ $school }->getPrimaryKeyID();
 
 	push @school_joins, "(select '" . $school . "' as school_name, '" . $school_id . "' as school_id, parent_course_id, t.time_period_id, u.user_group_id, u.sub_group
-					from $db\.link_user_group_user lugu, $db\.link_course_user_group lcug, $db\.time_period t, $db\.user_group u
-					where lugu.parent_user_group_id = lcug.child_user_group_id and t.time_period_id = lcug.time_period_id and 
-                                              u.user_group_id = lcug.child_user_group_id and $cond
-                                              lugu.child_user_id = '" . $self->primary_key() . "' and t.start_date <= '$date' and t.end_date >= '$date')";
+			from $db\.link_user_group_user lugu, $db\.link_course_user_group lcug, $db\.time_period t, $db\.user_group u
+			where lugu.parent_user_group_id = lcug.child_user_group_id and t.time_period_id = lcug.time_period_id and 
+                        u.user_group_id = lcug.child_user_group_id and $cond
+                        lugu.child_user_id = '" . $self->primary_key() . "' and t.start_date <= '$date' and t.end_date >= '$date')";
     }
 
+    my $dbh = HSDB4::Constants::def_db_handle();
     my $sth = $dbh->prepare(join (' union ', @school_joins));
-
     $sth->execute();
     
     while (my $row = $sth->fetchrow_hashref){

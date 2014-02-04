@@ -29,6 +29,7 @@ B<TUSK::Core::School> - Class for manipulating entries in table school in tusk d
 
 use strict;
 use TUSK::SchoolLink::SchoolLink;
+use TUSK::Constants;
 
 BEGIN {
     require Exporter;
@@ -217,6 +218,23 @@ sub getHomepageSchoolLinks{
 	            ]);
 
 	return $links;
+}
+
+
+
+#######################################################
+
+=item B<getTUSKConfSchools>
+
+    $schools = $obj->getTUSKConfSchools();
+
+Get all of the School objects based on tusk.conf
+
+=cut
+
+sub getTUSKConfSchools {
+    my $self = shift;
+    return $self->lookup("school_name in (" . join(',', map { "'" . $_ . "'" } keys %TUSK::Constants::Schools)  . ")");
 }
 
 =head1 AUTHOR
