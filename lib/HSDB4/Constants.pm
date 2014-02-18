@@ -162,10 +162,7 @@ sub code_by_school {
 }
 
 sub school_db_list {
-    my @school_dbs = map {
-        get_school_db($_)
-    } keys %TUSK::Constants::Schools;
-    return @school_dbs;
+    return map { get_school_db($_) } keys %TUSK::Constants::Schools;
 }
 
 sub get_school_db {
