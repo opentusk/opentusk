@@ -13,12 +13,13 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use TUSK::GradeBook::GradeEvent;
 	use TUSK::GradeBook::LinkUserGradeEvent;
 	use TUSK::Application::GradeBook::GradeBook;
-    use HSDB45::TimePeriod;
-    use TUSK::Core::School;
+	use HSDB45::TimePeriod;
+	use TUSK::Core::School;
 </%once>
 
 <%shared>
@@ -28,20 +29,17 @@
 	my $event_name = $event->getEventName();
 	my $is_edit = 0;
 	my $type_object = $m->comp("/tmpl/url:get_type_object");
-    my $time_period = HSDB45::TimePeriod->new(
-            _school => TUSK::Core::School->lookupKey(
-                $event->getSchoolID() )->getSchoolName()
-        )->lookup_key( $event->getTimePeriodID() );
+	my $time_period = HSDB45::TimePeriod->new(_school => TUSK::Core::School->lookupKey($event->getSchoolID() )->getSchoolName())->lookup_key( $event->getTimePeriodID() );
 
 	if (defined($event_id)){
 		$is_edit = 1;
-        $event = TUSK::GradeBook::GradeEvent->new->lookupKey($event_id);
+	        $event = TUSK::GradeBook::GradeEvent->new->lookupKey($event_id);
 		unless ($event->checkTypePath($type_object, $m->comp("SELF:get_timeperiod_id"))){
 			$m->comp("/tmpl/url:redirect", message => __("There was an error with your request"));
 		}
 	} else {
 		$is_edit = 0;
-        $event = TUSK::GradeBook::GradeEvent->new();
+        	$event = TUSK::GradeBook::GradeEvent->new();
 	}
 
 	my ($grades_data, $saved_grades) = $event->getGradeRecords($type_object);
@@ -86,9 +84,9 @@ my $fullPath = $m->comp("/tmpl/url:get_full_path");
 </%perl>
 
 <%init>
-my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id, user_id => $m->session->{'user'}->user_id()});
+	my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $type_object, time_period_id => $time_period_id, user_id => $m->session->{'user'}->user_id()});
 
-foreach my $x (@$grades_data) {
+	foreach my $x (@$grades_data) {
 		my $calculated_grade = $x->{'grade'};
 		my $scaled_grade = $gb->getScaledGrade($calculated_grade, $event_id); 
 		$x->{'scaled_grade'} = $scaled_grade;
@@ -97,13 +95,13 @@ foreach my $x (@$grades_data) {
 </%init>
 
 <%method jsarray>
-% return ['layers.js', 'element.js', 'gradebook.js'];
+% 	return ['layers.js', 'element.js', 'grade/gradebook.js'];
 </%method>
 
 <%method title>
-%return __("View Grades");
+%	return __("View Grades");
 </%method>
 
 <%method red_header_text>
-% return $m->comp('SELF:title');
+% 	return $m->comp('SELF:title');
 </%method>
