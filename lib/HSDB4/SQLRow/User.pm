@@ -35,7 +35,6 @@ BEGIN {
 use HTML::Entities;
 use HSDB4::Constants qw(:school);
 use TUSK::Constants;
-use TUSK::Core::JoinObject;
 use TUSK::GradeBook::GradeEvent;
 use TUSK::GradeBook::LinkUserGradeEvent;
 use TUSK::Assignment::Assignment;
@@ -298,51 +297,31 @@ sub check_author{
     }
 }
 
-sub check_grade_admin {
-    my ($self) = @_;
-
-    if ($self->primary_key()) {
-	my $schools = TUSK::Core::School->new()->getTUSKConfSchools();
-	foreach my $school (@$schools) {
-	    my $perm = TUSK::Permission->new({
-		'user_id'=> $self->primary_key(), 
-		'feature_type_token' => 'school', 
-		'feature_id' => $school->getPrimaryKeyID(),
-	    });
-
-	    if ($perm->check('view_school_grades')){ 
-		return 1;
-	    }
-	}
-    }
-    return 0;
-}
 
 sub check_admin{
     my ($self, $roles) = @_;
 
     if (!$self->primary_key()){
-		confess "check_author only works on initialized user objects"; 
+	confess "check_author only works on initialized user objects"; 
     }
 
     # Get the link definition
     foreach my $school (course_schools()){
-		my $db = get_school_db($school);
-		my $eval_gid = HSDB4::Constants::get_eval_admin_group($school);
-		my $admin_gid = $HSDB4::Constants::School_Admin_Group{$school};
-		my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_user_group_user"};
+	my $db = get_school_db($school);
+	my $eval_gid = HSDB4::Constants::get_eval_admin_group($school);
+	my $admin_gid = $HSDB4::Constants::School_Admin_Group{$school};
+	my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_user_group_user"};
 
-		if ($eval_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $eval_gid")) {
-			$roles->{tusk_session_eval_admin}->{$school} = 1;
-			$roles->{tusk_session_is_author} = 1;
-		}
+	if ($eval_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $eval_gid")) {
+	    $roles->{tusk_session_eval_admin}->{lc $school} = 1;
+	    $roles->{tusk_session_is_author} = 1;
+	}
 
-		if ($admin_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $admin_gid")) {
-			$roles->{tusk_session_admin}->{$school} = 1;
-			$roles->{tusk_session_is_author} = 1;
-		}
+	if ($admin_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $admin_gid")) {
+	    $roles->{tusk_session_admin}->{lc $school} = 1;
+	    $roles->{tusk_session_is_author} = 1;
+	}
     }
-
     return $roles;
 }
 
@@ -930,7 +909,7 @@ sub user_group_courses{
     my $self = shift;
     my $cond = shift || "";
     my $date = shift || HSDB4::DateTime->new()->out_mysql_date;
-    my $lookup = { map { $_->getSchoolName() => $_ } TUSK::Core::School->new()->getTUSKConfSchools() };
+    my $lookup = { map { $_->getSchoolName() => $_ } @{TUSK::Core::School->new()->getTUSKConfSchools()} };
 
     my $courses = [];
     my @school_joins = ();
