@@ -214,27 +214,21 @@ if ($m->base_comp->attr('check_feature_permissions')){
 
 my $type_path = ($m->base_comp->attr('no_check_path')) ? "" : $m->comp("/tmpl/url:get_type_path");
 
-my $localUser = undef;
-my $localIsAuthor = undef;
-eval {
-	$localUser = $m->session->{'user'};
-	$localIsAuthor = TUSK::Session::is_author($m->session, $m->session->{user});
-};
-
-my %req_hash = ( user => $localUser,
+my %req_hash = ( 
+		user => $m->session->{'user'} || undef,
                 nav_bar => $nav_bar_arrayref,
                 jsarray => $m->comp("SELF:jsarray"),
                 stylearray => $m->comp("SELF:stylearray"),
-                pagetitle => $m->comp("SELF:title",%ARGS),
+                pagetitle => $m->comp("SELF:title"),
                 leftnav  => $m->comp("SELF:leftnav"),
                 type_path => $type_path,
-                redHeaderBarText => $m->comp("SELF:red_header_text", %ARGS),
+                redHeaderBarText => $m->comp("SELF:red_header_text"),
                 syndicate => $m->base_comp->attr('syndicate'),
                 body_id => $m->base_comp->attr('body_id'),
                 body_class => $m->base_comp->attr('body_class'),
-                right_header_text => $m->comp("SELF:right_header_text", %ARGS),
+                right_header_text => $m->comp("SELF:right_header_text"),
                 noheader => $ARGS{print} ? 1 : $m->base_comp->attr("no_header"), 
-				no_footer => $ARGS{print} ? 1 : $m->base_comp->attr("no_footer"), 
+		no_footer => $ARGS{print} ? 1 : $m->base_comp->attr("no_footer"), 
                 docType => $m->base_comp->attr("docType"), 
                 nobody => $ARGS{print} ? 1 : $m->base_comp->attr("no_body"), 
                 form => $m->comp("SELF:form"),
@@ -249,10 +243,10 @@ my %req_hash = ( user => $localUser,
                 headerBarClass => $m->comp("SELF:red_header_class"),
                 onload => $m->base_comp->attr('onload'),
                 onunload => $m->base_comp->attr('onunload'),
-				is_author => $localIsAuthor,
-				skip_header_bar => $m->base_comp->attr('skip_header_bar'),
+		is_author => TUSK::Session::is_author($m->session, $m->session->{user}) || 0,
+		skip_header_bar => $m->base_comp->attr('skip_header_bar'),
                 no_leftbar => $m->base_comp->attr('no_leftbar'),
-				nostandardheader => $m->base_comp->attr('nostandardheader'),
+		nostandardheader => $m->base_comp->attr('nostandardheader'),
                );
 </%perl>
 
