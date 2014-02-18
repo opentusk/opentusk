@@ -15,26 +15,21 @@
 </%doc>
 
 <%attr>
-	check_cms_permissions 		=> 0
 	check_feature_permissions 	=> 1
-	default_path_type		=> ''
 	top_tab_type 			=> 'manage'
-	no_check_path			=> 0
-	page_header			=> '/tmpl/prepend'
-	page_footer			=> '/tmpl/footer'
-	case_ignore_perms		=> 0
 </%attr>
 
 <%shared>
-	my $permissions;
+	my $school = $m->comp("/tmpl/url:get_type_object");
 </%shared>
 
 <%perl>
-	$permissions = TUSK::Permission->new( { 
-		'user_id' 				=> $m->session->{'user'}->primary_key(),
+	my $permissions = TUSK::Permission->new( { 
+		'user_id' 		=> $m->session->{'user'}->primary_key(),
 		'feature_type_token' 	=> $m->comp('SELF:feature_type_token'),
-		'feature_id' 			=> $m->comp('SELF:feature_id')
+		'feature_id'		=> $m->comp('SELF:feature_id')
 	} );
+
 	unless ($permissions->check($m->comp('SELF:function_token'))) {
 		$m->comp("/tmpl/url:redirect", message => __("Permission Denied"));
 	}
@@ -42,15 +37,29 @@
 	$m->call_next();
 </%perl>
 
+<%method school>
+% 	return $school;
+</%method>
+
 <%method feature_type_token>
-% return 'school';
+% 	return 'school';
 </%method>
 
 <%method function_token>
-% return 'view_school_grades';
+% 	return 'view_school_grades';
 </%method>
 
 <%method feature_id>
-% my $school_obj =  $m->comp("/tmpl/url:get_type_object");
-% return $school_obj->getPrimaryKeyID();
+% 	return $school->getPrimaryKeyID();
+</%method>
+
+<%method leftnav>
+<%perl>
+	my $user = $m->session->{user};
+
+  	if ($m->session->{roles}->{tusk_session_is_grade_admin}) {
+ 		return { component => "/tmpl/leftnav/admin", school_name => $school->getSchoolName() };
+ 	}
+	return undef;
+</%perl>
 </%method>
