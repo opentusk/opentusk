@@ -1,19 +1,55 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::GradeBook::GradeEvent;
+	use HSDB45::TimePeriod;
+</%once>
+
 <%method generateForm>
 <%args>
 	$type
-	$time_periods => {}
-	$school_id
+	$school
 </%args>
 
+<%perl>
+	my $school_id = $school->getPrimaryKeyID();
+	my $final_grade_events = TUSK::GradeBook::GradeEvent->lookup("school_id = $school_id GROUP BY time_period_id", undef, undef, undef, [
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', 
+			{ joinkey => 'grade_event_type_id', jointype => 'inner', joincond => "grade_event_type_token = 'finalgrade'"}),
+		TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkCourseStudent', 
+			{ joinkey => 'parent_course_id', origkey => 'grade_event.course_id', jointype => 'inner', joincond => "grade_event.time_period_id = link_course_student.time_period_id", database => $school->getSchoolDb() }),
+	]);
+
+	my @time_periods = ();
+	if (scalar @$final_grade_events) {
+		my $tp_ids = join(', ', map { $_->getTimePeriodID() } @$final_grade_events);
+		@time_periods = HSDB45::TimePeriod->new(_school => $school->getSchoolName())->lookup_conditions("time_period_id in ($tp_ids) order by start_date, end_date DESC");
+	}
+</%perl>
+
 <nav>
-% if (scalar keys %$time_periods) {
+% if (scalar @time_periods) {
 	<form class="audit">
 	<input type="hidden" name="school_id" value="<% $school_id %>" />
    	<div class="filter active">
   		<label for="tp_id"><% __('Time Period(s)') %></label>
   		<select id="tp_id" name="tp_id" multiple="multiple">
-% 	foreach my $tp_id (keys %$time_periods) {
-	<option value="<% $tp_id %>"><% $time_periods->{$tp_id}->field_value('period') . ', ' . $time_periods->{$tp_id}->field_value('academic_year') . ' (' . $time_periods->{$tp_id}->field_value('start_date') . ' to ' . $time_periods->{$tp_id}->field_value('end_date') . ')'  %></option>
+% 	foreach my $tp (@time_periods) {
+	<option value="<% $tp->primary_key() %>"><% $tp->out_display() . ' (' . $tp->out_date_range() . ')' %></option>
 % 	}
   		</select>
    		<img src="/graphics/icons/waiting_bar.gif" class="waiting" />
@@ -42,7 +78,7 @@
  		<input type="button" name="student-all" value="<% __('select all') %>" class="formbutton all" />
 	</fieldset>
 	</div>
-% if ($type eq "audit") {
+% 	if ($type eq "audit") {
 		<div class="filter">
 			<label for="display"><% __('Organize Display by') %></label>
 			<fieldset class="radio">
@@ -57,7 +93,7 @@
 				</div>
 			</fieldset>
 		</div>
-% }
+% 	}
 	</form>
 % } else {
 	<& "/tmpl/prepend:traffic_light", make_table => 1, args => {'hintmsg' => __('There are no final grades available.')} &>
