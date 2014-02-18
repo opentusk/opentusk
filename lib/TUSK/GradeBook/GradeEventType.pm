@@ -66,6 +66,7 @@ sub new {
 					},
 				    _field_names => {
 					'grade_event_type_id' => 'pk',
+					'grade_event_type_token' => '',
 					'grade_event_type_name' => '',
 				    },
 				    _attributes => {
@@ -103,7 +104,6 @@ sub getGradeEventTypeID{
     return $self->getFieldValue('grade_event_type_id');
 }
 
-#######################################################
 
 
 #######################################################
@@ -137,6 +137,37 @@ sub setGradeEventTypeName{
 }
 
 
+
+#######################################################
+
+=item B<getGradeEventTypeToken>
+
+    $string = $obj->getGradeEventTypeToken();
+
+    Get the value of the grade_event_type_token field
+
+=cut
+
+sub getGradeEventTypeToken{
+    my ($self) = @_;
+    return $self->getFieldValue('grade_event_type_token');
+}
+
+
+#######################################################
+
+=item B<setGradeEventTypeToken>
+
+    $string = $obj->setGradeEventTypeToken($value);
+
+    Set the value of the grade_event_type_token field
+
+=cut
+
+sub setGradeEventTypeToken{
+    my ($self, $value) = @_;
+    $self->setFieldValue('grade_event_type_token', $value);
+}
 
 =back
 
