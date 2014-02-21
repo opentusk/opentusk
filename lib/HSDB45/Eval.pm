@@ -28,6 +28,8 @@ use TUSK::Constants;
 use TUSK::Eval::Type;
 use TUSK::Enum::Data;
 use TUSK::Eval::Association;
+use TUSK::Eval::Entry;
+use TUSK::Eval::Role;
 
 BEGIN {
     use vars qw($VERSION);
@@ -868,10 +870,11 @@ sub get_teaching_eval_completions_by_evaluators {
     my $self = shift;
 
     unless (defined $self->{teaching_eval_completions_by_evaluator}) {
+	my $db = $self->school_db();
 	my $sql = qq(
 		     SELECT evaluator_id, er.role_id, count(*)
 		     FROM tusk.eval_association ea
-		     INNER JOIN hsdb45_med_admin.eval e on (ea.eval_id = e.eval_id)
+		     INNER JOIN $db.eval e on (ea.eval_id = e.eval_id)
 		     INNER JOIN tusk.enum_data ed on (ea.status_enum_id = enum_data_id and ed.namespace = 'eval_association.status' and ed.short_name = 'completed')
 		     INNER JOIN tusk.course_user cs on (cs.user_id = ea.evaluatee_id and cs.course_id = e.course_id and cs.time_period_id = e.time_period_id and cs.school_id = ea.school_id)
 		     INNER JOIN tusk.permission_user_role ur on (ur.user_id = cs.user_id and ur.feature_id = cs.course_user_id)
@@ -880,7 +883,6 @@ sub get_teaching_eval_completions_by_evaluators {
 		     WHERE er.eval_id = ? and er.school_id = ?
 		     group by evaluator_id, er.role_id;
 		     );
-
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my $sth = $dbh->prepare($sql);
 	$sth->execute($self->primary_key(), $self->school_id());
