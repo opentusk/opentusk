@@ -27,6 +27,7 @@ use HSDB4::StyleSheetType;
 use TUSK::Constants;
 use TUSK::Eval::Type;
 use TUSK::Enum::Data;
+use TUSK::Eval::Association;
 
 BEGIN {
     use vars qw($VERSION);
