@@ -88,37 +88,37 @@
 
 	my $password = $fdat{'load_password'} || $fdat{'submit_password'};
 	my $pw_error = 0;
-	if ( $password ) {
-        if ($fdat{save_submit} || $fdat{complete_submit}) {
-            # Save and Submit should verify
-            if ($user->verify_password($password)) {
-                $answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
-            } else {
-                $pw_error = 1;
-                $m->comp('SELF:set_msg', msg => __("Passwords do not match."), type => 'err' );
-            }
-		} elsif ($fdat{load_submit}) {
-            # Load should try to fetch answers. If unsuccessful,
-            # suggest user try old password.
-            $answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
-            unless ($answers->has_answers()) {
-                $pw_error = 1;
-                if ($user->verify_password($password)) {
-                    $m->comp('SELF:set_msg',
-                             msg => __("Oops! I can't find your saved answers. Did your password change? Please try Load Answers again with your old password."),
-                             type => 'err');
-                } else {
-                    $m->comp('SELF:set_msg', msg => __("Passwords do not match."),
-                             type => 'err' );
-                }
-            }
-        }
+	if ($password) {
+	    if ($fdat{save_submit} || $fdat{complete_submit}) {
+		# Save and Submit should verify
+		if ($user->verify_password($password)) {
+		    $answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
+		} else {
+		    $pw_error = 1;
+		    $m->comp('SELF:set_msg', msg => __("Passwords do not match."), type => 'err' );
+		}
+	    } elsif ($fdat{load_submit}) {
+		# Load should try to fetch answers. If unsuccessful,
+		# suggest user try old password.
+		$answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
+		unless ($answers->has_answers()) {
+		    $pw_error = 1;
+		    if ($user->verify_password($password)) {
+			$m->comp('SELF:set_msg',
+				 msg => __("Oops! I can't find your saved answers. Did your password change? Please try Load Answers again with your old password."),
+				 type => 'err');
+		    } else {
+			$m->comp('SELF:set_msg', msg => __("Passwords do not match."),
+				 type => 'err' );
+		    }
+		}
+	    }
 	} elsif ($fdat{load_submit} || $fdat{save_submit} || $fdat{complete_submit}) {
-		$pw_error = 1;
-		$m->comp('SELF:set_msg', msg => __("Please enter your password."), type => 'err' );
+	    $pw_error = 1;
+	    $m->comp('SELF:set_msg', msg => __("Please enter your password."), type => 'err' );
 	}
 
-	if ( !$pw_error ) {
+	if (!$pw_error) {
 		if ($fdat{load_submit}) {
 			$m->comp('SELF:set_msg', msg => __('Answers loaded.'), type => 'msg');
 			if ($answers && $answers->answers()) {
@@ -135,7 +135,7 @@
 					$fdat{"eval_q_$key"} = $answer;
 				}
 				$m->comp('SELF:set_msg', msg => __('Please complete all required questions.'), type => 'err');
-	    	} else {
+			} else {
 				($eval_completed, $msg) = $eval->answer_form($user, \%fdat);
 				if ($eval_completed) {
 					$m->comp('SELF:acknowledge');
