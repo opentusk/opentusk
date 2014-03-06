@@ -42,45 +42,41 @@ function doQuickRefWindow(url) {
 
 // TODO: This sort of browser fiddling would be better done with jQuery
 function satisfy(qid, type) {
-  var imgname="flag_"+qid;
-  var fieldname = "eval_q_"+qid;
-  if (document.images) {
-    var image = document.images[imgname];
-    if (image == null) return;
-    var element = document.forms['eval_form'].elements[fieldname];
-    if (type == 'select') {
-      if (element.options[element.selectedIndex].value.length == 0) {
-        image.src = "/icons/reddot.gif";
-      } else {
-	requiredSatisfied(qid);
-        image.src = "/icons/transdot.gif";
-      }
+    var imgname="flag_"+qid;
+    var fieldname = "eval_q_"+qid;
+    if (document.images) {
+	var image = document.images[imgname];
+	if (image == null) return;
+	var element = document.forms['eval_form'].elements[fieldname];
+	if (type == 'select') {
+	    if (element.options[element.selectedIndex].value.length == 0) {
+		image.src = "/icons/reddot.gif";
+	    } else {
+		requiredSatisfied(qid);
+		image.src = "/icons/transdot.gif";
+	    }
+	} else if (type == 'text') {
+	    if (element.value.length == 0) {
+		image.src = "/icons/reddot.gif";
+	    } else {
+		requiredSatisfied(qid);
+		image.src = "/icons/transdot.gif";
+	    } 
+	} else if ('value' in element) {
+	    // check if element's value is non-empty
+	    if (element.value.length == 0) {
+		image.src = "/icons/reddot.gif";
+	    } else {
+		requiredSatisfied(qid);
+		image.src = "/icons/transdot.gif";
+	    }
+	} else {
+	    // It's probably OK, and we can just mark it as such
+	    requiredSatisfied(qid);
+	    image.src = "/icons/transdot.gif";
+	}
     }
-    else if (type == 'text') {
-      if (element.value.length == 0) {
-        image.src = "/icons/reddot.gif";
-      } else {
-	requiredSatisfied(qid);
-        image.src = "/icons/transdot.gif";
-      } 
-    }
-    else if ('value' in element) {
-      // check if element's value is non-empty
-      if (element.value.length == 0) {
-        image.src = "/icons/reddot.gif";
-      }
-      else {
-        requiredSatisfied(qid);
-        image.src = "/icons/transdot.gif";
-      }
-    }
-    else {
-      // It's probably OK, and we can just mark it as such
-      requiredSatisfied(qid);
-      image.src = "/icons/transdot.gif";
-    }
-  }
-  return true;
+    return true;
 }
 
 function checkLoadPassword() {
