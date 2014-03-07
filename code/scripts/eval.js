@@ -42,9 +42,9 @@ function doQuickRefWindow(url) {
 
 // TODO: This sort of browser fiddling would be better done with jQuery
 function satisfy(qid, type) {
-    var imgname="flag_"+qid;
+    var imgname = "flag_"+qid;
     var fieldname = "eval_q_"+qid;
-    if (document.images) {
+    if (document.images && isRequired(qid)) {
 	var image = document.images[imgname];
 	if (image == null) return;
 	var element = document.forms['eval_form'].elements[fieldname];
@@ -98,6 +98,15 @@ function lengthCheck(qid,type,length){
 	return false ;
   } 
   return true;
+}
+
+function isRequired(qid){
+	for (var i = 0; i < requiredObject.length; i++){
+		if (requiredObject[i].id == qid){
+			return true;
+		}
+	}
+        return false;
 }
 
 function requiredSatisfied(qid){
