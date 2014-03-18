@@ -95,10 +95,15 @@ sub is_school_admin{
 		}
     }
 
-    if (defined($hash->{roles}->{tusk_session_admin}->{$school})) {return($hash->{roles}->{tusk_session_admin}->{$school});}
-    elsif(defined($hash->{roles}->{tusk_session_admin}->{lc($school)})) {return($hash->{roles}->{tusk_session_admin}->{lc($school)});}
-    elsif(defined($hash->{roles}->{tusk_session_admin}->{uc($school)})) {return($hash->{roles}->{tusk_session_admin}->{uc($school)});}
-    else {return(0);}
+    if (defined($hash->{roles}->{tusk_session_admin}->{$school})) {
+      return $hash->{roles}->{tusk_session_admin}->{$school};
+    } elsif (defined($hash->{roles}->{tusk_session_admin}->{lc($school)})) {
+      return $hash->{roles}->{tusk_session_admin}->{lc($school)};
+    } elsif (defined($hash->{roles}->{tusk_session_admin}->{uc($school)})) {
+      return $hash->{roles}->{tusk_session_admin}->{uc($school)};
+    } else {
+      return 0;
+    }
 }
 
 sub is_author{
@@ -134,8 +139,15 @@ sub is_school_eval_admin {
 	}
     }
     
-    $school = lc $school;
-    return (defined($hash->{roles}->{tusk_session_eval_admin}->{$school})) ?  $hash->{roles}->{tusk_session_eval_admin}->{$school} : 0;
+    if (defined($hash->{roles}->{tusk_session_eval_admin}->{$school})) {
+      return $hash->{roles}->{tusk_session_eval_admin}->{$school};
+    } elsif (defined($hash->{roles}->{tusk_session_eval_admin}->{lc($school)})) {
+      return $hash->{roles}->{tusk_session_eval_admin}->{lc($school)};
+    } elsif (defined($hash->{roles}->{tusk_session_eval_admin}->{uc($school)})) {
+      return $hash->{roles}->{tusk_session_eval_admin}->{uc($school)};
+    } else {
+      return 0;
+    }
 }
 
 

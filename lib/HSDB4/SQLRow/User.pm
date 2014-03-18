@@ -313,12 +313,12 @@ sub check_admin{
 	my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_user_group_user"};
 
 	if ($eval_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $eval_gid")) {
-	    $roles->{tusk_session_eval_admin}->{lc $school} = 1;
+	    $roles->{tusk_session_eval_admin}->{$school} = 1;
 	    $roles->{tusk_session_is_author} = 1;
 	}
 
 	if ($admin_gid && $linkdef->get_parent_count($self->primary_key(), "parent_user_group_id = $admin_gid")) {
-	    $roles->{tusk_session_admin}->{lc $school} = 1;
+	    $roles->{tusk_session_admin}->{$school} = 1;
 	    $roles->{tusk_session_is_author} = 1;
 	}
     }
