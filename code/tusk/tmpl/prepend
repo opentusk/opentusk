@@ -21,6 +21,8 @@
 	use HSDB4::Constants;
 	use HSDB4::DateTime;
 	use TUSK::Session;
+	use TUSK::Permission;
+	use TUSK::Core::School;
 	use TUSK::Constants;
 	use TUSK::Functions;
 	use TUSK::Application::RSSCourse;
@@ -531,10 +533,24 @@ if (ref $leftnav eq 'HASH' and $leftnav->{component}){
 </%args>
 <%perl>
 my $req = \%req_hash;
-my ($can_cms, $has_schedule);
+my ($can_cms, $has_schedule, $user_id);
 if ($req->{user} && $req->{user}->isa("HSDB4::SQLRow::User")) {
-	$can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
-	$has_schedule = $req->{user}->has_schedule();
+    $can_cms = $req->{user}->check_cms() || $req->{user}->check_admin();
+    $has_schedule = $req->{user}->has_schedule();
+    $user_id = $req->{user}->user_id();
+    if (!$can_cms) {
+	foreach my $school (@{TUSK::Core::School->new()->getTUSKConfSchools()}) {
+	    my $perm = TUSK::Permission->new({
+		'user_id'=> $user_id,
+		'feature_type_token' => 'school', 
+	    'feature_id' => $school->getPrimaryKeyID(),
+					 });
+	    if ($perm->check('view_school_grades')) { 
+		$can_cms = 1;
+		last;
+	    }
+	}
+    }
 }
 
 $m->comp('SELF:header', 
