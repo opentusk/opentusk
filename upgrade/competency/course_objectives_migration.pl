@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Script to import course objectives from hsdb4 course tables to the new TUSK::Competency table.
+
 use strict;
 use warnings;
 
@@ -41,7 +43,7 @@ sub main{
 
 #comment the functions out below as intended
 
-#    migrateCourseObjectives();
+    migrateCourseObjectives();
 #    migrateContentObjectives();
 #    migrateClassMeetingObjectives();
 }
