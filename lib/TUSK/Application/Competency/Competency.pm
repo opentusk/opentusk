@@ -20,11 +20,8 @@ use strict;
 use Data::Dumper; #Note: For testing purposes, remember to remove!
 
 use TUSK::Competency::Competency;
-use TUSK::Competency::ClassMeeting;
-use TUSK::Competency::Content;
 use TUSK::Competency::Course;
 use TUSK::Competency::Hierarchy;
-use TUSK::Competency::Relation;
 
 sub new{
     my ( $class, $args ) = @_;
@@ -220,26 +217,6 @@ sub addChild{
     $hierarchy->save( { user => $self->{user} } );
 }
 
-
-#######################################################
-
-
-=item B<getLinked>
-    returns the competencies that have been linked to the current competency.
-=cut
-
-sub getLinked{
-    my ( $self, $extra_cond ) = @_;
-
-    my $competency_id_1 = $self->{ competency_id };
-    
-    my $linked = TUSK::Competency::Competency->lookup( 'competency_relation.competency_id_1 =' . $competency_id_1,
-                [ 'competency_relation.competency_id_1', 'competency_relation.competency_id_2', 'competency.title', 'competency.description' ],
-                undef, undef,
-	        [ TUSK::Core::JoinObject->new('TUSK::Competency::Relation', { origkey=> 'competency_id', joinkey=> 'competency_id_2', jointype=> 'inner'})]);
-
-    return $linked;
-}
 
 #######################################################
 
