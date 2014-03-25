@@ -219,3 +219,36 @@ CREATE TABLE competency_user_type_history(
 	history_action enum('Insert', 'Update', 'Delete')
 ) ENGINE=InnoDB CHARSET=UTF8; 
 
+/*Insert default data to competency_user_Type*/
+INSERT INTO competency_user_type VALUE(
+	0,
+	"Competency",
+	<competency_type_enum_id>,
+	1,
+	"script",
+	now(),
+	"script",
+	now()
+);
+
+INSERT INTO competency_user_type VALUE(
+	0,
+	"Competency Category",
+	<competency_type_enum_id>,
+	1,
+	"script",
+	now(),
+	"script",
+	now()
+);
+
+INSERT INTO competency_user_type VALUE(
+	0,
+	"Supporting Information",
+	<competency_type_enum_id>,
+	1,
+	"script",
+	now(),
+	"script",
+	now()
+);
