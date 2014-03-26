@@ -20,11 +20,14 @@ use strict;
 use Data::Dumper; #Note: For testing purposes, remember to remove!
 
 use TUSK::Competency::Competency;
+use TUSK::Competency::ClassMeeting;
+use TUSK::Competency::Content;
 use TUSK::Competency::Course;
 use TUSK::Competency::Hierarchy;
+use TUSK::Competency::Relation;
 
 sub new{
-    my ( $class, $args ) = @_;
+    my ($class, $args) = @_;
 
     my $self = {
 	competency_id => $args->{competency_id},
@@ -38,14 +41,10 @@ sub new{
 	user => $args->{user},
     };
   
-    bless( $self, $class);
+    bless($self, $class);
 
-    if ( defined( $self->{competency_id} )){
-	$self->{competency} = TUSK::Competency::Competency->lookupReturnOne( "competency_id =". $self->{competency_id} );	
-    } else{
-	$self->{competency} = TUSK::Competency::Competency->new();
-    }
-    
+    $self->{competency} = defined($self->{competency_id}) ? TUSK::Competency::Competency->lookupReturnOne( "competency_id =". $self->{competency_id}) : TUSK::Competency::Competency->new();
+
     return $self;
 }
 
@@ -59,11 +58,11 @@ sub new{
 sub getChildren {
 	my ($self, $extra_cond) = @_;
 
-	my $competency_hierarchy = TUSK::Competency::Hierarchy->lookup( "parent_competency_id=" . $self->{competency_id} );
+	my $competency_hierarchy = TUSK::Competency::Hierarchy->lookup("parent_competency_id=" . $self->{competency_id});
     
 	my @child_competencies;
 
-	foreach my $competency( @{$competency_hierarchy}){
+	foreach my $competency(@{$competency_hierarchy}){
 	    push @child_competencies, $competency->getChildCompetencyID;
 	}
 
@@ -79,12 +78,12 @@ sub getChildren {
 
 sub delete{
 
-    my ( $self, $extra_cond ) = @_;
+    my ($self, $extra_cond) = @_;
     
     my $linked_competencies = $self->getLinked;
 
     #if no linked child competencies, procede with deleting, otherwise not.
-    if ( (scalar(@{$linked_competencies})) == 0){
+    if ((scalar(@{$linked_competencies})) == 0){
 	#delete call to database
 	my $delete_check = $self->{competency}->delete();
 
@@ -104,25 +103,25 @@ sub delete{
 
 sub deleteAssociated{
     
-    my ( $self, $extra_cond ) = @_;
+    my ($self, $extra_cond) = @_;
 
     my $competency = $self->{competency};
 
-    if ( !defined( $competency )){
+    if (!defined($competency)){
 	print "Invalid entry";
 	return 0;
     }
 
     my $competency_level = $competency->getCompetencyLevel;
 
-    if ( $competency_level eq "course" ) {
-	my $competency_course = TUSK::Competency::Course->lookupReturnOne( "competency_id=". $competency->getPrimaryKeyID );
+    if ($competency_level eq "course") {
+	my $competency_course = TUSK::Competency::Course->lookupReturnOne("competency_id=". $competency->getPrimaryKeyID);
 	$competency_course->delete();
-    } elsif ( $competency_level eq "class_meet" ){
-	my $competency_class_meet = TUSK::Competency::ClassMeeting->lookupReturnOne( "competency_id=". $competency->getPrimaryKeyID );
+    } elsif ($competency_level eq "class_meet"){
+	my $competency_class_meet = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id=". $competency->getPrimaryKeyID);
 	$competency_class_meet->delete();       
-    } elsif ( $competency_level eq "content" ){
-	my $competency_content = TUSK::Competency::Content->lookupReturnOne( "competency_id=". $competency->getPrimaryKeyID );
+    } elsif ($competency_level eq "content"){
+	my $competency_content = TUSK::Competency::Content->lookupReturnOne("competency_id=". $competency->getPrimaryKeyID);
 	$competency_content->delete();
     } else {
 	return 0;
@@ -140,32 +139,19 @@ sub deleteAssociated{
 
 sub update{
     
-    my ( $self, $extra_cond ) = @_;
+    my ($self, $extra_cond) = @_;
 
     my $competency = $self->{competency};
-    
-    if ( defined( $self->{title} )){
-	$competency->setTitle( $self->{title} );
-    }
-    if ( defined( $self->{description} )){
-	$competency->setDescription( $self->{description} );
-    }
-    if ( defined( $self->{uri} )){
-	$competency->setUri( $self->{uri} );
-    }
-    if ( defined( $self->{user_type_id} )){
-	$competency->setCompetencyUserTypeID(); #placeholder
-    }
-    if ( defined( $self->{school_id} )){
-	$competency->setSchoolID( $self->{school_id} );
-    }
-    if ( defined( $self->{competency_level_enum_id} )){
-	$competency->setCompetencyLevelEnumID( $self->{competency_level} );
-    }
-    if ( defined( $self->{version_id} )){
-	$competency->setVersionID( $self->{school_id} ); #version_id and school_id are same until we have multiple versions of competencies
-    }
-    $competency->save( {user => $self->{user} });
+
+    $competency->setTitle((defined($self->{title})) ? $self->{title}: '');
+    $competency->setDescription((defined($self->{description})) ? $self->{description}: '');
+    $competency->setUri((defined($self->{uri})) ? $self->{uri}: '');
+    $competency->setCompetencyUserTypeID((defined($self->{user_type_id})) ? $self->{user_type_id}: '');
+    $competency->setSchoolID((defined($self->{school_id})) ? $self->{school_id}: '');
+    $competency->setCompetencyLevelEnumID((defined($self->{competency_level_enum_id})) ? $self->{competency_level_enum_id}: '');
+    $competency->setVersionID((defined($self->{version_id})) ? $self->{version_id}: '');
+
+    $competency->save({user => $self->{user}});
 }
 
 
@@ -177,19 +163,19 @@ sub update{
 
 sub add{
 
-    my ( $self, $extra_cond ) = @_;
+    my ($self, $extra_cond) = @_;
 
     my $competency = $self->{competency};
-    
-    $competency->setTitle( $self->{title} );
-    $competency->setDescription( $self->{description} );
-    $competency->setUri( $self->{uri} );
-    $competency->setCompetencyUserTypeID( $self->{user_type_id} );
-    $competency->setSchoolID( $self->{school_id} );
-    $competency->setCompetencyLevelEnumID( $self->{competency_level_enum_id} );
-    $competency->setVersionID( $self->{school_id} ); 
 
-    $competency->save( { user => $self->{user} } );
+    $competency->setTitle($self->{title});
+    $competency->setDescription($self->{description});
+    $competency->setUri($self->{uri});
+    $competency->setCompetencyUserTypeID($self->{user_type_id});
+    $competency->setSchoolID($self->{school_id});
+    $competency->setCompetencyLevelEnumID($self->{competency_level_enum_id});
+    $competency->setVersionID($self->{school_id}); 
+
+    $competency->save({user => $self->{user}});
 
     return $competency->getPrimaryKeyID;
 }
@@ -201,22 +187,42 @@ sub add{
 
 sub addChild{
 
-    my ( $self, $extra_cond ) = @_;
+    my ($self, $extra_cond) = @_;
     
     print Dumper $self->{competency_id};
 
     my $child_competency_id = $self->add;
 
     my $hierarchy = TUSK::Competency::Hierarchy->new();
-    $hierarchy->setSchoolID( $self->{schooL_id});
+    $hierarchy->setSchoolID($self->{schooL_id});
     # $hierarchy->setLineage(placeholder);
     # $hierarhcy->setSortOrder(placeholder);
     # $hierarchy->setDepth(placeholder);
-    $hierarchy->setParentCompetencyID( $self->{competency_id} );
-    $hierarchy->setChildCompetencyID( $child_competency_id );
-    $hierarchy->save( { user => $self->{user} } );
+    $hierarchy->setParentCompetencyID($self->{competency_id});
+    $hierarchy->setChildCompetencyID($child_competency_id);
+    $hierarchy->save({user => $self->{user}});
 }
 
+
+#######################################################
+
+
+=item B<getLinked>
+    returns the competencies that have been linked to the current competency.
+=cut
+
+sub getLinked{
+    my ($self, $extra_cond) = @_;
+
+    my $competency_id_1 = $self->{competency_id};
+    
+    my $linked = TUSK::Competency::Competency->lookup( 'competency_relation.competency_id_1 =' . $competency_id_1,
+                [ 'competency_relation.competency_id_1', 'competency_relation.competency_id_2', 'competency.title', 'competency.description' ],
+                undef, undef,
+	        [ TUSK::Core::JoinObject->new('TUSK::Competency::Relation', { origkey=> 'competency_id', joinkey=> 'competency_id_2', jointype=> 'inner'})]);
+
+    return $linked;
+}
 
 #######################################################
 
@@ -226,23 +232,23 @@ sub addChild{
 my @comp_categories;
 
 sub getCategories{
-    my ( $lib, $data ) = @_;
+    my ($lib, $data) = @_;
     
-    getCategoriesSub( $data );
+    getCategoriesSub($data);
     
     return \@comp_categories;
 }
 
 sub getCategoriesSub{
 
-    my ( $data ) = @_;
+    my ($data) = @_;
 
     foreach my $d (@{$data}){
 	if (($d->{'children'})){
 	    my %comp_category;
-	    $comp_category{ $d->{'id'} } = $d->{title};
+	    $comp_category{$d->{'id'}} = $d->{title};
 	    push @comp_categories, \%comp_category;	
-	    getCategoriesSub ( $d->{'children'} );
+	    getCategoriesSub ($d->{'children'});
 	}
     }
     
