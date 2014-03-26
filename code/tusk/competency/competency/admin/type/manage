@@ -1,0 +1,112 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%perl>
+	my $school    = $m->comp("/tmpl/url:get_school");
+	my $school_id = TUSK::Core::School->new->getSchoolID($school);
+	my $types     = TUSK::Competency::UserType->lookup( "school_id = $school_id", undef, undef, undef,
+			 [ TUSK::Core::JoinObject->new('TUSK::Enum::Data', { origkey=> 'competency_type_enum_id', joinkey => 'enum_data_id', jointype=> 'inner', joincond=> "enum_data.namespace = \"competency.user_type.id\" "})] );
+	my $enum_data = TUSK::Enum::Data->lookup( "namespace = \"competency.user_type.id\"" );
+</%perl>
+
+<%perl>
+	my $data = [ map { id => $_->getPrimaryKeyID, description => $_->getName, back_type => $_->getJoinObject('TUSK::Enum::Data')->getDisplayName }, @{$types} ];
+	my $back_type = [ map { label => $_->getDisplayName , value=> $_->getPrimaryKeyID }, @{$enum_data} ];	
+=for
+	#testing the library will remove
+	my $competency_to_add = {
+		title => "test addrrrr",
+		description => "test competency library add",
+		uri => "test competency uri0001",
+		user_type_id => 1,
+		school_id => 1,
+		competency_level_enum_id => 1,
+		version_id => 1,
+		user => $m->session->{'user'}->user_id
+	};
+	my $competency = TUSK::Application::Competency::Competency->new( $competency_to_add );
+	$competency->add;
+
+	my $competency_to_get_linked = {
+		competency_id => 476
+	};
+	my $linked = TUSK::Application::Competency::Competency->new( $competency_to_get_linked );
+	my $linked_found = $linked->getLinked;
+	print Dumper $linked_found;
+=cut
+</%perl>
+
+<br />
+<& /tmpl/element:jquery_sort_list, params =>{
+				width => "100%",
+				label => __('Competency Types'),
+				no_table => 1,
+				container => 'competency_type_container',
+				name => 'competency_types',
+				sort => 0,
+				button_label => __('Add Competency Type'),
+				no_top_add_button => 1,
+				action_width => 180,
+				action_dropdown => 1,
+				action_columns => [ 
+							{ 'label' => __('Modify'), 'onclick' => 'editRow( this, params );' },
+							{ 'label' => __('Delete'), 'onclick' => 'deleteRow( this, params );' } 
+			  			], 
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => __('User Type'), field => 'description', head_align => 'left', align => 'left', edit =>
+						{ type      => 'text',
+						  classname => 'textareawhite',
+						  size      => 30,
+						  maxlength => 100 }
+					},
+					{ label => __('Backend Type'), field => 'back_type', head_align => 'left', align => 'left', width => 150, edit =>
+						{ type      => 'radio',
+						  classname => 'textareawhite',
+						  options   => $back_type,
+						  delimiter => ', ' }
+					},
+				],
+				data => $data, 
+				post_to => '/tusk/competency/competency/admin/type/update/' . $school,
+				empty_message => __("No competency types exist.")
+} &>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js" ,
+			"competency/competency/functions.js",
+			];
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return __("Manage Competency User Types");
+</%method>
+
+
