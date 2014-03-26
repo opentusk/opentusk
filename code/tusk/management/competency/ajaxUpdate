@@ -25,11 +25,12 @@ page_footer => ''
 
 <%once>
 	use TUSK::Core::School;
-	use TUSK::Core::Competency;
-	use TUSK::Core::CompetencyType;
-	use TUSK::Core::CompetencyRelationship;
-	use TUSK::Core::CompetencyCompetencyType;
 	use HSDB4::Constants;
+
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::UserType;
+
 </%once>
 
 <%perl>
@@ -58,20 +59,20 @@ page_footer => ''
 		if ( $op_id != $np_id ) {
 			# TODO: This doesn't work for multiple parents, since there's no check for duplicate entries.
 
-			$query = "update tusk.competency_relationship set sort_order = sort_order+1 where parent_competency_id = ? and sort_order >= ? and school_id = ?";
+			$query = "update tusk.competency_hierarchy set sort_order = sort_order+1 where parent_competency_id = ? and sort_order >= ? and school_id = ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute($np_id, $ARGS{'newPos'}, $school_id);
 			};
 
-			$query = "update tusk.competency_relationship set sort_order = sort_order-1 where parent_competency_id = ? and sort_order > ? and school_id = ?";
+			$query = "update tusk.competency_hierarchy set sort_order = sort_order-1 where parent_competency_id = ? and sort_order > ? and school_id = ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute($op_id, $ARGS{'originalPos'}, $school_id);
 			};
 
-			my $cr = TUSK::Core::CompetencyRelationship->new()->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $op_id );
-			$query = "update tusk.competency_relationship set lineage = replace( lineage, ?, ? ), depth = depth + ? where lineage like ?";
+			my $cr = TUSK::Competency::Hierarchy->new()->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $op_id );
+			$query = "update tusk.competency_hierarchy set lineage = replace( lineage, ?, ? ), depth = depth + ? where lineage like ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute( $cr->[0]->getLineage . $id . "/", $ARGS{'lineage'} . $id . "/", $ARGS{'curDepth'}, "%" . $cr->[0]->getLineage . $id . "/%" );
@@ -90,20 +91,20 @@ page_footer => ''
 				$end        = $ARGS{'originalPos'} - 1;
 			}
 
-			$query = "update tusk.competency_relationship set sort_order = $update_str where parent_competency_id = ? and sort_order >= ? and sort_order <= ? and school_id = ?";
+			$query = "update tusk.competency_hierarchy set sort_order = $update_str where parent_competency_id = ? and sort_order >= ? and sort_order <= ? and school_id = ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute($np_id, $start, $end, $school_id);
 			};
-			die "$@\t... failed to update competency_relationship!" if $@;
+			die "$@\t... failed to update competency_hierarchy!" if $@;
 		}
 
-		$query = "update tusk.competency_relationship set sort_order = ?, parent_competency_id = ?, depth = ?, lineage = ? where parent_competency_id = ? and child_competency_id = ?";
+		$query = "update tusk.competency_hierarchy set sort_order = ?, parent_competency_id = ?, depth = ?, lineage = ? where parent_competency_id = ? and child_competency_id = ?";
 		eval {
 			my $handle = $dbh->prepare($query);
 			$handle->execute($ARGS{'newPos'}, $np_id, $ARGS{'curDepth'}, $ARGS{'lineage'}, $op_id, $id);
 		};
-		die "$@\t... failed to update competency_relationship!" if $@;
+		die "$@\t... failed to update competency_hierarchy!" if $@;
 
 		print "\"error\" : \"\"\n";
 	} else {
@@ -122,7 +123,7 @@ page_footer => ''
 			$parent_id =~ s/_[\d]+//;
 
 			my $children_to_move;
-			$query = "select count( sort_order ) from tusk.competency_relationship where parent_competency_id = ? and school_id = ?";
+			$query = "select count( sort_order ) from tusk.competency_hierarchy where parent_competency_id = ? and school_id = ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute($id, $school_id);
@@ -134,33 +135,33 @@ page_footer => ''
 			die "$@\t... failed to get children!" if $@;
 
 			# shift everything after this in the sort_order hierarchy up/down the appropriate amount
-			$query = "update tusk.competency_relationship set sort_order = sort_order+? where parent_competency_id = ? and sort_order > ? and school_id = ?";
+			$query = "update tusk.competency_hierarchy set sort_order = sort_order+? where parent_competency_id = ? and sort_order > ? and school_id = ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute($children_to_move, $parent_id, $ARGS{'position'}, $school_id);
 			};
-			die "$@\t... failed to update competency_relationship!" if $@;
+			die "$@\t... failed to update competency_hierarchy!" if $@;
 
 			# Need to grab this BEFORE removing the row
-			my $cr = TUSK::Core::CompetencyRelationship->new()->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $parent_id );
+			my $cr = TUSK::Competency::Hierarchy->new()->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $parent_id );
 
 			# remove row
-			$query = "delete from tusk.competency_relationship where parent_competency_id = ? and child_competency_id = ?";
+			$query = "delete from tusk.competency_hierarchy where parent_competency_id = ? and child_competency_id = ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute($parent_id, $id);
 			};
-			die "$@\t... failed to update competency_relationship!" if $@;
+			die "$@\t... failed to update competency_hierarchy!" if $@;
 
 			# 'promote' each child with sort order = position+sort_order
-			$query = "update tusk.competency_relationship set sort_order = sort_order+?, parent_competency_id = ? where parent_competency_id = ? and school_id = ?";
+			$query = "update tusk.competency_hierarchy set sort_order = sort_order+?, parent_competency_id = ? where parent_competency_id = ? and school_id = ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute($ARGS{'position'}, $parent_id, $id, $school_id);
 			};
-			die "$@\t... failed to update competency_relationship!" if $@;
+			die "$@\t... failed to update competency_hierarchy!" if $@;
 
-			$query = "update tusk.competency_relationship set lineage = replace( lineage, ?, ? ), depth = depth-1 where lineage like ? and school_id = ?";
+			$query = "update tusk.competency_hierarchy set lineage = replace( lineage, ?, ? ), depth = depth-1 where lineage like ? and school_id = ?";
 			eval {
 				my $handle = $dbh->prepare($query);
 				$handle->execute( $cr->[0]->getLineage . $id . "/", $cr->[0]->getLineage, "%" . $cr->[0]->getLineage . $id . "/%", $school_id );
@@ -172,38 +173,18 @@ page_footer => ''
 			my $new = 0;
 
 			if ( $ARGS{'id'} =~ /^new_child_of_/ ) {
-				$competency = TUSK::Core::Competency->new();
+				$competency = TUSK::Competency::Competency->new();
 				$new = 1;
 			} else {
 				my $id = $ARGS{'id'};
 				$id =~ s/_[\d]+//;
-				$competency = TUSK::Core::Competency->new()->lookupKey( $id );
+				$competency = TUSK::Competency::Competency->new()->lookupKey( $id );
 			}
 
-			$competency->setDescription( $ARGS{'col1'} );
 			$competency->setTitle( $ARGS{'col0'} );
+			$competency->setDescription( $ARGS{'col1'} );
 			$competency->setSchoolID( $school_id );
 			$competency->save( { user => $m->session->{'user'}->user_id } );
-
-			if ( !$new ) {
-				foreach ( @{TUSK::Core::CompetencyCompetencyType->getCompetencyTypesByCompetency( $competency->getCompetencyID )} ) {
-					$_->delete();
-				}
-			}
-
-			if ( ref($ARGS{'col2[]'}) eq 'ARRAY' ) {
-				foreach my $val ( @{$ARGS{'col2[]'}} ) {
-					my $cct = TUSK::Core::CompetencyCompetencyType->new();
-					$cct->setCompetencyID( $competency->getCompetencyID() );
-					$cct->setCompetencyTypeID( $val );
-					$cct->save( { user => $m->session->{'user'}->user_id } );
-				}
-			} elsif ( defined( $ARGS{'col2[]'} ) ) {
-				my $cct = TUSK::Core::CompetencyCompetencyType->new();
-				$cct->setCompetencyID( $competency->getCompetencyID() );
-				$cct->setCompetencyTypeID( $ARGS{'col2[]'} );
-				$cct->save( { user => $m->session->{'user'}->user_id } );
-			}
 
 			if ( $new ) {
 				my $parent_id = $ARGS{'id'};
@@ -211,7 +192,7 @@ page_footer => ''
 				$parent_id =~ s/_[\d]+//;
 				$parent_id =~ s/_[\d]+//;
 
-				my $cr = TUSK::Core::CompetencyRelationship->new();
+				my $cr = TUSK::Competency::Hierarchy->new();
 
 				$cr->setParentCompetencyID( $parent_id );
 				$cr->setChildCompetencyID( $competency->getCompetencyID() );
@@ -224,7 +205,7 @@ page_footer => ''
 				
 					$cr->setSortOrder( $sort );
 				} else {
-					foreach ( @{TUSK::Core::CompetencyRelationship->getChildCompetencies( $parent_id, $school_id )} ) {
+					foreach ( @{TUSK::Competency::Hierarchy->getChildCompetencies( $parent_id, $school_id )} ) {
 						$_->setSortOrder( $_->getSortOrder()+1 );
 						$_->save( { user => $m->session->{'user'}->user_id } );
 					}
