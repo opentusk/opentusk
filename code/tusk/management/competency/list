@@ -18,7 +18,7 @@
 </%shared>
 
 <%perl>
-	foreach( @{TUSK::Core::Competency->new()->lookup()} ) {
+	foreach( @{TUSK::Competency::Competency->new()->lookup()} ) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 
@@ -37,8 +37,8 @@
 
 <%perl>
 	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
-	my $competency_types = TUSK::Core::CompetencyType->new()->lookup( 'school_id = ' . $school_id );
-	my $types = [ map { label => $_->getDescription, value => $_->getCompetencyTypeID }, @{$competency_types} ];
+#	my $competency_types = TUSK::Core::CompetencyType->new()->lookup( 'school_id = ' . $school_id );
+#	my $types = [ map { label => $_->getDescription, value => $_->getCompetencyTypeID }, @{$competency_types} ];
 </%perl>
 
 <& /tmpl/element:jquery_sort_list, params =>{
@@ -73,7 +73,6 @@
 					{ label => __('Type(s)'), field => 'types', head_align => 'left', align => 'left', width => 150, edit =>
 						{ type      => 'checkbox',
 						  classname => 'textareawhite',
-						  options   => $types,
 						  delimiter => ', ' }
 					},
 				],
@@ -104,7 +103,7 @@
 </%args>
 <%perl>
 	my %p_c_pairs;
-	my $cr = TUSK::Core::CompetencyRelationship->new()->lookup( 'school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'] );
+	my $cr = TUSK::Competency::Hierarchy->new()->lookup( 'school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'] );
 	foreach my $cr_row ( @{$cr} ) {
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
 		if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
@@ -112,7 +111,7 @@
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
 														description => $child_comp->getDescription,
-														types       => $child_comp->displayTypes,
+#														types       => $child_comp->displayTypes,
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
 		}
