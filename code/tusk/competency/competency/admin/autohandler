@@ -1,0 +1,82 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+check_cms_permissions => 0
+must_be_school_admin => 1
+top_tab_type => 'manage'
+</%attr>
+
+<%once>
+	use TUSK::Constants;
+
+	use TUSK::Course;
+	use HSDB45::Course;
+	
+	use TUSK::Application::Competency::Competency;
+	use TUSK::Application::Competency::Tree;
+
+	use TUSK::Enum::Data;
+
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Course;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::UserType;	
+
+</%once>
+
+<%method leftnav>
+% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+return $m->comp("/tmpl/nav", 'objects' =>  $m->comp("SELF:get_nav_bar_objects"), 
+				'prefix' => '/competency/competency/admin',
+				'hierarchy' => {	
+					'national/manage' => [],
+					'school/manage' => [],
+					'course/listCourses' => [],
+					'course/list' => [],
+					'link' => [],
+					'type/manage' => [],
+				},
+				'nav_entities_dependency' => { },
+				'title_func' => {},
+				'initial_nav_bar' => $m->comp("/tmpl/url:get_initial_nav_bars"),
+#				'urls' => {'national/manage' => {link => '', label => __('Manage Competencies')} } 
+				);
+</%perl>
+</%method>
+
+<%method get_versions>
+
+<%perl>
+my $school = $m->comp( "/tmpl/url:get_school" );
+my $school_id = TUSK::Core::School->new->getSchoolID( $school );
+my $versions = TUSK::Competency::Version->lookup( "school_id=". $school_id );
+my $version_id = $versions->[0]->getPrimaryKeyID();
+print "<h4>Version: ". $versions->[0]->getTitle();
+print "</h4>";
+print "<h4>Change Version: <select>";
+foreach my $version( @{$versions} ){
+	print "<option>".$version->getTitle()."</option>";
+}
+print "</select></h4>";
+</%perl>
+</%method>
+
+
+% $m->call_next();
