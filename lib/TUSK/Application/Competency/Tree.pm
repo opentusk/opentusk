@@ -19,9 +19,10 @@ use strict;
 
 use TUSK::Application::Competency::Competency;
 use TUSK::Competency::Competency;
+use TUSK::Competency::Relation;
 
 
-sub new{
+sub new {
     my ($class, $args) = @_;
 
     my $self = {
@@ -42,7 +43,7 @@ sub new{
 	
 =cut
 
-sub deleteFromTree{
+sub deleteFromTree {
     
     my ($self, $extra_cond) = @_;
         
@@ -50,10 +51,10 @@ sub deleteFromTree{
     deleteFromTreeHelper($competency_tree);
 }
 
-sub deleteFromTreeHelper{
+sub deleteFromTreeHelper {
     my ($competency_tree) = @_;
        
-    foreach my $key(keys %{$competency_tree}){
+    foreach my $key (keys %{$competency_tree}) {
 	if (ref $competency_tree->{$key} eq 'HASH') {	    
 	    deleteFromTreeHelper($competency_tree->{$key});
 	}
@@ -64,7 +65,6 @@ sub deleteFromTreeHelper{
         $competency_to_delete->delete($key);
 	#add delete links here
     }
-
 }
 
 
@@ -76,7 +76,7 @@ sub deleteFromTreeHelper{
 	
 =cut
 
-sub getBranch{
+sub getBranch {
  
     my ($self, $extra_cond) = @_;
     
@@ -90,7 +90,7 @@ sub getBranch{
 }
 
 
-sub getBranchHelper{
+sub getBranchHelper {
      #helper function for implementing getBranch 
 
     my ($competency_id, $index, $branch) = @_;
@@ -125,7 +125,7 @@ sub walk{
 
     $depth = $depth + 1;
     
-    foreach my $key(keys %{$competency_tree}){
+    foreach my $key(keys %{$competency_tree}) {
 	print "Competency id: $key <br>";
 	if (ref $competency_tree->{$key} eq 'HASH') {
 	    print "&nbsp&nbsp&nbsp&nbsp" x $depth;
@@ -136,7 +136,7 @@ sub walk{
 
 
 
-sub build{
+sub build {
     my $competencies;
 
     foreach( @{TUSK::Competency::Competency->new()->lookup()} ) {                                                                                                                                                                               	$competencies->{$_->getCompetencyID} = $_;                                                                                                                                                                                    

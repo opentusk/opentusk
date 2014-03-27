@@ -20,10 +20,13 @@ use strict;
 use Data::Dumper; #Note: For testing purposes, remember to remove!
 
 use TUSK::Competency::Competency;
+use TUSK::Competency::ClassMeeting;
+use TUSK::Competency::Content;
 use TUSK::Competency::Course;
 use TUSK::Competency::Hierarchy;
+use TUSK::Competency::Relation;
 
-sub new{
+sub new {
     my ($class, $args) = @_;
 
     my $self = {
@@ -40,7 +43,7 @@ sub new{
   
     bless($self, $class);
 
-    $self->{competency} = defined($self->{competency_id}) ? TUSK::Competency::Competency->lookupReturnOne( "competency_id =". $self->{competency_id}) : TUSK::Competency::Competency->new();
+    $self->{competency} = (defined $self->{competency_id}) ? TUSK::Competency::Competency->lookupReturnOne( "competency_id =". $self->{competency_id}) : TUSK::Competency::Competency->new();
 
     return $self;
 }
@@ -59,7 +62,7 @@ sub getChildren {
     
 	my @child_competencies;
 
-	foreach my $competency(@{$competency_hierarchy}){
+	foreach my $competency (@{$competency_hierarchy}) {
 	    push @child_competencies, $competency->getChildCompetencyID;
 	}
 
@@ -73,14 +76,14 @@ sub getChildren {
     Deletes a given competency object
 =cut
 
-sub delete{
+sub delete {
 
     my ($self, $extra_cond) = @_;
     
     my $linked_competencies = $self->getLinked;
 
     #if no linked child competencies, procede with deleting, otherwise not.
-    if ((scalar(@{$linked_competencies})) == 0){
+    if ((scalar @{$linked_competencies}) == 0) {
 	#delete call to database
 	my $delete_check = $self->{competency}->delete();
 
@@ -98,13 +101,13 @@ sub delete{
     Deletes a given competency object with an associated link ( i.e course_competency, session_competency or content_competency )
 =cut
 
-sub deleteAssociated{
+sub deleteAssociated {
     
     my ($self, $extra_cond) = @_;
 
     my $competency = $self->{competency};
 
-    if (!defined($competency)){
+    if (!defined $competency) {
 	print "Invalid entry";
 	return 0;
     }
@@ -114,10 +117,10 @@ sub deleteAssociated{
     if ($competency_level eq "course") {
 	my $competency_course = TUSK::Competency::Course->lookupReturnOne("competency_id=". $competency->getPrimaryKeyID);
 	$competency_course->delete();
-    } elsif ($competency_level eq "class_meet"){
+    } elsif ($competency_level eq "class_meet") {
 	my $competency_class_meet = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id=". $competency->getPrimaryKeyID);
 	$competency_class_meet->delete();       
-    } elsif ($competency_level eq "content"){
+    } elsif ($competency_level eq "content") {
 	my $competency_content = TUSK::Competency::Content->lookupReturnOne("competency_id=". $competency->getPrimaryKeyID);
 	$competency_content->delete();
     } else {
@@ -134,19 +137,21 @@ sub deleteAssociated{
     Change different values for the given competency
 =cut
 
-sub update{
+sub update {
     
     my ($self, $extra_cond) = @_;
 
     my $competency = $self->{competency};
 
-    $competency->setTitle((defined($self->{title})) ? $self->{title}: '');
-    $competency->setDescription((defined($self->{description})) ? $self->{description}: '');
-    $competency->setUri((defined($self->{uri})) ? $self->{uri}: '');
-    $competency->setCompetencyUserTypeID((defined($self->{user_type_id})) ? $self->{user_type_id}: '');
-    $competency->setSchoolID((defined($self->{school_id})) ? $self->{school_id}: '');
-    $competency->setCompetencyLevelEnumID((defined($self->{competency_level_enum_id})) ? $self->{competency_level_enum_id}: '');
-    $competency->setVersionID((defined($self->{version_id})) ? $self->{version_id}: '');
+    $competency->setFieldValues ({
+	title => (defined $self->{title}) ? $self->{title}: '',
+	description => (defined $self->{description}) ? $self->{description}: '',
+	uri => (defined $self->{uri}) ? $self->{uri}: '',
+	competency_user_type_id => (defined $self->{user_type_id}) ? $self->{user_type_id}: '',
+	school_id => (defined $self->{school_id}) ? $self->{school_id}: '',
+	competency_level_enum_id => (defined $self->{competency_level_enum_id}) ? $self->{competency_level_enum_id}: '',
+	version_id => (defined $self->{version_id}) ? $self->{version_id}: ''
+    });
 
     $competency->save({user => $self->{user}});
 }
@@ -158,19 +163,21 @@ sub update{
     Adds a new competency
 =cut
 
-sub add{
+sub add {
 
     my ($self, $extra_cond) = @_;
 
     my $competency = $self->{competency};
 
-    $competency->setTitle($self->{title});
-    $competency->setDescription($self->{description});
-    $competency->setUri($self->{uri});
-    $competency->setCompetencyUserTypeID($self->{user_type_id});
-    $competency->setSchoolID($self->{school_id});
-    $competency->setCompetencyLevelEnumID($self->{competency_level_enum_id});
-    $competency->setVersionID($self->{school_id}); 
+    $competency->setFieldValues({
+	title => $self->{title},
+	description => $self->{description},
+	uri => $self->{uri},
+	competency_user_type_id => $self->{user_type_id},
+	school_id => $self->{school_id},
+	competency_level_enum_id => $self->{competency_level_enum_id},
+	version_id => $self->{version_id}
+    });
 
     $competency->save({user => $self->{user}});
 
@@ -182,13 +189,13 @@ sub add{
     Adds a new competency as a child to the current competency
 =cut
 
-sub addChild{
+sub addChild {
 
     my ($self, $extra_cond) = @_;
     
     print Dumper $self->{competency_id};
 
-    my $child_competency_id = $self->add;
+    my $child_competency_id = $self->add();
 
     my $hierarchy = TUSK::Competency::Hierarchy->new();
     $hierarchy->setSchoolID($self->{schooL_id});
@@ -208,7 +215,7 @@ sub addChild{
     returns the competencies that have been linked to the current competency.
 =cut
 
-sub getLinked{
+sub getLinked {
     my ($self, $extra_cond) = @_;
 
     my $competency_id_1 = $self->{competency_id};
@@ -228,7 +235,7 @@ sub getLinked{
 
 my @comp_categories;
 
-sub getCategories{
+sub getCategories {
     my ($lib, $data) = @_;
     
     getCategoriesSub($data);
@@ -236,7 +243,7 @@ sub getCategories{
     return \@comp_categories;
 }
 
-sub getCategoriesSub{
+sub getCategoriesSub {
 
     my ($data) = @_;
 
