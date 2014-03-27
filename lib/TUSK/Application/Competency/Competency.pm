@@ -20,11 +20,8 @@ use strict;
 use Data::Dumper; #Note: For testing purposes, remember to remove!
 
 use TUSK::Competency::Competency;
-use TUSK::Competency::ClassMeeting;
-use TUSK::Competency::Content;
 use TUSK::Competency::Course;
 use TUSK::Competency::Hierarchy;
-use TUSK::Competency::Relation;
 
 sub new {
     my ($class, $args) = @_;

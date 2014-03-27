@@ -19,8 +19,6 @@ use strict;
 
 use TUSK::Application::Competency::Competency;
 use TUSK::Competency::Competency;
-use TUSK::Competency::Relation;
-
 
 sub new {
     my ($class, $args) = @_;
