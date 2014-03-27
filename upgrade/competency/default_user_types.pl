@@ -28,8 +28,6 @@ use TUSK::Competency::UserType;
 
 use TUSK::Enum::Data;
 
-use Data::Dumper;
-
 my $schools = HSDB4::Constants::getSchoolObject();
 
 my $dbh = HSDB4::Constants::def_db_handle();
@@ -37,26 +35,30 @@ my $dbh = HSDB4::Constants::def_db_handle();
 main();
 
 sub main {
-    foreach my $school ( @{$schools} ){
-	my $sql = qq(SELECT enum_data_id, short_name FROM tusk.enum_data WHERE namespace = "competency.user_type.id");
-	my $sth = $dbh->prepare($sql);
+    my $sql = qq(SELECT enum_data_id, short_name FROM tusk.enum_data WHERE namespace = "competency.user_type.id");
+    my $sth = $dbh->prepare($sql);
 
+    $sth->execute();
+
+    my $user_types = $sth->fetchall_hashref( 'short_name' );
+    $sth->finish;
+    
+    foreach my $school( @{$schools}){
+	my $current_school_id =  $school->getPrimaryKeyID;
+
+	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, created_by, created_on, modified_by, modified_on) VALUES( 'Competency', $user_types->{competency}->{enum_data_id}, $current_school_id, 'script', now(), 'script', now()));
+	$sth = $dbh->prepare($sql);
 	$sth->execute();
-
-	my $user_types = $sth->fetchall_hashref( 'short_name' );
 	$sth->finish;
-	
-	foreach my $short_name( keys %{$user_types} ){
-	    if ( $short_name eq 'competency' ){
-		my $enum_id = $user_types->{$short_name}->{enum_data_id};
-		print $enum_id;
-		$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id) VALUES( 'Competency', $enum_id, $school));
-		$sth = $dbh->prepare($sql);
-		$sth->execute();
-		$sth->finish;
 
-	    };
-	}
-	
+	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, created_by, created_on, modified_by, modified_on) VALUES( 'Competency Category', $user_types->{category}->{enum_data_id}, $current_school_id, 'script', now(), 'script', now()));
+	$sth = $dbh->prepare($sql);
+	$sth->execute();
+	$sth->finish;
+
+	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, created_by, created_on, modified_by, modified_on) VALUES( 'Supporting Information', $user_types->{info}->{enum_data_id}, $current_school_id, 'script', now(), 'script', now()));
+	$sth = $dbh->prepare($sql);
+	$sth->execute();
+	$sth->finish;
     }
 }
