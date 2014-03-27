@@ -35,7 +35,7 @@ my %objectives = ();
 
 main();
 
-sub main{
+sub main {
     createTuskCourseObjects();
     %objectives = map { $_->getPrimaryKeyID() => $_->out_label() } HSDB4::SQLRow::Objective->new()->lookup_all();
 
@@ -44,14 +44,14 @@ sub main{
     migrateCourseObjectives();
 }
 
-sub createTuskCourseObjects{
+sub createTuskCourseObjects {
     foreach my $course_obj( @{ TUSK::Course->new()->lookup() } ){
 	$tusk_courses{ $course_obj->getSchoolID() }{ $course_obj->getSchoolCourseCode() } = $course_obj->getPrimaryKeyID();  
     }
 }
 
-sub migrateCourseObjectives{
-    foreach my $school( @$schools ){
+sub migrateCourseObjectives {
+    foreach my $school( @$schools ) {
 	my $school_db = $school->getSchoolDb();
 	my $sql = qq( SELECT * FROM $school_db\.link_course_objective);
 	my $sth = $dbh->prepare( $sql );
@@ -66,16 +66,16 @@ sub migrateCourseObjectives{
 		description => $objectives{ $course_objective->[1] },
 		competency_level => "course_objective",
 	    });
-	    $competency->save( {user=> 'migration'});
-	    processCourseRelationship( $course_objective->[0], $course_objective->[1], $competency->getCompetencyID(), $school_db, $school->getPrimaryKeyID(), $course_objective->[2] , $course_objective->[3] );
+	    $competency->save({user=> 'migration'});
+	    processCourseRelationship($course_objective->[0], $course_objective->[1], $competency->getCompetencyID(), $school_db, $school->getPrimaryKeyID(), $course_objective->[2] , $course_objective->[3]);
 	}
     }
 }
 
 sub processCourseRelationship {
-    my ( $hsdb45_course_id, $objective_id, $competency_id, $school_db, $school_id, $sort_order, $relationship ) = @_;
+    my ($hsdb45_course_id, $objective_id, $competency_id, $school_db, $school_id, $sort_order, $relationship) = @_;
 
-    my $tusk_course_id = $tusk_courses{ $school_id }{ $hsdb45_course_id };
+    my $tusk_course_id = $tusk_courses{$school_id}{$hsdb45_course_id};
     if (!$tusk_course_id) {
 	print "Warning: Corresponding course does not exist for objective ".$objective_id.". Skipping...\n"; 
 	return;
