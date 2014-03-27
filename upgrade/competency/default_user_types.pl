@@ -28,6 +28,8 @@ use TUSK::Competency::UserType;
 
 use TUSK::Enum::Data;
 
+use Data::Dumper;
+
 my $schools = HSDB4::Constants::getSchoolObject();
 
 my $dbh = HSDB4::Constants::def_db_handle();
@@ -35,5 +37,8 @@ my $dbh = HSDB4::Constants::def_db_handle();
 main();
 
 sub main {
+    foreach my $school ( @{$schools} ){
+	print Dumper $school;
+    }
 
 }
