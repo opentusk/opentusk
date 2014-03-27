@@ -21,9 +21,10 @@
 </%attr>
 
 <%once>
-	use TUSK::Core::Competency;
-	use TUSK::Core::CompetencyRelationship;
-	use TUSK::Core::CompetencyType;
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::UserType;
+
 	use TUSK::Core::School;
 </%once>
 
@@ -32,7 +33,7 @@
 </%shared>
 
 <%perl>
-	foreach( @{TUSK::Core::Competency->new()->lookup()} ) {
+	foreach( @{TUSK::Competency::Competency->new()->lookup()} ) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 
@@ -42,8 +43,8 @@
 
 <%perl>
 	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
-	my $competency_types = TUSK::Core::CompetencyType->new()->lookup( 'school_id = ' . $school_id );
-	my $types = [ map { label => $_->getDescription, value => $_->getCompetencyTypeID }, @{$competency_types} ];
+#	my $competency_types = TUSK::Core::CompetencyType->new()->lookup( 'school_id = ' . $school_id );
+#	my $types = [ map { label => $_->getDescription, value => $_->getCompetencyTypeID }, @{$competency_types} ];
 </%perl>
 
 <br />
@@ -94,15 +95,15 @@
 </%args>
 <%perl>
 	my %p_c_pairs;
-	my $cr = TUSK::Core::CompetencyRelationship->new()->lookup( 'school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'] );
+	my $cr = TUSK::Competency::Hierarchy->new()->lookup( 'school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'] );
 	foreach my $cr_row ( @{$cr} ) {
+		if (defined( $competencies->{$cr_row->getChildCompetencyID()} )){
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
 		if ( !defined( $c_href->{$child_comp} ) ) {
 			$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
 														description => $child_comp->getDescription,
-														types       => $child_comp->displayTypes,
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
 
@@ -110,6 +111,7 @@
 		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
 			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
 			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+		}
 		}
 	}
 	return $children_storage->{'0'};
