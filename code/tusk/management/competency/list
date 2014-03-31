@@ -108,20 +108,27 @@
 	my $cr = TUSK::Competency::Hierarchy->new()->lookup( 'school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'] );
 	foreach my $cr_row (@{$cr}) {
 		if( defined($competencies->{$cr_row->getChildCompetencyID()})){
-		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
-		if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
-			$c_href->{$child_comp->getCompetencyID} = { 
+			my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
+			my $user_type;
+			my $user_type_id = $child_comp->getCompetencyUserTypeID;
+			if (defined($user_type_id)){
+				my $user_type_temp = TUSK::Competency::UserType->lookup( 'competency_user_type_id='.$user_type_id);
+				$user_type = $user_type_temp->[0]->getName;
+			}
+
+			if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
+				$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
 														description => $child_comp->getDescription,
-#														types       => $child_comp->displayTypes,
+														types       => $user_type,
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
-		}
-		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
-			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
-			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
-		}
+			}
+			if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+				$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
+				push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+			}
 		}
 	}
 	return $children_storage->{'65928'};
