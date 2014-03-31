@@ -2033,6 +2033,7 @@ $filter_on => ''
 $prefix => ''
 $total_counter => 0
 $action_dropdown => 0
+$onclick_options => 0
 $inactive_image => '/graphics/icons/move_16_inactive.png'
 </%args>
 %	if ( $depth > $max_depth ) { $max_depth = $depth; }
@@ -2081,10 +2082,18 @@ $inactive_image => '/graphics/icons/move_16_inactive.png'
 %						if ($append_instead) {
 %							push @actions, "<option value=\"" . $col->{'link'} . "/". $row->{$append_instead} . "\" class=\"navsm\">" . $col->{'label'} . "</option>";
 %						} else {
-%							push @actions, "<option value=\"" . $col->{'link'} . "/" . $row->{'id'} . "\" class=\"navsm\">" . $col->{'label'} . "</option>";
+%							if ( $col->{'onclick'} ){
+%							push @actions, "<option value=\"" . $col->{'onclick'} ."\" class=\"navsm\">" . $col->{'label'} . "</option>";
+%							} else{
+%								push @actions, "option value=\"". $col->{'link'}."/".$row->{$append_instead}. "\" class=\"navsm\">". $col->{'label'}."</option>";
+%							}
 %						}
 %					}
-				<li class="col<% $col_counter %>"><form method="post"><select onChange="forward(this);" class="navsm"><option value="" class="navsm"> -- select -- </option><% join( "", @actions ) %></select></form></li>
+%				if ( $onclick_options ){				
+					<li class="col<% $col_counter %>"><form method="post"><select onChange="forward(this);" class="navsm"><option value="" class="navsm"> -- select -- </option><% join( "", @actions ) %></select></form></li>
+%				} else {
+					<li class="col<% $col_counter %>"><form method="post"><select onChange="eval(this.options[this.selectedIndex].value);" class="navsm"><option value="" class="navsm"> -- select -- </option><% join( "", @actions ) %></select></form></li>
+%				}
 %				} else {
 %					foreach my $col ( @{$action_columns} ) {
 %						if ( $col->{'onclick'} )  { push @actions, "<a onclick=\"" . $col->{'onclick'} . "\" class=\"navsm\">" . $col->{'label'} . "</a>"; }
