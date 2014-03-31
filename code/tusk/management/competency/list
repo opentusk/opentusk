@@ -37,8 +37,8 @@
 
 <%perl>
 	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
-#	my $competency_types = TUSK::Core::CompetencyType->new()->lookup( 'school_id = ' . $school_id );
-#	my $types = [ map { label => $_->getDescription, value => $_->getCompetencyTypeID }, @{$competency_types} ];
+	my $competency_types = TUSK::Competency::UserType->lookup();
+	my $types = [ map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types} ];
 </%perl>
 
 <& /tmpl/element:jquery_sort_list, params =>{
@@ -51,6 +51,8 @@
 				sort => 1,
 				button_label => __('Add Competency'),
 				action_width => 170,
+				action_dropdown => 1,
+				onclick_options => 1,
 				action_columns => [ 
 							{ 'label' => __('Modify'),    'onclick' => 'editRow( this, params );' },
 							{ 'label' => __('Add Child'), 'onclick' => 'addNewRow( this, params );' },
@@ -70,9 +72,9 @@
 						  rows      => 5,
 						  cols      => 25 }
 					},
-					{ label => __('Type(s)'), field => 'types', head_align => 'left', align => 'left', width => 150, edit =>
-						{ type      => 'checkbox',
-						  classname => 'textareawhite',
+					{ label => __('Type'), field => 'types', head_align => 'left', align => 'left', width => 150, edit =>
+						{ type      => 'radio',
+						  options   => $types,		
 						  delimiter => ', ' }
 					},
 				],
@@ -92,7 +94,7 @@
 			"jquery/plugin/interface/interface.js",
 			"jquery/plugin/json.js",
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
-			"jqNestedSortableFunctions.js" 
+			"jqNestedSortableFunctionsCompetencies.js" 
 			];
 </%perl>
 </%method>
