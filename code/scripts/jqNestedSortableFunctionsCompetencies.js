@@ -447,9 +447,10 @@ function saveRow( link, params ) {
 					$(option_name).each(function(i,l){
 						options += '<option value="' + params.function_values[i+1] + '" class="navsm">' + l + '</option>';
 					});
-					display = '<form method="post"><select onChange=" eval(this.options[this.selectedIndex].value); " class="navsm"><option value="" class="navsm"> -- select -- </option>' + options + '</select></form>';
+					display = '<form method="post"><select onChange="eval(this.options[this.selectedIndex].value); " class="navsm"><option value="" class="navsm"> -- select -- </option>' + options + '</select></form>';
 				} else {
 					display = editParams.options.join( ' | ' );
+
 				}
 				postThis = false;
 				break;
