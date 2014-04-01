@@ -147,8 +147,6 @@ sub setSchoolCourseCode{
     $self->setFieldValue('school_course_code', $value);
 }
 
-
-
 #######################################################
 
 =item B<getHSDB45CourseFromTuskID>
@@ -192,7 +190,21 @@ sub getTuskCourseIDFromSchoolID {
 
 =cut
 
-### Other Methods
+sub getCompetenciesByCourse{    
+    #returns all competencies associated with a course, given the course's tusk_course_id
+
+    my ( $lib, $course_id ) = @_;
+
+    my $course_competencies = TUSK::Competency::Competency->lookup( 'competency_course.course_id ='. $course_id, 
+								    [ 'competency_id', 'description'] , undef, undef,
+								    [ TUSK::Core::JoinObject->new( 'TUSK::Competency::Course', 
+												   { origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+
+    return $course_competencies;
+
+}
+
+
 
 =head1 BUGS
 
