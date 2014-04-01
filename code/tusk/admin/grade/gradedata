@@ -141,31 +141,29 @@ sau<%doc>
 
 	my %data = ();
 	my %checkdata = ();
+
 	foreach my $grade_history (@$grades_history) {
 		my $grade_event = $grade_history->getJoinObject("TUSK::GradeBook::GradeEvent");
 		my $modified_by = ($grade_history->checkJoinObject("TUSK::Core::HSDB4Tables::User")) ? $grade_history->getJoinObject("TUSK::Core::HSDB4Tables::User")->outLastFirstName() : $grade_history->getModifiedBy();
+		my $modified_on = $grade_history->getModifiedOn();
 		my $tp_id = $grade_event->getTimePeriodID();
 		my $user_id = $grade_history->getParentUserID();
 		my $course_id = $grade_event->getCourseID();
 		my $grade = $grade_history->getGrade();
 
-		if ($display eq "tp_id") {
-			unless (exists $checkdata{$tp_id}{$course_id}{$user_id}{$grade}) {
-				push @{$data{$tp_id}{$course_id}{$user_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $grade_history->getModifiedOn() };
-				$checkdata{$tp_id}{$course_id}{$user_id}{$grade} = 1;
-			}
-		} elsif ($display eq "course") {
-			unless (exists $checkdata{$course_id}{$tp_id}{$user_id}{$grade}) {
-				push @{$data{$course_id}{$tp_id}{$user_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $grade_history->getModifiedOn() };
-				$checkdata{$course_id}{$tp_id}{$user_id}{$grade} = 1;
-			}
-		} elsif ($display eq "user") {
-			unless (exists $checkdata{$user_id}{$tp_id}{$course_id}{$grade}) {
-				push @{$data{$user_id}{$tp_id}{$course_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $grade_history->getModifiedOn() };
-				$checkdata{$user_id}{$tp_id}{$course_id}{$grade} = 1;
+		unless ($checkdata{$tp_id}{$course_id}{$user_id} eq $grade) {
+			$checkdata{$tp_id}{$course_id}{$user_id} = $grade;
+
+			if ($display eq "tp_id") {
+				push @{$data{$tp_id}{$course_id}{$user_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $modified_on };
+			} elsif ($display eq "course") {
+				push @{$data{$course_id}{$tp_id}{$user_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $modified_on };
+			} elsif ($display eq "user") {
+				push @{$data{$user_id}{$tp_id}{$course_id}}, { grade => $grade, modified_by => $modified_by, modified_on => $modified_on };
 			}
 		}
 	}
+
 	return \%data;
 </%perl>
 </%method>
