@@ -152,20 +152,19 @@ page_footer => ''
 			# Need to grab this BEFORE removing the row
 			my $cr = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $parent_id );
 
+			# Grab and delete relationship row from competency_course table;
 
-			# remove row
-			$query = "delete from tusk.competency_hierarchy where child_competency_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($id);
-			};
+			my $competency_course = TUSK::Competency::Course->lookupReturnOne('competency_id='. $id);
+			$competency_course->delete;
 
-			$query = "delete from tusk.competency_course where competency_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($id);
-			};
-			die "$@\t... failed to update competency_relationship!" if $@;
+			# Grab and delete actual competency row from competency table;
+				
+			my $competency_args = {
+				competency_id => $id
+			};			
+			my $competency = TUSK::Application::Competency::Competency->new($competency_args);
+
+			$competency->delete();
 
 			# 'promote' each child with sort order = position+sort_order
 			$query = "update tusk.competency_hierarchy set sort_order = sort_order+?, parent_competency_id = ? where parent_competency_id = ? and school_id = ?";

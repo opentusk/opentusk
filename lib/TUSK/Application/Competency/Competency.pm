@@ -77,10 +77,11 @@ sub delete {
 
     my ($self, $extra_cond) = @_;
     
-    my $linked_competencies = $self->getLinked;
+    my $linked_competencies = 0; # = $self->getLinked; no linking right now but on next update
 
     #if no linked child competencies, procede with deleting, otherwise not.
-    if ((scalar @{$linked_competencies}) == 0) {
+    if ( $linked_competencies == 0){
+    #if ((scalar @{$linked_competencies}) == 0) { #add check for linking for next update
 	#delete call to database
 	my $delete_check = $self->{competency}->delete();
 
