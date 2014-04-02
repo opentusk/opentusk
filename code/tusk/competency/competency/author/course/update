@@ -31,6 +31,7 @@ page_footer => ''
 <%once>
 	use HSDB4::Constants;
 	use TUSK::Core::School;
+	use TUSK::Enum::Data;
 
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Hierarchy;
@@ -191,14 +192,59 @@ page_footer => ''
 			my $course_competency;
 			my $new = 0;
 
+			my $competency_user_type_id = TUSK::Competency::UserType->new()->lookupReturnOne( "name =\"". $ARGS{'col1'}."\"" );				
+			my $competency_level_enum_id = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"course\"" );
+
 			if ( $ARGS{'id'} =~ /^new_child_of_/ ) {
-				$competency = TUSK::Competency::Competency->new();
 				$new = 1;
+				my $parent_id = $ARGS{'id'};
+				$parent_id =~ s/^new_child_of_//g;
+				$parent_id =~ s/_[\d]+//;
+				$parent_id =~ s/_[\d]+//;
+
+				my $parent_depth;
+				my $current_depth;
+				
+				eval{
+					$parent_depth = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $parent_id )->[0]->getDepth();			
+					$current_depth = $parent_depth + 1;
+				} or do {
+					$current_depth = 0;
+				};	
+
+				my $competency_args = {
+					competency_id => $parent_id,
+					description => $ARGS{'col0'},
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+					school_id => $school_id,
+					competency_level_enum_id => $competency_level_enum_id->getPrimaryKeyID,
+					version_id => $school_id
+				};
+
+				my $competency = TUSK::Application::Competency::Competency->new($competency_args);
+				
+				my $extra_competency_args = {
+					lineage => $ARGS{'lineage'},
+					sort_order => 0,
+					depth => $current_depth
+				};	
+				
+				my $child_competency_id = $competency->addChild($extra_competency_args);
+
+				$course_competency = TUSK::Competency::Course->new();
+
+				$course_competency->setFieldValues({
+					course_id => $tusk_course_id, 
+					competency_id => $child_competency_id,
+					sort_order => 0,															
+				});
+
+				$course_competency->save( { user => $m->session->{'user'}->user_id });	
+					
+	
 			} else {
 				my $id = $ARGS{'id'};
 				$id =~ s/_[\d]+//;
-#				$competency = TUSK::Competency::Competency->new()->lookupKey( $id );
-				my $competency_user_type_id = TUSK::Competency::UserType->new()->lookupReturnOne( "name =\"". $ARGS{'col1'}."\"" );				
 
 				my $competency_args = {
 					competency_id => $id,

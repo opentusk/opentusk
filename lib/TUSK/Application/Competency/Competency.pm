@@ -190,19 +190,35 @@ sub add {
 sub addChild {
 
     my ($self, $extra_cond) = @_;
-    
-    print Dumper $self->{competency_id};
 
-    my $child_competency_id = $self->add();
+    my $child_competency = TUSK::Competency::Competency->new();
+
+    $child_competency->setFieldValues({    
+	title => $self->{title},
+	description => $self->{description},
+	uri => $self->{uri},
+	competency_user_type_id => $self->{user_type_id},
+	school_id => $self->{school_id},
+	competency_level_enum_id => $self->{competency_level_enum_id},
+	version_id => $self->{version_id}
+    });
+
+    $child_competency->save({user => $self->{user}});
+
+    my $child_competency_id = $child_competency->getPrimaryKeyID;
 
     my $hierarchy = TUSK::Competency::Hierarchy->new();
-    $hierarchy->setSchoolID($self->{schooL_id});
-    # $hierarchy->setLineage(placeholder);
-    # $hierarhcy->setSortOrder(placeholder);
-    # $hierarchy->setDepth(placeholder);
+    $hierarchy->setSchoolID($self->{school_id});
+
+    $hierarchy->setLineage($extra_cond->{lineage});
+    $hierarchy->setSortOrder($extra_cond->{sort_order});
+    $hierarchy->setDepth($extra_cond->{depth});
+
     $hierarchy->setParentCompetencyID($self->{competency_id});
     $hierarchy->setChildCompetencyID($child_competency_id);
     $hierarchy->save({user => $self->{user}});
+
+    return $child_competency_id;
 }
 
 
