@@ -142,13 +142,13 @@ sub update {
     my $competency = $self->{competency};
 
     $competency->setFieldValues ({
-	title => (defined $self->{title}) ? $self->{title}: '',
-	description => (defined $self->{description}) ? $self->{description}: '',
-	uri => (defined $self->{uri}) ? $self->{uri}: '',
-	competency_user_type_id => (defined $self->{user_type_id}) ? $self->{user_type_id}: '',
-	school_id => (defined $self->{school_id}) ? $self->{school_id}: '',
-	competency_level_enum_id => (defined $self->{competency_level_enum_id}) ? $self->{competency_level_enum_id}: '',
-	version_id => (defined $self->{version_id}) ? $self->{version_id}: ''
+	title => (defined $self->{title}) ? $self->{title}: $competency->getTitle,
+	description => (defined $self->{description}) ? $self->{description}: $competency->getDescription,
+	uri => (defined $self->{uri}) ? $self->{uri}: $competency->getUri,
+	competency_user_type_id => (defined $self->{user_type_id}) ? $self->{user_type_id}: $competency->getCompetencyUserTypeID,
+	school_id => (defined $self->{school_id}) ? $self->{school_id}: $competency->getSchoolID,
+	competency_level_enum_id => (defined $self->{competency_level_enum_id}) ? $self->{competency_level_enum_id}: $competency->getCompetencyLevelEnumID,
+	version_id => (defined $self->{version_id}) ? $self->{version_id}: $competency->getVersionID
     });
 
     $competency->save({user => $self->{user}});
