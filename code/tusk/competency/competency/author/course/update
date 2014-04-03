@@ -240,7 +240,20 @@ page_footer => ''
 				});
 
 				$course_competency->save( { user => $m->session->{'user'}->user_id });	
-					
+
+				my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne( "child_competency_id=". $child_competency_id );
+
+				if ( $ARGS{'position'} eq 'last' ) {
+					my $sort = $competency_hierarchy->getNextSortOrder( $parent_id, $school_id );				
+					$competency_hierarchy->setSortOrder( $sort );
+				} else {
+					foreach ( @{TUSK::Competency::Hierarchy->getChildCompetencies( $parent_id, $school_id )} ) {
+						$_->setSortOrder( $_->getSortOrder()+1 );
+						$_->save( { user => $m->session->{'user'}->user_id } );
+					}
+					$competency_hierarchy->setSortOrder( 0 );
+				}
+								
 	
 			} else {
 				my $id = $ARGS{'id'};
@@ -255,67 +268,6 @@ page_footer => ''
 				$competency = TUSK::Application::Competency::Competency->new($competency_args);
 				$competency->update;
 			}
-=for			
-			$competency->setCompetencyLevel( 'course_objective' );
-			$competency->setCompetencyLevelEnumID( 4 ); #4 = course
-
-			$competency->setCompetencyUserTypeID( $competency_user_type_id->getPrimaryKeyID );
-			$competency->setDescription( $ARGS{'col0'} );
-			$competency->setSchoolID( $school_id );
-			$competency->setVersionID( $school_id ); #version_id is same as school_id until we have multiple versions for competencies
-
-			$competency->save( { user => $m->session->{'user'}->user_id } );
-
-			
-			$course_competency = TUSK::Competency::Course->new();
-			$course_competency->setFieldValues({
-					course_id => $tusk_course_id, 
-					competency_id => $competency->getCompetencyID,
-					sort_order => 0,															
-			});
-
-			$course_competency->save( { user => $m->session->{'user'}->user_id });	
-						
-			if ( $new ) {
-				my $parent_id = $ARGS{'id'};
-				$parent_id =~ s/^new_child_of_//g;
-				$parent_id =~ s/_[\d]+//;
-				$parent_id =~ s/_[\d]+//;
-				
-				my $cr = TUSK::Competency::Hierarchy->new();
-				#my $cr = TUSK::Core::CompetencyRelationship->new();
-
-				$cr->setParentCompetencyID( $parent_id );
-				$cr->setChildCompetencyID( $competency->getCompetencyID() );
-				eval{
-					my $parentDepth = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $parent_id )->[0]->getDepth();
-					$cr->setDepth( $parentDepth +  1);
-				} or do {
-					$cr->setDepth( 0 );
-				};	
-				$cr->setLineage( $ARGS{'lineage'} );
-				$cr->setSchoolID( $school_id );
-
-				if ( $ARGS{'position'} eq 'last' ) {
-					my $sort = $cr->getNextSortOrder( $parent_id, $school_id );
-				
-					$cr->setSortOrder( $sort );
-				} else {
-					foreach ( @{TUSK::Competency::Hierarchy->getChildCompetencies( $parent_id, $school_id )} ) {
-					#foreach ( @{TUSK::Core::CompetencyRelationship->getChildCompetencies( $parent_id, $school_id )} ) {
-						$_->setSortOrder( $_->getSortOrder()+1 );
-						$_->save( { user => $m->session->{'user'}->user_id } );
-					}
-					$cr->setSortOrder( 0 );
-				}
-				$cr->save( { user => $m->session->{'user'}->user_id } );
-
-				print "\"parent\": \"" . $parent_id . "\",\n";
-			}
-
-			print "\"id\"    : \"" . $competency->getCompetencyID() . "_" . time() . "\",\n";
-			print "\"error\" : \"\"\n";
-=cut
 		}
 	}
 	print "}";
