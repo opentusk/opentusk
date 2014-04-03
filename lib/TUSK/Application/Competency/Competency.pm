@@ -246,33 +246,6 @@ sub getLinked {
 
 #######################################################
 
-#Other functions:
-
-
-my @comp_categories;
-
-sub getCategories {
-    my ($lib, $data) = @_;
-    
-    getCategoriesSub($data);
-    
-    return \@comp_categories;
-}
-
-sub getCategoriesSub {
-
-    my ($data) = @_;
-
-    foreach my $d (@{$data}){
-	if (($d->{'children'})){
-	    my %comp_category;
-	    $comp_category{$d->{'id'}} = $d->{title};
-	    push @comp_categories, \%comp_category;	
-	    getCategoriesSub ($d->{'children'});
-	}
-    }
-    
-}
 
 
 1;
