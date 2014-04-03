@@ -115,7 +115,7 @@ sub getBranchHelper {
 
 ######################################################
 
-
+#generic walk tree function to traverse competency trees.
 
 sub walk{ 
 
