@@ -226,6 +226,7 @@ sub addChild {
 
 #######################################################
 
+#for next update
 
 =item B<getLinked>
     returns the competencies that have been linked to the current competency.
