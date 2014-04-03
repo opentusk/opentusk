@@ -208,14 +208,16 @@ sub addChild {
     my $child_competency_id = $child_competency->getPrimaryKeyID;
 
     my $hierarchy = TUSK::Competency::Hierarchy->new();
-    $hierarchy->setSchoolID($self->{school_id});
 
-    $hierarchy->setLineage($extra_cond->{lineage});
-    $hierarchy->setSortOrder($extra_cond->{sort_order});
-    $hierarchy->setDepth($extra_cond->{depth});
+    $hierarchy->setFieldValues({
+	school_id => $self->{school_id},
+	lineage => $extra_cond->{lineage},
+	sort_order => $extra_cond->{sort_order},
+	depth => $extra_cond->{depth},
+	parent_competency_id => $self->{competency_id},
+	child_competency_id => $child_competency_id,
+    });
 
-    $hierarchy->setParentCompetencyID($self->{competency_id});
-    $hierarchy->setChildCompetencyID($child_competency_id);
     $hierarchy->save({user => $self->{user}});
 
     return $child_competency_id;

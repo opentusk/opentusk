@@ -2,7 +2,7 @@
  Copyright 2012 Tufts University 
 
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
+ you may not use2 this file except in compliance with the License. 
  You may obtain a copy of the License at 
 
  http://www.opensource.org/licenses/ecl1.php 
@@ -103,6 +103,7 @@
 </%args>
 <%perl>
 	my %p_c_pairs;
+	my $competency_level = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name=\"course\"");
 	my $cr = TUSK::Competency::Hierarchy->new()->lookup( 'school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'] );
 	foreach my $cr_row (@{$cr}) {
 		if( defined($competencies->{$cr_row->getChildCompetencyID()})){
@@ -114,8 +115,8 @@
 				my $user_type_temp = TUSK::Competency::UserType->lookup( 'competency_user_type_id='.$user_type_id);
 				$user_type = $user_type_temp->[0]->getName;
 			}
-
-			if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
+		
+			if ( !defined( $c_href->{$child_comp->getCompetencyID} )) {
 				$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
@@ -124,7 +125,7 @@
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
 			}
-			if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+			if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
 				$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
 				push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
 			}
