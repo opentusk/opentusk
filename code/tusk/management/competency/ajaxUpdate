@@ -26,12 +26,14 @@ page_footer => ''
 <%once>
 	use TUSK::Core::School;
 	use HSDB4::Constants;
+	use TUSK::Enum::Data;
 
-	use TUSK::Application::Competency::Competency;
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Hierarchy;
 	use TUSK::Competency::UserType;
 
+	use TUSK::Application::Competency::Competency;
+	use TUSK::Application::Competency::Tree;
 </%once>
 
 <%perl>
@@ -146,16 +148,20 @@ page_footer => ''
 			# Need to grab this BEFORE removing the row
 			my $cr = TUSK::Competency::Hierarchy->new()->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $parent_id );
 
-			# remove row
-			$query = "delete from tusk.competency_hierarchy where parent_competency_id = ? and child_competency_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($parent_id, $id);
-			};
-			die "$@\t... failed to update competency_hierarchy!" if $@;
+			# Grab and delete actual competency row from competency table.
+				
+			my $competency_args = {
+				competency_id => $id
+			};			
+			my $competency = TUSK::Application::Competency::Competency->new($competency_args);
 
+			$competency->delete();
+
+			# Grab and delete entry for deleted competency from competency_hiearchy table.
+
+			my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne('child_competency_id='. $id);
+			$competency_hierarchy->delete;
 			
-
 			# 'promote' each child with sort order = position+sort_order
 			$query = "update tusk.competency_hierarchy set sort_order = sort_order+?, parent_competency_id = ? where parent_competency_id = ? and school_id = ?";
 			eval {
