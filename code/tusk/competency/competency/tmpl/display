@@ -59,7 +59,7 @@
 	$children
 </%args>
 <%perl> 
-    my $course_competencies = TUSK::Course->getCompetenciesByCourse( $course_id );
+    my $course_competencies = TUSK::Course->getTopLevelCompetenciesByCourse( $course_id );
 
 
     if ( $input_type eq 'radio' ){
@@ -102,7 +102,6 @@
     foreach my $key( keys %{ $competency_tree } ){
 	print "&nbsp&nbsp&nbsp&nbsp" x $depth;	
 	my $this_competency = TUSK::Competency::Competency->lookup( 'competency_id='. $key);
-	if ( defined $this_competency->[0] ){
 		if ( $input_type eq "radio" ){
 			if ( ($depth == 0) || ($children eq 'on') ){
 			    print "<input type=\"radio\" name=\"competency_checklist\" value=". $this_competency->[0]->getPrimaryKeyID .">".$this_competency->[0]->getDescription . "</input><br>";
@@ -116,9 +115,7 @@
 			    print "&nbsp&nbsp".$this_competency->[0]->getDescription . "</span><br>";
 			}
 		}
-		$depth = $depth + 1;
-		$m->comp( 'SELF:generateCompetencyChecklistByCourseHelper', competency_tree => $competency_tree->{$key}, depth => $depth, input_type => $input_type, children => $children);
-	}
+		$m->comp( 'SELF:generateCompetencyChecklistByCourseHelper', competency_tree => $competency_tree->{$key}, depth => $depth+1, input_type => $input_type, children => $children);
     }    
 </%perl>
 </%method>
