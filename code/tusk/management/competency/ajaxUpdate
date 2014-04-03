@@ -181,6 +181,76 @@ page_footer => ''
 			my $competency;
 			my $new = 0;
 
+			my $competency_user_type_id = TUSK::Competency::UserType->new()->lookupReturnOne( "name =\"". $ARGS{'col2'}."\"" );				
+			my $competency_level_enum_id = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"course\"" );
+
+			if ( $ARGS{'id'} =~ /^new_child_of_/ ) {
+				$new = 1;
+				my $parent_id = $ARGS{'id'};
+				$parent_id =~ s/^new_child_of_//g;
+				$parent_id =~ s/_[\d]+//;
+				$parent_id =~ s/_[\d]+//;
+
+				my $parent_depth;
+				my $current_depth;
+				
+				eval{
+					$parent_depth = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $parent_id )->[0]->getDepth();			
+					$current_depth = $parent_depth + 1;
+				} or do {
+					$current_depth = 0;
+				};	
+
+				my $competency_args = {
+					competency_id => $parent_id,
+					title => $ARGS{'col0'},
+					description => $ARGS{'col1'},
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+					school_id => $school_id,
+					competency_level_enum_id => $competency_level_enum_id->getPrimaryKeyID,
+					version_id => $school_id
+				};
+
+				my $competency = TUSK::Application::Competency::Competency->new($competency_args);
+				
+				my $extra_competency_args = {
+					lineage => $ARGS{'lineage'},
+					sort_order => 0,
+					depth => $current_depth
+				};	
+				
+				my $child_competency_id = $competency->addChild($extra_competency_args);
+
+				my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne( "child_competency_id=". $child_competency_id );
+
+				if ( $ARGS{'position'} eq 'last' ) {
+					my $sort = $competency_hierarchy->getNextSortOrder( $parent_id, $school_id );				
+					$competency_hierarchy->setSortOrder( $sort );
+				} else {
+					foreach ( @{TUSK::Competency::Hierarchy->getChildCompetencies( $parent_id, $school_id )} ) {
+						$_->setSortOrder( $_->getSortOrder()+1 );
+						$_->save( { user => $m->session->{'user'}->user_id } );
+					}
+					$competency_hierarchy->setSortOrder( 0 );
+				}
+									
+			} else {
+				my $id = $ARGS{'id'};
+				$id =~ s/_[\d]+//;
+
+				my $competency_args = {
+					competency_id => $id,
+					title => $ARGS{'col0'},
+					description => $ARGS{'col1'},
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+				};
+
+				$competency = TUSK::Application::Competency::Competency->new($competency_args);
+				$competency->update;
+			}
+	
+
+=for
 			if ( $ARGS{'id'} =~ /^new_child_of_/ ) {
 				$competency = TUSK::Competency::Competency->new();
 				$new = 1;
@@ -229,9 +299,7 @@ page_footer => ''
 
 				print "\"parent\": \"" . $parent_id . "\",\n";
 			}
-
-			print "\"id\"    : \"" . $competency->getCompetencyID() . "_" . time() . "\",\n";
-			print "\"error\" : \"\"\n";
+=cut
 		}
 	}
 	print "}";
