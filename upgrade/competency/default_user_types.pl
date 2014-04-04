@@ -43,7 +43,7 @@ sub main {
     my $user_types = $sth->fetchall_hashref( 'short_name' );
     $sth->finish;
     
-    foreach my $school( @{$schools}){
+    foreach my $school( @{$schools}) {
 	my $current_school_id =  $school->getPrimaryKeyID;
 
 	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, created_by, created_on, modified_by, modified_on) VALUES( 'Competency', $user_types->{competency}->{enum_data_id}, $current_school_id, 'script', now(), 'script', now()));

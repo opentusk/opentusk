@@ -65,9 +65,9 @@ sub migrateCourseObjectives {
 	my $course_objectives = $sth->fetchall_arrayref;
 	$sth->finish;
 
-	foreach my $course_objective ( @{ $course_objectives } ){
+	foreach my $course_objective ( @{ $course_objectives } ) {
 	    my $competency = TUSK::Competency::Competency->new();
-	    $competency->setFieldValues({
+	    $competency->setFieldValues ({
 		school_id => $school->getPrimaryKeyID(),
 		description => $objectives{ $course_objective->[1] },
 		competency_level_enum_id => $competency_level_enum->getPrimaryKeyID(),
@@ -75,7 +75,7 @@ sub migrateCourseObjectives {
 	    });
 	    $competency->save({user => 'migration'});
 	    my $competency_hierarchy = TUSK::Competency::Hierarchy->new();
-	    $competency_hierarchy->setFieldValues({
+	    $competency_hierarchy->setFieldValues ({
 		school_id => $school->getPrimaryKeyID(),
 		lineage => '/',
                 parent_competency_id => 0,
@@ -99,7 +99,7 @@ sub processCourseRelationship {
     };
     my $tusk_competency_course = TUSK::Competency::Course->new();
 
-    $tusk_competency_course->setFieldValues({
+    $tusk_competency_course->setFieldValues ({
 	course_id => $tusk_course_id,
 	competency_id => $competency_id,
 	sort_order => $sort_order,
