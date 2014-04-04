@@ -18,7 +18,7 @@
 </%shared>
 
 <%perl>
-	foreach( @{TUSK::Competency::Competency->new()->lookup()} ) {
+	foreach(@{TUSK::Competency::Competency->new()->lookup()}) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 
@@ -34,12 +34,12 @@
 &>
 
 <%perl>
-	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
-	my $competency_types = TUSK::Competency::UserType->lookup();
-	my $types = [ map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types} ];
+	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id);
+	my $competency_types = TUSK::Competency::UserType->lookup('school_id='. $school_id);
+	my $types = [map {label => $_->getName, value=> $_->getPrimaryKeyID}, @{$competency_types}];
 </%perl>
 
-<& /tmpl/element:jquery_sort_list, params =>{
+<& /tmpl/element:jquery_sort_list, params => {
 				width => "100%",
 				label => __('Competencies'),
 				no_table => 1,

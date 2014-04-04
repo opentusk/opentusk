@@ -32,7 +32,7 @@
 
 
 <%perl>
-	foreach( @{TUSK::Competency::Competency->lookup()} ) {
+	foreach(@{TUSK::Competency::Competency->lookup()}) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 	
@@ -41,12 +41,13 @@
 	$school    = $m->comp("/tmpl/url:get_school");
 	$school_id = TUSK::Core::School->new->getSchoolID($school);
 
-	$tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID( $school_id, $hsdb45_course_id );
-	$current_course = HSDB45::Course->new(_school => $school)->lookup_key( $hsdb45_course_id )->{'title'};
+	$tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $hsdb45_course_id);
+	$current_course = HSDB45::Course->new(_school => $school)->lookup_key($hsdb45_course_id)->{'title'};
 	
 	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
-	my $competency_types = TUSK::Competency::UserType->lookup();
-	my $types = [ map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types} ];
+
+	my $competency_types = TUSK::Competency::UserType->lookup('school_id=' . $school_id);
+	my $types = [map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types}];
 </%perl>
 
 <& /tmpl/element:jquery_sort_list, params =>{
