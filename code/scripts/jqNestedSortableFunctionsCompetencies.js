@@ -304,13 +304,8 @@ function addNewRow( link, params ) {
 	if ( link != 'top' && link != 'bottom' ) {
 		parentId = link.parentNode.parentNode.parentNode.parentNode.parentNode.id;
 	}
-	else {
-		if ( params['listId'] == 'school_competencies' ){
+	else {		
 			parentId = 0; //base_level_school_competency
-		}
-		else {
-			parentId = 65928; //base_level_national_competency
-		}
 	}
 	var time = new Date().getTime();
 	var rowText  = '<li class="clr sort-row" id="new_child_of_' + parentId + '_' + time + '"><div class="clearfix striping"><ul class="row-list"><li style="display:none">&nbsp;</li>';
@@ -564,12 +559,7 @@ function deleteRowConfirm( link, params ) {
 	if ( liNode.parentNode.parentNode.tagName == 'LI' ) {
 		postData['parentId'] = liNode.parentNode.parentNode.id;
 	} else {
-		if ( params['listId'] == 'competencies' ){
-			postData['parentId'] = 65928; //base level national competency_id
-		}
-		else {
-			postData['parentId'] = 65928;
-		}
+			postData['parentId'] = 0; 
 	}
 	postData['position'] = getPositionInList( liNode );
 
