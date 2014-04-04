@@ -24,7 +24,10 @@ use TUSK::Constants;
 use HSDB4::SQLRow::Objective;
 
 use TUSK::Competency::Competency;
-use TUSK::Competency::CourseCompetency;
+use TUSK::Competency::Course;
+use TUSK::Competency::Hierarchy;
+
+use TUSK::Enum::Data;
 use TUSK::Course;
 
 my $schools = HSDB4::Constants::getSchoolObject();
@@ -51,6 +54,9 @@ sub createTuskCourseObjects {
 }
 
 sub migrateCourseObjectives {
+    my $competency_level_enum = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"course\"" );
+    my $competency_user_type = TUSK::Competency::UserType->new()->lookupReturnOne( "name = \"Competency\""  );				
+    
     foreach my $school( @$schools ) {
 	my $school_db = $school->getSchoolDb();
 	my $sql = qq( SELECT * FROM $school_db\.link_course_objective);
@@ -64,9 +70,20 @@ sub migrateCourseObjectives {
 	    $competency->setFieldValues({
 		school_id => $school->getPrimaryKeyID(),
 		description => $objectives{ $course_objective->[1] },
-		competency_level => "course_objective",
+		competency_level_enum_id => $competency_level_enum->getPrimaryKeyID(),
+		competency_user_type_id => $competency_user_type->getPrimaryKeyID()
 	    });
-	    $competency->save({user=> 'migration'});
+	    $competency->save({user => 'migration'});
+	    my $competency_hierarchy = TUSK::Competency::Hierarchy->new();
+	    $competency_hierarchy->setFieldValues({
+		school_id => $school->getPrimaryKeyID(),
+		lineage => '/',
+                parent_competency_id => 0,
+                child_competency_id => $competency->getPrimaryKeyID(),
+		sort_order => 0,
+		depth => 0
+	    });
+	    $competency_hierarchy->save({user => 'migration'});
 	    processCourseRelationship($course_objective->[0], $course_objective->[1], $competency->getCompetencyID(), $school_db, $school->getPrimaryKeyID(), $course_objective->[2] , $course_objective->[3]);
 	}
     }
@@ -80,14 +97,13 @@ sub processCourseRelationship {
 	print "Warning: Corresponding course does not exist for objective ".$objective_id.". Skipping...\n"; 
 	return;
     };
-    my $tusk_course_competency = TUSK::Competency::CourseCompetency->new();
+    my $tusk_competency_course = TUSK::Competency::Course->new();
 
-    $tusk_course_competency->setFieldValues({
+    $tusk_competency_course->setFieldValues({
 	course_id => $tusk_course_id,
 	competency_id => $competency_id,
 	sort_order => $sort_order,
-	relationship => $relationship,
     });
-    $tusk_course_competency->save( { user=> 'migration' });
+    $tusk_competency_course->save( { user=> 'migration' });
 }
 
