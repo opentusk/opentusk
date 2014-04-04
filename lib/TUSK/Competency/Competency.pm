@@ -72,7 +72,6 @@ sub new {
 					'school_id' => '',
 					'title' => '',
 					'uri' => '',
-					'competency_level' => '',
 					'description' => '',
 					'competency_level_enum_id' => '',
 					'competency_user_type_id' => '',
@@ -325,22 +324,6 @@ sub setDescription{
 }
 
 #######################################################
-
-=item B<setCopmetencyLevel>
-
-    $string = $obj->setCompetencyLevel($value);
-
-    Set the value of the competency_level field
-
-=cut
-
-sub setCompetencyLevel{
-    my ($self, $value) = @_;
-    $self->setFieldValue('competency_level', $value);
-}
-
-#######################################################
-
 
 ### Other Methods
 
