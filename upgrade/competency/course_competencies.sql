@@ -158,7 +158,8 @@ ALTER TABLE competency
 ADD COLUMN uri varchar(256) DEFAULT NULL AFTER description, 
 ADD COLUMN competency_level_enum_id int(10) unsigned DEFAULT NULL, 
 ADD COLUMN competency_user_type_id int(10) unsigned DEFAULT NULL,
-ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id;
+ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id,
+ADD CONSTRAINT fk_competency_user_type FOREIGN KEY (competency_user_type_id) REFERENCES competency_user_type (competency_user_type_id); 
 
 ALTER TABLE competency_history
 ADD COLUMN uri varchar(256) NOT NULL AFTER description,
