@@ -131,8 +131,6 @@ CREATE TABLE competency_user_type(
 	name varchar(24), 
 	school_id int(10) unsigned, 
 	competency_type_enum_id smallint(6),
-	created_by varchar(24) NOT NULL DEFAULT '', 
-	created_on datetime DEFAULT NULL, 
 	modified_by varchar(24) NOT NULL DEFAULT '', 
 	modified_on datetime DEFAULT NULL 
 ) ENGINE=InnoDB CHARSET=UTF8; 
@@ -145,16 +143,16 @@ CREATE TABLE competency_user_type_history(
 	name varchar(24), 
 	school_id int(10) unsigned, 
 	competency_type_enum_id smallint(6),
-	created_by varchar(24) NOT NULL DEFAULT '' , 
-	created_on datetime DEFAULT NULL, 
 	modified_by varchar(24) NOT NULL DEFAULT '', 
 	modified_on datetime DEFAULT NULL,
 	history_action enum('Insert', 'Update', 'Delete')
 ) ENGINE=InnoDB CHARSET=UTF8; 
 
-/*Add new columns to competency and comptency_history tables*/
+/*Drop created_by and created_on columns from and add new columns to competency and comptency_history tables*/
 
 ALTER TABLE competency
+DROP COLUMN created_by,
+DROP COLUMN created_on,
 ADD COLUMN uri varchar(256) DEFAULT NULL AFTER description, 
 ADD COLUMN competency_level_enum_id int(10) unsigned DEFAULT NULL, 
 ADD COLUMN competency_user_type_id int(10) unsigned DEFAULT NULL,
@@ -162,6 +160,8 @@ ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id,
 ADD CONSTRAINT fk_competency_user_type FOREIGN KEY (competency_user_type_id) REFERENCES competency_user_type (competency_user_type_id); 
 
 ALTER TABLE competency_history
+DROP COLUMN created_by,
+DROP COLUMN created_on,
 ADD COLUMN uri varchar(256) NOT NULL AFTER description,
 ADD COLUMN competency_level_enum_id int(10) unsigned DEFAULT NULL AFTER uri,
 ADD COLUMN competency_user_type_id int(10) unsigned DEFAULT NULL AFTER competency_level_enum_id,
@@ -194,8 +194,6 @@ CREATE TABLE competency_course (
 	competency_id int(10) unsigned NOT NULL DEFAULT '0',
 	course_id int(10) unsigned NOT NULL DEFAULT '0',
 	sort_order smallint(6) unsigned NOT NULL DEFAULT '65535',
-	created_by varchar(24) NOT NULL DEFAULT ' ',
-	created_on datetime DEFAULT NULL,
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
 	CONSTRAINT FOREIGN KEY (competency_id) REFERENCES competency(competency_id)
@@ -208,8 +206,6 @@ CREATE TABLE competency_course_history (
 	competency_id int(10) unsigned NOT NULL DEFAULT '0',
 	course_id int(10) unsigned NOT NULL DEFAULT '0',
 	sort_order smallint(6) unsigned NOT NULL DEFAULT '65535',
-	created_by varchar(24) NOT NULL DEFAULT ' ',
-	created_on datetime DEFAULT NULL,
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
 	history_action enum('Insert', 'Update', 'Delete'),
