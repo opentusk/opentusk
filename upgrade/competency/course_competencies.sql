@@ -25,8 +25,6 @@ VALUES (
 	'Competency', 
 	'Competency type for Competencies', 
 	'script', 
-	now(), 
-	'script', 
 	now() 
 ); 
 
@@ -38,8 +36,6 @@ VALUES (
 	'Competency Category', 
 	'Category type for Competencies', 
 	'script', 
-	now(), 
-	'script', 
 	now() 
 ); 
 
@@ -50,8 +46,6 @@ VALUES (
 	 'info',
 	 'Supporting Information',
 	 'Supporting Information',
-	 'script', 
-	now(),
 	 'script',
 	now() 
 ); 
@@ -64,8 +58,6 @@ VALUES (
 	'National', 
 	'National Competencies', 
 	'script', 
-	now(), 
-	'script', 
 	now() 
 );\
 
@@ -77,8 +69,6 @@ VALUES (
 	'School', 
 	'School Competencies', 
 	'script', 
-	now(), 
-	'script', 
 	now() 
 ); 
 
@@ -89,8 +79,6 @@ VALUES (
 	'course', 
 	'Course', 
 	'Course Competencies', 
-	'script', 
-	now(), 
 	'script', 
 	now() 
 ); 
@@ -104,8 +92,6 @@ VALUES (
 	'Class Meeting', 
 	'Class Meeting Competencies', 
 	'script', 
-	now(), 
-	'script', 
 	now() 
 ); 
 
@@ -116,8 +102,6 @@ VALUES (
 	'content', 
 	'Content', 
 	'Content Competencies', 
-	'script', 
-	now(), 
 	'script', 
 	now() 
 ); 
@@ -167,17 +151,21 @@ ADD COLUMN competency_level_enum_id int(10) unsigned DEFAULT NULL AFTER uri,
 ADD COLUMN competency_user_type_id int(10) unsigned DEFAULT NULL AFTER competency_level_enum_id,
 ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id;
 
-/* rename the competency_relationship table and the related history table to competency_hierarchy */
+/* Drop created_by and created_on columns from and rename the competency_relationship table and the related history table to competency_hierarchy */
 
 RENAME TABLE competency_relationship TO competency_hierarchy;
 
 ALTER TABLE competency_hierarchy 
+DROP COLUMN created_by,
+DROP COLUMN created_on,
 CHANGE competency_relationship_id competency_hierarchy_id int(10) UNSIGNED,
 DROP column school_id;
 
 RENAME TABLE competency_relationship_history TO competency_hierarchy_history;
 
 ALTER TABLE competency_hierarchy_history 
+DROP COLUMN created_by,
+DROP COLUMN created_on,
 CHANGE competency_relationship_history_id competency_hierarchy_history_id int(10) UNSIGNED,
 CHANGE competency_relationship_id competency_hierarchy_id int(10) UNSIGNED,
 DROP column school_id;
