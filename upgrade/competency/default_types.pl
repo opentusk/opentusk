@@ -46,23 +46,24 @@ sub main {
     foreach my $school( @{$schools}) {
 	my $current_school_id =  $school->getPrimaryKeyID;
 
-	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, created_by, created_on, modified_by, modified_on) VALUES( 'Competency', $user_types->{competency}->{enum_data_id}, $current_school_id, 'script', now(), 'script', now()));
+	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, modified_by, modified_on) VALUES( 'Competency', $user_types->{competency}->{enum_data_id}, $current_school_id, 'script', now()));
 	$sth = $dbh->prepare($sql);
 	$sth->execute();
 	$sth->finish;
 
-	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, created_by, created_on, modified_by, modified_on) VALUES( 'Competency Category', $user_types->{category}->{enum_data_id}, $current_school_id, 'script', now(), 'script', now()));
+	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, modified_by, modified_on) VALUES( 'Competency Category', $user_types->{category}->{enum_data_id}, $current_school_id, 'script', now()));
 	$sth = $dbh->prepare($sql);
 	$sth->execute();
 	$sth->finish;
 
-	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, created_by, created_on, modified_by, modified_on) VALUES( 'Supporting Information', $user_types->{info}->{enum_data_id}, $current_school_id, 'script', now(), 'script', now()));
+	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, modified_by, modified_on) VALUES( 'Supporting Information', $user_types->{info}->{enum_data_id}, $current_school_id, 'script', now()));
 	$sth = $dbh->prepare($sql);
 	$sth->execute();
 	$sth->finish;
     }
 
-#following sets all competency_level_id to refere to 'school' as all the existing competencies before the upgrade on the competency table are school competencies.
+
+#following sets all competency_level_id to refer to 'school' as all the existing competencies before the upgrade on the competency table are school competencies.
 
     $sql =qq(SELECT enum_data_id FROM tusk.enum_data WHERE namespace="competency.level_id" AND short_name="school");
     $sth = $dbh->prepare($sql);
