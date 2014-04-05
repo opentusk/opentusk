@@ -76,6 +76,7 @@ sub new {
 				    _attributes => {
 					save_history => 1,
 					tracking_fields => 1,	
+					no_created => 1,
 				    },
 				    _levels => {
 					reporting => '-c',
