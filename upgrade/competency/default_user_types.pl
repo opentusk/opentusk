@@ -61,4 +61,18 @@ sub main {
 	$sth->execute();
 	$sth->finish;
     }
+
+#following sets all competency_level_id to refere to 'school' as all the existing competencies before the upgrade on the competency table are school competencies.
+
+    $sql =qq(SELECT enum_data_id FROM tusk.enum_data WHERE namespace="competency.level_id" AND short_name="school");
+    $sth = $dbh->prepare($sql);
+    $sth->execute();
+    my $school_level_id = $sth->fetchall_arrayref;    
+    $sth->finish();
+    
+    $sql = qq(UPDATE course_test_temp.competency SET competency_level_enum_id = $school_level_id->[0]->[0]);
+    $sth = $dbh->prepare($sql);
+    $sth->execute();
+    $sth->finish;
+
 }
