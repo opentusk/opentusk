@@ -1,0 +1,121 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+ http://www.opensource.org/licenses/ecl1.php 
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%shared>
+	my @comp_categories;
+</%shared>
+
+<%perl>
+	use TUSK::Application::Competency::Tree;
+	use TUSK::Application::Competency::Competency;	
+
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Hierarchy;
+	
+	my $school_id = $ARGS{ 'school_id' };
+	my $course_id = $ARGS{ 'course' };
+
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID( $school_id, $course_id );
+	
+	$m->comp( 'SELF:generateCompetencyChecklistByCourse', course_id => $tusk_course_id, input_type => $ARGS{ 'input_type' }, children => $ARGS{ 'children' });
+</%perl>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/jquery.ui.widget.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js",
+			"competencyFuncitons.js",
+			"jquery.highlight.js",
+			];
+</%perl>
+</%method>
+
+<%method generateCompetencyChecklistByCourse>
+<%args>
+	$course_id
+	$input_type
+	$children
+</%args>
+<%perl> 
+    my $course_competencies = TUSK::Course->getTopLevelCompetenciesByCourse( $course_id );
+
+
+    if ( $input_type eq 'radio' ){
+	print "<form class=\"competency_checklist_form_radio\">";
+    } elsif ( $input_type eq 'checkbox' ){
+	print "<form class=\"competency_checklist_form_checkbox\">";
+    } else {
+	print "Error: Unrecognized input type \"". $input_type . "\" for generating checklist.";
+	return 0;
+    }
+    foreach my $course_competency (@{$course_competencies}){
+	my $this_course_competency = {
+		competency_id => $course_competency->getPrimaryKeyID,
+	};
+	my $individual_tree = TUSK::Application::Competency::Tree->new( $this_course_competency );
+	my $top_level_competencies = $individual_tree->getBranch();
+	$m->comp( 'SELF:generateCompetencyChecklistByCourseHelper', competency_tree => $top_level_competencies, depth => 0, input_type => $input_type, children => $children);
+    }
+
+    if ( $input_type eq 'radio' ){
+	print "<br /><input class=\"competency_checklist_select_radio\" type=\"button\" value=\"Select\" onclick=\"radioOnClick()\">";
+    } else{
+	print "<br /><input class=\"competency_checklist_select_checkbox\" type=\"button\" value=\"Select\" onclick=\"checkboxOnClick()\">";
+    }	
+    print "</form>";
+
+    return 1;	
+</%perl>
+</%method>
+
+
+<%method generateCompetencyChecklistByCourseHelper>
+<%args>
+	$competency_tree
+	$depth
+	$input_type
+	$children
+</%args>
+<%perl>
+    foreach my $key( keys %{ $competency_tree } ){
+	print "&nbsp&nbsp&nbsp&nbsp" x $depth;	
+	my $this_competency = TUSK::Competency::Competency->lookup( 'competency_id='. $key);
+		if ( $input_type eq "radio" ){
+			if ( ($depth == 0) || ($children eq 'on') ){
+			    print "<input type=\"radio\" name=\"competency_checklist\" value=". $this_competency->[0]->getPrimaryKeyID .">".$this_competency->[0]->getDescription . "</input><br>";
+			} else{	
+			    print "&nbsp&nbsp".$this_competency->[0]->getDescription . "</span><br>";
+			}
+		} else {
+			if ( ($depth == 0) || ($children eq 'on') ){
+			    print "<input type=\"checkbox\" name=\"competency_checklist\" value=". $this_competency->[0]->getPrimaryKeyID .">".$this_competency->[0]->getDescription . "</input><br>";
+			} else{
+			    print "&nbsp&nbsp".$this_competency->[0]->getDescription . "</span><br>";
+			}
+		}
+		$m->comp( 'SELF:generateCompetencyChecklistByCourseHelper', competency_tree => $competency_tree->{$key}, depth => $depth+1, input_type => $input_type, children => $children);
+    }    
+</%perl>
+</%method>

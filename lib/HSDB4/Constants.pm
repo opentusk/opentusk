@@ -18,6 +18,7 @@ package HSDB4::Constants;
 use strict;
 use DBI;
 use TUSK::Constants;
+use TUSK::Core::School;
 use Sys::Hostname;
 
 BEGIN {
@@ -166,6 +167,13 @@ sub school_db_list {
         get_school_db($_)
     } keys %TUSK::Constants::Schools;
     return @school_dbs;
+}
+
+sub getSchoolObject {
+    use Data::Dumper;
+    my $schools = join(",", map { "'$_'" } schools());
+    my $school_object = TUSK::Core::School->new()->lookup("school_name in ($schools)");
+    return $school_object;
 }
 
 sub get_school_db {

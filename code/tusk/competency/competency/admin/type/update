@@ -25,8 +25,9 @@ page_footer => ''
 
 <%once>
 	use TUSK::Core::School;
-	use TUSK::Core::CompetencyType;
-	use TUSK::Core::CompetencyCompetencyType;
+	use TUSK::Competency::UserType;
+	use TUSK::Competency::Competency;
+	use TUSK::Enum::Data;
 </%once>
 
 <%perl>
@@ -34,17 +35,17 @@ page_footer => ''
 	my $school_id = $school->getFieldValue( 'school_id' );
 	my $type;
 	if ( $ARGS{'id'} =~ /^new_child_of_/ ) {
-		$type = TUSK::Core::CompetencyType->new();
+		$type = TUSK::Competency::UserType->new();
 	} else {
 		my $id = $ARGS{'id'};
 		$id =~ s/_[\d]+//;
-		$type = TUSK::Core::CompetencyType->new()->lookupKey( $id );
+		$type = TUSK::Competency::UserType->new()->lookupKey( $id );
 	}
 
 	print "{\n";
 
 	if ( $ARGS{'delete'} ) {
-		if ( scalar( @{TUSK::Core::CompetencyCompetencyType->lookup( "competency_type_id = " . $type->getCompetencyTypeID )} ) ) {
+		if ( scalar( @{TUSK::Competency::Competency->lookup( "competency_user_type_id = " . $type->getPrimaryKeyID )} ) ) {
 			print "\"error\" : \"".__("This cannot be deleted because there are currently competencies of this type.")."\"\n";
 		} else {
 			$type->delete( { user => $m->session->{'user'}->user_id } );
@@ -52,10 +53,12 @@ page_footer => ''
 		}
 	} else {
 		$type->setSchoolID( $school_id );
-		$type->setDescription( $ARGS{'col0'} );
+		$type->setName( $ARGS{'col0'} );
+		my $competency_type_enum_id  = TUSK::Enum::Data->new()->lookupReturnOne( "display_name =\"". $ARGS{'col1'}."\"" );
+		$type->setCompetencyTypeEnumID( $competency_type_enum_id->getPrimaryKeyID );
 		$type->save( { user => $m->session->{'user'}->user_id } );
 
-		print "\"id\"    : \"" . $type->getCompetencyTypeID() . "_" . time() . "\",\n";
+		print "\"id\"    : \"" . $type->getPrimaryKeyID() . "_" . time() . "\",\n";
 		print "\"error\" : \"\"\n";
 	}
 	print "}";
