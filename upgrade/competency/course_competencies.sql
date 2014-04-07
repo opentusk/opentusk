@@ -191,6 +191,7 @@ DROP TABLE IF EXISTS competency_course_history;
 
 CREATE TABLE competency_course_history (
 	competency_course_history_id int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	competency_course_id int(10) unsigned NOT NULL DEFAULT '0',
 	competency_id int(10) unsigned NOT NULL DEFAULT '0',
 	course_id int(10) unsigned NOT NULL DEFAULT '0',
 	sort_order smallint(6) unsigned NOT NULL DEFAULT '65535',

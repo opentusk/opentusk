@@ -96,7 +96,7 @@ sub delete {
 
 
 =item B<deleteAssociated>
-    Deletes a given competency object with an associated link ( i.e course_competency, session_competency or content_competency )
+    Deletes a given competency object with an associated link ( i.e competency_course, competency_class_meeting or competency_content )
 =cut
 
 sub deleteAssociated {
