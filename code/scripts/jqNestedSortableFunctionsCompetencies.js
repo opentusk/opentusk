@@ -273,6 +273,12 @@ function editRow( link, params ) {
 				// This guarantees that it's bookended so that, e.g., "Skill" doesn't accidentally match "Skillset"
 				value = editParams.delimiter + value + editParams.delimiter;
 				var newInnerHTML = '';
+				var noTypes = 0;
+				if (editParams.options.length == 0){
+					alert("ERROR: No types exist for the current school. Please contact your school administrator to add user types.");
+					noTypes = 1;
+					break;
+				}
 				for ( var i in editParams.options ) {
 					var o_value = editParams.options[i].value;
 					var o_label = editParams.options[i].label;
@@ -295,8 +301,10 @@ function editRow( link, params ) {
 				break;
 		}
 	}
-
 	initTable( params );
+	if (noTypes == 1){
+		$("[id^='new_child_of']").remove();	
+	}
 }
 
 function addNewRow( link, params ) {
