@@ -197,7 +197,6 @@ CREATE TABLE competency_course_history (
 	sort_order smallint(6) unsigned NOT NULL DEFAULT '65535',
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
-	history_action enum('Insert', 'Update', 'Delete'),
-	CONSTRAINT FOREIGN KEY (competency_id) REFERENCES competency(competency_id)
+	history_action enum('Insert', 'Update', 'Delete')
 ) ENGINE=INNODB DEFAULT CHARSET=utf8; 
 
