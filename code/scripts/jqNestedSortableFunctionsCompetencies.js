@@ -424,14 +424,20 @@ function saveRow( link, params ) {
 				break;
 			case 'radio':
 				var radio_buttons = liArray[idx].getElementsByTagName('input');
+				var radio_button_value = 0;
 				for (var i in radio_buttons) {
 					if ( radio_buttons[i].checked ) { 
-						value = radio_buttons[i].getAttribute("data-name");
-					}
+						radio_button_value = radio_buttons[i].getAttribute("data-name");
+					}	
+				}				
+				if (radio_button_value == 0){
+					value = "Competency";
+					alert( "WARNING: Type defaulted to \"Competency\" as no type specified." );
+				} else{
+					value = radio_button_value;
 				}
 				display = value;
 				break;
-
 			case 'action':
 				if ( params.actionDropdown) {
 					var option_name = [];
@@ -453,7 +459,7 @@ function saveRow( link, params ) {
 			default:
 				alert( 'Unknown edit type!' );
 				break;
-		}
+		}		
 
 		liArray[idx].innerHTML = display;
 		if ( postThis ) {
