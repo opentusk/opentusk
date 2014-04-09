@@ -332,7 +332,7 @@ function addNewRow( link, params ) {
 		$('#empty_message').remove();
 	} else {
 		// If we have a link, then the containing div is three levels up:  <div><ul><li><a>...
-		var containingDiv = link.parentNode.parentNode.parentNode;
+		var containingDiv = link.parentNode.parentNode.parentNode.parentNode;
 		var thisDepth = 0;
 
 		// From that div, we're going to continually check grandparents to see how deeply we're nested:  <ol><li><ol>...
