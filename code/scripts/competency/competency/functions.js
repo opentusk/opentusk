@@ -50,23 +50,23 @@ function currentCompLabel( current_competency ){
 
 //Functions related to competency checklist division/popup
 
-function buildCompetencyChecklistTree( school_id, course_id, input_type, children, display_type ){
+function buildCompetencyChecklistTree( dialog_name, school_id, course_id, input_type, children, display_type ){
 	if( display_type == "inline" ){
-		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/Medical" , {school_id: school_id, course: course_id, input_type: input_type, children: children });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/Medical" , {school_id: school_id, course: course_id, input_type: input_type, children: children });
 	} else if( display_type == "dialog" ){
-		$( "#checklist-dialog" ).css({
+		$( "#" + dialog_name).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/Medical" , {school_id: school_id, course: course_id, input_type: input_type, children: children }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/Medical" , {school_id: school_id, course: course_id, input_type: input_type, children: children }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
 
-		$( "#checklist-dialog" ).css({
+		$( "#" + dialog_name ).css({
 			"width": 600,
 			"min-height": 200,
 			"padding" : 20
 		 });
 	} else{
-		$( "#checklist-dialog" ).html( "Error: Unrecognized display type for checklist window." );
+		$( "#" + dialog_name ).html( "Error: Unrecognized display type for checklist window." );
 	}
 }
 
