@@ -104,13 +104,15 @@ and can then be used accordingly.
 }
 
 function radioOnClick() {
-	selected_competency_id = $( 'input[name=competency_checklist]:checked' ).val() ;
-	alert( selected_competency_id );	
+	selected_competency_id = $('input[name=competency_checklist]:checked').val() ;
+	alert(selected_competency_id);
 }
 
 function checkboxOnClick() {
 
 }
+
+
 
 //End functions related to competency checklist division/popup
 
