@@ -51,6 +51,7 @@ use vars @EXPORT_OK;
 use Carp qw(cluck croak confess);
 
 use TUSK::Competency::UserType;
+use TUSK::Enum::Data;
 # Non-exported package globals go here
 use vars ();
 
@@ -334,6 +335,15 @@ sub getCompetencyLevel{
     my $self = shift;
     my $enum_data = TUSK::Enum::Data->lookup( "enum_data_id=". $self->getCompetencyLevelEnumID() );
     return $enum_data->[0]->getShortName;
+}
+
+sub getType{
+    my $self = shift;
+    my $type_id = $self->getCompetencyUserTypeID;
+    my $competency_user_type = TUSK::Competency::UserType->lookupReturnOne( "competency_user_type_id=". $type_id );
+    my $enum_data = TUSK::Enum::Data->lookupReturnOne( "enum_data_id=".$competency_user_type->getCompetencyTypeEnumID);
+    my $type = $enum_data->getShortName;
+    return $type;
 }
 
 

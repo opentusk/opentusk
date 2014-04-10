@@ -64,9 +64,19 @@
     my $course_competencies = TUSK::Course->getTopLevelCompetenciesByCourse( $course_id );
 
     if ( $input_type eq 'radio' ){
-	print "<form class=\"competency_checklist_form_radio\">";
+	if ( $display_type eq 'inline' ){
+		print "<form class=\"competency_checklist_form_radio_inline\">";
+	}
+	else {
+		print "<form class=\"competency_checklist_form_radio_dialog\">";
+	}
     } elsif ( $input_type eq 'checkbox' ){
-	print "<form class=\"competency_checklist_form_checkbox\">";
+	if ( $display_type eq 'inline' ){
+		print "<form class=\"competency_checklist_form_checkbox_inline\">";
+	}
+	else {
+		print "<form class=\"competency_checklist_form_checkbox_dialog\">";
+	}
     } else {
 	print "Error: Unrecognized input type \"". $input_type . "\" for generating checklist.";
 	return 0;
@@ -108,14 +118,15 @@
     foreach my $key( keys %{ $competency_tree } ){
 	print "&nbsp&nbsp&nbsp&nbsp" x $depth;	
 	my $this_competency = TUSK::Competency::Competency->lookup( 'competency_id='. $key);
+		my $competency_type = $this_competency->[0]->getType;
 		if ( $input_type eq "radio" ){
-			if ( ($depth == 0) || ($children eq 'on') ){
+			if ( (($depth == 1 || $depth == 0) and $competency_type ne 'category') || (($children eq 'on') and ($competency_type ne 'category'))){
 			    print "<input type=\"radio\" name=\"competency_checklist\" value=". $this_competency->[0]->getPrimaryKeyID .">".$this_competency->[0]->getDescription . "</input><br>";
-			} else{	
+			} else {	
 			    print "&nbsp&nbsp".$this_competency->[0]->getDescription . "</span><br>";
 			}
 		} else {
-			if ( ($depth == 0) || ($children eq 'on') ){
+			if ( (($depth == 1 || $depth == 0) and $competency_type ne 'category') || (($children eq 'on') and ($competency_type ne 'category'))){
 			    print "<input type=\"checkbox\" name=\"competency_checklist\" value=". $this_competency->[0]->getPrimaryKeyID .">".$this_competency->[0]->getDescription . "</input><br>";
 			} else{
 			    print "&nbsp&nbsp".$this_competency->[0]->getDescription . "</span><br>";
@@ -125,3 +136,4 @@
     }    
 </%perl>
 </%method>
+
