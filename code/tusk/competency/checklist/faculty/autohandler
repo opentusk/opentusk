@@ -1,0 +1,85 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	allow_guests	=> '1'
+</%attr>
+
+<%once>
+	use TUSK::Application::Competency::Checklist;
+</%once>
+
+<%shared>
+	my $has_valid_token = 1;
+</%shared>
+
+<%method validateToken>
+<%args>
+	$checklist_group_id
+	$checklist_assignment_id
+	$token
+</%args>
+<%perl>
+	my $app = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
+	unless ($app->validateUrlToken($checklist_group_id, $checklist_assignment_id, $token)) {
+		$m->comp('SELF:set_msg', 
+			type => 'err', 
+			msg => __('Invalid Access'));
+		$has_valid_token = 0;
+	}
+</%perl>
+</%method>
+
+<%method isTokenValid>
+%	return $has_valid_token;
+</%method>
+
+<%method displayStudentImage>
+<%args>
+	$student
+</%args>
+<div style="margin: 5px 0 5px 0;">
+%	my $hsdb4_student = HSDB4::SQLRow::User->new()->lookup_key("'" . $student->getPrimaryKeyID() . "'");
+<img src="<% $hsdb4_student->official_image() %>" width="100px" height="100px" />
+<span style="margin-left: 10px"><% $student->outName() %></span>
+</div>
+</%method>
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+%  	return $m->comp('SELF:title');
+</%method>
+
+<%method get_nav_bars>
+<%perl>
+	return $m->comp("/tmpl/nav", 
+		'objects' => $m->comp("SELF:get_nav_bar_objects"),
+		'prefix' => '/competency/checklist/faculty',
+		'hierarchy' => {
+			'show'		=> [],
+			'assess'	=> [],
+			'view'		=> [],
+		},
+		'initial_nav_bar' => $m->comp('SELF:get_initial_nav_bars'),
+	);
+</%perl>
+</%method>
+
+% $m->call_next();
+
