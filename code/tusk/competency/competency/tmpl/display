@@ -33,7 +33,8 @@
 
 	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $course_id );
 	
-	$m->comp('SELF:generateCompetencyChecklistByCourse', course_id => $tusk_course_id, input_type => $ARGS{'input_type'}, children => $ARGS{'children'});
+	$m->comp('SELF:generateCompetencyChecklistByCourse', course_id => $tusk_course_id, input_type => $ARGS{'input_type'}, children => $ARGS{'children'}, display_type => $ARGS{'display_type'});
+	
 </%perl>
 
 <%method jsarray>
@@ -57,10 +58,10 @@
 	$course_id
 	$input_type
 	$children
+	$display_type
 </%args>
 <%perl> 
     my $course_competencies = TUSK::Course->getTopLevelCompetenciesByCourse( $course_id );
-
 
     if ( $input_type eq 'radio' ){
 	print "<form class=\"competency_checklist_form_radio\">";
@@ -79,11 +80,16 @@
 	$m->comp( 'SELF:generateCompetencyChecklistByCourseHelper', competency_tree => $top_level_competencies, depth => 0, input_type => $input_type, children => $children);
     }
 
-    if ( $input_type eq 'radio' ){
+    if ($input_type eq 'radio'){
 	print "<br /><input class=\"competency_checklist_select_radio\" type=\"button\" value=\"Select\" onclick=\"radioOnClick()\">";
     } else{
 	print "<br /><input class=\"competency_checklist_select_checkbox\" type=\"button\" value=\"Select\" onclick=\"checkboxOnClick()\">";
     }	
+    if ($display_type eq 'inline'){
+	print "&nbsp<input type=\"button\" value=\"Cancel\" onclick='\$(this).parent().hide()'>";
+    } else{
+	print "&nbsp<input type=\"button\" value=\"Cancel\" onclick='\$(this).closest(\".ui-dialog-content\").dialog(\"close\");'>";
+    }
     print "</form>";
 
     return 1;	
