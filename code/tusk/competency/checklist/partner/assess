@@ -1,0 +1,51 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my ($checklist_group_id, $checklist_id, $checklist_assignment_id, $entry_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $completed_base_url = '/competency/checklist/partner/show/';
+	my $completed_paths = [ $checklist_group_id, $checklist_assignment_id ];
+</%shared>
+
+<& /competency/checklist/tmpl/entry, 
+	checklist_group_id 	=> $checklist_group_id, 
+	checklist_id 		=> $checklist_id, 
+	checklist_assignment_id => $checklist_assignment_id,
+	entry_id 		=> $entry_id || 0, 
+	completed_url 		=> {
+					base_url	=> $completed_base_url,
+					paths		=> $completed_paths,
+				   },
+&>
+
+<%method title>
+%	return __('Competency Checklist - Partner Assessment');
+</%method>
+
+<%method jsarray>
+% 	return $m->comp('/competency/checklist/tmpl/entry:jsarray');
+</%method>
+
+<%method get_initial_nav_bars>
+<%perl>
+	return [
+		{ href => "/view/$type_path/checklists", label => __('Course').' - ' . $course->out_title() },
+		{ href => "$completed_base_url/$type_path/" . join('/', @$completed_paths), label => __('Pending Partner Modules') },
+	];
+</%perl>
+</%method>
