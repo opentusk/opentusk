@@ -1,0 +1,106 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Checklist::Assignment;
+	use TUSK::Application::Competency::Checklist;	
+	use HSDB4::DateTime;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my ($checklist_group_id, $checklist_id, $assignment_id, $entry_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});	
+	my $competency = $acc->getCompetencyChecklist($checklist_id);
+	my $assessor = $acc->getAssessor($assignment_id, $checklist_id, 'partner');
+	my $entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry') || TUSK::Competency::Checklist::Entry->new();
+</%shared>
+
+<div style="margin: 10px 0 10px 0"><% __x("I have requested \"{partner_name}\" for the assessment of \"{title}\" on {request_date} and like to bypass it.", title => $competency->getTitle(), partner_name => $assessor->outName(), request_date => $entry->getFormattedRequestDate()) %></div>
+
+<& /tmpl/element:form, params => {
+	method		=> 'POST',
+	enctype		=> 'multipart/form-data', 
+	name 		=> 'bypasspartner' 
+} &>
+
+<div style="margin-top:10px">
+      <label for="comment"><% __('Comments') . ':'  %> <span class="errTxt xsm"><em>*required</em></span></label>
+</div>
+<& /tmpl/element:input_textarea, params => { 
+	name 	=> 'comment',
+	cols 	=> 60,
+	rows 	=> 6  
+} &>
+<& /tmpl/element:save_button, params => {
+	label		=> __('Bypass'),
+	cancel_onclick 	=> " go_back('/view/" . $m->comp("/tmpl/url:get_type_path") . "/checklists');",
+        name		=> 'submit',
+} &>
+
+</form>
+
+<%init>
+	if ($ARGS{submit_check} && $ARGS{comment} =~ /\w+/) {
+		$entry = TUSK::Competency::Checklist::Entry->new() unless (defined $entry);
+		if ($entry) {
+			$entry->setFieldValues({
+				student_comment 	=> $ARGS{comment},
+				request_date		=> undef,
+				complete_date		=> HSDB4::DateTime->new()->out_mysql_timestamp(),
+			});
+			$entry->save({user => $m->session->{user}->primary_key()});
+		}
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/view",
+			pathref	 => [ 'checklists' ], 
+			msg	 => __('The bypass request was successfully completed.'),
+		));	
+		
+	}
+</%init>
+
+<%method startup>
+<%perl>	
+	my $msg = undef;
+	if (!$entry->getPrimaryKeyID()) {
+		$msg = __('Invalid access');
+	} elsif (!$entry->getRequestDate()) {
+		$msg = __('Something wrong!. You have not requested an assessment yet');
+	} elsif ($entry->getCompleteDate()) {
+		$msg  = __x('You havd already requested to bypass the assessment of "{competency_title}"', competency_title => $competency->getTitle()),
+	}
+	
+	if (defined $msg) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/view",
+			pathref	 => [ 'checklists' ], 
+			msg 	 => $msg,
+			msgtype	 => 'errmsg',
+		));	
+	}			
+</%perl>	
+</%method>
+
+<%method title>
+%	return __("Competency Checklist - Bypass Partner's assessment");
+</%method>
+
+<%method jsarray>
+%	return [ 'jquery/jquery.min.js', 'jquery/plugin/validate.min.js', 'competency/checklist/bypasspartner.js' ];
+</%method>
