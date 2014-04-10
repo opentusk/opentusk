@@ -72,6 +72,7 @@ sub new {
 					'trunk' => '',
 					'password' => '',
 					'email' => '',
+					'preferred_email' => '',
 					'profile_status' => '',
 					'modified' => '',
 					'password_reset' => '',
@@ -294,6 +295,22 @@ sub setEmail{
 
 #######################################################
 
+=item B<getDefaultEmail>
+
+my $string = $obj->getDefaultEmail();
+
+Get the value of the default email
+
+=cut
+
+sub getDefaultEmail{
+    my ($self) = @_;
+    return ($self->getFieldValue('preferred_email')) ? $self->getFieldValue('preferred_email') : $self->getFieldValue('email');
+}
+
+
+#######################################################
+
 =item B<getProfileStatus>
 
 my $string = $obj->getProfileStatus();
@@ -306,6 +323,7 @@ sub getProfileStatus{
     my ($self) = @_;
     return $self->getFieldValue('profile_status');
 }
+
 
 #######################################################
 
@@ -823,14 +841,21 @@ sub setUID{
 
 ### Other Methods
 
-
-# Show lastname, comma, then firstname
+=item
+    Return lastname, comma, then firstname
+=cut
 sub outLastFirstName{
     my $self = shift;
     return $self->getFieldValue('lastname') . ", " . $self->getFieldValue('firstname');
 }
 
-
+=item
+    Return firt and lastname
+=cut
+sub outName{
+    my $self = shift;
+    return $self->getFieldValue('firstname') . ' ' . $self->getFieldValue('lastname');
+}
 
 =head1 BUGS
 
