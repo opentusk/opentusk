@@ -1,0 +1,74 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Competency::Checklist::Group;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+</%shared>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+	{ display_txt => __('New Competency Checklist'),
+          link_txt    => '/competency/checklist/author/addedit/' . $type_path }
+    ]
+&>
+
+<& /tmpl/element:object_selection_box, params => { 
+	columns 	=> [
+		{label => __('Title'), field => 'title'},
+		{label => __('Instructions'), field => 'description'},
+		{label => __('Posted'), field => 'publish_flag'},
+	],
+	rows		=> \@rows,
+	type_path 	=> $type_path,,
+	sort_box	=> 1,
+	name 		=> 'checklists',
+	feature_token 	=> '',
+	'norows-message' => __('No Checklists'),
+	action_dropdown  => 1,
+	action_columns => [
+		{ label => __('Modify'), link => '/competency/checklist/author/addedit', },
+		{ label => __('Assign'), link => undef },
+		{ label => ' &nbsp;-' . __('Partner'), link => '/competency/checklist/author/assignpartner' },
+		{ label => ' &nbsp;-' . __('Faculty'), link => '/competency/checklist/author/assignfaculty' },
+		{ label => __('Email Faculty'), link => '/competency/checklist/author/emailfaculty' },
+		{ label => __('Report'), link => '/competency/checklist/author/report' },
+		{ label => __('Delete'), link => '/competency/checklist/author/delete', },
+	],
+} &>
+
+<%init>
+	my $school_id = $course->school_id();
+	my $course_id = $course->primary_key();
+	my @rows = map { {
+		title => $_->getTitle(),
+		description 	=> $_->getDescription(),
+		publish_flag	=> ($_->getPublishFlag()) ? __('Yes') : __('No'),
+		id 		=> $_->getPrimaryKeyID(),
+	} } @{TUSK::Competency::Checklist::Group->lookup("school_id = $school_id and course_id = $course_id")};
+</%init>
+
+<%method red_header_text>
+%  	return $m->comp('SELF:title');
+</%method>
+
+<%method title>
+%	return __('Manage Competency Checklists');
+</%method>
