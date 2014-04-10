@@ -48,6 +48,7 @@ use Forum::MwfConfig;
 use TUSK::GradeBook::GradeEventEval;
 use TUSK::Application::GradeBook::GradeBook;
 use TUSK::DB::Util qw(sql_prep_list);
+use TUSK::Competency::Checklist::Group;
 
 use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
@@ -2756,6 +2757,19 @@ EOM
     return $patientlogs;
 }
 
+=item
+    Return a list of current checklist_groups
+=cut
+sub get_current_competency_checklist_groups {
+    my ($self, $course) = @_;
+    my $school = $course->get_school();
+    my $db = $school->getSchoolDb();
+
+    return TUSK::Competency::Checklist::Group->lookup('publish_flag = 1 AND school_id = ' . $school->getPrimaryKeyID() , undef, undef, undef, [ 
+                TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", { database => $db, joinkey => 'parent_course_id', origkey => 'course_id', cond => "child_user_id = '" . $self->primary_key() . "'", jointype => 'inner' }),
+        	TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", { database => $db, joinkey => 'time_period_id', origkey=> "link_course_student.time_period_id",  cond => "start_date < now()  AND end_date > now()", jointype => 'inner' }),
+    ]);
+}
 
 sub get_director_forms {
     my ($self, $form_type_token) = @_;
@@ -3054,7 +3068,7 @@ sub get_course_assignments {
     my @all_assignments;
    
     foreach my $school(keys %schools_dbs) {
-	my $sql = $self-> _get_course_assignments_sql($school);
+	my $sql = $self->_get_course_assignments_sql($school);
 	my $sth = TUSK::Core::SQLRow->new()->databaseSelect($sql);
 	
 	push @all_assignments, values %{$sth->fetchall_hashref('assignment_id')};
