@@ -24,6 +24,7 @@ var competencyRoot = "/tusk/competency/competency/";
 
 //competency linking global arrays
 selected_competency_id = 0;
+selected_competency_obj = [];
 
 
 function closeLinkWindow() {
@@ -105,7 +106,21 @@ and can then be used accordingly.
 
 function radioOnClick() {
 	selected_competency_id = $('input[name=competency_checklist]:checked').val() ;
-	alert(selected_competency_id);
+
+	var current_children = [];
+
+	$.each( $("#Child_of_"+selected_competency_id).find(".description"), function() {
+		current_children.push( $(this).html() );
+	});
+
+	selected_competency_obj = {
+		"id" : selected_competency_id,
+		"description" :  $('input[name=competency_checklist]:checked').parent().find(".description").html(),
+		"category" : $('input[name=competency_checklist]:checked').parent().parent().prev().find(".description").html(),
+		"skills" : current_children
+	};
+	
+	console.log(selected_competency_obj);
 }
 
 function checkboxOnClick() {
