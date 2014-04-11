@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS `competency_checklist_entry` (
   `modified_on` datetime default NULL,
   PRIMARY KEY  (`competency_checklist_entry_id`),
   KEY (`competency_checklist_id`),
-  KEY (`competency_assignment_id`)
+  KEY (`competency_checklist_assignment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
 
 
