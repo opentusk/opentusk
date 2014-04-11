@@ -85,13 +85,13 @@ and can then be used accordingly.
  */
 
 	if( display_type == "inline" ){
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, display_type: display_type });
 	} else if( display_type == "dialog" ){
 		$( "#" + dialog_name).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
 
 		$( "#" + dialog_name ).css({
 			"width": 600,
