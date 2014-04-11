@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS `competency_checklist_group` (
   `modified_on` datetime default NULL,
   PRIMARY KEY  (`competency_checklist_group_id`),
   KEY (`school_id`),
-  KEY (`course_id`),
+  KEY (`course_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
 
 
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS `competency_checklist_entry` (
   `modified_by` varchar(24) default NULL,
   `modified_on` datetime default NULL,
   PRIMARY KEY  (`competency_checklist_entry_id`),
-  KEY (`competency_checklist_id`)
+  KEY (`competency_checklist_id`),
   KEY (`competency_assignment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
 
