@@ -71,7 +71,7 @@ sub main {
     my $school_level_id = $sth->fetchall_arrayref;    
     $sth->finish();
     
-    $sql = qq(UPDATE course_test_temp.competency SET competency_level_enum_id = $school_level_id->[0]->[0]);
+    $sql = qq(UPDATE tusk.competency SET competency_level_enum_id = $school_level_id->[0]->[0]);
     $sth = $dbh->prepare($sql);
     $sth->execute();
     $sth->finish;
