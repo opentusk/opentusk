@@ -51,7 +51,7 @@ function currentCompLabel( current_competency ){
 
 //Functions related to competency checklist division/popup
 
-function buildCompetencyChecklistTree( dialog_name, school_name, course_id, input_type, children, display_type ){
+function buildCompetencyChecklistTree( dialog_name, school_name, course_id, input_type, children, display_type, extend_function ){
 
 /*
 Uses the "<competencyRoot>/tmpl/display" page and given parameters to build a competency checklist tree and displays it in the given division.
@@ -86,14 +86,13 @@ and can then be used accordingly.
  */
 
 	if( display_type == "inline" ){
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, display_type: display_type });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type });
 	} else if( display_type == "dialog" ){
 		$( "#" + dialog_name).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
-
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
 		$( "#" + dialog_name ).css({
 			"width": 600,
 			"min-height": 200,
@@ -104,7 +103,7 @@ and can then be used accordingly.
 	}
 }
 
-function radioOnClick() {
+function radioOnClick( extendFunction ) {
 	selected_competency_id = $('input[name=competency_checklist]:checked').val() ;
 
 	var current_children = [];
@@ -121,6 +120,10 @@ function radioOnClick() {
 	};
 	
 	console.log(selected_competency_obj);
+}
+
+function extendExample(){
+	alert("radioOnClick extension example: description is " + selected_competency_obj["description"]);
 }
 
 function checkboxOnClick() {
