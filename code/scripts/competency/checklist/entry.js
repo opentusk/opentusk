@@ -14,7 +14,7 @@
 
 $(function() {
 	$("input[name=notify_show]").click(showEmailForm);
-	$("input[name=complete_submit]").click(validate);
+//	$("input[name=complete_submit]").click(validate);
 
 	showHideButtons();
 	$("input:radio[class='compid']").click(showHideButtons);
