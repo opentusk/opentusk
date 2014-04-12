@@ -104,6 +104,7 @@ and can then be used accordingly.
 }
 
 function radioOnClick( extendFunction ) {
+
 	selected_competency_id = $('input[name=competency_checklist]:checked').val() ;
 
 	var current_children = [];
@@ -112,14 +113,27 @@ function radioOnClick( extendFunction ) {
 		current_children.push( $(this).html() );
 	});
 
+
 	selected_competency_obj = {
 		"id" : selected_competency_id,
 		"description" :  $('input[name=competency_checklist]:checked').parent().find(".description").html(),
 		"category" : $('input[name=competency_checklist]:checked').parent().parent().prev().find(".description").html(),
 		"skills" : current_children
 	};
-	
-	console.log(selected_competency_obj);
+
+//	console.log(selected_competency_obj);
+
+	$("#competency_module").text(selected_competency_obj.description);
+	$("#competency_category").text(selected_competency_obj.category);
+
+	var skills_list = '<ul class="gArrow">';
+	$.each(selected_competency_obj.skills, function(index, item) {
+		skills_list += '<li class="gArrow">' + item;  // + '</li>';
+	});
+	skills_list += '</ul>';
+	$("#skills").html(skills_list);
+
+	$('input[name=competency_id]').val(selected_competency_obj.id);
 }
 
 function extendExample(){
