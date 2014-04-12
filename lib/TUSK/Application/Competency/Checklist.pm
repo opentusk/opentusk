@@ -301,4 +301,29 @@ sub getPendingPartnerChecklists {
     ]);
 }
 
+sub getChecklistWithParentChildren {
+    my ($self, $checklist_id) = @_;
+
+    my ($checklist, $parent, $children);
+
+    if ($checklist_id) {
+	$checklist = TUSK::Competency::Checklist::Checklist->lookupKey($checklist_id, [
+	       TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Group', { joinkey => 'competency_checklist_group_id', jointype => 'inner' }),
+	       TUSK::Core::JoinObject->new('TUSK::Competency::Competency', {joinkey => 'competency_id', jointype => 'inner' }),
+        ]);
+
+	$parent = TUSK::Competency::Competency->lookupReturnOne('', undef, undef, undef, [
+		TUSK::Core::JoinObject->new('TUSK::Competency::Hierarchy', { joinkey => 'parent_competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "child_competency_id = " .  $checklist->getCompetencyID()  }) ]);
+			
+	$children = TUSK::Competency::Competency->lookup('', undef, undef, undef, [
+		TUSK::Core::JoinObject->new('TUSK::Competency::Hierarchy', { joinkey => 'child_competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "parent_competency_id = " . $checklist->getCompetencyID() }) ]);
+    }
+
+    return (
+	    $checklist || TUSK::Competency::Checklist::Checklist->new(), 
+	    $parent || TUSK::Competency::Competency->new(), 
+	    $children || [],
+    );
+}
+
 1;
