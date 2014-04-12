@@ -17,14 +17,15 @@
 <%once>
 	use TUSK::Competency::Checklist::Group;
 	use TUSK::Competency::Checklist::Checklist;
-	use TUSK::Application::Competency::Tree;
+	use TUSK::Application::Competency::Checklist;
 </%once>
 
 <%shared>
 	my ($checklist_group_id, $checklist_id) = $m->comp("/tmpl/url:get_path_ids");
 	my $course = $m->comp("/tmpl/url:get_type_object");
 	my $checklist_group = TUSK::Competency::Checklist::Group->lookupKey($checklist_group_id) if ($checklist_group_id);
-	my $checklist;
+	my $app = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
+	my ($checklist, $category, $skills) = $app->getChecklistWithParentChildren($checklist_id);
 </%shared>
 
 <& /tmpl/element:form, params => {
@@ -43,7 +44,7 @@
 
 <& /tmpl/element:field_display, params => { 
 	label => __('Module'),
-	value 	=> 
+	value 	=> '<span style="margin-bottom:3px; padding-right:5px" id="competency_module">' . $checklist->getTitle() . '</span>' .
 		$m->scomp('/tmpl/element:button', params => {
 			onclick => "buildCompetencyChecklistTree('checklist-dialog', '" . $course->school() . "', " . $course->primary_key() . ", 'radio', 'off', 'inline')",
 			name => 'checklist',
@@ -59,12 +60,14 @@
 
 <& /tmpl/element:field_display, params => { 
 	label => __('Category'),
-	value 	=> '<span id="competency_category"></span>',
+	value 	=> '<span id="competency_category">' . $category->getDescription  . '</span>',
 } &>
 
 <& /tmpl/element:field_display, params => { 
 	label => __('Skills'),
-	value 	=> '<span id="skills"></span>',
+	value 	=> '<span id="skills"> <ul class="gArrow">'  .
+		join("\n", map { '<li class="gArrow">' . $_->getDescription() . '</li>' } @$skills) .
+		'</ul> </span>',
 } &>
 
 <& /tmpl/element:textarea, params =>{ 
@@ -95,7 +98,7 @@
 } &>
 
 </table>
-<input type="hidden" name="competency_id" value="" />
+<input type="hidden" name="competency_id" value="<% $checklist->getCompetencyID() %>" />
 </form>
 
 
@@ -108,22 +111,10 @@
 		));	
 	}
 
-	$checklist = ($checklist_id) ? TUSK::Competency::Checklist::Checklist->lookupKey($checklist_id) : TUSK::Competency::Checklist::Checklist->new(); 
-
-
-	my $comp_branch = undef;
-	if (my $comp_id =  $checklist->getCompetencyID()) {
-=for
-		my $competency_tree = TUSK::Application::Competency::Tree->new();
-		$comp_branch = $competency_tree->branch($comp_id);
-=cut
-	}
-
-
 	if ($ARGS{submit_check}) {
 		my $msgtext = ($checklist_id) ? __('Your changes have been saved.') : __('An assignment has been successfully created.');
-#		pre_dump(\%ARGS); $m->abort();
 		$checklist->setFieldValues({
+			competency_checklist_group_id => $checklist_group_id,
 			description 	=> $ARGS{instructions},
 			required	=> ($ARGS{required} eq 'on') ? 1 : 0,
 			self_assessed 	=> ($ARGS{self_assessed} eq 'on') ? 1 : 0,
@@ -157,7 +148,7 @@
  	return [ 
 		'jquery/jquery.min.js', 
 		'competency/competency/functions.js',
-		'competency/checklist/addeditcheklist.js',
+		'competency/checklist/addeditchecklist.js',
 	];
 </%perl>
 </%method>
