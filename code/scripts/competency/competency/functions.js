@@ -24,6 +24,7 @@ var competencyRoot = "/tusk/competency/competency/";
 
 //competency linking global arrays
 selected_competency_id = 0;
+selected_competency_obj = [];
 
 
 function closeLinkWindow() {
@@ -50,7 +51,7 @@ function currentCompLabel( current_competency ){
 
 //Functions related to competency checklist division/popup
 
-function buildCompetencyChecklistTree( dialog_name, school_name, course_id, input_type, children, display_type ){
+function buildCompetencyChecklistTree( dialog_name, school_name, course_id, input_type, children, display_type, extend_function ){
 
 /*
 Uses the "<competencyRoot>/tmpl/display" page and given parameters to build a competency checklist tree and displays it in the given division.
@@ -85,14 +86,13 @@ and can then be used accordingly.
  */
 
 	if( display_type == "inline" ){
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, display_type: display_type });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type });
 	} else if( display_type == "dialog" ){
 		$( "#" + dialog_name).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
-
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
 		$( "#" + dialog_name ).css({
 			"width": 600,
 			"min-height": 200,
@@ -103,9 +103,27 @@ and can then be used accordingly.
 	}
 }
 
-function radioOnClick() {
+function radioOnClick( extendFunction ) {
 	selected_competency_id = $('input[name=competency_checklist]:checked').val() ;
-	alert(selected_competency_id);
+
+	var current_children = [];
+
+	$.each( $("#Child_of_"+selected_competency_id).find(".description"), function() {
+		current_children.push( $(this).html() );
+	});
+
+	selected_competency_obj = {
+		"id" : selected_competency_id,
+		"description" :  $('input[name=competency_checklist]:checked').parent().find(".description").html(),
+		"category" : $('input[name=competency_checklist]:checked').parent().parent().prev().find(".description").html(),
+		"skills" : current_children
+	};
+	
+	console.log(selected_competency_obj);
+}
+
+function extendExample(){
+	alert("radioOnClick extension example: description is " + selected_competency_obj["description"]);
 }
 
 function checkboxOnClick() {
