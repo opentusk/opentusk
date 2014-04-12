@@ -18,26 +18,16 @@
 	hintmsg => __('Do you want to delete this skills module from this course?')
 </%attr>
 
-<%shared>
-	my ($checklist_group_id, $checklist_id) = $m->comp("/tmpl/url:get_path_ids");
-	my $checklist = TUSK::Competency::Checklist::Checklist->lookupKey($checklist_id, [
-		TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Group', { joinkey => 'competency_checklist_group_id', jointype => 'inner' }),
-		TUSK::Core::JoinObject->new('TUSK::Competency::Competency', {joinkey => 'competency_id', jointype => 'inner' }),
-	]);
-
-	my $micro_skills = TUSK::Competency::Competency->lookup('', undef, undef, undef, [
-		TUSK::Core::JoinObject->new('TUSK::Competency::Hierarchy', { joinkey => 'child_competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "parent_competency_id = " . $checklist->getCompetencyID() }),
-	]);
-
-	my $category = TUSK::Competency::Competency->lookupReturnOne('', undef, undef, undef, [
-		TUSK::Core::JoinObject->new('TUSK::Competency::Hierarchy', { joinkey => 'parent_competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "child_competency_id = " .  $checklist->getCompetencyID()  }),
-	]);
-</%shared>
-
 <%once>
-	use TUSK::Competency::Checklist::Checklist;
 	use TUSK::Application::Competency::Checklist;
 </%once>
+
+<%shared>
+	my ($checklist_group_id, $checklist_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $app = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
+	my ($checklist, $category, $skills) = $app->getChecklistWithParentChildren($checklist_id);
+</%shared>
+
 
 <& /tmpl/element:form, params => { 
 	method => 'POST',
@@ -63,7 +53,7 @@
 
 <& /tmpl/element:field_display, params => { 
 	label => __('Skills'),
-	value => '<ul class="gArrow">' . (join("\n", map { '<li>' . $_->getDescription() . '</li>' } @$micro_skills)) . '</ul>',
+	value => '<ul class="gArrow">' . (join("\n", map { '<li>' . $_->getDescription() . '</li>' } @$skills)) . '</ul>',
 } &>
 
 <& /tmpl/element:field_display, params => { 
@@ -87,12 +77,21 @@
 
 <& /tmpl/element:save_button, params => {
 	label		=> __('Delete'),
-	cancel_onclick 	=> " go_back('" . $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/competency/checklist/author/addedit") . "');",
+	cancel_onclick 	=> "go_back('$url');",
         name		=> 'submit'
 } &>
 
 </table>
 </form>
+
+<%init>
+	my $url = $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/competency/checklist/author/addedit");
+
+	if ($ARGS{submit_check}) {
+		$checklist->delete({user => $m->session->{user}->primary_key()});
+		$m->redirect($url . '?msg=' . __('Successfully Deleted'));
+	}
+</%init>
 
 <%method title>
 %  	return __x('Competency Checklist - Delete Skills Module');
