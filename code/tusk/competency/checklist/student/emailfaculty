@@ -34,7 +34,7 @@
 	my $entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry');
 </%shared>
 
-<div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to:", title => $competency->getTitle()) %></div>
+<div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to:", title => $competency->getDescription()) %></div>
 
 <& /tmpl/element:form, params => {
 	method		=> 'POST',
@@ -87,7 +87,7 @@
 			$m->redirect($m->comp("/tmpl/url:construct_url", 
 				base_url => "/view",
 				pathref	 => [ 'checklists' ], 
-				msg	 => __x('There is already a pending "{competency_title}" assessment request!', cmpetency_title => $competency->getTitle()),
+				msg	 => __x('There is already a pending "{competency_title}" assessment request!', cmpetency_title => $competency->getDescription()),
 				msgtype	 => 'errmsg',
 			));	
 		}
@@ -107,7 +107,7 @@
 	my $email = TUSK::Application::Email->new({
 		to_addr => $to,
 		from_addr => $TUSK::Constants::SupportEmail,
-		subject => $competency->getTitle() . ' ' . __('Checklist') . ' - ' . $course->title(),
+		subject => $competency->getDescription() . ' ' . __('Checklist') . ' - ' . $course->title(),
 		body	=> __x(
 			"Dr {assessor_lastname},\n\n" .
 			"Please assess {student_name}'s competency with '{competency_name}' by clicking on the link below.\n\n" .
@@ -116,7 +116,7 @@
 			"{comment}",
 			assessor_lastname => $assessor->getLastname(),
 			student_name => $student->out_full_name(),
-			competency_name => $competency->getTitle(),
+			competency_name => $competency->getDescription(),
 			url => 'https://' . $TUSK::Constants::Domain . 
 				"/competency/checklist/faculty/assess/$type_path/$checklist_group_id" .
 				"/$checklist_id/$assignment_id" . 
@@ -133,14 +133,17 @@
 <%method getSiteFaculty>
 <%perl>
 	my $enrolled_student = $course->get_single_student($student->primary_key(), $assignment->getTimePeriodID());
-	print 'teaching_site_id = ' . $enrolled_student->aux_info('teaching_site_id') . ' order by lastname, firstname';
 
 	my @faculty = $course->child_users('teaching_site_id = ' . $enrolled_student->aux_info('teaching_site_id') . ' order by lastname, firstname');
 	my @options = ();
-	my $selected;  ## site director, assigned faculty or no selection
+	 ## assigned faculty, site director, or no selection
+	my $selected = $assignment->getAssessorID();
 	foreach my $member (@faculty) {
 		if ($member->aux_info('teaching_site_id') eq $enrolled_student->aux_info('teaching_site_id')) {
 			push @options, { label => $member->out_lastfirst_name, value => $member->default_email() };
+		}
+		if (!$selected && $member->aux_info('roles') =~ /Site Director/) {
+			$selected = $member->primary_key();
 		}
 	}
 	return (\@options, $selected);
