@@ -35,28 +35,27 @@
 	my $checklist_completions = {};
 	my $entries = {};
 	my $student_view = undef;
-
 	my $assessments = {	### keep keys same as short_name in tusk.enum_data
 		self => {
 			order		=> 1,
 			header		=> __('Self'),
 			button_label 	=> __('Assess'),
 			page 		=> 'assessself',
-			dependency	=> undef,
+			dependency	=> [],
 		},
 		partner => {
 			order		=> 2,
 			header		=> __('Partner'),
 			button_label 	=> __('Request'),
 			page 		=> 'emailpartner',
-			dependency	=> 'self',
+			dependency	=> ['self'],
 		},
 		faculty => {
 			order		=> 3,
 			header		=> __('Faculty'),
 			button_label 	=> __('Request'),
 			page 		=> 'emailfaculty',
-			dependency	=> 'partner',
+			dependency	=> ['partner', 'self'],
 		},
 	};
 </%shared>
@@ -139,7 +138,15 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 					checklist_id => $module->{checklist_id},
 					assignment_id => (exists $checklist_assignments->{$type}) ? $checklist_assignments->{$type}->getPrimaryKeyID() : undef,
 					entry => $entries->{$module->{checklist_id}}{$type} || TUSK::Competency::Checklist::Entry->new(),
-					dependent_entry => $entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}} || TUSK::Competency::Checklist::Entry->new(),
+					dependent_entry => 
+				($entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[0]}) 
+				? $entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[0]} 
+				: (
+				($entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[1]}
+				 && !($entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[1]}->getJoinObject('TUSK::Competency::Checklist::Checklist')->getPartnerAssessed()))
+				? $entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[1]} 
+				: TUSK::Competency::Checklist::Entry->new()
+				),
 				) . 
 				'</td>';
 		}
@@ -160,7 +167,6 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 	$dependent_entry
 </%args>
 % 	return unless ($show_flag);
-<br/>
 
 % 	my $button = "<a href=\"/competency/checklist/student/$assessments->{$assessment_type}{page}/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') . "\" class=\"formbutton\"> $assessments->{$assessment_type}{button_label} </a>";
 
