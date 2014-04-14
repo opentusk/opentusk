@@ -51,7 +51,7 @@ function currentCompLabel( current_competency ){
 
 //Functions related to competency checklist division/popup
 
-function buildCompetencyChecklistTree( dialog_name, school_name, course_id, input_type, children, display_type, extend_function ){
+function buildCompetencyChecklistTree( dialog_name, school_name, course_id, selected_competency_id, input_type, children, display_type, extend_function ){
 
 /*
 Uses the "<competencyRoot>/tmpl/display" page and given parameters to build a competency checklist tree and displays it in the given division.
@@ -69,6 +69,7 @@ and can then be used accordingly.
 			dialog_name = HTML 'id' for the div used to display the dialog_box. Div must be present on caller page.
 			school_name = School that the course belongs to Eg. Medical, Dental, etc.
 			course_id   = HSDB45 course id for the course that we want to create the checklist for.
+			selected_competency_id = Competency_id for a competency that has already been selected and saved from a previous session. Pass 0 if new.
 			input_type  = Determines whether the checklist items compromise of:
 					"radio" = radio buttons ( able to select one )
 					"checkbox" = checkboxes ( able to select multiple )
@@ -86,13 +87,13 @@ and can then be used accordingly.
  */
 
 	if( display_type == "inline" ){
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type });
 	} else if( display_type == "dialog" ){
 		$( "#" + dialog_name).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
 		$( "#" + dialog_name ).css({
 			"width": 600,
 			"min-height": 200,
@@ -121,7 +122,7 @@ function radioOnClick( extendFunction ) {
 		"skills" : current_children
 	};
 
-//	console.log(selected_competency_obj);
+	console.log(selected_competency_obj);
 
 	$("#competency_module").text(selected_competency_obj.description);
 	$("#competency_category").text(selected_competency_obj.category);
