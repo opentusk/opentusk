@@ -293,6 +293,12 @@ function editRow( link, params ) {
 			case 'action':
 				params["actionDropdown"]=1;
 				params["function_values"]=function_values;
+				if (function_values.length == 0){
+					function_values.push( '' );
+					function_values.push( 'editRow(this, params); resetDropDown(this);' );
+					function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
+					function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
+				}
 				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>';
 				break;
 
@@ -366,8 +372,11 @@ function saveRow( link, params ) {
 	$(link.parentNode.parentNode.getElementsByTagName('LI')[0]).addClass("hand").css('display', 'block');
 	var liArray = link.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode;
+	
 	var postData = new Object();
+
 	postData['id'] = liNode.id;
+
 	var currentCompetencyPage = location.pathname.split('/')[4];
 	if ( currentCompetencyPage == 'listNationalCompetencies' ){
 		currentCompetencyPage = 'national';
@@ -403,6 +412,7 @@ function saveRow( link, params ) {
 			continue;
 		}
 		var editParams = params.columns[idx-1].edit;
+
 		var postThis = true;
 		var isArray  = false;
 
@@ -456,6 +466,7 @@ function saveRow( link, params ) {
 					$(option_name).each(function(i,l){
 						options += '<option value="' + params.function_values[i+1] + '" class="navsm">' + l + '</option>';
 					});
+
 					display = '<form method="post"><select onChange="eval(this.options[this.selectedIndex].value); " class="navsm"><option value="" class="navsm"> -- select -- </option>' + options + '</select></form>';
 				} else {
 					display = editParams.options.join( ' | ' );
@@ -480,7 +491,7 @@ function saveRow( link, params ) {
 	var error;
 	$.post(params.postTo, postData, function(data){
 		error = data['error'];	
-		newId = data['id'];
+		newId = data['id'];	
 
 		if ( error ) {
 			// TODO:  Error handling
