@@ -68,7 +68,7 @@ function notifyStudent() {
 		dataType	: 'json',
 		data		: { 
 			'to'			: $("input[name=to_email]").val(),
-			'comments'		: $("input[name=comments]").val(),
+			'notify_comments'	: $("textarea[name=notify_comments]").val(),
 			
 		},
 	        success		: function(response) {
