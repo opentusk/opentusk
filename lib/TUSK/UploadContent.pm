@@ -29,6 +29,7 @@ use File::Copy;
 use File::Type;
 use IO::File;
 use DBI qw(:sql_types);
+use Image::Magick;
 
 my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
 my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
@@ -988,6 +989,15 @@ sub upload_file {
     $fdat{body} = "";
 
     $fdat{body} = $body if ($fdat{upload_type} eq "Document");
+
+    # Fix the orientation of images with EXIF header
+    if ($fdat{upload_type} eq "Slide") {
+      my $image = Image::Magick->new();
+      $image->BlobToImage($body);
+      $image->AutoOrient();
+      $image->Strip();
+      $image->Write($newfilepath);
+    }
 
     return (1, $filename, $fdat{body}, $fdat{upload_type});
 }
