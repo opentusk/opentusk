@@ -458,7 +458,7 @@ function saveRow( link, params ) {
 				var radio_buttons = liArray[idx].getElementsByTagName('input');
 				var radio_button_value = 0;
 				for (var i in radio_buttons) {
-					if ( radio_buttons[i].checked ) { 
+					if ( $(radio_buttons[i]).prop("checked") ) { 
 						radio_button_value = $(radio_buttons[i]).data("name");
 						console.log(radio_button_value);
 					}	
