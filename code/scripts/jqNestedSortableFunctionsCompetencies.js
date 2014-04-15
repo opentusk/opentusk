@@ -232,11 +232,15 @@ function initTable( params ) {
 
 function editRow( link, params ) {
 	var function_values = [];
+	add = 0;
+	this_row = $(link).closest('.page-list').clone();
 	$(link).children().each(function() {
 		function_values.push( $(this).attr('value') );
 	});
 	$(link.parentNode.parentNode.parentNode.getElementsByTagName('LI')[0]).removeClass("hand").css('display', 'none');
-	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
+	
+	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
+	
 	for( var idx = 1; idx < liArray.length; idx++ ) {
 	//why is the following here? doesn't make sense to skip for 4? commeting out until i can see why this is so. - prath
 		if ( idx==4 && params['listId'] == 'school_competencies' ) {
@@ -298,8 +302,9 @@ function editRow( link, params ) {
 					function_values.push( 'editRow(this, params); resetDropDown(this);' );
 					function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
 					function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
-				}
-				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>';
+					add  = 1;
+				}			
+				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>&nbsp&nbsp<a onclick="cancelRow( this, params, this_row, add);" class="navsm">Cancel</a>';
 				break;
 
 			default:
@@ -310,6 +315,15 @@ function editRow( link, params ) {
 	initTable( params );
 	if (noTypes == 1){
 		$("[id^='new_child_of']").remove();	
+	}
+}
+
+function cancelRow( link, params, this_row, add ){
+	if (add == 0){
+		$(this_row).insertAfter($(link).closest('.page-list'));
+		$(link).closest('.page-list').remove();
+	} else{
+		$(link).parent().parent().parent().remove();
 	}
 }
 
