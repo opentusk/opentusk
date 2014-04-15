@@ -137,14 +137,13 @@ function radioOnClick( extendFunction ) {
 	$('input[name=competency_id]').val(selected_competency_obj.id);
 }
 
-function extendExample(){
+function extendExample() {
 	alert("radioOnClick extension example: description is " + selected_competency_obj["description"]);
 }
 
 function checkboxOnClick() {
 
 }
-
 
 
 //End functions related to competency checklist division/popup
@@ -162,3 +161,4 @@ $(document).ready( function() {
 		$( this ).parent().hide( 50 );
 	});
 });
+
