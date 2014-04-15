@@ -145,7 +145,6 @@ function checkboxOnClick() {
 
 }
 
-
 //End functions related to competency checklist division/popup
 
 
