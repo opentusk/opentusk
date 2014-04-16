@@ -459,7 +459,7 @@ function saveRow( link, params ) {
 				var radio_button_value = 0;
 				for (var i in radio_buttons) {
 					if ( radio_buttons[i].checked == true ) { 
-						radio_button_value = $(radio_buttons[i]).data("name");
+						radio_button_value = radio_buttons[i].getAttribute("data-name");
 						console.log(radio_button_value);
 					}	
 				}				
