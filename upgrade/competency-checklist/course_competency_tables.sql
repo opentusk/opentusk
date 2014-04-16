@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS `enum_data` (
 INSERT INTO enum_data VALUES
 (0, 'competency.user_type.id', 'competency', 'Competency', 'Competency type for Competencies', 'script', now(), 'script', now()),
 (0, 'competency.user_type.id', 'category', 'Competency Category', 'Category type for Competencies', 'script', now(), 'script', now()),
-(0, 'competency.user_type_id', 'info', 'Supporting Information', 'Supporting Information', 'script', now(), 'script', now()),
+(0, 'competency.user_type.id', 'info', 'Supporting Information', 'Supporting Information', 'script', now(), 'script', now()),
 (0, 'competency.level_id', 'national', 'National', 'National Competencies', 'script', now(), 'script', now()),
 (0, 'competency.level_id', 'school', 'School', 'School Competencies', 'script', now(), 'script', now()),
 (0, 'competency.level_id', 'course', 'Course', 'Course Competencies', 'script', now(), 'script', now()), 

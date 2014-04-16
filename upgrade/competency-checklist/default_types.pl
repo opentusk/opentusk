@@ -55,8 +55,21 @@ sub main {
 	$sth = $dbh->prepare($sql);
 	$sth->execute();
 	$sth->finish;
-
+	
 	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, modified_by, modified_on) VALUES( 'Supporting Information', $user_types->{info}->{enum_data_id}, $current_school_id, 'script', now()));
+	$sth = $dbh->prepare($sql);
+	$sth->execute();
+	$sth->finish;
+	
+	#following sets all competency_user_type_id to refer to 'competency' as all the existing competencies before the upgrade on the competency table are of type 'competency'
+
+	$sql =qq(SELECT competency_user_type_id FROM tusk.competency_user_type WHERE school_id = $current_school_id AND name="Competency");
+	$sth = $dbh->prepare($sql);
+	$sth->execute();
+	my $user_type_id = $sth->fetchall_arrayref;    
+	$sth->finish();
+
+	$sql = qq(UPDATE tusk.competency SET competency_user_type_id = $user_type_id->[0]->[0] WHERE school_id = $current_school_id);
 	$sth = $dbh->prepare($sql);
 	$sth->execute();
 	$sth->finish;
