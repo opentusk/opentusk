@@ -975,6 +975,16 @@ sub upload_file {
 	    $body .= $buffer;
 	}
 
+        # 
+	if ($fdat{upload_type} eq "Slide") {
+            my $image = Image::Magick->new();
+	    $image->BlobToImage($body);
+	    $image->AutoOrient();
+	    $image->Strip();
+	    my @blobs = $image->ImageToBlob();
+	    $body = $blobs[0] if (scalar(@blobs) eq 1);
+	}
+
 	print $FILE $body;
 	close $FILE;
 	close ($fh);
@@ -989,15 +999,6 @@ sub upload_file {
     $fdat{body} = "";
 
     $fdat{body} = $body if ($fdat{upload_type} eq "Document");
-
-    # Fix the orientation of images with EXIF header
-    if ($fdat{upload_type} eq "Slide") {
-      my $image = Image::Magick->new();
-      $image->BlobToImage($body);
-      $image->AutoOrient();
-      $image->Strip();
-      $image->Write($newfilepath);
-    }
 
     return (1, $filename, $fdat{body}, $fdat{upload_type});
 }
