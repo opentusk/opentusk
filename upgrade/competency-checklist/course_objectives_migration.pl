@@ -42,8 +42,6 @@ sub main {
     createTuskCourseObjects();
     %objectives = map { $_->getPrimaryKeyID() => $_->out_label() } HSDB4::SQLRow::Objective->new()->lookup_all();
 
-#comment the functions out below as intended
-
     migrateCourseObjectives();
 }
 
