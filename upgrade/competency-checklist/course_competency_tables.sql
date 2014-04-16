@@ -42,10 +42,15 @@ INSERT INTO enum_data VALUES
 (0, 'competency.level_id', 'class_meet', 'Class Meeting', 'Class Meeting Competencies', 'script', now(), 'script', now()),
 (0, 'competency.level_id', 'content', 'Content', 'Content Competencies', 'script', now(), 'script', now());
 
+/*drop tables if tables of same name as new tables exist*/
+DROP TABLE IF EXISTS competency_course;
+DROP TABLE IF EXISTS competency_course_history;
+DROP TABLE IF EXISTS competency_user_type;
+DROP TABLE IF EXISTS competency_user_type_history;
 
 /*user_type and related history table for linking custom user types to types in enum_data */
 
-/*DROP TABLE IF EXISTS competency_user_type;*/
+
 CREATE TABLE competency_user_type( 
 	competency_user_type_id int(10) unsigned PRIMARY KEY AUTO_INCREMENT, 
 	name varchar(24), 
@@ -55,7 +60,7 @@ CREATE TABLE competency_user_type(
 	modified_on datetime DEFAULT NULL 
 ) ENGINE=InnoDB CHARSET=UTF8; 
 
-/*DROP TABLE IF EXISTS competency_user_type_history;*/
+
 CREATE TABLE competency_user_type_history(
 	competency_user_type_history_id int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT, 
 	competency_user_type_id int(10) unsigned, 
@@ -74,9 +79,9 @@ DROP COLUMN created_by,
 DROP COLUMN created_on,
 ADD COLUMN uri varchar(256) DEFAULT NULL AFTER description, 
 ADD COLUMN competency_level_enum_id int(10) unsigned NOT NULL AFTER uri, 
-ADD COLUMN competency_user_type_id int(10) unsigned NOT NULL AFTER competency_level_enum_id,
-ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id;
-/*ADD CONSTRAINT fk_competency_user_type FOREIGN KEY (competency_user_type_id) REFERENCES competency_user_type (competency_user_type_id); */
+ADD COLUMN competency_user_type_id int(10) unsigned AFTER competency_level_enum_id,
+ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id,
+ADD CONSTRAINT FOREIGN KEY (competency_user_type_id) REFERENCES competency_user_type(competency_user_type_id);
 
 ALTER TABLE competency_history
 DROP COLUMN created_by,
@@ -107,7 +112,6 @@ CHANGE competency_relationship_id competency_hierarchy_id int(10) UNSIGNED;
 
 /* competency_course table and related history table to specify which competencies are related to which courses */
 
-/*DROP TABLE IF EXISTS competency_course;*/
 CREATE TABLE competency_course (
 	competency_course_id int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	competency_id int(10) unsigned NOT NULL DEFAULT '0',
@@ -118,7 +122,6 @@ CREATE TABLE competency_course (
 	CONSTRAINT FOREIGN KEY (competency_id) REFERENCES competency(competency_id)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8; 
 
-/*DROP TABLE IF EXISTS competency_course_history;*/
 CREATE TABLE competency_course_history (
 	competency_course_history_id int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	competency_course_id int(10) unsigned NOT NULL DEFAULT '0',
