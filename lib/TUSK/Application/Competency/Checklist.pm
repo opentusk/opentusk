@@ -326,4 +326,55 @@ sub getChecklistWithParentChildren {
     );
 }
 
+sub getSummaryReport {
+    my ($self, $time_period_id) = @_;
+
+    my $checklist = TUSK::Competency::Checklist::Checklist->new();
+	
+    my $sth = $checklist->databaseSelect(qq(
+SELECT competency_checklist_id, self_assessed + partner_assessed + faculty_assessed as total, required
+FROM tusk.competency_checklist
+WHERE competency_checklist_group_id = $self->{checklist_group_id}
+					    ));
+
+    my $checklists = {};
+    my $total_checklists = 0;
+    my $total_required_checklists = 0;
+    while (my ($checklist_id, $total, $required) = $sth->fetchrow_array()) {
+	$checklists->{$checklist_id} = {
+	    total => $total,
+	    required => $required,
+	};
+	$total_checklists++;
+	$total_required_checklists++ if ($required);
+    }
+    $sth->finish();
+
+    my $total_checklists = scalar keys %$checklists;
+
+    $sth = $checklist->databaseSelect(qq(
+SELECT concat(lastname, ', ', firstname) as name, uid, competency_checklist_id, count(*)
+FROM hsdb45_dent_admin.link_course_student as l
+INNER JOIN tusk.competency_checklist_assignment as a on (l.child_user_id = student_id AND a.time_period_id = l.time_period_id and competency_checklist_group_id = $self->{checklist_group_id})
+INNER JOIN tusk.competency_checklist_entry as e on (a.competency_checklist_assignment_id = e.competency_checklist_assignment_id AND complete_date is NOT NULL)
+INNER JOIN hsdb4.user as u on (l.child_user_id = u.user_id)
+WHERE l.time_period_id = $time_period_id
+GROUP BY child_user_id, competency_checklist_id
+ORDER BY name
+					    ));
+
+    my %data = ();
+    while (my ($student_name, $student_id, $checklist_id, $cnt) = $sth->fetchrow_array()) {
+	$data{$student_id}{name} = $student_name;
+	if ($cnt == $checklists->{$checklist_id}{total}) {
+	    $data{$student_id}{total_completed}++;
+	    if ($checklists->{$checklist_id}{required}) {
+		$data{$student_id}{total_required_completed}++;
+	    }
+	}
+    }
+
+    return (\%data, $total_checklists, $total_required_checklists);
+}
+
 1;
