@@ -46,12 +46,12 @@ sub main {
     foreach my $school( @{$schools}) {
 	my $current_school_id =  $school->getPrimaryKeyID;
 
-	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, modified_by, modified_on) VALUES( 'Competency', $user_types->{competency}->{enum_data_id}, $current_school_id, 'script', now()));
+	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, modified_by, modified_on) VALUES( 'Competency Category', $user_types->{category}->{enum_data_id}, $current_school_id, 'script', now()));
 	$sth = $dbh->prepare($sql);
 	$sth->execute();
 	$sth->finish;
 
-	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, modified_by, modified_on) VALUES( 'Competency Category', $user_types->{category}->{enum_data_id}, $current_school_id, 'script', now()));
+	$sql = qq(INSERT INTO tusk.competency_user_type (name, competency_type_enum_id, school_id, modified_by, modified_on) VALUES( 'Competency', $user_types->{competency}->{enum_data_id}, $current_school_id, 'script', now()));
 	$sth = $dbh->prepare($sql);
 	$sth->execute();
 	$sth->finish;
