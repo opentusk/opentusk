@@ -219,7 +219,8 @@ page_footer => ''
 					user_type_id => $competency_user_type_id->getPrimaryKeyID,
 					school_id => $school_id,
 					competency_level_enum_id => $competency_level_enum_id->getPrimaryKeyID,
-					version_id => $school_id
+					version_id => $school_id,
+					user => $m->session->{'user'}->user_id
 				};
 
 				my $competency = TUSK::Application::Competency::Competency->new($competency_args);
@@ -254,8 +255,8 @@ page_footer => ''
 					}
 					$competency_hierarchy->setSortOrder( 0 );
 				}
-								
-	
+				print "\"id\"    : \"" . $child_competency_id . "_" . time() . "\",\n";
+				print "\"error\" : \"\"\n";
 			} else {
 				my $id = $ARGS{'id'};
 				$id =~ s/_[\d]+//;
@@ -263,12 +264,16 @@ page_footer => ''
 				my $competency_args = {
 					competency_id => $id,
 					description => $ARGS{'col0'},
+					user => $m->session->{'user'}->user_id,
 					user_type_id => $competency_user_type_id->getPrimaryKeyID,
 				};
 
 				$competency = TUSK::Application::Competency::Competency->new($competency_args);
 				$competency->update;
+				print "\"id\"    : \"" . $competency->{'competency_id'}. "_" . time() . "\",\n";
+				print "\"error\" : \"\"\n";
 			}
+					
 		}
 	}
 	print "}";

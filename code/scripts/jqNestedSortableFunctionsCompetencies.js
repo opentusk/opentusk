@@ -232,11 +232,15 @@ function initTable( params ) {
 
 function editRow( link, params ) {
 	var function_values = [];
+	add = 0;
+	this_row = $(link).closest('.page-list').clone();
 	$(link).children().each(function() {
 		function_values.push( $(this).attr('value') );
 	});
 	$(link.parentNode.parentNode.parentNode.getElementsByTagName('LI')[0]).removeClass("hand").css('display', 'none');
-	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
+	
+	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
+	
 	for( var idx = 1; idx < liArray.length; idx++ ) {
 	//why is the following here? doesn't make sense to skip for 4? commeting out until i can see why this is so. - prath
 		if ( idx==4 && params['listId'] == 'school_competencies' ) {
@@ -293,7 +297,14 @@ function editRow( link, params ) {
 			case 'action':
 				params["actionDropdown"]=1;
 				params["function_values"]=function_values;
-				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>';
+				if (function_values.length == 0){
+					function_values.push( '' );
+					function_values.push( 'editRow(this, params); resetDropDown(this);' );
+					function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
+					function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
+					add  = 1;
+				}			
+				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>&nbsp&nbsp<a onclick="cancelRow( this, params, this_row, add);" class="navsm">Cancel</a>';
 				break;
 
 			default:
@@ -304,6 +315,15 @@ function editRow( link, params ) {
 	initTable( params );
 	if (noTypes == 1){
 		$("[id^='new_child_of']").remove();	
+	}
+}
+
+function cancelRow( link, params, this_row, add ){
+	if (add == 0){
+		$(this_row).insertAfter($(link).closest('.page-list'));
+		$(link).closest('.page-list').remove();
+	} else{
+		$(link).parent().parent().parent().remove();
 	}
 }
 
@@ -366,8 +386,11 @@ function saveRow( link, params ) {
 	$(link.parentNode.parentNode.getElementsByTagName('LI')[0]).addClass("hand").css('display', 'block');
 	var liArray = link.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode;
+	
 	var postData = new Object();
+
 	postData['id'] = liNode.id;
+
 	var currentCompetencyPage = location.pathname.split('/')[4];
 	if ( currentCompetencyPage == 'listNationalCompetencies' ){
 		currentCompetencyPage = 'national';
@@ -403,6 +426,7 @@ function saveRow( link, params ) {
 			continue;
 		}
 		var editParams = params.columns[idx-1].edit;
+
 		var postThis = true;
 		var isArray  = false;
 
@@ -434,8 +458,9 @@ function saveRow( link, params ) {
 				var radio_buttons = liArray[idx].getElementsByTagName('input');
 				var radio_button_value = 0;
 				for (var i in radio_buttons) {
-					if ( radio_buttons[i].checked ) { 
-						radio_button_value = radio_buttons[i].getAttribute("data-name");
+					if ( radio_buttons[i].checked == true ) { 
+						radio_button_value = $(radio_buttons[i]).data("name");
+						console.log(radio_button_value);
 					}	
 				}				
 				if (radio_button_value == 0){
@@ -456,6 +481,7 @@ function saveRow( link, params ) {
 					$(option_name).each(function(i,l){
 						options += '<option value="' + params.function_values[i+1] + '" class="navsm">' + l + '</option>';
 					});
+
 					display = '<form method="post"><select onChange="eval(this.options[this.selectedIndex].value); " class="navsm"><option value="" class="navsm"> -- select -- </option>' + options + '</select></form>';
 				} else {
 					display = editParams.options.join( ' | ' );
@@ -480,7 +506,7 @@ function saveRow( link, params ) {
 	var error;
 	$.post(params.postTo, postData, function(data){
 		error = data['error'];	
-		newId = data['id'];
+		newId = data['id'];	
 
 		if ( error ) {
 			// TODO:  Error handling
