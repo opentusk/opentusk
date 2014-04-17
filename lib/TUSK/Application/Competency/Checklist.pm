@@ -22,6 +22,7 @@ use TUSK::Competency::Hierarchy;
 use TUSK::Competency::Checklist::Group;
 use TUSK::Competency::Checklist::Entry;
 use TUSK::Competency::Checklist::Checklist;
+use TUSK::Competency::Checklist::Completion;
 use TUSK::Core::HSDB4Tables::User;
 use TUSK::Enum::Data;
 use Digest::MD5;
@@ -142,7 +143,7 @@ sub getPendingEntries {
     my ($self, $checklist_assignment_id, $school) = @_;
     croak "missing parameters: checklist assignment id" unless ($checklist_assignment_id);
 
-    my $entries = TUSK::Competency::Checklist::Entry->lookup("request_date is not NULL and complete_date is NULL", ['request_date'], ['competency_checklist_entry_id'], undef, [
+    my $entries = TUSK::Competency::Checklist::Entry->lookup("(request_date is not NULL OR notify_date is not NULL) AND complete_date is NULL", ['request_date'], ['competency_checklist_entry_id'], undef, [
 	TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Assignment", { 
 		joinkey => 'competency_checklist_assignment_id', 
 		jointype => 'inner', 
@@ -335,7 +336,7 @@ sub getSummaryReport {
 SELECT competency_checklist_id, self_assessed + partner_assessed + faculty_assessed as total, required
 FROM tusk.competency_checklist
 WHERE competency_checklist_group_id = $self->{checklist_group_id}
-					    ));
+    ));
 
     my $checklists = {};
     my $total_checklists = 0;
@@ -375,6 +376,30 @@ ORDER BY name
     }
 
     return (\%data, $total_checklists, $total_required_checklists);
+}
+
+
+sub saveCompletions {
+    my ($self, $args, $id_prefix, $entry_id, $assessor_id) = @_;
+
+    my %completions = map { $_->getCompetencyID() => $_ } @{TUSK::Competency::Checklist::Completion->lookup("competency_checklist_entry_id = $entry_id")};
+    foreach my $key (keys %$args) {
+	if ($key =~ m/$id_prefix/) {
+	    my (undef, $competency_id) = split(/__/, $key);
+	    if (exists $completions{$competency_id}) {
+		$completions{$competency_id}->setCompleted($args->{$key});
+		$completions{$competency_id}->save({user => $assessor_id});
+	    } else {
+		my $completion = TUSK::Competency::Checklist::Completion->new();
+		$completion->setFieldValues({
+		    competency_checklist_entry_id 	=> $entry_id,
+		    competency_id	                => $competency_id,
+		    completed                           => $args->{$key},
+		});
+		$completion->save({user => $assessor_id});
+	    }
+	}
+    }
 }
 
 1;

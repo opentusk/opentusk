@@ -26,8 +26,8 @@
 <%once>
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Checklist::Checklist;
-	use TUSK::Competency::Checklist::Completion;
 	use TUSK::Competency::Checklist::Entry;
+	use TUSK::Application::Competency::Checklist;
 </%once>
 
 <%shared>
@@ -97,14 +97,8 @@
 			],
 } &>
 </table>
-</form>
 
 % if ($show_student_notify) {
-<& /tmpl/element:form, params => {
-	method		=> 'POST',
-	enctype		=> 'multipart/form-data', 
-	name 		=> 'checklist_notify',
-} &>
 <div id="notify_student" style="display:none;">
 <div style="margin-top:15px;font-weight:bold;"><% __('Send Comments to Student') . ':'  %></div>
 <& /tmpl/element:input_textarea, params => { 
@@ -121,15 +115,15 @@
 	label		=> __('Send'),
         name		=> 'notify_submit',
 	type		=> '',
-	onclick		=> 'notifyStudent(); return false;',
+	onclick		=> 'notifyStudent(this); return false;',
 	cancel_onclick	=> 'hideEmailForm();',
 } &>
 </table>
 </div>
 <input type="hidden" id=="url_paths" name="url_paths" value="<% $m->comp("/tmpl/url:get_type_path") . "/$checklist_group_id/$checklist_id/$checklist_assignment_id/$entry_id" %>" />
 <input type="hidden" id="to_email" name="to_email" value="<% $student->getDefaultEmail() %>" />
-</form>
 % }
+</form>
 
 % if (my $notify_date = $entry->getFormattedNotifyDate()) {
 <div style="margin: 5px 0 5px 0;">
@@ -248,25 +242,8 @@
 	$entry->save({user => $assessor_id}) if ($entry_changed);
 
 	if (my $entry_id = $entry->getPrimaryKeyID()) {
-		my %completions = map { $_->getCompetencyID() => $_ } @{TUSK::Competency::Checklist::Completion->lookup("competency_checklist_entry_id = $entry_id")};
-		foreach my $key (keys %args) {
-			if ($key =~ m/$id_prefix/) {
-				my (undef, $competency_id) = split(/__/, $key);
-				if (exists $completions{$competency_id}) {
-					$completions{$competency_id}->setCompleted($args{$key});
-					$completions{$competency_id}->save({user => $assessor_id});
-				} else {
-					my $completion = TUSK::Competency::Checklist::Completion->new();
-					$completion->setFieldValues({
-						competency_checklist_entry_id 	=> $entry_id,
-						competency_id			=> $competency_id,
-						completed			=> $args{$key},
-					});
-					$completion->save({user => $assessor_id});
-				}
-			}
-		}
-
+		my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
+		$acc->saveCompletions(\%args, $id_prefix, $entry_id, $assessor_id);
 		$msgtext = ($args{save_submit}) ? __('Successfully Saved') : __('Successfully Submitted');
 		$msgtype = 'msg';
 	}

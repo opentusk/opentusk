@@ -50,9 +50,12 @@
 		body	=> $ARGS{notify_comments},
 	});
 	$email->send();
-
+	
+	my $assessor_id = $m->session->{user}->primary_key();
 	my $entry = TUSK::Competency::Checklist::Entry->lookupKey($entry_id);
 	$entry->setNotifyDate(HSDB4::DateTime->new()->out_mysql_timestamp());
 	$entry->setRequestDate(undef);
-	$entry->save({user => $m->session->{user}->primary_key()});
+	$entry->save({user => $assessor_id});
+
+	$acc->saveCompletions(\%ARGS, 'compid__', $entry->getPrimaryKeyID(), $assessor_id);
 </%init>

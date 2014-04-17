@@ -66,11 +66,7 @@ function notifyStudent() {
 		type		: 'POST',
 		url		: '/competency/checklist/tmpl/notifystudent/' + $("input[name=url_paths]").val(),
 		dataType	: 'json',
-		data		: { 
-			'to'			: $("input[name=to_email]").val(),
-			'notify_comments'	: $("textarea[name=notify_comments]").val(),
-			
-		},
+		data		: $("#checklist_entry").serialize(),
 	        success		: function(response) {
 					$('#notify_show').hide('slow');
 					$('#notify_student').hide('slow');
