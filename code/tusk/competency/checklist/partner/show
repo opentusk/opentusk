@@ -43,7 +43,7 @@
 	width => '70%',
 	columns => [ 
 		{'label' => __('Skills Module'), 'field' => 'title', width => '30%'},
-		{'label' => __('Request Date'), 'field' => 'request_date'},
+		{'label' => __('Status'), 'field' => 'status'},
 		{'label' => __('Action'), 'field' => 'action', align => 'center'},
 	],
 	rows => \@rows,
@@ -60,12 +60,13 @@
 	my $entries = $acc->getPendingEntries($checklist_assignment_id, $school);
 
 	my @rows = ();
-
 	foreach my $entry (@$entries) {
 		my $competency = $entry->getJoinObject('TUSK::Competency::Competency');
 		push @rows, {
 			title => $competency->getDescription(),
-			request_date => $entry->getFormattedRequestDate(),
+			status => ($entry->getRequestDate()) 
+				? __('Student requested on') . ' ' . $entry->getFormattedRequestDate() 
+				: __('Notified student on') . ' ' . $entry->getFormattedNotifyDate(),
 			action => $m->scomp('/tmpl/element:button', params => {
 				onclick => "window.location='" . "/competency/checklist/partner/assess/$type_path/$checklist_group_id/" . $entry->getCompetencyChecklistID() . "/$checklist_assignment_id/" . $entry->getPrimaryKeyID() .  "'",
 				name => 'checklist',
