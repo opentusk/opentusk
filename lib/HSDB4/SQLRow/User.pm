@@ -2765,7 +2765,7 @@ sub get_current_competency_checklist_groups {
     my $school = $course->get_school();
     my $db = $school->getSchoolDb();
 
-    return TUSK::Competency::Checklist::Group->lookup('publish_flag = 1 AND school_id = ' . $school->getPrimaryKeyID() , undef, undef, undef, [ 
+    return TUSK::Competency::Checklist::Group->lookup('publish_flag = 1 AND school_id = ' . $school->getPrimaryKeyID() . ' AND course_id = ' . $course->primary_key(), undef, undef, undef, [ 
                 TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", { database => $db, joinkey => 'parent_course_id', origkey => 'course_id', cond => "child_user_id = '" . $self->primary_key() . "'", jointype => 'inner' }),
         	TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", { database => $db, joinkey => 'time_period_id', origkey=> "link_course_student.time_period_id",  cond => "start_date < now()  AND end_date > now()", jointype => 'inner' }),
     ]);
