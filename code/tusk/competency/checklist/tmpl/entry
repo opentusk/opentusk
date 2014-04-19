@@ -142,11 +142,6 @@
 		TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Entry", { joinkey => 'competency_checklist_assignment_id', origkey => 'competency_checklist_assignment.competency_checklist_assignment_id', joincond => 'competency_checklist.competency_checklist_id = competency_checklist_entry.competency_checklist_id' }),
 	]);
 
-	### something wrong, send it away 
-	unless (ref $checklist eq 'TUSK::Competency::Checklist::Checklist') {
-
-	}
-
 	 ### when token is passed, we get an assessor from assignment object
 	$assessor_id = ($token)
 		? $checklist->getJoinObject('TUSK::Competency::Checklist::Assignment')->getAssessorID()
@@ -154,8 +149,13 @@
 
 	my $entry = ($checklist->getJoinObject('TUSK::Competency::Checklist::Entry')) ? $checklist->getJoinObject('TUSK::Competency::Checklist::Entry') : TUSK::Competency::Checklist::Entry->new();
 
-	if ($entry->getPrimaryKeyID() && $entry->getCompleteDate()) {
-		# redirect
+	if ($entry->getPrimaryKeyID() && $entry->getCompleteDate()) {  ## send away it is completed
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => $completed_url->{base_url},
+			pathref	 => $completed_url->{paths},
+			msg	 => __('The skills module was already completed!'),
+			msgtype  => 'errmsg',
+		));	
 	}
 
 	if ($args{submit_check}) {
