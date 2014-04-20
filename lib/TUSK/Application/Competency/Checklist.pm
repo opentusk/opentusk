@@ -328,7 +328,7 @@ sub getChecklistWithParentChildren {
 }
 
 sub getSummaryReport {
-    my ($self, $time_period_id) = @_;
+    my ($self, $time_period_id, $course) = @_;
 
     my $checklist = TUSK::Competency::Checklist::Checklist->new();
 	
@@ -352,10 +352,11 @@ WHERE competency_checklist_group_id = $self->{checklist_group_id}
     $sth->finish();
 
     my $total_checklists = scalar keys %$checklists;
+    my $school_db = $course->school_db();
 
     $sth = $checklist->databaseSelect(qq(
 SELECT concat(lastname, ', ', firstname) as name, uid, competency_checklist_id, count(*)
-FROM hsdb45_dent_admin.link_course_student as l
+FROM $school_db.link_course_student as l
 INNER JOIN tusk.competency_checklist_assignment as a on (l.child_user_id = student_id AND a.time_period_id = l.time_period_id and competency_checklist_group_id = $self->{checklist_group_id})
 INNER JOIN tusk.competency_checklist_entry as e on (a.competency_checklist_assignment_id = e.competency_checklist_assignment_id AND complete_date is NOT NULL)
 INNER JOIN hsdb4.user as u on (l.child_user_id = u.user_id)
