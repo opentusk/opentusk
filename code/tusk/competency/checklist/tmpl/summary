@@ -77,7 +77,7 @@
 		{'label' => __('Competency/Skills Module'), 'field' => 'title', html => 1},
 		{'label' => __('Completed/Total Modules'), 'field' => 'num_modules', align => 'center'},
 	],
-	rows => \@rows,
+	rows => \@rows,  
 	name => "checklists",
 	'norows-message' => __('No skills modules'),
 ##	border_bottom_tr => 1,
@@ -189,11 +189,11 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %	## user at least one completion is an indicator if faculty/partner has started working
 %	my $completion = $entry->getJoinObjects('TUSK::Competency::Checklist::Completion');
 %	my $complete_date = $entry->getFormattedCompleteDate();
-
+%	my $complete_image = '/graphics/checkmark_small.png';
 <div class="xxsm">
 %	if ($assessment_type eq 'self') {
 %		if ($complete_date) {
-<img src="/graphics/checkmark_small.png" title="<% __('Completed') %>" /><% $complete_date %>
+<img src="<% $complete_image %>" title="<% __('Completed') %>" /><% $complete_date %>
 %		} else {
 %			if ($student_view) {
 <% $button %>
@@ -202,14 +202,22 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %		}
 %	} else {  ## either partner or faculty
 %		if (my $request_date = $entry->getFormattedRequestDate()) {  ### pending stage
-
 %			if ($assessment_type eq 'partner') {  ## show bypass partner button
 <a href="<% "/competency/checklist/student/bypasspartner/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Bypass') %></a>
 %			}
+%			if ($assessment_type eq 'faculty') {  ## resend button to faculty
+<a href="<% "/competency/checklist/student/emailfaculty/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Resend') %></a>
+%			}
 <div style="margin:4px 0 0 0"><img src="/graphics/yellow_square.png" title="<% __('Pending') %>" /> <% $request_date %></div>
 %		} elsif ($complete_date) {  ### complete stage
-%			my $title = ($assessment_type eq 'partner' && $entry->getStudentComment()) ? __('Bypassed.') . ' ' . $entry->getStudentComment() : __('Completed');
-<img src="/graphics/checkmark_small.png" title="<% $title %>" /><% $complete_date %>
+%			my $title = __('Completed');
+
+%			if ($assessment_type eq 'partner' && $entry->getStudentComment()) {
+%				$title = __('Bypassed.') . ' ' . $entry->getStudentComment();
+%				$complete_image = '/graphics/bypass.png';
+%			} 
+%			
+<img src="<% $complete_image %>" title="<% $title %>" /><% $complete_date %>
 %		} elsif (my $notify_date = $entry->getFormattedNotifyDate()) { ### in progress stage
 %			if ($student_view) {
 <% $button %>
