@@ -30,8 +30,8 @@
 	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});	
 	my $competency = $acc->getCompetencyChecklist($checklist_id);
 	my $assessor = $acc->getAssessor($assignment_id, $checklist_id, 'partner');
-	my $assignment = $assessor->getJoinObject('TUSK::Competency::Checklist::Assignment');
-	my $entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry');
+	my $assignment;
+	my $entry;
 </%shared>
 
 <div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to \"{partner_name}\"", title => $competency->getDescription(), partner_name => $assessor->outName()) %></div>
@@ -60,7 +60,7 @@
 <%init>
 	if ($ARGS{submit_check}) {
 		$entry = TUSK::Competency::Checklist::Entry->new() unless (defined $entry);
-		my $entry = $acc->setAssessorRequest($assignment_id, $checklist_id, $student->primary_key(), $entry);
+		$entry = $acc->setAssessorRequest($assignment_id, $checklist_id, $student->primary_key(), $entry);
 		$m->comp('SELF:sendEmail', to => $assessor->getDefaultEmail(), comment => $ARGS{comment}, entry => $entry);
 
 		$m->redirect($m->comp("/tmpl/url:construct_url", 
@@ -74,16 +74,28 @@
 
 <%method startup>
 <%perl>	
+	my $msg = undef;
+	unless ($assessor) {
+		$msg = __x("There's something wrong with partner assignment. Please contact your course Director.");
+	}
+
 	if (ref $entry eq 'TUSK::Competency::Checklist::Entry' && $entry->getPrimaryKeyID() && $entry->getRequestDate()) {
 		if ($entry->getRequestDate()) {
-			$m->redirect($m->comp("/tmpl/url:construct_url", 
-				base_url => "/view",
-				pathref	 => [ 'checklists' ], 
-				msg	 => __x('There is already a pending "{competency_title}" assessment request!', competency_title => $competency->getDescription()),
-				msgtype	 => 'errmsg',
-			));	
+			$msg = __x('There is already a pending "{competency_title}" assessment request!', competency_title => $competency->getDescription());
 		}
-	}			
+	}
+
+	if ($msg) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/view",
+			pathref	 => [ 'checklists' ], 
+			msg	 => $msg,
+			msgtype	 => 'errmsg',
+		));	
+	}
+
+	$assignment = $assessor->getJoinObject('TUSK::Competency::Checklist::Assignment');
+	$entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry');
 </%perl>	
 </%method>
 
