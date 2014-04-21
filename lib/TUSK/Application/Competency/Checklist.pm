@@ -247,7 +247,6 @@ sub getAssessor {
 	TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Assignment', { 
 	    joinkey => 'assessor_id', 
 	    origkey => 'user_id', 
-	    jointype => 'inner',
 	    joincond => "competency_checklist_assignment_id = $assignment_id AND competency_checklist_group_id = $self->{checklist_group_id}",
 	}),
 	TUSK::Core::JoinObject->new('TUSK::Enum::Data', { 
