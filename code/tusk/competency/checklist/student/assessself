@@ -30,6 +30,44 @@
 				   },
  &>
 
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	my $msg = undef;
+	my $student_id = $m->session->{user}->primary_key();
+	my $assignment = TUSK::Competency::Checklist::Assignment->lookupKey($checklist_assignment_id, [
+		TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", { 
+			database => $course->get_school()->getSchoolDb(), 
+			joinkey => 'time_period_id', 
+			origkey => 'competency_checklist_assignment.time_period_id', 
+			joincond => 'start_date < now() AND end_date > (curdate() + interval 1 day)'})
+	]);
+
+	if ($assignment) {
+		my $time_period = $assignment->getJoinObject('TUSK::Core::HSDB45Tables::TimePeriod');
+		if (!$time_period) {
+			$msg = __('Skills module is expired');
+		} elsif (($assignment->getStudentID() ne $student_id && $assignment->getAssessorID() ne $student_id)
+			|| (!($course->is_user_registered($student_id, $time_period->getPrimaryKeyID())))) {
+			$msg = __('Access Denied');
+		}
+
+	} else {
+		$msg = __('Invalid Access');
+	}  
+
+	if ($msg) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/home",
+			msg	 => $msg,
+			msgtype	 => 'errmsg',
+		));	
+	}
+</%perl>
+</%method>
+
 <%method title>
 %	return __('Competency Checklist - Self Assessment');
 </%method>
