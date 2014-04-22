@@ -337,7 +337,7 @@ function addNewRow( link, params ) {
 	}
 	var time = new Date().getTime();
 	if (String(parentId).match("^new_child_of_")){
-		alert("Notice: Last competency was still saving when you tried to make the new change. Please refresh and try again");
+		alert("Notice: Your last competency was still being saved to the database when you tried to make the new change. Please try again.");
 	}
 	var rowText  = '<li class="clr sort-row" id="new_child_of_' + parentId + '_' + time + '"><div class="clearfix striping"><ul class="row-list"><li style="display:none">&nbsp;</li>';
 	for (var i = 0; i < params.columns.length; i++) {
