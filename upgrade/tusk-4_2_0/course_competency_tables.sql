@@ -98,7 +98,7 @@ RENAME TABLE competency_relationship TO competency_hierarchy;
 ALTER TABLE competency_hierarchy 
 DROP COLUMN created_by,
 DROP COLUMN created_on,
-CHANGE competency_relationship_id competency_hierarchy_id int(10) UNSIGNED;
+CHANGE competency_relationship_id competency_hierarchy_id int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT;
 
 RENAME TABLE competency_relationship_history TO competency_hierarchy_history;
 
@@ -106,7 +106,7 @@ ALTER TABLE competency_hierarchy_history
 DROP COLUMN created_by,
 DROP COLUMN created_on,
 CHANGE competency_relationship_history_id competency_hierarchy_history_id int(10) UNSIGNED,
-CHANGE competency_relationship_id competency_hierarchy_id int(10) UNSIGNED;
+CHANGE competency_relationship_id competency_hierarchy_id int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT
 
 /*Creation of New tables*/
 
