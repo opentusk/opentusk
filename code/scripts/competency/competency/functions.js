@@ -51,6 +51,11 @@ function currentCompLabel( current_competency ){
 
 //Functions related to competency checklist division/popup
 
+function buildCompetencyList( dialog_name, school_name, course_id){
+/*Uses the "<competencyRoot>/tmpl/static_display" page and given parameters to build a list tree of competencies and displays it in the given division.*/
+	$( "#" + dialog_name ).load( competencyRoot + "tmpl/static_display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id});
+}
+
 function buildCompetencyChecklistTree( dialog_name, school_name, course_id, selected_competency_id, input_type, children, display_type, extend_function ){
 
 /*
