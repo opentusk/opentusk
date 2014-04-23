@@ -87,7 +87,13 @@
 <%perl>
     foreach my $key( keys %{ $competency_tree } ){
 	my $this_competency = TUSK::Competency::Competency->lookup( 'competency_id='. $key);
-	print "<li>"."&nbsp" x 4 x $depth ."<img src = \"/graphics/case/sidebarArrow.gif\">&nbsp&nbsp<span class=\"description\">".$this_competency->[0]->getDescription . "</span></li>";
+	my $competency_type = $this_competency->[0]->getType;
+	if ($competency_type eq 'category'){
+		print "<li>"."&nbsp" x 4 x $depth ."&bull;&nbsp&nbsp<span class=\"description\"><b>".$this_competency->[0]->getDescription . "</b></span></li>";
+	}
+	else{
+		print "<li>"."&nbsp" x 4 x $depth ."&bull;&nbsp&nbsp<span class=\"description\">".$this_competency->[0]->getDescription . "</span></li>";
+	}
 	print "<div id =\"Child_of_".$this_competency->[0]->getPrimaryKeyID ."\">";
 	$m->comp( 'SELF:generateCompetencyListByCourseHelper', competency_tree => $competency_tree->{$key}, depth => $depth+1 );
 	print "</div>";
