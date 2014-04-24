@@ -126,27 +126,26 @@ function initTable( params ) {
 			onStop: function() {
 				if ( changed ) {
 					var newPos    = getPositionInList(this);
-					var newParent = this.parentNode.parentNode.parentNode;
+					var newParent = this.parentNode.parentNode;
 					var myRealId  = this.id.replace( /_[\d]+/, '' );
 					var postData  = new Object;
 
 					postData['arrName']        = params.listId;
 					postData['droppedRow']     = this.id;
 					postData['originalParent'] = originalParent.id;
-					postData['newParent']      = this.parentNode.parentNode.parentNode.id;
+					postData['newParent']      = this.parentNode.parentNode.id;
 					postData['sorting']        = 1;
 					postData['originalPos']    = originalPos;
 					postData['newPos']         = newPos;
 					postData['lineage']        = '/';
 					postData['curDepth']       = 0;
-					console.log(postData['newParent']);
 					var depthCheck = newParent;
 					var lineage = new Array();
 					while(depthCheck.tagName == 'LI') {
 						var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
 						lineage.push( tmpId );
 						postData['curDepth']++;
-						depthCheck = depthCheck.parentNode.parentNode.parentNode;
+						depthCheck = depthCheck.parentNode.parentNode;
 					}
 					if ( lineage.length > 0 ) {
 						postData['lineage'] += lineage.reverse().join( "/" ) + "/";
@@ -175,7 +174,7 @@ function initTable( params ) {
 							} else {
 								if ( postData['originalParent'] != params.wrapper ) { 
 									$('li[id^=' + myRealId + '_]').each( function() {
-										var myParentId = this.parentNode.parentNode.parentNode.id.replace( /_[\d]+/, '' );
+										var myParentId = this.parentNode.parentNode.id.replace( /_[\d]+/, '' );
 										if ( myParentId == originalParentId ) {
 											$(this).remove();
 										}
@@ -201,7 +200,7 @@ function initTable( params ) {
 					}, "json");
 				}
 			},
-			onStart: function() { originalParent = this.parentNode.parentNode.parentNode; originalPos = getPositionInList(this); },
+			onStart: function() { originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
 			autoScroll: true,
 			handle: '.hand'
 		}
@@ -209,11 +208,11 @@ function initTable( params ) {
 	$("div.striping").removeClass("even").removeClass("odd");
 	if ( params.sort != 0 ) {
 		$("div.striping").mouseout( function() { 
-			if ( this.parentNode.parentNode.id != 'empty_message' ) {
+			if ( this.parentNode.id != 'empty_message' ) {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage;
 			}
 		} ).mouseover( function() { 
-			if ( this.parentNode.parentNode.id != 'empty_message' ) {
+			if ( this.parentNode.id != 'empty_message' ) {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.dragImage;
 			}
 		} );
@@ -365,7 +364,6 @@ function addNewRow( link, params ) {
 			depthCheck = depthCheck.parentNode.parentNode;
 			thisDepth++;
 		}
-		console.log(depthCheck);
 
 		var existingList = containingDiv.parentNode.getElementsByTagName('OL')[0];
 		if ( existingList == undefined || $(existingList).length == 0 ) {
@@ -465,7 +463,6 @@ function saveRow( link, params ) {
 				for (var i in radio_buttons) {
 					if ( radio_buttons[i].checked == true ) { 
 						radio_button_value = radio_buttons[i].getAttribute("data-name");
-						console.log(radio_button_value);
 					}	
 				}				
 				if (radio_button_value == 0){
