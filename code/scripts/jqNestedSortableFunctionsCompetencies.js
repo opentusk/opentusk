@@ -139,6 +139,7 @@ function initTable( params ) {
 					postData['newPos']         = newPos;
 					postData['lineage']        = '/';
 					postData['curDepth']       = 0;
+					console.log(postData['newParent']);
 					var depthCheck = newParent;
 					var lineage = new Array();
 					while(depthCheck.tagName == 'LI') {
@@ -364,6 +365,7 @@ function addNewRow( link, params ) {
 			depthCheck = depthCheck.parentNode.parentNode;
 			thisDepth++;
 		}
+		console.log(depthCheck);
 
 		var existingList = containingDiv.parentNode.getElementsByTagName('OL')[0];
 		if ( existingList == undefined || $(existingList).length == 0 ) {
@@ -410,13 +412,13 @@ function saveRow( link, params ) {
 
 	postData['lineage'] = '/';
 	postData['curDepth'] = 0;
-	var depthCheck = liNode.parentNode.parentNode.parentNode;
+	var depthCheck = liNode.parentNode.parentNode;
 	var lineage = new Array();
 	while(depthCheck.tagName == 'LI') {
 		var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
 		lineage.push( tmpId );
 		postData['curDepth']++;
-		depthCheck = depthCheck.parentNode.parentNode.parentNode;
+		depthCheck = depthCheck.parentNode.parentNode;
 	}
 	if ( lineage.length > 0 ) {
 		postData['lineage'] += lineage.reverse().join( "/" ) + "/";
@@ -602,7 +604,7 @@ function deleteRowConfirm( link, params ) {
 	if ( liNode.parentNode.parentNode.tagName == 'LI' ) {
 		postData['parentId'] = liNode.parentNode.parentNode.id;
 	} else {
-			postData['parentId'] = 0; 
+		postData['parentId'] = 0; 
 	}
 	postData['position'] = getPositionInList( liNode );
 
