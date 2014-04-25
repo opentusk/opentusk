@@ -126,14 +126,14 @@ function initTable( params ) {
 			onStop: function() {
 				if ( changed ) {
 					var newPos    = getPositionInList(this);
-					var newParent = this.parentNode.parentNode;
+					var newParent = this.parentNode.parentNode.parentNode;
 					var myRealId  = this.id.replace( /_[\d]+/, '' );
 					var postData  = new Object;
 
 					postData['arrName']        = params.listId;
 					postData['droppedRow']     = this.id;
 					postData['originalParent'] = originalParent.id;
-					postData['newParent']      = this.parentNode.parentNode.id;
+					postData['newParent']      = this.parentNode.parentNode.parentNode.id;
 					postData['sorting']        = 1;
 					postData['originalPos']    = originalPos;
 					postData['newPos']         = newPos;
@@ -145,7 +145,7 @@ function initTable( params ) {
 						var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
 						lineage.push( tmpId );
 						postData['curDepth']++;
-						depthCheck = depthCheck.parentNode.parentNode;
+						depthCheck = depthCheck.parentNode.parentNode.parentNode;
 					}
 					if ( lineage.length > 0 ) {
 						postData['lineage'] += lineage.reverse().join( "/" ) + "/";
@@ -174,7 +174,7 @@ function initTable( params ) {
 							} else {
 								if ( postData['originalParent'] != params.wrapper ) { 
 									$('li[id^=' + myRealId + '_]').each( function() {
-										var myParentId = this.parentNode.parentNode.id.replace( /_[\d]+/, '' );
+										var myParentId = this.parentNode.parentNode.parentNode.id.replace( /_[\d]+/, '' );
 										if ( myParentId == originalParentId ) {
 											$(this).remove();
 										}
@@ -200,7 +200,7 @@ function initTable( params ) {
 					}, "json");
 				}
 			},
-			onStart: function() { originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
+			onStart: function() { originalParent = this.parentNode.parentNode.parentNode; originalPos = getPositionInList(this); },
 			autoScroll: true,
 			handle: '.hand'
 		}
@@ -208,11 +208,11 @@ function initTable( params ) {
 	$("div.striping").removeClass("even").removeClass("odd");
 	if ( params.sort != 0 ) {
 		$("div.striping").mouseout( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if ( this.parentNode.parentNode.id != 'empty_message' ) {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage;
 			}
 		} ).mouseover( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if ( this.parentNode.parentNode.id != 'empty_message' ) {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.dragImage;
 			}
 		} );
@@ -410,13 +410,13 @@ function saveRow( link, params ) {
 
 	postData['lineage'] = '/';
 	postData['curDepth'] = 0;
-	var depthCheck = liNode.parentNode.parentNode;
+	var depthCheck = liNode.parentNode.parentNode.parentNode;
 	var lineage = new Array();
 	while(depthCheck.tagName == 'LI') {
 		var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
 		lineage.push( tmpId );
 		postData['curDepth']++;
-		depthCheck = depthCheck.parentNode.parentNode;
+		depthCheck = depthCheck.parentNode.parentNode.parentNode;
 	}
 	if ( lineage.length > 0 ) {
 		postData['lineage'] += lineage.reverse().join( "/" ) + "/";
@@ -463,6 +463,7 @@ function saveRow( link, params ) {
 				for (var i in radio_buttons) {
 					if ( radio_buttons[i].checked == true ) { 
 						radio_button_value = radio_buttons[i].getAttribute("data-name");
+						console.log(radio_button_value);
 					}	
 				}				
 				if (radio_button_value == 0){
@@ -601,7 +602,7 @@ function deleteRowConfirm( link, params ) {
 	if ( liNode.parentNode.parentNode.tagName == 'LI' ) {
 		postData['parentId'] = liNode.parentNode.parentNode.id;
 	} else {
-		postData['parentId'] = 0; 
+			postData['parentId'] = 0; 
 	}
 	postData['position'] = getPositionInList( liNode );
 
