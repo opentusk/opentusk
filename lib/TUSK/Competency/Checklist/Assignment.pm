@@ -291,6 +291,15 @@ sub isAssignmentType {
     return 0
 }
 
+=item
+    Check if it is a self assignment
+=cut
+sub isSelfAssignment {
+    my ($self, $user_id) = @_;
+    return ($self->getStudentID() eq $user_id && $self->getAssessorID() eq $user_id) ? 1 : 0;
+}
+
+
 =head1 BUGS
 
 None Reported.
