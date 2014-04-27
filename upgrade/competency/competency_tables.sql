@@ -30,8 +30,6 @@ CREATE TABLE competency_content_history (
 	competency_id int(10) unsigned NOT NULL DEFAULT '0',
 	content_id int(10) unsigned NOT NULL DEFAULT '0',
 	sort_order smallint(6) unsigned NOT NULL DEFAULT '65535',
-	created_by varchar(24) NOT NULL DEFAULT ' ',
-	created_on datetime DEFAULT NULL,
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
 	history_action enum('Insert', 'Update', 'Delete'),
