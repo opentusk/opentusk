@@ -1,0 +1,33 @@
+###################################################################################################
+## Upgrade instructions for Competency Linking:
+###################################################################################################
+
+######################
+# Database:
+######################
+## Create a backup of existing data by dumping data from related tables; 
+
+> mysqldump tusk competency > competency_backup.sql
+> mysqldump tusk competency_type > competency_type_backup.sql
+> mysqldump tusk competency_hierarchy > competency_hierarchy_backup.sql
+> mysqldump tusk competency_course > competency_course_backup.sql
+> mysqldump tusk enum_data > enum_data_backup.sql
+
+## Run sql script to upgrade/create tables:
+
+> mysql tusk < competency_tables.sql
+
+#####################
+## Data migration:
+#####################
+
+## Run the included perl script default_user_types to generate the default user competency types for each school:
+## (Note: This needs to be run BEFORE the course_objective_migration.pl file)
+
+> perl default_types.pl
+
+## Run the included perl script objectives_migration.pl to migrate data from the older class_meeting and content objectives
+## to the competency table:
+
+> perl objectives_migration.pl
+
