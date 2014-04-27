@@ -22,9 +22,9 @@ use TUSK::Constants;
 use HSDB4::SQLRow::Objective;
 
 use TUSK::Competency::Competency;
-use TUSK::Competency::CourseCompetency;
-use TUSK::Competency::ContentCompetency;
-use TUSK::Competency::ClassMeetingCompetency;
+use TUSK::Competency::Course;
+use TUSK::Competency::Content;
+use TUSK::Competency::ClassMeeting;
 use TUSK::Course;
 
 my $schools = HSDB4::Constants::getSchoolObject();
@@ -41,36 +41,13 @@ sub main{
 
 #comment the functions out below as intended
 
-#    migrateCourseObjectives();
-#    migrateContentObjectives();
-#    migrateClassMeetingObjectives();
+    migrateContentObjectives();
+    migrateClassMeetingObjectives();
 }
 
 sub createTuskCourseObjects{
     foreach my $course_obj( @{ TUSK::Course->new()->lookup() } ){
 	$tusk_courses{ $course_obj->getSchoolID() }{ $course_obj->getSchoolCourseCode() } = $course_obj->getPrimaryKeyID();  
-    }
-}
-
-sub migrateCourseObjectives{
-    foreach my $school( @$schools ){
-	my $school_db = $school->getSchoolDb();
-	my $sql = qq( SELECT * FROM $school_db\.link_course_objective);
-	my $sth = $dbh->prepare( $sql );
-	$sth->execute();
-	my $course_objectives = $sth->fetchall_arrayref;
-	$sth->finish;
-
-	foreach my $course_objective ( @{ $course_objectives } ){
-	    my $competency = TUSK::Competency::Competency->new();
-	    $competency->setFieldValues({
-		school_id => $school->getPrimaryKeyID(),
-		description => $objectives{ $course_objective->[1] },
-		competency_level => "course_objective",
-	    });
-	    $competency->save( {user=> 'migration'});
-	    processCourseRelationship( $course_objective->[0], $course_objective->[1], $competency->getCompetencyID(), $school_db, $school->getPrimaryKeyID(), $course_objective->[2] , $course_objective->[3] );
-	}
     }
 }
 
@@ -126,29 +103,10 @@ sub migrateClassMeetingObjectives {
     }
 }
 
-sub processCourseRelationship {
-    my ( $hsdb45_course_id, $objective_id, $competency_id, $school_db, $school_id, $sort_order, $relationship ) = @_;
-
-    my $tusk_course_id = $tusk_courses{ $school_id }{ $hsdb45_course_id };
-    if (!$tusk_course_id) {
-	print "Warning: Corresponding course does not exist for objective ".$objective_id.". Skipping...\n"; 
-	return;
-    };
-    my $tusk_course_competency = TUSK::Competency::CourseCompetency->new();
-
-    $tusk_course_competency->setFieldValues({
-	course_id => $tusk_course_id,
-	competency_id => $competency_id,
-	sort_order => $sort_order,
-	relationship => $relationship,
-    });
-    $tusk_course_competency->save( { user=> 'migration' });
-}
-
 sub processContentRelationship {
     my ( $parent_content_id, $objective_id, $competency_id, $sort_order, $relationship ) = @_; 
 
-    my $tusk_content_competency = TUSK::Competency::ContentCompetency->new();
+    my $tusk_content_competency = TUSK::Competency::Content->new();
 
     $tusk_content_competency->setFieldValues({
 	content_id => $parent_content_id,
@@ -162,7 +120,7 @@ sub processContentRelationship {
 sub processClassMeetingRelationship {
     my ( $class_meeting_id, $objective_id, $competency_id, $sort_order ) = @_;
 
-    my $tusk_class_meeting_competency = TUSK::Competency::ClassMeetingCompetency->new();
+    my $tusk_class_meeting_competency = TUSK::Competency::ClassMeeting->new();
 
     $tusk_class_meeting_competency->setFieldValues({
 	class_meeting_id => $class_meeting_id,
