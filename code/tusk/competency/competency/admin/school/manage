@@ -29,7 +29,7 @@ n
 <& /tmpl/element:cms_button_row, 
     links => [ 
               { display_txt => __('Public Competencies Link'),
-		link_txt => '/tusk/competency/competency/student/school/school/' .$school },
+		link_txt => '/tusk/competency/competency/view/school/school/' .$school },
 	         ]
 &>
 
@@ -39,7 +39,7 @@ n
 	my $types = [ map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types} ];
 </%perl>
 
-<& /tmpl/element:jquery_sort_list, params =>{
+<& /competency/competency/tmpl/element:jquery_sort_list, params =>{
 				width => "100%",
 				label => __('School Competencies'),
 				no_table => 1,
@@ -89,7 +89,7 @@ n
 </%method>
 
 <%method stylearray>
-% return ['/style/style.css','/style/home.css', '/style/competency.css']
+% return ['/style/style.css','/style/home.css']
 </%method>
 
 <%method jsarray>
@@ -100,7 +100,7 @@ n
 			"jquery/plugin/interface/interface.js",
 			"jquery/plugin/json.js",
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
-			"jqNestedSortableFunctions.js",
+			"jqNestedSortableFunctionsCompetencies.js",
 			"competency/competency/functions.js",
 			];
 </%perl>
@@ -119,6 +119,7 @@ n
 	foreach my $cr_row ( @{$cr} ) {
 		
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
+=for
 		my $child_linked_comps = TUSK::Competency::Relation->lookup( 'competency_id_1 = ' . $child_comp->getCompetencyID);
 		my @competency_relations_list;
 		my @competency_relations_list_short;
@@ -150,6 +151,7 @@ n
 		my $competency_relations_html;
 		$competency_relations_html = "<span class=\"tusk-competency-popup\"><span class=\"competency_popup_container\"><a>" . $competency_relations_string_short . "</a><span class=\"competency_popup_content\"><span class=\"linked_competency_close_button\">[Close Dialog]</span>
 <h3>National Competencies linked to</h3><i>\"" . $child_comp->getTitle ."\"</i>:<br><br>". $competency_relations_string . "</span></span></span>";
+=cut
 		my $user_type;
 		my $user_type_id = $child_comp->getCompetencyUserTypeID;
 		if (defined($user_type_id)){
@@ -163,7 +165,7 @@ n
 														title       => $child_comp->getTitle,
 														description => $child_comp->getDescription,
 														types 	    => $user_type,
-														links       => $competency_relations_html,
+														links       => $child_comp->getTitle,
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
 		}
@@ -172,7 +174,7 @@ n
 			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
 		}
 	}
-	return $children_storage->{'999'};
+	return $children_storage->{'0'};
 </%perl>
 </%method>
 

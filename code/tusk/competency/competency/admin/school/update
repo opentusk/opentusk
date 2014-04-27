@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%flags>
 	inherit => undef
 </%flags>
@@ -24,13 +25,19 @@ page_footer => ''
 </%attr>
 
 <%once>
+	use HSDB4::Constants;
 	use TUSK::Core::School;
+	use TUSK::Enum::Data;
+
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Hierarchy;
-	use HSDB4::Constants;
+
+	use TUSK::Application::Competency::Competency;
+	use TUSK::Application::Competency::Tree;
 </%once>
 
 <%perl>
+	my $dbh = HSDB4::Constants::def_db_handle();
 	my $school    = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->comp("/tmpl/url:get_last_path_id") . "'");
 	my $school_id = $school->getFieldValue( 'school_id' );
 
@@ -68,7 +75,7 @@ page_footer => ''
 				$handle->execute($op_id, $ARGS{'originalPos'}, $school_id);
 			};
 			my $cr = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $op_id );
-			# my $cr = TUSK::Core::CompetencyRelationship->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $op_id );
+
 			$query = "update tusk.competency_hierarchy set lineage = replace( lineage, ?, ? ), depth = depth + ? where lineage like ?";
 			eval {
 				my $handle = $dbh->prepare($query);
@@ -106,7 +113,6 @@ page_footer => ''
 		print "\"error\" : \"\"\n";
 	} else {
 		if ( $ARGS{'delete'} ) {
-			# TODO: This doesn't work for multiple parents, since there's no check for duplicate entries.
 			my ($dbh, $query);
 			eval {
 				$dbh = HSDB4::Constants::def_db_handle();
@@ -141,15 +147,21 @@ page_footer => ''
 
 			# Need to grab this BEFORE removing the row
 			my $cr = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $parent_id );
-			# my $cr = TUSK::Core::CompetencyRelationship->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $parent_id );
 
-			# remove row
-			$query = "delete from tusk.competency_hierarchy where child_competency_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($id);
-			};
-			die "$@\t... failed to update competency_relationship!" if $@;
+
+			# Grab and delete actual competency row from competency table.
+				
+			my $competency_args = {
+				competency_id => $id
+			};			
+			my $competency = TUSK::Application::Competency::Competency->new($competency_args);
+
+			$competency->delete();
+
+			# Grab and delete entry for deleted competency from competency_hiearchy table.
+
+			my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne('child_competency_id='. $id);
+			$competency_hierarchy->delete;
 
 			# 'promote' each child with sort order = position+sort_order
 			$query = "update tusk.competency_hierarchy set sort_order = sort_order+?, parent_competency_id = ? where parent_competency_id = ? and school_id = ?";
@@ -170,69 +182,99 @@ page_footer => ''
 			my $competency;
 			my $new = 0;
 
+			my $competency_user_type_id = TUSK::Competency::UserType->new()->lookupReturnOne( "name =\"". $ARGS{'col2'}."\" AND school_id = $school_id" );
+	
+			my $competency_level_enum_id = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"national\"" );
+
 			if ( $ARGS{'id'} =~ /^new_child_of_/ ) {
-				$competency = TUSK::Competency::Competency->new();
 				$new = 1;
-			} else {
-				my $id = $ARGS{'id'};
-				$id =~ s/_[\d]+//;
-				$competency = TUSK::Competency::Competency->new()->lookupKey( $id );
-			}
-
-
-			$competency->setCompetencyLevel( 'school' );
-			$competency->setCompetencyLevelEnumID( 2 );
-			$competency->setTitle( $ARGS{'col0'} );
-			$competency->setDescription( $ARGS{'col1'} );
-			my $competency_user_type_id = TUSK::Competency::UserType->new()->lookupReturnOne( "name =\"". $ARGS{'col2'}."\"" );				
-			$competency->setCompetencyUserTypeID( $competency_user_type_id->getPrimaryKeyID );
-			$competency->setSchoolID( $school_id );
-			$competency->setVersionID( $school_id ); #version_id is same as school_id until we have multiple versions for competencies
-
-			$competency->save( { user => $m->session->{'user'}->user_id } );
-
-			if ( $new ) {
 				my $parent_id = $ARGS{'id'};
 				$parent_id =~ s/^new_child_of_//g;
 				$parent_id =~ s/_[\d]+//;
 				$parent_id =~ s/_[\d]+//;
+
+				my $parent_depth;
+				my $current_depth;
 				
-				my $cr = TUSK::Competency::Hierarchy->new();
-				#my $cr = TUSK::Core::CompetencyRelationship->new();
-				if ( $parent_id > 0 ){
-					$cr->setParentCompetencyID( $parent_id );
-				} else{
-					$cr->setParentCompetencyID( 999 );				
-				}
-				$cr->setChildCompetencyID( $competency->getCompetencyID() );
 				eval{
-					my $parentDepth = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $parent_id )->[0]->getDepth();
-					$cr->setDepth( $parentDepth +  1);
+					$parent_depth = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $parent_id )->[0]->getDepth();			
+					$current_depth = $parent_depth + 1;
 				} or do {
-					$cr->setDepth( 0 );
+					$current_depth = 0;
 				};	
-				$cr->setLineage( $ARGS{'lineage'} );
-				$cr->setSchoolID( $school_id );
+				
+				my $competency_level_id = $competency_level_enum_id->getPrimaryKeyID;
+
+				my $sql = qq(SELECT COUNT(competency_hierarchy_id) FROM tusk.competency_hierarchy INNER JOIN tusk.competency on child_competency_id = competency_id WHERE parent_competency_id = $parent_id AND depth = $current_depth AND competency_level_enum_id = $competency_level_id);
+				my $sth = $dbh->prepare($sql);
+				$sth->execute();
+				my $current_count = $sth->fetchall_arrayref->[0]->[0];
+
+				my $competency_args = {
+					competency_id => $parent_id,
+					title => $ARGS{'col0'},
+					uri => $ARGS{'col1'},
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+					school_id => $school_id,
+					competency_level_enum_id => $competency_level_enum_id->getPrimaryKeyID,
+					version_id => $school_id,
+					user => $m->session->{'user'}->user_id
+				};
+
+				my $competency = TUSK::Application::Competency::Competency->new($competency_args);
+				
+				my $extra_competency_args = {
+					lineage => $ARGS{'lineage'},
+					sort_order => 0,
+					depth => $current_depth
+				};	
+				
+				my $child_competency_id = $competency->addChild($extra_competency_args);
+
+				my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne( "child_competency_id=". $child_competency_id );
 
 				if ( $ARGS{'position'} eq 'last' ) {
-					my $sort = $cr->getNextSortOrder( $parent_id, $school_id );
-				
-					$cr->setSortOrder( $sort );
+				    $sql =qq (SELECT MAX(competency_hierarchy.sort_order) FROM tusk.competency_hierarchy INNER JOIN tusk.competency ON competency_id = child_competency_id WHERE parent_competency_id = $parent_id AND competency_level_enum_id = $competency_level_id);
+
+				    $sth = $dbh->prepare($sql);
+				    $sth->execute();
+				    my $current_max_sort_order = $sth->fetchall_arrayref->[0]->[0];    
+				    $sth->finish();
+					my $sort = $competency_hierarchy->getNextSortOrder( $parent_id, $school_id );				
+						if ( $current_max_sort_order != 0 || $current_count > 0 ){
+							$competency_hierarchy->setSortOrder( $current_max_sort_order + 1 );
+						} else{
+							$competency_hierarchy->setSortOrder( 0 );
+						}
 				} else {
 					foreach ( @{TUSK::Competency::Hierarchy->getChildCompetencies( $parent_id, $school_id )} ) {
-					#foreach ( @{TUSK::Core::CompetencyRelationship->getChildCompetencies( $parent_id, $school_id )} ) {
 						$_->setSortOrder( $_->getSortOrder()+1 );
 						$_->save( { user => $m->session->{'user'}->user_id } );
 					}
-					$cr->setSortOrder( 0 );
+					$competency_hierarchy->setSortOrder( 0 );
 				}
-				$cr->save( { user => $m->session->{'user'}->user_id } );
+				$competency_hierarchy->save( {user=> $m->session->{'user'}->user_id} );			
 
-				print "\"parent\": \"" . $parent_id . "\",\n";
+				print "\"id\"    : \"" . $child_competency_id . "_" . time() . "\",\n";
+				print "\"error\" : \"\"\n";
+			} else {
+				my $id = $ARGS{'id'};
+				$id =~ s/_[\d]+//;
+
+				my $competency_args = {
+					competency_id => $id,
+					title => $ARGS{'col0'},
+					uri => $ARGS{'col1'},
+					user => $m->session->{'user'}->user_id,
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+				};
+
+				$competency = TUSK::Application::Competency::Competency->new($competency_args);
+				$competency->update;
+				print "\"id\"    : \"" . $competency->{'competency_id'}. "_" . time() . "\",\n";
+				print "\"error\" : \"\"\n";
 			}
-
-			print "\"id\"    : \"" . $competency->getCompetencyID() . "_" . time() . "\",\n";
-			print "\"error\" : \"\"\n";
+					
 		}
 	}
 	print "}";
