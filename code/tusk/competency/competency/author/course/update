@@ -214,6 +214,11 @@ page_footer => ''
 					$current_depth = 0;
 				};	
 
+				my $sql = qq(SELECT count(competency_hierarchy_id) from tusk.competency_hierarchy INNER JOIN tusk.competency_course on child_competency_id = competency_id where course_id = $tusk_course_id and parent_competency_id = $parent_id and depth = $current_depth);
+				my $sth = $dbh->prepare($sql);
+				$sth->execute();
+				my $current_count = $sth->fetchall_arrayref->[0]->[0];
+
 				my $competency_args = {
 					competency_id => $parent_id,
 					description => $ARGS{'col0'},
@@ -247,24 +252,16 @@ page_footer => ''
 				my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne( "child_competency_id=". $child_competency_id );
 
 				if ( $ARGS{'position'} eq 'last' ) {
-				    my $sql =qq (SELECT MAX(competency_hierarchy.sort_order) FROM tusk.competency_hierarchy INNER JOIN tusk.competency_course on child_competency_id = competency_id where course_id = $tusk_course_id and parent_competency_id = $parent_id);
-				    my $sth = $dbh->prepare($sql);
+				    $sql =qq (SELECT MAX(competency_hierarchy.sort_order) FROM tusk.competency_hierarchy INNER JOIN tusk.competency_course on child_competency_id = competency_id where course_id = $tusk_course_id and parent_competency_id = $parent_id);
+				    $sth = $dbh->prepare($sql);
 				    $sth->execute();
 				    my $current_max_sort_order = $sth->fetchall_arrayref->[0]->[0];    
 				    $sth->finish();
 					my $sort = $competency_hierarchy->getNextSortOrder( $parent_id, $school_id );				
-						if ( $current_max_sort_order != 0 ){
+						if ( $current_max_sort_order != 0 || $current_count > 0 ){
 							$competency_hierarchy->setSortOrder( $current_max_sort_order + 1 );
 						} else{
-							my $sql = qq(SELECT count(competency_hierarchy_id) from tusk.competency_hierarchy INNER JOIN tusk.competency_course on child_competency_id = competency_id where course_id = $tusk_course_id and parent_competency_id = $parent_id and depth = $current_depth);
-							$sth = $dbh->prepare($sql);
-							$sth->execute();
-							my $current_count = $sth->fetchall_arrayref->[0]->[0];
-							if ($current_count > 0) {
-								$competency_hierarchy->setSortOrder( $current_max_sort_order + 1 );
-							} else {
-								$competency_hierarchy->setSortOrder( 0 );
-							}
+							$competency_hierarchy->setSortOrder( 0 );
 						}
 				} else {
 					foreach ( @{TUSK::Competency::Hierarchy->getChildCompetencies( $parent_id, $school_id )} ) {
