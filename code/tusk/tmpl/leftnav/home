@@ -142,7 +142,7 @@ else {
 <%method printMaterials>
 <%perl>
 	my $stripObj = TUSK::Application::HTML::Strip->new();
-	my (@assessment_links, @assignment_links, @case_links, @eval_links, $grade_link, @log_links, @quiz_links, $sp_link);
+	my (@assessment_links, @assignment_links, @case_links, @eval_links, $grade_link, @log_links, @quiz_links, $sp_link, @checklist_links);
 
 	## assessments
 	my $assessments = $m->session->{user}->get_assessments();
@@ -171,6 +171,12 @@ else {
 		my $link = '<a href="/protected/case/casestart/' . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($case->getCaseTitle(), $charLimit) . '</a>';
 		push @case_links, $link;
 	}
+
+	my $courses_with_checklists = $m->session->{user}->get_courses_with_checklists();
+	foreach my $course (@$courses_with_checklists) {
+		push @checklist_links, "<a href=\"/view/course/$course->{affiliation}/$course->{course_id}/checklists\">$course->{course_title}</a>";
+	}
+
 
 	## evaluations
 	my @evals = $m->session->{user}->current_evals;
@@ -230,6 +236,7 @@ else {
 %	my @materialLinksTop = ( [ \@assessment_links, 'Assessments', 'assessments_links' ],
 %				 [ \@assignment_links, 'Assignments', 'assignment_links' ],
 %				 [ \@case_links, 'Cases', 'case_links' ],
+%				 [ \@checklist_links, 'Competency Checklists', 'checklist_links' ],
 %				 [ \@eval_links, 'Course Evaluations', 'eval_links' ] );
 
 
