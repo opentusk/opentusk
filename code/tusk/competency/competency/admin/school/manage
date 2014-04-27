@@ -1,0 +1,193 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+n
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my ($school, $school_id, $competencies, $children_storage, $c_href);
+</%shared>
+
+<%perl>
+	foreach( @{TUSK::Competency::Competency->lookup()} ) {
+		$competencies->{$_->getCompetencyID} = $_;
+	}
+
+	$school    = $m->comp("/tmpl/url:get_school");
+	$school_id = TUSK::Core::School->new->getSchoolID($school);
+</%perl>
+
+<& /tmpl/element:cms_button_row, 
+    links => [ 
+              { display_txt => __('Public Competencies Link'),
+		link_txt => '/tusk/competency/competency/student/school/school/' .$school },
+	         ]
+&>
+
+<%perl>
+	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
+	my $competency_types = TUSK::Competency::UserType->lookup();
+	my $types = [ map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types} ];
+</%perl>
+
+<& /tmpl/element:jquery_sort_list, params =>{
+				width => "100%",
+				label => __('School Competencies'),
+				no_table => 1,
+				no_striping => 1,
+				container => 'competency_container',
+				name => 'school_competencies',
+				sort => 1,
+				button_label => __('Add Competency'),
+				action_width => 170,
+				action_dropdown => 1,
+ 				action_columns => [ 
+							{ 'label' => __('Modify'),    'onclick' => 'editRow( this, params ); resetDropDown( this );' },
+							{ 'label' => __('Add Child'), 'onclick' => 'addNewRow( this, params ); resetDropDown( this );' },
+							{ 'label' => __('Delete'),    'onclick' => 'deleteRow( this, params ); resetDropDown( this );' },
+							{ 'label' => __('Link/Unlink'), 'onclick' => 'linkSchoolNational( this, params ); resetDropDown( this );' },
+			  			], 
+
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => __('Competency'), field => 'title', head_align => 'left', align => 'left', edit =>
+						{ type      => 'textarea',
+						  classname => 'textareawhite',
+						  rows => 6,
+						  cols      => 25,
+						  maxlength => 300 }
+					},
+					{ label => __('Supporting Information'), field => 'description', head_align => 'left', align => 'left', width => 300, edit =>
+						{ type      => 'textarea',
+						  classname => 'textareawhite',
+						  rows      => 20,
+						  cols      => 25 }
+					},
+					{ label => __('Type'), field => 'types', head_align => 'left', align => 'left', width => 150, edit =>
+						{ type      => 'radio',
+						  options   => $types,
+						  delimiter => ', ' }
+					},
+					{ label => __('Linked:'), field => 'links', head_align => 'left', align => 'left'},
+				],
+				data => $data, 
+				post_to => '/tusk/competency/competency/admin/school/update/' . $school,
+				empty_message => __("No competencies exist.")
+} &>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css', '/style/competency.css']
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js",
+			"competency/competency/functions.js",
+			];
+</%perl>
+</%method>
+
+<%method buildCompetencyTree>
+<%args>
+	$school_id
+</%args>
+<%perl>
+	my %p_c_pairs;
+	my $cr = TUSK::Competency::Hierarchy->lookup( 'competency.school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
+		[TUSK::Core::JoinObject->new('TUSK::Competency::Competency', { origkey=> 'child_competency_id', joinkey => 'competency_id', jointype=> 'inner'}), 
+		TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"school\""})]);
+
+	foreach my $cr_row ( @{$cr} ) {
+		
+		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
+		my $child_linked_comps = TUSK::Competency::Relation->lookup( 'competency_id_1 = ' . $child_comp->getCompetencyID);
+		my @competency_relations_list;
+		my @competency_relations_list_short;
+		#my %linked_competency_id2;
+		foreach my $linked_row (@{$child_linked_comps}){
+			my $linked_name = TUSK::Competency::Competency->lookup( 'competency_id = ' . $linked_row->getCompetencyId2, [ 'uri' ]);			
+			#if (!exists $linked_competency_id2{ $linked_row->getCompetencyId2 }){
+				#$linked_competency_id2{ $linked_row->getCompetencyId2 }= 1;
+				foreach my $name ( @{$linked_name}){
+						push @competency_relations_list, $name->getTitle;
+						push @competency_relations_list_short,  (substr $name->getTitle, 0, 50) . '...';
+				}
+			#}
+		}
+		my $link_counter = 1;
+		my $competency_relations_string;
+		my $competency_relations_string_short;
+		foreach ( @competency_relations_list_short ){
+			if ( $link_counter < 5 ){ $competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
+			$link_counter++;
+		};
+		if ( $link_counter >5 ){ $competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
+		$link_counter = 1;
+		foreach ( @competency_relations_list ){
+			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
+			$link_counter++;
+		};
+
+		my $competency_relations_html;
+		$competency_relations_html = "<span class=\"tusk-competency-popup\"><span class=\"competency_popup_container\"><a>" . $competency_relations_string_short . "</a><span class=\"competency_popup_content\"><span class=\"linked_competency_close_button\">[Close Dialog]</span>
+<h3>National Competencies linked to</h3><i>\"" . $child_comp->getTitle ."\"</i>:<br><br>". $competency_relations_string . "</span></span></span>";
+		my $user_type;
+		my $user_type_id = $child_comp->getCompetencyUserTypeID;
+		if (defined($user_type_id)){
+			my $user_type_temp = TUSK::Competency::UserType->lookup( 'competency_user_type_id='.$user_type_id);
+			$user_type = $user_type_temp->[0]->getName;
+		}
+
+		if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
+			$c_href->{$child_comp->getCompetencyID} = { 
+														id          => $child_comp->getCompetencyID, 
+														title       => $child_comp->getTitle,
+														description => $child_comp->getDescription,
+														types 	    => $user_type,
+														links       => $competency_relations_html,
+														children    => $children_storage->{$child_comp->getCompetencyID},
+													  };
+		}
+		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
+			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+		}
+	}
+	return $children_storage->{'999'};
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return __("Manage Competencies (SCHOOL/PROGRAM)");
+</%method>
+<div id="link-dialog-wrapper">
+<div id="link_competency_title">
+Link Competency '<span id="currentComp"></span>' to:
+</div>
+<div id="link-dialog" title="Link Competencies"></div>
+</div>
+
+
