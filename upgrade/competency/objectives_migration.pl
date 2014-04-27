@@ -22,9 +22,10 @@ use TUSK::Constants;
 use HSDB4::SQLRow::Objective;
 
 use TUSK::Competency::Competency;
-use TUSK::Competency::Course;
-use TUSK::Competency::Content;
 use TUSK::Competency::ClassMeeting;
+use TUSK::Competency::Content;
+use TUSK::Competency::Course;
+use TUSK::Competency::Hierarchy;
 use TUSK::Course;
 
 my $schools = HSDB4::Constants::getSchoolObject();
@@ -52,6 +53,9 @@ sub createTuskCourseObjects{
 }
 
 sub migrateContentObjectives{
+    my $competency_level_enum = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"content\"" );
+    my $competency_user_type = TUSK::Competency::UserType->new()->lookupReturnOne( "name = \"Competency\""  );				
+    
     my $sql = qq( SELECT hsdb4.link_content_objective.parent_content_id,
 		      hsdb4.link_content_objective.child_objective_id,
 		      hsdb4.link_content_objective.sort_order,
@@ -76,9 +80,23 @@ sub migrateContentObjectives{
 	$competency->setFieldValues({
 	    school_id => $content_objective->[4],
 	    description => $content_objectives_body->{$content_objective->[1]}->{'body'},
-	    competency_level => "content_objective",
+	    competency_level_enum_id => $competency_level_enum->getPrimaryKeyID(),
+	    competency_user_type_id => $competency_user_type->getPrimaryKeyID()
 	});
 	$competency->save( { user => 'migration' });
+=for 
+#REMINDER: ask Susan about Hierarchy for Content and Class Meeting Competencies
+	my $competency_hierarchy = TUSK::Competency::Hierarchy->new();
+	$competency_hierarchy->setFieldValues ({
+	    school_id => $school->getPrimaryKeyID(),
+	    lineage => '/',
+	    parent_competency_id => 0,
+	    child_competency_id => $competency->getPrimaryKeyID(),
+	    sort_order => 0,
+	    depth => 0
+	});
+	$competency_hierarchy->save({user => 'migration'});
+=cut
 	processContentRelationship( $content_objective->[0], $content_objective->[1], $competency->getCompetencyID(), $content_objective->[2], $content_objective->[3] );
     }
 }
@@ -90,15 +108,32 @@ sub migrateClassMeetingObjectives {
     my $class_meeting_objectives = $sth->fetchall_arrayref;
     $sth->finish;
 
+    my $competency_level_enum = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"class_meet\"" );
+    my $competency_user_type = TUSK::Competency::UserType->new()->lookupReturnOne( "name = \"Competency\""  );				
+
     foreach my $class_meeting_objective ( @{ $class_meeting_objectives } ){
 	my $competency = TUSK::Competency::Competency->new();
 
     	$competency->setFieldValues({
 	    school_id => $class_meeting_objective->[3],
 	    description => $objectives{ $class_meeting_objective->[2] },
-	    competency_level => "class_meeting_objective",
+	    competency_level_enum_id => $competency_level_enum->getPrimaryKeyID(),
+	    competency_user_type_id => $competency_user_type->getPrimaryKeyID()	
 	});
 	$competency->save( { user => 'migration' } );
+=for 
+#REMINDER: ask Susan about Hierarchy for Content and Class Meeting Competencies
+	my $competency_hierarchy = TUSK::Competency::Hierarchy->new();
+	$competency_hierarchy->setFieldValues ({
+	    school_id => $school->getPrimaryKeyID(),
+	    lineage => '/',
+	    parent_competency_id => 0,
+	    child_competency_id => $competency->getPrimaryKeyID(),
+	    sort_order => 0,
+	    depth => 0
+	});
+	$competency_hierarchy->save({user => 'migration'});
+=cut
 	processClassMeetingRelationship( $class_meeting_objective->[1], $class_meeting_objective->[2], $competency->getCompetencyID(), $class_meeting_objective->[3] );
     }
 }
@@ -112,7 +147,6 @@ sub processContentRelationship {
 	content_id => $parent_content_id,
 	competency_id => $competency_id,
 	sort_order => $sort_order,
-	relationship => $relationship,
     });
     $tusk_content_competency->save( { user => 'migration' });
 }
