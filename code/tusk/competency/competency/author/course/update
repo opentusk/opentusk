@@ -42,6 +42,7 @@ page_footer => ''
 </%once>
 
 <%perl>
+	my $dbh = HSDB4::Constants::def_db_handle();
 	my $school    = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->comp("/tmpl/url:get_last_path_id") . "'");
 	my $school_id = $school->getFieldValue( 'school_id' );
 	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID( $school_id, $hsdb45_course_id);
@@ -246,8 +247,25 @@ page_footer => ''
 				my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne( "child_competency_id=". $child_competency_id );
 
 				if ( $ARGS{'position'} eq 'last' ) {
+				    my $sql =qq (SELECT MAX(competency_hierarchy.sort_order) FROM tusk.competency_hierarchy INNER JOIN tusk.competency_course on child_competency_id = competency_id where course_id = $tusk_course_id and parent_competency_id = $parent_id);
+				    my $sth = $dbh->prepare($sql);
+				    $sth->execute();
+				    my $current_max_sort_order = $sth->fetchall_arrayref->[0]->[0];    
+				    $sth->finish();
 					my $sort = $competency_hierarchy->getNextSortOrder( $parent_id, $school_id );				
-					$competency_hierarchy->setSortOrder( $sort );
+						if ( $current_max_sort_order != 0 ){
+							$competency_hierarchy->setSortOrder( $current_max_sort_order + 1 );
+						} else{
+							my $sql = qq(SELECT count(competency_hierarchy_id) from tusk.competency_hierarchy INNER JOIN tusk.competency_course on child_competency_id = competency_id where course_id = $tusk_course_id and parent_competency_id = $parent_id);
+							$sth = $dbh->prepare($sql);
+							$sth->execute();
+							my $current_count = $sth->fetchall_arrayref->[0]->[0];
+							if ($current_count > 0) {
+								$competency_hierarchy->setSortOrder( $current_max_sort_order + 1 );
+							} else {
+								$competency_hierarchy->setSortOrder( 0 );
+							}
+						}
 				} else {
 					foreach ( @{TUSK::Competency::Hierarchy->getChildCompetencies( $parent_id, $school_id )} ) {
 						$_->setSortOrder( $_->getSortOrder()+1 );
