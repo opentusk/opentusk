@@ -2760,7 +2760,7 @@ EOM
 =item
     Return a list of current checklist_groups
 =cut
-sub get_current_competency_checklist_groups {
+sub get_course_competency_checklist_groups {
     my ($self, $course) = @_;
     my $school = $course->get_school();
     my $db = $school->getSchoolDb();
