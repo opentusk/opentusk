@@ -2776,16 +2776,14 @@ sub get_courses_with_checklists {
     my $affiliation = $self->affiliation();
     my $school = TUSK::Core::School->lookupReturnOne("school_name = '$affiliation'");
     my $db = $school->getSchoolDb();
-    my $school_id = $school->getPrimaryKeyID();
 
     my $sth = TUSK::Competency::Checklist::Group->new()->databaseSelect(qq(
 SELECT distinct course.course_id, course.title
 FROM $db.course
-INNER JOIN $db.link_course_student on (parent_course_id = course_id)
+INNER JOIN $db.link_course_student on (parent_course_id = course.course_id and child_user_id = ?)
 INNER JOIN $db.time_period on (link_course_student.time_period_id = time_period.time_period_id AND start_date < now() AND (end_date + interval 1 day) > now())
-INNER JOIN tusk.competency_checklist_group on (school_id = $school_id AND course.course_id = competency_checklist_group.course_id AND publish_flag = 1)
-ORDER BY course.title
-									   ));
+INNER JOIN tusk.competency_checklist_group on (school_id = ? AND link_course_student.parent_course_id = competency_checklist_group.course_id AND publish_flag = 1)
+ORDER BY course.title), $self->primary_key(), $school->getPrimaryKeyID());
 
     my $data = [];
     while (my ($course_id, $course_title) = $sth->fetchrow_array()) {
