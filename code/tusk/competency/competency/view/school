@@ -23,7 +23,7 @@
 <%once>
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Hierarchy;
-	use TUSK::Competency::Relation;
+#	use TUSK::Competency::Relation;
 	use TUSK::Core::School;
 </%once>
 
@@ -103,6 +103,7 @@
 		TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"school\""})]);
 	foreach my $cr_row ( @{$cr} ) {
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
+=for
 	my $child_linked_comps = TUSK::Competency::Relation->new()->lookup( 'competency_id_1 = ' . $child_comp->getCompetencyID);
 		my @competency_relations_list;
 		my @competency_relations_list_short;
@@ -123,14 +124,14 @@
 
 		my $competency_relations_html;
 		$competency_relations_html = $competency_relations_string;
-
+=cut
 	
 		if ( !defined( $c_href->{$child_comp} ) ) {
 			$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
 														description => $child_comp->getDescription,
-														links       => $competency_relations_html,
+
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
 
@@ -140,7 +141,7 @@
 			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
 		}
 	}
-	return $children_storage->{999};
+	return $children_storage->{0};
 </%perl>
 </%method>
 
