@@ -18,13 +18,72 @@ $( function(){
 	});
 });
 
+$( "#link_competency_popup" ).draggable();
+$( "#link_competency_popup" ).resizable({
+	stop: function(event, ui){
+		$(this).css("width", '');
+	}
+});
+
 var currentTitle;
 var currentIndex;
 var competencyRoot = "/tusk/competency/competency/";
 
 //competency linking global arrays
+to_delete_array = [];
+to_add_array = [];
 selected_competency_id = 0;
-selected_competency_obj = [];
+
+// show dialog box for managing personal links
+function linkSchoolNational( link, params ) {
+	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
+	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
+	var currentTitle = liArray[1].innerHTML;
+	$( "#link-dialog-wrapper" ).css( "visibility", "visible" ); 
+	$( "#link-dialog" ).data("currentTitle", currentTitle);
+	currentCompLabel( currentTitle );
+	$( "#link-dialog" ).data("currentIndex", liNode.id);
+	competencyId1 = liNode.id.split('_')[0];
+	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/Medical", {competency_id: competencyId1, root_id: 65928}, initLinkDialog());
+	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
+}
+
+function linkCourseSchool( currentTitle, currentIndex){
+	$( "#link-dialog" ).empty();
+	$( "#link-dialog-wrapper" ).css( "visibility", "visible" );
+	$( "#link-dialog" ).data("currentTitle", currentTitle);
+	$( "#link-dialog" ).data("currentIndex", currentIndex);
+	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/Medical", {competency_id: currentIndex, root_id: 999}, initLinkDialog());
+	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, minWidth: 850, minHeight: 640});
+}
+
+function linkClassMeetingTo ( currentCourseID, currentTitle, currentIndex){
+	$( "#link-dialog" ).data("currentTitle", currentTitle);
+	$( "#link-dialog" ).data("currentIndex", currentIndex);
+	$( "#link-dialog" ).load( competencyRoot + "/admin/linkToCourse/school/Medical", {course_id: currentCourseID}, initLinkDialog());
+	$( "#link-dialog-wrapper" ).dialog({ position: { my: "center", at: "top" }});
+}
+
+function linkContentTo ( currentCourseID, currentTitle, currentIndex){
+	$( "#link-dialog" ).data("currentTitle", currentTitle);
+	$( "#link-dialog" ).data("currentIndex", currentIndex);
+	$( "#link-dialog" ).load( competencyRoot + "/admin/linkToCourse/school/Medical", {course_id: currentCourseID}, initLinkDialog());
+	$( "#link-dialog-wrapper" ).dialog({ position: { my: "center", at: "top" }});
+}
+
+function initLinkDialog(){
+	currentTitle = $( "#link-dialog" ).data( "currentTitle" );
+	currentIndex = $( "#link-dialog" ).data( "currentIndex" );
+	competencyId1 = currentIndex.split('_')[0];
+}
+
+function viewNational() {
+	if ($("#list_competencies" ).css( "display" ) == "none"){
+		$( "#list_competencies" ).show();
+	} else {
+		$( "#list_competencies" ).css("display", "none");
+	}
+}
 
 
 function closeLinkWindow() {
@@ -35,6 +94,25 @@ function closeLinkWindow() {
 
 var selComp = {};
 
+function selectedCompetenciesCourse() {
+	selComp = $("#list_course input:checkbox:checked").map(function(){
+		var thisComp = {};
+		thisComp.id = this.id;
+		thisComp.value = $(this).attr('value');
+		return thisComp;
+	}).get();
+	var competencyId2;
+	jQuery.each( selComp, function(i, val) {
+		competencyId2 = selComp[i].id;
+		$.ajax({
+			type: "POST",
+			url: "/tusk/competency/competency/tmpl/saveLink",
+			data: { id1: competencyId1, id2: competencyId2}
+		}).done(function(){
+			$( "#save_notifications" ).html(selComp.length + ' competency Relationships Saved Successfully');
+		  });
+	});
+}
 
 function viewCategory( current ){
 	$( "#list_competencies" ).html( current.id );
@@ -49,111 +127,104 @@ function currentCompLabel( current_competency ){
 	$( "#link_competency_title" ).show();
 }
 
-//Functions related to competency checklist division/popup
+//Link Competencies Page table functions
 
-function buildCompetencyList( dialog_name, school_name, course_id){
-/*Uses the "<competencyRoot>/tmpl/static_display" page and given parameters to build a list tree of competencies and displays it in the given division.*/
-	$( "#" + dialog_name ).load( competencyRoot + "tmpl/static_display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id});
+function linkedCellOnClick( linked_cell ){
+	var $current_id = linked_cell.id.split('_')[1];
+	var $parent_id = $( linked_cell ).attr( 'data-parent' );
+	var $not_linked_parent_id = "#NLS_cat_" + $parent_id;
+	var $not_linked_id = "#NLS_" + $current_id;
+	var $description = $( linked_cell ).html();
+	$( $not_linked_parent_id ).parent().after( "<tr><td class=\"not_linked_cell\" id=\"LS" + $not_linked_id + "\" onclick=\"notLinkedCellOnClick( this );\" data-parent=\""+ $parent_id + "\">" + $description + "</td></tr>");
+	$ ( linked_cell ).parent().remove();
+	to_delete_array.push( $current_id );
+	if ($.inArray( $current_id, to_add_array) > -1){
+		to_add_array.splice( $.inArray( $current_id, to_add_array), 1);
+	}
 }
 
-function buildCompetencyChecklistTree( dialog_name, school_name, course_id, selected_competency_id, input_type, children, display_type, extend_function ){
+function notLinkedCellOnClick( not_linked_cell ){
+	var $current_id = not_linked_cell.id.split('_')[1];
+	var $parent_id = $( not_linked_cell ).attr( 'data-parent' );
+	var $linked_parent_id = "#LS_cat_" + $parent_id;
+	var $linked_id = "#LS_" + $current_id;
+	var $description = $( not_linked_cell ).html();
+	$( $linked_parent_id ).parent().after( "<tr><td class=\"linked_cell\" id=\"LS" + $linked_id + "\" onclick=\"linkedCellOnClick( this );\" data-parent=\""+ $parent_id + "\">" + $description + "</td></tr>");
+	$( not_linked_cell ).parent().remove();
+	to_add_array.push( $current_id );
+	if ($.inArray( $current_id, to_delete_array) > -1){
+		to_delete_array.splice( $.inArray( $current_id, to_delete_array), 1);
+	}
+}
 
-/*
-Uses the "<competencyRoot>/tmpl/display" page and given parameters to build a competency checklist tree and displays it in the given division.
-The competency_id for the selected competency from the checklist is stored in the javascript variable selected_competency_id after a user clicks on "select" 
-and can then be used accordingly.
+//Function to go through competency linking window tables and create new competency links or 
+//delete existing competency links as necessary. 
 
-	Requires:
-			jQuery libraries and jQuery UI libraries.
-						- "jquery/jquery.min.js"
-						- "jquery/jquery-ui.min.js"
-						- "jquery/jquery.ui.widget.min.js"
-						- "jquery/plugin/interface/interface.js"
+function updateCompetencies(){
+	var competencyId2;
+	var total_relations = to_add_array.length + to_delete_array.length;
+	//add first
+	jQuery.each( to_add_array, function(i, val) {
+		competencyId2 = val;
+		$.ajax({
+			type: "POST",
+			url: "/tusk/competency/competency/tmpl/relation/save",
+			data: { id1: competencyId1, id2: competencyId2}
+		}).done(function(){
+			$( "#save_notifications" ).html(total_relations + ' Relationships updated  Successfully');
+		  });
+	});
+	//now delete
+	jQuery.each( to_delete_array, function(i, val) {
+		competencyId2 = val;
+		$.ajax({
+			type: "POST",
+			url: "/tusk/competency/competency/tmpl/relation/delete",
+			data: { id1: competencyId1, id2: competencyId2}
+		}).done(function(){
+			$( "#save_notifications" ).html(total_relations + ' Relationships updated Successfully');
+		  });
+	});
 
-	Parameters:
-			dialog_name = HTML 'id' for the div used to display the dialog_box. Div must be present on caller page.
-			school_name = School that the course belongs to Eg. Medical, Dental, etc.
-			course_id   = HSDB45 course id for the course that we want to create the checklist for.
-			selected_competency_id = Competency_id for a competency that has already been selected and saved from a previous session. Pass 0 if new.
-			input_type  = Determines whether the checklist items compromise of:
-					"radio" = radio buttons ( able to select one )
-					"checkbox" = checkboxes ( able to select multiple )
-			children    = Determines whether the child competencies of the top level competencies are selectable or not:
-					"on" = selectable
-					"off" = not selectable
-			display_type = Determines whether the checklist division is displayed as:
-					"inline" = inline to other HTML elements in the page
-					"dialog" = displayed as a popup dialog box
-	Example Usage: 
-			<div id = "test_dialog"</div>
-			<input type="button" value="Display Checklist" onclick="buildCompetencyChecklistTree('test_dialog', 'Dental', 1251, 'radio', 'off', 'inline');
-			(The above example has a button with value "Display Checklist" which when clicked displays a competency checklist tree for course 1251 of the Dental 
-			School, consisting of radio buttons with child competencies unselectable inline on the "test_dialog" division.)
- */
+}
 
+//End Link Competencies Page table functions
+
+//Competency Checklist Functions
+
+function buildCompetencyChecklistTree( school_id, course_id, input_type, children, display_type ){
 	if( display_type == "inline" ){
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type });
+		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/Medical" , {school_id: school_id, course: course_id, input_type: input_type, children: children });
 	} else if( display_type == "dialog" ){
-		$( "#" + dialog_name).css({
+		$( "#checklist-dialog" ).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
-		$( "#" + dialog_name ).css({
+		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/Medical" , {school_id: school_id, course: course_id, input_type: input_type, children: children }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
+
+		$( "#checklist-dialog" ).css({
 			"width": 600,
 			"min-height": 200,
 			"padding" : 20
 		 });
 	} else{
-		$( "#" + dialog_name ).html( "Error: Unrecognized display type for checklist window." );
+		$( "#checklist-dialog" ).html( "Error: Unrecognized display type for checklist window." );
 	}
 }
 
-function radioOnClick( extendFunction ) {
 
-	selected_competency_id = $('input[name=competency_checklist]:checked').val() ;
-
-	var current_children = [];
-
-	$.each( $("#Child_of_"+selected_competency_id).find(".description"), function() {
-		current_children.push( $(this).html() );
-	});
-
-
-	selected_competency_obj = {
-		"id" : selected_competency_id,
-		"description" :  $('input[name=competency_checklist]:checked').parent().find(".description").html(),
-		"category" : $('input[name=competency_checklist]:checked').parent().parent().prev().find(".description").html(),
-		"skills" : current_children
-	};
-
-	console.log(selected_competency_obj);
-
-	$("#competency_module").text(selected_competency_obj.description);
-	$("#competency_category").text(selected_competency_obj.category);
-
-	var skills_list = '<ul class="gArrow">';
-	$.each(selected_competency_obj.skills, function(index, item) {
-		skills_list += '<li class="gArrow">' + item;  // + '</li>';
-	});
-	skills_list += '</ul>';
-	$("#skills").html(skills_list);
-
-	$('input[name=competency_id]').val(selected_competency_obj.id);
-}
-
-function extendExample() {
-	alert("radioOnClick extension example: description is " + selected_competency_obj["description"]);
+function radioOnClick() {
+	selected_competency_id = $( 'input[name=competency_checklist]:checked' ).val() ;
+	alert( selected_competency_id );	
 }
 
 function checkboxOnClick() {
 
 }
 
-//End functions related to competency checklist division/popup
-
 
 $(document).ready( function() {
+	$( '.competency_popup_content' ).draggable();
 	$( '.competency_popup_container' ).click( function() {
 		$( this ).children( '.competency_popup_content' ).css({
 			"position": "fixed",
@@ -165,4 +236,3 @@ $(document).ready( function() {
 		$( this ).parent().hide( 50 );
 	});
 });
-
