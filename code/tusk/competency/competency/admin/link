@@ -128,7 +128,14 @@
 <h3>Not Linked:</h3>
 <div class="linked_competencies" id="not_linked_linked_competencies">
 <%perl>
-	@comp_categories = @{TUSK::Application::Competency::Category->getCategories( $data)};
+	my $comp_categories_list = TUSK::Competency::Competency->lookup( "competency_level_enum_id = 1 AND competency_user_type_id = 1 AND school_id = 1");
+	my %temp_category_hash;
+
+	foreach my $comp_category(@{$comp_categories_list}) {
+		$temp_category_hash{$comp_category->getPrimaryKeyID} = $comp_category->getTitle();
+		push @comp_categories, {%temp_category_hash};
+	}
+
 	my @empty_linked = ( );
 	%already_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
 	%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;

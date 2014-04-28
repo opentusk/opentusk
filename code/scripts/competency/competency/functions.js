@@ -44,7 +44,7 @@ function linkSchoolNational( link, params ) {
 	currentCompLabel( currentTitle );
 	$( "#link-dialog" ).data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
-	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/Medical", {competency_id: competencyId1, root_id: 65928}, initLinkDialog());
+	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/Medical", {competency_id: competencyId1, root_id: 0}, initLinkDialog());
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
@@ -53,7 +53,7 @@ function linkCourseSchool( currentTitle, currentIndex){
 	$( "#link-dialog-wrapper" ).css( "visibility", "visible" );
 	$( "#link-dialog" ).data("currentTitle", currentTitle);
 	$( "#link-dialog" ).data("currentIndex", currentIndex);
-	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/Medical", {competency_id: currentIndex, root_id: 999}, initLinkDialog());
+	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/Medical", {competency_id: currentIndex, root_id: 0}, initLinkDialog());
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
