@@ -13,11 +13,11 @@
 # limitations under the License.
 
 
-package TUSK::Competency::AcademicLevelCourse;
+package TUSK::Course::AcademicLevel;
 
 =head1 NAME
 
-B<TUSK::Competency::AcademicLevelCourse> - Class for manipulating entries in table academic_level_course in tusk database
+B<TUSK::Course::AcademicLevel> - Class for manipulating entries in table academic_level_course in tusk database
 
 =head1 SYNOPSIS
 
