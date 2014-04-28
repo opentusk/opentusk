@@ -1,0 +1,160 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%shared>
+	my ( $school, $school_id, $competencies, $competency_titles, @comp_categories, @already_linked_competencies, %already_linked_comps, %not_linked_comps );
+</%shared>
+
+<%perl>
+	foreach( @{TUSK::Competency::Competency->lookup()} ) {
+		$competencies->{$_->getCompetencyID} = $_;
+	}
+	foreach my $competency ( $competencies ){
+		foreach my $key ( keys %{ $competency }){
+			$competency_titles -> {$key} = ${ $competency}{$key}->{'_field_values'}->{'title'};
+		}
+	}
+
+	$school    = $m->comp("/tmpl/url:get_school");
+	$school_id = TUSK::Core::School->new->getSchoolID($school);
+
+	my $competency_id =  $ARGS{ 'competency_id' };
+	my $linked_competencies = TUSK::Competency::Relation->lookup('competency_id_1='.$competency_id);
+	my @linked_competencies_id = map {$_->getCompetencyId2()} @{$linked_competencies};
+
+	#my $data = TUSK::Application::Competency::Tree->build( $school_id, '65928' );
+	my $data = TUSK::Application::Competency::Tree->build( $school_id, $ARGS{ 'root_id' });
+
+
+</%perl>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/jquery.ui.widget.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js",
+			"competency/competency/functions.js",
+			"jquery.highlight.js",
+			];
+</%perl>
+</%method>
+
+<%method generateTable>
+<%args>
+	$competencies_list
+	$competencies_type
+</%args>
+<%perl>
+    #generates table for linking/unlinking competencies given a list of competencies;
+    
+    print "<table class=\"competency_link_table\">";
+    foreach my $comp_category( @comp_categories ){
+	my $current_key = (keys %{ $comp_category })[0];
+	if ( $competencies_type eq "linked" ){
+	    print "<tr><td id=\"LS_cat_". $current_key ."\">" . $comp_category->{ $current_key } . "</td></tr>";
+	} else{
+	    print "<tr><td id=\"NLS_cat_". $current_key ."\">" . $comp_category->{ $current_key } . "</td></tr>";
+	}
+	foreach my $linked_comp( @{$competencies_list->{ $current_key }} ){
+	    my $current_linked_key = (keys %{ $linked_comp })[0];
+	    if ( $competencies_type eq "linked"){ 
+		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick( this );\" data-parent=\"".$current_key."\">&nbsp&nbsp&nbsp&nbsp". $linked_comp->{ $current_linked_key } . "</td></tr>";
+	    } else {
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick( this );\" data-parent=\"". $current_key ."\">&nbsp&nbsp&nbsp&nbsp". $linked_comp->{ $current_linked_key } . "</td></tr>";
+	    }
+	}
+    }
+    print "</table>";
+</%perl>
+</%method>
+
+<%method buildCompetencyListTree>
+<%args>
+	$data 
+	$linked
+	$parent
+</%args>
+<%perl>
+	my %linked_competencies = map { $_ => 1 } @{ $linked };
+	for my $d (@{ $data }){
+		my %temp_linked_comp;
+		$temp_linked_comp{ $d->{ 'id' } } = $d->{ 'title' };
+			
+		if (exists($linked_competencies{$d->{'id'}})){
+			push @{ $already_linked_comps{ $parent } }, { %temp_linked_comp };
+			push @already_linked_competencies, "<li><input data-parent=\"". $parent ."\"class=\"competency_check\" id=\"".$d->{'id'}."\"type=\"checkbox\" value=\"".$d->{'title'}."\" checked disabled><span id=\"competency_title\">".$d->{'title'}."</span>";
+		} else{
+			if (($d->{'children'})){
+				$m->comp( 'SELF:buildCompetencyListTree', data => $d->{'children'}, linked => $linked , parent => $d->{'id'});
+			} else {
+				push @{ $not_linked_comps{ $parent }}, { %temp_linked_comp };
+			}
+		}
+	}
+</%perl>
+</%method>
+
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+<div id="link_body">
+
+<h3>Not Linked:</h3>
+<div class="linked_competencies" id="not_linked_linked_competencies">
+<%perl>
+	@comp_categories = @{TUSK::Application::Competency::Competency->getCategories( $data)};
+	my @empty_linked = ( );
+	%already_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
+	%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
+	$m->comp( 'SELF:buildCompetencyListTree', data => $data, linked => \@linked_competencies_id, parent => 0 );
+	$m->comp( 'SELF:generateTable', competencies_list => \%not_linked_comps, competencies_type => "not_linked");	
+</%perl>
+</div>
+
+
+<h3>Linked:</h3>
+<div class="linked_competencies" id="linked_linked_competencies">
+%	$m->comp( 'SELF:generateTable', competencies_list => \%already_linked_comps, competencies_type => "linked");	
+</div>
+
+<br>
+<input type="button" onclick="updateCompetencies()" value="Save" />
+<span id="save_notifications">No Competencies currently selected.</span>
+<input id = "link_competencies_close_button" type="button" onclick="closeLinkWindow()" value="Close" />
+</div>
+<script>
+$( function(){
+	$( '#link-body' ).resizable();
+	jQuery.expr[':'].contains = function(a, i, m) {
+		return jQuery(a).text().toUpperCase()
+      			.indexOf(m[3].toUpperCase()) >= 0;
+	};
+});
+</script>
