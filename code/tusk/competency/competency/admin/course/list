@@ -1,0 +1,148 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%init>
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $hsdb45_course_id = $type_object->course_id;
+</%init>
+
+<%shared>
+	my ($school, $school_id, $competencies, $children_storage, $c_href);
+</%shared>
+
+<%perl>
+	my $dbh = HSDB4::Constants::def_db_handle();
+
+	$school = $m->comp("/tmpl/url:get_school");
+	$school_id = TUSK::Core::School->new->getSchoolID($school);
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID( $school_id, $hsdb45_course_id);
+	my $current_course = HSDB45::Course->new(_school => $school)->lookup_key( $hsdb45_course_id )->{'title'};
+
+
+	foreach( @{TUSK::Competency::Competency->lookup()} ) {
+		$competencies->{$_->getCompetencyID} = $_;
+	}
+
+	my $tusk_courses = TUSK::Course->lookup("school_id =". $school_id);
+	
+</%perl>
+
+<%perl>
+	my $course_competencies = TUSK::Course->getCompetenciesByCourse( $tusk_course_id );
+	
+	my $col_fields = [
+			{ label => __('Course Competency'), field => 'learning_objective' },
+			{ label => __('Linked'), field => 'linked_competencies', html => 1 },
+			{ label => __('Action'), field => 'action' },
+	];
+
+	my @rows = ();
+
+	foreach my $competency ( @{$course_competencies} ){
+		my $competency_desc = $competency->getDescription;
+		my $competency_id = $competency->getPrimaryKeyID;
+		my ($linked_school_competencies, $linked_school_competencies_short) = linked_school_competencies( $competency_id );
+		my $linked_school_competencies_display = "<span class=\"tusk-competency-popup\"><span class=\"competency_popup_container\"><a>". $linked_school_competencies_short . "</a><span class=\"competency_popup_content\">
+<span class=\"linked_competency_close_button\">[CloseDialog]</span><h3>School Competencies linked to</h3><i>\"". $competency->getDescription . "\"</i>:<br><br>". $linked_school_competencies ."</span></span></span>";
+		push @rows, { 
+			learning_objective => $competency_desc,
+			linked_competencies => $linked_school_competencies_display,
+			action => "<a href=\"#\" onclick=\'linkCourseSchool( \"$competency_desc\", \"$competency_id\" ); currentCompLabel(\"$competency_desc\"); \' >Link/Unlink Competencies</a>",
+		};
+	}
+
+</%perl>
+
+<& /tmpl/element:object_selection_box, params =>{
+				columns => $col_fields,
+				rows => \@rows,
+				name => "courses",
+				'norows-message' => __( "No Course Competencies Available" ),
+} &>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/jquery.ui.widget.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js", 
+			"competency/competency/functions.js",
+			"jquery.highlight.js"
+			];
+</%perl>
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css', '/style/competency.css']
+</%method>
+
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return __("Link Course Competencies: ");
+</%method>
+
+<div id="link-dialog-wrapper">
+<div id="link_competency_title">
+Link Competency '<span id="currentComp"></span>' to:
+</div>
+<div id="link-dialog" title="Link Competencies"></div>
+</div>
+
+<%perl>
+sub linked_school_competencies {
+	my $competency_id1 = $_[0];
+	
+	my $dbh = HSDB4::Constants::def_db_handle();
+
+	my $competency_args= {
+		competency_id => $competency_id1,
+	};
+
+	my $this_competency = TUSK::Application::Competency::Competency->new( $competency_args );
+	my $school_competencies = $this_competency->getLinked;
+
+	my $all_linked_competencies_short = "";
+	my $all_linked_competencies = "";
+	my $index = 0;
+	foreach my $school_competency( @{ $school_competencies } ){
+		$index++;
+		if ($index < 5){
+			$all_linked_competencies_short .= $index. ". " . (substr $school_competency->getTitle, 0, 50) . "....<br>";
+		}
+		$all_linked_competencies .= $index. ". " . $school_competency->getTitle . "<br>";
+	}
+	if ( $index == 0 ) { 
+		$all_linked_competencies .= "<i>None</i><br>";
+		$all_linked_competencies_short .= "<i>None</i><br>";
+	}
+	elsif ($index >= 5){
+		$all_linked_competencies_short .= "<b><i>...." . ($index - 4) . " more relationships</i></b><br>";
+	}
+	return $all_linked_competencies, $all_linked_competencies_short;
+}
+</%perl>

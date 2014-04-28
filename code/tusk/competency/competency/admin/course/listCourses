@@ -1,0 +1,107 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%shared>
+	my ($school, $school_id, $competencies, @course_titles, $children_storage, $c_href);
+</%shared>
+
+<%perl>
+	foreach( @{TUSK::Competency::Competency->lookup()} ) {
+		$competencies->{$_->getCompetencyID} = $_;
+	}
+
+	$school    = $m->comp("/tmpl/url:get_school");
+	$school_id = TUSK::Core::School->new->getSchoolID($school);
+	my $tusk_courses = TUSK::Course->lookup("school_id =". $school_id);
+	my %tusk_courses_hash = map {$_ -> getPrimaryKeyID() => $_ -> getSchoolCourseCode()} @{$tusk_courses};
+
+	my @hsdb45_courses = HSDB45::Course->new(_school => $school)->lookup_all();
+	my %hsdb45_courses_hash = map { $_->{'course_id'} => $_->{'title' } }@hsdb45_courses;	
+
+	my %academic_levels = map { $_->getPrimaryKeyID() => $_->getDescription() } @{TUSK::Competency::AcademicLevel->lookup()};
+
+	my $academic_level_courses = TUSK::Competency::AcademicLevelCourse->lookup();
+	my %academic_level_course_relation;
+	my %categorized_courses;
+	foreach my $academic_level_course(@{$academic_level_courses}){
+		push ( @{ $academic_level_course_relation { $academic_level_course->getAcademicLevelID }}, $academic_level_course->getCourseID());
+		$categorized_courses{ $tusk_courses_hash{$academic_level_course->getCourseID()} } = 1;
+	}
+</%perl>
+<%doc>
+<& SELF:get_versions &>
+</%doc>
+<%perl>
+	my $col_fields = [
+			{ label => __('Academic Level'), field => 'academic_level', html => 1 },
+			{ label => __('Courses'), field => 'courses', html=> 1 },
+			{ label => __('View'), field => 'action', align => 'center'},
+	];
+	my @rows = ();
+	foreach my $academic_level(sort {$a<=>$b} keys %academic_levels){
+		push @rows, {
+			academic_level => "<b>".$academic_levels{$academic_level}."</b>",
+			courses => '',
+			action => '',
+		};
+		foreach my $current_course (@{$academic_level_course_relation{$academic_level}}){
+			push @rows, {
+				courses => "<a href=\"/management/course/display/".$school."/".$tusk_courses_hash{$current_course}."\">".$hsdb45_courses_hash{$tusk_courses_hash{$current_course}}."</a>",
+				action => '<a href="/tusk/competency/competency/admin/course/list/course/'. $school.'/' .$tusk_courses_hash{$current_course}. '">Competencies</a>',
+			};
+		}		
+	}
+	push @rows, {academic_level => "<b>Uncategorized</b>", courses => '', action => ''};
+	foreach my $course (@hsdb45_courses){
+		if ( !exists( $categorized_courses{$course->{ 'course_id' }} )){
+			push @rows, {
+				courses => "<a href=\"/management/course/display/".$school."/".$course->{ 'course_id' }."\">".$course->{'title'}."</a>",
+				action => '<a href="javascript:submit_form(\'/tusk/competency/admin/list\', \'course=' . $course->{ 'course_id' }. '\');">Competencies</a>',
+			}
+		}
+	}
+</%perl>
+
+<& /tmpl/element:object_selection_box, params =>{
+				columns => $col_fields,
+				rows => \@rows,
+				name => "courses",
+				'norows-message' => __( "No Courses Availabe" ),
+} &>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js",
+			"competency/competency/functions.js"
+			];
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return __( "Select Course to Link Course Objectives" );
+</%method>
