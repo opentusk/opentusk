@@ -129,12 +129,17 @@
 <h3>Not Linked:</h3>
 <div class="linked_competencies" id="not_linked_linked_competencies">
 <%perl>
-	my $comp_categories_list = TUSK::Competency::Competency->lookup( "competency_level_enum_id = 1 AND competency_user_type_id = 1 AND school_id = 1");
+	my $comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne( "namespace = \"competency.level_id\" AND short_name = \"national\"")->getPrimaryKeyID;
+	my $comp_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id = $school_id", ['competency_user_type_id'], undef, undef,
+			[TUSK::Core::JoinObject->new( "TUSK::Enum::Data", { joinkey=> 'enum_data_id', origkey => 'competency_type_enum_id', jointype => 'inner', joincond => "enum_data.short_name =\"category\""})])->getPrimaryKeyID;
+	my $comp_categories_list = TUSK::Competency::Competency->lookup( "competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id");
+
 	my %temp_category_hash;
 
 	foreach my $comp_category(@{$comp_categories_list}) {
 		$temp_category_hash{$comp_category->getPrimaryKeyID} = $comp_category->getTitle();
 		push @comp_categories, {%temp_category_hash};
+		undef %temp_category_hash;
 	}
 
 	my @empty_linked = ( );

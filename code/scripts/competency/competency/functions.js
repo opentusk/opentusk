@@ -36,6 +36,8 @@ selected_competency_id = 0;
 
 // show dialog box for managing personal links
 function linkSchoolNational( link, params ) {
+	var postURL = params.postTo.split('/');
+	var school = postURL[postURL.length-1];
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	var currentTitle = liArray[1].innerHTML;
@@ -44,7 +46,7 @@ function linkSchoolNational( link, params ) {
 	currentCompLabel( currentTitle );
 	$( "#link-dialog" ).data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
-	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/Medical", {competency_id: competencyId1, root_id: 0}, initLinkDialog());
+	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0}, initLinkDialog());
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
