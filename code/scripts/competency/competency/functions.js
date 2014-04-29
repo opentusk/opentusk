@@ -204,7 +204,7 @@ function updateCompetencies(){
 
 //Functions related to competency checklist division/popup
 
-function buildCompetencyList( dialog_name, school_name, course_id){
+function buildCompetencyList( dialog_name, school_name, course_id){	
 /*Uses the "<competencyRoot>/tmpl/static_display" page and given parameters to build a list tree of competencies and displays it in the given division.*/
 	$( "#" + dialog_name ).load( competencyRoot + "tmpl/static_display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id});
 }
