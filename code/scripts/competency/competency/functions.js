@@ -25,6 +25,7 @@ $( "#link_competency_popup" ).resizable({
 	}
 });
 
+
 var currentTitle;
 var currentIndex;
 var competencyRoot = "/tusk/competency/competency/";
@@ -47,19 +48,16 @@ function linkSchoolNational( link, params ) {
 	currentCompLabel( currentTitle );
 	$( "#link-dialog" ).data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
-	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0}, initLinkDialog());
+	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'national' }, initLinkDialog());
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
-function linkCourseSchool( currentTitle, currentIndex){
-	var postURL = params.postTo.split('/');
-	var school = postURL[postURL.length-1];
-
+function linkCourseSchool( currentTitle, currentIndex, school){
 	$( "#link-dialog" ).empty();
 	$( "#link-dialog-wrapper" ).css( "visibility", "visible" );
 	$( "#link-dialog" ).data("currentTitle", currentTitle);
 	$( "#link-dialog" ).data("currentIndex", currentIndex);
-	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/" + school, {competency_id: currentIndex, root_id: 0}, initLinkDialog());
+	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/" + school, {competency_id: currentIndex, root_id: 0, link_type: 'school'}, initLinkDialog());
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
