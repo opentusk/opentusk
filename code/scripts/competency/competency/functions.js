@@ -128,9 +128,6 @@ function viewCategory( current ){
 	$( "#list_competencies" ).html( current.id );
 }
 
-function resetDropDown( dropDown ){
-	dropDown.selectedIndex = 0;
-}
 
 function currentCompLabel( current_competency ){
 	$( "#currentComp" ).html( current_competency );

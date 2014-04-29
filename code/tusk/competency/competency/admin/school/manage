@@ -48,7 +48,7 @@
 				name => 'school_competencies',
 				sort => 1,
 				button_label => __('Add Competency'),
-				action_width => 170,
+				action_width => 30,
 				action_dropdown => 1,
  				action_columns => [ 
 							{ 'label' => __('Modify'),    'onclick' => 'editRow( this, params ); resetDropDown( this );' },
@@ -59,25 +59,25 @@
 
 				fields => [
 					{ hide  => 1, field => 'id', },
-					{ label => __('Competency'), field => 'title', head_align => 'left', align => 'left', width => 150, edit =>
+					{ label => __('Competency'), field => 'title', head_align => 'left', align => 'left', width => 220, edit =>
 						{ type      => 'textarea',
 						  classname => 'textareawhite',
 						  rows => 6,
-						  cols      => 25,
+						  cols      => 20,
 						  maxlength => 300 }
 					},
-					{ label => __('Supporting Information'), field => 'description', head_align => 'left', align => 'left', width => 200, edit =>
+					{ label => __('Supporting Information'), field => 'description', head_align => 'left', align => 'left', width => 280, edit =>
 						{ type      => 'textarea',
 						  classname => 'textareawhite',
-						  rows      => 10,
+						  rows      => 8,
 						  cols      => 30 }
 					},
-					{ label => __('Type'), field => 'types', head_align => 'left', align => 'left', width => 150, edit =>
+					{ label => __('Type'), field => 'types', head_align => 'left', align => 'left', width => 120, edit =>
 						{ type      => 'radio',
 						  options   => $types,
 						  delimiter => ', ' }
 					},
-					{ label => __('Linked:'), field => 'links', head_align => 'left', align => 'left', width => 100},
+					{ label => __('Linked:'), field => 'links', head_align => 'left', align => 'left', width => 180},
 				],
 				data => $data, 
 				post_to => '/tusk/competency/competency/admin/school/update/' . $school,
@@ -123,16 +123,13 @@
 		my $child_linked_comps = TUSK::Competency::Relation->lookup( 'competency_id_1 = ' . $child_comp->getCompetencyID);
 		my @competency_relations_list;
 		my @competency_relations_list_short;
-		#my %linked_competency_id2;
+
 		foreach my $linked_row (@{$child_linked_comps}){
 			my $linked_name = TUSK::Competency::Competency->lookup( 'competency_id = ' . $linked_row->getCompetencyId2, [ 'uri' ]);			
-			#if (!exists $linked_competency_id2{ $linked_row->getCompetencyId2 }){
-				#$linked_competency_id2{ $linked_row->getCompetencyId2 }= 1;
 				foreach my $name ( @{$linked_name}){
 						push @competency_relations_list, $name->getTitle;
 						push @competency_relations_list_short,  (substr $name->getTitle, 0, 50) . '...';
 				}
-			#}
 		}
 		my $link_counter = 1;
 		my $competency_relations_string;

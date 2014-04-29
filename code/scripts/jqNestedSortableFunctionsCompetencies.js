@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 
+function resetDropDown( dropDown ){
+	dropDown.selectedIndex = 0;
+}
 
 function filter (this_dd,prefix) {
 	if (this_dd.value == "None" ) {
@@ -257,7 +260,7 @@ function editRow( link, params ) {
 				break;
 
 			case 'textarea':
-				liArray[idx].innerHTML = '<textarea class="' + editParams.classname + '" rows="' + editParams.rows + '" cols="' + editParams.cols + '">' + value + '</textarea>';
+				liArray[idx].innerHTML = '<textarea class="' + editParams.classname + '" rows="' + editParams.rows + '" cols="' + editParams.cols + '" >' + value + '</textarea>';
 				break;
 
 			case 'checkbox':
