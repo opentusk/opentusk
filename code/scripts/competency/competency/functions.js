@@ -51,25 +51,34 @@ function linkSchoolNational( link, params ) {
 }
 
 function linkCourseSchool( currentTitle, currentIndex){
+	var postURL = params.postTo.split('/');
+	var school = postURL[postURL.length-1];
+
 	$( "#link-dialog" ).empty();
 	$( "#link-dialog-wrapper" ).css( "visibility", "visible" );
 	$( "#link-dialog" ).data("currentTitle", currentTitle);
 	$( "#link-dialog" ).data("currentIndex", currentIndex);
-	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/Medical", {competency_id: currentIndex, root_id: 0}, initLinkDialog());
+	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/" + school, {competency_id: currentIndex, root_id: 0}, initLinkDialog());
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
 function linkClassMeetingTo ( currentCourseID, currentTitle, currentIndex){
+	var postURL = params.postTo.split('/');
+	var school = postURL[postURL.length-1];
+
 	$( "#link-dialog" ).data("currentTitle", currentTitle);
 	$( "#link-dialog" ).data("currentIndex", currentIndex);
-	$( "#link-dialog" ).load( competencyRoot + "/admin/linkToCourse/school/Medical", {course_id: currentCourseID}, initLinkDialog());
+	$( "#link-dialog" ).load( competencyRoot + "/admin/linkToCourse/school/" + school, {course_id: currentCourseID}, initLinkDialog());
 	$( "#link-dialog-wrapper" ).dialog({ position: { my: "center", at: "top" }});
 }
 
 function linkContentTo ( currentCourseID, currentTitle, currentIndex){
+	var postURL = params.postTo.split('/');
+	var school = postURL[postURL.length-1];
+
 	$( "#link-dialog" ).data("currentTitle", currentTitle);
 	$( "#link-dialog" ).data("currentIndex", currentIndex);
-	$( "#link-dialog" ).load( competencyRoot + "/admin/linkToCourse/school/Medical", {course_id: currentCourseID}, initLinkDialog());
+	$( "#link-dialog" ).load( competencyRoot + "/admin/linkToCourse/school/" + school, {course_id: currentCourseID}, initLinkDialog());
 	$( "#link-dialog-wrapper" ).dialog({ position: { my: "center", at: "top" }});
 }
 
@@ -195,14 +204,17 @@ function updateCompetencies(){
 //Competency Checklist Functions
 
 function buildCompetencyChecklistTree( school_id, course_id, input_type, children, display_type ){
+	var postURL = params.postTo.split('/');
+	var school = postURL[postURL.length-1];
+
 	if( display_type == "inline" ){
-		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/Medical" , {school_id: school_id, course: course_id, input_type: input_type, children: children });
+		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/" + school , {school_id: school_id, course: course_id, input_type: input_type, children: children });
 	} else if( display_type == "dialog" ){
 		$( "#checklist-dialog" ).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/Medical" , {school_id: school_id, course: course_id, input_type: input_type, children: children }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
+		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/" + school , {school_id: school_id, course: course_id, input_type: input_type, children: children }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
 
 		$( "#checklist-dialog" ).css({
 			"width": 600,
@@ -221,7 +233,7 @@ function radioOnClick() {
 }
 
 function checkboxOnClick() {
-
+	//TODO: checkbox similar to radio onclick
 }
 
 
