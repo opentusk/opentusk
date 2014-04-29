@@ -33,6 +33,7 @@ var competencyRoot = "/tusk/competency/competency/";
 to_delete_array = [];
 to_add_array = [];
 selected_competency_id = 0;
+selected_competency_obj = [];
 
 // show dialog box for managing personal links
 function linkSchoolNational( link, params ) {
@@ -201,40 +202,108 @@ function updateCompetencies(){
 
 //End Link Competencies Page table functions
 
-//Competency Checklist Functions
+//Functions related to competency checklist division/popup
 
-function buildCompetencyChecklistTree( school_id, course_id, input_type, children, display_type ){
-	var postURL = params.postTo.split('/');
-	var school = postURL[postURL.length-1];
+function buildCompetencyList( dialog_name, school_name, course_id){
+/*Uses the "<competencyRoot>/tmpl/static_display" page and given parameters to build a list tree of competencies and displays it in the given division.*/
+	$( "#" + dialog_name ).load( competencyRoot + "tmpl/static_display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id});
+}
+
+function buildCompetencyChecklistTree( dialog_name, school_name, course_id, selected_competency_id, input_type, children, display_type, extend_function ){
+
+/*
+Uses the "<competencyRoot>/tmpl/display" page and given parameters to build a competency checklist tree and displays it in the given division.
+The competency_id for the selected competency from the checklist is stored in the javascript variable selected_competency_id after a user clicks on "select" 
+and can then be used accordingly.
+
+	Requires:
+			jQuery libraries and jQuery UI libraries.
+						- "jquery/jquery.min.js"
+						- "jquery/jquery-ui.min.js"
+						- "jquery/jquery.ui.widget.min.js"
+						- "jquery/plugin/interface/interface.js"
+
+	Parameters:
+			dialog_name = HTML 'id' for the div used to display the dialog_box. Div must be present on caller page.
+			school_name = School that the course belongs to Eg. Medical, Dental, etc.
+			course_id   = HSDB45 course id for the course that we want to create the checklist for.
+			selected_competency_id = Competency_id for a competency that has already been selected and saved from a previous session. Pass 0 if new.
+			input_type  = Determines whether the checklist items compromise of:
+					"radio" = radio buttons ( able to select one )
+					"checkbox" = checkboxes ( able to select multiple )
+			children    = Determines whether the child competencies of the top level competencies are selectable or not:
+					"on" = selectable
+					"off" = not selectable
+			display_type = Determines whether the checklist division is displayed as:
+					"inline" = inline to other HTML elements in the page
+					"dialog" = displayed as a popup dialog box
+	Example Usage: 
+			<div id = "test_dialog"</div>
+			<input type="button" value="Display Checklist" onclick="buildCompetencyChecklistTree('test_dialog', 'Dental', 1251, 'radio', 'off', 'inline');
+			(The above example has a button with value "Display Checklist" which when clicked displays a competency checklist tree for course 1251 of the Dental 
+			School, consisting of radio buttons with child competencies unselectable inline on the "test_dialog" division.)
+ */
 
 	if( display_type == "inline" ){
-		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/" + school , {school_id: school_id, course: course_id, input_type: input_type, children: children });
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type });
 	} else if( display_type == "dialog" ){
-		$( "#checklist-dialog" ).css({
+		$( "#" + dialog_name).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#checklist-dialog" ).load( competencyRoot + "tmpl/display/school/" + school , {school_id: school_id, course: course_id, input_type: input_type, children: children }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
-
-		$( "#checklist-dialog" ).css({
+		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
+		$( "#" + dialog_name ).css({
 			"width": 600,
 			"min-height": 200,
 			"padding" : 20
 		 });
 	} else{
-		$( "#checklist-dialog" ).html( "Error: Unrecognized display type for checklist window." );
+		$( "#" + dialog_name ).html( "Error: Unrecognized display type for checklist window." );
 	}
 }
 
+function radioOnClick( extendFunction ) {
 
-function radioOnClick() {
-	selected_competency_id = $( 'input[name=competency_checklist]:checked' ).val() ;
-	alert( selected_competency_id );	
+	selected_competency_id = $('input[name=competency_checklist]:checked').val() ;
+
+	var current_children = [];
+
+	$.each( $("#Child_of_"+selected_competency_id).find(".description"), function() {
+		current_children.push( $(this).html() );
+	});
+
+
+	selected_competency_obj = {
+		"id" : selected_competency_id,
+		"description" :  $('input[name=competency_checklist]:checked').parent().find(".description").html(),
+		"category" : $('input[name=competency_checklist]:checked').parent().parent().prev().find(".description").html(),
+		"skills" : current_children
+	};
+
+	console.log(selected_competency_obj);
+
+	$("#competency_module").text(selected_competency_obj.description);
+	$("#competency_category").text(selected_competency_obj.category);
+
+	var skills_list = '<ul class="gArrow">';
+	$.each(selected_competency_obj.skills, function(index, item) {
+		skills_list += '<li class="gArrow">' + item;  // + '</li>';
+	});
+	skills_list += '</ul>';
+	$("#skills").html(skills_list);
+
+	$('input[name=competency_id]').val(selected_competency_obj.id);
+}
+
+function extendExample() {
+	alert("radioOnClick extension example: description is " + selected_competency_obj["description"]);
 }
 
 function checkboxOnClick() {
-	//TODO: checkbox similar to radio onclick
+
 }
+
+//End functions related to competency checklist division/popup
 
 
 $(document).ready( function() {
