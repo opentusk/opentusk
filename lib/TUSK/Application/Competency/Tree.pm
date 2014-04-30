@@ -144,6 +144,9 @@ sub build {
     my $c_href;
     my $children_storage;
     my %p_c_pairs;
+
+    my $info_user_type_id = TUSK::Competency::UserType->lookupReturnOne( "school_id = $school_id", undef, undef, undef, 
+								       [TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', {joinkey => 'enum_data_id', origkey => 'competency_type_enum_id', joincond => "namespace=\"competency.user_type.id\" AND short_name=\"info\"", jointype => 'inner'})])->getPrimaryKeyID;
     
     my $cr = TUSK::Competency::Hierarchy->lookup( 'competency_hierarchy.school_id ='. $school_id, 
 						  ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef,
@@ -160,9 +163,11 @@ sub build {
 							       children    => $children_storage->{$child_comp->getCompetencyID},
 							   };
 			}	
-	    if (!$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
+
+	    if (!$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} && $child_comp->getCompetencyUserTypeID != $info_user_type_id) {
 		$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
 		push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+
 	    }
 	}
     }
