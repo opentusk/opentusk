@@ -12,17 +12,31 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 
+$( function(){
+	$('#competency_search_string').bind("click", function(){
+		alert("link-dialog");
+	});
+});
+
+$( "#link_competency_popup" ).draggable();
+$( "#link_competency_popup" ).resizable({
+	stop: function(event, ui){
+		$(this).css("width", '');
+	}
+});
+
 
 var currentTitle;
 var currentIndex;
 var competencyRoot = "/tusk/competency/competency/";
 
-//competency linking global storage variables
+//competency linking global arrays
 to_delete_array = [];
 to_add_array = [];
 selected_competency_id = 0;
 selected_competency_obj = [];
 
+// show dialog box for managing personal links
 function linkSchoolNational( link, params ) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-1];
@@ -73,6 +87,15 @@ function initLinkDialog(){
 	competencyId1 = currentIndex.split('_')[0];
 }
 
+function viewNational() {
+	if ($("#list_competencies" ).css( "display" ) == "none"){
+		$( "#list_competencies" ).show();
+	} else {
+		$( "#list_competencies" ).css("display", "none");
+	}
+}
+
+
 function closeLinkWindow() {
 	$( '#link-dialog' ).empty();
 	$( '.competency_link_table' ).empty();
@@ -100,6 +123,11 @@ function selectedCompetenciesCourse() {
 		  });
 	});
 }
+
+function viewCategory( current ){
+	$( "#list_competencies" ).html( current.id );
+}
+
 
 function currentCompLabel( current_competency ){
 	$( "#currentComp" ).html( current_competency );
@@ -269,8 +297,12 @@ function radioOnClick( extendFunction ) {
 	$('input[name=competency_id]').val(selected_competency_obj.id);
 }
 
+function extendExample() {
+	alert("radioOnClick extension example: description is " + selected_competency_obj["description"]);
+}
+
 function checkboxOnClick() {
-	//TODO
+
 }
 
 //End functions related to competency checklist division/popup
