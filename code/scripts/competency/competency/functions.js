@@ -178,7 +178,6 @@ function updateCompetencies(){
 			url: "/tusk/competency/competency/tmpl/relation/save",
 			data: { id1: competencyId1, id2: competencyId2}
 		}).done(function(){
-			$( "#save_notifications" ).html(total_relations + ' Relationships updated  Successfully');
 		  });
 	});
 	//now delete
@@ -189,10 +188,17 @@ function updateCompetencies(){
 			url: "/tusk/competency/competency/tmpl/relation/delete",
 			data: { id1: competencyId1, id2: competencyId2}
 		}).done(function(){
-			$( "#save_notifications" ).html(total_relations + ' Relationships updated Successfully');
 		  });
 	});
-
+	if (total_relations == 0){
+		$( "#save_notifications" ).html('No changes.');
+	} else if (total_relations == 1) {
+		$( "#save_notifications" ).html(total_relations + ' change updated successfully.');
+	}
+	else {
+		$( "#save_notifications" ).html(total_relations + ' changes updated successfully.');
+	}
+	total_relations = 0;
 }
 
 //End Link Competencies Page table functions
