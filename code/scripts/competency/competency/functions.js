@@ -190,6 +190,7 @@ function updateCompetencies(){
 		}).done(function(){
 		  });
 	});
+
 	if (total_relations == 0){
 		$( "#save_notifications" ).html('No changes.');
 	} else if (total_relations == 1) {
