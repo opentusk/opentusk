@@ -23,7 +23,6 @@
 </%shared>
 
 <%perl>
-
 	foreach( @{TUSK::Competency::Competency->lookup()} ) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
@@ -61,7 +60,6 @@
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
 			"jqNestedSortableFunctions.js",
 			"competency/competency/functions.js",
-			"jquery.highlight.js",
 			];
 </%perl>
 </%method>
@@ -113,6 +111,7 @@
 			push @already_linked_competencies, "<li><input data-parent=\"". $parent ."\"class=\"competency_check\" id=\"".$d->{'id'}."\"type=\"checkbox\" value=\"".$d->{'title'}."\" checked disabled><span id=\"competency_title\">".$d->{'title'}."</span>";
 		} else{
 			if (($d->{'children'})){
+				push @{ $not_linked_comps{ $parent }}, { %temp_linked_comp };
 				$m->comp( 'SELF:buildCompetencyListTree', data => $d->{'children'}, linked => $linked , parent => $d->{'id'});
 			} else {
 				push @{ $not_linked_comps{ $parent }}, { %temp_linked_comp };
@@ -122,21 +121,23 @@
 </%perl>
 </%method>
 
-
 <%method red_header_text>
 % return $m->comp( "SELF:title" );
 </%method>
-<div id="link_body">
 
+
+
+<div id="link_body">
 <%perl>
-if ($ARGS{link_type} eq 'national') {
-	print "<h3>National Competencies (Not Linked):</h3>";
-} elsif ($ARGS{link_type} eq 'school') {
-	print "<h3>School Competencies (Not Linked):</h3>";
-} else {
-	print "<h3>Course Competencies (Not Linked):</h3>";
-}
+	if ($ARGS{link_type} eq 'national') {
+		print "<h3>National Competencies (Not Linked):</h3>";
+	} elsif ($ARGS{link_type} eq 'school') {
+		print "<h3>School Competencies (Not Linked):</h3>";
+	} else {
+		print "<h3>Course Competencies (Not Linked):</h3>";
+	}
 </%perl>
+
 <div class="linked_competencies" id="not_linked_linked_competencies">
 <%perl>
 	my $comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne( "namespace = \"competency.level_id\" AND short_name = \"$ARGS{link_type}\"")->getPrimaryKeyID;
@@ -161,20 +162,21 @@ if ($ARGS{link_type} eq 'national') {
 </div>
 
 <%perl>
-if ($ARGS{link_type} eq 'national') {
-	print "<h3>National Competencies (Linked):</h3>";
-} elsif ($ARGS{link_type} eq 'school') {
-	print "<h3>School Competencies (Linked):</h3>";
-} else {
-	print "<h3>Course Competencies (Linked):</h3>";
-}
+	if ($ARGS{link_type} eq 'national') {
+		print "<h3>National Competencies (Linked):</h3>";
+	} elsif ($ARGS{link_type} eq 'school') {
+		print "<h3>School Competencies (Linked):</h3>";
+	} else {
+		print "<h3>Course Competencies (Linked):</h3>";
+	}
 </%perl>
+
 <div class="linked_competencies" id="linked_linked_competencies">
 %	$m->comp( 'SELF:generateTable', competencies_list => \%already_linked_comps, competencies_type => "linked");	
 </div>
-
 <br>
 <input type="button" class="formbutton" onclick="updateCompetencies()" value="Save" />
 <span id="save_notifications"></span>
 <input id = "link_competencies_close_button" type="button" class="formbutton" onclick="closeLinkWindow()" value="Close" />
 </div>
+
