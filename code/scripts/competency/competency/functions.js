@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 
+
+var competencyRoot = "/tusk/competency/competency/";
+
 $( function(){
 	$('#competency_search_string').bind("click", function(){
 		alert("link-dialog");
@@ -28,7 +31,7 @@ $( "#link_competency_popup" ).resizable({
 
 var currentTitle;
 var currentIndex;
-var competencyRoot = "/tusk/competency/competency/";
+
 
 //competency linking global arrays
 to_delete_array = [];
