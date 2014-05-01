@@ -18,6 +18,14 @@ $( function(){
 	});
 });
 
+$( "#link_competency_popup" ).draggable();
+$( "#link_competency_popup" ).resizable({
+	stop: function(event, ui){
+		$(this).css("width", '');
+	}
+});
+
+
 var currentTitle;
 var currentIndex;
 var competencyRoot = "/tusk/competency/competency/";
