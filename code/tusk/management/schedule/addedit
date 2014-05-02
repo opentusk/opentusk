@@ -15,6 +15,10 @@
 </%doc>
 <%once>
 use TUSK::Core::ClassMeetingContentType;
+use TUSK::Competency::Hierarchy;
+use TUSK::Competency::Course;
+use TUSK::Competency::Competency;
+use TUSK::Enum::Data;
 </%once>
 
 <%method title>
@@ -25,7 +29,19 @@ return $title;
 </%method>
 
 <%method jsarray>
-% return ['scripts.js', 'layers.js'];
+<%perl>
+ return [
+		"scripts.js", 
+		"layers.js",
+		"jquery/jquery.min.js",
+		"jquery/jquery-ui.min.js",
+		"jquery/plugin/interface/interface.js",
+		"jquery/plugin/json.js",
+		"jquery/plugin/inestedsortable-1.0.1.pack.js",
+		"competency/competency/functions.js",
+		"jqNestedSortableFunctionsCompetencies.js",
+	];
+</%perl>
 </%method>
 
 <%shared>
@@ -106,31 +122,42 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 
 	my $objectives      = $class_meeting->child_objectives(1) || [];
 	my @objectives_data = map { {objective_id => $_->getObjective()->getFieldValue('objective_id'), body => $_->getObjective()->getBody(),} } @$objectives;
+
 </%perl>
 
-<& /tmpl/element:sort_order_box , params =>{
-			label          => __('Objectives'),
-			name           => "objectives",
-			button_onclick => "openwindow('objectivesdiv')",
-			help_info      => {
-								topic		=> 'create_objectives',
-								text		=> __('Tips for Selecting Objectives')
-							 },
-			layer_info 	=> {
-				empty_message => __('No objectives associated for this content'),
-				layer 	      => 'objectivesdiv',
-				scrollrows    => 6,
-				fields        => ['objective_id', 'body'],
-				name          => 'objectives',
-				sort          => { usage => 'Yes', length => 50},
-				action        => { usage => 'Yes', length => 100, functions => 	[ 
-					{ func=>'edit',     label=>__('Edit')},
-					{ func => 'remove', label => __('Delete')} 
-					] },
-				display	 => [ { label => __('Body'), field => 'body', align => 'left', length => 450, editsize => 75 } ],
-				validate => { usage => 'No', },
-				data     => \@objectives_data, 
-			} } &>
+<%perl>
+	my $data = $m->comp('/competency/competency/admin/session/manage:buildCompetencyTree', school_id => 1, schedule_id => 984);
+	$m->comp('/competency/competency/tmpl/element:jquery_sort_list' , params =>{
+				label => __('Competencies/Objectives'),
+				no_striping => 1,
+				container => 'competency_container',
+				name => 'schedule_competencies',
+				sort => 1,
+				no_nesting => 'sort-row',
+				button_label => __('Add Competency'),
+				action_width => 170,
+				action_dropdown => 1,
+				onclick_options => 1,
+ 				action_columns => [ 
+							{ 'label' => __('Modify'),    'onclick' => 'editRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Delete'),    'onclick' => 'deleteRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Link'),      'onclick' => 'linkScheduleCourse(this, params); resetDropDown(this);' },
+			  			], 
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => __('Session Competency'), field => 'title', head_align => 'left', width => 500, align => 'left', edit =>
+						{ type      => 'textarea',
+						  classname => 'textareawhite',
+						  rows => 3,
+						  cols      => 60,
+						  maxlength => 300 }
+					},
+				],
+				data => $data, 
+				post_to => '/tusk/competency/competency/author/course/update/Medical/6',
+				empty_message => __("No course competencies exist.")
+	});
+</%perl>
 
 <%perl>
 	my @rank_options = ();
@@ -281,41 +308,6 @@ if (defined($ARGS{'submit'})){
 						 link_class_meeting_content_id => $_->aux_info('link_class_meeting_content_id'),
 						 class_meeting_content_type_id => $_->aux_info('class_meeting_content_type_id') } }
 					$class_meeting->child_content();
-
-	# Objective updates
-	my $objective_hash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^objectivesdiv');
-	my $objective_links_hash = { map { $_->getObjectiveID() => \$_ } @{$class_meeting->child_objectives()} };
-	foreach my $objective_data (values %$objective_hash){
-		if (exists($objective_links_hash->{ $objective_data->{'pk'} })){
-			my $objective_link = ${$objective_links_hash->{ $objective_data->{'pk'} }};
-			my $objective = TUSK::Core::Objective->lookupReturnOne("objective_id = '" . $objective_data->{'pk'} . "'") || TUSK::Core::Objective->new();
-
-			$objective->setBody( $objective_data->{'fields'}->{'body'} );			
-			$objective->save();
-
-			$objective_link->setSortOrder($objective_data->{'fields'}->{'sortorder'});
-			$objective_link->save({ user => $m->comp('SELF:user') });
-		} else {
-			my $objective_link = TUSK::Schedule::ClassMeetingObjective->new();
-			my $objective = TUSK::Core::Objective->lookupReturnOne("objective_id = '" . $objective_data->{'pk'} . "'") || TUSK::Core::Objective->new();
-
-			$objective->setBody( $objective_data->{'fields'}->{'body'} );			
-			$objective->save();
-
-			$objective_link->setSortOrder($objective_data->{'fields'}->{'sortorder'});
-			$objective_link->setObjectiveID($objective->getPrimaryKeyID());
-			$objective_link->setClassMeetingID($class_meeting->primary_key());
-			$objective_link->setSchoolID($school_id);
-			$objective_link->pushJoinObject('TUSK::Core::Objective', $objective);
-			$objective_link->save({ user => $m->comp('SELF:user') });
-		}
-		delete($objective_links_hash->{ $objective_data->{'pk'} });
-	}
-
-	foreach my $objective_link (values %$objective_links_hash){
-		${$objective_link}->delete({ user => $m->comp('SELF:user') });
-	}
-
 
 	# UMLS Concept updates
 	my $concept_hash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^conceptdiv');
