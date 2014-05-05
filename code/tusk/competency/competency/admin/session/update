@@ -205,21 +205,6 @@ page_footer => ''
 				$parent_id =~ s/_[\d]+//;
 				$parent_id =~ s/_[\d]+//;
 
-				my $parent_depth;
-				my $current_depth;
-				
-				eval{
-					$parent_depth = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $parent_id )->[0]->getDepth();			
-					$current_depth = $parent_depth + 1;
-				} or do {
-					$current_depth = 0;
-				};	
-
-				my $sql = qq(SELECT count(competency_hierarchy_id) from tusk.competency_hierarchy INNER JOIN tusk.competency_course on child_competency_id = competency_id where course_id = $tusk_course_id and parent_competency_id = $parent_id and depth = $current_depth);
-				my $sth = $dbh->prepare($sql);
-				$sth->execute();
-				my $current_count = $sth->fetchall_arrayref->[0]->[0];
-
 				my $competency_args = {
 					competency_id => $parent_id,
 					description => $ARGS{'col0'},
@@ -231,7 +216,7 @@ page_footer => ''
 				};
 
 				my $competency = TUSK::Application::Competency::Competency->new($competency_args);
-				
+=for				
 				my $extra_competency_args = {
 					lineage => $ARGS{'lineage'},
 					sort_order => 0,
@@ -240,16 +225,7 @@ page_footer => ''
 				
 				my $child_competency_id = $competency->addChild($extra_competency_args);
 
-				$course_competency = TUSK::Competency::Course->new();
-
-				$course_competency->setFieldValues({
-					course_id => $tusk_course_id, 
-					competency_id => $child_competency_id,
-					sort_order => 0,															
-				});
-
-				$course_competency->save( { user => $m->session->{'user'}->user_id });	
-
+	
 				my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne( "child_competency_id=". $child_competency_id );
 
 				if ( $ARGS{'position'} eq 'last' ) {
@@ -274,6 +250,7 @@ page_footer => ''
 				$competency_hierarchy->save( {user=> $m->session->{'user'}->user_id} );			
 
 				print "\"id\"    : \"" . $child_competency_id . "_" . time() . "\",\n";
+=cut
 				print "\"error\" : \"\"\n";
 			} else {
 				my $id = $ARGS{'id'};

@@ -519,6 +519,7 @@ function saveRow( link, params ) {
 	$.post(params.postTo, postData, function(data){
 		error = data['error'];	
 		newId = data['id'];	
+		console.log(newId);
 
 		if ( error ) {
 			// TODO:  Error handling
