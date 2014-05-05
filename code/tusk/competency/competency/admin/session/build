@@ -24,24 +24,16 @@
 </%args>
 <%perl>
 	my %p_c_pairs;
-=for
-	my $cr = TUSK::Competency::Competency->lookup( 'competency_course.course_id ='. $schedule_id , [ 'depth desc', 'competency_hierarchy.sort_order', 'competency_id'] , undef, undef,
-						[ TUSK::Core::JoinObject->new( 'TUSK::Competency::Course', 
-						{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'}),
-						TUSK::Core::JoinObject->new( 'TUSK::Competency::Hierarchy', 
-						{origkey => 'competency_id', joinkey => 'child_competency_id', jointype => 'inner' })]);	
-=cut
+
 	my $cr = TUSK::Competency::Competency->lookup( 'competency_class_meeting.class_meeting_id ='. $schedule_id , [ 'sort_order', 'competency_id'] , undef, undef,
 						[ TUSK::Core::JoinObject->new( 'TUSK::Competency::ClassMeeting', 
 						{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
-	print Dumper $cr;
 	my @data = ();
 	foreach my $competency (@{$cr}) {
 		my %temp_hash = {};
 		$temp_hash{'id'} = $competency->getCompetencyID;
 		$temp_hash{'title'} = $competency->getDescription;
-#		$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::Hierarchy")->getSortOrder();
-#		$temp_hash{'depth'} = $competency->getJoinObject("TUSK::Competency::Hierarchy")->getDepth();
+		$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
 		$temp_hash{'type'} = $competency->getCompetencyUserTypeID;
 		push @data, {%temp_hash};
 	}
