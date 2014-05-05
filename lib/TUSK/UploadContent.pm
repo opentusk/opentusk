@@ -29,6 +29,7 @@ use File::Copy;
 use File::Type;
 use IO::File;
 use DBI qw(:sql_types);
+use Image::Magick;
 
 my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
 my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
@@ -972,6 +973,16 @@ sub upload_file {
 
 	while ($bytesread = read($fh, $buffer, $CHUNK_SIZE)){
 	    $body .= $buffer;
+	}
+
+        # 
+	if ($fdat{upload_type} eq "Slide") {
+            my $image = Image::Magick->new();
+	    $image->BlobToImage($body);
+	    $image->AutoOrient();
+	    $image->Strip();
+	    my @blobs = $image->ImageToBlob();
+	    $body = $blobs[0] if (scalar(@blobs) eq 1);
 	}
 
 	print $FILE $body;
