@@ -27,6 +27,7 @@ DROP TABLE IF EXISTS competency_content_history;
 
 CREATE TABLE competency_content_history (
 	competency_content_history_id int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	competency_content_id int(10) unsigned NOT NULL,
 	competency_id int(10) unsigned NOT NULL DEFAULT '0',
 	content_id int(10) unsigned NOT NULL DEFAULT '0',
 	sort_order smallint(6) unsigned NOT NULL DEFAULT '0',

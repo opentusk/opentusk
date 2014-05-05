@@ -42,8 +42,8 @@ sub main{
 
 #comment the functions out below as intended
 
-    #migrateContentObjectives();
-    migrateClassMeetingObjectives();
+    migrateContentObjectives();
+    #migrateClassMeetingObjectives();
 }
 
 sub createTuskCourseObjects{
@@ -84,18 +84,6 @@ sub migrateContentObjectives{
 	    competency_user_type_id => $competency_user_type->getPrimaryKeyID()
 	});
 	$competency->save( { user => 'migration' });
-=for 
-	my $competency_hierarchy = TUSK::Competency::Hierarchy->new();
-	$competency_hierarchy->setFieldValues ({
-	    school_id => $school->getPrimaryKeyID(),
-	    lineage => '/',
-	    parent_competency_id => 0,
-	    child_competency_id => $competency->getPrimaryKeyID(),
-	    sort_order => 0,
-	    depth => 0
-	});
-	$competency_hierarchy->save({user => 'migration'});
-=cut
 	processContentRelationship( $content_objective->[0], $content_objective->[1], $competency->getCompetencyID(), $content_objective->[2], $content_objective->[3] );
     }
 }
