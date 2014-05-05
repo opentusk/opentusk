@@ -15,7 +15,8 @@
 </%doc>
 
 <%init>
-	my $hsdb45_course_id =  $m->request_args()->{'course'};
+	my @hsdb45_course = $m->comp("/tmpl/url:get_path_ids");
+	my $hsdb45_course_id = $hsdb45_course[-2];
 </%init>
 
 <%flags>
@@ -43,7 +44,7 @@ page_footer => ''
 
 <%perl>
 	my $dbh = HSDB4::Constants::def_db_handle();
-	my $school    = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->comp("/tmpl/url:get_last_path_id") . "'");
+	my $school    = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->comp("/tmpl/url:get_first_path_id") . "'");
 	my $school_id = $school->getFieldValue( 'school_id' );
 	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID( $school_id, $hsdb45_course_id);
 

@@ -250,6 +250,9 @@ function editRow( link, params ) {
 		if ( (idx==4 || idx==2) && params['listId'] == 'school_competencies' ) {
 			continue;
 		}
+		if ( (idx==2) && params['listId'] == 'class_meeting_competencies' ) {
+			continue;
+		}
 		var value = liArray[idx].innerHTML;
 		// This next line is for IE7.  It likes to add an extra space at the end.
 		value = value.replace(/^\s+$/g,"");
@@ -430,6 +433,9 @@ function saveRow( link, params ) {
 		var value;
 		var display;
 		if (idx==4 && params['listId'] == 'school_competencies' ){
+			continue;
+		}
+		if (idx==2 && params['listId'] == 'class_meeting_competencies' ){
 			continue;
 		}
 		var editParams = params.columns[idx-1].edit;
