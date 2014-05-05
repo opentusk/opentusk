@@ -20,20 +20,34 @@
 <%method buildCompetencyTree>
 <%args>
 	$school_id
-	$schedule_id
+	$component_type
+	$component_id
 </%args>
 <%perl>
-	my %p_c_pairs;
-
-	my $cr = TUSK::Competency::Competency->lookup( 'competency_class_meeting.class_meeting_id ='. $schedule_id , [ 'sort_order', 'competency_id'] , undef, undef,
-						[ TUSK::Core::JoinObject->new( 'TUSK::Competency::ClassMeeting', 
-						{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+	my $cr;
 	my @data = ();
+
+	if ($component_type eq 'schedule'){
+		$cr = TUSK::Competency::Competency->lookup( 'competency_class_meeting.class_meeting_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
+							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::ClassMeeting', 
+							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+	} elsif ($component_type eq 'content') {
+		$cr = TUSK::Competency::Competency->lookup( 'competency_content.content_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
+							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::Content', 
+							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+	} else {
+		return @data;		
+	}
+
 	foreach my $competency (@{$cr}) {
 		my %temp_hash = {};
 		$temp_hash{'id'} = $competency->getCompetencyID;
 		$temp_hash{'title'} = $competency->getDescription;
-		$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
+		if ($component_type eq 'schedule'){
+			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
+		} else {
+			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::Content")->getSortOrder();
+		}
 		$temp_hash{'type'} = $competency->getCompetencyUserTypeID;
 		push @data, {%temp_hash};
 	}
