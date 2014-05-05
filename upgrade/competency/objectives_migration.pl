@@ -42,7 +42,7 @@ sub main{
 
 #comment the functions out below as intended
 
-    migrateContentObjectives();
+    #migrateContentObjectives();
     migrateClassMeetingObjectives();
 }
 
@@ -85,7 +85,6 @@ sub migrateContentObjectives{
 	});
 	$competency->save( { user => 'migration' });
 =for 
-#REMINDER: ask Susan about Hierarchy for Content and Class Meeting Competencies
 	my $competency_hierarchy = TUSK::Competency::Hierarchy->new();
 	$competency_hierarchy->setFieldValues ({
 	    school_id => $school->getPrimaryKeyID(),
@@ -122,7 +121,6 @@ sub migrateClassMeetingObjectives {
 	});
 	$competency->save( { user => 'migration' } );
 =for 
-#REMINDER: ask Susan about Hierarchy for Content and Class Meeting Competencies
 	my $competency_hierarchy = TUSK::Competency::Hierarchy->new();
 	$competency_hierarchy->setFieldValues ({
 	    school_id => $school->getPrimaryKeyID(),

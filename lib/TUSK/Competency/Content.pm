@@ -65,7 +65,7 @@ sub new {
 					'database_handle' => '',
 					},
 				    _field_names => {
-					'content_competency_id' => 'pk',
+					'competency_content_id' => 'pk',
 					'competency_id' => '',
 					'content_id' => '',
 					'sort_order' => '',
