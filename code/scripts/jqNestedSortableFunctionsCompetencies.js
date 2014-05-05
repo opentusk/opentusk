@@ -247,7 +247,7 @@ function editRow( link, params ) {
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
 	
 	for( var idx = 1; idx < liArray.length; idx++ ) {
-		if ( idx==4 && params['listId'] == 'school_competencies' ) {
+		if ( (idx==4 || idx==2) && params['listId'] == 'school_competencies' ) {
 			continue;
 		}
 		var value = liArray[idx].innerHTML;

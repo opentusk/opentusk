@@ -38,8 +38,8 @@ return $title;
 		"jquery/plugin/interface/interface.js",
 		"jquery/plugin/json.js",
 		"jquery/plugin/inestedsortable-1.0.1.pack.js",
-		"competency/competency/functions.js",
 		"jqNestedSortableFunctionsCompetencies.js",
+		"competency/competency/functions.js",
 	];
 </%perl>
 </%method>
@@ -126,15 +126,51 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 </%perl>
 
 <%perl>
-	my $data = $m->comp('/competency/competency/admin/session/manage:buildCompetencyTree', school_id => 1, schedule_id => 984);
+	my $data = $m->comp('/competency/competency/admin/session/build:buildCompetencyTree', school_id => $school_id, schedule_id => 984);
+##The objectives related to this schedule.
 	$m->comp('/competency/competency/tmpl/element:jquery_sort_list' , params =>{
-				label => __('Competencies/Objectives'),
+				label => __('Objectives: '),
 				no_striping => 1,
 				container => 'competency_container',
-				name => 'schedule_competencies',
+				name => 'school_competencies',
 				sort => 1,
 				no_nesting => 'sort-row',
-				button_label => __('Add Competency'),
+				button_label => __('Add Objective'),
+				action_width => 170,
+				action_dropdown => 1,
+				onclick_options => 1,
+ 				action_columns => [ 
+							{ 'label' => __('Modify'),    'onclick' => 'editRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Delete'),    'onclick' => 'deleteRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Link'),      'onclick' => 'linkClassMeetingTo(984, this, params); resetDropDown(this);' },
+			  			], 
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => __('Session Objective'), field => 'title', head_align => 'left', width => 400, align => 'left', edit =>
+						{ type      => 'textarea',
+						  classname => 'textareawhite',
+						  rows => 3,
+						  cols      => 40,
+						  maxlength => 300 }
+					},
+					{ label => __('Linked:'), field => 'title', head_align => 'left', align => 'left', width => 200}
+
+				],
+				data => $data, 
+				post_to => '/tusk/competency/competency/author/course/update/Medical/6',
+				empty_message => __("No objectives exist for the current schedule.")
+	});
+	undef $data;
+##WIP: Content objectives connected to this schedule.	
+=for
+	$m->comp('/competency/competency/tmpl/element:jquery_sort_list' , params =>{
+				label => __('Objectives (From Contents)'),
+				no_striping => 1,
+				container => 'competency_container',
+				name => 'school_competencies',
+				sort => 1,
+				no_nesting => 'sort-row',
+				no_add_button => 1,
 				action_width => 170,
 				action_dropdown => 1,
 				onclick_options => 1,
@@ -145,18 +181,21 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 			  			], 
 				fields => [
 					{ hide  => 1, field => 'id', },
-					{ label => __('Session Competency'), field => 'title', head_align => 'left', width => 500, align => 'left', edit =>
+					{ label => __('Content Objective'), field => 'title', head_align => 'left', width => 400, align => 'left', edit =>
 						{ type      => 'textarea',
 						  classname => 'textareawhite',
 						  rows => 3,
-						  cols      => 60,
+						  cols      => 40,
 						  maxlength => 300 }
 					},
+					{ label => __('Linked:'), field => 'title', head_align => 'left', align => 'left', width => 200}
+
 				],
 				data => $data, 
 				post_to => '/tusk/competency/competency/author/course/update/Medical/6',
-				empty_message => __("No course competencies exist.")
+				empty_message => __("No content objectives exist for the current schedule.")
 	});
+=cut
 </%perl>
 
 <%perl>
