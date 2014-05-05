@@ -120,19 +120,8 @@ sub migrateClassMeetingObjectives {
 	    competency_user_type_id => $competency_user_type->getPrimaryKeyID()	
 	});
 	$competency->save( { user => 'migration' } );
-=for 
-	my $competency_hierarchy = TUSK::Competency::Hierarchy->new();
-	$competency_hierarchy->setFieldValues ({
-	    school_id => $school->getPrimaryKeyID(),
-	    lineage => '/',
-	    parent_competency_id => 0,
-	    child_competency_id => $competency->getPrimaryKeyID(),
-	    sort_order => 0,
-	    depth => 0
-	});
-	$competency_hierarchy->save({user => 'migration'});
-=cut
-	processClassMeetingRelationship( $class_meeting_objective->[1], $class_meeting_objective->[2], $competency->getCompetencyID(), $class_meeting_objective->[3] );
+
+	processClassMeetingRelationship( $class_meeting_objective->[1], $class_meeting_objective->[2], $competency->getCompetencyID(), $class_meeting_objective->[4] );
     }
 }
 

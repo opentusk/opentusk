@@ -54,6 +54,7 @@ DROP TABLE IF EXISTS competency_class_meeting_history;
 
 CREATE TABLE competency_class_meeting_history (
 	competency_class_meeting_history_id int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	competency_class_meeting_id int(10) unsigned NOT NULL DEFAULT '0', 
 	competency_id int(10) unsigned NOT NULL DEFAULT '0',
 	class_meeting_id int(10) unsigned NOT NULL DEFAULT '0',
 	sort_order smallint(6) unsigned NOT NULL DEFAULT '0',
