@@ -107,17 +107,17 @@
 	} else{
 	    print "<tr><td id=\"NLS_cat_0\"><i>(No Categories Present)</i></td></tr>";
 	}
-=for
-	foreach my $linked_comp( @{$competencies_list->{ $current_key }} ){
+
+	foreach my $linked_comp( @{$competencies_list->{'0'}} ){
 	    my $current_linked_key = (keys %{ $linked_comp })[0];
 				
 	    if ( $competencies_type eq "linked"){ 		
-		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick( this );\" data-parent=\"".$current_key."\">" . "&nbsp" x 4 . $linked_comp->{ $current_linked_key } . "</td></tr>";
+		print "<tr> <td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick( this );\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{ $current_linked_key } . "</td></tr>";
 	    } else {
-		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick( this );\" data-parent=\"". $current_key ."\">" . "&nbsp" x 4 . $linked_comp->{ $current_linked_key } . "</td></tr>";
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick( this );\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{ $current_linked_key } . "</td></tr>";
 	    }
 	}
-=cut
+
     print "</table>";
 </%perl>
 </%method>
@@ -192,7 +192,17 @@
 		my @empty_linked = ( );
 		%already_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
 		%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
-		$m->comp( 'SELF:buildCompetencyListTree', data => $data, linked => \@linked_competencies_id, parent => 0 );
+		my $course_competencies = TUSK::Course->getCompetenciesByCourse(984);	
+		my $comp_data;	
+		foreach my $course_competency( @{$course_competencies}){
+			my %temp_competency_hash;
+			$temp_competency_hash{'title'} = $course_competency->getDescription();
+			$temp_competency_hash{'id'} = $course_competency->getPrimaryKeyID();
+			$temp_competency_hash{'description'} = $course_competency->getDescription();;	
+			$temp_competency_hash{'children'} = undef;			
+			push @{$comp_data}, {%temp_competency_hash};
+		}		
+		$m->comp( 'SELF:buildCompetencyListTree', data => $comp_data, linked => \@linked_competencies_id, parent => 0 );			
 		$m->comp( 'SELF:generateTableNoCategories', competencies_list => \%not_linked_comps, competencies_type => "not_linked");			
 	}
 	
