@@ -64,7 +64,7 @@ function linkCourseSchool( currentTitle, currentIndex, school){
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
-function linkClassMeetingTo ( currentCourseID, link, params){
+function linkObjectiveToCourse (link, params) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-3];
 	var course_id = postURL[postURL.length-2];
@@ -72,7 +72,7 @@ function linkClassMeetingTo ( currentCourseID, link, params){
 	var liNode = link.parentNode.parentNode.parentNode.parentNode;
 	if (!liNode.id){
 		liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
-	}
+	}	
 	var currentTitle = liArray[1].innerHTML;
 	currentCompLabel( currentTitle );
 	var currentIndex = liNode.id;
