@@ -74,6 +74,7 @@ function linkClassMeetingTo ( currentCourseID, link, params){
 		liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	}
 	var currentTitle = liArray[1].innerHTML;
+	currentCompLabel( currentTitle );
 	var currentIndex = liNode.id;
 	competencyId1 = liNode.id.split('_')[0];
 	$( "#link-dialog-wrapper" ).css( "visibility", "visible" ); 

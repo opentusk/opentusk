@@ -41,6 +41,37 @@
 
 	foreach my $competency (@{$cr}) {
 		my %temp_hash = {};
+
+		my $child_linked_comps = TUSK::Competency::Relation->lookup( 'competency_id_1 = ' . $competency->getCompetencyID);
+		my @competency_relations_list;
+		my @competency_relations_list_short;
+
+		foreach my $linked_row (@{$child_linked_comps}){
+			my $linked_name = TUSK::Competency::Competency->lookup( 'competency_id = ' . $linked_row->getCompetencyId2, [ 'uri' ]);			
+				foreach my $name ( @{$linked_name}){
+						push @competency_relations_list, $name->getDescription;
+						push @competency_relations_list_short,  (substr $name->getDescription, 0, 50) . '...';
+				}
+		}
+		my $link_counter = 1;
+		my $competency_relations_string;
+		my $competency_relations_string_short;
+		foreach ( @competency_relations_list_short ){
+			if ( $link_counter < 5 ){ $competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
+			$link_counter++;
+		};
+		if ( $link_counter >5 ){ $competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
+		$link_counter = 1;
+		foreach ( @competency_relations_list ){
+			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
+			$link_counter++;
+		};
+
+		my $competency_relations_html;
+		$competency_relations_html = "<span class=\"tusk-competency-popup\"><span class=\"competency_popup_container\"><a>" . $competency_relations_string_short . "</a><span class=\"competency_popup_content\"><span class=\"linked_competency_close_button\">[Close Dialog]</span>
+<h3>Course Competencies linked to</h3><i>\"" . $competency->getDescription ."\"</i>:<br><br>". $competency_relations_string . "</span></span></span>";
+	
+
 		$temp_hash{'id'} = $competency->getCompetencyID;
 		$temp_hash{'title'} = $competency->getDescription;
 		if ($component_type eq 'schedule'){
@@ -49,6 +80,7 @@
 			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::Content")->getSortOrder();
 		}
 		$temp_hash{'type'} = $competency->getCompetencyUserTypeID;
+		$temp_hash{'links'} = $competency_relations_html;
 		push @data, {%temp_hash};
 	}
 	return \@data;
