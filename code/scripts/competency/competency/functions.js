@@ -64,14 +64,22 @@ function linkCourseSchool( currentTitle, currentIndex, school){
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
-function linkClassMeetingTo ( currentCourseID, currentTitle, currentIndex){
+function linkClassMeetingTo ( currentCourseID, link, params){
 	var postURL = params.postTo.split('/');
-	var school = postURL[postURL.length-1];
-
+	var school = postURL[postURL.length-3];
+	var course_id = postURL[postURL.length-2];
+	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
+	var liNode = link.parentNode.parentNode.parentNode.parentNode;
+	var currentTitle = liArray[1].innerHTML;
+	var currentIndex = liNode.id;
+	competencyId1 = liNode.id.split('_')[0];
+	console.log(competencyId1);
+	$( "#link-dialog-wrapper" ).css( "visibility", "visible" ); 
 	$( "#link-dialog" ).data("currentTitle", currentTitle);
 	$( "#link-dialog" ).data("currentIndex", currentIndex);
-	$( "#link-dialog" ).load( competencyRoot + "/admin/linkToCourse/school/" + school, {course_id: currentCourseID}, initLinkDialog());
-	$( "#link-dialog-wrapper" ).dialog({ position: { my: "center", at: "top" }});
+	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'class_meet'}, initLinkDialog());
+	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
+
 }
 
 function linkContentTo ( currentCourseID, currentTitle, currentIndex){
