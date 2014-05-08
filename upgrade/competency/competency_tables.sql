@@ -34,7 +34,6 @@ CREATE TABLE competency_content_history (
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
 	history_action enum('Insert', 'Update', 'Delete'),
-	CONSTRAINT FOREIGN KEY (competency_id) REFERENCES competency(competency_id)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8; 
 
 DROP TABLE IF EXISTS competency_class_meeting;
@@ -63,7 +62,6 @@ CREATE TABLE competency_class_meeting_history (
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
 	history_action enum('Insert', 'Update', 'Delete'),
-	CONSTRAINT FOREIGN KEY (competency_id) REFERENCES competency(competency_id)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8; 
 
 
