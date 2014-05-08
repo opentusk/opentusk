@@ -247,7 +247,7 @@ function editRow( link, params ) {
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
 	
 	for( var idx = 1; idx < liArray.length; idx++ ) {
-		if ( (idx==4 || idx==2) && params['listId'] == 'school_competencies' ) {
+		if ( (idx==4) && params['listId'] == 'school_competencies' ) {
 			continue;
 		}
 		if ( (idx==2) && params['listId'] == 'class_meeting_competencies' ) {
@@ -304,12 +304,21 @@ function editRow( link, params ) {
 			case 'action':
 				params["actionDropdown"]=1;
 				params["function_values"]=function_values;
+				console.log(params);
 				if (function_values.length == 0){
-					function_values.push( '' );
-					function_values.push( 'editRow(this, params); resetDropDown(this);' );
-					function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
-					function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
-					add  = 1;
+					if (params["listId"] != "class_meeting_competencies"){
+						function_values.push( '' );
+						function_values.push( 'editRow(this, params); resetDropDown(this);' );
+						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
+						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
+						add  = 1;
+					} else {
+						function_values.push( '' );
+						function_values.push( 'editRow(this, params); resetDropDown(this);' );
+						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
+						function_values.push( 'linkObjectiveToCourse(this, params);  resetDropDown(this);' );
+						add  = 1;
+					}
 				}			
 				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>&nbsp&nbsp<a onclick="cancelRow( this, params, this_row, add);" class="navsm">Cancel</a>';
 				break;
@@ -518,9 +527,12 @@ function saveRow( link, params ) {
 	var error;
 	$.post(params.postTo, postData, function(data){
 		error = data['error'];	
-		newId = postData['id'];	
-		console.log(params.postTo);
-		console.log(postData);
+		newId = data['id'];
+		/*
+		if (params['listId'] == 'class_meeting_competencies'){
+			newId = postData['id'];	
+		}*/
+		console.log(newId);
 
 		if ( error ) {
 			// TODO:  Error handling
