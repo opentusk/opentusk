@@ -304,20 +304,26 @@ function editRow( link, params ) {
 			case 'action':
 				params["actionDropdown"]=1;
 				params["function_values"]=function_values;
-				console.log(params);
+				console.log(params["listId"]);
 				if (function_values.length == 0){
-					if (params["listId"] != "class_meeting_competencies"){
+					if (params["listId"] == "school_competencies"){
 						function_values.push( '' );
 						function_values.push( 'editRow(this, params); resetDropDown(this);' );
 						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
 						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
+						function_values.push( 'linkSchoolNational(this, params); resetDropDown(this);' );
 						add  = 1;
-					} else {
+					} else if (params["listId"] == "class_meeting_competencies") {
 						function_values.push( '' );
 						function_values.push( 'editRow(this, params); resetDropDown(this);' );
 						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
 						function_values.push( 'linkObjectiveToCourse(this, params);  resetDropDown(this);' );
 						add  = 1;
+					} else {
+						function_values.push( '' );
+						function_values.push( 'editRow(this, params); resetDropDown(this);' );
+						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
+						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
 					}
 				}			
 				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>&nbsp&nbsp<a onclick="cancelRow( this, params, this_row, add);" class="navsm">Cancel</a>';
