@@ -250,7 +250,7 @@ function editRow( link, params ) {
 		if ( (idx==4) && params['listId'] == 'school_competencies' ) {
 			continue;
 		}
-		if ( (idx==2) && params['listId'] == 'class_meeting_competencies' ) {
+		if ( (idx==2) && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' ) ) {
 			continue;
 		}
 		var value = liArray[idx].innerHTML;
@@ -313,7 +313,7 @@ function editRow( link, params ) {
 						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
 						function_values.push( 'linkSchoolNational(this, params); resetDropDown(this);' );
 						add  = 1;
-					} else if (params["listId"] == "class_meeting_competencies") {
+					} else if (params["listId"] == "class_meeting_competencies" || params["listId"] == "content_competencies" ) {
 						function_values.push( '' );
 						function_values.push( 'editRow(this, params); resetDropDown(this);' );
 						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
@@ -415,6 +415,7 @@ function saveRow( link, params ) {
 	var postData = new Object();
 
 	postData['id'] = liNode.id;
+	postData['type'] = params['listId'];
 
 	var currentCompetencyPage = location.pathname.split('/')[4];
 	if ( currentCompetencyPage == 'listNationalCompetencies' ){
@@ -450,7 +451,7 @@ function saveRow( link, params ) {
 		if (idx==4 && params['listId'] == 'school_competencies' ){
 			continue;
 		}
-		if (idx==2 && params['listId'] == 'class_meeting_competencies' ){
+		if (idx==2 && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' )){
 			continue;
 		}
 		var editParams = params.columns[idx-1].edit;
@@ -535,7 +536,7 @@ function saveRow( link, params ) {
 		error = data['error'];	
 		newId = data['id'];
 		/*
-		if (params['listId'] == 'class_meeting_competencies'){
+		if (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' ){
 			newId = postData['id'];	
 		}*/
 		console.log(newId);

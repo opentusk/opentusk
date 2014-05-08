@@ -1,0 +1,254 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%init>
+	my @current_path = $m->comp("/tmpl/url:get_path_ids");
+	my $hsdb45_course_id = $current_path[-2];
+	my $content_id = $current_path[-1];
+</%init>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+no_check_path => 1
+page_header => ''
+page_footer => ''
+</%attr>
+
+<%once>
+	use HSDB4::Constants;
+	use TUSK::Core::School;
+	use TUSK::Enum::Data;
+
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Content;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::Course;
+
+	use TUSK::Application::Competency::Competency;
+	use TUSK::Application::Competency::Tree;
+</%once>
+
+<%perl>
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $school    = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->comp("/tmpl/url:get_first_path_id") . "'");
+	my $school_id = $school->getFieldValue( 'school_id' );
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID( $school_id, $hsdb45_course_id);
+
+	print "{\n";
+	if ( $ARGS{'sorting'} ) {
+		my $op_id = $ARGS{'originalParent'};
+		my $np_id = $ARGS{'newParent'};
+		my $id    = $ARGS{'droppedRow'};
+
+		$id    =~ s/_[\d]+//;
+		$op_id =~ s/_[\d]+//;
+		$np_id =~ s/_[\d]+//;
+
+		if ( $op_id !~ /[\d]+/ ) { $op_id = 0; }
+		if ( $np_id !~ /[\d]+/ ) { $np_id = 0; }
+
+		my ($dbh, $query);
+		eval {
+			$dbh = HSDB4::Constants::def_db_handle();
+		};
+		die "$@\t... failed to obtain database handle!" if $@;
+
+		if ( $op_id != $np_id ) {
+			# TODO: This doesn't work for multiple parents, since there's no check for duplicate entries.
+
+			$query = "update tusk.competency_hierarchy set sort_order = sort_order+1 where parent_competency_id = ? and sort_order >= ? and school_id = ?";
+			eval {
+				my $handle = $dbh->prepare($query);
+				$handle->execute($np_id, $ARGS{'newPos'}, $school_id);
+			};
+
+			$query = "update tusk.competency_hierarchy set sort_order = sort_order-1 where parent_competency_id = ? and sort_order > ? and school_id = ?";
+			eval {
+				my $handle = $dbh->prepare($query);
+				$handle->execute($op_id, $ARGS{'originalPos'}, $school_id);
+			};
+			my $cr = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $op_id );
+
+			$query = "update tusk.competency_hierarchy set lineage = replace( lineage, ?, ? ), depth = depth + ? where lineage like ?";
+			eval {
+				my $handle = $dbh->prepare($query);
+				$handle->execute( $cr->[0]->getLineage . $id . "/", $ARGS{'lineage'} . $id . "/", $ARGS{'curDepth'}, "%" . $cr->[0]->getLineage . $id . "/%" );
+			};
+
+		} else {
+			my ($update_str, $start, $end);
+
+			if ( $ARGS{'originalPos'} < $ARGS{'newPos'} ) {
+				$update_str = "sort_order-1";
+				$start      = $ARGS{'originalPos'} + 1;
+				$end        = $ARGS{'newPos'};
+			} else {
+				$update_str = "sort_order+1";
+				$start      = $ARGS{'newPos'};
+				$end        = $ARGS{'originalPos'} - 1;
+ 			}
+
+			$query = "update tusk.competency_hierarchy set sort_order = $update_str where parent_competency_id = ? and sort_order >= ? and sort_order <= ? and school_id = ?";
+			eval {
+				my $handle = $dbh->prepare($query);
+				$handle->execute($np_id, $start, $end, $school_id);
+			};
+			die "$@\t... failed to update competency_relationship!" if $@;
+		}
+
+		$query = "update tusk.competency_hierarchy set sort_order = ?, parent_competency_id = ?, depth = ?, lineage = ? where parent_competency_id = ? and child_competency_id = ?";
+		eval {
+			my $handle = $dbh->prepare($query);
+			$handle->execute($ARGS{'newPos'}, $np_id, $ARGS{'curDepth'}, $ARGS{'lineage'}, $op_id, $id);
+		};
+		die "$@\t... failed to update competency_relationship!" if $@;
+
+		print "\"error\" : \"\"\n";
+	} else {
+		if ( $ARGS{'delete'} ) {
+			my ($dbh, $query);
+			eval {
+				$dbh = HSDB4::Constants::def_db_handle();
+			};
+
+			die "$@\t... failed to obtain database handle!" if $@;
+
+			my $id = $ARGS{'id'};
+			$id =~ s/_[\d]+//;
+
+			my $parent_id = $ARGS{'parentId'};
+			$parent_id =~ s/_[\d]+//;
+			# adjust sort orders for other competencies for this schedule
+
+			my $current_competency_sort_order = TUSK::Competency::Content->lookupReturnOne("competency_id = $id")->getSortOrder;
+
+			foreach my $content (@{TUSK::Competency::Content->lookup("content_id = $content_id")}){
+				if ( $content->getSortOrder() > $current_competency_sort_order ){
+					$content->setSortOrder( $content->getSortOrder() - 1);
+					$content->save({ user => $m->session->{'user'}->user_id});
+				}
+			}
+				
+
+			# Grab and delete relationship row from competency_content table.
+			my $competency_content = TUSK::Competency::Content->lookupReturnOne('competency_id='.$id);
+			$competency_content->delete;
+			
+			# Grab and delete actual competency row from competency table.
+				
+			my $competency_args = {
+				competency_id => $id
+			};			
+			my $competency = TUSK::Application::Competency::Competency->new($competency_args);
+
+			$competency->delete();
+
+			print "\"error\" : \"\"\n";
+		} else {
+			my $competency;
+			my $new = 0;
+
+			my $competency_user_type_id = TUSK::Competency::UserType->lookupReturnOne( "name =\"Competency\" AND school_id = $school_id" );
+	
+			my $competency_level_enum_id = TUSK::Enum::Data->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"content\"" );
+
+			if ( $ARGS{'id'} =~ /^new_child_of_/ ) {
+				$new = 1;
+				my $parent_id = $ARGS{'id'};
+				$parent_id =~ s/^new_child_of_//g;
+				$parent_id =~ s/_[\d]+//;
+				$parent_id =~ s/_[\d]+//;
+
+				my $competency_args = {
+					title => '',
+					description => $ARGS{'col0'},
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+					school_id => $school_id,
+					competency_level_enum_id => $competency_level_enum_id->getPrimaryKeyID,
+					version_id => $school_id,
+					user => $m->session->{'user'}->user_id
+				};
+
+				my $competency = TUSK::Application::Competency::Competency->new($competency_args);				
+				my $new_competency_id = $competency->add();
+
+				my $competency_content = TUSK::Competency::Content->new();
+				
+				$competency_content->setFieldValues({
+					competency_id => $new_competency_id,
+					content_id => $content_id,
+					sort_order => 0
+				});			
+				
+				$competency_content->save({user => $m->session->{'user'}->user_id});
+
+				if ( $ARGS{'position'} eq 'last' ) {
+					my $sql =qq (SELECT MAX(sort_order) FROM tusk.competency_content WHERE content_id = $content_id);			
+					my $sth = $dbh->prepare($sql);
+					$sth->execute();
+				   
+					my $current_max_sort_order = $sth->fetchall_arrayref->[0]->[0];    
+					$sth->finish();
+
+					$sql = qq (SELECT COUNT(*) FROM tusk.competency_content WHERE content_id = $content_id);
+					$sth = $dbh->prepare($sql);
+					$sth->execute();
+				
+					my $current_count = $sth->fetchall_arrayref->[0]->[0];
+					$sth->finish();
+
+					if ( $current_max_sort_order != 0 || $current_count > 0 ){
+						$competency_content->setSortOrder($current_max_sort_order + 1);
+					} else{
+						$competency_content->setSortOrder(0);
+					}
+				} else {
+					foreach my $content (@{TUSK::Competency::Content->lookup("content_id = $content_id")}){
+						$content->setSortOrder( $content->getSortOrder() + 1);
+						$content->save({ user => $m->session->{'user'}->user_id});
+					}
+				   
+					$competency_content->setSortOrder(0);
+				}
+				$competency_content->save( {user=> $m->session->{'user'}->user_id} );			
+
+				print "\"id\"    : \"" . $new_competency_id . "_" . time() . "\",\n";
+				print "\"error\" : \"\"\n";
+			} else {
+				my $id = $ARGS{'id'};
+				$id =~ s/_[\d]+//;
+
+				my $competency_args = {
+					competency_id => $id,
+					description => $ARGS{'col0'},
+					user => $m->session->{'user'}->user_id,
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+				};
+
+				$competency = TUSK::Application::Competency::Competency->new($competency_args);
+				$competency->update;
+				print "\"id\"    : \"" . $competency->{'competency_id'}. "_" . time() . "\",\n";
+				print "\"error\" : \"\"\n";
+			}
+					
+		}
+	}
+	print "}";
+</%perl>
+
