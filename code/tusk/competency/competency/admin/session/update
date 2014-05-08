@@ -126,6 +126,7 @@ page_footer => ''
 			eval {
 				$dbh = HSDB4::Constants::def_db_handle();
 			};
+
 			die "$@\t... failed to obtain database handle!" if $@;
 
 			my $id = $ARGS{'id'};
@@ -133,35 +134,22 @@ page_footer => ''
 
 			my $parent_id = $ARGS{'parentId'};
 			$parent_id =~ s/_[\d]+//;
+			# adjust sort orders for other competencies for this schedule
 
-			my $children_to_move;
-			$query = "select count( sort_order ) from tusk.competency_hierarchy where parent_competency_id = ? and school_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($id, $school_id);
-				$handle->bind_columns(\$children_to_move);
-				$handle->fetch();
+			my $current_competency_sort_order = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id = $id")->getSortOrder;
 
-				$children_to_move--;
-			};
-			die "$@\t... failed to get children!" if $@;
+			foreach my $class_meeting (@{TUSK::Competency::ClassMeeting->lookup("class_meeting_id = $class_meeting_id")}){
+				if ( $class_meeting->getSortOrder() > $current_competency_sort_order ){
+					$class_meeting->setSortOrder( $class_meeting->getSortOrder() - 1);
+					$class_meeting->save({ user => $m->session->{'user'}->user_id});
+				}
+			}
+				
 
-			# shift everything after this in the sort_order hierarchy up/down the appropriate amount
-			$query = "update tusk.competency_hierarchy set sort_order = sort_order+? where parent_competency_id = ? and sort_order > ? and school_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($children_to_move, $parent_id, $ARGS{'position'}, $school_id);
-			};
-			die "$@\t... failed to update competency_relationship!" if $@;
-
-			# Need to grab this BEFORE removing the row
-			my $cr = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $parent_id );
-
-			# Grab and delete relationship row from competency_course table.
-
-			my $competency_course = TUSK::Competency::Course->lookupReturnOne('competency_id='. $id);
-			$competency_course->delete;
-
+			# Grab and delete relationship row from competency_class_meeting table.
+			my $competency_class_meeting = TUSK::Competency::ClassMeeting->lookupReturnOne('competency_id='.$id);
+			$competency_class_meeting->delete;
+			
 			# Grab and delete actual competency row from competency table.
 				
 			my $competency_args = {
@@ -170,25 +158,6 @@ page_footer => ''
 			my $competency = TUSK::Application::Competency::Competency->new($competency_args);
 
 			$competency->delete();
-
-			# Grab and delete entry for deleted competency from competency_hiearchy table.
-
-			my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne('child_competency_id='. $id);
-			$competency_hierarchy->delete;
-
-			# 'promote' each child with sort order = position+sort_order
-			$query = "update tusk.competency_hierarchy set sort_order = sort_order+?, parent_competency_id = ? where parent_competency_id = ? and school_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($ARGS{'position'}, $parent_id, $id, $school_id);
-			};
-			die "$@\t... failed to update competency_relationship!" if $@;
-
-			$query = "update tusk.competency_hierarchy set lineage = replace( lineage, ?, ? ), depth = depth-1 where lineage like ? and school_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute( $cr->[0]->getLineage . $id . "/", $cr->[0]->getLineage, "%" . $cr->[0]->getLineage . $id . "/%", $school_id );
-			};
 
 			print "\"error\" : \"\"\n";
 		} else {
@@ -254,7 +223,7 @@ page_footer => ''
 						$class_meeting->setSortOrder( $class_meeting->getSortOrder() + 1);
 						$class_meeting->save({ user => $m->session->{'user'}->user_id});
 					}
-										
+				   
 					$competency_class_meeting->setSortOrder(0);
 				}
 				$competency_class_meeting->save( {user=> $m->session->{'user'}->user_id} );			
