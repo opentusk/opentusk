@@ -518,7 +518,7 @@ function saveRow( link, params ) {
 	var error;
 	$.post(params.postTo, postData, function(data){
 		error = data['error'];	
-		newId = data['id'];	
+		newId = postData['id'];	
 		console.log(params.postTo);
 		console.log(postData);
 
