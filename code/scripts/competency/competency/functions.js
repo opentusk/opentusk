@@ -70,6 +70,7 @@ function linkContentToCourse( currentTitle, currentIndex){
 	var school = postURL[postURL.length-3];
 	var course_id = postURL[postURL.length-2];
 	$( "#link-dialog" ).empty();
+	currentCompLabel(currentTitle);
 	$( "#link-dialog-wrapper" ).css( "visibility", "visible" );
 	$( "#link-dialog" ).data("currentTitle", currentTitle);
 	$( "#link-dialog" ).data("currentIndex", currentIndex);
@@ -102,7 +103,7 @@ function linkObjectiveToCourse (link, params) {
 function initLinkDialog(){
 	currentTitle = $( "#link-dialog" ).data( "currentTitle" );
 	currentIndex = $( "#link-dialog" ).data( "currentIndex" );
-	currentIndex = currentIndex.toString();
+	currentIndex = currentIndex.toString();	
 	competencyId1 = currentIndex.split('_')[0];
 }
 
