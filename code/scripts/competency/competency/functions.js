@@ -64,6 +64,19 @@ function linkCourseSchool( currentTitle, currentIndex, school){
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
+function linkContentToCourse( currentTitle, currentIndex){
+	var postTo = window.location.pathname;
+	var postURL = params.postTo.split('/');
+	var school = postURL[postURL.length-3];
+	var course_id = postURL[postURL.length-2];
+	$( "#link-dialog" ).empty();
+	$( "#link-dialog-wrapper" ).css( "visibility", "visible" );
+	$( "#link-dialog" ).data("currentTitle", currentTitle);
+	$( "#link-dialog" ).data("currentIndex", currentIndex);
+	$( "#link-dialog" ).load(competencyRoot + "admin/link/school/" + school, {competency_id: currentIndex, root_id: 0, link_type: 'class_meet', course_id: course_id}, initLinkDialog());
+	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
+}
+
 function linkObjectiveToCourse (link, params) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-3];
@@ -84,19 +97,12 @@ function linkObjectiveToCourse (link, params) {
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
-function linkContentTo ( currentCourseID, currentTitle, currentIndex){
-	var postURL = params.postTo.split('/');
-	var school = postURL[postURL.length-1];
 
-	$( "#link-dialog" ).data("currentTitle", currentTitle);
-	$( "#link-dialog" ).data("currentIndex", currentIndex);
-	$( "#link-dialog" ).load( competencyRoot + "/admin/linkToCourse/school/" + school, {course_id: currentCourseID}, initLinkDialog());
-	$( "#link-dialog-wrapper" ).dialog({ position: { my: "center", at: "top" }});
-}
 
 function initLinkDialog(){
 	currentTitle = $( "#link-dialog" ).data( "currentTitle" );
 	currentIndex = $( "#link-dialog" ).data( "currentIndex" );
+	currentIndex = currentIndex.toString();
 	competencyId1 = currentIndex.split('_')[0];
 }
 
