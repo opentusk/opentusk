@@ -84,7 +84,5 @@ CREATE TABLE competency_relation_history
 	competency_id_2 int(10) UNSIGNED NOT NULL,
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
-	history_action enum('Insert', 'Update', 'Delete'),
-	CONSTRAINT FOREIGN KEY (competency_id_1) REFERENCES competency(competency_id),
-	CONSTRAINT FOREIGN KEY (competency_id_2) REFERENCES competency(competency_id)
+	history_action enum('Insert', 'Update', 'Delete')
 ) CHARSET utf8;
