@@ -63,13 +63,13 @@ sub migrateContentObjectives{
 		      tusk.school.school_id FROM hsdb4.link_content_objective 
 		  INNER JOIN hsdb4.content ON hsdb4.content.content_id = hsdb4.link_content_objective.parent_content_id 
 		  INNER JOIN tusk.school ON hsdb4.content.school = tusk.school.school_name;);    
-    my $sth = $dbh->prepare( $sql );
+    my $sth = $dbh->prepare($sql);
     $sth->execute();
     my $content_objectives = $sth->fetchall_arrayref();
     $sth->finish;
 
     $sql = qq( SELECT objective_id, body FROM hsdb4.objective);
-    $sth = $dbh->prepare( $sql );
+    $sth = $dbh->prepare($sql);
     $sth->execute();
     my $content_objectives_body = $sth->fetchall_hashref('objective_id');
     $sth->finish;

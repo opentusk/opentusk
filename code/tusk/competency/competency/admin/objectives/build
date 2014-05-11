@@ -17,6 +17,8 @@
 	inherit => undef
 </%flags>
 
+use HSDB4::Constants;
+
 <%method buildCompetencyTree>
 <%args>
 	$school_id
@@ -26,6 +28,7 @@
 <%perl>
 	my $cr;
 	my @data = ();
+	my $dbh = HSDB4::Constants::def_db_handle();
 
 	if ($component_type eq 'schedule'){
 		$cr = TUSK::Competency::Competency->lookup( 'competency_class_meeting.class_meeting_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
@@ -34,6 +37,15 @@
 	} elsif ($component_type eq 'content') {
 		$cr = TUSK::Competency::Competency->lookup( 'competency_content.content_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
 							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::Content', 
+							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+	} elsif ($component_type eq 'related_content'){
+		my $sql = qq( SELECT child_content_id FROM hsdb4.link_class_meeting_content WHERE parent_class_meeting_id = $component_id);
+		my $sth = $dbh->prepare($sql);
+		$sth->execute();
+		my $related_content_ids = $sth->fetchall_arrayref();
+		print Dumper $related_content_ids; 
+		$cr = TUSK::Competency::Competency->lookup( 'competency_class_meeting.class_meeting_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
+							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::ClassMeeting', 
 							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
 	} else {
 		return @data;		
@@ -75,7 +87,9 @@
 		$temp_hash{'title'} = $competency->getDescription;
 		if ($component_type eq 'schedule'){
 			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
-		} else {
+		} elsif ($component_type eq 'related_content'){
+			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
+		}else {
 			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::Content")->getSortOrder();
 		}
 		$temp_hash{'type'} = $competency->getCompetencyUserTypeID;
