@@ -15,12 +15,6 @@
 
 var competencyRoot = "/tusk/competency/competency/";
 
-$( function(){
-	$('#competency_search_string').bind("click", function(){
-		alert("link-dialog");
-	});
-});
-
 $( "#link_competency_popup" ).draggable();
 $( "#link_competency_popup" ).resizable({
 	stop: function(event, ui){
