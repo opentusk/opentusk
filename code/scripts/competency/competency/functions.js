@@ -102,15 +102,6 @@ function initLinkDialog() {
 	competencyId1 = currentIndex.split('_')[0];
 }
 
-function viewNational() {
-	if ($("#list_competencies").css("display") == "none"){
-		$("#list_competencies").show();
-	} else {
-		$("#list_competencies").css("display", "none");
-	}
-}
-
-
 function closeLinkWindow() {
 	$('#link-dialog').empty();
 	$('.competency_link_table').empty();
