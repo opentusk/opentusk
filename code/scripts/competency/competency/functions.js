@@ -42,7 +42,7 @@ function linkSchoolNational( link, params ) {
 	var currentTitle = liArray[1].innerHTML;
 	$( "#link-dialog-wrapper" ).css( "visibility", "visible" ); 
 	$( "#link-dialog" ).data("currentTitle", currentTitle);
-	currentCompLabel( currentTitle );
+ 	currentCompLabel( currentTitle );
 	$( "#link-dialog" ).data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
 	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'national' }, initLinkDialog());
@@ -63,6 +63,7 @@ function linkContentToCourse(currentTitle, currentIndex){
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-3];
 	var course_id = postURL[postURL.length-2];
+	$("#objective_type").html("Content");
 	$("#link-dialog").empty();
 	currentCompLabel(currentTitle);
 	$("#link-dialog-wrapper").css("visibility", "visible");
@@ -82,6 +83,8 @@ function linkObjectiveToCourse (link, params) {
 		liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	}	
 	var currentTitle = liArray[1].innerHTML;
+	$("#link-dialog").empty();
+	$("#objective_type").html("Schedule");
 	currentCompLabel(currentTitle);
 	var currentIndex = liNode.id;
 	competencyId1 = liNode.id.split('_')[0];
