@@ -137,7 +137,6 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 ##The objectives related to this schedule.
 	$m->comp('/competency/competency/tmpl/element:jquery_sort_list' , params =>{
 				label => __('Objectives: '),
-				no_striping => 1,
 				container => 'competency_container',
 				name => 'class_meeting_competencies',
 				sort => 1,
@@ -169,38 +168,32 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 	});
 	undef $data;
 
-	$m->comp('/competency/competency/tmpl/element:jquery_sort_list' , params =>{
-				label => __('Objectives (From Contents)'),
-				no_striping => 1,
-				container => 'content_competency_container',
-				name => 'content_competencies',
-				sort => 1,
-				no_nesting => 'sort-row',
-				no_add_button => 1,
-				action_width => 170,
-				action_dropdown => 1,
-				onclick_options => 1,
- 				action_columns => [ 
-							{ 'label' => __('Modify'),    'onclick' => 'editRow(this, params); resetDropDown(this);' },
-							{ 'label' => __('Delete'),    'onclick' => 'deleteRow(this, params); resetDropDown(this);' },
-							{ 'label' => __('Link'),      'onclick' => 'linkScheduleCourse(this, params); resetDropDown(this);' },
-			  			], 
-				fields => [
-					{ hide  => 1, field => 'id', },
-					{ label => __('Content Objective'), field => 'title', head_align => 'left', width => 400, align => 'left', edit =>
-						{ type      => 'textarea',
-						  classname => 'textareawhite',
-						  rows => 3,
-						  cols      => 40,
-						  maxlength => 300 }
-					},
-					{ label => __('Linked:'), field => 'title', head_align => 'left', align => 'left', width => 200}
+	my $col_fields = [
+			{ label => __('Course Competency'), field => 'learning_objective' },
+			{ label => __('Linked'), field => 'linked_competencies', html => 1 },
+			{ label => __('Action'), field => 'action' },
+	];
+	my $rows = [
+			{ learning_objective => "apple" },
+			{ linked_competencies => "ball" },
+			{ action => "cat" },
+	];
+</%perl>
 
-				],
-				data => $data, 
-				empty_message => __("No content objectives exist for the current schedule.")
+<tr id = "class_meeting_competencies_tr">
+	<td class="labelgray">
+		Objectives (Content):
+	</td>	
+<%perl>
+	print "<td colspan=\"1\">";
+	$m->comp('/tmpl/element:object_selection_box', params =>{
+					columns => $col_fields,
+					rows => $rows,
+					name => "courses",
+					nobutton => 1,
+					'norows-message' => __( "No Content Competencies linked to Current Schedule" ),
 	});
-
+	print "</td></tr>";
 </%perl>
 
 <%perl>
