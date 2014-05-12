@@ -612,6 +612,10 @@ function saveRow( link, params ) {
 }
 
 function deleteRow( link, params ) {
+	if (edit_mode == 1){
+		alert("Please finish editing current Competency/Objective before making a new change");
+		return;
+	}
 	if ( params.sort ) {
 		$("div.striping").mouseover( function() { 
 			this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = 'none';
