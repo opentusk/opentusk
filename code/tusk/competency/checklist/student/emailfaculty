@@ -29,7 +29,7 @@
 		TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Checklist", { joinkey => 'competency_id', jointype => 'inner', joincond => "competency_checklist_id = $checklist_id"}) ]);
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
 	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});	
-	my $assessor = $acc->getAssessor($assignment_id, $checklist_id,  'faculty');
+	my $assessor = $acc->getAssessor($assignment_id, $checklist_id, 'faculty');
 	my $assignment = $assessor->getJoinObject('TUSK::Competency::Checklist::Assignment');
 	my $entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry');
 </%shared>
@@ -50,6 +50,17 @@
 	options => $options,
 } &>
 
+<div id="otherbox" style="display: none">
+<br/>
+<div class="xsm">Enter an email address: </div>
+<& /tmpl/element:input_textbox, params => { 
+	name 	=> 'other_to',
+	value 	=> '',
+	size 	=> 30,
+	length 	=> 30, 
+} &>
+</div>
+
 <div style="margin-top:10px"><% __('Comments') . ':'  %></div>
 <& /tmpl/element:input_textarea, params => { 
 	name 	=> 'comment',
@@ -68,7 +79,10 @@
 	if ($ARGS{submit_check}) {
 		$entry = TUSK::Competency::Checklist::Entry->new() unless (defined $entry);
 		my $entry = $acc->setAssessorRequest($assignment_id, $checklist_id, $student->primary_key(), $entry);
-		$m->comp('SELF:sendEmail', to => $ARGS{to}, comment => $ARGS{comment}, entry => $entry);
+		$m->comp('SELF:sendEmail', 
+			to => ($ARGS{to} eq 'other') ? $ARGS{other_to} . '___' : $ARGS{to},
+			comment => $ARGS{comment}, 
+			entry => $entry);
 
 		$m->redirect($m->comp("/tmpl/url:construct_url", 
 			base_url => "/view",
@@ -100,19 +114,22 @@
 	$entry
 </%args>
 <%perl>
+	my ($to_addr, $assessor_lastname) = split('___', $to);
+	return 0 unless ($to_addr);
+
 	$comment = ($comment =~ /\w+/) ? "\nAdditional comments from student\:\n$comment" : '';
 
 	my $email = TUSK::Application::Email->new({
-		to_addr => $to,
+		to_addr => $to_addr,
 		from_addr => $TUSK::Constants::SupportEmail,
 		subject => $competency->getDescription() . ' ' . __('Checklist') . ' - ' . $course->title(),
 		body	=> __x(
 			"Dr {assessor_lastname},\n\n" .
-			"Please assess {student_name}'s competency with '{competency_name}' by clicking on the link below.\n\n" .
-			"{url}\n\n" .
-			"Please contact one of the Course directors if you have any questions.\n" .
+			"Please assess {student_name}'s competency with '{competency_name}' by clicking on the link below." .
+			"\n\n{url}\n\nPlease contact one of the Course directors if you have any questions.\n" .
+			"{course_directors}\n" .
 			"{comment}",
-			assessor_lastname => $assessor->getLastname(),
+			assessor_lastname => ($assessor_lastname) ? $assessor_lastname : '',
 			student_name => $student->out_full_name(),
 			competency_name => $competency->getDescription(),
 			url => 'https://' . $TUSK::Constants::Domain . 
@@ -120,11 +137,13 @@
 				"/$checklist_id/$assignment_id" . 
 				(($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') .
 				'/' . $acc->getUrlToken($assignment, $checklist_id),
+			course_directors => join("\n", map { $_->out_full_name() . '   <' . $_->default_email() . '>' } $course->child_course_directors()),
 			comment => $comment,
-			),
+		),
 	});
-#	pre_dump($email); $m->abort();
+
 	$email->send();
+	return 1;
 </%perl>
 </%method>
 
@@ -135,15 +154,22 @@
 	my @faculty = $course->child_users('teaching_site_id = ' . $enrolled_student->aux_info('teaching_site_id') . ' order by lastname, firstname');
 	my @options = ();
 	 ## assigned faculty, site director, or no selection
-	my $selected = $assignment->getAssessorID();
+	my $selected = $assessor->getDefaultEmail() . '___' . $assessor->getLastname();
 	foreach my $member (@faculty) {
 		if ($member->aux_info('teaching_site_id') eq $enrolled_student->aux_info('teaching_site_id')) {
-			push @options, { label => $member->out_lastfirst_name, value => $member->default_email() };
+			push @options, { 
+				label => $member->out_lastfirst_name, 
+				value => $member->default_email() . '___' . $member->last_name(),
+			};
 		}
 		if (!$selected && $member->aux_info('roles') =~ /Site Director/) {
-			$selected = $member->primary_key();
+			$selected = $member->primary_key() . '___' . $member->last_name(),
 		}
 	}
+	push @options, {
+		label => 'Other',
+		value => 'other',
+	};
 	return (\@options, $selected);
 </%perl>
 </%method>
@@ -152,4 +178,7 @@
 %	return __('Competency Checklist - Email Faculty');
 </%method>
 
+<%method jsarray>
+%	return [ 'jquery/jquery.min.js', 'jquery/plugin/validate.min.js', 'competency/checklist/emailfaculty.js' ];
+</%method>
 
