@@ -52,16 +52,9 @@ page_footer => ''
 
 	print "{\n";
 	if ( $ARGS{'sorting'} ) {
-		my $op_id = $ARGS{'originalParent'};
-		my $np_id = $ARGS{'newParent'};
 		my $id    = $ARGS{'droppedRow'};
 
 		$id    =~ s/_[\d]+//;
-		$op_id =~ s/_[\d]+//;
-		$np_id =~ s/_[\d]+//;
-
-		if ( $op_id !~ /[\d]+/ ) { $op_id = 0; }
-		if ( $np_id !~ /[\d]+/ ) { $np_id = 0; }
 
 		my ($dbh, $query);
 		eval {
@@ -69,29 +62,6 @@ page_footer => ''
 		};
 		die "$@\t... failed to obtain database handle!" if $@;
 
-		if ( $op_id != $np_id ) {
-			# TODO: This doesn't work for multiple parents, since there's no check for duplicate entries.
-
-			$query = "update tusk.competency_hierarchy set sort_order = sort_order+1 where parent_competency_id = ? and sort_order >= ? and school_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($np_id, $ARGS{'newPos'}, $school_id);
-			};
-
-			$query = "update tusk.competency_hierarchy set sort_order = sort_order-1 where parent_competency_id = ? and sort_order > ? and school_id = ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute($op_id, $ARGS{'originalPos'}, $school_id);
-			};
-			my $cr = TUSK::Competency::Hierarchy->lookup( 'child_competency_id = ' . $id . ' and parent_competency_id = ' . $op_id );
-
-			$query = "update tusk.competency_hierarchy set lineage = replace( lineage, ?, ? ), depth = depth + ? where lineage like ?";
-			eval {
-				my $handle = $dbh->prepare($query);
-				$handle->execute( $cr->[0]->getLineage . $id . "/", $ARGS{'lineage'} . $id . "/", $ARGS{'curDepth'}, "%" . $cr->[0]->getLineage . $id . "/%" );
-			};
-
-		} else {
 			my ($update_str, $start, $end);
 
 			if ( $ARGS{'originalPos'} < $ARGS{'newPos'} ) {
@@ -104,22 +74,22 @@ page_footer => ''
 				$end        = $ARGS{'originalPos'} - 1;
  			}
 
-			$query = "update tusk.competency_hierarchy set sort_order = $update_str where parent_competency_id = ? and sort_order >= ? and sort_order <= ? and school_id = ?";
+			$query = "update tusk.competency_class_meeting set sort_order = $update_str where class_meeting_id = $class_meeting_id and sort_order >= ? and sort_order <= ?";
 			eval {
 				my $handle = $dbh->prepare($query);
-				$handle->execute($np_id, $start, $end, $school_id);
+				$handle->execute($start, $end);
 			};
 			die "$@\t... failed to update competency_relationship!" if $@;
-		}
 
-		$query = "update tusk.competency_hierarchy set sort_order = ?, parent_competency_id = ?, depth = ?, lineage = ? where parent_competency_id = ? and child_competency_id = ?";
-		eval {
-			my $handle = $dbh->prepare($query);
-			$handle->execute($ARGS{'newPos'}, $np_id, $ARGS{'curDepth'}, $ARGS{'lineage'}, $op_id, $id);
-		};
-		die "$@\t... failed to update competency_relationship!" if $@;
+			$query = "update tusk.competency_class_meeting set sort_order = ? where class_meeting_id = $class_meeting_id and competency_id = ?";
+			eval {
+				my $handle = $dbh->prepare($query);
+				$handle->execute($ARGS{'newPos'}, $id);
+			};
+			die "$@\t... failed to update competency_relationship!" if $@;
+	
+			print "\"error\" : \"\"\n";
 
-		print "\"error\" : \"\"\n";
 	} else {
 		if ( $ARGS{'delete'} ) {
 			my ($dbh, $query);
