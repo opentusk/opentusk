@@ -623,6 +623,9 @@ function deleteRow( link, params ) {
 
 function deleteRowConfirm( link, params ) {
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
+	if (liNode.tagName == "OL"){
+		liNode = link.parentNode.parentNode.parentNode.parentNode;
+	}
 	var postData = new Object();
 
 	var actionCol = params.columns.length - 1;
