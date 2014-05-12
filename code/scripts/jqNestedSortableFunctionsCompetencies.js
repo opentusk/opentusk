@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 
+var edit_mode = 0;
+
 function resetDropDown( dropDown ){
 	dropDown.selectedIndex = 0;
 }
@@ -235,10 +237,17 @@ function initTable( params ) {
 	resizeColumns( params );
 }
 
+
 function editRow( link, params ) {
+	if (edit_mode == 1){
+		alert("Please finish editing current Competency/Objective before making a new change");
+		return;
+	}
 	var function_values = [];
 	add = 0;
-	this_row = $(link).closest('.page-list').clone();
+	this_row = $(link).closest('.page-list').clone();	
+	edit_mode = 1;
+
 	$(link).children().each(function() {
 		function_values.push( $(this).attr('value') );
 	});
@@ -347,9 +356,14 @@ function cancelRow( link, params, this_row, add ){
 	} else{
 		$(link).parent().parent().parent().remove();
 	}
+	edit_mode = 0;
 }
 
 function addNewRow( link, params ) {
+	if (edit_mode == 1){
+		alert("Please finish editing current Competency/Objective before making a new change");
+		return;
+	}
 	var parentId = 0;
 	if ( link != 'top' && link != 'bottom' ) {
 		parentId = link.parentNode.parentNode.parentNode.parentNode.parentNode.id;
@@ -408,6 +422,7 @@ function updateNumbering() {
 }
 
 function saveRow( link, params ) {
+	edit_mode = 0;
 	$(link.parentNode.parentNode.getElementsByTagName('LI')[0]).addClass("hand").css('display', 'block');
 	var liArray = link.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode;
