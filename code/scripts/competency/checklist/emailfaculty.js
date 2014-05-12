@@ -13,14 +13,28 @@
 // limitations under the License.
 
 $(function() {
+	$('#to').on('change', function() {
+		if (this.value == 'other') {
+			$('#otherbox').show('slow');
+		} else {
+			$('#otherbox').hide('slow');
+			$('#other_to').val("");
+		}
+	});
+
 	$("#emailfaculty").validate({
 		rules: {
-			cc: {
-				email: true
+			other_to: {
+				email: true,
+				required: {
+					depends: function() {
+						return ($('#to').val() == 'other') ? true : false;
+					}
+				}
 			},
 		},
 		messages: {
-			cc: "Please enter a valid email address",
+			other_to: "Please enter a valid email address",
 		}
 	});
 });

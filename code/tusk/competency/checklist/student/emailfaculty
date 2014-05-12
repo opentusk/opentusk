@@ -49,15 +49,17 @@
 	selected => $selected,
 	options => $options,
 } &>
-<div class="xsm" style="margin-top:5px;">
-<% __('And, you may enter another email address:') %>
-</div>
+
+<div id="otherbox" style="display: none">
+<br/>
+<div class="xsm">Enter an email address: </div>
 <& /tmpl/element:input_textbox, params => { 
-    name 	=> 'cc',
-    value 	=> '',
-    size 	=> 30,
-    length 	=> 30, 
+	name 	=> 'other_to',
+	value 	=> '',
+	size 	=> 30,
+	length 	=> 30, 
 } &>
+</div>
 
 <div style="margin-top:10px"><% __('Comments') . ':'  %></div>
 <& /tmpl/element:input_textarea, params => { 
@@ -78,8 +80,7 @@
 		$entry = TUSK::Competency::Checklist::Entry->new() unless (defined $entry);
 		my $entry = $acc->setAssessorRequest($assignment_id, $checklist_id, $student->primary_key(), $entry);
 		$m->comp('SELF:sendEmail', 
-			to => $ARGS{to},
-			cc => $ARGS{cc},
+			to => ($ARGS{to} eq 'other') ? $ARGS{other_to} . '___' : $ARGS{to},
 			comment => $ARGS{comment}, 
 			entry => $entry);
 
@@ -109,20 +110,18 @@
 <%method sendEmail>
 <%args>
 	$to
-	$cc => undef
 	$comment
 	$entry
 </%args>
 <%perl>
 	my ($to_addr, $assessor_lastname) = split('___', $to);
-	return 0 unless ($to_addr && $assessor_lastname);
+	return 0 unless ($to_addr);
 
 	$comment = ($comment =~ /\w+/) ? "\nAdditional comments from student\:\n$comment" : '';
 
 	my $email = TUSK::Application::Email->new({
 		to_addr => $to_addr,
 		from_addr => $TUSK::Constants::SupportEmail,
-		cc_addr => $cc,
 		subject => $competency->getDescription() . ' ' . __('Checklist') . ' - ' . $course->title(),
 		body	=> __x(
 			"Dr {assessor_lastname},\n\n" .
@@ -130,7 +129,7 @@
 			"\n\n{url}\n\nPlease contact one of the Course directors if you have any questions.\n" .
 			"{course_directors}\n" .
 			"{comment}",
-			assessor_lastname => $assessor_lastname,
+			assessor_lastname => ($assessor_lastname) ? $assessor_lastname : '',
 			student_name => $student->out_full_name(),
 			competency_name => $competency->getDescription(),
 			url => 'https://' . $TUSK::Constants::Domain . 
@@ -167,6 +166,10 @@
 			$selected = $member->primary_key() . '___' . $member->last_name(),
 		}
 	}
+	push @options, {
+		label => 'Other',
+		value => 'other',
+	};
 	return (\@options, $selected);
 </%perl>
 </%method>
