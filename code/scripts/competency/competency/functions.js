@@ -30,6 +30,7 @@ var currentIndex;
 //competency linking global arrays
 to_delete_array = [];
 to_add_array = [];
+to_update_array = [];
 selected_competency_id = 0;
 selected_competency_obj = [];
 
@@ -105,13 +106,19 @@ function initLinkDialog() {
 function closeLinkWindow() {
 	$('#link-dialog').empty();
 	$('.competency_link_table').empty();
-	appendNewLinkedCompetencies('84741_1');
 	$('#link-dialog-wrapper').dialog('close');
 }
 
 function appendNewLinkedCompetencies(competency_id) {
-	$('#competency_container #class_meeting_competencies').find('#' + competency_id + ' .col1').find('.competency_popup_container a').append("<i>New:</I> Test<br>");
-	$('#competency_container #class_meeting_competencies').find('#' + competency_id + ' .col1').find('.competency_popup_content').append("<b><i>New:</i></b> Test<br>");	
+	$.each( to_update_array, function( index, value ) {
+		if (value.length > 40){
+			var competency_desc = value.replace(/&nbsp;/g, '').substring(0,40) + "...";
+		} else {
+			var competency_desc = value.replace(/&nbsp;/g, '');
+		}
+		$('#competency_container #class_meeting_competencies').find('#' + competency_id + ' .col1').find('.competency_popup_container a').append("<i>New " + (index+1) + ": </i>" + competency_desc +  "<br>");
+		$('#competency_container #class_meeting_competencies').find('#' + competency_id + ' .col1').find('.competency_popup_content').append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
+	});
 }
 
 var selComp = {};
@@ -159,6 +166,7 @@ function linkedCellOnClick (linked_cell) {
 	to_delete_array.push($current_id);
 	if ($.inArray($current_id, to_add_array) > -1){
 		to_add_array.splice($.inArray( $current_id, to_add_array), 1);
+		to_update_array.splice($.inArray( $description, to_update_array), 1);
 	}
 }
 
@@ -171,6 +179,7 @@ function notLinkedCellOnClick (not_linked_cell) {
 	$($linked_parent_id).parent().after("<tr><td class=\"linked_cell\" id=\"LS" + $linked_id + "\" onclick=\"linkedCellOnClick( this );\" data-parent=\""+ $parent_id + "\">" + $description + "</td></tr>");
 	$(not_linked_cell).parent().remove();
 	to_add_array.push($current_id);
+	to_update_array.push($description);
 	if ($.inArray($current_id, to_delete_array) > -1){
 		to_delete_array.splice($.inArray( $current_id, to_delete_array), 1);
 	}
@@ -211,6 +220,7 @@ function updateCompetencies(){
 	else {
 		$("#save_notifications").html(total_relations + ' changes updated successfully.');
 	}
+	appendNewLinkedCompetencies('84741_1');
 	total_relations = 0;
 }
 
