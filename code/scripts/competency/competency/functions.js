@@ -111,13 +111,9 @@ function closeLinkWindow() {
 
 function appendNewLinkedCompetencies(competency_id) {
 	$.each( to_update_array, function( index, value ) {
-		if (value.length > 40){
-			var competency_desc = value.replace(/&nbsp;/g, '').substring(0,40) + "...";
-		} else {
-			var competency_desc = value.replace(/&nbsp;/g, '');
-		}
-		$('#competency_container #class_meeting_competencies').find('#' + competency_id + ' .col1').find('.competency_popup_container a').append("<i>New " + (index+1) + ": </i>" + competency_desc +  "<br>");
-		$('#competency_container #class_meeting_competencies').find('#' + competency_id + ' .col1').find('.competency_popup_content').append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
+		var competency_desc = value.replace(/&nbsp;/g, '');	
+		$('#competency_container #class_meeting_competencies').find('li[id^='+ competency_id + '] .col1').find('.competency_popup_container a').append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,40) +  "<br>");
+		$('#competency_container #class_meeting_competencies').find('li[id^=' + competency_id + '] .col1').find('.competency_popup_content').append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
 	});
 }
 
@@ -220,7 +216,7 @@ function updateCompetencies(){
 	else {
 		$("#save_notifications").html(total_relations + ' changes updated successfully.');
 	}
-	appendNewLinkedCompetencies('84741_1');
+	appendNewLinkedCompetencies(competencyId1);
 	total_relations = 0;
 }
 
