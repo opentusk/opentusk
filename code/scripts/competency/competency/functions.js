@@ -105,7 +105,13 @@ function initLinkDialog() {
 function closeLinkWindow() {
 	$('#link-dialog').empty();
 	$('.competency_link_table').empty();
+	appendNewLinkedCompetencies('84741_1');
 	$('#link-dialog-wrapper').dialog('close');
+}
+
+function appendNewLinkedCompetencies(competency_id) {
+	$('#competency_container #class_meeting_competencies').find('#' + competency_id + ' .col1').find('.competency_popup_container a').append("<i>New:</I> Test<br>");
+	$('#competency_container #class_meeting_competencies').find('#' + competency_id + ' .col1').find('.competency_popup_content').append("<b><i>New:</i></b> Test<br>");	
 }
 
 var selComp = {};
