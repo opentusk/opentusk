@@ -126,7 +126,7 @@ function initTable( params ) {
 		{
 			accept: 'sort-row',
 			nestingPxSpace: params.indent,
-			noNestingClass: params.noNesting,
+ 			noNestingClass: params.noNesting,
 			opacity: .8,
 			helperclass: 'helper',
 			onChange: function(serialized) { changed = true; },
@@ -564,6 +564,7 @@ function saveRow( link, params ) {
 
 			$('li[id^=' + compId + '_]').each( function() {
 				var newLiArray = this.getElementsByTagName('DIV')[0].getElementsByTagName('UL')[0].getElementsByTagName('LI');
+				console.log(newLiArray);
 				for( var idx = 0; idx < liArray.length; idx++ ) {
 					newLiArray[idx].innerHTML = liArray[idx].innerHTML;
 				}
