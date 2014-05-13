@@ -218,6 +218,9 @@ function updateCompetencies(){
 	}
 	appendNewLinkedCompetencies(competencyId1);
 	total_relations = 0;
+	to_add_array = [];
+	to_delete_array = [];
+	to_update_array = [];
 }
 
 //End Link Competencies Page table functions
