@@ -38,17 +38,22 @@ use HSDB4::Constants;
 		$cr = TUSK::Competency::Competency->lookup( 'competency_content.content_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
 							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::Content', 
 							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
-	} elsif ($component_type eq 'related_content'){
-		my $sql = qq( SELECT child_content_id FROM hsdb4.link_class_meeting_content WHERE parent_class_meeting_id = $component_id);
+	} elsif ($component_type eq 'related_content'){	
+		## related_content = content linked to a schedule		
+		my $school = TUSK::Core::School->new()->lookupReturnOne("school_id = '" . $school_id . "'");
+		my $school_db = $school->getSchoolDb();
+		my $sql = qq( SELECT child_content_id FROM $school_db.link_class_meeting_content WHERE parent_class_meeting_id = $component_id);
 		my $sth = $dbh->prepare($sql);
 		$sth->execute();
 		my $related_content_ids = $sth->fetchall_arrayref();
-		print Dumper $related_content_ids; 
-		$cr = TUSK::Competency::Competency->lookup( 'competency_class_meeting.class_meeting_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
-							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::ClassMeeting', 
-							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+		my $related_data;
+		foreach my $related_content_id( @{$related_content_ids}){
+			my $related_data_current = $m->comp('SELF:buildCompetencyTree', school_id => $school_id, component_type => 'content', component_id => $related_content_id->[0]);
+			push (@{$related_data}, @{$related_data_current});
+		}
+		return $related_data;
 	} else {
-		return @data;		
+		return \@data;		
 	}
 
 	foreach my $competency (@{$cr}) {
