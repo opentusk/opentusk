@@ -259,7 +259,10 @@ function editRow( link, params ) {
 		if ( (idx==4) && params['listId'] == 'school_competencies' ) {
 			continue;
 		}
-		if ( (idx==2) && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' ) ) {
+		if ( (idx==2) && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies') ) {
+			continue;
+		}
+		if ( idx==3 & params['listId'] == 'course_competencies'){
 			continue;
 		}
 		var value = liArray[idx].innerHTML;
@@ -467,6 +470,9 @@ function saveRow( link, params ) {
 			continue;
 		}
 		if (idx==2 && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' )){
+			continue;
+		}
+		if (idx==3 && params['listId'] == 'course_competencies'){
 			continue;
 		}
 		var editParams = params.columns[idx-1].edit;
