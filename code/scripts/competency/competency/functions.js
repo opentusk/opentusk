@@ -141,33 +141,6 @@ function appendNewLinkedCompetencies(competency_id, type) {
 	});
 }
 
-var selComp = {};
-
-function selectedCompetenciesCourse() {
-	selComp = $("#list_course input:checkbox:checked").map(function(){
-		var thisComp = {};
-		thisComp.id = this.id;
-		thisComp.value = $(this).attr('value');
-		return thisComp;
-	}).get();
-	var competencyId2;
-	jQuery.each(selComp, function(i, val) {
-		competencyId2 = selComp[i].id;
-		$.ajax({
-			type: "POST",
-			url: "/tusk/competency/competency/tmpl/saveLink",
-			data: {id1: competencyId1, id2: competencyId2}
-		}).done(function(){
-			$("#save_notifications").html(selComp.length + ' competency Relationships Saved Successfully');
-		  });
-	});
-}
-
-function viewCategory(current) {
-	$("#list_competencies").html(current.id);
-}
-
-
 function currentCompLabel(current_competency) {
 	$("#currentComp").html(current_competency);
 	$("#link_competency_title").show();
