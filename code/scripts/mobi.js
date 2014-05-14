@@ -46,3 +46,8 @@ function submit_with_action ( newaction )
 	document.forms[0].submit();
 	return false;
 }
+
+function currentYear() {
+        var now = new Date;
+        document.write(now.getFullYear());
+}

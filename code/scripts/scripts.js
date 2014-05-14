@@ -995,3 +995,8 @@ function activateTab(active){
 	var activate_div = document.getElementById(active.parentNode.id + 'Area');
 	activate_div.className += ' activeArea';
 }
+
+function currentYear() {
+        var now = new Date;
+        document.write(now.getFullYear());
+}
