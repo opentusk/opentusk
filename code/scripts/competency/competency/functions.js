@@ -51,13 +51,20 @@ function linkSchoolNational( link, params ) {
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
-function linkCourseSchool(currentTitle, currentIndex, school){
-	$("#link-dialog").empty();
-	$("#link-dialog-wrapper").css("visibility", "visible");
-	$("#link-dialog").data("currentTitle", currentTitle);
-	$("#link-dialog").data("currentIndex", currentIndex);
-	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: currentIndex, root_id: 0, link_type: 'school'}, initLinkDialog());
-	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, minWidth: 850, minHeight: 640});
+function linkCourseSchool( link, params ) {
+	var postURL = params.postTo.split('/');
+	var school = postURL[postURL.length-2];
+	var course = postURL[postURL.length-1];
+	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
+	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
+	var currentTitle = liArray[1].innerHTML;
+	$( "#link-dialog-wrapper" ).css( "visibility", "visible" ); 
+	$( "#link-dialog" ).data("currentTitle", currentTitle);
+ 	currentCompLabel( currentTitle );
+	$( "#link-dialog" ).data("currentIndex", liNode.id);
+	competencyId1 = liNode.id.split('_')[0];
+	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school + '/' + course, {competency_id: competencyId1, root_id: 0, link_type: 'school' }, initLinkDialog());
+	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
 function linkContentToCourse(currentTitle, currentIndex){
@@ -110,15 +117,23 @@ function closeLinkWindow() {
 	$('#link-dialog-wrapper').dialog('close');
 }
 
-function appendNewLinkedCompetencies(competency_id) {
+function appendNewLinkedCompetencies(competency_id, type) {
+	var currentURL = window.location.pathname;
+	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0){
+		//for linking competency_types without supporting information
+		col = 'col1';
+	} else{
+		//for linking competency types with supporting informatoin
+		col = 'col2';
+	}
 	$.each( to_update_array, function( index, value ) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
-		$('#competency_container').find('li[id^='+ competency_id + '] .col1').find('.competency_popup_container a').append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
-		$('#competency_container').find('li[id^=' + competency_id + '] .col1').find('.competency_popup_content').append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
+		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
+		$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
 	});
 	$.each( to_update_array_remove, function( index, value ) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
-		var to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .col1').find('.competency_popup_container a');
+		var to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_container a');
 		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,50), 'g');
 		var temp_html = to_delete.html();
 		temp_html = temp_html.replace(comp_match_pattern, "<i>deleted</i>");
@@ -153,7 +168,7 @@ function viewCategory(current) {
 }
 
 
-function currentCompLabel(current_competency){
+function currentCompLabel(current_competency) {
 	$("#currentComp").html(current_competency);
 	$("#link_competency_title").show();
 }
@@ -186,7 +201,7 @@ function notLinkedCellOnClick (not_linked_cell) {
 	$(not_linked_cell).parent().remove();
 	to_add_array.push($current_id);
 	to_update_array.push($description);
-	if ($.inArray($current_id, to_delete_array) > -1){
+	if ($.inArray($current_id, to_delete_array) > -1) {
 		to_delete_array.splice($.inArray( $current_id, to_delete_array), 1);
 	}
 }
