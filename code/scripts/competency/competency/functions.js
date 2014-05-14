@@ -27,16 +27,19 @@ var currentTitle;
 var currentIndex;
 
 
-//competency linking global arrays
+//competency linking global variables
 to_delete_array = [];
 to_add_array = [];
 to_update_array = [];
 to_update_array_remove =[];
+
+//competency checklist global variables
 selected_competency_id = 0;
 selected_competency_obj = [];
 
-// show dialog box for managing personal links
-function linkSchoolNational( link, params ) {
+//Competency linking display functions
+
+function linkSchoolNational(link, params) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-1];
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
@@ -51,7 +54,7 @@ function linkSchoolNational( link, params ) {
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
-function linkCourseSchool( link, params ) {
+function linkCourseSchool(link, params) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-2];
 	var course = postURL[postURL.length-1];
@@ -327,6 +330,8 @@ function checkboxOnClick() {
 //End functions related to competency checklist division/popup
 
 
+//Functions to be run at pageload, included making divisions dragable and resizable
+
 $(document).ready( function() {
 	$('.competency_popup_content').draggable();
 	$('.competency_popup_container').click( function() {
@@ -340,3 +345,5 @@ $(document).ready( function() {
 		$(this).parent().hide(50);
 	});
 });
+
+//End functions to be run at pageload.
