@@ -26,7 +26,7 @@
 
 <%perl>
 	my $checklist_url = "/competency/checklist/author/addeditchecklist/";
-	if ($ARGS{url} =~ /$checklist_url/){
+	if ($ARGS{url} =~ /$checklist_url/) {
 		print "<div id=\"back_to_checklist\" class=\"gCMSButtonRow clearfix\"><a href= \"/tusk". $checklist_url . $m->comp("/tmpl/url:get_full_path")."\">Back to Checklist</a></div>";
 	}
 	
@@ -36,16 +36,16 @@
 	
 	my $dbh = HSDB4::Constants::def_db_handle();
 	
-	$school    = $m->comp("/tmpl/url:get_school");
+	$school = $m->comp("/tmpl/url:get_school");
 	$school_id = TUSK::Core::School->new->getSchoolID($school);
 
 	$tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $hsdb45_course_id);
 	$current_course = HSDB45::Course->new(_school => $school)->lookup_key($hsdb45_course_id)->{'title'};
 	
-	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
+	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id);
 
 	my $competency_types = TUSK::Competency::UserType->lookup('school_id=' . $school_id);
-	my $types = [map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types}];
+	my $types = [map {label => $_->getName, value=> $_->getPrimaryKeyID}, @{$competency_types}];
 </%perl>
 
 <& /competency/competency/tmpl/element:jquery_sort_list, params =>{
@@ -112,11 +112,11 @@
 <%perl>
 	my %p_c_pairs;
 	my $cr = TUSK::Competency::Hierarchy->lookup( "competency_hierarchy.school_id = " . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
-		[TUSK::Core::JoinObject->new( "TUSK::Competency::Competency", {origkey =>'child_competency_id', joinkey => 'competency_id', jointype => 'inner'}), 
-		TUSK::Core::JoinObject->new( 'TUSK::Competency::Course', { joinkey => 'competency_id', origkey => 'child_competency_id', jointype => 'inner', joincond => "course_id = $tusk_course_id"}),
-		TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"course\""})]);
+		[TUSK::Core::JoinObject->new("TUSK::Competency::Competency", {origkey =>'child_competency_id', joinkey => 'competency_id', jointype => 'inner'}), 
+		TUSK::Core::JoinObject->new('TUSK::Competency::Course', { joinkey => 'competency_id', origkey => 'child_competency_id', jointype => 'inner', joincond => "course_id = $tusk_course_id"}),
+		TUSK::Core::JoinObject->new('TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"course\""})]);
 
-	foreach my $cr_row ( @{$cr} ) {
+	foreach my $cr_row (@{$cr}) {
 		
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
 
@@ -124,9 +124,9 @@
 		my @competency_relations_list;
 		my @competency_relations_list_short;
 
-		foreach my $linked_row (@{$child_linked_comps}){
+		foreach my $linked_row (@{$child_linked_comps}) {
 			my $linked_name = TUSK::Competency::Competency->lookup( 'competency_id = ' . $linked_row->getCompetencyId2, [ 'uri' ]);			
-				foreach my $name ( @{$linked_name}){
+				foreach my $name (@{$linked_name}) {
 						push @competency_relations_list, $name->getTitle;
 						push @competency_relations_list_short,  (substr $name->getTitle, 0, 50) . '...';
 				}
@@ -134,13 +134,13 @@
 		my $link_counter = 1;
 		my $competency_relations_string;
 		my $competency_relations_string_short;
-		foreach ( @competency_relations_list_short ){
-			if ( $link_counter < 5 ){ $competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
+		foreach ( @competency_relations_list_short ) {
+			if ( $link_counter < 5 ){$competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
 			$link_counter++;
 		};
-		if ( $link_counter >5 ){ $competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
+		if ($link_counter >5) {$competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
 		$link_counter = 1;
-		foreach ( @competency_relations_list ){
+		foreach (@competency_relations_list) {
 			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
 			$link_counter++;
 		};
@@ -151,12 +151,12 @@
 
 		my $user_type;
 		my $user_type_id = $child_comp->getCompetencyUserTypeID;
-		if (defined($user_type_id)){
-			my $user_type_temp = TUSK::Competency::UserType->lookup( 'competency_user_type_id='.$user_type_id);
+		if (defined($user_type_id)) {
+			my $user_type_temp = TUSK::Competency::UserType->lookup('competency_user_type_id='.$user_type_id);
 			$user_type = $user_type_temp->[0]->getName;
 		}
 
-		if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
+		if (!defined($c_href->{$child_comp->getCompetencyID})) {
 			$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID,
 														course	    => $tusk_course_id,
@@ -167,7 +167,7 @@
 													  };
 		}
 
-		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+		if (!$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
 			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
 			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
 		}
@@ -181,7 +181,7 @@
 </%method>
 
 <%method red_header_text>
-% return $m->comp( "SELF:title" );
+% return $m->comp("SELF:title");
 </%method>
 
 <%method title>
