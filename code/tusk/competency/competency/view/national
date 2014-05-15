@@ -17,7 +17,7 @@
 	no_check_path           => 1
 	top_tab_type            => 'none'
 	allow_guests            => '1'
-	page_footer	            => '/tmpl/footer:footer_with_school_links'
+	page_footer	        => '/tmpl/footer:footer_with_school_links'
 </%attr>
 
 <%once>
@@ -43,15 +43,12 @@
 </%perl>
 
 <%perl>
-	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
-#	types are supressed for now. Can put them up according to user requirements.
-#	my $competency_types = TUSK::Core::CompetencyType->new()->lookup( 'school_id = ' . $school_id );
-#	my $types = [ map { label => $_->getDescription, value => $_->getCompetencyTypeID }, @{$competency_types} ];
+	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id);
 </%perl>
 
 <br />
 
-<& /tmpl/element:jquery_sort_list, params =>{
+<& /tmpl/element:jquery_sort_list, params => {
 				width => "100%",
 				label => __('Competencies'),
 				no_table => 1,
@@ -95,12 +92,12 @@
 	my $competency_level_id = $competency_level->getPrimaryKeyID;
 
 	my $cr = TUSK::Competency::Hierarchy->new()->lookup('competency.school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef,
-	[TUSK::Core::JoinObject->new( "TUSK::Competency::Competency", {origkey => 'child_competency_id', joinkey => 'competency_id', jointype => 'inner', joincond => "competency_level_enum_id = $competency_level_id"})] );
+							[TUSK::Core::JoinObject->new( "TUSK::Competency::Competency", {origkey => 'child_competency_id', joinkey => 'competency_id', jointype => 'inner', joincond => "competency_level_enum_id = $competency_level_id"})] );
 
-	foreach my $cr_row ( @{$cr} ) {
-		if (defined( $competencies->{$cr_row->getChildCompetencyID()} )){
+	foreach my $cr_row (@{$cr}) {
+		if (defined($competencies->{$cr_row->getChildCompetencyID()})) {
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
-		if ( !defined( $c_href->{$child_comp} ) ) {
+		if (!defined( $c_href->{$child_comp})) {
 			$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
@@ -108,7 +105,7 @@
 													  };
 
 		}
-		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+		if (!$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
 			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
 			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
 		}
