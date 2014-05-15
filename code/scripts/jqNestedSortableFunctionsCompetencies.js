@@ -262,7 +262,7 @@ function editRow( link, params ) {
 		if ( (idx==2) && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies') ) {
 			continue;
 		}
-		if ( idx==3 & params['listId'] == 'course_competencies'){
+		if ( idx==3 & params['listId'] == 'course_competencies') {
 			continue;
 		}
 		var value = liArray[idx].innerHTML;

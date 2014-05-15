@@ -39,7 +39,7 @@ selected_competency_obj = [];
 
 //Competency linking display functions
 
-function linkSchoolNational(link, params) {
+function linkSchoolNational (link, params) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-1];
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
@@ -70,7 +70,7 @@ function linkCourseSchool(link, params) {
 	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, minWidth: 850, minHeight: 640});
 }
 
-function linkContentToCourse(currentTitle, currentIndex){
+function linkContentToCourse (currentTitle, currentIndex) {
 	var postTo = window.location.pathname;
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-3];
