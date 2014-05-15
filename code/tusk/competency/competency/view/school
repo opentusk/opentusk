@@ -17,7 +17,7 @@
 	no_check_path           => 1
 	top_tab_type            => 'none'
 	allow_guests            => '1'
-	page_footer	            => '/tmpl/footer:footer_with_school_links'
+	page_footer	        => '/tmpl/footer:footer_with_school_links'
 </%attr>
 
 <%once>
@@ -32,7 +32,7 @@
 </%shared>
 
 <%perl>
-	foreach( @{TUSK::Competency::Competency->new()->lookup()} ) {
+	foreach(@{TUSK::Competency::Competency->new()->lookup()}) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 
@@ -41,12 +41,12 @@
 </%perl>
 
 <%perl>
-	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
+	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id);
 </%perl>
 
 <br />
 
-<& /tmpl/element:jquery_sort_list, params =>{
+<& /tmpl/element:jquery_sort_list, params => {
 				width => "100%",
 				label => __('Competencies'),
 				no_table => 1,
@@ -101,15 +101,15 @@
 	my $cr = TUSK::Competency::Hierarchy->lookup( 'competency.school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
 		[TUSK::Core::JoinObject->new('TUSK::Competency::Competency', { origkey=> 'child_competency_id', joinkey => 'competency_id', jointype=> 'inner'}), 
 		TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"school\""})]);
-	foreach my $cr_row ( @{$cr} ) {
+	foreach my $cr_row (@{$cr}) {
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
 
-	my $child_linked_comps = TUSK::Competency::Relation->new()->lookup( 'competency_id_1 = ' . $child_comp->getCompetencyID);
+	my $child_linked_comps = TUSK::Competency::Relation->new()->lookup('competency_id_1 = ' . $child_comp->getCompetencyID);
 		my @competency_relations_list;
 		my @competency_relations_list_short;
-		foreach my $linked_row (@{$child_linked_comps}){
-			my $linked_name = TUSK::Competency::Competency->new()->lookup( 'competency_id = ' . $linked_row->getCompetencyId2);
-			foreach my $name ( @{$linked_name}){
+		foreach my $linked_row (@{$child_linked_comps}) {
+			my $linked_name = TUSK::Competency::Competency->new()->lookup('competency_id = ' . $linked_row->getCompetencyId2);
+			foreach my $name (@{$linked_name}) {
 					push @competency_relations_list, $name->getTitle;
 					push @competency_relations_list_short,  (substr $name->getTitle, 0, 50) . '...';
 				}
@@ -117,7 +117,7 @@
 		my $link_counter = 1;
 		my $competency_relations_string;
 		$link_counter = 1;
-		foreach ( @competency_relations_list ){
+		foreach (@competency_relations_list) {
 			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
 			$link_counter++;
 		};
@@ -125,17 +125,17 @@
 		my $competency_relations_html;
 		$competency_relations_html = $competency_relations_string;
 	
-		if ( !defined( $c_href->{$child_comp} ) ) {
+		if (!defined( $c_href->{$child_comp})) {
 			$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
 														description => $child_comp->getDescription,
-														links => $competency_relations_html,
+														links       => $competency_relations_html,
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
 
 		}
-		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+		if (!$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
 			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
 			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
 		}
@@ -149,11 +149,11 @@
 </%method>
 
 <%method red_header_text>
-% return $m->comp( "SELF:title" );
+% return $m->comp("SELF:title");
 </%method>
 
 <%method title>
-% return __("Competencies");
+% return __("School Competencies");
 </%method>
 
 
