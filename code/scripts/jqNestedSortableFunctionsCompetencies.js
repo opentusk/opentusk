@@ -465,13 +465,13 @@ function saveRow( link, params ) {
 	for( var idx = 1; idx < liArray.length; idx++ ) {
 		var value;
 		var display;
-		if (idx==4 && params['listId'] == 'school_competencies' ){
+		if (idx==4 && params['listId'] == 'school_competencies' ) {
 			continue;
 		}
-		if (idx==2 && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' )){
+		if (idx==2 && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' )) {
 			continue;
 		}
-		if (idx==3 && params['listId'] == 'course_competencies'){
+		if (idx==3 && params['listId'] == 'course_competencies') {
 			continue;
 		}
 		var editParams = params.columns[idx-1].edit;
