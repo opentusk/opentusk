@@ -316,7 +316,6 @@ function editRow( link, params ) {
 			case 'action':
 				params["actionDropdown"]=1;
 				params["function_values"]=function_values;
-				console.log(params["listId"]);
 				if (function_values.length == 0){
 					if (params["listId"] == "school_competencies"){
 						function_values.push( '' );
@@ -556,11 +555,6 @@ function saveRow( link, params ) {
 	$.post(params.postTo, postData, function(data){
 		error = data['error'];	
 		newId = data['id'];
-		/*
-		if (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' ){
-			newId = postData['id'];	
-		}*/
-		console.log(newId);
 
 		if ( error ) {
 			// TODO:  Error handling
@@ -570,7 +564,7 @@ function saveRow( link, params ) {
 
 			$('li[id^=' + compId + '_]').each( function() {
 				var newLiArray = this.getElementsByTagName('DIV')[0].getElementsByTagName('UL')[0].getElementsByTagName('LI');
-				console.log(newLiArray);
+
 				for( var idx = 0; idx < liArray.length; idx++ ) {
 					newLiArray[idx].innerHTML = liArray[idx].innerHTML;
 				}
