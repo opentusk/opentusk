@@ -141,6 +141,11 @@ function appendNewLinkedCompetencies(competency_id, type) {
 		var temp_html = to_delete.html();
 		temp_html = temp_html.replace(comp_match_pattern, "<i>deleted</i>");
 		to_delete.html(temp_html);
+		to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_content');
+		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, ''), 'g');
+		temp_html = to_delete.html();
+		temp_html = temp_html.replace(comp_match_pattern, "<i>deleted</i>");
+		to_delete.html(temp_html);
 	});
 }
 
