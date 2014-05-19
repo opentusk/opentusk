@@ -31,6 +31,7 @@
 	my $school = $school_object->getSchoolName();
 	my $time_period = $course->get_current_timeperiod();
 	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period->primary_key());
+	my $counter = 0;
 </%shared>
 
 <div class="subhead"><% __('Current Course Evaluations') %></div>
@@ -165,20 +166,21 @@
 		my $sth = $course_user->databaseSelect($sql);
 
 		while (my ($firstname, $lastname, $role_id,  $role, $evaluatee_id, $evaluatee_uid, $status, $status_date, $eval_association_id) = $sth->fetchrow_array()) {
+			my $action_id = 'action' . $counter++;;
 			my $action_style = 'display:none;'; ### by default, not showing 'evaluate' link
-			my $disabled = ($status_date && $status || $past_due) ? 'disabled="disabled"' : '';
-			my $checked = (defined $eval_association_id) ? 'CHECKED' : '' ;
-
+			my $checked = (defined $eval_association_id) ? 'checked' : '' ;
+			my $disabled = ($status_date && $status || $past_due) ? 'disabled' : '';
+			my $selection_id = $course->school_id() . '__' . $teaching_eval_id . '__' .  $evaluator->primary_key() . '__' .  $evaluatee_id . '__' . $evaluatee_uid . '__' . $role_id . '__' . $url .'__' . $action_id;
 
 			if (defined $eval_association_id && $status ne 'Completed' && !$past_due) {
-				$action_style = '';
+				$action_style = 'display:inline;';
 			}
 
 			push @{$evaluatees{$role}}, { 
 				name => $lastname . ', ' . $firstname,
-				selection => "<input type=\"checkbox\" name=\"selection\" value=\"" . $course->school_id() . '__' . $teaching_eval_id . '__' .  $evaluator->primary_key() . '__' .  $evaluatee_id . '__' . $evaluatee_uid . '__' . $role_id . "__$url\" $disabled $checked />",
+				selection => "<input type=\"checkbox\" name=\"selection\" value=\"$selection_id\" $disabled $checked />",
 				status => ($status) ? "$status on $status_date" : (($past_due && defined $eval_association_id) ? __('Past Due') : ''),
-				action => "<span id=\"action__" . $role_id . '__' . $evaluatee_uid  . "\" style=\"$action_style\"><a href=\"/eval/student/complete/$school/$teaching_eval_id/$evaluatee_uid/$student_site_id\">" . __('Evaluate') . "</a></span>",
+				action => "<a id=\"$action_id\" style=\"$action_style\" href=\"/eval/student/complete/$school/$teaching_eval_id/$evaluatee_uid/$student_site_id\">" . __('Evaluate') . "</a>",
 			};
 		}
 	}

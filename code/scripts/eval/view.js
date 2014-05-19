@@ -21,7 +21,7 @@ $(function() {
 function changeSelection() {
 	var cbox = $(this);
 	var tokens = cbox.val().split('__');
-	var target_id = 'action__' + tokens[5] + '__' + tokens[4];  /* action__role_id__evaluatee_uid */
+	var target_id = tokens[7];  /* action_id */
 
 	$.ajax({
 		type		: 'POST',
@@ -32,17 +32,17 @@ function changeSelection() {
 					'eval_id'	: tokens[1],
 					'evaluator_id'	: tokens[2],
 					'evaluatee_id' 	: tokens[3],
-					'action'	: (cbox.is(':checked') == true) ? 'insert' : 'delete'
+					'action'	: (cbox.is(':checked')) ? 'insert' : 'delete'
 				},
         	success		: function(response) {
 					if (response.status == 1) {
-						if (cbox.is(':checked') == true) {
-							$('#' + target_id).show();
+						if (cbox.is(':checked')) {
+							document.getElementById(target_id).style.display='inline'; 
 						} else {
-							$('#' + target_id).hide();
+							document.getElementById(target_id).style.display='none'; 
 						}
 					} else if (response.status == 2) {
-						if (cbox.isr(':checked') == true) {
+						if (cbox.isr(':checked')) {
 							cbox.removeAttr('checked');
 						}
 						alert("You have already picked " + response.evaluatee);
