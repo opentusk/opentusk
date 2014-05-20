@@ -61,7 +61,7 @@
 				no_table => 1,
 				no_striping => 1,
 				container => 'competency_container',
-				name => 'school_competencies',
+				name => 'course_competencies',
 				sort => 1,
 				button_label => __('Add Competency'),
 				action_width => 170,
@@ -71,14 +71,15 @@
 							{ 'label' => __('Modify'),    'onclick' => 'editRow(this, params); resetDropDown(this);' },
 							{ 'label' => __('Add Child'), 'onclick' => 'addNewRow(this, params ); resetDropDown(this);' },
 							{ 'label' => __('Delete'),    'onclick' => 'deleteRow(this, params ); resetDropDown(this);' },
+							{ 'label' => __('Link/Unlink'), 'onclick' => 'linkCourseSchool(this, params); resetDropDown(this);'},
 			  			], 
 				fields => [
 					{ hide  => 1, field => 'id', },
-					{ label => __('Course Competency'), field => 'title', head_align => 'left', width => 500, align => 'left', edit =>
+					{ label => __('Course Competency'), field => 'title', head_align => 'left', width => 300, align => 'left', edit =>
 						{ type      => 'textarea',
 						  classname => 'textareawhite',
-						  rows => 3,
-						  cols      => 60,
+						  rows => 5,
+						  cols      => 30,
 						  maxlength => 300 }
 					},
 					{ label => __('Type'), field => 'types', head_align => 'left', align => 'left', width => 200, edit =>
@@ -86,28 +87,15 @@
 						  options   => $types,
 						  delimiter => ', ' }
 					},
+					{ label => __('Linked:'), field => 'links', head_align => 'left', align => 'left', width => 180},
 				],
 				data => $data, 
-				post_to => '/tusk/competency/competency/author/course/update/' . $school .'/?course='.$hsdb45_course_id,
+				post_to => '/tusk/competency/competency/admin/course/update/' . $school .'/'.$hsdb45_course_id,
 				empty_message => __("No course competencies exist.")
 } &>
 
 <%method startup>
 %	$m->comp("SELF:set_no_cache");
-</%method>
-
-<%method jsarray>
-<%perl>
-	return [ 
-			"jquery/jquery.min.js",
-			"jquery/jquery-ui.min.js",
-			"jquery/plugin/interface/interface.js",
-			"jquery/plugin/json.js",
-			"jquery/plugin/inestedsortable-1.0.1.pack.js",
-			"competency/competency/functions.js",
-			"jqNestedSortableFunctionsCompetencies.js",
-			];
-</%perl>
 </%method>
 
 <%method buildCompetencyTree>
@@ -125,6 +113,37 @@
 		
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
 
+		my $child_linked_comps = TUSK::Competency::Relation->lookup( 'competency_id_1 = ' . $child_comp->getCompetencyID);
+
+		my @competency_relations_list;
+		my @competency_relations_list_short;
+
+		foreach my $linked_row (@{$child_linked_comps}) {
+			my $linked_name = TUSK::Competency::Competency->lookup( 'competency_id = ' . $linked_row->getCompetencyId2, [ 'uri' ]);			
+				foreach my $name (@{$linked_name}) {
+						push @competency_relations_list, $name->getTitle;
+						push @competency_relations_list_short,  (substr $name->getTitle, 0, 50) . '...';
+				}
+		}
+		my $link_counter = 1;
+		my $competency_relations_string;
+		my $competency_relations_string_short;
+		foreach ( @competency_relations_list_short ) {
+			if ( $link_counter < 5 ){$competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
+			$link_counter++;
+		};
+		if ($link_counter >5) {$competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
+		$link_counter = 1;
+		foreach (@competency_relations_list) {
+			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
+			$link_counter++;
+		};
+
+		my $competency_relations_html;
+		$competency_relations_html = "<span class=\"tusk-competency-popup\"><span class=\"competency_popup_container\"><a>" . $competency_relations_string_short . "</a><span class=\"competency_popup_content\">
+		<span class=\"linked_competency_close_button\">[Close Dialog]</span> <h3>School Competencies linked to</h3><i>\"" . $child_comp->getDescription ."\"</i>:<br><br>". $competency_relations_string . "</span></span></span>";
+
+
 		my $user_type;
 		my $user_type_id = $child_comp->getCompetencyUserTypeID;
 		if (defined($user_type_id)){
@@ -138,6 +157,7 @@
 														course	    => $tusk_course_id,
 														title       => $child_comp->getDescription,
 														types	    => $user_type,
+														links	    => $competency_relations_html,
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
 		}
@@ -151,6 +171,24 @@
 </%perl>
 </%method>
 
+<%method stylearray>
+% return ['/style/style.css','/style/home.css', '/style/competency.css']
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"competency/competency/functions.js",
+			"jqNestedSortableFunctionsCompetencies.js",
+			];
+</%perl>
+</%method>
+
 <%method red_header_text>
 % return $m->comp( "SELF:title" );
 </%method>
@@ -159,4 +197,10 @@
 % return __("Manage Course Competencies");
 </%method>
 
+<div id="link-dialog-wrapper">
+<div id="link_competency_title">
+Link School Competency '<span id="currentComp"></span>' to:
+</div>
+<div id="link-dialog" title="Link Competencies"></div>
+</div>
 
