@@ -316,8 +316,8 @@ function editRow( link, params ) {
 			case 'action':
 				params["actionDropdown"]=1;
 				params["function_values"]=function_values;
-				if (function_values.length == 0){
-					if (params["listId"] == "school_competencies"){
+				if (function_values.length == 0) {
+					if (params["listId"] == "school_competencies") {
 						function_values.push( '' );
 						function_values.push( 'editRow(this, params); resetDropDown(this);' );
 						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
@@ -329,6 +329,13 @@ function editRow( link, params ) {
 						function_values.push( 'editRow(this, params); resetDropDown(this);' );
 						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
 						function_values.push( 'linkObjectiveToCourse(this, params);  resetDropDown(this);' );
+						add  = 1;
+					}  else if (params["listId"] == "course_competencies") {
+						function_values.push( '' );
+						function_values.push( 'editRow(this, params); resetDropDown(this);' );
+						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
+						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
+						function_values.push( 'linkCourseSchool(this, params); resetDropDown(this);' );
 						add  = 1;
 					} else {
 						function_values.push( '' );
