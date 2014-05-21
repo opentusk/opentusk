@@ -18,6 +18,9 @@
 	use HSDB45::TimePeriod;
 	use TUSK::Application::CurriculumReport::CourseSummary;
 	use TUSK::Application::CurriculumReport::UsergroupSummary;
+	use TUSK::Course;
+	use TUSK::Competency::Competency;
+	use TUSK::Core::School;
 	use List::Util qw(sum);
 	use POSIX qw(floor);
 </%once>
@@ -163,10 +166,11 @@
 		$m->comp("SELF:class_types_row", 'label' => __('Objective'), 'types' => \@types );
 		$cur = 0;
 		if (scalar(keys %{$objectives})) {
-			foreach my $objective_id ( keys %{$objectives} ) {
-				my $objective = $objectives->{$objective_id};
-				$m->comp("SELF:line_item_row", 'class' => $tr_classes[$cur], 'item' => $objective, 'item_type' => 'body', 'types' => \@types );
-				$cur = !$cur;
+			foreach my $objective (@{$objectives}) {
+				my %temp_hash = {};
+				$temp_hash{body} = $objective->getDescription;
+				$temp_hash{content} = $1;
+				$m->comp("SELF:line_item_row", 'class' => $tr_classes[$cur], 'item' => \%temp_hash, 'item_type' => 'body', 'types' => \@types );
 			}
 		} else {
 </%perl> <tr class="even"><td class="layers-left"><i><%__x("No objectives assigned for {course} in {label} ({year})", course => $course->out_title, label => $tp->out_label, year => $tp->field_value('academic_year'))%></i></td>
@@ -316,6 +320,9 @@
 	} elsif ( $report_type eq 'usergroup' ) {
 		$usergroup_id = $object_id;
 	}
+	my $school_id = TUSK::Core::School->new->getSchoolID($school);
+	
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $course_id);
 
 	my ($excluded_courses, $course_timeperiods, $course_titles, $class_meetings, $objectives, $keywords, $course, $usergroup);
 	my ($course_tab, $course_area, $usergroup_tab, $usergroup_area);
@@ -328,7 +335,8 @@
 
 		$class_meetings = $report->classMeetingsReport();
 		$objectives     = $report->objectivesReport();
-		print Dumper $objectives;
+		$objectives = TUSK::Course->getCompetenciesByCourse($tusk_course_id);
+
 		$keywords       = $report->keywordsReport();
 
 		@types = sort keys %{$class_meetings};
