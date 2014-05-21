@@ -52,7 +52,7 @@ function linkSchoolNational (link, params) {
 	$( "#link-dialog" ).data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
 	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'national' }, initLinkDialog());
-	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 640});
+	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 450, minHeight: 450});
 }
 
 function linkCourseSchool(link, params) {
@@ -68,7 +68,7 @@ function linkCourseSchool(link, params) {
 	$( "#link-dialog" ).data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
 	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school + '/' + course, {competency_id: competencyId1, root_id: 0, link_type: 'school' }, initLinkDialog());
-	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 640});
+	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 450, minHeight: 450});
 }
 
 function linkContentToCourse (currentTitle, currentIndex) {
@@ -83,7 +83,7 @@ function linkContentToCourse (currentTitle, currentIndex) {
 	$("#link-dialog").data("currentTitle", currentTitle);
 	$("#link-dialog").data("currentIndex", currentIndex);
 	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: currentIndex, root_id: 0, link_type: 'class_meet', course_id: course_id}, initLinkDialog());
-	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 640});
+	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 450, minHeight: 450});
 }
 
 function linkObjectiveToCourse (link, params) {
@@ -105,7 +105,7 @@ function linkObjectiveToCourse (link, params) {
 	$("#link-dialog").data("currentTitle", currentTitle);
 	$("#link-dialog").data("currentIndex", currentIndex);
 	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'class_meet', course_id: course_id}, initLinkDialog());
-	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 640});
+	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 450, minHeight: 450});
 }
 
 function initLinkDialog() {
