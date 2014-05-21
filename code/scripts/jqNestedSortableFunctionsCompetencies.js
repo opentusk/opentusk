@@ -314,8 +314,8 @@ function editRow( link, params ) {
 				break;
 
 			case 'action':
-				params["actionDropdown"]=1;
-				params["function_values"]=function_values;
+				params["actionDropdown"] = 1;
+				params["function_values"] = function_values;
 				if (function_values.length == 0) {
 					if (params["listId"] == "school_competencies") {
 						function_values.push( '' );
@@ -559,7 +559,7 @@ function saveRow( link, params ) {
 
 	var newId;
 	var error;
-	$.post(params.postTo, postData, function(data){
+	$.post(params.postTo, postData, function(data) {
 		error = data['error'];	
 		newId = data['id'];
 
@@ -730,7 +730,7 @@ function deleteRowCancel( link, params ) {
 			}
 		} );
 
-		$("div.striping").each( function() { $(this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0]).addClass("hand"); } );
+		$("div.striping").each( function() {$(this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0]).addClass("hand"); });
 	}
 
 	$("#deleteMsg").remove();
