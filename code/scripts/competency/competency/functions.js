@@ -16,9 +16,9 @@
 var competencyRoot = "/tusk/competency/competency/";
 
 
-$( "#link_competency_popup" ).draggable();
-$( "#link_competency_popup" ).resizable({
-	stop: function(event, ui){
+$("#link_competency_popup").draggable();
+$("#link_competency_popup").resizable( {
+	stop: function(event, ui) {
 		$(this).css("width", '');
 	}
 });
@@ -46,13 +46,13 @@ function linkSchoolNational (link, params) {
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	var currentTitle = liArray[1].innerHTML;
-	$( "#link-dialog-wrapper" ).css( "visibility", "visible" ); 
-	$( "#link-dialog" ).data("currentTitle", currentTitle);
- 	currentCompLabel( currentTitle );
-	$( "#link-dialog" ).data("currentIndex", liNode.id);
+	$("#link-dialog-wrapper").css("visibility", "visible"); 
+	$("#link-dialog").data("currentTitle", currentTitle);
+ 	currentCompLabel(currentTitle);
+	$("#link-dialog").data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
-	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'national' }, initLinkDialog());
-	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 600, minHeight: 450});
+	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'national'}, initLinkDialog());
+	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, width: 850, height: 600, minHeight: 450});
 }
 
 function linkCourseSchool(link, params) {
@@ -62,13 +62,13 @@ function linkCourseSchool(link, params) {
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	var currentTitle = liArray[1].innerHTML;
-	$( "#link-dialog-wrapper" ).css( "visibility", "visible" ); 
-	$( "#link-dialog" ).data("currentTitle", currentTitle);
- 	currentCompLabel( currentTitle );
-	$( "#link-dialog" ).data("currentIndex", liNode.id);
+	$("#link-dialog-wrapper").css("visibility", "visible"); 
+	$("#link-dialog").data("currentTitle", currentTitle);
+ 	currentCompLabel(currentTitle);
+	$("#link-dialog").data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
-	$( "#link-dialog" ).load( competencyRoot + "admin/link/school/" + school + '/' + course, {competency_id: competencyId1, root_id: 0, link_type: 'school' }, initLinkDialog());
-	$( "#link-dialog-wrapper" ).dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 600, minHeight: 450});
+	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school + '/' + course, {competency_id: competencyId1, root_id: 0, link_type: 'school' }, initLinkDialog());
+	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top"}, width: 850, height: 600, minHeight: 450});
 }
 
 function linkContentToCourse (currentTitle, currentIndex) {
@@ -92,7 +92,7 @@ function linkObjectiveToCourse (link, params) {
 	var course_id = postURL[postURL.length-2];
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
 	var liNode = link.parentNode.parentNode.parentNode.parentNode;
-	if (!liNode.id){
+	if (!liNode.id) {
 		liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	}	
 	var currentTitle = liArray[1].innerHTML;
@@ -123,19 +123,19 @@ function closeLinkWindow() {
 
 function appendNewLinkedCompetencies(competency_id, type) {
 	var currentURL = window.location.pathname;
-	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0){
+	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0) {
 		//for linking competency_types without supporting information
 		col = 'col1';
 	} else{
 		//for linking competency types with supporting informatoin
 		col = 'col2';
 	}
-	$.each( to_update_array, function( index, value ) {
+	$.each( to_update_array, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
 		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
 		$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
 	});
-	$.each( to_update_array_remove, function( index, value ) {
+	$.each(to_update_array_remove, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
 		var to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_container a').first();
 		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,50), 'g');
@@ -191,7 +191,7 @@ function notLinkedCellOnClick (not_linked_cell) {
 //Function to go through competency linking window tables and create new competency links or 
 //delete existing competency links as necessary. 
 
-function updateCompetencies(){
+function updateCompetencies() {
 	var competencyId2;
 	var total_relations = to_add_array.length + to_delete_array.length;
 	//add first
