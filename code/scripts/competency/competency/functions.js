@@ -350,6 +350,12 @@ $(document).ready( function() {
 	$('.linked_competency_close_button').click(function() {
 		$(this).parent().hide(50);
 	});
+	var select_buttons = $(document).find("#competency_container select");
+	$(select_buttons).each( function( index, this_button) {
+		resetDropDown(this_button);
+	});
+	
+	
 });
 
 //End functions to be run at pageload.

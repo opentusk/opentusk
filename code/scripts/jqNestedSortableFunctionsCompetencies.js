@@ -45,7 +45,7 @@ function filter (this_dd,prefix) {
 		
 		}
 		
-		sort_els = document.getElementsByClassName("hand");
+		sort_els = document.getElementsByClassName("hand");		
 		for (i=0; i< sort_els.length; i++) {
 			sort_els[i].style.display='none';
 		}
@@ -319,7 +319,7 @@ function editRow( link, params ) {
 				if (function_values.length == 0) {
 					if (params["listId"] == "school_competencies") {
 						function_values.push( '' );
-						function_values.push( 'editRow(this, params); resetDropDown(this);' );
+						function_values.push( 'editRow(this, params); resetDropDown(this); ' );
 						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
 						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
 						function_values.push( 'linkSchoolNational(this, params); resetDropDown(this);' );
@@ -358,30 +358,31 @@ function editRow( link, params ) {
 	}
 }
 
-function cancelRow( link, params, this_row, add ){
-	if (add == 0){
-		$(this_row).insertAfter($(link).closest('.page-list'));
+function cancelRow(link, params, this_row, add) {
+	if (add == 0) {
+		$(this_row).insertAfter($(link).closest('.page-list'));		
 		$(link).closest('.page-list').remove();
 	} else{
 		$(link).parent().parent().parent().remove();
-	}
+	}	
+
 	edit_mode = 0;
 }
 
-function addNewRow( link, params ) {
-	if (edit_mode == 1){
+function addNewRow(link, params) {
+	if (edit_mode == 1) {
 		alert("Please finish editing current Competency/Objective before making a new change");
 		return;
 	}
 	var parentId = 0;
-	if ( link != 'top' && link != 'bottom' ) {
+	if (link != 'top' && link != 'bottom') {
 		parentId = link.parentNode.parentNode.parentNode.parentNode.parentNode.id;
 	}
 	else {		
 			parentId = 0; //base_level_school_competency
 	}
 	var time = new Date().getTime();
-	if (String(parentId).match("^new_child_of_")){
+	if (String(parentId).match("^new_child_of_")) {
 		alert("Notice: Your last competency was still being saved to the database when you tried to make the new change. Please try again.");
 	}
 	var rowText  = '<li class="clr sort-row" id="new_child_of_' + parentId + '_' + time + '"><div class="clearfix striping"><ul class="row-list"><li style="display:none">&nbsp;</li>';
