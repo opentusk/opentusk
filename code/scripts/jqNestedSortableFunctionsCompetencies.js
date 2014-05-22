@@ -367,6 +367,8 @@ function cancelRow(link, params, this_row, add) {
 	}	
 
 	edit_mode = 0;
+	
+	initTable(params);
 }
 
 function addNewRow(link, params) {
