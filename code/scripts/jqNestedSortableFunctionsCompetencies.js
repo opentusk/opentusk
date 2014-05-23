@@ -238,8 +238,8 @@ function initTable( params ) {
 }
 
 
-function editRow( link, params ) {
-	if (edit_mode == 1){
+function editRow(link, params) {
+	if (edit_mode == 1) {
 		alert("Please finish editing current Competency/Objective before making a new change");
 		return;
 	}
@@ -249,27 +249,27 @@ function editRow( link, params ) {
 	edit_mode = 1;
 
 	$(link).children().each(function() {
-		function_values.push( $(this).attr('value') );
+		function_values.push($(this).attr('value'));
 	});
 	$(link.parentNode.parentNode.parentNode.getElementsByTagName('LI')[0]).removeClass("hand").css('display', 'none');
 	
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
 	
-	for( var idx = 1; idx < liArray.length; idx++ ) {
-		if ( (idx==4) && params['listId'] == 'school_competencies' ) {
+	for (var idx = 1; idx < liArray.length; idx++) {
+		if ((idx==4) && params['listId'] == 'school_competencies') {
 			continue;
 		}
-		if ( (idx==2) && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies') ) {
+		if ((idx==2) && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies')) {
 			continue;
 		}
-		if ( idx==3 & params['listId'] == 'course_competencies') {
+		if (idx==3 & params['listId'] == 'course_competencies') {
 			continue;
 		}
 		var value = liArray[idx].innerHTML;
 		// This next line is for IE7.  It likes to add an extra space at the end.
 		value = value.replace(/^\s+$/g,"");
 		var editParams = params.columns[idx-1].edit;
-		switch ( editParams.type ) {
+		switch (editParams.type) {
 			case 'text':
 				liArray[idx].innerHTML = '<input type="text" value="' + value + '" class="' + editParams.classname + '" size="' + editParams.size + '" maxlength="' + editParams.maxlength + '">';
 				break;
@@ -282,10 +282,10 @@ function editRow( link, params ) {
 				// This guarantees that it's bookended so that, e.g., "Skill" doesn't accidentally match "Skillset"
 				value = editParams.delimiter + value + editParams.delimiter;
 				var newInnerHTML = '';
-				for ( var i in editParams.options ) {
+				for (var i in editParams.options) {
 					var o_value = editParams.options[i].value;
 					var o_label = editParams.options[i].label;
-					if ( o_value !== undefined ) {
+					if (o_value !== undefined) {
 						var o_label_re = new RegExp( editParams.delimiter + o_label + editParams.delimiter );
 						newInnerHTML += '<input type="checkbox" value="' + o_value + '"' + ((o_label_re.test(value)) ? ' checked' : '') + '>' + o_label + '<br />';
 					}
@@ -297,7 +297,7 @@ function editRow( link, params ) {
 				value = editParams.delimiter + value + editParams.delimiter;
 				var newInnerHTML = '';
 				var noTypes = 0;
-				if (editParams.options.length == 0){
+				if (editParams.options.length == 0) {
 					alert("ERROR: No types exist for the current school. Please contact your school administrator to add user types.");
 					noTypes = 1;
 					break;
@@ -318,42 +318,42 @@ function editRow( link, params ) {
 				params["function_values"] = function_values;
 				if (function_values.length == 0) {
 					if (params["listId"] == "school_competencies") {
-						function_values.push( '' );
-						function_values.push( 'editRow(this, params); resetDropDown(this); ' );
-						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
-						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
-						function_values.push( 'linkSchoolNational(this, params); resetDropDown(this);' );
-						add  = 1;
-					} else if (params["listId"] == "class_meeting_competencies" || params["listId"] == "content_competencies" ) {
-						function_values.push( '' );
-						function_values.push( 'editRow(this, params); resetDropDown(this);' );
-						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
-						function_values.push( 'linkObjectiveToCourse(this, params);  resetDropDown(this);' );
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('addNewRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+						function_values.push('linkSchoolNational(this, params); resetDropDown(this);');
+						add = 1;
+					} else if (params["listId"] == "class_meeting_competencies" || params["listId"] == "content_competencies") {
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+						function_values.push('linkObjectiveToCourse(this, params); resetDropDown(this);');
 						add  = 1;
 					}  else if (params["listId"] == "course_competencies") {
-						function_values.push( '' );
-						function_values.push( 'editRow(this, params); resetDropDown(this);' );
-						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
-						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
-						function_values.push( 'linkCourseSchool(this, params); resetDropDown(this);' );
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('addNewRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+						function_values.push('linkCourseSchool(this, params); resetDropDown(this);');
 						add  = 1;
 					} else {
-						function_values.push( '' );
-						function_values.push( 'editRow(this, params); resetDropDown(this);' );
-						function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
-						function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('addNewRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
 					}
 				}			
-				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>&nbsp&nbsp<a onclick="cancelRow( this, params, this_row, add);" class="navsm">Cancel</a>';
+				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>&nbsp&nbsp<a onclick="cancelRow(this, params, this_row, add);" class="navsm">Cancel</a>';
 				break;
 
 			default:
-				alert( 'Unknown edit type!' );
+				alert('Unknown edit type!');
 				break;
 		}
 	}
-	initTable( params );
-	if (noTypes == 1){
+	initTable(params);
+	if (noTypes == 1) {
 		$("[id^='new_child_of']").remove();	
 	}
 }
@@ -390,16 +390,16 @@ function addNewRow(link, params) {
 	var rowText  = '<li class="clr sort-row" id="new_child_of_' + parentId + '_' + time + '"><div class="clearfix striping"><ul class="row-list"><li style="display:none">&nbsp;</li>';
 	for (var i = 0; i < params.columns.length; i++) {
 		rowText += '<li class="col' + i + '">';
-		if ( i == params.columns.length-1 ) rowText += '<a id="new_' + time + '"></a>';  // We need this link so that editRow knows what to grab.
+		if (i == params.columns.length-1) rowText += '<a id="new_' + time + '"></a>';  // We need this link so that editRow knows what to grab.
 		rowText += '</li>';
 	}
 	rowText     += '</ul></div></li>';
 
-	if ( link == 'top' ) {
-		$('#'+params.listId).prepend( rowText );
+	if (link == 'top') {
+		$('#'+params.listId).prepend(rowText);
 		$('#empty_message').remove();
-	} else if ( link == 'bottom' ) {
-		$('#'+params.listId).append( rowText );
+	} else if (link == 'bottom') {
+		$('#'+params.listId).append(rowText);
 		$('#empty_message').remove();
 	} else {
 		// If we have a link, then the containing div is three levels up:  <div><ul><li><a>...
@@ -408,13 +408,13 @@ function addNewRow(link, params) {
 
 		// From that div, we're going to continually check grandparents to see how deeply we're nested:  <ol><li><ol>...
 		var depthCheck = containingDiv.parentNode.parentNode;
-		while ( depthCheck.tagName == 'OL' ) {
+		while (depthCheck.tagName == 'OL') {
 			depthCheck = depthCheck.parentNode.parentNode;
 			thisDepth++;
 		}
 
 		var existingList = containingDiv.parentNode.getElementsByTagName('OL')[0];
-		if ( existingList == undefined || $(existingList).length == 0 ) {
+		if (existingList == undefined || $(existingList).length == 0) {
 			thisDepth++;
 			if (thisDepth > params.maxDepth) { params.maxDepth = thisDepth; }
 			$(containingDiv).after('<ol class="page-list">' + rowText + '</ol>'); 
@@ -423,7 +423,7 @@ function addNewRow(link, params) {
 		}
 	}
 
-	editRow( document.getElementById('new_' + time), params );
+	editRow(document.getElementById('new_' + time), params);
 }
 
 function updateNumbering() {
@@ -433,7 +433,7 @@ function updateNumbering() {
 	} );
 }
 
-function saveRow( link, params ) {
+function saveRow(link, params) {
 	edit_mode = 0;
 	$(link.parentNode.parentNode.getElementsByTagName('LI')[0]).addClass("hand").css('display', 'block');
 	var liArray = link.parentNode.parentNode.getElementsByTagName('LI');
@@ -445,40 +445,40 @@ function saveRow( link, params ) {
 	postData['type'] = params['listId'];
 
 	var currentCompetencyPage = location.pathname.split('/')[4];
-	if ( currentCompetencyPage == 'listNationalCompetencies' ){
+	if (currentCompetencyPage == 'listNationalCompetencies'){
 		currentCompetencyPage = 'national';
 	} else {
 		currentCompetencyPage = 'school'; 
 	};
 	postData['currentCompetencyPage'] = currentCompetencyPage;
 	var nextSibling = liNode.nextSibling;
-	while ( nextSibling && nextSibling.tagName != 'LI' ) {
+	while (nextSibling && nextSibling.tagName != 'LI') {
 		nextSibling = nextSibling.nextSibling;
 	}
-	if ( nextSibling ) postData['position'] = 'first';
+	if (nextSibling) postData['position'] = 'first';
 	else postData['position'] = 'last';
 
 	postData['lineage'] = '/';
 	postData['curDepth'] = 0;
 	var depthCheck = liNode.parentNode.parentNode;
 	var lineage = new Array();
-	while(depthCheck.tagName == 'LI') {
+	while (depthCheck.tagName == 'LI') {
 		var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
 		lineage.push( tmpId );
 		postData['curDepth']++;
 		depthCheck = depthCheck.parentNode.parentNode;
 	}
-	if ( lineage.length > 0 ) {
+	if (lineage.length > 0) {
 		postData['lineage'] += lineage.reverse().join( "/" ) + "/";
 	}
 
-	for( var idx = 1; idx < liArray.length; idx++ ) {
+	for (var idx = 1; idx < liArray.length; idx++) {
 		var value;
 		var display;
-		if (idx==4 && params['listId'] == 'school_competencies' ) {
+		if (idx==4 && params['listId'] == 'school_competencies') {
 			continue;
 		}
-		if (idx==2 && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies' )) {
+		if (idx==2 && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies')) {
 			continue;
 		}
 		if (idx==3 && params['listId'] == 'course_competencies') {
@@ -489,7 +489,7 @@ function saveRow( link, params ) {
 		var postThis = true;
 		var isArray  = false;
 
-		switch ( editParams.type ) {
+		switch (editParams.type) {
 			case 'text':
 				value   = liArray[idx].getElementsByTagName('input')[0].value;
 				display = value;
@@ -505,7 +505,7 @@ function saveRow( link, params ) {
 				var typesArray = [];
 				value = [];
 				for (var i in checkboxes) {
-					if ( checkboxes[i].checked ) { 
+					if (checkboxes[i].checked) { 
 						typesArray.push(editParams.options[i].label); 
 						value.push(editParams.options[i].value); 
 					}
@@ -517,11 +517,11 @@ function saveRow( link, params ) {
 				var radio_buttons = liArray[idx].getElementsByTagName('input');
 				var radio_button_value = 0;
 				for (var i in radio_buttons) {
-					if ( radio_buttons[i].checked == true ) { 
+					if (radio_buttons[i].checked == true) { 
 						radio_button_value = radio_buttons[i].getAttribute("data-name");
 					}	
 				}				
-				if (radio_button_value == 0){
+				if (radio_button_value == 0) {
 					value = "Competency";
 					alert( "WARNING: Type defaulted to \"Competency\" as no type specified." );
 				} else{
@@ -530,13 +530,13 @@ function saveRow( link, params ) {
 				display = value;
 				break;
 			case 'action':
-				if ( params.actionDropdown) {
+				if (params.actionDropdown) {
 					var option_name = [];
 					var options = "";
-					$(editParams.options).each(function(i,l){
+					$(editParams.options).each(function(i,l) {
 						option_name.push($(l).text());
 					});
-					$(option_name).each(function(i,l){
+					$(option_name).each(function(i,l) {
 						options += '<option value="' + params.function_values[i+1] + '" class="navsm">' + l + '</option>';
 					});
 
@@ -554,9 +554,9 @@ function saveRow( link, params ) {
 		}		
 
 		liArray[idx].innerHTML = display;
-		if ( postThis ) {
-			if ( isArray ) { postData['col' + (idx-1) + '[]'] = value; }
-			else           { postData['col' + (idx-1)] = value; }
+		if (postThis) {
+			if (isArray) {postData['col' + (idx-1) + '[]'] = value;}
+			else {postData['col' + (idx-1)] = value;}
 		}
 	}
 
@@ -566,21 +566,21 @@ function saveRow( link, params ) {
 		error = data['error'];	
 		newId = data['id'];
 
-		if ( error ) {
+		if (error) {
 			// TODO:  Error handling
 		} else {
 			liNode.id = newId;
-			var compId = newId.replace( /_[\d]*/, '' );
+			var compId = newId.replace(/_[\d]*/, '');
 
-			$('li[id^=' + compId + '_]').each( function() {
+			$('li[id^=' + compId + '_]').each(function() {
 				var newLiArray = this.getElementsByTagName('DIV')[0].getElementsByTagName('UL')[0].getElementsByTagName('LI');
 
-				for( var idx = 0; idx < liArray.length; idx++ ) {
+				for(var idx = 0; idx < liArray.length; idx++) {
 					newLiArray[idx].innerHTML = liArray[idx].innerHTML;
 				}
 			} );
 
-			if ( data['parent'] ) {
+			if (data['parent']) {
 				var time = new Date().getTime();
 				var counter = 0;
 
@@ -593,41 +593,42 @@ function saveRow( link, params ) {
 
 				var currentList = document.getElementById( newId ).parentNode;
 
-				$('li[id^=' + data['parent'] + '_]').each( function() {
+				$('li[id^=' + data['parent'] + '_]').each(function() {
 					var thisDepth = 0;
 
 					// From that div, we're going to continually check grandparents to see how deeply we're nested:  <ol><li><ol>...
 					var depthCheck = this.parentNode.parentNode;
-					while ( depthCheck.tagName == 'OL' ) {
+					while (depthCheck.tagName == 'OL') {
 						depthCheck = depthCheck.parentNode.parentNode;
 						thisDepth++;
 					}
 
 					var existingList = this.getElementsByTagName('OL')[0];
-					if ( existingList != currentList ) {
-						if ( $(existingList).length == 0 ) {
+					if (existingList != currentList) {
+						if ($(existingList).length == 0) {
 							var containingDiv = this.getElementsByTagName('DIV')[0];
 							thisDepth++;
 							if (thisDepth > params.maxDepth) { params.maxDepth = thisDepth; }
 							$(containingDiv).after('<ol class="page-list">' + rowText + counter++ + rowText2 + '</ol>'); 
 						} else {
-							$(existingList).append( rowText + counter++ + rowText2 );
+							$(existingList).append(rowText + counter++ + rowText2);
 						}
 					}
 				} );
 			}
 		}
 
-		initTable( params );
+		initTable(params);
 	}, "json");
 }
 
-function deleteRow( link, params ) {
-	if (edit_mode == 1){
+function deleteRow(link, params) {
+	if (edit_mode == 1) {
 		alert("Please finish editing current Competency/Objective before making a new change");
+
 		return;
 	}
-	if ( params.sort ) {
+	if (params.sort) {
 		$("div.striping").mouseover( function() { 
 			this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = 'none';
 		} ).mouseout( function() {
