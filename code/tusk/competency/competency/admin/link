@@ -19,7 +19,7 @@
 </%attr>
 
 <%shared>
-	my ( $school, $school_id, $competencies, $competency_titles, @comp_categories, @already_linked_competencies, %already_linked_comps, %not_linked_comps );
+	my ($school, $school_id, $competencies, $competency_titles, @comp_categories, @already_linked_competencies, %already_linked_comps, %not_linked_comps);
 </%shared>
 
 <%perl>
@@ -28,16 +28,16 @@
 	}
 
 	foreach my $competency ($competencies) {
-		foreach my $key ( keys %{ $competency }) {
-			$competency_titles -> {$key} = ${ $competency}{$key}->{'_field_values'}->{'title'};
+		foreach my $key (keys %{$competency}) {
+			$competency_titles -> {$key} = ${$competency}{$key}->{'_field_values'}->{'title'};
 		}
 	}
 
 	$school = $m->comp("/tmpl/url:get_school");
 	$school_id = TUSK::Core::School->new->getSchoolID($school);
 
-	my $competency_id =  $ARGS{ 'competency_id' };
-	my $linked_competencies = TUSK::Competency::Relation->lookup( 'competency_id_1='.$competency_id );
+	my $competency_id =  $ARGS{'competency_id'};
+	my $linked_competencies = TUSK::Competency::Relation->lookup('competency_id_1='.$competency_id);
 	my @linked_competencies_id = map {$_->getCompetencyId2()} @{$linked_competencies};
 
 	my $data = TUSK::Application::Competency::Tree->build($school_id, $ARGS{'root_id'});
@@ -72,20 +72,20 @@
 <%perl>
     #generates table for linking/unlinking competencies given a list of competencies;
     print "<table class=\"competency_link_table\">";
-    foreach my $comp_category( @comp_categories ) {
-	my $current_key = (keys %{ $comp_category })[0];
-	if ( $competencies_type eq "linked" ) {
-	    print "<tr><td id=\"LS_cat_". $current_key ."\"><b>" . $comp_category->{ $current_key } . "</b></td></tr>";
+    foreach my $comp_category(@comp_categories) {
+	my $current_key = (keys %{ $comp_category})[0];
+	if ($competencies_type eq "linked") {
+	    print "<tr><td id=\"LS_cat_". $current_key ."\"><b>" . $comp_category->{$current_key} . "</b></td></tr>";
 	} else {
-	    print "<tr><td id=\"NLS_cat_". $current_key ."\"><b>" . $comp_category->{ $current_key } . "</b></td></tr>";
+	    print "<tr><td id=\"NLS_cat_". $current_key ."\"><b>" . $comp_category->{$current_key} . "</b></td></tr>";
 	}
-	foreach my $linked_comp( @{$competencies_list->{ $current_key }} ) {
-	    my $current_linked_key = (keys %{ $linked_comp })[0];
+	foreach my $linked_comp(@{$competencies_list->{$current_key}}) {
+	    my $current_linked_key = (keys %{$linked_comp})[0];
 				
-	    if ( $competencies_type eq "linked") { 		
-		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick( this );\" data-parent=\"".$current_key."\">" . "&nbsp" x 4 . $linked_comp->{ $current_linked_key } . "</td></tr>";
+	    if ($competencies_type eq "linked") { 		
+		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"".$current_key."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
 	    } else {
-		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick( this );\" data-parent=\"". $current_key ."\">" . "&nbsp" x 4 . $linked_comp->{ $current_linked_key } . "</td></tr>";
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"". $current_key ."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
 	    }
 	}
     }
@@ -102,19 +102,19 @@
 <%perl>
     #generates table for linking/unlinking competencies given a list of competencies;
     print "<table class=\"competency_link_table\">";
-	if ( $competencies_type eq "linked" ) {
+	if ($competencies_type eq "linked") {
 	    print "<tr><td id=\"LS_cat_0\"><i>(No Categories Present)</i></td></tr>";
 	} else{
 	    print "<tr><td id=\"NLS_cat_0\"><i>(No Categories Present)</i></td></tr>";
 	}
 
-	foreach my $linked_comp( @{$competencies_list->{'0'}} ) {
+	foreach my $linked_comp(@{$competencies_list->{'0'}}) {
 	    my $current_linked_key = (keys %{ $linked_comp })[0];
 				
-	    if ( $competencies_type eq "linked") { 		
-		print "<tr> <td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick( this );\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{ $current_linked_key } . "</td></tr>";
+	    if ($competencies_type eq "linked") { 		
+		print "<tr> <td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
 	    } else {
-		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick( this );\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{ $current_linked_key } . "</td></tr>";
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
 	    }
 	}
 
@@ -130,20 +130,20 @@
 	$parent
 </%args>
 <%perl>
-	my %linked_competencies = map { $_ => 1 } @{ $linked };
-	for my $d (@{ $data }) {
+	my %linked_competencies = map {$_ => 1} @{$linked};
+	for my $d (@{$data}) {
 		my %temp_linked_comp;
-		$temp_linked_comp{ $d->{ 'id' } } = $d->{ 'title' };
+		$temp_linked_comp{$d->{'id'}} = $d->{'title'};
 			
 		if (exists($linked_competencies{$d->{'id'}})) {
-			push @{ $already_linked_comps{ $parent } }, { %temp_linked_comp };
+			push @{$already_linked_comps{$parent}}, {%temp_linked_comp};
 			push @already_linked_competencies, "<li><input data-parent=\"". $parent ."\"class=\"competency_check\" id=\"".$d->{'id'}."\"type=\"checkbox\" value=\"".$d->{'title'}."\" checked disabled><span id=\"competency_title\">".$d->{'title'}."</span>";
 		} else{
 			if (($d->{'children'})) {
-				push @{ $not_linked_comps{ $parent }}, { %temp_linked_comp };
-				$m->comp( 'SELF:buildCompetencyListTree', data => $d->{'children'}, linked => $linked , parent => $d->{'id'});
+				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
+				$m->comp('SELF:buildCompetencyListTree', data => $d->{'children'}, linked => $linked , parent => $d->{'id'});
 			} else {
-				push @{ $not_linked_comps{ $parent }}, { %temp_linked_comp };
+				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
 			}
 		}
 	}
@@ -151,7 +151,7 @@
 </%method>
 
 <%method red_header_text>
-% return $m->comp( "SELF:title" );
+% return $m->comp("SELF:title");
 </%method>
 
 
@@ -169,9 +169,9 @@
 
 <div class="linked_competencies" id="not_linked_linked_competencies">
 <%perl>
-	my $comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne( "namespace = \"competency.level_id\" AND short_name = \"$ARGS{link_type}\"")->getPrimaryKeyID;
+	my $comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name = \"$ARGS{link_type}\"")->getPrimaryKeyID;
 	my $comp_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id = $school_id", ['competency_user_type_id'], undef, undef,
-			[TUSK::Core::JoinObject->new( "TUSK::Enum::Data", { joinkey=> 'enum_data_id', origkey => 'competency_type_enum_id', jointype => 'inner', joincond => "enum_data.short_name =\"category\""})])->getPrimaryKeyID;
+			[TUSK::Core::JoinObject->new("TUSK::Enum::Data", { joinkey=> 'enum_data_id', origkey => 'competency_type_enum_id', jointype => 'inner', joincond => "enum_data.short_name =\"category\""})])->getPrimaryKeyID;
 	my $comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id");
 
 	my %temp_category_hash;
@@ -182,14 +182,14 @@
 		undef %temp_category_hash;
 	}
 	
-	if( @comp_categories) {
-		my @empty_linked = ( );
-		%already_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
-		%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
-		$m->comp( 'SELF:buildCompetencyListTree', data => $data, linked => \@linked_competencies_id, parent => 0 );
-		$m->comp( 'SELF:generateTable', competencies_list => \%not_linked_comps, competencies_type => "not_linked");	
-	} else{
-		my @empty_linked = ( );
+	if (@comp_categories) {
+		my @empty_linked = ();
+		%already_linked_comps = map {(keys %{$_})[0] => [ @empty_linked ]} @comp_categories;
+		%not_linked_comps = map {(keys %{$_})[0] => [ @empty_linked ]} @comp_categories;
+		$m->comp('SELF:buildCompetencyListTree', data => $data, linked => \@linked_competencies_id, parent => 0);
+		$m->comp('SELF:generateTable', competencies_list => \%not_linked_comps, competencies_type => "not_linked");	
+	} else {
+		my @empty_linked = ();
 		%already_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
 		%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
 
@@ -205,8 +205,8 @@
 			$temp_competency_hash{'children'} = undef;			
 			push @{$comp_data}, {%temp_competency_hash};
 		}		
-		$m->comp( 'SELF:buildCompetencyListTree', data => $comp_data, linked => \@linked_competencies_id, parent => 0 );			
-		$m->comp( 'SELF:generateTableNoCategories', competencies_list => \%not_linked_comps, competencies_type => "not_linked");			
+		$m->comp('SELF:buildCompetencyListTree', data => $comp_data, linked => \@linked_competencies_id, parent => 0);			
+		$m->comp('SELF:generateTableNoCategories', competencies_list => \%not_linked_comps, competencies_type => "not_linked");			
 	}
 	
 </%perl>
@@ -224,10 +224,10 @@
 
 <div class="linked_competencies" id="linked_linked_competencies">
 <%perl>
-	if ( @comp_categories ) {
-		$m->comp( 'SELF:generateTable', competencies_list => \%already_linked_comps, competencies_type => "linked");
+	if (@comp_categories) {
+		$m->comp('SELF:generateTable', competencies_list => \%already_linked_comps, competencies_type => "linked");
 	} else {
-		$m->comp( 'SELF:generateTableNoCategories', competencies_list => \%already_linked_comps, competencies_type => "linked");
+		$m->comp('SELF:generateTableNoCategories', competencies_list => \%already_linked_comps, competencies_type => "linked");
 	}
 </%perl>
 </div>
@@ -236,4 +236,5 @@
 <span id="save_notifications"></span>
 <input id = "link_competencies_close_button" type="button" class="formbutton" onclick="closeLinkWindow()" value="Close" />
 </div>
+
 
