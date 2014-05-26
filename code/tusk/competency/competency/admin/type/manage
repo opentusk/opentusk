@@ -14,15 +14,17 @@
  limitations under the License.
 </%doc>
 <%perl>
-	my $school    = $m->comp("/tmpl/url:get_school");
+	my $school = $m->comp("/tmpl/url:get_school");
 	my $school_id = TUSK::Core::School->new->getSchoolID($school);
 
-	my $types     = TUSK::Competency::UserType->lookup( "school_id = $school_id", undef, undef, undef,
-			 [ TUSK::Core::JoinObject->new('TUSK::Enum::Data', { origkey=> 'competency_type_enum_id', joinkey => 'enum_data_id', jointype=> 'inner', joincond=> "enum_data.namespace = \"competency.user_type.id\" "})] );
-	my $enum_data = TUSK::Enum::Data->lookup( "namespace = \"competency.user_type.id\"" );
+	my $types = TUSK::Competency::UserType->lookup("school_id = $school_id", undef, undef, undef,
+			 [TUSK::Core::JoinObject->new('TUSK::Enum::Data', 
+			 { origkey=> 'competency_type_enum_id', joinkey => 'enum_data_id', jointype=> 'inner', joincond=> "enum_data.namespace = \"competency.user_type.id\" "})] );
 
-	my $data = [ map { id => $_->getPrimaryKeyID, description => $_->getName, back_type => $_->getJoinObject('TUSK::Enum::Data')->getDisplayName }, @{$types} ];
-	my $back_type = [ map { label => $_->getDisplayName , value=> $_->getPrimaryKeyID }, @{$enum_data} ];	
+	my $enum_data = TUSK::Enum::Data->lookup("namespace = \"competency.user_type.id\"");
+
+	my $data = [map {id => $_->getPrimaryKeyID, description => $_->getName, back_type => $_->getJoinObject('TUSK::Enum::Data')->getDisplayName}, @{$types}];
+	my $back_type = [map {label => $_->getDisplayName, value=> $_->getPrimaryKeyID}, @{$enum_data}];	
 </%perl>
 
 <br />
@@ -44,7 +46,7 @@
 							{ 'label' => __('Delete'), 'onclick' => 'deleteRow( this, params ); resetDropDown(this);' } 
 			  			], 
 				fields => [
-					{ hide  => 1, field => 'id', },
+					{ hide  => 1, field => 'id',},
 					{ label => __('User Type'), field => 'description', head_align => 'left', align => 'left', edit =>
 						{ type      => 'text',
 						  classname => 'textareawhite',
@@ -81,7 +83,7 @@
 </%method>
 
 <%method red_header_text>
-% return $m->comp( "SELF:title" );
+% return $m->comp("SELF:title");
 </%method>
 
 <%method title>
