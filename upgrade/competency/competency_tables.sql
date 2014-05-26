@@ -8,7 +8,21 @@ CREATE TABLE competency_version
 	description varchar(250),
 	start_date datetime,
 	modified_by varchar(24) DEFAULT NULL,
-	modified_on datetime DEFAULT NULL;
+	modified_on datetime DEFAULT NULL
+) ENGINE=InnoDB CHARSET utf8;
+
+DROP TABLE IF EXISTS competency_version_history;
+
+CREATE TABLE competency_version_history
+(
+	competency_version_history_id tinyint UNSIGNED NOT NULL PRIMARY KEY,
+	competency_version_id tinyint UNSIGNED NOT NULL,
+	school_id int(10) UNSIGNED,
+	title varchar(100),
+	description varchar(250),
+	start_date datetime,
+	modified_by varchar(24) DEFAULT NULL,
+	modified_on datetime DEFAULT NULL
 ) ENGINE=InnoDB CHARSET utf8;
 
 DROP TABLE IF EXISTS competency_content;
@@ -33,7 +47,7 @@ CREATE TABLE competency_content_history (
 	sort_order smallint(6) unsigned NOT NULL DEFAULT '0',
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
-	history_action enum('Insert', 'Update', 'Delete'),
+	history_action enum('Insert', 'Update', 'Delete')
 ) ENGINE=INNODB DEFAULT CHARSET=utf8; 
 
 DROP TABLE IF EXISTS competency_class_meeting;
@@ -61,7 +75,7 @@ CREATE TABLE competency_class_meeting_history (
 	assessment_method_id int(10) UNSIGNED,
 	modified_by varchar(24) NOT NULL DEFAULT ' ',
 	modified_on datetime DEFAULT NULL,
-	history_action enum('Insert', 'Update', 'Delete'),
+	history_action enum('Insert', 'Update', 'Delete')
 ) ENGINE=INNODB DEFAULT CHARSET=utf8; 
 
 
