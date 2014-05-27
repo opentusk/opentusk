@@ -154,11 +154,21 @@
 	my %linked_competencies = map {$_ => 1} @{$linked};
 	for my $d (@{$data}) {
 		my %temp_linked_comp;
-		$temp_linked_comp{$d->{'id'}} = $d->{'title'};
+
+		if ($d->{'title'}){
+			$temp_linked_comp{$d->{'id'}} = $d->{'title'};
+		} else {
+			$temp_linked_comp{$d->{'id'}} = $d->{'description'};
+		}
+
 			
 		if (exists($linked_competencies{$d->{'id'}})) {
 			push @{$already_linked_comps{$parent}}, {%temp_linked_comp};
-			push @already_linked_competencies, "<li><input data-parent=\"". $parent ."\"class=\"competency_check\" id=\"".$d->{'id'}."\"type=\"checkbox\" value=\"".$d->{'title'}."\" checked disabled><span id=\"competency_title\">".$d->{'title'}."</span>";
+			if ($ARGS{link_type} eq 'class_meet' || $ARGS{link_type} eq 'content') {
+				push @already_linked_competencies, "<li><input data-parent=\"". $parent ."\"class=\"competency_check\" id=\"".$d->{'id'}."\"type=\"checkbox\" value=\"".$d->{'description'}."\" checked disabled><span id=\"competency_title\">".$d->{'description'}."</span>";
+			} else{
+				push @already_linked_competencies, "<li><input data-parent=\"". $parent ."\"class=\"competency_check\" id=\"".$d->{'id'}."\"type=\"checkbox\" value=\"".$d->{'title'}."\" checked disabled><span id=\"competency_title\">".$d->{'title'}."</span>";
+			}
 		} else{
 			if (($d->{'children'})) {
 				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
@@ -190,15 +200,28 @@
 
 <div class="linked_competencies" id="not_linked_linked_competencies">
 <%perl>
-	my $comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name = \"$ARGS{link_type}\"")->getPrimaryKeyID;
+	my $comp_level_enum_id;
+	if ($ARGS{link_type} eq 'class_meet' || $ARGS{link_type} eq 'content'){
+		$comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name = \"course\"")->getPrimaryKeyID;
+	} else{
+		$comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name = \"$ARGS{link_type}\"")->getPrimaryKeyID;
+	}
+
 	my $comp_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id = $school_id", ['competency_user_type_id'], undef, undef,
 			[TUSK::Core::JoinObject->new("TUSK::Enum::Data", { joinkey=> 'enum_data_id', origkey => 'competency_type_enum_id', jointype => 'inner', joincond => "enum_data.short_name =\"category\""})])->getPrimaryKeyID;
-	my $comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id");
+	my $this_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
+
+	my $comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id AND course_id = $this_course_id", ['competency.competency_id'], 
+					undef, undef, [TUSK::Core::JoinObject->new("TUSK::Competency::Course", { joinkey=> 'competency_id', origkey => 'competency_id', jointype => 'inner' })]);
 
 	my %temp_category_hash;
 
-	foreach my $comp_category(@{$comp_categories_list}) {
-		$temp_category_hash{$comp_category->getPrimaryKeyID} = $comp_category->getTitle();
+	foreach my $comp_category(@{$comp_categories_list}) {	
+		if ($ARGS{link_type} eq 'class_meet' || $ARGS{link_type} eq 'content'){
+			$temp_category_hash{$comp_category->getPrimaryKeyID} = $comp_category->getDescription();				
+		} else {
+			$temp_category_hash{$comp_category->getPrimaryKeyID} = $comp_category->getTitle();
+		}
 		push @comp_categories, {%temp_category_hash};
 		undef %temp_category_hash;
 	}
@@ -215,6 +238,7 @@
 		%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
 
 		my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
+
 		my $course_competencies = TUSK::Course->getCompetenciesByCourse($tusk_course_id);	
 
 		my $comp_data;	
