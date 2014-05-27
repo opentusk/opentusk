@@ -126,7 +126,10 @@ function appendNewLinkedCompetencies(competency_id, type) {
 	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0) {
 		//for linking competency_types without supporting information
 		col = 'col1';
-	} else{
+	} else if (currentURL.indexOf("school") >=1 ){
+		//for linking school competencies
+		col = 'col3';
+	} else {
 		//for linking competency types with supporting informatoin
 		col = 'col2';
 	}
