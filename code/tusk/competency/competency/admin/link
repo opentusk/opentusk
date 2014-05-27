@@ -158,11 +158,6 @@
 			
 		if (exists($linked_competencies{$d->{'id'}})) {
 			push @{$already_linked_comps{$parent}}, {%temp_linked_comp};
-			if ($ARGS{link_type} eq 'class_meet' || $ARGS{link_type} eq 'content') {
-				push @already_linked_competencies, "<li><input data-parent=\"". $parent ."\"class=\"competency_check\" id=\"".$d->{'id'}."\"type=\"checkbox\" value=\"".$d->{'description'}."\" checked disabled><span id=\"competency_title\">".$d->{'description'}."</span>";
-			} else{
-				push @already_linked_competencies, "<li><input data-parent=\"". $parent ."\"class=\"competency_check\" id=\"".$d->{'id'}."\"type=\"checkbox\" value=\"".$d->{'title'}."\" checked disabled><span id=\"competency_title\">".$d->{'title'}."</span>";
-			}
 		} else{
 			if (($d->{'children'})) {
 				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
@@ -203,11 +198,15 @@
 
 	my $comp_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id = $school_id", ['competency_user_type_id'], undef, undef,
 			[TUSK::Core::JoinObject->new("TUSK::Enum::Data", { joinkey=> 'enum_data_id', origkey => 'competency_type_enum_id', jointype => 'inner', joincond => "enum_data.short_name =\"category\""})])->getPrimaryKeyID;
-	my $this_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
-
-	my $comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id AND course_id = $this_course_id", ['competency.competency_id'], 
-					undef, undef, [TUSK::Core::JoinObject->new("TUSK::Competency::Course", { joinkey=> 'competency_id', origkey => 'competency_id', jointype => 'inner' })]);
-
+	my ($this_course_id, $comp_categories_list);
+	
+	if ($ARGS{'course_id'}){
+		$this_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
+	
+		$comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id AND course_id = $this_course_id", ['competency.competency_id'], undef, undef, [TUSK::Core::JoinObject->new("TUSK::Competency::Course", { joinkey=> 'competency_id', origkey => 'competency_id', jointype => 'inner' })]);
+	} else {
+		$comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id");
+	}
 	my %temp_category_hash;
 
 	foreach my $comp_category(@{$comp_categories_list}) {	
