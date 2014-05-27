@@ -67,7 +67,7 @@ function linkCourseSchool(link, params) {
  	currentCompLabel(currentTitle);
 	$("#link-dialog").data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
-	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school + '/' + course, {competency_id: competencyId1, root_id: 0, link_type: 'school' }, initLinkDialog());
+	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school + '/' + course, {competency_id: competencyId1, root_id: 0, link_type: 'school'}, initLinkDialog());
 	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top"}, width: 850, height: 600, minHeight: 450});
 }
 
@@ -83,7 +83,7 @@ function linkContentToCourse (currentTitle, currentIndex) {
 	$("#link-dialog").data("currentTitle", currentTitle);
 	$("#link-dialog").data("currentIndex", currentIndex);
 	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: currentIndex, root_id: 0, link_type: 'class_meet', course_id: course_id}, initLinkDialog());
-	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 600, minHeight: 450});
+	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top"}, width: 850, height: 600, minHeight: 450});
 }
 
 function linkObjectiveToCourse (link, params) {
@@ -105,7 +105,7 @@ function linkObjectiveToCourse (link, params) {
 	$("#link-dialog").data("currentTitle", currentTitle);
 	$("#link-dialog").data("currentIndex", currentIndex);
 	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'class_meet', course_id: course_id}, initLinkDialog());
-	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 600, minHeight: 450});
+	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top"}, width: 850, height: 600, minHeight: 450});
 }
 
 function initLinkDialog() {
@@ -126,14 +126,14 @@ function appendNewLinkedCompetencies(competency_id, type) {
 	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0) {
 		//for linking competency_types without supporting information
 		col = 'col1';
-	} else if (currentURL.indexOf("school") >=1 ){
+	} else if (currentURL.indexOf("school") >=1) {
 		//for linking school competencies
 		col = 'col3';
 	} else {
 		//for linking competency types with supporting informatoin
 		col = 'col2';
 	}
-	$.each( to_update_array, function(index, value) {
+	$.each(to_update_array, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
 		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
 		$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
@@ -166,13 +166,13 @@ function linkedCellOnClick (linked_cell) {
 	var $not_linked_parent_id = "#NLS_cat_" + $parent_id;
 	var $not_linked_id = "#NLS_" + $current_id;
 	var $description = $(linked_cell).html();
-	$($not_linked_parent_id).parent().after("<tr><td class=\"not_linked_cell\" id=\"LS" + $not_linked_id + "\" onclick=\"notLinkedCellOnClick( this );\" data-parent=\""+ $parent_id + "\">" + $description + "</td></tr>");
+	$($not_linked_parent_id).parent().after("<tr><td class=\"not_linked_cell\" id=\"LS" + $not_linked_id + "\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\""+ $parent_id + "\">" + $description + "</td></tr>");
 	$(linked_cell).parent().remove();
 	to_delete_array.push($current_id);
 	to_update_array_remove.push($description);
-	if ($.inArray($current_id, to_add_array) > -1){
-		to_add_array.splice($.inArray( $current_id, to_add_array), 1);
-		to_update_array.splice($.inArray( $description, to_update_array), 1);
+	if ($.inArray($current_id, to_add_array) > -1) {
+		to_add_array.splice($.inArray($current_id, to_add_array), 1);
+		to_update_array.splice($.inArray($description, to_update_array), 1);
 	}
 }
 
@@ -182,7 +182,7 @@ function notLinkedCellOnClick (not_linked_cell) {
 	var $linked_parent_id = "#LS_cat_" + $parent_id;
 	var $linked_id = "#LS_" + $current_id;
 	var $description = $(not_linked_cell).html();
-	$($linked_parent_id).parent().after("<tr><td class=\"linked_cell\" id=\"LS" + $linked_id + "\" onclick=\"linkedCellOnClick( this );\" data-parent=\""+ $parent_id + "\">" + $description + "</td></tr>");
+	$($linked_parent_id).parent().after("<tr><td class=\"linked_cell\" id=\"LS" + $linked_id + "\" onclick=\"linkedCellOnClick(this);\" data-parent=\""+ $parent_id + "\">" + $description + "</td></tr>");
 	$(not_linked_cell).parent().remove();
 	to_add_array.push($current_id);
 	to_update_array.push($description);
@@ -278,21 +278,21 @@ and can then be used accordingly.
 			School, consisting of radio buttons with child competencies unselectable inline on the "test_dialog" division.)
  */
 
-	if( display_type == "inline" ) {
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type });
-	} else if( display_type == "dialog" ) {
-		$( "#" + dialog_name).css({
+	if (display_type == "inline") {
+		$("#" + dialog_name).load(competencyRoot + "tmpl/display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type });
+	} else if(display_type == "dialog"){
+		$("#" + dialog_name).css({
 			'background' : 'white',
 			'border' : '1px solid'
 		});
-		$( "#" + dialog_name ).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
-		$( "#" + dialog_name ).css({
+		$("#" + dialog_name).load( competencyRoot + "tmpl/display/school/" + school_name + "/" + course_id, {school_name: school_name, course: course_id, selected_competency_id: selected_competency_id, input_type: input_type, children: children, extend_function: extend_function, display_type: display_type }).dialog( { dialogClass: 'checklist_dialog_class', title: ' ' });
+		$("#" + dialog_name).css({
 			"width": 600,
 			"min-height": 200,
 			"padding" : 20
 		 });
 	} else{
-		$( "#" + dialog_name ).html( "Error: Unrecognized display type for checklist window." );
+		$("#" + dialog_name).html("Error: Unrecognized display type for checklist window.");
 	}
 }
 
@@ -302,7 +302,7 @@ function radioOnClick(extendFunction) {
 
 	var current_children = [];
 
-	$.each( $("#Child_of_"+selected_competency_id).find(".description"), function() {
+	$.each($("#Child_of_"+selected_competency_id).find(".description"), function(){
 		current_children.push( $(this).html() );
 	});
 
@@ -333,7 +333,7 @@ function extendExample() {
 }
 
 function checkboxOnClick() {
-//WIP: Similar to radioOnClick but with array of all selected ids.
+	//WIP: Similar to radioOnClick but with array of all selected ids.
 }
 
 //End functions related to competency checklist division/popup
@@ -341,10 +341,10 @@ function checkboxOnClick() {
 
 //Functions to be run at pageload, included making divisions dragable and resizable
 
-$(document).ready( function() {
+$(document).ready(function() {
 	$('.competency_popup_content').draggable();
 	$('.competency_popup_container').click( function() {
-		$( this ).children( '.competency_popup_content' ).css({
+		$(this).children('.competency_popup_content').css({
 			"position": "fixed",
 			"left": 35 + "%",
 			"top": 50 + "%"
@@ -354,10 +354,9 @@ $(document).ready( function() {
 		$(this).parent().hide(50);
 	});
 	var select_buttons = $(document).find("#competency_container select");
-	$(select_buttons).each( function( index, this_button) {
+	$(select_buttons).each(function( index, this_button) {
 		resetDropDown(this_button);
 	});
-	
 	
 });
 
