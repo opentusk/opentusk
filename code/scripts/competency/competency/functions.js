@@ -105,7 +105,7 @@ function linkObjectiveToCourse (link, params) {
 	$("#link-dialog").data("currentTitle", currentTitle);
 	$("#link-dialog").data("currentIndex", currentIndex);
 	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'class_meet', course_id: course_id}, initLinkDialog());
-	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 450, minHeight: 450});
+	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: { my: "center", at: "top" }, width: 850, height: 600, minHeight: 450});
 }
 
 function initLinkDialog() {
