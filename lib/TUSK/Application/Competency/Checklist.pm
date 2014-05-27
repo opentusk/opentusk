@@ -206,14 +206,12 @@ sub getToken {
     my ($self, $checklist_group_id, $assignment_id) = @_;
     my $ctx = Digest::MD5->new();
     $ctx->add($checklist_group_id, $assignment_id, $TUSK::Constants::ChecklistSecret);
-    my $token = $ctx->add($ctx->b64digest())->b64digest();
-    $token =~ s/\///;
-    return $token;
+    return $ctx->hexdigest();
 }
 
 sub validateUrlToken {
     my ($self, $checklist_group_id, $assignment_id, $url_token) = @_;
-    return ($self->getToken($checklist_group_id, $assignment_id) eq $url_token) ? 1 : 0;
+    return ($self->getToken($checklist_group_id, $assignment_id) eq $url_token);
 }
 
 =item
