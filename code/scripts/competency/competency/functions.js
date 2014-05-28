@@ -153,7 +153,7 @@ function appendNewLinkedCompetencies(competency_id, type) {
 	});
 }
 
-function currentCompLabel(current_competency) {
+function currentCompLabel (current_competency) {
 	$("#currentComp").html(current_competency);
 	$("#link_competency_title").show();
 }
