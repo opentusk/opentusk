@@ -222,22 +222,39 @@ function initTable( params ) {
 
 	var down = false;
 
-	$(document).find(".hand").mousedown( function(){
+	$(document).find(".clr").mousedown( function(){
 		down = true;
+		console.log("down: " + down);
+	}).mouseup( function(){
+		down = false;
+		console.log("up: " + down);
 	})
 
+/*
+	$(document).mouseup( function(){
+		if (down == true) {
+			setTimeout(function() {alert("up: " + down)}, 5000);
+			down = false;
+			$('#'+params.listId).NestedSortableDestroy();
+			nested_sortable_params.handle = '.hand';
+			$('#'+params.listId).NestedSortable(nested_sortable_params);
+		}
+	});
+*/
 
+/*
 	$(document).find(".hand").mouseout(function(){
 		if (down == false){
 			alert("mouseup mouseup!!");
 		}
-/*
+
 		$(this).css("background","green");
 		$('#'+params.listId).NestedSortableDestroy();
 		nested_sortable_params.handle = '.hand';
 		$('#'+params.listId).NestedSortable(nested_sortable_params);
-*/
+
 	});
+*/
 
 	nested_sortable_params.handle = '.hand';
 
