@@ -112,6 +112,7 @@ function getPositionInList( liNode ) {
 // to let it cascade, storing the serialized data in the onChange and then doing the actual AJAX
 // call in onStop IF something actually changed.
 function initTable( params ) {
+	console.log(params);
 	var originalPos    = null;
 	var originalParent = null;
 	var changed        = false;
@@ -121,8 +122,8 @@ function initTable( params ) {
 	if ( params.sort == 0 ) {
 		$("li.hand").removeClass("hand");
 	}
-
-	$('#'+params.listId).NestedSortable(
+	
+	var nestedSort = $('#'+params.listId).NestedSortable(
 		{
 			accept: 'sort-row',
 			nestingPxSpace: params.indent,
@@ -148,7 +149,7 @@ function initTable( params ) {
 					postData['curDepth']       = 0;
 					var depthCheck = newParent;
 					var lineage = new Array();
-					while(depthCheck.tagName == 'LI') {
+					while (depthCheck.tagName == 'LI') {
 						var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
 						lineage.push( tmpId );
 						postData['curDepth']++;
@@ -207,12 +208,112 @@ function initTable( params ) {
 					}, "json");
 				}
 			},
-			onStart: function() { originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
+			onStart: function() { console.log(this); originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
 			autoScroll: true,
-			handle: '.hand'
+			handle : '.hand'
 		}
+		
 	);
+	
+	var handle_class = '';
+
+	var a = {
+			accept: 'sort-row',
+			nestingPxSpace: params.indent,
+ 			noNestingClass: params.noNesting,
+			opacity: .8,
+			helperclass: 'helper',
+			onChange: function(serialized) { changed = true; },
+			onStop: function() {
+				if ( changed ) {
+					var newPos    = getPositionInList(this);
+					var newParent = this.parentNode.parentNode;
+					var myRealId  = this.id.replace( /_[\d]+/, '' );
+					var postData  = new Object;
+
+					postData['arrName']        = params.listId;
+					postData['droppedRow']     = this.id;
+					postData['originalParent'] = originalParent.id;
+					postData['newParent']      = this.parentNode.parentNode.id;
+					postData['sorting']        = 1;
+					postData['originalPos']    = originalPos;
+					postData['newPos']         = newPos;
+					postData['lineage']        = '/';
+					postData['curDepth']       = 0;
+					var depthCheck = newParent;
+					var lineage = new Array();
+					while (depthCheck.tagName == 'LI') {
+						var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
+						lineage.push( tmpId );
+						postData['curDepth']++;
+						depthCheck = depthCheck.parentNode.parentNode;
+					}
+					if ( lineage.length > 0 ) {
+						postData['lineage'] += lineage.reverse().join( "/" ) + "/";
+					}
+
+					$.post(params.postTo, postData, function(data){
+						error = data['error'];
+
+						if ( error ) {
+							// TODO:  Error handling
+						} else {
+							var newParentId      = postData['newParent'].replace( /_[\d]*/, '' );
+							var originalParentId = postData['originalParent'].replace( /_[\d]*/, '' );
+
+							if ( postData['newParent'] == postData['originalParent'] ) {
+								if ( postData['newParent'] != params.wrapper ) { 
+									var counter = new Date().getTime();
+									$('li[id^=' + newParentId + '_]').each( function() {
+										if ( this != newParent ) {
+											this.innerHTML = newParent.innerHTML;
+											//fixList( this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter );
+											counter++;
+										}
+									} );
+								}
+							} else {
+								if ( postData['originalParent'] != params.wrapper ) { 
+									$('li[id^=' + myRealId + '_]').each( function() {
+										var myParentId = this.parentNode.parentNode.id.replace( /_[\d]+/, '' );
+										if ( myParentId == originalParentId ) {
+											$(this).remove();
+										}
+									} );
+								}
+
+								if ( postData['newParent'] != params.wrapper ) { 
+									var counter = new Date().getTime();
+									$('li[id^=' + newParentId + '_]').each( function() {
+										if ( this != newParent ) {
+											this.innerHTML = newParent.innerHTML;
+											fixList( this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter );
+											counter++;
+										}
+									} );
+								}
+							}
+
+							if ( params.numbered ) updateNumbering();
+
+							initTable( params );
+						}
+					}, "json");
+				}
+			},
+			onStart: function() { console.log(this); originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
+			autoScroll: true,
+			handle : handle_class
+		}
+
+	$(document).find(".hand").click(function(){
+		$(this).css("background","red");
+		$('#'+params.listId).NestedSortableDestroy();
+		$('#'+params.listId).NestedSortable(a);
+	});
+
 	//$("div.striping").removeClass("even").removeClass("odd");
+
 	if ( params.sort != 0 ) {
 		$("div.striping").mouseout( function() { 
 			if ( this.parentNode.id != 'empty_message' ) {
@@ -654,7 +755,7 @@ function deleteRow(link, params) {
 
 function deleteRowConfirm( link, params ) {
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
-	if (liNode.tagName == "OL"){
+	if (liNode.tagName == "OL") {
 		liNode = link.parentNode.parentNode.parentNode.parentNode;
 	}
 	var postData = new Object();
