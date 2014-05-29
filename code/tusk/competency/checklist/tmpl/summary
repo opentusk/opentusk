@@ -1,0 +1,234 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%args>
+	$checklist_group_id
+	$time_period_id 	=> undef
+	$self_assigned 		=> 0
+	$student_id
+	$view_mode		=> undef  ## faculty/director view, not student's self view
+</%args>
+
+<%once>
+	use TUSK::Application::Competency::Checklist;
+	use TUSK::Competency::Checklist::Entry;
+</%once>
+
+<%shared>
+	my $gchecklist_group_id;
+	my $app;
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $checklist_assignments = [];
+	my $checklist_completions = {};
+	my $entries = {};
+	my $student_view = undef;
+	my $assessments = {	### keep keys same as short_name in tusk.enum_data
+		self => {
+			order		=> 1,
+			header		=> __('Self'),
+			button_label 	=> __('Assess'),
+			page 		=> 'assessself',
+			dependency	=> [],
+		},
+		partner => {
+			order		=> 2,
+			header		=> __('Partner'),
+			button_label 	=> __('Request'),
+			page 		=> 'emailpartner',
+			dependency	=> ['self'],
+		},
+		faculty => {
+			order		=> 3,
+			header		=> __('Faculty'),
+			button_label 	=> __('Request'),
+			page 		=> 'emailfaculty',
+			dependency	=> ['partner', 'self'],
+		},
+	};
+</%shared>
+
+<div class="xsm" style="margin: 5px 0 5px 0">
+<span class="gray"><b><% __('Status') %>:</b></span>&nbsp;&nbsp;&nbsp;&nbsp;
+<span style="cursor: pointer" title="<% __('Pending. Your module has been sent to partner or faculty and awaiting his/her assessment') %>"> <img src="/graphics/yellow_square.png" /> <%__('Pending') %></span> &nbsp;&nbsp;&nbsp;&nbsp;
+<span style="cursor: pointer" title="<% __("Bypassed. You have requested to bypass partner's assessment") %>"> <img src="/graphics/bypass.png" /> <%__("Bypassed") %></span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<span style="cursor: pointer" title="<% __('In Progress. Your partner or faculty has indicated that you have not completed microskills') %>"><img src="/graphics/red_circle.png"  /> <%__('In Progress') %></span> &nbsp;&nbsp;&nbsp;&nbsp;
+<span style="cursor: pointer" title="<% __('Completed. Skills Module is completed') %>"><img src="/graphics/checkmark_small.png" /><%__('Completed') %> </span>
+ &nbsp;&nbsp;&nbsp;&nbsp;
+<span class="xxsm">*Hover over icons for more info</span>
+</div>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	columns => [ 
+		{'label' => __('Competency/Skills Module'), 'field' => 'title', html => 1},
+		{'label' => __('Completed/Total Modules'), 'field' => 'num_modules', align => 'center'},
+	],
+	rows => \@rows,  
+	name => "checklists",
+	'norows-message' => __('No skills modules'),
+##	border_bottom_tr => 1,
+} &>
+
+<%init>
+	$gchecklist_group_id = $checklist_group_id;
+	$app = TUSK::Application::Competency::Checklist->new({checklist_group_id => $gchecklist_group_id});
+	$time_period_id = $m->comp('SELF:get_timeperiod_id') unless defined $time_period_id;
+	$student_view = !$view_mode;  
+	($entries, $checklist_completions) = $app->getStudentEntries($student_id, $time_period_id);
+	$checklist_assignments = $app->getAssignments($student_id, $time_period_id);
+
+	if ($self_assigned && !(exists $checklist_assignments->{self})) {
+		$app->assignSelf($student_id, $time_period_id);
+		$checklist_assignments = $app->getAssignments($student_id, $time_period_id);
+	}
+	my $modules = $app->getSkillsModulesWithCategories();
+	
+	## exclude assessments type that has no assignment, except self. There is no self assignment until it is self-assigned
+	foreach my $type (keys %$assessments) {
+		next if $type eq 'self';
+		delete $assessments->{$type} unless ($checklist_assignments->{$type});
+	}
+
+	my $i = 1;  ## dummy id for hide/show comments
+	my @rows = ();
+
+	foreach my $category (keys %$modules) {
+		my $completions = 0;
+		foreach (@{$modules->{$category}}) {
+			if ($checklist_completions->{$_->{checklist_id}} == $_->{total}) {
+				$completions++;
+			}
+		}
+
+		push @rows, {  ## competency category, then its children
+			title => qq(
+<ul class="gNoBullets">
+<li class="closed">
+<span><a class="med" href="#" onclick="toggleLinks('id_$i', this)">$category &nbsp;
+<img src="/graphics/icon-nav-closed.png" class="more" alt="showhide" /></a></span>
+) .
+$m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i") .
+"</li></ul>",
+			num_modules => $completions . ' / ' . scalar @{$modules->{$category}},
+		};
+		$i++;
+	}
+</%init>
+
+<%method modules_table>
+<%args>
+	$modules  ## array of skills modules
+	$index
+</%args>
+<%perl>
+	my $table = "<ul id=\"$index\" class=\"gNoBullets\"><li><table width=\"100%\">\n<tr>"
+		. join('', ("<th></th>",  map { "<th align=\"center\">$_</th>" } (map { $assessments->{$_}{header} } sort { $assessments->{$a}{order} cmp $assessments->{$b}{order} } keys %$assessments)))
+		. '</tr>';
+
+	foreach my $module (@$modules) {
+		my $required = '';  my $required_txt = '';
+		if ($module->{required}) {
+			$required = 'blue';
+			$required_txt = ' <span style="font-size:7px""><em>*' . __('Mandatory') . '</em></span>';
+		}
+		$table .= "<tr><td class=\"line-left $required\" valign=\"bottom\"><b>$module->{competency_title}</b> $required_txt</td>";
+		foreach my $type (sort { $assessments->{$a}{order} cmp $assessments->{$b}{order} } keys %$assessments) {
+			$table .= '<td class="line-center" width="25%" valign="bottom">' . 
+				$m->scomp('SELF:action_cell',
+					show_flag => $module->{$type}, 
+					assessment_type => $type, 
+					checklist_id => $module->{checklist_id},
+					assignment_id => (exists $checklist_assignments->{$type}) ? $checklist_assignments->{$type}->getPrimaryKeyID() : undef,
+					entry => $entries->{$module->{checklist_id}}{$type} || TUSK::Competency::Checklist::Entry->new(),
+					dependent_entry => 
+				($entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[0]}) 
+				? $entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[0]} 
+				: (
+				($entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[1]}
+				 && !($entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[1]}->getJoinObject('TUSK::Competency::Checklist::Checklist')->getPartnerAssessed()))
+				? $entries->{$module->{checklist_id}}{$assessments->{$type}{dependency}[1]} 
+				: TUSK::Competency::Checklist::Entry->new()
+				),
+				) . 
+				'</td>';
+		}
+	}
+	$table .= "</table></li></ul>";
+	return $table;
+</%perl>
+</%method>
+
+
+<%method action_cell>
+<%args>
+	$show_flag => 1
+	$assessment_type
+	$checklist_id
+	$assignment_id
+	$entry
+	$dependent_entry
+</%args>
+% 	return unless ($show_flag);
+
+% 	my $button = "<a href=\"/competency/checklist/student/$assessments->{$assessment_type}{page}/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') . "\" class=\"formbutton\"> $assessments->{$assessment_type}{button_label} </a>";
+
+%	## user at least one completion is an indicator if faculty/partner has started working
+%	my $completion = $entry->getJoinObjects('TUSK::Competency::Checklist::Completion');
+%	my $complete_date = $entry->getFormattedCompleteDate();
+%	my $complete_image = '/graphics/checkmark_small.png';
+<div class="xxsm">
+%	if ($assessment_type eq 'self') {
+%		if ($complete_date) {
+<img src="<% $complete_image %>" title="<% __('Completed') %>" /><% $complete_date %>
+%		} else {
+%			if ($student_view) {
+<% $button %>
+%			}
+<% (ref $completion eq 'TUSK::Competency::Checklist::Completion') ? $completion->getModifiedOn() : '' %>
+%		}
+%	} else {  ## either partner or faculty
+%		if (my $request_date = $entry->getFormattedRequestDate()) {  ### pending stage
+%			if ($assessment_type eq 'partner') {  ## show bypass partner button
+<a href="<% "/competency/checklist/student/bypasspartner/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Bypass') %></a>
+%			}
+%			if ($assessment_type eq 'faculty') {  ## resend button to faculty
+<a href="<% "/competency/checklist/student/emailfaculty/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Resend') %></a>
+%			}
+<div style="margin:4px 0 0 0"><img src="/graphics/yellow_square.png" title="<% __('Pending') %>" /> <% $request_date %></div>
+%		} elsif ($complete_date) {  ### complete stage
+%			my $title = __('Completed');
+
+%			if ($assessment_type eq 'partner' && $entry->getStudentComment()) {
+%				$title = __('Bypassed.') . ' ' . $entry->getStudentComment();
+%				$complete_image = '/graphics/bypass.png';
+%			} 
+%			
+<img src="<% $complete_image %>" title="<% $title %>" /><% $complete_date %>
+%		} elsif (my $notify_date = $entry->getFormattedNotifyDate()) { ### in progress stage
+%			if ($student_view) {
+<% $button %>
+%			}
+<div style="margin:4px 0 0 0"><img src="/graphics/red_circle.png" title="<% __('In Progress') %>" /> <% $notify_date %></div>
+%		} else {
+%			### show button for student view and only dependent type is completed
+%			if ($student_view && $dependent_entry->getCompleteDate()) {
+<% $button %>
+%			}
+%		}
+% 	} ## partner/faculty
+</div>
+</%method>

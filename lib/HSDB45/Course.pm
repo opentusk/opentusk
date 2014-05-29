@@ -1193,12 +1193,8 @@ sub update_child_user_roles {
 }
 
 sub child_course_directors {
-    #
-    # Get the list of small group instructors
-    #
-
     my $self = shift;
-    return grep { $_->aux_info ('roles') =~ /Director/  } $self->child_users;
+    return grep { $_->aux_info ('roles') =~ /^Director/  } $self->child_users;
 }
 
 sub user_primary_role {

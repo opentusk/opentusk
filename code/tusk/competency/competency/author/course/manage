@@ -1,0 +1,162 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%init>
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $hsdb45_course_id = $type_object->course_id;	
+</%init>
+
+
+<%shared>
+	my ($school, $school_id, $competencies, $children_storage, $c_href, $current_course, $tusk_course_id);
+</%shared>
+
+
+<%method leftnav>
+% return "/tmpl/leftnav/course";
+</%method>
+
+
+
+<%perl>
+	my $checklist_url = "/competency/checklist/author/addeditchecklist/";
+	if ($ARGS{url} =~ /$checklist_url/){
+		print "<div id=\"back_to_checklist\" class=\"gCMSButtonRow clearfix\"><a href= \"/tusk". $checklist_url . $m->comp("/tmpl/url:get_full_path")."\">Back to Checklist</a></div>";
+	}
+	
+	foreach(@{TUSK::Competency::Competency->lookup()}) {
+		$competencies->{$_->getCompetencyID} = $_;
+	}
+	
+	my $dbh = HSDB4::Constants::def_db_handle();
+	
+	$school    = $m->comp("/tmpl/url:get_school");
+	$school_id = TUSK::Core::School->new->getSchoolID($school);
+
+	$tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $hsdb45_course_id);
+	$current_course = HSDB45::Course->new(_school => $school)->lookup_key($hsdb45_course_id)->{'title'};
+	
+	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
+
+	my $competency_types = TUSK::Competency::UserType->lookup('school_id=' . $school_id);
+	my $types = [map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types}];
+</%perl>
+
+<& /competency/competency/tmpl/element:jquery_sort_list, params =>{
+				width => "100%",
+				label => __('School Competencies'),
+				no_table => 1,
+				no_striping => 1,
+				container => 'competency_container',
+				name => 'school_competencies',
+				sort => 1,
+				button_label => __('Add Competency'),
+				action_width => 170,
+				action_dropdown => 1,
+				onclick_options => 1,
+ 				action_columns => [ 
+							{ 'label' => __('Modify'),    'onclick' => 'editRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Add Child'), 'onclick' => 'addNewRow(this, params ); resetDropDown(this);' },
+							{ 'label' => __('Delete'),    'onclick' => 'deleteRow(this, params ); resetDropDown(this);' },
+			  			], 
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => __('Course Competency'), field => 'title', head_align => 'left', width => 500, align => 'left', edit =>
+						{ type      => 'textarea',
+						  classname => 'textareawhite',
+						  rows => 3,
+						  cols      => 60,
+						  maxlength => 300 }
+					},
+					{ label => __('Type'), field => 'types', head_align => 'left', align => 'left', width => 200, edit =>
+						{ type      => 'radio',
+						  options   => $types,
+						  delimiter => ', ' }
+					},
+				],
+				data => $data, 
+				post_to => '/tusk/competency/competency/author/course/update/' . $school .'/?course='.$hsdb45_course_id,
+				empty_message => __("No course competencies exist.")
+} &>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"competency/competency/functions.js",
+			"jqNestedSortableFunctionsCompetencies.js",
+			];
+</%perl>
+</%method>
+
+<%method buildCompetencyTree>
+<%args>
+	$school_id
+</%args>
+<%perl>
+	my %p_c_pairs;
+	my $cr = TUSK::Competency::Hierarchy->lookup( "competency_hierarchy.school_id = " . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
+		[TUSK::Core::JoinObject->new( "TUSK::Competency::Competency", {origkey =>'child_competency_id', joinkey => 'competency_id', jointype => 'inner'}), 
+		TUSK::Core::JoinObject->new( 'TUSK::Competency::Course', { joinkey => 'competency_id', origkey => 'child_competency_id', jointype => 'inner', joincond => "course_id = $tusk_course_id"}),
+		TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"course\""})]);
+
+	foreach my $cr_row ( @{$cr} ) {
+		
+		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
+
+		my $user_type;
+		my $user_type_id = $child_comp->getCompetencyUserTypeID;
+		if (defined($user_type_id)){
+			my $user_type_temp = TUSK::Competency::UserType->lookup( 'competency_user_type_id='.$user_type_id);
+			$user_type = $user_type_temp->[0]->getName;
+		}
+
+		if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
+			$c_href->{$child_comp->getCompetencyID} = { 
+														id          => $child_comp->getCompetencyID,
+														course	    => $tusk_course_id,
+														title       => $child_comp->getDescription,
+														types	    => $user_type,
+														children    => $children_storage->{$child_comp->getCompetencyID},
+													  };
+		}
+
+		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
+			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+		}
+	}
+	return $children_storage->{'0'};
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+% return __("Manage Course Competencies");
+</%method>
+
+

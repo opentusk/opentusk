@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%args>
         $simple                => 0
 </%args>
@@ -20,10 +21,10 @@
 <%attr>
 	top_tab_type            => 'course'
 	displayLittleUserNavBar => '1'
-	page_footer				=> '/tmpl/footer:footer_with_school_links'
-	default_path_type		=> 'course'
-	allow_guests			=> '1'
-	allow_shib				=> '1'
+	page_footer		=> '/tmpl/footer:footer_with_school_links'
+	default_path_type	=> 'course'
+	allow_guests		=> '1'
+	allow_shib		=> '1'
 </%attr>
 
 
@@ -51,12 +52,12 @@
 		__('Communication')	=> [ 'ann', 'disc', 'groups', 'schedule', ],
 		'Patient Logs'	=> [ ],
 		#This has will always get extra stuff added for patient logs begore the last entry which should be grades.
-		__('Material')	=> [ 'content', 'quizzes', 'cases', 'grades', 'assignments', 'patientlogs' ],
+		__('Material')	=> [ 'assignments', 'cases', 'checklists', 'content', 'grades', 'patientlogs', 'quizzes', ],
 
 		'content'	=> { 'title'=>__('Content'),		'link'=>"$baseLink/content",
 				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
-		'obj'		=> { 'title'=>__('Objectives'),		'link'=>"$baseLink/obj",
+		'obj'		=> { 'title'=>__('Competencies/Objectives'),		'link'=>"$baseLink/obj",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'fac'		=> { 'title'=>__('Faculty List'),		'link'=>"$baseLink/fac",
@@ -65,7 +66,6 @@
 		'schedule'	=> { 'title'=>__('Schedule'),		'link'=>"$baseLink/schedule",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
-
 		'ann'		=> { 'title'=>__('Announcements'),		'link'=>"$baseLink/ann",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
@@ -84,14 +84,21 @@
 		'groups'	=> { 'title'=>__('My Groups'),		'link'=>"$baseLink/groups",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
-		'patientlogs'	=> { 'title'=>__('Patient Logs'), 'link'=> "/protected$baseLink/patientlogs",
- 				     'style'=>$defaultStyle,		'preText'=>'',
-				   },
-		'disc'		=> { 'title'=>__('Discussion'),
-				     'link' =>"/forum/forum_show.pl?school=" . $course->school_id() . "&course_id=" . $course->primary_key(),
-				     'style'=>$defaultStyle,
-				     'preText'=>'',
-				   },
+		'patientlogs'	=> { 	
+			'title'		=> __('Patient Logs'), 
+			'link'		=> "/protected$baseLink/patientlogs",
+		     	'style'		=> $defaultStyle,
+		},
+		'checklists'	=> { 	
+			'title'		=> __('Competency Checklists'), 
+			'link'		=> "/protected$baseLink/checklists",
+		     	'style'		=> $defaultStyle,
+		},
+		'disc'		=> { 	
+			'title'		=> __('Discussion'),
+		     	'link' 		=> "/forum/forum_show.pl?school=" . $course->school_id() . "&course_id=" . $course->primary_key(),
+			'style'		=> $defaultStyle,
+		},
 	);
 
 	# rename some links in nav if a group course
@@ -126,13 +133,14 @@
 	my $user_obj = $m->session->{'user'};
 	my $iCanEdit = $course->can_user_edit($user_obj);
 	my $class;
+	my $checklist_groups = [];
 </%shared>
 
 <%method startup>
 <%args>
-$args => {}
+	$args => {}
 </%args>
-  <%perl>
+<%perl>
         #Finish building the menus based on the tusk course database.
         $schoolDisplayHashRef = $course->getSchoolMetadata();
 
@@ -173,7 +181,11 @@ $args => {}
 		unless ($course->check_user_patient_log($m->session->{'user'}->primary_key())) {
 			$leftMenu{patientlogs}{style} = 'viewcourseleftnavEmpty';
 		}
+
+		$checklist_groups = $m->session->{'user'}->get_course_competency_checklist_groups($course);
+		$leftMenu{checklists}{style} = 'viewcourseleftnavEmpty' unless (@$checklist_groups);
 	}
+
 	if(scalar($course->child_teaching_sites()) >= 1) {
 	  push @{$leftMenu{__('Communication')}}, 'teachsites';
 	  $leftMenu{'teachsites'}{'title'}   = __('Teaching Sites');
@@ -273,7 +285,12 @@ $args => {}
 	
 	unless($course->announcements() || scalar @ug_announcements) {$leftMenu{ann}{style} = 'viewcourseleftnavEmpty';}
 
-  </%perl>
+	if (defined $args->{msg}) {
+		$m->comp('SELF:set_msg', type => 'msg', msg => $args->{msg});
+	} elsif (defined $args->{errmsg}) {
+		$m->comp('SELF:set_msg', type => 'errmsg', msg => $args->{msg});
+	}
+</%perl>
 </%method>
 
 <%method get_nav_bars>
@@ -345,6 +362,9 @@ else {
 		elsif($courseView eq 'patientlogs'){
 			return [ {txt => $u_e, url => "/protected/patientlog/author/show/course/$type_path" } ];
 		}
+		elsif($courseView eq 'checklists'){
+			return [ {txt => $u_e, url => "/protected/competency/checklist/author/show/course/$type_path" } ];
+		}
 		elsif($courseView eq 'ann'){
 			return [ {txt => $u_e, url => "/protected/management/announcements/show/course/$type_path" } ];
 		}
@@ -358,7 +378,7 @@ else {
 			return [ {txt => $u_e, url => "/protected/management/teachingsite/course/show/course/$type_path" } ];
 		}
 		elsif($courseView eq 'obj'){
-			return [ {txt => $u_e, url => "/protected/management/course/objectives/$type_path" } ];
+			return [ {txt => $u_e, url => "/tusk/competency/competency/author/course/manage/course/"."$type_path" } ];			
 		}
 		elsif($courseView eq 'fac'){
 			return [ {txt => $u_e, url => "/protected/management/course/users/show/$type_path" } ];
@@ -486,16 +506,9 @@ else {
           <a href="/view/user/<% $m->session->{'user'}->primary_key %>"><%__('View All Groups')%></a>
 %	}
 %} elsif ($courseView eq 'obj') {
-%	if(scalar($course->child_topics()) < 1) {
-%		## taken out because it's deemed unnecessary
-%		## $m->comp("SELF:printNoData", message => 'There are no objectives for this course');
-%	} else {
-		<ul>
-%		foreach my $objective ($course->child_topics()) {
-			<li><% $objective->out_label() %></li>
-%		}
-		</ul>
-%	}
+                <div id = "test_dialog"></div>       
+		<script>window.onload = function(){buildCompetencyList('test_dialog', '<% $course->get_school()->getSchoolName%>' , <% $course->primary_key() %>);};</script>
+
 %} elsif ($courseView eq 'fac') {
 %	if(scalar(@sortedFacultyIDs) < 1)
 %		{$m->comp("SELF:printNoData", message => __('There are no faculty for this course'));}
@@ -731,6 +744,10 @@ else {
 
 	<& /patientlog/student/view, course => $course &>
 
+%} elsif ($courseView eq 'checklists') {
+
+	<& /competency/checklist/student/view, checklist_groups => $checklist_groups &>
+
 %} elsif (exists($leftMenu{$courseView})) {
 	<%perl>
 	  my $localHashRef = \%{${$schoolDisplayHashRef}{ $leftMenu{$courseView}{metadataIDNumber} }};
@@ -794,6 +811,6 @@ else {
 </%method>
 
 <%method jsarray>
-% 	return ['element.js', 'jquery/jquery.min.js'];
+% 	return ['element.js', 'jquery/jquery.min.js', 'scripts-jq.js', 'competency/competency/functions.js'];
 </%method>
 

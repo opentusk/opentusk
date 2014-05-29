@@ -494,20 +494,19 @@ function fowardToNew(destination) {
 	window.open(dest);
 }
 
-// used by admin left nav to hide show case sub navigation
-function show_case_subnav(id){
+// used by admin left nav to hide show sub navigation for different elements (case, competencies)
+function show_subnav(id, sub_link){
 	document.getElementById(id).className = 'showNav';
-	document.getElementById('case_sub_link').innerHTML = '-';
+	document.getElementById(sub_link).innerHTML = '-';
 }
-function hide_case_subnav(id){
+function hide_subnav(id, sub_link){
 	document.getElementById(id).className = 'hideNav';
-	document.getElementById('case_sub_link').innerHTML = '+';
+	document.getElementById(sub_link).innerHTML = '+';
 }
-function toggle_case_subnav(id){
+function toggle_subnav(id, sub_link){
 	var status = document.getElementById(id).className;
-	(status == 'showNav')? hide_case_subnav(id) : show_case_subnav(id);
+	(status == 'showNav')? hide_subnav(id, sub_link) : show_subnav(id, sub_link);
 }
-
 
 
 //http://www.howtocreate.co.uk/tutorials/javascript/browserwindow
@@ -995,4 +994,9 @@ function activateTab(active){
 	active.parentNode.className = 'activeTab';
 	var activate_div = document.getElementById(active.parentNode.id + 'Area');
 	activate_div.className += ' activeArea';
+}
+
+function currentYear() {
+        var now = new Date;
+        document.write(now.getFullYear());
 }

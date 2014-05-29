@@ -75,6 +75,7 @@ sub new {
 	_attributes => {
 	    save_history => 0,
 	    tracking_fields => 0,
+	    no_created => 0,
 	},
 	_levels => {
 	    reporting => 'warn',
@@ -96,8 +97,10 @@ sub new {
     }
 
     if ($self->getTrackingFieldsAttribute){
-	$self->{_field_names}->{created_on} = "";
-	$self->{_field_names}->{created_by} = "";
+	unless ($self->getNoCreatedAttribute()) {
+	    $self->{_field_names}->{created_on} = "";
+	    $self->{_field_names}->{created_by} = "";
+	}
 	$self->{_field_names}->{modified_on} = "";
 	$self->{_field_names}->{modified_by} = "";
     }
@@ -255,6 +258,21 @@ Sets the value of the tracking_fields attribute
 sub setTrackingFieldsAttribute{
     my ($self, $value) = @_;
     $self->{_attributes}->{tracking_fields} = $value;
+}
+
+#######################################################
+
+=item B<getNoCreatedAttribute>
+
+    $string = $obj->getNoCreatedAttribute();
+
+Returns the value of the no_created attribute
+
+=cut
+
+sub getNoCreatedAttribute {
+    my ($self) = @_;
+    return $self->{_attributes}->{no_created};
 }
 
 #######################################################
@@ -1007,7 +1025,7 @@ sub checkJoinObject{
 
 =item B<getJoinObject>
 
-    $arrayref = $obj->getJoinObject($objclass, $index);
+    $object = $obj->getJoinObject($objclass, $index);
 
 Return a specific joined obj, if index is not passed, it is defaulted to zero.
 An index of zero is the first object in the array.
@@ -1022,7 +1040,7 @@ sub getJoinObject{
 	if (defined($self->{_join_objects}->{$objclass}->[$index])){
 		return $self->{_join_objects}->{$objclass}->[$index];
 	}else{
-		return [];
+		return undef;
 	}
 }
 
@@ -1892,12 +1910,15 @@ sub sqlInsert{
     my @values = map (&sql_escape($self->getFieldValue($_)),  (keys %$modified));
 
     if ($self->getTrackingFieldsAttribute){
-	push(@fields, "created_on");
-	push(@values, "now()");
+	unless ($self->getNoCreatedAttribute()) {
+	    push(@fields, "created_on");
+	    push(@values, "now()");
+	    push(@fields, "created_by");
+	    push(@values, "'" . $self->getUser ."'");
+	}
+
 	push(@fields, "modified_on");
 	push(@values, "now()");
-	push(@fields, "created_by");
-	push(@values, "'" . $self->getUser ."'");
 	push(@fields, "modified_by");
 	push(@values, "'" . $self->getUser . "'");
     }

@@ -1,0 +1,350 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%doc>
+The idea of apache/tmpl/element was to create a file that would be a library for creating user interface *elements*.  I hope as more methods are added we remember to take time to update this file.
+Notes
+A tusk table row refers to a standard row in our system that has two data cells.  The first contains a gray box with a label in it and the second contains some functionality.
+In most cases any html element will have its id and element attribute set to the value of key "name" in the params hash.
+Any method that produces a tusk table row, the label is made from params{label}
+Any method that produces a tusk table row, the id of the tr is "$params{name}_tr"
+</%doc>
+
+<%once>
+use TUSK::Application::HTML::Strip;
+use TUSK::Constants;
+</%once>
+
+<%shared>
+my $in_collapse_section = 0;
+my $collapse_field_counter = 0;
+my $collapse_section_name;
+my $default_style = "display:none";
+my $default_colspan = "2";
+my $default_label_width = "20%";
+</%shared>
+
+<%method jquery_sort_list>
+<%args>
+%params
+</%args>
+<%perl>
+my $td_class = (exists($params{'td_class'})) ? $params{'td_class'} : "cell-left";
+my $max_depth = 0;
+my $action_dropdown = 0;
+
+if ( defined( $params{'action_dropdown'} ) ) {
+	$action_dropdown = $params{'action_dropdown'};
+}
+
+my $has_action_columns;
+if (defined($params{action_columns})) {
+	$has_action_columns = 1;
+}
+
+my $inactive_image = ( $params{'no_nesting'} ne 'sort-row' ) ? 'url(/graphics/icons/move_16_inactive.png)' : 'url(/graphics/icons/move_ud_16_inactive.png)';
+if ( !$params{'sort'} ) { $inactive_image = 'none'; }
+
+my $filter;
+my $filter_on;
+if (defined($params{filter})) {
+	$filter = $params{'filter'};
+	$filter_on = $filter->{filter_on};
+	print "	". $m->comp("/tmpl/element:labelbox",label => $filter->{label}) . "<td>";
+	print $m->comp("/tmpl/element:dropdown", params => {options => $filter->{filters_dropdown} , name => $filter->{prefix}."filter", onchange=> "javascript:filter(this,'$filter->{prefix}')" }) . " </td>";
+}
+
+if (!$params{'no_table'}) {
+	$m->comp( '/tmpl/element:tr_tag', 'params'=>\%params );
+	my $colspan = 1;
+	if (!defined($params{'no_label'})){ 
+		$m->comp('/tmpl/element:labelbox', 'label'=> $params{'label'} );
+	} else {
+ 		$colspan = 2;
+	}
+</%perl>
+
+	<td colspan="<% $colspan %>">
+% }
+		<ol class="page-list"><li class="clr"><div class='clearfix'><ul class="row-list">
+% 		if (!$params{'no_top_add_button'} && !$params{'no_add_button'}) {
+			<li class="buttonRow"><& '/tmpl/element:button', params=>{'label'=>($params{'button_label'}) ? $params{'button_label'} : 'Add ' . $params{'label'}, 'onclick'=>'addNewRow( \'top\', params );', 'name'=>'add_item' } &></li>
+%		}
+%		my $num_buttons = 1;
+%		foreach my $button (@{$params{top_buttons}}){
+			<li class="buttonRow"><% $button %></li>
+%		}
+%		if (defined($params{'help_info'})){
+			<li class="buttonRow"><span class="xsm"><& /tmpl/element:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></span></li>
+%		}
+		</ol>
+
+		<script type="text/javascript">
+			var params         = new Object();
+			params.dragImage   = '<% ( $params{'no_nesting'} ne 'sort-row' ) ? 'url(/graphics/icons/move_16.png)' : 'url(/graphics/icons/move_ud_16.png)' %>';
+			params.inactiveDragImage = '<% $inactive_image  %>';
+			params.sort        = '<% $params{'sort'} %>';
+			params.wrapper     = '<% $params{'container'} %>';
+			params.listId      = '<% $params{'name'} %>';
+			params.columns     = new Array();
+			params.indent      = <% ($params{'indent'}) ? $params{'indent'} : 20 %>;
+			params.noNesting   = '<% ($params{'no_nesting'}) ? $params{'no_nesting'} : 'noNesting' %>';
+			params.postTo      = '<% $params{'post_to'} %>';
+			params.useDropdown = <% ($action_dropdown) ? 'true' : 'false' %>;
+			params.striping    = <% ($params{'no_striping'}) ? 'false' : 'true' %>;
+			params.numbered    = <% ($params{'numbered'}) ? 'true' : 'false' %>;
+
+			params.allocated_width = 0;
+			params.sized_columns   = 0;
+		</script>
+
+		<div id="<% $params{'container'} %>">
+			<ol class="page-list"><li class="clr"><div class='clearfix header'><ul class="row-list">
+%				my $col_counter = 0;
+%				foreach my $col ( @{$params{'fields'}} ) {
+%				next if ( $col->{'hide'} );
+				<li class="header-left head<% $col_counter %>"><% $col->{'label'} %></li>
+				<script type="text/javascript">
+					params.columns[<% $col_counter %>]            = new Object();
+					params.columns[<% $col_counter %>].align      = '<% $col->{'align'} %>';
+					params.columns[<% $col_counter %>].head_align = '<% $col->{'head_align'} %>';
+					params.columns[<% $col_counter %>].width      = <% $col->{'width'} || 0 %>;
+
+%					if ( $col->{'edit'} ) {
+					params.columns[<% $col_counter %>].edit = new Object();
+%						foreach my $key ( keys %{$col->{'edit'}} ) {
+%							if ( $key eq 'options' ) {
+					params.columns[<% $col_counter %>].edit.<% $key %> = new Array();
+%								foreach( @{$col->{'edit'}->{$key}} ) {
+					var temp = new Object();
+					temp.label = '<% $_->{'label'} %>';
+					temp.value = '<% $_->{'value'} %>';
+					params.columns[<% $col_counter %>].edit.<% $key %>.push( temp );
+%								}
+%							} else {
+					params.columns[<% $col_counter %>].edit.<% $key %> = '<% $col->{'edit'}->{$key} %>';
+%							}
+%						}
+%					}
+
+					if ( params.columns[<% $col_counter %>].width ) {
+						params.allocated_width += params.columns[<% $col_counter %>].width;
+						params.sized_columns++;
+					}
+				</script>
+%				$col_counter++;
+%				}
+%				if ( $has_action_columns ) {
+				<li class="header-center head<% $col_counter %>">Actions</li>
+				<script type="text/javascript">
+					params.columns[<% $col_counter %>]            = new Object();
+					params.columns[<% $col_counter %>].align      = 'center';
+					params.columns[<% $col_counter %>].head_align = 'center';
+					params.columns[<% $col_counter %>].width      = <% $params{'action_width'} || 0 %>;
+
+					params.columns[<% $col_counter %>].edit       = new Object();
+					params.columns[<% $col_counter %>].edit.type  = 'action';
+
+					params.columns[<% $col_counter %>].edit.options    = new Array();
+%					if ( $action_dropdown ) {
+%						foreach my $col ( @{$params{'action_columns'}} ) {
+					params.columns[<% $col_counter %>].edit.options.push( "<option value=\"<% $col->{'link'} %>\" class=\"navsm\"><% $col->{'label'} %></option>" );
+%						}
+%					} else {
+%						foreach my $col ( @{$params{'action_columns'}} ) {
+%							if ( $col->{'onclick'} ) {
+					params.columns[<% $col_counter %>].edit.options.push( "<a onclick=\"<% $col->{'onclick'} %>\" class=\"navsm\"><% $col->{'label'} %></a>" );
+%							} else {
+					params.columns[<% $col_counter %>].edit.options.push( "<a href=\"<% $col->{'link'} %>\" class=\"navsm\"><% $col->{'label'} %></a>" );
+%							}
+%						}
+%					}
+
+					if ( params.columns[<% $col_counter %>].width ) {
+						params.allocated_width += params.columns[<% $col_counter %>].width;
+						params.sized_columns++;
+					}
+				</script>
+%				}
+			</ul></div></li></ol>
+
+%			if ( ref($params{'data'}) eq 'ARRAY' && scalar(@{$params{'data'}}) ) {
+%				($max_depth, my $junk) = $m->comp( 'SELF:jquery_sort_list_sublist', 
+%													fields => $params{'fields'}, 
+%													filter => $params{'filter'},
+%													filter_on => $filter_on,
+%													prefix => $filter->{prefix},
+%													action_columns => $params{'action_columns'}, 
+%													data => $params{'data'}, name => $params{'name'}, 
+%													depth => 0, 
+%													append_instead => $params{'append_instead'},
+%													max_depth => $max_depth,
+%													action_dropdown => $action_dropdown,
+%													inactive_image => $inactive_image );
+%			} else {
+			<ol class="page-list" id="<% $params{'name'} %>"><li id="empty_message" class="clr">
+%				my $added_class = "clearfix striping";
+%				if (defined($params{filter})) { 
+%					my $filter_on = $filter->{filter_on};
+%					foreach my $filter_element ($params{$filter_on}) {
+% 						$added_class .= " " . $filter_element;
+% 					}
+% 				}
+				<div class="<% $added_class %>" align="center"><ul class="row-list"><li><% $params{'empty_message'} %></li></ul></div>
+			</li></ol>
+%			}
+		</div>
+
+		<script type="text/javascript">
+			params.maxDepth = <% $max_depth %>;
+
+			$(document).ready(function() {
+				initTable( params );
+
+				$(window).resize(function() {
+					resizeColumns( params );
+				});
+			});
+		</script>
+
+%			if ($params{'trailing_text'}) {
+		<div style="margin-top:3px;"> <% $params{'trailing_text'} %> </div>
+%			}
+
+		<ol class="page-list"><li class="clr"><div class='clearfix'><ul class="row-list">
+% 		if (!$params{'no_bottom_add_button'} && !$params{'no_add_button'} ) {
+			<li class="buttonRow"><& '/tmpl/element:button', params=>{'label'=>($params{'button_label'}) ? $params{'button_label'} : 'Add ' . $params{'label'}, 'onclick'=>'addNewRow( \'bottom\', params );', 'name'=>'add_item' } &></li>
+%		}
+%		foreach my $button (@{$params{bottom_buttons}}){
+			<li class="buttonRow"><% $button %></li>
+%		}
+%		if (defined($params{'help_info'})){
+			<li class="buttonRow"><span class="xsm"><& /tmpl/element:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></span></li>
+%		}
+		</ol>
+
+<%perl>
+if (!$params{'no_table'}) {
+</%perl>
+	</td>
+</tr>
+% }
+</%method>
+
+<%method jquery_sort_list_sublist>
+<%args>
+$fields
+$action_columns
+$data
+$depth
+$max_depth
+$append_instead => ''
+$name => ''
+$filter => ''
+$filter_on => ''
+$prefix => ''
+$total_counter => 0
+$action_dropdown => 0
+$onclick_options => 0
+$inactive_image => '/graphics/icons/move_16_inactive.png'
+</%args>
+%	if ( $depth > $max_depth ) { $max_depth = $depth; }
+	<ol class="page-list"<% ($name) ? ' id="' . $name . '"' : '' %>>
+%	foreach my $row ( @{$data} ) {
+		<li class="clr sort-row" id="<% $row->{'id'} %>_<% $total_counter++ %>">
+% 			my $added_class = "clearfix striping";
+% 			$added_class .= " " . $prefix if $prefix;
+%			if (defined($filter)) { 
+%				if(ref($row->{$filter_on}) eq 'ARRAY') {
+%					my $aref = $row->{$filter_on};
+%					foreach my $el (@$aref) {
+%						my $str = $el;
+%						$str =~ s/ /_/g;
+%						$str =~ s/'//g; #' Commented quote here for syntax highlighting correctness
+%						$added_class .= " " . $str;
+%					}
+%				} else {
+% 					$added_class .= " " . $row->{$filter_on};
+%				}
+% 			}
+			<div class='<% $added_class %>'>
+			<ul class="row-list">
+				<li class="hand" style="background-image: <% $inactive_image %>;">&nbsp;</li>
+%			my $col_counter = 0;
+%			foreach my $col ( @{$fields} ) {
+%				next if $col->{'hide'};
+%				if (ref($row->{$col->{'field'}}) eq 'ARRAY') {
+				<li class="col<% $col_counter++ %>">
+% 					my $aref = $row->{ $col->{'field'} };
+%					my $first_time=1;
+%					foreach my $el ( @$aref ) {
+%						if ($first_time == 1) { $first_time++; }
+%						else { print ", "; }
+%						print $el;
+%					}
+				</li>
+%				} else {
+					<li class="col<% $col_counter++ %>"><% $row->{ $col->{'field'} } %></li>
+%				} # end if/else array
+%			}
+%			if ( $action_columns ) {
+%				my @actions;
+%				if ( $action_dropdown ) {
+%					foreach my $col ( @{$action_columns} ) {
+%						if ($append_instead) {
+%							push @actions, "<option value=\"" . $col->{'link'} . "/". $row->{$append_instead} . "\" class=\"navsm\">" . $col->{'label'} . "</option>";
+%						} else {
+%							if ( $col->{'onclick'} ){
+%							push @actions, "<option value=\"" . $col->{'onclick'} ."\" class=\"navsm\">" . $col->{'label'} . "</option>";
+%							} else{
+%								push @actions, "option value=\"". $col->{'link'}."/".$row->{$append_instead}. "\" class=\"navsm\">". $col->{'label'}."</option>";
+%							}
+%						}
+%					}
+%				if ( $onclick_options ){				
+					<li class="col<% $col_counter %>"><form method="post"><select onChange="forward(this);" class="navsm"><option value="" class="navsm"> -- select -- </option><% join( "", @actions ) %></select></form></li>
+%				} else {
+					<li class="col<% $col_counter %>"><form method="post"><select onChange="eval(this.options[this.selectedIndex].value);" class="navsm"><option value="" class="navsm"> -- select -- </option><% join( "", @actions ) %></select></form></li>
+%				}
+%				} else {
+%					foreach my $col ( @{$action_columns} ) {
+%						if ( $col->{'onclick'} )  { push @actions, "<a onclick=\"" . $col->{'onclick'} . "\" class=\"navsm\">" . $col->{'label'} . "</a>"; }
+%						elsif ( $append_instead ) { push @actions, "<a href=\"" . $col->{'link'} . "/" . $row->{$append_instead} . "\" class=\"navsm\">" . $col->{'label'} . "</a>"; }
+%						else                      { push @actions, "<a href=\"" . $col->{'link'} . "/" . $row->{'id'} . "\" class=\"navsm\">" . $col->{'label'} . "</a>"; }
+%					}
+				<li class="col<% $col_counter %>"><% join( " | ", @actions ) %></li>
+%				}
+%			}
+			</ul>
+			</div>
+%		if ( $row->{'children'} ) {
+%			my $test_depth;
+%			($test_depth, $total_counter) = $m->comp( 'SELF:jquery_sort_list_sublist', 
+%														fields => $fields, 
+%														action_columns => $action_columns, 
+%														data => $row->{'children'},
+%														depth => $depth+1, 
+%														max_depth => $max_depth, 
+%														total_counter => $total_counter, 
+%														action_dropdown => $action_dropdown,
+%														inactive_image => $inactive_image );
+%			if ( $test_depth > $max_depth ) { $max_depth = $test_depth; }
+%		}
+		</li>
+%	}
+	</ol>
+%	return ($max_depth, $total_counter);
+</%method>
+

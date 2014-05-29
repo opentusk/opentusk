@@ -2,7 +2,7 @@
  Copyright 2012 Tufts University 
 
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
+ you may not use2 this file except in compliance with the License. 
  You may obtain a copy of the License at 
 
  http://www.opensource.org/licenses/ecl1.php 
@@ -18,7 +18,7 @@
 </%shared>
 
 <%perl>
-	foreach( @{TUSK::Core::Competency->new()->lookup()} ) {
+	foreach(@{TUSK::Competency::Competency->new()->lookup()}) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 
@@ -28,20 +28,18 @@
 
 <& /tmpl/element:cms_button_row, 
     links => [ 
-              { display_txt => __('Manage Competency Types'),
-                link_txt    => '/management/competency/typelist/' . $m->comp("/tmpl/url:get_type_path")},
               { display_txt => __('Public Competencies Link'),
-                link_txt    => '/view/competency/school/' . $school },
+                link_txt    => '/tusk/view/competency/school/' . $school },
 	         ]
 &>
 
 <%perl>
-	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
-	my $competency_types = TUSK::Core::CompetencyType->new()->lookup( 'school_id = ' . $school_id );
-	my $types = [ map { label => $_->getDescription, value => $_->getCompetencyTypeID }, @{$competency_types} ];
+	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id);
+	my $competency_types = TUSK::Competency::UserType->lookup('school_id='. $school_id);
+	my $types = [map {label => $_->getName, value=> $_->getPrimaryKeyID}, @{$competency_types}];
 </%perl>
 
-<& /tmpl/element:jquery_sort_list, params =>{
+<& /competency/competency/tmpl/element:jquery_sort_list, params => {
 				width => "100%",
 				label => __('Competencies'),
 				no_table => 1,
@@ -51,6 +49,8 @@
 				sort => 1,
 				button_label => __('Add Competency'),
 				action_width => 170,
+				action_dropdown => 1,
+				onclick_options => 1,
 				action_columns => [ 
 							{ 'label' => __('Modify'),    'onclick' => 'editRow( this, params );' },
 							{ 'label' => __('Add Child'), 'onclick' => 'addNewRow( this, params );' },
@@ -58,22 +58,21 @@
 			  			], 
 				fields => [
 					{ hide  => 1, field => 'id', },
-					{ label => __('Title'), field => 'title', head_align => 'left', align => 'left', edit =>
-						{ type      => 'text',
-						  classname => 'textareawhite',
-						  size      => 30,
-						  maxlength => 255 }
-					},
-					{ label => __('Description'), field => 'description', head_align => 'left', align => 'left', edit =>
+					{ label => __('Title'), field => 'title', head_align => 'left', align => 'left', width => 250, edit =>
 						{ type      => 'textarea',
 						  classname => 'textareawhite',
-						  rows      => 5,
-						  cols      => 25 }
+						  rows => 4,
+						  cols  => 30 }
 					},
-					{ label => __('Type(s)'), field => 'types', head_align => 'left', align => 'left', width => 150, edit =>
-						{ type      => 'checkbox',
+					{ label => __('Description'), field => 'description', head_align => 'left', align => 'left', width => 250, edit =>
+						{ type      => 'textarea',
 						  classname => 'textareawhite',
-						  options   => $types,
+						  rows      => 6,
+						  cols      => 30 }
+					},
+					{ label => __('Type'), field => 'types', head_align => 'center', align => 'center', width => 150, edit =>
+						{ type      => 'radio',
+						  options   => $types,		
 						  delimiter => ', ' }
 					},
 				],
@@ -93,7 +92,8 @@
 			"jquery/plugin/interface/interface.js",
 			"jquery/plugin/json.js",
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
-			"jqNestedSortableFunctions.js" 
+			"competency/competency/functions.js",
+			"jqNestedSortableFunctionsCompetencies.js" 
 			];
 </%perl>
 </%method>
@@ -104,21 +104,36 @@
 </%args>
 <%perl>
 	my %p_c_pairs;
-	my $cr = TUSK::Core::CompetencyRelationship->new()->lookup( 'school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'] );
-	foreach my $cr_row ( @{$cr} ) {
-		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
-		if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
-			$c_href->{$child_comp->getCompetencyID} = { 
+	my $competency_level = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name=\"school\"");
+	my $competency_level_id = $competency_level->getPrimaryKeyID;
+
+	my $cr = TUSK::Competency::Hierarchy->new()->lookup('competency.school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef,
+	[TUSK::Core::JoinObject->new( "TUSK::Competency::Competency", {origkey => 'child_competency_id', joinkey => 'competency_id', jointype => 'inner', joincond => "competency_level_enum_id = $competency_level_id"})] );
+
+	foreach my $cr_row (@{$cr}) {
+		if( defined($competencies->{$cr_row->getChildCompetencyID()})){
+			my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
+			my $user_type;
+			my $user_type_id = $child_comp->getCompetencyUserTypeID;
+
+			if (defined($user_type_id)){
+				my $user_type_temp = TUSK::Competency::UserType->lookup( 'competency_user_type_id='.$user_type_id);
+				$user_type = $user_type_temp->[0]->getName;
+			}
+		
+			if ( !defined( $c_href->{$child_comp->getCompetencyID} )) {
+				$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
 														description => $child_comp->getDescription,
-														types       => $child_comp->displayTypes,
+														types       => $user_type,
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
-		}
-		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
-			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
-			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+			}
+			if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
+				$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
+				push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+			}
 		}
 	}
 	return $children_storage->{'0'};
