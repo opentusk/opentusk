@@ -121,10 +121,9 @@ function initTable( params ) {
 
 	if ( params.sort == 0 ) {
 		$("li.hand").removeClass("hand");
-	}
+	}	
 	
-	var nestedSort = $('#'+params.listId).NestedSortable(
-		{
+	var nested_sortable_params = {
 			accept: 'sort-row',
 			nestingPxSpace: params.indent,
  			noNestingClass: params.noNesting,
@@ -212,105 +211,35 @@ function initTable( params ) {
 			autoScroll: true,
 			handle : '.hand'
 		}
-		
-	);
+	nestedSort = $('#'+params.listId).NestedSortable(nested_sortable_params);
 	
-	var handle_class = '';
-
-	var a = {
-			accept: 'sort-row',
-			nestingPxSpace: params.indent,
- 			noNestingClass: params.noNesting,
-			opacity: .8,
-			helperclass: 'helper',
-			onChange: function(serialized) { changed = true; },
-			onStop: function() {
-				if ( changed ) {
-					var newPos    = getPositionInList(this);
-					var newParent = this.parentNode.parentNode;
-					var myRealId  = this.id.replace( /_[\d]+/, '' );
-					var postData  = new Object;
-
-					postData['arrName']        = params.listId;
-					postData['droppedRow']     = this.id;
-					postData['originalParent'] = originalParent.id;
-					postData['newParent']      = this.parentNode.parentNode.id;
-					postData['sorting']        = 1;
-					postData['originalPos']    = originalPos;
-					postData['newPos']         = newPos;
-					postData['lineage']        = '/';
-					postData['curDepth']       = 0;
-					var depthCheck = newParent;
-					var lineage = new Array();
-					while (depthCheck.tagName == 'LI') {
-						var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
-						lineage.push( tmpId );
-						postData['curDepth']++;
-						depthCheck = depthCheck.parentNode.parentNode;
-					}
-					if ( lineage.length > 0 ) {
-						postData['lineage'] += lineage.reverse().join( "/" ) + "/";
-					}
-
-					$.post(params.postTo, postData, function(data){
-						error = data['error'];
-
-						if ( error ) {
-							// TODO:  Error handling
-						} else {
-							var newParentId      = postData['newParent'].replace( /_[\d]*/, '' );
-							var originalParentId = postData['originalParent'].replace( /_[\d]*/, '' );
-
-							if ( postData['newParent'] == postData['originalParent'] ) {
-								if ( postData['newParent'] != params.wrapper ) { 
-									var counter = new Date().getTime();
-									$('li[id^=' + newParentId + '_]').each( function() {
-										if ( this != newParent ) {
-											this.innerHTML = newParent.innerHTML;
-											//fixList( this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter );
-											counter++;
-										}
-									} );
-								}
-							} else {
-								if ( postData['originalParent'] != params.wrapper ) { 
-									$('li[id^=' + myRealId + '_]').each( function() {
-										var myParentId = this.parentNode.parentNode.id.replace( /_[\d]+/, '' );
-										if ( myParentId == originalParentId ) {
-											$(this).remove();
-										}
-									} );
-								}
-
-								if ( postData['newParent'] != params.wrapper ) { 
-									var counter = new Date().getTime();
-									$('li[id^=' + newParentId + '_]').each( function() {
-										if ( this != newParent ) {
-											this.innerHTML = newParent.innerHTML;
-											fixList( this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter );
-											counter++;
-										}
-									} );
-								}
-							}
-
-							if ( params.numbered ) updateNumbering();
-
-							initTable( params );
-						}
-					}, "json");
-				}
-			},
-			onStart: function() { console.log(this); originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
-			autoScroll: true,
-			handle : handle_class
-		}
-
-	$(document).find(".hand").click(function(){
+	$(document).find(".hand").mouseover( function(){
 		$(this).css("background","red");
 		$('#'+params.listId).NestedSortableDestroy();
-		$('#'+params.listId).NestedSortable(a);
+		nested_sortable_params.handle = '';
+		$('#'+params.listId).NestedSortable(nested_sortable_params);
 	});
+
+	var down = false;
+
+	$(document).find(".hand").mousedown( function(){
+		down = true;
+	})
+
+
+	$(document).find(".hand").mouseout(function(){
+		if (down == false){
+			alert("mouseup mouseup!!");
+		}
+/*
+		$(this).css("background","green");
+		$('#'+params.listId).NestedSortableDestroy();
+		nested_sortable_params.handle = '.hand';
+		$('#'+params.listId).NestedSortable(nested_sortable_params);
+*/
+	});
+
+	nested_sortable_params.handle = '.hand';
 
 	//$("div.striping").removeClass("even").removeClass("odd");
 
