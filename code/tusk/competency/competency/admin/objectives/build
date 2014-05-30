@@ -12,6 +12,7 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
  See the License for the specific language governing permissions and 
  limitations under the License.
+
 </%doc>
 <%flags>
 	inherit => undef
@@ -30,7 +31,7 @@ use HSDB4::Constants;
 	my @data = ();
 	my $dbh = HSDB4::Constants::def_db_handle();
 
-	if ($component_type eq 'schedule'){
+	if ($component_type eq 'schedule') {
 		$cr = TUSK::Competency::Competency->lookup( 'competency_class_meeting.class_meeting_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
 							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::ClassMeeting', 
 							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
@@ -38,7 +39,7 @@ use HSDB4::Constants;
 		$cr = TUSK::Competency::Competency->lookup( 'competency_content.content_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
 							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::Content', 
 							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
-	} elsif ($component_type eq 'related_content'){	
+	} elsif ($component_type eq 'related_content') {	
 		## related_content = content linked to a schedule		
 		my $school = TUSK::Core::School->new()->lookupReturnOne("school_id = '" . $school_id . "'");
 		my $school_db = $school->getSchoolDb();
@@ -63,23 +64,26 @@ use HSDB4::Constants;
 		my @competency_relations_list;
 		my @competency_relations_list_short;
 
-		foreach my $linked_row (@{$child_linked_comps}){
+		foreach my $linked_row (@{$child_linked_comps}) {
 			my $linked_name = TUSK::Competency::Competency->lookup( 'competency_id = ' . $linked_row->getCompetencyId2, [ 'uri' ]);			
-				foreach my $name ( @{$linked_name}){
+				foreach my $name ( @{$linked_name}) {
 						push @competency_relations_list, $name->getDescription;
-						push @competency_relations_list_short,  (substr $name->getDescription, 0, 50) . '...';
+						push @competency_relations_list_short, (substr $name->getDescription, 0, 50) . '...';
 				}
 		}
 		my $link_counter = 1;
 		my $competency_relations_string;
 		my $competency_relations_string_short;
-		foreach ( @competency_relations_list_short ){
-			if ( $link_counter < 5 ){ $competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
+
+		foreach (@competency_relations_list_short) {
+			if ($link_counter < 5) { $competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
 			$link_counter++;
 		};
-		if ( $link_counter >5 ){ $competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
+
+		if ($link_counter >5) {$competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
 		$link_counter = 1;
-		foreach ( @competency_relations_list ){
+
+		foreach (@competency_relations_list) {
 			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
 			$link_counter++;
 		};
@@ -90,7 +94,7 @@ use HSDB4::Constants;
 	
 		$temp_hash{'id'} = $competency->getCompetencyID;
 		$temp_hash{'title'} = $competency->getDescription;
-		if ($component_type eq 'schedule'){
+		if ($component_type eq 'schedule') {
 			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
 		} elsif ($component_type eq 'related_content'){
 			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
