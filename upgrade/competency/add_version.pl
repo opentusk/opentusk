@@ -24,13 +24,13 @@ my $dbh = HSDB4::Constants::def_db_handle();
 
 my $schools = HSDB4::Constants::getSchoolObject();
 
-foreach my $school( @$schools){
+foreach my $school(@$schools) {
     my $school_id = $school->getPrimaryKeyID();
     my $school_name = $school->getSchoolName();
     my $title = $school_name . " version 1";
     my $description = "Version 1 Competencies for ". $school_name;
-    my $sql = qq( INSERT INTO tusk.competency_version VALUES ( $school_id, $school_id, '$title', '$description', now(), 'migration', now() ));
-    my $sth = $dbh->prepare( $sql );
+    my $sql = qq(INSERT INTO tusk.competency_version VALUES ($school_id, $school_id, '$title', '$description', now(), 'migration', now()));
+    my $sth = $dbh->prepare($sql);
     $sth->execute();
     $sth->finish;
     print $school->getPrimaryKeyID()."\n";    

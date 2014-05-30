@@ -36,27 +36,27 @@ my %objectives = ();
 
 main();
 
-sub main{
+sub main {
     createTuskCourseObjects();
-    %objectives = map { $_->getPrimaryKeyID() => $_->out_label() } HSDB4::SQLRow::Objective->new()->lookup_all();
+    %objectives = map {$_->getPrimaryKeyID() => $_->out_label()} HSDB4::SQLRow::Objective->new()->lookup_all();
 
 #comment the functions out below as intended
 
     migrateContentObjectives();
-    #migrateClassMeetingObjectives();
+    migrateClassMeetingObjectives();
 }
 
-sub createTuskCourseObjects{
-    foreach my $course_obj( @{ TUSK::Course->new()->lookup() } ){
-	$tusk_courses{ $course_obj->getSchoolID() }{ $course_obj->getSchoolCourseCode() } = $course_obj->getPrimaryKeyID();  
+sub createTuskCourseObjects {
+    foreach my $course_obj(@{ TUSK::Course->new()->lookup()}) {
+	$tusk_courses{$course_obj->getSchoolID()}{$course_obj->getSchoolCourseCode()} = $course_obj->getPrimaryKeyID();  
     }
 }
 
-sub migrateContentObjectives{
-    my $competency_level_enum = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"content\"" );
-    my $competency_user_type = TUSK::Competency::UserType->new()->lookupReturnOne( "name = \"Competency\""  );				
+sub migrateContentObjectives {
+    my $competency_level_enum = TUSK::Enum::Data->new()->lookupReturnOne("namespace=\"competency.level_id\" AND short_name =\"content\"");
+    my $competency_user_type = TUSK::Competency::UserType->new()->lookupReturnOne("name = \"Competency\"");				
     
-    my $sql = qq( SELECT hsdb4.link_content_objective.parent_content_id,
+    my $sql = qq(SELECT hsdb4.link_content_objective.parent_content_id,
 		      hsdb4.link_content_objective.child_objective_id,
 		      hsdb4.link_content_objective.sort_order,
 		      hsdb4.link_content_objective.relationship,
@@ -68,13 +68,13 @@ sub migrateContentObjectives{
     my $content_objectives = $sth->fetchall_arrayref();
     $sth->finish;
 
-    $sql = qq( SELECT objective_id, body FROM hsdb4.objective);
+    $sql = qq(SELECT objective_id, body FROM hsdb4.objective);
     $sth = $dbh->prepare($sql);
     $sth->execute();
     my $content_objectives_body = $sth->fetchall_hashref('objective_id');
     $sth->finish;
 
-    foreach my $content_objective ( @{$content_objectives} ){
+    foreach my $content_objective (@{$content_objectives}){
 	my $competency = TUSK::Competency::Competency->new();
 
 	$competency->setFieldValues({
@@ -83,22 +83,23 @@ sub migrateContentObjectives{
 	    competency_level_enum_id => $competency_level_enum->getPrimaryKeyID(),
 	    competency_user_type_id => $competency_user_type->getPrimaryKeyID()
 	});
-	$competency->save( { user => 'migration' });
-	processContentRelationship( $content_objective->[0], $content_objective->[1], $competency->getCompetencyID(), $content_objective->[2], $content_objective->[3] );
+
+	$competency->save({user => 'migration'});
+	processContentRelationship($content_objective->[0], $content_objective->[1], $competency->getCompetencyID(), $content_objective->[2], $content_objective->[3]);
     }
 }
 
 sub migrateClassMeetingObjectives {
-    my $sql = qq( SELECT * FROM tusk\.class_meeting_objective);
-    my $sth = $dbh->prepare( $sql );
+    my $sql = qq(SELECT * FROM tusk\.class_meeting_objective);
+    my $sth = $dbh->prepare($sql);
     $sth->execute();
     my $class_meeting_objectives = $sth->fetchall_arrayref;
     $sth->finish;
 
-    my $competency_level_enum = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"class_meet\"" );
-    my $competency_user_type = TUSK::Competency::UserType->new()->lookupReturnOne( "name = \"Competency\""  );				
+    my $competency_level_enum = TUSK::Enum::Data->new()->lookupReturnOne("namespace=\"competency.level_id\" AND short_name =\"class_meet\"");
+    my $competency_user_type = TUSK::Competency::UserType->new()->lookupReturnOne("name = \"Competency\"");				
 
-    foreach my $class_meeting_objective ( @{ $class_meeting_objectives } ){
+    foreach my $class_meeting_objective (@{$class_meeting_objectives}) {
 	my $competency = TUSK::Competency::Competency->new();
 
     	$competency->setFieldValues({
@@ -107,14 +108,14 @@ sub migrateClassMeetingObjectives {
 	    competency_level_enum_id => $competency_level_enum->getPrimaryKeyID(),
 	    competency_user_type_id => $competency_user_type->getPrimaryKeyID()	
 	});
-	$competency->save( { user => 'migration' } );
+	$competency->save({user => 'migration'});
 
-	processClassMeetingRelationship( $class_meeting_objective->[1], $class_meeting_objective->[2], $competency->getCompetencyID(), $class_meeting_objective->[4] );
+	processClassMeetingRelationship($class_meeting_objective->[1], $class_meeting_objective->[2], $competency->getCompetencyID(), $class_meeting_objective->[4]);
     }
 }
 
 sub processContentRelationship {
-    my ( $parent_content_id, $objective_id, $competency_id, $sort_order, $relationship ) = @_; 
+    my ($parent_content_id, $objective_id, $competency_id, $sort_order, $relationship) = @_; 
 
     my $tusk_content_competency = TUSK::Competency::Content->new();
 
@@ -123,11 +124,11 @@ sub processContentRelationship {
 	competency_id => $competency_id,
 	sort_order => $sort_order,
     });
-    $tusk_content_competency->save( { user => 'migration' });
+    $tusk_content_competency->save({user => 'migration'});
 }
 
 sub processClassMeetingRelationship {
-    my ( $class_meeting_id, $objective_id, $competency_id, $sort_order ) = @_;
+    my ($class_meeting_id, $objective_id, $competency_id, $sort_order) = @_;
 
     my $tusk_class_meeting_competency = TUSK::Competency::ClassMeeting->new();
 
@@ -136,7 +137,7 @@ sub processClassMeetingRelationship {
 	competency_id => $competency_id,
 	sort_order => $sort_order,
     });
-    $tusk_class_meeting_competency->save( { user => 'migration' });
+    $tusk_class_meeting_competency->save({user => 'migration'});
 
 }
 
