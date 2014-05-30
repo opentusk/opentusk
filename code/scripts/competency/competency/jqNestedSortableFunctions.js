@@ -112,7 +112,6 @@ function getPositionInList( liNode ) {
 // to let it cascade, storing the serialized data in the onChange and then doing the actual AJAX
 // call in onStop IF something actually changed.
 function initTable( params ) {
-	console.log(params);
 	var originalPos    = null;
 	var originalParent = null;
 	var changed        = false;
@@ -223,11 +222,11 @@ function initTable( params ) {
 	var start = false;
 	var drag = false;
 
-	$(document).find(".hand").mouseover( function(){
+	$(document).find(".hand").mouseover( function() {
 		start = true;
 	});
 
-	$(document).find(".clr").mousedown( function(){		
+	$(document).find(".clr").mousedown( function() {		
 		down = true;
 		if (start == true) {
 			drag = true;
@@ -235,7 +234,7 @@ function initTable( params ) {
 		}
 	})
 
-	$(document).mouseup( function(){
+	$(document).mouseup( function() {
 		if (drag == true) {
 			console.log("stop drag");
 			setTimeout(function() {
@@ -243,7 +242,7 @@ function initTable( params ) {
 				$('#'+params.listId).NestedSortableDestroy();
 				nested_sortable_params.handle = '.hand';
 				$('#'+params.listId).NestedSortable(nested_sortable_params);	
-			}, 100);
+			}, 500);
 		}
 		drag = false;
 	});	
