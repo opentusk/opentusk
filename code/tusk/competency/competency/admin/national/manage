@@ -37,10 +37,10 @@
 <%perl>
 	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id); 
 	my $competency_types = TUSK::Competency::UserType->lookup("school_id = $school_id");
-	my $types = [ map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types} ];
+	my $types = [map {label => $_->getName, value=> $_->getPrimaryKeyID}, @{$competency_types}];
 </%perl>
 
-<& /competency/competency/tmpl/element:jquery_sort_list, params =>{
+<& /competency/competency/tmpl/element:jquery_sort_list, params => {
 				width => "100%",
 				label => __('Competencies'),
 				no_table => 1,
@@ -53,9 +53,9 @@
 				action_dropdown => 1,
 				onclick_options => 1,
 				action_columns => [ 
-							{ 'label' => __('Modify'),    'onclick' => 'editRow( this, params ); resetDropDown(this);' },
-							{ 'label' => __('Add Child'), 'onclick' => 'addNewRow( this, params ); resetDropDown(this);' },
-							{ 'label' => __('Delete'),    'onclick' => 'deleteRow( this, params ); resetDropDown(this);' } 
+							{ 'label' => __('Modify'),    'onclick' => 'editRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Add Child'), 'onclick' => 'addNewRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Delete'),    'onclick' => 'deleteRow(this, params); resetDropDown(this);' } 
 			  			], 
 				fields => [
 					{ hide  => 1, field => 'id', },
@@ -106,22 +106,25 @@
 <%perl>
 	my %p_c_pairs;
 
-	my $cr = TUSK::Competency::Hierarchy->lookup( "competency_hierarchy.school_id = " . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
-		[TUSK::Core::JoinObject->new( "TUSK::Competency::Competency", {origkey =>'child_competency_id', joinkey => 'competency_id', jointype => 'inner'}), 
-		TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"national\""})]);
+	my $cr = TUSK::Competency::Hierarchy->lookup("competency_hierarchy.school_id = " . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
+		[TUSK::Core::JoinObject->new("TUSK::Competency::Competency", 
+			{origkey =>'child_competency_id', joinkey => 'competency_id', jointype => 'inner'}), 
+		TUSK::Core::JoinObject->new('TUSK::Enum::Data', 
+			{joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"national\""})]);
 
-	foreach my $cra ( @{$cr} ){
-		if ( defined($competencies->{$cra->getChildCompetencyID()})){
+	foreach my $cra (@{$cr}) {
+		if (defined($competencies->{$cra->getChildCompetencyID()})) {
 			my $child_comp =  $competencies->{$cra->getChildCompetencyID()};
 			
 			my $user_type_id = $child_comp->getCompetencyUserTypeID;
 			my $user_type;
+
 			if (defined($user_type_id)){
-				my $user_type_temp = TUSK::Competency::UserType->lookup( 'competency_user_type_id='.$user_type_id);
+				my $user_type_temp = TUSK::Competency::UserType->lookup('competency_user_type_id='.$user_type_id);
 				$user_type = $user_type_temp->[0]->getName;
 			}
 
-			if ( !defined( $c_href->{$child_comp->getCompetencyID} )){
+			if (!defined($c_href->{$child_comp->getCompetencyID})) {
 				$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
@@ -133,7 +136,7 @@
 													  };
 			}
 
-			if ( !$p_c_pairs{$cra->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+			if (!$p_c_pairs{$cra->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
 				$p_c_pairs{$cra->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
 				push @{$children_storage->{$cra->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID};
 			}
