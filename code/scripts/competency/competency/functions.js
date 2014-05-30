@@ -291,7 +291,7 @@ and can then be used accordingly.
 			"min-height": 200,
 			"padding" : 20
 		 });
-	} else{
+	} else {
 		$("#" + dialog_name).html("Error: Unrecognized display type for checklist window.");
 	}
 }
@@ -302,7 +302,7 @@ function radioOnClick(extendFunction) {
 
 	var current_children = [];
 
-	$.each($("#Child_of_"+selected_competency_id).find(".description"), function(){
+	$.each($("#Child_of_"+selected_competency_id).find(".description"), function() {
 		current_children.push( $(this).html() );
 	});
 
