@@ -30,7 +30,7 @@
 		print "<div id=\"back_to_checklist\" class=\"gCMSButtonRow clearfix\"><a href= \"/tusk". $checklist_url . $m->comp("/tmpl/url:get_full_path")."\">Back to Checklist</a></div>";
 	}
 	
-	foreach(@{TUSK::Competency::Competency->lookup()}) {
+	foreach (@{TUSK::Competency::Competency->lookup()}) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 	
@@ -111,6 +111,7 @@
 </%args>
 <%perl>
 	my %p_c_pairs;
+
 	my $cr = TUSK::Competency::Hierarchy->lookup( "competency_hierarchy.school_id = " . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
 		[TUSK::Core::JoinObject->new("TUSK::Competency::Competency", {origkey =>'child_competency_id', joinkey => 'competency_id', jointype => 'inner'}), 
 		TUSK::Core::JoinObject->new('TUSK::Competency::Course', { joinkey => 'competency_id', origkey => 'child_competency_id', jointype => 'inner', joincond => "course_id = $tusk_course_id"}),
@@ -131,15 +132,22 @@
 						push @competency_relations_list_short,  (substr $name->getTitle, 0, 50) . '...';
 				}
 		}
+
 		my $link_counter = 1;
 		my $competency_relations_string;
 		my $competency_relations_string_short;
+
 		foreach ( @competency_relations_list_short ) {
 			if ( $link_counter < 5 ){$competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
 			$link_counter++;
 		};
-		if ($link_counter >5) {$competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
+
+		if ($link_counter >5) {
+			$competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";
+		}
+
 		$link_counter = 1;
+
 		foreach (@competency_relations_list) {
 			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
 			$link_counter++;
@@ -151,6 +159,7 @@
 
 		my $user_type;
 		my $user_type_id = $child_comp->getCompetencyUserTypeID;
+
 		if (defined($user_type_id)) {
 			my $user_type_temp = TUSK::Competency::UserType->lookup('competency_user_type_id='.$user_type_id);
 			$user_type = $user_type_temp->[0]->getName;
