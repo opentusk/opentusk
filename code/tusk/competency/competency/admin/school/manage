@@ -18,11 +18,11 @@
 </%shared>
 
 <%perl>
-	foreach( @{TUSK::Competency::Competency->lookup()} ) {
+	foreach(@{TUSK::Competency::Competency->lookup()}) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 
-	$school    = $m->comp("/tmpl/url:get_school");
+	$school = $m->comp("/tmpl/url:get_school");
 	$school_id = TUSK::Core::School->new->getSchoolID($school);
 </%perl>
 
@@ -34,9 +34,9 @@
 &>
 
 <%perl>
-	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id );
+	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id);
 	my $competency_types = TUSK::Competency::UserType->lookup( 'school_id ='. $school_id);
-	my $types = [ map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types} ];
+	my $types = [map { label => $_->getName, value=> $_->getPrimaryKeyID }, @{$competency_types}];
 </%perl>
 
 <& /competency/competency/tmpl/element:jquery_sort_list, params =>{
@@ -113,35 +113,43 @@
 </%args>
 <%perl>
 	my %p_c_pairs;
-	my $cr = TUSK::Competency::Hierarchy->lookup( 'competency.school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
+	my $cr = TUSK::Competency::Hierarchy->lookup('competency.school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
 		[TUSK::Core::JoinObject->new('TUSK::Competency::Competency', { origkey=> 'child_competency_id', joinkey => 'competency_id', jointype=> 'inner'}), 
-		TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"school\""})]);
+		TUSK::Core::JoinObject->new('TUSK::Enum::Data', {joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"school\""})]);
 
-	foreach my $cr_row ( @{$cr} ) {
-		
+	foreach my $cr_row (@{$cr}) {		
 		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
 
 		my $child_linked_comps = TUSK::Competency::Relation->lookup( 'competency_id_1 = ' . $child_comp->getCompetencyID);
 		my @competency_relations_list;
 		my @competency_relations_list_short;
 
-		foreach my $linked_row (@{$child_linked_comps}){
+		foreach my $linked_row (@{$child_linked_comps}) {
 			my $linked_name = TUSK::Competency::Competency->lookup( 'competency_id = ' . $linked_row->getCompetencyId2, [ 'uri' ]);			
-				foreach my $name ( @{$linked_name}){
+				foreach my $name (@{$linked_name}) {
 						push @competency_relations_list, $name->getTitle;
 						push @competency_relations_list_short,  (substr $name->getTitle, 0, 50) . '...';
 				}
 		}
+
 		my $link_counter = 1;
 		my $competency_relations_string;
 		my $competency_relations_string_short;
-		foreach ( @competency_relations_list_short ){
-			if ( $link_counter < 5 ){ $competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
+
+		foreach (@competency_relations_list_short) {
+			if ($link_counter < 5) { 
+				$competency_relations_string_short .= $link_counter . ". $_\r\n <br>";
+			}
 			$link_counter++;
 		};
-		if ( $link_counter >5 ){ $competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
+
+		if ($link_counter > 5) { 
+			$competency_relations_string_short .= "<b><i>and " . ($link_counter - 5) . " more relationships</i></b><br>";
+		}
+
 		$link_counter = 1;
-		foreach ( @competency_relations_list ){
+
+		foreach (@competency_relations_list) {
 			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
 			$link_counter++;
 		};
@@ -152,12 +160,12 @@
 
 		my $user_type;
 		my $user_type_id = $child_comp->getCompetencyUserTypeID;
-		if (defined($user_type_id)){
-			my $user_type_temp = TUSK::Competency::UserType->lookup( 'competency_user_type_id='.$user_type_id);
+		if (defined($user_type_id)) {
+			my $user_type_temp = TUSK::Competency::UserType->lookup('competency_user_type_id='.$user_type_id);
 			$user_type = $user_type_temp->[0]->getName;
 		}
 
-		if ( !defined( $c_href->{$child_comp->getCompetencyID} ) ) {
+		if (!defined($c_href->{$child_comp->getCompetencyID})) {
 			$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
@@ -167,7 +175,7 @@
 														children    => $children_storage->{$child_comp->getCompetencyID},
 													  };
 		}
-		if ( !$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} ) {
+		if (!$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
 			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
 			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
 		}
@@ -181,7 +189,7 @@
 </%method>
 
 <%method title>
-% return __("Manage Competencies (SCHOOL/PROGRAM)");
+% return __("Manage Competencies (SCHOOL)");
 </%method>
 
 <div id="link-dialog-wrapper">
