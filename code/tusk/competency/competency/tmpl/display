@@ -83,6 +83,7 @@
 	print "Error: Unrecognized input type \"". $input_type . "\" for generating checklist.";
 	return 0;
     }
+
     foreach my $course_competency (@{$course_competencies}) {
 	my $this_course_competency = {
 		competency_id => $course_competency->getPrimaryKeyID,
@@ -118,28 +119,28 @@
 	$selected_competency_id
 </%args>
 <%perl>
-    foreach my $key( keys %{ $competency_tree } ){
-	my $this_competency = TUSK::Competency::Competency->lookup( 'competency_id='. $key);
+    foreach my $key(keys %{$competency_tree}) {
+	my $this_competency = TUSK::Competency::Competency->lookup('competency_id='. $key);
 		my $competency_type = $this_competency->[0]->getType;
-		if ( $input_type eq "radio" ){
-			if ( (($depth == 1 || $depth == 0) and $competency_type ne 'category') || (($children eq 'on') and ($competency_type ne 'category'))){
-			    if ( $selected_competency_id == $this_competency->[0]->getPrimaryKeyID ){
+		if ($input_type eq "radio") {
+			if ((($depth == 1 || $depth == 0) and $competency_type ne 'category') || (($children eq 'on') and ($competency_type ne 'category'))) {
+			    if ($selected_competency_id == $this_competency->[0]->getPrimaryKeyID) {
 				    print "<li>"."&nbsp" x 4 x $depth ."<input type=\"radio\" name=\"competency_checklist\"  value=". $this_competency->[0]->getPrimaryKeyID ." checked ><span class=\"description\">".$this_competency->[0]->getDescription . "</span></input></li>";
-			    } else{
+			    } else {
 				    print "<li>"."&nbsp" x 4 x $depth ."<input type=\"radio\" name=\"competency_checklist\"  value=". $this_competency->[0]->getPrimaryKeyID ."><span class=\"description\">".$this_competency->[0]->getDescription . "</span></input></li>";
 			    }
 			} else {	
 			    print "<li>"."&nbsp" x 4 x $depth ."&bull;&nbsp&nbsp<span class=\"description\">".$this_competency->[0]->getDescription . "</span></li>";
 			}
 		} else {
-			if ( (($depth == 1 || $depth == 0) and $competency_type ne 'category') || (($children eq 'on') and ($competency_type ne 'category'))){
+			if ((($depth == 1 || $depth == 0) and $competency_type ne 'category') || (($children eq 'on') and ($competency_type ne 'category'))) {
 			    print "<input type=\"checkbox\" name=\"competency_checklist\" value=". $this_competency->[0]->getPrimaryKeyID .">".$this_competency->[0]->getDescription . "</input><br>";
-			} else{
+			} else {
 			    print "&bull;&nbsp&nbsp".$this_competency->[0]->getDescription . "</span><br>";
 			}
 		}
 		print "<div id =\"Child_of_".$this_competency->[0]->getPrimaryKeyID ."\">";
-		$m->comp( 'SELF:generateCompetencyChecklistByCourseHelper', competency_tree => $competency_tree->{$key}, depth => $depth+1, input_type => $input_type, children => $children, selected_competency_id => $selected_competency_id );
+		$m->comp('SELF:generateCompetencyChecklistByCourseHelper', competency_tree => $competency_tree->{$key}, depth => $depth+1, input_type => $input_type, children => $children, selected_competency_id => $selected_competency_id);
 		print "</div>";
     }    
 </%perl>
