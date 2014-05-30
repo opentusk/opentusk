@@ -214,47 +214,39 @@ function initTable( params ) {
 	nestedSort = $('#'+params.listId).NestedSortable(nested_sortable_params);
 	
 	$(document).find(".hand").mouseover( function(){
-		$(this).css("background","red");
 		$('#'+params.listId).NestedSortableDestroy();
 		nested_sortable_params.handle = '';
 		$('#'+params.listId).NestedSortable(nested_sortable_params);
 	});
 
 	var down = false;
+	var start = false;
+	var drag = false;
 
-	$(document).find(".clr").mousedown( function(){
+	$(document).find(".hand").mouseover( function(){
+		start = true;
+	});
+
+	$(document).find(".clr").mousedown( function(){		
 		down = true;
-		console.log("down: " + down);
-	}).mouseup( function(){
-		down = false;
-		console.log("up: " + down);
+		if (start == true) {
+			drag = true;
+			console.log("Drag: " + drag);
+		}
 	})
 
-/*
 	$(document).mouseup( function(){
-		if (down == true) {
-			setTimeout(function() {alert("up: " + down)}, 5000);
-			down = false;
-			$('#'+params.listId).NestedSortableDestroy();
-			nested_sortable_params.handle = '.hand';
-			$('#'+params.listId).NestedSortable(nested_sortable_params);
+		if (drag == true) {
+			console.log("stop drag");
+			setTimeout(function() {
+				console.log("waited!!!");
+				$('#'+params.listId).NestedSortableDestroy();
+				nested_sortable_params.handle = '.hand';
+				$('#'+params.listId).NestedSortable(nested_sortable_params);	
+			}, 100);
 		}
-	});
-*/
-
-/*
-	$(document).find(".hand").mouseout(function(){
-		if (down == false){
-			alert("mouseup mouseup!!");
-		}
-
-		$(this).css("background","green");
-		$('#'+params.listId).NestedSortableDestroy();
-		nested_sortable_params.handle = '.hand';
-		$('#'+params.listId).NestedSortable(nested_sortable_params);
-
-	});
-*/
+		drag = false;
+	});	
 
 	nested_sortable_params.handle = '.hand';
 
