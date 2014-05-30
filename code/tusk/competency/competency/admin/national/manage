@@ -18,8 +18,9 @@
 </%shared>
 
 <%perl>
-	my $competency_level_enum_id = TUSK::Enum::Data->new()->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"national\"" )->getPrimaryKeyID;
-	foreach( @{TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_level_enum_id")} ) {
+	my $competency_level_enum_id = TUSK::Enum::Data->new()->lookupReturnOne("namespace=\"competency.level_id\" AND short_name =\"national\"")->getPrimaryKeyID;
+
+	foreach (@{TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_level_enum_id")}) {
 		$competencies->{$_->getCompetencyID} = $_;
 	}
 	
@@ -35,7 +36,7 @@
 &>
 
 <%perl>
-	my $data = $m->comp( 'SELF:buildCompetencyTree', school_id => $school_id); 
+	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id); 
 	my $competency_types = TUSK::Competency::UserType->lookup("school_id = $school_id");
 	my $types = [map {label => $_->getName, value=> $_->getPrimaryKeyID}, @{$competency_types}];
 </%perl>
@@ -119,7 +120,7 @@
 			my $user_type_id = $child_comp->getCompetencyUserTypeID;
 			my $user_type;
 
-			if (defined($user_type_id)){
+			if (defined($user_type_id)) {
 				my $user_type_temp = TUSK::Competency::UserType->lookup('competency_user_type_id='.$user_type_id);
 				$user_type = $user_type_temp->[0]->getName;
 			}
@@ -147,7 +148,7 @@
 </%method>
 
 <%method red_header_text>
-% return $m->comp( "SELF:title" );
+% return $m->comp("SELF:title");
 </%method>
 
 <%method title>
