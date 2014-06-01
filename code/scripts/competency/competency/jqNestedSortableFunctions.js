@@ -250,7 +250,7 @@ function initTable(params) {
 
 	//$("div.striping").removeClass("even").removeClass("odd");
 
-	if ( params.sort != 0 ) {
+	if (params.sort != 0) {
 		$("div.striping").mouseout( function() { 
 			if ( this.parentNode.id != 'empty_message' ) {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage;
@@ -748,17 +748,17 @@ function deleteRowConfirm( link, params ) {
 			$(liNode).remove();
 		}
 
-		initTable( params );
+		initTable(params);
 	}, 'json' );
 }
 
-function deleteRowCancel( link, params ) {
+function deleteRowCancel(link, params) {
 	var originalDiv = link.parentNode.parentNode.parentNode;
 	originalDiv.style.backgroundColor = '';
 
 	var actionCol = params.columns.length - 1;
 
-	if ( params.sort ) {
+	if (params.sort) {
 		$("div.striping").each( function() {
 			this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage; 
 		} ).mouseout( function() { 
@@ -778,10 +778,10 @@ function deleteRowCancel( link, params ) {
 
 	$("li.col"+actionCol).css( 'visibility', 'visible' );
 
-	initTable( params );
+	initTable(params);
 }
 
-function dismissMessage( link ) {
+function dismissMessage(link) {
 	link.parentNode.parentNode.parentNode.style.backgroundColor = '';
 	$(link.parentNode.parentNode).remove();
 }
