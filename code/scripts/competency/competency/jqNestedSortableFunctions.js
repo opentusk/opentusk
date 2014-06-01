@@ -222,6 +222,7 @@ function initTable( params ) {
 	var start = false;
 	var drag = false;
 
+
 	$(document).find(".hand").mouseover( function() {
 		start = true;
 	});
