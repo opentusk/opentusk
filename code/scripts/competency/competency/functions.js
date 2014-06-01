@@ -17,7 +17,7 @@ var competencyRoot = "/tusk/competency/competency/";
 
 
 $("#link_competency_popup").draggable();
-$("#link_competency_popup").resizable( {
+$("#link_competency_popup").resizable({
 	stop: function(event, ui) {
 		$(this).css("width", '');
 	}
@@ -55,7 +55,7 @@ function linkSchoolNational (link, params) {
 	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, width: 850, height: 600, minHeight: 450});
 }
 
-function linkCourseSchool(link, params) {
+function linkCourseSchool (link, params) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length-2];
 	var course = postURL[postURL.length-1];
@@ -121,7 +121,7 @@ function closeLinkWindow() {
 	$('#link-dialog-wrapper').dialog('close');
 }
 
-function appendNewLinkedCompetencies(competency_id, type) {
+function appendNewLinkedCompetencies (competency_id, type) {
 	var currentURL = window.location.pathname;
 	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0) {
 		//for linking competency_types without supporting information

@@ -14,12 +14,12 @@
 
 var edit_mode = 0;
 
-function resetDropDown( dropDown ){
+function resetDropDown(dropDown) {
 	dropDown.selectedIndex = 0;
 }
 
 function filter (this_dd,prefix) {
-	if (this_dd.value == "None" ) {
+	if (this_dd.value == "None") {
 		prefix_els = document.getElementsByClassName(prefix);
 		for (i=0; i< prefix_els.length; i++) {
 			prefix_els[i].style.display='';
@@ -38,11 +38,10 @@ function filter (this_dd,prefix) {
 			var tmp = this_dd.value.replace(/ /g, "_");
 			tmp = tmp.replace(/'/g,"");
 			for(j=0; j< splt.length; j++) {
-				if (tmp == splt[j] ) {
+				if (tmp == splt[j]) {
 					prefix_els[i].style.display='';
 				}
-			}
-		
+			}		
 		}
 		
 		sort_els = document.getElementsByClassName("hand");		
@@ -52,56 +51,55 @@ function filter (this_dd,prefix) {
 	} // end if/else
 }
 
-function resizeColumns( params ) {
+function resizeColumns(params) {
 	var totalWidth = ($('#'+params.wrapper).width()-28) - params.allocated_width;
 	var tempWidth  = totalWidth - params.maxDepth*params.indent;
 	var columns    = params.columns.length;
-	var perCol     = Math.floor( tempWidth/(columns-params.sized_columns) );
+	var perCol     = Math.floor(tempWidth/(columns-params.sized_columns));
 
 	var colTypes = ['head','col'];
 	for (var idx = 0; idx < colTypes.length; idx++) {
 		var classname = colTypes[idx];
 
-		$('li[class*=' + classname + '0]').each( function() {
+		$('li[class*=' + classname + '0]').each(function() {
 			var thisDepth = 0;
 			// Need to get the OL that we're in, which is four levels back:  <ol><li><div><ul><li>...
 			var depthCheck = this.parentNode.parentNode.parentNode.parentNode;
 
-			while ( depthCheck.tagName == 'OL' ) {
+			while (depthCheck.tagName == 'OL') {
 				// From that, we're going to continually check grandparents to see how deeply we're nested:  <ol><li><ol>...
 				depthCheck = depthCheck.parentNode.parentNode;
 				thisDepth++; 
 			}
 			var width = params.columns[0].width;
-			if ( width == 0 )            { width = perCol; }
-
-			if ( classname == 'head' )   { width += 20; }
-			else if ( params.sort == 0 ) { width += 17; }
+			if (width == 0){ width = perCol; }
+			if (classname == 'head'){ width += 20; }
+			else if (params.sort == 0){ width += 17; }
 
 			width += (params.maxDepth-(thisDepth-1))*params.indent;
 
-			$(this).css( 'width', width + 'px' ).css( 'text-align', params.columns[0].align );
+			$(this).css('width', width + 'px').css('text-align', params.columns[0].align);
 		});
 
 		for (var i = 1; i < columns; i++) {
 			var width = params.columns[i].width || perCol;
-			if ( classname == 'head' ) { $('li[class*=head' + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].head_align ); }
-			else                       { $('li[class*=col'  + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].align ); }
+			if (classname == 'head') { $('li[class*=head' + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].head_align ); }
+			else { $('li[class*=col'  + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].align ); }
 		}
 	}
 }
 
-function fixList ( list, extra ) {
-	for( var idx = 0; idx < list.length; idx++ ) {
+function fixList (list, extra) {
+	for(var idx = 0; idx < list.length; idx++) {
 		list[idx].id = list[idx].id + extra;
 	}
 }
 
-function getPositionInList( liNode ) {
+function getPositionInList(liNode) {
 	var counter = 0;
 	var prev = liNode.previousSibling;
-	while( prev != undefined ) {
-		if ( prev.tagName == 'LI' ) counter++;
+	while (prev != undefined) {
+		if (prev.tagName == 'LI') counter++;
 		prev = prev.previousSibling;
 	}
 
@@ -111,14 +109,14 @@ function getPositionInList( liNode ) {
 // Note that onStop occurs AFTER onChange, so since we want to know what row was dropped, we need
 // to let it cascade, storing the serialized data in the onChange and then doing the actual AJAX
 // call in onStop IF something actually changed.
-function initTable( params ) {
+function initTable(params) {
 	var originalPos    = null;
 	var originalParent = null;
 	var changed        = false;
 
 	$('#'+params.listId).NestedSortableDestroy();
 
-	if ( params.sort == 0 ) {
+	if (params.sort == 0) {
 		$("li.hand").removeClass("hand");
 	}	
 	
@@ -130,7 +128,7 @@ function initTable( params ) {
 			helperclass: 'helper',
 			onChange: function(serialized) { changed = true; },
 			onStop: function() {
-				if ( changed ) {
+				if (changed) {
 					var newPos    = getPositionInList(this);
 					var newParent = this.parentNode.parentNode;
 					var myRealId  = this.id.replace( /_[\d]+/, '' );
@@ -149,45 +147,45 @@ function initTable( params ) {
 					var lineage = new Array();
 					while (depthCheck.tagName == 'LI') {
 						var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
-						lineage.push( tmpId );
+						lineage.push(tmpId);
 						postData['curDepth']++;
 						depthCheck = depthCheck.parentNode.parentNode;
 					}
-					if ( lineage.length > 0 ) {
+					if (lineage.length > 0) {
 						postData['lineage'] += lineage.reverse().join( "/" ) + "/";
 					}
 
-					$.post(params.postTo, postData, function(data){
+					$.post(params.postTo, postData, function(data) {
 						error = data['error'];
 
-						if ( error ) {
+						if (error) {
 							// TODO:  Error handling
 						} else {
 							var newParentId      = postData['newParent'].replace( /_[\d]*/, '' );
 							var originalParentId = postData['originalParent'].replace( /_[\d]*/, '' );
 
-							if ( postData['newParent'] == postData['originalParent'] ) {
-								if ( postData['newParent'] != params.wrapper ) { 
+							if (postData['newParent'] == postData['originalParent']) {
+								if (postData['newParent'] != params.wrapper) { 
 									var counter = new Date().getTime();
-									$('li[id^=' + newParentId + '_]').each( function() {
-										if ( this != newParent ) {
+									$('li[id^=' + newParentId + '_]').each(function() {
+										if (this != newParent) {
 											this.innerHTML = newParent.innerHTML;
-											//fixList( this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter );
+											//fixList(this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter);
 											counter++;
 										}
 									} );
 								}
 							} else {
-								if ( postData['originalParent'] != params.wrapper ) { 
+								if (postData['originalParent'] != params.wrapper) { 
 									$('li[id^=' + myRealId + '_]').each( function() {
 										var myParentId = this.parentNode.parentNode.id.replace( /_[\d]+/, '' );
-										if ( myParentId == originalParentId ) {
+										if (myParentId == originalParentId) {
 											$(this).remove();
 										}
 									} );
 								}
 
-								if ( postData['newParent'] != params.wrapper ) { 
+								if (postData['newParent'] != params.wrapper) { 
 									var counter = new Date().getTime();
 									$('li[id^=' + newParentId + '_]').each( function() {
 										if ( this != newParent ) {
@@ -199,14 +197,14 @@ function initTable( params ) {
 								}
 							}
 
-							if ( params.numbered ) updateNumbering();
+							if (params.numbered) updateNumbering();
 
-							initTable( params );
+							initTable(params);
 						}
 					}, "json");
 				}
 			},
-			onStart: function() { console.log(this); originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
+			onStart: function() {originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this);},
 			autoScroll: true,
 			handle : '.hand'
 		}
