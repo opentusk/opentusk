@@ -14,13 +14,10 @@
  limitations under the License.
 </%doc>
 
-<%flags>
-	inherit => undef
-</%flags>
+<%once>
+	use HSDB4::Constants;
+</%once>
 
-use HSDB4::Constants;
-
-<%method buildCompetencyTree>
 <%args>
 	$school_id
 	$component_type
@@ -49,7 +46,7 @@ use HSDB4::Constants;
 		my $related_content_ids = $sth->fetchall_arrayref();
 		my $related_data;
 		foreach my $related_content_id( @{$related_content_ids}){
-			my $related_data_current = $m->comp('SELF:buildCompetencyTree', school_id => $school_id, component_type => 'content', component_id => $related_content_id->[0]);
+			my $related_data_current = $m->comp('/competency/competency/tmpl/build', school_id => $school_id, component_type => 'content', component_id => $related_content_id->[0]);
 			push (@{$related_data}, @{$related_data_current});
 		}
 		return ($related_data, $related_content_ids->[0]->[0]);
@@ -108,5 +105,5 @@ use HSDB4::Constants;
 	}
 	return \@data;
 </%perl>
-</%method>
+
 
