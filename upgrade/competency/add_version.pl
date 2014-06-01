@@ -19,7 +19,6 @@ use warnings;
 
 use HSDB4::Constants;
 use TUSK::Core::School;
-use Data::Dumper;
 my $dbh = HSDB4::Constants::def_db_handle();
 
 my $schools = HSDB4::Constants::getSchoolObject();
@@ -33,7 +32,7 @@ foreach my $school(@$schools) {
     my $sth = $dbh->prepare($sql);
     $sth->execute();
     $sth->finish;
-    print $school->getPrimaryKeyID()."\n";    
+    print "Version successfully updated for School: " . $school->getSchoolName() . "\n";    
 }
 
 
