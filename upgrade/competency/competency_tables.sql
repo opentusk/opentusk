@@ -6,8 +6,7 @@ SQL Upgrade script for tables related to competencies, competency relationships 
 
 DROP TABLE IF EXISTS competency_version;
 
-CREATE TABLE competency_version
-(
+CREATE TABLE competency_version (
 	competency_version_id tinyint UNSIGNED NOT NULL PRIMARY KEY,
 	school_id int(10) UNSIGNED,
 	title varchar(100),
@@ -19,8 +18,7 @@ CREATE TABLE competency_version
 
 DROP TABLE IF EXISTS competency_version_history;
 
-CREATE TABLE competency_version_history
-(
+CREATE TABLE competency_version_history (
 	competency_version_history_id tinyint UNSIGNED NOT NULL PRIMARY KEY,
 	competency_version_id tinyint UNSIGNED NOT NULL,
 	school_id int(10) UNSIGNED,
@@ -87,8 +85,7 @@ CREATE TABLE competency_class_meeting_history (
 
 /*Tables for competency linking*/
 
-CREATE TABLE competency_relation
-(
+CREATE TABLE competency_relation (
 	competency_relation_id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	competency_id_1 int(10) UNSIGNED,
 	competency_id_2 int(10) UNSIGNED,
@@ -98,8 +95,7 @@ CREATE TABLE competency_relation
 	CONSTRAINT FOREIGN KEY (competency_id_2) REFERENCES competency(competency_id)
 ) CHARSET utf8;
 
-CREATE TABLE competency_relation_history
-(
+CREATE TABLE competency_relation_history (
 	competency_relation_history_id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	competency_relation_id int(10) UNSIGNED NOT NULL,
 	competency_id_1 int(10) UNSIGNED NOT NULL,
@@ -115,8 +111,7 @@ DROP TABLE IF EXISTS academic_level_course;
 
 DROP TABLE IF EXISTS academic_level;
 
-CREATE TABLE academic_level
-(
+CREATE TABLE academic_level (
 	academic_level_id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	title varchar(100),
 	description varchar(250),
@@ -125,8 +120,7 @@ CREATE TABLE academic_level
 	modified_on datetime DEFAULT NULL
 ) ENGINE=InnoDB CHARSET utf8;
 
-CREATE TABLE academic_level_history
-(
+CREATE TABLE academic_level_history (
 	academic_level_history_id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	academic_level_id int(10) UNSIGNED NOT NULL,
 	title varchar(100),
@@ -137,8 +131,7 @@ CREATE TABLE academic_level_history
 	history_action enum('Insert', 'Update', 'Delete')
 ) ENGINE=InnoDB CHARSET utf8;
 
-CREATE TABLE academic_level_course
-(
+CREATE TABLE academic_level_course (
 	academic_level_course_id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	academic_level_id int(10) UNSIGNED,
 	course_id int(10) UNSIGNED,
@@ -147,8 +140,7 @@ CREATE TABLE academic_level_course
 	modified_on datetime DEFAULT NULL
 ) ENGINE=InnoDB CHARSET utf8;
 
-CREATE TABLE academic_level_course_history
-(
+CREATE TABLE academic_level_course_history (
 	academic_level_course_history_id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	academic_level_course_id int(10) UNSIGNED NOT NULL, 
 	academic_level_id int(10) UNSIGNED,
