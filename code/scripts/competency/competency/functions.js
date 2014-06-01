@@ -15,13 +15,14 @@
 
 var competencyRoot = "/tusk/competency/competency/";
 
-
-$("#link_competency_popup").draggable();
-$("#link_competency_popup").resizable({
-	stop: function(event, ui) {
-		$(this).css("width", '');
-	}
-});
+if ($("#link_competency_popup").length){
+	$("#link_competency_popup").draggable();
+	$("#link_competency_popup").resizable({
+		stop: function(event, ui) {
+			$(this).css("width", '');
+		}
+	});
+}
 
 
 var currentTitle;
@@ -342,7 +343,9 @@ function checkboxOnClick() {
 //Functions to be run at pageload, included making divisions dragable and resizable
 
 $(document).ready(function() {
-	$('.competency_popup_content').draggable();
+	if ($(".competency_popup_content").length){
+		$('.competency_popup_content').draggable();
+	}
 	$('.competency_popup_container').click( function() {
 		$(this).children('.competency_popup_content').css({
 			"position": "fixed",
