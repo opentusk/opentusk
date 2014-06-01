@@ -39,143 +39,6 @@
 
 </%perl>
 
-<%method startup>
-%	$m->comp("SELF:set_no_cache");
-</%method>
-
-<%method jsarray>
-<%perl>
-	return [ 
-			"jquery/jquery.min.js",
-			"jquery/jquery-ui.min.js",
-			"jquery/jquery.ui.widget.min.js",
-			"jquery/plugin/interface/interface.js",
-			"jquery/plugin/json.js",
-			"jquery/plugin/inestedsortable-1.0.1.pack.js",
-			"jqNestedSortableFunctions.js",
-			"competency/competency/functions.js",
-			];
-</%perl>
-</%method>
-
-<%method generateTable>
-<%args>
-	$competencies_list
-	$competencies_type
-</%args>
-<%perl>
-    #generates table for linking/unlinking competencies given a list of competencies;
-    print "<table class=\"competency_link_table\">";
-    foreach my $comp_category(@comp_categories) {
-	my $current_key = (keys %{ $comp_category})[0];
-	if ($competencies_type eq "linked") {	    
-	    print "<tr><td id=\"LS_cat_". $current_key ."\"><b>" . $comp_category->{$current_key} . "</b></td></tr>";
-	    #process linked child competencies of parent competencies if they exist;
-	    my $competency_args = {
-		competency_id => $current_key
-	    };
-	    my $current_comp = TUSK::Application::Competency::Competency->new($competency_args);
-	    my $current_children = $current_comp->getChildren();
-	    foreach my $child( @{$current_children}){
-			if ($already_linked_comps{$child}) {
-				foreach my $already_linked_child(@{$already_linked_comps{$child}}){
-					print "<tr><td id=\"LS_". (keys %{$already_linked_child})[0] ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" 
-						data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $already_linked_child->{(keys %{$already_linked_child})[0]} . "</td></tr>";
-				}
-			}
-	    }
-	} else {
-	    print "<tr><td id=\"NLS_cat_". $current_key ."\"><b>" . $comp_category->{$current_key} . "</b></td></tr>";
-	}	
-
-	foreach my $linked_comp(@{$competencies_list->{$current_key}}) {
-	    my $current_linked_key = (keys %{$linked_comp})[0];	
-
-	    if ($competencies_type eq "linked") {
-		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"".$current_key."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
-	    } else {
-		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"". $current_key ."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
-		if ($not_linked_comps{$current_linked_key}) {
-			foreach my $not_linked_child_comp(@{$not_linked_comps{$current_linked_key}}) {
-				print "<tr><td id=\"NLS_". (keys %{$not_linked_child_comp})[0] ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" 
-					data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $not_linked_child_comp->{(keys %{$not_linked_child_comp})[0]} . "</td></tr>";
-			}
-		}
-	    }
-	}
-    }
-    print "</table>";
-</%perl>
-</%method>
-
-
-<%method generateTableNoCategories>
-<%args>
-	$competencies_list
-	$competencies_type
-</%args>
-<%perl>
-    #generates table for linking/unlinking competencies given a list of competencies;
-    print "<table class=\"competency_link_table\">";
-	if ($competencies_type eq "linked") {
-	    print "<tr><td id=\"LS_cat_0\"><i>(No Categories Present)</i></td></tr>";
-	} else{
-	    print "<tr><td id=\"NLS_cat_0\"><i>(No Categories Present)</i></td></tr>";
-	}
-
-	foreach my $linked_comp(@{$competencies_list->{'0'}}) {
-	    my $current_linked_key = (keys %{ $linked_comp })[0];
-				
-	    if ($competencies_type eq "linked") { 		
-		print "<tr> <td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
-	    } else {
-		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
-	    }
-	}
-
-    print "</table>";
-</%perl>
-</%method>
-
-
-<%method buildCompetencyListTree>
-<%args>
-	$data 
-	$linked
-	$parent
-</%args>
-<%perl>
-	my %linked_competencies = map {$_ => 1} @{$linked};
-	for my $d (@{$data}) {
-		my %temp_linked_comp;
-
-		if ($d->{'title'}){
-			$temp_linked_comp{$d->{'id'}} = $d->{'title'};
-		} else {
-			$temp_linked_comp{$d->{'id'}} = $d->{'description'};
-		}
-
-			
-		if (exists($linked_competencies{$d->{'id'}})) {
-			push @{$already_linked_comps{$parent}}, {%temp_linked_comp};
-		} else{
-			if (($d->{'children'})) {
-				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
-				$m->comp('SELF:buildCompetencyListTree', data => $d->{'children'}, linked => $linked , parent => $d->{'id'});
-			} else {
-				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
-			}
-		}
-	}
-</%perl>
-</%method>
-
-<%method red_header_text>
-% return $m->comp("SELF:title");
-</%method>
-
-
-
 <div id="link_body">
 <%perl>
 	if ($ARGS{link_type} eq 'national') {
@@ -275,4 +138,137 @@
 <input id = "link_competencies_close_button" type="button" class="formbutton" onclick="closeLinkWindow()" value="Close" />
 </div>
 
+<%method generateTable>
+<%args>
+	$competencies_list
+	$competencies_type
+</%args>
+<%perl>
+    #generates table for linking/unlinking competencies given a list of competencies;
+    print "<table class=\"competency_link_table\">";
+    foreach my $comp_category(@comp_categories) {
+	my $current_key = (keys %{ $comp_category})[0];
+	if ($competencies_type eq "linked") {	    
+	    print "<tr><td id=\"LS_cat_". $current_key ."\"><b>" . $comp_category->{$current_key} . "</b></td></tr>";
+	    #process linked child competencies of parent competencies if they exist;
+	    my $competency_args = {
+		competency_id => $current_key
+	    };
+	    my $current_comp = TUSK::Application::Competency::Competency->new($competency_args);
+	    my $current_children = $current_comp->getChildren();
+	    foreach my $child( @{$current_children}){
+			if ($already_linked_comps{$child}) {
+				foreach my $already_linked_child(@{$already_linked_comps{$child}}){
+					print "<tr><td id=\"LS_". (keys %{$already_linked_child})[0] ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" 
+						data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $already_linked_child->{(keys %{$already_linked_child})[0]} . "</td></tr>";
+				}
+			}
+	    }
+	} else {
+	    print "<tr><td id=\"NLS_cat_". $current_key ."\"><b>" . $comp_category->{$current_key} . "</b></td></tr>";
+	}	
+
+	foreach my $linked_comp(@{$competencies_list->{$current_key}}) {
+	    my $current_linked_key = (keys %{$linked_comp})[0];	
+
+	    if ($competencies_type eq "linked") {
+		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"".$current_key."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
+	    } else {
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"". $current_key ."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
+		if ($not_linked_comps{$current_linked_key}) {
+			foreach my $not_linked_child_comp(@{$not_linked_comps{$current_linked_key}}) {
+				print "<tr><td id=\"NLS_". (keys %{$not_linked_child_comp})[0] ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" 
+					data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $not_linked_child_comp->{(keys %{$not_linked_child_comp})[0]} . "</td></tr>";
+			}
+		}
+	    }
+	}
+    }
+    print "</table>";
+</%perl>
+</%method>
+
+<%method generateTableNoCategories>
+<%args>
+	$competencies_list
+	$competencies_type
+</%args>
+<%perl>
+    #generates table for linking/unlinking competencies given a list of competencies;
+    print "<table class=\"competency_link_table\">";
+	if ($competencies_type eq "linked") {
+	    print "<tr><td id=\"LS_cat_0\"><i>(No Categories Present)</i></td></tr>";
+	} else{
+	    print "<tr><td id=\"NLS_cat_0\"><i>(No Categories Present)</i></td></tr>";
+	}
+
+	foreach my $linked_comp(@{$competencies_list->{'0'}}) {
+	    my $current_linked_key = (keys %{ $linked_comp })[0];
+				
+	    if ($competencies_type eq "linked") { 		
+		print "<tr> <td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
+	    } else {
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
+	    }
+	}
+
+    print "</table>";
+</%perl>
+</%method>
+
+
+<%method buildCompetencyListTree>
+<%args>
+	$data 
+	$linked
+	$parent
+</%args>
+<%perl>
+	my %linked_competencies = map {$_ => 1} @{$linked};
+	for my $d (@{$data}) {
+		my %temp_linked_comp;
+
+		if ($d->{'title'}){
+			$temp_linked_comp{$d->{'id'}} = $d->{'title'};
+		} else {
+			$temp_linked_comp{$d->{'id'}} = $d->{'description'};
+		}
+
+			
+		if (exists($linked_competencies{$d->{'id'}})) {
+			push @{$already_linked_comps{$parent}}, {%temp_linked_comp};
+		} else{
+			if (($d->{'children'})) {
+				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
+				$m->comp('SELF:buildCompetencyListTree', data => $d->{'children'}, linked => $linked , parent => $d->{'id'});
+			} else {
+				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
+			}
+		}
+	}
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/jquery.ui.widget.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js",
+			"competency/competency/functions.js",
+			];
+</%perl>
+</%method>
 
