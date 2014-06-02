@@ -700,6 +700,9 @@ function deleteRowConfirm( link, params ) {
 
 	postData['delete'] = 1;
 	postData['id'] = liNode.id;
+	postData['type'] = params['listId'];
+
+
 	if ( liNode.parentNode.parentNode.tagName == 'LI' ) {
 		postData['parentId'] = liNode.parentNode.parentNode.id;
 	} else {
