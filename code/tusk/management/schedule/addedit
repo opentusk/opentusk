@@ -13,65 +13,38 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
-use TUSK::Core::ClassMeetingContentType;
-use TUSK::Competency::Hierarchy;
-use TUSK::Competency::Course;
-use TUSK::Competency::Competency;
-use TUSK::Competency::Relation;
-use TUSK::Enum::Data;
+	use TUSK::Core::ClassMeetingContentType;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::Course;
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Relation;
+	use TUSK::Enum::Data;
 </%once>
 
-<%method title>
-<%perl>
-my $title = __("Modify Schedule");
-return $title;
-</%perl>
-</%method>
-
-<%method stylearray>
-% return ['/style/style.css','/style/home.css', '/style/competency.css']
-</%method>
-
-<%method jsarray>
-<%perl>
- return [
-		"scripts.js", 
-		"layers.js",
-		"jquery/jquery.min.js",
-		"jquery/jquery-ui.min.js",
-		"jquery/jquery.ui.widget.min.js",
-		"jquery/plugin/interface/interface.js",
-		"jquery/plugin/json.js",
-		"jquery/plugin/inestedsortable-1.0.1.pack.js",
-		"competency/competency/jqNestedSortableFunctions.js",
-		"competency/competency/functions.js",
-	];
-</%perl>
-</%method>
-
 <%shared>
-my $class_meeting;
-my $class_meeting_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $class_meeting;
+	my $class_meeting_id = $m->comp("/tmpl/url:get_last_path_id");
 
-my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
 
-if (defined($class_meeting_id)){
-	$class_meeting = HSDB45::ClassMeeting->new(_school=>$type_object->school)->lookup_key($class_meeting_id);
-	if (!$class_meeting->primary_key()){
-		$m->comp('/tmpl/error', msg=>__('Invalid schedule id passed'));
+	if (defined($class_meeting_id)){
+		$class_meeting = HSDB45::ClassMeeting->new(_school=>$type_object->school)->lookup_key($class_meeting_id);
+		if (!$class_meeting->primary_key()){
+			$m->comp('/tmpl/error', msg=>__('Invalid schedule id passed'));
+		}
+	} else {
+		$m->comp('/tmpl/error', msg=>__('No schedule id passed'));
 	}
-} else {
-	$m->comp('/tmpl/error', msg=>__('No schedule id passed'));
-}
 
-my $course_id = $class_meeting->course->course_id;
-my $school_id = $class_meeting->course->get_school()->getPrimaryKeyID();
-my $school_name = $class_meeting->course->get_school()->getSchoolName();
+	my $course_id = $class_meeting->course->course_id;
+	my $school_id = $class_meeting->course->get_school()->getPrimaryKeyID();
+	my $school_name = $class_meeting->course->get_school()->getSchoolName();
 
-my $base_url = "/managment/schedule/addedit";
-my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimaryKeyID()} }
-                @{ TUSK::Core::ClassMeetingContentType->lookup(" 1 = 1")};
+	my $base_url = "/managment/schedule/addedit";
+	my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimaryKeyID()} }
+        				@{ TUSK::Core::ClassMeetingContentType->lookup(" 1 = 1")};
 
 </%shared>
 
@@ -106,8 +79,8 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 <& /tmpl/element:field_display, params =>{ label => __('End Time'),
                 value => $class_meeting->field_value('endtime') } &>
 
-<%perl>
-	$m->comp('/tmpl/element:sort_order_box', params =>{
+
+<& /tmpl/element:sort_order_box , params =>{
 		label=>__('Content'),
 		button_onclick=>"openwindow('contentdiv',700);",
 		buttons => [],
@@ -125,15 +98,15 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 			            { label => __('Section'), field => 'anchor_label', type => 'textbox', align => 'left', length => 50 } ],
 			validate => { usage => 'No', },
 			data => \@link_data 
-		}
-	});
+}} &>
 
+
+<%perl>
 	my $objectives      = $class_meeting->child_objectives(1) || [];
 	my @objectives_data = map { {objective_id => $_->getObjective()->getFieldValue('objective_id'), body => $_->getObjective()->getBody(),} } @$objectives;
 
-</%perl>
 
-<%perl>
+
 	my $data = $m->comp('/competency/competency/tmpl/build', school_id => $school_id, component_type => 'schedule', component_id => $class_meeting_id);
 ##The objectives related to this schedule.
 	$m->comp('/competency/competency/tmpl/element:jquery_sort_list' , params =>{
@@ -309,9 +282,10 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
                 name=>'submit'} &>
 
 </table>
+
 <div id="link-dialog-wrapper">
 <div id="link_competency_title">
-Link <span id="objective_type">Schedule</span> Objective '<span id="currentComp"></span>' to:
+	Link <span id="objective_type">Schedule</span> Objective '<span id="currentComp"></span>' to:
 </div>
 <div id="link-dialog" title="Link Competencies"></div>
 </div>
@@ -415,3 +389,30 @@ if (defined($ARGS{'submit'})){
 }
 </%init>
 
+<%method title>
+<%perl>
+	my $title = __("Modify Schedule");
+	return $title;
+</%perl>
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css', '/style/competency.css']
+</%method>
+
+<%method jsarray>
+<%perl>
+ return [
+		"scripts.js", 
+		"layers.js",
+		"jquery/jquery.min.js",
+		"jquery/jquery-ui.min.js",
+		"jquery/jquery.ui.widget.min.js",
+		"jquery/plugin/interface/interface.js",
+		"jquery/plugin/json.js",
+		"jquery/plugin/inestedsortable-1.0.1.pack.js",
+		"competency/competency/jqNestedSortableFunctions.js",
+		"competency/competency/functions.js",
+	];
+</%perl>
+</%method>
