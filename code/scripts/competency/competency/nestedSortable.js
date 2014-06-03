@@ -20,7 +20,9 @@ function resetDropDown(dropDown) {
 
 function filter (this_dd,prefix) {
 	if (this_dd.value == "None") {
+	
 		prefix_els = document.getElementsByClassName(prefix);
+	
 		for (i=0; i< prefix_els.length; i++) {
 			prefix_els[i].style.display='';
 		}
@@ -31,7 +33,9 @@ function filter (this_dd,prefix) {
 		}
 
 	} else {
+
 		prefix_els = document.getElementsByClassName(prefix);
+
 		for (i=0; i< prefix_els.length; i++) {
 			prefix_els[i].style.display='none';
 			var splt = prefix_els[i].className.split(" ");
@@ -293,6 +297,7 @@ function editRow(link, params) {
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
 	
 	for (var idx = 1; idx < liArray.length; idx++) {
+
 		if ((idx==4) && params['listId'] == 'school_competencies') {
 			continue;
 		}
@@ -302,6 +307,7 @@ function editRow(link, params) {
 		if (idx==3 & params['listId'] == 'course_competencies') {
 			continue;
 		}
+
 		var value = liArray[idx].innerHTML;
 		// This next line is for IE7.  It likes to add an extra space at the end.
 		value = value.replace(/^\s+$/g,"");
@@ -560,7 +566,7 @@ function saveRow(link, params) {
 				}				
 				if (radio_button_value == 0) {
 					value = "Competency";
-					alert( "WARNING: Type defaulted to \"Competency\" as no type specified." );
+					alert("WARNING: Type defaulted to \"Competency\" as no type specified.");
 				} else{
 					value = radio_button_value;
 				}
@@ -586,7 +592,7 @@ function saveRow(link, params) {
 				break;
 
 			default:
-				alert( 'Unknown edit type!' );
+				alert('Unknown edit type!');
 				break;
 		}		
 
