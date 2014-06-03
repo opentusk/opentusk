@@ -196,7 +196,7 @@ function initTable(params) {
 											this.innerHTML = newParent.innerHTML;
 											fixList( this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter );
 											counter++;
-										}
+				nnnnnn						}
 									} );
 								}
 							}
@@ -281,7 +281,7 @@ function initTable(params) {
 
 function editRow(link, params) {
 	if (edit_mode == 1) {
-		alert("Please finish editing current Competency/Objective before making a new change");
+		alert("Please finish making your current change before starting a new one");
 		return;
 	}
 	var function_values = [];
@@ -416,7 +416,7 @@ function cancelRow(link, params, this_row, add) {
 
 function addNewRow(link, params) {
 	if (edit_mode == 1) {
-		alert("Please finish editing current Competency/Objective before making a new change");
+		alert("Please finish making your current change before starting a new one");
 		return;
 	}
 	var parentId = 0;
@@ -667,7 +667,7 @@ function saveRow(link, params) {
 
 function deleteRow(link, params) {
 	if (edit_mode == 1) {
-		alert("Please finish editing current Competency/Objective before making a new change");
+		alert("Please finish making your current change before starting a new one");
 
 		return;
 	}
