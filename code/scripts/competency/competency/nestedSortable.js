@@ -380,6 +380,11 @@ function editRow(link, params) {
 						function_values.push('deleteRow(this, params); resetDropDown(this);');
 						function_values.push('linkCourseSchool(this, params); resetDropDown(this);');
 						add  = 1;
+					}  else if (params["listId"] == "competency_types") {
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+						add  = 1;
 					} else {
 						function_values.push('');
 						function_values.push('editRow(this, params); resetDropDown(this);');
