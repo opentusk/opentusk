@@ -196,7 +196,7 @@ function initTable(params) {
 											this.innerHTML = newParent.innerHTML;
 											fixList( this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter );
 											counter++;
-				nnnnnn						}
+										}
 									} );
 								}
 							}
@@ -214,43 +214,46 @@ function initTable(params) {
 		}
 	nestedSort = $('#'+params.listId).NestedSortable(nested_sortable_params);
 	
-	$(document).find(".hand").mouseover( function(){
-		$('#'+params.listId).NestedSortableDestroy();
-		nested_sortable_params.handle = '';
-		$('#'+params.listId).NestedSortable(nested_sortable_params);
-	});
+	if (params['listId'] != 'class_meeting_competencies' &&  params['listId'] != 'content_competencies'){
+		
+		$(document).find(".hand").mouseover( function(){
+			$('#'+params.listId).NestedSortableDestroy();
+			nested_sortable_params.handle = '';
+			$('#'+params.listId).NestedSortable(nested_sortable_params);
+		});
 
-	var down = false;
-	var start = false;
-	var drag = false;
+		var down = false;
+		var start = false;
+		var drag = false;
 
 
-	$(document).find(".hand").mouseover( function() {
-		start = true;
-	});
+		$(document).find(".hand").mouseover( function() {
+			start = true;
+		});
 
-	$(document).find(".clr").mousedown( function() {		
-		down = true;
-		if (start == true) {
-			drag = true;
-			console.log("Drag: " + drag);
-		}
-	})
+		$(document).find(".clr").mousedown( function() {		
+			down = true;
+			if (start == true) {
+				drag = true;
+				console.log("Drag: " + drag);
+			}
+		})
 
-	$(document).mouseup( function() {
-		if (drag == true) {
-			console.log("stop drag");
-			setTimeout(function() {
-				console.log("waited!!!");
-				$('#'+params.listId).NestedSortableDestroy();
-				nested_sortable_params.handle = '.hand';
-				$('#'+params.listId).NestedSortable(nested_sortable_params);	
-			}, 500);
-		}
-		drag = false;
-	});	
+		$(document).mouseup( function() {
+			if (drag == true) {
+				console.log("stop drag");
+				setTimeout(function() {
+					console.log("waited!!!");
+					$('#'+params.listId).NestedSortableDestroy();
+					nested_sortable_params.handle = '.hand';
+					$('#'+params.listId).NestedSortable(nested_sortable_params);	
+				}, 500);
+			}
+			drag = false;
+		});	
 
-	nested_sortable_params.handle = '.hand';
+		nested_sortable_params.handle = '.hand';
+	}
 
 	//$("div.striping").removeClass("even").removeClass("odd");
 
