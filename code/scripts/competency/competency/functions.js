@@ -125,12 +125,12 @@ function appendNewLinkedCompetencies (competency_id, type) {
 	var currentURL = window.location.pathname;
 	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0) {
 		//for linking competency_types without supporting information
-		col = 'col1';
+		col = 'col1';		
 	} else if (currentURL.indexOf("school") >=1 ) {
 		//for linking school competencies
 		col = 'col3';
 	} else {
-		//for linking competency types with supporting informatoin
+		//for linking competency types with supporting information
 		col = 'col2';
 	}
 	$.each(to_update_array, function(index, value) {
