@@ -41,7 +41,7 @@ function filter (this_dd,prefix) {
 			var splt = prefix_els[i].className.split(" ");
 			var tmp = this_dd.value.replace(/ /g, "_");
 			tmp = tmp.replace(/'/g,"");
-			for(j=0; j< splt.length; j++) {
+			for (j=0; j< splt.length; j++) {
 				if (tmp == splt[j]) {
 					prefix_els[i].style.display='';
 				}
@@ -87,8 +87,11 @@ function resizeColumns(params) {
 
 		for (var i = 1; i < columns; i++) {
 			var width = params.columns[i].width || perCol;
-			if (classname == 'head') { $('li[class*=head' + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].head_align ); }
-			else { $('li[class*=col'  + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].align ); }
+			if (classname == 'head') { 
+				$('li[class*=head' + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].head_align ); 
+			} else { 
+				$('li[class*=col'  + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].align ); 
+			}
 		}
 	}
 }
@@ -259,11 +262,11 @@ function initTable(params) {
 
 	if (params.sort != 0) {
 		$("div.striping").mouseout( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if (this.parentNode.id != 'empty_message') {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage;
 			}
 		} ).mouseover( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if (this.parentNode.id != 'empty_message') {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.dragImage;
 			}
 		} );
@@ -271,14 +274,14 @@ function initTable(params) {
 		$('#'+params.listId).NestedSortableDestroy();
 	}
 	
-	if ( params.striping ) {
+	if (params.striping) {
 		$("div.striping:even").addClass("even");
 		$("div.striping:odd").addClass("odd");
 	} else {
 		$("div.striping").addClass("even");
 	}
 
-	resizeColumns( params );
+	resizeColumns(params);
 }
 
 
@@ -348,10 +351,10 @@ function editRow(link, params) {
 					noTypes = 1;
 					break;
 				}
-				for ( var i in editParams.options ) {
+				for (var i in editParams.options) {
 					var o_value = editParams.options[i].value;
 					var o_label = editParams.options[i].label;
-					if ( o_value !== undefined ) {
+					if (o_value !== undefined) {
 						var o_label_re = new RegExp( editParams.delimiter + o_label + editParams.delimiter );
 						newInnerHTML += '<input name ="radio_check" type="radio" value="' + o_value + '"' + ((o_label_re.test(value)) ? ' checked' : '') + ' data-name="' + o_label + '">' + o_label + '<br />';
 					}
@@ -467,7 +470,9 @@ function addNewRow(link, params) {
 		var existingList = containingDiv.parentNode.getElementsByTagName('OL')[0];
 		if (existingList == undefined || $(existingList).length == 0) {
 			thisDepth++;
-			if (thisDepth > params.maxDepth) { params.maxDepth = thisDepth; }
+			if (thisDepth > params.maxDepth) {
+				params.maxDepth = thisDepth; 
+			}
 			$(containingDiv).after('<ol class="page-list">' + rowText + '</ol>'); 
 		} else {
 			$(existingList).append( rowText );
@@ -606,7 +611,9 @@ function saveRow(link, params) {
 
 		liArray[idx].innerHTML = display;
 		if (postThis) {
-			if (isArray) {postData['col' + (idx-1) + '[]'] = value;}
+			if (isArray) {
+				postData['col' + (idx-1) + '[]'] = value;
+			}
 			else {postData['col' + (idx-1)] = value;}
 		}
 	}
@@ -659,7 +666,9 @@ function saveRow(link, params) {
 						if ($(existingList).length == 0) {
 							var containingDiv = this.getElementsByTagName('DIV')[0];
 							thisDepth++;
-							if (thisDepth > params.maxDepth) { params.maxDepth = thisDepth; }
+							if (thisDepth > params.maxDepth) { 
+								params.maxDepth = thisDepth; 
+							}
 							$(containingDiv).after('<ol class="page-list">' + rowText + counter++ + rowText2 + '</ol>'); 
 						} else {
 							$(existingList).append(rowText + counter++ + rowText2);
@@ -717,14 +726,14 @@ function deleteRowConfirm( link, params ) {
 	postData['type'] = params['listId'];
 
 
-	if ( liNode.parentNode.parentNode.tagName == 'LI' ) {
+	if (liNode.parentNode.parentNode.tagName == 'LI') {
 		postData['parentId'] = liNode.parentNode.parentNode.id;
 	} else {
 		postData['parentId'] = 0; 
 	}
 	postData['position'] = getPositionInList( liNode );
 
-	if ( params.sort ) {
+	if (params.sort) {
 		$("div.striping").each( function() {
 			this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage; 
 		} ).mouseout( function() { 
@@ -740,17 +749,17 @@ function deleteRowConfirm( link, params ) {
 		$("div.striping").each( function() { $(this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0]).addClass("hand"); } );
 	}
 
-	$("li.col"+actionCol).css( 'visibility', 'visible' );
+	$("li.col"+actionCol).css('visibility', 'visible');
 
 	$.post(params.postTo, postData, function(data){
 		var counter = new Date().getTime();
 		error = data['error'];
 
-		if ( error ) {
+		if (error) {
 			var parentDiv = link.parentNode.parentNode.parentNode.parentNode;
 			parentDiv.style.backgroundColor = "#FFF380";
 
-			$("#deleteMsg").html( '<br /><center><b>' + error + '</b><br /><a onclick="dismissMessage( this );" class="navsm">Dismiss Message</a></center>' ).attr( "id", "warning_" + counter );
+			$("#deleteMsg").html( '<br /><center><b>' + error + '</b><br /><a onclick="dismissMessage(this);" class="navsm">Dismiss Message</a></center>' ).attr( "id", "warning_" + counter );
 		} else {
 			// Promote all children
 			$($(liNode.getElementsByTagName('OL')[0]).children( 'li.sort-row' ).get().reverse()).each( function() {
@@ -779,11 +788,11 @@ function deleteRowCancel(link, params) {
 		$("div.striping").each( function() {
 			this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage; 
 		} ).mouseout( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if (this.parentNode.id != 'empty_message') {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage; 
 			}
 		} ).mouseover( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if (this.parentNode.id != 'empty_message') {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.dragImage;
 			}
 		} );
@@ -793,7 +802,7 @@ function deleteRowCancel(link, params) {
 
 	$("#deleteMsg").remove();
 
-	$("li.col"+actionCol).css( 'visibility', 'visible' );
+	$("li.col"+actionCol).css('visibility', 'visible');
 
 	initTable(params);
 }
