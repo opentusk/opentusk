@@ -351,9 +351,8 @@ WHERE competency_checklist_group_id = $self->{checklist_group_id}
 
     my $total_checklists = scalar keys %$checklists;
     my $school_db = $course->school_db();
-
     $sth = $checklist->databaseSelect(qq(
-SELECT concat(lastname, ', ', firstname) as name, uid, competency_checklist_id, count(*)
+SELECT concat(lastname, ', ', firstname) as name, uid, competency_checklist_id, count(distinct competency_checklist_entry_id)
 FROM $school_db.link_course_student as l
 INNER JOIN tusk.competency_checklist_assignment as a on (l.child_user_id = student_id AND a.time_period_id = l.time_period_id and competency_checklist_group_id = $self->{checklist_group_id})
 INNER JOIN tusk.competency_checklist_entry as e on (a.competency_checklist_assignment_id = e.competency_checklist_assignment_id AND complete_date is NOT NULL)
