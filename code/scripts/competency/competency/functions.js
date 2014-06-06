@@ -42,7 +42,7 @@ selected_competency_obj = [];
 
 function linkSchoolNational (link, params) {
 	var postURL = params.postTo.split('/');
-	var school = postURL[postURL.length-1];
+	var school = postURL[postURL.length - 1];
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	var currentTitle = liArray[1].innerHTML;
@@ -57,8 +57,8 @@ function linkSchoolNational (link, params) {
 
 function linkCourseSchool (link, params) {
 	var postURL = params.postTo.split('/');
-	var school = postURL[postURL.length-2];
-	var course = postURL[postURL.length-1];
+	var school = postURL[postURL.length - 2];
+	var course = postURL[postURL.length - 1];
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	var currentTitle = liArray[1].innerHTML;
@@ -74,8 +74,8 @@ function linkCourseSchool (link, params) {
 function linkContentToCourse (currentTitle, currentIndex) {
 	var postTo = window.location.pathname;
 	var postURL = params.postTo.split('/');
-	var school = postURL[postURL.length-3];
-	var course_id = postURL[postURL.length-2];
+	var school = postURL[postURL.length - 3];
+	var course_id = postURL[postURL.length - 2];
 	$("#objective_type").html("Content");
 	$("#link-dialog").empty();
 	currentCompLabel(currentTitle);
@@ -88,8 +88,8 @@ function linkContentToCourse (currentTitle, currentIndex) {
 
 function linkObjectiveToCourse (link, params) {
 	var postURL = params.postTo.split('/');
-	var school = postURL[postURL.length-3];
-	var course_id = postURL[postURL.length-2];
+	var school = postURL[postURL.length - 3];
+	var course_id = postURL[postURL.length - 2];
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
 	var liNode = link.parentNode.parentNode.parentNode.parentNode;
 	if (!liNode.id) {
@@ -126,7 +126,7 @@ function appendNewLinkedCompetencies (competency_id, type) {
 	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0) {
 		//for linking competency_types without supporting information
 		col = 'col1';		
-	} else if (currentURL.indexOf("school") >=1 ) {
+	} else if (currentURL.indexOf("school") >= 1 ) {
 		//for linking school competencies
 		col = 'col3';
 	} else {
@@ -341,7 +341,7 @@ function checkboxOnClick() {
 
 //Functions to be run at pageload, included making divisions dragable and resizable
 
-$(document).ready(function() {
+$(document).ready( function() {
 	if ($(".competency_popup_content").length){
 		$('.competency_popup_content').draggable();
 	}
