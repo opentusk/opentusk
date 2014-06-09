@@ -158,6 +158,8 @@ function currentCompLabel (current_competency) {
 	$("#link_competency_title").show();
 }
 
+
+
 //Link Competencies Page table functions
 
 function linkedCellOnClick (linked_cell) {
