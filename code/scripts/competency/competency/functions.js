@@ -77,7 +77,14 @@ function linkContentToCourse (currentTitle, currentIndex) {
 	var school = postURL[postURL.length - 3];
 	var course_id = postURL[postURL.length - 2];
 	$("#objective_type").html("Content");
-	$("#link-dialog").empty();
+	$('#link-dialog').html(" \
+		<div id='loading_competencies'> \
+			<div id='loading_competencies_text'> \
+				Loading Competencies \
+			</div> \
+			<img src='/graphics/competency_loading.gif'> \
+		</div> \
+	");
 	currentCompLabel(currentTitle);
 	$("#link-dialog-wrapper").css("visibility", "visible");
 	$("#link-dialog").data("currentTitle", currentTitle);
@@ -96,7 +103,14 @@ function linkObjectiveToCourse (link, params) {
 		liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	}	
 	var currentTitle = liArray[1].innerHTML;
-	$("#link-dialog").empty();
+	$('#link-dialog').html(" \
+		<div id='loading_competencies'> \
+			<div id='loading_competencies_text'> \
+				Loading Competencies \
+			</div> \
+			<img src='/graphics/competency_loading.gif'> \
+		</div> \
+	");
 	$("#objective_type").html("Schedule");
 	currentCompLabel(currentTitle);
 	var currentIndex = liNode.id;
@@ -118,6 +132,14 @@ function initLinkDialog() {
 function closeLinkWindow() {
 	$('#link-dialog').empty();
 	$('.competency_link_table').empty();
+	$('#link-dialog').html(" \
+		<div id='loading_competencies'> \
+			<div id='loading_competencies_text'> \
+				Loading Competencies \
+			</div> \
+			<img src='/graphics/competency_loading.gif'> \
+		</div> \
+	");
 	$('#link-dialog-wrapper').dialog('close');
 }
 
