@@ -189,6 +189,7 @@ function linkedCellOnClick (linked_cell) {
 	var $parent_id = $(linked_cell).attr('data-parent');
 	var $not_linked_parent_id = "#NLS_cat_" + $parent_id;
 	var $not_linked_id = "#NLS_" + $current_id;
+	$(linked_cell).find(".remove_comp_hover").remove();
 	var $description = $(linked_cell).html();
 	$($not_linked_parent_id).parent().after("<tr><td class=\"not_linked_cell\" id=\"LS" + $not_linked_id + "\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\""+ $parent_id + "\">" + $description + "<span class=\"add_comp_hover\"><b > (Add)</b></span></td></tr>");
 	$(linked_cell).parent().remove();
@@ -205,6 +206,7 @@ function notLinkedCellOnClick (not_linked_cell) {
 	var $parent_id = $(not_linked_cell).attr('data-parent');
 	var $linked_parent_id = "#LS_cat_" + $parent_id;
 	var $linked_id = "#LS_" + $current_id;
+	$(not_linked_cell).find(".add_comp_hover").remove();
 	var $description = $(not_linked_cell).html();
 	$($linked_parent_id).parent().after("<tr><td class=\"linked_cell\" id=\"LS" + $linked_id + "\" onclick=\"linkedCellOnClick(this);\" data-parent=\""+ $parent_id + "\">" + $description + "<span class=\"remove_comp_hover\"><b > (Remove)</b></span></td></tr>");
 	$(not_linked_cell).parent().remove();
