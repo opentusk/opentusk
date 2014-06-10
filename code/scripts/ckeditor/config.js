@@ -1,30 +1,35 @@
-﻿// make customizations to the definition of existing dialogs
-CKEDITOR.on( 'dialogDefinition', function( ev ) {
-	// take the dialog name and its definition from the event data
-	var dialogName = ev.data.name;
-	var dialogDefinition = ev.data.definition;
+﻿/**
+ * @license Copyright (c) 2003-2013, CKSource - Frederico Knabben. All rights reserved.
+ * For licensing, see LICENSE.html or http://ckeditor.com/license
+ */
 
-	// remove "advanced" tabs from dialogs
-	if ( dialogName == 'image' || dialogName == 'flash' || dialogName == 'table' || dialogName == 'link' ) {
-		dialogDefinition.removeContents( 'advanced' );
-	}
-});
+CKEDITOR.editorConfig = function( config ) {
+	// Define changes to default configuration here.
+	// For the complete reference:
+	// http://docs.ckeditor.com/#!/api/CKEDITOR.config
 
-CKEDITOR.editorConfig = function( config ) {	
-	// custom TUSK toolbar
-	config.toolbar_TUSK =
-	[
-		{ name: 'styles',      items : [ 'Styles','Format','Font','FontSize' ] },
-		{ name: 'basicstyles', items : [ 'Bold','Italic','Underline','Subscript','Superscript' ] 	},
-		{ name: 'colors',      items : [ 'TextColor','BGColor','RemoveFormat' ] },
-		{ name: 'insert',      items : [ 'Tuskcontent', 'Image','Flash','Table','HorizontalRule','SpecialChar' ] },
-		{ name: 'paragraph',   items : [ 'NumberedList','BulletedList','Blockquote','-','Outdent','Indent','-','JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock' ] },
-		{ name: 'links',       items : [ 'Link','Unlink' ] },
-		{ name: 'clipboard',   items : [ 'Cut','Copy','Paste','PasteText','PasteFromWord','-','Undo','Redo' ] },
-		{ name: 'editing', 	   items : [ 'Find','Replace','-','SelectAll','-','Scayt' ] },
-		{ name: 'document',    items : [ 'Source','Preview' ] },
-		{ name: 'info',        items : [ 'About' ] },	
+	// The toolbar groups arrangement, optimized for two toolbar rows.
+	config.toolbarGroups = [
+		{ name: 'styles'},
+		{ name: 'basicstyles', groups: ['Bold','Italic','Underline','Subscript','Superscript'] },
+		{ name: 'colors', groups: ['TextColor','BGColor','RemoveFormat'] },
+		{ name: 'others' },
+		{ name: 'insert', groups: ['Image','Flash','Table','HorizontalRule'] },
+		{ name: 'paragraph',   groups: [ 'list', 'indent', 'blocks', 'align', 'bidi' ] },
+		{ name: 'links' },
+		{ name: 'clipboard',   groups: [ 'clipboard', 'undo' ] },
+		{ name: 'editing',     groups: ['find', 'selection', 'spellchecker', 'scayt' ] },
+		{ name: 'document',	   groups: [ 'mode', 'document', 'doctools' ] },
+		{ name: 'about' }
 	];
+	// Remove some buttons, provided by the standard plugins, which we don't
+	// need to have in the Standard(s) toolbar.
+	config.removeButtons = 'Flash,Smiley,SpecialChar,Underline,Subscript,Superscript,Cut,Copy,NewPage,Save,Print,Templates,Div';
 
-	config.toolbar_TUSK_min = [];
+	// Se the most common block elements.
+	config.format_tags = 'p;h1;h2;h3;pre';
+
+	// Make dialogs simpler.
+	config.removeDialogTabs = 'image:advanced;link:advanced';
 };
+
