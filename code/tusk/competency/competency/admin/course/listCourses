@@ -56,6 +56,9 @@
 	];
 
 	my @rows = ();
+	my (@unsorted_rows, @sorted_rows);
+
+		
 	foreach my $academic_level(sort {$a<=>$b} keys %academic_levels) {
 		push @rows, {
 			academic_level => "<b>".$academic_levels{$academic_level}."</b>",
@@ -63,21 +66,35 @@
 			action => '',
 		};
 		foreach my $current_course (@{$academic_level_course_relation{$academic_level}}) {
-			push @rows, {
+			push @unsorted_rows, {
 				courses => "<a href=\"/management/course/display/".$school."/".$tusk_courses_hash{$current_course}."\">".$hsdb45_courses_hash{$tusk_courses_hash{$current_course}}."</a>",
 				action => '<a href="/tusk/competency/competency/admin/course/manage/course/'. $school.'/' .$tusk_courses_hash{$current_course}. '">Competencies</a>',
+				course_title => $hsdb45_courses_hash{$tusk_courses_hash{$current_course}},
 			};
 		}		
+		@sorted_rows = sort { lc($a->{course_title}) cmp lc($b->{course_title})} @unsorted_rows;
+
+		push (@rows, @sorted_rows);
+		@sorted_rows = ();
+		@unsorted_rows = ();
 	}
+
 	push @rows, {academic_level => "<b>Uncategorized</b>", courses => '', action => ''};
+	
 	foreach my $course (@hsdb45_courses) {
 		unless (exists($categorized_courses{$course->{'course_id'}})) {
-			push @rows, {
+			push @unsorted_rows, {
 				courses => "<a href=\"/management/course/display/".$school."/".$course->{ 'course_id' }."\">".$course->{'title'}."</a>",
 				action => '<a href="/tusk/competency/competency/admin/course/manage/course/'. $school.'/' .$course->{'course_id'}. '">Competencies</a>',
-			}
+				course_title => $course->{'title'},
+			};				
 		}
-	}
+	}	
+
+	@sorted_rows = sort { lc($a->{course_title}) cmp lc($b->{course_title})} @unsorted_rows;
+
+	push (@rows, @sorted_rows);
+
 </%perl>
 
 <& /tmpl/element:object_selection_box, params => {
