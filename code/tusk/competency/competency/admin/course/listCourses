@@ -66,10 +66,12 @@
 			action => '',
 		};
 		foreach my $current_course (@{$academic_level_course_relation{$academic_level}}) {
+			my $trimmed_title = $hsdb45_courses_hash{$tusk_courses_hash{$current_course}};
+			$trimmed_title =~ s/^\s+//;
 			push @unsorted_rows, {
 				courses => "<a href=\"/management/course/display/".$school."/".$tusk_courses_hash{$current_course}."\">".$hsdb45_courses_hash{$tusk_courses_hash{$current_course}}."</a>",
 				action => '<a href="/tusk/competency/competency/admin/course/manage/course/'. $school.'/' .$tusk_courses_hash{$current_course}. '">Competencies</a>',
-				course_title => $hsdb45_courses_hash{$tusk_courses_hash{$current_course}},
+				course_title => $trimmed_title,
 			};
 		}		
 		@sorted_rows = sort { lc($a->{course_title}) cmp lc($b->{course_title})} @unsorted_rows;
@@ -83,10 +85,12 @@
 	
 	foreach my $course (@hsdb45_courses) {
 		unless (exists($categorized_courses{$course->{'course_id'}})) {
+			my $trimmed_title = $course->{'title'};
+			$trimmed_title =~ s/^\s+//;
 			push @unsorted_rows, {
 				courses => "<a href=\"/management/course/display/".$school."/".$course->{ 'course_id' }."\">".$course->{'title'}."</a>",
 				action => '<a href="/tusk/competency/competency/admin/course/manage/course/'. $school.'/' .$course->{'course_id'}. '">Competencies</a>',
-				course_title => $course->{'title'},
+				course_title => $trimmed_title,
 			};				
 		}
 	}	
