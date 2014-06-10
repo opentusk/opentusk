@@ -9,22 +9,23 @@ CKEDITOR.editorConfig = function( config ) {
 	// http://docs.ckeditor.com/#!/api/CKEDITOR.config
 
 	// The toolbar groups arrangement, optimized for two toolbar rows.
+	config.extraPlugins = ['RemoveFormat'];
 	config.toolbarGroups = [
 		{ name: 'styles'},
-		{ name: 'basicstyles', groups: ['Bold','Italic','Underline','Subscript','Superscript'] },
-		{ name: 'colors', groups: ['TextColor','BGColor','RemoveFormat'] },
-		{ name: 'others' },
+		{ name: 'basicstyles', groups: ['basicstyles', 'cleanup'] },
+		{ name: 'colors', groups: ['TextColor','BGColor'] },
 		{ name: 'insert', groups: ['Image','Flash','Table','HorizontalRule'] },
-		{ name: 'paragraph',   groups: [ 'list', 'indent', 'blocks', 'align', 'bidi' ] },
+		{ name: 'others' },
 		{ name: 'links' },
+		{ name: 'paragraph',   groups: [ 'list', 'indent', 'blocks', 'align', 'bidi' ] },
 		{ name: 'clipboard',   groups: [ 'clipboard', 'undo' ] },
-		{ name: 'editing',     groups: ['find', 'selection', 'spellchecker', 'scayt' ] },
+		{ name: 'editing',     groups: ['find', 'selection', 'spellchecker', 'scayt'] },
 		{ name: 'document',	   groups: [ 'mode', 'document', 'doctools' ] },
 		{ name: 'about' }
 	];
 	// Remove some buttons, provided by the standard plugins, which we don't
 	// need to have in the Standard(s) toolbar.
-	config.removeButtons = 'Flash,Smiley,SpecialChar,Underline,Subscript,Superscript,Cut,Copy,NewPage,Save,Print,Templates,Div';
+	config.removeButtons = 'Flash,Smiley,SpecialChar,Subscript,Superscript,Strike,Cut,Copy,NewPage,Save,Print,Templates,Anchor';
 
 	// Se the most common block elements.
 	config.format_tags = 'p;h1;h2;h3;pre';
