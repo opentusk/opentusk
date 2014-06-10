@@ -36,17 +36,16 @@
 
 	my $data = TUSK::Application::Competency::Tree->build($school_id, $ARGS{'root_id'});
 
-
 </%perl>
 
 <div id="link_body">
 <%perl>
 	if ($ARGS{link_type} eq 'national') {
-		print "<h3>National Competencies (Not Linked):</h3>";
+		print "<h3>Available National Competencies (Not Linked):</h3>";
 	} elsif ($ARGS{link_type} eq 'school') {
-		print "<h3>School Competencies (Not Linked):</h3>";
+		print "<h3>Available School Competencies (Not Linked):</h3>";
 	} else {
-		print "<h3>Course Competencies (Not Linked):</h3>";
+		print "<h3>Available Course Competencies (Not Linked):</h3>";
 	}
 </%perl>
 
@@ -71,6 +70,7 @@
 		$comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id");
 	}
 	my %temp_category_hash;
+	
 
 	foreach my $comp_category(@{$comp_categories_list}) {	
 		if ($ARGS{link_type} eq 'class_meet' || $ARGS{link_type} eq 'content'){
@@ -115,11 +115,11 @@
 
 <%perl>
 	if ($ARGS{link_type} eq 'national') {
-		print "<h3 style=\"color: red;\">National Competencies (Linked):</h3>";
+		print "<h3 style=\"color: red;\">Linked National Competencies:</h3>";
 	} elsif ($ARGS{link_type} eq 'school') {
-		print "<h3 style=\"color: red;\">School Competencies (Linked):</h3>";
+		print "<h3 style=\"color: red;\">Linked School Competencies:</h3>";
 	} else {
-		print "<h3 style=\"color: red;\">Course Competencies (Linked):</h3>";
+		print "<h3 style=\"color: red;\">Linked Course Competencies:</h3>";
 	}
 </%perl>
 
@@ -160,7 +160,7 @@
 			if ($already_linked_comps{$child}) {
 				foreach my $already_linked_child(@{$already_linked_comps{$child}}){
 					print "<tr><td id=\"LS_". (keys %{$already_linked_child})[0] ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" 
-						data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $already_linked_child->{(keys %{$already_linked_child})[0]} . "</td></tr>";
+						data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $already_linked_child->{(keys %{$already_linked_child})[0]} . "<span class=\"remove_comp_hover\"><b > (Remove)</b></span></td></tr>";
 				}
 			}
 	    }
@@ -172,13 +172,13 @@
 	    my $current_linked_key = (keys %{$linked_comp})[0];	
 
 	    if ($competencies_type eq "linked") {
-		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"".$current_key."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
+		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"".$current_key."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "<span class=\"remove_comp_hover\"><b > (Remove)</b></span></td></tr>";
 	    } else {
-		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"". $current_key ."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"". $current_key ."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "<span class=\"add_comp_hover\"><b > (Add)</b></span></td></tr>";
 		if ($not_linked_comps{$current_linked_key}) {
 			foreach my $not_linked_child_comp(@{$not_linked_comps{$current_linked_key}}) {
 				print "<tr><td id=\"NLS_". (keys %{$not_linked_child_comp})[0] ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" 
-					data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $not_linked_child_comp->{(keys %{$not_linked_child_comp})[0]} . "</td></tr>";
+					data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $not_linked_child_comp->{(keys %{$not_linked_child_comp})[0]} . "<span class=\"add_comp_hover\"><b > (Add)</b></span></td></tr>";
 			}
 		}
 	    }
@@ -206,9 +206,9 @@
 	    my $current_linked_key = (keys %{ $linked_comp })[0];
 				
 	    if ($competencies_type eq "linked") { 		
-		print "<tr> <td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
+		print "<tr> <td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "<span class=\"remove_comp_hover\"><b > (Remove)</b></span></td></tr>";
 	    } else {
-		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "</td></tr>";
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "<span class=\"add_comp_hover\"><b> (Add)</b></span></td></tr>";
 	    }
 	}
 
