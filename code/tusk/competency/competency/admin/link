@@ -88,26 +88,35 @@
 		%not_linked_comps = map {(keys %{$_})[0] => [ @empty_linked ]} @comp_categories;	
 		$m->comp('SELF:buildCompetencyListTree', data => $data, linked => \@linked_competencies_id, parent => 0);
 		$m->comp('SELF:generateTable', competencies_list => \%not_linked_comps, competencies_type => "not_linked");	
-	} else {
-		my @empty_linked = ();
-		%already_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
-		%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
+	} else{
+		if ($ARGS{'link_type'} ne 'national'){
+			my @empty_linked = ();
+			%already_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
+			%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
 
-		my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
+			my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
 
-		my $course_competencies = TUSK::Course->getCompetenciesByCourse($tusk_course_id);	
+			my $course_competencies = TUSK::Course->getCompetenciesByCourse($tusk_course_id);	
 
-		my $comp_data;	
-		foreach my $course_competency (@{$course_competencies}) {
-			my %temp_competency_hash;
-			$temp_competency_hash{'title'} = $course_competency->getDescription();
-			$temp_competency_hash{'id'} = $course_competency->getPrimaryKeyID();
-			$temp_competency_hash{'description'} = $course_competency->getDescription();;	
-			$temp_competency_hash{'children'} = undef;			
-			push @{$comp_data}, {%temp_competency_hash};
-		}		
-		$m->comp('SELF:buildCompetencyListTree', data => $comp_data, linked => \@linked_competencies_id, parent => 0);			
-		$m->comp('SELF:generateTableNoCategories', competencies_list => \%not_linked_comps, competencies_type => "not_linked");			
+			my $comp_data;	
+
+			foreach my $course_competency (@{$course_competencies}) {
+				my %temp_competency_hash;
+				$temp_competency_hash{'title'} = $course_competency->getDescription();
+				$temp_competency_hash{'id'} = $course_competency->getPrimaryKeyID();
+				$temp_competency_hash{'description'} = $course_competency->getDescription();;	
+				$temp_competency_hash{'children'} = undef;			
+				push @{$comp_data}, {%temp_competency_hash};
+			}		
+
+			$m->comp('SELF:buildCompetencyListTree', data => $comp_data, linked => \@linked_competencies_id, parent => 0);			
+			$m->comp('SELF:generateTableNoCategories', competencies_list => \%not_linked_comps, competencies_type => "not_linked");			
+		} else {
+			print "<div id=\"no_competencies\" style=\"border: 2px solid; padding: 20px;\">";
+			print "<h2 style=\"color: red;\">No National Competencies Found</h2>";
+			print "<a href=\"/tusk/competency/competency/admin/national/manage/school/$school_id\">Click here to go to the National Competencies management page</a>";
+			print "</div>";
+		}
 	}
 	
 </%perl>
@@ -128,7 +137,7 @@
 	if (@comp_categories) {
 		$m->comp('SELF:generateTable', competencies_list => \%already_linked_comps, competencies_type => "linked");
 	} else {
-		$m->comp('SELF:generateTableNoCategories', competencies_list => \%already_linked_comps, competencies_type => "linked");
+		$m->comp('SELF:generateTableNoCategories', competencies_list => \%already_linked_comps, competencies_type => "linked"); 
 	}
 </%perl>
 </div>
