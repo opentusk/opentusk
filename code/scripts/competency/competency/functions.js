@@ -163,10 +163,19 @@ function appendNewLinkedCompetencies (competency_id, type) {
 	}
 	$.each(to_update_array, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
-		var temp_a = $('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a');
-		console.log(temp_a);
+		var temp_a = $('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container');
+		if (temp_a.length == 0){
+			var $to_append_top = $("<span class='tusk-competency-popup' />");
+			var $to_append_container = $("<span class='competency_popup_container'/>");
+			var $to_append_content_class = $("<span />");
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).append($to_append_top);
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.tusk-competency-popup').append($to_append_container);
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().append("<a></a>");
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().append($to_append_content_class);			
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().find('span').addClass("competency_popup_content");
+		}
 		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
-		$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
+		$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");			
 	});
 	$.each(to_update_array_remove, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
