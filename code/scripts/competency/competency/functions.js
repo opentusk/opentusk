@@ -132,6 +132,12 @@ function initLinkDialog() {
 function closeLinkWindow() {
 	$('#link-dialog').empty();
 	$('.competency_link_table').empty();
+
+	to_add_array = [];
+	to_delete_array = [];
+	to_update_array = [];
+	to_update_array_remove = [];
+
 	$('#link-dialog').html(" \
 		<div id='loading_competencies'> \
 			<div id='loading_competencies_text'> \
