@@ -174,10 +174,14 @@ function appendNewLinkedCompetencies (competency_id, type) {
 		temp_html = temp_html.replace(comp_match_pattern, "<i>deleted</i>");
 		to_delete.html(temp_html);
 		to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_content').first();
-		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, ''), 'g');
-		temp_html = to_delete.html();
+		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,20), 'g');		
+		temp_html = to_delete.html();		
+		console.log(temp_html);
 		temp_html = temp_html.replace(comp_match_pattern, "<i>deleted</i>");
 		to_delete.html(temp_html);
+		$('.linked_competency_close_button').on("click", function() {		
+			$(this).parent().hide(2);		
+		});
 	});
 }
 
@@ -384,8 +388,8 @@ $(document).ready( function() {
 			"top": 50 + "%"
 		}).show();
 	});
-	$('.linked_competency_close_button').click(function() {
-		$(this).parent().hide(50);
+	$('.linked_competency_close_button').on("click", function() {		
+		$(this).parent().hide(2);		
 	});
 	var select_buttons = $(document).find("#competency_container select");
 	$(select_buttons).each(function( index, this_button) {
