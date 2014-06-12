@@ -163,6 +163,8 @@ function appendNewLinkedCompetencies (competency_id, type) {
 	}
 	$.each(to_update_array, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
+		var temp_a = $('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a');
+		console.log(temp_a);
 		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
 		$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");	
 	});
