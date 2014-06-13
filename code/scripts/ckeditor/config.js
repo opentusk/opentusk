@@ -9,7 +9,6 @@ CKEDITOR.editorConfig = function( config ) {
 	// http://docs.ckeditor.com/#!/api/CKEDITOR.config
 
 	// The toolbar groups arrangement, optimized for two toolbar rows.
-	config.extraPlugins = ['RemoveFormat'];
 	config.toolbarGroups = [
 		{ name: 'styles'},
 		{ name: 'basicstyles', groups: ['basicstyles', 'cleanup'] },
@@ -17,20 +16,22 @@ CKEDITOR.editorConfig = function( config ) {
 		{ name: 'insert', groups: ['Image','Flash','Table','HorizontalRule'] },
 		{ name: 'others' },
 		{ name: 'links' },
-		{ name: 'paragraph',   groups: [ 'list', 'indent', 'blocks', 'align', 'bidi' ] },
+		{ name: 'paragraph',   groups: [ 'list', 'indent', 'blocks', 'align'] },
 		{ name: 'clipboard',   groups: [ 'clipboard', 'undo' ] },
 		{ name: 'editing',     groups: ['find', 'selection', 'spellchecker', 'scayt'] },
-		{ name: 'document',	   groups: [ 'mode', 'document', 'doctools' ] },
-		{ name: 'about' }
+		{ name: 'document',	   groups: [ 'mode', 'document', 'doctools' ] }
 	];
 	// Remove some buttons, provided by the standard plugins, which we don't
 	// need to have in the Standard(s) toolbar.
-	config.removeButtons = 'Flash,Smiley,SpecialChar,Subscript,Superscript,Strike,Cut,Copy,NewPage,Save,Print,Templates,Anchor';
+	config.removeButtons = 'Flash,Forms,Smiley,SpecialChar,Subscript,Superscript,Strike,Cut,Copy,NewPage,Print,Templates,Anchor';
 
 	// Se the most common block elements.
 	config.format_tags = 'p;h1;h2;h3;pre';
 
 	// Make dialogs simpler.
 	config.removeDialogTabs = 'image:advanced;link:advanced';
+
+	// Customize toolbar customizations
+	config.toolbar_TUSK_min = [];
 };
 
