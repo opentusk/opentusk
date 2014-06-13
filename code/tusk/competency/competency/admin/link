@@ -58,8 +58,14 @@
 		$comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name = \"$ARGS{link_type}\"")->getPrimaryKeyID;
 	}
 
-	my $comp_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id = $school_id", ['competency_user_type_id'], undef, undef,
-			[TUSK::Core::JoinObject->new("TUSK::Enum::Data", { joinkey=> 'enum_data_id', origkey => 'competency_type_enum_id', jointype => 'inner', joincond => "enum_data.short_name =\"category\""})])->getPrimaryKeyID;
+	my $comp_user_type = TUSK::Competency::UserType->lookupReturnOne("school_id = $school_id", ['competency_user_type_id'], undef, undef,
+			[TUSK::Core::JoinObject->new("TUSK::Enum::Data", { joinkey=> 'enum_data_id', origkey => 'competency_type_enum_id', jointype => 'inner', joincond => "enum_data.short_name =\"category\""})]);
+	my $comp_user_type_id;
+	if ($comp_user_type){
+		$comp_user_type_id = $comp_user_type->getPrimaryKeyID;
+	} else{
+		$comp_user_type_id = 0;
+	}
 	my ($this_course_id, $comp_categories_list);
 	
 	if ($ARGS{'course_id'}){
