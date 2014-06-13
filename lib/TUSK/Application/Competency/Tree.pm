@@ -144,9 +144,14 @@ sub build {
     my $c_href;
     my $children_storage;
     my %p_c_pairs;
-
-    my $info_user_type_id = TUSK::Competency::UserType->lookupReturnOne( "school_id = $school_id", undef, undef, undef, 
+    my $info_user_type_id;
+    
+    if (TUSK::Competency::UserType->lookupReturnOne( "school_id = $school_id", undef, undef, undef, [TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', {joinkey => 'enum_data_id', origkey => 'competency_type_enum_id', joincond => "namespace=\"competency.user_type.id\" AND short_name=\"info\"", jointype => 'inner'})])){
+    $info_user_type_id = TUSK::Competency::UserType->lookupReturnOne( "school_id = $school_id", undef, undef, undef, 
 								       [TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', {joinkey => 'enum_data_id', origkey => 'competency_type_enum_id', joincond => "namespace=\"competency.user_type.id\" AND short_name=\"info\"", jointype => 'inner'})])->getPrimaryKeyID;
+} else {
+    $info_user_type_id = 0;
+}
     
     my $cr = TUSK::Competency::Hierarchy->lookup( 'competency_hierarchy.school_id ='. $school_id, 
 						  ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef,
