@@ -123,6 +123,7 @@ function switchSorting (button) {
 		params.sort = 1;
 		$("li.hand").show();
 		$("#competency_container").find(".navsm").hide();
+		$(".tusk-competency-popup").hide();
 		$(".formbutton").prop("disabled", true);
 		$("#switch_sorting").prop("disabled", false);
 		$(".formbutton").css("color", "#AC8A80");
@@ -136,6 +137,7 @@ function switchSorting (button) {
 		params.sort = 0;
 		$("li.hand").hide();
 		$("#competency_container").find(".navsm").show();
+		$(".tusk-competency-popup").show();
 		$(".formbutton").prop("disabled", false);
 		$(".formbutton").css("color", "black");
 		$(".formbutton").css("background-color", "#CDD6E9");
