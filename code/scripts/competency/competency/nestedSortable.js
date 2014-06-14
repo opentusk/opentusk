@@ -13,6 +13,7 @@
 // limitations under the License.
 
 var edit_mode = 0;
+var sort_mode = 1;
 
 function resetDropDown(dropDown) {
 	dropDown.selectedIndex = 0;
@@ -113,6 +114,32 @@ function getPositionInList(liNode) {
 	return counter;
 }
 
+function switchSorting (button) {	
+	if (sort_mode == 0) {
+		params.sort = 1;
+		$("li.hand").show();
+		$("#competency_container #competencies .clr").find(".navsm").hide();
+		$("#add_item").prop("disabled", true);
+		$("#add_item").css("color", "#AC8A80");
+		$("#add_item").css("background-color", "E7F1FA");
+		$(button).val("  Save List  ");
+		initTable(params);		
+		sort_mode = 1;
+	} else {
+		params.sort = 0;
+		$("li.hand").hide();
+		$("#competency_container #competencies .clr").find(".clearfix").css("border-color", "#C7CFF7");
+		$("#competency_container #competencies .clr").find(".navsm").show();
+		$("#add_item").prop("disabled", false);
+		$("#add_item").css("color", "black");
+		$("#add_item").css("background-color", "#CDD6E9");
+		$(button).val("Re-order List");
+		initTable(params);
+		sort_mode = 0;
+	}
+	
+}
+
 // Note that onStop occurs AFTER onChange, so since we want to know what row was dropped, we need
 // to let it cascade, storing the serialized data in the onChange and then doing the actual AJAX
 // call in onStop IF something actually changed.
@@ -123,10 +150,7 @@ function initTable(params) {
 
 	$('#'+params.listId).NestedSortableDestroy();
 
-	if (params.sort == 0) {
-		$("li.hand").removeClass("hand");
-	}	
-	
+
 	var nested_sortable_params = {
 			accept: 'sort-row',
 			nestingPxSpace: params.indent,
@@ -211,53 +235,11 @@ function initTable(params) {
 					}, "json");
 				}
 			},
-			onStart: function() {originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this);},
+			onStart: function() {originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
 			autoScroll: true,
-			handle : '.hand'
 		}
 	nestedSort = $('#'+params.listId).NestedSortable(nested_sortable_params);
 	
-	if (params['listId'] != 'class_meeting_competencies' &&  params['listId'] != 'content_competencies'){
-		
-		$(document).find(".hand").mouseover( function(){
-			$('#'+params.listId).NestedSortableDestroy();
-			nested_sortable_params.handle = '';
-			$('#'+params.listId).NestedSortable(nested_sortable_params);
-		});
-
-		var down = false;
-		var start = false;
-		var drag = false;
-
-
-		$(document).find(".hand").mouseover( function() {
-			start = true;
-		});
-
-		$(document).find(".clr").mousedown( function() {		
-			down = true;
-			if (start == true) {
-				drag = true;
-				console.log("Drag: " + drag);
-			}
-		})
-
-		$(document).mouseup( function() {
-			if (drag == true) {
-				console.log("stop drag");
-				setTimeout(function() {
-					console.log("waited!!!");
-					$('#'+params.listId).NestedSortableDestroy();
-					nested_sortable_params.handle = '.hand';
-					$('#'+params.listId).NestedSortable(nested_sortable_params);	
-				}, 500);
-			}
-			drag = false;
-		});	
-
-		nested_sortable_params.handle = '.hand';
-	}
-
 	//$("div.striping").removeClass("even").removeClass("odd");
 
 	if (params.sort != 0) {
@@ -617,7 +599,7 @@ function saveRow(link, params) {
 			else {postData['col' + (idx-1)] = value;}
 		}
 	}
-
+	$("li.hand").hide();
 	var newId;
 	var error;
 	$.post(params.postTo, postData, function(data) {
@@ -677,7 +659,6 @@ function saveRow(link, params) {
 				} );
 			}
 		}
-
 		initTable(params);
 	}, "json");
 }

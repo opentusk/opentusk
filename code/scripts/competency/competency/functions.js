@@ -172,17 +172,27 @@ function appendNewLinkedCompetencies (competency_id, type) {
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.tusk-competency-popup').append($to_append_container);
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().append("<a></a>");
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().append($to_append_content_class);			
-			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().find('span').addClass("competency_popup_content");
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().find('span').addClass("competency_popup_content").draggable().css(
+			{
+				"width": "500px",				
+			}
+			);
 		}
 		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
+		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().on( "click", function(){
+			        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
+		});
 		$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");			
+		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().on( "click", function(){
+			        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
+		});
 	});
 	$.each(to_update_array_remove, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
 		var to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_container a').first();
 		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,30), 'g');
 		var temp_html = to_delete.html();
-		temp_html = temp_html.replace(comp_match_pattern, "<i>deleted</i>");
+		temp_html = temp_html.replace(comp_match_pattern, "<b>REMOVED</b>");
 		to_delete.html(temp_html);
 		to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_content').first();
 		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,20), 'g');				
@@ -382,6 +392,7 @@ function checkboxOnClick() {
 	//WIP: Similar to radioOnClick but with array of all selected ids.
 }
 
+
 //End functions related to competency checklist division/popup
 
 
@@ -405,6 +416,7 @@ $(document).ready( function() {
 	$(select_buttons).each(function( index, this_button) {
 		resetDropDown(this_button);
 	});
+	$('#switch_sorting').click();
 	
 });
 
