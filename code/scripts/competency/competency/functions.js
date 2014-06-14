@@ -72,6 +72,7 @@ function linkCourseSchool (link, params) {
 }
 
 function linkContentToCourse (currentTitle, currentIndex) {
+	detectIE();
 	var postTo = window.location.pathname;
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length - 3];
@@ -94,6 +95,7 @@ function linkContentToCourse (currentTitle, currentIndex) {
 }
 
 function linkObjectiveToCourse (link, params) {
+	detectIE();
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length - 3];
 	var course_id = postURL[postURL.length - 2];
@@ -417,7 +419,10 @@ $(document).ready( function() {
 		resetDropDown(this_button);
 	});
 	$('#switch_sorting').click();
-	
+	typeURL = params.postTo.split('/')[5];
+	if (typeURL != 'objectives'){
+		detectIE();
+	}
 });
 
 //End functions to be run at pageload.
