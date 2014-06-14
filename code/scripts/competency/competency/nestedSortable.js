@@ -116,12 +116,19 @@ function getPositionInList(liNode) {
 
 function switchSorting (button) {	
 	if (sort_mode == 0) {
+		if (edit_mode == 1) {
+			alert("Please finish making your current change before starting a new one");
+			return;
+		}
 		params.sort = 1;
 		$("li.hand").show();
 		$("#competency_container #competencies .clr").find(".navsm").hide();
-		$("#add_item").prop("disabled", true);
-		$("#add_item").css("color", "#AC8A80");
-		$("#add_item").css("background-color", "E7F1FA");
+		$(".formbutton").prop("disabled", true);
+		$("#switch_sorting").prop("disabled", false);
+		$(".formbutton").css("color", "#AC8A80");
+		$(".formbutton").css("background-color", "E7F1FA");
+		$("#switch_sorting").css("color", "black");
+		$("#switch_sorting").css("background-color", "#CDD6E9");
 		$(button).val("  Save List  ");
 		initTable(params);		
 		sort_mode = 1;
@@ -130,9 +137,9 @@ function switchSorting (button) {
 		$("li.hand").hide();
 		$("#competency_container #competencies .clr").find(".clearfix").css("border-color", "#C7CFF7");
 		$("#competency_container #competencies .clr").find(".navsm").show();
-		$("#add_item").prop("disabled", false);
-		$("#add_item").css("color", "black");
-		$("#add_item").css("background-color", "#CDD6E9");
+		$(".formbutton").prop("disabled", false);
+		$(".formbutton").css("color", "black");
+		$(".formbutton").css("background-color", "#CDD6E9");
 		$(button).val("Re-order List");
 		initTable(params);
 		sort_mode = 0;
