@@ -122,21 +122,20 @@ function switchSorting (button) {
 		}
 		params.sort = 1;
 		$("li.hand").show();
-		$("#competency_container #competencies .clr").find(".navsm").hide();
+		$("#competency_container").find(".navsm").hide();
 		$(".formbutton").prop("disabled", true);
 		$("#switch_sorting").prop("disabled", false);
 		$(".formbutton").css("color", "#AC8A80");
 		$(".formbutton").css("background-color", "E7F1FA");
 		$("#switch_sorting").css("color", "black");
 		$("#switch_sorting").css("background-color", "#CDD6E9");
-		$(button).val("  Save List  ");
+		$(button).val("    Save List   ");
 		initTable(params);		
 		sort_mode = 1;
 	} else {
 		params.sort = 0;
 		$("li.hand").hide();
-		$("#competency_container #competencies .clr").find(".clearfix").css("border-color", "#C7CFF7");
-		$("#competency_container #competencies .clr").find(".navsm").show();
+		$("#competency_container").find(".navsm").show();
 		$(".formbutton").prop("disabled", false);
 		$(".formbutton").css("color", "black");
 		$(".formbutton").css("background-color", "#CDD6E9");
