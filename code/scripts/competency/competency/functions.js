@@ -26,6 +26,7 @@ if ($("#link_competency_popup").length){
 
 var currentTitle;
 var currentIndex;
+var currentID = 0;
 
 
 //competency linking global variables
@@ -71,8 +72,9 @@ function linkCourseSchool (link, params) {
 	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top"}, width: 850, height: 620, minHeight: 450, resizable: false});
 }
 
-function linkContentToCourse (currentTitle, currentIndex) {
-	detectIE();
+function linkContentToCourse (currentTitle, currentIndex, link) {
+	detectIE();	
+	currentID = link;
 	var postTo = window.location.pathname;
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length - 3];
@@ -155,13 +157,13 @@ function appendNewLinkedCompetencies (competency_id, type) {
 	var currentURL = window.location.pathname;
 	if (currentURL.indexOf("content") >= 0 || currentURL.indexOf("schedule") >= 0) {
 		//for linking competency_types without supporting information
-		col = 'col1';		
+		col = 'col1';
 	} else if (currentURL.indexOf("school") >= 1 ) {
 		//for linking school competencies
 		col = 'col3';
 	} else {
 		//for linking competency types with supporting information
-		col = 'col2';
+		col = 'col2';		
 	}
 	$.each(to_update_array, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
@@ -180,23 +182,43 @@ function appendNewLinkedCompetencies (competency_id, type) {
 			}
 			);
 		}
-		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
-		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().on( "click", function(){
-			        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
-		});
-		$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");			
-		$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().on( "click", function(){
-			        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
-		});
+		if (currentID == 0) {
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().on( "click", function(){
+				        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
+			});
+			$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");			
+			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().on( "click", function(){
+				        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
+			});
+		} else {
+			$(currentID).parent().parent().find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
+			$(currentID).parent().parent().find('.competency_popup_container a').first().on( "click", function(){
+				        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
+			});
+			$(currentID).parent().parent().find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");			
+			$(currentID).parent().parent().find('.competency_popup_container a').first().on( "click", function(){
+				        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
+			});
+		}
 	});
 	$.each(to_update_array_remove, function(index, value) {
 		var competency_desc = value.replace(/&nbsp;/g, '');	
-		var to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_container a').first();
+		var to_delete;
+		if (currentID == 0) {
+			to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_container a').first();
+		} else {
+			to_delete = $(currentID).parent().parent().find('.competency_popup_container a').first();
+		}
 		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,30), 'g');
 		var temp_html = to_delete.html();
 		temp_html = temp_html.replace(comp_match_pattern, "<b>REMOVED</b>");
 		to_delete.html(temp_html);
-		to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_content').first();
+		if (currentID == 0) {
+			to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_content').first();
+		} else {
+			to_delete = $(currentID).parent().parent().find('.competency_popup_content').first();
+		}
 		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,20), 'g');				
 		temp_html = to_delete.html();		
 		temp_html = temp_html.replace(comp_match_pattern, "<b>REMOVED</b>");
@@ -205,6 +227,7 @@ function appendNewLinkedCompetencies (competency_id, type) {
 			$(this).parent().hide(2);		
 		});
 	});
+	currentID = 0;
 }
 
 function currentCompLabel (current_competency) {
