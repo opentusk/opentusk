@@ -125,6 +125,21 @@ sub child_objectives {
 	return $self->{-child_objectives};
 }
 
+sub child_competencies {
+    #
+	# Get the competencies(objectives) linked down from this class_meeting
+	#
+
+	my $self = shift;
+	
+	my $school_id = $self->course->get_school()->getPrimaryKeyID();
+	my $class_meeting_id = $self->primary_key;
+	my $competencies = TUSK::Competency::Competency->lookup( "school_id = $school_id", ['competency_class_meeting.sort_order', 'competency.competency_id'], undef, undef,
+				[TUSK::Core::JoinObject->new("TUSK::Competency::ClassMeeting", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "class_meeting_id = $class_meeting_id"})]);
+	
+	return $competencies;
+}
+
 sub keyword_link {
     my $self = shift;
     return TUSK::Schedule::ClassMeetingKeyword->new();
