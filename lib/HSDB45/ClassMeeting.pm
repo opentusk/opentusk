@@ -51,6 +51,9 @@ use TUSK::Schedule::ClassMeetingKeyword;
 use TUSK::ClassMeeting::Type;
 use GD;
 use Text::Wrap qw(wrap $columns);
+use TUSK::Competency::Competency;
+use TUSK::Competency::ClassMeeting;
+
 
 # Non-exported package globals go here
 use vars ();
@@ -118,6 +121,7 @@ sub child_objectives {
 			$self->objective_link()->getObjectivesByClassMeeting($self->course->get_school()->getPrimaryKeyID(), $self->primary_key);
 	}
 	# Return the list
+	
 	return $self->{-child_objectives};
 }
 
