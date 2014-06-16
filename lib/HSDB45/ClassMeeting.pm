@@ -43,6 +43,7 @@ sub get_file_deps {
 
 use HSDB4::Constants qw(:school);
 use HSDB4::DateTime;
+use HSDB4::SQLRow::Content;
 use HSDB45::UserGroup;
 use HSDB45::TimePeriod;
 use TUSK::Constants;
@@ -161,9 +162,9 @@ sub child_competencies_from_linked_content {
 	my @linked_content_competencies;
 	
 	foreach my $content_id (@{$linked_content_ids}) {
-	    my $competencies = TUSK::Competency::Competency->lookup('', ['competency_content.sort_order', 'competency.competency_id'], undef, undef,
-				[TUSK::Core::JoinObject->new("TUSK::Competency::Content", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "content_id = $content_id->[0]"})]);
-
+	    my $current_content_id = $content_id->[0];
+	    my $content = HSDB4::SQLRow::Content->new()->lookup_key($current_content_id);
+	    my $competencies = $content->child_competencies;
 	    push @linked_content_competencies, $competencies;
         }
 	
