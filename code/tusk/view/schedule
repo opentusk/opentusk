@@ -667,7 +667,7 @@ foreach my $current_day ( sort keys %{$week} ) {
 						$link = "/view/accreditation/" . $school . "/" . $group_no . "/" . $meeting->course->course_id . "/" . $meeting->class_meeting_id;
 						
 						my @content = $meeting->active_child_content();
-						my $num_obj = $m->comp('SELF:tally_objectives', content => \@content, meeting => $meeting);
+						my $num_obj = $m->comp('SELF:tally_competencies', content => \@content, meeting => $meeting);
 						$footer .= '<br />' if $footer;
 						$footer .= $num_obj . " objective(s)";
 					}
@@ -704,35 +704,36 @@ foreach my $current_day ( sort keys %{$week} ) {
 
 </%method>
 
-<%method tally_objectives>
+<%method tally_competencies>
 <%args>
 	$content
 	$meeting  => undef
-	$obj_hash => undef
+	$competency_hash => undef
 </%args>
 <%perl>
-	if ( !defined($obj_hash) ) {
-		$obj_hash = {};
+	if (!defined($competency_hash)) {
+		$competency_hash = {};
 	}
 	my $totals = 0;
-	foreach my $item ( @{$content} ) {
+	foreach my $item (@{$content}) {
 		my @child_content = $item->active_child_content;
-		foreach my $objective ($item->child_objectives) {
-			$obj_hash->{'o' . $objective->objective_id} = "1";
+		foreach my $competency ($item->child_competencies) {
+			foreach my $competency_item (@{$competency}) {
+				$competency_hash->{'o' . $competency_item->getPrimaryKeyID} = "1";
+			}
 		}
-		if ( $item->type eq 'Collection' ) {
-			$m->comp('SELF:tally_objectives', content => \@child_content, obj_hash => $obj_hash);
+		if ($item->type eq 'Collection') {
+			$m->comp('SELF:tally_competencies', content => \@child_content, competency_hash => $competency_hash);
 		}
 	}
 	
-	if ( $meeting ) {
-		foreach my $obj_link (@{$meeting->child_objectives()}) {
-			my $objective = $obj_link->getObjective;
-			$obj_hash->{'o' . $objective->getFieldValue('objective_id')} = 1;
+	if ($meeting) {
+		foreach my $competency (@{$meeting->child_competencies()}) {
+			$competency_hash->{'o' . $competency->getPrimaryKeyID} = 1;
 		}
 	}
 
-	return scalar( keys %{$obj_hash} );
+	return scalar( keys %{$competency_hash} );
 </%perl>
 </%method>
 
