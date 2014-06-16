@@ -34,16 +34,17 @@
 	my $school    = $usergroup->school;
 	my $meeting   = HSDB45::ClassMeeting->new( _school => $school )->lookup_key( $m->comp('/tmpl/url:get_last_path_id') );
 	my @content   = $meeting->active_child_content();
-	my %objectives;
-	$objectives{'0_column_titles'} = { '0_content' => '<span class="tusk_sub_header_row">'.__('Content').'</span>', '1_objective' => '<span class="tusk_sub_header_row">'.__('Objective').'</span>' };
-	foreach my $objective_link ( @{$meeting->child_objectives} ) {
-		my $objective = $objective_link->getObjective;
-		if ( defined( $objectives{$objective->getFieldValue('objective_id')}->{'0_content'} ) ) {
-			$objectives{$objective->getFieldValue('objective_id')}->{'0_content'} =~ s|</ul>|<li>(none)</li></ul>|;
-		} else { 
-			$objectives{$objective->getFieldValue('objective_id')} = { '0_content' => "<ul class='content_list'><li>(".__("none").")</li></ul>", '1_objective' => $objective->getFieldValue('body') };
-		}
+
+	my %competencies;
+	$competencies{'0_column_titles'} = { '0_content' => '<span class="tusk_sub_header_row">'.__('Content').'</span>', '1_objective' => '<span class="tusk_sub_header_row">'.__('Objective (Competency)').'</span>' };
+	foreach my $competency_item( @{$meeting->child_competencies}) {
+			if ( defined( $competencies{$competency_item->getPrimaryKeyID}->{'0_content'} ) ) {
+				$competencies{$competency_item->getPrimaryKeyID}->{'0_content'} =~ s|</ul>|<li>(none)</li></ul>|;
+			} else { 
+				$competencies{$competency_item->getPrimaryKeyID} = { '0_content' => "<ul class='content_list'><li>(".__("none").")</li></ul>", '1_objective' => $competency_item->getDescription };
+				}
 	}
+
 	my @ug_link   = $meeting->course->user_group_link()->get_children($meeting->course->course_id,"child_user_group_id='" . $usergroup->primary_key . "'")->children();
 	my $tp_id     = $ug_link[0]->aux_info('time_period_id');
 	my %keywords;
@@ -157,7 +158,7 @@
 		<br />
 		<br />
 		<& SELF:print_related_info, title => 'keywords',   columns => 2, hash_ref => \%keywords &>
-		<& SELF:print_related_info, title => 'objectives', columns => 2, hash_ref => \%objectives &>
+		<& SELF:print_related_info, title => 'objectives (Competencies)', columns => 2, hash_ref => \%competencies &>
 	</div>
 
 % if($printing) {
@@ -229,13 +230,16 @@
 			</tr>
 <%perl>
 		my $title = $item->title;
-		foreach my $objective ($item->child_objectives()) {
-			if ( defined( $objectives{$objective->objective_id}->{'0_content'} ) ) {
-				$objectives{$objective->objective_id}->{'0_content'} =~ s|</ul>|<li>$title</li></ul>|;
-			} else { 
-				$objectives{$objective->objective_id} = { '0_content' => "<ul class='content_list'><li>" . $title . "</li></ul>", '1_objective' => $objective->field_value('body') };
+		foreach my $competency($item->child_competencies()){
+			foreach my $competency_item(@{$competency}){
+				if ( defined( $competencies{$competency_item->getPrimaryKeyID}->{'0_content'} ) ) {
+					$competencies{$competency_item->getPrimaryKeyID}->{'0_content'} =~ s|</ul>|<li>$title</li></ul>|;
+				} else { 
+					$competencies{$competency_item->getPrimaryKeyID} = { '0_content' => "<ul class='content_list'><li>" . $title . "</li></ul>", '1_objective' => $competency_item->getDescription };
+				}
 			}
 		}
+
 		foreach my $keyword ($item->keywords) {
 			if ( defined( $keywords{$keyword->getFieldValue('keyword_id')} ) ) {
 				$keywords{$keyword->getFieldValue('keyword_id')}->{'0_content'} =~ s|</ul>|<li>$title</li></ul>|;
