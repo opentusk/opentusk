@@ -1,0 +1,219 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%once>
+	use HSDB4::Constants;
+	use TUSK::Core::School;
+	use TUSK::Enum::Data;
+
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::ClassMeeting;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::Course;
+
+	use TUSK::Application::Competency::Competency;
+	use TUSK::Application::Competency::Tree;
+</%once>
+
+<%perl>
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $school    = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->comp("/tmpl/url:get_first_path_id") . "'");
+	my $school_id = $school->getFieldValue( 'school_id' );
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID( $school_id, $hsdb45_course_id);
+
+	print "{\n";
+	if ( $ARGS{'sorting'} ) {
+		my $id    = $ARGS{'droppedRow'};
+
+		$id    =~ s/_[\d]+//;
+
+		my ($dbh, $query);
+		eval {
+			$dbh = HSDB4::Constants::def_db_handle();
+		};
+		die "$@\t... failed to obtain database handle!" if $@;
+
+			my ($update_str, $start, $end);
+
+			if ( $ARGS{'originalPos'} < $ARGS{'newPos'} ) {
+				$update_str = "sort_order-1";
+				$start      = $ARGS{'originalPos'} + 1;
+				$end        = $ARGS{'newPos'};
+			} else {
+				$update_str = "sort_order+1";
+				$start      = $ARGS{'newPos'};
+				$end        = $ARGS{'originalPos'} - 1;
+ 			}
+
+			$query = "update tusk.competency_class_meeting set sort_order = $update_str where class_meeting_id = $class_meeting_id and sort_order >= ? and sort_order <= ?";
+			eval {
+				my $handle = $dbh->prepare($query);
+				$handle->execute($start, $end);
+			};
+			die "$@\t... failed to update competency_relationship!" if $@;
+
+			$query = "update tusk.competency_class_meeting set sort_order = ? where class_meeting_id = $class_meeting_id and competency_id = ?";
+			eval {
+				my $handle = $dbh->prepare($query);
+				$handle->execute($ARGS{'newPos'}, $id);
+			};
+			die "$@\t... failed to update competency_relationship!" if $@;
+	
+			print "\"error\" : \"\"\n";
+
+	} else {
+		if ( $ARGS{'delete'} ) {
+			my ($dbh, $query);
+			eval {
+				$dbh = HSDB4::Constants::def_db_handle();
+			};
+
+			die "$@\t... failed to obtain database handle!" if $@;
+
+			my $id = $ARGS{'id'};
+			$id =~ s/_[\d]+//;
+
+			my $parent_id = $ARGS{'parentId'};
+			$parent_id =~ s/_[\d]+//;
+			# adjust sort orders for other competencies for this schedule
+
+			my $current_competency_sort_order = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id = $id")->getSortOrder;
+
+			foreach my $class_meeting (@{TUSK::Competency::ClassMeeting->lookup("class_meeting_id = $class_meeting_id")}){
+				if ( $class_meeting->getSortOrder() > $current_competency_sort_order ){
+					$class_meeting->setSortOrder( $class_meeting->getSortOrder() - 1);
+					$class_meeting->save({ user => $m->session->{'user'}->user_id});
+				}
+			}
+				
+
+			# Grab and delete relationship row from competency_class_meeting table.
+			my $competency_class_meeting = TUSK::Competency::ClassMeeting->lookupReturnOne('competency_id='.$id);
+			$competency_class_meeting->delete;
+			
+			# Grab and delete actual competency row from competency table.
+				
+			my $competency_args = {
+				competency_id => $id
+			};			
+			my $competency = TUSK::Application::Competency::Competency->new($competency_args);
+
+			$competency->delete();
+
+			print "\"error\" : \"\"\n";
+		} else {
+			my $competency;
+			my $new = 0;
+
+			my $competency_user_type_id = TUSK::Competency::UserType->lookupReturnOne( "name =\"Competency\" AND school_id = $school_id" );
+	
+			my $competency_level_enum_id = TUSK::Enum::Data->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"class_meet\"" );
+
+			if ( $ARGS{'id'} =~ /^new_child_of_/ ) {
+				$new = 1;
+				my $parent_id = $ARGS{'id'};
+				$parent_id =~ s/^new_child_of_//g;
+				$parent_id =~ s/_[\d]+//;
+				$parent_id =~ s/_[\d]+//;
+
+				my $competency_args = {
+					title => '',
+					description => $ARGS{'col0'},
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+					school_id => $school_id,
+					competency_level_enum_id => $competency_level_enum_id->getPrimaryKeyID,
+					version_id => $school_id,
+					user => $m->session->{'user'}->user_id
+				};
+
+				my $competency = TUSK::Application::Competency::Competency->new($competency_args);				
+				my $new_competency_id = $competency->add();
+
+				my $competency_class_meeting = TUSK::Competency::ClassMeeting->new();
+				
+				$competency_class_meeting->setFieldValues({
+					competency_id => $new_competency_id,
+					class_meeting_id => $class_meeting_id,
+					sort_order => 0
+				});			
+				
+				if ( $ARGS{'position'} eq 'last' ) {
+					my $sql =qq (SELECT MAX(sort_order) FROM tusk.competency_class_meeting WHERE class_meeting_id = $class_meeting_id);			
+					my $sth = $dbh->prepare($sql);
+					$sth->execute();
+				   
+					my $current_max_sort_order = $sth->fetchall_arrayref->[0]->[0];    
+					$sth->finish();
+
+					$sql = qq (SELECT COUNT(*) FROM tusk.competency_class_meeting WHERE class_meeting_id = $class_meeting_id);
+					$sth = $dbh->prepare($sql);
+					$sth->execute();
+				
+					my $current_count = $sth->fetchall_arrayref->[0]->[0];
+					$sth->finish();
+
+					if ( $current_count > 0 ){
+						$competency_class_meeting->setSortOrder($current_max_sort_order + 1);
+					} else{
+						$competency_class_meeting->setSortOrder(0);
+					}
+				} else {
+					foreach my $class_meeting (@{TUSK::Competency::ClassMeeting->lookup("class_meeting_id = $class_meeting_id")}){
+						$class_meeting->setSortOrder( $class_meeting->getSortOrder() + 1);
+						$class_meeting->save({ user => $m->session->{'user'}->user_id});
+					}
+				   
+					$competency_class_meeting->setSortOrder(0);
+				}
+				$competency_class_meeting->save( {user=> $m->session->{'user'}->user_id} );			
+
+				print "\"id\"    : \"" . $new_competency_id . "_" . time() . "\",\n";
+				print "\"error\" : \"\"\n";
+			} else {
+				my $id = $ARGS{'id'};
+				$id =~ s/_[\d]+//;
+
+				my $competency_args = {
+					competency_id => $id,
+					description => $ARGS{'col0'},
+					user => $m->session->{'user'}->user_id,
+					user_type_id => $competency_user_type_id->getPrimaryKeyID,
+				};
+
+				$competency = TUSK::Application::Competency::Competency->new($competency_args);
+				$competency->update;
+				print "\"id\"    : \"" . $competency->{'competency_id'}. "_" . time() . "\",\n";
+				print "\"error\" : \"\"\n";
+			}
+					
+		}
+	}
+	print "}";
+</%perl>
+
+<%init>
+	my (undef, $hsdb45_course_id, $class_meeting_id) = $m->comp("/tmpl/url:get_path_ids");
+</%init>

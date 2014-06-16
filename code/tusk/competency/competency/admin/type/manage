@@ -13,16 +13,19 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%perl>
-	my $school    = $m->comp("/tmpl/url:get_school");
+	my $school = $m->comp("/tmpl/url:get_school");
 	my $school_id = TUSK::Core::School->new->getSchoolID($school);
 
-	my $types     = TUSK::Competency::UserType->lookup( "school_id = $school_id", undef, undef, undef,
-			 [ TUSK::Core::JoinObject->new('TUSK::Enum::Data', { origkey=> 'competency_type_enum_id', joinkey => 'enum_data_id', jointype=> 'inner', joincond=> "enum_data.namespace = \"competency.user_type.id\" "})] );
-	my $enum_data = TUSK::Enum::Data->lookup( "namespace = \"competency.user_type.id\"" );
+	my $types = TUSK::Competency::UserType->lookup("school_id = $school_id", undef, undef, undef,
+			 [TUSK::Core::JoinObject->new('TUSK::Enum::Data', 
+			 {origkey=> 'competency_type_enum_id', joinkey => 'enum_data_id', jointype=> 'inner', joincond=> "enum_data.namespace = \"competency.user_type.id\" "})]);
 
-	my $data = [ map { id => $_->getPrimaryKeyID, description => $_->getName, back_type => $_->getJoinObject('TUSK::Enum::Data')->getDisplayName }, @{$types} ];
-	my $back_type = [ map { label => $_->getDisplayName , value=> $_->getPrimaryKeyID }, @{$enum_data} ];	
+	my $enum_data = TUSK::Enum::Data->lookup("namespace = \"competency.user_type.id\"");
+
+	my $data = [map {id => $_->getPrimaryKeyID, description => $_->getName, back_type => $_->getJoinObject('TUSK::Enum::Data')->getDisplayName}, @{$types}];
+	my $back_type = [map {label => $_->getDisplayName, value=> $_->getPrimaryKeyID}, @{$enum_data}];	
 </%perl>
 
 <br />
@@ -35,6 +38,7 @@
 				sort => 0,
 				button_label => __('Add Competency Type'),
 				no_top_add_button => 1,
+				no_striping => 1,
 				action_width => 180,
 				action_dropdown => 1,
 				onclick_options => 1,
@@ -43,14 +47,14 @@
 							{ 'label' => __('Delete'), 'onclick' => 'deleteRow( this, params ); resetDropDown(this);' } 
 			  			], 
 				fields => [
-					{ hide  => 1, field => 'id', },
-					{ label => __('User Type'), field => 'description', head_align => 'left', align => 'left', edit =>
+					{ hide  => 1, field => 'id',},
+					{ label => __('User Type'), field => 'description', head_align => 'left', align => 'left', width => 400, edit =>
 						{ type      => 'text',
 						  classname => 'textareawhite',
 						  size      => 30,
 						  maxlength => 100 }
 					},
-					{ label => __('Backend Type'), field => 'back_type', head_align => 'left', align => 'left', width => 150, edit =>
+					{ label => __('Backend Type'), field => 'back_type', head_align => 'left', align => 'left', width => 200, edit =>
 						{ type      => 'radio',
 						  classname => 'textareawhite',
 						  options   => $back_type,
@@ -72,15 +76,16 @@
 			"jquery/jquery.min.js",
 			"jquery/plugin/interface/interface.js",
 			"jquery/plugin/json.js",
-			"jqNestedSortableFunctionsCompetencies.js" ,
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"competency/competency/nestedSortable.js" ,
 			"competency/competency/functions.js",
+			"detectIE.js"
 			];
 </%perl>
 </%method>
 
 <%method red_header_text>
-% return $m->comp( "SELF:title" );
+% return $m->comp("SELF:title");
 </%method>
 
 <%method title>

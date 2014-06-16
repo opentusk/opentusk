@@ -1,0 +1,289 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%shared>
+	my ($school, $school_id, $competencies, @comp_categories, @already_linked_competencies, %already_linked_comps, %not_linked_comps);
+</%shared>
+
+<%perl>
+	foreach (@{TUSK::Competency::Competency->lookup()}) {
+		$competencies->{$_->getCompetencyID} = $_;
+	}
+
+	$school = $m->comp("/tmpl/url:get_school");
+	$school_id = TUSK::Core::School->new->getSchoolID($school);
+
+	my $competency_id =  $ARGS{'competency_id'};
+	my $linked_competencies = TUSK::Competency::Relation->lookup('competency_id_1='.$competency_id);
+	my @linked_competencies_id = map {$_->getCompetencyId2()} @{$linked_competencies};
+
+	my $data = TUSK::Application::Competency::Tree->build($school_id, $ARGS{'root_id'});
+
+</%perl>
+
+<div id="link_body">
+<%perl>
+	if ($ARGS{link_type} eq 'national') {
+		print "<h3>Available National Competencies (Not Linked):</h3>";
+	} elsif ($ARGS{link_type} eq 'school') {
+		print "<h3>Available <span style=\"color: green;\">School Competencies</span> (Not Linked):</h3>";
+	} else {
+		print "<h3>Available <span style=\"color: #D57025;\">Course Competencies</span> (Not Linked):</h3>";
+	}
+</%perl>
+
+<div class="linked_competencies" id="not_linked_linked_competencies">
+<%perl>
+	my $comp_level_enum_id;
+	if ($ARGS{link_type} eq 'class_meet' || $ARGS{link_type} eq 'content'){
+		$comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name = \"course\"")->getPrimaryKeyID;
+	} else{
+		$comp_level_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name = \"$ARGS{link_type}\"")->getPrimaryKeyID;
+	}
+
+	my $comp_user_type = TUSK::Competency::UserType->lookupReturnOne("school_id = $school_id", ['competency_user_type_id'], undef, undef,
+			[TUSK::Core::JoinObject->new("TUSK::Enum::Data", { joinkey=> 'enum_data_id', origkey => 'competency_type_enum_id', jointype => 'inner', joincond => "enum_data.short_name =\"category\""})]);
+	my $comp_user_type_id;
+	if ($comp_user_type){
+		$comp_user_type_id = $comp_user_type->getPrimaryKeyID;
+	} else{
+		$comp_user_type_id = 0;
+	}
+	my ($this_course_id, $comp_categories_list);
+	
+	if ($ARGS{'course_id'}){
+		$this_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
+	
+		$comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id AND course_id = $this_course_id", ['competency.competency_id'], undef, undef, [TUSK::Core::JoinObject->new("TUSK::Competency::Course", { joinkey=> 'competency_id', origkey => 'competency_id', jointype => 'inner' })]);
+	} else {
+		$comp_categories_list = TUSK::Competency::Competency->lookup("competency_level_enum_id = $comp_level_enum_id AND competency_user_type_id = $comp_user_type_id AND school_id = $school_id");
+	}
+	my %temp_category_hash;
+	
+
+	foreach my $comp_category(@{$comp_categories_list}) {	
+		if ($ARGS{link_type} eq 'class_meet' || $ARGS{link_type} eq 'content'){
+			$temp_category_hash{$comp_category->getPrimaryKeyID} = $comp_category->getDescription();				
+		} else {
+			$temp_category_hash{$comp_category->getPrimaryKeyID} = $comp_category->getTitle();
+		}
+		push @comp_categories, {%temp_category_hash};
+		undef %temp_category_hash;
+	}
+	
+	if (@comp_categories) {
+		my @empty_linked = ();
+		%already_linked_comps = map {(keys %{$_})[0] => [ @empty_linked ]} @comp_categories;
+		%not_linked_comps = map {(keys %{$_})[0] => [ @empty_linked ]} @comp_categories;	
+		$m->comp('SELF:buildCompetencyListTree', data => $data, linked => \@linked_competencies_id, parent => 0);
+		$m->comp('SELF:generateTable', competencies_list => \%not_linked_comps, competencies_type => "not_linked");	
+	} else{
+		if ($ARGS{'link_type'} ne 'national'){
+			my @empty_linked = ();
+			%already_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
+			%not_linked_comps = map { (keys %{$_})[0] => [ @empty_linked ] } @comp_categories;
+
+			my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
+
+			my $course_competencies = TUSK::Course->getCompetenciesByCourse($tusk_course_id);	
+
+			my $comp_data;	
+
+			foreach my $course_competency (@{$course_competencies}) {
+				my %temp_competency_hash;
+				$temp_competency_hash{'title'} = $course_competency->getDescription();
+				$temp_competency_hash{'id'} = $course_competency->getPrimaryKeyID();
+				$temp_competency_hash{'description'} = $course_competency->getDescription();;	
+				$temp_competency_hash{'children'} = undef;			
+				push @{$comp_data}, {%temp_competency_hash};
+			}		
+
+			$m->comp('SELF:buildCompetencyListTree', data => $comp_data, linked => \@linked_competencies_id, parent => 0);			
+			$m->comp('SELF:generateTableNoCategories', competencies_list => \%not_linked_comps, competencies_type => "not_linked");			
+		} else {
+			print "<div id=\"no_competencies\" style=\"border: 2px solid; padding: 20px;\">";
+			print "<h2 style=\"color: red;\">No National Competencies Found</h2>";
+			print "<a href=\"/tusk/competency/competency/admin/national/manage/school/$school_id\">Click here to go to the National Competencies management page</a>";
+			print "</div>";
+		}
+	}
+	
+</%perl>
+</div>
+
+<%perl>
+	if ($ARGS{link_type} eq 'national') {
+		print "<h3 style=\"color: red;\">Linked National Competencies:</h3>";
+	} elsif ($ARGS{link_type} eq 'school') {
+		print "<h3 style=\"color: red;\">Linked School Competencies:</h3>";
+	} else {
+		print "<h3 style=\"color: red;\">Linked Course Competencies:</h3>";
+	}
+</%perl>
+
+<div class="linked_competencies" id="linked_linked_competencies">
+<%perl>
+	if (@comp_categories) {
+		$m->comp('SELF:generateTable', competencies_list => \%already_linked_comps, competencies_type => "linked");
+	} else {
+		$m->comp('SELF:generateTableNoCategories', competencies_list => \%already_linked_comps, competencies_type => "linked"); 
+	}
+</%perl>
+</div>
+<br>
+<input type="button" class="formbutton" onclick="updateCompetencies()" value="Save" />
+<span id="save_notifications"></span>
+<input id = "link_competencies_close_button" type="button" class="formbutton" onclick="closeLinkWindow()" value="Close" />
+</div>
+
+<%method generateTable>
+<%args>
+	$competencies_list
+	$competencies_type
+</%args>
+<%perl>
+    #generates table for linking/unlinking competencies given a list of competencies;
+    print "<table class=\"competency_link_table\">";
+    foreach my $comp_category(@comp_categories) {
+	my $current_key = (keys %{ $comp_category})[0];
+	if ($competencies_type eq "linked") {	    
+	    print "<tr><td id=\"LS_cat_". $current_key ."\"><b>" . $comp_category->{$current_key} . "</b></td></tr>";
+	    #process linked child competencies of parent competencies if they exist;
+	    my $competency_args = {
+		competency_id => $current_key
+	    };
+	    my $current_comp = TUSK::Application::Competency::Competency->new($competency_args);
+	    my $current_children = $current_comp->getChildren();
+	    foreach my $child( @{$current_children}){
+			if ($already_linked_comps{$child}) {
+				foreach my $already_linked_child(@{$already_linked_comps{$child}}){
+					print "<tr><td id=\"LS_". (keys %{$already_linked_child})[0] ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" 
+						data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $already_linked_child->{(keys %{$already_linked_child})[0]} . "<span class=\"remove_comp_hover\"><b > (Remove)</b></span></td></tr>";
+				}
+			}
+	    }
+	} else {
+	    print "<tr><td id=\"NLS_cat_". $current_key ."\"><b>" . $comp_category->{$current_key} . "</b></td></tr>";
+	}	
+
+	foreach my $linked_comp(@{$competencies_list->{$current_key}}) {
+	    my $current_linked_key = (keys %{$linked_comp})[0];	
+
+	    if ($competencies_type eq "linked") {
+		print "<tr><td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"".$current_key."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "<span class=\"remove_comp_hover\"><b > (Remove)</b></span></td></tr>";
+	    } else {
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"". $current_key ."\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "<span class=\"add_comp_hover\"><b > (Add)</b></span></td></tr>";
+		if ($not_linked_comps{$current_linked_key}) {
+			foreach my $not_linked_child_comp(@{$not_linked_comps{$current_linked_key}}) {
+				print "<tr><td id=\"NLS_". (keys %{$not_linked_child_comp})[0] ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" 
+					data-parent=\"". $current_key ."\">" . "&nbsp" x 8 . "<i>(child)</i> " . $not_linked_child_comp->{(keys %{$not_linked_child_comp})[0]} . "<span class=\"add_comp_hover\"><b > (Add)</b></span></td></tr>";
+			}
+		}
+	    }
+	}
+    }
+    print "</table>";
+</%perl>
+</%method>
+
+<%method generateTableNoCategories>
+<%args>
+	$competencies_list
+	$competencies_type
+</%args>
+<%perl>
+    #generates table for linking/unlinking competencies given a list of competencies;
+    print "<table class=\"competency_link_table\">";
+	if ($competencies_type eq "linked") {
+	    print "<tr><td id=\"LS_cat_0\"><i>(No Categories Present)</i></td></tr>";
+	} else{
+	    print "<tr><td id=\"NLS_cat_0\"><i>(No Categories Present)</i></td></tr>";
+	}
+
+	foreach my $linked_comp(@{$competencies_list->{'0'}}) {
+	    my $current_linked_key = (keys %{ $linked_comp })[0];
+				
+	    if ($competencies_type eq "linked") { 		
+		print "<tr> <td id=\"LS_". $current_linked_key ."\"class=\"linked_cell\" onclick=\"linkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "<span class=\"remove_comp_hover\"><b > (Remove)</b></span></td></tr>";
+	    } else {
+		print "<tr><td id=\"NLS_". $current_linked_key ."\"class=\"not_linked_cell\" onclick=\"notLinkedCellOnClick(this);\" data-parent=\"0\">" . "&nbsp" x 4 . $linked_comp->{$current_linked_key} . "<span class=\"add_comp_hover\"><b> (Add)</b></span></td></tr>";
+	    }
+	}
+
+    print "</table>";
+</%perl>
+</%method>
+
+
+<%method buildCompetencyListTree>
+<%args>
+	$data 
+	$linked
+	$parent
+</%args>
+<%perl>
+	my %linked_competencies = map {$_ => 1} @{$linked};
+	for my $d (@{$data}) {
+		my %temp_linked_comp;
+
+		if ($d->{'title'}){
+			$temp_linked_comp{$d->{'id'}} = $d->{'title'};
+		} else {
+			$temp_linked_comp{$d->{'id'}} = $d->{'description'};
+		}
+
+			
+		if (exists($linked_competencies{$d->{'id'}})) {
+			push @{$already_linked_comps{$parent}}, {%temp_linked_comp};
+		} else{
+			if (($d->{'children'})) {
+				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
+				$m->comp('SELF:buildCompetencyListTree', data => $d->{'children'}, linked => $linked , parent => $d->{'id'});
+			} else {
+				push @{$not_linked_comps{$parent}}, {%temp_linked_comp};
+			}
+		}
+	}
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method startup>
+%	$m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/jquery.ui.widget.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"competency/competency/functions.js",
+			"detectIE.js"
+			];
+</%perl>
+</%method>
+

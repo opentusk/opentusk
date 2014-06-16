@@ -13,9 +13,14 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use HSDB4::Constants;
 	use TUSK::Constants;
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Relation;
+	use TUSK::Competency::Course;
+	use TUSK::Competency::Content;
 	use TUSK::Content::External::Source;
 	use TUSK::ProcessTracker::ProcessTracker;
 	use Image::ExifTool;
@@ -916,42 +921,47 @@ that 'minimal' style is applied to this piece of content
                 } &>
 
 <%perl>
-	my @objectives = ($content->primary_key()) ? $content->child_objectives() : ();
-	
-	my @objectives_data = map { 
-					{
-						objective_id	=> $_->primary_key(),
-						body	 	=> $_->field_value_esc('body'), 
-					}
-				} @objectives;
+	my $school_name = $content->school;
+	my $school_id = TUSK::Core::School->new->getSchoolID($school_name);
+
+	my $data = ($content->content_id) ? $m->comp('/competency/competency/tmpl/build', school_id => $school_id, component_type => 'content', component_id => $content->content_id) : [];
+
+##The objectives related to this schedule.
+	$m->comp('/competency/competency/tmpl/element:jquery_sort_list' , params =>{
+				label => __('Objectives: '),
+				no_striping => 1,
+				container => 'competency_container',
+				name => 'content_competencies',
+				sort => 1,
+				no_nesting => 'sort-row',
+				button_label => __('Add Objective'),
+				action_width => 150,
+				action_dropdown => 1,
+				onclick_options => 1,
+ 				action_columns => [ 
+							{ 'label' => __('Modify'),    'onclick' => 'editRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Delete'),    'onclick' => 'deleteRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Link/Unlink'),      'onclick' => 'linkObjectiveToCourse( this, params); resetDropDown(this);' },
+			  			], 
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => __('Content Objective'), field => 'title', head_align => 'left', width => 400, align => 'left', edit =>
+						{ type      => 'textarea',
+						  classname => 'textareawhite',
+						  rows => 3,
+						  cols      => 40,
+						  maxlength => 300 }
+					},
+					{ label => __('Linked:'), field => 'links', head_align => 'left', align => 'left', width => 200}
+
+				],
+				data => $data, 
+				post_to => '/tusk/competency/competency/admin/objectives/update/' . $school_name . '/' . $content->course->course_id . '/' . $content->content_id,
+				empty_message => __("No objectives exist for the current content.")
+	});
+	undef $data;
 </%perl>
 
-<& /tmpl/element:sort_order_box , params =>{
-                	label		=> __('Objectives:'),
-			name 		=> "objectives",
-			button_onclick	=> "openwindow('objectivesdiv')",
-			help_info	=> {
-						topic		=> 'create_objectives',
-						text		=> __('Tips for Selecting Objectives'),
-					   },
-                	layer_info 	=> {
-						empty_message 	=> __('No objectives associated for this content'),
-                        			layer 		=> 'objectivesdiv',
-						scrollrows 	=> 6,
-                        			fields 		=> ['objective_id', 'body'],
-                        			name 		=> 'objectives',
-                        			sort 		=> { usage => 'Yes', length => 50},
-                        			action 		=> { usage => 'Yes', length => 100, functions => 	[ 
-																{func=>'edit', label=>__('Edit')},
-																{ func => 'remove', label => __('Delete')} 
-															] },
-                        			display 	=> [
-                                        				{ label => __('Body'), field => 'body', align => 'left', length => 450, edittype => 'textarea' },
-                                  				    ],
-                        			validate 	=> { usage => 'No', },
-                        			data 		=> \@objectives_data, 
-					    }
-                } &>
 
 <%perl>
 	my $content_access_trailing_text = ($content->type() eq 'Collection') ? '<i>' . __("(all non-folder content within this folder will be changed to this value)") . '</i>' : '';
