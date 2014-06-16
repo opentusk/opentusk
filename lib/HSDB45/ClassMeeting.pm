@@ -53,6 +53,7 @@ use GD;
 use Text::Wrap qw(wrap $columns);
 use TUSK::Competency::Competency;
 use TUSK::Competency::ClassMeeting;
+use TUSK::Competency::Content;
 
 
 # Non-exported package globals go here
@@ -126,8 +127,8 @@ sub child_objectives {
 }
 
 sub child_competencies {
-    #
-	# Get the competencies(objectives) linked down from this class_meeting
+        #
+	# Get the competencies(objectives) linked from this class_meeting
 	#
 
 	my $self = shift;
@@ -139,6 +140,36 @@ sub child_competencies {
 	
 	return $competencies;
 }
+
+sub child_competencies_from_linked_content {
+        #
+	# Get the competencies(objectives) linked from this class_meeting including those from related content
+	#
+        my $self = shift;
+	
+	my $school_id = $self->course->get_school()->getPrimaryKeyID();
+	my $class_meeting_id = $self->primary_key;
+
+        my $dbh = HSDB4::Constants::def_db_handle();
+	my $school = TUSK::Core::School->new()->lookupReturnOne("school_id = 1");
+	my $school_db = $school->getSchoolDb();
+	my $sql = qq(SELECT child_content_id FROM $school_db.link_class_meeting_content WHERE parent_class_meeting_id = $class_meeting_id);
+	my $sth = $dbh->prepare($sql);
+	$sth->execute();
+	my $linked_content_ids = $sth->fetchall_arrayref();
+	
+	my @linked_content_competencies;
+	
+	foreach my $content_id (@{$linked_content_ids}) {
+	    my $competencies = TUSK::Competency::Competency->lookup('', ['competency_content.sort_order', 'competency.competency_id'], undef, undef,
+				[TUSK::Core::JoinObject->new("TUSK::Competency::Content", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "content_id = $content_id->[0]"})]);
+
+	    push @linked_content_competencies, $competencies;
+        }
+	
+	return \@linked_content_competencies;
+}
+
 
 sub keyword_link {
     my $self = shift;
