@@ -105,29 +105,7 @@ sub split_by_school { return 1; }
 # >>>>> Linked objects <<<<<
 #
 
-sub objective_link {
-	my $self = shift;
-	return TUSK::Schedule::ClassMeetingObjective->new();
-}
-
-sub child_objectives {
-	#
-	# Get the objectives linked down from this class_meeting
-	#
-
-	my $self = shift;
-	my $ignore_cache = shift;
-	# Check cache...
-	if ( !defined($self->{-child_objectives}) || $ignore_cache ) {
-		$self->{-child_objectives} = 
-			$self->objective_link()->getObjectivesByClassMeeting($self->course->get_school()->getPrimaryKeyID(), $self->primary_key);
-	}
-	# Return the list
-	
-	return $self->{-child_objectives};
-}
-
-sub child_competencies {
+sub getCompetencies {
         #
 	# Get the competencies(objectives) linked from this class_meeting
 	#
@@ -142,7 +120,7 @@ sub child_competencies {
 	return $competencies;
 }
 
-sub child_competencies_from_linked_content {
+sub getCompetenciesFromLinkedContent {
         #
 	# Get the competencies(objectives) linked from this class_meeting including those from related content
 	#

@@ -520,7 +520,7 @@ sub child_objectives {
     return $child_objectives->children();
 }
 
-sub child_competencies {
+sub getCompetencies {
     #
     # Competencies related to the content.    
     #
