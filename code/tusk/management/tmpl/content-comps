@@ -921,8 +921,18 @@ that 'minimal' style is applied to this piece of content
                 } &>
 
 <%perl>
-	my $school_name = $content->school;
-	my $school_id = TUSK::Core::School->new->getSchoolID($school_name);
+	my $school_name = $m->comp("/tmpl/url:get_school");
+	my $this_course_id;
+
+	if (!$school_name) {
+		$school_name = $content->school;
+		$this_course_id = $content->course->course_id;	
+	} else {
+		$this_course_id = $course->course_id;
+	}
+
+        my $school_id = TUSK::Core::School->new->getSchoolID($school_name);
+
 
 	my $data = ($content->content_id) ? $m->comp('/competency/competency/tmpl/build', school_id => $school_id, component_type => 'content', component_id => $content->content_id) : [];
 
@@ -956,7 +966,7 @@ that 'minimal' style is applied to this piece of content
 
 				],
 				data => $data, 
-				post_to => '/tusk/competency/competency/admin/objectives/update/' . $school_name . '/' . $content->course->course_id . '/' . $content->content_id,
+				post_to => '/tusk/competency/competency/admin/objectives/update/' . $school_name . '/' . $this_course_id . '/' . $content->content_id,
 				empty_message => __("No objectives exist for the current content.")
 	});
 	undef $data;
