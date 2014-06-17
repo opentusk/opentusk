@@ -23,6 +23,14 @@
 <%shared>
 </%shared>
 <%perl>
+	# creating type_path for competency (objectives) management
+	my $type_path_orig = $type_path; #original type path
+	my @type_path_orig_split = split(/\//, $type_path_orig);
+	my $type_path_comp = $type_path_orig_split[0] . '/' . $type_path_orig_split[1];
+	if ($type_path_comp =~ /course./){
+		$type_path_comp = $type_path_orig_split[1] . '/'. $type_path_orig_split[2];
+	};
+
 	$type_path = 'course/' . $type_path unless ($type_path =~ /^course\//); # just in case course was not in the type path
 	my $type_path_alt = $type_path;
 	$type_path_alt =~ s/course\///g; # but we don't always want it
@@ -42,7 +50,7 @@
 </td></tr>
 <& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Basic Information'),'url'=>'/management/course/info/' . $type_path_alt, 'linkstyle'=> "titletext"} &>
 % unless($is_thesis_comm){
-<& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Objectives'),'url'=>'/management/course/objectives/' . $type_path_alt, 'linkstyle'=> "titletext"} &>
+<& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Competencies/Objs'),'url'=>'/tusk/competency/competency/author/course/manage/course/'.  $type_path_comp, 'linkstyle'=> "titletext"} &>
 % }
 % foreach my $metadataNumber (@{ ${$metaDataRef}{'metadataOrder'} }) {
 %	if((!$is_group_course && !$is_thesis_comm) ||
@@ -98,6 +106,7 @@
 <& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Assignments'),'url'=>'/assignment/author/show/' . $type_path, 'linkstyle'=> "titletext"} &>
 % }
 <& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Cases'),'url'=>'/case/author/caseshow/'. $type_path, 'linkstyle'=> "titletext" } &>
+<& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Competency Checklist'),'url'=>'/competency/checklist/author/show/'. $type_path, 'linkstyle'=> "titletext" } &>
 
 % if ($m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT') && !$is_thesis_comm){
 		<& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Grade Book'),'url'=>'/gradebook/author/show/' . $type_path, 'linkstyle'=> "titletext"} &>

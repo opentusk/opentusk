@@ -1,0 +1,140 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Checklist::Assignment;
+	use TUSK::Application::Competency::Checklist;	
+	use TUSK::Application::Email;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my ($checklist_group_id, $checklist_id, $assignment_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $student = $m->session->{user};
+	
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});	
+	my $competency = $acc->getCompetencyChecklist($checklist_id);
+	my $assessor = $acc->getAssessor($assignment_id, $checklist_id, 'partner');
+	my $assignment;
+	my $entry;
+</%shared>
+
+<div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to \"{partner_name}\"", title => $competency->getDescription(), partner_name => $assessor->outName()) %></div>
+
+<& /tmpl/element:form, params => {
+	method		=> 'POST',
+	enctype		=> 'multipart/form-data', 
+	onsubmit	=> '',
+	name 		=> 'emailfaculty' 
+} &>
+
+<div style="margin-top:10px"><% __('Comments') . ':'  %></div>
+<& /tmpl/element:input_textarea, params => { 
+	name 	=> 'comment',
+	value 	=> '',
+	cols 	=> 60,
+	rows 	=> 6  
+} &>
+
+<& /tmpl/element:save_button, params => {
+	label		=> __('Request'),
+	cancel_onclick 	=> " go_back('/view/" . $type_path . "/checklists');",
+        name		=> 'submit',
+} &>
+
+<%init>
+	if ($ARGS{submit_check}) {
+		$entry = TUSK::Competency::Checklist::Entry->new() unless (defined $entry);
+		$entry = $acc->setAssessorRequest($assignment_id, $checklist_id, $student->primary_key(), $entry);
+		$m->comp('SELF:sendEmail', to => $assessor->getDefaultEmail(), comment => $ARGS{comment}, entry => $entry);
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/view",
+			pathref	 => [ 'checklists' ], 
+			msg	 => __('The request was successfully sent.'),
+		));	
+		
+	}
+</%init>
+
+<%method startup>
+<%perl>	
+	my $msg = undef;
+	unless ($assessor) {
+		$msg = __x("There's something wrong with partner assignment. Please contact your course Director.");
+	}
+
+	if (ref $entry eq 'TUSK::Competency::Checklist::Entry' && $entry->getPrimaryKeyID() && $entry->getRequestDate()) {
+		if ($entry->getRequestDate()) {
+			$msg = __x('There is already a pending "{competency_title}" assessment request!', competency_title => $competency->getDescription());
+		}
+	}
+
+	if ($msg) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/view",
+			pathref	 => [ 'checklists' ], 
+			msg	 => $msg,
+			msgtype	 => 'errmsg',
+		));	
+	}
+
+	$assignment = $assessor->getJoinObject('TUSK::Competency::Checklist::Assignment');
+	$entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry');
+</%perl>	
+</%method>
+
+<%method sendEmail>
+<%args>
+	$to
+	$comment
+	$entry
+</%args>
+<%perl>
+	$comment = ($comment =~ /\w+/) ? "\nAdditional comments from student\:\n$comment" : '';
+
+	my $email = TUSK::Application::Email->new({
+		to_addr => $to,
+		from_addr => $TUSK::Constants::SupportEmail,
+		subject => $competency->getDescription() . ' ' . __('Checklist') . ' - ' . $course->title(),
+		body	=> __x(
+			"Dear {assessor_name},\n\n" .
+			"Please assess {student_name}'s competency with '{competency_name}' by clicking on the link below.\n\n" .
+			"{url}\n\n" .
+			"Please contact one of the Course directors if you have any questions.\n" .
+			"{comment}",
+			assessor_name => $assessor->outName(),
+			student_name => $student->out_full_name(),
+			competency_name => $competency->getDescription(),
+			url => 'https://' . $TUSK::Constants::Domain . 
+				"/competency/checklist/partner/assess/$type_path/$checklist_group_id" .
+				"/$checklist_id/$assignment_id" . 
+				(($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : ''),
+			comment => $comment,
+			),
+	});
+
+	$email->send();
+</%perl>
+</%method>
+
+<%method title>
+%	return __('Competency Checklist - Email Partner');
+</%method>
+
+

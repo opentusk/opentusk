@@ -1,0 +1,156 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+ http://www.opensource.org/licenses/ecl1.php 
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	page_header => ''
+	page_footer => ''
+	allow_guests => '1'
+</%attr>
+
+<%shared>
+	my @comp_categories;
+</%shared>
+
+<%perl>
+	use TUSK::Application::Competency::Tree;
+	use TUSK::Application::Competency::Competency;	
+
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Hierarchy;
+	
+	my $course_id = $ARGS{'course'};
+
+	my $school_id = TUSK::Core::School->new->getSchoolID($ARGS{'school_name'});         
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $course_id);
+	
+	$m->comp('SELF:generateCompetencyListByCourse', course_id => $tusk_course_id);
+	
+</%perl>
+
+<%method generateCompetencyListByCourse>
+<%args>
+	$course_id
+</%args>
+<%perl> 
+
+    my $course_competencies = TUSK::Course->getTopLevelCompetenciesByCourse($course_id);
+
+    print "<form class=\"competency_static_list\"><ul id=\"competency_checklist_dialog_table\">";
+
+    foreach my $course_competency (@{$course_competencies}) {
+	my $this_course_competency = {
+		competency_id => $course_competency->getPrimaryKeyID,
+	};
+	my $individual_tree = TUSK::Application::Competency::Tree->new($this_course_competency);
+	my $top_level_competencies = $individual_tree->getBranch();
+	$m->comp('SELF:generateCompetencyListByCourseHelper', competency_tree => $top_level_competencies, depth => 0);
+    }
+    print "</ul></form>";
+
+    return 1;	
+</%perl>
+</%method>
+
+
+<%method generateCompetencyListByCourseHelper>
+<%args>
+	$competency_tree
+	$depth
+</%args>
+<%perl>
+    foreach my $key(keys %{$competency_tree}) {
+	my $this_competency = TUSK::Competency::Competency->lookup('competency_id='. $key);
+	my $competency_type = $this_competency->[0]->getType;
+	if ($competency_type eq 'category') {
+		print "<li>"."&nbsp" x 4 x $depth ."&nbsp&nbsp<span class=\"description\"><b>".$this_competency->[0]->getDescription . "</b></span></li>";
+	}
+	elsif ($competency_type ne 'category' && $depth < 2) {
+		print "<li>"."&nbsp" x 4 x $depth ."&bull;&nbsp&nbsp<span class=\"description\">".$this_competency->[0]->getDescription . "</span></li>";
+	}
+	else{
+		print "<li>"."&nbsp" x 4 x $depth ."&ndash;&nbsp&nbsp<span class=\"description\">".$this_competency->[0]->getDescription . "</span></li>";
+	}
+	print "<div id =\"Child_of_".$this_competency->[0]->getPrimaryKeyID ."\">";
+	$m->comp('SELF:generateCompetencyListByCourseHelper', competency_tree => $competency_tree->{$key}, depth => $depth + 1);
+	print "</div>";
+    }    
+</%perl>
+</%method>
+
+<%method generateClassMeetingObjectivesView>
+<%args>
+	$class_meeting_id
+</%args>
+<%perl> 
+	print "<br>";
+	print "<form class=\"competency_static_list\"><ul id=\"competency_checklist_dialog_table\">";
+	my $competencies = TUSK::Competency::Competency->lookup( '', ['competency_class_meeting.sort_order', 'competency.competency_id'], undef, undef,
+				[TUSK::Core::JoinObject->new("TUSK::Competency::ClassMeeting", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "class_meeting_id = $class_meeting_id"})]);
+	if (scalar(@{$competencies}) == 0) {
+		print "<i>No Objectives directly linked to this schedule</i>";
+	}
+	foreach my $competency(@{$competencies}) {
+		print "<li>&bull;&nbsp&nbsp<span class=\"description\">".$competency->getDescription . "</span></li>";
+	}
+	print "<h4>Learning Objectives from linked content:</h4>";
+	
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $school = TUSK::Core::School->new()->lookupReturnOne("school_id = 1");
+	my $school_db = $school->getSchoolDb();
+	my $sql = qq(SELECT child_content_id FROM $school_db.link_class_meeting_content WHERE parent_class_meeting_id = $class_meeting_id);
+	my $sth = $dbh->prepare($sql);
+	$sth->execute();
+	my $related_content_ids = $sth->fetchall_arrayref();
+
+	if (scalar(@{$related_content_ids}) == 0) {
+		print "<i>No Content Objectives linked to this schedule</i>";
+	}
+	foreach my $related_content_id(@{$related_content_ids}) {
+		$m->comp('SELF:generateContentObjectivesView', content_id => $related_content_id->[0]);
+	}
+	
+	print "</ul></form>";
+
+        return 1;	
+</%perl>
+</%method>
+
+<%method generateContentObjectivesView>
+<%args>
+	$content_id
+</%args>
+<%perl>
+	my $competencies = TUSK::Competency::Competency->lookup('', ['competency_content.sort_order', 'competency.competency_id'], undef, undef,
+				[TUSK::Core::JoinObject->new("TUSK::Competency::Content", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "content_id = $content_id"})]);
+
+	foreach my $competency (@{$competencies}) {
+		print "<li>&bull;&nbsp&nbsp<span class=\"description\">".$competency->getDescription . "</span></li>";
+	}
+</%perl>
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/jquery.ui.widget.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"competency/competency/functions.js",
+			"competency/competency/nestedsortable.js"
+			];
+</%perl>
+</%method>

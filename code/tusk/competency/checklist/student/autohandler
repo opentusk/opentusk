@@ -1,0 +1,40 @@
+<%shared>
+ 	my $course = $m->comp("/tmpl/url:get_type_object");
+</%shared>
+
+<%method get_nav_bars>
+<%perl>
+	return $m->comp("/tmpl/nav", 
+		'objects' => $m->comp("SELF:get_nav_bar_objects"),
+		'prefix' => '/competency/checklist/student',
+		'hierarchy' => {
+			'show'		=> [],
+			'emailfaculty'	=> [],
+			'emailpartner'	=> [],
+			'assessself'	=> [],
+			'bypasspartner' => [],
+		},
+		'initial_nav_bar' => $m->comp('SELF:get_initial_nav_bars'),
+	);
+</%perl>
+</%method>
+
+<%method get_initial_nav_bars>
+<%perl>
+	return [
+		{ href => '/home', label => __('Home') },
+		{ href => '/view/' . $m->comp("/tmpl/url:get_type_path") . '/checklists', label => __('Course').' - ' . $course->out_title() },
+	];
+</%perl>
+</%method>
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+%  	return $m->comp('SELF:title');
+</%method>
+
+% $m->call_next();
+

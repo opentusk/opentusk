@@ -43,6 +43,8 @@ use TUSK::Session;
 use Carp;
 use Image::Magick;
 use TUSK::ProcessTracker::ProcessTracker;
+use TUSK::Competency::Competency;
+use TUSK::Competency::Content;
 
 use POSIX 'setsid';
 
@@ -516,6 +518,18 @@ sub child_objectives {
 
     # Return the list
     return $child_objectives->children();
+}
+
+sub getCompetencies {
+    #
+    # Competencies related to the content.    
+    #
+    my $self = shift;
+    my $content_id =  $self->primary_key;
+    my $competencies = TUSK::Competency::Competency->lookup('', ['competency_content.sort_order', 'competency.competency_id'], undef, undef,
+				[TUSK::Core::JoinObject->new("TUSK::Competency::Content", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "content_id = $content_id"})]);
+
+    return $competencies;
 }
 
 sub delete_objectives{

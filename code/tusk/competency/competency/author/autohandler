@@ -13,37 +13,45 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%attr>
-check_cms_permissions => 0
-must_be_school_admin => 1
-top_tab_type => 'manage'
+	check_cms_permissions => 0
+	must_be_school_admin => 1
+	top_tab_type => 'manage'
 </%attr>
 
 <%once>
-	use TUSK::Core::Competency;
-	use TUSK::Core::CompetencyType;
-	use TUSK::Core::CompetencyCompetency;
-	use TUSK::Core::CompetencyRelationship;
-	use TUSK::Core::CompetencyCompetencyType;
 	use TUSK::Constants;
+
+	use TUSK::Course;
+	use HSDB45::Course;
+	
+	use TUSK::Application::Competency::Competency;
+	use TUSK::Application::Competency::Tree;
+	
+	use TUSK::Enum::Data;
+
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Course;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::UserType;	
+	use TUSK::Competency::Relation;
 </%once>
 
 <%method leftnav>
-% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+	% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
 </%method>
 
 <%method get_nav_bars>
 <%perl>
 return $m->comp("/tmpl/nav", 'objects' =>  $m->comp("SELF:get_nav_bar_objects"), 
-				'prefix' => '/management/competency',
+				'prefix' => '/competency/competency/author',
 				'hierarchy' => {	
-					'list' => [],
-					'typelist' => ['list'],
+					'course/manage' => [],
 				},
 				'nav_entities_dependency' => { },
-				'title_func' => { },
+				'title_func' => {},
 				'initial_nav_bar' => $m->comp("/tmpl/url:get_initial_nav_bars"),
-				'urls' => {'list' => {link => 'list', label => __('Manage Competencies')} } 
 				);
 </%perl>
 </%method>

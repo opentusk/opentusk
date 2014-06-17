@@ -1,0 +1,153 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Competency::Checklist::Group;
+	use TUSK::Competency::Checklist::Checklist;
+	use TUSK::Application::Competency::Checklist;
+</%once>
+
+<%shared>
+	my ($checklist_group_id, $checklist_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $checklist_group = TUSK::Competency::Checklist::Group->lookupKey($checklist_group_id) if ($checklist_group_id);
+	my $app = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
+	my ($checklist, $category, $skills) = $app->getChecklistWithParentChildren($checklist_id);
+</%shared>
+
+<& /tmpl/element:form, params => {
+	method		=> 'POST',
+	enctype		=> 'multipart/form-data', 
+	onsubmit	=> '',
+	name 		=> 'checklistgroup' 
+} &>
+
+<& /tmpl/element:table, params => { 
+	width 		=> "100%",
+	border 		=> 0,
+	cellspacing 	=> 0,
+	cellpadding 	=> 0 
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label => __('Module'),
+	value 	=> '<span style="margin-bottom:3px; padding-right:5px" id="competency_module">' . $checklist->getTitle() . '</span>' .
+		$m->scomp('/tmpl/element:button', params => {
+			onclick => "buildCompetencyChecklistTree('checklist-dialog', '" . $course->school() . "', " . $course->primary_key() . ", 0, 'radio', 'off', 'inline')",
+			name => 'checklist',
+			label => __('Link Competency'),
+		}) .
+		$m->scomp('/tmpl/element:button', params => {
+			onclick => "window.location='" . $m->comp("/tmpl/url:construct_url", base_url => '/competency/competency/author/course/manage') . "?url=/competency/checklist/author/addeditchecklist/'",			
+			name => 'checklistgroup',
+			label => __('Add Competency') 
+		}) .
+		'<div id="checklist-dialog" title="Link Competencies"></div>',
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label => __('Category'),
+	value 	=> '<span id="competency_category">' . $category->getDescription  . '</span>',
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label => __('Skills'),
+	value 	=> '<span id="skills"> <ul class="gArrow">'  .
+		join("\n", map { '<li class="gArrow">' . $_->getDescription() . '</li>' } @$skills) .
+		'</ul> </span>',
+} &>
+
+<& /tmpl/element:textarea, params =>{ 
+	label => __('Instructions'),
+	name 	=> 'instructions',
+	value 	=> $checklist->getDescription(),
+	cols 	=> 60,
+	rows 	=> 4  
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label => __('Mandatory'),
+	value 	=> '<input type="checkbox" name="required"' . (($checklist->getRequired()) ? 'CHECKED' : '') . ' />',
+} &>
+
+<& /tmpl/element:field_display, params => { 
+	label => __('Assessments performed by'),
+	value 	=> '
+<div><input type="checkbox" name="self_assessed"' . (($checklist->getSelfAssessed()) ? 'CHECKED' : '') . ' /> ' . __('Self Assessment') . '</div>
+<div><input type="checkbox" name="partner_assessed"' . (($checklist->getPartnerAssessed()) ? 'CHECKED' : '') . ' /> ' . __('Partner Assessment') . '</div>
+<div><input type="checkbox" name="faculty_assessed"' . (($checklist->getFacultyAssessed()) ? 'CHECKED' : '') . ' /> ' . __('Faculty Assessment') . '</div>',
+} &>
+
+<& /tmpl/element:save_button, params => {
+	label		=> __('Save'),
+	cancel_onclick 	=> " go_back('" . $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/competency/checklist/author/addedit", is_edit => ($checklist_id) ? 1 : 0 ) . "');",
+        name		=> 'submit'
+} &>
+
+</table>
+<input type="hidden" name="competency_id" value="<% $checklist->getCompetencyID() %>" />
+</form>
+
+
+<%init>
+	unless ($checklist_group && $checklist_group->getPrimaryKeyID()) {
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/competency/checklist/author/addedit",
+			pathref	 => [ $checklist_group->getPrimaryKeyID() ], 
+			msg	 => "Missing Checklist"
+		));	
+	}
+
+	if ($ARGS{submit_check}) {
+		my $msgtext = ($checklist_id) ? __('Your changes have been saved.') : __('Successfully created.');
+		$checklist->setFieldValues({
+			competency_checklist_group_id => $checklist_group_id,
+			description 	=> $ARGS{instructions},
+			required	=> ($ARGS{required} eq 'on') ? 1 : 0,
+			self_assessed 	=> ($ARGS{self_assessed} eq 'on') ? 1 : 0,
+			partner_assessed => ($ARGS{partner_assessed} eq 'on') ? 1 : 0,
+			faculty_assessed => ($ARGS{faculty_assessed} eq 'on') ? 1 : 0,
+			competency_id	=> $ARGS{competency_id}
+		});
+		$checklist->save({user => $m->session->{user}->primary_key()});
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/competency/checklist/author/addeditchecklist",
+			pathref	 => [ $checklist_group->getPrimaryKeyID(), $checklist->getPrimaryKeyID() ], 
+			msg	 => $msgtext
+		));	
+	
+
+	}
+</%init>
+
+<%method title>
+%	my $form = __('Skills Module');
+%  	return ($checklist_id) ? __x("Modify {form}", form => $form) : __x("Create New {form}", form =>$form);
+</%method>
+
+<%method get_nav_bar_objects>
+%	return { 'TUSK::Competency::Checklist::Group' => $checklist_group };
+</%method>
+
+<%method jsarray>
+<%perl>
+ 	return [ 
+		'jquery/jquery.min.js', 
+		'competency/competency/functions.js',
+	];
+</%perl>
+</%method>

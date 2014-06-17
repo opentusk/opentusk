@@ -1,0 +1,272 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+				   
+<%args>
+	$checklist_group_id
+	$checklist_id
+	$checklist_assignment_id
+	$entry_id 
+	$token => undef   ## faculty token (no login)
+	$completed_url
+</%args>
+
+<%once>
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Checklist::Checklist;
+	use TUSK::Competency::Checklist::Entry;
+	use TUSK::Application::Competency::Checklist;
+</%once>
+
+<%shared>
+	my %args = $m->request_args();
+	my $id_prefix = 'compid__';  ## for prefixing input name of competency_id 
+	my $assessor_id;
+</%shared>
+
+<div style="margin-top:5px;">
+<div class="large"><% $competency_title %></div>  
+% if (my $description = $checklist->getDescription()) {
+<div class="xsm"><em> <% __('Instruction') . ': ' . $description %></em></div>
+% }
+</div>
+
+<& /tmpl/element:form, params => {
+	method		=> 'POST',
+	enctype		=> 'multipart/form-data', 
+	name 		=> 'checklist_entry',
+	action		=> $ENV{REQUEST_URI},
+} &>
+
+<& /tmpl/element:object_selection_box, params => { 
+	no_header => 1,
+	sort_box => 0,
+	columns => [ 
+		{label => undef, field => 'completion', width => '10%', html => 1},
+		{label => undef, field => 'title', width => ''},
+	],
+	rows => $m->comp('SELF:getRows', skills => $skills, entry_id => $entry_id),
+	name => "checklist",
+	'norows-message' => __('No Competency Checklist Items'),
+	border_bottom_tr => 1,
+} &>
+
+<div style="margin-top:5px;font-weight:bold;"><% __('Comments') . ':'  %></div>
+<& /tmpl/element:input_textarea, params => { 
+	name 	=> 'assessor_comment',
+	value 	=> $entry->getAssessorComment(),
+	cols 	=> 60,
+	rows 	=> 4  
+} &>
+
+% my $student_notify_button = undef;
+% if ($show_student_notify) {
+% 	$student_notify_button = $m->scomp('/tmpl/element:button', params => {
+%		label		=> __('Notify Student'),
+%		name		=> 'notify_show',
+%		onclick		=> 'return false;',
+%	});
+% }
+
+
+<table>
+<& /tmpl/element:save_button, params => {
+	label		=> __('Save'),
+	no_cancel_button => 1,
+        name		=> 'save_submit',
+	style		=> ($checklist->getSelfAssessed() && $checklist->getJoinObject('TUSK::Competency::Checklist::Assignment')->isSelfAssignment($m->session->{user}->primary_key())) ? '' : 'display:none;',
+	buttons		=> [    
+				$student_notify_button,
+				$m->scomp('/tmpl/element:button', params => {
+					label		=> __('Competent'),
+					name		=> 'complete_submit',
+					type		=> 'submit',
+					style		=> 'display:none;',
+				})
+			],
+} &>
+</table>
+
+% if ($show_student_notify) {
+<div id="notify_student" style="display:none;">
+<div style="margin-top:15px;font-weight:bold;"><% __('Send Comments to Student') . ':'  %></div>
+<& /tmpl/element:input_textarea, params => { 
+	name 	=> 'notify_comments',
+	value 	=> __x('Your {assessor} has not attested to your competency in "{competency_title}". When you are ready to demonstrate your competency in this area again, please resend to your {assessor}', 
+			assessor => ($assessment_type eq 'faculty') ? __('faculty') : __('partner'),
+			competency_title => $competency_title,
+		),
+	cols 	=> 60,
+	rows 	=> 6  
+} &>
+<table>
+<& /tmpl/element:save_button, params => {
+	label		=> __('Send'),
+        name		=> 'notify_submit',
+	type		=> '',
+	onclick		=> 'notifyStudent(this); return false;',
+	cancel_onclick	=> 'hideEmailForm();',
+} &>
+</table>
+</div>
+<input type="hidden" id=="url_paths" name="url_paths" value="<% $m->comp("/tmpl/url:get_type_path") . "/$checklist_group_id/$checklist_id/$checklist_assignment_id/$entry_id" %>" />
+<input type="hidden" id="to" name="to" value="<% $student->getDefaultEmail() %>" />
+% }
+</form>
+
+% if (my $notify_date = $entry->getFormattedNotifyDate()) {
+<div style="margin: 5px 0 5px 0;">
+* <% __('Student was notifiied on') . " $notify_date" %> 
+</div>
+% }
+
+<%init>
+	## in the way, validate checklist_group_id, cheklist_id, and assignment_id inputs
+	my $checklist = TUSK::Competency::Checklist::Checklist->lookupReturnOne("competency_checklist.competency_checklist_id = $checklist_id AND competency_checklist.competency_checklist_group_id = $checklist_group_id", undef, undef, undef, [
+		TUSK::Core::JoinObject->new("TUSK::Competency::Competency", { joinkey => 'competency_id', jointype => 'inner'}),
+		TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Assignment", { joinkey => 'competency_checklist_group_id', jointype => 'inner', joincond => "competency_checklist_assignment.competency_checklist_assignment_id = $checklist_assignment_id" }),
+		TUSK::Core::JoinObject->new('TUSK::Enum::Data', { joinkey => 'enum_data_id', origkey => 'competency_checklist_assignment.assessor_type_enum_id', jointype => 'inner', joincond => "namespace = 'competency_checklist_assignment.assessor_type'" }),
+		TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", { joinkey => 'user_id', origkey => 'competency_checklist_assignment.student_id', jointype => 'inner'}),
+		TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Entry", { joinkey => 'competency_checklist_assignment_id', origkey => 'competency_checklist_assignment.competency_checklist_assignment_id', joincond => 'competency_checklist.competency_checklist_id = competency_checklist_entry.competency_checklist_id' }),
+	]);
+
+	 ### when token is passed, we get an assessor from assignment object
+	$assessor_id = ($token)
+		? $checklist->getJoinObject('TUSK::Competency::Checklist::Assignment')->getAssessorID()
+		: $m->session->{user}->primary_key();
+
+	my $entry = ($checklist->getJoinObject('TUSK::Competency::Checklist::Entry')) ? $checklist->getJoinObject('TUSK::Competency::Checklist::Entry') : TUSK::Competency::Checklist::Entry->new();
+
+	if ($entry->getPrimaryKeyID() && $entry->getCompleteDate()) {  ## send away it is completed
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => $completed_url->{base_url},
+			pathref	 => $completed_url->{paths},
+			msg	 => __('The skills module was already completed!'),
+			msgtype  => 'errmsg',
+		));	
+	}
+
+	if ($args{submit_check}) {
+		$m->comp('SELF:addUpdateSkillsCompletions', checklist_group_id => $checklist_group_id, checklist_id => $checklist_id, checklist_assignment_id => $checklist_assignment_id, entry => $entry, token => $token, completed_url => $completed_url );
+	}
+	
+	### skills with completions
+	my $skills = TUSK::Competency::Competency->lookup(undef, undef, undef, undef, [
+		TUSK::Core::JoinObject->new("TUSK::Competency::Hierarchy", { joinkey => 'child_competency_id', origkey => 'competency_id', jointype => 'inner', joincond => 'parent_competency_id = ' . $checklist->getCompetencyID()}),
+		TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Completion", { joinkey => 'competency_id', joincond => "competency_checklist_entry_id = " . (($entry->getPrimaryKeyID()) ? $entry->getPrimaryKeyID() : 0) }),
+	]);
+	my $assessment_type = $checklist->getJoinObject('TUSK::Enum::Data')->getShortName();
+	my $show_student_notify = (!($entry->getNotifyDate()) && ($assessment_type eq 'faculty' || $assessment_type eq 'partner')) ? 1 : 0;
+	my $competency_title = $checklist->getJoinObject('TUSK::Competency::Competency')->getDescription();
+	my $student = $checklist->getJoinObject('TUSK::Core::HSDB4Tables::User');
+</%init>
+
+<%method getRows>
+<%args>
+	$skills
+	$entry_id
+</%args>
+
+<%perl>
+	my @rows = ();
+	foreach my $skill (@$skills) { 
+		my $completion = $skill->getJoinObject('TUSK::Competency::Checklist::Completion');
+		my $completed = ($completion) ? $completion->getCompleted() : 0;
+
+		push @rows, { 
+			completion => $m->scomp('/tmpl/element:input_radio_buttons', params => { 
+				        name => $id_prefix . $skill->getPrimaryKeyID(),
+					class => 'compid',
+				        buttons => [
+						{ value => "1", text => __("Yes"), 
+				 		  checked => ($completed) ? 1 : 0,
+						},
+				                { value => "0", text => __("No"), 
+				 		  checked => ($completion) ? (($completed) ? 0 : 1) : 0,
+					        } 
+					],
+					nobreak => 1,
+			}),
+			title => $skill->getDescription(),
+		};
+	}
+	return \@rows;
+</%perl>
+</%method>
+
+
+<%method addUpdateSkillsCompletions>
+<%args>
+	$checklist_group_id
+	$checklist_id
+	$checklist_assignment_id
+	$entry
+	$completed_url
+	$token
+</%args>
+<%perl>
+	my $entry_changed = 0;
+	my $msgtext = __('Something wrong with updating checklist completions');
+	my $msgtype = 'errmsg';
+
+	unless ($entry->getPrimaryKeyID()) {
+		$entry->setFieldValues({
+			competency_checklist_id 		=> $checklist_id,
+			competency_checklist_assignment_id 	=> $checklist_assignment_id,
+		});
+		$entry_changed = 1;
+	}
+
+	if ($args{assessor_comment} =~ /\w+/) {
+		$entry->setAssessorComment($args{assessor_comment});
+		$entry_changed = 1;
+	}
+
+	if ($args{complete_submit}) {
+		$entry->setRequestDate(undef);
+		$entry->setNotifyDate(undef);
+		$entry->setCompleteDate(HSDB4::DateTime->new()->out_mysql_timestamp());
+		$entry_changed = 1;
+	}
+
+	$entry->save({user => $assessor_id}) if ($entry_changed);
+
+	if (my $entry_id = $entry->getPrimaryKeyID()) {
+		my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
+		$acc->saveCompletions(\%args, $id_prefix, $entry_id, $assessor_id);
+		$msgtext = ($args{save_submit}) ? __('Successfully Saved') : __('Successfully Submitted');
+		$msgtype = 'msg';
+	}
+
+	$m->redirect($m->comp("/tmpl/url:construct_url", 
+		base_url => ($args{save_submit}) ? $ENV{SCRIPT_NAME} : $completed_url->{base_url},
+		pathref	 => ($args{save_submit}) ? [ $checklist_group_id, $checklist_id, $checklist_assignment_id, $entry->getPrimaryKeyID(), $token ] : $completed_url->{paths},
+		msg	 => $msgtext,
+		msgtype  => $msgtype,
+	));	
+</%perl>
+</%method>
+
+<%method jsarray>
+<%perl>
+ 	return [ 
+		'jquery/jquery.min.js', 
+		'jquery/jquery-ui.min.js', 
+		'jquery/plugin/validate.min.js',
+		'competency/checklist/entry.js',
+	];
+</%perl>
+</%method>
+
