@@ -22,11 +22,12 @@
 	my ($school, $school_id, $competencies, @course_titles, $children_storage, $c_href);
 </%shared>
 
+<div style = "padding: 5px 0 5px 0 ">
 <i>
-Select the Academic Level(s) a course is a part of. If the course is a part of multiple academic levels,
+Select the <b>Academic Level(s)</b> a <b>course</b> is a part of. If the course is a part of multiple academic levels,
 select multiple options on the selection dropdown menu.
 </i>
-
+</div>
 
 <%perl>
 	foreach (@{TUSK::Competency::Competency->lookup()}) {
@@ -45,51 +46,18 @@ select multiple options on the selection dropdown menu.
 
 	my $academic_level_courses = TUSK::Course::AcademicLevel->lookup();
 	my %academic_level_course_relation;
-	my %categorized_courses;
-
-	foreach my $academic_level_course(@{$academic_level_courses}) {
-		push (@{ $academic_level_course_relation { $academic_level_course->getAcademicLevelID }}, $academic_level_course->getCourseID());
-		$categorized_courses{$tusk_courses_hash{$academic_level_course->getCourseID()}} = 1;
-	}
 </%perl>
 
 <%perl>
 	my $col_fields = [
-			{label => __('Academic Level'), field => 'academic_level', html => 1},
 			{label => __('Courses'), field => 'courses', html=> 1},
-			{label => __('View'), field => 'action', align => 'center'},
+			{label => __('Academic Level'), field => 'action', align => 'center'},
 	];
 
 	my @rows = ();
 	my (@unsorted_rows, @sorted_rows);
 
-		
-	foreach my $academic_level(sort {$a<=>$b} keys %academic_levels) {
-		push @rows, {
-			academic_level => "<b>".$academic_levels{$academic_level}."</b>",
-			courses => '',
-			action => '',
-		};
-		foreach my $current_course (@{$academic_level_course_relation{$academic_level}}) {
-			my $trimmed_title = $hsdb45_courses_hash{$tusk_courses_hash{$current_course}};
-			$trimmed_title =~ s/^\s+//;
-			push @unsorted_rows, {
-				courses => "<a href=\"/management/course/display/".$school."/".$tusk_courses_hash{$current_course}."\">".$hsdb45_courses_hash{$tusk_courses_hash{$current_course}}."</a>",
-				action => '<a href="/tusk/competency/competency/admin/course/manage/course/'. $school.'/' .$tusk_courses_hash{$current_course}. '">Competencies</a>',
-				course_title => $trimmed_title,
-			};
-		}		
-		@sorted_rows = sort { lc($a->{course_title}) cmp lc($b->{course_title})} @unsorted_rows;
-
-		push (@rows, @sorted_rows);
-		@sorted_rows = ();
-		@unsorted_rows = ();
-	}
-
-	push @rows, {academic_level => "<b>Uncategorized</b>", courses => '', action => ''};
-	
 	foreach my $course (@hsdb45_courses) {
-		unless (exists($categorized_courses{$course->{'course_id'}})) {
 			my $trimmed_title = $course->{'title'};
 			$trimmed_title =~ s/^\s+//;
 			push @unsorted_rows, {
@@ -97,7 +65,6 @@ select multiple options on the selection dropdown menu.
 				action => '<a href="/tusk/competency/competency/admin/course/manage/course/'. $school.'/' .$course->{'course_id'}. '">Competencies</a>',
 				course_title => $trimmed_title,
 			};				
-		}
 	}	
 
 	@sorted_rows = sort { lc($a->{course_title}) cmp lc($b->{course_title})} @unsorted_rows;
@@ -124,7 +91,6 @@ select multiple options on the selection dropdown menu.
 			"jquery/plugin/interface/interface.js",
 			"jquery/plugin/json.js",
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
-			"detectIE.js"
 			];
 </%perl>
 </%method>
