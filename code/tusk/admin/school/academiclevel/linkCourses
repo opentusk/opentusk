@@ -19,7 +19,7 @@
 </%attr>
 
 <%shared>
-	my ($school, $school_id, @course_titles);
+	my ($school, $school_id, $type_selected);
 </%shared>
 
 <div style = "padding: 5px 0 5px 0 ">
@@ -39,9 +39,6 @@ select multiple options on the selection dropdown menu.
 	my %hsdb45_courses_hash = map {$_->{'course_id'} => $_->{'title'}} @hsdb45_courses;	
 
 	my %academic_levels = map {$_->getPrimaryKeyID() => $_->getDescription()} @{TUSK::AcademicLevel->lookup('school_id='. $school_id)};
-
-	my $academic_level_courses = TUSK::Course::AcademicLevel->lookup();
-	my %academic_level_course_relation;
 </%perl>
 
 <%perl>
@@ -52,13 +49,29 @@ select multiple options on the selection dropdown menu.
 
 	my @rows = ();
 	my (@unsorted_rows, @sorted_rows);
+	my @options;
+
+	while ( my ($title, $description) = each %academic_levels) {
+		my %temp_hash = {};
+		$temp_hash{'label'} = $description;
+		$temp_hash{'value'} = $title;
+		push @options, {%temp_hash};
+	}
+
+
+	my $action_params = { 
+                                name => 'acad_level_dropdown',
+				id => 'acad_level_dropdown',
+				onchange => "adjustXtraFields(this, false); hide_error('type_error');",
+                		options => \@options,
+                                selected => $type_selected };			
 
 	foreach my $course (@hsdb45_courses) {
 			my $trimmed_title = $course->{'title'};
 			$trimmed_title =~ s/^\s+//;
 			push @unsorted_rows, {
 				courses => "<a href=\"/management/course/display/".$school."/".$course->{ 'course_id' }."\">".$course->{'title'}."</a>",
-				action => '<a href="/tusk/competency/competency/admin/course/manage/course/'. $school.'/' .$course->{'course_id'}. '">Competencies</a>',
+				action => $m->comp("/tmpl/element:dropdown", params => $action_params),
 				course_title => $trimmed_title,
 			};				
 	}	
@@ -89,6 +102,10 @@ select multiple options on the selection dropdown menu.
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
 			];
 </%perl>
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css']
 </%method>
 
 <%method red_header_text>
