@@ -81,6 +81,7 @@ ADD COLUMN uri varchar(256) DEFAULT NULL AFTER description,
 ADD COLUMN competency_level_enum_id int(10) unsigned NOT NULL AFTER uri, 
 ADD COLUMN competency_user_type_id int(10) unsigned AFTER competency_level_enum_id,
 ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id,
+CHANGE title title varchar(350) DEFAULT NULL,
 ADD CONSTRAINT FOREIGN KEY (competency_user_type_id) REFERENCES competency_user_type(competency_user_type_id);
 
 ALTER TABLE competency_history
@@ -89,7 +90,8 @@ DROP COLUMN created_on,
 ADD COLUMN uri varchar(256) NOT NULL AFTER description,
 ADD COLUMN competency_level_enum_id int(10) unsigned NOT NULL AFTER uri,
 ADD COLUMN competency_user_type_id int(10) unsigned NOT NULL AFTER competency_level_enum_id,
-ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id;
+ADD COLUMN version_id tinyint unsigned DEFAULT NULL AFTER school_id,
+CHANGE title title varchar(350) DEFAULT NULL;
 
 /* Drop created_by and created_on columns from and rename the competency_relationship table and the related history table to competency_hierarchy */
 
