@@ -7,7 +7,8 @@ function showAcadLevels (this_button) {
 	$(this_button).hide();
 	$(this_button).parent().find(".acad_level_dropdown").dropdownchecklist({
 			firstItemChecksAll : true,
-			explicitClose: 'Save',
+			width : '300px',
+			explicitClose: 'Save&nbsp',
 			onComplete: function(selector) {
 				for (i=0; i < selector.options.length; i++){
 					if (selector.options[i].selected){
