@@ -52,7 +52,7 @@ select multiple options on the selection dropdown menu.
 	my @options;
 	my %temp_hash = {};
 
-	$temp_hash{'label'} = 'Uncategorized';
+	$temp_hash{'label'} = 'All';
 	$temp_hash{'value'} = 0;
 	push @options, {%temp_hash};
 	
@@ -65,11 +65,14 @@ select multiple options on the selection dropdown menu.
 
 	my $action_params = { 
                                 name => 'acad_level_dropdown',
-				id => 'acad_level_dropdown',
+				class => 'acad_level_dropdown',				
 				onchange => "adjustXtraFields(this, false); hide_error('type_error');",
+				multiple => "multiple",
                 		options => \@options,
                                 selected => $type_selected };			
+
 	my $action = $m->scomp("/tmpl/element:dropdown", params => $action_params);
+	$action  = "<span class=\"acad_levels_show\" onclick=\"showAcadLevels(this);\"><u>edit</u></span>" . $action;
 
 	foreach my $course (@hsdb45_courses) {
 			my $trimmed_title = $course->{'title'};
@@ -102,7 +105,12 @@ select multiple options on the selection dropdown menu.
 <%perl>
 	return [ 
 			"jquery/jquery.min.js",
+			"jquery/jquery-ui.min.js",
+			"jquery/jquery.ui.core.min.js",
+			"jquery/jquery.ui.widget.min.js",
 			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/ui.dropdownchecklist-1.4-min.js",
+			"academicLevelCourse.js",
 			"jquery/plugin/json.js",
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
 			];
@@ -110,7 +118,7 @@ select multiple options on the selection dropdown menu.
 </%method>
 
 <%method stylearray>
-% return ['/style/style.css']
+% return ['/style/style.css', '/style/ui.dropdownchecklist.standalone.css']
 </%method>
 
 <%method red_header_text>
