@@ -39,6 +39,17 @@ select multiple options on the selection dropdown menu.
 	my %hsdb45_courses_hash = map {$_->{'course_id'} => $_->{'title'}} @hsdb45_courses;	
 
 	my %academic_levels = map {$_->getPrimaryKeyID() => $_->getDescription()} @{TUSK::AcademicLevel->lookup('school_id='. $school_id)};
+
+	my $academic_level_courses = TUSK::Course::AcademicLevel->lookup();
+	my %academic_level_course_relation;
+	my %categorized_courses;
+
+	foreach my $academic_level_course(@{$academic_level_courses}) {
+		push (@{ $academic_level_course_relation { $academic_level_course->getAcademicLevelID }}, $academic_level_course->getCourseID());
+		$categorized_courses{$tusk_courses_hash{$academic_level_course->getCourseID()}} = 1;
+	}
+	
+	print Dumper %categorized_courses;
 </%perl>
 
 <%perl>
@@ -66,7 +77,6 @@ select multiple options on the selection dropdown menu.
 	my $action_params = { 
                                 name => 'acad_level_dropdown',
 				class => 'acad_level_dropdown',				
-				onchange => "adjustXtraFields(this, false); hide_error('type_error');",
 				multiple => "multiple",
                 		options => \@options,
                                 selected => $type_selected };			
