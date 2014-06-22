@@ -37,7 +37,7 @@ use TUSK::Meta::Attribute::Trait::Namespaced;
 use Types::Standard qw( Maybe ArrayRef );
 use TUSK::LOM::Types qw( LOM );
 use TUSK::Medbiq::Types;
-use TUSK::Types qw( TUSK_Objective URI );
+use TUSK::Types qw( Competency URI );
 
 #########
 # * Setup
@@ -52,7 +52,7 @@ with 'TUSK::XML::Object';
 
 has dao => (
     is => 'ro',
-    isa => TUSK_Objective,
+    isa => Competency,
     required => 1,
 );
 
@@ -118,10 +118,10 @@ sub _build_xml_content { [ qw( lom Status Replaces IsReplacedBy Category
 
 sub _build_lom {
     my $self = shift;
-    my $title_string = $self->dao->getBody();
+    my $title_string = $self->dao->getDescription();
     chomp $title_string;
     my $pk = $self->dao->getPrimaryKeyID();
-    my $uri = 'http://' . $TUSK::Constants::Domain . '/objective#' . $pk;
+    my $uri = 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view' . $pk;
     my $identifier = TUSK::LOM::Identifier->new(
         catalog => 'URI',
         entry => $uri,

@@ -42,7 +42,7 @@ use Type::Library
                       StrHashRef
                       Sys_DateTime
                       TUSK_DateTime
-                      TUSK_Objective
+                      Competency
                       TUSK_XSD_Date
                       URI
                       UserGroup
@@ -73,7 +73,7 @@ class_type Sys_DateTime, { class => 'DateTime' };
 ##############
 
 class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
-class_type TUSK_Objective, { class => 'TUSK::Core::Objective' };
+class_type Competency, { class => 'TUSK::Competency::Competency' };
 class_type School, { class => 'TUSK::Core::School' };
 class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 role_type XML_Object, { role => 'TUSK::XML::Object' };

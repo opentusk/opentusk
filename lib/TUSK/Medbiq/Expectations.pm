@@ -72,7 +72,7 @@ sub _build_CompetencyObject {
     my $self = shift;
     my %objective_from_id;
     foreach my $e ( @{ $self->events->Event } ) {
-        foreach my $obj ( values %{ $e->objectives } ) {
+        foreach my $obj ( values %{ $e->competencies } ) {
             my $id = $obj->getPrimaryKeyID();
             if ( ! exists $objective_from_id{$id} ) {
                 $objective_from_id{$id}

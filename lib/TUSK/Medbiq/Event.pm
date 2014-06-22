@@ -29,7 +29,7 @@ use Readonly;
 use TUSK::Constants;
 use TUSK::Core::Objective;
 use TUSK::Medbiq::Types qw( NonNullString VocabularyTerm );
-use TUSK::Types qw( TUSK_Objective ClassMeeting );
+use TUSK::Types qw( Competency ClassMeeting );
 use Types::Standard qw( HashRef Str Maybe ArrayRef );
 use Types::XSD qw( Duration Boolean );
 use TUSK::Namespaces ':all';
@@ -53,11 +53,11 @@ has dao => (
     required => 1,
 );
 
-has objectives => (
+has competencies => (
     is => 'ro',
-    isa => HashRef[TUSK_Objective],
+    isa => HashRef[Competency],
     lazy => 1,
-    builder => '_build_objectives',
+    builder => '_build_competencies',
 );
 
 has id => (
@@ -145,7 +145,7 @@ sub _build_xml_content {
 
 sub _build_id {
     my $self = shift;
-    return 'event-' . $self->dao->primary_key;
+    return 'CM' . $self->dao->primary_key;
 }
 
 sub _build_Title {
@@ -179,25 +179,23 @@ sub _build_Interprofessional {
     return undef;
 }
 
-sub _build_objectives {
+sub _build_competencies {
     my $self = shift;
-    my %objective_from_id;
-    foreach my $cm_link ( @{ $self->dao->child_objectives } ) {
-        my $id = $cm_link->getObjectiveID();
-        if ( ! exists $objective_from_id{$id} ) {
-            $objective_from_id{$id} = $cm_link->getObjective();
+    my %competencies = ();
+
+    foreach my $competency (@{$self->dao->getCompetencies}) {
+        my $id = $competency->getPrimaryKeyID();
+        $competencies{$id} = $competency unless (exists $competencies{$id});
+    }
+
+    foreach my $content ($self->dao->child_content()) {
+        foreach my $competency (@{$content->getCompetencies()}) {
+            my $id = $competency->getPrimaryKeyID();
+	    $competencies{$id} = $competency unless (exists $competencies{$id});
         }
     }
-    foreach my $content ( $self->dao->child_content() ) {
-        foreach my $c_link ( $content->child_objectives() ) {
-            my $id = $c_link->primary_key();
-            if ( ! exists $objective_from_id{$id} ) {
-                $objective_from_id{ $id }
-                    = TUSK::Core::Objective->new->lookupKey($id);
-            }
-        }
-    }
-    return \%objective_from_id;
+
+    return \%competencies;
 }
 
 sub _build_CompetencyObjectReference {
@@ -207,10 +205,10 @@ sub _build_CompetencyObjectReference {
         . "[lom:lom/lom:general/lom:identifier/lom:entry='"
         . 'http://'
         . $TUSK::Constants::Domain
-        . '/objective#%d'
+        . '/competency/competency/view/%d'
         . "']";
-    my @competency_links
-        = map { sprintf($co_ref_fmt, $_) } keys %{ $self->objectives };
+    my @competency_links = map { sprintf($co_ref_fmt, $_) } keys %{ $self->competencies };
+
     return \@competency_links;
 }
 

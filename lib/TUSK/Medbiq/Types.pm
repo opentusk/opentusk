@@ -132,7 +132,8 @@ declare CompetencyObjectReference,
 
 declare Domain,
     as Str,
-    where { m/ \A idd: .+ : .+ \z /xms };
+    where { m/ \A idd: .+ : .+ \z /xms 
+};
 
 class_type UniqueID, { class => 'TUSK::Medbiq::UniqueID' };
 class_type Address, { class => 'TUSK::Medbiq::Address' };
