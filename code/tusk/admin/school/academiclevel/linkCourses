@@ -14,19 +14,15 @@
  limitations under the License.
 </%doc>
 
-<%attr>
-	no_check_path 	=> 1
-</%attr>
-
 <%shared>
 	my ($school, $school_id, $type_selected);
 </%shared>
 
 <div style = "padding: 5px 0 5px 0 ">
-<i>
-Select the <b>Academic Level(s)</b> a <b>course</b> is a part of. If the course is a part of multiple academic levels,
-select multiple options on the selection dropdown menu.
-</i>
+	<i>
+	Select the <b>Academic Level(s)</b> a <b>course</b> is a part of. If the course is a part of multiple academic levels,
+	select multiple options on the selection dropdown menu.
+	</i>
 </div>
 
 <%perl>
@@ -45,14 +41,11 @@ select multiple options on the selection dropdown menu.
 	my %categorized_courses;
 
 	foreach my $academic_level_course(@{$academic_level_courses}) {
-		push (@{ $academic_level_course_relation { $academic_level_course->getAcademicLevelID }}, $academic_level_course->getCourseID());
+		my %temp_hash = {};
+		$academic_level_course_relation{$academic_level_course->getCourseID} = $academic_levels{$academic_level_course->getAcademicLevelID};		
 		$categorized_courses{$tusk_courses_hash{$academic_level_course->getCourseID()}} = 1;
 	}
-	
-	print Dumper %categorized_courses;
-</%perl>
 
-<%perl>
 	my $col_fields = [
 			{label => __('Courses'), field => 'courses', html=> 1},
 			{label => __('Academic Level'), field => 'action', align => 'center'},
@@ -71,6 +64,7 @@ select multiple options on the selection dropdown menu.
 		%temp_hash = {};
 		$temp_hash{'label'} = $academic_levels{$title};
 		$temp_hash{'value'} = $title;
+
 		push @options, {%temp_hash};
 	}
 
@@ -82,16 +76,30 @@ select multiple options on the selection dropdown menu.
                                 selected => $type_selected };			
 
 	my $action = $m->scomp("/tmpl/element:dropdown", params => $action_params);
-	$action  = "<span class=\"acad_levels_show\" onclick=\"showAcadLevels(this);\"><u>edit</u></span>" . $action;
+	$action  = "<span class=\"acad_levels_show\" onclick=\"showAcadLevels(this);\"><a>(change)</a></span>" . $action;
 
 	foreach my $course (@hsdb45_courses) {
 			my $trimmed_title = $course->{'title'};
 			$trimmed_title =~ s/^\s+//;
-			push @unsorted_rows, {
-				courses => "<a href=\"/management/course/display/".$school."/".$course->{ 'course_id' }."\">".$course->{'title'}."</a>",
-				action => $action,
-				course_title => $trimmed_title,
-			};				
+			my $linked_action;
+			
+			if (exists $categorized_courses{$course->{'course_id'}}){
+				my $current_tusk_course_id = TUSK::Course->new()->getTuskCourseIDFromSchoolID($school_id, $course->{'course_id'});
+
+				$linked_action = "<span class=\"current_academic_level\">$academic_level_course_relation{$current_tusk_course_id} </span>" . $action;
+				push @unsorted_rows, {
+					courses => "<a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a>",
+					action => $linked_action,
+					course_title => $trimmed_title,
+				};				
+			} else {
+				$linked_action = "<span class=\"current_academic_level\">Uncategorized </span>" . $action;
+				push @unsorted_rows, {
+					courses => "<a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a>",
+					action => $linked_action,
+					course_title => $trimmed_title,
+				};	
+			}			
 	}	
 
 	@sorted_rows = sort { lc($a->{course_title}) cmp lc($b->{course_title})} @unsorted_rows;
