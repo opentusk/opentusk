@@ -40,22 +40,17 @@ function showAcadLevels (this_button) {
 				if (option_count == 0) {
 					$(current_academic_level).html("Uncategorized ");
 				}
-				$(to_update_array).each( function(index) {
-					console.log(to_update_array[index]);
-				});
+
 				course_link = $(this_button).parent().parent().find('a').first();
 				course_id = course_link.attr('href').split('/')[5];				
 				
-				jQuery.each(to_update_array, function(i, val) {
-					alert(val);
-					alert(course_id);
-					$.ajax({
-						type: "POST",
-						url: "/tusk/admin/school/academiclevel/update",
-						data: {academic_level_id: val, course_id: course_id}
-					}).done(function() {
-						alert("Academic Levels updated successfully.");
-				  });
+				to_update_academic_levels = to_update_array.join(",");
+				
+				$.ajax({
+					type: "POST",
+					url: "/tusk/admin/school/academiclevel/update",
+					data: {academic_level_id: to_update_academic_levels, course_id: course_id}
+				}).done(function() {					
 				});
 
 				$(current_academic_level).show();

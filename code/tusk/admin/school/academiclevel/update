@@ -30,24 +30,17 @@
 </%once>
 
 <%perl>
-	my $academic_level_course = TUSK::Course::AcademicLevel->new();
 	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID(2, $ARGS{'course_id'});
 
-	$academic_level_course->setCourseID($tusk_course_id);
-	$academic_level_course->setAcademicLevelID($ARGS{'academic_level_id'});
-	$academic_level_course->save({user => $m->session->{'user'}->user_id});	
+	my @academic_level_ids = split(/,/, $ARGS{'academic_level_id'});
 
-=for
-	if (!($academic_level_course->lookup('course_id=' . $ARGS{'course_id'} . 'AND academic_level_id=' . $ARGS{'academic_level_id'})){
-		$academic_level_course->setCourseID(1566);
-		$academic_level_course->setAcademicLevelID(6);
-		$academic_level_course->save({user => $m->session->{'user'}->user_id});
+	foreach my $academic_level_id (@academic_level_ids){
+		if ($academic_level_id != 0){
+			my $academic_level_course = TUSK::Course::AcademicLevel->new();
+			$academic_level_course->setCourseID($tusk_course_id);
+			$academic_level_course->setAcademicLevelID($academic_level_id);
+			$academic_level_course->save({user => $m->session->{'user'}->user_id});	
+		}
 	}
-
-	my $competencyRelation = TUSK::Competency::Relation->new();
-	$competencyRelation->setCompetencyId1($ARGS{'id1'});
-	$competencyRelation->setCompetencyId2($ARGS{'id2'});
-	$competencyRelation->save({user => $m->session->{'user'}->user_id});
-=cut
 </%perl>
 
