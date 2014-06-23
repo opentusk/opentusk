@@ -760,9 +760,6 @@ sub answer_form {
 	    die "Could not save $q_id ($r) [$fdat->{$key}]: $msg" unless $r;
 	}
 
-        ## by default we complete for both course and teaching evals. yet teaching eval could be reset later
-	my $is_complete = 1;  
-
 	if ($is_teaching_eval) {
 	    my $entry = TUSK::Eval::Entry->new();
 	    $entry->setFieldValues({
@@ -774,10 +771,8 @@ sub answer_form {
 	    });
 	    $entry->save({user => $user_code});
 	    $self->set_teaching_eval_entry_status($user, $fdat->{evaluatee_id}, 'completed');
-	    $is_complete = 0 unless $self->is_user_teaching_eval_complete($user);
-	} 
-
-	if ($is_complete) {
+	    #$is_complete = $self->is_user_teaching_eval_complete($user);
+	} else {
 	    # Now do the completion token for course_eval
 	    my $comp = HSDB45::Eval::Completion->new ( _school => $self->school() );
 	    $comp->primary_key ($user->primary_key, $self->primary_key);
