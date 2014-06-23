@@ -43,13 +43,18 @@ function showAcadLevels (this_button) {
 
 				course_link = $(this_button).parent().parent().find('a').first();
 				course_id = course_link.attr('href').split('/')[5];				
-				
+				school = course_link.attr('href').split('/')[4];
+			
 				to_update_academic_levels = to_update_array.join(",");
 				
 				$.ajax({
 					type: "POST",
 					url: "/tusk/admin/school/academiclevel/update",
-					data: {academic_level_id: to_update_academic_levels, course_id: course_id}
+					data: {
+						academic_level_id: to_update_academic_levels, 
+						school : school,
+						course_id: course_id
+					}
 				}).done(function() {					
 				});
 

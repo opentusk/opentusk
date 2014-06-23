@@ -25,17 +25,29 @@
 </%attr>
 
 <%once>
+	use TUSK::Core::School;
 	use TUSK::Course;
 	use TUSK::Course::AcademicLevel;
 </%once>
 
 <%perl>
-	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID(2, $ARGS{'course_id'});
+	my $school_id = TUSK::Core::School->new->getSchoolID($ARGS{'school'});
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
 
-	my @academic_level_ids = split(/,/, $ARGS{'academic_level_id'});
+	my $current_links = TUSK::Course::AcademicLevel->lookup("course_id = $tusk_course_id");
+
+	my @academic_level_ids = split(/,/, $ARGS{'academic_level_id'});	
+	
+	foreach my $current_link (@{$current_links}) {
+		my $current_academic_level_id = $current_link->getAcademicLevelID;
+		if (grep $_ != $current_academic_level_id, @academic_level_ids){
+			$current_link->delete();
+		}
+	}
 
 	foreach my $academic_level_id (@academic_level_ids){
-		if ($academic_level_id != 0){
+		my $already_linked = TUSK::Course::AcademicLevel->lookupReturnOne("course_id = $tusk_course_id AND academic_level_id = $academic_level_id");
+		if ($academic_level_id != 0 && !$already_linked){
 			my $academic_level_course = TUSK::Course::AcademicLevel->new();
 			$academic_level_course->setCourseID($tusk_course_id);
 			$academic_level_course->setAcademicLevelID($academic_level_id);
