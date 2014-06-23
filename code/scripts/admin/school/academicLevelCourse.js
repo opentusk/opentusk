@@ -1,5 +1,15 @@
 jQuery(document).ready(function($){
 	$(".acad_level_dropdown").hide();
+	var academic_levels = $(document).find(".current_academic_level");
+	var academic_levels_array;
+	$(academic_levels).each( function(index, level){
+		academic_levels_array = $(level).html().toString().split(',');
+		$(academic_levels_array).each( function( i, academic_level) {
+			$(level).parent().find(".acad_level_dropdown").find('option').filter(function() {
+				return ($(this).text() == academic_level);
+			}).prop('selected', true);
+		});
+	});
 });
 
 function showAcadLevels (this_button) {
