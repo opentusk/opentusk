@@ -809,14 +809,13 @@ sub set_teaching_eval_entry_status {
 sub is_user_teaching_eval_complete {
     my ($self, $evaluator) = @_;
 
+    my $is_complete = 1;
     my $completions = $self->get_teaching_eval_completions_by_roles($evaluator);
-    my ($done, $required) = (0, 0); 
     foreach (@$completions) {
-	$done += $_->{completed_evals};
-	$required += $_->{required_evals};
+      $is_complete = 0 if ($_->{completed_evals} < $_->{required_evals});
     }
 
-    return ($done == $required) ? 1 : 0;
+    return $is_complete;
 }
 
 sub get_teaching_eval_completions_by_roles {
