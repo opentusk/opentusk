@@ -33,7 +33,6 @@ function showAcadLevels (this_button) {
 							}							
 						}
 						option_count++;
-						all_check = 0;
 					}					
 				}
 				if (option_count == 0) {
