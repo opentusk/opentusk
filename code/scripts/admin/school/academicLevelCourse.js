@@ -47,9 +47,11 @@ function showAcadLevels (this_button) {
 				course_id = course_link.attr('href').split('/')[5];				
 				
 				jQuery.each(to_update_array, function(i, val) {
+					alert(val);
+					alert(course_id);
 					$.ajax({
 						type: "POST",
-						url: "/tusk/admin/school/academicLevel/update",
+						url: "/tusk/admin/school/academiclevel/update",
 						data: {academic_level_id: val, course_id: course_id}
 					}).done(function() {
 						alert("Academic Levels updated successfully.");
