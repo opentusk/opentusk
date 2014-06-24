@@ -15,7 +15,8 @@ jQuery(document).ready(function($){
 function showAcadLevels (this_button) {
 	$(this_button).hide();
 	var current_academic_level = $(this_button).parent().children(".current_academic_level");
-	$(current_academic_level).hide();
+	$(current_academic_level).hide();	
+	$(this_button).parent().parent().find(".ui-dropdownchecklist-text").trigger("click");
 	$(this_button).parent().find(".acad_level_dropdown").dropdownchecklist({
 			firstItemChecksAll : true,
 			width : '300px',
@@ -73,5 +74,6 @@ function showAcadLevels (this_button) {
 				$(this_button).show();
 			}
 	});
+	
 }
 
