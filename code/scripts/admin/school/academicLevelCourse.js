@@ -16,7 +16,7 @@ function showAcadLevels (this_button) {
 	$(this_button).hide();
 	var current_academic_level = $(this_button).parent().children(".current_academic_level");
 	$(current_academic_level).hide();	
-	$(this_button).parent().parent().find(".ui-dropdownchecklist-text").trigger("click");
+	$(this_button).parent().parent().find(".ui-dropdownchecklist-text").trigger("click");	
 	$(this_button).parent().find(".acad_level_dropdown").dropdownchecklist({
 			firstItemChecksAll : true,
 			width : '300px',
@@ -29,7 +29,7 @@ function showAcadLevels (this_button) {
 						var current_label = $(current_academic_level).html();
 						if ($(current_academic_level).html().match(/Uncategorized/gi)) {
 							if (selector.options[i].label != "All"){						
-								$(current_academic_level).html(selector.options[i].label);
+									$(current_academic_level).html(selector.options[i].label);
 							}
 						} else {
 							if (option_count == 0) {								
@@ -74,6 +74,9 @@ function showAcadLevels (this_button) {
 				$(this_button).show();
 			}
 	});
-	
+
+	setTimeout(function() {
+			$(this_button).parent().find("#ddcl-acad_level_dropdown").find(".ui-dropdownchecklist-text").first().trigger("click");		
+	}, 50);
 }
 
