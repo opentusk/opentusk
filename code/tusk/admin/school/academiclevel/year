@@ -1,0 +1,94 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%attr>
+	show_tp_dropdown_without_course => 1
+	use_dynamic_wrapper => 0
+</%attr>
+
+<%shared>
+	my $school          = $m->comp("/tmpl/url:get_school");
+	my $type_object     = $m->comp("/tmpl/url:get_type_object");
+	my $self_path       = "school/" . $school;
+	my $time_periods;
+	my $usergroup;
+	my @colheaders;
+	my @rowheaders;
+	my %data;
+</%shared>
+
+<& /tmpl/element:form, params => {
+				method => 'POST',
+				onsubmit =>undef,
+				name => 'timeperiodyear' } &>
+
+<div class="tablediv">
+<& /tmpl/element:scrollable_display_table, table_id => "time_period_year",
+				corner_text => 'Time Period',
+				zebra_striping => 1,
+				cell_data => \%data,
+				colheaders => [\@colheaders],
+				rowheaders => [\@rowheaders]&>
+</div>
+
+<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
+				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+				'base_url' => "/management/usergroup/show") . "');",
+				name=>'submit'} &>
+</table>
+</form>
+</div>
+
+<%perl>
+	push @rowheaders, {id => 'all', name => '<em>' . __('Select All').'</em>', class => 'summary'};
+</%perl>
+
+
+<%method jsarray>
+<%perl>
+	return [
+		'jquery/jquery.min.js',
+		'jquery/plugin/scrollablefixedheadertable/scripts/wrapper.min.js',
+		'usergroup.js',
+	];
+</%perl>
+</%method>
+
+<%method stylearray>
+<%perl>
+	return [
+		'/style/style.css',
+		'/style/calendar-blue.css',
+		'/scripts/jquery/plugin/scrollablefixedheadertable/css/scrollableFixedHeaderTable.css',
+		'/style/studentcourse.css',
+	];
+</%perl>
+</%method>
+
+<%method get_timeperiods>
+%	return $time_periods;
+</%method>
+
+<%method red_header_text>
+%	return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+%	return __('Associate Time Periods with Years');
+</%method>
+
+<%method leftnav>
+% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+</%method>
