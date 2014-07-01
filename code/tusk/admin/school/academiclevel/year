@@ -25,14 +25,23 @@
 	my $self_path       = "school/" . $school;
 	my $time_periods;
 	my $usergroup;
-	my @colheaders;
 	my @rowheaders;
 	my %data;
 </%shared>
 
 <%perl>
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $school_obj = TUSK::Core::School->lookupReturnOne("school_name = lcase('$school')");	
+	my $school_db = $school_obj->getSchoolDb();
+	my $sql = qq(SELECT DISTINCT academic_year FROM $school_db\.time_period);
+	my $sth = $dbh->prepare($sql);
+	$sth->execute();
+	my $academic_years = $sth->fetchall_arrayref;	
+	$sth->finish;
+	print Dumper $academic_years;
+
 	my $years = [map {id => $_->getPrimaryKeyID, name => $_->getDescription}, @{TUSK::AcademicLevel::Year->lookup()}];
-	print Dumper $years;
+		
 </%perl>
 
 <& /tmpl/element:form, params => {
@@ -45,7 +54,7 @@
 				corner_text => 'Time Period',
 				zebra_striping => 1,
 				cell_data => \%data,
-				colheaders => [\@colheaders],
+				colheaders => [$years],
 				rowheaders => [\@rowheaders]&>
 </div>
 
