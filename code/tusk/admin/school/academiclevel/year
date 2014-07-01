@@ -15,7 +15,6 @@
 </%doc>
 
 <%attr>
-	show_tp_dropdown_without_course => 1
 	use_dynamic_wrapper => 0
 </%attr>
 
@@ -33,37 +32,61 @@
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my $school_obj = TUSK::Core::School->lookupReturnOne("school_name = lcase('$school')");	
 	my $school_db = $school_obj->getSchoolDb();
-	my $sql = qq(SELECT DISTINCT academic_year FROM $school_db\.time_period);
+	
+	my $sql = qq(SELECT DISTINCT academic_year FROM $school_db\.time_period ORDER BY academic_year DESC);
 	my $sth = $dbh->prepare($sql);
 	$sth->execute();
 	my $academic_years = $sth->fetchall_arrayref;	
 	$sth->finish;
-	print Dumper $academic_years;
+	
+	my @academic_year_array;
 
-	my $years = [map {id => $_->getPrimaryKeyID, name => $_->getDescription}, @{TUSK::AcademicLevel::Year->lookup()}];
-		
+	foreach my $academic_year (@{$academic_years}){
+		my %temp_hash;
+		$temp_hash{'label'} = $academic_year->[0];
+		$temp_hash{'value'} = $academic_year->[0];
+		push @academic_year_array, {%temp_hash};
+		undef %temp_hash;
+	}
+	
+	my $years = [map {id => $_->getPrimaryKeyID, name => $_->getTitle}, @{TUSK::AcademicLevel::Year->lookup()}];
+	
+	my @current_time_periods = HSDB45::TimePeriod->new( _school => $school )->lookup_conditions("academic_year = 2001");
+	foreach my $current_time_period (@current_time_periods) {
+		my %temp_hash;
+		$temp_hash{'name'} = $current_time_period->field_value("period");
+		$temp_hash{'id'} = $current_time_period->field_value("time_period_id");
+		push @rowheaders, {%temp_hash};
+		undef %temp_hash;
+	}
 </%perl>
 
 <& /tmpl/element:form, params => {
 				method => 'POST',
 				onsubmit =>undef,
-				name => 'timeperiodyear' } &>
+				name => 'timeperiodyear',
+				} &>
 
-<div class="tablediv">
+
+<& /tmpl/element:field_display, params => { 	
+	value => $m->scomp("/tmpl/element:checkbox_table", objects => \@academic_year_array, formname => 'academic_years', checkboxname => 'default_report', allchecked => 0, showcheckall => 1 ),
+} &>
+
+<& /tmpl/element:save_button, params=>{label=>__('Update Time Periods'),
+				no_cancel_button => 1,
+				name=>'submit'} &>
+</form>
+
+
 <& /tmpl/element:scrollable_display_table, table_id => "time_period_year",
 				corner_text => 'Time Period',
 				zebra_striping => 1,
 				cell_data => \%data,
 				colheaders => [$years],
 				rowheaders => [\@rowheaders]&>
-</div>
-
-<& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
-				cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
-				'base_url' => "/management/usergroup/show") . "');",
-				name=>'submit'} &>
 </table>
-</form>
+
+
 </div>
 
 <%method jsarray>
