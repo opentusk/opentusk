@@ -88,7 +88,8 @@
 %	foreach my $eval (@{$evals{teaching}}) {
 %		my $eval_id = $eval->primary_key();
 %		my $teval_id = 'eval_' . $eval_id;
-%		my $done_disabled = 0;
+%		my ($qualified_request, $msg) = $eval->is_user_allowed ($evaluator);
+%		my $done_disabled = !$qualified_request || !$eval->is_user_teaching_eval_complete($evaluator);
 %		my $done_url = "/eval/student/complete/$school/$eval_id";
 
 <li class="closed">
@@ -105,7 +106,6 @@
 <td align="right">
 % if ($role_completion->{required_evals}) {
 &nbsp; &nbsp; <span class="sm"># <% __('Completed') %>:<b> <% $role_completion->{completed_evals} . '</b> &nbsp; # ' . __('Required') . ': <b>' . $role_completion->{required_evals} %></b></span>
-%	$done_disabled = 1 if ($role_completion->{completed_evals} < $role_completion->{required_evals});
 % }
 </td>
 </table>
@@ -154,6 +154,7 @@
 	my $evaluator_id = $evaluator->primary_key();
 	my $student_site_id = $student_site->primary_key();
 	my %evaluatees = ();
+	my ($qualified_request, $msg) = $eval->is_user_allowed ($evaluator);
 
 	if ($student_site_id) {
 		my $course_id = $course->primary_key();
@@ -180,7 +181,7 @@
 			my $action_id = 'action' . $counter++;;
 			my $action_style = 'display:none;'; ### by default, not showing 'evaluate' link
 			my $checked = (defined $eval_association_id) ? 'checked' : '' ;
-			my $disabled = ($status_date && $status || $past_due) ? 'disabled' : '';
+			my $disabled = ($status_date && $status || !$qualified_request) ? 'disabled' : '';
 			my $selection_id = $course->school_id() . '__' . $teaching_eval_id . '__' .  $evaluator->primary_key() . '__' .  $evaluatee_id . '__' . $evaluatee_uid . '__' . $role_id . '__' . $url .'__' . $action_id;
 
 			if (defined $eval_association_id && $status ne 'Completed' && !$past_due) {

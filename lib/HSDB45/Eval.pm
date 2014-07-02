@@ -631,7 +631,7 @@ sub is_editable {
 
 sub divide_users {
     #
-    # Divide the suers into those who have completed and those who haven't
+    # Divide the users into those who have completed and those who haven't
     #
 
     my $self = shift;
@@ -747,7 +747,6 @@ sub answer_form {
     my $user_code = $user->out_user_code($fdat->{submit_password});
     my $evaluator_code = ($is_teaching_eval && $fdat->{evaluatee_id}) ? $user->out_user_code($fdat->{submit_password}, $fdat->{evaluatee_id}) : '';
 
-
     my ($result, $msg) = (0, '');
     eval {
 	# Go through the list of keys
@@ -759,6 +758,8 @@ sub answer_form {
 	    my ($r, $msg) = $resp->save;
 	    die "Could not save $q_id ($r) [$fdat->{$key}]: $msg" unless $r;
 	}
+
+	my $is_complete = 0;
 
 	if ($is_teaching_eval) {
 	    my $entry = TUSK::Eval::Entry->new();
@@ -773,7 +774,12 @@ sub answer_form {
 	    $self->set_teaching_eval_entry_status($user, $fdat->{evaluatee_id}, 'completed');
 	    #$is_complete = $self->is_user_teaching_eval_complete($user);
 	} else {
-	    # Now do the completion token for course_eval
+	    # We complete by default course evals
+	    $is_complete = 1;
+	  }
+
+	if ($is_complete) {
+	    # Now do the completion token
 	    my $comp = HSDB45::Eval::Completion->new ( _school => $self->school() );
 	    $comp->primary_key ($user->primary_key, $self->primary_key);
 	    $comp->field_value ('status' => 'Done');
