@@ -86,7 +86,11 @@
 % if (exists $evals{teaching} && $num_teaching_evals) {
 <ul class="gNoBullets">
 %	foreach my $eval (@{$evals{teaching}}) {
-%		my $teval_id = 'eval_' . $eval->primary_key();
+%		my $eval_id = $eval->primary_key();
+%		my $teval_id = 'eval_' . $eval_id;
+%		my $done_disabled = 0;
+%		my $done_url = "/eval/student/complete/$school/$eval_id";
+
 <li class="closed">
 <a class="med" href="#" onclick="toggleLinks('<% $teval_id %>', this)"><% $eval->title() %><img src="/graphics/icon-nav-closed.png" class="more" alt="showhide" /></a>
 <span style="padding-left:50px;font-size:1em"><em>(<% __('Due') %>: <% $eval->student_due_date() %>)</em></span>
@@ -101,6 +105,7 @@
 <td align="right">
 % if ($role_completion->{required_evals}) {
 &nbsp; &nbsp; <span class="sm"># <% __('Completed') %>:<b> <% $role_completion->{completed_evals} . '</b> &nbsp; # ' . __('Required') . ': <b>' . $role_completion->{required_evals} %></b></span>
+%	$done_disabled = 1 if ($role_completion->{completed_evals} < $role_completion->{required_evals});
 % }
 </td>
 </table>
@@ -118,6 +123,12 @@
 } &>
 </li>
 %			} ## foreach role
+<& /tmpl/element:button, params => {
+	label => __('Done'),
+	type => 'highlight',
+	disabled => $done_disabled,
+	href => $done_url,
+} &>
 </ul>
 %		}
 </li>
