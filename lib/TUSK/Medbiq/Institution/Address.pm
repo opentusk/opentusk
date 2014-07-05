@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Address;
+package TUSK::Medbiq::Institution::Address;
 
 use 5.008;
 use strict;
@@ -138,19 +138,19 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Address - Container for Medbiquitous address information
+TUSK::Medbiq::Institution::Address - Container for Medbiquitous address information
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Address> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Institution::Address> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Address;
+  use TUSK::Medbiq::Institution::Address;
 
 =head1 DESCRIPTION
 
-L<TUSK::Medbiq::Address> is a container for the Medbiquitous address
+L<TUSK::Medbiq::Institution::Address> is a container for the Medbiquitous address
 type. See the address specification at
 L<http://ns.medbiq.org/address/v1/>.
 

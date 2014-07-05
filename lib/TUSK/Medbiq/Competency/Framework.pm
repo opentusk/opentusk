@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::SequenceBlockEvent;
+package TUSK::Medbiq::Competency::Framework;
 
 ###########
 # * Imports
@@ -26,11 +26,11 @@ use utf8;
 use Carp;
 use Readonly;
 
-use Type::Utils -all;
-use Types::Standard qw(Maybe);
-use Types::XSD qw(Date);
-use TUSK::Medbiq::Types qw(EventReferenceXpath);
+use TUSK::Meta::Attribute::Trait::Namespaced;
 use TUSK::Namespaces ':all';
+use TUSK::Medbiq::Types qw( CFIncludes CFLOM );
+use Types::Standard qw( Maybe ArrayRef );
+use Types::XSD qw( Date AnyURI );
 
 #########
 # * Setup
@@ -43,30 +43,60 @@ with 'TUSK::XML::Object';
 # * Class attributes
 ####################
 
-has required => (
+has lom => (
+    traits => [ qw(Namespaced) ],
     is => 'ro',
-    isa => enum([qw(true false)]),
+    isa => CFLOM,
     required => 1,
+    namespace => lom_ns,
 );
 
-has EventReference => (
-    is => 'ro',
-    isa => EventReferenceXpath,
-    required => 1,
-);
-
-has StartDate => (
+has EffectiveDate => (
     is => 'ro',
     isa => Maybe[Date],
     lazy => 1,
-    builder => '_build_StartDate',
+    builder => '_build_EffectiveDate',
 );
 
-has EndDate => (
+has RetiredDate => (
     is => 'ro',
     isa => Maybe[Date],
     lazy => 1,
-    builder => '_build_EndDate',
+    builder => '_build_RetiredDate',
+);
+
+has Replaces => (
+    is => 'ro',
+    isa => ArrayRef[AnyURI],
+    lazy => 1,
+    builder => '_build_Replaces',
+);
+
+has IsReplacedBy => (
+    is => 'ro',
+    isa => ArrayRef[AnyURI],
+    lazy => 1,
+    builder => '_build_IsReplacedBy',
+);
+
+has SupportingInformation => (
+    is => 'ro',
+    isa => ArrayRef[TUSK::Medbiq::Types::SupportingInformation],
+    lazy => 1,
+    builder => '_build_SupportingInformation',
+);
+
+has Includes => (
+    is => 'ro',
+    isa => CFIncludes,
+    required => 1,
+);
+
+has Relation => (
+    is => 'ro',
+    isa => ArrayRef[TUSK::Medbiq::Types::Relation],
+    lazy => 1,
+    builder => '_build_Relation',
 );
 
 
@@ -74,12 +104,18 @@ has EndDate => (
 # * Builders
 ############
 
-sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( EventReference StartDate EndDate ) ] }
-sub _build_xml_attributes { [ qw( required ) ] }
+sub _build_namespace { competency_framework_ns }
+sub _build_xml_content { [ qw( lom EffectiveDate RetiredDate Replaces
+                               IsReplacedBy SupportingInformation Includes
+                               Relation ) ] }
 
-sub _build_StartDate { return; }
-sub _build_EndDate { return; }
+sub _build_EffectiveDate { return; }
+sub _build_RetiredDate { return; }
+sub _build_Replaces { [] }
+sub _build_IsReplacedBy { [] }
+sub _build_SupportingInformation { [] }
+sub _build_Relation { [] }
+
 
 #################
 # * Class methods
@@ -105,15 +141,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::SequenceBlockEvent - A short description of the module's purpose
+TUSK::Medbiq::Competency::Framework - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::SequenceBlockEvent> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Competency::Framework> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::SequenceBlockEvent;
+  use TUSK::Medbiq::Competency::Framework;
 
 =head1 DESCRIPTION
 

@@ -231,7 +231,7 @@ current tag. For example:
 When L<write_xml> is called, domain="..." will be an attribute of the
 current tag.
 
-See L<TUSK::Medbiq::Address> for an example.
+See L<TUSK::Medbiq::Institution::Address> for an example.
 
 =item * xml_content
 

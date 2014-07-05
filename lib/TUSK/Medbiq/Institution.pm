@@ -23,7 +23,7 @@ use Carp;
 use Readonly;
 
 use TUSK::Constants;
-use TUSK::Medbiq::Address;
+use TUSK::Medbiq::Institution::Address;
 use TUSK::Medbiq::UniqueID;
 
 use TUSK::Medbiq::Types qw( NonNullString UniqueID );
@@ -77,7 +77,7 @@ sub _build_InstitutionID {
 }
 
 sub _build_Address {
-    return TUSK::Medbiq::Address->new;
+    return TUSK::Medbiq::Institution::Address->new();
 };
 
 __PACKAGE__->meta->make_immutable;

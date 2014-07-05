@@ -30,8 +30,8 @@ use TUSK::Namespaces ':all';
 use TUSK::Types;
 use Types::Standard qw( Maybe ArrayRef HashRef );
 use TUSK::Medbiq::Types qw( NonNullString );
-use TUSK::Medbiq::SequenceBlock;
-use TUSK::Medbiq::SequenceBlockEvent;
+use TUSK::Medbiq::Sequence::Block;
+use TUSK::Medbiq::Sequence::Block::Event;
 use TUSK::Medbiq::Timing;
 use TUSK::Medbiq::Dates;
 
@@ -105,7 +105,7 @@ sub _build_SequenceBlock {
             my $meeting = $evt->dao;
             my $evt_id = $evt->id;
             my $event_ref = "/CurriculumInventory/Events/Event[\@id='$evt_id']";
-            my $seq_block_event = TUSK::Medbiq::SequenceBlockEvent->new(
+            my $seq_block_event = TUSK::Medbiq::Sequence::Block::Event->new(
                 required => 'false',
                 EventReference => $event_ref,
                 StartDate => $meeting->meeting_date,
@@ -122,7 +122,7 @@ sub _build_SequenceBlock {
             )
         );
         my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number='1']";
-        my $seq_block = TUSK::Medbiq::SequenceBlock->new(
+        my $seq_block = TUSK::Medbiq::Sequence::Block->new(
             id => "course_$course_id",
             required => $required_type,
             Title => $course->title,

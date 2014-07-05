@@ -136,7 +136,7 @@ declare Domain,
 };
 
 class_type UniqueID, { class => 'TUSK::Medbiq::UniqueID' };
-class_type Address, { class => 'TUSK::Medbiq::Address' };
+class_type Address, { class => 'TUSK::Medbiq::Institution::Address' };
 class_type Country, { class => 'TUSK::Medbiq::Country' };
 class_type Institution, { class => 'TUSK::Medbiq::Institution' };
 class_type CurriculumInventory, {
@@ -148,9 +148,9 @@ class_type Events, { class => 'TUSK::Medbiq::Events' };
 class_type Expectations, { class => 'TUSK::Medbiq::Expectations' };
 class_type AcademicLevels, { class => 'TUSK::Medbiq::AcademicLevels' };
 class_type Sequence, { class => 'TUSK::Medbiq::Sequence' };
-class_type SequenceBlock, { class => 'TUSK::Medbiq::SequenceBlock' };
+class_type SequenceBlock, { class => 'TUSK::Medbiq::Sequence::Block' };
 class_type SequenceBlockReference,
-    { class => 'TUSK::Medbiq::SequenceBlockReference' };
+    { class => 'TUSK::Medbiq::Sequence::Block::Reference' };
 class_type Integration, { class => 'TUSK::Medbiq::Integration' };
 class_type Event, { class => 'TUSK::Medbiq::Event' };
 class_type Keyword, { class => 'TUSK::Medbiq::Keyword' };
@@ -159,9 +159,9 @@ class_type InstructionalMethod,
 class_type AssessmentMethod,
     { class => 'TUSK::Medbiq::AssessmentMethod' };
 class_type CompetencyObject,
-    { class => 'TUSK::Medbiq::CompetencyObject' };
+    { class => 'TUSK::Medbiq::Competency::Object' };
 class_type CompetencyFramework,
-    { class => 'TUSK::Medbiq::CompetencyFramework' };
+    { class => 'TUSK::Medbiq::Competency::Framework' };
 class_type SupportingInformation,
     { class => 'TUSK::Medbiq::SupportingInformation' };
 class_type Identifier,
@@ -179,7 +179,7 @@ class_type Level,
 class_type Timing, { class => 'TUSK::Medbiq::Timing' };
 class_type Dates, { class => 'TUSK::Medbiq::Dates' };
 class_type SequenceBlockEvent,
-    { class => 'TUSK::Medbiq::SequenceBlockEvent' };
+    { class => 'TUSK::Medbiq::Sequence::Block::Event' };
 class_type IntegrationBlock,
     { class => 'TUSK::Medbiq::IntegrationBlock' };
 

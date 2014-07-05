@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::CompetencyObject;
+package TUSK::Medbiq::Competency::Object;
 
 ###########
 # * Imports
@@ -173,15 +173,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::CompetencyObject - A short description of the module's purpose
+TUSK::Medbiq::Competency::Object - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::CompetencyObject> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Competency::Object> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::CompetencyObject;
+  use TUSK::Medbiq::Competency::Object;
 
 =head1 DESCRIPTION
 

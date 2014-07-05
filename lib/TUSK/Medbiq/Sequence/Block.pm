@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::SequenceBlock;
+package TUSK::Medbiq::Sequence::Block;
 
 ###########
 # * Imports
@@ -28,10 +28,9 @@ use Readonly;
 
 use Type::Utils -all;
 use Types::Standard qw( Maybe ArrayRef );
-use Types::XSD qw( NonNegativeInteger PositiveInteger );
+use Types::XSD qw( NonNegativeInteger PositiveInteger);
 use TUSK::Namespaces ':all';
-use TUSK::Medbiq::Types qw( NonNullString
-                            AcademicLevelReference );
+use TUSK::Medbiq::Types qw( NonNullString AcademicLevelReference );
 
 
 #########
@@ -171,6 +170,7 @@ sub _build_xml_content {
                  SequenceBlockReference ) ];
 }
 
+
 sub _build_order { return; }
 sub _build_minimum { return; }
 sub _build_maximum { return; }
@@ -207,15 +207,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::SequenceBlock - A short description of the module's purpose
+TUSK::Medbiq::Sequence::Block - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::SequenceBlock> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Sequence::Block> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::SequenceBlock;
+  use TUSK::Medbiq::Sequence::Block;
 
 =head1 DESCRIPTION
 

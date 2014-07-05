@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::SequenceBlockReference;
+package TUSK::Medbiq::Sequence::Block::Reference;
 
 ###########
 # * Imports
@@ -94,15 +94,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::SequenceBlockReference - A short description of the module's purpose
+TUSK::Medbiq::Sequence::Block::Reference - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::SequenceBlockReference> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Sequence::Block::Reference> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::SequenceBlockReference;
+  use TUSK::Medbiq::Sequence::Block::Reference;
 
 =head1 DESCRIPTION
 

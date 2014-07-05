@@ -27,7 +27,7 @@ use Carp;
 use Readonly;
 
 use HSDB4::Constants;
-use TUSK::Medbiq::CompetencyObject;
+use TUSK::Medbiq::Competency::Object;
 use Types::Standard qw( ArrayRef );
 use TUSK::Medbiq::Types;
 use TUSK::Namespaces ':all';
@@ -76,7 +76,7 @@ sub _build_CompetencyObject {
             my $id = $obj->getPrimaryKeyID();
             if ( ! exists $objective_from_id{$id} ) {
                 $objective_from_id{$id}
-                    = TUSK::Medbiq::CompetencyObject->new(dao => $obj);
+                    = TUSK::Medbiq::Competency::Object->new(dao => $obj);
             }
         }
     }
