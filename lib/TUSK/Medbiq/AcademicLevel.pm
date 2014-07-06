@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Level;
+package TUSK::Medbiq::AcademicLevel;
 
 ###########
 # * Imports
@@ -28,7 +28,7 @@ use Readonly;
 
 use Types::Standard qw( Int Maybe );
 use TUSK::Medbiq::Types qw( NonNullString );
-use TUSK::Types qw( UserGroup );
+use TUSK::Types qw( AcademicLevel );
 use TUSK::Namespaces ':all';
 
 #########
@@ -44,7 +44,7 @@ with 'TUSK::XML::Object';
 
 has dao => (
     is => 'ro',
-    isa => UserGroup,
+    isa => AcademicLevel,
     required => 1,
 );
 
@@ -79,7 +79,7 @@ sub _build_xml_content { [ qw( Label Description ) ] }
 
 sub _build_Label {
     my $self = shift;
-    my $label = $self->dao->label;
+    my $label = $self->dao()->title();
     chomp $label;
     $label =~ s{\s* \z}{}xms;
     return $label;
@@ -118,15 +118,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Level - A short description of the module's purpose
+TUSK::Medbiq::AcademicLevel - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Level> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::AcademicLevel> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Level;
+  use TUSK::Medbiq::AcademicLevel;
 
 =head1 DESCRIPTION
 

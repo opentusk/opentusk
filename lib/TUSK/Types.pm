@@ -45,7 +45,7 @@ use Type::Library
                       Competency
                       TUSK_XSD_Date
                       URI
-                      UserGroup
+		      AcademicLevel
                       UnsignedInt
                       UnsignedNum
                       XML_Object
@@ -79,7 +79,7 @@ class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 role_type XML_Object, { role => 'TUSK::XML::Object' };
 declare XHTML_Object, as XML_Object;
 declare TUSK_XSD_Date, as Types::XSD::Date;
-class_type UserGroup, { class => 'HSDB45::UserGroup' };
+class_type AcademicLevel, { class => 'TUSK::AcademicLevel' };
 
 
 #############

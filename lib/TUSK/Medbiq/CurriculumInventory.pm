@@ -30,7 +30,8 @@ use DateTime;
 
 use Types::Standard qw( Str ArrayRef Int );
 use TUSK::Medbiq::Types qw( UniqueID NonNullString );
-use TUSK::Types qw( School URI TUSK_XSD_Date );
+use TUSK::Types qw( School AcademicLevel URI TUSK_XSD_Date );
+use TUSK::AcademicLevel;
 use TUSK::Namespaces ':all';
 use TUSK::Medbiq::UniqueID;
 use TUSK::Medbiq::Institution;
@@ -38,7 +39,7 @@ use TUSK::Medbiq::Program;
 use TUSK::Medbiq::Events;
 use TUSK::Medbiq::Expectations;
 use TUSK::Medbiq::AcademicLevels;
-use TUSK::Medbiq::Level;
+use TUSK::Medbiq::AcademicLevel;
 use TUSK::Medbiq::Sequence;
 
 use Moose;
@@ -58,10 +59,11 @@ has school => (
     required => 1,
 );
 
-has user_groups => (
+has school_academic_levels => (
     is => 'ro',
-    isa => ArrayRef[Int],
+    isa => ArrayRef[AcademicLevel],
     required => 1,
+    builder => '_build_school_academic_levels',			
 );
 
 has schemaLocation => (
@@ -221,6 +223,11 @@ sub _build__now {
     return DateTime->now;
 }
 
+sub _build_school_academic_levels {
+    my $self = shift;
+    return TUSK::AcademicLevel->lookup("school_id = " . $self->school()->getPrimaryKeyID());
+}
+
 sub _build_schemaLocation {
     return 'http://ns.medbiq.org/curriculuminventory/v1/curriculuminventory.xsd';
 }
@@ -276,21 +283,10 @@ sub _build_Expectations {
 
 sub _build_AcademicLevels {
     my $self = shift;
-    my @levels;
-    my $i = 1;
-    my $school_name = $self->school->getSchoolName();
-    foreach my $ugid ( @{ $self->user_groups } ) {
-        push @levels, TUSK::Medbiq::Level->new(
-            number => $i,
-            dao => HSDB45::UserGroup->new(
-                _school => $school_name
-            )->lookup_key($ugid),
-        );
-        $i++;
-    }
+
     return TUSK::Medbiq::AcademicLevels->new(
         school => $self->school,
-        Level => \@levels,
+        Level => $self->school_academic_levels(),
     );
 }
 
