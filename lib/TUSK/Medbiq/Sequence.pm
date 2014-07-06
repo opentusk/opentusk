@@ -92,15 +92,17 @@ sub _build_Description { return; }
 sub _build_SequenceBlock {
     my $self = shift;
     my @blocks;
-    my $cm = $self->_course_map;
+
     foreach my $course_id ( keys %{ $self->_course_map } ) {
         my $course = $self->_course_map->{$course_id}{course};
         my $events = $self->_course_map->{$course_id}{events};
         my $required_type = 'Optional';
         my $min_date = $events->[0]->dao->meeting_date;
         my $max_date = $events->[0]->dao->meeting_date;
-        my @block_events;
-        my @block_refs;
+        my @block_events = ();
+        my @block_refs = ();
+	my %num_days = ();
+
         foreach my $evt ( @$events ) {
             my $meeting = $evt->dao;
             my $evt_id = $evt->id;
@@ -114,14 +116,19 @@ sub _build_SequenceBlock {
             push @block_events, $seq_block_event;
             $min_date = $meeting->meeting_date if $min_date gt $meeting->meeting_date;
             $max_date = $meeting->meeting_date if $max_date lt $meeting->meeting_date;
+	    $num_days{$meeting->meeting_date()} = 1;
         }
+
         my $timing = TUSK::Medbiq::Timing->new(
             Dates => TUSK::Medbiq::Dates->new(
-                StartDate => $min_date,
-                EndDate => $max_date,
-            )
+					      StartDate => $min_date, 
+					      EndDate => $max_date,
+            ),
+            Duration => 'P' . scalar(keys %num_days) . 'D',
         );
+
         my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number='1']";
+
         my $seq_block = TUSK::Medbiq::Sequence::Block->new(
             id => "course_$course_id",
             required => $required_type,

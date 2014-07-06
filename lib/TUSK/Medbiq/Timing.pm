@@ -27,9 +27,11 @@ use Carp;
 use Readonly;
 
 use Types::Standard qw(Maybe);
-use Types::XSD;
+use Types::XSD qw(Duration);
 use TUSK::Medbiq::Types;
 use TUSK::Namespaces ':all';
+use Date::Calendar;
+use namespace::clean;
 
 #########
 # * Setup
@@ -44,7 +46,7 @@ with 'TUSK::XML::Object';
 
 has Duration => (
     is => 'ro',
-    isa => Maybe[Types::XSD::Duration],
+    isa => Duration,
     lazy => 1,
     builder => '_build_Duration',
 );
