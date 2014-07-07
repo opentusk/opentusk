@@ -10,6 +10,10 @@ jQuery(document).ready(function($){
 			}).prop('selected', true);
 		});
 	});
+	$("#courseList").listnav({
+		initLetter : 'a',
+		noMatchText: '(No Courses Available)'
+	});
 });
 
 function showAcadLevels (this_button) {

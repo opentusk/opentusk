@@ -80,12 +80,18 @@
 	my $action = $m->scomp("/tmpl/element:dropdown", params => $action_params);
 	
 	$action  = "<span class=\"acad_levels_show\" onclick=\"showAcadLevels(this);\"><a style=\"color: #4D92CD;\"><i>&nbsp[edit]</i></a></span>" . $action;
-
+	
+	print "<div id=\"courseList-nav\"></div>";
+	print "<ul id=\"courseList\">";
 	foreach my $course (@hsdb45_courses) {
 			my $trimmed_title = $course->{'title'};
 			$trimmed_title =~ s/^\s+//;
 			my $linked_action;
 			
+
+			print "<li>".$course->{'title'}."</li>";
+			
+=for			
 			if (exists $categorized_courses{$course->{'course_id'}}){
 				my $current_tusk_course_id = TUSK::Course->new()->getTuskCourseIDFromSchoolID($school_id, $course->{'course_id'});
 				$linked_action = "<span class=\"current_academic_level\">" . join(',', @{$academic_level_course_relation{$current_tusk_course_id}}) . "</span>" . $action;
@@ -103,20 +109,25 @@
 					course_title => $trimmed_title,
 				};	
 			}			
+=cut
 	}	
-
+	print "</ul>";
+=for	
 	@sorted_rows = sort { lc($a->{course_title}) cmp lc($b->{course_title})} @unsorted_rows;
 
 	push (@rows, @sorted_rows);
+=cut
 
 </%perl>
 
+<%doc>
 <& /tmpl/element:object_selection_box, params => {
 				columns => $col_fields,
 				rows => \@rows,
 				name => "courses",
 				'norows-message' => __( "No Courses Availabe" ),
 } &>
+</%doc>
 
 <%method startup>
 %	$m->comp("SELF:set_no_cache");
@@ -131,13 +142,14 @@
 			"jquery/jquery.ui.widget.min.js",
 			"jquery/plugin/interface/interface.js",
 			"jquery/plugin/ui.dropdownchecklist-1.4-min.js",
-			"admin/school/academicLevelCourse.js",
+			"jquery/plugin/jquery.listnav.min-2.1.js",
+			"admin/school/academicLevelCourse.js",			
 			];
 </%perl>
 </%method>
 
 <%method stylearray>
-% return ['/style/style.css', '/style/ui.dropdownchecklist.standalone.css']
+% return ['/style/style.css', '/style/ui.dropdownchecklist.standalone.css', '/style/jquery.listnav-2.1.css']
 </%method>
 
 <%method red_header_text>
