@@ -17,6 +17,7 @@ jQuery(document).ready(function($){
 		includeAll: false,
 		noMatchText: '(No Courses Available)',
 		showCounts: false,
+		cookieName: 'last_letter'
 	});
 });
 
@@ -65,7 +66,7 @@ function showAcadLevels (this_button) {
 				school = course_link.attr('href').split('/')[4];
 			
 				to_update_academic_levels = to_update_array.join(",");
-				console.log(to_update_academic_levels);				
+
 				$.ajax({
 					type: "POST",
 					url: "/tusk/admin/school/academiclevel/update",
