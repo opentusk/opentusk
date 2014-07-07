@@ -88,9 +88,13 @@
 			$trimmed_title =~ s/^\s+//;
 			my $linked_action;
 			
-
-			print "<li>".$course->{'title'}."</li>";
-			
+			my $current_tusk_course_id = TUSK::Course->new()->getTuskCourseIDFromSchoolID($school_id, $course->{'course_id'});						
+			if (exists $categorized_courses{$course->{'course_id'}}) {
+				$linked_action = "<span class=\"link_academic_level\"><span class=\"current_academic_level\">" . join(',', @{$academic_level_course_relation{$current_tusk_course_id}}) . "</span>" . $action . "</span>";
+			} else {
+				$linked_action = "<span class=\"link_academic_level\"><span class=\"current_academic_level\">Uncategorized </span>" . $action . "</span>";
+			}
+			print "<li>"."<a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a>".$linked_action."<div class =\"verticalLine\"></div></li>";
 =for			
 			if (exists $categorized_courses{$course->{'course_id'}}){
 				my $current_tusk_course_id = TUSK::Course->new()->getTuskCourseIDFromSchoolID($school_id, $course->{'course_id'});

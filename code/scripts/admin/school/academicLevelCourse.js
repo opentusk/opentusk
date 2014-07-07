@@ -10,9 +10,13 @@ jQuery(document).ready(function($){
 			}).prop('selected', true);
 		});
 	});
+
 	$("#courseList").listnav({
-		initLetter : 'a',
-		noMatchText: '(No Courses Available)'
+		initLetter: 'a',
+		includeOther: true,
+		includeAll: false,
+		noMatchText: '(No Courses Available)',
+		showCounts: false,
 	});
 });
 
