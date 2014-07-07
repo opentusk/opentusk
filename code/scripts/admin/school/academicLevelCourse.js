@@ -1,4 +1,4 @@
-jQuery(document).ready(function($){
+jQuery(document).ready(function($){	
 	$(".acad_level_dropdown").hide();
 	var academic_levels = $(document).find(".current_academic_level");
 	var academic_levels_array;
