@@ -759,8 +759,6 @@ sub answer_form {
 	    die "Could not save $q_id ($r) [$fdat->{$key}]: $msg" unless $r;
 	}
 
-	my $is_complete = 0;
-
 	if ($is_teaching_eval) {
 	    my $entry = TUSK::Eval::Entry->new();
 	    $entry->setFieldValues({
@@ -772,20 +770,10 @@ sub answer_form {
 	    });
 	    $entry->save({user => $user_code});
 	    $self->set_teaching_eval_entry_status($user, $fdat->{evaluatee_id}, 'completed');
-	    #$is_complete = $self->is_user_teaching_eval_complete($user);
 	} else {
 	    # We complete by default course evals
-	    $is_complete = 1;
+	    $self->completion_token($user);
 	  }
-
-	if ($is_complete) {
-	    # Now do the completion token
-	    my $comp = HSDB45::Eval::Completion->new ( _school => $self->school() );
-	    $comp->primary_key ($user->primary_key, $self->primary_key);
-	    $comp->field_value ('status' => 'Done');
-	    my ($r, $msg) = $comp->save;
-	    die "Could not save the completion token: $msg" unless $r;
-	}
 
 	# Phew! We got there.
 	$result = 1;
@@ -794,6 +782,15 @@ sub answer_form {
     return ($result, '');
 }
 
+sub completion_token {
+    my ($self, $user) = @_;
+
+    my $comp = HSDB45::Eval::Completion->new ( _school => $self->school() );
+    $comp->primary_key ($user->primary_key, $self->primary_key);
+    $comp->field_value ('status' => 'Done');
+    my ($r, $msg) = $comp->save;
+    die "Could not save the completion token: $msg" unless $r;
+}
 
 sub set_teaching_eval_entry_status {
     my ($self, $evaluator, $evaluatee_id, $entry_status) = @_;

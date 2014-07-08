@@ -46,6 +46,7 @@
 	my ($eval_completed, $msg, $qualified_request) = (0, '', 1);
 	my $is_teaching_eval = $eval->is_teaching_eval();
 	my ($evaluatee, $site) = (undef, undef);
+	my $is_done = $is_teaching_eval && !$evaluatee_uid && !$evaluator_site_id;
 </%shared>
 
 <%init>
@@ -56,7 +57,7 @@
 		}
 	}
 
-	unless($eval_completed) {
+	unless ($eval_completed || $is_done) {
 		if ($qualified_request) {
 			$saved_answers_id = $answers->id() if $answers;
 			#$m->print("<body onload=\"doInitialSatisfys();\">");
@@ -78,7 +79,7 @@
 
 <%perl>
 	unless ($eval->admin_group()->contains_user($user)) {
-		($qualified_request, $msg) = $eval->is_user_allowed ($user);
+		($qualified_request, $msg) = $eval->is_user_allowed($user);
 		unless ($qualified_request) {
 			$m->comp('SELF:set_msg', msg => $msg, type => 'err');
 		}		
@@ -87,6 +88,12 @@
 	if ($is_teaching_eval) {
 		$evaluatee = HSDB4::SQLRow::User->new()->lookup_by_uid($evaluatee_uid) if ($evaluatee_uid);
 		$site = HSDB45::TeachingSite->new(_school => $school_name)->lookup_key($evaluator_site_id) if ($evaluator_site_id);
+	}
+
+	if ($is_done) {
+	    	$eval->completion_token($user);
+	    	$m->comp('SELF:set_msg', msg => __('Evaluation successfully completed.'));
+	    	$m->comp('SELF:acknowledge');
 	}
 
 	$formatter = HSDB45::Eval::Formatter->new($eval);
@@ -158,7 +165,7 @@
 					if ($answers && $answers->id()) { 
 						$answers->do_delete();
 					}
-					$m->comp('SELF:set_msg', msg => __('Evaluation successfully submitted'));
+					$m->comp('SELF:set_msg', msg => __('Evaluation successfully submitted.'));
 					$m->comp('SELF:acknowledge');
 				}
 	   		}
@@ -440,7 +447,7 @@ window.onload = function() {
 	value 	=> $user->primary_key(),
 } &>
 
-% if ($is_teaching_eval) {
+% if ($is_teaching_eval && !$is_done) {
 <& /tmpl/element:field_display, params =>{ 
 	label 	=> 'Evaluatee:',
 	value 	=> $evaluatee->out_lastfirst_name(),
