@@ -78,11 +78,9 @@
 </%args>
 
 <%perl>
-	unless ($eval->admin_group()->contains_user($user)) {
-		($qualified_request, $msg) = $eval->is_user_allowed($user);
-		unless ($qualified_request) {
-			$m->comp('SELF:set_msg', msg => $msg, type => 'err');
-		}		
+    	($qualified_request, $msg) = $eval->is_user_allowed($user);
+	unless ($qualified_request || $eval->admin_group()->contains_user($user)) {
+	    	$m->comp('SELF:set_msg', msg => $msg, type => 'err');
 	}
 
 	if ($is_teaching_eval) {
@@ -91,9 +89,14 @@
 	}
 
 	if ($is_done) {
-	    	$eval->completion_token($user);
-	    	$m->comp('SELF:set_msg', msg => __('Evaluation successfully completed.'));
-	    	$m->comp('SELF:acknowledge');
+	    	if ($qualified_request && $eval->is_user_teaching_eval_complete($user)) {
+	    		$eval->completion_token($user);
+			$m->comp('SELF:set_msg', msg => __('Evaluation successfully completed.'));
+			$m->comp('SELF:acknowledge');
+		} else {
+			$m->comp('SELF:set_msg', msg => __('Evaluation could not complete.'), type => 'err');
+			$m->comp('SELF:header_with_title_msg');
+		}
 	}
 
 	$formatter = HSDB45::Eval::Formatter->new($eval);
