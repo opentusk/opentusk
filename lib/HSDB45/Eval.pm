@@ -810,7 +810,7 @@ sub is_user_teaching_eval_complete {
     my $is_complete = 1;
     my $completions = $self->get_teaching_eval_completions_by_roles($evaluator);
     foreach (@$completions) {
-      $is_complete = 0 if ($_->{completed_evals} < $_->{required_evals});
+	$is_complete = 0 if (($_->{completed_evals} < $_->{required_evals}) && ($_->{completed_evals} < $_->{total_evals}));
     }
 
     return $is_complete;
