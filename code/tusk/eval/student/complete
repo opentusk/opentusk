@@ -78,9 +78,11 @@
 </%args>
 
 <%perl>
-    	($qualified_request, $msg) = $eval->is_user_allowed($user);
-	unless ($qualified_request || $eval->admin_group()->contains_user($user)) {
-	    	$m->comp('SELF:set_msg', msg => $msg, type => 'err');
+	unless ($eval->admin_group()->contains_user($user)) {
+		($qualified_request, $msg) = $eval->is_user_allowed ($user);
+		unless ($qualified_request) {
+			$m->comp('SELF:set_msg', msg => $msg, type => 'err');
+		}		
 	}
 
 	if ($is_teaching_eval) {
