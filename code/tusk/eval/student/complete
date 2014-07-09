@@ -46,7 +46,7 @@
 	my ($eval_completed, $msg, $qualified_request) = (0, '', 1);
 	my $is_teaching_eval = $eval->is_teaching_eval();
 	my ($evaluatee, $site) = (undef, undef);
-	my $is_done = $is_teaching_eval && !$evaluatee_uid && !$evaluator_site_id;
+	my $is_done = $evaluatee_uid eq 'done';
 </%shared>
 
 <%init>
@@ -84,18 +84,18 @@
 	}
 
 	if ($is_teaching_eval) {
-		$evaluatee = HSDB4::SQLRow::User->new()->lookup_by_uid($evaluatee_uid) if ($evaluatee_uid);
-		$site = HSDB45::TeachingSite->new(_school => $school_name)->lookup_key($evaluator_site_id) if ($evaluator_site_id);
-	}
-
-	if ($is_done) {
-	    	if ($qualified_request && $eval->is_user_teaching_eval_complete($user)) {
-	    		$eval->completion_token($user);
-			$m->comp('SELF:set_msg', msg => __('Evaluation successfully completed.'));
-			$m->comp('SELF:acknowledge');
+		if ($is_done) {
+		    	if ($qualified_request && $eval->is_user_teaching_eval_complete($user)) {
+	    			$eval->completion_token($user);
+				$m->comp('SELF:set_msg', msg => __('Evaluation successfully completed.'));
+				$m->comp('SELF:acknowledge');
+			} else {
+				$m->comp('SELF:set_msg', msg => __('Evaluation could not complete.'), type => 'err');
+				$m->comp('SELF:header_with_title_msg');
+			}
 		} else {
-			$m->comp('SELF:set_msg', msg => __('Evaluation could not complete.'), type => 'err');
-			$m->comp('SELF:header_with_title_msg');
+			$evaluatee = HSDB4::SQLRow::User->new()->lookup_by_uid($evaluatee_uid) if ($evaluatee_uid);
+			$site = HSDB45::TeachingSite->new(_school => $school_name)->lookup_key($evaluator_site_id) if ($evaluator_site_id);
 		}
 	}
 
