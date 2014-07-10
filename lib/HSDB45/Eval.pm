@@ -805,15 +805,17 @@ sub set_teaching_eval_entry_status {
 }
 
 sub is_user_teaching_eval_complete {
+# Returns 0 if eval is not complete, 1 if complete, 2 if reached the maximum allowed
     my ($self, $evaluator) = @_;
 
     my $is_complete = 1;
+    my $is_maximum = 1;
     my $completions = $self->get_teaching_eval_completions_by_roles($evaluator);
     foreach (@$completions) {
-	$is_complete = 0 if (($_->{completed_evals} < $_->{required_evals}) && ($_->{completed_evals} < $_->{total_evals}));
+	$is_complete = 0 if ($_->{completed_evals} < $_->{required_evals});
+	$is_maximum = 0 if ($_->{completed_evals} < $_->{maximum_evals});
     }
-
-    return $is_complete;
+    return $is_complete + $is_maximum;
 }
 
 sub get_teaching_eval_completions_by_roles {
@@ -831,7 +833,7 @@ sub get_teaching_eval_completions_by_roles {
 		     INNER JOIN tusk.course_user cs on (ea.evaluatee_id = cs.user_id and cs.course_id = e.course_id and cs.time_period_id = e.time_period_id and cs.school_id = ea.school_id)
 		     INNER JOIN tusk.permission_user_role ur on (cs.user_id = ur.user_id and ur.feature_id = cs.course_user_id)
 		     INNER JOIN tusk.eval_role er on (er.role_id = ur.role_id and er.eval_id = ea.eval_id and er.school_id = ea.school_id)
-		     WHERE ea.eval_id = ? and ea.school_id = ? and evaluator_id = ?
+		     WHERE ea.eval_id = ? and ea.school_id = ? and ea.evaluator_id = ?
 		     GROUP BY ur.role_id
 		     );
 
@@ -847,12 +849,19 @@ sub get_teaching_eval_completions_by_roles {
 	my @completions_by_role = ();
 	foreach my $eval_role (@{TUSK::Eval::Role->lookup('eval_id = ' . $self->primary_key() . ' and school_id = ' . $self->school_id(), ['sort_order'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', jointype => 'inner'})],)}) {
 	    my $role_id = $eval_role->getRoleID();
+	    my $total_evals = $completions{$role_id}{total_evals} || 0;
+	    my $completed_evals = $completions{$role_id}{completed_evals} || 0;
+	    my $required_evals = $eval_role->getRequiredEvals() || 0;
+	    my $maximum_evals = $eval_role->getMaximumEvals() || 255;
+	    #$maximum_evals = $total_evals if ($maximum_evals > $total_evals);
+	    $required_evals = $maximum_evals if ($required_evals > $maximum_evals);
 	    push @completions_by_role, {
 		role_id    => $role_id,
 		role_label => $eval_role->getJoinObject('TUSK::Permission::Role')->getRoleDesc(),
-		total_evals => $completions{$role_id}{total_evals} || 0, 
-		completed_evals => $completions{$role_id}{completed_evals} || 0,
-		required_evals => $eval_role->getRequiredEvals(),
+		total_evals => $total_evals, 
+		completed_evals => $completed_evals,
+		required_evals => $required_evals,
+		maximum_evals => $maximum_evals,
 		sort_order => $eval_role->getSortOrder(),
 	    };
 	}

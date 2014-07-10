@@ -56,6 +56,7 @@ sub new {
 					'role_id' => '',
 					'sort_order' => '',
 					'required_evals' => '',
+					'maximum_evals' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -227,7 +228,35 @@ sub setRequiredEvals{
     $self->setFieldValue('required_evals', $value);
 }
 
+#######################################################
 
+=item B<getMaximumEvals>
+
+my $string = $obj->getMaximumEvals();
+
+Get the value of the maximum_evals field
+
+=cut
+
+sub getMaximumEvals{
+    my ($self) = @_;
+    return $self->getFieldValue('maximum_evals');
+}
+
+#######################################################
+
+=item B<setMaximumEvals>
+
+$obj->setMaximumEvals($value);
+
+Set the value of the maximum_evals field
+
+=cut
+
+sub setMaximumEvals{
+    my ($self, $value) = @_;
+    $self->setFieldValue('maximum_evals', $value);
+}
 
 =back
 
