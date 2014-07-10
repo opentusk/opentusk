@@ -26,10 +26,9 @@
 </div>
 
 <%perl>
-	my $tp = HSDB45::TimePeriod->new(_school => $m->comp('/tmpl/url:get_school'));
-
 	$school = $m->comp("/tmpl/url:get_school");
 	$school_id = TUSK::Core::School->new->getSchoolID($school);
+			
 	my $tusk_courses = TUSK::Course->lookup("school_id =". $school_id);
 	my %tusk_courses_hash = map {$_ -> getPrimaryKeyID() => $_ -> getSchoolCourseCode()} @{$tusk_courses};
 
@@ -87,7 +86,11 @@
 			} else {
 				$linked_action = "<span class=\"link_academic_level\"><span class=\"current_academic_level\">Uncategorized </span>" . $action . "</span>";
 			}
-			print "<li>"."<a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a>".$linked_action."<div class =\"verticalLine\"></div></li>";
+			if ($course->{'oea_code'}){
+				print "<li>"."<a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a> (".$course->{'oea_code'}.")".$linked_action."<div class =\"verticalLine\"></div></li>";
+			} else {
+				print "<li>"."<a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a>".$linked_action."<div class =\"verticalLine\"></div></li>";
+			}
 	}	
 	print "</ul>";
 </%perl>
