@@ -506,9 +506,7 @@ sub is_user_allowed {
 			    $self->available_date->out_string_date));
     }
 
-    # Right now, we don't really want to check if something is overdue and
-    # thereby not allow access.
-    # if (0) {
+    # Check if something is overdue
     if ($self->due_date and $self->is_overdue) {
 	return (0, sprintf ("Form is no longer available (due %s)",
 			    $self->due_date->out_string_date));
@@ -804,18 +802,26 @@ sub set_teaching_eval_entry_status {
     }
 }
 
-sub is_user_teaching_eval_complete {
-# Returns 0 if eval is not complete, 1 if complete, 2 if reached the maximum allowed
-    my ($self, $evaluator) = @_;
+sub is_user_teaching_eval_role_enabled {
+    my ($self, $evaluator, $role_id) = @_;
 
-    my $is_complete = 1;
-    my $is_maximum = 1;
     my $completions = $self->get_teaching_eval_completions_by_roles($evaluator);
     foreach (@$completions) {
-	$is_complete = 0 if ($_->{completed_evals} < $_->{required_evals});
-	$is_maximum = 0 if ($_->{completed_evals} < $_->{maximum_evals});
+	return ($_->{completed_evals} < $_->{maximum_evals}) if ($_->{role_id} == $role_id);
     }
-    return $is_complete + $is_maximum;
+
+    return 0;
+}
+
+sub is_user_teaching_eval_complete {
+    my ($self, $evaluator) = @_;
+
+    my $completions = $self->get_teaching_eval_completions_by_roles($evaluator);
+    foreach (@$completions) {
+	return 0 if ($_->{completed_evals} < $_->{required_evals});
+    }
+
+    return 1;
 }
 
 sub get_teaching_eval_completions_by_roles {
