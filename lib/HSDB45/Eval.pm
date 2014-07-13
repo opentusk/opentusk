@@ -830,16 +830,15 @@ sub get_teaching_eval_completions_by_roles {
     unless (defined $self->{teaching_eval_completions_by_role}) {
 	my $db = $self->school_db();    
 	my $sql = qq(
-		     SELECT ur.role_id, count(*),
-		     (SELECT count(status_enum_id) 
-		      FROM tusk.enum_data ed 
-		      WHERE ea.status_enum_id = enum_data_id and ed.namespace = 'eval_association.status' and ed.short_name = 'completed') as completions
+		     SELECT ur.role_id, count(*)
 		     FROM tusk.eval_association ea
 		     INNER JOIN $db\.eval e on (ea.eval_id = e.eval_id)
 		     INNER JOIN tusk.course_user cs on (ea.evaluatee_id = cs.user_id and cs.course_id = e.course_id and cs.time_period_id = e.time_period_id and cs.school_id = ea.school_id)
 		     INNER JOIN tusk.permission_user_role ur on (cs.user_id = ur.user_id and ur.feature_id = cs.course_user_id)
-		     INNER JOIN tusk.eval_role er on (er.role_id = ur.role_id and er.eval_id = ea.eval_id and er.school_id = ea.school_id)
-		     WHERE ea.eval_id = ? and ea.school_id = ? and ea.evaluator_id = ?
+		     WHERE ea.eval_id = ? and ea.school_id = ? and ea.evaluator_id = ? and ea.status_enum_id =
+		     (SELECT ed.enum_data_id
+		      FROM tusk.enum_data ed 
+		      WHERE ed.namespace = 'eval_association.status' and ed.short_name = 'completed')
 		     GROUP BY ur.role_id
 		     );
 
@@ -848,18 +847,18 @@ sub get_teaching_eval_completions_by_roles {
 	$sth->execute($self->primary_key(), $self->school_id(), $evaluator->primary_key());
 
 	my %completions = ();
-	while (my ($role_id, $total, $completions) = $sth->fetchrow_array) {
-	    $completions{$role_id} = { total_evals => $total, completed_evals => $completions };
+	while (my ($role_id, $complete) = $sth->fetchrow_array) {
+	    $completions{$role_id} = $complete;
 	}
 
 	my @completions_by_role = ();
 	foreach my $eval_role (@{TUSK::Eval::Role->lookup('eval_id = ' . $self->primary_key() . ' and school_id = ' . $self->school_id(), ['sort_order'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', jointype => 'inner'})],)}) {
 	    my $role_id = $eval_role->getRoleID();
-	    my $total_evals = $completions{$role_id}{total_evals} || 0;
-	    my $completed_evals = $completions{$role_id}{completed_evals} || 0;
+	    my $total_evals = 10; #$totals{$role_id} || 0;
+	    my $completed_evals = $completions{$role_id} || 0;
 	    my $required_evals = $eval_role->getRequiredEvals() || 0;
 	    my $maximum_evals = $eval_role->getMaximumEvals() || 255;
-	    #$maximum_evals = $total_evals if ($maximum_evals > $total_evals);
+	    $maximum_evals = $total_evals if ($maximum_evals > $total_evals);
 	    $required_evals = $maximum_evals if ($required_evals > $maximum_evals);
 	    push @completions_by_role, {
 		role_id    => $role_id,
