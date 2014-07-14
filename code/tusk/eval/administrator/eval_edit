@@ -257,11 +257,11 @@ label 	=> 'Course:',
 <%perl>
 	my @role_options = map {{'label' => $_->getRoleDesc(), 'value' => $_->getPrimaryKeyID()}} (@{TUSK::Permission::Role->new()->getRoles('course', ['role_desc'])});
 	my $button_text =  $m->scomp('/tmpl/element:button', params => {
-		onclick => "layers['rolesdiv'].adddata({eval_role_id:'0', role:'', required_evals:''},0);",
+		onclick => "layers['rolesdiv'].adddata({eval_role_id:'0', role:'', required_evals:'', maximum_evals:''},0);",
 		name => 'addnewrole',
 		label => 'Add New Role/Label'});
 	if ($eval_id) {
-		@roles_data = map {{ eval_role_id => $_->getPrimaryKeyID(), role => $_->getRoleID(), required_evals => $_->getRequiredEvals() }} @{TUSK::Eval::Role->lookup("school_id = " . $school_object->getPrimaryKeyID() . " AND eval_id = $eval_id", ['sort_order'])};
+		@roles_data = map {{ eval_role_id => $_->getPrimaryKeyID(), role => $_->getRoleID(), required_evals => $_->getRequiredEvals(), maximum_evals => $_->getMaximumEvals() }} @{TUSK::Eval::Role->lookup("school_id = " . $school_object->getPrimaryKeyID() . " AND eval_id = $eval_id", ['sort_order'])};
 	}
 </%perl>
 
@@ -275,13 +275,14 @@ label 	=> 'Course:',
 		empty_message => 'No Role/Label',
 		layer => 'rolesdiv',
 		scrollrows => 6,
-       	fields => ['eval_role_id', 'role', 'required_evals'],
+       	fields => ['eval_role_id', 'role', 'required_evals', 'maximum_evals'],
 		name => 'role',
 		sort => { usage => 'Yes', length => 50},
 		action => { usage => 'Yes', length => 100, functions => [ { func => 'remove', label => 'Delete'} ] },
 		display => [
 			{ label => 'Role/Label', field => 'role', align => 'center', length => '200', options => \@role_options },
-			{ label => 'Required Num of Evaluations', field => 'required_evals', type => 'textbox', align => 'center', length => 20 },
+			{ label => 'Required Number of Evaluations', field => 'required_evals', type => 'textbox', align => 'center', length => 20 },
+			{ label => 'Maximum Number of Evaluations', field => 'maximum_evals', type => 'textbox', align => 'center', length => 20 },
 		],
 		validate => { usage => 'No', },
 		data => \@roles_data }
@@ -506,7 +507,7 @@ label 	=> 'Course:',
 	}
 
 	if ($eval_id) {
-		@roles_data = map {{ eval_role_id => $_->getPrimaryKeyID(), role => $_->getRoleID(), required_evals => $_->getRequiredEvals() }} @{TUSK::Eval::Role->lookup("school_id = " . $school_object->getPrimaryKeyID() . " AND eval_id = $eval_id", ['sort_order'])};
+		@roles_data = map {{ eval_role_id => $_->getPrimaryKeyID(), role => $_->getRoleID(), required_evals => $_->getRequiredEvals(), maximum_evals => $_->getMaximumEvals() }} @{TUSK::Eval::Role->lookup("school_id = " . $school_object->getPrimaryKeyID() . " AND eval_id = $eval_id", ['sort_order'])};
 	} 
 </%perl>
 
@@ -521,6 +522,7 @@ label 	=> 'Course:',
 		'role'		=>	'setRoleID',
 		'sortorder'	=>	'setSortOrder',
 		'required_evals' => 	'setRequiredEvals',
+		'maximum_evals' => 	'setMaximumEvals',
 	},
 	display_data 	=> \@roles_data 
 &>
