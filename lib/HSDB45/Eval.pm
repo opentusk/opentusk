@@ -828,34 +828,39 @@ sub get_teaching_eval_completions_by_roles {
     my ($self, $evaluator) = @_;
 
     unless (defined $self->{teaching_eval_completions_by_role}) {
+	my $course = $self->course();
+	my $time_period = $course->get_current_timeperiod();
+	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period->primary_key());
+
 	my $db = $self->school_db();    
 	my $sql = qq(
-		     SELECT ur.role_id, count(*)
-		     FROM tusk.eval_association ea
-		     INNER JOIN $db\.eval e on (ea.eval_id = e.eval_id)
-		     INNER JOIN tusk.course_user cs on (ea.evaluatee_id = cs.user_id and cs.course_id = e.course_id and cs.time_period_id = e.time_period_id and cs.school_id = ea.school_id)
-		     INNER JOIN tusk.permission_user_role ur on (cs.user_id = ur.user_id and ur.feature_id = cs.course_user_id)
-		     WHERE ea.eval_id = ? and ea.school_id = ? and ea.evaluator_id = ? and ea.status_enum_id =
+		     SELECT ur.role_id, COUNT(*), COUNT(ea.status_enum_id)
+		     FROM $db\.eval e
+		     INNER JOIN tusk.course_user cs ON (e.course_id = cs.course_id AND e.time_period_id = cs.time_period_id)
+		     INNER JOIN tusk.course_user_site us ON (cs.course_user_id = us.course_user_id AND us.teaching_site_id = ?)
+		     INNER JOIN tusk.permission_user_role ur ON (cs.user_id = ur.user_id and cs.course_user_id = ur.feature_id)
+		     LEFT JOIN tusk.eval_association ea ON (e.eval_id = ea.eval_id AND cs.school_id = ea.school_id AND cs.user_id = ea.evaluatee_id AND ea.evaluator_id = ? AND ea.status_enum_id =
 		     (SELECT ed.enum_data_id
 		      FROM tusk.enum_data ed 
-		      WHERE ed.namespace = 'eval_association.status' and ed.short_name = 'completed')
+		      WHERE ed.namespace = 'eval_association.status' AND ed.short_name = 'completed'))
+		     WHERE e.eval_id = ? AND cs.school_id = ?
 		     GROUP BY ur.role_id
 		     );
 
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my $sth = $dbh->prepare($sql);
-	$sth->execute($self->primary_key(), $self->school_id(), $evaluator->primary_key());
+	$sth->execute($student_site->primary_key(), $evaluator->primary_key(), $self->primary_key(), $self->school_id());
 
 	my %completions = ();
-	while (my ($role_id, $complete) = $sth->fetchrow_array) {
-	    $completions{$role_id} = $complete;
+	while (my ($role_id, $total, $completed) = $sth->fetchrow_array) {
+	    $completions{$role_id} = { total_evals => $total, completed_evals => $completed };
 	}
 
 	my @completions_by_role = ();
 	foreach my $eval_role (@{TUSK::Eval::Role->lookup('eval_id = ' . $self->primary_key() . ' and school_id = ' . $self->school_id(), ['sort_order'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', jointype => 'inner'})],)}) {
 	    my $role_id = $eval_role->getRoleID();
-	    my $total_evals = 10; #$totals{$role_id} || 0;
-	    my $completed_evals = $completions{$role_id} || 0;
+	    my $total_evals = $completions{$role_id}{total_evals} || 0;
+	    my $completed_evals = $completions{$role_id}{completed_evals} || 0;
 	    my $required_evals = $eval_role->getRequiredEvals() || 0;
 	    my $maximum_evals = $eval_role->getMaximumEvals() || 255;
 	    $maximum_evals = $total_evals if ($maximum_evals > $total_evals);
