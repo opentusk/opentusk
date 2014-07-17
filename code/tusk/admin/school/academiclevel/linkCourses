@@ -35,7 +35,7 @@
 	my @hsdb45_courses = HSDB45::Course->new(_school => $school)->lookup_all();
 	my %hsdb45_courses_hash = map {$_->{'course_id'} => $_->{'title'}} @hsdb45_courses;	
 
-	my %academic_levels = map {$_->getPrimaryKeyID() => $_->getTitle()} @{TUSK::AcademicLevel->lookup('school_id='. $school_id)};
+	my %academic_levels = map {$_->getSortOrder() => $_->getTitle()} @{TUSK::AcademicLevel->lookup('school_id='. $school_id)};
 	my $academic_level_courses = TUSK::Course::AcademicLevel->lookup();
 	my %academic_level_course_relation;
 	my %categorized_courses;
@@ -52,6 +52,7 @@
 	$temp_hash{'label'} = 'All';
 	$temp_hash{'value'} = 0;
 	push @options, {%temp_hash};
+	
 	
 	foreach my $title (sort {$a <=> $b} keys %academic_levels) {
 		%temp_hash = {};
@@ -74,8 +75,10 @@
 	
 	print "<div id=\"courseList-nav\"></div>";
 	print "<ul id=\"courseList\">";
+	
+	my @sorted_hsdb45_courses = sort { lc($a->{'title'}) cmp lc($b->{'title'})} @hsdb45_courses;
 
-	foreach my $course (@hsdb45_courses) {
+	foreach my $course (@sorted_hsdb45_courses) {
 			my $trimmed_title = $course->{'title'};
 			$trimmed_title =~ s/^\s+//;
 			my $linked_action;
@@ -87,9 +90,9 @@
 				$linked_action = "<span class=\"link_academic_level\"><span class=\"current_academic_level\">Uncategorized </span>" . $action . "</span>";
 			}
 			if ($course->{'oea_code'}){
-				print "<li>"."<a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a> (".$course->{'oea_code'}.")".$linked_action."<div class =\"verticalLine\"></div></li>";
+				print "<li>"."<span class=\"course_title\"><a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a> (".$course->{'oea_code'}.")</span>".$linked_action."<div class =\"verticalLine\"></div></li>";
 			} else {
-				print "<li>"."<a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a>".$linked_action."<div class =\"verticalLine\"></div></li>";
+				print "<li>"."<span class=\"course_title\"><a href=\"/management/course/display/".$school."/".$course->{'course_id'}."\">".$course->{'title'}."</a></span>".$linked_action."<div class =\"verticalLine\"></div></li>";
 			}
 	}	
 	print "</ul>";
