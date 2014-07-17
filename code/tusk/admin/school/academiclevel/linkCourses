@@ -44,16 +44,14 @@
 		$academic_levels_list{$this_academic_level->getPrimaryKeyID()} = [@temp_array];
 		splice @{$academic_levels_list{$this_academic_level->getPrimaryKeyID()}}, 0, 1;
 	}
-	print Dumper %academic_levels_list;
 	
-	my %academic_levels = map {$_->getPrimaryKeyID() => $_->getTitle()} @{TUSK::AcademicLevel->lookup('school_id='. $school_id, ['sort_order'])};
 	my $academic_level_courses = TUSK::Course::AcademicLevel->lookup();
 	my %academic_level_course_relation;
 	my %categorized_courses;
 
 	foreach my $academic_level_course(@{$academic_level_courses}) {
 		my %temp_hash = {};
-		push (@{$academic_level_course_relation{$academic_level_course->getCourseID}}, $academic_levels{$academic_level_course->getAcademicLevelID});		
+		push (@{$academic_level_course_relation{$academic_level_course->getCourseID}}, @{$academic_levels_list{$academic_level_course->getAcademicLevelID}}[0]);		
 		$categorized_courses{$tusk_courses_hash{$academic_level_course->getCourseID()}} = 1;
 	}
 
@@ -65,11 +63,13 @@
 	push @options, {%temp_hash};
 	
 	
-	foreach my $title (keys %academic_levels) {
-		%temp_hash = {};
-		$temp_hash{'label'} = $academic_levels{$title};
-		$temp_hash{'value'} = $title;
-		push @options, {%temp_hash};
+	foreach my $title (sort {@{$academic_levels_list{$a}}[1] <=> @{$academic_levels_list{$b}}[1]} keys %academic_levels_list) {
+		if (@{$academic_levels_list{$title}}[0]){
+			%temp_hash = {};
+			$temp_hash{'label'} = @{$academic_levels_list{$title}}[0];
+			$temp_hash{'value'} = $title;
+			push @options, {%temp_hash};
+		}
 	}
 
 	my $action_params = { 
