@@ -832,6 +832,11 @@ sub get_teaching_eval_completions_by_roles {
 	my $time_period = $course->get_current_timeperiod();
 	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period->primary_key());
 
+	my $student_site_id = $student_site->primary_key() || 0;
+	my $evaluator_id = $evaluator->primary_key() || 0;
+	my $eval_id = $self->primary_key() || 0;
+	my $school_id = $self->school_id() || 0;
+
 	my $db = $self->school_db();    
 	my $sql = qq(
 		     SELECT ur.role_id, COUNT(*), COUNT(ea.status_enum_id)
@@ -849,7 +854,7 @@ sub get_teaching_eval_completions_by_roles {
 
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my $sth = $dbh->prepare($sql);
-	$sth->execute($student_site->primary_key(), $evaluator->primary_key(), $self->primary_key(), $self->school_id());
+	$sth->execute($student_site_id, $evaluator_id, $eval_id, $school_id);
 
 	my %completions = ();
 	while (my ($role_id, $total, $completed) = $sth->fetchrow_array) {

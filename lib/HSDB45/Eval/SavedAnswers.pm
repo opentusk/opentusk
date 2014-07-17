@@ -63,9 +63,13 @@ sub new {
     }
 
     my $password = shift;
-    my $evaluatee_id = shift || ''; ## if passed, it is a teaching eval
+    my $evaluatee = shift; ## if passed, it is a teaching eval
 
-    my $self = { -hash => make_hash($user->primary_key(), $password, $eval->primary_key(), $evaluatee_id),
+    my $user_id = $user->primary_key();
+    my $eval_id = $eval->primary_key();
+    $eval_id .= '.' . $evaluatee->primary_key() if ($evaluatee);
+
+    my $self = { -hash => make_hash($user_id, $password, $eval_id),
 		 -eval => $eval, 
 		 -school => $eval->school() 
 	       };
