@@ -1,0 +1,61 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%once>
+	use TUSK::Core::School;
+	use TUSK::Course;
+	use TUSK::Course::AcademicLevel;
+</%once>
+
+<%perl>
+	my $school_id = TUSK::Core::School->new->getSchoolID($ARGS{'school'});
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $ARGS{'course_id'});
+
+	my $current_links = TUSK::Course::AcademicLevel->lookup("course_id = $tusk_course_id");
+
+	my @academic_level_ids = split(/,/, $ARGS{'academic_level_id'});	
+	
+	foreach my $current_link (@{$current_links}) {		
+		my $current_academic_level_id = $current_link->getAcademicLevelID;
+		if (grep $_ != $current_academic_level_id, @academic_level_ids){
+			$current_link->delete();
+		}
+		if (!@academic_level_ids){
+			$current_link->delete();
+		}
+	}
+
+	foreach my $academic_level_id (@academic_level_ids){
+		my $already_linked = TUSK::Course::AcademicLevel->lookupReturnOne("course_id = $tusk_course_id AND academic_level_id = $academic_level_id");
+		if ($academic_level_id != 0 && !$already_linked){
+			my $academic_level_course = TUSK::Course::AcademicLevel->new();
+			$academic_level_course->setCourseID($tusk_course_id);
+			$academic_level_course->setAcademicLevelID($academic_level_id);
+			$academic_level_course->save({user => $m->session->{'user'}->user_id});	
+		}
+	}
+</%perl>
+

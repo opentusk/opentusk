@@ -502,24 +502,6 @@ sub unlink_parent_objective {
     return ($r,$msg);
 }
 
-sub child_objectives {         
-    #
-    # A little tricky here, these are objectives that define the purpose of the content,
-    # so the content is the parent of the objective. These objectives appear in document headers. 
-    #
-        
-    my $self = shift;
-
-    # Get the link definition
-    my $linkdef =
-        $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_objective'};
-    # And use it to get a LinkSet of parents
-    my $child_objectives = $linkdef->get_children($self->primary_key);
-
-    # Return the list
-    return $child_objectives->children();
-}
-
 sub getCompetencies {
     #
     # Competencies related to the content.    
