@@ -13,9 +13,11 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
-
 <%attr>
 	check_cms_permissions => 0
+	must_be_tusk_admin => 0
+	must_be_school_admin => 1
+	no_check_path => 1
 	top_tab_type => 'manage'
 </%attr>
 
@@ -24,33 +26,32 @@
 
 	use TUSK::Course;
 	use HSDB45::Course;
+	use HSDB45::TimePeriod;
 	
-	use TUSK::Application::Competency::Competency;
-	use TUSK::Application::Competency::Tree;
-	
-	use TUSK::Enum::Data;
-
-	use TUSK::Competency::Competency;
-	use TUSK::Competency::Course;
-	use TUSK::Competency::Hierarchy;
-	use TUSK::Competency::UserType;	
-	use TUSK::Competency::Relation;
+	use TUSK::AcademicLevel::AcademicLevel;
+	use TUSK::AcademicLevel::Year;
+	use TUSK::AcademicLevel::TimePeriodYear;
+	use TUSK::Course::AcademicLevel;
 </%once>
 
 <%method leftnav>
-	% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
 </%method>
 
 <%method get_nav_bars>
 <%perl>
 return $m->comp("/tmpl/nav", 'objects' =>  $m->comp("SELF:get_nav_bar_objects"), 
-				'prefix' => '/competency/competency/author',
+				'prefix' => '/admin/school/academiclevel',
 				'hierarchy' => {	
-					'course/manage' => [],
+					'addedit' => [],
+					'linkCourses' => [],
+					'year' => []
 				},
-				'nav_entities_dependency' => { },
+				'nav_entities_dependency' => {},
 				'title_func' => {},
 				'initial_nav_bar' => $m->comp("/tmpl/url:get_initial_nav_bars"),
+				urls => {
+				},
 				);
 </%perl>
 </%method>

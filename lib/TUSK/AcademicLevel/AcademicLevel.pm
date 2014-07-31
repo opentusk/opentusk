@@ -69,6 +69,7 @@ sub new {
 					'title' => '',
 					'description' => '',
 					'school_id' => '',
+					'sort_order' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -179,6 +180,35 @@ sub setSchoolID{
     $self->setFieldValue('school_id', $value);
 }
 
+#######################################################
+
+=item B<getSortOrder>
+
+my $string = $obj->getSortOrder();
+
+Get the value of the sort_order field
+
+=cut
+
+sub getSortOrder{
+    my ($self) = @_;
+    return $self->getFieldValue('sort_order');
+}
+
+#######################################################
+
+=item B<setSortOrder>
+
+$obj->setSortOrder($value);
+
+Set the value of the sort_order field
+
+=cut
+
+sub setSortOrder{
+    my ($self, $value) = @_;
+    $self->setFieldValue('sort_order', $value);
+}
 
 
 =back
