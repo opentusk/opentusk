@@ -54,12 +54,12 @@ sub check_course_permissions{
     my $key = uc($minrole);
 
     return 0 unless ($courseroles{$key});
-    return ($courserole >= $courseroles{$key}) ? 1 : 0;
+    return ($courserole >= $courseroles{$key});
 }
 
 sub is_director{
     my ($course, $user_id) = @_;
-    return (course_user_role($course, $user_id) == $courseroles{DIRECTORNONSTUDENT}) ? 1 : 0;
+    return (course_user_role($course, $user_id) == $courseroles{DIRECTORNONSTUDENT});
 }
 
 sub is_admin{
