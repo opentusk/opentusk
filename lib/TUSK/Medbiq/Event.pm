@@ -27,14 +27,15 @@ use Carp;
 use Readonly;
 
 use TUSK::Constants;
-use TUSK::Core::Objective;
 use TUSK::Medbiq::Types qw( NonNullString VocabularyTerm );
-use TUSK::Types qw( Competency ClassMeeting );
+use TUSK::Types qw( Competency ClassMeeting Umls_Keyword);
 use Types::Standard qw( HashRef Str Maybe ArrayRef );
 use Types::XSD qw( Duration Boolean );
 use TUSK::Namespaces ':all';
+use TUSK::Medbiq::Event::Keyword;
 use TUSK::Medbiq::InstructionalMethod;
 use TUSK::Medbiq::AssessmentMethod;
+use namespace::clean;
 
 #########
 # * Setup
@@ -55,10 +56,13 @@ has dao => (
 
 has competencies => (
     is => 'ro',
-    isa => HashRef[Competency],
-    lazy => 1,
-    builder => '_build_competencies',
+    isa => Maybe[HashRef[Competency]],
 );
+
+has keywords => (
+    is => 'ro',
+    isa => Maybe[HashRef[Umls_Keyword]],
+);		 
 
 has id => (
     is => 'ro',
@@ -118,14 +122,14 @@ has ResourceType => (
 
 has InstructionalMethod => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::InstructionalMethod],
+    isa => Maybe[TUSK::Medbiq::Types::InstructionalMethod],
     lazy => 1,
     builder => '_build_InstructionalMethod',
 );
 
 has AssessmentMethod => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::AssessmentMethod],
+    isa => Maybe[TUSK::Medbiq::Types::AssessmentMethod],
     lazy => 1,
     builder => '_build_AssessmentMethod',
 );
@@ -135,7 +139,7 @@ has AssessmentMethod => (
 # * Builders
 ############
 
-sub _build_namespace { return curriculum_inventory_ns(); }
+sub _build_namespace { curriculum_inventory_ns; }
 sub _build_xml_attributes { [ qw(id) ] }
 sub _build_xml_content {
     return [ qw( Title EventDuration Description Keyword Interprofessional
@@ -145,7 +149,7 @@ sub _build_xml_content {
 
 sub _build_id {
     my $self = shift;
-    return 'CM' . $self->dao->primary_key;
+    return $self->dao->primary_key;
 }
 
 sub _build_Title {
@@ -171,7 +175,13 @@ sub _build_Description {
 
 sub _build_Keyword {
     my $self = shift;
-    return [];
+
+    my $results = [];
+    if (my $kwords = $self->keywords) {
+	$results = [ map { TUSK::Medbiq::Event::Keyword->new(dao => $kwords->{$_}) } (sort keys %$kwords) ];
+    }
+
+    return $results;
 }
 
 sub _build_Interprofessional {
@@ -179,37 +189,20 @@ sub _build_Interprofessional {
     return undef;
 }
 
-sub _build_competencies {
-    my $self = shift;
-    my %competencies = ();
-
-    foreach my $competency (@{$self->dao->getCompetencies}) {
-        my $id = $competency->getPrimaryKeyID();
-        $competencies{$id} = $competency unless (exists $competencies{$id});
-    }
-
-    foreach my $content ($self->dao->child_content()) {
-        foreach my $competency (@{$content->getCompetencies()}) {
-            my $id = $competency->getPrimaryKeyID();
-	    $competencies{$id} = $competency unless (exists $competencies{$id});
-        }
-    }
-
-    return \%competencies;
-}
-
 sub _build_CompetencyObjectReference {
     my $self = shift;
-    my $co_ref_fmt
+
+    if (my $comps = $self->competencies()) {
+	my $co_ref_fmt 
         = '/CurriculumInventory/Expectations/CompetencyObject'
         . "[lom:lom/lom:general/lom:identifier/lom:entry='"
         . 'http://'
         . $TUSK::Constants::Domain
         . '/competency/competency/view/%d'
         . "']";
-    my @competency_links = map { sprintf($co_ref_fmt, $_) } keys %{ $self->competencies };
-
-    return \@competency_links;
+	return [ map { sprintf($co_ref_fmt, $_) } sort keys %{ $comps } ];
+    }
+    return [];
 }
 
 sub _build_ResourceType {
@@ -220,27 +213,27 @@ sub _build_ResourceType {
 sub _build_InstructionalMethod {
     my $self = shift;
     my $type = $self->dao->type;
-    my @methods;
+
     if (TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($type)) {
-        push @methods, TUSK::Medbiq::InstructionalMethod->medbiq_method({
-            class_meeting_type => $type,
-            primary => 1,
-        });
+	return TUSK::Medbiq::InstructionalMethod->medbiq_method({
+	    class_meeting_type => $type,
+	    primary => 1,
+	});
     }
-    return \@methods;
+    return undef;
 }
 
 sub _build_AssessmentMethod {
     my $self = shift;
     my $type = $self->dao->type;
-    my @methods;
+
     if (TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type)) {
-        push @methods, TUSK::Medbiq::AssessmentMethod->medbiq_method({
+        return TUSK::Medbiq::AssessmentMethod->medbiq_method({
             class_meeting_type => $type,
             purpose => 'Formative',
         });
     }
-    return \@methods;
+    return undef;
 }
 
 

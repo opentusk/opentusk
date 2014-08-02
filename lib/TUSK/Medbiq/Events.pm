@@ -27,12 +27,16 @@ use Carp;
 use Readonly;
 
 use TUSK::Medbiq::Types;
-use TUSK::Types qw( School TUSK_DateTime );
-use Types::Standard qw( ArrayRef );
+use TUSK::Types qw(School TUSK_DateTime Competency Umls_Keyword);
+use Types::Standard qw(ArrayRef HashRef Str);
 use TUSK::Namespaces ':all';
 use HSDB4::Constants;
 use HSDB45::ClassMeeting;
 use TUSK::Medbiq::Event;
+use TUSK::Medbiq::InstructionalMethod;
+use TUSK::Medbiq::AssessmentMethod;
+use TUSK::Core::LinkContentKeyword;
+use namespace::clean;
 use TUSK::Medbiq::InstructionalMethod;
 use TUSK::Medbiq::AssessmentMethod;
 
@@ -54,6 +58,16 @@ has school => (
     coerce => 1,
 );
 
+has school_db => (
+    is => 'ro',
+    isa => Str,
+    lazy => 1,
+    default => sub {
+	my $self = shift;
+	return $self->school()->getSchoolDb();
+    },
+);
+
 has start_date => (
     is => 'ro',
     isa => TUSK_DateTime,
@@ -72,9 +86,28 @@ has Event => (
     is => 'ro',
     isa => ArrayRef[TUSK::Medbiq::Types::Event],
     lazy => 1,
-    builder => '_build_Event',
+    builder => '_build_Events',
 );
 
+has competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],		     
+    required => 1,		     
+);
+
+has competencies_by_class_meeting => (
+    is => 'ro',
+    isa => HashRef[HashRef[Competency]],
+    lazy => 1,
+    builder => '_build_competencies_by_class_meeting',				      
+);
+    				      
+has keywords => (
+    is => 'ro',
+    isa => HashRef[HashRef[Umls_Keyword]],
+    lazy => 1,
+    builder => '_build_keywords',		 
+);		 
 
 ############
 # * Builders
@@ -83,17 +116,76 @@ has Event => (
 sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_content { [ qw( Event ) ] }
 
-sub _build_Event {
+sub _build_competencies_by_class_meeting {
     my $self = shift;
-    my @class_meetings = $self->_class_meetings;
-    @class_meetings = grep { $self->_keep_meeting($_) } @class_meetings;
-    my @event_list;
-    foreach my $cm ( @class_meetings ) {
-        push @event_list, TUSK::Medbiq::Event->new(
-            dao => $cm,
-        );
+
+    ## double check if same competencies are in both classmeeting and content
+    my %competencies = (); 
+    foreach my $comp (@{$self->competencies()}) {
+	next unless ref $comp eq 'TUSK::Competency::Competency';
+	if (my $cm = $comp->getJoinObject('TUSK::Core::HSDB45Tables::ClassMeeting')) {
+	    $competencies{$cm->getPrimaryKeyID()}{$comp->getPrimaryKeyID()} = $comp;
+	}
     }
-    return \@event_list;
+
+    return \%competencies;
+}
+
+sub _build_Events {
+    my $self = shift;
+
+    my $competencies = $self->competencies_by_class_meeting();
+    my $kwords = $self->keywords();
+    my $school = $self->school();
+    my $start_date = $self->start_date()->out_mysql_date();
+    my $end_date = $self->end_date()->out_mysql_date() . ' 23:59:59';
+    my $cm = HSDB45::ClassMeeting->new(_school => $self->school()->getSchoolName());
+
+    my @events = ();
+    foreach my $event ($cm->lookup_conditions("meeting_date between '$start_date' and '$end_date'")) {
+	if (TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($event->type())
+	    || TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($event->type())
+	   ) {
+	    push @events, TUSK::Medbiq::Event->new(dao => $event, 
+					       competencies => $competencies->{$event->primary_key()},
+					       keywords => $kwords->{$event->primary_key()},
+	   );
+	}
+    }
+
+    return \@events;
+}
+
+sub _build_keywords {
+    my $self = shift;
+    my $start_date = $self->start_date()->out_mysql_date();
+    my $end_date = $self->end_date()->out_mysql_date() . ' 23:59:59';
+
+    my $links = TUSK::Core::LinkContentKeyword->lookup(undef, undef, undef, undef, [
+	  TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkClassMeetingContent', {
+	      database => $self->school_db(),
+	      jointype => 'inner',
+	      origkey => 'parent_content_id',
+	      joinkey => 'child_content_id',
+	 }),
+	  TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::ClassMeeting', {
+	      database => $self->school_db(),
+	      jointype => 'inner',
+	      origkey => 'link_class_meeting_content.parent_class_meeting_id',
+	      joinkey => 'class_meeting_id',
+	      joincond => "meeting_date between '$start_date' AND '$end_date'",
+	 }),
+    ]);
+
+    my $event_keywords = {};
+    foreach (@$links) {
+	if (my $cm = $_->getJoinObject('TUSK::Core::HSDB45Tables::ClassMeeting')) {
+	    my $kword = $_->getJoinObject('TUSK::Core::Keyword');
+	    $event_keywords->{$cm->getPrimaryKeyID()}{$kword->getPrimaryKeyID()} = $kword;
+	}
+    }
+
+    return $event_keywords;
 }
 
 #################
@@ -112,23 +204,6 @@ sub _keep_meeting {
           || TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type) );
 }
 
-sub _class_meetings {
-    my $self = shift;
-    my $cm = HSDB45::ClassMeeting->new(
-        _school => $self->school->getSchoolName
-    );
-    my $dbh = HSDB4::Constants::def_db_handle();
-    return $cm->lookup_conditions(
-        join(
-            ' AND ',
-            sprintf(
-                'meeting_date BETWEEN %s AND %s',
-                $dbh->quote( $self->start_date->out_mysql_date ),
-                $dbh->quote( $self->end_date->out_mysql_date ),
-            ),
-         ),
-    );
-}
 
 ###########
 # * Cleanup
