@@ -22,22 +22,13 @@ use Getopt::Long;
 use TUSK::Medbiq::Report;
 use HSDB4::DateTime;
 
-# exit main(@ARGV) unless caller;
-
-# TESTING
-exit main(
-    '--school' => 'Medical',
-    '--start-date' => '2012-06-01',
-    '--end-date' => '2013-06-01',
-    '--user-groups' => '898,960,1058',
-) unless caller;
+exit main(@ARGV) unless caller;
 
 sub usage {
     return <<'END_USAGE';
 Usage: perl export_ci.pl --school=<school_name>
                          --start-date=<YYYY-MM-DD>
                          --end-date=<YYYY-MM-DD>
-                         --user-groups=##,##,...
 END_USAGE
 }
 
@@ -49,14 +40,13 @@ sub main {
         $school,
         $start_date,
         $end_date,
-        $user_groups,
     );
+
     GetOptions(
         'help' => \$help,
         'school=s' => \$school,
         'start-date=s' => \$start_date,
         'end-date=s' => \$end_date,
-        'user-groups=s' => \$user_groups,
     );
 
     if ($help) {
@@ -64,30 +54,27 @@ sub main {
         return 0;
     }
 
-    if ( ! $school ) {
+    unless ($school) {
         warn "Error: The 'school' argument is required.";
         return 1;
     }
-    if ( ! $start_date ) {
+
+    unless ($start_date) {
         warn "Error: The 'start-date' argument is required.";
         return 1;
     }
-    if ( ! $end_date ) {
+
+    unless ($end_date) {
         warn "Error: The 'end-date' argument is required.";
         return 1;
     }
-    if ( ! $user_groups ) {
-        warn "Error: There must be at least one user group specified.";
-        return 1;
-    }
-    my @ug = split(q{,}, $user_groups);
 
     my $ci_report = TUSK::Medbiq::Report->new(
         school => $school,
         start_date => HSDB4::DateTime->new->in_mysql_date($start_date),
         end_date => HSDB4::DateTime->new->in_mysql_date($end_date),
-        user_groups => \@ug,
     );
+
     $ci_report->write_report;
 
     return 0;

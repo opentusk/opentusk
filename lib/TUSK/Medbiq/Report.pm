@@ -63,12 +63,6 @@ has end_date => (
     required => 1,
 );
 
-has user_groups => (
-    is => 'ro',
-    isa => ArrayRef[Int],
-    required => 1,
-);
-
 has CurriculumInventory => (
     is => 'ro',
     isa => TUSK::Medbiq::Types::CurriculumInventory,
@@ -100,7 +94,7 @@ sub _build_writer {
             xml_schema_instance_ns(),
         ],
         PREFIX_MAP => {
-            curriculum_inventory_ns() => q(),
+            curriculum_inventory_ns() => '',
             lom_ns() => 'lom',
             address_ns() => 'a',
             competency_framework_ns() => 'cf',
@@ -118,7 +112,6 @@ sub _build_CurriculumInventory {
         school => $self->school,
         ReportingStartDate => $self->start_date,
         ReportingEndDate => $self->end_date,
-        user_groups => $self->user_groups,
     );
 }
 
