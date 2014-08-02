@@ -26,8 +26,9 @@ use utf8;
 use Carp;
 use Readonly;
 
-use Types::Standard qw( Int ArrayRef );
-use TUSK::Medbiq::Types;
+use Types::Standard qw(Int ArrayRef InstanceOf);
+use TUSK::Types qw(AcademicLevel);
+use TUSK::Medbiq::AcademicLevel;
 use TUSK::Namespaces ':all';
 
 #########
@@ -41,30 +42,41 @@ with 'TUSK::XML::Object';
 # * Class attributes
 ####################
 
+has levels => (
+    is => 'ro',
+    isa => ArrayRef[AcademicLevel],
+    required => 1,
+);
+
 has LevelsInProgram => (
     is => 'ro',
     isa => Int,
     lazy => 1,
     builder => '_build_LevelsInProgram',
-    init_arg => undef,
 );
 
 has Level => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::Level],
-    required => 1,
+    isa => ArrayRef[InstanceOf['TUSK::Medbiq::AcademicLevel']],
+    lazy => 1,
+    builder => '_build_Level',	      
 );
-
 
 ############
 # * Builders
 ############
 
-sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( LevelsInProgram Level )]}
+sub _build_namespace { curriculum_inventory_ns; }
+sub _build_xml_content { [ qw( LevelsInProgram Level )] }
+
 sub _build_LevelsInProgram {
     my $self = shift;
-    return scalar @{ $self->Level };
+    return scalar @{$self->levels};
+}
+
+sub _build_Level {
+    my $self = shift;
+    return [ map { TUSK::Medbiq::AcademicLevel->new(dao => $_) } @{$self->levels} ];
 }
 
 #################

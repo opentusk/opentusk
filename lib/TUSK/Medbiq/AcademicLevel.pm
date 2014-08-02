@@ -51,7 +51,11 @@ has dao => (
 has number => (
     is => 'ro',
     isa => Int,
-    required => 1,
+    lazy => 1,	       
+    default => sub {
+	my $self = shift;
+	return $self->dao->getSortOrder();
+    },
 );
 
 has Label => (
@@ -79,7 +83,7 @@ sub _build_xml_content { [ qw( Label Description ) ] }
 
 sub _build_Label {
     my $self = shift;
-    my $label = $self->dao()->title();
+    my $label = $self->dao()->getTitle();
     chomp $label;
     $label =~ s{\s* \z}{}xms;
     return $label;
@@ -87,7 +91,7 @@ sub _build_Label {
 
 sub _build_Description {
     my $self = shift;
-    my $desc = $self->dao->description;
+    my $desc = $self->dao()->getDescription();
     return undef unless $desc;
     chomp $desc;
     $desc =~ s{\s* \z}{}xms;
