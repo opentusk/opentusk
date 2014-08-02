@@ -27,13 +27,14 @@ use Carp;
 use Readonly;
 
 use TUSK::Namespaces ':all';
-use TUSK::Types;
-use Types::Standard qw( Maybe ArrayRef HashRef );
+use TUSK::Types qw( Competency AcademicLevel );
+use Types::Standard qw( Maybe ArrayRef HashRef InstanceOf);
 use TUSK::Medbiq::Types qw( NonNullString );
 use TUSK::Medbiq::Sequence::Block;
 use TUSK::Medbiq::Sequence::Block::Event;
 use TUSK::Medbiq::Timing;
 use TUSK::Medbiq::Dates;
+use List::Util qw(maxstr minstr);
 
 #########
 # * Setup
@@ -52,17 +53,16 @@ has school => (
     required => 1,
 );
 
-has events => (
+has levels => (
     is => 'ro',
-    isa => TUSK::Medbiq::Types::Events,
+    isa => ArrayRef[AcademicLevel],
     required => 1,
 );
 
-has Description => (
+has levels_with_courses => (
     is => 'ro',
-    isa => Maybe[NonNullString],
-    lazy => 1,
-    builder => '_build_Description',
+    isa => ArrayRef[InstanceOf['TUSK::Course::AcademicLevel']],
+    required => 1,
 );
 
 has SequenceBlock => (
@@ -72,96 +72,91 @@ has SequenceBlock => (
     builder => '_build_SequenceBlock',
 );
 
-has _course_map => (
-    is => 'ro',
-    isa => HashRef,
-    lazy => 1,
-    builder => '_build__course_map',
-);
-
 
 ############
 # * Builders
 ############
 
 sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( Description SequenceBlock ) ] }
+sub _build_xml_content { [ qw( SequenceBlock ) ] }
 
-sub _build_Description { return; }
+sub _processCourseData {
+    my $self = shift;
+    my %course_levels = ();
+    my %class_meetings = ();
+
+    foreach my $cl (@{$self->levels_with_courses()}) {
+	my $course_id = $cl->getJoinObject('TUSK::Core::HSDB45Tables::Course')->getPrimaryKeyID();
+	my $cm = $cl->getJoinObject('TUSK::Core::HSDB45Tables::ClassMeeting');
+	$course_levels{$cl->getJoinObject('TUSK::AcademicLevel')->getSortOrder()}{$course_id} = $cl;
+	$class_meetings{$course_id}{dates}{$cm->getMeetingDate()} = 1;
+	$class_meetings{$course_id}{event_ids}{$cm->getPrimaryKeyID()} = $cm;
+    }
+
+    ## getting start/end dates for each course
+    foreach my $course_id (keys %class_meetings) {
+	my @dates = keys %{$class_meetings{$course_id}{dates}};
+	$class_meetings{$course_id}{max_date} = maxstr @dates;
+	$class_meetings{$course_id}{min_date} = minstr @dates;
+    }
+
+    return (\%course_levels, \%class_meetings);
+}
 
 sub _build_SequenceBlock {
     my $self = shift;
-    my @blocks;
+    my @blocks = ();
 
-    foreach my $course_id ( keys %{ $self->_course_map } ) {
-        my $course = $self->_course_map->{$course_id}{course};
-        my $events = $self->_course_map->{$course_id}{events};
-        my $required_type = 'Optional';
-        my $min_date = $events->[0]->dao->meeting_date;
-        my $max_date = $events->[0]->dao->meeting_date;
-        my @block_events = ();
-        my @block_refs = ();
-	my %num_days = ();
+    my ($course_levels, $class_meetings) = $self->_processCourseData();
+    my $required_type = 'Optional';
 
-        foreach my $evt ( @$events ) {
-            my $meeting = $evt->dao;
-            my $evt_id = $evt->id;
-            my $event_ref = "/CurriculumInventory/Events/Event[\@id='$evt_id']";
-            my $seq_block_event = TUSK::Medbiq::Sequence::Block::Event->new(
-                required => 'false',
-                EventReference => $event_ref,
-                StartDate => $meeting->meeting_date,
-                EndDate => $meeting->meeting_date,
-            );
-            push @block_events, $seq_block_event;
-            $min_date = $meeting->meeting_date if $min_date gt $meeting->meeting_date;
-            $max_date = $meeting->meeting_date if $max_date lt $meeting->meeting_date;
-	    $num_days{$meeting->meeting_date()} = 1;
-        }
+    foreach my $level (@{$self->levels()}) {
+	my $level_id = $level->getSortOrder();
+	next unless exists $course_levels->{$level_id};
 
-        my $timing = TUSK::Medbiq::Timing->new(
-            Dates => TUSK::Medbiq::Dates->new(
-					      StartDate => $min_date, 
-					      EndDate => $max_date,
-            ),
-            Duration => 'P' . scalar(keys %num_days) . 'D',
-        );
+	foreach my $course_id (keys %{$course_levels->{$level_id}}) {
+	    my @block_events = ();
+	    my @block_refs = ();
+	    my %num_days = ();
 
-        my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number='1']";
+	    foreach my $event_id (keys %{$class_meetings->{$course_id}{event_ids}}) {
+	        my $meeting_date = $class_meetings->{$course_id}{event_ids}{$event_id}->getMeetingDate();
+	        my $seq_block_event = TUSK::Medbiq::Sequence::Block::Event->new(
+	           required => 'false',
+                   EventReference => "/CurriculumInventory/Events/Event[\@id='$event_id']",
+	           StartDate => $meeting_date,
+		   EndDate => $meeting_date,
+                );
+		push @block_events, $seq_block_event;
+	    }
 
-        my $seq_block = TUSK::Medbiq::Sequence::Block->new(
-            id => "course_$course_id",
-            required => $required_type,
-            Title => $course->title,
-            Timing => $timing,
-            Level => $academic_level,
-            CompetencyObjectReference => [],
-            SequenceBlockEvent => \@block_events,
-            SequenceBlockReference => \@block_refs,
-        );
-        push @blocks, $seq_block;
-    }
+	    my $timing = TUSK::Medbiq::Timing->new(
+		Dates => TUSK::Medbiq::Dates->new(
+			  StartDate => $class_meetings->{$course_id}{min_date}, 
+			  EndDate => $class_meetings->{$course_id}{max_date},
+	        ),
+	        Duration => 'P' . scalar(keys %{$class_meetings->{$course_id}{dates}}) . 'D',
+	   );
+
+           my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number='$level_id']";
+	   my $course = $course_levels->{$level_id}{$course_id}->getJoinObject('TUSK::Core::HSDB45Tables::Course');
+
+           my $seq_block = TUSK::Medbiq::Sequence::Block->new(
+		      id => $course_id,
+		      required => $required_type,
+		      Title => $course->getTitle(),
+		      Timing => $timing,
+		      Level => $academic_level,
+		      CompetencyObjectReference => [],
+		      SequenceBlockEvent => \@block_events,
+		      SequenceBlockReference => \@block_refs,
+          );
+          push @blocks, $seq_block;
+	} ## course_id
+    } ## academic_level_id
     return \@blocks;
 }
 
-sub _build__course_map {
-    my $self = shift;
-    my %events_for;
-    my @events = @{ $self->events->Event };
-    foreach my $evt ( @events ) {
-        my $meeting = $evt->dao;
-        my $course = $meeting->course;
-        my $course_id = $meeting->course_id;
-        if (! exists $events_for{$course_id}) {
-            $events_for{$course_id} = {
-                course => $course,
-                events => [],
-            };
-        }
-        push @{ $events_for{$course_id}->{events} }, $evt;
-    }
-    return \%events_for;
-}
 
 #################
 # * Class methods
