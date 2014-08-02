@@ -35,21 +35,23 @@ use TUSK::Core::School;
 use Type::Library
     -base,
     -declare => qw(
+		      AcademicLevel
                       ClassMeeting
+                      Competency
                       NonNullString
                       School
                       StrArrayRef
                       StrHashRef
                       Sys_DateTime
+		      Time
                       TUSK_DateTime
-                      Competency
                       TUSK_XSD_Date
-                      URI
-		      AcademicLevel
                       UnsignedInt
                       UnsignedNum
-                      XML_Object
+		      Umls_Keyword
+                      URI
                       XHTML_Object
+                      XML_Object
               );
 use Type::Utils -all;
 use Types::Standard qw( Int Num Str HashRef ArrayRef );
@@ -65,22 +67,25 @@ declare UnsignedNum, as Num, where { $_ >= 0.0 };
 declare URI, as Str;
 declare StrHashRef, as HashRef[Str];
 declare StrArrayRef, as ArrayRef[Str];
-class_type Sys_DateTime, { class => 'DateTime' };
+declare Time, as Str, where { $_ =~ /^(?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)$/ };
 
+class_type Sys_DateTime, { class => 'DateTime' };
 
 ##############
 # * TUSK Types
 ##############
 
-class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
+role_type XML_Object, { role => 'TUSK::XML::Object' };
+
+declare TUSK_XSD_Date, as Types::XSD::Date;
+declare XHTML_Object, as XML_Object;
+
+class_type AcademicLevel, { class => 'TUSK::AcademicLevel' };
+class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 class_type Competency, { class => 'TUSK::Competency::Competency' };
 class_type School, { class => 'TUSK::Core::School' };
-class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
-role_type XML_Object, { role => 'TUSK::XML::Object' };
-declare XHTML_Object, as XML_Object;
-declare TUSK_XSD_Date, as Types::XSD::Date;
-class_type AcademicLevel, { class => 'TUSK::AcademicLevel' };
-
+class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
+class_type Umls_Keyword, { class => 'TUSK::Core::Keyword' };
 
 #############
 # * Coercions
