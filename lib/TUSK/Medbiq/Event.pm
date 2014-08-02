@@ -139,7 +139,7 @@ has AssessmentMethod => (
 # * Builders
 ############
 
-sub _build_namespace { curriculum_inventory_ns; }
+sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_attributes { [ qw(id) ] }
 sub _build_xml_content {
     return [ qw( Title EventDuration Description Keyword Interprofessional

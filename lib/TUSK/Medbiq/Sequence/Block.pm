@@ -157,7 +157,7 @@ has SequenceBlockReference => (
 # * Builders
 ############
 
-sub _build_namespace { curriculum_inventory_ns; }
+sub _build_namespace { curriculum_inventory_ns }
 
 sub _build_xml_attributes {
     return [ qw( id required order minimum maximum track ) ];

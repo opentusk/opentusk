@@ -66,7 +66,7 @@ has Level => (
 # * Builders
 ############
 
-sub _build_namespace { curriculum_inventory_ns; }
+sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_content { [ qw( LevelsInProgram Level )] }
 
 sub _build_LevelsInProgram {
