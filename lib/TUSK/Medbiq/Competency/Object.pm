@@ -121,7 +121,7 @@ sub _build_lom {
     my $title_string = $self->dao->getDescription();
     chomp $title_string;
     my $pk = $self->dao->getPrimaryKeyID();
-    my $uri = 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view' . $pk;
+    my $uri = 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view/' . $pk;
     my $identifier = TUSK::LOM::Identifier->new(
         catalog => 'URI',
         entry => $uri,
