@@ -51,18 +51,6 @@ has primary => (
     builder => '_build_primary',
 );
 
-# has source => (
-#     is => 'ro',
-#     isa => NonNullString,
-#     lazy => 1,
-#     builder => '_build_source',
-# );
-
-# has sourceID => (
-#     is => 'ro',
-#     isa => NonNullString,
-#     required => 1,
-# );
 
 ######################################
 # * Medbiquitous instructional methods
@@ -129,16 +117,14 @@ sub medbiq_method {
     my $class = shift;
     my $arg_ref = shift;
     my $type = $arg_ref->{class_meeting_type};
-    my $primary = $arg_ref->{primary} ? 'true' : 'false';
+
     if (! exists $UID_FROM_TYPE{$type}) {
-        confess "No Medbiquitous Instructional Method found for "
-            . "class meeting type $type";
+        confess "No Medbiquitous Instructional Method found for class meeting type $type";
     }
-    my $sourceID = $UID_FROM_TYPE{$type};
-    # my $content = $METHOD_FROM_UID{$sourceID};
+
     return $class->new(
-        content => $sourceID,
-        primary => $primary,
+        content => $UID_FROM_TYPE{$type},
+        primary => $arg_ref->{primary} ? 'true' : 'false',
     );
 }
 
@@ -154,7 +140,6 @@ sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_content { shift->content }
 sub _build_xml_attributes { [ qw(primary) ] }
 
-# sub _build_source { 'http://medbiq.org/curriculum/vocabularies.pdf' }
 sub _build_primary { 'false' }
 
 ###########

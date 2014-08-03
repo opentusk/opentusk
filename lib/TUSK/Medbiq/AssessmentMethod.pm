@@ -53,19 +53,6 @@ has purpose => (
     required => 1,
 );
 
-has source => (
-    is => 'ro',
-    isa => NonNullString,
-    lazy => 1,
-    builder => '_build_source',
-);
-
-has sourceID => (
-    is => 'ro',
-    isa => NonNullString,
-    required => 1,
-);
-
 ######################################
 # * Medbiquitous instructional methods
 ######################################
@@ -107,17 +94,14 @@ sub medbiq_method {
     my $class = shift;
     my $arg_ref = shift;
     my $type = $arg_ref->{class_meeting_type};
-    my $purpose = $arg_ref->{purpose};
+
     if (! exists $UID_FROM_TYPE{$type}) {
-        confess "No Medbiquitous Instructional Method found for "
-            . "class meeting type $type";
+        confess "No Medbiquitous Instructional Method found for class meeting type $type";
     }
-    my $sourceID = $UID_FROM_TYPE{$type};
-    my $content = $METHOD_FROM_UID{$sourceID};
+
     return $class->new(
-        sourceID => $sourceID,
-        purpose => $purpose,
-        content => $content,
+        purpose => $arg_ref->{purpose},
+        content => $UID_FROM_TYPE{$type}
     );
 }
 
@@ -131,9 +115,8 @@ sub medbiq_method {
 
 sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_content { shift->content }
-sub _build_xml_attributes { [ qw(purpose source sourceID) ] }
+sub _build_xml_attributes { [ qw(purpose) ] }
 
-sub _build_source { 'http://medbiq.org/curriculum/vocabularies.pdf' }
 
 ###########
 # * Cleanup
