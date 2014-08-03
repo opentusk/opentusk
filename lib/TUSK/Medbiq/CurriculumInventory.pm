@@ -28,9 +28,9 @@ use Readonly;
 use POSIX qw(strftime);
 use DateTime;
 
-use Types::Standard qw( Str ArrayRef Int );
+use Types::Standard qw( Str ArrayRef HashRef Int InstanceOf);
 use TUSK::Medbiq::Types qw( UniqueID NonNullString );
-use TUSK::Types qw( School AcademicLevel URI TUSK_XSD_Date );
+use TUSK::Types qw( School AcademicLevel URI TUSK_XSD_Date TUSK_DateTime Competency);
 use TUSK::AcademicLevel;
 use TUSK::Namespaces ':all';
 use TUSK::Medbiq::UniqueID;
@@ -39,11 +39,11 @@ use TUSK::Medbiq::Program;
 use TUSK::Medbiq::Events;
 use TUSK::Medbiq::Expectations;
 use TUSK::Medbiq::AcademicLevels;
-use TUSK::Medbiq::AcademicLevel;
 use TUSK::Medbiq::Sequence;
+use TUSK::Competency::Competency;
+use TUSK::Course::AcademicLevel;
 
 use Moose;
-
 with 'TUSK::XML::RootObject';
 
 our $VERSION = qv('0.0.1');
@@ -62,7 +62,7 @@ has school => (
 has school_academic_levels => (
     is => 'ro',
     isa => ArrayRef[AcademicLevel],
-    required => 1,
+    lazy => 1,			       
     builder => '_build_school_academic_levels',			
 );
 
@@ -113,14 +113,14 @@ has ReportDate => (
 
 has ReportingStartDate => (
     is => 'ro',
-    isa => TUSK_XSD_Date,
+    isa => TUSK_DateTime,
     coerce => 1,
     required => 1,
 );
 
 has ReportingEndDate => (
     is => 'ro',
-    isa => TUSK_XSD_Date,
+    isa => TUSK_DateTime,
     coerce => 1,
     required => 1,
 );
@@ -179,6 +179,19 @@ has Integration => (
     required => 0,
 );
 
+has event_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    lazy => 1,
+    builder => '_build_event_competencies',
+);
+
+has academic_levels_with_courses => (
+    is => 'ro',
+    isa => ArrayRef[InstanceOf['TUSK::Course::AcademicLevel']],
+    lazy => 1,
+    builder => '_build_academic_levels_with_courses',
+);
 
 ######################
 # * Private attributes
@@ -225,7 +238,7 @@ sub _build__now {
 
 sub _build_school_academic_levels {
     my $self = shift;
-    return TUSK::AcademicLevel->lookup("school_id = " . $self->school()->getPrimaryKeyID());
+    return TUSK::AcademicLevel->lookup("school_id = " . $self->school()->getPrimaryKeyID(), ['sort_order']);
 }
 
 sub _build_schemaLocation {
@@ -266,38 +279,136 @@ sub _build_Language {
 
 sub _build_Events {
     my $self = shift;
+
     return TUSK::Medbiq::Events->new(
         school => $self->school,
         start_date => $self->ReportingStartDate,
         end_date => $self->ReportingEndDate,
+        competencies => $self->event_competencies(),
     );
 }
 
 sub _build_Expectations {
     my $self = shift;
+
+    my @course_competencies = ();
+    foreach (@{$self->academic_levels_with_courses}) {
+	if (my $comp = $_->getJoinObject('TUSK::Competency::Competency') ) {
+	    $comp->setJoinObjects($_->getJoinObject('TUSK::Competency::Relation'));
+	    push @course_competencies, $comp;
+	}
+    }
+
     return TUSK::Medbiq::Expectations->new(
         school => $self->school,
-        events => $self->Events,
+        event_competencies => $self->event_competencies,
+	course_competencies => \@course_competencies,
     );
 }
 
 sub _build_AcademicLevels {
     my $self = shift;
 
-    return TUSK::Medbiq::AcademicLevels->new(
-        school => $self->school,
-        Level => $self->school_academic_levels(),
-    );
+    return TUSK::Medbiq::AcademicLevels->new(levels => $self->school_academic_levels());
 }
 
 sub _build_Sequence {
     my $self = shift;
+
     return TUSK::Medbiq::Sequence->new(
-        school => $self->school,
-        events => $self->Events,
+        school => $self->school(),
+        levels => $self->school_academic_levels(),				       
+        levels_with_courses => $self->academic_levels_with_courses,
     );
 }
 
+sub _build_event_competencies {
+    my $self = shift;
+    my $school_db = $self->school()->getSchoolDb();
+
+    my $class_meeting_competencies = TUSK::Competency::Competency->lookup(undef, undef, undef, undef, [
+	  TUSK::Core::JoinObject->new('TUSK::Competency::ClassMeeting', {
+	      jointype => 'inner',
+	      joinkey => 'competency_id',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::ClassMeeting', {
+	      database => $school_db,
+	      jointype => 'inner',
+	      origkey => 'competency_class_meeting.class_meeting_id',
+	      joinkey => 'class_meeting_id',
+	      joincond => "meeting_date between '" . $self->ReportingStartDate()->out_mysql_date() . "' AND '" . $self->ReportingEndDate()->out_mysql_date() . " 23:59:59'",
+	 }),
+	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
+	      origkey => 'competency_id',
+	      joinkey => 'competency_id_1',
+	})
+    ]);
+
+    my $content_competencies = TUSK::Competency::Competency->lookup(undef, undef, undef, undef, [
+	  TUSK::Core::JoinObject->new('TUSK::Competency::Content', {
+	      jointype => 'inner',
+	      joinkey => 'competency_id',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkClassMeetingContent', {
+	      database => $school_db,
+	      jointype => 'inner',
+	      origkey => 'competency_content.content_id',
+	      joinkey => 'child_content_id',
+	 }),
+	  TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::ClassMeeting', {
+	      database => $school_db,
+	      jointype => 'inner',
+	      origkey => 'link_class_meeting_content.parent_class_meeting_id',
+	      joinkey => 'class_meeting_id',
+	      joincond => "meeting_date between '" . $self->ReportingStartDate()->out_mysql_date() . "' AND '" . $self->ReportingEndDate()->out_mysql_date() . " 23:59:59'",
+	 }),
+	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
+	      origkey => 'competency_id',
+	      joinkey => 'competency_id_1',
+	})
+    ]);
+
+    return [ @$class_meeting_competencies, @$content_competencies ];
+}
+
+
+sub _build_academic_levels_with_courses {
+    my $self = shift;
+    my $school_db = $self->school()->getSchoolDb();
+
+    my $course_competencies = TUSK::Course::AcademicLevel->lookup(undef, undef, undef, undef, [
+	  TUSK::Core::JoinObject->new('TUSK::AcademicLevel', {
+	      jointype => 'inner',
+	      joinkey => 'academic_level_id',
+	      joincond => 'academic_level.school_id = ' . $self->school()->getPrimaryKeyID(),
+	  }),
+          TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::Course', {
+	      database => $school_db,
+	      jointype => 'inner',
+	      joinkey => 'course_id',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::ClassMeeting', {
+	      database => $school_db,
+	      jointype => 'inner',
+	      joinkey => 'course_id',
+	      joincond => "meeting_date between '" . $self->ReportingStartDate()->out_mysql_date() . "' AND '" . $self->ReportingEndDate()->out_mysql_date() . " 23:59:59'",
+	 }),
+	 TUSK::Core::JoinObject->new('TUSK::Competency::Course', {
+	      joinkey => 'course_id',
+	 }),
+         TUSK::Core::JoinObject->new('TUSK::Competency::Competency', {
+	      origkey => 'competency_course.competency_id',
+	      joinkey => 'competency_id',
+	      joincond => 'competency.school_id = ' . $self->school()->getPrimaryKeyID(), 
+	 }),
+	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {  ## course-school competencies
+	      origkey => 'competency.competency_id',
+	      joinkey => 'competency_id_1',
+	})
+    ]);
+
+    return $course_competencies;
+}
 
 #################
 # * Class methods
