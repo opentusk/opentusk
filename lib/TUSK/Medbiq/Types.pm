@@ -30,6 +30,7 @@ use Readonly;
 # * Setup
 #########
 
+
 use Type::Library
     -base,
     -declare => qw(
@@ -78,6 +79,7 @@ use Type::Library
                       UniqueID
                       VocabularyTerm
               );
+
 use Type::Utils -all;
 use Types::Standard qw( Int Str ArrayRef );
 use TUSK::LOM::Types qw( LOM );
@@ -94,8 +96,6 @@ declare CFLOM,
         my $lom = $_;
         ( $lom->general
               && $lom->general->identifier
-              && $lom->general->identifier->catalog
-              && $lom->general->identifier->entry
               && $lom->general->title )
     };
 
@@ -153,7 +153,7 @@ class_type SequenceBlockReference,
     { class => 'TUSK::Medbiq::Sequence::Block::Reference' };
 class_type Integration, { class => 'TUSK::Medbiq::Integration' };
 class_type Event, { class => 'TUSK::Medbiq::Event' };
-class_type Keyword, { class => 'TUSK::Medbiq::Keyword' };
+class_type Keyword, { class => 'TUSK::Medbiq::Event::Keyword' };
 class_type InstructionalMethod,
     { class => 'TUSK::Medbiq::InstructionalMethod' };
 class_type AssessmentMethod,
@@ -167,7 +167,7 @@ class_type SupportingInformation,
 class_type Identifier,
     { class => 'TUSK::Medbiq::Identifier' };
 class_type Relation,
-    { class => 'TUSK::Medbiq::Relation' };
+    { class => 'TUSK::Medbiq::Competency::Framework::Relation' };
 class_type Status,
     { class => 'TUSK::Medbiq::Status' };
 class_type Category,
