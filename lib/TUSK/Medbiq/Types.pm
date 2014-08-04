@@ -44,6 +44,7 @@ use Type::Library
                       CFIncludes
                       CFLOM
                       CFRelationship
+		      CompetencyCategory
                       CompetencyFramework
                       CompetencyObject
                       CompetencyObjectReference
@@ -171,7 +172,7 @@ class_type Relation,
 class_type Status,
     { class => 'TUSK::Medbiq::Status' };
 class_type Category,
-    { class => 'TUSK::Medbiq::Category' };
+    { class => 'TUSK::Medbiq::Competency::Category' };
 class_type References,
     { class => 'TUSK::Medbiq::References' };
 class_type Level,
@@ -204,6 +205,9 @@ enum CFRelationship,
     [ 'http://www.w3.org/2004/02/skos/core#broader',
       'http://www.w3.org/2004/02/skos/core#narrower',
       'http://www.w3.org/2004/02/skos/core#related', ];
+
+enum CompetencyCategory,
+    [ 'national', 'program', 'course', 'event' ];
 
 ###########
 # * Cleanup

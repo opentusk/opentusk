@@ -38,6 +38,7 @@ use Types::Standard qw( Maybe ArrayRef );
 use TUSK::LOM::Types qw( LOM );
 use TUSK::Medbiq::Types;
 use TUSK::Types qw( Competency URI );
+use TUSK::Medbiq::Competency::Category;
 
 #########
 # * Setup
@@ -120,6 +121,7 @@ sub _build_lom {
     my $self = shift;
     my $title_string = $self->dao->getDescription();
     chomp $title_string;
+
     my $pk = $self->dao->getPrimaryKeyID();
     my $uri = 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view/' . $pk;
     my $identifier = TUSK::LOM::Identifier->new(
@@ -136,13 +138,26 @@ sub _build_lom {
     return TUSK::LOM->new( general => $general );
 }
 
+sub _build_Category { 
+    my $self = shift;
+
+    my %levels = ( national => 'national',
+		   school => 'program',
+		   course => 'sequence-block',
+		   class_meet => 'event',
+		   content => 'event' );
+
+    if (my $competency_level = $self->dao()->getJoinObject('TUSK::Enum::Data')) {
+	return [ TUSK::Medbiq::Competency::Category->new(level => $levels{$competency_level->getShortName()}) ];
+    }
+    return [];
+}
+
 sub _build_Status { return; }
 
 sub _build_Replaces { return []; }
 
 sub _build_IsReplacedBy { return []; }
-
-sub _build_Category { return []; }
 
 sub _build_References { return; }
 

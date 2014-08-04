@@ -328,6 +328,11 @@ sub _build_event_competencies {
     my $school_db = $self->school()->getSchoolDb();
 
     my $class_meeting_competencies = TUSK::Competency::Competency->lookup(undef, undef, undef, undef, [
+	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'competency_level_enum_id',
+	      joinkey => 'enum_data_id',
+	  }),
 	  TUSK::Core::JoinObject->new('TUSK::Competency::ClassMeeting', {
 	      jointype => 'inner',
 	      joinkey => 'competency_id',
@@ -346,6 +351,11 @@ sub _build_event_competencies {
     ]);
 
     my $content_competencies = TUSK::Competency::Competency->lookup(undef, undef, undef, undef, [
+	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'competency_level_enum_id',
+	      joinkey => 'enum_data_id',
+	  }),
 	  TUSK::Core::JoinObject->new('TUSK::Competency::Content', {
 	      jointype => 'inner',
 	      joinkey => 'competency_id',
@@ -401,6 +411,11 @@ sub _build_academic_levels_with_courses {
 	      origkey => 'competency_course.competency_id',
 	      joinkey => 'competency_id',
 	      joincond => 'competency.school_id = ' . $self->school()->getPrimaryKeyID(), 
+	 }),
+	 TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'competency.competency_level_enum_id',
+	      joinkey => 'enum_data_id',
 	 }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {  ## course-school competencies
 	      origkey => 'competency.competency_id',
