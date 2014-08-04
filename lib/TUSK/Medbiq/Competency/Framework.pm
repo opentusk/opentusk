@@ -36,6 +36,7 @@ use TUSK::LOM;
 use TUSK::LOM::General;
 use TUSK::LOM::Identifier;
 use TUSK::Medbiq::Identifier;
+use TUSK::Medbiq::Competency::Framework::Relation;
 
 #########
 # * Setup
@@ -156,7 +157,6 @@ sub _build_lom {
     );
 }
 
-
 sub _build_Includes {
     my $self = shift;
     my @cf_includes = ();
@@ -165,27 +165,41 @@ sub _build_Includes {
 		      @{$self->course_competencies()},
 		      @{$self->event_competencies()}
 		      ) {
-	push @cf_includes, TUSK::Medbiq::Identifier->new(
-	      Entry => 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view/' . $comp->getPrimaryKeyID(),
-        );
+	push @cf_includes, $self->_get_id_object($comp->getPrimaryKeyID());
     }
 
     return \@cf_includes;
 }
-#EffectiveDate RetiredDate Replaces
-#IsReplacedBy SupportingInformation
+
+sub _build_Relation { 
+    my $self = shift;
+
+    my @cf_relations = ();
+    foreach my $comp (@{$self->national_competencies()},
+		      @{$self->school_competencies()},
+		      @{$self->course_competencies()},
+		      @{$self->event_competencies()}
+		      ) {
+	if (my $relation = $comp->getJoinObject('TUSK::Competency::Relation'))  {
+	    push @cf_relations, TUSK::Medbiq::Competency::Framework::Relation->new(
+	       Reference1 => $self->_get_id_object($relation->getCompetencyId2()),
+	       Relationship => 'http://www.w3.org/2004/02/skos/core#broader',
+	       Reference2 => $self->_get_id_object($relation->getCompetencyId1()),
+            );
+	}
+    }
+
+    return \@cf_relations;
+}
+
 sub _build_namespace { competency_framework_ns }
-sub _build_xml_content { [ qw( lom 
-                               Includes Relation ) ] }
-                               
+sub _build_xml_content { [ qw( lom Includes Relation ) ] }
 
 sub _build_EffectiveDate { return; }
 sub _build_RetiredDate { return; }
 sub _build_Replaces { [] }
 sub _build_IsReplacedBy { [] }
 sub _build_SupportingInformation { [] }
-sub _build_Relation { [] }
-
 
 #################
 # * Class methods
@@ -194,6 +208,14 @@ sub _build_Relation { [] }
 ###################
 # * Private methods
 ###################
+
+sub _get_id_object {
+    my ($self, $id) = @_;
+    return TUSK::Medbiq::Identifier->new(
+	   Entry => 'http://' . $TUSK::Constants::Domain . '/comoetency/view/' . $id,
+    );
+}
+
 
 
 
