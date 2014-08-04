@@ -116,6 +116,8 @@ has SupportingInformation => (
 sub _build_namespace { competency_object_ns }
 sub _build_xml_content { [ qw( lom Status Replaces IsReplacedBy Category
                                References SupportingInformation ) ] }
+sub _build_empty_tags { [ qw( Category ) ] }
+
 
 sub _build_lom {
     my $self = shift;

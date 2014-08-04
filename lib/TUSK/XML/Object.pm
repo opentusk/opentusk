@@ -57,6 +57,13 @@ has namespace => (
     builder => '_build_namespace',
 );
 
+has empty_tags => (
+    is => 'ro',
+    isa => ArrayRef[Str],
+    lazy => 1,
+    builder => '_build_empty_tags',
+);
+
 ################
 # Role methods #
 ################
@@ -69,9 +76,11 @@ sub write_xml {
         $writer->startTag( [ $self->namespace, $self->tagName ], @xml_attrs );
     }
     if ( _is_array($self->xml_content) ) {
-        foreach my $attr_name ( @{ $self->xml_content } ) {
-            next unless (defined $self->$attr_name);
-            $self->write_xml_content($attr_name, $writer);
+	my %empty_tags = map { $_ => 1 } @{$self->empty_tags};
+
+        foreach my $element_name ( @{ $self->xml_content } ) {
+            next unless (defined $self->$element_name);
+            $self->write_xml_content($element_name, $writer, $empty_tags{$element_name});
         }
     }
     else {
@@ -84,21 +93,24 @@ sub write_xml {
 }
 
 sub write_xml_content {
-    my ($self, $attr_name, $writer) = @_;
-    my $ns = $self->_namespace_of($attr_name);
-    my $tag = $self->_tag_of($attr_name);
+    my ($self, $element_name, $writer, $empty_tag_flag) = @_;
+    my $ns = $self->_namespace_of($element_name);
+    my $tag = $self->_tag_of($element_name);
+
     # An XML content can be one of Str, XML object, or ArrayRef of those
-    my $contents_ref = _is_array($self->$attr_name) ? $self->$attr_name
-        :                                             [ $self->$attr_name ];
+    my $contents_ref = _is_array($self->$element_name) ? $self->$element_name : [ $self->$element_name ];
+
     foreach my $xml_content ( @{ $contents_ref } ) {
-        my $is_xml_object = does_role($xml_content, 'TUSK::XML::Object');
-        if ($is_xml_object) {
+        if (does_role($xml_content, 'TUSK::XML::Object')) {
             my @xml_attrs = $self->_attribute_map_of($xml_content);
-            $writer->startTag( [$ns, $tag], @xml_attrs );
+	    if ($empty_tag_flag) {
+		$writer->emptyTag( [$ns, $tag], @xml_attrs );
+	    } else {
+		$writer->startTag( [$ns, $tag], @xml_attrs );
+	    }
             $xml_content->write_xml($writer);
-            $writer->endTag;
-        }
-        else {
+            $writer->endTag unless ($empty_tag_flag);
+        } else {
             $writer->dataElement( [$ns, $tag], $xml_content );
         }
     }
@@ -111,6 +123,7 @@ sub write_xml_content {
 
 sub _build_xml_attributes { return []; }
 sub _build_xml_content { return []; }
+sub _build_empty_tags { return []; }
 
 sub _is_array {
     my $obj = shift;
