@@ -303,6 +303,7 @@ sub _build_Expectations {
         school => $self->school,
         event_competencies => $self->event_competencies,
 	course_competencies => \@course_competencies,
+        framework_id => $self->ReportID()->id(),
     );
 }
 

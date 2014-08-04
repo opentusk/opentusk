@@ -28,9 +28,11 @@ use Readonly;
 
 use HSDB4::Constants;
 use TUSK::Medbiq::Competency::Object;
-use Types::Standard qw( ArrayRef );
+use Types::Standard qw( ArrayRef HashRef InstanceOf Str);
+use TUSK::Types qw(Competency);
 use TUSK::Medbiq::Types;
 use TUSK::Namespaces ':all';
+use TUSK::Medbiq::Competency::Framework;
 
 #########
 # * Setup
@@ -43,6 +45,40 @@ with 'TUSK::XML::Object';
 # * Class attributes
 ####################
 
+has event_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    required => 1,
+);
+
+#    isa => ArrayRef[InstanceOf['TUSK::Course::AcademicLevel']],
+
+has course_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    required => 1,
+);
+
+has school_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    lazy => 1,
+    builder => '_build_school_competencies',
+);
+
+has national_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    lazy => 1,
+    builder => '_build_national_competencies',
+);
+
+has framework_id => (
+    is => 'ro',
+    isa => Str,
+    required => 1,
+);
+
 has CompetencyObject => (
     is => 'ro',
     isa => ArrayRef[TUSK::Medbiq::Types::CompetencyObject],
@@ -52,15 +88,9 @@ has CompetencyObject => (
 
 has CompetencyFramework => (
     is => 'ro',
-    isa => ArrayRef[TUSK::Medbiq::Types::CompetencyFramework],
+    isa => TUSK::Medbiq::Types::CompetencyFramework,
     lazy => 1,
     builder => '_build_CompetencyFramework',
-);
-
-has events => (
-    is => 'ro',
-    isa => TUSK::Medbiq::Types::Events,
-    required => 1,
 );
 
 
@@ -68,37 +98,78 @@ has events => (
 # * Builders
 ############
 
+sub _build_school_competencies {
+    my $self = shift;
+    return $self->_competencies_relation('school', [ map { $_->getPrimaryKeyID() } @{$self->course_competencies()} ]);
+}
+
+sub _build_national_competencies {
+    my $self = shift;
+    return $self->_competencies_relation('national', [ map { $_->getPrimaryKeyID() } @{$self->school_competencies()} ]);
+}
+
 sub _build_CompetencyObject {
     my $self = shift;
-    my %objective_from_id;
-    foreach my $e ( @{ $self->events->Event } ) {
-        foreach my $obj ( values %{ $e->competencies } ) {
-            my $id = $obj->getPrimaryKeyID();
-            if ( ! exists $objective_from_id{$id} ) {
-                $objective_from_id{$id}
-                    = TUSK::Medbiq::Competency::Object->new(dao => $obj);
-            }
-        }
+    my @objects = ();
+
+    foreach my $comp_group_by_level ($self->school_competencies(),
+				     $self->course_competencies(),
+				     $self->event_competencies()) {
+	push @objects, @{ $self->_processCompetencyObjects($comp_group_by_level) };
     }
-    my @competencies = values %objective_from_id;
-    return \@competencies;
+    return \@objects;
 }
 
 sub _build_CompetencyFramework {
     my $self = shift;
-    return [];
+    return TUSK::Medbiq::Competency::Framework->new(
+	    event_competencies => $self->event_competencies(),
+	    course_competencies => $self->course_competencies(),
+	    school_competencies => $self->school_competencies(),
+	    national_competencies => $self->national_competencies(),
+	    framework_id => $self->framework_id(),
+    );
 }
 
 sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_content { [ qw(CompetencyObject CompetencyFramework) ] }
 
-#################
-# * Class methods
-#################
+
 
 ###################
 # * Private methods
 ###################
+sub _processCompetencyObjects {
+    my ($self, $competencies) = @_;
+
+    my %hashes = map { $_->getPrimaryKeyID() => $_ } @$competencies;
+
+    my @objects = ();
+    foreach my $comp_id (sort keys %hashes) {
+	push @objects, TUSK::Medbiq::Competency::Object->new(dao =>  $hashes{$comp_id});
+    }
+    return \@objects;
+}
+
+sub _competencies_relation {
+    my ($self, $token, $linked_competencies) = @_;
+    return [] unless scalar @$linked_competencies;
+
+    return TUSK::Competency::Competency->lookup('', undef, undef, undef, [
+	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'competency_level_enum_id',
+	      joinkey => 'enum_data_id',
+	      joincond => "short_name = '$token'",
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
+	      jointype => 'inner',
+	      origkey => 'competency_id',
+	      joinkey => 'competency_id_2',
+	      joincond => 'competency_id_1 = (' . join(',', @$linked_competencies) . ')',
+	  }),
+    ]);
+}
 
 ###########
 # * Cleanup

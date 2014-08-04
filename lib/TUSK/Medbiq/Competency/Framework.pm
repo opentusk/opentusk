@@ -28,9 +28,14 @@ use Readonly;
 
 use TUSK::Meta::Attribute::Trait::Namespaced;
 use TUSK::Namespaces ':all';
+use TUSK::Types qw( Competency );
 use TUSK::Medbiq::Types qw( CFIncludes CFLOM );
-use Types::Standard qw( Maybe ArrayRef );
+use Types::Standard qw( Maybe ArrayRef Str);
 use Types::XSD qw( Date AnyURI );
+use TUSK::LOM;
+use TUSK::LOM::General;
+use TUSK::LOM::Identifier;
+use TUSK::Medbiq::Identifier;
 
 #########
 # * Setup
@@ -43,11 +48,41 @@ with 'TUSK::XML::Object';
 # * Class attributes
 ####################
 
+has course_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    required => 1,
+);
+
+has event_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    required => 1,
+);
+
+has school_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    required => 1,
+);
+
+has national_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    required => 1,
+);
+
+has framework_id => (
+    is => 'ro',
+    isa => Str,
+    required => 1,
+);
+
 has lom => (
     traits => [ qw(Namespaced) ],
     is => 'ro',
     isa => CFLOM,
-    required => 1,
+    builder => '_build_lom',
     namespace => lom_ns,
 );
 
@@ -89,7 +124,8 @@ has SupportingInformation => (
 has Includes => (
     is => 'ro',
     isa => CFIncludes,
-    required => 1,
+    lazy => 1,
+    builder => '_build_Includes',		 
 );
 
 has Relation => (
@@ -104,10 +140,44 @@ has Relation => (
 # * Builders
 ############
 
+sub _build_lom {
+    my $self = shift;
+
+    return TUSK::LOM->new(
+	 general => TUSK::LOM::General->new(
+	      identifier => [
+ 		      TUSK::LOM::Identifier->new(
+			   catalog => 'URI',
+			   entry => 'http://' . $TUSK::Constants::Domain . '/comoetency/framework/view/' . $self->framework_id,
+		      ),
+              ],
+	     title => TUSK::LOM::LangString->new(string => ''),
+	  )
+    );
+}
+
+
+sub _build_Includes {
+    my $self = shift;
+    my @cf_includes = ();
+
+    foreach my $comp (@{$self->school_competencies()},
+		      @{$self->course_competencies()},
+		      @{$self->event_competencies()}
+		      ) {
+	push @cf_includes, TUSK::Medbiq::Identifier->new(
+	      Entry => 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view/' . $comp->getPrimaryKeyID(),
+        );
+    }
+
+    return \@cf_includes;
+}
+#EffectiveDate RetiredDate Replaces
+#IsReplacedBy SupportingInformation
 sub _build_namespace { competency_framework_ns }
-sub _build_xml_content { [ qw( lom EffectiveDate RetiredDate Replaces
-                               IsReplacedBy SupportingInformation Includes
-                               Relation ) ] }
+sub _build_xml_content { [ qw( lom 
+                               Includes Relation ) ] }
+                               
 
 sub _build_EffectiveDate { return; }
 sub _build_RetiredDate { return; }
@@ -124,6 +194,9 @@ sub _build_Relation { [] }
 ###################
 # * Private methods
 ###################
+
+
+
 
 ###########
 # * Cleanup
