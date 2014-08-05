@@ -1019,7 +1019,7 @@ sub setJoinObjects {
 	    if (scalar @$objs) {
 		push @{$self->{_join_objects}->{$objclass}}, @$objs;
 	    }
-	} elsif (ref $objs eq 'SCALAR') {
+	} elsif (ref $objs eq $objclass) {
 		push @{$self->{_join_objects}->{$objclass}}, $objs;
 	}
     }
