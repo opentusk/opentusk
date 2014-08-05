@@ -292,9 +292,9 @@ sub _build_Expectations {
     my $self = shift;
 
     my @course_competencies = ();
-    foreach (@{$self->academic_levels_with_courses}) {
-	if (my $comp = $_->getJoinObject('TUSK::Competency::Competency') ) {
-	    $comp->setJoinObjects($_->getJoinObject('TUSK::Competency::Relation'));
+    foreach my $alwc (@{$self->academic_levels_with_courses}) {
+	foreach my $comp (@{$alwc->getJoinObjects('TUSK::Competency::Competency')}) {
+	    $comp->setJoinObjects($alwc->getJoinObject('TUSK::Competency::Relation'));
 	    push @course_competencies, $comp;
 	}
     }
@@ -387,7 +387,7 @@ sub _build_academic_levels_with_courses {
     my $self = shift;
     my $school_db = $self->school()->getSchoolDb();
 
-    my $course_competencies = TUSK::Course::AcademicLevel->lookup(undef, undef, undef, undef, [
+    return TUSK::Course::AcademicLevel->lookup(undef, undef, undef, undef, [
 	  TUSK::Core::JoinObject->new('TUSK::AcademicLevel', {
 	      jointype => 'inner',
 	      joinkey => 'academic_level_id',
@@ -408,6 +408,7 @@ sub _build_academic_levels_with_courses {
 	      joinkey => 'course_id',
 	 }),
          TUSK::Core::JoinObject->new('TUSK::Competency::Competency', {
+	      jointype => 'inner',
 	      origkey => 'competency_course.competency_id',
 	      joinkey => 'competency_id',
 	      joincond => 'competency.school_id = ' . $self->school()->getPrimaryKeyID(), 
@@ -422,8 +423,6 @@ sub _build_academic_levels_with_courses {
 	      joinkey => 'competency_id_1',
 	})
     ]);
-
-    return $course_competencies;
 }
 
 #################

@@ -51,8 +51,6 @@ has event_competencies => (
     required => 1,
 );
 
-#    isa => ArrayRef[InstanceOf['TUSK::Course::AcademicLevel']],
-
 has course_competencies => (
     is => 'ro',
     isa => ArrayRef[Competency],
@@ -166,7 +164,7 @@ sub _competencies_relation {
 	      jointype => 'inner',
 	      origkey => 'competency_id',
 	      joinkey => 'competency_id_2',
-	      joincond => 'competency_id_1 = (' . join(',', @$linked_competencies) . ')',
+	      joincond => 'competency_id_1 in (' . join(',', @$linked_competencies) . ')',
 	  }),
     ]);
 }

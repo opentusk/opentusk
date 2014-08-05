@@ -80,29 +80,6 @@ has SequenceBlock => (
 sub _build_namespace { curriculum_inventory_ns }
 sub _build_xml_content { [ qw( SequenceBlock ) ] }
 
-sub _processCourseData {
-    my $self = shift;
-    my %course_levels = ();
-    my %class_meetings = ();
-
-    foreach my $cl (@{$self->levels_with_courses()}) {
-	my $course_id = $cl->getJoinObject('TUSK::Core::HSDB45Tables::Course')->getPrimaryKeyID();
-	my $cm = $cl->getJoinObject('TUSK::Core::HSDB45Tables::ClassMeeting');
-	$course_levels{$cl->getJoinObject('TUSK::AcademicLevel')->getSortOrder()}{$course_id} = $cl;
-	$class_meetings{$course_id}{dates}{$cm->getMeetingDate()} = 1;
-	$class_meetings{$course_id}{event_ids}{$cm->getPrimaryKeyID()} = $cm;
-    }
-
-    ## getting start/end dates for each course
-    foreach my $course_id (keys %class_meetings) {
-	my @dates = keys %{$class_meetings{$course_id}{dates}};
-	$class_meetings{$course_id}{max_date} = maxstr @dates;
-	$class_meetings{$course_id}{min_date} = minstr @dates;
-    }
-
-    return (\%course_levels, \%class_meetings);
-}
-
 sub _build_SequenceBlock {
     my $self = shift;
     my @blocks = ();
@@ -147,7 +124,7 @@ sub _build_SequenceBlock {
 		      Title => $course->getTitle(),
 		      Timing => $timing,
 		      Level => $academic_level,
-		      CompetencyObjectReference => [],
+		      CompetencyObjectReference => $self->_getCompetencyObjectReferences($course_levels->{$level_id}{$course_id}->getJoinObjects('TUSK::Competency::Competency')),
 		      SequenceBlockEvent => \@block_events,
 		      SequenceBlockReference => \@block_refs,
           );
@@ -165,6 +142,46 @@ sub _build_SequenceBlock {
 ###################
 # * Private methods
 ###################
+
+sub _processCourseData {
+    my $self = shift;
+    my %course_levels = ();
+    my %class_meetings = ();
+
+    foreach my $cl (@{$self->levels_with_courses()}) {
+	my $course_id = $cl->getJoinObject('TUSK::Core::HSDB45Tables::Course')->getPrimaryKeyID();
+	my $cm = $cl->getJoinObject('TUSK::Core::HSDB45Tables::ClassMeeting');
+	$course_levels{$cl->getJoinObject('TUSK::AcademicLevel')->getSortOrder()}{$course_id} = $cl;
+
+	$class_meetings{$course_id}{dates}{$cm->getMeetingDate()} = 1;
+	$class_meetings{$course_id}{event_ids}{$cm->getPrimaryKeyID()} = $cm;
+    }
+
+    ## getting start/end dates for each course
+    foreach my $course_id (keys %class_meetings) {
+	my @dates = keys %{$class_meetings{$course_id}{dates}};
+	$class_meetings{$course_id}{max_date} = maxstr @dates;
+	$class_meetings{$course_id}{min_date} = minstr @dates;
+    }
+
+    return (\%course_levels, \%class_meetings);
+}
+
+sub _getCompetencyObjectReferences {
+    my ($self, $competencies) = @_;
+
+    if ($competencies) {
+	my $co_ref_fmt = '/CurriculumInventory/Expectations/CompetencyObject'
+	    . "[lom:lom/lom:general/lom:identifier/lom:entry='"
+	    . 'http://'
+	    . $TUSK::Constants::Domain
+	    . '/competency/competency/view/%d'
+	    . "']";
+
+	return [ map { sprintf($co_ref_fmt, $_) } sort (map { $_->getPrimaryKeyID() } @$competencies) ];
+    }
+    return [];
+}
 
 ###########
 # * Cleanup
