@@ -253,7 +253,7 @@ sub lookup_by_uid {
 # >>>>> Linked objects <<<<<
 #
 
-sub check_author{
+sub check_author {
     my ($self, $roles) = @_;
 
     $roles->{tusk_session_is_author} = 0;
@@ -314,7 +314,7 @@ sub check_admin {
 
 # Return the courses the user is a part of teaching for 'course' course_type  or course admin for other course_types.
 sub author_courses {
-    my ($self, $time_period_id, $conds) = @_;
+    my ($self, $conds) = @_;
     my @schools = course_schools();
     my @courses = ();
 
