@@ -323,7 +323,7 @@ sub _build_Sequence {
     return TUSK::Medbiq::Sequence->new(
         school => $self->school(),
         levels => $self->school_academic_levels(),				       
-        levels_with_courses => $self->academic_levels_with_courses,
+        levels_with_courses => $self->academic_levels_with_courses(),
     );
 }
 
@@ -397,14 +397,22 @@ sub _build_academic_levels_with_courses {
 	      joinkey => 'academic_level_id',
 	      joincond => 'academic_level.school_id = ' . $self->school()->getPrimaryKeyID(),
 	  }),
+          TUSK::Core::JoinObject->new('TUSK::Course', {
+	      jointype => 'inner',
+	      joinkey => 'course_id',
+	      alias    => 'tusk_course',
+	  }),
           TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::Course', {
 	      database => $school_db,
 	      jointype => 'inner',
+	      origkey => 'tusk_course.school_course_code',
 	      joinkey => 'course_id',
+	      alias    => 'hsdb45_course',
 	  }),
 	  TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::ClassMeeting', {
 	      database => $school_db,
 	      jointype => 'inner',
+	      origkey => 'hsdb45_course.course_id',
 	      joinkey => 'course_id',
 	      joincond => "meeting_date between '" . $self->ReportingStartDate()->out_mysql_date() . "' AND '" . $self->ReportingEndDate()->out_mysql_date() . " 23:59:59'",
 	 }),

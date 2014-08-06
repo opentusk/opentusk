@@ -116,7 +116,7 @@ sub _build_SequenceBlock {
 	   );
 
            my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number='$level_id']";
-	   my $course = $course_levels->{$level_id}{$course_id}->getJoinObject('TUSK::Core::HSDB45Tables::Course');
+	   my $course = $course_levels->{$level_id}{$course_id}->getJoinObject('hsdb45_course');
 
            my $seq_block = TUSK::Medbiq::Sequence::Block->new(
 		      id => $course_id,
@@ -149,7 +149,7 @@ sub _processCourseData {
     my %class_meetings = ();
 
     foreach my $cl (@{$self->levels_with_courses()}) {
-	my $course_id = $cl->getJoinObject('TUSK::Core::HSDB45Tables::Course')->getPrimaryKeyID();
+	my $course_id = $cl->getJoinObject('hsdb45_course')->getPrimaryKeyID();
 	my $cm = $cl->getJoinObject('TUSK::Core::HSDB45Tables::ClassMeeting');
 	$course_levels{$cl->getJoinObject('TUSK::AcademicLevel')->getSortOrder()}{$course_id} = $cl;
 
