@@ -150,7 +150,11 @@ sub _build_Category {
 		   content => 'event' );
 
     if (my $competency_level = $self->dao()->getJoinObject('TUSK::Enum::Data')) {
-	return [ TUSK::Medbiq::Competency::Category->new(level => $levels{$competency_level->getShortName()}) ];
+	if (exists $levels{$competency_level->getShortName()}) {
+	    return [ TUSK::Medbiq::Competency::Category->new(level => $levels{$competency_level->getShortName()}) ];
+	} else {
+	    warn 'Competency id ' . $self->dao()->getPrimaryKeyID() . " has incorrect competency_level (" . $competency_level->getShortName() . ").\n";
+	}
     }
     return [];
 }
