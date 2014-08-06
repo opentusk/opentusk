@@ -207,7 +207,7 @@ enum CFRelationship,
       'http://www.w3.org/2004/02/skos/core#related', ];
 
 enum CompetencyCategory,
-    [ 'national', 'program', 'course', 'event' ];
+    [ 'national', 'program', 'sequence-block', 'event' ];
 
 ###########
 # * Cleanup
