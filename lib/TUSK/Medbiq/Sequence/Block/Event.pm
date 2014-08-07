@@ -75,7 +75,7 @@ has EndDate => (
 ############
 
 sub _build_namespace { curriculum_inventory_ns }
-sub _build_xml_content { [ qw( EventReference StartDate EndDate ) ] }
+sub _build_xml_content { [ qw( EventReference ) ] }
 sub _build_xml_attributes { [ qw( required ) ] }
 
 sub _build_StartDate { return; }
