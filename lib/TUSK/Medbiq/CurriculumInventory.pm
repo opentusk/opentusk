@@ -336,6 +336,7 @@ sub _build_event_competencies {
 	      jointype => 'inner',
 	      origkey => 'competency_level_enum_id',
 	      joinkey => 'enum_data_id',
+	      joincond => "namespace = 'competency.level_id' and short_name = 'class_meet'",
 	  }),
 	  TUSK::Core::JoinObject->new('TUSK::Competency::ClassMeeting', {
 	      jointype => 'inner',
@@ -359,6 +360,7 @@ sub _build_event_competencies {
 	      jointype => 'inner',
 	      origkey => 'competency_level_enum_id',
 	      joinkey => 'enum_data_id',
+	      joincond => "namespace = 'competency.level_id' and short_name = 'content'",
 	  }),
 	  TUSK::Core::JoinObject->new('TUSK::Competency::Content', {
 	      jointype => 'inner',
@@ -429,9 +431,10 @@ sub _build_academic_levels_with_courses {
 	      jointype => 'inner',
 	      origkey => 'competency.competency_level_enum_id',
 	      joinkey => 'enum_data_id',
+	      joincond => "namespace = 'competency.level_id' and short_name = 'course'",
 	 }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {  ## course-school competencies
-	      origkey => 'competency.competency_id',
+	      origkey => 'competency_course.competency_id',
 	      joinkey => 'competency_id_1',
 	})
     ]);
