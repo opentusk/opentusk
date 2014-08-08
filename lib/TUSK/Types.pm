@@ -139,9 +139,9 @@ coerce School,
 
 coerce TUSK_XSD_Date,
     from TUSK_DateTime,
-    via { $_->out_mysql_date . "Z" },
+    via { $_->out_mysql_date },
     from Sys_DateTime,
-    via { $_->ymd . "Z" };
+    via { $_->ymd };
 
 ###########
 # * Cleanup

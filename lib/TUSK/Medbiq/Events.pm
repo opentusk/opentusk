@@ -27,7 +27,7 @@ use Carp;
 use Readonly;
 
 use TUSK::Medbiq::Types;
-use TUSK::Types qw(School TUSK_DateTime Competency Umls_Keyword);
+use TUSK::Types qw(School TUSK_XSD_Date Competency Umls_Keyword);
 use Types::Standard qw(ArrayRef HashRef Str);
 use TUSK::Namespaces ':all';
 use HSDB4::Constants;
@@ -70,16 +70,14 @@ has school_db => (
 
 has start_date => (
     is => 'ro',
-    isa => TUSK_DateTime,
+    isa => TUSK_XSD_Date,
     required => 1,
-    coerce => 1,
 );
 
 has end_date => (
     is => 'ro',
-    isa => TUSK_DateTime,
+    isa => TUSK_XSD_Date,
     required => 1,
-    coerce => 1,
 );
 
 has Event => (
@@ -109,6 +107,7 @@ has keywords => (
     builder => '_build_keywords',		 
 );		 
 
+
 ############
 # * Builders
 ############
@@ -137,12 +136,11 @@ sub _build_Events {
     my $competencies = $self->competencies_by_class_meeting();
     my $kwords = $self->keywords();
     my $school = $self->school();
-    my $start_date = $self->start_date()->out_mysql_date();
-    my $end_date = $self->end_date()->out_mysql_date() . ' 23:59:59';
+
     my $cm = HSDB45::ClassMeeting->new(_school => $self->school()->getSchoolName());
 
     my @events = ();
-    foreach my $event ($cm->lookup_conditions("meeting_date between '$start_date' and '$end_date'")) {
+    foreach my $event ($cm->lookup_conditions($self->_meeting_dates_condition())) {
 	if (TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($event->type())
 	    || TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($event->type())
 	   ) {
@@ -158,8 +156,6 @@ sub _build_Events {
 
 sub _build_keywords {
     my $self = shift;
-    my $start_date = $self->start_date()->out_mysql_date();
-    my $end_date = $self->end_date()->out_mysql_date() . ' 23:59:59';
 
     my $links = TUSK::Core::LinkContentKeyword->lookup(undef, undef, undef, undef, [
 	  TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkClassMeetingContent', {
@@ -173,7 +169,7 @@ sub _build_keywords {
 	      jointype => 'inner',
 	      origkey => 'link_class_meeting_content.parent_class_meeting_id',
 	      joinkey => 'class_meeting_id',
-	      joincond => "meeting_date between '$start_date' AND '$end_date'",
+	      joincond => $self->_meeting_dates_condition(),
 	 }),
     ]);
 
@@ -204,6 +200,10 @@ sub _keep_meeting {
           || TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type) );
 }
 
+sub _meeting_dates_condition {
+    my $self = shift;
+    return "meeting_date between '" . $self->start_date . "' and '" . $self->end_date . " 23:59:59'";
+}
 
 ###########
 # * Cleanup

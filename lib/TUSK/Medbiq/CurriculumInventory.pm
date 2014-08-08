@@ -113,14 +113,14 @@ has ReportDate => (
 
 has ReportingStartDate => (
     is => 'ro',
-    isa => TUSK_DateTime,
+    isa => TUSK_XSD_Date,
     coerce => 1,
     required => 1,
 );
 
 has ReportingEndDate => (
     is => 'ro',
-    isa => TUSK_DateTime,
+    isa => TUSK_XSD_Date,,
     coerce => 1,
     required => 1,
 );
@@ -281,9 +281,9 @@ sub _build_Events {
     my $self = shift;
 
     return TUSK::Medbiq::Events->new(
-        school => $self->school,
-        start_date => $self->ReportingStartDate,
-        end_date => $self->ReportingEndDate,
+        school => $self->school(),
+        start_date => $self->ReportingStartDate(),
+        end_date => $self->ReportingEndDate(),
         competencies => $self->event_competencies(),
     );
 }
@@ -347,7 +347,7 @@ sub _build_event_competencies {
 	      jointype => 'inner',
 	      origkey => 'competency_class_meeting.class_meeting_id',
 	      joinkey => 'class_meeting_id',
-	      joincond => "meeting_date between '" . $self->ReportingStartDate()->out_mysql_date() . "' AND '" . $self->ReportingEndDate()->out_mysql_date() . " 23:59:59'",
+	      joincond => "meeting_date between '" . $self->ReportingStartDate() . "' AND '" . $self->_reportingEndDateTime() . "'",
 	 }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
 	      origkey => 'competency_id',
@@ -377,7 +377,7 @@ sub _build_event_competencies {
 	      jointype => 'inner',
 	      origkey => 'link_class_meeting_content.parent_class_meeting_id',
 	      joinkey => 'class_meeting_id',
-	      joincond => "meeting_date between '" . $self->ReportingStartDate()->out_mysql_date() . "' AND '" . $self->ReportingEndDate()->out_mysql_date() . " 23:59:59'",
+	      joincond => "meeting_date between '" . $self->ReportingStartDate() . "' AND '" . $self->_reportingEndDateTime() . "'",
 	 }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
 	      origkey => 'competency_id',
@@ -416,7 +416,7 @@ sub _build_academic_levels_with_courses {
 	      jointype => 'inner',
 	      origkey => 'hsdb45_course.course_id',
 	      joinkey => 'course_id',
-	      joincond => "meeting_date between '" . $self->ReportingStartDate()->out_mysql_date() . "' AND '" . $self->ReportingEndDate()->out_mysql_date() . " 23:59:59'",
+	      joincond => "meeting_date between '" . $self->ReportingStartDate() . "' AND '" . $self->_reportingEndDateTime() . "'",
 	 }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Course', {
 	      joinkey => 'course_id',
@@ -438,6 +438,11 @@ sub _build_academic_levels_with_courses {
 	      joinkey => 'competency_id_1',
 	})
     ]);
+}
+
+sub _reportingEndDateTime {
+    my $self = shift;
+    return $self->ReportingEndDate() . ' 23:59:59';
 }
 
 #################
