@@ -32,9 +32,11 @@ use Types::Standard qw( Maybe ArrayRef HashRef InstanceOf);
 use TUSK::Medbiq::Types qw( NonNullString );
 use TUSK::Medbiq::Sequence::Block;
 use TUSK::Medbiq::Sequence::Block::Event;
+use TUSK::Medbiq::Sequence::Block::Reference;
 use TUSK::Medbiq::Timing;
 use TUSK::Medbiq::Dates;
 use List::Util qw(maxstr minstr);
+use TUSK::Core::HSDB45Tables::Course;
 
 #########
 # * Setup
@@ -83,54 +85,49 @@ sub _build_xml_content { [ qw( SequenceBlock ) ] }
 sub _build_SequenceBlock {
     my $self = shift;
     my @blocks = ();
+    my $courses = $self->_processCourseData();
 
-    my ($course_levels, $class_meetings) = $self->_processCourseData();
-    my $required_type = 'Optional';
+    foreach my $course_id (sort { $courses->{$a}{level_id} <=> $courses->{$b}{level_id} || $a <=> $b } keys %$courses) {
+	my @block_events = ();
+	foreach my $event_id (sort { $a <=> $b } keys %{$courses->{$course_id}{event_ids}}) {
+	    push @block_events, TUSK::Medbiq::Sequence::Block::Event->new(
+		    required => 'false',
+		    EventReference => "/CurriculumInventory/Events/Event[\@id='$event_id']",
+	    );
+	}
 
-    foreach my $level (@{$self->levels()}) {
-	my $level_id = $level->getSortOrder();
-	next unless exists $course_levels->{$level_id};
-
-	foreach my $course_id (keys %{$course_levels->{$level_id}}) {
-	    my @block_events = ();
-	    my @block_refs = ();
-	    my %num_days = ();
-
-	    foreach my $event_id (keys %{$class_meetings->{$course_id}{event_ids}}) {
-	        my $meeting_date = $class_meetings->{$course_id}{event_ids}{$event_id}->getMeetingDate();
-	        my $seq_block_event = TUSK::Medbiq::Sequence::Block::Event->new(
-	           required => 'false',
-                   EventReference => "/CurriculumInventory/Events/Event[\@id='$event_id']",
-	           StartDate => $meeting_date,
-		   EndDate => $meeting_date,
-                );
-		push @block_events, $seq_block_event;
+	my @block_refs = ();
+	if ($courses->{$course_id}{child_courses}) {
+	    foreach my $child_course_id (sort { $a <=> $b } @{$courses->{$course_id}{child_courses}}) {
+		push @block_refs, TUSK::Medbiq::Sequence::Block::Reference->new(
+		   xpath => "/CurriculumInventory/Sequence/SequenceBlock[\@id='$child_course_id']"
+		);
 	    }
+	}
 
-	    my $timing = TUSK::Medbiq::Timing->new(
-		Dates => TUSK::Medbiq::Dates->new(
-			  StartDate => $class_meetings->{$course_id}{min_date}, 
-			  EndDate => $class_meetings->{$course_id}{max_date},
-	        ),
-	        Duration => 'P' . scalar(keys %{$class_meetings->{$course_id}{dates}}) . 'D',
-	   );
+	next unless (scalar @block_events || scalar @block_refs);  ## either one is required
 
-           my $academic_level = "/CurriculumInventory/AcademicLevels/Level[\@number='$level_id']";
-	   my $course = $course_levels->{$level_id}{$course_id}->getJoinObject('hsdb45_course');
+        my $seq_block = TUSK::Medbiq::Sequence::Block->new(
+	   id => $course_id,
+	   required => 'Optional',
+	   Title => $courses->{$course_id}{title},
+	   Timing => 
+		   TUSK::Medbiq::Timing->new(
+		       Dates => TUSK::Medbiq::Dates->new(
+			 StartDate => $courses->{$course_id}{min_date}, 
+			 EndDate => $courses->{$course_id}{max_date},
+		       ),
+		       Duration => 'P' . scalar(keys %{$courses->{$course_id}{dates}}) . 'D',
+		   ),
+		   Level => "/CurriculumInventory/AcademicLevels/Level[\@number='$courses->{$course_id}{level_id}']",
+	   CompetencyObjectReference => $self->_getCompObjRefs($courses->{$course_id}{competencies}),
+	   SequenceBlockEvent => \@block_events,
+	   SequenceBlockReference => \@block_refs,
+	);
 
-           my $seq_block = TUSK::Medbiq::Sequence::Block->new(
-		      id => $course_id,
-		      required => $required_type,
-		      Title => $course->getTitle(),
-		      Timing => $timing,
-		      Level => $academic_level,
-		      CompetencyObjectReference => $self->_getCompetencyObjectReferences($course_levels->{$level_id}{$course_id}->getJoinObjects('TUSK::Competency::Competency')),
-		      SequenceBlockEvent => \@block_events,
-		      SequenceBlockReference => \@block_refs,
-          );
-          push @blocks, $seq_block;
-	} ## course_id
-    } ## academic_level_id
+        push @blocks, $seq_block;
+    }
+
     return \@blocks;
 }
 
@@ -145,29 +142,106 @@ sub _build_SequenceBlock {
 
 sub _processCourseData {
     my $self = shift;
-    my %course_levels = ();
+
     my %class_meetings = ();
+    my %course_data = ();
 
     foreach my $cl (@{$self->levels_with_courses()}) {
-	my $course_id = $cl->getJoinObject('hsdb45_course')->getPrimaryKeyID();
-	my $cm = $cl->getJoinObject('TUSK::Core::HSDB45Tables::ClassMeeting');
-	$course_levels{$cl->getJoinObject('TUSK::AcademicLevel')->getSortOrder()}{$course_id} = $cl;
+	my $course = $cl->getJoinObject('hsdb45_course');
+	my $course_id = $course->getPrimaryKeyID();
 
-	$class_meetings{$course_id}{dates}{$cm->getMeetingDate()} = 1;
-	$class_meetings{$course_id}{event_ids}{$cm->getPrimaryKeyID()} = $cm;
+	$course_data{$course_id}{level_id} = $cl->getJoinObject('TUSK::AcademicLevel')->getSortOrder();
+	$course_data{$course_id}{title} = $course->getTitle();
+	$course_data{$course_id}{description} = $course->getBody();
+	$course_data{$course_id}{competencies} = $cl->getJoinObjects('TUSK::Competency::Competency');
+
+	foreach my $cm (@{$cl->getJoinObjects('TUSK::Core::HSDB45Tables::ClassMeeting')}) {
+	    $course_data{$course_id}{dates}{$cm->getMeetingDate()} = 1;
+	    $course_data{$course_id}{event_ids}{$cm->getPrimaryKeyID()} = $cm;
+	}
     }
 
     ## getting start/end dates for each course
-    foreach my $course_id (keys %class_meetings) {
-	my @dates = keys %{$class_meetings{$course_id}{dates}};
-	$class_meetings{$course_id}{max_date} = maxstr @dates;
-	$class_meetings{$course_id}{min_date} = minstr @dates;
+    foreach my $course_id (keys %course_data) {
+	my @dates = keys %{$course_data{$course_id}{dates}};
+	$course_data{$course_id}{max_date} = maxstr @dates;
+	$course_data{$course_id}{min_date} = minstr @dates;
     }
 
-    return (\%course_levels, \%class_meetings);
+    ## getting parent courses if available
+    if (my @course_ids = keys %course_data) {
+	my $pcourses = $self->_getParentCourses(\@course_ids);
+
+	foreach my $pcourse (@{$pcourses}) {
+	    my $pcourse_id = $pcourse->getPrimaryKeyID();
+	    $course_data{$pcourse_id}{level_id} = $pcourse->getJoinObject('TUSK::AcademicLevel')->getSortOrder();
+	    $course_data{$pcourse_id}{title} = $pcourse->getTitle();
+	    $course_data{$pcourse_id}{description} = $pcourse->getBody();
+
+	    ### getting child courses 
+	    if (my $child_courses = $pcourse->getJoinObjects('tusk_child_course')) {
+		foreach my $child_course (@$child_courses) {
+		    push @{$course_data{$pcourse_id}{child_courses}}, $child_course->getSchoolCourseCode();
+		}
+	    }
+
+	    ### and figuring timing for parent courses based on children
+	    if (exists $course_data{$pcourse_id}{child_courses}) {
+		foreach my $child_course_id (@{$course_data{$pcourse_id}{child_courses}}) {
+		    foreach my $date (keys %{$course_data{$child_course_id}{dates}}) {
+			$course_data{$pcourse_id}{dates}{$date} = 1;
+		    }
+
+		    my @pcourse_dates = keys %{$course_data{$pcourse_id}{dates}};
+		    $course_data{$pcourse_id}{max_date} = maxstr @pcourse_dates;
+		    $course_data{$pcourse_id}{min_date} = minstr @pcourse_dates;
+		}
+	    }
+	}
+    }
+
+    return \%course_data;
 }
 
-sub _getCompetencyObjectReferences {
+sub _getParentCourses {
+    my ($self, $child_course_ids) = @_;
+
+    my $course = TUSK::Core::HSDB45Tables::Course->new();
+    $course->setDatabase($self->school()->getSchoolDb());
+    my $parent_courses = $course->lookup('', undef, undef, undef, [
+	   TUSK::Core::JoinObject->new('TUSK::Course', {
+	       jointype => 'inner',
+	       origkey => 'course_id',
+	       joinkey => 'school_course_code',
+	       alias => 'tusk_course',
+	   }),
+	   TUSK::Core::JoinObject->new('TUSK::Core::LinkCourseCourse', {
+	       jointype => 'inner',
+	       origkey => 'tusk_course.course_id',
+	       joinkey => 'parent_course_id',
+	   }),
+	   TUSK::Core::JoinObject->new('TUSK::Course', {
+	       jointype => 'inner',
+	       origkey => 'link_course_course.child_course_id',
+	       joinkey => 'course_id',
+	       joincond => 'tusk_child_course.school_course_code in (' . join(',', @$child_course_ids) . ')',
+	       alias => 'tusk_child_course',
+	   }),
+	   TUSK::Core::JoinObject->new('TUSK::Course::AcademicLevel', {
+	       jointype => 'inner',
+	       origkey => 'tusk_course.course_id',
+	       joinkey => 'course_id',
+	   }),
+	   TUSK::Core::JoinObject->new('TUSK::AcademicLevel', {
+	       jointype => 'inner',
+	       origkey => 'academic_level_course.academic_level_id',
+	       joinkey => 'academic_level_id',
+	       joincond => 'academic_level.school_id = ' . $self->school()->getPrimaryKeyID(),
+	   }),
+        ]);
+}
+
+sub _getCompObjRefs {
     my ($self, $competencies) = @_;
 
     if ($competencies) {
