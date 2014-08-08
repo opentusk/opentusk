@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::Country;
+package TUSK::Medbiq::Institution::Country;
 
 use 5.008;
 use strict;
@@ -22,7 +22,7 @@ use utf8;
 use Carp;
 use Readonly;
 
-use TUSK::Types qw(NonNullString);
+use Types::Standard qw(Str);
 use TUSK::Meta::Attribute::Trait::Namespaced;
 
 use Moose;
@@ -38,15 +38,15 @@ Readonly my $_default_namespace => 'http://ns.medbiq.org/address/v1/';
 has CountryName => (
     traits => [ qw(Namespaced) ],
     is => 'ro',
-    isa => NonNullString,
+    isa => Str,
     required => 0,
 );
 
 has CountryCode => (
     traits => [ qw(Namespaced) ],
     is => 'ro',
-    isa => NonNullString,
-    required => 0,
+    isa => Str,
+    required => 1,
 );
 
 ###################
@@ -69,15 +69,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::Country - A representation of a country and country code
+TUSK::Medbiq::Institution::Country - A representation of a country and country code
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::Country> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Institution::Country> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::Country;
+  use TUSK::Medbiq::Institution::Country;
 
 =head1 DESCRIPTION
 

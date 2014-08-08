@@ -25,6 +25,7 @@ use Readonly;
 use Types::Standard qw( ArrayRef );
 use TUSK::Medbiq::Types qw( NonNullString Address_Category
                             Address_Restriction );
+use TUSK::Medbiq::Institution::Country;
 
 use Moose;
 with 'TUSK::XML::Object';
@@ -88,7 +89,8 @@ has District => (
 has Country => (
     is => 'ro',
     isa => TUSK::Medbiq::Types::Country,
-    required => 0,
+    lazy => 1,
+    builder => '_build_Country',		
 );
 
 has addressCategory => (
@@ -128,6 +130,10 @@ sub _build_Organization {
 
 sub _build_StreetAddressLine {
     return $TUSK::Constants::Institution{Address};
+}
+
+sub _build_Country {
+    return TUSK::Medbiq::Institution::Country->new(CountryCode => $TUSK::Constants::Institution{CountryCode});
 }
 
 __PACKAGE__->meta->make_immutable;

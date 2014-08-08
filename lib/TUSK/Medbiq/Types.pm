@@ -138,7 +138,7 @@ declare Domain,
 
 class_type UniqueID, { class => 'TUSK::Medbiq::UniqueID' };
 class_type Address, { class => 'TUSK::Medbiq::Institution::Address' };
-class_type Country, { class => 'TUSK::Medbiq::Country' };
+class_type Country, { class => 'TUSK::Medbiq::Institution::Country' };
 class_type Institution, { class => 'TUSK::Medbiq::Institution' };
 class_type CurriculumInventory, {
     class => 'TUSK::Medbiq::CurriculumInventory'
