@@ -1072,11 +1072,9 @@ sub cms_courses {
     my @courses = ();
 
     foreach my $author_course ($self->author_courses()) {
-	if ($author_course->checkJoinObject('TUSK::Permission::Role')) {
-	    my $school = $author_course->getJoinObject('TUSK::Core::School')->getPrimaryKeyID();
-	    my $course = HSDB45::Course->new(_school => $school)->lookup_key($author_course->getPrimaryKeyID());
-	    push @courses, $course;
-	}
+	my $school = $author_course->getJoinObject('TUSK::Core::School')->getPrimaryKeyID();
+	my $course = HSDB45::Course->new(_school => $school)->lookup_key($author_course->getPrimaryKeyID());
+	push @courses, $course;
     }
 
     push @courses, @{$self->admin_courses()};
