@@ -1073,8 +1073,9 @@ sub cms_courses {
 
     foreach my $author_course ($self->author_courses()) {
 	if ($author_course->checkJoinObject('TUSK::Permission::Role')) {
-	    my @author_roles = grep { !($_->getVirtualRole()) } grep { ref $_ eq 'TUSK::Permission::Role' }  $author_course->getJoinObjects('TUSK::Permission::Role');
-	    push @courses, $author_course if (scalar @author_roles);
+	    my $school = $author_course->getJoinObject('TUSK::Core::School')->getPrimaryKeyID();
+	    my $course = HSDB45::Course->new(_school => $school)->lookup_key($author_course->getPrimaryKeyID());
+	    push @courses, $course;
 	}
     }
 
