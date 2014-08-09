@@ -13,11 +13,11 @@
 # limitations under the License.
 
 
-package TUSK::AcademicLevel;
+package TUSK::Academic::Level;
 
 =head1 NAME
 
-B<TUSK::AcademicLevel> - Class for manipulating entries in table academic_level in tusk database
+B<TUSK::Academic::Level> - Class for manipulating entries in table academic_level in tusk database
 
 =head1 SYNOPSIS
 
@@ -209,8 +209,6 @@ sub setSortOrder{
     my ($self, $value) = @_;
     $self->setFieldValue('sort_order', $value);
 }
-
-
 
 =back
 
