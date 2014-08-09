@@ -44,15 +44,12 @@ with 'TUSK::XML::Object';
 has string => (
     is => 'ro',
     isa => Maybe[CharacterString],
-    lazy => 1,
-    builder => '_build_string',
+    required => 1,
 );
 
 has language => (
     is => 'ro',
     isa => Maybe[LanguageCode],
-    lazy => 1,
-    builder => '_build_language',
 );
 
 
@@ -61,9 +58,9 @@ has language => (
 ############
 
 sub _build_namespace { lom_ns }
-sub _build_xml_content { [ qw( string language ) ] }
-sub _build_string { return; }
-sub _build_language { 'en-US' } # ethno-centrism WHAAAT?
+sub _build_xml_attributes { [ qw( language ) ] }
+sub _build_xml_content { [ qw( string ) ] }
+
 
 #################
 # * Class methods

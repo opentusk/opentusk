@@ -121,22 +121,21 @@ sub _build_empty_tags { [ qw( Category ) ] }
 
 sub _build_lom {
     my $self = shift;
-    my $title_string = $self->dao->getDescription();
-    chomp $title_string;
 
-    my $pk = $self->dao->getPrimaryKeyID();
-    my $uri = 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view/' . $pk;
     my $identifier = TUSK::LOM::Identifier->new(
         catalog => 'URI',
-        entry => $uri,
+        entry => 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view/' . $self->dao->getPrimaryKeyID(),
     );
-    my $title = TUSK::LOM::LangString->new(
-        string => $title_string,
-    );
+
+    my $title_string = $self->dao->getDescription();
+    chomp $title_string;
+    my $title = TUSK::LOM::LangString->new(string => $title_string);
+
     my $general = TUSK::LOM::General->new(
         identifier => [ $identifier ],
         title => $title,
     );
+
     return TUSK::LOM->new( general => $general );
 }
 
