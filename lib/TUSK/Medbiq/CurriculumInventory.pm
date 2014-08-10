@@ -31,7 +31,7 @@ use DateTime;
 use Types::Standard qw( Str ArrayRef HashRef Int InstanceOf);
 use TUSK::Medbiq::Types qw( UniqueID NonNullString );
 use TUSK::Types qw( School AcademicLevel URI TUSK_XSD_Date TUSK_DateTime Competency);
-use TUSK::AcademicLevel;
+use TUSK::Academic::Level;
 use TUSK::Namespaces ':all';
 use TUSK::Medbiq::UniqueID;
 use TUSK::Medbiq::Institution;
@@ -238,7 +238,7 @@ sub _build__now {
 
 sub _build_school_academic_levels {
     my $self = shift;
-    return TUSK::AcademicLevel->lookup("school_id = " . $self->school()->getPrimaryKeyID(), ['sort_order']);
+    return TUSK::Academic::Level->lookup("school_id = " . $self->school()->getPrimaryKeyID(), ['sort_order']);
 }
 
 sub _build_schemaLocation {
@@ -394,7 +394,7 @@ sub _build_academic_levels_with_courses {
     my $school_db = $self->school()->getSchoolDb();
 
     return TUSK::Course::AcademicLevel->lookup(undef, undef, undef, undef, [
-	  TUSK::Core::JoinObject->new('TUSK::AcademicLevel', {
+	  TUSK::Core::JoinObject->new('TUSK::Academic::Level', {
 	      jointype => 'inner',
 	      joinkey => 'academic_level_id',
 	      joincond => 'academic_level.school_id = ' . $self->school()->getPrimaryKeyID(),

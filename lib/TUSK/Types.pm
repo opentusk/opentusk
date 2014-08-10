@@ -80,7 +80,7 @@ role_type XML_Object, { role => 'TUSK::XML::Object' };
 declare TUSK_XSD_Date, as Types::XSD::Date;
 declare XHTML_Object, as XML_Object;
 
-class_type AcademicLevel, { class => 'TUSK::AcademicLevel' };
+class_type AcademicLevel, { class => 'TUSK::Academic::Level' };
 class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 class_type Competency, { class => 'TUSK::Competency::Competency' };
 class_type School, { class => 'TUSK::Core::School' };

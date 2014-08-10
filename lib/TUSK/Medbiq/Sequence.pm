@@ -150,7 +150,7 @@ sub _processCourseData {
 	my $course = $cl->getJoinObject('hsdb45_course');
 	my $course_id = $course->getPrimaryKeyID();
 
-	$course_data{$course_id}{level_id} = $cl->getJoinObject('TUSK::AcademicLevel')->getSortOrder();
+	$course_data{$course_id}{level_id} = $cl->getJoinObject('TUSK::Academic::Level')->getSortOrder();
 	$course_data{$course_id}{title} = $course->getTitle();
 	$course_data{$course_id}{description} = $course->getBody();
 	$course_data{$course_id}{competencies} = $cl->getJoinObjects('TUSK::Competency::Competency');
@@ -174,7 +174,7 @@ sub _processCourseData {
 
 	foreach my $pcourse (@{$pcourses}) {
 	    my $pcourse_id = $pcourse->getPrimaryKeyID();
-	    $course_data{$pcourse_id}{level_id} = $pcourse->getJoinObject('TUSK::AcademicLevel')->getSortOrder();
+	    $course_data{$pcourse_id}{level_id} = $pcourse->getJoinObject('TUSK::Academic::Level')->getSortOrder();
 	    $course_data{$pcourse_id}{title} = $pcourse->getTitle();
 	    $course_data{$pcourse_id}{description} = $pcourse->getBody();
 
@@ -232,7 +232,7 @@ sub _getParentCourses {
 	       origkey => 'tusk_course.course_id',
 	       joinkey => 'course_id',
 	   }),
-	   TUSK::Core::JoinObject->new('TUSK::AcademicLevel', {
+	   TUSK::Core::JoinObject->new('TUSK::Academic::Level', {
 	       jointype => 'inner',
 	       origkey => 'academic_level_course.academic_level_id',
 	       joinkey => 'academic_level_id',
