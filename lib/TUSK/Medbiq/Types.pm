@@ -156,9 +156,9 @@ class_type Integration, { class => 'TUSK::Medbiq::Integration' };
 class_type Event, { class => 'TUSK::Medbiq::Event' };
 class_type Keyword, { class => 'TUSK::Medbiq::Event::Keyword' };
 class_type InstructionalMethod,
-    { class => 'TUSK::Medbiq::InstructionalMethod' };
+    { class => 'TUSK::Medbiq::Method::Instructional' };
 class_type AssessmentMethod,
-    { class => 'TUSK::Medbiq::AssessmentMethod' };
+    { class => 'TUSK::Medbiq::Method::Assessment' };
 class_type CompetencyObject,
     { class => 'TUSK::Medbiq::Competency::Object' };
 class_type CompetencyFramework,

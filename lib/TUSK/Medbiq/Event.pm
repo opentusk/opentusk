@@ -33,8 +33,8 @@ use Types::Standard qw( HashRef Str Maybe ArrayRef );
 use Types::XSD qw( Duration Boolean );
 use TUSK::Namespaces ':all';
 use TUSK::Medbiq::Event::Keyword;
-use TUSK::Medbiq::InstructionalMethod;
-use TUSK::Medbiq::AssessmentMethod;
+use TUSK::Medbiq::Method::Instructional;
+use TUSK::Medbiq::Method::Assessment;
 use namespace::clean;
 
 #########
@@ -214,8 +214,8 @@ sub _build_InstructionalMethod {
     my $self = shift;
     my $type = $self->dao->type;
 
-    if (TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($type)) {
-	return TUSK::Medbiq::InstructionalMethod->medbiq_method({
+    if (TUSK::Medbiq::Method::Instructional->has_medbiq_translation($type)) {
+	return TUSK::Medbiq::Method::Instructional->medbiq_method({
 	    class_meeting_type => $type,
 	    primary => 1,
 	});
@@ -227,8 +227,8 @@ sub _build_AssessmentMethod {
     my $self = shift;
     my $type = $self->dao->type;
 
-    if (TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type)) {
-        return TUSK::Medbiq::AssessmentMethod->medbiq_method({
+    if (TUSK::Medbiq::Method::Assessment->has_medbiq_translation($type)) {
+        return TUSK::Medbiq::Method::Assessment->medbiq_method({
             class_meeting_type => $type,
             purpose => 'Formative',
         });

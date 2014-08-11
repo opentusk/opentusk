@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::InstructionalMethod;
+package TUSK::Medbiq::Method::Instructional;
 
 ###########
 # * Imports
@@ -158,12 +158,12 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::InstructionalMethod - Represent an InstructionalMethod
+TUSK::Medbiq::Method::Instructional - Represent an InstructionalMethod
 element for the Medbiquitous Curriculum Inventory
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::InstructionalMethod;
+  use TUSK::Medbiq::Method::Instructional;
 
 =head1 DESCRIPTION
 

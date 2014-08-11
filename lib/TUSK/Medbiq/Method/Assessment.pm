@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package TUSK::Medbiq::AssessmentMethod;
+package TUSK::Medbiq::Method::Assessment;
 
 ###########
 # * Imports
@@ -134,15 +134,15 @@ __END__
 
 =head1 NAME
 
-TUSK::Medbiq::AssessmentMethod - A short description of the module's purpose
+TUSK::Medbiq::Method::Assessment - A short description of the module's purpose
 
 =head1 VERSION
 
-This documentation refers to L<TUSK::Medbiq::AssessmentMethod> v0.0.1.
+This documentation refers to L<TUSK::Medbiq::Method::Assessment> v0.0.1.
 
 =head1 SYNOPSIS
 
-  use TUSK::Medbiq::AssessmentMethod;
+  use TUSK::Medbiq::Method::Assessment;
 
 =head1 DESCRIPTION
 

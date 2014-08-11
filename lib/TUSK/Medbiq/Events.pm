@@ -33,12 +33,11 @@ use TUSK::Namespaces ':all';
 use HSDB4::Constants;
 use HSDB45::ClassMeeting;
 use TUSK::Medbiq::Event;
-use TUSK::Medbiq::InstructionalMethod;
-use TUSK::Medbiq::AssessmentMethod;
+use TUSK::Medbiq::Method::Instructional;
+use TUSK::Medbiq::Method::Assessment;
 use TUSK::Core::LinkContentKeyword;
 use namespace::clean;
-use TUSK::Medbiq::InstructionalMethod;
-use TUSK::Medbiq::AssessmentMethod;
+
 
 #########
 # * Setup
@@ -141,8 +140,8 @@ sub _build_Events {
 
     my @events = ();
     foreach my $event ($cm->lookup_conditions($self->_meeting_dates_condition())) {
-	if (TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($event->type())
-	    || TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($event->type())
+	if (TUSK::Medbiq::Method::Instructional->has_medbiq_translation($event->type())
+	    || TUSK::Medbiq::Method::Assessment->has_medbiq_translation($event->type())
 	   ) {
 	    push @events, TUSK::Medbiq::Event->new(dao => $event, 
 					       competencies => $competencies->{$event->primary_key()},
@@ -196,8 +195,8 @@ sub _keep_meeting {
     my $self = shift;
     my $cm = shift;
     my $type = $cm->type;
-    return ( TUSK::Medbiq::InstructionalMethod->has_medbiq_translation($type)
-          || TUSK::Medbiq::AssessmentMethod->has_medbiq_translation($type) );
+    return ( TUSK::Medbiq::Method::Instructional->has_medbiq_translation($type)
+          || TUSK::Medbiq::Method::Assessment->has_medbiq_translation($type) );
 }
 
 sub _meeting_dates_condition {
