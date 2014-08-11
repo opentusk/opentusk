@@ -26,7 +26,7 @@ add curriculum_method_type_enum_id int(10) unsigned NULL after label,
 add code varchar(12) NULL after curriculum_method_type_enum_id;
 
 INSERT INTO enum_data VALUES 
-(0, 'curriculum_method.method_type', 'instructional', 'Instructional Method', '', 'script', now(), 'script', now()),
-(0, 'curriculum_method.method_type', 'assessment', 'Assessment Method', '', 'script', now(), 'script', now()),
+(0, 'class_meeting_type.curriculum_method_id', 'instruction', 'Instructional Method', '', 'script', now(), 'script', now()),
+(0, 'class_meeting_type.curriculum_method_id', 'assessment', 'Assessment Method', '', 'script', now(), 'script', now()),
 (0, 'class_meeting_assessment_method.type_id', 'formative', 'Formative', '', 'script', now(), 'script', now()),
 (0, 'class_meeting_assessment_method.type_id', 'summative', 'Summative', '', 'script', now(), 'script', now());
