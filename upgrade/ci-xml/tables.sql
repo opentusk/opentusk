@@ -18,11 +18,11 @@ CREATE TABLE IF NOT EXISTS `class_meeting_assessment_method_type_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
 
 alter table class_meeting_type
-add curriculum_method_type_enum_id int(10) unsigned NULL after label,
+add curriculum_method_enum_id int(10) unsigned NULL after label,
 add code varchar(12) NULL after curriculum_method_type_enum_id;
 
 alter table class_meeting_type_history
-add curriculum_method_type_enum_id int(10) unsigned NULL after label,
+add curriculum_method_enum_id int(10) unsigned NULL after label,
 add code varchar(12) NULL after curriculum_method_type_enum_id;
 
 INSERT INTO enum_data VALUES 
