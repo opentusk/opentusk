@@ -14,106 +14,107 @@
  limitations under the License.
 </%doc>
 
-
 <%once>
-use TUSK::ClassMeeting::Type;
-use TUSK::Constants;
+	use TUSK::ClassMeeting::Type;
+	use TUSK::Constants;
+	use TUSK::Enum::Data;
 </%once>
 
 <%shared>
-my $school = $m->comp('/tmpl/url:get_type_object');
-my $mt_id = $m->comp('/tmpl/url:get_last_path_id');
+	my $school = $m->comp('/tmpl/url:get_type_object');
+	my $mt_id = $m->comp('/tmpl/url:get_last_path_id');
 </%shared>
 
 
 <& /tmpl/element:form, params => {
-                method   => 'POST',
-                name     => 'typeaddedit', 
-                onsubmit => "return mtValidateForm(this);" }, &>
+	method   => 'POST',
+	name     => 'typeaddedit', 
+	onsubmit => "return mtValidateForm(this);" 
+} &>
 
 <& /tmpl/wizard:include &>
 
 <& /tmpl/element:table, params => { 
         width       => "100%",
-        border      =>"0",
-        cellspacing =>"0",
-        cellpadding =>"0",
-        } 
-&>
+        border      => "0",
+        cellspacing => "0",
+        cellpadding => "0",
+} &>
 
 <& /tmpl/element:textbox, params =>{ 
-		label  => __('Label'),
-		name   => 'label',
-		value  => $mt_label,
-		size   => 60,
-		} 
-&>
+	label  => __('Label'),
+	name   => 'label',
+	value  => $mt_label,
+	size   => 60,
+} &>
 
-<& /tmpl/element:save_button, params=>{
-		one_column=>'1',
-		colspan=>'2',
-		label => __('Save and Continue'),
-		name => 'submit',
-		cancel_onclick => "go_back('" . $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/management/meetingtype/show") . "');",
-        } 
-&>
+% my $curriculum_methods = TUSK::Enum::Data->lookup("namespace = 'class_meeting_type.curriculum_method_id'");
+<& /tmpl/element:dropdown, params => { 
+	label 	=> __('Curriculum Method'),
+	name	=> "curriculum_method_id",
+	selected => $mtype->getCurriculumMethodEnumID(),
+	options => [ 
+		{ label => '', value => '' },
+		map {{ label => $_->getDisplayName(), value => $_->getPrimaryKeyID() }} @$curriculum_methods 
+	],
+} &>
+
+<& /tmpl/element:textbox, params =>{ 
+	label  => __('Code'),
+	name   => 'code',
+	value  => $mtype->getCode(),
+	size   => 12,
+} &>
+
+<& /tmpl/element:save_button, params => {
+	one_column	=> '1',
+	colspan		=> '2',
+	label 		=> __('Save'),
+	name 		=> 'submit',
+	cancel_onclick 	=> "go_back('" . $m->comp("/tmpl/url:construct_back_url", 'base_url' => "/management/meetingtype/show") . "');",
+} &>
 
 </table>
-
 </form>
 
 
 <%init>
-my $mt_label = '';
-my $mtype = TUSK::ClassMeeting::Type->new();
+	my $mt_label = '';
+	my $mtype = TUSK::ClassMeeting::Type->new();
 
-if ($mt_id) {
-	$mtype = $mtype->lookupKey($mt_id);
+	if ($mt_id) {
+		$mtype = $mtype->lookupKey($mt_id);
 
-	if (defined $mtype) {
-		if ($mtype->hasLinkedMeetings()) {
+		if (defined $mtype) {
+			$mt_label = $mtype->getLabel();
+		} else {
 			$m->redirect( $m->comp("/tmpl/url:construct_back_url",
-					'base_url' => '/management/meetingtype/show',
-					'msg'      => __('We are sorry, but you cannot modify a meeting type that is linked to existing meetings.'),
-					'msgtype'  => 'hintmsg') );
-		}
-		$mt_label = $mtype->getLabel();
-	}
-	else {
-		$m->redirect( $m->comp("/tmpl/url:construct_back_url",
 				'base_url' => '/management/meetingtype/show',
 				'msg'      => __('Invalid Meeting Type ID.'),
 				'msgtype'  => 'errmsg') );	
+		}
 	}
-}
 
-if ($m->comp("/tmpl/wizard:submitted", args => \%ARGS)){
+	if ($m->comp("/tmpl/wizard:submitted", args => \%ARGS)) {
+		$mtype->setFieldValues({
+			label 				=> $ARGS{label},
+			school_id 			=> $school->getPrimaryKeyID(),
+			curriculum_method_enum_id	=> ($ARGS{curriculum_method_id}) ? $ARGS{curriculum_method_id} : undef,
+			code				=> ($ARGS{code}) ? $ARGS{code} : undef,
+		});
+		$mtype->save({'user' => $m->session->{user}->primary_key()});
 
-	$mtype->setLabel($ARGS{label});
-
-	$mtype->setSchoolID($school->getPrimaryKeyID());
-
-	my $user_id = $m->comp('SELF:user');
-	$mtype->save({'user'=>$user_id});
-
-	my $msg = ($mt_label)? __('Meeting type successfully modified.') : __('Meeting type successfully created.');
-	$m->redirect( $m->comp("/tmpl/url:construct_back_url",
+		my $msg = ($mt_label) ? __('Meeting type successfully modified.') : __('Meeting type successfully created.');
+		$m->redirect( $m->comp("/tmpl/url:construct_back_url",
 			'base_url' => '/management/meetingtype/show',
 			'msg'      => $msg,
-			'msgtype'  => 'msg') );
-
-}
+			'msgtype'  => 'msg') 
+		);
+	}
 </%init>
 
-
 <%method title>
-% my $activity = (defined $mt_id)? __('Modify') : __('Create');
-% return "$activity ".__("Meeting Type");
+% 	my $activity = (defined $mt_id) ? __('Modify') : __('Create');
+% 	return "$activity " . __("Meeting Type");
 </%method>
 
-<%method startup>
-<%args>
-	$args
-</%args>
-%	$m->comp('SELF:set_no_cache');
-</%method>

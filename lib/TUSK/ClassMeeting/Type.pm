@@ -72,6 +72,8 @@ sub new {
 					'class_meeting_type_id' => 'pk',
 					'school_id' => '',
 					'label' => '',
+					'curriculum_method_enum_id' => '',
+					'code' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -151,6 +153,68 @@ sub setLabel{
 }
 
 
+#######################################################
+
+=item B<getCurriculumMethodEnumID>
+
+my $string = $obj->getCurriculumMethodEnumID();
+
+Get the value of the curriculum_method_enum_id field
+
+=cut
+
+sub getCurriculumMethodEnumID{
+    my ($self) = @_;
+    return $self->getFieldValue('curriculum_method_enum_id');
+}
+
+#######################################################
+
+=item B<setCurriculumMethodEnumID>
+
+$obj->setCurriculumMethodEnumID($value);
+
+Set the value of the curriculum_method_enum_id field
+
+=cut
+
+sub setCurriculumMethodEnumID{
+    my ($self, $value) = @_;
+    $self->setFieldValue('curriculum_method_enum_id', $value);
+}
+
+
+
+#######################################################
+
+=item B<getCode>
+
+my $string = $obj->getCode();
+
+Get the value of the code field
+
+=cut
+
+sub getCode{
+    my ($self) = @_;
+    return $self->getFieldValue('code');
+}
+
+#######################################################
+
+=item B<setCode>
+
+$obj->setCode($value);
+
+Set the value of the code field
+
+=cut
+
+sub setCode{
+    my ($self, $value) = @_;
+    $self->setFieldValue('code', $value);
+}
+
 
 =back
 
@@ -171,8 +235,32 @@ order provided a school id.
 =cut
 
 sub getSchoolTypes {
-	my ($class, $id) = @_;
-	return $class->lookup("school_id=$id", ['label ASC']);
+    my ($class, $id) = @_;
+    return $class->lookup("school_id=$id", ['label ASC'], undef, undef, [
+	 TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	     origkey => 'curriculum_method_enum_id',
+	     joinkey => 'enum_data_id',
+	 }),
+    ]);
+}
+
+
+#######################################################
+
+=item B<getCurriculumMethodDisplayName>
+
+$obj->getCurriculumMethodDisplayName($school_id);
+
+Return a display name of curriculum method
+
+=cut
+
+sub getCurriculumMethodDisplayName {
+    my $self = shift;
+    if (my $method = $self->getJoinObject('TUSK::Enum::Data')) {
+	return $method->getDisplayName();
+    }
+    return '';
 }
 
 

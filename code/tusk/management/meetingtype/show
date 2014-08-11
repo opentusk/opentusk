@@ -28,34 +28,38 @@ use TUSK::ClassMeeting::Type;
 
 
 <& /tmpl/element:form, params => {
-                method => 'POST',
-                name => 'typeshow' } &>
-
-% my $col_fields = [ {'label'=>__('Meeting Type'), 'field'=>'getLabel'}, ];
+	method => 'POST',
+	name => 'typeshow' 
+} &>
 
 <& /tmpl/element:object_selection_box, params => { 
-		columns        => $col_fields, 
-		sort_box       => 0,
-		action_columns => [ {'label' => __('Modify'),
-		                     'link'  => '/management/meetingtype/addedit'}
-		                  ],
-		object_list    => $m_types,
-		empty_message  => __('No meeting types for this school.'),
-		type_path      => $type_path }
-&>
+	columns        => $col_fields, 
+	sort_box       => 0,
+	action_columns => [ {'label' => __('Modify'),
+	                     'link'  => '/management/meetingtype/addedit'}
+	                  ],
+	object_list    => $m_types,
+	empty_message  => __('No meeting types for this school.'),
+	type_path      => $type_path 
+} &>
 
 </form>
 
 
 <%init>
-my $type_path = $m->comp('/tmpl/url:get_type_path'); 
-my $school = $m->comp('/tmpl/url:get_type_object');
-my $sid = $school->getPrimaryKeyID();
-my $m_types = TUSK::ClassMeeting::Type->getSchoolTypes($sid);
+	my $type_path = $m->comp('/tmpl/url:get_type_path'); 
+	my $school = $m->comp('/tmpl/url:get_type_object');
+	my $m_types = TUSK::ClassMeeting::Type->getSchoolTypes($school->getPrimaryKeyID());
+
+	my $col_fields = [ 
+		{ label => __('Meeting Type'), => field => 'getLabel' }, 
+		{ label => __('Curriculum Method'), => field => 'getCurriculumMethodDisplayName' }, 
+		{ label => __('Code'), => field => 'getCode' }, 
+	];
 </%init>
 
 
 <%method title>
-% return __('Manage Meeting Types');
+% 	return __('Manage Meeting Types');
 </%method>
 
