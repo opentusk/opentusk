@@ -44,6 +44,7 @@ use Type::Library
                       StrHashRef
                       Sys_DateTime
 		      Time
+                      TUSK_ClassMeeting
                       TUSK_DateTime
                       TUSK_XSD_Date
                       UnsignedInt
@@ -84,6 +85,7 @@ class_type AcademicLevel, { class => 'TUSK::Academic::Level' };
 class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 class_type Competency, { class => 'TUSK::Competency::Competency' };
 class_type School, { class => 'TUSK::Core::School' };
+class_type TUSK_ClassMeeting, { class => 'TUSK::Core::HSDB45Tables::ClassMeeting' };
 class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
 class_type Umls_Keyword, { class => 'TUSK::Core::Keyword' };
 

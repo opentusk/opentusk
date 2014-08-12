@@ -36,6 +36,7 @@ use TUSK::Medbiq::Event;
 use TUSK::Medbiq::Method::Instructional;
 use TUSK::Medbiq::Method::Assessment;
 use TUSK::Core::LinkContentKeyword;
+use TUSK::Core::HSDB45Tables::ClassMeeting;
 use namespace::clean;
 
 
@@ -136,18 +137,28 @@ sub _build_Events {
     my $kwords = $self->keywords();
     my $school = $self->school();
 
-    my $cm = HSDB45::ClassMeeting->new(_school => $self->school()->getSchoolName());
+    my $cm = TUSK::Core::HSDB45Tables::ClassMeeting->new();
+    $cm->setDatabase($self->school()->getSchoolDb());
+    my $class_meetings = $cm->lookup($self->_meeting_dates_condition(), undef, undef, undef, [
+       	  TUSK::Core::JoinObject->new('TUSK::ClassMeeting::Type', {
+	      jointype => 'inner',
+	      origkey => 'type_id',
+	      joinkey => 'class_meeting_type_id',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'class_meeting_type.curriculum_method_enum_id',
+	      joinkey => 'enum_data_id',
+	      joincond => "namespace = 'class_meeting_type.curriculum_method_id' and short_name in ('assessment', 'instruction')"
+	  }),
+    ]);
 
     my @events = ();
-    foreach my $event ($cm->lookup_conditions($self->_meeting_dates_condition())) {
-	if (TUSK::Medbiq::Method::Instructional->has_medbiq_translation($event->type())
-	    || TUSK::Medbiq::Method::Assessment->has_medbiq_translation($event->type())
-	   ) {
-	    push @events, TUSK::Medbiq::Event->new(dao => $event, 
-					       competencies => $competencies->{$event->primary_key()},
-					       keywords => $kwords->{$event->primary_key()},
-	   );
-	}
+    foreach my $event (@$class_meetings) {
+	push @events, TUSK::Medbiq::Event->new(dao => $event, 
+					       competencies => $competencies->{$event->getPrimaryKeyID()},
+					       keywords => $kwords->{$event->getPrimaryKeyID()},
+        );
     }
 
     return \@events;

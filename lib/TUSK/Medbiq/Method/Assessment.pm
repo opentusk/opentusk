@@ -53,57 +53,6 @@ has purpose => (
     required => 1,
 );
 
-######################################
-# * Medbiquitous instructional methods
-######################################
-
-Readonly my %METHOD_FROM_UID => (
-    AM001 => 'Clinical Documentation Review',
-    AM002 => 'Clinical Performance Rating/Checklist',
-    AM003 => 'Exam - Institutionally Developed, Clinical Performance',
-    AM004 => 'Exam - Institutionally Developed, Written/Computer-based',
-    AM005 => 'Exam - Institutionally Developed, Oral',
-    AM006 => 'Exam - Licensure, Clinical Performance',
-    AM007 => 'Exam - Licensure, Written/Computer-based',
-    AM008 => 'Exam - Nationally Normed/Standardized, Subject',
-    AM009 => 'Multisource Assessment',
-    AM010 => 'Narrative Assessment',
-    AM011 => 'Oral Patient Presentation',
-    AM012 => 'Participation',
-    AM013 => 'Peer Assessment',
-    AM014 => 'Portfolio-Based Assessment',
-    AM015 => 'Practical (Lab)',
-    AM016 => 'Research or Project Assessment',
-    AM017 => 'Self-Assessment',
-    AM018 => 'Stimulated Recall',
-);
-
-Readonly my %UID_FROM_TYPE => (
-    'Examination' => 'AM004',
-    'Laboratory Practical' => 'AM015',
-    'Quiz' => 'AM017',
-);
-
-sub has_medbiq_translation {
-    my $class = shift;
-    my $type = shift;
-    return exists $UID_FROM_TYPE{$type};
-}
-
-sub medbiq_method {
-    my $class = shift;
-    my $arg_ref = shift;
-    my $type = $arg_ref->{class_meeting_type};
-
-    if (! exists $UID_FROM_TYPE{$type}) {
-        confess "No Medbiquitous Instructional Method found for class meeting type $type";
-    }
-
-    return $class->new(
-        purpose => $arg_ref->{purpose},
-        content => $UID_FROM_TYPE{$type}
-    );
-}
 
 #################
 # * Class methods

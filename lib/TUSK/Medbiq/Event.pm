@@ -28,7 +28,7 @@ use Readonly;
 
 use TUSK::Constants;
 use TUSK::Medbiq::Types qw( NonNullString VocabularyTerm );
-use TUSK::Types qw( Competency ClassMeeting Umls_Keyword);
+use TUSK::Types qw( Competency TUSK_ClassMeeting Umls_Keyword);
 use Types::Standard qw( HashRef Str Maybe ArrayRef );
 use Types::XSD qw( Duration Boolean );
 use TUSK::Namespaces ':all';
@@ -50,7 +50,7 @@ with 'TUSK::XML::Object';
 
 has dao => (
     is => 'ro',
-    isa => ClassMeeting,
+    isa => TUSK_ClassMeeting,
     required => 1,
 );
 
@@ -149,22 +149,21 @@ sub _build_xml_content {
 
 sub _build_id {
     my $self = shift;
-    return $self->dao->primary_key;
+    return $self->dao()->getPrimaryKeyID();
 }
 
 sub _build_Title {
     my $self = shift;
-    my $title = $self->dao->title || 'Untitled Event';
+    my $title = $self->dao()->getTitle() || 'Untitled Event';
     chomp $title;
     return $title;
 }
 
 sub _build_EventDuration {
     my $self = shift;
-    my $start = $self->dao->start_time;
-    my $end = $self->dao->end_time;
     return $self->_duration_string_from_mysql_times({
-        start => $start, end => $end
+        start => $self->dao()->getStarttime(), 
+	end => $self->dao()->getEndtime()
     });
 }
 
@@ -212,26 +211,24 @@ sub _build_ResourceType {
 
 sub _build_InstructionalMethod {
     my $self = shift;
-    my $type = $self->dao->type;
 
-    if (TUSK::Medbiq::Method::Instructional->has_medbiq_translation($type)) {
-	return TUSK::Medbiq::Method::Instructional->medbiq_method({
-	    class_meeting_type => $type,
-	    primary => 1,
-	});
+    if ($self->dao->getJoinObject('TUSK::Enum::Data')->getShortName() eq 'instruction') {
+	return TUSK::Medbiq::Method::Instructional->new(
+		content => $self->dao()->getJoinObject('TUSK::ClassMeeting::Type')->getCode(),
+		primary => 'true',
+	);
     }
     return undef;
 }
 
 sub _build_AssessmentMethod {
     my $self = shift;
-    my $type = $self->dao->type;
 
-    if (TUSK::Medbiq::Method::Assessment->has_medbiq_translation($type)) {
-        return TUSK::Medbiq::Method::Assessment->medbiq_method({
-            class_meeting_type => $type,
-            purpose => 'Formative',
-        });
+    if ($self->dao->getJoinObject('TUSK::Enum::Data')->getShortName() eq 'assessment') {
+	return TUSK::Medbiq::Method::Assessment->new(
+		content => $self->dao()->getJoinObject('TUSK::ClassMeeting::Type')->getCode(),
+	        purpose => 'Formative',
+	);
     }
     return undef;
 }
