@@ -1112,7 +1112,7 @@ sub find_users {
     my ($self, $conditions, $sort_orders, $tp_id) = @_;
     my $school = $self->get_school() or confess "missing school object";
     return TUSK::Core::HSDB4Tables::User->lookup($conditions, $sort_orders, undef, undef, [
-		   TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'user_id', jointype => 'inner', joincond =>"course_id = " . $self->primary_key() . " AND school_id = " . $school->getPrimaryKeyID() . ((defined $tp_id) ? " AND time_period_id = $tp_id" : '') }),
+		   TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'user_id', jointype => 'inner', joincond =>"course_id = " . $self->primary_key() . " AND school_id = " . $school->getPrimaryKeyID() . (($tp_id > 0) ? " AND time_period_id = $tp_id" : '') }),
 		   TUSK::Core::JoinObject->new('TUSK::Course::User::Site', { joinkey => 'course_user_id', origkey => 'course_user.course_user_id' }),
 		   TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TeachingSite', { database => $school->getSchoolDb(), joinkey => 'teaching_site_id', origkey => 'course_user_site.teaching_site_id' }),
 		   TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id' }),		
