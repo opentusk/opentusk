@@ -22,8 +22,7 @@
 use strict;
 use warnings;
 
-use HSDB4::Constants;
-use HSDB4::SQLRow::Objective;
+
 use TUSK::Constants;
 use TUSK::Enum::Data;
 
@@ -32,17 +31,32 @@ use TUSK::Feature::Link;
 
 use Data::Dumper; #remove for production
 
-my $dbh = HSDB4::Constants::def_db_handle();
-my $schools = HSDB4::Constants::getSchoolObject();
+my %national_competency_URIs;
 
 main();
 
 sub main {
     getURIsFromCompetencyTable();
+    setURIsToFeatureLinkTable();
 }
 
 sub getURIsFromCompetencyTable {
-    my $competency_level_enum_id = TUSK::Enum::Data->lookupReturnOne( "namespace=\"competency.level_id\" AND short_name =\"national\"" )->getPrimaryKeyID;
-    print $competency_level_enum_id. "\n";
+    my $competency_level_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"competency.level_id\" AND short_name = \"national\"")->getPrimaryKeyID;
+    my $national_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_level_enum_id");
+    foreach my $national_competency (@{$national_competencies}) {
+	$national_competency_URIs{$national_competency->getPrimaryKeyID} = $national_competency->getUri;
+    }
 }
 
+sub setURIsToFeatureLinkTable {
+    my $feature_link_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"feature_link.feature_type\" AND short_name = \"competency\"")->getPrimaryKeyID;
+    foreach my $national_competency_uri_id (keys %national_competency_URIs) {
+	my $featureLinkRelation = TUSK::Feature::Link->new();
+	$featureLinkRelation->setFieldValues({
+	    feature_type_enum_id => $feature_link_enum_id,
+	    feature_id => $national_competency_uri_id,
+	    url => $national_competency_URIs{$national_competency_uri_id},
+	});
+	$featureLinkRelation->save({user => "script"});
+    }
+}
