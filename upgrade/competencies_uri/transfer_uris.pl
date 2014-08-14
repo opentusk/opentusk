@@ -29,8 +29,6 @@ use TUSK::Enum::Data;
 use TUSK::Competency::Competency;
 use TUSK::Feature::Link;
 
-use Data::Dumper; #remove for production
-
 my %national_competency_URIs;
 
 main();

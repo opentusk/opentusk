@@ -28,12 +28,14 @@
 	use HSDB4::Constants;
 	use TUSK::Core::School;
 	use TUSK::Enum::Data;
+	use TUSK::Feature::Link;
 
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Hierarchy;
 
 	use TUSK::Application::Competency::Competency;
 	use TUSK::Application::Competency::Tree;
+	
 </%once>
 
 <%perl>
@@ -162,6 +164,11 @@
 
 			$competency->delete();
 
+			#Grab and delete entry for deleted competency from feature_link table (delete the URI/URL entry):
+			my $feature_link_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"feature_link.feature_type\" AND short_name = \"competency\"")->getPrimaryKeyID;
+			my $feature_link_relation = TUSK::Feature::Link->lookupReturnOne("feature_type_enum_id = $feature_link_enum_id AND feature_id = $id");
+			$feature_link_relation->delete;
+
 			# Grab and delete entry for deleted competency from competency_hiearchy table.
 
 			my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne('child_competency_id='. $id);
@@ -217,7 +224,6 @@
 				my $competency_args = {
 					competency_id => $parent_id,
 					title => $ARGS{'col0'},
-					uri => $ARGS{'col1'},
 					user_type_id => $competency_user_type_id->getPrimaryKeyID,
 					school_id => $school_id,
 					competency_level_enum_id => $competency_level_enum_id->getPrimaryKeyID,
@@ -234,7 +240,17 @@
 				};	
 				
 				my $child_competency_id = $competency->addChild($extra_competency_args);
-
+			
+				my $feature_link_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"feature_link.feature_type\" AND short_name = \"competency\"")->getPrimaryKeyID;
+				
+				my $competency_feature_link = TUSK::Feature::Link->new();
+				$competency_feature_link->setFieldValues({
+					feature_type_enum_id => $feature_link_enum_id,
+					feature_id => $child_competency_id,
+					url => $ARGS{'col1'}					
+				});
+				$competency_feature_link->save({user => $m->session->{'user'}->user_id});
+				
 				my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne( "child_competency_id=". $child_competency_id );
 
 				if ( $ARGS{'position'} eq 'last' ) {
@@ -275,6 +291,9 @@
 
 				$competency = TUSK::Application::Competency::Competency->new($competency_args);
 				$competency->update;
+				my $competency_feature_link = TUSK::Feature::Link->lookupReturnOne("feature_id =".$competency->{'competency_id'});
+				$competency_feature_link->setUrl($ARGS{'col1'});
+				$competency_feature_link->save({user => $m->session->{'user'}->user_id});
 				print "\"id\"    : \"" . $competency->{'competency_id'}. "_" . time() . "\",\n";
 				print "\"error\" : \"\"\n";
 			}
