@@ -338,8 +338,8 @@ sub author_courses {
 		TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'course_id', jointype => 'inner', joincond => "user_id = '" . $self->primary_key() . "'" }),
 		TUSK::Core::JoinObject->new('TUSK::Core::School', { joinkey => 'school_id', origkey => 'course_user.school_id', jointype => 'inner', joincond => "school_name = '$school'"  }),
 		TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id', jointype => 'inner'  }),
-		TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id',  jointype => 'inner' }),
-		   TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', origkey => 'permission_role.feature_type_id', joincond => "feature_type_token = 'course'", jointype => 'inner' }),
+		TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id',  jointype => 'inner', joincond => "virtual_role = 0" }),
+		   TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', origkey => 'permission_role.feature_type_id', jointype => 'inner', joincond => "feature_type_token = 'course'" }),
 	])};
 	}
     }
