@@ -21,9 +21,8 @@ use version; our $VERSION = qv('0.0.1');
 use utf8;
 use Carp;
 use Readonly;
-
-use TUSK::Medbiq::Types qw( NonNullString UniqueID ContextValues
-                            VocabularyTerm );
+use Types::Standard qw(Int);
+use TUSK::Medbiq::Types qw(NonNullString ContextValues VocabularyTerm);
 use TUSK::Namespaces qw(curriculum_inventory_ns);
 
 use Moose;
@@ -41,7 +40,7 @@ has ProgramName => (
 
 has ProgramID => (
     is => 'ro',
-    isa => UniqueID,
+    isa => Int,
     lazy => 1,
     builder => '_build_ProgramID',
 );
@@ -74,7 +73,7 @@ sub _build_xml_content { [ qw( ProgramName ProgramID EducationalContext
                                Profession Specialty ) ] }
 
 sub _build_ProgramID {
-    return TUSK::Medbiq::UniqueID->new;
+    return '1';  ## for now, we just have one program for the report
 }
 
 ###########

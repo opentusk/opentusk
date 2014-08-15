@@ -89,6 +89,16 @@ has Institution => (
     builder => '_build_Institution',
 );
 
+has program_name => (
+    is => 'ro',
+    isa => Str,
+    lazy => 1,
+    default => sub {
+	my $self = shift;
+	return $TUSK::Constants::Schools{$self->school()->getSchoolName()}{Degree};
+    }
+);
+
 has Program => (
     is => 'ro',
     isa => TUSK::Medbiq::Types::Program,
@@ -100,7 +110,7 @@ has Title => (
     is => 'ro',
     isa => NonNullString,
     lazy => 1,
-    builder => '_build_Title',
+    default => '',
 );
 
 has ReportDate => (
@@ -136,7 +146,7 @@ has Description => (
     is => 'ro',
     isa => NonNullString,
     lazy => 1,
-    builder => '_build_Description',
+    default => ' ',		    
 );
 
 has SupportingLink => (
@@ -255,9 +265,7 @@ sub _build_Institution {
 
 sub _build_Program {
     my $self = shift;
-    # my $name = $self->school->getSchoolName . ' Degree Program';
-    my $name = '! PLACEHOLDER PROGRAM NAME !';
-    return TUSK::Medbiq::Program->new( ProgramName => $name );
+    return TUSK::Medbiq::Program->new(ProgramName => $self->program_name());
 }
 
 sub _build_Title {

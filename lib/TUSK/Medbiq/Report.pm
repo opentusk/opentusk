@@ -28,7 +28,7 @@ use Readonly;
 
 use XML::Writer;
 
-use Types::Standard qw( ArrayRef Int );
+use Types::Standard qw( ArrayRef Int Str);
 use TUSK::Medbiq::Types;
 use TUSK::Types qw( School Sys_DateTime );
 use TUSK::Namespaces ':all';
@@ -41,6 +41,12 @@ our $VERSION = qv('0.0.1');
 ####################
 # * Class attributes
 ####################
+
+has output => (
+    is => 'ro',
+    isa => 'IO::File',
+    required => 1,
+);
 
 has school => (
     is => 'ro',
@@ -63,6 +69,16 @@ has end_date => (
     required => 1,
 );
 
+has title => (
+    is => 'ro',
+    isa => Str,
+);
+
+has description => (
+    is => 'ro',
+    isa => Str,
+);
+
 has CurriculumInventory => (
     is => 'ro',
     isa => TUSK::Medbiq::Types::CurriculumInventory,
@@ -78,7 +94,9 @@ has writer => ( is => 'ro', isa => 'XML::Writer',
 ############
 
 sub _build_writer {
+    my $self = shift;
     return XML::Writer->new(
+	OUTPUT => $self->output(),
         ENCODING => 'utf-8',
         DATA_MODE => 1,
         DATA_INDENT => 2,
@@ -91,7 +109,7 @@ sub _build_writer {
             competency_object_ns(),
             extend_ns(),
             member_ns(),
-            xml_schema_instance_ns(),
+	    xml_schema_instance_ns(),
         ],
         PREFIX_MAP => {
             curriculum_inventory_ns() => '',
@@ -112,6 +130,8 @@ sub _build_CurriculumInventory {
         school => $self->school,
         ReportingStartDate => $self->start_date,
         ReportingEndDate => $self->end_date,
+	Title => $self->title,
+	Description => $self->description,
     );
 }
 
