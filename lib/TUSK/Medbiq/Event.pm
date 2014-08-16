@@ -214,7 +214,7 @@ sub _build_InstructionalMethod {
 
     if ($self->dao->getJoinObject('TUSK::Enum::Data')->getShortName() eq 'instruction') {
 	return TUSK::Medbiq::Method::Instructional->new(
-		content => $self->dao()->getJoinObject('TUSK::ClassMeeting::Type')->getCode(),
+		content => $self->dao()->getJoinObject('TUSK::ClassMeeting::Type')->getMethodCode(),
 		primary => 'true',
 	);
     }
@@ -226,7 +226,7 @@ sub _build_AssessmentMethod {
 
     if ($self->dao->getJoinObject('TUSK::Enum::Data')->getShortName() eq 'assessment') {
 	return TUSK::Medbiq::Method::Assessment->new(
-		content => $self->dao()->getJoinObject('TUSK::ClassMeeting::Type')->getCode(),
+		content => $self->dao()->getJoinObject('TUSK::ClassMeeting::Type')->getMethodCode(),
 	        purpose => 'Formative',
 	);
     }

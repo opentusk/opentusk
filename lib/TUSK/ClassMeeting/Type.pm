@@ -73,7 +73,7 @@ sub new {
 					'school_id' => '',
 					'label' => '',
 					'curriculum_method_enum_id' => '',
-					'code' => '',
+					'method_code' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -187,32 +187,32 @@ sub setCurriculumMethodEnumID{
 
 #######################################################
 
-=item B<getCode>
+=item B<getMethodCode>
 
-my $string = $obj->getCode();
+my $string = $obj->getMethodCode();
 
-Get the value of the code field
+Get the value of the method_code field
 
 =cut
 
-sub getCode{
+sub getMethodCode{
     my ($self) = @_;
-    return $self->getFieldValue('code');
+    return $self->getFieldValue('method_code');
 }
 
 #######################################################
 
-=item B<setCode>
+=item B<setMethodCode>
 
-$obj->setCode($value);
+$obj->setMethodCode($value);
 
-Set the value of the code field
+Set the value of the method_code field
 
 =cut
 
-sub setCode{
+sub setMethodCode{
     my ($self, $value) = @_;
-    $self->setFieldValue('code', $value);
+    $self->setFieldValue('method_code', $value);
 }
 
 
