@@ -41,6 +41,10 @@
 	cellpadding =>"0",
 } &>
 
+<tr>
+<td class="labelgray"><%__("Time Period:")%></td>
+<td class="cell-left"><% $time_period_display %></td>
+</tr>	
 
 <tr>
 <td class="labelgray"><% __("User(s):") %></td>
@@ -208,7 +212,9 @@
 		}
 	}
 
-	my $time_period_id = $m->session->{timeperiod};
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $time_period_id = ($m->session->{timeperiod} > 0) ? $m->session->{timeperiod} : $course->get_current_timeperiod()->primary_key();
+	my $time_period_display = HSDB45::TimePeriod->new( _school=>$school )->lookup_key($time_period_id)->out_display();
 	my $user_id = undef;
 	my $actions = { usage => 'No'};
 	my $users = [];
