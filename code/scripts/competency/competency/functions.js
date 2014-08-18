@@ -451,3 +451,11 @@ $(document).ready( function() {
 });
 
 //End functions to be run at pageload.
+
+//Functions related to displaying competencies in competency checklist pages.
+
+function displayAllCompetencies() {
+	$("#all_competencies_popup").dialog({dialogClass: 'all_competencies_popup_dialog', position: {my: "center", at: "top" }, width: 650, height: 450, minHeight: 450, resizable: false});	
+}
+
+//End Functions related to displaying competencies in competency checklist pages.
