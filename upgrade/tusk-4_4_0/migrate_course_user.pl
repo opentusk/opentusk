@@ -104,7 +104,7 @@ sub print_error {
 
 sub get_course_time_periods {
     my $school_db = shift;
-    my $sql = "SELECT parent_course_id, time_period_id FROM $school_db.link_course_student group by parent_course_id, time_period_id";
+    my $sql = "SELECT DISTINCT parent_course_id, time_period_id FROM $school_db.link_course_student GROUP BY parent_course_id, time_period_id";
     my $course_time_periods = {};
     my $sth = $dbh->prepare ($sql);
     $sth->execute ();
