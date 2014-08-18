@@ -43,6 +43,8 @@ use TUSK::Session;
 use Carp;
 use Image::Magick;
 use TUSK::ProcessTracker::ProcessTracker;
+use TUSK::Competency::Competency;
+use TUSK::Competency::Content;
 
 use POSIX 'setsid';
 
@@ -500,22 +502,16 @@ sub unlink_parent_objective {
     return ($r,$msg);
 }
 
-sub child_objectives {         
+sub getCompetencies {
     #
-    # A little tricky here, these are objectives that define the purpose of the content,
-    # so the content is the parent of the objective. These objectives appear in document headers. 
+    # Competencies related to the content.    
     #
-        
     my $self = shift;
+    my $content_id =  $self->primary_key;
+    my $competencies = TUSK::Competency::Competency->lookup('', ['competency_content.sort_order', 'competency.competency_id'], undef, undef,
+				[TUSK::Core::JoinObject->new("TUSK::Competency::Content", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "content_id = $content_id"})]);
 
-    # Get the link definition
-    my $linkdef =
-        $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_objective'};
-    # And use it to get a LinkSet of parents
-    my $child_objectives = $linkdef->get_children($self->primary_key);
-
-    # Return the list
-    return $child_objectives->children();
+    return $competencies;
 }
 
 sub delete_objectives{

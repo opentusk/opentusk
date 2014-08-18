@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 
+var edit_mode = 0;
+var sort_mode = 1;
+
+function resetDropDown(dropDown) {
+	dropDown.selectedIndex = 0;
+}
 
 function filter (this_dd,prefix) {
-	if (this_dd.value == "None" ) {
+	if (this_dd.value == "None") {
+	
 		prefix_els = document.getElementsByClassName(prefix);
+	
 		for (i=0; i< prefix_els.length; i++) {
 			prefix_els[i].style.display='';
 		}
@@ -26,107 +34,140 @@ function filter (this_dd,prefix) {
 		}
 
 	} else {
+
 		prefix_els = document.getElementsByClassName(prefix);
+
 		for (i=0; i< prefix_els.length; i++) {
 			prefix_els[i].style.display='none';
 			var splt = prefix_els[i].className.split(" ");
 			var tmp = this_dd.value.replace(/ /g, "_");
 			tmp = tmp.replace(/'/g,"");
-			for(j=0; j< splt.length; j++) {
-				if (tmp == splt[j] ) {
+			for (j=0; j< splt.length; j++) {
+				if (tmp == splt[j]) {
 					prefix_els[i].style.display='';
 				}
-			}
-		
+			}		
 		}
 		
-		sort_els = document.getElementsByClassName("hand");
+		sort_els = document.getElementsByClassName("hand");		
 		for (i=0; i< sort_els.length; i++) {
 			sort_els[i].style.display='none';
 		}
 	} // end if/else
 }
 
-function resizeColumns( params ) {
+function resizeColumns(params) {
 	var totalWidth = ($('#'+params.wrapper).width()-28) - params.allocated_width;
 	var tempWidth  = totalWidth - params.maxDepth*params.indent;
 	var columns    = params.columns.length;
-	var perCol     = Math.floor( tempWidth/(columns-params.sized_columns) );
+	var perCol     = Math.floor(tempWidth/(columns-params.sized_columns));
 
 	var colTypes = ['head','col'];
 	for (var idx = 0; idx < colTypes.length; idx++) {
 		var classname = colTypes[idx];
 
-		$('li[class*=' + classname + '0]').each( function() {
+		$('li[class*=' + classname + '0]').each(function() {
 			var thisDepth = 0;
 			// Need to get the OL that we're in, which is four levels back:  <ol><li><div><ul><li>...
 			var depthCheck = this.parentNode.parentNode.parentNode.parentNode;
 
-			while ( depthCheck.tagName == 'OL' ) {
+			while (depthCheck.tagName == 'OL') {
 				// From that, we're going to continually check grandparents to see how deeply we're nested:  <ol><li><ol>...
 				depthCheck = depthCheck.parentNode.parentNode;
 				thisDepth++; 
 			}
 			var width = params.columns[0].width;
-			if ( width == 0 )            { width = perCol; }
-
-			if ( classname == 'head' )   { width += 20; }
-			else if ( params.sort == 0 ) { width += 17; }
+			if (width == 0){ width = perCol; }
+			if (classname == 'head'){ width += 20; }
+			else if (params.sort == 0){ width += 17; }
 
 			width += (params.maxDepth-(thisDepth-1))*params.indent;
 
-			$(this).css( 'width', width + 'px' ).css( 'text-align', params.columns[0].align );
+			$(this).css('width', width + 'px').css('text-align', params.columns[0].align);
 		});
 
 		for (var i = 1; i < columns; i++) {
 			var width = params.columns[i].width || perCol;
-			if ( classname == 'head' ) { $('li[class*=head' + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].head_align ); }
-			else                       { $('li[class*=col'  + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].align ); }
+			if (classname == 'head') { 
+				$('li[class*=head' + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].head_align ); 
+			} else { 
+				$('li[class*=col'  + i + ']').css( 'width', width + 'px' ).css( 'text-align', params.columns[i].align ); 
+			}
 		}
 	}
 }
 
-function fixList ( list, extra ) {
-	for( var idx = 0; idx < list.length; idx++ ) {
+function fixList (list, extra) {
+	for(var idx = 0; idx < list.length; idx++) {
 		list[idx].id = list[idx].id + extra;
 	}
 }
 
-function getPositionInList( liNode ) {
+function getPositionInList(liNode) {
 	var counter = 0;
 	var prev = liNode.previousSibling;
-	while( prev != undefined ) {
-		if ( prev.tagName == 'LI' ) counter++;
+	while (prev != undefined) {
+		if (prev.tagName == 'LI') counter++;
 		prev = prev.previousSibling;
 	}
 
 	return counter;
 }
 
+function switchSorting (button) {	
+	if (sort_mode == 0) {
+		if (edit_mode == 1) {
+			alert("Please finish making your current change before starting a new one");
+			return;
+		}
+		params.sort = 1;
+		$("li.hand").show();
+		$("#competency_container").find(".navsm").hide();
+		$(".tusk-competency-popup").hide();
+		$(".formbutton").prop("disabled", true);
+		$("#switch_sorting").prop("disabled", false);
+		$(".formbutton").css("color", "#AC8A80");
+		$(".formbutton").css("background-color", "E7F1FA");
+		$("#switch_sorting").css("color", "black");
+		$("#switch_sorting").css("background-color", "#CDD6E9");
+		$(button).val("    Save List   ");
+		initTable(params);		
+		sort_mode = 1;
+	} else {
+		params.sort = 0;
+		$("li.hand").hide();
+		$("#competency_container").find(".navsm").show();
+		$(".tusk-competency-popup").show();
+		$(".formbutton").prop("disabled", false);
+		$(".formbutton").css("color", "black");
+		$(".formbutton").css("background-color", "#CDD6E9");
+		$(button).val("Re-order List");
+		initTable(params);
+		sort_mode = 0;
+	}
+	
+}
+
 // Note that onStop occurs AFTER onChange, so since we want to know what row was dropped, we need
 // to let it cascade, storing the serialized data in the onChange and then doing the actual AJAX
 // call in onStop IF something actually changed.
-function initTable( params ) {
+function initTable(params) {
 	var originalPos    = null;
 	var originalParent = null;
 	var changed        = false;
 
 	$('#'+params.listId).NestedSortableDestroy();
 
-	if ( params.sort == 0 ) {
-		$("li.hand").removeClass("hand");
-	}
 
-	$('#'+params.listId).NestedSortable(
-		{
+	var nested_sortable_params = {
 			accept: 'sort-row',
 			nestingPxSpace: params.indent,
-			noNestingClass: params.noNesting,
+ 			noNestingClass: params.noNesting,
 			opacity: .8,
 			helperclass: 'helper',
 			onChange: function(serialized) { changed = true; },
 			onStop: function() {
-				if ( changed ) {
+				if (changed) {
 					var newPos    = getPositionInList(this);
 					var newParent = this.parentNode.parentNode;
 					var myRealId  = this.id.replace( /_[\d]+/, '' );
@@ -143,47 +184,47 @@ function initTable( params ) {
 					postData['curDepth']       = 0;
 					var depthCheck = newParent;
 					var lineage = new Array();
-					while(depthCheck.tagName == 'LI') {
+					while (depthCheck.tagName == 'LI') {
 						var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
-						lineage.push( tmpId );
+						lineage.push(tmpId);
 						postData['curDepth']++;
 						depthCheck = depthCheck.parentNode.parentNode;
 					}
-					if ( lineage.length > 0 ) {
+					if (lineage.length > 0) {
 						postData['lineage'] += lineage.reverse().join( "/" ) + "/";
 					}
 
-					$.post(params.postTo, postData, function(data){
+					$.post(params.postTo, postData, function(data) {
 						error = data['error'];
 
-						if ( error ) {
+						if (error) {
 							// TODO:  Error handling
 						} else {
 							var newParentId      = postData['newParent'].replace( /_[\d]*/, '' );
 							var originalParentId = postData['originalParent'].replace( /_[\d]*/, '' );
 
-							if ( postData['newParent'] == postData['originalParent'] ) {
-								if ( postData['newParent'] != params.wrapper ) { 
+							if (postData['newParent'] == postData['originalParent']) {
+								if (postData['newParent'] != params.wrapper) { 
 									var counter = new Date().getTime();
-									$('li[id^=' + newParentId + '_]').each( function() {
-										if ( this != newParent ) {
+									$('li[id^=' + newParentId + '_]').each(function() {
+										if (this != newParent) {
 											this.innerHTML = newParent.innerHTML;
-											//fixList( this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter );
+											//fixList(this.getElementsByTagName('OL')[0].getElementsByTagName('LI'), counter);
 											counter++;
 										}
 									} );
 								}
 							} else {
-								if ( postData['originalParent'] != params.wrapper ) { 
+								if (postData['originalParent'] != params.wrapper) { 
 									$('li[id^=' + myRealId + '_]').each( function() {
 										var myParentId = this.parentNode.parentNode.id.replace( /_[\d]+/, '' );
-										if ( myParentId == originalParentId ) {
+										if (myParentId == originalParentId) {
 											$(this).remove();
 										}
 									} );
 								}
 
-								if ( postData['newParent'] != params.wrapper ) { 
+								if (postData['newParent'] != params.wrapper) { 
 									var counter = new Date().getTime();
 									$('li[id^=' + newParentId + '_]').each( function() {
 										if ( this != newParent ) {
@@ -195,26 +236,27 @@ function initTable( params ) {
 								}
 							}
 
-							if ( params.numbered ) updateNumbering();
+							if (params.numbered) updateNumbering();
 
-							initTable( params );
+							initTable(params);
 						}
 					}, "json");
 				}
 			},
-			onStart: function() { originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
+			onStart: function() {originalParent = this.parentNode.parentNode; originalPos = getPositionInList(this); },
 			autoScroll: true,
-			handle: '.hand'
 		}
-	);
+	nestedSort = $('#'+params.listId).NestedSortable(nested_sortable_params);
+	
 	//$("div.striping").removeClass("even").removeClass("odd");
-	if ( params.sort != 0 ) {
+
+	if (params.sort != 0) {
 		$("div.striping").mouseout( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if (this.parentNode.id != 'empty_message') {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage;
 			}
 		} ).mouseover( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if (this.parentNode.id != 'empty_message') {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.dragImage;
 			}
 		} );
@@ -222,52 +264,67 @@ function initTable( params ) {
 		$('#'+params.listId).NestedSortableDestroy();
 	}
 	
-	if ( params.striping ) {
+	if (params.striping) {
 		$("div.striping:even").addClass("even");
 		$("div.striping:odd").addClass("odd");
 	} else {
 		$("div.striping").addClass("even");
 	}
 
-	resizeColumns( params );
+	resizeColumns(params);
 }
 
-function editRow( link, params ) {
+
+function editRow(link, params) {
+	if (edit_mode == 1) {
+		alert("Please finish making your current change before starting a new one");
+		return;
+	}
 	var function_values = [];
 	add = 0;
-	this_row = $(link).closest('.page-list').clone();
+	this_row = $(link).closest('.page-list').clone();	
+	edit_mode = 1;
+
 	$(link).children().each(function() {
-		function_values.push( $(this).attr('value') );
+		function_values.push($(this).attr('value'));
 	});
 	$(link.parentNode.parentNode.parentNode.getElementsByTagName('LI')[0]).removeClass("hand").css('display', 'none');
 	
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
 	
-	for( var idx = 1; idx < liArray.length; idx++ ) {
-		if ( idx==4 && params['listId'] == 'school_competencies' ) {
+	for (var idx = 1; idx < liArray.length; idx++) {
+
+		if ((idx==4) && params['listId'] == 'school_competencies') {
 			continue;
 		}
+		if ((idx==2) && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies')) {
+			continue;
+		}
+		if (idx==3 & params['listId'] == 'course_competencies') {
+			continue;
+		}
+
 		var value = liArray[idx].innerHTML;
 		// This next line is for IE7.  It likes to add an extra space at the end.
 		value = value.replace(/^\s+$/g,"");
 		var editParams = params.columns[idx-1].edit;
-		switch ( editParams.type ) {
+		switch (editParams.type) {
 			case 'text':
 				liArray[idx].innerHTML = '<input type="text" value="' + value + '" class="' + editParams.classname + '" size="' + editParams.size + '" maxlength="' + editParams.maxlength + '">';
 				break;
 
 			case 'textarea':
-				liArray[idx].innerHTML = '<textarea class="' + editParams.classname + '" rows="' + editParams.rows + '" cols="' + editParams.cols + '">' + value + '</textarea>';
+				liArray[idx].innerHTML = '<textarea class="' + editParams.classname + '" rows="' + editParams.rows + '" cols="' + editParams.cols + '" >' + value + '</textarea>';
 				break;
 
 			case 'checkbox':
 				// This guarantees that it's bookended so that, e.g., "Skill" doesn't accidentally match "Skillset"
 				value = editParams.delimiter + value + editParams.delimiter;
 				var newInnerHTML = '';
-				for ( var i in editParams.options ) {
+				for (var i in editParams.options) {
 					var o_value = editParams.options[i].value;
 					var o_label = editParams.options[i].label;
-					if ( o_value !== undefined ) {
+					if (o_value !== undefined) {
 						var o_label_re = new RegExp( editParams.delimiter + o_label + editParams.delimiter );
 						newInnerHTML += '<input type="checkbox" value="' + o_value + '"' + ((o_label_re.test(value)) ? ' checked' : '') + '>' + o_label + '<br />';
 					}
@@ -279,15 +336,15 @@ function editRow( link, params ) {
 				value = editParams.delimiter + value + editParams.delimiter;
 				var newInnerHTML = '';
 				var noTypes = 0;
-				if (editParams.options.length == 0){
+				if (editParams.options.length == 0) {
 					alert("ERROR: No types exist for the current school. Please contact your school administrator to add user types.");
 					noTypes = 1;
 					break;
 				}
-				for ( var i in editParams.options ) {
+				for (var i in editParams.options) {
 					var o_value = editParams.options[i].value;
 					var o_label = editParams.options[i].label;
-					if ( o_value !== undefined ) {
+					if (o_value !== undefined) {
 						var o_label_re = new RegExp( editParams.delimiter + o_label + editParams.delimiter );
 						newInnerHTML += '<input name ="radio_check" type="radio" value="' + o_value + '"' + ((o_label_re.test(value)) ? ' checked' : '') + ' data-name="' + o_label + '">' + o_label + '<br />';
 					}
@@ -296,63 +353,97 @@ function editRow( link, params ) {
 				break;
 
 			case 'action':
-				params["actionDropdown"]=1;
-				params["function_values"]=function_values;
-				if (function_values.length == 0){
-					function_values.push( '' );
-					function_values.push( 'editRow(this, params); resetDropDown(this);' );
-					function_values.push( 'addNewRow(this, params); resetDropDown(this);' );
-					function_values.push( 'deleteRow(this, params); resetDropDown(this);' );
-					add  = 1;
+				params["actionDropdown"] = 1;
+				params["function_values"] = function_values;
+				if (function_values.length == 0) {
+					if (params["listId"] == "school_competencies") {
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('addNewRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+						function_values.push('linkSchoolNational(this, params); resetDropDown(this);');
+						add = 1;
+					} else if (params["listId"] == "class_meeting_competencies" || params["listId"] == "content_competencies") {
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+						function_values.push('linkObjectiveToCourse(this, params); resetDropDown(this);');
+						add  = 1;
+					}  else if (params["listId"] == "course_competencies") {
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('addNewRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+						function_values.push('linkCourseSchool(this, params); resetDropDown(this);');
+						add  = 1;
+					}  else if (params["listId"] == "competency_types") {
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+						add  = 1;
+					} else {
+						function_values.push('');
+						function_values.push('editRow(this, params); resetDropDown(this);');
+						function_values.push('addNewRow(this, params); resetDropDown(this);');
+						function_values.push('deleteRow(this, params); resetDropDown(this);');
+					}
 				}			
-				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>&nbsp&nbsp<a onclick="cancelRow( this, params, this_row, add);" class="navsm">Cancel</a>';
+				liArray[idx].innerHTML = '<a onclick="saveRow( this, params );" class="navsm">Save</a>&nbsp&nbsp<a onclick="cancelRow(this, params, this_row, add);" class="navsm">Cancel</a>';
 				break;
 
 			default:
-				alert( 'Unknown edit type!' );
+				alert('Unknown edit type!');
 				break;
 		}
 	}
-	initTable( params );
-	if (noTypes == 1){
+	initTable(params);
+	if (noTypes == 1) {
 		$("[id^='new_child_of']").remove();	
 	}
 }
 
-function cancelRow( link, params, this_row, add ){
-	if (add == 0){
-		$(this_row).insertAfter($(link).closest('.page-list'));
+function cancelRow(link, params, this_row, add) {
+	if (add == 0) {
+		$(this_row).insertAfter($(link).closest('.page-list'));		
 		$(link).closest('.page-list').remove();
 	} else{
 		$(link).parent().parent().parent().remove();
-	}
+	}	
+
+	edit_mode = 0;
+	
+	initTable(params);
 }
 
-function addNewRow( link, params ) {
+function addNewRow(link, params) {
+	if (edit_mode == 1) {
+		alert("Please finish making your current change before starting a new one");
+		return;
+	}
 	var parentId = 0;
-	if ( link != 'top' && link != 'bottom' ) {
+	if (link != 'top' && link != 'bottom') {
 		parentId = link.parentNode.parentNode.parentNode.parentNode.parentNode.id;
 	}
 	else {		
 			parentId = 0; //base_level_school_competency
 	}
 	var time = new Date().getTime();
-	if (String(parentId).match("^new_child_of_")){
+	if (String(parentId).match("^new_child_of_")) {
 		alert("Notice: Your last competency was still being saved to the database when you tried to make the new change. Please try again.");
 	}
 	var rowText  = '<li class="clr sort-row" id="new_child_of_' + parentId + '_' + time + '"><div class="clearfix striping"><ul class="row-list"><li style="display:none">&nbsp;</li>';
 	for (var i = 0; i < params.columns.length; i++) {
 		rowText += '<li class="col' + i + '">';
-		if ( i == params.columns.length-1 ) rowText += '<a id="new_' + time + '"></a>';  // We need this link so that editRow knows what to grab.
+		if (i == params.columns.length-1) rowText += '<a id="new_' + time + '"></a>';  // We need this link so that editRow knows what to grab.
 		rowText += '</li>';
 	}
 	rowText     += '</ul></div></li>';
 
-	if ( link == 'top' ) {
-		$('#'+params.listId).prepend( rowText );
+	if (link == 'top') {
+		$('#'+params.listId).prepend(rowText);
 		$('#empty_message').remove();
-	} else if ( link == 'bottom' ) {
-		$('#'+params.listId).append( rowText );
+	} else if (link == 'bottom') {
+		$('#'+params.listId).append(rowText);
 		$('#empty_message').remove();
 	} else {
 		// If we have a link, then the containing div is three levels up:  <div><ul><li><a>...
@@ -361,22 +452,24 @@ function addNewRow( link, params ) {
 
 		// From that div, we're going to continually check grandparents to see how deeply we're nested:  <ol><li><ol>...
 		var depthCheck = containingDiv.parentNode.parentNode;
-		while ( depthCheck.tagName == 'OL' ) {
+		while (depthCheck.tagName == 'OL') {
 			depthCheck = depthCheck.parentNode.parentNode;
 			thisDepth++;
 		}
 
 		var existingList = containingDiv.parentNode.getElementsByTagName('OL')[0];
-		if ( existingList == undefined || $(existingList).length == 0 ) {
+		if (existingList == undefined || $(existingList).length == 0) {
 			thisDepth++;
-			if (thisDepth > params.maxDepth) { params.maxDepth = thisDepth; }
+			if (thisDepth > params.maxDepth) {
+				params.maxDepth = thisDepth; 
+			}
 			$(containingDiv).after('<ol class="page-list">' + rowText + '</ol>'); 
 		} else {
 			$(existingList).append( rowText );
 		}
 	}
 
-	editRow( document.getElementById('new_' + time), params );
+	editRow(document.getElementById('new_' + time), params);
 }
 
 function updateNumbering() {
@@ -386,7 +479,8 @@ function updateNumbering() {
 	} );
 }
 
-function saveRow( link, params ) {
+function saveRow(link, params) {
+	edit_mode = 0;
 	$(link.parentNode.parentNode.getElementsByTagName('LI')[0]).addClass("hand").css('display', 'block');
 	var liArray = link.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode;
@@ -394,39 +488,46 @@ function saveRow( link, params ) {
 	var postData = new Object();
 
 	postData['id'] = liNode.id;
+	postData['type'] = params['listId'];
 
 	var currentCompetencyPage = location.pathname.split('/')[4];
-	if ( currentCompetencyPage == 'listNationalCompetencies' ){
+	if (currentCompetencyPage == 'listNationalCompetencies'){
 		currentCompetencyPage = 'national';
 	} else {
 		currentCompetencyPage = 'school'; 
 	};
 	postData['currentCompetencyPage'] = currentCompetencyPage;
 	var nextSibling = liNode.nextSibling;
-	while ( nextSibling && nextSibling.tagName != 'LI' ) {
+	while (nextSibling && nextSibling.tagName != 'LI') {
 		nextSibling = nextSibling.nextSibling;
 	}
-	if ( nextSibling ) postData['position'] = 'first';
+	if (nextSibling) postData['position'] = 'first';
 	else postData['position'] = 'last';
 
 	postData['lineage'] = '/';
 	postData['curDepth'] = 0;
 	var depthCheck = liNode.parentNode.parentNode;
 	var lineage = new Array();
-	while(depthCheck.tagName == 'LI') {
+	while (depthCheck.tagName == 'LI') {
 		var tmpId = depthCheck.id.replace( /_[\d]*/, '' );
 		lineage.push( tmpId );
 		postData['curDepth']++;
 		depthCheck = depthCheck.parentNode.parentNode;
 	}
-	if ( lineage.length > 0 ) {
+	if (lineage.length > 0) {
 		postData['lineage'] += lineage.reverse().join( "/" ) + "/";
 	}
 
-	for( var idx = 1; idx < liArray.length; idx++ ) {
+	for (var idx = 1; idx < liArray.length; idx++) {
 		var value;
 		var display;
-		if (idx==4 && params['listId'] == 'school_competencies' ){
+		if (idx==4 && params['listId'] == 'school_competencies') {
+			continue;
+		}
+		if (idx==2 && (params['listId'] == 'class_meeting_competencies' || params['listId'] == 'content_competencies')) {
+			continue;
+		}
+		if (idx==3 && params['listId'] == 'course_competencies') {
 			continue;
 		}
 		var editParams = params.columns[idx-1].edit;
@@ -434,7 +535,7 @@ function saveRow( link, params ) {
 		var postThis = true;
 		var isArray  = false;
 
-		switch ( editParams.type ) {
+		switch (editParams.type) {
 			case 'text':
 				value   = liArray[idx].getElementsByTagName('input')[0].value;
 				display = value;
@@ -450,7 +551,7 @@ function saveRow( link, params ) {
 				var typesArray = [];
 				value = [];
 				for (var i in checkboxes) {
-					if ( checkboxes[i].checked ) { 
+					if (checkboxes[i].checked) { 
 						typesArray.push(editParams.options[i].label); 
 						value.push(editParams.options[i].value); 
 					}
@@ -462,26 +563,26 @@ function saveRow( link, params ) {
 				var radio_buttons = liArray[idx].getElementsByTagName('input');
 				var radio_button_value = 0;
 				for (var i in radio_buttons) {
-					if ( radio_buttons[i].checked == true ) { 
+					if (radio_buttons[i].checked == true) { 
 						radio_button_value = radio_buttons[i].getAttribute("data-name");
 					}	
 				}				
-				if (radio_button_value == 0){
+				if (radio_button_value == 0) {
 					value = "Competency";
-					alert( "WARNING: Type defaulted to \"Competency\" as no type specified." );
+					alert("WARNING: Type defaulted to \"Competency\" as no type specified.");
 				} else{
 					value = radio_button_value;
 				}
 				display = value;
 				break;
 			case 'action':
-				if ( params.actionDropdown) {
+				if (params.actionDropdown) {
 					var option_name = [];
 					var options = "";
-					$(editParams.options).each(function(i,l){
+					$(editParams.options).each(function(i,l) {
 						option_name.push($(l).text());
 					});
-					$(option_name).each(function(i,l){
+					$(option_name).each(function(i,l) {
 						options += '<option value="' + params.function_values[i+1] + '" class="navsm">' + l + '</option>';
 					});
 
@@ -494,37 +595,40 @@ function saveRow( link, params ) {
 				break;
 
 			default:
-				alert( 'Unknown edit type!' );
+				alert('Unknown edit type!');
 				break;
 		}		
 
 		liArray[idx].innerHTML = display;
-		if ( postThis ) {
-			if ( isArray ) { postData['col' + (idx-1) + '[]'] = value; }
-			else           { postData['col' + (idx-1)] = value; }
+		if (postThis) {
+			if (isArray) {
+				postData['col' + (idx-1) + '[]'] = value;
+			}
+			else {postData['col' + (idx-1)] = value;}
 		}
 	}
-
+	$("li.hand").hide();
 	var newId;
 	var error;
-	$.post(params.postTo, postData, function(data){
+	$.post(params.postTo, postData, function(data) {
 		error = data['error'];	
-		newId = data['id'];	
+		newId = data['id'];
 
-		if ( error ) {
+		if (error) {
 			// TODO:  Error handling
 		} else {
 			liNode.id = newId;
-			var compId = newId.replace( /_[\d]*/, '' );
+			var compId = newId.replace(/_[\d]*/, '');
 
-			$('li[id^=' + compId + '_]').each( function() {
+			$('li[id^=' + compId + '_]').each(function() {
 				var newLiArray = this.getElementsByTagName('DIV')[0].getElementsByTagName('UL')[0].getElementsByTagName('LI');
-				for( var idx = 0; idx < liArray.length; idx++ ) {
+
+				for(var idx = 0; idx < liArray.length; idx++) {
 					newLiArray[idx].innerHTML = liArray[idx].innerHTML;
 				}
 			} );
 
-			if ( data['parent'] ) {
+			if (data['parent']) {
 				var time = new Date().getTime();
 				var counter = 0;
 
@@ -537,37 +641,43 @@ function saveRow( link, params ) {
 
 				var currentList = document.getElementById( newId ).parentNode;
 
-				$('li[id^=' + data['parent'] + '_]').each( function() {
+				$('li[id^=' + data['parent'] + '_]').each(function() {
 					var thisDepth = 0;
 
 					// From that div, we're going to continually check grandparents to see how deeply we're nested:  <ol><li><ol>...
 					var depthCheck = this.parentNode.parentNode;
-					while ( depthCheck.tagName == 'OL' ) {
+					while (depthCheck.tagName == 'OL') {
 						depthCheck = depthCheck.parentNode.parentNode;
 						thisDepth++;
 					}
 
 					var existingList = this.getElementsByTagName('OL')[0];
-					if ( existingList != currentList ) {
-						if ( $(existingList).length == 0 ) {
+					if (existingList != currentList) {
+						if ($(existingList).length == 0) {
 							var containingDiv = this.getElementsByTagName('DIV')[0];
 							thisDepth++;
-							if (thisDepth > params.maxDepth) { params.maxDepth = thisDepth; }
+							if (thisDepth > params.maxDepth) { 
+								params.maxDepth = thisDepth; 
+							}
 							$(containingDiv).after('<ol class="page-list">' + rowText + counter++ + rowText2 + '</ol>'); 
 						} else {
-							$(existingList).append( rowText + counter++ + rowText2 );
+							$(existingList).append(rowText + counter++ + rowText2);
 						}
 					}
 				} );
 			}
 		}
-
-		initTable( params );
+		initTable(params);
 	}, "json");
 }
 
-function deleteRow( link, params ) {
-	if ( params.sort ) {
+function deleteRow(link, params) {
+	if (edit_mode == 1) {
+		alert("Please finish making your current change before starting a new one");
+
+		return;
+	}
+	if (params.sort) {
 		$("div.striping").mouseover( function() { 
 			this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = 'none';
 		} ).mouseout( function() {
@@ -593,20 +703,26 @@ function deleteRow( link, params ) {
 
 function deleteRowConfirm( link, params ) {
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
+	if (liNode.tagName == "OL") {
+		liNode = link.parentNode.parentNode.parentNode.parentNode;
+	}
 	var postData = new Object();
 
 	var actionCol = params.columns.length - 1;
 
 	postData['delete'] = 1;
 	postData['id'] = liNode.id;
-	if ( liNode.parentNode.parentNode.tagName == 'LI' ) {
+	postData['type'] = params['listId'];
+
+
+	if (liNode.parentNode.parentNode.tagName == 'LI') {
 		postData['parentId'] = liNode.parentNode.parentNode.id;
 	} else {
 		postData['parentId'] = 0; 
 	}
 	postData['position'] = getPositionInList( liNode );
 
-	if ( params.sort ) {
+	if (params.sort) {
 		$("div.striping").each( function() {
 			this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage; 
 		} ).mouseout( function() { 
@@ -622,17 +738,17 @@ function deleteRowConfirm( link, params ) {
 		$("div.striping").each( function() { $(this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0]).addClass("hand"); } );
 	}
 
-	$("li.col"+actionCol).css( 'visibility', 'visible' );
+	$("li.col"+actionCol).css('visibility', 'visible');
 
 	$.post(params.postTo, postData, function(data){
 		var counter = new Date().getTime();
 		error = data['error'];
 
-		if ( error ) {
+		if (error) {
 			var parentDiv = link.parentNode.parentNode.parentNode.parentNode;
 			parentDiv.style.backgroundColor = "#FFF380";
 
-			$("#deleteMsg").html( '<br /><center><b>' + error + '</b><br /><a onclick="dismissMessage( this );" class="navsm">Dismiss Message</a></center>' ).attr( "id", "warning_" + counter );
+			$("#deleteMsg").html( '<br /><center><b>' + error + '</b><br /><a onclick="dismissMessage(this);" class="navsm">Dismiss Message</a></center>' ).attr( "id", "warning_" + counter );
 		} else {
 			// Promote all children
 			$($(liNode.getElementsByTagName('OL')[0]).children( 'li.sort-row' ).get().reverse()).each( function() {
@@ -647,40 +763,40 @@ function deleteRowConfirm( link, params ) {
 			$(liNode).remove();
 		}
 
-		initTable( params );
+		initTable(params);
 	}, 'json' );
 }
 
-function deleteRowCancel( link, params ) {
+function deleteRowCancel(link, params) {
 	var originalDiv = link.parentNode.parentNode.parentNode;
 	originalDiv.style.backgroundColor = '';
 
 	var actionCol = params.columns.length - 1;
 
-	if ( params.sort ) {
+	if (params.sort) {
 		$("div.striping").each( function() {
 			this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage; 
 		} ).mouseout( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if (this.parentNode.id != 'empty_message') {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.inactiveDragImage; 
 			}
 		} ).mouseover( function() { 
-			if ( this.parentNode.id != 'empty_message' ) {
+			if (this.parentNode.id != 'empty_message') {
 				this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0].style.backgroundImage = params.dragImage;
 			}
 		} );
 
-		$("div.striping").each( function() { $(this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0]).addClass("hand"); } );
+		$("div.striping").each( function() {$(this.getElementsByTagName('UL')[0].getElementsByTagName('LI')[0]).addClass("hand"); });
 	}
 
 	$("#deleteMsg").remove();
 
-	$("li.col"+actionCol).css( 'visibility', 'visible' );
+	$("li.col"+actionCol).css('visibility', 'visible');
 
-	initTable( params );
+	initTable(params);
 }
 
-function dismissMessage( link ) {
+function dismissMessage(link) {
 	link.parentNode.parentNode.parentNode.style.backgroundColor = '';
 	$(link.parentNode.parentNode).remove();
 }

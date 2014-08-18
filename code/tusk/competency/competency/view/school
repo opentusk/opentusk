@@ -1,0 +1,164 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	no_check_path           => 1
+	top_tab_type            => 'none'
+	allow_guests            => '1'
+	page_footer	        => '/tmpl/footer:footer_with_school_links'
+</%attr>
+
+<%once>
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::Relation;
+	use TUSK::Core::School;
+</%once>
+
+<%shared>
+	my ($school, $school_id, $competencies, $children_storage, $c_href);
+</%shared>
+
+<%perl>
+	foreach(@{TUSK::Competency::Competency->new()->lookup()}) {
+		$competencies->{$_->getCompetencyID} = $_;
+	}
+
+	$school    = $m->comp("/tmpl/url:get_school");
+	$school_id = TUSK::Core::School->new->getSchoolID($school);
+</%perl>
+
+<%perl>
+	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id);
+</%perl>
+
+<br />
+
+<& /tmpl/element:jquery_sort_list, params => {
+				width => "100%",
+				label => __('Competencies'),
+				no_table => 1,
+				no_striping => 1,
+				no_add_button => 1,
+				container => 'view_competency_container',
+				name => 'competencies',
+				sort => 0,
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => __('Competency'), field => 'title', head_align => 'left', align => 'left', edit =>
+						{ type      => 'text',
+						  classname => 'textareawhite',
+						  size      => 30,
+						  maxlength => 200 }
+					},
+					{ label => __('Description'), field => 'description', head_align => 'left', align => 'left', edit =>
+						{ type      => 'textarea',
+						  classname => 'textareawhite',
+						  rows      => 5,
+						  cols      => 25 }
+					},
+					{ label => __('Linked National Competencies'), field => 'links', head_align => 'left', align => 'left', width => 200, edit =>
+						{ type      => 'text',
+						  classname => 'textareawhite',	
+						  size => 30,
+						  maxlength => 200 }
+					},
+				],
+				data => $data, 
+				empty_message => __("No competencies exist.")
+} &>
+
+<%method buildCompetencyTree>
+<%args>
+	$school_id
+</%args>
+<%perl>
+	my %p_c_pairs;
+	my $cr = TUSK::Competency::Hierarchy->lookup( 'competency.school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef, 
+		[TUSK::Core::JoinObject->new('TUSK::Competency::Competency', { origkey=> 'child_competency_id', joinkey => 'competency_id', jointype=> 'inner'}), 
+		TUSK::Core::JoinObject->new( 'TUSK::Enum::Data', { joinkey=> 'enum_data_id', origkey => 'competency.competency_level_enum_id', jointype=> 'inner', joincond => "enum_data.short_name=\"school\""})]);
+
+	foreach my $cr_row(@{$cr}) {
+		my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
+
+	my $child_linked_comps = TUSK::Competency::Relation->new()->lookup('competency_id_1 = ' . $child_comp->getCompetencyID);
+		my @competency_relations_list;
+		my @competency_relations_list_short;
+
+		foreach my $linked_row (@{$child_linked_comps}) {
+			my $linked_name = TUSK::Competency::Competency->new()->lookup('competency_id = ' . $linked_row->getCompetencyId2);
+			foreach my $name (@{$linked_name}) {
+					push @competency_relations_list, $name->getTitle;
+					push @competency_relations_list_short,  (substr $name->getTitle, 0, 50) . '...';
+				}
+		}
+
+		my $link_counter = 1;
+		my $competency_relations_string;
+		$link_counter = 1;
+		foreach (@competency_relations_list) {
+			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
+			$link_counter++;
+		};
+
+		my $competency_relations_html;
+		$competency_relations_html = $competency_relations_string;
+	
+		if (!defined( $c_href->{$child_comp})) {
+			$c_href->{$child_comp->getCompetencyID} = { 
+														id          => $child_comp->getCompetencyID, 
+														title       => $child_comp->getTitle,
+														description => $child_comp->getDescription,
+														links       => $competency_relations_html,
+														children    => $children_storage->{$child_comp->getCompetencyID},
+													  };
+
+		}
+		if (!$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
+			$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
+			push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+		}
+	}
+	return $children_storage->{0};
+</%perl>
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"jquery/plugin/inestedsortable-1.0.1.pack.js",
+			"jqNestedSortableFunctions.js" 
+			];
+</%perl>
+</%method>
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method title>
+% return __("School Competencies");
+</%method>
+
+
+

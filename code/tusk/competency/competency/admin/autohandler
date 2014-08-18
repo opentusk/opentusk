@@ -14,9 +14,9 @@
  limitations under the License.
 </%doc>
 <%attr>
-check_cms_permissions => 0
-must_be_school_admin => 1
-top_tab_type => 'manage'
+	check_cms_permissions => 0
+	must_be_school_admin => 1
+	top_tab_type => 'manage'
 </%attr>
 
 <%once>
@@ -33,8 +33,8 @@ top_tab_type => 'manage'
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Course;
 	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::Relation;
 	use TUSK::Competency::UserType;	
-
 </%once>
 
 <%method leftnav>
@@ -46,29 +46,40 @@ top_tab_type => 'manage'
 return $m->comp("/tmpl/nav", 'objects' =>  $m->comp("SELF:get_nav_bar_objects"), 
 				'prefix' => '/competency/competency/admin',
 				'hierarchy' => {	
+					'link' => [],
 					'type/manage' => [],
+					'national/manage' => [],
+					'school/manage' => [],
+					'course/listCourses' => ['course_list'],
+					'course/manage' => ['course_list'],
+					'class_meeting/manage' => [],
 				},
-				'nav_entities_dependency' => { },
+				'nav_entities_dependency' => {},
 				'title_func' => {},
 				'initial_nav_bar' => $m->comp("/tmpl/url:get_initial_nav_bars"),
+				urls => {
+					course_list => {link => 'course/listCourses', label => __('Course List')},
+				},
 				);
 </%perl>
 </%method>
 
 <%method get_versions>
-
 <%perl>
-my $school = $m->comp( "/tmpl/url:get_school" );
-my $school_id = TUSK::Core::School->new->getSchoolID( $school );
-my $versions = TUSK::Competency::Version->lookup( "school_id=". $school_id );
-my $version_id = $versions->[0]->getPrimaryKeyID();
-print "<h4>Version: ". $versions->[0]->getTitle();
-print "</h4>";
-print "<h4>Change Version: <select>";
-foreach my $version( @{$versions} ){
-	print "<option>".$version->getTitle()."</option>";
-}
-print "</select></h4>";
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $school_id = TUSK::Core::School->new->getSchoolID($school);
+	my $versions = TUSK::Competency::Version->lookup("school_id=". $school_id);
+	my $version_id = $versions->[0]->getPrimaryKeyID();
+
+	print "<h4>Version: ". $versions->[0]->getTitle();
+	print "</h4>";
+	print "<h4>Change Version: <select>";
+
+	foreach my $version(@{$versions}) {
+		print "<option>".$version->getTitle()."</option>";
+	}
+
+	print "</select></h4>";
 </%perl>
 </%method>
 

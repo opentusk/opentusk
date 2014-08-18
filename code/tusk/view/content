@@ -59,6 +59,9 @@
 	use TUSK::Functions;
 	use TUSK::ErrorReport;
 	use POSIX;
+
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Content;
 </%once>
 
 
@@ -246,7 +249,11 @@ return $right_hdr_lnks;
 %    my @keyWords = map { $_->getKeyword() } @tempKeywords;
 %    my @context = $document->other_parents;
 %    my @subContent = $document->active_child_content();
-%    my @objectives = $document->child_objectives;
+<%perl>
+     my $content_objectives = TUSK::Competency::Competency->lookup( 'competency_content.content_id ='. $document->primary_key, ['sort_order'], undef, undef,
+			          [TUSK::Core::JoinObject->new('TUSK::Competency::Content', {origkey => 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);
+     my @objectives = @{$content_objectives};
+</%perl>
 %    my @concepts = $document->UMLSkeywords;
 %    my $printIconWidth = "width=\"$iconWidth\" height=\"$iconWidth\"";
 %    my $linkedFrom = 0;
@@ -821,7 +828,7 @@ return $right_hdr_lnks;
 %  if(@objectives) {
       <ul style=""padding-left:20px;">
 %    foreach my $objective (@objectives) {
-        <li><% $objective->out_label %></li>
+        <li><% $objective->getDescription %></li>
 %    }
       </ul>
 %  } else {

@@ -13,41 +13,38 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
-use TUSK::Core::ClassMeetingContentType;
+	use TUSK::Core::ClassMeetingContentType;
+	use TUSK::Competency::Hierarchy;
+	use TUSK::Competency::Course;
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::Relation;
+	use TUSK::Enum::Data;
 </%once>
 
-<%method title>
-<%perl>
-my $title = __("Modify Schedule");
-return $title;
-</%perl>
-</%method>
-
-<%method jsarray>
-% return ['scripts.js', 'layers.js'];
-</%method>
-
 <%shared>
-my $class_meeting;
-my $class_meeting_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $class_meeting;
+	my $class_meeting_id = $m->comp("/tmpl/url:get_last_path_id");
 
-my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
 
-if (defined($class_meeting_id)){
-	$class_meeting = HSDB45::ClassMeeting->new(_school=>$type_object->school)->lookup_key($class_meeting_id);
-	if (!$class_meeting->primary_key()){
-		$m->comp('/tmpl/error', msg=>__('Invalid schedule id passed'));
+	if (defined($class_meeting_id)){
+		$class_meeting = HSDB45::ClassMeeting->new(_school=>$type_object->school)->lookup_key($class_meeting_id);
+		if (!$class_meeting->primary_key()){
+			$m->comp('/tmpl/error', msg=>__('Invalid schedule id passed'));
+		}
+	} else {
+		$m->comp('/tmpl/error', msg=>__('No schedule id passed'));
 	}
-} else {
-	$m->comp('/tmpl/error', msg=>__('No schedule id passed'));
-}
 
-my $school_id = $class_meeting->course->get_school()->getPrimaryKeyID();
+	my $course_id = $class_meeting->course->course_id;
+	my $school_id = $class_meeting->course->get_school()->getPrimaryKeyID();
+	my $school_name = $class_meeting->course->get_school()->getSchoolName();
 
-my $base_url = "/managment/schedule/addedit";
-my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimaryKeyID()} }
-                @{ TUSK::Core::ClassMeetingContentType->lookup(" 1 = 1")};
+	my $base_url = "/managment/schedule/addedit";
+	my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimaryKeyID()} }
+        				@{ TUSK::Core::ClassMeetingContentType->lookup(" 1 = 1")};
 
 </%shared>
 
@@ -82,8 +79,8 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 <& /tmpl/element:field_display, params =>{ label => __('End Time'),
                 value => $class_meeting->field_value('endtime') } &>
 
-<%perl>
-	$m->comp('/tmpl/element:sort_order_box', params =>{
+
+<& /tmpl/element:sort_order_box , params =>{
 		label=>__('Content'),
 		button_onclick=>"openwindow('contentdiv',700);",
 		buttons => [],
@@ -92,7 +89,7 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 			fields => ['link_class_meeting_content_id','content_id', 'title', 'anchor_label','label', 'class_meeting_content_type_id'],
 			name => 'content',
 			sort => {usage => 'Yes'},
-			action => {usage => 'Yes', length=>100, functions => [ {func=>'remove', label=>__('Delete')} ]},
+			action => {usage => 'Yes', length=>100, functions => [ {func=>'remove', label=>__('Delete')} ]},	
 			scrollrows => 10,
 			display => [{ label => __('Title'),field => 'title', align => 'left', uneditable => 1, length => 300 },
 			            { label => __('Show on Schedule as'), field => 'class_meeting_content_type_id', align => 'left', length => 50, options => \@classMeetingDropdown },
@@ -101,36 +98,80 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
 			            { label => __('Section'), field => 'anchor_label', type => 'textbox', align => 'left', length => 50 } ],
 			validate => { usage => 'No', },
 			data => \@link_data 
-		}
+}} &>
+
+
+<%perl>
+	my $data = $m->comp('/competency/competency/tmpl/build', school_id => $school_id, component_type => 'schedule', component_id => $class_meeting_id);
+
+##The objectives related to this schedule.
+	$m->comp('/competency/competency/tmpl/element:jquery_sort_list' , params =>{
+				label => __('Objectives: '),
+				container => 'competency_container',
+				name => 'class_meeting_competencies',
+				sort => 1,
+				no_striping => 1,
+				no_nesting => 'sort-row',
+				button_label => __('Add Objective'),
+				action_width => 150,
+				action_dropdown => 1,
+				onclick_options => 1,
+ 				action_columns => [ 
+							{ 'label' => __('Modify'), 'onclick' => 'editRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Delete'),  'onclick' => 'deleteRow(this, params); resetDropDown(this);' },
+							{ 'label' => __('Link/Unlink'), 'onclick' => 'linkObjectiveToCourse(this, params);  resetDropDown(this);' },
+			  			], 
+				fields => [
+					{ hide  => 1, field => 'id', },
+					{ label => __('Session Objective'), field => 'title', head_align => 'left', width => 400, align => 'left', edit =>
+						{ type      => 'textarea',
+						  classname => 'textareawhite',
+						  rows => 3,
+						  cols      => 40,
+						  maxlength => 300 }
+					},
+					{ label => __('Linked:'), field => 'links', head_align => 'left', align => 'left', width => 200}
+
+				],
+				data => $data, 
+				post_to => '/tusk/competency/competency/admin/objectives/update_class_meeting/' . $school_name . '/' . $class_meeting->course->getPrimaryKeyID . '/' . $class_meeting_id,
+				empty_message => __("No objectives exist for the current schedule.")
 	});
 
-	my $objectives      = $class_meeting->child_objectives(1) || [];
-	my @objectives_data = map { {objective_id => $_->getObjective()->getFieldValue('objective_id'), body => $_->getObjective()->getBody(),} } @$objectives;
+	my $col_fields = [
+			{ label => __('Content Objective'), field => 'title' },
+			{ label => __('Linked'), field => 'links', html => 1 },
+			{ label => __('Action'), field => 'link_function', html=> 1 },
+	];
 </%perl>
 
-<& /tmpl/element:sort_order_box , params =>{
-			label          => __('Objectives'),
-			name           => "objectives",
-			button_onclick => "openwindow('objectivesdiv')",
-			help_info      => {
-								topic		=> 'create_objectives',
-								text		=> __('Tips for Selecting Objectives')
-							 },
-			layer_info 	=> {
-				empty_message => __('No objectives associated for this content'),
-				layer 	      => 'objectivesdiv',
-				scrollrows    => 6,
-				fields        => ['objective_id', 'body'],
-				name          => 'objectives',
-				sort          => { usage => 'Yes', length => 50},
-				action        => { usage => 'Yes', length => 100, functions => 	[ 
-					{ func=>'edit',     label=>__('Edit')},
-					{ func => 'remove', label => __('Delete')} 
-					] },
-				display	 => [ { label => __('Body'), field => 'body', align => 'left', length => 450, editsize => 75 } ],
-				validate => { usage => 'No', },
-				data     => \@objectives_data, 
-			} } &>
+<tr id = "class_meeting_competencies_tr">
+	<td class="labelgray">
+		Objectives (Linked Content):
+	</td>	
+<%perl>
+	my $related_content_id;
+	($data, $related_content_id) = $m->comp('/competency/competency/tmpl/build', school_id => $school_id, component_type => 'related_content', component_id => $class_meeting_id);
+
+	unless ($data){
+		$data=[];
+	}
+
+	print "<td colspan=\"1\">";
+	
+	if ($related_content_id){
+		$m->comp('/tmpl/element:cms_button_row', links => [ {link_txt=>'/management/content/addedit/course/'. $school_name .'/'.$course_id.'?content_id='.$related_content_id.'&page=edit' , display_txt=>__('Go to Content')} ]);
+	}
+	$m->comp('/tmpl/element:object_selection_box', params => {
+					columns => $col_fields,
+					rows => $data,
+					name => "courses",
+					nobutton => 1,
+					'norows-message' => __( "No Content Competencies linked to Current Schedule" ),
+	});
+
+	print "</td></tr>";
+</%perl>
 
 <%perl>
 	my @rank_options = ();
@@ -236,6 +277,15 @@ my @classMeetingDropdown =  map { {'label'=>$_->getLabel,'value'=>$_->getPrimary
                 name=>'submit'} &>
 
 </table>
+
+<div id="link-dialog-wrapper">
+<div id="link_competency_title">
+	Link <span id="objective_type" style="color: #4D92CD;">Schedule</span> <span style="color: #4D92CD;">Objective</span> '<span id="currentComp"></span>' to:
+</div>
+<div id="link-dialog" title="Link Competencies">
+</div>
+</div>
+
 </form>
 
 <%init>
@@ -281,41 +331,6 @@ if (defined($ARGS{'submit'})){
 						 link_class_meeting_content_id => $_->aux_info('link_class_meeting_content_id'),
 						 class_meeting_content_type_id => $_->aux_info('class_meeting_content_type_id') } }
 					$class_meeting->child_content();
-
-	# Objective updates
-	my $objective_hash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^objectivesdiv');
-	my $objective_links_hash = { map { $_->getObjectiveID() => \$_ } @{$class_meeting->child_objectives()} };
-	foreach my $objective_data (values %$objective_hash){
-		if (exists($objective_links_hash->{ $objective_data->{'pk'} })){
-			my $objective_link = ${$objective_links_hash->{ $objective_data->{'pk'} }};
-			my $objective = TUSK::Core::Objective->lookupReturnOne("objective_id = '" . $objective_data->{'pk'} . "'") || TUSK::Core::Objective->new();
-
-			$objective->setBody( $objective_data->{'fields'}->{'body'} );			
-			$objective->save();
-
-			$objective_link->setSortOrder($objective_data->{'fields'}->{'sortorder'});
-			$objective_link->save({ user => $m->comp('SELF:user') });
-		} else {
-			my $objective_link = TUSK::Schedule::ClassMeetingObjective->new();
-			my $objective = TUSK::Core::Objective->lookupReturnOne("objective_id = '" . $objective_data->{'pk'} . "'") || TUSK::Core::Objective->new();
-
-			$objective->setBody( $objective_data->{'fields'}->{'body'} );			
-			$objective->save();
-
-			$objective_link->setSortOrder($objective_data->{'fields'}->{'sortorder'});
-			$objective_link->setObjectiveID($objective->getPrimaryKeyID());
-			$objective_link->setClassMeetingID($class_meeting->primary_key());
-			$objective_link->setSchoolID($school_id);
-			$objective_link->pushJoinObject('TUSK::Core::Objective', $objective);
-			$objective_link->save({ user => $m->comp('SELF:user') });
-		}
-		delete($objective_links_hash->{ $objective_data->{'pk'} });
-	}
-
-	foreach my $objective_link (values %$objective_links_hash){
-		${$objective_link}->delete({ user => $m->comp('SELF:user') });
-	}
-
 
 	# UMLS Concept updates
 	my $concept_hash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^conceptdiv');
@@ -370,3 +385,31 @@ if (defined($ARGS{'submit'})){
 }
 </%init>
 
+<%method title>
+<%perl>
+	my $title = __("Modify Schedule");
+	return $title;
+</%perl>
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css', '/style/competency.css']
+</%method>
+
+<%method jsarray>
+<%perl>
+ return [
+		"scripts.js", 
+		"layers.js",
+		"jquery/jquery.min.js",
+		"jquery/jquery-ui.min.js",
+		"jquery/jquery.ui.widget.min.js",
+		"jquery/plugin/interface/interface.js",
+		"jquery/plugin/json.js",
+		"jquery/plugin/inestedsortable-1.0.1.pack.js",
+		"competency/competency/nestedSortable.js",
+		"competency/competency/functions.js",
+		"detectIE.js"
+	];
+</%perl>
+</%method>
