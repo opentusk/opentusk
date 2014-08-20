@@ -23,7 +23,6 @@ use strict;
 use warnings;
 
 
-use TUSK::Constants;
 use TUSK::Enum::Data;
 
 use TUSK::Competency::Competency;
