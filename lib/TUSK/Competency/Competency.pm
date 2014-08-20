@@ -248,7 +248,13 @@ sub setTitle{
 
 sub getUri{
     my ($self) = @_;
-    my $URI = TUSK::Feature::Link->lookupReturnOne("feature_id = ".$self->getPrimaryKeyID)->getUrl;
+    
+    my $URI;
+
+    if (TUSK::Feature::Link->lookupReturnOne("feature_id = ".$self->getPrimaryKeyID)){
+        $URI = TUSK::Feature::Link->lookupReturnOne("feature_id = ".$self->getPrimaryKeyID)->getUrl;
+    }
+
     return $URI;
 }
 
