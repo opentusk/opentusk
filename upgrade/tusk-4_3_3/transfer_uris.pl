@@ -49,11 +49,13 @@ sub setURIsToFeatureLinkTable {
     my $feature_link_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"feature_link.feature_type\" AND short_name = \"competency\"")->getPrimaryKeyID;
     foreach my $national_competency_uri_id (keys %national_competency_URIs) {
 	my $featureLinkRelation = TUSK::Feature::Link->new();
-	$featureLinkRelation->setFieldValues({
-	    feature_type_enum_id => $feature_link_enum_id,
-	    feature_id => $national_competency_uri_id,
-	    url => $national_competency_URIs{$national_competency_uri_id},
-	});
-	$featureLinkRelation->save({user => "script"});
+	if ($national_competency_URIs{$national_competency_uri_id}){
+	    $featureLinkRelation->setFieldValues({
+		feature_type_enum_id => $feature_link_enum_id,
+		feature_id => $national_competency_uri_id,
+		url => $national_competency_URIs{$national_competency_uri_id},
+	    });
+	    $featureLinkRelation->save({user => "script"});
+	}
     }
 }
