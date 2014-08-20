@@ -74,7 +74,6 @@ sub new {
 					'version_id' => '',
 					'school_id' => '',
 					'title' => '',
-					'uri' => '',
 					'description' => '',
 					'competency_level_enum_id' => '',
 					'competency_user_type_id' => '',
