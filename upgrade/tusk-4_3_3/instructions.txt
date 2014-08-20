@@ -5,16 +5,44 @@
 ######################
 # Database:
 ######################
-## Run the included sql script to create new feature_link tables:
+## Run the included sql script to create new feature_link tables and related changes to the db:
 
 > mysql tusk < feature_link_tables.sql
 
-## Run the included perl script to insert national competencies into the tables
+##################################################
+# Transfer URIs to the new feature_link table
+#################################################
+
+## IMPORTANT : It is highly recommended that you create a backup of your competency table
+## before running this script.
+
+## After creating a backup of your competency table run the included script to transfer the uris:
+
+> transfer_uris.pl
+
+## Run sql script to drop uri column from the competency table:
+
+>  mysql tusk < drop_columns.sql
+
+
+##################################################
+# Optional: Import AAMC national Competencies
+#################################################
+
 ## (This is optional and only required if you want the AAMC national competencies by default)
 
-> perl import_national_competencies.pl
+## NOTE: Requires a competency type of "Competency", "Competency Category" and "Supporting Information" for the school.
+## Please create these from the web interface before running the script. 
+## Run the import_national_competencies perl script located in the 'bin' folder to insert 
+## national competencies into the tables 
 
-## Note: Requires file national_competencies.csv
+Command Format: 
+> import_national_competencies --file=<file.csv> --url=<url> --school=<school_name>
+
+Example:
+
+> import_national_competencies --file=national_competencies.csv --url=http://services.aamc.org/30/ci-school-web/pcrs/PCRS.html# --school=Medical
+
 
 
 
