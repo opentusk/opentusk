@@ -50,7 +50,7 @@ sub course_time_periods{
 
 	if (scalar(@$periods)){
 		$extratext->[0]->{name} = "Time Period";
-		$extratext->[0]->{text} = ($timeperiod == -1) ? 'All Time Periods' : get_selected_timeperiod_display($course->school, $session);
+		$extratext->[0]->{text} = ($timeperiod == -1) ? 'All Time Periods (READ-ONLY)' : get_selected_timeperiod_display($course->school, $session);
 
 		$extratext->[1]->{name}  = "Change Time Period";
 		$extratext->[1]->{text}  = "<iframe src=\"about:blank\" style=\"height:0; width:0; border:0; visibility:hidden;\">this prevents back forward cache in safari. info: http://developer.apple.com/internet/safari/faq.html#anchor5</iframe>";
@@ -58,7 +58,7 @@ sub course_time_periods{
 		$extratext->[1]->{text} .= "<select name=\"timeperiod_dd\" onchange=\"updateTPAndSubmit(this);\" class=\"navsm\">\n";
 		$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"\" selected=\"selected\">Select</option>\n";
 
-		$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"-1\">All Time Periods</option>\n" if $allow_all;
+		$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"-1\">All Time Periods (READ-ONLY)</option>\n" if $allow_all;
 
 		foreach my $period (@$periods){
 			$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"" . $period->primary_key . "\"";
