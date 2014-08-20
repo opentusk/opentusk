@@ -141,7 +141,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 <%method printMaterials>
 <%perl>
 	my $stripObj = TUSK::Application::HTML::Strip->new();
-	my (@assessment_links, @assignment_links, @case_links, @eval_links, $grade_link, @log_links, @quiz_links, $sp_link);
+	my (@assessment_links, @assignment_links, @case_links, @eval_links, $grade_link, @log_links, @quiz_links, $sp_link, @checklist_links);
 
 	## assessments
 	my $assessments = $m->session->{user}->get_assessments();
@@ -154,8 +154,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 		push @assessment_links , '<a href="/protected/assessment/assessor/home">Assess Students</a>';
 	}
 	foreach my $form_row (@$director_assessments) {
-		my $link = '<a href="/protected/assessment/author/show/course/' . $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $stripObj->truncateAndRemoveHTML($form_row->{form_name}, $charLimit) . '</a>';
-		push @assessment_links, $link;
+		push @assessment_links, '<a href="/protected/assessment/author/show/course/' . $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $stripObj->truncateAndRemoveHTML($form_row->{form_name}, $charLimit) . '</a>';
 	}
 	
 	my $course_assignments = $m->session->{user}->get_course_assignments();
@@ -167,9 +166,14 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	## cases
 	my $cases = TUSK::Case::Case->getAvailableUserCases($m->session->{user});
 	foreach my $case (@$cases) {
-		my $link = '<a href="/protected/case/casestart/' . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($case->getCaseTitle(), $charLimit) . '</a>';
-		push @case_links, $link;
+		push @case_links, '<a href="/protected/case/casestart/' . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($case->getCaseTitle(), $charLimit) . '</a>';
 	}
+
+	my $courses_with_checklists = $m->session->{user}->get_courses_with_checklists();
+	foreach my $course (@$courses_with_checklists) {
+		push @checklist_links, "<a href=\"/view/course/$course->{affiliation}/$course->{course_id}/checklists\">$course->{course_title}</a>";
+	}
+
 
 	## evaluations
 	my ($evals, $courses, $course_evals) = $m->session->{user}->current_evals();
@@ -199,8 +203,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 		}
 		if(defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
 			foreach my $logrow (@$directorpatientlogs) {
-				my $link = '<a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $stripObj->truncateAndRemoveHTML($logrow->{form_name}, $charLimit) . '</a>';
-				push @log_links, $link;
+				push @log_links, '<a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $stripObj->truncateAndRemoveHTML($logrow->{form_name}, $charLimit) . '</a>';
 			}
 		}
 	}
@@ -235,6 +238,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 %	my @materialLinksTop = ( [ \@assessment_links, __('Assessments'), 'assessments_links' ],
 %				 [ \@assignment_links, __('Assignments'), 'assignment_links' ],
 %				 [ \@case_links, __('Cases'), 'case_links' ],
+%				 [ \@checklist_links, __('Competency Checklists'), 'checklist_links' ],
 %				 [ \@eval_links, __('Course Evaluations'), 'eval_links' ] );
 
 

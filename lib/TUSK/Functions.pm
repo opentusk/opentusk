@@ -340,9 +340,13 @@ sub unique {
 	return [] unless @$list;
 	my %seen = ();
 	$seen{$_}++ foreach (@$list);
-    return [ keys %seen ];
+	return [ keys %seen ];
 }
 
+sub isPositiveNumber {
+	my ($str) = @_;
+	return (isValidNumber($str) && ($str > 0));
+}
 
 sub isValidNumber {
 	my ($str) = @_;

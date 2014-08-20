@@ -43,6 +43,7 @@ sub get_file_deps {
 
 use HSDB4::Constants qw(:school);
 use HSDB4::DateTime;
+use HSDB4::SQLRow::Content;
 use HSDB45::UserGroup;
 use HSDB45::TimePeriod;
 use TUSK::Constants;
@@ -51,6 +52,10 @@ use TUSK::Schedule::ClassMeetingKeyword;
 use TUSK::ClassMeeting::Type;
 use GD;
 use Text::Wrap qw(wrap $columns);
+use TUSK::Competency::Competency;
+use TUSK::Competency::ClassMeeting;
+use TUSK::Competency::Content;
+
 
 # Non-exported package globals go here
 use vars ();
@@ -100,26 +105,50 @@ sub split_by_school { return 1; }
 # >>>>> Linked objects <<<<<
 #
 
-sub objective_link {
-	my $self = shift;
-	return TUSK::Schedule::ClassMeetingObjective->new();
-}
-
-sub child_objectives {
-	#
-	# Get the objectives linked down from this class_meeting
+sub getCompetencies {
+        #
+	# Get the competencies(objectives) linked from this class_meeting
 	#
 
 	my $self = shift;
-	my $ignore_cache = shift;
-	# Check cache...
-	if ( !defined($self->{-child_objectives}) || $ignore_cache ) {
-		$self->{-child_objectives} = 
-			$self->objective_link()->getObjectivesByClassMeeting($self->course->get_school()->getPrimaryKeyID(), $self->primary_key);
-	}
-	# Return the list
-	return $self->{-child_objectives};
+	
+	my $school_id = $self->course->get_school()->getPrimaryKeyID();
+	my $class_meeting_id = $self->primary_key;
+	my $competencies = TUSK::Competency::Competency->lookup( "school_id = $school_id", ['competency_class_meeting.sort_order', 'competency.competency_id'], undef, undef,
+				[TUSK::Core::JoinObject->new("TUSK::Competency::ClassMeeting", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "class_meeting_id = $class_meeting_id"})]);
+	
+	return $competencies;
 }
+
+sub getCompetenciesFromLinkedContent {
+        #
+	# Get the competencies(objectives) linked from this class_meeting including those from related content
+	#
+        my $self = shift;
+	
+	my $school_id = $self->course->get_school()->getPrimaryKeyID();
+	my $class_meeting_id = $self->primary_key;
+
+        my $dbh = HSDB4::Constants::def_db_handle();
+	my $school = TUSK::Core::School->new()->lookupReturnOne("school_id = 1");
+	my $school_db = $school->getSchoolDb();
+	my $sql = qq(SELECT child_content_id FROM $school_db.link_class_meeting_content WHERE parent_class_meeting_id = $class_meeting_id);
+	my $sth = $dbh->prepare($sql);
+	$sth->execute();
+	my $linked_content_ids = $sth->fetchall_arrayref();
+	
+	my @linked_content_competencies;
+	
+	foreach my $content_id (@{$linked_content_ids}) {
+	    my $current_content_id = $content_id->[0];
+	    my $content = HSDB4::SQLRow::Content->new()->lookup_key($current_content_id);
+	    my $competencies = $content->child_competencies;
+	    push @linked_content_competencies, $competencies;
+        }
+	
+	return \@linked_content_competencies;
+}
+
 
 sub keyword_link {
     my $self = shift;

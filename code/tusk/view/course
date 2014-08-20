@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%args>
         $simple                => 0
 </%args>
@@ -63,12 +64,12 @@
 		__('Communication')	=> [ 'ann', 'disc', 'groups', 'schedule', ],
 		'Patient Logs'	=> [ ],
 		#This has will always get extra stuff added for patient logs begore the last entry which should be grades.
-		__('Material')	=> [ 'content', 'quizzes', 'cases', 'grades', 'assignments', 'patientlogs', 'evaluations' ],
+		__('Material')	=> [ 'assignments', 'cases', 'checklists', 'content', 'evaluations', 'grades', 'patientlogs', 'quizzes'],
 
 		'content'	=> { 'title'=>__('Content'),		'link'=>"$baseLink/content",
 				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
-		'obj'		=> { 'title'=>__('Objectives'),		'link'=>"$baseLink/obj",
+		'obj'		=> { 'title'=>__('Competencies/Objectives'),		'link'=>"$baseLink/obj",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'fac'		=> { 'title'=>__('Faculty List'),		'link'=>"$baseLink/fac",
@@ -77,7 +78,6 @@
 		'schedule'	=> { 'title'=>__('Schedule'),		'link'=>"$baseLink/schedule",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
-
 		'ann'		=> { 'title'=>__('Announcements'),		'link'=>"$baseLink/ann",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
@@ -96,17 +96,26 @@
 		'groups'	=> { 'title'=>__('My Groups'),		'link'=>"$baseLink/groups",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
-		'patientlogs'	=> { 'title'=>__('Patient Logs'), 'link'=> "/protected$baseLink/patientlogs",
- 				     'style'=>$defaultStyle,		'preText'=>'',
-				   },
-		'evaluations'	=> { 'title'=>'Evaluations',            'link'=> "/protected$baseLink/evaluations",
- 				     'style'=>$defaultStyle,		'preText'=>'',
-				   },
-		'disc'		=> { 'title'=>__('Discussion'),
-				     'link' =>"/forum/forum_show.pl?school=" . $course->school_id() . "&course_id=" . $course->primary_key(),
-				     'style'=>$defaultStyle,
-				     'preText'=>'',
-				   },
+		'patientlogs'	=> {
+			'title'		=> __('Patient Logs'), 
+			'link'		=> "/protected$baseLink/patientlogs",
+		     	'style'		=> $defaultStyle,
+		},
+		'checklists'	=> { 	
+			'title'		=> __('Competency Checklists'), 
+			'link'		=> "/protected$baseLink/checklists",
+		     	'style'		=> $defaultStyle,
+		},
+		'evaluations'	=> {
+			'title'		=> __('Evaluations'), 
+			'link'		=> "/protected$baseLink/evaluations",
+		     	'style'		=> $defaultStyle,
+		},
+		'disc'		=> { 	
+			'title'		=> __('Discussion'),
+		     	'link' 		=> "/forum/forum_show.pl?school=" . $course->school_id() . "&course_id=" . $course->primary_key(),
+			'style'		=> $defaultStyle,
+		},
 	);
 
 	# rename some links in nav if a group course
@@ -141,6 +150,7 @@
 	my $user_obj = $m->session->{'user'};
 	my $iCanEdit = $course->can_user_edit($user_obj);
 	my $class;
+	my $checklist_groups = [];
 </%shared>
 
 
@@ -221,16 +231,9 @@
           <a href="/view/user/<% $m->session->{'user'}->primary_key %>"><%__('View All Groups')%></a>
 %	}
 %} elsif ($courseView eq 'obj') {
-%	if(scalar($course->child_topics()) < 1) {
-%		## taken out because it's deemed unnecessary
-%		## $m->comp("SELF:printNoData", message => 'There are no objectives for this course');
-%	} else {
-		<ul>
-%		foreach my $objective ($course->child_topics()) {
-			<li><% $objective->out_label() %></li>
-%		}
-		</ul>
-%	}
+                <div id = "test_dialog"></div>       
+		<script>window.onload = function(){buildCompetencyList('test_dialog', '<% $course->get_school()->getSchoolName%>' , <% $course->primary_key() %>);};</script>
+
 %} elsif ($courseView eq 'fac') {
 %	if (scalar(@sortedFacultyMembers) < 1) {
 %		$m->comp("SELF:printNoData", message => __('There are no faculty for this course'));
@@ -466,7 +469,12 @@
 
 	<& /patientlog/student/view, course => $course &>
 
+%} elsif ($courseView eq 'checklists') {
+
+	<& /competency/checklist/student/view, checklist_groups => $checklist_groups &>
+
 %} elsif ($courseView eq 'evaluations') {
+
 	<& /eval/student/view, course => $course &>
 
 %} elsif (exists($leftMenu{$courseView})) {
@@ -794,8 +802,8 @@ else {
 </%method>
 
 <%method jsarray>
-% 	my $jsarray =  ['element.js', 'jquery/jquery.min.js'];
-%	push @$jsarray, 'scripts-jq.js', 'eval/view.js' if ($courseView eq 'evaluations');
+% 	my $jsarray = ['element.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/interface/interface.js', 'scripts-jq.js', 'competency/competency/functions.js'];
+%	push @$jsarray, 'eval/view.js' if ($courseView eq 'evaluations');
 %	return $jsarray;
 </%method>
 

@@ -326,6 +326,22 @@ sub setPreferredEmail{
 
 #######################################################
 
+=item B<getDefaultEmail>
+
+my $string = $obj->getDefaultEmail();
+
+Get the value of the default email
+
+=cut
+
+sub getDefaultEmail{
+    my ($self) = @_;
+    return ($self->getFieldValue('preferred_email')) ? $self->getFieldValue('preferred_email') : $self->getFieldValue('email');
+}
+
+
+#######################################################
+
 =item B<getProfileStatus>
 
 my $string = $obj->getProfileStatus();
@@ -338,6 +354,7 @@ sub getProfileStatus{
     my ($self) = @_;
     return $self->getFieldValue('profile_status');
 }
+
 
 #######################################################
 
@@ -855,11 +872,26 @@ sub setUID{
 
 ### Other Methods
 
-
-# Show lastname, comma, then firstname
+=item
+    Return lastname, firstname
+=cut
 sub outLastFirstName{
     my $self = shift;
-    return $self->getFieldValue('lastname') . ", " . $self->getFieldValue('firstname');
+    my ($fn, $ln) =  @{$self->getFieldValues(['firstname', 'lastname'])};
+    return $self->getPrimaryKeyID() unless $ln;
+    return $ln unless $fn;
+    return "$ln, $fn";
+}
+
+=item
+    Return firstname lastname
+=cut
+sub outName{
+    my $self = shift;
+    my ($fn, $ln) =  @{$self->getFieldValues(['firstname', 'lastname'])};
+    return $self->getPrimaryKeyID() unless $ln;
+    return $ln unless $fn;
+    return "$fn $ln";
 }
 
 sub getSites {
@@ -978,7 +1010,6 @@ sub outFullName {
     # Otherwise, format it all out nicely
     return sprintf ("%s%s%s%s", $fn ? "$fn " : '', $ln, $sfx, $dg ? ", $dg" : '');
 }
-
 
 =head1 BUGS
 

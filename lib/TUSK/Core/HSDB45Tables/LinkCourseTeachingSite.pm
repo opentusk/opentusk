@@ -59,7 +59,7 @@ sub new {
     # Call the super-class's constructor and give it all the values
     my $self = $class->SUPER::new ( 
 				    _datainfo => {
-					'database' => '',
+					'database' => 'hsdb45_med_admin',
 					'tablename' => 'link_course_teaching_site',
 					'usertoken' => 'ContentManager',
 					'database_handle' => '',

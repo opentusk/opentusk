@@ -203,6 +203,18 @@ sub setDescription{
 
 ### Other Methods
 
+=item
+    Return the enum id for the given namespace and token
+=cut
+sub getID {
+    my ($self, $namespace, $token) = @_;
+
+    if (my $enum = $self->lookupReturnOne("namespace = '$namespace' AND short_name = '$token'")) {
+	return $enum->getPrimaryKeyID();
+    }
+    return undef;
+}
+
 =head1 BUGS
 
 None Reported.
@@ -222,4 +234,3 @@ Copyright (c) Tufts University Sciences Knowledgebase, 2004.
 =cut
 
 1;
-

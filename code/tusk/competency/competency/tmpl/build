@@ -1,0 +1,111 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use HSDB4::Constants;
+</%once>
+
+<%args>
+	$school_id
+	$component_type
+	$component_id
+</%args>
+<%perl>
+	my $cr;
+	my @data = ();
+	my $dbh = HSDB4::Constants::def_db_handle();
+
+	if ($component_type eq 'schedule') {
+		$cr = TUSK::Competency::Competency->lookup( 'competency_class_meeting.class_meeting_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
+							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::ClassMeeting', 
+							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+	} elsif ($component_type eq 'content') {
+		$cr = TUSK::Competency::Competency->lookup( 'competency_content.content_id ='. $component_id , [ 'sort_order', 'competency_id'] , undef, undef,
+							[ TUSK::Core::JoinObject->new( 'TUSK::Competency::Content', 
+							{ origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+	} elsif ($component_type eq 'related_content') {	
+		## related_content = content linked to a schedule		
+		my $school = TUSK::Core::School->new()->lookupReturnOne("school_id = '" . $school_id . "'");
+		my $school_db = $school->getSchoolDb();
+		my $sql = qq( SELECT child_content_id FROM $school_db.link_class_meeting_content WHERE parent_class_meeting_id = $component_id);
+		my $sth = $dbh->prepare($sql);
+		$sth->execute();
+		my $related_content_ids = $sth->fetchall_arrayref();
+		my $related_data;
+		foreach my $related_content_id( @{$related_content_ids}){
+			my $related_data_current = $m->comp('/competency/competency/tmpl/build', school_id => $school_id, component_type => 'content', component_id => $related_content_id->[0]);
+			push (@{$related_data}, @{$related_data_current});
+		}
+		return ($related_data, $related_content_ids->[0]->[0]);
+	} else {
+		return \@data;		
+	}
+
+	foreach my $competency (@{$cr}) {
+		my %temp_hash = {};
+
+		my $child_linked_comps = TUSK::Competency::Relation->lookup( 'competency_id_1 = ' . $competency->getCompetencyID);
+		my @competency_relations_list;
+		my @competency_relations_list_short;
+
+		foreach my $linked_row (@{$child_linked_comps}) {
+			my $linked_name = TUSK::Competency::Competency->lookup( 'competency_id = ' . $linked_row->getCompetencyId2, [ 'uri' ]);			
+				foreach my $name ( @{$linked_name}) {
+						push @competency_relations_list, $name->getDescription;
+						push @competency_relations_list_short, (substr $name->getDescription, 0, 50) . '...';
+				}
+		}
+		my $link_counter = 1;
+		my $competency_relations_string;
+		my $competency_relations_string_short;
+
+		foreach (@competency_relations_list_short) {
+			if ($link_counter < 5) { $competency_relations_string_short .= $link_counter . ". $_\r\n <br>";}
+			$link_counter++;
+		};
+
+		if ($link_counter >5) {$competency_relations_string_short .= "<b><i>and " . ( $link_counter - 5 ) . " more relationships</i></b><br>";}
+		$link_counter = 1;
+
+		foreach (@competency_relations_list) {
+			$competency_relations_string .= "<b>" . $link_counter . "</b>. $_\r\n <br>";
+			$link_counter++;
+		};
+
+		my $competency_relations_html;
+		$competency_relations_html = "<span class=\"tusk-competency-popup\"><span class=\"competency_popup_container\"><a>" . $competency_relations_string_short . "</a><span class=\"competency_popup_content\"><span class=\"linked_competency_close_button\">[Close Window]</span>
+		<h3>\"". $competency->getDescription."\"</h3>
+		<span class=\"course_competency_header\"><b>Linked Course Competencies:</b></span>  <br><br>". $competency_relations_string . "</span></span></span>";
+	
+		$temp_hash{'id'} = $competency->getCompetencyID;
+		$temp_hash{'title'} = $competency->getDescription;
+		if ($component_type eq 'schedule') {
+			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
+		} elsif ($component_type eq 'related_content'){
+			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::ClassMeeting")->getSortOrder();
+		}else {
+			$temp_hash{'sort_order'} = $competency->getJoinObject("TUSK::Competency::Content")->getSortOrder();
+		}
+		$temp_hash{'type'} = $competency->getCompetencyUserTypeID;
+		$temp_hash{'links'} = $competency_relations_html;
+		$temp_hash{'title'} =~ s/\r|\n//g;
+		$temp_hash{'link_function'} = "<a class=\"related_content_link\" href=\"javascript:void(0)\" data-compID = \"$temp_hash{'id'}\"onclick=\"console.log('$temp_hash{title}'); linkContentToCourse('$temp_hash{title}', $temp_hash{id}, this); return false;\">".'Link\Unlink'."</a>";
+		push @data, {%temp_hash};
+	}
+	return \@data;
+</%perl>
+
+

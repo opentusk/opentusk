@@ -67,50 +67,10 @@ $is_mobi => 0
 <ul class="<% $ulclass  %>"><li><%__("No meeting contents linked")%></li></ul>
 % }
 
-<h4 class="subHdr"><%__("Learning Objectives")%></h4>
-% my $used;
-% my @objectives = @{$m->comp('SELF:tally_objectives', content => \@content, meeting => $class)};
-<ul class="<% $ulclass  %>">
-% foreach my $ob (@objectives) {
-%	$used = 1;
-	<li><% $ob %></li>
-% }
-% if (!$used) {
-<li><%__("No objectives listed.")%></li>
-% }
+<h4 class="subHdr"><%__("Learning Objectives:")%></h4>
+% $m->comp('/competency/competency/tmpl/static_display:generateClassMeetingObjectivesView', class_meeting_id => $class->class_meeting_id);
 </ul>
 
 </div>
 </%method>
 
-<%method tally_objectives>
-<%doc>
-construct array (to retain sort order) of objectives from content array reference
-</%doc>
-<%args>
-	$content
-	$meeting  => undef
-	$obj_array => []
-</%args>
-<%perl>
-	my $totals = 0;
-	foreach my $item ( @{$content} ) {
-		my @child_content = $item->active_child_content;
-		foreach my $objective ($item->child_objectives) {
-			push @$obj_array,  $objective->field_value('body');
-		}
-		if ( $item->type eq 'Collection' ) {
-			$m->comp('SELF:tally_objectives', content => \@child_content, obj_array => $obj_array);
-		}
-	}
-	
-	if ( $meeting ) {
-		foreach my $obj_link (@{$meeting->child_objectives()}) {
-			my $objective = $obj_link->getObjective;
-			push @$obj_array, $objective->getFieldValue('body');
-		}
-	}
-
-	return $obj_array;
-</%perl>
-</%method>

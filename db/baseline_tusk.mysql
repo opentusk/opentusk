@@ -882,199 +882,272 @@ CREATE TABLE IF NOT EXISTS `coding_code_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
 CREATE TABLE IF NOT EXISTS `competency` (
-  `competency_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `version_id` int(10) unsigned DEFAULT NULL,
   `school_id` int(10) unsigned NOT NULL,
-  `title` varchar(350) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `description` text CHARACTER SET utf8,
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  PRIMARY KEY  (`competency_id`),
+  `title` varchar(350) DEFAULT NULL,
+  `description` text,
+  `uri` varchar(256) DEFAULT NULL,
+  `competency_level_enum_id` int(10) unsigned DEFAULT NULL,
+  `competency_user_type_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_id`),
   KEY `school_id` (`school_id`),
-  CONSTRAINT `competency_ibfk_2` FOREIGN KEY (`school_id`) REFERENCES `school` (`school_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
+  KEY `version_id` (`version_id`),
+  KEY `fk_competencytype` (`competency_user_type_id`),
+  CONSTRAINT `competency_ibfk_1` FOREIGN KEY (`version_id`) REFERENCES `competency_version` (`competency_version_id`),
+  CONSTRAINT `fk_competencytype` FOREIGN KEY (`competency_user_type_id`) REFERENCES `competency_user_type` (`competency_user_type_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=67643 DEFAULT CHARSET=utf8;
 
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-CREATE TABLE IF NOT EXISTS `competency_competency` (
-  `competency_competency_id` int(10) unsigned NOT NULL auto_increment,
-  `parent_competency_id` int(10) unsigned default NULL,
-  `child_competency_id` int(10) unsigned default NULL,
-  `sort_order` tinyint(3) unsigned default NULL,
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  PRIMARY KEY  (`competency_competency_id`),
-  KEY `parent_competency_id` (`parent_competency_id`),
-  KEY `child_competency_id` (`child_competency_id`),
-  CONSTRAINT `competency_competency_ibfk_1` FOREIGN KEY (`child_competency_id`) REFERENCES `competency` (`competency_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
-
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-CREATE TABLE IF NOT EXISTS `competency_competency_history` (
-  `competency_competency_history_id` int(10) unsigned NOT NULL auto_increment,
-  `competency_competency_id` int(10) unsigned NOT NULL,
-  `parent_competency_id` int(10) unsigned default NULL,
-  `child_competency_id` int(10) unsigned default NULL,
-  `sort_order` tinyint(3) unsigned default NULL,
-  `history_action` enum('Insert','Update','Delete') default NULL,
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  PRIMARY KEY  (`competency_competency_history_id`),
-  KEY `competency_competency_id` (`competency_competency_id`),
-  KEY `parent_competency_id` (`parent_competency_id`),
-  KEY `child_competency_id` (`child_competency_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
-
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-CREATE TABLE IF NOT EXISTS `competency_type` (
-  `competency_type_id` int(10) unsigned NOT NULL auto_increment,
-  `school_id` int(10) unsigned NOT NULL,
-  `description` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  PRIMARY KEY  (`competency_type_id`),
-  KEY `school_id` (`school_id`),
-  CONSTRAINT `competency_type_ibfk_1` FOREIGN KEY (`school_id`) REFERENCES `school` (`school_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
-
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-CREATE TABLE IF NOT EXISTS `competency_competency_type` (
-  `competency_competency_type_id` int(10) unsigned NOT NULL auto_increment,
-  `competency_id` int(10) unsigned default NULL,
-  `competency_type_id` int(10) unsigned default NULL,
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  PRIMARY KEY  (`competency_competency_type_id`),
-  KEY `competency_id` (`competency_id`),
-  KEY `competency_type_id` (`competency_type_id`),
-  CONSTRAINT `competency_competency_type_ibfk_1` FOREIGN KEY (`competency_id`) REFERENCES `competency` (`competency_id`),
-  CONSTRAINT `competency_competency_type_ibfk_2` FOREIGN KEY (`competency_type_id`) REFERENCES `competency_type` (`competency_type_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
-
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-CREATE TABLE IF NOT EXISTS `competency_competency_type_history` (
-  `competency_competency_type_history_id` int(10) unsigned NOT NULL auto_increment,
-  `competency_competency_type_id` int(10) unsigned NOT NULL,
-  `competency_id` int(10) unsigned default NULL,
-  `competency_type_id` int(10) unsigned default NULL,
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  `history_action` enum('Insert','Update','Delete') default NULL,
-  PRIMARY KEY  (`competency_competency_type_history_id`),
-  KEY `competency_competency_type_id` (`competency_competency_type_id`),
-  KEY `competency_id` (`competency_id`),
-  KEY `competency_type_id` (`competency_type_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
-
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
 CREATE TABLE IF NOT EXISTS `competency_history` (
-  `competency_history_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `competency_id` int(10) unsigned NOT NULL,
   `school_id` int(10) unsigned NOT NULL,
-  `title` varchar(120) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `description` text CHARACTER SET utf8,
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  `history_action` enum('Insert','Update','Delete') default NULL,
-  PRIMARY KEY  (`competency_history_id`),
+  `title` varchar(120) NOT NULL DEFAULT '',
+  `description` text,
+  `URI` varchar(256) NOT NULL,
+  `competency_level` varchar(24) NOT NULL,
+  `competency_level_enum_id` int(10) unsigned DEFAULT NULL,
+  `competency_tag_id` int(10) DEFAULT NULL,
+  `competency_user_type_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  `version_id` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`competency_history_id`),
   KEY `competency_id` (`competency_id`),
   KEY `school_id` (`school_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
+) ENGINE=MyISAM AUTO_INCREMENT=68687 DEFAULT CHARSET=utf8;
 
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-CREATE TABLE IF NOT EXISTS `competency_relationship` (
-  `competency_relationship_id` int(10) unsigned NOT NULL auto_increment,
-  `school_id` int(10) unsigned default NULL,
-  `lineage` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `parent_competency_id` int(10) unsigned default '0',
-  `child_competency_id` int(10) unsigned default NULL,
-  `sort_order` tinyint(3) unsigned default NULL,
-  `depth` tinyint(3) unsigned default '0',
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  PRIMARY KEY  (`competency_relationship_id`),
-  KEY `parent_competency_id` (`parent_competency_id`),
-  KEY `child_competency_id` (`child_competency_id`),
-  KEY `lineage` (`lineage`),
-  KEY `school_id` (`school_id`),
-  CONSTRAINT `competency_relationship_ibfk_1` FOREIGN KEY (`child_competency_id`) REFERENCES `competency` (`competency_id`),
-  CONSTRAINT `competency_relationship_ibfk_2` FOREIGN KEY (`school_id`) REFERENCES `school` (`school_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
 
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-CREATE TABLE IF NOT EXISTS `competency_relationship_history` (
-  `competency_relationship_history_id` int(10) unsigned NOT NULL auto_increment,
-  `competency_relationship_id` int(10) unsigned NOT NULL,
-  `school_id` int(10) unsigned default NULL,
-  `lineage` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `parent_competency_id` int(10) unsigned default '0',
-  `child_competency_id` int(10) unsigned default NULL,
-  `sort_order` tinyint(3) unsigned default NULL,
-  `depth` tinyint(3) unsigned default '0',
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  `history_action` enum('Insert','Update','Delete') default NULL,
-  PRIMARY KEY  (`competency_relationship_history_id`),
-  KEY `competency_relationship_id` (`competency_relationship_id`),
+CREATE TABLE IF NOT EXISTS `competency_user_type` (
+  `competency_user_type_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(24) DEFAULT NULL,
+  `competency_type_enum_id` smallint(6) DEFAULT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_user_type_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=398 DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `competency_user_type_history` (
+  `competency_user_type_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_user_type_id` int(10) unsigned DEFAULT NULL,
+  `name` varchar(24) DEFAULT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `competency_type_enum_id` smallint(6) DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`competency_user_type_history_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `competency_hierarchy` (
+  `competency_hierarchy_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `lineage` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `parent_competency_id` int(10) unsigned DEFAULT '0',
+  `child_competency_id` int(10) unsigned DEFAULT NULL,
+  `sort_order` tinyint(3) unsigned DEFAULT NULL,
+  `depth` tinyint(3) unsigned DEFAULT '0',
+  `modified_by` varchar(24) CHARACTER SET utf8 DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_hierarchy_id`),
   KEY `parent_competency_id` (`parent_competency_id`),
   KEY `child_competency_id` (`child_competency_id`),
   KEY `lineage` (`lineage`),
   KEY `school_id` (`school_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
+) ENGINE=MyISAM AUTO_INCREMENT=3380 DEFAULT CHARSET=latin1;
 
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-CREATE TABLE IF NOT EXISTS `competency_type_history` (
-  `competency_type_history_id` int(10) unsigned NOT NULL auto_increment,
-  `competency_type_id` int(10) unsigned NOT NULL,
-  `school_id` int(10) unsigned NOT NULL,
-  `description` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime default NULL,
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  `history_action` enum('Insert','Update','Delete') default NULL,
-  PRIMARY KEY  (`competency_type_history_id`),
-  KEY `school_id` (`school_id`),
-  KEY `competency_type_id` (`competency_type_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-SET character_set_client = @saved_cs_client;
+CREATE TABLE IF NOT EXISTS `competency_hierarchy_history` (
+  `competency_hierarchy_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_hierarchy_id` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `lineage` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `parent_competency_id` int(10) unsigned DEFAULT '0',
+  `child_competency_id` int(10) unsigned DEFAULT NULL,
+  `sort_order` tinyint(3) unsigned DEFAULT NULL,
+  `depth` tinyint(3) unsigned DEFAULT '0',
+  `modified_by` varchar(24) CHARACTER SET utf8 DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`competency_hierarchy_history_id`),
+  KEY `competency_hierarchy_id` (`competency_hierarchy_id`),
+  KEY `parent_competency_id` (`parent_competency_id`),
+  KEY `child_competency_id` (`child_competency_id`),
+  KEY `lineage` (`lineage`),
+  KEY `school_id` (`school_id`)
+) ENGINE=MyISAM AUTO_INCREMENT=11386 DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `competency_course` (
+  `course_competency_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `course_id` int(10) NOT NULL DEFAULT '0',
+  `sort_order` smallint(6) unsigned NOT NULL DEFAULT '65535',
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`course_competency_id`),
+  KEY `competency_id` (`competency_id`),
+  CONSTRAINT `competency_course_ibfk_1` FOREIGN KEY (`competency_id`) REFERENCES `competency` (`competency_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2696 DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `competency_course_history` (
+  `course_competency_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `course_competency_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `course_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `sort_order` smallint(6) unsigned NOT NULL DEFAULT '65535',
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`course_competency_history_id`),
+  KEY `competency_id` (`competency_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1504 DEFAULT CHARSET=utf8;
+
+CREATE TABLE `competency_class_meeting` (
+  `competency_class_meeting_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `class_meeting_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `sort_order` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `assessment_method_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_class_meeting_id`),
+  UNIQUE KEY `assessment_method_id` (`assessment_method_id`),
+  KEY `competency_id` (`competency_id`),
+  CONSTRAINT `competency_class_meeting_ibfk_1` FOREIGN KEY (`competency_id`) REFERENCES `competency` (`competency_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `competency_class_meeting_history` (
+  `competency_class_meeting_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_class_meeting_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `class_meeting_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `sort_order` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `assessment_method_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`competency_class_meeting_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `competency_content` (
+  `competency_content_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `content_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `sort_order` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_content_id`),
+  KEY `competency_id` (`competency_id`),
+  CONSTRAINT `competency_content_ibfk_1` FOREIGN KEY (`competency_id`) REFERENCES `competency` (`competency_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `competency_content_history` (
+  `competency_content_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_content_id` int(10) unsigned NOT NULL,
+  `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `content_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `sort_order` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`competency_content_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `competency_relation` (
+  `competency_relation_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_id_1` int(10) unsigned DEFAULT NULL,
+  `competency_id_2` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_relation_id`),
+  KEY `competency_id_1` (`competency_id_1`),
+  KEY `competency_id_2` (`competency_id_2`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE `competency_relation_history` (
+  `competency_relation_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_relation_id` int(10) unsigned NOT NULL,
+  `competency_id_1` int(10) unsigned NOT NULL,
+  `competency_id_2` int(10) unsigned NOT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`competency_relation_history_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE `competency_version` (
+  `competency_version_id` tinyint(3) unsigned NOT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `title` varchar(100) DEFAULT NULL,
+  `description` varchar(250) DEFAULT NULL,
+  `start_date` datetime DEFAULT NULL,
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_version_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `competency_version_history` (
+  `competency_version_history_id` tinyint(3) unsigned NOT NULL,
+  `competency_version_id` tinyint(3) unsigned NOT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `title` varchar(100) DEFAULT NULL,
+  `description` varchar(250) DEFAULT NULL,
+  `start_date` datetime DEFAULT NULL,
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`competency_version_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `academic_level` (
+  `academic_level_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) DEFAULT NULL,
+  `description` varchar(250) DEFAULT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`academic_level_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `academic_level_history` (
+  `academic_level_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `academic_level_id` int(10) unsigned NOT NULL,
+  `title` varchar(100) DEFAULT NULL,
+  `description` varchar(250) DEFAULT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`academic_level_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `academic_level_course` (
+  `academic_level_course_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `academic_level_id` int(10) unsigned DEFAULT NULL,
+  `course_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`academic_level_course_id`),
+  KEY `academic_level_id` (`academic_level_id`),
+  CONSTRAINT `academic_level_course_ibfk_1` FOREIGN KEY (`academic_level_id`) REFERENCES `academic_level` (`academic_level_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `academic_level_course_history` (
+  `academic_level_course_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `academic_level_course_id` int(10) unsigned NOT NULL,
+  `academic_level_id` int(10) unsigned DEFAULT NULL,
+  `course_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT ' ',
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`academic_level_course_history_id`),
+  KEY `academic_level_id` (`academic_level_id`),
+  CONSTRAINT `academic_level_course_history_ibfk_1` FOREIGN KEY (`academic_level_id`) REFERENCES `academic_level` (`academic_level_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
@@ -6151,3 +6224,172 @@ create table if not exists course_user_site_history (
 ) engine=InnoDB default charset=utf8;
 SET character_set_client = @saved_cs_client; 
 
+CREATE TABLE IF NOT EXISTS `competency_checklist_group` (
+  `competency_checklist_group_id` int(10) unsigned NOT NULL auto_increment,
+  `school_id` int(10) unsigned NOT NULL,
+  `course_id` int(10) unsigned NOT NULL,
+  `title` varchar(100) NOT NULL default '',
+  `description` text,
+  `publish_flag` tinyint(1) unsigned default 0,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  PRIMARY KEY  (`competency_checklist_group_id`),
+  KEY (`school_id`),
+  KEY (`course_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+
+CREATE TABLE IF NOT EXISTS `competency_checklist_group_history` (
+  `competency_checklist_group_history_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_group_id` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `course_id` int(10) unsigned NOT NULL,
+  `title` varchar(100) NOT NULL default '',
+  `description` text,
+  `publish_flag` tinyint(1) unsigned default 0,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY  (`competency_checklist_group_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+
+CREATE TABLE IF NOT EXISTS `competency_checklist` (
+  `competency_checklist_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_group_id` int(10) unsigned NOT NULL,
+  `competency_id` int(10) unsigned NOT NULL,
+  `description` varchar(200) default NULL,
+  `required` tinyint(1) unsigned default 0,
+  `self_assessed` tinyint(1) NOT NULL default 1,
+  `partner_assessed` tinyint(1) NOT NULL default 1,
+  `faculty_assessed` tinyint(1) NOT NULL default 1,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  PRIMARY KEY  (`competency_checklist_id`),
+  KEY (`competency_checklist_group_id`),
+  KEY (`competency_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+
+CREATE TABLE IF NOT EXISTS `competency_checklist_history` (
+  `competency_checklist_history_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_id` int(10) unsigned NOT NULL,
+  `competency_checklist_group_id` int(10) unsigned NOT NULL,
+  `competency_id` int(10) unsigned NOT NULL,
+  `description` varchar(200) default NULL,
+  `required` tinyint(1) unsigned default 0,
+  `self_assessed` tinyint(1) NOT NULL default 1,
+  `partner_assessed` tinyint(1) NOT NULL default 1,
+  `faculty_assessed` tinyint(1) NOT NULL default 1,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY  (`competency_checklist_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+CREATE TABLE IF NOT EXISTS `enum_data` (
+  `enum_data_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `namespace` varchar(50) NOT NULL DEFAULT '',
+  `short_name` varchar(12) NOT NULL DEFAULT '',
+  `display_name` varchar(100) DEFAULT NULL,
+  `description` varchar(200) NOT NULL DEFAULT '',
+  `created_by` varchar(24) NOT NULL DEFAULT '',
+  `created_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`enum_data_id`),
+  KEY `namespace` (`namespace`),
+  KEY `short_name` (`short_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT ignore INTO enum_data VALUES 
+(0, 'COMPETENCY_CHECKLIST_assignment.assessor_type', 'self', 'Self', '', 'script', now(), 'script', now()),
+(0, 'competency_checklist_assignment.assessor_type', 'partner', 'Partner', '', 'script', now(), 'script', now()),
+(0, 'competency_checklist_assignment.assessor_type', 'faculty', 'Faculty', '', 'script', now(), 'script', now());
+
+CREATE TABLE IF NOT EXISTS `competency_checklist_assignment` (
+  `competency_checklist_assignment_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_group_id` int(10) unsigned NOT NULL,
+  `time_period_id` int(10) unsigned NOT NULL,
+  `student_id` varchar(24) NOT NULL,
+  `assessor_id` varchar(24) NULL,
+  `assessor_type_enum_id` tinyint(1) default 1,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  PRIMARY KEY  (`competency_checklist_assignment_id`),
+  KEY (`competency_checklist_group_id`),
+  KEY (`student_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+
+CREATE TABLE IF NOT EXISTS `competency_checklist_assignment_history` (
+  `competency_checklist_assignment_history_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_assignment_id` int(10) unsigned NOT NULL,
+  `competency_checklist_group_id` int(10) unsigned NOT NULL,
+  `time_period_id` int(10) unsigned NOT NULL,
+  `student_id` varchar(24) NOT NULL,
+  `assessor_id` varchar(24) NULL,
+  `assessor_type_enum_id` tinyint(1) default 1,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY  (`competency_checklist_assignment_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+
+CREATE TABLE IF NOT EXISTS `competency_checklist_entry` (
+  `competency_checklist_entry_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_id` int(10) unsigned NOT NULL,
+  `competency_checklist_assignment_id` int(10) unsigned NOT NULL,
+  `request_date` datetime default NULL,
+  `notify_date` datetime default NULL,
+  `complete_date` datetime default NULL,
+  `assessor_comment` text,
+  `student_comment` text,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  PRIMARY KEY  (`competency_checklist_entry_id`),
+  KEY (`competency_checklist_id`),
+  KEY (`competency_checklist_assignment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+
+CREATE TABLE IF NOT EXISTS `competency_checklist_entry_history` (
+  `competency_checklist_entry_history_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_entry_id` int(10) unsigned NOT NULL,
+  `competency_checklist_id` int(10) unsigned NOT NULL,
+  `competency_checklist_assignment_id` int(10) unsigned NOT NULL,
+  `request_date` datetime default NULL,
+  `notify_date` datetime default NULL,
+  `complete_date` datetime default NULL,
+  `assessor_comment` text,
+  `student_comment` text,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY  (`competency_checklist_entry_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+
+CREATE TABLE IF NOT EXISTS `competency_checklist_completion` (
+  `competency_checklist_completion_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_entry_id` int(10) unsigned NOT NULL,
+  `competency_id` int(10) unsigned NOT NULL,
+  `completed` tinyint(1) unsigned NOT NULL,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  PRIMARY KEY  (`competency_checklist_completion_id`),
+  KEY (`competency_checklist_entry_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+
+CREATE TABLE IF NOT EXISTS `competency_checklist_completion_history` (
+  `competency_checklist_completion_history_id` int(10) unsigned NOT NULL auto_increment,
+  `competency_checklist_completion_id` int(10) unsigned NOT NULL,
+  `competency_checklist_entry_id` int(10) unsigned NOT NULL,
+  `competency_id` int(10) unsigned NOT NULL,
+  `completed` tinyint(1) unsigned NOT NULL,
+  `modified_by` varchar(24) default NULL,
+  `modified_on` datetime default NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY  (`competency_checklist_completion_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
