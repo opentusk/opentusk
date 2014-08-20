@@ -1,24 +1,42 @@
+###############################################################
 ### Curriculum Inventory (CI) Report Release
-### School Admin can generate a CI report 
+### A tool for School Admin to generate a CI report 
+###############################################################
+
+
+###############################################################
+###  perl modules installations
+###############################################################
 
 ### install App::cpanminus, our new tool to add/maintain perl modules
-curl -L http://cpanmin.us | perl - --self-upgrade
-curl -L http://cpanmin.us | perl - --sudo App::cpanminus
+> curl -L http://cpanmin.us | perl - --sudo App::cpanminus
+
+### upgrade XML::Writer to 0.604. There was an older version of this module but not working with ci report
+> sudo yum install -q -y 'perl(XML::Writer)'
 
 ### re-install Moose with cpanm for a newer version
-yum remove 'perl(Moose)'
-cpanm http://cpan.metacpan.org/authors/id/E/ET/ETHER/Moose-2.1205.tar.gz
+> sudo yum remove 'perl(Moose)'
+> sudo cpanm http://cpan.metacpan.org/authors/id/E/ET/ETHER/Moose-2.1205.tar.gz
 
 ### install new modules used by CI report tool
-cpanm http://cpan.metacpan.org/authors/id/T/TO/TOBYINK/Type-Tiny-0.038.tar.gz
-cpanm DateTimeX::Auto
-cpanm http://cpan.metacpan.org/authors/id/T/TO/TOBYINK/Types-XSD-0.003.tar.g
-cpanm Data::UUID
+> sudo cpanm http://cpan.metacpan.org/authors/id/T/TO/TOBYINK/Type-Tiny-0.038.tar.gz
+> sudo cpanm DateTimeX::Auto
+> sudo cpanm http://cpan.metacpan.org/authors/id/T/TO/TOBYINK/Types-XSD-0.003.tar.g
+> sudo cpanm Data::UUID
 
-### tusk.conf  
+###############################################################
+### add key/values to tusk.conf  
+###############################################################
+
 ### a) Add the following line in institution section. Change the country code if needed.
 +		"CountryCode"   : "US"
 
 ### b) Add degree in schools section. Each school will have its own degree key/values if you want the default value 
 ###    This is an example for Medical school.
 + 		"Degree"      : "Doctor of Medicine"
+
+###############################################################
+### database changes
+###############################################################
+
+> mysql tusk < ./tables.sql
