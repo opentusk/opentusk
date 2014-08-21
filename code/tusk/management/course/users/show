@@ -89,24 +89,32 @@
 	}
 
 	my $sort_box = 0;
+	my $action_columns = 0;
 	my $action_column_align = undef;
-	if ($is_director_nonstudent && !$is_group_course) {
+	if ($is_director_nonstudent && !$is_group_course && ($time_period_id > 0)) {
 		$sort_box = 1;
+		$action_columns = 1;
 		$action_column_align = 'left';
 	}
 </%perl>
 
-<& /tmpl/element:object_selection_box, params => { 
+<& /tmpl/element:object_selection_box, params => {
 	sort_box => $sort_box,
-	columns => [ 
+	columns => ($time_period_id > 0) ? [ 
 		{'label' => __('Name'), 'field' => 'name'},
 		{'label' => __('UserID'), 'field' => 'userid' },
 		{'label' => __('Role'), 'field' => 'roles'}, 
 		{'label' => __('Label(s)'), 'field' => 'labels'}, 
 		{'label' => __('Teaching Site(s)'), 'field' => 'teaching_sites'},
 		{'label' => __('Affiliation'), 'field' => 'affiliation'},
+	] : [
+		{'label' => __('Name'), 'field' => 'name'},
+		{'label' => __('UserID'), 'field' => 'userid' },
+		{'label' => __('Role'), 'field' => 'roles'}, 
+		{'label' => __('Label(s)'), 'field' => 'labels'}, 
+		{'label' => __('Most Recent Time Period'), 'field' => 'time_period'},
 	],
-	action_columns => ($time_period_id > 0) ? [ 
+	action_columns => ($action_columns) ? [ 
 		{ 'label' => __('Modify'), 'link' => '/management/course/users/addedit' },
 		{ 'label' => __('Delete'), 'link' => '/management/course/users/delete' },
 	] : undef,
@@ -177,7 +185,14 @@
 <%perl>
 	my $teaching_sites = $user->getFormattedSites();
 	my $role = $user->getRoleDesc();
-	my $labels = $user->getFormattedLabels(); 
+	my $labels = $user->getFormattedLabels();
+	my $tp_id = 0;
+	my $tp_out = '';
+
+	unless ($time_period_id > 0) {
+		$tp_id = $user->getCourseUser()->getTimePeriodID();
+		$tp_out = HSDB45::TimePeriod->new(_school => $school->getSchoolName())->lookup_key($tp_id)->out_display();
+	}
 
 	if ($is_thesis_comm) {
 		$role =~ s/Director/Advisor/i;
@@ -195,6 +210,7 @@
 		teaching_sites => $teaching_sites || '-',
 		affiliation => $user->getAffiliation(),
 		id => $user->getCourseUserID(),
+		time_period => $tp_out,
 	};
 </%perl>
 </%method>

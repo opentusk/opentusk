@@ -1032,6 +1032,7 @@ sub users {
     confess "missing time period id" unless defined $time_period_id;
 
     $sort_orders = ['course_user.sort_order', 'lastname', 'firstname'] unless defined $sort_orders;
+    $sort_orders = ['lastname', 'firstname', 'course_user.time_period_id DESC'] unless ($time_period_id > 0);
 
     return $self->find_users($conditions, $sort_orders, $time_period_id);
 }
