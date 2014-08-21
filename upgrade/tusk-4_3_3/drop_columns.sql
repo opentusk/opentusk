@@ -1,0 +1,2 @@
+ALTER TABLE competency
+DROP COLUMN uri;

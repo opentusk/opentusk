@@ -36,6 +36,8 @@ B<TUSK::Competency::Competency> - Class for manipulating entries in table compet
 
 use strict;
 
+use TUSK::Feature::Link;
+
 BEGIN {
     require Exporter;
     require TUSK::Core::SQLRow;
@@ -72,7 +74,6 @@ sub new {
 					'version_id' => '',
 					'school_id' => '',
 					'title' => '',
-					'uri' => '',
 					'description' => '',
 					'competency_level_enum_id' => '',
 					'competency_user_type_id' => '',
@@ -246,7 +247,14 @@ sub setTitle{
 
 sub getUri{
     my ($self) = @_;
-    return $self->getFieldValue('uri');
+    
+    my $URI;
+
+    if (TUSK::Feature::Link->lookupReturnOne("feature_id = ".$self->getPrimaryKeyID)){
+        $URI = TUSK::Feature::Link->lookupReturnOne("feature_id = ".$self->getPrimaryKeyID)->getUrl;
+    }
+
+    return $URI;
 }
 
 #######################################################
@@ -261,7 +269,7 @@ sub getUri{
 
 sub setUri{
     my ($self, $value) = @_;
-    $self->setFieldValue('uri', $value);
+    TUSK::Feature::Link->lookupReturnOne("feature_id = ".$self->getPrimaryKeyID)->setFieldValue('url', $value);
 }
 
 
