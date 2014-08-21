@@ -15,7 +15,6 @@ ALTER TABLE competency CONVERT TO CHARACTER SET utf8;
 
 ALTER TABLE competency_history CONVERT TO CHARACTER SET utf8;
 
-
 /* Insert user_type data and level_id data to enum_data table */
 CREATE TABLE IF NOT EXISTS `enum_data` (
   `enum_data_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -134,4 +133,10 @@ CREATE TABLE competency_course_history (
 	modified_on datetime DEFAULT NULL,
 	history_action enum('Insert', 'Update', 'Delete')
 ) ENGINE=INNODB DEFAULT CHARSET=utf8; 
+
+/*Drop old foreign keys, required in external installs*/
+
+ALTER TABLE competency_hierarchy DROP FOREIGN KEY competency_hierarchy_ibfk_1;
+
+ALTER TABLE competency_competency_type DROP FOREIGN KEY competency_competency_type_ibfk_1;
 

@@ -211,7 +211,7 @@ sub getTopLevelCompetenciesByCourse{
     my ( $lib, $course_id ) = @_;
 
     my $course_competencies = TUSK::Competency::Competency->lookup('competency_course.course_id ='. $course_id, 
-								    ['competency_id', 'description'] , undef, undef,
+								    ['competency_hierarchy.sort_order', 'competency_id'] , undef, undef,
 								    [TUSK::Core::JoinObject->new('TUSK::Competency::Course', 
 												   { origkey => 'competency_id', joinkey => 'competency_id', jointype => 'inner'}),
 								    TUSK::Core::JoinObject->new('TUSK::Competency::Hierarchy',
