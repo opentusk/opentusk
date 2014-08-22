@@ -603,7 +603,7 @@ sub student_link {
 sub email_students{
     my ($self, $subject, $email_from, $time_period_id, $message) = @_;
 
-    $time_period_id = $self->get_current_timeperiod() unless ($time_period_id);
+    $time_period_id = $self->get_current_timeperiod()->primary_key() unless ($time_period_id);
 
     my @students = $self->get_students($time_period_id);
 

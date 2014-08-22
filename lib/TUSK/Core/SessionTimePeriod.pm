@@ -42,10 +42,12 @@ sub course_time_periods{
     }
 	else{
 		$timeperiod = get_time_period($course, $session);
-		if ($timeperiod == -1){
-			$session->{timeperiod} = $timeperiod = @$periods[length(@$periods) -1]->primary_key;
-		}
 		delete $session->{selected_timeperiod_display};
+    }
+
+    unless ($allow_all || ($timeperiod > 0)){
+	$timeperiod = $course->get_current_timeperiod()->primary_key();
+	$session->{timeperiod} = $timeperiod;
     }
 
 	if (scalar(@$periods)){
