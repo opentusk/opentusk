@@ -213,14 +213,17 @@
 	}
 
 	my $school = $m->comp("/tmpl/url:get_school");
-	my $time_period_id = ($m->session->{timeperiod} > 0) ? $m->session->{timeperiod} : $course->get_current_timeperiod()->primary_key();
-	my $time_period_display = HSDB45::TimePeriod->new( _school=>$school )->lookup_key($time_period_id)->out_display();
 	my $user_id = undef;
 	my $actions = { usage => 'No'};
 	my $users = [];
 	my $app = TUSK::Application::Course::User->new({course => $course});
 	my %user_sites = ();
 	my $faculty = undef;
+
+	$m->session->{timeperiod} = $course->get_current_timeperiod()->primary_key() unless ($m->session->{timeperiod} > 0);
+	my $time_period_id = $m->session->{timeperiod};
+	my $time_period_display = HSDB45::TimePeriod->new( _school=>$school )->lookup_key($time_period_id)->out_display();
+
 	if ($course_user_id) {  ## EDIT
 		$faculty = $app->findUser($course_user_id);
 		unless (ref $faculty eq 'TUSK::Core::HSDB4Tables::User') {

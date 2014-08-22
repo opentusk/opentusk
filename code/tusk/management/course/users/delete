@@ -43,6 +43,11 @@
 } &>
 
 <& /tmpl/element:field_display, params =>{ 
+	label 	=> __('Time Period') . ':',
+	value 	=> $time_period_display,
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
 	label 	=> __('User ID') . ':',
 	value 	=> $user->getPrimaryKeyID(),
 } &>
@@ -88,7 +93,11 @@
 	my $course_id = $course->primary_key();
 	my $course_user_id = $m->comp("/tmpl/url:get_last_path_id");
 	my $app = TUSK::Application::Course::User->new({course => $course});
-	$user = $app->findUser($course_user_id);	
+	$user = $app->findUser($course_user_id);
+
+	$m->session->{timeperiod} = $course->get_current_timeperiod()->primary_key() unless ($m->session->{timeperiod} > 0);
+	my $time_period_id = $m->session->{timeperiod};
+	my $time_period_display = HSDB45::TimePeriod->new( _school=>$school )->lookup_key($time_period_id)->out_display();
 
 	if ($ARGS{submit_check}) {
 		unless ($user) {
