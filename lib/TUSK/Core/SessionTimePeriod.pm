@@ -45,12 +45,11 @@ sub course_time_periods{
 		delete $session->{selected_timeperiod_display};
     }
 
-    unless ($allow_all || ($timeperiod > 0)){
-	$timeperiod = $course->get_current_timeperiod()->primary_key();
-	$session->{timeperiod} = $timeperiod;
-    }
-
 	if (scalar(@$periods)){
+		unless ($allow_all || ($timeperiod > 0)){
+			$timeperiod = @$periods[length(@$periods)-1]->primary_key();
+			$session->{timeperiod} = $timeperiod;
+		}
 		$extratext->[0]->{name} = "Time Period";
 		$extratext->[0]->{text} = ($timeperiod == -1) ? 'All Time Periods (READ-ONLY)' : get_selected_timeperiod_display($course->school, $session);
 
