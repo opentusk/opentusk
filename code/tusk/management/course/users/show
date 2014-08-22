@@ -15,7 +15,7 @@
 </%doc>
 
 <%attr>
-	show_tp_dropdown_no_cache => 2        
+	show_tp_dropdown_no_cache => 2
 </%attr>
 
 <%shared>
@@ -88,18 +88,11 @@
 		push @rows, $m->comp('SELF:set_row', user => $user);
 	}
 
-	my $sort_box = 0;
-	my $action_columns = 0;
-	my $action_column_align = undef;
-	if ($is_director_nonstudent && !$is_group_course && ($time_period_id > 0)) {
-		$sort_box = 1;
-		$action_columns = 1;
-		$action_column_align = 'left';
-	}
+	my $can_edit = ($is_director_nonstudent && !$is_group_course && ($time_period_id > 0));
 </%perl>
 
 <& /tmpl/element:object_selection_box, params => {
-	sort_box => $sort_box,
+	sort_box => $can_edit,
 	columns => ($time_period_id > 0) ? [ 
 		{'label' => __('Name'), 'field' => 'name'},
 		{'label' => __('UserID'), 'field' => 'userid' },
@@ -114,11 +107,11 @@
 		{'label' => __('Label(s)'), 'field' => 'labels'}, 
 		{'label' => __('Most Recent Time Period'), 'field' => 'time_period'},
 	],
-	action_columns => ($action_columns) ? [ 
+	action_columns => ($can_edit) ? [ 
 		{ 'label' => __('Modify'), 'link' => '/management/course/users/addedit' },
 		{ 'label' => __('Delete'), 'link' => '/management/course/users/delete' },
 	] : undef,
-	action_column_align => $action_column_align,
+	action_column_align => 'left',
 	rows => \@rows,
 	type_path => $type_path,
 	name => "people",
@@ -215,6 +208,9 @@
 </%perl>
 </%method>
 
+<%method cms_min_course_role>
+%       return '';
+</%method>
 
 <%method title>
 % 	return __("Manage Faculty and Staff");
