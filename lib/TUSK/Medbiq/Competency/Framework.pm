@@ -161,11 +161,27 @@ sub _build_Includes {
     my $self = shift;
     my @cf_includes = ();
 
+    my %seen_competencies = ();
+
+    foreach my $comp (@{$self->national_competencies()}) {
+	my $comp_id = $comp->getPrimaryKeyID();
+	unless (exists $seen_competencies{$comp_id}) {
+	    if (my $feature_link = $comp->getJoinObject('TUSK::Feature::Link')) {
+		push @cf_includes, $self->_get_id_object_by_link($feature_link->getUrl());
+		$seen_competencies{$comp_id} = 1;
+	    }
+	}
+    }
+
     foreach my $comp (@{$self->school_competencies()},
 		      @{$self->course_competencies()},
 		      @{$self->event_competencies()}
 		      ) {
-	push @cf_includes, $self->_get_id_object($comp->getPrimaryKeyID());
+	my $comp_id = $comp->getPrimaryKeyID();
+	unless (exists $seen_competencies{$comp_id}) {
+	    push @cf_includes, $self->_get_id_object($comp->getPrimaryKeyID());
+	    $seen_competencies{$comp_id} = 1;
+	}
     }
 
     return \@cf_includes;
@@ -173,10 +189,21 @@ sub _build_Includes {
 
 sub _build_Relation { 
     my $self = shift;
-
     my @cf_relations = ();
-    foreach my $comp (@{$self->national_competencies()},
-		      @{$self->school_competencies()},
+
+    foreach my $comp (@{$self->national_competencies()}) {
+	if (my $relation = $comp->getJoinObject('TUSK::Competency::Relation'))  {
+	    if (my $feature_link = $comp->getJoinObject('TUSK::Feature::Link')) {
+		push @cf_relations, TUSK::Medbiq::Competency::Framework::Relation->new(
+		       Reference1 => $self->_get_id_object_by_link($feature_link->getUrl()),
+		       Relationship => 'http://www.w3.org/2004/02/skos/core#related',
+		       Reference2 => $self->_get_id_object($relation->getCompetencyId1()),
+	       );
+	    }
+	}
+    }
+
+    foreach my $comp (@{$self->school_competencies()},
 		      @{$self->course_competencies()},
 		      @{$self->event_competencies()}
 		      ) {
@@ -216,6 +243,10 @@ sub _get_id_object {
     );
 }
 
+sub _get_id_object_by_link {
+    my ($self, $url) = @_;
+    return TUSK::Medbiq::Identifier->new(Entry => $url);
+}
 
 
 
