@@ -148,7 +148,7 @@ sub _build_Category {
 		   class_meet => 'event',
 		   content => 'event' );
 
-    if (my $competency_level = $self->dao()->getJoinObject('TUSK::Enum::Data')) {
+    if (my $competency_level = $self->dao()->getJoinObject('competency_level')) {
 	if (exists $levels{$competency_level->getShortName()}) {
 	    return [ TUSK::Medbiq::Competency::Category->new(level => $levels{$competency_level->getShortName()}) ];
 	} else {

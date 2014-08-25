@@ -158,13 +158,23 @@ sub _competencies_relation {
 	      jointype => 'inner',
 	      origkey => 'competency_level_enum_id',
 	      joinkey => 'enum_data_id',
-	      joincond => "short_name = '$token'",
+	      alias => 'competency_level',
 	  }),
 	  TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
 	      jointype => 'inner',
 	      origkey => 'competency_id',
 	      joinkey => 'competency_id_2',
 	      joincond => 'competency_id_1 in (' . join(',', @$linked_competencies) . ')',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Feature::Link', {
+	      origkey => 'competency_id',
+	      joinkey => 'feature_id',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      origkey => 'feature_link.feature_type_enum_id',
+	      joinkey => 'enum_data_id',
+	      joincond => "feature_type.short_name = '$token'",
+	      alias => 'feature_type',
 	  }),
     ]);
 }

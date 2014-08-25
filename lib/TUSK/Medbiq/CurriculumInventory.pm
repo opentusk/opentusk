@@ -301,12 +301,11 @@ sub _build_Expectations {
 
     my @course_competencies = ();
     my $relation_obj_class = 'TUSK::Competency::Relation';
-    my $enum_data_obj_class = 'TUSK::Enum::Data';
 
     foreach my $alwc (@{$self->academic_levels_with_courses}) {
 	foreach my $comp (@{$alwc->getJoinObjects('TUSK::Competency::Competency')}) {
 	    $comp->setJoinObjects($relation_obj_class, $alwc->getJoinObject($relation_obj_class));
-	    $comp->setJoinObjects($enum_data_obj_class, $alwc->getJoinObject($enum_data_obj_class));
+	    $comp->setJoinObjects('competency_level', $alwc->getJoinObject('TUSK::Enum::Data'));
 	    push @course_competencies, $comp;
 	}
     }
