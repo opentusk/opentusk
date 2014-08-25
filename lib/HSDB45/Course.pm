@@ -1045,7 +1045,7 @@ sub users {
 
 sub user_primary_role {
     my ($self, $user_id) = @_;
-    my $users = $self->find_users("course_user.user_id = '$user_id'");
+    my $users = $self->find_users("course_user.user_id = '$user_id'", ['course_user.time_period_id DESC']);
     return (scalar @$users) ? $users->[0]->getRole() : undef;
 }
 
