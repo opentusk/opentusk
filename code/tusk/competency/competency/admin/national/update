@@ -293,9 +293,24 @@
 
 				$competency = TUSK::Application::Competency::Competency->new($competency_args);
 				$competency->update;
-				my $competency_feature_link = TUSK::Feature::Link->lookupReturnOne("feature_id =".$competency->{'competency_id'});
-				$competency_feature_link->setUrl($ARGS{'col1'});
-				$competency_feature_link->save({user => $m->session->{'user'}->user_id});
+
+				my $feature_link_enum_id = TUSK::Enum::Data->lookupReturnOne("namespace = \"feature_link.feature_type\" AND short_name = \"competency\"")->getPrimaryKeyID;
+				my $competency_feature_link;
+				
+				if (TUSK::Feature::Link->lookupReturnOne("feature_id =".$competency->{'competency_id'})) {
+					$competency_feature_link = TUSK::Feature::Link->lookupReturnOne("feature_id =".$competency->{'competency_id'});
+					$competency_feature_link->setUrl($ARGS{'col1'});
+					$competency_feature_link->save({user => $m->session->{'user'}->user_id});
+				} else {
+					my $new_competency_feature_link = TUSK::Feature::Link->new();
+					$new_competency_feature_link->setFieldValues({
+						feature_type_enum_id => $feature_link_enum_id,
+						feature_id => $competency->{'competency_id'},
+						url => $ARGS{'col1'},						
+					});
+					$new_competency_feature_link->save({user => $m->session->{'user'}->user_id});
+				} 
+
 				print "\"id\"    : \"" . $competency->{'competency_id'}. "_" . time() . "\",\n";
 				print "\"error\" : \"\"\n";
 			}

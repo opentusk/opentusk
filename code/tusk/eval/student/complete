@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use HSDB45::Eval;
 	use HSDB45::Eval::Formatter;
@@ -30,37 +31,39 @@
 	default_path_type => 'school'
 </%attr>
 
-
 <%shared>
-	my $eval_id = $m->comp("/tmpl/url:get_first_path_id");
+	### there could be no evaluatee_uid, nor teaching_site_id (ie for course eval)
+	my ($eval_id, $evaluatee_uid, $evaluator_site_id) = $m->comp("/tmpl/url:get_path_ids");
 	my $school = $m->comp('/tmpl/url:get_type_object');
 	my $school_name = $school->getSchoolName;
 	my $eval = HSDB45::Eval->new(_school => $school_name)->lookup_key($eval_id);
 	my @questions = grep { $_->body()->question_type !~ /Title|Instruction/ }  $eval->questions();
 	my @required_questions = $eval->required_questions();
 	my %fdat = $m->request_args();
+	my $user = $m->session->{'user'};
+	my ($formatter, $saved_answers_id, $teaching_site, @loaded_answers, @loaded_fields);
+	my $answers;
+	my ($eval_completed, $msg, $qualified_request) = (0, '', 1);
+	my $is_teaching_eval = $eval->is_teaching_eval();
+	my ($evaluatee, $site) = (undef, undef);
+	my $is_done = $evaluatee_uid eq 'done';
+</%shared>
+
+<%init>
   	foreach my $key (keys %fdat) {
 		if ( ref($fdat{$key}) eq 'ARRAY' ) {
 			# This MUST be a '	' and not a '\t' for some of the DBI methods to function properly
 			$fdat{$key} = join( '	', @{$fdat{$key}} );
 		}
 	}
-	my $user = $m->session->{'user'};
-	my ($formatter, $saved_answers_id, $teaching_site, @loaded_answers, @loaded_fields);
-	my $answers;
-	my ($eval_completed, $msg, $qualified_request) = (0, '', 1);
-</%shared>
 
-
-<%init>
-	unless($eval_completed) {
+	unless ($eval_completed || $is_done) {
 		if ($qualified_request) {
 			$saved_answers_id = $answers->id() if $answers;
 			#$m->print("<body onload=\"doInitialSatisfys();\">");
 			$m->comp('SELF:write_script');
-			my $eval_form = $m->comp('SELF:get_eval');
 			$m->comp('SELF:header_with_title_msg');
-			$m->comp('SELF:display_eval', $eval_form);
+			$m->comp('SELF:display_eval', $m->comp('SELF:get_eval'));
 		} else {
 			#$m->print("<body>");
 			$m->comp('SELF:header_with_title_msg');
@@ -82,37 +85,54 @@
 		}		
 	}
 
+	if ($is_teaching_eval) {
+		if ($is_done) {
+		    	if ($qualified_request && $eval->is_user_teaching_eval_complete($user)) {
+	    			$eval->completion_token($user);
+				$m->comp('SELF:set_msg', msg => __('Evaluation successfully completed.'));
+				$m->comp('SELF:acknowledge');
+			} else {
+				$m->comp('SELF:set_msg', msg => __('Evaluation could not complete.'), type => 'err');
+				$m->comp('SELF:header_with_title_msg');
+			}
+		} else {
+			$evaluatee = HSDB4::SQLRow::User->new()->lookup_by_uid($evaluatee_uid) if ($evaluatee_uid);
+			$site = HSDB45::TeachingSite->new(_school => $school_name)->lookup_key($evaluator_site_id) if ($evaluator_site_id);
+		}
+	}
+
 	$formatter = HSDB45::Eval::Formatter->new($eval);
 	$teaching_site = $eval->field_value('teaching_site_id');
 	$teaching_site = '' unless (defined($teaching_site));
 
 	my $password = $fdat{'load_password'} || $fdat{'submit_password'};
 	my $pw_error = 0;
-	if ( $password ) {
-        if ($fdat{save_submit} || $fdat{complete_submit}) {
-            # Save and Submit should verify
-            if ($user->verify_password($password)) {
-                $answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
-            } else {
-                $pw_error = 1;
-                $m->comp('SELF:set_msg', msg => __("Passwords do not match."), type => 'err' );
-            }
+	if ($password) {
+	        if ($fdat{save_submit} || $fdat{complete_submit}) {
+        		# Save and Submit should verify
+	            	if ($user->verify_password($password)) {
+				$answers = $m->comp('SELF:get_answers', password => $password);
+			} else {
+				$pw_error = 1;
+				$m->comp('SELF:set_msg', msg => __("Passwords do not match."), type => 'err' );
+			}
 		} elsif ($fdat{load_submit}) {
-            # Load should try to fetch answers. If unsuccessful,
-            # suggest user try old password.
-            $answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
-            unless ($answers->has_answers()) {
-                $pw_error = 1;
-                if ($user->verify_password($password)) {
-                    $m->comp('SELF:set_msg',
-                             msg => __("Oops! I can't find your saved answers. Did your password change? Please try Load Answers again with your old password."),
-                             type => 'err');
-                } else {
-                    $m->comp('SELF:set_msg', msg => __("Passwords do not match."),
-                             type => 'err' );
-                }
-            }
-        }
+			# Load should try to fetch answers. If unsuccessful,
+			# suggest user try old password.
+			$answers = $m->comp('SELF:get_answers', password => $password);
+
+			unless ($answers->has_answers()) {
+				$pw_error = 1;
+	                	if ($user->verify_password($password)) {
+        				$m->comp('SELF:set_msg',
+						msg => __("Oops! I can't find your saved answers. Did your password change? Please try Load Answers again with your old password."),
+						type => 'err');
+	                	} else {
+        	            		$m->comp('SELF:set_msg', msg => __("Passwords do not match."),
+                            		type => 'err' );
+                		}
+	            	}
+        	}
 	} elsif ($fdat{load_submit} || $fdat{save_submit} || $fdat{complete_submit}) {
 		$pw_error = 1;
 		$m->comp('SELF:set_msg', msg => __("Please enter your password."), type => 'err' );
@@ -129,30 +149,48 @@
 		} elsif ($fdat{complete_submit}) {
 			my @bad_fields = $eval->validate_form(\%fdat);
 	   		if (@bad_fields) {
+				if ($is_teaching_eval) {
+					$fdat{user} = $user;
+					$fdat{evaluatee_id} = $evaluatee->primary_key();
+				}
 				$answers->set_answers(%fdat);
 				$saved_answers_id = $answers->id();
-  	        	while (my ($key, $answer) = each %{$answers->answers()}) {
+	  	        	while (my ($key, $answer) = each %{$answers->answers()}) {
 					$fdat{"eval_q_$key"} = $answer;
 				}
 				$m->comp('SELF:set_msg', msg => __('Please complete all required questions.'), type => 'err');
-	    	} else {
+		    	} else {
+				if ($is_teaching_eval) {
+					$fdat{evaluatee_id} = $evaluatee->primary_key() if ($evaluatee);
+					$fdat{site_id} = $evaluator_site_id; 
+				}
+
 				($eval_completed, $msg) = $eval->answer_form($user, \%fdat);
 				if ($eval_completed) {
-					$m->comp('SELF:acknowledge');
 					if ($answers && $answers->id()) { 
 						$answers->do_delete();
 					}
-					$m->comp('SELF:set_msg', msg => __('Evaluation successfully submitted'));
+					$m->comp('SELF:set_msg', msg => __('Evaluation successfully submitted.'));
+					$m->comp('SELF:acknowledge');
 				}
 	   		}
 			delete $fdat{complete_submit};
 		} elsif ($fdat{save_submit}) {
+			if ($is_teaching_eval) {
+				$fdat{user} = $user;
+				$fdat{evaluatee_id} = $evaluatee->primary_key();
+			}
+
 			$answers->set_answers(%fdat);
 			delete $fdat{save_submit};
 			$m->comp('SELF:set_msg', msg => __('Evaluation successfully saved'));
 		}
 	} else {
-		$answers = HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
+		$answers = $m->comp('SELF:get_answers', password => $password);
+		if ($is_teaching_eval) {
+			$fdat{user} = $user;
+			$fdat{evaluatee_id} = $evaluatee->primary_key();
+		}
 		$answers->set_answers(%fdat);
 	}
 </%perl>
@@ -261,35 +299,45 @@
 </div>
 </%method>
 
-<%method get_eval>
 
+<%method get_answers>
+<%args>
+	$password
+</%args>
 <%perl>
-	my $url =  'http://' . $ENV{'HTTP_HOST'};
+	if ($evaluatee) {
+		return HSDB45::Eval::SavedAnswers->new($eval, $user, $password, $evaluatee);
+ 	} else {
+ 		return HSDB45::Eval::SavedAnswers->new($eval, $user, $password);
+ 	}
+</%perl>
+</%method>
 
-	if ($url =~ /dev/) {
-        	my $regular_port = ($ENV{'SERVER_PORT'} - 100); 
-		$url =~ s/\d{4}/$regular_port/;
-	}
-
-    	my $stylesheet = $eval->question_stylesheet();
-
-    	my @atts = ('USERID'          	=> $user->primary_key(),
+<%method get_eval>
+<%perl>
+    	my @atts = (
+		'USERID'          	=> $user->primary_key(),
 		'SAVED_ANSWER_ID' 	=> $saved_answers_id,
 		'TEACHING_SITE'	  	=> $teaching_site,
-                'URLPREFIX'	  	=> $url . '/',
+                'URLPREFIX'	  	=> 'http://' . $ENV{'HTTP_HOST'} . '/',
                 'HTML_EVAL_ERROR_MESSAGE'=> $TUSK::Constants::evalErrorMessage,
     	);
 
+	if ($is_teaching_eval) {
+		push @atts, (
+			'SITE_NAME'		=> ($site) ? $site->site_name() : '',
+			'EVALUATEE_NAME'	=> ($evaluatee) ? $evaluatee->out_lastfirst_name() : 'Jane Doe',
+		);
+	}
 
-	if ($stylesheet) {
+    	if (my $stylesheet = $eval->question_stylesheet()) {
 		return $stylesheet->apply_stylesheet($formatter->get_xml_text(), @atts);
-					     
-    	} else {
-        	return HSDB45::StyleSheet::apply_global_stylesheet(
+	} else {
+		return HSDB45::StyleSheet::apply_global_stylesheet(
 			$ENV{XSL_ROOT} . $eval->global_question_stylesheet(),
 			$HSDB45::Eval::Question::Body::prolog.$formatter->get_xml_text(),
                 	@atts);
-    	}
+	}
 </%perl>
 </%method>
 
@@ -305,7 +353,7 @@
 				<li><% join('</li><li>', @{$m->comp('SELF:add_links')}) %></li>
 			</ul>
 		</nav>
-% if($user) {
+% if ($user) {
 	<p class="welcome"><% __("Welcome") %> <% $user->out_full_name() %></p>
 % }
 	</div>
@@ -328,20 +376,18 @@
 		push @links, '<a href="/eval/administrator/show/' . $m->comp('/tmpl/url:get_type_path') . '">'.__('Manage Evaluations').'</a>',
 			     '<a href="/eval/administrator/eval_edit/' . $m->comp('/tmpl/url:get_type_path') . '/' . $eval->primary_key() . '">'.__('Edit Evaluation').'</a>';
 	} else {
-		push @links, '<a href="/home">'.__('Home').'</a>';
+		push @links, '<a href="/home">' . __('Home') . '</a>';
+		my $course = $eval->course();
+		push @links, "<a href=\"/view/course/$school_name/" . $course->primary_key()  . '/evaluations">' . __('Evaluations') . ': ' . $course->title() .'</a>';
 	}
-	push @links, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time() . '">Logout</a>';
+	push @links, '<a href="/dologout?request_uri=/home?' . HSDB4::DateTime->new()->out_unix_time() . '">' . __('Logout') . '</a>';
 	return \@links;
 </%perl>
 </%method>
 
-
-
 <%method title>
 %	return __('Evaluation').': ' . $eval->out_label();
 </%method>
-
-
 
 <%method write_script>
 <script language="JavaScript">
@@ -366,7 +412,6 @@ window.onload = function() {
 
 
 <%method acknowledge>
-
 <body>
 <& SELF:header_with_title_msg &>
 
@@ -402,6 +447,13 @@ window.onload = function() {
 	label 	=> __('User ID').':',
 	value 	=> $user->primary_key(),
 } &>
+
+% if ($is_teaching_eval && !$is_done) {
+<& /tmpl/element:field_display, params =>{ 
+	label 	=> 'Evaluatee:',
+	value 	=> $evaluatee->out_lastfirst_name(),
+} &>
+% }
 
 <& /tmpl/element:field_display, params =>{ 
 	label 	=> __('Timestamp').':',

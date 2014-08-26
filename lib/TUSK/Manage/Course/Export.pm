@@ -36,6 +36,7 @@ use File::Copy;
 use FindBin qw($Bin);
 use lib "$Bin/../lib";
 
+my $course_users = {};
 
 # pass in a course object and params and return the name of a zip file that is the 
 # content package.
@@ -423,28 +424,27 @@ sub exportTitle {
 	$elt->paste(last_child => $lom_root);
 }
 
+
 # export all of the users of a course with their title and a vcard
 # representation of their identity
 sub exportUsers {
 	my ($course, $lom_root) = @_;
-	my @users = $course->child_users();
-
-	if(scalar(@users)){
+	my $users = $course->unique_users();
+	if (scalar @$users) {
 		my $lifecycle = XML::Twig::Elt->new('lifecycle');
-		my %role_hash;
-		foreach my $u (@users){
-			my @roles = split(',', $u->roles());
-			if(scalar(@roles)){
-				my $vcard_str = genVcard($u);
+		my %role_hash = ();
+		foreach my $user (@$users) {
+		    my $roles = $user->{roles};
+			if (scalar (keys %$roles)) {
+				my $vcard_str = genVcard(@{$user->{user}->getFieldValues([qw(user_id firstname midname lastname suffix degree preferred_email email)])});
 				my $centity_str = '<centity><vcard>' . $vcard_str . '</vcard></centity>';
-				foreach my $r (@roles){
-					if($role_hash{$r}){
-						$role_hash{$r} .= $centity_str;
-					}
-					else {
-						$role_hash{$r} = '<contribute><role><source><langstring xml:lang="en">tuskv0.1</langstring></source><value><langstring xml:lang="en">' . $r . '</langstring></value></role>';
-						$role_hash{$r} .= $centity_str;
-					}
+				foreach my $token (keys %$roles) {
+				    if ($role_hash{$token}) {
+					$role_hash{$token} .= $centity_str;
+				    } else {
+					$role_hash{$token} = '<contribute><role><source><langstring xml:lang="en">tuskv0.1</langstring></source><value><langstring xml:lang="en">' . $roles->{$token}->getRoleDesc() . '</langstring></value></role>';
+					$role_hash{$token} .= $centity_str;
+				    }
 				}
 			}
 		}
@@ -457,6 +457,7 @@ sub exportUsers {
 	}
 }
 
+
 sub exportContentAuthors{
 	my ($c, $lom) = @_;
 
@@ -468,8 +469,8 @@ sub exportContentAuthors{
 
 		my $cont_str = '<contribute><role><source><langstring xml:lang="en">tuskv1.1</langstring></source><value><langstring xml:lang="en">author</langstring></value></role>';
 		foreach my $author (@users){
-			my $vcard_str = genVcard($author);
-			$cont_str .= "<centity><vcard>$vcard_str</vcard></centity>";
+		    my $vcard_str = genVcard($author->get_field_values(qw(user_id firstname midname lastname suffix degree preferred_email email)));
+		    $cont_str .= "<centity><vcard>$vcard_str</vcard></centity>";
 		}
 		$cont_str .= '</contribute>';
 		my $elt = parse XML::Twig::Elt($cont_str);
@@ -575,22 +576,22 @@ sub genContMetaData {
 }
 
 sub genVcard{
-	my $u = shift;
-	my $email = $u->preferred_email();
-	$email = $u->field_value('email') unless($email);
-	my ($id, $fn, $mn, $ln, $sfx, $dg) = 
-		$u->get_field_values(qw(user_id firstname midname lastname suffix degree));
-	my $suffix = ($sfx && $dg)? "$sfx,$dg" : ($sfx)? $sfx : ($dg)? $dg : '';
-	my $vcard_str = qq(
+    my ($id, $fn, $mn, $ln, $sfx, $dg, $pfemail, $email) = @_;
+
+    my $uemail = ($pfemail) ? $pfemail : $email;
+    my $suffix = ($sfx && $dg) ? "$sfx,$dg" : ($sfx) ? $sfx : ($dg) ? $dg : '';
+    my $fullname = "$fn $ln";
+    my $vcard_str = qq(
 begin: vcard
 n: $ln;$fn;$mn;;$suffix
-fn: $u
+fn: $fullname
 nickname: $id
 EMAIL;INTERNET: $email
 end: vcard
 );
-	return $vcard_str;
+    return $vcard_str;
 }
+
 
 sub escape {
 	my $str = shift;
@@ -651,7 +652,7 @@ http://'.$TUSK::Constants::Domain.'/xsd/tuskv0p1 http://'.$TUSK::Constants::Doma
 sub exportCourseMetadata{
 	my ($course, $start, $end, $xml) = @_;
 	exportTitle($course, $xml->{lom});
-	exportUsers($course, $xml->{lom});
+	exportUsers($course, $xml->{lom});   
 	exportObjectives($course, $xml->{lom});
 	exportTuskMeta($course, $start, $end, $xml->{metadata});
 }
@@ -672,27 +673,18 @@ sub isNativeContent{
 	my $count = grep { $valid_users->{$_->primary_key()} } @content_users;
 
 	return $count;
-
 }
 
 sub getCourseUsers{
-	my $course = shift;
-	
-	my @users = $course->child_users();
+    my $course = shift;
+    my %course_users = ();
 
-	my $course_users = {};
-
-	foreach my $u (@users){
-		my @roles = split(',',$u->roles);
-		foreach my $role (@roles){
-			if($role =~ /^(director|author|lecturer|instructor)/i){
-				$course_users->{$u->primary_key()} = 1;
-				last;
-			}
-		}
+    foreach my $user (@{$course->unique_users()}) {
+	if (grep { /director|author|lecturer|instructor/ } keys %{$user->{roles}}) {
+	    $course_users{$user->{user}->getPrimaryKeyID()} = 1;
 	}
-
-	return $course_users;
+    }
+    return \%course_users;
 }
 
 # determine if this content, which is linked from a document, can be exported.

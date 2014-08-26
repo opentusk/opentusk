@@ -13,7 +13,7 @@
 % if (!$user) {
 <i><%__("User not found.")%></i>
 % } else {
-% 	if (@coursearray) {
+% 	if (@current_courses) {
 <div style="font-weight:bold" class="sm"><%__("Enrolled Courses")%></div>
 <br>
 <div id="coursesdiv"></div>
@@ -35,19 +35,20 @@
                         validate => {
                                         usage => 'No',
                                 },
-                        data => \@coursearray,
+                        data => \@current_courses,
                         }
 &>
 <br><br>
 % }
-% if (@facultycoursearray) {
+
+% if (@author_courses) {
 
 <div style="font-weight:bold" class="sm">Managed Courses</div>
 <br>
-<div id="facultycoursesdiv"></div>
+<div id="authorcoursesdiv"></div>
  
 <& /tmpl/layers:create_layer, struct => {
-                        layer => 'facultycoursesdiv',
+                        layer => 'authorcoursesdiv',
                         fields => ['course_id','title','school','oea_code'],
                         name => 'courses',
                         sort => {usage=>'No'},
@@ -61,42 +62,36 @@
                         validate => {
                                         usage => 'No',
                                 },
-                        data => \@facultycoursearray,
+                        data => \@author_courses,
                         }
 &>
 
 <br><br>
 % }
-% if (!@coursearray & !@facultycoursearray) {
+% if (!@current_courses & !@author_courses) {
 <div class="sm"> <%__("This user has no associated course information.")%></div>
 % }
 % }
 
 
 <%init>
-	my (@all_courses, @author_courses);
+	my @current_courses = sort {$a->{'title'} cmp $b->{'title'} } 
+		map { {
+			'course_id' 	=> $_->primary_key,
+			'title'		=> $_->title(),
+			'school' 	=> $_->school(),
+			'oea_code' 	=> $_->field_value('oea_code'),
+			'start_date' 	=> (HSDB45::TimePeriod->new(_school=>$_->school())->lookup_key($_->aux_info('time_period_id'))->start_date() )->out_string_date_short_year(),	
+		 	'end_date'	=> (HSDB45::TimePeriod->new(_school=>$_->school())->lookup_key($_->aux_info('time_period_id'))->end_date() )->out_string_date_short_year(),
+		} } $user->current_courses();
 
-	if ($user){
-	    #my @user_group_courses = map { $_->current_courses } $user->parent_user_groups();	# kiger - removed for usergroup migration.
-		my @user_group_courses;
-	    my @linked_courses = $user->current_courses();
-	    @all_courses = ( @user_group_courses,@linked_courses);
-	    @author_courses = $user->author_courses();
-	}
-
-	my @coursearray = sort {$a->{'title'} cmp $b->{'title'} } map { {'course_id'=>$_->primary_key,
-					'title'=>$_->title(),
-					'school'=>$_->school(),
-					'oea_code'=>$_->field_value('oea_code'),
-					'start_date'=> (HSDB45::TimePeriod->new(_school=>$_->school())->lookup_key($_->aux_info('time_period_id'))->start_date() )->out_string_date_short_year(),	
-				 	'end_date'=> (HSDB45::TimePeriod->new(_school=>$_->school())->lookup_key($_->aux_info('time_period_id'))->end_date() )->out_string_date_short_year(),
-			} } @all_courses;
-
-	my @facultycoursearray = sort {$a->{'title'} cmp $b->{'title'} } map { {'course_id'=>$_->primary_key,
-					'title'=>$_->title(),
-					'school'=>$_->school(),
-					'roles'=>$_->aux_info('roles'),
-					 } } @author_courses;
+	my @author_courses = sort {$a->{'title'} cmp $b->{'title'} } 
+		map { {
+			'course_id'	=> $_->getPrimaryKeyID(),
+			'title'		=> $_->getTitle(),
+			'school'	=> $_->getJoinObject('TUSK::Core::School')->getSchoolName(),
+			'roles'		=> $_->getFormattedRoleLabels(),
+		} } $user->author_courses();;
 </%init>
 
 <%method jsarray>

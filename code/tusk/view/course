@@ -27,6 +27,18 @@
 	allow_shib		=> '1'
 </%attr>
 
+<%once>
+        use HTML::Mason::Escapes;
+	use HSDB4::Constants;
+	use TUSK::Constants;
+	use HSDB45::Course;
+	use HSDB45::Course::Body;
+	use TUSK::Case::Case;
+	use TUSK::Application::HTML::Strip;
+	use HSDB45::ClassMeeting;
+        use Apache2::Const qw(NOT_FOUND);
+        use URI::Encode qw(uri_encode);
+</%once>
 
 <%shared>
 	my $courseView = $m->comp('/tmpl/url:get_first_path_id');
@@ -43,6 +55,7 @@
 	my $is_thesis_comm       = ($course->type() eq 'thesis committee');
 	my $is_integrated_course = ($course->type() eq 'integrated course');
 	
+
 	TUSK::Core::SessionTimePeriod::get_time_period($course, $m->session);
 
 	#This contains all of the information for the left nav to be built with its tabs.
@@ -52,7 +65,7 @@
 		__('Communication')	=> [ 'ann', 'disc', 'groups', 'schedule', ],
 		'Patient Logs'	=> [ ],
 		#This has will always get extra stuff added for patient logs begore the last entry which should be grades.
-		__('Material')	=> [ 'assignments', 'cases', 'checklists', 'content', 'grades', 'patientlogs', 'quizzes', ],
+		__('Material')	=> [ 'assignments', 'cases', 'checklists', 'content', 'evaluations', 'grades', 'patientlogs', 'quizzes'],
 
 		'content'	=> { 'title'=>__('Content'),		'link'=>"$baseLink/content",
 				     'style'=>$defaultStyle,		'preText'=>'',
@@ -84,7 +97,7 @@
 		'groups'	=> { 'title'=>__('My Groups'),		'link'=>"$baseLink/groups",
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
-		'patientlogs'	=> { 	
+		'patientlogs'	=> {
 			'title'		=> __('Patient Logs'), 
 			'link'		=> "/protected$baseLink/patientlogs",
 		     	'style'		=> $defaultStyle,
@@ -92,6 +105,11 @@
 		'checklists'	=> { 	
 			'title'		=> __('Competency Checklists'), 
 			'link'		=> "/protected$baseLink/checklists",
+		     	'style'		=> $defaultStyle,
+		},
+		'evaluations'	=> {
+			'title'		=> __('Evaluations'), 
+			'link'		=> "/protected$baseLink/evaluations",
 		     	'style'		=> $defaultStyle,
 		},
 		'disc'		=> { 	
@@ -126,310 +144,15 @@
 	my $self_assessment_quizzes = [];
 	my $taken_quizzes = [];
 	my @childUsers = ();
-	my %theRoles;
-	my %sortedUserIDs;
-	my @sortedFacultyIDs;
+	my %roleHeaders = ();
+	my %sortedUserIDs = ();
+	my @sortedFacultyMembers = ();
 	my @sortedRoles = ("Director");
 	my $user_obj = $m->session->{'user'};
 	my $iCanEdit = $course->can_user_edit($user_obj);
 	my $class;
 	my $checklist_groups = [];
 </%shared>
-
-<%method startup>
-<%args>
-	$args => {}
-</%args>
-<%perl>
-        #Finish building the menus based on the tusk course database.
-        $schoolDisplayHashRef = $course->getSchoolMetadata();
-
-	foreach my $metadataCategory (@{ ${$schoolDisplayHashRef}{metadataOrder} }){
-		if((!$is_group_course && !$is_thesis_comm) ||
-		    ($is_group_course && ${$schoolDisplayHashRef}{$metadataCategory}{'displayName'} =~ /description|other/i) ||
-		    ($is_thesis_comm && ${$schoolDisplayHashRef}{$metadataCategory}{'displayName'} =~ /other/i) ) {
-			if($is_thesis_comm){
-				${$schoolDisplayHashRef}{$metadataCategory}{'displayName'} = 'Guideliness';
-			}
-			push @{$leftMenu{__('Info')}}, ${$schoolDisplayHashRef}{$metadataCategory}{displayName};
-			my $style = "viewcourseleftnavEmpty";
-			if(${$schoolDisplayHashRef}{$metadataCategory}{numberOfItems} > 0) {$style=$defaultStyle;}
-			$leftMenu{${$schoolDisplayHashRef}{$metadataCategory}{displayName}} = {
-				'title'=>${$schoolDisplayHashRef}{$metadataCategory}{displayName},
-				'link'=>"$baseLink/${$schoolDisplayHashRef}{$metadataCategory}{displayName}",
-				'style'=>$style,
-				'pretext'=>"",
-				'metadataIDNumber'=>$metadataCategory,
-			};
-		}
-	}
-
-	if($courseView eq 'grades') {$m->comp("SELF:set_no_cache");}
-
-	unless(HSDB4::Constants::is_guest($m->session->{'user'}) || $m->session->{'user'}->isGhost()) {
-		#Get the cases to see if the link needs to be active
-		$user_cases = TUSK::Case::Case->new()->getAvailableUserCases($m->session->{'user'}, $course);
-		$course_cases = TUSK::Case::Case->new()->getAvailableCourseCases($course);
-		unless(scalar(@$course_cases) || scalar(@$user_cases)) {$leftMenu{cases}{style} = 'viewcourseleftnavEmpty';}
-
-		$events = $m->session->{'user'}->get_course_grades($course);
-		unless(scalar(@{$events})) {$leftMenu{grades}{style} = 'viewcourseleftnavEmpty';}
-
-		$assignments = $m->session->{'user'}->get_course_assignments($course);
-		$leftMenu{assignments}{style} = 'viewcourseleftnavEmpty' unless (scalar(@{$assignments}));
-
-		unless ($course->check_user_patient_log($m->session->{'user'}->primary_key())) {
-			$leftMenu{patientlogs}{style} = 'viewcourseleftnavEmpty';
-		}
-
-		$checklist_groups = $m->session->{'user'}->get_course_competency_checklist_groups($course);
-		$leftMenu{checklists}{style} = 'viewcourseleftnavEmpty' unless (@$checklist_groups);
-	}
-
-	if(scalar($course->child_teaching_sites()) >= 1) {
-	  push @{$leftMenu{__('Communication')}}, 'teachsites';
-	  $leftMenu{'teachsites'}{'title'}   = __('Teaching Sites');
-	  $leftMenu{'teachsites'}{'link'}    = "$baseLink/teachsites";
- 	  $leftMenu{'teachsites'}{'style'}   = $defaultStyle;
-	  $leftMenu{'teachsites'}{'preText'} = '';
-	}
-
-    #Build a list of sorted faculty people to see if there is faculty in the class.
-	foreach my $facultyMember ($course->child_users()) {
-          my %tempHash = (
-		'name' => $facultyMember->out_full_name(),
-		'roles' => $facultyMember->aux_info('roles'),
-		'link' => $HSDB4::Constants::URLs{ ref($facultyMember) } ."/" . $facultyMember->user_id(),
-		'course' => $course->title,
-          );
-          my $keepUser = 0;
-	  foreach my $localRole (split /,/, $facultyMember->aux_info('roles')) {
-            #There are certian roles that we do not want to show up on the faculty page.
-            #If the user is in a role that is not one of those then we will keep them around.
-            if(($localRole ne 'Manager') && ($localRole ne 'Student Manager') && ($localRole ne 'MERC Representative')) {
-	      $theRoles{$localRole}++;
-              $keepUser++;
-	    }
-	  }
-	  if($keepUser) {push @sortedFacultyIDs, \%tempHash;}
-	}
-
-	if ( $is_integrated_course ) {
-		foreach my $subcourse( @{$course->get_subcourses} ) {
-			# Now do the same for each of the subcoures	
-			foreach my $facultyMember ($subcourse->child_users()) {
-				my %tempHash = ( 'name' => $facultyMember->out_full_name(),
-								'roles' => $facultyMember->aux_info('roles'),
-								'link' => $HSDB4::Constants::URLs{ ref($facultyMember) } ."/" . $facultyMember->user_id(), 
-								'course' => $subcourse->title);
-				my $keepUser = 0;
-				foreach my $localRole (split /,/, $facultyMember->aux_info('roles')) {
-					#There are certian roles that we do not want to show up on the faculty page.
-					#If the user is in a role that is not one of those then we will keep them around.
-					if(($localRole ne 'Manager') && ($localRole ne 'Student Manager') && ($localRole ne 'MERC Representative')) {
-						$theRoles{$localRole}++;
-						$keepUser++;
-					}
-				}
-				if($keepUser) {push @sortedFacultyIDs, \%tempHash;}
-			}
-		}
-	}
-
-	foreach (sort keys %theRoles) { next if ($_ eq 'Director'); push @sortedRoles, $_;}
-
-	if(scalar($course->child_topics()) < 1)         {$leftMenu{obj}{style} = 'viewcourseleftnavEmpty';}
-	if(scalar($course->class_meetings()) < 1)       {$leftMenu{schedule}{style} = 'viewcourseleftnavEmpty';}
-	if(scalar(@sortedFacultyIDs) < 1)              {$leftMenu{fac}{style} = 'viewcourseleftnavEmpty';}
- 	if(scalar($course->active_child_content()) < 1) {$leftMenu{content}{style} = 'viewcourseleftnavEmpty';}
-
-        unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
-	  $quizzes = $m->session->{'user'}->current_quizzes([$course]);
-	  $taken_quizzes = $m->session->{'user'}->taken_quizzes($course);
-	  $self_assessment_quizzes = $course->get_self_assessment_quizzes($m->session->{'user'}->user_id);
-	  unless(
-		($quizzes && scalar(@$quizzes)) ||
-		($self_assessment_quizzes && scalar(@$self_assessment_quizzes)) ||
-		($taken_quizzes && scalar(@$taken_quizzes))
-	      ) {$leftMenu{quizzes}{style} = 'viewcourseleftnavEmpty';}
-        }
-
-        unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
-	  @courseGroups = $m->session->{'user'}->get_user_course_groups($course);
-        }
-	if($#courseGroups < 0) {$leftMenu{groups}{style} = 'viewcourseleftnavEmpty';}
-	
-	my %sortedAnnouncements;
-	my @ug_announcements;
-	foreach my $courseGroup (@courseGroups) {
-		push @ug_announcements, $courseGroup->announcements();
-	}
-
-	foreach my $announcement ($course->announcements()) {
-		unless($announcement->starts_in_future()) {
-			push @{$sortedAnnouncements{$announcement->out_start_date->out_unix_time}}, $announcement;
-		}
-	}
-	foreach my $announcement (@ug_announcements) {
-		unless($announcement->starts_in_future()) {
-			push @{$sortedAnnouncements{$announcement->out_start_date->out_unix_time}}, $announcement;
-		}
-	}
-	
-	my $stripObj = TUSK::Application::HTML::Strip->new();
-	foreach my $aStartDate (reverse sort keys %sortedAnnouncements) {
-		foreach my $announcement (@{$sortedAnnouncements{$aStartDate}}) {
-			$leftMenu{ann}{postText}.= $stripObj->truncateAndRemoveHTML($announcement->{body}, 30) . "<br>";
-		}
-	}
-	
-	unless($course->announcements() || scalar @ug_announcements) {$leftMenu{ann}{style} = 'viewcourseleftnavEmpty';}
-
-	if (defined $args->{msg}) {
-		$m->comp('SELF:set_msg', type => 'msg', msg => $args->{msg});
-	} elsif (defined $args->{errmsg}) {
-		$m->comp('SELF:set_msg', type => 'errmsg', msg => $args->{msg});
-	}
-</%perl>
-</%method>
-
-<%method get_nav_bars>
-%       return undef;
-</%method>
-
-<%method title>
-%	return __x('{school_name} Course: {course_title}', school_name => $course->school(), course_title => $course->title());
-</%method>
-
-
-<%method red_header_class>
-%       return 'blueHeaderBar';
-</%method>
-
-
-<%method red_header_text>
-<%perl>
-if(exists($leftMenu{$courseView})) {
-	# If we have a specific ID, then we're looking at a meeting.
-	if ( $courseView eq "schedule" && $specific_id =~ /[0-9]+/ ) {
-		$class = HSDB45::ClassMeeting->new(_school => $course->school())->lookup_key($specific_id);
-                my $errmsg_u = uri_encode(
-                    __x( 'The scheduled event in {course_title} not found. Please contact {support_email} if you believe this to be in error. Please provide us with the following information: Class meeting ID: {class_meeting_id}, Course ID: {course_id}, School: {school}.',
-                         class_meeting_id => $specific_id,
-                         school => $course->school,
-                         course_title => $course->title,
-                         course_id => $course->course_id,
-                         support_email => $TUSK::Constants::SupportEmail
-                     ),
-                     { encode_reserved => 1 });
-                $m->redirect("/home?errmsg=$errmsg_u", NOT_FOUND) if (! $class->primary_key);
-
-		my $date = HSDB4::DateTime->new();
-		$date->in_mysql_date ($class->field_value('meeting_date'));
-			
-		return uc($course->title()) . " <font>&gt</font> " . lc($leftMenu{$courseView}{'title'}) . 
-									  " <font>&gt</font> " . lc($date->out_string_date_short() . " " . $class->out_starttime->out_string_time);
-	}
-	else {
-		return uc($course->title()) . " <font>&gt</font> " . lc($leftMenu{$courseView}{'title'});			
-	}
-}
-else {
-	return uc($course->title()) . " <font>&gt</font> Invalid Selection";
-}
-</%perl>
-</%method>
-
-
-<%method right_header_text>
-<%doc>Method that returns a list of all the links to use to the right on the red header bar</%doc>
-<%perl>
-	if($iCanEdit){
-		my $u_e	= __('Upload/Edit');
-		if($courseView eq 'content'){
-			return [ {txt => $u_e, url => "/protected/management/course/display/$type_path" } ];
-		}
-		elsif($courseView eq 'quizzes'){
-			return [ {txt => $u_e, url => "/protected/quiz/author/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'cases'){
-			return [ {txt => $u_e, url => "/protected/case/author/caseshow/course/$type_path" } ];
-		}
-		elsif($courseView eq 'grades'){
-			return [ {txt => $u_e, url => "/protected/gradebook/author/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'assignments'){
-			return [ {txt => $u_e, url => "/protected/assignment/author/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'patientlogs'){
-			return [ {txt => $u_e, url => "/protected/patientlog/author/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'checklists'){
-			return [ {txt => $u_e, url => "/protected/competency/checklist/author/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'ann'){
-			return [ {txt => $u_e, url => "/protected/management/announcements/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'groups'){
-			return [ {txt => $u_e, url => "/protected/management/usergroup/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'schedule'){
-			return [ {txt => $u_e, url => "/protected/management/schedule/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'teachsites'){
-			return [ {txt => $u_e, url => "/protected/management/teachingsite/course/show/course/$type_path" } ];
-		}
-		elsif($courseView eq 'obj'){
-			return [ {txt => $u_e, url => "/tusk/competency/competency/author/course/manage/course/"."$type_path" } ];			
-		}
-		elsif($courseView eq 'fac'){
-			return [ {txt => $u_e, url => "/protected/management/course/users/show/$type_path" } ];
-		}
-		else {
-			foreach my $metadataCategory (@{ ${$schoolDisplayHashRef}{metadataOrder} }){
-				if(${$schoolDisplayHashRef}{$metadataCategory}{'displayName'} =~ /$courseView/io){
-					return [ {txt => $u_e, url => "/protected/management/course/properties/$type_path/$metadataCategory" } ];
-				}
-			}
-		}
-	}
-	return [];
-</%perl>
-
-</%method>
-
-
-
-<%method leftnav>
-	<%perl>
-		my %someHash = (
-		    'component'           => "/tmpl/leftnav/viewcoursetmpl",
-		    'courseDisplayWhat'   => $courseView,
-		    'theCourseObjectRef'  => \$course,
-		    'refToLeftMenu'  	  => \%leftMenu,
-		    'highlightRow'	  => '',
-			'user_obj'            => $user_obj,
-		);
-		if(exists($leftMenu{$courseView})) {$someHash{highlightRow} = $leftMenu{$courseView}{link};}
-		return \%someHash;
-	</%perl>
-</%method>
-
-
-
-<%once>
-        use HTML::Mason::Escapes;
-	use HSDB4::Constants;
-	use TUSK::Constants;
-	use HSDB45::Course;
-	use HSDB45::Course::Body;
-	use HSDB45::Course::XMLRenderer;
-	use TUSK::Case::Case;
-	use TUSK::Application::HTML::Strip;
-	use HSDB45::ClassMeeting;
-        use Apache2::Const qw(NOT_FOUND);
-        use URI::Encode qw(uri_encode);
-</%once>
 
 
 %if($courseView eq 'content') {
@@ -513,29 +236,29 @@ else {
 		<script>window.onload = function(){buildCompetencyList('test_dialog', '<% $course->get_school()->getSchoolName%>' , <% $course->primary_key() %>);};</script>
 
 %} elsif ($courseView eq 'fac') {
-%	if(scalar(@sortedFacultyIDs) < 1)
-%		{$m->comp("SELF:printNoData", message => __('There are no faculty for this course'));}
-%	else {
+%	if (scalar(@sortedFacultyMembers) < 1) {
+%		$m->comp("SELF:printNoData", message => __('There are no faculty for this course'));
+%	} else {
 		<table border="0" cellspacing="0" cellpadding="5">
 			<tr>
 				<th style="border-bottom:1px solid black;">&nbsp;</th>
-%				if ( $is_integrated_course ) {
+%		if ($is_integrated_course) {
 				<th style="border-bottom:1px solid black;" align="center"><%__('Course')%></th>
-%				}
-%		foreach my $role (@sortedRoles) {$m->print("<th style=\"border-bottom:1px solid black;\">$role</th>");}
+%		}
+%		delete $roleHeaders{'Director'};
+%		my @sortedRoles = ('Director', sort keys %roleHeaders);
+%		foreach my $role (@sortedRoles) {
+				<th style="border-bottom:1px solid black;"><% $role %></th>
+%		}
 			</tr>
-%		foreach my $facultyHashRef (@sortedFacultyIDs) {
-			<tr style="cursor:pointer;" onClick="document.location='<% ${$facultyHashRef}{link} %>';" onMouseOver="this.style.backgroundColor='lightgrey';" onMouseOut="this.style.backgroundColor='';">
-				<td style="border-bottom:1px solid lightgrey;" align="left"><a href="<% ${$facultyHashRef}{link} %>"><% ${$facultyHashRef}{name} %></a></td>
-%				if ( $is_integrated_course ) {
-				<td style="border-bottom:1px solid lightgrey;" align="center"><% ${$facultyHashRef}{course} %></td>
-%				}
+%		foreach my $member (@sortedFacultyMembers) {
+			<tr style="cursor:pointer;" onClick="document.location='<% $member->{link} %>';" onMouseOver="this.style.backgroundColor='lightgrey';" onMouseOut="this.style.backgroundColor='';">
+				<td style="border-bottom:1px solid lightgrey;" align="left"><a href="<% $member->{link} %>"><% $member->{name} %></a></td>
+%			if ($is_integrated_course) {
+				<td style="border-bottom:1px solid lightgrey;" align="center"><% $member->{course} %></td>
+%			}
 %			foreach my $role (@sortedRoles) {
-%				my $bullet = "&nbsp;";
-%				if(${$facultyHashRef}{roles} =~ /(?:^|,)$role(?:,|$)/) {
-%					$bullet = '<img src="/graphics/greencheckmark.gif">';
-%				}
-				<td style="border-bottom:1px solid lightgrey;" align="center"><% $bullet %></td>
+				<td style="border-bottom:1px solid lightgrey;" align="center"><% (exists $member->{roles}{$role}) ? '<img src="/graphics/greencheckmark.gif">' : "&nbsp;" %></td>
 %			}
 			</tr>
 %		}
@@ -751,6 +474,10 @@ else {
 
 	<& /competency/checklist/student/view, checklist_groups => $checklist_groups &>
 
+%} elsif ($courseView eq 'evaluations') {
+
+	<& /eval/student/view, course => $course &>
+
 %} elsif (exists($leftMenu{$courseView})) {
 	<%perl>
 	  my $localHashRef = \%{${$schoolDisplayHashRef}{ $leftMenu{$courseView}{metadataIDNumber} }};
@@ -778,6 +505,243 @@ else {
 %} else {
 	<& SELF:printNoData, message=> __x("{course_view} is not a valid category for a class.", course_view => $courseView) &>
 %}
+
+<%method startup>
+<%args>
+$args => {}
+</%args>
+  <%perl>
+        #Finish building the menus based on the tusk course database.
+        $schoolDisplayHashRef = $course->getSchoolMetadata();
+
+	foreach my $metadataCategory (@{ ${$schoolDisplayHashRef}{metadataOrder} }){
+		if((!$is_group_course && !$is_thesis_comm) ||
+		    ($is_group_course && ${$schoolDisplayHashRef}{$metadataCategory}{'displayName'} =~ /description|other/i) ||
+		    ($is_thesis_comm && ${$schoolDisplayHashRef}{$metadataCategory}{'displayName'} =~ /other/i) ) {
+			if($is_thesis_comm){
+				${$schoolDisplayHashRef}{$metadataCategory}{'displayName'} = 'Guideliness';
+			}
+			push @{$leftMenu{__('Info')}}, ${$schoolDisplayHashRef}{$metadataCategory}{displayName};
+			my $style = "viewcourseleftnavEmpty";
+			if(${$schoolDisplayHashRef}{$metadataCategory}{numberOfItems} > 0) {$style=$defaultStyle;}
+			$leftMenu{${$schoolDisplayHashRef}{$metadataCategory}{displayName}} = {
+				'title'=>${$schoolDisplayHashRef}{$metadataCategory}{displayName},
+				'link'=>"$baseLink/${$schoolDisplayHashRef}{$metadataCategory}{displayName}",
+				'style'=>$style,
+				'pretext'=>"",
+				'metadataIDNumber'=>$metadataCategory,
+			};
+		}
+	}
+
+	if($courseView eq 'grades') {$m->comp("SELF:set_no_cache");}
+
+	unless(HSDB4::Constants::is_guest($m->session->{'user'}) || $m->session->{'user'}->isGhost()) {
+		#Get the cases to see if the link needs to be active
+		$user_cases = TUSK::Case::Case->new()->getAvailableUserCases($m->session->{'user'}, $course);
+		$course_cases = TUSK::Case::Case->new()->getAvailableCourseCases($course);
+		unless(scalar(@$course_cases) || scalar(@$user_cases)) {$leftMenu{cases}{style} = 'viewcourseleftnavEmpty';}
+
+		$events = $m->session->{'user'}->get_course_grades($course);
+		unless(scalar(@{$events})) {$leftMenu{grades}{style} = 'viewcourseleftnavEmpty';}
+
+		$assignments = $m->session->{'user'}->get_course_assignments($course);
+		$leftMenu{assignments}{style} = 'viewcourseleftnavEmpty' unless (scalar(@{$assignments}));
+
+		unless ($course->check_user_patient_log($m->session->{'user'}->primary_key())) {
+			$leftMenu{patientlogs}{style} = 'viewcourseleftnavEmpty';
+		}
+		unless (my @evals = $course->get_evals()) {
+			$leftMenu{evaluations}{style} = 'viewcourseleftnavEmpty';			
+		}
+	}
+
+	if (scalar($course->child_teaching_sites()) >= 1) {
+		push @{$leftMenu{__('Communication')}}, 'teachsites';
+		$leftMenu{'teachsites'}{'title'}   = __('Teaching Sites');
+	  	$leftMenu{'teachsites'}{'link'}    = "$baseLink/teachsites";
+ 	  	$leftMenu{'teachsites'}{'style'}   = $defaultStyle;
+	  	$leftMenu{'teachsites'}{'preText'} = '';
+	}
+
+	#Build a list of sorted faculty people to see if there is faculty in the class.
+	$m->comp('SELF:setFacultyRows', course => $course);
+
+	if ($is_integrated_course) {
+		foreach my $subcourse (@{$course->get_subcourses}) {
+			# Now do the same for each of the subcoures	
+			$m->comp('SELF:setFacultyRows', course => $subcourse);	
+		}
+	} ## intergrated course
+
+	if(scalar($course->child_topics()) < 1)         {$leftMenu{obj}{style} = 'viewcourseleftnavEmpty';}
+	if(scalar($course->class_meetings()) < 1)       {$leftMenu{schedule}{style} = 'viewcourseleftnavEmpty';}
+	if(scalar(@sortedFacultyMembers) < 1)              {$leftMenu{fac}{style} = 'viewcourseleftnavEmpty';}
+ 	if(scalar($course->active_child_content()) < 1) {$leftMenu{content}{style} = 'viewcourseleftnavEmpty';}
+
+        unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
+	  $quizzes = $m->session->{'user'}->current_quizzes([$course]);
+	  $taken_quizzes = $m->session->{'user'}->taken_quizzes($course);
+	  $self_assessment_quizzes = $course->get_self_assessment_quizzes($m->session->{'user'}->user_id);
+	  unless(
+		($quizzes && scalar(@$quizzes)) ||
+		($self_assessment_quizzes && scalar(@$self_assessment_quizzes)) ||
+		($taken_quizzes && scalar(@$taken_quizzes))
+	      ) {$leftMenu{quizzes}{style} = 'viewcourseleftnavEmpty';}
+        }
+
+        unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
+	  @courseGroups = $m->session->{'user'}->get_user_course_groups($course);
+        }
+	if($#courseGroups < 0) {$leftMenu{groups}{style} = 'viewcourseleftnavEmpty';}
+	
+	my %sortedAnnouncements;
+	my @ug_announcements;
+	foreach my $courseGroup (@courseGroups) {
+		push @ug_announcements, $courseGroup->announcements();
+	}
+
+	foreach my $announcement ($course->announcements()) {
+		unless($announcement->starts_in_future()) {
+			push @{$sortedAnnouncements{$announcement->out_start_date->out_unix_time}}, $announcement;
+		}
+	}
+	foreach my $announcement (@ug_announcements) {
+		unless($announcement->starts_in_future()) {
+			push @{$sortedAnnouncements{$announcement->out_start_date->out_unix_time}}, $announcement;
+		}
+	}
+	
+	my $stripObj = TUSK::Application::HTML::Strip->new();
+	foreach my $aStartDate (reverse sort keys %sortedAnnouncements) {
+		foreach my $announcement (@{$sortedAnnouncements{$aStartDate}}) {
+			$leftMenu{ann}{postText}.= $stripObj->truncateAndRemoveHTML($announcement->{body}, 30) . "<br>";
+		}
+	}
+	
+	unless($course->announcements() || scalar @ug_announcements) {$leftMenu{ann}{style} = 'viewcourseleftnavEmpty';}
+
+  </%perl>
+</%method>
+
+<%method get_nav_bars>
+%       return undef;
+</%method>
+
+<%method title>
+%	return __x('{school_name} Course: {course_title}', school_name => $course->school(), course_title => $course->title());
+</%method>
+
+
+<%method red_header_class>
+%       return 'blueHeaderBar';
+</%method>
+
+
+<%method red_header_text>
+<%perl>
+if(exists($leftMenu{$courseView})) {
+	# If we have a specific ID, then we're looking at a meeting.
+	if ( $courseView eq "schedule" && $specific_id =~ /[0-9]+/ ) {
+		$class = HSDB45::ClassMeeting->new(_school => $course->school())->lookup_key($specific_id);
+                my $errmsg = uri_encode(
+                    __x( 'The scheduled event in {course_title} not found. Please contact {support_email} if you believe this to be in error. Please provide us with the following information: Class meeting ID: {class_meeting_id}, Course ID: {course_id}, School: {school}.',
+                         class_meeting_id => $specific_id,
+                         school => $course->school,
+                         course_title => $course->title,
+                         course_id => $course->course_id,
+                         support_email => $TUSK::Constants::SupportEmail
+                     ),
+                     { encode_reserved => 1 });
+                $m->redirect("/home?errmsg=$errmsg", NOT_FOUND) if (! $class->primary_key);
+
+		my $date = HSDB4::DateTime->new();
+		$date->in_mysql_date ($class->field_value('meeting_date'));
+			
+		return uc($course->title()) . " <font>&gt</font> " . lc($leftMenu{$courseView}{'title'}) . 
+									  " <font>&gt</font> " . lc($date->out_string_date_short() . " " . $class->out_starttime->out_string_time);
+	}
+	else {
+		return uc($course->title()) . " <font>&gt</font> " . lc($leftMenu{$courseView}{'title'});			
+	}
+}
+else {
+	return uc($course->title()) . " <font>&gt</font> Invalid Selection";
+}
+</%perl>
+</%method>
+
+
+<%method right_header_text>
+<%doc>Method that returns a list of all the links to use to the right on the red header bar</%doc>
+<%perl>
+	if($iCanEdit){
+		my $u_e	= __('Upload/Edit');
+		if($courseView eq 'content'){
+			return [ {txt => $u_e, url => "/protected/management/course/display/$type_path" } ];
+		}
+		elsif($courseView eq 'quizzes'){
+			return [ {txt => $u_e, url => "/protected/quiz/author/show/course/$type_path" } ];
+		}
+		elsif($courseView eq 'cases'){
+			return [ {txt => $u_e, url => "/protected/case/author/caseshow/course/$type_path" } ];
+		}
+		elsif($courseView eq 'grades'){
+			return [ {txt => $u_e, url => "/protected/gradebook/author/show/course/$type_path" } ];
+		}
+		elsif($courseView eq 'assignments'){
+			return [ {txt => $u_e, url => "/protected/assignment/author/show/course/$type_path" } ];
+		}
+		elsif($courseView eq 'patientlogs'){
+			return [ {txt => $u_e, url => "/protected/patientlog/author/show/course/$type_path" } ];
+		}
+		elsif($courseView eq 'ann'){
+			return [ {txt => $u_e, url => "/protected/management/announcements/show/course/$type_path" } ];
+		}
+		elsif($courseView eq 'groups'){
+			return [ {txt => $u_e, url => "/protected/management/usergroup/show/course/$type_path" } ];
+		}
+		elsif($courseView eq 'schedule'){
+			return [ {txt => $u_e, url => "/protected/management/schedule/show/course/$type_path" } ];
+		}
+		elsif($courseView eq 'teachsites'){
+			return [ {txt => $u_e, url => "/protected/management/teachingsite/course/show/course/$type_path" } ];
+		}
+		elsif($courseView eq 'obj'){
+			return [ {txt => $u_e, url => "/protected/management/course/objectives/$type_path" } ];
+		}
+		elsif($courseView eq 'fac'){
+			return [ {txt => $u_e, url => "/protected/management/course/users/show/$type_path" } ];
+		}
+		else {
+			foreach my $metadataCategory (@{ ${$schoolDisplayHashRef}{metadataOrder} }){
+				if(${$schoolDisplayHashRef}{$metadataCategory}{'displayName'} =~ /$courseView/io){
+					return [ {txt => $u_e, url => "/protected/management/course/properties/$type_path/$metadataCategory" } ];
+				}
+			}
+		}
+	}
+	return [];
+</%perl>
+
+</%method>
+
+
+
+<%method leftnav>
+	<%perl>
+		my %someHash = (
+		    'component'           => "/tmpl/leftnav/viewcoursetmpl",
+		    'courseDisplayWhat'   => $courseView,
+		    'theCourseObjectRef'  => \$course,
+		    'refToLeftMenu'  	  => \%leftMenu,
+		    'highlightRow'	  => '',
+			'user_obj'            => $user_obj,
+		);
+		if(exists($leftMenu{$courseView})) {$someHash{highlightRow} = $leftMenu{$courseView}{link};}
+		return \%someHash;
+	</%perl>
+</%method>
 
 <%method printNoData>
   <%args>
@@ -809,11 +773,40 @@ else {
 </%perl>
 </%method>
 
+
+<%method setFacultyRows>
+<%args>
+	$course
+</%args>
+<%perl>
+	my $role_cond = "role_token not in ('manager', 'student_manager', 'merc_representative')";
+	my $members = $course->users($m->session->{timeperiod}, $role_cond);
+
+	foreach my $facultyMember (@$members) {
+		my %facultyroles = ();
+		if (ref $facultyMember eq 'TUSK::Core::HSDB4Tables::User') {
+			foreach (@{$facultyMember->getRoleLabels()}) {
+				$roleHeaders{$_->getRoleDesc()} = 1;
+				$facultyroles{$_->getRoleDesc()} = 1;
+			}
+			push @sortedFacultyMembers, {
+				'name' => $facultyMember->outLastFirstName(),
+				'roles' => \%facultyroles,
+				'link' => $HSDB4::Constants::URLs{ ref($facultyMember) } ."/" . $facultyMember->getPrimaryKeyID(),
+				'course' => $course->title(),
+			};
+		}
+	}
+</%perl>
+</%method>
+
 <%method stylearray>
-% return ['/style/style.css','/style/home.css'];
+% 	return ['/style/style.css','/style/home.css'];
 </%method>
 
 <%method jsarray>
-% 	return ['element.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/interface/interface.js', 'scripts-jq.js', 'competency/competency/functions.js'];
+% 	my $jsarray = ['element.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/interface/interface.js', 'scripts-jq.js', 'competency/competency/functions.js'];
+%	push @$jsarray, 'eval/view.js' if ($courseView eq 'evaluations');
+%	return $jsarray;
 </%method>
 

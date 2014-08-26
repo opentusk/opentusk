@@ -211,15 +211,6 @@ for my $school (HSDB4::Constants::course_schools()) {
 #
 for my $school (HSDB4::Constants::course_schools()) {
     my $db = HSDB4::Constants::get_school_db($school) or next;
-    HSDB4::SQLLinkDefinition->new (-link_table => "$db\.link_course_user",
-				   -parent_class => 'HSDB45::Course',
-				   -parent_id_field => 'parent_course_id',
-				   -child_class => 'HSDB4::SQLRow::User',
-				   -child_id_field => 'child_user_id',
-				   -order_by => [qw(link.sort_order child.lastname child.firstname)],
-				   -link_fields => [ qw(sort_order roles teaching_site_id) ],
-				   -school => $school,
-				   );
 
     HSDB4::SQLLinkDefinition->new (-link_table => "$db\.link_course_student",
 				   -parent_class => 'HSDB45::Course',
@@ -303,18 +294,7 @@ for my $school (HSDB4::Constants::course_schools()) {
 				   -link_fields => [ qw(max_students modified) ],
 				   -school => $school,
 				   );
-
-    HSDB4::SQLLinkDefinition->new (-link_table => "$db\.link_teaching_site_user",
-				   -child_class => 'HSDB4::SQLRow::User',
-				   -child_id_field => 'child_user_id',
-				   -parent_class => 'HSDB45::TeachingSite',
-				   -parent_id_field => 'parent_teaching_site_id',
-				   -order_by => [],
-				   -link_fields => [ qw(modified) ],
-				   -school => $school,
-				   );
 }
-
 #
 # --== LINK_OBJECTIVE_CONTENT ==--
 #

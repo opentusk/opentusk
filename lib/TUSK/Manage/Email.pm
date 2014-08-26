@@ -74,7 +74,7 @@ sub email_process {
 		}
     } else { ### email students in a course for a given time period
 		if (ref $course eq 'HSDB45::Course' && $timeperiod_id) {
-			$course->email_child_users($fdat->{subject}, $data->{email_from}, $timeperiod_id, $fdat->{body});
+			$course->email_students($fdat->{subject}, $data->{email_from}, $timeperiod_id, $fdat->{body});
 		}
     }
 
@@ -84,10 +84,10 @@ sub email_process {
     }
 
     if ($fdat->{senddirectors} && ref $course eq 'HSDB45::Course'){
-		my @users = $course->child_users;
+		my @users = $course->users($timeperiod_id);
 		foreach my $userx (@users){
-			next if ($fdat->{sendself} and $user->primary_key eq $userx->primary_key);
-			if ($userx->aux_info('roles') =~ /Director/ or $userx->aux_info('roles') =~ /Manager/){
+			next if ($fdat->{sendself} and $user->primary_key() eq $userx->getPrimaryKeyID());
+			if ($userx->hasRole('director') or $userx->hasRole('manager')) {
 				$userx->send_email_from($data->{email_from});
 				$userx->send_email($fdat->{subject}, $fdat->{body});
 			}

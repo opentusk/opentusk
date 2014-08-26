@@ -19,29 +19,28 @@
 </%once>
 
 <%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
 	my ($time_period_id, $teaching_site_id);
+	if (my $time_period = $course->get_current_timeperiod()) {
+		$time_period_id = $time_period->primary_key();
+	} else {
+		$time_period_id = 0;
+	}
 
 	if (!$m->base_comp->attr('no_check_path') and !$m->base_comp->attr('must_be_school_admin')){
-		my $course = $m->comp("/tmpl/url:get_type_object");
 		if ($course and $course->isa("HSDB45::Course")){
 			# check to see if they are faculty of the course
 			if ($m->comp("SELF:check_course_permissions", token => 'SITEDIRECTOR')){
-				my @users = $course->child_users("child_user_id='" . $m->session->{'user'}->user_id() . "'"); # check the roles to the first user in the array
-				if (scalar(@users)){
-					if ($users[0]->aux_info('roles') =~ /Site Director/){
-						$teaching_site_id = $users[0]->aux_info('teaching_site_id');
-						$m->comp("/tmpl/url:redirect",message => __("You are not associated with a Teaching Site")) unless ($teaching_site_id);
+				my $users = $course->users($time_period_id, "course_user.user_id = '" . $m->session->{'user'}->user_id() . "'"); 
+				# check the roles to the first user in the array
+				if (scalar @$users && $users->[0]->hasRole('site_director')) {
+					unless ($users->[0]->getSiteID()) {
+						$m->comp("/tmpl/url:redirect",message => __("You are not associated with a Teaching Site"));
 					}
-				}else{
+				} else {
 					unless (TUSK::Session::is_school_admin($m->session, $course->school(), $m->session->{'user'})){
 						$m->comp("/tmpl/url:redirect",message => __("Access Denied"));
 					}
-				}
-				my $time_period = $course->get_current_timeperiod();
-				if ($time_period){
-					$time_period_id = $time_period->primary_key();
-				}else{
-					$time_period_id = 0;
 				}
 			}else{
 				# check to see they are a student

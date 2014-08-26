@@ -18,7 +18,7 @@
 
 <%shared>
 	my $school               = $m->comp("/tmpl/url:get_school");
-    my $school_id            = TUSK::Core::School->new->getSchoolID($school);
+	my $school_id            = TUSK::Core::School->new->getSchoolID($school);
 	my $type_object          = $m->comp("/tmpl/url:get_type_object");
 	my $self_path            = "school/" . $school;
 	my $base_url             = "/management/discussion/";
@@ -27,13 +27,6 @@
 	my $course;
 	my @tc_members;
 	my @tc_student;
-	if ( $is_course_discussion ) {
-		$course         = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
-		$self_path      = "course/" . $school . "/" . $type_object->course_id;
-		@tc_members     = $course->child_users();
-		@tc_student     = $course->child_students();
-		$is_thesis_comm = ($course->type() =~ /thesis committee/i) ? 1 : 0;
-	}
 	my $discussions;
 	my $boardKey;
 </%shared>
@@ -51,6 +44,11 @@
 <%init>
     if ($is_course_discussion) {
 		my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+		$course         = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
+		$self_path      = "course/" . $school . "/" . $type_object->course_id;
+		@tc_members     = $course->users($time_period_id);
+		@tc_student     = $course->child_students();
+		$is_thesis_comm = ($course->type() =~ /thesis committee/i) ? 1 : 0;
 		my @subgroups = $course->sub_user_groups($time_period_id);
 		my %groupLabel = map {$_->{user_group_id}, $_->{label}} @subgroups;
 		$groupLabel{0} = "All";

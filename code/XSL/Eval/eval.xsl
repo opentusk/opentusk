@@ -28,6 +28,8 @@
   <xsl:param name="NUM_USERS">0</xsl:param>
   <!-- Who should this eval go back to if there is a problem? -->
   <xsl:param name="HTML_EVAL_ERROR_MESSAGE"></xsl:param>
+  <xsl:param name="SITE_NAME"></xsl:param>
+  <xsl:param name="EVALUATEE_NAME"></xsl:param>
 
   <xsl:key name="eval_question_id" match="EvalQuestion" use="@eval_question_id"/>
 
@@ -36,6 +38,7 @@
 
   <xsl:variable name="courseXml"><xsl:value-of select="$URLPREFIX"/>XMLObject/course/<xsl:value-of select="/Eval/@school"/>/<xsl:value-of select="/Eval/@course_id"/></xsl:variable>
   <xsl:variable name="timePeriodXml"><xsl:value-of select="$URLPREFIX"/>XMLLister/timeperiod/<xsl:value-of select="/Eval/@school"/></xsl:variable>
+  <xsl:variable name="time_period_id" select="/Eval/@time_period_id"/>
 
   <!-- Top level thing:  Put in a comment for the saved answers, and then run the rest. -->
   <xsl:template match="Eval">
@@ -59,6 +62,7 @@
     </xsl:comment>
     <xsl:text>&#10;</xsl:text>
   </xsl:template>
+
 
   <!-- Make the InfoBox element. -->
   <xsl:template name="InfoBox">
@@ -85,13 +89,13 @@
 
         <!-- Course Directors -->
         <xsl:variable name="dir_count">
-          <xsl:value-of select="count(document($courseXml)/course/faculty-list/course-user[course-user-role[@role='Director']])"/>
+          <xsl:value-of select="count(document($courseXml)/course/faculty-list/time-period[@id=$time_period_id]/course-user[course-user-role[@role='director']])"/>
         </xsl:variable>
         <xsl:if test="$dir_count &gt; 0">
           <tr>
             <td valign="top" align="right"><b>Course Director<xsl:if test="$dir_count &gt; 1">s</xsl:if>:</b></td>
             <td align="left">
-              <xsl:for-each select="document($courseXml)/course/faculty-list/course-user[course-user-role[@role='Director']]">
+              <xsl:for-each select="document($courseXml)/course/faculty-list/time-period[@id=$time_period_id]/course-user[course-user-role[@role='director']]">
                 <xsl:element name="a">
                   <xsl:attribute name="href">/view/user/<xsl:value-of select="@user-id"/></xsl:attribute>
                   <xsl:value-of select="@name"/>
@@ -103,6 +107,11 @@
             </td>
           </tr>
         </xsl:if>
+
+        <!-- Teaching Site for course eval-->
+        <xsl:variable name="eval_type"><xsl:value-of select="/Eval/@eval_type"/></xsl:variable>
+        <xsl:choose>
+        <xsl:when test="$eval_type = 'course'">
         
         <!-- Teaching Site -->
         <xsl:variable name="site_count">
@@ -144,10 +153,21 @@
           </tr>
         </xsl:if>
 
+        </xsl:when>
+        <xsl:when test="$eval_type = 'teaching'">
+          <tr>
+            <td valign="top" align="right"><b>Teaching Site:</b></td>
+            <td align="left"> <xsl:value-of select="$SITE_NAME"/> </td>
+          </tr>
+          <tr>
+            <td valign="top" align="right"><b>Evaluatee:</b></td>
+            <td align="left"> <xsl:value-of select="$EVALUATEE_NAME"/> </td>
+          </tr>
+        </xsl:when>
+        </xsl:choose>
 
         <!-- Time Period -->
         <tr>
-          <xsl:variable name="time_period_id"><xsl:value-of select="/Eval/@time_period_id"/></xsl:variable>
           <td align="right"><b>Time Period:</b></td>            
           <td align="left">
             <xsl:value-of select="document($timePeriodXml)/TimePeriodList/time_period[@time_period_id=$time_period_id]/title"/> 

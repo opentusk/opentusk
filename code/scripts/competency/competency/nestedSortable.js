@@ -483,7 +483,7 @@ function saveRow(link, params) {
 	edit_mode = 0;
 	$(link.parentNode.parentNode.getElementsByTagName('LI')[0]).addClass("hand").css('display', 'block');
 	var liArray = link.parentNode.parentNode.getElementsByTagName('LI');
-	var liNode = link.parentNode.parentNode.parentNode.parentNode;
+	var liNode = link.parentNode.parentNode.parentNode.parentNode;	
 	
 	var postData = new Object();
 
@@ -491,8 +491,22 @@ function saveRow(link, params) {
 	postData['type'] = params['listId'];
 
 	var currentCompetencyPage = location.pathname.split('/')[4];
+
+	if (location.pathname.split('/')[5] == 'national') {
+		//check if uri is in the correct url format
+		var url_expression = /[-a-zA-Z0-9@:%_\+.~#?&//=]{2,256}\.[a-z]{2,4}\b(\/[-a-zA-Z0-9@:%_\+.~#?&//=]*)?/gi;
+		var url_regex = new RegExp(url_expression);
+		var current_uri = liArray[2].children[0].value;
+		if (current_uri.match(url_regex) || current_uri == "") {			
+			console.log(current_uri);
+		} else {
+			alert("WARNING: URI must be in a valid URL format (Eg. https://services.aamc.org/30/ci-school-web/pcrs/PCRS.html#aamc-pcrs-comp-c0100)");
+			return;
+		}
+	};
+
 	if (currentCompetencyPage == 'listNationalCompetencies'){
-		currentCompetencyPage = 'national';
+		currentCompetencyPage = 'national';		
 	} else {
 		currentCompetencyPage = 'school'; 
 	};

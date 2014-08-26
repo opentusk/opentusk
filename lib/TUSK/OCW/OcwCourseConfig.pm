@@ -49,7 +49,6 @@ BEGIN {
 
 use vars @EXPORT_OK;
 use HSDB45::Course;
-use HSDB45::Course::XMLRenderer;
 use TUSK::OCW::OcwCalendarConfig;
 use TUSK::Core::ClassMeetingContentType;
 use Carp;
@@ -793,16 +792,12 @@ sub getCourseDesc {
 sub getCourseStaff {
 	my $self = shift;
 	my $course = $self->getContentCourse();
-	my @directors = grep { $_->aux_info('roles') =~ m/Director/ } $course->child_users;
-	my @authors = grep { $_->aux_info('roles') !~ m/Director/ 
-				&& $_->aux_info('roles') =~ m/Author/ } 
-				$course->child_users;
+	my $users = $course->users($self->getTimePeriodID());
 
-	my @assistants = grep { $_->aux_info('roles') !~ m/(Director|Author)/ 
-				&& $_->aux_info('roles') =~ m/Teaching Assistant/ } 
-				$course->child_users;
-	my @lecturers = (@directors,@authors);
-	return (\@lecturers, \@assistants);
+	return ( 
+		 [ grep { $_->hasRole('director') } @$users, grep { $_->hasRole('author') } @$users; ],
+		 [ grep { (!$_->hasRole('director') && !$_->hasRole('author') && $_->hasLabel('teaching_assistant')) } @$users ],
+	       );
 }
 
 sub getCourseObjectives {
@@ -820,8 +815,6 @@ sub getAdditionalMetadata{
 		return $content[0]->out_html_body();
 	} 
 	return '';
-
-
 }
 
 sub getCourseCalendar {

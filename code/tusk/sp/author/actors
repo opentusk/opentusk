@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use TUSK::FormBuilder::FormAssociation;
 </%once>
@@ -152,10 +153,10 @@ function removeActor(layer, index) {
 			}
 		}
 	}
-
-	foreach my $actor ($course->child_users("roles rlike 'Instructor'")) {
-		unless (exists $seen_actors->{$actor->primary_key()}) {
-			push (@$available_actors, {userid => $actor->primary_key, name => $actor->out_lastfirst_name()});
+	my @actors = map { $_->{user} } @{$course->unique_users("role_token = 'instructor'")};
+	foreach my $actor (@actors) {
+		unless (exists $seen_actors->{$actor->getPrimaryKeyID()}) {
+			push (@$available_actors, {userid => $actor->getPrimaryKeyID(), name => $actor->outLastFirstName()});
 		}
 	}
 </%perl>

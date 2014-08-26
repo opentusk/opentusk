@@ -70,11 +70,14 @@ sub eval {
 
 sub eval_attributes {
     my $self = shift;
-    return { eval_id => $self->eval()->primary_key(),
-	     school => $self->eval()->school(),
-	     course_id => $self->eval()->field_value('course_id'),
-	     time_period_id => $self->eval()->field_value('time_period_id')
-	     };
+    my $eval_type = $self->eval()->eval_type();
+    return { 
+	eval_id => $self->eval()->primary_key(),
+	school => $self->eval()->school(),
+	course_id => $self->eval()->field_value('course_id'),
+	time_period_id => $self->eval()->field_value('time_period_id'),
+	eval_type => (defined $eval_type) ? $eval_type->getToken() : undef,
+    };
 }
 
 sub eval_info_elts {
