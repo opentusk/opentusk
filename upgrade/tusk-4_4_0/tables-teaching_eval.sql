@@ -25,31 +25,23 @@ INSERT ignore INTO `eval_type` VALUES
   - we need teaching site here since user_code is anonymous and evaluatee can be linked to more than one teaching_site in a course.
 */
 
-
-drop table if exists enum_data;
-
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
 CREATE TABLE IF NOT EXISTS `enum_data` (
-  `enum_data_id` int(10) unsigned NOT NULL auto_increment,
-  `namespace` varchar(50) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `short_name` varchar(12) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `display_name` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `description` varchar(200) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime NOT NULL default '0000-00-00 00:00:00',
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  PRIMARY KEY  (`enum_data_id`),
+  `enum_data_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `namespace` varchar(50) NOT NULL DEFAULT '',
+  `short_name` varchar(12) NOT NULL DEFAULT '',
+  `display_name` varchar(100) DEFAULT NULL,
+  `description` varchar(200) NOT NULL DEFAULT '',
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`enum_data_id`),
   KEY `namespace` (`namespace`),
   KEY `short_name` (`short_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
-SET character_set_client = @saved_cs_client; 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
 INSERT ignore INTO `enum_data` VALUES 
-(1, 'eval_association.status', 'saved', 'Saved', NULL, 'script', now(), 'script', now()),
-(2, 'eval_association.status', 'completed', 'Completed', NULL, 'script', now(), 'script', now());
+(0, 'eval_association.status', 'saved', 'Saved', NULL, 'script', now()),
+(0, 'eval_association.status', 'completed', 'Completed', NULL, 'script', now());
 
 
 drop table if exists eval_entry;
