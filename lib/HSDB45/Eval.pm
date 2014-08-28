@@ -120,8 +120,8 @@ sub title {
 sub eval_type {
     my $self = shift;
     my $eval_type_id = $self->field_value('eval_type_id');
-    my $cond = ($eval_type_id) ? "eval_type_id = $eval_type_id" : "token = 'course'";
-    return TUSK::Eval::Type->lookupReturnOne($cond);
+    my $eval_type = TUSK::Eval::Type->lookupReturnOne("eval_type_id = $eval_type_id");
+    return ($eval_type) ? $eval_type : TUSK::Eval::Type->lookupReturnOne("token = 'course'") ;
 }
 
 sub is_teaching_eval {

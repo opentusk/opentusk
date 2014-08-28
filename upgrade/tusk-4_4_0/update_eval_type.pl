@@ -11,11 +11,7 @@ main();
 sub main {
     my $dbh = HSDB4::Constants::def_db_handle();
 
-    my $sth = $dbh->prepare("select enum_data_id from tusk.enum_data where namespace ='eval_association.status' and short_name = 'saved'");
-    $sth->execute();
-    my $default = $sth->fetchrow_arrayref()->[0];
-
-    $sth = $dbh->prepare("show databases like 'hsdb45%'");
+    my $sth = $dbh->prepare("show databases like 'hsdb45%'");
     $sth->execute();
     my $dbs = $sth->fetchall_arrayref();
     $sth->finish();
@@ -26,7 +22,7 @@ sub main {
 
 	## add new column with the default "course" type
         eval {
-		$sth = $dbh->do("alter table $db.$table add eval_type_id smallint(2) NOT NULL default '$defalut'");
+		$sth = $dbh->do("alter table $db.$table add eval_type_id smallint(2) not null default 1");
 	};
 
 	if ($@) {
