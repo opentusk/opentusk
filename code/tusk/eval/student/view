@@ -31,6 +31,7 @@
 	my $school = $school_object->getSchoolName();
 	my $time_period = $course->get_current_timeperiod();
 	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period->primary_key());
+	my $student_site_id = (ref($student_site) eq 'HSDB45::TeachingSite') ? $student_site->primary_key() : 0;
 	my $counter = 0;
 </%shared>
 
@@ -56,7 +57,7 @@
 				status => (exists $completed_evals{$eval_id}) 
 					? 'Completed on ' . $completed_evals{$eval_id} 
 					: (($eval->is_overdue()) ? __('Past Due') : "<a href=\"/protected/eval/student/complete/$school/$eval_id\">" . __('Evaluate') . "</a>")
-			};
+			} if ($student_site_id && ($student_site_id == $eval->field_value('teaching_site_id')));
 		}
 	}
 </%perl>
@@ -78,7 +79,7 @@
 % my $num_teaching_evals = (exists $evals{teaching}) ? scalar @{$evals{teaching}} : 0;
 
 <div class="subhead">
-<% __('Current Teaching Evaluations') %> &nbsp; &nbsp;<span style="font-family:Georgia; font-weight:none; font-size: 8pt">(<% __('Site') %>: &nbsp;<% ($student_site->site_name()) ? $student_site->site_name() : 'N/A' %>)</span> 
+<% __('Current Teaching Evaluations') %> &nbsp; &nbsp;<span style="font-family:Georgia; font-weight:none; font-size: 8pt">(<% __('Site') %>: &nbsp;<% ($student_site_id) ? $student_site->site_name() : 'N/A' %>)</span> 
 <span style="font-family:Georgia; font-weight:none; float:right; text-align:right;"><% __('Teaching Evals') %>: &nbsp;<% $num_teaching_evals %> </span>
 </div>
 
@@ -152,7 +153,6 @@
 	my $teaching_eval_id = $eval->primary_key();
 	my $past_due = $eval->is_overdue();
 	my $evaluator_id = $evaluator->primary_key();
-	my $student_site_id = $student_site->primary_key();
 	my %evaluatees = ();
 	my ($qualified_request, $msg) = $eval->is_user_allowed($evaluator);
 
@@ -201,14 +201,6 @@
 </%method>
 
 <%init>
-	unless ($student_site) {
-		$m->comp("/tmpl/url:construct_url", 
-			'base_url' => "/view/course",
-			msg => __("Please contact your school admin. Your teaching site is not appropriately assigned"),
-			msgtype => 'err');
-	}
-
-
 	my @all_course_evals = $course->get_evals();
 	foreach my $eval (@all_course_evals) {
 		if (my $eval_type = $eval->eval_type()->getToken()) {
