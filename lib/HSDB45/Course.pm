@@ -1260,18 +1260,14 @@ sub delete_child_student {
 sub user_has_role {
     my ($self, $user_id, $role_tokens) = @_;
 
-    unless (exists $self->{course_role_token}{$user_id}) {
-	my $users = $self->find_users("course_user.user_id = '$user_id'");
-	my $role = $users->[0]->getRole() if (scalar @$users && ref $users->[0] eq 'TUSK::Core::HSDB4Tables::User');
-	$self->{course_role_token}{$user_id} = ($role) ? $role->getRoleToken() : '';
-    }
-    
     if ($role_tokens && scalar @$role_tokens) {
 	foreach my $token (@$role_tokens) {
-	    return 1 if ($token eq $self->{course_role_token}{$user_id});
+	    my $users = $self->find_users("course_user.user_id = '$user_id' AND role_token ='$token'");
+	    return 1 if (scalar @$users);
 	}
     } else {
-	return 1 if ($self->{course_role_token}{$user_id} ne '');
+	my $users = $self->find_users("course_user.user_id = '$user_id'");
+	return 1 if (scalar @$users);
     }
     return 0;
 }
