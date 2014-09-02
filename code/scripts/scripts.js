@@ -1000,3 +1000,26 @@ function currentYear() {
         var now = new Date;
         document.write(now.getFullYear());
 }
+
+var confirmOnPageExit = function (e) 
+{  
+    if (window.button_clicked)
+    {
+	return;
+    }	
+    // If we haven't been passed the event get the window.event
+    e = e || window.event;
+
+    var message = 'Some of the notes weren\'t saved.';
+
+    // For IE6-8 and Firefox prior to version 4
+    if (e) 
+    {
+        e.returnValue = message;
+    }
+
+    // For Chrome, Safari, IE8+ and Opera 12+
+    return message;
+};
+
+
