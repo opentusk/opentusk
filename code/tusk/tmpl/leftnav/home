@@ -197,15 +197,12 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	## patient logs
 	my $patientlogs = $m->session->{user}->get_patient_logs();
 	my $directorpatientlogs = $m->session->{user}->get_director_forms('PatientLog');
-	if(scalar(@$patientlogs) || (defined($directorpatientlogs) && scalar(@$directorpatientlogs))) {
-		if(scalar(@{$patientlogs})) {
-			push @log_links, '<a href="/protected/patientlog/student/home">View Patient Logs</a>';
+	if (defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
+		foreach my $logrow (@$directorpatientlogs) {
+			push @log_links, '<a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $stripObj->truncateAndRemoveHTML($logrow->{form_name}, $charLimit) . '</a>';
 		}
-		if(defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
-			foreach my $logrow (@$directorpatientlogs) {
-				push @log_links, '<a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $stripObj->truncateAndRemoveHTML($logrow->{form_name}, $charLimit) . '</a>';
-			}
-		}
+	} elsif (scalar(@{$patientlogs})) {
+		push @log_links, '<a href="/protected/patientlog/student/home">View Patient Logs</a>';
 	}
 
 	## quizzes
