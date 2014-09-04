@@ -1260,6 +1260,10 @@ sub delete_child_student {
 sub user_has_role {
     my ($self, $user_id, $role_tokens) = @_;
     my $cond = "course_user.user_id = '$user_id'";
+    my $admin_group = HSDB45::UserGroup->get_admin_group($self->school());
+
+    # Users in the school admin group have all the roles
+    return 1 if ($admin_group->contains_user($user_id));
 
     if ($role_tokens && scalar(@$role_tokens)) {
 	$role_tokens = join("','", @$role_tokens);
@@ -1275,16 +1279,7 @@ sub can_user_manage_course {
     my ($self, $user) = @_;
 
     # If it's a course director or manager, they can edit
-    if ($self->user_has_role($user->primary_key(), ['director', 'manager'])) { 
-	return 1; 
-    }
-
-    # If the user is in the school admin group, then they're also set
-    my $admin_group = HSDB45::UserGroup->get_admin_group($self->school());
-    if ($admin_group->contains_user($user)) {
-	return 1;
-    }
-    return 0;
+    return $self->user_has_role($user->primary_key(), ['director', 'manager']);
 }
 
 sub can_user_edit {
