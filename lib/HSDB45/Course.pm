@@ -1259,24 +1259,23 @@ sub delete_child_student {
 ################################
 sub user_has_role {
     my ($self, $user_id, $role_tokens) = @_;
+    my $cond = "course_user.user_id = '$user_id'";
 
-    if ($role_tokens && scalar @$role_tokens) {
-	foreach my $token (@$role_tokens) {
-	    my $users = $self->find_users("course_user.user_id = '$user_id' AND role_token ='$token'");
-	    return 1 if (scalar @$users);
-	}
-    } else {
-	my $users = $self->find_users("course_user.user_id = '$user_id'");
-	return 1 if (scalar @$users);
+    if ($role_tokens && scalar(@$role_tokens)) {
+	$role_tokens = join("','", @$role_tokens);
+	$cond .= " AND role_token IN ('$role_tokens')";
     }
-    return 0;
+
+    my $users = $self->find_users($cond);
+
+    return scalar(@$users);
 }
 
 sub can_user_manage_course {
     my ($self, $user) = @_;
 
-    # If it's a course director or administrator, they can edit
-    if ($self->user_has_role($user->primary_key(), ['director', 'administrator'])) { 
+    # If it's a course director or manager, they can edit
+    if ($self->user_has_role($user->primary_key(), ['director', 'manager'])) { 
 	return 1; 
     }
 
