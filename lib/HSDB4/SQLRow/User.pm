@@ -2833,9 +2833,9 @@ sub get_director_forms {
     my $school_id = $school->getPrimaryKeyID();
 
     my $sql = qq(
-		 select c.course_id as course_id, c.title as title, $school_id as school_id, 
-		 s.school_name as school_name, fo.form_id as form_id, fo.form_name as form_name
-		 from tusk.link_course_form f, 
+		 SELECT DISTINCT c.course_id AS course_id, c.title AS title, f.school_id AS school_id,
+		 s.school_name AS school_name, fo.form_id AS form_id, fo.form_name AS form_name
+		 FROM tusk.link_course_form f,
 		 tusk.form_builder_form fo,
 		 tusk.form_builder_form_type ft,
 		 tusk.school s,
@@ -2844,9 +2844,10 @@ sub get_director_forms {
 		 tusk.permission_role pr,
 		 tusk.permission_feature_type pft,
 		 $db\.course c
-		 WHERE f.school_id = ? 
-		 AND f.parent_course_id = cu.course_id 
-		 AND cu.user_id = ? 
+		 WHERE f.school_id = ?
+		 AND f.parent_course_id = cu.course_id
+		 AND f.school_id = cu.school_id
+		 AND cu.user_id = ?
 		 AND cu.course_user_id = ur.feature_id
 		 AND ur.role_id = pr.role_id
 		 AND pr.feature_type_id = pft.feature_type_id
@@ -2856,9 +2857,8 @@ sub get_director_forms {
 		 AND fo.form_id = f.child_form_id
 		 AND s.school_id = f.school_id
 		 AND fo.publish_flag = 1
-		 AND fo.form_type_id = ft.form_type_id 
+		 AND fo.form_type_id = ft.form_type_id
 		 AND ft.token = ?
-		 GROUP BY cu.user_id
 		 );
 
     my $dbh = HSDB4::Constants::def_db_handle ();
