@@ -23,7 +23,8 @@ sub resp_cache {
     unless ($self->{-resp_cache}) {
 	my %cache = ();
 	my $eval = $self->question()->parent_eval();
-	for my $instructor ($eval->course()->child_small_group_leaders($eval->time_period()->primary_key())) {
+	my $instructors = $eval->course()->child_small_group_leaders($eval->time_period()->primary_key());
+	for my $instructor (@$instructors) {
 	    $cache{$instructor->getPrimaryKeyID()} = $instructor->outLastFirstName();
 	}
 	$self->{-resp_cache} = \%cache;

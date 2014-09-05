@@ -1315,11 +1315,11 @@ sub child_small_group_leaders {
     warn "I am being called in course object\n";
     my $user = TUSK::Core::HSDB4Tables::User->new();
     $user->setErrorLevel(9);
-    return $user->lookup(undef, ['lastname', 'firstname'], undef, undef, 
+    return $user->lookup(undef, ['lastname', 'firstname'], undef, undef,
 	   [ 
-	     TUSK::Core::JoinObject->new('TUSK::Course::User::Site', { joinkey => 'user_id', jointype => 'inner', }),
-	     TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'course_user_id', origkey => 'course_user_site.course_user_id', jointype => 'inner', joincond => "time_period_id = $time_period_id"  }),
-	     TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id', jointype => 'inner'  }),
+	     TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'user_id', jointype => 'inner', joincond => "time_period_id = $time_period_id" }),
+	     TUSK::Core::JoinObject->new('TUSK::Course::User::Site', { joinkey => 'course_user_id', origkey => 'course_user.course_user_id', jointype => 'inner' }),
+	     TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id', jointype => 'inner' }),
 	     TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id',  jointype => 'inner',  joincond => "role_token = 'instructor'" }),
     ]);
 }
