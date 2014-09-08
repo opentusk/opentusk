@@ -78,18 +78,20 @@ sub email_process {
 		}
     }
 
-    if ($fdat->{sendself}){
+    if ($fdat->{sendself}) {
 		$user->send_email_from($data->{email_from});
 		$user->send_email($fdat->{subject}, $fdat->{body});
     }
 
-    if ($fdat->{senddirectors} && ref $course eq 'HSDB45::Course'){
-		my @users = $course->users($timeperiod_id);
-		foreach my $userx (@users){
-			next if ($fdat->{sendself} and $user->primary_key() eq $userx->getPrimaryKeyID());
-			if ($userx->hasRole('director') or $userx->hasRole('manager')) {
-				$userx->send_email_from($data->{email_from});
-				$userx->send_email($fdat->{subject}, $fdat->{body});
+    if ($fdat->{senddirectors} && ref $course eq 'HSDB45::Course') {
+		my $course_users = $course->users($timeperiod_id);
+		foreach my $course_user (@$course_users) {
+			my $course_user_id = $course_user->getPrimaryKeyID();
+			next if ($fdat->{sendself} && ($course_user_id eq $user->primary_key()));
+			if ($course_user->hasRole(['director', 'manager'])) {
+				my $user = HSDB4::SQLRow::User->new()->lookup_key($course_user_id);
+				$user->send_email_from($data->{email_from});
+				$user->send_email($fdat->{subject}, $fdat->{body});
 			}
 		}
     }
