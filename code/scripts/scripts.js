@@ -1001,25 +1001,52 @@ function currentYear() {
         document.write(now.getFullYear());
 }
 
-var confirmOnPageExit = function (e) 
-{  
-    if (window.button_clicked)
-    {
-	return;
-    }	
-    // If we haven't been passed the event get the window.event
-    e = e || window.event;
+/* Determine if an alert needs to be shown to a user before leaving a page
+** If the user is saving the notes or didn't change any content on the page, no warning should be shown.
+*/
 
-    var message = 'Some of the notes weren\'t saved.';
+// var confirmOnPageExit = function (e) 
+// {  
+//     if (window.save_button_clicked)
+//     {
+// 	   return;
+//     }
+//     // alert ('before page unloads');
+//     // Check to see if any content has been changed
+//     for (var textareaName in window.content_original)
+//     {
+//         // alert('checking notes');
+//         if (window.content_original[textareaName] !== document.myForm[textareaName].value)
+//         {
+//             // alert('unsaved notes');
+//             window.content_changed = true;
+//             break;
+//         }
+//     }
+//     if (window.content_changed !== true)
+//     {
+//         return;
+//     }
 
-    // For IE6-8 and Firefox prior to version 4
-    if (e) 
-    {
-        e.returnValue = message;
-    }
+//     // If we haven't been passed the event get the window.event
+//     e = e || window.event;
 
-    // For Chrome, Safari, IE8+ and Opera 12+
-    return message;
-};
+//     var message = 'Some of the notes weren\'t saved.';
+
+//     // For IE6-8 and Firefox prior to version 4
+//     if (e) 
+//     {
+//         e.returnValue = message;
+//     }
+
+//     // For Chrome, Safari, IE8+ and Opera 12+
+//     return message;
+// };
 
 
+
+//  Initialize empty variables to be used 
+// function initialize()
+// {
+
+// }

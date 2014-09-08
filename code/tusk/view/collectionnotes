@@ -97,7 +97,44 @@
         else                                                                   {document.myForm[''+noteNumber+'_resetButton'].style.color="red";}
       }
     </script>
+    <script language="JavaScript">
 
+      function determineOriginalContent(textareaContent, textareaName)
+      {
+        window.content_original[textareaName] = textareaContent;
+      }
+      window.onbeforeunload = confirmExit;
+      function confirmExit(e)
+      { 
+        if (window.save_button_clicked == true)
+        {
+         return;
+        }
+        for (var textareaName in window.content_original)
+        {
+          if (window.content_original[textareaName] !== document.myForm[textareaName].value)
+          {
+            window.content_changed = true;
+            break;
+          }
+        }
+        if (window.content_changed != true)
+        {
+            return;
+        }
+
+        e = e || window.event;
+
+        var message = 'Some of the notes weren\'t saved. Please click on \'Save Notes\' for any changes to take effect.';
+
+        if (e) 
+        {
+            e.returnValue = message;
+        }
+        window.content_changed = false;
+        return message;
+      }
+    </script>
     <form method="post" name="myForm">
     <center>
 <!--    <font style="color:red;">
@@ -149,10 +186,10 @@
                </span>
                </td></tr>
              <tr><td align="center" valign="bottom" style="height:50px;"><div id="<% $aSubContent->primary_key %>_notSavedDiv" style="display:none;" class="navsm"><font color="blue"><%__('Not Saved')%></font></div></td></tr>
-	     <tr><td align="center" valign="bottom" style="height:50px;"><div id="<% $aSubContent->primary_key %>_saveButton" style="display:block;" class="navsm"><font color="blue"></font><input type="submit" class="formbutton" name="save" value="Save All Notes" onclick="window.button_clicked = true;"></div></td></tr> 
+	     <tr><td align="center" valign="bottom" style="height:50px;"><div id="<% $aSubContent->primary_key %>_saveButton" style="display:block;" class="navsm"><font color="blue"></font><input type="submit" class="formbutton" name="save" value="Save Notes" onclick="window.save_button_clicked = true;"></div></td></tr> 
            </table>
          </td>
-         <td valign="top" align="right"><textarea name="<% $aSubContent->primary_key %>_note" style="width:450px; height:270px" tabindex="<% $tabIndexCounter %>" onFocus="this.style.backgroundColor='white';this.style.border='2px solid black';" onBlur="this.style.backgroundColor=''; this.style.border='';" onChange=" window.onbeforeunload = confirmOnPageExit;" onClick="window.onbeforeunload = confirmOnPageExit;" document.getElementsByClassName()><% $combinedNote %></textarea></td>
+         <td valign="top" align="right"><textarea name="<% $aSubContent->primary_key %>_note" style="width:450px; height:270px" tabindex="<% $tabIndexCounter %>" onFocus="this.style.backgroundColor='white';this.style.border='2px solid black';" onBlur="this.style.backgroundColor=''; this.style.border='';" onClick=" if (typeof window.content_changed == 'undefined') {window.content_changed = false;}; if (typeof window.content_original == 'undefined') {window.content_original = new Object();}; determineOriginalContent('<% $combinedNote %>', '<% $aSubContent->primary_key %>_note');" document.getElementsByClassName()><% $combinedNote %></textarea></td>
 %	  $tabIndexCounter++;
        </tr>
        <tr><td colspan="3"><img src="/graphics/spacer.gif" height="1" width="25"></td></tr>
