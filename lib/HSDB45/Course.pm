@@ -1312,16 +1312,8 @@ sub child_small_group_leaders {
     # Get the list of small group instructors
     #
     my ($self, $time_period_id) = @_;
-    warn "I am being called in course object\n";
-    my $user = TUSK::Core::HSDB4Tables::User->new();
-    $user->setErrorLevel(9);
-    return $user->lookup(undef, ['lastname', 'firstname'], undef, undef,
-	   [ 
-	     TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'user_id', jointype => 'inner', joincond => "time_period_id = $time_period_id" }),
-	     TUSK::Core::JoinObject->new('TUSK::Course::User::Site', { joinkey => 'course_user_id', origkey => 'course_user.course_user_id', jointype => 'inner' }),
-	     TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id', jointype => 'inner' }),
-	     TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id',  jointype => 'inner',  joincond => "role_token = 'instructor'" }),
-    ]);
+
+    return $self->users($time_period_id, "role_token = 'instructor'")
 }
 
 sub content_link {
