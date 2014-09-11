@@ -487,7 +487,7 @@ sub objective_link {
     return $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_objective"};
 }
 
-sub hasCompetencies {
+sub has_competencies {
     #
     # Check if course has course competencies associated with it or not
     #
