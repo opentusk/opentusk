@@ -487,6 +487,26 @@ sub objective_link {
     return $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_objective"};
 }
 
+sub hasCompetencies {
+    #
+    # Check if course has course competencies associated with it or not
+    #
+    my $self = shift;
+
+    my $tusk_course_id = TUSK::Course->new()->lookupKey($self->getTuskCourseID())->getPrimaryKeyID;
+    
+    my $course_competencies = TUSK::Competency::Competency->lookup( 'competency_course.course_id ='. $tusk_course_id, 
+								    [ 'competency_id', 'description'] , undef, undef,
+								    [ TUSK::Core::JoinObject->new( 'TUSK::Competency::Course', 
+												   { origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+    if (scalar(@{$course_competencies}) < 1) {
+	return 0;
+    } else {
+	return 1;
+    }
+
+}
+
 sub child_topics {
     #
     # Get the objectives linked down from this course (from link_course_objective)
