@@ -28,9 +28,11 @@
 <%shared>
 	my $course = $m->comp("/tmpl/url:get_type_object");
 	my $school = $course->get_school();
-	my $tp = HSDB45::TimePeriod->new( _school => $school->getSchoolName() )->get_eternity_period();
-	my $tp_id = ($tp)? $tp->primary_key() : '';
 	my $metadataHashRef = $course->getSchoolMetadata();
+
+	$m->session->{timeperiod} = $course->get_current_timeperiod()->primary_key() unless ($m->session->{timeperiod} > 0);
+	my $tp_id = $m->session->{timeperiod};
+	my $tp_display = HSDB45::TimePeriod->new( _school => $school->getSchoolName() )->lookup_key($tp_id)->out_display();
 
 	my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
 	my $userObject = $m->session->{'user'};
@@ -102,21 +104,21 @@
 	}
 
 	if ($args->{action} eq 'add') {
-		my ($master_msg);
+		my $master_msg;
 
 		foreach my $key (keys %$args) {
 			if($key =~ /^groupsdiv__(.+)__user_group_id__\d+$/){
 				my $ug_id = $args->{$key};
 				my $ug = HSDB45::UserGroup->new( _school => $school->getSchoolName() )->lookup_key($ug_id);
 				if ($ug->primary_key()) {
-					$master_msg .= $m->comp('SELF:add_members, members => [ $ug->child_users() ]);
+					$master_msg .= $m->comp('SELF:add_members', [members => $ug->child_users()]);
 				} else {
-					$master_msg .= __("No User Group found with name"). "'$1'<br/>";
+					$master_msg .= __("No User Group found with name") . "'$1'<br/>";
 				}
 			}
 		}
 
-		if($master_msg){
+		if ($master_msg) {
         		$m->comp('/tmpl/error', msg=>$master_msg, destination=>'/management/course/users/addgroupmembers/course/' . $school->getSchoolName() . '/' . $course->primary_key());
 		} else {
 			$master_msg = __("Users successfully added.");
@@ -135,13 +137,15 @@
 	$members
 </%args>
 <%perl>
-	my $un = $HSDB4::Constants::db_username;
-	my $pw = $HSDB4::Constants::db_password;
+	my $self = shift;
+
+	my $u = $HSDB4::Constants::db_username;
+	my $p = $HSDB4::Constants::db_password;
 
 	my %seen_users = map { $_->primary_key() => 1 } $self->child_users();
 	my %seen_students = map { $_->primary_key() => 1 }  $self->child_students();
 
-	my $course_user_app = TUSK::Application::Course::User->new({course => $course});
+	my $app = TUSK::Application::Course::User->new({course => $course});
 	my $role = TUSK::Permission::Role->lookupReturnOne("role_token = 'author'", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', joincond => "feature_type_token = 'course'", }) ]);
 	
 	my ($master_msg, $ret_val, $msg);
@@ -156,7 +160,7 @@
 		}
 
 		if ($ret_val == 1 && !$seen_students{$member->primary_key()}) {
-		    	($ret_val, $msg) = $course->add_child_student($u, $p, $member->primary_key(), $tp, '');
+		    	($ret_val, $msg) = $course->add_child_student($u, $p, $member->primary_key(), $tp_id, '');
 		}
 
 		$master_msg .= "$msg<br/>" if ($ret_val == 0);
@@ -199,7 +203,7 @@ sub add_child_members {
     #
 
     my $self = shift;
-    my ($u, $p, $members, $tp, $ts) = @_;
+    my ($u, $p, $members, $tp_id, $ts) = @_;
 
     my %seen_users = map { $_->primary_key() => 1 } $self->child_users();
     my %seen_students = map { $_->primary_key() => 1 }  $self->child_students();
@@ -211,7 +215,7 @@ sub add_child_members {
 	    ($ret_val, $msg) = $app->add($u, $p, $m->primary_key(), '65535', $ts, 'author');
 	}
 	if ($ret_val == 1 && !$seen_students{$m->primary_key()}) {
-	    ($ret_val, $msg) = $self->add_child_student($u, $p, $m->primary_key(), $tp, $ts);
+	    ($ret_val, $msg) = $self->add_child_student($u, $p, $m->primary_key(), $tp_id, $ts);
 	}
 	$master_msg .= "$msg<br/>" if ($ret_val == 0);
     }
