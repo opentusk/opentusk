@@ -31,17 +31,22 @@ sub version {
 use HSDB4::Constants qw(:school);
 use TUSK::Constants;
 use Carp;
+
 require HSDB4::SQLRow::Content;
 require HSDB4::SQLRow::PersonalContent;
 require HSDB4::SQLRow::Objective;
 require HSDB45::ClassMeeting;
 require HSDB45::UserGroup;
+require TUSK::Core::HSDB4Tables::User;
+require TUSK::Application::Course::User;
+
 use HSDB4::SQLRow::User;
 use HSDB45::Course::Body;
 use TUSK::Core::School;
 use TUSK::Core::CourseCode;
 use TUSK::FormBuilder::Form;
 use TUSK::Course;
+use TUSK::Course::User;
 use TUSK::Course::CourseMetadata;
 use TUSK::Course::CourseMetadataDisplay;
 use TUSK::Course::CourseSharing;
@@ -49,6 +54,7 @@ use TUSK::Core::LinkCourseCourse;
 use HSDB45::TeachingSite;
 use HSDB4::SQLLink;
 use TUSK::Application::HTML::Strip;
+
 
 # File-private lexicals
 my $tablename = "course";
@@ -420,11 +426,11 @@ sub get_school {
 	my $school = pop @{TUSK::Core::School->lookup($cond)};
 	return $school;
 }
+
+
 #
 # >>>>> Linked objects <<<<<
 #
-
-
 ###  Used for customization of default display of forms
 my $current_user = '';
 sub set_current_user {
@@ -479,6 +485,26 @@ sub objective_link {
     my $self = shift;
     my $db = $self->school_db();
     return $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_objective"};
+}
+
+sub has_competencies {
+    #
+    # Check if course has course competencies associated with it or not
+    #
+    my $self = shift;
+
+    my $tusk_course_id = TUSK::Course->new()->lookupKey($self->getTuskCourseID())->getPrimaryKeyID;
+    
+    my $course_competencies = TUSK::Competency::Competency->lookup( 'competency_course.course_id ='. $tusk_course_id, 
+								    [ 'competency_id', 'description'] , undef, undef,
+								    [ TUSK::Core::JoinObject->new( 'TUSK::Competency::Course', 
+												   { origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+    if (scalar(@{$course_competencies}) < 1) {
+	return 0;
+    } else {
+	return 1;
+    }
+
 }
 
 sub child_topics {
@@ -588,22 +614,16 @@ sub child_personal_content {
     return $self->{-child_personal_content}->children();
 }
 
-sub user_link {
-    my $self = shift;
-    my $db = $self->school_db();
-    return $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_user"};
-}
-
 sub student_link {
     my $self = shift;
     my $db = $self->school_db();
     return $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_student"};
 }
 
-sub email_child_users{
+sub email_students{
     my ($self, $subject, $email_from, $time_period_id, $message) = @_;
 
-    $time_period_id = $self->get_current_timeperiod() unless ($time_period_id);
+    $time_period_id = $self->get_current_timeperiod()->primary_key() unless ($time_period_id);
 
     my @students = $self->get_students($time_period_id);
 
@@ -698,7 +718,7 @@ sub get_time_periods_for_enrollment{
 sub get_time_periods{
     my ($self) = @_;
     my (@tp_ids, %checkperiod);
-	my $time_periods;
+    my $time_periods;
 
     unless ($self->{-time_periods}){
 	if ($self->associate_user_group){
@@ -711,7 +731,6 @@ sub get_time_periods{
 	    
 	}else{
 	    my $timeperiod_sql = "";
-
 	    @tp_ids = $self->get_time_periods_for_enrollment();
 
 	    if (scalar(@tp_ids)){
@@ -720,8 +739,8 @@ sub get_time_periods{
 
 	    my $dbh = HSDB4::Constants::def_db_handle;
 	    my $db = $self->school_db();
-
 	    my $sql = "select time_period_id from $db\.time_period where (start_date <= curdate() and end_date >= curdate()) $timeperiod_sql";
+
 	    eval {
 		my $sth = $dbh->prepare ($sql);
 		$sth->execute ();
@@ -729,7 +748,7 @@ sub get_time_periods{
 		while (my ($tp_id) = $sth->fetchrow_array()) {
 		    push (@tp_ids, $tp_id);
 		}
-          $sth->finish;
+		$sth->finish;
 	    };
 	    confess $@, return if $@;
 	}
@@ -739,10 +758,49 @@ sub get_time_periods{
 	}
 
     }
-#	$self->{-time_periods} = $time_periods;
     return $time_periods;
 }
 
+=item <B><get_universal_time_periods>
+    We now have time periods in both link_course_student and tusk.course_user
+    Return a list of time period objects for both link_course_student and tusk.course_user
+=cut
+
+sub get_universal_time_periods {
+    my $self = shift;
+    my $dbh = HSDB4::Constants::def_db_handle;
+    my $db = $self->school_db();
+    my $course_id = $self->primary_key();
+    my $school_id = $self->school_id();
+    my $sql = qq(
+		 SELECT distinct time_period_id 
+		 FROM $db.link_course_student 
+		 WHERE parent_course_id = $course_id
+		 UNION
+		 SELECT distinct time_period_id 
+		 FROM tusk.course_user 
+		 WHERE course_id = $course_id AND school_id = $school_id
+		 UNION
+		 SELECT time_period_id 
+		 FROM $db\.time_period 
+		 WHERE (start_date <= curdate() and end_date >= curdate())
+		 );
+    my @tp_ids = ();    
+    eval {
+	my $sth = $dbh->prepare ($sql);
+	$sth->execute();
+
+	while (my ($tp_id) = $sth->fetchrow_array()) {
+	    push (@tp_ids, $tp_id);
+	}
+        $sth->finish();
+    };
+    confess $@, return if $@;
+
+    return (scalar @tp_ids) 
+	? [ HSDB45::TimePeriod->new( _school => $self->school() )->lookup_conditions("time_period_id IN (" . join(", ", @tp_ids) . ") order by start_date desc, end_date desc") ]
+	: [];
+}
 
 ########################################################
 
@@ -888,6 +946,43 @@ sub get_most_recent_timeperiod {
 	return undef;
 }
 
+########################################################
+
+=item B<get_users_timeperiods>
+
+    $timeperiods = $course->get_users_timeperiods($user);
+
+	Find all ongoing timeperiods in which a faculty/staff is assigned in this course.
+	Returns an arrayref of HSDB45::TimePeriod objects.
+
+=cut
+
+sub get_users_time_periods {
+	my ($self) = @_;
+	my $dbh = HSDB4::Constants::def_db_handle;
+	my $db = $self->school_db();
+
+	my $sql = "select time_period_id, count(*) from tusk.course_user where course_id = " . $self->primary_key() . " AND school_id = " . $self->school_id() . " group by time_period_id";
+
+	my (@tp_ids, %cnts);
+	eval {
+		my $sth = $dbh->prepare($sql);
+		$sth->execute();
+		while (my ($tp_id, $cnt) = $sth->fetchrow_array()) {
+		    push @tp_ids, $tp_id;
+		    $cnts{$tp_id} = $cnt;
+		}
+		$sth->finish();
+	};
+	confess "Problem getting data" if @$;
+
+	return (scalar @tp_ids) 
+	    ? ([HSDB45::TimePeriod->new( _school => $self->school())->lookup_conditions("time_period_id in (" . join(', ', @tp_ids) . ') order by end_date desc, start_date desc')], \%cnts)
+	    : ([], {});
+}
+
+
+
 sub get_students {
     #
     # Get the students from this course (either from link_course_student or link_user_group_user)
@@ -923,28 +1018,131 @@ sub get_single_student {
 
     return "" unless ($user_id);
     
-	my @students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id and child_user_id = '$user_id'")->children();
+    my @students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id and child_user_id = '$user_id'")->children();
 	
-	return $students[0];
+    return $students[0];
 }
 
-sub child_users {
-    #
-    # Get the user linked down from this course
-    #
 
-    my $self = shift;
-    my @cond = @_;
+sub get_student_site {
+    my ($self, $student_id, $timeperiod_id) = @_;
 
-    # Check cache...
-    unless ($self->{-child_users} and !@cond) {
-        # Get the link definition
-        # And use it to get a LinkSet of users
-        $self->{-child_users} = $self->user_link()->get_children($self->primary_key, @cond);
+    my $dbh = HSDB4::Constants::def_db_handle;
+    my $db = $self->school_db();
+    my $ts_id = undef;
+
+    eval {
+	$ts_id = $dbh->selectrow_array("select teaching_site_id from $db\.link_course_student where parent_course_id = " . $self->primary_key() . " and child_user_id = '$student_id' and time_period_id = $timeperiod_id");
+    };
+
+    if ($@) {
+	confess $@, return;
+    } else {
+	return HSDB45::TeachingSite->new(_school => $self->school())->lookup_key($ts_id);
     }
-    # Return the list
-    return $self->{-child_users}->children();
 }
+
+
+=item <B><users>
+    All users for a given time period
+=cut
+
+sub users {
+    my ($self, $time_period_id, $conditions, $sort_orders) = @_;
+    confess "missing time period id" unless defined $time_period_id;
+
+    $sort_orders = ['course_user.sort_order', 'lastname', 'firstname'] unless defined $sort_orders;
+    $sort_orders = ['lastname', 'firstname', 'course_user.time_period_id DESC'] unless ($time_period_id > 0);
+
+    return $self->find_users($conditions, $sort_orders, $time_period_id);
+}
+
+
+=item <B><user_primary_role
+  Parmeter: user_id
+  Return: a user permission_role object if exists, else undef
+=cut
+
+sub user_primary_role {
+    my ($self, $user_id) = @_;
+    my $users = $self->find_users("course_user.user_id = '$user_id'", ['course_user.time_period_id DESC']);
+    return (scalar @$users) ? $users->[0]->getRole() : undef;
+}
+
+
+=item <B><users_by_period>
+    All users grouped by time period
+=cut
+
+sub users_by_period {
+    my ($self, $conditions, $sort_orders) = @_;
+    $sort_orders = ['course_user.time_period_id', 'course_user.sort_order', 'lastname', 'firstname'] unless defined $sort_orders;
+
+    my $users = $self->find_users($conditions, $sort_orders);
+    my %users = ();
+    push @{$users{$_->getCourseUser()->getTimePeriodID()}}, $_ foreach (@$users);
+    return \%users;
+}
+
+=item
+    All users from all time periods with unique roles, sites. 
+
+  Return:  
+    A reference to an array of user structs  
+{
+    user => TUSK::Core::HSDB4Tables::User, 
+    roles => { role_token => TUSK::Permission::Role }, 
+    sites => { site_id => TUSK::Core::HSDB4Tables::TeachingSite }
+}
+=cut
+
+sub unique_users {
+    my ($self, $conditions, $sort_orders) = @_;
+    $sort_orders = ['lastname', 'firstname', 'course_user.user_id'] unless defined $sort_orders;
+
+    my $users = $self->find_users($conditions, $sort_orders);
+    my %unique_users = ();
+
+    foreach my $user (@$users) {
+	my $user_id = $user->getPrimaryKeyID();
+	foreach my $role (@{$user->getRoleLabels()}) {
+	    if (ref $role eq 'TUSK::Permission::Role') {
+		$unique_users{$user_id}{roles}{$role->getRoleToken()} = $role;
+	    }
+	}
+	foreach my $site (@{$user->getSites()}) {
+	    if (ref $site eq 'TUSK::Core::HSDBTables::TeachingSite') {
+		$unique_users{$user_id}{sites}{$site->getPrimaryKeyID()} = $site;
+	    }
+	}
+
+	unless (exists $unique_users{$user_id}{user}) {
+	    $user->{'_join_objects'} = {};   ## try to be a slimmer user object as we already keep the data as above
+	    $unique_users{$user_id}{user} = $user;
+	}
+    }
+
+    return [ values %unique_users ];
+}
+
+
+=item
+    Generic method to get a list of users
+=cut
+sub find_users {
+    my ($self, $conditions, $sort_orders, $tp_id) = @_;
+    my $school = $self->get_school() or confess "missing school object";
+    return TUSK::Core::HSDB4Tables::User->lookup($conditions, $sort_orders, undef, undef, [
+		   TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'user_id', jointype => 'inner', joincond =>"course_id = " . $self->primary_key() . " AND school_id = " . $school->getPrimaryKeyID() . (($tp_id > 0) ? " AND time_period_id = $tp_id" : '') }),
+		   TUSK::Core::JoinObject->new('TUSK::Course::User::Site', { joinkey => 'course_user_id', origkey => 'course_user.course_user_id' }),
+		   TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TeachingSite', { database => $school->getSchoolDb(), joinkey => 'teaching_site_id', origkey => 'course_user_site.teaching_site_id' }),
+		   TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id' }),		
+		   TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id' }),
+		   TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', origkey => 'permission_role.feature_type_id', joincond => "feature_type_token = 'course'" }),
+    ]);
+}
+
+
 sub child_students {
     #
     # Get the user linked down from this course
@@ -963,30 +1161,15 @@ sub child_students {
 }
 
 
-sub is_child_user{
-	my $self = shift;
-	my $user_id = shift;
-	my $cond = shift || '';
-
-	unless($user_id){
-		warn 'user_id needs to be defined';
-		return 0;
-	}
-
-    $cond = ' and ' . $cond if ($cond);
-    my @child_users = $self->child_users("child_user_id = '" . $user_id . "'" . $cond);
-    return scalar @child_users;
-}
-
 sub is_child_student{
-	my $self = shift;
-	my $user_id = shift;
-	my $cond = shift || '';
+    my $self = shift;
+    my $user_id = shift;
+    my $cond = shift || '';
 
-	unless($user_id){
-		warn 'user_id needs to be defined';
-		return 0;
-	}
+    unless($user_id){
+	warn 'user_id needs to be defined';
+	return 0;
+    }
 
     $cond = ' and ' . $cond if ($cond);
     my @child_students = $self->child_students("child_user_id = '" . $user_id . "'" . $cond);
@@ -1001,11 +1184,7 @@ sub child_user_hash {
 
     my $self = shift;
     unless ($self->{-child_user_hash}) {
-	my %child_users = ();
-	for ($self->child_users ()) { 
-	    $child_users{$_->primary_key} = $_;
-	}
-	$self->{-child_user_hash} = \%child_users;
+	$self->{-child_user_hash} = { map { $_->primary_key() => $_ } $self->users() };
     }
     return $self->{-child_user_hash};
 }
@@ -1020,50 +1199,6 @@ sub reset_user_list {
     $self->{-child_user_hash} = 0;
 }
 
-sub add_child_user {
-    #
-    # Add a user to this course
-    #
-
-    my $self = shift;
-    my ($u, $p, $username, $order, $site_id, @roles) = @_;
-    my ($r, $msg) = $self->user_link()->insert (-user => $u, -password => $p,
-						-child_id => $username,
-						-parent_id => $self->primary_key,
-						sort_order => $order,
-						teaching_site_id => $site_id,
-						roles => join (',', @roles));
-    if ($r) { $self->reset_user_list () }
-    return ($r, $msg);
-}
-
-sub delete_child_user {
-    #
-    # Delete a user
-    #
-
-    my $self = shift;
-    my ($u, $p, $username) = @_;
-    my ($r, $msg) =  $self->user_link()->delete (-user => $u, -password => $p,
-						 -parent_id => $self->primary_key,
-						 -child_id => $username);
-    if ($r) { $self->reset_user_list () }
-    return ($r, $msg);
-}
-
-sub delete_all_users {
-    #
-    # Delete all users linked to the course
-    #
-
-    my $self = shift;
-    my ($u, $p) = @_;
-    my ($r, $msg) =  $self->user_link()->delete_children(-user => $u, -password => $p,
-							 -parent_id => $self->primary_key);
-
-    if ($r) { $self->reset_user_list () }
-    return ($r, $msg);
-}
 
 sub add_child_student {
     #
@@ -1090,39 +1225,6 @@ sub add_child_student {
     return ($r, $msg);
 }
 
-sub add_child_members {
-    #
-    # Add a user to this course as a User with role "editor" and as a student 
-    # This is key for 'group' courses where users must have both roles
-    #
-
-	my $self = shift;
-    my ($u, $p, $members, $tp, $ts) = @_;
-
-	my %seen;
-	my @users = $self->child_users();
-	foreach my $u (@users){
-		$seen{users}->{$u->primary_key()} = 1;
-	}
-
-	my @students = $self->child_students();
-	foreach my $s (@students){
-		$seen{students}->{$s->primary_key()} = 1;
-	}
-
-	my ($master_msg, $ret_val, $msg);
-	foreach my $m (@$members){
-		$ret_val = 1;
-		unless($seen{users}->{$m->primary_key()}){
-			($ret_val, $msg) = $self->add_child_user($u, $p, $m->primary_key(), '65535', $ts, 'author');
-		}
-		if($ret_val == 1 && !$seen{students}->{$m->primary_key()}){
-			($ret_val, $msg) = $self->add_child_student($u, $p, $m->primary_key(), $tp, $ts);
-		}
-		$master_msg .= "$msg<br/>" if ($ret_val == 0);
-	}
-	return $master_msg;
-}
 
 sub update_child_student {
     #
@@ -1132,13 +1234,14 @@ sub update_child_student {
     my $self = shift;
     my ($u, $p, $username,$tp,$ts,$elective) = @_;
 
-	my ($r, $msg) = $self->student_link()->update (-user => $u, -password => $p,
-						   -child_id => $username,
-						   -parent_id => $self->primary_key,
-						   time_period_id=>$tp,
-						   teaching_site_id =>$ts || 0,
-						   elective => $elective || 0,
-							-cond => ' AND time_period_id = ' . $tp );
+    my ($r, $msg) = $self->student_link()->update(
+						  -user => $u, -password => $p,
+						  -child_id => $username,
+						  -parent_id => $self->primary_key,
+						  time_period_id=>$tp,
+						  teaching_site_id =>$ts || 0,
+						  elective => $elective || 0,
+						  -cond => ' AND time_period_id = ' . $tp );
     return ($r, $msg);
 }
 
@@ -1171,103 +1274,66 @@ sub delete_child_student {
 	return ($r, $msg);
 }
 
+################################
+# AUTHORIZATION
+################################
+sub user_has_role {
+    my ($self, $user_id, $role_tokens) = @_;
+    my $cond = "course_user.user_id = '$user_id'";
+    my $admin_group = HSDB45::UserGroup->get_admin_group($self->school());
 
-sub update_child_user_roles {
-    #
-    # Modify a user
-    #
+    # Users in the school admin group have all the roles
+    return 1 if ($admin_group->contains_user($user_id));
 
-    my $self = shift;
-    my ($u, $p, $username, @roles) = @_;
-    return (0, "User is not in course") 
-	unless $self->child_user_hash ()->{$username};
-    my $new_roles = join (',', sort @roles);
-    my $old_roles = join (',', sort split (/\,/, $self->child_user_hash ()->{$username}->aux_info('roles')));
-    return (1, '') if $new_roles eq $old_roles;
-    my ($r, $msg) = $self->user_link()->update (-user => $u, -password => $p,
-						-parent_id => $self->primary_key,
-						-child_id => $username,
-						roles => join (',', @roles));
-    if ($r) { $self->reset_user_list () }
-    return ($r, $msg);
-}
+    if ($role_tokens && scalar(@$role_tokens)) {
+	$role_tokens = join("','", @$role_tokens);
+	$cond .= " AND role_token IN ('$role_tokens')";
+    }
 
-sub child_course_directors {
-    my $self = shift;
-    return grep { $_->aux_info ('roles') =~ /^Director/  } $self->child_users;
-}
+    my $users = $self->find_users($cond);
 
-sub user_primary_role {
-    my $self = shift;
-    my $user_id = shift;
-    my @roles = $self->child_user_roles($user_id);
-    return unless (@roles);
-    my @rolenames = split(",",$roles[0]->aux_info('roles'));
-    return $rolenames[0];
-}
-
-sub school_admin_group {
-    my $self = shift;
+    return scalar(@$users);
 }
 
 sub can_user_manage_course {
-    my $self = shift;
-    my $user = shift;
-    # If it's a course director or administrator, they can edit
-    if ($self->user_primary_role($user->primary_key()) =~ /(Director|Administrator)/) { 
-	return 1; 
-    }
-    # If the user is in the school admin group, then they're also set
-    my $admin_group = HSDB45::UserGroup->get_admin_group($self->school());
-    if ($admin_group->contains_user($user)) {
-	return 1;
+    my ($self, $user) = @_;
+
+    # If it's a course director or manager, they can edit
+    return $self->user_has_role($user->primary_key(), ['director', 'manager']);
+}
+
+sub can_user_edit {
+    my ($self, $user) = @_;
+
+    # first check the user's role (as opposed to label) in this course
+    return 1 if ($self->user_has_role($user->primary_key()));
+
+    foreach ($user->parent_user_groups()) {
+	return 1 if ($_->can_edit_course($self));
     }
     return 0;
 }
 
-sub can_user_edit {
-    my $self = shift;
-    my $user = shift;
-    # first check the user's role (as opposed to label) in this course
-    my $role = $self->user_primary_role($user->primary_key);
-
-    return 1 if ($role =~ /(Director|Manager|Author|Editor|Student Manager|Student Editor|Site Director)/);
-    my @groups = $user->parent_user_groups;
-    foreach (@groups) {
-	return 1 if ($_->can_edit_course($self));
-    }
-	return 0;
-}
-
 sub can_user_add {
-    my $self = shift;
-    my $user = shift;
-    # first check the user's role in this course
-    my $role = $self->user_primary_role($user->primary_key);
-    return 1 if ($role);
-    my @groups = $user->parent_user_groups;
-    foreach (@groups) {
+    my ($self, $user) = @_;
+
+    # first check the user's role (as opposed to label) in this course
+    return 1 if ($self->user_has_role($user->primary_key()));
+
+    foreach ($user->parent_user_groups()) {
 	return 1 if ($_->can_edit_course($self));
     }
-	return 0;
+    return 0;
 }
 
-sub child_user_roles {
-    #
-    # Get the list of small group instructors
-    #
-    my $self = shift;
-    my $user_id = shift; 
-    return grep { $_->primary_key =~ /^$user_id$/i } $self->child_users;
-}
 
 sub child_small_group_leaders {
     #
     # Get the list of small group instructors
     #
+    my ($self, $time_period_id) = @_;
 
-    my $self = shift;
-    return grep { $_->aux_info ('roles') =~ /Instructor/  } $self->child_users;
+    return $self->users($time_period_id, "role_token = 'instructor'")
 }
 
 sub content_link {
@@ -1619,6 +1685,7 @@ sub get_evals {
 		    return ();	
             }		
     }
+
     eval {
         my $db = $self->school_db();
         # Do a lookup to get all the appropriate evals: that is, evals where
@@ -1751,7 +1818,7 @@ sub out_title {
 	$title=substr($title,0,50)."...";
     }
 
-	my $oea_code = $self->field_value('oea_code');
+    my $oea_code = $self->field_value('oea_code');
     if ($oea_code){
 	    my $stripObj = TUSK::Application::HTML::Strip->new();
 		$oea_code = $stripObj->removeHTML($oea_code);

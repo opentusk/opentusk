@@ -22,11 +22,14 @@ sub resp_cache {
     my $self = shift;
     unless ($self->{-resp_cache}) {
 	my %cache = ();
-	for my $inst ($self->question()->parent_eval()->course()->child_small_group_leaders()) {
-	    $cache{$inst->primary_key()} = $inst->out_label();
+	my $eval = $self->question()->parent_eval();
+	my $instructors = $eval->course()->child_small_group_leaders($eval->time_period()->primary_key());
+	for my $instructor (@$instructors) {
+	    $cache{$instructor->getPrimaryKeyID()} = $instructor->outLastFirstName();
 	}
 	$self->{-resp_cache} = \%cache;
     }
+    warn $self->{-resp_cache};
     return $self->{-resp_cache};
 }
 

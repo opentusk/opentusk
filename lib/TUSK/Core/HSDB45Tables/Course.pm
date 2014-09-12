@@ -49,6 +49,7 @@ BEGIN {
 
 use vars @EXPORT_OK;
 use HSDB4::Constants;
+require TUSK::Application::HTML::Strip;
 
 # Non-exported package globals go here
 use vars ();
@@ -444,26 +445,54 @@ sub getLinkTeachingSiteObjects {
 
 }
 
+# Following two methods are removed. They are currently not used. They are no
+# longer valid because TUSK::Core::HSDB45Tables::LinkCourseUser is no longer
+# valid.
+#
+#sub getWithUsers {
+#    my ($self, $school, $cond,$orderby, $fields, $limit) = @_;
+#
+#    my $database = HSDB4::Constants::get_school_db($school);
+#    $self->setDatabase($database);
+#    
+#    $orderby = ['user_id', 'firstname', 'lastname'] unless ($orderby);
+#
+#    return $self->lookup($cond, $orderby, $fields, $limit, [
+#							    TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseUser", { 'origkey' => 'course_id', 'joinkey' => 'parent_course_id', database => $database}),
+#							    TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", { 'joinkey' => 'user_id', 'origkey' => 'link_course_user.child_user_id', 'objtree' => ['TUSK::Core::HSDB45Tables::LinkCourseUser'], database => 'hsdb4'}),
+#							    ]);
+#
+#}
+#
+#
+#sub getLinkUserObjects {
+#    my ($self) = @_;
+#    return $self->getJoinObjects("TUSK::Core::HSDB45Tables::LinkCourseUser");
+#
+#}
 
-sub getWithUsers {
-    my ($self, $school, $cond,$orderby, $fields, $limit) = @_;
 
-    my $database = HSDB4::Constants::get_school_db($school);
-    $self->setDatabase($database);
-    
-    $orderby = ['user_id', 'firstname', 'lastname'] unless ($orderby);
+sub outTitle {
+    my $self = shift;
+    my $title = $self->getTitle();
+    return "" if ( ! length ($title) );
+    $title = uc(substr($title,0,1)).substr($title,1,length($title));
+    $title=substr($title,0,50)."..."     if (length($title) > 50);
 
-    return $self->lookup($cond, $orderby, $fields, $limit, [
-							    TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseUser", { 'origkey' => 'course_id', 'joinkey' => 'parent_course_id', database => $database}),
-							    TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", { 'joinkey' => 'user_id', 'origkey' => 'link_course_user.child_user_id', 'objtree' => ['TUSK::Core::HSDB45Tables::LinkCourseUser'], database => 'hsdb4'}),
-							    ]);
+    if (my $oea_code = $self->getOeaCode()) {
+	    my $stripObj = TUSK::Application::HTML::Strip->new();
+		$oea_code = $stripObj->removeHTML($oea_code);
+		unless ($title=~/^$oea_code/i){
+			$title .= " (".$oea_code.")";
+		}
+    }
 
+    return $title;
 }
 
-sub getLinkUserObjects {
-    my ($self) = @_;
-    return $self->getJoinObjects("TUSK::Core::HSDB45Tables::LinkCourseUser");
-
+sub getFormattedRoleLabels {
+    my $self = shift;
+    return join ', ', sort { lc($a) cmp lc($b) }  map { $_->getRoleDesc() } @{$self->getJoinObjects('TUSK::Permission::Role')};
 }
 
 

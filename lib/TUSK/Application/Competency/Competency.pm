@@ -20,6 +20,7 @@ use strict;
 use TUSK::Competency::Competency;
 use TUSK::Competency::Course;
 use TUSK::Competency::Hierarchy;
+use TUSK::Competency::Relation;
 
 sub new {
     my ($class, $args) = @_;
@@ -79,6 +80,19 @@ sub delete {
     #if no linked child competencies, procede with deleting, otherwise not.
     if ( $linked_competencies == 0){
     #if ((scalar @{$linked_competencies}) == 0) { #add check for linking for next update
+	#delete competency links related to this competency first
+	if (TUSK::Competency::Relation->lookup("competency_id_1 = $self->{competency_id}")){
+	    my $parent_links = TUSK::Competency::Relation->lookup("competency_id_1 = $self->{competency_id}");
+	    foreach my $parent_link (@{$parent_links}) {
+		$parent_link->delete();
+	    }
+	}
+	if (TUSK::Competency::Relation->lookup("competency_id_2 = $self->{competency_id}")){
+	    my $child_links = TUSK::Competency::Relation->lookup("competency_id_2 = $self->{competency_id}");
+	    foreach my $child_link (@{$child_links}) {
+		$child_link->delete();
+	    }
+	}
 	#delete call to database
 	my $delete_check = $self->{competency}->delete();
 

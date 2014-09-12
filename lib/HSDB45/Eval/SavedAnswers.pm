@@ -61,12 +61,19 @@ sub new {
 	return unless $tmp->primary_key() eq $user;
 	$user = $tmp;
     }
+
     my $password = shift;
-    # unless ($user->verify_password($password)) {
-    # return;
-    # }
-    my $self = { -hash => make_hash($user->primary_key(), $password, $eval->primary_key()),
-		 -eval => $eval, -school => $eval->school() };
+    my $evaluatee = shift; ## if passed, it is a teaching eval
+
+    my $user_id = $user->primary_key();
+    my $eval_id = $eval->primary_key();
+    $eval_id .= '.' . $evaluatee->primary_key() if ($evaluatee);
+
+    my $self = { -hash => make_hash($user_id, $password, $eval_id),
+		 -eval => $eval, 
+		 -school => $eval->school() 
+	       };
+
     bless $self, $class;
     $self->do_lookup();
     return $self;
@@ -181,19 +188,19 @@ sub has_answers {
 sub do_save {
     my $self = shift;
     my $dbh = HSDB4::Constants::def_db_handle();
-	my $answers = $self->answers();
+    my $answers = $self->answers();
 
-	my $json_answers = encode_json($answers);
-	$json_answers =~ s/'/\\'/g;      #Snip out single quote characters.
-	$json_answers =~ s/\\r\\n/\\n/g; #Snip out the extra carriage returns introduced by encode_json.
+    my $json_answers = encode_json($answers);
+    $json_answers =~ s/'/\\'/g;      #Snip out single quote characters.
+    $json_answers =~ s/\\r\\n/\\n/g; #Snip out the extra carriage returns introduced by encode_json.
 
     eval {
 	my $db = $self->school_db();
+
 	if ($self->id()) {
-		$dbh->do("UPDATE $db\.eval_save_data SET data = ? WHERE eval_save_data_id = ?", undef, $json_answers, $self->id());
-	}
-	else {
-		$dbh->do("INSERT INTO $db\.eval_save_data (user_eval_code, data) VALUES (?, ?)", undef, $self->hash(), $json_answers);
+	    $dbh->do("UPDATE $db\.eval_save_data SET data = ? WHERE eval_save_data_id = ?", undef, $json_answers, $self->id());
+	} else {
+	    $dbh->do("INSERT INTO $db\.eval_save_data (user_eval_code, data) VALUES (?, ?)", undef, $self->hash(), $json_answers);
 	    $self->{-id} = $dbh->{'mysql_insertid'};
 	}
     };
@@ -229,15 +236,20 @@ sub answers {
 # INPUT: A hash of answers to save
 # OUTPUT:
 sub set_answers {
-    my $self = shift;
+    my ($self, %fdat) = @_;
     my %save_fdat = ();
-    while (@_) {
-	my ($key, $val) = splice(@_, 0, 2);
-	if ($key =~ /^eval_q_(\d+)$/) { $save_fdat{$1} = $val }
+
+    foreach my $key (keys %fdat) {
+	$save_fdat{$1} = $fdat{$key} if ($key =~ /^eval_q_(\d+)$/);
     }
+
     $self->{-answers} = \%save_fdat;
     $self->{-has_answers} = 1;
     $self->do_save();
+
+    if ($self->{-eval}->is_teaching_eval()) {
+	$self->{-eval}->set_teaching_eval_entry_status($fdat{user}, $fdat{evaluatee_id}, 'saved');
+    }
 }
 
 # Gets a hash of answers

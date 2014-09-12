@@ -21,13 +21,13 @@ use HSDB45::Course;
 
 # gets time period info for course objects if the user is a school admin
 sub course_time_periods{
-    my ($course, $timeperiod, $session) = @_;
+    my ($course, $timeperiod, $session, $allow_all) = @_;
 
     my ($periods, $extratext);
 
     check_session_timeperiod($course, $session);
 
-    $periods = $course->get_time_periods();
+    $periods = $course->get_universal_time_periods();
 	unless ($periods){
 		$session->{timeperiod} = -1;
 		return -1;
@@ -42,15 +42,16 @@ sub course_time_periods{
     }
 	else{
 		$timeperiod = get_time_period($course, $session);
-		if ($timeperiod == -1){
-			$session->{timeperiod} = $timeperiod = @$periods[length(@$periods) -1]->primary_key;
-		}
 		delete $session->{selected_timeperiod_display};
     }
 
 	if (scalar(@$periods)){
+		unless ($allow_all || ($timeperiod > 0)){
+			$timeperiod = @$periods[length(@$periods)-1]->primary_key();
+			$session->{timeperiod} = $timeperiod;
+		}
 		$extratext->[0]->{name} = "Time Period";
-		$extratext->[0]->{text} = get_selected_timeperiod_display($course->school, $session);
+		$extratext->[0]->{text} = ($timeperiod == -1) ? 'All Time Periods (READ-ONLY)' : get_selected_timeperiod_display($course->school, $session);
 
 		$extratext->[1]->{name}  = "Change Time Period";
 		$extratext->[1]->{text}  = "<iframe src=\"about:blank\" style=\"height:0; width:0; border:0; visibility:hidden;\">this prevents back forward cache in safari. info: http://developer.apple.com/internet/safari/faq.html#anchor5</iframe>";
@@ -58,9 +59,11 @@ sub course_time_periods{
 		$extratext->[1]->{text} .= "<select name=\"timeperiod_dd\" onchange=\"updateTPAndSubmit(this);\" class=\"navsm\">\n";
 		$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"\" selected=\"selected\">Select</option>\n";
 
+		$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"-1\">All Time Periods (READ-ONLY)</option>\n" if $allow_all;
+
 		foreach my $period (@$periods){
-			$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"" . $period->primary_key . "\" ";
-			$extratext->[1]->{text} .= ">" . $period->out_display . "</option>\n";
+			$extratext->[1]->{text} .= "<option class=\"navsm\" value=\"" . $period->primary_key . "\"";
+			$extratext->[1]->{text} .= ">" . $period->out_display . ' &nbsp;&nbsp; (' . $period->out_date_range() . ")</option>\n";
 		}
 		$extratext->[1]->{text} .= "</select>";
     }

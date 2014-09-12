@@ -78,29 +78,27 @@ sub course {
 sub faculty_list_elt {
     my $self = shift;
 
+    my $users = $self->course()->users_by_period();
     my $faculty_list_elt = XML::Twig::Elt->new('faculty-list');
-    foreach my $user ($self->course()->child_users()) {
-	my $full_user_name = "";
+   
+    foreach my $tp_id (keys %$users) {
+	my $tp_elt = XML::Twig::Elt->new('time-period', { 'id' => $tp_id, 'name' => '' });
+	foreach my $user (@{$users->{$tp_id}}) {
+	    my @role_elts = ();
+	    foreach my $role (map { $_->getRoleToken() } @{$user->getRoleLabels()}) {
+		$role = make_pcdata($role);
+		push(@role_elts, XML::Twig::Elt->new('course-user-role', {'role' => $role}));
+	    }
 
-	$full_user_name .= $user->first_name();
-	$full_user_name .= " " . $user->middle_name() if($user->middle_name());
-	$full_user_name .= " " . $user->last_name();
-	$full_user_name .= ", " . $user->degree() if($user->degree());
-	$full_user_name = make_pcdata($full_user_name);
-
-	my @role_elts = ();
-	foreach my $role (split(',', $user->roles())) {
-	    $role = make_pcdata($role);
-	    push(@role_elts, XML::Twig::Elt->new('course-user-role', {'role' => $role}));
-	}
-
-	my $user_elt = XML::Twig::Elt->new('course-user',
-					   { 'user-id' => $user->user_id(),
-					     'name'    => $full_user_name
-					     },
+	    my $user_elt = XML::Twig::Elt->new('course-user',
+					   { 'user-id' => $user->getPrimaryKeyID(),
+					     'name'    => make_pcdata($user->outFullName()),
+					   },
 					   @role_elts
 					   );
-	$user_elt->paste('last_child', $faculty_list_elt);
+	    $user_elt->paste('last_child', $tp_elt);
+	}
+	$tp_elt->paste('last_child', $faculty_list_elt);
     }
     return $faculty_list_elt;
 }

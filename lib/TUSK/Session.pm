@@ -33,18 +33,18 @@ sub get_role{
 
 sub course_user_role{
     my ($course, $user_id) = @_;
-    my $rolename = $course->user_primary_role($user_id);
-    if ($rolename eq "Director" or $rolename eq "Manager"){
+
+    if ($course->user_has_role($user_id, ['director', 'manager'])) {
 	return $courseroles{'DIRECTORNONSTUDENT'};
-    }elsif ($rolename eq "Student Manager"){
+    } elsif ($course->user_has_role($user_id, ['student_manager'])) {
 	return $courseroles{'DIRECTOR'};
-    }elsif ($rolename eq "Site Director"){
+    } elsif ($course->user_has_role($user_id, ['site_director'])) {
 	return $courseroles{'SITEDIRECTOR'};
-    }elsif ($rolename eq "Author" or $rolename eq "Editor"){
+    } elsif ($course->user_has_role($user_id, ['author', 'editor'])) {
 	return $courseroles{'AUTHOR'};
-    }elsif ($rolename eq "Student Editor"){
+    } elsif ($course->user_has_role($user_id, ['student_editor'])) {
 	return $courseroles{'STUDENTEDITOR'};
-    }else{
+    } else {
 	return 0;
     }
 }
@@ -52,62 +52,56 @@ sub course_user_role{
 sub check_course_permissions{
     my ($courserole, $minrole) = @_;
     my $key = uc($minrole);
+
     return 0 unless ($courseroles{$key});
-    if ($courserole >= $courseroles{$key}){
-	return 1;
-    }else{
-	return 0;
-    }
+    return ($courserole >= $courseroles{$key});
 }
 
 sub is_director{
-	my ( $course, $user_id ) = @_;
-	if ( course_user_role($course, $user_id) == $courseroles{DIRECTORNONSTUDENT} ) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+    my ($course, $user_id) = @_;
+    return (course_user_role($course, $user_id) == $courseroles{DIRECTORNONSTUDENT});
 }
 
 sub is_admin{
     my ($hash, $user) = @_;
 
     if ($user){
-		unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_admin}}){
-			$hash->{roles} = $user->check_admin;
-		}
+	unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_admin}}){
+	    $hash->{roles} = $user->check_admin;
+	}
     }    
-	if (defined($hash->{roles}->{tusk_session_admin})) {
-		return scalar keys %{$hash->{roles}->{tusk_session_admin}};
-	}
-	else {
-		return 0;	
-	}
+
+    return (defined($hash->{roles}->{tusk_session_admin})) ? scalar keys %{$hash->{roles}->{tusk_session_admin}} : 0;
+
 }
 
 sub is_school_admin{
     my ($hash, $school, $user) = @_;
 
     if ($user){
-		unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_admin}}){
-			$hash->{roles} = $user->check_admin;
-		}
+	unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_admin}}){
+	    $hash->{roles} = $user->check_admin;
+	}
     }
 
-    if (defined($hash->{roles}->{tusk_session_admin}->{$school})) {return($hash->{roles}->{tusk_session_admin}->{$school});}
-    elsif(defined($hash->{roles}->{tusk_session_admin}->{lc($school)})) {return($hash->{roles}->{tusk_session_admin}->{lc($school)});}
-    elsif(defined($hash->{roles}->{tusk_session_admin}->{uc($school)})) {return($hash->{roles}->{tusk_session_admin}->{uc($school)});}
-    else {return(0);}
+    if (defined($hash->{roles}->{tusk_session_admin}->{$school})) {
+	return($hash->{roles}->{tusk_session_admin}->{$school});
+    } elsif (defined($hash->{roles}->{tusk_session_admin}->{lc($school)})) {
+	return($hash->{roles}->{tusk_session_admin}->{lc($school)});
+    } elsif(defined($hash->{roles}->{tusk_session_admin}->{uc($school)})) {
+	return($hash->{roles}->{tusk_session_admin}->{uc($school)});
+    } else {
+	return(0);
+    }
 }
 
 sub is_author{
     my ($hash, $user) = @_;
 
     if ($user){
-		unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_author})){
-		    $hash->{roles} = $user->check_author($hash->{roles});
-		}
+	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_author})){
+	    $hash->{roles} = $user->check_author($hash->{roles});
+	}
     }
 
     return ($hash->{roles}->{tusk_session_is_author}) if (defined($hash->{roles}) or defined($hash->{roles}->{tusk_session_is_author}));
@@ -117,31 +111,32 @@ sub is_eval_admin{
     my ($hash, $user) = @_;
 
     if ($user){
-		unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_eval_admin}}){
-			$hash->{roles} = $user->check_admin;
-		}
+	unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_eval_admin}}){
+		$hash->{roles} = $user->check_admin;
+	}
     }
-	if (defined($hash->{roles}->{tusk_session_eval_admin})) {
-		return scalar keys %{$hash->{roles}->{tusk_session_eval_admin}};
-	}
-	else {
-		return 0;	
-	}
+
+    return (defined($hash->{roles}->{tusk_session_eval_admin})) ? scalar keys %{$hash->{roles}->{tusk_session_eval_admin}} : 0;
 }
 
 sub is_school_eval_admin {
     my ($hash, $school, $user) = @_;
 	
-    if ($user){
-		unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_eval_admin}}){
-			$hash->{roles} = $user->check_admin;
-		}
+    if ($user) {
+	unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_eval_admin}}){
+	    $hash->{roles} = $user->check_admin;
+	}
     }
     
-    if (defined($hash->{roles}->{tusk_session_eval_admin}->{$school})) {return($hash->{roles}->{tusk_session_eval_admin}->{$school});}
-    elsif(defined($hash->{roles}->{tusk_session_eval_admin}->{lc($school)})) {return($hash->{roles}->{tusk_session_eval_admin}->{lc($school)});}
-    elsif(defined($hash->{roles}->{tusk_session_eval_admin}->{uc($school)})) {return($hash->{roles}->{tusk_session_eval_admin}->{uc($school)});}
-    else {return(0);}
+    if (defined($hash->{roles}->{tusk_session_eval_admin}->{$school})) {
+	return($hash->{roles}->{tusk_session_eval_admin}->{$school});
+    } elsif(defined($hash->{roles}->{tusk_session_eval_admin}->{lc($school)})) {
+	return($hash->{roles}->{tusk_session_eval_admin}->{lc($school)});
+    } elsif(defined($hash->{roles}->{tusk_session_eval_admin}->{uc($school)})) {
+	return($hash->{roles}->{tusk_session_eval_admin}->{uc($school)});
+    } else {
+	return(0);
+    }
 }
 
 # Get sorted list of schools for which current session user has admin
@@ -156,7 +151,7 @@ sub get_schools {
     return @admin_schools;
 }
 
-# Get sorted list of schools for which current session user has eval admin
+# Get sorted list ofx schools for which current session user has eval admin
 sub get_eval_schools {
     my ($session_hashref,) = @_;
 
@@ -217,9 +212,13 @@ sub check_content_permissions{
 }
 
 sub is_tusk_admin{
-	my $user_id = shift;
-	unless($user_id) {return 0;}
-	foreach(@TUSK::Constants::siteAdmins) {  if($user_id eq $_) {return 1;}  }
-	return 0;
+    my $user_id = shift;
+    return 0 unless ($user_id);
+
+    foreach (@TUSK::Constants::siteAdmins) { 
+	return 1 if ($user_id eq $_);
+    }
+    return 0;
 }
+
 1;

@@ -28,7 +28,6 @@ use Forum::Board;
 use Forum::Permission;
 use Forum::BoardAdmin;
 use Forum::ForumKey;
-use Data::Dumper;
 
 use strict;
 
@@ -49,7 +48,7 @@ sub addedit_process{
     my $groupId = $fdat->{usergroup} || 0;
 
     my ($boardKey, $categoryKey, $categoryId, $categoryName);
-    my ($timeperiod, $courseId);
+    my ($time_period_id, $courseId);
     
     # Construct boardKey and categoryKey values based on what kind of board we are adding/editing.
 	if ($req->{type} eq "school")
@@ -61,8 +60,8 @@ sub addedit_process{
 	{
 		$courseId = $req->{course_id} || 0;
 		$categoryKey = ($req->{course}->type() =~ /group|thesis committee/i)? "$courseId-0-0" : "0-0-0";
-		$timeperiod = $udat->{timeperiod} || 0;
-		$boardKey = Forum::ForumKey::createBoardKey($schoolId,$courseId,$timeperiod,$groupId);
+		$time_period_id = $udat->{timeperiod} || 0;
+		$boardKey = Forum::ForumKey::createBoardKey($schoolId,$courseId,$time_period_id,$groupId);
 	}
 	else
 	{
@@ -112,9 +111,9 @@ sub addedit_process{
 	    $board->lookupKey($req->{discussion_id});
 	}
     elsif ($req->{type} eq 'course'){
-	my $timeperiod = $udat->{timeperiod} || 0;
-	if ($timeperiod){
-	    my $time_period_obj = HSDB45::TimePeriod->new( _school => $req->{school})->lookup_key($timeperiod);
+	my $time_period_id = $udat->{timeperiod} || 0;
+	if ($time_period_id){
+	    my $time_period_obj = HSDB45::TimePeriod->new( _school => $req->{school})->lookup_key($time_period_id);
 	    $board->setStartDate($time_period_obj->field_value('start_date'));
 	    $board->setEndDate($time_period_obj->field_value('end_date'));
 	}
@@ -169,19 +168,17 @@ sub addedit_process{
 		add_moderator($boardId, $req->{user}->primary_key());
 
 		if ($req->{type} eq "course") {
-			my @users = $req->{course}->child_users();
-			foreach my $user (@users) {
-				next if ($user->primary_key() eq $req->{user}->primary_key());
+			foreach my $user (@{$req->{course}->users($time_period_id)}) {
+				next if ($user->getPrimaryKeyID() eq $req->{user}->primary_key());
 
-				my %user_hash = map {$_=>1} split (',', $user->aux_info('roles'));
-				if ($user_hash{'Director'} || $user_hash{'Manager'}) {
-					add_moderator($boardId, $user->primary_key());
+				if ($user->hasRole('director') || $user->hasRole('manager')) {
+					add_moderator($boardId, $user->getPrimaryKeyID());
 				}
 				elsif(!$fdat->{thesis_comm}){
-					add_user($boardId, $user->primary_key(), "User");
+					add_user($boardId, $user->getPrimaryKeyID(), "User");
 				}
 				else{
-					add_user_thesis_comm($user, $fdat->{thesis_comm}, $req->{course}, $boardId);
+					add_user_thesis_comm($user->getPrimaryKeyID(), $fdat->{thesis_comm}, $req->{course}, $boardId);
 				}
 			}
 		}
@@ -203,7 +200,7 @@ sub addedit_process{
 # this way, if thesis comm goes away, or is severely altered, this logic is easily
 # 'untied' from code.
 sub add_user_thesis_comm{
-	my ($user, $committee, $course, $boardId) = @_;
+	my ($user_id, $committee, $course, $boardId) = @_;
 
 	# don't want 'users' added to advisor student group
 	if($committee eq 'Advisor-Student'){
@@ -212,8 +209,8 @@ sub add_user_thesis_comm{
 	# student is also a user with role 'student-editor', so don't add them
 	# to 'advisor-committee' or 'all' discussions as a user. let their 
 	# identity as student have precedence
-	elsif(!$course->is_child_student($user->primary_key())){
-		add_user($boardId, $user->primary_key(), "User");
+	elsif(!$course->is_child_student($user_id)){
+		add_user($boardId, $user_id, "User");
 	}
 	# ban students from this group
 	elsif($committee eq 'Advisor-Committee'){
@@ -221,7 +218,7 @@ sub add_user_thesis_comm{
 		foreach my $student (@students){
 			add_user($boardId, $student->primary_key(), "Banned");
 		}
-	}
+       }
 }
 
 
@@ -314,7 +311,6 @@ sub users_process{
     my $sth = $dbh->prepare("DELETE FROM mwforum.boardAdmins WHERE boardId = ?");
     $sth->execute(int($forum_id));
 
-    #print Dumper @users;
     foreach my $user (@users){
 	if ($user->{permissions} eq "Moderator") {
 	    add_moderator(int($forum_id), $user->{userid});

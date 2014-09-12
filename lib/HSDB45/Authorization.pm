@@ -65,7 +65,6 @@ sub can_user_view_content {
     my $user_id = shift;
     my $content = shift;
 
-
     # Return access if there is no content passed
     # this allows the missing page handler to take care of the 
     # problem
@@ -114,7 +113,7 @@ sub can_user_view_content {
     my $course = $content->course;
     ## likewise for course faculty
     if ($access eq 'Course Faculty' || $access eq 'Course Users') {
-	return 1 if ($course->user_primary_role($user_id));
+	return 1 if ($course->user_has_role($user_id));
 	return 0 if ($access eq 'Course Faculty');
     }
     ## remaining status is restricted users or read_access to Course Users

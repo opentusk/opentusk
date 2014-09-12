@@ -69,6 +69,7 @@ sub new {
 					'role_token' => '',
 					'role_desc' => '',
 					'feature_type_id' => '',
+					'virtual_role' => ''
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -180,6 +181,37 @@ sub setFeatureTypeID{
 
 
 
+#######################################################
+
+=item B<getVirtualRole>
+
+my $string = $obj->getVirtualRole();
+
+Get the value of the virtual_role field
+
+=cut
+
+sub getVirtualRole{
+    my ($self) = @_;
+    return $self->getFieldValue('virtual_role');
+}
+
+#######################################################
+
+=item B<setVirtualRole>
+
+$obj->setVirtualRole($value);
+
+Set the value of the virtual_role field
+
+=cut
+
+sub setVirtualRole{
+    my ($self, $value) = @_;
+    $self->setFieldValue('virtual_role', $value);
+}
+
+
 =back
 
 =cut
@@ -248,9 +280,9 @@ Returns all the roles and associated functions for a particular $feature_type_to
 =cut
 
 sub getRoles{
-    my ($self, $feature_type_token) = @_;
+    my ($self, $feature_type_token, $sort_order) = @_;
     my $roles = $self->lookup("permission_feature_type.feature_type_token='" . $feature_type_token . "'", 
-			      undef, 
+			      $sort_order,
 			      undef, 
 			      undef, 
 			      [ 

@@ -74,22 +74,24 @@ sub email_process {
 		}
     } else { ### email students in a course for a given time period
 		if (ref $course eq 'HSDB45::Course' && $timeperiod_id) {
-			$course->email_child_users($fdat->{subject}, $data->{email_from}, $timeperiod_id, $fdat->{body});
+			$course->email_students($fdat->{subject}, $data->{email_from}, $timeperiod_id, $fdat->{body});
 		}
     }
 
-    if ($fdat->{sendself}){
+    if ($fdat->{sendself}) {
 		$user->send_email_from($data->{email_from});
 		$user->send_email($fdat->{subject}, $fdat->{body});
     }
 
-    if ($fdat->{senddirectors} && ref $course eq 'HSDB45::Course'){
-		my @users = $course->child_users;
-		foreach my $userx (@users){
-			next if ($fdat->{sendself} and $user->primary_key eq $userx->primary_key);
-			if ($userx->aux_info('roles') =~ /Director/ or $userx->aux_info('roles') =~ /Manager/){
-				$userx->send_email_from($data->{email_from});
-				$userx->send_email($fdat->{subject}, $fdat->{body});
+    if ($fdat->{senddirectors} && ref $course eq 'HSDB45::Course') {
+		my $course_users = $course->users($timeperiod_id);
+		foreach my $course_user (@$course_users) {
+			my $course_user_id = $course_user->getPrimaryKeyID();
+			next if ($fdat->{sendself} && ($course_user_id eq $user->primary_key()));
+			if ($course_user->hasRole(['director', 'manager'])) {
+				my $user = HSDB4::SQLRow::User->new()->lookup_key($course_user_id);
+				$user->send_email_from($data->{email_from});
+				$user->send_email($fdat->{subject}, $fdat->{body});
 			}
 		}
     }

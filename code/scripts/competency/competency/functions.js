@@ -53,7 +53,7 @@ function linkSchoolNational (link, params) {
 	$("#link-dialog").data("currentIndex", liNode.id);
 	competencyId1 = liNode.id.split('_')[0];
 	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'national'}, initLinkDialog());
-	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, width: 850, height: 600, minHeight: 450, resizable: false});
+	$("#link-dialog-wrapper").dialog({dialogClass: 'competency_link_dialog', position: {my: "center", at: "top" }, width: 850, height: 700, minHeight: 450, resizable: false});
 }
 
 function linkCourseSchool (link, params) {
