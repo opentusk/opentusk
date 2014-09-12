@@ -28,7 +28,6 @@ sub new {
 	competency_id => $args->{competency_id},
 	title => $args->{title},
 	description => $args->{description},
-	uri => $args->{uri},
 	user_type_id => $args->{user_type_id},
 	school_id => $args->{school_id},
 	competency_level_enum_id => $args->{competency_level_enum_id},
@@ -142,7 +141,6 @@ sub update {
     $competency->setFieldValues ({
 	title => (defined $self->{title}) ? $self->{title}: $competency->getTitle,
 	description => (defined $self->{description}) ? $self->{description}: $competency->getDescription,
-	uri => (defined $self->{uri}) ? $self->{uri}: $competency->getUri,
 	competency_user_type_id => (defined $self->{user_type_id}) ? $self->{user_type_id}: $competency->getCompetencyUserTypeID,
 	school_id => (defined $self->{school_id}) ? $self->{school_id}: $competency->getSchoolID,
 	competency_level_enum_id => (defined $self->{competency_level_enum_id}) ? $self->{competency_level_enum_id}: $competency->getCompetencyLevelEnumID,
@@ -168,7 +166,6 @@ sub add {
     $competency->setFieldValues({
 	title => $self->{title},
 	description => $self->{description},
-	uri => $self->{uri},
 	competency_user_type_id => $self->{user_type_id},
 	school_id => $self->{school_id},
 	competency_level_enum_id => $self->{competency_level_enum_id},
@@ -194,7 +191,6 @@ sub addChild {
     $child_competency->setFieldValues({    
 	title => $self->{title},
 	description => $self->{description},
-	uri => $self->{uri},
 	competency_user_type_id => $self->{user_type_id},
 	school_id => $self->{school_id},
 	competency_level_enum_id => $self->{competency_level_enum_id},

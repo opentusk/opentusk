@@ -1566,6 +1566,7 @@ sub _grade_categories {
     my ($self, $student_grades) = @_;
     my $category = {};
     my $id_list = _unique_category_ids($student_grades);
+    return $category unless @$id_list; # BUG: empty list causes SQL syntax error
     my $id_prep = sql_prep_list(@$id_list);
     my $sql = <<"END_SQL";
         SELECT gc.grade_category_id,
