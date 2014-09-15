@@ -22,6 +22,9 @@ use TUSK::Constants;
 use TUSK::Content::External::MetaData;
 use TUSK::Content::External::Field;
 use TUSK::Content::External::LinkContentField;
+use TUSK::Competency::Competency;
+use TUSK::Competency::Content;
+use TUSK::Application::Competency::Competency;
 
 use strict;
 
@@ -152,6 +155,37 @@ sub reuse_content{
 sub create_objectives{
     my ($oldcontent, $newcontent) = @_;
     my ($rval, $msg, $i);
+    
+    my $oldcontent_id = $oldcontent->primary_key;
+    my $competencies = TUSK::Competency::Competency->lookup("content_id =". $oldcontent_id, ['competency_id'], undef, undef,
+							    [TUSK::Core::JoinObject->new("TUSK::Competency::Content", 
+							    {origkey => 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);
+    my $school = $newcontent->field_value('school');
+    my $school_id = TUSK::Core::School->lookupReturnOne("school_name =\"$school\"")->getPrimaryKeyID;
+    foreach my $competency (@{$competencies}){
+	my $competency_args = {
+					title => $competency->getTitle,
+					description => $competency->getDescription,
+					user_type_id => $competency->getCompetencyUserTypeID,
+					school_id => $school_id,
+					competency_level_enum_id => $competency->getCompetencyLevelEnumID,
+					version_id => $school_id,
+				};
+
+	my $this_competency = TUSK::Application::Competency::Competency->new($competency_args);				
+	my $new_competency_id = $this_competency->add();
+
+	my $competency_objective = TUSK::Competency::Content->new();
+				
+	$competency_objective->setFieldValues({
+	    competency_id => $new_competency_id,
+	    content_id => $newcontent->primary_key(),
+	    sort_order => 0
+        });		
+	$competency_objective->save();
+    }
+	   
+=for
     my @objectives = $oldcontent->child_objectives;
     foreach my $objective (@objectives){
 	$i = $i + 10;
@@ -159,6 +193,8 @@ sub create_objectives{
 	return (0, $msg) unless (defined($rval));
     }
     return (1);
+=cut
+
 }
 
 sub create_keywords{
