@@ -334,6 +334,8 @@ sub author_courses {
     my $self = shift;
     my @conds = @_;
     push @conds, "order by parent.course_id";
+    push @conds, "roles <>\"\""; #ignore faculty and staff with no_roles
+
 
     my @courses = ();
     # If we are a ghost user we have to do something slightly different here
