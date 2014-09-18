@@ -100,8 +100,8 @@
 
 	my $args = \%ARGS;
 
-	unless ($tp_id) {
-		my $errmsg = __('No "eternity" time period with appropriate end date.');
+	unless ($tp_id > 0) {
+		my $errmsg = __('No appropriate time period.');
 		$errmsg .= '<br>' . __('Please see administrator for assistance.');
        		$m->comp('/tmpl/error', msg=>$errmsg);
 	}
@@ -114,15 +114,16 @@
 				my $ug_id = $args->{$key};
 				my $ug = HSDB45::UserGroup->new( _school => $school->getSchoolName() )->lookup_key($ug_id);
 				if ($ug->primary_key()) {
-					$master_msg .= $m->comp('SELF:add_members', [members => $ug->child_users()]);
+					my @members = $ug->child_users();
+					$master_msg .= $m->comp('SELF:add_members', 'members' => \@members);
 				} else {
-					$master_msg .= __("No User Group found with name") . "'$1'<br/>";
+					$master_msg .= __("No user group found with name") . "'$1'<br/>";
 				}
 			}
 		}
 
 		if ($master_msg) {
-        		$m->comp('/tmpl/error', msg=>$master_msg, destination=>'/management/course/users/addgroupmembers/course/' . $school->getSchoolName() . '/' . $course->primary_key());
+        		$m->comp('/tmpl/error', msg => $master_msg, destination => '/management/course/users/addgroupmembers/' . $school->getSchoolName() . '/' . $course->primary_key());
 		} else {
 			$master_msg = __("Users successfully added.");
 			$m->comp('/tmpl/wizard:do_next',
@@ -140,13 +141,11 @@
 	$members
 </%args>
 <%perl>
-	my $self = shift;
-
 	my $u = $HSDB4::Constants::db_username;
 	my $p = $HSDB4::Constants::db_password;
 
-	my %seen_users = map { $_->primary_key() => 1 } $self->child_users();
-	my %seen_students = map { $_->primary_key() => 1 }  $self->child_students();
+	my %seen_users = map { $_->getPrimaryKeyID() => 1 } @{$course->users($tp_id)};
+	my %seen_students = map { $_->primary_key() => 1 }  $course->child_students();
 
 	my $app = TUSK::Application::Course::User->new({course => $course});
 	my $role = TUSK::Permission::Role->lookupReturnOne("role_token = 'author'", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', joincond => "feature_type_token = 'course'", }) ]);
@@ -162,11 +161,11 @@
 			});
 		}
 
-		if ($ret_val == 1 && !$seen_students{$member->primary_key()}) {
+		if ($ret_val && !$seen_students{$member->primary_key()}) {
 		    	($ret_val, $msg) = $course->add_child_student($u, $p, $member->primary_key(), $tp_id, '');
 		}
 
-		$master_msg .= "$msg<br/>" if ($ret_val == 0);
+		$master_msg .= "$msg<br/>" unless ($ret_val);
     }
     return $master_msg;
 </%perl>
@@ -196,32 +195,3 @@
 	return \%someHash;
 </%perl>
 </%method>
-
-
-<%doc>
-sub add_child_members {
-    #
-    # Add a user to this course as a User with role "editor" and as a student 
-    # This is key for 'group' courses where users must have both roles
-    #
-
-    my $self = shift;
-    my ($u, $p, $members, $tp_id, $ts) = @_;
-
-    my %seen_users = map { $_->primary_key() => 1 } $self->child_users();
-    my %seen_students = map { $_->primary_key() => 1 }  $self->child_students();
-
-    my ($master_msg, $ret_val, $msg);
-    foreach my $m (@$members){
-	$ret_val = 1;
-	unless ($seen_users{$m->primary_key()}) {
-	    ($ret_val, $msg) = $app->add($u, $p, $m->primary_key(), '65535', $ts, 'author');
-	}
-	if ($ret_val == 1 && !$seen_students{$m->primary_key()}) {
-	    ($ret_val, $msg) = $self->add_child_student($u, $p, $m->primary_key(), $tp_id, $ts);
-	}
-	$master_msg .= "$msg<br/>" if ($ret_val == 0);
-    }
-    return $master_msg;
-}
-</%doc>
