@@ -392,7 +392,7 @@ function actionstring(action,id){
 			string += '<a class="navsm" id="' + linkid + '" href="javascript:';
 			if (action['functions'][k]['prompt'] == 'Yes'){
 				var act = action['functions'][k]['label'].toLowerCase();
-				var msg = _x("'Are you sure you want to {action}?'", {'action' : act });
+				var msg = _x("'Are you sure you want to " + act + "?'");
 				string += '{if (confirm(' + msg +  ')){';
 			}
 			string += link_action + '(\'' + this.layer + '\', ' + id;

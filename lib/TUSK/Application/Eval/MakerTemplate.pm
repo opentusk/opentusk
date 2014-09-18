@@ -116,13 +116,43 @@ sub getCoursesInfoBySite {
 	my $tp_id = $self->{time_period}->primary_key();
 	my @courses;
 
+#	my $sql = qq(
+#		SELECT a.parent_course_id, title, code, a.teaching_site_id, site_name,
+#			(SELECT group_concat(concat(firstname, ' ', lastname) SEPARATOR '; ') 
+#			FROM $dbname.link_course_user cs, hsdb4.user u
+#			WHERE cs.child_user_id = u.user_id and a.parent_course_id = cs.parent_course_id and roles in ('Director') # do you see a bug here?
+#			GROUP BY parent_course_id)
+#		as faculty_name, 
+#			(SELECT count(*) 
+#			FROM $dbname.eval e 
+#			WHERE parent_course_id = e.course_id AND e.time_period_id = $tp_id AND a.teaching_site_id = e.teaching_site_id) 
+#		as evalcount
+#		FROM $dbname.link_course_student a 
+#		LEFT OUTER JOIN tusk.course_code as b
+#		on (b.course_id = a.parent_course_id and a.teaching_site_id = b.teaching_site_id and school_id = $school_id) 
+#		INNER JOIN $dbname.course as c on (c.course_id = a.parent_course_id)
+#		LEFT OUTER JOIN $dbname.teaching_site as d on (d.teaching_site_id = a.teaching_site_id)
+#		WHERE time_period_id = $tp_id
+#		GROUP BY a.parent_course_id, a.teaching_site_id ORDER BY evalcount ASC
+#	);
+
 	my $sql = qq(
-		SELECT a.parent_course_id, title, code, a.teaching_site_id, site_name,
-			(SELECT group_concat(concat(firstname, ' ', lastname) SEPARATOR '; ') 
-			FROM $dbname.link_course_user cs, hsdb4.user u
-			WHERE cs.child_user_id = u.user_id and a.parent_course_id = cs.parent_course_id and roles in ('Director')
-			GROUP BY parent_course_id)
-		as faculty_name, 
+		SELECT a.parent_course_id, title, code, a.teaching_site_id, site_name, (
+			SELECT
+				group_concat(concat(firstname, ' ', lastname) SEPARATOR '; ') 
+			FROM
+				tusk.course_user as T1 
+				inner join hsdb4.user as T2 on (T2.user_id = T1.user_id)
+				left join tusk.permission_user_role as T3 on (T3.feature_id = T1.course_user_id)
+				left join tusk.permission_role as T4 on (T4.role_id = T3.role_id)
+			WHERE
+				T1.school_id = $school_id and
+				T1.course_id = a.parent_course_id and
+				T1.time_period_id = $tp_id and
+				T4.role_token in ('director')
+			GROUP BY
+				T1.course_id
+		) as faculty_name, 
 			(SELECT count(*) 
 			FROM $dbname.eval e 
 			WHERE parent_course_id = e.course_id AND e.time_period_id = $tp_id AND a.teaching_site_id = e.teaching_site_id) 
@@ -137,8 +167,10 @@ sub getCoursesInfoBySite {
 	);
 
 	my $sth = $self->{school}->databaseSelect($sql);
-	my $results = $sth->fetchall_arrayref();
-	$sth->execute();
+
+	# unnecessary
+	# my $results = $sth->fetchall_arrayref();
+	# $sth->execute();
 
     while (my ($course_id, $title, $code, $site_id, $site_name, $faculty_name, $eval_exists) = $sth->fetchrow_array) {
 		my $codes = TUSK::Core::CourseCode->new()->lookup("code = '" . $code . "' and school_id = " . $school_id);

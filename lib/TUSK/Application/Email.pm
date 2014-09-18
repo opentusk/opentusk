@@ -38,6 +38,7 @@ sub send {
 	my $mailhash = { 
 		To => $self->{to_addr},
 		From => $self->{from_addr},
+		Cc => $self->{cc_addr},
 		Subject => $self->{subject},
 		Message => $self->{body},
 	};
@@ -80,7 +81,7 @@ sub fixUTF8 {
 	if ($contains_utf8) {
 		foreach my $key (keys(%$mailhash)) {
 			#Do MIME header encoding on email header fields.
-			if ($key =~ m/(to|from|subject)/i) {
+			if ($key =~ m/(to|from|cc|subject)/i) {
 				$mailhash->{$key} = Encode::encode("MIME-Header", $mailhash->{$key});
 			}
 

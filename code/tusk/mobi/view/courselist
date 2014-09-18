@@ -64,20 +64,20 @@
 <%perl>
 	my (@author_courses, @committees);
 	foreach my $course ($user->author_courses()) {
-		if ($course->type() eq 'committee' || $course->type() eq 'thesis committee') {
+		if ($course->getType() eq 'committee' || $course->getType() eq 'thesis committee') {
 			push @committees, $course;
-		} elsif ($course->type() eq 'community service' or $course->type() eq 'course') {
+		} elsif ($course->getType() eq 'community service' or $course->getType() eq 'course') {
 			push @author_courses, $course;
 		}  
 	}
 </%perl>
 
 % if (@author_courses || @committees){
-<!-- section with speficically linked courses as an author (link_course_user) -->
+<!-- section with speficically linked courses as an author (course_user) -->
 <h4 class="homepageHdr">Course Admin</h4>
 <ul class="gNoBullets courseList">
 %	foreach my $course (@author_courses){
-<li><a href="<% $link_prefix %>/<% $course->school ."/". $course->primary_key %>"><% $course->out_label %></a> (<% $course->school %>)</li>
+<li><a href="<% $link_prefix %>/<% $course->getJoinObject("TUSK::Core::School")->getFieldValue('school_name') ."/". $course->getPrimaryKeyID %>"><% $course->outTitle %></a> (<% $course->getJoinObject("TUSK::Core::School")->getFieldValue('school_name') %>)</li>
 %	}
 %	if (!@author_courses) {
 <li><em><% __('No Courses') %></em></li>
@@ -86,7 +86,7 @@
 <h4 class="homepageHdr">Committees</h4>
 <ul class="gNoBullets courseList">
 %	foreach my $committee (@committees){
-<li><a href="<% $link_prefix %>/<% $committee->school ."/". $committee->primary_key %>"><% $committee->out_label %></a> (<% $committee->school %>)</li>
+<li><a href="<% $link_prefix %>/<% $committee->getJoinObject("TUSK::Core::School")->getFieldValue('school_name') ."/". $committee->getPrimaryKeyID %>"><% $committee->outTitle %></a> (<% $committee->getJoinObject("TUSK::Core::School")->getFieldValue('school_name') %>)</li>
 %	}
 %	if (!@committees) {
 <li><em><% __('No Committees') %></em></li>

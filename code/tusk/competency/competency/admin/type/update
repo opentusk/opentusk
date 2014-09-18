@@ -1,0 +1,68 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%once>
+	use TUSK::Core::School;
+	use TUSK::Competency::UserType;
+	use TUSK::Competency::Competency;
+	use TUSK::Enum::Data;
+</%once>
+
+<%perl>
+	my $school = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->comp("/tmpl/url:get_last_path_id") . "'");
+	my $school_id = $school->getFieldValue('school_id');
+	my $type;
+
+	if ($ARGS{'id'} =~ /^new_child_of_/) {
+		$type = TUSK::Competency::UserType->new();
+	} else {
+		my $id = $ARGS{'id'};
+		$id =~ s/_[\d]+//;
+		$type = TUSK::Competency::UserType->new()->lookupKey($id);
+	}
+
+	print "{\n";
+
+	if ($ARGS{'delete'}) {
+		if (scalar(@{TUSK::Competency::Competency->lookup("competency_user_type_id = " . $type->getPrimaryKeyID)})) {
+			print "\"error\" : \"".__("This cannot be deleted because there are currently competencies of this type.")."\"\n";
+		} else {
+			$type->delete({user => $m->session->{'user'}->user_id});
+			print "\"error\" : \"\"\n";
+		}
+	} else {
+		$type->setSchoolID($school_id);
+		$type->setName($ARGS{'col0'});
+		my $competency_type_enum_id  = TUSK::Enum::Data->new()->lookupReturnOne("display_name =\"". $ARGS{'col1'}."\"");
+		$type->setCompetencyTypeEnumID($competency_type_enum_id->getPrimaryKeyID);
+		$type->save({user => $m->session->{'user'}->user_id});
+
+		print "\"id\"    : \"" . $type->getPrimaryKeyID() . "_" . time() . "\",\n";
+		print "\"error\" : \"\"\n";
+	}
+	print "}";
+</%perl>
+

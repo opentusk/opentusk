@@ -18,6 +18,7 @@ package HSDB4::Constants;
 use strict;
 use DBI;
 use TUSK::Constants;
+use TUSK::Core::School;
 use Sys::Hostname;
 
 BEGIN {
@@ -58,6 +59,7 @@ use vars qw(%URLs %EditURLs %School_Admin_Group %Eval_Admin_Group @image_sizes);
 
 
 %URLs = ( 'HSDB4::SQLRow::User' => '/view/user',
+	  'TUSK::Core::HSDB4Tables::User' => '/view/user',
 	  'HSDB4::SQLRow::Content' => '/view/content',
 	  'HSDB4::SQLRow::Content::Slide' => '/view/content',
 	  'HSDB4::SQLRow::Content::TUSKdoc' => '/view/content',
@@ -78,7 +80,7 @@ use vars qw(%URLs %EditURLs %School_Admin_Group %Eval_Admin_Group @image_sizes);
 	  'HSDB4::SQLRow::PersonalContent::Discussion' => '/management/content/personalcontent',
 	  'HSDB4::SQLRow::Content::External' => '/view/content',
 	  'HSDB45::Course' => '/view/course',
-	  'HSDB45::Eval' => '/protected/eval/complete',
+	  'HSDB45::Eval' => '/protected/eval/student/complete',
 	  'HSDB45::UserGroup' => '/view/usergroup',
 	  'HSDB45::ClassMeeting' => '/view/course',
 	  'daygif' => '/daygif',
@@ -163,6 +165,13 @@ sub code_by_school {
 
 sub school_db_list {
     return map { get_school_db($_) } keys %TUSK::Constants::Schools;
+}
+
+sub getSchoolObject {
+    use Data::Dumper;
+    my $schools = join(",", map { "'$_'" } schools());
+    my $school_object = TUSK::Core::School->new()->lookup("school_name in ($schools)");
+    return $school_object;
 }
 
 sub get_school_db {

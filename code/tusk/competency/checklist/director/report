@@ -1,0 +1,59 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%once>
+	use TUSK::Application::Competency::Checklist;
+</%once>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	columns => [ 
+		{'label' => __('Name'), 'field' => 'name'},
+		{'label' => __('Total Completed') . '<br/>(' . __('out of') . " $total_checklists)", 'field' => 'total_completed', align => 'center'},
+		{'label' => '% ' . __('Total Completed'), 'field' => 'total_completed_pcnt', align => 'center', html => 1},
+		{'label' => __('Total Mandatory Completed') . '<br/>(' . __('out of') . " $total_required_checklists)", 'field' => 'total_required_completed', align => 'center'},
+		{'label' => '%' . __('Total Mandatory Completed'), 'field' => 'total_required_completed_pcnt', align => 'center', html => 1},
+		{'label' => __('Student Status'), 'field' => 'action', align => 'center'},
+	],
+	rows => [ map { {    
+			name => $data->{$_}{name},
+			total_completed => $data->{$_}{total_completed} || 0,
+			total_completed_pcnt => sprintf("%.0f", ($data->{$_}{total_completed} / $total_checklists) * 100) . '<span class="xxsm">%</span>',
+			total_required_completed => $data->{$_}{total_required_completed} || 0, 
+			total_required_completed_pcnt => sprintf("%.0f", ($data->{$_}{total_required_completed} / $total_required_checklists) * 100)  . '<span class="xxsm">%</span>',
+			action => '<a href="/competency/checklist/director/view/' . $m->comp("/tmpl/url:get_type_path") . "/$checklist_group_id/$_/$tp_id\">" . __('view') . '</a>',
+		} } sort { "\L$data->{$a}{name}" cmp "\L$data->{$b}{name}" } (keys %$data) ],
+	name => "checklistsreport",
+	'norows-message' => __('No data'),
+	border_bottom_tr => 1,
+} &>
+
+<%init>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my ($checklist_group_id) = $m->comp("/tmpl/url:get_last_path_id");
+	my $tp_id = $m->comp("SELF:get_timeperiod_id");
+	my $app = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
+	my ($data, $total_checklists, $total_required_checklists) = $app->getSummaryReport($tp_id, $course);
+</%init>
+
+
+<%method title>
+%	return __('Competency Checklists Report');
+</%method>

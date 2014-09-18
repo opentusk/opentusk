@@ -53,6 +53,7 @@
   <xsl:template match="SmallGroupsInstructor">
     <xsl:variable name="qid" select="../@eval_question_id" />
     <xsl:variable name="answer" select="document($answerXml)/EvalAnswers/eval_answer[@qid=$qid]" />
+    <xsl:variable name="time_period_id" select="/Eval/@time_period_id"/>
     <xsl:comment> Question ID : <xsl:value-of select="$qid" /></xsl:comment>
     <xsl:comment> Answer : <xsl:value-of select="$answer"/></xsl:comment>
     <xsl:param name="label"><xsl:value-of select="../question_label"/></xsl:param>
@@ -65,7 +66,7 @@
       <xsl:call-template name="question_text"/>
       <select name="eval_q_{$qid}" onChange="satisfy({$qid},'select')">
         <option value="">&lt;&lt; Choose Instructor &gt;&gt;</option>
-        <xsl:for-each select="document($courseXml)/course/faculty-list/course-user[course-user-role[@role='Instructor']]">
+        <xsl:for-each select="document($courseXml)/course/faculty-list/time-period[@id=$time_period_id]/course-user[course-user-role[@role='instructor']]">
           <xsl:variable name="val" select="@user-id"/>
           <option value="{$val}">
             <xsl:if test="$answer = $val">

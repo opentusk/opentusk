@@ -167,7 +167,7 @@ sub addedit_process{
 					 $req->{announcement}->primary_key) if ($flag == 1 or $fdat->{action} eq "add");
 	return ($rval, $msg) if ($rval == 0);
 	my $timeperiod = TUSK::Functions::get_time_period($req, $udat);
-	($rval, $msg) = $req->{course}->email_child_users("Announcement for '".$req->{course}->field_value('title')."'",$email_from,$timeperiod,
+	($rval, $msg) = $req->{course}->email_students("Announcement for '".$req->{course}->field_value('title')."'",$email_from,$timeperiod,
 					  "<html><body>Announcement: $text<br>\nStart Date: $start<br>\nEnd Date: $expire<br>\n</body></html>") if ($fdat->{email});
 	return ($rval, $msg) if ($msg);
     }

@@ -15,12 +15,11 @@
 </%doc>
 <%attr>
 	top_tab_type            => 'manage'
-    default_path_type	=> 'course'
+	default_path_type	=> 'course'
 </%attr>
 
 <%once>
 	use TUSK::Constants;
-	use Data::Dumper;
 </%once>
 
 <%shared>
@@ -98,51 +97,42 @@
 
 	my @contents =@{$course->child_contentref};
 	my $contents_count=scalar(@contents);
-	my @directors;
-	my @directors_names;
-	my $name_str;
 	my $is_director = $m->comp("SELF:check_course_permissions", token => 'DIRECTOR');
 	my $user_id = $m->comp('SELF:user');
 	my $user_object = HSDB4::SQLRow::User->new->lookup_key($user_id);
 	my $courserole = TUSK::Session::course_user_role($course, $user_id);
 
-if ($is_director){
-	unless(scalar(@contents)){
-		$ARGS{hintmsg} = __("To upload new content use the navy blue buttons below.<br>&nbsp;For administration functions use the links on the left.");
-	}
-}
-else{
-	@directors = $course->child_users("FIND_IN_SET('director', roles)");
-	my @director_names = map {$_->out_full_name()} @directors;
-	$name_str = join ", ", @director_names;
-	unless(scalar(@contents)){
-		$ARGS{hintmsg} = __x("You do not have permission to upload to the main course page.<br>&nbsp;Please contact the course director ({director_names}).", director_names => $name_str);	
-	}
-	else{
-		$ARGS{hintmsg} = __x("You do not have permission to upload to the main course page.<br>&nbsp;Please select a folder or contact the course director ({director_names}).", director_names => $name_str);	
-	}
-}
+	if ($is_director) {
+		unless (scalar @contents) {
+			$ARGS{hintmsg} = __("To upload new content use the navy blue buttons below.<br>&nbsp;For administration functions use the links on the left.");
+		}
+	} else {
+		my $name_str = join(', ', map { $_->outFullName() } @{ $course->users(-1, "role_token = 'director'") });
 
-# change sort order!
-if ($ARGS{order}){
-	my ($index,$insert)=split('-',$ARGS{order});
-	
-	splice(@contents, ($insert-1), 0,splice(@contents,($index-1),1));
-	
-	my $link = $course->content_link;
+		if (scalar @contents) {
+			$ARGS{hintmsg} = __x("You do not have permission to upload to the main course page.<br>&nbsp;Please select a folder or contact the course director ({director_names}).", director_names => $name_str);	
+		} else {
+			$ARGS{hintmsg} = __x("You do not have permission to upload to the main course page.<br>&nbsp;Please contact the course director ({director_names}).", director_names => $name_str);	
+		}
+	}
 
-	for( my $i=0; $i<$contents_count;$i++){
-		my ($r, $t_err_msg) = $link->update(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
+	# change sort order!
+	if ($ARGS{order}){
+		my ($index,$insert)=split('-',$ARGS{order});
+		splice(@contents, ($insert-1), 0,splice(@contents,($index-1),1));
+		my $link = $course->content_link;
+
+		for (my $i=0; $i<$contents_count;$i++) {
+			my ($r, $t_err_msg) = $link->update(-user => $TUSK::Constants::DatabaseUsers->{ContentManager}->{writeusername},
 					-password=> $TUSK::Constants::DatabaseUsers->{ContentManager}->{writepassword},
 					-parent_id => $course_id,
 					-child_id => $contents[$i]->primary_key,
 					sort_order => 10*($i+1),
-				);
+			);
+		}
+		delete($ARGS{order});
+		$ARGS{msg}=__("Order Successfully Changed");
 	}
-	delete($ARGS{order});
-	$ARGS{msg}=__("Order Successfully Changed");
-}
-
 </%init>
 
 <%method jsarray>

@@ -25,33 +25,6 @@
 	my $type_path = $m->comp('/tmpl/url:get_type_path');
 </%shared>
 
-<%method title>
-%	return __("Export Course");
-</%method>
-
-<%method red_header_text>
-%	return $m->comp('SELF:title');
-</%method>
-
-<%method stylearray>
-%	return ['/style/style.css', '/style/course_export.css', '/style/calendar-blue.css'];
-</%method>
-
-<%method jsarray>
-%	return ['course_export.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
-</%method>
-
-
-<%method leftnav>
-<%perl>
-	return {
-			component    => "/tmpl/leftnav/admin",
-			type_path    => $type_path,
-			school_name  => $school->getSchoolName(),
-		};
-</%perl>
-</%method>
-
 <& /tmpl/element:form, params => { 
 		method   => 'POST',
 		name     => 'export_type',
@@ -93,18 +66,43 @@
 
 
 <%init>
+	if (defined($ARGS{'submit_check'})) {
+		my $start = $ARGS{start_date};
+		my $end = $ARGS{end_date};
 
-if(defined($ARGS{'submit_check'})){
-	my $start = $ARGS{start_date};
-	my $end = $ARGS{end_date};
-
-	if(defined($ARGS{'export_selected'})){
-		my $msg = __('Please examine course content below to be sure that only desired content is packaged.');  
-		$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'hintmsg', destination => "/management/course/export/select_content/$type_path?start=$start&end=$end");
+		if (defined($ARGS{'export_selected'})) {
+			my $msg = __('Please examine course content below to be sure that only desired content is packaged.');  
+			$m->comp('/tmpl/url:redirect', message => $msg, msg_type => 'hintmsg', destination => "/management/course/export/select_content/$type_path?start=$start&end=$end");
+		} elsif (defined($ARGS{'export_all'})) {
+			$m->redirect("/management/course/export/get_content_package/$type_path?export_all=1&start=$start&end=$end");
+		}
 	}
-	elsif(defined($ARGS{'export_all'})){
-		$m->redirect("/management/course/export/get_content_package/$type_path?export_all=1&start=$start&end=$end");
-	}
-}
-
 </%init>
+
+<%method title>
+%	return __("Export Course Content");
+</%method>
+
+<%method red_header_text>
+%	return $m->comp('SELF:title');
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/course_export.css', '/style/calendar-blue.css'];
+</%method>
+
+<%method jsarray>
+%	return ['course_export.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+</%method>
+
+
+<%method leftnav>
+<%perl>
+	return {
+			component    => "/tmpl/leftnav/admin",
+			type_path    => $type_path,
+			school_name  => $school->getSchoolName(),
+		};
+</%perl>
+</%method>
+

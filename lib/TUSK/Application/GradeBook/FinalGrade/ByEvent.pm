@@ -46,7 +46,7 @@ sub calculate {
 			my $weight = $record->getGradeEventObject()->getWeight();
 			my $grade = $record->getGrade();
 			my $max_possible_points = $record->getGradeEventObject()->getMaxPossiblePoints();
-			if (TUSK::Functions::isValidNumber($grade) && TUSK::Functions::isValidNumber($weight)) {
+			if (TUSK::Functions::isValidNumber($grade) && TUSK::Functions::isPositiveNumber($max_possible_points) && TUSK::Functions::isPositiveNumber($weight)) {
 				$final_grade += ($grade/$max_possible_points) * ($weight);
 			}
 		}

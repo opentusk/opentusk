@@ -83,6 +83,12 @@ sub nonpast_time_periods {
 				    'ORDER BY start_date DESC, end_date DESC');
 }
 
+sub future_time_periods {
+    my $self = shift;
+    return $self->lookup_conditions('start_date > curdate() AND end_date > curdate()',
+				    'ORDER BY start_date DESC, end_date DESC');
+}
+
 sub time_periods_for_date {
     my $self = shift;
     my $date = shift;
@@ -230,6 +236,13 @@ sub out_date_range {
 
     my $self = shift;
     return $self->start_date->out_string_date_short_year . " - " . $self->end_date->out_string_date_short_year;
+}
+
+sub out_mysql_date_range {
+    my $self = shift;
+    return ($self->start_date()->has_value() && $self->end_date()->has_value()) 
+	? $self->start_date()->out_mysql_date() . ' to ' . $self->end_date()->out_mysql_date() . ')'
+	: '';
 }
 
 sub out_abbrev {

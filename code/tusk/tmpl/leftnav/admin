@@ -43,6 +43,20 @@
 $school_name
 </%args>
 <script type="text/javascript">
+
+function loadNextPage(){
+	loadingNextPage = document.createElement("div");
+	loadingNextPage.innerHTML = "<div id='loading_courses'> \
+			<div id = 'loading_competencies_text' style='font-size: 14pt;'> \
+				Loading Courses. Please wait... \
+			</div> \
+			<div class = 'spinner'></div> \
+		</div>"
+	
+	document.body.appendChild(loadingNextPage);
+	document.body.insertBefore(loadingNextPage, document.body.firstChild);	
+}
+
 function submit_form(location, querystring){
 	if (querystring){
 		querystring = '?' + querystring;
@@ -69,16 +83,29 @@ function check_links(){
 % }
 		</select></form>
 	</li>
+	<li><a href="javascript:toggle_subnav('acadLevelSubNav', 'acad_level_sub_link');" class="admintext nodots"><% __("Academic Levels") %>&nbsp;|&nbsp;<span id="acad_level_sub_link"><% ($r->uri =~ /^academiclevels/)? '-' : '+' %></span></a>
+		<div id="acadLevelSubNav" class="<% ($r->uri =~ /^academiclevels/)? 'showNav' : 'hideNav' %>">
+			<a href="javascript:submit_form('/tusk/admin/school/academiclevel/addedit')" class="admintext"><% __("Create/Modify Level(s)") %></a>
+			<a href="javascript:submit_form('/tusk/admin/school/academiclevel/linkCourses')" class="admintext link_acad_level_course" onclick="loadNextPage();"><% __("Link Courses") %></a>
+		</div>
+	</li> 
 	<li><a href="javascript:submit_form('/management/announcements/show')" class="admintext"><% __("Announcements") %></a></li>
 	<li><a href="javascript:submit_form('/management/school/users')" class="admintext"><% __("Authorization") %></a></li>
-	<li><a href="javascript:toggle_case_subnav('caseSubNav');" class="admintext nodots"><% __("Case Administrator") %>&nbsp;|&nbsp;<span id="case_sub_link"><% ($r->uri =~ /^\/case\/administrator/)? '-' : '+' %></span></a>
+	<li><a href="javascript:toggle_subnav('caseSubNav', 'case_sub_link');" class="admintext nodots"><% __("Case Administrator") %>&nbsp;|&nbsp;<span id="case_sub_link"><% ($r->uri =~ /^\/case\/administrator/)? '-' : '+' %></span></a>
 		<div id="caseSubNav" class="<% ($r->uri =~ /^\/case\/administrator/)? 'showNav' : 'hideNav' %>">
 			<a href="javascript:submit_form('/case/administrator/batteryshow')" class="admintext"><% __("Manage Categories / Tests") %></a>
 			<a href="javascript:submit_form('/case/administrator/patienttypeshow')" class="admintext"><% __("Manage Patient Types") %></a>
 		</div>
 	</li> 
 	<li><a href="javascript:submit_form('/management/coding/categoryaddedit')" class="admintext"><% __("Classification") %></a></li>
-	<li><a href="javascript:submit_form('/management/competency/list')" class="admintext"><% __("Competencies") %></a></li>
+	<li><a href="javascript:toggle_subnav('compSubNav', 'comp_sub_link');" class="admintext nodots"><% __("Competencies") %>&nbsp;|&nbsp;<span id="comp_sub_link"><% ($r->uri =~ /^competencies/)? '-' : '+' %></span></a>
+		<div id="compSubNav" class="<% ($r->uri =~ /^competencies/)? 'showNav' : 'hideNav' %>">			
+			<a href="javascript:submit_form('/tusk/competency/competency/admin/national/manage')" class="admintext" style="color: black;"><% __("National") %></a>
+			<a href="javascript:submit_form('/tusk/competency/competency/admin/school/manage')" class="admintext" style="color: green;"><% __("School") %></a>
+			<a href="javascript:submit_form('/tusk/competency/competency/admin/course/listCourses')" class="admintext" style="color: #D57025;"><% __("Course") %></a>
+ 			<a href="javascript:submit_form('/tusk/competency/competency/admin/type/manage')" class="admintext"><% __("Manage Types") %></a>
+		</div>
+	</li> 
 	<li><a href="javascript:submit_form('/management/course/modify')" class="admintext"><% __("Create Course") %></a></li>
 	<li><a href="javascript:submit_form('/management/course/modify','type=committee')" class="admintext"><% __("Create&nbsp;Committee") %></a></li>
 	<li><a href="javascript:submit_form('/management/users/add')" class="admintext"><% __("Create User") %></a></li>

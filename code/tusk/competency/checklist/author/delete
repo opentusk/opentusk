@@ -1,0 +1,115 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	hintmsg => __('Do you want to delete this checklist from this course?')
+</%attr>
+
+<%once>
+	use TUSK::Competency::Checklist::Group;
+	use TUSK::Application::Competency::Checklist;
+</%once>
+
+<& /tmpl/element:form, params => { 
+	method => 'POST',
+	name => 'checklistgroupdelete',
+} &>
+
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border => "0",
+	cellspacing => "0",
+	cellpadding => "0" 
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => __('Title'), 
+	value => $checklist_group->getTitle()
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => __('Description'), 
+	value => $checklist_group->getDescription()
+} &>
+
+<& /tmpl/element:field_display, params => {
+	label => __('Posted'), 
+	value => ($checklist_group->getPublishFlag()) ? __('Yes') : __('No')
+} &>
+
+<tr><td colspan="2">
+<div style="margin-top:5px">
+<& /tmpl/element:object_selection_box, params => { 
+			sort_box => 0,
+			columns => [ 
+				{ 'label' => __('Competency/Skills Module'), 'field' => 'title', 'html' => 1 },
+				{ 'label' => __('Mandatory'), 'field' => 'required'},
+			],
+			rows => \@rows,
+			name => "checklists",
+			'norows-message' => __('No skills modules associated') 
+
+} &>
+</div>
+</td></tr>
+
+<& /tmpl/element:save_button, params=>{
+	label	=> __('Delete'), 
+	cancel_onclick => "go_back('/competency/checklist/author/show/" . $m->comp('/tmpl/url:get_type_path') ."')",
+	name => 'delete_submit'
+} &>
+
+</table>
+</form>
+
+<%init>
+	my $checklist_group_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $checklist_group = TUSK::Competency::Checklist::Group->lookupKey($checklist_group_id, [
+		TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Checklist", { joinkey => 'competency_checklist_group_id' }) ]);
+
+	if ($ARGS{submit_check}) {
+		my $author_id = $m->session->{user}->primary_key();
+		foreach my $checklist (@{$checklist_group->getJoinObjects('TUSK::Competency::Checklist::Checklist')}) {
+			$checklist->delete({user => $author_id});
+		}
+
+		$checklist_group->delete({user => $author_id});
+
+		my $msgtext = __('Successfully Deleted');
+		my $msgtype = 'msg';
+		$m->redirect($m->comp("/tmpl/url:construct_back_url", 
+			base_url	=> "/competency/checklist/author/show", 
+			msg 		=> $msgtext,
+			msgtype		=> $msgtype
+		));
+	}		
+
+	my @rows = ();
+	my $data = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id})->getSkillsModulesWithCategories();
+	foreach my $cat (keys %$data) {
+		push @rows, { title => '<b>' . $cat . '</b>', use_alternate_action_columns => 1 };
+		foreach (@{$data->{$cat}}) {
+			push @rows, { 
+				title => '&nbsp;&nbsp;' . $_->{competency_title}, 
+				required => ($_->{required}) ? __('Yes') : '',
+			};
+		}
+	}
+</%init>
+
+<%method title>
+%	return __('Delete Competency Checklist');
+</%method>

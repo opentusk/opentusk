@@ -49,6 +49,7 @@ use TUSK::Application::GradeBook::GradeBook;
 use TUSK::Core::School;
 use TUSK::Permission;
 use TUSK::DB::Util qw(sql_prep_list);
+use TUSK::Competency::Checklist::Group;
 
 use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
@@ -63,7 +64,7 @@ require HSDB45::Eval;
 require HSDB45::Eval::Completion;
 require HSDB45::UserGroup;
 require TUSK::Application::Email;
-
+require TUSK::Core::HSDB45Tables::Course;
 
 use vars @EXPORT_OK;
 
@@ -141,11 +142,6 @@ sub active {
 sub restricted {
     my $self = shift;
     return 1 if $self->status =~ /Restricted/;
-}
-
-sub roles {
-    my $self = shift();
-    return $self->aux_info('roles');
 }
 
 sub first_name {
@@ -258,7 +254,7 @@ sub lookup_by_uid {
 # >>>>> Linked objects <<<<<
 #
 
-sub check_author{
+sub check_author {
     my ($self, $roles) = @_;
 
     $roles->{tusk_session_is_author} = 0;
@@ -266,20 +262,12 @@ sub check_author{
     if (!$self->primary_key()){
 	confess "check_author only works on initialized user objects"; 
     }
-    # Get the link definition
-    for my $db (map { get_school_db($_) } course_schools()) {
-		my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_user"};
-		# And use it to get a LinkSet, if possible
-		if ($linkdef->get_parent_count($self->primary_key())){
-			$roles->{tusk_session_is_author} = 1;
-			if (defined($roles->{tusk_session_is_admin})){
-				return ($roles);
-			}else{
-				return ($self->check_admin($roles));
-			}
-		}
+
+    if (scalar @{TUSK::Course::User->lookup("user_id = '" . $self->primary_key() . "'")}) {
+	$roles->{tusk_session_is_author} = 1;
+	return (defined($roles->{tusk_session_is_admin})) ? $roles : $self->check_admin($roles);
     }
-    
+
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{"link_content_user"};
     if ($linkdef->get_parent_count($self->primary_key())){
 		$roles->{tusk_session_is_author} = 1;
@@ -297,8 +285,7 @@ sub check_author{
     }
 }
 
-
-sub check_admin{
+sub check_admin {
     my ($self, $roles) = @_;
 
     if (!$self->primary_key()){
@@ -325,27 +312,36 @@ sub check_admin{
     return $roles;
 }
 
+# Return the courses the user is a part of teaching for 'course' course_type  or course admin for other course_types.
 sub author_courses {
-    #
-    # Return the courses the user is a part of teaching for 'course' course_type  or course admin for other course_types.
-    #
-    
-    my $self = shift;
-    my @conds = @_;
-    push @conds, "order by parent.course_id";
-
+    my ($self, $conds) = @_;
+    my @schools = course_schools();
     my @courses = ();
-    # If we are a ghost user we have to do something slightly different here
-    if($self->field_value('status') eq 'ghost') {
-      @courses = @{ TUSK::Course::CourseSharing->new()->getCurrentSharedCourses($self->field_value('sid')) };
+
+    if ($self->field_value('status') eq 'ghost') {
+	foreach my $school (@schools) { 
+	    my $school_db = get_school_db($school);
+	    my $course = TUSK::Core::HSDB45Tables::Course->new();    
+	    $course->setDatabase($school_db);
+	    push @courses, @{$course->lookup($conds, ['course.course_id'], undef, undef, [
+		TUSK::Core::JoinObject->new('TUSK::Course', { joinkey => 'school_course_code', origkey => 'course_id', jointype => 'inner', }),
+		TUSK::Core::JoinObject->new('TUSK::Core::School', { joinkey => 'course_id', jointype => 'inner', joincond => "school_name = '$school'"  }),
+		TUSK::Core::JoinObject->new('TUSK::Course::CourseSharing', { joinkey => 'course_sharing.school_id', origkey => 'school.school_id', jointype => 'inner', joincond => "shared_with = " . $self->field_value('sid') . " AND avaliable_from <= NOW() AND avaliable_to >= NOW()"  }),
+	   ])};
+	}
     } else {
-      # Get the link definition
-      for my $db (map { get_school_db($_) } course_schools()) {
-	  my $linkdef = 
-	      $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_user"};
-	  # And use it to get a LinkSet, if possible
-	  push @courses, $linkdef->get_parents($self->primary_key(),@conds)->parents();
-      }
+	foreach my $school (@schools) {
+	    my $school_db = get_school_db($school);
+	    my $course = TUSK::Core::HSDB45Tables::Course->new();    
+	    $course->setDatabase($school_db);
+	    push @courses, @{$course->lookup($conds, ['course.course_id'], undef, undef, [
+		TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'course_id', jointype => 'inner', joincond => "user_id = '" . $self->primary_key() . "'" }),
+		TUSK::Core::JoinObject->new('TUSK::Core::School', { joinkey => 'school_id', origkey => 'course_user.school_id', jointype => 'inner', joincond => "school_name = '$school'"  }),
+		TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id', jointype => 'inner'  }),
+		TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id',  jointype => 'inner', joincond => "virtual_role = 0" }),
+		   TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', origkey => 'permission_role.feature_type_id', jointype => 'inner', joincond => "feature_type_token = 'course'" }),
+	])};
+	}
     }
     return @courses;
 }
@@ -1064,7 +1060,14 @@ sub admin_courses {
 
 sub cms_courses {
     my $self = shift;
-    my @courses = grep { $_->aux_info('roles') =~ m/(Director|Manager|Student Manager|Site Director|Author|Editor|Student Editor)/ } $self->author_courses();
+    my @courses = ();
+
+    foreach my $author_course ($self->author_courses()) {
+	my $school = $author_course->getJoinObject('TUSK::Core::School')->getPrimaryKeyID();
+	my $course = HSDB45::Course->new(_school => $school)->lookup_key($author_course->getPrimaryKeyID());
+	push @courses, $course;
+    }
+
     push @courses, @{$self->admin_courses()};
 
     my $courses_hash;
@@ -1170,52 +1173,50 @@ sub current_quizzes{
     if($self->isGhost()) {return [];}
 
     if ($coursearray and scalar(@$coursearray)){
-		foreach my $course (@$coursearray){
-			my $tps = $course->get_users_active_timeperiods($self->user_id);
-		    next unless $tps and scalar(@$tps);
-		    my $key = $course->school . "-" . $course->course_id;
-		    my $preview_value = 0;
+	foreach my $course (@$coursearray){
+	    my $tps = $course->get_users_active_timeperiods($self->user_id);
+	    next unless $tps and scalar(@$tps);
+	    my $key = $course->school . "-" . $course->course_id;
+	    my $preview_value = 0;
 
-			#Verify the user is enrolled in this course or is some other kind
-			#of child user.
-			my $user_is_enrolled = 0;
-			foreach my $tp (@$tps) {
-				if ($course->is_user_registered($self->primary_key, $tp->primary_key)){
-					push (@courses, $course);
-					$user_is_enrolled = 1;
-					last;
-				} 
-			}
-			if (!$user_is_enrolled and $course->is_child_user($self->primary_key, 
-					  "(find_in_set('Author', roles) > 0  or 
-			                    find_in_set('Editor', roles) > 0 or
-			                    find_in_set('Director', roles) > 0 or
-			                    find_in_set('Manager', roles) > 0)")){
-					push (@courses, $course);
-					$preview_value = 1;
-					last;
-			}
-		    $preview->{$key} = $preview_value;
-		}
+            #Verify the user is enrolled in this course or is some other kind of child user.
+	    my $user_is_enrolled = 0;
+	    foreach my $tp (@$tps) {
+		if ($course->is_user_registered($self->primary_key, $tp->primary_key)){
+		    push (@courses, $course);
+		    $user_is_enrolled = 1;
+		    last;
+		} 
+	    }
+
+	    if (!$user_is_enrolled and $course->user_has_role($self->primary_key, ['author', 'editor', 'director', 'manager'])) {
+		push (@courses, $course);
+		$preview_value = 1;
+		last;
+	    }
+	    $preview->{$key} = $preview_value;
+	}
     } else {
-		my @all_courses = $self->current_courses;
-		foreach my $course (@all_courses){
-		    unless ($course_hashref->{$course}){
-				push (@courses, $course);
-				$course_hashref->{$course} = 1;
-			}
-		}
+	my @all_courses = $self->current_courses;
+	foreach my $course (@all_courses){
+	    unless ($course_hashref->{$course}){
+		push (@courses, $course);
+		$course_hashref->{$course} = 1;
+	    }
+	}
 	
-		foreach my $course ($self->author_courses){
-		    my $roles = "," . $course->aux_info('roles') . ',';
-		    next unless ($roles =~ /,(Author|Editor|Director|Manager|),/);
-		    my $key = $course->school . "-" . $course->course_id;
-		    $preview->{$key} = 1;
-		    unless ($course_hashref->{$course}){
-				push (@courses, $course);
-				$course_hashref->{$course} = 1;
-		    }
-		}
+	foreach my $course ($self->author_courses()) {
+	    if ($course->checkJoinObject('TUSK::Permission::Role')) {
+		my @author_roles = grep { !($_->getVirtualRole()) } grep { ref $_ eq 'TUSK::Permission::Role' }  $course->getJoinObjects('TUSK::Permission::Role');
+		next unless (scalar @author_roles);
+	    }
+	    my $key = $course->school . "-" . $course->course_id;
+	    $preview->{$key} = 1;
+	    unless ($course_hashref->{$course}){
+		push (@courses, $course);
+		$course_hashref->{$course} = 1;
+	    }
+	}
     }
 
     foreach my $course (@courses){
@@ -1267,6 +1268,10 @@ sub current_evals {
     #
 
     my $self = shift;
+    my $dbh = HSDB4::Constants::def_db_handle ();
+    my %courses = ();
+    my %course_evals = ();
+    my %current_evals = ();
 
     # Get the user groups, then filter out the ones that aren't allowed
     # (probably because they're already filled out)
@@ -1278,35 +1283,53 @@ sub current_evals {
     for my $school ( eval_schools() ) {
 	my $db = get_school_db($school);
 	my @eval_ids = ();
+
 	eval {
-            my $sth = $dbh->prepare (qq[SELECT eval_id FROM
-                                        $db\.eval e,
-                                        $db\.link_course_student l
-                                        WHERE l.child_user_id=?
-                                        AND l.parent_course_id=e.course_id
-                                        AND l.time_period_id=e.time_period_id
-                                        AND to_days(e.available_date) <= to_days(now())
-                                        AND to_days(e.due_date) >= to_days(now())
-                                        AND (e.teaching_site_id is null 
-						OR e.teaching_site_id = l.teaching_site_id)]);
+	    my $sql = qq[SELECT eval_id, t.token, c.title, c.course_id
+			 FROM $db\.eval e, $db\.link_course_student l, tusk.eval_type t, $db\.course c
+			 WHERE l.child_user_id=?
+			 AND l.parent_course_id=e.course_id
+			 AND l.time_period_id=e.time_period_id
+			 AND to_days(e.available_date) <= to_days(now())
+			 AND to_days(e.due_date) >= to_days(now())
+			 AND (e.teaching_site_id is null OR e.teaching_site_id = 0 OR e.teaching_site_id = l.teaching_site_id)
+			 AND e.eval_type_id = t.eval_type_id
+			 AND parent_course_id = c.course_id
+			 AND eval_id not in (SELECT eval_id FROM $db\.eval_completion WHERE user_id = l.child_user_id)
+			 ];
 
-	    $sth->execute ($self->primary_key);
+            my $sth = $dbh->prepare($sql);
+	    $sth->execute($self->primary_key);
 
-	    while (my ($eval_id) = $sth->fetchrow_array) {
+	    while (my ($eval_id, $eval_type, $course_title, $course_id) = $sth->fetchrow_array) {
+		if ($eval_type eq 'teaching') {
+		    $courses{$school . '/' . $course_id} = $course_title;
+		    ## delete from course evals list so we could display only clinical eval
+		    if (exists $course_evals{$school . '/' . $course_id}) {
+			delete $course_evals{$school . '/' . $course_id};
+		    }
+		} elsif ($eval_type eq 'course') {
+		    ## weed out course evals that has clinical evals
+		    unless (exists $courses{$school . '/' . $course_id}) {
+			push @{$course_evals{$school . '/' . $course_id}}, $eval_id;
+		    }
+		}
 		push @eval_ids, $eval_id;
 	    }
-         $sth->finish;
+	    $sth->finish;
+
+	    if (scalar @eval_ids) {
+		my @evals = HSDB45::Eval->new( _school => $school)->new()->lookup_conditions('eval_id in (' . join(',', @eval_ids) . ')');
+		foreach my $eval (@evals) {
+##		    if ($eval->primary_key && ($eval->is_user_allowed ($self))[0]) {
+			push @{$current_evals{$school . '/' . $eval->field_value('course_id')}}, $eval; 
+##		    }
+		}
+	    }
 	};
 	confess $@ if ($@);
-	for my $eval_id (@eval_ids) {
-	    my $e = HSDB45::Eval->new( _school => $school, _id => $eval_id );
-	    push @evals, $e 
-		if $e->primary_key && ($e->is_user_allowed ($self))[0];
-	}
     }
-
-    # Now, add in the the user_group evals;
-    return @evals;
+    return (\%current_evals, \%courses, \%course_evals);
 }
 
 
@@ -1556,6 +1579,7 @@ sub _grade_categories {
     my ($self, $student_grades) = @_;
     my $category = {};
     my $id_list = _unique_category_ids($student_grades);
+    return $category unless @$id_list; # BUG: empty list causes SQL syntax error
     my $id_prep = sql_prep_list(@$id_list);
     my $sql = <<"END_SQL";
         SELECT gc.grade_category_id,
@@ -2747,6 +2771,44 @@ EOM
     return $patientlogs;
 }
 
+=item
+    Return a list of current checklist_groups
+=cut
+sub get_course_competency_checklist_groups {
+    my ($self, $course) = @_;
+    my $school = $course->get_school();
+    my $db = $school->getSchoolDb();
+
+    return TUSK::Competency::Checklist::Group->lookup('publish_flag = 1 AND school_id = ' . $school->getPrimaryKeyID() . ' AND course_id = ' . $course->primary_key(), undef, undef, undef, [ 
+                TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", { database => $db, joinkey => 'parent_course_id', origkey => 'course_id', cond => "child_user_id = '" . $self->primary_key() . "'", jointype => 'inner' }),
+        	TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", { database => $db, joinkey => 'time_period_id', origkey=> "link_course_student.time_period_id",  cond => "start_date < now()  AND (end_date + interval 1 day) > now()", jointype => 'inner' }),
+    ]);
+}
+
+sub get_courses_with_checklists {
+    my $self = shift;
+    my $affiliation = $self->affiliation();
+    my $school = TUSK::Core::School->lookupReturnOne("school_name = '$affiliation'");
+    my $db = $school->getSchoolDb();
+
+    my $sth = TUSK::Competency::Checklist::Group->new()->databaseSelect(qq(
+SELECT distinct course.course_id, course.title
+FROM $db.course
+INNER JOIN $db.link_course_student on (parent_course_id = course.course_id and child_user_id = ?)
+INNER JOIN $db.time_period on (link_course_student.time_period_id = time_period.time_period_id AND start_date < now() AND (end_date + interval 1 day) > now())
+INNER JOIN tusk.competency_checklist_group on (school_id = ? AND link_course_student.parent_course_id = competency_checklist_group.course_id AND publish_flag = 1)
+ORDER BY course.title), $self->primary_key(), $school->getPrimaryKeyID());
+
+    my $data = [];
+    while (my ($course_id, $course_title) = $sth->fetchrow_array()) {
+	push @$data, { 
+	    course_id => $course_id,
+	    course_title => $course_title,
+	    affiliation => $affiliation,
+	};
+    }
+    return $data;
+}
 
 sub get_director_forms {
     my ($self, $form_type_token) = @_;
@@ -2761,33 +2823,39 @@ sub get_director_forms {
     my $school_id = $school->getPrimaryKeyID();
 
     my $sql = qq(
-				 select c.course_id as course_id, c.title as title, $school_id as school_id, 
-				 s.school_name as school_name, fo.form_id as form_id, fo.form_name as form_name
-				 from tusk.link_course_form f, 
-				 tusk.form_builder_form fo,
-				 tusk.form_builder_form_type ft,
-				 tusk.school s,
-				 $db\.link_course_user l, 
-				 $db\.course c
-				 where f.school_id = ? and 
-				 f.parent_course_id = l.parent_course_id and 
-				 l.child_user_id = ? and
-				 (FIND_IN_SET('Director', l.roles) or
-				  FIND_IN_SET('Site Director', l.roles) or
-				  FIND_IN_SET('Manager', l.roles)) and
-				 c.course_id = l.parent_course_id and
-				 fo.form_id = f.child_form_id and
-				 s.school_id = f.school_id and
-				 fo.publish_flag = 1 and
-				 fo.form_type_id = ft.form_type_id and
-				 ft.token = ?
-				 );
+		 SELECT DISTINCT c.course_id AS course_id, c.title AS title, f.school_id AS school_id,
+		 s.school_name AS school_name, fo.form_id AS form_id, fo.form_name AS form_name
+		 FROM tusk.link_course_form f,
+		 tusk.form_builder_form fo,
+		 tusk.form_builder_form_type ft,
+		 tusk.school s,
+		 tusk.course_user cu,
+		 tusk.permission_user_role ur,
+		 tusk.permission_role pr,
+		 tusk.permission_feature_type pft,
+		 $db\.course c
+		 WHERE f.school_id = ?
+		 AND f.parent_course_id = cu.course_id
+		 AND f.school_id = cu.school_id
+		 AND cu.user_id = ?
+		 AND cu.course_user_id = ur.feature_id
+		 AND ur.role_id = pr.role_id
+		 AND pr.feature_type_id = pft.feature_type_id
+		 AND pft.feature_type_token = 'course'
+		 AND pr.role_token in ('director', 'site_director', 'manager')
+		 AND c.course_id = cu.course_id
+		 AND fo.form_id = f.child_form_id
+		 AND s.school_id = f.school_id
+		 AND fo.publish_flag = 1
+		 AND fo.form_type_id = ft.form_type_id
+		 AND ft.token = ?
+		 );
 
     my $dbh = HSDB4::Constants::def_db_handle ();
     eval {
-		my $sth = $dbh->prepare($sql);
-		$sth->execute($school_id, $self->primary_key(), $form_type_token);
-		$forms = $sth->fetchall_arrayref({});
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($school_id, $self->primary_key(), $form_type_token);
+	$forms = $sth->fetchall_arrayref({});
     };
     confess "$@" if ($@);
     return $forms;
@@ -2795,36 +2863,45 @@ sub get_director_forms {
 
 
 sub get_instructor_simulated_patients {
-	my ($self, $course) = @_;
+    my ($self) = @_;
 
     my $affiliation = $self->affiliation();
     my $school = TUSK::Core::School->new->lookupReturnOne("school_name = '$affiliation'");
-	return [] unless $school;
+    return [] unless $school;
 
     my $db = $school->getSchoolDb();
-	my $sql = qq(
-				 select '$affiliation' as school_name, course_id, title, 
-				 b.form_id as form_id, form_name, form_description
-				 from tusk.link_course_form a,
-				 tusk.form_builder_form b, 
-				 tusk.form_builder_form_type c, 
-				 $db\.course d, 
-				 $db\.link_course_user e, 
-				 tusk.form_builder_form_association i
-				 where a.parent_course_id = d.course_id 
-				 and a.parent_course_id = e.parent_course_id
-				 and a.child_form_id  = b.form_id
-				 and publish_flag = 1
-				 and b.form_type_id = c.form_type_id
-				 and c.token = 'SP'
-				 and FIND_IN_SET('Instructor', roles) 
-				 and e.child_user_id = ? 
-				 and a.child_form_id = i.form_id
-				 and e.child_user_id = i.user_id
-				 );
+    my $sql = qq(
+		 SELECT '$affiliation' as school_name, d.course_id, title, 
+		 b.form_id as form_id, form_name, form_description
+		 FROM tusk.link_course_form a,
+		 tusk.form_builder_form b, 
+		 tusk.form_builder_form_type c, 
+		 $db\.course d, 
+		 tusk.course_user e, 
+		 tusk.form_builder_form_association i,
+		 tusk.permission_user_role ur,
+		 tusk.permission_role pr,
+		 tusk.permission_feature_type pft
+		 WHERE a.parent_course_id = d.course_id 
+		 AND a.parent_course_id = e.course_id
+		 AND a.child_form_id  = b.form_id
+		 AND publish_flag = 1
+		 AND b.form_type_id = c.form_type_id
+		 AND c.token = 'SP'
+		 AND pr.role_token = 'instructor'
+		 AND e.user_id = ? 
+		 AND a.child_form_id = i.form_id
+		 AND e.user_id = i.user_id
+		 AND e.course_user_id = ur.feature_id
+		 AND ur.role_id = pr.role_id
+		 AND pr.feature_type_id = pft.feature_type_id
+		 AND pft.feature_type_token = 'course'
+		 group by e.user_id
+	     );
 
     my $dbh = HSDB4::Constants::def_db_handle ();
-	my $simulated_patients;
+    my $simulated_patients;
+
     eval {
 		my $sth = $dbh->prepare($sql);
 		$sth->execute($self->primary_key());
@@ -3045,7 +3122,7 @@ sub get_course_assignments {
     my @all_assignments;
    
     foreach my $school(keys %schools_dbs) {
-	my $sql = $self-> _get_course_assignments_sql($school);
+	my $sql = $self->_get_course_assignments_sql($school);
 	my $sth = TUSK::Core::SQLRow->new()->databaseSelect($sql);
 	
 	push @all_assignments, values %{$sth->fetchall_hashref('assignment_id')};
@@ -3057,10 +3134,11 @@ sub get_course_assignments {
 sub get_school_announcements {
 	my $self = shift;
 	my %all_announcements;
-	my @courses = $self->current_courses();
-	push @courses, $self->author_courses();
 
-	my @schools = keys %{{ map {$_->school() => 1 } @courses }};
+	## kludgy, get unique school names from two different types of course ojbects 
+	my @schools = keys %{{ map { $_ => 1 }
+		( (map { $_->getJoinObject('TUSK::Core::School')->getSchoolName() } $self->author_courses()),
+		  (map { $_->school() } $self->current_courses() )) }};
 	
 	foreach my $school (@schools) {
 		my @announcements = HSDB45::Announcement::schoolwide_announcements($school);

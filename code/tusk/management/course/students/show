@@ -13,15 +13,26 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
-<%once>
-	use TUSK::Manage::Course::Students;
-</%once>
+
 <%attr>
 	show_tp_dropdown_no_cache => 1
 	top_tab_type            => 'manage'
 	check_cms_permissions	=> 1
-    default_path_type	=> 'course'
+	default_path_type	=> 'course'
 </%attr>
+
+<%once>
+	use TUSK::Manage::Course::Students;
+</%once>
+
+<%shared>
+	my $course =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $m->comp("/tmpl/url:get_school");
+	my $time_period = $m->comp("SELF:get_timeperiod_id");
+	my $is_school_admin = TUSK::Session::is_school_admin($m->session, $school, $m->session->{'user'});
+	my $data = undef;
+	my $buttons = [];	
+</%shared>
 
 <& /tmpl/element:form, params => {
 	method => 'POST',
@@ -38,13 +49,9 @@
 
 
 % if ($is_school_admin ) {
-                    <tr> 
-                      <td>
-
-
-<& /tmpl/element:cms_button_row, links => $buttons 
-	&>
-
+       <tr> 
+       <td>
+<& /tmpl/element:cms_button_row, links => $buttons &>
 	</td></tr>
 	<tr><td>
 
@@ -101,36 +108,36 @@
 </table>
 </form>
 
-<%init>
+<%method startup>
+<%perl>
 	my $selfpath = $m->comp("/tmpl/url:get_full_path");
-	my $type_object =  $m->comp("/tmpl/url:get_type_object");
-	my $school = $m->comp("/tmpl/url:get_school");
-	my $time_period = $m->comp("SELF:get_timeperiod_id");
-	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $type_object->course_id );
-
-    my $data =  TUSK::Manage::Course::Students::show_pre_process(1, $type_object->course_id, $school, $time_period);
-	my $buttons = [];	
-	my $is_school_admin = TUSK::Session::is_school_admin($m->session, $school, $m->session->{'user'});
+	$data =  TUSK::Manage::Course::Students::show_pre_process(1, $course->primary_key(), $school, $time_period);
 
 	if ($is_school_admin) {
-
-		if (!$course->associate_user_group()) {
-			push @$buttons, { link_txt    => '/management/course/students/addedit/' . $selfpath,
-                           display_txt => __('Add Course Student(s)')
+		if ($course->associate_user_group()) {
+			$m->comp('SELF:set_msg', type => 'hint',  msg => __("This course's enrollment is managed with User Group(s).  Please add student(s) to the appropriate User Group(s)."));
+		} else {
+			push @$buttons, { 
+				link_txt    => '/management/course/students/addedit/' . $selfpath,
+	                        display_txt => __('Add Course Student(s)')
                          };
 		}
 
-		push @$buttons, { link_txt    => '/management/course/students/teachingsites/' . $selfpath."/?timeperiod=".$time_period, display_txt => __('Update All Teaching Sites') };
+		if (scalar @{$data->{students}}) {
+			push @$buttons, { link_txt    => '/management/course/students/teachingsites/' . $selfpath."/?timeperiod=".$time_period, display_txt => __('Update All Teaching Sites') };
+		}
+	} else {
+		$m->comp('SELF:set_msg', type => 'hint',  msg => __('Please contact your School Admin to add student(s) to this course.'));
 	}
-
-</%init>
+</%perl>	
+</%method>
 
 <%method title>
-% return __("Manage Course Students");
+% 	return __("Manage Course Students");
 </%method>
 
 <%method red_header_text>
-% return $m->comp("SELF:title");
+% 	return $m->comp("SELF:title");
 </%method>
 
 

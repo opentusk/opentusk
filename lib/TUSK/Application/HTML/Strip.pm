@@ -34,11 +34,12 @@ sub new {
 #############################################
 sub removeHTML {
     my ($self, $text) = @_;
-	$self->{stripObj}->set_decode_entities(0);
-	$text = $self->{stripObj}->parse($text);
-	utf8::decode($text);
-	$self->{stripObj}->eof;
-	return $text;
+    return '' unless $text;
+    $self->{stripObj}->set_decode_entities(0);
+    $text = $self->{stripObj}->parse($text);
+    utf8::decode($text);
+    $self->{stripObj}->eof;
+    return $text;
 }
 
 #############################################
@@ -49,16 +50,12 @@ sub removeHTML {
 sub truncateAndRemoveHTML {
     my ($self, $text, $maxCharSize) = @_;
     $maxCharSize ||= 50;
-	if ($text) {
-		$text = $self->removeHTML($text);
-	}
 
-	if (length($text) > ($maxCharSize - 3)) {
-		return substr($text, 0, ($maxCharSize - 3)) . ' ...';
-	}
-	else {
-		return $text;
-	}
+    if ($text) {
+	$text = $self->removeHTML($text);
+    }
+
+    return (length($text) > ($maxCharSize - 3))  ? substr($text, 0, ($maxCharSize - 3)) . ' ...' : $text;
 }
 
 1;

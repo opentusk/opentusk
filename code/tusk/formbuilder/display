@@ -534,36 +534,38 @@ if ($args->{entry_id}) {
 	$response
 </%args>
 <& /tmpl/element:flexible_tr, params => { label => $field->getFieldName() } &>
+
 <%perl>
 	my $response_text = '<table style="width:500px;border-collapse: collapse;margin-bottom:5px;">';
-			foreach my $res (@$response){
-				my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
-				my $attributes = $res->getJoinObjects('TUSK::FormBuilder::AttributeItem');
+	foreach my $res (@$response){
+		my $item = $res->getJoinObject('TUSK::FormBuilder::FieldItem');
+		my $attributes = $res->getJoinObjects('TUSK::FormBuilder::AttributeItem');
 
-				my @attribute_values = map { $_->getItemName() } @$attributes;
-				push (@attribute_values, $res->getText()) if ($res->getText());
-				
-				my $extra = '';
-				if (scalar(@attribute_values)){
-					$extra = '&nbsp;(' . join(', ', @attribute_values) . ')';
-				}
-				
-				my $cid = $item->getContentID(); 
+		my @attribute_values = map { $_->getItemName() } @$attributes;
+		push (@attribute_values, $res->getText()) if ($res->getText());
+			
+		my $extra = '';
+		if (scalar(@attribute_values)){
+			$extra = '&nbsp;(' . join(', ', @attribute_values) . ')';
+		}
+		
+		### bug an item object could be unblessed  See email		
+		my $cid = $item->getContentID(); 
 
-				$response_text .= '<tr valign="top" id ="tr' . $cid . '">
-				<td id="td' . $cid . '" class="sm" style="width:60%;border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td>';
+		$response_text .= '<tr valign="top" id ="tr' . $cid . '">
+		<td id="td' . $cid . '" class="sm" style="width:60%;border:1px solid rgb(239, 239, 239); border-right: 1px solid white" >' . $item->getItemName() . $extra . '</td>';
 
-				if($cid > 0) {
-						$response_text .= '<td align="right" style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"><a href="" class="navsm" id="a' . $cid . '" onClick="toggle_links(' . $field->getPrimaryKeyID . ',' . $cid . ');return false;">'.__('Show Links').'</a></td>';
-				}else {
-						$response_text .= '<td style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"></td>';
-				}
+		if($cid > 0) {
+			$response_text .= '<td align="right" style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"><a href="" class="navsm" id="a' . $cid . '" onClick="toggle_links(' . $field->getPrimaryKeyID . ',' . $cid . ');return false;">'.__('Show Links').'</a></td>';
+		}  else {
+			$response_text .= '<td style="width:25%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white; border-right: 1px solid white;"></td>';
+		}
 
-				$response_text .= '<td class="sm" align="right" style="width:15%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>'.__('Delete').'</td></tr>';
+		$response_text .= '<td class="sm" align="right" style="width:15%;border:1px solid rgb(239, 239, 239); border-left: 1px solid white"><input type="checkbox"  name="delete_item" value="' . $res->getFieldID() . '-' . $res->getItemID() . '"/>'.__('Delete').'</td></tr>';
 
-			}
-			$response_text .= '</table>';
-			print $response_text;
+	}
+	$response_text .= '</table>';
+	print $response_text;
 
 	## set height of field dynamically if it's less than 5 items
 	my $items = $field->getItems();

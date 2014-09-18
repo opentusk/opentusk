@@ -474,6 +474,17 @@ sub get_next_date {
 	return $newDate->out_mysql_date();
 }
 
+sub out_string_date_time {
+    #
+    # Print a nice string representation of just the date
+    #
+
+    my $self = shift;
+    return if $self->is_null();
+    return strftime ("%B %e, %Y %l:%M %p", localtime($self->{-time}));
+}
+
+
 1;
 
 __END__

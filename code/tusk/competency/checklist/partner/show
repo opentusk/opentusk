@@ -1,0 +1,89 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Application::Competency::Checklist;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my ($checklist_group_id, $checklist_assignment_id) = $m->comp("/tmpl/url:get_path_ids");
+	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
+	my $student = $acc->getStudent($checklist_assignment_id);
+</%shared>
+
+% if (scalar @rows) {
+<div style="margin: 10px 0 5px 0">
+<% __('Your partner has requested assessments of the following competencies') %>:
+</div>
+% }
+
+<& /tmpl/element:form, params => {
+	method		=> 'POST',
+	enctype		=> 'multipart/form-data', 
+	name 		=> 'pendingchecklists' 
+} &>
+
+<& /tmpl/element:object_selection_box, params => { 
+	sort_box => 0,
+	width => '70%',
+	columns => [ 
+		{'label' => __('Skills Module'), 'field' => 'title', width => '30%'},
+		{'label' => __('Status'), 'field' => 'status'},
+		{'label' => __('Action'), 'field' => 'action', align => 'center'},
+	],
+	rows => \@rows,
+	name => "checklists",
+	'norows-message' => '<br/>' . __('No pending partner modules'),
+	border_bottom_tr => 1,
+} &>
+
+</form>
+
+<%init>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $school = $course->get_school();
+	my $entries = $acc->getPendingEntries($checklist_assignment_id, $school);
+
+	my @rows = ();
+	foreach my $entry (@$entries) {
+		my $competency = $entry->getJoinObject('TUSK::Competency::Competency');
+		push @rows, {
+			title => $competency->getDescription(),
+			status => ($entry->getRequestDate()) 
+				? __('Student requested on') . ' ' . $entry->getFormattedRequestDate() 
+				: __('Notified student on') . ' ' . $entry->getFormattedNotifyDate(),
+			action => $m->scomp('/tmpl/element:button', params => {
+				onclick => "window.location='" . "/competency/checklist/partner/assess/$type_path/$checklist_group_id/" . $entry->getCompetencyChecklistID() . "/$checklist_assignment_id/" . $entry->getPrimaryKeyID() .  "'",
+				name => 'checklist',
+				label => __('Assess') 
+			}),
+		};
+	}
+</%init>
+
+<%method title>
+%	return __('Competency Checklist') . ' - ' . (($student) ? $student->outName() : '') ;
+</%method>
+
+<%method get_initial_nav_bars>
+<%perl>
+	return [
+		{ href => "/view/$type_path/checklists", label => __('Course').' - ' . $course->out_title() },
+	];
+</%perl>
+</%method>

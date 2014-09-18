@@ -72,6 +72,7 @@ sub new {
 					'trunk' => '',
 					'password' => '',
 					'email' => '',
+					'preferred_email' => '',
 					'profile_status' => '',
 					'modified' => '',
 					'password_reset' => '',
@@ -291,6 +292,53 @@ sub setEmail{
     $self->setFieldValue('email', $value);
 }
 
+#######################################################
+
+=item B<getPreferredEmail>
+
+my $string = $obj->getPreferredEmail();
+
+Get the value of the email field
+
+=cut
+
+sub getPreferredEmail{
+    my ($self) = @_;
+    return $self->getFieldValue('preferred_email');
+}
+
+#######################################################
+
+=item B<setPreferredEmail>
+
+$obj->setPreferredEmail($value);
+
+Set the value of the email field
+
+=cut
+
+sub setPreferredEmail{
+    my ($self, $value) = @_;
+    $self->setFieldValue('preferred_email', $value);
+}
+
+
+
+#######################################################
+
+=item B<getDefaultEmail>
+
+my $string = $obj->getDefaultEmail();
+
+Get the value of the default email
+
+=cut
+
+sub getDefaultEmail{
+    my ($self) = @_;
+    return ($self->getFieldValue('preferred_email')) ? $self->getFieldValue('preferred_email') : $self->getFieldValue('email');
+}
+
 
 #######################################################
 
@@ -306,6 +354,7 @@ sub getProfileStatus{
     my ($self) = @_;
     return $self->getFieldValue('profile_status');
 }
+
 
 #######################################################
 
@@ -823,14 +872,139 @@ sub setUID{
 
 ### Other Methods
 
-
-# Show lastname, comma, then firstname
+=item
+    Return lastname, firstname
+=cut
 sub outLastFirstName{
     my $self = shift;
-    return $self->getFieldValue('lastname') . ", " . $self->getFieldValue('firstname');
+    my ($fn, $ln) =  @{$self->getFieldValues(['firstname', 'lastname'])};
+    return $self->getPrimaryKeyID() unless $ln;
+    return $ln unless $fn;
+    return "$ln, $fn";
+}
+
+=item
+    Return firstname lastname
+=cut
+sub outName{
+    my $self = shift;
+    my ($fn, $ln) =  @{$self->getFieldValues(['firstname', 'lastname'])};
+    return $self->getPrimaryKeyID() unless $ln;
+    return $ln unless $fn;
+    return "$fn $ln";
+}
+
+sub getSites {
+    my $self = shift;
+    return $self->getJoinObjects('TUSK::Core::HSDB45Tables::TeachingSite');
 }
 
 
+sub getFormattedSites {
+    my $self = shift;
+    return join ',  ', sort { lc($a) cmp lc($b) } map { $_->getSiteName() } @{$self->getJoinObjects('TUSK::Core::HSDB45Tables::TeachingSite')};
+}
+
+## some applications ie patientlog will have only one site director for each site
+sub getSiteID {
+    my $self = shift;
+    return ($self->checkJoinObject('TUSK::Core::HSDB45Tables::TeachingSite')) ? $self->getJoinObject('TUSK::Core::HSDB45Tables::TeachingSite')->getPrimaryKeyID() : undef;
+}
+
+sub getRole {
+    my $self = shift;
+    return  (grep { !$_->getVirtualRole() }  @{$self->getJoinObjects('TUSK::Permission::Role')})[0];
+}
+
+sub getRoleDesc {
+    my $self = shift;
+    return  (map { $_->getRoleDesc() } grep { !$_->getVirtualRole() }  @{$self->getJoinObjects('TUSK::Permission::Role')})[0];
+}
+
+sub hasRole {
+    my ($self, $role_tokens) = @_;
+    my $user_role = $self->getRole();
+    my @tokens = (ref $role_tokens eq 'ARRAY') ?  @$role_tokens : $role_tokens;
+
+    foreach my $token (@tokens) {
+	return 1 if ($user_role && $user_role->getRoleToken() eq $token);
+    }
+    return 0;
+}
+
+sub getLabels {
+    my $self = shift;
+    return [ grep { $_->getVirtualRole() } @{$self->getJoinObjects('TUSK::Permission::Role')} ];
+}
+
+sub getFormattedLabels {
+    my $self = shift;
+    return join( ', ', sort { lc($a) cmp lc($b) } map { $_->getRoleDesc() } grep { $_->getVirtualRole() }  @{$self->getJoinObjects('TUSK::Permission::Role')});
+}
+
+sub getRoleLabels {
+    my $self = shift;
+    return $self->getJoinObjects('TUSK::Permission::Role');
+}
+
+sub getFormattedRoleLabels {
+    my $self = shift;
+    return join ', ', sort { lc($a) cmp lc($b) }  map { $_->getRoleDesc() } @{$self->getJoinObjects('TUSK::Permission::Role')};
+}
+
+sub getUserRoles {
+    my $self = shift;
+    return $self->getJoinObjects('TUSK::Permission::UserRole');
+}
+
+sub setSortOrder {
+    my ($self, $val, $author_id) = @_;
+    return unless $val;
+    if (my $course_user = $self->getJoinObject('TUSK::Course::User')) {
+	$course_user->setSortOrder($val);	
+	$course_user->save({ user => $author_id });
+    }
+}
+
+sub getCourseUser {
+    my $self = shift;
+    return $self->getJoinObject('TUSK::Course::User');
+}
+
+sub getCourseUserID {
+    my $self = shift;
+    return $self->getJoinObject('TUSK::Course::User')->getPrimaryKeyID();
+}
+
+sub getCourseUserSites {
+    my $self = shift;
+    return $self->getJoinObjects('TUSK::Course::User::Site');
+}
+
+sub outFullName {
+    my $self = shift;
+    my ($fn, $ln, $sfx, $dg) =  @{$self->getFieldValues(['firstname', 'lastname', 'suffix', 'degree'])};
+    return $self->getPrimaryKeyID() unless $ln;
+
+    # Process the suffix
+    $sfx = '' unless $sfx;
+
+    # Make sure there are not spaces in it
+    $sfx =~ s/\s//g;
+
+    # If it's a roman numeral (VIII or less, that is), just use a space...
+    if ($sfx =~ /^[iv]+$/i) { 
+	$sfx = " $sfx";
+    } elsif ($sfx) { # ...otherwise, use a comma and a space
+	$sfx = ", $sfx";
+    } 
+
+    # Just say lastname if we don't know anything else
+    return $ln if (not $fn and not $dg);
+
+    # Otherwise, format it all out nicely
+    return sprintf ("%s%s%s%s", $fn ? "$fn " : '', $ln, $sfx, $dg ? ", $dg" : '');
+}
 
 =head1 BUGS
 

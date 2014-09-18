@@ -1,0 +1,160 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
+
+<%once>
+	use TUSK::Competency::Checklist::Group;
+	use TUSK::Competency::Checklist::Assignment;
+	use TUSK::Enum::Data;
+</%once>
+
+<%shared>
+	my $checklist_group_id = $m->comp("/tmpl/url:get_last_path_id");
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+</%shared>
+
+% if (keys %$faculty && keys %$students) {
+<& /tmpl/element:form, params => {
+	method		=> 'POST',
+	enctype		=> 'multipart/form-data', 
+	name 		=> 'assignfaculty' 
+} &>
+
+
+% foreach my $site ($course->child_teaching_sites('order by site_name')) {
+%	my $site_id = $site->primary_key();
+%	if (exists $students->{$site_id}) {
+<div class="subhead"><% $site->site_name() %></div>
+%		my %data = ();
+%		my @rowheaders = ();
+%		my @colheaders = map {{ id => $faculty->{$site_id}{$_}, name => $_ }} (sort keys %{$faculty->{$site_id}});
+%		foreach my $student_name (sort keys %{$students->{$site_id}}) {
+%			push @rowheaders, { id => $students->{$site_id}{$student_name}, name => $student_name};
+%			foreach my $faculty_name (sort keys %{$faculty->{$site_id}}) {
+%				my $sfid = $students->{$site_id}{$student_name} . '___' . $faculty->{$site_id}{$faculty_name};
+%				my $checked = (exists $existing_assignments{$sfid}) ? 'checked="checked"' : '';
+
+%				$data{$students->{$site_id}{$student_name}}{$faculty->{$site_id}{$faculty_name}} = "<span class=\"checkbox\"><input type=\"checkbox\" name=\"student_faculty\" value=\"$sfid\" title=\"" . __("Student: ") . $student_name . "    " . __("Faculty: ") . $faculty_name . "\" $checked /></span><span class=\"mark\">";
+%			}
+%		}
+
+<& /tmpl/element:scrollable_display_table, 
+	table_id => "studentfaculty",
+	corner_text => __('Name'),
+	cell_data => \%data,
+	colheaders => [\@colheaders],
+	rowheaders => [\@rowheaders] 
+&>
+</div>
+%	} ## end if 
+% }
+
+<table>
+<& /tmpl/element:save_button, params => {
+	label		=> __('Save Changes'),
+	cancel_onclick 	=> " go_back('" . $m->comp("/tmpl/url:construct_url", 'base_url' => "/competency/checklist/author/show") . "');",
+        name		=> 'submit'
+} &>
+</table>
+</form>
+% } else {
+<br/>
+<em><% __('No Faculty/Student assignments') %></em>
+% }
+
+<%init>
+	my $assessor_type_id = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency_checklist_assignment.assessor_type' AND short_name = 'faculty'")->getPrimaryKeyID();
+	my %existing_assignments = map { $_->getStudentID() . '___' . $_->getAssessorID() => $_->getPrimaryKeyID() } @{TUSK::Competency::Checklist::Assignment->lookup("competency_checklist_group_id = $checklist_group_id AND assessor_type_enum_id = $assessor_type_id AND time_period_id = $time_period_id")};
+
+	if ($ARGS{submit_check}) {
+		my @student_faculty = (ref $ARGS{student_faculty} eq 'ARRAY') ? @{$ARGS{student_faculty}} : $ARGS{student_faculty};
+		my $author_id = $m->session->{user}->primary_key();
+
+		foreach my $assignment_token (@student_faculty) {
+			my ($student_id, $faculty_id) = split(/___/, $assignment_token);
+			if (exists $existing_assignments{$assignment_token}) {
+				## no need to update db and remove from the existing list
+				delete $existing_assignments{$assignment_token};
+			} else {
+				my $link = TUSK::Competency::Checklist::Assignment->new();
+				$link->setFieldValues({ 
+					student_id 		=> $student_id,
+					assessor_id 		=> $faculty_id,
+					assessor_type_enum_id 	=> $assessor_type_id, 
+					competency_checklist_group_id => $checklist_group_id,
+					time_period_id		=> $time_period_id,
+				});
+				$link->save({user => $author_id});
+			}
+		}
+
+		## remove the ones that are not sent along
+		if (keys %existing_assignments) {
+			if (my $ids = join(',', values %existing_assignments)) {
+				foreach (@{TUSK::Competency::Checklist::Assignment->lookup("competency_checklist_assignment_id in ($ids)")}) {
+					$_->delete({user => $author_id});
+				}
+			}
+		}
+
+		$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/competency/checklist/author/assignfaculty",
+			pathref	 => [ $checklist_group_id ], 
+			msg	 => __('Successfully updated'),
+		));
+	}
+
+	my $students = {};
+	foreach my $student ($course->get_students($time_period_id)) {
+		$students->{$student->aux_info('teaching_site_id')}{$student->out_lastfirst_name()} = $student->primary_key();
+	}
+
+	my $faculty = {};
+	foreach my $faculty_member (@{$course->users($time_period_id)}) {
+		$faculty->{$faculty_member->getSiteID()}{$faculty_member->outLastFirstName()} = $faculty_member->getPrimaryKeyID();
+	}
+</%init>
+
+<%method startup>
+<%args>
+	$args
+</%args>
+<%perl>
+	$time_period_id = $ARGS{timeperiod} || $m->comp("SELF:get_timeperiod_id");
+	if (!$time_period_id || ($m->session->{timeperiod_course} ne $course->school() . '-' . $course->primary_key())) {
+		$m->comp("/tmpl/url:redirect", destination => "/competency/checklist/author/assignfaculty/$type_path/$checklist_group_id", message => __("Something wrong with time period! Try again."));
+	}
+</%perl>
+</%method> 
+
+<%method title>
+%  	return __('Assign Faculty');
+</%method>
+
+<%method stylearray>
+<%perl>
+	return [
+		'/style/style.css',
+		'/scripts/jquery/plugin/scrollablefixedheadertable/css/scrollableFixedHeaderTable.css',
+		'/style/checklist.css',
+	];
+</%perl>
+</%method>

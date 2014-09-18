@@ -43,6 +43,8 @@ use TUSK::Session;
 use Carp;
 use Image::Magick;
 use TUSK::ProcessTracker::ProcessTracker;
+use TUSK::Competency::Competency;
+use TUSK::Competency::Content;
 
 use POSIX 'setsid';
 
@@ -500,22 +502,16 @@ sub unlink_parent_objective {
     return ($r,$msg);
 }
 
-sub child_objectives {         
+sub getCompetencies {
     #
-    # A little tricky here, these are objectives that define the purpose of the content,
-    # so the content is the parent of the objective. These objectives appear in document headers. 
+    # Competencies related to the content.    
     #
-        
     my $self = shift;
+    my $content_id =  $self->primary_key;
+    my $competencies = TUSK::Competency::Competency->lookup('', ['competency_content.sort_order', 'competency.competency_id'], undef, undef,
+				[TUSK::Core::JoinObject->new("TUSK::Competency::Content", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "content_id = $content_id"})]);
 
-    # Get the link definition
-    my $linkdef =
-        $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_objective'};
-    # And use it to get a LinkSet of parents
-    my $child_objectives = $linkdef->get_children($self->primary_key);
-
-    # Return the list
-    return $child_objectives->children();
+    return $competencies;
 }
 
 sub delete_objectives{
@@ -1465,6 +1461,7 @@ my @CONTENT_EDIT_ROLES = (
 
 # TODO Make Readonly
 # Readonly my @CONTENT_ADD_ROLES =>
+## when we refactor this, make sure this should match role_token in 'course' permission_role
 my @CONTENT_ADD_ROLES = (
     'Director',
     'Manager',
@@ -1478,20 +1475,21 @@ sub can_user_edit {
     my $user = shift;
     # first check the user's role in this content
     my $role = $self->user_primary_role($user->primary_key);
+    
+    ## allow if user is associated with content
+    return 1 if ($role eq 'Editor' || $role eq 'Author');
 
-	## allow if user is associated with content
-	return 1 if ($role eq 'Editor' || $role eq 'Author');
-
-	## allow if school admin
-	if ($self->field_value('school')) {
-	    return 1 if $user->check_school_permissions($self->school());
-	}
+    ## allow if school admin
+    if ($self->field_value('school')) {
+	return 1 if $user->check_school_permissions($self->school());
+    }
 	
-    ## allow if user has role in course that allows editing of other
-    ## people's content
-	if ($self->course()->user_primary_role($user->primary_key)) {
-		return 1 if (join(q{,}, @CONTENT_EDIT_ROLES) =~ $self->course()->user_primary_role($user->primary_key));
+    ## allow if user has role in course that allows editing of other people's content
+    if (my $user_role = $self->course()->user_primary_role($user->primary_key())) {
+	foreach (@CONTENT_EDIT_ROLES) {
+	    return 1 if ($user_role->getRoleToken() eq lc $_);
 	}
+    }
 }
 
 sub can_user_add {

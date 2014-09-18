@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%attr>
 	top_tab_type            => 'manage'
 	page_footer             => ''
@@ -27,41 +28,22 @@
 <%shared>
 	my $course = $m->comp("/tmpl/url:get_type_object");
 	my $school = $course->get_school();
-	my $tp = HSDB45::TimePeriod->new( _school => $school->getSchoolName() )->get_eternity_period();
-	my $tp_id = ($tp)? $tp->primary_key() : '';
 	my $metadataHashRef = $course->getSchoolMetadata();
+
+	$m->session->{timeperiod} = $course->get_current_timeperiod()->primary_key() unless ($m->session->{timeperiod} > 0);
+	my $tp_id = $m->session->{timeperiod};
+	my $tp_display = HSDB45::TimePeriod->new( _school => $school->getSchoolName() )->lookup_key($tp_id)->out_display();
 
 	my $iAmAGuest = HSDB4::Constants::is_guest($m->session->{'user'});
 	my $userObject = $m->session->{'user'};
 </%shared>
 
-
-<%method jsarray>
-%	return ['scripts.js', 'layers.js'];
-</%method>
-
-
-<%method title>
-%	return __("Add Group Members");
-</%method>
-
-<%method red_header_text>
-%	return __('Add Group Members');
-</%method>
-
-<%method leftnav>
-<%perl>
-	my %someHash = (
-	                'component'           => '/tmpl/leftnav/course',
-	                'metaDataRef'         => $metadataHashRef,
-	               );
-	return \%someHash;
-</%perl>
-</%method>
-
-
 <form name="groups" action="" method="post" onsubmit="return checkform(this);" class="no-padding">
 <table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td class="labelgray"><%__("Time Period:")%></td>
+<td class="cell-left"><% $tp_display %></td>
+</tr>
     <tr> 
       <td class="labelgray"><%__("Group(s):")%></td>
       <td>
@@ -109,52 +91,107 @@
 			data => [],
 			}
 &>
-
 </form>
 
 
 <%init>
-    $m->comp("SELF:set_no_cache");
-    $m->comp("SELF:set_unicode");
+	$m->comp("SELF:set_no_cache");
+	$m->comp("SELF:set_unicode");
 
 	my $args = \%ARGS;
 
-	unless($tp_id){
-		my $errmsg = __('No "eternity" time period with appropriate end date.');
+	unless ($tp_id > 0) {
+		my $errmsg = __('No appropriate time period.');
 		$errmsg .= '<br>' . __('Please see administrator for assistance.');
-       	$m->comp('/tmpl/error', msg=>$errmsg);
+       		$m->comp('/tmpl/error', msg=>$errmsg);
 	}
 
+	if ($args->{action} eq 'add') {
+		my $master_msg;
 
-	if($args->{action} eq 'add'){
-		my $un = $HSDB4::Constants::db_username;
-		my $pw = $HSDB4::Constants::db_password;
-		my ($master_msg);
-
-		foreach my $key (keys %$args){
+		foreach my $key (keys %$args) {
 			if($key =~ /^groupsdiv__(.+)__user_group_id__\d+$/){
 				my $ug_id = $args->{$key};
 				my $ug = HSDB45::UserGroup->new( _school => $school->getSchoolName() )->lookup_key($ug_id);
-				if($ug->primary_key()){
+				if ($ug->primary_key()) {
 					my @members = $ug->child_users();
-					$master_msg .= $course->add_child_members($un, $pw, \@members, $tp_id, '');
-				}
-				else {
-					$master_msg .= __("No User Group found with name"). "'$1'<br/>";
+					$master_msg .= $m->comp('SELF:add_members', 'members' => \@members);
+				} else {
+					$master_msg .= __("No user group found with name") . "'$1'<br/>";
 				}
 			}
 		}
 
-		if($master_msg){
-        	$m->comp('/tmpl/error', msg=>$master_msg, destination=>'/management/course/users/addgroupmembers/course/' . $school->getSchoolName() . '/' . $course->primary_key());
-		}
-		else{
+		if ($master_msg) {
+        		$m->comp('/tmpl/error', msg => $master_msg, destination => '/management/course/users/addgroupmembers/' . $school->getSchoolName() . '/' . $course->primary_key());
+		} else {
 			$master_msg = __("Users successfully added.");
 			$m->comp('/tmpl/wizard:do_next',
 				args => \%ARGS,
 			 	default_transition => '/management/course/users/show/' . $school->getSchoolName() . '/' . $course->primary_key(),
 				msg => $master_msg,
-				);
+			);
 		}
 	}
 </%init>
+
+
+<%method add_members>
+<%args>
+	$members
+</%args>
+<%perl>
+	my $u = $HSDB4::Constants::db_username;
+	my $p = $HSDB4::Constants::db_password;
+
+	my %seen_users = map { $_->getPrimaryKeyID() => 1 } @{$course->users($tp_id)};
+	my %seen_students = map { $_->primary_key() => 1 }  $course->child_students();
+
+	my $app = TUSK::Application::Course::User->new({course => $course});
+	my $role = TUSK::Permission::Role->lookupReturnOne("role_token = 'author'", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', joincond => "feature_type_token = 'course'", }) ]);
+	
+	my ($master_msg, $ret_val, $msg);
+	foreach my $member (@$members) {
+		$ret_val = 1;
+		unless ($seen_users{$member->primary_key()}) {
+			($ret_val, $msg) = $app->add({ 
+				time_period_id 	=> $tp_id,
+				user_id 	=> $member->primary_key(), 
+				role_id 	=> (ref $role eq 'TUSK::Permission::Role') ? $role->getPrimaryKeyID() : undef,
+			});
+		}
+
+		if ($ret_val && !$seen_students{$member->primary_key()}) {
+		    	($ret_val, $msg) = $course->add_child_student($u, $p, $member->primary_key(), $tp_id, '');
+		}
+
+		$master_msg .= "$msg<br/>" unless ($ret_val);
+    }
+    return $master_msg;
+</%perl>
+</%method>
+
+
+
+<%method jsarray>
+%	return ['scripts.js', 'layers.js'];
+</%method>
+
+
+<%method title>
+%	return __("Add Group Members");
+</%method>
+
+<%method red_header_text>
+%	return __('Add Group Members');
+</%method>
+
+<%method leftnav>
+<%perl>
+	my %someHash = (
+	                'component'           => '/tmpl/leftnav/course',
+	                'metaDataRef'         => $metadataHashRef,
+	               );
+	return \%someHash;
+</%perl>
+</%method>
