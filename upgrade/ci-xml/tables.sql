@@ -1,21 +1,25 @@
-CREATE TABLE IF NOT EXISTS `class_meeting_assessment_method_type` (
-  `class_meeting_assessment_method_type_id` int(10) unsigned NOT NULL auto_increment,
+CREATE TABLE IF NOT EXISTS `class_meeting_assessment_purpose` (
+  `class_meeting_assessment_purpose_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `class_meeting_id` int(10) unsigned NOT NULL,
   `school_id` int(10) unsigned NOT NULL,
-  `assessment_method_type_enum_id` int(10) unsigned NOT NULL,
-  PRIMARY KEY (`class_meeting_assessment_method_type_id`),
-  UNIQUE KEY (`class_meeting_id`, `assessment_method_type_enum_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+  `assessment_purpose_enum_id` int(10) unsigned NOT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`class_meeting_assessment_purpose_id`),
+  UNIQUE KEY `class_meeting_id` (`class_meeting_id`,`assessment_purpose_enum_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
-
-CREATE TABLE IF NOT EXISTS `class_meeting_assessment_method_type_history` (
-  `class_meeting_assessment_method_type_id` int(10) unsigned NOT NULL auto_increment,
+CREATE TABLE IF NOT EXISTS `class_meeting_assessment_purpose_history` (
+  `class_meeting_assessment_purpose_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `class_meeting_assessment_purpose_id` int(10) unsigned NOT NULL,
   `class_meeting_id` int(10) unsigned NOT NULL,
   `school_id` int(10) unsigned NOT NULL,
-  `assessment_method_type_enum__id` int(10) unsigned NOT NULL,
+  `assessment_purpose_enum_id` int(10) unsigned NOT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
-  PRIMARY KEY (`class_meeting_assessment_method_type_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
+  PRIMARY KEY (`class_meeting_assessment_purpose_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
 alter table class_meeting_type
 add curriculum_method_enum_id int(10) unsigned NULL after label,
