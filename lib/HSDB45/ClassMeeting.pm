@@ -357,16 +357,34 @@ sub location {
 }
 
 sub type {
-	my $self = shift;
+    my $self = shift;
 
-	my $lbl = '';
-	my $type_id = $self->type_id();
-	if (defined $type_id) {
-		my $type = TUSK::ClassMeeting::Type->new()->lookupKey($type_id);
-		$lbl = $type->getLabel();
-	}
+    my $lbl = '';
+    my $type_id = $self->type_id();
+    if (defined $type_id) {
+	my $type = TUSK::ClassMeeting::Type->new()->lookupKey($type_id);
+	$lbl = $type->getLabel();
+    }
 
-	return $lbl;
+    return $lbl;
+}
+
+sub type_object {
+    my $self = shift;
+    if (my $type_id = $self->type_id()) {
+	return TUSK::ClassMeeting::Type->new()->lookupKey($type_id, [
+		 TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+		     origkey => 'curriculum_method_enum_id',
+		     joinkey => 'enum_data_id',
+		 })
+        ]);
+    }
+    return undef;
+}
+
+sub aessessment_method_type {
+    my $self = shift;
+    return 
 }
 
 sub type_id {
