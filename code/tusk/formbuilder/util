@@ -21,7 +21,7 @@
 </%once>
 
 <%shared>
-	my ($time_period_id, $teaching_site_id);
+	my ($time_period_id, $teaching_site_id, $is_current);
 	my ($form_id) = $m->comp("/tmpl/url:get_path_ids");
 </%shared>
 
@@ -67,6 +67,15 @@
 </%perl>
 </%method>
 
+<%method get_is_current>
+<%perl>
+	unless ($is_current){
+		$m->comp("SELF:set_aux_course_info");
+	}
+	return ($is_current);
+</%perl>
+</%method>
+
 <%doc> this is to handle the case someone fills in a form for a given student, otherwise a form is for self</%doc>
 <%method set_aux_course_info>
 <%args>
@@ -82,13 +91,21 @@
 		# set some default values
 		$time_period_id = -1;
 		$teaching_site_id = -1;
+		$is_current = -1;
 
 		if (scalar @students){
 
 			# figure out all the time period ids and store the corresponding teaching site id
 			my %time_period_hash = map { $_->aux_info('time_period_id') => $_->aux_info('teaching_site_id') } @students;
+			my $cond = 'time_period_id IN (' . join(',', keys %time_period_hash) . ')';
+			my $sort = 'ORDER BY start_date DESC';
+			my @time_periods = HSDB45::TimePeriod->new(_school => $course->school())->lookup_conditions("$cond AND start_date <= curdate() AND end_date >= curdate()", $sort);
 
-			my @time_periods = HSDB45::TimePeriod->new(_school => $course->school())->lookup_conditions("time_period_id in (" . join(',', keys %time_period_hash) . ") and start_date <= curdate() and end_date >= curdate()", "order by start_date asc");
+			if (scalar @time_periods){
+				$is_current = 1;
+			} else {
+				@time_periods = HSDB45::TimePeriod->new(_school => $course->school())->lookup_conditions($cond, $sort);	
+			}
 
 			# grab the latest one (else -1 will be set for time_period_id and teaching_site_id)
 			if (scalar @time_periods){
