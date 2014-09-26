@@ -6000,28 +6000,39 @@ INSERT ignore INTO `eval_type` VALUES
 (2, 'teaching', 'Teaching Evaluation', 'script', now(), 'script', now());
 
 
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
 CREATE TABLE IF NOT EXISTS `enum_data` (
-  `enum_data_id` int(10) unsigned NOT NULL auto_increment,
-  `namespace` varchar(50) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `short_name` varchar(12) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `display_name` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `description` varchar(200) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
-  `created_on` datetime NOT NULL default '0000-00-00 00:00:00',
-  `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
-  `modified_on` datetime default NULL,
-  PRIMARY KEY  (`enum_data_id`),
+  `enum_data_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `namespace` varchar(50) NOT NULL DEFAULT '',
+  `short_name` varchar(12) NOT NULL DEFAULT '',
+  `display_name` varchar(100) DEFAULT NULL,
+  `description` varchar(200) NOT NULL DEFAULT '',
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`enum_data_id`),
   KEY `namespace` (`namespace`),
   KEY `short_name` (`short_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
-SET character_set_client = @saved_cs_client; 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
 INSERT ignore INTO `enum_data` VALUES 
-(1, 'eval_association.status', 'saved', 'Saved', NULL, 'script', now(), 'script', now()),
-(2, 'eval_association.status', 'completed', 'Completed', NULL, 'script', now(), 'script', now());
+(0, 'eval_association.status', 'saved', 'Saved', NULL, 'script', now()),
+(0, 'eval_association.status', 'completed', 'Completed', NULL, 'script', now()),
+(0, 'competency.level_id', 'national', 'National', 'National Competencies', 'script',now()),
+(0, 'competency.level_id', 'school', 'School', 'School Competencies', 'script',now()),
+(0, 'competency.level_id', 'course', 'Course', 'Course Competencies', 'script',now()),
+(0, 'competency.level_id', 'class_meet', 'Class Meeting', 'Class Meeting Competencies', 'script',now()),
+(0, 'competency.level_id', 'content', 'Content', 'Content Competencies', 'script',now()),
+(0, 'competency.user_type.id', 'competency', 'Competency', 'Competency type for Competencies', 'script',now()),
+(0, 'competency.user_type.id', 'category', 'Competency Category', 'Category type for Competencies', 'script',now()),
+(0, 'competency.user_type.id', 'info', 'Supporting Information', 'Supporting Information for Competencies', 'script',now()),
+(0, 'competency_checklist_assignment.assessor_type', 'self', 'Self', '', 'script',now()),
+(0, 'competency_checklist_assignment.assessor_type', 'partner', 'Partner', '', 'script',now()),
+(0, 'competency_checklist_assignment.assessor_type', 'faculty', 'Faculty', '', 'script',now()),
+(0, 'feature_link.feature_type', 'competency', 'Competency', 'URIs for national Competencies', 'script',now()),
+(0, 'class_meeting_type.curriculum_method_id', 'instruction', 'Instructional Method', '', 'script',now()),
+(0, 'class_meeting_type.curriculum_method_id', 'assessment', 'Assessment Method', '', 'script',now()),
+(0, 'class_meeting_assessment_method.type_id', 'formative', 'Formative', '', 'script',now()),
+(0, 'class_meeting_assessment_method.type_id', 'summative', 'Summative', '', 'script',now());
 
 
 SET @saved_cs_client     = @@character_set_client;
@@ -6167,7 +6178,10 @@ CREATE TABLE IF NOT EXISTS course_user (
 	modified_by varchar(24) default null,
 	modified_on datetime default null,
 	primary key (course_user_id),
-	unique key (school_id, course_id, user_id, time_period_id)
+	key (school_id),
+	key (time_period_id),
+	key (course_id),
+	key (user_id)
 ) engine=InnoDB default charset=utf8;
 SET character_set_client = @saved_cs_client; 
 
@@ -6202,7 +6216,8 @@ create table if not exists course_user_site (
 	modified_by varchar(24) default null,
 	modified_on datetime default null,
 	primary key (course_user_site_id),
-	unique key (course_user_id, teaching_site_id)
+	key (course_user_id),
+	key (teaching_site_id)
 ) engine=InnoDB default charset=utf8;
 
 SET @saved_cs_client     = @@character_set_client;
@@ -6285,23 +6300,6 @@ CREATE TABLE IF NOT EXISTS `competency_checklist_history` (
   PRIMARY KEY  (`competency_checklist_history_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=UTF8;
 
-CREATE TABLE IF NOT EXISTS `enum_data` (
-  `enum_data_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `namespace` varchar(50) NOT NULL DEFAULT '',
-  `short_name` varchar(12) NOT NULL DEFAULT '',
-  `display_name` varchar(100) DEFAULT NULL,
-  `description` varchar(200) NOT NULL DEFAULT '',
-  `modified_by` varchar(24) DEFAULT NULL,
-  `modified_on` datetime DEFAULT NULL,
-  PRIMARY KEY (`enum_data_id`),
-  KEY `namespace` (`namespace`),
-  KEY `short_name` (`short_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-INSERT ignore INTO enum_data VALUES 
-(0, 'COMPETENCY_CHECKLIST_assignment.assessor_type', 'self', 'Self', '', 'script', now(), 'script', now()),
-(0, 'competency_checklist_assignment.assessor_type', 'partner', 'Partner', '', 'script', now(), 'script', now()),
-(0, 'competency_checklist_assignment.assessor_type', 'faculty', 'Faculty', '', 'script', now(), 'script', now());
 
 CREATE TABLE IF NOT EXISTS `competency_checklist_assignment` (
   `competency_checklist_assignment_id` int(10) unsigned NOT NULL auto_increment,

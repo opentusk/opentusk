@@ -553,7 +553,9 @@ $args => {}
 		}
 		unless (my @evals = $course->get_evals()) {
 			$leftMenu{evaluations}{style} = 'viewcourseleftnavEmpty';			
-		}
+		}		
+		$checklist_groups = $m->session->{'user'}->get_course_competency_checklist_groups($course);
+                $leftMenu{checklists}{style} = 'viewcourseleftnavEmpty' unless (@$checklist_groups);
 	}
 
 	if (scalar($course->child_teaching_sites()) >= 1) {
@@ -573,8 +575,9 @@ $args => {}
 			$m->comp('SELF:setFacultyRows', course => $subcourse);	
 		}
 	} ## intergrated course
-
-	if(scalar($course->child_topics()) < 1)         {$leftMenu{obj}{style} = 'viewcourseleftnavEmpty';}
+	
+	if(scalar(@{$checklist_groups}) < 1)         {$leftMenu{checklists}{style} = 'viewcourseleftnavEmpty';}
+	if($course->has_competencies() < 1)         {$leftMenu{obj}{style} = 'viewcourseleftnavEmpty';}
 	if(scalar($course->class_meetings()) < 1)       {$leftMenu{schedule}{style} = 'viewcourseleftnavEmpty';}
 	if(scalar(@sortedFacultyMembers) < 1)              {$leftMenu{fac}{style} = 'viewcourseleftnavEmpty';}
  	if(scalar($course->active_child_content()) < 1) {$leftMenu{content}{style} = 'viewcourseleftnavEmpty';}
@@ -708,7 +711,7 @@ else {
 			return [ {txt => $u_e, url => "/protected/management/teachingsite/course/show/course/$type_path" } ];
 		}
 		elsif($courseView eq 'obj'){
-			return [ {txt => $u_e, url => "/protected/management/course/objectives/$type_path" } ];
+			return [ {txt => $u_e, url => "/tusk/competency/competency/author/course/manage/course/"."$type_path" } ];
 		}
 		elsif($courseView eq 'fac'){
 			return [ {txt => $u_e, url => "/protected/management/course/users/show/$type_path" } ];
@@ -805,8 +808,12 @@ else {
 </%method>
 
 <%method jsarray>
-% 	my $jsarray = ['element.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/interface/interface.js', 'scripts-jq.js', 'competency/competency/functions.js'];
-%	push @$jsarray, 'eval/view.js' if ($courseView eq 'evaluations');
+% 	my $jsarray = ['element.js', 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/interface/interface.js', 'scripts-jq.js'];
+%	if ($courseView eq 'evaluations') {
+%		push @$jsarray, 'eval/view.js';
+%	} else {
+%		push @$jsarray, 'competency/competency/functions.js';
+%	}
 %	return $jsarray;
 </%method>
 

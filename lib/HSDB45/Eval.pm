@@ -108,8 +108,8 @@ sub question_stylesheet_type {
 }
 
 sub question_stylesheet_id {
-    my $self = shift();
-    return @_ ? $self->field_value('question_stylesheet', shift()) : $self->field_value('question_stylesheet');
+    my $self = shift;
+    return (@_) ? $self->field_value('question_stylesheet', shift) : $self->field_value('question_stylesheet');
 }
 
 sub title {
@@ -119,13 +119,15 @@ sub title {
 
 sub eval_type {
     my $self = shift;
-    return TUSK::Eval::Type->lookupReturnOne("eval_type_id = " . $self->field_value('eval_type_id'));
+    my $eval_type_id = $self->field_value('eval_type_id');
+    my $eval_type = TUSK::Eval::Type->lookupReturnOne("eval_type_id = $eval_type_id");
+    return ($eval_type) ? $eval_type : TUSK::Eval::Type->lookupReturnOne("token = 'course'") ;
 }
 
 sub is_teaching_eval {
     my $self = shift;
     my $eval_type = $self->eval_type();
-    return (ref $eval_type eq 'TUSK::Eval::Type' && $eval_type->getToken eq 'teaching') ? 1 : 0;
+    return (ref $eval_type eq 'TUSK::Eval::Type' && $eval_type->getToken eq 'teaching');
 }
 
 sub question_stylesheet_ids {
@@ -743,7 +745,7 @@ sub answer_form {
 
     # Make the user code
     my $user_code = $user->out_user_code($fdat->{submit_password});
-    my $evaluator_code = ($is_teaching_eval && $fdat->{evaluatee_id}) ? $user->out_user_code($fdat->{submit_password}, $fdat->{evaluatee_id}) : '';
+    my $evaluator_code = ($is_teaching_eval && $fdat->{evaluatee_id}) ? $user->out_user_code($fdat->{submit_password}, $fdat->{evaluatee_id}) : $user_code;
 
     my ($result, $msg) = (0, '');
     eval {

@@ -487,6 +487,26 @@ sub objective_link {
     return $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_objective"};
 }
 
+sub has_competencies {
+    #
+    # Check if course has course competencies associated with it or not
+    #
+    my $self = shift;
+
+    my $tusk_course_id = TUSK::Course->new()->lookupKey($self->getTuskCourseID())->getPrimaryKeyID;
+    
+    my $course_competencies = TUSK::Competency::Competency->lookup( 'competency_course.course_id ='. $tusk_course_id, 
+								    [ 'competency_id', 'description'] , undef, undef,
+								    [ TUSK::Core::JoinObject->new( 'TUSK::Competency::Course', 
+												   { origkey=> 'competency_id', joinkey => 'competency_id', jointype => 'inner'})]);	
+    if (scalar(@{$course_competencies}) < 1) {
+	return 0;
+    } else {
+	return 1;
+    }
+
+}
+
 sub child_topics {
     #
     # Get the objectives linked down from this course (from link_course_objective)
@@ -1259,37 +1279,27 @@ sub delete_child_student {
 ################################
 sub user_has_role {
     my ($self, $user_id, $role_tokens) = @_;
+    my $cond = "course_user.user_id = '$user_id'";
+    my $admin_group = HSDB45::UserGroup->get_admin_group($self->school());
 
-    unless (exists $self->{course_role_token}{$user_id}) {
-	my $users = $self->find_users("course_user.user_id = '$user_id'");
-	my $role = $users->[0]->getRole() if (scalar @$users && ref $users->[0] eq 'TUSK::Core::HSDB4Tables::User');
-	$self->{course_role_token}{$user_id} = ($role) ? $role->getRoleToken() : '';
+    # Users in the school admin group have all the roles
+    return 1 if ($admin_group->contains_user($user_id));
+
+    if ($role_tokens && scalar(@$role_tokens)) {
+	$role_tokens = join("','", @$role_tokens);
+	$cond .= " AND role_token IN ('$role_tokens')";
     }
-    
-    if ($role_tokens && scalar @$role_tokens) {
-	foreach my $token (@$role_tokens) {
-	    return 1 if ($token eq $self->{course_role_token}{$user_id});
-	}
-    } else {
-	return 1 if ($self->{course_role_token}{$user_id} ne '');
-    }
-    return 0;
+
+    my $users = $self->find_users($cond);
+
+    return scalar(@$users);
 }
 
 sub can_user_manage_course {
     my ($self, $user) = @_;
 
-    # If it's a course director or administrator, they can edit
-    if ($self->user_has_role($user->primary_key(), ['director', 'administrator'])) { 
-	return 1; 
-    }
-
-    # If the user is in the school admin group, then they're also set
-    my $admin_group = HSDB45::UserGroup->get_admin_group($self->school());
-    if ($admin_group->contains_user($user)) {
-	return 1;
-    }
-    return 0;
+    # If it's a course director or manager, they can edit
+    return $self->user_has_role($user->primary_key(), ['director', 'manager']);
 }
 
 sub can_user_edit {
@@ -1322,16 +1332,8 @@ sub child_small_group_leaders {
     # Get the list of small group instructors
     #
     my ($self, $time_period_id) = @_;
-    warn "I am being called in course object\n";
-    my $user = TUSK::Core::HSDB4Tables::User->new();
-    $user->setErrorLevel(9);
-    return $user->lookup(undef, ['lastname', 'firstname'], undef, undef, 
-	   [ 
-	     TUSK::Core::JoinObject->new('TUSK::Course::User::Site', { joinkey => 'user_id', jointype => 'inner', }),
-	     TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'course_user_id', origkey => 'course_user_site.course_user_id', jointype => 'inner', joincond => "time_period_id = $time_period_id"  }),
-	     TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id', jointype => 'inner'  }),
-	     TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id',  jointype => 'inner',  joincond => "role_token = 'instructor'" }),
-    ]);
+
+    return $self->users($time_period_id, "role_token = 'instructor'")
 }
 
 sub content_link {

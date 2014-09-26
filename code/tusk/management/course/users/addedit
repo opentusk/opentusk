@@ -109,7 +109,7 @@
 % foreach my $role (grep { !($_->getVirtualRole()) } @$all_roles) {
 %	my $role_label = __($role->getRoleDesc());
 % 	# course has all roles,  but my group and thesis committee has only director/manager/author roles
-%	next if ($role->getRoleToken() =~ /^(director|manager|author)$/ && ($is_group_course || $is_thesis_comm));
+%	next if (($role->getRoleToken() !~ /^(director|manager|author)$/) && ($is_group_course || $is_thesis_comm));
 
 %	if ($is_thesis_comm) {
 %		if ($role->getRoleToken() eq 'director') {
@@ -130,6 +130,7 @@
 </td>
 </tr>
 
+% unless ($is_group_course || $is_thesis_comm) {
 <tr> 
 <td class="labelgray"><% __('Label(s)') %>:<br> <span class="xsm">(<%__("Labels are used for sorting and display purposes only")%>)</span></td>
 <td class="cell-left">
@@ -145,7 +146,6 @@
 </td>
 </tr>
 
-% unless ($is_group_course || $is_thesis_comm) { 
 %	if (my @teaching_sites = $course->child_teaching_sites()) {
 <tr>
 <td class="labelgray"><% __('Teaching Site') %>:</td>
@@ -160,8 +160,6 @@
 </td>
 </tr>
 %	}
-% }
-
 
 <tr> 
 <td class="labelgray"><% __('Assign to Course Groups') %>:</td>
@@ -183,7 +181,7 @@
 </table>
 </td>
 </tr>
-
+% }
 
 <tr> 
 <td>&nbsp;</td>
@@ -202,15 +200,6 @@
 	my $is_group_course = $course->type eq 'group';
 	my $is_thesis_comm = $course->type eq 'thesis committee';
 	my $course_id = $course->primary_key();
-	if ($is_group_course) {
-		unless (TUSK::Functions::set_eternity_timeperiod($course,$m->session)) {
-			 $m->comp("/tmpl/url:redirect",
-				destination => "/management/course/users/show/$school_name/$course_id",
-				message => __('No "eternity" time period with appropriate end date.') . '<br/>' . __('Please see administrator for assistance.'),
-				msg_type => 'errmsg',
-			);
-		}
-	}
 
 	my $school = $m->comp("/tmpl/url:get_school");
 	my $user_id = undef;

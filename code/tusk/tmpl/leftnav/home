@@ -88,9 +88,11 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	## course announcements
 	my $announcement_ref = $m->session->{'user'}->get_course_announcements();
 	foreach my $ann (@$announcement_ref) {
-		my $grouping = $ann->{course};
-		my $link = '<a href="/hsdb45/course/' . $grouping->school() . '/' .  $grouping->course_id . '/ann">' . $stripObj->truncateAndRemoveHTML($ann->{item}->field_value("body"), $charLimit) . '</a>';
-		push @announcement_links, {shortlink => $link, fulltext => "<p>" . $stripObj->removeHTML($ann->{item}->field_value("body")) . "</p>"};
+		my $body = $ann->{item}->field_value('body'); 
+		my $link = $stripObj->truncateAndRemoveHTML($body, $charLimit);
+		my $text = '<p>' . $stripObj->removeHTML($body) . '</p>';
+		$link = '<a href="/hsdb45/course/' . $ann->{course}->school() . '/' .  $ann->{course}->course_id() . '/ann">' . $link . '</a>' if ($ann->{type} eq 'course');
+		push @announcement_links, {shortlink => $link, fulltext => $text};
 	}
 
 	## course discussions
@@ -197,15 +199,13 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	## patient logs
 	my $patientlogs = $m->session->{user}->get_patient_logs();
 	my $directorpatientlogs = $m->session->{user}->get_director_forms('PatientLog');
-	if(scalar(@$patientlogs) || (defined($directorpatientlogs) && scalar(@$directorpatientlogs))) {
-		if(scalar(@{$patientlogs})) {
-			push @log_links, '<a href="/protected/patientlog/student/home">View Patient Logs</a>';
+	if (defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
+		foreach my $logrow (@$directorpatientlogs) {
+			push @log_links, '<a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $stripObj->truncateAndRemoveHTML($logrow->{form_name}, $charLimit) . '</a>';
 		}
-		if(defined($directorpatientlogs) && scalar(@{$directorpatientlogs})) {
-			foreach my $logrow (@$directorpatientlogs) {
-				push @log_links, '<a href="/protected/patientlog/director/report/course/' . $logrow->{school_name} . '/' . $logrow->{course_id} . '/' . $logrow->{form_id} . '">' . $stripObj->truncateAndRemoveHTML($logrow->{form_name}, $charLimit) . '</a>';
-			}
-		}
+	}
+	if (scalar(@{$patientlogs})) {
+		push @log_links, '<a href="/protected/patientlog/student/home">View Patient Logs</a>';
 	}
 
 	## quizzes
