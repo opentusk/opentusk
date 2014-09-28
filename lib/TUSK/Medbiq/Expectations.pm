@@ -158,6 +158,7 @@ sub _competencies_relation {
 	      jointype => 'inner',
 	      origkey => 'competency_level_enum_id',
 	      joinkey => 'enum_data_id',
+	      joincond => "competency_level.short_name = '$token'",
 	      alias => 'competency_level',
 	  }),
 	  TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
@@ -173,7 +174,6 @@ sub _competencies_relation {
 	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
 	      origkey => 'feature_link.feature_type_enum_id',
 	      joinkey => 'enum_data_id',
-	      joincond => "feature_type.short_name = '$token'",
 	      alias => 'feature_type',
 	  }),
     ]);
