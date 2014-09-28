@@ -72,8 +72,7 @@ sub _build_InstitutionName {
 };
 
 sub _build_InstitutionID {
-    return TUSK::Medbiq::UniqueID->new(domain => 'idd:aamc.org:institution',
-                                       id => 'DUMMYID');
+    return TUSK::Medbiq::UniqueID->new(domain => 'idd:aamc.org:institution', id => $TUSK::Constants::Institution{AAMC_ID});
 }
 
 sub _build_Address {
