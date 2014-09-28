@@ -882,9 +882,56 @@ CREATE TABLE IF NOT EXISTS `coding_code_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 
+CREATE TABLE IF NOT EXISTS `competency_version` (
+  `competency_version_id` tinyint(3) unsigned NOT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `title` varchar(100) DEFAULT NULL,
+  `description` varchar(250) DEFAULT NULL,
+  `start_date` datetime DEFAULT NULL,
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_version_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `competency_version_history` (
+  `competency_version_history_id` tinyint(3) unsigned NOT NULL,
+  `competency_version_id` tinyint(3) unsigned NOT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `title` varchar(100) DEFAULT NULL,
+  `description` varchar(250) DEFAULT NULL,
+  `start_date` datetime DEFAULT NULL,
+  `modified_by` varchar(24) DEFAULT NULL,
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`competency_version_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `competency_user_type` (
+  `competency_user_type_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(24) DEFAULT NULL,
+  `competency_type_enum_id` smallint(6) DEFAULT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime DEFAULT NULL,
+  PRIMARY KEY (`competency_user_type_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `competency_user_type_history` (
+  `competency_user_type_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `competency_user_type_id` int(10) unsigned DEFAULT NULL,
+  `name` varchar(24) DEFAULT NULL,
+  `school_id` int(10) unsigned DEFAULT NULL,
+  `competency_type_enum_id` smallint(6) DEFAULT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime DEFAULT NULL,
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`competency_user_type_history_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE IF NOT EXISTS `competency` (
   `competency_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `version_id` int(10) unsigned DEFAULT NULL,
+  `version_id` tinyint(3) unsigned DEFAULT NULL,
   `school_id` int(10) unsigned NOT NULL,
   `title` varchar(350) DEFAULT NULL,
   `description` text,	
@@ -896,9 +943,9 @@ CREATE TABLE IF NOT EXISTS `competency` (
   KEY `school_id` (`school_id`),
   KEY `version_id` (`version_id`),
   KEY `fk_competencytype` (`competency_user_type_id`),
-  CONSTRAINT `competency_ibfk_1` FOREIGN KEY (`version_id`) REFERENCES `competency_version` (`competency_version_id`),
-  CONSTRAINT `fk_competencytype` FOREIGN KEY (`competency_user_type_id`) REFERENCES `competency_user_type` (`competency_user_type_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=67643 DEFAULT CHARSET=utf8;
+  CONSTRAINT `competency_ibfk_1` FOREIGN KEY (`version_id`) REFERENCES competency_version (`competency_version_id`),
+  CONSTRAINT `fk_competencytype` FOREIGN KEY (`competency_user_type_id`) REFERENCES competency_user_type (`competency_user_type_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `competency_history` (
   `competency_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -917,30 +964,8 @@ CREATE TABLE IF NOT EXISTS `competency_history` (
   PRIMARY KEY (`competency_history_id`),
   KEY `competency_id` (`competency_id`),
   KEY `school_id` (`school_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=68687 DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
-
-CREATE TABLE IF NOT EXISTS `competency_user_type` (
-  `competency_user_type_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(24) DEFAULT NULL,
-  `competency_type_enum_id` smallint(6) DEFAULT NULL,
-  `school_id` int(10) unsigned DEFAULT NULL,
-  `modified_by` varchar(24) NOT NULL DEFAULT '',
-  `modified_on` datetime DEFAULT NULL,
-  PRIMARY KEY (`competency_user_type_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=398 DEFAULT CHARSET=utf8;
-
-CREATE TABLE IF NOT EXISTS `competency_user_type_history` (
-  `competency_user_type_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `competency_user_type_id` int(10) unsigned DEFAULT NULL,
-  `name` varchar(24) DEFAULT NULL,
-  `school_id` int(10) unsigned DEFAULT NULL,
-  `competency_type_enum_id` smallint(6) DEFAULT NULL,
-  `modified_by` varchar(24) NOT NULL DEFAULT '',
-  `modified_on` datetime DEFAULT NULL,
-  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
-  PRIMARY KEY (`competency_user_type_history_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `competency_hierarchy` (
   `competency_hierarchy_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -957,7 +982,7 @@ CREATE TABLE IF NOT EXISTS `competency_hierarchy` (
   KEY `child_competency_id` (`child_competency_id`),
   KEY `lineage` (`lineage`),
   KEY `school_id` (`school_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=3380 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `competency_hierarchy_history` (
   `competency_hierarchy_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -977,7 +1002,7 @@ CREATE TABLE IF NOT EXISTS `competency_hierarchy_history` (
   KEY `child_competency_id` (`child_competency_id`),
   KEY `lineage` (`lineage`),
   KEY `school_id` (`school_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=11386 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `competency_course` (
   `course_competency_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -989,7 +1014,7 @@ CREATE TABLE IF NOT EXISTS `competency_course` (
   PRIMARY KEY (`course_competency_id`),
   KEY `competency_id` (`competency_id`),
   CONSTRAINT `competency_course_ibfk_1` FOREIGN KEY (`competency_id`) REFERENCES `competency` (`competency_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2696 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `competency_course_history` (
   `course_competency_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -1002,9 +1027,9 @@ CREATE TABLE IF NOT EXISTS `competency_course_history` (
   `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
   PRIMARY KEY (`course_competency_history_id`),
   KEY `competency_id` (`competency_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1504 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
-CREATE TABLE `competency_class_meeting` (
+CREATE TABLE IF NOT EXISTS `competency_class_meeting` (
   `competency_class_meeting_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
   `class_meeting_id` int(10) unsigned NOT NULL DEFAULT '0',
@@ -1018,7 +1043,7 @@ CREATE TABLE `competency_class_meeting` (
   CONSTRAINT `competency_class_meeting_ibfk_1` FOREIGN KEY (`competency_id`) REFERENCES `competency` (`competency_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `competency_class_meeting_history` (
+CREATE TABLE IF NOT EXISTS `competency_class_meeting_history` (
   `competency_class_meeting_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `competency_class_meeting_id` int(10) unsigned NOT NULL DEFAULT '0',
   `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
@@ -1031,7 +1056,7 @@ CREATE TABLE `competency_class_meeting_history` (
   PRIMARY KEY (`competency_class_meeting_history_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `competency_content` (
+CREATE TABLE IF NOT EXISTS `competency_content` (
   `competency_content_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
   `content_id` int(10) unsigned NOT NULL DEFAULT '0',
@@ -1043,7 +1068,7 @@ CREATE TABLE `competency_content` (
   CONSTRAINT `competency_content_ibfk_1` FOREIGN KEY (`competency_id`) REFERENCES `competency` (`competency_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `competency_content_history` (
+CREATE TABLE IF NOT EXISTS `competency_content_history` (
   `competency_content_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `competency_content_id` int(10) unsigned NOT NULL,
   `competency_id` int(10) unsigned NOT NULL DEFAULT '0',
@@ -1055,7 +1080,7 @@ CREATE TABLE `competency_content_history` (
   PRIMARY KEY (`competency_content_history_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `competency_relation` (
+CREATE TABLE IF NOT EXISTS `competency_relation` (
   `competency_relation_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `competency_id_1` int(10) unsigned DEFAULT NULL,
   `competency_id_2` int(10) unsigned DEFAULT NULL,
@@ -1066,7 +1091,7 @@ CREATE TABLE `competency_relation` (
   KEY `competency_id_2` (`competency_id_2`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
-CREATE TABLE `competency_relation_history` (
+CREATE TABLE IF NOT EXISTS `competency_relation_history` (
   `competency_relation_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `competency_relation_id` int(10) unsigned NOT NULL,
   `competency_id_1` int(10) unsigned NOT NULL,
@@ -1077,31 +1102,7 @@ CREATE TABLE `competency_relation_history` (
   PRIMARY KEY (`competency_relation_history_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
-CREATE TABLE `competency_version` (
-  `competency_version_id` tinyint(3) unsigned NOT NULL,
-  `school_id` int(10) unsigned DEFAULT NULL,
-  `title` varchar(100) DEFAULT NULL,
-  `description` varchar(250) DEFAULT NULL,
-  `start_date` datetime DEFAULT NULL,
-  `modified_by` varchar(24) DEFAULT NULL,
-  `modified_on` datetime DEFAULT NULL,
-  PRIMARY KEY (`competency_version_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-CREATE TABLE `competency_version_history` (
-  `competency_version_history_id` tinyint(3) unsigned NOT NULL,
-  `competency_version_id` tinyint(3) unsigned NOT NULL,
-  `school_id` int(10) unsigned DEFAULT NULL,
-  `title` varchar(100) DEFAULT NULL,
-  `description` varchar(250) DEFAULT NULL,
-  `start_date` datetime DEFAULT NULL,
-  `modified_by` varchar(24) DEFAULT NULL,
-  `modified_on` datetime DEFAULT NULL,
-  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
-  PRIMARY KEY (`competency_version_history_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-CREATE TABLE `academic_level` (
+CREATE TABLE IF NOT EXISTS `academic_level` (
   `academic_level_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(100) DEFAULT NULL,
   `description` varchar(250) DEFAULT NULL,
@@ -1111,7 +1112,7 @@ CREATE TABLE `academic_level` (
   PRIMARY KEY (`academic_level_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `academic_level_history` (
+CREATE TABLE IF NOT EXISTS `academic_level_history` (
   `academic_level_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `academic_level_id` int(10) unsigned NOT NULL,
   `title` varchar(100) DEFAULT NULL,
@@ -1123,7 +1124,7 @@ CREATE TABLE `academic_level_history` (
   PRIMARY KEY (`academic_level_history_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `academic_level_course` (
+CREATE TABLE IF NOT EXISTS `academic_level_course` (
   `academic_level_course_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `academic_level_id` int(10) unsigned DEFAULT NULL,
   `course_id` int(10) unsigned DEFAULT NULL,
@@ -1134,7 +1135,7 @@ CREATE TABLE `academic_level_course` (
   CONSTRAINT `academic_level_course_ibfk_1` FOREIGN KEY (`academic_level_id`) REFERENCES `academic_level` (`academic_level_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `academic_level_course_history` (
+CREATE TABLE IF NOT EXISTS `academic_level_course_history` (
   `academic_level_course_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `academic_level_course_id` int(10) unsigned NOT NULL,
   `academic_level_id` int(10) unsigned DEFAULT NULL,
@@ -4920,6 +4921,7 @@ CREATE TABLE IF NOT EXISTS `permission_role` (
   `role_token` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
   `role_desc` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci default NULL,
   `feature_type_id` int(10) unsigned NOT NULL default '0',
+  `virtual_role` tinyint(3) unsigned NOT NULL DEFAULT '0',
   `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
   `created_on` datetime NOT NULL default '0000-00-00 00:00:00',
   `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
@@ -4929,22 +4931,38 @@ CREATE TABLE IF NOT EXISTS `permission_role` (
   KEY `feature_type_id` (`feature_type_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
-INSERT ignore INTO `permission_role` VALUES (1,'manager','Ability to do anything with a particular quiz',1,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(2,'editor','Ability to edit the quiz; cannot see grades, reports or change permissions',1,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(3,'grader','Ability to preview quiz, see reports and change grades; cannot edit quiz or change permissions',1,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(4,'reviewer','Ability to preview the quiz',1,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(5,'admin','Ability to do anything in CMS for a particular school',2,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(6,'reviewer','Ability to preview case',3,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(7,'editor','Ability to edit a case; cannot see reports',3,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(8,'grader','Ability to preview case and see reports',3,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(9,'author','Ability to do anything with a particular case.',3,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(10,'manager','Ability to do anything with a particular assignment',4,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(11,'editor','Ability to edit the assignment and email; cannot see grades, change permissions, or delete assignment',4,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(12,'grader','Ability to view/edit grades for the assignment and email; cannot edit the assignment, change permissions, or delete assignment',4,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(13,'manager','Ability to do anything with a particular assessment',5,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(14,'editor','Ability to edit the assessment and email; cannot see grades, view results, change permissions, or delete assessment',5,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(15,'assessor','Ability to assess students; cannot edit the assessment, view results, change permissions, or delete assessment',5,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(16,'NCSA','Notification of change in student\'s assessor',5,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
-(0, 'director', 'Director', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'site_director', 'Site Director', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'manager', 'Manager', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'student_manager', 'Student Manager', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'editor', 'Editor', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'author', 'Author', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'student_editor', 'Student Editor', last_insert_id(), 0, 'script', now(), 'script', now()),
-(0, 'lecturer', 'Lecturer', last_insert_id(), 1, 'script', now(), 'script', now()),
-(0, 'instructor', 'Instructor', last_insert_id(), 1, 'script', now(), 'script', now()),
-(0, 'lab_instructor', 'Lab Instructor', last_insert_id(), 1, 'script', now(), 'script', now()),
-(0, 'librarian', 'Librarian', last_insert_id(), 1, 'script', now(), 'script', now()),
-(0, 'merc_representative', 'MERC Representative', last_insert_id(), 1, 'script', now(), 'script', now()),
-(0, 'teaching_assistant', 'Teaching Assistant', last_insert_id(), 1, 'script', now(), 'script', now()),
-(0, 'attending', 'Attending', last_insert_id(), 1, 'script', now(), 'script', now()),
-(0, 'resident', 'Resident', last_insert_id(), 1, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (1,'manager','Ability to do anything with a particular quiz',1,0,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47');
+INSERT ignore INTO `permission_role` VALUES (2,'editor','Ability to edit the quiz; cannot see grades, reports or change permissions',1,0,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47');
+INSERT ignore INTO `permission_role` VALUES (3,'grader','Ability to preview quiz, see reports and change grades; cannot edit quiz or change permissions',1,0,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47');
+INSERT ignore INTO `permission_role` VALUES (4,'reviewer','Ability to preview the quiz',1,0,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47');
+INSERT ignore INTO `permission_role` VALUES (5,'admin','Ability to do anything in CMS for a particular school',2,0,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47');
+INSERT ignore INTO `permission_role` VALUES (6,'reviewer','Ability to preview case',3,0,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57');
+INSERT ignore INTO `permission_role` VALUES (7,'editor','Ability to edit a case; cannot see reports',3,0,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57');
+INSERT ignore INTO `permission_role` VALUES (8,'grader','Ability to preview case and see reports',3,0,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57');
+INSERT ignore INTO `permission_role` VALUES (9,'author','Ability to do anything with a particular case.',3,0,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57');
+INSERT ignore INTO `permission_role` VALUES (10,'manager','Ability to do anything with a particular assignment',4,0,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11');
+INSERT ignore INTO `permission_role` VALUES (11,'editor','Ability to edit the assignment and email; cannot see grades, change permissions, or delete assignment',4,0,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11');
+INSERT ignore INTO `permission_role` VALUES (12,'grader','Ability to view/edit grades for the assignment and email; cannot edit the assignment, change permissions, or delete assignment',4,0,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11');
+INSERT ignore INTO `permission_role` VALUES (13,'manager','Ability to do anything with a particular assessment',5,0,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41');
+INSERT ignore INTO `permission_role` VALUES (14,'editor','Ability to edit the assessment and email; cannot see grades, view results, change permissions, or delete assessment',5,0,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41');
+INSERT ignore INTO `permission_role` VALUES (15,'assessor','Ability to assess students; cannot edit the assessment, view results, change permissions, or delete assessment',5,0,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41');
+INSERT ignore INTO `permission_role` VALUES (16,'NCSA','Notification of change in student\'s assessor',5,0,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41');
+INSERT ignore INTO `permission_role` VALUES (0, 'director', 'Director', last_insert_id(), 0, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'site_director', 'Site Director', last_insert_id(), 0, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'manager', 'Manager', last_insert_id(), 0, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'student_manager', 'Student Manager', last_insert_id(), 0, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'editor', 'Editor', last_insert_id(), 0, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'author', 'Author', last_insert_id(), 0, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'student_editor', 'Student Editor', last_insert_id(), 0, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'lecturer', 'Lecturer', last_insert_id(), 1, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'instructor', 'Instructor', last_insert_id(), 1, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'lab_instructor', 'Lab Instructor', last_insert_id(), 1, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'librarian', 'Librarian', last_insert_id(), 1, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'merc_representative', 'MERC Representative', last_insert_id(), 1, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'teaching_assistant', 'Teaching Assistant', last_insert_id(), 1, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'attending', 'Attending', last_insert_id(), 1, 'script', now(), 'script', now());
+INSERT ignore INTO `permission_role` VALUES (0, 'resident', 'Resident', last_insert_id(), 1, 'script', now(), 'script', now());
+
 
 
 SET @saved_cs_client     = @@character_set_client;
@@ -4963,7 +4981,54 @@ CREATE TABLE IF NOT EXISTS `permission_role_function` (
   KEY `role_id_2` (`role_id`,`function_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
-INSERT ignore INTO `permission_role_function` VALUES (1,1,1,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(2,1,2,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(3,1,3,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(4,1,4,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(5,1,5,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(6,1,6,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(7,1,7,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(8,1,8,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(9,1,9,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(10,2,2,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(11,2,3,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(12,3,3,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(13,3,4,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(14,3,5,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(15,3,7,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(16,3,8,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(17,3,9,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(18,4,3,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),(19,9,10,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(20,8,10,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(21,9,11,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(22,7,11,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(23,8,11,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(24,6,11,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(25,9,12,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(26,7,12,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(27,9,13,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(28,9,14,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),(29,10,15,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(30,10,16,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(31,10,17,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(32,10,18,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(33,10,19,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(34,11,15,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(35,11,16,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(36,12,17,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(37,12,16,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),(38,13,20,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(39,13,21,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(40,13,22,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(41,13,23,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(42,13,24,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(43,13,25,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(44,14,20,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(45,14,21,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(46,15,22,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(47,16,26,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),(48,1,27,'scorbe01','2011-09-21 07:00:00','scorbe01','2011-09-21 07:00:00');
+INSERT ignore INTO `permission_role_function` VALUES (1,1,1,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(2,1,2,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(3,1,3,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(4,1,4,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(5,1,5,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(6,1,6,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(7,1,7,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(8,1,8,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(9,1,9,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(10,2,2,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(11,2,3,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(12,3,3,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(13,3,4,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(14,3,5,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(15,3,7,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(16,3,8,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(17,3,9,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(18,4,3,'psilev01','2005-09-15 06:06:47','psilev01','2005-09-15 06:06:47'),
+	(19,9,10,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(20,8,10,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(21,9,11,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(22,7,11,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(23,8,11,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(24,6,11,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(25,9,12,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(26,7,12,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(27,9,13,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(28,9,14,'migrate','2005-11-07 06:06:57','migrate','2005-11-07 06:06:57'),
+	(29,10,15,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(30,10,16,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(31,10,17,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(32,10,18,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(33,10,19,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(34,11,15,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(35,11,16,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(36,12,17,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(37,12,16,'dwalke01','2007-11-29 06:21:11','dwalke01','2007-11-29 06:21:11'),
+	(38,13,20,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(39,13,21,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(40,13,22,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(41,13,23,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(42,13,24,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(43,13,25,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(44,14,20,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(45,14,21,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(46,15,22,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(47,16,26,'isathi01','2010-11-04 06:04:41','isathi01','2010-11-04 06:04:41'),
+	(48,1,27,'scorbe01','2011-09-21 07:00:00','scorbe01','2011-09-21 07:00:00');
 
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
@@ -5722,7 +5787,7 @@ CREATE TABLE IF NOT EXISTS `search_result_category` (
   `modified_on` datetime DEFAULT NULL,
   PRIMARY KEY (`search_result_category_id`),
   KEY `search_result_category_i01` (`school_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 
 
@@ -5740,7 +5805,7 @@ CREATE TABLE IF NOT EXISTS`search_result_category_history` (
   `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
   PRIMARY KEY (`search_result_category_history_id`),
   KEY `search_result_category_history_i01` (`search_result_category_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 
 SET @saved_cs_client     = @@character_set_client;
@@ -5753,7 +5818,7 @@ CREATE TABLE IF NOT EXISTS `search_result_type` (
   `modified_by` varchar(24) DEFAULT NULL,
   `modified_on` datetime DEFAULT NULL,
   PRIMARY KEY (`search_result_type_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
@@ -5784,7 +5849,7 @@ CREATE TABLE IF NOT EXISTS `search_term` (
   PRIMARY KEY (`search_term_id`),
   KEY `search_term_i01` (`search_term_id`),
   KEY `search_term_i02` (`search_term`)
-) ENGINE=MyISAM AUTO_INCREMENT=42 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
@@ -5800,7 +5865,7 @@ CREATE TABLE IF NOT EXISTS `search_term_history` (
   `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
   PRIMARY KEY (`search_term_history_id`),
   KEY `search_term_history_i01` (`search_term_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=66 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 
 SET @saved_cs_client     = @@character_set_client;
@@ -5820,7 +5885,7 @@ CREATE TABLE IF NOT EXISTS `search_result_history` (
   `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
   PRIMARY KEY (`search_result_history_id`),
   KEY `search_result_history_i01` (`search_result_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=38 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 
 
@@ -6398,9 +6463,9 @@ CREATE TABLE IF NOT EXISTS `feature_link` (
   PRIMARY KEY (`feature_link_id`),
   KEY `feature_type_enum_id` (`feature_type_enum_id`),
   KEY `feature_id` (`feature_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=297 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
-CREATE TABLE `feature_link_history` (
+CREATE TABLE IF NOT EXISTS `feature_link_history` (
   `feature_link_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `feature_link_id` int(10) unsigned NOT NULL,
   `feature_type_enum_id` int(10) unsigned NOT NULL,
