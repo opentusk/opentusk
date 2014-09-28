@@ -124,7 +124,7 @@ sub _build_lom {
 
     my $identifier = TUSK::LOM::Identifier->new(
         catalog => 'URI',
-        entry => 'http://' . $TUSK::Constants::Domain . '/comoetency/competency/view/' . $self->dao->getPrimaryKeyID(),
+        entry => 'http://' . $TUSK::Constants::Domain . '/competency/competency/view/' . $self->dao->getPrimaryKeyID(),
     );
 
     my $title_string = $self->dao->getDescription();
@@ -155,6 +155,7 @@ sub _build_Category {
 	    warn 'Competency id ' . $self->dao()->getPrimaryKeyID() . " has incorrect competency_level (" . $competency_level->getShortName() . ").\n";
 	}
     }
+    warn "missing competency_level for competency_id: " . $self->dao()->getPrimaryKeyID() . "\n";
     return [];
 }
 

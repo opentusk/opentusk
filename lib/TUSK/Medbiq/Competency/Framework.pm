@@ -239,7 +239,7 @@ sub _build_SupportingInformation { [] }
 sub _get_id_object {
     my ($self, $id) = @_;
     return TUSK::Medbiq::Identifier->new(
-	   Entry => 'http://' . $TUSK::Constants::Domain . '/comoetency/view/' . $id,
+	   Entry => 'http://' . $TUSK::Constants::Domain . '/competency/competency/view/' . $id,
     );
 }
 
