@@ -32,6 +32,7 @@
 	my $assessor = $acc->getAssessor($assignment_id, $checklist_id, 'faculty');
 	my $assignment = $assessor->getJoinObject('TUSK::Competency::Checklist::Assignment');
 	my $entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry');
+	my $time_period_id = $assignment->getTimePeriodID();
 </%shared>
 
 <div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to:", title => $competency->getDescription()) %></div>
@@ -119,6 +120,7 @@
 
 	$comment = ($comment =~ /\w+/) ? "\nAdditional comments from student\:\n$comment" : '';
 
+	my $directors = $course->users($time_period_id, "role_token = 'director'");
 	my $email = TUSK::Application::Email->new({
 		to_addr => $to_addr,
 		from_addr => $TUSK::Constants::SupportEmail,
@@ -137,7 +139,7 @@
 				"/$checklist_id/$assignment_id" . 
 				(($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') .
 				'/' . $acc->getUrlToken($assignment, $checklist_id),
-			course_directors => join("\n", map { $_->out_full_name() . '   <' . $_->default_email() . '>' } $course->child_course_directors()),
+			course_directors => join("\n", map { $_->outFullName() . '   <' . $_->getDefaultEmail() . '>' } @$directors),
 			comment => $comment,
 		),
 	});
@@ -149,21 +151,19 @@
 
 <%method getSiteFaculty>
 <%perl>
-	my $enrolled_student = $course->get_single_student($student->primary_key(), $assignment->getTimePeriodID());
-
-	my @faculty = $course->child_users('teaching_site_id = ' . $enrolled_student->aux_info('teaching_site_id') . ' order by lastname, firstname');
+	my $enrolled_student = $course->get_single_student($student->primary_key(), $time_period_id);
+	my $teaching_site_id = $enrolled_student->aux_info('teaching_site_id');
+	my $faculty = $course->users($time_period_id, "course_user_site.teaching_site_id = $teaching_site_id");
 	my @options = ();
 	 ## assigned faculty, site director, or no selection
 	my $selected = $assessor->getDefaultEmail() . '___' . $assessor->getLastname();
-	foreach my $member (@faculty) {
-		if ($member->aux_info('teaching_site_id') eq $enrolled_student->aux_info('teaching_site_id')) {
-			push @options, { 
-				label => $member->out_lastfirst_name, 
-				value => $member->default_email() . '___' . $member->last_name(),
-			};
-		}
-		if (!$selected && $member->aux_info('roles') =~ /Site Director/) {
-			$selected = $member->primary_key() . '___' . $member->last_name(),
+	foreach my $member (@$faculty) {
+		push @options, { 
+				label => $member->outLastFirstName(), 
+				value => $member->getDefaultEmail() . '___' . $member->getLastname(),
+		};
+		if (!$selected && $member->hasRole('site_director')) {
+			$selected = $member->primary_key() . '___' . $member->getLastname(),
 		}
 	}
 	push @options, {

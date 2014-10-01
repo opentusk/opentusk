@@ -981,11 +981,6 @@ sub getCourseUserSites {
     return $self->getJoinObjects('TUSK::Course::User::Site');
 }
 
-sub getDefaultEmail {
-    my $self = shift();
-    return ($self->getFieldValue('preferred_email')) ? $self->getFieldValue('preferred_email') : $self->getFieldValue('email');
-}
-
 sub outFullName {
     my $self = shift;
     my ($fn, $ln, $sfx, $dg) =  @{$self->getFieldValues(['firstname', 'lastname', 'suffix', 'degree'])};
