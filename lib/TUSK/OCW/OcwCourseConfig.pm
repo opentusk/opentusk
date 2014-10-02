@@ -795,7 +795,7 @@ sub getCourseStaff {
 	my $users = $course->users($self->getTimePeriodID());
 
 	return ( 
-		 [ grep { $_->hasRole('director') } @$users, grep { $_->hasRole('author') } @$users; ],
+		 [ grep { $_->hasRole('director') } @$users, grep { $_->hasRole('author') } @$users ],
 		 [ grep { (!$_->hasRole('director') && !$_->hasRole('author') && $_->hasLabel('teaching_assistant')) } @$users ],
 	       );
 }

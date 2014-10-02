@@ -94,7 +94,7 @@ function createCKEinstance(ckefield_id) {
 			CKEDITOR.instances[editor_id].destroy(true);			
 			$("#" + editor_id).appendTo("#largeditor .inner");					
 			var instance = CKEDITOR.replace(editor_id, {
-				toolbar : 'TUSK', 
+				toolbar : 'TUSK',
 				toolbarStartupExpanded : true,
 				toolbarCanCollapse : true,
 				removePlugins : 'elementspath',
