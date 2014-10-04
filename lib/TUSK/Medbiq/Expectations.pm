@@ -51,24 +51,22 @@ has event_competencies => (
     required => 1,
 );
 
-has course_competencies => (
+has school_competencies => (
     is => 'ro',
     isa => ArrayRef[Competency],
     required => 1,
 );
 
-has school_competencies => (
-    is => 'ro',
-    isa => ArrayRef[Competency],
-    lazy => 1,
-    builder => '_build_school_competencies',
-);
-
 has national_competencies => (
     is => 'ro',
     isa => ArrayRef[Competency],
-    lazy => 1,
-    builder => '_build_national_competencies',
+    required => 1,
+);
+
+has course_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    required => 1,
 );
 
 has framework_id => (
@@ -95,16 +93,6 @@ has CompetencyFramework => (
 ############
 # * Builders
 ############
-
-sub _build_school_competencies {
-    my $self = shift;
-    return $self->_competencies_relation('school', [ map { $_->getPrimaryKeyID() } @{$self->course_competencies()} ]);
-}
-
-sub _build_national_competencies {
-    my $self = shift;
-    return $self->_competencies_relation('national', [ map { $_->getPrimaryKeyID() } @{$self->school_competencies()} ]);
-}
 
 sub _build_CompetencyObject {
     my $self = shift;
@@ -147,36 +135,6 @@ sub _processCompetencyObjects {
 	push @objects, TUSK::Medbiq::Competency::Object->new(dao =>  $hashes{$comp_id});
     }
     return \@objects;
-}
-
-sub _competencies_relation {
-    my ($self, $token, $linked_competencies) = @_;
-    return [] unless scalar @$linked_competencies;
-
-    return TUSK::Competency::Competency->lookup('', undef, undef, undef, [
-	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
-	      jointype => 'inner',
-	      origkey => 'competency_level_enum_id',
-	      joinkey => 'enum_data_id',
-	      joincond => "competency_level.short_name = '$token'",
-	      alias => 'competency_level',
-	  }),
-	  TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
-	      jointype => 'inner',
-	      origkey => 'competency_id',
-	      joinkey => 'competency_id_2',
-	      joincond => 'competency_id_1 in (' . join(',', @$linked_competencies) . ')',
-	  }),
-	  TUSK::Core::JoinObject->new('TUSK::Feature::Link', {
-	      origkey => 'competency_id',
-	      joinkey => 'feature_id',
-	  }),
-	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
-	      origkey => 'feature_link.feature_type_enum_id',
-	      joinkey => 'enum_data_id',
-	      alias => 'feature_type',
-	  }),
-    ]);
 }
 
 ###########

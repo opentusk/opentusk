@@ -196,6 +196,27 @@ has event_competencies => (
     builder => '_build_event_competencies',
 );
 
+has course_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    lazy => 1,
+    builder => '_build_course_competencies',
+);
+
+has school_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    lazy => 1,
+    builder => '_build_school_competencies',
+);
+
+has national_competencies => (
+    is => 'ro',
+    isa => ArrayRef[Competency],
+    lazy => 1,
+    builder => '_build_national_competencies',
+);
+
 has academic_levels_with_courses => (
     is => 'ro',
     isa => ArrayRef[InstanceOf['TUSK::Course::AcademicLevel']],
@@ -296,7 +317,7 @@ sub _build_Events {
     );
 }
 
-sub _build_Expectations {
+sub _build_course_competencies {
     my $self = shift;
 
     my @course_competencies = ();
@@ -305,22 +326,28 @@ sub _build_Expectations {
     foreach my $alwc (@{$self->academic_levels_with_courses}) {
 	foreach my $comp (@{$alwc->getJoinObjects('TUSK::Competency::Competency')}) {
 	    $comp->setJoinObjects($relation_obj_class, $alwc->getJoinObject($relation_obj_class));
-	    $comp->setJoinObjects('competency_level', $alwc->getJoinObject('TUSK::Enum::Data'));
+	    $comp->setJoinObjects('competency_level', $alwc->getJoinObject('competency_level'));
 	    push @course_competencies, $comp;
 	}
     }
+    return \@course_competencies;
+}
+
+sub _build_Expectations {
+    my $self = shift;
 
     return TUSK::Medbiq::Expectations->new(
         school => $self->school,
         event_competencies => $self->event_competencies,
-	course_competencies => \@course_competencies,
+        school_competencies => $self->school_competencies,
+        national_competencies => $self->national_competencies,
+	course_competencies => $self->course_competencies,
         framework_id => $self->ReportID()->id(),
     );
 }
 
 sub _build_AcademicLevels {
     my $self = shift;
-
     return TUSK::Medbiq::AcademicLevels->new(levels => $self->school_academic_levels());
 }
 
@@ -357,6 +384,18 @@ sub _build_event_competencies {
 	      joinkey => 'class_meeting_id',
 	      joincond => "meeting_date between '" . $self->ReportingStartDate() . "' AND '" . $self->_reportingEndDateTime() . "'",
 	 }),
+         TUSK::Core::JoinObject->new('TUSK::ClassMeeting::Type', {
+	      jointype => 'inner',
+	      origkey => 'class_meeting.type_id',
+	      joinkey => 'class_meeting_type_id',
+	 }),
+	 TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'class_meeting_type.curriculum_method_enum_id',
+	      joinkey => 'enum_data_id',
+	      joincond => "curriculum_method.namespace = 'class_meeting_type.curriculum_method_id' and curriculum_method.short_name in ('assessment', 'instruction')",
+	      alias => 'curriculum_method',
+	  }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
 	      origkey => 'competency_id',
 	      joinkey => 'competency_id_1',
@@ -388,6 +427,18 @@ sub _build_event_competencies {
 	      joinkey => 'class_meeting_id',
 	      joincond => "meeting_date between '" . $self->ReportingStartDate() . "' AND '" . $self->_reportingEndDateTime() . "'",
 	 }),
+         TUSK::Core::JoinObject->new('TUSK::ClassMeeting::Type', {
+	      jointype => 'inner',
+	      origkey => 'class_meeting.type_id',
+	      joinkey => 'class_meeting_type_id',
+	 }),
+	 TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'class_meeting_type.curriculum_method_enum_id',
+	      joinkey => 'enum_data_id',
+	      joincond => "curriculum_method.namespace = 'class_meeting_type.curriculum_method_id' and curriculum_method.short_name in ('assessment', 'instruction')",
+	      alias => 'curriculum_method',
+	  }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
 	      origkey => 'competency_id',
 	      joinkey => 'competency_id_1',
@@ -427,6 +478,18 @@ sub _build_academic_levels_with_courses {
 	      joinkey => 'course_id',
 	      joincond => "meeting_date between '" . $self->ReportingStartDate() . "' AND '" . $self->_reportingEndDateTime() . "'",
 	 }),
+         TUSK::Core::JoinObject->new('TUSK::ClassMeeting::Type', {
+	      jointype => 'inner',
+	      origkey => 'class_meeting.type_id',
+	      joinkey => 'class_meeting_type_id',
+	 }),
+	 TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'class_meeting_type.curriculum_method_enum_id',
+	      joinkey => 'enum_data_id',
+	      joincond => "curriculum_method.namespace = 'class_meeting_type.curriculum_method_id' and curriculum_method.short_name in ('assessment', 'instruction')",
+	      alias => 'curriculum_method',
+	  }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Course', {
 	      joinkey => 'course_id',
 	 }),
@@ -440,7 +503,8 @@ sub _build_academic_levels_with_courses {
 	      jointype => 'inner',
 	      origkey => 'competency.competency_level_enum_id',
 	      joinkey => 'enum_data_id',
-	      joincond => "namespace = 'competency.level_id' and short_name = 'course'",
+	      joincond => "competency_level.namespace = 'competency.level_id' and competency_level.short_name = 'course'",
+	      alias => 'competency_level',
 	 }),
 	 TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {  ## course-school competencies
 	      origkey => 'competency_course.competency_id',
@@ -448,6 +512,19 @@ sub _build_academic_levels_with_courses {
 	})
     ]);
 }
+
+### Given course competencies, we build school competencies
+sub _build_school_competencies {
+    my $self = shift;
+    return $self->_competencies_relation('school', [ map { $_->getPrimaryKeyID() } @{$self->course_competencies()} ]);
+}
+
+### Given school competencies, we build national competencies
+sub _build_national_competencies {
+    my $self = shift;
+    return $self->_competencies_relation('national', [ map { $_->getPrimaryKeyID() } @{$self->school_competencies()} ]);
+}
+
 
 sub _reportingEndDateTime {
     my $self = shift;
@@ -461,6 +538,36 @@ sub _reportingEndDateTime {
 ###################
 # * Private methods
 ###################
+
+sub _competencies_relation {
+    my ($self, $token, $linked_competencies) = @_;
+    return [] unless scalar @$linked_competencies;
+
+    return TUSK::Competency::Competency->lookup('', undef, undef, undef, [
+	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      jointype => 'inner',
+	      origkey => 'competency_level_enum_id',
+	      joinkey => 'enum_data_id',
+	      joincond => "competency_level.short_name = '$token'",
+	      alias => 'competency_level',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Competency::Relation', {
+	      jointype => 'inner',
+	      origkey => 'competency_id',
+	      joinkey => 'competency_id_2',
+	      joincond => 'competency_id_1 in (' . join(',', @$linked_competencies) . ')',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Feature::Link', {
+	      origkey => 'competency_id',
+	      joinkey => 'feature_id',
+	  }),
+	  TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
+	      origkey => 'feature_link.feature_type_enum_id',
+	      joinkey => 'enum_data_id',
+	      alias => 'feature_type',
+	  }),
+    ]);
+}
 
 
 __PACKAGE__->meta->make_immutable;
