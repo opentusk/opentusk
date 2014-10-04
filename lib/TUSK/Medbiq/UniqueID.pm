@@ -65,7 +65,7 @@ sub _build_domain { 'idd:' . $TUSK::Constants::Domain . ':uuid' }
 
 sub _build_id {
     my $ug = Data::UUID->new;
-    return $ug->to_string( $ug->create );
+    return $ug->create_hex();
 }
 
 sub _build_xml_attributes { [ qw(domain) ] }
