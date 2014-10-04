@@ -76,8 +76,8 @@ sub _build_xml_content { [ qw( Reference1 Relationship Reference2 ) ] }
 #################
 
 sub broader {
-    my ($class, $r1, $r2) = @_;
-    return $class->new(
+    my ($r1, $r2) = @_;
+    return __PACKAGE__->new(
         Reference1 => $r1,
         Reference2 => $r2,
         Relationship => 'http://www.w3.org/2004/02/skos/core#broader',
@@ -85,8 +85,8 @@ sub broader {
 }
 
 sub narrower {
-    my ($class, $r1, $r2) = @_;
-    return $class->new(
+    my ($r1, $r2) = @_;
+    return __PACKAGE__->new(
         Reference1 => $r1,
         Reference2 => $r2,
         Relationship => 'http://www.w3.org/2004/02/skos/core#narrower',
@@ -94,8 +94,8 @@ sub narrower {
 }
 
 sub related {
-    my ($class, $r1, $r2) = @_;
-    return $class->new(
+    my ($r1, $r2) = @_;
+    return __PACKAGE__->new(
         Reference1 => $r1,
         Reference2 => $r2,
         Relationship => 'http://www.w3.org/2004/02/skos/core#related',

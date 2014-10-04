@@ -190,15 +190,21 @@ sub _build_Includes {
 sub _build_Relation { 
     my $self = shift;
     my @cf_relations = ();
+    my %duplicates = ();
 
     foreach my $comp (@{$self->national_competencies()}) {
 	if (my $relation = $comp->getJoinObject('TUSK::Competency::Relation'))  {
 	    if (my $feature_link = $comp->getJoinObject('TUSK::Feature::Link')) {
-		push @cf_relations, TUSK::Medbiq::Competency::Framework::Relation->new(
-		       Reference1 => $self->_get_id_object_by_link($feature_link->getUrl()),
-		       Relationship => 'http://www.w3.org/2004/02/skos/core#related',
-		       Reference2 => $self->_get_id_object($relation->getCompetencyId1()),
-	       );
+		my $ref1 = $relation->getCompetencyId2();
+		my $ref2 = $relation->getCompetencyId1();
+
+		unless (exists $duplicates{$ref1}{$ref2}) {
+		    push @cf_relations, TUSK::Medbiq::Competency::Framework::Relation::related(
+			   $self->_get_id_object_by_link($feature_link->getUrl()),
+		           $self->_get_id_object($relation->getCompetencyId1())
+	            );
+		    $duplicates{$ref1}{$ref2} = 1;
+		}
 	    }
 	}
     }
@@ -208,11 +214,16 @@ sub _build_Relation {
 		      @{$self->event_competencies()}
 		      ) {
 	if (my $relation = $comp->getJoinObject('TUSK::Competency::Relation'))  {
-	    push @cf_relations, TUSK::Medbiq::Competency::Framework::Relation->new(
-	       Reference1 => $self->_get_id_object($relation->getCompetencyId2()),
-	       Relationship => 'http://www.w3.org/2004/02/skos/core#broader',
-	       Reference2 => $self->_get_id_object($relation->getCompetencyId1()),
-            );
+	    my $ref1 = $relation->getCompetencyId2();
+	    my $ref2 = $relation->getCompetencyId1();
+
+	    unless (exists $duplicates{$ref1}{$ref2}) {
+		push @cf_relations, TUSK::Medbiq::Competency::Framework::Relation::narrower(
+		    $self->_get_id_object($relation->getCompetencyId2()),
+		    $self->_get_id_object($relation->getCompetencyId1())
+	        );
+		$duplicates{$ref1}{$ref2} = 1;
+	    }
 	}
     }
 
