@@ -153,7 +153,7 @@ sub _processCourseData {
 	$course_data{$course_id}{level_id} = $cl->getJoinObject('TUSK::Academic::Level')->getSortOrder();
 	$course_data{$course_id}{title} = $course->getTitle();
 	$course_data{$course_id}{description} = $course->getBody();
-	$course_data{$course_id}{competencies} = $cl->getJoinObjects('TUSK::Competency::Competency');
+	push @{$course_data{$course_id}{competencies}}, @{$cl->getJoinObjects('TUSK::Competency::Competency')};
 
 	foreach my $cm (@{$cl->getJoinObjects('TUSK::Core::HSDB45Tables::ClassMeeting')}) {
 	    $course_data{$course_id}{dates}{$cm->getMeetingDate()} = 1;
