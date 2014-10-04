@@ -127,7 +127,7 @@ sub _build_lom {
         entry => 'http://' . $TUSK::Constants::Domain . '/competency/competency/view/' . $self->dao->getPrimaryKeyID(),
     );
 
-    my $title_string = $self->dao->getDescription();
+    my $title_string = $self->dao->getTitle() || $self->dao->getDescription();
     chomp $title_string;
     my $title = TUSK::LOM::LangString->new(string => $title_string);
 
