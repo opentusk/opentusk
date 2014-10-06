@@ -27,7 +27,7 @@ use Carp;
 use Readonly;
 
 use TUSK::Namespaces ':all';
-use TUSK::Types qw( Competency AcademicLevel );
+use TUSK::Types qw( UnsignedInt );
 use Types::Standard qw( Maybe ArrayRef HashRef InstanceOf);
 use TUSK::Medbiq::Types qw( NonNullString );
 use TUSK::Medbiq::Sequence::Block;
@@ -57,7 +57,7 @@ has school => (
 
 has levels => (
     is => 'ro',
-    isa => ArrayRef[AcademicLevel],
+    isa => HashRef[UnsignedInt],
     required => 1,
 );
 
@@ -86,6 +86,7 @@ sub _build_SequenceBlock {
     my $self = shift;
     my @blocks = ();
     my $courses = $self->_processCourseData();
+    my $levels = $self->levels();
 
     foreach my $course_id (sort { $courses->{$a}{level_id} <=> $courses->{$b}{level_id} || $a <=> $b } keys %$courses) {
 	my @block_events = ();
@@ -119,7 +120,7 @@ sub _build_SequenceBlock {
 		       ),
 		       Duration => 'P' . scalar(keys %{$courses->{$course_id}{dates}}) . 'D',
 		   ),
-		   Level => "/CurriculumInventory/AcademicLevels/Level[\@number='$courses->{$course_id}{level_id}']",
+		   Level => "/CurriculumInventory/AcademicLevels/Level[\@number='$levels->{$courses->{$course_id}{level_id}}']",
 	   CompetencyObjectReference => $self->_getCompObjRefs($courses->{$course_id}{competencies}),
 	   SequenceBlockEvent => \@block_events,
 	   SequenceBlockReference => \@block_refs,
@@ -150,7 +151,7 @@ sub _processCourseData {
 	my $course = $cl->getJoinObject('hsdb45_course');
 	my $course_id = $course->getPrimaryKeyID();
 
-	$course_data{$course_id}{level_id} = $cl->getJoinObject('TUSK::Academic::Level')->getSortOrder();
+	$course_data{$course_id}{level_id} = $cl->getJoinObject('TUSK::Academic::Level')->getPrimaryKeyID();
 	$course_data{$course_id}{title} = $course->getTitle();
 	$course_data{$course_id}{description} = $course->getBody();
 	push @{$course_data{$course_id}{competencies}}, @{$cl->getJoinObjects('TUSK::Competency::Competency')};
@@ -174,7 +175,7 @@ sub _processCourseData {
 
 	foreach my $pcourse (@{$pcourses}) {
 	    my $pcourse_id = $pcourse->getPrimaryKeyID();
-	    $course_data{$pcourse_id}{level_id} = $pcourse->getJoinObject('TUSK::Academic::Level')->getSortOrder();
+	    $course_data{$pcourse_id}{level_id} = $pcourse->getJoinObject('TUSK::Academic::Level')->getPrimaryKeyID();
 	    $course_data{$pcourse_id}{title} = $pcourse->getTitle();
 	    $course_data{$pcourse_id}{description} = $pcourse->getBody();
 

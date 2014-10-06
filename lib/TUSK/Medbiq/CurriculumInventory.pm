@@ -59,13 +59,6 @@ has school => (
     required => 1,
 );
 
-has school_academic_levels => (
-    is => 'ro',
-    isa => ArrayRef[AcademicLevel],
-    lazy => 1,			       
-    builder => '_build_school_academic_levels',			
-);
-
 has schemaLocation => (
     traits => [qw/Namespaced/],
     is => 'ro',
@@ -224,6 +217,14 @@ has academic_levels_with_courses => (
     builder => '_build_academic_levels_with_courses',
 );
 
+has sorted_academic_levels => (
+    is => 'ro',
+    isa => ArrayRef[AcademicLevel],
+    lazy => 1,
+    builder => '_build_sorted_academic_levels',
+);
+
+
 ######################
 # * Private attributes
 ######################
@@ -267,10 +268,6 @@ sub _build__now {
     return DateTime->now;
 }
 
-sub _build_school_academic_levels {
-    my $self = shift;
-    return TUSK::Academic::Level->lookup("school_id = " . $self->school()->getPrimaryKeyID(), ['sort_order']);
-}
 
 sub _build_schemaLocation {
     return 'http://ns.medbiq.org/curriculuminventory/v1/curriculuminventory.xsd';
@@ -346,9 +343,30 @@ sub _build_Expectations {
     );
 }
 
+sub _build_sorted_academic_levels {
+    my $self = shift;
+
+    my %levels = ();
+    foreach my $link (@{$self->academic_levels_with_courses()}) {
+	if (my $level = $link->getJoinObject('TUSK::Academic::Level')) {
+	    $levels{$level->getPrimaryKeyID()} = $level;
+	}
+    }
+
+    ## medbiq requires levels in sequence starting with 1 so we reset the sort order on the fly
+    my $num = 1;
+    my @sorted_levels = ();
+    foreach my $level (sort { $a->getSortOrder() <=> $b->getSortOrder() } values %levels) {
+	$level->setSortOrder($num++);
+	push @sorted_levels, $level;
+    }
+    return \@sorted_levels;
+}
+
 sub _build_AcademicLevels {
     my $self = shift;
-    return TUSK::Medbiq::AcademicLevels->new(levels => $self->school_academic_levels());
+
+    return TUSK::Medbiq::AcademicLevels->new(levels => $self->sorted_academic_levels );
 }
 
 sub _build_Sequence {
@@ -356,7 +374,7 @@ sub _build_Sequence {
 
     return TUSK::Medbiq::Sequence->new(
         school => $self->school(),
-        levels => $self->school_academic_levels(),				       
+        levels => { map { $_->getPrimaryKeyID() => $_->getSortOrder() } @{$self->sorted_academic_levels()} },
         levels_with_courses => $self->academic_levels_with_courses(),
     );
 }
