@@ -512,13 +512,11 @@ sub _build_academic_levels_with_courses {
 	      joinkey => 'course_id',
 	 }),
          TUSK::Core::JoinObject->new('TUSK::Competency::Competency', {
-	      jointype => 'inner',
 	      origkey => 'competency_course.competency_id',
 	      joinkey => 'competency_id',
 	      joincond => 'competency.school_id = ' . $self->school()->getPrimaryKeyID(), 
 	 }),
 	 TUSK::Core::JoinObject->new('TUSK::Enum::Data', {
-	      jointype => 'inner',
 	      origkey => 'competency.competency_level_enum_id',
 	      joinkey => 'enum_data_id',
 	      joincond => "competency_level.namespace = 'competency.level_id' and competency_level.short_name = 'course'",
