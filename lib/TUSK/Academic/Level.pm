@@ -74,7 +74,7 @@ sub new {
 				    _attributes => {
 					save_history => 1,
 					tracking_fields => 1,	
-					no_created => 1,
+					no_created => 0,
 				    },
 				    _levels => {
 					reporting => 'cluck',
@@ -209,7 +209,6 @@ sub setSortOrder{
     my ($self, $value) = @_;
     $self->setFieldValue('sort_order', $value);
 }
-
 
 =back
 

@@ -118,6 +118,8 @@ _yum_install 'perl(Linux::Pid)'
 _yum_install 'perl(XML::SAX::Writer)'
 _yum_install 'perl(YAML)'
 _yum_install 'perl(Statistics::Descriptive)'
+_yum_install uuid-perl
+_yum_install perl-DateTime
 _yum_install_nocheck 'perl(HTML::Defang)'
 _yum_install_nocheck 'perl(HTML::Mason)'
 _yum_install_nocheck 'perl(MasonX::Request::WithApacheSession)'

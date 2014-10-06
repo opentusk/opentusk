@@ -21,6 +21,7 @@
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Relation;
 	use TUSK::Enum::Data;
+	use TUSK::ClassMeeting::AssessmentPurpose;
 </%once>
 
 <%shared>
@@ -58,47 +59,84 @@
 
 
 <& /tmpl/element:form, params => {
-				method => 'POST',
-				onsubmit =>undef,
-				name => 'classmeetingaddedit' } &>
+	method => 'POST',
+	onsubmit =>undef,
+	name => 'classmeetingaddedit' 
+} &>
 
-<& /tmpl/element:table, params => { width => "100%",
-                border =>"0",
-                cellspacing =>"0",
-                cellpadding =>"0" } &>
+<& /tmpl/element:table, params => { 
+	width => "100%",
+	border =>"0",
+	ellspacing =>"0",
+	cellpadding =>"0" 
+} &>
 
-<& /tmpl/element:field_display, params =>{ label => __('Event Title'),
-                value => $class_meeting->field_value('title') } &>
+<& /tmpl/element:field_display, params => { 
+	label => __('Event Title'),
+	value => $class_meeting->field_value('title') 
+} &>
 
-<& /tmpl/element:field_display, params =>{ label => __('Event Date'),
-                value => $class_meeting->field_value('meeting_date') } &>
+% my $cm_type = $class_meeting->type_object();
+<& /tmpl/element:field_display, params => { 
+	label => __('Event Type'),
+	value => ($cm_type) ? $cm_type->getLabel() : '',
+} &>
 
-<& /tmpl/element:field_display, params =>{ label => __('Start Time'),
-                value => $class_meeting->field_value('starttime') } &>
+% ### show this only if the class meeting type is of an assessment method. 
+% if ($cm_type) {
+%	if (my $method_type = $cm_type->getJoinObject('TUSK::Enum::Data')) {
+%		if ($method_type->getShortName() eq 'assessment') {
+%			 my $assessment_purpose =  TUSK::ClassMeeting::AssessmentPurpose->new()->lookupReturnOne("class_meeting_id = $class_meeting_id AND school_id = $school_id");
 
-<& /tmpl/element:field_display, params =>{ label => __('End Time'),
-                value => $class_meeting->field_value('endtime') } &>
+<& /tmpl/element:dropdown, params => { 
+       label   => __('Assessment Method Purpose'),
+       name    => "assessment_purpose",
+       selected => ($assessment_purpose) ? $assessment_purpose->getAssessmentPurposeEnumID() : undef,
+       options => [ 
+		map {{ label => $_->getDisplayName(), value => $_->getPrimaryKeyID() }} @{TUSK::Enum::Data->lookup("namespace = 'class_meeting_assessment_method.type_id'")}
+       ],
+} &>
+%		}	
+%	}
+% }
+
+<& /tmpl/element:field_display, params =>{ 
+	label => __('Event Date'),
+	value => $class_meeting->field_value('meeting_date') 
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label => __('Start Time'),
+	value => $class_meeting->field_value('starttime') 
+} &>
+
+<& /tmpl/element:field_display, params =>{ 
+	label => __('End Time'),
+	value => $class_meeting->field_value('endtime') 
+} &>
 
 
-<& /tmpl/element:sort_order_box , params =>{
-		label=>__('Content'),
-		button_onclick=>"openwindow('contentdiv',700);",
-		buttons => [],
-		layer_info => {
-			layer => 'contentdiv',
-			fields => ['link_class_meeting_content_id','content_id', 'title', 'anchor_label','label', 'class_meeting_content_type_id'],
-			name => 'content',
-			sort => {usage => 'Yes'},
-			action => {usage => 'Yes', length=>100, functions => [ {func=>'remove', label=>__('Delete')} ]},	
-			scrollrows => 10,
-			display => [{ label => __('Title'),field => 'title', align => 'left', uneditable => 1, length => 300 },
-			            { label => __('Show on Schedule as'), field => 'class_meeting_content_type_id', align => 'left', length => 50, options => \@classMeetingDropdown },
-			            { field => 'content_id', type => 'hidden', length => 100},
-			            { label => __('Label'), field => 'label', type => 'textbox', length => 50 },
-			            { label => __('Section'), field => 'anchor_label', type => 'textbox', align => 'left', length => 50 } ],
-			validate => { usage => 'No', },
-			data => \@link_data 
-}} &>
+<& /tmpl/element:sort_order_box , params => {
+	label=>__('Content'),
+	button_onclick=>"openwindow('contentdiv',700);",
+	buttons => [],
+	layer_info => {
+		layer => 'contentdiv',
+		fields => ['link_class_meeting_content_id','content_id', 'title', 'anchor_label','label', 'class_meeting_content_type_id'],
+		name => 'content',
+		sort => {usage => 'Yes'},
+		action => {usage => 'Yes', length=>100, functions => [ {func=>'remove', label=>__('Delete')} ]},
+		scrollrows => 10,
+		display => [{ label => __('Title'),field => 'title', align => 'left', uneditable => 1, length => 300 },
+		            { label => __('Show on Schedule as'), field => 'class_meeting_content_type_id', align => 'left', length => 50, options => \@classMeetingDropdown },
+		            { field => 'content_id', type => 'hidden', length => 100},
+		            { label => __('Label'), field => 'label', type => 'textbox', length => 50 },
+		            { label => __('Section'), field => 'anchor_label', type => 'textbox', align => 'left', length => 50 }
+		],
+		validate => { usage => 'No', },
+		data => \@link_data 
+	}
+} &>
 
 
 <%perl>
@@ -304,6 +342,25 @@ my @user_data = map {{'user_id'=>$_->primary_key,
 			$class_meeting->child_users(); 
 		
 if (defined($ARGS{'submit'})){
+	if (defined $ARGS{assessment_purpose}) {
+		my $link = TUSK::ClassMeeting::AssessmentPurpose->lookupReturnOne("class_meeting_id = $class_meeting_id");
+		my $user_id = $m->session->{'user'}->primary_key();
+
+		if ($link) { ## update
+			if ($link->getAssessmentPurposeEnumID() != $ARGS{assessment_purpose}) {
+				$link->setAssessmentPurposeEnumID($ARGS{assessment_purpose});
+				$link->save({user => $user_id });
+			}
+		} else { ## insert
+			$link = TUSK::ClassMeeting::AssessmentPurpose->new();
+			$link->setFieldValues({ 
+				class_meeting_id => $class_meeting_id,
+				assessment_purpose_enum_id => $ARGS{assessment_purpose},
+				school_id => $school_id,
+			});
+			$link->save({user => $user_id });	
+		}
+	}
 	# Content updates
 	my $rowHash = $m->comp('/tmpl/process:process_fields',fields=> \%ARGS, filter=>'^contentdiv');
 	my ($r,$msg) = (1,"");

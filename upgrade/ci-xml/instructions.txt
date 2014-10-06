@@ -1,0 +1,53 @@
+#########################################################################################################
+### Curriculum Inventory (CI) Report Release
+### A tool for School Admin to generate a CI report 
+#########################################################################################################
+
+
+###############################################################
+###  perl modules installations
+###############################################################
+
+### upgrade the module as cpanm requires newer version
+### you might need to configure root cpan config, just hit enter for most of them 
+### for default values but do enter the sources
+> sudo cpan -i ExtUtils::MakeMaker
+
+### install App::cpanminus, our new tool to add/maintain perl modules
+> sudo curl -o /usr/bin/cpanm 'https://metacpan.org/raw/MIYAGAWA/App-cpanminus-1.7004/bin/cpanm?download=1'
+> sudo sed -i 's@#!perl@#!/usr/bin/perl@' /usr/bin/cpanm
+> sudo chmod 755 /usr/bin/cpanm
+
+### upgrade XML::Writer to 0.604. There was an older version of this module 
+### in lib direcotry but not working with ci report
+> sudo yum install -q -y 'perl(XML::Writer)'
+
+### re-install Moose with cpanm for a newer version
+### this will take a while as there are so many dependencies to be installed. Altogether 58 modules.
+> sudo yum remove 'perl(Moose)'
+> sudo cpanm http://cpan.metacpan.org/authors/id/E/ET/ETHER/Moose-2.1205.tar.gz
+
+### install new modules used by CI report tool  
+> sudo cpanm Types::XSD
+> sudo cpanm Data::UUID
+> sudo cpanm URI::Encode
+
+###############################################################
+### add key/values to tusk.conf  
+### Ensure you got the right JSON syntax (eg, comma)
+###############################################################
+
+### a) Add the following lines in institution section. 
+###    Change the country code if needed and replace xxx with your instiution's AAMC ID
++		"CountryCode"   : "US"
++		"AAMC_ID"	: "xxx"
+
+### b) Add degree in schools section. Each school will have its own degree key/values if you want the default value 
+###    This is an example for Medical school.
++ 		"Degree"      : "Doctor of Medicine"
+
+###############################################################
+### database changes
+###############################################################
+
+> mysql tusk < ./tables.sql

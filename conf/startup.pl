@@ -1,5 +1,9 @@
 #!/usr/bin/perl 
 BEGIN {
+
+    use lib "../local/lib/perl5";
+    use lib "../lib";
+
     if ($ENV{DEVELOPER}){
 	use Apache2::Status;
     }
@@ -13,7 +17,6 @@ BEGIN {
     use APR::Const();
     use APR::Table();
     use ModPerl::Const();
-    use lib "/usr/local/tusk/current/lib";
     use HSDB4::SQLRow::Content;
     use HSDB45::Course;
     use HSDB4::SQLRow::User;
