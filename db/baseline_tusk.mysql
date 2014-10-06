@@ -779,6 +779,8 @@ CREATE TABLE IF NOT EXISTS `class_meeting_type` (
   `class_meeting_type_id` int(10) unsigned NOT NULL auto_increment,
   `school_id` int(10) unsigned NOT NULL,
   `label` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `curriculum_method_enum_id` int(10) unsigned NULL,
+  `method_code` varchar(12) NULL,
   `created_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
   `created_on` datetime NOT NULL default '0000-00-00 00:00:00',
   `modified_by` varchar(24) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL default '',
@@ -786,6 +788,26 @@ CREATE TABLE IF NOT EXISTS `class_meeting_type` (
   PRIMARY KEY  (`class_meeting_type_id`),
   KEY `school_id` (`school_id`,`label`),
   CONSTRAINT `class_meeting_type_ibfk_1` FOREIGN KEY (`school_id`) REFERENCES `school` (`school_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE `class_meeting_type_history` (
+  `class_meeting_type_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `class_meeting_type_id` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `label` varchar(255) CHARACTER SET utf8 NOT NULL,
+  `curriculum_method_enum_id` int(10) unsigned DEFAULT NULL,
+  `method_code` varchar(12) DEFAULT NULL,
+  `created_by` varchar(24) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `created_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `modified_by` varchar(24) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`class_meeting_type_history_id`),
+  KEY `class_meeting_type_id` (`class_meeting_type_id`),
+  KEY `school_id` (`school_id`,`label`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 SET character_set_client = @saved_cs_client;
 
@@ -6097,7 +6119,11 @@ INSERT ignore INTO `enum_data` VALUES
 (0, 'class_meeting_type.curriculum_method_id', 'instruction', 'Instructional Method', '', 'script',now()),
 (0, 'class_meeting_type.curriculum_method_id', 'assessment', 'Assessment Method', '', 'script',now()),
 (0, 'class_meeting_assessment_method.type_id', 'formative', 'Formative', '', 'script',now()),
-(0, 'class_meeting_assessment_method.type_id', 'summative', 'Summative', '', 'script',now());
+(0, 'class_meeting_assessment_method.type_id', 'summative', 'Summative', '', 'script',now()),
+(0, 'class_meeting_type.curriculum_method_id', 'instruction', 'Instructional Method', '', 'script', now()),
+(0, 'class_meeting_type.curriculum_method_id', 'assessment', 'Assessment Method', '', 'script', now()),
+(0, 'class_meeting_assessment_method.type_id', 'formative', 'Formative', '', 'script', now()),
+(0, 'class_meeting_assessment_method.type_id', 'summative', 'Summative', '', 'script', now());
 
 
 SET @saved_cs_client     = @@character_set_client;
@@ -6475,4 +6501,52 @@ CREATE TABLE IF NOT EXISTS `feature_link_history` (
   `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
   PRIMARY KEY (`feature_link_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE IF NOT EXISTS `class_meeting_assessment_purpose` (
+  `class_meeting_assessment_purpose_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `class_meeting_id` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `assessment_purpose_enum_id` int(10) unsigned NOT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`class_meeting_assessment_purpose_id`),
+  UNIQUE KEY `class_meeting_id` (`class_meeting_id`,`assessment_purpose_enum_id`, `school_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `class_meeting_assessment_purpose_history` (
+  `class_meeting_assessment_purpose_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `class_meeting_assessment_purpose_id` int(10) unsigned NOT NULL,
+  `class_meeting_id` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `assessment_purpose_enum_id` int(10) unsigned NOT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`class_meeting_assessment_purpose_history_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE IF NOT EXISTS `class_meeting_group` (
+  `class_meeting_group_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `class_meeting_id1` int(10) unsigned NOT NULL,
+  `class_meeting_id2` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`class_meeting_group_id`),
+  UNIQUE KEY `class_meeting_id` (`class_meeting_id1`, `class_meeting_id2`, `school_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `class_meeting_group_history` (
+  `class_meeting_group_history_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `class_meeting_group_id` int(10) unsigned NOT NULL,
+  `class_meeting_id1` int(10) unsigned NOT NULL,
+  `class_meeting_id2` int(10) unsigned NOT NULL,
+  `school_id` int(10) unsigned NOT NULL,
+  `modified_by` varchar(24) NOT NULL DEFAULT '',
+  `modified_on` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
+  PRIMARY KEY (`class_meeting_group_history_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
