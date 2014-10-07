@@ -1030,6 +1030,32 @@ sub getJoinObjects{
     }
 }
 
+
+#######################################################
+
+=item B<setJoinObjects>
+
+    $obj->setJoinObjects($objclass, $objs);
+
+Set join objects
+
+=cut
+
+sub setJoinObjects {
+    my ($self, $objclass, $objs) = @_;
+
+    if ($objclass && $objs) {
+	if (ref $objs eq 'ARRAY') {
+	    if (scalar @$objs) {
+		push @{$self->{_join_objects}->{$objclass}}, @$objs;
+	    }
+	} else {
+	    push @{$self->{_join_objects}->{$objclass}}, $objs;
+	}
+    }
+}
+
+
 #######################################################
 
 =item B<checkJoinObject>

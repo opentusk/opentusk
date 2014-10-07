@@ -1,0 +1,109 @@
+<%doc>
+ Copyright 2012 Tufts University
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ http://www.opensource.org/licenses/ecl1.php
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+</%doc>
+<%once>
+use TUSK::Application::HTML::Strip;
+use TUSK::Curriculum::Program;
+use TUSK::Core::School;
+</%once>
+
+<%shared>
+my $school      = $m->comp("/tmpl/url:get_school");
+my $school_id   = TUSK::Core::School->getSchoolID($school);
+my $type_object = $m->comp("/tmpl/url:get_type_object");
+my $base_url    = "/management/program/show";
+my $self_path   = "school/$school";
+</%shared>
+
+<%method red_header_text>
+% return $m->comp( "SELF:title" );
+</%method>
+
+<%method title>
+<%perl>
+  return __('Manage Programs');
+</%perl>
+</%method>
+
+% if ( TUSK::Session::is_admin($m->session, $m->session->{user}) ) {
+<& /tmpl/element:cms_button_row, links => [
+     {
+       link_txt => "/management/program/addedit/$self_path",
+       display_txt => __('New Program')
+     },
+     {
+       link_txt => "/management/program/showarchive/$self_path",
+       display_txt => __('Archived Programs')
+     }
+   ] &>
+% }
+
+<%perl>
+my $programs = TUSK::Curriculum::Program->new(_school => $school)->lookup(
+    "school_id = $school_id", ['sort_order']
+);
+my @program_data = map {
+  {
+    id => $_->getPrimaryKeyID(),
+    name => $_->getName(),
+    description => $_->getDescription(),
+    sort_order => $_->getSortOrder(),
+  }
+} @$programs;
+
+my $action_columns = [
+  { label => __('Modify'), link => "/management/program/addedit/$self_path", },
+  { label => __('Add/Edit Program Track'), link => '', },
+  { label => __('Add/Edit Academic Level'), link => '', },
+  { label => __('Link Courses'), link => '', },
+  { label => __('Link to Competency Framework'), link => '', },
+  { label => __('View Program'), link => '', },
+];
+my $post_to = "/management/program/ajaxReorder/$school";
+</%perl>
+
+<& /tmpl/element:jquery_sort_list, params => {
+     width => "100%",
+     label => __('Programs'),
+     no_table => 1,
+     no_add_button => 1,
+     container => 'program_container',
+     name => 'program',
+     sort => 1,
+     no_nesting => 'sort-row',
+     action_columns => $action_columns,
+     action_dropdown => 1,
+     fields => [
+       { hide  => 1, field => 'id' },
+       { label => __('Program Name'), field => 'name' },
+       { label => __('Description'), field => 'description' }
+     ],
+     data => \@program_data,
+     post_to => $post_to,
+     empty_message => __("No programs available.")
+   } &>
+
+<%method startup>
+% $m->comp("SELF:set_no_cache");
+</%method>
+
+<%method jsarray>
+<%perl>
+  return [
+    "jquery/jquery.min.js",
+    "jquery/plugin/interface/interface.js",
+    "jquery/plugin/json.js",
+    "jquery/plugin/inestedsortable-1.0.1.pack.js",
+    "jqNestedSortableFunctions.js",
+  ];
+</%perl>
+</%method>

@@ -50,7 +50,7 @@ sub initConfigs {
 		    @{$varname} = @{$data->{$category}{$item}};
 		} elsif (ref $data->{$category}{$item} eq 'HASH') {
 		    %{$varname} = %{$data->{$category}{$item}};
-                    lock_hash(%$varname);
+                    # lock_hash(%$varname);
 		} else {
 		    ${$varname} = $data->{$category}{$item};
 	        }

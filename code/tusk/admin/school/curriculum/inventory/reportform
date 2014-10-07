@@ -1,0 +1,109 @@
+<%doc>
+ Copyright 2014 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%attr>
+	no_check_path => 1
+	top_tab_type => 'manage'
+	hintmsg => __('All fields are required')
+</%attr>
+
+<%once>
+	use TUSK::Constants;
+</%once>
+
+<%shared>
+	my $school = $m->comp('/tmpl/url:get_type_object');
+	my $school_name = $school->getSchoolName();
+</%shared>
+
+<& /tmpl/element:form, params => {
+	name		=> 'ci-report',
+	enctype		=> 'multipart/form-data', 
+	method		=> 'POST',
+	action		=> "/admin/school/curriculum/inventory/report/school/$school_name",
+	onsubmit	=> "",
+} &>
+
+
+<& /tmpl/element:table, params => { 
+	width		=> "100%",
+	border		=> "0",
+	cellspacing	=> "0",
+	cellpadding	=> "0" 
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label		=> __('Start Date:'),
+	name		=> 'start_date',
+	size		=> 12,
+	maxlength	=> 12,
+	calendar	=> 1,
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label		=> __('End Date:'),
+	name		=> 'end_date',
+	size		=> 12,
+	maxlength	=> 12,
+	calendar	=> 1,
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label	=> __('Title:'),
+    	name	=> 'title',
+	value	=> $TUSK::Constants::Institution{LongName} . ' ' . __('Curriculum Inventory'),
+	size	=> 70,
+    	length	=> 70 
+} &>
+
+<& /tmpl/element:textarea, params => { 
+    	label	=> __('Description:'),
+    	name	=> 'description',
+    	cols	=> "70",
+    	rows	=> "8",	 
+} &>
+
+<& /tmpl/element:textbox, params => { 
+	label		=> __('Program Name:'),
+    	name		=> 'program_name',
+	value		=> $TUSK::Constants::Schools{$school_name}{Degree},
+	size		=> 70,
+    	length		=> 70 
+} &>
+
+<& /tmpl/element:save_button, params=>{
+	label		=> __('Create Report'),
+	cancel_onclick	=> '',
+	name		=> 'ci-rpt-submit'
+} &>
+
+</table>
+</form>
+
+<%method title>
+%	return __('Curriculum Inventory Report');
+</%method>
+
+
+<%method jsarray>
+% 	return [ 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery.ui.dialog.min.js', 'jquery/plugin/fileDownload.min.js', 'ci/report.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js' ];
+</%method>
+
+
+<%method stylearray>
+%	return [ '/style/style.css', '/style/jqueryui/themes/smoothness/style.css', '/style/calendar-blue.css' ];
+</%method>
+
