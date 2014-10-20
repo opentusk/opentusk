@@ -33,6 +33,7 @@
 <%shared>
 	my ($school_id, $type) = $m->comp("/tmpl/url:get_path_ids");
 	my $school = TUSK::Core::School->new()->lookupReturnOne("school_id = '" . $school_id . "'");
+	my $final_cond = "grade_event_type_token = 'finalgrade' OR event_description = 'Final Grade'";
 </%shared>
 
 
@@ -40,12 +41,16 @@
 	my $data;
 	my $tp_ids = join(',', @{decode_json($ARGS{tps})});
 
+	$final_cond = '' if (defined($ARGS{statement}));
+
 	if ($type eq "courses") {
 		$data = $m->comp('SELF:getCoursesData', tp_ids => $tp_ids);
 	} elsif ($type eq "students") {
 		$data = $m->comp('SELF:getStudentsData', tp_ids => $tp_ids, courses => $ARGS{courses});
 	} elsif ($type eq "grades") {
-		$data = $m->comp('SELF:getGradesData', tp_ids => $tp_ids, courses => $ARGS{courses}, students => $ARGS{students});
+	    	$data = $m->comp('SELF:getGradesData', tp_ids => $tp_ids, courses => $ARGS{courses}, students => $ARGS{students});
+	} elsif ($type eq "statement") {
+	    	$data = $m->comp('SELF:getGradesStatementData', tp_ids => $tp_ids, courses => $ARGS{courses}, students => $ARGS{students});    
 	} elsif ($type eq "audit") {
 		$data = $m->comp('SELF:getGradesAuditData', tp_ids => $tp_ids, courses => $ARGS{courses}, students => $ARGS{students}, display => $ARGS{display});
 	}
@@ -65,11 +70,11 @@
 	my $course = TUSK::Core::HSDB45Tables::Course->new();
 	$course->setDatabase($school->getSchoolDb());
 
-	my $courses = $course->lookup("school_id = $school_id AND grade_event.time_period_id in ($tp_ids) GROUP BY grade_event.course_id", ['title'], undef, undef, [
+	my $courses = $course->lookup("school_id = $school_id AND grade_event.time_period_id IN ($tp_ids) GROUP BY grade_event.course_id", ['title'], undef, undef, [
 		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', 
 			{ joinkey => 'course_id', jointype => 'inner' }),
 		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', 
-			{ joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => "grade_event_type_token = 'finalgrade' OR event_description = 'Final Grade'"}),
+			{ joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => $final_cond }),
 		TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkCourseStudent', 
 			{ joinkey => 'parent_course_id', origkey => 'grade_event.course_id', jointype => 'inner', joincond => "grade_event.time_period_id = link_course_student.time_period_id", database => $school->getSchoolDb() })
 	]);
@@ -88,8 +93,8 @@
 	my $course_ids = join(',', @{decode_json($courses)});
 	my $users = TUSK::Core::HSDB4Tables::User->lookup(undef, ['lastname', 'firstname'], undef, undef, [
 		TUSK::Core::JoinObject->new('TUSK::GradeBook::LinkUserGradeEvent', { joinkey => 'parent_user_id', origkey => 'user_id', joinrypw => 'inner' }),
-		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'link_user_grade_event.child_grade_event_id', jointype => 'inner', joincond => "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)"}),
-		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', { joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => "grade_event_type_token = 'finalgrade' OR event_description = 'Final Grade'"}),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'link_user_grade_event.child_grade_event_id', jointype => 'inner', joincond => "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)" }),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', { joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => $final_cond }),
 	]);
 	return [ map { { $_->getPrimaryKeyID() => $_->outLastFirstName() } } @$users ];
 </%perl>
@@ -107,14 +112,38 @@
 	my $student_ids = "'" . join ("','", @{decode_json($students)}) . "'";
 
 	my $links = TUSK::GradeBook::LinkUserGradeEvent->lookup(undef, undef, undef, undef, [
-		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)"}),
-		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', { joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => "grade_event_type_token = 'finalgrade' OR event_description = 'Final Grade'"}),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)" }),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', { joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => $final_cond }),
 	]);
 
 	my %data;
 	foreach my $link (@$links) {
 		my $grade_event = $link->getJoinObject('TUSK::GradeBook::GradeEvent');
 		$data{$grade_event->getTimePeriodID()}{$grade_event->getCourseID()}{$link->getParentUserID()} = $link->getGrade();
+	}
+	return \%data;
+</%perl>
+</%method>
+
+
+<%method getGradesStatementData>
+<%args>
+	$tp_ids
+	$courses
+	$students
+</%args>
+<%perl>
+	my $course_ids = join(',', @{decode_json($courses)});
+	my $student_ids = "'" . join ("','", @{decode_json($students)}) . "'";
+
+	my $links = TUSK::GradeBook::LinkUserGradeEvent->lookup(undef, undef, undef, undef, [
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)" }),
+	]);
+
+	my %data;
+	foreach my $link (@$links) {
+		my $grade_event = $link->getJoinObject('TUSK::GradeBook::GradeEvent');
+		$data{$grade_event->getTimePeriodID()}{$grade_event->getCourseID()}{$grade_event->getEventName()}{$link->getParentUserID()} = $link->getGrade();
 	}
 	return \%data;
 </%perl>
@@ -135,8 +164,8 @@
 
 	my $grades_history = TUSK::Core::AuditTrail::LinkUserGradeEventHistory->lookup(undef, undef, undef, undef, [
 		TUSK::Core::JoinObject->new('TUSK::Core::HSDB4Tables::User', { joinkey => 'user_id', origkey => 'modified_by'}),
-		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)"}),
-		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', { joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => "grade_event_type_token = 'finalgrade' OR event_description = 'Final Grade'"}),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)" }),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', { joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => $final_cond }),
 	]);
 
 	my %data = ();
@@ -167,4 +196,3 @@
 	return \%data;
 </%perl>
 </%method>
-

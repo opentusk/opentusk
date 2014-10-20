@@ -27,17 +27,18 @@
 
 <%perl>
 	my $school_id = $school->getPrimaryKeyID();
-	my $final_grade_events = TUSK::GradeBook::GradeEvent->lookup("school_id = $school_id GROUP BY time_period_id", undef, undef, undef, [
+	my $final_cond = ($type eq 'statement') ? '' : "grade_event_type_token = 'finalgrade' OR event_description = 'Final Grade'";
+	my $grade_events = TUSK::GradeBook::GradeEvent->lookup("school_id = $school_id GROUP BY time_period_id", undef, undef, undef, [
 		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', 
-			{ joinkey => 'grade_event_type_id', jointype => 'inner', joincond => "grade_event_type_token = 'finalgrade' OR event_description = 'Final Grade'"}),
-		TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkCourseStudent', 
-			{ joinkey => 'parent_course_id', origkey => 'grade_event.course_id', jointype => 'inner', joincond => "grade_event.time_period_id = link_course_student.time_period_id", database => $school->getSchoolDb() }),
+			{ joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => $final_cond }),
+		TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkCourseStudent',
+			{ joinkey => 'parent_course_id', origkey => 'grade_event.course_id', jointype => 'inner', joincond => 'grade_event.time_period_id = link_course_student.time_period_id', database => $school->getSchoolDb() }),
 	]);
 
 	my @time_periods = ();
-	if (scalar @$final_grade_events) {
-		my $tp_ids = join(', ', map { $_->getTimePeriodID() } @$final_grade_events);
-		@time_periods = HSDB45::TimePeriod->new(_school => $school->getSchoolName())->lookup_conditions("time_period_id in ($tp_ids) order by start_date, end_date DESC");
+	if (scalar @$grade_events) {
+		my $tp_ids = join(', ', map { $_->getTimePeriodID() } @$grade_events);
+		@time_periods = HSDB45::TimePeriod->new(_school => $school->getSchoolName())->lookup_conditions("time_period_id IN ($tp_ids) ORDER BY start_date, end_date DESC");
 	}
 </%perl>
 
@@ -68,7 +69,7 @@
  		<input type="button" name="course-all" value="<% __('select all') %>" class="formbutton all" />
 	</fieldset>
 	</div>
-  	<div class="<% ($type eq "report") ? 'getgradedata' : 'filter' %>">
+  	<div class="<% ($type eq 'audit') ? 'filter' : 'getgradedata' %>">
    		<label for="student"><% __('Student(s)') %></label>
  		<select id="student" name="student" multiple="multiple">
   		</select>
@@ -78,7 +79,7 @@
  		<input type="button" name="student-all" value="<% __('select all') %>" class="formbutton all" />
 	</fieldset>
 	</div>
-% 	if ($type eq "audit") {
+% 	if ($type eq 'audit') {
 		<div class="filter">
 			<label for="display"><% __('Organize Display by') %></label>
 			<fieldset class="radio">
@@ -96,7 +97,7 @@
 % 	}
 	</form>
 % } else {
-	<& "/tmpl/prepend:traffic_light", make_table => 1, args => {'hintmsg' => __('There are no final grades available.')} &>
+	<& "/tmpl/prepend:traffic_light", make_table => 1, args => {'hintmsg' => __('There are no grades available.')} &>
 % }
 </nav>
 <p class="timestamp"></p>
