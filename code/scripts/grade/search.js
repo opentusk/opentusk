@@ -224,14 +224,14 @@ function generateDataTable(data) {
 		var counter = 0;
 		$.each(students, function(index, user_id) {
 			rows += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
-			rows += "<td class='line-left'>" + $("option[value='" + user_id + "']").text() + "</td>";
+			rows += "<td class='line-left'>" + abbr($("option[value='" + user_id + "']").text()) + "</td>";
 			$.each(data, function(tp_id, course_ids) {
 				$.each(course_ids, function(course_id, user_ids) {
 					if (data[tp_id][course_id]) {
 						// make header row
 						if (!counter) {
 							var course_title = $("option[value='" + course_id + "']").text();
-							headers += "<th class='header-left'><span style='cursor:pointer' title='" + course_title + "'>" + course_title.substring(0,20) + "...</span><br/><span class='gray'>Period: " + $("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'') + "</span></th>";
+							headers += "<th class='header-left'>" + abbr(course_title) + "<br/><span class='gray'>" + abbr($("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'')) + "</span></th>";
 						}
 						// make grade cell
 						rows += "<td class='line-center'>"
@@ -260,15 +260,15 @@ function generateStatementTable(data) {
 				var counter = 0;
 				var course_title = $("option[value='" + course_id + "']").text();
 				rows += '<tr class="header">';
-				rows += "<th class='header-left'><span style='cursor:pointer' title='" + course_title + "'>" + course_title.substring(0,20) + "...</span><br/><span class='gray'>Period: " + $("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'') + "</span></th>";
+				rows += "<th class='header-left'>" + abbr(course_title) + "<br/><span class='gray'>" + abbr($("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'')) + "</span></th>";
 				$.each(students, function(index, user_id) {
-					rows += "<th class='header-left'>" + $("option[value='" + user_id + "']").text() + "</th>";
+					rows += "<th class='header-left'>" + abbr($("option[value='" + user_id + "']").text()) + "</th>";
 				});
 				rows += '</tr>';
 				$.each(event_names, function(event_name, user_ids) {
 					if (data[tp_id][course_id][event_name]) {
 						rows += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
-						rows += "<th class='header-left'><span style='cursor:pointer'>" + event_name + "</span></th>"; 
+						rows += "<td class='line-left'>" + abbr(event_name) + "</td>"; 
 						// make grade cells
 						$.each(students, function(index, user_id) {
 							rows += "<td class='line-center'>";
@@ -365,4 +365,12 @@ function selectAll(select) {
 function getType() {
 	var path = window.location.pathname.split( '/' );
 	return path[3];
+}
+
+// abbreviate long strings
+function abbr(text) {
+	if (text.length > 20) {
+		return "<span style='cursor:pointer' title='" + text + "'>" + text.substring(0, 19) + "&hellip;</span>";
+	}
+	return text;
 }
