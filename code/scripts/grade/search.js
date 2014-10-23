@@ -245,48 +245,51 @@ function generateDataTable(data) {
 			rows += "</tr>";
 			counter++;
 		});
-		$("div.data").html($("div.data").html() + '<table class="tusk data" cellspacing="0">' + headers + rows + '</table>');
+		$("div.data").html($("div.data").html() + "<table class='tusk data' cellspacing='0'>" + headers + rows + "</table>");
 	}
 	else {
-		$("div.data").html($("div.data").html() + '<table class="tusk data" cellspacing="0"><tr><td>No grades found.</td></tr></table>');
+		$("div.data").html($("div.data").html() + "<table class='tusk data' cellspacing='0'><tr><td>No grades found.</td></tr></table>");
 	}
 }
 
 function generateStatementTable(data) {
 	if (data) {
-		var rows = '';
+		var html = '';
 		$.each(data, function(tp_id, course_ids) {
 			$.each(course_ids, function(course_id, event_names) {
 				var counter = 0;
 				var course_title = $("option[value='" + course_id + "']").text();
-				rows += '<tr class="header">';
-				rows += "<th class='header-left'>" + abbr(course_title) + "<br/><span class='gray'>" + abbr($("option[value='" + tp_id + "']").text().replace(/\(.*\)/,'')) + "</span></th>";
+				html += "<h2 class='data'>" + course_title + "<br>";
+				html += "<span class='gray'>" + $("option[value='" + tp_id + "']").text() + "</span></h2>";
+				html += "<table class='tusk data' cellspacing='0'><tr class='header'>";
+				html += "<th class='header-left' style='width:150px'>Grade Event</th>";
 				$.each(students, function(index, user_id) {
-					rows += "<th class='header-left'>" + abbr($("option[value='" + user_id + "']").text()) + "</th>";
+					html += "<th class='header-left'>" + abbr($("option[value='" + user_id + "']").text()) + "</th>";
 				});
-				rows += '</tr>';
+				html += "</tr>";
 				$.each(event_names, function(event_name, user_ids) {
 					if (data[tp_id][course_id][event_name]) {
-						rows += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
-						rows += "<td class='line-left'>" + abbr(event_name) + "</td>"; 
+						html += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
+						html += "<td class='line-left'>" + abbr(event_name) + "</td>"; 
 						// make grade cells
 						$.each(students, function(index, user_id) {
-							rows += "<td class='line-center'>";
+							html += "<td class='line-center'>";
 							if (data[tp_id][course_id][event_name][user_id]) {
-								rows += data[tp_id][course_id][event_name][user_id];
+								html += data[tp_id][course_id][event_name][user_id];
 							}
-							rows += "</td>";
+							html += "</td>";
 						});
-						rows += "</tr>";
+						html += "</tr>";
 						counter++;
 					};
 				});
+				html += "</table>";
 			});
 		});
-		$("div.data").html($("div.data").html() + '<table class="tusk data" cellspacing="0">' + rows + '</table>');
+		$("div.data").html($("div.data").html() + html);
 	}
 	else {
-		$("div.data").html($("div.data").html() + '<table class="tusk data" cellspacing="0"><tr><td>No grades found.</td></tr></table>');
+		$("div.data").html($("div.data").html() + "<table class='tusk data' cellspacing='0'><tr><td>No grades found.</td></tr></table>");
 	}
 }
 
@@ -363,14 +366,14 @@ function selectAll(select) {
 
 // get type from the page address
 function getType() {
-	var path = window.location.pathname.split( '/' );
+	var path = window.location.pathname.split('/');
 	return path[3];
 }
 
 // abbreviate long strings
 function abbr(text) {
 	if (text.length > 20) {
-		return "<span style='cursor:pointer' title='" + text + "'>" + text.substring(0, 19) + "&hellip;</span>";
+		text = "<span style='cursor:pointer' title='" + text + "'>" + text.substring(0, 19) + "&hellip;</span>";
 	}
 	return text;
 }
