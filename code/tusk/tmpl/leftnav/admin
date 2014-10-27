@@ -167,9 +167,15 @@ check_links();
 	<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=> __('Grade Admin')} &>
 	<ul class="adminLeftNavList">
 %	foreach my $school (@grade_nav_schools) {
-		<li><a href="/admin/grade/report/school/<% $school->getSchoolName() %>" class="admintext"><% $school->getSchoolName() . ' ' . __('Report') %></a></li>
-		<li><a href="/admin/grade/statement/school/<% $school->getSchoolName() %>" class="admintext"><% $school->getSchoolName() . ' ' . __('Statement') %></a></li>
-		<li><a href="/admin/grade/audit/school/<% $school->getSchoolName() %>" class="admintext"><% $school->getSchoolName() . ' ' . __('Audit') %></a></li>
+%		my $school_name = $school->getSchoolName();
+%		my $show_nav = ($r->uri =~ /grade.*$school_name/);
+		<li><a href="javascript:toggle_subnav('adminSubNav-gradeAdmin-<% $school_name %>', 'grade_admin_sub_link_<% $school_name %>');" class="admintext nodots"><% $school_name %>&nbsp;|&nbsp;<span id="grade_admin_sub_link_<% $school_name %>"><% ($show_nav) ? '-' : '+' %></span></a>
+		<div id="adminSubNav-gradeAdmin-<% $school_name %>" class="<% ($show_nav) ? 'showNav' : 'hideNav' %>">
+		<a href="/admin/grade/report/school/<% $school_name %>" class="admintext"><% __('Report') %></a>
+		<a href="/admin/grade/statement/school/<% $school_name %>" class="admintext"><% __('Statement') %></a>
+		<a href="/admin/grade/audit/school/<% $school_name %>" class="admintext"><% __('Audit') %></a>
+		</div>
+	</li> 
 %	}
 	</ul>
 % }
