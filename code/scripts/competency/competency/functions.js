@@ -73,7 +73,6 @@ function linkCourseSchool (link, params) {
 }
 
 function linkContentToCourse (currentTitle, currentIndex, link) {
-	detectIE();	
 	currentID = link;
 	var postTo = window.location.pathname;
 	var postURL = params.postTo.split('/');
@@ -97,7 +96,6 @@ function linkContentToCourse (currentTitle, currentIndex, link) {
 }
 
 function linkObjectiveToCourse (link, params) {
-	detectIE();
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length - 3];
 	var course_id = postURL[postURL.length - 2];
