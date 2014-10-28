@@ -437,9 +437,6 @@ $(document).ready( function() {
 	});
 	$('#switch_sorting').click();
 	typeURL = params.postTo.split('/')[5];
-	if (typeURL != 'objectives'){
-		detectIE();
-	}
 });
 
 //End functions to be run at pageload.
