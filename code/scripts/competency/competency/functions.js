@@ -73,7 +73,6 @@ function linkCourseSchool (link, params) {
 }
 
 function linkContentToCourse (currentTitle, currentIndex, link) {
-	detectIE();	
 	currentID = link;
 	var postTo = window.location.pathname;
 	var postURL = params.postTo.split('/');
@@ -97,7 +96,6 @@ function linkContentToCourse (currentTitle, currentIndex, link) {
 }
 
 function linkObjectiveToCourse (link, params) {
-	detectIE();
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length - 3];
 	var course_id = postURL[postURL.length - 2];
@@ -175,14 +173,6 @@ function appendNewLinkedCompetencies (competency_id, type) {
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).append($to_append_top);
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.tusk-competency-popup').append($to_append_container);
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().append("<a></a>");
-			/*
-			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().append($to_append_content_class);			
-			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container').first().find('span').addClass("competency_popup_content").draggable().css(
-			{
-				"width": "500px",				
-			}
-			);
-			*/
 		}
 		if (currentID == 0) {
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().append("<i>New " + (index+1) + ": </i>" + competency_desc.substring(0,50) +  "<br>");
@@ -445,9 +435,6 @@ $(document).ready( function() {
 	});
 	$('#switch_sorting').click();
 	typeURL = params.postTo.split('/')[5];
-	if (typeURL != 'objectives'){
-		detectIE();
-	}
 });
 
 //End functions to be run at pageload.

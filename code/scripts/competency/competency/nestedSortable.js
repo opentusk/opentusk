@@ -576,11 +576,13 @@ function saveRow(link, params) {
 			case 'radio':
 				var radio_buttons = liArray[idx].getElementsByTagName('input');
 				var radio_button_value = 0;
-				for (var i in radio_buttons) {
-					if (radio_buttons[i].checked == true) { 
-						radio_button_value = radio_buttons[i].getAttribute("data-name");
-					}	
-				}				
+
+				$.each(radio_buttons, function (index, value) {
+					if ($(value).is(':checked')){
+						radio_button_value = $(value).attr("data-name");
+					}
+				});				
+
 				if (radio_button_value == 0) {
 					value = "Competency";
 					alert("WARNING: Type defaulted to \"Competency\" as no type specified.");
