@@ -752,9 +752,10 @@ sub answer_form {
 	# Go through the list of keys
 	foreach my $key (keys %{$fdat}) {
 	    next unless my ($q_id) = $key =~ /eval_q_(\d+)/;
+	    $fdat->{$key} = join("\t" , @{$fdat->{$key}}) if (ref($fdat->{$key}) eq 'ARRAY');
 	    my $resp = HSDB45::Eval::Question::Response->new ( _school => $self->school() );
-	    $resp->primary_key ($evaluator_code, $self->primary_key(), $q_id);
-	    $resp->field_value ('response', $fdat->{$key});
+	    $resp->primary_key($evaluator_code, $self->primary_key(), $q_id);
+	    $resp->field_value('response', $fdat->{$key});
 	    my ($r, $msg) = $resp->save;
 	    die "Could not save $q_id ($r) [$fdat->{$key}]: $msg" unless $r;
 	}
