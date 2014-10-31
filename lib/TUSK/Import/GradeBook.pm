@@ -45,7 +45,8 @@ sub processData {
 	my ($link,$user,$score,$parent_user_id,$comment,$grade_event_id,$links);
 	foreach my $record ($self->get_records()){
 		# $self->add_log('info',$record->get_field_value('ID').':'.$record->get_field_value('Score'));
-		$user = $self->findStudent($record->get_field_value('ID'));
+		# also pass in isSID here..
+		$user = $self->findStudent($record->get_field_value('ID'), $record->getFieldValue('isSID'));
 		if (!defined($user)){
 			next;
 		}	
@@ -87,9 +88,10 @@ sub processData {
 sub findStudent {
 	my $self = shift;
 	my $input_id = shift;
+	my $is_sid = shift;
 	my (@users,$user);
-	if ($input_id =~ /^\d+$/){
-		# it is a numeric id
+
+	if ($is_sid == '1') {
 		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$input_id);
 		if (scalar(@users) > 1){
 			$self->add_log("error","There are two users with that ID : $input_id");
