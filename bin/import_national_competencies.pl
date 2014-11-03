@@ -6,8 +6,8 @@
 # NOTE: Requires a competency type of "Competency", "Competency Category" and "Supporting Information" for the school.
 # Please create these from the web interface before running the script. 
 #
-# Usage: import_national_competencies --file=<file.csv> --url=<url Eg.http://services.aamc.org/30/ci-school-web/pcrs/PCRS.html#> --school=<school_name Eg. Medical>
-# Example: import_national_competencies --file=national_competencies.csv --url=http://services.aamc.org/30/ci-school-web/pcrs/PCRS.html# --school=Medical
+# Usage: import_national_competencies --file=<file.csv> --url=<url Eg.https://services.aamc.org/30/ci-school-web/pcrs/PCRS.html#> --school=<school_name Eg. Medical>
+# Example: import_national_competencies --file=national_competencies.csv --url=https://services.aamc.org/30/ci-school-web/pcrs/PCRS.html# --school=Medical
 #
 # Please try again with the appropriate parameters.
 ##################################################################
@@ -25,8 +25,8 @@ BEGIN {
 	       );
 
     if (!$file or !$base_url or !$school_name) {
-	print "Usage: import_national_competencies --file=<file.csv> --url=<url Eg.http://services.aamc.org/30/ci-school-web/pcrs/PCRS.html#> --school=<school_name Eg. Medical>\n
-Example: import_national_competencies --file=national_competencies.csv --url=http://services.aamc.org/30/ci-school-web/pcrs/PCRS.html# --school=Medical\n";
+	print "Usage: import_national_competencies --file=<file.csv> --url=<url Eg.https://services.aamc.org/30/ci-school-web/pcrs/PCRS.html#> --school=<school_name Eg. Medical>\n
+Example: import_national_competencies --file=national_competencies.csv --url=https://services.aamc.org/30/ci-school-web/pcrs/PCRS.html# --school=Medical\n";
 	exit;
     }
 }
