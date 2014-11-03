@@ -26,7 +26,7 @@ sub new {
     my ($class) = @_;
     $class = ref $class || $class;
     my $self = $class->SUPER::new();
-    $self->set_fields(qw(ID Score Comment));
+    $self->set_fields(qw(ID StudentID Score Comment));
     return $self;
 }
 
@@ -45,13 +45,8 @@ sub processData {
 	my ($link,$user,$score,$parent_user_id,$comment,$grade_event_id,$links);
 	foreach my $record ($self->get_records()){
 		# $self->add_log('info',$record->get_field_value('ID').':'.$record->get_field_value('Score'));
-<<<<<<< Updated upstream
 		# also pass in isSID here..
-		$user = $self->findStudent($record->get_field_value('ID'), $record->getFieldValue('isSID'));
-=======
-		# also pass in isSid here..
-		$user = $self->findStudent($record->get_field_value('ID'), $record->getFieldValue('isSid'));
->>>>>>> Stashed changes
+		$user = $self->findStudent($record->get_field_value('ID'), $record->getFieldValue('StudentID'));
 		if (!defined($user)){
 			next;
 		}	
@@ -93,27 +88,28 @@ sub processData {
 sub findStudent {
 	my $self = shift;
 	my $input_id = shift;
-	my $sid = shift;
+	my $student_id = shift;
 	my (@users,$user);
-	if ($sid) {
-		# it is a numeric id
-		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$input_id);
-		if (scalar(@users) > 1){
-			$self->add_log("error","There are two users with that ID : $input_id");
-			return;
-		} elsif (!scalar(@users)){
-			$self->add_log("error","There is no user with that ID : $input_id");
-			return;
-		}
-		$user = pop @users;
-	} else {
+
+	if ($input_id) {
 		# it is a UTLN (user_id)
 		$user = HSDB4::SQLRow::User->new->lookup_key($input_id);
 		if (!defined($user->primary_key())){
-                        $self->add_log("error","There is no user with that UTLN : $input_id");
-                        return;
+        	$self->add_log("error","There is no user with that UTLN : $input_id");
+        	return;
 		}
-	}
+	} else {
+		# it is a student id
+		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$input_id);
+		if (scalar(@users) > 1){
+			$self->add_log("error","There are two users with that Student ID : $input_id");
+			return;
+		} elsif (!scalar(@users)){
+			$self->add_log("error","There is no user with that Student ID : $input_id");
+			return;
+		}
+		$user = pop @users;
+	} 
 	return $user;
 
 }
