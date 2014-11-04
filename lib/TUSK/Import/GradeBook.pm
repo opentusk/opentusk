@@ -91,16 +91,14 @@ sub findStudent {
 	my $student_id = shift;
 	my (@users,$user);
 
-	$testForBlankColumn
-
-	if (!defined($input_id) || trim($input_id) != q{}) {
+	if ($input_id) {
 		# it is a UTLN (user_id)
 		$user = HSDB4::SQLRow::User->new->lookup_key($input_id);
 		if (!defined($user->primary_key())){
         	$self->add_log("error","There is no user with that UTLN : $input_id");
         	return;
 		}
-	} else {
+	} elsif($student_id) {
 		# it is a student id
 		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$student_id);
 		if (scalar(@users) > 1){
@@ -111,16 +109,14 @@ sub findStudent {
 			return;
 		}
 		$user = pop @users;
-	} 
+	} else {
+		$self->add_log("error","There is no ...");
+		return;
+	}
 	return $user;
 
 }
 
-sub trim {
-	my $s = shift;
-	$s =~ s/^\s+|\s+$//g
-	return $s;
-}
 
 sub validStudent {
 	my ($self,$student,$courseRoster) = @_;
