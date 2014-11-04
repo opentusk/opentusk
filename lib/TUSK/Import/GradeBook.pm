@@ -45,8 +45,8 @@ sub processData {
 	my ($link,$user,$score,$parent_user_id,$comment,$grade_event_id,$links);
 	foreach my $record ($self->get_records()){
 		# $self->add_log('info',$record->get_field_value('ID').':'.$record->get_field_value('Score'));
-		# also pass in isSID here..
-		$user = $self->findStudent($record->get_field_value('ID'), $record->getFieldValue('StudentID'));
+		# also pass in student id here..
+		$user = $self->findStudent($record->get_field_value('ID'), $record->get_field_value('StudentID'));
 		if (!defined($user)){
 			next;
 		}	
@@ -91,7 +91,9 @@ sub findStudent {
 	my $student_id = shift;
 	my (@users,$user);
 
-	if ($input_id) {
+	$testForBlankColumn
+
+	if (!defined($input_id) || trim($input_id) != q{}) {
 		# it is a UTLN (user_id)
 		$user = HSDB4::SQLRow::User->new->lookup_key($input_id);
 		if (!defined($user->primary_key())){
@@ -100,18 +102,24 @@ sub findStudent {
 		}
 	} else {
 		# it is a student id
-		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$input_id);
+		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$student_id);
 		if (scalar(@users) > 1){
-			$self->add_log("error","There are two users with that Student ID : $input_id");
+			$self->add_log("error","There are two users with that Student ID : $student_id");
 			return;
 		} elsif (!scalar(@users)){
-			$self->add_log("error","There is no user with that Student ID : $input_id");
+			$self->add_log("error","There is no user with that Student ID : $student_id");
 			return;
 		}
 		$user = pop @users;
 	} 
 	return $user;
 
+}
+
+sub trim {
+	my $s = shift;
+	$s =~ s/^\s+|\s+$//g
+	return $s;
 }
 
 sub validStudent {
