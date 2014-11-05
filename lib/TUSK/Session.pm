@@ -65,20 +65,19 @@ sub is_director{
 sub is_admin{
     my ($hash, $user) = @_;
 
-    if ($user){
+    if (is_init($user)) {
 	unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_admin}}){
 	    $hash->{roles} = $user->check_admin;
 	}
     }    
 
     return (defined($hash->{roles}->{tusk_session_admin})) ? scalar keys %{$hash->{roles}->{tusk_session_admin}} : 0;
-
 }
 
 sub is_school_admin{
     my ($hash, $school, $user) = @_;
 
-    if ($user){
+    if (is_init($user)) {
 	unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_admin}}){
 	    $hash->{roles} = $user->check_admin;
 	}
@@ -98,19 +97,19 @@ sub is_school_admin{
 sub is_author{
     my ($hash, $user) = @_;
 
-    if ($user){
+    if (is_init($user)) {
 	unless (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_author})) {
 	    $hash->{roles} = $user->check_author($hash->{roles});
 	}
     }
 
-    return ($hash->{roles}->{tusk_session_is_author}) if (defined($hash->{roles}) or defined($hash->{roles}->{tusk_session_is_author}));
+    return (defined($hash->{roles}) and defined($hash->{roles}->{tusk_session_is_author})) ? ($hash->{roles}->{tusk_session_is_author}) : 0 ;
 }
 
 sub is_eval_admin{
     my ($hash, $user) = @_;
 
-    if ($user){
+    if (is_init($user)) {
 	unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_eval_admin}}){
 		$hash->{roles} = $user->check_admin;
 	}
@@ -122,7 +121,7 @@ sub is_eval_admin{
 sub is_school_eval_admin {
     my ($hash, $school, $user) = @_;
 	
-    if ($user) {
+    if (is_init($user)) {
 	unless (defined($hash->{roles}) and scalar keys %{$hash->{roles}->{tusk_session_eval_admin}}) {
 	    $hash->{roles} = $user->check_admin;
 	}
@@ -220,6 +219,11 @@ sub is_tusk_admin{
 	return 1 if ($user_id eq $_);
     }
     return 0;
+}
+
+sub is_init {
+    my $user = shift;
+    return ((ref($user) eq 'HSDB4::SQLRow::User') && $user->primary_key());
 }
 
 1;
