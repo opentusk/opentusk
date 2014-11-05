@@ -51,8 +51,7 @@ sub processData {
 			next;
 		}	
 		if (!$self->validStudent($user,$courseRoster)){
-			$self->add_log("error","Student ".$user->out_full_name()." (".$record->get_field_value('ID')
-				.") is not in the course ".$course->title());
+			$self->add_log("error","Student ".$user->out_full_name()." (".$record->get_field_value('ID').") is not in the course ".$course->title());
 			next;
 		}
 		$parent_user_id = $user->primary_key();

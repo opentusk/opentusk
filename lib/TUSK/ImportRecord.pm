@@ -32,9 +32,9 @@ sub set_field_values {
     my @field_values = @_;
     my @field_names = $self->get_fields_order();
 
-    unless (scalar @field_values == scalar @field_names){
-	return (0, "Incorrect number of fields (got ".scalar @field_values.", expecting ".scalar @field_names.")");
-    }
+    # unless (scalar @field_values == scalar @field_names){
+	#return (0, "Incorrect number of fields (got ".scalar @field_values.", expecting ".scalar @field_names.")");
+    #}
     
     $i = 0;
     foreach (@field_values) {
