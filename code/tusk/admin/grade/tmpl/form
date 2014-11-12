@@ -30,7 +30,7 @@
 	my $final_cond = ($type eq 'statement') ? '' : "grade_event_type_token = 'finalgrade' OR event_description = 'Final Grade'";
 	my $grade_events = TUSK::GradeBook::GradeEvent->lookup("school_id = $school_id GROUP BY time_period_id", undef, undef, undef, [
 		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEventType', 
-			{ joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'inner', joincond => $final_cond }),
+			{ joinkey => 'grade_event_type_id', origkey => 'grade_event.grade_event_type_id', jointype => 'left outer', joincond => $final_cond }),
 		TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkCourseStudent',
 			{ joinkey => 'parent_course_id', origkey => 'grade_event.course_id', jointype => 'inner', joincond => 'grade_event.time_period_id = link_course_student.time_period_id', database => $school->getSchoolDb() }),
 	]);
