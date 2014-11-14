@@ -65,6 +65,49 @@ sub deleteFromTreeHelper {
     }
 }
 
+#######################################################
+
+=item B<getLinkedBranch>
+   Returns entire subtree for a given parent_competency_id, returns a reference to a nested hash with indefinite dimensions.
+	
+=cut
+
+sub getLinkedBranch {
+ 
+    my ($self, $extra_cond) = @_;
+    
+    my %branch;
+
+    my $hash_string = '$branch->{'. $self->{competency_id}. '}';
+
+    getLinkedBranchHelper($self->{competency_id}, $hash_string , \%branch);
+    
+    return \%branch;
+}
+
+sub getLinkedBranchHelper {
+     #helper function for implementing getLinkedBranch 
+
+    my ($competency_id, $index, $branch) = @_;
+
+    my %linked_competencies;
+
+    my $competency  = {
+	competency_id => $competency_id,
+    };
+
+    my $this_competency = TUSK::Application::Competency::Competency->new($competency);   
+
+    %linked_competencies = map {$_ => 0} @{$this_competency->getLinked};
+
+    my $assign = $index.' = {%linked_competencies};';
+    eval($assign);
+
+    foreach my $key(keys %linked_competencies){
+	my $new_index = $index."->{".$key."}";
+	getLinkedBranchHelper($key, $new_index, $branch);
+    }
+}
 
 
 #######################################################
