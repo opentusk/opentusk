@@ -78,11 +78,10 @@ sub getLinkedBranch {
     
     my @branch;
 
-    use Data::Dumper;    
-
     getLinkedBranchHelper($self->{competency_id}, \@branch);
     
-    return \@branch;
+    return $branch[0];
+
 }
 
 sub getLinkedBranchHelper {
@@ -111,17 +110,6 @@ sub getLinkedBranchHelper {
     foreach my $child_competency_id (@{$this_competency->getLinked}) {
 	getLinkedBranchHelper($child_competency_id, $this_competency_hash{'children'});
     }
-    
-=for
-    my $assign = $index.' = {%linked_competencies};';
-    eval($assign);
-
-
-    foreach my $key(keys %linked_competencies){
-	my $new_index = $index."->{".$key."}";
-	getLinkedBranchHelper($key, $new_index, $branch);
-    }
-=cut
 
 }
 

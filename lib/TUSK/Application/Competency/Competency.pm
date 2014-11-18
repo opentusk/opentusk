@@ -254,9 +254,7 @@ sub getLinked {
 	push @linked_competencies, $linked_competency->getJoinObject("TUSK::Competency::Relation")->getCompetencyId2;
     }
 
-
     return \@linked_competencies;
-
 }
 
 #######################################################
