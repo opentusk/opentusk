@@ -47,7 +47,6 @@ sub processData {
         my $input_id = $record->get_field_value('ID'); #UTLN of the student
         my $student_id = $record->get_field_value('StudentID');
  
-		# $self->add_log('info',$record->get_field_value('ID').':'.$record->get_field_value('Score'));
 		$user = $self->findStudent($input_id, $student_id);
 		if (!defined($user)){
 			next;
