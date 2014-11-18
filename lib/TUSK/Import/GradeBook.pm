@@ -26,7 +26,7 @@ sub new {
     my ($class) = @_;
     $class = ref $class || $class;
     my $self = $class->SUPER::new();
-    $self->set_fields(qw(ID Score Comment));
+    $self->set_fields(qw(ID StudentID Score Comment));
     return $self;
 }
 
@@ -44,14 +44,23 @@ sub processData {
 	my $courseRoster = $self->getCourseRoster($course,$grade_event->getTimePeriodID());
 	my ($link,$user,$score,$parent_user_id,$comment,$grade_event_id,$links);
 	foreach my $record ($self->get_records()){
+        my $input_id = $record->get_field_value('ID'); #UTLN of the student
+        my $student_id = $record->get_field_value('StudentID');
+ 
 		# $self->add_log('info',$record->get_field_value('ID').':'.$record->get_field_value('Score'));
-		$user = $self->findStudent($record->get_field_value('ID'));
+		$user = $self->findStudent($input_id, $student_id);
 		if (!defined($user)){
 			next;
-		}	
-		if (!$self->validStudent($user,$courseRoster)){
-			$self->add_log("error","Student ".$user->out_full_name()." (".$record->get_field_value('ID')
-				.") is not in the course ".$course->title());
+		}
+		if (!$self->validStudent($user,$courseRoster)) {
+			my $error_message = "Student ".$user->out_full_name()." (";
+            if ($input_id) { 
+				$error_message .= "with a UTLN: ".$input_id;
+            } elsif ($student_id) {
+				$error_message .= "with a student id: ".$student_id;
+			}
+			$error_message .= ") is not in the course ".$course->title();
+			$self->add_log("error", $error_message);
 			next;
 		}
 		$parent_user_id = $user->primary_key();
@@ -86,30 +95,34 @@ sub processData {
 
 sub findStudent {
 	my $self = shift;
-	my $input_id = shift;
+	my $input_id = shift; #UTLN of the student
+	my $student_id = shift;
 	my (@users,$user);
-	if ($input_id =~ /^\d+$/){
-		# it is a numeric id
-		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$input_id);
+
+	if ($input_id) {
+		$user = HSDB4::SQLRow::User->new->lookup_key($input_id);
+		if (!defined($user->primary_key())){
+        	$self->add_log("error","There is no user with that UTLN : $input_id");
+        	return;
+		}
+	} elsif($student_id) {
+		@users = HSDB4::SQLRow::User->new->lookup_conditions('sid = '.$student_id);
 		if (scalar(@users) > 1){
-			$self->add_log("error","There are two users with that ID : $input_id");
+			$self->add_log("error","There are two users with that Student ID : $student_id");
 			return;
 		} elsif (!scalar(@users)){
-			$self->add_log("error","There is no user with that ID : $input_id");
+			$self->add_log("error","There is no user with that Student ID : $student_id");
 			return;
 		}
 		$user = pop @users;
 	} else {
-		# it is a UTLN (user_id)
-		$user = HSDB4::SQLRow::User->new->lookup_key($input_id);
-		if (!defined($user->primary_key())){
-                        $self->add_log("error","There is no user with that UTLN : $input_id");
-                        return;
-		}
+		$self->add_log("error","No UTLN or student id was provided.");
+		return;
 	}
 	return $user;
 
 }
+
 
 sub validStudent {
 	my ($self,$student,$courseRoster) = @_;
