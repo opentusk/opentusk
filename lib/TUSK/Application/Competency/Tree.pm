@@ -102,13 +102,12 @@ sub getLinkedBranchHelper {
 
     my %this_competency_hash;
 
-    $this_competency_hash{'competency_id'} = $this_competency->{'competency_id'};
-
-    $this_competency_hash{'title'} = $this_competency->{'competency'}->getFieldValue('title');
-
-    $this_competency_hash{'description'} = $this_competency->{'competency'}->getFieldValue('description');
-
-    $this_competency_hash{'children'} = [];    
+    %this_competency_hash = (
+			     competency_id => $this_competency->{'competency_id'},
+			     title => $this_competency->{'competency'}->getFieldValue('title'),
+			     description => $this_competency->{'competency'}->getFieldValue('description'),
+			     children => []    
+    );
 
     push @{$branch}, {%this_competency_hash};
 
