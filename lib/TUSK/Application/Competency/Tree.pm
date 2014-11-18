@@ -76,21 +76,19 @@ sub getLinkedBranch {
  
     my ($self, $extra_cond) = @_;
     
-    my %branch;
+    my @branch;
 
-    my $hash_string = '$branch->{'. $self->{competency_id}. '}';
+    use Data::Dumper;    
 
-    getLinkedBranchHelper($self->{competency_id}, $hash_string , \%branch);
+    getLinkedBranchHelper($self->{competency_id}, \@branch);
     
-    return \%branch;
+    return \@branch;
 }
 
 sub getLinkedBranchHelper {
      #helper function for implementing getLinkedBranch 
 
-    my ($competency_id, $index, $branch) = @_;
-
-    my %linked_competencies;
+    my ($competency_id, $branch) = @_;
 
     my $competency  = {
 	competency_id => $competency_id,
@@ -98,15 +96,33 @@ sub getLinkedBranchHelper {
 
     my $this_competency = TUSK::Application::Competency::Competency->new($competency);   
 
-    %linked_competencies = map {$_ => 0} @{$this_competency->getLinked};
+    my %this_competency_hash;
 
+    $this_competency_hash{'competency_id'} = $this_competency->{'competency_id'};
+
+    $this_competency_hash{'title'} = $this_competency->{'competency'}->getFieldValue('title');
+
+    $this_competency_hash{'description'} = $this_competency->{'competency'}->getFieldValue('description');
+
+    $this_competency_hash{'children'} = [];    
+
+    push @{$branch}, {%this_competency_hash};
+
+    foreach my $child_competency_id (@{$this_competency->getLinked}) {
+	getLinkedBranchHelper($child_competency_id, $this_competency_hash{'children'});
+    }
+    
+=for
     my $assign = $index.' = {%linked_competencies};';
     eval($assign);
+
 
     foreach my $key(keys %linked_competencies){
 	my $new_index = $index."->{".$key."}";
 	getLinkedBranchHelper($key, $new_index, $branch);
     }
+=cut
+
 }
 
 

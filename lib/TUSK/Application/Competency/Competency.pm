@@ -234,8 +234,6 @@ sub addChild {
 
 #######################################################
 
-#for next update
-
 =item B<getLinked>
     returns the competencies that have been linked to the current competency.
 =cut
@@ -253,7 +251,7 @@ sub getLinked {
     my @linked_competencies;
 
     foreach my $linked_competency (@{$linked_hierarchy}) {
-	    push @linked_competencies, $linked_competency->getJoinObject("TUSK::Competency::Relation")->getCompetencyId2;
+	push @linked_competencies, $linked_competency->getJoinObject("TUSK::Competency::Relation")->getCompetencyId2;
     }
 
 
