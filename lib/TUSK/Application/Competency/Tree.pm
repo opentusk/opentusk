@@ -69,16 +69,21 @@ sub deleteFromTreeHelper {
 
 =item B<getLinkedBranch>
    Returns entire subtree for a given parent_competency_id, returns a reference to a nested hash with indefinite dimensions.
-	
+   Accepts optional param for maximum depth to reduce the returned tree to a certain number of levels.
 =cut
 
 sub getLinkedBranch {
  
-    my ($self, $extra_cond) = @_;
-    
-    my @branch;
+    my ($self, $max_depth) = @_;
 
-    getLinkedBranchHelper($self->{competency_id}, \@branch);
+    use Data::Dumper;
+
+    if (!$max_depth) {
+	$max_depth = 99;
+    }
+
+    my @branch;
+    getLinkedBranchHelper($self->{competency_id}, \@branch, $max_depth);
     
     return $branch[0];
 
@@ -87,7 +92,7 @@ sub getLinkedBranch {
 sub getLinkedBranchHelper {
      #helper function for implementing getLinkedBranch 
 
-    my ($competency_id, $branch) = @_;
+    my ($competency_id, $branch, $max_depth) = @_;
 
     my $competency  = {
 	competency_id => $competency_id,
@@ -107,8 +112,14 @@ sub getLinkedBranchHelper {
 
     push @{$branch}, {%this_competency_hash};
 
+    $max_depth--;
+
+    if ($max_depth == 0) {
+	return;
+    }
+
     foreach my $child_competency_id (@{$this_competency->getLinked}) {
-	getLinkedBranchHelper($child_competency_id, $this_competency_hash{'children'});
+	getLinkedBranchHelper($child_competency_id, $this_competency_hash{'children'}, $max_depth);
     }
 
 }
