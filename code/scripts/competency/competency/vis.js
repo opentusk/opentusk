@@ -17,7 +17,6 @@ $(function() {
 	d3.json("/scripts/competency/competency/competency_test.json", function (competencies) {
 		var nodes = competency_tree.nodes(competencies);
 	
- 		console.log(nodes);
 		var paths = competency_tree.links(nodes);
 
 		vis_container.selectAll(".path")
@@ -38,6 +37,7 @@ $(function() {
 						return "translate(" + d.y*1.2 + "," + d.x + ")";
 					   });
 
+
 		node.append("rect")
 			.attr("width", 150)
 			.attr("y", -15)
@@ -49,6 +49,18 @@ $(function() {
 			.text(function (d) { 
 				return d.title;
 			});
+
+		node.on("click", function() {
+			$.ajax({
+				type: "POST",
+				dataType: "json",
+				url: "/tusk/competency/visualization/ajaxCompetencyBranch",
+				data: {competency_id_1: 97575},
+				success: function (response) {
+					console.log(response);
+				}
+			});
+		});
 
 	});
 });
