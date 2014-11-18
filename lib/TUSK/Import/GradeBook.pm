@@ -53,9 +53,9 @@ sub processData {
 		}
 		if (!$self->validStudent($user,$courseRoster)) {
 			my $error_message = "Student ".$user->out_full_name()." (";
-            if ($input_id) { 
+			if ($input_id) { 
 				$error_message .= "with a UTLN: ".$input_id;
-            } elsif ($student_id) {
+			} elsif ($student_id) {
 				$error_message .= "with a student id: ".$student_id;
 			}
 			$error_message .= ") is not in the course ".$course->title();
