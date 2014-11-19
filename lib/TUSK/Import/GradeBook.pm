@@ -47,16 +47,15 @@ sub processData {
         my $input_id = $record->get_field_value('ID'); #UTLN of the student
         my $student_id = $record->get_field_value('StudentID');
  
-		# $self->add_log('info',$record->get_field_value('ID').':'.$record->get_field_value('Score'));
 		$user = $self->findStudent($input_id, $student_id);
 		if (!defined($user)){
 			next;
 		}
 		if (!$self->validStudent($user,$courseRoster)) {
 			my $error_message = "Student ".$user->out_full_name()." (";
-            if ($input_id) { 
+			if ($input_id) { 
 				$error_message .= "with a UTLN: ".$input_id;
-            } elsif ($student_id) {
+			} elsif ($student_id) {
 				$error_message .= "with a student id: ".$student_id;
 			}
 			$error_message .= ") is not in the course ".$course->title();
