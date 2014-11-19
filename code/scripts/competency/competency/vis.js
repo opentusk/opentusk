@@ -48,14 +48,21 @@ $(function() {
 		node.append("text")
 			.text(function (d) { 
 				return d.title;
+			})
+			.attr("id", function (d) {
+				return d.competency_id;
 			});
 
-		node.on("click", function() {
+		node.on("click", function(d) {
+			var current_competency_id = $(this).children('text')[0].id;
+			if (!current_competency_id) {
+				return;
+			};
 			$.ajax({
 				type: "POST",
 				dataType: "json",
 				url: "/tusk/competency/visualization/ajaxCompetencyBranch",
-				data: {competency_id_1: 97575},
+				data: {competency_id_1: current_competency_id},
 				success: function (response) {
 					console.log(response);
 				}
