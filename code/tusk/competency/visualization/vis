@@ -24,7 +24,8 @@
 	use JSON;
 </%once>
 
-% $m->comp("SELF:create_first_layer");
+% my $national_competencies = $m->comp("SELF:create_first_layer");
+% $m->print($national_competencies);
 
 <div id="visualization">
 
@@ -71,13 +72,6 @@
 			children => []
 		};
 
-		my %this_national_category = {
-			competency_id => $national_category->getPrimaryKeyID,
-			title => $national_category->getTitle,
-			description => $national_category->getDescription,
-			children => []
-		};
-
 		push @national_competencies, $this_national_category;
 		
 		my $top_level_national_comps = TUSK::Application::Competency::Competency->new($this_national_category)->getChildren;
@@ -87,16 +81,19 @@
 			if (!$top_level_national_comp) {
 				next;
 			}
-			my %top_level_national_comp_hash = {
+			my $top_level_national_comp_hash = {
 				competency_id => $top_level_national_comp->getPrimaryKeyID,
 				title => $top_level_national_comp->getTitle,
 				description => $top_level_national_comp->getDescription,
 				children => []
 			};
+			push @{$this_national_category->{'children'}}, $top_level_national_comp_hash;
 
 		}
 	}
-	print Dumper @national_competencies;
+	my $national_comp_json = JSON->new->pretty->encode(\@national_competencies);	
+
+	return $national_comp_json;
 </%perl>
 </%method>
 
