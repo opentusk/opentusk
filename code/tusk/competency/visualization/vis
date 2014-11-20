@@ -20,6 +20,8 @@
 
 	use TUSK::Application::Competency::Tree;
 	use TUSK::Application::Competency::Competency;
+
+	use JSON;
 </%once>
 
 % $m->comp("SELF:create_first_layer");
@@ -56,15 +58,34 @@
 	my $national_level_id = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.level_id' AND short_name = 'national'")->getPrimaryKeyID;
 	my $national_categories = TUSK::Competency::Competency->lookup("school_id = $school_id AND competency_user_type_id = $category_user_type_id AND competency_level_enum_id = $national_level_id", [ 'competency_id' ]);
 
-	foreach my $national_category (@{$national_categories}) {
-		my $national_category_id = $national_category->getPrimaryKeyID;
+	foreach my $national_category (@{$national_categories}) {		
+		my %current_national_category;
+
 		my $this_national_category = {
-			competency_id => $national_category_id
+			competency_id => $national_category->getPrimaryKeyID,
+			title => $national_category->getTitle,
+			description => $national_category->getDescription,
+			children => []
 		};
+
+		
 		my $top_level_national_comps = TUSK::Application::Competency::Competency->new($this_national_category)->getChildren;
-		print Dumper $top_level_national_comps;
-		print "<br><br>";
+
+		foreach my $top_level_national_comp_id (@{$top_level_national_comps}) {
+			my $top_level_national_comp = TUSK::Competency::Competency->lookupReturnOne("competency_id = $top_level_national_comp_id");
+			if (!$top_level_national_comp) {
+				next;
+			}
+			my %top_level_national_comp_hash = {
+				competency_id => $top_level_national_comp->getPrimaryKeyID,
+				title => $top_level_national_comp->getTitle,
+				description => $top_level_national_comp->getDescription,
+				children => []
+			};
+
+		}
 	}
+
 </%perl>
 </%method>
 
