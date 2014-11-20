@@ -22,7 +22,7 @@
 	use TUSK::Application::Competency::Competency;
 </%once>
 
-% $m->comp("SELF:get_national_categories");
+% $m->comp("SELF:create_first_layer");
 
 <div id="visualization">
 
@@ -48,16 +48,23 @@
 % return __("Interactive Competency Visualization Tree");
 </%method>
 
-<%method get_national_categories>
+<%method create_first_layer>
 <%perl>
 	my $school_id = 1;
 	my $category_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id =" . $school_id, undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::Enum::Data", 
 					{origkey => 'competency_type_enum_id', joinkey => 'enum_data_id', jointype => 'inner', joincond => "namespace = 'competency.user_type.id' AND short_name='category'"})])->getPrimaryKeyID;
 	my $national_level_id = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.level_id' AND short_name = 'national'")->getPrimaryKeyID;
 	my $national_categories = TUSK::Competency::Competency->lookup("school_id = $school_id AND competency_user_type_id = $category_user_type_id AND competency_level_enum_id = $national_level_id", [ 'competency_id' ]);
+
 	foreach my $national_category (@{$national_categories}) {
-		print $national_category->getTitle;
-		print "<br>";
+		my $national_category_id = $national_category->getPrimaryKeyID;
+		my $this_national_category = {
+			competency_id => $national_category_id
+		};
+		my $top_level_national_comps = TUSK::Application::Competency::Competency->new($this_national_category)->getChildren;
+		print Dumper $top_level_national_comps;
+		print "<br><br>";
 	}
 </%perl>
 </%method>
+
