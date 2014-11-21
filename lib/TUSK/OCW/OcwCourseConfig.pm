@@ -796,7 +796,7 @@ sub getCourseStaff {
 
 	return ( 
 		 [ grep { $_->hasRole('director') } @$users, grep { $_->hasRole('author') } @$users ],
-		 [ grep { (!$_->hasRole('director') && !$_->hasRole('author') && $_->hasLabel('teaching_assistant')) } @$users ],
+		 [ grep { (!$_->hasRole('director') && !$_->hasRole('author') && $_->hasRole('teaching_assistant')) } @$users ],
 	       );
 }
 
