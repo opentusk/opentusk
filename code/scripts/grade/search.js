@@ -256,7 +256,7 @@ function generateStatementTable(data) {
 	if (data) {
 		var html = '';
 		$.each(data, function(tp_id, course_ids) {
-			$.each(course_ids, function(course_id, event_names) {
+			$.each(course_ids, function(course_id, event_ids) {
 				var counter = 0;
 				var course_title = $("option[value='" + course_id + "']").text();
 				html += "<h2 class='data'>" + course_title + "<br>";
@@ -267,15 +267,16 @@ function generateStatementTable(data) {
 					html += "<th class='header-left'>" + abbr($("option[value='" + user_id + "']").text()) + "</th>";
 				});
 				html += "</tr>";
-				$.each(event_names, function(event_name, user_ids) {
-					if (data[tp_id][course_id][event_name]) {
+				$.each(event_ids, function(event_id, event) {
+					if (event["name"]) {
+						var event_name = event["name"];
 						html += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
 						html += "<td class='line-left'>" + abbr(event_name) + "</td>"; 
 						// make grade cells
 						$.each(students, function(index, user_id) {
 							html += "<td class='line-center'>";
-							if (data[tp_id][course_id][event_name][user_id]) {
-								html += data[tp_id][course_id][event_name][user_id];
+							if (event["user"] && event["user"][user_id]) {
+								html += event["user"][user_id];
 							}
 							html += "</td>";
 						});

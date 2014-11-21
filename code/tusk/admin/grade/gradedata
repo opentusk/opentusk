@@ -135,15 +135,20 @@
 <%perl>
 	my $course_ids = join(',', @{decode_json($courses)});
 	my $student_ids = "'" . join ("','", @{decode_json($students)}) . "'";
+	my $event_cond = "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)";
 
+	my $grade_events = TUSK::GradeBook::GradeEvent->lookup($event_cond);
 	my $links = TUSK::GradeBook::LinkUserGradeEvent->lookup(undef, undef, undef, undef, [
-		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => "school_id = $school_id AND time_period_id in ($tp_ids) AND course_id in ($course_ids)" }),
+		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'child_grade_event_id', jointype => 'inner', joincond => $event_cond }),
 	]);
 
 	my %data;
+	foreach my $grade_event (@$grade_events) {
+		$data{$grade_event->getTimePeriodID()}{$grade_event->getCourseID()}{$grade_event->getPrimaryKeyID()}{'name'} = $grade_event->getEventName();
+	}
 	foreach my $link (@$links) {
 		my $grade_event = $link->getJoinObject('TUSK::GradeBook::GradeEvent');
-		$data{$grade_event->getTimePeriodID()}{$grade_event->getCourseID()}{$grade_event->getEventName()}{$link->getParentUserID()} = $link->getGrade();
+		$data{$grade_event->getTimePeriodID()}{$grade_event->getCourseID()}{$grade_event->getPrimaryKeyID()}{'user'}{$link->getParentUserID()} = $link->getGrade();
 	}
 	return \%data;
 </%perl>
