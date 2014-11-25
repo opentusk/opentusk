@@ -578,7 +578,7 @@ function postNotes(repid){
 	if (xRequest) {
 		var notes = document.getElementById('casenotes');
 		if (notes) {
-			var params = 'casenotes=' + notes.value;
+			var params = 'casenotes=' + encodeURI(notes.value);
 			var url = '/case/notepad/' + repid;
 			xRequest.open("POST", url, true);
 			xRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
