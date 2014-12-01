@@ -28,7 +28,7 @@ $(function() {
 			.attr("stroke", "black")
 			.attr("d", diagonal);
 
-		var node = vis_container.selectAll(".node")
+		var node = vis_container  .selectAll(".node")
 	       		.data(nodes)
 			.enter()
 			.append("g")
@@ -64,10 +64,14 @@ $(function() {
 				url: "/tusk/competency/visualization/ajaxCompetencyBranch",
 				data: {competency_id_1: current_competency_id},
 				success: function (response) {
-					console.log(response);
+					updateTree(response);
 				}
 			});
 		});
-
 	});
+
 });
+
+function updateTree(response) {
+	console.log(response);
+}
