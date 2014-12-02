@@ -16,6 +16,7 @@ $(function() {
 	
 	d3.json("/scripts/competency/competency/competency_test.json", function (competencies) {
 		var nodes = competency_tree.nodes(competencies);
+		console.log(competencies);
 	
 		var paths = competency_tree.links(nodes);
 
@@ -64,14 +65,14 @@ $(function() {
 				url: "/tusk/competency/visualization/ajaxCompetencyBranch",
 				data: {competency_id_1: current_competency_id},
 				success: function (response) {
+					nodes.push(response);
 					updateTree(response);
 				}
 			});
 		});
 	});
-
 });
 
 function updateTree(response) {
-	console.log(response);
+
 }
