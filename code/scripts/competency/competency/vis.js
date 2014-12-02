@@ -72,8 +72,15 @@ function update(source) {
 	        .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
 	        .attr("dy", ".35em")
 	        .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-	        .text(function(d) { return d.title; })
-	        .style("fill-opacity", 1e-6);
+	        .text(function(d) { return d.title; });
+
+	nodeEnter.append("svg:rect")
+		.attr("x", function(d) { return d.children || d._children ? -160 : 0; })
+		.attr("y", -10)
+		.attr("width", 200)
+		.attr("height", 20)
+		.attr("rx", "5")
+		.attr("ry", "5")
 
 	// Transition nodes to their new position.
 	var nodeUpdate = node.transition()
