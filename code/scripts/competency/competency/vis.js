@@ -40,7 +40,7 @@ $(function() {
 		}
 
   	//Initialize the display to show a few nodes.
-		root.children.forEach(toggleAll);
+		toggle(root);
 	  	update(root);
 });
 
@@ -72,7 +72,13 @@ function update(source) {
 	        .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
 	        .attr("dy", ".35em")
 	        .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-	        .text(function(d) { return d.title; });
+	        .text(function(d) { 
+			if (d.title) {
+				return d.title; 
+			} else {
+				return d.description;
+			}
+		});
 
 	nodeEnter.append("svg:rect")
 		.attr("x", function(d) { return d.children || d._children ? -160 : 0; })
@@ -150,14 +156,28 @@ function update(source) {
 
 // Toggle children nodes (expand/collapse)
 function toggle(d) {
-  if (d.children) {
-    d._children = d.children;
-    d.children = null;
-  } else {
-    d.children = d._children;
-    d._children = null;
-  }
+	if (d.children) {
+	    	d._children = d.children;
+	        d.children = null;
+	} else {
+		$.ajax({
+			type: "POST",
+			url: "/tusk/competency/visualization/ajaxCompetencyBranch",
+			data: {competency_id: d.competency_id},
+			dataType: "json"			
+		}).done(function(data) {
+			console.log(data.children[0]);
+			
+			var newnodes = tree.nodes(data.children).reverse();
+			d.children = newnodes[0];
+			console.log(d.children);
+			update(d);
+		});
+	        d.children = d._children;
+	        d._children = null;
+        }
 }
+
 });
 
 

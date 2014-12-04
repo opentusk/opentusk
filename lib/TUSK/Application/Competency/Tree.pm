@@ -100,6 +100,10 @@ sub getLinkedBranchHelper {
 
     my $this_competency = TUSK::Application::Competency::Competency->new($competency);   
 
+    if (! $this_competency) {
+	return;
+    }
+
     my %this_competency_hash;
 
     %this_competency_hash = (
