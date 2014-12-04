@@ -164,13 +164,15 @@ function toggle(d) {
 			type: "POST",
 			url: "/tusk/competency/visualization/ajaxCompetencyBranch",
 			data: {competency_id: d.competency_id},
-			dataType: "json"			
+			dataType: "json",
+			statusCode: {
+				500: function() {
+					console.log("Error 500: Failed to obtain tree for current competency.")
+				}
+			}
 		}).done(function(data) {
-			console.log(data.children[0]);
-			
 			var newnodes = tree.nodes(data.children).reverse();
 			d.children = newnodes[0];
-			console.log(d.children);
 			update(d);
 		});
 	        d.children = d._children;
