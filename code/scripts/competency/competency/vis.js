@@ -63,10 +63,11 @@ function update(source) {
 		.attr("class", "node")
       		.attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
   		.on("click", function(d) { toggle(d); update(d); });
-
+/*
 	nodeEnter.append("svg:circle")
 	        .attr("r", 1e-6)
 	        .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+*/
 
 	nodeEnter.append("svg:rect")
 		.attr("x", function(d) { return d.children || d._children ? -160 : 0; })
@@ -175,21 +176,23 @@ function toggle(d) {
 	    	d._children = d.children;
 	        d.children = null;
 	} else {
-		$.ajax({
-			type: "POST",
-			url: "/tusk/competency/visualization/ajaxCompetencyBranch",
-			data: {competency_id: d.competency_id},
-			dataType: "json",
-			statusCode: {
-				500: function() {
-					console.log("Error 500: Failed to obtain tree for current competency.")
+		if (d._children == null){ //if no children exists in our tree data structure yet then make ajax call to look into the database
+			$.ajax({
+				type: "POST",
+				url: "/tusk/competency/visualization/ajaxCompetencyBranch",
+				data: {competency_id: d.competency_id},
+				dataType: "json",
+				statusCode: {
+					500: function() {
+						console.log("Error 500: Failed to obtain tree for current competency.")
+					}
 				}
-			}
-		}).done(function(data) {
-			var newnodes = tree.nodes(data.children).reverse();
-			d.children = newnodes[0];
-			update(d);
-		});
+			}).done(function(data) {
+				var newnodes = tree.nodes(data.children).reverse();
+				d.children = newnodes[0];
+				update(d);
+			});
+		}
 	        d.children = d._children;
 	        d._children = null;
         }
