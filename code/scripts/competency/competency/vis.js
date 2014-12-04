@@ -76,10 +76,32 @@ function update(source) {
 		.attr("height", 20)
 		.attr("rx", "5")
 		.attr("ry", "5")
+		.attr("stroke", function(d) {
+			if (d.level == "national") {
+				return "black";
+			} else if (d.level == "school") {
+				return "green";
+			} else if (d.level == "course") {
+				return "#D57025";
+			} else {
+				return "#4D92CD";
+			}
+		})
 
 	nodeEnter.append("svg:text")
 	        .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
 	        .attr("dy", ".35em")
+		.attr("stroke", function(d) {
+			if (d.level == "national") {
+				return "black";
+			} else if (d.level == "school") {
+				return "green";
+			} else if (d.level == "course") {
+				return "#D57025";
+			} else {
+				return "#4D92CD";
+			}
+		})
 	        .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
 	        .text(function(d) { 
 			var competency_info;
