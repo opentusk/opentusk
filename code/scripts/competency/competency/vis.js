@@ -6,7 +6,7 @@ and pan and zoom extension by Rob Schmuecker (http://bl.ocks.org/robschmuecker/7
 
 var m = [20, 120, 20, 120],
     w = 1280 - m[1] - m[3],
-    h = 800 - m[0] - m[2];
+    h = 600 - m[0] - m[2];
 
 $(function() {
 	var i = 0;
@@ -139,8 +139,7 @@ function update(source) {
 	        .style("fill-opacity", 1);
 
 	// Transition exiting nodes to the parent's new position.
-	var nodeExit = node.exit().transition()
-	        .duration(duration)
+	var nodeExit = node.exit()
 	        .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
 	        .remove();
 
