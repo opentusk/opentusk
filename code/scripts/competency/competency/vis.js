@@ -40,6 +40,20 @@ $(function() {
 		    }
 		}
 
+	$("#current_domain").change(function() {
+		var domain_json = new Object();
+		domain_json.title = $(this).children("option").filter(":selected").text();
+		domain_json.level = "national";
+		domain_json.competency_id = this.value;
+		domain_json.children = [];
+	
+		root = domain_json;
+		root.x0 = h / 2;
+		root.y0 = 0;
+
+		update(root);
+	});
+
   	//Initialize the display to show a few nodes.
 		toggle(root);
 		update(root);
@@ -248,7 +262,7 @@ function zoom() {
         .attr("transform", "translate(" + translation + ")" +" scale(" + scale + ")");
 }
 
-function update_domain (competency_id, title) {
+function update_domain_2 (competency_id, title) {
 	var domain_json = new Object();
 	domain_json.title = title;
 	domain_json.level = "national";
@@ -258,10 +272,4 @@ function update_domain (competency_id, title) {
 	domain_json = JSON.stringify(domain_json);
 	console.log(domain_json);
 
-	root = domain_json;
-	root.x0 = h / 2;
-	root.y0 = 0;
-		
-	toggle(root);
-	update(root);
 }
