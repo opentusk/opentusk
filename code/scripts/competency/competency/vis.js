@@ -61,7 +61,6 @@ $(function() {
 				root = domain_json;				
 				root.x0 = h/2;
 				root.y0 = 0;
-				toggle(root);
 				update(root);
 			});
 
@@ -137,8 +136,8 @@ function update(source) {
 			} else {
 				competency_info =  d.description;
 			}
-			if (competency_info.length >= 22){
-				competency_info = competency_info.substring(0,22) + "\u2026";
+			if (competency_info.length >= 20){
+				competency_info = competency_info.substring(0,20) + "\u2026";
 			} 
 			return competency_info;
 		})
@@ -146,9 +145,9 @@ function update(source) {
 	nodeEnter.append("svg:title")
 		.text(function (d) {
 			if (d.title) {
-				if (d.title.length >= 22) {return d.title};
+				if (d.title.length >= 20) {return d.title};
 			} else {
-				if (d.description.length >=22) {return d.description};
+				if (d.description.length >=20) {return d.description};
 			} 
 		});
 
