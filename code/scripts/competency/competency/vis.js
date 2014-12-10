@@ -40,18 +40,32 @@ $(function() {
 		    }
 		}
 
-	$("#current_domain").change(function() {
+	$("#current_domain").change(function() {		
 		var domain_json = new Object();
 		domain_json.title = $(this).children("option").filter(":selected").text();
 		domain_json.level = "national";
 		domain_json.competency_id = this.value;
-		domain_json.children = [];
-	
-		root = domain_json;
-		root.x0 = h / 2;
-		root.y0 = 0;
 
-		update(root);
+		$.ajax({
+				type: "POST",
+				url: "/tusk/competency/visualization/ajaxFirstLoad/school/Dental",
+				data: {competency_id: this.value},
+				dataType: "json",
+				statusCode: {
+					500: function() {
+						console.log("Error 500: Failed to obtain tree for current competency.")
+					}
+				}
+			}).success(function(data) {
+				domain_json.children = data;
+				root = domain_json;				
+				root.x0 = h/2;
+				root.y0 = 0;
+				toggle(root);
+				update(root);
+			});
+
+		
 	});
 
   	//Initialize the display to show a few nodes.
@@ -260,16 +274,4 @@ function zoom() {
 
     d3.select(".drawarea")
         .attr("transform", "translate(" + translation + ")" +" scale(" + scale + ")");
-}
-
-function update_domain_2 (competency_id, title) {
-	var domain_json = new Object();
-	domain_json.title = title;
-	domain_json.level = "national";
-	domain_json.competency_id = competency_id;
-	domain_json.children = [];
-	
-	domain_json = JSON.stringify(domain_json);
-	console.log(domain_json);
-
 }
