@@ -1,0 +1,79 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%once>
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::UserType;
+
+	use TUSK::Application::Competency::Tree;
+	use TUSK::Application::Competency::Competency;
+
+	use JSON;
+</%once>
+
+
+<%perl>
+	my @national_competencies = ();	
+
+	my $school_id = TUSK::Core::School->new()->getSchoolID($m->comp("/tmpl/url:get_school"));
+
+	my $category_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id =" . $school_id, undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::Enum::Data", 
+					{origkey => 'competency_type_enum_id', joinkey => 'enum_data_id', jointype => 'inner', joincond => "namespace = 'competency.user_type.id' AND short_name='category'"})])->getPrimaryKeyID;
+	my $national_level_id = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.level_id' AND short_name = 'national'")->getPrimaryKeyID;
+	my $national_categories = TUSK::Competency::Competency->lookup("school_id = $school_id AND competency_user_type_id = $category_user_type_id AND competency_level_enum_id = $national_level_id", [ 'competency_id' ]);
+
+
+	my $this_national_category = {
+		competency_id => $ARGS{'competency_id'},
+	};
+
+	#push @national_competencies, $this_national_category;
+		
+	my $top_level_national_comps = TUSK::Application::Competency::Competency->new($this_national_category)->getChildren;
+
+
+	foreach my $top_level_national_comp_id (@{$top_level_national_comps}) {
+		my $top_level_national_comp = TUSK::Competency::Competency->lookupReturnOne("competency_id = $top_level_national_comp_id");
+		if  (!$top_level_national_comp) {
+			next;
+		} 
+		my $top_level_national_comp_hash = {
+				competency_id => $top_level_national_comp->getPrimaryKeyID,
+				title => $top_level_national_comp->getTitle,
+				description => $top_level_national_comp->getDescription,
+				children => []
+		};
+
+		push @national_competencies, $top_level_national_comp_hash;
+		
+	}
+
+	my $national_comp_json = JSON->new->pretty->encode(\@national_competencies);	
+
+	$m->print($national_comp_json);
+</%perl>
+
+

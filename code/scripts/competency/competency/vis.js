@@ -95,11 +95,6 @@ function update(source) {
 		.attr("class", "node")
       		.attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
   		.on("click", function(d) { toggle(d); update(d); });
-/*
-	nodeEnter.append("svg:circle")
-	        .attr("r", 1e-6)
-	        .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
-*/
 
 	nodeEnter.append("svg:rect")
 		.attr("x", function(d) { return d.children || d._children ? -160 : 0; })
