@@ -12,6 +12,10 @@ $(function() {
 	var i = 0;
 	var root;
 
+	var currentURL = window.location.pathname;
+	var split_currentURL = currentURL.split('/');		
+	var school = split_currentURL[split_currentURL.length - 1];
+
 	var tree = d3.layout.tree()
 		    .size([h, w]);
 
@@ -45,10 +49,10 @@ $(function() {
 		domain_json.title = $(this).children("option").filter(":selected").text();
 		domain_json.level = "national";
 		domain_json.competency_id = this.value;
-
-		$.ajax({
+		
+		$.ajax({				
 				type: "POST",
-				url: "/tusk/competency/visualization/ajaxFirstLoad/school/Dental",
+				url: "/tusk/competency/visualization/ajaxFirstLoad/school/" + school,
 				data: {competency_id: this.value},
 				dataType: "json",
 				statusCode: {
