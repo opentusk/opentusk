@@ -22,6 +22,8 @@
 	use TUSK::Application::Competency::Competency;
 
 	use JSON;
+
+	use Data::Dumper;
 </%once>
 
 % my $national_competencies = $m->comp("SELF:create_first_layer");
@@ -34,6 +36,31 @@
 <span style="background-color: #4D92CD; color: #4D92CD">xx</span> Content/Session Objectives
 
 </div>
+
+<div id="domain">
+<%perl>
+my $national_domains = $m->comp("SELF:get_domains");
+
+my @domain_dropdown;
+foreach my $national_domain(@{$national_domains}) {
+
+	my $temp_domain_hash = {
+		label => $national_domain->{'title'},
+		value => $national_domain->{'competency_id'},
+	};
+
+	push @domain_dropdown, $temp_domain_hash;
+}
+
+print "Select Domain: ";
+$m->comp("/tmpl/element:dropdown", params => {
+	name => 'current_domain',
+	options => \@domain_dropdown,
+	onchange => 'update_domain(this.value, this.options[selectedIndex].text);'
+});
+</%perl>
+</div>
+
 <div id="visualization">
 
 </div>
@@ -60,6 +87,38 @@
 
 <%method title>
 % return __("Interactive Competency Visualization Tree");
+</%method>
+
+<%method get_domains>
+<%perl>
+	my @national_competencies = ();	
+
+	my $school_id = TUSK::Core::School->new()->getSchoolID($m->comp("/tmpl/url:get_school"));
+
+	my $category_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id =" . $school_id, undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::Enum::Data", 
+					{origkey => 'competency_type_enum_id', joinkey => 'enum_data_id', jointype => 'inner', joincond => "namespace = 'competency.user_type.id' AND short_name='category'"})])->getPrimaryKeyID;
+
+	my $national_level_id = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.level_id' AND short_name = 'national'")->getPrimaryKeyID;
+
+	my $national_categories = TUSK::Competency::Competency->lookup("school_id = $school_id AND competency_user_type_id = $category_user_type_id AND competency_level_enum_id = $national_level_id", [ 'competency_id' ]);
+
+	foreach my $national_category (@{$national_categories}) {		
+
+		my %current_national_category;
+
+		my $this_national_category = {
+			competency_id => $national_category->getPrimaryKeyID,
+			title => $national_category->getTitle,
+			description => $national_category->getDescription,
+			children => []
+		};
+
+		push @national_competencies, $this_national_category;
+
+	}
+
+	return \@national_competencies;
+</%perl>
 </%method>
 
 <%method create_first_layer>

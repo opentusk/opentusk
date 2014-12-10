@@ -39,16 +39,6 @@ $(function() {
 		   	      toggle(d);
 		    }
 		}
-/*
-		$.ajax({
-			type: "POST",
-			url: "/tusk/competency/visualization/ajaxFirstLoad/school/Medical",
-			dataType: "json"
-		}).success(function(json) {
-			var newnodes = tree.nodes(json).reverse();
-			root.children = newnodes[0];		
-		})
-*/
 
   	//Initialize the display to show a few nodes.
 		toggle(root);
@@ -256,4 +246,22 @@ function zoom() {
 
     d3.select(".drawarea")
         .attr("transform", "translate(" + translation + ")" +" scale(" + scale + ")");
+}
+
+function update_domain (competency_id, title) {
+	var domain_json = new Object();
+	domain_json.title = title;
+	domain_json.level = "national";
+	domain_json.competency_id = competency_id;
+	domain_json.children = [];
+	
+	domain_json = JSON.stringify(domain_json);
+	console.log(domain_json);
+
+	root = domain_json;
+	root.x0 = h / 2;
+	root.y0 = 0;
+		
+	toggle(root);
+	update(root);
 }
