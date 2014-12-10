@@ -28,6 +28,7 @@ $(function() {
 		    .append("svg:g")
 		    .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
 
+	
 	d3.json("/scripts/competency/competency/competency_test.json", function(json) {
 		root = json;
 	        root.x0 = h / 2;
@@ -38,10 +39,20 @@ $(function() {
 		   	      toggle(d);
 		    }
 		}
+/*
+		$.ajax({
+			type: "POST",
+			url: "/tusk/competency/visualization/ajaxFirstLoad/school/Medical",
+			dataType: "json"
+		}).success(function(json) {
+			var newnodes = tree.nodes(json).reverse();
+			root.children = newnodes[0];		
+		})
+*/
 
   	//Initialize the display to show a few nodes.
 		toggle(root);
-	  	update(root);
+		update(root);
 });
 
 
@@ -74,8 +85,6 @@ function update(source) {
 		.attr("y", -10)
 		.attr("width", 160)
 		.attr("height", 20)
-		.attr("rx", "5")
-		.attr("ry", "5")
 		.attr("stroke", function(d) {
 			if (d.level == "national") {
 				return "black";
@@ -194,8 +203,13 @@ function update(source) {
 // Toggle children nodes (expand/collapse)
 function toggle(d) {
 	if (d.children) {
-	    	d._children = d.children;
-	        d.children = null;
+		d.children.forEach(function(this_child) {
+			if (this_child.children) {
+				toggle(this_child);
+			}
+		});
+		d._children = d.children;
+		d.children = null;		
 	} else {
 		if (d._children == null){ //if no children exists in our tree data structure yet then make ajax call to look into the database
 			$.ajax({
@@ -208,7 +222,10 @@ function toggle(d) {
 						console.log("Error 500: Failed to obtain tree for current competency.")
 					}
 				}
-			}).done(function(data) {
+			}).success(function(data) {
+				if (data.children.length == 0) {
+					alert("No children or links found!");
+				}
 				var newnodes = tree.nodes(data.children).reverse();
 				d.children = newnodes[0];
 				update(d);
