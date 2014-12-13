@@ -171,11 +171,18 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 		push @case_links, '<a href="/protected/case/casestart/' . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($case->getCaseTitle(), $charLimit) . '</a>';
 	}
 
+	## competency checklist
 	my $courses_with_checklists = $m->session->{user}->get_courses_with_checklists();
 	foreach my $course (@$courses_with_checklists) {
 		push @checklist_links, "<a href=\"/view/course/$course->{affiliation}/$course->{course_id}/checklists\">$course->{course_title}</a>";
 	}
 
+	my $director_checklists = $m->session->{user}->get_director_checklists();
+	if (defined($director_checklists) && scalar @{$director_checklists}) {
+		foreach my $checklist (@$director_checklists) {
+			push @checklist_links, '<a href="/protected/competency/checklist/director/report/course/' . $checklist->{school_name} . '/' . $checklist->{course_id} . '/' . $checklist->{checklist_group_id}. '">' . $stripObj->truncateAndRemoveHTML($checklist->{checklist_group_name}, $charLimit) . '</a>';
+		}
+	}
 
 	## evaluations
 	my ($evals, $courses, $course_evals) = $m->session->{user}->current_evals();

@@ -50,7 +50,6 @@ use TUSK::Core::School;
 use TUSK::Permission;
 use TUSK::DB::Util qw(sql_prep_list);
 use TUSK::Competency::Checklist::Group;
-
 use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
 
@@ -65,7 +64,8 @@ require HSDB45::Eval::Completion;
 require HSDB45::UserGroup;
 require TUSK::Application::Email;
 require TUSK::Core::HSDB45Tables::Course;
-
+require TUSK::Core::School;
+# require TUSK::Competency::Checklist::Group;
 use vars @EXPORT_OK;
 
 # Non-exported package globals go here
@@ -1279,7 +1279,6 @@ sub current_evals {
 
     # Now, get enrollment evaluations.
     my @enroll_evals = ();
-    my $dbh = HSDB4::Constants::def_db_handle ();
     for my $school ( eval_schools() ) {
 	my $db = get_school_db($school);
 	my @eval_ids = ();
@@ -2810,6 +2809,54 @@ ORDER BY course.title), $self->primary_key(), $school->getPrimaryKeyID());
     return $data;
 }
 
+
+sub get_director_checklists {
+    my $self = shift;
+
+    my $affiliation = $self->affiliation();
+    my $school = TUSK::Core::School->lookupReturnOne("school_name = '$affiliation'");
+    return [] unless ref $school eq 'TUSK::Core::School';
+
+    my $checklists = TUSK::Competency::Checklist::Group->lookup("competency_checklist_group.school_id = " . $school->getPrimaryKeyID(), undef, undef, undef, [
+        TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::Course", { 
+	    database => $school->getSchoolDb(), 
+	    jointype => 'inner', 
+	    joinkey => 'course_id', 
+        }),
+        TUSK::Core::JoinObject->new("TUSK::Course::User", { 
+	    jointype => 'inner', 
+	    origkey => 'course.course_id', 
+	    joinkey => 'course_id', 
+	    joincond => "course_user.school_id = competency_checklist_group.school_id", 
+        }),
+        TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", { 
+	    database => $school->getSchoolDb(), 
+	    jointype => 'inner', 
+	    origkey => 'course_user.time_period_id',
+	    joinkey => 'time_period_id', 
+	    joincond => "start_date < now() AND (end_date + interval 1 day) > now()",
+        }),
+        TUSK::Core::JoinObject->new("TUSK::Permission::UserRole", { 
+	    jointype => 'inner', 
+	    origkey => 'course_user.course_user_id', 
+	    joinkey => 'feature_id', 
+	    joincond => "permission_user_role.user_id = '" . $self->getPrimaryKeyID() . "'", 
+        }),
+        TUSK::Core::JoinObject->new("TUSK::Permission::Role", { 
+	    jointype => 'inner', 
+	    origkey => 'permission_user_role.role_id', 
+	    joinkey => 'role_id', 
+	    joincond => "role_token = 'director'", 
+        }),
+    ]);
+
+    my @data = ();
+    foreach my $checklist (@$checklists) {
+	push @data, { school_name => $affiliation, course_id => $checklist->getCourseID(), checklist_group_id => $checklist->getPrimaryKeyID(), checklist_group_name => $checklist->getTitle() };
+    }
+    return \@data;
+}
+
 sub get_director_forms {
     my ($self, $form_type_token) = @_;
 	croak "Missing Form Type" unless $form_type_token;
@@ -2977,6 +3024,7 @@ sub get_instructor_assessments {
     return $assessments;
 }
 
+															     
 ### include school, course and course group announcements for the affiliation
 sub get_all_announcements {
     my $self = shift;
