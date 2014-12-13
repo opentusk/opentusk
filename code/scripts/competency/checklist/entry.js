@@ -13,20 +13,10 @@
 // limitations under the License.
 
 $(function() {
-	$("input[name=notify_show]").click(showEmailForm);
-//	$("input[name=complete_submit]").click(validate);
-
 	showHideButtons();
 	$("input:radio[class='compid']").click(showHideButtons);
 });
 
-function showEmailForm() {
-	$('#notify_student').show('slow');
-}
-
-function hideEmailForm() {
-	$('#notify_student').hide('slow');
-}
 
 function showHideButtons() {
 	var show_notify_button = 0;
@@ -35,47 +25,31 @@ function showHideButtons() {
 	// loop through all the checked radio buttons
 	$(':input.compid:checked').each(function(){
 
-		if ($("input[name=show_notify]")) {
-			if ($(this).val() == 0) {
-				show_notify_button = 1;	
-				return;
-			} 
-		}
+		if ($(this).val() == 0) {
+			show_notify_button = 1;	
+			return;
+		} 
 
 		if ($(this).val() == 1) {
 			num_completions++;
 		}
 	});
 
-	if (show_notify_button == 1) {
-		$('#notify_show').show('slow');
-	} else {
-		$('#notify_show').hide('slow');
+	if (($('#assess_type').val() === 'partner') || ($('#assess_type').val() === 'faculty')) {
+		$('#save_submit').hide(); // no save button for faculty/partner
+
+		if (show_notify_button === 1) {
+			$('#notify_template').show();
+			$('#notify_submit').show();
+		} 
 	}
 
 	// show complete button when all radio buttons are checked
 	if (num_completions == ($(':input.compid').length / 2)) {
-		$('#complete_submit').show('slow');		
+		$('#complete_submit').show();
+		$('#notify_submit').hide();		
+		$('#notify_template').hide();
 	} else {
-		$('#complete_submit').hide('slow');		
+		$('#complete_submit').hide();		
 	}
 }
-
-function notifyStudent() {
-	$.ajax({
-		type		: 'POST',
-		url		: '/competency/checklist/tmpl/notifystudent/' + $("input[name=url_paths]").val(),
-		dataType	: 'json',
-		data		: $("#checklist_entry").serialize(),
-	        success		: function(response) {
-					$('#notify_show').hide('slow');
-					$('#notify_student').hide('slow');
-					alert('Email successfully sent');
-
-		},
-		error		: function(xhr, ajaxOptions, thrownError) {
-			            alert(_('Error: ') + thrownError);
-	        }    
-	});
-}
-
