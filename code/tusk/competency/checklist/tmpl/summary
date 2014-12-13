@@ -25,6 +25,7 @@
 <%once>
 	use TUSK::Application::Competency::Checklist;
 	use TUSK::Competency::Checklist::Entry;
+	use HTML::Entities;
 </%once>
 
 <%shared>
@@ -66,7 +67,8 @@
 <span style="cursor: pointer" title="<% __("Bypassed. You have requested to bypass partner's assessment") %>"> <img src="/graphics/bypass.png" /> <%__("Bypassed") %></span>
 &nbsp;&nbsp;&nbsp;&nbsp;
 <span style="cursor: pointer" title="<% __('In Progress. Your partner or faculty has indicated that you have not completed microskills') %>"><img src="/graphics/red_circle.png"  /> <%__('In Progress') %></span> &nbsp;&nbsp;&nbsp;&nbsp;
-<span style="cursor: pointer" title="<% __('Completed. Skills Module is completed') %>"><img src="/graphics/checkmark_small.png" /><%__('Completed') %> </span>
+<span style="cursor: pointer" title="<% __('Completed. Skills Module is completed') %>"><img src="/graphics/checkmark_small.png" /><%__('Completed') %> </span> &nbsp;&nbsp;&nbsp;&nbsp;
+<span style="cursor: pointer" title="<% __('Comments.') %>"><img src="/graphics/comments.png" /><%__('Comments') %> </span>
  &nbsp;&nbsp;&nbsp;&nbsp;
 <span style="cursor: pointer" title="<% __('Click to view all Course Competencies') %>" onclick="displayAllCompetencies();"><b>*All Competencies</b></span>
  &nbsp;&nbsp;&nbsp;&nbsp;
@@ -204,6 +206,9 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %	if ($assessment_type eq 'self') {
 %		if ($complete_date) {
 <img src="<% $complete_image %>" title="<% __('Completed') %>" /><% $complete_date %>
+%			if (my $assessor_comment = $entry->getAssessorComment()) {
+&nbsp;<img src="/graphics/comments.png" title="<% encode_entities($assessor_comment) %>" />
+%			}
 %		} else {
 %			if ($student_view) {
 <% $button %>
@@ -218,21 +223,35 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %			if ($assessment_type eq 'faculty') {  ## resend button to faculty
 <a href="<% "/competency/checklist/student/emailfaculty/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Resend') %></a>
 %			}
-<div style="margin:4px 0 0 0"><img src="/graphics/yellow_square.png" title="<% __('Pending') %>" /> <% $request_date %></div>
+<div style="margin:4px 0 0 0">
+<img src="/graphics/yellow_square.png" title="<% __('Pending') %>" /> <% $request_date %>
+%			if (my $student_comments = $entry->getStudentComment()) {
+<img src="/graphics/comments.png" title="<% $student_comments %>" />
+%			}
+</div>
 %		} elsif ($complete_date) {  ### complete stage
-%			my $title = __('Completed');
+%			my $title = $entry->getAssessorComment();
+%			my $status_title = 'Completed';
 
 %			if ($assessment_type eq 'partner' && $entry->getStudentComment()) {
-%				$title = __('Bypassed.') . ' ' . $entry->getStudentComment();
+%				$title = encode_entities($entry->getStudentComment());
 %				$complete_image = '/graphics/bypass.png';
+%				$status_title = 'Bypassed';
 %			} 
 %			
-<img src="<% $complete_image %>" title="<% $title %>" /><% $complete_date %>
+<img src="<% $complete_image %>" title="<% __($status_title) %>" /> <% $complete_date %>
+<img src="/graphics/comments.png" title="<% $title %>" />
 %		} elsif (my $notify_date = $entry->getFormattedNotifyDate()) { ### in progress stage
 %			if ($student_view) {
 <% $button %>
 %			}
-<div style="margin:4px 0 0 0"><img src="/graphics/red_circle.png" title="<% __('In Progress') %>" /> <% $notify_date %></div>
+<div style="margin:4px 0 0 0">
+<img src="/graphics/red_circle.png" title="<% __('In Progress') %>" /> 
+<% $notify_date %>
+%	if (my $assessor_comment = $entry->getAssessorComment()) {
+<img src="/graphics/comments.png" title="<% encode_entities($assessor_comment) %>" />
+%	}
+</div>
 %		} else {
 %			### show button for student view and only dependent type is completed
 %			if ($student_view && $dependent_entry->getCompleteDate()) {
