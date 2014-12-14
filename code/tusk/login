@@ -29,12 +29,14 @@ nostandardheader => 1
 use TUSK::Constants;
 use TUSK::Functions;
 use Apache2::Cookie;
+use Apache::TicketMasterCAS;
 </%once>
 
 <%args>
 $user => ''
 $errmsg => ''
 $url => ''
+$logout => 'false'
 </%args>
 
 <%shared>
@@ -67,7 +69,8 @@ my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->co
 %	$url = '/bigscreen';
 % }
 
-<& SELF:build_login_box, message => $message, errmsg => $errmsg, url => $url, failedLoginUser => $failedLoginUser &>
+<& SELF:build_login_box, message => $message, errmsg => $errmsg, url => $url, failedLoginUser => $failedLoginUser, logout => $logout &>
+
 
 <p id="logMessage" class="xsm"><% $TUSK::Constants::HomepageMessage %></p>
 
@@ -112,8 +115,11 @@ $errmsg => ''
 $is_mobi => 0
 $url => ''
 $failedLoginUser => ''
+$logout => 'false'
 </%args>
-<div id="logLoginBox">
+%	my $widthOverride = '';
+%	if($TUSK::Constants::CAS{'Enabled'}) { $widthOverride = 'style="width:430px;"'; }
+<div id="logLoginBox" <% $widthOverride %>>
 <div id="errordiv">
 % if($message){
 %	$message =~ s/</&lt;/g;
@@ -123,60 +129,102 @@ $failedLoginUser => ''
 <p class="errTxt"><% $errmsg %></p>
 <p class="xxsm">If you believe you got this message in error please <a href="<% $prefix %>/about/contact_us">contact us</a></p>
 % }
+% if($TUSK::Constants::CAS{'Enabled'} && $logout eq 'true') {
+	You have succsfully logged out of <% $TUSK::Constants::SiteAbbr %>.<br/>
+	<b>if you would also like to log out of<br/>
+	<% $TUSK::Constants::CAS{'displayName'} %> <a href="<% Apache::TicketMasterCAS::getLogoutURL() %>">Click Here</a></b>
+% }
 </div>
 % my $ssrv = $r->dir_config('SecureLogin') || 'https://'.$TUSK::Constants::Domain.'/login';
 
-<& /tmpl/element:form, params => { action => $ssrv, method => 'post', name => 'login'} &>
 
-% if ($is_mobi && !$url) {
-%	$url = '/mobi/home';
+<div style="width: 100%; overflow: auto;">
+	<span style="margin: 10px 5px; width: 50px; height: 65px; background:#fff 96% top no-repeat url('<% $themeImage %>'); float:left;"></span>
+% if($TUSK::Constants::CAS{'Enabled'}) {
+	<span id="casLogin" onMouseOver="dimLogins(this);" onMouseOut="undimLogins();" class="loginButtons" style="display:block; border-right: 1px solid black; padding: 0px 10px; margin: 0px 5px; height: 55px; padding-top: 45px; float:left; overflow: auto;">
+		<& /tmpl/element:button, params => {
+			name => 'webauthButton', label => $TUSK::Constants::CAS{'displayName'} .' '. __('Login'),
+			onclick => "location.href='". Apache::TicketMasterCAS::getLoginUrl() ."'",
+			class => 'formbutton btnLogin', style => 'margin-left: 0px;'
+		}&>
+	</span>
 % }
-% if ($url && $url =~ /^\// ) {
-%	$m->comp('/tmpl/element:hidden_form_element', params => { name => 'request_uri', value => $url });
+% my $displayStyle = '';
+% if($TUSK::Constants::CAS{'Enabled'} && !$is_mobi) { $displayStyle = 'display:none; '; }
+	<span class="loginButtons" onMouseOver="dimLogins(this);" onMouseOut="undimLogins();" style="<% $displayStyle %>padding: 0px 10px; margin: 0px 5px; overflow: auto;" id="localLoginForm">
+		<& /tmpl/element:form, params => { action => $ssrv, method => 'post', name => 'login'} &>
+%	if ($is_mobi && !$url) {
+%		$url = '/mobi/home';
+%	}
+%	if ($url && $url =~ /^\// ) {
+%		$m->comp('/tmpl/element:hidden_form_element', params => { name => 'request_uri', value => $url });
+%	}
+			<fieldset style="display: inline-block;">
+				<label for="user" class="xsm"><%__('Username:')%></label>
+				<input name="user" type="text" class="textareawhite" size="20" value="<% $failedLoginUser %>"/>
+			</fieldset><br/>
+
+			<fieldset style="display: inline-block;">
+				<label for="password" class="xsm"><%__('Password:')%></label>
+				<input name="password" type="password" class="textareawhite" size="20"/><br/>
+			</fieldset>
+			<& /tmpl/element:submit_button, params => { name => 'Submit', label => __('Login'), class => 'btnLogin' } &>
+%	unless($is_mobi || $TUSK::Constants::DisableGuestLogin){
+			<& /tmpl/element:button, params => {
+				name => 'guest_access', label => __('Guest Access'), onclick => "location.href='/view/courses'"
+			} &>
+%	}
+%	unless($TUSK::Constants::DisableForgotYourPassword) {
+			<div style="width: 100%">
+				<p class="xsm loginHelp"><a href="/tusk/tools/pswdreset"><%__('Forgot your password?')%></a></p>
+			</div>
+%	}
+		</form>
+	</span>
+% if($TUSK::Constants::CAS{'Enabled'} && !$is_mobi) {
+	<span id="localLoginButton" class="loginButtons" style="display:block; padding: 0px 10px; margin: 0px 5px; height: 55px; padding-top: 45px; float:left; overflow: auto;">
+%	my $buttonLabel = $TUSK::Constants::SiteAbbr .' '. __('Login');
+%	if($TUSK::Constants::OverrideDefaultLoginButton) { $buttonLabel = $TUSK::Constants::OverrideDefaultLoginButton; }
+        	<& /tmpl/element:button, params => {
+			name => 'localLoginButton', label => $buttonLabel,
+			onclick => "displayLocalLogin();",
+			class => 'formbutton btnLogin', style => 'margin-left: 0px;'
+              	}&>
+        </span>
 % }
-
-<div style="background:#fff 96% top no-repeat url('<% $themeImage %>');">
-<fieldset>
-<label for="user" class="xsm"><%__('Username:')%></label>
-<input name="user" type="text" class="textareawhite" size="20" value="<% $failedLoginUser %>"/>
-</fieldset>
-
-<fieldset>
-<label for="password" class="xsm"><%__('Password:')%></label>
-<input name="password" type="password" class="textareawhite" size="20"/><br/>
-</fieldset>
-
-<div class="loginButtons">
-
-<& /tmpl/element:submit_button, params => { name => 'Submit', label => __('Login'), class => 'btnLogin' } &>
-
-% unless($is_mobi){
-<& /tmpl/element:button, params => { name => 'guest_access', label => __('Guest Access'), onclick => "location.href='/view/courses'" } &>
+% unless($is_mobi) {
+	<script type="text/javascript">isValidTUSKBrowser();</script>
 % }
 </div>
-</div>
 
-% unless($is_mobi){
-<script type="text/javascript">isValidTUSKBrowser();</script>
-<p class="xsm loginHelp">
-<a href="/tusk/tools/pswdreset"><%__('Forgot your password?')%></a>
-</p>
-% }
-
-</form>
 <script type="text/javascript" language="JavaScript">
-document.forms['login'].elements['user'].focus();
+	document.forms['login'].elements['user'].focus();
+	function dimLogins(overObject) {
+		// $('.loginButtons').css('background-color', '#CCCCCC');
+		// overObject.style.backgroundColor = 'white';
+	}
+	function undimLogins() {
+		// $('.loginButtons').css('background-color', 'white');
+	}
+	function displayLocalLogin() {
+		$('#localLoginForm').hide();
+		$('#localLoginButton').fadeOut( 'slow', function() { $('#localLoginForm').fadeIn(5000); } );
+	}
 </script>
 </div><!-- logLoginBox -->
 
 </%method>
 
 <%method title>
-% return "$TUSK::Constants::SiteAbbr Login";
+% return "$TUSK::Constants::SiteAbbr ". __('Login');
 </%method>
 
 <%method stylearray>
 % return ['/style/style.css', '/style/login.css'];
+</%method>
+
+<%method jsarray>
+%	return ['jquery/jquery.min.js'];
 </%method>
 
 <%method startup>

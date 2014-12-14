@@ -78,7 +78,7 @@ my $tablename         = 'user';
 my $primary_key_field = 'user_id';
 my @fields =       qw(user_id source status tufts_id sid trunk password email preferred_email profile_status modified
 		      password_reset expires login previous_login lastname firstname midname suffix
-		      degree affiliation gender body loggedout_flag uid
+		      degree affiliation gender body loggedout_flag uid cas_login
                       );
 
 my %numeric_fields = (
@@ -122,6 +122,11 @@ sub user_id {
 sub uid {
 	my $self = shift();
 	return $self->field_value('uid');
+}
+
+sub cas_login {
+	my $self = shift();
+	return $self->field_value('cas_login');
 }
 
 sub source {
@@ -3265,7 +3270,7 @@ sub get_user_group_courses_with_categories {
 		 SELECT hc.course_id, hc.label as course_label, hcat.label as category_label, indent, url, hc.sort_order, hcat.sort_order
 		 FROM $db.homepage_course hc, $db.homepage_category hcat, $db.link_user_group_user lug
 		 WHERE hc.category_id = hcat.id
-		 AND hc.show_date <= date(now()) AND  (hc.hide_date >= date(now()) OR hc.hide_date = '0000-00-00')
+		 AND hc.show_date <= date(now()) AND (hc.hide_date IS NULL OR (hc.hide_date >= date(now()) OR hc.hide_date = '0000-00-00'))
 		 AND (lug.parent_user_group_id = hcat.primary_user_group_id OR lug.parent_user_group_id = hcat.secondary_user_group_id)
 		 AND lug.child_user_id = ?
 		 ORDER BY hcat.sort_order, hc.sort_order

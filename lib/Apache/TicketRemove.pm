@@ -20,6 +20,7 @@ use Apache2::Const qw(:common REDIRECT);
 use Apache2::Cookie;
 use Apache::Session::MySQL::NoLock;
 use Apache2::Request;
+use Apache::TicketMasterCAS;
 use HSDB4::SQLRow::User;
 use TUSK::Constants;
 use URI::Escape;
@@ -34,6 +35,8 @@ sub handler {
 
     my $cookieJar = Apache2::Cookie::Jar->new($r);
     my $location = $apr->param('request_uri') || "/";
+    if($location =~ /\?/) { $location .= '&'; } else { $location .= '?'; }
+
 
     # Shib login adds more cookies with stange names to lets kill those.
     # Also, shib adds a second ticket so lets be sure to kill both of those.
@@ -43,6 +46,16 @@ sub handler {
 		my %ticket = $cookieJar->cookies('Ticket')->value;
 		my $user_id = Apache::TicketTool::get_user_from_ticket(\%ticket);
 		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
+
+		# Let the login page know if the user last logged in with CAS
+		if($TUSK::Constants::CAS{'Enabled'} && $user->cas_login()) {
+			if($TUSK::Constants::CAS{'removeCASSessionOnLogout'}) {
+				$location = Apache::TicketMasterCAS::getLogoutURL();
+			} else {
+				$location.= "logout=true";
+			}
+			$user->field_value('cas_login', 0);
+		}
 
 		# TUSK added logout
 		MwfPlgAuthen::logout($user_id, $r);
@@ -57,17 +70,19 @@ sub handler {
 		}
 
 		$user->update_loggedout_flag(1) if ($user);
-		my $shibUserPrefix = $TUSK::Constants::shibbolethUserID;
-                if($user_id =~ /^$shibUserPrefix/) {
-                        my $shibUserID = TUSK::Shibboleth::User->isShibUser($user_id);
-                        if($shibUserID) {
-				my $shibIdPObject = TUSK::Shibboleth::User->new()->lookupKey($shibUserID);
-				if($shibIdPObject && $shibIdPObject->getLogoutPage() && ($shibIdPObject->needsRegen() ne 'Y')) {
-					my $sslServer = $TUSK::Constants::Domain . ':' . $TUSK::Constants::securePort;
-					my $server = $TUSK::Constants::Domain;
-					$location = "https://$sslServer/Shibboleth.sso/Logout?";
-					if($shibIdPObject->getLogoutPage()) {
-						$location.= "return=". uri_escape($shibIdPObject->getLogoutPage(). "?target=http://". $server . "/home");
+		if($TUSK::Authentication::useShibboleth) {
+			my $shibUserPrefix = $TUSK::Constants::shibbolethUserID;
+                	if($user_id =~ /^$shibUserPrefix/) {
+                        	my $shibUserID = TUSK::Shibboleth::User->isShibUser($user_id);
+                        	if($shibUserID) {
+					my $shibIdPObject = TUSK::Shibboleth::User->new()->lookupKey($shibUserID);
+					if($shibIdPObject && $shibIdPObject->getLogoutPage() && ($shibIdPObject->needsRegen() ne 'Y')) {
+						my $sslServer = $TUSK::Constants::Domain . ':' . $TUSK::Constants::securePort;
+						my $server = $TUSK::Constants::Domain;
+						$location = "https://$sslServer/Shibboleth.sso/Logout?";
+						if($shibIdPObject->getLogoutPage()) {
+							$location.= "return=". uri_escape($shibIdPObject->getLogoutPage(). "?target=http://". $server . "/home");
+						}
 					}
 				}
                         }
