@@ -1,3 +1,4 @@
+var json =[];
 
 $(document).ready(function() {
 	$("#export").click(function() {
@@ -10,9 +11,6 @@ $(document).ready(function() {
 			});
 		});
 
-		var json =[];
-		
-	
 		$(grades).each(function (index, object) {
 			$.each(object, function(index_2, object_2) {
 				$.each(object_2, function(index_3, object_3) {
@@ -28,6 +26,22 @@ $(document).ready(function() {
 			temp_hash.name = students_processed[uid]; 
 			json.push(temp_hash);			
 		});
-		console.log(json);
+
+		$.post( "/tusk/admin/grade/export", function(data){
+		});
 	});
+
 });
+
+function generate() {
+	var form=document.createElement('form');
+	form.setAttribute('method', 'post');
+	form.setAttribute('action', '/tusk/admin/grade/export');
+	form.style.display = 'hidden';
+	var data = document.createElement("input");
+	var json_text = JSON.stringify(json);
+	data.setAttribute("name", json_text);
+	form.appendChild(data);
+	document.body.appendChild(form);
+	form.submit();
+}
