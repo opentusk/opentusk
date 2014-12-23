@@ -222,6 +222,7 @@ function getGradeData(formObj) {
 }
 
 function generateDataTable(data) {
+	$("#export").css("visibility","visible");
 	if (data) {
 		var headers = '<tr class="header"><th class="header-left">Student</th>';
 		var rows = '</tr>'

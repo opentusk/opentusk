@@ -34,8 +34,9 @@ my $json_string = $json->decode($ARGS{json});
 
 
 my $time_period = HSDB45::TimePeriod->new(_school => $ARGS{school})->lookup_key($ARGS{period})->field_value('period');
+my $school_id = TUSK::Core::School->new->getSchoolID($ARGS{school});
 
-my $course_code_obj = TUSK::Core::CourseCode->lookupReturnOne("course_id = $ARGS{course} AND school_id = 2");
+my $course_code_obj = TUSK::Core::CourseCode->lookupReturnOne("course_id = $ARGS{course} AND school_id = $school_id");
 my $course_code;
 if ($course_code_obj){
 	$course_code = $course_code_obj->getFieldValue('code');
@@ -61,7 +62,9 @@ foreach my $entry(@{$json_string}) {
 
 print "Last"."	"."First"."	"."Sid"."	"."UTLN"."	"."Time Period"."	"."Course Code"."	"."Grade"."	\n";
 
-foreach my $entry(@{$json_string}){
+my @json_string_sorted = sort { lc($a->{last}) cmp lc($b->{last})} @{$json_string};
+
+foreach my $entry(@json_string_sorted) {
 	print $entry->{last}."	";
 	print $entry->{first}."	";
 	print $entry->{sid}."	";
