@@ -1,0 +1,76 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>        
+	use Data::Dumper;
+	use HSDB4::SQLRow::User;
+	use JSON;
+</%once>
+<%flags>
+	inherit =>undef
+</%flags>
+
+<%init>
+
+$m->clear_buffer();
+$r->content_type( 'application/vnd.ms-excel');
+$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="grades-export.xls"');
+my $json_text;
+my $json = JSON->new->utf8->allow_nonref;
+my $json_string = $json->decode($ARGS{json});
+
+
+
+my $time_period = HSDB45::TimePeriod->new(_school => $ARGS{school})->lookup_key($ARGS{period})->field_value('period');
+
+my $course_code_obj = TUSK::Core::CourseCode->lookupReturnOne("course_id = $ARGS{course} AND school_id = 2");
+my $course_code;
+if ($course_code_obj){
+	$course_code = $course_code_obj->getFieldValue('code');
+} else {
+	$course_code = "N/A";
+}
+
+
+
+foreach my $entry(@{$json_string}) {
+	my @split_name = split(',', $entry->{name});
+	$entry->{last} = $split_name[0];
+	$entry->{first} = $split_name[1];	
+	my $user = TUSK::Core::HSDB4Tables::User->lookupReturnOne("user_id = '$entry->{uid}'");
+	if ($user->getFieldValue('sid')) {
+		$entry->{sid} = $user->getFieldValue('sid');	
+	} else {
+		$entry->{sid} = "N/A";
+	}
+}
+
+#printing to the excel file:
+
+print "Last"."	"."First"."	"."Sid"."	"."UTLN"."	"."Time Period"."	"."Course Code"."	"."Grade"."	\n";
+
+foreach my $entry(@{$json_string}){
+	print $entry->{last}."	";
+	print $entry->{first}."	";
+	print $entry->{sid}."	";
+	print $entry->{uid}."	";
+	print $time_period."	";
+	print $course_code."	";
+	print $entry->{grade}."	\n";
+}
+
+#end printing to excel file
+
+</%init>
