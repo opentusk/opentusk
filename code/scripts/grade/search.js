@@ -74,8 +74,9 @@ $(document).ready(function() {
 			selectAll($(select));
 			$(select).trigger('change');
 		}
-	});
-
+	});	
+	
+ 
 	// populate timestamp on page
 	var d = new Date();
 	var curr_date = d.getDate();
@@ -129,7 +130,8 @@ function populateNextOptions(select) {
 			url: url,
 			data: request
 		}).done(function(data) {
-			var items = [];
+			var items = [];	
+			$("#export").data("students", data);
 			$.each(data, function() {
 				$.each(this, function(id, name) {
 					if ($("option[value='" + id + "']").size() == 0) {
@@ -171,6 +173,8 @@ function getGradeData(formObj) {
 				url: url,
 				data: request
 			}).done(function(data) {
+				$("#export").attr("disabled", false);				
+				$("#export").data("grades", data);				
 				generateDataTable(data);
 			}).done(function() {
 				$("select#course").attr('disabled', 'disabled');
@@ -218,6 +222,7 @@ function getGradeData(formObj) {
 }
 
 function generateDataTable(data) {
+	$("#export").css("visibility","visible");
 	if (data) {
 		var headers = '<tr class="header"><th class="header-left">Student</th>';
 		var rows = '</tr>'
@@ -295,7 +300,6 @@ function generateStatementTable(data) {
 }
 
 function generateAuditTrailTable(data) {
-	console.log(data);
 	var arr1 = students;		// data{$user_id}{$time_period_id}{$course_id}
 	var arr2 = tps;
 	var arr3 = courses;
