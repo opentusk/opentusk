@@ -745,7 +745,7 @@ sub answer_form {
 
     # Make the user code
     my $user_code = $user->out_user_code($fdat->{submit_password});
-    my $evaluator_code = ($is_teaching_eval && $fdat->{evaluatee_id}) ? $user->out_user_code($fdat->{submit_password}, $fdat->{evaluatee_id}) : $user_code;
+    my $evaluator_code = ($is_teaching_eval) ? $user_code . '-' . $fdat->{evaluatee_id}  : $user_code;
 
     my ($result, $msg) = (0, '');
     eval {
