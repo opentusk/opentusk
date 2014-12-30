@@ -9,6 +9,9 @@ var m = [20, 120, 20, 120],
     h = 600 - m[0] - m[2];
 
 $(function() {
+	$("#current_domain").val(0);
+	document.getElementById("current_domain").options[0].disabled = true;
+	
 	var i = 0;
 	var root;
 
