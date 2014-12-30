@@ -149,8 +149,12 @@ function update(source) {
 			} else {
 				if (d.description.length >=20) {this_text = d.description};
 			}
-			if (d.course) {
-				this_text = this_text + " (" + d.course + ")";
+			if (d.info) {
+				if (this_text) {
+					this_text = this_text + " (" + d.info + ")";
+				} else {
+					this_text = " (" + d.info + ")";
+				}
 			} 
 			return this_text;
 		});

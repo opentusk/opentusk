@@ -118,15 +118,19 @@ sub getLinkedBranchHelper {
 			     description => $this_competency->{'competency'}->getFieldValue('description'),			     
 			     level => $competency_level,
 			     children => [],
-			     course => $competency_level
     );
-=for
-    if ($competency_level == "course") {
-	$this_competency_hash{'course'}  = "testing course";
-	my $this_course = TUSK::Competency::Course->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getCourseID;
-	$this_competency_hash{'course'}  = $this_course;
+
+    if ($competency_level eq "course") {
+	  my $tusk_course_id = TUSK::Competency::Course->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getCourseID;
+	  my $current_course = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getHSDB45CourseFromTuskID();
+
+	  my $current_course_title = $current_course->title();
+	  my $current_course_period = $current_course->get_current_timeperiod();
+
+	  $this_competency_hash{'info'} = $current_course_title . " - " . $current_course_period;
+	  
     }
-=cut
+
 
     push @{$branch}, {%this_competency_hash};
 
