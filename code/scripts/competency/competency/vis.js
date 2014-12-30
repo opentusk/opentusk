@@ -136,18 +136,23 @@ function update(source) {
 				competency_info =  d.description;
 			}
 			if (competency_info.length >= 20){
-				competency_info = competency_info.substring(0,20) + "\u2026";
+				competency_info = competency_info.substring(0,20) + "\u2026";		
 			} 
 			return competency_info;
 		})
 
 	nodeEnter.append("svg:title")
 		.text(function (d) {
+			var this_text;
 			if (d.title) {
-				if (d.title.length >= 20) {return d.title};
+				if (d.title.length >= 20) {this_text = d.title};
 			} else {
-				if (d.description.length >=20) {return d.description};
+				if (d.description.length >=20) {this_text = d.description};
+			}
+			if (d.course) {
+				this_text = this_text + " (" + d.course + ")";
 			} 
+			return this_text;
 		});
 
 

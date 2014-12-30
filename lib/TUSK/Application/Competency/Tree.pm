@@ -110,15 +110,23 @@ sub getLinkedBranchHelper {
 
     my $competency_level_enum_id = $this_competency->{'competency'}->getFieldValue('competency_level_enum_id');
 
-    my $competency_level = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $competency_level_enum_id AND namespace = \"competency.level_id\"")->getShortName;
+    my $competency_level = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $competency_level_enum_id AND namespace = \"competency.level_id\"")->getShortName;        
 
     %this_competency_hash = (
 			     competency_id => $this_competency->{'competency_id'},
 			     title => $this_competency->{'competency'}->getFieldValue('title'),
 			     description => $this_competency->{'competency'}->getFieldValue('description'),			     
 			     level => $competency_level,
-			     children => []    
+			     children => [],
+			     course => $competency_level
     );
+=for
+    if ($competency_level == "course") {
+	$this_competency_hash{'course'}  = "testing course";
+	my $this_course = TUSK::Competency::Course->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getCourseID;
+	$this_competency_hash{'course'}  = $this_course;
+    }
+=cut
 
     push @{$branch}, {%this_competency_hash};
 
