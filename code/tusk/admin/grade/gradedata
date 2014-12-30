@@ -27,6 +27,7 @@
 	use TUSK::Core::HSDB45Tables::Course;
 	use TUSK::Core::HSDB4Tables::User;
 	use TUSK::Core::AuditTrail::LinkUserGradeEventHistory;
+	use Scalar::Util qw(looks_like_number);
 </%once>
 
 
@@ -116,7 +117,14 @@
 	my %data;
 	foreach my $link (@$links) {
 	    	my $grade_event = $link->getJoinObject('TUSK::GradeBook::GradeEvent');
-		$data{$grade_event->getTimePeriodID()}{$grade_event->getCourseID()}{$link->getParentUserID()} = $link->getGrade();
+		my $tp_id = $grade_event->getTimePeriodID();
+		my $course_id = $grade_event->getCourseID();
+		my $user_id = $link->getParentUserID();
+		my $grade = $link->getGrade();
+		my $course = HSDB45::Course->new( _school => $school_id)->lookup_key($course_id);
+		my $gb = TUSK::Application::GradeBook::GradeBook->new({ course => $course, time_period_id => $tp_id, user_id => $user_id });
+		$grade = $gb->getScaledGrade($grade, $grade_event->getGradeEventID()) if (looks_like_number($grade));
+		$data{$tp_id}{$course_id}{$user_id} = $grade;
 	}
 	return \%data;
 </%perl>
