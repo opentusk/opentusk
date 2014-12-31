@@ -127,8 +127,15 @@ sub getLinkedBranchHelper {
 	  my $current_course_title = $current_course->title();
 	  my $current_course_period = $current_course->get_current_timeperiod();
 
-	  $this_competency_hash{'info'} = $current_course_title . " - " . $current_course_period;
-	  
+	  $this_competency_hash{'info'} = $current_course_title . " - " . $current_course_period;	  
+    }
+
+    if ($competency_level eq "content") {
+	$this_competency_hash{'info'} = "this is a content lol";
+    }
+
+    if ($competency_level eq "class_meet") {
+	$this_competency_hash{'info'} = "this is a session lol";
     }
 
 
