@@ -131,10 +131,16 @@ sub getLinkedBranchHelper {
     }
 
     if ($competency_level eq "content") {
-	$this_competency_hash{'info'} = "this is a content lol";
+	my $content_id = TUSK::Competency::Content->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getContentID;
+	my $current_content = HSDB4::SQLRow::Content->new()->lookup_key($content_id)->field_value('title');
+	$this_competency_hash{'info'} = $current_content;
     }
 
     if ($competency_level eq "class_meet") {
+	my $session_id = TUSK::Competency::Content->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getSessionID;
+	if ($session_id){
+	    
+	}
 	$this_competency_hash{'info'} = "this is a session lol";
     }
 
