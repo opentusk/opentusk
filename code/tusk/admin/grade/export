@@ -25,15 +25,14 @@
 <%init>
 
 $m->clear_buffer();
+
+my $time_period = HSDB45::TimePeriod->new(_school => $ARGS{school})->lookup_key($ARGS{period})->field_value('period');
 $r->content_type( 'application/vnd.ms-excel');
-$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="grades-export.xls"');
+$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="' . $time_period . '".xls');
 my $json_text;
 my $json = JSON->new->utf8->allow_nonref;
 my $json_string = $json->decode($ARGS{json});
 
-
-
-my $time_period = HSDB45::TimePeriod->new(_school => $ARGS{school})->lookup_key($ARGS{period})->field_value('period');
 my $school_id = TUSK::Core::School->new->getSchoolID($ARGS{school});
 
 my $course_code_obj = TUSK::Core::CourseCode->lookupReturnOne("course_id = $ARGS{course} AND school_id = $school_id");

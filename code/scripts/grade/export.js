@@ -2,6 +2,10 @@ var json =[];
 var time_period;
 var course_id;
 
+var currentURL = window.location.pathname;
+currentURL = currentURL.split('/');
+var school = currentURL[currentURL.length - 1];
+
 $(document).ready(function() {
 	$("#export").click(function() {
 		var grades = $(this).data("grades");
@@ -34,14 +38,32 @@ $(document).ready(function() {
 			trial = JSON.stringify(temp_hash);
 		});
 		
+
+		checkSISID();				
 		generate();
 		json = [];		
 	});
 
 });
 
+function checkSISID() {
+	var url = "/tusk/admin/grade/getSISID";
+	$.ajax({
+		type: "POST",
+		url: url,
+		async: false,
+		data: {
+			"course_id" : course_id,
+			"school" : school
+		}
+	}).done(function(data) {
+		if (data.length <= 4) { 
+			alert("Warning: One or More of the selected courses have no SIS ID associated with them");
+		}
+	});
+}
 
-function generate() {
+function generate() {	
 	var form=document.createElement('form');
 	form.setAttribute('method', 'post');
 	form.setAttribute('action', '/tusk/admin/grade/export');
@@ -51,9 +73,8 @@ function generate() {
 	var data_2 = document.createElement("input");
 	var data_3 = document.createElement("input");
 	var data_4 = document.createElement("input");
-
 	var json_text = JSON.stringify(json);
-
+ 
 	data.setAttribute("name", "json");
 	data.setAttribute("value", json_text);
 	form.appendChild(data);
@@ -64,13 +85,10 @@ function generate() {
 	
 	data_3.setAttribute("name", "course");
 	data_3.setAttribute("value", course_id);
-	form.appendChild(data_3);
-
-	var currentURL = window.location.pathname;
+	form.appendChild(data_3);	
 
 	data_4.setAttribute("name", "school");
-	currentURL = currentURL.split('/');
-	data_4.setAttribute("value", currentURL[currentURL.length - 1]);
+	data_4.setAttribute("value", school);
 	form.appendChild(data_4);
 
 	document.body.appendChild(form);
