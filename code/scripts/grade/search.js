@@ -19,6 +19,7 @@ $(document).ready(function() {
 	var courses;
 	var students;
 	var display;
+	var export_file_name;
 	
 	// event handlers for form inputs
 	$("nav .filter select").on('change', function() {
