@@ -460,6 +460,8 @@ window.onload = function() {
 
 </table>
 </div>
+
+
 <%perl>
 	my $body = __("School"),": "  . $eval->school() . "\n";
   	$body .= __("Eval ID").": "   . $eval->primary_key() . "\n";
@@ -469,7 +471,20 @@ window.onload = function() {
   	$body .= __x("This may be verified at {url}", url => 'http://'.$ENV{SERVER_NAME}.'/tusk/eval/receipt_verification');
   	$user->send_email(__("Eval Completion Receipt").": " . $eval->field_value("title"), $body);
 </%perl>
+
+<%perl>
+my $eval_type_id = $eval->field_value('eval_type_id');
+my $eval_type = TUSK::Eval::Type->lookupReturnOne("eval_type_id = $eval_type_id")->getToken;
+
+if ($eval_type eq 'teaching') {
+	print "<div style=\"border:2px solid red; font-size: 200%;\"><b> Do <span style=\"color:red\">NOT</span> use the back button. Please click here to return to your Evaluations page: </b>";
+	my $course = $eval->course();
+	print "<a href=\"/view/course/$school_name/" . $course->primary_key()  . '/evaluations">' . __('Evaluations') . ': ' . $course->title() .'</a></div>';
+}
+</%perl>
+
 </%method>
+
 
 
 <%method jsarray>

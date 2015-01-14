@@ -324,3 +324,7 @@ function verifyShowEvalsByCourse() {
 	} 
 	return true;
 }
+
+function completionConfirm() {
+	alert("Apple!");
+}

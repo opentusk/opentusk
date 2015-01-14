@@ -57,3 +57,9 @@ function changeSelection() {
 			        }    
 	});
 }
+
+function completionConfirm(doneURL) {
+	if (confirm('Once you click OK you will not be able to evaluate any more faculty. Click cancel if you want to return and continue evaluating.')) {
+		window.location.href = doneURL;
+	} 
+}
