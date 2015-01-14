@@ -61,6 +61,20 @@ function checkSISID() {
 			alert("Warning: One or More of the selected courses have no SIS ID associated with them");
 		}
 	});
+	url = "/tusk/admin/grade/checkSID";
+	var json_text = JSON.stringify(json);
+	$.ajax({
+		type: "POST",
+		url: url,
+		async: false,
+		data: {
+			"json" : json_text
+		}
+	}).done(function(data) {
+		if (data < 1){
+			alert("Warning: One or More of the Sid in your course have no student_id associated with them");
+		}
+	});
 }
 
 function generate() {	
