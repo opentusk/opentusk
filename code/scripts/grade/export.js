@@ -72,7 +72,7 @@ function checkSISID() {
 		}
 	}).done(function(data) {
 		if (data < 1){
-			alert("Warning: One or More of the Sid in your course have no student_id associated with them");
+			alert("Warning: One or More of the students in your course have no student_id associated with them");
 		}
 	});
 }
