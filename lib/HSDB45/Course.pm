@@ -784,6 +784,10 @@ sub get_universal_time_periods {
 		 SELECT time_period_id 
 		 FROM $db\.time_period 
 		 WHERE (start_date <= curdate() and end_date >= curdate())
+         UNION
+         SELECT time_period_id
+         FROM $db.time_period
+         WHERE start_date >= curdate()
 		 );
     my @tp_ids = ();    
     eval {
