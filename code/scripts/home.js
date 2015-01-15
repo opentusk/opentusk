@@ -219,28 +219,6 @@ function makeLinksDropDown() {
 
 /* end Personal Links */
 
-function toggleMaterialLinks( material, obj ) {
-	var materialLinks = document.getElementById( material );
-	if ( $( '#' + material ).css( "display" ) == "inline" ) {
-		$( '#' + material ).css( "display", "none" );
-		$( obj ).children('img').attr( "src", "/graphics/icon-nav-closed.png" );
-	} else {
-		$( '#' + material ).css( "display", "inline" );
-		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
-		materialsHeightAdjust();
-	}
-}	
-
-function materialsHeightAdjust() {	
-	var paddingAdjustment = 70; //px
-	var trafficLightHeight = ( $( '#gTrafficLight' ).height() ) || 0;
-	if ( trafficLightHeight > 0 ) {
-		paddingAdjustment = paddingAdjustment - 25;
-	};
-	var scrollBoxHeight = $( '#gContent' ).height() + trafficLightHeight - $( '#communicationsBox' ).height() - paddingAdjustment;
-	$( '#materialsScrollContainer' ).css( "max-height", scrollBoxHeight );		
-}
-
 
 
 	
