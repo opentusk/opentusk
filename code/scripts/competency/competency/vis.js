@@ -139,7 +139,11 @@ function update(source) {
 				competency_info =  d.description;
 			}
 			if (competency_info.length >= 20){
-				competency_info = competency_info.substring(0,20) + "\u2026";		
+				if (competency_info === competency_info.toUpperCase() ){
+					competency_info = competency_info.substring(0,18) + "\u2026";
+				} else {
+					competency_info = competency_info.substring(0,20) + "\u2026";		
+				} 
 			} 
 			return competency_info;
 		})
