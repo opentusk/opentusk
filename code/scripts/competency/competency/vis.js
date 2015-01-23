@@ -50,7 +50,7 @@ $(function() {
 	$("#current_domain").change(function() {		
 		var domain_json = new Object();
 		domain_json.title = $(this).children("option").filter(":selected").text();
-		domain_json.level = "national";
+		domain_json.level = "category";
 		domain_json.competency_id = this.value;
 		
 		$.ajax({				
@@ -105,7 +105,7 @@ function update(source) {
 		.attr("width", 160)
 		.attr("height", 20)
 		.attr("stroke", function(d) {
-			if (d.level == "national") {
+			if (d.level == "national" || d.level == "category") {
 				return "black";
 			} else if (d.level == "school") {
 				return "green";
@@ -120,7 +120,7 @@ function update(source) {
 	        .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
 	        .attr("dy", ".35em")
 		.attr("stroke", function(d) {
-			if (d.level == "national") {
+			if (d.level == "national" || d.level == "category") {
 				return "black";
 			} else if (d.level == "school") {
 				return "green";
@@ -237,7 +237,10 @@ function toggle(d) {
 			}
 		});
 		d._children = d.children;
-		d.children = null;		
+		d.children = null;
+		if (d.level !== "category") {
+			d._children = null;
+		}
 	} else {
 		if (d._children == null){ //if no children exists in our tree data structure yet then make ajax call to look into the database
 			$.ajax({
