@@ -110,6 +110,10 @@ sub getLinkedBranchHelper {
 
     my $competency_level_enum_id = $this_competency->{'competency'}->getFieldValue('competency_level_enum_id');
 
+    my $current_school_id = $this_competency->{'competency'}->getFieldValue('school_id');
+
+    my $current_school = TUSK::Core::School->lookupReturnOne("school_id = $current_school_id")->getSchoolName;
+
     my $competency_level = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $competency_level_enum_id AND namespace = \"competency.level_id\"")->getShortName;        
 
     %this_competency_hash = (
@@ -139,7 +143,7 @@ sub getLinkedBranchHelper {
     if ($competency_level eq "class_meet") {
 	my $session_id = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getClassMeetingID;
 	if ($session_id) {
-	    my $current_session =  HSDB45::ClassMeeting->new(_school => "Dental")->lookup_key($session_id);
+	    my $current_session =  HSDB45::ClassMeeting->new(_school => $current_school)->lookup_key($session_id);
 	    $this_competency_hash{'info'} = $current_session->field_value('meeting_date') . " [" . $current_session->field_value('starttime') . "-" . $current_session->field_value('endtime') . "] ";	  
 	}
     }

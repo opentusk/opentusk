@@ -249,7 +249,7 @@ function toggle(d) {
 		if (d._children == null){ //if no children exists in our tree data structure yet then make ajax call to look into the database
 			$.ajax({
 				type: "POST",
-				url: "/tusk/competency/visualization/ajaxCompetencyBranch",
+				url: "/tusk/competency/visualization/ajaxCompetencyBranch/school/" + school,
 				data: {competency_id: d.competency_id},
 				dataType: "json",
 				statusCode: {
