@@ -28,12 +28,16 @@
 	use TUSK::Competency::Checklist::Checklist;
 	use TUSK::Competency::Checklist::Entry;
 	use TUSK::Application::Competency::Checklist;
+ 	use HSDB4::DateTime;
+	use TUSK::Application::Email;
 </%once>
 
 <%shared>
 	my %args = $m->request_args();
 	my $id_prefix = 'compid__';  ## for prefixing input name of competency_id 
 	my $assessor_id;
+	my $assessment_type;
+	my $notify_tmpl;
 </%shared>
 
 <div style="margin-top:5px;">
@@ -63,23 +67,17 @@
 	border_bottom_tr => 1,
 } &>
 
-<div style="margin-top:5px;font-weight:bold;"><% __('Comments') . ':'  %></div>
+<div id="notify_template" style="margin-top:10px;margin-bottom:10px;width:650px;border: solid #006699 1px;padding:10px;color:gray;display:none">
+<% $notify_tmpl %>
+</div>
+
+<div id="comment" style="margin-top:5px;font-weight:bold;"><% (($assessment_type eq 'self') ? __('Comments') : __('Comments')) . ': &nbsp;<span style="font-size:70%;color:gray"><i>' . __('Optional') . '<i></span>' %></div>
 <& /tmpl/element:input_textarea, params => { 
 	name 	=> 'assessor_comment',
-	value 	=> $entry->getAssessorComment(),
-	cols 	=> 60,
-	rows 	=> 4  
+	value 	=> ($assessment_type eq 'self') ? $entry->getAssessorComment() : '',
+	cols 	=> 80,
+	rows 	=> 5  
 } &>
-
-% my $student_notify_button = undef;
-% if ($show_student_notify) {
-% 	$student_notify_button = $m->scomp('/tmpl/element:button', params => {
-%		label		=> __('Notify Student'),
-%		name		=> 'notify_show',
-%		onclick		=> 'return false;',
-%	});
-% }
-
 
 <table>
 <& /tmpl/element:save_button, params => {
@@ -88,7 +86,12 @@
         name		=> 'save_submit',
 	style		=> ($checklist->getSelfAssessed() && $checklist->getJoinObject('TUSK::Competency::Checklist::Assignment')->isSelfAssignment($m->session->{user}->primary_key())) ? '' : 'display:none;',
 	buttons		=> [    
-				$student_notify_button,
+				$m->scomp('/tmpl/element:button', params => {
+					label		=> __('Notify Student'),
+					name		=> 'notify_submit',
+					type		=> 'submit',
+					style		=> 'display:none;',
+				}),
 				$m->scomp('/tmpl/element:button', params => {
 					label		=> __('Competent'),
 					name		=> 'complete_submit',
@@ -99,38 +102,18 @@
 } &>
 </table>
 
-% if ($show_student_notify) {
-<div id="notify_student" style="display:none;">
-<div style="margin-top:15px;font-weight:bold;"><% __('Send Comments to Student') . ':'  %></div>
-<& /tmpl/element:input_textarea, params => { 
-	name 	=> 'notify_comments',
-	value 	=> __x('Your {assessor} has not attested to your competency in "{competency_title}". When you are ready to demonstrate your competency in this area again, please resend to your {assessor}', 
-			assessor => ($assessment_type eq 'faculty') ? __('faculty') : __('partner'),
-			competency_title => $competency_title,
-		),
-	cols 	=> 60,
-	rows 	=> 6  
-} &>
-<table>
-<& /tmpl/element:save_button, params => {
-	label		=> __('Send'),
-        name		=> 'notify_submit',
-	type		=> '',
-	onclick		=> 'notifyStudent(this); return false;',
-	cancel_onclick	=> 'hideEmailForm();',
-} &>
-</table>
+% my $comment_history = undef;
+% if ($assessment_type ne 'self' && ($comment_history = $entry->getAssessorComment())) {
+<div style="margin-top:10px;font-weight:bold;"><% __('Previous Comments') . ':'  %></div>
+<div style="width:680px">
+%	$comment_history =~ s/\n/<br\/>/g;
+<span class="pre"><% $comment_history %></span>
 </div>
-<input type="hidden" id=="url_paths" name="url_paths" value="<% $m->comp("/tmpl/url:get_type_path") . "/$checklist_group_id/$checklist_id/$checklist_assignment_id/$entry_id" %>" />
-<input type="hidden" id="to" name="to" value="<% $student->getDefaultEmail() %>" />
 % }
-</form>
 
-% if (my $notify_date = $entry->getFormattedNotifyDate()) {
-<div style="margin: 5px 0 5px 0;">
-* <% __('Student was notifiied on') . " $notify_date" %> 
-</div>
-% }
+<input type="hidden" id="assess_type" name="assess_type" value="<% $assessment_type %>" />
+<input type="hidden" id="student_email" name="student_email" value="<% $student->getDefaultEmail() %>" />
+</form>
 
 <%init>
 	## in the way, validate checklist_group_id, cheklist_id, and assignment_id inputs
@@ -146,6 +129,12 @@
 	$assessor_id = ($token)
 		? $checklist->getJoinObject('TUSK::Competency::Checklist::Assignment')->getAssessorID()
 		: $m->session->{user}->primary_key();
+
+	$assessment_type = $checklist->getJoinObject('TUSK::Enum::Data')->getShortName();
+	my $competency_title = $checklist->getJoinObject('TUSK::Competency::Competency')->getDescription();
+	$notify_tmpl = __x('Your {assessor} has not attested to your competency in "{competency_title}". When you are ready to demonstrate your competency in this area again, please resend to your {assessor}', 
+		assessor => ($assessment_type eq 'faculty') ? __('faculty') : __('partner'),
+		competency_title => $competency_title );
 
 	my $entry = ($checklist->getJoinObject('TUSK::Competency::Checklist::Entry')) ? $checklist->getJoinObject('TUSK::Competency::Checklist::Entry') : TUSK::Competency::Checklist::Entry->new();
 
@@ -167,10 +156,10 @@
 		TUSK::Core::JoinObject->new("TUSK::Competency::Hierarchy", { joinkey => 'child_competency_id', origkey => 'competency_id', jointype => 'inner', joincond => 'parent_competency_id = ' . $checklist->getCompetencyID()}),
 		TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Completion", { joinkey => 'competency_id', joincond => "competency_checklist_entry_id = " . (($entry->getPrimaryKeyID()) ? $entry->getPrimaryKeyID() : 0) }),
 	]);
-	my $assessment_type = $checklist->getJoinObject('TUSK::Enum::Data')->getShortName();
+
 	my $show_student_notify = (!($entry->getNotifyDate()) && ($assessment_type eq 'faculty' || $assessment_type eq 'partner')) ? 1 : 0;
-	my $competency_title = $checklist->getJoinObject('TUSK::Competency::Competency')->getDescription();
 	my $student = $checklist->getJoinObject('TUSK::Core::HSDB4Tables::User');
+
 </%init>
 
 <%method getRows>
@@ -229,7 +218,21 @@
 		$entry_changed = 1;
 	}
 
+	## we need to send out the email first with original assessor comment, 
+	## the assessor_comments for partner or faculty will be modified could be appended on top of the past comments later on
+	if ($args{notify_submit}) {  
+		$m->comp('SELF:notifyStudent', checklist_group_id => $checklist_group_id, checklist_id => $checklist_id, entry => $entry);
+		$entry->setNotifyDate(HSDB4::DateTime->new()->out_mysql_timestamp());
+		$entry->setRequestDate(undef);
+	}
+
 	if ($args{assessor_comment} =~ /\w+/) {
+		unless ($assessment_type eq 'self') {
+			$args{assessor_comment} = HSDB4::DateTime->new()->out_mysql_timestamp() . "\n" . $args{assessor_comment};
+			if (my $prior_comments = $entry->getAssessorComment()) {
+				$args{assessor_comment} .= "\n\n$prior_comments";
+			}
+		}
 		$entry->setAssessorComment($args{assessor_comment});
 		$entry_changed = 1;
 	}
@@ -259,6 +262,28 @@
 </%perl>
 </%method>
 
+<%method notifyStudent>
+<%args>
+	$checklist_group_id
+	$checklist_id
+	$entry
+</%args>
+<%perl>
+	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});	
+	my $competency = $acc->getCompetencyChecklist($checklist_id);
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $email = TUSK::Application::Email->new({
+		to_addr => $args{student_email},
+		from_addr => $TUSK::Constants::SupportEmail,
+		subject => $competency->getDescription() . ' ' . __('Checklist') . ' - ' . $course->title(),
+		body	=> $notify_tmpl . "\n\n" . $args{assessor_comment},
+	});
+	$email->send();
+
+	$acc->saveCompletions(\%ARGS, 'compid__', $entry->getPrimaryKeyID(), $assessor_id);
+</%perl>
+</%method>
+
 <%method jsarray>
 <%perl>
  	return [ 
@@ -269,4 +294,3 @@
 	];
 </%perl>
 </%method>
-
