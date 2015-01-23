@@ -137,11 +137,11 @@ sub getLinkedBranchHelper {
     }
 
     if ($competency_level eq "class_meet") {
-	my $session_id = TUSK::Competency::Content->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getSessionID;
-	if ($session_id){
-	    
+	my $session_id = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getClassMeetingID;
+	if ($session_id) {
+	    my $current_session =  HSDB45::ClassMeeting->new(_school => "Dental")->lookup_key($session_id);
+	    $this_competency_hash{'info'} = $current_session->field_value('meeting_date') . " [" . $current_session->field_value('starttime') . "-" . $current_session->field_value('endtime') . "] ";	  
 	}
-	$this_competency_hash{'info'} = "this is a session lol";
     }
 
 
