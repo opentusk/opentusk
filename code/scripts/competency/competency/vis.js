@@ -257,16 +257,37 @@ function toggle(d) {
 						console.log("Error 500: Failed to obtain tree for current competency.")
 					}
 				}
-			}).success(function(data) {
-				if (data.children.length == 0) {
-					alert("No children or links found!");
-				}
+			}).success(function(data) {				
 				var newnodes = tree.nodes(data.children).reverse();
 				d.children = newnodes[0];
 				update(d);
-			});
-		}
-	        d.children = d._children;
+				$.ajax({
+				type: "POST",
+				url: "/tusk/competency/visualization/ajaxCompetencyChildren/school/" + school,
+				data: {competency_id: d.competency_id},
+				dataType: "json",
+				statusCode: {
+					500: function() {
+						console.log("Error 500: Failed to obtain tree for current competency.")
+					}
+				}
+				}).success(function(data2) {
+					if (!d.children) {
+						if (data2.length === 0) {
+							alert("No links or children found!");
+						}
+						d.children = data2;
+						update(d);
+					} else {
+						$.each( data2, function (key, child) {
+							d.children.push(child);
+						});
+						update(d);
+					}
+				});
+			});			
+		}		
+	        d.children = d._children;		
 	        d._children = null;
         }
 }
