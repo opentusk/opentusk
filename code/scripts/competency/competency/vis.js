@@ -36,7 +36,7 @@ $(function() {
 		    .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
 
 	
-	d3.json("/scripts/competency/competency/competency_test.json", function(json) {
+	d3.json("/scripts/competency/competency/competency_none.json", function(json) {
 		root = json;
 	        root.x0 = h / 2;
 		root.y0 = 0;
