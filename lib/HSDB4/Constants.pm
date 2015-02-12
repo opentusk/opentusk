@@ -208,15 +208,16 @@ sub db_connect {
     my $school = shift;
     my $school_db = get_school_db($school);
     my $db = $school_db || $db_name || $ENV{HSDB_DATABASE_NAME} || 'hsdb4';
-# TUSK::Constants sets DATABASE_ADDRESS based upon the system host. 
-# In HSDB4, if no address set, then we get empty string, and as a 
-# result, localhost. The following was added to make HSDB4 in-line
-# with TUSK. We selected WriteHost (as opposed to ReadHost). These
-# are almost always the same. If we start using different servers for 
-# each, we will need to address this.
-    my $dbc = "DBI:mysql:$db:" . ($ENV{DATABASE_ADDRESS}
-                                  ? $ENV{DATABASE_ADDRESS}
-                                  : $TUSK::Constants::Servers{Sys::Hostname::hostname}->{'WriteHost'});
+    # TUSK::Constants sets DATABASE_ADDRESS based upon the system host. 
+    # In HSDB4, if no address set, then we get empty string, and as a 
+    # result, localhost. The following was added to make HSDB4 in-line
+    # with TUSK. We selected WriteHost (as opposed to ReadHost). These
+    # are almost always the same. If we start using different servers for 
+    # each, we will need to address this.
+    my $host = $ENV{DATABASE_ADDRESS} || $TUSK::Constants::Servers{Sys::Hostname::hostname}->{'WriteHost'};
+    # Use an alternate database host for sessions if so defined.
+    $host = $TUSK::Constants::Servers{Sys::Hostname::hostname}->{'SessionHost'} || $host if ($school eq '_session');
+    my $dbc = "DBI:mysql:$db:$host";
     my $user = $db_user || $ENV{HSDB_DATABASE_USER} || $TUSK::Constants::DatabaseUsers{ContentManager}->{readusername};
     my $pw = $db_pass
         || $ENV{HSDB_DATABASE_PASSWORD}
@@ -237,7 +238,7 @@ sub set_def_db_handle {
 
     my $in_dbh = shift;
     # What are we going to look for here?
-    my ($dbc, $user) = db_connect ();
+    my ($dbc, $user) = db_connect();
     # Make sure it's the right type
     if ($in_dbh and ref $in_dbh eq 'DBI::db') { 
 	$def_dbh{"$$:$dbc:$user"} = $in_dbh;
@@ -249,9 +250,11 @@ sub def_db_handle {
     #
     # Returns an actual database handle, creating it if necessary
     #
-    my ($dbc, $user) = db_connect ();
+    my $school = shift;
+    my @dbc = db_connect($school);
+    my ($dbc, $user) = @dbc;
     unless ($def_dbh{"$$:$dbc:$user"} and $def_dbh{"$$:$dbc:$user"}->ping) {
-	$def_dbh{"$$:$dbc:$user"} = DBI->connect (db_connect());
+	$def_dbh{"$$:$dbc:$user"} = DBI->connect(@dbc);
 	# warn "Initializing PROC $$ DB $dbc USER $user in HSDB4::Constants" if $ENV{MOD_PERL};
     }
     return $def_dbh{"$$:$dbc:$user"};

@@ -247,10 +247,11 @@ sub create_apache_session {
 	my $hashRefToTie = shift;
 	# Create an apache session object
 	eval {
-		tie %{$hashRefToTie}, 'Apache::Session::MySQL', $sessionID, {
-			Handle     => HSDB4::Constants::def_db_handle(),
-			LockHandle => HSDB4::Constants::def_db_handle(),
-		};
+	    my $dbh = HSDB4::Constants::def_db_handle('_session');
+	    tie %{$hashRefToTie}, 'Apache::Session::MySQL', $sessionID, {
+		Handle     => $dbh,
+		LockHandle => $dbh,
+	    };
 	};
 	if($@) {
 		warn("Unable to tie session to Apache::Session::MySQL for $sessionID: $@\n");
