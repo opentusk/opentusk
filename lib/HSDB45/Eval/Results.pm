@@ -64,12 +64,13 @@ sub new {
 sub init {
     my $self = shift();
     $self->{'-eval'} = shift();
+    $self->{'-evaluatee_id'} = shift();
     return $self;
 }
 
 sub school {
     my $self = shift;
-    return $self->parent_eval()->school ();
+    return $self->parent_eval()->school();
 }
 
 # Description: Returns the associated eval object
@@ -78,6 +79,11 @@ sub school {
 sub parent_eval {
     my $self = shift();
     return $self->{'-eval'};
+}
+
+sub evaluatee_id {
+    my $self = shift;
+    return $self->{'-evaluatee_id'};
 }
 
 # Description: Returns the results for the eval's questions

@@ -53,9 +53,15 @@
 		$r->status(FORBIDDEN);
 		$m->abort();
 	}
-	my $title = __("Unknown Eval");
-	if($eval && $eval->out_label) {$title = $eval->out_label;}
+	my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
+	my $evaluatee_id = '';
+	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
 </%shared>
+
+<%init>
+	$evaluatee_id = $ARGS{'evaluatee_id'} if ($is_teaching_eval);
+</%init>
+
 <span class="evalFluff" style="float:right; text-align:right;">
 	<& /tmpl/element:link_to_help, 
 		text => __('Statistics Definitions'),
@@ -100,4 +106,5 @@
 </div>
 <div id="evalArea">
 </div>
-<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $eval->school %>/<% $eval->primary_key() %>', 0);</script>
+% my $query = ($evaluatee_id) ? "?evaluatee_id=$evaluatee_id" : '';
+<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $eval->school %>/<% $eval->primary_key() %>', 0);</script>

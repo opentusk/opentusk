@@ -50,6 +50,7 @@
 	$r->content_type('text/html');
 	$r->no_cache(1);
 	my $eval;
+	my $evaluatee_id = $ARGS{'evaluatee_id'};
 	my $filter = '';
 	my $filter_id = '';
 	if($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
@@ -74,7 +75,7 @@
 		my $style_doc = $parser->parse_file($ENV{'CODE_ROOT'}."/XSL/Eval/eval_results.xsl");
 		my $stylesheet = $xslt->parse_stylesheet($style_doc);
 
-		my $eval_results = HSDB45::Eval::Results->new($eval);
+		my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id);
 		my $formatter = HSDB45::Eval::Results::Formatter->new($eval_results);
 
 		my $source = $parser->parse_string($formatter->get_xml_text(0));
