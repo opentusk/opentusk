@@ -138,11 +138,11 @@ function update(source) {
 			} else {
 				competency_info =  d.description;
 			}
-			if (competency_info.length >= 20){
+			if (competency_info.length >= 30){
 				if (competency_info === competency_info.toUpperCase() ){
-					competency_info = competency_info.substring(0,18) + "\u2026";
+					competency_info = competency_info.substring(0,20) + "\u2026";
 				} else {
-					competency_info = competency_info.substring(0,20) + "\u2026";		
+					competency_info = competency_info.substring(0,28) + "\u2026";		
 				} 
 			} 
 			return competency_info;
@@ -152,9 +152,9 @@ function update(source) {
 		.text(function (d) {
 			var this_text;
 			if (d.title) {
-				if (d.title.length >= 20) {this_text = d.title};
+				if (d.title.length >= 30) {this_text = d.title};
 			} else {
-				if (d.description.length >=20) {this_text = d.description};
+				if (d.description.length >=30) {this_text = d.description};
 			}
 			if (d.info) {
 				if (this_text) {
