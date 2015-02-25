@@ -274,21 +274,23 @@ function generateStatementTable(data) {
 				});
 				html += "</tr>";
 				if (events["events"]) {
-					$.each(events["events"], function(category_id, sort_orders) {
-						$.each(sort_orders, function(sort_order, event_ids) {
-							$.each(event_ids, function(event_id, event_name) {
-								html += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
-								html += "<td class='line-left'>" + abbr(event_name) + "</td>"; 
-								// make grade cells
-								$.each(students, function(index, user_id) {
-									html += "<td class='line-center'>";
-									if (events["grades"] && events["grades"][event_id] && events["grades"][event_id][user_id]) {
-										html += events["grades"][event_id][user_id];
-									}
-									html += "</td>";
+					$.each(events["events"], function(category_order, category_ids) {
+						$.each(category_ids, function(category_id, sort_orders) {
+							$.each(sort_orders, function(sort_order, event_ids) {
+								$.each(event_ids, function(event_id, event_name) {
+									html += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
+									html += "<td class='line-left'>" + abbr(event_name) + "</td>"; 
+									// make grade cells
+									$.each(students, function(index, user_id) {
+										html += "<td class='line-center'>";
+										if (events["grades"] && events["grades"][event_id] && events["grades"][event_id][user_id]) {
+											html += events["grades"][event_id][user_id];
+										}
+										html += "</td>";
+									});
+									html += "</tr>";
+									counter++;
 								});
-								html += "</tr>";
-								counter++;
 							});
 						});
 					});
