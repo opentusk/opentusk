@@ -77,7 +77,7 @@ sub new {
 					'student_comment' => '',
 				    },
 				    _attributes => {
-					save_history => 0,
+					save_history => 1,
 					tracking_fields => 1,	
 					no_created => 1,
 				    },
