@@ -5,8 +5,8 @@ and pan and zoom extension by Rob Schmuecker (http://bl.ocks.org/robschmuecker/7
 */
 
 var m = [20, 120, 20, 120],
-    w = 1280 - m[1] - m[3],
-    h = 600 - m[0] - m[2];
+    w = 1500 - m[1] - m[3],
+    h = 800 - m[0] - m[2];
 
 $(function() {
 	$("#current_domain").val(0);
@@ -130,13 +130,13 @@ function update(source) {
 		 .attr('class', 'node_text')
 		 .attr('style', function(d) {
 			if (d.level == "national" || d.level == "category") {
-				return "border-color : black";
+				return "border-color : black; color : black;";
 			} else if (d.level == "school") {
-				return "border-color : green";
+				return "border-color : green; color : green;";
 			} else if (d.level == "course") {
-				return "border-color : #D57025";
+				return "border-color : #D57025; color : saddlebrown";
 			} else {
-				return "border-color : #4D92CD";
+				return "border-color : #4D92CD; color : darkslateblue";
 			}
 		 })
 		 .html(function(d) {
