@@ -129,9 +129,9 @@ sub getLinkedBranchHelper {
 	  my $current_course = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getHSDB45CourseFromTuskID();
 
 	  my $current_course_title = $current_course->title();
-	  my $current_course_period = $current_course->get_current_timeperiod();
+	  #my $current_course_period = $current_course->get_current_timeperiod();
 
-	  $this_competency_hash{'info'} = $current_course_title . " - " . $current_course_period;	  
+	  $this_competency_hash{'info'} = $current_course_title;
     }
 
     if ($competency_level eq "content") {
@@ -144,7 +144,8 @@ sub getLinkedBranchHelper {
 	my $session_id = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getClassMeetingID;
 	if ($session_id) {
 	    my $current_session =  HSDB45::ClassMeeting->new(_school => $current_school)->lookup_key($session_id);
-	    $this_competency_hash{'info'} = $current_session->field_value('meeting_date') . " [" . $current_session->field_value('starttime') . "-" . $current_session->field_value('endtime') . "] ";	  
+	    $this_competency_hash{'info'} = $current_session->field_value('title');
+	    $this_competency_hash{'date'} = $current_session->field_value('meeting_date') . " [" . $current_session->field_value('starttime') . "-" . $current_session->field_value('endtime') . "] ";	  
 	}
     }
 

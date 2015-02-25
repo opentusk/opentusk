@@ -146,6 +146,12 @@ function update(source) {
 			} else {
 				competency_info =  d.description;
 			}
+			if (d.info) {
+				competency_info = "<span class='node_text_info'>[" + d.info + "]</span> " + competency_info; 
+			} 
+			if (d.date) {
+				competency_info = competency_info + " <span class='node_text_info'>(" + d.date + ")</span>";
+			}
 			return competency_info;
 		 });
 	
