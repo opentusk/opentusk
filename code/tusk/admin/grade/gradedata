@@ -153,7 +153,9 @@
 	my %data;
 	foreach my $grade_event (@$grade_events) {
 		my $grade_category = $grade_event->getJoinObject('TUSK::GradeBook::GradeCategory');
-		my $category_sort = $grade_category->getSortOrder() || 255; # show uncategorized events last
+		my $category_sort = ($grade_category->getDepth()) ? $grade_category->getSortOrder() : 255; # show uncategorized events last
+		my $category_name = ($grade_category->getDepth()) ? $grade_category->getGradeCategoryName() : 'Uncategorized'; # show category names 
+		$data{$grade_event->getTimePeriodID()}{$grade_event->getCourseID()}{'events'}{$category_sort}{$grade_event->getGradeCategoryID()}{0}{0} = "<b>$category_name</b>";
 		$data{$grade_event->getTimePeriodID()}{$grade_event->getCourseID()}{'events'}{$category_sort}{$grade_event->getGradeCategoryID()}{$grade_event->getSortOrder()}{$grade_event->getPrimaryKeyID()} = $grade_event->getEventName();
 	}
 	foreach my $link (@$links) {
