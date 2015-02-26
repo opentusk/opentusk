@@ -279,7 +279,12 @@ function generateStatementTable(data) {
 							$.each(sort_orders, function(sort_order, event_ids) {
 								$.each(event_ids, function(event_id, event_name) {
 									html += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
-									html += "<td class='line-left'>" + abbr(event_name) + "</td>"; 
+									var style = "";
+									if (event_id == 0) {
+										style = " style='color:gray;font-weight:bold;'";
+									}
+									html += "<td class='line-left'" + style + ">" + abbr(event_name) + "</td>";
+
 									// make grade cells
 									$.each(students, function(index, user_id) {
 										html += "<td class='line-center'>";
