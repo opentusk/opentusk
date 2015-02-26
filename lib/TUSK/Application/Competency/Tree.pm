@@ -20,6 +20,7 @@ use strict;
 use TUSK::Application::Competency::Competency;
 use TUSK::Competency::Competency;
 
+
 use TUSK::Enum::Data;
 
 sub new {
@@ -127,9 +128,12 @@ sub getLinkedBranchHelper {
     if ($competency_level eq "course") {
 	  my $tusk_course_id = TUSK::Competency::Course->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getCourseID;
 	  my $current_course = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getHSDB45CourseFromTuskID();
-
-	  my $current_course_title = $current_course->title();
-	  #my $current_course_period = $current_course->get_current_timeperiod();
+	  my $current_course_title;
+	  if ($current_course->abbreviation()) {
+	      $current_course_title = $current_course->abbreviation();
+	  } else {
+	      $current_course_title = $current_course->title();
+	  }
 
 	  $this_competency_hash{'info'} = $current_course_title;
     }
