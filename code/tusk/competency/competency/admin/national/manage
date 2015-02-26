@@ -102,10 +102,20 @@
 			
 			my $user_type_id = $child_comp->getCompetencyUserTypeID;
 			my $user_type;
+			my $user_enum_type;
+			my $user_icon;
 
 			if (defined($user_type_id)) {
 				my $user_type_temp = TUSK::Competency::UserType->lookup('competency_user_type_id='.$user_type_id);
-				$user_type = $user_type_temp->[0]->getName;
+				$user_type = $user_type_temp->[0]->getCompetencyTypeEnumID;
+				$user_enum_type = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.user_type.id' AND enum_data_id = $user_type")->getShortName;
+				if ($user_enum_type eq 'category') {		
+					$user_icon = "<img src='/graphics/competency/folder_32x32.png' alt='Category'>";
+				} elsif ($user_enum_type eq 'info') {
+					$user_icon = "<img src='/graphics/competency/info_32x32.png' alt='Category'>";
+				} else {
+					$user_icon = "<img src='/graphics/competency/checkmark_32x32.png' alt='Competency'>";
+				}
 			}
 
 			unless (defined($c_href->{$child_comp->getCompetencyID})) {
@@ -113,7 +123,7 @@
 														id          => $child_comp->getCompetencyID, 
 														title       => $child_comp->getTitle,
 														uri 	    => $child_comp->getUri,
-														types 	    => $user_type,
+														types 	    => $user_icon,
 														level	    => $child_comp->getCompetencyLevel,
 														description => $child_comp->getDescription,
 														children    => $children_storage->{$child_comp->getCompetencyID},
