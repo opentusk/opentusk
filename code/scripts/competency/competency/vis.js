@@ -6,7 +6,7 @@ and pan and zoom extension by Rob Schmuecker (http://bl.ocks.org/robschmuecker/7
 
 var m = [20, 120, 20, 120],
     w = 1500 - m[1] - m[3],
-    h = 800 - m[0] - m[2];
+    h = 1200 - m[0] - m[2];
 
 $(function() {
 	$("#current_domain").val(0);
