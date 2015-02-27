@@ -282,7 +282,7 @@ function generateStatementTable(data) {
 										html += "<tr class='" + ((counter % 2 == 0) ? "even" : "odd" ) + "'>";
 										var style = "";
 										if (event_id == 0) {
-											style = " style='color:gray;font-weight:bold;'";
+											style = " style='font-weight:bold;'";
 										}
 										html += "<td class='line-left'" + style + ">" + abbr(event_name) + "</td>";
 
