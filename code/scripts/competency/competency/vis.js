@@ -9,6 +9,9 @@ var m = [20, 120, 20, 120],
     h = 1200 - m[0] - m[2];
 
 $(function() {
+	detectIE("The Competency Visualization tool does not support the Internet Explorer web browser below version 11. Please either upgrade to IE11 or use Google Chrome or Mozilla Firefox (recommended).", 
+		"The Competency Visualization tool is not fully supported in Internet Explorer 11. Although you will be able to use the tool we recommend switching to Google Chrome or Mozilla Firefox for a better experience.");
+	
 	$("#current_domain").val(0);
 	document.getElementById("current_domain").options[0].disabled = true;
 	
