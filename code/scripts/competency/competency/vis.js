@@ -116,11 +116,11 @@ function update(source) {
   		.on("click", function(d) { toggle(d); update(d); });
 
 	//IE Code
-	if(IE == 1) {
+	if (IE == 1) {
 		nodeEnter.append("svg:rect")
 		.attr("x", function(d) { return d.children || d._children ? -160 : -162; })
 		.attr("y", -10)
-		.attr("width", 200)
+		.attr("width", 300)
 		.attr("height", 30)
 		.attr("stroke", function(d) {
 			if (d.level == "national" || d.level == "category") {
@@ -156,16 +156,32 @@ function update(source) {
 				competency_info =  d.description;
 			}
 	
-			if (competency_info.length >= 30){
+			if (competency_info.length >= 50){
 				if (competency_info === competency_info.toUpperCase() ){
-					competency_info = competency_info.substring(0,20) + "\u2026";
+					competency_info = competency_info.substring(0, 35) + "\u2026";
 				} else {
-					competency_info = competency_info.substring(0,28) + "\u2026";		
+					competency_info = competency_info.substring(0, 55) + "\u2026";		
 				} 
 			} 
 	
 			return competency_info;
 		})
+
+		nodeEnter.append("svg:title")
+			.text( function (d) {
+				if (d.title) {
+					competency_info = d.title;
+				} else {
+					competency_info =  d.description;
+				}
+				if (d.info) {
+					competency_info = "[" + d.info + "] " + competency_info; 
+				} 
+				if (d.date) {
+					competency_info = competency_info + " (" + d.date + ")";
+				}
+				return competency_info;
+			});
 	} else {
 	//Non-IE Code
 		 nodeEnter.append("svg:foreignObject")
