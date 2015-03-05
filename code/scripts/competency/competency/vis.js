@@ -4,12 +4,17 @@ Based on Collapsible Tree example by Mike Bostock (http://mbostock.github.io/d3/
 and pan and zoom extension by Rob Schmuecker (http://bl.ocks.org/robschmuecker/7880033)
 */
 
-//check if user is using Internet Explorer
+//check if user is using Internet Explorer or Safari
 var ua = window.navigator.userAgent;
 var msie = ua.indexOf("MSIE ");
 var IE = 0; //IE flag
+var safari = 0; //Safari flag
 if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./)) {
 	IE = 1;
+}
+if (navigator.userAgent.indexOf("Safari") > -1 && navigator.userAgent.indexOf("Chrome") <= -1) {
+	alert("The page you are currently trying to access does not fully support the Safari web browser. We recommend using either Google Chrome or Mozilla Firefox browsers while we work on making our modules Safari-Compatible. We apologise for any inconvenience caused by this.");
+	safari = 1;
 }
 
 var m = [20, 120, 20, 120],
@@ -115,8 +120,8 @@ function update(source) {
       		.attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
   		.on("click", function(d) { toggle(d); update(d); });
 
-	//IE Code
-	if (IE == 1) {
+	//IE/Safari Code
+	if (IE == 1 || safari == 1) {
 		nodeEnter.append("svg:rect")
 		.attr("x", function(d) { return d.children || d._children ? -160 : -162; })
 		.attr("y", -10)
@@ -183,7 +188,7 @@ function update(source) {
 				return competency_info;
 			});
 	} else {
-	//Non-IE Code
+	//Non-IE/Safari Code
 		 nodeEnter.append("svg:foreignObject")
 		 .attr("x", function(d) { return d.children || d._children ? -200 : -200; })
 	         .attr("y", -20)
