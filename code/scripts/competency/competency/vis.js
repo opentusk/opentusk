@@ -4,6 +4,14 @@ Based on Collapsible Tree example by Mike Bostock (http://mbostock.github.io/d3/
 and pan and zoom extension by Rob Schmuecker (http://bl.ocks.org/robschmuecker/7880033)
 */
 
+//check if user is using Internet Explorer
+var ua = window.navigator.userAgent;
+var msie = ua.indexOf("MSIE ");
+var IE = 0; //IE flag
+if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./)) {
+	IE = 1;
+}
+
 var m = [20, 120, 20, 120],
     w = 1500 - m[1] - m[3],
     h = 1200 - m[0] - m[2];
@@ -106,8 +114,10 @@ function update(source) {
 		.attr("class", "node")
       		.attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
   		.on("click", function(d) { toggle(d); update(d); });
-/*
-	nodeEnter.append("svg:rect")
+
+	//IE Code
+	if(IE == 1) {
+		nodeEnter.append("svg:rect")
 		.attr("x", function(d) { return d.children || d._children ? -160 : -162; })
 		.attr("y", -10)
 		.attr("width", 200)
@@ -123,8 +133,42 @@ function update(source) {
 				return "#4D92CD";
 			}
 		})
-*/
-	nodeEnter.append("svg:foreignObject")
+		nodeEnter.append("svg:text")
+	        .attr("x", function(d) { return d.children || d._children ? -10 : -157; })
+	        .attr("dy", ".35em")
+		.attr("stroke", function(d) {
+			if (d.level == "national" || d.level == "category") {
+				return "black";
+			} else if (d.level == "school") {
+				return "green";
+			} else if (d.level == "course") {
+				return "#D57025";
+			} else {
+				return "#4D92CD";
+			}
+		})
+	        .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+	        .text(function(d) { 
+			var competency_info;
+			if (d.title) {
+				competency_info = d.title;
+			} else {
+				competency_info =  d.description;
+			}
+	
+			if (competency_info.length >= 30){
+				if (competency_info === competency_info.toUpperCase() ){
+					competency_info = competency_info.substring(0,20) + "\u2026";
+				} else {
+					competency_info = competency_info.substring(0,28) + "\u2026";		
+				} 
+			} 
+	
+			return competency_info;
+		})
+	} else {
+	//Non-IE Code
+		 nodeEnter.append("svg:foreignObject")
 		 .attr("x", function(d) { return d.children || d._children ? -200 : -200; })
 	         .attr("y", -20)
 		 .attr('width', 300)
@@ -158,42 +202,6 @@ function update(source) {
 			return competency_info;
 		 });
 	
-	
-/*
-	nodeEnter.append("svg:text")
-	        .attr("x", function(d) { return d.children || d._children ? -10 : -157; })
-	        .attr("dy", ".35em")
-		.attr("stroke", function(d) {
-			if (d.level == "national" || d.level == "category") {
-				return "black";
-			} else if (d.level == "school") {
-				return "green";
-			} else if (d.level == "course") {
-				return "#D57025";
-			} else {
-				return "#4D92CD";
-			}
-		})
-	        .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-	        .text(function(d) { 
-			var competency_info;
-			if (d.title) {
-				competency_info = d.title;
-			} else {
-				competency_info =  d.description;
-			}
-	
-			if (competency_info.length >= 30){
-				if (competency_info === competency_info.toUpperCase() ){
-					competency_info = competency_info.substring(0,20) + "\u2026";
-				} else {
-					competency_info = competency_info.substring(0,28) + "\u2026";		
-				} 
-			} 
-	
-			return competency_info;
-		})
-*/
 	nodeEnter.append("svg:title")
 		.text(function (d) {
 			var this_text;
@@ -211,7 +219,7 @@ function update(source) {
 			} 
 			return this_text;
 		});
-
+	}
 
 	// Transition nodes to their new position.
 	var nodeUpdate = node.transition()
