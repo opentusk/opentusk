@@ -1,17 +1,13 @@
 #!/usr/bin/perl -l
+
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 
-use TUSK::Core::DB;
-use HSDB4::DateTime;
+use HSDB4::Constants;
 
-my $date = HSDB4::DateTime->new();
-$date->subtract_days(7);
+my $days = shift || 3;
+my $dbh = HSDB4::Constants::def_db_handle('_session');
+my $sql = "DELETE FROM hsdb4.sessions WHERE modified_on < DATE_SUB(NOW(), INTERVAL $days DAY)";
 
-my $dbh = TUSK::Core::DB::getWriteHandle('ContentManager');
-if($dbh) {
-	my $sqlStatement = "DELETE FROM hsdb4.sessions WHERE modified_on<'" . $date->out_mysql_date() . "';";
-	unless($dbh->do($sqlStatement)) {print "Error : Could not do the delete!\n";}
-	$dbh->disconnect();
-}
-
+die "Error: Could not delete!\n" unless ($dbh->do($sql));
+$dbh->disconnect();
