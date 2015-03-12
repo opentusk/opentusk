@@ -115,11 +115,17 @@ $m->comp("SELF:get_placements_by_time_period");
 				TUSK::Core::JoinObject->new("TUSK::Academic::LevelClinicalSchedule", {origkey => 'academic_level_course.academic_level_id', joinkey => 'academic_level_id', jointype => 'inner'}),
 				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner'})
 				]);
-	my @placement_rows = map {{
-			period => $_-> getJoinObject('TUSK::Core::HSDB45Tables::TimePeriod')->getPeriod()
-	}} @{$placements};
+	
+	my @placement_rows;
 
+	foreach my $placement (@{$placements}) {
+		my %temp_hash;
+		$temp_hash{period} = $placement->getJoinObject('TUSK::Core::HSDB45Tables::TimePeriod')->getPeriod();
+		push @placement_rows, {%temp_hash};
+	}	
+	print "rows:<br>";
 	print Dumper @placement_rows;
+	print "<br>";
 	
 </%perl>
 
