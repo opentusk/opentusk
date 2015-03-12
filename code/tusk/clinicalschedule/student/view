@@ -14,36 +14,265 @@
  limitations under the License.
 </%doc>
 
-<%shared>
-	my $school = $m->comp('/tmpl/url:get_type_object');
-	# pre_dump($school);
-</%shared>
-
 <%attr>
-	use_nav_bar => 0
-	skip_header_bar => 1
-	default_path_type => 'school'
+  use_nav_bar => 0
+  skip_header_bar => 1
+  default_path_type => 'school'
 </%attr>
 
-<& /tmpl/element:object_selection_box, params => {
-  columns   => [
-    {label => __('Rotation'), field => 'rotation'},
-    {label => __('Time Period'), field => 'time_period'},
-    {label => __('Start Date'), field => 'start_date'},
-    {label => __('End Date'), field => 'end_date'},
-    {label => __('Number of Weeks'), field => 'number_of_weeks'},
-    {label => __('Teaching Site'), field => 'teaching_site'},
-  ],
-  rows    => \@rows,
-} &>
+<%once>
+  use TUSK::Academic::LevelClinicalSchedule;
+  use TUSK::Core::HSDB45Tables::LinkCourseStudent;
+  use TUSK::Core::HSDB45Tables::Course;
+  use TUSK::Core::JoinObject;
+  use Time::Local;
+</%once>
+
+<%shared>
+  my $school = $m->comp('/tmpl/url:get_type_object');
+</%shared>
 
 <%init>
-  my @rows = map { { 
-      rotation => 'Cardiology',
-      start_date => 'Mar 19, 2015',
-      end_date => 'Mar 29, 2015',
-      number_of_weeks => '2',
-      teaching_site => 'The Henry & Lois Foster Small Animal Hospital',
-      time_period => '(3 weeks) March',
-    } }
+
+  my @rowsCurrent = ();
+  my @rowsPast = ();
+  my @rowsFuture = ();
+
+  pre_dump($school);
+
+  my $col_fields = [ 
+    {label => __('Rotation'), field => 'rotation'},
+    {label => __('Start Date'), field => 'start_date'},
+    {label => __('End Date'), field => 'end_date'},
+    {label => __('Teaching Site'), field => 'teaching_site'}, 
+    {label => __('Number of Weeks'), field => 'number_of_weeks'} 
+  ];
+
+  my $user_id = $m->session->{'user'}->user_id();
+  my $allCourses = TUSK::Academic::LevelClinicalSchedule->new();
+  $allCourses->setDatabase(TUSK::Academic::LevelClinicalSchedule->new()->getDatabase());
+  my $rotations = $allCourses->
+  lookup(
+      "", 
+      undef, 
+      undef, 
+      undef,
+      [ 
+        TUSK::Core::JoinObject->new('TUSK::Academic::Level',
+          { 
+            joinkey => 'academic_level_id', origkey => 'academic_level_id', jointype => 'inner', database => TUSK::Academic::Level->new()->getDatabase(), alias => 't2',
+            joincond => "t2.school_id = '2'"
+          }
+        ),
+        TUSK::Core::JoinObject->new('TUSK::Course::AcademicLevel',
+          { 
+            joinkey => 'academic_level_id', origkey => 'academic_level_id', jointype => 'inner', database => TUSK::Course::AcademicLevel->new()->getDatabase(), alias => 't3',
+            joincond => 't3.academic_level_id = t2.academic_level_id'
+          }
+        ),
+        TUSK::Core::JoinObject->new('TUSK::Course',
+          { 
+            joinkey => 'course_id', origkey => 't3.course_id', jointype => 'inner', database => TUSK::Course->new()->getDatabase(), alias => 't4'
+          }
+        ),
+        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkCourseStudent',
+          { 
+            joinkey => 'parent_course_id', origkey => 't4.school_course_code', jointype => 'inner', database => $school->getSchoolDb(), alias => 't5',
+            joincond => "t5.child_user_id = '$user_id'"
+          }
+        ),
+        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::Course',
+          { 
+            joinkey => 'course_id', origkey => 't5.parent_course_id', jointype => 'inner', database => $school->getSchoolDb(), alias => 't6',
+            joincond => 't6.course_id = t4.school_course_code'
+          }
+        ),
+        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TimePeriod',
+          { 
+            joinkey => 'time_period_id', origkey => 't5.time_period_id', jointype => 'inner', database => $school->getSchoolDb(), alias => 't7',
+          }
+        ),
+        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TeachingSite',
+          { 
+            joinkey => 'teaching_site_id', origkey => 't5.teaching_site_id', jointype => 'inner', database => $school->getSchoolDb(), alias => 't8',
+          }
+        ),
+      ]
+    );
+
+  # Return an array of course titles
+  sub getCourseTitles {
+    # handle the error for undefined @courses
+    my (@courses) = @_;
+    my @titles;
+    foreach my $course (@courses) {
+      push @titles, $course->getTitle();
+    }
+    return \@titles;
+  }
+
+  # Return an array of course start dates
+  sub getStartDates {
+    # handle the error for undefined @timePeriods
+    my (@timePeriods) = @_;
+    my @startDates;
+    foreach my $timePeriod (@timePeriods) {
+      push @startDates, $timePeriod->getStartDate();
+    }
+    return \@startDates;
+  }
+
+  # Return an array of course start dates
+  sub getEndDates {
+    # handle the error for undefined @timePeriods
+    my (@timePeriods) = @_;
+    my @endDates;
+    foreach my $timePeriod (@timePeriods) {
+      push @endDates, $timePeriod->getEndDate();
+    }
+    return \@endDates;
+  }
+
+  # Return an array of teaching site names
+  sub getTeachingSiteNames {
+    # handle the error for undefined @teachingSites
+    my (@teachingSites) = @_;
+    my @teachingSiteNames;
+    foreach my $teachingSite (@teachingSites) {
+      push @teachingSiteNames, $teachingSite->getSiteName();
+    }
+    return \@teachingSiteNames;
+  }
+
+  # Calculate the number of weeks between two time periods
+  sub getNumberOfWeeks{
+    my ($startDatesInSeconds, $endDatesInSeconds) = @_;
+    my @numberOfWeeks;
+
+    for my $index (0..$#{$startDatesInSeconds}) {
+      my $timeDifference = ${$endDatesInSeconds}[$index] - ${$startDatesInSeconds}[$index];
+      push @numberOfWeeks, int($timeDifference / (60 * 60 * 24 * 7));
+    }
+    return \@numberOfWeeks;
+  }
+
+  # Calculate the seconds that have passed by for start/end dates 
+  # since 00:00:00 UTC, January 1, 1970[EPOCH in most systems]
+
+  sub getStartDatesInSeconds{
+
+    my ($startDates) = @_;
+
+    my @startDatesInSeconds;
+
+    for my $index (0..$#{$startDates}) {
+
+      my $startYear = substr ${$startDates}[$index], 0, 4;
+      my $startMonth = substr ${$startDates}[$index], 5, 2;
+      my $startDay = substr ${$startDates}[$index], 8, 2;
+
+      my $timeStart = timelocal(0, 0, 0, $startDay, $startMonth - 1, $startYear);
+
+      push @startDatesInSeconds, $timeStart;
+    }
+    return \@startDatesInSeconds;
+
+  }
+
+  sub getEndDatesInSeconds{
+
+    my ($endDates) = @_;
+
+    my @endDatesInSeconds;
+
+    for my $index (0..$#{$endDates}) {
+
+      my $endYear = substr ${$endDates}[$index], 0, 4;
+      my $endMonth = substr ${$endDates}[$index], 5, 2;
+      my $endDay = substr ${$endDates}[$index], 8, 2;
+
+      my $timeEnd = timelocal(0, 0, 0, $endDay, $endMonth - 1, $endYear);
+
+      push @endDatesInSeconds, $timeEnd;
+    }
+    return \@endDatesInSeconds;
+
+  }
+
+  my @titles = getCourseTitles(@{${$rotations}[0]->getJoinObjects('t6')});
+  my @startDates = getStartDates(@{${$rotations}[0]->getJoinObjects('t7')});
+  my @endDates = getEndDates(@{${$rotations}[0]->getJoinObjects('t7')});
+  my @startDatesInSeconds = getStartDatesInSeconds(@startDates);
+  my @endDatesInSeconds = getEndDatesInSeconds(@endDates);
+  my @siteNames = getTeachingSiteNames(@{${$rotations}[0]->getJoinObjects('t8')});
+  my @numberOfWeeks = getNumberOfWeeks(@startDatesInSeconds, @endDatesInSeconds);
+
+  my $localTimeInSeconds = time();
+
+  for my $index (0..$#{${@titles}[0]}) {
+    my @rows;
+    push @rows, {
+      rotation => ${@titles}[0][$index],
+      start_date => ${@startDates}[0][$index],
+      end_date => ${@endDates}[0][$index],
+      teaching_site => ${@siteNames}[0][$index],
+      number_of_weeks => ${@numberOfWeeks}[0][$index],
+    };
+    # pre_dump($index);
+    # pre_dump(${@startDatesInSeconds}[0][$index]);
+    # pre_dump(${@endDatesInSeconds}[$index]);
+    # pre_dump($localTimeInSeconds);
+
+    if (${@startDatesInSeconds}[0][$index] == undef || (${@startDatesInSeconds}[0][$index] < $localTimeInSeconds && ${@endDatesInSeconds}[0][$index] < $localTimeInSeconds))
+    {
+      push @rowsPast, @rows;
+    }
+    # pre_dump(${@startDatesInSeconds}[0][$index]);
+    # pre_dump(${@endDatesInSeconds}[0][$index]);
+    # pre_dump($localTimeInSeconds);
+
+    elsif (${@startDatesInSeconds}[0][$index] <= $localTimeInSeconds && ${@endDatesInSeconds}[0][$index] >= $localTimeInSeconds)
+    {
+      push @rowsCurrent, @rows;
+    }
+    else
+    {
+      push @rowsFuture, @rows;
+    }
+  }
+
+  # pre_dump(TUSK::Academic::LevelClinicalSchedule->new()->getDatabase());
+
 </%init>
+
+<& /tmpl/element:header_bar, params => {
+  hdr_txt => 'Current Placements'
+} &>
+
+
+<& /tmpl/element:object_selection_box, params => {
+  columns   => $col_fields,
+  rows    => \@rowsCurrent
+} &>
+
+
+<& /tmpl/element:header_bar, params => {
+  hdr_txt => 'Future Placements'
+} &>
+
+<& /tmpl/element:object_selection_box, params => {
+  columns   => $col_fields,
+  rows    => \@rowsFuture
+} &>
+
+
+<& /tmpl/element:header_bar, params => {
+  hdr_txt => 'Past Placements'
+} &>
+
+
+<& /tmpl/element:object_selection_box, params => {
+  columns   => $col_fields,
+  rows    => \@rowsPast
+} &>
+

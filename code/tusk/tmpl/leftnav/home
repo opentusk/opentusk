@@ -21,6 +21,7 @@
 	use Forum::MwfMain;
 	use Forum::ForumKey;
 	use Apache2::RequestRec;
+	use TUSK::Academic::LevelClinicalSchedule;
 </%once>
 
 <%args>
@@ -171,6 +172,9 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 		push @case_links, '<a href="/protected/case/casestart/' . $case->getSchoolID() . "/" . $case->getCourseID() . "/" . $case->getPrimaryKeyID() . '">' . $stripObj->truncateAndRemoveHTML($case->getCaseTitle(), $charLimit) . '</a>';
 	}
 
+	## clinical schedule
+	my $rotations = TUSK::Academic::LevelClinicalSchedule->new()->getRotations('3', 'hsdb45_vet_admin', $m->session->{'user'}->user_id());
+
 	## competency checklist
 	my $courses_with_checklists = $m->session->{user}->get_courses_with_checklists();
 	foreach my $course (@$courses_with_checklists) {
@@ -250,6 +254,11 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 
 
 <& SELF:populateMaterials, materialLinks => \@materialLinksTop &>
+
+%   if (${$rotations}[0] != undef) {
+		<li><a href="/tusk/clinical/schedule/student/view/2"><% __('Clinical Schedule') %></a></li>
+% }
+
 
 %	if ($grade_link) {
 			<li><% $grade_link %></li>
