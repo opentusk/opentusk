@@ -18,7 +18,7 @@ package Apache::TicketRemove;
 use strict;
 use Apache2::Const qw(:common REDIRECT);
 use Apache2::Cookie;
-use Apache::Session::MySQL;
+use Apache::Session::MySQL::NoLock;
 use Apache2::Request;
 use HSDB4::SQLRow::User;
 use TUSK::Constants;

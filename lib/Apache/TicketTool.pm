@@ -19,7 +19,7 @@ use strict;
 use Apache2::Cookie ();
 use Digest::MD5 qw(md5_hex);
 use Apache2::URI ();
-use Apache::Session::MySQL;
+use Apache::Session::MySQL::NoLock;
 use HSDB4::Constants;
 use TUSK::Constants;
 use HSDB4::SQLRow::User;
@@ -248,13 +248,12 @@ sub create_apache_session {
 	# Create an apache session object
 	eval {
 	    my $dbh = HSDB4::Constants::def_db_handle('_session');
-	    tie %{$hashRefToTie}, 'Apache::Session::MySQL', $sessionID, {
+	    tie %{$hashRefToTie}, 'Apache::Session::MySQL::NoLock', $sessionID, {
 		Handle     => $dbh,
-		LockHandle => $dbh,
 	    };
 	};
 	if($@) {
-		warn("Unable to tie session to Apache::Session::MySQL for $sessionID: $@\n");
+		warn("Unable to tie session to Apache::Session::MySQL::NoLock for $sessionID: $@\n");
 	}
 }
 
