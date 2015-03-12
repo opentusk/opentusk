@@ -110,15 +110,14 @@ $m->comp("SELF:get_placements_by_time_period");
 
 	my $time_periods = TUSK::Course->lookup("course.course_id = $tusk_course_id", undef, undef, undef, 
 				[
-				#TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'course_id', joinkey => 'parent_course_id', jointype => 'inner'})
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
 				TUSK::Core::JoinObject->new("TUSK::Course::AcademicLevel", {origkey => 'course_id', joinkey => 'course_id', jointype => 'inner'}),
 				TUSK::Core::JoinObject->new("TUSK::Academic::LevelClinicalSchedule", {origkey => 'academic_level_course.academic_level_id', joinkey => 'academic_level_id', jointype => 'inner'}),
-				#TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner'})
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner'})
 				]);
 	print Dumper $time_periods;
 
 	my $current_course = HSDB45::Course->new( _school => $m->comp('/tmpl/url:get_school') )->lookup_key( $course_id );
-	#my $time_periods = $current_course->get_current_and_future_time_periods();
 	
 </%perl>
 
