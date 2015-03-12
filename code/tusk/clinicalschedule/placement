@@ -1,0 +1,132 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<div id="domain">
+<%perl>
+use HSDB45::TeachingSite;
+
+use HSDB45::Course;
+use HSDB45::TimePeriod;
+use TUSK::Course;
+use TUSK::Academic::Level;
+use TUSK::Academic::LevelClinicalSchedule;
+
+
+my $teaching_sites = $m->comp("SELF:get_teaching_sites");
+
+
+my @teaching_site_dropdown;
+
+my $empty_teaching_site_hash = {
+	label => "(Select a teaching site:)"
+};
+
+push @teaching_site_dropdown, $empty_teaching_site_hash;
+
+
+print "<span id=\"teaching_site_select\">View by Teaching Site: </span>";
+$m->comp("/tmpl/element:dropdown", params => {
+	name => 'current_teaching_site',
+	options => \@teaching_site_dropdown,
+});
+
+print "<span id=\"academic_year_select\">Filter by Academic Year: </span>";
+$m->comp("/tmpl/element:dropdown", params => {
+	name => 'current_teaching_site',
+	options => \@teaching_site_dropdown,
+});
+
+$m->comp("SELF:get_placements_by_time_period");
+
+</%perl>
+</div>
+
+<div id="placement_wrapper">
+
+</div>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css']
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			];
+</%perl> 
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method title>
+% return __("Clinical Placement");
+</%method>
+
+<%method get_teaching_sites>
+<%perl>
+	my $school = $m->comp('/tmpl/url:get_school');
+	my $teaching_sites = HSDB45::TeachingSite->new(_school => $school);
+	print "<br>";
+	
+	my $time_periods = HSDB45::TimePeriod->new( _school => $school )->lookup_conditions("");
+	print Dumper $time_periods;
+	print "<br>";
+
+</%perl>
+</%method>
+
+<%method get_placements_by_time_period>
+<%perl>
+	my $col_fields = [
+		{label => __('Place holder'), field => "student", html =>1}
+	];
+
+	my @rows = ();
+	push @rows, {
+		student => '<b>Test Student</b>'
+	};
+	my $course_id = 6;
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID(1, $course_id);
+	my $school = $m->comp('/tmpl/url:get_school');
+	my $db = HSDB4::Constants::get_school_db($school);
+
+	my $time_periods = TUSK::Course->lookup("course.course_id = $tusk_course_id", undef, undef, undef, 
+				[
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'course_id', joinkey => 'parent_course_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Course::AcademicLevel", {origkey => 'course_id', joinkey => 'course_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Academic::LevelClinicalSchedule", {origkey => 'academic_level_course.academic_level_id', joinkey => 'academic_level_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner'})
+				]);
+	print Dumper $time_periods;
+
+	my $current_course = HSDB45::Course->new( _school => $m->comp('/tmpl/url:get_school') )->lookup_key( $course_id );
+	#my $time_periods = $current_course->get_current_and_future_time_periods();
+	
+</%perl>
+
+<& /tmpl/element:object_selection_box, params => {
+				columns => $col_fields,
+				rows => \@rows,
+				name => "courses",
+				'norows-message' => __( "No Students" ),
+} &>
+
+</%method>
+
