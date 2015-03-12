@@ -117,7 +117,26 @@ $m->comp("SELF:get_placements_by_time_period");
 				TUSK::Core::JoinObject->new("TUSK::Academic::LevelClinicalSchedule", {origkey => 'academic_level_course.academic_level_id', joinkey => 'academic_level_id', jointype => 'inner'}),
 				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner', joincond => "academic_year = $academic_year"})
 				]);
-	
+
+	my $course_students = TUSK::Course->lookup("course.course_id = $tusk_course_id", undef, undef, undef, 
+				[ TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
+				  TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", {origkey => 'link_course_student.child_user_id', joinkey => 'user_id', jointype => 'inner'})
+				]);
+
+	my %student_hash = ();
+
+	foreach my $course_student(@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB4Tables::User')}) {
+		my %temp_hash;
+		$temp_hash{first_name} = $course_student->getFieldValue('firstname');
+		$temp_hash{last_name} = $course_student->getFieldValue('lastname');
+		$temp_hash{middle_name} = $course_student->getFieldValue('midname');
+		my $student_id = $course_student->getFieldValue('user_id');
+		$student_hash{$student_id} = {%temp_hash};
+	}
+
+	print Dumper(%student_hash);
+
+
 	#pre_dump($placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::TimePeriod')) ;
 
 	my @placement_rows;
