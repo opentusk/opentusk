@@ -125,7 +125,7 @@ $m->comp("SELF:get_placements_by_time_period");
 
 	my %student_hash = ();
 
-	foreach my $course_student(@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB4Tables::User')}) {
+	foreach my $course_student(@{$course_students->[0]->getJoinObjects('TUSK::Core::HSDB4Tables::User')}) {
 		my %temp_hash;
 		$temp_hash{first_name} = $course_student->getFieldValue('firstname');
 		$temp_hash{last_name} = $course_student->getFieldValue('lastname');
@@ -133,11 +133,6 @@ $m->comp("SELF:get_placements_by_time_period");
 		my $student_id = $course_student->getFieldValue('user_id');
 		$student_hash{$student_id} = {%temp_hash};
 	}
-
-	print Dumper(%student_hash);
-
-
-	#pre_dump($placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::TimePeriod')) ;
 
 	my @placement_rows;
 	
@@ -148,10 +143,12 @@ $m->comp("SELF:get_placements_by_time_period");
 			$temp_hash{start_date} = $time_period->getStartDate;
 			$temp_hash{end_date} = $time_period->getEndDate;
 			$time_period_hash{$time_period->getPeriod} = {%temp_hash};
-			push @placement_rows, {%time_period_hash};
+			
 			foreach my $link_course_student (@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::LinkCourseStudent')}) {
 				pre_dump($link_course_student);
 			}
+
+			push @placement_rows, {%time_period_hash};
 		}
 	}
 	print Dumper @placement_rows;
