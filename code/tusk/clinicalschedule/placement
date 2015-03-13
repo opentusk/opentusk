@@ -61,7 +61,7 @@ foreach my $placement_row (@{$placement_rows}) {
 	my $title = (keys %{$placement_row})[0];
 	push @{$col_fields}, {label => $title, field => $title};
 	foreach my $student_row ($placement_row->{students}) {
-		my $row_count = 1;
+		my $row_count = 0;
 		foreach my $student (@{$student_row}) {
 			my $student_name = $student->{last_name} . ", " . $student->{first_name} . " " . $student->{middle_name};
 			$time_period_student_array[$row_count] = $time_period_student_array[$row_count] . "<td>" . $student_name ."</td>";
@@ -77,7 +77,13 @@ foreach my $placement_row (@{$placement_rows}) {
 	};
 =cut
 }
-
+my $row = 0;
+foreach $title (@{$col_fields}) {
+	push @rows, {
+		$title, $time_period_student_array[$row_count]
+	};
+	$row++;
+}
 
 
 
@@ -86,7 +92,7 @@ foreach my $placement_row (@{$placement_rows}) {
 </div>
 <& /tmpl/element:object_selection_box, params => {
 				columns => $col_fields,
-				rows => \@time_period_student_array,
+				rows => \@rows,
 				name => "courses",
 				'norows-message' => __( "No Students" ),
 } &>
