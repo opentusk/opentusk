@@ -1105,28 +1105,19 @@ sub unique_users {
     $sort_orders = ['lastname', 'firstname', 'course_user.user_id'] unless defined $sort_orders;
 
     my $users = $self->find_users($conditions, $sort_orders, $time_period_id);
-    my %unique_users = ();
+    my %flags = ();
+    my @unique_users = ();
 
     foreach my $user (@$users) {
 	my $user_id = $user->getPrimaryKeyID();
-	foreach my $role (@{$user->getRoleLabels()}) {
-	    if (ref $role eq 'TUSK::Permission::Role') {
-		$unique_users{$user_id}{roles}{$role->getRoleToken()} = $role;
-	    }
-	}
-	foreach my $site (@{$user->getSites()}) {
-	    if (ref $site eq 'TUSK::Core::HSDBTables::TeachingSite') {
-		$unique_users{$user_id}{sites}{$site->getPrimaryKeyID()} = $site;
-	    }
-	}
 
-	unless (exists $unique_users{$user_id}{user}) {
-	    $user->{'_join_objects'} = {};   ## try to be a slimmer user object as we already keep the data as above
-	    $unique_users{$user_id}{user} = $user;
+	unless (exists $flags{$user_id}) {
+	    $flags{$user_id} = 1;
+	    push @unique_users, $user;
 	}
     }
 
-    return [ values %unique_users ];
+    return \@unique_users;
 }
 
 
