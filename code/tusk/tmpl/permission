@@ -69,6 +69,8 @@
 % if ($users) {
 <%perl>
 	my %assigned_users = map { $_->getUserID() => 1 } @$user_roles;
+	my %available_users = map { $_->getPrimaryKeyID() => 1 } @$users;
+	my @selected_users = grep { $available_users{$_->{'userid'}} } @data;
 	my @non_selected_users = ();
 	my $cnt = 1;
 	foreach my $user (@$users) {
@@ -84,7 +86,7 @@
 </%perl>
 
 <& /tmpl/element:field_display, params => { 
-	label 	=> __('Available course users:'),
+	label 	=> __('Available Course Users:'),
 	value 	=> '<div id="courseusersdiv"></div>' } &>
 
 <& /tmpl/layers:create_layer, struct => {
@@ -114,7 +116,7 @@ function addUser(layer, index){
 
 <& /tmpl/element:sort_order_box , params =>{
 	no_add_button 	=> 1,
-	label => __('Current Users'),
+	label => __('Current Users:'),
 	buttons => [ '&nbsp;' . $m->scomp("/tmpl/element:button", params => {label => __('Add Names'), onclick => "openwindow('userdiv');" }) ],
 	td_class => 'button-left',
 	layer_info => {
@@ -129,7 +131,7 @@ function addUser(layer, index){
 			{label=>__('User ID'),field=>'userid', align=>'left', length=>90},
 			{label=>__x("{role_label} Role", role_label => $role_label),field=>'role', align=>'center', length=>150,options=>\@roles_array }, ],
 		validate => {usage => 'No',},
-		data => \@data }
+		data => \@selected_users }
 } &>
 
 <& /tmpl/element:save_button, params => {

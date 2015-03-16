@@ -18,13 +18,16 @@
 	$m->comp("SELF:set_msg", msg => $m->comp("/tmpl/permission:hintmessage"), type => 'hintmsg');
 </%shared>
 
-% my $users = 
+<%perl>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+</%perl>
 
 <& "/tmpl/permission:page", 
 	feature_type_token => 'assessment', 
 	feature_id => $m->comp("SELF:get_form_id"), 
 	args => \%ARGS, 
-	users => [ map { $_->{user} } (@{$m->comp("/tmpl/url:get_type_object")->unique_users()}) ],
+	users => [ map { $_->{user} } (@{$course->unique_users($time_period_id)}) ],
 &>
 
 <%method jsarray>

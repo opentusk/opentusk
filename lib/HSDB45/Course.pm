@@ -1101,10 +1101,10 @@ sub users_by_period {
 =cut
 
 sub unique_users {
-    my ($self, $conditions, $sort_orders) = @_;
+    my ($self, $time_period_id, $conditions, $sort_orders) = @_;
     $sort_orders = ['lastname', 'firstname', 'course_user.user_id'] unless defined $sort_orders;
 
-    my $users = $self->find_users($conditions, $sort_orders);
+    my $users = $self->find_users($conditions, $sort_orders, $time_period_id);
     my %unique_users = ();
 
     foreach my $user (@$users) {
