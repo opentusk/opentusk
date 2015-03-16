@@ -181,7 +181,6 @@ This method is used to convert the old school/course to the new tusk id.
 sub getTuskCourseIDFromSchoolID {
     my ($self, $school_id, $course_id) = @_;
     my $searchResultsRef = $self->lookup("school_id=$school_id AND school_course_code=$course_id", undef, undef, undef, undef);
-    print STDERR ${$searchResultsRef}[0];
     return ${$searchResultsRef}[0]->getPrimaryKeyID();
 }
 
