@@ -164,7 +164,8 @@ for (my $row=0; $row <= scalar @time_period_student_array; $row++) {
 				]);
 =cut
 	my $dbh = HSDB4::Constants::def_db_handle();
-	my $sql = qq( SELECT * FROM $db\.link_course_student WHERE parent_course_id = 230 AND time_period_id IN ($time_periods));
+	my $sql = qq( SELECT * FROM $db\.link_course_student WHERE parent_course_id = 230 AND time_period_id IN ($time_periods)
+			INNER JOIN $db\.user on child_user_id = user_id);
 	my $sth = $dbh->prepare( $sql );
 	$sth->execute();
 	my $students = $sth->fetchall_arrayref;
@@ -177,9 +178,6 @@ for (my $row=0; $row <= scalar @time_period_student_array; $row++) {
 				[ TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
 				  TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", {origkey => 'link_course_student.child_user_id', joinkey => 'user_id', jointype => 'inner'})
 				]);
-
-	print Dumper $course_students;
-	print "<br><br>";
 
 	my %student_hash = ();
 
