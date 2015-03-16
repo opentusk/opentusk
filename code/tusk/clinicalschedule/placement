@@ -47,7 +47,7 @@ push @academic_year_dropdown, $empty_academic_year_hash;
 
 push @teaching_site_dropdown, $empty_teaching_site_hash;
 
-
+=for
 print "<span id=\"teaching_site_select\">View by Teaching Site: </span>";
 $m->comp("/tmpl/element:dropdown", params => {
 	name => 'current_teaching_site',
@@ -60,7 +60,7 @@ $m->comp("/tmpl/element:dropdown", params => {
 	name => 'current_academic_year',
 	options => \@academic_year_dropdown,
 });
-
+=cut
 
 print "<br><br>";
 
@@ -199,23 +199,6 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	$sth->execute();
 	my $students = $sth->fetchall_arrayref;
 	$sth->finish;
-=for
-	my $course_students = TUSK::Course->lookup("course.course_id = $tusk_course_id", undef, undef, undef, 
-				[ TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
-				  TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", {origkey => 'link_course_student.child_user_id', joinkey => 'user_id', jointype => 'inner'})
-				]);
-
-	my %student_hash = ();
-
-	foreach my $course_student(@{$course_students->[0]->getJoinObjects('TUSK::Core::HSDB4Tables::User')}) {
-		my %temp_hash;
-		$temp_hash{first_name} = $course_student->getFieldValue('firstname');
-		$temp_hash{last_name} = $course_student->getFieldValue('lastname');
-		$temp_hash{middle_name} = $course_student->getFieldValue('midname');
-		my $student_id = $course_student->getFieldValue('user_id');
-		$student_hash{$student_id} = {%temp_hash};
-	}
-=cut
 
 	my @placement_rows;
 	
@@ -234,13 +217,6 @@ for (my $i = 0; $i <= $max_length; $i++) {
 			}
 			$time_period_hash{$time_period->getPeriod} = {%temp_hash};
 
-
-=for	
-			foreach my $link_course_student (@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::LinkCourseStudent')}) {
-				my $current_student_id = $link_course_student->getFieldValue('child_user_id');
-				push @{$time_period_hash{students}}, {%{$student_hash{$current_student_id}}};
-			}
-=cut
 			push @placement_rows, {%time_period_hash};
 		}
 	}
