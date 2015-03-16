@@ -56,7 +56,7 @@ print "<br><br>";
 
 my $placement_rows = $m->comp("SELF:get_placements_by_time_period");
 
-pre_dump($placement_rows);
+#pre_dump($placement_rows);
 
 my $col_fields = [];
 my @rows = ();
@@ -167,7 +167,7 @@ for (my $row=0; $row <= scalar @time_period_student_array; $row++) {
 	my $sql = qq( SELECT * FROM $db\.link_course_student WHERE parent_course_id = 230 AND time_period_id IN ($time_periods));
 	my $sth = $dbh->prepare( $sql );
 	$sth->execute();
-	my $students = $sth->fetchall_hashref("time_period_id");
+	my $students = $sth->fetchall_arrayref;
 	$sth->finish;
 
 	print Dumper $students;
@@ -177,6 +177,9 @@ for (my $row=0; $row <= scalar @time_period_student_array; $row++) {
 				[ TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
 				  TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::User", {origkey => 'link_course_student.child_user_id', joinkey => 'user_id', jointype => 'inner'})
 				]);
+
+	print Dumper $course_students;
+	print "<br><br>";
 
 	my %student_hash = ();
 
