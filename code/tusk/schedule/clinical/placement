@@ -159,10 +159,13 @@ my @sorted_col_fields = sort { $a->{label} <=> $b->{label}} @{$col_fields};
 </%method>
 
 <%method get_nav_bars>                                       
-% if (TUSK::Session::is_admin($m->session)) { 
-% } else {
-% return undef;	
-% }
+<%perl>
+my $user_obj = $m->session->{'user'};
+my $iCanEdit = $course->can_user_edit($user_obj);
+if (!$iCanEdit) {
+ return undef;	
+}
+</%perl>
 </%method> 
 
 <%method get_teaching_sites>
