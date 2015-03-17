@@ -17,11 +17,12 @@
 	use TUSK::Constants;
 	use HSDB45::UserGroup;
 	use TUSK::Case::Case;
+	use TUSK::Core::School;
 	use TUSK::Application::HTML::Strip;
 	use Forum::MwfMain;
 	use Forum::ForumKey;
 	use Apache2::RequestRec;
-	use TUSK::Academic::LevelClinicalSchedule;
+	use TUSK::Application::Schedule::Clinical;
 </%once>
 
 <%args>
@@ -173,7 +174,21 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	}
 
 	## clinical schedule
-	my $rotations = TUSK::Academic::LevelClinicalSchedule->new()->getRotations('3', 'hsdb45_vet_admin', $m->session->{'user'}->user_id());
+	my $school = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->session->{'user'}->field_value('affiliation') . "'");
+	my $school_id = $school->getPrimaryKeyID();
+	my $user_id = $m->session->{'user'}->user_id();
+
+	my $clinical_schedule_args = {
+     	school_id => $school_id,
+      	school_db => $school->getSchoolDb(),
+      	user_id => $user_id
+    };
+
+	my ($courseIds) = TUSK::Application::Schedule::Clinical->new({
+			school_id => $school_id,
+			school_db => $school->getSchoolDb(),
+			user_id => $user_id
+	})->getScheduleCourses();
 
 	## competency checklist
 	my $courses_with_checklists = $m->session->{user}->get_courses_with_checklists();
@@ -255,10 +270,10 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 
 <& SELF:populateMaterials, materialLinks => \@materialLinksTop &>
 
-%   if (${$rotations}[0] != undef) {
-		<li><a href="/tusk/clinical/schedule/student/view/2"><% __('Clinical Schedule') %></a></li>
+%   if (scalar @$courseIds) {
+%	my $clinical_schedule_link = '<a href="/schedule/clinical/student/view/'.$school_id.'">' . __('Clinical Schedule') . '</a>';
+		<li><% $clinical_schedule_link %></li>
 % }
-
 
 %	if ($grade_link) {
 			<li><% $grade_link %></li>

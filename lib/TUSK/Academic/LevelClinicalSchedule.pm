@@ -36,14 +36,6 @@ B<TUSK::Academic::LevelClinicalSchedule> - Class for manipulating entries in tab
 
 use strict;
 
-use TUSK::Academic::Level;
-use TUSK::Course::AcademicLevel;
-use TUSK::Core::HSDB45Tables::LinkCourseStudent;
-use TUSK::Core::HSDB45Tables::Course;
-use TUSK::Core::JoinObject;
-use Time::Local;
-use TUSK::Core::School;
-
 BEGIN {
     require Exporter;
     require TUSK::Core::SQLRow;
@@ -162,63 +154,6 @@ sub setSchoolID{
 =cut
 
 ### Other Methods
-
-### Get Rotations
-
-#######################################################
-sub getRotations{
-	my ($self, $school_id, $school_db, $user_id) = @_;
-	my $academicLevelClinicalScheduleCourses = TUSK::Academic::LevelClinicalSchedule->new();
-
-    $academicLevelClinicalScheduleCourses->setDatabase(TUSK::Academic::LevelClinicalSchedule->new()->getDatabase());
-    my $rotations = $academicLevelClinicalScheduleCourses->lookup( "", undef, undef, undef,
-      [
-        TUSK::Core::JoinObject->new('TUSK::Academic::Level',
-          {
-            joinkey => 'academic_level_id', origkey => 'academic_level_id', jointype => 'inner', database => TUSK::Academic::Level->new()->getDatabase(), alias => 't2',
-            joincond => "t2.school_id = '$school_id'"
-          }
-        ),
-        TUSK::Core::JoinObject->new('TUSK::Course::AcademicLevel',
-          {
-            joinkey => 'academic_level_id', origkey => 'academic_level_id', jointype => 'inner', database => TUSK::Course::AcademicLevel->new()->getDatabase(), alias => 't3',
-            joincond => 't3.academic_level_id = t2.academic_level_id'
-          }
-        ),
-        TUSK::Core::JoinObject->new('TUSK::Course',
-          {
-            joinkey => 'course_id', origkey => 't3.course_id', jointype => 'inner', database => TUSK::Course->new()->getDatabase(), alias => 't4'
-          }
-        ),
-        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::LinkCourseStudent',
-          {
-            joinkey => 'parent_course_id', origkey => 't4.school_course_code', jointype => 'inner', database => $school_db, alias => 't5',
-            joincond => "t5.child_user_id = '$user_id'"
-          }
-        ),
-        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::Course',
-          {
-            joinkey => 'course_id', origkey => 't5.parent_course_id', jointype => 'inner', database => $school_db, alias => 't6',
-            joincond => 't6.course_id = t4.school_course_code'
-          }
-        ),
-        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TimePeriod',
-          {
-            joinkey => 'time_period_id', origkey => 't5.time_period_id', jointype => 'inner', database => $school_db, alias => 't7',
-          }
-        ),
-        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TeachingSite',
-          {
-            joinkey => 'teaching_site_id', origkey => 't5.teaching_site_id', jointype => 'inner', database => $school_db, alias => 't8',
-          }
-        ),
-      ]
-   );
-
-   return $rotations;
-}
-
-#######################################################
 
 =head1 BUGS
 
