@@ -119,19 +119,20 @@ for (my $i = 0; $i <= $max_length; $i++) {
 my @sorted_col_fields = sort { $a->{label} <=> $b->{label}} @{$col_fields};
 </%perl>
 </div>
+
+<div id="placement_wrapper" style="width: 1310px; overflow: scroll;">
 <& /tmpl/element:object_selection_box, params => {
 				columns => \@sorted_col_fields,
 				rows => \@rows,
-				width => "200px",
+				width => "200%",
 				name => "courses",
+				zebra_striping => 0,
 				'norows-message' => __( "No Students" ),
 } &>
-<div id="placement_wrapper">
-
 </div>
 
 <%method stylearray>
-% return ['/style/style.css','/style/home.css', '/style/clinicalplacement.css']
+% return ['/style/style.css','/style/home.css']
 </%method>
 
 <%method jsarray>
@@ -147,9 +148,26 @@ my @sorted_col_fields = sort { $a->{label} <=> $b->{label}} @{$col_fields};
 % return $m->comp("SELF:title");
 </%method>
 
+<%method red_header_class>                                                                                                                                                                                                                   
+%       return 'blueHeaderBar';                                                                                                                                                                                                              
+</%method>          
+
+
 <%method title>
-% return __("Clinical Placement");
+% my $type_object = $m->comp("/tmpl/url:get_type_object");
+% return $type_object->title() . __(" > Clinical Placement");
 </%method>
+
+<%method get_nav_bars>                                       
+<%perl>
+my $course = $m->comp("/tmpl/url:get_type_object");
+my $user_obj = $m->session->{'user'};
+my $iCanEdit = $course->can_user_edit($user_obj);
+if (!$iCanEdit) {
+ return undef;	
+}
+</%perl>
+</%method> 
 
 <%method get_teaching_sites>
 <%perl>
@@ -171,7 +189,7 @@ my @sorted_col_fields = sort { $a->{label} <=> $b->{label}} @{$col_fields};
 	my $db = HSDB4::Constants::get_school_db($school);
 	my $school_id = TUSK::Core::School->getSchoolID($school);
 	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $course_id);
-	my $academic_year = 2015;
+	my $academic_year = 2016;
 	my $teaching_site_id = 0;
 	
 	my $course = TUSK::Course->new();
