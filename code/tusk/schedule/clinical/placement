@@ -1,0 +1,234 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<div id="domain">
+<%perl>
+
+use HSDB4::Constants;
+use HSDB45::TeachingSite;
+
+use HSDB45::Course;
+use HSDB45::TimePeriod;
+use TUSK::Course;
+use TUSK::Academic::Level;
+use TUSK::Academic::LevelClinicalSchedule;
+
+
+
+my $teaching_sites = $m->comp("SELF:get_teaching_sites");
+#my $academic_years = $m->comp("SELF:get_academic_years");
+
+my @teaching_site_dropdown;
+
+my $empty_teaching_site_hash = {
+	label => "(Select a teaching site:)"
+};
+
+my @academic_year_dropdown;
+
+my $empty_academic_year_hash = {
+	label => "(Select an academic_year:)"
+};
+
+push @academic_year_dropdown, $empty_academic_year_hash;
+
+push @teaching_site_dropdown, $empty_teaching_site_hash;
+
+=for
+print "<span id=\"teaching_site_select\">View by Teaching Site: </span>";
+$m->comp("/tmpl/element:dropdown", params => {
+	name => 'current_teaching_site',
+	options => \@teaching_site_dropdown,
+});
+
+
+print "<span id=\"academic_year_select\">Filter by Academic Year: </span>";
+$m->comp("/tmpl/element:dropdown", params => {
+	name => 'current_academic_year',
+	options => \@academic_year_dropdown,
+});
+print "<br><br>";
+=cut
+
+
+
+my $placement_rows = $m->comp("SELF:get_placements_by_time_period");
+
+my $col_fields = [];
+my @rows = ();
+my @time_period_student_array;
+
+
+if (scalar @{$placement_rows} > 0){
+foreach my $placement_row (@{$placement_rows}) {
+	my $title = (keys %{$placement_row})[0];
+
+	my $label  = $title . "<br>(" . $placement_row->{$title}->{start_date} . " - " . $placement_row->{$title}->{end_date} . ")";
+	push @{$col_fields}, {label => $label, field => $title, html => 1, align => 'center', start_date => $placement_row->{$title}->{start_date}};
+	
+
+=for
+	foreach my $student_row ($placement_row->{students}) {
+		my $row_count = 0;
+		foreach my $student (@{$student_row}) {
+			my $student_name = $student;
+			$time_period_student_array[$row_count] = $time_period_student_array[$row_count] . $student_name . "</td><td>";
+			$row_count++;
+		}
+	}
+=cut
+}
+}
+
+my @name_array;
+my @student_row_array;
+foreach my $placement_row(@{$placement_rows}) {
+	my $title = (keys %{$placement_row})[0];
+	push @name_array, $title;
+	push @student_row_array, $placement_row->{$title}->{students};
+}
+
+my $max_length;
+for (my $i=0; $i < scalar @student_row_array; $i++) {
+	if ($max_length < scalar @{$student_row_array[$i]}) {
+		$max_length = scalar @{$student_row_array[$i]};
+	} 
+}
+
+for (my $i = 0; $i <= $max_length; $i++) {
+	my %temp_hash;
+	for (my $j = 0; $j <= scalar @name_array; $j++) {
+		$temp_hash{$name_array[$j]} = $student_row_array[$j][$i];		
+	}
+	push @rows, {%temp_hash};
+}
+
+my @sorted_col_fields = sort { $a->{label} <=> $b->{label}} @{$col_fields};
+</%perl>
+</div>
+<& /tmpl/element:object_selection_box, params => {
+				columns => \@sorted_col_fields,
+				rows => \@rows,
+				name => "courses",
+				'norows-message' => __( "No Students" ),
+} &>
+<div id="placement_wrapper">
+
+</div>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css']
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			];
+</%perl> 
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method title>
+% return __("Clinical Placement");
+</%method>
+
+<%method get_teaching_sites>
+<%perl>
+	my $school = $m->comp('/tmpl/url:get_school');
+	my $teaching_sites = HSDB45::TeachingSite->new(_school => $school)->lookup_all("order by site_name");
+	
+
+</%perl>
+</%method>
+
+
+<%method get_placements_by_time_period>
+<%perl>
+
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $course_id = $type_object->course_id;		
+
+	my $school = $m->comp('/tmpl/url:get_school');
+	my $db = HSDB4::Constants::get_school_db($school);
+	my $school_id = TUSK::Core::School->getSchoolID($school);
+	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $course_id);
+	my $academic_year = 2015;
+	my $teaching_site_id = 0;
+	
+	my $course = TUSK::Course->new();
+
+	my $placements = $course->lookup("course.course_id = $tusk_course_id", ['start_date', 'end_date'], undef, undef,  
+				[
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Course::AcademicLevel", {origkey => 'course_id', joinkey => 'course_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Academic::LevelClinicalSchedule", {origkey => 'academic_level_course.academic_level_id', joinkey => 'academic_level_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner', joincond => "academic_year = $academic_year"})
+				]);
+	my @time_periods_array;
+
+	foreach my $placement (@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::TimePeriod')}) {
+		push @time_periods_array, $placement->getPrimaryKeyID();
+	}
+
+	my $time_periods = join(",", @time_periods_array);
+
+=for
+	my $students =  $course->lookup("course.course_id = $tusk_course_id AND time_period_id IN ($time_periods)", undef, undef, undef,  
+				[
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id'}),
+				]);
+=cut
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $sql = qq( SELECT user_id, firstname, lastname, midname, time_period_id FROM $db\.link_course_student INNER JOIN hsdb4\.user on child_user_id = user_id WHERE parent_course_id = $course_id AND time_period_id IN ($time_periods));
+	my $sth = $dbh->prepare( $sql );
+	$sth->execute();
+	my $students = $sth->fetchall_arrayref;
+	$sth->finish;
+
+	my @placement_rows;
+	
+	if (scalar @{$placements} > 0){
+		foreach my $time_period (@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::TimePeriod')}) {
+			my %time_period_hash;
+			my %temp_hash;
+			$temp_hash{start_date} = $time_period->getStartDate;
+			$temp_hash{end_date} = $time_period->getEndDate;
+			$temp_hash{students} = [];
+			foreach my $student (@{$students}) {
+				if ($student->[4] == $time_period->getPrimaryKeyID){
+					my $student_name = $student->[2] . ", " . $student->[1] . " " . $student->[3];
+					push @{$temp_hash{students}}, $student_name;
+				}
+			}
+			@{$temp_hash{students}} = sort @{$temp_hash{students}};
+
+			$time_period_hash{$time_period->getPeriod} = {%temp_hash};
+
+			push @placement_rows, {%time_period_hash};
+		}
+	}
+	return \@placement_rows;
+
+</%perl>
+</%method>
+
+
+
