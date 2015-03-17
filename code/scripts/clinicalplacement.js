@@ -1,1 +1,0 @@
-document.getElementsByTagName('td')[0].style.width = '40px';
