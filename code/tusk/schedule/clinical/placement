@@ -80,24 +80,12 @@ my @time_period_student_array;
 
 
 if (scalar @{$placement_rows} > 0){
-foreach my $placement_row (@{$placement_rows}) {
-	my $title = (keys %{$placement_row})[0];
+	foreach my $placement_row (@{$placement_rows}) {
+		my $title = (keys %{$placement_row})[0];
 
-	my $label  = "(" . $placement_row->{$title}->{start_date} . " - " . $placement_row->{$title}->{end_date} . ")";
-	push @{$col_fields}, {label => $label, field => $title, html => 1, align => 'center', start_date => $placement_row->{$title}->{start_date}};
-	
-
-=for
-	foreach my $student_row ($placement_row->{students}) {
-		my $row_count = 0;
-		foreach my $student (@{$student_row}) {
-			my $student_name = $student;
- $time_period_student_array[$row_count] = $time_period_student_array[$row_count] . $student_name . "</td><td>";
-			$row_count++;
-		}
+		my $label  = "(" . $placement_row->{$title}->{start_date} . " - " . $placement_row->{$title}->{end_date} . ")";
+		push @{$col_fields}, {label => $label, field => $title, html => 1, align => 'center', start_date => $placement_row->{$title}->{start_date}};
 	}
-=cut
-}
 }
 
 my @name_array;
@@ -225,6 +213,10 @@ if (!$iCanEdit) {
 				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner', joincond => "academic_year = $academic_year"})
 				]);
 	my @time_periods_array;
+
+	if (scalar @{$placement} < 1) {
+		return undef;
+	}
 
 	foreach my $placement (@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::TimePeriod')}) {
 		push @time_periods_array, $placement->getPrimaryKeyID();
