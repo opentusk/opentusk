@@ -180,21 +180,15 @@ if (!$iCanEdit) {
 
 <%method get_academic_years>
 <%perl>
-	my $type_object = $m->comp("/tmpl/url:get_type_object");
-	my $course_id = $type_object->course_id;		
 	my $school = $m->comp('/tmpl/url:get_school');
 	my $db = HSDB4::Constants::get_school_db($school);
-	my $school_id = TUSK::Core::School->getSchoolID($school);
-	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $course_id);
-	my $course = TUSK::Course->new();
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my $sql = qq( SELECT DISTINCT academic_year FROM $db\.time_period );
+	my $sth = $dbh->prepare( $sql );
+	$sth->execute();
+	my $academic_years = $sth->fetchall_arrayref;
+	$sth->finish;
 
-	$course->setErrorLevel(2);
-	my $academic_years = $course->lookup("course.course_id = $tusk_course_id", ['start_date', 'end_date'], undef, undef,  
-				[
-				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
-				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner', joincond => 'distinct academic_year'})
-				]);
-	
 	print Dumper $academic_years;	
 	
 
