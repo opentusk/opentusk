@@ -181,9 +181,16 @@ if (!$iCanEdit) {
 <%method get_academic_years>
 <%perl>
 	my $school = $m->comp('/tmpl/url:get_school');
-	my $teaching_sites = HSDB45::TeachingSite->new(_school => $school);
-	$teaching_sites->setErrorLevel(2);
-	my $academic_years = $teaching_sites->lookup_conditions("");
+	my $course = TUSK::Course->new();
+
+	my $academic_years = $course->lookup("course.course_id = $tusk_course_id", ['start_date', 'end_date'], ['academic_year'], undef,  
+				[
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Course::AcademicLevel", {origkey => 'course_id', joinkey => 'course_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Academic::LevelClinicalSchedule", {origkey => 'academic_level_course.academic_level_id', joinkey => 'academic_level_id', jointype => 'inner'}),
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner', joincond => "academic_year = $academic_year"})
+				]);
+	
 	print Dumper $academic_years;	
 	
 
