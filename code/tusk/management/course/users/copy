@@ -46,9 +46,9 @@
 % my $options = $m->comp('SELF:get_target_timeperiods');
 
 <& /tmpl/element:field_display, params => {
-	label	=> __('Target Time Period') . ':',
+	label	=> __('Target Time Periods') . ':',
 	value 	=>  (scalar @$options) 
-			? $m->scomp('/tmpl/element:dropdown', params => { name => 'target_tp_id', options => $options })
+			? $m->scomp('/tmpl/element:dropdown', params => { name => 'target_tp_ids', options => $options, multiple => 1, size => 20 })
 		        : '<em>No future time periods available.</em>'
 } &>
 
@@ -66,8 +66,14 @@
 
 <%init>
 	if ($ARGS{submit_check}) {
+		my $target_tp_ids = (ref($ARGS{target_tp_ids}) eq 'ARRAY') ? $ARGS{target_tp_ids} : [$ARGS{target_tp_ids}];
+		unless ($target_tp_ids->[0]) {
+	    		$m->comp("/tmpl/url:redirect", destination => $ENV{SCRIPT_URI},
+				message =>  __('Target time periods must be selected')
+			);
+		}
 
-	    if ($ARGS{source_tp_id} == $ARGS{target_tp_id}) {
+		if (grep { $_ == $ARGS{source_tp_id} } @$target_tp_ids) {
 	    		$m->comp("/tmpl/url:redirect", destination => $ENV{SCRIPT_URI},
 				message => __('Source and target time periods must be different')
 			);
@@ -78,19 +84,21 @@
 			my $app = TUSK::Application::Course::User->new({course => $course});
 			foreach my $user (@$users) {
 				my $role = $user->getRole();
-				$app->add({ 
-					user_id	=> $user->getPrimaryKeyID(), 
-					time_period_id => $ARGS{target_tp_id},
-					site_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getSites()} ],
-					role_id => (defined $role) ? $role->getPrimaryKeyID() : undef,
-					virtual_role_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getLabels()} ],
-					author => $m->session->{user}->primary_key(),
-				});
+				foreach my $target_tp_id (@$target_tp_ids) {
+					$app->add({ 
+						user_id	=> $user->getPrimaryKeyID(), 
+						time_period_id => $target_tp_id,
+						site_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getSites()} ],
+						role_id => (defined $role) ? $role->getPrimaryKeyID() : undef,
+						virtual_role_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getLabels()} ],
+						author => $m->session->{user}->primary_key(),
+						  });
+				}
 			}
 			$m->comp("/tmpl/url:redirect", destination=> "/management/course/users/show/" . $course->school() . '/' . $course->primary_key(),
 				message => __('Successfully copied'),
 				msg_type => 'msg',
-				extra_params => [ { name => 'timeperiod', value => $ARGS{target_tp_id} } ],
+				extra_params => [ { name => 'timeperiod', value => $target_tp_ids->[0] } ],
 			);
 		}
 	}
@@ -132,11 +140,8 @@
 	my @choices = ();
 	if (my @time_periods = HSDB45::TimePeriod->new(_school => $course->school())->nonpast_time_periods()) {
 		foreach my $tp (@time_periods) {
-			#unless (exists $source_time_periods{$tp->primary_key()}) {
 			push @choices, { value => $tp->primary_key(), label => $tp->out_display() . ' &nbsp;[' . $tp->out_date_range() . ']'};
-			#}
 		}
-		unshift @choices, { value => '', label => '' } if (scalar @choices);
 	}
 	return \@choices;
 </%perl>
