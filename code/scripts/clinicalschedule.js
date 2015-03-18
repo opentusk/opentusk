@@ -1,9 +1,9 @@
 $(document).ready(function() {
 	$("#current_academic_year").change(function () {
 		var year = this.value;
-		alert(window.location.href);
-		window.location.href = window.location.href + "?year=" + year;
-		alert(window.location.href);
+		url = window.location.href;
+		url += "?year=" + year;
+		window.location.href = url;
 		location.reload();
 	});
 });
