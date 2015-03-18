@@ -3,7 +3,7 @@ $(document).ready(function() {
 		var year = this.value;
 		var url = window.location.href;
 		url += "?year=";
-		url += year;	
+		url += this.value;
 		alert(url);
 		window.location.href = url;
 	});
