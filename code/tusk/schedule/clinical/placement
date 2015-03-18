@@ -189,10 +189,10 @@ if (!$iCanEdit) {
 	my $course = TUSK::Course->new();
 
 	$course->setErrorLevel(2);
-	my $academic_years = $course->lookup("course.course_id = $tusk_course_id", ['start_date', 'end_date'], ['time_period.academic_year'], undef,  
+	my $academic_years = $course->lookup("course.course_id = $tusk_course_id", ['start_date', 'end_date'], undef, undef,  
 				[
 				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id', jointype => 'inner'}),
-				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner'})
+				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {database => $db, origkey => 'link_course_student.time_period_id', joinkey => 'time_period_id', jointype => 'inner', joincond => 'distinct academic_year'})
 				]);
 	
 	print Dumper $academic_years;	
