@@ -8,4 +8,4 @@ $(document).ready(function() {
 		var year = this.value;
 		alert(year);
 	});
-}
+});
