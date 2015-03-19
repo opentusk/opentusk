@@ -3,6 +3,11 @@ $(document).ready(function() {
 		var year = this.value;
 		var url = window.location.href;
 		alert(this.value);
+		$.post(url, 
+			{academic_year : this.value},
+			reloadpage
+		);
+		/*
 		$.ajax({
 			type: "POST",
 			url: url,
@@ -12,5 +17,6 @@ $(document).ready(function() {
 				location.reload();
 			}
 		});
+		*/
 	});
 });
