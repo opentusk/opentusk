@@ -9,7 +9,7 @@ $(document).ready(function() {
 		//window.location.href = url;
 		$.ajax({
 			type: "POST",
-			url: url
+			url: url,
 			data: {academic_year : this.value},
 			dataType: "json",
 			success: function() {
