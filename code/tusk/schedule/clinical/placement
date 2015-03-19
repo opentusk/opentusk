@@ -41,12 +41,6 @@ if ($ARGS{'academic_year'}) {
 	$academic_year = $time_period->field_value("academic_year");
 }
 
-my @teaching_site_dropdown;
-
-my $empty_teaching_site_hash = {
-	label => "(Select a teaching site:)"
-};
-
 my @academic_year_dropdown;
 
 my $empty_academic_year_hash = {
@@ -62,16 +56,6 @@ foreach my $academic_year (@{$academic_years}) {
 	};
 }
 
-push @teaching_site_dropdown, $empty_teaching_site_hash;
-
-=for
-print "<span id=\"teaching_site_select\">View by Teaching Site: </span>";
-$m->comp("/tmpl/element:dropdown", params => {
-	name => 'current_teaching_site',
-	options => \@teaching_site_dropdown,
-});
-=cut
-
 print "<span id=\"academic_year_select\">Academic Year: </span>";
 $m->comp("/tmpl/element:dropdown", params => {
 	name => 'current_academic_year',
@@ -79,8 +63,6 @@ $m->comp("/tmpl/element:dropdown", params => {
 	selected => $academic_year
 });
 print "<br><br>";
-
-
 
 my $placement_rows = $m->comp("SELF:get_placements_by_time_period", 
 				academic_year => $academic_year);
@@ -100,7 +82,6 @@ if ($placement_rows){
 } else {
 	$col_fields = [];
 }
-
 
 my @sorted_col_fields = sort { $a->{label} <=> $b->{label}} @{$col_fields};
 my @name_array;
@@ -125,7 +106,6 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	}
 	push @rows, {%temp_hash};
 }
-
 
 </%perl>
 </div>
@@ -156,27 +136,26 @@ for (my $i = 0; $i <= $max_length; $i++) {
 </%method>
 
 <%method red_header_text>
-% return $m->comp("SELF:title");
+% 	return $m->comp("SELF:title");
 </%method>
 
 <%method red_header_class>                                                                                                                                                                                                                   
 %       return 'blueHeaderBar';                                                                                                                                                                                                              
 </%method>          
 
-
 <%method title>
-% my $type_object = $m->comp("/tmpl/url:get_type_object");
-% return $type_object->title() . __(" > Clinical Placement");
+% 	my $type_object = $m->comp("/tmpl/url:get_type_object");
+% 	return $type_object->title() . __(" > Clinical Placement");
 </%method>
 
 <%method get_nav_bars>                                       
 <%perl>
-my $course = $m->comp("/tmpl/url:get_type_object");
-my $user_obj = $m->session->{'user'};
-my $iCanEdit = $course->can_user_edit($user_obj);
-if (!$iCanEdit) {
- return undef;	
-}
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $user_obj = $m->session->{'user'};
+	my $iCanEdit = $course->can_user_edit($user_obj);
+	if (!$iCanEdit) {
+		 return undef;	
+	}
 </%perl>
 </%method> 
 
@@ -184,8 +163,6 @@ if (!$iCanEdit) {
 <%perl>
 	my $school = $m->comp('/tmpl/url:get_school');
 	my $teaching_sites = HSDB45::TeachingSite->new(_school => $school)->lookup_all("order by site_name");
-	
-
 </%perl>
 </%method>
 
@@ -194,7 +171,8 @@ if (!$iCanEdit) {
 	my $school = $m->comp('/tmpl/url:get_school');
 	my $db = HSDB4::Constants::get_school_db($school);
 	my $dbh = HSDB4::Constants::def_db_handle();
-	my $course_id = 394;
+	my $type_object = $m->comp("/tmpl/url:get_type_object");
+	my $course_id = $type_object->course_id;		
 	my $sql = qq( SELECT DISTINCT time_period.academic_year FROM $db\.link_course_student INNER JOIN $db\.time_period on link_course_student.time_period_id = time_period.time_period_id WHERE parent_course_id = $course_id ORDER BY time_period.time_period_id);
 	my $sth = $dbh->prepare( $sql );
 	$sth->execute();
@@ -244,12 +222,6 @@ if (!$iCanEdit) {
 
 	my $time_periods = join(",", @time_periods_array);
 
-=for
-	my $students =  $course->lookup("course.course_id = $tusk_course_id AND time_period_id IN ($time_periods)", undef, undef, undef,  
-				[
-				TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", {database => $db, origkey => 'school_course_code', joinkey => 'parent_course_id'}),
-				]);
-=cut
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my $sql = qq( SELECT user_id, firstname, lastname, midname, time_period_id FROM $db\.link_course_student INNER JOIN hsdb4\.user on child_user_id = user_id WHERE parent_course_id = $course_id AND time_period_id IN ($time_periods));
 	my $sth = $dbh->prepare( $sql );
