@@ -5,7 +5,16 @@ $(document).ready(function() {
 		url += "?year=";
 		url += this.value;
 		alert(this.value);
-		alert(url);
-		window.location.href = url;
+		//alert(url);
+		//window.location.href = url;
+		$.ajax({
+			type: "POST",
+			url: url
+			data: {academic_year : this.value},
+			dataType: "json",
+			success: function() {
+				location.reload();
+			}
+		});
 	});
 });
