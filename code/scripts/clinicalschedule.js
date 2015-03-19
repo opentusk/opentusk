@@ -12,23 +12,5 @@ $(document).ready(function() {
 			'type' : 'hidden'
 		})).appendTo('body')
 		.submit();
-
-		alert(this.value);
-		/*
-		$.post(url, 
-			{academic_year : this.value},
-			reloadpage
-		);
-
-		$.ajax({
-			type: "POST",
-			url: url,
-			data: {academic_year : this.value},
-			dataType: "json",
-			success: function() {
-				location.reload();
-			}
-		});
-		*/
 	});
 });
