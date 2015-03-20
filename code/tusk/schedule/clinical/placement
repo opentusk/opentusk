@@ -76,7 +76,14 @@ if ($placement_rows){
 	foreach my $placement_row (@{$placement_rows}) {
 		my $title = (keys %{$placement_row})[0];
 
-		my $label  = "<span style='font-weight:normal; font-size: 10px;'>" . $title . "</span><br>(" . $placement_row->{$title}->{start_date} . " - " . $placement_row->{$title}->{end_date} . ")";
+		# US-style
+		# my $in_date = '05-14-2007';
+		# (my $db_date = $in_date) =~ s/(\d\d)-(\d\d)-(\d\d\d\d)/$3-$1-$2/;
+		(my $start_date = $placement_row->{$title}->{start_date}) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
+		# print "in: $in_date; db: $db_date; pr: $pr_date\n";
+		# in: 05-14-2007; db: 2007-05-14; pr: 05-14-2007
+
+		my $label  = "<span style='font-weight:normal; font-size: 10px;'>" . $title . "</span><br>(" . $start_date . " - " . $placement_row->{$title}->{end_date} . ")";
 		push @{$col_fields}, {label => $label, field => $title, html => 1, align => 'center', start_date => $placement_row->{$title}->{start_date}};
 	}
 } else {
@@ -173,6 +180,7 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my $type_object = $m->comp("/tmpl/url:get_type_object");
 	my $course_id = $type_object->course_id;		
+
 	my $sql = qq( SELECT DISTINCT time_period.academic_year FROM $db\.link_course_student INNER JOIN $db\.time_period on link_course_student.time_period_id = time_period.time_period_id WHERE parent_course_id = $course_id ORDER BY time_period.time_period_id DESC);
 	my $sth = $dbh->prepare( $sql );
 	$sth->execute();
@@ -201,6 +209,8 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	my $teaching_site_id = 0;
 	
 	my $course = TUSK::Course->new();
+
+	
 
 	my $placements = $course->lookup("course.course_id = $tusk_course_id", ['start_date', 'end_date'], undef, undef,  
 				[
