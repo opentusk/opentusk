@@ -5,10 +5,12 @@ and pan and zoom extension by Rob Schmuecker (http://bl.ocks.org/robschmuecker/7
 */
 
 //check if user is using Internet Explorer or Safari
+
 var ua = window.navigator.userAgent;
 var msie = ua.indexOf("MSIE ");
 var IE = 0; //IE flag
 var safari = 0; //Safari flag
+
 if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./)) {
 	IE = 1;
 }
@@ -17,6 +19,10 @@ if (navigator.userAgent.indexOf("Safari") > -1 && navigator.userAgent.indexOf("C
 	safari = 1;
 }
 
+//End check if user is using Internet Explorer or Safari
+
+
+//Dimension info
 var m = [20, 120, 20, 120],
     w = 1500 - m[1] - m[3],
     h = 1200 - m[0] - m[2];
@@ -54,7 +60,6 @@ $(function() {
 		    .append("svg:g")
 		    .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
 
-	
 	d3.json("/scripts/competency/competency/competency_none.json", function(json) {
 		root = json;
 	        root.x0 = h / 2;
@@ -89,8 +94,6 @@ $(function() {
 				root.y0 = 0;
 				update(root);
 			});
-
-		
 	});
 
   	//Initialize the display to show a few nodes.
@@ -120,7 +123,7 @@ function update(source) {
       		.attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
   		.on("click", function(d) { toggle(d); update(d); });
 
-	//IE/Safari Code
+	// IE/Safari Code
 	if (IE == 1 || safari == 1) {
 		nodeEnter.append("svg:rect")
 		.attr("x", function(d) { return d.children || d._children ? -160 : -162; })
@@ -368,7 +371,6 @@ function toggle(d) {
 }
 
 });
-
 
 //Zoom function
 function zoom() {
