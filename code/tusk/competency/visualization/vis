@@ -1,0 +1,128 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%once>
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::UserType;
+
+	use TUSK::Application::Competency::Tree;
+	use TUSK::Application::Competency::Competency;
+
+	use JSON;
+
+	use Data::Dumper;
+</%once>
+
+<div id="visualization_index">
+<b>Index: </b>
+<span style="background-color: black; color: black">xx</span> National Competency
+<span style="background-color: green; color: green">xx</span> School Competency
+<span style="background-color: #D57025; color: #D57025">xx</span> Course Competency
+<span style="background-color: #4D92CD; color: #4D92CD">xx</span> Content/Session Objectives
+</div>
+
+<div id="domain">
+<%perl>
+my $national_domains = $m->comp("SELF:get_domains");
+
+my @domain_dropdown;
+
+my $empty_domain_hash = {
+	label => "(select a domain)"
+};
+
+push @domain_dropdown, $empty_domain_hash;
+
+foreach my $national_domain(@{$national_domains}) {
+
+	my $temp_domain_hash = {
+		label => $national_domain->{'title'},
+		value => $national_domain->{'competency_id'},
+	};
+
+	push @domain_dropdown, $temp_domain_hash;
+}
+
+print "<span id=\"domain_select\">Select National Competency Domain: </span>";
+$m->comp("/tmpl/element:dropdown", params => {
+	name => 'current_domain',
+	options => \@domain_dropdown,
+});
+
+</%perl>
+</div>
+
+<div id="visualization">
+
+</div>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css', '/style/competency.css', '/style/competency-vis.css']     
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [ 
+			"jquery/jquery.min.js",
+			"jquery/plugin/interface/interface.js",
+			"jquery/plugin/json.js",
+			"d3/d3.min.js",
+			"competency/competency/vis.js",
+			"detectIE.js"
+			];
+</%perl> 
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method title>
+% return __("Interactive Competency Visualization Tree");
+</%method>
+
+<%method get_domains>
+<%perl>
+	my @national_competencies = ();	
+
+	my $school_id = TUSK::Core::School->new()->getSchoolID($m->comp("/tmpl/url:get_school"));
+
+	my $category_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id =" . $school_id, undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::Enum::Data", 
+					{origkey => 'competency_type_enum_id', joinkey => 'enum_data_id', jointype => 'inner', joincond => "namespace = 'competency.user_type.id' AND short_name='category'"})])->getPrimaryKeyID;
+
+	my $national_level_id = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.level_id' AND short_name = 'national'")->getPrimaryKeyID;
+
+	my $national_categories = TUSK::Competency::Competency->lookup("school_id = $school_id AND competency_user_type_id = $category_user_type_id AND competency_level_enum_id = $national_level_id", [ 'competency_id' ]);
+
+	foreach my $national_category (@{$national_categories}) {		
+
+		my %current_national_category;
+
+		my $this_national_category = {
+			competency_id => $national_category->getPrimaryKeyID,
+			title => $national_category->getTitle,
+			description => $national_category->getDescription,
+			children => []
+		};
+
+		push @national_competencies, $this_national_category;
+
+	}
+
+	return \@national_competencies;
+</%perl>
+</%method>
+

@@ -234,8 +234,6 @@ sub addChild {
 
 #######################################################
 
-#for next update
-
 =item B<getLinked>
     returns the competencies that have been linked to the current competency.
 =cut
@@ -243,14 +241,20 @@ sub addChild {
 sub getLinked {
     my ($self, $extra_cond) = @_;
 
-    my $competency_id_1 = $self->{competency_id};
+    my $competency_id_2 = $self->{competency_id};
     
-    my $linked = TUSK::Competency::Competency->lookup( 'competency_relation.competency_id_1 =' . $competency_id_1,
+    my $linked_hierarchy = TUSK::Competency::Competency->lookup( 'competency_relation.competency_id_2 =' . $competency_id_2,
                 [ 'competency_relation.competency_id_1', 'competency_relation.competency_id_2', 'competency.title', 'competency.description' ],
                 undef, undef,
-	        [ TUSK::Core::JoinObject->new('TUSK::Competency::Relation', { origkey=> 'competency_id', joinkey=> 'competency_id_2', jointype=> 'inner'})]);
+	        [ TUSK::Core::JoinObject->new('TUSK::Competency::Relation', { origkey=> 'competency_id', joinkey=> 'competency_id_1', jointype=> 'inner'})]);
 
-    return $linked;
+    my @linked_competencies;
+
+    foreach my $linked_competency (@{$linked_hierarchy}) {
+	push @linked_competencies, $linked_competency->getJoinObject("TUSK::Competency::Relation")->getCompetencyId1;
+    }
+
+    return \@linked_competencies;
 }
 
 #######################################################

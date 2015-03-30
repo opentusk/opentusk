@@ -20,6 +20,9 @@ use strict;
 use TUSK::Application::Competency::Competency;
 use TUSK::Competency::Competency;
 
+
+use TUSK::Enum::Data;
+
 sub new {
     my ($class, $args) = @_;
 
@@ -65,6 +68,105 @@ sub deleteFromTreeHelper {
     }
 }
 
+#######################################################
+
+=item B<getLinkedBranch>
+   Returns entire subtree for a given parent_competency_id, returns a reference to a nested hash with indefinite dimensions.
+   Accepts optional param for maximum depth to reduce the returned tree to a certain number of levels.
+=cut
+
+sub getLinkedBranch {
+ 
+    my ($self, $max_depth) = @_;
+
+    use Data::Dumper;
+
+    if (!$max_depth) {
+	$max_depth = 99;
+    }
+
+    my @branch;
+    getLinkedBranchHelper($self->{competency_id}, \@branch, $max_depth);
+    
+    return $branch[0];
+
+}
+
+sub getLinkedBranchHelper {
+     #helper function for implementing getLinkedBranch 
+
+    my ($competency_id, $branch, $max_depth) = @_;
+
+    my $competency  = {
+	competency_id => $competency_id,
+    };
+
+    my $this_competency = TUSK::Application::Competency::Competency->new($competency);   
+
+    if (! $this_competency) {
+	return;
+    }
+
+    my %this_competency_hash;
+
+    my $competency_level_enum_id = $this_competency->{'competency'}->getFieldValue('competency_level_enum_id');
+
+    my $current_school_id = $this_competency->{'competency'}->getFieldValue('school_id');
+
+    my $current_school = TUSK::Core::School->lookupReturnOne("school_id = $current_school_id")->getSchoolName;
+
+    my $competency_level = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $competency_level_enum_id AND namespace = \"competency.level_id\"")->getShortName;        
+
+    %this_competency_hash = (
+			     competency_id => $this_competency->{'competency_id'},
+			     title => $this_competency->{'competency'}->getFieldValue('title'),
+			     description => $this_competency->{'competency'}->getFieldValue('description'),			     
+			     level => $competency_level,
+			     children => [],
+    );
+
+    if ($competency_level eq "course") {
+	  my $tusk_course_id = TUSK::Competency::Course->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getCourseID;
+	  my $current_course = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getHSDB45CourseFromTuskID();
+	  my $current_course_title;
+	  if ($current_course->abbreviation()) {
+	      $current_course_title = $current_course->abbreviation();
+	  } else {
+	      $current_course_title = $current_course->title();
+	  }
+
+	  $this_competency_hash{'info'} = $current_course_title;
+    }
+
+    if ($competency_level eq "content") {
+	my $content_id = TUSK::Competency::Content->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getContentID;
+	my $current_content = HSDB4::SQLRow::Content->new()->lookup_key($content_id)->field_value('title');
+	$this_competency_hash{'info'} = $current_content;
+    }
+
+    if ($competency_level eq "class_meet") {
+	my $session_id = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id = $this_competency->{'competency_id'}")->getClassMeetingID;
+	if ($session_id) {
+	    my $current_session =  HSDB45::ClassMeeting->new(_school => $current_school)->lookup_key($session_id);
+	    $this_competency_hash{'info'} = $current_session->field_value('title');
+	    $this_competency_hash{'date'} = $current_session->field_value('meeting_date') . " [" . $current_session->field_value('starttime') . "-" . $current_session->field_value('endtime') . "] ";	  
+	}
+    }
+
+
+    push @{$branch}, {%this_competency_hash};
+
+    $max_depth--;
+
+    if ($max_depth == 0) {
+	return;
+    }
+
+    foreach my $child_competency_id (@{$this_competency->getLinked}) {
+	getLinkedBranchHelper($child_competency_id, $this_competency_hash{'children'}, $max_depth);
+    }
+
+}
 
 
 #######################################################
