@@ -29,15 +29,14 @@
 </%shared>
 
 <%init>
-    my $filterValues = $m->comp("SELF:.setFilterValues", school_id => $school_id, school_db => $school_db);
-    $m->comp("SELF:.setAcademicLevelDefault", filterValues => $filterValues);
-    print 'In init';
+    my $filterValues = $m->comp('SELF:.getFilterValues', school_id => $school_id, school_db => $school_db);
+    $m->comp('SELF:.prepareQueryBox', filterValues => $filterValues);
 </%init>
 
 <%doc>
     Get parameters to populate the front-end query box 
 </%doc>
-<%method .setFilterValues>
+<%method .getFilterValues>
 <%args>
   $school_id
   $school_db
@@ -56,7 +55,7 @@
     Set a default academic level title to be shown before the user starts interacting with the 
     front-end query box 
 </%doc>
-<%method .setAcademicLevelDefault>
+<%method .setAcademicLevelValues>
 <%args>
   $filterValues
 </%args>
@@ -65,6 +64,28 @@
         push @academicLevels, $filterValue->getTitle();
     };
     pre_dump(${@academicLevels}[-1]);
+    return;
+</%perl>
+</%method>
+
+<%method .prepareQueryBox>
+<%args>
+  $filterValues
+</%args>
+<%perl>
+    $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
+
+    my @buttons;
+    # $buttons[0] = {'value' => 1};
+
+    foreach my $academicLevel (@academicLevels) {
+        push @buttons, {
+            'value' => $academicLevel,
+            'name' => $academicLevel
+        };
+    }
+
+    $m->comp('/tmpl/element:radio_buttons', params => {buttons => \@buttons, name => "Academic Level", label => "Academic Level"});
     return;
 </%perl>
 </%method>
