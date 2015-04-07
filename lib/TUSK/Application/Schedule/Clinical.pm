@@ -15,7 +15,6 @@
 package TUSK::Application::Schedule::Clinical;
 
 use TUSK::Academic::LevelClinicalSchedule;
-use Data::Dumper qw(Dumper);
 
 sub new {
     my ($class, $args) = @_;
@@ -118,5 +117,19 @@ sub getScheduleStudents{
 		firstNames => \@firstNames,
 	};
 
+}
+
+sub getScheduleStudentsFiltering{
+	my $filter = TUSK::Academic::LevelClinicalSchedule->new();
+	my $filterValues = $academicLevelClinicalScheduleCourses->lookup( "", undef, undef, undef,
+    [
+    	TUSK::Core::JoinObject->new('TUSK::Academic::Level',
+        {
+        	joinkey => 'academic_level_id', origkey => 'academic_level_id', jointype => 'inner',  alias => 't2',
+            joincond => "t2.school_id = '$self->{school_id}'"
+        })
+
+    ]);
+    return $filterValues;
 }
 1;

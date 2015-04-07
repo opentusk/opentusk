@@ -7,12 +7,47 @@
 <%attr>
 	my $school_id = 2;
     my $school_db = 'hsdb45_dent_admin';
-</attr>
+    my @academicLevels = ();
+    # my $academicYears;
+</%attr>
+
+<%once>
+	use TUSK::Application::Schedule::Clinical;
+</%once>
+
+<%shared>
+	my $filterValues;
+</%shared>
+
+<%init>
+	<& SELF:.setFilterValues &>
+	<& SELF:.setAcademicLevelDefault &>
+</%init>
 
 <& /tmpl/element:header_bar, params => {
-  	hdr_txt => 'CLINICAL PLACEMENTS'
+  	hdr_txt => $title
 } &>
 
- <%method .setAcademicLevelDefault>
- 	
- <%/method>
+<%doc>
+	Get values to be shown within the front-end query box 
+</%doc>
+<%method .setFilterValues>
+	$filterValues = TUSK::Application::Schedule::Clinical->new({
+    	school_id => $school_id, 
+    	school_db => $school_db
+    })->getScheduleStudentsFiltering();
+<%/method>
+
+<%doc>
+    Set a default academic level title to be shown before the user starts interacting with the 
+    front-end query box 
+</%doc>
+<%method .setAcademicLevelDefault>
+  	foreach my $filterValue (@{${$filterValues}[0]->getJoinObjects('t2')}) {
+		push @academicLevels, $filterValue->getTitle();
+  	};
+  	return ${@academicLevels}[-1];
+<%/method>
+
+
+
