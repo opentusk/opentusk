@@ -129,8 +129,11 @@ sub getScheduleStudentsFiltering{
         {
         	joinkey => 'academic_level_id', origkey => 'academic_level_id', jointype => 'inner',  alias => 't2',
             joincond => "t2.school_id = '$self->{school_id}'"
+        }),
+        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TimePeriod',
+        {
+            joinkey => 'academic_year', origkey => 't3.academic_year', jointype => 'right', database => $self->{school_db}, alias => 't3',
         })
-
     ]);
 
     return $filterValues;

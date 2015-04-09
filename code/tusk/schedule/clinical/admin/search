@@ -26,6 +26,8 @@
 
 <%shared>
     my @academicLevels = ();
+    my @uniqueAcademicYears = ();
+    my $currentAcademicYear;
 </%shared>
 
 <%init>
@@ -51,10 +53,6 @@
 </%perl>
 </%method>
 
-<%doc>
-    Set a default academic level title to be shown before the user starts interacting with the 
-    front-end query box 
-</%doc>
 <%method .setAcademicLevelValues>
 <%args>
   $filterValues
@@ -63,7 +61,28 @@
     foreach my $filterValue (@{${$filterValues}[0]->getJoinObjects('t2')}) {
         push @academicLevels, $filterValue->getTitle();
     };
-    pre_dump(${@academicLevels}[-1]);
+
+    return;
+</%perl>
+</%method>
+
+<%perl>
+sub unique {
+    return keys %{ { map {$_=>1} @_ } }; # Mea culpa!
+}
+</%perl>
+
+<%method .setAcademicYearValues>
+<%args>
+  $filterValues
+</%args>
+<%perl>
+    my @academicYears;
+    foreach my $filterValue (@{${$filterValues}[0]->getJoinObjects('t3')}) {
+        push @academicYears, $filterValue->getAcademicYear();
+    };
+    @uniqueAcademicYears = unique(@academicYears);
+
     return;
 </%perl>
 </%method>
@@ -74,18 +93,62 @@
 </%args>
 <%perl>
     $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
-
+    $m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
     my @buttons;
-    # $buttons[0] = {'value' => 1};
+    my @dropdownOptions;
+
+    # tbd; set the default for the radio buttons(a.k.a set a default academic level title to be shown before the user starts interacting with the 
+    # front-end query box)
+        # #
+        # ??? - $buttons[0] = {'value' => 1};
+        # ?? - Set the academi
+        # ?? - $buttons[-1] = {'checked' => 1};
+        # # 
+        # Will be using ${@academicLevels}[-1] as the default..
 
     foreach my $academicLevel (@academicLevels) {
         push @buttons, {
             'value' => $academicLevel,
-            'name' => $academicLevel
+            'name' => 'academicLevel',
+            'text' => $academicLevel
         };
     }
 
-    $m->comp('/tmpl/element:radio_buttons', params => {buttons => \@buttons, name => "Academic Level", label => "Academic Level"});
+    # default 
+    # ..or put in another default value with selected => ${\@uniqueAcademicYears}[1]
+    push @dropdownOptions, {
+            'value' => 'Select',
+            'label' => 'Select'
+    };
+
+    foreach my $academicYear (@uniqueAcademicYears) {
+        push @dropdownOptions, {
+            'value' => $academicYear,
+            'label' => $academicYear
+        };
+    }
+
+    # Show the current academic year[either a default or a selected value]
+    my %query = $m->request_args;
+    if (defined $query{'academicYear'}) {
+        $currentAcademicYear = $query{'academicYear'};
+    } else {
+        $currentAcademicYear = ${@uniqueAcademicYears}[-1];
+    }
+    delete $query{'academicYear'};
+
+    $m->comp('/tmpl/element:radio_buttons', params => {buttons => \@buttons, label => "Academic Level"});
+    $m->comp('/tmpl/element:dropdown', params => {
+        options => \@dropdownOptions, 
+        onchange => "location.href = '?academicYear=' + this.options[this.selectedIndex].value"
+    });
+
     return;
+</%perl>
+</%method>
+
+<%method getCurrentAcademicYear>
+<%perl>
+    return $currentAcademicYear;
 </%perl>
 </%method>
