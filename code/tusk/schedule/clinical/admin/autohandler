@@ -14,5 +14,46 @@
  limitations under the License.
 </%doc>
 
+<%attr>
+	is_clinical_admin => 1
+	default_path_type => 'school'
+</%attr>
+
+<%once>
+	use TUSK::Permission;
+</%once>
+
+<%shared>
+    my $school = $m->comp('/tmpl/url:get_type_object');
+    my $school_id;
+    my $school_db;
+</%shared>
+
+<%init>
+	$school_id = $school->getPrimaryKeyID();
+    $school_db = $school->getSchoolDb();
+    $m->comp('SELF:clinical_admin');
+</%init>
+
+<%method leftnav>
+% return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
+</%method>
+
+<%method clinical_admin>
+<%perl>
+    if ($m->base_comp->attr('is_clinical_admin'))
+    {
+        my $perm = TUSK::Permission->new({
+			'user_id'=> $m->session->{'user'}->primary_key, 
+		   	'feature_type_token' => 'school', 
+			'feature_id' => $school->getPrimaryKeyID(),
+		});
+
+		if (!scalar $perm->check('view_schedules')){ 
+			$m->abort(NOT_FOUND);
+		}
+    }
+</%perl>
+</%method>
 
 <% $m->call_next %>
