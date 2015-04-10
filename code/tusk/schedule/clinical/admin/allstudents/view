@@ -31,10 +31,9 @@
     my $school_id = 2;
     my $school_db = 'hsdb45_dent_admin';
     my $academicLevelTitle = 'Fourth Year';
-
     my $academicYear = '2009/2010';
     # my $academicYear = $m->comp('/schedule/clinical/admin/search:getCurrentAcademicYear');
-    
+
     my @rows;
 
     my $scheduleStudents = TUSK::Application::Schedule::Clinical->new({
@@ -43,7 +42,7 @@
     })->getScheduleStudents($academicLevelTitle, $academicYear);
 
     my $col_fields = [ 
-        {label => __('UserID'), field => 'user_id'},
+        {label => __('UserID'), field => 'user_id', html => 1},
         {label => __('Name'), field => 'full_name'},
         {label => __('Academic Level'), field => 'academic_level'},
         {label => __('Actions'), field => 'actions', html => 1},
@@ -53,7 +52,7 @@
         for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
 
             push @rows, {
-                user_id => ${$scheduleStudents->{'userIds'}}[$index],
+                user_id => '<a href = "/schedule/clinical/student/view/' . $school_id . '?userId=' . ${$scheduleStudents->{'userIds'}}[$index] . '">' . ${$scheduleStudents->{'userIds'}}[$index] . '</a>',
                 full_name => ${$scheduleStudents->{'firstNames'}}[$index].', '.${$scheduleStudents->{'lastNames'}}[$index],
                 academic_level => $academicLevelTitle,
                 actions => 'View/Modify'

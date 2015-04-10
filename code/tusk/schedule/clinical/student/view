@@ -63,7 +63,16 @@
 		{label => __('Number of Weeks'), field => 'number_of_weeks'}
   	];
 
-  	my $user_id = $m->session->{'user'}->user_id();
+  	# Either a student will look at her schedule or some other person(e.g., an administrator)
+  	my $user_id;
+
+  	my %query = $m->request_args;
+    if (scalar $query{'userId'}) {
+    	$user_id = $query{'userId'};
+    } else {
+  		$user_id = $m->session->{'user'}->user_id();
+  	}
+
   	my $school_id = $school->getPrimaryKeyID();
 
 	my ($courseIds, $courseTitles, $timePeriods, $startDates, $endDates, $siteNames) = TUSK::Application::Schedule::Clinical->new({
@@ -85,7 +94,8 @@
 			(my $endDateInMMDDYYYY = ${$endDates}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
 
 		  	push @rows, {
-				rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$courseIds}[$index]. '">'.${$courseTitles}[$index].'</a>',				time_period => ${$timePeriods}[$index],
+				rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$courseIds}[$index]. '">'.${$courseTitles}[$index].'</a>',				
+				time_period => ${$timePeriods}[$index],
 				start_date => $startDateInMMDDYYYY,
 				end_date => $endDateInMMDDYYYY,
 				teaching_site => ${$siteNames}[$index],
