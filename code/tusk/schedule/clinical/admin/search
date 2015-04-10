@@ -28,6 +28,7 @@
     my @academicLevels = ();
     my @uniqueAcademicYears = ();
     my $currentAcademicYear;
+    my $currentAcademicLevel;
 </%shared>
 
 <%init>
@@ -92,29 +93,12 @@ sub unique {
   $filterValues
 </%args>
 <%perl>
-    $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
     $m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
-    my @buttons;
+    $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
     my @dropdownOptions;
+    my @buttons;
 
-    # tbd; set the default for the radio buttons(a.k.a set a default academic level title to be shown before the user starts interacting with the 
-    # front-end query box)
-        # #
-        # ??? - $buttons[0] = {'value' => 1};
-        # ?? - Set the academi
-        # ?? - $buttons[-1] = {'checked' => 1};
-        # # 
-        # Will be using ${@academicLevels}[-1] as the default..
-
-    foreach my $academicLevel (@academicLevels) {
-        push @buttons, {
-            'value' => $academicLevel,
-            'name' => 'academicLevel',
-            'text' => $academicLevel
-        };
-    }
-
-    # default 
+    # Default academic year
     # ..or put in another default value with selected => ${\@uniqueAcademicYears}[1]
     push @dropdownOptions, {
             'value' => 'Select',
@@ -128,19 +112,46 @@ sub unique {
         };
     }
 
-    # Show the current academic year[either a default or a selected value]
+    # Show the current academic year/level[either a default or a selected value]
     my %query = $m->request_args;
-    if (defined $query{'academicYear'}) {
+    if (scalar $query{'academicYear'}) {
         $currentAcademicYear = $query{'academicYear'};
+        delete $query{'academicYear'};
     } else {
         $currentAcademicYear = ${@uniqueAcademicYears}[-1];
+        pre_dump(${@uniqueAcademicYears}[-1]);
+        pre_dump('currentAcademicYear: ' . $currentAcademicYear);
     }
-    delete $query{'academicYear'};
 
-    $m->comp('/tmpl/element:radio_buttons', params => {buttons => \@buttons, label => "Academic Level"});
+    if (scalar $query{'academicLevel'}) {
+        $currentAcademicLevel = $query{'academicLevel'};
+        delete $query{'academicLevel'};
+    } else {
+        $currentAcademicLevel= ${@academicLevels}[-1];
+        pre_dump('currentAcademicLevel: ' . $currentAcademicLevel);
+    }
+
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions, 
-        onchange => "location.href = '?academicYear=' + this.options[this.selectedIndex].value"
+        onchange => "location.href = '?academicYear=' + this.options[this.selectedIndex].value + '&academicLevel=" . $currentAcademicLevel . "'"
+    });
+
+    foreach my $academicLevel (@academicLevels) {
+        push @buttons, {
+            'value' => $academicLevel,
+            'name' => 'academicLevel',
+            'text' => $academicLevel,
+            'onclick' => "location.href = '?academicYear=" . $currentAcademicYear . "&academicLevel=' + this.value"       
+        };
+        if ($academicLevel == $currentAcademicLevel)
+        {
+            ${@buttons}[-1]{'checked'} = 1;
+        }
+    }
+
+    $m->comp('/tmpl/element:radio_buttons', params => {
+        buttons => \@buttons, 
+        label => "Academic Level"
     });
 
     return;
