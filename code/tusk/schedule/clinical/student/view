@@ -27,45 +27,39 @@
 
 <%shared>
   	my $school = $m->comp('/tmpl/url:get_type_object');
+  	my $col_fields = [ 
+		{label => __('Rotation'), field => 'rotation', html => 1},
+		{label => __('Time Period'), field => 'time_period'},
+		{label => __('Start Date'), field => 'start_date'},
+		{label => __('End Date'), field => 'end_date'},
+		{label => __('Teaching Site'), field => 'teaching_site'}, 
+		{label => __('Number of Weeks'), field => 'number_of_weeks'}
+	];
+
+	my %table = (
+		current => [],
+		future => [],
+		past => []
+	);
+
+	my %tableLabels = (
+		current => 'Current Placement',
+		future => 'Future Placements',
+		past => 'Past Placements'
+	);
 </%shared>
 
 <& /tmpl/element:header_bar, params => {
   	hdr_txt => 'Clinical Placements'
 } &>
 
+
 <%perl>
-	foreach my $i ('current', 'future', 'past') {
-		print("<h3 class = 'scheduleTimeHeader'> $tableLabels{$i} </h3>");
-		$m->comp('/tmpl/element:object_selection_box', 
-			params => {columns => $col_fields, rows => $table{$i}});
-	}
 </%perl>
 
 <%init>
-    my %table = (
-  		current => [],
-  		future => [],
-  		past => []
-  	);
-
-  	my %tableLabels = (
-  		current => 'Current Placement',
-  		future => 'Future Placements',
-  		past => 'Past Placements'
-  	);
-
-  	my $col_fields = [ 
- 		{label => __('Rotation'), field => 'rotation', html => 1},
-		{label => __('Time Period'), field => 'time_period'},
-		{label => __('Start Date'), field => 'start_date'},
-		{label => __('End Date'), field => 'end_date'},
-		{label => __('Teaching Site'), field => 'teaching_site'}, 
-		{label => __('Number of Weeks'), field => 'number_of_weeks'}
-  	];
-
   	# Either a student will look at her schedule or some other person(e.g., an administrator)
   	my $user_id;
-
   	my %query = $m->request_args;
     if (scalar $query{'userId'}) {
     	$user_id = $query{'userId'};
@@ -73,46 +67,18 @@
   		$user_id = $m->session->{'user'}->user_id();
   	}
 
-  	my $school_id = $school->getPrimaryKeyID();
+  	$m->comp("SELF:.prepare_table", 
+  		user_id => $user_id, 
+  		school_id => $school->getPrimaryKeyID(), 
+  		school_db => $school->getSchoolDb()
+  	);
 
-	my ($courseIds, $courseTitles, $timePeriods, $startDates, $endDates, $siteNames) = TUSK::Application::Schedule::Clinical->new({
-			school_id => $school_id,
-			school_db => $school->getSchoolDb()
-	})->getScheduleCourses($user_id);
-
-	if (scalar @$courseIds) {
-		my @startDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $startDates);
-		my @endDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $endDates);
-		my @numberOfWeeks = $m->comp("SELF:get_number_of_weeks", startDatesInSeconds => @startDatesInSeconds, endDatesInSeconds => @endDatesInSeconds);
-
-		my $localTimeInSeconds = time();
-
-		for my $index (0..$#{$courseTitles}) {
-			my @rows;
-
-			(my $startDateInMMDDYYYY = ${$startDates}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
-			(my $endDateInMMDDYYYY = ${$endDates}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
-
-		  	push @rows, {
-				rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$courseIds}[$index]. '">'.${$courseTitles}[$index].'</a>',				
-				time_period => ${$timePeriods}[$index],
-				start_date => $startDateInMMDDYYYY,
-				end_date => $endDateInMMDDYYYY,
-				teaching_site => ${$siteNames}[$index],
-				number_of_weeks => ${@numberOfWeeks}[0][$index],
-		    };
-
-			if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {
-			  	push @{ $table{"past"} }, @rows;
-			}
-			elsif (${@startDatesInSeconds}[0][$index] <= $localTimeInSeconds && ${@endDatesInSeconds}[0][$index] >= $localTimeInSeconds) {
-				push @{ $table{"current"} }, @rows;
-			}
-			else {
-				push @{ $table{"future"} }, @rows;
-			}
-		}
+  	foreach my $i ('current', 'future', 'past') {
+	print("<h3 class = 'scheduleTimeHeader'> $tableLabels{$i} </h3>");
+	$m->comp('/tmpl/element:object_selection_box', 
+		params => {columns => $col_fields, rows => $table{$i}});
 	}
+
 </%init>
 
 <%doc>
@@ -161,10 +127,63 @@
 </%perl>
 </%method>
 
-<%method stylearray>
-%	return ['/style/style.css', '/style/clinical.css'];
+<%method .prepare_table>
+<%args>
+    $user_id
+    $col_fields => $col_fields
+    $school_id
+    $school_db
+</%args>
+<%perl>
+
+my ($courseIds, $courseTitles, $timePeriods, $startDates, $endDates, $siteNames) = TUSK::Application::Schedule::Clinical->new({
+	school_id => $school_id,
+	school_db => $school->getSchoolDb()
+})->getScheduleCourses($user_id);
+	
+pre_dump($courseIds);
+
+if (scalar @$courseIds) {
+	pre_dump("never in here");
+	my @startDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $startDates);
+	my @endDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $endDates);
+	my @numberOfWeeks = $m->comp("SELF:get_number_of_weeks", startDatesInSeconds => @startDatesInSeconds, endDatesInSeconds => @endDatesInSeconds);
+
+	my $localTimeInSeconds = time();
+
+	for my $index (0..$#{$courseTitles}) {
+
+		(my $startDateInMMDDYYYY = ${$startDates}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
+		(my $endDateInMMDDYYYY = ${$endDates}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
+		my @rows;
+		push @rows, {
+			rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$courseIds}[$index]. '">'.${$courseTitles}[$index].'</a>',              time_period => ${$timePeriods}[$index],
+			start_date => $startDateInMMDDYYYY,
+			end_date => $endDateInMMDDYYYY,
+			teaching_site => ${$siteNames}[$index],
+			number_of_weeks => ${@numberOfWeeks}[0][$index],
+		};
+
+		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {
+			push @{ $table{"past"} }, @rows;
+		}
+		elsif (${@startDatesInSeconds}[0][$index] <= $localTimeInSeconds && ${@endDatesInSeconds}[0][$index] >= $localTimeInSeconds) {
+			push @{ $table{"current"} }, @rows;
+		}
+		else {
+			push @{ $table{"future"} }, @rows;
+		}
+	}
+	pre_dump(%table);
+}
+
+</%perl>
 </%method>
 
 <%method title>
 %	return 'Clinical Schedule';
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/clinical.css'];
 </%method>
