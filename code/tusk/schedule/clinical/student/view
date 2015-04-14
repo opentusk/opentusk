@@ -20,11 +20,6 @@
   	default_path_type => 'school'
 </%attr>
 
-<%once>
-  	use Time::Local;
-  	use TUSK::Application::Schedule::Clinical;
-</%once>
-
 <%shared>
   	my $school = $m->comp('/tmpl/url:get_type_object');
   	my $col_fields = [ 
@@ -35,31 +30,12 @@
 		{label => __('Teaching Site'), field => 'teaching_site'}, 
 		{label => __('Number of Weeks'), field => 'number_of_weeks'}
 	];
-
-	my %table = (
-		current => [],
-		future => [],
-		past => []
-	);
-
-	my %tableLabels = (
-		current => 'Current Placement',
-		future => 'Future Placements',
-		past => 'Past Placements'
-	);
 </%shared>
-
-<& /tmpl/element:header_bar, params => {
-  	hdr_txt => 'Clinical Placements'
-} &>
-
-
-<%perl>
-</%perl>
 
 <%init>
   	# Either a student will look at her schedule or some other person(e.g., an administrator)
   	my $user_id;
+
   	my %query = $m->request_args;
     if (scalar $query{'userId'}) {
     	$user_id = $query{'userId'};
@@ -67,118 +43,12 @@
   		$user_id = $m->session->{'user'}->user_id();
   	}
 
-  	$m->comp("SELF:.prepare_table", 
+  	$m->comp("/schedule/clinical/student/table", 
   		user_id => $user_id, 
-  		school_id => $school->getPrimaryKeyID(), 
-  		school_db => $school->getSchoolDb()
+  		col_fields => $col_fields,
+  		school => $school
   	);
-
-  	foreach my $i ('current', 'future', 'past') {
-	print("<h3 class = 'scheduleTimeHeader'> $tableLabels{$i} </h3>");
-	$m->comp('/tmpl/element:object_selection_box', 
-		params => {columns => $col_fields, rows => $table{$i}});
-	}
-
 </%init>
-
-<%doc>
-  Calculate the seconds that have passed by for start/end dates 
-  since 00:00:00 UTC, January 1, 1970[EPOCH in most systems]
-  The format of the date is YYYY-MM-DD
-</%doc>
-<%method get_dates_in_seconds>
-<%args>
-  @dates
-</%args>
-<%perl>
- 	my @datesInSeconds;
-
-  	foreach my $date (@dates) {
-
-		my $year = substr $date, 0, 4;
-		my $month = substr $date, 5, 2;
-		my $day = substr $date, 8, 2;
-
-		my $time = timelocal(0, 0, 0, $day, $month - 1, $year); # month range: 0-11 so the '-1'
-
-		push @datesInSeconds, $time;
-    }
-    return \@datesInSeconds;
-</%perl>
-</%method>
-
-<%doc>
-    Calculate the number of weeks between two time periods
-</%doc>
-<%method get_number_of_weeks>
-<%args>
-  	$startDatesInSeconds
-  	$endDatesInSeconds
-</%args>
-<%perl>
-	my $offSet = (60 * 60 * 24 * 6);
-  	my @numberOfWeeks;
-
-  	for my $index (0..$#{$startDatesInSeconds}) {
-		my $timeDifference = ${$endDatesInSeconds}[$index] - ${$startDatesInSeconds}[$index];
-		push @numberOfWeeks, int(($timeDifference + $offSet) / (60 * 60 * 24 * 7));
-  	}
-  	return \@numberOfWeeks;
-</%perl>
-</%method>
-
-<%method .prepare_table>
-<%args>
-    $user_id
-    $col_fields => $col_fields
-    $school_id
-    $school_db
-</%args>
-<%perl>
-
-my ($courseIds, $courseTitles, $timePeriods, $startDates, $endDates, $siteNames) = TUSK::Application::Schedule::Clinical->new({
-	school_id => $school_id,
-	school_db => $school->getSchoolDb()
-})->getScheduleCourses($user_id);
-	
-pre_dump($courseIds);
-
-if (scalar @$courseIds) {
-	pre_dump("never in here");
-	my @startDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $startDates);
-	my @endDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $endDates);
-	my @numberOfWeeks = $m->comp("SELF:get_number_of_weeks", startDatesInSeconds => @startDatesInSeconds, endDatesInSeconds => @endDatesInSeconds);
-
-	my $localTimeInSeconds = time();
-
-	for my $index (0..$#{$courseTitles}) {
-
-		(my $startDateInMMDDYYYY = ${$startDates}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
-		(my $endDateInMMDDYYYY = ${$endDates}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
-		my @rows;
-		push @rows, {
-			rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$courseIds}[$index]. '">'.${$courseTitles}[$index].'</a>',              time_period => ${$timePeriods}[$index],
-			start_date => $startDateInMMDDYYYY,
-			end_date => $endDateInMMDDYYYY,
-			teaching_site => ${$siteNames}[$index],
-			number_of_weeks => ${@numberOfWeeks}[0][$index],
-		};
-
-		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {
-			push @{ $table{"past"} }, @rows;
-		}
-		elsif (${@startDatesInSeconds}[0][$index] <= $localTimeInSeconds && ${@endDatesInSeconds}[0][$index] >= $localTimeInSeconds) {
-			push @{ $table{"current"} }, @rows;
-		}
-		else {
-			push @{ $table{"future"} }, @rows;
-		}
-	}
-	pre_dump(%table);
-}
-
-</%perl>
-</%method>
 
 <%method title>
 %	return 'Clinical Schedule';
