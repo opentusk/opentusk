@@ -1,0 +1,116 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+<%once>
+
+</%once>
+
+<%shared>
+
+</%shared>
+
+<%method title>
+<%perl>
+	my $title = __('Competency Search');
+	return $title
+</%perl>
+</%method>
+
+<%method red_header_text>
+% return $m->comp('SELF:title', %ARGS);
+</%method>
+
+<%method red_header_class>
+% return 'blueHeaderBar';
+</%method>
+
+<%perl>
+	my $domain_level_competencies = $m->comp('SELF:getDomains');
+	my @domains;
+	foreach my $domain_level_competency (@{$domain_level_competencies}) {
+		my %temp_domain_hash;
+		$temp_domain_hash{'value'} = $domain_level_competency->getPrimaryKeyID;
+		$temp_domain_hash{'label'} = $domain_level_competency->getTitle;
+		push @domains, {%temp_domain_hash};
+	}
+</%perl>
+
+<& /tmpl/element:table, params => { 
+			width 		=> "",
+			border 		=> "0",
+			id 		=> 'competency_search_form',
+			cellspacing 	=> "0",		
+			cellpadding 	=> "0",
+ } &>
+
+<& /tmpl/element:dropdown, params => { 
+                label           => __('Version: '),
+                name            => 'version_dropdown',
+		options		=> [1]
+} &>
+
+<& /tmpl/element:dropdown, params => { 
+                label           => __('Domain: '),
+                name            => 'domain_dropdown',
+		options		=> \@domains,
+		onchange	=> 'alert(this)'	
+} &>
+
+<& /tmpl/element:dropdown, params => { 
+                label           => __('Top-level Competency: '),
+                name            => 'competency_dropdown',
+} &>
+
+<& /tmpl/element:dropdown, params=>{ 
+		label 		=> __('Results per page'),
+                name		=> 'resultSetLimit',
+                onchange	=> undef,
+                options		=> [10,25,50,100],
+} &>
+
+<& /tmpl/element:tr_tag &><td class="cell-submit">
+<& /tmpl/element:submit_button, params=>{
+		name		=> 'Search',
+		label		=> __('Search'),
+} &>
+	</td>
+</tr>
+
+<div id="open_search">
+	<b>--or--</b> &nbsp&nbsp&nbsp&nbsp
+<& /tmpl/element:input_textarea, params =>{
+	name => 'search_box',
+	cols => 30,
+	rows => 4
+} &>
+</div>
+
+<%method getDomains>
+<%perl>
+	my $school_id = TUSK::Core::School->new()->getSchoolID($m->comp("/tmpl/url:get_school"));
+
+	my $category_user_type_id = TUSK::Competency::UserType->lookupReturnOne("school_id =" . $school_id, undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::Enum::Data", 
+					{origkey => 'competency_type_enum_id', joinkey => 'enum_data_id', jointype => 'inner', joincond => "namespace = 'competency.user_type.id' AND short_name='category'"})])->getPrimaryKeyID;
+	my $national_level_id = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.level_id' AND short_name = 'national'")->getPrimaryKeyID;
+	my $national_categories = TUSK::Competency::Competency->lookup("school_id = $school_id AND competency_user_type_id = $category_user_type_id AND competency_level_enum_id = $national_level_id", [ 'competency_id' ]);
+
+	return $national_categories;
+</%perl>
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css', '/style/competency-search.css']
+</%method>
+
