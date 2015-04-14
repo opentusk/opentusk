@@ -72,7 +72,14 @@ sub getScheduleCourses{
 
 	$sth->finish();
 
-	return (\@courseIds, \@courseTitles, \@timePeriods, \@startDates, \@endDates, \@siteNames);
+	return {
+		courseIds => \@courseIds, 
+		courseTitles => \@courseTitles, 
+		timePeriods => \@timePeriods, 
+		startDates => \@startDates, 
+		endDates => \@endDates, 
+		siteNames => \@siteNames
+	};
 }
 
 sub getScheduleStudents{
