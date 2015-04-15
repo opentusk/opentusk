@@ -39,6 +39,10 @@
 <%perl>
 	my $domain_level_competencies = $m->comp('SELF:getDomains');
 	my @domains;
+	my %default_domain;
+	$default_domain{'value'} = "";
+	$default_domain{'label'} = "-- Select a Domain --";
+	push @domains,{%default_domain};
 	foreach my $domain_level_competency (@{$domain_level_competencies}) {
 		my %temp_domain_hash;
 		$temp_domain_hash{'value'} = $domain_level_competency->getPrimaryKeyID;
@@ -65,12 +69,13 @@
                 label           => __('Domain: '),
                 name            => 'domain_dropdown',
 		options		=> \@domains,
-		onchange	=> 'alert(this)'	
+		onchange	=> 'loadTopLevelCompetencies(this);'	
 } &>
 
 <& /tmpl/element:dropdown, params => { 
                 label           => __('Top-level Competency: '),
                 name            => 'competency_dropdown',
+		options		=> ['(No Domains Selected)']
 } &>
 
 <& /tmpl/element:dropdown, params=>{ 
@@ -112,5 +117,15 @@
 
 <%method stylearray>
 % return ['/style/style.css','/style/home.css', '/style/competency-search.css']
+</%method>
+
+<%method jsarray>
+<%perl>
+	return [
+		"jquery/jquery.min.js",
+		"jquery/plugin/interface/interface.js",
+		"competency/competency/search.js"	
+	];
+</%perl>
 </%method>
 
