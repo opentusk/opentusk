@@ -15,10 +15,9 @@
 </%doc>
 
 <%attr>
-	is_clinical_admin => 1
+	check_feature_permissions => 1
 	default_path_type => 'school'
-	check_feature_permissions 	=> 1
-	top_tab_type 			=> 'manage'
+	top_tab_type => 'manage'
 </%attr>
 
 </%attr>
@@ -36,7 +35,6 @@
 <%init>
 	$school_id = $school->getPrimaryKeyID();
     $school_db = $school->getSchoolDb();
-    $m->comp('SELF:clinical_admin');
 </%init>
 
 
@@ -52,29 +50,16 @@
 % 	return 'view_schedules';
 </%method>
 
+<%method session_role>
+% 	return 'tusk_session_clinical_admin';
+</%method>
+
 <%method feature_id>
 % 	return $school->getPrimaryKeyID();
 </%method>
 
 <%method leftnav>
 % return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
-</%method>
-
-<%method clinical_admin>
-<%perl>
-    if ($m->base_comp->attr('is_clinical_admin'))
-    {
-        my $perm = TUSK::Permission->new({
-			'user_id'=> $m->session->{'user'}->primary_key, 
-		   	'feature_type_token' => 'school', 
-			'feature_id' => $school->getPrimaryKeyID(),
-		});
-
-		if (!scalar $perm->check('view_schedules')){ 
-			$m->abort(NOT_FOUND);
-		}
-    }
-</%perl>
 </%method>
 
 <% $m->call_next %>

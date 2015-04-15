@@ -16,13 +16,26 @@
 
 <%attr>
   	default_path_type => 'school'
+  	skip_header_bar		=> '1'
+	nostandardheader 	=> '1'
 </%attr>
 
+<%method stylearray>
+%	return ['/style/style.css', '/style/home.css', '/style/clinical.css'];
+</%method>
+
 <%method leftnav>
-% if (<& SELF:is_clinical_admin &>){
+% if ($m->session->{roles}->{'tusk_session_clinical_admin'} == 1){
 % 	return { component => "/tmpl/leftnav/admin", school_name => $m->comp("/tmpl/url:get_school") };
 % }
-</%method>
+ <%perl>
+ 	my %someHash = (
+		'component'           => "/tmpl/leftnav/home",
+		'user_obj'            => $m->session->{user},
+	);
+	return \%someHash;
+ </%perl>
+ </%method>
 
 <%method title>
 %	return 'Clinical Schedule';

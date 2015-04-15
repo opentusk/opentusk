@@ -274,24 +274,33 @@ $feature_id => 0
 	$function_token => ''
 	$feature_type_token
 	$feature_id
+	$session_role => 'tusk_session_is_grade_admin'
 </%args>
 <%doc>Method uses new permission scheme.  Only checks if attribute check_feature_permissions is on.  Please refer to TUSK::Permission for more information.</%doc>
 <%perl>
-	if ($feature_type_token eq 'school' && $m->session->{roles}->{tusk_session_is_grade_admin}) {
+	if ($feature_type_token eq 'school' && $m->session->{roles}->{$session_role}) {
 		return;   ### it's ok to let go as user has session token for grade admin
 	}
 
-	$permissions = TUSK::Permission->new( { 
-						'user_id' 		=> $m->session->{'user'}->primary_key(),
-						'feature_type_token' 	=> $feature_type_token,
-						'feature_id' 		=> $feature_id,
-						'allow_flag' 		=> $m->comp('/autohandler:check_course_permissions', token => 'DIRECTORNONSTUDENT'),
-					} );
+	if ($session_role == 'tusk_session_is_grade_admin'){
+		$permissions = TUSK::Permission->new( { 
+							'user_id' 		=> $m->session->{'user'}->primary_key(),
+							'feature_type_token' 	=> $feature_type_token,
+							'feature_id' 		=> $feature_id,
+							'allow_flag' 		=> $m->comp('/autohandler:check_course_permissions', token => 'DIRECTORNONSTUDENT'),
+						} );
+	} elsif ($session_role == 'tusk_session_clinical_admin'){
+        $permissions = TUSK::Permission->new({
+			'user_id'=> $m->session->{'user'}->primary_key, 
+		   	'feature_type_token' => $feature_type_token, 
+			'feature_id' => $feature_id
+		});
+	}
 	if ($function_token){
 		unless ($m->comp("SELF:check_permission", function_token => $function_token)){
 			$m->comp("/tmpl/url:redirect",message => __("Permission Denied"));
 		}
-		$m->session->{roles}->{tusk_session_is_grade_admin} = 1 if ($feature_type_token eq 'school');
+		$m->session->{roles}->{$session_role} = 1 if ($feature_type_token eq 'school');
 	}
 
 </%perl>
