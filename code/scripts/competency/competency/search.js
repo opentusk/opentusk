@@ -18,5 +18,9 @@ function loadTopLevelCompetencies(domain) {
 				var newCompetency = $('<option value="' + competency_object.competency_id + '">' + competency_object.title + '</option>');
 				$("#competency_dropdown").append(newCompetency);
 			});
+			if ($("#competency_dropdown option").length  <= 1) {
+				var newCompetency = $('<option value="" disabled>' + "(None Available for current Selection)" + '</option>');
+				$("#competency_dropdown").append(newCompetency);
+			}
 		});
 }
