@@ -32,7 +32,6 @@
 
 <%init>
     my $filterValues = $m->comp('SELF:.getFilterValues', school_id => $school_id, school_db => $school_db);
-    pre_dump('current academic year is: ' . $currentAcademicYear);
     $m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
     # Show the current academic year/level[either a default or a selected value]
     my %query = $m->request_args;
@@ -41,7 +40,6 @@
         delete $query{'academicYear'};
     } else {
         $currentAcademicYear = ${@uniqueAcademicYears}[-1];
-        pre_dump('current academic year is: ' . $currentAcademicYear);
     }
     
     $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
@@ -52,7 +50,7 @@
         $currentAcademicLevel= ${@academicLevels}[-1];
     }
 
-    $m->comp('SELF:.prepareQueryBox', alreadySelected => $alreadySelected);
+    $m->comp('SELF:.prepareQueryBox');
 
 </%init>
 
@@ -88,7 +86,7 @@
 
 <%perl>
 sub unique {
-    return keys %{ { map {$_=>1} @_ } }; # Mea culpa!
+    return sort keys %{ { map {$_=>1} @_ } }; # Mea culpa!
 
 }
 </%perl>
@@ -103,16 +101,13 @@ sub unique {
     {
         push @academicYears, $timePeriod->getAcademicYear();
     };
-    @uniqueAcademicYears = sort unique(@academicYears);
+    @uniqueAcademicYears = unique(@academicYears);
 
     return;
 </%perl>
 </%method>
 
 <%method .prepareAcademicYearDropdown>
-<%args>
-  $alreadySelected
-</%args>
 <%perl>
     my @dropdownOptions;
 

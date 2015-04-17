@@ -1,0 +1,147 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%args>
+	$user_id
+    $col_fields
+    $school
+</%args>
+
+<%once>
+  	use Time::Local;
+  	use TUSK::Application::Schedule::Clinical;
+</%once>
+
+<%shared>
+	my %table = (
+		current => [],
+		future => [],
+		past => []
+	);
+	my %tableLabels = (
+		current => 'Current Placement',
+		future => 'Future Placements',
+		past => 'Past Placements'
+	);
+</%shared>
+
+<%init>
+	$m->comp("SELF:.prepare_table", 
+  		user_id => $user_id, 
+  		col_fields => $col_fields,
+  		school => $school
+  	);
+  	foreach my $i ('current', 'future', 'past') {
+		print("<h3 class = 'scheduleTimeHeader'> $tableLabels{$i} </h3>");
+		$m->comp('/tmpl/element:object_selection_box', 
+		params => {columns => $col_fields, rows => $table{$i}});
+	}
+</%init>
+
+<%method .prepare_table>
+<%args>
+    $user_id
+    $col_fields => $col_fields
+    $school
+</%args>
+<%perl>
+
+my $scheduleCourses = TUSK::Application::Schedule::Clinical->new({
+  	school_id => $school->getPrimaryKeyID(), 
+  	school_db => $school->getSchoolDb()
+})->getScheduleCourses($user_id);
+
+if (scalar $scheduleCourses->{'courseIds'}) {
+	my @startDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'startDates'});
+	my @endDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'endDates'});
+	my @numberOfWeeks = $m->comp("SELF:get_number_of_weeks", startDatesInSeconds => @startDatesInSeconds, endDatesInSeconds => @endDatesInSeconds);
+
+	my $localTimeInSeconds = time();
+
+	for my $index (0..$#{$scheduleCourses->{'courseTitles'}}) {
+
+		(my $startDateInMMDDYYYY = ${$scheduleCourses->{'startDates'}}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
+		(my $endDateInMMDDYYYY = ${$scheduleCourses->{'endDates'}}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
+		my @rows;
+		push @rows, {
+			rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">'.${$scheduleCourses->{'courseTitles'}}[$index].'</a>',              
+			time_period => ${$scheduleCourses->{'timePeriods'}}[$index],
+			start_date => $startDateInMMDDYYYY,
+			end_date => $endDateInMMDDYYYY,
+			teaching_site => ${$scheduleCourses->{'siteNames'}}[$index],
+			number_of_weeks => ${@numberOfWeeks}[0][$index],
+		};
+
+		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {
+			push @{ $table{"past"} }, @rows;
+		}
+		elsif (${@startDatesInSeconds}[0][$index] <= $localTimeInSeconds && ${@endDatesInSeconds}[0][$index] >= $localTimeInSeconds) {
+			push @{ $table{"current"} }, @rows;
+		}
+		else {
+			push @{ $table{"future"} }, @rows;
+		}
+	}
+}
+
+</%perl>
+</%method>
+
+<%doc>
+  Calculate the seconds that have passed by for start/end dates 
+  since 00:00:00 UTC, January 1, 1970[EPOCH in most systems]
+  The format of the date is YYYY-MM-DD
+</%doc>
+<%method get_dates_in_seconds>
+<%args>
+  @dates
+</%args>
+<%perl>
+ 	my @datesInSeconds;
+
+  	foreach my $date (@dates) {
+
+		my $year = substr $date, 0, 4;
+		my $month = substr $date, 5, 2;
+		my $day = substr $date, 8, 2;
+
+		my $time = timelocal(0, 0, 0, $day, $month - 1, $year); # month range: 0-11 so the '-1'
+
+		push @datesInSeconds, $time;
+    }
+    return \@datesInSeconds;
+</%perl>
+</%method>
+
+<%doc>
+    Calculate the number of weeks between two time periods
+</%doc>
+<%method get_number_of_weeks>
+<%args>
+  	$startDatesInSeconds
+  	$endDatesInSeconds
+</%args>
+<%perl>
+	my $offSet = (60 * 60 * 24 * 6);
+  	my @numberOfWeeks;
+
+  	for my $index (0..$#{$startDatesInSeconds}) {
+		my $timeDifference = ${$endDatesInSeconds}[$index] - ${$startDatesInSeconds}[$index];
+		push @numberOfWeeks, int(($timeDifference + $offSet) / (60 * 60 * 24 * 7));
+  	}
+  	return \@numberOfWeeks;
+</%perl>
+</%method>
