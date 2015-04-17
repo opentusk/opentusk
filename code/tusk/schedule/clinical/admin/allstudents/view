@@ -15,8 +15,6 @@
 </%doc>
 
 <%attr>
-    use_nav_bar => 1
-    skip_header_bar => 1
   	default_path_type => 'school'
     left_nav => 1
 </%attr>
@@ -30,10 +28,10 @@
 </%shared>
 
 <%init>
-    $m->comp('/schedule/clinical/admin/search');
-
     my $school_id = $school->getPrimaryKeyID();
     my $school_db = $school->getSchoolDb();
+    $m->comp('/schedule/clinical/admin/search', school_id => $school_id, school_db => $school_db);
+    pre_dump(%ARGS);
     my $academicYear = $m->comp('/schedule/clinical/admin/search:getCurrentAcademicYear');
     my $academicLevelTitle = $m->comp('/schedule/clinical/admin/search:getCurrentAcademicLevel');
 
@@ -55,7 +53,7 @@
         for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
 
             push @rows, {
-                user_id => '<a href = "/schedule/clinical/student/view/' . $school_id . '?userId=' . ${$scheduleStudents->{'userIds'}}[$index] . '">' . ${$scheduleStudents->{'userIds'}}[$index] . '</a>',
+                user_id => '<a href = "/schedule/clinical/student/view/' . $school_id . '?firstName=' . ${$scheduleStudents->{'firstNames'}}[$index] . '&lastName=' . ${$scheduleStudents->{'lastNames'}}[$index] . '&userId=' . ${$scheduleStudents->{'userIds'}}[$index] . '">' . ${$scheduleStudents->{'userIds'}}[$index] . '</a>',
                 full_name => ${$scheduleStudents->{'firstNames'}}[$index].', '.${$scheduleStudents->{'lastNames'}}[$index],
                 academic_level => $academicLevelTitle,
                 actions => 'View/Modify'
@@ -66,5 +64,5 @@
 </%init>
 
 <%method title>
-%   return 'Clinical Schedule';
+%   return 'Clinical Placement by Student';
 </%method>

@@ -15,8 +15,8 @@
 </%doc>
 
 <%args>
-    $school_id => 2;
-    $school_db => "hsdb45_dent_admin";
+    $school_id
+    $school_db
 </%args>
 
 <%once>
@@ -32,7 +32,29 @@
 
 <%init>
     my $filterValues = $m->comp('SELF:.getFilterValues', school_id => $school_id, school_db => $school_db);
-    $m->comp('SELF:.prepareQueryBox', filterValues => $filterValues);
+
+    $m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
+    my $alreadySelected = 0;
+    # Show the current academic year/level[either a default or a selected value]
+    my %query = $m->request_args;
+    if (scalar $query{'academicYear'}) {
+        $currentAcademicYear = $query{'academicYear'};
+        delete $query{'academicYear'};
+        $alreadySelected = 1;
+    } else {
+        $currentAcademicYear = ${@uniqueAcademicYears}[-1];
+    }
+    
+    $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
+    if (scalar $query{'academicLevel'}) {
+        $currentAcademicLevel = $query{'academicLevel'};
+        delete $query{'academicLevel'};
+    } else {
+        $currentAcademicLevel= ${@academicLevels}[-1];
+    }
+
+    $m->comp('SELF:.prepareQueryBox', alreadySelected => $alreadySelected);
+
 </%init>
 
 <%doc>
@@ -58,10 +80,9 @@
   $filterValues
 </%args>
 <%perl>
-    foreach my $filterValue (@{${$filterValues}[0]->getJoinObjects('t2')}) {
-        push @academicLevels, $filterValue->getTitle();
+    foreach my $academicLevel (@{$filterValues->{'academicLevels'}}) {
+        push @academicLevels, $academicLevel->getTitle();
     };
-
     return;
 </%perl>
 </%method>
@@ -78,8 +99,9 @@ sub unique {
 </%args>
 <%perl>
     my @academicYears;
-    foreach my $filterValue (@{${$filterValues}[0]->getJoinObjects('t3')}) {
-        push @academicYears, $filterValue->getAcademicYear();
+    foreach my $timePeriod (@{$filterValues->{'timePeriods'}})
+    {
+        push @academicYears, $timePeriod->getAcademicYear();
     };
     @uniqueAcademicYears = unique(@academicYears);
 
@@ -87,23 +109,20 @@ sub unique {
 </%perl>
 </%method>
 
-<%method .prepareQueryBox>
+<%method .prepareAcademicYearDropdown>
 <%args>
-  $filterValues
+  $alreadySelected
 </%args>
 <%perl>
-    $m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
-    $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
     my @dropdownOptions;
-    my @buttons;
 
     # Default academic year
-    # ..or put in another default value with selected => ${\@uniqueAcademicYears}[1]
+    # ..or put in another default value with: selected => ${\@uniqueAcademicYears}[1]
     push @dropdownOptions, {
             'value' => 'Select',
             'label' => 'Select'
     };
-
+    
     foreach my $academicYear (@uniqueAcademicYears) {
         push @dropdownOptions, {
             'value' => $academicYear,
@@ -111,27 +130,18 @@ sub unique {
         };
     }
 
-    # Show the current academic year/level[either a default or a selected value]
-    my %query = $m->request_args;
-    if (scalar $query{'academicYear'}) {
-        $currentAcademicYear = $query{'academicYear'};
-        delete $query{'academicYear'};
-    } else {
-        $currentAcademicYear = ${@uniqueAcademicYears}[-1];
-    }
-
-    if (scalar $query{'academicLevel'}) {
-        $currentAcademicLevel = $query{'academicLevel'};
-        delete $query{'academicLevel'};
-    } else {
-        $currentAcademicLevel= ${@academicLevels}[-1];
-    }
-
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions, 
-        label => 'Change Academic Year',
-        onchange => "location.href = '?academicYear=' + this.options[this.selectedIndex].value + '&academicLevel=" . $currentAcademicLevel . "'"
+        label => 'Academic Year',
+        onchange => "location.href = '?academicYear=' + this.options[this.selectedIndex].value + '&academicLevel=" . $currentAcademicLevel . "'",
+        selected => scalar $alreadySelected ? $currentAcademicYear : 'Select'
     });
+</%perl>
+</%method>
+
+<%method .prepareAcademicLevelRadioButtons>
+<%perl>
+    my @buttons;
 
     foreach my $academicLevel (@academicLevels) {
         push @buttons, {
@@ -150,7 +160,18 @@ sub unique {
         buttons => \@buttons, 
         label => "Academic Level"
     });
+</%perl>
+</%method>
 
+<%method .prepareQueryBox>
+<%args>
+    $alreadySelected
+</%args>
+<%perl>
+    print('<table>');
+    $m->comp('SELF:.prepareAcademicYearDropdown', alreadySelected => $alreadySelected);
+    $m->comp('SELF:.prepareAcademicLevelRadioButtons');
+    print('</table>');
     return;
 </%perl>
 </%method>

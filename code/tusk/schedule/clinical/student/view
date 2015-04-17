@@ -17,6 +17,7 @@
 <%attr>
  	  use_nav_bar => 0
   	default_path_type => 'school'
+    skip_header_bar => 1
 </%attr>
 
 <%shared>
@@ -29,6 +30,7 @@
 		{label => __('Teaching Site'), field => 'teaching_site'}, 
 		{label => __('Number of Weeks'), field => 'number_of_weeks'}
 	];
+    my $header = 'Clinical Schedule';
 </%shared>
 
 <%init>
@@ -36,17 +38,24 @@
   	my $user_id;
 
   	my %query = $m->request_args;
-    if (scalar $query{'userId'}) {
+    if (scalar $query{'userId'} && $m->session->{roles}->{'tusk_session_clinical_admin'} == 1) {
     	$user_id = $query{'userId'};
+      $header = $header . ' > ' . $query{'lastName'} . ', ' . $query{'firstName'};
     } else {
   		$user_id = $m->session->{'user'}->user_id();
   	}
+
+    $m->comp("/tmpl/element:header_bar",    
+    params => {
+        hdr_txt => $header 
+    });
 
   	$m->comp("/schedule/clinical/student/table", 
   		user_id => $user_id, 
   		col_fields => $col_fields,
   		school => $school
   	);
+    
 </%init>
 
 <%method title>

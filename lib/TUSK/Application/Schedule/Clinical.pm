@@ -130,7 +130,7 @@ sub getScheduleStudentsFiltering{
 	my ($self) = @_;
 
 	my $filter = TUSK::Academic::LevelClinicalSchedule->new();
-	my $filterValues = $filter->lookup( "", undef, undef, undef,
+	my $compositeFilter = $filter->lookup( "", undef, undef, undef,
     [
     	TUSK::Core::JoinObject->new('TUSK::Academic::Level',
         {
@@ -143,6 +143,15 @@ sub getScheduleStudentsFiltering{
         })
     ]);
 
-    return $filterValues;
+    # return $filterValues;
+    return {
+    	'timePeriods' => ${$compositeFilter}[0]->getJoinObjects('t3'),
+    	'academicLevels' => ${$compositeFilter}[0]->getJoinObjects('t2')
+    }
 }
+
+sub getTimePeriods{
+
+}
+
 1;
