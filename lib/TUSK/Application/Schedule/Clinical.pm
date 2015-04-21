@@ -150,8 +150,4 @@ sub getScheduleStudentsFiltering{
     }
 }
 
-sub getTimePeriods{
-
-}
-
 1;
