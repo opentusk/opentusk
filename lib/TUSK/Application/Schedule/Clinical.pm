@@ -85,6 +85,15 @@ sub getScheduleCourses{
 sub getScheduleStudents{
 	my ($self, $academicLevelTitle, $academicYear) = @_;
 
+	my %map = (
+    	"\'" => "\\'",
+	);
+
+	my $chars = join '', keys %map;
+	$academicYear  =~ s/([$chars])/$map{$1}/g;
+
+	warn("academicYear now is: ", $academicYear);
+
 	my $scheduleStudents = TUSK::Academic::LevelClinicalSchedule->new();
 	my $sth = $scheduleStudents->databaseSelect(
 	"SELECT DISTINCT t5.child_user_id, t8.lastname, t8.firstname
@@ -143,7 +152,6 @@ sub getScheduleStudentsFiltering{
         })
     ]);
 
-    # return $filterValues;
     return {
     	'timePeriods' => ${$compositeFilter}[0]->getJoinObjects('t3'),
     	'academicLevels' => ${$compositeFilter}[0]->getJoinObjects('t2')

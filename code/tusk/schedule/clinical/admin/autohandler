@@ -50,12 +50,32 @@
 % 	return 'view_schedules';
 </%method>
 
-<%method session_role>
-% 	return 'tusk_session_is_clinical_admin';
-</%method>
-
 <%method feature_id>
 % 	return $school->getPrimaryKeyID();
+</%method>
+
+<%method hasPermissions>
+<%args>
+	$function_token => 'view_schedules'
+	$feature_type_token => 'school'
+	$feature_id => $school->getPrimaryKeyID()
+</%args>
+<%perl>
+	my $hasPermissions = TUSK::Permission->new({ 
+						'user_id' 		=> $m->session->{'user'}->primary_key(),
+						'feature_type_token' 	=> $feature_type_token,
+						'feature_id' 		=> $feature_id,
+					})->check({
+						function_token => $function_token
+					});
+
+	if (scalar $hasPermissions){
+		return 1;
+	}
+
+	$m->comp("/tmpl/url:redirect", message => __("Permission Denied"));
+	return 0;
+</%perl>
 </%method>
 
 <%method leftnav>
