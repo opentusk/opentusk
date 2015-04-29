@@ -139,22 +139,29 @@ sub getScheduleStudentsFiltering{
 	my ($self) = @_;
 
 	my $filter = TUSK::Academic::LevelClinicalSchedule->new();
-	my $compositeFilter = $filter->lookup( "", undef, undef, undef,
-    [
-    	TUSK::Core::JoinObject->new('TUSK::Academic::Level',
-        {
-        	joinkey => 'academic_level_id', origkey => 'academic_level_id', jointype => 'inner',  alias => 't2',
-            joincond => "t2.school_id = '$self->{school_id}'"
-        }),
-        TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TimePeriod',
-        {
-            joinkey => 'academic_year', origkey => 't3.academic_year', jointype => 'right', database => $self->{school_db}, alias => 't3',
-        })
-    ]);
+	my $sth = $filter->databaseSelect(
+	"SELECT DISTINCT t2.title, t3.academic_year
+	FROM tusk.academic_level_clinical_schedule AS t1 
+	INNER JOIN tusk.academic_level AS t2
+  		ON (t1.academic_level_id = t2.academic_level_id)
+	INNER JOIN hsdb45_dent_admin.time_period AS t3 
+	WHERE (t1.school_id = '$self->{school_id}');"
+	);
+
+	my @academicLevels = ();
+	my @timePeriods = ();
+
+	while (my ($academicLevel, $timePeriod) = $sth->fetchrow_array())
+	{
+		push @academicLevels, $academicLevel;
+		push @timePeriods, $timePeriod;
+	}
+
+	$sth->finish();
 
     return {
-    	'timePeriods' => ${$compositeFilter}[0]->getJoinObjects('t3'),
-    	'academicLevels' => ${$compositeFilter}[0]->getJoinObjects('t2')
+    	academicLevels => \@academicLevels,
+    	timePeriods => \@timePeriods
     }
 }
 

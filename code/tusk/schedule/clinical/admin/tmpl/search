@@ -24,15 +24,24 @@
 </%once>
 
 <%shared>
-    my @academicLevels = ();
+    my @uniqueAcademicLevels = ();
     my @uniqueAcademicYears = ();
     my $currentAcademicYear;
     my $currentAcademicLevel;
 </%shared>
 
+<script>
+    function fixedEncodeURIComponent (str) {
+      return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+        return '%' + c.charCodeAt(0).toString(16);
+      });
+    }
+</script>
+
 <%init>
     my $filterValues = $m->comp('SELF:.getFilterValues', school_id => $school_id, school_db => $school_db);
     $m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
+
     # Show the current academic year/level[either a default or a selected value]
     my %query = $m->request_args;
     if (scalar $query{'academicYear'}) {
@@ -47,7 +56,7 @@
         $currentAcademicLevel = $query{'academicLevel'};
         delete $query{'academicLevel'};
     } else {
-        $currentAcademicLevel= ${@academicLevels}[-1];
+        $currentAcademicLevel = ${@uniqueAcademicLevels}[-1];
     }
 
     $m->comp('SELF:.prepareQueryBox');
@@ -67,7 +76,6 @@
         school_id => $school_id,
         school_db => $school_db
     })->getScheduleStudentsFiltering();
-
     return $filterValues;
 </%perl>
 </%method>
@@ -77,17 +85,15 @@
   $filterValues
 </%args>
 <%perl>
-    foreach my $academicLevel (@{$filterValues->{'academicLevels'}}) {
-        push @academicLevels, $academicLevel->getTitle();
-    };
+    my @academicLevels = map {$_} @{$filterValues->{'academicLevels'}};
+    @uniqueAcademicLevels = unique(@academicLevels);
     return;
 </%perl>
 </%method>
 
 <%perl>
 sub unique {
-    return sort keys %{ { map {$_=>1} @_ } }; # Mea culpa!
-
+    return reverse sort keys %{ { map {$_=>1} @_ } }; # Mea culpa!
 }
 </%perl>
 
@@ -96,13 +102,8 @@ sub unique {
   $filterValues
 </%args>
 <%perl>
-    my @academicYears;
-    foreach my $timePeriod (@{$filterValues->{'timePeriods'}})
-    {
-        push @academicYears, $timePeriod->getAcademicYear();
-    };
+    my @academicYears = map {$_} @{$filterValues->{'timePeriods'}};
     @uniqueAcademicYears = unique(@academicYears);
-
     return;
 </%perl>
 </%method>
@@ -134,17 +135,18 @@ sub unique {
 <%perl>
     my @buttons;
 
-    foreach my $academicLevel (@academicLevels) {
+    foreach my $academicLevel (@uniqueAcademicLevels) {
         push @buttons, {
             'value' => $academicLevel,
             'name' => 'academicLevel',
             'text' => $academicLevel,
-            'onclick' => "location.href = '?academicYear=" . $currentAcademicYear . "&academicLevel=' + this.value"       
+            'onclick' => "location.href = '?academicYear=' + fixedEncodeURIComponent(`" . $currentAcademicYear . "`) + '&academicLevel=' + this.value"       
         };
-        if ($academicLevel == $currentAcademicLevel)
+        if ($academicLevel eq $currentAcademicLevel)
         {
             ${@buttons}[-1]{'checked'} = 1;
         }
+
     }
 
     $m->comp('/tmpl/element:radio_buttons', params => {
