@@ -54,12 +54,33 @@
 		$m->abort();
 	}
 	my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
+	my $eval_id = ($eval) ? $eval->primary_key() : 0;
 	my $evaluatee_id = '';
+	my $school = ($eval) ? $eval->school() : '';
 	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
+	my @evaluatees = ();
 </%shared>
 
 <%init>
-	$evaluatee_id = $ARGS{'evaluatee_id'} if ($is_teaching_eval);
+	if ($is_teaching_eval) {
+		$evaluatee_id = $ARGS{'evaluatee_id'};
+		my $db = HSDB4::Constants::get_school_db($school);
+		my $dbh = HSDB4::Constants::def_db_handle();
+		my $sql = qq(
+			SELECT DISTINCT u.user_id, u.firstname, u.lastname
+			FROM $db.eval_response AS er
+			JOIN tusk.eval_entry AS ee ON er.user_code = ee.evaluator_code
+			JOIN hsdb4.user AS u ON ee.evaluatee_id = u.user_id
+			WHERE er.eval_id = ?
+			ORDER BY u.lastname, u.firstname
+		);
+		my $sth = $dbh->prepare($sql);
+		$sth->execute($eval_id);
+		while (my ($user_id, $firstname, $lastname) = $sth->fetchrow_array()) {
+			$evaluatee_id = $user_id if (!$evaluatee_id);
+			push @evaluatees, {label => "$lastname, $firstname", value => $user_id};
+		}
+	}
 </%init>
 
 <span class="evalFluff" style="float:right; text-align:right;">
@@ -85,9 +106,19 @@
 %	$m->about();
 % }
 
+% if ($is_teaching_eval) {
+<h2 class="title"><& /tmpl/element:dropdown, params => { 
+		label 		=> __('Evaluatee') . ':',
+                name 		=> 'evaluatee',
+                onchange	=> "window.location = '?evaluatee_id=' + this.options[this.selectedIndex].value",
+                selected	=> $evaluatee_id,
+                options		=> \@evaluatees
+} &></h2>
+% }
+
 <div class="evalFluff">
-	<a href="/protected/eval/administrator/show/<% $eval->school %>"><%__("Manage Evaluations")%></a><br />
-	<a href="/protected/eval/administrator/export/<%$eval->school %>/<% $eval->primary_key() %>"><%__("Export Report")%></a><br />
+	<a href="/protected/eval/administrator/show/<% $school %>"><%__("Manage Evaluations")%></a><br />
+	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><%__("Export Report")%></a><br />
 	<a id="graphLink" style="display:none;" href="" onclick="showHideGraphs(); return false;"><%__("Hide Graphs")%></a>
 
 % my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
@@ -107,4 +138,4 @@
 <div id="evalArea">
 </div>
 % my $query = ($evaluatee_id) ? "?evaluatee_id=$evaluatee_id" : '';
-<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $eval->school %>/<% $eval->primary_key() %>', 0);</script>
+<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $school %>/<% $eval_id %>', 0);</script>
