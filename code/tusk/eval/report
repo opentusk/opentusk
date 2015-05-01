@@ -81,6 +81,12 @@
 			push @evaluatees, {label => "$lastname, $firstname", value => $user_id};
 		}
 	}
+	my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id);
+	my $num_users = $eval->num_users();
+	my $num_comps = $eval_results->total_user_codes() || 0;
+	my $num_incos = $num_users - $num_comps;
+	my $per_comps = ($num_users && $num_comps) ? sprintf("%.2f", 100*$num_comps/$num_users) : 0;
+	my $per_incos = ($num_users && $num_incos) ? sprintf("%.2f", 100*$num_incos/$num_users) : 0;
 </%init>
 
 <span class="evalFluff" style="float:right; text-align:right;">
@@ -133,6 +139,23 @@
 %}
 	<%__('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.')%>
 	</p>
+    <h3><% __('Enrollment Information') %></h3>
+    <table border="1" cellspacing="0">
+      <tr>
+        <th><% __('Total Users') %></th>
+        <th><% __('Complete Users') %></th>
+% unless ($is_teaching_eval) {
+        <th><% __('Incomplete Users') %></th>
+% }
+      </tr>
+      <tr>
+        <td align="center"><% $num_users %></td>
+        <td align="center"><% $per_comps %>% (<% $num_comps %>)</td>
+% unless ($is_teaching_eval) {
+        <td align="center"><% $per_incos %>% (<% $num_incos %>)</td>
+% }
+      </tr>
+    </table>    
 </div>
 <div id="graphicsLoadMessage" style="display:none;">
 	<p id="queueMessage"><%__('Loading Eval Graphs')%></p><img src="/graphics/icons/waiting_bar.gif" alt="" />

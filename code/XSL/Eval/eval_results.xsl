@@ -53,41 +53,7 @@
   <!-- Templates for dealing with "global" EvalQuestionRef elements  -->
 
   <xsl:template name="completions">
-    <b>Enrollment Information</b>
-    <table border="1" cellspacing="0">
-      <tr>
-        <th>Total Users</th>
-        <th>Complete Users</th>
-        <th>Incomplete Users</th>
-      </tr>
-      <tr>
-        <td align="center">
-          <xsl:value-of select="$completionsXml/@count"/>
-        </td>
-        <td align="center">
-          <xsl:value-of select="$completionsXml/CompleteUsers/@percent"/>%
-          (<xsl:value-of select="$completionsXml/CompleteUsers/@count"/>
-          <xsl:text>/</xsl:text>
-          <xsl:value-of select="$completionsXml/@count"/>)
-        </td>
-        <td align="center">
-          <xsl:value-of select="$completionsXml/IncompleteUsers/@percent"/>%
-          (<xsl:value-of select="$completionsXml/IncompleteUsers/@count"/>
-          <xsl:text>/</xsl:text>
-          <xsl:value-of select="$completionsXml/@count"/>)
-        </td>
-      </tr>
-    </table>
   </xsl:template>
-
-  <!--
-  <xsl:template name="completions">
-    <div>
-      <b>Complete Users: <xsl:value-of select="$completionsXml/CompleteUsers/@count"/><br/>
-      Incomplete Users: <xsl:value-of select="$completionsXml/IncompleteUsers/@count"/></b>
-    </div>
-  </xsl:template>
-  -->
 
   <xsl:template match="EvalQuestionRef[parent::Eval]">
     <xsl:variable name="root_question_id" select="./QuestionRef/@target_question_id"/>
