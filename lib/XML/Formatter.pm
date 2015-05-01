@@ -90,6 +90,7 @@ sub is_cache_valid {
     return 0 unless defined $self->cache()->modified();
     return 0 unless $self->get_versioner->get_version_code eq $self->cache->formatter_version;
     return 0 if $self->modified_since($self->cache()->modified());
+    return 0 if $self->class_expected() eq 'HSDB45::Eval::Results';
     return 1;
 }
 
