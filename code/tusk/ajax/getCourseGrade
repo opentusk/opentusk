@@ -35,6 +35,12 @@
 %	my $course   = HSDB45::Course->new( _school => $path_ids->[0])->lookup_key( $path_ids->[1] );
 %
 %	my $events = $m->session->{'user'}->get_course_grades($course);
+
+<%perl>
+	my $course_id = $course->getPrimaryKeyID;
+	my $course_quizzes = TUSK::GradeBook::GradeEvent->lookup("course_id = $course_id AND time_period_id = 386");
+	my %completed_quizzes;
+</%perl>
 %	if(scalar(@{$events})) {
 		<table border="0" width="100%" class="wide">
 			<tr><th align="left"><%__("Name")%></th><th align="left"><%__("Grade")%></th><th align="left"><%__("Scaled Grade")%></th><th align="left"><%__("Comments")%></th></tr>
@@ -57,13 +63,36 @@
 %			if ( $eval_id && !HSDB45::Eval->new( _school => $path_ids->[0])->lookup_key( $eval_id )->is_user_complete( $m->session->{'user'} ) ) {
 %				$grade = '<a href="/protected/eval/student/complete/' . $path_ids->[0] . "/" . $eval_id . "\">__('Pending Eval Completion')</a>";
 %			}
-				<tr>
-					<td class="html_row"><% $event->getEventName() %></td>
-					<td class="html_row"><% $grade %></td>
-					<td class="html_row"><% $scaled_grade %></td>
-					<td class="html_row"><% $link->getComments() %></td>
-				</tr>
+%					my %quiz_hash;
+%					my %temp_quiz_hash;
+%					$temp_quiz_hash{grade} = $grade;
+%					$temp_quiz_hash{scaled_grade} = $scaled_grade;
+%					$temp_quiz_hash{comments} = $link->getComments();
+%					$quiz_hash{$event->getEventName()} = {%temp_quiz_hash};
+%					$completed_quizzes{$event->getEventName()} = {%temp_quiz_hash};
+%#					push @completed_quizzes,{%quiz_hash};
 %			}
+<tr><td></td><tr>
+
+<%perl>
+	foreach my $course_quiz(@{$course_quizzes}) {
+		if (exists $completed_quizzes{$course_quiz->getEventName()}) {
+			print "<tr>";
+			print "<td class=\"html_row\">" . $course_quiz->getEventName() ."</td>";
+			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{grade} ."</td>";
+			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{scaled_grade} ."</td>";
+			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{comments} ."</td>";
+			print "</tr>";
+		}
+		else {
+			print "<tr>";
+			print "<td class=\"html_row\">" . $course_quiz->getEventName()."</td>";
+			print "</tr>";
+		}
+	}
+</%perl>
+
+
 		</table>
 %	} else {
 	<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => __('You do not have any grades for this course!')}, 'make_table' => 1 &>
