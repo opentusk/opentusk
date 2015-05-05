@@ -96,11 +96,31 @@
 %					foreach my $cat(@grades_by_category) {
 %						if ((keys %{$cat})[0] eq $this_grade_category->getGradeCategoryName()) {
 %							push @{$cat->{$this_grade_category->getGradeCategoryName()}}, {%temp_quiz_hash};
-%						} else {
-%
-%						}
+%						} 
 %					}
 %			}
+<%perl>
+		foreach my $course_quiz(@{$course_quizzes}) {
+			my $grade_category_id = $course_quiz->getGradeCategoryID();
+			my $grade_category = TUSK::GradeBook::GradeCategory->lookupReturnOne("grade_category_id = $grade_category_id");
+			my %temp_quiz_hash;
+			$temp_quiz_hash{name} = $course_quiz->getEventName();
+			foreach my $cat(@grades_by_category) {
+				if (((keys %{$cat})[0] eq $grade_category->getGradeCategoryName())) {
+					my $duplicate = 0;
+					foreach my $this_hash(@{$cat->{$grade_category->getGradeCategoryName()}}) {
+						if ($this_hash->{name} eq $course_quiz->getEventName()) {
+							$duplicate = 1;
+							last;
+						}
+					}
+					if ($duplicate != 1) {
+						push @{$cat->{$grade_category->getGradeCategoryName()}}, {%temp_quiz_hash};
+					}
+				}
+			}
+		}
+</%perl>
 <tr><td></td><tr>
 
 <%perl>
@@ -109,7 +129,6 @@
 		print "<td class=\"html_row\"><b>".((keys %{$cat})[0])."</b></td>";
 		if (scalar @{$cat->{(keys %{$cat})[0]}} != 0) {
 			foreach my $this_quiz(@{$cat->{(keys %{$cat})[0]}}) {			
-				print "<br>";
 				print "<tr>";
 				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" .$this_quiz->{name} . "</td>";
 				print "<td class=\"html_row\">" .$this_quiz->{grade} . "</td>";
@@ -134,7 +153,9 @@
 		}
 		else {
 			print "<tr>";
-			print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName()."</td>";
+			if ($course_quiz->getGradeCategoryID == 471) {
+				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName()."</td>";
+			}
 			print "</tr>";
 		}
 	}
