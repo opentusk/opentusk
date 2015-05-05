@@ -218,49 +218,83 @@ sub validateUrlToken {
     Update assesor request data as current time in the Entry object
 =cut
 sub setAssessorRequest {
-    my ($self, $assignment_id, $checklist_id, $user_id, $entry) = @_;
+    my ($self, $assignment_id, $checklist_id, $user_id, $entry, $comments) = @_;
     my $now = HSDB4::DateTime->new()->out_mysql_timestamp();
 
     if ($entry->getPrimaryKeyID()) {
-	$entry->setRequestDate($now);
-	$entry->setNotifyDate(undef) if ($entry->getNotifyDate());
+        $entry->setCompetencyChecklistAssignmentID($assignment_id) unless ($entry->getCompetencyChecklistAssignmentID() == $assignment_id);
+        $entry->setNotifyDate(undef) if ($entry->getNotifyDate());
     } else {
-	$entry->setFieldValues({
-	    competency_checklist_assignment_id => $assignment_id,
-	    competency_checklist_id => $checklist_id,
-	    request_date => $now,
-	});
+        $entry->setFieldValues({
+            competency_checklist_assignment_id => $assignment_id,
+            competency_checklist_id => $checklist_id,
+        });
     }
+
+    $entry->setRequestDate($now);
+    $entry->setStudentComment($comments);
     $entry->save({user => $user_id});
-    return $entry;
 }
 
 =item
     Return User object with assignment and entry objects for a given assignment_id and type of assessor
 =cut
 sub getAssessor {
-    my ($self, $assignment_id, $checklist_id, $assessor_type) = @_;
+    my ($self, $args) = @_;
 
-    return TUSK::Core::HSDB4Tables::User->lookupReturnOne(undef, undef, undef, undef, [
-	TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Assignment', { 
-	    joinkey => 'assessor_id', 
-	    origkey => 'user_id',
-	    jointype => 'inner',  
-	    joincond => "competency_checklist_assignment_id = $assignment_id AND competency_checklist_group_id = $self->{checklist_group_id}",
-	}),
-	TUSK::Core::JoinObject->new('TUSK::Enum::Data', { 
-	    joinkey => 'enum_data_id', 
-	    origkey => 'competency_checklist_assignment.assessor_type_enum_id', 
-	    jointype => 'inner', 
-	    joincond => "namespace = 'competency_checklist_assignment.assessor_type' AND short_name = '$assessor_type'"
-	}),
-	TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Entry', { 
-	    joinkey => 'competency_checklist_assignment_id', 
-	    origkey => 'competency_checklist_assignment.competency_checklist_assignment_id', 
-	    joincond => "competency_checklist_id = $checklist_id",
-	}),
+    ## caller must provide either the assignment_id OR both assessor/student ids
+    my $assignment_cond;
+    if (defined $args->{assignment_id}) {
+        $assignment_cond = "competency_checklist_assignment.competency_checklist_assignment_id = $args->{assignment_id}";
+    } elsif (defined $args->{assessor_id} && defined $args->{student_id}) {
+        $assignment_cond = "student_id = '$args->{student_id}' AND assessor_id = '$args->{assessor_id}' AND time_period_id = $args->{time_period_id}";
+    } else {
+        die "Please provide either competency_checklist_assignment_id OR assessor_id/student_id\n";
+    }
+    my $user = TUSK::Core::HSDB4Tables::User->new();
+    $user->setErrorLevel(4);
+    return $user->lookupReturnOne(undef, undef, undef, undef, [
+        TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Assignment', { 
+            joinkey => 'assessor_id', 
+            origkey => 'user_id',
+            jointype => 'inner',  
+            joincond => "$assignment_cond AND competency_checklist_group_id = $self->{checklist_group_id}",
+        }),
+    	TUSK::Core::JoinObject->new('TUSK::Enum::Data', { 
+            joinkey => 'enum_data_id', 
+            origkey => 'competency_checklist_assignment.assessor_type_enum_id', 
+            jointype => 'inner', 
+            joincond => "namespace = 'competency_checklist_assignment.assessor_type' AND short_name = '$args->{assessor_type}'"
+        }),
    ]);
 }
+
+
+sub getFacultyAssessors {
+    my ($self, $student_id, $checklist_id, $time_period_id, $entry_id) = @_;
+
+    return TUSK::Core::HSDB4Tables::User->lookup(undef, undef, undef, undef, [
+        TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Assignment', { 
+            joinkey => 'assessor_id', 
+            origkey => 'user_id',
+            jointype => 'inner',  
+            joincond => "student_id = '$student_id' AND time_period_id = $time_period_id and competency_checklist_group_id = $self->{checklist_group_id}",
+        }),
+    	TUSK::Core::JoinObject->new('TUSK::Enum::Data', { 
+            joinkey => 'enum_data_id', 
+            origkey => 'competency_checklist_assignment.assessor_type_enum_id', 
+            jointype => 'inner', 
+            joincond => "namespace = 'competency_checklist_assignment.assessor_type' AND short_name = 'faculty'"
+        }),
+     	TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Entry', { 
+            joinkey => 'competency_checklist_assignment_id', 
+            origkey => 'competency_checklist_assignment.competency_checklist_assignment_id', 
+            joincond => "competency_checklist_id = $checklist_id" . ((defined $entry_id) ? " AND competency_checklist_entry_id = $entry_id" : ''),
+        }),
+   ]);
+}
+
+
 
 =item
     Return a student user object for the checklist assignment

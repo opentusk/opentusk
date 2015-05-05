@@ -17,6 +17,7 @@
 <%once>
 	use TUSK::Competency::Competency;
 	use TUSK::Competency::Checklist::Assignment;
+    use TUSK::Competency::Checklist::Entry;
 	use TUSK::Application::Competency::Checklist;	
 	use HSDB4::DateTime;
 </%once>
@@ -26,8 +27,10 @@
 	my ($checklist_group_id, $checklist_id, $assignment_id, $entry_id) = $m->comp("/tmpl/url:get_path_ids");
 	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});	
 	my $competency = $acc->getCompetencyChecklist($checklist_id);
-	my $assessor = $acc->getAssessor($assignment_id, $checklist_id, 'partner');
-	my $entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry') || TUSK::Competency::Checklist::Entry->new();
+	my $assessor = $acc->getAssessor({  assignment_id => $assignment_id, 
+                                        checklist_id =>  $checklist_id, 
+                                        assessor_type => 'partner' });
+	my $entry = TUSK::Competency::Checklist::Entry->lookupKey($entry_id) || TUSK::Competency::Checklist::Entry->new();
 </%shared>
 
 <div style="margin: 10px 0 10px 0"><% __x("I have requested \"{partner_name}\" for the assessment of \"{title}\" on {request_date} and like to bypass it.", title => $competency->getTitle(), partner_name => $assessor->outName(), request_date => $entry->getFormattedRequestDate()) %></div>
