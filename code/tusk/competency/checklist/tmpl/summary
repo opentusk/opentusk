@@ -14,14 +14,6 @@
  limitations under the License.
 </%doc>
 
-<%args>
-	$checklist_group_id
-	$time_period_id 	=> undef
-	$self_assigned 		=> 0
-	$student_id
-	$view_mode		=> undef  ## faculty/director view, not student's self view
-</%args>
-
 <%once>
 	use TUSK::Application::Competency::Checklist;
 	use TUSK::Competency::Checklist::Entry;
@@ -32,10 +24,12 @@
 	my $gchecklist_group_id;
 	my $app;
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
+    ## passed arguments could be checklist_group_id, time_period_id, self_assigned, student_id, view_mode
+    my %args = $m->caller_args(0); 
+	my $tp_id = (defined $args{time_period_id}) ? $args{time_period_id} : $m->comp('SELF:get_timeperiod_id');
 	my $checklist_assignments = [];
 	my $checklist_completions = {};
 	my $entries = {};
-	my $student_view = undef;
 	my $assessments = {	### keep keys same as short_name in tusk.enum_data
 		self => {
 			order		=> 1,
@@ -96,16 +90,13 @@
 } &>
 
 <%init>
-	$gchecklist_group_id = $checklist_group_id;
-	$app = TUSK::Application::Competency::Checklist->new({checklist_group_id => $gchecklist_group_id});
-	$time_period_id = $m->comp('SELF:get_timeperiod_id') unless defined $time_period_id;
-	$student_view = !$view_mode;  
-	($entries, $checklist_completions) = $app->getStudentEntries($student_id, $time_period_id);
-	$checklist_assignments = $app->getAssignments($student_id, $time_period_id);
+	$app = TUSK::Application::Competency::Checklist->new({checklist_group_id => $args{checklist_group_id}});
+	($entries, $checklist_completions) = $app->getStudentEntries($args{student_id}, $tp_id);
+	$checklist_assignments = $app->getAssignments($args{student_id}, $tp_id);
 
-	if ($self_assigned && !(exists $checklist_assignments->{self})) {
-		$app->assignSelf($student_id, $time_period_id);
-		$checklist_assignments = $app->getAssignments($student_id, $time_period_id);
+	if ($args{self_assigned} && !(exists $checklist_assignments->{self})) {
+		$app->assignSelf($args{student_id}, $tp_id);
+		$checklist_assignments = $app->getAssignments($args{student_id}, $tp_id);
 	}
 	my $modules = $app->getSkillsModulesWithCategories();
 	
@@ -196,7 +187,11 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 </%args>
 % 	return unless ($show_flag);
 
-% 	my $button = "<a href=\"/competency/checklist/student/$assessments->{$assessment_type}{page}/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') . "\" class=\"formbutton\"> $assessments->{$assessment_type}{button_label} </a>";
+% 	my $button = "<a href=\"/competency/checklist/student/$assessments->{$assessment_type}{page}/course/$type_path/$args{checklist_group_id}/$checklist_id/" . 
+%       (($assessment_type eq 'self' || $assessment_type eq 'partner') ? $assignment_id : $tp_id) . 
+%       ((defined $entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') . 
+%       "\" class=\"formbutton\"> $assessments->{$assessment_type}{button_label} </a>";
+
 
 %	## user at least one completion is an indicator if faculty/partner has started working
 %	my $completion = $entry->getJoinObjects('TUSK::Competency::Checklist::Completion');
@@ -207,28 +202,28 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %		if ($complete_date) {
 <img src="<% $complete_image %>" title="<% __('Completed') %>" /><% $complete_date %>
 %			if (my $assessor_comment = $entry->getAssessorComment()) {
-&nbsp;<img src="/graphics/comments.png" title="<% encode_entities($assessor_comment) %>" />
+&nbsp;<img src="/graphics/comments.png" title="<% __('Self Comments') . ':   ' . encode_entities($assessor_comment) %>" />
 %			}
 %		} else {
-%			if ($student_view) {
+%			unless (defined $args{view_mode}) {
 <% $button %>
 %			}
 <% (ref $completion eq 'TUSK::Competency::Checklist::Completion') ? $completion->getModifiedOn() : '' %>
 %		}
 %	} else {  ## either partner or faculty
 %		if (my $request_date = $entry->getFormattedRequestDate()) {  ### pending stage
-%           if ($student_view) {
+%           unless (defined $args{view_mode}) {
 %			    if ($assessment_type eq 'partner') {  ## show bypass partner button
-<a href="<% "/competency/checklist/student/bypasspartner/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Bypass') %></a>
+<a href="<% "/competency/checklist/student/bypasspartner/course/$type_path/$args{checklist_group_id}/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Bypass') %></a>
 %			    }
 %			    if ($assessment_type eq 'faculty') {  ## resend button to faculty
-<a href="<% "/competency/checklist/student/emailfaculty/course/$type_path/$gchecklist_group_id/$checklist_id/$assignment_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Resend') %></a>
+<a href="<% "/competency/checklist/student/emailfaculty/course/$type_path/$args{checklist_group_id}/$checklist_id/$tp_id" . (($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') %>" class="formbutton"><% __('Resend') %></a>
 %			    }
 %           }
 <div style="margin:4px 0 0 0">
 <img src="/graphics/yellow_square.png" title="<% __('Pending') %>" /> <% $request_date %>
 %			if (my $student_comments = $entry->getStudentComment()) {
-<img src="/graphics/comments.png" title="<% $student_comments %>" />
+<img src="/graphics/comments.png" title="<% __('Student Comments') . ':   ' . encode_entities($student_comments) %>" />
 %			}
 </div>
 %		} elsif ($complete_date) {  ### complete stage
@@ -236,7 +231,7 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %			my $status_title = 'Completed';
 
 %			if ($assessment_type eq 'partner' && $entry->getStudentComment()) {
-%				$title = encode_entities($entry->getStudentComment());
+%				$title = __('Student Comments')  . ':   ' . encode_entities($entry->getStudentComment());
 %				$complete_image = '/graphics/bypass.png';
 %				$status_title = 'Bypassed';
 %			} 
@@ -246,19 +241,19 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 <img src="/graphics/comments.png" title="<% $title %>" />
 %			}
 %		} elsif (my $notify_date = $entry->getFormattedNotifyDate()) { ### in progress stage
-%			if ($student_view) {
+%			unless (defined $args{view_mode}) {
 <% $button %>
 %			}
 <div style="margin:4px 0 0 0">
 <img src="/graphics/red_circle.png" title="<% __('In Progress') %>" /> 
 <% $notify_date %>
 %	if (my $assessor_comment = $entry->getAssessorComment()) {
-<img src="/graphics/comments.png" title="<% encode_entities($assessor_comment) %>" />
+<img src="/graphics/comments.png" title="<% __("$assessments->{$assessment_type}{header} Comments:\n\n") . encode_entities($assessor_comment) %>" />
 %	}
 </div>
 %		} else {
 %			### show button for student view and only dependent type is completed
-%			if ($student_view && $dependent_entry->getCompleteDate()) {
+%			if (!defined $args{view_mode} && $dependent_entry->getCompleteDate()) {
 <% $button %>
 %			}
 %		}
