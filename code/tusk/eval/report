@@ -67,18 +67,19 @@
 		my $db = HSDB4::Constants::get_school_db($school);
 		my $dbh = HSDB4::Constants::def_db_handle();
 		my $sql = qq(
-			SELECT DISTINCT u.user_id, u.firstname, u.lastname
+			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
 			FROM $db.eval_response AS er
 			JOIN tusk.eval_entry AS ee ON er.user_code = ee.evaluator_code
 			JOIN hsdb4.user AS u ON ee.evaluatee_id = u.user_id
 			WHERE er.eval_id = ?
+			GROUP BY u.user_id
 			ORDER BY u.lastname, u.firstname
 		);
 		my $sth = $dbh->prepare($sql);
 		$sth->execute($eval_id);
-		while (my ($user_id, $firstname, $lastname) = $sth->fetchrow_array()) {
+		while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
 			$evaluatee_id = $user_id if (!$evaluatee_id);
-			push @evaluatees, {label => "$lastname, $firstname", value => $user_id};
+			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id};
 		}
 	}
 	my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id);
