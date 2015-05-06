@@ -144,7 +144,7 @@ sub getScheduleStudentsFiltering{
 	FROM tusk.academic_level_clinical_schedule AS t1 
 	INNER JOIN tusk.academic_level AS t2
   		ON (t1.academic_level_id = t2.academic_level_id)
-	INNER JOIN hsdb45_dent_admin.time_period AS t3 
+	INNER JOIN " . $self->{school_db} . ".time_period AS t3 
 	WHERE (t1.school_id = '$self->{school_id}');"
 	);
 
