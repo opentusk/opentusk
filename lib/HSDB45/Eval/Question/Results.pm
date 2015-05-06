@@ -127,11 +127,14 @@ sub init {
 # Output: 
 sub lookup_responses {
     my $self = shift;
+    my $question = $self->question();
+    my $eval = $question->parent_eval();
     my $evaluatee_id = $self->eval_results()->evaluatee_id();
-    my @conds = (sprintf ("eval_id=%d", $self->question ()->parent_eval ()->primary_key),
-		 sprintf ("eval_question_id=%d", $self->question ()->primary_key));
+    return if ($self->isa('HSDB45::Eval::Question::Results::Textual') && $eval->is_teaching_eval() && !$evaluatee_id);
+    my @conds = ('eval_id = ' . $eval->primary_key(),
+		 'eval_question_id = ' . $question->primary_key());
     push @conds, "user_code LIKE '%-$evaluatee_id'" if ($evaluatee_id);
-    my $blankresp = HSDB45::Eval::Question::Response->new (_school => $self->question->school);
+    my $blankresp = HSDB45::Eval::Question::Response->new (_school => $question->school());
     for my $resp ($blankresp->lookup_conditions (@conds)) {
 	$resp->set_aux_info ('parent_results' => $self);
 	$self->{-all_resps}->add_response ($resp);
