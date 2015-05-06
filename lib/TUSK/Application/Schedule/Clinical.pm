@@ -145,7 +145,7 @@ sub getScheduleStudentsFiltering{
 	INNER JOIN tusk.academic_level AS t2
   		ON (t1.academic_level_id = t2.academic_level_id)
 	INNER JOIN " . $self->{school_db} . ".time_period AS t3 
-	WHERE (t1.school_id = '$self->{school_id}');"
+	WHERE (t1.school_id = '$self->{school_id}' AND !(t3.academic_year IS NULL OR t3.academic_year = ''));"
 	);
 
 	my @academicLevels = ();
