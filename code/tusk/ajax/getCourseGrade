@@ -41,18 +41,26 @@
 	my $time_period_id = $course->get_current_timeperiod()->primary_key();
 	my $course_quizzes = TUSK::GradeBook::GradeEvent->lookup("course_id = $course_id AND time_period_id = $time_period_id");
 	my %completed_quizzes;
+	my $no_cat = 0;
 </%perl>
 %	if(scalar(@{$events})) {
 		<table border="0" width="100%" class="wide">
 			<tr><th align="left"><%__("Name")%></th><th align="left"><%__("Grade")%></th><th align="left"><%__("Scaled Grade")%></th><th align="left"><%__("Comments")%></th></tr>
 %			my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $time_period_id, user_id => $m->session->{'user'}->user_id });
 %			my $categories = $gb->getSortedCategories();
+%			if (scalar @{$categories} == 0) {
+%				$no_cat = 1;
+%			}	
 % 			my @grades_by_category;
+%			my @category_ids_temp;
+%			print "<br><br>";
 %			foreach my $category(@{$categories}) { 
 %				my %temp_hash;	
 %				$temp_hash{$category->getGradeCategoryName()} = [];
+%				push @category_ids_temp, $category->getPrimaryKeyID();
 %				push @grades_by_category, {%temp_hash};
 %			}	
+%			my %category_ids = map {$_ => 1} @category_ids_temp;
 %			my %temp_hash;
 %			$temp_hash{"Uncategorized"} = [];
 %			push @grades_by_category, {%temp_hash};
@@ -139,26 +147,27 @@
 		}
 		print "</tr>";
 	}
+
 	foreach my $course_quiz(@{$course_quizzes}) {
-		if (exists $completed_quizzes{$course_quiz->getEventName()}) {
-=for
+		if (exists $completed_quizzes{$course_quiz->getEventName()} && $no_cat == 1) {
 			print "<tr>";
-			print "<td class=\"html_row\">" . $course_quiz->getEventName() ."</td>";
+			print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName() ."</td>";
 #			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{category} ."</td>";
 			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{grade} ."</td>";
 			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{scaled_grade} ."</td>";
 			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{comments} ."</td>";
 			print "</tr>";
-=cut
+
 		}
 		else {
-			print "<tr>";
-			if ($course_quiz->getGradeCategoryID == 471) {
-				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName()."</td>";
+			if (!exists($category_ids{$course_quiz->getGradeCategoryID()})){
+				print "<tr>";
+				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName() . "</td>";
+				print "</tr>";
 			}
-			print "</tr>";
 		}
 	}
+
 </%perl>
 
 
