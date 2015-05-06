@@ -23,16 +23,15 @@
 
 <%shared>
 	my $course = $m->comp("/tmpl/url:get_type_object");
-	my ($checklist_group_id, $checklist_id, $assignment_id) = $m->comp("/tmpl/url:get_path_ids");
+	my ($checklist_group_id, $checklist_id, $time_period_id, $entry_id) = $m->comp("/tmpl/url:get_path_ids");
 	my $student = $m->session->{user};
 	my $competency = TUSK::Competency::Competency->lookupReturnOne(undef, undef, undef, undef, [
 		TUSK::Core::JoinObject->new("TUSK::Competency::Checklist::Checklist", { joinkey => 'competency_id', jointype => 'inner', joincond => "competency_checklist_id = $checklist_id"}) ]);
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
 	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});	
-	my $assessor = $acc->getAssessor($assignment_id, $checklist_id, 'faculty');
-	my $assignment = $assessor->getJoinObject('TUSK::Competency::Checklist::Assignment');
-	my $entry = $assessor->getJoinObject('TUSK::Competency::Checklist::Entry');
-	my $time_period_id = $assignment->getTimePeriodID();
+	my $selected_assessor;
+	my $assignment; 
+	my $entry;
 </%shared>
 
 <div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to:", title => $competency->getTitle()) %></div>
@@ -51,17 +50,6 @@
 	options => $options,
 } &>
 
-<div id="otherbox" style="display: none">
-<br/>
-<div class="xsm">Enter an email address: </div>
-<& /tmpl/element:input_textbox, params => { 
-	name 	=> 'other_to',
-	value 	=> '',
-	size 	=> 30,
-	length 	=> 30, 
-} &>
-</div>
-
 <div style="margin-top:10px"><% __('Comments') . ':'  %></div>
 <& /tmpl/element:input_textarea, params => { 
 	name 	=> 'comment',
@@ -78,10 +66,27 @@
 
 <%init>
 	if ($ARGS{submit_check}) {
-		$entry = TUSK::Competency::Checklist::Entry->new() unless (defined $entry);
-		my $entry = $acc->setAssessorRequest($assignment_id, $checklist_id, $student->primary_key(), $entry);
+    	my ($to_addr, $assesor_id, $assessor_lastname) = split('___', $ARGS{to});
+
+	    $selected_assessor = $acc->getAssessor({ assessor_id =>  $assesor_id, 
+                                        student_id => $m->session->{user}->primary_key(), 
+                                        checklist_id => $checklist_id, 
+                                        assessor_type => 'faculty', 
+                                        time_period_id => $time_period_id,
+                                        entry_id =>  $entry_id });
+
+        $assignment = $selected_assessor->getJoinObject('TUSK::Competency::Checklist::Assignment'); 
+
+        if (defined $entry_id) {
+            unless ($entry = TUSK::Competency::Checklist::Entry->lookupKey($entry_id)) {
+           		$entry = TUSK::Competency::Checklist::Entry->new();
+            }
+        }
+		$acc->setAssessorRequest($assignment->getPrimaryKeyID(), $checklist_id, $student->primary_key(), $entry, $ARGS{comment});
+
 		$m->comp('SELF:sendEmail', 
-			to => ($ARGS{to} eq 'other') ? $ARGS{other_to} . '___' : $ARGS{to},
+			to_addr => $to_addr,
+            assessor_lastname => $assessor_lastname,
 			comment => $ARGS{comment}, 
 			entry => $entry);
 
@@ -95,27 +100,15 @@
 	my ($options, $selected) = $m->comp('SELF:getSiteFaculty');
 </%init>
 
-<%method startup>
-<%perl>	
-	unless ($assignment) {
-		$m->redirect($m->comp("/tmpl/url:construct_url", 
-			base_url => "/view",
-			pathref	 => [ 'checklists' ], 
-			msg	 => __x("There's something wrong with faculty assignment. Please contact your course Director."),
-			msgtype	 => 'errmsg',
-		));	
-	}
-</%perl>	
-</%method>
-
 <%method sendEmail>
 <%args>
-	$to
+	$to_addr
+    $assessor_lastname
 	$comment
 	$entry
 </%args>
+
 <%perl>
-	my ($to_addr, $assessor_lastname) = split('___', $to);
 	return 0 unless ($to_addr);
 
 	$comment = ($comment =~ /\w+/) ? "\nAdditional comments from student\:\n$comment" : '';
@@ -136,7 +129,7 @@
 			competency_name => $competency->getTitle(),
 			url => 'https://' . $TUSK::Constants::Domain . 
 				"/competency/checklist/faculty/assess/$type_path/$checklist_group_id" .
-				"/$checklist_id/$assignment_id" . 
+				"/$checklist_id/" . $assignment->getPrimaryKeyID() . 
 				(($entry && $entry->getPrimaryKeyID()) ? '/' . $entry->getPrimaryKeyID() : '') .
 				'/' . $acc->getUrlToken($assignment, $checklist_id),
 			course_directors => join("\n", map { $_->outFullName() . '   <' . $_->getDefaultEmail() . '>' } @$directors),
@@ -153,23 +146,28 @@
 <%perl>
 	my $enrolled_student = $course->get_single_student($student->primary_key(), $time_period_id);
 	my $teaching_site_id = $enrolled_student->aux_info('teaching_site_id');
-	my $faculty = $course->users($time_period_id, "course_user_site.teaching_site_id = $teaching_site_id");
 	my @options = ();
-	 ## assigned faculty, site director, or no selection
-	my $selected = $assessor->getDefaultEmail() . '___' . $assessor->getLastname();
-	foreach my $member (@$faculty) {
+    my $assessors = $acc->getFacultyAssessors($student->primary_key(), $checklist_id, $time_period_id, $entry_id);
+
+    ## assigned faculty, site director, or no selection
+    ## if many assigned faculty, then no selection
+    my $selected = undef;
+
+	foreach my $assessor (@$assessors) {
 		push @options, { 
-				label => $member->outLastFirstName(), 
-				value => $member->getDefaultEmail() . '___' . $member->getLastname(),
+				label => $assessor->outLastFirstName(), 
+				value => $assessor->getDefaultEmail() . '___' . $assessor->getPrimaryKeyID() .  '___' . $assessor->getLastname(),
 		};
-		if (!$selected && $member->hasRole('site_director')) {
-			$selected = $member->primary_key() . '___' . $member->getLastname(),
-		}
+
+        if ($assessor->getJoinObject('TUSK::Competency::Checklist::Entry')) {
+  			$selected = $assessor->getDefaultEmail()  . '___' . $assessor->getPrimaryKeyID() . '___' . $assessor->getLastname(),
+        }
 	}
-	push @options, {
-		label => 'Other',
-		value => 'other',
-	};
+
+	if (!$selected && $selected_assessor->hasRole('site_director')) {
+        unshift @options, { label => '', value => '' } unless $selected;
+    }
+
 	return (\@options, $selected);
 </%perl>
 </%method>
