@@ -114,17 +114,22 @@
 			my %temp_quiz_hash;
 			$temp_quiz_hash{name} = $course_quiz->getEventName();
 			foreach my $cat(@grades_by_category) {
+
 				if (((keys %{$cat})[0] eq $grade_category->getGradeCategoryName())) {
 					my $duplicate = 0;
 					foreach my $this_hash(@{$cat->{$grade_category->getGradeCategoryName()}}) {
 						if ($this_hash->{name} eq $course_quiz->getEventName()) {
 							$duplicate = 1;
+							my $temp_copy_hash;	
+							$temp_copy_hash = {%$this_hash};
+							@{$cat->{$grade_category->getGradeCategoryName()}} = grep { $_->{name} ne $course_quiz->getEventName()} @{$cat->{$grade_category->getGradeCategoryName()}};
+	 						push @{$cat->{$grade_category->getGradeCategoryName()}}, {%$temp_copy_hash};							
 							last;
 						}
 					}
 					if ($duplicate != 1) {
-						push @{$cat->{$grade_category->getGradeCategoryName()}}, {%temp_quiz_hash};
-					}
+	 					push @{$cat->{$grade_category->getGradeCategoryName()}}, {%temp_quiz_hash};
+					} 
 				}
 			}
 		}
@@ -132,6 +137,7 @@
 <tr><td></td><tr>
 
 <%perl>
+
 	foreach my $cat(@grades_by_category) {
 		print "<tr>";
 		print "<td class=\"html_row\"><b>".((keys %{$cat})[0])."</b></td>";
@@ -147,6 +153,7 @@
 		}
 		print "</tr>";
 	}
+
 
 	foreach my $course_quiz(@{$course_quizzes}) {
 		if (exists $completed_quizzes{$course_quiz->getEventName()} && $no_cat == 1) {
