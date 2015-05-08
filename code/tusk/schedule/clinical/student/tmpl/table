@@ -71,6 +71,12 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 
 	my $localTimeInSeconds = time();
 
+	my $isAdmin = 0;
+	if ($m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
+	{
+		$isAdmin = 1;
+	}
+
 	for my $index (0..$#{$scheduleCourses->{'courseTitles'}}) {
 
 		(my $startDateInMMDDYYYY = ${$scheduleCourses->{'startDates'}}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
@@ -86,9 +92,17 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 			number_of_weeks => ${@numberOfWeeks}[0][$index],
 		};
 
-		if ($m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
+		if ($isAdmin)
 		{
 			${@rows}[-1]{'actions'} = '<div id="modify"><a>Modify</a></div>'; 
+			push @rows, {
+				rotation => '',
+				time_period => 'Select Timeperiod',
+				start_date => '',
+				end_date => '',
+				teaching_site => 'Select Teaching Site',
+				number_of_weeks => '',
+			};
 		}
 
 		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {
