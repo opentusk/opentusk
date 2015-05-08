@@ -15,14 +15,14 @@
 </%doc>
 
 <%attr>
- 	use_nav_bar => 0
-  	default_path_type => 'school'
-    skip_header_bar => 1
+	use_nav_bar => 0
+	default_path_type => 'school'
+	skip_header_bar => 1
 </%attr>
 
 <%shared>
-  	my $school = $m->comp('/tmpl/url:get_type_object');
-  	my $col_fields = [ 
+	my $school = $m->comp('/tmpl/url:get_type_object');
+	my $col_fields = [ 
 		{label => __('Rotation'), field => 'rotation', html => 1},
 		{label => __('Time Period'), field => 'time_period'},
 		{label => __('Start Date'), field => 'start_date'},
@@ -30,34 +30,40 @@
 		{label => __('Teaching Site'), field => 'teaching_site'}, 
 		{label => __('Number of Weeks'), field => 'number_of_weeks'}
 	];
-    my $header = 'Clinical Schedule';
+	my $header = 'Clinical Schedule';
 </%shared>
 
 <%init>
-  	# Either a student will look at her schedule or some other person(e.g., an administrator)
-  	my $user_id;
+	# Either a student will look at her schedule or some other person(e.g., an administrator)
+	my $user_id;
 
-  	my %query = $m->request_args;
-    if (scalar $query{'userId'} && $m->comp("/schedule/clinical/admin/autohandler:hasPermissions")) {
-    	$user_id = $query{'userId'};
-        $header = $header . ' > ' . $query{'lastName'} . ', ' . $query{'firstName'};
-    } else {
-  		$user_id = $m->session->{'user'}->user_id();
-  	}
+	my %query = $m->request_args;
 
-    $m->comp("/tmpl/element:header_bar",    
-    params => {
-        hdr_txt => $header 
-    });
+	if (scalar $query{'userId'} && $m->comp("/schedule/clinical/admin/autohandler:hasPermissions")) {
+		$user_id = $query{'userId'};
+		$header = $header . ' > ' . $query{'lastName'} . ', ' . $query{'firstName'};
+		push @{$col_fields}, {label => __('Actions'), field => 'actions', html => 1};
+	} else {
+		$user_id = $m->session->{'user'}->user_id();
+	}
 
-  	$m->comp("/schedule/clinical/student/tmpl/table", 
-  		user_id => $user_id, 
-  		col_fields => $col_fields,
-  		school => $school
-  	);
-    
+	$m->comp("/tmpl/element:header_bar",    
+	params => {
+		hdr_txt => $header 
+	});
+
+	$m->comp("/schedule/clinical/student/tmpl/table", 
+		user_id => $user_id, 
+		col_fields => $col_fields,
+		school => $school
+	);
+		
 </%init>
 
 <%method title>
 %	return 'Clinical Schedule';
+</%method>
+
+<%method jsarray>
+%	return ['jquery/jquery.min.js', 'scheduleStudentView.js'];
 </%method>
