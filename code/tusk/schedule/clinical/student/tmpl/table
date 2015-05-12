@@ -64,6 +64,8 @@ my $scheduleCourses = TUSK::Application::Schedule::Clinical->new({
   	school_db => $school->getSchoolDb()
 })->getScheduleCourses($user_id);
 
+my $isAdmin = 0;
+
 if (scalar $scheduleCourses->{'courseIds'}) {
 	my @startDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'startDates'});
 	my @endDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'endDates'});
@@ -71,7 +73,6 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 
 	my $localTimeInSeconds = time();
 
-	my $isAdmin = 0;
 	if ($m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
 	{
 		$isAdmin = 1;
@@ -82,10 +83,16 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 		(my $startDateInMMDDYYYY = ${$scheduleCourses->{'startDates'}}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
 		(my $endDateInMMDDYYYY = ${$scheduleCourses->{'endDates'}}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
 		my @rows;
+		my $timePeriodColumn;
 
+		if ($isAdmin)
+		{
+			$timePeriodColumn = ${$scheduleCourses->{'timePeriods'}}[$index] . $m->comp("/schedule/clinical/admin/student/modify/timeperiod");
+		}
+		
 		push @rows, {
-			rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">'.${$scheduleCourses->{'courseTitles'}}[$index].'</a>',              
-			time_period => ${$scheduleCourses->{'timePeriods'}}[$index],
+			rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">'.${$scheduleCourses->{'courseTitles'}}[$index].'</a>',             
+			time_period => $timePeriodColumn,
 			start_date => $startDateInMMDDYYYY,
 			end_date => $endDateInMMDDYYYY,
 			teaching_site => ${$scheduleCourses->{'siteNames'}}[$index],
@@ -95,14 +102,6 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 		if ($isAdmin)
 		{
 			${@rows}[-1]{'actions'} = '<div id="modify"><a>Modify</a></div>'; 
-			push @rows, {
-				rotation => '',
-				time_period => 'Select Timeperiod',
-				start_date => '',
-				end_date => '',
-				teaching_site => 'Select Teaching Site',
-				number_of_weeks => '',
-			};
 		}
 
 		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {
