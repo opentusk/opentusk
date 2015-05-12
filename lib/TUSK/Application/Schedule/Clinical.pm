@@ -112,7 +112,8 @@ sub getScheduleStudents{
 		ON t7.time_period_id = t5.time_period_id
 	INNER JOIN hsdb4.user AS t8 
 	  	ON (t5.child_user_id = t8.user_id)
-	WHERE (t1.school_id = '$self->{school_id}' AND t2.title = '$academicLevelTitle' AND t7.academic_year = '$academicYear')"
+	WHERE (t1.school_id = '$self->{school_id}' AND t2.title = '$academicLevelTitle' AND t7.academic_year = '$academicYear')
+	ORDER BY t8.lastname ASC, t8.firstname ASC"
 	);
 
 	my @userIds = ();
