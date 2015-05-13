@@ -35,6 +35,8 @@
  		$m->comp("SELF:print_eval_nav");
 	}
 	$m->comp("SELF:print_grade_nav");
+	$m->comp("SELF:print_clinical_nav");
+
 </%perl>
 </div> <!-- end gLeftNav -->
 
@@ -145,6 +147,36 @@ check_links();
 	<li><a href="/eval/administrator/show/<% $school %>" class="admintext"><% $school %></a></li>
 % }
 </ul>
+</%method>
+
+<%method print_clinical_nav>
+<%perl>
+	my @clinical_nav_schools;
+
+	foreach my $school (@{TUSK::Core::School->new()->getTUSKConfSchools()}) {
+		my $perm = TUSK::Permission->new({
+			'user_id'=> $m->session->{'user'}->primary_key, 
+		   	'feature_type_token' => 'school', 
+			'feature_id' => $school->getPrimaryKeyID(),
+		});
+
+		if ($perm->check('view_schedules')){ 
+			push @clinical_nav_schools, $school;
+		}
+	}
+
+</%perl>
+% if (scalar @clinical_nav_schools) {
+	<& /tmpl/element:header_bar, params=>{'color' => 'gray', 'hdr_txt'=> __('Clinical Admin')} &>
+	<ul class="adminLeftNavList">
+%	foreach my $school (@clinical_nav_schools) {
+%		my $school_name = $school->getSchoolName();
+% 		my $school_id = $school->getPrimaryKeyID();
+		<li><a href="/schedule/clinical/admin/allstudents/view/<% $school_id %>" class="admintext nodots"><% $school_name%></a>
+	</li>
+%	}
+	</ul>
+% }
 </%method>
 
 <%method print_grade_nav>

@@ -45,31 +45,27 @@
 
 <%perl>
 	my $data = $m->comp('SELF:buildCompetencyTree', school_id => $school_id);
+	print "<ul>";
+	$m->comp('SELF:printNationalCompetencies', data => $data);
+	print "</ul>";
 </%perl>
 
-<br />
-
-<& /tmpl/element:jquery_sort_list, params => {
-				width => "100%",
-				label => __('Competencies'),
-				no_table => 1,
-				no_striping => 1,
-				no_add_button => 1,
-				container => 'view_competency_container',
-				name => 'competencies',
-				sort => 0,
-				fields => [
-					{ hide  => 1, field => 'id', },
-					{ label => __('Title'), field => 'title', head_align => 'left', align => 'left', edit =>
-						{ type      => 'text',
-						  classname => 'textareawhite',
-						  size      => 30,
-						  maxlength => 255 }
-					},
-				],
-				data => $data, 
-				empty_message => __("No competencies exist.")
-} &>
+<%method printNationalCompetencies>
+<%args>
+	$data
+</%args>
+<%perl>
+	foreach my $data_point(@{$data}) {
+		print "<li>" . $data_point->{title}."</li>";
+		print "<hr>";
+		if (defined @{$data_point->{children}}){
+			print "<ul>";
+			$m->comp('SELF:printNationalCompetencies', data => $data_point->{children});
+			print "</ul>";
+		}
+	}
+</%perl>
+</%method>
 
 <%method buildCompetencyTree>
 <%args>
@@ -86,7 +82,7 @@
 
 	foreach my $cr_row (@{$cr}) {
 		if (defined($competencies->{$cr_row->getChildCompetencyID()})) {
-			my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
+			my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};			
 			if (!defined( $c_href->{$child_comp})) {
 				$c_href->{$child_comp->getCompetencyID} = { 
 														id          => $child_comp->getCompetencyID, 
@@ -104,6 +100,10 @@
 </%perl>
 </%method>
 
+<%method stylearray>
+% return ['/style/style.css','/style/home.css']
+</%method>
+
 <%method jsarray>
 <%perl>
 	return [ 
@@ -111,7 +111,7 @@
 			"jquery/plugin/interface/interface.js",
 			"jquery/plugin/json.js",
 			"jquery/plugin/inestedsortable-1.0.1.pack.js",
-			"jqNestedSortableFunctions.js" 
+			"jqNestedSortableFunctions.js",
 			];
 </%perl>
 </%method>
@@ -125,6 +125,6 @@
 </%method>
 
 <%method title>
-% return __("Competencies");
+% return __("National Competencies");
 </%method>
 

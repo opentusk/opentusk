@@ -35,15 +35,49 @@
 %	my $course   = HSDB45::Course->new( _school => $path_ids->[0])->lookup_key( $path_ids->[1] );
 %
 %	my $events = $m->session->{'user'}->get_course_grades($course);
+
+<%perl>
+	my $course_id = $course->getPrimaryKeyID;
+	my $time_period_id = $course->get_current_timeperiod()->primary_key();
+	my $course_quizzes = TUSK::GradeBook::GradeEvent->lookup("course_id = $course_id AND time_period_id = $time_period_id");
+	my %completed_quizzes;
+	my $no_cat = 0;
+</%perl>
 %	if(scalar(@{$events})) {
 		<table border="0" width="100%" class="wide">
 			<tr><th align="left"><%__("Name")%></th><th align="left"><%__("Grade")%></th><th align="left"><%__("Scaled Grade")%></th><th align="left"><%__("Comments")%></th></tr>
-
+%			my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $time_period_id, user_id => $m->session->{'user'}->user_id });
+%			my $categories = $gb->getSortedCategories();
+%			if (scalar @{$categories} == 0) {
+%				$no_cat = 1;
+%			}	
+% 			my @grades_by_category;
+%			my @category_ids_temp;
+%			print "<br><br>";
+%			foreach my $category(@{$categories}) { 
+%				my %temp_hash;	
+%				$temp_hash{$category->getGradeCategoryName()} = [];
+%				push @category_ids_temp, $category->getPrimaryKeyID();
+%				push @grades_by_category, {%temp_hash};
+%			}	
+%			my %category_ids = map {$_ => 1} @category_ids_temp;
+%			my %temp_hash;
+%			$temp_hash{"Uncategorized"} = [];
+%			push @grades_by_category, {%temp_hash};
 %		foreach my $event (@{$events}) {
+%			my $this_grade_category_id = $event->getGradeCategoryID();
+%			my $this_grade_category = TUSK::GradeBook::GradeCategory->lookupReturnOne("grade_category_id = $this_grade_category_id");
 %			my $grade = '';
 %			my $scaled_grade = '';
 %			my $link = $event->getJoinObject("TUSK::GradeBook::LinkUserGradeEvent");
-%			my $gb = TUSK::Application::GradeBook::GradeBook->new({course => $course, time_period_id => $event->getFieldValue('time_period_id'), user_id => $m->session->{'user'}->user_id });
+%			my $grade_category_id = $event->getGradeCategoryID();
+%#			print "ID: " . $grade_category_id . "<br>";
+%			my $grade_category = TUSK::GradeBook::GradeCategory->lookupReturnOne("grade_category_id = $grade_category_id");
+
+<%perl>
+
+</%perl>
+
 %			if(!defined($link)){
 %				$grade = __('No Grade');
 %				$scaled_grade = __('No Grade');
@@ -57,13 +91,93 @@
 %			if ( $eval_id && !HSDB45::Eval->new( _school => $path_ids->[0])->lookup_key( $eval_id )->is_user_complete( $m->session->{'user'} ) ) {
 %				$grade = '<a href="/protected/eval/student/complete/' . $path_ids->[0] . "/" . $eval_id . "\">__('Pending Eval Completion')</a>";
 %			}
-				<tr>
-					<td class="html_row"><% $event->getEventName() %></td>
-					<td class="html_row"><% $grade %></td>
-					<td class="html_row"><% $scaled_grade %></td>
-					<td class="html_row"><% $link->getComments() %></td>
-				</tr>
+%					my %quiz_hash;
+%					my %temp_quiz_hash;
+%					$temp_quiz_hash{grade} = $grade;
+%					$temp_quiz_hash{category} = $this_grade_category->getGradeCategoryName();
+%					$temp_quiz_hash{scaled_grade} = $scaled_grade;
+%					$temp_quiz_hash{comments} = $link->getComments();
+%					$quiz_hash{$event->getEventName()} = {%temp_quiz_hash};
+%					$completed_quizzes{$event->getEventName()} = {%temp_quiz_hash};
+%					$temp_quiz_hash{name} = $event->getEventName();
+%#					push @completed_quizzes,{%quiz_hash};
+%					foreach my $cat(@grades_by_category) {
+%						if ((keys %{$cat})[0] eq $this_grade_category->getGradeCategoryName()) {
+%							push @{$cat->{$this_grade_category->getGradeCategoryName()}}, {%temp_quiz_hash};
+%						} 
+%					}
 %			}
+<%perl>
+		foreach my $course_quiz(@{$course_quizzes}) {
+			my $grade_category_id = $course_quiz->getGradeCategoryID();
+			my $grade_category = TUSK::GradeBook::GradeCategory->lookupReturnOne("grade_category_id = $grade_category_id");
+			my %temp_quiz_hash;
+			$temp_quiz_hash{name} = $course_quiz->getEventName();
+			foreach my $cat(@grades_by_category) {
+
+				if (((keys %{$cat})[0] eq $grade_category->getGradeCategoryName())) {
+					my $duplicate = 0;
+					foreach my $this_hash(@{$cat->{$grade_category->getGradeCategoryName()}}) {
+						if ($this_hash->{name} eq $course_quiz->getEventName()) {
+							$duplicate = 1;
+							my $temp_copy_hash;	
+							$temp_copy_hash = {%$this_hash};
+							@{$cat->{$grade_category->getGradeCategoryName()}} = grep { $_->{name} ne $course_quiz->getEventName()} @{$cat->{$grade_category->getGradeCategoryName()}};
+	 						push @{$cat->{$grade_category->getGradeCategoryName()}}, {%$temp_copy_hash};							
+							last;
+						}
+					}
+					if ($duplicate != 1) {
+	 					push @{$cat->{$grade_category->getGradeCategoryName()}}, {%temp_quiz_hash};
+					} 
+				}
+			}
+		}
+</%perl>
+<tr><td></td><tr>
+
+<%perl>
+
+	foreach my $cat(@grades_by_category) {
+		print "<tr>";
+		print "<td class=\"html_row\"><b>".((keys %{$cat})[0])."</b></td>";
+		if (scalar @{$cat->{(keys %{$cat})[0]}} != 0) {
+			foreach my $this_quiz(@{$cat->{(keys %{$cat})[0]}}) {			
+				print "<tr>";
+				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" .$this_quiz->{name} . "</td>";
+				print "<td class=\"html_row\">" .$this_quiz->{grade} . "</td>";
+				print "<td class=\"html_row\">" .$this_quiz->{scaled_grade} . "</td>";
+				print "<td class=\"html_row\">" .$this_quiz->{comments} . "</td>";
+				print "</tr>";
+			}
+		}
+		print "</tr>";
+	}
+
+
+	foreach my $course_quiz(@{$course_quizzes}) {
+		if (exists $completed_quizzes{$course_quiz->getEventName()} && $no_cat == 1) {
+			print "<tr>";
+			print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName() ."</td>";
+#			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{category} ."</td>";
+			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{grade} ."</td>";
+			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{scaled_grade} ."</td>";
+			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{comments} ."</td>";
+			print "</tr>";
+
+		}
+		else {
+			if (!exists($category_ids{$course_quiz->getGradeCategoryID()})){
+				print "<tr>";
+				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName() . "</td>";
+				print "</tr>";
+			}
+		}
+	}
+
+</%perl>
+
+
 		</table>
 %	} else {
 	<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => __('You do not have any grades for this course!')}, 'make_table' => 1 &>

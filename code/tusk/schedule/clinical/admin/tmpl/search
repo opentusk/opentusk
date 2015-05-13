@@ -1,0 +1,179 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%args>
+    $school_id
+    $school_db
+</%args>
+
+<%once>
+    use TUSK::Application::Schedule::Clinical;
+</%once>
+
+<%shared>
+    my @uniqueAcademicLevels = ();
+    my @uniqueAcademicYears = ();
+    my $currentAcademicYear;
+    my $currentAcademicLevel;
+</%shared>
+
+<script>
+    function fixedEncodeURIComponent (str) {
+      return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+        return '%' + c.charCodeAt(0).toString(16);
+      });
+    }
+</script>
+
+<%init>
+    my $filterValues = $m->comp('SELF:.getFilterValues', school_id => $school_id, school_db => $school_db);
+    $m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
+
+    # Show the current academic year/level[either a default or a selected value]
+    my %query = $m->request_args;
+    if (scalar $query{'academicYear'}) {
+        $currentAcademicYear = $query{'academicYear'};
+        delete $query{'academicYear'};
+    } else {
+        $currentAcademicYear = ${@uniqueAcademicYears}[0]; 
+    }
+    
+    $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
+    if (scalar $query{'academicLevel'}) {
+        $currentAcademicLevel = $query{'academicLevel'};
+        delete $query{'academicLevel'};
+    } else {
+        $currentAcademicLevel = ${@uniqueAcademicLevels}[-1];
+    }
+
+    $m->comp('SELF:.prepareQueryBox');
+
+</%init>
+
+<%doc>
+    Get parameters to populate the front-end query box 
+</%doc>
+<%method .getFilterValues>
+<%args>
+  $school_id
+  $school_db
+</%args>
+<%perl>
+    my $filterValues = TUSK::Application::Schedule::Clinical->new({
+        school_id => $school_id,
+        school_db => $school_db
+    })->getScheduleStudentsFiltering();
+    return $filterValues;
+</%perl>
+</%method>
+
+<%method .setAcademicLevelValues>
+<%args>
+  $filterValues
+</%args>
+<%perl>
+    my @academicLevels = map {$_} @{$filterValues->{'academicLevels'}};
+    @uniqueAcademicLevels = unique(@academicLevels);
+    return;
+</%perl>
+</%method>
+
+<%perl>
+sub unique {
+    return reverse sort keys %{ { map {$_=>1} @_ } }; # Mea culpa!
+}
+</%perl>
+
+<%method .setAcademicYearValues>
+<%args>
+  $filterValues
+</%args>
+<%perl>
+    my @academicYears = map {$_} @{$filterValues->{'timePeriods'}};
+    @uniqueAcademicYears = unique(@academicYears);
+    return;
+</%perl>
+</%method>
+
+<%method .prepareAcademicYearDropdown>
+<%perl>
+    my @dropdownOptions;
+
+    # Default academic year
+    # ..or put in another default value with: selected => ${\@uniqueAcademicYears}[1]
+    
+    foreach my $academicYear (@uniqueAcademicYears) {
+        push @dropdownOptions, {
+            'value' => $academicYear,
+            'label' => $academicYear
+        };
+    }
+
+    $m->comp('/tmpl/element:dropdown', params => {
+        options => \@dropdownOptions, 
+        label => 'Academic Year',
+        onchange => "location.href = '?academicYear=' + this.options[this.selectedIndex].value + '&academicLevel=" . $currentAcademicLevel . "'",
+        selected => $currentAcademicYear
+    });
+</%perl>
+</%method>
+
+<%method .prepareAcademicLevelRadioButtons>
+<%perl>
+    my @buttons;
+
+    foreach my $academicLevel (@uniqueAcademicLevels) {
+        push @buttons, {
+            'value' => $academicLevel,
+            'name' => 'academicLevel',
+            'text' => $academicLevel,
+            'onclick' => "location.href = '?academicYear=' + fixedEncodeURIComponent(`" . $currentAcademicYear . "`) + '&academicLevel=' + this.value"       
+        };
+        if ($academicLevel eq $currentAcademicLevel)
+        {
+            ${@buttons}[-1]{'checked'} = 1;
+        }
+
+    }
+
+    $m->comp('/tmpl/element:radio_buttons', params => {
+        buttons => \@buttons, 
+        label => "Academic Level"
+    });
+</%perl>
+</%method>
+
+<%method .prepareQueryBox>
+<%perl>
+    print('<table>');
+    $m->comp('SELF:.prepareAcademicYearDropdown');
+    $m->comp('SELF:.prepareAcademicLevelRadioButtons');
+    print('</table>');
+    return;
+</%perl>
+</%method>
+
+<%method getCurrentAcademicYear>
+<%perl>
+    return $currentAcademicYear;
+</%perl>
+</%method>
+
+<%method getCurrentAcademicLevel>
+<%perl>
+    return $currentAcademicLevel;
+</%perl>
+</%method>

@@ -36,16 +36,63 @@ $r->headers_out->set( 'Content-Disposition' => 'attachment; filename="grades-exp
 
 
 #foreach my $linkEvent (@linkUserGradeEvent)
+
+my @export_data;
 for(my $i =0; $i<$size; $i++)
 {
-	
     my $uid = @$linkUserGradeEvent[$i]->getParentUserID();
     my $usr = HSDB4::SQLRow::User->new->lookup_key($uid);
-	print $usr->last_name."	";
-	print $usr->first_name."	";	
-	print @$linkUserGradeEvent[$i]->getParentUserID()."	";
-	print $usr->field_value('sid'); 
-	print @$linkUserGradeEvent[$i]->getGrade()."	";
-	print @$linkUserGradeEvent[$i]->getComments()."\n";
+	my %usr_data;
+	$usr_data{'last_name'} = $usr->last_name;
+	$usr_data{'first_name'} = $usr->first_name;
+	$usr_data{'uid'} = @$linkUserGradeEvent[$i]->getParentUserID();
+	if ($usr->field_value('sid')){
+		$usr_data{'sid'} = $usr->field_value('sid'); 
+	} else {
+		$usr_data{'sid'} = "n/a";
+	}
+	my $calculated_grade = @$linkUserGradeEvent[$i]->getGrade();
+
+	$usr_data{'calculated_grade'} = $calculated_grade;
+
+	my $grade_event_id = @$linkUserGradeEvent[$i]->getChildGradeEventID;
+	my $grade_event = TUSK::GradeBook::GradeEvent->lookupReturnOne("grade_event_id = $grade_event_id");
+
+	if ($grade_event) {
+		my $tp_id = $grade_event->getTimePeriodID();
+		my $course_id = $grade_event->getCourseID();
+		my $course = HSDB45::Course->new( _school => $grade_event->getSchoolID)->lookup_key($course_id);
+		my $user_id = @$linkUserGradeEvent[$i]->getParentUserID();
+		my $gb = TUSK::Application::GradeBook::GradeBook->new({ course => $course, time_period_id => $tp_id, user_id => $user_id });
+
+		$usr_data{'scaled_grade'} = $gb->getScaledGrade($calculated_grade, @$linkUserGradeEvent[$1]->getChildGradeEventID());
+	}
+
+	if ($usr_data{'comments'}) {
+		$usr_data{'comments'} = @$linkUserGradeEvent[$i]->getComments();
+	} else {
+		$usr_data{'comments'} = "n/a";
+	}	
+	push @export_data, {%usr_data};
+}
+
+my @export_data_sorted = sort { lc($a->{last_name}) cmp lc($b->{last_name})} @export_data;
+
+print "Last Name\t";
+print "First Name\t";
+print "User ID\t";
+print "Student ID\t";
+print "Raw Grade\t";
+print "Scaled Grade\t";
+print "Comments\n";
+
+foreach my $export_row (@export_data_sorted) {
+	print $export_row->{last_name} . "\t";
+	print $export_row->{first_name} . "\t";
+	print $export_row->{uid}. "\t";
+	print $export_row->{sid}. "\t";
+	print $export_row->{calculated_grade}. "\t";
+	print $export_row->{scaled_grade}."\t";
+	print $export_row->{comments}."\n";
 }
 </%init>
