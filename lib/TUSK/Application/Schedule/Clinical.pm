@@ -15,6 +15,7 @@
 package TUSK::Application::Schedule::Clinical;
 
 use TUSK::Academic::LevelClinicalSchedule;
+use TUSK::Core::HSDB45Tables::TimePeriod;
 
 sub new {
     my ($class, $args) = @_;
@@ -92,8 +93,6 @@ sub getScheduleStudents{
 	my $chars = join '', keys %map;
 	$academicYear  =~ s/([$chars])/$map{$1}/g;
 
-	warn("academicYear now is: ", $academicYear);
-
 	my $scheduleStudents = TUSK::Academic::LevelClinicalSchedule->new();
 	my $sth = $scheduleStudents->databaseSelect(
 	"SELECT DISTINCT t5.child_user_id, t8.lastname, t8.firstname
@@ -164,6 +163,51 @@ sub getScheduleStudentsFiltering{
     	academicLevels => \@academicLevels,
     	timePeriods => \@timePeriods
     }
+}
+
+sub getStudentModificationValues{
+	my ($self) = @_;
+
+	unless($self->{-modifications}) {
+		my $options = TUSK::Core::HSDB45Tables::TimePeriod->new();
+		my $sth = $options->databaseSelect(
+		"SELECT DISTINCT t1.period, t2.site_name
+		FROM hsdb45_vet_admin.time_period AS t1
+		INNER JOIN hsdb45_vet_admin.teaching_site AS t2;"
+		);
+
+		my @timePeriods = ();
+		my @teachingSites = ();
+
+		while (my ($timePeriod, $teachingSite) = $sth->fetchrow_array())
+		{
+			push @timePeriods, $timePeriod;
+			push @teachingSites, $teachingSite;
+		}
+
+		warn('here are timePeriods' . @timePeriods . " and here are teachingSites " . @teachingSites);
+
+		$sth->finish();
+		$self->{-modifications} = {
+			timePeriods => \@timePeriods,
+			teachingSites => \@teachingSites
+		};
+	}
+	return $self;
+}
+
+sub getStudentModificationTimePeriods{
+	my ($self) = @_;
+
+	$self->getStudentModificationValues();
+	return $self->{-modifications}->{'timePeriods'};
+}
+
+sub getStudentModificationTeachingSites{
+	my ($self) = @_;
+
+	getStudentModificationValues();
+	return $self->{-modifications}->{'teachingSites'};
 }
 
 1;
