@@ -73,23 +73,20 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 
 	my $localTimeInSeconds = time();
 
-	my $timePeriodColumn;
-	my $timePeriodsForModification;
 	if ($m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
 	{
 		$isAdmin = 1;
-		# $timePeriodColumn = $m->comp("/schedule/clinical/admin/student/modify/timeperiod");
 	}
+
 	for my $index (0..$#{$scheduleCourses->{'courseTitles'}}) {
 
 		(my $startDateInMMDDYYYY = ${$scheduleCourses->{'startDates'}}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
 		(my $endDateInMMDDYYYY = ${$scheduleCourses->{'endDates'}}[$index]) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
 		my @rows;
-		$timePeriodColumn = ${$scheduleCourses->{'timePeriods'}}[$index];
-		
+
 		push @rows, {
 			rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">'.${$scheduleCourses->{'courseTitles'}}[$index].'</a>',             
-			time_period => $timePeriodColumn,
+			time_period => ${$scheduleCourses->{'timePeriods'}}[$index] . ($isAdmin ? "<br>" . $m->scomp("/schedule/clinical/admin/student/modify/timeperiod") : ""),
 			start_date => $startDateInMMDDYYYY,
 			end_date => $endDateInMMDDYYYY,
 			teaching_site => ${$scheduleCourses->{'siteNames'}}[$index],
