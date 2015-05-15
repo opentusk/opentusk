@@ -82,12 +82,17 @@ sub modified_since {
 
     my $dbh = HSDB4::Constants::def_db_handle();
     my $db = HSDB4::Constants::get_school_db($self->object()->parent_eval()->school());
-    my $sth = $dbh->prepare("SELECT COUNT(*) from $db.eval_completion WHERE eval_id=? AND created>?");
+    my $sth = $dbh->prepare("SELECT COUNT(*) from $db.eval_completion WHERE eval_id = ? AND created > ?");
     $sth->execute($self->object_id(), $timestamp->out_mysql_timestamp());
     my ($count) = $sth->fetchrow_array();
-    return $count ? 1 : 0;
+    return $count;
 }
 
+sub no_cache {
+	my $self = shift;
+
+	return $self->object()->evaluatee_id();
+}
 
 # Description: Private initializer
 # Input: An Eval::Results object
