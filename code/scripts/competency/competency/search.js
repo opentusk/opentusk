@@ -24,3 +24,16 @@ function loadTopLevelCompetencies(domain) {
 			}
 		});
 }
+
+function loadSearchResults() {
+	var search_text = ($("#search_box").val());
+	alert(search_text);
+	$.ajax({				
+			type: "POST",
+			url: "/tusk/competency/search/ajaxSearchResults",
+			data: {search_text: search_text},
+						
+	}).success(function(data) {
+			console.log(data);
+	});
+}
