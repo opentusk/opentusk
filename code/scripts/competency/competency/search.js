@@ -1,6 +1,18 @@
+var competency_types = null;
+
 $(function() {
 	$("#domain_dropdown").val(0);
 	$("#competency_dropdown").val(0);
+
+	$.ajax({				
+			async: false,
+			global: false,
+			type: "POST",
+			url: "/tusk/competency/search/ajaxCompetencyTypes/school/Medical",
+			dataType: "json"
+	}).success(function(data) {
+			competency_types = data;
+	});
 });
 
 function loadTopLevelCompetencies(domain) {
@@ -27,13 +39,26 @@ function loadTopLevelCompetencies(domain) {
 
 function loadSearchResults() {
 	var search_text = ($("#search_box").val());
-	alert(search_text);
+	console.log(competency_types);
+
 	$.ajax({				
 			type: "POST",
 			url: "/tusk/competency/search/ajaxSearchResults",
 			data: {search_text: search_text},
-						
+			dataType: "json"
 	}).success(function(data) {
-			console.log(data);
+			$.each(data, function (index, value) {
+				var table_row = '<tr>';
+				console.log(competency_types[value[2]]);
+				if (competency_types[value[2]] == 'category') {
+					table_row += '<td><img src="/graphics/competency/folder_16x16.png" /></td>'
+				} else if (competency_types[value[2]] == 'info') {
+					table_row += '<td><img src="/graphics/competency/info_16x16.png" /></td>'
+				} else {
+					table_row += '<td><img src="/graphics/competency/checkmark_16x16.png" /></td>'
+				}
+				table_row += '<td>' + value[3] + '</td><td>' +  'x</td></tr>';
+				$("#competency_search_results tr:last").after(table_row);
+			});
 	});
 }
