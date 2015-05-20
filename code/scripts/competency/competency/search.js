@@ -1,3 +1,7 @@
+var currentURL = window.location.pathname;
+var split_currentURL = currentURL.split('/');		
+var school = split_currentURL[split_currentURL.length - 1];
+
 var competency_types = null;
 
 $(function() {
@@ -8,7 +12,7 @@ $(function() {
 			async: false,
 			global: false,
 			type: "POST",
-			url: "/tusk/competency/search/ajaxCompetencyTypes/school/Medical",
+			url: "/tusk/competency/search/ajaxCompetencyTypes/school/" + school,
 			dataType: "json"
 	}).success(function(data) {
 			competency_types = data;
@@ -43,7 +47,7 @@ function loadSearchResults() {
 
 	$.ajax({				
 			type: "POST",
-			url: "/tusk/competency/search/ajaxSearchResults",
+			url: "/tusk/competency/search/ajaxSearchResults/school/" + school,
 			data: {search_text: search_text},
 			dataType: "json"
 	}).success(function(data) {

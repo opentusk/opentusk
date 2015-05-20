@@ -38,8 +38,6 @@
 
 <%perl>
 	my $domain_level_competencies = $m->comp('SELF:getDomains');
-	my $competency_types = $m->comp('SELF:getCompetencyTypes');
-	print Dumper $competency_types;
 
 	my @domains;
 	my %default_domain;
@@ -118,19 +116,6 @@
 	rows => 4
 } &>
 </div>
-
-<%method getCompetencyTypes>
-<%perl>
-	my $school_id = TUSK::Core::School->new()->getSchoolID($m->comp("/tmpl/url:get_school"));
-	my %competency_types;
-	my $user_types = TUSK::Competency::UserType->lookup("school_id =" . $school_id, undef, undef, undef, [TUSK::Core::JoinObject->new("TUSK::Enum::Data", 
-			{origkey => 'competency_type_enum_id', joinkey => 'enum_data_id', jointype => 'inner', joincond => "namespace = 'competency.user_type.id'"})]);
-	foreach my $user_type (@{$user_types}) {
-		$competency_types{$user_type->getPrimaryKeyID()} = $user_type->getJoinObject("TUSK::Enum::Data")->getShortName();
-	}
-	return \%competency_types;
-</%perl>
-</%method>
 
 <%method getDomains>
 <%perl>
