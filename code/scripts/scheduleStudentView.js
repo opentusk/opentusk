@@ -1,5 +1,10 @@
 $(document).ready(function() {
 
+	var currentTimePeriod;
+	var currentCourseName; 
+
+
+
 	$("td #modify").click(function() {
 		if ($(this).closest('tr').find('div#timePeriod').is(":visible"))
 		{
@@ -8,6 +13,8 @@ $(document).ready(function() {
 		}
 		else
 		{
+			currentTimePeriod = $(this).closest('tr').find('select.view').val();
+			console.log('Current time period is: ', currentTimePeriod);
    			$(this).closest('tr').find('div#timePeriod').show();
    			$(this).closest('tr').find('div#save').show();
    		}
@@ -15,6 +22,7 @@ $(document).ready(function() {
 	});
 
 	$("div#save").click(function() {
+		var tempTimePeriod = $(this).closest('tr').find('select.view').val(); //store the value and wait for the Ajax request result status
 		$.ajax({
 			url: "/tusk/schedule/clinical/admin/ajax/modification",
 			data: {
@@ -31,15 +39,17 @@ $(document).ready(function() {
 				},
 			}
 		}).done(function() {
-		  	alert( "done" );
 		}).error(function() {
 			alert("an error occured during the modification process");
 		}).success(function(data, status){
 			if (data['can_enroll'] == 'false')
 			{
-				alert('Enough students are already enrolled.');
+				alert('Enough students are already enrolled for the given values.');
 			}
-			console.log("data also should be: ", data['can_enroll']);
+			else {
+				currentTimePeriod = tempTimePeriod;
+				console.log('Current time period is: ', currentTimePeriod);
+			}
 		});
    		return;
 	});
