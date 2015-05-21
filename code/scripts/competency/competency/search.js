@@ -42,18 +42,20 @@ function loadTopLevelCompetencies(domain) {
 }
 
 function loadSearchResults() {
+	$("#competency_search_results").find("tr:gt(0)").remove();
 	var search_text = ($("#search_box").val());
-	console.log(competency_types);
-
+	
 	$.ajax({				
 			type: "POST",
 			url: "/tusk/competency/search/ajaxSearchResults/school/" + school,
 			data: {search_text: search_text},
 			dataType: "json"
 	}).success(function(data) {
+			if (data.length == 0) {
+				$("#competency_search_results tr:last").after("<tr><td><i>(No results found for the current query. Please try again after modifying your search.) </i></td><td>x</td><td>x</td></tr>");
+			}
 			$.each(data, function (index, value) {
 				var table_row = '<tr>';
-				console.log(competency_types[value[2]]);
 				if (competency_types[value[2]] == 'category') {
 					table_row += '<td><img src="/graphics/competency/folder_16x16.png" /></td>'
 				} else if (competency_types[value[2]] == 'info') {
@@ -61,6 +63,7 @@ function loadSearchResults() {
 				} else {
 					table_row += '<td><img src="/graphics/competency/checkmark_16x16.png" /></td>'
 				}
+
 				table_row += '<td>' + value[3] + '</td><td>' +  'x</td></tr>';
 				$("#competency_search_results tr:last").after(table_row);
 			});
