@@ -133,11 +133,11 @@ sub lookup_responses {
     return if ($self->isa('HSDB45::Eval::Question::Results::Textual') && $eval->is_teaching_eval() && !$evaluatee_id);
     my @conds = ('eval_id = ' . $eval->primary_key(),
 		 'eval_question_id = ' . $question->primary_key());
-    push @conds, "user_code LIKE '%-$evaluatee_id'" if ($evaluatee_id);
-    my $blankresp = HSDB45::Eval::Question::Response->new (_school => $question->school());
-    for my $resp ($blankresp->lookup_conditions (@conds)) {
-	$resp->set_aux_info ('parent_results' => $self);
-	$self->{-all_resps}->add_response ($resp);
+    push @conds, "user_code LIKE '%-" . (($evaluatee_id) ? $evaluatee_id : '%') . "'" if ($eval->is_teaching_eval());
+    my $blankresp = HSDB45::Eval::Question::Response->new(_school => $question->school());
+    for my $resp ($blankresp->lookup_conditions(@conds)) {
+	$resp->set_aux_info('parent_results' => $self);
+	$self->{-all_resps}->add_response($resp);
     }
     return;
 }
