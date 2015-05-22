@@ -3,6 +3,7 @@ var split_currentURL = currentURL.split('/');
 var school = split_currentURL[split_currentURL.length - 1];
 
 var competency_types = null;
+var competency_levels = null;
 
 $(function() {
 	$("#domain_dropdown").val(0);
@@ -17,6 +18,17 @@ $(function() {
 	}).success(function(data) {
 			competency_types = data;
 	});
+
+	$.ajax({				
+			async: false,
+			global: false,
+			type: "POST",
+			url: "/tusk/competency/search/ajaxCompetencyLevels/school/" + school,
+			dataType: "json"
+	}).success(function(data) {
+			competency_levels = data;
+	});
+
 });
 
 function loadTopLevelCompetencies(domain) {
