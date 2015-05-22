@@ -55,6 +55,9 @@ function loadTopLevelCompetencies(domain) {
 
 function loadSearchResults() {
 	$("#competency_search_results").find("tr:gt(0)").remove();
+	$("#course_competency_search_results").find("tr:gt(0)").remove();
+	$("#content_competency_search_results").find("tr:gt(0)").remove();
+	$("#session_competency_search_results").find("tr:gt(0)").remove();
 	var search_text = ($("#search_box").val());
 	
 	$.ajax({				
@@ -75,8 +78,42 @@ function loadSearchResults() {
 				} else {
 					table_row += '<td><img src="/graphics/competency/checkmark_16x16.png" /></td>'
 				}
-				table_row += '<td>' + value[3] + '</td><td>' +  value[1] + '</td></tr>';
-				$("#competency_search_results tr:last").after(table_row);
+
+				if (competency_levels[value[1]] == 'national' || competency_levels[value[1]] == 'school') {
+					table_row += '<td>' + value[3] + '</td></tr>';
+					$("#competency_search_results tr:last").after(table_row);
+				} else if (competency_levels[value[1]] == 'course') {
+					var course_link;
+					$.ajax({				
+						async: false,
+						global: false,
+						type: "POST",	
+						data: {competency_id: value[0]},
+						url: "/tusk/competency/search/getCourse/school/" + school,
+						dataType: "text"
+					}).success(function(data) {
+						course_link = "<a href='/view/course/" + school + "/" + data + "'>Link</a>";
+					});
+					table_row += '<td>' + value[3] + '</td><td>' +  course_link  + '</td></tr>';
+					$("#course_competency_search_results tr:last").after(table_row);
+				} else if (competency_levels[value[1]] == 'content') {
+					var content_link;
+					$.ajax({				
+						async: false,
+						global: false,
+						type: "POST",	
+						data: {competency_id: value[0]},
+						url: "/tusk/competency/search/getContent/school/" + school,
+						dataType: "text"
+					}).success(function(data) {
+						content_link = "<a href='/view/content/" + data + "'>Link</a>";
+					});
+					table_row += '<td>' + value[3] + '</td><td>' +  content_link + '</td></tr>';
+					$("#content_competency_search_results tr:last").after(table_row);
+				} else {
+					table_row += '<td>' + value[3] + '</td><td>' +  value[1] + '</td></tr>';
+					$("#session_competency_search_results tr:last").after(table_row);
+				} 
 			});
 	});
 }
