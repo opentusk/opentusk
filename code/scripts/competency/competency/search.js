@@ -5,9 +5,13 @@ var school = split_currentURL[split_currentURL.length - 1];
 var competency_types = null;
 var competency_levels = null;
 
+
+
 $(function() {
 	$("#domain_dropdown").val(0);
 	$("#competency_dropdown").val(0);
+
+	$("#tabs").tabs();
 
 	$.ajax({				
 			async: false,
@@ -30,6 +34,7 @@ $(function() {
 	});
 
 });
+
 
 function loadTopLevelCompetencies(domain) {
 	$.ajax({				
@@ -92,7 +97,7 @@ function loadSearchResults() {
 						url: "/tusk/competency/search/getCourse/school/" + school,
 						dataType: "text"
 					}).success(function(data) {
-						course_link = "<a href='/view/course/" + school + "/" + data + "'>Link</a>";
+						course_link = "<a href='/view/course/" + school + "/" + data + "/obj' target='_blank'>Link</a>";
 					});
 					table_row += '<td>' + value[3] + '</td><td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
@@ -106,7 +111,7 @@ function loadSearchResults() {
 						url: "/tusk/competency/search/getContent/school/" + school,
 						dataType: "text"
 					}).success(function(data) {
-						content_link = "<a href='/view/content/" + data + "'>Link</a>";
+						content_link = "<a href='/view/content/" + data + "' target='_blank'>Link</a>";
 					});
 					table_row += '<td>' + value[3] + '</td><td>' +  content_link + '</td></tr>';
 					$("#content_competency_search_results tr:last").after(table_row);
@@ -116,4 +121,39 @@ function loadSearchResults() {
 				} 
 			});
 	});
+}
+
+function makeTabs(selector) {
+ 
+    tab_lists_anchors = document.querySelectorAll(selector + " li a");
+    divs = document.querySelector(selector).getElementsByTagName("div");
+    for (var i = 0; i < tab_lists_anchors.length; i++) {
+        if (tab_lists_anchors[i].classList.contains('active')) {
+            divs[i].style.display = "block";
+        }
+ 
+    }
+ 
+    for (i = 0; i < tab_lists_anchors.length; i++) {
+ 
+        document.querySelectorAll(".tabs li a")[i].addEventListener('click', function(e) {
+ 
+            for (i = 0; i < divs.length; i++) {
+                divs[i].style.display = "none";
+            }
+ 
+            for (i = 0; i < tab_lists_anchors.length; i++) {
+                tab_lists_anchors[i].classList.remove("active");
+            }
+ 
+            clicked_tab = e.target || e.srcElement;
+ 
+            clicked_tab.classList.add('active');
+            div_to_show = clicked_tab.getAttribute('href');
+ 
+            document.querySelector(div_to_show).style.display = "block";
+ 
+        });
+    }
+ 
 }
