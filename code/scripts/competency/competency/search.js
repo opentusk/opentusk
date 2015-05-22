@@ -63,8 +63,7 @@ function loadSearchResults() {
 				} else {
 					table_row += '<td><img src="/graphics/competency/checkmark_16x16.png" /></td>'
 				}
-
-				table_row += '<td>' + value[3] + '</td><td>' +  'x</td></tr>';
+				table_row += '<td>' + value[3] + '</td><td>' +  value[1] + '</td></tr>';
 				$("#competency_search_results tr:last").after(table_row);
 			});
 	});
