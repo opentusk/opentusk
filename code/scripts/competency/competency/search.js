@@ -4,6 +4,7 @@ var school = split_currentURL[split_currentURL.length - 1];
 
 var competency_types = null;
 var competency_levels = null;
+var content_competencies = "";
 
 
 
@@ -75,6 +76,24 @@ function loadSearchResults() {
 				$("#competency_search_results tr:last").after("<tr><td><i>(No results found for the current query. Please try again after modifying your search.) </i></td><td>x</td><td>x</td></tr>");
 			}
 			$.each(data, function (index, value) {
+				if (competency_levels[value[1]] == 'content') {					
+					content_competencies += ", " + value[0];
+				}
+			});
+			content_competencies = content_competencies.substr(2, content_competencies.length);
+			$.ajax({				
+					async: false,
+					global: false,
+					type: "POST",	
+					data: {competency_ids: content_competencies},
+					url: "/tusk/competency/search/getContent/school/" + school,
+					dataType: "text"
+				}).success(function(data) {
+					console.log(data);
+				});
+
+			
+			$.each(data, function (index, value) {
 				var table_row = '<tr>';
 				if (competency_types[value[2]] == 'category') {
 					table_row += '<td><img src="/graphics/competency/folder_16x16.png" /></td>'
@@ -103,16 +122,8 @@ function loadSearchResults() {
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'content') {
 					var content_link;
-					$.ajax({				
-						async: false,
-						global: false,
-						type: "POST",	
-						data: {competency_id: value[0]},
-						url: "/tusk/competency/search/getContent/school/" + school,
-						dataType: "text"
-					}).success(function(data) {
-						content_link = "<a href='/view/content/" + data + "' target='_blank'>Link</a>";
-					});
+					content_link = "<a href='/view/content/" + " data " + "' target='_blank'>Link</a>";
+				
 					table_row += '<td>' + value[3] + '</td><td>' +  content_link + '</td></tr>';
 					$("#content_competency_search_results tr:last").after(table_row);
 				} else {
