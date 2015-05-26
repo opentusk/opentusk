@@ -5,7 +5,7 @@ var school = split_currentURL[split_currentURL.length - 1];
 var competency_types = null;
 var competency_levels = null;
 var content_competencies = "";
-
+var content_info = null;
 
 
 $(function() {
@@ -87,12 +87,12 @@ function loadSearchResults() {
 					type: "POST",	
 					data: {competency_ids: content_competencies},
 					url: "/tusk/competency/search/getContent/school/" + school,
-					dataType: "text"
+					dataType: "json"
 				}).success(function(data) {
-					console.log(data);
+					content_info = data;
 				});
+			console.log(content_info);
 
-			
 			$.each(data, function (index, value) {
 				var table_row = '<tr>';
 				if (competency_types[value[2]] == 'category') {
@@ -122,9 +122,12 @@ function loadSearchResults() {
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'content') {
 					var content_link;
-					content_link = "<a href='/view/content/" + " data " + "' target='_blank'>Link</a>";
-				
-					table_row += '<td>' + value[3] + '</td><td>' +  content_link + '</td></tr>';
+					content_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/content/" + value[0]  + "' target='_blank'>" + content_info[value[0]].title + "</a>";
+					content_link += "<br> <b>ID:</b> " + content_info[value[0]].content_id;
+					content_link += " &nbsp&nbsp<b>Created:</b> " + content_info[value[0]].created;
+					content_link += " &nbsp&nbsp<b>Modified:</b> " + content_info[value[0]].modified;
+					
+					table_row += '<td>' + value[3] + '</td>' +  content_link + '</td></tr>';
 					$("#content_competency_search_results tr:last").after(table_row);
 				} else {
 					table_row += '<td>' + value[3] + '</td><td>' +  value[1] + '</td></tr>';
