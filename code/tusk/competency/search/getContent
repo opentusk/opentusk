@@ -39,9 +39,19 @@
 <%perl>	
 	my $school_id = TUSK::Core::School->new()->getSchoolID($m->comp("/tmpl/url:get_school"));
 
-	my $content_id = TUSK::Competency::Content->lookupReturnOne("competency_id = $ARGS{competency_id}")->getContentID;
+	my $contents = TUSK::Competency::Content->lookup("competency_id IN ($ARGS{competency_ids})", undef, undef, undef, 
+			[TUSK::Core::JoinObject->new("TUSK::Core::HSDB4Tables::Content", {origkey => 'content_id', joinkey => 'content_id', jointype => 'inner'})]);	
+	my %content_info;
+	foreach my $content (@{$contents}){
+		my %temp_content_info;
+		$temp_content_info{title} = $content->getJoinObject("TUSK::Core::HSDB4Tables::Content")->getTitle();
+		$temp_content_info{created} = $content->getJoinObject("TUSK::Core::HSDB4Tables::Content")->getCreated();
+		$temp_content_info{modified} = $content->getJoinObject("TUSK::Core::HSDB4Tables::Content")->getModified();
+		$content_info{$content->getPrimaryKeyID()} = {%temp_content_info};
+	}
 
-	$m->print($content_id);
+	my $content_info_json = JSON->new->pretty->encode(\%content_info);
+	$m->print($content_info_json);
 </%perl>
 
 
