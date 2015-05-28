@@ -91,7 +91,7 @@ function loadSearchResults() {
 				}).success(function(data) {
 					content_info = data;
 				});
-			console.log(content_info);
+
 
 			$.each(data, function (index, value) {
 				var table_row = '<tr>';
@@ -114,11 +114,15 @@ function loadSearchResults() {
 						type: "POST",	
 						data: {competency_id: value[0]},
 						url: "/tusk/competency/search/getCourse/school/" + school,
-						dataType: "text"
+						dataType: "json"
 					}).success(function(data) {
-						course_link = "<a href='/view/course/" + school + "/" + data + "/obj' target='_blank'>Link</a>";
+						console.log(data);
+						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
+						/*if (data.body) {
+							course_link += "<br>" + data.body;
+						}*/
 					});
-					table_row += '<td>' + value[3] + '</td><td>' +  course_link  + '</td></tr>';
+					table_row += '<td>' + value[3] + '</td>' +  course_link  + '</td></tr>';				
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'content') {
 					var content_link;

@@ -41,9 +41,16 @@
 
 	my $tusk_course_id = TUSK::Competency::Course->lookupReturnOne("competency_id = $ARGS{competency_id}")->getCourseID;
 	
-	my $course_id = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getHSDB45CourseFromTuskID()->getPrimaryKeyID();
+	my $course = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getHSDB45CourseFromTuskID();
 
-	$m->print($course_id);
+	my %course_info;
+
+	$course_info{id} = $course->getPrimaryKeyID();
+	$course_info{title} = $course->out_title();
+	$course_info{body} = $course->field_value('body');
+	my $course_json = JSON->new->pretty->encode(\%course_info);
+
+	$m->print($course_json);
 </%perl>
 
 
