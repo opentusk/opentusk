@@ -50,7 +50,7 @@ sub calculate {
 				$final_grade += ($grade/$max_possible_points) * ($weight);
 			}
 		}
-		$self->{final_grade_records}{$student_id} = $final_grade;
+		$self->{final_grade_records}{$student_id} = sprintf("%.2F", $final_grade);
 	}
 		   
 
