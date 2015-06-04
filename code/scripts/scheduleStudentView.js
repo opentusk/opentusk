@@ -50,7 +50,9 @@ $(document).ready(function() {
 			alert('Please either \'Cancel\' or \'Save\' current modifications.')
 			return;
 		}
-		$(this).closest('tr').find('div#timePeriod').trigger('change');
+		$(this).closest('tr').find('div#teachingSite').find('select.view').trigger('change');
+		console.log('The row number is ' + currentRowIndex);
+		// $(this).closest('tr').find('div#timePeriod').trigger('change');
 		modificationInProgress = true;
 		if ($(this).closest('tr').find('div#timePeriod').is(":visible"))
 		{
@@ -69,6 +71,8 @@ $(document).ready(function() {
    			$(this).closest('tr').find('a#save').show();
    			$(this).closest('tr').find('a#cancel').show();
    			$(this).closest('tr').find('a#delete').show();
+   			$(this).closest('tr').find('span.littlespacing').show();
+   			$(this).closest('tr').find('div#modify').hide()
    		}
    		return;
 	});
@@ -158,5 +162,7 @@ $(document).ready(function() {
 		$(this).closest('tr').find('a#cancel').hide();
 		$(this).closest('tr').find('a#delete').hide();
 		$(this).closest('tr').find('span#alreadyEnrolled').hide();
+		$(this).closest('tr').find('span.littlespacing').hide();
+		$(this).closest('tr').find('div#modify').show()
 	});
 });
