@@ -135,9 +135,7 @@ function populateNextOptions(select) {
 			$("#export").data("students", data);
 			$.each(data, function() {
 				$.each(this, function(id, name) {
-					if ($("option[value='" + id + "']").size() == 0) {
-						items.push('<option value="' + id + '">' + name + '</option>');
-					}
+				    items.push('<option value="' + id + '">' + name + '</option>');
 				});
 			});
 			if (target != "fieldset" && $(items).size()) {
