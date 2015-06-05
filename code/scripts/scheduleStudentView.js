@@ -116,42 +116,46 @@ $(document).ready(function() {
 		//store the value and wait for the Ajax request result status
 		var tempTimePeriod = $(this).closest('tr').find('div#timePeriod').find('select.view').val(); 
 		var tempTeachingSite = $(this).closest('tr').find('div#teachingSite').find('select.view').val(); 
-
-		$.ajax({
-			url: "/tusk/schedule/clinical/admin/ajax/modification",
-			data: {
-				user_id: user_id,
-				course_name: $(this).closest('tr').find('span#courseName').text(),
-				current_time_period: currentTimePeriod,
-				current_teaching_site: currentTeachingSite,
-				requested_time_period: tempTimePeriod,
-				requested_teaching_site: tempTeachingSite,
-				school_id: school_id,
-				school_db: school_db
-			},
-			dataType: "json",
-			statusCode: {
-				404: function () {
-					alert('Page not found');
+		if (tempTeachingSite == 0)
+		{
+			alert('Please make a selection from the drop down list first');
+		} else {
+			$.ajax({
+				url: "/tusk/schedule/clinical/admin/ajax/modification",
+				data: {
+					user_id: user_id,
+					course_name: $(this).closest('tr').find('span#courseName').text(),
+					current_time_period: currentTimePeriod,
+					current_teaching_site: currentTeachingSite,
+					requested_time_period: tempTimePeriod,
+					requested_teaching_site: tempTeachingSite,
+					school_id: school_id,
+					school_db: school_db
 				},
-				500: function () {
-					alert('Internal server error');
-				},
-			}
-		}).done(function() {
-		}).error(function() {
-			alert("An error occured during the modification process");
-		}).success(function(data, status){
-			if (data['applied'] == 'false') {
-				alert('Enough students are already enrolled for the given values.');
-			}
-			else {
-				currentTimePeriod = tempTimePeriod;
-				currentTeachingSite = tempTeachingSite;
-				alert('The time period and teaching site change took place.');
-				location.reload();
-			}
-		});
+				dataType: "json",
+				statusCode: {
+					404: function () {
+						alert('Page not found');
+					},
+					500: function () {
+						alert('Internal server error');
+					},
+				}
+			}).done(function() {
+			}).error(function() {
+				alert("An error occured during the modification process");
+			}).success(function(data, status){
+				if (data['applied'] == 'false') {
+					alert('Enough students are already enrolled for the given values.');
+				}
+				else {
+					currentTimePeriod = tempTimePeriod;
+					currentTeachingSite = tempTeachingSite;
+					alert('The time period and teaching site change took place.');
+					location.reload();
+				}
+			});
+		}
    		return;
 	});
 	$("a#cancel").click(function() {

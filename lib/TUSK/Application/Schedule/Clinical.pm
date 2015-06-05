@@ -294,9 +294,11 @@ sub applyStudentModifications{
         LIMIT 1
     )
     AND t3.teaching_site_id = (
-        SELECT teaching_site_id
-        FROM $self->{school_db}.teaching_site
-        WHERE site_name = ?
+        SELECT CASE WHEN ? = '' THEN 0 ELSE (
+            SELECT teaching_site_id
+            FROM $self->{school_db}.teaching_site
+            WHERE site_name = ?)
+            END
     )
     AND t3.parent_course_id = (
         SELECT course_id
@@ -308,6 +310,7 @@ sub applyStudentModifications{
         $args->{requested_teaching_site}, 
         $args->{user_id},
         $args->{current_time_period},
+        $args->{current_teaching_site},
         $args->{current_teaching_site},
         $args->{course_name}
     );
