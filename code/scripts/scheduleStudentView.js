@@ -83,38 +83,43 @@ $(document).ready(function() {
 	});
 
 	$("a#delete").click(function() {
-		$.ajax({
-		url: "/tusk/schedule/clinical/admin/ajax/modification",
-		data: {
-			user_id: user_id,
-			course_id: $(this).closest('tr').find('span#courseId').text(),
-			current_time_period: currentTimePeriod,
-			current_teaching_site: currentTeachingSite,
-			school_id: school_id,
-			school_db: school_db,
-			delete_requested: 'yes'
-		}, dataType: "json",
-			statusCode: {
-				404: function () {
-					alert('Page not found');
-				},
-				500: function () {
-					alert('Internal server error');
-				},
-			}
-		}).done(function() {
-		}).error(function() {
-			alert("An error occured during the deletion process");
-		}).success(function(data, status){
-			if (data['applied'] == 'true') {
-				alert('Student was removed from the requested rotation.');
-				location.reload();
-			}
-			else {
-				alert('Student wasn\'t removed from the requested rotation.');
-			}
-		});
-		return;
+	    var deleteValidate = confirm("Are you sure you want to remove the student from the rotation?");
+	    if (deleteValidate == true) {
+			$.ajax({
+				url: "/tusk/schedule/clinical/admin/ajax/modification",
+				data: {
+					user_id: user_id,
+					course_id: $(this).closest('tr').find('span#courseId').text(),
+					current_time_period: currentTimePeriod,
+					current_teaching_site: currentTeachingSite,
+					school_id: school_id,
+					school_db: school_db,
+					delete_requested: 'yes'
+				}, dataType: "json",
+					statusCode: {
+						404: function () {
+							alert('Page not found');
+						},
+						500: function () {
+							alert('Internal server error');
+						},
+					}
+			}).done(function() {
+			}).error(function() {
+				alert("An error occured during the deletion process");
+			}).success(function(data, status){
+				if (data['applied'] == 'true') {
+					alert('Student was removed from the requested rotation.');
+					location.reload();
+				}
+				else {
+					alert('Student wasn\'t removed from the requested rotation.');
+				}
+			});
+			return;
+		} else {
+				return;
+		}
 	});
 
 	$("a#save").click(function() {

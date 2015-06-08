@@ -179,7 +179,8 @@ sub constructStudentModificationTimePeriods{
     my @timePeriodIds = ();
 
     my $sql = qq/SELECT DISTINCT t1.period, t1.time_period_id
-        FROM $self->{school_db}.time_period AS t1;/;
+        FROM $self->{school_db}.time_period AS t1
+        ORDER BY t1.academic_year DESC;/;
     my $dbh = $self->{-dbh};
     my $sth = $dbh->prepare($sql);
     eval {
