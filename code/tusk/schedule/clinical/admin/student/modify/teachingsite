@@ -25,7 +25,8 @@
 </%once>
 
 <%shared>
-	my @uniqueTeachingSites = ();
+	my @teachingSites = ();
+    my @teachingSiteIds = ();
 </%shared>
 
 <%init>
@@ -33,7 +34,9 @@
         school_id => $school->getPrimaryKeyID(), 
         school_db => $school->getSchoolDb()
     });
-	@uniqueTeachingSites = unique(map {$_} @{$modificationValues->getStudentModificationTeachingSites()});
+	@teachingSites = @{$modificationValues->getStudentModificationTeachingSites()->{'teachingSites'}};
+    @teachingSiteIds = @{$modificationValues->getStudentModificationTeachingSites()->{'teachingSiteIds'}};
+
 	$m->comp('SELF:.prepareTeachingSitesDropdown', rowIndex => $rowIndex, currentTeachingSite => $currentTeachingSite);
 </%init>
 
@@ -45,16 +48,19 @@
 </%args>
 <%perl>
     my @dropdownOptions;
-    # push @dropdownOptions, {
-    #     'value' => '',
-    #     'label' => 'Select Teaching Site'
-    # };
-    foreach my $teachingSite (@uniqueTeachingSites) {
+
+    push @dropdownOptions, {
+        'value' => 0,
+        'label' => 'Select Teaching Site'
+    };
+
+    for my $index (0..$#{@teachingSites}) {
         push @dropdownOptions, {
-            'value' => $teachingSite,
-            'label' => $teachingSite
-        };
+            'value' => ${@teachingSiteIds}[$index],
+            'label' => ${@teachingSites}[$index],
+        }
     }
+
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions,
         onchange => "getRowIndex($rowIndex)",

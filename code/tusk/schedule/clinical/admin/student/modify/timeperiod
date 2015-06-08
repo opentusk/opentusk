@@ -25,7 +25,8 @@
 </%once>
 
 <%shared>
-	my @uniqueTimePeriods = ();
+	my @timePeriods = ();
+    my @timePeriodIds = ();
 </%shared>
 
 <%init>
@@ -33,7 +34,9 @@
         school_id => $school->getPrimaryKeyID(), 
         school_db => $school->getSchoolDb()
     });
-	@uniqueTimePeriods = unique(map {$_} @{$modificationValues->getStudentModificationTimePeriods()});
+
+	@timePeriods = @{$modificationValues->getStudentModificationTimePeriods()->{'timePeriods'}};
+    @timePeriodIds = @{$modificationValues->getStudentModificationTimePeriods()->{'timePeriodIds'}};
 	$m->comp('SELF:.prepareTimePeriodsDropdown', rowIndex => $rowIndex, currentTimePeriod => $currentTimePeriod);
 </%init>
 
@@ -46,12 +49,18 @@
 <%perl>
     my @dropdownOptions;
 
-    foreach my $timePeriod (@uniqueTimePeriods) {
+    push @dropdownOptions, {
+        'value' => 0,
+        'label' => 'Select Time Period'
+    };
+
+    for my $index (0..$#{@timePeriods}) {
         push @dropdownOptions, {
-            'value' => $timePeriod,
-            'label' => $timePeriod
+            'value' => ${@timePeriodIds}[$index],
+            'label' => ${@timePeriods}[$index],
         };
     }
+
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions, 
         onchange => "getRowIndex($rowIndex)",

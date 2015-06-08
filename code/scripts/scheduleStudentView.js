@@ -12,35 +12,40 @@ $(document).ready(function() {
 	var modificationInProgress = false;
 
 	$('div#timePeriod, div#teachingSite').change(function() {
-	  $(this).closest('tr').find('span#alreadyEnrolled').show();
-	  $.ajax({
-		url: "/tusk/schedule/clinical/admin/ajax/enrollmentcheck",
-		data: {
-			temp_time_period: $(this).closest('tr').find('div#timePeriod').find('select.view').val(),
-			temp_teaching_site: $(this).closest('tr').find('div#teachingSite').find('select.view').val(),
-			school_id: school_id,
-			school_db: school_db,
-			course_name: $(this).closest('tr').find('span#courseName').text()
-		}, dataType: "json",
-			statusCode: {
-				404: function () {
-					alert('Page not found');
-				},
-				500: function () {
-					alert('Internal server error');
-				},
-			}
-		}).done(function() {
-		}).error(function() {
-			alert("An error occured during the deletion process");
-		}).success(function(data, status){
-			if (data['number_of_enrolled'] != -1) {
-				$('span#alreadyEnrolledNumber' + currentRowIndex).text(data['number_of_enrolled']);
-			}
-			else {
-				alert('The number of students for the current time period and teaching site selection couldn\'t be fetched');
-			}
-		});
+		if ($(this).closest('tr').find('div#timePeriod').find('select.view').val() == 0 || $(this).closest('tr').find('div#teachingSite').find('select.view').val() == 0) {
+			$(this).closest('tr').find('span#alreadyEnrolled').hide();
+			return;
+	  	} else {
+		    $(this).closest('tr').find('span#alreadyEnrolled').show();
+		    $.ajax({
+				url: "/tusk/schedule/clinical/admin/ajax/enrollmentcheck",
+				data: {
+					temp_time_period: $(this).closest('tr').find('div#timePeriod').find('select.view').val(),
+					temp_teaching_site: $(this).closest('tr').find('div#teachingSite').find('select.view').val(),
+					school_id: school_id,
+					school_db: school_db,
+					course_id: $(this).closest('tr').find('span#courseId').text()
+				}, dataType: "json",
+					statusCode: {
+						404: function () {
+							alert('Page not found');
+						},
+						500: function () {
+							alert('Internal server error');
+						},
+					}
+			}).done(function() {
+				}).error(function() {
+					alert("An error occured during the deletion process");
+			}).success(function(data, status){
+				if (data['number_of_enrolled'] != -1) {
+					$('span#alreadyEnrolledNumber' + currentRowIndex).text(data['number_of_enrolled']);
+				}
+				else {
+					alert('The number of students for the current time period and teaching site selection couldn\'t be fetched');
+				}
+			});
+		}
 		return;
 	});
 
@@ -50,7 +55,7 @@ $(document).ready(function() {
 			alert('Please either \'Cancel\' or \'Save\' current modifications.')
 			return;
 		}
-		$(this).closest('tr').find('div#teachingSite').find('select.view').trigger('change');
+		// $(this).closest('tr').find('div#teachingSite').find('select.view').trigger('change');
 		console.log('The row number is ' + currentRowIndex);
 		// $(this).closest('tr').find('div#timePeriod').trigger('change');
 		modificationInProgress = true;
@@ -64,8 +69,8 @@ $(document).ready(function() {
 		}
 		else
 		{
-			currentTimePeriod = $(this).closest('tr').find('span#currentTimePeriod').text();
-			currentTeachingSite = $(this).closest('tr').find('span#currentTeachingSite').text();
+			currentTimePeriod = $(this).closest('tr').find('span#currentTimePeriodId').text();
+			currentTeachingSite = $(this).closest('tr').find('span#currentTeachingSiteId').text();
    			$(this).closest('tr').find('div#timePeriod').show();
    			$(this).closest('tr').find('div#teachingSite').show();
    			$(this).closest('tr').find('a#save').show();
@@ -82,7 +87,7 @@ $(document).ready(function() {
 		url: "/tusk/schedule/clinical/admin/ajax/modification",
 		data: {
 			user_id: user_id,
-			course_name: $(this).closest('tr').find('span#courseName').text(),
+			course_id: $(this).closest('tr').find('span#courseId').text(),
 			current_time_period: currentTimePeriod,
 			current_teaching_site: currentTeachingSite,
 			school_id: school_id,
@@ -116,15 +121,15 @@ $(document).ready(function() {
 		//store the value and wait for the Ajax request result status
 		var tempTimePeriod = $(this).closest('tr').find('div#timePeriod').find('select.view').val(); 
 		var tempTeachingSite = $(this).closest('tr').find('div#teachingSite').find('select.view').val(); 
-		if (tempTeachingSite == 0)
+		if (tempTeachingSite == 0 || tempTimePeriod == 0)
 		{
-			alert('Please make a selection from the drop down list first');
+			alert('Please make a selection from the drop down list(s) first.');
 		} else {
 			$.ajax({
 				url: "/tusk/schedule/clinical/admin/ajax/modification",
 				data: {
 					user_id: user_id,
-					course_name: $(this).closest('tr').find('span#courseName').text(),
+					course_id: $(this).closest('tr').find('span#courseId').text(),
 					current_time_period: currentTimePeriod,
 					current_teaching_site: currentTeachingSite,
 					requested_time_period: tempTimePeriod,
@@ -146,7 +151,7 @@ $(document).ready(function() {
 				alert("An error occured during the modification process");
 			}).success(function(data, status){
 				if (data['applied'] == 'false') {
-					alert('Enough students are already enrolled for the given values.');
+					alert('There was a problem saving the selected time period and teaching site.');
 				}
 				else {
 					currentTimePeriod = tempTimePeriod;
