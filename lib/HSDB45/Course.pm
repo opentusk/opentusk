@@ -1036,7 +1036,7 @@ sub get_student_site {
     my $ts_id = undef;
 
     eval {
-	$ts_id = $dbh->selectrow_array("select teaching_site_id from $db\.link_course_student where parent_course_id = " . $self->primary_key() . " and child_user_id = '$student_id' and time_period_id = $timeperiod_id");
+	    $ts_id = $dbh->selectrow_array("SELECT teaching_site_id FROM $db.link_course_student WHERE parent_course_id = ? AND child_user_id = ? AND time_period_id = ?", undef, $self->primary_key(), $student_id, $timeperiod_id);
     };
 
     if ($@) {
