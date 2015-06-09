@@ -171,6 +171,8 @@ $(document).ready(function() {
 	});
 	$("a#cancel").click(function() {
 		modificationInProgress = false;
+		$(this).closest('tr').find('div#timePeriod').find('select.view').val($.trim(currentTimePeriod));
+		$(this).closest('tr').find('div#teachingSite').find('select.view').val($.trim(currentTeachingSite));
 		$(this).closest('tr').find('div#teachingSite').hide();
 		$(this).closest('tr').find('div#timePeriod').hide();
 		$(this).closest('tr').find('a#save').hide();
