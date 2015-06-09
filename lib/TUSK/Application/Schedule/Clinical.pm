@@ -175,7 +175,7 @@ sub getScheduleStudentsFiltering{
 sub constructStudentModificationTimePeriods{
     my ($self, $args) = @_;
 
-    my %timePeriods = ();
+    my @timePeriods = ();
 
     my $sql = qq/SELECT DISTINCT t1.period, t1.time_period_id
         FROM $self->{school_db}.time_period AS t1
@@ -188,10 +188,13 @@ sub constructStudentModificationTimePeriods{
     croak "error : $@ query $sql failed for class " . ref($self) if ($@);
     while (my ($timePeriod, $timePeriodId) = $sth->fetchrow_array())
     {
-        $timePeriods{$timePeriodId} = $timePeriod;
+        push @timePeriods, {
+            timePeriod => $timePeriod,
+            timePeriodId => $timePeriodId
+        };
     }
 
-    return \%timePeriods;
+    return \@timePeriods;
 }
 
 sub constructStudentModificationTeachingSites{
