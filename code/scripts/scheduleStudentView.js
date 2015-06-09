@@ -1,4 +1,6 @@
 var currentRowIndex = 0;
+var currentTimePeriod;
+var currentTeachingSite; 
 
 function getRowIndex(rowIndex)
 {
@@ -7,9 +9,8 @@ function getRowIndex(rowIndex)
 
 $(document).ready(function() {
 
-	var currentTimePeriod;
-	var currentTeachingSite; 
 	var modificationInProgress = false;
+	var currentBackgroundColor;
 
 	$('div#timePeriod, div#teachingSite').change(function() {
 		if ($(this).closest('tr').find('div#timePeriod').find('select.view').val() == 0 || $(this).closest('tr').find('div#teachingSite').find('select.view').val() == 0) {
@@ -79,6 +80,8 @@ $(document).ready(function() {
    			$(this).closest('tr').find('div#modify').hide();
    			$(this).closest('tr').find('span#currentTimePeriod').hide();
    			$(this).closest('tr').find('span#currentTeachingSite').hide();
+   			currentBackgroundColor = $(this).closest('tr').css("background-color");
+   			$(this).closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
    		}
    		return;
 	});
@@ -183,5 +186,6 @@ $(document).ready(function() {
 		$(this).closest('tr').find('div#modify').show();
 		$(this).closest('tr').find('span#currentTimePeriod').show();
    		$(this).closest('tr').find('span#currentTeachingSite').show();
+   		$(this).closest('tr').css( "background-color", currentBackgroundColor);
 	});
 });
