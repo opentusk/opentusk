@@ -25,8 +25,7 @@
 </%once>
 
 <%shared>
-	my @teachingSites = ();
-    my @teachingSiteIds = ();
+    my %teachingSites = ();
 </%shared>
 
 <%init>
@@ -34,8 +33,7 @@
         school_id => $school->getPrimaryKeyID(), 
         school_db => $school->getSchoolDb()
     });
-	@teachingSites = @{$modificationValues->getStudentModificationTeachingSites()->{'teachingSites'}};
-    @teachingSiteIds = @{$modificationValues->getStudentModificationTeachingSites()->{'teachingSiteIds'}};
+	%teachingSites = %{$modificationValues->getStudentModificationTeachingSites()};
 
 	$m->comp('SELF:.prepareTeachingSitesDropdown', rowIndex => $rowIndex, currentTeachingSite => $currentTeachingSite);
 </%init>
@@ -54,17 +52,20 @@
         'label' => 'Select Teaching Site'
     };
 
-    for my $index (0..$#{@teachingSites}) {
+
+    while ( my($teachingSiteId, $teachingSite) = each %teachingSites)
+    {
         push @dropdownOptions, {
-            'value' => ${@teachingSiteIds}[$index],
-            'label' => ${@teachingSites}[$index],
+            'value' => $teachingSiteId,
+            'label' => $teachingSite
         }
     }
 
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions,
         onchange => "getRowIndex($rowIndex)",
-        selected => $currentTeachingSite
+        selected => $currentTeachingSite,
+        style => 'width: 100%;'
     });
 </%perl>
 </%method>

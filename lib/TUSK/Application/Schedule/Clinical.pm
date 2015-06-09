@@ -175,12 +175,11 @@ sub getScheduleStudentsFiltering{
 sub constructStudentModificationTimePeriods{
     my ($self, $args) = @_;
 
-    my @timePeriods = ();
-    my @timePeriodIds = ();
+    my %timePeriods = ();
 
     my $sql = qq/SELECT DISTINCT t1.period, t1.time_period_id
         FROM $self->{school_db}.time_period AS t1
-        ORDER BY t1.academic_year DESC;/;
+        ORDER BY t1.start_date DESC;/;
     my $dbh = $self->{-dbh};
     my $sth = $dbh->prepare($sql);
     eval {
@@ -189,21 +188,16 @@ sub constructStudentModificationTimePeriods{
     croak "error : $@ query $sql failed for class " . ref($self) if ($@);
     while (my ($timePeriod, $timePeriodId) = $sth->fetchrow_array())
     {
-        push @timePeriods, $timePeriod;
-        push @timePeriodIds, $timePeriodId;
+        $timePeriods{$timePeriodId} = $timePeriod;
     }
 
-    return {
-        timePeriods => \@timePeriods,
-        timePeriodIds => \@timePeriodIds,
-    };
+    return \%timePeriods;
 }
 
 sub constructStudentModificationTeachingSites{
     my ($self, $args) = @_;
 
-    my @teachingSites = ();
-    my @teachingSiteIds = ();
+    my %teachingSites = ();
 
     my $sql = qq/SELECT DISTINCT t2.site_name, t2.teaching_site_id
         FROM $self->{school_db}.teaching_site AS t2;/;
@@ -216,14 +210,10 @@ sub constructStudentModificationTeachingSites{
     croak "error : $@ query $sql failed for class " . ref($self) if ($@);
     while (my ($teachingSite, $teachingSiteId) = $sth->fetchrow_array())
     {
-        push @teachingSites, $teachingSite;
-        push @teachingSiteIds, $teachingSiteId;
+        $teachingSites{$teachingSiteId} = $teachingSite;
     }
 
-    return {
-        teachingSites => \@teachingSites,
-        teachingSiteIds => \@teachingSiteIds,
-    };
+    return \%teachingSites;
 }
 
 sub getStudentModificationValues{
@@ -235,18 +225,11 @@ sub getStudentModificationValues{
 
         $self->{-dbh} = $dbh;
         $studentModificationTimePeriods = $self->constructStudentModificationTimePeriods();
-        my $timePeriods = $studentModificationTimePeriods->{'timePeriods'};
-        my $timePeriodIds = $studentModificationTimePeriods->{'timePeriodIds'};
-
         $studentModificationTeachingSites = $self->constructStudentModificationTeachingSites();
-        my $teachingSites = $studentModificationTeachingSites->{'teachingSites'};
-        my $teachingSiteIds = $studentModificationTeachingSites->{'teachingSiteIds'};
 
         $self->{-modifications} = {
-            timePeriods => $timePeriods,
-            timePeriodIds => $timePeriodIds,
-            teachingSites => $teachingSites,
-            teachingSiteIds => $teachingSiteIds,
+            timePeriods => $studentModificationTimePeriods,
+            teachingSites => $studentModificationTeachingSites,
         };
     }
     return $self;
@@ -257,10 +240,7 @@ sub getStudentModificationTimePeriods{
 
     $self->getStudentModificationValues();
 
-    return {
-        timePeriods => $self->{-modifications}->{'timePeriods'},
-        timePeriodIds => $self->{-modifications}->{'timePeriodIds'}
-    };
+    return $self->{-modifications}->{'timePeriods'};
 }
 
 sub getStudentModificationTeachingSites{
@@ -268,10 +248,7 @@ sub getStudentModificationTeachingSites{
 
     $self->getStudentModificationValues();
     
-    return {
-        teachingSites => $self->{-modifications}->{'teachingSites'},
-        teachingSiteIds => $self->{-modifications}->{'teachingSiteIds'}
-    };
+    return $self->{-modifications}->{'teachingSites'};
 }
 
 sub getAlreadyEnrolledInACourse{
@@ -291,7 +268,7 @@ sub getAlreadyEnrolledInACourse{
             SELECT teaching_site_id
             FROM $self->{school_db}.teaching_site
             WHERE site_name = ?
-        );/;
+        )/;
     my $dbh = $self->{-dbh};
     my $alreadyEnrolled = $dbh->do($sql, undef, @{$sqlArgs}) or die $dbh->errstr;
 
@@ -305,7 +282,7 @@ sub deleteStudentFromCourse{
         AND time_period_id = ? 
         AND teaching_site_id = ? 
         AND child_user_id = ?
-        LIMIT 1;/;
+        LIMIT 1/;
     my $dbh = $self->{-dbh};
     my $rowsUpdates = $dbh->do($sql, undef, @{$sqlArgs}) or die $dbh->errstr;
 
@@ -336,7 +313,7 @@ sub applyStudentModifications{
     WHERE t3.child_user_id = ? 
     AND t3.time_period_id = ?
     AND t3.teaching_site_id = ?
-    AND t3.parent_course_id = ?;/;
+    AND t3.parent_course_id = ?/;
     
     @sqlArgs = ($args->{requested_time_period}, 
         $args->{requested_teaching_site}, 
@@ -362,7 +339,7 @@ sub checkNumberOfEnrolled{
     FROM $self->{school_db}.link_course_student AS t1
     WHERE t1.parent_course_id = ? 
     AND t1.time_period_id = ? 
-    AND t1.teaching_site_id = ?;/;
+    AND t1.teaching_site_id = ?/;
     my $sth = $check->databaseSelect($sql, @sqlArgs);
     my $alreadyEnrolled = -1;
     while (my ($already_enrolled) = $sth->fetchrow_array())

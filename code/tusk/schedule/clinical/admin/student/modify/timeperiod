@@ -25,8 +25,7 @@
 </%once>
 
 <%shared>
-	my @timePeriods = ();
-    my @timePeriodIds = ();
+	my %timePeriods = ();
 </%shared>
 
 <%init>
@@ -35,8 +34,7 @@
         school_db => $school->getSchoolDb()
     });
 
-	@timePeriods = @{$modificationValues->getStudentModificationTimePeriods()->{'timePeriods'}};
-    @timePeriodIds = @{$modificationValues->getStudentModificationTimePeriods()->{'timePeriodIds'}};
+	%timePeriods = %{$modificationValues->getStudentModificationTimePeriods()};
 	$m->comp('SELF:.prepareTimePeriodsDropdown', rowIndex => $rowIndex, currentTimePeriod => $currentTimePeriod);
 </%init>
 
@@ -54,17 +52,19 @@
         'label' => 'Select Timeperiod'
     };
 
-    for my $index (0..$#{@timePeriods}) {
+    while ( my($timePeriodId, $timePeriod) = each %timePeriods)
+    {
         push @dropdownOptions, {
-            'value' => ${@timePeriodIds}[$index],
-            'label' => ${@timePeriods}[$index],
-        };
+            'value' => $timePeriodId,
+            'label' => $timePeriod
+        }
     }
 
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions, 
         onchange => "getRowIndex($rowIndex)",
-        selected => $currentTimePeriod
+        selected => $currentTimePeriod,
+        style => 'width: 100%;'
     });
 </%perl>
 </%method>

@@ -52,12 +52,11 @@ $(document).ready(function() {
 	$("td #modify").click(function() {
 		if (modificationInProgress)
 		{	
-			alert('Please either \'Cancel\' or \'Save\' current modifications.')
+			alert('Please \'Cancel\', \'Save\' or \'Delete\' current modifications.')
 			return;
 		}
-		// $(this).closest('tr').find('div#teachingSite').find('select.view').trigger('change');
+		$(this).closest('tr').find('div#teachingSite').find('select.view').trigger('change');
 		console.log('The row number is ' + currentRowIndex);
-		// $(this).closest('tr').find('div#timePeriod').trigger('change');
 		modificationInProgress = true;
 		if ($(this).closest('tr').find('div#timePeriod').is(":visible"))
 		{
@@ -77,7 +76,9 @@ $(document).ready(function() {
    			$(this).closest('tr').find('a#cancel').show();
    			$(this).closest('tr').find('a#delete').show();
    			$(this).closest('tr').find('span.littlespacing').show();
-   			$(this).closest('tr').find('div#modify').hide()
+   			$(this).closest('tr').find('div#modify').hide();
+   			$(this).closest('tr').find('span#currentTimePeriod').hide();
+   			$(this).closest('tr').find('span#currentTeachingSite').hide();
    		}
    		return;
 	});
@@ -118,7 +119,7 @@ $(document).ready(function() {
 			});
 			return;
 		} else {
-				return;
+			return;
 		}
 	});
 
@@ -177,6 +178,8 @@ $(document).ready(function() {
 		$(this).closest('tr').find('a#delete').hide();
 		$(this).closest('tr').find('span#alreadyEnrolled').hide();
 		$(this).closest('tr').find('span.littlespacing').hide();
-		$(this).closest('tr').find('div#modify').show()
+		$(this).closest('tr').find('div#modify').show();
+		$(this).closest('tr').find('span#currentTimePeriod').show();
+   		$(this).closest('tr').find('span#currentTeachingSite').show();
 	});
 });
