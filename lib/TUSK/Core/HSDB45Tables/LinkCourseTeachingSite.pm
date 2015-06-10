@@ -76,7 +76,7 @@ sub new {
 				    },
 				    _levels => {
 					reporting => 'cluck',
-					error => 0,
+					error => 10,
 				    },
 				    @_
 				  );

@@ -25,15 +25,28 @@
 
 <%once>
 	use JSON;
+  	use TUSK::Application::Schedule::Clinical;
 </%once>
 
 <%perl>
-	my $user_id = $ARGS{'user_id'};
-	my $course_name = $ARGS{'course_name'};
 	my $status = {
 		can_enroll => 'false',
 	};
-	# my $modification_status_json = JSON->new->pretty->encode($status);
+
+	if (TUSK::Application::Schedule::Clinical->new({
+		school_id => $ARGS{'school_id'},
+		school_db => $ARGS{'school_db'}
+	})->applyStudentModifications({
+		current_time_period => $ARGS{'current_time_period'},
+		requested_time_period => $ARGS{'requested_time_period'},
+		current_teaching_site => $ARGS{'current_teaching_site'},
+		requested_teaching_site => $ARGS{'requested_teaching_site'},
+		user_id => $ARGS{'user_id'},
+	  	course_name => $ARGS{'course_name'}
+	}
+	) eq 'true'){
+		$status->{can_enroll} = 'true';
+	}
 	my $modification_status_json = encode_json $status;	
 	$m->print($modification_status_json);
 </%perl>

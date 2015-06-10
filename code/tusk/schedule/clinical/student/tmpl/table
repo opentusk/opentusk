@@ -85,17 +85,17 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 		my @rows;
 
 		push @rows, {
-			rotation => '<a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">'.${$scheduleCourses->{'courseTitles'}}[$index].'</a>',             
-			time_period => ${$scheduleCourses->{'timePeriods'}}[$index] . ($isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" . $m->scomp("/schedule/clinical/admin/student/modify/timeperiod") . "</div>" : ""),
+			rotation => '<span id = "courseName"><a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">'.${$scheduleCourses->{'courseTitles'}}[$index].'</a></span>',             
+			time_period => '<span id = "currentTimePeriod">' . ${$scheduleCourses->{'timePeriods'}}[$index] . '</span>' . ($isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" . $m->scomp("/schedule/clinical/admin/student/modify/timeperiod", school => $school) . "</div>" : ""),
 			start_date => $startDateInMMDDYYYY,
 			end_date => $endDateInMMDDYYYY,
-			teaching_site => ${$scheduleCourses->{'siteNames'}}[$index],
+			teaching_site => '<span id = "currentTeachingSite">' . ${$scheduleCourses->{'siteNames'}}[$index] . '</span>' . ($isAdmin ? "<div id = 'teachingSite' style = 'display: none;'>" . $m->scomp("/schedule/clinical/admin/student/modify/teachingsite", school => $school) . "</div>" : ""),
 			number_of_weeks => ${@numberOfWeeks}[0][$index],
 		};
 
 		if ($isAdmin)
 		{
-			${@rows}[-1]{'actions'} = '<div id="modify"><a>Modify</a></div><div id = "save" style = "display: block;"><a>Save</a></div><div id = "cancel" style = "display: block; float:left;"><a>Cancel</a></div>'; 
+			${@rows}[-1]{'actions'} = '<div id="modify"><a>Modify</a></div><span id = "saveCancel"><a id = "save" style = "display: none;">Save</a><a id = "cancel" style = "display: none;">Cancel</a></span>'; 
 		}
 
 		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {

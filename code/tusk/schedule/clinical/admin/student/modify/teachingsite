@@ -23,7 +23,7 @@
 </%once>
 
 <%shared>
-	my @uniqueTimePeriods = ();
+	my @uniqueTeachingSites = ();
 </%shared>
 
 <%init>
@@ -31,22 +31,21 @@
         school_id => $school->getPrimaryKeyID(), 
         school_db => $school->getSchoolDb()
     });
-	@uniqueTimePeriods = unique(map {$_} @{$modificationValues->getStudentModificationTimePeriods()});
-	$m->comp('SELF:.prepareTimePeriodsDropdown');
+	@uniqueTeachingSites = unique(map {$_} @{$modificationValues->getStudentModificationTeachingSites()});
+	$m->comp('SELF:.prepareTeachingSitesDropdown');
 </%init>
 
 
-<%method .prepareTimePeriodsDropdown>
+<%method .prepareTeachingSitesDropdown>
 <%perl>
     my @dropdownOptions;
     
-    foreach my $timePeriod (@uniqueTimePeriods) {
+    foreach my $teachingSite (@uniqueTeachingSites) {
         push @dropdownOptions, {
-            'value' => $timePeriod,
-            'label' => $timePeriod
+            'value' => $teachingSite,
+            'label' => $teachingSite
         };
     }
-
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions, 
     });
