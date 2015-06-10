@@ -16,6 +16,7 @@
 
 <%args>
     $school
+    $rowIndex
 </%args>
 
 <%once>
@@ -32,14 +33,20 @@
         school_db => $school->getSchoolDb()
     });
 	@uniqueTeachingSites = unique(map {$_} @{$modificationValues->getStudentModificationTeachingSites()});
-	$m->comp('SELF:.prepareTeachingSitesDropdown');
+	$m->comp('SELF:.prepareTeachingSitesDropdown', rowIndex => $rowIndex);
 </%init>
 
 
 <%method .prepareTeachingSitesDropdown>
+<%args>
+  $rowIndex
+</%args>
 <%perl>
     my @dropdownOptions;
-    
+    # push @dropdownOptions, {
+    #     'value' => '',
+    #     'label' => 'Select Teaching Site'
+    # };
     foreach my $teachingSite (@uniqueTeachingSites) {
         push @dropdownOptions, {
             'value' => $teachingSite,
@@ -47,7 +54,8 @@
         };
     }
     $m->comp('/tmpl/element:dropdown', params => {
-        options => \@dropdownOptions, 
+        options => \@dropdownOptions,
+        onchange => "getRowIndex($rowIndex)"
     });
 </%perl>
 </%method>

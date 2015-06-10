@@ -29,27 +29,19 @@
 
 <%perl>
 	my $status = {
-		can_enroll => 'false',
+		number_of_enrolled => -1,
 	};
 
-	if (TUSK::Application::Schedule::Clinical->new({
+	$status->{number_of_enrolled} = TUSK::Application::Schedule::Clinical->new({
 		school_id => $ARGS{'school_id'},
 		school_db => $ARGS{'school_db'}
-	})->applyStudentModifications({
-		current_time_period => $ARGS{'current_time_period'},
-		requested_time_period => $ARGS{'requested_time_period'},
-		current_teaching_site => $ARGS{'current_teaching_site'},
-		requested_teaching_site => $ARGS{'requested_teaching_site'},
-		user_id => $ARGS{'user_id'},
+	})->checkNumberOfEnrolled({
+		temp_time_period => $ARGS{'temp_time_period'},
+		temp_teaching_site => $ARGS{'temp_teaching_site'},
 	  	course_name => $ARGS{'course_name'},
-	  	delete_requested => $ARGS{'delete_requested'},
-	}) eq 'true') {
-		$status->{applied} = 'true';
-	} 
-	else {
-		$status->{applied} = 'false';
-	}
+	});
+
 	my $modification_status_json = encode_json $status;	
 	$m->print($modification_status_json);
-</%perl>
 
+</%perl>

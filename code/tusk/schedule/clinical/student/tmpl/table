@@ -77,6 +77,7 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 	{
 		$isAdmin = 1;
 	}
+	my $rowIndex = 0;
 
 	for my $index (0..$#{$scheduleCourses->{'courseTitles'}}) {
 
@@ -86,16 +87,16 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 
 		push @rows, {
 			rotation => '<span id = "courseName"><a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">'.${$scheduleCourses->{'courseTitles'}}[$index].'</a></span>',             
-			time_period => '<span id = "currentTimePeriod">' . ${$scheduleCourses->{'timePeriods'}}[$index] . '</span>' . ($isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" . $m->scomp("/schedule/clinical/admin/student/modify/timeperiod", school => $school) . "</div>" : ""),
+			time_period => '<span id = "currentTimePeriod">' . ${$scheduleCourses->{'timePeriods'}}[$index] . '</span>' . ($isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" . $m->scomp("/schedule/clinical/admin/student/modify/timeperiod", school => $school, rowIndex => $rowIndex) . "</div>" : ""),
 			start_date => $startDateInMMDDYYYY,
 			end_date => $endDateInMMDDYYYY,
-			teaching_site => '<span id = "currentTeachingSite">' . ${$scheduleCourses->{'siteNames'}}[$index] . '</span>' . ($isAdmin ? "<div id = 'teachingSite' style = 'display: none;'>" . $m->scomp("/schedule/clinical/admin/student/modify/teachingsite", school => $school) . "</div>" : ""),
+			teaching_site => '<span id = "currentTeachingSite">' . ${$scheduleCourses->{'siteNames'}}[$index] . '</span>' . ($isAdmin ? "<div id = 'teachingSite' style = 'display: none;'>" . $m->scomp("/schedule/clinical/admin/student/modify/teachingsite", school => $school, rowIndex => $rowIndex) . "</div>" : ""),
 			number_of_weeks => ${@numberOfWeeks}[0][$index],
 		};
 
 		if ($isAdmin)
 		{
-			${@rows}[-1]{'actions'} = '<div id="modify"><a>Modify</a></div><span id = "saveCancelDelete"><a id = "save" style = "display: none;">Save</a><a id = "cancel" style = "display: none;">Cancel</a><a id = "delete" style = "display: none;">Delete</a></span>'; 
+			${@rows}[-1]{'actions'} = '<div id="modify"><a>Modify</a></div><span id = "saveCancelDelete"><a id = "save" style = "display: none;">Save</a><a id = "cancel" style = "display: none;">Cancel</a><a id = "delete" style = "display: none;">Delete</a></span><span id = "alreadyEnrolled" style = "display: none;"> Already Enrolled:<span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>'; 
 		}
 
 		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {
@@ -107,6 +108,7 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 		else {
 			push @{ $table{"future"} }, @rows;
 		}
+		$rowIndex++;
 	}
 }
 

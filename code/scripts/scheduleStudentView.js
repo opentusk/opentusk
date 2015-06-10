@@ -1,8 +1,48 @@
+var currentRowIndex = 0;
+
+function getRowIndex(rowIndex)
+{
+	currentRowIndex = rowIndex;
+}
+
 $(document).ready(function() {
 
 	var currentTimePeriod;
 	var currentTeachingSite; 
 	var modificationInProgress = false;
+
+	$('div#timePeriod, div#teachingSite').change(function() {
+	  $(this).closest('tr').find('span#alreadyEnrolled').show();
+	  $.ajax({
+		url: "/tusk/schedule/clinical/admin/ajax/enrollmentcheck",
+		data: {
+			temp_time_period: $(this).closest('tr').find('div#timePeriod').find('select.view').val(),
+			temp_teaching_site: $(this).closest('tr').find('div#teachingSite').find('select.view').val(),
+			school_id: school_id,
+			school_db: school_db,
+			course_name: $(this).closest('tr').find('span#courseName').text()
+		}, dataType: "json",
+			statusCode: {
+				404: function () {
+					alert('Page not found');
+				},
+				500: function () {
+					alert('Internal server error');
+				},
+			}
+		}).done(function() {
+		}).error(function() {
+			alert("An error occured during the deletion process");
+		}).success(function(data, status){
+			if (data['number_of_enrolled'] != -1) {
+				$('span#alreadyEnrolledNumber' + currentRowIndex).text(data['number_of_enrolled']);
+			}
+			else {
+				alert('The number of students for the current time period and teaching site selection couldn\'t be fetched');
+			}
+		});
+		return;
+	});
 
 	$("td #modify").click(function() {
 		if (modificationInProgress)
@@ -10,6 +50,7 @@ $(document).ready(function() {
 			alert('Please either \'Cancel\' or \'Save\' current modifications.')
 			return;
 		}
+		$(this).closest('tr').find('div#timePeriod').trigger('change');
 		modificationInProgress = true;
 		if ($(this).closest('tr').find('div#timePeriod').is(":visible"))
 		{
@@ -115,5 +156,7 @@ $(document).ready(function() {
 		$(this).closest('tr').find('div#timePeriod').hide();
 		$(this).closest('tr').find('a#save').hide();
 		$(this).closest('tr').find('a#cancel').hide();
+		$(this).closest('tr').find('a#delete').hide();
+		$(this).closest('tr').find('span#alreadyEnrolled').hide();
 	});
 });

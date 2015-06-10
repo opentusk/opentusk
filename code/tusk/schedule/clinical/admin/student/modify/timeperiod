@@ -16,6 +16,7 @@
 
 <%args>
     $school
+    $rowIndex
 </%args>
 
 <%once>
@@ -32,23 +33,31 @@
         school_db => $school->getSchoolDb()
     });
 	@uniqueTimePeriods = unique(map {$_} @{$modificationValues->getStudentModificationTimePeriods()});
-	$m->comp('SELF:.prepareTimePeriodsDropdown');
+	$m->comp('SELF:.prepareTimePeriodsDropdown', rowIndex => $rowIndex);
 </%init>
 
 
 <%method .prepareTimePeriodsDropdown>
+<%args>
+  $rowIndex
+</%args>
 <%perl>
     my @dropdownOptions;
     
+    # push @dropdownOptions, {
+    #     'value' => '',
+    #     'label' => 'Select Time Period'
+    # };
+
     foreach my $timePeriod (@uniqueTimePeriods) {
         push @dropdownOptions, {
             'value' => $timePeriod,
             'label' => $timePeriod
         };
     }
-
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions, 
+        onchange => "getRowIndex($rowIndex)"
     });
 </%perl>
 </%method>
