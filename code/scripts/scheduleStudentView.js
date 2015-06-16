@@ -63,7 +63,6 @@ $(document).ready(function() {
 		}
 		modificationInProgress = true;
 		addRequested = true;
-		$('span#alreadyEnrolledNumber0').closest('table').show(); //Index zero refers to the addition row
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val($.urlParam('requstedCourseId')); 
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val($.urlParam('timePeriodId')); 
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val($.urlParam('teachingSiteId'));
@@ -76,6 +75,7 @@ $(document).ready(function() {
 		$('span#alreadyEnrolledNumber0').closest('tr').find('span.littlespacing').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('a#save').show();
    		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
+   		$('span#alreadyEnrolledNumber0').closest('table').show(); //Index zero refers to the addition row
 	} else {
 		$('span#alreadyEnrolledNumber0').closest('table').hide();
 	}
