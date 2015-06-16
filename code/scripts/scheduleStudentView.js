@@ -67,8 +67,6 @@ $(document).ready(function() {
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val($.urlParam('timePeriodId')); 
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val($.urlParam('teachingSiteId'));
 		currentBackgroundColor = $(this).closest('tr').css("background-color");
-   		$('span#alreadyEnrolledNumber0').closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
-		$('span#alreadyEnrolledNumber0').closest('table').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').show();
@@ -76,6 +74,7 @@ $(document).ready(function() {
 		$('span#alreadyEnrolledNumber0').closest('tr').find('a#save').show();
    		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
    		$('span#alreadyEnrolledNumber0').closest('table').show(); //Index zero refers to the addition row
+		$('span#alreadyEnrolledNumber0').closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
 	} else {
 		$('span#alreadyEnrolledNumber0').closest('table').hide();
 	}
