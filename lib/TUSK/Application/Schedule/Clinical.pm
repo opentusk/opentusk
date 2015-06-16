@@ -208,7 +208,6 @@ sub constructStudentModificationTeachingSites{
     my ($self, $args) = @_;
 
     my %teachingSites = ();
-    warn('current course id is ' . $args->{currentCourse});
     my $sql = qq/SELECT DISTINCT t1.site_name, t1.teaching_site_id
         FROM $self->{school_db}.teaching_site AS t1
         INNER JOIN $self->{school_db}.link_course_teaching_site AS t2
@@ -256,7 +255,6 @@ sub constructStudentModificationTimePeriods{
 
 sub getStudentModificationValues{
     my ($self, $args) = @_;
-    warn('academicLevelTitle is ' . $args->{academicLevelTitle});
     unless($self->{-modifications}) {
         my $options = TUSK::Core::HSDB45Tables::TimePeriod->new();
         my $dbh = $options->getDatabaseReadHandle();
@@ -284,7 +282,6 @@ sub getStudentModificationTimePeriods{
 
 sub getStudentModificationTeachingSites{
     my ($self, $currentCourse) = @_;
-    warn('current course id in getStudentModificationTeachingSites is ' . $currentCourse);
     $self->getStudentModificationValues({
         currentCourse => $currentCourse
     });
@@ -393,7 +390,6 @@ sub applyStudentModifications{
         $rowsUpdates = $dbh->do($sql, undef, @sqlArgs);
     };
     warn "error : $@ query $sql failed for class " . ref($self) if ($@);
-    warn ('Result of the query is ' . $rowsUpdates . " and the error message is " .  $dbh->errstr);
     return $rowsUpdates == 1 ? 'ok' : $dbh->errstr;
 }
 
