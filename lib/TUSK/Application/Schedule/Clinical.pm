@@ -208,14 +208,17 @@ sub constructStudentModificationTeachingSites{
     my ($self, $args) = @_;
 
     my %teachingSites = ();
-
-    my $sql = qq/SELECT DISTINCT t2.site_name, t2.teaching_site_id
-        FROM $self->{school_db}.teaching_site AS t2;/;
+    warn('current course id is ' . $args->{currentCourse});
+    my $sql = qq/SELECT DISTINCT t1.site_name, t1.teaching_site_id
+        FROM $self->{school_db}.teaching_site AS t1
+        INNER JOIN $self->{school_db}.link_course_teaching_site AS t2
+        ON (t1.teaching_site_id = t2.child_teaching_site_id)
+        WHERE t2.parent_course_id = ?/;
     
     my $dbh = $self->{-dbh};
     my $sth = $dbh->prepare($sql);
     eval {
-        $sth->execute();
+        $sth->execute($args->{currentCourse});
     };
     croak "error : $@ query $sql failed for class " . ref($self) if ($@);
     while (my ($teachingSite, $teachingSiteId) = $sth->fetchrow_array())
@@ -252,16 +255,16 @@ sub constructStudentModificationTimePeriods{
 }
 
 sub getStudentModificationValues{
-    my ($self, $academicLevelTitle) = @_;
+    my ($self, $args) = @_;
+    warn('academicLevelTitle is ' . $args->{academicLevelTitle});
     unless($self->{-modifications}) {
         my $options = TUSK::Core::HSDB45Tables::TimePeriod->new();
         my $dbh = $options->getDatabaseReadHandle();
 
         $self->{-dbh} = $dbh;
         $studentModificationTimePeriods = $self->constructStudentModificationTimePeriods();
-        $studentModificationTeachingSites = $self->constructStudentModificationTeachingSites();
-        $studentModificationCourses = $self->constructStudentModificationCourses($academicLevelTitle);
-
+        $studentModificationTeachingSites = $self->constructStudentModificationTeachingSites({currentCourse => $args->{currentCourse}});
+        $studentModificationCourses = $self->constructStudentModificationCourses($args->{academicLevelTitle});
         $self->{-modifications} = {
             timePeriods => $studentModificationTimePeriods,
             teachingSites => $studentModificationTeachingSites,
@@ -280,16 +283,20 @@ sub getStudentModificationTimePeriods{
 }
 
 sub getStudentModificationTeachingSites{
-    my ($self) = @_;
-
-    $self->getStudentModificationValues();
+    my ($self, $currentCourse) = @_;
+    warn('current course id in getStudentModificationTeachingSites is ' . $currentCourse);
+    $self->getStudentModificationValues({
+        currentCourse => $currentCourse
+    });
     
     return $self->{-modifications}->{'teachingSites'};
 }
 
 sub getStudentModificationCourses{
     my ($self, $academicLevelTitle) = @_;
-    $self->getStudentModificationValues($academicLevelTitle);
+    $self->getStudentModificationValues({
+        academicLevelTitle => $academicLevelTitle
+    });
     return $self->{-modifications}->{'courses'};
 }
 
