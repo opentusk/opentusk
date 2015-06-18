@@ -768,31 +768,26 @@ sub get_time_periods{
 
 sub get_universal_time_periods {
     my $self = shift;
+    my $include_future = shift;
     my $dbh = HSDB4::Constants::def_db_handle;
     my $db = $self->school_db();
     my $course_id = $self->primary_key();
     my $school_id = $self->school_id();
     my $sql = qq(
-		 SELECT distinct time_period_id 
-		 FROM $db.link_course_student 
-		 WHERE parent_course_id = $course_id
+		 SELECT DISTINCT time_period_id
+		 FROM $db.link_course_student
+		 WHERE parent_course_id = ?
 		 UNION
-		 SELECT distinct time_period_id 
-		 FROM tusk.course_user 
-		 WHERE course_id = $course_id AND school_id = $school_id
-		 UNION
-		 SELECT time_period_id 
-		 FROM $db\.time_period 
-		 WHERE (start_date <= curdate() and end_date >= curdate())
-         UNION
-         SELECT time_period_id
-         FROM $db.time_period
-         WHERE start_date >= curdate()
+		 SELECT DISTINCT time_period_id
+		 FROM tusk.course_user
+		 WHERE course_id = ? AND school_id = ?
 		 );
+    $sql .= "UNION SELECT time_period_id FROM $db.time_period WHERE end_date >= curdate()" if ($include_future);
+
     my @tp_ids = ();    
     eval {
-	my $sth = $dbh->prepare ($sql);
-	$sth->execute();
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($course_id, $course_id, $school_id);
 
 	while (my ($tp_id) = $sth->fetchrow_array()) {
 	    push (@tp_ids, $tp_id);
@@ -802,7 +797,7 @@ sub get_universal_time_periods {
     confess $@, return if $@;
 
     return (scalar @tp_ids) 
-	? [ HSDB45::TimePeriod->new( _school => $self->school() )->lookup_conditions("time_period_id IN (" . join(", ", @tp_ids) . ") order by start_date desc, end_date desc") ]
+	? [ HSDB45::TimePeriod->new( _school => $self->school() )->lookup_conditions('time_period_id IN (' . join(', ', @tp_ids) . ') ORDER BY start_date DESC, end_date DESC') ]
 	: [];
 }
 
