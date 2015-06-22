@@ -134,7 +134,7 @@ $.fn.sumValues = function(criteria_update) {
 			$("input[name='total_override_score']").val('');	
 	} 
 
-	return sum;
+	return sum.toFixed(2);
 }
 
 
