@@ -1009,15 +1009,16 @@ sub get_students {
 	return @students;
 }
 
+
 sub get_single_student {
     #
     # Gets the details of a single student link
     #
     my ($self, $user_id, $timeperiod_id) = @_;
 
-    return "" unless ($user_id);
+    return '' unless ($user_id);
     
-    my @students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id and child_user_id = '$user_id'")->children();
+    my @students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id AND child_user_id = '$user_id'")->children();
 	
     return $students[0];
 }
@@ -1037,7 +1038,26 @@ sub get_student_site {
     if ($@) {
 	confess $@, return;
     } else {
-	return HSDB45::TeachingSite->new(_school => $self->school())->lookup_key($ts_id);
+	return HSDB45::TeachingSite->new( _school => $self->school() )->lookup_key($ts_id);
+    }
+}
+
+
+sub get_student_timeperiod {
+    my ($self, $student_id) = @_;
+
+    my $dbh = HSDB4::Constants::def_db_handle;
+    my $db = $self->school_db();
+    my $tp_id = undef;
+
+    eval {
+	    $tp_id = $dbh->selectrow_array("SELECT time_period_id FROM $db.link_course_student WHERE parent_course_id = ? AND child_user_id = ?", undef, $self->primary_key(), $student_id);
+    };
+
+    if ($@) {
+	confess $@, return;
+    } else {
+	return HSDB45::TimePeriod->new( _school => $self->school() )->lookup_key($tp_id);
     }
 }
 
@@ -1179,6 +1199,7 @@ sub child_user_hash {
     return $self->{-child_user_hash};
 }
 
+
 sub reset_user_list {
     # 
     # Reset the user lists
@@ -1234,6 +1255,7 @@ sub update_child_student {
 						  -cond => ' AND time_period_id = ' . $tp );
     return ($r, $msg);
 }
+
 
 sub delete_child_student {
 	#

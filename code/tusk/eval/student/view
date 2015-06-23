@@ -29,7 +29,7 @@
 	my %evals = ();
 	my $school_object = $course->get_school();
 	my $school = $school_object->getSchoolName();
-	my $time_period = $course->get_current_timeperiod();
+	my $time_period = $course->get_student_timeperiod($evaluator->primary_key());
 	my $time_period_id = (ref($time_period) eq 'HSDB45::TimePeriod') ? $time_period->primary_key() : 0;
 	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period_id);
 	my $student_site_id = (ref($student_site) eq 'HSDB45::TeachingSite') ? $student_site->primary_key() : 0;
@@ -48,7 +48,7 @@
 <%perl>
 	my @course_evals = ();
 	if (exists $evals{course} && scalar @{$evals{course}}) {
-		my @comps = HSDB45::Eval::Completion->new( _school => $school)->lookup_conditions("user_id = '" . $evaluator->primary_key() . "' and eval_id in (" . join(',', map { $_->primary_key() } @{$evals{course}}) . ")"); 
+		my @comps = HSDB45::Eval::Completion->new( _school => $school)->lookup_conditions("user_id = '" . $evaluator->primary_key() . "' AND eval_id IN (" . join(',', map { $_->primary_key() } @{$evals{course}}) . ")");
 		my %completed_evals = map { $_->eval_id() => $_->field_value('created') } @comps;
 	 	foreach my $eval (@{$evals{course}}) {
 			my $eval_id = $eval->primary_key();
@@ -214,7 +214,7 @@ Do <span style="color: red">NOT</span> use the back button to navigate back to t
 
 <%init>
 	if ($student_site_id) {
-		foreach my $eval ($course->get_evals()) {
+		foreach my $eval ($course->get_evals($time_period_id)) {
 			my $eval_type = $eval->eval_type()->getToken();
 			push @{$evals{$eval_type}}, $eval if ($eval_type);
 		}
