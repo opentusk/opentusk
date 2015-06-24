@@ -26,16 +26,15 @@
 </%once>
 
 <%shared>
-    my %teachingSites = ();
+    my @teachingSites = ();
 </%shared>
 
 <%init>
-    warn('current course id in the modify/teachingSite is ' . $currentCourse);
     my $modificationValues = TUSK::Application::Schedule::Clinical->new({
         school_id => $school->getPrimaryKeyID(), 
         school_db => $school->getSchoolDb()
     });
-	%teachingSites = %{$modificationValues->getStudentModificationTeachingSites($currentCourse)};
+	@teachingSites = @{$modificationValues->getStudentModificationTeachingSites($currentCourse)};
 
 	$m->comp('SELF:.prepareTeachingSitesDropdown', rowIndex => $rowIndex, currentTeachingSite => $currentTeachingSite);
 </%init>
@@ -54,14 +53,12 @@
         'label' => 'Select Teaching Site'
     };
 
-
-    while ( my($teachingSiteId, $teachingSite) = each %teachingSites)
-    {
+    foreach my $teachingSite (@teachingSites){
         push @dropdownOptions, {
-            'value' => $teachingSiteId,
-            'label' => $teachingSite
-        }
-    }
+            'value' => $teachingSite->{'teachingSiteId'},
+            'label' => $teachingSite->{'teachingSite'},
+         };
+    };
 
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions,
