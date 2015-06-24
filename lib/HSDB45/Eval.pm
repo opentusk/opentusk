@@ -832,8 +832,8 @@ sub get_teaching_eval_completions_by_roles {
 
     unless (defined $self->{teaching_eval_completions_by_role}) {
 	my $course = $self->course();
-	my $time_period = $course->get_current_timeperiod();
-	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period->primary_key());
+	my $time_period_id = $self->field_value ('time_period_id');
+	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period_id);
 
 	my $student_site_id = $student_site->primary_key() || 0;
 	my $evaluator_id = $evaluator->primary_key() || 0;
