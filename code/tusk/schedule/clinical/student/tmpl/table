@@ -78,7 +78,6 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 	my @numberOfWeeks = $m->comp("SELF:get_number_of_weeks", startDatesInSeconds => @startDatesInSeconds, endDatesInSeconds => @endDatesInSeconds);
 
 	my $localTimeInSeconds = time();
-	# pre_dump($requested_course_id);
 	my $rowIndex = 0;
 	if ($isAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
 	{
@@ -97,15 +96,15 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 				$m->scomp("/schedule/clinical/admin/student/modify/timeperiod", 
 					school => $school, 
 					rowIndex => $rowIndex,
-					currentTimePeriod => '',
-					currentCourse => $requested_course_id
+					currentTimePeriodId => '',
+					currentCourseId => $requested_course_id
 				). "</div>",
 			teaching_site => "<div id = 'teachingSite' style = 'display: none;'>" . 
 				$m->scomp("/schedule/clinical/admin/student/modify/teachingsite", 
 					school => $school, 
 					rowIndex => $rowIndex,
-					currentTeachingSite => '',
-					currentCourse => $requested_course_id
+					currentTeachingSiteId => '',
+					currentCourseId => $requested_course_id
 				) . "</div>", 
 			actions => '<div id="modify"></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" >Save</a><span class="littlespacing">|</span><a class = "navsm" id = "cancel" style = "white-space: nowrap;">Cancel</a><span id = "alreadyEnrolled" class = "xsm" style = "display: none;"> <br> Already Enrolled: <span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>',
 		};
@@ -128,10 +127,10 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 				' </span></span>' . 
 				($isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" . 
 				$m->scomp("/schedule/clinical/admin/student/modify/timeperiod", 
-						school => $school, 
-						rowIndex => $rowIndex,
-						currentTimePeriod => ${$scheduleCourses->{'timePeriodIds'}}[$index],
-						currentCourse => ${$scheduleCourses->{'courseIds'}}[$index]) . 
+					school => $school, 
+					rowIndex => $rowIndex,
+					currentTimePeriodId => ${$scheduleCourses->{'timePeriodIds'}}[$index],
+					currentCourseId  => ${$scheduleCourses->{'courseIds'}}[$index]) . 
 				"</div>" : ""),
 			start_date => $startDateInMMDDYYYY,
 			end_date => $endDateInMMDDYYYY,
@@ -143,8 +142,8 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 				$m->scomp("/schedule/clinical/admin/student/modify/teachingsite", 
 					school => $school, 
 					rowIndex => $rowIndex,
-					currentTeachingSite => ${$scheduleCourses->{'teachingSiteIds'}}[$index],
-					currentCourse => ${$scheduleCourses->{'courseIds'}}[$index]) .
+					currentTeachingSiteId => ${$scheduleCourses->{'teachingSiteIds'}}[$index],
+					currentCourseId => ${$scheduleCourses->{'courseIds'}}[$index]) .
 				"</div>" : ""),
 			number_of_weeks => ${@numberOfWeeks}[0][$index],
 		};

@@ -17,8 +17,8 @@
 <%args>
     $school
     $rowIndex
-    $currentTeachingSite
-    $currentCourse
+    $currentTeachingSiteId
+    $currentCourseId
 </%args>
 
 <%once>
@@ -34,16 +34,16 @@
         school_id => $school->getPrimaryKeyID(), 
         school_db => $school->getSchoolDb()
     });
-	@teachingSites = @{$modificationValues->getStudentModificationTeachingSites($currentCourse)};
+	@teachingSites = @{$modificationValues->getStudentModificationTeachingSites($currentCourseId)};
 
-	$m->comp('SELF:.prepareTeachingSitesDropdown', rowIndex => $rowIndex, currentTeachingSite => $currentTeachingSite);
+	$m->comp('SELF:.prepareTeachingSitesDropdown', rowIndex => $rowIndex, currentTeachingSiteId => $currentTeachingSiteId);
 </%init>
 
 
 <%method .prepareTeachingSitesDropdown>
 <%args>
   $rowIndex
-  $currentTeachingSite
+  $currentTeachingSiteId
 </%args>
 <%perl>
     my @dropdownOptions;
@@ -63,7 +63,7 @@
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions,
         onchange => "setTeachingSite($rowIndex)",
-        selected => $currentTeachingSite,
+        selected => $currentTeachingSiteId,
         style => 'width: 100%;'
     });
 </%perl>

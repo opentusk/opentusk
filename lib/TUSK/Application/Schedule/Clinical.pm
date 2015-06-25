@@ -235,7 +235,7 @@ sub getStudentModificationTimePeriods{
 }
 
 sub getStudentModificationTeachingSites{
-    my ($self, $currentCourse) = @_;
+    my ($self, $currentCourseId) = @_;
     my $dbh = HSDB4::Constants::def_db_handle();
     my @teachingSites = ();
     my $sql = qq/SELECT DISTINCT t1.site_name, t1.teaching_site_id
@@ -247,7 +247,7 @@ sub getStudentModificationTeachingSites{
     
     my $sth = $dbh->prepare($sql);
     eval {
-        $sth->execute($currentCourse);
+        $sth->execute($currentCourseId);
     };
     croak "error : $@ query $sql failed for class " . ref($self) if ($@);
     while (my ($teachingSite, $teachingSiteId) = $sth->fetchrow_array())
