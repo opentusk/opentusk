@@ -42,9 +42,9 @@ function setTimePeriod(rowIndex)
 	currentURL = removeTimePeriodParameters(window.location.href) + '&timePeriodId=' + $('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val();
 }
 
-$.urlParam = function(name){
+$.urlParam = function(name) {
     var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-    if (results==null){
+    if (results == null){
        return null;
     }
     else {
@@ -56,11 +56,6 @@ $(document).ready(function() {
 	var currentBackgroundColor;
 	if ($.urlParam('requstedCourseId') != null)
 	{
-		if (modificationInProgress)
-		{	
-			alert('Please finish current modifications first.');
-			return;
-		}
 		modificationInProgress = true;
 		addRequested = true;
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val($.urlParam('requstedCourseId')); 

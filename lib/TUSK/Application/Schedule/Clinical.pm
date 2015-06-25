@@ -17,6 +17,7 @@ package TUSK::Application::Schedule::Clinical;
 use TUSK::Academic::LevelClinicalSchedule;
 use TUSK::Core::HSDB45Tables::TimePeriod;
 use TUSK::Core::HSDB45Tables::LinkCourseTeachingSite;
+use HSDB4::Constants;
 use Carp qw(cluck croak confess);
 
 sub new {
@@ -174,31 +175,6 @@ sub getScheduleStudentsFiltering{
     }
 }
 
-sub constructStudentModificationTimePeriods{
-    my ($self, $args) = @_;
-
-    my @timePeriods = ();
-
-    my $sql = qq/SELECT DISTINCT t1.period, t1.time_period_id
-        FROM $self->{school_db}.time_period AS t1
-        ORDER BY t1.start_date DESC;/;
-    my $dbh = $self->{-dbh};
-    my $sth = $dbh->prepare($sql);
-    eval {
-        $sth->execute();
-    };
-    croak "error : $@ query $sql failed for class " . ref($self) if ($@);
-    while (my ($timePeriod, $timePeriodId) = $sth->fetchrow_array())
-    {
-        push @timePeriods, {
-            timePeriod => $timePeriod,
-            timePeriodId => $timePeriodId
-        };
-    }
-
-    return \@timePeriods;
-}
-
 sub constructStudentModificationCourses{
     my ($self, $academicLevelTitle) = @_;
 
@@ -233,9 +209,34 @@ sub constructStudentModificationCourses{
     return \@courses;
 }
 
-sub constructStudentModificationTeachingSites{
-    my ($self, $args) = @_;
+sub getStudentModificationTimePeriods{
+    my ($self) = @_;
 
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my @timePeriods = ();
+
+    my $sql = qq/SELECT DISTINCT t1.period, t1.time_period_id
+        FROM $self->{school_db}.time_period AS t1
+        ORDER BY t1.start_date DESC;/;
+    my $sth = $dbh->prepare($sql);
+    eval {
+        $sth->execute();
+    };
+    croak "error : $@ query $sql failed for class " . ref($self) if ($@);
+    while (my ($timePeriod, $timePeriodId) = $sth->fetchrow_array())
+    {
+        push @timePeriods, {
+            timePeriod => $timePeriod,
+            timePeriodId => $timePeriodId
+        };
+    }
+
+    return \@timePeriods;
+}
+
+sub getStudentModificationTeachingSites{
+    my ($self, $currentCourse) = @_;
+    my $dbh = HSDB4::Constants::def_db_handle();
     my @teachingSites = ();
     my $sql = qq/SELECT DISTINCT t1.site_name, t1.teaching_site_id
         FROM $self->{school_db}.teaching_site AS t1
@@ -244,10 +245,9 @@ sub constructStudentModificationTeachingSites{
         WHERE t2.parent_course_id = ?
         ORDER BY t1.site_name ASC/;
     
-    my $dbh = $self->{-dbh};
     my $sth = $dbh->prepare($sql);
     eval {
-        $sth->execute($args->{currentCourse});
+        $sth->execute($currentCourse);
     };
     croak "error : $@ query $sql failed for class " . ref($self) if ($@);
     while (my ($teachingSite, $teachingSiteId) = $sth->fetchrow_array())
@@ -261,50 +261,37 @@ sub constructStudentModificationTeachingSites{
     return \@teachingSites;
 }
 
-
-
-sub getStudentModificationValues{
-    my ($self, $args) = @_;
-    unless($self->{-modifications}) {
-        my $options = TUSK::Core::HSDB45Tables::TimePeriod->new();
-        my $dbh = $options->getDatabaseReadHandle();
-
-        $self->{-dbh} = $dbh;
-        $studentModificationTimePeriods = $self->constructStudentModificationTimePeriods();
-        $studentModificationTeachingSites = $self->constructStudentModificationTeachingSites({currentCourse => $args->{currentCourse}});
-        $studentModificationCourses = $self->constructStudentModificationCourses($args->{academicLevelTitle});
-        $self->{-modifications} = {
-            timePeriods => $studentModificationTimePeriods,
-            teachingSites => $studentModificationTeachingSites,
-            courses => $studentModificationCourses,
-        };
-    }
-    return $self;
-}
-
-sub getStudentModificationTimePeriods{
-    my ($self) = @_;
-
-    $self->getStudentModificationValues();
-
-    return $self->{-modifications}->{'timePeriods'};
-}
-
-sub getStudentModificationTeachingSites{
-    my ($self, $currentCourse) = @_;
-    $self->getStudentModificationValues({
-        currentCourse => $currentCourse
-    });
-    
-    return $self->{-modifications}->{'teachingSites'};
-}
-
 sub getStudentModificationCourses{
     my ($self, $academicLevelTitle) = @_;
-    $self->getStudentModificationValues({
-        academicLevelTitle => $academicLevelTitle
-    });
-    return $self->{-modifications}->{'courses'};
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my @courses = ();
+    my $sql = qq/
+        SELECT t5.title, t5.course_id
+        FROM tusk.academic_level_clinical_schedule AS t1 
+        INNER JOIN tusk.academic_level AS t2
+            ON (t1.academic_level_id = t2.academic_level_id) 
+        INNER JOIN tusk.academic_level_course AS t3
+            ON (t1.academic_level_id = t3.academic_level_id AND t2.academic_level_id = t3.academic_level_id)
+        INNER JOIN tusk.course AS t4
+            ON (t4.course_id = t3.course_id)
+        INNER JOIN $self->{school_db}.course AS t5
+            ON (t5.course_id = t4.school_course_code)
+        WHERE (t1.school_id = ? AND t2.title = ?)
+        ORDER BY t5.title ASC/;
+    my $sth = $dbh->prepare($sql);
+    eval {
+        $sth->execute(($self->{school_id}, $academicLevelTitle));
+    };
+    croak "error : $@ query $sql failed for class " . ref($self) if ($@);
+    while (my ($course, $courseId) = $sth->fetchrow_array())
+    {
+        push @courses, {
+            course => $course,
+            courseId => $courseId
+        };
+    }
+
+    return \@courses;
 }
 
 sub getAlreadyEnrolledInACourse{

@@ -18,23 +18,23 @@
     $school
     $rowIndex
     $currentTimePeriod
+    $currentCourse
 </%args>
 
 <%once>
 	use TUSK::Application::Schedule::Clinical;
+    use HSDB45::Course;
 </%once>
 
 <%shared>
-	my @timePeriods = ();
+    my $universalTimePeriods;
 </%shared>
 
 <%init>
-    my $modificationValues = TUSK::Application::Schedule::Clinical->new({
-        school_id => $school->getPrimaryKeyID(), 
-        school_db => $school->getSchoolDb()
-    });
 
-	@timePeriods = @{$modificationValues->getStudentModificationTimePeriods()};
+    my $course = HSDB45::Course->new( _school => $school->getPrimaryKeyID(), _id => $currentCourse);
+    $universalTimePeriods = $course->get_universal_time_periods();
+
 	$m->comp('SELF:.prepareTimePeriodsDropdown', rowIndex => $rowIndex, currentTimePeriod => $currentTimePeriod);
 </%init>
 
@@ -52,12 +52,12 @@
         'label' => 'Select Timeperiod'
     };
 
-    foreach my $timePeriod (@timePeriods){
+    foreach my $period (@$universalTimePeriods){
         push @dropdownOptions, {
-            'value' => $timePeriod->{'timePeriodId'},
-            'label' => $timePeriod->{'timePeriod'},
+            'value' => $period->primary_key(),
+            'label' => $period->out_display()
         };
-    };
+    }
 
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions, 
