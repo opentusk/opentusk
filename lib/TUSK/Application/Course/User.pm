@@ -51,16 +51,26 @@ sub findUser {
 
 sub add {
     my ($self, $params) = @_;
-    my $course_user = TUSK::Course::User->new();
-    $course_user->setFieldValues({
-	school_id => $self->{course}->school_id(),
-	course_id => $self->{course}->primary_key(),
-	user_id => $params->{user_id},
-	time_period_id => $params->{time_period_id},
-    });
-    $course_user->save({user => $params->{author} });	
 
-    if (defined $params->{role_id} && $params->{role_id} != 0) {
+    my $school_id = $self->{course}->school_id();
+    my $course_id = $self->{course}->primary_key();
+    my $user_id = $params->{user_id};
+    my $time_period_id = $params->{time_period_id};
+
+    my $course_users = TUSK::Course::User->lookup("school_id = $school_id AND course_id = $course_id AND user_id = '$user_id' AND time_period_id = $time_period_id");
+    my $course_user = (scalar @$course_users) ? ${$course_users}[0] : TUSK::Course::User->new();
+
+    unless (scalar @$course_users) {
+	$course_user->setFieldValues({
+	    school_id => $school_id,
+	    course_id => $course_id,
+	    user_id => $user_id,
+	    time_period_id => $time_period_id,
+	});
+	$course_user->save({user => $params->{author} });
+    }
+
+    if (defined $params->{role_id} && $params->{role_id}) {
 	_addUserRole($params->{user_id}, $params->{role_id}, $course_user->getPrimaryKeyID(), $params->{author});
     }
 
@@ -76,6 +86,10 @@ sub add {
 
 sub _addUserRole {
     my ($user_id, $role_id, $course_user_id, $author) = @_;
+
+    my $user_roles = TUSK::Permission::UserRole->lookup("user_id = '$user_id' AND role_id = $role_id AND feature_id = $course_user_id");
+    return if (scalar @$user_roles);
+
     my $user_role = TUSK::Permission::UserRole->new();
     $user_role->setFieldValues({ 
 	user_id => $user_id,
@@ -87,19 +101,24 @@ sub _addUserRole {
 
 sub _addUserSite {
     my ($course_user_id, $site_id, $author) = @_;
-    
-    if ($site_id && $course_user_id) {
-	my $course_user_site = TUSK::Course::User::Site->new();
-	$course_user_site->setFieldValues({
-	    course_user_id => $course_user_id,
-	    teaching_site_id => $site_id,
-	});
-	$course_user_site->save({user => $author});
-    }
+
+    my $course_user_sites = TUSK::Course::User::Site->lookup("course_user_id = $course_user_id AND teaching_site_id = $site_id");
+    return if (scalar @$course_users_sites);
+
+    my $course_user_site = TUSK::Course::User::Site->new();
+    $course_user_site->setFieldValues({
+	course_user_id => $course_user_id,
+	teaching_site_id => $site_id,
+    });
+    $course_user_site->save({user => $author});
 }
 
 sub _addCourseGroupUser {
     my ($user_id, $group_id) = @_;
+
+    my $group_users = TUSK::Core::HSDB45Tables::LinkUserGroupUser->lookup("parent_user_group_id = $group_id AND child_user_id = $user_id");
+    return if (scalar @$group_uses);
+
     my $group_user = TUSK::Core::HSDB45Tables::LinkUserGroupUser->new();
     $group_user->setDatabase($self->{school_db});
     $group_user->setFieldValues({
@@ -187,11 +206,8 @@ sub _updateUserSites {
     my %new_site_ids = map { $_ => 1 } grep { $_ }  ((ref $params->{site_id} eq 'ARRAY') ? @{$params->{site_id}} : ($params->{site_id}));
     return unless keys %new_site_ids;
 
-    unless (scalar @$course_user_sites) { ## add
-	foreach my $site_id (keys %new_site_ids) {
-	    _addUserSite($params->{course_user_id}, $site_id, $params->{author});
-	}
-    } else {
+    ## update
+    if (scalar @$course_user_sites) {
 	my %to_be_deleted = ();
 	my $delete_all = (keys %new_site_ids) ? 0 : 1;
 
@@ -212,11 +228,11 @@ sub _updateUserSites {
 		$course_user_site->delete({user => $params->{author}});
 	    }
 	}
+    }
 
-	## some new leftover
-	foreach $new_site_id (keys %new_site_ids) {
-	    _addUserSite($params->{course_user_id}, $new_site_id, $params->{author});
-	}
+    ## add
+    foreach $new_site_id (keys %new_site_ids) {
+	_addUserSite($params->{course_user_id}, $new_site_id, $params->{author});
     }
 }
 
