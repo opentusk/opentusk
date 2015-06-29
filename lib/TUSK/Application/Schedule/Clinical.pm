@@ -119,7 +119,8 @@ sub getScheduleStudents{
         ON t7.time_period_id = t5.time_period_id
     INNER JOIN hsdb4.user AS t8 
         ON (t5.child_user_id = t8.user_id)
-    WHERE (t1.school_id = '$self->{school_id}' AND t2.title = '$academicLevelTitle' AND t7.academic_year = '$academicYear')"
+    WHERE (t1.school_id = '$self->{school_id}' AND t2.title = '$academicLevelTitle' AND t7.academic_year = '$academicYear')
+    ORDER BY t8.lastname ASC, t8.firstname ASC"
     );
 
     my @userIds = ();
@@ -152,7 +153,8 @@ sub getScheduleStudentsFiltering{
     INNER JOIN tusk.academic_level AS t2
         ON (t1.academic_level_id = t2.academic_level_id)
     INNER JOIN " . $self->{school_db} . ".time_period AS t3 
-    WHERE (t1.school_id = '$self->{school_id}' AND !(t3.academic_year IS NULL OR t3.academic_year = ''));"
+    WHERE (t1.school_id = '$self->{school_id}' AND !(t3.academic_year IS NULL OR t3.academic_year = ''))
+    ORDER BY t3.start_date DESC, t3.end_date DESC"
     );
 
     my @academicLevels = ();
