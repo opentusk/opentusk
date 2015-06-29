@@ -326,9 +326,12 @@ sub deleteStudentFromCourse{
         AND child_user_id = ?
         LIMIT 1/;
     my $dbh = $self->{-dbh};
-    my $rowsUpdates = $dbh->do($sql, undef, @{$sqlArgs}) or die $dbh->errstr;
-
-    return $rowsUpdates;
+    my $rowsUpdates;
+    eval {
+        $rowsUpdates = $dbh->do($sql, undef, @{$sqlArgs});
+    };
+    warn "error : $@ query $sql failed for class " . ref($self) if ($@);
+    return $rowsUpdates == 1 ? 'ok' : $dbh->errstr;
 }
 
 sub applyStudentModifications{
@@ -338,19 +341,18 @@ sub applyStudentModifications{
     $self->{-dbh} = $dbh;
     my @sqlArgs;
 
-    if ($args->{delete_requested} eq 'yes')
+    if ($args->{delete_requested})
     {
         @sqlArgs = ($args->{course_id}, 
             $args->{current_time_period}, 
             $args->{current_teaching_site}, 
             $args->{user_id}
         );
-        my $deletedRows = $self->deleteStudentFromCourse(\@sqlArgs);
-        return $deletedRows == 1 ? 'true' : 'false';    
+        return $self->deleteStudentFromCourse(\@sqlArgs);  
     }
 
     my $sql;
-    if ($args->{add_requested} eq 'true')
+    if ($args->{add_requested})
     {
         $sql = qq/INSERT INTO $self->{school_db}.link_course_student
         (time_period_id, teaching_site_id, child_user_id, parent_course_id)
@@ -379,10 +381,13 @@ sub applyStudentModifications{
             $args->{course_id}
         );
     }
-
-
-    my $rowsUpdates = $dbh->do($sql, undef, @sqlArgs) or die $dbh->errstr;
-    return $rowsUpdates == 1 ? 'true' : 'false';
+    my $rowsUpdates;
+    eval {
+        $rowsUpdates = $dbh->do($sql, undef, @sqlArgs);
+    };
+    warn "error : $@ query $sql failed for class " . ref($self) if ($@);
+    warn ('Result of the query is ' . $rowsUpdates . " and the error message is " .  $dbh->errstr);
+    return $rowsUpdates == 1 ? 'ok' : $dbh->errstr;
 }
 
 sub checkNumberOfEnrolled{

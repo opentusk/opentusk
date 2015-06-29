@@ -78,35 +78,31 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 	my $localTimeInSeconds = time();
 
 	my $rowIndex = 0;
-	if ($m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
+	if ($isAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
 	{
-		$isAdmin = 1;
 		$m->comp("/tmpl/element:cms_button_row", links => [{ 
 			display_txt => __('Add Placement'),
 			link_txt    => '#'
 		}]);
 		my @additionRow;
 		push @additionRow, {
-			rotation => $isAdmin ? "<div id = 'course' style = 'display: none;'>" . 
+			rotation => "<div id = 'course' style = 'display: none;'>" . 
 				$m->scomp("/schedule/clinical/admin/student/modify/course", 
 					school => $school, 
 					rowIndex => $rowIndex,
-					academicLevelTitle => $academic_level_title) . 
-				"</div>" : "",
-			time_period => $isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" . 
+					academicLevelTitle => $academic_level_title) . "</div>",
+			time_period => "<div id = 'timePeriod' style = 'display: none;'>" . 
 				$m->scomp("/schedule/clinical/admin/student/modify/timeperiod", 
 					school => $school, 
 					rowIndex => $rowIndex,
 					currentTimePeriod => ''
-				). 
-				"</div>" : "",
-			teaching_site => $isAdmin ? "<div id = 'teachingSite' style = 'display: none;'>" . 
+				). "</div>",
+			teaching_site => "<div id = 'teachingSite' style = 'display: none;'>" . 
 				$m->scomp("/schedule/clinical/admin/student/modify/teachingsite", 
 					school => $school, 
 					rowIndex => $rowIndex,
 					currentTeachingSite => ''
-				) . 
-				"</div>" : "", 
+				) . "</div>", 
 			actions => '<div id="modify"></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" >Save</a><span class="littlespacing">|</span><a class = "navsm" id = "cancel" style = "white-space: nowrap;">Cancel</a><span id = "alreadyEnrolled" class = "xsm" style = "display: none;"> <br> Already Enrolled: <span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>',
 		};
 		push @{ $table{"new"} }, @additionRow;
