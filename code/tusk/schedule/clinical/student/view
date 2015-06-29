@@ -15,7 +15,7 @@
 </%doc>
 
 <%attr>
-	use_nav_bar => 0
+	use_nav_bar => 1
 	default_path_type => 'school'
 	skip_header_bar => 1
 </%attr>
@@ -31,6 +31,7 @@
 		{label => __('Number of Weeks'), field => 'number_of_weeks', width => '14%'}
 	];
 	my $header = 'Clinical Schedule';
+	my $isAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions") ? 1 : 0;
 </%shared>
 
 <script>
@@ -44,11 +45,21 @@
 	my $user_id;
 
 	my %query = $m->request_args;
+	my %tableArgs = ();
 
-	if ($query{'userId'} && $m->comp("/schedule/clinical/admin/autohandler:hasPermissions")) {
+	if ($query{'userId'} && $isAdmin) {
 		$user_id = $query{'userId'};
 		$header = $header . ' > ' . $query{'lastName'} . ', ' . $query{'firstName'};
 		push @{$col_fields}, {label => __('Actions'), field => 'actions', html => 1}; 
+		# push @navLinks, { href=> '/management/home', label => __('CMS Home') };
+		$tableArgs{academic_level_title} = $query{'academicLevel'};
+		my $col_fields_addition_row = [ 
+			{label => __('Rotation'), field => 'rotation', html => 1, width => '17%'},
+			{label => __('Time Period'), field => 'time_period', html => 1, width => '37%'},
+			{label => __('Teaching Site'), field => 'teaching_site', html => 1, width => '33%'}, 
+			{label => __('Actions'), field => 'actions', html => 1}
+		];
+		$tableArgs{col_fields_addition_row} = $col_fields_addition_row;
 		print '<script src="/scripts/scheduleStudentView.js"></script>';
 	} else {
 		$user_id = $m->session->{'user'}->user_id();
@@ -59,11 +70,11 @@
 		hdr_txt => $header 
 	});
 
-	$m->comp("/schedule/clinical/student/tmpl/table", 
-		user_id => $user_id, 
-		col_fields => $col_fields,
-		school => $school
-	);
+	$tableArgs{user_id} = $user_id;
+	$tableArgs{col_fields} = $col_fields;
+	$tableArgs{school} = $school;
+
+	$m->comp("/schedule/clinical/student/tmpl/table", args => \%tableArgs);
 		
 </%init>
 
@@ -73,4 +84,8 @@
 
 <%method jsarray>
 %	return ['jquery/jquery.min.js'];
+</%method>
+
+<%method get_nav_bars>
+% return $isAdmin ? [{ href=> '/management/home', label => __('CMS Home') }] : undef;
 </%method>

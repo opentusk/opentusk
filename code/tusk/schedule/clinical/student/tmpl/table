@@ -15,9 +15,7 @@
 </%doc>
 
 <%args>
-	$user_id
-    $col_fields
-    $school
+	$args
 </%args>
 
 <%once>
@@ -26,10 +24,12 @@
 </%once>
 
 <%shared>
+	my $isAdmin = 0;
 	my %table = (
 		current => [],
 		future => [],
-		past => []
+		past => [],
+		new => [],
 	);
 	my %tableLabels = (
 		current => 'Current Placement',
@@ -40,14 +40,19 @@
 
 <%init>
 	$m->comp("SELF:.prepare_table", 
-  		user_id => $user_id, 
-  		col_fields => $col_fields,
-  		school => $school
+  		user_id => $args->{user_id}, 
+  		col_fields => $args->{col_fields},
+  		school => $args->{school},
+  		academic_level_title => $args->{academic_level_title}
   	);
+  	if ($isAdmin) {
+	  	$m->comp('/tmpl/element:object_selection_box', 
+			params => {columns => $args->{col_fields_addition_row}, rows => $table{'new'}});
+  	}
   	foreach my $i ('current', 'future', 'past') {
 		print("<h3 class = 'scheduleTimeHeader'> $tableLabels{$i} </h3>");
 		$m->comp('/tmpl/element:object_selection_box', 
-		params => {columns => $col_fields, rows => $table{$i}});
+		params => {columns => $args->{col_fields}, rows => $table{$i}, 'norows-message' => __('No placement(s)')});
 	}
 </%init>
 
@@ -56,6 +61,7 @@
     $user_id
     $col_fields => $col_fields
     $school
+    $academic_level_title
 </%args>
 <%perl>
 
@@ -64,8 +70,6 @@ my $scheduleCourses = TUSK::Application::Schedule::Clinical->new({
   	school_db => $school->getSchoolDb()
 })->getScheduleCourses($user_id);
 
-my $isAdmin = 0;
-
 if (scalar $scheduleCourses->{'courseIds'}) {
 	my @startDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'startDates'});
 	my @endDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'endDates'});
@@ -73,11 +77,41 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 
 	my $localTimeInSeconds = time();
 
+	my $rowIndex = 0;
 	if ($m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
 	{
 		$isAdmin = 1;
+		$m->comp("/tmpl/element:cms_button_row", links => [{ 
+			display_txt => __('Add Placement'),
+			link_txt    => '#'
+		}]);
+		my @additionRow;
+		push @additionRow, {
+			rotation => $isAdmin ? "<div id = 'course' style = 'display: none;'>" . 
+				$m->scomp("/schedule/clinical/admin/student/modify/course", 
+					school => $school, 
+					rowIndex => $rowIndex,
+					academicLevelTitle => $academic_level_title) . 
+				"</div>" : "",
+			time_period => $isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" . 
+				$m->scomp("/schedule/clinical/admin/student/modify/timeperiod", 
+					school => $school, 
+					rowIndex => $rowIndex,
+					currentTimePeriod => ''
+				). 
+				"</div>" : "",
+			teaching_site => $isAdmin ? "<div id = 'teachingSite' style = 'display: none;'>" . 
+				$m->scomp("/schedule/clinical/admin/student/modify/teachingsite", 
+					school => $school, 
+					rowIndex => $rowIndex,
+					currentTeachingSite => ''
+				) . 
+				"</div>" : "", 
+			actions => '<div id="modify"></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" >Save</a><span class="littlespacing">|</span><a class = "navsm" id = "cancel" style = "white-space: nowrap;">Cancel</a><span id = "alreadyEnrolled" class = "xsm" style = "display: none;"> <br> Already Enrolled: <span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>',
+		};
+		push @{ $table{"new"} }, @additionRow;
+		$rowIndex++;
 	}
-	my $rowIndex = 0;
 
 	for my $index (0..$#{$scheduleCourses->{'courseTitles'}}) {
 

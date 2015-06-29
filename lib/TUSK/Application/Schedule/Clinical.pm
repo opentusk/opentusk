@@ -174,6 +174,58 @@ sub getScheduleStudentsFiltering{
     }
 }
 
+sub constructStudentModificationCourses{
+    my ($self, $academicLevelTitle) = @_;
+
+    my %courses = ();
+    my $sql = qq/
+        SELECT t5.title, t5.course_id
+        FROM tusk.academic_level_clinical_schedule AS t1 
+        INNER JOIN tusk.academic_level AS t2
+            ON (t1.academic_level_id = t2.academic_level_id) 
+        INNER JOIN tusk.academic_level_course AS t3
+            ON (t1.academic_level_id = t3.academic_level_id AND t2.academic_level_id = t3.academic_level_id)
+        INNER JOIN tusk.course AS t4
+            ON (t4.course_id = t3.course_id)
+        INNER JOIN $self->{school_db}.course AS t5
+            ON (t5.course_id = t4.school_course_code)
+        WHERE (t1.school_id = ? AND t2.title = ?)/;
+    my $dbh = $self->{-dbh};
+    my $sth = $dbh->prepare($sql);
+    eval {
+        $sth->execute(($self->{school_id}, $academicLevelTitle));
+    };
+    croak "error : $@ query $sql failed for class " . ref($self) if ($@);
+    while (my ($course, $courseId) = $sth->fetchrow_array())
+    {
+        $courses{$courseId} = $course;
+    }
+
+    return \%courses;
+}
+
+sub constructStudentModificationTeachingSites{
+    my ($self, $args) = @_;
+
+    my %teachingSites = ();
+
+    my $sql = qq/SELECT DISTINCT t2.site_name, t2.teaching_site_id
+        FROM $self->{school_db}.teaching_site AS t2;/;
+    
+    my $dbh = $self->{-dbh};
+    my $sth = $dbh->prepare($sql);
+    eval {
+        $sth->execute();
+    };
+    croak "error : $@ query $sql failed for class " . ref($self) if ($@);
+    while (my ($teachingSite, $teachingSiteId) = $sth->fetchrow_array())
+    {
+        $teachingSites{$teachingSiteId} = $teachingSite;
+    }
+
+    return \%teachingSites;
+}
+
 sub constructStudentModificationTimePeriods{
     my ($self, $args) = @_;
 
@@ -199,31 +251,8 @@ sub constructStudentModificationTimePeriods{
     return \@timePeriods;
 }
 
-sub constructStudentModificationTeachingSites{
-    my ($self, $args) = @_;
-
-    my %teachingSites = ();
-
-    my $sql = qq/SELECT DISTINCT t2.site_name, t2.teaching_site_id
-        FROM $self->{school_db}.teaching_site AS t2;/;
-    
-    my $dbh = $self->{-dbh};
-    my $sth = $dbh->prepare($sql);
-    eval {
-        $sth->execute();
-    };
-    croak "error : $@ query $sql failed for class " . ref($self) if ($@);
-    while (my ($teachingSite, $teachingSiteId) = $sth->fetchrow_array())
-    {
-        $teachingSites{$teachingSiteId} = $teachingSite;
-    }
-
-    return \%teachingSites;
-}
-
 sub getStudentModificationValues{
-    my ($self) = @_;
-
+    my ($self, $academicLevelTitle) = @_;
     unless($self->{-modifications}) {
         my $options = TUSK::Core::HSDB45Tables::TimePeriod->new();
         my $dbh = $options->getDatabaseReadHandle();
@@ -231,10 +260,12 @@ sub getStudentModificationValues{
         $self->{-dbh} = $dbh;
         $studentModificationTimePeriods = $self->constructStudentModificationTimePeriods();
         $studentModificationTeachingSites = $self->constructStudentModificationTeachingSites();
+        $studentModificationCourses = $self->constructStudentModificationCourses($academicLevelTitle);
 
         $self->{-modifications} = {
             timePeriods => $studentModificationTimePeriods,
             teachingSites => $studentModificationTeachingSites,
+            courses => $studentModificationCourses,
         };
     }
     return $self;
@@ -254,6 +285,12 @@ sub getStudentModificationTeachingSites{
     $self->getStudentModificationValues();
     
     return $self->{-modifications}->{'teachingSites'};
+}
+
+sub getStudentModificationCourses{
+    my ($self, $academicLevelTitle) = @_;
+    $self->getStudentModificationValues($academicLevelTitle);
+    return $self->{-modifications}->{'courses'};
 }
 
 sub getAlreadyEnrolledInACourse{
@@ -312,24 +349,39 @@ sub applyStudentModifications{
         return $deletedRows == 1 ? 'true' : 'false';    
     }
 
-    my $sql = qq/UPDATE $self->{school_db}.link_course_student AS t3
-    SET t3.time_period_id = ?
-    , t3.teaching_site_id = ?
-    WHERE t3.child_user_id = ? 
-    AND t3.time_period_id = ?
-    AND t3.teaching_site_id = ?
-    AND t3.parent_course_id = ?/;
-    
-    @sqlArgs = ($args->{requested_time_period}, 
-        $args->{requested_teaching_site}, 
-        $args->{user_id},
-        $args->{current_time_period},
-        $args->{current_teaching_site},
-        $args->{course_id}
-    );
+    my $sql;
+    if ($args->{add_requested} eq 'true')
+    {
+        $sql = qq/INSERT INTO $self->{school_db}.link_course_student
+        (time_period_id, teaching_site_id, child_user_id, parent_course_id)
+        VALUES (?, ?, ?, ?)/;
+        @sqlArgs = (
+            $args->{requested_time_period}, 
+            $args->{requested_teaching_site}, 
+            $args->{user_id},
+            $args->{course_id}
+        );
+    } else { 
+        $sql = qq/UPDATE $self->{school_db}.link_course_student AS t3
+        SET t3.time_period_id = ?
+        , t3.teaching_site_id = ?
+        WHERE t3.child_user_id = ? 
+        AND t3.time_period_id = ?
+        AND t3.teaching_site_id = ?
+        AND t3.parent_course_id = ?/;
+
+        @sqlArgs = (
+            $args->{requested_time_period}, 
+            $args->{requested_teaching_site}, 
+            $args->{user_id},
+            $args->{current_time_period},
+            $args->{current_teaching_site},
+            $args->{course_id}
+        );
+    }
+
 
     my $rowsUpdates = $dbh->do($sql, undef, @sqlArgs) or die $dbh->errstr;
-    warn ('Function applyStudentModifications() is done with execution.');
     return $rowsUpdates == 1 ? 'true' : 'false';
 }
 
