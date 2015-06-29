@@ -43,7 +43,8 @@
   		user_id => $args->{user_id}, 
   		col_fields => $args->{col_fields},
   		school => $args->{school},
-  		academic_level_title => $args->{academic_level_title}
+  		academic_level_title => $args->{academic_level_title},
+  		requested_course_id => $args->{addition_row_course_id}
   	);
   	if ($isAdmin) {
 	  	$m->comp('/tmpl/element:object_selection_box', 
@@ -62,6 +63,7 @@
     $col_fields => $col_fields
     $school
     $academic_level_title
+    $requested_course_id
 </%args>
 <%perl>
 
@@ -76,13 +78,13 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 	my @numberOfWeeks = $m->comp("SELF:get_number_of_weeks", startDatesInSeconds => @startDatesInSeconds, endDatesInSeconds => @endDatesInSeconds);
 
 	my $localTimeInSeconds = time();
-
+	# pre_dump($requested_course_id);
 	my $rowIndex = 0;
 	if ($isAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions"))
 	{
 		$m->comp("/tmpl/element:cms_button_row", links => [{ 
 			display_txt => __('Add Placement'),
-			link_txt    => '#'
+			link_txt    => 'javascript:void(0);'
 		}]);
 		my @additionRow;
 		push @additionRow, {
@@ -102,7 +104,7 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 					school => $school, 
 					rowIndex => $rowIndex,
 					currentTeachingSite => '',
-					currentCourse => ''
+					currentCourse => $requested_course_id
 				) . "</div>", 
 			actions => '<div id="modify"></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" >Save</a><span class="littlespacing">|</span><a class = "navsm" id = "cancel" style = "white-space: nowrap;">Cancel</a><span id = "alreadyEnrolled" class = "xsm" style = "display: none;"> <br> Already Enrolled: <span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>',
 		};

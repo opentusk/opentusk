@@ -2,26 +2,92 @@ var currentRowIndex = 0;
 var currentTimePeriod;
 var currentTeachingSite; 
 var addRequested = false;
+var currentURL = removeTeachingSiteParameters(window.location.href);
 
 function getRowIndex(rowIndex)
 {
 	currentRowIndex = rowIndex;
 }
 
-$(document).ready(function() {
+function removeCourseIdParameters(url)
+{
+	return url.replace(/&?requstedCourseId=([^&]$|[^&]*)/i, "");
+}
 
+function removeTeachingSiteParameters(url)
+{
+	return url.replace(/&?teachingSiteId=([^&]$|[^&]*)/i, "");
+}
+
+function removeTimePeriodParameters(url)
+{
+	return url.replace(/&?timePeriodId=([^&]$|[^&]*)/i, "");
+}
+
+function setCourse(rowIndex)
+{
+	currentRowIndex = rowIndex;
+	window.location.href = removeCourseIdParameters(currentURL) + '&requstedCourseId=' + $('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val();
+}
+
+function setTeachingSite(rowIndex)
+{
+	currentRowIndex = rowIndex;
+	currentURL = removeTeachingSiteParameters(window.location.href) + '&teachingSiteId=' + $('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val();
+}
+
+function setTimePeriod(rowIndex)
+{
+	currentRowIndex = rowIndex;
+	currentURL = removeTimePeriodParameters(window.location.href) + '&timePeriodId=' + $('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val();
+}
+
+$.urlParam = function(name){
+    var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+    if (results==null){
+       return null;
+    }
+    else {
+       return results[1] || 0;
+    }
+}
+$(document).ready(function() {
 	var modificationInProgress = false;
 	var currentBackgroundColor;
-	$('span#alreadyEnrolledNumber0').closest('table').hide(); //Index zero refers to the addition row
+	if ($.urlParam('requstedCourseId') != null)
+	{
+		if (modificationInProgress)
+		{	
+			alert('Please finish current modifications first.');
+			return;
+		}
+		modificationInProgress = true;
+		addRequested = true;
+		$('span#alreadyEnrolledNumber0').closest('table').show(); //Index zero refers to the addition row
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val($.urlParam('requstedCourseId')); 
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val($.urlParam('timePeriodId')); 
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val($.urlParam('teachingSiteId'));
+		currentBackgroundColor = $(this).closest('tr').css("background-color");
+   		$('span#alreadyEnrolledNumber0').closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
+		$('span#alreadyEnrolledNumber0').closest('table').show();
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').show();
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').show();
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').show();
+		$('span#alreadyEnrolledNumber0').closest('tr').find('span.littlespacing').show();
+		$('span#alreadyEnrolledNumber0').closest('tr').find('a#save').show();
+   		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
+	} else {
+		$('span#alreadyEnrolledNumber0').closest('table').hide();
+	}
 	$('div#timePeriod, div#teachingSite').change(function() {
 		if ($(this).closest('tr').find('div#timePeriod').find('select.view').val() == 0 || 
 			$(this).closest('tr').find('div#teachingSite').find('select.view').val() == 0 ||
 			$(this).closest('tr').find('div#course').find('select.view').val() == 0) {
 			$(this).closest('tr').find('span#alreadyEnrolled').hide();
 			return;
-		} else {
-			$(this).closest('tr').find('span#alreadyEnrolled').show();
-			$.ajax({
+	  	} else {
+		    $(this).closest('tr').find('span#alreadyEnrolled').show();
+		    $.ajax({
 				url: "/tusk/schedule/clinical/admin/ajax/enrollmentcheck",
 				data: {
 					temp_time_period: $(this).closest('tr').find('div#timePeriod').find('select.view').val(),
@@ -74,25 +140,25 @@ $(document).ready(function() {
 		{
 			currentTimePeriod = $(this).closest('tr').find('span#currentTimePeriodId').text();
 			currentTeachingSite = $(this).closest('tr').find('span#currentTeachingSiteId').text();
-			$(this).closest('tr').find('div#timePeriod').show();
-			$(this).closest('tr').find('div#teachingSite').show();
-			$(this).closest('tr').find('div#course').show();
-			$(this).closest('tr').find('a#save').show();
-			$(this).closest('tr').find('a#cancel').show();
-			$(this).closest('tr').find('a#delete').show();
-			$(this).closest('tr').find('span.littlespacing').show();
-			$(this).closest('tr').find('div#modify').hide();
-			$(this).closest('tr').find('span#currentTimePeriod').hide();
-			$(this).closest('tr').find('span#currentTeachingSite').hide();
-			currentBackgroundColor = $(this).closest('tr').css("background-color");
-			$(this).closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
-		}
-		return;
+   			$(this).closest('tr').find('div#timePeriod').show();
+   			$(this).closest('tr').find('div#teachingSite').show();
+   			$(this).closest('tr').find('div#course').show();
+   			$(this).closest('tr').find('a#save').show();
+   			$(this).closest('tr').find('a#cancel').show();
+   			$(this).closest('tr').find('a#delete').show();
+   			$(this).closest('tr').find('span.littlespacing').show();
+   			$(this).closest('tr').find('div#modify').hide();
+   			$(this).closest('tr').find('span#currentTimePeriod').hide();
+   			$(this).closest('tr').find('span#currentTeachingSite').hide();
+   			currentBackgroundColor = $(this).closest('tr').css("background-color");
+   			$(this).closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
+   		}
+   		return;
 	});
 
 	$("a#delete").click(function() {
-		var deleteValidate = confirm("Are you sure you want to remove the student from the rotation?");
-		if (deleteValidate == true) {
+	    var deleteValidate = confirm("Are you sure you want to remove the student from the rotation?");
+	    if (deleteValidate == true) {
 			$.ajax({
 				url: "/tusk/schedule/clinical/admin/ajax/modification",
 				data: {
@@ -102,7 +168,7 @@ $(document).ready(function() {
 					current_teaching_site: currentTeachingSite,
 					school_id: school_id,
 					school_db: school_db,
-					delete_requested: 'yes'
+					delete_requested: 1
 				}, dataType: "json",
 					statusCode: {
 						404: function () {
@@ -116,12 +182,15 @@ $(document).ready(function() {
 			}).error(function() {
 				alert("An error occured during the deletion process");
 			}).success(function(data, status){
-				if (data['applied'] == 'true') {
-					alert('Student was removed from the requested rotation.');
-					location.reload();
+				if (data['applied'] != 'ok') {
+					alert('Student wasn\'t removed from the requested rotation: ' + data['applied']);
 				}
 				else {
-					alert('Student wasn\'t removed from the requested rotation.');
+					alert('Student was removed from the requested rotation');
+					var tempURL = removeCourseIdParameters(window.location.href);
+					tempURL	= removeTeachingSiteParameters(tempURL);
+					tempURL	= removeTimePeriodParameters(tempURL);
+					window.location.href = tempURL;
 				}
 			});
 			return;
@@ -149,7 +218,7 @@ $(document).ready(function() {
 					requested_teaching_site: tempTeachingSite,
 					school_id: school_id,
 					school_db: school_db,
-					add_requested: addRequested ? 'true' : 'false',
+					add_requested: addRequested ? 1 : 0,
 				},
 				dataType: "json",
 				statusCode: {
@@ -164,18 +233,21 @@ $(document).ready(function() {
 			}).error(function() {
 				alert("An error occured during the modification process");
 			}).success(function(data, status){
-				if (data['applied'] == 'false') {
-					alert('There was a problem saving the selected time period and teaching site.');
+				if (data['applied'] != 'ok') {
+					alert('There was a problem saving the selected time period and teaching site: ' + data['applied']);
 				}
 				else {
 					currentTimePeriod = tempTimePeriod;
 					currentTeachingSite = tempTeachingSite;
 					alert('The time period and teaching site change took place.');
-					location.reload();
+					var tempURL = removeCourseIdParameters(window.location.href);
+					tempURL	= removeTeachingSiteParameters(tempURL);
+					tempURL	= removeTimePeriodParameters(tempURL);
+					window.location.href = tempURL;
 				}
 			});
 		}
-		return;
+   		return;
 	});
 	$("a#cancel").click(function() {
 		modificationInProgress = false;
@@ -191,30 +263,31 @@ $(document).ready(function() {
 		$(this).closest('tr').find('span.littlespacing').hide();
 		$(this).closest('tr').find('div#modify').show();
 		$(this).closest('tr').find('span#currentTimePeriod').show();
-		$(this).closest('tr').find('span#currentTeachingSite').show();
-		$(this).closest('tr').css( "background-color", currentBackgroundColor);
-		$('span#alreadyEnrolledNumber0').closest('table').hide();
-		addRequested = false;
+   		$(this).closest('tr').find('span#currentTeachingSite').show();
+   		$(this).closest('tr').css( "background-color", currentBackgroundColor);
+   		$('span#alreadyEnrolledNumber0').closest('table').hide();
+   		addRequested = false;
 	});
-	$('.gCMSButtonRow').click(function() {
+	$('div.gCMSButtonRow').find('a').click(function() {
 		if (modificationInProgress)
 		{	
 			alert('Please finish current modifications first.');
 			return;
 		}
-		currentBackgroundColor = $(this).closest('tr').css("background-color");
-		$('span#alreadyEnrolledNumber0').closest('tr').css( "background-color", "rgba(239, 169, 156, 0.62)" );
 		modificationInProgress = true;
 		addRequested = true;
-		$('span#alreadyEnrolledNumber0').find('div#course').find('select.view').val('0'); 
-		$('span#alreadyEnrolledNumber0').find('div#timePeriod').find('select.view').val('0'); 
-		$('span#alreadyEnrolledNumber0').find('div#teachingSite').find('select.view').val('0'); 
+		$('span#alreadyEnrolledNumber0').closest('table').show(); //Index zero refers to the addition row
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val($.urlParam('requstedCourseId')); 
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val(0); 
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val(0);
+		currentBackgroundColor = $(this).closest('tr').css("background-color");
+   		$('span#alreadyEnrolledNumber0').closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
 		$('span#alreadyEnrolledNumber0').closest('table').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('span.littlespacing').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('a#save').show();
-		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
+   		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
 	});
 });
