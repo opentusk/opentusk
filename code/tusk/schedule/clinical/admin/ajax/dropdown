@@ -1,0 +1,53 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+</%attr>
+
+<%once>
+	use JSON;
+  	use TUSK::Application::Schedule::Clinical;
+</%once>
+
+<%perl>
+	my $html = {
+		timeperiod => '',
+		teachingsite => ''
+	};
+
+	$html->{timeperiod} = 	$m->scomp("/schedule/clinical/admin/student/modify/timeperiod", 
+								schoolId => $ARGS{'school_id'}, 
+								rowIndex => $ARGS{'row_index'}, 
+								currentTimePeriodId => $ARGS{'temp_time_period'},
+								currentCourseId => $ARGS{'requested_course_id'}
+							);
+	$html->{teachingsite} = $m->scomp("/schedule/clinical/admin/student/modify/teachingsite", 
+								schoolId => $ARGS{'school_id'},
+								schoolDb =>  $ARGS{'school_db'}, 
+								rowIndex => $ARGS{'row_index'},
+								currentTeachingSiteId => $ARGS{'temp_teaching_site'},
+								currentCourseId =>  $ARGS{'requested_course_id'}
+							);
+
+	my $html_json = encode_json($html);	
+	$m->print($html_json);
+
+</%perl>

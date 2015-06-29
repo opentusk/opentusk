@@ -2,44 +2,55 @@ var currentRowIndex = 0;
 var currentTimePeriod;
 var currentTeachingSite; 
 var addRequested = false;
-var currentURL = removeTeachingSiteParameters(window.location.href);
 
 function getRowIndex(rowIndex)
 {
 	currentRowIndex = rowIndex;
 }
 
-function removeCourseIdParameters(url)
-{
-	return url.replace(/&?requstedCourseId=([^&]$|[^&]*)/i, "");
-}
-
-function removeTeachingSiteParameters(url)
-{
-	return url.replace(/&?teachingSiteId=([^&]$|[^&]*)/i, "");
-}
-
-function removeTimePeriodParameters(url)
-{
-	return url.replace(/&?timePeriodId=([^&]$|[^&]*)/i, "");
-}
-
 function setCourse(rowIndex)
 {
 	currentRowIndex = rowIndex;
-	window.location.href = removeCourseIdParameters(currentURL) + '&requstedCourseId=' + $('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val();
+	constructDropdowns();
 }
 
 function setTeachingSite(rowIndex)
 {
 	currentRowIndex = rowIndex;
-	currentURL = removeTeachingSiteParameters(window.location.href) + '&teachingSiteId=' + $('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val();
 }
 
 function setTimePeriod(rowIndex)
 {
 	currentRowIndex = rowIndex;
-	currentURL = removeTimePeriodParameters(window.location.href) + '&timePeriodId=' + $('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val();
+}
+
+function constructDropdowns()
+{
+    $.ajax({
+	url: "/tusk/schedule/clinical/admin/ajax/dropdown",
+	data: {
+		school_id: school_id,
+		school_db: school_db, 
+		row_index: currentRowIndex,
+		temp_teaching_site: $('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val(),
+		requested_course_id: $('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val(),
+		temp_time_period: $('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val(),
+	}, dataType: "json",
+		statusCode: {
+			404: function () {
+			},
+			500: function () {
+			},
+		}
+	}).done(function() {
+	}).error(function() {
+		alert("An error occured during the dropdown construction process.");
+	}).success(function(data, status) {
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').empty();
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').append(data['teachingsite']);
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').empty();
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').append(data['timeperiod']);
+	});
 }
 
 $.urlParam = function(name) {
@@ -54,25 +65,7 @@ $.urlParam = function(name) {
 $(document).ready(function() {
 	var modificationInProgress = false;
 	var currentBackgroundColor;
-	if ($.urlParam('requstedCourseId') != null)
-	{
-		modificationInProgress = true;
-		addRequested = true;
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val($.urlParam('requstedCourseId')); 
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val($.urlParam('timePeriodId')); 
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val($.urlParam('teachingSiteId'));
-		currentBackgroundColor = $(this).closest('tr').css("background-color");
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').show();
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').show();
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').show();
-		$('span#alreadyEnrolledNumber0').closest('tr').find('span.littlespacing').show();
-		$('span#alreadyEnrolledNumber0').closest('tr').find('a#save').show();
-   		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
-   		$('span#alreadyEnrolledNumber0').closest('table').show(); //Index zero refers to the addition row
-		$('span#alreadyEnrolledNumber0').closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
-	} else {
-		$('span#alreadyEnrolledNumber0').closest('table').hide();
-	}
+	$('span#alreadyEnrolledNumber0').closest('table').hide();
 	$('div#timePeriod, div#teachingSite').change(function() {
 		if ($(this).closest('tr').find('div#timePeriod').find('select.view').val() == 0 || 
 			$(this).closest('tr').find('div#teachingSite').find('select.view').val() == 0 ||
@@ -99,7 +92,7 @@ $(document).ready(function() {
 						},
 					}
 			}).done(function() {
-				}).error(function() {
+			}).error(function() {
 					alert("An error occured during the deletion process");
 			}).success(function(data, status){
 				if (data['number_of_enrolled'] != -1) {
@@ -181,10 +174,7 @@ $(document).ready(function() {
 				}
 				else {
 					alert('Student was removed from the requested rotation');
-					var tempURL = removeCourseIdParameters(window.location.href);
-					tempURL	= removeTeachingSiteParameters(tempURL);
-					tempURL	= removeTimePeriodParameters(tempURL);
-					window.location.href = tempURL;
+					location.reload();
 				}
 			});
 			return;
@@ -234,10 +224,7 @@ $(document).ready(function() {
 					currentTimePeriod = tempTimePeriod;
 					currentTeachingSite = tempTeachingSite;
 					alert('The time period and teaching site change took place.');
-					var tempURL = removeCourseIdParameters(window.location.href);
-					tempURL	= removeTeachingSiteParameters(tempURL);
-					tempURL	= removeTimePeriodParameters(tempURL);
-					window.location.href = tempURL;
+					location.reload();
 				}
 			});
 		}
@@ -271,7 +258,7 @@ $(document).ready(function() {
 		modificationInProgress = true;
 		addRequested = true;
 		$('span#alreadyEnrolledNumber0').closest('table').show(); //Index zero refers to the addition row
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val($.urlParam('requstedCourseId')); 
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val(0); 
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val(0); 
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val(0);
 		currentBackgroundColor = $(this).closest('tr').css("background-color");
