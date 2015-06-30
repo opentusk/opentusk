@@ -207,31 +207,6 @@ sub constructStudentModificationCourses{
 	return \@courses;
 }
 
-sub getStudentModificationTimePeriods{
-	my ($self) = @_;
-
-	my $dbh = HSDB4::Constants::def_db_handle();
-	my @timePeriods = ();
-
-	my $sql = qq/SELECT DISTINCT t1.period, t1.time_period_id
-		FROM $self->{school_db}.time_period AS t1
-		ORDER BY t1.start_date DESC;/;
-	my $sth = $dbh->prepare($sql);
-	eval {
-		$sth->execute();
-	};
-	croak "error : $@ query $sql failed for class " . ref($self) if ($@);
-	while (my ($timePeriod, $timePeriodId) = $sth->fetchrow_array())
-	{
-		push @timePeriods, {
-			timePeriod => $timePeriod,
-			timePeriodId => $timePeriodId
-		};
-	}
-
-	return \@timePeriods;
-}
-
 sub getStudentModificationTeachingSites{
 	my ($self, $currentCourseId) = @_;
 	my $dbh = HSDB4::Constants::def_db_handle();
@@ -290,30 +265,6 @@ sub getStudentModificationCourses{
 	}
 
 	return \@courses;
-}
-
-sub getAlreadyEnrolledInACourse{
-	my ($self, $args) = @_;
-	my $sql = qq/SELECT COUNT(*)
-		FROM $self->{school_db}.link_course_teaching_site AS t1
-		WHERE t1.parent_course_id = (
-			SELECT course_id
-			FROM $self->{school_db}.course
-			WHERE title = ?
-		) AND time_period_id = (
-			SELECT time_period_id 
-			FROM $self->{school_db}.time_period
-			WHERE period = ?
-			LIMIT 1
-		) AND t1.teaching_site_id = (
-			SELECT teaching_site_id
-			FROM $self->{school_db}.teaching_site
-			WHERE site_name = ?
-		)/;
-	my $dbh = $self->{-dbh};
-	my $alreadyEnrolled = $dbh->do($sql, undef, @{$sqlArgs}) or die $dbh->errstr;
-
-	return defined $alreadyEnrolled ? $alreadyEnrolled : -1;
 }
 
 sub deleteStudentFromCourse{
