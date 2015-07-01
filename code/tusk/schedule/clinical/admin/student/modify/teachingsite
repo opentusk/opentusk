@@ -37,7 +37,7 @@
     });
 	@teachingSites = @{$modificationValues->getStudentModificationTeachingSites($currentCourseId)};
 
-	$m->comp('SELF:.prepareTeachingSitesDropdown', rowIndex => $rowIndex, currentTeachingSiteId => $currentTeachingSiteId);
+	$m->comp('SELF:.prepareTeachingSitesDropdown', rowIndex => $rowIndex, currentTeachingSiteId => $currentTeachingSiteId, currentCourseId => $currentCourseId);
 </%init>
 
 
@@ -45,12 +45,13 @@
 <%args>
   $rowIndex
   $currentTeachingSiteId
+  $currentCourseId
 </%args>
 <%perl>
     my @dropdownOptions;
 
     push @dropdownOptions, {
-        'value' => 0,
+        'value' => -1,
         'label' => 'Select Teaching Site'
     };
 
@@ -61,10 +62,18 @@
          };
     };
 
+    if ($currentCourseId > 0)
+    {
+        push @dropdownOptions, {
+            'value' => 0,
+            'label' => '-- No Teaching Site --'
+        };
+    }
+
     $m->comp('/tmpl/element:dropdown', params => {
         options => \@dropdownOptions,
-        onchange => "setTeachingSite($rowIndex)",
-        selected => $currentTeachingSiteId,
+        onchange => "setIndex($rowIndex)",
+        selected => $currentTeachingSiteId ? $currentTeachingSiteId : 0,
         style => 'width: 100%;'
     });
 </%perl>

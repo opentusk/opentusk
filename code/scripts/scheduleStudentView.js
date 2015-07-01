@@ -14,12 +14,7 @@ function setCourse(rowIndex)
 	constructDropdowns();
 }
 
-function setTeachingSite(rowIndex)
-{
-	currentRowIndex = rowIndex;
-}
-
-function setTimePeriod(rowIndex)
+function setIndex(rowIndex)
 {
 	currentRowIndex = rowIndex;
 }
@@ -53,22 +48,13 @@ function constructDropdowns()
 	});
 }
 
-$.urlParam = function(name) {
-	var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-	if (results == null){
-	   return null;
-	}
-	else {
-	   return results[1] || 0;
-	}
-}
 $(document).ready(function() {
 	var modificationInProgress = false;
 	var currentBackgroundColor;
 	$('div#timePeriod, div#teachingSite').change(function() {
-		if ($(this).closest('tr').find('div#timePeriod').find('select.view').val() == 0 || 
-			$(this).closest('tr').find('div#teachingSite').find('select.view').val() == 0 ||
-			$(this).closest('tr').find('div#course').find('select.view').val() == 0) {
+		if ($(this).closest('tr').find('div#timePeriod').find('select.view').val() < 0 || 
+			$(this).closest('tr').find('div#teachingSite').find('select.view').val() < 0 ||
+			$(this).closest('tr').find('div#course').find('select.view').val() < 0) {
 			$(this).closest('tr').find('span#alreadyEnrolled').hide();
 			return;
 		} else {
@@ -108,7 +94,7 @@ $(document).ready(function() {
 	$("td #modify").click(function() {
 		if (modificationInProgress)
 		{	
-			alert('Please finish current modifications first.');
+			alert('Please finish your current modifications.');
 			return;
 		}
 		$(this).closest('tr').find('div#teachingSite').find('select.view').trigger('change');
@@ -169,10 +155,10 @@ $(document).ready(function() {
 				alert("An error occured during the deletion process");
 			}).success(function(data, status){
 				if (data['applied'] != 'ok') {
-					alert('Student wasn\'t removed from the requested rotation: ' + data['applied']);
+					alert('Student wasn\'t removed from the requested rotation: ' + data['applied'] + '.');
 				}
 				else {
-					alert('Student was removed from the requested rotation');
+					alert('Student was removed from the requested rotation.');
 					location.reload();
 				}
 			});
@@ -186,9 +172,28 @@ $(document).ready(function() {
 		//store the value and wait for the Ajax request result status
 		var tempTimePeriod = $(this).closest('tr').find('div#timePeriod').find('select.view').val(); 
 		var tempTeachingSite = $(this).closest('tr').find('div#teachingSite').find('select.view').val(); 
-		if (tempTeachingSite == 0 || tempTimePeriod == 0)
+
+		var errorMessage = 'Please make a selection in the following drop down list(s): \n';
+		var showErrorMessage = 0;
+		if (addRequested && $(this).closest('tr').find('div#course').find('select.view').val() < 0)
 		{
-			alert('Please make a selection from the drop down list(s) first.');
+			errorMessage += '\nCourse';
+			showErrorMessage = 1;
+		} 
+		if (tempTimePeriod < 0) {
+			errorMessage += '\nTime Period';
+			showErrorMessage = 1;
+		} 
+		if (tempTeachingSite < 0)
+		{
+			errorMessage += '\nTeaching Site';
+			showErrorMessage = 1;
+		} 
+
+		if (showErrorMessage)
+		{	
+			showErrorMessage = 0;
+			alert(errorMessage);
 		} else {
 			$.ajax({
 				url: "/tusk/schedule/clinical/admin/ajax/modification",
@@ -214,15 +219,15 @@ $(document).ready(function() {
 				}
 			}).done(function() {
 			}).error(function() {
-				alert("An error occured during the modification process");
+				alert("An error occured during the modification process.");
 			}).success(function(data, status){
 				if (data['applied'] != 'ok') {
-					alert('There was a problem saving the selected time period and teaching site: ' + data['applied']);
+					alert(addRequested ? 'There was a problem adding the rotation to the student\'s schedule: ' + data['applied']: 'There was a problem saving the selected time period and teaching site: ' + data['applied']);
 				}
 				else {
 					currentTimePeriod = tempTimePeriod;
 					currentTeachingSite = tempTeachingSite;
-					alert('The time period and teaching site change took place.');
+					alert(addRequested ? 'The rotation was added to the student\'s schedule.' : 'The time period and teaching site change took place.');
 					location.reload();
 				}
 			});
@@ -251,15 +256,15 @@ $(document).ready(function() {
 	$('div.gCMSButtonRow').find('a').click(function() {
 		if (modificationInProgress)
 		{	
-			alert('Please finish current modifications first.');
+			alert('Please finish your current modifications.');
 			return;
 		}
 		modificationInProgress = true;
 		addRequested = true;
 		$('span#alreadyEnrolledNumber0').closest('table').show(); //Index zero refers to the addition row
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val(0); 
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val(0); 
-		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val(0);
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val(-1); 
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val(-1); 
+		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val(-1);
 		currentBackgroundColor = $(this).closest('tr').css("background-color");
 		$('span#alreadyEnrolledNumber0').closest('tr').css( "background-color", "rgba(250, 181, 139, 0.39)" );
 		$('span#alreadyEnrolledNumber0').closest('table').show();
