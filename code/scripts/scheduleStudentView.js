@@ -65,7 +65,6 @@ $.urlParam = function(name) {
 $(document).ready(function() {
 	var modificationInProgress = false;
 	var currentBackgroundColor;
-	$('span#alreadyEnrolledNumber0').closest('table').hide();
 	$('div#timePeriod, div#teachingSite').change(function() {
 		if ($(this).closest('tr').find('div#timePeriod').find('select.view').val() == 0 || 
 			$(this).closest('tr').find('div#teachingSite').find('select.view').val() == 0 ||
