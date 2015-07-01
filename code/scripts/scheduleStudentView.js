@@ -111,7 +111,9 @@ $(document).ready(function() {
 		else
 		{
 			currentTimePeriod = $(this).closest('tr').find('span#currentTimePeriodId').text();
-			currentTeachingSite = $(this).closest('tr').find('span#currentTeachingSiteId').text();
+			currentTeachingSite = $.trim($(this).closest('tr').find('span#currentTeachingSiteId').text()) == '' ? 0 : $(this).closest('tr').find('span#currentTeachingSiteId').text();
+			// alert('Current teaching site is ' + currentTeachingSite);
+			// alert('Current tim period is ' + currentTimePeriod);
 			$(this).closest('tr').find('div#timePeriod').show();
 			$(this).closest('tr').find('div#teachingSite').show();
 			$(this).closest('tr').find('div#course').show();
