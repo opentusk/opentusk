@@ -116,7 +116,7 @@ function loadSearchResults() {
 						url: "/tusk/competency/search/getCourse/school/" + school,
 						dataType: "json"
 					}).success(function(data) {
-						console.log(data);
+						//console.log(data);
 						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
 						/*if (data.body) {
 							course_link += "<br>" + data.body;
@@ -134,15 +134,29 @@ function loadSearchResults() {
 					table_row += '<td>' + value[3] + '</td>' +  content_link + '</td></tr>';
 					$("#content_competency_search_results tr:last").after(table_row);
 				} else {
-					table_row += '<td>' + value[3] + '</td><td>' +  value[1] + '</td></tr>';
-					$("#session_competency_search_results tr:last").after(table_row);
+$.ajax({				
+						async: false,
+						global: false,
+						type: "POST",	
+						data: {competency_id: value[0]},
+						url: "/tusk/competency/search/getSession/school/" + school,
+						dataType: "json"
+					}).success(function(data) {
+						var session_link;
+						session_link = "</tr><tr><td colspan='2'><a class='session-link'>" + data[0][1] + " (" + data[0][2] + ") " + "</a>";
+						session_link += "<br> <b>ID:</b> " + data[0][0];
+						session_link += " &nbsp&nbsp<b>Meeting Date:</b> " + data[0][5];
+						session_link += " &nbsp&nbsp<b>Time:</b> " + data[0][6] + " - " + data[0][7];
+						session_link += " &nbsp&nbsp<b>Location:</b> " + data[0][8];
+						table_row += '<td>' + value[3] + '</td>' +  session_link + '</td></tr>';
+						$("#session_competency_search_results tr:last").after(table_row);
+					});
 				} 
 			});
 	});
 }
 
 function makeTabs(selector) {
- 
     tab_lists_anchors = document.querySelectorAll(selector + " li a");
     divs = document.querySelector(selector).getElementsByTagName("div");
     for (var i = 0; i < tab_lists_anchors.length; i++) {
