@@ -19,6 +19,7 @@
 	use TUSK::GradeBook::GradeMultiple;
 	use TUSK::GradeBook::GradeEventGradeScale;
 	use TUSK::GradeBook::GradeScaleCourse;
+    use HSDB45::TimePeriod;
 </%once>
 
 <%shared>
@@ -64,6 +65,11 @@
 </td></tr>
 
 <& SELF:print_buttons &>
+
+<& /tmpl/element:field_display, params => { 
+    label => __('Time Period'),
+    value => HSDB45::TimePeriod->new(_school => $school)->lookup_key($time_period_id)->out_display(),
+} &>
 
 <& /tmpl/element:textbox, params => { 
 	label => __('Event Name'),
@@ -171,8 +177,6 @@ print "</table></td></tr>";
 </form>
 
 <%init>
-
-
 	if ($final_grade_event = $gb->getFinalGradeEvent($ARGS{final_grade_event_id})) {
 		($final_grade_records, $final_saved_grades) = $final_grade_event->getFinalGradeRecords($type_object);
 	}
