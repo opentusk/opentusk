@@ -217,7 +217,7 @@ Gets an array ref of any matching user role records for a particular feature_typ
 sub lookupFeature{
     my ($self, $feature_type_token, $feature_id) = @_;
 
-    return $self->lookup("permission_feature_type.feature_type_token='" . $feature_type_token . "' and feature_id = $feature_id", 
+    return $self->lookup("permission_feature_type.feature_type_token ='" . $feature_type_token . "' AND feature_id = $feature_id", 
 			     ['hsdb4.user.lastname', 'hsdb4.user.firstname'], 
 			      undef, 
 			      undef, 
