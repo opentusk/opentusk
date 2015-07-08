@@ -90,7 +90,12 @@ sub is_cache_valid {
     return 0 unless defined $self->cache()->modified();
     return 0 unless $self->get_versioner->get_version_code eq $self->cache->formatter_version;
     return 0 if $self->modified_since($self->cache()->modified());
+    return 0 if $self->no_cache();
     return 1;
+}
+
+sub no_cache {
+	return 0;
 }
 
 sub get_xml_text {
@@ -101,7 +106,7 @@ sub get_xml_text {
 	if($override || !($self->is_cache_valid()))
 	{
 	    $self->{-xml_text} = $self->get_xml_elt()->sprint();
-	    $self->cache()->write_cache();
+	    $self->cache()->write_cache() unless $self->no_cache();
 	}
 	else {
 	    $self->{-xml_text} = $self->cache()->retrieve_cache();

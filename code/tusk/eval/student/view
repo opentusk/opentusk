@@ -29,7 +29,7 @@
 	my %evals = ();
 	my $school_object = $course->get_school();
 	my $school = $school_object->getSchoolName();
-	my $time_period = $course->get_current_timeperiod();
+	my $time_period = $course->get_student_timeperiod($evaluator->primary_key());
 	my $time_period_id = (ref($time_period) eq 'HSDB45::TimePeriod') ? $time_period->primary_key() : 0;
 	my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period_id);
 	my $student_site_id = (ref($student_site) eq 'HSDB45::TeachingSite') ? $student_site->primary_key() : 0;
@@ -48,7 +48,7 @@
 <%perl>
 	my @course_evals = ();
 	if (exists $evals{course} && scalar @{$evals{course}}) {
-		my @comps = HSDB45::Eval::Completion->new( _school => $school)->lookup_conditions("user_id = '" . $evaluator->primary_key() . "' and eval_id in (" . join(',', map { $_->primary_key() } @{$evals{course}}) . ")"); 
+		my @comps = HSDB45::Eval::Completion->new( _school => $school)->lookup_conditions("user_id = '" . $evaluator->primary_key() . "' AND eval_id IN (" . join(',', map { $_->primary_key() } @{$evals{course}}) . ")");
 		my %completed_evals = map { $_->eval_id() => $_->field_value('created') } @comps;
 	 	foreach my $eval (@{$evals{course}}) {
 			my $eval_id = $eval->primary_key();
@@ -175,18 +175,19 @@ Do <span style="color: red">NOT</span> use the back button to navigate back to t
 		my $sql = qq(
 				SELECT DISTINCT firstname, lastname, r.role_id, r.role_desc, c.user_id, uid, d.display_name, e.status_date, e.eval_association_id
 				FROM tusk.course_user c
-				INNER JOIN tusk.course_user_site s on (c.course_user_id = s.course_user_id and teaching_site_id = $student_site_id)
-				INNER JOIN hsdb4.user u on (u.user_id = c.user_id)
-				INNER JOIN tusk.permission_user_role p on (u.user_id = p.user_id and feature_id = c.course_user_id)
-				INNER JOIN tusk.permission_role r on (p.role_id = r.role_id)
-				INNER JOIN tusk.eval_role er on (r.role_id = er.role_id and c.school_id = er.school_id and er.eval_id = $teaching_eval_id)
-				INNER JOIN tusk.permission_feature_type f on (f.feature_type_id = r.feature_type_id and feature_type_token = 'course')
-				LEFT OUTER JOIN tusk.eval_association e on (evaluator_id = '$evaluator_id' and evaluatee_id = c.user_id and e.eval_id = er.eval_id   and e.school_id =  c.school_id )
-				LEFT OUTER JOIN tusk.enum_data d on (e.status_enum_id =  d.enum_data_id and namespace = 'eval_association.status')
+				INNER JOIN tusk.course_user_site s ON (c.course_user_id = s.course_user_id AND teaching_site_id = $student_site_id)
+				INNER JOIN hsdb4.user u ON (u.user_id = c.user_id)
+				INNER JOIN tusk.permission_user_role p ON (u.user_id = p.user_id AND feature_id = c.course_user_id)
+				INNER JOIN tusk.permission_role r ON (p.role_id = r.role_id)
+				INNER JOIN tusk.eval_role er ON (r.role_id = er.role_id AND c.school_id = er.school_id AND er.eval_id = $teaching_eval_id)
+				INNER JOIN tusk.permission_feature_type f ON (f.feature_type_id = r.feature_type_id AND feature_type_token = 'course')
+				LEFT OUTER JOIN tusk.eval_association e ON (evaluator_id = ? AND evaluatee_id = c.user_id AND e.eval_id = er.eval_id AND e.school_id = c.school_id)
+				LEFT OUTER JOIN tusk.enum_data d ON (e.status_enum_id = d.enum_data_id AND namespace = 'eval_association.status')
+				WHERE c.school_id = ? AND course_id = ? AND time_period_id = ?
+				ORDER by r.role_desc, lastname, firstname
 		);
-		$sql .=	'WHERE c.school_id = ' . $course->school_id() . ' and course_id = ' . $course->primary_key() . ' and time_period_id = ' . $time_period->primary_key() . ' ORDER by r.role_desc, lastname, firstname';
 
-		my $sth = $course_user->databaseSelect($sql);
+		my $sth = $course_user->databaseSelect($sql, $evaluator_id, $course->school_id(), $course->primary_key(), $time_period->primary_key());
 
 		while (my ($firstname, $lastname, $role_id,  $role, $evaluatee_id, $evaluatee_uid, $status, $status_date, $eval_association_id) = $sth->fetchrow_array()) {
 			my $action_id = 'action' . $counter++;
@@ -212,11 +213,10 @@ Do <span style="color: red">NOT</span> use the back button to navigate back to t
 </%method>
 
 <%init>
-	my @all_course_evals = $course->get_evals();
-	foreach my $eval (@all_course_evals) {
-		if (my $eval_type = $eval->eval_type()->getToken()) {
-			push @{$evals{$eval_type}}, $eval;
+	if ($student_site_id) {
+		foreach my $eval ($course->get_evals($time_period_id)) {
+			my $eval_type = $eval->eval_type()->getToken();
+			push @{$evals{$eval_type}}, $eval if ($eval_type);
 		}
 	}
 </%init>
-

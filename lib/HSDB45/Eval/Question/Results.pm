@@ -115,10 +115,10 @@ sub init {
     die "Was expecting an HSDB45::Eval::Results object..." unless($self->eval_results()->isa("HSDB45::Eval::Results"));
     $self->{-all_resps} = HSDB45::Eval::Question::ResponseGroup->new($self, "__ALL__");
     # First, rebless to the right results type
-    my $type = $self->question()->body()->question_type ();
+    my $type = $self->question()->body()->question_type();
     if ($type && $TypeClass{$type}) { bless $self, $TypeClass{$type} }
     else { die "Cannot figure out the question type." }
-    $self->lookup_responses;
+    $self->lookup_responses();
     return $self;
 }
 
@@ -127,12 +127,17 @@ sub init {
 # Output: 
 sub lookup_responses {
     my $self = shift;
-    my @conds = (sprintf ("eval_id=%d", $self->question ()->parent_eval ()->primary_key),
-		 sprintf ("eval_question_id=%d", $self->question ()->primary_key));
-    my $blankresp = HSDB45::Eval::Question::Response->new (_school => $self->question->school);
-    for my $resp ($blankresp->lookup_conditions (@conds)) {
-	$resp->set_aux_info ('parent_results' => $self);
-	$self->{-all_resps}->add_response ($resp);
+    my $question = $self->question();
+    my $eval = $question->parent_eval();
+    my $evaluatee_id = $self->eval_results()->evaluatee_id();
+    return if ($self->isa('HSDB45::Eval::Question::Results::Textual') && $eval->is_teaching_eval() && !$evaluatee_id);
+    my @conds = ('eval_id = ' . $eval->primary_key(),
+		 'eval_question_id = ' . $question->primary_key());
+    push @conds, "user_code LIKE '%-" . (($evaluatee_id) ? $evaluatee_id : '%') . "'" if ($eval->is_teaching_eval());
+    my $blankresp = HSDB45::Eval::Question::Response->new(_school => $question->school());
+    for my $resp ($blankresp->lookup_conditions(@conds)) {
+	$resp->set_aux_info('parent_results' => $self);
+	$self->{-all_resps}->add_response($resp);
     }
     return;
 }

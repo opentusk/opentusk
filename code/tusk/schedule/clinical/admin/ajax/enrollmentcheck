@@ -14,10 +14,34 @@
  limitations under the License.
 </%doc>
 
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+</%attr>
+
 <%once>
-	sub unique {
-	    return reverse sort keys %{ { map {$_=>1} @_ } }; # Mea culpa!
-	}
+	use JSON;
+  	use TUSK::Application::Schedule::Clinical;
 </%once>
 
-<% $m->call_next %>
+<%perl>
+	my $status = {
+		number_of_enrolled => -1,
+	};
+
+	$status->{number_of_enrolled} = TUSK::Application::Schedule::Clinical->new({
+		school_id => $ARGS{'school_id'},
+		school_db => $ARGS{'school_db'}
+	})->checkNumberOfEnrolled({
+		temp_time_period => $ARGS{'temp_time_period'},
+		temp_teaching_site => $ARGS{'temp_teaching_site'},
+	  	course_id => $ARGS{'course_id'},
+	});
+
+	my $modification_status_json = encode_json($status);	
+	$m->print($modification_status_json);
+
+</%perl>

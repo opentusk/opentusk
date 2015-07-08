@@ -37,6 +37,8 @@ dynamic_check_tp => 0
 check_timeperiod => 0
 show_tp_dropdown_no_cache => 0
 show_tp_dropdown_without_course => 0
+tp_dropdown_allow_all => 0
+tp_dropdown_include_future => 0
 top_tab_type => ''
 hide_global_links => ''
 preRedHeaderText => ''
@@ -263,7 +265,7 @@ my %req_hash = (
 
 % if ($m->base_comp->attr('use_dynamic_wrapper')) {
 	<& $m->comp($m->base_comp->attr('page_footer')), req_hash => \%req_hash &>
-% } elsif ($m->comp("SELF:return_page_footer") && !($m->base_comp->attr('no_body'))){
+% } elsif ($m->comp("SELF:return_page_footer") && !($m->base_comp->attr('no_body'))) {
 	<& $m->comp("SELF:return_page_footer"), req_hash => \%req_hash &>
 % }
 
@@ -271,7 +273,13 @@ my %req_hash = (
 	unless ($m->base_comp->attr('no_check_path')){
 		$m->comp("/tmpl/url:check_path", default_path_type => $m->base_comp->attr('default_path_type'));
 		if ($m->base_comp->attr('show_tp_dropdown_no_cache') || $m->comp("SELF:should_show_tp_dropdown") ) {
-			$extratext = TUSK::Core::SessionTimePeriod::course_time_periods($m->comp("/tmpl/url:get_type_object"), $ARGS{'timeperiod'}, $m->session, ($m->base_comp->attr('show_tp_dropdown_no_cache') > 1));
+			$extratext = TUSK::Core::SessionTimePeriod::course_time_periods(
+			    $m->comp("/tmpl/url:get_type_object"),
+			    $ARGS{'timeperiod'},
+			    $m->session,
+			    $m->base_comp->attr('tp_dropdown_allow_all'),
+			    $m->base_comp->attr('tp_dropdown_include_future')
+			    );
 			$m->comp("SELF:nocache");
 	 		# Time Period dropdown is problematic when using 'back' button.
 			# If we don't send headers to avoid caching page, if user selects a new TP from dropdown, then navs 'back'

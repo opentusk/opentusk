@@ -25,14 +25,14 @@
 </%once>
 
 <%shared>
-	my $type_object =  $m->comp("/tmpl/url:get_type_object");
-	my $school = $type_object->get_school();
+	my $course =  $m->comp("/tmpl/url:get_type_object");
+	my $school = $course->get_school();
 	my ($form_id) = $m->comp('/tmpl/url:get_path_ids');
-	my $time_period_id;
-	my $user_roles = TUSK::Permission::UserRole->new()->getFeatureUserByRole('assessment', $form_id, 'assessor') || [];
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
 	my $assessment_form = TUSK::FormBuilder::Assessment->lookupReturnOne("form_id = $form_id");
 	my $student_data = {};
 	my @students = ();
+	my @users = ();
 </%shared>
 
 <& /tmpl/element:form, params => {
@@ -47,8 +47,8 @@
 <tr><td><br/>
 
 %	# warn user if the assessment form in question has no assessors assigned to it
-%	if (!scalar @$user_roles) {
-<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => __('There are no assessors associated with this assessment form.')}, 'make_table' => 1 &>
+%	if (!scalar @users) {
+<& '/tmpl/prepend:traffic_light', args => {'hintmsg' => __('There are no assessors associated with this assessment form in this time period.')}, 'make_table' => 1 &>
 %	}
 % 	if ($assessment_form && $assessment_form->getMultiAssessors()) {
 <& SELF:display_multi_assessors &>
@@ -66,7 +66,11 @@
 </form>
 
 <%init>
-	my $course_id = $type_object->course_id;
+	my $course_id = $course->course_id();
+	my $users_roles = TUSK::Permission::UserRole->new()->getFeatureUserByRole('assessment', $form_id, 'assessor') ;
+	my $unique_users = $course->unique_users($time_period_id);
+	my %available_users = map { $_->getPrimaryKeyID() => 1 } @$unique_users;
+	@users = grep { $available_users{$_->getUserID()} } @$users_roles;
 	$student_data = TUSK::Manage::Course::Students::get_assessor($r, $form_id, $time_period_id);
 
 	if ($ARGS{submit_check}){
@@ -74,7 +78,7 @@
 		$m->comp("/tmpl/url:redirect", destination=> "/assessment/author/assessors/course/" . $school->getSchoolName() . "/$course_id/$form_id",  message => __('Successfully updated'), msg_type => 'msg' );
 	}
 
-	@students = $type_object->get_students($time_period_id);
+	@students = $course->get_students($time_period_id);
 </%init>
 
 <%method startup>
@@ -82,8 +86,6 @@
 	$args
 </%args>
 <%perl>
-	$time_period_id = $ARGS{timeperiod} || $m->comp("SELF:get_timeperiod_id");
-	my $course = $m->comp('/tmpl/url:get_type_object');
 	if (!$time_period_id || ($m->session->{timeperiod_course} ne $course->school() . '-' . $course->primary_key())) {
 		my $type_path = $m->comp('/tmpl/url:get_type_path');
 		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/assessors/$type_path/$form_id", message => __("Something wrong with time period! Try again."));
@@ -102,7 +104,7 @@
 		$completed_forms{$_->getCreatedBy()}{$_->getJoinObject('TUSK::FormBuilder::EntryAssociation')->getUserID()} = ($_->getCompleteDate()) ? ' <b>*</b>' : ' <b>!</b>';
 	}
 
-	my @colheaders = map {{id => $_->getUserID(), name => $_->getFullUserName()}} @$user_roles;
+	my @colheaders = map {{id => $_->getUserID(), name => $_->getFullUserName()}} @users;
 	my @rowheaders;
 	my %data;
 	my %styles;
@@ -112,7 +114,7 @@
 		my $j = 0;
 		push(@rowheaders, {id => $student->primary_key(), name => $student->out_lastfirst_name()});
 
-		foreach my $ur (@$user_roles) {
+		foreach my $ur (@users) {
 			my $ssid = $student_id . '__' . $ur->getUserID();
 			my $checked = '';
 			
@@ -186,7 +188,7 @@
 <td class="line-left">
 <select class="sm" name="student_assessor">
 <option value=""></option>
-%		foreach my $ur (@$user_roles) {
+%		foreach my $ur (@users) {
 %			my $ssid = $student->primary_key() . '__' . $ur->getUserID();
 <option value="<% $ssid . ((exists $student_data->{$ssid}) ? '__' . $student_data->{$ssid}[0] : '') %>" <% ($student_data->{$ssid}[1] == 1) ? 'selected="selected"' : '' %>><% $ur->getFullUserName() %></option>
 %		}

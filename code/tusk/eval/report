@@ -53,9 +53,42 @@
 		$r->status(FORBIDDEN);
 		$m->abort();
 	}
-	my $title = __("Unknown Eval");
-	if($eval && $eval->out_label) {$title = $eval->out_label;}
+	my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
+	my $eval_id = ($eval) ? $eval->primary_key() : 0;
+	my $evaluatee_id = '';
+	my $school = ($eval) ? $eval->school() : '';
+	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
+	my @evaluatees = ({label => __('All'), value => ''});
 </%shared>
+
+<%init>
+	if ($is_teaching_eval) {
+		$evaluatee_id = $ARGS{'evaluatee_id'};
+		my $db = HSDB4::Constants::get_school_db($school);
+		my $dbh = HSDB4::Constants::def_db_handle();
+		my $sql = qq(
+			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
+			FROM $db.eval_response AS er
+			JOIN tusk.eval_entry AS ee ON er.user_code = ee.evaluator_code
+			JOIN hsdb4.user AS u ON ee.evaluatee_id = u.user_id
+			WHERE er.eval_id = ? AND er.user_code LIKE '%-%'
+			GROUP BY u.user_id
+			ORDER BY u.lastname, u.firstname
+		);
+		my $sth = $dbh->prepare($sql);
+		$sth->execute($eval_id);
+		while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
+			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id};
+		}
+	}
+	my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id);
+	my $num_users = $eval->num_users();
+	my $num_comps = ($evaluatee_id) ? $eval_results->total_user_codes() : $eval->count_complete_users();
+	my $num_incos = $num_users - $num_comps;
+	my $per_comps = ($num_users && $num_comps) ? sprintf("%.2f", 100*$num_comps/$num_users) : 0;
+	my $per_incos = ($num_users && $num_incos) ? sprintf("%.2f", 100*$num_incos/$num_users) : 0;
+</%init>
+
 <span class="evalFluff" style="float:right; text-align:right;">
 	<& /tmpl/element:link_to_help, 
 		text => __('Statistics Definitions'),
@@ -79,9 +112,21 @@
 %	$m->about();
 % }
 
+% if ($is_teaching_eval) {
+<h2 class="title"><& /tmpl/element:dropdown, params => { 
+		label 		=> __('Evaluatee') . ':',
+                name 		=> 'evaluatee',
+                onchange	=> "window.location = '?evaluatee_id=' + this.options[this.selectedIndex].value",
+                selected	=> $evaluatee_id,
+                options		=> \@evaluatees
+} &></h2>
+% }
+
 <div class="evalFluff">
-	<a href="/protected/eval/administrator/show/<% $eval->school %>"><%__("Manage Evaluations")%></a><br />
-	<a href="/protected/eval/administrator/export/<%$eval->school %>/<% $eval->primary_key() %>"><%__("Export Report")%></a><br />
+	<a href="/protected/eval/administrator/show/<% $school %>"><%__("Manage Evaluations")%></a><br />
+% unless ($is_teaching_eval) {
+	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><%__("Export Report")%></a><br />
+% }
 	<a id="graphLink" style="display:none;" href="" onclick="showHideGraphs(); return false;"><%__("Hide Graphs")%></a>
 
 % my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
@@ -94,10 +139,28 @@
 %}
 	<%__('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.')%>
 	</p>
+    <h3><% __('Enrollment Information') %></h3>
+    <table border="1" cellspacing="0">
+      <tr>
+        <th><% __('Total Users') %></th>
+        <th><% __('Complete Users') %></th>
+% unless ($is_teaching_eval) {
+        <th><% __('Incomplete Users') %></th>
+% }
+      </tr>
+      <tr>
+        <td align="center"><% $num_users %></td>
+        <td align="center"><% $per_comps %>% (<% $num_comps %>)</td>
+% unless ($is_teaching_eval) {
+        <td align="center"><% $per_incos %>% (<% $num_incos %>)</td>
+% }
+      </tr>
+    </table>    
 </div>
 <div id="graphicsLoadMessage" style="display:none;">
 	<p id="queueMessage"><%__('Loading Eval Graphs')%></p><img src="/graphics/icons/waiting_bar.gif" alt="" />
 </div>
 <div id="evalArea">
 </div>
-<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $eval->school %>/<% $eval->primary_key() %>', 0);</script>
+% my $query = ($evaluatee_id) ? "?evaluatee_id=$evaluatee_id" : '';
+<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $school %>/<% $eval_id %>', 0);</script>

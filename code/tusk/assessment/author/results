@@ -48,7 +48,7 @@
 
 <%method getResultsWithGrades>
 <%perl>
- 	my ($completion_label, $average_score_label, $final_score_label, $assessor_label) = ({}, {}, {}, {});
+ 	my ($completion_label, $final_score_label, $assessor_label) = ({}, {}, {});
 	my (%final_scores, %final_entries, %avg_scores, $completed_entries, %assessors, %statuses, %assessor_names);
 	my @rows = ();
 
@@ -70,7 +70,6 @@
 
 	if ($has_multiple_assessors) {
 		$completion_label = {label => __('Completion'), field => 'completion', align => 'center' };
-		$average_score_label = { label => __('Avg Assessor Score'), field => 'average', align => 'center' };
 		$final_score_label = { label => __('Final Score'), field => 'final', align => 'center' };
 
 		my $entry_grades = TUSK::FormBuilder::EntryGrade->lookup(undef,undef,undef,undef, [
@@ -119,13 +118,10 @@
 			use_alternate_action_columns => (exists $statuses{$student_id} && $statuses{$student_id} =~ /^Posted on/) ? 1 : 0,
 		};
 
-		my $average_score;
 		if ($has_multiple_assessors) {
-			$average_score = ($assessors_num && $avg_scores{$student_id}) ? sprintf("%.2f", $avg_scores{$student_id} / $complete_num) : '-';
 			$rows[$i]->{completion} = $complete_num . '/' . $assessors_num;
-			$rows[$i]->{average} = $average_score;
 		} 
-		$rows[$i]->{final} = ($final_scores{$student_id}) ? $final_scores{$student_id} : $average_score;
+		$rows[$i]->{final} = sprintf("%.2f", $final_scores{$student_id});
 		$i++;
 	}
 </%perl>
@@ -139,7 +135,6 @@
 		$elective_label,
 		$completion_label,
 		$assessor_label,
-		$average_score_label,
 		$final_score_label,
 		{label => __('Status'), field => 'status', align => 'center' },
 	],

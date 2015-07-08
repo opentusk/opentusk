@@ -21,13 +21,13 @@ use HSDB45::Course;
 
 # gets time period info for course objects if the user is a school admin
 sub course_time_periods{
-    my ($course, $timeperiod, $session, $allow_all) = @_;
+    my ($course, $timeperiod, $session, $allow_all, $include_future) = @_;
 
     my ($periods, $extratext);
 
     check_session_timeperiod($course, $session);
 
-    $periods = $course->get_universal_time_periods();
+    $periods = $course->get_universal_time_periods($include_future);
 	unless ($periods){
 		$session->{timeperiod} = -1;
 		return -1;

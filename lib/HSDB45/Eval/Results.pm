@@ -64,12 +64,13 @@ sub new {
 sub init {
     my $self = shift();
     $self->{'-eval'} = shift();
+    $self->{'-evaluatee_id'} = shift();
     return $self;
 }
 
 sub school {
     my $self = shift;
-    return $self->parent_eval()->school ();
+    return $self->parent_eval()->school();
 }
 
 # Description: Returns the associated eval object
@@ -78,6 +79,11 @@ sub school {
 sub parent_eval {
     my $self = shift();
     return $self->{'-eval'};
+}
+
+sub evaluatee_id {
+    my $self = shift;
+    return $self->{'-evaluatee_id'};
 }
 
 # Description: Returns the results for the eval's questions
@@ -141,12 +147,15 @@ sub total_completions {
 }
 
 sub user_codes {
-    my $self = shift();
+    my $self = shift;
 
     unless($self->{-user_codes}) {
 	my %user_code_hash;
+	my $evaluatee_id = $self->evaluatee_id();
 	my $blank_resp = HSDB45::Eval::Question::Response->new(_school => $self->parent_eval()->school());
-	my @resps = $blank_resp->lookup_conditions('eval_id=' . $self->parent_eval()->primary_key());
+	my @conds = ('eval_id = ' . $self->parent_eval()->primary_key());
+	push @conds, "user_code LIKE '%-$evaluatee_id'" if ($evaluatee_id);
+	my @resps = $blank_resp->lookup_conditions(@conds);
 	foreach my $resp (@resps) { $user_code_hash{$resp->user_code()}++ }
 	$self->{-user_codes} = [keys(%user_code_hash)];
     }
@@ -169,6 +178,7 @@ answered a question on a particular eval.
 
 sub total_user_codes {
     my $self = shift;
+
     return scalar($self->user_codes());
 }
 
