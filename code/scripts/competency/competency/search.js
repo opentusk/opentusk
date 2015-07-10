@@ -59,6 +59,10 @@ function loadTopLevelCompetencies(domain) {
 		});
 }
 
+function loadCompetencyChildren(competency_id) {
+	console.log(competency_id);
+}
+
 function loadSearchResults() {
 	$("#competency_search_results").find("tr:gt(0)").remove();
 	$("#course_competency_search_results").find("tr:gt(0)").remove();
