@@ -60,7 +60,17 @@ function loadTopLevelCompetencies(domain) {
 }
 
 function loadCompetencyChildren(competency_id) {
-	console.log(competency_id);
+	$.ajax({				
+			type: "POST",
+			url: "/tusk/competency/search/ajaxCompetencyChildren",
+			data: {competency_id: competency_id},						
+		}).success(function(data) {
+			console.log(data);
+	});
+}
+
+function loadLinkedCompetencies(competency_id) {
+
 }
 
 function loadSearchResults() {
