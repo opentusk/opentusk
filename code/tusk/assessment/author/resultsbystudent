@@ -132,8 +132,10 @@
 		}
 
 		my $entry_grade = TUSK::FormBuilder::EntryGrade->lookupReturnOne("entry_id = $entry_id") if ($entry_id);
+        my $total_score = ($ARGS{total_override_score}) ? $ARGS{total_override_score} : $ARGS{total_final_score},
 
-		$entry_id = $m->comp("/formbuilder/process:entry", args => { %ARGS, time_period_id => $time_period_id }, form => $form, user_id => $user_id, date => $ARGS{encounter_date}, entry_id => $entry_id, entry_grade => $entry_grade );
+        ### store score ot each entry in form_builder_grade_entry, then when post the grade, we will post it to link_user_grade_event
+		$entry_id = $m->comp("/formbuilder/process:entry", args => { %ARGS, time_period_id => $time_period_id, total_score =>  $total_score, form_submit => 1 }, form => $form, user_id => $user_id, date => $ARGS{encounter_date}, entry_id => $entry_id, entry_grade => $entry_grade );
 
 		$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id) unless ($entry->getPrimaryKeyID());
 
@@ -147,16 +149,18 @@
 			$entry_assoc->save({user => $user_id});
 		}
 
-		if ($assessment_form && $assessment_form->getScoreDisplay()) { 
-			$student_grade = $m->comp('/assessment/tmpl/grade:addedit', 
-				form => $form, 
-				time_period_id => $time_period_id, 
-				student_id => $student_id, 
-				grade => ($ARGS{total_override_score}) ? $ARGS{total_override_score} : (($ARGS{post_submit}) ? $ARGS{total_final_score} : ''),
-				comments => $ARGS{comment_final},
-				course	=> $course,
-				user_id => $user_id,
-			);
+		if ($assessment_form && $assessment_form->getScoreDisplay()) {
+            if ($ARGS{post_submit}) { 
+    			$student_grade = $m->comp('/assessment/tmpl/grade:addedit', 
+	    			form => $form, 
+    				time_period_id => $time_period_id, 
+    				student_id => $student_id, 
+    				grade => $total_score,
+    				comments => $ARGS{comment_final},
+    				course	=> $course,
+	    			user_id => $user_id,
+    			);
+            } 
 		}
 
 		my ($msg,$url);
@@ -165,7 +169,7 @@
 			$entry->save({user => $user_id});
 			$msg = __('Successfully Submitted');
 			$url = "/assessment/author/results/$type_path/$form_id";
-		} elsif  ($ARGS{save_submit}) {	
+		} elsif ($ARGS{save_submit}) {	
 			$msg = __('Successfully saved');
 			$url = $ENV{SCRIPT_NAME} . "/$type_path/$form_id/$uid/$entry_id";
 		}
