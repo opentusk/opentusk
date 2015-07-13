@@ -70,7 +70,13 @@ function loadCompetencyChildren(competency_id) {
 }
 
 function loadLinkedCompetencies(competency_id) {
-
+	$.ajax({				
+			type: "POST",
+			url: "/tusk/competency/search/ajaxLinkedCompetencies",
+			data: {competency_id: competency_id},						
+		}).success(function(data) {
+			console.log(data);
+	});
 }
 
 function loadSearchResults() {
@@ -106,7 +112,6 @@ function loadSearchResults() {
 					content_info = data;
 				});
 
-
 			$.each(data, function (index, value) {
 				var table_row = '<tr>';
 				if (competency_types[value[2]] == 'category') {
@@ -130,11 +135,7 @@ function loadSearchResults() {
 						url: "/tusk/competency/search/getCourse/school/" + school,
 						dataType: "json"
 					}).success(function(data) {
-						//console.log(data);
 						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
-						/*if (data.body) {
-							course_link += "<br>" + data.body;
-						}*/
 					});
 					table_row += '<td>' + value[3] + '</td>' +  course_link  + '</td></tr>';				
 					$("#course_competency_search_results tr:last").after(table_row);
@@ -148,7 +149,7 @@ function loadSearchResults() {
 					table_row += '<td>' + value[3] + '</td>' +  content_link + '</td></tr>';
 					$("#content_competency_search_results tr:last").after(table_row);
 				} else {
-$.ajax({				
+	$.ajax({				
 						async: false,
 						global: false,
 						type: "POST",	
@@ -177,7 +178,6 @@ function makeTabs(selector) {
         if (tab_lists_anchors[i].classList.contains('active')) {
             divs[i].style.display = "block";
         }
- 
     }
  
     for (i = 0; i < tab_lists_anchors.length; i++) {
@@ -198,8 +198,6 @@ function makeTabs(selector) {
             div_to_show = clicked_tab.getAttribute('href');
  
             document.querySelector(div_to_show).style.display = "block";
- 
         });
     }
- 
 }
