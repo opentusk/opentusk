@@ -79,6 +79,16 @@ function loadLinkedCompetencies(competency_id) {
 	});
 }
 
+function loadLinkedAndChildren(competency_id) {
+	$.ajax({				
+			type: "POST",
+			url: "/tusk/competency/search/ajaxLinkedAndChildren",
+			data: {competency_id: competency_id},						
+		}).success(function(data) {
+			console.log(data);
+	});
+}
+
 function loadSearchResults() {
 	$("#competency_search_results").find("tr:gt(0)").remove();
 	$("#course_competency_search_results").find("tr:gt(0)").remove();
