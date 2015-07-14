@@ -1,0 +1,72 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%once>
+	use TUSK::Enum::Data;
+	use TUSK::Competency::Competency;
+
+	use TUSK::Application::Competency::Tree;
+	use TUSK::Application::Competency::Competency;
+
+	use JSON;
+</%once>
+
+<%perl>
+	my @child_competencies;
+
+	my $competency_id = $ARGS{'competency_id'};
+
+	my $this_parent_competency = {
+		competency_id => $ARGS{'competency_id'},
+	};
+
+	my $linked_competencies = TUSK::Application::Competency::Competency->new($this_parent_competency)->getLinked;
+
+	foreach my $linked_competency_id (@{$linked_competencies}) {
+		my $linked_competency = TUSK::Competency::Competency->lookupReturnOne("competency_id = $linked_competency_id");
+		if  (!$linked_competency) {
+			next;
+		} 
+		my $competency_level_enum_id = $linked_competency->getFieldValue('competency_level_enum_id');
+		my $competency_level = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $competency_level_enum_id AND namespace = \"competency.level_id\"")->getShortName;
+			
+		my $linked_competency_hash = {
+				competency_id => $linked_competency->getPrimaryKeyID,
+				title => $linked_competency->getTitle,
+				description => $linked_competency->getDescription,
+				level => $competency_level,
+				children => []
+		};
+
+		push @child_competencies, $linked_competency_hash;
+	}
+	
+
+	my $child_competencies_json = JSON->new->pretty->encode(\@child_competencies);	
+
+	$m->print($child_competencies_json);
+</%perl>
+
