@@ -47,6 +47,8 @@
 
 	my $top_level_child_competencies = TUSK::Application::Competency::Competency->new($this_parent_competency)->getChildren;
 
+#linked competencies part
+
 	foreach my $linked_competency_id (@{$linked_competencies}) {
 		my $linked_competency = TUSK::Competency::Competency->lookupReturnOne("competency_id = $linked_competency_id");
 		if  (!$linked_competency) {
@@ -65,6 +67,10 @@
 
 		push @child_competencies, $linked_competency_hash;
 	}
+
+#end linked competencies part
+
+#competency children part
 
 	foreach my $top_level_child_competency_id (@{$top_level_child_competencies}) {
 		my $top_level_child_competency = TUSK::Competency::Competency->lookupReturnOne("competency_id = $top_level_child_competency_id");
@@ -85,8 +91,11 @@
 		push @child_competencies, $top_level_child_competency_hash;
 		
 	}
-	
 
+#end competency children part
+
+#print and return in json
+	
 	my $child_competencies_json = JSON->new->pretty->encode(\@child_competencies);	
 
 	$m->print($child_competencies_json);
