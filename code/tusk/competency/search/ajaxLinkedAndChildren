@@ -45,6 +45,8 @@
 
 	my $linked_competencies = TUSK::Application::Competency::Competency->new($this_parent_competency)->getLinked;
 
+	my $top_level_child_competencies = TUSK::Application::Competency::Competency->new($this_parent_competency)->getChildren;
+
 	foreach my $linked_competency_id (@{$linked_competencies}) {
 		my $linked_competency = TUSK::Competency::Competency->lookupReturnOne("competency_id = $linked_competency_id");
 		if  (!$linked_competency) {
@@ -62,6 +64,26 @@
 		};
 
 		push @child_competencies, $linked_competency_hash;
+	}
+
+	foreach my $top_level_child_competency_id (@{$top_level_child_competencies}) {
+		my $top_level_child_competency = TUSK::Competency::Competency->lookupReturnOne("competency_id = $top_level_child_competency_id");
+		if  (!$top_level_child_competency) {
+			next;
+		} 
+		my $competency_level_enum_id = $top_level_child_competency->getFieldValue('competency_level_enum_id');
+		my $competency_level = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $competency_level_enum_id AND namespace = \"competency.level_id\"")->getShortName;
+			
+		my $top_level_child_competency_hash = {
+				competency_id => $top_level_child_competency->getPrimaryKeyID,
+				title => $top_level_child_competency->getTitle,
+				description => $top_level_child_competency->getDescription,
+				level => $competency_level,
+				children => []
+		};
+
+		push @child_competencies, $top_level_child_competency_hash;
+		
 	}
 	
 
