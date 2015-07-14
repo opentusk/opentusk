@@ -144,7 +144,7 @@ function loadSearchResults() {
 						data: {competency_id: value[0]},
 						url: "/tusk/competency/search/getCourse/school/" + school,
 						dataType: "json"
-					}).success(function(data) {
+					}).success(function(data) {						
 						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
 					});
 					table_row += '<td>' + value[3] + '</td>' +  course_link  + '</td></tr>';				
