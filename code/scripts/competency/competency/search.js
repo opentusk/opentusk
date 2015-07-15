@@ -59,34 +59,33 @@ function loadTopLevelCompetencies(domain) {
 		});
 }
 
-function loadCompetencyChildren(competency_id) {
-	$.ajax({				
-			type: "POST",
-			url: "/tusk/competency/search/ajaxCompetencyChildren",
-			data: {competency_id: competency_id},						
-		}).success(function(data) {
-			console.log(data);
-	});
-}
-
-function loadLinkedCompetencies(competency_id) {
-	$.ajax({				
-			type: "POST",
-			url: "/tusk/competency/search/ajaxLinkedCompetencies",
-			data: {competency_id: competency_id},						
-		}).success(function(data) {
-			console.log(data);
-	});
-}
-
 function loadLinkedAndChildren(competency_id) {
 	$.ajax({				
 			type: "POST",
 			url: "/tusk/competency/search/ajaxLinkedAndChildren",
-			data: {competency_id: competency_id},						
+			data: {competency_id: competency_id},
+			dataType: "json"
 		}).success(function(data) {
 			console.log(data);
-	});
+			$.each(data, function (index, value) {
+				var table_row = '<tr>';
+				/*
+				if (competency_types[value[2]] == 'category') {
+					table_row += '<td><img src="/graphics/competency/folder_16x16.png" /></td>'
+				} else if (competency_types[value[2]] == 'info') {
+					table_row += '<td><img src="/graphics/competency/info_16x16.png" /></td>'
+				} else {
+					table_row += '<td><img src="/graphics/competency/checkmark_16x16.png" /></td>'
+				}
+				*/
+				table_row += '<td><img src="/graphics/competency/checkmark_16x16.png" /></td>';
+
+				//if (competency_levels[value[1]] == 'national' || competency_levels[value[1]] == 'school') {
+					table_row += '<td>' + value.title + '</td></tr>';
+					$("#competency_search_results tr:last").after(table_row);
+				//}
+			});
+		});
 }
 
 function loadSearchResults() {
