@@ -6,6 +6,7 @@ var competency_types = null;
 var competency_levels = null;
 var content_competencies = "";
 var content_info = null;
+var search_clear_flag = 0;
 
 
 $(function() {
@@ -60,6 +61,12 @@ function loadTopLevelCompetencies(domain) {
 }
 
 function loadLinkedAndChildren(competency_id) {
+	search_clear_flag = 0;
+	$("#competency_search_results").find("tr:gt(0)").remove();
+	$("#course_competency_search_results").find("tr:gt(0)").remove();
+	$("#content_competency_search_results").find("tr:gt(0)").remove();
+	$("#session_competency_search_results").find("tr:gt(0)").remove();
+
 	$.ajax({				
 			type: "POST",
 			url: "/tusk/competency/search/ajaxLinkedAndChildren",
@@ -86,10 +93,13 @@ function loadLinkedAndChildren(competency_id) {
 }
 
 function loadSearchResults() {
-	$("#competency_search_results").find("tr:gt(0)").remove();
-	$("#course_competency_search_results").find("tr:gt(0)").remove();
-	$("#content_competency_search_results").find("tr:gt(0)").remove();
-	$("#session_competency_search_results").find("tr:gt(0)").remove();
+	if (search_clear_flag == 1) {
+		$("#competency_search_results").find("tr:gt(0)").remove();
+		$("#course_competency_search_results").find("tr:gt(0)").remove();
+		$("#content_competency_search_results").find("tr:gt(0)").remove();
+		$("#session_competency_search_results").find("tr:gt(0)").remove();
+	}
+	
 	var search_text = ($("#search_box").val());
 	
 	$.ajax({				
@@ -174,6 +184,7 @@ function loadSearchResults() {
 					});
 				} 
 			});
+	search_clear_flag = 1;
 	});
 }
 
