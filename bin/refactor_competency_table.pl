@@ -33,6 +33,12 @@ sub main {
 }
 
 sub refactorContentCourseSession {
+    use Data::Dumper; #remove this
+    
+    my $competency_levels = grabLevels();
+
+    print Dumper $competency_levels;
+
     print "Moving Course Competencies...\n";
 
     print "Moving Content Competencies...\n";
@@ -42,4 +48,13 @@ sub refactorContentCourseSession {
 
 sub refactorSchool {
 
+}
+
+sub grabLevels {
+    my $competency_levels = TUSK::Enum::Data->lookup("namespace = 'competency.level_id'");
+    my %competency_levels_hash;
+    foreach my $competency_level (@{$competency_levels}) {
+	$competency_levels_hash{$competency_level->getPrimaryKeyID()} = $competency_level->getShortName();
+    }
+    return \%competency_levels_hash;
 }
