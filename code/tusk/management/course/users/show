@@ -68,7 +68,7 @@
 	<tr><td class="no-button">
 % }
 
-% if ($users && scalar @$users) {
+% if ($num_users) {
 <& /tmpl/element:form, params => {
 	method => 'POST',
 	class => 'no-padding',
@@ -89,6 +89,9 @@
 	my $size = $ARGS{size} || 100;
 	my $first = ($page - 1) * $size;
 	my $last = $page * $size - 1;
+
+	$first = 0 unless ($first >= 0);
+	$last = $num_users - 1 unless ($last < $num_users);
 
 	my @rows = ();
 	foreach my $user (@{$users}[$first..$last]) {
@@ -158,6 +161,7 @@
 
 <%init>
 	my $users = $course->users($time_period_id);
+	my $num_users = ($users) ? scalar @$users : 0;
 	my $sub_courses = [];
 	my $sub_course_users = {};
 
@@ -172,7 +176,7 @@
 		my ($current, $new) = split '-', $ARGS{order}; 
 		splice(@$users, ($new-1), 0, splice(@$users, ($current-1), 1));
 
-		for (my $i = 0; $i < scalar @$users; $i++) {
+		for (my $i = 0; $i < $num_users; $i++) {
 			$users->[$i]->setSortOrder(10*($i+1), $m->session->{'user'}->primary_key());
 		}
 	}
