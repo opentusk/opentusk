@@ -1034,7 +1034,7 @@ unless (exists($params{toggle_field})){
 % my $align = $col->{'align'} || "left";
 <td class="header-<% $align %><% $header_size %>" width="<% $col->{'width'} %>">
 % if (exists($col->{'sort'})) {
-<a href="?sort=<% $col->{'field'} %>&toggle=<% (($params{toggle_field} eq $col->{field}) and $params{toggle}) ? "1" : "0" %>" class="header"><% $col->{'label'} %></a>
+<a href="?sort=<% $col->{'field'} %>&toggle=<% ($params{toggle_field} eq $col->{field}) && $params{toggle} %>" class="header"><% $col->{'label'} %></a>
 % }else{
 <% $col->{'label'} %>
 % }
@@ -1057,29 +1057,32 @@ Actions
 ##############################################
 </%doc>
 % my $col;
-% my $i = 0; my $class = "even";  my $td_class = 'layers';
+% my $i = ($params{'offset'}) ? $params{'offset'} : 0;
+% my $total = ($params{'total'}) ? $params{'total'} : scalar @{$params{'rows'}};
+% my $class = 'even';
+% my $td_class = 'layers';
 % foreach my $row (@{$params{'rows'}}) {
 %   if ($params{border_bottom_tr}) {
 <tr class="<% $row->{row_class} %>">
 %		$td_class = 'line';
 %   } else {
-% 		if (($i % 2) == 0){
+% 		unless ($i % 2) {
 <tr class="even"> 
 %		} else {
 <tr class="odd"> 
-%			$class= "odd";
+%			$class = 'odd';
 %		}
 % 	}
 % 	$i++;
-% if ($params{'sort_box'}){
+% if ($params{'sort_box'}) {
 	<td class="<% $td_class %>-center">
 		<select class="<% $class %>" name="order-box" onChange="this.form.order.value=this.options[this.selectedIndex].value;this.form.submit();">
-%	foreach  my $j (1..scalar(@{$params{'rows'}})){
+%	foreach  my $j (1..$total) {
 			<option class="<% $class %>" 
-% 	if ($j == $i){
+% 	if ($j == $i) {
 	value="" selected
-% 	}else{
- 	value="<% $i . "-" . $j %>"
+% 	} else {
+	value="<% $i . '-' . $j %>"
 % 	}
 ><% $j %></option>
 
