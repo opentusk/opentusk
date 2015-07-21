@@ -29,7 +29,8 @@ use TUSK::Competency::Hierarchy;
 main();
 
 sub main {
-    refactorContentCourseSession();
+    #refactorContentCourseSession();
+    refactorSchool();
 }
 
 sub refactorContentCourseSession {
@@ -94,7 +95,60 @@ sub refactorContentCourseSession {
 }
 
 sub refactorSchool {
+    print "Moving School Competencies...\n";
+    my $school_competency_level = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.level_id' AND short_name = 'school'")->getPrimaryKeyID();
+    my $school_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $school_competency_level");
 
+    my $supporting_competency_types = TUSK::Competency::UserType->lookup("", undef, undef, undef, 
+										 [TUSK::Core::JoinObject->new("TUSK::Enum::Data", { 
+										     origkey => 'competency_type_enum_id', 
+										     joinkey => 'enum_data_id', 
+										     jointype => 'inner', 
+										     joincond => 'namespace = "competency.user_type.id" AND short_name = "info"'})]);
+    
+    my @supporting_competency_type_ids;
+
+    foreach my $supporting_competency_type (@{$supporting_competency_types}) {
+	push @supporting_competency_type_ids, $supporting_competency_type->getPrimaryKeyID();
+    }
+									       
+
+    my $temp_counter = 0;
+
+    foreach my $school_competency(@{$school_competencies}) {
+	$temp_counter++;
+	if ($temp_counter <= 5) {
+	    print "TITLE: " . $school_competency->getTitle() . "\n\n";
+	    if ($school_competency->getDescription()) {
+		my $description = $school_competency->getDescription();
+		
+		my $new_supporting_competency = TUSK::Competency::Competency->new();
+
+=for
+
+		$new_supporting_competency->setFieldValues({
+		    title => $school_competency->getDescription(),
+		    user_type_id => $school_competency_level,
+		    #school_id = $school_competency->getSchoolID(),
+		    #competency_level_enum_id => $supporting_level_id,
+		    version_id => $school_competency->getVersionID(),
+		    user => "script"
+		});
+
+		$new_supporting_competency->setFieldValues({
+		    title => $school_competency->getDescription(),
+		    user_type_id => $school_competency_level,
+		    school_id = $school_competency->getSchoolID(),
+		    competency_level_enum_id => $supporting_level_id,
+		    version_id => $school_competency->getVersionID(),
+		    user => "script"
+		});
+
+		print Dumper $supporting_competency_level;
+=cut
+	    }
+	}
+    }
 }
 
 sub grabLevels {
