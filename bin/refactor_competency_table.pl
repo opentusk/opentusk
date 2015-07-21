@@ -106,46 +106,43 @@ sub refactorSchool {
 										     jointype => 'inner', 
 										     joincond => 'namespace = "competency.user_type.id" AND short_name = "info"'})]);
     
-    my @supporting_competency_type_ids;
+    my %supporting_competency_type_ids;
 
     foreach my $supporting_competency_type (@{$supporting_competency_types}) {
-	push @supporting_competency_type_ids, $supporting_competency_type->getPrimaryKeyID();
+	$supporting_competency_type_ids{$supporting_competency_type->getSchoolID()} = $supporting_competency_type->getPrimaryKeyID();
     }
-									       
-
+    
     my $temp_counter = 0;
 
     foreach my $school_competency(@{$school_competencies}) {
 	$temp_counter++;
-	if ($temp_counter <= 5) {
+	if ($temp_counter <= 1) {
 	    print "TITLE: " . $school_competency->getTitle() . "\n\n";
 	    if ($school_competency->getDescription()) {
 		my $description = $school_competency->getDescription();
 		
 		my $new_supporting_competency = TUSK::Competency::Competency->new();
 
-=for
-
 		$new_supporting_competency->setFieldValues({
 		    title => $school_competency->getDescription(),
-		    user_type_id => $school_competency_level,
-		    #school_id = $school_competency->getSchoolID(),
-		    #competency_level_enum_id => $supporting_level_id,
+		    competency_user_type_id => $supporting_competency_type_ids{$school_competency->getSchoolID()},
+		    school_id => $school_competency->getSchoolID(),
+		    competency_level_enum_id => $school_competency_level,
 		    version_id => $school_competency->getVersionID(),
-		    user => "script"
 		});
 
-		$new_supporting_competency->setFieldValues({
-		    title => $school_competency->getDescription(),
-		    user_type_id => $school_competency_level,
-		    school_id = $school_competency->getSchoolID(),
-		    competency_level_enum_id => $supporting_level_id,
-		    version_id => $school_competency->getVersionID(),
-		    user => "script"
-		});
+		$new_supporting_competency->save({user => 'script'});
+		
+		my $new_hierarchy = TUSK::Competency::Hierarchy->new();
 
-		print Dumper $supporting_competency_level;
-=cut
+		my $new_hierarchy->setFieldValues({
+		    school_id => $school_competency->getSchoolID(),
+		    lineage => ,
+		    parent_competency_id => $school_competency->getPrimaryKeyID(),
+		    child_competency_id => $new_supporting_competency->getPrimaryKeyID(),
+		    sort_order => 1,
+		    depth => 0
+		});
 	    }
 	}
     }
