@@ -2287,24 +2287,35 @@ $rowheaders					# reference for array of arrays of row headers {id =>, name => }
     %params
 </%args>
 <%perl>
-  my $records_per_page = $params{'records_per_page'} || 100;
-  my $number_of_records = $params{'number_of_records'} || 100;
-  my $current_page = $params{'current_page'} || 1;
-	my $number_of_pages = ($records_per_page) ? $number_of_records / $records_per_page : 1;
-	my @dropdown_options;
-	for my $page (1..$number_of_pages)
-	{
-		push @dropdown_options, {
-			'value' => $page,
-			'label' => $page
-		};
-	}
+    my $records_per_page = $params{'records_per_page'} || 100;
+    my $number_of_records = $params{'number_of_records'} || 100;
+    my $current_page = $params{'current_page'} || 1;
+    my $pages = ($records_per_page) ? $number_of_records / $records_per_page : 1;
+    my $prev = $current_page - 1;
+    my $next = $current_page + 1;
+    my @options;
 
-	$m->comp('/tmpl/element:dropdown', params => {
-		options => \@dropdown_options,
-		onchange => "setGetParameter('page', this.options[this.selectedIndex].value)",
-		selected => $current_page,
-		style => ''
-	});
+    for my $page (1..$pages) {
+        push @options, {
+            'value' => $page,
+            'label' => $page
+        };
+    }
 </%perl>
+<b><% __('Select Page') %>:</b>
+<& /tmpl/element:button, params => {
+    label => '&laquo;',
+    onclick => "setGetParameter('page', $prev)",
+    disabled => ($prev < 1)
+} &>
+<& /tmpl/element:dropdown, params => {
+    options => \@options,
+    onchange => "setGetParameter('page', this.options[this.selectedIndex].value)",
+    selected => $current_page
+} &>
+<& /tmpl/element:button, params => {
+    label => '&raquo;',
+    onclick => "setGetParameter('page', $next)",
+    disabled => ($next > $pages)
+} &>
 </%method>
