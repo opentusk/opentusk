@@ -45,15 +45,15 @@ sub refactorContentCourseSession {
     my $temp_counter = 0;
 
     foreach my $course_competency (@{$course_competencies}) {
-	$temp_counter++;
-	if ($temp_counter > 5) {
-	    last;
-	}
+        $temp_counter++;
+        if ($temp_counter > 5) {
+            last;
+        }
 
-	$course_competency->setTitle($course_competency->getDescription());
-	$course_competency->save({user => "script"});
-	print $course_competency->getTitle();
-	print "\n\n";
+        $course_competency->setTitle($course_competency->getDescription());
+        $course_competency->save({user => "script"});
+        print $course_competency->getTitle();
+        print "\n\n";
     }
 
     print "Moving Content Competencies...\n";
@@ -63,15 +63,15 @@ sub refactorContentCourseSession {
     $temp_counter = 0;
 
     foreach my $content_competency (@{$content_competencies}) {
-	$temp_counter++;
-	if ($temp_counter > 5) {
-	    last;
-	}
+        $temp_counter++;
+        if ($temp_counter > 5) {
+            last;
+        }
 
-	$content_competency->setTitle($content_competency->getDescription());
-	$content_competency->save({user => "script"});
-	print $content_competency->getTitle();
-	print "\n\n";
+        $content_competency->setTitle($content_competency->getDescription());
+        $content_competency->save({user => "script"});
+        print $content_competency->getTitle();
+        print "\n\n";
     }
 
     
@@ -82,15 +82,15 @@ sub refactorContentCourseSession {
     $temp_counter = 0;
 
     foreach my $class_meeting_competency (@{$class_meeting_competencies}) {
-	$temp_counter++;
-	if ($temp_counter > 5) {
-	    last;
-	}
+        $temp_counter++;
+        if ($temp_counter > 5) {
+            last;
+        }
 
-	$class_meeting_competency->setTitle($class_meeting_competency->getDescription());
-	$class_meeting_competency->save({user => "script"});
-	print $class_meeting_competency->getTitle();
-	print "\n\n";
+        $class_meeting_competency->setTitle($class_meeting_competency->getDescription());
+        $class_meeting_competency->save({user => "script"});
+        print $class_meeting_competency->getTitle();
+        print "\n\n";
     }
 }
 
@@ -100,51 +100,51 @@ sub refactorSchool {
     my $school_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $school_competency_level");
 
     my $supporting_competency_types = TUSK::Competency::UserType->lookup("", undef, undef, undef, 
-										 [TUSK::Core::JoinObject->new("TUSK::Enum::Data", { 
-										     origkey => 'competency_type_enum_id', 
-										     joinkey => 'enum_data_id', 
-										     jointype => 'inner', 
-										     joincond => 'namespace = "competency.user_type.id" AND short_name = "info"'})]);
+                                                                                 [TUSK::Core::JoinObject->new("TUSK::Enum::Data", { 
+                                                                                     origkey => 'competency_type_enum_id', 
+                                                                                     joinkey => 'enum_data_id', 
+                                                                                     jointype => 'inner', 
+                                                                                     joincond => 'namespace = "competency.user_type.id" AND short_name = "info"'})]);
     
     my %supporting_competency_type_ids;
 
     foreach my $supporting_competency_type (@{$supporting_competency_types}) {
-	$supporting_competency_type_ids{$supporting_competency_type->getSchoolID()} = $supporting_competency_type->getPrimaryKeyID();
+        $supporting_competency_type_ids{$supporting_competency_type->getSchoolID()} = $supporting_competency_type->getPrimaryKeyID();
     }
     
     my $temp_counter = 0;
 
     foreach my $school_competency(@{$school_competencies}) {
-	$temp_counter++;
-	if ($temp_counter <= 1) {
-	    print "TITLE: " . $school_competency->getTitle() . "\n\n";
-	    if ($school_competency->getDescription()) {
-		my $description = $school_competency->getDescription();
-		
-		my $new_supporting_competency = TUSK::Competency::Competency->new();
+        $temp_counter++;
+        if ($temp_counter <= 1) {
+            print "TITLE: " . $school_competency->getTitle() . "\n\n";
+            if ($school_competency->getDescription()) {
+                my $description = $school_competency->getDescription();
+                
+                my $new_supporting_competency = TUSK::Competency::Competency->new();
 
-		$new_supporting_competency->setFieldValues({
-		    title => $school_competency->getDescription(),
-		    competency_user_type_id => $supporting_competency_type_ids{$school_competency->getSchoolID()},
-		    school_id => $school_competency->getSchoolID(),
-		    competency_level_enum_id => $school_competency_level,
-		    version_id => $school_competency->getVersionID(),
-		});
+                $new_supporting_competency->setFieldValues({
+                    title => $school_competency->getDescription(),
+                    competency_user_type_id => $supporting_competency_type_ids{$school_competency->getSchoolID()},
+                    school_id => $school_competency->getSchoolID(),
+                    competency_level_enum_id => $school_competency_level,
+                    version_id => $school_competency->getVersionID(),
+                });
 
-		$new_supporting_competency->save({user => 'script'});
-		
-		my $new_hierarchy = TUSK::Competency::Hierarchy->new();
+                $new_supporting_competency->save({user => 'script'});
+                
+                my $new_hierarchy = TUSK::Competency::Hierarchy->new();
 
-		my $new_hierarchy->setFieldValues({
-		    school_id => $school_competency->getSchoolID(),
-		    lineage => ,
-		    parent_competency_id => $school_competency->getPrimaryKeyID(),
-		    child_competency_id => $new_supporting_competency->getPrimaryKeyID(),
-		    sort_order => 1,
-		    depth => 0
-		});
-	    }
-	}
+                my $new_hierarchy->setFieldValues({
+                    school_id => $school_competency->getSchoolID(),
+                    lineage => ,
+                    parent_competency_id => $school_competency->getPrimaryKeyID(),
+                    child_competency_id => $new_supporting_competency->getPrimaryKeyID(),
+                    sort_order => 1,
+                    depth => 0
+                });
+            }
+        }
     }
 }
 
@@ -152,7 +152,7 @@ sub grabLevels {
     my $competency_levels = TUSK::Enum::Data->lookup("namespace = 'competency.level_id'");
     my %competency_levels_hash;
     foreach my $competency_level (@{$competency_levels}) {
-	$competency_levels_hash{$competency_level->getShortName()} = $competency_level->getPrimaryKeyID();
+        $competency_levels_hash{$competency_level->getShortName()} = $competency_level->getPrimaryKeyID();
     }
     return \%competency_levels_hash;
 }
