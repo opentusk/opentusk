@@ -29,73 +29,50 @@ use TUSK::Competency::Hierarchy;
 main();
 
 sub main {
-    #refactorContentCourseSession();
+    print "Starting Competency Table Refactor script....\n...\n\n";
+    refactorContentCourseSession();
     refactorSchool();
+    print "Finished running Competency Table Refactor script\n"
 }
 
 sub refactorContentCourseSession {
-    use Data::Dumper; #remove this
-
     my $competency_levels = grabLevels();
-    print Dumper $competency_levels;
 
-    print "Moving Course Competencies...\n";
+    print "Moving Course Competencies...\n\n";
     my $course_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_levels->{course}");
 
-    my $temp_counter = 0;
-
     foreach my $course_competency (@{$course_competencies}) {
-        $temp_counter++;
-        if ($temp_counter > 5) {
-            last;
-        }
-
         $course_competency->setTitle($course_competency->getDescription());
         $course_competency->save({user => "script"});
-        print $course_competency->getTitle();
+        print "Processing Competency: " . $course_competency->getTitle();
         print "\n\n";
     }
 
-    print "Moving Content Competencies...\n";
+    print "\n\nMoving Content Competencies...\n\n";
 
     my $content_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_levels->{content}");
 
-    $temp_counter = 0;
-
     foreach my $content_competency (@{$content_competencies}) {
-        $temp_counter++;
-        if ($temp_counter > 5) {
-            last;
-        }
-
         $content_competency->setTitle($content_competency->getDescription());
         $content_competency->save({user => "script"});
-        print $content_competency->getTitle();
+        print "Processing Competency: " . $content_competency->getTitle();
         print "\n\n";
     }
 
-
-    print "Moving Class Meeting Competencies...\n";
+    print "\n\nMoving Class Meeting Competencies...\n\n";
 
     my $class_meeting_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_levels->{class_meet}");
 
-    $temp_counter = 0;
-
     foreach my $class_meeting_competency (@{$class_meeting_competencies}) {
-        $temp_counter++;
-        if ($temp_counter > 5) {
-            last;
-        }
-
         $class_meeting_competency->setTitle($class_meeting_competency->getDescription());
         $class_meeting_competency->save({user => "script"});
-        print $class_meeting_competency->getTitle();
+        print "Processing Competency: " . $class_meeting_competency->getTitle();
         print "\n\n";
     }
 }
 
 sub refactorSchool {
-    print "Moving School Competencies...\n";
+    print "\n\nMoving School Competencies...\n\n";
     my $school_competency_level = TUSK::Enum::Data->lookupReturnOne("namespace = 'competency.level_id' AND short_name = 'school'")->getPrimaryKeyID();
     my $school_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $school_competency_level");
 
@@ -115,9 +92,9 @@ sub refactorSchool {
     my $temp_counter = 0;
 
     foreach my $school_competency(@{$school_competencies}) {
-        $temp_counter++;
-        if ($temp_counter <= 5) {
-            print "TITLE: " . $school_competency->getTitle() . "\n\n";
+            if ($school_competency->getTitle()) {
+                print "Processing Competency: " . $school_competency->getTitle() . "\n\n";
+            }
             if ($school_competency->getDescription()) {
                 my $description = $school_competency->getDescription();
 
@@ -146,7 +123,6 @@ sub refactorSchool {
 
                 $new_hierarchy->save({user => 'script'});
             }
-        }
     }
 }
 
