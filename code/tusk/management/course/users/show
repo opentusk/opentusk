@@ -33,8 +33,15 @@
 </%shared>
 
 <%perl>
-	my $page = $ARGS{page} || 1;
-	my $size = $ARGS{size} || 100;
+	my $page = $ARGS{'page'} || $m->session->{'page'} || 1;
+	my $size = $ARGS{'size'} || 100;
+
+	if ($num_users > $size) {
+		$m->session->{'page'} = $page;
+	} else {
+		$page = 1;
+	}
+
 	my $first = ($page - 1) * $size;
 	my $last = $page * $size - 1;
 
