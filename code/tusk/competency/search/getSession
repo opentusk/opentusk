@@ -38,18 +38,25 @@
 
 <%perl>
 	my $school_id = TUSK::Core::School->new()->getSchoolID($m->comp("/tmpl/url:get_school"));
+	my $school = $m->comp('/tmpl/url:get_school');
+	my $db = HSDB4::Constants::get_school_db($school);
 
-  if (TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id = $ARGS{competency_id}")) {
-		my $session_id = TUSK::Competency::ClassMeeting->lookupReturnOne("competency_id = $ARGS{competency_id}")->getClassMeetingID();
+	my $sessions = TUSK::Competency::ClassMeeting->lookup("competency_id IN ($ARGS{competency_ids})", undef, undef, undef,
+			[TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::ClassMeeting", {database => $db, origkey => 'class_meeting_id', joinkey => 'class_meeting_id', jointype => 'inner'})]);
 
-		my $dbh = HSDB4::Constants::def_db_handle();
-		my $sql =qq(SELECT * FROM hsdb45_med_admin.class_meeting where class_meeting_id = $session_id);
-		my $sth =$dbh->prepare($sql);
-		$sth->execute();
-		my $sessions = $sth->fetchall_arrayref;
-		$sth->finish();
-
-		my $sessions_json = JSON->new->pretty->encode($sessions);
-		$m->print($sessions_json);
+	my %session_info;
+	foreach my $session (@{$sessions}) {
+				my %temp_session_info;
+				$temp_session_info{session_id} = $session->getJoinObject("TUSK::Core::HSDB45Tables::ClassMeeting")->getPrimaryKeyID();
+				$temp_session_info{title} = $session->getJoinObject("TUSK::Core::HSDB45Tables::ClassMeeting")->getTitle();
+				$temp_session_info{date} = $session->getJoinObject("TUSK::Core::HSDB45Tables::ClassMeeting")->getMeetingDate();
+				$temp_session_info{starttime} = $session->getJoinObject("TUSK::Core::HSDB45Tables::ClassMeeting")->getStarttime();
+				$temp_session_info{endtime} = $session->getJoinObject("TUSK::Core::HSDB45Tables::ClassMeeting")->getEndtime();
+				$temp_session_info{location} = $session->getJoinObject("TUSK::Core::HSDB45Tables::ClassMeeting")->getLocation();
+				$session_info{$session->getCompetencyID()} = {%temp_session_info};
 	}
+
+	my $session_info_json = JSON->new->pretty->encode(\%session_info);
+	$m->print($session_info_json);
+
 </%perl>
