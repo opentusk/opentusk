@@ -75,7 +75,6 @@ function loadLinkedAndChildren(competency_id) {
 			data: {competency_id: competency_id},
 			dataType: "json"
 		}).success(function(data) {
-			console.log(data);
 			$.each(data, function (index, value) {
 				var table_row = '<tr>';
 
@@ -89,7 +88,6 @@ function loadLinkedAndChildren(competency_id) {
 				if (value.level == 'national' || value.level == 'school') {
 					table_row += '<td>' + value.title + '</td></tr>';
 					$("#competency_search_results tr:last").after(table_row);
-//NEEDS WORK FOR COURSE, CONTENT AND SESSION
 				} else if (competency_levels[value.level] == 'course') {
 					var course_link;
 					$.ajax({
@@ -105,49 +103,9 @@ function loadLinkedAndChildren(competency_id) {
 					table_row += '<td>' + value[3] + '</td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value.level] == 'content') {
-					var content_link;
-					content_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/content/" + value[0]  + "' target='_blank'>" + content_info[value[0]].title + "</a>";
-					content_link += "<br> <b>ID:</b> " + content_info[value[0]].content_id;
-					content_link += " &nbsp&nbsp<b>Created:</b> " + content_info[value[0]].created;
-					content_link += " &nbsp&nbsp<b>Modified:</b> " + content_info[value[0]].modified;
-
-					table_row += '<td>' + value[3] + '</td>' +  content_link + '</td></tr>';
-					$("#content_competency_search_results tr:last").after(table_row);
-				}
-				else {
-					alert("here!!");
-					var session_link;
-					console.log(session_info);
-					console.log(value[0]);
-					session_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/content/" + value[0]  + "' target='_blank'>" + session_info[value[0]].title + "</a>";
-					session_link += "<br> <b>ID:</b> " + session_info[value[0]].session_id;
-					session_link += " &nbsp&nbsp<b>Location:</b> " + content_info[value[0]].location;
-					session_link += " &nbsp&nbsp<b>Time:</b> " + content_info[value[0]].time;
-
-					table_row += '<td>' + value[3] + '</td>' +  session_link + '</td></tr>';
-
-					$("#session_competency_search_results tr:last").after(table_row);
-
-					$.ajax({
-						async: false,
-						global: false,
-						type: "POST",
-						data: {competency_ids: value[0]},
-						url: "/tusk/competency/search/getSession/school/" + school,
-						dataType: "json"
-					}).success(function(data) {
-						console.log(data);
-						/*
-						var session_link;
-						session_link = "</tr><tr><td colspan='2'><a class='session-link'>" + data[0][1] + " (" + data[0][2] + ") " + "</a>";
-						session_link += "<br> <b>ID:</b> " + data[0][0];
-						session_link += " &nbsp&nbsp<b>Meeting Date:</b> " + data[0][5];
-						session_link += " &nbsp&nbsp<b>Time:</b> " + data[0][6] + " - " + data[0][7];
-						session_link += " &nbsp&nbsp<b>Location:</b> " + data[0][8];
-						table_row += '<td>' + value[3] + '</td>' +  session_link + '</td></tr>';
-						$("#session_competency_search_results tr:last").after(table_row);
-						*/
-					});
+					//needs work (content objectives)
+				}	else {
+					//needs work (session objectives)
 				}
 			});
 		});
