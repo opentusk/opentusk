@@ -33,11 +33,16 @@
 </%shared>
 
 <%perl>
-	my $page = $ARGS{'page'} || $m->session->{'page'} || 1;
+	my $page = $ARGS{'page'} || 1;
 	my $size = $ARGS{'size'} || 100;
 
 	if ($num_users > $size) {
-		$m->session->{'page'} = $page;
+		if ($ARGS{'page'}) {
+			$m->session->{'page'} = $page;
+			$m->session->{'page_path'} = $selfpath;
+		} elsif ($m->session->{'page'} && ($m->session->{'page_path'} eq $selfpath)) {
+			$page = $m->session->{'page'};
+		}
 	} else {
 		$page = 1;
 	}
