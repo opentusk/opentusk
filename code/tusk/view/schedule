@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 <%attr>
@@ -40,12 +40,12 @@
 	my $START_HOUR      = 8;   # Start hour (24 hour clock)
 	my $END_HOUR        = 18;  # End hour (24 hour clock)
 	my $MINUTE_INTERVAL = 30;  # Show blocks of X minutes.  This value must be a factor of 60.
-	my $PX_PER_INTERVAL = 42;  # Pixels per interval.  If the time range is increased, this will 
+	my $PX_PER_INTERVAL = 42;  # Pixels per interval.  If the time range is increased, this will
 	                           #   need to decrease to allow the schedule to fit on one printed page
 	my $DAY_WIDTH       = 140; # Width of a day in pixels
 	my $MEETING_SPACING = 3;   # Pixels of spacing after the end of a meeting.  Less than 3 results
 	                           # in some overlap.
-	my $IC_BORDER_WIDTH = 3;   # Width of the integrated course border when applicable.  Note that 
+	my $IC_BORDER_WIDTH = 3;   # Width of the integrated course border when applicable.  Note that
 	                           #   changing this will require changes to 'ic_a' in style.css.
 	############################################
 	##
@@ -92,7 +92,7 @@
 	my $user_group = HSDB45::UserGroup->lookup_path($school . "/".$group_no);
 	my $countOfTimePeriods = $user_group->count_time_period_meetings();
 
-	my $current_start_day = $meetings_days[0]->out_mysql_date; 
+	my $current_start_day = $meetings_days[0]->out_mysql_date;
 	my ($year,$month,$day) = split(/-/,$current_start_day);
 	my $month_segment = floor(($month-1)/$TUSK::Constants::ScheduleMonthsDisplayedAtOnce);
 	my $startMonth = $TUSK::Constants::ScheduleMonthsDisplayedAtOnce * $month_segment;
@@ -163,12 +163,12 @@
         	$monthString.= "</table>";
         	push @monthOutput, $monthString;
 	}
-</%perl>	
+</%perl>
 % unless($printing) {
 	<style type="text/css">
 		.highlighted {background-color:yellow;}
 	</style>
-	
+
 	<script type="text/javascript">
 	function show_hide(divID) {
 		var id = document.getElementById(divID);
@@ -178,12 +178,12 @@
 			else if (id.style.display=="block")			{id.style.display="none";}
 		}
 	}
-	
+
 	function go_to_multi_cal() {
 		var start_date = document.getElementById("start_date").value;
 		var end_date   = document.getElementById("end_date").value;
 
-		if ( ( start_date == "" || end_date == "" ) || ( end_date <= start_date ) ) 
+		if ( ( start_date == "" || end_date == "" ) || ( end_date <= start_date ) )
 		{
 			alert( "Both dates must be filled in, and the end date cannot be before the start date!" );
 			return false;
@@ -202,7 +202,7 @@
 	<table width="100%" border="0" cellpadding="0" cellspacing="1">
 		<tr>
 			<td class="xsm" valign="top" style="padding-top:10px; width:200px;">
-				<& /tmpl/element:link_to_help, 
+				<& /tmpl/element:link_to_help,
 					text => 'Schedule Help',
 					topic => 'can_i_subscribe_to_my_class_schedule_and_or_sync_it_to_my_mobile_device'
 				 &>
@@ -303,8 +303,8 @@
 % if ( scalar(@extra_meetings) ) {
 				<div class="page-break">
 % } else {
-				<div>	
-%} 
+				<div>
+%}
 
 					<table border="0" align="center" cellpadding="0" cellspacing="1">
 % unless($printing) {
@@ -476,8 +476,8 @@
 			$m->comp("/tmpl/url:redirect",destination => $ENV{SCRIPT_NAME}."/".$school."/".$group_no."/", message => __x("Invalid Date or Format - ({end_date}) Please enter dates as YYYY-MM-DD.",end_date => $end_date));
 		}
 
-		if ( $date eq '' ) { 
-			$date = HSDB4::DateTime->new->out_mysql_date; 
+		if ( $date eq '' ) {
+			$date = HSDB4::DateTime->new->out_mysql_date;
 		}
 		if(! $school or ! $group_no) {$m->comp("/tmpl/url:redirect",message => __("Invalid Schedule Request"));}
 
@@ -486,8 +486,37 @@
 
 		my $s_t = HSDB4::DateTime->new->in_mysql_date ($date)->prev_sunday;
 		my $e_t = HSDB4::DateTime->new->in_mysql_date ($date)->next_sunday;
-		$s_t->add_days(1);      # Get to Monday
-		$e_t->subtract_days(2); # Get to Friday
+
+		my %days_of_the_week = (
+				Mon => 1,
+				Tue => 2,
+				Wed => 3,
+				Thu => 4,
+				Fri => 5,
+				Sat => 6,
+				Sun => 7
+ 		);
+
+#get startday and enday for particular school
+		my $start_day = $TUSK::Constants::Schools{$school}->{Schedule}{StartDay};
+	  my $end_day = $TUSK::Constants::Schools{$school}->{Schedule}{EndDay};
+
+#if not available for school get general from conf
+		if (not defined $start_day) {
+			$start_day = $TUSK::Constants::StartDay;
+		}
+
+		if (not defined $end_day) {
+			$end_day = $TUSK::Constants::EndDay;
+		}
+
+#if not available in conf either then default to 5 day week (Mon-Fri)
+		$start_day = "Mon" if (not defined $start_day);
+		$end_day = "Fri" if (not defined $end_day);
+
+		$s_t->add_days($days_of_the_week{$start_day});      # Get to Start Dya of Week (from tusk.conf) DEFAULT: Monday
+		$e_t->subtract_days(7 - $days_of_the_week{$end_day}); # Get to End Day of Week (from tusk.conf) DEFAULT: Friday
+
 		%meetings_hash = $group->class_meetings( $s_t->out_mysql_date, $e_t->out_mysql_date );
 		foreach (sort keys %meetings_hash) {
 			push @meetings_days, HSDB4::DateTime->new->in_mysql_date($_);
@@ -499,7 +528,7 @@
 			# Advance a week to start since we already have the first week above in @days
 			$s_t->in_unix_time($s_t->next_sunday->out_unix_time);
 			$e_t->subtract_days(2); # Get to Friday
-			
+
 			my $start_in_unix = $s_t->out_unix_time;
 			my $end_in_unix   = $e_t->out_unix_time;
 
@@ -524,7 +553,7 @@
 <%args>
 	$sunday_date
 </%args>
-	
+
 
 </%method>
 
@@ -559,7 +588,7 @@
 %	}
 % }
 % $gridlines .= "</ol>\n";
-			</ol> 
+			</ol>
 		</td>
 <%perl>
 foreach my $current_day ( sort keys %{$week} ) {
@@ -576,7 +605,7 @@ foreach my $current_day ( sort keys %{$week} ) {
 
 			if ( ($start_times[$_] ge $start_times[$z_index] && $start_times[$_] lt $end_times[$z_index]) ||  # If it starts in my range
 				 ($end_times[$_]   gt $start_times[$z_index] && $end_times[$_]   le $end_times[$z_index]) ||
-				 ($start_times[$_] ge $start_times[$z_index] && $end_times[$_]   le $end_times[$z_index]) || 
+				 ($start_times[$_] ge $start_times[$z_index] && $end_times[$_]   le $end_times[$z_index]) ||
 				 ($start_times[$_] lt $start_times[$z_index] && $end_times[$_]   gt $end_times[$z_index]) ) {
 				if ( $z_index < $_ ) {
 					push @{$overlap{'post'}}, $_;
@@ -624,8 +653,8 @@ foreach my $current_day ( sort keys %{$week} ) {
 					my ($s_hour, $s_min, $s_sec) = split( ':', $meeting->start_time );
 					my ($e_hour, $e_min, $e_sec) = split( ':', $meeting->end_time );
 
-					if ( $e_hour < $START_HOUR || ( $e_hour == $START_HOUR && $e_min == 0 ) || ( $s_hour >= $END_HOUR+1 ) ) { 
-						$skip_display = ' display: none;'; 
+					if ( $e_hour < $START_HOUR || ( $e_hour == $START_HOUR && $e_min == 0 ) || ( $s_hour >= $END_HOUR+1 ) ) {
+						$skip_display = ' display: none;';
 					} else {
 						if ( $s_hour < $START_HOUR ) { $s_hour = $START_HOUR; $s_min = 0; $underrun = 1; }
 						if ( $e_hour > $END_HOUR+1 || ( $e_hour == $END_HOUR+1 && $e_min > 0 ) ) { $e_hour = $END_HOUR + 1; $e_min = 0; $overrun = 1; }
@@ -659,13 +688,13 @@ foreach my $current_day ( sort keys %{$week} ) {
 					my $link;
 					my $footer = join (' ', map { $_->field_value('lastname') } $meeting->child_users);
 
-					if ( !$accreditation_view ) { 
+					if ( !$accreditation_view ) {
 						$link = "/view/course/" . $school . "/" . $meeting->course->course_id . "/schedule/" . $meeting->class_meeting_id;
 						$footer .= '<br />' if $footer;
-						$footer .= $meeting->location; 
+						$footer .= $meeting->location;
 					} else {
 						$link = "/view/accreditation/" . $school . "/" . $group_no . "/" . $meeting->course->course_id . "/" . $meeting->class_meeting_id;
-						
+
 						my @content = $meeting->active_child_content();
 						my $num_obj = $m->comp('SELF:tally_competencies', content => \@content, meeting => $meeting);
 						$footer .= '<br />' if $footer;
@@ -726,7 +755,7 @@ foreach my $current_day ( sort keys %{$week} ) {
 			$m->comp('SELF:tally_competencies', content => \@child_content, competency_hash => $competency_hash);
 		}
 	}
-	
+
 	if ($meeting) {
 		foreach my $competency (@{$meeting->getCompetencies()}) {
 			$competency_hash->{'o' . $competency->getPrimaryKeyID} = 1;
@@ -746,4 +775,3 @@ foreach my $current_day ( sort keys %{$week} ) {
 %	$h -= 12 if $h > 12;
 %	return $h . ":" . $m;
 </%method>
-
