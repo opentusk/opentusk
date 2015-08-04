@@ -22,15 +22,15 @@ function setIndex(rowIndex)
 function constructDropdowns()
 {
 	$.ajax({
-	url: "/tusk/schedule/clinical/admin/ajax/dropdown",
-	data: {
-		school_id: school_id,
-		school_db: school_db, 
-		row_index: currentRowIndex,
-		temp_teaching_site: $('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val(),
-		requested_course_id: $('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val(),
-		temp_time_period: $('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val(),
-	}, dataType: "json",
+		url: "/tusk/schedule/clinical/admin/ajax/dropdown",
+		data: {
+			school_id: school_id,
+			school_db: school_db, 
+			row_index: currentRowIndex,
+			temp_teaching_site: $('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val(),
+			requested_course_id: $('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val(),
+			temp_time_period: $('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').find('select.view').val(),
+		}, dataType: "json",
 		statusCode: {
 			404: function () {
 			},
