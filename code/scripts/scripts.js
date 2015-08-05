@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/* check to see if this browser supports DHTML */
+// check if this browser is IE
+var agt = navigator.userAgent.toLowerCase();
+var is_ie = ((agt.indexOf('msie') != -1) && (agt.indexOf('opera') == -1));
+
+// check if this browser supports DHTML
 var DHTML = (document.getElementById || document.all || document.layers);
 
 function checkform(aform){
