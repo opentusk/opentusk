@@ -90,7 +90,7 @@ function loadLinkedAndChildren(competency_id) {
 					table_row += '<td>' + value.title + '</td></tr>';
 					$("#competency_search_results tr:last").after(table_row);
 				} else if (value.level == 'school') {
-					table_row += '<td>' + value.title + '</td></tr>';
+					table_row += '<td style="color:#4E8700;">' + value.title + '</td></tr>';
 					$("#school_competency_search_results tr:last").after(table_row);
 				} else if (value.level == 'course') {
 					var course_link;
@@ -104,7 +104,7 @@ function loadLinkedAndChildren(competency_id) {
 					}).success(function(data) {
 						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
 					});
-					table_row += '<td>' + value[3] + '</td>' +  course_link  + '</td></tr>';
+					table_row += '<td style="color:#D67025;">' + value[3] + '</td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (value.level == 'content') {
 					//needs work (content objectives)
@@ -183,7 +183,7 @@ function loadSearchResults() {
 					table_row += '<td>' + value[3] + '</td></tr>';
 					$("#competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'school'){
-					table_row += '<td>' + value[3] + '</td></tr>';
+					table_row += '<td style="color:#4E8700;">' + value[3] + '</td></tr>';
 					$("#school_competency_search_results tr:last").after(table_row);
 			  } else if (competency_levels[value[1]] == 'course') {
 					var course_link;
@@ -197,7 +197,7 @@ function loadSearchResults() {
 					}).success(function(data) {
 						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
 					});
-					table_row += '<td>' + value[3] + '</td>' +  course_link  + '</td></tr>';
+					table_row += '<td  style="color:#D67025;">' + value[3] + '</td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'content') {
 					var content_link;
@@ -206,17 +206,17 @@ function loadSearchResults() {
 					content_link += " &nbsp&nbsp<b>Created:</b> " + content_info[value[0]].created;
 					content_link += " &nbsp&nbsp<b>Modified:</b> " + content_info[value[0]].modified;
 
-					table_row += '<td>' + value[3] + '</td>' +  content_link + '</td></tr>';
+					table_row += '<td style="color:#4D92CD;">' + value[3] + '</td>' +  content_link + '</td></tr>';
 					$("#content_competency_search_results tr:last").after(table_row);
 				} else {
 					var session_link;
 					if (session_info[value[0]]) {
-						session_link = "</tr><tr><td colspan='2'><a class='session-link'>" + value[0] + " (" + session_info[value[0]].title + ") " + "</a>";
+						session_link = "</tr><tr><td colspan='2' style='color:#4D92CD;'><a class='session-link'>" + value[0] + " (" + session_info[value[0]].title + ") " + "</a>";
 						session_link += "<br> <b>ID:</b> " + session_info[value[0]].session_id;
 						session_link += " &nbsp&nbsp<b>Meeting Date:</b> " + session_info[value[0]].date;
 						session_link += " &nbsp&nbsp<b>Time:</b> " + session_info[value[0]].starttime + " - " + session_info[value[0]].endtime;
 						session_link += " &nbsp&nbsp<b>Location:</b> " + session_info[value[0]].location;
-						table_row += '<td>' + value[3] + '</td>' +  session_link + '</td></tr>';
+						table_row += '<td style="color:#4D92CD;">' + value[3] + '</td>' +  session_link + '</td></tr>';
 						$("#session_competency_search_results tr:last").after(table_row);
 				  }
 				}
