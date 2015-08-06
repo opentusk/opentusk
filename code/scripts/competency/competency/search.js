@@ -65,6 +65,7 @@ function loadTopLevelCompetencies(domain) {
 function loadLinkedAndChildren(competency_id) {
 	search_clear_flag = 0;
 	$("#competency_search_results").find("tr:gt(0)").remove();
+	$("#school_competency_search_results").find("tr:gt(0)").remove();
 	$("#course_competency_search_results").find("tr:gt(0)").remove();
 	$("#content_competency_search_results").find("tr:gt(0)").remove();
 	$("#session_competency_search_results").find("tr:gt(0)").remove();
@@ -85,10 +86,13 @@ function loadLinkedAndChildren(competency_id) {
 				} else {
 					table_row += '<td><img src="/graphics/competency/checkmark_16x16.png" /></td>'
 				}
-				if (value.level == 'national' || value.level == 'school') {
+				if (value.level == 'national') {
 					table_row += '<td>' + value.title + '</td></tr>';
 					$("#competency_search_results tr:last").after(table_row);
-				} else if (competency_levels[value.level] == 'course') {
+				} else if (value.level == 'school') {
+					table_row += '<td>' + value.title + '</td></tr>';
+					$("#school_competency_search_results tr:last").after(table_row);
+				} else if (value.level == 'course') {
 					var course_link;
 					$.ajax({
 						async: false,
@@ -102,7 +106,7 @@ function loadLinkedAndChildren(competency_id) {
 					});
 					table_row += '<td>' + value[3] + '</td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
-				} else if (competency_levels[value.level] == 'content') {
+				} else if (value.level == 'content') {
 					//needs work (content objectives)
 				}	else {
 					//needs work (session objectives)
@@ -114,6 +118,7 @@ function loadLinkedAndChildren(competency_id) {
 function loadSearchResults() {
 	if (search_clear_flag == 1) {
 		$("#competency_search_results").find("tr:gt(0)").remove();
+		$("#school_competency_search_results").find("tr:gt(0)").remove();
 		$("#course_competency_search_results").find("tr:gt(0)").remove();
 		$("#content_competency_search_results").find("tr:gt(0)").remove();
 		$("#session_competency_search_results").find("tr:gt(0)").remove();
@@ -174,10 +179,13 @@ function loadSearchResults() {
 					table_row += '<td><img src="/graphics/competency/checkmark_16x16.png" /></td>'
 				}
 
-				if (competency_levels[value[1]] == 'national' || competency_levels[value[1]] == 'school') {
+				if (competency_levels[value[1]] == 'national') {
 					table_row += '<td>' + value[3] + '</td></tr>';
 					$("#competency_search_results tr:last").after(table_row);
-				} else if (competency_levels[value[1]] == 'course') {
+				} else if (competency_levels[value[1]] == 'school'){
+					table_row += '<td>' + value[3] + '</td></tr>';
+					$("#school_competency_search_results tr:last").after(table_row);
+			  } else if (competency_levels[value[1]] == 'course') {
 					var course_link;
 					$.ajax({
 						async: false,
