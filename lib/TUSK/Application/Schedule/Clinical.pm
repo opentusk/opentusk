@@ -307,6 +307,55 @@ sub getScheduleRotations{
 	return \@courses;
 }
 
+sub getScheduleRotationTimePeriods{
+	my ($self, $args) = @_;
+	my $dbh = HSDB4::Constants::def_db_handle();
+	my @timePeriods = ();
+	my $sqlCoreStatement = "FROM tusk.academic_level_clinical_schedule AS t1
+		INNER JOIN tusk.academic_level AS t2
+			ON (t1.academic_level_id = t2.academic_level_id)
+		INNER JOIN tusk.academic_level_course AS t3
+			ON (t1.academic_level_id = t3.academic_level_id AND t2.academic_level_id = t3.academic_level_id)
+		INNER JOIN tusk.course AS t4
+			ON (t4.course_id = t3.course_id)
+		INNER JOIN $self->{school_db}.link_course_student AS t5
+			ON (t4.school_course_code = t5.parent_course_id)
+		INNER JOIN $self->{school_db}.course AS t6
+			ON (t6.course_id = t5.parent_course_id AND t6.course_id = t4.school_course_code)
+		LEFT JOIN $self->{school_db}.time_period AS t7 
+			ON t7.time_period_id = t5.time_period_id
+		INNER JOIN hsdb4.user AS t8 
+			ON (t5.child_user_id = t8.user_id)";
+	my $sqlCoreConditionals = "WHERE (t1.school_id = ? AND t2.title = ? AND t7.academic_year = ? AND t6.course_id = ?)";
+	my $sqlTimePeriodSelection = "SELECT DISTINCT t7.time_period_id, t7.period";
+
+	my $sql = qq{
+		$sqlTimePeriodSelection
+		$sqlCoreStatement
+		$sqlCoreConditionals
+		ORDER BY t7.start_date, t7.end_date};
+
+	my $sth = $dbh->prepare($sql);
+	eval {
+		$sth->execute(($self->{school_id}, 
+			$args->{academicLevelTitle},
+			$args->{academicYear}, 
+			$args->{courseId})
+		);
+	};
+	croak "error : $@ query $sql failed for class " . ref($self) if ($@);
+
+	while(my ($timePeriod, $timePeriodId) = $sth->fetchrow_array())
+	{
+		push @timePeriods, {
+			timePeriod => $timePeriod,
+			timePeriodId => $timePeriodId
+		};
+	}
+
+	return \@timePeriods;
+}
+
 sub deleteStudentFromCourse{
 	my ($self, $sqlArgs) = @_;
 	my $sql = qq/DELETE FROM $self->{school_db}.link_course_student

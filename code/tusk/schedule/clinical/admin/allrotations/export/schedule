@@ -18,16 +18,47 @@
 	inherit => undef
 </%flags>
 
-<%attr>
-	no_check_path => 1
-</%attr>
-
 <%once>
-  	use TUSK::Application::Schedule::Clinical;
+	use TUSK::Application::Schedule::Clinical;
 </%once>
+
+<%shared>
+	my $academicYear;
+	my $academicLevelTitle;
+	my $courseId;
+	my $schoolId;
+	my $schoolDb;
+</%shared>
 
 <%perl>
 	$m->clear_buffer();
 	$r->content_type( 'application/vnd.ms-excel');
-	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="grades-export.xls"');
+	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="schedule-export.xls"');
+	my %query = $m->request_args;
+
+	if (scalar $query{'academicYear'} && $query{'academicLevelTitle'} && $query{'courseId'} && $query{'schoolId'} && $query{'schoolDb'}) {
+		$academicYear = $query{'academicYear'};
+		$academicLevelTitle = $query{'academicLevelTitle'};
+		$courseId = $query{'courseId'};
+		$schoolId = $query{'schoolId'};
+		$schoolDb = $query{'schoolDb'};
+
+		print "Academic Year \t" . $academicYear . "\n";
+		print "Academic Level \t" . $academicLevelTitle . "\n";
+		print "Rotation Id \t" . $courseId . "\n";
+
+		my @timePeriods = @{TUSK::Application::Schedule::Clinical->new({
+			school_id => $schoolId, 
+			school_db => $schoolDb
+		})->getScheduleRotationTimePeriods({
+			academicYear => $academicYear,
+			academicLevelTitle => $academicLevelTitle,
+			courseId => $courseId,
+			timePeriodsRequested => 1
+		})};
+		print "Time Period \t" . $timePeriods[0]->{timePeriod} . "\n";
+
+	} else {
+		print "No information availabe.";
+	}
 </%perl>

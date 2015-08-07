@@ -15,44 +15,44 @@
 </%doc>
 
 <%attr>
-  	default_path_type => 'school'
-    left_nav => 1
+	default_path_type => 'school'
+	left_nav => 1
 </%attr>
 
 <%once>
-    use TUSK::Application::Schedule::Clinical;
+	use TUSK::Application::Schedule::Clinical;
 </%once>
 
 <%shared>
-    my $school = $m->comp('/tmpl/url:get_type_object');
+	my $school = $m->comp('/tmpl/url:get_type_object');
 </%shared>
 
 <%init>
-    my $school_id = $school->getPrimaryKeyID();
-    my $school_db = $school->getSchoolDb();
-    $m->comp('/schedule/clinical/admin/tmpl/search', school_id => $school_id, school_db => $school_db);
-    my $academicYear = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicYear');
-    my $academicLevelTitle = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevel');
-    my @rows;
+	my $school_id = $school->getPrimaryKeyID();
+	my $school_db = $school->getSchoolDb();
+	$m->comp('/schedule/clinical/admin/tmpl/search', school_id => $school_id, school_db => $school_db);
+	my $academicYear = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicYear');
+	my $academicLevelTitle = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevel');
+	my @rows;
 
-    my @courses = @{TUSK::Application::Schedule::Clinical->new({
-        school_id => $school_id, 
-        school_db => $school_db
-    })->getScheduleRotations($academicLevelTitle, $academicYear)};
+	my @courses = @{TUSK::Application::Schedule::Clinical->new({
+		school_id => $school_id, 
+		school_db => $school_db
+	})->getScheduleRotations($academicLevelTitle, $academicYear)};
 
-    my $col_fields = [ 
-        {label => __('Rotation Name'), field => 'course_title'},
-        {label => __('Actions'), field => 'actions'},
-    ];
+	my $col_fields = [ 
+		{label => __('Rotation Name'), field => 'course_title'},
+		{label => __('Actions'), field => 'actions'},
+	];
 
-    foreach my $course (@courses){
-        push @rows, {
-            course_title => $course->{'course'},
-            actions => 'View/<a id = "export" class = "navsm" >Export</a>',
-        };
-    }
+	foreach my $course (@courses){
+		push @rows, {
+			course_title => $course->{'course'},
+			actions => 'View/<a id = "export" class = "navsm" onclick="location.href=\'/schedule/clinical/admin/allrotations/export/schedule?courseId=' . $course->{courseId} . '&academicYear='. $academicYear . '&academicLevelTitle=' . $academicLevelTitle . '&schoolId=' . $school_id . '&schoolDb=' . $school_db . '\'">Export</a>',
+		};
+	}
 
-    $m->comp('/tmpl/element:object_selection_box', params => {columns => $col_fields, rows => \@rows, 'norows-message' => __('No rotations')});
+	$m->comp('/tmpl/element:object_selection_box', params => {columns => $col_fields, rows => \@rows, 'norows-message' => __('No rotations')});
 
 </%init>
 
