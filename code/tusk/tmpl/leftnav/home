@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 <%once>
@@ -90,7 +90,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	## course announcements
 	my $announcement_ref = $m->session->{'user'}->get_course_announcements();
 	foreach my $ann (@$announcement_ref) {
-		my $body = $ann->{item}->field_value('body'); 
+		my $body = $ann->{item}->field_value('body');
 		my $link = $stripObj->truncateAndRemoveHTML($body, $charLimit);
 		my $text = '<p>' . $stripObj->removeHTML($body) . '</p>';
 		$link = '<a href="/hsdb45/course/' . $ann->{course}->school() . '/' .  $ann->{course}->course_id() . '/ann">' . $link . '</a>' if ($ann->{type} eq 'course');
@@ -145,7 +145,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 <%method printMaterials>
 <%perl>
 	my $stripObj = TUSK::Application::HTML::Strip->new();
-	my (@assessment_links, @assignment_links, @case_links, @eval_links, $grade_link, @log_links, @quiz_links, $sp_link, @checklist_links);
+	my (@assessment_links, @assignment_links, @case_links, @eval_links, $grade_link, @log_links, @quiz_links, $sp_link, @checklist_links, $is_faculty);
 
 	## assessments
 	my $assessments = $m->session->{user}->get_assessments();
@@ -160,7 +160,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	foreach my $form_row (@$director_assessments) {
 		push @assessment_links, '<a href="/protected/assessment/author/show/course/' . $form_row->{school_name} . '/' . $form_row->{course_id} . '">' . $stripObj->truncateAndRemoveHTML($form_row->{form_name}, $charLimit) . '</a>';
 	}
-	
+
 	my $course_assignments = $m->session->{user}->get_course_assignments();
 
 	foreach my $assignment (@$course_assignments){
@@ -210,11 +210,15 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 		}
 	}
 
+	## faculty schedule
+	$is_faculty = 1;
+
+
 	## grades
 	if($m->session->{user}->has_grades()) {
 		$grade_link = '<a href="/protected/gradebook/showgrades">' . __('Grades') . '</a>';
 	}
-	
+
 	## patient logs
 	my $patientlogs = $m->session->{user}->get_patient_logs();
 	my $directorpatientlogs = $m->session->{user}->get_director_forms('PatientLog');
@@ -240,7 +244,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 		if($quiz->{preview})    {$xtra_txt .= 'target="preview"';}
 		push @quiz_links, '<a href="' . $link . '" ' . $xtra_txt . '>' . $stripObj->truncateAndRemoveHTML($title, $charLimit) . '</a>';
 	}
-	
+
 	## simulated patients
 	my $instructor_sps = $m->session->{user}->get_instructor_simulated_patients();
 	if (scalar @{$instructor_sps}) {
@@ -266,6 +270,10 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 
 %   if (scalar @{$scheduleCourses->{'courseIds'}}) {
 		<li><a href="/schedule/clinical/student/view/<% $school_id %>"><% __('Clinical Schedule') %></a></li>
+% }
+
+% if ($is_faculty) {
+		<li><a href="/schedule/faculty/view/<% $school_id %>"><% __('Faculty Schedule') %></a></li>
 % }
 
 %	if ($grade_link) {
@@ -302,6 +310,6 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 %			}
 			</ul></li>
 %		}
-%	}	
+%	}
 
 </%method>
