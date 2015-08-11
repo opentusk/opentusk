@@ -1,19 +1,25 @@
-// Copyright 2013 Tufts University 
+// Copyright 2013 Tufts University
 //
-// Licensed under the Educational Community License, Version 1.0 (the "License"); 
-// you may not use this file except in compliance with the License. 
-// You may obtain a copy of the License at 
+// Licensed under the Educational Community License, Version 1.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// http://www.opensource.org/licenses/ecl1.php 
+// http://www.opensource.org/licenses/ecl1.php
 //
-// Unless required by applicable law or agreed to in writing, software 
-// distributed under the License is distributed on an "AS IS" BASIS, 
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-// See the License for the specific language governing permissions and 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
 // limitations under the License.
 
 
 var competencyRoot = "/tusk/competency/competency/";
+var competencyColorsIndex = {"national" : "black",
+															 "school" : "green",
+														   "course" : "#DB7825",
+														  "content" : "#4D92CD",
+															"session" : "#4D92CD"};
+
 
 if ($("#link_competency_popup").length){
 	$("#link_competency_popup").draggable();
@@ -26,6 +32,7 @@ if ($("#link_competency_popup").length){
 
 var currentTitle;
 var currentIndex;
+var current_competency_text;
 var currentID = 0;
 
 
@@ -41,13 +48,20 @@ selected_competency_obj = [];
 
 //Competency linking display functions
 
+function highlightCurrent (link, type) {
+	current_competency_text = link.parentNode.parentNode.parentNode.getElementsByClassName('col0')[0];
+	$(current_competency_text).css("background-color", "yellow");
+	$(current_competency_text).css("color", competencyColorsIndex[type]);
+	$(current_competency_text).css("font-weight", "bolder");
+}
+
 function linkSchoolNational (link, params) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length - 1];
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	var currentTitle = liArray[1].innerHTML;
-	$("#link-dialog-wrapper").css("visibility", "visible"); 
+	$("#link-dialog-wrapper").css("visibility", "visible");
 	$("#link-dialog").data("currentTitle", currentTitle);
  	currentCompLabel(currentTitle);
 	$("#link-dialog").data("currentIndex", liNode.id);
@@ -63,7 +77,7 @@ function linkCourseSchool (link, params) {
 	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
 	var currentTitle = liArray[1].innerHTML;
-	$("#link-dialog-wrapper").css("visibility", "visible"); 
+	$("#link-dialog-wrapper").css("visibility", "visible");
 	$("#link-dialog").data("currentTitle", currentTitle);
  	currentCompLabel(currentTitle);
 	$("#link-dialog").data("currentIndex", liNode.id);
@@ -99,11 +113,11 @@ function linkObjectiveToCourse (link, params) {
 	var postURL = params.postTo.split('/');
 	var school = postURL[postURL.length - 3];
 	var course_id = postURL[postURL.length - 2];
-	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');	
+	var liArray = link.parentNode.parentNode.parentNode.getElementsByTagName('LI');
 	var liNode = link.parentNode.parentNode.parentNode.parentNode;
 	if (!liNode.id) {
 		liNode = link.parentNode.parentNode.parentNode.parentNode.parentNode;
-	}	
+	}
 	var currentTitle = liArray[1].innerHTML;
 	$('#link-dialog').html(" \
 		<div id='loading_competencies'> \
@@ -117,7 +131,7 @@ function linkObjectiveToCourse (link, params) {
 	currentCompLabel(currentTitle);
 	var currentIndex = liNode.id;
 	competencyId1 = liNode.id.split('_')[0];
-	$("#link-dialog-wrapper").css("visibility", "visible"); 
+	$("#link-dialog-wrapper").css("visibility", "visible");
 	$("#link-dialog").data("currentTitle", currentTitle);
 	$("#link-dialog").data("currentIndex", currentIndex);
 	$("#link-dialog").load(competencyRoot + "admin/link/school/" + school, {competency_id: competencyId1, root_id: 0, link_type: 'class_meet', course_id: course_id}, initLinkDialog());
@@ -127,11 +141,15 @@ function linkObjectiveToCourse (link, params) {
 function initLinkDialog() {
 	currentTitle = $("#link-dialog").data("currentTitle");
 	currentIndex = $("#link-dialog").data("currentIndex");
-	currentIndex = currentIndex.toString();	
+	currentIndex = currentIndex.toString();
 	competencyId1 = currentIndex.split('_')[0];
 }
 
 function closeLinkWindow() {
+	$(current_competency_text).css("background-color", "");
+	$(current_competency_text).css("color", "");
+	$(current_competency_text).css("font-weight", "");
+
 	$('#link-dialog').empty();
 	$('.competency_link_table').empty();
 
@@ -161,10 +179,10 @@ function appendNewLinkedCompetencies (competency_id, type) {
 		col = 'col3';
 	} else {
 		//for linking competency types with supporting information
-		col = 'col2';		
+		col = 'col2';
 	}
 	$.each(to_update_array, function(index, value) {
-		var competency_desc = value.replace(/&nbsp;/g, '');	
+		var competency_desc = value.replace(/&nbsp;/g, '');
 		var temp_a = $('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container');
 		if (temp_a.length == 0){
 			var $to_append_top = $("<span class='tusk-competency-popup' />");
@@ -179,7 +197,7 @@ function appendNewLinkedCompetencies (competency_id, type) {
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().on( "click", function(){
 				        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
 			});
-			$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");			
+			$('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");
 			$('#competency_container').find('li[id^='+ competency_id + '] .'+ col).find('.competency_popup_container a').first().on( "click", function(){
 				        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
 			});
@@ -188,14 +206,14 @@ function appendNewLinkedCompetencies (competency_id, type) {
 			$(currentID).parent().parent().find('.competency_popup_container a').first().on( "click", function(){
 				        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
 			});
-			$(currentID).parent().parent().find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");			
+			$(currentID).parent().parent().find('.competency_popup_content').first().append("<b><i>New " + (index+1) + ": </i></b>" + competency_desc + "<br>");
 			$(currentID).parent().parent().find('.competency_popup_container a').first().on( "click", function(){
 				        $('#competency_container').find('li[id^=' + competency_id + '] .' + col).find('.competency_popup_content').first().show();
 			});
 		}
 	});
 	$.each(to_update_array_remove, function(index, value) {
-		var competency_desc = value.replace(/&nbsp;/g, '');	
+		var competency_desc = value.replace(/&nbsp;/g, '');
 		var to_delete;
 		if (currentID == 0) {
 			to_delete = $('#competency_container').find('li[id^='+ competency_id + '] .' + col).find('.competency_popup_container a').first();
@@ -211,12 +229,12 @@ function appendNewLinkedCompetencies (competency_id, type) {
 		} else {
 			to_delete = $(currentID).parent().parent().find('.competency_popup_content').first();
 		}
-		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,20), 'g');				
-		temp_html = to_delete.html();		
+		comp_match_pattern = new RegExp(value.replace(/&nbsp;/g, '').substring(0,20), 'g');
+		temp_html = to_delete.html();
 		temp_html = temp_html.replace(comp_match_pattern, "<b>REMOVED</b>");
 		to_delete.html(temp_html);
-		$('.linked_competency_close_button').on("click", function() {		
-			$(this).parent().hide(2);		
+		$('.linked_competency_close_button').on("click", function() {
+			$(this).parent().hide(2);
 		});
 	});
 	currentID = 0;
@@ -264,8 +282,8 @@ function notLinkedCellOnClick (not_linked_cell) {
 	}
 }
 
-//Function to go through competency linking window tables and create new competency links or 
-//delete existing competency links as necessary. 
+//Function to go through competency linking window tables and create new competency links or
+//delete existing competency links as necessary.
 
 function updateCompetencies() {
 	var competencyId2;
@@ -311,7 +329,7 @@ function updateCompetencies() {
 
 //Functions related to competency checklist division/popup
 
-function buildCompetencyList (dialog_name, school_name, course_id) {	
+function buildCompetencyList (dialog_name, school_name, course_id) {
 /*Uses the "<competencyRoot>/tmpl/static_display" page and given parameters to build a list tree of competencies and displays it in the given division.*/
 	$("#" + dialog_name).load(competencyRoot + "tmpl/static_display/course/" + school_name + "/" + course_id, {school_name: school_name, course: course_id});
 }
@@ -320,7 +338,7 @@ function buildCompetencyChecklistTree(dialog_name, school_name, course_id, selec
 
 /*
 Uses the "<competencyRoot>/tmpl/display" page and given parameters to build a competency checklist tree and displays it in the given division.
-The competency_id for the selected competency from the checklist is stored in the javascript variable selected_competency_id after a user clicks on "select" 
+The competency_id for the selected competency from the checklist is stored in the javascript variable selected_competency_id after a user clicks on "select"
 and can then be used accordingly.
 
 	Requires:
@@ -344,10 +362,10 @@ and can then be used accordingly.
 			display_type = Determines whether the checklist division is displayed as:
 					"inline" = inline to other HTML elements in the page
 					"dialog" = displayed as a popup dialog box
-	Example Usage: 
+	Example Usage:
 			<div id = "test_dialog"</div>
 			<input type="button" value="Display Checklist" onclick="buildCompetencyChecklistTree('test_dialog', 'Dental', 1251, 'radio', 'off', 'inline');
-			(The above example has a button with value "Display Checklist" which when clicked displays a competency checklist tree for course 1251 of the Dental 
+			(The above example has a button with value "Display Checklist" which when clicked displays a competency checklist tree for course 1251 of the Dental
 			School, consisting of radio buttons with child competencies unselectable inline on the "test_dialog" division.)
  */
 
@@ -426,8 +444,8 @@ $(document).ready( function() {
 			"top": 50 + "%"
 		}).show();
 	});
-	$('.linked_competency_close_button').on("click", function() {		
-		$(this).parent().hide(2);		
+	$('.linked_competency_close_button').on("click", function() {
+		$(this).parent().hide(2);
 	});
 	var select_buttons = $(document).find("#competency_container select");
 	$(select_buttons).each(function( index, this_button) {
@@ -442,7 +460,7 @@ $(document).ready( function() {
 //Functions related to displaying competencies in competency checklist pages.
 
 function displayAllCompetencies() {
-	$("#all_competencies_popup").dialog({dialogClass: 'all_competencies_popup_dialog', position: {my: "center", at: "top" }, width: 650, height: 450, minHeight: 450, resizable: false});	
+	$("#all_competencies_popup").dialog({dialogClass: 'all_competencies_popup_dialog', position: {my: "center", at: "top" }, width: 650, height: 450, minHeight: 450, resizable: false});
 }
 
 //End Functions related to displaying competencies in competency checklist pages.
