@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 
@@ -61,58 +61,58 @@
 <& /tmpl/element:form, params => {
 	method => 'POST',
 	onsubmit =>undef,
-	name => 'classmeetingaddedit' 
+	name => 'classmeetingaddedit'
 } &>
 
-<& /tmpl/element:table, params => { 
+<& /tmpl/element:table, params => {
 	width => "100%",
 	border =>"0",
 	ellspacing =>"0",
-	cellpadding =>"0" 
+	cellpadding =>"0"
 } &>
 
-<& /tmpl/element:field_display, params => { 
+<& /tmpl/element:field_display, params => {
 	label => __('Event Title'),
-	value => $class_meeting->field_value('title') 
+	value => $class_meeting->field_value('title')
 } &>
 
 % my $cm_type = $class_meeting->type_object();
-<& /tmpl/element:field_display, params => { 
+<& /tmpl/element:field_display, params => {
 	label => __('Event Type'),
 	value => ($cm_type) ? $cm_type->getLabel() : '',
 } &>
 
-% ### show this only if the class meeting type is of an assessment method. 
+% ### show this only if the class meeting type is of an assessment method.
 % if ($cm_type) {
 %	if (my $method_type = $cm_type->getJoinObject('TUSK::Enum::Data')) {
 %		if ($method_type->getShortName() eq 'assessment') {
 %			 my $assessment_purpose =  TUSK::ClassMeeting::AssessmentPurpose->new()->lookupReturnOne("class_meeting_id = $class_meeting_id AND school_id = $school_id");
 
-<& /tmpl/element:dropdown, params => { 
+<& /tmpl/element:dropdown, params => {
        label   => __('Assessment Method Purpose'),
        name    => "assessment_purpose",
        selected => ($assessment_purpose) ? $assessment_purpose->getAssessmentPurposeEnumID() : undef,
-       options => [ 
+       options => [
 		map {{ label => $_->getDisplayName(), value => $_->getPrimaryKeyID() }} @{TUSK::Enum::Data->lookup("namespace = 'class_meeting_assessment_method.type_id'")}
        ],
 } &>
-%		}	
+%		}
 %	}
 % }
 
-<& /tmpl/element:field_display, params =>{ 
+<& /tmpl/element:field_display, params =>{
 	label => __('Event Date'),
-	value => $class_meeting->field_value('meeting_date') 
+	value => $class_meeting->field_value('meeting_date')
 } &>
 
-<& /tmpl/element:field_display, params =>{ 
+<& /tmpl/element:field_display, params =>{
 	label => __('Start Time'),
-	value => $class_meeting->field_value('starttime') 
+	value => $class_meeting->field_value('starttime')
 } &>
 
-<& /tmpl/element:field_display, params =>{ 
+<& /tmpl/element:field_display, params =>{
 	label => __('End Time'),
-	value => $class_meeting->field_value('endtime') 
+	value => $class_meeting->field_value('endtime')
 } &>
 
 
@@ -134,7 +134,7 @@
 		            { label => __('Section'), field => 'anchor_label', type => 'textbox', align => 'left', length => 50 }
 		],
 		validate => { usage => 'No', },
-		data => \@link_data 
+		data => \@link_data
 	}
 } &>
 
@@ -154,11 +154,11 @@
 				action_width => 150,
 				action_dropdown => 1,
 				onclick_options => 1,
- 				action_columns => [ 
+ 				action_columns => [
 							{ 'label' => __('Modify'), 'onclick' => 'editRow(this, params); resetDropDown(this);' },
 							{ 'label' => __('Delete'),  'onclick' => 'deleteRow(this, params); resetDropDown(this);' },
-							{ 'label' => __('Link/Unlink'), 'onclick' => 'linkObjectiveToCourse(this, params);  resetDropDown(this);' },
-			  			], 
+							{ 'label' => __('Link/Unlink'), 'onclick' => "highlightCurrent(this, 'session'); linkObjectiveToCourse(this, params);  resetDropDown(this);" },
+			  			],
 				fields => [
 					{ hide  => 1, field => 'id', },
 					{ label => __('Session Objective'), field => 'title', head_align => 'left', width => 400, align => 'left', edit =>
@@ -171,7 +171,7 @@
 					{ label => __('Linked <span style="color:#D57025;">Course </span> Competencies:'), field => 'links', head_align => 'left', align => 'left', width => 200}
 
 				],
-				data => $data, 
+				data => $data,
 				post_to => '/tusk/competency/competency/admin/objectives/update_class_meeting/' . $school_name . '/' . $class_meeting->course->getPrimaryKeyID . '/' . $class_meeting_id,
 				empty_message => __("No objectives exist for the current schedule.")
 	});
@@ -186,7 +186,7 @@
 <tr id = "class_meeting_competencies_tr">
 	<td class="labelgray">
 		Objectives (Linked Content):
-	</td>	
+	</td>
 <%perl>
 	my $related_content_id;
 	($data, $related_content_id) = $m->comp('/competency/competency/tmpl/build', school_id => $school_id, component_type => 'related_content', component_id => $class_meeting_id);
@@ -196,7 +196,7 @@
 	}
 
 	print "<td colspan=\"1\">";
-	
+
 	if ($related_content_id){
 		$m->comp('/tmpl/element:cms_button_row', links => [ {link_txt=>'/management/content/addedit/course/'. $school_name .'/'.$course_id.'?content_id='.$related_content_id.'&page=edit' , display_txt=>__('Go to Content')} ]);
 	}
@@ -226,11 +226,11 @@
 
 	my $concepts_data = [];
 	foreach my $concept_key (sort keys %$concepts){
-		push (@$concepts_data, { 
-						concept_id => $concepts->{$concept_key}->{object}->getConceptID(), 
-						keyword => $concept_key, 
+		push (@$concepts_data, {
+						concept_id => $concepts->{$concept_key}->{object}->getConceptID(),
+						keyword => $concept_key,
 						keyword_with_info => $concept_key . $m->scomp("/search/tmpl/element:display_def_and_syns", concept => $concepts->{$concept_key}->{object}),
-						rank => $concepts->{$concept_key}->{weight} 
+						rank => $concepts->{$concept_key}->{weight}
 					});
 	}
 </%perl>
@@ -256,9 +256,9 @@
 	my $keywords_data = [];
 
 	foreach my $keyword_link (@{$class_meeting->child_author_defined_keywords(1)}){
-		push (@$keywords_data, { 
-						keyword_id => $keyword_link->getKeywordID(), 
-						keyword => $keyword_link->getKeyword()->getKeywordNormalized(), 
+		push (@$keywords_data, {
+						keyword_id => $keyword_link->getKeywordID(),
+						keyword => $keyword_link->getKeyword()->getKeywordNormalized(),
 					});
 	}
 	my @keyword_buttons = (
@@ -310,7 +310,7 @@
 </%perl>
 
 <& /tmpl/element:save_button, params=>{label=>__('Save Changes'),
-                cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url", 
+                cancel_onclick=>"go_back('" . $m->comp("/tmpl/url:construct_url",
 			'base_url' => "/management/schedule/show") . "');",
                 name=>'submit'} &>
 
@@ -330,17 +330,17 @@
 my @link_data = map { {	content_id   => $_->content_id,
 						title        => $_->title,
 						type         => $_->type,
-						label        => $_->aux_info('label'), 
+						label        => $_->aux_info('label'),
 						anchor_label => $_->aux_info('anchor_label'),
 						link_class_meeting_content_id => $_->aux_info('link_class_meeting_content_id'),
-						class_meeting_content_type_id => $_->aux_info('class_meeting_content_type_id') } 
+						class_meeting_content_type_id => $_->aux_info('class_meeting_content_type_id') }
 		      		}
 					$class_meeting->child_content();
 
 my @user_data = map {{'user_id'=>$_->primary_key,
 			'name'=>$_->out_full_name } }
-			$class_meeting->child_users(); 
-		
+			$class_meeting->child_users();
+
 if (defined($ARGS{'submit'})){
 	if (defined $ARGS{assessment_purpose}) {
 		my $link = TUSK::ClassMeeting::AssessmentPurpose->lookupReturnOne("class_meeting_id = $class_meeting_id");
@@ -353,12 +353,12 @@ if (defined($ARGS{'submit'})){
 			}
 		} else { ## insert
 			$link = TUSK::ClassMeeting::AssessmentPurpose->new();
-			$link->setFieldValues({ 
+			$link->setFieldValues({
 				class_meeting_id => $class_meeting_id,
 				assessment_purpose_enum_id => $ARGS{assessment_purpose},
 				school_id => $school_id,
 			});
-			$link->save({user => $user_id });	
+			$link->save({user => $user_id });
 		}
 	}
 	# Content updates
@@ -456,7 +456,7 @@ if (defined($ARGS{'submit'})){
 <%method jsarray>
 <%perl>
  return [
-		"scripts.js", 
+		"scripts.js",
 		"layers.js",
 		"jquery/jquery.min.js",
 		"jquery/jquery-ui.min.js",
