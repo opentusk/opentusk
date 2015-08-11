@@ -20,6 +20,7 @@
 
 <%once>
 	use TUSK::Application::Schedule::Clinical;
+	use List::Util qw( max );
 </%once>
 
 <%shared>
@@ -33,8 +34,10 @@
 <%perl>
 	$m->clear_buffer();
 	$r->content_type( 'application/vnd.ms-excel');
-	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="schedule-export.xls"');
+	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="schedule-export.xlsx"');
 	my %query = $m->request_args;
+	my %schedules = ();
+	my $studentMax = 0; # Maximum number of students in a course in a specific time period
 
 	if (scalar $query{'academicYear'} && $query{'academicLevelTitle'} && $query{'courseId'} && $query{'schoolId'} && $query{'schoolDb'}) {
 		$academicYear = $query{'academicYear'};
@@ -50,14 +53,35 @@
 		my @timePeriods = @{TUSK::Application::Schedule::Clinical->new({
 			school_id => $schoolId, 
 			school_db => $schoolDb
-		})->getScheduleRotationTimePeriods({
+		})->getScheduleRotationDetails({
 			academicYear => $academicYear,
 			academicLevelTitle => $academicLevelTitle,
 			courseId => $courseId,
 			timePeriodsRequested => 1
 		})};
-		print "Time Period \t" . $timePeriods[0]->{timePeriod} . "\n";
 
+		foreach my $timePeriod (@timePeriods){
+			my @students = @{TUSK::Application::Schedule::Clinical->new({
+			school_id => $schoolId, 
+			school_db => $schoolDb
+			})->getScheduleRotationDetails({
+				academicYear => $academicYear,
+				academicLevelTitle => $academicLevelTitle,
+				courseId => $courseId,
+				timePeriodId => $timePeriod->{'timePeriodId'},
+				studentsRequested => 1
+			})};
+			$studentMax = max(0, scalar @students);
+			print $timePeriod->{timePeriod} . "\t";
+			push @{$schedules{$timePeriod->{timePeriodId}}}, @students;
+		}
+		print "\n";
+		for my $index (0..$studentMax){
+			foreach my $timePeriod (@timePeriods){
+				print "$schedules{$timePeriod->{timePeriodId}}[$index]->{lastName}, $schedules{$timePeriod->{timePeriodId}}[$index]->{firstName}\t";
+			}
+			print "\n";
+		}
 	} else {
 		print "No information availabe.";
 	}

@@ -311,41 +311,27 @@ sub getScheduleRotationTimePeriods{
 	my ($self, $args) = @_;
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my @timePeriods = ();
-	my $sqlCoreStatement = "FROM tusk.academic_level_clinical_schedule AS t1
-		INNER JOIN tusk.academic_level AS t2
-			ON (t1.academic_level_id = t2.academic_level_id)
-		INNER JOIN tusk.academic_level_course AS t3
-			ON (t1.academic_level_id = t3.academic_level_id AND t2.academic_level_id = t3.academic_level_id)
-		INNER JOIN tusk.course AS t4
-			ON (t4.course_id = t3.course_id)
-		INNER JOIN $self->{school_db}.link_course_student AS t5
-			ON (t4.school_course_code = t5.parent_course_id)
-		INNER JOIN $self->{school_db}.course AS t6
-			ON (t6.course_id = t5.parent_course_id AND t6.course_id = t4.school_course_code)
-		LEFT JOIN $self->{school_db}.time_period AS t7 
-			ON t7.time_period_id = t5.time_period_id
-		INNER JOIN hsdb4.user AS t8 
-			ON (t5.child_user_id = t8.user_id)";
-	my $sqlCoreConditionals = "WHERE (t1.school_id = ? AND t2.title = ? AND t7.academic_year = ? AND t6.course_id = ?)";
-	my $sqlTimePeriodSelection = "SELECT DISTINCT t7.time_period_id, t7.period";
+
+	my $sqlSelection = "SELECT DISTINCT t7.time_period_id, t7.period";
+	my $sqlConditionals = "WHERE (t1.school_id = ? AND t2.title = ? AND t7.academic_year = ? AND t6.course_id = ?)";
+	@sqlArgs = ($self->{school_id}, 
+	$args->{academicLevelTitle},
+	$args->{academicYear}, 
+	$args->{courseId});
 
 	my $sql = qq{
-		$sqlTimePeriodSelection
-		$sqlCoreStatement
-		$sqlCoreConditionals
-		ORDER BY t7.start_date, t7.end_date};
+	$sqlSelection
+	$args->{sqlCoreStatement} 
+	$sqlConditionals
+	ORDER BY t7.start_date, t7.end_date};
 
 	my $sth = $dbh->prepare($sql);
 	eval {
-		$sth->execute(($self->{school_id}, 
-			$args->{academicLevelTitle},
-			$args->{academicYear}, 
-			$args->{courseId})
-		);
+		$sth->execute(@sqlArgs);
 	};
 	croak "error : $@ query $sql failed for class " . ref($self) if ($@);
 
-	while(my ($timePeriod, $timePeriodId) = $sth->fetchrow_array())
+	while(my ($timePeriodId, $timePeriod) = $sth->fetchrow_array())
 	{
 		push @timePeriods, {
 			timePeriod => $timePeriod,
@@ -354,6 +340,71 @@ sub getScheduleRotationTimePeriods{
 	}
 
 	return \@timePeriods;
+}
+
+sub getScheduleRotationStudents{
+	my ($self, $args) = @_;
+	my $dbh = HSDB4::Constants::def_db_handle();
+	$args->{sqlCoreStatement} = $args->{sqlCoreStatement} . 
+	"\nINNER JOIN hsdb4.user AS t8 
+		ON (t5.child_user_id = t8.user_id)";
+	my @students = ();
+	my @sqlArgs = ($self->{school_id}, 
+		$args->{academicLevelTitle},
+		$args->{academicYear}, 
+		$args->{courseId},
+		$args->{timePeriodId});
+
+	my $sqlSelection = "SELECT DISTINCT t5.child_user_id, t8.lastname, t8.firstname";
+	my $sqlConditionals = "WHERE (t1.school_id = ? AND t2.title = ? AND t7.academic_year = ? AND t6.course_id = ? AND t7.time_period_id = ?)";
+
+	my $sql = qq{
+		$sqlSelection
+		$args->{sqlCoreStatement} 
+		$sqlConditionals
+		ORDER BY t8.lastname ASC, t8.firstname ASC};
+		
+	my $sth = $dbh->prepare($sql);
+	eval {
+		$sth->execute(@sqlArgs);
+	};
+	croak "error : $@ query $sql failed for class " . ref($self) if ($@);
+
+	while (my ($userId, $lastName, $firstName) = $sth->fetchrow_array()) {
+		push @students, {
+			userId => $userId,
+			lastName => $lastName,
+			firstName => $firstName
+		};
+	}
+
+	return \@students;
+}
+
+sub getScheduleRotationDetails{
+	my ($self, $args) = @_;
+	
+	$args->{sqlCoreStatement} = "FROM tusk.academic_level_clinical_schedule AS t1
+	INNER JOIN tusk.academic_level AS t2
+		ON (t1.academic_level_id = t2.academic_level_id)
+	INNER JOIN tusk.academic_level_course AS t3
+		ON (t1.academic_level_id = t3.academic_level_id AND t2.academic_level_id = t3.academic_level_id)
+	INNER JOIN tusk.course AS t4
+		ON (t4.course_id = t3.course_id)
+	INNER JOIN $self->{school_db}.link_course_student AS t5
+		ON (t4.school_course_code = t5.parent_course_id)
+	INNER JOIN $self->{school_db}.course AS t6
+		ON (t6.course_id = t5.parent_course_id AND t6.course_id = t4.school_course_code)
+	LEFT JOIN $self->{school_db}.time_period AS t7 
+		ON t7.time_period_id = t5.time_period_id";
+
+	if ($args->{timePeriodsRequested}){
+		return $self->getScheduleRotationTimePeriods($args);
+	} elsif ($args->{studentsRequested}){
+		return $self->getScheduleRotationStudents($args);
+	}
+
+	return;
 }
 
 sub deleteStudentFromCourse{
