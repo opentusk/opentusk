@@ -3355,10 +3355,10 @@ sub get_faculty_class_meeting {
     my $class_meetings;
 
     eval {
-	    my $sql = "SELECT meeting_date, starttime, endtime, location, title, label FROM $db.link_class_meeting_user
+	    my $sql = "SELECT meeting_date, starttime, endtime, location, title, label, class_meeting_id, course_id FROM $db.link_class_meeting_user
                   INNER JOIN $db.class_meeting on parent_class_meeting_id = class_meeting_id
                   INNER JOIN tusk.class_meeting_type on type_id = class_meeting_type_id
-                  WHERE child_user_id = '$user_id'";
+                  WHERE child_user_id = '$user_id' ORDER BY meeting_date, starttime, endtime";
 
       my $sth = $dbh->prepare ($sql);
 	    $sth->execute();
