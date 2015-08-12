@@ -24,26 +24,26 @@
     use Sys::Hostname;
 
     # Define params for environment
-    my $error_mode = "fatal";
-    my $error_format = "text";
+    my $error_mode = 'fatal';
+    my $error_format = 'text';
     my $use_object_files = 1;
     if (Apache2::ServerUtil::exists_config_define('DEV')) {
-        $error_mode = "output";
-        $error_format = "html";
+        $error_mode = 'output';
+        $error_format = 'html';
         $use_object_files = 0;
     }
 
     # Check mason cache directory
     my $serverRoot = $TUSK::Constants::ServerRoot;
     my $dataDir = defined $TUSK::Constants::MasonCacheRoot ?
-        $TUSK::Constants::MasonCacheRoot : "/var/cache/mason";
+        $TUSK::Constants::MasonCacheRoot : '/var/cache/mason';
     if (! -d $dataDir) {
         if (! (mkdir $dataDir)) {
-            confess "Can't create mason cache dir $dataDir";
+            confess "Can't create Mason cache dir $dataDir";
         }
     }
     if (! opendir(DIR, $dataDir)) {
-        confess "Can't open mason cache dir $dataDir";
+        confess "Can't open Mason cache dir $dataDir";
     }
     close(DIR);
 
@@ -54,14 +54,14 @@
         confess "Mason's code root does not exist ($tuskCodeRoot)";
     }
     if (! opendir(DIR, $tuskCodeRoot)) {
-        confess "Can't open mason code root dir $tuskCodeRoot";
+        confess "Can't open Mason code root dir $tuskCodeRoot";
     }
     close(DIR);
 
     # get database info
     # TODO: Encapsulate in TUSK::Constants or HSDB4::Constants
     my $db_info_ref = $TUSK::Constants::Servers{Sys::Hostname::hostname};
-    my $database_address = $db_info_ref->{WriteHost};
+    my $database_address = $db_info_ref->{SessionHost} || $db_info_ref->{WriteHost};
     my $content_manager_ref = $TUSK::Constants::DatabaseUsers{ContentManager};
     my $db_user = $content_manager_ref->{writeusername};
     my $db_pw = $content_manager_ref->{writepassword};
@@ -71,25 +71,25 @@
         my $ah = HTML::Mason::ApacheHandler->new(
             comp_root => $tuskCodeRoot,
             data_dir => $dataDir,
-            args_method   => "mod_perl",
-            plugins=>['MasonX::Plugin::UTF8', 'MasonX::Plugin::Defang'],
-
+            args_method => 'mod_perl',
+            plugins => ['MasonX::Plugin::UTF8', 'MasonX::Plugin::Defang'],
             request_class => 'MasonX::Request::WithApacheSession',
-            session_class => 'Apache::Session::MySQL',
+            session_class => 'Apache::Session::Flex',
             # Let MasonX::Request::WithApacheSession automatically
             # set and read cookies containing the session id
             session_use_cookie => 1,
-            session_cookie_expires=>"session",
-            session_cookie_name => "TUSKMasonCookie",
+            session_cookie_expires=> 'session',
+            session_cookie_name => 'TUSKMasonCookie',
+            session_store => 'MySQL',
+            session_lock => 'Null',
+            session_generate => 'MD5',
+            session_serialize => 'Storable',
             session_data_source => "DBI:mysql:hsdb4:$database_address",
             session_user_name => $db_user,
             session_password => $db_pw,
-            session_lock_data_source => "DBI:mysql:hsdb4:$database_address",
-            session_lock_user_name => $db_user,
-            session_lock_password => $db_pw,
-            error_format=>$error_format, 
+            error_format => $error_format,
             use_object_files => $use_object_files,
-            error_mode=>$error_mode, 
+            error_mode=>$error_mode,
         );
         my $status = eval { $ah->handle_request($r); };
         if (my $err = $@) {
