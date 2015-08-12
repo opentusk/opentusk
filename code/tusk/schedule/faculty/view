@@ -26,7 +26,30 @@
 
 <%method getClassMeetings>
 <%perl>
-	my $test = $m->session->{'user'}->get_faculty_class_meeting();
-	print Dumper $test;
+	my $class_meetings = $m->session->{'user'}->get_faculty_class_meeting();
+	print Dumper $class_meetings;
 </%perl>
+<& /tmpl/element:table, params => {
+		width => "100%",
+		border => "0",
+		cellspacing => "0",
+		cellpadding => "0"
+} &>
+<tr>
+	<td><b>Date</b></td>
+	<td><b>Time</b></td>
+	<td><b>Location</b></td>
+	<td><b>Title(type)</b></td>
+</tr>
+<%perl>
+	if (@$class_meetings) {
+		foreach my $class_meeting(@{$class_meetings}) {
+			print "<tr><td>$class_meeting->[1]</td></tr>"
+		}
+	}
+	else {
+		print "<tr><td>No Schedules Found</td></tr>";
+	}
+</%perl>
+</table>
 </%method>
