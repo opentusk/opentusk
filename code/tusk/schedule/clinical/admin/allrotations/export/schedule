@@ -21,6 +21,7 @@
 <%once>
 	use TUSK::Application::Schedule::Clinical;
 	use List::Util qw( max );
+	use Spreadsheet::WriteExcel; 
 </%once>
 
 <%shared>
@@ -29,15 +30,59 @@
 	my $courseId;
 	my $schoolId;
 	my $schoolDb;
+	my @timePeriods = ();
+
+	my %headerFont	= (
+		font  => 'Arial',
+		size  => 11,
+		bold  => 1);
+
+	my %tableShading = (
+		bg_color => 41);
+
+	my %headerAlignment = (
+		align => 'left');
+
 </%shared>
 
 <%perl>
-	$m->clear_buffer();
-	$r->content_type( 'application/vnd.ms-excel');
-	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="schedule-export.xlsx"');
 	my %query = $m->request_args;
+	open my $fh, '>', \my $str or die "Failed to open filehandle: $!";
+	binmode STDOUT; # Before any I/O is done on the filehandle
+
+	my $workbook  = Spreadsheet::WriteExcel->new($fh);
+	$m->comp("SELF:.add_course_schedule", 
+		workbook => $workbook, 
+		worksheetName => "\x{263a}", 
+		query => \%query);
+
+	$workbook->close();
+	$m->clear_buffer();
+	$r->content_type( 'application/vnd.ms-excel' );
+	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="rotationSchedules.xls"'); 
+
+	print $str;
+	close $fh;
+</%perl>
+
+<%doc>
+	Add a schedule for a course
+</%doc>
+<%method .add_course_schedule>
+<%args>
+	$workbook
+	$worksheetName
+	%query
+</%args>
+<%perl>
+	my $row = 0; 
 	my %schedules = ();
 	my $studentMax = 0; # Maximum number of students in a course in a specific time period
+	my $worksheet = $workbook->add_worksheet("$worksheetName");
+
+	my $tableFormat = $workbook->add_format(%tableShading);
+	my $headerFormat = $workbook->add_format(%headerFont, %headerAlignment);
+	my $textFormat = $workbook->add_format(%headerAlignment);
 
 	if (scalar $query{'academicYear'} && $query{'academicLevelTitle'} && $query{'courseId'} && $query{'schoolId'} && $query{'schoolDb'}) {
 		$academicYear = $query{'academicYear'};
@@ -46,11 +91,14 @@
 		$schoolId = $query{'schoolId'};
 		$schoolDb = $query{'schoolDb'};
 
-		print "Academic Year \t" . $academicYear . "\n";
-		print "Academic Level \t" . $academicLevelTitle . "\n";
-		print "Rotation Id \t" . $courseId . "\n";
+		$worksheet->write(0, 0, "Academic Year: ", $headerFormat);
+		$worksheet->write(0, 1, $academicYear, $textFormat);
+		$worksheet->write(1, 0, "Academic Level: ", $headerFormat);
+		$worksheet->write(1, 1, $academicLevelTitle, $textFormat);
+		$worksheet->write(2, 0, "Rotation Id", $headerFormat);
+		$worksheet->write(2, 1, $courseId, $textFormat);
 
-		my @timePeriods = @{TUSK::Application::Schedule::Clinical->new({
+		@timePeriods = @{TUSK::Application::Schedule::Clinical->new({
 			school_id => $schoolId, 
 			school_db => $schoolDb
 		})->getScheduleRotationDetails({
@@ -60,6 +108,7 @@
 			timePeriodsRequested => 1
 		})};
 
+		my $timePeriodIndex = 0;
 		foreach my $timePeriod (@timePeriods){
 			my @students = @{TUSK::Application::Schedule::Clinical->new({
 			school_id => $schoolId, 
@@ -72,17 +121,24 @@
 				studentsRequested => 1
 			})};
 			$studentMax = max(0, scalar @students);
-			print $timePeriod->{timePeriod} . "\t";
+			$worksheet->write(4, $timePeriodIndex, $timePeriod->{timePeriod}, $headerFormat);
 			push @{$schedules{$timePeriod->{timePeriodId}}}, @students;
+			$timePeriodIndex++;
 		}
-		print "\n";
+
 		for my $index (0..$studentMax){
+			my $column = 0;
 			foreach my $timePeriod (@timePeriods){
-				print "$schedules{$timePeriod->{timePeriodId}}[$index]->{lastName}, $schedules{$timePeriod->{timePeriodId}}[$index]->{firstName}\t";
+				if (!$schedules{$timePeriod->{timePeriodId}}[$index]->{lastName} eq "") {
+					$worksheet->write($index + 5, $column, "$schedules{$timePeriod->{timePeriodId}}[$index]->{lastName}, $schedules{$timePeriod->{timePeriodId}}[$index]->{firstName}", $tableFormat);
+				}
+				$column++;
 			}
-			print "\n";
 		}
 	} else {
-		print "No information availabe.";
+		# print "No information availabe.";
 	}
+	my $columnRange = scalar @timePeriods;
+	$worksheet->set_column(0, $columnRange, 22);
 </%perl>
+</%method>
