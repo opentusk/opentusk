@@ -3315,7 +3315,6 @@ sub save {
 	}
 }
 
-
 sub set_last_name{
 	my ($self, @params) = @_;
 	my $newLastName = $params[0];
@@ -3352,20 +3351,22 @@ sub get_faculty_class_meeting {
     my $user_id = $self->user_id();
     my $school = "Medical";
     my $db = get_school_db($school);
-
-    my $dbh = HSDB4::Constants::def_db_handle ();
+    my $dbh = HSDB4::Constants::def_db_handle();
     my $class_meetings;
 
     eval {
-	    my $sql = "SELECT * FROM $db.link_class_meeting_user WHERE child_user_id = '$user_id'";
-            my $sth = $dbh->prepare ($sql);
-	    $sth->execute ();
+	    my $sql = "SELECT * FROM $db.link_class_meeting_user
+                  INNER JOIN $db.class_meeting on parent_class_meeting_id=class_meeting_id
+                  WHERE child_user_id = '$user_id'";
+
+      my $sth = $dbh->prepare ($sql);
+	    $sth->execute();
 	    $class_meetings = $sth->fetchall_arrayref();
 	    $sth->finish;
     };
 
     return $class_meetings;
-} 
+}
 
 1;
 
