@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// check if this browser is IE
-var agt = navigator.userAgent.toLowerCase();
-var is_ie = ((agt.indexOf('msie') != -1) && (agt.indexOf('opera') == -1));
+// check if this browser is IE 8 or earlier
+var is_ie = !document.addEventListener;
 
 // check if this browser supports DHTML
-var DHTML = (document.getElementById || document.all || document.layers);
+var DHTML = document.getElementById;
 
 function checkform(aform){
 	for ( var i=0;i<aform.length;i++ )
@@ -136,26 +135,17 @@ function getObj(name)
   }
 }
 
-function isValidTUSKBrowser(){
-
+function isValidTUSKBrowser() {
 	var errordiv = document.getElementById('errordiv');
-	if (errordiv.innerHTML == null){
-		errordiv.innerHTML = null;
+	if (!errordiv) {
 		alert("errordiv not found.");
 		return;
 	}
-	var browser_error = 0;
-	if ((is_mac) && (is_ie)){
-		browser_error = 1;
-	}
-	if ((!is_ie6up) && (!is_nav6up)){
-		browser_error = 1;
-	}
-	if(browser_error){
+
+	if (is_ie) {
 		errordiv.innerHTML += ' You need to use a supported browser. ' +
 			'<br>See <a href="/hsdb45/course/HSDB/1185">Help</a> for more information.';
 	}
-
 }
 
 function togglelayerbutton(button, layername, title){
