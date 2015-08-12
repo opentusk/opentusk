@@ -143,8 +143,7 @@ function isValidTUSKBrowser() {
 	}
 
 	if (is_ie) {
-		errordiv.innerHTML += ' You need to use a supported browser. ' +
-			'<br>See <a href="/hsdb45/course/HSDB/1185">Help</a> for more information.';
+		errordiv.innerHTML += '<p class="errTxt">You are using an outdated browser which will not display TUSK properly.</p>';
 	}
 }
 
