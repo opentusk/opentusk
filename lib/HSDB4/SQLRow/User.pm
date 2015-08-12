@@ -3349,14 +3349,15 @@ sub official_image {
 sub get_faculty_class_meeting {
     my $self = shift;
     my $user_id = $self->user_id();
-    my $school = "Medical";
+    my $school = "Veterinary";
     my $db = get_school_db($school);
     my $dbh = HSDB4::Constants::def_db_handle();
     my $class_meetings;
 
     eval {
-	    my $sql = "SELECT * FROM $db.link_class_meeting_user
-                  INNER JOIN $db.class_meeting on parent_class_meeting_id=class_meeting_id
+	    my $sql = "SELECT meeting_date, starttime, endtime, location, title, label FROM $db.link_class_meeting_user
+                  INNER JOIN $db.class_meeting on parent_class_meeting_id = class_meeting_id
+                  INNER JOIN tusk.class_meeting_type on type_id = class_meeting_type_id
                   WHERE child_user_id = '$user_id'";
 
       my $sth = $dbh->prepare ($sql);

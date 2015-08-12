@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 
@@ -54,7 +54,7 @@
 	my $is_group_course      = ($course->type() eq 'group');
 	my $is_thesis_comm       = ($course->type() eq 'thesis committee');
 	my $is_integrated_course = ($course->type() eq 'integrated course');
-	
+
 
 	TUSK::Core::SessionTimePeriod::get_time_period($course, $m->session);
 
@@ -83,10 +83,10 @@
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'quizzes'	=> { 'title'=>__('Quizzes'),		'link'=>"$baseLink/quizzes",
- 				     'style'=>$defaultStyle,		'preText'=>'', 
+ 				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'cases'		=> { 'title'=>__('Cases'),			'link'=>"$baseLink/cases",
- 				     'style'=>$defaultStyle,		'preText'=>'', 
+ 				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'grades'	=> { 'title'=>__('Grades'),			'link'=>"/protected$baseLink/grades",
  				     'style'=>$defaultStyle,		'preText'=>'',
@@ -98,21 +98,21 @@
  				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'patientlogs'	=> {
-			'title'		=> __('Patient Logs'), 
+			'title'		=> __('Patient Logs'),
 			'link'		=> "/protected$baseLink/patientlogs",
 		     	'style'		=> $defaultStyle,
 		},
-		'checklists'	=> { 	
-			'title'		=> __('Competency Checklists'), 
+		'checklists'	=> {
+			'title'		=> __('Competency Checklists'),
 			'link'		=> "/protected$baseLink/checklists",
 		     	'style'		=> $defaultStyle,
 		},
 		'evaluations'	=> {
-			'title'		=> __('Evaluations'), 
+			'title'		=> __('Evaluations'),
 			'link'		=> "/protected$baseLink/evaluations",
 		     	'style'		=> $defaultStyle,
 		},
-		'disc'		=> { 	
+		'disc'		=> {
 			'title'		=> __('Discussion'),
 		     	'link' 		=> "/forum/forum_show.pl?school=" . $course->school_id() . "&course_id=" . $course->primary_key(),
 			'style'		=> $defaultStyle,
@@ -212,7 +212,7 @@
 %	if($is_thesis_comm){
 		<h3 style="margin:1em 0;" class="subhead">Assignments</h3>
 %		if(TUSK::Session::check_course_permissions(TUSK::Session::course_user_role($course,$user_obj->primary_key), 'Author')){
- 			<& /assignment/author/show &> 
+ 			<& /assignment/author/show &>
 %		} else {
 			<& /assignment/student/view, course => $course &>
 %		}
@@ -232,7 +232,7 @@
           <a href="/view/user/<% $m->session->{'user'}->primary_key %>"><%__('View All Groups')%></a>
 %	}
 %} elsif ($courseView eq 'obj') {
-                <div id = "test_dialog"></div>       
+                <div id = "test_dialog"></div>
 		<script>window.onload = function(){buildCompetencyList('test_dialog', '<% $course->get_school()->getSchoolName%>' , <% $course->primary_key() %>);};</script>
 
 %} elsif ($courseView eq 'fac') {
@@ -299,7 +299,7 @@
 						<td class="pSchedCell">
 							<a href="/view/course/<% $course->school() %>/<% $courseNumber %>/schedule/<% $classMeeting->primary_key() %>">
 								<% $classMeeting->title() %>
-							</a> (<% $classMeeting->type() %>) 
+							</a> (<% $classMeeting->type() %>)
 							     <% ($classMeeting->is_mandatory())? '<span class="cmMandAtt"> - ' . __('Attendance Mandatory') . '</span>' : '' %>
 						</td>
 					</tr>
@@ -454,8 +454,8 @@
 %	} elsif($m->session->{'user'}->isGhost()) {
 		<%__('Grades are not avaliable to Shibboleth users.')%>
 %	} else {
-<& /tmpl/element:security_notice_start, 
-	user_fullname => $m->session->{'user'}->out_full_name(), 
+<& /tmpl/element:security_notice_start,
+	user_fullname => $m->session->{'user'}->out_full_name(),
 	js_code => '$.get( \'/tusk/ajax/getCourseGrade/' . $course->school . '/' . $course->primary_key . '\', function (data) { $(\'#notice_content\').html(data) } ); close_notice();',
 &>
 
@@ -552,8 +552,8 @@ $args => {}
 			$leftMenu{patientlogs}{style} = 'viewcourseleftnavEmpty';
 		}
 		unless (my @evals = $course->get_evals()) {
-			$leftMenu{evaluations}{style} = 'viewcourseleftnavEmpty';			
-		}		
+			$leftMenu{evaluations}{style} = 'viewcourseleftnavEmpty';
+		}
 		$checklist_groups = $m->session->{'user'}->get_course_competency_checklist_groups($course);
                 $leftMenu{checklists}{style} = 'viewcourseleftnavEmpty' unless (@$checklist_groups);
 	}
@@ -571,11 +571,11 @@ $args => {}
 
 	if ($is_integrated_course) {
 		foreach my $subcourse (@{$course->get_subcourses}) {
-			# Now do the same for each of the subcoures	
-			$m->comp('SELF:setFacultyRows', course => $subcourse);	
+			# Now do the same for each of the subcoures
+			$m->comp('SELF:setFacultyRows', course => $subcourse);
 		}
 	} ## intergrated course
-	
+
 	if(scalar(@{$checklist_groups}) < 1)         {$leftMenu{checklists}{style} = 'viewcourseleftnavEmpty';}
 	if($course->has_competencies() < 1)         {$leftMenu{obj}{style} = 'viewcourseleftnavEmpty';}
 	if(scalar($course->class_meetings()) < 1)       {$leftMenu{schedule}{style} = 'viewcourseleftnavEmpty';}
@@ -597,7 +597,7 @@ $args => {}
 	  @courseGroups = $m->session->{'user'}->get_user_course_groups($course);
         }
 	if($#courseGroups < 0) {$leftMenu{groups}{style} = 'viewcourseleftnavEmpty';}
-	
+
 	my %sortedAnnouncements;
 	my @ug_announcements;
 	foreach my $courseGroup (@courseGroups) {
@@ -614,14 +614,14 @@ $args => {}
 			push @{$sortedAnnouncements{$announcement->out_start_date->out_unix_time}}, $announcement;
 		}
 	}
-	
+
 	my $stripObj = TUSK::Application::HTML::Strip->new();
 	foreach my $aStartDate (reverse sort keys %sortedAnnouncements) {
 		foreach my $announcement (@{$sortedAnnouncements{$aStartDate}}) {
 			$leftMenu{ann}{postText}.= $stripObj->truncateAndRemoveHTML($announcement->{body}, 30) . "<br>";
 		}
 	}
-	
+
 	unless($course->announcements() || scalar @ug_announcements) {$leftMenu{ann}{style} = 'viewcourseleftnavEmpty';}
 
   </%perl>
@@ -660,12 +660,12 @@ if(exists($leftMenu{$courseView})) {
 
 		my $date = HSDB4::DateTime->new();
 		$date->in_mysql_date ($class->field_value('meeting_date'));
-			
-		return uc($course->title()) . " <font>&gt</font> " . lc($leftMenu{$courseView}{'title'}) . 
+
+		return uc($course->title()) . " <font>&gt</font> " . lc($leftMenu{$courseView}{'title'}) .
 									  " <font>&gt</font> " . lc($date->out_string_date_short() . " " . $class->out_starttime->out_string_time);
 	}
 	else {
-		return uc($course->title()) . " <font>&gt</font> " . lc($leftMenu{$courseView}{'title'});			
+		return uc($course->title()) . " <font>&gt</font> " . lc($leftMenu{$courseView}{'title'});
 	}
 }
 else {
@@ -819,4 +819,3 @@ else {
 %	}
 %	return $jsarray;
 </%method>
-
