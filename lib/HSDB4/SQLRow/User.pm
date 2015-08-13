@@ -3347,10 +3347,8 @@ sub official_image {
 }
 
 sub get_faculty_class_meeting {
-    my $self = shift;
+    my ($self, $db) = @_;
     my $user_id = $self->user_id();
-    my $school = "Veterinary";
-    my $db = get_school_db($school);
     my $dbh = HSDB4::Constants::def_db_handle();
     my $class_meetings;
 
