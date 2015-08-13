@@ -332,7 +332,7 @@ sub isFaculty {
     $sth->finish;
   };
 
-  if (scalar @$class_meetings >= 1) {
+  if (@$class_meetings) {
     return 1;
   } else {
     return 0;
