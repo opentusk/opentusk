@@ -323,7 +323,7 @@ sub isFaculty {
   my $class_meetings;
 
   eval {
-    my $sql = "SELECT * FROM $db.link_class_meeting_user
+    my $sql = "SELECT count(*) FROM $db.link_class_meeting_user
                 WHERE child_user_id = '$user_id'";
 
     my $sth = $dbh->prepare ($sql);
@@ -332,11 +332,7 @@ sub isFaculty {
     $sth->finish;
   };
 
-  if (@$class_meetings) {
-    return 1;
-  } else {
-    return 0;
-  }
+  return $class_meetings;
 }
 
 # Return the courses the user is a part of teaching for 'course' course_type  or course admin for other course_types.
