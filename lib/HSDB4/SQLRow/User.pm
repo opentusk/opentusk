@@ -315,15 +315,15 @@ sub check_admin {
 sub isFaculty {
   my $self = shift;
   my $user_id = $self->user_id();
-  my $school_name = $self->affiliation_or_default_school();
-  my $db = TUSK::Core::School->new->getSchoolDb($school_name);
+  my $school_name = $self->affiliation();
+  my $db = TUSK::Core::School->lookupReturnOne("school_name = '$school_name'")->getSchoolDb();
 
   my $dbh = HSDB4::Constants::def_db_handle();
 
   my $class_meetings;
 
   eval {
-    my $sql = "SELECT count(*) FROM $db.link_class_meeting_user
+    my $sql = "SELECT COUNT(*) FROM $db.link_class_meeting_user
                 WHERE child_user_id = '$user_id'";
 
     my $sth = $dbh->prepare ($sql);
