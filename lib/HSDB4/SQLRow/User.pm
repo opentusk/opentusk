@@ -313,7 +313,30 @@ sub check_admin {
 }
 
 sub isFaculty {
-#    my $faculty_class_meeting = TUSK::Core::
+  my $self = shift;
+  my $user_id = $self->user_id();
+  my $school_name = $self->affiliation_or_default_school();
+  my $db = TUSK::Core::School->new->getSchoolDb($school_name);
+
+  my $dbh = HSDB4::Constants::def_db_handle();
+
+  my $class_meetings;
+
+  eval {
+    my $sql = "SELECT * FROM $db.link_class_meeting_user
+                WHERE child_user_id = '$user_id'";
+
+    my $sth = $dbh->prepare ($sql);
+    $sth->execute();
+    $class_meetings = $sth->fetchall_arrayref();
+    $sth->finish;
+  };
+
+  if (scalar @$class_meetings >= 1) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 # Return the courses the user is a part of teaching for 'course' course_type  or course admin for other course_types.
