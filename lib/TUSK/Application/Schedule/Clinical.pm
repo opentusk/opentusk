@@ -296,10 +296,10 @@ sub getScheduleRotations{
 		$sth->execute(($self->{school_id}, $academicLevelTitle, $academicYear));
 	};
 	croak "error : $@ query $sql failed for class " . ref($self) if ($@);
-	while (my ($course, $courseId) = $sth->fetchrow_array())
+	while (my ($courseTitle, $courseId) = $sth->fetchrow_array())
 	{
 		push @courses, {
-			course => $course,
+			courseTitle => $courseTitle,
 			courseId => $courseId
 		};
 	}
