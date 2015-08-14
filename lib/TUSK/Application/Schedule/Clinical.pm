@@ -312,7 +312,7 @@ sub getScheduleRotationTimePeriods{
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my @timePeriods = ();
 
-	my $sqlSelection = "SELECT DISTINCT t7.time_period_id, t7.period";
+	my $sqlSelection = "SELECT DISTINCT t7.time_period_id, t7.period, t7.start_date, t7.end_date";
 	my $sqlConditionals = "WHERE (t1.school_id = ? AND t2.title = ? AND t7.academic_year = ? AND t6.course_id = ?)";
 	@sqlArgs = ($self->{school_id}, 
 	$args->{academicLevelTitle},
@@ -331,11 +331,13 @@ sub getScheduleRotationTimePeriods{
 	};
 	croak "error : $@ query $sql failed for class " . ref($self) if ($@);
 
-	while(my ($timePeriodId, $timePeriod) = $sth->fetchrow_array())
+	while(my ($timePeriodId, $timePeriod, $startDate, $endDate) = $sth->fetchrow_array())
 	{
 		push @timePeriods, {
 			timePeriod => $timePeriod,
-			timePeriodId => $timePeriodId
+			timePeriodId => $timePeriodId,
+			startDate => $startDate,
+			endDate => $endDate
 		};
 	}
 
