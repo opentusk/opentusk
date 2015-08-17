@@ -831,8 +831,8 @@ function materialsHeightAdjust() {
 }
 
 // Add or change parameter of URL and redirect to the new URL
-function setGetParameter(paramName, paramValue) {
-	var url = window.location.href;
+function setGetParameter(paramName, paramValue, clearFlag) {
+	var url = (clearFlag) ? window.location.href.split('?')[0] : window.location.href;
 	if (url.indexOf(paramName + '=') >= 0) {
 		var prefix = url.substring(0, url.indexOf(paramName));
 		var suffix = url.substring(url.indexOf(paramName));

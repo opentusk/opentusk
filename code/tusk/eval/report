@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 <%once>
@@ -30,11 +30,11 @@
 </%attr>
 
 <%method title>
-%       return __("Eval Report").": $title";
+%			 return __("Eval Report").": $title";
 </%method>
 
 <%method jsarray>
-%       return [ 'eval.js', 'evalReports.js' ];
+%			 return [ 'eval.js', 'evalReports.js' ];
 </%method>
 
 <%method stylearray>
@@ -56,16 +56,34 @@
 	my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
 	my $eval_id = ($eval) ? $eval->primary_key() : 0;
 	my $evaluatee_id = '';
+	my $teaching_site_id = 0;
+	my $course = ($eval) ? $eval->course() : '';
 	my $school = ($eval) ? $eval->school() : '';
 	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
-	my @evaluatees = ({label => __('All'), value => ''});
+	my @evaluatees = ();
+	my @teaching_sites = ({label => __('All'), value => 0});
+	my %teaching_site_users = {};
 </%shared>
 
 <%init>
 	if ($is_teaching_eval) {
 		$evaluatee_id = $ARGS{'evaluatee_id'};
+		$teaching_site_id = $ARGS{'teaching_site_id'};
 		my $db = HSDB4::Constants::get_school_db($school);
 		my $dbh = HSDB4::Constants::def_db_handle();
+
+		if ($teaching_site_id > 0) {
+			my $users = $course->users($eval->field_value('time_period_id'), "course_user_site.teaching_site_id = $teaching_site_id");
+			%teaching_site_users = map { $_->getPrimaryKeyID() => 1 } @$users;
+		}
+
+		foreach my $site ($course->child_teaching_sites('order by site_name')) {
+			my $name = $site->site_name();
+			my $location = $site->site_city_state();
+			push @teaching_sites, {label => "$name ($location)", value => $site->primary_key()};
+		}
+
+		push @evaluatees, {label => __('All'), value => ''} unless ($teaching_site_id);
 		my $sql = qq(
 			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
 			FROM $db.eval_response AS er
@@ -78,9 +96,11 @@
 		my $sth = $dbh->prepare($sql);
 		$sth->execute($eval_id);
 		while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
-			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id};
+			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id} if (!$teaching_site_id || $teaching_site_users{$user_id});
 		}
+		$evaluatee_id = $evaluatees[0]->{'value'} unless ($evaluatee_id);
 	}
+
 	my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id);
 	my $num_users = $eval->num_users();
 	my $num_comps = ($evaluatee_id) ? $eval_results->total_user_codes() : $eval->count_complete_users();
@@ -90,12 +110,12 @@
 </%init>
 
 <span class="evalFluff" style="float:right; text-align:right;">
-	<& /tmpl/element:link_to_help, 
+	<& /tmpl/element:link_to_help,
 		text => __('Statistics Definitions'),
 		topic => 'evaluation_reports_-_statistics'
 	 &>
 	&nbsp;
-	<& /tmpl/element:link_to_help, 
+	<& /tmpl/element:link_to_help,
 		text => __('Printing Help'),
 		topic => 'evaluation_reports_-_printing_and_backgrounds'
 	 &>
@@ -113,13 +133,20 @@
 % }
 
 % if ($is_teaching_eval) {
-<h2 class="title"><& /tmpl/element:dropdown, params => { 
-		label 		=> __('Evaluatee') . ':',
-                name 		=> 'evaluatee',
-                onchange	=> "window.location = '?evaluatee_id=' + this.options[this.selectedIndex].value",
-                selected	=> $evaluatee_id,
-                options		=> \@evaluatees
-} &></h2>
+	<h2 class="title"><& /tmpl/element:dropdown, params => {
+			label 		=> __('Teaching Site') . ':',
+			name 		=> 'teaching_site',
+			onchange	=> "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value, true)",
+			selected	=> $teaching_site_id,
+			options		=> \@teaching_sites
+	} &></h2>
+	<h2 class="title"><& /tmpl/element:dropdown, params => {
+			label 		=> __('Evaluatee') . ':',
+			name 		=> 'evaluatee',
+			onchange	=> "setGetParameter('evaluatee_id', this.options[this.selectedIndex].value)",
+			selected	=> $evaluatee_id,
+			options		=> \@evaluatees
+	} &></h2>
 % }
 
 <div class="evalFluff">
@@ -139,23 +166,23 @@
 %}
 	<%__('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.')%>
 	</p>
-    <h3><% __('Enrollment Information') %></h3>
-    <table border="1" cellspacing="0">
-      <tr>
-        <th><% __('Total Users') %></th>
-        <th><% __('Complete Users') %></th>
+		<h3><% __('Enrollment Information') %></h3>
+		<table border="1" cellspacing="0">
+			<tr>
+				<th><% __('Total Users') %></th>
+				<th><% __('Complete Users') %></th>
 % unless ($is_teaching_eval) {
-        <th><% __('Incomplete Users') %></th>
+				<th><% __('Incomplete Users') %></th>
 % }
-      </tr>
-      <tr>
-        <td align="center"><% $num_users %></td>
-        <td align="center"><% $per_comps %>% (<% $num_comps %>)</td>
+			</tr>
+			<tr>
+				<td align="center"><% $num_users %></td>
+				<td align="center"><% $per_comps %>% (<% $num_comps %>)</td>
 % unless ($is_teaching_eval) {
-        <td align="center"><% $per_incos %>% (<% $num_incos %>)</td>
+				<td align="center"><% $per_incos %>% (<% $num_incos %>)</td>
 % }
-      </tr>
-    </table>    
+			</tr>
+		</table>
 </div>
 <div id="graphicsLoadMessage" style="display:none;">
 	<p id="queueMessage"><%__('Loading Eval Graphs')%></p><img src="/graphics/icons/waiting_bar.gif" alt="" />
