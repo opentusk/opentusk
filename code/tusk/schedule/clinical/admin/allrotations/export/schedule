@@ -53,13 +53,15 @@
 	my $workbook  = Spreadsheet::WriteExcel->new($fh);
 	$m->comp("SELF:.add_course_schedule", 
 		workbook => $workbook, 
-		worksheetName => "$query{'courseTitle'}", 
+		worksheetName => my $filename = $m->comp("SELF:.sanitize_file_name", 
+			string => $m->comp("SELF:.truncate_file_name", 
+				string => $query{'courseTitle'})), 
 		query => \%query);
 
 	$workbook->close();
 	$m->clear_buffer();
 	$r->content_type( 'application/vnd.ms-excel' );
-	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="' . $query{'courseTitle'} .'.xls"'); 
+	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="' . $filename .'.xls"'); 
 
 	print $str;
 	close $fh;
@@ -142,5 +144,39 @@
 	}
 	my $columnRange = scalar @timePeriods;
 	$worksheet->set_column(0, $columnRange, 25);
+</%perl>
+</%method>
+
+<%doc>
+	Replace characters not allowed in a worksheet name: []:*?/\\
+</%doc>
+<%method .sanitize_file_name>
+<%args>
+	$string
+</%args>
+<%perl>
+	my %map = (
+		"/" => "-",
+	);
+
+	my $chars = join '', keys %map;
+	$string  =~ s/([$chars])/$map{$1}/g;
+	return $string;
+</%perl>
+</%method>
+
+<%doc>
+	Truncate file names
+</%doc>
+<%method .truncate_file_name>
+<%args>
+	$string
+</%args>
+<%perl>
+	if (length $string > 31)
+	{
+		$string = substr($string, 0, 28) . "...";
+	}
+	return $string
 </%perl>
 </%method>
