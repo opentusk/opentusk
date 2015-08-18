@@ -130,17 +130,19 @@
 			$timePeriodIndex++;
 		}
 
-		for my $index (0..$studentMax){
-			my $column = 0;
-			foreach my $timePeriod (@timePeriods){
-				if (!$schedules{$timePeriod->{timePeriodId}}[$index]->{lastName} eq "") {
-					$worksheet->write($index + 6, $column, "$schedules{$timePeriod->{timePeriodId}}[$index]->{lastName}, $schedules{$timePeriod->{timePeriodId}}[$index]->{firstName}", $tableFormat);
-				}
-				$column++;
+		my $columnCount = 0;
+		foreach my $timePeriod (@timePeriods){
+			my $rowCount = 0;
+			foreach my $student (@{$schedules{$timePeriod->{timePeriodId}}})
+			{	
+				#'6' used as offset; previous rows have been taken..
+				$worksheet->write($rowCount + 6, $columnCount, "$student->{lastName}, $student->{firstName}", $tableFormat);  
+				$rowCount++;
 			}
+			$columnCount++;
 		}
 	} else {
-		# print "No information availabe.";
+		$worksheet->write(6, 0, "No information availabe.");
 	}
 	my $columnRange = scalar @timePeriods;
 	$worksheet->set_column(0, $columnRange, 25);
