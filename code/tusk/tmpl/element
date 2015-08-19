@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 <%doc>
@@ -80,16 +80,16 @@ Method creates an open tr tag. Used in many other methods but can be useful on i
 </%doc>
 <%perl>
 my $tr;
-my $name = $m->comp("SELF:collapse_section_next"); 
+my $name = $m->comp("SELF:collapse_section_next");
 $params{'name'} = $params{'tr_name'} if (defined($params{'tr_name'}));
 $params{'style'} = $params{'tr_style'} if (defined($params{'tr_style'}));
-if ($in_collapse_section){
+if ($in_collapse_section) {
 $tr =<<EOM;
 <tr style="$default_style" id="$name">
 EOM
 $collapse_field_counter++;
 } elsif (defined($params{'name'})) {
-	if (!defined($params{'style'})){
+	if (!defined($params{'style'})) {
 		$tr = '<tr id="'.$params{'name'}.'_tr" >';
 	} else {
 		$tr = '<tr id="'.$params{'name'}.'_tr" style="'.$params{'style'}.'">';
@@ -108,23 +108,23 @@ $collapse_field_counter++;
 <%doc>
 Method creates an open form tag (it will be your job to add a closing tag) which has class "no-padding" (used to get rid of the annoying space that IE puts for open form tags). The keys of the params hash correspond to attribute name/value pairs of the form tag.  Also, by default a hidden form field is created with name submit_check.  This is useful for checking if the user submitted the form (better then checking for the name of the submit button as the user can submit a form without clicking the submit button)
 </%doc>
-<form 
+<form
 class="no-padding"
-% if (defined($params{'action'})){
-action="<% $params{'action'} %>" 
+% if (defined($params{'action'})) {
+action="<% $params{'action'} %>"
 % }
-% if (defined($params{'enctype'})){
-enctype="<% $params{'enctype'} %>" 
+% if (defined($params{'enctype'})) {
+enctype="<% $params{'enctype'} %>"
 % }
-% if (defined($params{'method'})){
+% if (defined($params{'method'})) {
 method="<% $params{'method'} %>"
 % }
 % else{
 method="post"
 % }
- 
+
 id="<% $params{'name'} %>"
-name="<% $params{'name'} %>" 
+name="<% $params{'name'} %>"
 % if (defined($params{'onsubmit'})) {
 onsubmit="<% $params{'onsubmit'} %>">
 % } else {
@@ -142,39 +142,39 @@ Method creates an html form button.  Class defaults to "formbutton" unless type 
 </%doc>
 <%perl>
 my $class = $params{'class'} || "formbutton";
-if (defined($params{'type'}) && $params{'type'} eq 'highlight'){
+if (defined($params{'type'}) && $params{'type'} eq 'highlight') {
 	$class="highlightbutton";
 }
-if (defined($params{'extra_class'})){
+if (defined($params{'extra_class'})) {
 	$class .= " " . $params{'extra_class'};
 }
 my $button = 'button';
-if (defined($params{'reset'})){
+if (defined($params{'reset'})) {
 	$button = 'reset';
 }
-if (defined($params{'type'}) && $params{'type'} eq 'submit'){
+if (defined($params{'type'}) && $params{'type'} eq 'submit') {
 	$button = 'submit';
 }
 my $onclick = '';
-if ($params{'onclick'}){
+if ($params{'onclick'}) {
 	$onclick = 'onclick="'.$params{'onclick'}.'"';
 }
-if (defined($params{'href'})){
+if (defined($params{'href'})) {
 	$onclick = 'onclick="'."window.location = '".$params{'href'}."'\";";
 }
 my $disabled = '';
-if ($params{'disabled'}){
+if ($params{'disabled'}) {
 	$disabled = 'disabled';
 }
 </%perl>
-<input class="<% $class %>" 
-type="<% $button %>" 
+<input class="<% $class %>"
+type="<% $button %>"
 <% $onclick %>
 <% $disabled %>
-name="<% $params{'name'} %>" 
-id="<% $params{'name'} %>" 
+name="<% $params{'name'} %>"
+id="<% $params{'name'} %>"
 value="<% $params {'label'} %>" style="<% $params{'style'} %>"/>
-% if ($params{'help_info'}){
+% if ($params{'help_info'}) {
 &nbsp;<span class="xsm"><& SELF:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></span>
 % }
 </%method>
@@ -184,30 +184,30 @@ value="<% $params {'label'} %>" style="<% $params{'style'} %>"/>
 %params
 </%args>
 <%doc>
-Method to make the row needed for a form submit button.  If an array ref of buttons is passed in, then those buttons are put to the left of the submit button.  By the default this method outputs a two cell row, unles params{one_column} is set.  By default this method includes a cancel button unless params{no_cancel_button} is set.  You can create a button that calls javascript window.close() by setting params{close_window_button}.  
+Method to make the row needed for a form submit button.  If an array ref of buttons is passed in, then those buttons are put to the left of the submit button.  By the default this method outputs a two cell row, unles params{one_column} is set.  By default this method includes a cancel button unless params{no_cancel_button} is set.  You can create a button that calls javascript window.close() by setting params{close_window_button}.
 </%doc>
 % my $td_class = (exists($params{'td_class'})) ? $params{'td_class'} : "cell-submit";
 <tr>
-% unless (defined($params{'one_column'})){
+% unless (defined($params{'one_column'})) {
 <td>&nbsp;</td>
 % }
 <td class="<% $td_class %>" colspan="<% $params{'colspan'} %>">
 % print $params{'prefixed_text'} if ($params{'prefixed_text'});
 <& SELF:submit_button, params => \%params &>
-  
+
 <%perl>
-	if ($params{'close_window_button'}) { 
+	if ($params{'close_window_button'}) {
 		$m->comp('SELF:close_window_button',params=>\%params);
 	}
 
-	if (ref($params{buttons}) eq 'ARRAY'){
-		foreach my $button (@{$params{buttons}}){
+	if (ref($params{buttons}) eq 'ARRAY') {
+		foreach my $button (@{$params{buttons}}) {
 			$m->print($button);
 		}
 	}
 </%perl>
 
-% unless (defined($params{'no_cancel_button'})){
+% unless (defined($params{'no_cancel_button'})) {
 <& SELF:button, params=>{'onclick'=>$params{'cancel_onclick'},
 			'reset'=>'Y',
 			'label'=>'Cancel',
@@ -259,7 +259,7 @@ name="Close_Window" value="Close Window" onclick="window.close();">
 		'onclick'=>$params{'clear_onclick'},
 		'label'=>'Clear All'} &>
 </td></tr>
-</%method> 
+</%method>
 
 <%method timebox>
 <%args>
@@ -269,9 +269,9 @@ name="Close_Window" value="Close Window" onclick="window.close();">
 <%perl>
 my $checked;
 
-if ($params{'value'} eq "00:00:00"){
+if ($params{'value'} eq "00:00:00") {
 	$checked = "checked";
-	$params{'value'} = "";	
+	$params{'value'} = "";
 }
 
 $params{'value'} = "00:00:00" unless ($params{'value'});
@@ -282,17 +282,17 @@ my ($valueHour, $valueMin, $valueSec) = split(":", $params{'value'});
 <& SELF:tr_tag, params=>\%params &>
 <& SELF:labelbox, label=> $params{'label'} &>
 <td class="cell-left">
-% if ($params{'optional-label'}){
+% if ($params{'optional-label'}) {
 <input type="checkbox" name="timebox-checkbox-<% $params{'name'} %>" value="" onclick="togglelayer('timebox-<% $params{'name'} %>', this.checked); updatetime(this.form, '<% $params{'name'} %>')" <% $checked %>><% $params{'optional-label'} %>&nbsp;
 % }
 <span id="timebox-<% $params{'name'} %>">
-% if ($params{'optional-label'}){
+% if ($params{'optional-label'}) {
 |&nbsp;
 % }
 Hrs: <select name="hours-<% $params{'name'} %>" style="visibility: inherit" onchange="updatetime(this.form, '<% $params{'name'} %>')">
-%foreach my $hour (0..23){
-<option value="<% $hour %>" 
-% if ($hour == $valueHour and $params{'value'}){
+%foreach my $hour (0..23) {
+<option value="<% $hour %>"
+% if ($hour == $valueHour and $params{'value'}) {
 selected
 % }
 ><% $hour %></option>
@@ -300,20 +300,20 @@ selected
 </select>
 Mins:
 <select name="minutes-<% $params{'name'} %>" style="visibility: inherit" onchange="updatetime(this.form, '<% $params{'name'} %>')">
-% foreach my $minute (0..59){
-<option value="<% $minute %>" 
-% if ($minute == $valueMin and $params{'value'}){
+% foreach my $minute (0..59) {
+<option value="<% $minute %>"
+% if ($minute == $valueMin and $params{'value'}) {
 selected
 % }
 ><% sprintf "%02d", $minute %></option>
 % }
 </select>
-% if ($params{'showsecs'}){
+% if ($params{'showsecs'}) {
 Sec:
 <select name="seconds-<% $params{'name'} %>" style="visibility: inherit" onchange="updatetime(this.form, '<% $params{'name'} %>')">
-% foreach my $sec (0..59){
-<option value="<% $sec %>" 
-% if ($sec == $valueSec and $params{'value'}){
+% foreach my $sec (0..59) {
+<option value="<% $sec %>"
+% if ($sec == $valueSec and $params{'value'}) {
 selected
 % }
 ><% sprintf "%02d", $sec %></option>
@@ -339,7 +339,7 @@ Method used to display a tusk table row that contains a checkbox.
 <& SELF:tr_tag, params=>\%params &>
 % $params{'td_class'} = (exists $params{td_class})? $params{td_class} : 'labelgray';
 <& SELF:labelbox, width=>$params{'width'} ,label=> $params{'label'}, class => $params{'td_class'} &>
-<td class="cell-left"> 
+<td class="cell-left">
 <& /tmpl/element:input_checkbox, params=>\%params &>
 </%method>
 
@@ -373,7 +373,7 @@ Method used to display a tusk table row that contains a textbox. To have a popup
 <& SELF:tr_tag, params=>\%params &>
 % $params{'td_class'} = (exists $params{td_class})? $params{td_class} : 'labelgray';
 <& SELF:labelbox, width=>$params{'width'} ,label=> $params{'label'}, class => $params{'td_class'} , align => $params{'td_align'} &>
-<td class="cell-left"> 
+<td class="cell-left">
 <& SELF:input_calendar, params => \%params &>
 </td>
 </tr>
@@ -386,14 +386,14 @@ Method used to display a tusk table row that contains a textbox. To have a popup
 <%perl>
 my $defaultDate = "null";
 if ( $params{'calendar'} ) {
-	if ($params{'value'}){
+	if ($params{'value'}) {
 		$params{'value'} =~ m/(\d{4})-(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{1,2})/;
 		$defaultDate = "new Date(\"$1\", \"". ($2-1) ."\", \"$3\", \"$4\", \"$5\")";
-	} elsif ($params{'default_time'} eq 'midnight'){
+	} elsif ($params{'default_time'} eq 'midnight') {
 		my (undef, undef, undef, $day, $month, $year) = localtime(time);
 		$year += 1900;
 		$defaultDate = "new Date(\"$year\", \"$month\" , \"$day\", \"0\", \"0\")";
-	} elsif ($params{'default_time'} eq 'endofday'){
+	} elsif ($params{'default_time'} eq 'endofday') {
 		my (undef, undef, undef, $day, $month, $year) = localtime(time);
 		$year += 1900;
 		$defaultDate = "new Date(\"$year\", \"$month\" , \"$day\", \"23\", \"59\")";
@@ -407,11 +407,11 @@ if ( $params{'calendar'} ) {
 </%perl>
 
 <& /tmpl/element:input_textbox, params=>\%params &>
-% if ($params{'calendar'}){
+% if ($params{'calendar'}) {
 %   my $showsTime = ($params{'calendar_type'} eq 'datetime') ? "true" : "false";
 %   my $format = ($params{'calendar_type'} eq 'datetime') ? "%Y-%m-%d %H:%M" : "%Y-%m-%d";
 
-<span id="calendar-<% $params{'name'} %>" style="cursor: pointer;"><img src="/graphics/icons/ico-calendar.gif" width="20" height="20" border="0" align="absmiddle"></span>	
+<span id="calendar-<% $params{'name'} %>" style="cursor: pointer;"><img src="/graphics/icons/ico-calendar.gif" width="20" height="20" border="0" align="absmiddle"></span>
 
 <script type="text/javascript">
 	checkDates( document.getElementById( '<% $params{'name'} %>', <% $params{'no_empty'} %> ) );
@@ -463,7 +463,7 @@ onblur="<% $params{'onblur'} %>"
 <& SELF:tr_tag, params=>\%params &>
 <& SELF:labelbox, label=> $params{'label'} &>
 <td class="cell-left">
-% if ($params{'trailing_text'} && !$params{'trailing_text_new_row'}){
+% if ($params{'trailing_text'} && !$params{'trailing_text_new_row'}) {
 <& /tmpl/element:table, params => { width => "",
 		border =>"0",
 		cellspacing =>"0",
@@ -472,11 +472,11 @@ onblur="<% $params{'onblur'} %>"
 		<td>
 % }
 			<& SELF:input_textarea, params=>\%params, cke_params => \%cke_params &>
-% if ($params{'trailing_text'} && $params{'trailing_text_new_row'}){
+% if ($params{'trailing_text'} && $params{'trailing_text_new_row'}) {
    <br/><% $params{'trailing_text'} %>
 % }
 
-% if ($params{'trailing_text'} && !$params{'trailing_text_new_row'}){
+% if ($params{'trailing_text'} && !$params{'trailing_text_new_row'}) {
 		</td>
 		<td valign="center" class="cell-left">
 			<% $params{'trailing_text'} %>
@@ -498,7 +498,7 @@ onblur="<% $params{'onblur'} %>"
 <%perl>
 	$params{'value'} =~ s/\&/\&amp;/g;
 	my $style = $params{'style'};
-	if ($params{'htmleditor'}){
+	if ($params{'htmleditor'}) {
 		$style .= ";" if ($style);
 		$style .= "display:none;";
 		$params{'value'} =~ s/<meta[^>]+>//g; # meta tags crash the rte
@@ -511,26 +511,26 @@ onblur="<% $params{'onblur'} %>"
 		$myBlur = 'onblur="'. $params{'onblur'} .'"';
 	}
 </%perl>
-<textarea name="<% $params{'name'} %>" 
-id="<% ($params{'id'}) ? $params{'id'} : $params{'name'}%>" 
-cols="<% $params{'cols'} %>" 
-rows="<% $params{'rows'} %>" 
-style="<% $style %>" 
+<textarea name="<% $params{'name'} %>"
+id="<% ($params{'id'}) ? $params{'id'} : $params{'name'}%>"
+cols="<% $params{'cols'} %>"
+rows="<% $params{'rows'} %>"
+style="<% $style %>"
 class="<% $class %>"
 <% $myBlur %>
 ><% $params{'value'} %>
 </textarea>
 %
-% if ($params{'htmleditor'}){
+% if ($params{'htmleditor'}) {
 %#	set default CKE parameter values and update submitted param hash ref to reflect them
-%	my %cke_defaults = ( 
-%		fullPage => 				"false", 
-%		toolbarStartupExpanded => 	"true", 
-%		width => 					"800", 
-%		height => 					"250", 
-%		resize_minWidth => 			"420", 
-%		toolbar => 					"TUSK", 
-%		extraPlugins => 			"tuskcontent", 
+%	my %cke_defaults = (
+%		fullPage => 				"false",
+%		toolbarStartupExpanded => 	"true",
+%		width => 					"800",
+%		height => 					"250",
+%		resize_minWidth => 			"420",
+%		toolbar => 					"TUSK",
+%		extraPlugins => 			"tuskcontent",
 %		removePlugins => 			"elementspath"
 %	);
 
@@ -548,7 +548,7 @@ CKEDITOR.replace( '<% ($params{'id'}) ? $params{'id'} : $params{'name'}%>',
 	<% $option %> : <% $cke_params{$option} %><% ($count < scalar (keys %cke_params)) ? ',' : '' %>
 %		} else {
 	<% $option %> : "<% $cke_params{$option} %>"<% ($count < scalar (keys %cke_params)) ? ',' : '' %>
-%		} 
+%		}
 %		$count++;
 %	}
 });
@@ -607,9 +607,9 @@ if (defined($params{'style'})) {
 }
 
 </%perl>
-<table width="<% $width %>" 
-border="<% $border %>" 
-cellspacing="<% $cell_spacing %>" 
+<table width="<% $width %>"
+border="<% $border %>"
+cellspacing="<% $cell_spacing %>"
 cellpadding="<% $cell_padding %>"
 id="<% $id %>"
 class="<% $class %>"
@@ -625,7 +625,7 @@ align="<% $align %>">
 <%doc>Method that makes an open ended tusk table row. This is useful if you are doing something completely different.  It is your job to properly close the td and tr tags.</%doc>
 <& /tmpl/element:tr_tag, params => \%params &>
 <& SELF:labelbox, width=>$params{'width'} ,label=> $params{'label'} &>
-<td class="cell-left"> 
+<td class="cell-left">
 </%method>
 
 <%method dropdown>
@@ -646,26 +646,26 @@ align="<% $align %>">
 	my $no_label = 1 if (!defined($params{'label'}));
 	my $no_tables = 1 if(defined($params{'notables'}));
 
-	if (defined($params{'multiple'}) and $params{'multiple'}){
+	if (defined($params{'multiple'}) and $params{'multiple'}) {
 		$multiple = "multiple";
 	}
-	if (defined($params{'onchange'})){
+	if (defined($params{'onchange'})) {
 		$onchange = $params{'onchange'};
 	}
-	if (defined($params{'onblur'})){
+	if (defined($params{'onblur'})) {
 		$onblur = $params{'onblur'};
 	}
-	if (defined($params{'onfocus'})){
+	if (defined($params{'onfocus'})) {
 		$onfocus = $params{'onfocus'};
 	}
-	if (defined($params{'class'})){
+	if (defined($params{'class'})) {
 		$class .= " $params{'class'}";
 	}
-	if (defined($params{'title'})){
+	if (defined($params{'title'})) {
 		$title = ' title="' .  $params{'title'} . '"';
 	}
-	if (defined($params{'selected'})){
-		if (ref ($params{'selected'}) eq 'HASH'){
+	if (defined($params{'selected'})) {
+		if (ref ($params{'selected'}) eq 'HASH') {
 			$selectedHash = $params{'selected'};
 		} else {
 			$selectedHash->{$params{'selected'}} = 1;
@@ -673,7 +673,7 @@ align="<% $align %>">
 	}
 	my $preceding_text = $params{'before_text'} || '';
 </%perl>
-% if (!$no_label){
+% if (!$no_label) {
 %	if( !$no_tables ) {
 		<& SELF:tr_tag, params=>\%params &>
 		<& SELF:labelbox, label => $params{'label'} &>
@@ -683,16 +683,16 @@ align="<% $align %>">
 		<h3> <% $params{'label'} %> </h3>
 %	}
 % }
-<% $preceding_text %> <select id="<% $params{'name'} %>" name="<% $params{'name'} %>" 
-% if ($params{'disabled'}){
+<% $preceding_text %> <select id="<% $params{'name'} %>" name="<% $params{'name'} %>"
+% if ($params{'disabled'}) {
 disabled="Y"
 %}
-<% $multiple %> 
-size="<% $params{'size'} %>" 
+<% $multiple %>
+size="<% $params{'size'} %>"
 onchange="<% $onchange %>"
 onblur="<% $onblur %>"
 onfocus="<% $onfocus %>"
-class="<% $class %>" 
+class="<% $class %>"
 style="<% $params{'style'} %>"
 <% $title %>>
 % my ($label,$value,$style,$disabled);
@@ -700,12 +700,12 @@ style="<% $params{'style'} %>"
 % my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $opt (@{$params{'options'}}) {
 <%perl>
-	if (ref($opt) eq 'HASH'){
+	if (ref($opt) eq 'HASH') {
 		$label = $opt->{'label'};
 		$value = $opt->{'value'};
 		$option_class = $opt->{'class'} if exists $opt->{'class'} ;
 		$disabled = ($opt->{disabled})? 'disabled ' : '';
-		if ($selectedHash->{$value}){
+		if ($selectedHash->{$value}) {
 			$selected = ' selected ';
 		} else {
 			$selected = '';
@@ -716,7 +716,7 @@ style="<% $params{'style'} %>"
 		$style .= ($opt->{'style'}) ? $opt->{'style'} : '';
 
 	} else {
-		if ($selectedHash->{$opt}){
+		if ($selectedHash->{$opt}) {
 			$selected = ' selected ';
 		} else {
 			$selected = '';
@@ -730,13 +730,13 @@ style="<% $params{'style'} %>"
 	<option class="<% $option_class %>" style="<% $style %>" value="<% $value %>" <% $selected %> <% $disabled %>><% $label %></option>
 % }
 </select>
-% if (defined($params{'submit_form_button'}) || defined($params{'onclick'})){ 
+% if (defined($params{'submit_form_button'}) || defined($params{'onclick'})) {
 <& SELF:button, params=>{'name'=>$params{'name'}.'_button',
                 'onclick'=>$params{'onclick'}? $params{'onclick'} : "dropdown_submit('".$params{'submit_form_button'}."');",
                 'label'=>'Select'}  &>
-% } 
+% }
 % if (!$no_label) {
-% if (defined($params{'trailing_text'}) and $params{'trailing_text'}){
+% if (defined($params{'trailing_text'}) and $params{'trailing_text'}) {
 <% $params{'trailing_text'} %>
 % }
 %	if( !$no_tables ) {
@@ -767,12 +767,12 @@ $style		   => ''
 $tr_id		   => ''
 </%args>
 <%doc>Method that creates a nice blue header that is underlined (bottom border extends the remaining width of the page)</%doc>
-% if($top_space){
+% if($top_space) {
 <tr id="<% $tr_id %>" style="<% $style %>"><td colspan="<% $default_colspan %>">&nbsp;</td></tr>
 % }
 <tr id="<% $tr_id %>" style="<% $style %>"><td colspan="<% $default_colspan %>" valign="middle" class="subhead"><% $label %> <% $trailing_text %></td>
 </tr>
-% unless($skip_space){
+% unless($skip_space) {
 <tr id="<% $tr_id %>" style="<% $style %>"><td colspan="<% $default_colspan %>">&nbsp;</td></tr>
 % }
 </%method>
@@ -783,12 +783,12 @@ $tr_id		   => ''
 	$skip_space => 1
 </%args>
 <%doc>Method that creates a top header bar.  Dark blue band that has white text.</%doc>
-% unless ($skip_space){
+% unless ($skip_space) {
 <tr><td colspan="<% $default_colspan %>">&nbsp;</td></tr>
 % }
 <tr><td colspan="<% $default_colspan %>" style="border-bottom: solid white 4px; border-top: solid white 4px;" valign="middle" class="tophead"><% $label %></td>
 </tr>
-% unless ($skip_space){
+% unless ($skip_space) {
 <tr><td colspan="<% $default_colspan %>">&nbsp;</td></tr>
 % }
 </%method>
@@ -806,7 +806,7 @@ $tr_id		   => ''
 <%perl>
 my $link_text = "expand section";
 my $start_style = "";
-if ($params{'default_state'} eq 'open'){
+if ($params{'default_state'} eq 'open') {
 	$default_style = "";
 	$start_style = "visibility:hidden;";
 	$link_text = "collapse section";
@@ -825,7 +825,7 @@ if ($params{'default_state'} eq 'open'){
 			define <% $params{'label'} %> for this phase</span></td>
 % 	}
 		<td style="text-align:right">
-			<a href="javascript:toggle_section('<% $params{'name'} %>');" 
+			<a href="javascript:toggle_section('<% $params{'name'} %>');"
 				class="navsm" id="<% $params{'name'} %>-link">
 				<% $link_text %></a>
 		</td>
@@ -849,14 +849,14 @@ my $onclick = "open_search( '".
 			"',layers['".
 			$params{'layer_info'}->{'layer'}."'],'".
 			$params{'layer_info'}->{'name'}."')";
-if (defined($params{'button_onclick'})){
+if (defined($params{'button_onclick'})) {
 	$onclick = $params{'button_onclick'};
 }
 </%perl>
 % if (!$params{'no_table'}) {
 <& SELF:tr_tag, params=>\%params &>
 % my $colspan = 1;
-% if (!defined($params{'no_label'})){ 
+% if (!defined($params{'no_label'})) {
 	<& SELF:labelbox, label=> $params{'label'} &>
 % } else {
 % 	$colspan = 2;
@@ -874,22 +874,22 @@ if (defined($params{'button_onclick'})){
 				'onclick'=>$onclick,
 				'name'=>'add_item' } &>
                         </td>
-% } 
+% }
 % my $num_buttons = 1;
-% foreach my $button (@{$params{buttons}}){
+% foreach my $button (@{$params{buttons}}) {
 % $num_buttons++;
 				<td class="<% $td_class %>">
 				<% $button %>
-				</td>	
+				</td>
 % }
-% if (defined($params{'help_info'})){
+% if (defined($params{'help_info'})) {
 % $num_buttons++;
 				<td class="<% $td_class %>">
     				<b><& SELF:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></b>
 				</td>
 % }
 
-% if (defined($params{'starting_text'})){
+% if (defined($params{'starting_text'})) {
 % $num_buttons++;
 				<td class="<% $td_class %>">
                    <span class="xsm"><% $params{'starting_text'} %></span>
@@ -913,8 +913,8 @@ if (defined($params{'button_onclick'})){
         </table>
 % }
 <%perl>
-	if ($params{'layer_info'}->{'validate'}->{'usage'} =~ /yes/i){
-		$m->comp('SELF:hidden_form_element', params => {	
+	if ($params{'layer_info'}->{'validate'}->{'usage'} =~ /yes/i) {
+		$m->comp('SELF:hidden_form_element', params => {
 								id 	=> ucfirst($params{'layer_info'}->{'validate'}->{'element'}) . '__y',
 								name 	=> $params{'layer_info'}->{'validate'}->{'element'},
 								});
@@ -932,67 +932,67 @@ if (defined($params{'button_onclick'})){
 %params
 </%args>
 <%doc>
-This function takes as a parameter for the data section of the 
+This function takes as a parameter for the data section of the
 table either an array of hashes with keys corresponding to the field names
-or an 'object_list' that will just call field_value on each object for the 
+or an 'object_list' that will just call field_value on each object for the
 field
 </%doc>
 <%perl>
 my $pk = 'getPrimaryKeyID';
 my $field_func;
 my $has_action_columns = 0 ;
-if (defined($params{'object_list'})){
-	unless (scalar(@{$params{'object_list'}})){
-		if ($params{'empty_message'}){
+if (defined($params{'object_list'})) {
+	unless (scalar(@{$params{'object_list'}})) {
+		if ($params{'empty_message'}) {
 			$m->print("<i>" . $params{'empty_message'} . "</i>");
-		} else { 
+		} else {
 			$m->print("<i>No $params{'name'} associated.</i><br><br>");
 		}
 		return;
 	}
 }
 
-if (defined($params{'object_list'}) and !defined($params{'rows'})){
+if (defined($params{'object_list'}) and !defined($params{'rows'})) {
 	$params{'rows'}  = [];
-	foreach my $obj (@{$params{'object_list'}}){
-		if (exists($params{'get_key_method'}) && $obj->can($params{'get_key_method'})){
+	foreach my $obj (@{$params{'object_list'}}) {
+		if (exists($params{'get_key_method'}) && $obj->can($params{'get_key_method'})) {
 			$pk = $params{'get_key_method'};
-		} elsif ($obj->can('primary_key')){
+		} elsif ($obj->can('primary_key')) {
 			$pk = 'primary_key';
 		} else {
 			$pk = 'getPrimaryKeyID';
 		}
 		my $this_row = { 'id'=>($obj->$pk)};
-		foreach my $col (@{$params{'columns'}}){
-			if ($obj->can('field_value') && !$col->{'use_field_func'}){
+		foreach my $col (@{$params{'columns'}}) {
+			if ($obj->can('field_value') && !$col->{'use_field_func'}) {
 				$this_row->{$col->{'field'}} = $obj->field_value($col->{'field'});
 			} else {
 				$field_func = $col->{'field'};
 				$this_row->{$col->{'field'}} = $obj->$field_func;
-			}	
+			}
 		}
 		$this_row->{obj} = $obj;
 		push @{$params{'rows'}}, $this_row;
 	}
 }
-if (defined($params{action_columns}) 
-	|| (defined ($params{'modify_link'}) 
+if (defined($params{action_columns})
+	|| (defined ($params{'modify_link'})
 	&& defined ($params{'delete_link'}))) {
 	$has_action_columns = 1;
-	
+
 }
 
-if (exists($params{'sort'}) and (($params{default_sort} ne $params{'sort'}) or ($params{'toggle'} == 1))){
-		foreach my $column (@{$params{columns}}){
-			if (exists($column->{'sort'}) and $column->{field} eq $params{'sort'}){
-				if ($column->{'sort'} eq "num"){
-					if ($params{toggle}){
+if (exists($params{'sort'}) and (($params{default_sort} ne $params{'sort'}) or ($params{'toggle'} == 1))) {
+		foreach my $column (@{$params{columns}}) {
+			if (exists($column->{'sort'}) and $column->{field} eq $params{'sort'}) {
+				if ($column->{'sort'} eq "num") {
+					if ($params{toggle}) {
 						@{$params{'rows'}} = sort { $b->{$params{'sort'}} <=> $a->{$params{'sort'}} } @{$params{'rows'}};
 					}else{
 						@{$params{'rows'}} = sort { $a->{$params{'sort'}} <=> $b->{$params{'sort'}} } @{$params{'rows'}};
 					}
 				}else{
-					if ($params{toggle}){
+					if ($params{toggle}) {
 						@{$params{'rows'}} = sort { $b->{$params{'sort'}} cmp $a->{$params{'sort'}} } @{$params{'rows'}};
 					}else{
 						@{$params{'rows'}} = sort { $a->{$params{'sort'}} cmp $b->{$params{'sort'}} } @{$params{'rows'}};
@@ -1005,36 +1005,36 @@ if (exists($params{'sort'}) and (($params{default_sort} ne $params{'sort'}) or (
 		}
 }
 
-unless (exists($params{toggle_field})){
+unless (exists($params{toggle_field})) {
 	$params{toggle_field} = $params{default_sort};
 	$params{toggle} = 1;
 }
 </%perl>
-% if ($params{'sort_box'}){
+% if ($params{'sort_box'}) {
 	<input type="hidden" name="order" value="">
 %}
-% if ($params{'nobutton'}){
+% if ($params{'nobutton'}) {
 <table border="0" cellspacing="0" cellpadding="0" width="100%">
-	<tr> 
+	<tr>
 		<td class="no-button">
 % }
 % my $header_size = "";
 % $header_size = "-" . $params{'header-size'} if (defined($params{'header-size'}));
 % my $style = $params{style} || '';
-% if (scalar(@{$params{'rows'}})){
+% if (scalar(@{$params{'rows'}})) {
 % my $width = $params{width} || "100%";
 
-<table class="tusk" width="<% $width %>" cellspacing="0" style = "<% $style %>">	
+<table class="tusk" width="<% $width %>" cellspacing="0" style = "<% $style %>">
 % unless ($params{'no_header'}) {
-<tr class="header"> 
-% if ($params{'sort_box'}){
+<tr class="header">
+% if ($params{'sort_box'}) {
 <td class="header-center<% $header_size %>" width="1%">Sort</td>
 % }
 % foreach my $col (@{$params{'columns'}}) {
 % my $align = $col->{'align'} || "left";
 <td class="header-<% $align %><% $header_size %>" width="<% $col->{'width'} %>">
 % if (exists($col->{'sort'})) {
-<a href="?sort=<% $col->{'field'} %>&toggle=<% (($params{toggle_field} eq $col->{field}) and $params{toggle}) ? "1" : "0" %>" class="header"><% $col->{'label'} %></a>
+<a href="?sort=<% $col->{'field'} %>&toggle=<% ($params{toggle_field} eq $col->{field}) && $params{toggle} %>" class="header"><% $col->{'label'} %></a>
 % }else{
 <% $col->{'label'} %>
 % }
@@ -1057,36 +1057,39 @@ Actions
 ##############################################
 </%doc>
 % my $col;
-% my $i = 0; my $class = "even";  my $td_class = 'layers';
+% my $i = ($params{'offset'}) ? $params{'offset'} : 0;
+% my $total = ($params{'total'}) ? $params{'total'} : scalar @{$params{'rows'}};
+% my $class = 'even';
+% my $td_class = 'layers';
 % foreach my $row (@{$params{'rows'}}) {
 %   if ($params{border_bottom_tr}) {
 <tr class="<% $row->{row_class} %>">
 %		$td_class = 'line';
 %   } else {
-% 		if (($i % 2) == 0){
-<tr class="even"> 
+% 		unless ($i % 2) {
+<tr class="even">
 %		} else {
-<tr class="odd"> 
-%			$class= "odd";
+<tr class="odd">
+%			$class = 'odd';
 %		}
 % 	}
 % 	$i++;
-% if ($params{'sort_box'}){
+% if ($params{'sort_box'}) {
 	<td class="<% $td_class %>-center">
 		<select class="<% $class %>" name="order-box" onChange="this.form.order.value=this.options[this.selectedIndex].value;this.form.submit();">
-%	foreach  my $j (1..scalar(@{$params{'rows'}})){
-			<option class="<% $class %>" 
-% 	if ($j == $i){
+%	foreach  my $j (1..$total) {
+			<option class="<% $class %>"
+% 	if ($j == $i) {
 	value="" selected
-% 	}else{
- 	value="<% $i . "-" . $j %>"
+% 	} else {
+	value="<% $i . '-' . $j %>"
 % 	}
 ><% $j %></option>
 
 % 	}
 	</select>
 % }
-%	if ($row->{colspan}) {  ### 
+%	if ($row->{colspan}) {  ###
 	   	<td class="<% $td_class %>-left" colspan="<% scalar @{$params{'columns'}} %>"><% $row->{text} %></td>
 </tr>
 <!-- done text -->
@@ -1100,7 +1103,7 @@ Actions
 
 			<td class="<% $td_class . '-' . $align %>" <% $nowrap %> width="<%$col->{'width'}%>" >
 <%perl>
-			if ($col->{'comp'}){
+			if ($col->{'comp'}) {
 				$m->comp($col->{'comp'}, value => $row->{$col->{'field'}});
 			}else{
 				if ($col->{'field'} =~ /checkbox/) {
@@ -1128,10 +1131,10 @@ Actions
 			</td>
 %	} ## loop each column
 
-% if (!defined($params{'action_columns'})){
+% if (!defined($params{'action_columns'})) {
 % 	if (defined ($params{'modify_link'}) && defined($params{'delete_link'})) {
 <td class="<% $td_class %>-center" nowrap>
-% 	if ($row->{id}){
+% 	if ($row->{id}) {
 	<a href="<% $params{'modify_link'} %>/<% $row->{'id'} %>"  class="navsm">Modify</a>|<a href="<% $params{'delete_link'} %>/<% $row->{'id'} %>" class="navsm">Delete</a>
 %	} else {
 	-
@@ -1139,30 +1142,30 @@ Actions
 </td>
 %	}
 %
-% } else {  ### has action_columns 
+% } else {  ### has action_columns
 <td class="<% $td_class . '-' . ($params{action_column_align} ? $params{action_column_align} : 'center') %>" nowrap>
 %	my $first_col = 1;
-%	if ($row->{id}){
-%		my $action_select_option;	
+%	if ($row->{id}) {
+%		my $action_select_option;
 %		my $action_columns = ($row->{use_alternate_action_columns}) ? $params{'alternate_action_columns'}  : $params{'action_columns'};
-% 		foreach my $action (@{$action_columns}){ 
-%			if ($action->{function_token}){
+% 		foreach my $action (@{$action_columns}) {
+%			if ($action->{function_token}) {
 %				next unless ($params{'permissions'}->check({ function_token => $action->{function_token}, feature_type_token => $params{'feature_type_token'}, feature_id => $row->{'id'} } ));
 % 			}
-%	 		if (!$first_col){
+%	 		if (!$first_col) {
 %				$m->print('|') unless defined $params{'action_dropdown'};
 %			} else {
 %				$first_col = 0;
 %			}
 %			my $target;
-%			if ($action->{'target'}){
+%			if ($action->{'target'}) {
 %				$target = "target='" . $action->{'target'} . "'";
 %			}
 %			my $type_path = ($params{'type_path'}) ? "/" . $params{'type_path'} : '';
 %			my $link;
-%			if ($action->{'appendbefore'}) { 
+%			if ($action->{'appendbefore'}) {
 %				$link = $action->{'link'}.$type_path.$action->{'appendbefore'}.$row->{'id'};
-%				if($action->{'appendafter'}) { $link.= $action->{'appendafter'};} 
+%				if($action->{'appendafter'}) { $link.= $action->{'appendafter'};}
 %			 } else {
 %			 $link = ($action->{'comp'}) ? $m->comp($action->{'comp'}, base => $action->{'link'}, obj => $row->{'obj'}) : $action->{'link'} .  $type_path . ($action->{'is_query_string'} ? "" : "/") . $row->{'id'} . ($action->{extra} ? $action->{extra} : ""); }
 
@@ -1193,13 +1196,13 @@ Actions
 % } ## loop each row
 </table>
 % } else {
-% 	if ($params{'norows-message'}){
+% 	if ($params{'norows-message'}) {
 % 		$m->print("<i>" . $params{'norows-message'} . "</i>");
 %	}else{
 %		$m->print("<i>No rows</i>");
 %	}
 % }
-% if ($params{'nobutton'}){
+% if ($params{'nobutton'}) {
 		</td>
 	</tr>
 </table>
@@ -1208,7 +1211,7 @@ Actions
 
 
 <%doc>
-the newest incarnation of help, which uses conf settings and passed parameters to generate a 
+the newest incarnation of help, which uses conf settings and passed parameters to generate a
 link to help documentation in separate wiki installation
 </%doc>
 <%method link_to_help>
@@ -1228,7 +1231,7 @@ $text => ''
 
 <%method note_text>
 <%args>
-$msg 
+$msg
 $emph => 0
 </%args>
 <%doc>Method for making a note</%doc>
@@ -1238,12 +1241,12 @@ $emph => 0
 
 <%method note>
 <%args>
-$msg 
+$msg
 $emph => 0
 </%args>
 <%doc>Method that makes a tusk table row that has a note in it</%doc>
 <& SELF:tr_tag &><td colspan="<% $default_colspan %>">
-<& SELF:note_text, msg=>$msg, emph=>$emph &> 
+<& SELF:note_text, msg=>$msg, emph=>$emph &>
 </td></tr>
 </%method>
 
@@ -1256,7 +1259,7 @@ $title => ''
 <%doc>Method to return the nav link or text used for making bread crumb.</%doc>
 <%perl>
 	my $string;
-	if ($href){
+	if ($href) {
 		$string = $m->scomp("SELF:nav_link", href => $href, label => $label, title => $title);
 	}else{
 		$string = $m->scomp("SELF:nav_text", label => $label);
@@ -1293,20 +1296,20 @@ $label
 %params
 </%args>
 <%doc>Method to make a tusk table row that contains a link</%doc>
-% if ($params{'use_div'}){
+% if ($params{'use_div'}) {
 <div style="<% $params{'style'} %>">
 % } elsif (!$params{'no_table'}) {
 <& SELF:tr_tag, params => \%params &><td class="cell-left" colspan="<% $default_colspan %>" style="<% $params{'style'} %>">
 % }
 <a href="<% $params{'href'} %>"
-% if ($params{'link_style'}){
+% if ($params{'link_style'}) {
 class="<% $params{'link_style'} %>"
 % }
-% if ($params{'target'}){
+% if ($params{'target'}) {
 target="<% $params{'target'} %>"
 % }
 ><% $params{'label'} %></a>
-% if ($params{'use_div'}){
+% if ($params{'use_div'}) {
 </div>
 % } elsif (!$params{'no_table'}) {
 </td></tr>
@@ -1321,13 +1324,13 @@ $align
 <%doc>Method that displays image buttons that appear right under the red header.  This method looks for either an array ref of strings that were generated from /tmpl/button or an array ref of hash refs that contain info to construct graphical buttons
 </%doc>
 <table border="0" cellspacing="0" cellpadding="0">
-	<tr> 
+	<tr>
 <%perl>
-	foreach my $button (@$array){
+	foreach my $button (@$array) {
 		$m->print('<td class="button-' . $align . '">');
-		if (ref($button) eq 'HASH'){
+		if (ref($button) eq 'HASH') {
 			$m->print('<a href="' . $button->{link} . '"><img src="' . $button->{file} . '" alt="' .$button->{alt} . '" border="0"></a>');
-			if ($button->{'help_info'}){
+			if ($button->{'help_info'}) {
 				$m->print('&nbsp;<span class="xsm">' . $m->scomp('SELF:link_to_help', text => $button->{'help_info'}->{'text'}, topic => $button->{'help_info'}->{'topic'}) . '</span>');
 			}
 		}
@@ -1343,7 +1346,7 @@ $align
 
 <%method vertical_spacing>
 <%args>
-$size 
+$size
 </%args>
 <%doc>Method to add vertical spacing.</%doc>
 <%perl>
@@ -1367,7 +1370,7 @@ $course
 </%args>
 <%doc>Method that shows generic CMS error message if there are no current time periods.</%doc>
 <%perl>
-unless ($course->get_current_timeperiod()){
+unless ($course->get_current_timeperiod()) {
 	$m->print("<br>In $TUSK::Constants::SiteAbbr, there are no time periods associated with this course, please contact your school administrator for more assistance.!!");
 	$m->abort();
 }
@@ -1385,13 +1388,13 @@ $cat => ''
 <%doc>Method used to take an arrayref of objects and output an arrayref of hashrefs used in method dropdown.  Very useful</%doc>
 <%perl>
 my $options = [];
-unless ($label){
+unless ($label) {
 	return $options;
 }
 $value = $label unless ($value);
 my $stripped_label;
 my $stripObj = TUSK::Application::HTML::Strip->new();
-foreach my $array_item (@$arrayref){
+foreach my $array_item (@$arrayref) {
 	my $level_value = ($level && $array_item->can($level)) ? $array_item->$level : 0;
 	my $cat_value = ($cat && $array_item->can($cat)) ? $array_item->$cat : 0;
 	my $item_value = ($array_item->$value) ? $array_item->$value : 0;
@@ -1434,7 +1437,7 @@ $js_code => ''
 <%perl>
 
 if (!$js_code) {
-	if ($link_url){
+	if ($link_url) {
 		$js_code = "location.href='" . $link_url . "'";
 	}else{
 		$js_code = "return close_notice();";
@@ -1469,7 +1472,7 @@ You are currently logged in as <b><% $user_fullname %></b>.  This section of <% 
 		<td valign="middle" align="center"><input type="button" value="Logout" onclick="location.href='/dologout'" class="formbutton">
 	</tr>
 </table>
-<br><br>		
+<br><br>
 </div>
 </div>
 </form>
@@ -1529,13 +1532,13 @@ Method that makes a tusk table that has dropdowns used for selecting a date.  Th
 	my (undef, undef, undef, $day_select, $month_select, $year_select) = localtime(time);
 	$month_select++; # cause perl months start at 0
 
-	if ($mysql_date){
+	if ($mysql_date) {
 		($year_select, $month_select, $day_select) = split('-', $mysql_date);
 		$year_select = $year_select - 1900;
 	}
 
 	my $selected;
-	for my $month (1..12){
+	for my $month (1..12) {
 		$selected = ($month == $month_select) ? "selected" : "";
 		$m->print("<option value=\"$month\" $selected>$month</option>\n");
 	}
@@ -1544,7 +1547,7 @@ Method that makes a tusk table that has dropdowns used for selecting a date.  Th
 /
 <select name="showdate_day">
 <%perl>
-	for my $day (1..31){
+	for my $day (1..31) {
 		$selected = ($day == $day_select) ? "selected" : "";
 		$m->print("<option value=\"$day\" $selected>$day</option>\n");
 	}
@@ -1553,7 +1556,7 @@ Method that makes a tusk table that has dropdowns used for selecting a date.  Th
 /
 <select name="showdate_year">
 <%perl>
-	for my $year (2005..2009){
+	for my $year (2005..2009) {
 		$selected = ($year == $year_select + 1900) ? "selected" : "";
 		$m->print("<option value=\"$year\" $selected>$year</option>\n");
 	}
@@ -1574,7 +1577,7 @@ $pk => 0
 <%doc>Method that allows a link ($link_text) that when clicked shows $body</%doc>
 <table>
 <tr><td width="1%"><img src="/graphics/case/arrowClose.gif" id="toggle-<% $pk %>-img" /></td><td style="padding-left:5px">
-<a class="highlightBold" 
+<a class="highlightBold"
 href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra_text %>
 </td></tr>
 <tr style="display:none;" id="toggle-<% $pk %>">
@@ -1611,9 +1614,9 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 <%args>
 	%params
 </%args>
-% foreach my $button (@{$params{'buttons'}}){
-%	my $checked = 
-	<input type="radio" class="<% $params{'class'} %>" name="<% $params{'name'} %>" value="<% $button->{'value'} %>" onclick="<% $button->{'onclick'} %>" 
+% foreach my $button (@{$params{'buttons'}}) {
+%	my $checked =
+	<input type="radio" class="<% $params{'class'} %>" name="<% $params{'name'} %>" value="<% $button->{'value'} %>" onclick="<% $button->{'onclick'} %>"
 % 	if ($button->{'checked'}) {
 		CHECKED
 %	}
@@ -1633,7 +1636,7 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 </%args>
 <& SELF:tr_tag, params=>\%params &>
 <& SELF:labelbox, width=>$params{'width'} ,label=> $params{'label'} &>
-<td class="cell-left"> 
+<td class="cell-left">
 <& /tmpl/element:input_radio_buttons, params=>\%params &>
 % if ($params{'trailing_text'}) {
 	<% $params{'trailing_text'} %>
@@ -1677,29 +1680,29 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 
 	my $parent_context = $m->comp('/tmpl/url:get_type_object');
 
-	if (scalar(@$paths)){
+	if (scalar(@$paths)) {
 		pop(@$paths) if ($paths->[-1] == $content->primary_key());
 
-		if (scalar(@$paths)){
+		if (scalar(@$paths)) {
 			$parent_context = HSDB4::SQLRow::Content->new()->lookup_key($paths->[-1]);
 		}
 	}
 
 	$content->set_aux_info('-parent', $parent_context);
 	my @parents = $content->other_parents();
-	
-	if (scalar(@parents)){
+
+	if (scalar(@parents)) {
 		$m->comp('/tmpl/element:flexible_tr', params => { label => 'Also linked from:' });
-		foreach my $parent (@parents){
+		foreach my $parent (@parents) {
 			$m->print('<div>');
-			if ($parent->isa('HSDB4::SQLRow::Content')){
+			if ($parent->isa('HSDB4::SQLRow::Content')) {
 				$m->print('<a href="/management/folders/course/' . $parent->school() . '/' . $parent->field_value('course_id') . '/' . $parent->primary_key() . '">' . $parent->title() . '</a>');
-			}elsif ($parent->isa('HSDB45::Course')){
+			}elsif ($parent->isa('HSDB45::Course')) {
 				$m->print('<a href="/management/course/display/' . $parent->school() . '/' . $parent->primary_key() . '">' . $parent->out_label() . '</a>');
 			}
 			$m->print('</div>');
 		}
-	
+
 		$m->print('</td></tr>');
 	}
 </%perl>
@@ -1741,7 +1744,7 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 <%perl>
         my $prefix_bugfix = '';
 
-        if ($ENV{HTTPS} eq 'on' && $ENV{HTTP_USER_AGENT} =~ /Win/i && $ENV{HTTP_USER_AGENT} =~ /Firefox\/1\.5\.0\.\d{2}|Firefox\/2\.0\.0\.\d+/){
+        if ($ENV{HTTPS} eq 'on' && $ENV{HTTP_USER_AGENT} =~ /Win/i && $ENV{HTTP_USER_AGENT} =~ /Firefox\/1\.5\.0\.\d{2}|Firefox\/2\.0\.0\.\d+/) {
                 $prefix_bugfix = '/unprotected';
         }
 
@@ -1751,7 +1754,7 @@ href="javascript:toggle_link('toggle-<% $pk %>');"><% $link_text %></a><% $extra
 
 <%doc>
 In http, safari will not make a fresh server call upon browsng with "back"
-button, even when sent the headers in the 'nocache' method found in the 
+button, even when sent the headers in the 'nocache' method found in the
 main tusk autohandler.
 
 Apple gave me the clue that an iframe will always force a refresh, even
@@ -1783,8 +1786,8 @@ $params
 <%doc>
 pass in a string and an optional length.
 strip out any tags in string. truncate string, add an ellipsis. make the truncated string
-be a mouseover trigger for a yellow box with the full text. perhaps change this so that 
-we don't have to truncate string, but could also pass in two strings: one which can be 
+be a mouseover trigger for a yellow box with the full text. perhaps change this so that
+we don't have to truncate string, but could also pass in two strings: one which can be
 rolled over, and one which will appear in window.
 </%doc>
 <%method excess_text_popup>
@@ -1795,7 +1798,7 @@ $length => '50'
 
 <%perl>
 $str =~ s/<\s*\/?[?A-z][^>]*>//g; # make sure there are no tags
-if(length $str > $length){
+if(length $str > $length) {
 	my $new_str = substr($str, 0, $length) . '<span class="ellipsis">... </span><span class="excessTxt">' . substr($str, $length) . '</span>';
 	$m->print("<a href=\"javascript:;\" onmouseover=\"toggleExcess(this)\" onmouseout=\"toggleExcess(this)\">$new_str</a>");
 }
@@ -1850,7 +1853,7 @@ if (defined($params{filter})) {
 if (!$params{'no_table'}) {
 	$m->comp( '/tmpl/element:tr_tag', 'params'=>\%params );
 	my $colspan = 1;
-	if (!defined($params{'no_label'})){ 
+	if (!defined($params{'no_label'})) {
 		$m->comp('/tmpl/element:labelbox', 'label'=> $params{'label'} );
 	} else {
  		$colspan = 2;
@@ -1864,10 +1867,10 @@ if (!$params{'no_table'}) {
 			<li class="buttonRow"><& '/tmpl/element:button', params=>{'label'=>($params{'button_label'}) ? $params{'button_label'} : 'Add ' . $params{'label'}, 'onclick'=>'addNewRow( \'top\', params );', 'name'=>'add_item' } &></li>
 %		}
 %		my $num_buttons = 1;
-%		foreach my $button (@{$params{top_buttons}}){
+%		foreach my $button (@{$params{top_buttons}}) {
 			<li class="buttonRow"><% $button %></li>
 %		}
-%		if (defined($params{'help_info'})){
+%		if (defined($params{'help_info'})) {
 			<li class="buttonRow"><span class="xsm"><& SELF:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></span></li>
 %		}
 		</ol>
@@ -1962,14 +1965,14 @@ if (!$params{'no_table'}) {
 			</ul></div></li></ol>
 
 %			if ( ref($params{'data'}) eq 'ARRAY' && scalar(@{$params{'data'}}) ) {
-%				($max_depth, my $junk) = $m->comp( '/tmpl/element:jquery_sort_list_sublist', 
-%													fields => $params{'fields'}, 
+%				($max_depth, my $junk) = $m->comp( '/tmpl/element:jquery_sort_list_sublist',
+%													fields => $params{'fields'},
 %													filter => $params{'filter'},
 %													filter_on => $filter_on,
 %													prefix => $filter->{prefix},
-%													action_columns => $params{'action_columns'}, 
-%													data => $params{'data'}, name => $params{'name'}, 
-%													depth => 0, 
+%													action_columns => $params{'action_columns'},
+%													data => $params{'data'}, name => $params{'name'},
+%													depth => 0,
 %													append_instead => $params{'append_instead'},
 %													max_depth => $max_depth,
 %													action_dropdown => $action_dropdown,
@@ -1977,7 +1980,7 @@ if (!$params{'no_table'}) {
 %			} else {
 			<ol class="page-list" id="<% $params{'name'} %>"><li id="empty_message" class="clr">
 %				my $added_class = "clearfix striping";
-%				if (defined($params{filter})) { 
+%				if (defined($params{filter})) {
 %					my $filter_on = $filter->{filter_on};
 %					foreach my $filter_element ($params{$filter_on}) {
 % 						$added_class .= " " . $filter_element;
@@ -2008,10 +2011,10 @@ if (!$params{'no_table'}) {
 % 		if (!$params{'no_bottom_add_button'} && !$params{'no_add_button'} ) {
 			<li class="buttonRow"><& '/tmpl/element:button', params=>{'label'=>($params{'button_label'}) ? $params{'button_label'} : 'Add ' . $params{'label'}, 'onclick'=>'addNewRow( \'bottom\', params );', 'name'=>'add_item' } &></li>
 %		}
-%		foreach my $button (@{$params{bottom_buttons}}){
+%		foreach my $button (@{$params{bottom_buttons}}) {
 			<li class="buttonRow"><% $button %></li>
 %		}
-%		if (defined($params{'help_info'})){
+%		if (defined($params{'help_info'})) {
 			<li class="buttonRow"><span class="xsm"><& SELF:link_to_help, text => $params{'help_info'}->{'text'}, topic => $params{'help_info'}->{'topic'} &></span></li>
 %		}
 		</ol>
@@ -2046,7 +2049,7 @@ $inactive_image => '/graphics/icons/move_16_inactive.png'
 		<li class="clr sort-row" id="<% $row->{'id'} %>_<% $total_counter++ %>">
 % 			my $added_class = "clearfix striping";
 % 			$added_class .= " " . $prefix if $prefix;
-%			if (defined($filter)) { 
+%			if (defined($filter)) {
 %				if(ref($row->{$filter_on}) eq 'ARRAY') {
 %					my $aref = $row->{$filter_on};
 %					foreach my $el (@$aref) {
@@ -2103,13 +2106,13 @@ $inactive_image => '/graphics/icons/move_16_inactive.png'
 			</div>
 %		if ( $row->{'children'} ) {
 %			my $test_depth;
-%			($test_depth, $total_counter) = $m->comp( 'SELF:jquery_sort_list_sublist', 
-%														fields => $fields, 
-%														action_columns => $action_columns, 
+%			($test_depth, $total_counter) = $m->comp( 'SELF:jquery_sort_list_sublist',
+%														fields => $fields,
+%														action_columns => $action_columns,
 %														data => $row->{'children'},
-%														depth => $depth+1, 
-%														max_depth => $max_depth, 
-%														total_counter => $total_counter, 
+%														depth => $depth+1,
+%														max_depth => $max_depth,
+%														total_counter => $total_counter,
 %														action_dropdown => $action_dropdown,
 %														inactive_image => $inactive_image );
 %			if ( $test_depth > $max_depth ) { $max_depth = $test_depth; }
@@ -2127,7 +2130,7 @@ $inactive_image => '/graphics/icons/move_16_inactive.png'
 <& /tmpl/element:field_display, params => {
 	label => $params{label},
 	value =>  join("\n",  map {  '<div id="' . $_->{div_id} . '" class="' . $_->{div_class} . '">' .
-		$m->scomp('/tmpl/element:input_checkbox', params => { 
+		$m->scomp('/tmpl/element:input_checkbox', params => {
 			name => $_->{name},
 			value => $_->{value},
 			checked => $_->{checked},
@@ -2277,4 +2280,42 @@ $rowheaders					# reference for array of arrays of row headers {id =>, name => }
     }
     return \@time_periods;
 </%perl>
+</%method>
+
+<%method pagination>
+<%args>
+    %params
+</%args>
+<%perl>
+    my $records_per_page = $params{'records_per_page'} || 100;
+    my $number_of_records = $params{'number_of_records'} || 100;
+    my $current_page = $params{'current_page'} || 1;
+    my $pages = ($records_per_page) ? $number_of_records / $records_per_page + 1 : 1;
+    my $prev = $current_page - 1;
+    my $next = $current_page + 1;
+    my @options;
+
+    for my $page (1..$pages) {
+        push @options, {
+            'value' => $page,
+            'label' => $page
+        };
+    }
+</%perl>
+<b><% __('Select Page') %>:</b>
+<& /tmpl/element:button, params => {
+    label => '&laquo;',
+    onclick => "setGetParameter('page', $prev)",
+    disabled => ($prev < 1)
+} &>
+<& /tmpl/element:dropdown, params => {
+    options => \@options,
+    onchange => "setGetParameter('page', this.options[this.selectedIndex].value)",
+    selected => $current_page
+} &>
+<& /tmpl/element:button, params => {
+    label => '&raquo;',
+    onclick => "setGetParameter('page', $next)",
+    disabled => ($next > $pages)
+} &>
 </%method>
