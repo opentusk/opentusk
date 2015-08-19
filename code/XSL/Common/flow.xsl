@@ -30,6 +30,13 @@
      <xsl:apply-templates/>
    </xsl:template>
 
+   <xsl:template match="a">
+     <xsl:element name="a">
+	<xsl:attribute name="href"><xsl:value-of select="@href"/></xsl:attribute>
+	<xsl:apply-templates/>
+     </xsl:element>
+   </xsl:template>
+
    <xsl:template match="table|tr|th|td">
      <xsl:element name="{name()}">
        <xsl:call-template name="aTableAtts"/>
