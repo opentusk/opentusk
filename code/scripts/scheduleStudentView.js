@@ -25,7 +25,6 @@ function constructDropdowns()
 		url: "/tusk/schedule/clinical/admin/ajax/dropdown",
 		data: {
 			school_id: school_id,
-			school_db: school_db, 
 			row_index: currentRowIndex,
 			temp_teaching_site: $('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').find('select.view').val(),
 			requested_course_id: $('span#alreadyEnrolledNumber0').closest('tr').find('div#course').find('select.view').val(),
@@ -65,7 +64,6 @@ $(document).ready(function() {
 					temp_time_period: $(this).closest('tr').find('div#timePeriod').find('select.view').val(),
 					temp_teaching_site: $(this).closest('tr').find('div#teachingSite').find('select.view').val(),
 					school_id: school_id,
-					school_db: school_db,
 					course_id: addRequested ? $(this).closest('tr').find('div#course').find('select.view').val() : $(this).closest('tr').find('span#courseId').text(),
 				}, dataType: "json",
 					statusCode: {
@@ -139,7 +137,6 @@ $(document).ready(function() {
 					current_time_period: currentTimePeriod,
 					current_teaching_site: currentTeachingSite,
 					school_id: school_id,
-					school_db: school_db,
 					delete_requested: 1
 				}, dataType: "json",
 					statusCode: {
@@ -205,7 +202,6 @@ $(document).ready(function() {
 					requested_time_period: tempTimePeriod,
 					requested_teaching_site: tempTeachingSite,
 					school_id: school_id,
-					school_db: school_db,
 					add_requested: addRequested ? 1 : 0,
 				},
 				dataType: "json",

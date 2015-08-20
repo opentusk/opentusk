@@ -21,6 +21,7 @@
 
 <%once>
 	use TUSK::Application::Schedule::Clinical;
+	use TUSK::Core::School;
 </%once>
 
 <%shared>
@@ -30,15 +31,15 @@
 <%init>
 	my $school_id = $school->getPrimaryKeyID();
 	my $school_db = $school->getSchoolDb();
-	$m->comp('/schedule/clinical/admin/tmpl/search', school_id => $school_id, school_db => $school_db);
+	$m->comp('/schedule/clinical/admin/tmpl/search', school_id => $school_id);
 	my $academicYear = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicYear');
-	my $academicLevelTitle = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevel');
+	my $academicLevelId = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevelId');
+	my $academicLevelTitle =$m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevelTitle');
 	my @rows;
 
 	my @courses = @{TUSK::Application::Schedule::Clinical->new({
-		school_id => $school_id, 
-		school_db => $school_db
-	})->getScheduleRotations($academicLevelTitle, $academicYear)};
+		school_id => $school_id
+	})->getScheduleRotations($academicLevelId, $academicYear)};
 
 	my $col_fields = [ 
 		{label => __('Rotation Name'), field => 'course_title', html => 1},
@@ -48,7 +49,7 @@
 	foreach my $course (@courses){
 		push @rows, {
 			course_title => '<span id = "courseName"><a href = "/schedule/clinical/placement/course/' . $school->getSchoolName(). '/' . $course->{courseId} . '?academic_year=' . $academicYear . '">' . $course->{'courseTitle'},
-			actions => '<a class = "navsm" style = "cursor: pointer; id = "export" class = "navsm" onclick="location.href=\'/schedule/clinical/admin/allrotations/export/schedule?courseId=' . $course->{courseId} . '&courseTitle=' . $course->{courseTitle} . '&academicYear='. $academicYear . '&academicLevelTitle=' . $academicLevelTitle . '&schoolId=' . $school_id . '&schoolDb=' . $school_db . '\'">Export</a>',
+			actions => '<a class = "navsm" style = "cursor: pointer; id = "export" class = "navsm" onclick="location.href=\'/schedule/clinical/admin/allrotations/export/schedule?courseId=' . $course->{courseId} . '&courseTitle=' . $course->{courseTitle} . '&academicYear='. $academicYear . '&academicLevelId=' . $academicLevelId . '&schoolId=' . $school_id . '\'">Export</a>',
 		};
 	}
 

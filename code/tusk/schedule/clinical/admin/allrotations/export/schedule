@@ -20,17 +20,22 @@
 
 <%once>
 	use TUSK::Application::Schedule::Clinical;
-	use List::Util qw( max );
+	use TUSK::Academic::Level;
 	use Spreadsheet::WriteExcel; 
+	sub dateInMMDDYYYY {
+		my ($date) = @_;
+		(my $dateInMMDDYYYY = $date) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
+		return $dateInMMDDYYYY;
+	}
 </%once>
 
 <%shared>
 	my $academicYear;
+	my $academicLevelId;
 	my $academicLevelTitle;
 	my $courseId;
 	my $courseTitle;
 	my $schoolId;
-	my $schoolDb;
 	my @timePeriods = ();
 
 	my %headerFont	= (
@@ -48,7 +53,6 @@
 <%perl>
 	my %query = $m->request_args;
 	open my $fh, '>', \my $str or die "Failed to open filehandle: $!";
-	binmode STDOUT; # Before any I/O is done on the filehandle
 
 	my $workbook  = Spreadsheet::WriteExcel->new($fh);
 	$m->comp("SELF:.add_course_schedule", 
@@ -57,14 +61,16 @@
 			string => $m->comp("SELF:.truncate_file_name", 
 				string => $query{'courseTitle'})), 
 		query => \%query);
+	$workbook->close() or die "Error closing $filename: $!";
 
-	$workbook->close();
+	close $fh;
+
 	$m->clear_buffer();
 	$r->content_type( 'application/vnd.ms-excel' );
 	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="' . $filename .'.xls"'); 
 
+	binmode STDOUT; # Before any I/O is done
 	print $str;
-	close $fh;
 </%perl>
 
 <%doc>
@@ -79,20 +85,19 @@
 <%perl>
 	my $row = 0; 
 	my %schedules = ();
-	my $studentMax = 0; # Maximum number of students in a course in a specific time period
 	my $worksheet = $workbook->add_worksheet("$worksheetName");
 
 	my $tableFormat = $workbook->add_format(%tableShading);
 	my $headerFormat = $workbook->add_format(%headerFont, %headerAlignment);
 	my $textFormat = $workbook->add_format(%headerAlignment);
 
-	if (scalar $query{'academicYear'} && $query{'academicLevelTitle'} && $query{'courseId'} && $query{'schoolId'} && $query{'schoolDb'}) {
+	if (scalar $query{'academicYear'} && $query{'courseId'} && $query{'schoolId'}) {
 		$academicYear = $query{'academicYear'};
-		$academicLevelTitle = $query{'academicLevelTitle'};
+		$academicLevelId = $query{'academicLevelId'};
+		$academicLevelTitle = TUSK::Academic::Level->new()->lookupKey($academicLevelId)->getTitle();
 		$courseId = $query{'courseId'};
 		$courseTitle = $query{'courseTitle'};
 		$schoolId = $query{'schoolId'};
-		$schoolDb = $query{'schoolDb'};
 
 		$worksheet->write(0, 0, "Academic Year: ", $headerFormat);
 		$worksheet->write(0, 1, $academicYear, $textFormat);
@@ -102,11 +107,10 @@
 		$worksheet->write(2, 1, $courseTitle, $textFormat);
 
 		@timePeriods = @{TUSK::Application::Schedule::Clinical->new({
-			school_id => $schoolId, 
-			school_db => $schoolDb
+			school_id => $schoolId
 		})->getScheduleRotationDetails({
 			academicYear => $academicYear,
-			academicLevelTitle => $academicLevelTitle,
+			academicLevelId => $academicLevelId,
 			courseId => $courseId,
 			timePeriodsRequested => 1
 		})};
@@ -114,18 +118,17 @@
 		my $timePeriodIndex = 0;
 		foreach my $timePeriod (@timePeriods){
 			my @students = @{TUSK::Application::Schedule::Clinical->new({
-			school_id => $schoolId, 
-			school_db => $schoolDb
+				school_id => $schoolId
 			})->getScheduleRotationDetails({
 				academicYear => $academicYear,
-				academicLevelTitle => $academicLevelTitle,
+				academicLevelId => $academicLevelId,
 				courseId => $courseId,
 				timePeriodId => $timePeriod->{'timePeriodId'},
 				studentsRequested => 1
 			})};
-			$studentMax = max(0, scalar @students);
+
 			$worksheet->write(4, $timePeriodIndex, $timePeriod->{timePeriod});
-			$worksheet->write(5, $timePeriodIndex, "[" . $timePeriod->{startDate} . "]" . " - [" . $timePeriod->{endDate} . "]", $headerFormat);
+			$worksheet->write(5, $timePeriodIndex, "[" . dateInMMDDYYYY($timePeriod->{startDate}) . "]" . " - [" . dateInMMDDYYYY($timePeriod->{endDate}) . "]", $headerFormat);
 			push @{$schedules{$timePeriod->{timePeriodId}}}, @students;
 			$timePeriodIndex++;
 		}
@@ -142,7 +145,7 @@
 			$columnCount++;
 		}
 	} else {
-		$worksheet->write(6, 0, "No information availabe.");
+		$worksheet->write(0, 0, "No information availabe.");
 	}
 	my $columnRange = scalar @timePeriods;
 	$worksheet->set_column(0, $columnRange, 25);
@@ -158,7 +161,7 @@
 </%args>
 <%perl>
 	my %map = (
-		"/" => "-",
+		"/" => "-"
 	);
 
 	my $chars = join '', keys %map;
@@ -168,7 +171,7 @@
 </%method>
 
 <%doc>
-	Truncate file names
+	Truncate file names; the allowed number of characters for a worksheet is 31(inclusive)
 </%doc>
 <%method .truncate_file_name>
 <%args>

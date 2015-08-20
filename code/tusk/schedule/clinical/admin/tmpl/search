@@ -15,56 +15,60 @@
 </%doc>
 
 <%args>
-    $school_id
-    $school_db
+	$school_id
 </%args>
 
 <%once>
-    use TUSK::Application::Schedule::Clinical;
+	use TUSK::Application::Schedule::Clinical;
+	use TUSK::Core::School;
 </%once>
 
 <%shared>
-    my @uniqueAcademicLevels = ();
-    my @uniqueAcademicYears = ();
-    my $currentAcademicYear;
-    my $currentAcademicLevel;
+	my @uniqueAcademicLevels = ();
+	my @uniqueAcademicYears = ();
+	my %academicLevels = ();
+	my $currentAcademicYear;
+	my $currentAcademicLevelId;
+	my $currentAcademicLevelTitle;
+	my $school_db;
 </%shared>
 
 <script>
-    function fixedEncodeURIComponent (str) {
-      return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
-        return '%' + c.charCodeAt(0).toString(16);
-      });
-    }
+	function fixedEncodeURIComponent (str) {
+	  return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+		return '%' + c.charCodeAt(0).toString(16);
+	  });
+	}
 </script>
 
 <%init>
-    my $filterValues = $m->comp('SELF:.getFilterValues', school_id => $school_id, school_db => $school_db);
-    $m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
+	$school_db = TUSK::Core::School->new()->lookupKey($school_id)->{_field_values}->{school_db};
+	my $filterValues = $m->comp('SELF:.getFilterValues', school_id => $school_id, school_db => $school_db);
+	$m->comp('SELF:.setAcademicYearValues', filterValues => $filterValues);
 
-    # Show the current academic year/level[either a default or a selected value]
-    my %query = $m->request_args;
-    if (scalar $query{'academicYear'}) {
-        $currentAcademicYear = $query{'academicYear'};
-        delete $query{'academicYear'};
-    } else {
-        $currentAcademicYear = ${@uniqueAcademicYears}[0]; 
-    }
-    
-    $m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
-    if (scalar $query{'academicLevel'}) {
-        $currentAcademicLevel = $query{'academicLevel'};
-        delete $query{'academicLevel'};
-    } else {
-        $currentAcademicLevel = ${@uniqueAcademicLevels}[-1];
-    }
+	# Show the current academic year/level[either a default or a selected value]
+	my %query = $m->request_args;
+	if (scalar $query{'academicYear'}) {
+		$currentAcademicYear = $query{'academicYear'};
+		delete $query{'academicYear'};
+	} else {
+		$currentAcademicYear = ${@uniqueAcademicYears}[0]; 
+	}
+	
+	$m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
+	if (scalar $query{'academicLevel'}) {
+		$currentAcademicLevelId = $query{'academicLevel'};
+		delete $query{'academicLevel'};
+	} else {
+		$currentAcademicLevelId = (keys %academicLevels)[-1];
+	}
 
-    $m->comp('SELF:.prepareQueryBox');
+	$m->comp('SELF:.prepareQueryBox');
 
 </%init>
 
 <%doc>
-    Get parameters to populate the front-end query box 
+	Get parameters to populate the front-end query box 
 </%doc>
 <%method .getFilterValues>
 <%args>
@@ -72,11 +76,10 @@
   $school_db
 </%args>
 <%perl>
-    my $filterValues = TUSK::Application::Schedule::Clinical->new({
-        school_id => $school_id,
-        school_db => $school_db
-    })->getScheduleStudentsFiltering();
-    return $filterValues;
+	my $filterValues = TUSK::Application::Schedule::Clinical->new({
+		school_id => $school_id
+	})->getScheduleStudentsFiltering();
+	return $filterValues;
 </%perl>
 </%method>
 
@@ -85,9 +88,9 @@
   $filterValues
 </%args>
 <%perl>
-    my @academicLevels = map {$_} @{$filterValues->{'academicLevels'}};
-    @uniqueAcademicLevels = unique(@academicLevels);
-    return;
+	%academicLevels = map {$_} %{$filterValues->{'academicLevels'}};
+	# @uniqueAcademicLevelIds = unique(@academicLevels);
+	return;
 </%perl>
 </%method>
 
@@ -96,77 +99,83 @@
   $filterValues
 </%args>
 <%perl>
-    @uniqueAcademicYears = map {$_} @{$filterValues->{'timePeriods'}};
-    return;
+	@uniqueAcademicYears = map {$_} @{$filterValues->{'timePeriods'}};
+	return;
 </%perl>
 </%method>
 
 <%method .prepareAcademicYearDropdown>
 <%perl>
-    my @dropdownOptions;
+	my @dropdownOptions;
 
-    # Default academic year
-    # ..or put in another default value with: selected => ${\@uniqueAcademicYears}[1]
-    
-    foreach my $academicYear (@uniqueAcademicYears) {
-        push @dropdownOptions, {
-            'value' => $academicYear,
-            'label' => $academicYear
-        };
-    }
+	# Default academic year
+	# ..or put in another default value with: selected => ${\@uniqueAcademicYears}[1]
+	
+	foreach my $academicYear (@uniqueAcademicYears) {
+		push @dropdownOptions, {
+			'value' => $academicYear,
+			'label' => $academicYear
+		};
+	}
 
-    $m->comp('/tmpl/element:dropdown', params => {
-        options => \@dropdownOptions, 
-        label => 'Academic Year',
-        onchange => "location.href = '?academicYear=' + this.options[this.selectedIndex].value + '&academicLevel=" . $currentAcademicLevel . "'",
-        selected => $currentAcademicYear
-    });
+	$m->comp('/tmpl/element:dropdown', params => {
+		options => \@dropdownOptions, 
+		label => 'Academic Year',
+		onchange => "location.href = '?academicYear=' + this.options[this.selectedIndex].value + '&academicLevel=" . $currentAcademicLevelId . "'",
+		selected => $currentAcademicYear
+	});
 </%perl>
 </%method>
 
 <%method .prepareAcademicLevelRadioButtons>
 <%perl>
-    my @buttons;
+	my @buttons;
 
-    foreach my $academicLevel (@uniqueAcademicLevels) {
-        push @buttons, {
-            'value' => $academicLevel,
-            'name' => 'academicLevel',
-            'text' => $academicLevel,
-            'onclick' => "location.href = '?academicYear=' + fixedEncodeURIComponent(`" . $currentAcademicYear . "`) + '&academicLevel=' + this.value"       
-        };
-        if ($academicLevel eq $currentAcademicLevel)
-        {
-            ${@buttons}[-1]{'checked'} = 1;
-        }
+	while(my($academicLevelId, $academicLevelTitle) = each %academicLevels) {
 
-    }
+		push @buttons, {
+			'value' => $academicLevelId,
+			'name' => 'academicLevel',
+			'text' => $academicLevelTitle,
+			'onclick' => "location.href = '?academicYear=' + fixedEncodeURIComponent(`" . $currentAcademicYear . "`) + '&academicLevel=' + this.value"       
+		};
+		if ($academicLevelId eq $currentAcademicLevelId)
+		{
+			${@buttons}[-1]{'checked'} = 1;
+		}
+	}
 
-    $m->comp('/tmpl/element:radio_buttons', params => {
-        buttons => \@buttons, 
-        label => "Academic Level"
-    });
+	$m->comp('/tmpl/element:radio_buttons', params => {
+		buttons => \@buttons, 
+		label => "Academic Level"
+	});
 </%perl>
 </%method>
 
 <%method .prepareQueryBox>
 <%perl>
-    print('<table>');
-    $m->comp('SELF:.prepareAcademicYearDropdown');
-    $m->comp('SELF:.prepareAcademicLevelRadioButtons');
-    print('</table>');
-    return;
+	print('<table>');
+	$m->comp('SELF:.prepareAcademicYearDropdown');
+	$m->comp('SELF:.prepareAcademicLevelRadioButtons');
+	print('</table>');
+	return;
 </%perl>
 </%method>
 
 <%method getCurrentAcademicYear>
 <%perl>
-    return $currentAcademicYear;
+	return $currentAcademicYear;
 </%perl>
 </%method>
 
-<%method getCurrentAcademicLevel>
+<%method getCurrentAcademicLevelId>
 <%perl>
-    return $currentAcademicLevel;
+	return $currentAcademicLevelId;
+</%perl>
+</%method>
+
+<%method getCurrentAcademicLevelTitle>
+<%perl>
+	return $academicLevels{$currentAcademicLevelId};
 </%perl>
 </%method>
