@@ -43,13 +43,13 @@
 
 <%shared>
 	my $eval;
-	if($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
+	if ($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
 		$eval = HSDB45::Eval->new(_school => $1, _id => $2);
 	} else {
 		$eval = HSDB45::Eval->lookup_path( $ENV{'PATH_INFO'} );
 	}
 	# Check for valid user
-	unless($eval->admin_group()->contains_user($m->session->{'user'})) {
+	unless ($eval->admin_group()->contains_user($m->session->{'user'})) {
 		$r->status(FORBIDDEN);
 		$m->abort();
 	}
@@ -60,7 +60,7 @@
 	my $course = ($eval) ? $eval->course() : '';
 	my $school = ($eval) ? $eval->school() : '';
 	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
-	my @evaluatees = ();
+	my @evaluatees = ({label => __('All'), value => ''});
 	my @teaching_sites = ({label => __('All'), value => 0});
 	my %teaching_site_users = {};
 </%shared>
@@ -83,7 +83,6 @@
 			push @teaching_sites, {label => "$name ($location)", value => $site->primary_key()};
 		}
 
-		push @evaluatees, {label => __('All'), value => ''} unless ($teaching_site_id);
 		my $sql = qq(
 			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
 			FROM $db.eval_response AS er
@@ -98,15 +97,14 @@
 		while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
 			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id} if (!$teaching_site_id || $teaching_site_users{$user_id});
 		}
-		$evaluatee_id = $evaluatees[0]->{'value'} unless ($evaluatee_id);
 	}
 
 	my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id);
 	my $num_users = $eval->num_users();
 	my $num_comps = ($evaluatee_id) ? $eval_results->total_user_codes() : $eval->count_complete_users();
 	my $num_incos = $num_users - $num_comps;
-	my $per_comps = ($num_users && $num_comps) ? sprintf("%.2f", 100*$num_comps/$num_users) : 0;
-	my $per_incos = ($num_users && $num_incos) ? sprintf("%.2f", 100*$num_incos/$num_users) : 0;
+	my $per_comps = ($num_users && $num_comps) ? sprintf("%.2f", 100 * $num_comps / $num_users) : 0;
+	my $per_incos = ($num_users && $num_incos) ? sprintf("%.2f", 100 * $num_incos / $num_users) : 0;
 </%init>
 
 <span class="evalFluff" style="float:right; text-align:right;">
@@ -120,17 +118,8 @@
 		topic => 'evaluation_reports_-_printing_and_backgrounds'
 	 &>
 </span>
+
 <h2 class="title"><% $title %></h2>
-% if($ENV{HTTPS}) {
-%	my $scriptURL = $ENV{SCRIPT_URL};
-%	$scriptURL =~ s/^\///;
-%	my $redirectURL = "http://" . $TUSK::Constants::Domain . "/" . $scriptURL;
-%	if($redirectURL !~ /^http/) {$redirectURL = "http://$redirectURL";}
-%#	$m->print("<center>I'm sorry, this page can not be successfully displayed over https at this time. Please <a href=\"". $redirectURL . "\">click here</a> to view this page.</center>");
-%	$m->clear_buffer;
-%	$m->redirect($redirectURL);
-%	$m->about();
-% }
 
 % if ($is_teaching_eval) {
 	<h2 class="title"><& /tmpl/element:dropdown, params => {
