@@ -69,39 +69,35 @@
 	if ($is_teaching_eval) {
 		$evaluatee_id = $ARGS{'evaluatee_id'};
 		$teaching_site_id = $ARGS{'teaching_site_id'};
-		my $db = HSDB4::Constants::get_school_db($school);
-		my $dbh = HSDB4::Constants::def_db_handle();
 
-		if ($teaching_site_id > 0) {
-			my $users = $course->users($eval->field_value('time_period_id'), "course_user_site.teaching_site_id = $teaching_site_id");
-			%teaching_site_users = map { $_->getPrimaryKeyID() => 1 } @$users;
-		}
-
-		foreach my $site ($course->child_teaching_sites('order by site_name')) {
+		foreach my $site ($course->child_teaching_sites('ORDER BY site_name')) {
 			my $name = $site->site_name();
 			my $location = $site->site_city_state();
-			push @teaching_sites, {label => "$name ($location)", value => $site->primary_key()};
+      $location = "($location)" if ($location);
+			push @teaching_sites, {label => "$name $location", value => $site->primary_key()};
 		}
 
+		my $db = HSDB4::Constants::get_school_db($school);
+		my $dbh = HSDB4::Constants::def_db_handle();
+    my $op = ($teaching_site_id) ? '=' : '<>';
 		my $sql = qq(
 			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
 			FROM $db.eval_response AS er
 			JOIN tusk.eval_entry AS ee ON er.user_code = ee.evaluator_code
 			JOIN hsdb4.user AS u ON ee.evaluatee_id = u.user_id
-			WHERE er.eval_id = ? AND er.user_code LIKE '%-%'
+			WHERE er.eval_id = ? AND ee.teaching_site_id $op ?
 			GROUP BY u.user_id
 			ORDER BY u.lastname, u.firstname
 		);
 		my $sth = $dbh->prepare($sql);
-		$sth->execute($eval_id);
+		$sth->execute($eval_id, $teaching_site_id);
 		while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
-			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id} if (!$teaching_site_id || $teaching_site_users{$user_id});
+			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id};
 		}
 	}
 
-	my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id);
 	my $num_users = $eval->num_users();
-	my $num_comps = ($evaluatee_id) ? $eval_results->total_user_codes() : $eval->count_complete_users();
+	my $num_comps = $eval->count_complete_users();
 	my $num_incos = $num_users - $num_comps;
 	my $per_comps = ($num_users && $num_comps) ? sprintf("%.2f", 100 * $num_comps / $num_users) : 0;
 	my $per_incos = ($num_users && $num_incos) ? sprintf("%.2f", 100 * $num_incos / $num_users) : 0;
@@ -178,5 +174,5 @@
 </div>
 <div id="evalArea">
 </div>
-% my $query = ($evaluatee_id) ? "?evaluatee_id=$evaluatee_id" : '';
+% my $query = ($evaluatee_id || $teaching_site_id) ? "?evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id" : '';
 <script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $school %>/<% $eval_id %>', 0);</script>

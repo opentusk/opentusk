@@ -91,7 +91,7 @@ sub modified_since {
 sub no_cache {
         my $self = shift;
 
-        return $self->object()->evaluatee_id();
+        return $self->object()->evaluatee_id() || $self->object()->teaching_site_id();
 }
 
 # Description: Private initializer
