@@ -24,8 +24,7 @@
 </%once>
 
 <%shared>
-	my @uniqueAcademicLevels = ();
-	my @uniqueAcademicYears = ();
+	my @academicYears = ();
 	my %academicLevels = ();
 	my $currentAcademicYear;
 	my $currentAcademicLevelId;
@@ -52,7 +51,7 @@
 		$currentAcademicYear = $query{'academicYear'};
 		delete $query{'academicYear'};
 	} else {
-		$currentAcademicYear = ${@uniqueAcademicYears}[0]; 
+		$currentAcademicYear = ${@academicYears}[0]; 
 	}
 	
 	$m->comp('SELF:.setAcademicLevelValues', filterValues => $filterValues);
@@ -89,7 +88,6 @@
 </%args>
 <%perl>
 	%academicLevels = map {$_} %{$filterValues->{'academicLevels'}};
-	# @uniqueAcademicLevelIds = unique(@academicLevels);
 	return;
 </%perl>
 </%method>
@@ -99,7 +97,7 @@
   $filterValues
 </%args>
 <%perl>
-	@uniqueAcademicYears = map {$_} @{$filterValues->{'timePeriods'}};
+	@academicYears = map {$_} @{$filterValues->{'timePeriods'}};
 	return;
 </%perl>
 </%method>
@@ -109,9 +107,9 @@
 	my @dropdownOptions;
 
 	# Default academic year
-	# ..or put in another default value with: selected => ${\@uniqueAcademicYears}[1]
+	# ..or put in another default value with: selected => ${\@academicYears}[1]
 	
-	foreach my $academicYear (@uniqueAcademicYears) {
+	foreach my $academicYear (@academicYears) {
 		push @dropdownOptions, {
 			'value' => $academicYear,
 			'label' => $academicYear
