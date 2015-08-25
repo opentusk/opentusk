@@ -67,19 +67,19 @@
 
 <%init>
 	if ($is_teaching_eval) {
-		$evaluatee_id = $ARGS{'evaluatee_id'};
-		$teaching_site_id = $ARGS{'teaching_site_id'};
+		$evaluatee_id = $ARGS{'evaluatee_id'} if ($ARGS{'evaluatee_id'});
+		$teaching_site_id = $ARGS{'teaching_site_id'} if ($ARGS{'teaching_site_id'});
 
 		foreach my $site ($course->child_teaching_sites('ORDER BY site_name')) {
 			my $name = $site->site_name();
 			my $location = $site->site_city_state();
-      $location = "($location)" if ($location);
+			$location = "($location)" if ($location);
 			push @teaching_sites, {label => "$name $location", value => $site->primary_key()};
 		}
 
 		my $db = HSDB4::Constants::get_school_db($school);
 		my $dbh = HSDB4::Constants::def_db_handle();
-    my $op = ($teaching_site_id) ? '=' : '<>';
+		my $op = ($teaching_site_id) ? '=' : '<>';
 		my $sql = qq(
 			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
 			FROM $db.eval_response AS er
