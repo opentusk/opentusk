@@ -46,7 +46,7 @@
 	if ($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
 		$eval = HSDB45::Eval->new(_school => $1, _id => $2);
 	} else {
-		$eval = HSDB45::Eval->lookup_path( $ENV{'PATH_INFO'} );
+		$eval = HSDB45::Eval->lookup_path($ENV{'PATH_INFO'});
 	}
 	# Check for valid user
 	unless ($eval->admin_group()->contains_user($m->session->{'user'})) {
@@ -67,8 +67,8 @@
 
 <%init>
 	if ($is_teaching_eval) {
-		$evaluatee_id = $ARGS{'evaluatee_id'} if ($ARGS{'evaluatee_id'});
-		$teaching_site_id = $ARGS{'teaching_site_id'} if ($ARGS{'teaching_site_id'});
+		$evaluatee_id = $ARGS{'evaluatee_id'} || '';
+		$teaching_site_id = $ARGS{'teaching_site_id'} || 0;
 
 		foreach my $site ($course->child_teaching_sites('ORDER BY site_name')) {
 			my $name = $site->site_name();
@@ -170,5 +170,5 @@
 </div>
 <div id="evalArea">
 </div>
-% my $query = ($evaluatee_id || $teaching_site_id) ? "?evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id" : '';
+% my $query = "?evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id";
 <script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $school %>/<% $eval_id %>', 0);</script>
