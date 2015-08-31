@@ -1,0 +1,115 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%shared>
+	my %headerFont	= (
+		font  => 'Arial',
+		size  => 11,
+		bold  => 1);
+
+	my %tableShading = ();
+	my %headerAlignment = (
+		align => 'left');
+	my $format = {
+		headerFont => \%headerFont,
+		tableShading => \%tableShading,
+		headerAlignment => \%headerAlignment
+	};
+	open my $fh, '>', \my $str or die "Failed to open filehandle: $!";
+	my $workbook = Spreadsheet::WriteExcel->new($fh);
+</%shared>
+
+<%method get_workbook>
+<%perl>
+	return $workbook;
+</%perl>
+</%method>
+
+<%doc>
+	Add to the data stream for the current workbook
+</%doc>
+<%method write_data>
+<%args>
+	$data
+</%args>
+<%perl>
+	$str .= $data;
+</%perl>
+</%method>
+
+<%doc>
+	Export the current data stream to an Excel document
+</%doc>
+<%method print>
+<%args>
+	$filename
+</%args>
+<%perl>
+	$m->clear_buffer();
+	$r->content_type( 'application/vnd.ms-excel' );
+	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="' . $filename .'.xls"'); 
+	
+	$workbook->close() or die "Error closing $filename: $!";
+	close $fh;
+
+	binmode STDOUT; # Before any I/O is done
+	print $str;
+</%perl>
+</%method>
+
+<%doc>
+	Replace characters not allowed in a worksheet name: []:*?/\\
+</%doc>
+<%method sanitize_file_name>
+<%args>
+	$string
+</%args>
+<%perl>
+	my %map = (
+		"/" => "-"
+	);
+
+	my $chars = join '', keys %map;
+	$string  =~ s/([$chars])/$map{$1}/g;
+	return $string;
+</%perl>
+</%method>
+
+<%doc>
+	Truncate file names; the allowed number of characters for a worksheet is 31(inclusive)
+</%doc>
+<%method truncate_file_name>
+<%args>
+	$string
+</%args>
+<%perl>
+	if (length $string > 31)
+	{
+		$string = substr($string, 0, 28) . "...";
+	}
+	return $string
+</%perl>
+</%method>
+
+<%method get_format>
+<%perl>
+	return $format;
+</%perl>
+</%method>

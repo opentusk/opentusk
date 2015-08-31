@@ -18,18 +18,18 @@
 	inherit => undef
 </%flags>
 
+<%attr>
+	default_path_type => 'school'
+</%attr>
+
 <%once>
 	use TUSK::Application::Schedule::Clinical;
 	use TUSK::Academic::Level;
 	use Spreadsheet::WriteExcel; 
-	sub dateInMMDDYYYY {
-		my ($date) = @_;
-		(my $dateInMMDDYYYY = $date) =~ s/(\d\d\d\d)-(\d\d)-(\d\d)/$2-$3-$1/;
-		return $dateInMMDDYYYY;
-	}
 </%once>
 
 <%shared>
+	my $school = $m->comp('/tmpl/url:get_type_object');
 	my $academicYear;
 	my $academicLevelId;
 	my $academicLevelTitle;
@@ -37,40 +37,30 @@
 	my $courseTitle;
 	my $schoolId;
 	my @timePeriods = ();
-
-	my %headerFont	= (
-		font  => 'Arial',
-		size  => 11,
-		bold  => 1);
-
-	my %tableShading = ();
-
-	my %headerAlignment = (
-		align => 'left');
-
+	my %query = $m->request_args;
+	my $filename = $m->comp("/schedule/clinical/tmpl/workbook:sanitize_file_name", 
+					string => $m->comp("/schedule/clinical/tmpl/workbook:truncate_file_name", 
+						string => $query{'courseTitle'}
+					)
+				);
+	my $format = $m->comp("/schedule/clinical/tmpl/workbook:get_format");
 </%shared>
 
-<%perl>
-	my %query = $m->request_args;
-	open my $fh, '>', \my $str or die "Failed to open filehandle: $!";
+<%perl>	
+    my $workbook = $m->comp("/schedule/clinical/tmpl/workbook:get_workbook");
 
-	my $workbook  = Spreadsheet::WriteExcel->new($fh);
-	$m->comp("SELF:.add_course_schedule", 
+	my $data = $m->scomp("SELF:.add_course_schedule", 
 		workbook => $workbook, 
-		worksheetName => my $filename = $m->comp("SELF:.sanitize_file_name", 
-			string => $m->comp("SELF:.truncate_file_name", 
-				string => $query{'courseTitle'})), 
-		query => \%query);
-	$workbook->close() or die "Error closing $filename: $!";
+		worksheetName => $filename
+	);
 
-	close $fh;
+	$m->comp("/schedule/clinical/tmpl/workbook:write_data",
+		data => $data,
+	);
 
-	$m->clear_buffer();
-	$r->content_type( 'application/vnd.ms-excel' );
-	$r->headers_out->set( 'Content-Disposition' => 'attachment; filename="' . $filename .'.xls"'); 
-
-	binmode STDOUT; # Before any I/O is done
-	print $str;
+	$m->comp("/schedule/clinical/tmpl/workbook:print",
+		filename => $filename
+	);
 </%perl>
 
 <%doc>
@@ -78,26 +68,25 @@
 </%doc>
 <%method .add_course_schedule>
 <%args>
-	$workbook
+	$workbook 
 	$worksheetName
-	%query
 </%args>
 <%perl>
 	my $row = 0; 
 	my %schedules = ();
 	my $worksheet = $workbook->add_worksheet("$worksheetName");
 
-	my $tableFormat = $workbook->add_format(%tableShading);
-	my $headerFormat = $workbook->add_format(%headerFont, %headerAlignment);
-	my $textFormat = $workbook->add_format(%headerAlignment);
+	my $tableFormat = $workbook->add_format(%{$format->{'tableShading'}});
+	my $headerFormat = $workbook->add_format(%{$format->{'headerFont'}}, %{$format->{'headerAlignment'}});
+	my $textFormat = $workbook->add_format(%{$format->{'headerAlignment'}});
 
-	if (scalar $query{'academicYear'} && $query{'courseId'} && $query{'schoolId'}) {
+	if (scalar $query{'academicYear'} && $query{'courseId'}) {
 		$academicYear = $query{'academicYear'};
 		$academicLevelId = $query{'academicLevelId'};
 		$academicLevelTitle = TUSK::Academic::Level->new()->lookupKey($academicLevelId)->getTitle();
 		$courseId = $query{'courseId'};
 		$courseTitle = $query{'courseTitle'};
-		$schoolId = $query{'schoolId'};
+		$schoolId = $school->getPrimaryKeyID();
 
 		$worksheet->write(0, 0, "Academic Year: ", $headerFormat);
 		$worksheet->write(0, 1, $academicYear, $textFormat);
@@ -128,7 +117,7 @@
 			})};
 
 			$worksheet->write(4, $timePeriodIndex, $timePeriod->{timePeriod});
-			$worksheet->write(5, $timePeriodIndex, "[" . dateInMMDDYYYY($timePeriod->{startDate}) . "]" . " - [" . dateInMMDDYYYY($timePeriod->{endDate}) . "]", $headerFormat);
+			$worksheet->write(5, $timePeriodIndex, "[" . $m->comp("/schedule/clinical/tmpl/view:dateInMMDDYYYY", date => $timePeriod->{startDate}) . "]" . " - [" . dateInMMDDYYYY($timePeriod->{endDate}) . "]", $headerFormat);
 			push @{$schedules{$timePeriod->{timePeriodId}}}, @students;
 			$timePeriodIndex++;
 		}
@@ -149,39 +138,5 @@
 	}
 	my $columnRange = scalar @timePeriods;
 	$worksheet->set_column(0, $columnRange, 25);
-</%perl>
-</%method>
-
-<%doc>
-	Replace characters not allowed in a worksheet name: []:*?/\\
-</%doc>
-<%method .sanitize_file_name>
-<%args>
-	$string
-</%args>
-<%perl>
-	my %map = (
-		"/" => "-"
-	);
-
-	my $chars = join '', keys %map;
-	$string  =~ s/([$chars])/$map{$1}/g;
-	return $string;
-</%perl>
-</%method>
-
-<%doc>
-	Truncate file names; the allowed number of characters for a worksheet is 31(inclusive)
-</%doc>
-<%method .truncate_file_name>
-<%args>
-	$string
-</%args>
-<%perl>
-	if (length $string > 31)
-	{
-		$string = substr($string, 0, 28) . "...";
-	}
-	return $string
 </%perl>
 </%method>
