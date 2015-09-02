@@ -22,20 +22,21 @@ use TUSK::Course::User::Site;
 use TUSK::Permission::UserRole;
 use TUSK::Constants;
 
+
 sub new {
     my ($class, $args) = @_;
 
     die "missing course object\n" unless ($args->{course} && ref $args->{course} eq 'HSDB45::Course');
 
     my $self = {
-        course => $args->{course},
-        school_db   => $args->{course}->school_db(),
+	course => $args->{course},
+	school_db   => $args->{course}->school_db(),
     };
 
     bless($self, $class);
     return $self;
 }
-
+ 
 sub findUser {
     my ($self, $course_user_id) = @_;
     my $user = TUSK::Core::HSDB4Tables::User->new();
@@ -85,7 +86,7 @@ sub add {
         _addUserSite($course_user->getPrimaryKeyID(), $site_id, $params->{author}) if ($site_id);
     }
 
-   $self-> _updateCourseGroups($params, $course_user->getTimePeriodID());
+    $self-> _updateCourseGroups($params, $course_user->getTimePeriodID());
 }
 
 sub _addUserRole {
@@ -95,7 +96,7 @@ sub _addUserRole {
     return if (scalar @$user_roles);
 
     my $user_role = TUSK::Permission::UserRole->new();
-    $user_role->setFieldValues({
+    $user_role->setFieldValues({ 
         user_id => $user_id,
         role_id => $role_id,
         feature_id => $course_user_id,
@@ -126,8 +127,8 @@ sub _addCourseGroupUser {
     my $group_user = TUSK::Core::HSDB45Tables::LinkUserGroupUser->new();
     $group_user->setDatabase($self->{school_db});
     $group_user->setFieldValues({
-        parent_user_group_id => $group_id,
-        child_user_id => $user_id,
+	parent_user_group_id => $group_id,
+	child_user_id => $user_id,
     });
     $group_user->save();
 }
@@ -136,9 +137,9 @@ sub edit {
     my ($self, $params) = @_;
     my $user = $self->findUser($params->{course_user_id});
     if (ref $user eq 'TUSK::Core::HSDB4Tables::User') {
-        _updateRoles($params, $user);
-        _updateUserSites($params, $user->getCourseUserSites());
-        $self->_updateCourseGroups({ %$params, user_id => $user->getPrimaryKeyID() }, $user->getCourseUser()->getTimePeriodID());
+	_updateRoles($params, $user);
+	_updateUserSites($params, $user->getCourseUserSites());
+	$self->_updateCourseGroups({ %$params, user_id => $user->getPrimaryKeyID() }, $user->getCourseUser()->getTimePeriodID());
     }
 }
 
@@ -149,23 +150,23 @@ sub _updateRoles {
     my $user_rrole = undef;
 
     foreach (@{$user->getJoinObjects('TUSK::Permission::Role')}) {
-        if ($_->getVirtualRole()) {
-            $user_vroles{$_->getPrimaryKeyID()} = $user_roles{$_->getPrimaryKeyID()};   ### could be multiple virtual roles
-        } else {
-            $user_rrole = $user_roles{$_->getPrimaryKeyID()};   ### only one real role
-        }
+	if ($_->getVirtualRole()) {
+	    $user_vroles{$_->getPrimaryKeyID()} = $user_roles{$_->getPrimaryKeyID()};   ### could be multiple virtual roles
+	} else {
+    	    $user_rrole = $user_roles{$_->getPrimaryKeyID()};   ### only one real role
+	}
     }
 
     ### update role
     if ($user_rrole) {
-        if (defined $params->{role_id}) {
-            if ($params->{role_id} == 0) {  ## DELETE
-                $user_rrole->delete({ user => $params->{author} });
-            } else { ## UPDATE
-                $user_rrole->setRoleID($params->{role_id});
-                $user_rrole->save({ user => $params->{author} });
-            }
-        }
+	if (defined $params->{role_id}) {
+	    if ($params->{role_id} == 0) {  ## DELETE
+            $user_rrole->delete({ user => $params->{author} });
+	    } else { ## UPDATE
+            $user_rrole->setRoleID($params->{role_id});
+            $user_rrole->save({ user => $params->{author} });
+	    } 
+	}
     } else {
         _addUserRole($user->getPrimaryKeyID(), $params->{role_id}, $params->{course_user_id}, $params->{author});
     }
@@ -183,9 +184,9 @@ sub _updateRoles {
         while (my ($key, $user_vrole) = each %user_vroles) {
             if ($delete_all || !exists $new_vroles{$key}) {
                 $to_be_deleted{$key} = $user_vrole;
-            }
+            } 
             delete $new_vroles{$key};
-        }
+        } 
         ## reuse the rows if possible, or delete if fewer new labels
         foreach my $vrole (values %to_be_deleted) {
             if (my $new_vrole_id = (keys %new_vroles)[0]) {
@@ -203,20 +204,22 @@ sub _updateRoles {
     }
 }
 
+
 sub _updateUserSites {
     my ($params, $course_user_sites) = @_;
 
-    my %new_site_ids = map { $_ => 1 } grep { $_ } ((ref $params->{site_id} eq 'ARRAY') ? @{$params->{site_id}} : ($params->{site_id}));
+    my %new_site_ids = map { $_ => 1 } grep { $_ }  ((ref $params->{site_id} eq 'ARRAY') ? @{$params->{site_id}} : ($params->{site_id}));
     return unless keys %new_site_ids;
 
     ## update
-    foreach my $course_user_site (@$course_user_sites) {
-        my $existing_site_id = $course_user_site->getTeachingSiteID();
+	foreach my $course_user_site (@$course_user_sites) {
+	    my $existing_site_id = $course_user_site->getTeachingSiteID();
+
         if (exists $new_site_ids{$existing_site_id}) {
             delete $new_site_ids{$existing_site_id};
-        } else {
+	    } else {
             $course_user_site->delete({user => $params->{author}});
-        }
+	    }
     }
 
     ## add
@@ -225,28 +228,29 @@ sub _updateUserSites {
     }
 }
 
+
 sub _updateCourseGroups {
     my ($self, $params, $time_period_id) = @_;
 
     my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
     my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
-    my @usergroups = $self->{course}->sub_user_groups($time_period_id);
+    my @usergroups = $self->{course}->sub_user_groups($time_period_id); 
 
-    # delete and/or add the usergroups
+    # delete and/or add the usergroups	
     foreach my $group (@usergroups) {
-        my $pk = $group->primary_key;
-        $params->{"newgroup-$pk"} = 0 unless $params->{"newgroup-$pk"};
-
-        if ($params->{"newgroup-" . $pk} ne $params->{"oldgroup-" . $pk}){
-            if ($params->{"newgroup-$pk"}){
-                # first delete just to make sure user is not already in the group
-                $group->delete_child_user($un, $pw, $params->{user_id});
-                $group->add_child_user($un, $pw, $params->{user_id});
-            } else {
-                $group->delete_child_user($un, $pw, $params->{user_id});
-            }
-        }
+	my $pk = $group->primary_key;
+	$params->{"newgroup-$pk"} = 0 unless $params->{"newgroup-$pk"};
+	
+	if ($params->{"newgroup-" . $pk} ne $params->{"oldgroup-" . $pk}){
+		if ($params->{"newgroup-$pk"}){
+                        # first delete just to make sure user is not already in the group 
+			$group->delete_child_user($un, $pw, $params->{user_id}); 
+			$group->add_child_user($un, $pw, $params->{user_id});
+		} else {
+			$group->delete_child_user($un, $pw, $params->{user_id});
+		}
+	}
     }
 }
 
@@ -255,21 +259,22 @@ sub delete {
     my ($rval, $msg) = (0, 'Failed to delete');
 
     foreach my $course_user_site (@{$user->getCourseUserSites()}) {
-        $course_user_site->delete({user => $author});
+	$course_user_site->delete({user => $author});
     }
 
     foreach my $user_role (@{$user->getUserRoles()}) {
-        $user_role->delete({user => $author});
+	$user_role->delete({user => $author});
     }
     ## expect new/old group_id(s) in the $params
     $self->_updateCourseGroups($params, $user->getCourseUser()->getTimePeriodID());
 
     my $course_user = $user->getCourseUser();
     $course_user->delete({user => $author});
-
+    
     ($rval, $msg) = (1, 'Successfully deleted');
     return ($rval, $msg);
 }
+
 
 sub discussions {
     my ($self, $time_period_id) = @_;
