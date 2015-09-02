@@ -44,6 +44,7 @@
 	my $fields = $form->getFields();
 	my @student_options = ();
 	my $all_assessors_completed = 0;
+	my $adjusted_flag = 0;
 </%shared>
 
 <& /tmpl/element:form, params => {
@@ -93,6 +94,12 @@
 <& "/tmpl/element:table", params => { id => "expandable", width => "100%", border => "0", cellspacing => "0", cellpadding => "0", style => "border-collapse:collapse;" } &>
 <tr>
 <td class="no-button">
+
+% if ($adjusted_flag == 1) {
+	<div style = "font-size: 20px; color: red;">
+		<span style = "color: black;" <b>Note: </b></span> Weights have been automatically adjusted to account for NA scores.
+	</div>
+% }
 
 <& /tmpl/element:object_selection_box, params => { 
 	columns => $column_headers,
@@ -292,6 +299,7 @@
 	push @$column_headers, {label => __('Score'), field => 'avg_score', align => 'center', html => 1 };
 
 	my %recalculated_weights;
+	$adjusted_flag = 0;
 
 	if ($total_weight) {
 		push @$column_headers, (
@@ -302,22 +310,22 @@
 
 		my $index = 0;
 		my $n_assessors = 0;
+		my $field_id;
 
 		foreach my $field(@$fields) {
-			my $field_id = $field->getPrimaryKeyID();
+			$field_id = $field->getPrimaryKeyID();
 			$n_assessors = scalar grep { /^\d+$/ } values %{$scores{field}{$field_id}{assessors}};			
 
 			if ($n_assessors > 0) {
 				$weight_total += $field->getWeight();
+			} else {
+				$adjusted_flag = 1;
 			}
 			$index++;
 		}
 
-		print $weight_total . "<br><br>";
-
-
 		foreach my $field (@$fields) {
-			my $field_id = $field->getPrimaryKeyID();
+			$field_id = $field->getPrimaryKeyID();
 			$n_assessors = scalar grep { /^\d+$/ } values %{$scores{field}{$field_id}{assessors}};			
 
 			if ($n_assessors > 0) {
@@ -326,7 +334,6 @@
 			}
 		}
 
-		print Dumper %recalculated_weights;
 	}
 
 	push @$column_headers, {label => '<div class="allrows"><div class="arrow"></div></div>', field => 'arrow', align => 'center', class => 'td_master', 'html' => 1};
