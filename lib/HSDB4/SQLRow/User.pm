@@ -1303,17 +1303,17 @@ sub current_evals {
     # Now, get enrollment evaluations.
     my @enroll_evals = ();
     for my $school ( eval_schools() ) {
-	my $db = get_school_db($school);
-	my @eval_ids = ();
+        my $db = get_school_db($school);
+        my @eval_ids = ();
 
-	eval {
-	    my $sql = qq[SELECT eval_id, t.token, c.title, c.course_id
+        eval {
+            my $sql = qq[SELECT eval_id, t.token, c.title, c.course_id
 			 FROM $db\.eval e, $db\.link_course_student l, tusk.eval_type t, $db\.course c
 			 WHERE l.child_user_id=?
 			 AND l.parent_course_id=e.course_id
 			 AND l.time_period_id=e.time_period_id
-			 AND to_days(e.available_date) <= to_days(now())
-			 AND to_days(e.due_date) >= to_days(now())
+			 AND e.available_date <= curdate()
+			 AND e.due_date >= curdate()
 			 AND (e.teaching_site_id is null OR e.teaching_site_id = 0 OR e.teaching_site_id = l.teaching_site_id)
 			 AND e.eval_type_id = t.eval_type_id
 			 AND parent_course_id = c.course_id
@@ -1321,7 +1321,7 @@ sub current_evals {
 			 ];
 
             my $sth = $dbh->prepare($sql);
-	    $sth->execute($self->primary_key);
+            $sth->execute($self->primary_key);
 
 	    while (my ($eval_id, $eval_type, $course_title, $course_id) = $sth->fetchrow_array) {
 		if ($eval_type eq 'teaching') {
