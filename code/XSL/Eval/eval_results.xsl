@@ -42,18 +42,13 @@
 
   <xsl:template match="/">
     <ol>
-    <xsl:if test="$COMPLETIONS='1'">
-      <xsl:call-template name="completions"/>      
-    </xsl:if>
     <xsl:for-each select="$evalXml/child::*[self::EvalQuestion or self::EvalQuestionRef or self::QuestionGroup]">
       <xsl:apply-templates select="."/>
     </xsl:for-each>
     </ol>
   </xsl:template>
-  <!-- Templates for dealing with "global" EvalQuestionRef elements  -->
 
-  <xsl:template name="completions">
-  </xsl:template>
+  <!-- Templates for dealing with "global" EvalQuestionRef elements  -->
 
   <xsl:template match="EvalQuestionRef[parent::Eval]">
     <xsl:variable name="root_question_id" select="./QuestionRef/@target_question_id"/>
@@ -207,7 +202,7 @@
       <xsl:call-template name="question_text">
         <xsl:with-param name="text" select="$question//question_text"/>
       </xsl:call-template>
-      
+
       <xsl:choose>
         <xsl:when test="$question_results/Categorization">
           <xsl:call-template name="categorizationHeader">
@@ -365,7 +360,7 @@
 		<xsl:choose>
 			<xsl:when test="$MERGED != 1 and $completionsXml/@count = 1">
 				<!-- This is a one man show !-->
-				On a scale of 
+				On a scale of
 				<xsl:for-each select="$question_results/ResponseGroup/ResponseStatistics/Histogram/HistogramBin">
 					<xsl:sort select="." data-type="number" order="ascending"/>
 					<xsl:if test="position()=1">
@@ -418,7 +413,7 @@
 				<b>NA:</b><xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/na_response_count"/><br/>
 				<b><xsl:text>Mean:</xsl:text></b><xsl:choose>
 				  <xsl:when test="$question_results/ResponseGroup/ResponseStatistics/mean">
-					<xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/mean"/>    
+					<xsl:value-of select="$question_results/ResponseGroup/ResponseStatistics/mean"/>
 				  </xsl:when>
 				  <xsl:otherwise>
 					<xsl:text>--</xsl:text>
@@ -461,7 +456,7 @@
 				<div class="clear"><xsl:text disable-output-escaping="yes">&amp;nbsp;</xsl:text></div>
 			</xsl:otherwise>
 		</xsl:choose>
-		
+
         </xsl:otherwise>
       </xsl:choose>
       </div>
@@ -536,7 +531,7 @@
         <xsl:with-param name="question" select="EvalQuestion"/>
         <xsl:with-param name="root_question" select="EvalQuestion"/>
       </xsl:call-template>
-      
+
       <xsl:for-each select="EvalQuestionRef">
         <xsl:call-template name="globalFillIn">
           <xsl:with-param name="question" select="."/>

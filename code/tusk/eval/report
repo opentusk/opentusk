@@ -16,7 +16,7 @@
 <%once>
 	use HSDB45::Eval;
 	use HSDB45::Eval::Results;
-	use Apache2::Const qw (FORBIDDEN);
+	use HSDB45::Eval::Secret;
 	use TUSK::Eval::EvalLoadTime;
 	use TUSK::Constants;
 </%once>
@@ -25,8 +25,7 @@
 	page_header => '/tmpl/prepend:manage_header_div_layout'
 	page_footer => '/tmpl/footer:footer_div'
 	skip_header_bar => 1
-	allow_guest => 0
-	must_be_eval_admin => 1
+	allow_guests => 1
 </%attr>
 
 <%method title>
@@ -48,15 +47,13 @@
 	} else {
 		$eval = HSDB45::Eval->lookup_path($ENV{'PATH_INFO'});
 	}
-	# Check for valid user
-	unless ($eval->admin_group()->contains_user($m->session->{'user'})) {
-		$r->status(FORBIDDEN);
-		$m->abort();
-	}
 	my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
 	my $eval_id = ($eval) ? $eval->primary_key() : 0;
+	my $auth = '';
+	my $code = '';
 	my $evaluatee_id = '';
 	my $teaching_site_id = 0;
+	my $query = '';
 	my $course = ($eval) ? $eval->course() : '';
 	my $school = ($eval) ? $eval->school() : '';
 	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
@@ -66,10 +63,21 @@
 </%shared>
 
 <%init>
-	if ($is_teaching_eval) {
-		$evaluatee_id = $ARGS{'evaluatee_id'} || '';
-		$teaching_site_id = $ARGS{'teaching_site_id'} || 0;
+	$auth = $ARGS{'auth'} || '';
+	$evaluatee_id = $ARGS{'evaluatee_id'} || '';
+	$teaching_site_id = $ARGS{'teaching_site_id'} || 0;
 
+	$code =	HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $evaluatee_id);
+
+	# Check for a valid user
+	unless ($auth eq $code || $eval->admin_group()->contains_user($m->session->{'user'})) {
+		$m->print('<h2 class="title">' . __('Authorization Error') . '</h2>');
+		$m->abort();
+	}
+
+	$query = "?auth=$code&evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id";
+
+	if ($is_teaching_eval) {
 		foreach my $site ($course->child_teaching_sites('ORDER BY site_name')) {
 			my $name = $site->site_name();
 			my $location = $site->site_city_state();
@@ -96,6 +104,8 @@
 		}
 	}
 
+	my $link = 'https://' . $ENV{SERVER_NAME} . $ENV{SCRIPT_NAME} . $ENV{PATH_INFO} . $query;
+
 	my $num_users = $eval->num_users();
 	my $num_comps = $eval->count_complete_users();
 	my $num_incos = $num_users - $num_comps;
@@ -119,27 +129,31 @@
 
 % if ($is_teaching_eval) {
 	<h2 class="title"><& /tmpl/element:dropdown, params => {
-			label 		=> __('Teaching Site') . ':',
-			name 		=> 'teaching_site',
-			onchange	=> "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value, true)",
-			selected	=> $teaching_site_id,
-			options		=> \@teaching_sites
+			label => __('Teaching Site') . ':',
+			name => 'teaching_site',
+			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value, true)",
+			selected => $teaching_site_id,
+			options => \@teaching_sites,
+			disabled => $auth
 	} &></h2>
 	<h2 class="title"><& /tmpl/element:dropdown, params => {
-			label 		=> __('Evaluatee') . ':',
-			name 		=> 'evaluatee',
-			onchange	=> "setGetParameter('evaluatee_id', this.options[this.selectedIndex].value)",
-			selected	=> $evaluatee_id,
-			options		=> \@evaluatees
+			label => __('Evaluatee') . ':',
+			name => 'evaluatee',
+			onchange => "setGetParameter('evaluatee_id', this.options[this.selectedIndex].value)",
+			selected => $evaluatee_id,
+			options => \@evaluatees,
+			disabled => $auth
 	} &></h2>
 % }
 
 <div class="evalFluff">
-	<a href="/protected/eval/administrator/show/<% $school %>"><%__("Manage Evaluations")%></a><br />
-% unless ($is_teaching_eval) {
-	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><%__("Export Report")%></a><br />
+	<a href="/protected/eval/administrator/show/<% $school %>"><%__('Manage Evaluations')%></a><br />
+% if ($is_teaching_eval) {
+		<a id="directLink" onclick="window.prompt('', '<% $link %>')"><%__('Direct Link')%></a><br />
+% } else {
+	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><%__('Export Report')%></a><br />
 % }
-	<a id="graphLink" style="display:none;" href="" onclick="showHideGraphs(); return false;"><%__("Hide Graphs")%></a>
+	<a id="graphLink" style="display:none" onclick="showHideGraphs()"><%__('Hide Graphs')%></a>
 
 % my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
 % $evalLoadStats->setEval($eval);
@@ -170,5 +184,4 @@
 </div>
 <div id="evalArea">
 </div>
-% my $query = "?evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id";
 <script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $school %>/<% $eval_id %>', 0);</script>
