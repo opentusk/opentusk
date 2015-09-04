@@ -13,13 +13,10 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
-<%method title>
-% return __("Manage Teaching Sites");
-</%method>
 
-<%perl>
-	my @teaching_sites = HSDB45::TeachingSite->new(_school => $m->comp("/tmpl/url:get_school"))->lookup_all("order by site_name");
-</%perl>
+<%once>
+	use HSDB45::TeachingSite;
+</%once>
 
 <& /tmpl/element:cms_button_row, 
     links => [ 
@@ -29,17 +26,31 @@
 &>
 
 <& /tmpl/element:object_selection_box, params => { 
-				sort_box => 0,
-				columns => [ {'label' => __('Name'), 'field' => 'site_name'},
-	                                     {'label' => __('Type'), 'field' => 'site_city_state'}
-					],
-				action_columns => [ 
-							{ 'label'=>__('Link Courses'),'link' => '/management/teachingsite/admin/linksshow' },
-							{ 'label'=>__('Modify'),'link' => '/management/teachingsite/admin/addedit' },
-							{ 'label' => __('Delete'),'link' => '/management/teachingsite/admin/delete' } 
-			  			], 
-				object_list => \@teaching_sites,
-				type_path => $m->comp("/tmpl/url:get_type_path"),
-				name => "teaching sites",
-				}
-&>
+    sort_box => 0,
+    columns => [ 
+        {'label' => __('Name'), 'field' => 'site_name', html => 1},
+        {'label' => __('City/State'), 'field' => 'city_state'}
+	],
+	action_columns => [ 
+        {'label' =>__('Link Courses'), 'link' => '/management/teachingsite/admin/linksshow' },
+		{'label' =>__('Modify'), 'link' => '/management/teachingsite/admin/addedit' },
+		{'label' => __('Delete'), 'link' => '/management/teachingsite/admin/delete' } 
+	], 
+	rows => \@rows,
+	type_path => $m->comp("/tmpl/url:get_type_path"),
+	name => "teaching sites",
+} &>
+
+<%init>
+    my @teaching_sites = HSDB45::TeachingSite->new(_school => $m->comp("/tmpl/url:get_school"))->lookup_all("order by site_name");
+    my @rows = map { {
+        site_name => $_->site_name() . ' &nbsp; <span class="xxsm gray">[' . $_->primary_key() . ']</span>',
+        city_state => $_->site_city_state(),
+        id => $_->primary_key(),
+   } } @teaching_sites;
+</%init>
+
+
+<%method title>
+%   return __("Manage Teaching Sites");
+</%method>

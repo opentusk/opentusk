@@ -13,14 +13,10 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use HSDB45::TimePeriod;
 </%once>
-
-<%perl>
-	my @timeperiods = HSDB45::TimePeriod->new(_school => $m->comp("/tmpl/url:get_school"))->lookup_all("order by start_date desc");
-	my $school      = $m->comp("/tmpl/url:get_school");
-</%perl>
 
 <& /tmpl/element:cms_button_row, 
     links => [ 
@@ -30,22 +26,36 @@
 &>
 
 <& /tmpl/element:object_selection_box, params => { 
-				sort_box => 0,
-				columns => [ {'label' => __('Label'), 'field' => 'period', 'link' => '/management/timeperiod/addedit/school/'.$school},
-                             {'label' => __('Academic Year'), 'field' => 'academic_year', 'align' => 'center'},
-                             {'label' => __('Start Date'), 'field' => 'start_date'},
-                             {'label' => __('End Date'), 'field' => 'end_date'}
-					],
-				action_columns => [ 
-							{ 'label'=>__('Modify'),'link' => '/management/timeperiod/addedit' },
-							{ 'label' => __('Delete'),'link' => '/management/timeperiod/delete' } 
-			  			], 
-				object_list => \@timeperiods,
-				type_path => $m->comp("/tmpl/url:get_type_path"),
-				name => "time periods",
-				}
-&>
+	sort_box => 0,
+	columns => [ 
+        {'label' => __('Label'), 'field' => 'period', 'link' => '/management/timeperiod/addedit/school/' . $school, html => 1},
+        {'label' => __('Academic Year'), 'field' => 'academic_year', 'align' => 'center'},
+        {'label' => __('Start Date'), 'field' => 'start_date'},
+        {'label' => __('End Date'), 'field' => 'end_date'}
+	],
+	action_columns => [ 
+        {'label'=>__('Modify'), 'link' => '/management/timeperiod/addedit' },
+		{'label' => __('Delete'), 'link' => '/management/timeperiod/delete' } 
+    ], 
+	rows => \@rows,
+	type_path => $m->comp("/tmpl/url:get_type_path"),
+	name => "time periods",
+} &>
+
+<%init>
+	my $school = $m->comp("/tmpl/url:get_school");
+	my @time_periods = HSDB45::TimePeriod->new(_school => $school)->lookup_all("order by start_date desc");
+    my @rows = map { {
+        period => $_->period() . ' &nbsp; <span class="xxsm gray">[' . $_->primary_key() . ']</span>',
+        academic_year => $_->field_value('academic_year'),
+        start_date => $_->raw_start_date(),
+        end_date => $_->raw_end_date(),
+        id => $_->primary_key(),
+   } } @time_periods;
+
+</%init>
+
 
 <%method title>
-% return __("Manage Time Periods");
+%   return __("Manage Time Periods");
 </%method>
