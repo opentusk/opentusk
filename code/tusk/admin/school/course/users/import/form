@@ -1,0 +1,85 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%shared>
+    my $school = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+                                    
+% my ($roles, $labels) = $m->comp('/admin/school/course/users/import/utils:getCourseUserPermissions');
+
+<div style="margin:10px">
+<ul style="padding-left:1.2em;">
+<li><% __('Use this tool to add faculty/staff to specified courses in one or more time periods. Any existing course facutly/staff will NOT be deleted.') %></li>
+<li><% __('Column headers: ') . join(', ', $m->comp('/admin/school/course/users/import/utils:getFields')) %> </li>
+<li><% __('Include ALL the column headers above, spelled exactly and in the order indicated above, in the first row of the file.') %></li>
+<li><% __('CourseId, UserId and TimePeriodIds are the only columns that REQUIRE data. The other columns can be blank.') %></li>
+<li><% __('Role must be one of these titles: ' . join(', ', map { $_ } sort keys %$roles)) %></li>
+<li><% __('Labels must be one of these titles: ' . join(', ', map { $_ } sort keys %$labels)) %></li>
+<li><% __('TimePeriodIds and Labels can be multiple values with comma delimited.') %></li>
+<li><% __('Save the file as tab delimited.') %></li>
+</ul>
+</div>
+
+<& /tmpl/element:form, params => { 
+		enctype	 => 'multipart/form-data',
+		method   => 'POST',
+		name     => 'import_course_users',
+} &>
+
+<& /tmpl/element:table, params => {
+    style => 'margin:5px;'
+} &>
+
+<& /tmpl/element:file_upload, params => { 
+    name => 'users_file', 
+    label => __('File:') 
+} &>
+
+<& /tmpl/element:save_button, params => {
+    class => 'submitBtn', 
+    name  => 'submit_import', 
+	label => __('Import Faculty/Staff')
+} &>
+</table>
+<input type="hidden" name="results_url" value="/admin/school/course/users/import/results/<% $m->comp("/tmpl/url:get_type_path") %>" />
+</form>
+
+<div id="loadingCourseUsers" style="display:none;position:relative;top:120px;left:350px;">
+<div> &nbsp; <% __('Processing') %> ...</div>
+<img src="/graphics/competency_loading.gif">
+</div>
+
+<div id="results"></div>
+
+<%method leftnav>
+%	return { component => '/tmpl/leftnav/admin', school_name => $school->getSchoolName,  };	
+</%method>
+
+<%method title>
+%	return __("Import Faculty/Staff");
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+<%method red_header_class>
+%   return 'redHeaderBar';
+</%method>
+
+<%method jsarray>
+%   return [ 'jquery/jquery.min.js', 'admin/school/course/users/import.js' ];
+</%method>

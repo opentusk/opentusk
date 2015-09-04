@@ -1,0 +1,242 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%once>
+    use TUSK::Application::Course::User;
+    use TUSK::Course::User;
+    use TUSK::Import;
+    use HSDB4::SQLRow::User;
+    use HSDB45::Course;
+    use HSDB45::TimePeriod;
+</%once>
+
+<%shared>
+    my $school = $m->comp('/tmpl/url:get_type_object');
+    my %args = $m->request_args;
+    my %time_periods = ();
+    my %users = ();
+    my $course_users = {};
+    my %courses = ();
+    my $err_codes = { 
+        MC => { msg => __('Missing Course'), color => '#9aff9a' },
+        MU => { msg => __('Missing User'), color => '#ffe4b5' },
+        MT => { msg => __('Missing Time Period(s)'), color => '#ffec8b' },
+        DE => { msg => __('Duplicate Entry'), color => '#98f5ff' },
+        IC => { msg => __('Invalid Course'), color => '#b8e6c2' },
+        IU => { msg => __('Invalid User'), color => '#ffe1ff' },
+        IT => { msg => __('Invalid Time Period'), color => '#00f2ff' },
+    };
+</%shared>
+
+<%perl>
+	$m->clear_buffer();
+	$r->content_type('text/html');
+	$r->no_cache(1);
+</%perl>
+
+% if (scalar @$records) {
+<h4 style="margin:10px 0 0 0;padding:0;"><% __('Summary') %>:</h4>
+<table>
+<tr>
+<td valign="top">
+<div><% __('Number of data rows in the file') . ': '  . scalar @$records - 1 %></div>
+<div><% __('Number of records (course-user-timeperiod) added') . ': ' .  $stats{added_course_user_tp} %></div>
+</td>
+<td width="30px"></td>
+<td valign="top">
+<div><% __('Number of courses processed') . ': ' . scalar keys %wrappers %></div>
+<div><% __('Number of time periods processed') . ': ' . scalar keys %time_periods %></div>
+<div><% __('Number of users processed') . ': ' . scalar grep { $_ =~ /2/ } values %users %></div>
+</tr>
+</table>
+% } else {
+<% __('Something wrong while processing your file. Make sure you follow the instructions above.') %>
+% }
+
+% if (scalar @$errs) {
+<h4 style="margin:10px 0 0 0;padding:0;"><% __('Errors') %>:</h4>
+<table>
+<tr>
+<% join("\n",  (map { "<td style='background-color:$err_codes->{$_}{color};'>" . $err_codes->{$_}{msg} . " ($_)" . '</td>' } (sort keys %$err_codes))) %>
+</tr>
+</table>
+
+<div style="overflow: auto; height: 400px; width: 60%;">
+%   foreach my $i (1 .. $#$errs) {
+%       next unless ($errs->[$i]);
+<div style="margin-top:5px;"> 
+Line #<% $i+1 %> &nbsp;
+<% join(', ',  map { "<span style=\"background-color:" . $err_codes->{$_->{code}}{color} .  ";\">$_->{code}</span>" . ((exists $_->{value}) ? " <span class=\"xxsm\">($_->{value})</span>" : '') } @{$errs->[$i]}) %>
+</div>
+%   }
+</div>
+% }
+
+<%init>
+    my $errs = [];
+    my $records = $m->comp('SELF:parseFile');
+    my %wrappers = ();
+    my %stats = ();
+    my ($course_err, $user_err, $tp_err) = (undef, undef, undef);
+    my ($roles, $labels) = $m->comp('/admin/school/course/users/import/utils:getCourseUserPermissions');
+    $stats{added_course_user_tp} = 0;
+
+    use Data::Dumper;
+
+    foreach my $i (1 .. $#$records) {
+        my $rec = $records->[$i];
+        my $course_id = $rec->get_field_value('CourseId');
+        my $user_id = $rec->get_field_value('UserId');
+        my @time_period_ids = split(',', $rec->get_field_value('TimePeriodIds'));
+        my @teaching_site_ids = split(',', $rec->get_field_value('TeachingSiteIds'));
+        my $user_role = $rec->get_field_value('Role');
+        my @user_labels = split(',', $rec->get_field_value('Labels'));
+
+
+        if ($course_err = $m->comp('SELF:validateCourse', course_id => $course_id)) {
+            push @{$errs->[$i]}, $course_err;
+        } 
+
+        if ($user_err = $m->comp('SELF:validateUser', user_id => $user_id)) {
+            push @{$errs->[$i]}, $user_err;
+        }
+
+        if ($tp_err = $m->comp('SELF:validateTimePeriods', time_period_ids => \@time_period_ids)) {
+            push @{$errs->[$i]}, @$tp_err;
+        }
+
+        if (!$course_err && !$user_err && !$tp_err) {
+            unless (exists $wrappers{$course_id}) {
+                $wrappers{$course_id} = TUSK::Application::Course::User->new({course => $courses{$course_id}});
+            }
+
+            foreach my $time_period_id (@time_period_ids) {
+                unless (exists $course_users->{$time_period_id}) {
+                    $m->comp('SELF:setExistingCourseUsersByPeriod', time_period_id => $time_period_id);
+                }
+
+                if (exists $course_users->{$time_period_id}{$course_id}{$user_id}) {
+                    push  @{$errs->[$i]}, { code => 'DE', value => $course_id . '-' . $user_id . '-' . $time_period_id },
+                } else {
+                    $wrappers{$course_id}->add({     
+                        author => $m->session->{user}->primary_key(), 
+                        user_id => $user_id, 
+                        time_period_id => $time_period_id,
+                        site_id => \@teaching_site_ids || [],
+                        role_id => $roles->{lc $user_role} || undef,
+                        virtual_role_id => [ join(',', map { $labels->{lc $_} } @user_labels) ],                                
+                    });
+
+                    $stats{added_course_user_tp}++;
+                    $course_users->{$time_period_id}{$course_id}{$user_id} = 1;
+                    $users{$user_id} = 2;
+                }
+            }
+        }
+    }
+</%init>
+
+<%method parseFile>
+<%perl>
+    my $import = TUSK::Import->new();
+    $import->set_ignore_empty_fields(1);
+    $import->set_fields($m->comp('/admin/school/course/users/import/utils:getFields'));
+
+    if ($args{users_file}) {
+    	if (my $upload = $r->upload('users_file')) {
+	        $import->read_filehandle($upload->fh(), "\t");
+        }
+    }
+
+    return [ $import->get_records() ];
+</%perl>
+</%method>
+
+<%method setExistingCourseUsersByPeriod>
+<%args>
+    $time_period_id
+</%args>
+<%perl>
+    my $existing_records = TUSK::Course::User->lookup("school_id = " . $school->getPrimaryKeyID() . " AND time_period_id = $time_period_id");
+    $course_users->{$_->getTimePeriodID()}{$_->getCourseID()}{$_->getUserID()} = 1 foreach (@$existing_records);
+</%perl>
+</%method>
+
+<%method validateCourse>
+<%args>
+    $course_id
+</%args>
+<%perl>
+    return { code => 'IC', value => $course_id } if ($course_id =~ /^0+$/);    
+    return { code => 'MC' }  unless ($course_id =~ /\d+/);
+    unless (exists $courses{$course_id}) {
+        my $course = HSDB45::Course->new(_school => $school->getSchoolName())->lookup_key($course_id);
+        if ($course->primary_key() == $course_id) {
+            $courses{$course_id} = $course;
+        } else {
+            return { code => 'IC', value => $course_id };
+        }
+    }
+    return undef;
+</%perl>
+</%method>
+
+
+<%method validateUser>
+<%args>
+    $user_id
+</%args>
+<%perl>
+    return { code => 'MU' } unless ($user_id =~ /\w+/);
+    unless (exists $users{$user_id}) {
+        if (my $user = HSDB4::SQLRow::User->new()->lookup_key($user_id)) {
+            $users{$user_id} = 1;
+        } else {
+            return { code => 'IU', value => $user_id };
+        }
+    }
+    return undef;
+</%perl>
+</%method>
+
+<%method validateTimePeriods>
+<%args>
+    $time_period_ids
+</%args>
+<%perl>
+    my @errs = ();
+    foreach my $tp_id (@$time_period_ids) {
+        push @errs, { code => 'IT', value => $tp_id } if ($tp_id =~ /^0+$/);
+        push @errs, { code => 'MT' } unless ($tp_id =~ /\d+/);
+        unless (exists $time_periods{$tp_id}) {
+            my $tp = HSDB45::TimePeriod->new(_school => $school->getSchoolName())->lookup_key($tp_id);
+            if ($tp->primary_key() == $tp_id) {
+                $time_periods{$tp_id} = 1;
+            } else {
+                push @errs, { code => 'IT', value => $tp_id };
+            }
+        }
+    }
+    return (scalar @errs) ? \@errs : undef;
+</%perl>
+</%method>
+
+
+
