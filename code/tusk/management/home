@@ -15,7 +15,7 @@
 </%doc>
 
 <%attr>
-    	no_check_path => 1
+  	no_check_path => 1
 	skip_header_bar => 1
 	top_tab_type => 'manage'
 	nostandardheader => '1'
@@ -40,13 +40,22 @@
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
 
-<tr>             
-<td width="50%" valign="top" colspan="3"><%__("Select a course to manage or add content to:")%></td>
+  <tr>             
+    <td width="50%" valign="top" colspan="3">
+    <table width="99%">
+        <tr><td><%__("Select a course to manage
+:")%></td>
+
+% if ($num_schools > 1 ) {
+        <td valign="top" align="right"><a href="#" onclick="toggleAllSchools(<% $num_schools %>, this, 'id_school_courses')"><img src="/graphics/up.gif" title="Collapse/Expand All School Courses"></a></td>
+% }
+    </tr></table>
+    </td>
 	<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
-                <td width="50%" valign="top">&nbsp;</td>
+    <td width="50%" valign="top">&nbsp;</td>
 	<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
   </tr>
-   <tr>
+  <tr>
     <td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
                 <td width="50%" valign="top">
 
@@ -62,7 +71,24 @@
 
 % $m->comp("/management/tmpl/management:print_recently_modified", recently_modified => \@recently_modified );
 
+<table width="100%">
+    <tr><td><%__("Select a school group to manage:")%></td>
+% if ($num_schools > 1 ) {
+        <td align="right"><a href="#" onclick="toggleAllSchools(<% $num_schools %>, this, 'id_school_my_groups'); return false;"><img src="/graphics/up.gif" title="<% __('Collapse/Expand All School Groups') %>"></a></td>
+% }
+    </td>
+</table>
+
 % $m->comp("/management/tmpl/management:print_my_groups", group_courses_hashref => $group_courses_hashref );
+
+
+<table width="100%">
+    <tr><td><%__("Select a thesis committe to manage:")%></td>
+% if ($num_schools > 1 ) {
+        <td align="right"><a href="#" onclick="toggleAllSchools(<% $num_schools %>, this, 'id_school_tcommittees')"><img src="/graphics/up.gif" title="<% __("Collapse/Expand All School's Thesis Committees") %>"></a></td>
+% }
+    </td>
+</table>
 
 % $m->comp("/management/tmpl/management:print_thesis_committees", tc_courses_hashref => $tc_courses_hashref );
 
@@ -79,6 +105,7 @@
 <%init>
 	# Fetch user's editable courses...
 	my ($courses_hashref,  $group_courses_hashref, $tc_courses_hashref) = $user->cms_courses_sorted();
+    my $num_schools = scalar keys %{$courses_hashref};
 
 	# What has been recently modified
 	my @recently_modified = $user->recently_modified;
@@ -95,4 +122,8 @@
 
 <%method title>
 % 	return __("Manage Content");
+</%method>
+
+<%method jsarray>
+%	return [ 'jquery/jquery.min.js', 'admin/school/home.js' ];
 </%method>

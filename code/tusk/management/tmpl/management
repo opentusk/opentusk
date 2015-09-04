@@ -7,23 +7,25 @@ use TUSK::Application::HTML::Strip;
 <%args>
 $group_courses_hashref
 </%args>
-<%doc></%doc>
 
-% foreach my $school (keys %{$group_courses_hashref}) {
+% my $i = 0;
+% foreach my $school (sort keys %{$group_courses_hashref}) {
       <!-- Begin My Groups Header Table -->
 
-<h3 class="gRedHeaderBar"><% $school %> <%__("groups")%> [beta]</h3>
-
+<a href="#" onclick="toggleSchool('id_school_my_groups_<% $i %>', this); return false;">
+<h3 title="Click to collapse/expand school groups" class="gRedHeaderBar"><% $school %> <%__("groups")%></h3>
+</a>
       <!-- End My Groups Header Table -->
       <!-- Begin my Groups Table -->
 <& /tmpl/element:table, params => { 
+    id => 'id_school_my_groups_' . $i++,
 	width => "100%",
 	cellspacing =>"0",
 	cellpadding =>"0"  } &>
-   
-       <tr>
-        <td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
-	<td width="150%" valign="top">
+
+    <tr>
+      <td width="1" valign="top" background="/graphics/bg-dotsvert-skinny.gif"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
+	  <td width="150%" valign="top">
 
 	<!-- Begin Inner My Groups Table -->
 <& /tmpl/element:table, params => { 
@@ -31,9 +33,9 @@ $group_courses_hashref
 	cellspacing =>"5",
 	cellpadding =>"0"  } &>
 	 
-%     foreach my $g_course (sort keys %{$group_courses_hashref->{$school}}) {
+%   foreach my $g_course (sort keys %{$group_courses_hashref->{$school}}) {
 %	   my ($label,$id)=split("\0",$g_course);
-		<tr><td width="100%" valign="top" class="cell-left"><a href="/management/course/display/<% $school %>/<% $id %>"><% $label %></a></td></tr>
+	<tr><td width="100%" valign="top" class="cell-left"><a href="/management/course/display/<% $school %>/<% $id %>"><% $label %></a></td></tr>
 %	}
 	  <tr>
 	   <td colspan="2" width="100%" valign="top"><img src="/graphics/spacer.gif" alt=" " width="1" height="1" border="0"></td>
@@ -51,18 +53,22 @@ $group_courses_hashref
 
 <%method print_thesis_committees>
 <%args>
-$tc_courses_hashref
+    $tc_courses_hashref
 </%args>
-<%doc></%doc>
 
+
+% my $i = 0;
 % foreach my $school (keys %{$tc_courses_hashref}) {
       <!-- Begin Thesis Committee Header Table -->
 
-<h3 class="gRedHeaderBar"><% $school %> <%__("Thesis Committees")%> [<%__("beta")%>]</h3>
+<a href="#" onclick="toggleSchool('id_school_tcommittees'_<% $i %>', this); return false;">
+<h3 title="Click to collapse/expand school's thesis committees" class="gRedHeaderBar"><% $school %> <%__("thesis committees")%></h3>
+</a>
 
       <!-- End Thesis Committee Header Table -->
       <!-- Begin Thesis Committee Table -->
 <& /tmpl/element:table, params => { 
+    id => 'id_school_tcommittees_' . $i++,
 	width => "100%",
 	cellspacing =>"0",
 	cellpadding =>"0"  } &>
@@ -291,32 +297,42 @@ $tc_courses_hashref
 <%args>
 $courses_hashref
 </%args>
-<%doc></%doc>
-% foreach my $school (keys %{$courses_hashref}) {
+
+% my $i = 0;
+% foreach my $school (sort keys %{$courses_hashref}) {
+
 <& /tmpl/element:table, params => { 
 	width => "100%",
 	cellspacing =>"0",
 	cellpadding =>"0" } &>
   <tr>
-    <td width="100%" valign="top"><h3 class="gRedHeaderBar"><% $school %> <%__("School")%></h3></td
+    <td width="100%" valign="top"><a href="#" onclick="toggleSchool('id_school_courses_<% $i %>', this); return false;">
+    <h3 title="Click to collapse/expand courses" class="gRedHeaderBar">  <% $school %> <%__("School")%> </h3></a></td>
   </tr>
 </table>
+
 <& /tmpl/element:table, params => { 
+    id => 'id_school_courses_' . $i++,
 	width => "100%",
-	cellspacing =>"0",
-	cellpadding =>"0"  } &>
+	cellspacing => "0",
+	cellpadding => "0"  
+} &>
+
 % my $stripObj = TUSK::Application::HTML::Strip->new();
 % foreach my $course (sort keys %{$courses_hashref->{$school}}) {
 %     my ($label,$id)=split("\0",$course);      
-                    <tr> 
 %     ## strip out HTML tags from text that will appear as the label
 %     $label = $stripObj->removeHTML($label);
-                      <td width="90%" class="graycell"><a href="course/display/<% $school %>/<% $id %>"><% $label %></a></td>
-                    </tr>
-% }
+<tr> 
+<td width="100%" class="graycell"><a href="course/display/<% $school %>/<% $id %>"><% $label %></a> &nbsp; <span class="xxsm gray">[<% $id %>]</span></td>
+<td class="graycell" align="right"><span class="xxsm gray"></span></td>
+</tr>
+% } ## all courses for each school
 
 </table>
-% }
+
+% } ## all schools
+
 </%method>
 
 
