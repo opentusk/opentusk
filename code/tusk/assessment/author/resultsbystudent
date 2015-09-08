@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use TUSK::FormBuilder::Response;
 	use TUSK::FormBuilder::EntryAssociation;
@@ -35,6 +36,7 @@
 	my $time_period_id = $m->comp('SELF:get_timeperiod_id');
 	my (%scores, %comments, %entries, %assigned, %field_responses);
  	my $student_grade;
+    my $entry_grade = ($entry_id) ? TUSK::FormBuilder::EntryGrade->lookupReturnOne("entry_id = $entry_id") : TUSK::FormBuilder::EntryGrade->new();
 	my $repost_grade;
 	my $column_headers = [];
 	my $assessors = [];
@@ -133,16 +135,16 @@
 
 <%init>
 	if ($ARGS{submit_check}){
+
 		## a bit kludgy but need to prepend a fake item id to scaling question type.  
 		foreach my $key (keys %ARGS) {
 			$ARGS{$key} = '0_' . $ARGS{$key} if ($key =~ /^id/);
 		}
 
-		my $entry_grade = TUSK::FormBuilder::EntryGrade->lookupReturnOne("entry_id = $entry_id") if ($entry_id);
-        my $total_score = ($ARGS{total_override_score}) ? $ARGS{total_override_score} : $ARGS{total_final_score},
+        my $total_score = (defined $ARGS{total_override_score} && $ARGS{total_override_score} != 0.00) ? $ARGS{total_override_score} : $ARGS{total_final_score};
 
         ### store score ot each entry in form_builder_grade_entry, then when post the grade, we will post it to link_user_grade_event
-		$entry_id = $m->comp("/formbuilder/process:entry", args => { %ARGS, time_period_id => $time_period_id, total_score =>  $total_score, form_submit => 1 }, form => $form, user_id => $user_id, date => $ARGS{encounter_date}, entry_id => $entry_id, entry_grade => $entry_grade );
+		$entry_id = $m->comp("/formbuilder/process:entry", args => { %ARGS, time_period_id => $time_period_id, total_score => $total_score, form_submit => ($ARGS{post_submit}) ? 1 : 0 }, form => $form, user_id => $user_id, date => $ARGS{encounter_date}, entry_id => $entry_id, entry_grade => $entry_grade);
 
 		$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id) unless ($entry->getPrimaryKeyID());
 
@@ -277,13 +279,9 @@
 
 <%method process_rows>
 <%perl>
-	if ($entry_id && !$student_grade) {
-		$student_grade = $m->comp('/assessment/tmpl/grade:get_student_grade', form_id => $form_id, time_period_id => $time_period_id, student_id => $student_id ); 
-	}
-
-	if ($student_grade) {
-		$scores{total}{final_override} = ($student_grade->getGrade()) ? sprintf("%.2f", $student_grade->getGrade()): '';
-		$comments{final} = $student_grade->getComments();
+	if ($entry_grade) {
+		$scores{total}{final_override} = ($entry_grade->getScore()) ? sprintf("%.2f", $entry_grade->getScore()): '';
+		$comments{final} = $entry_grade->getComments();
 	}
 
 	$column_headers = [ {label => __('Performance Criteria'), field => 'field' } ];
@@ -412,7 +410,7 @@
 		weight => ($total_weight) ? "<span id=\"total_weight\">$total_weight</span>" . '<span class="xxsm">%</span>' : '',
 		avg_score => ($total_weight) 
 			? '<span id="total_avg_score"></span>'
-			: '<table align="center"><tr><td class="xxsm" align="right">calculated:</td><td><input type="text" class="totalValue" name="total_final_score" size="4" value="" READONLY/></td></tr><tr><td class="xxsm" align="right">override:</td><td><input type="text" class="totalValue" name="total_override_score" size="4" value="' . sprintf("%.2f", $scores{total}{final_override}) . '" /></td></tr></table>',
+			: '<table align="center"><tr><td class="xxsm" align="right">' . __('calculated:') . '</td><td><input type="text" class="totalValue" name="total_final_score" size="4" value="" READONLY/></td></tr><tr><td class="xxsm" align="right">' . __('override:') . '</td><td><input type="text" class="totalValue" name="total_override_score" size="4" value="' . $scores{total}{final_override} . '" /></td></tr></table>',
 		weighted_avg => '<table align="center">' . 
 (($edit_mode && $total_weight && $assessment_form->getMinScore()) ? '<tr><td class="xxsm" align="right">' . __('minimum score to pass:') . '</td><td><input type="text" class="totalValue gray" name="min_score" value="' .  $assessment_form->getMinScore() . '" size="4" DISABLED /></td></tr>' : '') .
 '<tr><td class="xxsm" align="right">'.__('calculated:').'</td><td><input type="text" class="totalValue blue" name="total_final_score" size="4" value="" READONLY /></td></tr>
@@ -420,6 +418,7 @@
 </table>',
 		arrow => '<div class="row"><div class="arrow"></div></div>',
 	};
+
 
 	push @rows,  {  	## total comments row
 		colspan => 1, 
