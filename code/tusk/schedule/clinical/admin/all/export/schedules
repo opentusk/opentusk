@@ -24,16 +24,135 @@
 
 <%once>
 	use TUSK::Application::Schedule::Clinical;
-	use Spreadsheet::WriteExcel; 
+	use TUSK::Academic::Level;
+	use Spreadsheet::WriteExcel;
+	use List::Util qw(min);
+	use Time::Local;
 </%once>
 
 <%shared>
 	my $school = $m->comp('/tmpl/url:get_type_object');
+	my $schoolId;
+	my %query = $m->request_args;
 	my $academicYear;
 	my $academicLevelId;
 	my $academicLevelTitle;
+	my $filename;
+	my $format = $m->comp("/schedule/clinical/tmpl/workbook:get_format");
+	my $mergeFormat;
 </%shared>
 
 <%init>
-	pre_dump('Comp. test');
+	$academicYear = $query{'academicYear'};
+	$academicLevelId = $query{'academicLevelId'};
+	$academicLevelTitle = TUSK::Academic::Level->new()->lookupKey($academicLevelId)->getTitle();
+	$filename = $m->comp("/schedule/clinical/tmpl/workbook:sanitize_file_name", 
+						string => $m->comp("/schedule/clinical/tmpl/workbook:truncate_file_name", 
+							string =>  $academicYear . ' - ' . $academicLevelTitle
+						)
+					);
+
+	my $workbook = $m->comp("/schedule/clinical/tmpl/workbook:get_workbook");
+	$mergeFormat = $workbook->add_format(
+							border  => 6,
+							valign  => 'vcenter',
+							align   => 'center',
+						);
+	my $data = $m->scomp("SELF:.add_schedules", 
+		workbook => $workbook, 
+		worksheetName => $filename
+	);
+
+	$m->comp("/schedule/clinical/tmpl/workbook:write_data",
+		data => $data,
+	);
+
+	$m->comp("/schedule/clinical/tmpl/workbook:print",
+		filename => $filename
+	);
 </%init>
+
+<%doc>
+	Add schedules of a specific academic year and academic level
+</%doc>
+<%method .add_schedules>
+<%args>
+	$workbook 
+	$worksheetName
+</%args>
+<%perl>
+	$schoolId = $school->getPrimaryKeyID();
+	my $scheduleStudents = TUSK::Application::Schedule::Clinical->new({
+		school_id => $schoolId
+	})->getScheduleStudents($academicLevelId, $academicYear);
+
+	my $worksheet = $workbook->add_worksheet("$worksheetName");
+
+	my $tableFormat = $workbook->add_format(%{$format->{'tableShading'}});
+	my $headerFormat = $workbook->add_format(%{$format->{'headerFont'}}, %{$format->{'headerAlignment'}});
+	my $textFormat = $workbook->add_format(%{$format->{'headerAlignment'}});
+
+	my $minTime = "9999-99-99";
+	my %schedules = ();
+
+	$worksheet->write(0, 0, "Academic Year: ", $headerFormat);
+	$worksheet->write(0, 1, $academicYear, $textFormat);
+	$worksheet->write(1, 0, "Academic Level: ", $headerFormat);
+	$worksheet->write(1, 1, $academicLevelTitle, $textFormat);
+
+	if (scalar @{$scheduleStudents->{'userIds'}}){
+		for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
+			$worksheet->write($index + 3, 0, ${$scheduleStudents->{'firstNames'}}[$index] . ', ' . ${$scheduleStudents->{'lastNames'}}[$index], $tableFormat);
+			my $scheduleCourses = TUSK::Application::Schedule::Clinical->new({
+				school_id => $schoolId
+			})->getScheduleCourses({
+				export_requested => 1,
+				user_id => ${$scheduleStudents->{'userIds'}}[$index],
+				academic_year => $academicYear,
+				academic_level_id => $academicYear
+			});
+			$minTime = min($minTime, ${$scheduleCourses->{'startDates'}}[0]);
+			$schedules{${$scheduleStudents->{'userIds'}}[$index]} = $scheduleCourses;
+		}
+	} else {
+		$worksheet->write(2, 0, "No information availabe.");
+	}
+
+	my $minTimeInSeconds = $m->comp("SELF:get_date_in_seconds", date => $minTime);
+	my $offSet = (60 * 60 * 24 * 6);
+	for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
+		for my $courseIndex (0..$#{$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseIds'}}) {
+			# $worksheet->write($index + 3, $courseIndex + 1, ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseIds'}}[$courseIndex]);
+			my $startDateInSeconds = $m->comp("SELF:get_date_in_seconds", date => ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'startDates'}}[$courseIndex]);
+			my $weekOffset = int(($startDateInSeconds - $minTimeInSeconds) / (60 * 60 * 24 * 7));
+			my $endDateInSeconds = $m->comp("SELF:get_date_in_seconds", date => ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex]);
+			my $numberOfWeeks = int(($endDateInSeconds - $startDateInSeconds + $offSet) / (60 * 60 * 24 * 7));
+			$worksheet->merge_range($index + 3, $weekOffset + 1, $index + 3, $weekOffset + $numberOfWeeks + 1,  ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseTitles'}}[$courseIndex], $mergeFormat); 
+			# for my $week (0..$numberOfWeeks){
+			# 	$worksheet->write($index + 3, $weekOffset + $week + 1, ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseIds'}}[$courseIndex]);
+			# }
+		}
+	}
+
+</%perl>
+</%method>
+
+<%doc>
+	Calculate the seconds that have passed by for start/end dates 
+	since 00:00:00 UTC, January 1, 1970[EPOCH in most systems]
+	The format of the date is YYYY-MM-DD
+</%doc>
+<%method get_date_in_seconds>
+<%args>
+	$date
+</%args>
+<%perl>
+	my $year = substr $date, 0, 4;
+	my $month = substr $date, 5, 2;
+	my $day = substr $date, 8, 2;
+
+	my $time = timelocal(0, 0, 0, $day, $month - 1, $year); # month range: 0-11 so the '-1'
+
+	return $time;
+</%perl>
+</%method>

@@ -33,7 +33,7 @@ sub new {
 }
 
 sub getScheduleCourses{
-	my ($self, $user_id) = @_;
+	my ($self, $args) = @_;
 
 	my @courseTitles = ();
 	my @courseIds = ();
@@ -43,11 +43,20 @@ sub getScheduleCourses{
 	my @endDates = ();
 	my @siteNames = ();
 	my @teachingSiteIds = ();
+	my $sqlSelection;
+	my $sqlCoreStatement;
+	my $sqlConditionals;
+	my $sql;
+
+	if ($args{'export_requested'}){
+		$sqlConditionals = "WHERE (t5.child_user_id = '$args->{user_id}' AND t1.school_id = '$self->{school_id}') AND t2.academic_level_id = '$args->{academic_level_id}' AND t7.academic_year = '$args->{academic_year}'";
+	} else {
+		$sqlConditionals = "WHERE (t5.child_user_id = '$args->{user_id}' AND t1.school_id = '$self->{school_id}')";
+	}
 
 	my $scheduleCourses = TUSK::Academic::LevelClinicalSchedule->new();
-	my $sth = $scheduleCourses->databaseSelect(
-		"SELECT t6.title, t7.period, t7.start_date, t7.end_date, t8.site_name, t6.course_id, t7.time_period_id, t8.teaching_site_id
-		FROM " . $scheduleCourses->getDatabase() . ".academic_level_clinical_schedule AS t1 
+	$sqlSelection = "SELECT t6.title, t7.period, t7.start_date, t7.end_date, t8.site_name, t6.course_id, t7.time_period_id, t8.teaching_site_id";
+	$sqlCoreStatement = "FROM " . $scheduleCourses->getDatabase() . ".academic_level_clinical_schedule AS t1 
 		INNER JOIN tusk.academic_level AS t2
 			ON (t1.academic_level_id = t2.academic_level_id) 
 		INNER JOIN tusk.academic_level_course AS t3
@@ -61,10 +70,14 @@ sub getScheduleCourses{
 		LEFT JOIN " . $self->{school_db} . ".time_period AS t7 
 			ON t7.time_period_id = t5.time_period_id
 		LEFT JOIN " . $self->{school_db} . ".teaching_site AS t8
-			ON t8.teaching_site_id = t5.teaching_site_id
-		WHERE (t5.child_user_id = '$user_id' AND t1.school_id = '$self->{school_id}')
-		ORDER BY t7.start_date"
-	);
+			ON t8.teaching_site_id = t5.teaching_site_id";
+	$sql = qq{
+		$sqlSelection
+		$sqlCoreStatement
+		$sqlConditionals
+		ORDER BY t7.start_date};
+
+	my $sth = $scheduleCourses->databaseSelect($sql);
 
 	while (my ($title, $period, $startDate, $endDate, $siteName, $courseId, $timePeriodId, $teachingSiteId) = $sth->fetchrow_array()) {
 		push @courseIds, $courseId;
