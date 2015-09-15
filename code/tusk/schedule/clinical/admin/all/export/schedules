@@ -26,7 +26,7 @@
 	use TUSK::Application::Schedule::Clinical;
 	use TUSK::Academic::Level;
 	use Spreadsheet::WriteExcel;
-	use List::Util qw(min);
+	use List::Util qw(min max);
 	use Time::Local;
 </%once>
 
@@ -93,6 +93,8 @@
 	my $textFormat = $workbook->add_format(%{$format->{'headerAlignment'}});
 
 	my $minTime = "9999-99-99";
+	my $maxTime = "0000-00-00";
+
 	my %schedules = ();
 
 	$worksheet->write(0, 0, "Academic Year: ", $headerFormat);
@@ -102,7 +104,7 @@
 
 	if (scalar @{$scheduleStudents->{'userIds'}}){
 		for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
-			$worksheet->write($index + 3, 0, ${$scheduleStudents->{'firstNames'}}[$index] . ', ' . ${$scheduleStudents->{'lastNames'}}[$index], $tableFormat);
+			$worksheet->write($index + 4, 0, ${$scheduleStudents->{'firstNames'}}[$index] . ', ' . ${$scheduleStudents->{'lastNames'}}[$index], $tableFormat);
 			my $scheduleCourses = TUSK::Application::Schedule::Clinical->new({
 				school_id => $schoolId
 			})->getScheduleCourses({
@@ -124,16 +126,21 @@
 		for my $courseIndex (0..$#{$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseIds'}}) {
 			# $worksheet->write($index + 3, $courseIndex + 1, ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseIds'}}[$courseIndex]);
 			my $startDateInSeconds = $m->comp("SELF:get_date_in_seconds", date => ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'startDates'}}[$courseIndex]);
+			$maxTime = max(${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex], $maxTime);
 			my $weekOffset = int(($startDateInSeconds - $minTimeInSeconds) / (60 * 60 * 24 * 7));
 			my $endDateInSeconds = $m->comp("SELF:get_date_in_seconds", date => ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex]);
 			my $numberOfWeeks = int(($endDateInSeconds - $startDateInSeconds + $offSet) / (60 * 60 * 24 * 7));
-			$worksheet->merge_range($index + 3, $weekOffset + 1, $index + 3, $weekOffset + $numberOfWeeks + 1,  ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseTitles'}}[$courseIndex], $mergeFormat); 
-			# for my $week (0..$numberOfWeeks){
-			# 	$worksheet->write($index + 3, $weekOffset + $week + 1, ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseIds'}}[$courseIndex]);
-			# }
+			$worksheet->merge_range($index + 4, $weekOffset + 1, $index + 4, $weekOffset + $numberOfWeeks + 1,  ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseTitles'}}[$courseIndex], $mergeFormat); 
 		}
 	}
 
+	my $maxTimeInSeconds = $m->comp("SELF:get_date_in_seconds", date => $maxTime);
+	my $totalNumberOfWeeks = int(($maxTimeInSeconds - $minTimeInSeconds) / (60 * 60 * 24 * 7));
+	for my $week (0..$totalNumberOfWeeks){
+		$worksheet->write(3, $week + 1, 'Week ' . $week);
+	}
+	$worksheet->set_column(0, 1, 25);
+	$worksheet->set_column(1, $totalNumberOfWeeks, 10);
 </%perl>
 </%method>
 
