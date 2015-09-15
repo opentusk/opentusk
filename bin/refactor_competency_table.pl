@@ -10,9 +10,13 @@
 # 'description' field will be removed.
 #
 # NOTE:
+#    Moves Competency information for course-level, session-level
+#    and content-level competencies from 'description' to 'title'
+#    field. Version code changes follows this new pattern for
+#    consistency with national-level and school-level competencies.
 #
-#
-# Usage:
+# Usage: 
+# > perl refactor_competency_table.pl
 ##################################################################
 
 use strict;
