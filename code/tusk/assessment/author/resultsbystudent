@@ -34,7 +34,7 @@
 	my $edit_mode = 0;  ## allow edit grades
 	my $course = $m->comp('/tmpl/url:get_type_object');
 	my $time_period_id = $m->comp('SELF:get_timeperiod_id');
-	my (%scores, %comments, %entries, %assigned, %field_responses);
+	my (%scores, %comments, %entries, %assigned, %field_responses, %assessor_names);
  	my $student_grade;
     my $entry_grade = ($entry_id) ? TUSK::FormBuilder::EntryGrade->lookupReturnOne("entry_id = $entry_id") : TUSK::FormBuilder::EntryGrade->new();
 	my $repost_grade;
@@ -48,7 +48,7 @@
 	my $all_assessors_completed = 0;
 	my $adjusted_flag = 0;
 </%shared>
-
+hello
 <& /tmpl/element:form, params => {
 	method 		=> 'POST',
     name 		=> 'resultsbystudent' 
@@ -249,14 +249,16 @@
 				$scores{field}{$fid}{final} = $score; 
 				$field_responses{$fid} = $resp;
 			} else {
+                my $assessor_uid = $assessor->getUID();
 				$scores{field}{$fid}{frequency}{$score}++;
-				$scores{field}{$fid}{assessors}{$assessor->getLastname()} = ((defined $score) ? (($score == 0) ? 'UA' : $score) : '-');
+				$scores{field}{$fid}{assessors}{$assessor_uid} = ((defined $score) ? (($score == 0) ? 'UA' : $score) : '-');
+                $assessor_names{$assessor_uid} = $assessor->outName() unless (exists $assessor_names{$assessor_uid});
 				$scores{total}{frequency}{$score}++;
 				$scores{field}{$fid}{sum} += $score;
 				$entries{$resp->getCreatedBy()} = $resp->getEntryID();
 
 				if ($resp->getText() =~ /\w+/) {
-					$comments{assessor}{$resp->getJoinObject('TUSK::Core::HSDB4Tables::User')->getLastname()}{$fid} = $resp->getText();
+					$comments{assessor}{$resp->getJoinObject('TUSK::Core::HSDB4Tables::User')->getUID()}{$fid} = $resp->getText();
 				}
 			}
 		}
@@ -347,7 +349,7 @@
 		$rows[$i]->{row_class} 	= 'master';
 
 		if ($assessment_form->getMultiAssessors()) {
-			my $title =  join("   ", map { $_  . ': ' . $scores{field}{$fid}{assessors}{$_} } sort keys %{$scores{field}{$fid}{assessors}});
+			my $title =  join("   ", map { $assessor_names{$_}  . ': ' . $scores{field}{$fid}{assessors}{$_} } sort keys %{$scores{field}{$fid}{assessors}});
 			my $assessors_per_field = scalar grep { /^\d+$/ } values %{$scores{field}{$fid}{assessors}};
 
 			$rows[$i]->{assessors}	= $assessors_per_field;
@@ -434,7 +436,7 @@
 </%args>
 <%perl>
 	my $assessor_comments = join("\n",
-		map { "<li><span class=\"bold_emphasis_font\"> $_ </span><span class=\"placeholder_$key\"> $comments{assessor}{$_}{$key} </span></li>" } 
+		map { "<li><span class=\"bold_emphasis_font\"> $assessor_names{$_} </span><span class=\"placeholder_$key\"> $comments{assessor}{$_}{$key} </span></li>" } 
 		grep { exists $comments{assessor}{$_}{$key} } keys %{$comments{assessor}}
 	);
 
