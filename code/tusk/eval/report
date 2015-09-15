@@ -29,7 +29,7 @@
 </%attr>
 
 <%method title>
-%			 return __("Eval Report").": $title";
+%			 return __('Eval Report') . ": $title";
 </%method>
 
 <%method jsarray>
@@ -127,8 +127,9 @@
 
 <h2 class="title"><% $title %></h2>
 
+<div class="evalFluff">
 % if ($is_teaching_eval) {
-	<h2 class="title"><& /tmpl/element:dropdown, params => {
+	<h3><& /tmpl/element:dropdown, params => {
 			label => __('Teaching Site') . ':',
 			name => 'teaching_site',
 			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value, true)",
@@ -136,34 +137,37 @@
 			options => \@teaching_sites,
 			disabled => $auth
 	} &></h2>
-	<h2 class="title"><& /tmpl/element:dropdown, params => {
+	<h3><& /tmpl/element:dropdown, params => {
 			label => __('Evaluatee') . ':',
 			name => 'evaluatee',
 			onchange => "setGetParameter('evaluatee_id', this.options[this.selectedIndex].value)",
 			selected => $evaluatee_id,
 			options => \@evaluatees,
 			disabled => $auth
-	} &></h2>
+	} &></h3>
 % }
 
-<div class="evalFluff">
-	<a href="/protected/eval/administrator/show/<% $school %>"><%__('Manage Evaluations')%></a><br />
-% if ($is_teaching_eval) {
-		<a id="directLink" onclick="window.prompt('', '<% $link %>')"><%__('Direct Link')%></a><br />
-% } else {
-	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><%__('Export Report')%></a><br />
+% unless ($auth) {
+ 	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
 % }
-	<a id="graphLink" style="display:none" onclick="showHideGraphs()"><%__('Hide Graphs')%></a>
+% if (!$auth && $is_teaching_eval) {
+		<a id="directLink" onclick="window.prompt('', '<% $link %>')"><% __('Direct Link') %></a><br>
+		<a id="emailLinks" href="/tusk/eval/email<% $ENV{'PATH_INFO'} %>"><% __('Email Links') %></a><br>
+% }
+% unless ($is_teaching_eval) {
+	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><% __('Export Report') %></a><br>
+% }
+	<a id="graphLink" style="display:none" onclick="showHideGraphs()"><% __('Hide Graphs') %></a>
 
 % my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
 % $evalLoadStats->setEval($eval);
 	<p class="timeMessage">
 % if ($evalLoadStats->totalLoads()) {
-	<%__x("This eval has been requested {num} times with an average of {avg} sec and the longest time being {max} secs.", num => $evalLoadStats->totalLoads(), avg => sprintf('%.1f', $evalLoadStats->average()), max => sprintf('%.1f', $evalLoadStats->max()))%>
+	<% __x('This eval has been requested {num} times with an average of {avg} sec and the longest time being {max} secs.', num => $evalLoadStats->totalLoads(), avg => sprintf('%.1f', $evalLoadStats->average()), max => sprintf('%.1f', $evalLoadStats->max())) %>
 % } else {
-	<%__x("This eval has been requested {num} times", num => $evalLoadStats->totalLoads())%>
+	<% __x('This eval has been requested {num} times', num => $evalLoadStats->totalLoads()) %>
 %}
-	<%__('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.')%>
+	<% __('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.') %>
 	</p>
 		<h3><% __('Enrollment Information') %></h3>
 		<table border="1" cellspacing="0">
