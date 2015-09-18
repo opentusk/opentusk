@@ -344,11 +344,20 @@ function editRow(link, params) {
 				for (var i in editParams.options) {
 					var o_value = editParams.options[i].value;
 					var o_label = editParams.options[i].label;
+					if (value.replace(/,/g, '').trim()) {
+						var checked_option = $.parseHTML(value.replace(/,/g, '').trim())[0].alt;
+					}
+
 					if (o_value !== undefined) {
 						var o_label_re = new RegExp( editParams.delimiter + o_label + editParams.delimiter );
-						newInnerHTML += '<input name ="radio_check" type="radio" value="' + o_value + '"' + ((o_label_re.test(value)) ? ' checked' : '') + ' data-name="' + o_label + '">' + o_label + '<br />';
+						if (o_label == checked_option) {							
+							newInnerHTML += '<input name ="radio_check" type="radio" value="' + o_value + '"' + ((o_label_re.test(value)) ? ' checked' : 'checked') + ' data-name="' + o_label + '">' + o_label + '<br />';	
+						} else {
+							newInnerHTML += '<input name ="radio_check" type="radio" value="' + o_value + '"' + ((o_label_re.test(value)) ? ' checked' : '') + ' data-name="' + o_label + '">' + o_label + '<br />';
+						}
 					}
 				}
+				
 				liArray[idx].innerHTML = newInnerHTML;
 				break;
 
