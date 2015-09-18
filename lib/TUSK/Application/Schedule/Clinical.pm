@@ -48,7 +48,8 @@ sub getScheduleCourses{
 	my $sqlConditionals;
 	my $sql;
 
-	if ($args{'export_requested'}){
+	if ($args->{export_requested}){
+		warn('Export requested confirmed.');
 		$sqlConditionals = "WHERE (t5.child_user_id = '$args->{user_id}' AND t1.school_id = '$self->{school_id}') AND t2.academic_level_id = '$args->{academic_level_id}' AND t7.academic_year = '$args->{academic_year}'";
 	} else {
 		$sqlConditionals = "WHERE (t5.child_user_id = '$args->{user_id}' AND t1.school_id = '$self->{school_id}')";
