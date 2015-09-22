@@ -18,6 +18,7 @@
 	use HSDB45::Eval::Secret;
 	use TUSK::Constants;
 	use TUSK::Application::Email;
+	use URI::Escape;
 </%once>
 
 <%attr>
@@ -28,15 +29,15 @@
 </%attr>
 
 <%method title>
-%			 return __("Email Links") . ": $title";
+% return __("Email Links") . ": $title";
 </%method>
 
 <%method jsarray>
-%			 return [ 'jquery/jquery.min.js' ];
+% return ['jquery/jquery.min.js'];
 </%method>
 
 <%method stylearray>
-%	return ['/style/style.css', '/style/eval.css', '/style/grapher.css'];
+% return ['/style/style.css', '/style/eval.css', '/style/grapher.css'];
 </%method>
 
 <%shared>
@@ -131,7 +132,7 @@
 	foreach my $user_id (@evaluatee_ids) {
 		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 		if ($user->primary_key()) {
-			my $code =	HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $user_id);
+			my $code = uri_escape(HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $user_id));
 			my $query = "?auth=$code&evaluatee_id=$user_id&teaching_site_id=$teaching_site_id";
 			my $link = 'https://' . $ENV{SERVER_NAME} . '/tusk/eval/report' . $ENV{PATH_INFO} . $query;
 			my $name = $user->out_html_full_name();

@@ -19,6 +19,7 @@
 	use HSDB45::Eval::Secret;
 	use TUSK::Eval::EvalLoadTime;
 	use TUSK::Constants;
+	use URI::Escape;
 </%once>
 
 <%attr>
@@ -29,15 +30,15 @@
 </%attr>
 
 <%method title>
-%			 return __('Eval Report') . ": $title";
+% return __('Eval Report') . ": $title";
 </%method>
 
 <%method jsarray>
-%			 return [ 'eval.js', 'evalReports.js' ];
+% return ['eval.js', 'evalReports.js'];
 </%method>
 
 <%method stylearray>
-%	return ['/style/style.css', '/style/eval.css', '/style/grapher.css'];
+% return ['/style/style.css', '/style/eval.css', '/style/grapher.css'];
 </%method>
 
 <%shared>
@@ -75,6 +76,7 @@
 		$m->abort();
 	}
 
+	$code = uri_escape($code);
 	$query = "?auth=$code&evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id";
 
 	if ($is_teaching_eval) {
@@ -148,11 +150,11 @@
 % }
 
 % unless ($auth) {
- 	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
+	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
 % }
 % if (!$auth && $is_teaching_eval) {
-		<a id="directLink" onclick="window.prompt('', '<% $link %>')"><% __('Direct Link') %></a><br>
-		<a id="emailLinks" href="/tusk/eval/email<% $ENV{'PATH_INFO'} %>"><% __('Email Links') %></a><br>
+	<a id="directLink" onclick="window.prompt('', '<% $link %>')"><% __('Direct Link') %></a><br>
+	<a id="emailLinks" href="/tusk/eval/email<% $ENV{'PATH_INFO'} %>"><% __('Email Links') %></a><br>
 % }
 % unless ($is_teaching_eval) {
 	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><% __('Export Report') %></a><br>
