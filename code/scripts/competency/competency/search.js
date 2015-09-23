@@ -134,10 +134,6 @@ function loadSearchResults() {
 			data: {search_text: search_text},
 			dataType: "json"
 	}).success(function(data) {
-			if (data.length == 0) {
-				$("#competency_search_results tr:last").after("<tr><td><i>(No results found for the current query. Please try again after modifying your search.) </i></td><td>x</td><td>x</td></tr>");
-			}
-
 			$.each(data, function (index, value) {
 				if (competency_levels[value[1]] == 'content') {
 					content_competencies += ", " + value[0];
@@ -223,6 +219,14 @@ function loadSearchResults() {
 				  }
 				}
 			});
+	// notice display part
+	$('.search_result_table').each(function() {
+		if($(this).find('tr').length < 2) {
+			$(this).find('tr').last().after("<tr><td><i>(No results of this competency type found for the current query. Please check other competency types and/or try again after modifying your search.) </i></td><td>x</td></tr>");		
+		}
+	});
+	//
+	
 	$("#search_loading").hide();
 	search_clear_flag = 1;
 	});
