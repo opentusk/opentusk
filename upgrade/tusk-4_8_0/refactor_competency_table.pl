@@ -15,6 +15,11 @@
 #    field. Version code changes follows this new pattern for
 #    consistency with national-level and school-level competencies.
 #
+# WARNING: 
+#    Please BACKUP your competency table before running the script (in case of complications)  
+#    Run only ONCE (you risk losing data if run multiple times on same database)
+#          
+#
 # Usage: 
 # > perl refactor_competency_table.pl
 ##################################################################
@@ -35,7 +40,12 @@ main();
 sub main {
     print "Starting Competency Table Refactor script....\n...\n\n";
     refactorContentCourseSession();
-    print "Finished running Competency Table Refactor script\n"
+    print "...\n";
+    print "Deleting old descriptions\n";
+    deleteDescriptions();
+    print "Done deleteing old descriptions\n";
+    print "...\n";
+    print "Finished running Competency Table Refactor script\n";
 }
 
 sub refactorContentCourseSession {
@@ -45,8 +55,10 @@ sub refactorContentCourseSession {
     my $course_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_levels->{course}");
 
     foreach my $course_competency (@{$course_competencies}) {
-        $course_competency->setTitle($course_competency->getDescription());
-        $course_competency->save({user => "script"});
+	if ($course_competency->getDescription() ne "") {
+	    $course_competency->setTitle($course_competency->getDescription());
+	    $course_competency->save({user => "script"});
+	}
         print "Processing Competency: " . $course_competency->getTitle();
         print "\n\n";
     }
@@ -56,8 +68,11 @@ sub refactorContentCourseSession {
     my $content_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_levels->{content}");
 
     foreach my $content_competency (@{$content_competencies}) {
-        $content_competency->setTitle($content_competency->getDescription());
-        $content_competency->save({user => "script"});
+	if ($content_competency->getDescription() ne "" ) {
+	    $content_competency->setTitle($content_competency->getDescription());
+	    $content_competency->save({user => "script"});
+	}
+
         print "Processing Competency: " . $content_competency->getTitle();
         print "\n\n";
     }
@@ -67,11 +82,28 @@ sub refactorContentCourseSession {
     my $class_meeting_competencies = TUSK::Competency::Competency->lookup("competency_level_enum_id = $competency_levels->{class_meet}");
 
     foreach my $class_meeting_competency (@{$class_meeting_competencies}) {
-        $class_meeting_competency->setTitle($class_meeting_competency->getDescription());
-        $class_meeting_competency->save({user => "script"});
+	if ($class_meeting_competency->getDescription() ne "") {
+	    $class_meeting_competency->setTitle($class_meeting_competency->getDescription());
+	    $class_meeting_competency->save({user => "script"});
+	}
         print "Processing Competency: " . $class_meeting_competency->getTitle();
         print "\n\n";
     }
+}
+
+sub deleteDescriptions {
+   my $competency_levels = grabLevels();
+   
+   my $dbh = HSDB4::Constants::def_db_handle();
+
+   foreach my $competency_level (keys %{$competency_levels}) {
+       if ($competency_level eq "content" | $competency_level eq "course" | $competency_level eq "class_meet"){
+	   my $current_competency_level = $competency_levels->{$competency_level};
+	   my $sql = qq(UPDATE tusk.competency SET description = "" WHERE competency_level_enum_id = $current_competency_level);
+	   my $sth = $dbh->prepare($sql);
+	   $sth->execute();	   
+       }
+   }
 }
 
 sub grabLevels {
