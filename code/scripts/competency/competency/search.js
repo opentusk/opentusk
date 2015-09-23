@@ -69,6 +69,7 @@ function loadLinkedAndChildren(competency_id) {
 	$("#course_competency_search_results").find("tr:gt(0)").remove();
 	$("#content_competency_search_results").find("tr:gt(0)").remove();
 	$("#session_competency_search_results").find("tr:gt(0)").remove();
+	$("#search_loading").show();
 
 	$.ajax({
 			type: "POST",
@@ -112,6 +113,7 @@ function loadLinkedAndChildren(competency_id) {
 					//needs work (session objectives)
 				}
 			});
+			$("#search_loading").hide();
 		});
 }
 
@@ -146,7 +148,7 @@ function loadSearchResults() {
 			});
 			content_competencies = content_competencies.substr(2, content_competencies.length);
 			session_competencies = session_competencies.substr(2, session_competencies.length);
-
+			$("#search_loading").show();
 			$.ajax({
 					async: false,
 					global: false,
@@ -221,6 +223,7 @@ function loadSearchResults() {
 				  }
 				}
 			});
+	$("#search_loading").hide();
 	search_clear_flag = 1;
 	});
 }
