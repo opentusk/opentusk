@@ -40,8 +40,9 @@
 	$user_id
 	$date
 	$entry_id => 0
-	$entry_grade => TUSK::FormBuilder::EntryGrade->new()
+	$entry_grade => undef ## caller should pass at least an empty(blessed) object if needed
 </%args>
+
 <%perl>
 	my $entry = TUSK::FormBuilder::Entry->new();
 	my $response_hash = {}; # used for editing
@@ -82,13 +83,13 @@
 			$entry_grade->setEntryID($entry_id);		
 		} 
 
-		if ($args->{form_submit} && $args->{total_score}) {  ## store total score when completed only
+		if (($args->{form_submit} || $args->{save_submit}) && $args->{total_score}) {  ## store total score when completed only
 			if ($args->{total_max_score}) {
 				if ($args->{total_weight}) {
 					$entry_grade->setScore($args->{total_score} / $args->{total_max_score} * $args->{total_weight});
-				} else {
-					$entry_grade->setScore($args->{total_score});
-				}
+                } 
+			} else {
+				$entry_grade->setScore($args->{total_score});
 			}
 		}
 

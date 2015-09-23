@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -27,22 +27,22 @@ use overload '3way_comparison' => \&sort_order_compare;
 
 BEGIN {
     %TypeClass = ( 'Title'                 => 'HSDB45::Eval::Question::Results::None',
-		   'Instruction'           => 'HSDB45::Eval::Question::Results::None',
-		   'MultipleResponse'      => 'HSDB45::Eval::Question::Results::MultipleDiscrete',
-		   'MultipleChoice'        => 'HSDB45::Eval::Question::Results::Discrete',
-		   'Count'                 => 'HSDB45::Eval::Question::Results::Discrete',
-		   'DiscreteNumeric'       => 'HSDB45::Eval::Question::Results::DiscreteNumeric',
-		   'NumericRating'         => 'HSDB45::Eval::Question::Results::DiscreteNumeric',
-		   'PlusMinusRating'       => 'HSDB45::Eval::Question::Results::DiscreteNumeric',
-		   'YesNo'                 => 'HSDB45::Eval::Question::Results::Discrete',
-		   'Ranking'               => 'HSDB45::Eval::Question::Results::Textual',
-		   'TeachingSite'          => 'HSDB45::Eval::Question::Results::Discrete',
-		   'SmallGroupsInstructor' => 'HSDB45::Eval::Question::Results::Discrete',
-		   'IdentifySelf'          => 'HSDB45::Eval::Question::Results::Textual',
-		   'FillIn'                => 'HSDB45::Eval::Question::Results::Textual',
-		   'LongFillIn'            => 'HSDB45::Eval::Question::Results::Textual',
-		   'NumericFillIn'         => 'HSDB45::Eval::Question::Results::Numeric',
-		   );
+                   'Instruction'           => 'HSDB45::Eval::Question::Results::None',
+                   'MultipleResponse'      => 'HSDB45::Eval::Question::Results::MultipleDiscrete',
+                   'MultipleChoice'        => 'HSDB45::Eval::Question::Results::Discrete',
+                   'Count'                 => 'HSDB45::Eval::Question::Results::Discrete',
+                   'DiscreteNumeric'       => 'HSDB45::Eval::Question::Results::DiscreteNumeric',
+                   'NumericRating'         => 'HSDB45::Eval::Question::Results::DiscreteNumeric',
+                   'PlusMinusRating'       => 'HSDB45::Eval::Question::Results::DiscreteNumeric',
+                   'YesNo'                 => 'HSDB45::Eval::Question::Results::Discrete',
+                   'Ranking'               => 'HSDB45::Eval::Question::Results::Textual',
+                   'TeachingSite'          => 'HSDB45::Eval::Question::Results::Discrete',
+                   'SmallGroupsInstructor' => 'HSDB45::Eval::Question::Results::Discrete',
+                   'IdentifySelf'          => 'HSDB45::Eval::Question::Results::Textual',
+                   'FillIn'                => 'HSDB45::Eval::Question::Results::Textual',
+                   'LongFillIn'            => 'HSDB45::Eval::Question::Results::Textual',
+                   'NumericFillIn'         => 'HSDB45::Eval::Question::Results::Numeric',
+                   );
 
     require HSDB45::Eval::Question::Results::None;
     require HSDB45::Eval::Question::Results::MultipleDiscrete;
@@ -123,21 +123,23 @@ sub init {
 }
 
 # Description: Looks up the responses from the database
-# Input: 
-# Output: 
+# Input:
+# Output:
 sub lookup_responses {
     my $self = shift;
     my $question = $self->question();
     my $eval = $question->parent_eval();
-    my $evaluatee_id = $self->eval_results()->evaluatee_id();
-    return if ($self->isa('HSDB45::Eval::Question::Results::Textual') && $eval->is_teaching_eval() && !$evaluatee_id);
-    my @conds = ('eval_id = ' . $eval->primary_key(),
-		 'eval_question_id = ' . $question->primary_key());
-    push @conds, "user_code LIKE '%-" . (($evaluatee_id) ? $evaluatee_id : '%') . "'" if ($eval->is_teaching_eval());
+    my @conds = ('eval_id = ' . $eval->primary_key(), 'eval_question_id = ' . $question->primary_key());
+    if ($eval->is_teaching_eval()) {
+        my $evaluatee_id = $self->eval_results()->evaluatee_id();
+        return if ($self->isa('HSDB45::Eval::Question::Results::Textual') && !$evaluatee_id);
+        my $user_codes = join("','", $self->eval_results()->user_codes());
+        push @conds, "user_code IN ('$user_codes')";
+    }
     my $blankresp = HSDB45::Eval::Question::Response->new(_school => $question->school());
     for my $resp ($blankresp->lookup_conditions(@conds)) {
-	$resp->set_aux_info('parent_results' => $self);
-	$self->{-all_resps}->add_response($resp);
+        $resp->set_aux_info('parent_results' => $self);
+        $self->{-all_resps}->add_response($resp);
     }
     return;
 }
@@ -151,7 +153,7 @@ sub response {
 }
 
 # Description: Look up all of the responses
-# Input: 
+# Input:
 # Output: List of Response objects
 sub responses {
     my $self = shift;
@@ -184,22 +186,21 @@ sub sort_order_compare {
 # Output: The group-by question results objects
 sub group_by_question_results {
     my $self = shift;
-    return map { 
-	$self->eval_results->question_results($_)
-	} $self->question()->group_by_ids();
+    return map {
+        $self->eval_results->question_results($_)
+        } $self->question()->group_by_ids();
 }
 
 sub categorizations {
     my $self = shift();
 
     unless($self->{-categorizations}) {
-	my @categorizations = ();
-	foreach my $group_question ($self->group_by_question_results()) {
-	    my $cat = 
-	      HSDB45::Eval::Question::Categorization->new($self, $group_question);
-	    push @categorizations, $cat ;
-	}
-	$self->{-categorizations} = \@categorizations;
+        my @categorizations = ();
+        foreach my $group_question ($self->group_by_question_results()) {
+            my $cat = HSDB45::Eval::Question::Categorization->new($self, $group_question);
+            push @categorizations, $cat;
+        }
+        $self->{-categorizations} = \@categorizations;
     }
 
     return @{$self->{-categorizations}};

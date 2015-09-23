@@ -35,7 +35,7 @@ $(function() {
 			msg += _("The minimum score to pass is {minimum_score}.",{minimum_score : min_score}) + "\n "+ _("Final score is {final_score}", {final_score : score}) + "\n\n";
 		} 
 
-		msg += _("Are you sure you want to {perform_action}?",{ perform_action : $("#post_submit").val()});
+		msg += _("Are you sure you want to " + $("#post_submit").val() + '?');
 
 		if (confirm(msg) == false) {
 			return false;

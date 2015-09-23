@@ -48,13 +48,8 @@ function satisfy(qid, type) {
 	var image = document.images[imgname];
 	if (image == null) return;
 	var element = document.forms['eval_form'].elements[fieldname];
-	if (type == 'text') {
-	    if (element.value.length == 0) {
-		image.src = "/icons/reddot.gif";
-	    } else {
-		requiredSatisfied(qid);
-		image.src = "/icons/transdot.gif";
-	    } 
+	if (element.value.length == 0) {
+	    image.src = "/icons/reddot.gif";
 	} else {
 	    // It's probably OK, and we can just mark it as such
 	    requiredSatisfied(qid);

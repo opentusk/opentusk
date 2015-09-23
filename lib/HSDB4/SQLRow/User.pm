@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -25,7 +25,7 @@ BEGIN {
     require Digest::MD5;
 
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
-    
+
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
@@ -76,13 +76,13 @@ use vars ();
 #
 my $tablename         = 'user';
 my $primary_key_field = 'user_id';
-my @fields =       qw(user_id source status tufts_id sid trunk password email preferred_email profile_status modified 
-		      password_reset expires login previous_login lastname firstname midname suffix 
+my @fields =       qw(user_id source status tufts_id sid trunk password email preferred_email profile_status modified
+		      password_reset expires login previous_login lastname firstname midname suffix
 		      degree affiliation gender body loggedout_flag uid
                       );
 
 my %numeric_fields = (
-		      );   
+		      );
 
 my %blob_fields =    (body => 1
 		      );
@@ -226,7 +226,7 @@ sub get_new_uid {
 
   my $dbh = HSDB4::Constants::def_db_handle ();
   my $current_max;
-  
+
   eval {
 		    my $sql = "select max(uid) from hsdb4.user";
             my $sth = $dbh->prepare ($sql);
@@ -235,7 +235,7 @@ sub get_new_uid {
 			$sth->finish;
   };
   confess $@ if ($@);
-  
+
   return ($current_max + 1);
 
 }
@@ -245,7 +245,7 @@ sub lookup_by_uid {
 	my @objs = $self->lookup_conditions("uid = $uid");
 	if (scalar @objs == 1) {
 		return $objs[0];
-	} 
+	}
 	return undef;
 }
 
@@ -260,7 +260,7 @@ sub check_author {
     $roles->{tusk_session_is_author} = 0;
 
     if (!$self->primary_key()){
-	confess "check_author only works on initialized user objects"; 
+	confess "check_author only works on initialized user objects";
     }
 
     if (scalar @{TUSK::Course::User->lookup("user_id = '" . $self->primary_key() . "'")}) {
@@ -277,7 +277,7 @@ sub check_author {
 			return ($self->check_admin($roles));
 		}
 	}
-		
+
 	if (defined($roles->{tusk_session_is_admin})){
 		return ($roles);
 	}else{
@@ -289,7 +289,7 @@ sub check_admin {
     my ($self, $roles) = @_;
 
     if (!$self->primary_key()){
-	confess "check_author only works on initialized user objects"; 
+	confess "check_author only works on initialized user objects";
     }
 
     # Get the link definition
@@ -312,6 +312,29 @@ sub check_admin {
     return $roles;
 }
 
+sub isFaculty {
+  my $self = shift;
+  my $user_id = $self->user_id();
+  my $school_name = $self->affiliation();
+  my $db = TUSK::Core::School->lookupReturnOne("school_name = '$school_name'")->getSchoolDb();
+
+  my $dbh = HSDB4::Constants::def_db_handle();
+
+  my $class_meetings;
+
+  eval {
+    my $sql = "SELECT COUNT(*) FROM $db.link_class_meeting_user
+                WHERE child_user_id = '$user_id'";
+
+    my $sth = $dbh->prepare ($sql);
+    $sth->execute();
+    $class_meetings = $sth->fetchall_arrayref();
+    $sth->finish;
+  };
+
+  return $class_meetings;
+}
+
 # Return the courses the user is a part of teaching for 'course' course_type  or course admin for other course_types.
 sub author_courses {
     my ($self, $conds) = @_;
@@ -319,9 +342,9 @@ sub author_courses {
     my @courses = ();
 
     if ($self->field_value('status') eq 'ghost') {
-	foreach my $school (@schools) { 
+	foreach my $school (@schools) {
 	    my $school_db = get_school_db($school);
-	    my $course = TUSK::Core::HSDB45Tables::Course->new();    
+	    my $course = TUSK::Core::HSDB45Tables::Course->new();
 	    $course->setDatabase($school_db);
 	    push @courses, @{$course->lookup($conds, ['course.course_id'], undef, undef, [
 		TUSK::Core::JoinObject->new('TUSK::Course', { joinkey => 'school_course_code', origkey => 'course_id', jointype => 'inner', }),
@@ -332,7 +355,7 @@ sub author_courses {
     } else {
 	foreach my $school (@schools) {
 	    my $school_db = get_school_db($school);
-	    my $course = TUSK::Core::HSDB45Tables::Course->new();    
+	    my $course = TUSK::Core::HSDB45Tables::Course->new();
 	    $course->setDatabase($school_db);
 	    push @courses, @{$course->lookup($conds, ['course.course_id'], undef, undef, [
 		TUSK::Core::JoinObject->new('TUSK::Course::User', { joinkey => 'course_id', jointype => 'inner', joincond => "user_id = '" . $self->primary_key() . "'" }),
@@ -357,7 +380,7 @@ sub parent_class_meetings {
 		my @meetings = ();
         # Get the link definition
 		for my $db (map { get_school_db($_) } schedule_schools()) {
-			my $linkdef = 
+			my $linkdef =
 				$HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_class_meeting_user"};
 			# And use it to get a LinkSet, if possible
 			push @meetings, $linkdef->get_parents( $self->primary_key() )->parents();
@@ -384,15 +407,15 @@ sub parent_class_meetings_on_date{
 
 	unless ($self->{'-parent_class_meetings' . $date}) {
 		my @meetings = ();
-	
+
 		my $dbh = HSDB4::Constants::def_db_handle();
 		foreach my $school (schedule_schools()) {
 			my $db = get_school_db($school);
 			eval {
 				my $sth = $dbh->prepare (qq[SELECT cm.class_meeting_id
 						FROM $db\.class_meeting cm, $db\.link_class_meeting_user l
-						WHERE l.child_user_id=? 
-						AND l.parent_class_meeting_id=cm.class_meeting_id 
+						WHERE l.child_user_id=?
+						AND l.parent_class_meeting_id=cm.class_meeting_id
 						AND cm.meeting_date = '$date'
 					    ]);
 				$sth->execute ($self->primary_key);
@@ -430,7 +453,7 @@ sub sorted_meetings_on_date{
 	}
 
 	my @parent_meetings = $self->parent_class_meetings_today();
-	
+
 	push @meetings, @parent_meetings;
 
 	my @sorted_meets = sort{ $a->start_time cmp $b->start_time } @meetings;
@@ -466,7 +489,7 @@ sub has_schedule {
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my ($sth, @selects, @ids);
 	my %ug_hash;
-	
+
 	if ($school) {
 		my $db = 'hsdb45_' . $TUSK::Constants::Schools{$school}{ShortName} . '_admin';
 		push @selects, "SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label, COUNT(meeting_date) AS num FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ? GROUP BY user_group_id ORDER BY num DESC";
@@ -479,13 +502,13 @@ sub has_schedule {
 			push @selects, "(SELECT DISTINCT '$school' AS schoolName, parent_user_group_id, label, COUNT(meeting_date) AS num FROM $db.link_user_group_user, $db.link_course_user_group, $db.class_meeting, $db.time_period, $db.user_group WHERE CURDATE() BETWEEN start_date AND end_date AND parent_course_id = course_id AND time_period.time_period_id = link_course_user_group.time_period_id AND meeting_date BETWEEN start_date AND end_date AND meeting_date BETWEEN ? AND ? AND parent_user_group_id = child_user_group_id AND parent_user_group_id = user_group_id AND child_user_id = ? GROUP BY user_group_id)";
 			push (@ids, ($start, $end, $user->primary_key()));
 		}
-	}	
+	}
     $sth = $dbh->prepare(join (' union ', @selects) . " ORDER BY num DESC");
     $sth->execute(@ids);
 	while (my ($school, $ug_id, $ug_label, undef) = $sth->fetchrow_array) {
 		push @{$ug_hash{$school}}, {id => $ug_id, label => $ug_label};
 	}
-    
+
 	return \%ug_hash;
 }
 
@@ -643,7 +666,7 @@ WHERE
   lcc.due_date BETWEEN NOW() AND ?
   AND
   child_user_id = ?
-  AND 
+  AND
   ch.publish_flag = 1
 END_SQL
     push @sql_values, ($school, $enddate, $user->primary_key());
@@ -661,7 +684,7 @@ SELECT
 FROM $db.eval e
 INNER JOIN $db.time_period tp ON (e.time_period_id = tp.time_period_id AND now() BETWEEN tp.start_date AND tp.end_date)
 INNER JOIN $db.course c ON (e.course_id = c.course_id)
-INNER JOIN $db.link_course_student lcs ON 
+INNER JOIN $db.link_course_student lcs ON
   (lcs.time_period_id = tp.time_period_id AND lcs.parent_course_id = c.course_id AND child_user_id = ?
    AND lcs.teaching_site_id = e.teaching_site_id)
 WHERE
@@ -734,7 +757,7 @@ sub recently_modified {
     # Check the cache
 
     # Get the link definition
-    my $linkdef = 
+    my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
     # And get the LinkSet of parents
     my $sel = $linkdef->parent_select($self->primary_key);
@@ -758,7 +781,7 @@ sub parent_content {
     # Check the cache
 
     # Get the link definition
-    my $linkdef = 
+    my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
     # And get the LinkSet of parents
     my $parent_content = $linkdef->get_parents ($self->primary_key,@_);
@@ -792,7 +815,7 @@ sub admin_user_groups{
 	foreach $school (keys %HSDB4::Constants::School_Admin_Group) {
 	    if ($self->check_school_permissions($school)){
 		my $user_group = HSDB45::UserGroup->new(_school => $school);
-		push(@user_groups,$user_group->lookup_conditions());	
+		push(@user_groups,$user_group->lookup_conditions());
 	    }
 	}
 	$self->{-admin_user_groups} = \@user_groups;
@@ -810,7 +833,7 @@ sub parent_edit_user_groups{
 	foreach my $school (user_group_schools()) {
 	    next unless ($self->check_school_permissions($school));
 	    my $db = get_school_db($school);
-	    my $linkdef = 
+	    my $linkdef =
 		$HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_user_group_user"};
 	    # And use it to get a LinkSet, if possible
 	    push @groups, $linkdef->get_parents( $self->primary_key() )->parents();
@@ -834,7 +857,7 @@ sub parent_user_groups {
 	my @groups = ();
         # Get the link definition
 	for my $db (map { get_school_db($_) } user_group_schools()) {
-	    my $linkdef = 
+	    my $linkdef =
 		$HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_user_group_user"};
 	    # And use it to get a LinkSet, if possible
 	    push @groups, $linkdef->get_parents( $self->primary_key(), @conds )->parents();
@@ -916,7 +939,7 @@ sub user_group_courses{
 
 	push @school_joins, "(select '" . $school . "' as school_name, '" . $school_id . "' as school_id, parent_course_id, t.time_period_id, u.user_group_id, u.sub_group
 			from $db\.link_user_group_user lugu, $db\.link_course_user_group lcug, $db\.time_period t, $db\.user_group u
-			where lugu.parent_user_group_id = lcug.child_user_group_id and t.time_period_id = lcug.time_period_id and 
+			where lugu.parent_user_group_id = lcug.child_user_group_id and t.time_period_id = lcug.time_period_id and
                         u.user_group_id = lcug.child_user_group_id and $cond
                         lugu.child_user_id = '" . $self->primary_key() . "' and t.start_date <= '$date' and t.end_date >= '$date')";
     }
@@ -924,14 +947,14 @@ sub user_group_courses{
     my $dbh = HSDB4::Constants::def_db_handle();
     my $sth = $dbh->prepare(join (' union ', @school_joins));
     $sth->execute();
-    
+
     while (my $row = $sth->fetchrow_hashref){
-		my $link_course_student = $HSDB4::SQLLinkDefinition::LinkDefs{ HSDB4::Constants::get_school_db($row->{school_name}) . '.link_course_student'};    
+		my $link_course_student = $HSDB4::SQLLinkDefinition::LinkDefs{ HSDB4::Constants::get_school_db($row->{school_name}) . '.link_course_student'};
 		if ( $link_course_student->check_for_link( $row->{parent_course_id}, $self->user_id, ' AND time_period_id = ' . $row->{time_period_id} ) ) {
-			push @$courses, { 
+			push @$courses, {
 			    school_id => $row->{school_id},
 			    school_name => $row->{school_name},
-			    course_id => $row->{parent_course_id}, 
+			    course_id => $row->{parent_course_id},
 			    sub_group_id => ($row->{sub_group} eq 'Yes') ? $row->{user_group_id} : 0,
 			    time_period_id => $row->{time_period_id},
 			};
@@ -973,14 +996,14 @@ sub current_courses {
 	    my @course_ids = ();
 	    my @timeperiod_ids = ();
 	    eval {
-		my $sql = qq[SELECT parent_course_id, l.time_period_id 
-			     FROM $db\.course c, $db\.link_course_student l, $db\.time_period t 
-			     WHERE l.child_user_id=? 
-			     AND l.time_period_id=t.time_period_id 
+		my $sql = qq[SELECT parent_course_id, l.time_period_id
+			     FROM $db\.course c, $db\.link_course_student l, $db\.time_period t
+			     WHERE l.child_user_id=?
+			     AND l.time_period_id=t.time_period_id
 			     AND l.parent_course_id=c.course_id ];
 		if ($params->{'only_enrollment'}) { $sql .= " AND c.associate_users='Enrollment' "; }
 		$sql .= $where;
-		
+
 		my $sth = $dbh->prepare($sql);
 
 		$sth->execute ($self->primary_key);
@@ -1022,7 +1045,7 @@ sub current_courses {
 sub check_school_permissions{
     my $self = shift;
     my $school = shift;
-    
+
     unless (exists($self->{-school_permissions}->{$school})){
 	# test to see if in admin goup
 	my $contains=0;
@@ -1037,10 +1060,10 @@ sub check_school_permissions{
 	}
 	$self->{-school_permissions}->{$school}=$contains;
     }
- 
+
     return ($self->{-school_permissions}->{$school});
 }
-	
+
 
 sub admin_courses {
     # Get a list of courses this person has access to as an admin.
@@ -1132,19 +1155,19 @@ sub taken_quizzes{
     my $user_id = $self->primary_key();
 
     my $sql = <<EOM;
-select q.quiz_id, q.title, r.end_date 
-from tusk.quiz q, tusk.link_course_quiz l, tusk.quiz_result r 
-where (school_id = $school_id  and parent_course_id = $course_id) 
-and r.quiz_id = q.quiz_id 
+select q.quiz_id, q.title, r.end_date
+from tusk.quiz q, tusk.link_course_quiz l, tusk.quiz_result r
+where (school_id = $school_id  and parent_course_id = $course_id)
+and r.quiz_id = q.quiz_id
 and r.user_id = '$user_id'
-and q.quiz_id = l.child_quiz_id 
+and q.quiz_id = l.child_quiz_id
 and r.end_date is not null
 $tp_cond
 and preview_flag = 0
 order by r.end_date desc
 EOM
     my $dbh = HSDB4::Constants::def_db_handle ();
-    
+
     eval {
 	my $sth = $dbh->prepare ($sql);
 	$sth->execute ();
@@ -1186,7 +1209,7 @@ sub current_quizzes{
 		    push (@courses, $course);
 		    $user_is_enrolled = 1;
 		    last;
-		} 
+		}
 	    }
 
 	    if (!$user_is_enrolled and $course->user_has_role($self->primary_key, ['author', 'editor', 'director', 'manager'])) {
@@ -1204,7 +1227,7 @@ sub current_quizzes{
 		$course_hashref->{$course} = 1;
 	    }
 	}
-	
+
 	foreach my $course ($self->author_courses()) {
 	    if ($course->checkJoinObject('TUSK::Permission::Role')) {
 		my @author_roles = grep { !($_->getVirtualRole()) } grep { ref $_ eq 'TUSK::Permission::Role' }  $course->getJoinObjects('TUSK::Permission::Role');
@@ -1223,7 +1246,7 @@ sub current_quizzes{
 		unless ($schoolhash->{$course->school}){
 	    	$schoolhash->{$course->school} = TUSK::Core::School->new->getSchoolID($course->school);
 		}
-	
+
 		my $school_id = $schoolhash->{$course->school};
 		my $tps = $course->get_users_active_timeperiods($self->user_id);
 		my $tp_cond = '';
@@ -1233,16 +1256,16 @@ sub current_quizzes{
 		}
 		push (@where_clause, "(school_id =" . $school_id . " and parent_course_id = " . $course->primary_key . "$tp_cond)");
     }
-	
+
     return [] unless (scalar(@where_clause));
-    
+
     my $sql =  "select q.quiz_id, q.title, r.start_date, l.parent_course_id, l.school_id, l.due_date from tusk.link_course_quiz l, tusk.quiz q left outer join tusk.quiz_result r on (r.quiz_id = q.quiz_id and r.user_id = '" . $self->primary_key . "'  and preview_flag = 0) where (" . join(' or ', @where_clause) . ") and available_date < now() and (due_date > now() or due_date is null) and l.child_quiz_id = q.quiz_id and r.end_date is null and (q.quiz_type = 'Quiz' or q.quiz_type = 'FeedbackQuiz') order by l.sort_order";
 
 
     my $dbh = HSDB4::Constants::def_db_handle ();
 
     %$schoolhash = reverse %$schoolhash;
-    
+
     eval {
 	my $sth = $dbh->prepare ($sql);
 	$sth->execute ();
@@ -1258,7 +1281,7 @@ sub current_quizzes{
 	}
      $sth->finish;
     };
-    
+
     return $quizzes;
 }
 
@@ -1321,7 +1344,7 @@ sub current_evals {
 		my @evals = HSDB45::Eval->new( _school => $school)->new()->lookup_conditions('eval_id in (' . join(',', @eval_ids) . ')');
 		foreach my $eval (@evals) {
 ##		    if ($eval->primary_key && ($eval->is_user_allowed ($self))[0]) {
-			push @{$current_evals{$school . '/' . $eval->field_value('course_id')}}, $eval; 
+			push @{$current_evals{$school . '/' . $eval->field_value('course_id')}}, $eval;
 ##		    }
 		}
 	    }
@@ -1425,7 +1448,7 @@ sub get_course_grades {
 	my $time_period_id = $time_period->primary_key();
 
 	my $cond = <<EOM;
-publish_flag 
+publish_flag
 and course_id = $course_id
 and school_id = $school_id
 and time_period_id = $time_period_id
@@ -1915,10 +1938,10 @@ sub child_personal_content {
 
     my ($self) = shift;
 	my $params = shift;
-   
+
     # No cache!
     # Get the link definition
-    my $linkdef = 
+    my $linkdef =
 	$HSDB4::SQLLinkDefinition::LinkDefs{'link_user_personal_content'};
     # And get the LinkSet of parents
 	my $set;
@@ -1972,7 +1995,7 @@ sub new_child_personal_content_folder {
 
     my $self = shift;
     my $title = shift || 'New Folder';
-    
+
     # OK, first make the new folder
     my $folder = HSDB4::SQLRow::PersonalContent->new ();
     $folder->set_field_values ('user_id' => $self->primary_key,
@@ -1991,13 +2014,13 @@ sub new_child_personal_content_deck {
 
     my $self = shift;
     my $title = shift || 'New Deck';
-    
+
     # OK, first make the new folder
     my $folder = HSDB4::SQLRow::PersonalContent->new ();
     $folder->set_field_values ('user_id' => $self->primary_key,
 			       'type' => 'Flash Card Deck',
 			       'body' => $title,
-			  
+
 			       );
     my $result = $folder->save;
     if ($result) { $self->add_child_personal_content ($folder); }
@@ -2059,7 +2082,7 @@ sub all_user_content {
 }
 
 sub body {
-    # 
+    #
     # Get the HSDB4::XML::User user_body object and let us manipulate it
     #
 
@@ -2067,11 +2090,11 @@ sub body {
 
     my $body = HSDB4::XML::User->new('user_body');
     my $val = $self->field_value('body');
-    if ($val) { 
-        eval { 
+    if ($val) {
+        eval {
     	$body->parse($val);
         };
-        if ($@) { ; }	
+        if ($@) { ; }
     }
     return $body;
 }
@@ -2084,16 +2107,16 @@ sub recent_history {
     my $self = shift;
 
 	# Make the condition
-	my $sql = 
-	    qq[SELECT content_id, MAX(hit_date) AS recent, COUNT(recent_log_item_id) 
+	my $sql =
+	    qq[SELECT content_id, MAX(hit_date) AS recent, COUNT(recent_log_item_id)
 	       FROM recent_log_item l,
-		tusk.log_item_type t 
+		tusk.log_item_type t
 	       WHERE user_id=?
-	       AND t.label='Content' 
+	       AND t.label='Content'
 	       AND t.log_item_type_id = l.log_item_type_id
-	       AND content_id!=0 
-	       GROUP BY content_id 
-	       ORDER BY recent DESC 
+	       AND content_id!=0
+	       GROUP BY content_id
+	       ORDER BY recent DESC
 	       LIMIT 10];
 	my $dbh = HSDB4::Constants::def_db_handle();
 	my @content_ids = ();
@@ -2111,7 +2134,7 @@ sub recent_history {
 	confess $@ if $@;
 	if (@content_ids) {
 	    my $cond = 'content_id in (' . join (', ', @content_ids) . ')';
-	    my @conts = sort { $times{$b->primary_key} 
+	    my @conts = sort { $times{$b->primary_key}
 			       cmp $times{$a->primary_key}
 			   } HSDB4::SQLRow::Content->lookup_conditions($cond);
 	    $recent_history = \@conts;
@@ -2155,7 +2178,7 @@ sub previous_login_unix_timestamp {
 }
 
 sub new_body {
-    # 
+    #
     # Get a blank HSDB4::XML::User user_body for us to work with
     #
 
@@ -2170,7 +2193,7 @@ sub new_body {
 #
 
 sub in_fdat_hash {
-    # 
+    #
     # Read a big hash into the data, including setting contact info
     #
 
@@ -2223,14 +2246,14 @@ sub out_contact_info {
 	    $valid_user = 1;
 	}
 	elsif ($viewer and $viewer->can('out_groups')) {
-	    # Figure out if they have any in common, and set the flag 
+	    # Figure out if they have any in common, and set the flag
 	    foreach my $user_group ($self->out_groups) {
 		$common_group = grep { $_ eq $user_group } $viewer->out_groups;
 		last if $common_group;
 	    }
 	    $valid_user = 1;
 	}
-	elsif (  (not HSDB4::Constants::is_guest($viewer->primary_key)) && (TUSK::Shibboleth::User::isShibUser($viewer->primary_key) == -1)  ) { 
+	elsif (  (not HSDB4::Constants::is_guest($viewer->primary_key)) && (TUSK::Shibboleth::User::isShibUser($viewer->primary_key) == -1)  ) {
 	    $valid_user = 1;
 	}
     }
@@ -2250,7 +2273,7 @@ sub out_contact_info {
 }
 
 sub out_groups {
-    # 
+    #
     # Return a comma separated list of groups the use belongs to
     #
 
@@ -2274,7 +2297,7 @@ sub out_full_name {
     #
 
     my $self = shift;
-    my ($fn, $ln, $sfx, $dg) = 
+    my ($fn, $ln, $sfx, $dg) =
 	$self->get_field_values(qw(firstname lastname suffix degree));
     return $self->primary_key unless $ln;
     # Process the suffix
@@ -2322,7 +2345,7 @@ sub out_label {
     #
 
     my $self = shift;
-    return $self->out_full_name; 
+    return $self->out_full_name;
 }
 
 sub out_html_full_name {
@@ -2354,7 +2377,7 @@ sub out_option_name {
     $spacing[1] = 15;
     $spacing[2] = 23;
     $spacing[3] = 0;
-    
+
     for(my $i=0; $i<scalar(@fields); $i++){
 	if ($spacing[$i] and length($fields[$i]) >= $spacing[$i]-1){
 	    $fields[$i] = substr($fields[$i], 0, $spacing[$i]-1);
@@ -2366,7 +2389,7 @@ sub out_option_name {
 	    $optionString .= "&nbsp;" x $displacement;
 	}
     }
-    
+
     return $optionString;
 }
 
@@ -2376,7 +2399,7 @@ sub out_short_name {
     #
 
     my $self = shift;
-    my ($fn, $ln, $mn) = 
+    my ($fn, $ln, $mn) =
 	$self->get_field_values (qw(firstname lastname midname));
     return $self->primary_key unless $ln;
     my $out = "";
@@ -2393,7 +2416,7 @@ sub out_lastfirst_name{
     #
     # Show lastname, comma, then firstname
     #
-    
+
     my $self = shift;
     return $self->field_value_esc('lastname') . ", " . $self->field_value_esc('firstname');
 
@@ -2434,7 +2457,7 @@ sub out_html_row {
     my $self = shift;
 
     return sprintf ("<TR><TD COLSPAN=2>%s</TD><TD>%s</TD><TD>%s</TD></TR>\n",
-		    $self->out_html_full_name, 
+		    $self->out_html_full_name,
 		    $self->field_value('affiliation'), $self->out_html_email);
 }
 
@@ -2444,7 +2467,7 @@ sub out_html_div {
     #
 
     my $self = shift;
-    return join ("\n", 
+    return join ("\n",
 		 "<BODY>\n<H2>", $self->out_full_name, "</H2>\n",
 		 "<DIV>", $self->out_html_email, "</DIV>\n",
 		 $self->out_html_body
@@ -2511,7 +2534,7 @@ sub user_save {
     $status = join (',', grep { $_ ne 'UpdateInfo' } split (',', $status));
     # Put the new string back in
     $self->field_value('profile_status', $status);
-    warn sprintf ("Saving fields %s to user %s Stat: [%s] New: [%s]", 
+    warn sprintf ("Saving fields %s to user %s Stat: [%s] New: [%s]",
 		  join (':', keys %{$self->{_modified}}), $self->primary_key,
 		  $self->field_value('profile_status'), $status);
     # Save to the database
@@ -2570,10 +2593,10 @@ sub send_email_from {
 }
 
 sub send_email {
-    # 
+    #
     # Send the user an e-mail message
     #
-    
+
     my $self = shift;
     my $subject = shift;
     my $email = $self->field_value('preferred_email');
@@ -2617,7 +2640,7 @@ sub change_password {
 			     profile_status=NULL,
                              password_reset=NOW()
 			     WHERE %s=%s],
-		  $dbh->quote ($new_pw), $self->primary_key_field, 
+		  $dbh->quote ($new_pw), $self->primary_key_field,
 		  $dbh->quote ($self->primary_key));
 	$self->field_value('profile_status', '');
 
@@ -2634,9 +2657,9 @@ sub user_change_password {
 
     my $self = shift;
     my ($old_pw, $new_pw, $new_pw_copy) = @_;
-    
+
     # Make sure the old password is right
-    return (0, "Could not verify the old password") 
+    return (0, "Could not verify the old password")
 	unless $self->verify_password ($old_pw);
     # Make sure the new passwords are the same
     return (0, "Both copies of the new password must be the same")
@@ -2732,21 +2755,21 @@ sub get_patient_logs{
     my $school_id = $schools->[0]->getPrimaryKeyID();
 
     my $sql =<<EOM;
-select c.course_id as course_id, c.title as title, $school_id as school_id, '$affiliation' as school_name, t.time_period_id as time_period_id, concat(t.period, " (", t.academic_year, ")") as time_period, ts.teaching_site_id as teaching_site_id, ts.site_name as site_name, ts.site_city_state as site_city_state, 
+select c.course_id as course_id, c.title as title, $school_id as school_id, '$affiliation' as school_name, t.time_period_id as time_period_id, concat(t.period, " (", t.academic_year, ")") as time_period, ts.teaching_site_id as teaching_site_id, ts.site_name as site_name, ts.site_city_state as site_city_state,
 if ((t.start_date <= curdate() and t.end_date >= curdate()), 1, 0) as form_link,
 fo.form_id as form_id, fo.form_name as form_name
-from 
-tusk.link_course_form f, 
+from
+tusk.link_course_form f,
 tusk.form_builder_form fo,
 tusk.form_builder_form_type ft,
-$db\.link_course_student l, 
+$db\.link_course_student l,
 $db\.time_period t,
 $db\.course c,
 $db\.teaching_site ts
-where 
-f.school_id = ? and 
-f.parent_course_id = l.parent_course_id and 
-l.time_period_id = t.time_period_id and 
+where
+f.school_id = ? and
+f.parent_course_id = l.parent_course_id and
+l.time_period_id = t.time_period_id and
 l.child_user_id = ? and
 ts.teaching_site_id = l.teaching_site_id and
 c.course_id = l.parent_course_id and
@@ -2778,7 +2801,7 @@ sub get_course_competency_checklist_groups {
     my $school = $course->get_school();
     my $db = $school->getSchoolDb();
 
-    return TUSK::Competency::Checklist::Group->lookup('publish_flag = 1 AND school_id = ' . $school->getPrimaryKeyID() . ' AND course_id = ' . $course->primary_key(), undef, undef, undef, [ 
+    return TUSK::Competency::Checklist::Group->lookup('publish_flag = 1 AND school_id = ' . $school->getPrimaryKeyID() . ' AND course_id = ' . $course->primary_key(), undef, undef, undef, [
                 TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::LinkCourseStudent", { database => $db, joinkey => 'parent_course_id', origkey => 'course_id', cond => "child_user_id = '" . $self->primary_key() . "'", jointype => 'inner' }),
         	TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", { database => $db, joinkey => 'time_period_id', origkey=> "link_course_student.time_period_id",  cond => "start_date < now()  AND (end_date + interval 1 day) > now()", jointype => 'inner' }),
     ]);
@@ -2800,7 +2823,7 @@ ORDER BY course.title), $self->primary_key(), $school->getPrimaryKeyID());
 
     my $data = [];
     while (my ($course_id, $course_title) = $sth->fetchrow_array()) {
-	push @$data, { 
+	push @$data, {
 	    course_id => $course_id,
 	    course_title => $course_title,
 	    affiliation => $affiliation,
@@ -2818,35 +2841,35 @@ sub get_director_checklists {
     return [] unless ref $school eq 'TUSK::Core::School';
 
     my $checklists = TUSK::Competency::Checklist::Group->lookup("competency_checklist_group.school_id = " . $school->getPrimaryKeyID(), undef, undef, undef, [
-        TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::Course", { 
-	    database => $school->getSchoolDb(), 
-	    jointype => 'inner', 
-	    joinkey => 'course_id', 
+        TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::Course", {
+	    database => $school->getSchoolDb(),
+	    jointype => 'inner',
+	    joinkey => 'course_id',
         }),
-        TUSK::Core::JoinObject->new("TUSK::Course::User", { 
-	    jointype => 'inner', 
-	    origkey => 'course.course_id', 
-	    joinkey => 'course_id', 
-	    joincond => "course_user.school_id = competency_checklist_group.school_id", 
+        TUSK::Core::JoinObject->new("TUSK::Course::User", {
+	    jointype => 'inner',
+	    origkey => 'course.course_id',
+	    joinkey => 'course_id',
+	    joincond => "course_user.school_id = competency_checklist_group.school_id",
         }),
-        TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", { 
-	    database => $school->getSchoolDb(), 
-	    jointype => 'inner', 
+        TUSK::Core::JoinObject->new("TUSK::Core::HSDB45Tables::TimePeriod", {
+	    database => $school->getSchoolDb(),
+	    jointype => 'inner',
 	    origkey => 'course_user.time_period_id',
-	    joinkey => 'time_period_id', 
+	    joinkey => 'time_period_id',
 	    joincond => "start_date < now() AND (end_date + interval 1 day) > now()",
         }),
-        TUSK::Core::JoinObject->new("TUSK::Permission::UserRole", { 
-	    jointype => 'inner', 
-	    origkey => 'course_user.course_user_id', 
-	    joinkey => 'feature_id', 
-	    joincond => "permission_user_role.user_id = '" . $self->getPrimaryKeyID() . "'", 
+        TUSK::Core::JoinObject->new("TUSK::Permission::UserRole", {
+	    jointype => 'inner',
+	    origkey => 'course_user.course_user_id',
+	    joinkey => 'feature_id',
+	    joincond => "permission_user_role.user_id = '" . $self->getPrimaryKeyID() . "'",
         }),
-        TUSK::Core::JoinObject->new("TUSK::Permission::Role", { 
-	    jointype => 'inner', 
-	    origkey => 'permission_user_role.role_id', 
-	    joinkey => 'role_id', 
-	    joincond => "role_token = 'director'", 
+        TUSK::Core::JoinObject->new("TUSK::Permission::Role", {
+	    jointype => 'inner',
+	    origkey => 'permission_user_role.role_id',
+	    joinkey => 'role_id',
+	    joincond => "role_token = 'director'",
         }),
     ]);
 
@@ -2918,25 +2941,25 @@ sub get_instructor_simulated_patients {
 
     my $db = $school->getSchoolDb();
     my $sql = qq(
-		 SELECT '$affiliation' as school_name, d.course_id, title, 
+		 SELECT '$affiliation' as school_name, d.course_id, title,
 		 b.form_id as form_id, form_name, form_description
 		 FROM tusk.link_course_form a,
-		 tusk.form_builder_form b, 
-		 tusk.form_builder_form_type c, 
-		 $db\.course d, 
-		 tusk.course_user e, 
+		 tusk.form_builder_form b,
+		 tusk.form_builder_form_type c,
+		 $db\.course d,
+		 tusk.course_user e,
 		 tusk.form_builder_form_association i,
 		 tusk.permission_user_role ur,
 		 tusk.permission_role pr,
 		 tusk.permission_feature_type pft
-		 WHERE a.parent_course_id = d.course_id 
+		 WHERE a.parent_course_id = d.course_id
 		 AND a.parent_course_id = e.course_id
 		 AND a.child_form_id  = b.form_id
 		 AND publish_flag = 1
 		 AND b.form_type_id = c.form_type_id
 		 AND c.token = 'SP'
 		 AND pr.role_token = 'instructor'
-		 AND e.user_id = ? 
+		 AND e.user_id = ?
 		 AND a.child_form_id = i.form_id
 		 AND e.user_id = i.user_id
 		 AND e.course_user_id = ur.feature_id
@@ -2968,14 +2991,14 @@ sub get_assessments {
 				 from tusk.form_builder_subject_assessor sa
 			     inner join tusk.link_course_form as cf on (sa.form_id = cf.child_form_id)
 				 inner join tusk.form_builder_form as f on (sa.form_id = f.form_id)
-				 inner join tusk.form_builder_form_type as ft on (f.form_type_id = ft.form_type_id) 
+				 inner join tusk.form_builder_form_type as ft on (f.form_type_id = ft.form_type_id)
 				 inner join tusk.school as s on (cf.school_id = s.school_id)
 				 left outer join
 					(select form_id, e.entry_id
-					 from tusk.form_builder_entry e, tusk.form_builder_entry_association ea 
+					 from tusk.form_builder_entry e, tusk.form_builder_entry_association ea
 					 where e.entry_id = ea.entry_id and ea.user_id = ? and complete_date is not NULL
 						 and is_final = 1) as y on (y.form_id = sa.form_id)
-				 where f.publish_flag = 1 
+				 where f.publish_flag = 1
 				 and ft.token = 'Assessment' and status in (1,2)
 				 and sa.subject_id  = ?
 	);
@@ -2999,8 +3022,8 @@ sub get_instructor_assessments {
 				 select distinct a.school_id, school_name, a.parent_course_id as course_id,
 				 b.form_id as form_id, form_name, form_description
 				 from tusk.link_course_form a,
-				 tusk.form_builder_form b, 
-				 tusk.form_builder_form_type c, 
+				 tusk.form_builder_form b,
+				 tusk.form_builder_form_type c,
 				 tusk.form_builder_subject_assessor d,
 				 tusk.school e
 				 where a.child_form_id = d.form_id
@@ -3024,7 +3047,7 @@ sub get_instructor_assessments {
     return $assessments;
 }
 
-															     
+
 ### include school, course and course group announcements for the affiliation
 sub get_all_announcements {
     my $self = shift;
@@ -3032,9 +3055,9 @@ sub get_all_announcements {
 
     if (my $affiliation = $self->affiliation_or_default_school()) {
 	push @announcements, map {
-                          { item   => $_, 
+                          { item   => $_,
 			    type   => 'user_group',
-			    school => $affiliation, 
+			    school => $affiliation,
 			    id     => $TUSK::Constants::Schools{$affiliation}{Groups}{SchoolWideUserGroup} }
 		      } HSDB45::Announcement::schoolwide_announcements($affiliation);
     }
@@ -3051,9 +3074,9 @@ sub get_course_announcements {
     my $announcements = ();
 
     foreach my $ug ($self->parent_user_groups()) {   ### course group announcements
-	push(@$announcements,  map { 
-                            {  item   => $_, 
-			       type   => 'user_group', 
+	push(@$announcements,  map {
+                            {  item   => $_,
+			       type   => 'user_group',
 			       school => $ug->school,
 			       id     =>  $ug->field_value('user_group_id'),
 			       id_label => $ug->out_label }
@@ -3067,7 +3090,7 @@ sub get_course_announcements {
 
 	my @course_announcements = $course->announcements();
 	foreach my $course_announcement (@course_announcements) {
-		push @$announcements, { item   => $course_announcement, 
+		push @$announcements, { item   => $course_announcement,
 					type   => 'course',
 					course =>  $course };
 	}
@@ -3120,7 +3143,7 @@ sub get_announcements_by_group_and_course{
 
 	my @sorted = sort { $b->{item}->field_value('start_date') cmp $a->{item}->field_value('start_date') } @ug_anns;
 
-	my @courses = sort { 
+	my @courses = sort {
 		my $cmp_val = $a->{course}->out_abbrev() cmp $b->{course}->out_abbrev();
 		unless($cmp_val){
 			$cmp_val = $b->{item}->field_value('start_date') cmp $a->{item}->field_value('start_date');
@@ -3145,14 +3168,14 @@ INNER JOIN
 INNER JOIN
     tusk.school s ON (g.school_id = s.school_id)
 INNER JOIN
-    $_[0].link_course_student l 
+    $_[0].link_course_student l
     ON
         (g.course_id = l.parent_course_id AND l.child_user_id = '$self->{'user_id'}' AND g.time_period_id = l.time_period_id)
 INNER JOIN
-    $_[0].time_period t 
+    $_[0].time_period t
     ON
         (t.time_period_id = l.time_period_id AND t.start_date <= curdate() AND t.end_date >= curdate())
-WHERE 
+WHERE
     a.due_date >=curdate()
 ORDER BY
     a.due_date
@@ -3160,19 +3183,19 @@ END_SQL
 }
 
 sub get_course_assignments {
-    
+
     my $self = shift;
 
     my @courses = $self->current_courses();
-    
+
     my %schools_dbs = map { $_->school_db() => 1} @courses;
-        
+
     my @all_assignments;
-   
+
     foreach my $school(keys %schools_dbs) {
 	my $sql = $self->_get_course_assignments_sql($school);
 	my $sth = TUSK::Core::SQLRow->new()->databaseSelect($sql);
-	
+
 	push @all_assignments, values %{$sth->fetchall_hashref('assignment_id')};
     }
 
@@ -3183,11 +3206,11 @@ sub get_school_announcements {
 	my $self = shift;
 	my %all_announcements;
 
-	## kludgy, get unique school names from two different types of course ojbects 
+	## kludgy, get unique school names from two different types of course ojbects
 	my @schools = keys %{{ map { $_ => 1 }
 		( (map { $_->getJoinObject('TUSK::Core::School')->getSchoolName() } $self->author_courses()),
 		  (map { $_->school() } $self->current_courses() )) }};
-	
+
 	foreach my $school (@schools) {
 		my @announcements = HSDB45::Announcement::schoolwide_announcements($school);
 		foreach my $ann (@announcements) {
@@ -3202,7 +3225,7 @@ sub makeGhost {
 	# Basically we need to set the primary_key and the user ID
 	if($user_id) {
 		$self->primary_key($TUSK::Constants::shibbolethUserID . $user_id);
-		$self->field_value('lastname', TUSK::Shibboleth::User->new()->lookupKey($user_id)->getUserGreeting()); 
+		$self->field_value('lastname', TUSK::Shibboleth::User->new()->lookupKey($user_id)->getUserGreeting());
 		$self->field_value('status', 'ghost');
 		$self->field_value('email', $TUSK::Constants::ErrorEmail);
 		$self->field_value('sid', $user_id);
@@ -3253,11 +3276,11 @@ sub get_user_group_courses_with_categories {
 
 	while (my ($course_id, $course_title, $category, $indentation, $course_url, $course_sort_order, $category_sort_order) = $sth->fetchrow_array) {
 	    $categories{$school}{$category_sort_order}{label} = $category;
-	    push @{$categories{$school}{$category_sort_order}{courses}}, { 
-		id => $course_id, 
-		title => $course_title, 
+	    push @{$categories{$school}{$category_sort_order}{courses}}, {
+		id => $course_id,
+		title => $course_title,
 		url => $course_url,
-		indentation => $indentation 
+		indentation => $indentation
 		};
 	}
 	$sth->finish();
@@ -3311,7 +3334,6 @@ sub save {
 	}
 }
 
-
 sub set_last_name{
 	my ($self, @params) = @_;
 	my $newLastName = $params[0];
@@ -3327,7 +3349,7 @@ sub set_first_name{
 }
 
 sub official_image {
-	my ($self) = @_;	
+	my ($self) = @_;
 	my $filePath;
 	my $imagePath = '/graphics/no-profile.gif';
 
@@ -3343,6 +3365,28 @@ sub official_image {
 	return $imagePath;
 }
 
+sub get_faculty_class_meeting {
+    my ($self, $db) = @_;
+    my $user_id = $self->user_id();
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my $class_meetings;
+
+    eval {
+	    my $sql = "SELECT meeting_date, starttime, endtime, location, class_meeting.title, label, class_meeting_id, class_meeting.course_id, course.title FROM $db.link_class_meeting_user
+                  INNER JOIN $db.class_meeting ON parent_class_meeting_id = class_meeting_id
+                  INNER JOIN tusk.class_meeting_type ON type_id = class_meeting_type_id
+                  INNER JOIN $db.course ON $db.class_meeting.course_id = $db.course.course_id
+                  WHERE child_user_id = '$user_id' ORDER BY meeting_date, starttime, endtime";
+
+      my $sth = $dbh->prepare ($sql);
+	    $sth->execute();
+	    $class_meetings = $sth->fetchall_arrayref();
+	    $sth->finish;
+    };
+
+    return $class_meetings;
+}
+
 1;
 
 __END__
@@ -3356,7 +3400,7 @@ interface for user updates, profiles, preferences, etc.
 =head1 SYNOPSIS
 
     use HSDB4::SQLRow::User;
-    
+
     # Make a new object
     my $user = HSDB4::SQLRow::User->new ();
     # And feed in the data from the database
@@ -3512,6 +3556,3 @@ Tarik Alkasab <talkas01@tufts.edu>
 L<HSDB4>, L<HSDB4::SQLRow>, L<HSDB4::SQLLink>, L<HSDB4::XML>.
 
 =cut
-
-
-

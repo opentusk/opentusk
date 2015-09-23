@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 
@@ -26,17 +26,40 @@
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
 	my $school = $course->get_school();
 	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
-	my @usergroups = $course->sub_user_groups($time_period_id); 
+	my @usergroups = $course->sub_user_groups($time_period_id);
 	my $is_group_course = $course->type eq 'group';
 	my $is_director_nonstudent = $m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT');
 	my $is_thesis_comm = $course->type eq 'thesis committee';
 </%shared>
 
-<& /tmpl/element:table, params => { 
-	width => "100%",
-	border =>"0",
-	cellspacing =>"0",
-	cellpadding =>"0" } &>
+<%perl>
+	my $page = $ARGS{'page'} || 1;
+	my $size = $ARGS{'size'} || 100;
+
+	if ($num_users > $size) {
+		if ($ARGS{'page'}) {
+			$m->session->{'page'} = $page;
+			$m->session->{'page_path'} = $selfpath;
+		} elsif ($m->session->{'page'} && ($m->session->{'page_path'} eq $selfpath)) {
+			$page = $m->session->{'page'};
+		}
+	} else {
+		$page = 1;
+	}
+
+	my $first = ($page - 1) * $size;
+	my $last = $page * $size - 1;
+
+	$first = 0 unless ($first >= 0);
+	$last = $num_users - 1 unless ($last < $num_users);
+</%perl>
+
+<& /tmpl/element:table, params => {
+	width => '100%',
+	border => '0',
+	cellspacing => '0',
+	cellpadding => '0'
+} &>
 
 % if ($is_director_nonstudent && ($time_period_id > 0)) {
 <tr>
@@ -68,25 +91,33 @@
 	<tr><td class="no-button">
 % }
 
-% if ($users && scalar @$users) {
+% if ($num_users > $size) {
+<& /tmpl/element:pagination, params => {
+  records_per_page => $size,
+  number_of_records => $num_users,
+  current_page => $page
+} &>
+% }
+
+% if ($num_users) {
 <& /tmpl/element:form, params => {
 	method => 'POST',
 	class => 'no-padding',
-	name => 'users' } 
-&>
+	name => 'users'
+} &>
 
-<& /tmpl/element:table, params => { 
-	width => "100%",
-	class =>"tusk",
-	cellspacing =>"0",
-	cellpadding =>"0" }
-&>
+<& /tmpl/element:table, params => {
+	width => '100%',
+	class => 'tusk',
+	cellspacing => '0',
+	cellpadding => '0'
+} &>
 
 <tr class="header">
 
 <%perl>
 	my @rows = ();
-	foreach my $user (@{$users}) {
+	foreach my $user (@$users[$first..$last]) {
 		push @rows, $m->comp('SELF:set_row', user => $user);
 	}
 
@@ -96,21 +127,23 @@
 
 <& /tmpl/element:object_selection_box, params => {
 	sort_box => $sort_box,
-	columns => ($time_period_id > 0) ? [ 
+	offset => $first,
+	total => ($num_users > $size) ? $num_users : 0,
+	columns => ($time_period_id > 0) ? [
 		{'label' => __('Name'), 'field' => 'name'},
 		{'label' => __('UserID'), 'field' => 'userid' },
-		{'label' => __('Role'), 'field' => 'roles'}, 
-		{'label' => __('Label(s)'), 'field' => 'labels'}, 
+		{'label' => __('Role'), 'field' => 'roles'},
+		{'label' => __('Label(s)'), 'field' => 'labels'},
 		{'label' => __('Teaching Site(s)'), 'field' => 'teaching_sites'},
 		{'label' => __('Affiliation'), 'field' => 'affiliation'},
 	] : [
 		{'label' => __('Name'), 'field' => 'name'},
 		{'label' => __('UserID'), 'field' => 'userid' },
-		{'label' => __('Role'), 'field' => 'roles'}, 
-		{'label' => __('Label(s)'), 'field' => 'labels'}, 
+		{'label' => __('Role'), 'field' => 'roles'},
+		{'label' => __('Label(s)'), 'field' => 'labels'},
 		{'label' => __('Most Recent Time Period'), 'field' => 'time_period'},
 	],
-	action_columns => ($can_edit) ? [ 
+	action_columns => ($can_edit) ? [
 		{ 'label' => __('Modify'), 'link' => '/management/course/users/addedit' },
 		{ 'label' => __('Delete'), 'link' => '/management/course/users/delete' },
 	] : undef,
@@ -128,12 +161,12 @@
 %			foreach my $sub_course_user (@{$sub_course_users->{$sub_course->primary_key()}}) {
 %				push @subrows, $m->comp('SELF:set_row', user => $sub_course_user);
 %			}
-<& /tmpl/element:object_selection_box, params => { 
-	columns => [ 
+<& /tmpl/element:object_selection_box, params => {
+	columns => [
 		{'label' => __('Name'), 'field' => 'name'},
 		{'label' => __('UserID'), 'field' => 'userid' },
-		{'label' => __('Role'), 'field' => 'roles'}, 
-		{'label' => __('Title(s)'), 'field' => 'labels'}, 
+		{'label' => __('Role'), 'field' => 'roles'},
+		{'label' => __('Title(s)'), 'field' => 'labels'},
 		{'label' => __('Teaching Site(s)'), 'field' => 'teaching_site'},
 		{'label' => __('Affiliation'), 'field' => 'affiliation'}
 	],
@@ -153,6 +186,7 @@
 
 <%init>
 	my $users = $course->users($time_period_id);
+	my $num_users = ($users) ? scalar @$users : 0;
 	my $sub_courses = [];
 	my $sub_course_users = {};
 
@@ -164,10 +198,10 @@
 	}
 
 	if (defined($ARGS{order})) {
-		my ($current, $new) = split '-', $ARGS{order}; 
+		my ($current, $new) = split '-', $ARGS{order};
 		splice(@$users, ($new-1), 0, splice(@$users, ($current-1), 1));
 
-		for (my $i = 0; $i < scalar @$users; $i++) {
+		for (my $i = 0; $i < $num_users; $i++) {
 			$users->[$i]->setSortOrder(10*($i+1), $m->session->{'user'}->primary_key());
 		}
 	}
@@ -194,7 +228,7 @@
 		$role =~ s/Director/Advisor/i;
 		$labels =~ s/Director/Advisor/i;
 
-		$role =~ s/Author/Committee Member/i; 
+		$role =~ s/Author/Committee Member/i;
 		$labels =~ s/Author/Committee Member/i;
 	}
 
@@ -222,4 +256,3 @@
 <%method red_header_text>
 % 	return $m->comp("SELF:title");
 </%method>
-

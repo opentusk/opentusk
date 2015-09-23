@@ -1,18 +1,19 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
+
 <%attr>
 skip_auth     => 1
 no_check_path => 1
@@ -23,7 +24,6 @@ top_tab_type  => 'login'
 body_id       => 'login'
 nostandardheader => 1
 </%attr>
-
 
 <%once>
 use TUSK::Constants;
@@ -41,14 +41,15 @@ $url => ''
 my $themeImage = '/graphics/icons/spacer.gif';
 
 my %logoHash = ();
-$logoHash{'2-14'}{'image'} = '/graphics/icons/hrtback.gif';
-$logoHash{'10-31'}{'image'} = '/graphics/icons/halloween3.gif';
-my ($sec, $min, $hour, $mday, $mon, $year, $wday, $isdst) = localtime(time());
-my $date = $mon+1 . '-' . $mday;
+$logoHash{'2-14'} = '/graphics/icons/hrtback.gif';
+$logoHash{'10-31'} = '/graphics/icons/halloween3.gif';
 
-if(exists($logoHash{$date})  && -f $TUSK::Constants::BaseStaticPath . $logoHash{$date}{image}) {
-	$themeImage = $logoHash{$date}{'image'};
-}
+my ($sec, $min, $hour, $mday, $mon, $year, $wday, $isdst) = localtime(time());
+$mon++;
+$year += 1900;
+
+my $date = "$mon-$mday";
+$themeImage = $logoHash{$date} if ($logoHash{$date});
 </%shared>
 
 <%perl>
@@ -98,13 +99,11 @@ my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->co
 </div> <!-- logDropdowns -->
 
 % my $release = TUSK::Functions::get_tusk_version;
-<p class="logRelease xsm">Copyright &#169; 1997 - <script> currentYear() </script> <%__x("Release : {release_number}", release_number => $release)%></p>
-
+<p class="logRelease xsm"><% __('Copyright') %> &copy; 1997&ndash;<% $year %>&emsp;<% __('Release') %>: <% $release %></p>
 
 % if($TUSK::Constants::UseTracking){
 <% $TUSK::Constants::TrackingString %>
 % }
-
 
 <%method build_login_box>
 <%args>
@@ -123,12 +122,6 @@ $failedLoginUser => ''
 <p class="errTxt"><% $message %></p>
 <p class="errTxt"><% $errmsg %></p>
 <p class="xxsm">If you believe you got this message in error please <a href="<% $prefix %>/about/contact_us">contact us</a></p>
-% }
-% # see if the user is using IE7 or older
-% if ($ENV{HTTP_USER_AGENT} =~ /MSIE (\d+)\.\d*;/ || $ENV{REDIRECT_HTTP_USER_AGENT} =~ /MSIE (\d+)\.\d*;/) {
-%	if (int($1) <= 7) {
-		<p class="errTxt">You are using an old version of Internet Explorer which will not display TUSK properly</p>
-%	}
 % }
 </div>
 % my $ssrv = $r->dir_config('SecureLogin') || 'https://'.$TUSK::Constants::Domain.'/login';

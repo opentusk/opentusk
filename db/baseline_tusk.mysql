@@ -6550,3 +6550,71 @@ CREATE TABLE IF NOT EXISTS `class_meeting_group_history` (
   `history_action` enum('Insert','Update','Delete') DEFAULT NULL,
   PRIMARY KEY (`class_meeting_group_history_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `academic_level_clinical_schedule`(
+  `academic_level_clinical_schedule_id` INT NOT NULL AUTO_INCREMENT,
+  `academic_level_id` INT(10) UNSIGNED NOT NULL,
+  `school_id` INT(10) UNSIGNED DEFAULT NULL,
+  `modified_by` VARCHAR(40) NOT NULL DEFAULT ' ',
+  `modified_on` DATETIME DEFAULT NULL,
+  PRIMARY KEY(`academic_level_clinical_schedule_id`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `academic_level_clinical_schedule_history`(
+  `academic_level_clinical_schedule_history_id` INT NOT NULL AUTO_INCREMENT,
+  `academic_level_clinical_schedule_id` INT NOT NULL,
+  `academic_level_id` INT(10) UNSIGNED NOT NULL,
+  `school_id` INT(10) UNSIGNED DEFAULT NULL,
+  `modified_by` VARCHAR(40) NOT NULL DEFAULT ' ',
+  `modified_on` DATETIME DEFAULT NULL,
+  `history_action` enum('Delete', 'Insert', 'Update'),
+  PRIMARY KEY (`academic_level_clinical_schedule_history_id`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8;
+
+delimiter $$
+drop procedure if exists clinical_director_role;
+create procedure clinical_director_role()
+
+begin
+
+  declare _count_permission_role int;
+  declare _count_permission_function int;
+
+  set _count_permission_role = (
+    SELECT COUNT(*) 
+      FROM permission_role 
+      WHERE role_token = 'clinical_director' 
+        AND role_desc = 'Ability to view and edit schedules for clinical studies'
+        AND feature_type_id = 2
+  );
+  if _count_permission_role = 0 then
+    INSERT INTO permission_role (role_token, role_desc, feature_type_id) VALUES ('clinical_director', 'Ability to view and edit schedules for clinical studies', 2);
+  end if;
+
+  set _count_permission_function = (
+    SELECT COUNT(*)
+      FROM permission_function
+      WHERE function_token = 'view_edit_schedules'
+        AND function_desc = 'View and edit schedules'
+  );
+  if _count_permission_function = 0 then
+    INSERT INTO permission_function (function_token, function_desc) VALUES ('view_edit_schedules', 'View and edit schedules');
+  end if;
+
+  if _count_permission_role != 0 AND _count_permission_function !=0 then
+    INSERT INTO permission_role_function(role_id, function_id)
+      SELECT t1.role_id, t2.function_id
+        FROM permission_role AS t1
+            INNER JOIN permission_function AS t2
+        WHERE(t1.role_token = 'clinical_director'
+            AND t1.role_desc = 'Ability to view and edit schedules for clinical studies'
+            AND t2.function_token = 'view_edit_schedules'
+            AND t2.function_desc = 'View and edit schedules');
+  end if;
+
+end $$
+delimiter ;
+
+call clinical_director_role();
+
+drop procedure clinical_director_role;

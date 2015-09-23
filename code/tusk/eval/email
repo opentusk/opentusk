@@ -1,0 +1,158 @@
+<%doc>
+ Copyright 2012 Tufts University
+
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.opensource.org/licenses/ecl1.php
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+</%doc>
+<%once>
+	use HSDB4::SQLRow::User;
+	use HSDB45::Eval::Secret;
+	use TUSK::Constants;
+	use TUSK::Application::Email;
+	use URI::Escape;
+</%once>
+
+<%attr>
+	page_header => '/tmpl/prepend:manage_header_div_layout'
+	page_footer => '/tmpl/footer:footer_div'
+	skip_header_bar => 1
+	must_be_eval_admin => 1
+</%attr>
+
+<%method title>
+% return __("Email Links") . ": $title";
+</%method>
+
+<%method jsarray>
+% return ['jquery/jquery.min.js'];
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css', '/style/eval.css', '/style/grapher.css'];
+</%method>
+
+<%shared>
+	my $eval;
+	if ($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
+		$eval = HSDB45::Eval->new(_school => $1, _id => $2);
+	} else {
+		$eval = HSDB45::Eval->lookup_path($ENV{'PATH_INFO'});
+	}
+	my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
+	my $eval_id = ($eval) ? $eval->primary_key() : 0;
+	my $evaluatee_id = '';
+	my $teaching_site_id = 0;
+	my $course = ($eval) ? $eval->course() : '';
+	my $school = ($eval) ? $eval->school() : '';
+	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
+	my @evaluatees = ();
+	my @evaluatee_ids = ();
+	my @teaching_sites = ({label => __('All'), value => 0});
+	my %teaching_site_users = {};
+</%shared>
+
+<%init>
+	$evaluatee_id = $ARGS{'evaluatee_id'} || '';
+	$teaching_site_id = $ARGS{'teaching_site_id'} || 0;
+
+	if (ref $evaluatee_id eq 'ARRAY') {
+		@evaluatee_ids = @$evaluatee_id;
+	} elsif ($evaluatee_id) {
+		push @evaluatee_ids, $evaluatee_id;
+	}
+
+	unless (scalar @evaluatee_ids) {
+		foreach my $site ($course->child_teaching_sites('ORDER BY site_name')) {
+			my $name = $site->site_name();
+			my $location = $site->site_city_state();
+			$location = "($location)" if ($location);
+			push @teaching_sites, {label => "$name $location", value => $site->primary_key()};
+		}
+
+		my $db = HSDB4::Constants::get_school_db($school);
+		my $dbh = HSDB4::Constants::def_db_handle();
+		my $op = ($teaching_site_id) ? '=' : '<>';
+		my $sql = qq(
+			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
+			FROM $db.eval_response AS er
+			JOIN tusk.eval_entry AS ee ON er.user_code = ee.evaluator_code
+			JOIN hsdb4.user AS u ON ee.evaluatee_id = u.user_id
+			WHERE er.eval_id = ? AND ee.teaching_site_id $op ?
+			GROUP BY u.user_id
+			ORDER BY u.lastname, u.firstname
+		);
+		my $sth = $dbh->prepare($sql);
+		$sth->execute($eval_id, $teaching_site_id);
+		while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
+			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id};
+		}
+	}
+</%init>
+
+<h2 class="title"><% $title %></h2>
+
+<div class="evalFluff">
+	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
+	<a id="report" href="/tusk/eval/report<% $ENV{'PATH_INFO'} %>"><% __('View Reports') %></a><br>
+
+% unless (scalar @evaluatee_ids) {
+	<h3><& /tmpl/element:dropdown, params => {
+			label => __('Teaching Site') . ':',
+			name => 'teaching_site',
+			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value, true)",
+			selected => $teaching_site_id,
+			options => \@teaching_sites,
+	} &></h3>
+
+	<form method="POST">
+% my $size = (scalar @evaluatees > 20) ? 20 : scalar @evaluatees;
+		<select id="evaluatees" name="evaluatee_id" multiple="multiple" size=<% $size %>>
+% foreach my $evaluatee (@evaluatees) {
+			<option value="<% $evaluatee->{'value'} %>"><% $evaluatee->{'label'} %></option>
+% }
+		</select>
+		<br>
+		<input type="hidden" name="teaching_site_id" value=<% $teaching_site_id %>>
+		<input type="reset" class="formbutton" value="<% __('Reset') %>">
+		<input type="button" class="formbutton" value="<% __('Select All') %>" onclick="$('#evaluatees option').prop('selected', true)">
+		<input type="submit" class="boldformbutton" value="<% __('Send') %>">
+	</form>
+% }
+
+<%perl>
+	foreach my $user_id (@evaluatee_ids) {
+		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
+		if ($user->primary_key()) {
+			my $code = uri_escape(HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $user_id));
+			my $query = "?auth=$code&evaluatee_id=$user_id&teaching_site_id=$teaching_site_id";
+			my $link = 'https://' . $ENV{SERVER_NAME} . '/tusk/eval/report' . $ENV{PATH_INFO} . $query;
+			my $name = $user->out_html_full_name();
+			my $to_addr = $user->default_email();
+			my $from_addr = $m->session->{'user'}->default_email();
+			my $email = TUSK::Application::Email->new({
+				to_addr => $to_addr,
+				from_addr	=> $from_addr,
+				subject => $title,
+				body	=> $link,
+			});
+			if ($email->send()) {
+				$m->print('<p>' . __('Sent email to') . " $name</p>");
+			} else {
+				my $error = $email->getError();
+				$m->print('<p>' . __('Error sending email to') . " $name: $error</p>");
+			}
+		} else {
+			$m->print('<p>' . __('Could not find user') . " $user_id</p>");
+		}
+	}
+</%perl>
+</div>

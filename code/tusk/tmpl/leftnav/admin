@@ -160,7 +160,7 @@ check_links();
 			'feature_id' => $school->getPrimaryKeyID(),
 		});
 
-		if ($perm->check('view_schedules')){ 
+		if ($perm->check('view_edit_schedules')){ 
 			push @clinical_nav_schools, $school;
 		}
 	}
@@ -172,7 +172,12 @@ check_links();
 %	foreach my $school (@clinical_nav_schools) {
 %		my $school_name = $school->getSchoolName();
 % 		my $school_id = $school->getPrimaryKeyID();
-		<li><a href="/schedule/clinical/admin/allstudents/view/<% $school_id %>" class="admintext nodots"><% $school_name%></a>
+%		my $show_nav = ($r->uri =~ /schedule.*$school_id/);
+		<li><a href="javascript:toggle_subnav('adminSubNav-clinicalAdmin-<% $school_name %>', 'clinical_admin_sub_link_<% $school_name %>');" class="admintext nodots"><% $school_name %>&nbsp;|&nbsp;<span id="clinical_admin_sub_link_<% $school_name %>"><% ($show_nav) ? '-' : '+' %></span></a>
+		<div id="adminSubNav-clinicalAdmin-<% $school_name %>" class="<% ($show_nav) ? 'showNav' : 'hideNav' %>">
+		<a href="/schedule/clinical/admin/allstudents/view/<% $school_id %>" class="admintext"><% __('View by Student') %></a>
+		<a href="/schedule/clinical/admin/allrotations/view/<% $school_id %>" class="admintext"><% __('View by Rotation') %></a>
+		</div>
 	</li>
 %	}
 	</ul>

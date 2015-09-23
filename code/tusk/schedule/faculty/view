@@ -1,0 +1,75 @@
+<%doc>
+ Copyright 2012 Tufts University
+
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.opensource.org/licenses/ecl1.php
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+</%doc>
+
+<%once>
+	use HSDB45::ClassMeeting;
+</%once>
+
+<%shared>
+	my $school = $m->comp('/tmpl/url:get_type_object');
+</%shared>
+
+<%perl>
+	$m->comp('SELF:getClassMeetings');
+</%perl>
+
+
+<%method getClassMeetings>
+<%perl>
+	my $school_db = $school->getSchoolDb();
+	my $class_meetings = $m->session->{'user'}->get_faculty_class_meeting($school_db);
+</%perl>
+<& /tmpl/element:table, params => {
+		width => "100%",
+		class => "faculty_schedule"
+} &>
+<tr>
+	<td><b>Date</b></td>
+	<td><b>Time</b></td>
+	<td><b>Location</b></td>
+	<td><b>Course</b></td>
+	<td><b>Title</b></td>
+</tr>
+<%perl>
+	if (@$class_meetings) {
+		foreach my $class_meeting(@{$class_meetings}) {
+			print "<tr>";
+			print "<td>$class_meeting->[0]</td>";
+			print "<td>$class_meeting->[1] - $class_meeting->[2]</td>";
+			print "<td>$class_meeting->[3]</td>";
+			print "<td><a href='/view/course/Veterinary/$class_meeting->[7]'>$class_meeting->[8]</a></td>";
+			print "<td><a href='/view/course/Veterinary/$class_meeting->[7]/schedule/$class_meeting->[6]'> $class_meeting->[4]</a> ($class_meeting->[5]) </td>";
+			print "</tr>";
+		}
+	}
+	else {
+		print "<tr><td colspan='5' style='text-align: center; font-size: 20px; font-weight: bold;'>No Schedules Found</td></tr>";
+	}
+</%perl>
+</table>
+</%method>
+
+<%method stylearray>
+% return ['/style/style.css','/style/home.css', '/style/faculty_schedule.css']
+</%method>
+
+<%method red_header_text>
+% return $m->comp("SELF:title");
+</%method>
+
+<%method title>
+% return __("Faculty Schedule");
+</%method>

@@ -55,16 +55,13 @@
 	### all final entries for all students
 	my $final_entries = TUSK::FormBuilder::Entry->lookup("form_builder_entry.form_id = $form_id AND form_builder_entry.time_period_id = $tp_id",undef,undef,undef, [ 
 		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "is_final = 1" }),
-		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }),
- 		TUSK::Core::JoinObject->new('TUSK::FormBuilder::Form::GradeEvent', { joinkey => 'form_id', jointype => 'inner' }),
- 		TUSK::Core::JoinObject->new('TUSK::GradeBook::GradeEvent', { joinkey => 'grade_event_id', origkey => 'form_builder_form_grade_event.grade_event_id', jointype => 'inner', joincond => "grade_event.time_period_id = $tp_id" }),
- 		TUSK::Core::JoinObject->new('TUSK::GradeBook::LinkUserGradeEvent', { joinkey => 'child_grade_event_id', origkey => 'grade_event.grade_event_id', jointype => 'inner', joincond => 'parent_user_id = form_builder_entry_association.user_id'}),
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryGrade', { joinkey => 'entry_id', jointype => 'inner' })
 	 ]);
 
 	foreach my $entry (@$final_entries) {
 		my $student_id = $entry->getJoinObject('TUSK::FormBuilder::EntryAssociation')->getUserID();
 		$final_entries{$student_id} = $entry->getPrimaryKeyID();
-		$final_scores{$student_id} = $entry->getJoinObject('TUSK::GradeBook::LinkUserGradeEvent')->getGrade(); 
+		$final_scores{$student_id} = $entry->getJoinObject('TUSK::FormBuilder::EntryGrade')->getScore(); 
 		$statuses{$student_id} = ($entry->getCompleteDate()) ? __x('Posted on {date}', date=> $entry->getCompleteDate()) : (($entry) ? __x('Saved on {date}', date=> $entry->getModifiedOn()) : '-');
 	}
 

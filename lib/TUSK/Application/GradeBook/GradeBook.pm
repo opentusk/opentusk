@@ -354,12 +354,16 @@ sub createGradeEvent {
 	my $event_description = shift || undef;
 
 	my $event = TUSK::GradeBook::GradeEvent->new();
-	$event->setEventName($event_name);
-	$event->setEventDescription($event_name);
-	$event->setSchoolID($self->{course}->get_school()->getPrimaryKeyID());
-	$event->setCourseID($self->{course}->primary_key());
-	$event->setTimePeriodID($self->{time_period_id});
-	$event->setGradeCategoryID($self->getRootCategory()->getPrimaryKeyID());
+    $event->setFieldValues({
+        event_name => $event_name,
+        event_description => $event_description,
+        school_id => $self->{course}->get_school()->getPrimaryKeyID(),
+        course_id => $self->{course}->primary_key(),
+        time_period_id => $self->{time_period_id},
+        grade_category_id => $self->getRootCategory()->getPrimaryKeyID(),
+        max_possible_points => 100
+    });
+
 	$event->save({user => $self->{user_id}});
 	return $event;
 }
