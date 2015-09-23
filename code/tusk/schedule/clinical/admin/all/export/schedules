@@ -29,6 +29,7 @@
 	use List::Util qw(min max);
 	use Time::Local;
 	use DateTime;
+	use DateTime::Duration;
 </%once>
 
 <%shared>
@@ -40,7 +41,6 @@
 	my $academicLevelTitle;
 	my $filename;
 	my $format = $m->comp("/schedule/clinical/tmpl/workbook:get_format");
-	my $mergeFormat;
 </%shared>
 
 <%init>
@@ -87,12 +87,14 @@
 	my $tableFormat = $workbook->add_format(%{$format->{'tableShading'}});
 	my $headerFormat = $workbook->add_format(%{$format->{'headerFont'}}, %{$format->{'headerAlignment'}});
 	my $textFormat = $workbook->add_format(%{$format->{'headerAlignment'}});
-	my $mergeFormat = $workbook->add_format(%{$format->{'mergedCells'}});
-	my $cellOutline = $workbook->add_format(%{$format->{'cellOutline'}});
+	my $darkCellFormat = $workbook->add_format(%{$format->{'darkCell'}});
+	my $lightCellFormat = $workbook->add_format(%{$format->{'lightCell'}});
+	my $even;
+	my $currentCellFormat;
 
 	# my $minTime = "2015-01-12";
 	my $minTime = "9999-99-99";
-	my $maxTime = "0000-01-00";
+	my $maxTime = "0000-00-00";
 
 	my %schedules = ();
 
@@ -101,9 +103,22 @@
 	$worksheet->write(1, 0, "Academic Level: ", $headerFormat);
 	$worksheet->write(1, 1, $academicLevelTitle, $textFormat);
 
+	my $darkCellNameFormat = $workbook->add_format();
+	$darkCellNameFormat->copy($darkCellFormat);
+	my $lightCellNameFormat = $workbook->add_format();
+	$lightCellNameFormat->copy($lightCellFormat);
+	$lightCellNameFormat->set_border(0);
+	$darkCellNameFormat->set_border(0);
+	$darkCellNameFormat->set_bold();
+	$lightCellNameFormat->set_bold();
+	$lightCellNameFormat->set_align('left');
+	$darkCellNameFormat->set_align('left');
+
 	if (scalar @{$scheduleStudents->{'userIds'}}){
 		for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
-			$worksheet->write($index + 5, 0, ${$scheduleStudents->{'lastNames'}}[$index] . ', ' . ${$scheduleStudents->{'firstNames'}}[$index], $tableFormat);
+			$even = (($index % 2) != 0) ? 1 : 0;
+			$currentCellFormat = $even ? $darkCellNameFormat: $lightCellNameFormat;
+			$worksheet->write($index + 5, 0, ${$scheduleStudents->{'lastNames'}}[$index] . ', ' . ${$scheduleStudents->{'firstNames'}}[$index], $currentCellFormat);
 			my $scheduleCourses = TUSK::Application::Schedule::Clinical->new({
 				school_id => $schoolId
 			})->getScheduleCourses({
@@ -119,19 +134,28 @@
 		$worksheet->write(2, 0, "No information availabe.");
 	}
 
+	my $mergedDarkCellFormat = $workbook->add_format();
+	$mergedDarkCellFormat->copy($darkCellFormat); # A single format can't be used for merged and non-merged cells
+	my $mergedLightCellFormat = $workbook->add_format();
+	$mergedLightCellFormat->copy($lightCellFormat);
+
 	my $minTimeInSeconds = $m->comp("/schedule/clinical/tmpl/time:get_date_in_seconds", date => $minTime);
 	my $offSet = (60 * 60 * 24);
 	for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
 		for my $courseIndex (0..$#{$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseIds'}}) {
 				my $startDateInSeconds = $m->comp("/schedule/clinical/tmpl/time:get_date_in_seconds", date => ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'startDates'}}[$courseIndex]);
-				$maxTime = max(${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex], $maxTime);
+				$maxTime = (${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex] cmp $maxTime) ? ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex] : $maxTime;
+				warn ("And end-date is " . ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex]);
 				my $weekOffset = int(($startDateInSeconds - $minTimeInSeconds) / (60 * 60 * 24 * 7));
 				my $endDateInSeconds = $m->comp("/schedule/clinical/tmpl/time:get_date_in_seconds", date => ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex]);
 				my $numberOfWeeks = int(($endDateInSeconds - $startDateInSeconds + $offSet) / (60 * 60 * 24 * 7));
+				$even = (($index % 2) == 0) ? 1 : 0;
+				$currentCellFormat = $even ? $lightCellFormat : $darkCellFormat;
 				if ($numberOfWeeks <= 1) { # A single cell is already merged
-					$worksheet->write($index + 5, $weekOffset + 1, ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseTitles'}}[$courseIndex], $cellOutline);
+					$worksheet->write($index + 5, $weekOffset + 1, ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseTitles'}}[$courseIndex], $currentCellFormat);
 				} else {
-					$worksheet->merge_range($index + 5, $weekOffset + 1, $index + 5, $weekOffset + $numberOfWeeks,  ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseTitles'}}[$courseIndex], $mergeFormat); 
+					my $currentMergedCellFormat = $even ? $mergedLightCellFormat : $mergedDarkCellFormat;
+					$worksheet->merge_range($index + 5, $weekOffset + 1, $index + 5, $weekOffset + $numberOfWeeks,  ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseTitles'}}[$courseIndex], $currentMergedCellFormat); 
 				}
 		}
 	}
@@ -139,6 +163,10 @@
 	my $minYear = substr $minTime, 0, 4;
 	my $minMonth = substr $minTime, 5, 2;
 	my $minDay = substr $minTime, 8, 2;
+	my $maxYear = substr $maxTime, 0, 4;
+	my $maxMonth = substr $maxTime, 5, 2;
+	my $maxDay = substr $maxTime, 8, 2;
+
 	my $dtStart = DateTime-> new (
 		year => $minYear ,
 		month => $minMonth,
@@ -153,18 +181,28 @@
 		hour  => 0,
 		time_zone => 'local'
 	);
+	my $dtMax = DateTime-> new (
+		year => $maxYear,
+		month => $maxMonth,
+		day => $maxDay,
+		hour => 0,
+		time_zone => 'local'
+	);
 	$dtEnd->add( days => 6 );
 
-	my $maxTimeInSeconds = $m->comp("/schedule/clinical/tmpl/time:get_date_in_seconds", date => $maxTime);
-	my $totalNumberOfWeeks = int(($maxTimeInSeconds - $minTimeInSeconds) / (60 * 60 * 24 * 7));
-	
-	for my $week (0..$totalNumberOfWeeks + 20) { # Current number of weeks needs to be recalculated
+	# $dtMax->add( days => 6 );
+	my $totalNumberOfWeeks = $dtMax->delta_days($dtStart)->weeks();
+
+	my $weekFormat = $workbook->add_format();
+	$weekFormat->copy($headerFormat);
+	$weekFormat->set_align('center');
+	for my $week (0..$totalNumberOfWeeks) { # Current number of weeks needs to be recalculated
 		$worksheet->write(3, $week + 1, 'Week ' . $week . ' [' . $dtStart->mdy('-') . '] - [' . $dtEnd->mdy('-') . ']' , $headerFormat);
 		$dtStart->add( days => 7 );
 		$dtEnd->add( days => 7 );
 	}
 
 	$worksheet->set_column(0, 1, 25);
-	$worksheet->set_column(1, $totalNumberOfWeeks + 100, 40);
+	$worksheet->set_column(1, $totalNumberOfWeeks + 1, 31);
 </%perl>
 </%method>

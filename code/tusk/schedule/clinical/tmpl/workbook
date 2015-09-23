@@ -19,30 +19,38 @@
 </%flags>
 
 <%shared>
+	open my $fh, '>', \my $str or die "Failed to open filehandle: $!";
+	my $workbook = Spreadsheet::WriteExcel->new($fh);
+	my $lightBlue = $workbook->set_custom_color(40, '#E7EFF7');
+	my $darkBlue = $workbook->set_custom_color(39, '#B4C7EF');
+	my %darkCell  = (
+		center_across   => 1,
+		size            => 12,
+		pattern         => 1,
+		border          => 4,
+		color           => 'black',
+		fg_color        => $darkBlue,
+		border_color    => 'orange',
+		align           => 'vcenter',
+	);
+
 	my %headerFont	= (
 		font  => 'Arial',
 		size  => 11,
-		bold  => 1);
-	my %mergedCells = (
+		bold  => 1
+	);
+
+	my %lightCell = (
 		center_across   => 1,
-		bold            => 1,
 		size            => 12,
 		pattern         => 1,
-		border          => 6,
-		color           => 'white',
-		fg_color        => 'green',
-		border_color    => 'yellow',
-		align           => 'vcenter',);
-	my %cellOutline = (
-		center_across   => 1,
-		bold            => 1,
-		size            => 12,
-		pattern         => 1,
-		border          => 6,
-		color           => 'white',
-		fg_color        => 'green',
-		border_color    => 'yellow',
-		align           => 'vcenter',);
+		border          => 4,
+		color           => 'black',
+		fg_color        => $lightBlue,
+		border_color    => 'orange',
+		align           => 'vcenter',
+	);
+
 	my %tableShading = ();
 	my %headerAlignment = (
 		align => 'left');
@@ -50,11 +58,9 @@
 		headerFont => \%headerFont,
 		tableShading => \%tableShading,
 		headerAlignment => \%headerAlignment,
-		mergedCells => \%mergedCells,
-		cellOutline => \%cellOutline
+		darkCell => \%darkCell,
+		lightCell => \%lightCell
 	};
-	open my $fh, '>', \my $str or die "Failed to open filehandle: $!";
-	my $workbook = Spreadsheet::WriteExcel->new($fh);
 </%shared>
 
 <%method get_workbook>
