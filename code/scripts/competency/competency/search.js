@@ -127,6 +127,7 @@ function loadSearchResults() {
 	}
 
 	var search_text = ($("#search_box").val());
+	search_text = search_text.replace(/(\r\n|\n|\r)/gm,"");
 
 	$.ajax({
 			type: "POST",
@@ -148,10 +149,10 @@ function loadSearchResults() {
 			});
 			content_competencies = content_competencies.substr(2, content_competencies.length);
 			session_competencies = session_competencies.substr(2, session_competencies.length);
-			console.log("Content: " + content_competencies);
-			console.log("Session: " + session_competencies);
+
 			$("#search_loading").show();
-			$.ajax({
+			if (content_competencies) {
+				$.ajax({
 					async: false,
 					global: false,
 					type: "POST",
@@ -161,8 +162,9 @@ function loadSearchResults() {
 				}).success(function(data) {
 					content_info = data;
 				});
-
-			$.ajax({
+			}
+			if (session_competencies) {
+				$.ajax({
 						async: false,
 						global: false,
 						type: "POST",
@@ -172,6 +174,7 @@ function loadSearchResults() {
 					}).success(function(data) {
 						session_info = data;
 					});
+			}
 
 			$.each(data, function (index, value) {
 				var table_row = '<tr>';
