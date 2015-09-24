@@ -136,14 +136,20 @@ function loadSearchResults() {
 	}).success(function(data) {
 			$.each(data, function (index, value) {
 				if (competency_levels[value[1]] == 'content') {
-					content_competencies += ", " + value[0];
+					if (value[0]) {
+						content_competencies += ", " + value[0];					
+					}
 				}
 				if (competency_levels[value[1]] == 'class_meet') {
-					session_competencies += ", " + value[0];;
+					if (value[0]) {
+						session_competencies += ", " + value[0];;
+					}
 				}
 			});
 			content_competencies = content_competencies.substr(2, content_competencies.length);
 			session_competencies = session_competencies.substr(2, session_competencies.length);
+			console.log("Content: " + content_competencies);
+			console.log("Session: " + session_competencies);
 			$("#search_loading").show();
 			$.ajax({
 					async: false,
