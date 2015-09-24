@@ -92,16 +92,16 @@
 	my $even;
 	my $currentCellFormat;
 
-	# my $minTime = "2015-01-12";
 	my $minTime = "9999-99-99";
 	my $maxTime = "0000-00-00";
 
 	my %schedules = ();
 
-	$worksheet->write(0, 0, "Academic Year: ", $headerFormat);
-	$worksheet->write(0, 1, $academicYear, $textFormat);
-	$worksheet->write(1, 0, "Academic Level: ", $headerFormat);
-	$worksheet->write(1, 1, $academicLevelTitle, $textFormat);
+	$headerFormat->set_text_wrap();
+	$headerFormat->set_size(11);
+	$headerFormat->set_bold(0);
+	$headerFormat->set_align('vcenter');
+	$worksheet->write(3, 0, "Academic Year: " . $academicYear . "\nAcademic Level: " . $academicLevelTitle, $headerFormat);
 
 	my $darkCellNameFormat = $workbook->add_format();
 	$darkCellNameFormat->copy($darkCellFormat);
@@ -109,10 +109,12 @@
 	$lightCellNameFormat->copy($lightCellFormat);
 	$lightCellNameFormat->set_border(0);
 	$darkCellNameFormat->set_border(0);
-	$darkCellNameFormat->set_bold();
-	$lightCellNameFormat->set_bold();
 	$lightCellNameFormat->set_align('left');
 	$darkCellNameFormat->set_align('left');
+	$lightCellNameFormat->set_bold();
+	$darkCellNameFormat->set_bold();
+	$lightCellNameFormat->set_font('Helvetica');
+	$darkCellNameFormat->set_font('Helvetica');
 
 	if (scalar @{$scheduleStudents->{'userIds'}}){
 		for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
@@ -145,7 +147,6 @@
 		for my $courseIndex (0..$#{$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'courseIds'}}) {
 				my $startDateInSeconds = $m->comp("/schedule/clinical/tmpl/time:get_date_in_seconds", date => ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'startDates'}}[$courseIndex]);
 				$maxTime = (${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex] cmp $maxTime) ? ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex] : $maxTime;
-				warn ("And end-date is " . ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex]);
 				my $weekOffset = int(($startDateInSeconds - $minTimeInSeconds) / (60 * 60 * 24 * 7));
 				my $endDateInSeconds = $m->comp("/schedule/clinical/tmpl/time:get_date_in_seconds", date => ${$schedules{${$scheduleStudents->{'userIds'}}[$index]}->{'endDates'}}[$courseIndex]);
 				my $numberOfWeeks = int(($endDateInSeconds - $startDateInSeconds + $offSet) / (60 * 60 * 24 * 7));
@@ -190,19 +191,22 @@
 	);
 	$dtEnd->add( days => 6 );
 
-	# $dtMax->add( days => 6 );
 	my $totalNumberOfWeeks = $dtMax->delta_days($dtStart)->weeks();
 
 	my $weekFormat = $workbook->add_format();
 	$weekFormat->copy($headerFormat);
-	$weekFormat->set_align('center');
-	for my $week (0..$totalNumberOfWeeks) { # Current number of weeks needs to be recalculated
-		$worksheet->write(3, $week + 1, 'Week ' . $week . ' [' . $dtStart->mdy('-') . '] - [' . $dtEnd->mdy('-') . ']' , $headerFormat);
+	$weekFormat->set_align('vcenter');
+	$weekFormat->set_bold();
+	$weekFormat->set_size(11);
+	for my $week (0..$totalNumberOfWeeks) {
+		$worksheet->write(3, $week + 1, 'Week ' . $week . ' [' . $dtStart->mdy('-') . '] - [' . $dtEnd->mdy('-') . ']' , $weekFormat);
 		$dtStart->add( days => 7 );
 		$dtEnd->add( days => 7 );
 	}
 
 	$worksheet->set_column(0, 1, 25);
+	$worksheet->set_row(3, 44);
 	$worksheet->set_column(1, $totalNumberOfWeeks + 1, 31);
+	$worksheet->freeze_panes(4, 1);
 </%perl>
 </%method>
