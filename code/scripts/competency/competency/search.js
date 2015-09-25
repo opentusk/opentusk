@@ -152,6 +152,7 @@ function loadSearchResults() {
 
 			$("#search_loading").show();
 			if (content_competencies) {
+				content_competencies = content_competencies.replace(/(^,)|(,$)/g, "");
 				$.ajax({
 					async: false,
 					global: false,
@@ -164,6 +165,7 @@ function loadSearchResults() {
 				});
 			}
 			if (session_competencies) {
+				session_competencies = session_competencies.replace(/(^,)|(,$)/g, "");
 				$.ajax({
 						async: false,
 						global: false,
