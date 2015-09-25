@@ -208,7 +208,7 @@ function loadSearchResults() {
 					});
 					table_row += '<td  style="color:#D67025;">' + value[3] + '</td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
-				} else if (competency_levels[value[1]] == 'content') {
+				} else if (competency_levels[value[1]] == 'content' && content_info[value[0]]) {
 					var content_link;
 					content_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/content/" + value[0]  + "' target='_blank'>" + content_info[value[0]].title + "</a>";
 					content_link += "<br> <b>ID:</b> " + content_info[value[0]].content_id;
