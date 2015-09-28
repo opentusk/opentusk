@@ -96,20 +96,7 @@ function loadLinkedAndChildren(competency_id) {
 					table_row += '<td style="color:#4E8700;">' + value.title + '</td></tr>';
 					$("#school_competency_search_results tr:last").after(table_row);
 				} else if (value.level == 'course') {
-					var course_link;
-					/*
-					$.ajax({
-						async: false,
-						global: false,
-						type: "POST",
-						data: {competency_id: value.competency_id},
-						url: "/tusk/competency/search/getCourse/school/" + school,
-						dataType: "json"
-					}).success(function(data) {
-						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
-					});*/
-					table_row += '<td style="color:#D67025;">' + value[3] + '</td>' +  course_link  + '</td></tr>';
-					$("#course_competency_search_results tr:last").after(table_row);
+					//needs work (course objectives);
 				} else if (value.level == 'content') {
 					//needs work (content objectives)
 				}	else {
@@ -186,7 +173,6 @@ function loadSearchResults() {
 			}
 			if (course_competencies) {
 				course_competencies = course_competencies.replace(/(^,)|(,$)/g, "");
-				console.log("Course Competencies: " + course_competencies);
 				$.ajax({
 						async: false,
 						global: false,
@@ -217,7 +203,7 @@ function loadSearchResults() {
 					$("#school_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'course' && course_info[value[0]]) {
 					var course_link;
-					course_link = "</tr><tr><td colspan='2'><a class='course-link' href='/view/course/" + school + "/" + course_info[value[0]].id + "/obj' target='_blank'>" + course_info[value[0]].title + "</a>";
+					course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + course_info[value[0]].id + "/obj' target='_blank'>" + course_info[value[0]].title + "</a>";
 					table_row += '<td  style="color:#D67025;">' + value[3] + '</td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'content' && content_info[value[0]]) {
