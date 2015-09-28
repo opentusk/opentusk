@@ -6,8 +6,10 @@ var competency_types = null;
 var competency_levels = null;
 var content_competencies = "";
 var session_competencies = "";
+var course_competencies = "";
 var content_info = null;
 var session_info = null;
+var course_info = null;
 var search_clear_flag = 0;
 
 
@@ -95,6 +97,7 @@ function loadLinkedAndChildren(competency_id) {
 					$("#school_competency_search_results tr:last").after(table_row);
 				} else if (value.level == 'course') {
 					var course_link;
+					/*
 					$.ajax({
 						async: false,
 						global: false,
@@ -104,7 +107,7 @@ function loadLinkedAndChildren(competency_id) {
 						dataType: "json"
 					}).success(function(data) {
 						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
-					});
+					});*/
 					table_row += '<td style="color:#D67025;">' + value[3] + '</td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (value.level == 'content') {
@@ -140,15 +143,19 @@ function loadSearchResults() {
 					if (value[0]) {
 						content_competencies += ", " + value[0];					
 					}
-				}
-				if (competency_levels[value[1]] == 'class_meet') {
+				} else if (competency_levels[value[1]] == 'class_meet') {
 					if (value[0]) {
-						session_competencies += ", " + value[0];;
+						session_competencies += ", " + value[0];
 					}
-				}
+				} else if (competency_levels[value[1]] == 'course') {
+					if (value[0]) {
+						course_competencies += ", " + value[0];
+					}
+				} else {}			
 			});
 			content_competencies = content_competencies.substr(2, content_competencies.length);
 			session_competencies = session_competencies.substr(2, session_competencies.length);
+			course_competencies = course_competencies.substr(2, course_competencies.length);
 
 			$("#search_loading").show();
 			if (content_competencies) {
@@ -177,6 +184,20 @@ function loadSearchResults() {
 						session_info = data;
 					});
 			}
+			if (course_competencies) {
+				course_competencies = course_competencies.replace(/(^,)|(,$)/g, "");
+				console.log("Course Competencies: " + course_competencies);
+				$.ajax({
+						async: false,
+						global: false,
+						type: "POST",
+						data: {competency_ids: course_competencies},
+						url: "/tusk/competency/search/getCourse/school/" + school,
+						dataType: "json"
+					}).success(function(data) {
+						course_info = data;
+					});
+			}
 
 			$.each(data, function (index, value) {
 				var table_row = '<tr>';
@@ -194,18 +215,9 @@ function loadSearchResults() {
 				} else if (competency_levels[value[1]] == 'school'){
 					table_row += '<td style="color:#4E8700;">' + value[3] + '</td></tr>';
 					$("#school_competency_search_results tr:last").after(table_row);
-			  } else if (competency_levels[value[1]] == 'course') {
+				} else if (competency_levels[value[1]] == 'course' && course_info[value[0]]) {
 					var course_link;
-					$.ajax({
-						async: false,
-						global: false,
-						type: "POST",
-						data: {competency_id: value[0]},
-						url: "/tusk/competency/search/getCourse/school/" + school,
-						dataType: "json"
-					}).success(function(data) {
-						course_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/course/" + school + "/" + data.id + "/obj' target='_blank'>" + data.title + "</a>";
-					});
+					course_link = "</tr><tr><td colspan='2'><a class='course-link' href='/view/course/" + school + "/" + course_info[value[0]].id + "/obj' target='_blank'>" + course_info[value[0]].title + "</a>";
 					table_row += '<td  style="color:#D67025;">' + value[3] + '</td>' +  course_link  + '</td></tr>';
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'content' && content_info[value[0]]) {
@@ -219,7 +231,7 @@ function loadSearchResults() {
 					$("#content_competency_search_results tr:last").after(table_row);
 				} else {
 					var session_link;
-					if (session_info[value[0]]) {
+					if (session_info[value[0]] && session_info[value[0]]) {
 						session_link = "</tr><tr><td colspan='2' style='color:#4D92CD;'><a class='session-link'>" + value[0] + " (" + session_info[value[0]].title + ") " + "</a>";
 						session_link += "<br> <b>ID:</b> " + session_info[value[0]].session_id;
 						session_link += " &nbsp&nbsp<b>Meeting Date:</b> " + session_info[value[0]].date;
