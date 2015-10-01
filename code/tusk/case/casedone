@@ -25,6 +25,7 @@
 	my $type_path = $m->comp('/tmpl/url:get_type_path');
 	my $case = TUSK::Case::Case->lookupKey($case_id);
 	my $user_id = $m->comp('SELF:user');
+	my $message = '';
 
 	my $report = TUSK::Case::CaseReport->lookupKey($case_report_id);
 
@@ -47,7 +48,7 @@
 				eval {
 					$case->emailReceipt($user_id, $course, $report);
 				};
-				$m->comp('/tmpl/error', msg => __('Error sending email receipt') . ": $@") if ($@);
+				$message = __("Error sending email receipt") if ($@);
 			}
 
 			if ($case->getGradeEventID()) {
@@ -104,6 +105,8 @@
 	name=>'home_exit','label'=>$TUSK::Constants::SiteAbbr ." ". __('Home') } &>
 </td></tr>
 </table>
+
+% $m->print("<script>alert('$message')</script>") if ($message);
 
 <%method leftnav>
 % return { component => '/case/tmpl/leftnav/phase', case => $case };
