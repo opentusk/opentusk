@@ -28,7 +28,7 @@ use TUSK::Competency::UserType;
 
 use TUSK::Enum::Data;
 
-my $schools = HSDB4::Constants::getSchoolObject();
+my $schools = HSDB4::Constants::getSchoolObjects();
 
 my $dbh = HSDB4::Constants::def_db_handle();
 

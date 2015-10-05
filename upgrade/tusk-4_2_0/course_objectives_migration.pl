@@ -30,7 +30,7 @@ use TUSK::Competency::Hierarchy;
 use TUSK::Enum::Data;
 use TUSK::Course;
 
-my $schools = HSDB4::Constants::getSchoolObject();
+my $schools = HSDB4::Constants::getSchoolObjects();
 
 my $dbh = HSDB4::Constants::def_db_handle();
 my %tusk_courses = ();
