@@ -167,11 +167,10 @@ sub school_db_list {
     return map { get_school_db($_) } keys %TUSK::Constants::Schools;
 }
 
-sub getSchoolObject {
-    use Data::Dumper;
+sub getSchoolObjects {
     my $schools = join(",", map { "'$_'" } schools());
-    my $school_object = TUSK::Core::School->new()->lookup("school_name in ($schools)");
-    return $school_object;
+    my $school_objects = TUSK::Core::School->new()->lookup("school_name in ($schools)");
+    return $school_objects;
 }
 
 sub get_school_db {

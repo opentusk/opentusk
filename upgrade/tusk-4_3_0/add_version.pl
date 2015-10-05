@@ -21,7 +21,7 @@ use HSDB4::Constants;
 use TUSK::Core::School;
 my $dbh = HSDB4::Constants::def_db_handle();
 
-my $schools = HSDB4::Constants::getSchoolObject();
+my $schools = HSDB4::Constants::getSchoolObjects();
 
 foreach my $school(@$schools) {
     my $school_id = $school->getPrimaryKeyID();
