@@ -208,7 +208,7 @@ function loadSearchResults() {
 					$("#course_competency_search_results tr:last").after(table_row);
 				} else if (competency_levels[value[1]] == 'content' && content_info[value[0]]) {
 					var content_link;
-					content_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/content/" + value[0]  + "' target='_blank'>" + content_info[value[0]].title + "</a>";
+					content_link = "</tr><tr><td colspan='2'><a class='content-link' href='/view/content/" + content_info[value[0]].content_id  + "' target='_blank'>" + content_info[value[0]].title + "</a>";
 					content_link += "<br> <b>ID:</b> " + content_info[value[0]].content_id;
 					content_link += " &nbsp&nbsp<b>Created:</b> " + content_info[value[0]].created;
 					content_link += " &nbsp&nbsp<b>Modified:</b> " + content_info[value[0]].modified;
