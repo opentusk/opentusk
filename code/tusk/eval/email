@@ -113,7 +113,7 @@
 			options => \@teaching_sites,
 	} &></h3>
 
-	<form method="POST">
+	<form method="post">
 % my $size = (scalar @evaluatees > 20) ? 20 : scalar @evaluatees;
 		<select id="evaluatees" name="evaluatee_id" multiple="multiple" size=<% $size %>>
 % foreach my $evaluatee (@evaluatees) {
@@ -121,7 +121,6 @@
 % }
 		</select>
 		<br>
-		<input type="hidden" name="teaching_site_id" value=<% $teaching_site_id %>>
 		<input type="reset" class="formbutton" value="<% __('Reset') %>">
 		<input type="button" class="formbutton" value="<% __('Select All') %>" onclick="$('#evaluatees option').prop('selected', true)">
 		<input type="submit" class="boldformbutton" value="<% __('Send') %>">
@@ -129,26 +128,43 @@
 % }
 
 <%perl>
+	my $course_title = $course->title();
+	my $time_period = $eval->time_period()->period();
+	my $teaching_site = ($teaching_site_id) ? HSDB45::TeachingSite->new(_school => $school, _id => $teaching_site_id)->site_name() : '';
+	my $from_addr = $m->session->{'user'}->default_email();
+	my $subject = "'$title' " .__("Report") . " - $time_period";
 	foreach my $user_id (@evaluatee_ids) {
-		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
+		my $user = HSDB4::SQLRow::User->new()->lookup_key($user_id);
 		if ($user->primary_key()) {
 			my $code = uri_escape(HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $user_id));
 			my $query = "?auth=$code&evaluatee_id=$user_id&teaching_site_id=$teaching_site_id";
 			my $link = 'https://' . $ENV{SERVER_NAME} . '/tusk/eval/report' . $ENV{PATH_INFO} . $query;
-			my $name = $user->out_html_full_name();
+			my $full_name = $user->out_full_name();
+			my $html_name = $user->out_html_full_name();
 			my $to_addr = $user->default_email();
-			my $from_addr = $m->session->{'user'}->default_email();
+			my $body = "<html><body>";
+			$body .= "<b>" . __("Evalutee Name") . "</b>: $full_name<br>";
+			$body .= "<b>" . __("Course Name") . "</b>: $course_title<br>";
+			$body .= "<b>" . __("Evaluation Title") . "</b>: $title<br>";
+			$body .= "<b>" . __("Time Period") . "</b>: $time_period<br>";
+			$body .= "<b>" . __("Teaching Site") . "</b>: $teaching_site<br>" if ($teaching_site);
+			$body .= "<br>";
+			$body .= __("Please click the link below to view how you were evaluated on the course listed above") . ":<br><br>";
+			$body .= "<a href='$link'>$link</a>";
+			$body .= "</body></html>";
 			my $email = TUSK::Application::Email->new({
 				to_addr => $to_addr,
-				from_addr	=> $from_addr,
-				subject => $title,
-				body	=> $link,
+				cc_addr => $from_addr,
+				from_addr => $from_addr,
+				subject => $subject,
+				body => $body,
+				'Content-Type' => 'text/html; charset="utf-8"'
 			});
 			if ($email->send()) {
-				$m->print('<p>' . __('Sent email to') . " $name</p>");
+				$m->print('<p>' . __('Sent email to') . " $html_name</p>");
 			} else {
 				my $error = $email->getError();
-				$m->print('<p>' . __('Error sending email to') . " $name: $error</p>");
+				$m->print('<p>' . __('Error sending email to') . " $html_name: $error</p>");
 			}
 		} else {
 			$m->print('<p>' . __('Could not find user') . " $user_id</p>");
