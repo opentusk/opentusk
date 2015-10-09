@@ -25,7 +25,6 @@
 	page_header => '/tmpl/prepend:manage_header_div_layout'
 	page_footer => '/tmpl/footer:footer_div'
 	skip_header_bar => 1
-	must_be_eval_admin => 1
 </%attr>
 
 <%method title>
@@ -49,51 +48,82 @@
 	}
 	my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
 	my $eval_id = ($eval) ? $eval->primary_key() : 0;
-	my $evaluatee_id = '';
-	my $teaching_site_id = 0;
 	my $course = ($eval) ? $eval->course() : '';
 	my $school = ($eval) ? $eval->school() : '';
 	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
-	my @evaluatees = ();
-	my @evaluatee_ids = ();
-	my @teaching_sites = ({label => __('All'), value => 0});
+	my @recipients = ();
+	my @recipient_ids = ();
+	my @teaching_sites = ();
+	my @types = ({label => __('Evaluatees'), value => 0}, {label => __('Site Directors'), value => 1});
 	my %teaching_site_users = {};
 </%shared>
 
 <%init>
-	$evaluatee_id = $ARGS{'evaluatee_id'} || '';
-	$teaching_site_id = $ARGS{'teaching_site_id'} || 0;
+	my $recipient_id = $ARGS{'recipient_id'} || '';
+	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
+	my $type = $ARGS{'type'} || 0;
 
-	if (ref $evaluatee_id eq 'ARRAY') {
-		@evaluatee_ids = @$evaluatee_id;
-	} elsif ($evaluatee_id) {
-		push @evaluatee_ids, $evaluatee_id;
+	# Check for a valid user
+	my $user = $m->session->{'user'};
+	my $user_id = (ref $user) ? $user->primary_key() : $user;
+	my $is_eval_admin = $eval->admin_group()->contains_user($user_id);
+	my $is_site_director = ($is_eval_admin) ? 0 : $eval->is_site_director($user_id, $teaching_site_id);
+	unless ($is_eval_admin || $is_site_director) {
+		my $url = $ENV{SCRIPT_NAME} . $ENV{PATH_INFO};
+		$m->redirect("/home?url=$url");
 	}
 
-	unless (scalar @evaluatee_ids) {
+	if (ref $recipient_id eq 'ARRAY') {
+		@recipient_ids = @$recipient_id;
+	} elsif ($recipient_id) {
+		push @recipient_ids, $recipient_id;
+	}
+
+	if ($is_site_director) {
+		$type = 0;
+	} else {
+		push @teaching_sites, {label => __('All'), value => 0};
+	}
+
+	unless (scalar @recipient_ids) {
 		foreach my $site ($course->child_teaching_sites('ORDER BY site_name')) {
+			my $id = $site->primary_key();
 			my $name = $site->site_name();
 			my $location = $site->site_city_state();
 			$location = "($location)" if ($location);
-			push @teaching_sites, {label => "$name $location", value => $site->primary_key()};
+			if (!$is_site_director || $eval->is_site_director($user_id, $id)) {
+				$teaching_site_id = $id if ($is_site_director && !$teaching_site_id);
+				push @teaching_sites, {label => "$name $location", value => $id};
+			}
 		}
+		$m->redirect("/home") unless (scalar @teaching_sites);
 
-		my $db = HSDB4::Constants::get_school_db($school);
-		my $dbh = HSDB4::Constants::def_db_handle();
-		my $op = ($teaching_site_id) ? '=' : '<>';
-		my $sql = qq(
-			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
-			FROM $db.eval_response AS er
-			JOIN tusk.eval_entry AS ee ON er.user_code = ee.evaluator_code
-			JOIN hsdb4.user AS u ON ee.evaluatee_id = u.user_id
-			WHERE er.eval_id = ? AND ee.teaching_site_id $op ?
-			GROUP BY u.user_id
-			ORDER BY u.lastname, u.firstname
-		);
-		my $sth = $dbh->prepare($sql);
-		$sth->execute($eval_id, $teaching_site_id);
-		while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
-			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id};
+		if ($type) {
+			my $time_period_id = $eval->field_value('time_period_id');
+			my $conds = "role_token = 'site_director'";
+			$conds .= " AND course_user_site.teaching_site_id = $teaching_site_id" if ($teaching_site_id);
+			my $users = $course->users($time_period_id, $conds);
+			foreach (@$users) {
+				push @recipients, {label => $_->outFullName(), value => $_->getPrimaryKeyID()};
+			}
+		} else {
+			my $db = HSDB4::Constants::get_school_db($school);
+			my $dbh = HSDB4::Constants::def_db_handle();
+			my $op = ($teaching_site_id) ? '=' : '<>';
+			my $sql = qq(
+				SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
+				FROM $db.eval_response AS er
+				JOIN tusk.eval_entry AS ee ON er.user_code = ee.evaluator_code
+				JOIN hsdb4.user AS u ON ee.evaluatee_id = u.user_id
+				WHERE er.eval_id = ? AND ee.teaching_site_id $op ?
+				GROUP BY u.user_id
+				ORDER BY u.lastname, u.firstname
+			);
+			my $sth = $dbh->prepare($sql);
+			$sth->execute($eval_id, $teaching_site_id);
+			while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
+				push @recipients, {label => "$lastname, $firstname ($count)", value => $user_id};
+			}
 		}
 	}
 </%init>
@@ -104,25 +134,34 @@
 	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
 	<a id="report" href="/tusk/eval/report<% $ENV{'PATH_INFO'} %>"><% __('View Reports') %></a><br>
 
-% unless (scalar @evaluatee_ids) {
+% unless (scalar @recipient_ids) {
 	<h3><& /tmpl/element:dropdown, params => {
 			label => __('Teaching Site') . ':',
 			name => 'teaching_site',
-			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value, true)",
+			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value)",
 			selected => $teaching_site_id,
-			options => \@teaching_sites,
+			options => \@teaching_sites
+	} &></h3>
+
+	<h3><& /tmpl/element:dropdown, params => {
+			label => __('Send To') . ':',
+			name => 'type',
+			onchange => "setGetParameter('type', this.options[this.selectedIndex].value)",
+			selected => $type,
+			options => \@types,
+			disabled => $is_site_director
 	} &></h3>
 
 	<form method="post">
-% my $size = (scalar @evaluatees > 20) ? 20 : scalar @evaluatees;
-		<select id="evaluatees" name="evaluatee_id" multiple="multiple" size=<% $size %>>
-% foreach my $evaluatee (@evaluatees) {
-			<option value="<% $evaluatee->{'value'} %>"><% $evaluatee->{'label'} %></option>
+% my $size = (scalar @recipients > 20) ? 20 : scalar @recipients;
+		<select id="recipients" name="recipient_id" multiple="multiple" size=<% $size %>>
+% foreach my $recipient (@recipients) {
+			<option value="<% $recipient->{'value'} %>"><% $recipient->{'label'} %></option>
 % }
 		</select>
 		<br>
 		<input type="reset" class="formbutton" value="<% __('Reset') %>">
-		<input type="button" class="formbutton" value="<% __('Select All') %>" onclick="$('#evaluatees option').prop('selected', true)">
+		<input type="button" class="formbutton" value="<% __('Select All') %>" onclick="$('#recipients option').prop('selected', true)">
 		<input type="submit" class="boldformbutton" value="<% __('Send') %>">
 	</form>
 % }
@@ -131,25 +170,31 @@
 	my $course_title = $course->title();
 	my $time_period = $eval->time_period()->period();
 	my $teaching_site = ($teaching_site_id) ? HSDB45::TeachingSite->new(_school => $school, _id => $teaching_site_id)->site_name() : '';
-	my $from_addr = $m->session->{'user'}->default_email();
+	my $from_addr = $user->default_email();
 	my $subject = "'$title' " .__("Report") . " - $time_period";
-	foreach my $user_id (@evaluatee_ids) {
-		my $user = HSDB4::SQLRow::User->new()->lookup_key($user_id);
-		if ($user->primary_key()) {
-			my $code = uri_escape(HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $user_id));
-			my $query = "?auth=$code&evaluatee_id=$user_id&teaching_site_id=$teaching_site_id";
+	my $msg = __("Please click the link below to view how you were evaluated on the course listed above");
+
+	if ($type) {
+		$eval->set_published();
+		$msg = __("Please click the link below to view evaluation reports on the course listed above");
+	}
+
+	foreach my $recipient_id (@recipient_ids) {
+		my $recipient = HSDB4::SQLRow::User->new()->lookup_key($recipient_id);
+		if ($recipient->primary_key()) {
+			my $code = ($type) ? '' : uri_escape(HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $recipient_id));
+			my $query = ($type) ? '' : "?auth=$code&evaluatee_id=$recipient_id&teaching_site_id=$teaching_site_id";
 			my $link = 'https://' . $ENV{SERVER_NAME} . '/tusk/eval/report' . $ENV{PATH_INFO} . $query;
-			my $full_name = $user->out_full_name();
-			my $html_name = $user->out_html_full_name();
-			my $to_addr = $user->default_email();
+			my $full_name = $recipient->out_full_name();
+			my $html_name = $recipient->out_html_full_name();
+			my $to_addr = $recipient->default_email();
 			my $body = "<html><body>";
-			$body .= "<b>" . __("Evalutee Name") . "</b>: $full_name<br>";
+			$body .= "<b>" . __("Evalutee Name") . "</b>: $full_name<br>" unless ($type);
 			$body .= "<b>" . __("Course Name") . "</b>: $course_title<br>";
 			$body .= "<b>" . __("Evaluation Title") . "</b>: $title<br>";
 			$body .= "<b>" . __("Time Period") . "</b>: $time_period<br>";
 			$body .= "<b>" . __("Teaching Site") . "</b>: $teaching_site<br>" if ($teaching_site);
-			$body .= "<br>";
-			$body .= __("Please click the link below to view how you were evaluated on the course listed above") . ":<br><br>";
+			$body .= "<br>$msg:<br><br>";
 			$body .= "<a href='$link'>$link</a>";
 			$body .= "</body></html>";
 			my $email = TUSK::Application::Email->new({
@@ -167,7 +212,7 @@
 				$m->print('<p>' . __('Error sending email to') . " $html_name: $error</p>");
 			}
 		} else {
-			$m->print('<p>' . __('Could not find user') . " $user_id</p>");
+			$m->print('<p>' . __('Could not find user') . " $recipient_id</p>");
 		}
 	}
 </%perl>

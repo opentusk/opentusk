@@ -50,42 +50,46 @@
 	}
 	my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
 	my $eval_id = ($eval) ? $eval->primary_key() : 0;
-	my $auth = '';
-	my $code = '';
-	my $evaluatee_id = '';
-	my $teaching_site_id = 0;
-	my $query = '';
 	my $course = ($eval) ? $eval->course() : '';
 	my $school = ($eval) ? $eval->school() : '';
 	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
-	my @evaluatees = ({label => __('All'), value => ''});
-	my @teaching_sites = ({label => __('All'), value => 0});
+	my @evaluatees = ();
+	my @teaching_sites = ();
 	my %teaching_site_users = {};
 </%shared>
 
 <%init>
-	$auth = $ARGS{'auth'} || '';
-	$evaluatee_id = $ARGS{'evaluatee_id'} || '';
-	$teaching_site_id = $ARGS{'teaching_site_id'} || 0;
+	my $auth = $ARGS{'auth'} || '';
+	my $evaluatee_id = $ARGS{'evaluatee_id'} || '';
+	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
 
-	$code =	HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $evaluatee_id);
+	my $code =	HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $evaluatee_id);
 
 	# Check for a valid user
-	unless ($auth eq $code || $eval->admin_group()->contains_user($m->session->{'user'})) {
-		$m->print('<h2 class="title">' . __('Authorization Error') . '</h2>');
-		$m->abort();
+	my $user = $m->session->{'user'};
+	my $user_id = (ref $user) ? $user->primary_key() : $user;
+	my $is_eval_admin = $eval->admin_group()->contains_user($user_id);
+	my $is_site_director = ($is_eval_admin) ? 0 : $eval->is_site_director($user_id, $teaching_site_id);
+	unless ($is_eval_admin || $is_site_director || $auth eq $code) {
+		my $url = $ENV{SCRIPT_NAME} . $ENV{PATH_INFO};
+		$m->redirect("/home?url=$url");
 	}
 
-	$code = uri_escape($code);
-	$query = "?auth=$code&evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id";
-
 	if ($is_teaching_eval) {
+		push @evaluatees, {label => __('All'), value => ''};
+		push @teaching_sites, {label => __('All'), value => 0} unless ($is_site_director);
+
 		foreach my $site ($course->child_teaching_sites('ORDER BY site_name')) {
+			my $id = $site->primary_key();
 			my $name = $site->site_name();
 			my $location = $site->site_city_state();
 			$location = "($location)" if ($location);
-			push @teaching_sites, {label => "$name $location", value => $site->primary_key()};
+			if (!$is_site_director || $eval->is_site_director($user_id, $id)) {
+				$teaching_site_id = $id if ($is_site_director && !$teaching_site_id);
+				push @teaching_sites, {label => "$name $location", value => $id};
+			}
 		}
+		$m->redirect("/home") unless (scalar @teaching_sites);
 
 		my $db = HSDB4::Constants::get_school_db($school);
 		my $dbh = HSDB4::Constants::def_db_handle();
@@ -106,6 +110,8 @@
 		}
 	}
 
+	$code = uri_escape($code);
+	my $query = "?auth=$code&evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id";
 	my $link = 'https://' . $ENV{SERVER_NAME} . $ENV{SCRIPT_NAME} . $ENV{PATH_INFO} . $query;
 
 	my $num_users = $eval->num_users();

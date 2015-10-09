@@ -62,7 +62,7 @@ sub get_file_deps {
 my $tablename = "eval";
 my $primary_key_field = "eval_id";
 my @fields = qw(eval_id course_id time_period_id teaching_site_id title available_date modified
-                due_date prelim_due_date submittable_date question_stylesheet results_stylesheet eval_type_id);
+                due_date prelim_due_date submittable_date question_stylesheet results_stylesheet eval_type_id published);
 my %blob_fields = ();
 my %numeric_fields = ();
 
@@ -829,7 +829,7 @@ sub get_teaching_eval_completions_by_roles {
 
     unless (defined $self->{teaching_eval_completions_by_role}) {
         my $course = $self->course();
-        my $time_period_id = $self->field_value ('time_period_id');
+        my $time_period_id = $self->field_value('time_period_id');
         my $student_site = $course->get_student_site($evaluator->primary_key(), $time_period_id);
 
         my $student_site_id = $student_site->primary_key() || 0;
@@ -918,6 +918,33 @@ sub get_teaching_eval_completions_by_evaluators {
     return $self->{teaching_eval_completions_by_evaluator};
 }
 
+sub is_site_director {
+    my $self = shift;
+    my $user_id = shift;
+    my $teaching_site_id = shift;
+
+    return 0 unless ($self->is_published());
+
+    my $time_period_id = $self->field_value('time_period_id');
+    my $course = $self->course();
+    my $conds = "role_token = 'site_director' AND course_user.user_id = '$user_id'";
+    $conds .= " AND course_user_site.teaching_site_id = $teaching_site_id" if ($teaching_site_id);
+    my $users = $course->users($time_period_id, $conds);
+
+    return scalar(@$users);
+}
+
+sub is_published {
+    my $self = shift;
+
+    return $self->field_value('published');
+}
+
+sub set_published {
+    my $self = shift;
+
+    $self->field_value('published', 1);
+}
 
 sub required_questions {
     #
