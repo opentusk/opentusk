@@ -55,7 +55,7 @@
 	my @recipients = ();
 	my @recipient_ids = ();
 	my @teaching_sites = ();
-	my @types = ({label => __('Evaluatees'), value => 0}, {label => __('Site Directors'), value => 1});
+	my @types = ({label => __('Evaluatees'), value => 0}, {label => __('Site Directors / Site Eval Admins'), value => 1});
 	my %teaching_site_users = {};
 </%shared>
 
@@ -102,7 +102,7 @@
 
 		if ($type) {
 			my $time_period_id = $eval->field_value('time_period_id');
-			my $conds = "role_token = 'site_director'";
+			my $conds = "role_token IN ('site_director', 'site_eval_admin')";
 			$conds .= " AND course_user_site.teaching_site_id = $teaching_site_id" if ($teaching_site_id);
 			my $users = $course->users($time_period_id, $conds);
 			foreach (@$users) {
@@ -155,13 +155,12 @@
 	} &></h3>
 
 	<form method="post">
-% my $size = (scalar @recipients > 20) ? 20 : scalar @recipients;
-		<select id="recipients" style="float:left" name="recipient_id" multiple="multiple" size=<% $size %>>
+		<select id="recipients" style="float:left" name="recipient_id" multiple="multiple" size=12>
 % foreach my $recipient (@recipients) {
 			<option value="<% $recipient->{'value'} %>"><% $recipient->{'label'} %></option>
 % }
 		</select>
-		<textarea name="message" class="textareawhite" style="margin-left:150px" cols=40 rows=7></textarea>
+		<textarea name="message" class="textareawhite" style="margin-left:150px" cols=40 rows=10></textarea>
 		<br><br>
 		<input type="reset" class="formbutton" value="<% __('Reset') %>">
 		<input type="button" class="formbutton" value="<% __('Select All') %>" onclick="$('#recipients option').prop('selected', true)">
@@ -180,6 +179,7 @@
 
 	if ($type) {
 		$eval->set_published();
+		$eval->save();
 		$message .= __("Please click the link below to view evaluation reports on the course listed above:");
 	} else {
 		$message .= __("Please click the link below to view how you were evaluated on the course listed above:");

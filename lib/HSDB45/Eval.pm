@@ -927,7 +927,7 @@ sub is_site_director {
 
     my $time_period_id = $self->field_value('time_period_id');
     my $course = $self->course();
-    my $conds = "role_token = 'site_director' AND course_user.user_id = '$user_id'";
+    my $conds = "role_token IN ('site_director', 'site_eval_admin') AND course_user.user_id = '$user_id'";
     $conds .= " AND course_user_site.teaching_site_id = $teaching_site_id" if ($teaching_site_id);
     my $users = $course->users($time_period_id, $conds);
 
