@@ -18,6 +18,7 @@
 	use HSDB45::Eval::Secret;
 	use TUSK::Constants;
 	use TUSK::Application::Email;
+	use TUSK::Application::HTML::Strip;
 	use URI::Escape;
 </%once>
 
@@ -62,6 +63,7 @@
 	my $recipient_id = $ARGS{'recipient_id'} || '';
 	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
 	my $type = $ARGS{'type'} || 0;
+	my $message = $ARGS{'message'} || '';
 
 	# Check for a valid user
 	my $user = $m->session->{'user'};
@@ -154,12 +156,13 @@
 
 	<form method="post">
 % my $size = (scalar @recipients > 20) ? 20 : scalar @recipients;
-		<select id="recipients" name="recipient_id" multiple="multiple" size=<% $size %>>
+		<select id="recipients" style="float:left" name="recipient_id" multiple="multiple" size=<% $size %>>
 % foreach my $recipient (@recipients) {
 			<option value="<% $recipient->{'value'} %>"><% $recipient->{'label'} %></option>
 % }
 		</select>
-		<br>
+		<textarea name="message" class="textareawhite" style="margin-left:150px" cols=40 rows=7></textarea>
+		<br><br>
 		<input type="reset" class="formbutton" value="<% __('Reset') %>">
 		<input type="button" class="formbutton" value="<% __('Select All') %>" onclick="$('#recipients option').prop('selected', true)">
 		<input type="submit" class="boldformbutton" value="<% __('Send') %>">
@@ -172,12 +175,18 @@
 	my $teaching_site = ($teaching_site_id) ? HSDB45::TeachingSite->new(_school => $school, _id => $teaching_site_id)->site_name() : '';
 	my $from_addr = $user->default_email();
 	my $subject = "'$title' " .__("Report") . " - $time_period";
-	my $msg = __("Please click the link below to view how you were evaluated on the course listed above");
+
+	$message .= "\n\n" if ($message);
 
 	if ($type) {
 		$eval->set_published();
-		$msg = __("Please click the link below to view evaluation reports on the course listed above");
+		$message .= __("Please click the link below to view evaluation reports on the course listed above:");
+	} else {
+		$message .= __("Please click the link below to view how you were evaluated on the course listed above:");
 	}
+
+	$message = TUSK::Application::HTML::Strip->new()->removeHTML($message);
+	$message =~ s/\n/<br>/gi;
 
 	foreach my $recipient_id (@recipient_ids) {
 		my $recipient = HSDB4::SQLRow::User->new()->lookup_key($recipient_id);
@@ -194,7 +203,7 @@
 			$body .= "<b>" . __("Evaluation Title") . "</b>: $title<br>";
 			$body .= "<b>" . __("Time Period") . "</b>: $time_period<br>";
 			$body .= "<b>" . __("Teaching Site") . "</b>: $teaching_site<br>" if ($teaching_site);
-			$body .= "<br>$msg:<br><br>";
+			$body .= "<br>$message<br><br>";
 			$body .= "<a href='$link'>$link</a>";
 			$body .= "</body></html>";
 			my $email = TUSK::Application::Email->new({
