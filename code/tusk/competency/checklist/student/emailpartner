@@ -34,7 +34,7 @@
 	my $entry;
 </%shared>
 
-<div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to \"{partner_name}\"", title => $competency->getDescription(), partner_name => $assessor->outName()) %></div>
+<div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to \"{partner_name}\"", title => $competency->getTitle(), partner_name => $assessor->outName()) %></div>
 
 <& /tmpl/element:form, params => {
 	method		=> 'POST',
@@ -81,7 +81,7 @@
 
 	if (ref $entry eq 'TUSK::Competency::Checklist::Entry' && $entry->getPrimaryKeyID() && $entry->getRequestDate()) {
 		if ($entry->getRequestDate()) {
-			$msg = __x('There is already a pending "{competency_title}" assessment request!', competency_title => $competency->getDescription());
+			$msg = __x('There is already a pending "{competency_title}" assessment request!', competency_title => $competency->getTitle());
 		}
 	}
 
@@ -111,7 +111,7 @@
 	my $email = TUSK::Application::Email->new({
 		to_addr => $to,
 		from_addr => $TUSK::Constants::SupportEmail,
-		subject => $competency->getDescription() . ' ' . __('Checklist') . ' - ' . $course->title(),
+		subject => $competency->getTitle() . ' ' . __('Checklist') . ' - ' . $course->title(),
 		body	=> __x(
 			"Dear {assessor_name},\n\n" .
 			"Please assess {student_name}'s competency with '{competency_name}' by clicking on the link below.\n\n" .
@@ -120,7 +120,7 @@
 			"{comment}",
 			assessor_name => $assessor->outName(),
 			student_name => $student->out_full_name(),
-			competency_name => $competency->getDescription(),
+			competency_name => $competency->getTitle(),
 			url => 'https://' . $TUSK::Constants::Domain . 
 				"/competency/checklist/partner/assess/$type_path/$checklist_group_id" .
 				"/$checklist_id/$assignment_id" . 

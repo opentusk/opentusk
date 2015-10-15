@@ -131,7 +131,7 @@
 		: $m->session->{user}->primary_key();
 
 	$assessment_type = $checklist->getJoinObject('TUSK::Enum::Data')->getShortName();
-	my $competency_title = $checklist->getJoinObject('TUSK::Competency::Competency')->getDescription();
+	my $competency_title = $checklist->getJoinObject('TUSK::Competency::Competency')->getTitle();
 	$notify_tmpl = __x('Your {assessor} has not attested to your competency in "{competency_title}". When you are ready to demonstrate your competency in this area again, please resend to your {assessor}', 
 		assessor => ($assessment_type eq 'faculty') ? __('faculty') : __('partner'),
 		competency_title => $competency_title );
@@ -188,7 +188,7 @@
 					],
 					nobreak => 1,
 			}),
-			title => $skill->getDescription(),
+			title => $skill->getTitle(),
 		};
 	}
 	return \@rows;
@@ -275,7 +275,7 @@
 	my $email = TUSK::Application::Email->new({
 		to_addr => $args{student_email},
 		from_addr => $TUSK::Constants::SupportEmail,
-		subject => $competency->getDescription() . ' ' . __('Checklist') . ' - ' . $course->title(),
+		subject => $competency->getTitle() . ' ' . __('Checklist') . ' - ' . $course->title(),
 		body	=> $notify_tmpl . "\n\n" . $args{assessor_comment},
 	});
 	$email->send();
