@@ -70,7 +70,7 @@ sub getSkillsModulesWithCategories {
     my $self = shift;
 
     my $sth = TUSK::Competency::Competency->new()->databaseSelect(qq(
-	  SELECT a.competency_checklist_id, c1.description, required, c2.description, self_assessed, partner_assessed, faculty_assessed
+	  SELECT a.competency_checklist_id, c1.title, required, c2.title, self_assessed, partner_assessed, faculty_assessed
 	  FROM tusk.competency_checklist a
 	  INNER JOIN tusk.competency as c1 on (a.competency_id = c1.competency_id)
 	  INNER JOIN tusk.competency_hierarchy as h on (child_competency_id = a.competency_id)
