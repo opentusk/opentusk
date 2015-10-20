@@ -14,7 +14,8 @@
 
 var edit_mode = 0;
 var sort_mode = 1;
-var current_sort_array = [];
+var current_sort_array = new Object();
+var current_sort_array_order = [];
 
 function resetDropDown(dropDown) {
 	dropDown.selectedIndex = 0;
@@ -115,13 +116,15 @@ function getPositionInList(liNode) {
 	return counter;
 }
 
-function sortAllAcc (current_level, current_level_id, count) {
+function sortAllAcc (current_level, current_level_obj, count) {
 //helper/accumulator function for sortAll
 	if ($(current_level).children("ol").length > 0) {
+		var current_order = 1;		
 		$(current_level).children("ol").children("li").each(function() {
-			var current_id = this.id.split("_")[0];
-			console.log(current_id);
-			sortAllAcc(this, current_id, count + 1);
+			var current_id = this.id.split("_")[0] + "_" + current_order;
+			current_level_obj[current_id] = {};
+			current_order++;
+			sortAllAcc(this, current_level_obj[current_id], count + 1);			
 		});
 	}
 }
@@ -129,11 +132,14 @@ function sortAllAcc (current_level, current_level_id, count) {
 function sortAll () {
 	var competencies_list = $("#competency_container").children(".page-list")[1];
 	$(competencies_list).children("li").each(function() {		
-		var current_id = this.id.split("_")[0];
-		current_sort_array.push([current_id, []]);		
-		sortAllAcc(this, current_id, 1);
+		var current_id = this.id.split("_")[0];	
+		console.log(current_id);
+		current_sort_array[current_id] = {};
+		current_sort_array_order.push(current_id);
+		sortAllAcc(this, current_sort_array[current_id], 1);
 	});
 	console.log(current_sort_array);
+	console.log(current_sort_array_order);
 }
 
 function switchSorting (button) {	
@@ -164,7 +170,8 @@ function switchSorting (button) {
 		$(".formbutton").css("color", "black");
 		$(".formbutton").css("background-color", "#CDD6E9");
 		sortAll();
-		current_sort_array = [];
+		current_sort_array = {};
+		current_sort_array_order = [];
 		$(button).val("Re-order List");
 		initTable(params);
 		sort_mode = 0;
