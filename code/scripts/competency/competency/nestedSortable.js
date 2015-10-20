@@ -14,6 +14,7 @@
 
 var edit_mode = 0;
 var sort_mode = 1;
+var current_sort_array = [];
 
 function resetDropDown(dropDown) {
 	dropDown.selectedIndex = 0;
@@ -114,6 +115,27 @@ function getPositionInList(liNode) {
 	return counter;
 }
 
+function sortAllAcc (current_level, current_level_id, count) {
+//helper/accumulator function for sortAll
+	if ($(current_level).children("ol").length > 0) {
+		$(current_level).children("ol").children("li").each(function() {
+			var current_id = this.id.split("_")[0];
+			console.log(current_id);
+			sortAllAcc(this, current_id, count + 1);
+		});
+	}
+}
+
+function sortAll () {
+	var competencies_list = $("#competency_container").children(".page-list")[1];
+	$(competencies_list).children("li").each(function() {		
+		var current_id = this.id.split("_")[0];
+		current_sort_array.push([current_id, []]);		
+		sortAllAcc(this, current_id, 1);
+	});
+	console.log(current_sort_array);
+}
+
 function switchSorting (button) {	
 	if (sort_mode == 0) {
 		if (edit_mode == 1) {
@@ -141,6 +163,8 @@ function switchSorting (button) {
 		$(".formbutton").prop("disabled", false);
 		$(".formbutton").css("color", "black");
 		$(".formbutton").css("background-color", "#CDD6E9");
+		sortAll();
+		current_sort_array = [];
 		$(button).val("Re-order List");
 		initTable(params);
 		sort_mode = 0;
