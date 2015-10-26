@@ -138,8 +138,17 @@ function sortAll () {
 		current_sort_array_order.push(current_id);
 		sortAllAcc(this, current_sort_array[current_id], 1);
 	});
-	console.log(current_sort_array);
-	console.log(current_sort_array_order);
+	$.ajax({
+			async: false,
+			global: false,
+			type: "POST",
+			url: "/tusk/competency/competency/tmpl/ajaxSortSave/Medical",
+			data: {current_sort_array: JSON.stringify(current_sort_array),
+			       current_sort_array_order: JSON.stringify(current_sort_array_order)},
+			dataType: "text"		
+	}).success(function(data) {
+
+	});;
 }
 
 function switchSorting (button) {	

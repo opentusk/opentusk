@@ -1,0 +1,89 @@
+<%doc>
+ Copyright 2012 Tufts University 
+
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%once>
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::UserType;
+	use TUSK::Competency::Hierarchy;
+
+	use TUSK::Application::Competency::Tree;
+	use TUSK::Application::Competency::Competency;
+
+	use JSON;
+</%once>
+
+
+<%perl>
+	my $competency_array = decode_json $ARGS{current_sort_array};
+	my $sort_order_array = decode_json $ARGS{current_sort_array_order};
+	my $count_sort_order = 1;
+	foreach my $competency_id (@{$sort_order_array}) {
+		my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne("child_competency_id = $competency_id");
+		$competency_hierarchy->setSortOrder($count_sort_order);
+		$competency_hierarchy->save({user => $m->session->{'user'}->user_id});
+		if ($competency_array->{$competency_id}) {
+			$m->comp("SELF:sort_children", 
+				competency_hash => $competency_array->{$competency_id},
+				parent_competency_id => $competency_id,
+				current_level => 0
+			);
+		}	
+		$count_sort_order++;		
+	}
+</%perl>
+
+<%method sort_children>
+<%args>
+	$competency_hash
+	$parent_competency_id
+	$current_level	
+</%args>
+<%perl>
+	foreach my $competency_and_order (keys %{$competency_hash}) {		
+		my @split_order = split('_', $competency_and_order);
+		my $competency_only = $split_order[0];
+		my $order = $split_order[1];
+
+		my $competency_hierarchy = TUSK::Competency::Hierarchy->lookupReturnOne("child_competency_id = $competency_only");
+		$competency_hierarchy->setFieldValues({
+			sort_order => $order,
+			depth => $current_level
+		});
+	
+		$competency_hierarchy->save( { user => $m->session->{'user'}->user_id });
+			
+		if ($competency_hash->{$competency_and_order}) {			
+			$m->comp("SELF:sort_children", 
+					competency_hash => $competency_hash->{$competency_and_order},
+					parent_competency_id => $competency_and_order,
+					current_level => $current_level++
+			);						
+		}
+	}
+</%perl>
+</%method>
+
+
