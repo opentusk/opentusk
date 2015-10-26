@@ -131,9 +131,9 @@ function sortAllAcc (current_level, current_level_obj, count) {
 
 function sortAll () {
 	var competencies_list = $("#competency_container").children(".page-list")[1];
+	console.log("sortall");
 	$(competencies_list).children("li").each(function() {		
 		var current_id = this.id.split("_")[0];	
-		console.log(current_id);
 		current_sort_array[current_id] = {};
 		current_sort_array_order.push(current_id);
 		sortAllAcc(this, current_sort_array[current_id], 1);
@@ -142,7 +142,7 @@ function sortAll () {
 			async: false,
 			global: false,
 			type: "POST",
-			url: "/tusk/competency/competency/tmpl/ajaxSortSave/Medical",
+			url: "/tusk/competency/competency/tmpl/ajaxSortSave",
 			data: {current_sort_array: JSON.stringify(current_sort_array),
 			       current_sort_array_order: JSON.stringify(current_sort_array_order)},
 			dataType: "text"		
