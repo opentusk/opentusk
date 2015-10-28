@@ -16,8 +16,11 @@
 <%once>
 	use TUSK::Application::HTML::Strip;
 	use TUSK::GradeBook::GradeEvent;
+	use TUSK::GradeBook::GradeCategory;
 	use TUSK::GradeBook::GradeStats;
 	use TUSK::GradeBook::LinkUserGradeEvent;
+	use TUSK::Core::School;
+	use HSDB4::Constants;
 </%once>
 
 <%shared>
@@ -66,25 +69,45 @@ my $size = scalar (@$events);
 </td><td>
 <& SELF:print_gradebook_tools &>
 </td></tr>
-</table>
 
+</table>
 <br/>
 
 <table class="tusk" width="100%" cellspacing="2" >
-<tr class="header"> 
+<tr bgcolor="#B1B9DC"> <font color="#aaa">
+
+<td class='header-center-small' colspan='1'></td>
+<%perl>
+my %categoryColumns => ();
+for (my $i=0; $i < $size; $i++)
+{
+	if (exists $categoryColumns{@$events[$i]->getGradeCategoryID()}){
+		$categoryColumns{@$events[$i]->getGradeCategoryID()} += 1;
+	} else {
+		$categoryColumns{@$events[$i]->getGradeCategoryID()} = 1;
+	}
+}
+
+for my $i (sort keys %categoryColumns){
+	my $gradeCategoryName = TUSK::GradeBook::GradeCategory->lookupKey($i)->{_field_values}->{grade_category_name};
+	print "<td class='header-center-small' colspan='" . $categoryColumns{$i} . "'>$gradeCategoryName</td>";
+}
+
+print "</tr>";
+</%perl>
+
+<tr class = "header odd">
 <td class="header-left" width="45%">
+
 Name
 </td>
 
-
 <%perl>
-
 for (my $i=0; $i < $size; $i++)
 {
 	my $event_id = @$events[$i]->getGradeEventID(); 
 	my $name = @$events[$i]->getEventName();
-	print "<td class='header-center-small' colspan='1'> <a href='/gradebook/author/addedit/$type_path/$event_id'>$name</a> </td>";
-
+	print "<td class='header-center-small' colspan='1'><a href='/gradebook/author/addedit/$type_path/$event_id'>$name</a> </td>";
 }
 print "</tr>";
 my @students;
@@ -133,7 +156,6 @@ for  (my $i=0; $i < $size; $i++)
 			print "<td  class='layers-center'>  </td>";
 		}
 	}
-   
     
 	print "</tr>";
 }
