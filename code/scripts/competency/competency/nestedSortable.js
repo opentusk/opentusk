@@ -14,6 +14,7 @@
 
 var edit_mode = 0;
 var sort_mode = 1;
+var first_load = 1;
 var current_sort_array = new Object();
 var current_sort_array_order = [];
 
@@ -131,7 +132,7 @@ function sortAllAcc (current_level, current_level_obj, count) {
 
 function sortAll () {
 	var competencies_list = $("#competency_container").children(".page-list")[1];
-	console.log("sortall");
+
 	$(competencies_list).children("li").each(function() {		
 		var current_id = this.id.split("_")[0];	
 		current_sort_array[current_id] = {};
@@ -178,7 +179,11 @@ function switchSorting (button) {
 		$(".formbutton").prop("disabled", false);
 		$(".formbutton").css("color", "black");
 		$(".formbutton").css("background-color", "#CDD6E9");
-		sortAll();
+		if (first_load == 1) {
+			first_load = 0;
+		} else {
+			sortAll();
+		}
 		current_sort_array = {};
 		current_sort_array_order = [];
 		$(button).val("Re-order List");
