@@ -54,23 +54,28 @@
 	my $school = ($eval) ? $eval->school() : '';
 	my $title = ($eval && $eval->out_label()) ? $eval->out_label() : __("Unknown Eval");
 	my @evaluatees = ();
+	my %evaluatee_ids = {};
 	my @teaching_sites = ();
 	my %teaching_site_users = {};
 </%shared>
 
 <%init>
 	my $auth = $ARGS{'auth'} || '';
+	my $user_id = $ARGS{'user_id'} || '';
 	my $evaluatee_id = $ARGS{'evaluatee_id'} || '';
 	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
 
 	my $code =	HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $evaluatee_id);
 
 	# Check for a valid user
-	my $user = $m->session->{'user'};
-	my $user_id = (ref $user) ? $user->primary_key() : $user;
+	unless ($auth && $user_id && HSDB45::Eval::Secret->verify_hashcode($school, $eval_id, $user_id, $auth)) {
+		my $user = $m->session->{'user'};
+		$user_id = (ref $user) ? $user->primary_key() : $user;
+	}
 	my $is_eval_admin = $eval->admin_group()->contains_user($user_id);
 	my $is_site_director = ($is_eval_admin) ? 0 : $eval->is_site_director($user_id, $teaching_site_id);
-	unless ($is_eval_admin || $is_site_director || $auth eq $code) {
+	my $is_evaluatee = ($is_eval_admin || $is_site_director) ? 0 : $auth eq $code;
+	unless ($is_eval_admin || $is_site_director || $is_evaluatee) {
 		my $url = $ENV{SCRIPT_NAME} . $ENV{PATH_INFO};
 		$m->redirect("/home?url=$url");
 	}
@@ -105,9 +110,11 @@
 		);
 		my $sth = $dbh->prepare($sql);
 		$sth->execute($eval_id, $teaching_site_id);
-		while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
-			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $user_id};
+		while (my ($uid, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
+			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $uid};
+			$evaluatee_ids{$uid} = 1;
 		}
+		$evaluatee_id = '' unless ($evaluatee_ids{$evaluatee_id});
 	}
 
 	$code = uri_escape($code);
@@ -140,10 +147,10 @@
 	<h3><& /tmpl/element:dropdown, params => {
 			label => __('Teaching Site') . ':',
 			name => 'teaching_site',
-			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value, true)",
+			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value)",
 			selected => $teaching_site_id,
 			options => \@teaching_sites,
-			disabled => $auth
+			disabled => $is_evaluatee
 	} &></h3>
 	<h3><& /tmpl/element:dropdown, params => {
 			label => __('Evaluatee') . ':',
@@ -151,18 +158,20 @@
 			onchange => "setGetParameter('evaluatee_id', this.options[this.selectedIndex].value)",
 			selected => $evaluatee_id,
 			options => \@evaluatees,
-			disabled => $auth
+			disabled => $is_evaluatee
 	} &></h3>
 </div>
 % }
 
 <div class="evalFluff">
-% unless ($auth) {
+% if ($is_eval_admin) {
 	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
 % }
-% if (!$auth && $is_teaching_eval) {
+% if ($is_teaching_eval && $evaluatee_id) {
 	<a id="directLink" onclick="window.prompt('', '<% $link %>')"><% __('Direct Link') %></a><br>
-	<a id="emailLinks" href="/tusk/eval/email<% $ENV{'PATH_INFO'} %>"><% __('Email Links') %></a><br>
+% }
+% if ($is_teaching_eval && !$is_evaluatee) {
+	<a id="emailLinks" href="/tusk/eval/email<% $ENV{'PATH_INFO'} %>?<% $ENV{'QUERY_STRING'} %>"><% __('Email Links') %></a><br>
 % }
 % unless ($is_teaching_eval) {
 	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><% __('Export Report') %></a><br>

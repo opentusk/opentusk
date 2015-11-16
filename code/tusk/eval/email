@@ -26,6 +26,7 @@
 	page_header => '/tmpl/prepend:manage_header_div_layout'
 	page_footer => '/tmpl/footer:footer_div'
 	skip_header_bar => 1
+	allow_guests => 1
 </%attr>
 
 <%method title>
@@ -57,17 +58,24 @@
 	my @teaching_sites = ();
 	my @types = ({label => __('Evaluatees'), value => 0}, {label => __('Site Directors / Site Eval Admins'), value => 1});
 	my %teaching_site_users = {};
+  my $user;
 </%shared>
 
 <%init>
+	my $auth = $ARGS{'auth'} || '';
+	my $user_id = $ARGS{'user_id'} || '';
 	my $recipient_id = $ARGS{'recipient_id'} || '';
 	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
 	my $type = $ARGS{'type'} || 0;
 	my $message = $ARGS{'message'} || '';
 
 	# Check for a valid user
-	my $user = $m->session->{'user'};
-	my $user_id = (ref $user) ? $user->primary_key() : $user;
+	if ($auth && $user_id && HSDB45::Eval::Secret->verify_hashcode($school, $eval_id, $user_id, $auth)) {
+    $user = HSDB4::SQLRow::User->new()->lookup_key($user_id);
+  } else {
+		$user = $m->session->{'user'};
+		$user_id = (ref $user) ? $user->primary_key() : $user;
+	}
 	my $is_eval_admin = $eval->admin_group()->contains_user($user_id);
 	my $is_site_director = ($is_eval_admin) ? 0 : $eval->is_site_director($user_id, $teaching_site_id);
 	unless ($is_eval_admin || $is_site_director) {
@@ -123,8 +131,8 @@
 			);
 			my $sth = $dbh->prepare($sql);
 			$sth->execute($eval_id, $teaching_site_id);
-			while (my ($user_id, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
-				push @recipients, {label => "$lastname, $firstname ($count)", value => $user_id};
+			while (my ($uid, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
+				push @recipients, {label => "$lastname, $firstname ($count)", value => $uid};
 			}
 		}
 	}
@@ -133,8 +141,10 @@
 <h2 class="title"><% $title %></h2>
 
 <div class="evalFluff">
+% if ($is_eval_admin) {
 	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
-	<a id="report" href="/tusk/eval/report<% $ENV{'PATH_INFO'} %>"><% __('View Reports') %></a><br>
+% }
+	<a id="report" href="/tusk/eval/report<% $ENV{'PATH_INFO'} %>?<% $ENV{'QUERY_STRING'} %>"><% __('View Reports') %></a><br>
 
 % unless (scalar @recipient_ids) {
 	<h3><& /tmpl/element:dropdown, params => {
@@ -191,8 +201,9 @@
 	foreach my $recipient_id (@recipient_ids) {
 		my $recipient = HSDB4::SQLRow::User->new()->lookup_key($recipient_id);
 		if ($recipient->primary_key()) {
-			my $code = ($type) ? '' : uri_escape(HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $recipient_id));
-			my $query = ($type) ? '' : "?auth=$code&evaluatee_id=$recipient_id&teaching_site_id=$teaching_site_id";
+			my $code = uri_escape(HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $recipient_id));
+			my $argument = ($type) ? 'user_id' : 'evaluatee_id';
+			my $query = "?auth=$code&$argument=$recipient_id&teaching_site_id=$teaching_site_id";
 			my $link = 'https://' . $ENV{SERVER_NAME} . '/tusk/eval/report' . $ENV{PATH_INFO} . $query;
 			my $full_name = $recipient->out_full_name();
 			my $html_name = $recipient->out_html_full_name();
