@@ -70,6 +70,30 @@ my $size = scalar (@$events);
 <& SELF:print_gradebook_tools &>
 </td></tr>
 
+<%perl>
+my @course_sites = $type_object->child_teaching_sites();
+
+my @dropdown_options;
+push @dropdown_options, {
+	value => 0,
+	label => 'All'
+};
+
+for my $teaching_site (@course_sites) {
+	push @dropdown_options, {
+		value => $teaching_site->getPrimaryKeyID(),
+		label => $teaching_site->out_label()
+	};
+}
+
+$m->comp('/tmpl/element:dropdown', params => {
+	options => \@dropdown_options,
+	label => "Teaching Site",
+    onchange => "location.href = '?teachingSite=' + this.options[this.selectedIndex].value",
+    selected => $ARGS{'teachingSite'} || 0,
+    style => "width: 233px; margin-left: -4px"});
+</%perl>
+
 </table>
 <br/>
 
@@ -115,7 +139,7 @@ my @students;
 
 
 if (ref($type_object) eq "HSDB45::Course"){
-	@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"));
+	@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), $ARGS{'teachingSite'} == 0 ? undef : $ARGS{'teachingSite'});
 } else {
 	$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
 }
