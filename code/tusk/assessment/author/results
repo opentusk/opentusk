@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%attr>
 	show_tp_dropdown_no_cache => 1
 </%attr>
@@ -55,13 +56,15 @@
 	### all final entries for all students
 	my $final_entries = TUSK::FormBuilder::Entry->lookup("form_builder_entry.form_id = $form_id AND form_builder_entry.time_period_id = $tp_id",undef,undef,undef, [ 
 		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "is_final = 1" }),
-		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryGrade', { joinkey => 'entry_id', jointype => 'inner' })
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryGrade', { joinkey => 'entry_id' })
 	 ]);
 
 	foreach my $entry (@$final_entries) {
 		my $student_id = $entry->getJoinObject('TUSK::FormBuilder::EntryAssociation')->getUserID();
 		$final_entries{$student_id} = $entry->getPrimaryKeyID();
-		$final_scores{$student_id} = $entry->getJoinObject('TUSK::FormBuilder::EntryGrade')->getScore(); 
+        if (my $entry_grade = $entry->getJoinObject('TUSK::FormBuilder::EntryGrade')) {
+    		$final_scores{$student_id} = $entry_grade->getScore(); 
+        } 
 		$statuses{$student_id} = ($entry->getCompleteDate()) ? __x('Posted on {date}', date=> $entry->getCompleteDate()) : (($entry) ? __x('Saved on {date}', date=> $entry->getModifiedOn()) : '-');
 	}
 

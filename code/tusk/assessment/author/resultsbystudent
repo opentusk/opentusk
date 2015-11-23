@@ -20,6 +20,7 @@
 	use TUSK::FormBuilder::SubjectAssessor;
 	use HSDB4::DateTime;
 	use TUSK::FormBuilder::EntryGrade;
+    use TUSK::Constants;
 </%once>
 
 <%shared>
@@ -48,7 +49,7 @@
 	my $all_assessors_completed = 0;
 	my $adjusted_flag = 0;
 </%shared>
-hello
+
 <& /tmpl/element:form, params => {
 	method 		=> 'POST',
     name 		=> 'resultsbystudent' 
@@ -194,9 +195,16 @@ hello
 <%args>
 	$args
 </%args>
-<%perl>
-	$m->comp('SELF:nocache');
 
+<%perl>
+    unless (defined $entry_id) {
+        unless ($m->comp('SELF:validate_entry')) {
+            ### too many final entries for form_id, time_period and the student
+    		$m->comp('SELF:set_msg', msg => __x("There is something wrong about your assessment. Please contact {site} for help.", site => $TUSK::Constants::SiteAbbr), type => 'err');
+        }
+    }
+
+	$m->comp('SELF:nocache');
 	if (!$time_period_id || ($m->session->{timeperiod_course} ne $course->school() . '-' . $course->primary_key())) {
 		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/results/$type_path/$form_id/$uid", message => __("Something wrong with time period! Try again."));
 	}
@@ -204,7 +212,7 @@ hello
 	if ($entry_id) {
 		$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id);
 	} else {
-		$entry = TUSK::FormBuilder::Entry->lookupReturnOne("form_id = $form_id and time_period_id = $time_period_id and form_builder_entry.user_id = '$user_id'", undef, undef, undef, [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "' and is_final = 1"}) ]);
+		$entry = TUSK::FormBuilder::Entry->lookupReturnOne("form_id = $form_id and time_period_id = $time_period_id and form_builder_entry_association.user_id = '$student_id'", ['form_builder_entry.modified_on DESC'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "' and is_final = 1"}) ]);
 		if ($entry) {
 			$entry_id = $entry->getPrimaryKeyID();
 		} else {
@@ -441,6 +449,20 @@ hello
 	);
 
 	return ($assessor_comments) ? qq(<div class="xsm">Assessor Comments</div>\n<ul class="gArrow">\n$assessor_comments\n</ul>) : undef;
+</%perl>
+</%method>
+
+<%method validate_entry>
+<%perl>
+    my $entries = TUSK::FormBuilder::Entry->lookup("form_id = $form_id and time_period_id = $time_period_id", ['form_builder_entry.modified_on DESC'], undef, undef, [
+		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '$student_id' and is_final = 1"}), 
+    ]);
+    if (scalar @$entries == 1) {
+       $entry_id = $entries->[0]->getPrimaryKeyID();
+    } else {
+        return 0;
+    }
+    return 1;
 </%perl>
 </%method>
 
