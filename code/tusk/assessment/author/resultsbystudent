@@ -197,30 +197,42 @@
 </%args>
 
 <%perl>
-    unless (defined $entry_id) {
-        unless ($m->comp('SELF:validate_entry')) {
-            ### too many final entries for form_id, time_period and the student
-    		$m->comp('SELF:set_msg', msg => __x("There is something wrong about your assessment. Please contact {site} for help.", site => $TUSK::Constants::SiteAbbr), type => 'err');
-        }
-    }
-
-	$m->comp('SELF:nocache');
+    ### Check time period 
 	if (!$time_period_id || ($m->session->{timeperiod_course} ne $course->school() . '-' . $course->primary_key())) {
 		$m->comp("/tmpl/url:redirect", destination => "/assessment/author/results/$type_path/$form_id/$uid", message => __("Something wrong with time period! Try again."));
 	}
 
-	if ($entry_id) {
-		$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id);
-	} else {
-		$entry = TUSK::FormBuilder::Entry->lookupReturnOne("form_id = $form_id and time_period_id = $time_period_id and form_builder_entry_association.user_id = '$student_id'", ['form_builder_entry.modified_on DESC'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "' and is_final = 1"}) ]);
-		if ($entry) {
-			$entry_id = $entry->getPrimaryKeyID();
-		} else {
-			$entry = TUSK::FormBuilder::Entry->new() 
-		}
+    ### Check entry id 
+    unless (defined $entry_id) {
+        my $entries = TUSK::FormBuilder::Entry->lookup("form_id = $form_id and time_period_id = $time_period_id", ['form_builder_entry.modified_on DESC'], undef, undef, [
+    		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '$student_id' and is_final = 1"}), 
+        ]);
+
+        if (scalar @$entries > 1) {
+            ### too many final entries for form_id, time_period and the student
+    		$m->comp('SELF:set_msg', msg => __x("There is something wrong about your assessment. Please contact {site} for help.", site => $TUSK::Constants::SiteAbbr), type => 'err');
+        } elsif (scalar @$entries == 1) {
+            $entry_id = $entries->[0]->getPrimaryKeyID();   
+        }
+    } 
+
+    ### Create an entry object
+	$entry = ($entry_id) ? 	TUSK::FormBuilder::Entry->lookupKey($entry_id) : TUSK::FormBuilder::Entry->new();
+
+    ### process responses
+	unless ($args->{submit_check}) {
+        $m->comp('SELF:process_responses', params => $args);
 	}
 
-	unless ($args->{submit_check}) {
+	$m->comp('SELF:nocache');
+</%perl>
+</%method>
+
+<%method process_responses>
+<%args>
+    $params
+</%args>
+<%perl>
 		### only responses for those completed entries
 		my $responses = TUSK::FormBuilder::Response->lookup(undef,undef,undef,undef, [
 			TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id and time_period_id = $time_period_id"}), 
@@ -271,7 +283,7 @@
 			}
 		}
 		$all_assessors_completed = 1 if (scalar keys %entries == scalar @$assessors);
-		$repost_grade = (defined $args->{rp} && $args->{rp} == 1) ? 1 : 0;
+		$repost_grade = (defined $params->{rp} && $params->{rp} == 1) ? 1 : 0;
 
 		##  rp + completed,  all_completed + no entry or entry but not complete
 		if (!$entry_id || ($entry_id && !defined $entry->getCompleteDate()) || ($repost_grade && $entry_id && $entry->getCompleteDate())) {
@@ -283,7 +295,6 @@
 				$m->comp('SELF:set_msg', msg => __('You may edit/repost grades. They are already posted to students and registrar'), type => 'hint');
 			}
 		} 
-	}
 </%perl>
 </%method>
 
@@ -454,15 +465,7 @@
 
 <%method validate_entry>
 <%perl>
-    my $entries = TUSK::FormBuilder::Entry->lookup("form_id = $form_id and time_period_id = $time_period_id", ['form_builder_entry.modified_on DESC'], undef, undef, [
-		TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '$student_id' and is_final = 1"}), 
-    ]);
-    if (scalar @$entries == 1) {
-       $entry_id = $entries->[0]->getPrimaryKeyID();
-    } else {
-        return 0;
-    }
-    return 1;
+
 </%perl>
 </%method>
 
