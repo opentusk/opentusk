@@ -33,7 +33,7 @@ sub new {
 }
 
 sub getScheduleCourses{
-	my ($self, $args) = @_;
+	my ($self, $arg) = @_;
 
 	my @courseTitles = ();
 	my @courseIds = ();
@@ -48,10 +48,10 @@ sub getScheduleCourses{
 	my $sqlConditionals;
 	my $sql;
 
-	if ($args->{export_requested}){
-		$sqlConditionals = "WHERE (t5.child_user_id = '$args->{user_id}' AND t1.school_id = '$self->{school_id}') AND t2.academic_level_id = '$args->{academic_level_id}' AND t7.academic_year = '$args->{academic_year}'";
+	if ($arg->{export_requested}){
+		$sqlConditionals = "WHERE (t5.child_user_id = '$arg->{user_id}' AND t1.school_id = '$self->{school_id}') AND t2.academic_level_id = '$arg->{academic_level_id}' AND t7.academic_year = '$arg->{academic_year}'";
 	} else {
-		$sqlConditionals = "WHERE (t5.child_user_id = '$args->{user_id}' AND t1.school_id = '$self->{school_id}')";
+		$sqlConditionals = "WHERE (t5.child_user_id = '$arg->{user_id}' AND t1.school_id = '$self->{school_id}')";
 	}
 
 	my $scheduleCourses = TUSK::Academic::LevelClinicalSchedule->new();
