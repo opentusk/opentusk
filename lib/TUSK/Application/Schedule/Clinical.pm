@@ -33,7 +33,10 @@ sub new {
 }
 
 sub getScheduleCourses{
-	my ($self, $arg) = @_;
+	my ($self, $arg_ref) = @_;
+
+	croak("(ref($arg_ref)) isn't a hash reference.")
+		if (ref($arg_ref) ne "HASH");
 
 	my @courseTitles = ();
 	my @courseIds = ();
@@ -48,10 +51,10 @@ sub getScheduleCourses{
 	my $sqlConditionals;
 	my $sql;
 
-	if ($arg->{export_requested}){
-		$sqlConditionals = "WHERE (t5.child_user_id = '$arg->{user_id}' AND t1.school_id = '$self->{school_id}') AND t2.academic_level_id = '$arg->{academic_level_id}' AND t7.academic_year = '$arg->{academic_year}'";
+	if ($arg_ref->{export_requested}){
+		$sqlConditionals = "WHERE (t5.child_user_id = '$arg_ref->{user_id}' AND t1.school_id = '$self->{school_id}') AND t2.academic_level_id = '$arg_ref->{academic_level_id}' AND t7.academic_year = '$arg_ref->{academic_year}'";
 	} else {
-		$sqlConditionals = "WHERE (t5.child_user_id = '$arg->{user_id}' AND t1.school_id = '$self->{school_id}')";
+		$sqlConditionals = "WHERE (t5.child_user_id = '$arg_ref->{user_id}' AND t1.school_id = '$self->{school_id}')";
 	}
 
 	my $scheduleCourses = TUSK::Academic::LevelClinicalSchedule->new();
