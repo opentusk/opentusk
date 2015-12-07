@@ -36,6 +36,7 @@
 	$type_path_alt =~ s/course\///g; # but we don't always want it
 	
 	my $course = $m->comp('/tmpl/url:get_type_object');
+	pre_dump($course);
 	my $is_group_course = ($course->type() eq 'group')? 1 : 0;
 	my $is_thesis_comm = ($course->type() eq 'thesis committee')? 1 : 0;
 
@@ -112,6 +113,14 @@
 % if ($m->comp("SELF:check_course_permissions", token => 'DIRECTORNONSTUDENT') && !$is_thesis_comm){
 		<& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Grade Book'),'url'=>'/gradebook/author/show/' . $type_path, 'linkstyle'=> "titletext"} &>
 % }
+
+% my $permissions = $m->comp("/tmpl/permission:has_role_with_functionality", 
+%						feature_type_token => 'course',
+%						feature_id => '187554',
+%						function_token => 'view_course_grades');
+
+% pre_dump($permissions);
+
 <& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Patient Logs'),'url'=>'/patientlog/author/show/' . $type_path, 'linkstyle'=> "titletext" } &>
 <& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Quizzes'),'url'=>'/quiz/author/show/'. $type_path, 'linkstyle'=> "titletext" } &>
 <& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Simulated Patient'),'url'=>'/sp/author/show/' . $type_path, 'linkstyle'=> "titletext" } &>

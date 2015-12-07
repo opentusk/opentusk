@@ -176,6 +176,7 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	## clinical schedule
 	my $school = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $m->session->{'user'}->field_value('affiliation') . "'");
 	my $school_id = $school->getPrimaryKeyID();
+	my $school_db = $school->getSchoolDb();
 	my $user_id = $m->session->{'user'}->user_id();
 
 	my ($scheduleCourses) = TUSK::Application::Schedule::Clinical->new({
@@ -268,6 +269,10 @@ if(HSDB4::Constants::is_guest($m->session->{'user'})) {
 %   if (scalar @{$scheduleCourses->{'courseIds'}}) {
 		<li><a href="/schedule/clinical/student/view/<% $school_id %>"><% __('Clinical Schedule') %></a></li>
 % }
+
+# % if ($accessSiteGrades) {
+# 	<li><a href="/gradebook/author/show/"><% __('Site Director') %></a></li>
+# % }
 
 % my $isfaculty = $m->session->{user}->isFaculty();
 % if ($isfaculty->[0]->[0] >= 1) {
