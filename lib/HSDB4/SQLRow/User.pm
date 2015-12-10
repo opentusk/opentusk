@@ -3387,6 +3387,30 @@ sub get_faculty_class_meeting {
     return $class_meetings;
 }
 
+sub get_faculty_class_meeting_for_current_academic_year {
+    my ($self, $db) = @_;
+    my $user_id = $self->user_id();
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my $class_meetings;    
+
+    eval {
+	my $sql = "SELECT meeting_date, starttime, endtime, location, class_meeting.title, label, class_meeting_id, class_meeting.course_id, course.title FROM $db.link_class_meeting_user
+                  INNER JOIN $db.class_meeting ON parent_class_meeting_id = class_meeting_id
+                  INNER JOIN tusk.class_meeting_type ON type_id = class_meeting_type_id
+                  INNER JOIN $db.course ON $db.class_meeting.course_id = $db.course.course_id
+                  WHERE child_user_id = '$user_id'
+                  AND meeting_date > date(date_sub(now(), interval 1 year))
+                  ORDER BY meeting_date, starttime, endtime";
+
+        my $sth = $dbh->prepare ($sql);
+	$sth->execute();
+	$class_meetings = $sth->fetchall_arrayref();
+	$sth->finish;
+    };
+
+    return $class_meetings;
+}
+
 1;
 
 __END__
