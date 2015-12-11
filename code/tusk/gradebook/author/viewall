@@ -27,6 +27,10 @@
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
 </%shared>
 
+<%method cms_min_course_role>
+% 	return 'SITEDIRECTOR';
+</%method>
+
 <%method title>
 %return __("View All Grades");
 </%method>
@@ -41,9 +45,73 @@ my $type_object = $m->comp("/tmpl/url:get_type_object");
 my $time_period_id = $m->comp("SELF:get_timeperiod_id");
 my $events;
 
+my $course_user = TUSK::Course::User->lookupReturnOne("course_id = 1671 and school_id = 2 and user_id = 'tus3346SiteDirectorTwo'", 
+	undef, undef, undef, 
+	[
+			TUSK::Core::JoinObject->new("TUSK::Course::User::Site",
+			{
+					alias => 't2',
+					jointype => 'right', 
+					joinkey => 'course_user_id',
+					origkey => 'course_user_id',
+			}),
+	]);
+
+my $permissions = $m->comp("/tmpl/permission:has_role_with_functionality", 
+					feature_type_token => 'course',
+					feature_id => '187554',
+					function_token => 'view_site_grades');
+
+# First one is used as a random-access lookup tool thus the singularity
+my %site_director_teaching_site;
+my %course_site;
+my @site_director_sites = ();
+
+my @site_dropdown_options;
+push @site_dropdown_options, {
+	value => 0,
+	label => 'All'
+};
+
+my @filtered_site_dropdown_options;
+my @unfiltered_site_dropdown_options;
+
+my @course_sites = $type_object->child_teaching_sites();
+
+for my $site (@course_sites) {
+	$course_site{$site->getPrimaryKeyID()} = $site->out_label();
+	push @unfiltered_site_dropdown_options, {
+		value => $site->getPrimaryKeyID(),
+		label => $site->out_label()
+	};
+}
+
+for my $site (@{$course_user->getJoinObjects('t2')})
+{
+	push @site_director_sites, ($site->getTeachingSiteID());
+	$site_director_teaching_site{$site->getTeachingSiteID()} = 1;
+	push @filtered_site_dropdown_options, {
+		value => $site->getTeachingSiteID(),
+		label => $course_site{$site->getTeachingSiteID()}
+	};
+}
+
+# if ($permissions && $ARGS{'teachingSite'} && undef $site_director_teaching_site{$ARGS{'teachingSite'}})
+# {	
+# 	$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
+# }
+
+if ($permissions)
+{
+	@site_dropdown_options = (@site_dropdown_options, @filtered_site_dropdown_options);
+	$time_period_id = $course_user->getTimePeriodID();
+} else {
+	@site_dropdown_options = (@site_dropdown_options, @unfiltered_site_dropdown_options);
+}
+
 unless (defined $time_period_id) {
 	my $msg = TUSK::Core::SessionTimePeriod::course_time_periods($m->comp("/tmpl/url:get_type_object"), undef, $m->session);
-    $time_period_id = $m->comp("SELF:get_timeperiod_id");
+		$time_period_id = $m->comp("SELF:get_timeperiod_id");
 }
 
 
@@ -61,9 +129,9 @@ my $size = scalar (@$events);
 <table>
 <tr><td>
 <& /tmpl/element:cms_button_row,
-    links => [
-        {display_txt => 'Export',
-        link_txt    => '/gradebook/author/exportall/'.$type_path.'/'.$time_period_id}
+		links => [
+				{display_txt => 'Export',
+				link_txt    => '/gradebook/author/exportall/'.$type_path.'/'.$time_period_id}
 	]
 &>
 </td><td>
@@ -71,27 +139,13 @@ my $size = scalar (@$events);
 </td></tr>
 
 <%perl>
-my @course_sites = $type_object->child_teaching_sites();
-
-my @dropdown_options;
-push @dropdown_options, {
-	value => 0,
-	label => 'All'
-};
-
-for my $teaching_site (@course_sites) {
-	push @dropdown_options, {
-		value => $teaching_site->getPrimaryKeyID(),
-		label => $teaching_site->out_label()
-	};
-}
 
 $m->comp('/tmpl/element:dropdown', params => {
-	options => \@dropdown_options,
+	options => \@site_dropdown_options,
 	label => "Teaching Site",
-    onchange => "location.href = '?teachingSite=' + this.options[this.selectedIndex].value",
-    selected => $ARGS{'teachingSite'} || 0,
-    style => "width: 233px; margin-left: -4px"});
+		onchange => "location.href = '?teachingSite=' + this.options[this.selectedIndex].value",
+		selected => $ARGS{'teachingSite'} || 0,
+		style => "width: 233px; margin-left: -4px"});
 </%perl>
 
 </table>
@@ -139,7 +193,8 @@ my @students;
 
 
 if (ref($type_object) eq "HSDB45::Course"){
-	@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), $ARGS{'teachingSite'} == 0 ? undef : $ARGS{'teachingSite'});
+	@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), $ARGS{'teachingSite'} == 0 ? 
+		($permissions ? @site_director_sites : undef) : $ARGS{'teachingSite'});
 } else {
 	$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
 }
@@ -155,32 +210,32 @@ my $class; #used to store style class of <tr>
 for  (my $i=0; $i < $size; $i++)
 {
 
-    
+		
 	my $stdnt = $students[$i]->user_id();
 	my $fname = $students[$i]->first_name();
 	my $lname = $students[$i]->last_name();
 
-      
+			
 	if( $i % 2 ==0)	{	$class="even"; }
 	else { $class="odd"; }	
-     
+		 
 	print "<tr class='$class'><td><a href='/gradebook/author/gradeaddeditbystudent/$type_path/$stdnt'> ".$lname.",".$fname."</a></td>";
 
-    #for each grade event
+		#for each grade event
 	my $stripObj = TUSK::Application::HTML::Strip->new();
-    for (my $j=0; $j < scalar(@$events); $j++)
+		for (my $j=0; $j < scalar(@$events); $j++)
 	{
 		my $event_id = @$events[$j]->getGradeEventID(); 
 		my $qString = "parent_user_id = '$stdnt' and child_grade_event_id = $event_id";
 		my $linkugrades = TUSK::GradeBook::LinkUserGradeEvent->lookupReturnOne($qString);
 		if(defined($linkugrades)){
 			my $grade = $linkugrades->getGrade();
-	    	print "<td class='layers-center'> " . $stripObj->removeHTML($grade) . " </td>";
+				print "<td class='layers-center'> " . $stripObj->removeHTML($grade) . " </td>";
 		}else {
 			print "<td  class='layers-center'>  </td>";
 		}
 	}
-    
+		
 	print "</tr>";
 }
 
@@ -208,7 +263,7 @@ for(my $i=0; $i < scalar(@$events); $i++)
 		$j++;
 	}
 
-    
+		
 	my $mean ;
 	if( scalar(@nums) > 0 )
 	{
@@ -219,7 +274,7 @@ for(my $i=0; $i < scalar(@$events); $i++)
 	push(@all_grades,[@nums]);
 	push(@all_means,$mean);
 	printf "<td class='layers-center'>  %4.1f  </td>",$mean;
-  
+	
 }
 
 
