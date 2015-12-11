@@ -997,8 +997,7 @@ sub get_students {
 		$timeperiod_id = $tp->primary_key;
     }
     
-	my $site_condition = (defined $site_id && ref($site_id) eq 'ARRAY') ? "AND teaching_site_id IN(" . join(",", @$site_id) . ")" : "AND teaching_site_id = $site_id";
-    
+    my $site_condition = (defined $site_id) ? (ref($site_id) eq 'ARRAY' ? "AND teaching_site_id IN(" . join(",", @$site_id) . ")" : "AND teaching_site_id = $site_id") : ''; 
     if (ref($timeperiod_id) eq 'ARRAY') {
 		@students = sort { $a->{lastname} cmp $b->{lastname} } $self->student_link()->get_children($self->primary_key,"time_period_id IN(" . join(",", @$timeperiod_id) . ") $site_condition GROUP BY user_id")->children();
     }

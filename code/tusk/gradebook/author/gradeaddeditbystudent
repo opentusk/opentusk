@@ -41,6 +41,11 @@
 	my $link_user_grade_events = {};  ### list for getting failed grades
 	my $link_events = {};
 	my $has_code_options = 0;
+	my $permissions = $m->comp("/tmpl/permission:has_role_with_functionality", 
+					feature_type_token => 'course',
+					feature_id => '187554',
+					function_token => 'view_site_grades');
+	my $contentEditable = ($permissions ? 0 : 1);
 </%shared>
 
 <table>
@@ -252,8 +257,8 @@ Code
 			title => $spaces . "<span class=\"$gray\">" . $event->getEventName() . "</span>",
 			eventid => "<input type=\"hidden\" name=\"$filter\__$pk\__eventid\__$set\" value=\"$event_id\"/>",
 			userid => "<input type=\"hidden\" name=\"$filter\__$pk\__userid\__$set\" value=\"" . $student_id . "\"/>",
-			grade => "<input style=\"text-align:center;\" type=\"text\" name=\"$filter\__$pk\__grade\__$set\" value=\"$grade\" size=\"3\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" style=\"text-align:right;\" size=\"15\"  />",
-			comments => "<input style=\"text-align:left;\" type=\"text\" name=\"$filter\__$pk\__comments\__$set\" value=\"$comments\" size=\"30\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" />",
+			grade => "<input" . ($contentEditable ? " " : " disabled ") . "style=\"text-align:center;\" type=\"text\" name=\"$filter\__$pk\__grade\__$set\" value=\"$grade\" size=\"3\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" style=\"text-align:right;\" size=\"15\"  />",
+			comments => "<input" . ($contentEditable ? " " : " disabled ") . "style=\"text-align:left;\" type=\"text\" name=\"$filter\__$pk\__comments\__$set\" value=\"$comments\" size=\"30\" onchange=\"updateGradeStatus('$filter\__$pk\__elementchanged\__$set');\" />",
 			scaled_grade => "<input disabled style=\"text-align:center;font-weight:bold;\" type=\"text\" name=\"$filter\__$pk\__scaled_grade\__$set\" value=\"$scaled_grade\" size=\"12\"  />",
 			max_possible_points => "<input disabled style=\"text-align:center;font-weight:bold;\" type=\"text\" name=\"$filter\__$pk\__max_possible_points\__$set\" value=\"$max_possible_points\" size=\"20\"  />",
 			site => ($show_multi_site) ? $m->scomp('SELF:get_sites_dropdown', pk => $pk, set => $set, site_id => $site_id ) : undef,
@@ -407,6 +412,10 @@ Code
 </td></tr>
 </table>
 </form>
+</%method>
+
+<%method cms_min_course_role>
+% 	return 'SITEDIRECTOR';
 </%method>
 
 <%method title>
