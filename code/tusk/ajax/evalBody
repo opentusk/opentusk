@@ -29,6 +29,7 @@
 </%attr>
 
 <%once>
+	use HSDB45::Eval::Report;
 	use HSDB45::Eval::Results;
 	use HSDB45::Eval::Results::Formatter;
 	use HSDB45::Eval::Secret;
@@ -48,6 +49,7 @@
 	my $auth = $ARGS{'auth'} || '';
 	my $evaluatee_id = $ARGS{'evaluatee_id'} || '';
 	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
+	my $full = $ARGS{'full'} || 0;
 	my $filter = '';
 	my $filter_id = '';
 	if ($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
@@ -64,29 +66,33 @@
 		my $timer = TUSK::Eval::EvalLoadTime->new();
 		$timer->setEval($eval);
 		$timer->start();
-		my $parser = XML::LibXML->new();
-		my $xslt = XML::LibXSLT->new();
-		my $style_doc = $parser->parse_file($ENV{'CODE_ROOT'} . '/XSL/Eval/eval_results.xsl');
-		my $stylesheet = $xslt->parse_stylesheet($style_doc);
+		if ($full) {
+			my $parser = XML::LibXML->new();
+			my $xslt = XML::LibXSLT->new();
+			my $style_doc = $parser->parse_file($ENV{'CODE_ROOT'} . '/XSL/Eval/eval_results.xsl');
+			my $stylesheet = $xslt->parse_stylesheet($style_doc);
 
-		my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
-		my $formatter = HSDB45::Eval::Results::Formatter->new($eval_results);
+			my $eval_results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
+			my $formatter = HSDB45::Eval::Results::Formatter->new($eval_results);
 
-		my $source = $parser->parse_string($formatter->get_xml_text(0));
+			my $source = $parser->parse_string($formatter->get_xml_text(0));
 
-		my $hideGroup = ($HIDEGROUPBY) ? 1 : 0;
-		my $host = $ENV{'HTTP_HOST'};
+			my $hideGroup = ($HIDEGROUPBY) ? 1 : 0;
+			my $host = $ENV{'HTTP_HOST'};
 
-		my $results = $stylesheet->transform(
-			$source,
-			XML::LibXSLT::xpath_to_string(
-				"HOST" => $host,
-				"FILTER" => $filter,
-				"FILTER_ID" => $filter_id,
-				"HIDEGROUPBY" => $hideGroup,
-			),
-		);
-		$m->print($stylesheet->output_string($results));
+			my $results = $stylesheet->transform(
+				$source,
+				XML::LibXSLT::xpath_to_string(
+					"HOST" => $host,
+					"FILTER" => $filter,
+					"FILTER_ID" => $filter_id,
+					"HIDEGROUPBY" => $hideGroup,
+				),
+			);
+			$m->print($stylesheet->output_string($results));
+		} else {
+			HSDB45::Eval::Report::quick_report($eval, $evaluatee_id, $teaching_site_id);
+		}
 		$timer->stop();
 	} else {
 		$m->print('<h2 class="title">' . __('Authorization Error') . '</h2>');

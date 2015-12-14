@@ -52,7 +52,7 @@ sub get_file_deps {
 # Output: newly created object
 sub new {
     my $self = {};
-    my $class = shift();
+    my $class = shift;
     $class = ref($class) || $class;
     bless($self, $class);
     return $self->init(@_);
@@ -62,10 +62,10 @@ sub new {
 # Input: HSDB45::Eval object
 # Output: initialzed object
 sub init {
-    my $self = shift();
-    $self->{'-eval'} = shift();
-    $self->{'-evaluatee_id'} = shift();
-    $self->{'-teaching_site_id'} = shift();
+    my $self = shift;
+    $self->{'-eval'} = shift;
+    $self->{'-evaluatee_id'} = shift;
+    $self->{'-teaching_site_id'} = shift;
     return $self;
 }
 
@@ -78,7 +78,7 @@ sub school {
 # Input: none
 # Output: associated eval object
 sub parent_eval {
-    my $self = shift();
+    my $self = shift;
     return $self->{'-eval'};
 }
 
@@ -96,7 +96,7 @@ sub teaching_site_id {
 # Input: Optionally, some
 # Output: List of HSDB45::Eval::Question::Results objects
 sub question_results {
-    my $self = shift();
+    my $self = shift;
 
     # If there are no question_results, then make all the objects, and put them in the
     # hash

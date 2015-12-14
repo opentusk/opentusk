@@ -64,6 +64,7 @@
 	my $user_id = $ARGS{'user_id'} || '';
 	my $evaluatee_id = $ARGS{'evaluatee_id'} || '';
 	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
+	my $full = $ARGS{'full'} || 0;
 
 	my $code =	HSDB45::Eval::Secret->generate_hashcode($school, $eval_id, $evaluatee_id);
 
@@ -118,7 +119,7 @@
 	}
 
 	$code = uri_escape($code);
-	my $query = "?auth=$code&evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id";
+	my $query = "?auth=$code&evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id&full=$full";
 	my $link = 'https://' . $ENV{SERVER_NAME} . $ENV{SCRIPT_NAME} . $ENV{PATH_INFO} . $query;
 
 	my $num_users = $eval->num_users();
@@ -176,7 +177,12 @@
 % unless ($is_teaching_eval) {
 	<a href="/protected/eval/administrator/export/<% $school %>/<% $eval_id %>"><% __('Export Report') %></a><br>
 % }
-	<a id="graphLink" style="display:none" onclick="showHideGraphs()"><% __('Hide Graphs') %></a>
+% if ($full) {
+	<a id="quickReport" onclick="setGetParameter('full', 0)"><% __('Quick Report') %></a><br>
+	<a id="graphLink" style="display:none" onclick="showHideGraphs()"><% __('Hide Graphs') %></a><br>
+% } else {
+	<a id="fullReport" onclick="setGetParameter('full', 1)"><% __('Full Report') %></a><br>
+% }
 
 % my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
 % $evalLoadStats->setEval($eval);
@@ -185,7 +191,7 @@
 	<% __x('This eval has been requested {num} times with an average of {avg} sec and the longest time being {max} secs.', num => $evalLoadStats->totalLoads(), avg => sprintf('%.1f', $evalLoadStats->average()), max => sprintf('%.1f', $evalLoadStats->max())) %>
 % } else {
 	<% __x('This eval has been requested {num} times', num => $evalLoadStats->totalLoads()) %>
-%}
+% }
 	<% __('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.') %>
 	</p>
 		<h3><% __('Enrollment Information') %></h3>
@@ -207,4 +213,4 @@
 </div>
 <div id="evalArea">
 </div>
-<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $school %>/<% $eval_id %>', 0);</script>
+<script type="text/javascript">loadEval('/tusk/ajax/evalBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $school %>/<% $eval_id %>', 0, <% $full %>);</script>
