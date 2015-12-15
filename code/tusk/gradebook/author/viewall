@@ -43,9 +43,12 @@
 <%perl>
 my $type_object = $m->comp("/tmpl/url:get_type_object");
 my $time_period_id = $m->comp("SELF:get_timeperiod_id");
+my $school_id = TUSK::Core::School->getSchoolID($type_object->school);
+my $user_id = $m->session->{'user'}->primary_key();
+my $course_id = $type_object->primary_key;
 my $events;
 
-my $course_user = TUSK::Course::User->lookupReturnOne("course_id = 1671 and school_id = 2 and user_id = 'tus3346SiteDirectorTwo'", 
+my $course_user = TUSK::Course::User->lookupReturnOne("course_id = $course_id and school_id = $school_id and user_id = '$user_id'", 
 	undef, undef, undef, 
 	[
 			TUSK::Core::JoinObject->new("TUSK::Course::User::Site",
@@ -57,10 +60,10 @@ my $course_user = TUSK::Course::User->lookupReturnOne("course_id = 1671 and scho
 			}),
 	]);
 
-my $permissions = $m->comp("/tmpl/permission:has_role_with_functionality", 
+my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
 					feature_type_token => 'course',
-					feature_id => '187554',
-					function_token => 'view_site_grades');
+					feature_id => $course_user->getPrimaryKeyID(),
+					function_token => 'view_site_grades') : undef);
 
 my %site_director_teaching_site;
 my %course_site;
@@ -73,9 +76,10 @@ push @site_dropdown_options, {
 };
 
 my @filtered_site_dropdown_options;
-my @unfiltered_site_dropdown_options;
+my @unfiltered_site_dropdown_options = ();
 
 my @course_sites = $type_object->child_teaching_sites();
+
 
 for my $site (@course_sites) {
 	$course_site{$site->getPrimaryKeyID()} = $site->out_label();
@@ -85,14 +89,16 @@ for my $site (@course_sites) {
 	};
 }
 
-for my $site (@{$course_user->getJoinObjects('t2')})
-{
-	push @site_director_sites, ($site->getTeachingSiteID());
-	$site_director_teaching_site{$site->getTeachingSiteID()} = 1;
-	push @filtered_site_dropdown_options, {
-		value => $site->getTeachingSiteID(),
-		label => $course_site{$site->getTeachingSiteID()}
-	};
+if ($course_user) {
+	for my $site (@{$course_user->getJoinObjects('t2')})
+	{
+		push @site_director_sites, ($site->getTeachingSiteID());
+		$site_director_teaching_site{$site->getTeachingSiteID()} = 1;
+		push @filtered_site_dropdown_options, {
+			value => $site->getTeachingSiteID(),
+			label => $course_site{$site->getTeachingSiteID()}
+		};
+	}
 }
 
 if ($permissions && $ARGS{'teachingSite'} && !$site_director_teaching_site{$ARGS{'teachingSite'}})
@@ -193,7 +199,7 @@ my @students;
 
 if (ref($type_object) eq "HSDB45::Course"){
 	@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), $ARGS{'teachingSite'} == 0 ? 
-		($permissions ? @site_director_sites : undef) : $ARGS{'teachingSite'});
+		($permissions ? \@site_director_sites : undef) : $ARGS{'teachingSite'});
 } else {
 	$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
 }

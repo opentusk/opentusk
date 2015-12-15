@@ -20,6 +20,7 @@
 <%once>
 	use TUSK::Constants;
 	use TUSK::Course::User;
+    use	TUSK::Core::School;
 </%once>
 <%shared>
 </%shared>
@@ -114,12 +115,15 @@
 		<& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Grade Book'),'url'=>'/gradebook/author/show/' . $type_path, 'linkstyle'=> "titletext"} &>
 % }
 
-% my $course_user_id = TUSK::Course::User->lookupReturnOne("course_id = 1671 and school_id = 2 and user_id = 'tus3346SiteDirectorTwo'", undef, undef, undef, undef);
+% my $school_id = TUSK::Core::School->getSchoolID($course->school);
+% my $user_id = $m->session->{'user'}->primary_key();
+% my $course_id = $course->primary_key;
+% my $course_user_id = TUSK::Course::User->lookupReturnOne("course_id = $course_id and school_id = $school_id and user_id = '$user_id'", undef, undef, undef, undef);
 
-% my $permissions = $m->comp("/tmpl/permission:has_role_with_functionality", 
+% my $permissions = ($course_user_id ? $m->comp("/tmpl/permission:has_role_with_functionality", 
 %						feature_type_token => 'course',
-%						feature_id => '187554',
-%						function_token => 'view_site_grades');
+%						feature_id => $course_user_id->getPrimaryKeyID(),
+%						function_token => 'view_site_grades') : undef);
 
 % if ($permissions) {
 	<& /tmpl/leftnav/element:menu_item, params=>{'label'=>__('Grade Book'),'url'=>'/gradebook/author/viewall/' . $type_path, 'linkstyle'=> "titletext"} &>
