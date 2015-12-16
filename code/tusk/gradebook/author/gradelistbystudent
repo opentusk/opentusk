@@ -21,31 +21,29 @@
 <%shared>
 	my $category_id = $m->comp("/tmpl/url:get_last_path_id");
 	my $type_object = $m->comp("/tmpl/url:get_type_object");
-	my $school_id = TUSK::Core::School->getSchoolID($type_object->school);
-	my $user_id = $m->session->{'user'}->primary_key();
-	my $course_id = $type_object->primary_key;
+
+
 	my @site_director_sites;
-	my $course_user = TUSK::Course::User->lookupReturnOne("course_id = $course_id and school_id = $school_id and user_id = '$user_id'", 
-		undef, undef, undef, 
-		[
-				TUSK::Core::JoinObject->new("TUSK::Course::User::Site",
-				{
-						alias => 't2',
-						jointype => 'right', 
-						joinkey => 'course_user_id',
-						origkey => 'course_user_id',
-				}),
-		]);
-	for my $site (@{$course_user->getJoinObjects('t2')})
-	{
-		push @site_director_sites, ($site->getTeachingSiteID());
+	my $course_user = $m->comp("SELF:getCourseUser");
+	if ($course_user) {
+		for my $site (@{$course_user->getJoinObjects('t2')})
+		{
+			push @site_director_sites, ($site->getTeachingSiteID());
+		}
 	}
 	my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
 					feature_type_token => 'course',
 					feature_id => $course_user->getPrimaryKeyID(),
 					function_token => 'view_site_grades') : undef);
-	my @students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), \@site_director_sites);
+
+	my @students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), ($permissions? \@site_director_sites : undef));
 </%shared>
+
+<%perl>
+	if ($permissions) {
+		print "<script src=\"/scripts/jquery/jquery.min.js\">jQuery('#nav_bar').remove();</script>"
+	}
+</%perl>
 
 % if ($category_id) {
 <div class="med"> <%__("Category:")%> <% TUSK::GradeBook::GradeCategory->lookupKey($category_id)->getGradeCategoryName() %> </div>
@@ -96,6 +94,9 @@
 % 	return $m->comp('SELF:title');
 </%method>
 
+<%method get_nav_bars_conditional>
+%	return !$permissions;
+</%method>
 
 
 
