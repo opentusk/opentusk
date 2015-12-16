@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
+
 <%once>
 	use TUSK::Application::HTML::Strip;
 	use TUSK::GradeBook::GradeEvent;
@@ -25,6 +26,11 @@
 
 <%shared>
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
+	my $course_user = $m->comp("SELF:getCourseUser");
+	my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
+					feature_type_token => 'course',
+					feature_id => $course_user->getPrimaryKeyID(),
+					function_token => 'view_site_grades') : undef);
 </%shared>
 
 <%method cms_min_course_role>
@@ -43,27 +49,7 @@
 <%perl>
 my $type_object = $m->comp("/tmpl/url:get_type_object");
 my $time_period_id = $m->comp("SELF:get_timeperiod_id");
-my $school_id = TUSK::Core::School->getSchoolID($type_object->school);
-my $user_id = $m->session->{'user'}->primary_key();
-my $course_id = $type_object->primary_key;
 my $events;
-
-my $course_user = TUSK::Course::User->lookupReturnOne("course_id = $course_id and school_id = $school_id and user_id = '$user_id'", 
-	undef, undef, undef, 
-	[
-			TUSK::Core::JoinObject->new("TUSK::Course::User::Site",
-			{
-					alias => 't2',
-					jointype => 'right', 
-					joinkey => 'course_user_id',
-					origkey => 'course_user_id',
-			}),
-	]);
-
-my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
-					feature_type_token => 'course',
-					feature_id => $course_user->getPrimaryKeyID(),
-					function_token => 'view_site_grades') : undef);
 
 my %site_director_teaching_site;
 my %course_site;
@@ -132,13 +118,16 @@ my $size = scalar (@$events);
 </%perl>
 
 <table>
-<tr><td>
+<tr>
+% if (!$permissions) {
+<td>
 <& /tmpl/element:cms_button_row,
 		links => [
 				{display_txt => 'Export',
 				link_txt    => '/gradebook/author/exportall/'.$type_path.'/'.$time_period_id}
 	]
 &>
+% }
 </td><td>
 <& SELF:print_gradebook_tools &>
 </td></tr>
@@ -246,7 +235,7 @@ for  (my $i=0; $i < $size; $i++)
 
 my @all_grades;
 my @all_means;
-print "<tr class='odd'><td  class='header-left' width='45%'> Mean </td>";
+print "<tr class='odd'><td  class='header-left' width='45%'> Mean* </td>";
 
 for(my $i=0; $i < scalar(@$events); $i++)
 {
@@ -285,8 +274,7 @@ for(my $i=0; $i < scalar(@$events); $i++)
 
 print "</tr>";
 
-print "<tr class='odd'><td  class='header-left' width='45%'> " . __("Standard Deviation") . " </td>";
-
+print "<tr class='odd'><td  class='header-left' width='45%'> " . __("Standard Deviation*") . " </td>";
 for(my $i=0; $i < scalar(@$events); $i++)
 {
 
@@ -303,8 +291,12 @@ for(my $i=0; $i < scalar(@$events); $i++)
 	
 }
 print "</tr>";
-
 </%perl>
 
 
 </table>
+% print "*If the course has teaching sites, this is the mean/standard deviation for all students across all teaching sites.";
+
+<%method get_nav_bars_conditional>
+%	return !$permissions;
+</%method>

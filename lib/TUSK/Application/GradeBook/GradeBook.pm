@@ -24,6 +24,7 @@ use TUSK::GradeBook::GradeEvent;
 use TUSK::GradeBook::GradeOffering;
 use TUSK::Application::GradeBook::FinalGrade::ByEvent;
 use TUSK::Functions;
+use TUSK::Core::School;
 
 
 sub new {
@@ -419,6 +420,24 @@ sub getScaledGrade {
 	}
 
 	return $scaled_grade;
+}
+
+sub getFaculty {
+	my ($self, $args) = @_;
+
+	my $course_user = TUSK::Course::User->lookupReturnOne("course_id = " . $self->{course}->primary_key . " and school_id = " . TUSK::Core::School->getSchoolID($self->{course}->school) . " and user_id = '" . $self->{user_id} . "'", 
+		undef, undef, undef, 
+		[
+				TUSK::Core::JoinObject->new("TUSK::Course::User::Site",
+				{
+						alias => 't2',
+						jointype => 'right', 
+						joinkey => 'course_user_id',
+						origkey => 'course_user_id',
+				}),
+		]);
+
+	return $course_user;
 }
 
 
