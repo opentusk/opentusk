@@ -43,11 +43,12 @@
 	my $has_code_options = 0;
 	my $school_id = TUSK::Core::School->getSchoolID($type_object->school);
 	my $course_id = $type_object->primary_key;
-	my $course_user_id = TUSK::Course::User->lookupReturnOne("course_id = $course_id and school_id = $school_id and user_id = '$user_id'", undef, undef, undef, undef);
-	my $permissions = ($course_user_id ? $m->comp("/tmpl/permission:has_role_with_functionality", 
+	my $course_user = $m->comp("SELF:getCourseUser");
+	my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
 				feature_type_token => 'course',
-				feature_id => $course_user_id->getPrimaryKeyID(),
+				feature_id => $course_user->getPrimaryKeyID(),
 				function_token => 'view_site_grades') : undef);
+
 	my $contentEditable = ($permissions ? 0 : 1);
 </%shared>
 
@@ -112,6 +113,7 @@ Code
 % }
 </table>
 </td></tr>
+% if (!$permissions) {
 <& /tmpl/element:save_button, params=>{
 	label			=> __('Save Changes'),
 	cancel_onclick	=> "go_back('/gradebook/author/gradelistbystudent/$type_path');",
@@ -119,6 +121,7 @@ Code
 	one_column		=> 1,
 	td_class		=> 'cell-right',
 } &>
+% }
 </form>
 % } else {
 <tr><td align="center"><br/><em><%__("No grade events associated.")%></em></td></tr>
@@ -128,6 +131,9 @@ Code
 <& SELF:print_failed_grades &>
 
 <%init>
+	if ($permissions) {
+		print "<script src=\"/scripts/jquery/jquery.min.js\">jQuery('#nav_bar').remove();</script>"
+	}
 	if (defined($ARGS{'submit_check'})) {
 		if ($ARGS{save_grade_date}) {
 			if ($ARGS{failed_grade_changed}) {
@@ -431,6 +437,10 @@ Code
 
 <%method jsarray>
 % 	return ['grade/gradebook.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js',];
+</%method>
+
+<%method get_nav_bars_conditional>
+%	return !$permissions;
 </%method>
 
 
