@@ -425,13 +425,13 @@ sub getScaledGrade {
 sub getFaculty {
 	my ($self, $args) = @_;
 
-	my $course_user = TUSK::Course::User->lookupReturnOne("course_id = " . $self->{course}->primary_key . " and school_id = " . TUSK::Core::School->getSchoolID($self->{course}->school) . " and user_id = '" . $self->{user_id} . "'", 
+	my $course_user = TUSK::Course::User->lookup("course_id = " . $self->{course}->primary_key . " and school_id = " . TUSK::Core::School->getSchoolID($self->{course}->school) . " and user_id = '" . $self->{user_id} . "'", 
 		undef, undef, undef, 
 		[
 				TUSK::Core::JoinObject->new("TUSK::Course::User::Site",
 				{
-						alias => 't2',
-						jointype => 'right', 
+						alias => 'course_user_site',
+						jointype => 'inner', 
 						joinkey => 'course_user_id',
 						origkey => 'course_user_id',
 				}),
@@ -441,9 +441,4 @@ sub getFaculty {
 }
 
 
-
 1;
-
-
-
-
