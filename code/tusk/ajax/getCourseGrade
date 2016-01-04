@@ -97,9 +97,10 @@
 %					$temp_quiz_hash{category} = $this_grade_category->getGradeCategoryName();
 %					$temp_quiz_hash{scaled_grade} = $scaled_grade;
 %					$temp_quiz_hash{comments} = $link->getComments();
-%					$quiz_hash{$event->getEventName()} = {%temp_quiz_hash};
-%					$completed_quizzes{$event->getEventName()} = {%temp_quiz_hash};
+%					$quiz_hash{$event->getPrimaryKeyID()} = {%temp_quiz_hash};
+%					$completed_quizzes{$event->getPrimaryKeyID()} = {%temp_quiz_hash};
 %					$temp_quiz_hash{name} = $event->getEventName();
+%					$temp_quiz_hash{id} = $event->getPrimaryKeyID();
 %#					push @completed_quizzes,{%quiz_hash};
 %					foreach my $cat(@grades_by_category) {
 %						if ((keys %{$cat})[0] eq $this_grade_category->getGradeCategoryName()) {
@@ -113,12 +114,15 @@
 			my $grade_category = TUSK::GradeBook::GradeCategory->lookupReturnOne("grade_category_id = $grade_category_id");
 			my %temp_quiz_hash;
 			$temp_quiz_hash{name} = $course_quiz->getEventName();
+			$temp_quiz_hash{grade} = $completed_quizzes{$course_quiz->getPrimaryKeyID()}{grade};
+			$temp_quiz_hash{scaled_grade} = $completed_quizzes{$course_quiz->getPrimaryKeyID()}{scaled_grade};
+			$temp_quiz_hash{comments} = $completed_quizzes{$course_quiz->getPrimaryKeyID()}{comments};
 			foreach my $cat(@grades_by_category) {
 
 				if (((keys %{$cat})[0] eq $grade_category->getGradeCategoryName())) {
 					my $duplicate = 0;
 					foreach my $this_hash(@{$cat->{$grade_category->getGradeCategoryName()}}) {
-						if ($this_hash->{name} eq $course_quiz->getEventName()) {
+						if ($this_hash->{id} eq $course_quiz->getPrimaryKeyID()) {
 							$duplicate = 1;
 							my $temp_copy_hash;	
 							$temp_copy_hash = {%$this_hash};
