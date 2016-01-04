@@ -62,8 +62,6 @@
 %			}	
 %			my %category_ids = map {$_ => 1} @category_ids_temp;
 %			my %temp_hash;
-%			$temp_hash{"Uncategorized"} = [];
-%			push @grades_by_category, {%temp_hash};
 %		foreach my $event (@{$events}) {
 %			my $this_grade_category_id = $event->getGradeCategoryID();
 %			my $this_grade_category = TUSK::GradeBook::GradeCategory->lookupReturnOne("grade_category_id = $this_grade_category_id");
@@ -162,8 +160,10 @@
 	foreach my $course_quiz(@{$course_quizzes}) {
 		if (exists $completed_quizzes{$course_quiz->getEventName()} && $no_cat == 1) {
 			print "<tr>";
+			print "<td class=\"html_row\">Uncategorized</td>";
+			print "</tr>";				
+			print "<tr>";
 			print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName() ."</td>";
-#			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{category} ."</td>";
 			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{grade} ."</td>";
 			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{scaled_grade} ."</td>";
 			print "<td class=\"html_row\">" . $completed_quizzes{$course_quiz->getEventName()}{comments} ."</td>";
@@ -172,6 +172,9 @@
 		}
 		else {
 			if (!exists($category_ids{$course_quiz->getGradeCategoryID()})){
+				print "<tr>";
+				print "<td class=\"html_row\"><b>Uncategorized</b></td>";
+				print "</tr>";				
 				print "<tr>";
 				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName() . "</td>";
 				print "</tr>";
