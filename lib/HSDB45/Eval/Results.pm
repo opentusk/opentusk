@@ -158,27 +158,38 @@ sub user_codes {
     my $self = shift;
 
     unless($self->{-user_codes}) {
-        my @user_codes;
+        my %user_codes;
         my $eval_id = $self->parent_eval()->primary_key();
-        my $evaluatee_id = $self->evaluatee_id();
-        my $teaching_site_id = $self->teaching_site_id();
-        my $dbh = HSDB4::Constants::def_db_handle();
-        my $op1 = ($evaluatee_id) ? '=' : '<>';
-        my $op2 = ($teaching_site_id) ? '=' : '<>';
-        my $sql = qq(
-            SELECT DISTINCT evaluator_code
-            FROM tusk.eval_entry
-            WHERE eval_id = ? AND evaluatee_id $op1 ? AND teaching_site_id $op2 ?
-        );
-        eval {
-            my $sth = $dbh->prepare($sql);
-            $sth->execute($eval_id, $evaluatee_id, $teaching_site_id);
-            while ((my $code) = $sth->fetchrow_array()) {
-                push @user_codes, $code;
+
+        if ($self->parent_eval()->is_teaching_eval()) {
+            my $evaluatee_id = $self->evaluatee_id();
+            my $teaching_site_id = $self->teaching_site_id();
+            my $dbh = HSDB4::Constants::def_db_handle();
+            my $op1 = ($evaluatee_id) ? '=' : '<>';
+            my $op2 = ($teaching_site_id) ? '=' : '<>';
+            my $sql = qq(
+                SELECT DISTINCT evaluator_code
+                FROM tusk.eval_entry
+                WHERE eval_id = ? AND evaluatee_id $op1 ? AND teaching_site_id $op2 ?
+            );
+            eval {
+                my $sth = $dbh->prepare($sql);
+                $sth->execute($eval_id, $evaluatee_id, $teaching_site_id);
+                while ((my $code) = $sth->fetchrow_array()) {
+                    $user_codes{$code}++;
+                }
+            };
+            warn "Error trying to get user codes: $@" if ($@);
+        } else {
+            my $blank_resp = HSDB45::Eval::Question::Response->new(_school => $self->parent_eval()->school());
+            my @conds = ("eval_id = $eval_id");
+            my @resps = $blank_resp->lookup_conditions(@conds);
+            foreach my $resp (@resps) {
+                $user_codes{$resp->user_code()}++;
             }
-        };
-        warn "Error trying to get user codes: $@" if ($@);
-        $self->{-user_codes} = \@user_codes;
+        }
+
+        $self->{-user_codes} = [keys(%user_codes)];
     }
 
     return @{$self->{-user_codes}};
