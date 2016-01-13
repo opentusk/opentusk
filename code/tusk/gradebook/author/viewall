@@ -13,7 +13,9 @@
  See the License for the specific language governing permissions and 
  limitations under the License.
 </%doc>
-
+<%attr>
+	show_tp_dropdown_no_cache => 1
+</%attr>
 <%once>
 	use TUSK::Application::HTML::Strip;
 	use TUSK::GradeBook::GradeEvent;
@@ -26,11 +28,8 @@
 
 <%shared>
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
-	my $course_user = $m->comp("SELF:getCourseUser");
-	my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
-					feature_type_token => 'course',
-					feature_id => $course_user->getPrimaryKeyID(),
-					function_token => 'view_site_grades') : undef);
+	my $course_user_links = $m->comp("SELF:getCourseUser");
+	my $permissions = $m->comp("SELF:getCourseUserPermissions");
 </%shared>
 
 <%method cms_min_course_role>
@@ -63,6 +62,7 @@ push @site_dropdown_options, {
 
 my @filtered_site_dropdown_options;
 my @unfiltered_site_dropdown_options = ();
+my $authorized_time_period_access = ($permissions ? 0 : 1);
 
 my @course_sites = $type_object->child_teaching_sites();
 
@@ -75,228 +75,239 @@ for my $site (@course_sites) {
 	};
 }
 
-if ($course_user) {
-	for my $site (@{$course_user->getJoinObjects('t2')})
-	{
-		push @site_director_sites, ($site->getTeachingSiteID());
-		$site_director_teaching_site{$site->getTeachingSiteID()} = 1;
-		push @filtered_site_dropdown_options, {
-			value => $site->getTeachingSiteID(),
-			label => $course_site{$site->getTeachingSiteID()}
-		};
+
+for my $course_user_link (@$course_user_links)
+{
+	if ($course_user_link->getTimePeriodID() == $time_period_id) {
+		for my $site (@{$course_user_link->getJoinObjects('course_user_site')})
+		{
+			push @site_director_sites, ($site->getTeachingSiteID());
+			$site_director_teaching_site{$site->getTeachingSiteID()} = 1;
+			push @filtered_site_dropdown_options, {
+				value => $site->getTeachingSiteID(),
+				label => $course_site{$site->getTeachingSiteID()}
+			};
+		}
+		$authorized_time_period_access = 1;
 	}
 }
 
-if ($permissions && $ARGS{'teachingSite'} && !$site_director_teaching_site{$ARGS{'teachingSite'}})
-{	
+
+if ($permissions && $ARGS{'teachingSite'} && !$site_director_teaching_site{$ARGS{'teachingSite'}}) {	
 	$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
 }
 
-if ($permissions)
-{
+if ($permissions) {
 	@site_dropdown_options = (@site_dropdown_options, @filtered_site_dropdown_options);
-	$time_period_id = $course_user->getTimePeriodID();
 } else {
 	@site_dropdown_options = (@site_dropdown_options, @unfiltered_site_dropdown_options);
-}
+} 
 
 unless (defined $time_period_id) {
 	my $msg = TUSK::Core::SessionTimePeriod::course_time_periods($m->comp("/tmpl/url:get_type_object"), undef, $m->session);
 		$time_period_id = $m->comp("SELF:get_timeperiod_id");
 }
 
+if ($authorized_time_period_access) {
 
-if (ref($type_object) eq "HSDB45::Course"){
-		$events = TUSK::GradeBook::GradeEvent->new->getCourseEvents($type_object->school, $type_object->primary_key, $time_period_id);
-} 
-else{
-		$m->comp("/tmpl/url:redirect", message => __("FAILURE"));	
-}
-
-my $size = scalar (@$events);
-
-</%perl>
-
-<table>
-<tr>
-% if (!$permissions) {
-<td>
-<& /tmpl/element:cms_button_row,
-		links => [
-				{display_txt => 'Export',
-				link_txt    => '/gradebook/author/exportall/'.$type_path.'/'.$time_period_id}
-	]
-&>
-% }
-</td><td>
-<& SELF:print_gradebook_tools &>
-</td></tr>
-
-<%perl>
-
-$m->comp('/tmpl/element:dropdown', params => {
-	options => \@site_dropdown_options,
-	label => "Teaching Site",
-		onchange => "location.href = '?teachingSite=' + this.options[this.selectedIndex].value",
-		selected => $ARGS{'teachingSite'} || 0,
-		style => "width: 233px; margin-left: -4px"});
-</%perl>
-
-</table>
-<br/>
-
-<table class="tusk" width="100%" cellspacing="2" >
-<tr bgcolor="#B1B9DC"> <font color="#aaa">
-
-<td class='header-center-small' colspan='1'></td>
-<%perl>
-my %categoryColumns => ();
-for (my $i=0; $i < $size; $i++)
-{
-	if (exists $categoryColumns{@$events[$i]->getGradeCategoryID()}){
-		$categoryColumns{@$events[$i]->getGradeCategoryID()} += 1;
-	} else {
-		$categoryColumns{@$events[$i]->getGradeCategoryID()} = 1;
+	if (ref($type_object) eq "HSDB45::Course"){
+			$events = TUSK::GradeBook::GradeEvent->new->getCourseEvents($type_object->school, $type_object->primary_key, $time_period_id);
+	} 
+	else{
+			$m->comp("/tmpl/url:redirect", message => __("FAILURE"));	
 	}
-}
 
-for my $i (sort keys %categoryColumns){
-	my $gradeCategoryName = TUSK::GradeBook::GradeCategory->lookupKey($i)->{_field_values}->{grade_category_name};
-	print "<td class='header-center-small' colspan='" . $categoryColumns{$i} . "'>$gradeCategoryName</td>";
-}
+	my $size = scalar (@$events);
 
-print "</tr>";
-</%perl>
+	</%perl>
 
-<tr class = "header odd">
-<td class="header-left" width="45%">
+	<table>
+	<tr>
+% if (!$permissions) {
+	<td>
+	<& /tmpl/element:cms_button_row,
+			links => [
+					{display_txt => 'Export',
+					link_txt    => '/gradebook/author/exportall/'.$type_path.'/'.$time_period_id}
+		]
+	&>
+% }
 
-Name
-</td>
+% if ($permissions) {
+	<& /tmpl/element:labelbox, label => 'Grade Book Tools:' &>
+% }
 
-<%perl>
-for (my $i=0; $i < $size; $i++)
-{
-	my $event_id = @$events[$i]->getGradeEventID(); 
-	my $name = @$events[$i]->getEventName();
-	print "<td class='header-center-small' colspan='1'><a href='/gradebook/author/addedit/$type_path/$event_id'>$name</a> </td>";
-}
-print "</tr>";
-my @students;
+	</td><td>
+	<& SELF:print_gradebook_tools &>
+	</td></tr>
 
+	<%perl>
 
+	$m->comp('/tmpl/element:dropdown', params => {
+		options => \@site_dropdown_options,
+		label => "Teaching Site:",
+			onchange => "location.href = '?teachingSite=' + this.options[this.selectedIndex].value",
+			selected => $ARGS{'teachingSite'} || 0,
+			style => "width: 233px; margin-left: -4px"});
+	</%perl>
 
-if (ref($type_object) eq "HSDB45::Course"){
-	@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), $ARGS{'teachingSite'} == 0 ? 
-		($permissions ? \@site_director_sites : undef) : $ARGS{'teachingSite'});
-} else {
-	$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
-}
+	</table>
+	<br/>
 
+	<table class="tusk" width="100%" cellspacing="2" >
+	<tr bgcolor="#B1B9DC"> <font color="#aaa">
 
-
-$size = scalar(@students);
-
-my $class; #used to store style class of <tr>
-
-
-#for each student
-for  (my $i=0; $i < $size; $i++)
-{
-
-		
-	my $stdnt = $students[$i]->user_id();
-	my $fname = $students[$i]->first_name();
-	my $lname = $students[$i]->last_name();
-
-			
-	if( $i % 2 ==0)	{	$class="even"; }
-	else { $class="odd"; }	
-		 
-	print "<tr class='$class'><td><a href='/gradebook/author/gradeaddeditbystudent/$type_path/$stdnt'> ".$lname.",".$fname."</a></td>";
-
-		#for each grade event
-	my $stripObj = TUSK::Application::HTML::Strip->new();
-		for (my $j=0; $j < scalar(@$events); $j++)
+	<td class='header-center-small' colspan='1'></td>
+	<%perl>
+	my %categoryColumns => ();
+	for (my $i=0; $i < $size; $i++)
 	{
-		my $event_id = @$events[$j]->getGradeEventID(); 
-		my $qString = "parent_user_id = '$stdnt' and child_grade_event_id = $event_id";
-		my $linkugrades = TUSK::GradeBook::LinkUserGradeEvent->lookupReturnOne($qString);
-		if(defined($linkugrades)){
-			my $grade = $linkugrades->getGrade();
-				print "<td class='layers-center'> " . $stripObj->removeHTML($grade) . " </td>";
-		}else {
-			print "<td  class='layers-center'>  </td>";
+		if (exists $categoryColumns{@$events[$i]->getGradeCategoryID()}){
+			$categoryColumns{@$events[$i]->getGradeCategoryID()} += 1;
+		} else {
+			$categoryColumns{@$events[$i]->getGradeCategoryID()} = 1;
 		}
 	}
-		
+
+	for my $i (sort keys %categoryColumns){
+		my $gradeCategoryName = TUSK::GradeBook::GradeCategory->lookupKey($i)->{_field_values}->{grade_category_name};
+		print "<td class='header-center-small' colspan='" . $categoryColumns{$i} . "'>$gradeCategoryName</td>";
+	}
+
 	print "</tr>";
-}
+	</%perl>
 
-my @all_grades;
-my @all_means;
-print "<tr class='odd'><td  class='header-left' width='45%'> Mean* </td>";
+	<tr class = "header odd">
+	<td class="header-left" width="45%">
 
-for(my $i=0; $i < scalar(@$events); $i++)
-{
+	Name
+	</td>
 
-
-	my ($grades_data, $saved_grades) = @$events[$i]->getGradeRecords($type_object, $m->comp("SELF:get_timeperiod_id"));
-
-	my @nums;
-	my $j=0;
-
-	while(@$grades_data[$j])
+	<%perl>
+	for (my $i=0; $i < $size; $i++)
 	{
-		my $grade = @$grades_data[$j]->{'grade'};
-	
-		
-		if (defined($grade)) {
-			push(@nums,$grade);
-		}	
-		$j++;
+		my $event_id = @$events[$i]->getGradeEventID(); 
+		my $name = @$events[$i]->getEventName();
+		print "<td class='header-center-small' colspan='1'><a href='/gradebook/author/addedit/$type_path/$event_id'>$name</a> </td>";
+	}
+	print "</tr>";
+	my @students;
+
+
+
+	if (ref($type_object) eq "HSDB45::Course"){
+		@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), $ARGS{'teachingSite'} == 0 ? 
+			($permissions ? \@site_director_sites : undef) : $ARGS{'teachingSite'});
+	} else {
+		$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
 	}
 
-		
-	my $mean ;
-	if( scalar(@nums) > 0 )
+
+
+	$size = scalar(@students);
+
+	my $class; #used to store style class of <tr>
+
+
+	#for each student
+	for  (my $i=0; $i < $size; $i++)
 	{
-		$mean= TUSK::GradeBook::GradeStats->getMean(@nums);
+
+			
+		my $stdnt = $students[$i]->user_id();
+		my $fname = $students[$i]->first_name();
+		my $lname = $students[$i]->last_name();
+
+				
+		if( $i % 2 ==0)	{	$class="even"; }
+		else { $class="odd"; }	
+			 
+		print "<tr class='$class'><td><a href='/gradebook/author/gradeaddeditbystudent/$type_path/$stdnt'> ".$lname.",".$fname."</a></td>";
+
+			#for each grade event
+		my $stripObj = TUSK::Application::HTML::Strip->new();
+			for (my $j=0; $j < scalar(@$events); $j++)
+		{
+			my $event_id = @$events[$j]->getGradeEventID(); 
+			my $qString = "parent_user_id = '$stdnt' and child_grade_event_id = $event_id";
+			my $linkugrades = TUSK::GradeBook::LinkUserGradeEvent->lookupReturnOne($qString);
+			if(defined($linkugrades)){
+				my $grade = $linkugrades->getGrade();
+					print "<td class='layers-center'> " . $stripObj->removeHTML($grade) . " </td>";
+			}else {
+				print "<td  class='layers-center'>  </td>";
+			}
+		}
+			
+		print "</tr>";
+	}
+
+	my @all_grades;
+	my @all_means;
+	print "<tr class='odd'><td  class='header-left' width='45%'> Mean* </td>";
+
+	for(my $i=0; $i < scalar(@$events); $i++)
+	{
+
+
+		my ($grades_data, $saved_grades) = @$events[$i]->getGradeRecords($type_object, $m->comp("SELF:get_timeperiod_id"));
+
+		my @nums;
+		my $j=0;
+
+		while(@$grades_data[$j])
+		{
+			my $grade = @$grades_data[$j]->{'grade'};
+		
+			
+			if (defined($grade)) {
+				push(@nums,$grade);
+			}	
+			$j++;
+		}
+
+			
+		my $mean ;
+		if( scalar(@nums) > 0 )
+		{
+			$mean= TUSK::GradeBook::GradeStats->getMean(@nums);
+			
+		}
+		else { $mean ="na" }
+		push(@all_grades,[@nums]);
+		push(@all_means,$mean);
+		printf "<td class='layers-center'>  %4.1f  </td>",$mean;
 		
 	}
-	else { $mean ="na" }
-	push(@all_grades,[@nums]);
-	push(@all_means,$mean);
-	printf "<td class='layers-center'>  %4.1f  </td>",$mean;
-	
-}
 
 
-print "</tr>";
+	print "</tr>";
 
-print "<tr class='odd'><td  class='header-left' width='45%'> " . __("Standard Deviation*") . " </td>";
-for(my $i=0; $i < scalar(@$events); $i++)
-{
+	print "<tr class='odd'><td  class='header-left' width='45%'> " . __("Standard Deviation*") . " </td>";
+	for(my $i=0; $i < scalar(@$events); $i++)
+	{
 
 
-	my $stdev;
-	if( defined($all_grades[$i]) && scalar(@{$all_grades[$i]})  > 0  && $all_means[$i] ne "na" ) {
-	
-		$stdev = TUSK::GradeBook::GradeStats->getStandardDeviation($all_means[$i],@{$all_grades[$i]});
+		my $stdev;
+		if( defined($all_grades[$i]) && scalar(@{$all_grades[$i]})  > 0  && $all_means[$i] ne "na" ) {
+		
+			$stdev = TUSK::GradeBook::GradeStats->getStandardDeviation($all_means[$i],@{$all_grades[$i]});
 
+		}
+		else { $stdev = "na" ; }
+		
+		printf "<td class='layers-center'>  %4.1f  </td>",$stdev;
+		
 	}
-	else { $stdev = "na" ; }
-	
-	printf "<td class='layers-center'>  %4.1f  </td>",$stdev;
-	
-}
-print "</tr>";
-</%perl>
+	print "</tr>";
+	</%perl>
 
 
-</table>
+	</table>
 % print "*If the course has teaching sites, this is the mean/standard deviation for all students across all teaching sites.";
-
+% } else {
+% print "You don't have enough priviliges -- for this time period -- in order to continue with the request.";
+% }
 <%method get_nav_bars_conditional>
 %	return !$permissions;
 </%method>
