@@ -431,7 +431,7 @@ sub getFaculty {
 				TUSK::Core::JoinObject->new("TUSK::Course::User::Site",
 				{
 						alias => 'course_user_site',
-						jointype => 'inner', 
+						jointype => 'left', 
 						joinkey => 'course_user_id',
 						origkey => 'course_user_id',
 				}),

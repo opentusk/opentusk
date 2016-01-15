@@ -30,6 +30,7 @@
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
 	my $course_user_links = $m->comp("SELF:getCourseUser");
 	my $permissions = $m->comp("SELF:getCourseUserPermissions");
+	my $sites_attached = ($permissions ? 0 : 1);
 </%shared>
 
 <%method cms_min_course_role>
@@ -81,6 +82,7 @@ for my $course_user_link (@$course_user_links)
 	if ($course_user_link->getTimePeriodID() == $time_period_id) {
 		for my $site (@{$course_user_link->getJoinObjects('course_user_site')})
 		{
+			$sites_attached = 1;
 			push @site_director_sites, ($site->getTeachingSiteID());
 			$site_director_teaching_site{$site->getTeachingSiteID()} = 1;
 			push @filtered_site_dropdown_options, {
@@ -194,11 +196,15 @@ if ($authorized_time_period_access) {
 	my @students;
 
 
-
 	if (ref($type_object) eq "HSDB45::Course"){
+		if (!$sites_attached) {
+			@students = ();
+		} else {
 		@students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), $ARGS{'teachingSite'} == 0 ? 
 			($permissions ? \@site_director_sites : undef) : $ARGS{'teachingSite'});
-	} else {
+		}
+	} 
+	else {
 		$m->comp("/tmpl/url:redirect", message => __("FAILURE"));
 	}
 
@@ -306,7 +312,7 @@ if ($authorized_time_period_access) {
 	</table>
 % print "*If the course has teaching sites, this is the mean/standard deviation for all students across all teaching sites.";
 % } else {
-% print "You don't have enough priviliges -- for this time period -- in order to continue with the request.";
+% print "<br><i>You don't have enough priviliges for this time period in order to continue with the request.</i>";
 % }
 <%method get_nav_bars_conditional>
 %	return !$permissions;
