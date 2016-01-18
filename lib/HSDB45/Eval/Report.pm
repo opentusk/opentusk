@@ -29,25 +29,29 @@ sub quick_report {
 
   my $results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
 
-  print "<ol>";
+  print '<ol>';
   foreach my $question ($eval->questions()) {
-		my $question_text = $question->body()->question_text();
 		my $question_type = $question->body()->question_type();
 		next if ($question_type eq 'Title');
-    print "<li>" unless ($question_type eq 'Instruction');
-		print "<p>$question_text</p>";
+    print '<li>' unless ($question_type eq 'Instruction');
+		printf('<p>%s</p>', $question->body()->question_text());
 		next if ($question_type eq 'Instruction');
 		my $question_results = HSDB45::Eval::Question::Results->new($question, $results);
+		print_responses($question_results) if ($question_results->isa('HSDB45::Eval::Question::Results::Textual'));
 		print_statistics($question_results) if ($question_results->is_numeric());
-		print "</li>";
+		print '</li>';
 	}
-  print "</ol>";
+  print '</ol>';
 }
 
-sub print_results() {
+sub print_responses() {
 	my $question_results = shift;
 
-	my $responses = $question_results->responses();
+	print '<ul>';
+	foreach my $response ($question_results->responses()) {
+			printf('<li>%s', $response->response()) if ($response->response());
+	}
+	print '</ul>';
 }
 
 sub print_statistics() {
