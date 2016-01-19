@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -26,7 +26,7 @@ BEGIN {
     require HSDB4::SQLSelect;
 
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
-    
+
     @ISA = qw(Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
@@ -49,7 +49,7 @@ sub new {
 
     # Get the field/value pairs that are being initialized from @_ and
     # use them to form the hash reference, bless the ref and return it
-    
+
     my $self = { _tablename => '',
 		 _fields => [],
 		 _blob_fields => {},
@@ -119,12 +119,12 @@ sub school_db {
 
 sub school_id {
     my $self = shift;
-    
+
     unless (defined $self->{_school_id}){
 	my $school_obj = TUSK::Core::School->lookupReturnOne("school_name = '" . lc($self->school()) . "'");
 	$self->{_school_id} = $school_obj->getPrimaryKeyID();
     }
-    
+
     return $self->{_school_id};
 }
 
@@ -133,7 +133,7 @@ sub split_by_school {
     return 0;
 }
 
-sub table { 
+sub table {
     #
     # Return the defined table name
     #
@@ -157,7 +157,7 @@ sub primary_key_field {
 
 sub is_primary_key_field {
     #
-    # Returns a true value if the argument is or is part of the table's 
+    # Returns a true value if the argument is or is part of the table's
     # primary key
     #
 
@@ -202,19 +202,19 @@ sub primary_key_condition {
 
     # If we didn't get enough keys as arguments, get them from primary_key()
     if (@keys < @to_be_quoted) { @keys = $self->primary_key }
-    
+
     # Make the condition using the field names in @to_be_quoted, the actual
     # key values in @keys, and the $dbh to quote them
-    my $cond = 
+    my $cond =
       HSDB4::SQLCondition->new('AND',
 			       map { sprintf ("%s=%s", $to_be_quoted[$_],
-					      $dbh->quote ($keys[$_])) 
+					      $dbh->quote ($keys[$_]))
 				     } 0..$#to_be_quoted);
     # Now return the condition
     return $cond->get_sql;
 }
-	  
-sub fields { 
+
+sub fields {
     #
     # Returns the complete field list for this table
     #
@@ -238,7 +238,7 @@ sub is_field_numeric {
     return 1;
 }
 
-sub is_field_blob { 
+sub is_field_blob {
     #
     # Determines whether a field name is a BLOB field (ie, is external to the
     # database)
@@ -307,7 +307,7 @@ sub field_value {
     # set the value
     if (defined $val
 	and not $self->is_primary_key_field ($field)
-	and (!defined($self->{$field}) 
+	and (!defined($self->{$field})
 		or $self->{$field} ne $val)) {
 	unless ($flag){
 	    # Initialize the modified array if necessary
@@ -408,7 +408,7 @@ sub get_field_values {
 
 sub set_field_values {
     #
-    # Sets a whole bunch of field/value pairs 
+    # Sets a whole bunch of field/value pairs
     # Note: works with the _modified hashref to keep track of old values
     # Note: *cannot* be used to set the primary key. Use primary_key() for that
     #
@@ -426,7 +426,7 @@ sub set_field_values {
 	    confess "tried to set primary key '" . $field . "' in set_field_values for class " . ref($self);
 	}
 
-	if (!defined ($self->{$field}) or (!defined($val)) 
+	if (!defined ($self->{$field}) or (!defined($val))
 		or $self->{$field} ne $val) {
 	    # Initialize the modified array if necessary
 	    $self->{_modified} = {} unless $self->{_modified};
@@ -439,7 +439,7 @@ sub set_field_values {
 }
 
 sub changed_fields {
-    # 
+    #
     # Returns the fields which have changed
     #
 
@@ -483,12 +483,12 @@ sub set_aux_info {
     # Now go through a set of key => val pairs, setting them one by one
     while (my ($key, $val) = splice (@_, 0, 2)) {
 	$self->{_aux_info}{$key} = $val;
-	
+
     }
 }
 
 sub clear_aux_info {
-    # 
+    #
     # Clear all the aux info
     #
 
@@ -498,7 +498,7 @@ sub clear_aux_info {
 
 sub init_values {
     #
-    # Takes a list of values in a canonical order, and puts then into the 
+    # Takes a list of values in a canonical order, and puts then into the
     # object associated with the correct fields.  The keys are assumed to
     # be at the front in the canonical order.
     #
@@ -510,11 +510,11 @@ sub init_values {
 
     # Now just set the remaining values
     @{$self}{@fields} = @data;
-    
+
 }
 
 sub reset {
-    # 
+    #
     # Reset the object to a blank hashref rather than one filled in with
     # interesting bits. (Actually, *not* blank, but rather containing the
     # important stuff. Really, a copy of a new object.)
@@ -563,13 +563,13 @@ sub lookup_key {
 
     # Form the statement
     my $cond = $self->primary_key_condition (@keys);
-    my $select = 
+    my $select =
       HSDB4::SQLSelect->new (-table => $self->get_sql_table,
 			     -conditions => $cond);
-	
 
 
-    # Prepare/execute/fetchrow using selectrow_array and use that list of 
+
+    # Prepare/execute/fetchrow using selectrow_array and use that list of
     # values as the values (with the init_values() method).
     $self->primary_key (@keys);
 
@@ -611,11 +611,11 @@ sub lookup_fields {
 
 	# Form the select statement
 	my $cond = $self->primary_key_condition ();
-	my $select = 
+	my $select =
 	  HSDB4::SQLSelect->new (-table => $table,
 				 -conditions=>$cond);
 
-	# Prepare/execute/fetchrow it using selectrow_array and pull in 
+	# Prepare/execute/fetchrow it using selectrow_array and pull in
 	# the value
 	$query = $select->get_sql;
 	@values = $dbh->selectrow_array($query);
@@ -631,7 +631,7 @@ sub lookup_fields {
 
 sub lookup_conditions {
     #
-    # Get a bunch of objects based on a set of SQL conditions from the 
+    # Get a bunch of objects based on a set of SQL conditions from the
     # appropriate table
     #
     # Get the incoming object or class name
@@ -694,9 +694,9 @@ sub lookup_conditions {
     return @out_objects;
 }
 
-sub lookup_all { 
+sub lookup_all {
     #
-    # Getting all the rows is just a special case where there are no 
+    # Getting all the rows is just a special case where there are no
     # conditions, so run it like that.
     #
 
@@ -747,7 +747,7 @@ sub save {
 	# Get the set of field/new val pairs in a field='val' form
 	my @changes=();
 	foreach ($self->changed_fields) {
-	    push @changes, sprintf ("%s=%s", $_, 
+	    push @changes, sprintf ("%s=%s", $_,
 				    $dbh->quote($self->field_value ($_)));
 	}
 	my $cond = $self->primary_key_condition ();
@@ -781,7 +781,7 @@ sub save {
 	};
 	die "$@\t...save failed for class " . ref($self) . " with query: " . $query if $@;
 
-	# Set our own internal primary key and set that val to 
+	# Set our own internal primary key and set that val to
 	# the return val for the function
 
 	$self->primary_key($dbh->{'mysql_insertid'}) unless($self->primary_key);
@@ -821,7 +821,7 @@ sub delete {
     die "$@\t...delete failed to obtain database handle for class " . ref($self) if $@;
 
     my $query = sprintf("DELETE FROM %s WHERE %s",
-			$self->table, 
+			$self->table,
 			$self->primary_key_condition);
     eval {
 	$retval = $dbh->do($query);
@@ -835,8 +835,8 @@ sub delete {
     }
 
     # 0 if we changed no rows, 1 if we changed just the correct row,
-    # and more than one if we changed many rows. 
-    return $retval;   
+    # and more than one if we changed many rows.
+    return $retval;
 }
 
 sub out_html_save {
@@ -920,7 +920,7 @@ sub out_html_abbrev {
     #
 
     my $self = shift;
-    return sprintf ("<A HREF=\"%s\">%s</A>", $self->out_url, 
+    return sprintf ("<A HREF=\"%s\">%s</A>", $self->out_url,
 		    $self->out_abbrev);
 }
 
@@ -945,7 +945,7 @@ sub lookup_path {
 }
 
 sub is_user_authorized {
-    # 
+    #
     # Decide whether a named user is authorized to look at an item from
     # the database. By default, everything is public.
     #
@@ -960,7 +960,7 @@ sub escape_text {
     #
 
     my ($text) = @_;
-    return XML::EscapeText::spec_chars_name($text);
+    return XML::EscapeText::spec_chars_number($text);
 }
 
 1;
@@ -977,7 +977,7 @@ A virtual class intended to be subclassed.  Used to get retrieve individual rows
 =head1 SYNOPSIS
 
     # A subclass of SQLRow
-    package HSDB4::SQLRow::Subclass; 
+    package HSDB4::SQLRow::Subclass;
     use HSDB4::SQLRow;
     @ISA = qw(SQLRow Exporter);
 
@@ -993,14 +993,14 @@ A virtual class intended to be subclassed.  Used to get retrieve individual rows
 
     # Create a cache
     my %cache = ();
-    
+
     # Make a constructor that calls the SQLRow constructor
     sub new {
 	# Find out what class we are
 	my $class = shift;
 	$class = ref $class || $class;
 	# Call the super-class's constructor and give it all the values
-	my $self = 
+	my $self =
 	    $class->SUPER::new ( _tablename => $tablename,
 				 _fields => \@fields,
 				 _blob_fields => \%blob_fields,
@@ -1174,7 +1174,7 @@ Inadequately tested.
 
 =item *
 
-The fact that it isn't finished?  That's a major one.  
+The fact that it isn't finished?  That's a major one.
 
 =back
 

@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -26,7 +26,7 @@ use vars qw($VERSION);
 use Carp;
 use TUSK::Constants;
 
-our $prolog = $TUSK::Constants::EvalDTD; 
+our $prolog = $TUSK::Constants::EvalDTD;
 
 sub version {
     return $VERSION;
@@ -106,15 +106,15 @@ sub init {
     my $self = shift;
     my $question = shift;
     $self->{-question} = $question;
-    my $twig = XML::Twig->new('EmptyTags' => 'html', 
+    my $twig = XML::Twig->new('EmptyTags' => 'html',
 			      'comments' => 'keep',
 			      # 'input_filter' => 'safe',
 			      'output_filter' => 'safe'
 			      );
-    eval { 
+    eval {
 		my $body = $question->field_value( 'body' );
 		if ($body !~ m/^\<\?xml/){
-			$body = $prolog.$body;	
+			$body = $prolog.$body;
 		}
 		$twig->parse( $body ); };
     if ($@) {
@@ -125,7 +125,7 @@ sub init {
     $self->{-elt} = $twig->first_elt();
     # Deal with the old-time question problem
     if ($self->elt()->gi() eq 'question') {
-	my $convert = 
+	my $convert =
 	  HSDB45::Eval::Question::Body::Converter->new ($self->question(),
 							$self->elt());
 
@@ -141,8 +141,8 @@ sub init {
 }
 
 # Description: Blesses a new Body object into the right class
-# Input: 
-# Output: The re-blessed Eval::Question::Body::* object		 
+# Input:
+# Output: The re-blessed Eval::Question::Body::* object
 sub rebless {
     my $self = shift;
     my $type = $self->question_type();
@@ -237,7 +237,7 @@ sub set_question_text {
     my $self = shift;
     my $new_text = shift;
 
-    $new_text = XML::EscapeText::spec_chars_name($new_text);
+    $new_text = XML::EscapeText::spec_chars_number($new_text);
 
     my $new_elt;
     my $question_text = <<EOM;
