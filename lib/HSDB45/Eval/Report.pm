@@ -31,12 +31,14 @@ sub quick_report {
 
   print '<ol>';
   foreach my $question ($eval->questions()) {
-		my $question_type = $question->body()->question_type();
+		my $body = $question->body();
+		my $question_type = $body->question_type();
 		next if ($question_type eq 'Title');
     print '<li>' unless ($question_type eq 'Instruction');
-		printf('<p>%s</p>', $question->body()->question_text());
+		printf('<p>%s</p>', $body->question_text());
 		next if ($question_type eq 'Instruction');
 		my $question_results = HSDB45::Eval::Question::Results->new($question, $results);
+		print_legend($body) if ($question_type eq 'NumericRating');
 		print_responses($question_results) if ($question_results->isa('HSDB45::Eval::Question::Results::Textual'));
 		print_statistics($question_results) if ($question_results->is_numeric());
 		print '</li>';
@@ -52,6 +54,13 @@ sub print_responses() {
 			printf('<li>%s', $response->response()) if ($response->response());
 	}
 	print '</ul>';
+}
+
+sub print_legend() {
+	my $body = shift;
+
+	printf('<p><b>High:</b> %s<br>', $body->high_text());
+	printf('<b>Low:</b> %s</p>', $body->low_text());
 }
 
 sub print_statistics() {
