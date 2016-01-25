@@ -27,23 +27,26 @@ sub quick_report {
 	my $evaluatee_id = shift;
 	my $teaching_site_id = shift;
 
-  my $results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
+	my $results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
 
-  print '<ol>';
-  foreach my $question ($eval->questions()) {
+	print '<ol>';
+	foreach my $question ($eval->questions()) {
 		my $body = $question->body();
 		my $question_type = $body->question_type();
 		next if ($question_type eq 'Title');
-    print '<li>' unless ($question_type eq 'Instruction');
+		print '<li>' unless ($question_type eq 'Instruction');
 		printf('<p>%s</p>', $body->question_text());
 		next if ($question_type eq 'Instruction');
-		my $question_results = HSDB45::Eval::Question::Results->new($question, $results);
 		print_legend($body) if ($question_type eq 'NumericRating');
-		print_responses($question_results) if ($question_results->isa('HSDB45::Eval::Question::Results::Textual'));
-		print_statistics($question_results) if ($question_results->is_numeric());
+		my $question_results = HSDB45::Eval::Question::Results->new($question, $results);
+		if ($question_results->isa('HSDB45::Eval::Question::Results::Textual')) {
+			print_responses($question_results);
+		} else {
+			print_statistics($question_results);
+		}
 		print '</li>';
 	}
-  print '</ol>';
+	print '</ol>';
 }
 
 sub print_responses() {
@@ -51,7 +54,7 @@ sub print_responses() {
 
 	print '<ul>';
 	foreach my $response ($question_results->responses()) {
-			printf('<li>%s', $response->response()) if ($response->response());
+		printf('<li>%s', $response->response()) if ($response->response());
 	}
 	print '</ul>';
 }
@@ -68,10 +71,23 @@ sub print_statistics() {
 
 	my $statistics = $question_results->statistics();
 
-	printf('<p><b>N:</b> %d, <b>NA:</b> %d<br>', $statistics->count(), $statistics->na_count());
-	printf('<b>Mean:</b> %.2f, <b>Std Dev:</b> %.2f<br>', $statistics->mean(), $statistics->standard_deviation());
-	printf('<b>Median:</b> %.2f, <b>25%%:</b> %.2f, <b>75%%:</b> %.2f<br>', $statistics->median(), $statistics->median25(), $statistics->median75());
-	printf('<b>Mode:</b> %.2f</p>', $statistics->mode());
+	if ($question_results->is_numeric()) {
+		printf('<p><b>N:</b> %d, <b>NA:</b> %d<br>', $statistics->count(), $statistics->na_count());
+		printf('<b>Mean:</b> %.2f, <b>Std Dev:</b> %.2f<br>', $statistics->mean(), $statistics->standard_deviation());
+		printf('<b>Median:</b> %.2f, <b>25%%:</b> %.2f, <b>75%%:</b> %.2f<br>', $statistics->median(), $statistics->median25(), $statistics->median75());
+		printf('<b>Mode:</b> %.2f</p>', $statistics->mode());
+	}
+
+if ($question_results->is_binnable()|| $question_results->is_multibinnable()) {
+		my $histogram = $statistics->histogram();
+		print '<table border="1" cellspacing="0">';
+		print '<caption><b>Frequency:</b></caption>';
+		print '<tr><th align ="center">Choice</th><th align="center">Total</th></tr>';
+		foreach my $bin ($histogram->bins()) {
+			printf('<tr><td align ="center">%s</td><td align="center">%d</td></tr>', $bin, $histogram->bin_count($bin));
+		}
+		print '</table>';
+}
 }
 
 1;
