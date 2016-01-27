@@ -14,15 +14,16 @@
 
 
 window.onerror = function(msg, url, linenumber) {
-				document.getElementById('evalArea').innerHTML = '<font color="red">'+_('Eval load failed due to script error.')+'</font><br><b>'+msg+'</b><br>At line '+linenumber+' of '+url;
+	document.getElementById('evalArea').innerHTML = '<font color="red">' + _('Eval load failed due to script error.') + '</font><br><b>' + msg + '</b><br>At line ' + linenumber + ' of ' + url;
 }
 
 var elements = new Array();
 var urls = new Array();
 var ajaxRequest;
 var processingElement;
+var timerRunning = 1;
 var timerTimeout;
-var time = 0;
+var time = Date.now();
 var queueLength = 0;
 var graphs = new Array();
 var text_graphs = new Array();
@@ -33,7 +34,10 @@ var full = 0;
 
 // Queue up all of the graphs into arrays
 function queueEvalGraphsToLoad() {
-	if (!window.XMLHttpRequest && !window.ActiveXObject) {alert(i_('Your browser does not support ajax, unable to load graphs.')); return;}
+	if (!window.XMLHttpRequest) {
+		alert(i_('Your browser does not support ajax, unable to load graphs.'));
+		return;
+	}
 	document.getElementById('graphicsLoadMessage').style.display = '';
 	if (document.getElementById('evalArea')) {
 		try {
@@ -41,11 +45,11 @@ function queueEvalGraphsToLoad() {
 		} catch (e) {}
 	}
 	spans = document.getElementsByTagName('span');
-	for (var index=0; index<spans.length; index++) {
+	for (var index = 0; index < spans.length; index++) {
 		if (spans[index].id.match("eval_question_")) {
 			var questionID = spans[index].id.replace("eval_question_", "");
-			var url="/tusk/ajax/evalGraph/"+ pathInfo +"/"+ questionID +"?merged="+ merged +"&random="+ new Date().getTime();
-			spans[index].innerHTML = '<font color="green">'+_('Queued for Load')+'</font>';
+			var url = "/tusk/ajax/evalGraph/" + pathInfo + "/" + questionID + "?merged=" + merged + "&random=" + Date.now();
+			spans[index].innerHTML = '<font color="green">' + _('Queued for Load') + '</font>';
 			elements.push(spans[index]);
 			urls.push(url);
 		}
@@ -59,21 +63,18 @@ var nodeTextType = '';
 function processQueue() {
 	var url = urls.shift();
 	processingElement = elements.shift();
-	document.getElementById('queueMessage').innerHTML= _("Loading Eval Graph ")+ queueCounter++ +" of "+ queueLength;
+	document.getElementById('queueMessage').innerHTML= _("Loading Eval Graph ") + queueCounter++ + " of " + queueLength;
 	//processingElement will always be set since its global
 	if (!url) {
 		document.getElementById('graphLink').style.display = '';
-		document.getElementById('graphicsLoadMessage').innerHTML=_("Completed");
-		document.getElementById('graphicsLoadMessage').style.display='none';
+		document.getElementById('graphicsLoadMessage').innerHTML = _("Completed");
+		document.getElementById('graphicsLoadMessage').style.display = 'none';
 		document.getElementById('evalArea').style.backgroundColor = '';
 		return;
 	}
 	if (window.XMLHttpRequest) {
 		ajaxRequest = new XMLHttpRequest();
 		nodeTextType = 'textContent';
-	} else if (window.ActiveXObject) {
-		ajaxRequest = new ActiveXObject("Microsoft.XMLHTTP");
-		nodeTextType = 'text';
 	}
 
 	if (ajaxRequest) {
@@ -81,14 +82,13 @@ function processQueue() {
 		ajaxRequest.onreadystatechange = doGraphLoad;
 		ajaxRequest.send(null);
 	} else {
-		processingElement.innerHTML = '<font color="red">'+_("Error requesting graph.")+'</font>';
+		processingElement.innerHTML = '<font color="red">' + _("Error requesting graph.") + '</font>';
 		processQueue();
 	}
 }
 
-
 function GraphObject(parentDiv) {
-	var self=this;
+	var self = this;
 	this.displayParent = parentDiv;
 	this.graphNode = document.createElement("div");
 	this.textGraphNode = document.createElement("div");
@@ -121,12 +121,16 @@ function doGraphLoad() {
 					//Split out the graph and the text of the response (also check for error)
 					var graphNode = ajaxRequest.responseXML.getElementsByTagName('graph')[0];
 					var aGraph = new GraphObject(processingElement);
-					for (var index=0; index<graphNode.childNodes.length; index++) {
+					for (var index = 0; index < graphNode.childNodes.length; index++) {
 						var xmlNode = graphNode.childNodes[index];
 						var nodeValue = '';
-						if (xmlNode[nodeTextType]) {nodeValue = xmlNode[nodeTextType];}
-						else if (xmlNode.firstChild && xmlNode.firstChild.nodeValue) {nodeValue = xmlNode.firstChild.nodeValue;}
-						else {nodeValue = _('Unable to decypher graph XML');}
+						if (xmlNode[nodeTextType]) {
+							nodeValue = xmlNode[nodeTextType];
+						}	else if (xmlNode.firstChild && xmlNode.firstChild.nodeValue) {
+							nodeValue = xmlNode.firstChild.nodeValue;
+						} else {
+							nodeValue = _('Unable to decypher graph XML');
+						}
 
 						var skipNode = false;
 						if (xmlNode.nodeName == 'visual') {
@@ -141,17 +145,17 @@ function doGraphLoad() {
 					aGraph.displayGraph();
 					processQueue();
 				} else {
-					processingElement.innerHTML = '<font color="red">'+_('Your session timed out.')+'</font>';
+					processingElement.innerHTML = '<font color="red">' + _('Your session timed out.') + '</font>';
 					processQueue();
 				}
 			} else if (ajaxRequest.status && (ajaxRequest.status == 403)) {
-				processingElement.innerHTML = '<font color="red">'+_('Your session timed out.')+'</font>';
+				processingElement.innerHTML = '<font color="red">' + _('Your session timed out.') + '</font>';
 				processQueue();
 			} else if (ajaxRequest.status && (ajaxRequest.status == 500)) {
-				processingElement.innerHTML = '<font color="red">'+_('Error loading graph.')+'</font>';
+				processingElement.innerHTML = '<font color="red">' + _('Error loading graph.') + '</font>';
 				processQueue();
 			} else {
-				processingElement.innerHTML = '<font color="red">'+_('Graph load canceled.')+'</font>';
+				processingElement.innerHTML = '<font color="red">' + _('Graph load canceled.') + '</font>';
 				processQueue();
 			}
 		}
@@ -161,9 +165,12 @@ function doGraphLoad() {
 }
 
 function tickTimer() {
-	time += 1;
-	document.getElementById('timer').innerHTML = time;
-	timerTimeout = setTimeout(tickTimer, 1000);
+	document.getElementById('timer').innerHTML = Math.round((Date.now() - time) / 1000);
+	if (timerRunning)	{
+		timerTimeout = setTimeout(tickTimer, 1000);
+	} else {
+		document.getElementById('waitMessage').innerHTML = 'waited';
+	}
 }
 
 function loadEval(url, siteAbbr, path, doMerged, doFull) {
@@ -183,10 +190,10 @@ function loadEval(url, siteAbbr, path, doMerged, doFull) {
 				ajaxRequest.onreadystatechange = doEvalLoad;
 				ajaxRequest.send(null);
 			} else {
-				processingElement.innerHTML = '<font color="red">'+_('Error requesting eval.')+'</font>';
+				processingElement.innerHTML = '<font color="red">' + _('Error requesting eval.')+'</font>';
 			}
 		} catch(error) {
-			alert(_('Error in eval ajax request')+':\n'+error.description);
+			alert(_('Error in eval ajax request') + ':\n' + error.description);
 		}
 	}
 }
@@ -194,37 +201,41 @@ function loadEval(url, siteAbbr, path, doMerged, doFull) {
 function doEvalLoad() {
 	try {
 		if (document.getElementById('evalArea')) {
-			document.getElementById('evalArea').innerHTML= "<br><br><center><font color=\"#CC6600\">"+_('Loading Eval')+"</font><br><img src=\"/graphics/icons/waiting_bar.gif\"></center>";
+			document.getElementById('evalArea').innerHTML= '<br><br><center><font color="#CC6600">' + _('Loading Eval') + '</font><br><img src="/graphics/icons/waiting_bar.gif"></center>';
 			if (ajaxRequest && ajaxRequest.readyState == 4) {
+				timerRunning = 0;
 				if (ajaxRequest.status && (ajaxRequest.status == 200)) {
 					document.getElementById('evalArea').innerHTML = ajaxRequest.responseText;
 					if (full) {
 						queueEvalGraphsToLoad();
 					}
 				} else if (ajaxRequest.status && (ajaxRequest.status == 500)) {
-					processingElement.innerHTML = '<font color="red">'+_('Error loading eval.')+'</font>';
+					processingElement.innerHTML = '<font color="red">' + _('Error loading eval.') + '</font>';
 				} else if (ajaxRequest.status && (ajaxRequest.status == 302)) {
-					processingElement.innerHTML = '<font color="red">'+_('Got a redirect.')+'</font>';
+					processingElement.innerHTML = '<font color="red">' + _('Got a redirect.') + '</font>';
 				} else {
-					document.getElementById('evalArea').innerHTML = '<br><br><center><font color="red">'+_('Error loading eval.')+'</font><center>';
+					document.getElementById('evalArea').innerHTML = '<br><br><center><font color="red">' + _('Error loading eval.') + '</font><center>';
 				}
-				clearTimeout(timerTimeout);
-				document.getElementById('waitMessage').innerHTML = 'waited';
 			}
 		} else {
 			alert(_('Error: mislocated eval element'));
 		}
 	} catch(error) {
-		if (timerTimeout) {clearTimeout(timerTimeout);}
-		if (document.getElementById('waitMessage')) {document.getElementById('waitMessage').innerHTML = 'waited';}
-		if (document.getElementById('graphicsLoadMessage')) {document.getElementById('graphicsLoadMessage').style.display = 'none';}
+		timerRunning = 0;
+		if (document.getElementById('graphicsLoadMessage')) {
+			document.getElementById('graphicsLoadMessage').style.display = 'none';
+		}
 		if (document.getElementById('evalArea')) {
-			document.getElementById('evalArea').innerHTML = '<center><font color="red">'+_('Im sorry, an error has occurred while requesting this eval. Please contact here for support:')+ siteAbbreviation +'<font></center>';
-			if (error.description) {document.getElementById('evalArea').innerHTML += '<br><center>Error was: '+error.description+'</center>';}
+			document.getElementById('evalArea').innerHTML = '<center><font color="red">' + _('Sorry, an error has occurred while requesting this eval. Please contact here for support:') + siteAbbreviation +'<font></center>';
+			if (error.description) {
+				document.getElementById('evalArea').innerHTML += '<br><center>Error was: ' + error.description+'</center>';
+			}
 			if (ajaxRequest && ajaxRequest.status) {
 				document.getElementById('evalArea').innerHTML += '<br><center>' + _('Ajax Return Code:') + ajaxRequest.status + '</center>';
 			}
-		} else {alert(_('There was an error processing eval ajax request. Please contact here for support: ')+ siteAbbreviation);}
+		} else {
+			alert(_('There was an error processing eval ajax request. Please contact here for support: ') + siteAbbreviation);
+		}
 	}
 }
 
@@ -237,10 +248,12 @@ function showHideGraphs() {
 	} else {
 		linkText = "Hide";
 	}
-	linkText += " "+_("Graphs");
+	linkText += " " + _("Graphs");
 
-	if (document.getElementById('graphLink')) {document.getElementById('graphLink').innerHTML = linkText;}
-	for (var index=0; index<graphs.length; index++) {
+	if (document.getElementById('graphLink')) {
+		document.getElementById('graphLink').innerHTML = linkText;
+	}
+	for (var index = 0; index < graphs.length; index++) {
 		if (showGraph) {
 			graphs[index].displayGraph();
 		}	else {
