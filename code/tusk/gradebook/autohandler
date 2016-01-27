@@ -23,19 +23,32 @@ top_tab_type => 'home'
 	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
 	my $user_id = $m->session->{'user'}->primary_key();
 
-	my $course_user = TUSK::Application::GradeBook::GradeBook->new({ 
+	my $course_user_links = TUSK::Application::GradeBook::GradeBook->new({ 
 		course      => $type_object,
 		time_period_id  => $time_period_id,
 		user_id      => $user_id,
 	})->getFaculty();
 
-	my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
-						feature_type_token => 'course',
-						feature_id => $course_user->getPrimaryKeyID(),
-						function_token => 'view_site_grades') : undef);
-
-	return $course_user;
+	return $course_user_links;
 </%perl>
 </%method>
+
+
+<%method getCourseUserPermissions>
+<%perl>
+	my $course_user_links = $m->comp("SELF:getCourseUser");
+	for my $course_user_link (@$course_user_links)
+	{
+		if ($course_user_link && $m->comp("/tmpl/permission:has_role_with_functionality", 
+						feature_type_token => 'course',
+						feature_id => $course_user_link->getPrimaryKeyID(),
+						function_token => 'view_site_grades')) {
+			return 1;
+		}
+	}
+	return 0;
+</%perl>
+</%method>
+
 
 <% $m->call_next %>

@@ -21,22 +21,23 @@
 <%shared>
 	my $category_id = $m->comp("/tmpl/url:get_last_path_id");
 	my $type_object = $m->comp("/tmpl/url:get_type_object");
-
+	my $time_period_id = $m->comp("SELF:get_timeperiod_id");
 
 	my @site_director_sites;
-	my $course_user = $m->comp("SELF:getCourseUser");
-	if ($course_user) {
-		for my $site (@{$course_user->getJoinObjects('t2')})
-		{
-			push @site_director_sites, ($site->getTeachingSiteID());
+	my $course_user_links = $m->comp("SELF:getCourseUser");
+	my $permissions = $m->comp("SELF:getCourseUserPermissions");
+	my $sites_attached = !$permissions;
+	for my $course_user_link (@$course_user_links)
+	{
+		if ($course_user_link->getTimePeriodID() == $time_period_id) {
+			for my $site (@{$course_user_link->getJoinObjects('course_user_site')})
+			{
+				$sites_attached = 1;
+				push @site_director_sites, ($site->getTeachingSiteID());
+			}
 		}
 	}
-	my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
-					feature_type_token => 'course',
-					feature_id => $course_user->getPrimaryKeyID(),
-					function_token => 'view_site_grades') : undef);
-
-	my @students = $type_object->get_students($m->comp("SELF:get_timeperiod_id"), ($permissions? \@site_director_sites : undef));
+	my @students = ($sites_attached ? $type_object->get_students($m->comp("SELF:get_timeperiod_id"), ($permissions? \@site_director_sites : undef)) : ());
 </%shared>
 
 
@@ -66,11 +67,6 @@
 
 <%method get_action_link>
 <%perl>
-	my $permissions = ($course_user ? $m->comp("/tmpl/permission:has_role_with_functionality", 
-				feature_type_token => 'course',
-				feature_id => $course_user->getPrimaryKeyID(),
-				function_token => 'view_site_grades') : undef);
-
 	return ($category_id) 
 		? { label => ($permissions ? 'View Grades' : 'View/Edit Grades'), link => '/gradebook/author/gradeaddeditbystudent', extra => '/' . $category_id }
 		: { label => ($permissions ? 'View All Grade Events' : 'View/Edit All Grade Events'), link => '/gradebook/author/gradeaddeditbystudent'};
