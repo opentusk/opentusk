@@ -103,7 +103,7 @@ sub question_results {
     unless ($self->{-question_results}) {
         $self->{-question_results} = {};
         for my $q ($self->parent_eval()->questions()) {
-            my $qr = HSDB45::Eval::Question::Results->new ($q, $self);
+            my $qr = HSDB45::Eval::Question::Results->new($q, $self);
             $self->{-question_results}{$q->primary_key} = $qr;
         }
     }

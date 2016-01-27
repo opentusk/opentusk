@@ -19,15 +19,26 @@ use strict;
 
 use HSDB45::Eval;
 use HSDB45::Eval::Results;
+use HSDB45::Eval::MergedResults;
 use HSDB45::Eval::Question;
 use HSDB45::Eval::Question::Results;
+use HSDB45::Eval::Question::MergedResults;
 
 sub quick_report {
 	my $eval = shift;
 	my $evaluatee_id = shift;
 	my $teaching_site_id = shift;
 
-	my $results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
+	my $merged;
+	my $results;
+	if ($eval->isa('HSDB45::Eval::MergedResults')) {
+		$merged = 1;
+		$results = $eval;
+		$eval = $results->parent_eval();
+	} else {
+		$merged = 0;
+		$results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
+	}
 
 	print '<ol>';
 	foreach my $question ($eval->questions()) {
@@ -38,8 +49,13 @@ sub quick_report {
 		printf('<p>%s</p>', $body->question_text());
 		next if ($question_type eq 'Instruction');
 		print_legend($body) if ($question_type eq 'NumericRating');
-		my $question_results = HSDB45::Eval::Question::Results->new($question, $results);
-		if ($question_results->isa('HSDB45::Eval::Question::Results::Textual')) {
+		my $question_results;
+		if ($merged) {
+			$question_results = HSDB45::Eval::Question::MergedResults->new($question, $results);
+		} else {
+			$question_results = HSDB45::Eval::Question::Results->new($question, $results);
+		}
+		if ($question_type =~ /IdentifySelf|FillIn|LongFillIn/) {
 			print_responses($question_results);
 		} else {
 			print_statistics($question_results);

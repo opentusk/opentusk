@@ -1,30 +1,32 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 <%once>
 	use HSDB45::Eval::MergedResults;
 	use HSDB45::Eval::MergedResults::Formatter;
-	use Apache2::Const qw (FORBIDDEN NOT_FOUND);
+  use HSDB45::Eval::Secret;
 	use TUSK::Eval::EvalLoadTime;
+  use TUSK::Constants;
+  use URI::Escape;
 </%once>
 
 <%attr>
 	page_header => '/tmpl/prepend:manage_header_div_layout'
 	page_footer => '/tmpl/footer:footer_div'
 	skip_header_bar => 1
-	allow_guest => 0
+	allow_guests => 1
 </%attr>
 
 <%method jsarray>
@@ -40,65 +42,161 @@
 </%method>
 
 <%shared>
-	my $eval;
-	my $merged_eval_results;
+	my $merged_eval;
 	if($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
-		$merged_eval_results = HSDB45::Eval::MergedResults->new(_school => $1, _id => $2);
+		$merged_eval = HSDB45::Eval::MergedResults->new(_school => $1, _id => $2);
 	} else {
-		$merged_eval_results = HSDB45::Eval::MergedResults->lookup_path( $ENV{'PATH_INFO'} );
+		$merged_eval = HSDB45::Eval::MergedResults->lookup_path( $ENV{'PATH_INFO'} );
 	}
-	$eval = $merged_eval_results->parent_eval();
-	unless($eval) {
-		$r->status(NOT_FOUND);
-                $m->abort();
-        }
-
-
-	# Check for valid user
-	unless($eval->admin_group()->contains_user($m->session->{'user'})) {
-		$r->status(FORBIDDEN);
-		$m->abort();
-	}
-	my $title = __("Unknown Merged Eval Report");
-	if($merged_eval_results && $merged_eval_results->field_value('title')) {$title = $merged_eval_results->field_value('title');}
+	my $eval = $merged_eval->parent_eval();
+  my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
+  my $merged_eval_id = ($merged_eval) ? $merged_eval->primary_key() : 0;
+  my $course = ($eval) ? $eval->course() : '';
+  my $school = ($eval) ? $eval->school() : '';
+  my $title = ($merged_eval && $merged_eval->field_value('title'))? $merged_eval->field_value('title') : __("Unknown Merged Eval");
+  my @evaluatees = ();
+  my %evaluatee_ids = {};
+  my @teaching_sites = ();
+  my %teaching_site_users = {};
 </%shared>
+
+<%init>
+	my $auth = $ARGS{'auth'} || '';
+	my $user_id = $ARGS{'user_id'} || '';
+	my $evaluatee_id = $ARGS{'evaluatee_id'} || '';
+	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
+	my $full = $ARGS{'full'} || 0;
+
+	my $code =	HSDB45::Eval::Secret->generate_hashcode($school, $merged_eval_id, $evaluatee_id);
+
+	# Check for a valid user
+	unless ($auth && $user_id && HSDB45::Eval::Secret->verify_hashcode($school, $merged_eval_id, $user_id, $auth)) {
+		my $user = $m->session->{'user'};
+		$user_id = (ref $user) ? $user->primary_key() : $user;
+	}
+	my $is_eval_admin = $eval->admin_group()->contains_user($user_id);
+	my $is_site_director = ($is_eval_admin) ? 0 : $eval->is_site_director($user_id, $teaching_site_id);
+	my $is_evaluatee = ($is_eval_admin || $is_site_director) ? 0 : $auth eq $code;
+	unless ($is_eval_admin || $is_site_director || $is_evaluatee) {
+		my $url = $ENV{SCRIPT_NAME} . $ENV{PATH_INFO};
+		$m->redirect("/home?url=$url");
+	}
+
+	if ($is_teaching_eval) {
+		push @evaluatees, {label => __('All'), value => ''};
+		push @teaching_sites, {label => __('All'), value => 0} unless ($is_site_director);
+
+		foreach my $site ($course->child_teaching_sites('ORDER BY site_name')) {
+			my $id = $site->primary_key();
+			my $name = $site->site_name();
+			my $location = $site->site_city_state();
+			$location = "($location)" if ($location);
+			if (!$is_site_director || $eval->is_site_director($user_id, $id)) {
+				$teaching_site_id = $id if ($is_site_director && !$teaching_site_id);
+				push @teaching_sites, {label => "$name $location", value => $id};
+			}
+		}
+		$m->redirect("/home") unless (scalar @teaching_sites);
+
+		my $db = HSDB4::Constants::get_school_db($school);
+		my $dbh = HSDB4::Constants::def_db_handle();
+		my $op = ($teaching_site_id) ? '=' : '<>';
+    my $eval_ids = join(',', $merged_eval->primary_eval_id(), $merged_eval->secondary_eval_ids());
+		my $sql = qq(
+			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
+			FROM $db.eval_response AS er
+			JOIN tusk.eval_entry AS ee ON er.user_code = ee.evaluator_code
+			JOIN hsdb4.user AS u ON ee.evaluatee_id = u.user_id
+			WHERE er.eval_id IN ($eval_ids) AND ee.teaching_site_id $op ?
+			GROUP BY u.user_id
+			ORDER BY u.lastname, u.firstname
+		);
+		my $sth = $dbh->prepare($sql);
+		$sth->execute($teaching_site_id);
+		while (my ($uid, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
+			push @evaluatees, {label => "$lastname, $firstname ($count)", value => $uid};
+			$evaluatee_ids{$uid} = 1;
+		}
+		$evaluatee_id = '' unless ($evaluatee_ids{$evaluatee_id});
+	} else {
+		$full = 1;
+	}
+
+	$code = uri_escape($code);
+	my $query = "?auth=$code&evaluatee_id=$evaluatee_id&teaching_site_id=$teaching_site_id&full=$full";
+	my $link = 'https://' . $ENV{SERVER_NAME} . $ENV{SCRIPT_NAME} . $ENV{PATH_INFO} . $query;
+</%init>
+
 <span class="evalFluff" style="float:right; text-align:right;">
-	<& /tmpl/element:link_to_help, 
+	<& /tmpl/element:link_to_help,
 		text => __('Statistics Definitions'),
 		topic => 'evaluation_reports_-_statistics'
 	 &>
 	&nbsp;
-	<& /tmpl/element:link_to_help, 
+	<& /tmpl/element:link_to_help,
 		text => __('Printing Help'),
 		topic => 'evaluation_reports_-_printing_and_backgrounds'
 	 &>
 </span>
 <h2 class="title"><% $title %></h2>
-% if($ENV{HTTPS}) {
-%	my $scriptURL = $ENV{SCRIPT_URL};
-%	$scriptURL =~ s/^\///;
-%	my $redirectURL = $TUSK::Constants::Domain . '/' . $scriptURL;
-%	if($redirectURL !~ /^http/) {$redirectURL = "http://$redirectURL";}
-%#	$m->print("<center>I'm sorry, this page can not be successfully displayed over https at this time. Please <a href=\"". $redirectURL . "\">click here</a> to view this page.</center>");
-%	$m->clear_buffer;
-%	$m->redirect($redirectURL);
-%	$m->about();
+
+% if ($is_teaching_eval) {
+<div class="title">
+	<h3><& /tmpl/element:dropdown, params => {
+			label => __('Teaching Site') . ':',
+			name => 'teaching_site',
+			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value)",
+			selected => $teaching_site_id,
+			options => \@teaching_sites,
+			disabled => $is_evaluatee
+	} &></h3>
+	<h3><& /tmpl/element:dropdown, params => {
+			label => __('Evaluatee') . ':',
+			name => 'evaluatee',
+			onchange => "setGetParameter('evaluatee_id', this.options[this.selectedIndex].value)",
+			selected => $evaluatee_id,
+			options => \@evaluatees,
+			disabled => $is_evaluatee
+	} &></h3>
+</div>
 % }
 
 <div class="evalFluff">
-	<a href="/protected/eval/administrator/show/<% $merged_eval_results->school %>"><%__("Manage Evaluations")%></a><br />
-	<a id="graphLink" style="display:none;" href="" onclick="showHideGraphs(); return false;"><%__("Hide Graphs")%></a>
+% if ($is_eval_admin) {
+	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
+% }
+% if ($is_teaching_eval && $evaluatee_id) {
+	<a id="directLink" onclick="window.prompt('', '<% $link %>')"><% __('Direct Link') %></a><br>
+% }
+% if ($is_teaching_eval && !$is_evaluatee) {
+	<a id="emailLinks" href="/tusk/eval/email<% $ENV{'PATH_INFO'} %>?<% $ENV{'QUERY_STRING'} %>"><% __('Email Links') %></a><br>
+% }
+% if ($is_teaching_eval && $full) {
+	<a id="quickReport" onclick="setGetParameter('full', 0)"><% __('Quick Report') %></a><br>
+% }
+% if ($full) {
+	<a id="graphLink" style="display:none" onclick="showHideGraphs()"><% __('Hide Graphs') %></a><br>
+% } else {
+	<a id="fullReport" onclick="setGetParameter('full', 1)"><% __('Full Report') %></a><br>
+% }
 
 % my $evalLoadStats = TUSK::Eval::EvalLoadTime->new();
-% $evalLoadStats->setEval($merged_eval_results);
+% $evalLoadStats->setEval($merged_eval);
 	<p class="timeMessage">
-		<%__x("This eval has been requested {num} times", num => $evalLoadStats->totalLoads()) %>
-% if($evalLoadStats->totalLoads()) {
-	<%__x("This eval has been requested {num} times with an average of {avg} sec and the longest time being {max} secs.", num => $evalLoadStats->totalLoads(), avg => sprintf('%.1f', $evalLoadStats->average()), max => sprintf('%.1f', $evalLoadStats->max()))%>
-% }else{
-	<%__x("This eval has been requested {num} times.", num => $evalLoadStats->totalLoads()) %>
-%}
-	<%__('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.')%>
+% if ($evalLoadStats->totalLoads()) {
+	<% __x('This eval has been requested {num} times with an average of {avg} sec and the longest time being {max} secs.', num => $evalLoadStats->totalLoads(), avg => sprintf('%.1f', $evalLoadStats->average()), max => sprintf('%.1f', $evalLoadStats->max())) %>
+% } else {
+	<% __x('This eval has been requested {num} times', num => $evalLoadStats->totalLoads()) %>
+% }
+	<% __('You <span id="waitMessage">have been waiting</span> for <span id="timer">0</span> sec.') %>
+	</p>
+</div>
+<div id="graphicsLoadMessage" style="display:none;">
+	<p id="queueMessage"><%__('Loading Eval Graphs')%></p><img src="/graphics/icons/waiting_bar.gif" alt="" />
+</div>
+<div id="evalArea">
+</div>
+<script type="text/javascript">loadEval('/tusk/ajax/evalMergedBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $merged_eval->school %>/<% $merged_eval->primary_key() %>', 1);</script>
 	</p>
 </div>
 <div id="graphicsLoadMessage" style="display:none;">
@@ -106,12 +204,4 @@
 </div>
 <div id="evalArea">
 </div>
-<script type="text/javascript">loadEval('/tusk/ajax/evalMergedBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $merged_eval_results->school %>/<% $merged_eval_results->primary_key() %>', 1);</script>
-	</p>
-</div>
-<div id="graphicsLoadMessage" style="display:none;">
-	<p id="queueMessage"><%__("Loading Eval Graphs")%></p><img src="/graphics/icons/waiting_bar.gif" alt="" />
-</div>
-<div id="evalArea">
-</div>
-<script type="text/javascript">loadEval('/tusk/ajax/evalMergedBody<% $ENV{'PATH_INFO'} %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $merged_eval_results->school %>/<% $merged_eval_results->primary_key() %>', 1);</script>
+<script type="text/javascript">loadEval('/tusk/ajax/evalMergedBody<% $ENV{'PATH_INFO'} . $query %>', '<% $TUSK::Constants::SiteAbbr %>', '<% $school %>/<% $merged_eval_id %>', 1, <% $full %>);</script>
