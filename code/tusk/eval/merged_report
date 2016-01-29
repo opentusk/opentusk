@@ -46,7 +46,7 @@
 	if($ENV{'PATH_INFO'} =~ /\/(.+)\/(.+)\/(.+)/) {
 		$merged_eval = HSDB45::Eval::MergedResults->new(_school => $1, _id => $2);
 	} else {
-		$merged_eval = HSDB45::Eval::MergedResults->lookup_path( $ENV{'PATH_INFO'} );
+		$merged_eval = HSDB45::Eval::MergedResults->lookup_path($ENV{'PATH_INFO'});
 	}
 	my $eval = $merged_eval->parent_eval();
   my $is_teaching_eval = ($eval) ? $eval->is_teaching_eval() : 0;
@@ -75,7 +75,7 @@
 		$user_id = (ref $user) ? $user->primary_key() : $user;
 	}
 	my $is_eval_admin = $eval->admin_group()->contains_user($user_id);
-	my $is_site_director = ($is_eval_admin) ? 0 : $eval->is_site_director($user_id, $teaching_site_id);
+	my $is_site_director = ($is_eval_admin) ? 0 : $merged_eval->is_site_director($user_id, $teaching_site_id);
 	my $is_evaluatee = ($is_eval_admin || $is_site_director) ? 0 : $auth eq $code;
 	unless ($is_eval_admin || $is_site_director || $is_evaluatee) {
 		my $url = $ENV{SCRIPT_NAME} . $ENV{PATH_INFO};
@@ -101,7 +101,7 @@
 		my $db = HSDB4::Constants::get_school_db($school);
 		my $dbh = HSDB4::Constants::def_db_handle();
 		my $op = ($teaching_site_id) ? '=' : '<>';
-    my $eval_ids = join(',', $merged_eval->primary_eval_id(), $merged_eval->secondary_eval_ids());
+    my $eval_ids = $merged_eval->eval_ids();
 		my $sql = qq(
 			SELECT u.user_id, u.firstname, u.lastname, COUNT(DISTINCT er.user_code)
 			FROM $db.eval_response AS er
@@ -169,7 +169,7 @@
 	<a id="directLink" onclick="window.prompt('', '<% $link %>')"><% __('Direct Link') %></a><br>
 % }
 % if ($is_teaching_eval && !$is_evaluatee) {
-	<a id="emailLinks" href="/tusk/eval/email<% $ENV{'PATH_INFO'} %>?<% $ENV{'QUERY_STRING'} %>"><% __('Email Links') %></a><br>
+	<a id="emailLinks" href="/tusk/eval/merged_email<% $ENV{'PATH_INFO'} %>?<% $ENV{'QUERY_STRING'} %>"><% __('Email Links') %></a><br>
 % }
 % if ($is_teaching_eval && $full) {
 	<a id="quickReport" onclick="setGetParameter('full', 0)"><% __('Quick Report') %></a><br>

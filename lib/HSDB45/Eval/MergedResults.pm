@@ -44,8 +44,8 @@ my %cache = ();
 # Output: newly created object
 sub new {
     my $incoming = shift;
-    my $class = ref($incoming) || $incoming;
 
+    my $class = ref($incoming) || $incoming;
     my $self = HSDB45::Eval::MergedResults->SUPER::new(_tablename => $tablename,
                                                        _fields => \@fields,
                                                        _blob_fields => \%blob_fields,
@@ -58,11 +58,13 @@ sub new {
     bless($self, "HSDB45::Eval::MergedResults");
     $self->init(@_);
     bless($self, $class);
+
     return $self;
 }
 
 sub split_by_school {
     my $self = shift;
+
     return 1;
 }
 
@@ -86,44 +88,90 @@ sub init {
 }
 
 sub set_filter {
-  my $self = shift;
-  $self->{'-evaluatee_id'} = shift;
-  $self->{'-teaching_site_id'} = shift;
+    my $self = shift;
 
-  return $self;
+    $self->{'-evaluatee_id'} = shift;
+    $self->{'-teaching_site_id'} = shift;
+
+    return $self;
 }
 
 sub parent_eval {
     my $self = shift;
+
     unless($self->{-parent_eval}) {
         $self->{-parent_eval} = HSDB45::Eval->new(_school => $self->school(), _id => $self->primary_eval_id());
     }
+
     return $self->{-parent_eval};
 }
 
 sub primary_eval_id {
     my $self = shift;
-    return @_ ? $self->field_value("primary_eval_id", shift) : $self->field_value("primary_eval_id");
+
+    return @_ ? $self->field_value('primary_eval_id', shift) : $self->field_value('primary_eval_id');
 }
 
 sub secondary_eval_ids {
     my $self = shift;
 
     if (@_) {
-        $self->field_value("secondary_eval_ids", join(",", @_));
+        $self->field_value('secondary_eval_ids', join(',', @_));
         return @_;
-    }
-    else {
-        return split(",", $self->field_value("secondary_eval_ids"));
+    } else {
+        return split(',', $self->field_value('secondary_eval_ids'));
     }
 }
 
-sub title {
-        my $self = shift;
-        my $title = shift;
-        $self->field_value('title',$title) if (defined($title));
-        return $self->field_value('title');
+sub eval_ids {
+    my $self = shift;
+
+    return join(',', $self->primary_eval_id(), $self->secondary_eval_ids());
 }
+
+sub time_period_ids {
+    my $self = shift;
+
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my $db = get_school_db($self->school());
+    my @time_period_ids = ();
+    my $eval_ids = $self->eval_ids();
+    my $sql = "SELECT DISTINCT time_period_id form $db.eval WHERE eval_id IN ($eval_ids)";
+    eval {
+      my $sth = $dbh->prepare($sql);
+      $sth->execute();
+      while ((my $time_period_id) = $sth->fetchrow_array()) {
+          push @time_period_ids, $time_period_id;
+      }
+    };
+    warn "Error trying to get time periods: $@" if ($@);
+
+    return split(',', @time_period_ids);
+}
+
+sub title {
+    my $self = shift;
+    my $title = shift;
+
+    $self->field_value('title',$title) if (defined($title));
+
+    return $self->field_value('title');
+}
+
+sub is_site_director {
+    my $self = shift;
+    my $user_id = shift;
+    my $teaching_site_id = shift;
+
+    my $course = $self->parent_eval()->course();
+    my $time_period_ids = $self->time_period_ids();
+    my $conds = "role_token IN ('site_director', 'site_eval_admin') AND course_user.user_id = '$user_id'";
+    $conds .= " AND course_user_site.teaching_site_id = $teaching_site_id" if ($teaching_site_id);
+    $conds .= " AND course_user.time_period_id IN ($time_period_ids)" if ($time_period_ids);
+    my $users = $course->find_users($conds);
+
+    return scalar(@$users);
+  }
 
 sub question_results {
     my $self = shift;
@@ -154,19 +202,21 @@ sub question_results {
 # Output: The integer number of enrolled students
 sub enrollment {
     my $self = shift;
-    my $eval_ids = join(',', $self->primary_eval_id(), $self->secondary_eval_ids());
-        my $dbh = HSDB4::Constants::def_db_handle();
-        my $db = HSDB4::Constants::get_school_db($self->school());
-        my $num;
-        my $sql = "SELECT COUNT(distinct child_user_id)
-                FROM $db.eval, $db.link_course_student
-                WHERE eval_id IN ($eval_ids)
-                AND parent_course_id = course_id
-                AND eval.time_period_id = link_course_student.time_period_id";
-        my $sth = $dbh->prepare($sql);
-        $sth->execute();
-        ($num) = $sth->fetchrow_array();
-        return $num;
+
+    my $eval_ids = $self->eval_ids();
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my $db = HSDB4::Constants::get_school_db($self->school());
+    my $num;
+    my $sql = "SELECT COUNT(distinct child_user_id)
+        FROM $db.eval, $db.link_course_student
+        WHERE eval_id IN ($eval_ids)
+        AND parent_course_id = course_id
+        AND eval.time_period_id = link_course_student.time_period_id";
+      my $sth = $dbh->prepare($sql);
+      $sth->execute();
+      ($num) = $sth->fetchrow_array();
+
+      return $num;
 }
 
 # Description: Returns the number of completion tokens for the eval
@@ -174,12 +224,13 @@ sub enrollment {
 # Output: The integer number of completions
 sub total_completions {
     my $self = shift;
+
     unless ($self->{-total_completions}) {
         my $dbh = HSDB4::Constants::def_db_handle();
         my $db = HSDB4::Constants::get_school_db($self->school());
         my $num = undef;
         eval {
-            my $eval_ids = join(',', $self->primary_eval_id(), $self->secondary_eval_ids());
+            my $eval_ids = $self->eval_ids();
             my $sth = $dbh->prepare ("SELECT COUNT(*) FROM $db.eval_completion WHERE eval_id IN ($eval_ids)");
             $sth->execute();
             ($num) = $sth->fetchrow_array();
@@ -187,6 +238,7 @@ sub total_completions {
         warn "Error trying to get total completions: $@" if ($@);
         $self->{-total_completions} = $num;
     }
+
     return $self->{-total_completions};
 }
 
@@ -195,7 +247,7 @@ sub user_codes {
 
     unless ($self->{-user_codes}) {
         my %user_codes;
-        my $eval_ids = join(',', $self->primary_eval_id(), $self->secondary_eval_ids());
+        my $eval_ids = $self->eval_ids();
 
         if ($self->parent_eval()->is_teaching_eval()) {
             my $evaluatee_id = $self->evaluatee_id();
@@ -236,17 +288,19 @@ sub user_codes {
 # Output: Returns a HSDB4::DateTime of the relevant time
 sub last_completion_timestamp {
     my $self = shift;
+
     my $dbh = HSDB4::Constants::def_db_handle();
     my $db = get_school_db($self->school());
     my $date;
     eval {
-        my $eval_ids = join(',', $self->primary_eval_id(), $self->secondary_eval_ids());
+        my $eval_ids = $self->eval_ids();
         my $sth = $dbh->prepare("SELECT MAX(created) " .
                                 "FROM $db.eval_completion " .
                                 "WHERE eval_id IN ($eval_ids)");
         $sth->execute();
         ($date) = $sth->fetchrow_array();
     };
+
     return unless $date;
     return HSDB4::DateTime->new()->in_mysql_timestamp($date);
 }
@@ -255,35 +309,36 @@ sub edit_merged_eval {
     my $self = shift;
     my $school = shift;
     my $fields = shift;
+
     my $blank_eval = HSDB45::Eval->new(_school=>$school);
     my $eval;
     if ($fields->{primary_eval}) {
         if ($fields->{primary_eval} !~ /^\s*\d+\s*$/) {
-            return (1,"That Primary Eval is not a number.");
+            return (1, "That Primary Eval is not a number.");
         }
         $eval = $blank_eval->lookup_key($fields->{primary_eval});
         if (!defined($eval->primary_key())) {
-            return (1,"That Primary Eval was not found in the database.");
+            return (1, "That Primary Eval was not found in the database.");
         }
     } else {
-        return (1,"No Primary Eval found");
+        return (1, "No Primary Eval found");
     }
     if ($fields->{secondary_evals}) {
         foreach my $id (split /,/, $fields->{secondary_evals}) {
             next if (!defined ($id) || $id eq '');
             $eval = $blank_eval->lookup_key($id);
             if ($id !~ /^\s*\d+\s*$/) {
-                return (1,"The Secondary Eval $id is not a number.");
+                return (1, "The Secondary Eval $id is not a number.");
             }
             if (!defined($eval->primary_key())) {
-                return (1,"Secondary Eval $id was not found in the database.");
+                return (1, "Secondary Eval $id was not found in the database.");
             }
         }
     } else {
-        return (1,"No Secondary Evals found");
+        return (1, "No Secondary Evals found");
     }
     if (!$fields->{title}) {
-        return (1,"A Title is Required.");
+        return (1, "A Title is Required.");
     }
     $self->primary_eval_id($fields->{primary_eval});
     $self->secondary_eval_ids($fields->{secondary_evals});
