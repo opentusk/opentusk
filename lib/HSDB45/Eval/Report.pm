@@ -29,15 +29,17 @@ sub quick_report {
 	my $evaluatee_id = shift;
 	my $teaching_site_id = shift;
 
-	my $merged;
 	my $results;
+	my $overall;
 	if ($eval->isa('HSDB45::Eval::MergedResults')) {
-		$merged = 1;
 		$results = $eval;
 		$eval = $results->parent_eval();
+		$evaluatee_id = $results->evaluatee_id();
+		$teaching_site_id = $results->teaching_site_id();
+		$overall = HSDB45::Eval::MergedResults->new(_school => $results->school(), _id => $results->primary_key())->set_filter('', $teaching_site_id) if ($evaluatee_id);
 	} else {
-		$merged = 0;
 		$results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
+		$overall = HSDB45::Eval::Results->new($eval, '' , $teaching_site_id) if ($evaluatee_id);
 	}
 
 	print '<ol>';
@@ -50,15 +52,18 @@ sub quick_report {
 		next if ($question_type eq 'Instruction');
 		print_legend($body) if ($question_type eq 'NumericRating');
 		my $question_results;
-		if ($merged) {
+		my $question_overall;
+		if ($results->isa('HSDB45::Eval::MergedResults')) {
 			$question_results = HSDB45::Eval::Question::MergedResults->new($question, $results);
+			$question_overall = HSDB45::Eval::Question::MergedResults->new($question, $overall) if ($overall);
 		} else {
 			$question_results = HSDB45::Eval::Question::Results->new($question, $results);
+			$question_overall = HSDB45::Eval::Question::Results->new($question, $overall) if ($overall);
 		}
 		if ($question_type =~ /IdentifySelf|FillIn|LongFillIn/) {
 			print_responses($question_results);
 		} else {
-			print_statistics($question_results);
+			print_statistics($question_results, $question_overall);
 		}
 		print '</li>';
 	}
@@ -84,26 +89,54 @@ sub print_legend() {
 
 sub print_statistics() {
 	my $question_results = shift;
+	my $question_overall = shift;
 
-	my $statistics = $question_results->statistics();
+	my $statistics_results = $question_results->statistics();
+	my $statistics_overall = ($question_overall) ? $question_overall->statistics() : undef;
 
 	if ($question_results->is_numeric()) {
-		printf('<p><b>N:</b> %d, <b>NA:</b> %d<br>', $statistics->count(), $statistics->na_count());
-		printf('<b>Mean:</b> %.2f, <b>Std Dev:</b> %.2f<br>', $statistics->mean(), $statistics->standard_deviation());
-		printf('<b>Median:</b> %.2f, <b>25%%:</b> %.2f, <b>75%%:</b> %.2f<br>', $statistics->median(), $statistics->median25(), $statistics->median75());
-		printf('<b>Mode:</b> %.2f</p>', $statistics->mode());
+		my $count = sformat('%d', 'count', $statistics_results, $statistics_overall);
+		my $na_count = sformat('%d', 'na_count', $statistics_results, $statistics_overall);
+		my $mean = sformat('%.2f', 'mean', $statistics_results, $statistics_overall);
+		my $standard_deviation = sformat('%.2f', 'standard_deviation', $statistics_results, $statistics_overall);
+		my $median = sformat('%.2f', 'median', $statistics_results, $statistics_overall);
+		my $median25 = sformat('%.2f', 'median25', $statistics_results, $statistics_overall);
+		my $median75 = sformat('%.2f', 'median75', $statistics_results, $statistics_overall);
+		my $mode = sformat('%.2f', 'mode', $statistics_results, $statistics_overall);
+		print "<p><b>N:</b> $count, <b>NA:</b> $na_count<br>";
+		print "<b>Mean:</b> $mean, <b>Std Dev:</b> $standard_deviation<br>";
+		print "<b>Median:</b> $median, <b>25%:</b> $median25, <b>75%:</b> $median75<br>";
+		print "<b>Mode:</b> $mode</p>";
 	}
 
 if ($question_results->is_binnable()|| $question_results->is_multibinnable()) {
-		my $histogram = $statistics->histogram();
+		my $histogram_results = $statistics_results->histogram();
+		my $histogram_overall = ($statistics_overall) ? $statistics_overall->histogram() : undef;
 		print '<table border="1" cellspacing="0">';
 		print '<caption><b>Frequency:</b></caption>';
-		print '<tr><th align ="center">Choice</th><th align="center">Total</th></tr>';
-		foreach my $bin ($histogram->bins()) {
-			printf('<tr><td align ="center">%s</td><td align="center">%d</td></tr>', $bin, $histogram->bin_count($bin));
+		print '<tr><th align="center">Choice</th><th align="center">Results</th>';
+		print '<th align="center">Overall</th>' if ($histogram_overall);
+		print '</tr>';
+		foreach my $bin ($histogram_results->bins()) {
+			printf('<tr><td align="center">%s</td><td align="center">%d</td>', $bin, $histogram_results->bin_count($bin));
+			printf('<td align="center">%d</td>', $histogram_overall->bin_count($bin)) if ($histogram_overall);;
+			print '</tr>';
 		}
 		print '</table>';
+	}
 }
+
+sub sformat {
+	my $format = shift;
+	my $method = shift;
+	my $statistics_results = shift;
+	my $statistics_overall = shift;
+
+	if ($statistics_overall) {
+		return sprintf("$format ($format)", $statistics_results->$method(), $statistics_overall->$method());
+	} else {
+		return sprintf($format, $statistics_results->$method());
+	}
 }
 
 1;
