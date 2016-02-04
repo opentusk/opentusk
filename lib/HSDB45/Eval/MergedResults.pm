@@ -136,17 +136,17 @@ sub time_period_ids {
     my $db = get_school_db($self->school());
     my @time_period_ids = ();
     my $eval_ids = $self->eval_ids();
-    my $sql = "SELECT DISTINCT time_period_id form $db.eval WHERE eval_id IN ($eval_ids)";
+    my $sql = "SELECT DISTINCT time_period_id FROM $db.eval WHERE eval_id IN ($eval_ids)";
     eval {
       my $sth = $dbh->prepare($sql);
       $sth->execute();
-      while ((my $time_period_id) = $sth->fetchrow_array()) {
+      while (my ($time_period_id) = $sth->fetchrow_array()) {
           push @time_period_ids, $time_period_id;
       }
     };
     warn "Error trying to get time periods: $@" if ($@);
 
-    return split(',', @time_period_ids);
+    return join(',', @time_period_ids);
 }
 
 sub title {
@@ -167,8 +167,7 @@ sub is_site_director {
     my $time_period_ids = $self->time_period_ids();
     my $conds = "role_token IN ('site_director', 'site_eval_admin') AND course_user.user_id = '$user_id'";
     $conds .= " AND course_user_site.teaching_site_id = $teaching_site_id" if ($teaching_site_id);
-    $conds .= " AND course_user.time_period_id IN ($time_period_ids)" if ($time_period_ids);
-    my $users = $course->find_users($conds);
+    my $users = $course->users($time_period_ids, $conds);
 
     return scalar(@$users);
   }
