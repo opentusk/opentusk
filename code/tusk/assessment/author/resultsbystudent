@@ -20,7 +20,7 @@
         use TUSK::FormBuilder::SubjectAssessor;
         use HSDB4::DateTime;
         use TUSK::FormBuilder::EntryGrade;
-    use TUSK::Constants;
+	use TUSK::Constants;
 </%once>
 
 <%shared>
@@ -358,12 +358,16 @@
 
                         if ($n_assessors > 0) {
                                 my $new_weight = (($field->getWeight())/$weight_total) * 100;
-                                $recalculated_weights{$field_id} = int ($new_weight + 0.5);
+				my $places = 2;
+				if ($adjusted_flag == 1) {
+	                                $recalculated_weights{$field_id} = substr( $new_weight + ( '0.' . '0' x $places . '5' ), 0, $places + length(int($new_weight)) + 1 );
+				} else {
+					$recalculated_weights{$field_id} = $field->getWeight();
+				}
                         }
                 }
 
         }
-
         push @$column_headers, {label => '<div class="allrows"><div class="arrow"></div></div>', field => 'arrow', align => 'center', class => 'td_master', 'html' => 1};
 
         my $rubrics = $m->comp('SELF:get_form_rubrics', form_id => $form_id);
