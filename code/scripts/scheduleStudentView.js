@@ -19,6 +19,11 @@ function setIndex(rowIndex)
 	currentRowIndex = rowIndex;
 }
 
+function textAreaAdjust(o) {
+    o.style.height = "1px";
+    o.style.height = (25+o.scrollHeight)+"px";
+}
+
 function constructDropdowns()
 {
 	$.ajax({
@@ -87,6 +92,16 @@ $(document).ready(function() {
 			});
 		}
 		return;
+	});
+	
+	$("td #notes").click(function() {
+		var textArea = $('<textarea onkeyup="textAreaAdjust(this)" style="overflow:hidden"/>');
+		var nextSpan = $();
+		var newRow = $();
+		// textArea.text("Hello Yellowy Mustardy Mayoish Window!");
+		$(this).closest('tr').after('<tr><td colspan="8"><textarea style="display: block; margin-left:auto; margin-right: auto;" rows="10" cols="80"/></td></tr>');
+		// $(this).closest('tr').after(textArea);
+
 	});
 
 	$("td #modify").click(function() {
