@@ -3,11 +3,6 @@ var currentTimePeriod;
 var currentTeachingSite; 
 var addRequested = false;
 
-function getRowIndex(rowIndex)
-{
-	currentRowIndex = rowIndex;
-}
-
 function setCourse(rowIndex)
 {
 	currentRowIndex = rowIndex;
@@ -17,11 +12,6 @@ function setCourse(rowIndex)
 function setIndex(rowIndex)
 {
 	currentRowIndex = rowIndex;
-}
-
-function textAreaAdjust(o) {
-    o.style.height = "1px";
-    o.style.height = (25+o.scrollHeight)+"px";
 }
 
 function constructDropdowns()
@@ -95,13 +85,7 @@ $(document).ready(function() {
 	});
 	
 	$("td #notes").click(function() {
-		var textArea = $('<textarea onkeyup="textAreaAdjust(this)" style="overflow:hidden"/>');
-		var nextSpan = $();
-		var newRow = $();
-		// textArea.text("Hello Yellowy Mustardy Mayoish Window!");
-		$(this).closest('tr').after('<tr><td colspan="8"><textarea style="display: block; margin-left:auto; margin-right: auto;" rows="10" cols="80"/></td></tr>');
-		// $(this).closest('tr').after(textArea);
-
+		$(this).closest('tr').after('<tr><td><td><td><td><td colspan="1"><textarea onkeyup="textAreaAdjust(this)" id="note" rows="10" cols="50"/></td></td></td></td></td></tr>');
 	});
 
 	$("td #modify").click(function() {
