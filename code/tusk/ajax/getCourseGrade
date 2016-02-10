@@ -174,12 +174,15 @@
 				print "<tr>";
 				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $course_quiz->getEventName() . "</td>";
 				my $current_event_id = $course_quiz->getGradeEventID();
-				my $current_event_link = TUSK::GradeBook::LinkUserGradeEvent->lookup("child_grade_event_id = $current_event_id AND parent_user_id = 'bluesky_nt'");
-				my $current_grade = $current_event_link->[0]->getGrade();
-				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $current_grade . "</td>";
-				my $current_scaled_grade = (looks_like_number($current_grade)) ? $gb->getScaledGrade($current_grade, $current_event_id) : $current_grade;
-				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $current_scaled_grade . "</td>";
-				print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $current_event_link->[0]->getComments() . "</td>";
+				my $current_user_id = $m->session->{'user'}->user_id();
+				my $current_event_link = TUSK::GradeBook::LinkUserGradeEvent->lookup("child_grade_event_id = $current_event_id AND parent_user_id = '$current_user_id'");
+				if ($current_event_link->[0]) {
+					my $current_grade = $current_event_link->[0]->getGrade();
+					print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $current_grade . "</td>";
+					my $current_scaled_grade = (looks_like_number($current_grade)) ? $gb->getScaledGrade($current_grade, $current_event_id) : $current_grade;
+					print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $current_scaled_grade . "</td>";
+					print "<td class=\"html_row\" style=\"padding-left: 20px;\">" . $current_event_link->[0]->getComments() . "</td>";
+				}
 				print "</tr>";
 			}
 		}
