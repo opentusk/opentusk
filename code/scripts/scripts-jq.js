@@ -1,6 +1,6 @@
 /* utilty functions with jquery */
 
-function toggleLinks(link, obj) {
+function toggleLinks(link, obj, event) {
         if ($('#' + link).css("display") == "none") {
                 $('#' + link).css("display", "block");
                 $(obj).children('img').attr( "src", "/graphics/icon-nav-open.png" );
@@ -8,5 +8,6 @@ function toggleLinks(link, obj) {
                 $('#' + link).css("display", "none");
                 $(obj).children('img').attr( "src", "/graphics/icon-nav-closed.png");
         }
+       event.preventDefault();
 }
 

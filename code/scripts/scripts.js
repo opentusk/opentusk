@@ -808,7 +808,7 @@ function currentYear() {
         document.write(now.getFullYear());
 }
 
-function toggleMaterialLinks( material, obj ) {
+function toggleMaterialLinks( material, obj, event ) {
 	var materialLinks = document.getElementById( material );
 	if ( $( '#' + material ).css( "display" ) == "inline" ) {
 		$( '#' + material ).css( "display", "none" );
@@ -818,6 +818,7 @@ function toggleMaterialLinks( material, obj ) {
 		$( obj ).children('img').attr( "src", "/graphics/icon-nav-open.png" );
 		materialsHeightAdjust();
 	}
+    event.preventDefault();
 }
 
 function materialsHeightAdjust() {
