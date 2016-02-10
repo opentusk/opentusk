@@ -273,7 +273,7 @@ sub getAssessor {
 sub getFacultyAssessors {
     my ($self, $student_id, $checklist_id, $time_period_id, $entry_id) = @_;
 
-    return TUSK::Core::HSDB4Tables::User->lookup(undef, undef, undef, undef, [
+    return TUSK::Core::HSDB4Tables::User->lookup(undef, ['lastname', 'firstname'], undef, undef, [
         TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Assignment', { 
             joinkey => 'assessor_id', 
             origkey => 'user_id',
