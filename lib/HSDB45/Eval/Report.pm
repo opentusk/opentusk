@@ -36,10 +36,10 @@ sub quick_report {
 		$eval = $results->parent_eval();
 		$evaluatee_id = $results->evaluatee_id();
 		$teaching_site_id = $results->teaching_site_id();
-		$overall = HSDB45::Eval::MergedResults->new(_school => $results->school(), _id => $results->primary_key())->set_filter('', $teaching_site_id) if ($evaluatee_id);
+		$overall = HSDB45::Eval::MergedResults->new(_school => $results->school(), _id => $results->primary_key())->set_filter('', $teaching_site_id) if ($evaluatee_id && $teaching_site_id);
 	} else {
 		$results = HSDB45::Eval::Results->new($eval, $evaluatee_id, $teaching_site_id);
-		$overall = HSDB45::Eval::Results->new($eval, '' , $teaching_site_id) if ($evaluatee_id);
+		$overall = HSDB45::Eval::Results->new($eval, '' , $teaching_site_id) if ($evaluatee_id && $teaching_site_id);
 	}
 
 	print '<ol>';
@@ -110,17 +110,11 @@ sub print_statistics() {
 	}
 
 if ($question_results->is_binnable()|| $question_results->is_multibinnable()) {
-		my $histogram_results = $statistics_results->histogram();
-		my $histogram_overall = ($statistics_overall) ? $statistics_overall->histogram() : undef;
+		my $histogram = $statistics_results->histogram();
 		print '<table border="1" cellspacing="0">';
-		print '<caption><b>Frequency:</b></caption>';
-		print '<tr><th align="center">Choice</th><th align="center">Results</th>';
-		print '<th align="center">Overall</th>' if ($histogram_overall);
-		print '</tr>';
-		foreach my $bin ($histogram_results->bins()) {
-			printf('<tr><td align="center">%s</td><td align="center">%d</td>', $bin, $histogram_results->bin_count($bin));
-			printf('<td align="center">%d</td>', $histogram_overall->bin_count($bin)) if ($histogram_overall);;
-			print '</tr>';
+		print '<tr><th align="center">Selection</th><th align="center">Frequency</th></tr>';
+		foreach my $bin ($histogram->bins()) {
+			printf('<tr><td align="center">%s</td><td align="center">%d</td></tr>', $bin, $histogram->bin_count($bin));
 		}
 		print '</table>';
 	}
