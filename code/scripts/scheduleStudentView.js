@@ -85,7 +85,7 @@ $(document).ready(function() {
 	});
 	
 	$("td #notes").click(function() {
-		$(this).closest('tr').after('<tr><td><td><td><td><td colspan="1"><textarea onkeyup="textAreaAdjust(this)" id="note" rows="10" cols="50"/></td></td></td></td></td></tr>');
+		$(this).closest('tr').after('<tr><td><td><td><td><td><td><td><td colspan="1"><textarea onkeyup="textAreaAdjust(this)" id="note" rows="10" cols="30"/><div id="modify"></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" >Save</a><span class="littlespacing">|</span><a class = "navsm" id = "cancel" style = "white-space: nowrap;">Cancel</a></td></td></td></td></td></td></td></td></tr>');
 	});
 
 	$("td #modify").click(function() {
@@ -95,7 +95,6 @@ $(document).ready(function() {
 			return;
 		}
 		$(this).closest('tr').find('div#teachingSite').find('select.view').trigger('change');
-		console.log('The row number is ' + currentRowIndex);
 		modificationInProgress = true;
 		if ($(this).closest('tr').find('div#timePeriod').is(":visible"))
 		{
