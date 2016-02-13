@@ -14,6 +14,16 @@ function setIndex(rowIndex)
 	currentRowIndex = rowIndex;
 }
 
+function saveNote()
+{
+	alert("This note will be saved soon.");
+}
+
+function cancelNote()
+{
+	alert("This note section will disappear soon.");
+}
+
 function constructDropdowns()
 {
 	$.ajax({
@@ -83,9 +93,24 @@ $(document).ready(function() {
 		}
 		return;
 	});
-	
-	$("td #notes").click(function() {
-		$(this).closest('tr').after('<tr><td><td><td><td><td><td><td><td colspan="1"><textarea onkeyup="textAreaAdjust(this)" id="note" rows="10" cols="30"/><div id="modify"></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" >Save</a><span class="littlespacing">|</span><a class = "navsm" id = "cancel" style = "white-space: nowrap;">Cancel</a></td></td></td></td></td></td></td></td></tr>');
+
+	$("td #note").click(function() {
+		var noteRow = document.createElement('tr');
+		var note = document.createElement('textarea');
+		var noteColumn = document.createElement('td');
+		note.setAttribute("id", "note");
+		note.setAttribute("rows", 10);
+		note.setAttribute("cols", 30);
+		noteColumn.setAttribute("colspan", 1);
+		for (var i = 0; i < 7; i++) {
+			var td = document.createElement('td');
+			noteRow.appendChild(td);
+		}
+		noteColumn.appendChild(note);
+		noteRow.appendChild(noteColumn);
+		noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
+		$(this).closest('tr').after(noteRow);
+		// $(this).closest('tr').after('</tr><td><td><td><td><td><td><td colspan="1"><textarea id = "note" rows="10" cols="30"/><span id = "saveCancelNote" style = "cursor: pointer;"><a id = "saveNote" onclick="saveNote()" class = "navsm" >Save</a><span class="littlespacing">|</span><a id = "cancelNote" onclick="cancelNote()" class = "navsm"  style = "white-space: nowrap;">Cancel</a></td></td></td></td></td></td></td></td></tr>');
 	});
 
 	$("td #modify").click(function() {
