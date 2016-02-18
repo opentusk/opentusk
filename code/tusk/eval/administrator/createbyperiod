@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 <%once>
@@ -38,7 +38,7 @@
 			'course_id' => '',
 			'teaching_site' => '',
 			'code' => ''
-		},		
+		},
 		{
 			'faculty_names' => '',
 			'teaching_site_id' => '',
@@ -54,7 +54,7 @@
  	my $tmpHashRef;
 	my @tmpArray;
 	my $courses = [];
-	unless ( ref $params{'courses'} eq 'ARRAY') {
+	unless (ref $params{'courses'} eq 'ARRAY') {
 		$params{'courses'} = [$params{'courses'}];
 	}
 
@@ -95,30 +95,30 @@
 		$tp = HSDB45::TimePeriod->new(_school => $school_name)->lookup_key($params{time_period_id});
     	$m->comp('SELF:process');
     	$m->comp('SELF:print_messages');
-	} 
+	}
 </%init>
 
 
 <%method show_form>
 <& /tmpl/element:form, params => {
 	name 		=> 'createbulkevals',
-	enctype		=> 'multipart/form-data', 
+	enctype		=> 'multipart/form-data',
 	method		=> 'POST',
 	onsubmit	=> 'return verifyCreateByPeriod(this);'
 } &>
 
-<& /tmpl/element:table, params => { 
+<& /tmpl/element:table, params => {
 	width		=> "100%",
 	border 		=> "0",
 	cellspacing 	=> "0",
-	cellpadding 	=> "0" 
+	cellpadding 	=> "0"
 } &>
 
-<& /tmpl/element:radio_buttons, params => { 
+<& /tmpl/element:radio_buttons, params => {
 	label => __('Create an evaluation<br />for each:').' <span style="font-size:80%;color:red">*</span>',
 	name => 'create_by',
 	buttons => [
-		{ value => "course", text => __("Course"), checked => ($params{create_by} ne 'course_site') ? 1 : undef, onclick => "requestCourses(this.form.time_period_id, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by);",
+		{ value => "course", text => __("Course or Teaching"), checked => ($params{create_by} ne 'course_site') ? 1 : undef, onclick => "requestCourses(this.form.time_period_id, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by);",
  },
 		{ value => "course_site", text => __("Course and Teaching Site combination"), checked => ($params{create_by} eq 'course_site') ? 1 : undef, onclick => "requestCourses(this.form.time_period_id, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by);",
 }
@@ -132,22 +132,22 @@
 <div id="coursesOuter" style="ont-size:85%;">
 	<span id="coursesInstruction" style="display:none;"></span>
 	<div id="coursesInner" style="display:none;font-size:85%;">\n</div>\n
-</div>\n), 
+</div>\n),
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
     label 	=> __('Template Eval ID:'),
     name 	=> 'template_eval_id',
     value 	=> $params{template_eval_id},
     size 	=> 10,
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
     label 	=> __('Eval Title:').' <span style="font-size:80%;color:red">*</span>',
     name 	=> 'title',
     value 	=> $params{title},
     size 	=> 80,
-    trailing_text => 
+    trailing_text =>
 '<br/><span style="font-size:85%">'.__('followed by:').'</span>
 <table style="font-size:80%">
 <tr>
@@ -160,39 +160,39 @@
 </table>'
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label	=> __('Available Date').': <span style="font-size:80%;color:red">*</span>',
 	name	=> 'available_date',
 	value	=> $params{available_date},
 	size	=>  15,
-	maxlength  =>  15,	
+	maxlength  =>  15,
 	calendar => "1",
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label	=> __('Submittable Date:'),
 	name	=> 'submittable_date',
 	value	=> $params{submittable_date},
 	size	=>  15,
-	maxlength  =>  15,	
+	maxlength  =>  15,
 	calendar => "1",
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label	=> __('Preliminary Date:'),
 	name	=> 'prelim_due_date',
 	value	=> $params{prelim_due_date},
 	size	=>  15,
-	maxlength  =>  15,	
+	maxlength  =>  15,
 	calendar => "1",
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label	=> __('Due Date').': <span style="font-size:80%;color:red">*</span>',
 	name	=> 'due_date',
 	value	=> $params{due_date},
 	size	=>  15,
-	maxlength  =>  15,	
+	maxlength  =>  15,
 	calendar => "1",
 } &>
 
@@ -205,7 +205,7 @@
 	label	=>	__('Create Evaluations'),
     cancel_onclick => "go_back('/eval/administrator/show/$school_name'');",
 	name	=>	'submit',
-	trailing_text => '<br/><span style="font-size:75%">' . __('Note: This will create evals for all selected courses from the selected time period.').'</span>' 
+	trailing_text => '<br/><span style="font-size:75%">' . __('Note: This will create evals for all selected courses from the selected time period.').'</span>'
 } &>
 </tr>
 </table>
@@ -239,8 +239,8 @@
 				$key = $_->{'course_id'};
 			}
 			## only proceed if there's a prototype eval for this course
-			if (!$eval_id) {			
-				$eval_id = TUSK::Application::Eval::MakerTemplate->new( { school => $m->comp('SELF:schoolname'),time_period_id => $params{'time_period_id'} })->getPrototypeEvalID($_->{'course_code'});
+			if (!$eval_id) {
+				$eval_id = TUSK::Application::Eval::MakerTemplate->new({ school => $m->comp('SELF:schoolname'), time_period_id => $params{'time_period_id'} })->getPrototypeEvalID($_->{'course_code'});
 			}
 			if (HSDB45::Eval->new(_school => $school_name, _id => $eval_id)->field_value('eval_id')) {
 				$got_template = 1;
@@ -255,8 +255,7 @@
 			## wipe out template eval id unless there was one passed by the user
 			$eval_id = undef unless ($params{template_eval_id});
 		}
-	}
-	else {
+	} else {
 		## user has submitted a valid template eval id, but there are no course codes set up in the system, so change error message accordingly
 		if ($eval_id && HSDB45::Eval->new(_school => $school_name, _id => $eval_id)->field_value('eval_id')) {
 			$err_msg = __("You have no course codes defined for the selected time period.  Please contact your system administrator or select another time period.");
@@ -285,7 +284,7 @@
 
 <%perl>
 	### don't create one if there is no template eval_id
-	return unless defined $tmpl_eval_id;  
+	return unless defined $tmpl_eval_id;
 
 	my $course = HSDB45::Course->new(_id => $course_id, _school => $school_name);
 
@@ -296,7 +295,7 @@
 	$eval_title .= ' - ' . $site_name if defined $params{t_ts} && defined $site_name;
 	$eval_title .= ' - ' . $faculty_names  if defined $params{t_faculty} && defined $faculty_names;
 
-	my $evalmaker = TUSK::Application::Eval::Maker->new({ 
+	my $evalmaker = TUSK::Application::Eval::Maker->new({
 	    school				=> $school_name,
 	    course				=> $course,
    		time_period			=> $tp,
@@ -337,11 +336,11 @@
 <%method print_table>
 <%perl>
 	my ($evals, $label) = @_;
-	
+
 	print "<h3 class='subhead'>" . $label . ' '.__("Evaluations").':</h3>';
 	print "<ul>\n";
     if (keys %{$evals}) {
-		my $total = 0; 
+		my $total = 0;
 		foreach my $course_id (sort { $course_titles{$b} <=> $course_titles{$a} } keys %course_titles) {
 			if (exists $evals->{$course_id} && scalar @{$evals->{$course_id}}) {
 				print "<li><h4>".__("Course").": &nbsp; $course_titles{$course_id}</h4>\n<ol>";

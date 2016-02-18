@@ -1,15 +1,15 @@
-// Copyright 2012 Tufts University 
+// Copyright 2012 Tufts University
 //
-// Licensed under the Educational Community License, Version 1.0 (the "License"); 
-// you may not use this file except in compliance with the License. 
-// You may obtain a copy of the License at 
+// Licensed under the Educational Community License, Version 1.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// http://www.opensource.org/licenses/ecl1.php 
+// http://www.opensource.org/licenses/ecl1.php
 //
-// Unless required by applicable law or agreed to in writing, software 
-// distributed under the License is distributed on an "AS IS" BASIS, 
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-// See the License for the specific language governing permissions and 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
 // limitations under the License.
 
 
@@ -23,7 +23,7 @@ function requestCourses(tp_field,url,school,create_by_field) {
 	$("#coursesInstruction").html("").hide();
 	removeAllRows();
 
-	// check to make sure the user didn't somehow de-select one of the radio buttons 
+	// check to make sure the user didn't somehow de-select one of the radio buttons
 	if (!create_by_field) {
 		alert('Please select whether to create evaluations by course or course and teaching site combination.');
 	}
@@ -56,7 +56,7 @@ function showCourses() {
 			containerDiv = $("#coursesInner");
 
 			if (courses.length == 0) {
-				printNoResults();	
+				printNoResults();
 			} else {
 				printCourses(courses);
 			}
@@ -98,16 +98,13 @@ function printCourses(courses) {
 		if ($(this).attr('eval_exists') < 1) {
 			 option += ' selected="selected"';
 		}
-		else {
-			 option += ' disabled="disabled" class="disabled"';
-		}
 		option += '>';
 		option += name;
 		option += '</option>';
 		$("#courses").append(option);
 	});
 	$(containerDiv).append('<input type="button" value="Select All" id="selectallbutton" onclick="selectAll(this.form.courses)" class="formbutton" />');
-	$("#coursesInstruction").html("<br />Please select the course(s)" + label + " for which you would like to generate evaluations: <span style=\"font-size:80%;color:red\">*</span><ul class='xsm'><li>all eligible courses (students are enrolled in the selected time period and the course does not already have an associated evaluation)<br />are selected by default and displayed first</li><li>courses with existing evaluations cannot be selected</li></ul>").show();
+	$("#coursesInstruction").html('<br>Please select the course(s)' + label + ' for which you would like to generate evaluations: <span style="font-size:80%;color:red">*</span><ul class="xsm"><li>All eligible courses (students are enrolled in the selected time period and the course does not already have an associated evaluation)<br>are selected by default and displayed first.</li><li>Courses with existing evaluations can also be selected.</li></ul>').show();
 	$(containerDiv).show();
 }
 
@@ -141,15 +138,15 @@ function verifyCreateByPeriod(formObj) {
 	if (formObj.courses == null || multipleIsBlank(formObj.courses)) {
 		msg += "Please select at least one course.\n";
 	}
-		
+
 	if (isBlank(formObj.title) && multipleIsBlank(formObj.t_cn) && multipleIsBlank(formObj.t_tp) && multipleIsBlank(formObj.t_ay) && multipleIsBlank(formObj.t_ts) && multipleIsBlank(formObj.t_faculty)) {
 		msg += "Please put in a value for the Eval title.\n";
 	}
-	
+
 	if (!isValidDate(formObj.available_date)) {
 		msg += "Please enter a valid available date.\n";
 	}
-	
+
 	if (!isValidDate(formObj.due_date)) {
 		msg += "Please enter a valid due date.\n";
 	}
@@ -158,13 +155,13 @@ function verifyCreateByPeriod(formObj) {
 		alert(msg);
 		return false;
 	}
-	
+
 	return true;
 }
 
 function selectAll(formElement) {
 	for (var i = 0; i < formElement.options.length; i++) {
-		if (!formElement.options[i].selected && !formElement.options[i].disabled) {
+		if (!formElement.options[i].selected) {
 			formElement.options[i].selected = true;
 		}
 	}
