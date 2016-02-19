@@ -11,7 +11,7 @@ SELECT @x_role_id := role_id, @x_function_id := function_id
 
 UPDATE tusk.permission_role
 SET role_desc = 'Ability to view and edit schedules for clinical studies',
-	modified_by = 'sqlscript',
+	modified_by = 'script',
 	modified_on = NOW()
 WHERE (role_token = 'clinical_director'
     AND feature_type_id = 2
@@ -21,7 +21,7 @@ WHERE (role_token = 'clinical_director'
 UPDATE tusk.permission_function
 SET function_token = 'view_edit_schedules', 
 	function_desc = 'View and edit schedules',
-	modified_by = 'sqlscript',
+	modified_by = 'script',
 	modified_on = NOW()
 WHERE (function_token = 'view_schedules' AND function_desc = 'View schedules' AND function_id = @x_function_id);
 //

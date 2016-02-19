@@ -6588,7 +6588,7 @@ begin
         AND feature_type_id = 2
   );
   if _count_permission_role = 0 then
-    INSERT INTO permission_role (role_token, role_desc, feature_type_id) VALUES ('clinical_director', 'Ability to view and edit schedules for clinical studies', 2);
+    INSERT INTO permission_role (role_token, role_desc, feature_type_id, created_by, created_on, modified_by, modified_on) VALUES ('clinical_director', 'Ability to view and edit schedules for clinical studies', 2, 'script', NOW(), 'script', NOW());
   end if;
 
   set _count_permission_function = (
@@ -6598,12 +6598,12 @@ begin
         AND function_desc = 'View and edit schedules'
   );
   if _count_permission_function = 0 then
-    INSERT INTO permission_function (function_token, function_desc) VALUES ('view_edit_schedules', 'View and edit schedules');
+    INSERT INTO permission_function (function_token, function_desc, created_by, created_on, modified_by, modified_on) VALUES ('view_edit_schedules', 'View and edit schedules', 'script', NOW(), 'script', NOW());
   end if;
 
   if _count_permission_role != 0 AND _count_permission_function !=0 then
-    INSERT INTO permission_role_function(role_id, function_id)
-      SELECT t1.role_id, t2.function_id
+    INSERT INTO permission_role_function(role_id, function_id, created_by, created_on, modified_by, modified_on)
+      SELECT t1.role_id, t2.function_id, 'script', NOW(), 'script', NOW()
         FROM permission_role AS t1
             INNER JOIN permission_function AS t2
         WHERE(t1.role_token = 'clinical_director'
@@ -6622,7 +6622,7 @@ drop procedure clinical_director_role;
 delimiter //
 SET @x_role_id = 0;
 SET @x_function_id = 0;
-INSERT INTO tusk.permission_function (function_token, function_desc) VALUES ('view_site_grades', 'View site grades');
+INSERT INTO tusk.permission_function (function_token, function_desc, created_by, created_on, modified_by, modified_on) VALUES ('view_site_grades', 'View site grades', 'script', NOW(), 'script', NOW());
 SELECT @x_role_id := role_id, @x_function_id := function_id 
   FROM tusk.permission_role AS t1 
     INNER JOIN tusk.permission_function AS t2 
@@ -6630,6 +6630,6 @@ SELECT @x_role_id := role_id, @x_function_id := function_id
     AND t1.role_desc = 'Site Director' 
     AND t2.function_token = 'view_site_grades' 
     AND t2.function_desc = 'View site grades');
-INSERT INTO tusk.permission_role_function(role_id, function_id) values(@x_role_id, @x_function_id);
+INSERT INTO tusk.permission_role_function(role_id, function_id, created_by, created_on, modified_by, modified_on) values(@x_role_id, @x_function_id, 'script', NOW(), 'script', NOW());
 // 
 delimiter ;
