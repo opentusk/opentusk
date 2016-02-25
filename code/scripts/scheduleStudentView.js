@@ -98,6 +98,24 @@ $(document).ready(function() {
 		var noteRow = document.createElement('tr');
 		var note = document.createElement('textarea');
 		var noteColumn = document.createElement('td');
+		var buttons = document.createElement('span');
+		var saveNoteButton = document.createElement('a');
+		var cancelNoteButton = document.createElement('a');
+		var littleSpacing = document.createElement('span');
+
+		buttons.setAttribute("id", "saveCancelNote");
+		buttons.setAttribute("style", "cursor: pointer;");
+		saveNoteButton.setAttribute("id", "saveNote");
+		saveNoteButton.setAttribute("onclick", "saveNote()");
+		saveNoteButton.setAttribute("class", "navsm");
+		saveNoteButton.innerHTML = "Save";
+		cancelNoteButton.setAttribute("id", "cancelNote");
+		cancelNoteButton.setAttribute("onclick", "cancelNote()");
+		cancelNoteButton.setAttribute("class", "navsm");
+		cancelNoteButton.innerHTML = "Cancel";
+		littleSpacing.setAttribute("id", "littlespacing");
+		littleSpacing.innerHTML = "|";
+
 		note.setAttribute("id", "note");
 		note.setAttribute("rows", 10);
 		note.setAttribute("cols", 30);
@@ -106,12 +124,16 @@ $(document).ready(function() {
 			var td = document.createElement('td');
 			noteRow.appendChild(td);
 		}
+
+		buttons.appendChild(saveNoteButton);
+		buttons.appendChild(littleSpacing);
+		buttons.appendChild(cancelNoteButton);
 		noteColumn.appendChild(note);
+		noteColumn.appendChild(buttons);
 		noteRow.appendChild(noteColumn);
 		noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
 		$(this).closest('tr').after(noteRow);
-		// $(this).closest('tr').after('</tr><td><td><td><td><td><td><td colspan="1"><textarea id = "note" rows="10" cols="30"/><span id = "saveCancelNote" style = "cursor: pointer;"><a id = "saveNote" onclick="saveNote()" class = "navsm" >Save</a><span class="littlespacing">|</span><a id = "cancelNote" onclick="cancelNote()" class = "navsm"  style = "white-space: nowrap;">Cancel</a></td></td></td></td></td></td></td></td></tr>');
-	});
+	}); 
 
 	$("td #modify").click(function() {
 		if (modificationInProgress)
