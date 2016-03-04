@@ -342,6 +342,16 @@ sub createResponses{
 	    $self->createResponses($user, $question->getSubQuestionLinks("hash"), $responses, "link_question_question");	    
 	} else {
 	    my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+
+	    my $response_array = TUSK::Quiz::Response->lookup("quiz_result_id = $result_id and link_id = " . $quizItem->getPrimaryKeyID() . " and link_type = '$link_type'");
+	    my $resp_count = 1;
+	    foreach my $resp (@{$response_array}) {
+		if ($resp_count > 1) {
+		    $resp->deleteKey();
+		}
+		$resp_count++;
+	    }
+
 	    my $response = TUSK::Quiz::Response->lookupReturnOne("quiz_result_id = $result_id and link_id = " . $quizItem->getPrimaryKeyID() . " and link_type = '$link_type'");
 	    $response = TUSK::Quiz::Response->new() unless (defined $response);
 		
