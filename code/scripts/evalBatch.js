@@ -143,11 +143,11 @@ function verifyCreateByPeriod(formObj) {
 		msg += "Please put in a value for the Eval title.\n";
 	}
 
-	if (!isValidDate(formObj.available_date)) {
+	if (isBlank(formObj.available_date)) {
 		msg += "Please enter a valid available date.\n";
 	}
 
-	if (!isValidDate(formObj.due_date)) {
+	if (isBlank(formObj.due_date)) {
 		msg += "Please enter a valid due date.\n";
 	}
 
