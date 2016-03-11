@@ -208,6 +208,8 @@ function doEvalLoad() {
 					document.getElementById('evalArea').innerHTML = ajaxRequest.responseText;
 					if (full) {
 						queueEvalGraphsToLoad();
+					} else {
+						drawGraphs();
 					}
 				} else if (ajaxRequest.status && (ajaxRequest.status == 500)) {
 					processingElement.innerHTML = '<font color="red">' + _('Error loading eval.') + '</font>';
@@ -260,4 +262,133 @@ function showHideGraphs() {
 			graphs[index].displayTextGraph();
 		}
 	}
+}
+
+function drawGraphs() {
+	var size = {width: 360, height: 120};
+	var margin = {top: 20, right: 20, bottom: 40, left: 40};
+	var width = size.width - margin.left - margin.right;
+	var height = size.height - margin.top - margin.bottom;
+	var x = d3.scale.ordinal().rangeRoundBands([0, width], 0.6);
+	var y = d3.scale.linear().range([height, 0]);
+	var xAxis = d3.svg.axis().scale(x).orient("bottom");
+	var yAxis = d3.svg.axis().scale(y).orient("left").ticks(4).tickFormat(d3.format("d"));
+
+	d3.selectAll("div.graph").each(function() {
+		var graph = d3.select(this);
+		var json = JSON.parse(graph.select("script").html());
+		var data = json.data;
+		var type = json.type;
+		var mean = json.mean;
+		var low_text = json.low_text;
+		var high_text = json.high_text;
+
+		x.domain(data.map(function(d) {
+			return d.bin;
+		}));
+
+		y.domain([0, d3.max(data, function(d) {
+			return d.count;
+		})]);
+
+		var svg = graph.append("svg")
+			.attr("width", size.width)
+			.attr("height", size.height)
+			.append("g")
+			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+		svg.append("g")
+			.attr("class", "x axis")
+			.attr("transform", "translate(0," + height + ")")
+			.call(xAxis);
+
+		svg.append("g")
+			.attr("class", "y axis")
+			.call(yAxis);
+
+		svg.append("text")
+			.attr("transform", "rotate(-90)")
+			.attr("y", -margin.left)
+			.attr("x", -height / 2)
+			.attr("dy", "1em")
+			.style("text-anchor", "middle")
+			.text("Frequency");
+
+		if (mean) {
+			var xNum = d3.scale.linear()
+				.range([x(data[0].bin) + x.rangeBand() / 2, x(data[data.length - 1].bin) + x.rangeBand() / 2])
+				.domain([data[0].bin, data[data.length - 1].bin]);
+
+			svg.append("text")
+				.attr("x", xNum(mean))
+				.attr("y", height + 12)
+				.style("text-anchor", "middle")
+				.style("font-size", "18px")
+				.text("\u25B2");
+
+			if (type == "PlusMinusRating") {
+				svg.append("line")
+					.attr("x1", width / 2)
+					.attr("y1", height + 36)
+					.attr("x2", xNum(mean))
+					.attr("y2", height + 36)
+					.attr("stroke-width", 8)
+					.attr("stroke", (xNum(mean) > width / 2) ? "green" : "red");
+
+				svg.append("line")
+					.attr("x1", xNum(mean))
+					.attr("y1", height)
+					.attr("x2", xNum(mean))
+					.attr("y2", height + 40)
+					.attr("stroke-width", 2)
+					.attr("stroke", "black");
+			}
+		}
+
+		if (low_text) svg.append("text")
+			.attr("class", "x axis")
+			.attr("x", 0)
+			.attr("y", height + 28)
+			.style("text-anchor", "start")
+			.text(low_text);
+
+		if (high_text) svg.append("text")
+			.attr("class", "x axis")
+			.attr("x", width)
+			.attr("y", height + 28)
+			.style("text-anchor", "end")
+			.text(high_text);
+
+		var bar = svg.selectAll(".bar")
+			.data(data)
+			.enter();
+
+		bar.append("rect")
+			.attr("class", "bar")
+			.attr("x", function(d) {
+				return x(d.bin);
+			})
+			.attr("y", function(d) {
+				return y(d.count);
+			})
+			.attr("width", x.rangeBand())
+			.attr("height", function(d) {
+				return height - y(d.count);
+			});
+
+		bar.append("text")
+			.attr("x", function(d) {
+				return x(d.bin);
+			})
+			.attr("y", function(d) {
+				return y(d.count);
+			})
+			.attr("dx", x.rangeBand() / 2)
+			.attr("dy", -4)
+			.attr("text-anchor", "middle")
+			.text(function(d) {
+				return (d.count) ? d.count : "";
+			});
+
+	});
 }

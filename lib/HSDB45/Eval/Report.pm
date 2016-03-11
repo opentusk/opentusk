@@ -23,6 +23,7 @@ use HSDB45::Eval::MergedResults;
 use HSDB45::Eval::Question;
 use HSDB45::Eval::Question::Results;
 use HSDB45::Eval::Question::MergedResults;
+use JSON;
 
 sub quick_report {
 	my $eval = shift;
@@ -50,7 +51,6 @@ sub quick_report {
 		print '<li>' unless ($question_type eq 'Instruction');
 		printf('<p>%s</p>', $body->question_text());
 		next if ($question_type eq 'Instruction');
-		print_legend($body) if ($question_type eq 'NumericRating');
 		my $question_results;
 		my $question_overall;
 		if ($results->isa('HSDB45::Eval::MergedResults')) {
@@ -80,19 +80,41 @@ sub print_responses() {
 	print '</ul>';
 }
 
-sub print_legend() {
-	my $body = shift;
-
-	printf('<p><b>High:</b> %s<br>', $body->high_text());
-	printf('<b>Low:</b> %s</p>', $body->low_text());
-}
-
 sub print_statistics() {
 	my $question_results = shift;
 	my $question_overall = shift;
 
+	my $body = $question_results->question()->body();
+	my $question_type = $body->question_type();
 	my $statistics_results = $question_results->statistics();
 	my $statistics_overall = ($question_overall) ? $question_overall->statistics() : undef;
+
+	if ($question_results->is_binnable()|| $question_results->is_multibinnable()) {
+		my $histogram = $statistics_results->histogram();
+		if ($question_results->is_numeric() || $question_type eq 'YesNo') {
+			my %json;
+			my @data = ();
+			foreach my $bin ($histogram->bins()) {
+				my $count = $histogram->bin_count($bin);
+				push @data, {'bin' => $bin, 'count' => $count};
+			}
+			$json{'data'} = \@data;
+			$json{'type'} = $question_type;
+			if ($question_results->is_numeric()) {
+				$json{'mean'} = $statistics_results->mean();
+				$json{'low_text'} = $body->low_text();
+				$json{'high_text'} = $body->high_text();
+			}
+			printf('<div class="graph"><script type="application/json">%s</script></div>', encode_json(\%json));            
+		} else {
+			print '<div class="table"><table border="1" cellspacing="0">';
+			print '<tr><th align="center">Selection</th><th align="center">Frequency</th></tr>';
+			foreach my $bin ($histogram->bins()) {
+				printf('<tr><td align="center">%s</td><td align="center">%d</td></tr>', $bin, $histogram->bin_count($bin));
+			}
+			print '</table></div>';
+		}
+	}
 
 	if ($question_results->is_numeric()) {
 		my $count = sformat('%d', 'count', $statistics_results, $statistics_overall);
@@ -103,20 +125,11 @@ sub print_statistics() {
 		my $median25 = sformat('%.2f', 'median25', $statistics_results, $statistics_overall);
 		my $median75 = sformat('%.2f', 'median75', $statistics_results, $statistics_overall);
 		my $mode = sformat('%.2f', 'mode', $statistics_results, $statistics_overall);
-		print "<p><b>N:</b> $count, <b>NA:</b> $na_count<br>";
-		print "<b>Mean:</b> $mean, <b>Std Dev:</b> $standard_deviation<br>";
+		print '<div class="stats">';
+		print "<b>N:</b> $count, <b>NA:</b> $na_count<br>";
+		print "<b>&#x25b2; Mean:</b> $mean, <b>Std Dev:</b> $standard_deviation<br>";
 		print "<b>Median:</b> $median, <b>25%:</b> $median25, <b>75%:</b> $median75<br>";
-		print "<b>Mode:</b> $mode</p>";
-	}
-
-if ($question_results->is_binnable()|| $question_results->is_multibinnable()) {
-		my $histogram = $statistics_results->histogram();
-		print '<table border="1" cellspacing="0">';
-		print '<tr><th align="center">Selection</th><th align="center">Frequency</th></tr>';
-		foreach my $bin ($histogram->bins()) {
-			printf('<tr><td align="center">%s</td><td align="center">%d</td></tr>', $bin, $histogram->bin_count($bin));
-		}
-		print '</table>';
+		print "<b>Mode:</b> $mode</div>";
 	}
 }
 
