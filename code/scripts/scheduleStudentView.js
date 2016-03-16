@@ -15,7 +15,31 @@ function setIndex(rowIndex)
 }
 
 function saveNote()
-{
+{	
+	// $.ajax({
+	// 	url: "/tusk/schedule/clinical/admin/ajax/noteinput",
+	// 	data: {
+	// 		note: 'test',
+	// 		user_id: user_id,
+	// 		course_id: $("#saveNote").closest('tr').prev('tr').find('span#courseId').text(),
+	// 		school_id: school_id,
+	// 		// time_period: $("#saveNote").closest('tr').prev('tr').find('span#currentTimePeriodId').text(),
+	// 		time_period: '101',
+	// 		// teaching_site: $("#saveNote").closest('tr').prev('tr').find('span#currentTeachingSiteId').text(),
+	// 		teaching_site: 101
+	// 	}, dataType: "json",
+	// 	statusCode: {
+	// 		404: function () {
+	// 		},
+	// 		500: function () {
+	// 		},
+	// 	}
+	// }).done(function() {
+	// }).error(function() {
+	// 	alert("An error occured during the note input process.");
+	// }).success(function(data, status) {
+	// 	console.log("Successfully saved the note.");
+	// });
 	alert("This note will be saved soon.");
 }
 

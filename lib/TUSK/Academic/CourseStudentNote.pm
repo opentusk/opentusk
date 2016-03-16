@@ -13,11 +13,11 @@
 # limitations under the License.
 
 
-package TUSK::Academic::ClinicalScheduleNote;
+package TUSK::Academic::CourseStudentNote;
 
 =head1 NAME
 
-B<TUSK::Academic::ClinicalScheduleNote> - Class for manipulating entries in table clinical_schedule_note in tusk database
+B<TUSK::Academic::CourseStudentNote> - Class for manipulating entries in table course_student_note in tusk database
 
 =head1 SYNOPSIS
 
@@ -60,17 +60,17 @@ sub new {
     my $self = $class->SUPER::new ( 
 				    _datainfo => {
 					'database' => 'tusk',
-					'tablename' => 'clinical_schedule_note',
+					'tablename' => 'course_student_note',
 					'usertoken' => '',
 					'database_handle' => '',
 					},
 				    _field_names => {
-					'clinical_schedule_note_id' => 'pk',
-					'clinical_schedule_note' => '',
-					'user_id' => '',
+					'course_student_note_id' => 'pk',
 					'course_id' => '',
+					'student_id' => '',
 					'time_period_id' => '',
 					'teaching_site_id' => '',
+					'date' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -88,68 +88,6 @@ sub new {
 }
 
 ### Get/Set methods
-
-#######################################################
-
-=item B<getClinicalScheduleNote>
-
-my $string = $obj->getClinicalScheduleNote();
-
-Get the value of the clinical_schedule_note field
-
-=cut
-
-sub getClinicalScheduleNote{
-    my ($self) = @_;
-    return $self->getFieldValue('clinical_schedule_note');
-}
-
-#######################################################
-
-=item B<setClinicalScheduleNote>
-
-$obj->setClinicalScheduleNote($value);
-
-Set the value of the clinical_schedule_note field
-
-=cut
-
-sub setClinicalScheduleNote{
-    my ($self, $value) = @_;
-    $self->setFieldValue('clinical_schedule_note', $value);
-}
-
-
-#######################################################
-
-=item B<getUserID>
-
-my $string = $obj->getUserID();
-
-Get the value of the user_id field
-
-=cut
-
-sub getUserID{
-    my ($self) = @_;
-    return $self->getFieldValue('user_id');
-}
-
-#######################################################
-
-=item B<setUserID>
-
-$obj->setUserID($value);
-
-Set the value of the user_id field
-
-=cut
-
-sub setUserID{
-    my ($self, $value) = @_;
-    $self->setFieldValue('user_id', $value);
-}
-
 
 #######################################################
 
@@ -179,6 +117,37 @@ Set the value of the course_id field
 sub setCourseID{
     my ($self, $value) = @_;
     $self->setFieldValue('course_id', $value);
+}
+
+
+#######################################################
+
+=item B<getStudentID>
+
+my $string = $obj->getStudentID();
+
+Get the value of the student_id field
+
+=cut
+
+sub getStudentID{
+    my ($self) = @_;
+    return $self->getFieldValue('student_id');
+}
+
+#######################################################
+
+=item B<setStudentID>
+
+$obj->setStudentID($value);
+
+Set the value of the student_id field
+
+=cut
+
+sub setStudentID{
+    my ($self, $value) = @_;
+    $self->setFieldValue('student_id', $value);
 }
 
 
@@ -241,6 +210,37 @@ Set the value of the teaching_site_id field
 sub setTeachingSiteID{
     my ($self, $value) = @_;
     $self->setFieldValue('teaching_site_id', $value);
+}
+
+
+#######################################################
+
+=item B<getDate>
+
+my $string = $obj->getDate();
+
+Get the value of the date field
+
+=cut
+
+sub getDate{
+    my ($self) = @_;
+    return $self->getFieldValue('date');
+}
+
+#######################################################
+
+=item B<setDate>
+
+$obj->setDate($value);
+
+Set the value of the date field
+
+=cut
+
+sub setDate{
+    my ($self, $value) = @_;
+    $self->setFieldValue('date', $value);
 }
 
 

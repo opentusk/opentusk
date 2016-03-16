@@ -107,6 +107,31 @@ sub getScheduleCourses{
 	};
 }
 
+sub noteInput{
+	my ($self, $args) = @_;
+
+	my $sql = qq/
+	INSERT INTO tusk.clinical_schedule_note (clinical_schedule_note, user_id, course_id, time_period_id, teaching_site_id, created_by, created_on, 
+	modified_by, modified_on) VALUES(?, ?, ?, ?, ?, 'middlelayerTest', NOW(), 'middlelayerTest', NOW())/;
+	warn("user id is ".$args->{user_id});
+	my @sqlArgs = (
+		$args->{note}, 
+		$args->{user_id},
+		$args->{course_id}, 
+		$args->{time_period}, 
+		$args->{teaching_site});
+
+	my $inputAdded;
+	my $dbh = HSDB4::Constants::def_db_handle();
+
+	eval {
+		$inputAdded = $dbh->do($sql, undef, @sqlArgs);
+	};
+	warn "error : $@ query $sql failed for class " . ref($self) if ($@);
+
+	return $inputAdded == 1 ? 'ok' : $dbh->errstr;
+}
+
 sub getScheduleStudents{
 	my ($self, $academicLevelId, $academicYear) = @_;
 
