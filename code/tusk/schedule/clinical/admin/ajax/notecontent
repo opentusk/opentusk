@@ -14,3 +14,29 @@
  limitations under the License.
 </%doc>
 
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+</%attr>
+
+<%once>
+	use JSON;
+	use TUSK::Academic::CourseStudentNote;
+</%once>
+
+<%perl>
+	my $html = {};
+	my $note = TUSK::Academic::CourseStudentNote->new()->lookupReturnOne(
+			"student_id = '" . $ARGS{'user_id'} . "' and course_id = " 
+				. $ARGS{'course_id'},
+		['modified_on'], ['note'], 1, undef);
+
+	$html->{content} = $note ? $note->getNote() : undef;
+
+	my $html_json = encode_json($html);	
+	$m->print($html_json);
+
+</%perl>

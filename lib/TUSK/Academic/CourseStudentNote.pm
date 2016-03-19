@@ -68,9 +68,8 @@ sub new {
 					'course_student_note_id' => 'pk',
 					'course_id' => '',
 					'student_id' => '',
-					'time_period_id' => '',
-					'teaching_site_id' => '',
 					'date' => '',
+					'note' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -153,68 +152,6 @@ sub setStudentID{
 
 #######################################################
 
-=item B<getTimePeriodID>
-
-my $string = $obj->getTimePeriodID();
-
-Get the value of the time_period_id field
-
-=cut
-
-sub getTimePeriodID{
-    my ($self) = @_;
-    return $self->getFieldValue('time_period_id');
-}
-
-#######################################################
-
-=item B<setTimePeriodID>
-
-$obj->setTimePeriodID($value);
-
-Set the value of the time_period_id field
-
-=cut
-
-sub setTimePeriodID{
-    my ($self, $value) = @_;
-    $self->setFieldValue('time_period_id', $value);
-}
-
-
-#######################################################
-
-=item B<getTeachingSiteID>
-
-my $string = $obj->getTeachingSiteID();
-
-Get the value of the teaching_site_id field
-
-=cut
-
-sub getTeachingSiteID{
-    my ($self) = @_;
-    return $self->getFieldValue('teaching_site_id');
-}
-
-#######################################################
-
-=item B<setTeachingSiteID>
-
-$obj->setTeachingSiteID($value);
-
-Set the value of the teaching_site_id field
-
-=cut
-
-sub setTeachingSiteID{
-    my ($self, $value) = @_;
-    $self->setFieldValue('teaching_site_id', $value);
-}
-
-
-#######################################################
-
 =item B<getDate>
 
 my $string = $obj->getDate();
@@ -241,6 +178,37 @@ Set the value of the date field
 sub setDate{
     my ($self, $value) = @_;
     $self->setFieldValue('date', $value);
+}
+
+
+#######################################################
+
+=item B<getNote>
+
+my $string = $obj->getNote();
+
+Get the value of the note field
+
+=cut
+
+sub getNote{
+    my ($self) = @_;
+    return $self->getFieldValue('note');
+}
+
+#######################################################
+
+=item B<setNote>
+
+$obj->setNote($value);
+
+Set the value of the note field
+
+=cut
+
+sub setNote{
+    my ($self, $value) = @_;
+    $self->setFieldValue('note', $value);
 }
 
 

@@ -15,10 +15,13 @@
 package TUSK::Application::Schedule::Clinical;
 
 use TUSK::Academic::LevelClinicalSchedule;
+use TUSK::Academic::CourseStudentNote;
 use TUSK::Core::HSDB45Tables::TimePeriod;
 use TUSK::Core::HSDB45Tables::LinkCourseTeachingSite;
 use HSDB4::Constants;
 use TUSK::Core::School;
+use TUSK::Course;
+
 use Carp qw(cluck croak confess);
 
 sub new {
@@ -109,28 +112,44 @@ sub getScheduleCourses{
 
 sub noteInput{
 	my ($self, $args) = @_;
+	my $note = TUSK::Academic::CourseStudentNote->new();
+	# my $tuskCourseId = TUSK::Course::getTuskCourseIDFromSchoolID($self->{school_id}, $args->{course_id});
 
-	my $sql = qq/
-	INSERT INTO tusk.clinical_schedule_note (clinical_schedule_note, user_id, course_id, time_period_id, teaching_site_id, created_by, created_on, 
-	modified_by, modified_on) VALUES(?, ?, ?, ?, ?, 'middlelayerTest', NOW(), 'middlelayerTest', NOW())/;
-	warn("user id is ".$args->{user_id});
-	my @sqlArgs = (
-		$args->{note}, 
-		$args->{user_id},
-		$args->{course_id}, 
-		$args->{time_period}, 
-		$args->{teaching_site});
+	# $note->setFieldValue('course_id', $args->{course_id});
+	$note->setFieldValue('note', "Test Three; Tus3404; 03/18/16");
+	$note->setFieldValue('student_id', $args->{user_id});
+	$note->setFieldValue('course_id', $args->{course_id});
+	warn "User id is " . $args->{user_id}; 
+	$note->save();
 
-	my $inputAdded;
-	my $dbh = HSDB4::Constants::def_db_handle();
+	# my $sql = qq/
+	# INSERT INTO tusk.clinical_schedule_note (clinical_schedule_note, user_id, course_id, time_period_id, teaching_site_id, created_by, created_on, 
+	# modified_by, modified_on) VALUES(?, ?, ?, ?, ?, 'middlelayerTest', NOW(), 'middlelayerTest', NOW())/;
+	# warn("user id is ".$args->{user_id});
+	# my @sqlArgs = (
+	# 	$args->{note}, 
+	# 	$args->{user_id},
+	# 	$args->{course_id}, 
+	# 	$args->{time_period}, 
+	# 	$args->{teaching_site});
 
-	eval {
-		$inputAdded = $dbh->do($sql, undef, @sqlArgs);
-	};
-	warn "error : $@ query $sql failed for class " . ref($self) if ($@);
+	# my $inputAdded;
+	# my $dbh = HSDB4::Constants::def_db_handle();
 
-	return $inputAdded == 1 ? 'ok' : $dbh->errstr;
+	# eval {
+	# 	$inputAdded = $dbh->do($sql, undef, @sqlArgs);
+	# };
+	# warn "error : $@ query $sql failed for class " . ref($self) if ($@);
+
+	# return $inputAdded == 1 ? 'ok' : $dbh->errstr;
+	return 'ok';
 }
+
+# sub noteExists{
+# 	my ($self, $args) = @_;
+
+
+# }
 
 sub getScheduleStudents{
 	my ($self, $academicLevelId, $academicYear) = @_;

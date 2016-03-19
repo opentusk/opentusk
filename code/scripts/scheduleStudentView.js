@@ -16,36 +16,36 @@ function setIndex(rowIndex)
 
 function saveNote()
 {	
-	// $.ajax({
-	// 	url: "/tusk/schedule/clinical/admin/ajax/noteinput",
-	// 	data: {
-	// 		note: 'test',
-	// 		user_id: user_id,
-	// 		course_id: $("#saveNote").closest('tr').prev('tr').find('span#courseId').text(),
-	// 		school_id: school_id,
-	// 		// time_period: $("#saveNote").closest('tr').prev('tr').find('span#currentTimePeriodId').text(),
-	// 		time_period: '101',
-	// 		// teaching_site: $("#saveNote").closest('tr').prev('tr').find('span#currentTeachingSiteId').text(),
-	// 		teaching_site: 101
-	// 	}, dataType: "json",
-	// 	statusCode: {
-	// 		404: function () {
-	// 		},
-	// 		500: function () {
-	// 		},
-	// 	}
-	// }).done(function() {
-	// }).error(function() {
-	// 	alert("An error occured during the note input process.");
-	// }).success(function(data, status) {
-	// 	console.log("Successfully saved the note.");
-	// });
-	alert("This note will be saved soon.");
+	$.ajax({
+		url: "/tusk/schedule/clinical/admin/ajax/noteinput",
+		data: {
+			note: 'test',
+			user_id: user_id,
+			course_id: $("#saveNote").closest('tr').prev('tr').find('span#courseId').text(),
+			school_id: school_id,
+			// time_period: $("#saveNote").closest('tr').prev('tr').find('span#currentTimePeriodId').text(),
+			time_period: '101',
+			// teaching_site: $("#saveNote").closest('tr').prev('tr').find('span#currentTeachingSiteId').text(),
+			teaching_site: 101
+		}, dataType: "json",
+		statusCode: {
+			404: function () {
+			},
+			500: function () {
+			},
+		}
+	}).done(function() {
+	}).error(function() {
+		alert("An error occured during the note input process.");
+	}).success(function(data, status) {
+		console.log("Successfully saved the note.");
+	});
+	// alert("This note will be saved soon.");
 }
 
 function cancelNote()
 {
-	alert("This note section will disappear soon.");
+	$("#noteRow").remove();
 }
 
 function constructDropdowns()
@@ -126,6 +126,27 @@ $(document).ready(function() {
 		var saveNoteButton = document.createElement('a');
 		var cancelNoteButton = document.createElement('a');
 		var littleSpacing = document.createElement('span');
+		var noteContent = '';
+		$.ajax({
+			url: "/tusk/schedule/clinical/admin/ajax/notecontent",
+			data: {
+				user_id: user_id,
+				course_id: $("div#note").closest('tr').find('span#courseId').text(),
+			}, dataType: "json",
+			statusCode: {
+				404: function () {
+				},
+				500: function () {
+				},
+			}
+		}).done(function() {
+		}).error(function() {
+			alert("An error occured during the note retrieval process");
+		}).success(function(data, status) {
+			console.log("Successfully retrieved the note and it is " + data['content']);
+			note.innerHTML = data['content'];
+		});
+		console.log("Content is " + noteContent);
 
 		buttons.setAttribute("id", "saveCancelNote");
 		buttons.setAttribute("style", "cursor: pointer;");
@@ -144,6 +165,7 @@ $(document).ready(function() {
 		note.setAttribute("rows", 10);
 		note.setAttribute("cols", 30);
 		noteColumn.setAttribute("colspan", 1);
+
 		for (var i = 0; i < 7; i++) {
 			var td = document.createElement('td');
 			noteRow.appendChild(td);
@@ -156,6 +178,7 @@ $(document).ready(function() {
 		noteColumn.appendChild(buttons);
 		noteRow.appendChild(noteColumn);
 		noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
+		noteRow.setAttribute("id", "noteRow");
 		$(this).closest('tr').after(noteRow);
 	}); 
 
