@@ -116,7 +116,7 @@ sub noteInput{
 	# my $tuskCourseId = TUSK::Course::getTuskCourseIDFromSchoolID($self->{school_id}, $args->{course_id});
 
 	# $note->setFieldValue('course_id', $args->{course_id});
-	$note->setFieldValue('note', "Test Three; Tus3404; 03/18/16");
+	$note->setFieldValue('note', $args->{note});
 	$note->setFieldValue('student_id', $args->{user_id});
 	$note->setFieldValue('course_id', $args->{course_id});
 	warn "User id is " . $args->{user_id}; 

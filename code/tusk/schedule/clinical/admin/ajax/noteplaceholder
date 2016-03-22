@@ -24,17 +24,14 @@
 
 <%once>
 	use JSON;
-	use TUSK::Academic::CourseStudentNote;
 </%once>
 
 <%perl>
 	my $html = {};
-	my $note = TUSK::Academic::CourseStudentNote->new()->lookupReturnOne(
-			"student_id = '" . $ARGS{'user_id'} . "' and course_id = " 
-				. $ARGS{'course_id'},
-		['modified_on desc'], ['note'], 1, undef);
 
-	$html->{content} = $note ? $note->getNote() : undef;
+	$html->{placeholder} = $m->scomp("/schedule/clinical/admin/student/note/placeholder",
+				userId => $ARGS{'user_id'},
+				courseId => $ARGS{'course_id'});
 
 	my $html_json = encode_json($html);	
 	$m->print($html_json);

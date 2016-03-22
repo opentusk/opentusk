@@ -2,6 +2,7 @@ var currentRowIndex = 0;
 var currentTimePeriod;
 var currentTeachingSite; 
 var addRequested = false;
+var noteTakingInProgress = false;
 
 function setCourse(rowIndex)
 {
@@ -19,7 +20,7 @@ function saveNote()
 	$.ajax({
 		url: "/tusk/schedule/clinical/admin/ajax/noteinput",
 		data: {
-			note: 'test',
+			note: ($("#saveNote").closest('tr').find('textarea#note'))[0].value,
 			user_id: user_id,
 			course_id: $("#saveNote").closest('tr').prev('tr').find('span#courseId').text(),
 			school_id: school_id,
@@ -35,17 +36,51 @@ function saveNote()
 			},
 		}
 	}).done(function() {
+		console.log("Done here.");
 	}).error(function() {
 		alert("An error occured during the note input process.");
 	}).success(function(data, status) {
 		console.log("Successfully saved the note.");
+		$("div#note").each(function() {
+			if ($("#saveNote").closest('tr').prev('tr').find('span#courseId').text() == 
+				$(this).closest('tr').find('span#courseId').text()){
+				updateNotePlaceholder(this);
+			}
+		});
+		$("#noteRow").remove();
 	});
+	noteTakingInProgress = false;
 	// alert("This note will be saved soon.");
+}
+
+function updateNotePlaceholder(noteRow)
+{
+	$.ajax({
+		url: "/tusk/schedule/clinical/admin/ajax/noteplaceholder",
+		data: {
+			user_id: user_id,
+			course_id: $(noteRow).closest('tr').find('span#courseId').text(),
+		}, dataType: "json",
+		statusCode: {
+			404: function () {
+			},
+			500: function () {
+			},
+		}
+	}).done(function() {
+	}).error(function() {
+		alert("An error occured during the note placeholder update process.");
+	}).success(function(data, status) {
+		console.log("Note placeholder is being updated with " + $.trim(data['placeholder']));
+		var notePlaceholder = $.parseHTML($.trim(data['placeholder']));
+		$("a#placeholder", $(noteRow)).replaceWith(notePlaceholder);
+	});
 }
 
 function cancelNote()
 {
 	$("#noteRow").remove();
+	noteTakingInProgress = false;
 }
 
 function constructDropdowns()
@@ -118,7 +153,12 @@ $(document).ready(function() {
 		return;
 	});
 
-	$("td #note").click(function() {
+	$("a#placeholder").click(function() {
+		if (noteTakingInProgress) {	
+			alert('Please finish your current note taking.');
+			return;
+		}
+		noteTakingInProgress = true;
 		var noteRow = document.createElement('tr');
 		var note = document.createElement('textarea');
 		var noteColumn = document.createElement('td');
@@ -131,7 +171,7 @@ $(document).ready(function() {
 			url: "/tusk/schedule/clinical/admin/ajax/notecontent",
 			data: {
 				user_id: user_id,
-				course_id: $("div#note").closest('tr').find('span#courseId').text(),
+				course_id: $(this).closest('tr').find('span#courseId').text(),
 			}, dataType: "json",
 			statusCode: {
 				404: function () {
@@ -180,7 +220,7 @@ $(document).ready(function() {
 		noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
 		noteRow.setAttribute("id", "noteRow");
 		$(this).closest('tr').after(noteRow);
-	}); 
+	});
 
 	$("td #modify").click(function() {
 		if (modificationInProgress)
