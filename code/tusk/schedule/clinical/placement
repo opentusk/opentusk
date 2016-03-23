@@ -37,8 +37,10 @@ my $current_course = $m->comp("/tmpl/url:get_type_object");
 if ($ARGS{'academic_year'}) {
 	$academic_year = $ARGS{'academic_year'};
 } else {
-	my $time_period = $current_course->get_current_timeperiod();	
-	$academic_year = $time_period->field_value("academic_year");
+	my $time_period = $current_course->get_current_timeperiod();
+	if ($time_period) {	
+		$academic_year = $time_period->field_value("academic_year");
+	}
 }
 
 my @academic_year_dropdown;
@@ -66,6 +68,10 @@ print "<br><br>";
 
 my $placement_rows = $m->comp("SELF:get_placements_by_time_period", 
 				academic_year => $academic_year);
+
+if (!$placement_rows) {
+	print "<b>No clinical schedules were found for the current course and academic year combination.</b><br><br>";
+}
 
 my $col_fields = [];
 my @rows = ();
@@ -219,7 +225,6 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	my @time_periods_array;
 
 	if (scalar @{$placements} < 1) {
-		print "<b>No clinical schedules were found for the current course and academic year combination.</b><br><br>";
 		return undef;
 	}
 

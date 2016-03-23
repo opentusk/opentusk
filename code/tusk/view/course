@@ -62,7 +62,7 @@
 	my %leftMenu = (
 		'tabOrder'	=> [ __('Communication'), __('Material'), __('Info') ],
 		__('Info') 		=> [ 'obj', 'fac' ],
-		__('Communication')	=> [ 'ann', 'disc', 'groups', 'schedule', ],
+		__('Communication')	=> [ 'ann', 'clinical_placement', 'disc', 'groups', 'schedule', ],
 		'Patient Logs'	=> [ ],
 		#This has will always get extra stuff added for patient logs begore the last entry which should be grades.
 		__('Material')	=> [ 'assignments', 'cases', 'checklists', 'content', 'evaluations', 'grades', 'patientlogs', 'quizzes'],
@@ -111,6 +111,11 @@
 			'title'		=> __('Evaluations'),
 			'link'		=> "/protected$baseLink/evaluations",
 		     	'style'		=> $defaultStyle,
+		},
+		'clinical_placement' => {
+			'title'		=> __('Clinical Placement'),
+		     	'link' 		=> "/schedule/clinical/placement/course/" . $course->school() . "/" . $course->primary_key(),
+			'style'		=> $defaultStyle,
 		},
 		'disc'		=> {
 			'title'		=> __('Discussion'),
@@ -581,6 +586,18 @@ $args => {}
 	if(scalar($course->class_meetings()) < 1)       {$leftMenu{schedule}{style} = 'viewcourseleftnavEmpty';}
 	if(scalar(@sortedFacultyMembers) < 1)              {$leftMenu{fac}{style} = 'viewcourseleftnavEmpty';}
  	if(scalar($course->active_child_content()) < 1) {$leftMenu{content}{style} = 'viewcourseleftnavEmpty';}
+	
+	my $time_period = $course->get_current_timeperiod();
+	if ($time_period) {
+		my $academic_year = $time_period->field_value("academic_year");
+		my $placement_rows = $m->comp("/schedule/clinical/placement:get_placements_by_time_period", 
+						academic_year => $academic_year);
+		if (!$placement_rows) {
+			$leftMenu{clinical_placement}{style} = 'viewcourseleftnavEmpty';
+		}
+	} else {
+		$leftMenu{clinical_placement}{style} = 'viewcourseleftnavEmpty';
+	}
 
         unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	  $quizzes = $m->session->{'user'}->current_quizzes([$course]);
