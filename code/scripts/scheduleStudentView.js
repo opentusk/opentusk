@@ -73,7 +73,7 @@ function updateNotePlaceholder(noteRow)
 	}).success(function(data, status) {
 		console.log("Note placeholder is being updated with " + $.trim(data['placeholder']));
 		var notePlaceholder = $.parseHTML($.trim(data['placeholder']));
-		$("a#placeholder", $(noteRow)).replaceWith(notePlaceholder);
+		$("a#placeholder", $(noteRow)).html(notePlaceholder);
 	});
 }
 
