@@ -13,9 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
+
 <%once>
 	use HSDB4::SQLRow::User;
 	use HSDB45::Eval::MergedResults;
+	use HSDB45::Eval::Report;
 	use HSDB45::Eval::Secret;
 	use TUSK::Constants;
 	use TUSK::Application::Email;
@@ -35,7 +37,7 @@
 </%method>
 
 <%method jsarray>
-% return ['jquery/jquery.min.js'];
+% return ['jquery/jquery.min.js', 'd3/d3.min.js', 'evalReports.js'];
 </%method>
 
 <%method stylearray>
@@ -58,7 +60,11 @@
 	my @recipients = ();
 	my @recipient_ids = ();
 	my @teaching_sites = ();
-	my @types = ({label => __('Evaluatees'), value => 0}, {label => __('Site Directors / Site Eval Admins'), value => 1});
+		my @types = (
+		{label => __('Evaluatees'), value => ''},
+		{label => __('Site Directors / Site Eval Admins'), value => 'site'},
+		{label => __('Print'), value => 'print'}
+	);
 	my %teaching_site_users = {};
 	my $user;
 </%shared>
@@ -110,7 +116,7 @@
 		}
 		$m->redirect("/home") unless (scalar @teaching_sites);
 
-		if ($type) {
+		if ($type eq 'site') {
 			my $time_period_ids = $merged_eval->time_period_ids();
 			my $conds = "role_token IN ('site_director', 'site_eval_admin')";
 			$conds .= " AND course_user_site.teaching_site_id = $teaching_site_id" if ($teaching_site_id);
@@ -118,6 +124,7 @@
 			foreach (@$users) {
 				push @recipients, {label => $_->outFullName(), value => $_->getPrimaryKeyID()};
 			}
+			$message = __("Please click the link below to view evaluation reports on the course listed above:");
 		} else {
 			my $db = HSDB4::Constants::get_school_db($school);
 			my $dbh = HSDB4::Constants::def_db_handle();
@@ -137,6 +144,7 @@
 			while (my ($uid, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
 				push @recipients, {label => "$lastname, $firstname ($count)", value => $uid};
 			}
+			$message = __("Please click the link below to view how you were evaluated on the course listed above:");
 		}
 	}
 </%init>
@@ -168,34 +176,31 @@
 	} &></h3>
 
 	<form method="post">
-		<select id="recipients" style="float:left" name="recipient_id" multiple="multiple" size=12>
+		<select id="recipients" style="display:inline-block" name="recipient_id" multiple="multiple" size=12>
 % foreach my $recipient (@recipients) {
 			<option value="<% $recipient->{'value'} %>"><% $recipient->{'label'} %></option>
 % }
 		</select>
-		<textarea name="message" class="textareawhite" style="margin-left:150px" cols=40 rows=10></textarea>
+% unless ($type eq 'print') {
+		&nbsp;&nbsp;
+		<textarea name="message" class="textareawhite" style="display:inline-block" cols=40 rows=8><% $message %></textarea>
+% }
 		<br><br>
 		<input type="reset" class="formbutton" value="<% __('Reset') %>">
 		<input type="button" class="formbutton" value="<% __('Select All') %>" onclick="$('#recipients option').prop('selected', true)">
-		<input type="submit" class="boldformbutton" value="<% __('Send') %>">
+		<input type="submit" class="boldformbutton" value="<% ($type eq 'print') ? __('Print') : __('Send') %>">
 	</form>
+% } elsif ($type eq 'print') {
+<script>window.onload = printReport</script>
 % }
+</div>
 
+<div id="evalArea">
 <%perl>
 	my $course_title = $course->title();
 	my $teaching_site = ($teaching_site_id) ? HSDB45::TeachingSite->new(_school => $school, _id => $teaching_site_id)->site_name() : '';
 	my $from_addr = $user->default_email();
 	my $subject = "'$title' " .__("Merged Report");
-
-	$message .= "\n\n" if ($message);
-
-	if ($type) {
-		$eval->set_published();
-		$eval->save();
-		$message .= __("Please click the link below to view evaluation reports on the course listed above:");
-	} else {
-		$message .= __("Please click the link below to view how you were evaluated on the course listed above:");
-	}
 
 	$message = TUSK::Application::HTML::Strip->new()->removeHTML($message);
 	$message =~ s/\n/<br>/gi;
@@ -204,33 +209,38 @@
 		my $recipient = HSDB4::SQLRow::User->new()->lookup_key($recipient_id);
 		if ($recipient->primary_key()) {
 			my $code = uri_escape(HSDB45::Eval::Secret->generate_hashcode($school, $merged_eval_id, $recipient_id));
-			my $argument = ($type) ? 'user_id' : 'evaluatee_id';
+			my $argument = ($type eq 'site') ? 'user_id' : 'evaluatee_id';
 			my $query = "?auth=$code&$argument=$recipient_id&teaching_site_id=$teaching_site_id";
 			my $link = 'https://' . $ENV{SERVER_NAME} . '/tusk/eval/merged_report' . $ENV{PATH_INFO} . $query;
 			my $full_name = $recipient->out_full_name();
 			my $html_name = $recipient->out_html_full_name();
 			my $to_addr = $recipient->default_email();
-			my $body = "<html><body>";
-			$body .= "<b>" . __("Evalutee Name") . "</b>: $full_name<br>" unless ($type);
+		my $body = '';
+			$body .= "<b>" . __("Evalutee Name") . "</b>: $full_name<br>" unless ($type eq 'site');
 			$body .= "<b>" . __("Course Name") . "</b>: $course_title<br>";
 			$body .= "<b>" . __("Merged Evaluation Title") . "</b>: $title<br>";
 			$body .= "<b>" . __("Teaching Site") . "</b>: $teaching_site<br>" if ($teaching_site);
-			$body .= "<br>$message<br><br>";
-			$body .= "<a href='$link'>$link</a>";
-			$body .= "</body></html>";
-			my $email = TUSK::Application::Email->new({
-				to_addr => $to_addr,
-				cc_addr => $from_addr,
-				from_addr => $from_addr,
-				subject => $subject,
-				body => $body,
-				'Content-Type' => 'text/html; charset="utf-8"'
-			});
-			if ($email->send()) {
-				$m->print('<p>' . __('Sent email to') . " $html_name</p>");
+			if ($type eq 'print') {
+				$m->print(qq(<p class="banner">$body</p>));
+				my $merged_eval_results = HSDB45::Eval::MergedResults->new(_school => $school, _id => $merged_eval_id)->set_filter($recipient_id, $teaching_site_id);
+				HSDB45::Eval::Report::quick_report($merged_eval_results);
 			} else {
-				my $error = $email->getError();
-				$m->print('<p>' . __('Error sending email to') . " $html_name: $error</p>");
+				$body .= "<br>$message<br><br>";
+				$body .= "<a href='$link'>$link</a>";
+				my $email = TUSK::Application::Email->new({
+					to_addr => $to_addr,
+					cc_addr => $from_addr,
+					from_addr => $from_addr,
+					subject => $subject,
+					body => "<html><body>$body</body></html>",
+					'Content-Type' => 'text/html; charset="utf-8"'
+				});
+				if ($email->send()) {
+					$m->print('<p>' . __('Sent email to') . " $html_name</p>");
+				} else {
+					my $error = $email->getError();
+					$m->print('<p>' . __('Error sending email to') . " $html_name: $error</p>");
+				}
 			}
 		} else {
 			$m->print('<p>' . __('Could not find user') . " $recipient_id</p>");

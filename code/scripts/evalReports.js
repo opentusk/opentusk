@@ -118,7 +118,7 @@ function doGraphLoad() {
 		if (ajaxRequest && ajaxRequest.readyState == 4) {
 			if (ajaxRequest.status && (ajaxRequest.status == 200)) {
 				if (ajaxRequest.responseText.search("Unknown User") == -1 && ajaxRequest.responseText.search("Login") == -1) {
-					//Split out the graph and the text of the response (also check for error)
+					// Split out the graph and the text of the response (also check for error)
 					var graphNode = ajaxRequest.responseXML.getElementsByTagName('graph')[0];
 					var aGraph = new GraphObject(processingElement);
 					for (var index = 0; index < graphNode.childNodes.length; index++) {
@@ -126,7 +126,7 @@ function doGraphLoad() {
 						var nodeValue = '';
 						if (xmlNode[nodeTextType]) {
 							nodeValue = xmlNode[nodeTextType];
-						}	else if (xmlNode.firstChild && xmlNode.firstChild.nodeValue) {
+						} else if (xmlNode.firstChild && xmlNode.firstChild.nodeValue) {
 							nodeValue = xmlNode.firstChild.nodeValue;
 						} else {
 							nodeValue = _('Unable to decypher graph XML');
@@ -391,4 +391,9 @@ function drawGraphs() {
 			});
 
 	});
+}
+
+function printReport() {
+	drawGraphs();
+	setTimeout(window.print, 1000);
 }

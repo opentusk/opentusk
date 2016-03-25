@@ -105,7 +105,7 @@ sub print_statistics() {
 				$json{'low_text'} = $body->low_text();
 				$json{'high_text'} = $body->high_text();
 			}
-			printf('<div class="graph"><script type="application/json">%s</script></div>', encode_json(\%json));            
+			printf('<div class="graph"><script type="application/json">%s</script></div>', encode_json(\%json));
 		} else {
 			print '<div class="table"><table border="1" cellspacing="0">';
 			print '<tr><th align="center">Selection</th><th align="center">Frequency</th></tr>';
