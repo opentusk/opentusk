@@ -13,11 +13,11 @@
 # limitations under the License.
 
 
-package TUSK::Academic::CourseStudentNote;
+package TUSK::Course::StudentNote;
 
 =head1 NAME
 
-B<TUSK::Academic::CourseStudentNote> - Class for manipulating entries in table course_student_note in tusk database
+B<TUSK::Course::StudentNote> - Class for manipulating entries in table course_student_note in tusk database
 
 =head1 SYNOPSIS
 

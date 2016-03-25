@@ -18,7 +18,7 @@ function setIndex(rowIndex)
 function saveNote()
 {	
 	$.ajax({
-		url: "/tusk/schedule/clinical/admin/ajax/noteinput",
+		url: "/tusk/schedule/clinical/admin/ajax/note/input",
 		data: {
 			note: ($("#saveNote").closest('tr').find('textarea#note'))[0].value,
 			user_id: user_id,
@@ -56,9 +56,10 @@ function saveNote()
 function updateNotePlaceholder(noteRow)
 {
 	$.ajax({
-		url: "/tusk/schedule/clinical/admin/ajax/noteplaceholder",
+		url: "/tusk/schedule/clinical/admin/ajax/note/addedit",
 		data: {
 			user_id: user_id,
+			school_id: school_id,
 			course_id: $(noteRow).closest('tr').find('span#courseId').text(),
 		}, dataType: "json",
 		statusCode: {
@@ -168,9 +169,10 @@ $(document).ready(function() {
 		var littleSpacing = document.createElement('span');
 		var noteContent = '';
 		$.ajax({
-			url: "/tusk/schedule/clinical/admin/ajax/notecontent",
+			url: "/tusk/schedule/clinical/admin/ajax/note/content",
 			data: {
 				user_id: user_id,
+				school_id: school_id,
 				course_id: $(this).closest('tr').find('span#courseId').text(),
 			}, dataType: "json",
 			statusCode: {
@@ -181,7 +183,7 @@ $(document).ready(function() {
 			}
 		}).done(function() {
 		}).error(function() {
-			alert("An error occured during the note retrieval process");
+			alert("An error occured during the note retrieval process.");
 		}).success(function(data, status) {
 			console.log("Successfully retrieved the note and it is " + data['content']);
 			note.innerHTML = data['content'];

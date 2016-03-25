@@ -1,5 +1,5 @@
  <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2016 Tufts University 
 
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
  you may not use this file except in compliance with the License. 
@@ -16,35 +16,39 @@
 
 <%args>
 	$userId
+	$schoolId
 	$courseId
 </%args>
 
 <%once>
 	use TUSK::Academic::CourseStudentNote;
+	use TUSK::Course;
 </%once>
 
 <%shared>
 	my $noteExists = 0;
+	my $tuskCourseId;
 </%shared>
 
 <%init>
-	$m->comp('SELF:.setNoteExistence', userId => $userId, courseId => $courseId);
+	$tuskCourseId = TUSK::Course->new()->getTuskCourseIDFromSchoolID($schoolId, $courseId);
+	$m->comp('SELF:.setNoteExistence', userId => $userId);
 	print $m->comp('SELF:.getNotePlaceholder');
 </%init>
 
 <%doc>
-	Returns true if there is a note for a student in a course
+	Updates the note existence to true 
+	if there is a note for a student in a course
 </%doc>
 <%method .setNoteExistence>
 <%args>
 	$userId
-	$courseId
 </%args>
 <%perl>
 	$noteExists = 0;
-	warn "student_id = " . $userId . " and course_id = " . $courseId;
+	warn "student_id = " . $userId . " and course_id = " . $tuskCourseId;
 	if (TUSK::Academic::CourseStudentNote->new()->exists(
-		"student_id = '" . $userId . "' and course_id = " . $courseId)) {
+		"student_id = '" . $userId . "' and course_id = " . $tuskCourseId)) {
 		$noteExists = 1;
 	};
 </%perl>

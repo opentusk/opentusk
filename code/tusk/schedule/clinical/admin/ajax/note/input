@@ -1,5 +1,5 @@
  <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2016 Tufts University 
 
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
  you may not use this file except in compliance with the License. 
@@ -24,17 +24,21 @@
 
 <%once>
 	use JSON;
-	use TUSK::Academic::CourseStudentNote;
+  	use TUSK::Application::Schedule::Clinical;
 </%once>
 
 <%perl>
 	my $html = {};
-	my $note = TUSK::Academic::CourseStudentNote->new()->lookupReturnOne(
-			"student_id = '" . $ARGS{'user_id'} . "' and course_id = " 
-				. $ARGS{'course_id'},
-		['modified_on desc'], ['note'], 1, undef);
 
-	$html->{content} = $note ? $note->getNote() : undef;
+	$html->{input} = TUSK::Application::Schedule::Clinical->new({
+		school_id => $ARGS{'school_id'}
+	})->noteInput({
+		note => $ARGS{'note'},
+		user_id => $ARGS{'user_id'},
+	  	course_id => $ARGS{'course_id'},
+	  	time_period => $ARGS{'time_period'},
+	  	teaching_site => $ARGS{'teaching_site'}
+	});
 
 	my $html_json = encode_json($html);	
 	$m->print($html_json);

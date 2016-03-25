@@ -113,14 +113,16 @@ sub getScheduleCourses{
 sub noteInput{
 	my ($self, $args) = @_;
 	my $note = TUSK::Academic::CourseStudentNote->new();
-	# my $tuskCourseId = TUSK::Course::getTuskCourseIDFromSchoolID($self->{school_id}, $args->{course_id});
+	my $tuskCourseId = TUSK::Course->new()->getTuskCourseIDFromSchoolID($self->{school_id}, $args->{course_id});
+	warn 'TUSK course id is ' . $tuskCourseId;
 
 	# $note->setFieldValue('course_id', $args->{course_id});
-	$note->setFieldValue('note', $args->{note});
-	$note->setFieldValue('student_id', $args->{user_id});
-	$note->setFieldValue('course_id', $args->{course_id});
+	$note->setFieldValues({note => $args->{note},
+		student_id => $args->{user_id},
+		course_id => $tuskCourseId});
 	warn "User id is " . $args->{user_id}; 
-	$note->save();
+	$note->save({
+		user_id => $args->{user_id}});
 
 	# my $sql = qq/
 	# INSERT INTO tusk.clinical_schedule_note (clinical_schedule_note, user_id, course_id, time_period_id, teaching_site_id, created_by, created_on, 
