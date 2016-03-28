@@ -3,6 +3,7 @@ var currentTimePeriod;
 var currentTeachingSite; 
 var addRequested = false;
 var noteTakingInProgress = false;
+var noteSavingWarning = 'Please finish saving your current note.';
 
 function setCourse(rowIndex)
 {
@@ -152,7 +153,7 @@ $(document).ready(function() {
 
 	$("a#placeholder").click(function() {
 		if (noteTakingInProgress) {	
-			alert('Please finish your current note taking.');
+			alert(noteSavingWarning);
 			return;
 		}
 		noteTakingInProgress = true;
@@ -257,6 +258,11 @@ $(document).ready(function() {
 	});
 
 	$("a#delete").click(function() {
+		if (noteTakingInProgress)
+		{	
+			alert(noteSavingWarning);
+			return;
+		}
 		var deleteValidate = confirm("Are you sure you want to remove the student from the rotation?");
 		if (deleteValidate == true) {
 			$.ajax({
@@ -296,6 +302,11 @@ $(document).ready(function() {
 	});
 
 	$("a#save").click(function() {
+		if (noteTakingInProgress)
+		{	
+			alert(noteSavingWarning);
+			return;
+		}
 		//store the value and wait for the Ajax request result status
 		var tempTimePeriod = $(this).closest('tr').find('div#timePeriod').find('select.view').val(); 
 		var tempTeachingSite = $(this).closest('tr').find('div#teachingSite').find('select.view').val(); 
