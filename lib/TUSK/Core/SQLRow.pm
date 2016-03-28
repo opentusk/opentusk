@@ -1274,6 +1274,7 @@ Useful method that does a lookup and then returns the first matching row
 
 sub lookupReturnOne{
     my ($self, $cond, $orderby, $fields, $limit, $joinobjs) = @_;
+    warn 'Self is: ' . $self;
     my $results = $self->lookup($cond, $orderby, $fields, $limit, $joinobjs);
     if (scalar(@$results)){
 	return $results->[0];

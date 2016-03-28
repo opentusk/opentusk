@@ -24,10 +24,6 @@ function saveNote()
 			user_id: user_id,
 			course_id: $("#saveNote").closest('tr').prev('tr').find('span#courseId').text(),
 			school_id: school_id,
-			// time_period: $("#saveNote").closest('tr').prev('tr').find('span#currentTimePeriodId').text(),
-			time_period: '101',
-			// teaching_site: $("#saveNote").closest('tr').prev('tr').find('span#currentTeachingSiteId').text(),
-			teaching_site: 101
 		}, dataType: "json",
 		statusCode: {
 			404: function () {

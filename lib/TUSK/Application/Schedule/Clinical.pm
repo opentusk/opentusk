@@ -15,7 +15,7 @@
 package TUSK::Application::Schedule::Clinical;
 
 use TUSK::Academic::LevelClinicalSchedule;
-use TUSK::Academic::CourseStudentNote;
+use TUSK::Course::StudentNote;
 use TUSK::Core::HSDB45Tables::TimePeriod;
 use TUSK::Core::HSDB45Tables::LinkCourseTeachingSite;
 use HSDB4::Constants;
@@ -112,9 +112,8 @@ sub getScheduleCourses{
 
 sub noteInput{
 	my ($self, $args) = @_;
-	my $note = TUSK::Academic::CourseStudentNote->new();
+	my $note = TUSK::Course::StudentNote->new();
 	my $tuskCourseId = TUSK::Course->new()->getTuskCourseIDFromSchoolID($self->{school_id}, $args->{course_id});
-	warn 'TUSK course id is ' . $tuskCourseId;
 
 	# $note->setFieldValue('course_id', $args->{course_id});
 	$note->setFieldValues({note => $args->{note},
