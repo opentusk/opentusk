@@ -33,21 +33,22 @@ function saveNote()
 			},
 		}
 	}).done(function() {
-		console.log("Done here.");
 	}).error(function() {
 		alert("An error occured during the note input process.");
 	}).success(function(data, status) {
-		console.log("Successfully saved the note.");
-		$("div#note").each(function() {
-			if ($("#saveNote").closest('tr').prev('tr').find('span#courseId').text() == 
-				$(this).closest('tr').find('span#courseId').text()){
-				updateNotePlaceholder(this);
-			}
-		});
-		$("#noteRow").remove();
+		if (data['status'] == 'ok') {
+			$("div#note").each(function() {
+				if ($("#saveNote").closest('tr').prev('tr').find('span#courseId').text() == 
+					$(this).closest('tr').find('span#courseId').text()){
+					updateNotePlaceholder(this);
+				}
+			});
+			$("#noteRow").remove();
+		} else {
+			alert(data['status']);
+		}
 	});
 	noteTakingInProgress = false;
-	// alert("This note will be saved soon.");
 }
 
 function updateNotePlaceholder(noteRow)
@@ -69,7 +70,6 @@ function updateNotePlaceholder(noteRow)
 	}).error(function() {
 		alert("An error occured during the note placeholder update process.");
 	}).success(function(data, status) {
-		console.log("Note placeholder is being updated with " + $.trim(data['placeholder']));
 		var notePlaceholder = $.parseHTML($.trim(data['placeholder']));
 		$("a#placeholder", $(noteRow)).html(notePlaceholder);
 	});
@@ -156,6 +156,7 @@ $(document).ready(function() {
 			alert(noteSavingWarning);
 			return;
 		}
+		// $(this).hide();
 		noteTakingInProgress = true;
 		var noteRow = document.createElement('tr');
 		var note = document.createElement('textarea');
@@ -165,6 +166,8 @@ $(document).ready(function() {
 		var cancelNoteButton = document.createElement('a');
 		var littleSpacing = document.createElement('span');
 		var noteContent = '';
+		var breakElement = document.createElement('br')
+
 		$.ajax({
 			url: "/tusk/schedule/clinical/admin/ajax/note/content",
 			data: {
@@ -182,23 +185,22 @@ $(document).ready(function() {
 		}).error(function() {
 			alert("An error occured during the note retrieval process.");
 		}).success(function(data, status) {
-			console.log("Successfully retrieved the note and it is " + data['content']);
-			note.innerHTML = data['content'];
+			if (data.status == 'ok') 
+				note.innerHTML = data['content'];
 		});
-		console.log("Content is " + noteContent);
 
 		buttons.setAttribute("id", "saveCancelNote");
 		buttons.setAttribute("style", "cursor: pointer;");
 		saveNoteButton.setAttribute("id", "saveNote");
 		saveNoteButton.setAttribute("onclick", "saveNote()");
 		saveNoteButton.setAttribute("class", "navsm");
-		saveNoteButton.innerHTML = "Save";
+		saveNoteButton.innerHTML = "Save Note";
 		cancelNoteButton.setAttribute("id", "cancelNote");
 		cancelNoteButton.setAttribute("onclick", "cancelNote()");
 		cancelNoteButton.setAttribute("class", "navsm");
 		cancelNoteButton.innerHTML = "Cancel";
 		littleSpacing.setAttribute("id", "littlespacing");
-		littleSpacing.innerHTML = "|";
+		littleSpacing.innerHTML = " | ";
 
 		note.setAttribute("id", "note");
 		note.setAttribute("rows", 10);

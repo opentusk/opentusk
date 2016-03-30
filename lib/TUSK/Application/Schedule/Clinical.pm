@@ -21,6 +21,7 @@ use TUSK::Core::HSDB45Tables::LinkCourseTeachingSite;
 use HSDB4::Constants;
 use TUSK::Core::School;
 use TUSK::Course;
+use HSDB4::DateTime;
 
 use Carp qw(cluck croak confess);
 
@@ -115,42 +116,20 @@ sub noteInput{
 	my $note = TUSK::Course::StudentNote->new();
 	my $tuskCourseId = TUSK::Course->new()->getTuskCourseIDFromSchoolID($self->{school_id}, $args->{course_id});
 
-	# $note->setFieldValue('course_id', $args->{course_id});
 	$note->setFieldValues({note => $args->{note},
 		student_id => $args->{user_id},
-		course_id => $tuskCourseId});
-	warn "User id is " . $args->{user_id}; 
-	$note->save({
-		user_id => $args->{user_id}});
+		course_id => $tuskCourseId,
+		date => HSDB4::DateTime->new()->out_mysql_timestamp()});
 
-	# my $sql = qq/
-	# INSERT INTO tusk.clinical_schedule_note (clinical_schedule_note, user_id, course_id, time_period_id, teaching_site_id, created_by, created_on, 
-	# modified_by, modified_on) VALUES(?, ?, ?, ?, ?, 'middlelayerTest', NOW(), 'middlelayerTest', NOW())/;
-	# warn("user id is ".$args->{user_id});
-	# my @sqlArgs = (
-	# 	$args->{note}, 
-	# 	$args->{user_id},
-	# 	$args->{course_id}, 
-	# 	$args->{time_period}, 
-	# 	$args->{teaching_site});
+	eval {
+		$note->save({
+			user => $args->{modified_by}});
+	};
 
-	# my $inputAdded;
-	# my $dbh = HSDB4::Constants::def_db_handle();
+	return "Error: $@" if ($@);
 
-	# eval {
-	# 	$inputAdded = $dbh->do($sql, undef, @sqlArgs);
-	# };
-	# warn "error : $@ query $sql failed for class " . ref($self) if ($@);
-
-	# return $inputAdded == 1 ? 'ok' : $dbh->errstr;
 	return 'ok';
 }
-
-# sub noteExists{
-# 	my ($self, $args) = @_;
-
-
-# }
 
 sub getScheduleStudents{
 	my ($self, $academicLevelId, $academicYear) = @_;
