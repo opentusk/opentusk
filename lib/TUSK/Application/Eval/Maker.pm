@@ -17,7 +17,9 @@ package TUSK::Application::Eval::Maker;
 
 use HSDB45::Eval;
 use HSDB4::Constants;
+use HSDB4::DateTime;
 use TUSK::Constants;
+use Scalar::Util qw(looks_like_number);
 
 sub new {
     my ($class, $args) = @_;
@@ -47,6 +49,21 @@ sub getSchool {
     return $self->{school};
 }
 
+sub getDate {
+    my $self = shift;
+    my $date = shift;
+
+    if (looks_like_number($date)) {
+        my $new_date = $self->{time_period}->end_date();
+        $new_date->add_days($date);
+        $date = $new_date->out_mysql_date()
+    } elsif ($date) {
+        $date = HSDB4::DateTime->new()->in_mysql_date($date)->out_mysql_date();
+    }
+
+    return $date;
+}
+
 sub clone {
     my ($self, $prototype_eval_id) = @_;
 
@@ -63,10 +80,10 @@ sub clone {
        'time_period_id' => ($self->{time_period} && $self->{time_period}->primary_key()) ? $self->{time_period}->primary_key() : undef,
        'teaching_site_id' => ($self->{teaching_site} && $self->{teaching_site}->primary_key()) ? $self->{teaching_site}->primary_key() : undef,
        'title' => $self->{eval_title},
-       'available_date' => $self->{available_date},
-       'submittable_date' => $self->{submittable_date},
-       'prelim_due_date' => $self->{prelim_due_date},
-       'due_date' => $self->{due_date},
+       'available_date' => $self->getDate($self->{available_date}),
+       'submittable_date' => $self->getDate($self->{submittable_date}),
+       'prelim_due_date' => $self->getDate($self->{prelim_due_date}),
+       'due_date' => $self->getDate($self->{due_date}),
        'eval_type_id' => $prototype_eval->field_value('eval_type_id')
     );
     my ($eval_id, $msg) = $eval->save();
@@ -99,6 +116,5 @@ sub clone {
 
     return 1;
 }
-
 
 1;

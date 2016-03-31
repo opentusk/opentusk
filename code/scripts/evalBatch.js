@@ -16,21 +16,28 @@
 var xRequest = null;
 var containerDiv;
 var create_by = '';
+var tp_id = 0;
 
 // take form inputs and make AJAX request for course info
-function requestCourses(tp_field,url,school,create_by_field) {
+function requestCourses(tp_field, url, school, create_by_field) {
+	var i = 0;
+
+	// do not update the course list when selecting additional time periods
+	for (i = 0; i < tp_field.length; i++) {
+		if (tp_field[i].selected && tp_field[i].value == tp_id) {
+			return;
+		}
+	}
+
 	// clear display
 	$("#coursesInstruction").html("").hide();
 	removeAllRows();
 
-	// check to make sure the user didn't somehow de-select one of the radio buttons
-	if (!create_by_field) {
-		alert('Please select whether to create evaluations by course or course and teaching site combination.');
-	}
-	// go ahead and make the AJAX request
-	else if (tp_field.value) {
+	// make the AJAX request
+	tp_id = tp_field.value;
+	if (tp_id) {
 		$("#coursesInstruction").html("<p class='xsm'>please wait <img src='/graphics/icons/waiting_bar.gif' /></p>").show();
-		for (var i = 0; i < create_by_field.length; i++) {
+		for (i = 0; i < create_by_field.length; i++) {
 			if (create_by_field[i].checked) {
 				create_by = create_by_field[i].value;
 				break;
@@ -38,7 +45,7 @@ function requestCourses(tp_field,url,school,create_by_field) {
 		}
 		xRequest = new initXMLHTTPRequest();
 		if (xRequest) {
-			var params = 'time_period_id=' + tp_field.value + '&school=' + school + '&create_by=' + create_by;
+			var params = 'time_period_id=' + tp_id + '&school=' + school + '&create_by=' + create_by;
 			xRequest.open("POST", url, true);
 			xRequest.onreadystatechange = showCourses;
 			xRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -69,7 +76,7 @@ function printCourses(courses) {
 	$(containerDiv).append('<select multiple="multiple" id="courses" name="courses">');
 	var option, value, name;
 	var label = "";
-	$(courses).each(function(){
+	$(courses).each(function() {
 		value = 'course_id=' + $(this).attr('id');
 		name = $(this).attr('title');
 		if ($(this).attr('code')) {
@@ -96,7 +103,7 @@ function printCourses(courses) {
 		value += escape(name);
 		option = '<option value="' + value + '"';
 		if ($(this).attr('eval_exists') < 1) {
-			 option += ' selected="selected"';
+			option += ' selected="selected"';
 		}
 		option += '>';
 		option += name;

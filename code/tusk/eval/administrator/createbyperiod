@@ -106,6 +106,8 @@
 
 
 <%method show_form>
+% my $red_star = ' <span style="font-size:80%;color:red">*</span>';
+
 <& /tmpl/element:form, params => {
 	name => 'createbulkevals',
 	enctype => 'multipart/form-data',
@@ -115,38 +117,38 @@
 
 <& /tmpl/element:table, params => {
 	width => '100%',
-	border => '0',
-	cellspacing => '0',
-	cellpadding => '0'
+	border => 0,
+	cellspacing => 0,
+	cellpadding => 0
 } &>
 
 <& /tmpl/element:radio_buttons, params => {
-	label => __('Create an evaluation<br />for each:') . ' <span style="font-size:80%;color:red">*</span>',
+	label => __('Create an evaluation') . '<br>' . __('for each:') . $red_star,
 	name => 'create_by',
 	buttons => [
 		{
 			value => 'course',
 			text => __('Course or Teaching'),
-			checked => ($params{create_by} ne 'course_site') ? 1 : undef,
+			checked => $params{create_by} ne 'course_site',
 			onclick => "requestCourses(this.form.time_period_id, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by)",
  },
 		{
 			value => 'course_site',
-			text => __('Course and Teaching Site combination'),
-			checked => ($params{create_by} eq 'course_site') ? 1 : undef,
+			text => __('Course and Teaching Site Combination'),
+			checked => $params{create_by} eq 'course_site',
 			onclick => "requestCourses(this.form.time_period_id, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by)",
-}
+		}
 	],
 } &>
 
 <& /eval/administrator/tmpl:get_current_time_periods, params => {
-	label => __('Time Period:') . ' <span style="font-size:80%;color:red">*</span>',
+	label => __('Time Periods:') . $red_star,
 	multiple => 1,
 	onchange => "requestCourses(this, '/eval/administrator/xml/timeperiodcoursexml', '$school_name', this.form.create_by)",
 	trailing_text	=> qq(<br>
-<div id="coursesOuter" style="ont-size:85%;">
-	<span id="coursesInstruction" style="display:none;"></span>
-	<div id="coursesInner" style="display:none;font-size:85%;"></div>
+<div id="coursesOuter" style="font-size:85%">
+	<span id="coursesInstruction" style="display:none"></span>
+	<div id="coursesInner" style="display:none;font-size:85%"></div>
 </div>),
 } &>
 
@@ -158,7 +160,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => {
-		label => __('Eval Title:') . ' <span style="font-size:80%;color:red">*</span>',
+		label => __('Eval Title:') . $red_star,
 		name => 'title',
 		value => $params{title},
 		size => 80,
@@ -174,12 +176,31 @@
 </table>'
 } &>
 
+<& /tmpl/element:radio_buttons, params => {
+	label => __('Specify Dates as:') . $red_star,
+	name => 'relative',
+	buttons => [
+		{
+			value => 0,
+			text => __('Absolute (calendar dates)'),
+			checked => !$params{relative},
+			onclick => "setGetParameter('relative', this.value)",
+ 		},
+		{
+			value => 1,
+			text => __('Relative (number of days past the end date of the time period)'),
+			checked => $params{relative},
+			onclick => "setGetParameter('relative', this.value)",
+		}
+	],
+} &>
+
 <& /tmpl/element:textbox, params => {
-	label	=> __('Available Date') . ': <span style="font-size:80%;color:red">*</span>',
+	label	=> __('Available Date:') . $red_star,
 	name => 'available_date',
-	value	=> $params{available_date},
+	value => $params{available_date},
 	size =>	15,
-	maxlength	=> 15,
+	maxlength => 15,
 	calendar => !$params{relative},
 } &>
 
@@ -202,7 +223,7 @@
 } &>
 
 <& /tmpl/element:textbox, params => {
-	label => __('Due Date') . ': <span style="font-size:80%;color:red">*</span>',
+	label => __('Due Date:') . $red_star,
 	name => 'due_date',
 	value => $params{due_date},
 	size =>	15,
@@ -211,8 +232,8 @@
 } &>
 
 <tr>
-	<td>&nbsp;</td>
-	<td><p><span style="font-size:80%;color:red">* </span><% __('required field') %></p></td>
+	<td></td>
+	<td><p><% $red_star . ' ' . __('required field') %></p></td>
 </tr>
 
 <& /tmpl/element:save_button, params=>{
@@ -238,7 +259,6 @@
 		$err_msg = __('You have submitted an invalid template eval id.');
 	}
 	my $got_template = 0;
-
 
 	## parse course info passed into array of course info hash references
 	my $courses = $m->comp('get_course_info');
@@ -378,10 +398,10 @@
 
 
 <%method title>
-% 	return __('Create Evaluations By Time Period');
+% return __('Create Evaluations By Time Period');
 </%method>
 
 
 <%method jsarray>
-% 	return ['eval.js', 'jquery/jquery.min.js', 'evalBatch.js', 'element.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+% return ['jquery/jquery.min.js', 'evalBatch.js', 'element.js', 'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
 </%method>
