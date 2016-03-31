@@ -4,6 +4,7 @@ var currentTeachingSite;
 var addRequested = false;
 var noteTakingInProgress = false;
 var noteSavingWarning = 'Please finish saving your current note.';
+var currentNoteColumnBackgroundColor = '';
 
 function setCourse(rowIndex)
 {
@@ -16,8 +17,12 @@ function setIndex(rowIndex)
 	currentRowIndex = rowIndex;
 }
 
-function saveNote()
+function saveNote(current)
 {	
+	console.log($(current));
+	$(current).closest('tr').prev('tr').find('div#note').show();
+	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
+	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
 	$.ajax({
 		url: "/tusk/schedule/clinical/admin/ajax/note/input",
 		data: {
@@ -75,8 +80,12 @@ function updateNotePlaceholder(noteRow)
 	});
 }
 
-function cancelNote()
+function cancelNote(current)
 {
+	console.log($(current));
+	$(current).closest('tr').prev('tr').find('div#note').show();
+	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
+	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
 	$("#noteRow").remove();
 	noteTakingInProgress = false;
 }
@@ -156,7 +165,8 @@ $(document).ready(function() {
 			alert(noteSavingWarning);
 			return;
 		}
-		// $(this).hide();
+		console.log($(this).find('div#note'));
+		$(this).closest('tr').find('div#note').hide();
 		noteTakingInProgress = true;
 		var noteRow = document.createElement('tr');
 		var note = document.createElement('textarea');
@@ -166,7 +176,8 @@ $(document).ready(function() {
 		var cancelNoteButton = document.createElement('a');
 		var littleSpacing = document.createElement('span');
 		var noteContent = '';
-		var breakElement = document.createElement('br')
+		var breakElement = document.createElement('br');
+		var noteColumnContent = document.createElement('div');
 
 		$.ajax({
 			url: "/tusk/schedule/clinical/admin/ajax/note/content",
@@ -188,15 +199,15 @@ $(document).ready(function() {
 			if (data.status == 'ok') 
 				note.innerHTML = data['content'];
 		});
-
+		noteColumnContent.setAttribute("id", "noteColumnContent");
 		buttons.setAttribute("id", "saveCancelNote");
 		buttons.setAttribute("style", "cursor: pointer;");
 		saveNoteButton.setAttribute("id", "saveNote");
-		saveNoteButton.setAttribute("onclick", "saveNote()");
+		saveNoteButton.setAttribute("onclick", "saveNote(this)");
 		saveNoteButton.setAttribute("class", "navsm");
-		saveNoteButton.innerHTML = "Save Note";
+		saveNoteButton.innerHTML = "Save";
 		cancelNoteButton.setAttribute("id", "cancelNote");
-		cancelNoteButton.setAttribute("onclick", "cancelNote()");
+		cancelNoteButton.setAttribute("onclick", "cancelNote(this)");
 		cancelNoteButton.setAttribute("class", "navsm");
 		cancelNoteButton.innerHTML = "Cancel";
 		littleSpacing.setAttribute("id", "littlespacing");
@@ -215,12 +226,41 @@ $(document).ready(function() {
 		buttons.appendChild(saveNoteButton);
 		buttons.appendChild(littleSpacing);
 		buttons.appendChild(cancelNoteButton);
-		noteColumn.appendChild(note);
-		noteColumn.appendChild(buttons);
+		noteColumnContent.appendChild(buttons);
+		noteColumnContent.appendChild(note);
+		noteColumn.appendChild(noteColumnContent);
 		noteRow.appendChild(noteColumn);
 		noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
 		noteRow.setAttribute("id", "noteRow");
 		$(this).closest('tr').after(noteRow);
+		// $("#noteRow").closest('tr').css( "background-color", "rgba(189, 178, 202, 0.44)" );
+		currentNoteColumnBackgroundColor = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css("background-color");
+		$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+		$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css({"border-top-color": "rgba(189, 178, 202, 0.44)", 
+             "border-left-color": "rgba(189, 178, 202, 0.44)",
+             "border-right-color": "rgba(189, 178, 202, 0.44)",
+             "border-top-weight":"3px", 
+             "border-right-weight":"3px",
+             "border-left-weight":"3px",
+             "border-top-style":"solid",
+             "border-right-style":"solid",
+             "border-left-style":"solid"
+         });
+		$("#noteRow").closest('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+		$("#noteRow").closest('tr').find("td:nth-child(8)").css({"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
+             "border-left-color": "rgba(189, 178, 202, 0.44)",
+             "border-right-color": "rgba(189, 178, 202, 0.44)",
+             "border-bottom-weight":"3px", 
+             "border-right-weight":"3px",
+             "border-left-weight":"3px",
+             "border-bottom-style":"solid",
+             "border-right-style":"solid",
+             "border-left-style":"solid"
+         });
+		// $("#noteRow").closest('tr').prev('tr').find("td:nth-child(7)").css("border-right-color", "3px solid #6f3f3f");
+		// $(this).closest('tr').prev('tr').find('div#modify').closest('td').css("background-color", "rgba(14, 17, 202, 0.44)");
+		// console.log($("#noteRow").closest('tr').prev('tr').find("td:nth-child(7)"));
+		// $("#noteRow").closest('tr').prev('tr').find("#noteColumn").css( "border-left", "3px solid #6f3f3f");
 	});
 
 	$("td #modify").click(function() {
