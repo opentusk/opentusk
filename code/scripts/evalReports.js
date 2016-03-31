@@ -40,9 +40,7 @@ function queueEvalGraphsToLoad() {
 	}
 	document.getElementById('graphicsLoadMessage').style.display = '';
 	if (document.getElementById('evalArea')) {
-		try {
-			document.getElementById('evalArea').style.backgroundColor = "lightgray";
-		} catch (e) {}
+		document.getElementById('evalArea').style.backgroundColor = "lightgray";
 	}
 	spans = document.getElementsByTagName('span');
 	for (var index = 0; index < spans.length; index++) {
@@ -63,7 +61,7 @@ var nodeTextType = '';
 function processQueue() {
 	var url = urls.shift();
 	processingElement = elements.shift();
-	document.getElementById('queueMessage').innerHTML= _("Loading Eval Graph ") + queueCounter++ + " of " + queueLength;
+	document.getElementById('queueMessage').innerHTML = _("Loading Eval Graph ") + queueCounter++ + " of " + queueLength;
 	//processingElement will always be set since its global
 	if (!url) {
 		document.getElementById('graphLink').style.display = '';
@@ -103,18 +101,18 @@ function GraphObject(parentDiv) {
 		self.displayParent.appendChild(self.textGraphNode);
 	}
 
-	this.setGraph = function(nodeValue)	{
+	this.setGraph = function(nodeValue) {
 		self.graphNode.innerHTML = nodeValue;
 	}
 
-	this.setTextGraph = function(nodeValue)	{
+	this.setTextGraph = function(nodeValue) {
 		self.textGraphNode.innerHTML = nodeValue;
 	}
 }
 
 function doGraphLoad() {
 	if (processingElement) {
-		processingElement.innerHTML = "<font color=\"#CC6600\">"+_("Returning Image")+"</font>";
+		processingElement.innerHTML = '<font color="#CC6600">' + _("Returning Image") + "</font>";
 		if (ajaxRequest && ajaxRequest.readyState == 4) {
 			if (ajaxRequest.status && (ajaxRequest.status == 200)) {
 				if (ajaxRequest.responseText.search("Unknown User") == -1 && ajaxRequest.responseText.search("Login") == -1) {
@@ -166,7 +164,7 @@ function doGraphLoad() {
 
 function tickTimer() {
 	document.getElementById('timer').innerHTML = Math.round((Date.now() - time) / 1000);
-	if (timerRunning)	{
+	if (timerRunning) {
 		timerTimeout = setTimeout(tickTimer, 1000);
 	} else {
 		document.getElementById('waitMessage').innerHTML = 'waited';
@@ -190,9 +188,9 @@ function loadEval(url, siteAbbr, path, doMerged, doFull) {
 				ajaxRequest.onreadystatechange = doEvalLoad;
 				ajaxRequest.send(null);
 			} else {
-				processingElement.innerHTML = '<font color="red">' + _('Error requesting eval.')+'</font>';
+				processingElement.innerHTML = '<font color="red">' + _('Error requesting eval.') + '</font>';
 			}
-		} catch(error) {
+		} catch (error) {
 			alert(_('Error in eval ajax request') + ':\n' + error.description);
 		}
 	}
@@ -201,7 +199,7 @@ function loadEval(url, siteAbbr, path, doMerged, doFull) {
 function doEvalLoad() {
 	try {
 		if (document.getElementById('evalArea')) {
-			document.getElementById('evalArea').innerHTML= '<br><br><center><font color="#CC6600">' + _('Loading Eval') + '</font><br><img src="/graphics/icons/waiting_bar.gif"></center>';
+			document.getElementById('evalArea').innerHTML = '<br><br><center><font color="#CC6600">' + _('Loading Eval') + '</font><br><img src="/graphics/icons/waiting_bar.gif"></center>';
 			if (ajaxRequest && ajaxRequest.readyState == 4) {
 				timerRunning = 0;
 				if (ajaxRequest.status && (ajaxRequest.status == 200)) {
@@ -222,15 +220,15 @@ function doEvalLoad() {
 		} else {
 			alert(_('Error: mislocated eval element'));
 		}
-	} catch(error) {
+	} catch (error) {
 		timerRunning = 0;
 		if (document.getElementById('graphicsLoadMessage')) {
 			document.getElementById('graphicsLoadMessage').style.display = 'none';
 		}
 		if (document.getElementById('evalArea')) {
-			document.getElementById('evalArea').innerHTML = '<center><font color="red">' + _('Sorry, an error has occurred while requesting this eval. Please contact here for support:') + siteAbbreviation +'<font></center>';
+			document.getElementById('evalArea').innerHTML = '<center><font color="red">' + _('Sorry, an error has occurred while requesting this eval. Please contact here for support:') + siteAbbreviation + '<font></center>';
 			if (error.description) {
-				document.getElementById('evalArea').innerHTML += '<br><center>Error was: ' + error.description+'</center>';
+				document.getElementById('evalArea').innerHTML += '<br><center>Error was: ' + error.description + '</center>';
 			}
 			if (ajaxRequest && ajaxRequest.status) {
 				document.getElementById('evalArea').innerHTML += '<br><center>' + _('Ajax Return Code:') + ajaxRequest.status + '</center>';
@@ -258,15 +256,15 @@ function showHideGraphs() {
 	for (var index = 0; index < graphs.length; index++) {
 		if (showGraph) {
 			graphs[index].displayGraph();
-		}	else {
+		} else {
 			graphs[index].displayTextGraph();
 		}
 	}
 }
 
 function drawGraphs() {
-	var size = {width: 360, height: 120};
-	var margin = {top: 20, right: 20, bottom: 40, left: 40};
+	var size = { width: 360, height: 120 };
+	var margin = { top: 20, right: 20, bottom: 40, left: 40 };
 	var width = size.width - margin.left - margin.right;
 	var height = size.height - margin.top - margin.bottom;
 	var x = d3.scale.ordinal().rangeRoundBands([0, width], 0.6);

@@ -33,7 +33,7 @@
 </%attr>
 
 <%method title>
-% return __("Email Merged Reports") . ": $title";
+% return __("Email / Print Merged Reports") . ": $title";
 </%method>
 
 <%method jsarray>
@@ -60,10 +60,10 @@
 	my @recipients = ();
 	my @recipient_ids = ();
 	my @teaching_sites = ();
-		my @types = (
-		{label => __('Evaluatees'), value => ''},
-		{label => __('Site Directors / Site Eval Admins'), value => 'site'},
-		{label => __('Print'), value => 'print'}
+	my @types = (
+		{label => __('Email Evaluatees'), value => 'email'},
+		{label => __('Email Site Directors / Site Eval Admins'), value => 'site'},
+		{label => __('Print Reports'), value => 'print'}
 	);
 	my %teaching_site_users = {};
 	my $user;
@@ -74,8 +74,8 @@
 	my $user_id = $ARGS{'user_id'} || '';
 	my $recipient_id = $ARGS{'recipient_id'} || '';
 	my $teaching_site_id = $ARGS{'teaching_site_id'} || 0;
-	my $type = $ARGS{'type'} || 0;
-	my $message = $ARGS{'message'} || '';
+	my $type = $ARGS{'type'} || 'email';
+	my $message = $ARGS{'message'} || "\n\n\n";
 
 	# Check for a valid user
 	if ($auth && $user_id && HSDB45::Eval::Secret->verify_hashcode($school, $merged_eval_id, $user_id, $auth)) {
@@ -97,9 +97,7 @@
 		push @recipient_ids, $recipient_id;
 	}
 
-	if ($is_site_director) {
-		$type = 0;
-	} else {
+	unless ($is_site_director) {
 		push @teaching_sites, {label => __('All'), value => 0};
 	}
 
@@ -124,7 +122,7 @@
 			foreach (@$users) {
 				push @recipients, {label => $_->outFullName(), value => $_->getPrimaryKeyID()};
 			}
-			$message = __("Please click the link below to view evaluation reports on the course listed above:");
+			$message .= __("Please click the link below to view evaluation reports on the course listed above:");
 		} else {
 			my $db = HSDB4::Constants::get_school_db($school);
 			my $dbh = HSDB4::Constants::def_db_handle();
@@ -144,46 +142,50 @@
 			while (my ($uid, $firstname, $lastname, $count) = $sth->fetchrow_array()) {
 				push @recipients, {label => "$lastname, $firstname ($count)", value => $uid};
 			}
-			$message = __("Please click the link below to view how you were evaluated on the course listed above:");
+			$message .= __("Please click the link below to view how you were evaluated on the course listed above:");
 		}
 	}
 </%init>
 
+% unless (scalar @recipient_ids && $type eq 'print') {
 <h2 class="title"><% $title %></h2>
+% }
 
 <div class="evalFluff">
+% unless (scalar @recipient_ids) {
 % if ($is_eval_admin) {
 	<a href="/protected/eval/administrator/show/<% $school %>"><% __('Manage Evaluations') %></a><br>
 % }
 	<a id="report" href="/tusk/eval/merged_report<% $ENV{'PATH_INFO'} %>?<% $ENV{'QUERY_STRING'} %>"><% __('View Reports') %></a><br>
 
-% unless (scalar @recipient_ids) {
 	<h3><& /tmpl/element:dropdown, params => {
-			label => __('Teaching Site') . ':',
-			name => 'teaching_site',
-			onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value)",
-			selected => $teaching_site_id,
-			options => \@teaching_sites
+		label => __('Teaching Site') . ':',
+		name => 'teaching_site',
+		onchange => "setGetParameter('teaching_site_id', this.options[this.selectedIndex].value)",
+		selected => $teaching_site_id,
+		options => \@teaching_sites
 	} &></h3>
 
-	<h3><& /tmpl/element:dropdown, params => {
-			label => __('Send To') . ':',
-			name => 'type',
-			onchange => "setGetParameter('type', this.options[this.selectedIndex].value)",
-			selected => $type,
-			options => \@types,
-			disabled => $is_site_director
-	} &></h3>
+	<h3>
+% foreach my $button (@types) {
+% unless ($is_site_director && $button->{'value'} eq 'site') {
+		<input type="radio" name="type" value="<% $button->{'value'} %>" <% ($type eq $button->{'value'}) ? 'checked' : '' %> onclick="setGetParameter('type', this.value)"><% $button->{'label'} %>
+% }
+% }
+	</h3>
 
 	<form method="post">
-		<select id="recipients" style="display:inline-block" name="recipient_id" multiple="multiple" size=12>
+		<select id="recipients" style="display:inline-block" name="recipient_id" multiple="multiple" size="12">
 % foreach my $recipient (@recipients) {
 			<option value="<% $recipient->{'value'} %>"><% $recipient->{'label'} %></option>
 % }
 		</select>
 % unless ($type eq 'print') {
 		&nbsp;&nbsp;
-		<textarea name="message" class="textareawhite" style="display:inline-block" cols=40 rows=8><% $message %></textarea>
+		<div style="display:inline-block">
+			<p class="instruction"><% __('Below is the message that will appear in the email(s) which will be followed by the appropriate link. You may add additional remarks at the top.') %></p>
+			<textarea name="message" class="textareawhite" cols="80" rows="8"><% $message %></textarea>
+		</div>
 % }
 		<br><br>
 		<input type="reset" class="formbutton" value="<% __('Reset') %>">
@@ -201,6 +203,7 @@
 	my $teaching_site = ($teaching_site_id) ? HSDB45::TeachingSite->new(_school => $school, _id => $teaching_site_id)->site_name() : '';
 	my $from_addr = $user->default_email();
 	my $subject = "'$title' " .__("Merged Report");
+	my $page_break = 0;
 
 	$message = TUSK::Application::HTML::Strip->new()->removeHTML($message);
 	$message =~ s/\n/<br>/gi;
@@ -221,7 +224,8 @@
 			$body .= "<b>" . __("Merged Evaluation Title") . "</b>: $title<br>";
 			$body .= "<b>" . __("Teaching Site") . "</b>: $teaching_site<br>" if ($teaching_site);
 			if ($type eq 'print') {
-				$m->print(qq(<p class="banner">$body</p>));
+				my $style = ($page_break++) ? 'page-break-before:always' : 'margin-top:-18pt';
+				$m->print(qq(<p class="banner" style="$style">$body</p>));
 				my $merged_eval_results = HSDB45::Eval::MergedResults->new(_school => $school, _id => $merged_eval_id)->set_filter($recipient_id, $teaching_site_id);
 				HSDB45::Eval::Report::quick_report($merged_eval_results);
 			} else {
