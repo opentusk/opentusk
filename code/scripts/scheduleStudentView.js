@@ -19,7 +19,6 @@ function setIndex(rowIndex)
 
 function saveNote(current)
 {	
-	console.log($(current));
 	$(current).closest('tr').prev('tr').find('div#note').show();
 	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
 	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
@@ -82,7 +81,6 @@ function updateNotePlaceholder(noteRow)
 
 function cancelNote(current)
 {
-	console.log($(current));
 	$(current).closest('tr').prev('tr').find('div#note').show();
 	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
 	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
@@ -165,7 +163,6 @@ $(document).ready(function() {
 			alert(noteSavingWarning);
 			return;
 		}
-		console.log($(this).find('div#note'));
 		$(this).closest('tr').find('div#note').hide();
 		noteTakingInProgress = true;
 		var noteRow = document.createElement('tr');
@@ -181,6 +178,7 @@ $(document).ready(function() {
 
 		$.ajax({
 			url: "/tusk/schedule/clinical/admin/ajax/note/content",
+			cache: false,
 			data: {
 				user_id: user_id,
 				school_id: school_id,
@@ -234,6 +232,9 @@ $(document).ready(function() {
 		noteRow.setAttribute("id", "noteRow");
 		$(this).closest('tr').after(noteRow);
 		// $("#noteRow").closest('tr').css( "background-color", "rgba(189, 178, 202, 0.44)" );
+		var abovePosition = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").position();
+		var belowPosition = $("#noteRow").closest('tr').find("td:nth-child(8)").position();
+		noteColumnContent.style.marginTop = "-" + (belowPosition.top - abovePosition.top - 7) + "pt";
 		currentNoteColumnBackgroundColor = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css("background-color");
 		$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
 		$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css({"border-top-color": "rgba(189, 178, 202, 0.44)", 
@@ -257,10 +258,6 @@ $(document).ready(function() {
              "border-right-style":"solid",
              "border-left-style":"solid"
          });
-		// $("#noteRow").closest('tr').prev('tr').find("td:nth-child(7)").css("border-right-color", "3px solid #6f3f3f");
-		// $(this).closest('tr').prev('tr').find('div#modify').closest('td').css("background-color", "rgba(14, 17, 202, 0.44)");
-		// console.log($("#noteRow").closest('tr').prev('tr').find("td:nth-child(7)"));
-		// $("#noteRow").closest('tr').prev('tr').find("#noteColumn").css( "border-left", "3px solid #6f3f3f");
 	});
 
 	$("td #modify").click(function() {
