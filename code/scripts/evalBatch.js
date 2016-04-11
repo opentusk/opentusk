@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-var xRequest = null;
+var xRequest;
 var containerDiv;
 var create_by = '';
 var tp_id = 0;
@@ -43,7 +43,7 @@ function requestCourses(tp_field, url, school, create_by_field) {
 				break;
 			}
 		}
-		xRequest = new initXMLHTTPRequest();
+		xRequest = initXMLHTTPRequest();
 		if (xRequest) {
 			var params = 'time_period_id=' + tp_id + '&school=' + school + '&create_by=' + create_by;
 			xRequest.open("POST", url, true);

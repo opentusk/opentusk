@@ -13,16 +13,12 @@
 // limitations under the License.
 
 
-function eval_select_all(value){
+function eval_select_all(value) {
 	var form = document.forms.question_list;
-	if (form == null){
-		return ;
-	}
+	if (!form) return;
 	var elems = form.elements;
-	for (i =0; i <elems.length; i++){
-		if ((elems[i].type == "checkbox") &&
-			((elems[i].name == "edit_q") 
-			|| (elems[i].name == "duplicate_q"))){
+	for (var i = 0; i < elems.length; i++) {
+		if ((elems[i].type == "checkbox") && ((elems[i].name == "edit_q") || (elems[i].name == "duplicate_q"))) {
 			elems[i].checked = value;
 		}
 	}
@@ -30,90 +26,86 @@ function eval_select_all(value){
 
 // NOTE:  This is /code/htdocs/eval_question.html, NOT /code/embperl/eval_question.html
 function doHelpWindow() {
-    window.open('/eval_question.html', 'evalQuickRefWin',
-        'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
+	window.open('/eval_question.html', 'evalQuickRefWin',
+		'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
 }
 
 function doQuickRefWindow(url) {
-    window.open('/protected/eval/administrator/ref_sheet/'+url,
-        'evalQuickRefWin',
-        'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
+	window.open('/protected/eval/administrator/ref_sheet/' + url, 'evalQuickRefWin',
+		'width=600,height=400,directories=no,status=no,toolbar=no,resizable=yes,scrollbars=yes');
 }
 
 // TODO: This sort of browser fiddling would be better done with jQuery
 function satisfy(qid, type) {
-    var imgname = "flag_"+qid;
-    var fieldname = "eval_q_"+qid;
-    if (document.images && isRequired(qid)) {
-	var image = document.images[imgname];
-	if (image == null) return;
-	var element = document.forms['eval_form'].elements[fieldname];
-	if (element.value.length == 0) {
-	    image.src = "/icons/reddot.gif";
-	} else {
-	    // It's probably OK, and we can just mark it as such
-	    requiredSatisfied(qid);
-	    image.src = "/icons/transdot.gif";
+	var imgname = "flag_" + qid;
+	var fieldname = "eval_q_" + qid;
+	if (document.images && isRequired(qid)) {
+		var image = document.images[imgname];
+		if (!image) return;
+		var element = document.forms['eval_form'].elements[fieldname];
+		if (!element.value.length) {
+			image.src = "/icons/reddot.gif";
+		} else {
+			// It's probably OK, and we can just mark it as such
+			requiredSatisfied(qid);
+			image.src = "/icons/transdot.gif";
+		}
 	}
-    }
-    return true;
 }
 
 function checkLoadPassword() {
-  var element = document.forms['load_form'].elements['load_password'];
-  if (element.value.length == 0) {
-    alert(_('Please enter your password before selecting "Load".'));
-    return false;
-  }
-  return true;
+	var element = document.forms['load_form'].elements['load_password'];
+	if (!element.value.length) {
+		alert(_('Please enter your password before selecting "Load".'));
+		return false;
+	}
+	return true;
 }
 
-
-function lengthCheck(qid,type,length){
-  var fieldname = "eval_q_"+qid;
-  var element = document.forms['eval_form'].elements[fieldname];
-  if (element.value.length >= length) {
-	element.value = element.value.substring(0,length );
-	alert(_("Your answer must be less than ")+length+_(" characters."));
-	return false ;
-  } 
-  return true;
+function lengthCheck(qid, type, length) {
+	var fieldname = "eval_q_" + qid;
+	var element = document.forms['eval_form'].elements[fieldname];
+	if (element.value.length >= length) {
+		element.value = element.value.substring(0, length);
+		alert(_("Your answer must be less than ") + length + _(" characters."));
+		return false;
+	}
+	return true;
 }
 
-function isRequired(qid){
-	for (var i = 0; i < requiredObject.length; i++){
-		if (requiredObject[i].id == qid){
+function isRequired(qid) {
+	for (var i = 0; i < requiredObject.length; i++) {
+		if (requiredObject[i].id == qid) {
 			return true;
 		}
 	}
-        return false;
+	return false;
 }
 
-function requiredSatisfied(qid){
-	for (var i = 0; i < requiredObject.length; i++){
-		if (requiredObject[i].id == qid){
+function requiredSatisfied(qid) {
+	for (var i = 0; i < requiredObject.length; i++) {
+		if (requiredObject[i].id == qid) {
 			requiredObject[i].satisfied = 1;
 			return;
 		}
 	}
 }
 
-function markRequired(qid){
-	requiredObject.push({id:qid, required:1,satisfied:0 });
+function markRequired(qid) {
+	requiredObject.push({ id: qid, required: 1, satisfied: 0 });
 }
 
-
-function open_eval_edit_window(school,eval_id){
- 	var params = "width=700,height=470,directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes";
- 	window.open('/protected/eval/administrator/eval_edit/' + school + '/' + eval_id, "_blank", params);
+function open_eval_edit_window(school, eval_id) {
+	var params = "width=700,height=470,directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes";
+	window.open('/protected/eval/administrator/eval_edit/' + school + '/' + eval_id, "_blank", params);
 }
 
-function open_delete_window(school,eval_id){
+function open_delete_window(school, eval_id) {
 
-	if (confirm("Do you want to delete eval_id " + eval_id + "?")) {
+	if (confirm(_('Do you want to delete eval id ') + eval_id + ' ?')) {
 		var params = "width=580,height=470,directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=no";
 		window.open('/tusk/eval/administrator/delete/' + school + '/' + eval_id, "_blank", params);
-	} 
+	}
 }
 
 function verifyDates(available_date, due_date) {
@@ -122,7 +114,7 @@ function verifyDates(available_date, due_date) {
 	var available_date_object;
 	var due_date_object;
 
-	if (available_date.value){
+	if (available_date.value) {
 		available_date_object = make_date_no_time_object(available_date.value);
 		if (available_date_object == 'Invalid Date') {
 			errmsg.push(_("Please use the format YYYY-MM-DD for the available date."));
@@ -132,9 +124,9 @@ function verifyDates(available_date, due_date) {
 		errmsg.push(_("Please enter the available date (YYYY-MM-DD)."));
 	}
 
-	if (due_date.value){
+	if (due_date.value) {
 		due_date_object = make_date_no_time_object(due_date.value);
-		if (due_date_object == 'Invalid Date'){
+		if (due_date_object == 'Invalid Date') {
 			errmsg.push(_("Please use the format YYYY-MM-DD for due date."));
 			check_date_range = 0;
 		}
@@ -143,15 +135,14 @@ function verifyDates(available_date, due_date) {
 	}
 
 
-	if (check_date_range && due_date.value && available_date.value){
-		if (due_date_object < available_date_object){
+	if (check_date_range && due_date.value && available_date.value) {
+		if (due_date_object < available_date_object) {
 			errmsg.push(_("Please make sure the due date is after the available date."));
 		}
 	}
 
 	return errmsg;
 }
-
 
 function isCourseUserSelected(theElement) {
 	if (!theElement) {
@@ -168,10 +159,9 @@ function isCourseUserSelected(theElement) {
 	if (theElement.checked == true) {
 		return true;
 	}
-	
+
 	return false;
 }
-
 
 function verifyCreateEvalsByUser() {
 	var errmsg = new Array;
@@ -202,24 +192,17 @@ function verifyCreateEvalsByUser() {
 		errmsg.push(_('Please select at least one faculty/staff.'));
 	}
 
-	if (errmsg.length){
+	if (errmsg.length) {
 		alert(errmsg.join("\n"));
 		return false;
-	} 
-
-	if (confirm(_('Do you want to create evaluations?'))) {
-		return true;
-	} else {
-		return false;
 	}
+
+	return confirm(_('Do you want to create evaluations?'));
 }
-
-
 
 function verify_create_bulk_evals_submit() {
 
 	var errmsg = new Array;
-
 	var dates_errmsg = verifyDates(document.createbulkevals.available_date, document.createbulkevals.due_date);
 
 	if (dates_errmsg) {
@@ -230,18 +213,13 @@ function verify_create_bulk_evals_submit() {
 		errmsg.push(_('Please select a time period.'));
 	}
 
-	if (errmsg.length){
+	if (errmsg.length) {
 		alert(errmsg.join("\n"));
 		return false;
-	} 
-
-	if (confirm(_('Do you want to create evaluations for selected time period?'))) {
-		return true;
-	} else {
-		return false;
 	}
-}
 
+	return confirm(_('Do you want to create evaluations for selected time period?'));
+}
 
 function verifyForward(destination, eval_id) {
 	var dest = destination.value;
@@ -256,13 +234,12 @@ function verifyForward(destination, eval_id) {
 		} else {
 			if (confirm(_('Do you want to delete eval id ') + eval_id + ' ?')) {
 				location.href = dest;
-			} 
-		} 
-	} 
+			}
+		}
+	}
 
 	destination.selectedIndex = 0;
 }
-
 
 function verifyOtherEvalTools() {
 	var destination = document.other_eval_tools.url;
@@ -272,9 +249,7 @@ function verifyOtherEvalTools() {
 	} else {
 		return true;
 	}
-	destination.selectedIndex = 0;
 }
-
 
 function forwardOtherEvalTools() {
 	var destination = document.other_eval_tools.url;
@@ -284,23 +259,20 @@ function forwardOtherEvalTools() {
 	destination.selectedIndex = 0;
 }
 
-
-
 function verifyShowEvalsByTimePeriod() {
 	var time_period = document.show_evals_by_time_period.time_period_id;
 	if (!time_period.value) {
 		alert(_('Please select a time period.'));
 		return false;
-	} 
+	}
 	return true;
 }
-
 
 function verifyShowEvalsByCourse() {
 	var course = document.show_evals_by_course.course_id;
 	if (!course.value) {
 		alert(_('Please select a course.'));
 		return false;
-	} 
+	}
 	return true;
 }

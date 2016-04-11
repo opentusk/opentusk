@@ -1,4 +1,19 @@
-$(document).ready(function(){
+// Copyright 2012 Tufts University
+//
+// Licensed under the Educational Community License, Version 1.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.opensource.org/licenses/ecl1.php
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+$(document).ready(function() {
 	$('ul img.more').click(changeState);
 	$('.notifications .close').click(closeNotifications);
 	$('nav.tabs li a').click(changeTabState);
@@ -22,7 +37,7 @@ function closeNotifications() {
 	$('#gContent').removeClass('withnote');
 	// AJAX call to hide user's current announcements
 	var url = '/user/ajax/hideCurrentAnnouncements';
-	var xRequest = new initXMLHTTPRequest();
+	var xRequest = initXMLHTTPRequest();
 	if (xRequest) {
 		xRequest.open("POST", url, true);
 		xRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -55,7 +70,7 @@ function managePersonalLinks() {
 				modal: true,
 				width: '50%'
 			});
-		}
+	}
 	$dialog.dialog('open');
 	// prevent the default action (following a link)
 	return false;
@@ -65,12 +80,12 @@ function managePersonalLinks() {
 // will re-set order to continuous increments starting with 1 in case there are gaps
 function displayPersonalLinks() {
 	var html = "<table>\n<thead>\n<tr>\n<th>" + _("Order") + "</th><th>" + _("Label") + "</th><th>" + _("URL") + "</th>\n</tr>\n</thead>\n<tbody>";
-		
-	var orders = jQuery.map(links, function(n, i){
-      return (n.sort_order);
-    });
 
-	$.each(links, function(index, row) { 
+	var orders = jQuery.map(links, function(n, i) {
+		return (n.sort_order);
+	});
+
+	$.each(links, function(index, row) {
 		html += "<tr>\n<td><select class='sort_order' name='sort_order_";
 		html += row.id;
 		html += "'>\n";
@@ -79,8 +94,7 @@ function displayPersonalLinks() {
 			html += "<option";
 			if (row.sort_order == thisvalue) {
 				html += " selected='selected'>";
-			}
-			else {
+			} else {
 				html += ">";
 			}
 			html += counter;
@@ -109,13 +123,12 @@ function addPersonalLink() {
 		newItem.id = '';
 		newItem.sort_order = links.length + 1;
 		newItem.label = $("#newlabel").val();
-		newItem.url =  $("#newurl").val();
+		newItem.url = $("#newurl").val();
 		links.push(newItem);
 		$("#newlabel").val('');
 		$("#newurl").val('');
 		$("#personalLinks").html(displayPersonalLinks());
-	}
-	else {
+	} else {
 		alert(_("Please fill out both the Label and URL fields to add a new link."));
 	}
 }
@@ -128,14 +141,14 @@ function savePersonalLinks() {
 	$(".js-personal-link-label").each(function() {
 		error = '';
 		var thislabel = $(this).val();
-		var thisurl =  $(this).parent('td').siblings().children(".js-personal-link-url").val();
+		var thisurl = $(this).parent('td').siblings().children(".js-personal-link-url").val();
 		if (!(/^((https?|ftp):\/\/)?(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(thisurl))) {
 			error = _('The URL in row ') + counter + _(' is not valid.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
-		if(!(/\S+/.test(thislabel))) {
+		if (!(/\S+/.test(thislabel))) {
 			error = _('The Label in row ') + counter + _(' is blank.\nIf you would like to delete a link, leave both the Label and URL fields blank.');
 		}
-		if(!(/\S+/.test(thisurl)) && !(/\S+/.test(thislabel))) {
+		if (!(/\S+/.test(thisurl)) && !(/\S+/.test(thislabel))) {
 			error = '';
 		}
 		if (error != '') {
@@ -151,14 +164,13 @@ function savePersonalLinks() {
 
 	// no error, so go ahead and send the AJAX request to save the data
 	updateLinksArray();
-	var ajax = new initXMLHTTPRequest();
+	var ajax = initXMLHTTPRequest();
 	if (ajax) {
 		ajax.open("POST", '/user/ajax/savePersonalLinks', true);
 		ajax.onreadystatechange = resetAllLinkData;
 		ajax.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 		ajax.send("data=" + encodeURIComponent(JSON.stringify(links)));
-	}
-	else {
+	} else {
 		alert('There was an error saving the link data.');
 	}
 	return false;
@@ -177,9 +189,8 @@ function resetAllLinkData() {
 			});
 			makeLinksDropDown();
 			$("#personalLinks").html(displayPersonalLinks());
-			$($dialog).dialog( "close" );
-		}
-		else{
+			$($dialog).dialog("close");
+		} else {
 			alert(_("An error has occurred while attempting to save."));
 			return false;
 		}
@@ -196,10 +207,12 @@ function updateLinksArray() {
 		newItem.id = id;
 		newItem.sort_order = $(this).parent('td').siblings().children(".sort_order").val();
 		newItem.label = $(this).val();
-		newItem.url =  $(this).parent('td').siblings().children(".js-personal-link-url").val();
+		newItem.url = $(this).parent('td').siblings().children(".js-personal-link-url").val();
 		links.push(newItem);
 	});
-	links.sort(function(a,b){return a.sort_order - b.sort_order});
+	links.sort(function(a, b) {
+		return a.sort_order - b.sort_order
+	});
 }
 
 // use JSON links array to generate select form element of personal links
@@ -218,9 +231,3 @@ function makeLinksDropDown() {
 }
 
 /* end Personal Links */
-
-
-
-	
-	
-
