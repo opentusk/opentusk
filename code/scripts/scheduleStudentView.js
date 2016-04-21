@@ -19,40 +19,49 @@ function setIndex(rowIndex)
 
 function saveNote(current)
 {	
-	$(current).closest('tr').prev('tr').find('div#note').show();
-	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
-	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
-	$.ajax({
-		url: "/tusk/schedule/clinical/admin/ajax/note/input",
-		data: {
-			note: ($("#saveNote").closest('tr').find('textarea#note'))[0].value,
-			user_id: user_id,
-			course_id: $("#saveNote").closest('tr').prev('tr').find('span#courseId').text(),
-			school_id: school_id,
-		}, dataType: "json",
-		statusCode: {
-			404: function () {
-			},
-			500: function () {
-			},
-		}
-	}).done(function() {
-	}).error(function() {
-		alert("An error occured during the note input process.");
-	}).success(function(data, status) {
-		if (data['status'] == 'ok') {
-			$("div#note").each(function() {
-				if ($("#saveNote").closest('tr').prev('tr').find('span#courseId').text() == 
-					$(this).closest('tr').find('span#courseId').text()){
-					updateNotePlaceholder(this);
-				}
-			});
-			$("#noteRow").remove();
-		} else {
-			alert(data['status']);
-		}
-	});
-	noteTakingInProgress = false;
+	// $(current).closest('tr').prev('tr').find('div#note').show();
+	// $(current).closest('tr').prev('tr').find('a#saveNoteTrigger').hide();
+	// $(current).closest('tr').prev('tr').find('a#cancelNoteTrigger').hide();
+
+	// $(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
+	// $(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
+	// $.ajax({
+	// 	url: "/tusk/schedule/clinical/admin/ajax/note/input",
+	// 	data: {
+	// 		note: ($("#saveNote").closest('tr').find('textarea#note'))[0].value,
+	// 		user_id: user_id,
+	// 		course_id: $("#saveNote").closest('tr').prev('tr').find('span#courseId').text(),
+	// 		school_id: school_id,
+	// 	}, dataType: "json",
+	// 	statusCode: {
+	// 		404: function () {
+	// 		},
+	// 		500: function () {
+	// 		},
+	// 	}
+	// }).done(function() {
+	// }).error(function() {
+	// 	alert("An error occured during the note input process.");
+	// }).success(function(data, status) {
+	// 	if (data['status'] == 'ok') {
+	// 		$("div#note").each(function() {
+	// 			if ($("#saveNote").closest('tr').prev('tr').find('span#courseId').text() == 
+	// 				$(this).closest('tr').find('span#courseId').text()){
+	// 				updateNotePlaceholder(this);
+	// 			}
+	// 		});
+	// 		$("#noteRow").remove();
+	// 	} else {
+	// 		alert(data['status']);
+	// 	}
+	// });
+	// noteTakingInProgress = false;
+}
+
+function changeDefaultText(note) {
+	if (note.value === note.defaultValue) {
+		note.value = '';
+	}
 }
 
 function updateNotePlaceholder(noteRow)
@@ -81,11 +90,14 @@ function updateNotePlaceholder(noteRow)
 
 function cancelNote(current)
 {
-	$(current).closest('tr').prev('tr').find('div#note').show();
-	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
-	$(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
-	$("#noteRow").remove();
-	noteTakingInProgress = false;
+	// $(current).closest('tr').prev('tr').find('div#note').show();
+	// $(current).closest('tr').prev('tr').find('a#save').hide();
+	// $(current).closest('tr').prev('tr').find('a#cancel').hide();
+
+	// $(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
+	// $(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
+	// $("#noteRow").remove();
+	// noteTakingInProgress = false;
 }
 
 function constructDropdowns()
@@ -164,6 +176,9 @@ $(document).ready(function() {
 			return;
 		}
 		$(this).closest('tr').find('div#note').hide();
+		$(this).closest('tr').find('a#saveNoteTrigger').show();
+		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').show();
+		$(this).closest('tr').find('a#cancelNoteTrigger').show();
 		noteTakingInProgress = true;
 		var noteRow = document.createElement('tr');
 		var note = document.createElement('textarea');
@@ -175,6 +190,10 @@ $(document).ready(function() {
 		var noteContent = '';
 		var breakElement = document.createElement('br');
 		var noteColumnContent = document.createElement('div');
+
+		var noteHistory = document.createElement('textarea');
+		var noteHistoryColumn = document.createElement('td');
+		var noteHistoryColumnContent = document.createElement('div');
 
 		$.ajax({
 			url: "/tusk/schedule/clinical/admin/ajax/note/content",
@@ -194,9 +213,19 @@ $(document).ready(function() {
 		}).error(function() {
 			alert("An error occured during the note retrieval process.");
 		}).success(function(data, status) {
-			if (data.status == 'ok') 
-				note.innerHTML = data['content'];
+			if (data.status == 'ok') {
+				var noteContent = data['content'];
+				for (var noteElement in noteContent) {
+					for (var noteEntry in noteContent[noteElement]) {
+						noteHistory.innerHTML += noteContent[noteElement][noteEntry]['noteAuthor'] + 
+						" on " + noteContent[noteElement][noteEntry]['noteCreated'] + ": \n\n" + 
+							noteContent[noteElement][noteEntry]['note'] + "\n\n\n";
+					}
+				}
+			}
 		});
+
+		note.setAttribute("onfocus", "changeDefaultText(this)");
 		noteColumnContent.setAttribute("id", "noteColumnContent");
 		buttons.setAttribute("id", "saveCancelNote");
 		buttons.setAttribute("style", "cursor: pointer;");
@@ -216,48 +245,69 @@ $(document).ready(function() {
 		note.setAttribute("cols", 30);
 		noteColumn.setAttribute("colspan", 1);
 
-		for (var i = 0; i < 7; i++) {
+		noteHistory.setAttribute("disabled", true);
+		noteHistory.setAttribute("id", "noteHistory");
+		noteHistory.setAttribute("rows", 10);
+		noteHistory.setAttribute("cols", 30);
+		noteHistoryColumn.setAttribute("colspan", 1);
+
+		for (var i = 0; i < 6; i++) {
 			var td = document.createElement('td');
 			noteRow.appendChild(td);
 		}
 
+		noteHistoryColumnContent.appendChild(noteHistory);
+		noteHistoryColumn.appendChild(noteHistoryColumnContent);
+		noteRow.appendChild(noteHistoryColumn);
 		buttons.appendChild(saveNoteButton);
 		buttons.appendChild(littleSpacing);
 		buttons.appendChild(cancelNoteButton);
-		noteColumnContent.appendChild(buttons);
+		// noteColumnContent.appendChild(buttons);
 		noteColumnContent.appendChild(note);
 		noteColumn.appendChild(noteColumnContent);
 		noteRow.appendChild(noteColumn);
 		noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
 		noteRow.setAttribute("id", "noteRow");
 		$(this).closest('tr').after(noteRow);
-		// $("#noteRow").closest('tr').css( "background-color", "rgba(189, 178, 202, 0.44)" );
-		var abovePosition = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").position();
-		var belowPosition = $("#noteRow").closest('tr').find("td:nth-child(8)").position();
-		noteColumnContent.style.marginTop = "-" + (belowPosition.top - abovePosition.top - 7) + "pt";
+
 		currentNoteColumnBackgroundColor = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css("background-color");
 		$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
 		$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css({"border-top-color": "rgba(189, 178, 202, 0.44)", 
-             "border-left-color": "rgba(189, 178, 202, 0.44)",
-             "border-right-color": "rgba(189, 178, 202, 0.44)",
-             "border-top-weight":"3px", 
-             "border-right-weight":"3px",
-             "border-left-weight":"3px",
-             "border-top-style":"solid",
-             "border-right-style":"solid",
-             "border-left-style":"solid"
-         });
+			"border-left-color": "rgba(189, 178, 202, 0.44)",
+			"border-right-color": "rgba(189, 178, 202, 0.44)",
+			"border-top-weight":"3px", 
+			"border-right-weight":"3px",
+			"border-left-weight":"3px",
+			"border-top-style":"solid",
+			"border-right-style":"solid",
+			"border-left-style":"solid"
+		});
 		$("#noteRow").closest('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
 		$("#noteRow").closest('tr').find("td:nth-child(8)").css({"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
-             "border-left-color": "rgba(189, 178, 202, 0.44)",
-             "border-right-color": "rgba(189, 178, 202, 0.44)",
-             "border-bottom-weight":"3px", 
-             "border-right-weight":"3px",
-             "border-left-weight":"3px",
-             "border-bottom-style":"solid",
-             "border-right-style":"solid",
-             "border-left-style":"solid"
-         });
+			"border-left-color": "rgba(189, 178, 202, 0.44)",
+			"border-right-color": "rgba(189, 178, 202, 0.44)",
+			"border-bottom-weight":"3px", 
+			"border-right-weight":"3px",
+			"border-left-weight":"3px",
+			"border-bottom-style":"solid",
+			"border-right-style":"solid",
+			"border-left-style":"solid"
+		 });
+		$("#noteRow").closest('tr').find("td:nth-child(7)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+		$("#noteRow").closest('tr').find("td:nth-child(7)").css({"border-top-color": "rgba(189, 178, 202, 0.44)",
+			"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
+			"border-left-color": "rgba(189, 178, 202, 0.44)",
+			"border-right-color": "rgba(189, 178, 202, 0.44)",
+			"border-top-weight":"3px", 
+			"border-bottom-weight":"3px", 
+			"border-right-weight":"3px",
+			"border-left-weight":"3px",
+			"border-top-style":"solid",
+			"border-bottom-style":"solid",
+			"border-right-style":"solid",
+			"border-left-style":"solid"
+		});
+		note.defaultValue = 'Please add your note here';
 	});
 
 	$("td #modify").click(function() {
@@ -286,7 +336,7 @@ $(document).ready(function() {
 			$(this).closest('tr').find('a#save').show();
 			$(this).closest('tr').find('a#cancel').show();
 			$(this).closest('tr').find('a#delete').show();
-			$(this).closest('tr').find('span.littlespacing').show();
+			$(this).closest('tr').find('span.littlespacing#modifyLineSeperator').show();
 			$(this).closest('tr').find('div#modify').hide();
 			$(this).closest('tr').find('span#currentTimePeriod').hide();
 			$(this).closest('tr').find('span#currentTeachingSite').hide();
@@ -338,6 +388,61 @@ $(document).ready(function() {
 		} else {
 			return;
 		}
+	});
+
+	$("a#cancelNoteTrigger").click(function() {
+		$(this).closest('tr').find('div#note').show();
+		$(this).closest('tr').find('a#saveNoteTrigger').hide();
+		$(this).closest('tr').find('a#cancelNoteTrigger').hide();
+		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
+
+		$(this).closest('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
+		$(this).closest('tr').find("td:nth-child(8)").css( "border", "none");
+		$("#noteRow").remove();
+		noteTakingInProgress = false;
+	});
+
+	$("a#saveNoteTrigger").click(function() {
+		console.log("Trigger activated.");
+		var currentCourseId = $(this).closest('tr').find('span#courseId').text();
+		// saveNote(this);
+
+		$(this).closest('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
+		$(this).closest('tr').find("td:nth-child(8)").css( "border", "none");
+		$.ajax({
+			url: "/tusk/schedule/clinical/admin/ajax/note/input",
+			data: {
+				note: ($(this).closest('tr').next('tr').find('textarea#note'))[0].value,
+				user_id: user_id,
+				course_id: $(this).closest('tr').find('span#courseId').text(),
+				school_id: school_id,
+			}, dataType: "json",
+			statusCode: {
+				404: function () {
+				},
+				500: function () {
+				},
+			}
+		}).done(function() {
+		}).error(function() {
+			alert("An error occured during the note input process.");
+		}).success(function(data, status) {
+			if (data['status'] == 'ok') {
+				$("div#note").each(function() {
+					if (currentCourseId == $(this).closest('tr').find('span#courseId').text()){
+						updateNotePlaceholder(this);
+					}
+				});
+				$("#noteRow").remove();
+			} else {
+				alert(data['status']);
+			}
+		});
+		$(this).closest('tr').find('div#note').show();
+		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
+		$(this).closest('tr').find('a#saveNoteTrigger').hide();
+		$(this).closest('tr').find('a#cancelNoteTrigger').hide();
+		noteTakingInProgress = false;
 	});
 
 	$("a#save").click(function() {
@@ -421,7 +526,7 @@ $(document).ready(function() {
 		$(this).closest('tr').find('a#cancel').hide();
 		$(this).closest('tr').find('a#delete').hide();
 		$(this).closest('tr').find('span#alreadyEnrolled').hide();
-		$(this).closest('tr').find('span.littlespacing').hide();
+		$(this).closest('tr').find('span.littlespacing#modifyLineSeperator').hide();
 		$(this).closest('tr').find('div#modify').show();
 		$(this).closest('tr').find('span#currentTimePeriod').show();
 		$(this).closest('tr').find('span#currentTeachingSite').show();
@@ -447,7 +552,7 @@ $(document).ready(function() {
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#teachingSite').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#timePeriod').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('div#course').show();
-		$('span#alreadyEnrolledNumber0').closest('tr').find('span.littlespacing').show();
+		$('span#alreadyEnrolledNumber0').closest('tr').find('span.littlespacing#modifyLineSeperator').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('a#save').show();
 		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
 	});

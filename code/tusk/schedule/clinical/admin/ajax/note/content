@@ -25,18 +25,34 @@
 <%once>
 	use JSON;
 	use TUSK::Course::StudentNote;
+	use HSDB4::DateTime;
+	use TUSK::Core::HSDB4Tables::User;
 </%once>
 
 <%perl>
+	$r->content_type('application/json');
+	$r->no_cache(1);
 	my $json = {};
 	my $tuskCourseId = TUSK::Course->new()->getTuskCourseIDFromSchoolID($ARGS{'school_id'}, $ARGS{'course_id'});
-	my $note = TUSK::Course::StudentNote->lookupReturnOne(
+	my @noteContent;
+	my $notes = TUSK::Course::StudentNote->lookup(
 			"student_id = '" . $ARGS{'user_id'} . "' and course_id = " 
 				. $tuskCourseId,
-		['modified_on desc'], ['note'], 1, undef);
+		['modified_on DESC'], ['note'], undef, undef);
 
-	$json->{status} = (scalar $note) ? 'ok' : 'error';
-	$json->{content} = (scalar $note) ? $note->getNote() : undef;
+	for my $note (@{$notes}) {
+		my $noteAuthor = TUSK::Core::HSDB4Tables::User->new();
+		$noteAuthor->setPrimaryKeyID($note->getModifiedBy());
+		push @noteContent, {
+			$note->getPrimaryKeyID() => {
+				noteAuthor => $noteAuthor->outName(),
+				noteCreated => HSDB4::DateTime->new()->in_mysql_timestamp($note->getDate())->out_string_date(),
+				note => $note->getNote()
+			}};
+	}
+
+	$json->{status} = (scalar @{$notes}) ? 'ok' : 'error';
+	$json->{content} = (scalar @{$notes}) ? \@noteContent : undef;
 	
 	$m->print(encode_json($json));
 
