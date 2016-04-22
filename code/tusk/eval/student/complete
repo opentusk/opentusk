@@ -102,7 +102,11 @@
 
 	my $password = $fdat{'load_password'} || $fdat{'submit_password'};
 	my $pw_error = 0;
-	if ($password) {
+	
+	if ($is_teaching_eval && !$evaluatee) {
+		$pw_error = 1;
+		$m->comp('SELF:set_msg', msg => __('Please select an evaluatee.'), type => 'err');
+	} elsif ($password) {
 		if ($fdat{save_submit} || $fdat{complete_submit}) {
 			# Save and Submit should verify
 			if ($user->verify_password($password)) {
@@ -153,7 +157,7 @@
 				$m->comp('SELF:set_msg', msg => __('Please complete all required questions.'), type => 'err');
 			} else {
 				if ($is_teaching_eval) {
-					$fdat{evaluatee_id} = $evaluatee->primary_key() if ($evaluatee);
+					$fdat{evaluatee_id} = $evaluatee->primary_key();
 					$fdat{site_id} = $evaluator_site_id;
 				}
 
@@ -177,7 +181,7 @@
 			delete $fdat{save_submit};
 			$m->comp('SELF:set_msg', msg => __('Evaluation successfully saved'));
 		}
-	} else {
+	} elsif (!$is_teaching_eval || $evaluatee) {
 		$answers = $m->comp('SELF:get_answers', password => $password);
 		if ($is_teaching_eval) {
 			$fdat{user} = $user;
@@ -316,7 +320,7 @@
 	if ($is_teaching_eval) {
 		push @atts, (
 		'SITE_NAME' => ($site) ? $site->site_name() : '',
-		'EVALUATEE_NAME' => ($evaluatee) ? $evaluatee->out_lastfirst_name() : 'Jane Doe',
+		'EVALUATEE_NAME' => ($evaluatee) ? $evaluatee->out_lastfirst_name() : '',
 		);
 	}
 
@@ -378,8 +382,7 @@
 </%method>
 
 <%method write_script>
-<script language="JavaScript">
-
+<script>
 var requiredObject = new Array();
 var questions = <% scalar @questions %>;
 var questionsAnswered = <% scalar @questions %>;
