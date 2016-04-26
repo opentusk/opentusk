@@ -1,97 +1,98 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
+
 <%once>
-use TUSK::Application::HTML::Strip;
-use TUSK::Constants;
-use TUSK::Manage::User;
+	use TUSK::Application::HTML::Strip;
+	use TUSK::Constants;
+	use TUSK::Manage::User;
 </%once>
 
 <& /tmpl/element:form, params => {
 	method => 'POST',
 	class => 'no-padding',
-	onsubmit =>'return checkform(this)',
-	action => "/management/users/addedit/" . $m->comp("/tmpl/url:get_full_path"),
-	name => 'user' } 
-&>
+	onsubmit => 'return checkform(this)',
+	action => '/management/users/addedit/' . $m->comp("/tmpl/url:get_full_path"),
+	name => 'user',
+} &>
 
-<& /tmpl/element:table, params => { 
-	width => "100%",
-	border =>"0",
-	cellspacing =>"0",
-	cellpadding =>"0" } &>
+<& /tmpl/element:table, params => {
+	width => '100%',
+	border => 0,
+	cellspacing => 0,
+	cellpadding => 0,
+} &>
 
-
-<& /tmpl/element:field_display, params => { 
+<& /tmpl/element:field_display, params => {
 	label => __("UserID") . ':',
 	value => $usrid . "\n<input type=\"hidden\" name=\"userid\" value=\"$usrid\">",
 } &>
 
 % if ($isldap) {
-<& /tmpl/element:field_display, params => { 
+<& /tmpl/element:field_display, params => {
 	label =>  __("First Name") . ':',
 	value => $useredit->{firstname},
 } &>
 
-<& /tmpl/element:field_display, params => { 
+<& /tmpl/element:field_display, params => {
 	label => __('Last Name') . ':',
 	value => $useredit->{lastname},
 } &>
 
-<& /tmpl/element:field_display, params => { 
+<& /tmpl/element:field_display, params => {
 	label => __('Email') . ':',
 	value => $useredit->{email},
 } &>
 
 % } else {
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label => __('First Name') . ":",
 	name => 'firstname',
 	id => 'First_Name__y',
-        size => 24,
+	size => 24,
 	maxlength => 20,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{firstname} : '',
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label => __('Middle Name').':',
 	name => 'midname',
 	id => '',
-        size => 24,
+	size => 24,
 	maxlength => 20,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{midname} : '',
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label => __('Last Name').':',
 	name => 'lastname',
 	id => 'Last_Name__y',
-        size => 24,
+	size => 24,
 	maxlength => 40,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{lastname} : '',
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label => __('Email').':',
 	name => 'email',
 	id => 'Email__y',
-        size => 24,
+	size => 24,
 	maxlength => 80,
 	class => "textareawhite",
 	value => ($ARGS{page} eq "edit")? $useredit->{email} : '',
@@ -99,6 +100,14 @@ use TUSK::Manage::User;
 
 % }
 
+<& /tmpl/element:textbox, params => {
+	label => __('Preferred Email').':',
+	name => 'preferred_email',
+	size => 24,
+	maxlength => 80,
+	class => "textareawhite",
+	value => ($ARGS{page} eq "edit")? $useredit->{preferred_email} : '',
+} &>
 
 <tr>
 <td class="labelgray"><%__("Affiliation")%>:</td>
@@ -117,10 +126,10 @@ use TUSK::Manage::User;
 <tr>
 <td class="labelgray"><%__("Degree")%>:</td>
 <td class="cell-left"><select name="degree" onchange="check_degree(this);">
-%	my  $degree_in_dropdown = 0; 
+%	my  $degree_in_dropdown = 0;
 %	foreach my $item (@degrees) {
 %		if ($ARGS{page} eq "edit" and $item eq $useredit->{degree}) {
-%			$degree_in_dropdown=1;
+%			$degree_in_dropdown = 1;
 			<option selected><% $item %></option>
 %		} else {
 			<option ><% $item %></option>
@@ -129,18 +138,18 @@ use TUSK::Manage::User;
 			<option value="Other"><%__("Other")%></option>
 </select>
 
-<div id="degree_text" style=<%(!$degree_in_dropdown)? 'margin-left:10px;display:none;' : 'margin-left:10px;display:inline;'%> <input name="degree_text" maxlength="60" size="24" class="textareawhite" value="<%($degree_in_dropdown == 0)? $useredit->{degree} : '' %>"> 
+<div id="degree_text" style=<%(!$degree_in_dropdown)? 'margin-left:10px;display:none;' : 'margin-left:10px;display:inline;'%> <input name="degree_text" maxlength="60" size="24" class="textareawhite" value="<%($degree_in_dropdown == 0)? $useredit->{degree} : '' %>">
 </div>
 
-
 </td></tr>
+
 <tr>
 % my @drop_options = map { {'label'=> $_, 'value' => $_ } } @suffices;
 <& /tmpl/element:dropdown, params => {
 	label => __('Suffix').':',
 	name => 'suffix',
 	selected => $useredit->{suffix},
-	options => \@drop_options 
+	options => \@drop_options
 
 } &>
 
@@ -151,7 +160,7 @@ use TUSK::Manage::User;
 	label => __('Gender').':',
 	name => 'gender',
 	selected => $useredit->{gender},
-	options => \@genders 
+	options => \@genders
 
 } &>
 
@@ -161,23 +170,23 @@ use TUSK::Manage::User;
 	label => __('Status:'),
 	name => 'status',
 	selected => $useredit->{status},
-	options => \@statuses 
+	options => \@statuses
 
 } &>
 
 </tr>
 
-<& /tmpl/element:textbox , params => { 	
+<& /tmpl/element:textbox , params => {
 	label => __('Expires'),
 	name =>  'expires',
 	size =>  '24',
 	maxlength =>  '20',
 	value => ( defined($useredit->{expires}) ) ? $useredit->{expires} : '',
 	calendar => 1,
-	no_empty =>0,
+	no_empty => 0,
 } &>
 
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label => __('SID') . ':',
 	name => 'sid',
 	size => 24,
@@ -204,18 +213,18 @@ use TUSK::Manage::User;
 % }	# END FOREACH
 
 </select></td>
-</tr><tr> 
+</tr><tr>
 <td class="labelgray"><% $data->{usergrouplabel} %></td>
 <td class="cell-left">
 
 % if (scalar(@{$data->{usergroups}})) {
 
-<& /tmpl/element:table, params => { 
+<& /tmpl/element:table, params => {
 	width => "75%",
 	class => "tusk",
-	border =>"0",
-	cellspacing =>"0",
-	cellpadding =>"0" } &>
+	border => "0",
+	cellspacing => "0",
+	cellpadding => "0" } &>
 
 %	my $stripObj = TUSK::Application::HTML::Strip->new();
 %	foreach my $ug (@{$data->{usergroups}}) {
@@ -257,7 +266,7 @@ use TUSK::Manage::User;
 </tr>
 % }
 
-<tr> 
+<tr>
 <& /tmpl/element:save_button, params=>{
 	label 			=> __('Save'),
 	no_cancel_button => 1,
@@ -265,7 +274,7 @@ use TUSK::Manage::User;
 	name	=> 'Submit',
 } &>
 
-<input type="hidden" name="action" value="<% $ARGS{page} %>"> 
+<input type="hidden" name="action" value="<% $ARGS{page} %>">
 </td>
 </tr>
 </table>
@@ -289,21 +298,21 @@ use TUSK::Manage::User;
 
 	if ($ARGS{action}){
 		($rval, $msg) = TUSK::Manage::User::addedit_process($r, $usrid, $school, \%ARGS);
-		my $msgtype = ($rval == 1) ?  "msg" : "errmsg"; 
+		my $msgtype = ($rval == 1) ?  "msg" : "errmsg";
 		$m->comp("/tmpl/url:redirect",destination => "/management/users/addedit/school/".$school."/".$usrid."?$msgtype=$msg", message =>'');
 	}
 
 	my $useredit;
-	my $data = TUSK::Manage::User::addedit_pre_process($r,$usrid,$school,\%ARGS);
+	my $data = TUSK::Manage::User::addedit_pre_process($r, $usrid, $school, \%ARGS);
 	$useredit = $data->{useredit};
 
 	# include schools and affiliations in affiliations array to populate drop-down
 	my @schools = keys %TUSK::Constants::Schools;
-	my @affiliations = sort keys %{ { map { $_ => 1 } @TUSK::Constants::Affiliations, @schools} };
+	my @affiliations = sort keys %{ { map { $_ => 1 } @TUSK::Constants::Affiliations, @schools } };
 
 	my @degrees = @TUSK::Constants::Degrees;
 	my @suffices = ('', 'II', 'III', 'IV', __('Jr.'), __('Sr.'));
-	my @statuses = (	{ 'label' =>  __('Active'), 'value' => 'Active'}, 
+	my @statuses = (	{ 'label' =>  __('Active'), 'value' => 'Active'},
 						{ 'label' => __('Inactive'), 'value' => 'Inactive'},
 						{ 'label' => __('Restricted'), 'value' => 'Restricted'},
 						{ 'label' => __('Test'), 'value' => 'Test'}	);
@@ -315,13 +324,13 @@ use TUSK::Manage::User;
 	unless ($ARGS{userid}) {
 		$useredit = HSDB4::SQLRow::User->new->lookup_key( $m->comp("/tmpl/url:get_last_path_id") );
 	}
-	
-	my $isldap = 0; 
+
+	my $isldap = 0;
 	if (exists($TUSK::Constants::LDAP{UseLDAP}) && $TUSK::Constants::LDAP{UseLDAP}) {
 		$isldap = 1 if ($useredit->{source} eq "external");
 	    	$source_label{'external'} = $TUSK::Constants::Institution{ShortName}. __(" Authentication");
 	}
-	
+
 </%init>
 
 <%method jsarray>
@@ -335,4 +344,3 @@ use TUSK::Manage::User;
 <%method red_header_text>
 % return $m->comp("SELF:title");
 </%method>
-
