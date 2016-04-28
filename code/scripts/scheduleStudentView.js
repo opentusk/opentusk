@@ -215,11 +215,12 @@ $(document).ready(function() {
 		}).success(function(data, status) {
 			if (data.status == 'ok') {
 				var noteContent = data['content'];
+				noteHistory.innerHTML = 'HISTORY - Scroll down to see more\n\n'
 				for (var noteElement in noteContent) {
 					for (var noteEntry in noteContent[noteElement]) {
 						noteHistory.innerHTML += noteContent[noteElement][noteEntry]['noteAuthor'] + 
-						" on " + noteContent[noteElement][noteEntry]['noteCreated'] + ": \n\n" + 
-							noteContent[noteElement][noteEntry]['note'] + "\n\n\n";
+						" on " + noteContent[noteElement][noteEntry]['noteCreated'] + ": " + 
+							noteContent[noteElement][noteEntry]['note'] + "\n\n";
 					}
 				}
 			}
