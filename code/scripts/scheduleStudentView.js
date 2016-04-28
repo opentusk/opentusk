@@ -17,47 +17,6 @@ function setIndex(rowIndex)
 	currentRowIndex = rowIndex;
 }
 
-function saveNote(current)
-{	
-	// $(current).closest('tr').prev('tr').find('div#note').show();
-	// $(current).closest('tr').prev('tr').find('a#saveNoteTrigger').hide();
-	// $(current).closest('tr').prev('tr').find('a#cancelNoteTrigger').hide();
-
-	// $(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
-	// $(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
-	// $.ajax({
-	// 	url: "/tusk/schedule/clinical/admin/ajax/note/input",
-	// 	data: {
-	// 		note: ($("#saveNote").closest('tr').find('textarea#note'))[0].value,
-	// 		user_id: user_id,
-	// 		course_id: $("#saveNote").closest('tr').prev('tr').find('span#courseId').text(),
-	// 		school_id: school_id,
-	// 	}, dataType: "json",
-	// 	statusCode: {
-	// 		404: function () {
-	// 		},
-	// 		500: function () {
-	// 		},
-	// 	}
-	// }).done(function() {
-	// }).error(function() {
-	// 	alert("An error occured during the note input process.");
-	// }).success(function(data, status) {
-	// 	if (data['status'] == 'ok') {
-	// 		$("div#note").each(function() {
-	// 			if ($("#saveNote").closest('tr').prev('tr').find('span#courseId').text() == 
-	// 				$(this).closest('tr').find('span#courseId').text()){
-	// 				updateNotePlaceholder(this);
-	// 			}
-	// 		});
-	// 		$("#noteRow").remove();
-	// 	} else {
-	// 		alert(data['status']);
-	// 	}
-	// });
-	// noteTakingInProgress = false;
-}
-
 function changeDefaultText(note) {
 	if (note.value === note.defaultValue) {
 		note.value = '';
@@ -86,18 +45,6 @@ function updateNotePlaceholder(noteRow)
 		var notePlaceholder = $.parseHTML($.trim(data['placeholder']));
 		$("a#placeholder", $(noteRow)).html(notePlaceholder);
 	});
-}
-
-function cancelNote(current)
-{
-	// $(current).closest('tr').prev('tr').find('div#note').show();
-	// $(current).closest('tr').prev('tr').find('a#save').hide();
-	// $(current).closest('tr').prev('tr').find('a#cancel').hide();
-
-	// $(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
-	// $(current).closest('tr').prev('tr').find("td:nth-child(8)").css( "border", "none");
-	// $("#noteRow").remove();
-	// noteTakingInProgress = false;
 }
 
 function constructDropdowns()
@@ -183,14 +130,8 @@ $(document).ready(function() {
 		var noteRow = document.createElement('tr');
 		var note = document.createElement('textarea');
 		var noteColumn = document.createElement('td');
-		var buttons = document.createElement('span');
-		var saveNoteButton = document.createElement('a');
-		var cancelNoteButton = document.createElement('a');
-		var littleSpacing = document.createElement('span');
-		var noteContent = '';
 		var breakElement = document.createElement('br');
 		var noteColumnContent = document.createElement('div');
-
 		var noteHistory = document.createElement('textarea');
 		var noteHistoryColumn = document.createElement('td');
 		var noteHistoryColumnContent = document.createElement('div');
@@ -215,7 +156,7 @@ $(document).ready(function() {
 		}).success(function(data, status) {
 			if (data.status == 'ok') {
 				var noteContent = data['content'];
-				noteHistory.innerHTML = 'HISTORY - Scroll down to see more\n\n'
+				noteHistory.innerHTML = 'HISTORY - Please scroll down to see more\n\n'
 				for (var noteElement in noteContent) {
 					for (var noteEntry in noteContent[noteElement]) {
 						noteHistory.innerHTML += noteContent[noteElement][noteEntry]['noteAuthor'] + 
@@ -228,19 +169,6 @@ $(document).ready(function() {
 
 		note.setAttribute("onfocus", "changeDefaultText(this)");
 		noteColumnContent.setAttribute("id", "noteColumnContent");
-		buttons.setAttribute("id", "saveCancelNote");
-		buttons.setAttribute("style", "cursor: pointer;");
-		saveNoteButton.setAttribute("id", "saveNote");
-		saveNoteButton.setAttribute("onclick", "saveNote(this)");
-		saveNoteButton.setAttribute("class", "navsm");
-		saveNoteButton.innerHTML = "Save";
-		cancelNoteButton.setAttribute("id", "cancelNote");
-		cancelNoteButton.setAttribute("onclick", "cancelNote(this)");
-		cancelNoteButton.setAttribute("class", "navsm");
-		cancelNoteButton.innerHTML = "Cancel";
-		littleSpacing.setAttribute("id", "littlespacing");
-		littleSpacing.innerHTML = " | ";
-
 		note.setAttribute("id", "note");
 		note.setAttribute("rows", 10);
 		note.setAttribute("cols", 30);
@@ -260,10 +188,6 @@ $(document).ready(function() {
 		noteHistoryColumnContent.appendChild(noteHistory);
 		noteHistoryColumn.appendChild(noteHistoryColumnContent);
 		noteRow.appendChild(noteHistoryColumn);
-		buttons.appendChild(saveNoteButton);
-		buttons.appendChild(littleSpacing);
-		buttons.appendChild(cancelNoteButton);
-		// noteColumnContent.appendChild(buttons);
 		noteColumnContent.appendChild(note);
 		noteColumn.appendChild(noteColumnContent);
 		noteRow.appendChild(noteColumn);
