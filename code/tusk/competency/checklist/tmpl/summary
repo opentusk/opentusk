@@ -98,7 +98,7 @@
 		$app->assignSelf($args{student_id}, $tp_id);
 		$checklist_assignments = $app->getAssignments($args{student_id}, $tp_id);
 	}
-	my $modules = $app->getSkillsModulesWithCategories();
+	my ($modules, @cat_order) = $app->getSkillsModulesWithCategories();
 	
 	## exclude assessments type that has no assignment, except self. There is no self assignment until it is self-assigned
 	foreach my $type (keys %$assessments) {
@@ -109,7 +109,7 @@
 	my $i = 1;  ## dummy id for hide/show comments
 	my @rows = ();
 
-	foreach my $category (keys %$modules) {
+	foreach my $category (@cat_order) {
 		my $completions = 0;
 		foreach (@{$modules->{$category}}) {
 			if ($checklist_completions->{$_->{checklist_id}} >= $_->{total}) {

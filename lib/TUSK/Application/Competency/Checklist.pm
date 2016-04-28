@@ -70,16 +70,21 @@ sub getSkillsModulesWithCategories {
     my $self = shift;
 
     my $sth = TUSK::Competency::Competency->new()->databaseSelect(qq(
-	  SELECT a.competency_checklist_id, c1.title, required, c2.title, self_assessed, partner_assessed, faculty_assessed
+	  SELECT a.competency_checklist_id, c1.title, required, c2.title, self_assessed, partner_assessed, faculty_assessed, h2.sort_order, h.depth, h.sort_order
 	  FROM tusk.competency_checklist a
 	  INNER JOIN tusk.competency as c1 on (a.competency_id = c1.competency_id)
-	  INNER JOIN tusk.competency_hierarchy as h on (child_competency_id = a.competency_id)
+	  INNER JOIN tusk.competency_hierarchy as h on (h.child_competency_id = a.competency_id)
 	  INNER JOIN tusk.competency as c2 on (parent_competency_id = c2.competency_id)
+	  INNER JOIN tusk.competency_hierarchy as h2 on (h2.child_competency_id = c2.competency_id)						     
 	  WHERE competency_checklist_group_id = $self->{checklist_group_id}
+          ORDER BY h2.sort_order, h.depth, h.sort_order								     
     ));
 
     my $data = {};
-    while (my ($checklist_id, $competency_title, $req, $cat_title, $self_assessed, $partner_assessed, $faculty_assessed) = $sth->fetchrow_array()) {
+    my @cat_order;
+    my $last_cat_sort_order = -1;
+
+    while (my ($checklist_id, $competency_title, $req, $cat_title, $self_assessed, $partner_assessed, $faculty_assessed, $cat_sort_order, $comp_depth, $comp_sort_order) = $sth->fetchrow_array()) {
 	push @{$data->{$cat_title}}, {
 	    checklist_id => $checklist_id, 
 	    competency_title => $competency_title, 
@@ -89,9 +94,14 @@ sub getSkillsModulesWithCategories {
 	    faculty => $faculty_assessed,
 	    total => $self_assessed + $partner_assessed + $faculty_assessed,
 	};
+	if ($cat_sort_order > $last_cat_sort_order) {
+	    push @cat_order, $cat_title;
+	    $last_cat_sort_order = $cat_sort_order;
+	}
     }
+
     $sth->finish();
-    return $data;
+    return $data, @cat_order;
 }
 
 =item
