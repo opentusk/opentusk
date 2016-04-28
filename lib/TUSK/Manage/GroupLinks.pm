@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -39,7 +39,7 @@ sub delete_process{
 
 	## remove course link
 	my ($rval ,$msg) = $data->{course}->delete_child_user_group_link($un, $pw, $usergroup_id);
-    
+
 	return (1, "Group Link Deleted");
 }
 
@@ -67,19 +67,19 @@ sub addedit_process{
 		foreach my $user (@$users) {
 			$link_course_student->delete( '-parent_id' => $course->course_id, '-child_id' => $user->user_id, 'cond' => ' AND time_period_id = ' . $fdat->{time_period_id} );
 		}
-		
+
 		$course->delete_child_user_group_link($un, $pw, $usergroup_id);
 		$successmsg = "Group Link updated successfully.";
 	} else{
 		$successmsg = "Group Link(s) added successfully.";
 	}
 
-	my @course_ids = split('\t', $fdat->{course_id});
+	my @course_ids = (ref $fdat->{course_id}) ? @{$fdat->{course_id}} : ($fdat->{course_id});
 	foreach my $course_id (@course_ids){
 		my $course = HSDB45::Course->new(_school=>$school)->lookup_key($course_id);
 
 		my @groups = $course->user_group_link()->get_children($course->primary_key, "link.child_user_group_id = ". $usergroup->primary_key)->children;
-    
+
 		unless (scalar @groups){
 			foreach my $user (@$users) {
 				my $already_exists = $link_course_student->get_row( $course_id, $user->user_id, 'AND time_period_id = ' . $fdat->{time_period_id} . ' AND teaching_site_id = 0' );
@@ -90,7 +90,7 @@ sub addedit_process{
 					$link_course_student->insert( '-parent_id' => $course_id, '-child_id' => $user->user_id, 'time_period_id' =>  $fdat->{time_period_id} );
 				}
 			}
-			
+
 			($rval, $msg) = $course->add_child_user_group_link($un, $pw, $usergroup_id, $fdat->{time_period_id});
 			return ($rval, $msg) if ($rval < 1);
 		}else{
@@ -98,7 +98,7 @@ sub addedit_process{
 		}
 	}
 
-	if ( $warning_msgs ) { 
+	if ( $warning_msgs ) {
 		return (2, $warning_msgs . "<br />" . $successmsg );
 	} else {
 		return (1, $successmsg);
@@ -108,20 +108,20 @@ sub addedit_process{
 sub addedit_pre_process{
     my ($school,$course_id,$timeperiod_id, $fdat) = @_;
     my $data;
-    
+
     $data->{courses} = [ HSDB45::Course->new(_school => $school)->lookup_conditions("associate_users = 'User Group' order by title") ];
     $data->{timeperiods} = [ HSDB45::TimePeriod->new(_school => $school)->nonpast_time_periods ];
-    
+
     if ($fdat->{page} eq "add"){
 		##$req->{image} = "CreateNewUserGroupLink";
 		$data->{current_course_id} = "";
 		$data->{current_time_period_id} = "";
-    }else{	
+    }else{
 		##$req->{image} = "ModifyUserGroupLink";
 		$data->{current_course_id} = $course_id;
 		$data->{current_time_period_id} = $timeperiod_id;
     }
-	
+
     return $data;
 }
 
