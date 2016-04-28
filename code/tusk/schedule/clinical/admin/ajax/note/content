@@ -33,10 +33,20 @@
 	$r->content_type('application/json');
 	$r->no_cache(1);
 	my $json = {};
+	my $user_id;
+	if ($ARGS{'serial_user_id_used'}) {
+		my $user = TUSK::Core::HSDB4Tables::User->lookupReturnOne("uid = " . $ARGS{'user_id'}, 
+			undef, ['user_id'], undef, undef); #for whom the note is taken
+		# $user->setFieldValue('uid', $ARGS{'user_id'});
+		$user_id = $user->getPrimaryKeyID();
+	} else {
+		$user_id = $ARGS{'user_id'};
+	}
+
 	my $tuskCourseId = TUSK::Course->new()->getTuskCourseIDFromSchoolID($ARGS{'school_id'}, $ARGS{'course_id'});
 	my @noteContent;
 	my $notes = TUSK::Course::StudentNote->lookup(
-			"student_id = '" . $ARGS{'user_id'} . "' and course_id = " 
+			"student_id = '" . $user_id . "' and course_id = " 
 				. $tuskCourseId,
 		['modified_on DESC'], ['note'], undef, undef);
 

@@ -18,6 +18,7 @@
 	$userId
 	$schoolId
 	$courseId
+	$accessType => 'create'
 </%args>
 
 <%once>
@@ -28,6 +29,10 @@
 <%shared>
 	my $noteExists = 0;
 	my $tuskCourseId;
+	my %action = (
+		create => "Create",
+		view => ""
+	);
 </%shared>
 
 <%init>
@@ -35,7 +40,7 @@
 	$m->comp('SELF:.setNoteExistence', userId => $userId);
 </%init>
 
-% $m->print($m->comp('SELF:.getNotePlaceholder'));
+% $m->print($m->comp('SELF:.getNotePlaceholder', accessType => $accessType));
 
 <%doc>
 	Updates the note existence to true 
@@ -59,11 +64,14 @@
 	word "Create"
 </%doc>
 <%method .getNotePlaceholder>
+<%args>
+	$accessType
+</%args>
 <%perl>
 	if ($noteExists) {
 		return "<img src='/graphics/comments.png'>";
 	} else {
-		return "Create";
+		return $action{$accessType};
 	}
 </%perl>
 </%method>

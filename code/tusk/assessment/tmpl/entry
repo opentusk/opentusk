@@ -28,9 +28,12 @@
 <%once>
 	use TUSK::FormBuilder::Entry;
 	use TUSK::FormBuilder::EntryAssociation;
+	use TUSK::Core::HSDB4Tables::User;
 </%once>
 
 <%shared>
+	my $note_placeholder = '';
+	my $course = $m->comp('/tmpl/url:get_type_object');
 	my $form = $m->comp('/formbuilder/util:get_form', join_objects => [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }) ]);
 	my ($form_id, $uid, $entry_id) = $m->comp('/tmpl/url:get_path_ids');
 	my ($student, $entry);
@@ -106,9 +109,21 @@
 </%init>
 
 <%method displayStudentName>
+<%perl>
+if ($uid) {
+	$note_placeholder = "<br>" .
+		"<div id='note'><span style='display: none;' id = 'student'>" . $uid . 
+		"</span><a class = 'navsm' id = 'placeholder' style = 'cursor: pointer'>" . 
+		$m->scomp("/schedule/clinical/admin/student/note/addedit",
+			userId => $student->primary_key(),
+			schoolId => $course->get_school()->getPrimaryKeyID(),
+			courseId => $course->primary_key(),
+			accessType => 'view') . '</a></div>'
+}
+</%perl>
 <& /tmpl/element:field_display, params => { 
 	label => __('Student'),
-	value => (defined $student) ? $student->out_full_name() : '',
+	value => (defined $student) ? $student->out_full_name() . $note_placeholder : '',
 } &>
 </%method>
 

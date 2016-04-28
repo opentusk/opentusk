@@ -15,6 +15,12 @@
 </%doc>
 
 <div id="domain">
+
+<%shared>
+	my $noteCourseId;
+	my $noteSchoolId;
+</%shared>
+
 <%perl>
 
 use HSDB4::Constants;
@@ -25,7 +31,7 @@ use HSDB45::TimePeriod;
 use TUSK::Course;
 use TUSK::Academic::Level;
 use TUSK::Academic::LevelClinicalSchedule;
-
+use TUSK::Core::HSDB4Tables::User;
 
 
 my $teaching_sites = $m->comp("SELF:get_teaching_sites");
@@ -140,7 +146,8 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	return [ 
 			"jquery/jquery.min.js",
 			"jquery/plugin/interface/interface.js",
-			"clinicalschedule.js"
+			"clinicalschedule.js",
+			"noteOverlay.js"
 			];
 </%perl> 
 </%method>
@@ -202,12 +209,14 @@ for (my $i = 0; $i <= $max_length; $i++) {
 <%perl>
 
 	my $type_object = $m->comp("/tmpl/url:get_type_object");
-	my $course_id = $type_object->course_id;		
+	my $course_id = $type_object->course_id;
+	$noteCourseId = $course_id;		
 
 	my $school = $m->comp('/tmpl/url:get_school');
 	my $db = HSDB4::Constants::get_school_db($school);
 	my $school_id = TUSK::Core::School->getSchoolID($school);
 	my $tusk_course_id = TUSK::Course->getTuskCourseIDFromSchoolID($school_id, $course_id);
+	$noteSchoolId = $school_id;
 
 	my $teaching_site_id = 0;
 	
@@ -254,7 +263,16 @@ for (my $i = 0; $i <= $max_length; $i++) {
 			$temp_hash{students} = [];
 			foreach my $student (@{$students}) {
 				if ($student->[4] == $time_period->getPrimaryKeyID){
-					my $student_name = $student->[2] . ", " . $student->[1];
+					my $user = TUSK::Core::HSDB4Tables::User->new(); #for whom the note is taken
+					$user->setPrimaryKeyID($student->[0]);
+					my $student_name = $student->[2] . ", " . $student->[1] . "<br>" .
+					"<div id='note'><span style='display: none;' id = 'student'>" . $user->getUID() . 
+					"</span><a class = 'navsm' id = 'placeholder' style = 'cursor: pointer'>" . 
+					$m->scomp("/schedule/clinical/admin/student/note/addedit",
+						userId => $student->[0],
+						schoolId => $school_id,
+						courseId => $course_id,
+						accessType => 'view') . '</a></div>';
 					push @{$temp_hash{students}}, $student_name;
 				}
 			}
@@ -270,5 +288,8 @@ for (my $i = 0; $i <= $max_length; $i++) {
 </%perl>
 </%method>
 
-
+<script>
+	var note_course_id = '<% $noteCourseId %>';
+	var note_school_id = '<% $noteSchoolId %>';
+</script>
 
