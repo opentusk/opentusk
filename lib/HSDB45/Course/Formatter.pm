@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -78,28 +78,40 @@ sub course {
 sub faculty_list_elt {
     my $self = shift;
 
-    my $users = $self->course()->users_by_period();
     my $faculty_list_elt = XML::Twig::Elt->new('faculty-list');
-   
-    foreach my $tp_id (keys %$users) {
-	my $tp_elt = XML::Twig::Elt->new('time-period', { 'id' => $tp_id, 'name' => '' });
-	foreach my $user (@{$users->{$tp_id}}) {
-	    my @role_elts = ();
-	    foreach my $role (map { $_->getRoleToken() } @{$user->getRoleLabels()}) {
-		$role = make_pcdata($role);
-		push(@role_elts, XML::Twig::Elt->new('course-user-role', {'role' => $role}));
-	    }
+    my $course = $self->course();
 
-	    my $user_elt = XML::Twig::Elt->new('course-user',
-					   { 'user-id' => $user->getPrimaryKeyID(),
-					     'name'    => make_pcdata($user->outFullName()),
-					   },
-					   @role_elts
-					   );
-	    $user_elt->paste('last_child', $tp_elt);
-	}
-	$tp_elt->paste('last_child', $faculty_list_elt);
+    my $dbh = HSDB4::Constants::def_db_handle();
+    my $sql = 'SELECT COUNT(*) FROM tusk.course_user WHERE course_id = ? AND school_id = ?';
+    my $count;
+    my $sth = $dbh->prepare($sql);
+    $sth->execute($course->primary_key(), $course->school_id());
+    $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $faculty_list_elt unless ($count < 1000);
+
+    my $users = $course->users_by_period();
+    foreach my $tp_id (keys %$users) {
+        my $tp_elt = XML::Twig::Elt->new('time-period', { 'id' => $tp_id, 'name' => '' });
+        foreach my $user (@{$users->{$tp_id}}) {
+            my @role_elts = ();
+            foreach my $role (map { $_->getRoleToken() } @{$user->getRoleLabels()}) {
+                $role = make_pcdata($role);
+                push(@role_elts, XML::Twig::Elt->new('course-user-role', {'role' => $role}));
+            }
+
+            my $user_elt = XML::Twig::Elt->new('course-user',
+                                           { 'user-id' => $user->getPrimaryKeyID(),
+                                             'name'    => make_pcdata($user->outFullName()),
+                                           },
+                                           @role_elts
+                                           );
+            $user_elt->paste('last_child', $tp_elt);
+        }
+        $tp_elt->paste('last_child', $faculty_list_elt);
     }
+
     return $faculty_list_elt;
 }
 
@@ -108,14 +120,14 @@ sub sub_course_list_elt {
 
     my $sub_course_list_elt = XML::Twig::Elt->new('sub-course-list');
     foreach my $sub_course ($self->course()->child_courses()) {
-	my $sub_course_elt = 
-	  XML::Twig::Elt->new('sub-course',
-			      {'course-id' => $sub_course->course_id(),
-			       'school'    => $sub_course->school()},
-			      make_pcdata($sub_course->out_label()),
-			      );
-	$sub_course_elt->set_asis();
-	$sub_course_elt->paste('last_child', $sub_course_list_elt);
+        my $sub_course_elt =
+          XML::Twig::Elt->new('sub-course',
+                              {'course-id' => $sub_course->course_id(),
+                               'school'    => $sub_course->school()},
+                              make_pcdata($sub_course->out_label()),
+                              );
+        $sub_course_elt->set_asis();
+        $sub_course_elt->paste('last_child', $sub_course_list_elt);
     }
     return $sub_course_list_elt;
 }
@@ -125,21 +137,21 @@ sub teaching_site_list_elt {
 
     my $teaching_site_list_elt = new XML::Twig::Elt('teaching-site-list');
     foreach my $teaching_site ($self->course()->child_teaching_sites()) {
-	my $teaching_site_elt = 
-	  XML::Twig::Elt->new('teaching-site',
-			      {'teaching-site-id' => $teaching_site->site_id()}
-			      );
-	my $site_name_elt = XML::Twig::Elt->new('site-name',
-						{},
-						make_pcdata($teaching_site->site_name()));
-	$site_name_elt->set_asis();
-	$site_name_elt->paste('last_child', $teaching_site_elt);
-	my $site_location_elt = 
-	  XML::Twig::Elt->new('site-location', {}, 
-			      make_pcdata($teaching_site->site_city_state()));
-	$site_location_elt->set_asis();
-	$site_location_elt->paste('last_child', $teaching_site_elt);
-	$teaching_site_elt->paste('last_child', $teaching_site_list_elt);
+        my $teaching_site_elt =
+          XML::Twig::Elt->new('teaching-site',
+                              {'teaching-site-id' => $teaching_site->site_id()}
+                              );
+        my $site_name_elt = XML::Twig::Elt->new('site-name',
+                                                {},
+                                                make_pcdata($teaching_site->site_name()));
+        $site_name_elt->set_asis();
+        $site_name_elt->paste('last_child', $teaching_site_elt);
+        my $site_location_elt =
+          XML::Twig::Elt->new('site-location', {},
+                              make_pcdata($teaching_site->site_city_state()));
+        $site_location_elt->set_asis();
+        $site_location_elt->paste('last_child', $teaching_site_elt);
+        $teaching_site_elt->paste('last_child', $teaching_site_list_elt);
     }
     return $teaching_site_list_elt;
 }
@@ -149,13 +161,13 @@ sub learning_objective_list_elt {
 
     my $learning_objective_list_elt = XML::Twig::Elt->new('learning-objective-list');
     foreach my $learning_objective ($self->course()->child_objectives()) {
-	my $objective_ref_elt = 
-	  XML::Twig::Elt->new('objective-ref',
-			      { 'objective-id' => $learning_objective->objective_id() },
-			      make_pcdata($learning_objective->out_label())
-			      );
-	$objective_ref_elt->set_asis();
-	$objective_ref_elt->paste('last_child', $learning_objective_list_elt);
+        my $objective_ref_elt =
+          XML::Twig::Elt->new('objective-ref',
+                              { 'objective-id' => $learning_objective->objective_id() },
+                              make_pcdata($learning_objective->out_label())
+                              );
+        $objective_ref_elt->set_asis();
+        $objective_ref_elt->paste('last_child', $learning_objective_list_elt);
     }
     return $learning_objective_list_elt;
 }
@@ -167,18 +179,18 @@ sub content_list_elt {
     my $content_list_elt = XML::Twig::Elt->new('content-list');
 
     foreach my $content_item ($self->course()->active_child_content()) {
-	my $authors = ($content_item->type() eq 'External')
-	    ? $content_item->child_authors()
-	    : join(', ', map { $_->out_abbrev } $content_item->child_authors());
+        my $authors = ($content_item->type() eq 'External')
+            ? $content_item->child_authors()
+            : join(', ', map { $_->out_abbrev } $content_item->child_authors());
 
-	my $content_elt = 
-	  XML::Twig::Elt->new( 'content-ref',
-			       { 'content-id'   => $content_item->content_id(),
-				 'content-type' => $content_item->content_type(),
-				 'authors'      => $authors },
-			       make_pcdata($content_item->title()));
-	$content_elt->set_asis();
-	$content_elt->paste('last_child', $content_list_elt);
+        my $content_elt =
+          XML::Twig::Elt->new( 'content-ref',
+                               { 'content-id'   => $content_item->content_id(),
+                                 'content-type' => $content_item->content_type(),
+                                 'authors'      => $authors },
+                               make_pcdata($content_item->title()));
+        $content_elt->set_asis();
+        $content_elt->paste('last_child', $content_list_elt);
     }
 
     return $content_list_elt;
@@ -190,20 +202,20 @@ sub schedule_elt {
     # add schedule stuff here by looping through the ClassMeeting objects
     my $schedule_elt = XML::Twig::Elt->new('schedule');
     foreach my $class_meeting ($self->course()->class_meetings()) {
-	my $meeting_date = $class_meeting->out_starttime()->out_string_date_short();
-	my $start_time   = $class_meeting->out_starttime()->out_string_time();
-	my $end_time     = $class_meeting->out_endtime()->out_string_time();
-	my $class_meeting_elt = 
-	  XML::Twig::Elt->new('class-meeting',
-			      {'class-meeting-id' => $class_meeting->class_meeting_id(),
-			       'meeting-date'     => $meeting_date,
-			       'start-time'       => $start_time,
-			       'end-time'         => $end_time,
-			       'location'         => (make_pcdata($class_meeting->location()) or ''),
-			       'type'             => (make_pcdata($class_meeting->type()) or ''),
-			       'title'            => (make_pcdata($class_meeting->title()) or ''),
-			       });
-	$class_meeting_elt->paste('last_child', $schedule_elt);
+        my $meeting_date = $class_meeting->out_starttime()->out_string_date_short();
+        my $start_time   = $class_meeting->out_starttime()->out_string_time();
+        my $end_time     = $class_meeting->out_endtime()->out_string_time();
+        my $class_meeting_elt =
+          XML::Twig::Elt->new('class-meeting',
+                              {'class-meeting-id' => $class_meeting->class_meeting_id(),
+                               'meeting-date'     => $meeting_date,
+                               'start-time'       => $start_time,
+                               'end-time'         => $end_time,
+                               'location'         => (make_pcdata($class_meeting->location()) or ''),
+                               'type'             => (make_pcdata($class_meeting->type()) or ''),
+                               'title'            => (make_pcdata($class_meeting->title()) or ''),
+                               });
+        $class_meeting_elt->paste('last_child', $schedule_elt);
     }
     return $schedule_elt;
 }
@@ -212,62 +224,62 @@ sub get_xml_elt {
     my $self = shift;
 
     my $atts;
-    { 
-	my $associate = $self->course()->field_value('associate_users');
-	$associate = $associate eq 'User Group' ? 'Group' : 'Enrollment';
-	$atts = { 'associate-users' => $associate,
-		  'course-id' => $self->course()->primary_key(),
-		  school => $self->course()->school(),
-	      };
+    {
+        my $associate = $self->course()->field_value('associate_users');
+        $associate = $associate eq 'User Group' ? 'Group' : 'Enrollment';
+        $atts = { 'associate-users' => $associate,
+                  'course-id' => $self->course()->primary_key(),
+                  school => $self->course()->school(),
+              };
     }
 
     my $course_elt = XML::Twig::Elt->new('course', $atts);
 
     # Do the title
-    my $title_elt = XML::Twig::Elt->new('title', {}, 
-					make_pcdata($self->course()->title()));
+    my $title_elt = XML::Twig::Elt->new('title', {},
+                                        make_pcdata($self->course()->title()));
     $title_elt->set_asis();
     $title_elt->paste('last_child', $course_elt);
 
     # Add the abbreviation
     if($self->course()->abbreviation()) {
-	my $abbreviation_elt = 
-	  XML::Twig::Elt->new('abbreviation', {}, 
-			      make_pcdata($self->course()->abbreviation()));
-	$abbreviation_elt->set_asis();
-	$abbreviation_elt->paste('last_child', $course_elt);
+        my $abbreviation_elt =
+          XML::Twig::Elt->new('abbreviation', {},
+                              make_pcdata($self->course()->abbreviation()));
+        $abbreviation_elt->set_asis();
+        $abbreviation_elt->paste('last_child', $course_elt);
     }
 
     # Add the color
     if($self->course()->color()) {
-	my $color_elt = XML::Twig::Elt->new('color', {}, 
-					    make_pcdata($self->course()->color()));
-	$color_elt->set_asis();
-	$color_elt->paste('last_child', $course_elt);
+        my $color_elt = XML::Twig::Elt->new('color', {},
+                                            make_pcdata($self->course()->color()));
+        $color_elt->set_asis();
+        $color_elt->paste('last_child', $course_elt);
     }
 
     # Add the registrar code
-    my $registrar_code_elt = 
+    my $registrar_code_elt =
       XML::Twig::Elt->new('registrar-code', {}, make_pcdata($self->course()->registrar_code()));
     $registrar_code_elt->set_asis();
     $registrar_code_elt->paste('last_child', $course_elt);
 
     # Faculty list
     $self->faculty_list_elt()->paste('last_child', $course_elt);
-    
+
     # Sub courses
-    if($self->course()->child_courses()) {
-	$self->sub_course_list_elt()->paste('last_child', $course_elt);
+    if ($self->course()->child_courses()) {
+        $self->sub_course_list_elt()->paste('last_child', $course_elt);
     }
 
     # Teaching sites
     if ($self->course()->child_teaching_sites()) {
-	$self->teaching_site_list_elt()->paste('last_child', $course_elt);
+        $self->teaching_site_list_elt()->paste('last_child', $course_elt);
     }
 
     # Learning objectives
     if ($self->course()->child_objectives()) {
-	$self->learning_objective_list_elt()->paste('last_child', $course_elt);
+        $self->learning_objective_list_elt()->paste('last_child', $course_elt);
     }
 
     # Add content list
@@ -275,7 +287,7 @@ sub get_xml_elt {
 
     # Add the schedule
     if ($self->course()->class_meetings()) {
-	$self->schedule_elt()->paste('last_child', $course_elt);
+        $self->schedule_elt()->paste('last_child', $course_elt);
     }
 
     # Add body elements for the body, if it's there
@@ -283,31 +295,31 @@ sub get_xml_elt {
     return $course_elt unless $body;
 
     $body->attendance_policy() &&
-	$body->attendance_policy()->copy()->paste('last_child', $course_elt);
-	
+        $body->attendance_policy()->copy()->paste('last_child', $course_elt);
+
     $body->grading_policy() &&
-	$body->grading_policy()->copy()->paste('last_child', $course_elt);
+        $body->grading_policy()->copy()->paste('last_child', $course_elt);
 
     $body->reading_list() &&
-	$body->reading_list()->copy()->paste('last_child', $course_elt);
+        $body->reading_list()->copy()->paste('last_child', $course_elt);
 
     $body->course_description() &&
-	$body->course_description()->copy()->paste('last_child', $course_elt);
+        $body->course_description()->copy()->paste('last_child', $course_elt);
 
     $body->tutoring_services() &&
-	$body->tutoring_services()->copy()->paste('last_child', $course_elt);
+        $body->tutoring_services()->copy()->paste('last_child', $course_elt);
 
     $body->course_structure() &&
-	$body->course_structure()->copy()->paste('last_child', $course_elt);
+        $body->course_structure()->copy()->paste('last_child', $course_elt);
 
     $body->student_evaluation() &&
-	$body->student_evaluation()->copy()->paste('last_child', $course_elt);
+        $body->student_evaluation()->copy()->paste('last_child', $course_elt);
 
     $body->equipment_list() &&
-	$body->equipment_list()->copy()->paste('last_child', $course_elt);
+        $body->equipment_list()->copy()->paste('last_child', $course_elt);
 
     $body->course_other() &&
-	$body->course_other()->copy()->paste('last_child', $course_elt);
+        $body->course_other()->copy()->paste('last_child', $course_elt);
 
     return $course_elt;
 }
