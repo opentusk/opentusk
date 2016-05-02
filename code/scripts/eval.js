@@ -43,7 +43,7 @@ function satisfy(qid, type) {
 		var image = document.images[imgname];
 		if (!image) return;
 		var element = document.forms['eval_form'].elements[fieldname];
-		if (!element.value.length) {
+		if (type == 'text' && !element.value.length) {
 			image.src = "/icons/reddot.gif";
 		} else {
 			// It's probably OK, and we can just mark it as such
