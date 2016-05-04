@@ -25,6 +25,7 @@
 
 <%shared>
 	my $isAdmin = 0;
+	my $student = TUSK::Core::HSDB4Tables::User->new(); #for whom the note is taken
 	my %table = (
 		current => [],
 		future => [],
@@ -148,10 +149,21 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 
 		if ($isAdmin) {
 			${@rows}[-1]{'actions'} = '<div id="modify"><a class = "navsm" style = "cursor: pointer;">Modify</a></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" style = "display: none;" >Save</a><span class="littlespacing" id="modifyLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "cancel" style = "display: none; white-space: nowrap;">Cancel</a><span class="littlespacing" id="modifyLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "delete" style = "display: none; white-space: nowrap;">Delete</a></span><span id = "alreadyEnrolled" class = "xsm" style = "display: none;"> <br> Already Enrolled: <span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>'; 
-			${@rows}[-1]{'notes'} = "<div id='note'><a class = 'navsm' id = 'placeholder' style = 'cursor: pointer'>" . $m->scomp("/schedule/clinical/admin/student/note/addedit",
+			${@rows}[-1]{'notes'} = "<div id='note'><span id='placeholder'>" . $m->scomp("/schedule/clinical/admin/student/note/addedit",
 				userId => $user_id,
 				schoolId => $school->getPrimaryKeyID(),
-				courseId => ${$scheduleCourses->{'courseIds'}}[$index]) . '</a></div><span id = "saveCancelNote" style = "cursor: pointer;"><a id = "saveNoteTrigger" class = "navsm" style = "display: none;" >Save</a><span class="littlespacing" id="noteLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "cancelNoteTrigger" style = "display: none; white-space: nowrap;">Cancel</a>'; 
+				courseId => ${$scheduleCourses->{'courseIds'}}[$index]) . '</span></div><span id = "saveCancelNote" style = "cursor: pointer;"><a id = "saveNoteTrigger" class = "navsm" style = "display: none;" >Save</a><span class="littlespacing" id="noteLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "cancelNoteTrigger" style = "display: none; white-space: nowrap;">Cancel</a>'; 
+		} else {
+			$student->setPrimaryKeyID($user_id);
+			${@rows}[-1]{'notes'} = "<div id='note'><span style='display: none;' id = 'course'>" . 
+				${$scheduleCourses->{'courseIds'}}[$index]. "</span>" .
+				"<span style='display: none;' id = 'student'>" . $student->getUID() . 
+				"</span><a class = 'navsm' id = 'placeholder' style = 'cursor: pointer'>" . 
+				$m->scomp("/schedule/clinical/admin/student/note/addedit",
+					userId => $user_id,
+					schoolId => $school->getPrimaryKeyID(),
+					courseId => ${$scheduleCourses->{'courseIds'}}[$index],
+					accessType => 'view') . '</a></div>';
 		}
 
 		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {

@@ -15,55 +15,76 @@
 </%doc>
 
 <%attr>
-  	default_path_type => 'school'
+	default_path_type => 'school'
 </%attr>
 
 <%once>
-    use TUSK::Application::Schedule::Clinical;
+	use TUSK::Application::Schedule::Clinical;
 </%once>
 
 <%shared>
-    my $school = $m->comp('/tmpl/url:get_type_object');
+	my $school = $m->comp('/tmpl/url:get_type_object');
 </%shared>
 
 <%init>
-    my $school_id = $school->getPrimaryKeyID();
-    my $school_db = $school->getSchoolDb();
-    $m->comp('/schedule/clinical/admin/tmpl/search', school_id => $school_id);
-    my $academicYear = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicYear');
-    my $academicLevelId= $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevelId');
-    my $academicLevelTitle = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevelTitle');
-    my @rows;
+	my $school_id = $school->getPrimaryKeyID();
+	my $school_db = $school->getSchoolDb();
+	$m->comp('/schedule/clinical/admin/tmpl/search', school_id => $school_id);
+	my $academicYear = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicYear');
+	my $academicLevelId= $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevelId');
+	my $academicLevelTitle = $m->comp('/schedule/clinical/admin/tmpl/search:getCurrentAcademicLevelTitle');
+	my @rows;
 
-    $m->comp("/tmpl/element:cms_button_row", links => [{ 
-            display_txt => __('Export'),
-            link_txt    => '/schedule/clinical/admin/all/export/schedules/' . $school_id . '?academicLevelId=' . $academicLevelId . '&academicYear=' . $academicYear
-    }]);
+	$m->comp("/tmpl/element:cms_button_row", links => [{ 
+			display_txt => __('Export'),
+			link_txt    => '/schedule/clinical/admin/all/export/schedules/' . $school_id . '?academicLevelId=' . $academicLevelId . '&academicYear=' . $academicYear
+	}]);
 
 
-    $m->print('<p style="font: 11px Helvetica, Arial, serif"> &#42; A bold course name in the report indicates a time overlap. Please check the individual student schedule for any discrepancies.');
+	$m->print('<p style="font: 11px Helvetica, Arial, serif"> &#42; A bold course name in the report indicates a time overlap. Please check the individual student schedule for any discrepancies.');
 
-    my $scheduleStudents = TUSK::Application::Schedule::Clinical->new({
-        school_id => $school_id
-    })->getScheduleStudents($academicLevelId, $academicYear);
+	my $scheduleStudents = TUSK::Application::Schedule::Clinical->new({
+		school_id => $school_id
+	})->getScheduleStudents($academicLevelId, $academicYear);
 
-    my $col_fields = [ 
-        {label => __('Name'), field => 'full_name', html => 1},
-        {label => __('UserID'), field => 'user_id'},
-        {label => __('Academic Level'), field => 'academic_level'},
-    ];
+	my $col_fields = [ 
+		{label => __('Name'), field => 'full_name', html => 1},
+		{label => __('UserID'), field => 'user_id'},
+		{label => __('Academic Level'), field => 'academic_level'},
+	];
 
-    if (scalar @{$scheduleStudents->{'userIds'}}) {
-        for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
-
-            push @rows, {
-                full_name => '<a href = "/schedule/clinical/student/view/' . $school_id . '?firstName=' . ${$scheduleStudents->{'firstNames'}}[$index] . '&lastName=' . ${$scheduleStudents->{'lastNames'}}[$index] . '&userId=' . ${$scheduleStudents->{'userIds'}}[$index] . '&academicLevel=' . $academicLevelTitle . '">' . ${$scheduleStudents->{'lastNames'}}[$index].', '.${$scheduleStudents->{'firstNames'}}[$index] . '</a>',
-                user_id =>  ${$scheduleStudents->{'userIds'}}[$index],
-                academic_level => $academicLevelTitle,
-            }
-        }
-        $m->comp('/tmpl/element:object_selection_box', params => {columns => $col_fields, rows => \@rows});
-    }
+	if (scalar @{$scheduleStudents->{'userIds'}}) {
+		my $notePlaceholder;
+		for my $index (0..$#{$scheduleStudents->{'userIds'}}) {
+			my $scheduleCourses = TUSK::Application::Schedule::Clinical->new({
+					school_id => $school_id
+				})->getScheduleCourses({
+					user_id => ${$scheduleStudents->{'userIds'}}[$index]
+				});
+			if (scalar $scheduleCourses->{'courseIds'}) {
+				for my $courseIndex (0..$#{$scheduleCourses->{'courseTitles'}}) {
+					$notePlaceholder = $m->scomp("/schedule/clinical/admin/student/note/addedit",
+							userId => ${$scheduleStudents->{'userIds'}}[$index],
+							schoolId => $school_id,
+							courseId => ${$scheduleCourses->{'courseIds'}}[$courseIndex],
+							accessType => 'view');
+					$notePlaceholder =~ s/\n//gxms;
+					$notePlaceholder =~ s{\A \s* | \s* \z}{}gxm;
+					if ($notePlaceholder ne '') {
+						last;
+					}
+				}
+			}
+			push @rows, {
+				full_name => '<a href = "/schedule/clinical/student/view/' . $school_id . '?firstName=' . ${$scheduleStudents->{'firstNames'}}[$index] . '&lastName=' . ${$scheduleStudents->{'lastNames'}}[$index] . '&userId=' . ${$scheduleStudents->{'userIds'}}[$index] . '&academicLevel=' . $academicLevelTitle . '">' . ${$scheduleStudents->{'lastNames'}}[$index].', '.${$scheduleStudents->{'firstNames'}}[$index] . '</a>' . 
+				($notePlaceholder ? $notePlaceholder : ''),
+				user_id =>  ${$scheduleStudents->{'userIds'}}[$index],
+				academic_level => $academicLevelTitle,
+			};
+			$notePlaceholder = "";
+		}
+		$m->comp('/tmpl/element:object_selection_box', params => {columns => $col_fields, rows => \@rows});
+	}
 </%init>
 
 <%method title>

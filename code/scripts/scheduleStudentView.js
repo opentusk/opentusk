@@ -23,28 +23,12 @@ function changeDefaultText(note) {
 	}
 }
 
-function updateNotePlaceholder(noteRow)
-{
-	$.ajax({
-		url: "/tusk/schedule/clinical/admin/ajax/note/addedit",
-		data: {
-			user_id: user_id,
-			school_id: school_id,
-			course_id: $(noteRow).closest('tr').find('span#courseId').text(),
-		}, dataType: "json",
-		statusCode: {
-			404: function () {
-			},
-			500: function () {
-			},
-		}
-	}).done(function() {
-	}).error(function() {
-		alert("An error occured during the note placeholder update process.");
-	}).success(function(data, status) {
-		var notePlaceholder = $.parseHTML($.trim(data['placeholder']));
-		$("a#placeholder", $(noteRow)).html(notePlaceholder);
-	});
+function load_js() {
+	var head= document.getElementsByTagName('head')[0];
+	var script= document.createElement('script');
+	script.type= 'text/javascript';
+	script.src= '/scripts/noteOverlay.js';
+	head.appendChild(script);
 }
 
 function constructDropdowns()
@@ -117,32 +101,14 @@ $(document).ready(function() {
 		return;
 	});
 
-	$("a#placeholder").click(function() {
-		if (noteTakingInProgress) {	
-			alert(noteSavingWarning);
-			return;
-		}
-		$(this).closest('tr').find('div#note').hide();
-		$(this).closest('tr').find('a#saveNoteTrigger').show();
-		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').show();
-		$(this).closest('tr').find('a#cancelNoteTrigger').show();
-		noteTakingInProgress = true;
-		var noteRow = document.createElement('tr');
-		var note = document.createElement('textarea');
-		var noteColumn = document.createElement('td');
-		var breakElement = document.createElement('br');
-		var noteColumnContent = document.createElement('div');
-		var noteHistory = document.createElement('textarea');
-		var noteHistoryColumn = document.createElement('td');
-		var noteHistoryColumnContent = document.createElement('div');
-
+	function updateNotePlaceholder(noteRow)
+	{
 		$.ajax({
-			url: "/tusk/schedule/clinical/admin/ajax/note/content",
-			cache: false,
+			url: "/tusk/schedule/clinical/admin/ajax/note/addedit",
 			data: {
 				user_id: user_id,
 				school_id: school_id,
-				course_id: $(this).closest('tr').find('span#courseId').text(),
+				course_id: $(noteRow).closest('tr').find('span#courseId').text(),
 			}, dataType: "json",
 			statusCode: {
 				404: function () {
@@ -152,88 +118,168 @@ $(document).ready(function() {
 			}
 		}).done(function() {
 		}).error(function() {
-			alert("An error occured during the note retrieval process.");
+			alert("An error occured during the note placeholder update process.");
 		}).success(function(data, status) {
-			if (data.status == 'ok') {
-				var noteContent = data['content'];
-				noteHistory.innerHTML = 'HISTORY - Please scroll down to see more\n\n'
-				for (var noteElement in noteContent) {
-					for (var noteEntry in noteContent[noteElement]) {
-						noteHistory.innerHTML += noteContent[noteElement][noteEntry]['noteAuthor'] + 
-						" on " + noteContent[noteElement][noteEntry]['noteCreated'] + ": " + 
-							noteContent[noteElement][noteEntry]['note'] + "\n\n";
-					}
-				}
-			}
+			var notePlaceholder = $.parseHTML($.trim(data['placeholder']));
+			$("span#placeholder", $(noteRow)).html(notePlaceholder);
+			load_js();
+			console.log("Updating the placeholder");
 		});
+	}
 
-		note.setAttribute("onfocus", "changeDefaultText(this)");
-		noteColumnContent.setAttribute("id", "noteColumnContent");
+	// $("a#noteHistoryPlaceholder").click(function() {
+	// 	createNotePlaceholderTrigger(this);
+	// });
+
+	$("span#placeholder").click(function(){
+		$(this).hide();
+		if ($(this).closest('tr').find("a#noteHistoryPlaceholder").length) {
+			createNotePlaceholderTrigger(this);
+			$("a#cancelNoteTrigger").click(function() {
+				console.log("Extra binding happened.");
+				$(this).closest('tr').find('#noteHistoryColumnContent').remove();
+			});
+			$(this).closest('tr').find('#noteActions').remove();
+		}
+	});
+
+	$("a#createNotePlaceholder").click(function() {
+		createNotePlaceholderTrigger(this);
+	});
+
+	function createNotePlaceholderTrigger(createNotePlaceholder) {
+		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
+		if (noteTakingInProgress) {	
+			alert(noteSavingWarning);
+			return;
+		}
+		// $(createNotePlaceholder).closest('tr').find('a#createNotePlaceholder').hide();
+		$(createNotePlaceholder).closest('tr').find('a#saveNoteTrigger').show();
+		$(createNotePlaceholder).closest('tr').find('span.littlespacing#noteLineSeperator').show();
+		$(createNotePlaceholder).closest('tr').find('a#cancelNoteTrigger').show();
+		var note = document.createElement('textarea');
 		note.setAttribute("id", "note");
 		note.setAttribute("rows", 10);
 		note.setAttribute("cols", 30);
-		noteColumn.setAttribute("colspan", 1);
+		// $(createNotePlaceholder).closest("div#note").find("#noteHistory").before(note);
+		$(createNotePlaceholder).closest("span#placeholder").after(note);
+		noteTakingInProgress = true;
+		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
+	}
 
-		noteHistory.setAttribute("disabled", true);
-		noteHistory.setAttribute("id", "noteHistory");
-		noteHistory.setAttribute("rows", 10);
-		noteHistory.setAttribute("cols", 30);
-		noteHistoryColumn.setAttribute("colspan", 1);
+	// $("a#placeholder").click(function() {
+	// 	if (noteTakingInProgress) {	
+	// 		alert(noteSavingWarning);
+	// 		return;
+	// 	}
 
-		for (var i = 0; i < 6; i++) {
-			var td = document.createElement('td');
-			noteRow.appendChild(td);
-		}
+	// 	var noteRow = document.createElement('tr');
+	// 	var note = document.createElement('textarea');
+	// 	var noteColumn = document.createElement('td');
+	// 	var breakElement = document.createElement('br');
+	// 	var noteColumnContent = document.createElement('div');
+	// 	var noteHistory = document.createElement('textarea');
+	// 	var noteHistoryColumn = document.createElement('td');
+	// 	var noteHistoryColumnContent = document.createElement('div');
 
-		noteHistoryColumnContent.appendChild(noteHistory);
-		noteHistoryColumn.appendChild(noteHistoryColumnContent);
-		noteRow.appendChild(noteHistoryColumn);
-		noteColumnContent.appendChild(note);
-		noteColumn.appendChild(noteColumnContent);
-		noteRow.appendChild(noteColumn);
-		noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
-		noteRow.setAttribute("id", "noteRow");
-		$(this).closest('tr').after(noteRow);
+	// 	$.ajax({
+	// 		url: "/tusk/schedule/clinical/admin/ajax/note/content",
+	// 		cache: false,
+	// 		data: {
+	// 			user_id: user_id,
+	// 			school_id: school_id,
+	// 			course_id: $(this).closest('tr').find('span#courseId').text(),
+	// 		}, dataType: "json",
+	// 		statusCode: {
+	// 			404: function () {
+	// 			},
+	// 			500: function () {
+	// 			},
+	// 		}
+	// 	}).done(function() {
+	// 	}).error(function() {
+	// 		alert("An error occured during the note retrieval process.");
+	// 	}).success(function(data, status) {
+	// 		if (data.status == 'ok') {
+	// 			var noteContent = data['content'];
+	// 			noteHistory.innerHTML = 'HISTORY - Please scroll down to see more\n\n'
+	// 			for (var noteElement in noteContent) {
+	// 				for (var noteEntry in noteContent[noteElement]) {
+	// 					noteHistory.innerHTML += noteContent[noteElement][noteEntry]['noteAuthor'] + 
+	// 					" on " + noteContent[noteElement][noteEntry]['noteCreated'] + ": " + 
+	// 						noteContent[noteElement][noteEntry]['note'] + "\n\n";
+	// 				}
+	// 			}
+	// 		}
+	// 	});
 
-		currentNoteColumnBackgroundColor = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css("background-color");
-		$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-		$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css({"border-top-color": "rgba(189, 178, 202, 0.44)", 
-			"border-left-color": "rgba(189, 178, 202, 0.44)",
-			"border-right-color": "rgba(189, 178, 202, 0.44)",
-			"border-top-weight":"3px", 
-			"border-right-weight":"3px",
-			"border-left-weight":"3px",
-			"border-top-style":"solid",
-			"border-right-style":"solid",
-			"border-left-style":"solid"
-		});
-		$("#noteRow").closest('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-		$("#noteRow").closest('tr').find("td:nth-child(8)").css({"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
-			"border-left-color": "rgba(189, 178, 202, 0.44)",
-			"border-right-color": "rgba(189, 178, 202, 0.44)",
-			"border-bottom-weight":"3px", 
-			"border-right-weight":"3px",
-			"border-left-weight":"3px",
-			"border-bottom-style":"solid",
-			"border-right-style":"solid",
-			"border-left-style":"solid"
-		 });
-		$("#noteRow").closest('tr').find("td:nth-child(7)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-		$("#noteRow").closest('tr').find("td:nth-child(7)").css({"border-top-color": "rgba(189, 178, 202, 0.44)",
-			"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
-			"border-left-color": "rgba(189, 178, 202, 0.44)",
-			"border-right-color": "rgba(189, 178, 202, 0.44)",
-			"border-top-weight":"3px", 
-			"border-bottom-weight":"3px", 
-			"border-right-weight":"3px",
-			"border-left-weight":"3px",
-			"border-top-style":"solid",
-			"border-bottom-style":"solid",
-			"border-right-style":"solid",
-			"border-left-style":"solid"
-		});
-		note.defaultValue = 'Please add your note here';
-	});
+	// 	note.setAttribute("onfocus", "changeDefaultText(this)");
+	// 	noteColumnContent.setAttribute("id", "noteColumnContent");
+	// 	note.setAttribute("id", "note");
+	// 	note.setAttribute("rows", 10);
+	// 	note.setAttribute("cols", 30);
+	// 	noteColumn.setAttribute("colspan", 1);
+
+	// 	noteHistory.setAttribute("disabled", true);
+	// 	noteHistory.setAttribute("id", "noteHistory");
+	// 	noteHistory.setAttribute("rows", 10);
+	// 	noteHistory.setAttribute("cols", 30);
+	// 	noteHistoryColumn.setAttribute("colspan", 1);
+
+	// 	for (var i = 0; i < 6; i++) {
+	// 		var td = document.createElement('td');
+	// 		noteRow.appendChild(td);
+	// 	}
+
+	// 	noteHistoryColumnContent.appendChild(noteHistory);
+	// 	noteHistoryColumn.appendChild(noteHistoryColumnContent);
+	// 	noteRow.appendChild(noteHistoryColumn);
+	// 	noteColumnContent.appendChild(note);
+	// 	noteColumn.appendChild(noteColumnContent);
+	// 	noteRow.appendChild(noteColumn);
+	// 	noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
+	// 	noteRow.setAttribute("id", "noteRow");
+	// 	$(this).closest('tr').after(noteRow);
+
+	// 	currentNoteColumnBackgroundColor = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css("background-color");
+	// 	$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+	// 	$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css({"border-top-color": "rgba(189, 178, 202, 0.44)", 
+	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-top-weight":"3px", 
+	// 		"border-right-weight":"3px",
+	// 		"border-left-weight":"3px",
+	// 		"border-top-style":"solid",
+	// 		"border-right-style":"solid",
+	// 		"border-left-style":"solid"
+	// 	});
+	// 	$("#noteRow").closest('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+	// 	$("#noteRow").closest('tr').find("td:nth-child(8)").css({"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
+	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-bottom-weight":"3px", 
+	// 		"border-right-weight":"3px",
+	// 		"border-left-weight":"3px",
+	// 		"border-bottom-style":"solid",
+	// 		"border-right-style":"solid",
+	// 		"border-left-style":"solid"
+	// 	 });
+	// 	$("#noteRow").closest('tr').find("td:nth-child(7)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+	// 	$("#noteRow").closest('tr').find("td:nth-child(7)").css({"border-top-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
+	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-top-weight":"3px", 
+	// 		"border-bottom-weight":"3px", 
+	// 		"border-right-weight":"3px",
+	// 		"border-left-weight":"3px",
+	// 		"border-top-style":"solid",
+	// 		"border-bottom-style":"solid",
+	// 		"border-right-style":"solid",
+	// 		"border-left-style":"solid"
+	// 	});
+	// 	note.defaultValue = 'Please add your note here';
+	// });
 
 	$("td #modify").click(function() {
 		if (modificationInProgress)
@@ -316,18 +362,28 @@ $(document).ready(function() {
 	});
 
 	$("a#cancelNoteTrigger").click(function() {
-		$(this).closest('tr').find('div#note').show();
+		$(this).closest('tr').find('span#placeholder').show();
+		// $(this).closest('tr').find('a#createNotePlaceholder').show();
+		$(this).closest('tr').find('textarea#note').remove();
+		// $(this).closest('tr').find('div#noteHistory').remove();
+		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
 		$(this).closest('tr').find('a#saveNoteTrigger').hide();
 		$(this).closest('tr').find('a#cancelNoteTrigger').hide();
-		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
+		// $(this).closest('tr').find('div#note').show();
+		// $(this).closest('tr').find('a#saveNoteTrigger').hide();
+		// $(this).closest('tr').find('a#cancelNoteTrigger').hide();
+		// $(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
 
-		$(this).closest('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
-		$(this).closest('tr').find("td:nth-child(8)").css( "border", "none");
-		$("#noteRow").remove();
+		// $(this).closest('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
+		// $(this).closest('tr').find("td:nth-child(8)").css( "border", "none");
+		// $("#noteRow").remove();
+		console.log("cancelNoteTrigger" + noteTakingInProgress);
 		noteTakingInProgress = false;
+		console.log("cancelNoteTrigger" + noteTakingInProgress);
 	});
 
 	$("a#saveNoteTrigger").click(function() {
+		$(this).closest('tr').find('span#placeholder').show();
 		console.log("Trigger activated.");
 		var currentCourseId = $(this).closest('tr').find('span#courseId').text();
 		// saveNote(this);
@@ -337,7 +393,7 @@ $(document).ready(function() {
 		$.ajax({
 			url: "/tusk/schedule/clinical/admin/ajax/note/input",
 			data: {
-				note: ($(this).closest('tr').next('tr').find('textarea#note'))[0].value,
+				note: ($(this).closest('tr').find('textarea#note'))[0].value,
 				user_id: user_id,
 				course_id: $(this).closest('tr').find('span#courseId').text(),
 				school_id: school_id,
@@ -358,16 +414,19 @@ $(document).ready(function() {
 						updateNotePlaceholder(this);
 					}
 				});
-				$("#noteRow").remove();
+				// $("#noteRow").remove();
 			} else {
 				alert(data['status']);
 			}
 		});
-		$(this).closest('tr').find('div#note').show();
+		$(this).closest('tr').find('textarea#note').remove();
+		$(this).closest('tr').find('div#noteHistory').remove();
 		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
 		$(this).closest('tr').find('a#saveNoteTrigger').hide();
 		$(this).closest('tr').find('a#cancelNoteTrigger').hide();
+		console.log("saveNoteTrigger" + noteTakingInProgress);
 		noteTakingInProgress = false;
+		console.log("saveNoteTrigger" + noteTakingInProgress);
 	});
 
 	$("a#save").click(function() {
