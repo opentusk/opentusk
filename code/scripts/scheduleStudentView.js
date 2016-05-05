@@ -3,7 +3,7 @@ var currentTimePeriod;
 var currentTeachingSite; 
 var addRequested = false;
 var noteTakingInProgress = false;
-var noteSavingWarning = 'Please finish saving your current note.';
+var noteSavingWarning = 'Please finish your note modifications first.';
 var currentNoteColumnBackgroundColor = '';
 
 function setCourse(rowIndex)
@@ -132,8 +132,12 @@ $(document).ready(function() {
 	// });
 
 	$("span#placeholder").click(function(){
-		$(this).hide();
+		// $(this).hide();
 		if ($(this).closest('tr').find("a#noteHistoryPlaceholder").length) {
+			if (noteTakingInProgress) {	
+				// alert(noteSavingWarning);
+				return;
+			}
 			createNotePlaceholderTrigger(this);
 			$("a#cancelNoteTrigger").click(function() {
 				console.log("Extra binding happened.");
@@ -148,138 +152,28 @@ $(document).ready(function() {
 	});
 
 	function createNotePlaceholderTrigger(createNotePlaceholder) {
-		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
 		if (noteTakingInProgress) {	
 			alert(noteSavingWarning);
 			return;
 		}
+		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
 		// $(createNotePlaceholder).closest('tr').find('a#createNotePlaceholder').hide();
+		$(createNotePlaceholder).closest('tr').find('span#placeholder').hide();
 		$(createNotePlaceholder).closest('tr').find('a#saveNoteTrigger').show();
 		$(createNotePlaceholder).closest('tr').find('span.littlespacing#noteLineSeperator').show();
 		$(createNotePlaceholder).closest('tr').find('a#cancelNoteTrigger').show();
 		var note = document.createElement('textarea');
+		note.setAttribute("style", "float: left");
 		note.setAttribute("id", "note");
 		note.setAttribute("rows", 10);
 		note.setAttribute("cols", 30);
 		// $(createNotePlaceholder).closest("div#note").find("#noteHistory").before(note);
-		$(createNotePlaceholder).closest("span#placeholder").after(note);
+		$(createNotePlaceholder).closest('tr').find("div#note").append(note);
 		noteTakingInProgress = true;
 		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
 	}
 
-	// $("a#placeholder").click(function() {
-	// 	if (noteTakingInProgress) {	
-	// 		alert(noteSavingWarning);
-	// 		return;
-	// 	}
-
-	// 	var noteRow = document.createElement('tr');
-	// 	var note = document.createElement('textarea');
-	// 	var noteColumn = document.createElement('td');
-	// 	var breakElement = document.createElement('br');
-	// 	var noteColumnContent = document.createElement('div');
-	// 	var noteHistory = document.createElement('textarea');
-	// 	var noteHistoryColumn = document.createElement('td');
-	// 	var noteHistoryColumnContent = document.createElement('div');
-
-	// 	$.ajax({
-	// 		url: "/tusk/schedule/clinical/admin/ajax/note/content",
-	// 		cache: false,
-	// 		data: {
-	// 			user_id: user_id,
-	// 			school_id: school_id,
-	// 			course_id: $(this).closest('tr').find('span#courseId').text(),
-	// 		}, dataType: "json",
-	// 		statusCode: {
-	// 			404: function () {
-	// 			},
-	// 			500: function () {
-	// 			},
-	// 		}
-	// 	}).done(function() {
-	// 	}).error(function() {
-	// 		alert("An error occured during the note retrieval process.");
-	// 	}).success(function(data, status) {
-	// 		if (data.status == 'ok') {
-	// 			var noteContent = data['content'];
-	// 			noteHistory.innerHTML = 'HISTORY - Please scroll down to see more\n\n'
-	// 			for (var noteElement in noteContent) {
-	// 				for (var noteEntry in noteContent[noteElement]) {
-	// 					noteHistory.innerHTML += noteContent[noteElement][noteEntry]['noteAuthor'] + 
-	// 					" on " + noteContent[noteElement][noteEntry]['noteCreated'] + ": " + 
-	// 						noteContent[noteElement][noteEntry]['note'] + "\n\n";
-	// 				}
-	// 			}
-	// 		}
-	// 	});
-
-	// 	note.setAttribute("onfocus", "changeDefaultText(this)");
-	// 	noteColumnContent.setAttribute("id", "noteColumnContent");
-	// 	note.setAttribute("id", "note");
-	// 	note.setAttribute("rows", 10);
-	// 	note.setAttribute("cols", 30);
-	// 	noteColumn.setAttribute("colspan", 1);
-
-	// 	noteHistory.setAttribute("disabled", true);
-	// 	noteHistory.setAttribute("id", "noteHistory");
-	// 	noteHistory.setAttribute("rows", 10);
-	// 	noteHistory.setAttribute("cols", 30);
-	// 	noteHistoryColumn.setAttribute("colspan", 1);
-
-	// 	for (var i = 0; i < 6; i++) {
-	// 		var td = document.createElement('td');
-	// 		noteRow.appendChild(td);
-	// 	}
-
-	// 	noteHistoryColumnContent.appendChild(noteHistory);
-	// 	noteHistoryColumn.appendChild(noteHistoryColumnContent);
-	// 	noteRow.appendChild(noteHistoryColumn);
-	// 	noteColumnContent.appendChild(note);
-	// 	noteColumn.appendChild(noteColumnContent);
-	// 	noteRow.appendChild(noteColumn);
-	// 	noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
-	// 	noteRow.setAttribute("id", "noteRow");
-	// 	$(this).closest('tr').after(noteRow);
-
-	// 	currentNoteColumnBackgroundColor = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css("background-color");
-	// 	$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-	// 	$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css({"border-top-color": "rgba(189, 178, 202, 0.44)", 
-	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-top-weight":"3px", 
-	// 		"border-right-weight":"3px",
-	// 		"border-left-weight":"3px",
-	// 		"border-top-style":"solid",
-	// 		"border-right-style":"solid",
-	// 		"border-left-style":"solid"
-	// 	});
-	// 	$("#noteRow").closest('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-	// 	$("#noteRow").closest('tr').find("td:nth-child(8)").css({"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
-	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-bottom-weight":"3px", 
-	// 		"border-right-weight":"3px",
-	// 		"border-left-weight":"3px",
-	// 		"border-bottom-style":"solid",
-	// 		"border-right-style":"solid",
-	// 		"border-left-style":"solid"
-	// 	 });
-	// 	$("#noteRow").closest('tr').find("td:nth-child(7)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-	// 	$("#noteRow").closest('tr').find("td:nth-child(7)").css({"border-top-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
-	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-top-weight":"3px", 
-	// 		"border-bottom-weight":"3px", 
-	// 		"border-right-weight":"3px",
-	// 		"border-left-weight":"3px",
-	// 		"border-top-style":"solid",
-	// 		"border-bottom-style":"solid",
-	// 		"border-right-style":"solid",
-	// 		"border-left-style":"solid"
-	// 	});
-	// 	note.defaultValue = 'Please add your note here';
-	// });
+	
 
 	$("td #modify").click(function() {
 		if (modificationInProgress)
@@ -362,7 +256,7 @@ $(document).ready(function() {
 	});
 
 	$("a#cancelNoteTrigger").click(function() {
-		$(this).closest('tr').find('span#placeholder').show();
+		$(this).closest('tr').find('span#placeholder').show().children().show();
 		// $(this).closest('tr').find('a#createNotePlaceholder').show();
 		$(this).closest('tr').find('textarea#note').remove();
 		// $(this).closest('tr').find('div#noteHistory').remove();
@@ -420,7 +314,7 @@ $(document).ready(function() {
 			}
 		});
 		$(this).closest('tr').find('textarea#note').remove();
-		$(this).closest('tr').find('div#noteHistory').remove();
+		$(this).closest('tr').find('div#noteHistoryColumnContent').remove();
 		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
 		$(this).closest('tr').find('a#saveNoteTrigger').hide();
 		$(this).closest('tr').find('a#cancelNoteTrigger').hide();
@@ -541,3 +435,117 @@ $(document).ready(function() {
 		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
 	});
 });
+
+// $("a#placeholder").click(function() {
+	// 	if (noteTakingInProgress) {	
+	// 		alert(noteSavingWarning);
+	// 		return;
+	// 	}
+
+	// 	var noteRow = document.createElement('tr');
+	// 	var note = document.createElement('textarea');
+	// 	var noteColumn = document.createElement('td');
+	// 	var breakElement = document.createElement('br');
+	// 	var noteColumnContent = document.createElement('div');
+	// 	var noteHistory = document.createElement('textarea');
+	// 	var noteHistoryColumn = document.createElement('td');
+	// 	var noteHistoryColumnContent = document.createElement('div');
+
+	// 	$.ajax({
+	// 		url: "/tusk/schedule/clinical/admin/ajax/note/content",
+	// 		cache: false,
+	// 		data: {
+	// 			user_id: user_id,
+	// 			school_id: school_id,
+	// 			course_id: $(this).closest('tr').find('span#courseId').text(),
+	// 		}, dataType: "json",
+	// 		statusCode: {
+	// 			404: function () {
+	// 			},
+	// 			500: function () {
+	// 			},
+	// 		}
+	// 	}).done(function() {
+	// 	}).error(function() {
+	// 		alert("An error occured during the note retrieval process.");
+	// 	}).success(function(data, status) {
+	// 		if (data.status == 'ok') {
+	// 			var noteContent = data['content'];
+	// 			noteHistory.innerHTML = 'HISTORY - Please scroll down to see more\n\n'
+	// 			for (var noteElement in noteContent) {
+	// 				for (var noteEntry in noteContent[noteElement]) {
+	// 					noteHistory.innerHTML += noteContent[noteElement][noteEntry]['noteAuthor'] + 
+	// 					" on " + noteContent[noteElement][noteEntry]['noteCreated'] + ": " + 
+	// 						noteContent[noteElement][noteEntry]['note'] + "\n\n";
+	// 				}
+	// 			}
+	// 		}
+	// 	});
+
+	// 	note.setAttribute("onfocus", "changeDefaultText(this)");
+	// 	noteColumnContent.setAttribute("id", "noteColumnContent");
+	// 	note.setAttribute("id", "note");
+	// 	note.setAttribute("rows", 10);
+	// 	note.setAttribute("cols", 30);
+	// 	noteColumn.setAttribute("colspan", 1);
+
+	// 	noteHistory.setAttribute("disabled", true);
+	// 	noteHistory.setAttribute("id", "noteHistory");
+	// 	noteHistory.setAttribute("rows", 10);
+	// 	noteHistory.setAttribute("cols", 30);
+	// 	noteHistoryColumn.setAttribute("colspan", 1);
+
+	// 	for (var i = 0; i < 6; i++) {
+	// 		var td = document.createElement('td');
+	// 		noteRow.appendChild(td);
+	// 	}
+
+	// 	noteHistoryColumnContent.appendChild(noteHistory);
+	// 	noteHistoryColumn.appendChild(noteHistoryColumnContent);
+	// 	noteRow.appendChild(noteHistoryColumn);
+	// 	noteColumnContent.appendChild(note);
+	// 	noteColumn.appendChild(noteColumnContent);
+	// 	noteRow.appendChild(noteColumn);
+	// 	noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
+	// 	noteRow.setAttribute("id", "noteRow");
+	// 	$(this).closest('tr').after(noteRow);
+
+	// 	currentNoteColumnBackgroundColor = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css("background-color");
+	// 	$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+	// 	$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css({"border-top-color": "rgba(189, 178, 202, 0.44)", 
+	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-top-weight":"3px", 
+	// 		"border-right-weight":"3px",
+	// 		"border-left-weight":"3px",
+	// 		"border-top-style":"solid",
+	// 		"border-right-style":"solid",
+	// 		"border-left-style":"solid"
+	// 	});
+	// 	$("#noteRow").closest('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+	// 	$("#noteRow").closest('tr').find("td:nth-child(8)").css({"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
+	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-bottom-weight":"3px", 
+	// 		"border-right-weight":"3px",
+	// 		"border-left-weight":"3px",
+	// 		"border-bottom-style":"solid",
+	// 		"border-right-style":"solid",
+	// 		"border-left-style":"solid"
+	// 	 });
+	// 	$("#noteRow").closest('tr').find("td:nth-child(7)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
+	// 	$("#noteRow").closest('tr').find("td:nth-child(7)").css({"border-top-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
+	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
+	// 		"border-top-weight":"3px", 
+	// 		"border-bottom-weight":"3px", 
+	// 		"border-right-weight":"3px",
+	// 		"border-left-weight":"3px",
+	// 		"border-top-style":"solid",
+	// 		"border-bottom-style":"solid",
+	// 		"border-right-style":"solid",
+	// 		"border-left-style":"solid"
+	// 	});
+	// 	note.defaultValue = 'Please add your note here';
+	// });

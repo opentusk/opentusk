@@ -1,4 +1,5 @@
 function closeNoteTrigger(button) {
+	$(button).closest("div#note").find("a#noteHistoryPlaceholder").show();
 	$(button).closest('#noteHistoryColumnContent').remove();
 }
 
@@ -17,21 +18,18 @@ $(document).ready(function() {
 		var buttons = document.createElement('span');
 		var cancelNoteButton = document.createElement('a');
 
-		noteHistory.setAttribute("id", "noteHistory");
-		$(noteHistory).css({
-			"width": "100px", "height": "130px", "margin": "auto",
-		});		
+		noteHistory.setAttribute("id", "noteHistory");	
 		noteHistoryColumnContent.setAttribute("id", "noteHistoryColumnContent");
+		noteHistoryColumnContent.setAttribute("style", "float: left");
 		buttons.setAttribute("id", "noteActions");
 		cancelNoteButton.setAttribute("id", "closeNoteTrigger");
 		cancelNoteButton.setAttribute("onclick", "closeNoteTrigger(this)");
 		cancelNoteButton.setAttribute("style", "cursor: pointer");
 		cancelNoteButton.setAttribute("class", "navsm");
 		cancelNoteButton.innerHTML = "Close";
-
-		var dataProcessor = (data, noteHistory) => {
+                                              
+		var dataProcessor = function (data, noteHistory) {
 			var noteContent = data['content'];
-			noteHistory.innerHTML = 'HISTORY - Please scroll down to see more<br>'
 			for (var noteElement in noteContent) {
 				for (var noteEntry in noteContent[noteElement]) {
 					noteHistory.innerHTML += 
@@ -58,6 +56,7 @@ $(document).ready(function() {
 		noteHistoryColumnContent.appendChild(noteHistory);
 		noteHistoryColumnContent.appendChild(buttons);
 		$(this).closest("div#note").append(noteHistoryColumnContent);
+		$(this).closest("div#note").find("a#noteHistoryPlaceholder").hide();
 	});
 
 	$("a#noteHistoryPlaceholder").hover(
@@ -67,10 +66,7 @@ $(document).ready(function() {
 				var position = $(this).position();
 				var noteHistoryHover = document.createElement('div');
 				noteHistoryHover.setAttribute("id", "noteHistoryHover");
-				$(noteHistoryHover).css({
-					"width": "50px", "height": "130px", "margin": "auto",
-				});
-				var dataProcessor = (data, noteHistoryHover) => {
+				var dataProcessor = function (data, noteHistoryHover) {
 					var noteContent = data['content'];
 						for (var noteElement in noteContent) {
 							for (var noteEntry in noteContent[noteElement]) {

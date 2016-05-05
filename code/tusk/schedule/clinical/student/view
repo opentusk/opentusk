@@ -25,13 +25,24 @@
 		{label => __('Rotation'), field => 'rotation', html => 1},
 		{label => __('Time Period'), field => 'time_period', html => 1},
 		{label => __('Start Date'), field => 'start_date'},
-		{label => __('End Date'), field => 'end_date', width => '9%'},
+		{label => __('End Date'), field => 'end_date'},
 		{label => __('Teaching Site'), field => 'teaching_site', html => 1}, 
 		{label => __('Number of Weeks'), field => 'number_of_weeks'}
 	];
 	my $header = 'Clinical Schedule';
 	my $isAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions") ? 1 : 0;
 </%shared>
+
+<script>
+	var user_id = '<% $user_id %>';
+	var note_user_id = function() { return '<% $user_id %>'; };
+	var school_id = '<% $school->getPrimaryKeyID() %>';
+  	var school_db = '<% $school->getSchoolDb() %>';
+  	var note_school_id = '<% $school->getPrimaryKeyID() %>';
+  	var note_course_id = function(v) { 
+  		return $(v).closest('tr').find('span#courseId').text(); };
+  	var serial_user_id_used = function () { return 0; };
+</script>
 
 <%init>
 	# Either a student will look at her schedule or some other person(e.g., an administrator)
@@ -43,7 +54,7 @@
 		$user_id = $query{'userId'};
 		$header = $header . ' > ' . $query{'lastName'} . ', ' . $query{'firstName'};
 		push @{$col_fields}, {label => __('Actions'), field => 'actions', html => 1}; 
-		push @{$col_fields}, {label => __('Notes'), field => 'notes', html => 1, width => '13%'};
+		push @{$col_fields}, {label => __('Notes'), field => 'notes', html => 1, width => '32%'};
 		$tableArgs{academic_level_title} = $query{'academicLevel'};
 		my $col_fields_addition_row = [ 
 			{label => __('Rotation'), field => 'rotation', html => 1, width => '17%'},
@@ -52,6 +63,7 @@
 			{label => __('Actions'), field => 'actions', html => 1}, 
 		];
 		$tableArgs{col_fields_addition_row} = $col_fields_addition_row;
+		print '<script src="/scripts/noteOverlay.js"></script>';
 		print '<script src="/scripts/scheduleStudentView.js"></script>';
 	} else {
 		$user_id = $m->session->{'user'}->user_id();
@@ -72,24 +84,14 @@
 		
 </%init>
 
-<script>
-	var user_id = '<% $user_id %>';
-	var note_user_id = v => '<% $user_id %>';
-	console.log("User id is " + '<% $user_id %>');
-	var school_id = '<% $school->getPrimaryKeyID() %>';
-  	var school_db = '<% $school->getSchoolDb() %>';
-  	var note_school_id = '<% $school->getPrimaryKeyID() %>';
-  	var note_course_id = v => $(v).closest('tr').find('span#courseId').text();
-  	var serial_user_id_used = v => 0;
-</script>
-
 <%method title>
 %	return 'Clinical Schedule';
 </%method>
 
 <%method jsarray>
-%	return ['jquery/jquery.min.js', 'noteOverlay.js'];
+%	return ['jquery/jquery.min.js'];
 </%method>
+
 
 <%method get_nav_bars>
 % return $isAdmin ? [{ href=> '/management/home', label => __('CMS Home') }] : undef;
