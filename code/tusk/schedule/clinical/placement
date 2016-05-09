@@ -32,7 +32,7 @@ use TUSK::Course;
 use TUSK::Academic::Level;
 use TUSK::Academic::LevelClinicalSchedule;
 use TUSK::Core::HSDB4Tables::User;
-
+use TUSK::FormBuilder::LinkCourseForm;
 
 my $teaching_sites = $m->comp("SELF:get_teaching_sites");
 my $academic_years = $m->comp("SELF:get_academic_years");
@@ -253,7 +253,19 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	$sth->finish;
 
 	my @placement_rows;
-	
+
+	my $assessor = TUSK::FormBuilder::LinkCourseForm->new()->lookup("", undef, undef, undef,
+		[
+			TUSK::Core::JoinObject->new('TUSK::FormBuilder::SubjectAssessor',
+				{
+					joinkey => 'form_id', origkey => 'child_form_id', jointype => 'inner', joincond =>
+					"link_course_form.parent_course_id = $course_id"
+				})
+		]);
+	my $isClinicalAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions", feature_id => $school_id) ? 1 : 0;
+	my $isAssessor = (scalar $assessor ? 1 : 0);
+	my $notesPermission = ($isClinicalAdmin || $isAssessor ) ? 1 : 0;
+
 	if (scalar @{$placements} > 0){
 		foreach my $time_period (@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::TimePeriod')}) {
 			my %time_period_hash;
@@ -265,14 +277,18 @@ for (my $i = 0; $i <= $max_length; $i++) {
 				if ($student->[4] == $time_period->getPrimaryKeyID){
 					my $user = TUSK::Core::HSDB4Tables::User->new(); #for whom the note is taken
 					$user->setPrimaryKeyID($student->[0]);
-					my $student_name = $student->[2] . ", " . $student->[1] . "<br>" .
-					"<div id='note' style='width: 140px;'><span style='display: none;' id = 'student'>" . $user->getUID() . 
-					"</span>" . 
-					$m->scomp("/schedule/clinical/admin/student/note/addedit",
-						userId => $student->[0],
-						schoolId => $school_id,
-						courseId => $course_id,
-						accessType => 'view') . '</div>';
+					my $noteDisplay;
+					if ($notesPermission) {
+						$noteDisplay = "<br>" .
+							"<div id='note' style='width: 140px;'><span style='display: none;' id = 'student'>" . $user->getUID() . 
+							"</span>" . 
+							$m->scomp("/schedule/clinical/admin/student/note/addedit",
+								userId => $student->[0],
+								schoolId => $school_id,
+								courseId => $course_id,
+								accessType => 'view') . '</div>';
+					}
+					my $student_name = $student->[2] . ", " . $student->[1] . ($isClinicalAdmin ? $noteDisplay : '');
 					push @{$temp_hash{students}}, $student_name;
 				}
 			}

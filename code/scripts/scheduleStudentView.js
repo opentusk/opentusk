@@ -23,7 +23,7 @@ function changeDefaultText(note) {
 	}
 }
 
-function load_js() {
+function loadJS() {
 	var head= document.getElementsByTagName('head')[0];
 	var script= document.createElement('script');
 	script.type= 'text/javascript';
@@ -122,7 +122,7 @@ $(document).ready(function() {
 		}).success(function(data, status) {
 			var notePlaceholder = $.parseHTML($.trim(data['placeholder']));
 			$("span#placeholder", $(noteRow)).html(notePlaceholder);
-			load_js();
+			loadJS();
 			console.log("Updating the placeholder");
 		});
 	}
@@ -167,6 +167,8 @@ $(document).ready(function() {
 		note.setAttribute("id", "note");
 		note.setAttribute("rows", 10);
 		note.setAttribute("cols", 30);
+		note.defaultValue = 'Please add your note here..';
+		note.setAttribute("onfocus", "changeDefaultText(this)");
 		// $(createNotePlaceholder).closest("div#note").find("#noteHistory").before(note);
 		$(createNotePlaceholder).closest('tr').find("div#note").append(note);
 		noteTakingInProgress = true;
@@ -547,5 +549,5 @@ $(document).ready(function() {
 	// 		"border-right-style":"solid",
 	// 		"border-left-style":"solid"
 	// 	});
-	// 	note.defaultValue = 'Please add your note here';
+
 	// });
