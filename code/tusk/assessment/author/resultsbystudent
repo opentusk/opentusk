@@ -48,6 +48,7 @@
         my @student_options = ();
         my $all_assessors_completed = 0;
         my $adjusted_flag = 0;
+        my $note_placeholder = '';
 </%shared>
 
 <& /tmpl/element:form, params => {
@@ -64,13 +65,29 @@
 
 <& "/tmpl/element:table", params => { border => "0",cellspacing => "0",cellpadding => "0", width => "85%"} &>
 
+<script>
+    var note_course_id = '<% $course->primary_key() %>';
+    var note_school_id = '<% $course->get_school()->getPrimaryKeyID() %>';
+</script>
+
+<%perl>
+    $note_placeholder = "<br>" .
+        "<div id='note'><span style='display: none;' id = 'student'>" . $uid . 
+        "</span><a class = 'navsm' id = 'placeholder' style = 'cursor: pointer'>" . 
+        $m->scomp("/schedule/clinical/admin/student/note/addedit",
+            userId => $student->primary_key(),
+            schoolId => $course->get_school()->getPrimaryKeyID(),
+            courseId => $course->primary_key(),
+            accessType => 'view') . '</a></div>';
+</%perl>
+
 <& /tmpl/element:field_display, params => {
         label => 'Student',
         value => $m->scomp( '/tmpl/element:dropdown', params => {
                                 name            => 'students',
                                 selected        => "$curr_url/$uid",
                                 options         => \@student_options,
-                        }),
+                        }) . $note_placeholder,
 } &>
 
 <& /formbuilder/util:displayTimePeriod, entry => $entry &>
@@ -499,5 +516,9 @@
 </%method>
 
 <%method jsarray>
-%       return ['jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/sparkline.min.js', 'formbuilder/view.js', 'jquery/plugin/validate.min.js', 'assessment/resultsbystudent.js',  'calendar.js', 'calendar-en.js', 'calendar-setup.js'];
+%       return ['jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/sparkline.min.js', 'formbuilder/view.js', 'jquery/plugin/validate.min.js', 'assessment/resultsbystudent.js',  'calendar.js', 'calendar-en.js', 'calendar-setup.js', 'noteOverlay.js'];
+</%method>
+
+<%method stylearray>
+%       return ['/style/style.css','/style/home.css', '/style/clinicalNote.css'];
 </%method>
