@@ -725,6 +725,20 @@ has RssSecret => (
     builder => '_build_RssSecret',
 );
 
+has Integration => (
+    is => 'ro',
+    isa => HashRef,
+    lazy => 1,
+    builder => '_build_Integration',
+);
+
+    has Kaltura => (
+    is => 'ro',
+    isa => HashRef[Str],
+    lazy => 1,
+    builder => '_build_Kaltura',
+);
+
 has Help => (
     is => 'ro',
     isa => HashRef[Str],
@@ -1435,6 +1449,14 @@ sub _build_CookieUsesUserID {
 
 sub _build_RssSecret {
     return shift->Security->{RssSecret};
+}
+
+sub _build_Integration {
+    return shift->_json->{Integration};
+}
+
+sub _build_Kaltura {
+    return shift->Integration->{Kaltura};
 }
 
 sub _build_Help {
