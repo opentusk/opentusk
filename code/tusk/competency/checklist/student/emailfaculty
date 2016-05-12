@@ -70,14 +70,42 @@
 
 	    $selected_assessor = $acc->getAssessor({ assessor_id =>  $assesor_id, 
                                         student_id => $m->session->{user}->primary_key(), 
-                                        checklist_id => $checklist_id, 
                                         assessor_type => 'faculty', 
                                         time_period_id => $time_period_id,
                                         entry_id =>  $entry_id });
 
+	#entry table with checklist_id and assignment_id 
         $assignment = $selected_assessor->getJoinObject('TUSK::Competency::Checklist::Assignment'); 
+	
+	my $assignment_id = $assignment->getPrimaryKeyID();	
 
-        if (defined $entry_id) {
+	my $existing_entries = TUSK::Competency::Checklist::Entry->lookup("competency_checklist_id = $checklist_id AND competency_checklist_assignment_id = $assignment_id");
+
+	my $existing_entries_count = scalar @{$existing_entries};
+
+	my $course_id = $course->primary_key();
+
+	my $school = $course->school();
+
+
+	#check to continue only if there are 0 entries or 1 entry without complete date in the competency_checklist_entry table
+	if (defined $existing_entries_count) {
+		if ($existing_entries_count == 1) {
+			if (defined ($existing_entries->[0]->getCompleteDate)) {
+				$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=Already Completed.");
+				return;
+			}
+		} elsif ($existing_entries_count > 1) {
+				$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=Something is not right with the checklist. Please contact support if you continue to have problems.");
+				# note: this will happen if there are duplicate entries in the competency_checklist_entry_table
+				return;
+		}
+	} else {
+		$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=Something is not right with the checklist. Please contact support if you continue to have problems.");
+		return;
+	}
+
+	if (defined $entry_id) {	
             unless ($entry = TUSK::Competency::Checklist::Entry->lookupKey($entry_id)) {
            		$entry = TUSK::Competency::Checklist::Entry->new();
             }
