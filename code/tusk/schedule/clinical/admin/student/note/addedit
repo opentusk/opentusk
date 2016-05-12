@@ -19,6 +19,7 @@
 	$schoolId
 	$courseId
 	$accessType => 'create'
+	$placeholderType => 'default'
 </%args>
 
 <%once>
@@ -29,6 +30,10 @@
 <%shared>
 	my $noteExists = 0;
 	my $tuskCourseId;
+	my %placeholder = (
+		default => "<a class = 'navsm' id = 'noteHistoryPlaceholder' style = 'cursor: pointer'><img src='/graphics/comments.png'></a>",
+		nonclickable => "<a class = 'navsm' id = 'noteHistoryPlaceholder'><img src='/graphics/comments.png'></a>"
+	);
 	my %action = (
 		create => "<a class = 'navsm' id = 'createNotePlaceholder' style = 'cursor: pointer'>Create</a>",
 		view => ''
@@ -40,7 +45,7 @@
 	$m->comp('SELF:.setNoteExistence', userId => $userId);
 </%init>
 
-% $m->print($m->comp('SELF:.getNotePlaceholder', accessType => $accessType));
+% $m->print($m->comp('SELF:.getNotePlaceholder', accessType => $accessType, placeholderType => $placeholderType));
 
 <%doc>
 	Updates the note existence to true 
@@ -67,10 +72,11 @@
 <%method .getNotePlaceholder>
 <%args>
 	$accessType
+	$placeholderType
 </%args>
 <%perl>
 	if ($noteExists) {
-		return "<a class = 'navsm' id = 'noteHistoryPlaceholder' style = 'cursor: pointer'><img src='/graphics/comments.png'></a>";
+		return $placeholder{$placeholderType};
 	} else {
 		return $action{$accessType};
 	}
