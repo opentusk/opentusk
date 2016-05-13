@@ -1,0 +1,63 @@
+<%doc>
+ Copyright 2012 Tufts University 
+n
+ Licensed under the Educational Community License, Version 1.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+
+ http://www.opensource.org/licenses/ecl1.php 
+
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%attr>
+	no_check_path => 1
+	page_header => ''
+	page_footer => ''
+</%attr>
+
+<%once>
+	use TUSK::Competency::Competency;
+	use TUSK::Competency::UserType;
+	use TUSK::Competency::Hierarchy;
+
+	use TUSK::Application::Competency::Tree;
+	use TUSK::Application::Competency::Competency;
+
+</%once>
+
+<%method check_existing_request>
+<%args>
+	$assignment_id
+	$checklist_id
+</%args>
+<%perl>
+	my $existing_entries = TUSK::Competency::Checklist::Entry->lookup("competency_checklist_id = $checklist_id AND competency_checklist_assignment_id = $assignment_id");
+	my $existing_entries_count = scalar @{$existing_entries};
+
+
+	#check to continue only if there are 0 entries or 1 entry without complete date in the competency_checklist_entry table
+	if (defined $existing_entries_count) {
+		if ($existing_entries_count == 1) {
+			if (defined ($existing_entries->[0]->getCompleteDate)) {				
+				return 1;
+			}
+		} elsif ($existing_entries_count > 1) {
+				# note: this will happen if there are duplicate entries in the competency_checklist_entry_table
+				return 2;
+		}
+	} else {
+		return 2;
+	}	
+	return 0;
+</%perl>
+</%method>
+
