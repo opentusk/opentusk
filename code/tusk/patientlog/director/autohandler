@@ -1,22 +1,21 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 <%attr>
 	top_tab_type => 'manage'
 </%attr>
-
 
 <%once>
 	use TUSK::FormBuilder::Form;
@@ -53,7 +52,6 @@
 </%perl>
 </%method>
 
-
 <%method getReportObject>
 <%args>
 	$args
@@ -63,7 +61,7 @@
 	### ts - teaching site summary, tsid(required) - teaching site id
 	### ss - student summary, uid(required) - student's user id
 
-	my $reports = { 
+	my $reports = {
 		'cs' => { 	object => 'TUSK::Application::FormBuilder::Report::PatientLog::CourseSummary',
 				  	params => [$form_id, $course, $args->{tpid}] },
 		'ts' => { 	object => 'TUSK::Application::FormBuilder::Report::PatientLog::SiteSummary',
@@ -76,17 +74,15 @@
 
 	if ($args->{rtype}) {
 		return $reports->{$args->{rtype}}{object}->new( @{$reports->{$args->{rtype}}{params}} );
-	} 
+	}
 
 </%perl>
 </%method>
-
 
 <%doc>this should be easily modified in the future if we need to add more field type </%doc>
 <%method getCommentFieldsText>
 %	return "('FillIn', 'Essay')";
 </%method>
-
 
 <%method getReportHeadings>
 <%args>
@@ -117,66 +113,42 @@
 	$field_id => undef
 </%args>
 <%perl>
-	my $map;
-	if ($field_id && TUSK::FormBuilder::Field->new()->lookupKey($field_id)->isMultiSelectWithAttributes()) {
-		$map = {
-			bysite => { 
-				func => 'getReportBySite', 
-				label => __('View by Site'), 
-				template => 'courseSummaryByField', 
-				title_func => 'site_name', 
-				colname => 'Site', 
-				key => 'tsid', 
-				rtype => 'ts' },
-			bysitepercentages => { 
-				func => 'getPercentagesBySite', 
-				label => __('View by Site (summary percentages)'), 
-				template => 'coursePercentagesBySite', 
-				title_func => 'site_name', 
-				colname => 'Site', 
-				key => 'tsid' }, 
-			bystudent => {
-				func => 'getReportByStudent', 
-				label => __('View by Student'), 
-				template => 'courseSummaryByField',
-				title_func => 'out_lastfirst_name', 
-				colname => 'Student', 
-				key => 'uid', 
-				rtype => 'ss' },
-			allsites => { 
-				func => 'getReportAllSites', 
-				label => __('Summary View'), 
-				template => 'courseSummaryByField',
-				column_headings => [ __('# Patients Seen'),__('# Students Reporting'), __('% Students Reporting') , __('% Students')  ],
-			},
-		};
-	}
-	else {
-		$map = {
-			bysite => { 
-				func => 'getReportBySite', 
-				label => __('View by Site'), 
-				template => 'courseSummaryByField', 
-				title_func => 'site_name', 
-				colname => 'Site', 
-				key => 'tsid', 
-				rtype => 'ts' },
-			bystudent => {
-				func => 'getReportByStudent', 
-				label => __('View by Student'), 
-				template => 'courseSummaryByField',
-				title_func => 'out_lastfirst_name', 
-				colname => 'Student', 
-				key => 'uid', 
-				rtype => 'ss' },
-			allsites => { 
-				func => 'getReportAllSites', 
-				label => __('Summary View'), 
-				template => 'courseSummaryByField',
-				column_headings => [ '# Patients Seen','# Students Reporting', '% Students Reporting', '% Students'  ],
-			},
-		};
-	}
+	my $field = ($field_id) ? TUSK::FormBuilder::Field->new()->lookupKey($field_id) : undef;
+	my $map = {
+		bysite => {
+			func => 'getReportBySite',
+			label => __('View by Site'),
+			template => 'courseSummaryByField',
+			title_func => 'site_name',
+			colname => 'Site',
+			key => 'tsid',
+			rtype => 'ts'
+		},
+		bysitepercentages => {
+			func => 'getPercentagesBySite',
+			label => __('View by Site (summary percentages)'),
+			template => 'coursePercentagesBySite',
+			title_func => 'site_name',
+			colname => 'Site',
+			key => 'tsid'
+		},
+		bystudent => {
+			func => 'getReportByStudent',
+			label => __('View by Student'),
+			template => 'courseSummaryByField',
+			title_func => 'out_lastfirst_name',
+			colname => 'Student',
+			key => 'uid',
+			rtype => 'ss'
+		},
+		allsites => {
+			func => 'getReportAllSites',
+			label => __('Summary View'),
+			template => 'courseSummaryByField',
+			column_headings => [ __('# Patients Seen'), __('# Students Reporting'), __('% Students Reporting') , __('% Students') ],
+		},
+	};
+	delete $map->{bysitepercentages} unless ($field && ($field->isMultiSelectWithAttributes() || $field->isSingleSelectAllowMultiple()));
 	return $map;
 </%perl>
 </%method>
@@ -187,7 +159,7 @@
 	$fields
 </%args>
 <%perl>
-	my @ids;  
+	my @ids;
 	if (ref $fields eq 'ARRAY') {
 		foreach (@{$fields}) {
 			push @ids, $1 if (/^(\d+):*/);
@@ -232,31 +204,29 @@
 % 	return $m->comp("SELF:get_form_builder_id");
 </%method>
 
-
 <%method get_form_builder_id>
 % 	my $path = $m->comp("/tmpl/url:get_path_ids");
 % 	return (scalar(@$path)) ? $path->[0] : 0;
 </%method>
 
-
 <%method get_nav_bars>
 <%perl>
-	return $m->comp("/tmpl/nav", 
+	return $m->comp("/tmpl/nav",
 		'objects' => $m->comp("SELF:get_nav_bar_objects"),
-	    'prefix' => '/patientlog/director',
-	    'hierarchy' => {
+		'prefix' => '/patientlog/director',
+		'hierarchy' => {
 			'report' => ['customreports', 'links'],
 			'customreports' => ['defaultreports', 'links'],
 			'links' => ['defaultreports', 'customreports'],
 		},
-	    'nav_entities_dependency' => {
-			'form' =>{'object'=>undef, 'depend'=>[]}, 
-			'field' =>{'object'=>"TUSK::FormBuilder::Field", 'depend'=>[], 'static_title'=>__('Field').': '}, 
+		'nav_entities_dependency' => {
+			'form' =>{'object'=>undef, 'depend'=>[]},
+			'field' =>{'object'=>"TUSK::FormBuilder::Field", 'depend'=>[], 'static_title'=>__('Field').': '},
 		},
-	    'title_func' => {'TUSK::FormBuilder::Field' => 'getFieldName'},
+		'title_func' => {'TUSK::FormBuilder::Field' => 'getFieldName'},
 		'type_path' => $m->comp("/tmpl/url:get_type_path") . '/' . $form_id,
-	    'urls' => {
-		    'form' => {link => 'form', label => __('Manage Patient Logs')},
+		'urls' => {
+			'form' => {link => 'form', label => __('Manage Patient Logs')},
 			'customreports' => {link => 'customreports', label => __('Custom Reports')},
 			'defaultreports' => {link => 'report', label => __('Default Reports')},
 			'links' => {link => 'links', label => __('Literature Links')}},
@@ -265,17 +235,15 @@
 </%perl>
 </%method>
 
-
 <%method right_header_text>
 <%perl>
-	my $links = [ 
+	my $links = [
 		{ url => '', onclick => "window.open('/hsdb4/content/" . $TUSK::Constants::HelpMap{ PatientLogs } . "');return false;", txt => __("Help") },
 		{ url => '', onclick => "window.open('/patientlog/preview/" . $m->comp("/tmpl/url:get_type_path") . '/'. $m->comp('/tmpl/url:get_last_path_id') . "');return false;", txt => __("Preview") },
 	];
 	return $links;
 </%perl>
 </%method>
-
 
 <%method red_header_text>
 %  return __('Patient Log Report').': &nbsp;' . $form->getFormName();
@@ -284,6 +252,5 @@
 <%method title>
 %  return __('Patient Log Report').': &nbsp;' . $form->getFormName();
 </%method>
-
 
 <% $m->call_next %>
