@@ -1,0 +1,3 @@
+ALTER TABLE tusk.grade_event
+	MODIFY weight FLOAT UNSIGNED DEFAULT NULL,
+	MODIFY max_possible_points FLOAT UNSIGNED DEFAULT NULL;
