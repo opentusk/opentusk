@@ -20,7 +20,6 @@ $(document).ready(function() {
 
 		noteHistory.setAttribute("id", "noteHistory");	
 		noteHistoryColumnContent.setAttribute("id", "noteHistoryColumnContent");
-		noteHistoryColumnContent.setAttribute("style", "float: left");
 		buttons.setAttribute("id", "noteActions");
 		cancelNoteButton.setAttribute("id", "closeNoteTrigger");
 		cancelNoteButton.setAttribute("onclick", "closeNoteTrigger(this)");
