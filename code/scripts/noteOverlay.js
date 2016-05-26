@@ -51,7 +51,6 @@ $(document).ready(function() {
 
 		buttons.appendChild(lineBreak);
 		buttons.appendChild(cancelNoteButton);
-		// noteHistory.appendChild(buttons);
 		noteHistoryColumnContent.appendChild(noteHistory);
 		noteHistoryColumnContent.appendChild(buttons);
 		$(this).closest("div#note").append(noteHistoryColumnContent);
@@ -61,7 +60,6 @@ $(document).ready(function() {
 	$("a#noteHistoryPlaceholder").hover(
 		function() {
 			if (!$(this).closest("div#note").find("#noteHistory").length) {
-				console.log('Note history lengt is ' + $(this).closest("div#note").find("#noteHistory").length);
 				var position = $(this).position();
 				var noteHistoryHover = document.createElement('div');
 				noteHistoryHover.setAttribute("id", "noteHistoryHover");

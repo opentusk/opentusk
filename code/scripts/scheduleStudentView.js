@@ -123,7 +123,6 @@ $(document).ready(function() {
 			var notePlaceholder = $.parseHTML($.trim(data['placeholder']));
 			$("span#placeholder", $(noteRow)).html(notePlaceholder);
 			loadJS();
-			console.log("Updating the placeholder");
 		});
 	}
 
@@ -140,7 +139,6 @@ $(document).ready(function() {
 			}
 			createNotePlaceholderTrigger(this);
 			$("a#cancelNoteTrigger").click(function() {
-				console.log("Extra binding happened.");
 				$(this).closest('tr').find('#noteHistoryColumnContent').remove();
 			});
 			$(this).closest('tr').find('#noteActions').remove();
@@ -156,8 +154,6 @@ $(document).ready(function() {
 			alert(noteSavingWarning);
 			return;
 		}
-		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
-		// $(createNotePlaceholder).closest('tr').find('a#createNotePlaceholder').hide();
 		$(createNotePlaceholder).closest('td').css("text-align", "center");
 		$(createNotePlaceholder).closest('tr').find('span#placeholder').hide();
 		$(createNotePlaceholder).closest('tr').find('a#saveNoteTrigger').show();
@@ -170,16 +166,13 @@ $(document).ready(function() {
 		var note = document.createElement('textarea');
 		$(noteBox).append(note);
 		$(noteBoxHolder).append(noteBox);
-		// note.setAttribute("style", "float: left");
 		note.setAttribute("id", "note");
 		note.setAttribute("rows", 10);
 		note.setAttribute("cols", 23);
 		note.defaultValue = 'Please add your note here..';
 		note.setAttribute("onfocus", "changeDefaultText(this)");
-		// $(createNotePlaceholder).closest("div#note").find("#noteHistory").before(note);
 		$(createNotePlaceholder).closest('tr').find("div#note").append(noteBoxHolder);
 		noteTakingInProgress = true;
-		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
 	}
 
 	
@@ -267,23 +260,11 @@ $(document).ready(function() {
 	$("a#cancelNoteTrigger").click(function() {
 		$(this).closest('td').css("text-align", "inherit");
 		$(this).closest('tr').find('span#placeholder').show().children().show();
-		// $(this).closest('tr').find('a#createNotePlaceholder').show();
 		$(this).closest('tr').find('textarea#note').remove();
-		// $(this).closest('tr').find('div#noteHistory').remove();
 		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
 		$(this).closest('tr').find('a#saveNoteTrigger').hide();
 		$(this).closest('tr').find('a#cancelNoteTrigger').hide();
-		// $(this).closest('tr').find('div#note').show();
-		// $(this).closest('tr').find('a#saveNoteTrigger').hide();
-		// $(this).closest('tr').find('a#cancelNoteTrigger').hide();
-		// $(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
-
-		// $(this).closest('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
-		// $(this).closest('tr').find("td:nth-child(8)").css( "border", "none");
-		// $("#noteRow").remove();
-		console.log("cancelNoteTrigger" + noteTakingInProgress);
 		noteTakingInProgress = false;
-		console.log("cancelNoteTrigger" + noteTakingInProgress);
 	});
 
 	$("a#saveNoteTrigger").click(function() {
@@ -291,7 +272,6 @@ $(document).ready(function() {
 		$(this).closest('tr').find('span#placeholder').show();
 		console.log("Trigger activated.");
 		var currentCourseId = $(this).closest('tr').find('span#courseId').text();
-		// saveNote(this);
 
 		$(this).closest('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
 		$(this).closest('tr').find("td:nth-child(8)").css( "border", "none");
@@ -319,7 +299,6 @@ $(document).ready(function() {
 						updateNotePlaceholder(this);
 					}
 				});
-				// $("#noteRow").remove();
 			} else {
 				alert(data['status']);
 			}
@@ -446,117 +425,3 @@ $(document).ready(function() {
 		$('span#alreadyEnrolledNumber0').closest('tr').find('a#cancel').show();
 	});
 });
-
-// $("a#placeholder").click(function() {
-	// 	if (noteTakingInProgress) {	
-	// 		alert(noteSavingWarning);
-	// 		return;
-	// 	}
-
-	// 	var noteRow = document.createElement('tr');
-	// 	var note = document.createElement('textarea');
-	// 	var noteColumn = document.createElement('td');
-	// 	var breakElement = document.createElement('br');
-	// 	var noteColumnContent = document.createElement('div');
-	// 	var noteHistory = document.createElement('textarea');
-	// 	var noteHistoryColumn = document.createElement('td');
-	// 	var noteHistoryColumnContent = document.createElement('div');
-
-	// 	$.ajax({
-	// 		url: "/tusk/schedule/clinical/admin/ajax/note/content",
-	// 		cache: false,
-	// 		data: {
-	// 			user_id: user_id,
-	// 			school_id: school_id,
-	// 			course_id: $(this).closest('tr').find('span#courseId').text(),
-	// 		}, dataType: "json",
-	// 		statusCode: {
-	// 			404: function () {
-	// 			},
-	// 			500: function () {
-	// 			},
-	// 		}
-	// 	}).done(function() {
-	// 	}).error(function() {
-	// 		alert("An error occured during the note retrieval process.");
-	// 	}).success(function(data, status) {
-	// 		if (data.status == 'ok') {
-	// 			var noteContent = data['content'];
-	// 			noteHistory.innerHTML = 'HISTORY - Please scroll down to see more\n\n'
-	// 			for (var noteElement in noteContent) {
-	// 				for (var noteEntry in noteContent[noteElement]) {
-	// 					noteHistory.innerHTML += noteContent[noteElement][noteEntry]['noteAuthor'] + 
-	// 					" on " + noteContent[noteElement][noteEntry]['noteCreated'] + ": " + 
-	// 						noteContent[noteElement][noteEntry]['note'] + "\n\n";
-	// 				}
-	// 			}
-	// 		}
-	// 	});
-
-	// 	note.setAttribute("onfocus", "changeDefaultText(this)");
-	// 	noteColumnContent.setAttribute("id", "noteColumnContent");
-	// 	note.setAttribute("id", "note");
-	// 	note.setAttribute("rows", 10);
-	// 	note.setAttribute("cols", 30);
-	// 	noteColumn.setAttribute("colspan", 1);
-
-	// 	noteHistory.setAttribute("disabled", true);
-	// 	noteHistory.setAttribute("id", "noteHistory");
-	// 	noteHistory.setAttribute("rows", 10);
-	// 	noteHistory.setAttribute("cols", 30);
-	// 	noteHistoryColumn.setAttribute("colspan", 1);
-
-	// 	for (var i = 0; i < 6; i++) {
-	// 		var td = document.createElement('td');
-	// 		noteRow.appendChild(td);
-	// 	}
-
-	// 	noteHistoryColumnContent.appendChild(noteHistory);
-	// 	noteHistoryColumn.appendChild(noteHistoryColumnContent);
-	// 	noteRow.appendChild(noteHistoryColumn);
-	// 	noteColumnContent.appendChild(note);
-	// 	noteColumn.appendChild(noteColumnContent);
-	// 	noteRow.appendChild(noteColumn);
-	// 	noteRow.setAttribute("class", $(this).closest('tr').attr("class"));
-	// 	noteRow.setAttribute("id", "noteRow");
-	// 	$(this).closest('tr').after(noteRow);
-
-	// 	currentNoteColumnBackgroundColor = $("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css("background-color");
-	// 	$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-	// 	$("#noteRow").closest('tr').prev('tr').find("td:nth-child(8)").css({"border-top-color": "rgba(189, 178, 202, 0.44)", 
-	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-top-weight":"3px", 
-	// 		"border-right-weight":"3px",
-	// 		"border-left-weight":"3px",
-	// 		"border-top-style":"solid",
-	// 		"border-right-style":"solid",
-	// 		"border-left-style":"solid"
-	// 	});
-	// 	$("#noteRow").closest('tr').find("td:nth-child(8)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-	// 	$("#noteRow").closest('tr').find("td:nth-child(8)").css({"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
-	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-bottom-weight":"3px", 
-	// 		"border-right-weight":"3px",
-	// 		"border-left-weight":"3px",
-	// 		"border-bottom-style":"solid",
-	// 		"border-right-style":"solid",
-	// 		"border-left-style":"solid"
-	// 	 });
-	// 	$("#noteRow").closest('tr').find("td:nth-child(7)").css( "background-color", "rgba(189, 178, 202, 0.44)" );
-	// 	$("#noteRow").closest('tr').find("td:nth-child(7)").css({"border-top-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-bottom-color": "rgba(189, 178, 202, 0.44)", 
-	// 		"border-left-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-right-color": "rgba(189, 178, 202, 0.44)",
-	// 		"border-top-weight":"3px", 
-	// 		"border-bottom-weight":"3px", 
-	// 		"border-right-weight":"3px",
-	// 		"border-left-weight":"3px",
-	// 		"border-top-style":"solid",
-	// 		"border-bottom-style":"solid",
-	// 		"border-right-style":"solid",
-	// 		"border-left-style":"solid"
-	// 	});
-
-	// });
