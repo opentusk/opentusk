@@ -126,15 +126,9 @@ $(document).ready(function() {
 		});
 	}
 
-	// $("a#noteHistoryPlaceholder").click(function() {
-	// 	createNotePlaceholderTrigger(this);
-	// });
-
 	$("span#placeholder").click(function(){
-		// $(this).hide();
 		if ($(this).closest('tr').find("a#noteHistoryPlaceholder").length) {
 			if (noteTakingInProgress) {	
-				// alert(noteSavingWarning);
 				return;
 			}
 			createNotePlaceholderTrigger(this);
@@ -270,7 +264,6 @@ $(document).ready(function() {
 	$("a#saveNoteTrigger").click(function() {
 		$(this).closest('td').css("text-align", "inherit");
 		$(this).closest('tr').find('span#placeholder').show();
-		console.log("Trigger activated.");
 		var currentCourseId = $(this).closest('tr').find('span#courseId').text();
 
 		$(this).closest('tr').find("td:nth-child(8)").css( "background-color", currentNoteColumnBackgroundColor);
@@ -308,9 +301,7 @@ $(document).ready(function() {
 		$(this).closest('tr').find('span.littlespacing#noteLineSeperator').hide();
 		$(this).closest('tr').find('a#saveNoteTrigger').hide();
 		$(this).closest('tr').find('a#cancelNoteTrigger').hide();
-		console.log("saveNoteTrigger" + noteTakingInProgress);
 		noteTakingInProgress = false;
-		console.log("saveNoteTrigger" + noteTakingInProgress);
 	});
 
 	$("a#save").click(function() {
