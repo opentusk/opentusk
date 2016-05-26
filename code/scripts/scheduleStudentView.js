@@ -158,19 +158,26 @@ $(document).ready(function() {
 		}
 		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
 		// $(createNotePlaceholder).closest('tr').find('a#createNotePlaceholder').hide();
+		$(createNotePlaceholder).closest('td').css("text-align", "center");
 		$(createNotePlaceholder).closest('tr').find('span#placeholder').hide();
 		$(createNotePlaceholder).closest('tr').find('a#saveNoteTrigger').show();
 		$(createNotePlaceholder).closest('tr').find('span.littlespacing#noteLineSeperator').show();
 		$(createNotePlaceholder).closest('tr').find('a#cancelNoteTrigger').show();
+		var noteBoxHolder = document.createElement('div');
+		noteBoxHolder.setAttribute("id", "noteBoxHolder");
+		var noteBox = document.createElement('div');
+		noteBox.setAttribute("id", "noteBox");
 		var note = document.createElement('textarea');
-		note.setAttribute("style", "float: left");
+		$(noteBox).append(note);
+		$(noteBoxHolder).append(noteBox);
+		// note.setAttribute("style", "float: left");
 		note.setAttribute("id", "note");
 		note.setAttribute("rows", 10);
-		note.setAttribute("cols", 30);
+		note.setAttribute("cols", 23);
 		note.defaultValue = 'Please add your note here..';
 		note.setAttribute("onfocus", "changeDefaultText(this)");
 		// $(createNotePlaceholder).closest("div#note").find("#noteHistory").before(note);
-		$(createNotePlaceholder).closest('tr').find("div#note").append(note);
+		$(createNotePlaceholder).closest('tr').find("div#note").append(noteBoxHolder);
 		noteTakingInProgress = true;
 		console.log("createNotePlaceholderTrigger" + noteTakingInProgress);
 	}
@@ -258,6 +265,7 @@ $(document).ready(function() {
 	});
 
 	$("a#cancelNoteTrigger").click(function() {
+		$(this).closest('td').css("text-align", "inherit");
 		$(this).closest('tr').find('span#placeholder').show().children().show();
 		// $(this).closest('tr').find('a#createNotePlaceholder').show();
 		$(this).closest('tr').find('textarea#note').remove();
@@ -279,6 +287,7 @@ $(document).ready(function() {
 	});
 
 	$("a#saveNoteTrigger").click(function() {
+		$(this).closest('td').css("text-align", "inherit");
 		$(this).closest('tr').find('span#placeholder').show();
 		console.log("Trigger activated.");
 		var currentCourseId = $(this).closest('tr').find('span#courseId').text();
