@@ -93,24 +93,21 @@
 			#handle resend
 			$entry = TUSK::Competency::Checklist::Entry->lookupKey($entry_id);
 			if ($entry->getPrimaryKeyID()) {
-				$acc->setAssessorRequest($assignment->getPrimaryKeyID(), $checklist_id, $student->primary_key(), $entry, $ARGS{comment});
-				$m->comp('SELF:sendEmail', 
+				$m->comp('SELF:sendAndRedirect', 
+					assignment_id => $assignment->getPrimaryKeyID(),
+					checklist_id => $checklist_id,
+					student_id => $student->primary_key(),
 					to_addr => $to_addr,
-	        		        assessor_lastname => $assessor_lastname,
-					comment => $ARGS{comment}, 
-					entry => $entry);
-
-				$m->redirect($m->comp("/tmpl/url:construct_url", 
-					base_url => "/view",
-					pathref	 => [ 'checklists' ], 
-					msg	 => __('The request was successfully sent.'),
-				));	
+					assessor_lastname => $assessor_lastname,
+					comment => $ARGS{comment},
+					entry	=> $entry
+				);		
 			}
 		}
-		warn __('Duplicate entry detected.');   
+		warn __("Duplicate entry detected for checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
 		return;
 	} elsif ($requestcheck == 3) {
-		$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=There is something wrong with your checklist, please notify support if you continue to have problems.");
+		warn __("Something is wrong with the checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
 		return;
 	}
 
@@ -121,23 +118,44 @@
         } else {
            		$entry = TUSK::Competency::Checklist::Entry->new();
         }
-		$acc->setAssessorRequest($assignment->getPrimaryKeyID(), $checklist_id, $student->primary_key(), $entry, $ARGS{comment});
-
-		$m->comp('SELF:sendEmail', 
+	$m->comp('SELF:sendAndRedirect', 
+			assignment_id => $assignment->getPrimaryKeyID(),
+			checklist_id => $checklist_id,
+			student_id => $student->primary_key(),
 			to_addr => $to_addr,
-	                assessor_lastname => $assessor_lastname,
-			comment => $ARGS{comment}, 
-			entry => $entry);
-
-		$m->redirect($m->comp("/tmpl/url:construct_url", 
-			base_url => "/view",
-			pathref	 => [ 'checklists' ], 
-			msg	 => __('The request was successfully sent.'),
-		));	
-		
+			assessor_lastname => $assessor_lastname,
+			comment => $ARGS{comment},
+			entry	=> $entry
+	);		
 	}
 	my ($options, $selected) = $m->comp('SELF:getSiteFaculty');
 </%init>
+
+<%method sendAndRedirect>
+<%args>
+	$assignment_id
+	$checklist_id
+	$student_id
+	$to_addr
+	$assessor_lastname
+	$comment
+	$entry
+</%args>
+<%perl>
+	$acc->setAssessorRequest($assignment_id, $checklist_id, $student_id, $entry, $comment);
+	$m->comp('SELF:sendEmail', 
+			to_addr => $to_addr,
+	       		assessor_lastname => $assessor_lastname,
+			comment => $comment,
+			entry => $entry);
+
+	$m->redirect($m->comp("/tmpl/url:construct_url", 
+			base_url => "/view",
+			pathref	 => [ 'checklists' ], 
+			msg	 => __('The request was successfully sent.'),
+	));	
+</%perl>
+</%method>
 
 <%method sendEmail>
 <%args>
