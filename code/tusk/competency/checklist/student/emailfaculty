@@ -89,6 +89,27 @@
 		$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=Already Completed.");
 		return;
 	} elsif ($requestcheck == 2) {
+		if (defined $entry_id) { 
+			#handle resend
+			$entry = TUSK::Competency::Checklist::Entry->lookupKey($entry_id);
+			if ($entry->getPrimaryKeyID()) {
+				$acc->setAssessorRequest($assignment->getPrimaryKeyID(), $checklist_id, $student->primary_key(), $entry, $ARGS{comment});
+				$m->comp('SELF:sendEmail', 
+					to_addr => $to_addr,
+	        		        assessor_lastname => $assessor_lastname,
+					comment => $ARGS{comment}, 
+					entry => $entry);
+
+				$m->redirect($m->comp("/tmpl/url:construct_url", 
+					base_url => "/view",
+					pathref	 => [ 'checklists' ], 
+					msg	 => __('The request was successfully sent.'),
+				));	
+			}
+		}
+		warn __('Duplicate entry detected.');   
+		return;
+	} elsif ($requestcheck == 3) {
 		$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=There is something wrong with your checklist, please notify support if you continue to have problems.");
 		return;
 	}
@@ -104,7 +125,7 @@
 
 		$m->comp('SELF:sendEmail', 
 			to_addr => $to_addr,
-            assessor_lastname => $assessor_lastname,
+	                assessor_lastname => $assessor_lastname,
 			comment => $ARGS{comment}, 
 			entry => $entry);
 
