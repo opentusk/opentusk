@@ -82,23 +82,16 @@ sub site_id {
 
 sub split_by_school { return 1; }
 
-sub delete{
+sub delete {
     my ($self, $un, $pw) = @_;
     my @courses = $self->parent_courses();
     foreach my $course (@courses){
 	$self->delete_course_link($course, $un, $pw);
     }
-    
-    my @users = $self->child_users();
-    foreach my $user (@users){
-	my ($r, $msg) = $self->user_link()->delete(-user => $un, -password => $pw,
-						   -parent_id => $self->primary_key(),
-						   -child_id => $user->primary_key());
-    }
     return $self->SUPER::delete($un, $pw);
 }
 
-sub delete_course_link{
+sub delete_course_link {
     my ($self, $course, $un, $pw) = @_;
 
     # remove course_user_site
