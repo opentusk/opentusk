@@ -1,5 +1,5 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2014 Tufts University 
 
  Licensed under the Educational Community License, Version 1.0 (the "License"); 
  you may not use this file except in compliance with the License. 
@@ -32,6 +32,7 @@
 	my $selected_assessor;
 	my $assignment; 
 	my $entry;
+    my $teaching_site_id;
 </%shared>
 
 <div style="margin: 10px 0 10px 0"><% __x("Send \"{title}\" for assessment to:", title => $competency->getTitle()) %></div>
@@ -39,7 +40,6 @@
 <& /tmpl/element:form, params => {
 	method		=> 'POST',
 	enctype		=> 'multipart/form-data', 
-	onsubmit	=> '',
 	name 		=> 'emailfaculty' 
 } &>
 
@@ -50,6 +50,11 @@
 	options => $options,
 } &>
 
+<div style="margin:10px 0 10px 10px;"><i>Add your assessor if not in the list.</i> &nbsp;&nbsp; 
+<a href="javascript:;" class="formbutton" onclick="showOther('<%  $course->school() . '/' . $course->primary_key() . "/$checklist_group_id/$time_period_id/$teaching_site_id" %>'); return false;"> OK </a>
+</div>
+<div id="otherbox"></div>
+
 <div style="margin-top:10px"><% __('Comments') . ':'  %></div>
 <& /tmpl/element:input_textarea, params => { 
 	name 	=> 'comment',
@@ -59,9 +64,9 @@
 } &>
 
 <& /tmpl/element:save_button, params => {
-	label		=> __('Request'),
+	label           => __('Request'),
 	cancel_onclick 	=> " go_back('/view/" . $type_path . "/checklists');",
-        name		=> 'submit',
+    name		    => 'submit',
 } &>
 
 <%init>
@@ -74,37 +79,36 @@
                                         time_period_id => $time_period_id,
                                         entry_id =>  $entry_id });
 
-	my $course_id = $course->primary_key();
+    	my $course_id = $course->primary_key();
+    	my $school = $course->school();
 
-	my $school = $course->school();
-
-	#entry table with checklist_id and assignment_id 
+        ## entry table with checklist_id and assignment_id 
         $assignment = $selected_assessor->getJoinObject('TUSK::Competency::Checklist::Assignment'); 
 	
-	my $assignment_id = $assignment->getPrimaryKeyID();	
+	    my $assignment_id = $assignment->getPrimaryKeyID();	
+    	my $requestcheck = $m->comp("/competency/checklist/tmpl/checkduplicate",  assignment_id => $assignment_id, checklist_id => $checklist_id);
 
-	my $requestcheck = $m->comp("/competency/checklist/tmpl/checkduplicate",  assignment_id => $assignment_id, checklist_id => $checklist_id);
+    	if ($requestcheck == 1) {
+	    	$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=Already Completed.");
+    	} elsif ($requestcheck == 2) {
+	    	unless (defined $entry_id) {
+		    	warn __("Duplicate entry detected for checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
+    			$m->abort();
+    		}
+    	} elsif ($requestcheck == 3) {
+	    	warn __("Something is wrong with the checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
+    		$m->abort;
+    	}
 
-	if ($requestcheck == 1) {
-		$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=Already Completed.");
-	} elsif ($requestcheck == 2) {
-		unless (defined $entry_id) {
-			warn __("Duplicate entry detected for checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
-			$m->abort();
-		}
-	} elsif ($requestcheck == 3) {
-		warn __("Something is wrong with the checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
-		$m->abort;
-	}
-
-	if (defined $entry_id) {	
+	    if (defined $entry_id) {	
             unless ($entry = TUSK::Competency::Checklist::Entry->lookupKey($entry_id)) {
-           		$entry = TUSK::Competency::Checklist::Entry->new();
+           		$ entry = TUSK::Competency::Checklist::Entry->new();
             }
         } else {
-           		$entry = TUSK::Competency::Checklist::Entry->new();
+  	    	$entry = TUSK::Competency::Checklist::Entry->new();
         }
-	$m->comp('SELF:sendAndRedirect', 
+
+	    $m->comp('SELF:sendAndRedirect', 
 			assignment_id => $assignment->getPrimaryKeyID(),
 			checklist_id => $checklist_id,
 			student_id => $student->primary_key(),
@@ -112,8 +116,8 @@
 			assessor_lastname => $assessor_lastname,
 			comment => $ARGS{comment},
 			entry	=> $entry
-	);		
-	}
+    	);		
+	}  ## submit_check
 	my ($options, $selected) = $m->comp('SELF:getSiteFaculty');
 </%init>
 
@@ -188,7 +192,7 @@
 <%method getSiteFaculty>
 <%perl>
 	my $enrolled_student = $course->get_single_student($student->primary_key(), $time_period_id);
-	my $teaching_site_id = $enrolled_student->aux_info('teaching_site_id');
+	$teaching_site_id = $enrolled_student->aux_info('teaching_site_id');
 	my @options = ();
     my $assessors = $acc->getFacultyAssessors($student->primary_key(), $checklist_id, $time_period_id, $entry_id);
 
@@ -220,6 +224,9 @@
 </%method>
 
 <%method jsarray>
-%	return [ 'jquery/jquery.min.js', 'jquery/plugin/validate.min.js', 'competency/checklist/emailfaculty.js' ];
+%	return [ 'jquery/jquery.min.js', 'jquery/jquery-ui.min.js', 'jquery/plugin/validate.min.js', 'competency/checklist/emailfaculty.js' ];
 </%method>
 
+<%method stylearray>
+%   return ['/style/style.css','/style/home.css', '/style/ui-dialog.css']
+</%method>
