@@ -262,7 +262,7 @@ sub getAssessor {
         die "Please provide either competency_checklist_assignment_id OR assessor_id/student_id\n";
     }
     my $user = TUSK::Core::HSDB4Tables::User->new();
-    $user->setErrorLevel(4);
+
     return $user->lookupReturnOne(undef, undef, undef, undef, [
         TUSK::Core::JoinObject->new('TUSK::Competency::Checklist::Assignment', { 
             joinkey => 'assessor_id', 
