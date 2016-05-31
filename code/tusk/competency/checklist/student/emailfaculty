@@ -83,32 +83,18 @@
 	
 	my $assignment_id = $assignment->getPrimaryKeyID();	
 
-	my $requestcheck = $m->comp("/competency/checklist/tmpl/requestcheck:check_existing_request",  assignment_id => $assignment_id, checklist_id => $checklist_id);
+	my $requestcheck = $m->comp("/competency/checklist/tmpl/checkduplicate",  assignment_id => $assignment_id, checklist_id => $checklist_id);
 
 	if ($requestcheck == 1) {
 		$m->redirect("/view/course/$school/$course_id/checklists?msgtype=errmsg&msg=Already Completed.");
-		return;
 	} elsif ($requestcheck == 2) {
-		if (defined $entry_id) { 
-			#handle resend
-			$entry = TUSK::Competency::Checklist::Entry->lookupKey($entry_id);
-			if ($entry->getPrimaryKeyID()) {
-				$m->comp('SELF:sendAndRedirect', 
-					assignment_id => $assignment->getPrimaryKeyID(),
-					checklist_id => $checklist_id,
-					student_id => $student->primary_key(),
-					to_addr => $to_addr,
-					assessor_lastname => $assessor_lastname,
-					comment => $ARGS{comment},
-					entry	=> $entry
-				);		
-			}
+		unless (defined $entry_id) {
+			warn __("Duplicate entry detected for checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
+			$m->abort();
 		}
-		warn __("Duplicate entry detected for checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
-		return;
 	} elsif ($requestcheck == 3) {
 		warn __("Something is wrong with the checklist, checklist_id: $checklist_id for student_id: $student->primary_key()");
-		return;
+		$m->abort;
 	}
 
 	if (defined $entry_id) {	
