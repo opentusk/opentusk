@@ -55,7 +55,6 @@ sub findAddUserByEmail {
     if ($args->{email}) {
 
         if (@users = $self->findUserByEmail($args->{email})) {
-            warn "#users " . scalar @users;
             return \@users;
         } else {
             ## at this point we believe we don't have this user in our user table
