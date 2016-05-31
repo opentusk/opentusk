@@ -1,0 +1,82 @@
+// Copyright 2016 Tufts University 
+//
+// Licensed under the Educational Community License, Version 1.0 (the "License"); 
+// you may not use this file except in compliance with the License. 
+// You may obtain a copy of the License at 
+//
+// http://www.opensource.org/licenses/ecl1.php 
+//
+// Unless required by applicable law or agreed to in writing, software 
+// distributed under the License is distributed on an "AS IS" BASIS, 
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+// See the License for the specific language governing permissions and 
+// limitations under the License.
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%once>
+    use TUSK::Enum::Data;
+    use TUSK::Competency::Checklist::Assignment;
+    use TUSK::Application::User::Internal;
+</%once>
+
+<%shared>
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my ($checklist_group_id, $time_period_id, $teaching_site_id) = $m->comp("/tmpl/url:get_path_ids");
+</%shared>
+
+<%init>
+	$m->clear_buffer();
+	$r->content_type('application/html');
+	$r->no_cache(1);
+
+	if ($ARGS{submit_check}) {
+        my $user = $m->session->{user};
+
+        my $internal_user = TUSK::Application::User::Internal->new({ 
+            author => $user, 
+            course => $course, 
+            teaching_site_id => $teaching_site_id,
+            time_period_id => $time_period_id,
+            application => 'checklist' 
+        });
+
+        ## this should return a user and create one if not yet in tusk
+        my $users = $internal_user->findAddUserByEmail({ email => $ARGS{email}, firstname => $ARGS{firstname}, lastname => $ARGS{lastname}});
+        if (scalar @$users > 1) {
+            $m->print(__("There are more than one user with the same email address you provided. Please contact") .  $TUSK::Constants::SiteAbbr);
+            foreach my $u (@$users) {
+                $m->print( $u->primary_key() . ', ' . $u->out_lastfirst_name() . ', ' . $u->email());
+            }
+        } elsif (scalar @$users == 1) {
+            ## we found one matched assessor and we link to the course and the student
+            $internal_user->linkCourseUser($users->[0]);
+
+            if (TUSK::Competency::Checklist::Assignment->lookupReturnOne("assessor_id = '" . $users->[0]->primary_key() . "' AND student_id = '" . $user->primary_key() . "' AND time_period_id = $time_period_id")) {
+                $m->print(__("Your assessor should already be on the dropdown list.  Please double check the assessor list."));
+            } else {
+                my $assignment = TUSK::Competency::Checklist::Assignment->new();
+                my $assessor_type = TUSK::Enum::Data->lookupReturnOne("short_name = 'faculty' AND namespace = 'competency_checklist_assignment.assessor_type'");
+
+            	$assignment->setFieldValues({ 
+                    student_id 		=> $user->primary_key(),
+                    assessor_id 	=> $users->[0]->primary_key(),
+                    assessor_type_enum_id 	=> $assessor_type->getPrimaryKeyID(),
+                    competency_checklist_group_id => $checklist_group_id,
+                    time_period_id		=> $time_period_id,
+                });
+                $assignment->save({user => $user->primary_key()});
+
+                $m->print(
+                    '<div>' . __('Your assessor is successfully added.') . '</div><br/><div>' . $users->[0]->out_lastfirst_name() . ' (' . $users->[0]->email() . ')</div>' .
+                    '<div id="new_user_name" style="visibility: hidden">' . $users->[0]->out_lastfirst_name() . '</div>' . 
+                    '<div id="new_user_token" style="visibility: hidden">' . $users->[0]->default_email() . '___' . $users->[0]->primary_key() .  '___' . $users->[0]->last_name() . '</div>'
+                );
+            }
+        } else {
+            $m->print(__("Something is wrong. Please contact ") . $TUSK::Constants::SiteAbbr);
+        }
+    }
+</%init>
