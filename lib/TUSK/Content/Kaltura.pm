@@ -36,6 +36,10 @@ use strict;
 BEGIN {
     require Exporter;
     require TUSK::Core::SQLRow;
+    require HSDB4::DateTime;
+    require HSDB4::SQLRow::Content;
+    require TUSK::Config;
+    require API::Kaltura;
 
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 
@@ -47,7 +51,7 @@ BEGIN {
 use vars @EXPORT_OK;
 
 # Non-exported package globals go here
-use vars ();
+use vars qw( );
 
 sub new {
     # Find out what class we are
@@ -81,6 +85,7 @@ sub new {
                                     @_
                                   );
     # Finish initialization...
+    $self->init();
     return $self;
 }
 
@@ -113,6 +118,7 @@ sub getAddedOn {
 
 sub setAddedOn {
     my ($self, $value) = @_;
+    $value = HSDB4::DateTime->new()->out_mysql_timestamp() unless ($value);
     $self->setFieldValue('added_on', $value);
 }
 
@@ -123,6 +129,7 @@ sub getProcessedOn {
 
 sub setProcessedOn {
     my ($self, $value) = @_;
+    $value = HSDB4::DateTime->new()->out_mysql_timestamp() unless ($value);
     $self->setFieldValue('processed_on', $value);
 }
 
@@ -135,7 +142,71 @@ sub setError {
     my ($self, $value) = @_;
     $self->setFieldValue('error', $value);
 }
+
 ### Other Methods
+
+sub add {
+    my ($self, $content_id, $user_id) = @_;
+    my $row = $self->lookupReturnOne("content_id = $content_id");
+    unless ($row) {
+        $row = $self->new();
+        $row->setContentID($content_id);
+        $row->setAddedOn();
+        $row->save({user => $user_id});
+    }
+    return $row;
+}
+
+sub init {
+    my ($self) = @_;
+    our $api;
+    unless (defined $api) {
+        eval {
+            my $cfg = TUSK::Config->new()->Kaltura();
+            if ($cfg->{secret} && $cfg->{kalturaUrl} && $cfg->{partnerId}) {
+                $api = API::Kaltura->new({
+                    secret => $cfg->{secret},
+                    kalturaUrl => $cfg->{kalturaUrl},
+                    apiVersion => 3,
+                    sessionType => 'admin',
+                    partnerId => $cfg->{partnerId}
+                });
+            }
+        };
+        $api = 0 if ($@);
+    }
+    return $api;
+}
+
+sub upload {
+    my ($self, $user_id) = @_;
+    our $api;
+    $self->setProcessedOn();
+    $self->save({user => $user_id});
+    if ($api) {
+        my $content_id = $self->getContentID();
+        my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
+        if ($content->primary_key()) {
+            eval {
+                $api->startSession();
+                my $upload_result = $api->uploadFile({
+                    file => $content->out_file_path(),
+                    type => $content->type(),
+                    categories => 'TUSK',
+                    name => $content->title()
+                });
+                $api->endSession();
+                $self->setKalturaID($upload_result->first_child('rootEntryId')->text());
+            };
+            $self->setError($@) if ($@);
+        } else {
+            $self->setError('Invalid content ID');
+        }
+    } else {
+        $self->setError('Kaltura is not configured');
+    }
+    $self->save({user => $user_id});
+}
 
 =head1 BUGS
 
