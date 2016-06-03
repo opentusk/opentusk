@@ -76,7 +76,7 @@ use vars ();
 #
 my $tablename         = 'user';
 my $primary_key_field = 'user_id';
-my @fields =       qw(user_id source source_enum_id status tufts_id sid trunk password email preferred_email profile_status modified
+my @fields =       qw(user_id source status tufts_id sid trunk password email preferred_email profile_status modified
 		      password_reset expires login previous_login lastname firstname midname suffix
 		      degree affiliation gender body loggedout_flag uid
                       );

@@ -21,6 +21,7 @@ use HSDB4::SQLRow::User;
 use TUSK::Constants;
 use TUSK::Enum::Data;
 use TUSK::Application::Course::User;
+use TUSK::User::Creation;
 
 sub new {
     my ($incoming, $args)  = @_;
@@ -31,7 +32,8 @@ sub new {
         course => $args->{course},
         teaching_site_id => $args->{teaching_site_id},
         time_period_id => $args->{time_period_id},
-        source => TUSK::Enum::Data->lookupReturnOne("namespace = 'user.source_id' and short_name = '$args->{application}'"),
+        object_id => $args->{object_id},
+        source => TUSK::Enum::Data->lookupReturnOne("namespace = 'user_creation.source_id' and short_name = '$args->{application}'"),
         role => TUSK::Permission::Role->lookupReturnOne("role_token = 'healthprof'"),
     };
 
@@ -96,10 +98,18 @@ sub createUser {
                                  lastname => $args->{lastname},
                                  email => $args->{email},
                                  affiliation => $self->{course}->school(),
-                                 source_enum_id => $self->{source}->getPrimaryKeyID(), 
+                                 source => 'internal',
                                  status => 'active', 
                                  );
         $user->save($TUSK::Constants::DatabaseUsers->{ContentManager}->{readusername}, $TUSK::Constants::DatabaseUsers->{ContentManager}->{readpassword});
+
+        my $create = TUSK::User::Creation->new();
+        $create->setFieldValues({
+            user_id => $user->primary_key(),
+            source_enum_id => $self->{source}->getPrimaryKeyID(), 
+            object_id => $self->{object_id}
+        });
+        $create->save({user => $self->{author}->primary_key()});
     }
 
     return $user;
