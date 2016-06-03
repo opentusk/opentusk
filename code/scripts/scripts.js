@@ -684,7 +684,7 @@ function checkDates(el, no_empty) {
 		el.form.invalid_dates = new Array();
 	}
 
-	var isValid;
+	var isValid;n
 	if (no_empty) {
 		isValid = isValidDate(el);
 	} else {
@@ -782,4 +782,25 @@ function setGetParameter(paramName, paramValue, clearFlag) {
 		}
 	}
 	window.location.href = url;
+}
+
+
+//Toggle button functionality for Competency Checklist
+function toggleSkillModules(button) {
+	var button_text = $(button).html();
+	if (button_text == 'Expand All') {
+		$(".med").each(function() {
+			if (($(this).children("img").attr("src")) == '/graphics/icon-nav-closed.png') {
+				$(this).trigger("click");
+			}
+		});
+		$(button).html('Collapse All');
+	} else {
+		$(".med").each(function() {
+			if (($(this).children("img").attr("src")) == '/graphics/icon-nav-open.png') {
+				$(this).trigger("click");
+			}
+		});
+		$(button).html('Expand All');
+	}
 }
