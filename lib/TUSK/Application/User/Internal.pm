@@ -74,11 +74,11 @@ sub createUser {
     eval {
         unless ($args->{username}) {
             my ($temp_username); 
-            my $i = 0;
+            my $i = 1;
 
             do {
-                ## first_initial + lastname + running number if needed + _nt
-                $temp_username = substr($args->{firstname}, 0, 1) . $args->{lastname} . (($i) ? $i : '') . '_nt';
+                ## first_initial + lastname + running number if needed + _nt   (eg flastname, flastname2, flastname3, ...)
+                $temp_username = substr($args->{firstname}, 0, 1) . $args->{lastname} . (($i > 1) ? $i : '') . '_nt';
                 $i++;
             } while (my $found = HSDB4::SQLRow::User->new()->lookup_key($temp_username));
 
