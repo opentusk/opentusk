@@ -159,10 +159,10 @@ sub add {
 
 sub init {
     my ($self) = @_;
-    our $api;
+    our ($api, $cfg);
     unless (defined $api) {
         eval {
-            my $cfg = TUSK::Config->new()->Kaltura();
+            $cfg = TUSK::Config->new()->Kaltura();
             if ($cfg->{secret} && $cfg->{kalturaUrl} && $cfg->{partnerId}) {
                 $api = API::Kaltura->new({
                     secret => $cfg->{secret},
@@ -176,6 +176,28 @@ sub init {
         $api = 0 if ($@);
     }
     return $api;
+}
+
+sub player {
+    my ($self, $content_id, $display_type, $width, $height) = @_;
+    our $cfg;
+    if ($cfg) {
+        my $kaltura_url = $cfg->{kalturaUrl};
+        my $partner_id = $cfg->{partnerId};
+        my $player_id = $cfg->{'playerId' . $display_type};
+        if ($kaltura_url && $partner_id && $player_id) {
+            my $row = $self->add($content_id, 'player');
+            my $kaltura_id = $row->getKalturaID();
+            if ($kaltura_id) {
+                return qq(<iframe src="$kaltura_url) . qq(/p/$partner_id/sp/$partner_id) .
+                    qq(00/embedIframeJs/uiconf_id/$player_id/partner_id/$partner_id?) .
+                    qq(iframeembed=true&playerId=$kaltura_id&entry_id=$kaltura_id" ) .
+                    qq(width="$width" height="$height" allowfullscreen frameborder="0"></iframe>);
+            } else {
+                return '<p>This content is being uploaded to Kaltura.</p>';
+            }
+        }
+    }
 }
 
 sub upload {

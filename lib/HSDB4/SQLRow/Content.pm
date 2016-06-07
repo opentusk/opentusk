@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -45,6 +45,7 @@ use Image::Magick;
 use TUSK::ProcessTracker::ProcessTracker;
 use TUSK::Competency::Competency;
 use TUSK::Competency::Content;
+use TUSK::Content::Kaltura;
 
 use POSIX 'setsid';
 
@@ -53,7 +54,7 @@ BEGIN {
     require HSDB4::SQLRow;
 
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
-    
+
     @ISA = qw(HSDB4::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
@@ -80,10 +81,10 @@ use vars ();
 # File-private lexicals
 my $tablename = "content";
 my $primary_key_field = "content_id";
-my @fields = qw(content_id type title course_id school system copyright source 
-		body hscml_body style 
-		modified created read_access write_access 
-		checked_out_by check_out_time conversion_status display reuse_content_id start_date end_date);
+my @fields = qw(content_id type title course_id school system copyright source
+                body hscml_body style
+                modified created read_access write_access
+                checked_out_by check_out_time conversion_status display reuse_content_id start_date end_date);
 my %blob_fields = (body => 1, hscml_body=>1);
 my %numeric_fields = (course_id => 1);
 
@@ -92,35 +93,35 @@ my %cache = ();
 # Creation methods
 
 my %TypeClass = ( 'Document' => 'HSDB4::SQLRow::Content::Document',
-		  'Slide' => 'HSDB4::SQLRow::Content::Slide',
-		  'Question' => 'HSDB4::SQLRow::Content::Question',
-		  'Flashpix' => 'HSDB4::SQLRow::Content::Flashpix',
-		  'Video' => 'HSDB4::SQLRow::Content::Video',
-		  'Audio' => 'HSDB4::SQLRow::Content::Audio',
-		  'URL' => 'HSDB4::SQLRow::Content::URL',
-		  'Multidocument' => 'HSDB4::SQLRow::Content::Multidocument',
-		  'Quiz' => 'HSDB4::SQLRow::Content::Quiz',
-		  'PDF' => 'HSDB4::SQLRow::Content::PDF',
-		  'Shockwave' => 'HSDB4::SQLRow::Content::Shockwave',
-		  'Collection' => 'HSDB4::SQLRow::Content::Collection',
-		  'DownloadableFile' => 'HSDB4::SQLRow::Content::DownloadableFile',
-		  'Reuse' => 'HSDB4::SQLRow::Content::Reuse',
-		  'External' => 'HSDB4::SQLRow::Content::External',
-		  'TUSKdoc' => 'HSDB4::SQLRow::Content::TUSKdoc',
-		  );
+                  'Slide' => 'HSDB4::SQLRow::Content::Slide',
+                  'Question' => 'HSDB4::SQLRow::Content::Question',
+                  'Flashpix' => 'HSDB4::SQLRow::Content::Flashpix',
+                  'Video' => 'HSDB4::SQLRow::Content::Video',
+                  'Audio' => 'HSDB4::SQLRow::Content::Audio',
+                  'URL' => 'HSDB4::SQLRow::Content::URL',
+                  'Multidocument' => 'HSDB4::SQLRow::Content::Multidocument',
+                  'Quiz' => 'HSDB4::SQLRow::Content::Quiz',
+                  'PDF' => 'HSDB4::SQLRow::Content::PDF',
+                  'Shockwave' => 'HSDB4::SQLRow::Content::Shockwave',
+                  'Collection' => 'HSDB4::SQLRow::Content::Collection',
+                  'DownloadableFile' => 'HSDB4::SQLRow::Content::DownloadableFile',
+                  'Reuse' => 'HSDB4::SQLRow::Content::Reuse',
+                  'External' => 'HSDB4::SQLRow::Content::External',
+                  'TUSKdoc' => 'HSDB4::SQLRow::Content::TUSKdoc',
+                  );
 
 sub rebless {
     my $self = shift;
 
     my $type = $self->field_value('type');
 
-    if ($type && $type eq "Reuse"){
-	$self->load_reuse();    
-	$type = $self->field_value('type');
+    if ($type && $type eq "Reuse") {
+        $self->load_reuse();
+        $type = $self->field_value('type');
     }
-    
-    if ($type && $TypeClass{$type}) { 
-	bless ($self, $TypeClass{$type}); 
+
+    if ($type && $TypeClass{$type}) {
+        bless ($self, $TypeClass{$type});
     }
 
     return $self;
@@ -132,12 +133,12 @@ sub new {
     $class = ref $class || $class;
     # Call the super-class's constructor and give it all the values
     my $self = $class->SUPER::new ( _tablename => $tablename,
-				    _fields => \@fields,
-				    _blob_fields => \%blob_fields,
-				    _numeric_fields => \%numeric_fields,
-				    _primary_key_field => $primary_key_field,
-				    _cache => \%cache,
-				    @_);
+                                    _fields => \@fields,
+                                    _blob_fields => \%blob_fields,
+                                    _numeric_fields => \%numeric_fields,
+                                    _primary_key_field => $primary_key_field,
+                                    _cache => \%cache,
+                                    @_);
     # Finish initialization...
     return $self->rebless;
 }
@@ -145,12 +146,12 @@ sub new {
 sub load_reuse{
     my ($self) = @_;
     my $reuse_content_id = $self->field_value('reuse_content_id');
-    unless ($reuse_content_id){
-	confess("Invalid reuse_content_id for content " . $self->primary_key);
+    unless ($reuse_content_id) {
+        confess("Invalid reuse_content_id for content " . $self->primary_key);
     }
     my $load_content = HSDB4::SQLRow::Content->new->lookup_key($reuse_content_id);
-    unless ($load_content->primary_key){
-	confess("Invalid reuse_content_id for content " . $self->primary_key);
+    unless ($load_content->primary_key) {
+        confess("Invalid reuse_content_id for content " . $self->primary_key);
     }
     $self->field_value('title', $load_content->title(), 1) if ($load_content->field_value('type') eq "Document");
     $self->field_value('conversion_status', $load_content->conversion_status(), 1);
@@ -163,27 +164,27 @@ sub load_reuse{
     $self->field_value('start_date', $load_content->field_value('start_date'), 1);
     $self->field_value('end_date', $load_content->field_value('end_date'), 1);
 
-    if (my $load_body = $load_content->body){
-	my ($html) = $load_body->tag_values('html');
-	if ($html){
-		my $cs = $load_content->field_value('conversion_status') || 0;
-		if($load_content->field_value('type') eq "Document" and $cs < 1){
-		$self->{_orig_body} = $html->value;
-	    }
-	}else{
-	    $html = HSDB4::XML::SimpleElement->new(-tag => 'html', -label => 'html');
-	    $load_body->xml_insert(0, $html);
-	}
-	
-	my $new_html = '';
-	
-	if ($self->body and $self->body->tag_values('html')){
-	    $new_html = $self->body->tag_values('html')->value;
-	}
-	$html->set_value($new_html);
-	
-	$self->field_value('body', $load_body->out_xml, 1);
-    } 
+    if (my $load_body = $load_content->body) {
+        my ($html) = $load_body->tag_values('html');
+        if ($html) {
+                my $cs = $load_content->field_value('conversion_status') || 0;
+                if($load_content->field_value('type') eq "Document" and $cs < 1) {
+                $self->{_orig_body} = $html->value;
+            }
+        }else{
+            $html = HSDB4::XML::SimpleElement->new(-tag => 'html', -label => 'html');
+            $load_body->xml_insert(0, $html);
+        }
+
+        my $new_html = '';
+
+        if ($self->body and $self->body->tag_values('html')) {
+            $new_html = $self->body->tag_values('html')->value;
+        }
+        $html->set_value($new_html);
+
+        $self->field_value('body', $load_body->out_xml, 1);
+    }
 }
 
 
@@ -254,11 +255,11 @@ sub reuse_content_id {
 
 sub contributor{
     my $self = shift;
-    
+
     my $contributor = '';
-    
-    if (my $body = $self->body()){
-	$contributor = $self->body->tag_values('contributor')->value if ($self->body()->tag_values('contributor'));
+
+    if (my $body = $self->body()) {
+        $contributor = $self->body->tag_values('contributor')->value if ($self->body()->tag_values('contributor'));
     }
     return $contributor;
 }
@@ -279,11 +280,11 @@ sub is_hidden{
 
     my $now = time();
 
-    if ($self->start_date()){
-	my $start_date = HSDB4::DateTime->new()->in_mysql_date($self->start_date());
-	return 1 if ($now <= $start_date->out_unix_time());
+    if ($self->start_date()) {
+        my $start_date = HSDB4::DateTime->new()->in_mysql_date($self->start_date());
+        return 1 if ($now <= $start_date->out_unix_time());
     }
-    
+
     return 0;
 }
 
@@ -293,9 +294,9 @@ sub is_expired{
 
     my $now = time();
 
-    if ($self->end_date()){
-	my $end_date = HSDB4::DateTime->new()->in_mysql_date($self->end_date());
-	return 1 if ($now >= ($end_date->out_unix_time()));
+    if ($self->end_date()) {
+        my $end_date = HSDB4::DateTime->new()->in_mysql_date($self->end_date());
+        return 1 if ($now >= ($end_date->out_unix_time()));
     }
 
     return 0;
@@ -322,12 +323,12 @@ sub is_xmetal_doc{
 }
 
 sub save {
-	my $self = shift;
-	my $un = shift;
-	return (0,'No fields have been changed') if (!scalar($self->changed_fields));
-	$self->save_version("No note entered.",$un,"don't save");
-	my ($rval,$msg) = $self->SUPER::save($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});	
-	return ($rval,$msg);
+        my $self = shift;
+        my $un = shift;
+        return (0,'No fields have been changed') if (!scalar($self->changed_fields));
+        $self->save_version("No note entered.",$un,"don't save");
+        my ($rval,$msg) = $self->SUPER::save($TUSK::Constants::DatabaseUsers{ContentManager}->{readusername},$TUSK::Constants::DatabaseUsers{ContentManager}->{readpassword});
+        return ($rval,$msg);
 }
 
 sub save_version {
@@ -338,7 +339,7 @@ sub save_version {
 
     my $self = shift;
 
-    # Get the note (for the content_history table), and the $user/$pw for the 
+    # Get the note (for the content_history table), and the $user/$pw for the
     # save() function.
     my ($note, $user, $no_save) = @_;
 
@@ -374,16 +375,16 @@ sub parent_courses {
     my $self = shift;
     # Check the cache...
     unless ($self->{-parent_courses}) {
-	my @courses = ();
+        my @courses = ();
         # Get the link definition
-	for my $db (map { get_school_db($_) } course_schools()) {
-	    my $linkdef = 
-		$HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_content"};
-	    # And use it to get a LinkSet, if possible
-	    push @courses, $linkdef->get_parents( $self->primary_key() )->parents();
-	}
-	$self->{-parent_courses} = \@courses;
-	return @courses;
+        for my $db (map { get_school_db($_) } course_schools()) {
+            my $linkdef =
+                $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_course_content"};
+            # And use it to get a LinkSet, if possible
+            push @courses, $linkdef->get_parents( $self->primary_key() )->parents();
+        }
+        $self->{-parent_courses} = \@courses;
+        return @courses;
     }
     # Return the list
     return @{$self->{-parent_courses}};
@@ -399,18 +400,18 @@ sub linked_courses {
 }
 
 sub _linked_courses_recursion {
-    
+
     my $self = shift;
     my $depth = shift || 0;
-    my @courses = $self->parent_courses; 
-    if (@courses){
-	return @courses;
+    my @courses = $self->parent_courses;
+    if (@courses) {
+        return @courses;
     }
-    if ($depth > 10){
-	return ();
+    if ($depth > 10) {
+        return ();
     }
-    foreach my $contentItem ($self->parent_content){
-	@courses = (@courses,$contentItem->_linked_courses_recursion($depth + 1 ));
+    foreach my $contentItem ($self->parent_content) {
+        @courses = (@courses,$contentItem->_linked_courses_recursion($depth + 1 ));
     }
     return @courses;
 }
@@ -424,60 +425,60 @@ sub course {
 
     # Make a new Course object
     my $course = HSDB45::Course->new ( _school => $self->field_value('school'),
-				       _id => $self->field_value('course_id') );
+                                       _id => $self->field_value('course_id') );
 
     return $course;
 }
 
-sub parent_class_meetings {         
+sub parent_class_meetings {
     #
     # Get class_meetings to which the content is linked
     #
-        
+
     my $self = shift;
-	my $ignore_cache = shift || 0;
+        my $ignore_cache = shift || 0;
     # Check the cache...
     if ($ignore_cache || !$self->{-parent_class_meetings}) {
-	my @meetings = ();
+        my @meetings = ();
         # Get the link definition
-	for my $db (map { get_school_db($_) } schedule_schools()) {
-	    my $linkdef = 
-		$HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_class_meeting_content"};
-	    # And use it to get a LinkSet, if possible
-	    push @meetings, $linkdef->get_parents( $self->primary_key() )->parents();
-	}
-	$self->{-parent_class_meetings} = \@meetings;
+        for my $db (map { get_school_db($_) } schedule_schools()) {
+            my $linkdef =
+                $HSDB4::SQLLinkDefinition::LinkDefs{"$db\.link_class_meeting_content"};
+            # And use it to get a LinkSet, if possible
+            push @meetings, $linkdef->get_parents( $self->primary_key() )->parents();
+        }
+        $self->{-parent_class_meetings} = \@meetings;
     }
     # Return the list
     return @{$self->{-parent_class_meetings}};
 }
 
 
-sub parent_objectives {         
+sub parent_objectives {
     #
     # Get objectives to which a content is linked. These are objectives pointed to from the body of the content,
     # making the objective the parent and the content the child.
     #
-        
+
     my $self = shift;
 
     # Get the link definition
     my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_objective_content'};
     # And use it to get a LinkSet of parents
-    my $parent_objectives = 
-	    $linkdef->get_parents($self->primary_key);
+    my $parent_objectives =
+            $linkdef->get_parents($self->primary_key);
 
     # Return the list
     return $parent_objectives->parents();
 }
 
-sub add_parent_objective {         
+sub add_parent_objective {
     #
     # Make an objectives to which a content is linked. These are objectives pointed to from the body of the content,
     # making the objective the parent and the content the child.
     #
-        
+
     my $self = shift;
     my ($u,$p,$objective_id) = @_;
 
@@ -485,8 +486,8 @@ sub add_parent_objective {
     my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_objective_content'};
     my ($r,$msg) = $linkdef->insert(-user => $u, -password => $p,
-				    -parent_id => $objective_id,
-				    -child_id => $self->primary_key);
+                                    -parent_id => $objective_id,
+                                    -child_id => $self->primary_key);
     return ($r,$msg);
 }
 
@@ -497,19 +498,19 @@ sub unlink_parent_objective {
     my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_objective_content'};
     my ($r,$msg) = $linkdef->delete(-user => $u, -password => $p,
-				    -parent_id => $objective_id,
-				    -child_id => $self->primary_key);
+                                    -parent_id => $objective_id,
+                                    -child_id => $self->primary_key);
     return ($r,$msg);
 }
 
 sub getCompetencies {
     #
-    # Competencies related to the content.    
+    # Competencies related to the content.
     #
     my $self = shift;
     my $content_id =  $self->primary_key;
     my $competencies = TUSK::Competency::Competency->lookup('', ['competency_content.sort_order', 'competency.competency_id'], undef, undef,
-				[TUSK::Core::JoinObject->new("TUSK::Competency::Content", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "content_id = $content_id"})]);
+                                [TUSK::Core::JoinObject->new("TUSK::Competency::Content", {joinkey => 'competency_id', origkey => 'competency_id', jointype => 'inner', joincond => "content_id = $content_id"})]);
 
     return $competencies;
 }
@@ -522,18 +523,18 @@ sub delete_objectives{
     my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_objective'};
     my ($r,$msg) = $linkdef->delete_children(-user => $u, -password => $p,
-					     -parent_id => $self->primary_key,
-					     );
-    return ($r,$msg);   
+                                             -parent_id => $self->primary_key,
+                                             );
+    return ($r,$msg);
 }
 
 
-sub add_child_objective {         
+sub add_child_objective {
     #
     # These are objectives that define the purpose of the content,
-    # so the content is the parent of the objective. These objectives appear in document headers. 
+    # so the content is the parent of the objective. These objectives appear in document headers.
     #
-        
+
     my $self = shift;
     my ($u,$p,$objective_id, $sort_order) = @_;
 
@@ -541,9 +542,9 @@ sub add_child_objective {
     my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_objective'};
     my ($r,$msg) = $linkdef->insert(-user => $u, -password => $p,
-				    -parent_id => $self->primary_key,
-				    -child_id => $objective_id,
-				    sort_order => $sort_order);
+                                    -parent_id => $self->primary_key,
+                                    -child_id => $objective_id,
+                                    sort_order => $sort_order);
     return ($r,$msg);
 }
 
@@ -554,17 +555,17 @@ sub unlink_child_objective {
     my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_objective'};
     my ($r,$msg) = $linkdef->delete(-user => $u, -password => $p,
-				    -parent_id => $self->primary_key,
-				    -child_id => $objective_id);
+                                    -parent_id => $self->primary_key,
+                                    -child_id => $objective_id);
     return ($r,$msg);
 }
 
-sub parent_personal_content {         
+sub parent_personal_content {
     #
-    # Get personal_content to which a content is linked. There's a twist, 
+    # Get personal_content to which a content is linked. There's a twist,
     # though---only do it for a particular user.
     #
-        
+
     my $self = shift;
     my $user_id = shift or return; # user_id must be a user ID string
     if (ref($user_id) && $user_id->isa ('HSDB4::SQLRow::User')) {
@@ -590,11 +591,11 @@ sub parent_content {
     #
 
     my $self = shift;
-	my $ignore_cache = shift || 0;
+        my $ignore_cache = shift || 0;
     # Check the cache...
     if ( $ignore_cache || !defined( $self->{-parent_content} ) ) {
         # Get the link definition
-		my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
+                my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
         # And use it to get a LinkSet of parents
         $self->{-parent_content} = $linkdef->get_parents($self->primary_key);
     }
@@ -606,16 +607,16 @@ sub other_parents {
     #
     # Get the other context documents from which this document is linked
     #
-    
+
     my $self = shift;
     # Get the list of parents
     my @context = ($self->parent_content, $self->parent_courses,
-		   $self->parent_class_meetings);
+                   $self->parent_class_meetings);
     # Get the current parent
     my $cur_parent = $self->context_parent;
-    
-    if (ref($cur_parent) eq 'TUSK::Search::SearchQuery'){
-	return ();
+
+    if (ref($cur_parent) eq 'TUSK::Search::SearchQuery') {
+        return ();
     }
 
     # If there is no current parent, then just return the context
@@ -627,33 +628,33 @@ sub other_parents {
 }
 
 sub root_parents {
-	#
-	# Gets the highest-level root elements (always courses)
-	#
+        #
+        # Gets the highest-level root elements (always courses)
+        #
 
-	my $self = shift;
-	my @roots;
+        my $self = shift;
+        my @roots;
 
-	my @parents = $self->other_parents();
-	push @parents, $self->context_parent;
+        my @parents = $self->other_parents();
+        push @parents, $self->context_parent;
 
-	foreach my $parent ( @parents ) {
-		if ( $parent && ref($parent) && $parent->isa( "HSDB45::Course" ) ) {
-			push @roots, $parent;
-		} elsif ( $parent && ref($parent) && $parent->isa( "HSDB4::SQLRow::Content::Collection" ) ) {
-			foreach ( $parent->root_parents() ) {
-				push @roots, $_;
-			}
-		}
-	}
+        foreach my $parent ( @parents ) {
+                if ( $parent && ref($parent) && $parent->isa( "HSDB45::Course" ) ) {
+                        push @roots, $parent;
+                } elsif ( $parent && ref($parent) && $parent->isa( "HSDB4::SQLRow::Content::Collection" ) ) {
+                        foreach ( $parent->root_parents() ) {
+                                push @roots, $_;
+                        }
+                }
+        }
 
-	my %seen = ();
-	my @unique_roots;
-	foreach (@roots) {
-	    push(@unique_roots, $_) unless $seen{$_}++;
-	}
+        my %seen = ();
+        my @unique_roots;
+        foreach (@roots) {
+            push(@unique_roots, $_) unless $seen{$_}++;
+        }
 
-	return @unique_roots;	
+        return @unique_roots;
 }
 
 sub child_contentref {
@@ -664,7 +665,7 @@ sub child_contentref {
     my $self = shift;
     # Check cache...
     unless ($self->{-child_contentref}) {
-	@{$self->{-child_contentref}}=$self->child_content;
+        @{$self->{-child_contentref}}=$self->child_content;
     }
     # Return the list
     return $self->{-child_contentref};
@@ -678,22 +679,22 @@ sub child_content {
     my $self = shift;
     # Check cache...
     unless ($self->{-child_content}) {
-	# Get the link definition
-	my $linkdef = 
-	    $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
-	# And use it to get a LinkSet of users
-	my $set = $linkdef->get_children($self->primary_key, @_);
-	my $path = $self->aux_info('uri_path');
-	$path = $path ? 
-	    sprintf('%s/%d', $path, $self->primary_key) : $self->primary_key;
-	my ($next_child,$prev_child);
-	foreach my $child ($set->children) {
-	    ($next_child,$prev_child) = ($set->get_next_child($child),$set->get_prev_child($child));
-	    $child->set_aux_info ('uri_path', $path,
-					'-next'=>$next_child,
-					'-prev'=>$prev_child);
-	}
-	$self->{-child_content} = $set;
+        # Get the link definition
+        my $linkdef =
+            $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
+        # And use it to get a LinkSet of users
+        my $set = $linkdef->get_children($self->primary_key, @_);
+        my $path = $self->aux_info('uri_path');
+        $path = $path ?
+            sprintf('%s/%d', $path, $self->primary_key) : $self->primary_key;
+        my ($next_child,$prev_child);
+        foreach my $child ($set->children) {
+            ($next_child,$prev_child) = ($set->get_next_child($child),$set->get_prev_child($child));
+            $child->set_aux_info ('uri_path', $path,
+                                        '-next'=>$next_child,
+                                        '-prev'=>$prev_child);
+        }
+        $self->{-child_content} = $set;
     }
 
     # Return the list ref
@@ -724,17 +725,17 @@ sub child_contentref_simple {
     ## this is like child_contentref but 1) doesn't use cache 2) allows args and 3) doesn't set aux info
     ##
     my $self = shift;
-    my $linkdef = 
-	$HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
+    my $linkdef =
+        $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
     my @content = $linkdef->get_children($self->primary_key,@_)->children;
     return \@content;
 }
 
-sub add_child_content {         
+sub add_child_content {
     #
     # This sub allows content to be linked to this content as a parent
     #
-        
+
     my $self = shift;
     my ($u,$p,$content_id,$sort,$title) = @_;
 
@@ -742,10 +743,10 @@ sub add_child_content {
     my $linkdef =
         $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
     my ($r,$msg) = $linkdef->insert(-user => $u, -password => $p,
-				    -parent_id => $self->primary_key,
-				    -child_id => $content_id,
-				    sort_order => $sort,
-				    label => $title);
+                                    -parent_id => $self->primary_key,
+                                    -child_id => $content_id,
+                                    sort_order => $sort,
+                                    label => $title);
     return ($r,$msg);
 }
 
@@ -760,17 +761,17 @@ sub child_users {
     #
     # Get the users who are linked under this document (includes all roles)
     #
-    
+
     my ($self, $order_by, @cond) = @_;
     my $id;
     # Get the link definition
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
     $linkdef->order_by($order_by) if ($order_by);
 
-    if ($self->field_value('reuse_content_id')){
-	$id = $self->field_value('reuse_content_id');
+    if ($self->field_value('reuse_content_id')) {
+        $id = $self->field_value('reuse_content_id');
     }else{
-	$id = $self->primary_key;
+        $id = $self->primary_key;
     }
 
     # And use it to get a LinkSet of users
@@ -784,16 +785,16 @@ sub child_users_select {
     #
     # Method that can get either the reuse_content users or the original content users
     #
-    
+
     my ($self, $select_flag) = @_;
     my $id;
     # Get the link definition
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
 
-    if ($self->field_value('reuse_content_id') and $select_flag == 0){
-	$id = $self->field_value('reuse_content_id');
+    if ($self->field_value('reuse_content_id') and $select_flag == 0) {
+        $id = $self->field_value('reuse_content_id');
     }else{
-	$id = $self->primary_key;
+        $id = $self->primary_key;
     }
 
     # And use it to get a LinkSet of users
@@ -806,27 +807,27 @@ sub child_users_select {
 sub child_authors {
     #
     # Get the users who are linked under this document specifically as an author
-    #    
+    #
     my $self = shift;
     my $order_by = shift;
     my @child_users = $self->child_users($order_by);
     if ($self->type() eq 'External') {
-		my $metadata = TUSK::Content::External::MetaData->new()->lookupReturnOne("content_id = " . $self->primary_key());
-		$self->{metadata} = $metadata;
-		return ($metadata) ? ($metadata->getAuthor()) : undef;
+                my $metadata = TUSK::Content::External::MetaData->new()->lookupReturnOne("content_id = " . $self->primary_key());
+                $self->{metadata} = $metadata;
+                return ($metadata) ? ($metadata->getAuthor()) : undef;
     } else {
-		return grep { $_->aux_info('roles') =~ /Author/ } @child_users;
+                return grep { $_->aux_info('roles') =~ /Author/ } @child_users;
     }
 }
 
 sub get_abstract {
     my $self = shift;
     if ($self->{metadata}) {
-	return $self->{metadata}->getAbstract();
+        return $self->{metadata}->getAbstract();
     } else {
-	my $metadata = TUSK::Content::External::MetaData->new()->lookupReturnOne("content_id = " . $self->primary_key());	
-	$self->{metadata} = $metadata;
-	return ($metadata) ? ($metadata->getAbstract()) : undef;
+        my $metadata = TUSK::Content::External::MetaData->new()->lookupReturnOne("content_id = " . $self->primary_key());
+        $self->{metadata} = $metadata;
+        return ($metadata) ? ($metadata->getAbstract()) : undef;
     }
 }
 
@@ -840,8 +841,8 @@ sub delete_child_users {
     # Get the link definition
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
     my ($r,$msg) = $linkdef->delete_children(-user => $u, -password => $p,
-					     -parent_id => $self->primary_key);
-    return ($r,$msg);   
+                                             -parent_id => $self->primary_key);
+    return ($r,$msg);
 }
 
 sub child_user_roles {
@@ -873,7 +874,7 @@ sub child_non_users {
     # Get the non users who are linked under this document (ie, its authors)
     #
 
-    my ($self, $order_by, @cond) = @_;    
+    my ($self, $order_by, @cond) = @_;
 
     # Get the link definition
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_non_user'};
@@ -914,7 +915,7 @@ sub child_personal_content {
     my $user_id = shift or return;
     # Now check to see if we got an object instead
     if (ref($user_id) && $user_id->isa('HSDB4::SQLRow::User')) {
-	$user_id = $user_id->primary_key;
+        $user_id = $user_id->primary_key;
     }
 
     # No cache, because this is too dynamic
@@ -938,8 +939,8 @@ sub keywords_list{
 }
 
 sub UMLSkeywords {
-	my $self = shift;
-	return $self->keywords (" concept_id is not null ");
+        my $self = shift;
+        return $self->keywords (" concept_id is not null ");
 }
 
 sub keywords {
@@ -950,8 +951,8 @@ sub keywords {
     my $self = shift;
     my @conds = @_;
     my $addtl_cond = '' ;
-    if (@conds){
-      	$addtl_cond = "AND " . join (' AND ',@conds);
+    if (@conds) {
+        $addtl_cond = "AND " . join (' AND ',@conds);
     }
     my $condition = sprintf("parent_content_id=%s and (author_weight > 0 or author_weight is NULL) $addtl_cond", $self->primary_key);
     my $links = TUSK::Core::LinkContentKeyword->lookup($condition);
@@ -968,47 +969,47 @@ sub content_history {
 
     # Check the cache
     unless ($self->{-content_history}) {
-	# Make up the search
-	my @conds = (sprintf("content_id=%s", $self->primary_key),
-		     "ORDER BY modified DESC");
-	# Perform the search
-	my @history = HSDB4::SQLRow::ContentHistory->lookup_conditions(@conds);
-	# Store it in the cache
-	$self->{-content_history} = \@history;
+        # Make up the search
+        my @conds = (sprintf("content_id=%s", $self->primary_key),
+                     "ORDER BY modified DESC");
+        # Perform the search
+        my @history = HSDB4::SQLRow::ContentHistory->lookup_conditions(@conds);
+        # Store it in the cache
+        $self->{-content_history} = \@history;
     }
     return ( @{$self->{-content_history}} );
 }
 
 sub get_image_location {
-	my $self = shift;
-	my $temp;
+        my $self = shift;
+        my $temp;
 
-	if ( $self->reuse_content_id ) {
-		$temp = join "/", (split '', sprintf "%03d", $self->reuse_content_id)[0..2], $self->reuse_content_id;
-	} else {
-		$temp = join "/", (split '', sprintf "%03d", $self->primary_key)[0..2], $self->primary_key;
-	}
-	
-	return $temp;
+        if ( $self->reuse_content_id ) {
+                $temp = join "/", (split '', sprintf "%03d", $self->reuse_content_id)[0..2], $self->reuse_content_id;
+        } else {
+                $temp = join "/", (split '', sprintf "%03d", $self->primary_key)[0..2], $self->primary_key;
+        }
+
+        return $temp;
 }
 
 sub image_available {
     my $self    = shift;
     my $size    = shift || 'large';
-	my $overlay = shift || 0;
-    
-	my $full_path;
-	my $location = $self->get_image_location();
-	
-	if ( $overlay ) {
-		$full_path = $TUSK::UploadContent::path{'slide'} . '/overlay/' . $HSDB4::Constants::URLs{$size} . '/' . $location;
-	} else {
-		$full_path = $TUSK::UploadContent::path{'slide'} . '/' . $HSDB4::Constants::URLs{$size} . '/' . $location;
-	}
+        my $overlay = shift || 0;
 
-	return 'jpg' if ( -e $full_path . '.jpg' );
-	return 'gif' if ( -e $full_path . '.gif' );
-	return 'png' if ( -e $full_path . '.png' );
+        my $full_path;
+        my $location = $self->get_image_location();
+
+        if ( $overlay ) {
+                $full_path = $TUSK::UploadContent::path{'slide'} . '/overlay/' . $HSDB4::Constants::URLs{$size} . '/' . $location;
+        } else {
+                $full_path = $TUSK::UploadContent::path{'slide'} . '/' . $HSDB4::Constants::URLs{$size} . '/' . $location;
+        }
+
+        return 'jpg' if ( -e $full_path . '.jpg' );
+        return 'gif' if ( -e $full_path . '.gif' );
+        return 'png' if ( -e $full_path . '.png' );
 }
 
 sub small_data_preferred {
@@ -1021,7 +1022,7 @@ sub small_data_preferred {
 }
 
 sub body {
-    # 
+    #
     # Get the HSDB4::XML::Content user_body object and let us manipulate it
     #
 
@@ -1029,37 +1030,37 @@ sub body {
 
     my $body = HSDB4::XML::Content->new('content_body');
     my $val = $self->field_value('body');
-    if ($val) { 
+    if ($val) {
         $val =~ s/([\200-\377])/sprintf("&#%03d;", ord($1))/eg;
-        eval { 
-		$body->parse($val);
+        eval {
+                $body->parse($val);
         };
-        if ($@) { 
-		$self->error($@); 
-	 	return 0 ; 
-	}
+        if ($@) {
+                $self->error($@);
+                return 0 ;
+        }
     }
     return $body;
 }
 
 sub tag_values {
-	my $self = shift;
-	my $tag = shift;
-	my $body;
-	eval {
-		$body = $self->body;
-	};
-	if ($@){
-		$self->error($@);
-		return 0;
-	}
-	if ($self->error()){
-		return 0;
-	}
-	if (my $tag_value = $body->tag_values($tag)){
-		return $tag_value;
-	}
-	return 0;
+        my $self = shift;
+        my $tag = shift;
+        my $body;
+        eval {
+                $body = $self->body;
+        };
+        if ($@) {
+                $self->error($@);
+                return 0;
+        }
+        if ($self->error()) {
+                return 0;
+        }
+        if (my $tag_value = $body->tag_values($tag)) {
+                return $tag_value;
+        }
+        return 0;
 }
 
 sub twig_body {
@@ -1080,16 +1081,16 @@ sub build_body {
     my $body = $content->body;
 
     my @bodylist = ();
-    	push @bodylist, ('content_body:0:slide_info:0:stain' => $stain)
-		if ($stain);
-    	push @bodylist, ('content_body:0:slide_info:1:image_type' => $type) 
-		if ($type);
-    	push @bodylist, ('content_body:2:contributor' => $contributor)
-        	if ($contributor);
-    	push @bodylist, ('content_body:3:html' => $text)
-		if ($text);
-    	$body->in_fdat_hash (@bodylist);
-    	return $body->out_xml;
+        push @bodylist, ('content_body:0:slide_info:0:stain' => $stain)
+                if ($stain);
+        push @bodylist, ('content_body:0:slide_info:1:image_type' => $type)
+                if ($type);
+        push @bodylist, ('content_body:2:contributor' => $contributor)
+                if ($contributor);
+        push @bodylist, ('content_body:3:html' => $text)
+                if ($text);
+        $body->in_fdat_hash (@bodylist);
+        return $body->out_xml;
 }
 
 sub build_system {
@@ -1102,7 +1103,7 @@ sub build_keyword {
     my $self = shift;
     my $keywords = shift;
     my $separator = shift;
-    $separator = "[\cA-\cZ]{2}" if (!$separator);      
+    $separator = "[\cA-\cZ]{2}" if (!$separator);
     $keywords =~ s/$separator/,/g;
     return $keywords;
 }
@@ -1174,21 +1175,21 @@ sub lookup_doc_path {
     return shift @path;
 }
 
-my %linkdefs = ( 
-		 Q => 'TUSK::Search::LinkSearchQueryContent',
-		 C => 'link_course_content',
-		 P => 'link_personal_content_content',
-		 M => 'link_class_meeting_content',
-		 O => 'link_objective_content',
-	       );
+my %linkdefs = (
+                 Q => 'TUSK::Search::LinkSearchQueryContent',
+                 C => 'link_course_content',
+                 P => 'link_personal_content_content',
+                 M => 'link_class_meeting_content',
+                 O => 'link_objective_content',
+               );
 
-my %classes =  ( 
-		 Q => 'TUSK::Search::SearchQuery',
-		 C => 'HSDB45::Course',
-		 P => 'HSDB4::SQLRow::PersonalContent',
-		 M => 'HSDB45::ClassMeeting',
-		 O => 'HSDB4::SQLRow::Objective',
-	       );
+my %classes =  (
+                 Q => 'TUSK::Search::SearchQuery',
+                 C => 'HSDB45::Course',
+                 P => 'HSDB4::SQLRow::PersonalContent',
+                 M => 'HSDB45::ClassMeeting',
+                 O => 'HSDB4::SQLRow::Objective',
+               );
 my $class_re = "[QCPMO]";
 
 
@@ -1204,98 +1205,98 @@ sub get_bread_crumb_from_path {
     # If we've already figured it out...
 #    return $self->aux_info('-breadCrumb') if $self->aux_info('-breadCrumb');
 
-	if(${$theCrumbsRef}[0] =~ /^[a-zA-Z]*$/) {
-		my $school = shift @{$theCrumbsRef};
-		my $character = HSDB4::Constants::code_by_school($school);
-		${$theCrumbsRef}[0] = $character . ${$theCrumbsRef}[0] . 'C';
-	}
-	my $trail = '/view/content/';
-	foreach my $item (@{$theCrumbsRef}) {
-		my $lastChar = substr($item, -1, 1);
-		my $re = sprintf("(%s?)(\\d+)(%s?)\$", school_code_regexp(), $class_re);
-		my ($school_id, $parent_id, $class_id) = $item =~ m!$re!io;
+        if(${$theCrumbsRef}[0] =~ /^[a-zA-Z]*$/) {
+                my $school = shift @{$theCrumbsRef};
+                my $character = HSDB4::Constants::code_by_school($school);
+                ${$theCrumbsRef}[0] = $character . ${$theCrumbsRef}[0] . 'C';
+        }
+        my $trail = '/view/content/';
+        foreach my $item (@{$theCrumbsRef}) {
+                my $lastChar = substr($item, -1, 1);
+                my $re = sprintf("(%s?)(\\d+)(%s?)\$", school_code_regexp(), $class_re);
+                my ($school_id, $parent_id, $class_id) = $item =~ m!$re!io;
 
-		$class_id = uc $class_id;
+                $class_id = uc $class_id;
 
-		if (not $parent_id) {warn "Couldn't sort out the item: '$item'";}
-		else {
-	  		if ($class_id eq 'Q'){
-	      		push(@crumbArray, { href => '/tusk/search/form/' . $parent_id . '?Search=1', label => 'Query'});
-	      		push(@crumbArray, { href =>  '/view/content/' . $parent_id . 'Q/' . $self->primary_key(), label => $self->title()});
-	      		return (\@crumbArray);
-	  		}
+                if (not $parent_id) {warn "Couldn't sort out the item: '$item'";}
+                else {
+                        if ($class_id eq 'Q') {
+                        push(@crumbArray, { href => '/tusk/search/form/' . $parent_id . '?Search=1', label => 'Query'});
+                        push(@crumbArray, { href =>  '/view/content/' . $parent_id . 'Q/' . $self->primary_key(), label => $self->title()});
+                        return (\@crumbArray);
+                        }
 
-        	my $parent_class = $classes{$class_id} || 'HSDB4::SQLRow::Content';
+                my $parent_class = $classes{$class_id} || 'HSDB4::SQLRow::Content';
 
-        	# Get the parent itself
-        	my $item;
+                # Get the parent itself
+                my $item;
 
-        	if ($parent_class->split_by_school()) {
-	  			$item = $parent_class->new( _school => school_codes($school_id), _id => $parent_id );
-	  			my $db = $item->school_db();
-        	}
-        	else {$item = $parent_class->new ()->lookup_key ($parent_id);}
+                if ($parent_class->split_by_school()) {
+                                $item = $parent_class->new( _school => school_codes($school_id), _id => $parent_id );
+                                my $db = $item->school_db();
+                }
+                else {$item = $parent_class->new ()->lookup_key ($parent_id);}
 
-        	# Fail unless we found an object
-        	unless ($item->primary_key) {warn "Looked up $parent_class ID $parent_id but failed";}
-        	else {
-	  			my $url = '';
- 	  			my $text = '';
+                # Fail unless we found an object
+                unless ($item->primary_key) {warn "Looked up $parent_class ID $parent_id but failed";}
+                else {
+                                my $url = '';
+                                my $text = '';
 
-          		if(exists($linkdefs{$lastChar})) {
-	    			if($lastChar eq 'C')    {$url = $HSDB4::Constants::URLs{$classes{$lastChar}} . "/" .$item->school() . "/" . $item->primary_key; $text = $item->title();}
-	    			elsif($lastChar eq 'P') {$url = ''; $text = 'Personal Content';}
-	    			elsif($lastChar eq 'M') {
-						$url = '/view/course/' . $item->school() . '/' . $item->course_id; $text = HSDB45::Course->new(_school=>$item->school())->lookup_key($item->course_id)->title;
-						push @crumbArray, { href => $url, label => $text };
-						
-						$url = '/view/course/' . $item->school() . '/' . $item->course_id . '/schedule/' . $item->primary_key; $text = $item->title();
-					}
-	    			elsif($lastChar eq 'O') {$url = ''; $text = 'Objective';}
-          		} else {
-            		if($item->out_url() =~ /view\/content/) {$url = $trail . $item->primary_key();}
-            		else                                  {$url = $item->out_url();}
-            		$text = $item->out_label();
-          		}
-	  			if($url && $text) {  push @crumbArray, { href => $url, label => $text };  }
-        	}
-      	}
-      	$trail .= "$item/";
+                        if(exists($linkdefs{$lastChar})) {
+                                if($lastChar eq 'C')    {$url = $HSDB4::Constants::URLs{$classes{$lastChar}} . "/" .$item->school() . "/" . $item->primary_key; $text = $item->title();}
+                                elsif($lastChar eq 'P') {$url = ''; $text = 'Personal Content';}
+                                elsif($lastChar eq 'M') {
+                                                $url = '/view/course/' . $item->school() . '/' . $item->course_id; $text = HSDB45::Course->new(_school=>$item->school())->lookup_key($item->course_id)->title;
+                                                push @crumbArray, { href => $url, label => $text };
+
+                                                $url = '/view/course/' . $item->school() . '/' . $item->course_id . '/schedule/' . $item->primary_key; $text = $item->title();
+                                        }
+                                elsif($lastChar eq 'O') {$url = ''; $text = 'Objective';}
+                        } else {
+                        if($item->out_url() =~ /view\/content/) {$url = $trail . $item->primary_key();}
+                        else                                  {$url = $item->out_url();}
+                        $text = $item->out_label();
+                        }
+                                if($url && $text) {  push @crumbArray, { href => $url, label => $text };  }
+                }
+        }
+        $trail .= "$item/";
     }
-	# Save it in aux_info
-	$self->set_aux_info('-breadCrumb', @crumbArray);
-	return \@crumbArray;
+        # Save it in aux_info
+        $self->set_aux_info('-breadCrumb', @crumbArray);
+        return \@crumbArray;
 }
 
 sub get_bread_crumb_ids {
-    # 
+    #
     # tries to reverse engineer list of breadcrumb content ids for a given piece of content
-    # 
-	my $self = shift;
-	my @path_ids;
-	my $counter = 0;			## this is to bail out of a possible infinite loop
+    #
+        my $self = shift;
+        my @path_ids;
+        my $counter = 0;                        ## this is to bail out of a possible infinite loop
 
-	if ($self->course()->primary_key() && $self->parent_content()) {
-		my @content_parents = $self->parent_content();
-		my $parent_course_id = $self->course()->primary_key();
-		my $new_parent;
-		do {
-			$new_parent = undef;
-			foreach my $parent_content (@content_parents) {
-				my $counted_already = grep {$_ eq $parent_content->primary_key()} @path_ids;
-				if (!$counted_already && ($parent_content->course()->primary_key() eq $parent_course_id)) {
-					$new_parent = $parent_content;
-					last;
-				}
-			}
-			if ($new_parent) {
-				unshift @path_ids, $new_parent->primary_key();
-				@content_parents = $new_parent->parent_content();		
-			}
-			$counter += 1;
-		} while ($new_parent && $new_parent->parent_content() && $counter < 100);
-	}
-	return \@path_ids;
+        if ($self->course()->primary_key() && $self->parent_content()) {
+                my @content_parents = $self->parent_content();
+                my $parent_course_id = $self->course()->primary_key();
+                my $new_parent;
+                do {
+                        $new_parent = undef;
+                        foreach my $parent_content (@content_parents) {
+                                my $counted_already = grep {$_ eq $parent_content->primary_key()} @path_ids;
+                                if (!$counted_already && ($parent_content->course()->primary_key() eq $parent_course_id)) {
+                                        $new_parent = $parent_content;
+                                        last;
+                                }
+                        }
+                        if ($new_parent) {
+                                unshift @path_ids, $new_parent->primary_key();
+                                @content_parents = $new_parent->parent_content();
+                        }
+                        $counter += 1;
+                } while ($new_parent && $new_parent->parent_content() && $counter < 100);
+        }
+        return \@path_ids;
 }
 
 
@@ -1313,13 +1314,13 @@ sub context_parent {
     my $path = $self->aux_info('uri_path');
     if (not $path) { return undef; }
     # What's the ID and class of the parent?
-    my $re = sprintf("(%s?)(\\d+)(%s?)\$", 
-		   school_code_regexp(), $class_re);
+    my $re = sprintf("(%s?)(\\d+)(%s?)\$",
+                   school_code_regexp(), $class_re);
 
     my ($school_id, $parent_id, $class_id) = $path =~ m!$re!io;
     if (not $parent_id) {
-	warn "Couldn't sort out the path: '$path'";
-	return undef;
+        warn "Couldn't sort out the path: '$path'";
+        return undef;
     }
 
     $class_id = uc $class_id;
@@ -1330,70 +1331,70 @@ sub context_parent {
     my $parent;
 
     # for new query object
-    if ($parent_class eq 'TUSK::Search::SearchQuery'){
-	$parent = $parent_class->new()->lookupKey($parent_id);
-	my $link_objs = TUSK::Search::LinkSearchQueryContent->new()->lookup("parent_search_query_id = '" . $parent_id . "'", ['computed_score desc']);
+    if ($parent_class eq 'TUSK::Search::SearchQuery') {
+        $parent = $parent_class->new()->lookupKey($parent_id);
+        my $link_objs = TUSK::Search::LinkSearchQueryContent->new()->lookup("parent_search_query_id = '" . $parent_id . "'", ['computed_score desc']);
 
-	for (my $i = 0; $i <= scalar(@$link_objs); $i++){
-	    if ($link_objs->[$i] && $link_objs->[$i]->getChildContentID() == $self->primary_key()){
-		if ($i > 0){
-		    my $prev =  HSDB4::SQLRow::Content->new()->lookup_key($link_objs->[$i-1]->getChildContentID());
-		    $prev->set_aux_info('uri_path', $parent_id . 'Q');
-		    $self->set_aux_info('-prev' => $prev);
-		}
+        for (my $i = 0; $i <= scalar(@$link_objs); $i++) {
+            if ($link_objs->[$i] && $link_objs->[$i]->getChildContentID() == $self->primary_key()) {
+                if ($i > 0) {
+                    my $prev =  HSDB4::SQLRow::Content->new()->lookup_key($link_objs->[$i-1]->getChildContentID());
+                    $prev->set_aux_info('uri_path', $parent_id . 'Q');
+                    $self->set_aux_info('-prev' => $prev);
+                }
 
-		if ($i < scalar(@$link_objs) - 1 ){
-		    my $next =  HSDB4::SQLRow::Content->new()->lookup_key($link_objs->[$i+1]->getChildContentID());
-		    $next->set_aux_info('uri_path', $parent_id . 'Q');
-		    $self->set_aux_info('-next' => $next);
-		}
+                if ($i < scalar(@$link_objs) - 1 ) {
+                    my $next =  HSDB4::SQLRow::Content->new()->lookup_key($link_objs->[$i+1]->getChildContentID());
+                    $next->set_aux_info('uri_path', $parent_id . 'Q');
+                    $self->set_aux_info('-next' => $next);
+                }
 
-		last;
-	    }
+                last;
+            }
 
-	    $self->aux_info('-breadCrumb' => ({ href => '/tusk/search/form/' . $parent_id . '?Search=1', label => 'Query'}))
-	}
+            $self->aux_info('-breadCrumb' => ({ href => '/tusk/search/form/' . $parent_id . '?Search=1', label => 'Query'}))
+        }
     }else{
 
-	# Get the parent itself
-	if ($parent_class->split_by_school()) {
-	    $parent = $parent_class->new( _school => school_codes($school_id),
-					  _id => $parent_id );
-	    my $db = $parent->school_db();
-	    $linkdef = "$db\.$linkdef";
-	}
-	else {
-	    $parent = $parent_class->new ()->lookup_key ($parent_id);
-	}
-	
-	# Fail unless we found an object
-	unless ($parent->primary_key) {
-	    warn "Looked up $parent_class ID $parent_id but failed";
-	    return undef;
-	}
-	# Set the parent's path, if we can
-	$re = sprintf("%s?\\d+%s?\$", 
-		      school_code_regexp(), $class_re);
-	my ($parent_path) = $path =~ m!^(.+)/$re!io;
+        # Get the parent itself
+        if ($parent_class->split_by_school()) {
+            $parent = $parent_class->new( _school => school_codes($school_id),
+                                          _id => $parent_id );
+            my $db = $parent->school_db();
+            $linkdef = "$db\.$linkdef";
+        }
+        else {
+            $parent = $parent_class->new ()->lookup_key ($parent_id);
+        }
 
-	$parent->set_aux_info ('uri_path', $parent_path) if $parent_path;
-	# Save it in aux_info
-	$self->set_aux_info('-parent', $parent);
-	
-	# Get the link definition, and its children
-	my $ld = $HSDB4::SQLLinkDefinition::LinkDefs{$linkdef};
-	my $set = $ld->get_children($parent->primary_key);
-	# Now, get the next object
-	my $next = $set->get_next_child ($self);
-	$next->set_aux_info ('uri_path', $path) if $next;
-	# And get the prev object
-	my $prev = $set->get_prev_child ($self);
-	$prev->set_aux_info ('uri_path', $path) if $prev;
-	
-	# Save the next and prev
-	$self->set_aux_info ('-next', $next, '-prev', $prev);
+        # Fail unless we found an object
+        unless ($parent->primary_key) {
+            warn "Looked up $parent_class ID $parent_id but failed";
+            return undef;
+        }
+        # Set the parent's path, if we can
+        $re = sprintf("%s?\\d+%s?\$",
+                      school_code_regexp(), $class_re);
+        my ($parent_path) = $path =~ m!^(.+)/$re!io;
+
+        $parent->set_aux_info ('uri_path', $parent_path) if $parent_path;
+        # Save it in aux_info
+        $self->set_aux_info('-parent', $parent);
+
+        # Get the link definition, and its children
+        my $ld = $HSDB4::SQLLinkDefinition::LinkDefs{$linkdef};
+        my $set = $ld->get_children($parent->primary_key);
+        # Now, get the next object
+        my $next = $set->get_next_child ($self);
+        $next->set_aux_info ('uri_path', $path) if $next;
+        # And get the prev object
+        my $prev = $set->get_prev_child ($self);
+        $prev->set_aux_info ('uri_path', $path) if $prev;
+
+        # Save the next and prev
+        $self->set_aux_info ('-next', $next, '-prev', $prev);
     }
-    
+
     return $parent;
 }
 
@@ -1404,8 +1405,8 @@ sub context_next {
 
     my $self = shift;
     # Make sure there's a parent, or this has no meaning
-    unless ($self->aux_info('-next')){
-	    my $parent = $self->context_parent or return;
+    unless ($self->aux_info('-next')) {
+            my $parent = $self->context_parent or return;
     }
     return $self->aux_info ('-next');
 }
@@ -1417,18 +1418,18 @@ sub context_prev {
 
     my $self = shift;
     # Make sure there's a parent, or this has no meaning
-    unless ($self->aux_info('-prev')){
-	    my $parent = $self->context_parent or return;
+    unless ($self->aux_info('-prev')) {
+            my $parent = $self->context_parent or return;
     }
     return $self->aux_info ('-prev');
 }
 
 sub is_user_authorized {
-    # 
+    #
     # Decide whether a named user is authorized to look at this item from
     # the database.
     #
-    
+
     my ($self, $user_id) = @_;
     my $authz = HSDB45::Authorization->new();
     return $authz->can_user_view_content($user_id,$self);
@@ -1444,8 +1445,8 @@ sub is_user_author {
     return unless $user;
     # For each author
     foreach ($self->child_users) {
-	# Return affirmative if this author's ID matches
-	return 1 if $_->primary_key eq $user;
+        # Return affirmative if this author's ID matches
+        return 1 if $_->primary_key eq $user;
     }
     # Return 0 if none of them matched
     return 0;
@@ -1475,20 +1476,20 @@ sub can_user_edit {
     my $user = shift;
     # first check the user's role in this content
     my $role = $self->user_primary_role($user->primary_key);
-    
+
     ## allow if user is associated with content
     return 1 if ($role eq 'Editor' || $role eq 'Author');
 
     ## allow if school admin
     if ($self->field_value('school')) {
-	return 1 if $user->check_school_permissions($self->school());
+        return 1 if $user->check_school_permissions($self->school());
     }
-	
+
     ## allow if user has role in course that allows editing of other people's content
     if (my $user_role = $self->course()->user_primary_role($user->primary_key())) {
-	foreach (@CONTENT_EDIT_ROLES) {
-	    return 1 if ($user_role->getRoleToken() eq lc $_);
-	}
+        foreach (@CONTENT_EDIT_ROLES) {
+            return 1 if ($user_role->getRoleToken() eq lc $_);
+        }
     }
 }
 
@@ -1506,7 +1507,7 @@ sub contains_slides {
     my $self = shift;
     my @content = $self->child_content;
     foreach (@content) {
-	return 1 if ($_->field_value('type') =~ /Slide/)
+        return 1 if ($_->field_value('type') =~ /Slide/)
     }
     return 0;
 }
@@ -1517,29 +1518,29 @@ sub add_child_user {
 
     # backward compatibility? sort_order didn't used to be available with
     # this function...
-    if ($so !~ /^\d+$/){
-    	push (@roles, $so);
-		$so = undef;
+    if ($so !~ /^\d+$/) {
+        push (@roles, $so);
+                $so = undef;
     }
 
     ## look up to see if user is already linked, then need to get, delete, and reinsert
     if ($self->child_user_roles($username)) {
-	push (@roles,$self->child_user_roles($username));
-	$self->user_link()->delete(-user => $u, 
-				   -password => $p,
-				   -child_id => $username,
-				   -parent_id => $self->primary_key);
+        push (@roles,$self->child_user_roles($username));
+        $self->user_link()->delete(-user => $u,
+                                   -password => $p,
+                                   -child_id => $username,
+                                   -parent_id => $self->primary_key);
     }
     my @so = ();
-    if (defined($so)){
-    	@so = (sort_order => $so);
+    if (defined($so)) {
+        @so = (sort_order => $so);
     }
 
     my ($r, $msg) = $self->user_link()->insert (-user => $u, -password => $p,
-						-child_id => $username,
-						-parent_id => $self->primary_key,
-						@so,
-						roles => join (',', @roles));
+                                                -child_id => $username,
+                                                -parent_id => $self->primary_key,
+                                                @so,
+                                                roles => join (',', @roles));
     return ($r, $msg);
 }
 
@@ -1565,17 +1566,17 @@ sub add_child_non_user {
     my ($u, $p, $nonusername, @roles) = @_;
     ## look up to see if user is already linked, then need to get, delete, and reinsert
     if ($self->child_non_user_roles($nonusername)) {
-	push (@roles,$self->child_non_user_roles($nonusername));
-	$self->non_user_link()->delete(-user => $u, 
-				   -password => $p,
-				   -child_id => $nonusername,
-				   -parent_id => $self->primary_key);
+        push (@roles,$self->child_non_user_roles($nonusername));
+        $self->non_user_link()->delete(-user => $u,
+                                   -password => $p,
+                                   -child_id => $nonusername,
+                                   -parent_id => $self->primary_key);
     }
 
     my ($r, $msg) = $self->non_user_link()->insert (-user => $u, -password => $p,
-						-child_id => $nonusername,
-						-parent_id => $self->primary_key,
-						roles => join (',', @roles));
+                                                -child_id => $nonusername,
+                                                -parent_id => $self->primary_key,
+                                                roles => join (',', @roles));
     return ($r, $msg);
 }
 
@@ -1604,7 +1605,7 @@ sub make_annotation {
     # Get the user_id, even if it's an object we've got
     my $user_id = shift;
     if (ref($user_id) && $user_id->isa('HSDB4::SQLRow::User')) {
-	$user_id = $user_id->primary_key;
+        $user_id = $user_id->primary_key;
     }
     # Get the note itself
     my $note = shift;
@@ -1612,28 +1613,28 @@ sub make_annotation {
     # Check for old notes
     my @old_notes = $self->child_personal_content ($user_id);
     if (@old_notes) {
-	# If there are old notes, put our notes into the body of them
-	# and save them
-	$old_notes[0]->field_value('body', $note);
-	return $old_notes[0]->save;
+        # If there are old notes, put our notes into the body of them
+        # and save them
+        $old_notes[0]->field_value('body', $note);
+        return $old_notes[0]->save;
     }
 
     # If we're making a new note...
     my $new_note = HSDB4::SQLRow::PersonalContent->new;
     $new_note->set_field_values ('user_id' => $user_id,
-				 'type' => 'Annotation',
-				 'content_id' => $self->primary_key,
-				 'body' => $note);
+                                 'type' => 'Annotation',
+                                 'content_id' => $self->primary_key,
+                                 'body' => $note);
     $new_note->save;
 
     # Now actually make the link
     my $linkname = 'link_content_personal_content';
     my $linkdef = $HSDB4::SQLLinkDefinition::LinkDefs{$linkname};
     $linkdef->insert (-parent_id => $self->primary_key,
-		      -child_id => $new_note->primary_key,
-		      -sort_order => 10,
-		      -no_parent_update,
-		     );
+                      -child_id => $new_note->primary_key,
+                      -sort_order => 10,
+                      -no_parent_update,
+                     );
 }
 #
 # >>>>>  Output Methods  <<<<<
@@ -1645,10 +1646,10 @@ sub display_framed {
     #
 
     my $self = shift;
-	
-	if($self->field_value('style') eq 'minimal'){
-		return 1;
-	}
+
+        if($self->field_value('style') eq 'minimal') {
+                return 1;
+        }
     return;
 }
 
@@ -1679,27 +1680,27 @@ sub out_meta_data {
 
     my $self = shift;
     my @meta = ();
-    
+
     push @meta, sprintf ("<meta NAME=\"ID\" CONTENT=\"%s\">",
-			 $self->primary_key);
+                         $self->primary_key);
     push @meta, sprintf ("<meta NAME=\"title\" CONTENT=\"%s\">",
-			 $self->out_label);
-    my $authors = join ('; ', map { $_->field_value('lastname') } 
-			$self->child_users);
+                         $self->out_label);
+    my $authors = join ('; ', map { $_->field_value('lastname') }
+                        $self->child_users);
     push @meta, "<meta NAME=\"author\" CONTENT=\"$authors\">" if $authors;
     push @meta, "<meta NAME=\"authors\" CONTENT=\"$authors\">" if $authors;
     my $keywords = join ('; ', map { $_->getKeyword() }
-			 $self->keywords);
+                         $self->keywords);
     push @meta, "<meta NAME=\"keyword\" CONTENT=\"$keywords\">" if $keywords;
     push @meta, "<meta NAME=\"keywords\" CONTENT=\"$keywords\">" if $keywords;
     push @meta, sprintf ("<meta NAME=\"course\" CONTENT=\"%s\">",
-			 $self->course->out_label);
+                         $self->course->out_label);
     push @meta, sprintf ("<meta NAME=\"type\" CONTENT=\"%s\">",
-			 $self->field_value('type'));
+                         $self->field_value('type'));
     push @meta, sprintf ("<meta NAME=\"school\" CONTENT=\"%s\">",
-			 $self->course->school);
+                         $self->course->school);
     push @meta, sprintf ("<meta NAME=\"system\" CONTENT=\"%s\">",
-			 $self->field_value('system'));
+                         $self->field_value('system'));
     return join ("\n", @meta);
 }
 
@@ -1718,38 +1719,38 @@ sub out_html_forindex {
 }
 
 sub out_index_body {
-	my $self = shift;
-	my $index_string = shift;
+        my $self = shift;
+        my $index_string = shift;
 
-	unless ($index_string){
-	    $index_string = $self->out_html_body();
-	}
+        unless ($index_string) {
+            $index_string = $self->out_html_body();
+        }
 
-	my @parents = $self->other_parents();
-    
-	foreach my $parent (@parents){
-	    $index_string .= "\n" . $parent->title();
-	}
+        my @parents = $self->other_parents();
 
-	my @tags = ('h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'b', 'i', 'u', 'span:nugget', 'span:topic-sentence', 'span:keyword', 'span:summary', 'th');
-	
-	foreach my $tag (@tags){
-	    my ($tag, $class) = split ':', $tag;
+        foreach my $parent (@parents) {
+            $index_string .= "\n" . $parent->title();
+        }
 
-	    if ($class){
-		$index_string =~ s!<\Q$tag\E class="\Q$class\E"[^>]*?>(.*?)</\Q$tag\E>!" $1"  x 10!smgei;
-	    }
-	    else{
-		$index_string =~ s!<\Q$tag\E[^>]*?>(.*?)</\Q$tag\E>!" $1"  x 10!smgei;
-	    }
-	}
+        my @tags = ('h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'b', 'i', 'u', 'span:nugget', 'span:topic-sentence', 'span:keyword', 'span:summary', 'th');
 
-	return $index_string;
+        foreach my $tag (@tags) {
+            my ($tag, $class) = split ':', $tag;
+
+            if ($class) {
+                $index_string =~ s!<\Q$tag\E class="\Q$class\E"[^>]*?>(.*?)</\Q$tag\E>!" $1"  x 10!smgei;
+            } else {
+                $index_string =~ s!<\Q$tag\E[^>]*?>(.*?)</\Q$tag\E>!" $1"  x 10!smgei;
+            }
+        }
+
+        return $index_string;
 }
 
-sub out_file_path{
-	return undef;
+sub out_file_path {
+        return undef;
 }
+
 sub out_log_item {
     #
     # Return an item for logging
@@ -1768,10 +1769,10 @@ sub out_html_div {
 
     my $self = shift;
     return join ("\n",
-		 "<DIV>",
-		 sprintf ("<H2>%s</H2>", $self->out_label),
-		 $self->out_html_body,
-		 "</DIV>");
+                 "<DIV>",
+                 sprintf ("<H2>%s</H2>", $self->out_label),
+                 $self->out_html_body,
+                 "</DIV>");
 }
 
 sub out_xml{
@@ -1827,14 +1828,14 @@ sub out_html_thumbnail_choose {
 }
 
 
-## new version accepts optional arguments to control the link displayed. 
-## Specifically, you can now pass out_html_row an associative array with the 
+## new version accepts optional arguments to control the link displayed.
+## Specifically, you can now pass out_html_row an associative array with the
 ## following options:
-##	cms => 1               links to the content management site, instead
-##	                       of to the content
+##      cms => 1               links to the content management site, instead
+##                             of to the content
 ##      content-link => path   define a different path for content links to go to
 sub out_html_row {
-    # 
+    #
     # A four-column HTML row
     #
 
@@ -1846,16 +1847,16 @@ sub out_html_row {
     push(@users,@non_users);
     @users = grep { $_->aux_info("roles") =~ /Author/ } @users;
     my $col2;
-    if ($params{'cms'}){
-    	$col2 = sprintf ('<a href="/cms/content/display/%d">edit %s</a>', $self->primary_key, $self->out_label);
-    } elsif (exists($params{'content-link'})){
-    	$col2 = sprintf ('<a href="%s/%d">%s</a>', $params{'content-link'}, $self->primary_key, $self->out_label);
+    if ($params{'cms'}) {
+        $col2 = sprintf ('<a href="/cms/content/display/%d">edit %s</a>', $self->primary_key, $self->out_label);
+    } elsif (exists($params{'content-link'})) {
+        $col2 = sprintf ('<a href="%s/%d">%s</a>', $params{'content-link'}, $self->primary_key, $self->out_label);
     } else {
         $col2 = $self->out_html_label;
     }
     my $authors = join (', ', map { $_->out_abbrev } @users);
     my $r;
-    if ($params{'sort_order'}){
+    if ($params{'sort_order'}) {
         $r =sprintf("<TR><TD>%s</TD><TD>%s</TD><TD><B>%s</B></TD><TD>%s</TD><TD>%s</TD></TR>\n",
             $self->aux_info('sort_order') || '&nbsp;',
             $self->out_html_thumbnail, $col2, $authors);
@@ -1867,7 +1868,7 @@ sub out_html_row {
 }
 
 sub out_html_row_edit {
-    # 
+    #
     # A six-column HTML row with prompts for editing
     #
 
@@ -1877,19 +1878,19 @@ sub out_html_row_edit {
     push(@users,@non_users);
     my $authors = join (', ', map { $_->out_abbrev } @users);
     sprintf("<TR><TD>%s</TD><TD><INPUT TYPE=\"checkbox\" name=\"unlink_content\" value=\"%s\"></TD><TD><B>%s</B></TD><TD><input type=\"text\" size=\"6\" maxlength=\"6\" name=\"%s\" value=\"%s\"></TD><TD>%s</TD></TR>\n",
-	    $self->out_html_thumbnail, $self->primary_key, $self->out_html_label,
-	    $self->primary_key, $self->aux_info('sort_order'), $authors);
+            $self->out_html_thumbnail, $self->primary_key, $self->out_html_label,
+            $self->primary_key, $self->aux_info('sort_order'), $authors);
 }
 
 sub out_html_row_choose {
-    # 
+    #
     # A two column HTML row
     #
 
     my $self = shift;
     sprintf("<TR>\n<TD>%s</TD>\n<TD COLSPAN=2><P>%s</P></TD>\n</TR>\n",
-	    $self->out_html_thumbnail_choose, $self->out_html_label_nolink
-	    );
+            $self->out_html_thumbnail_choose, $self->out_html_label_nolink
+            );
 }
 
 sub out_html_authors {
@@ -1902,8 +1903,8 @@ sub out_html_authors {
 
     my @users = ($show_authors_flag) ? $self->child_authors : $self->child_users;
     if ($self->type() eq 'External') {
-		return $users[0];
-	}
+                return $users[0];
+        }
     return join (', ', map { $_->out_html_abbrev } @users);
 }
 
@@ -1914,12 +1915,12 @@ sub out_html_table_authors {
 
     my $self = shift;
     my @users = $self->child_users;
-    return join ("\n", 
-		 "<TABLE BORDER=0>",
-		 "<TR><TD COLSPAN=4><B>Authors</B></TD></TR>",
-		 map { $_->out_html_row } @users,
-		 "</TABLE>\n"
-		 ) if @users;
+    return join ("\n",
+                 "<TABLE BORDER=0>",
+                 "<TR><TD COLSPAN=4><B>Authors</B></TD></TR>",
+                 map { $_->out_html_row } @users,
+                 "</TABLE>\n"
+                 ) if @users;
     return '';
 }
 
@@ -1930,12 +1931,12 @@ sub out_html_table_child_content {
 
     my $self = shift;
     my @content = $self->child_users;
-    return join ("\n", 
-		 "<TABLE BORDER=0>",
-		 "<TR><TD COLSPAN=4><B>Linked Content</B></TD></TR>",
-		 map { $_->out_html_row } @content,
-		 "</TABLE>\n"
-		 ) if @content;
+    return join ("\n",
+                 "<TABLE BORDER=0>",
+                 "<TR><TD COLSPAN=4><B>Linked Content</B></TD></TR>",
+                 map { $_->out_html_row } @content,
+                 "</TABLE>\n"
+                 ) if @content;
     return '';
 }
 
@@ -1972,51 +1973,51 @@ sub out_html_body {
 
     my $cs = $self->field_value('conversion_status');
     if (defined $cs && $cs eq "2") {
-	return unless ($self->field_value('hscml_body'));
-	my $hscml = HSDB4::XML::HSCML->new($self->field_value("hscml_body"));
+        return unless ($self->field_value('hscml_body'));
+        my $hscml = HSDB4::XML::HSCML->new($self->field_value("hscml_body"));
 
-	if ($hscml->error) {
-	    $self->error($hscml->error);
-	    return;
-	}
-	my $body = $hscml->out_html_body($self);
-	if ($hscml->error) {
-	    $self->error($hscml->error);
-	    return;
-	}
-	return $body;
+        if ($hscml->error) {
+            $self->error($hscml->error);
+            return;
+        }
+        my $body = $hscml->out_html_body($self);
+        if ($hscml->error) {
+            $self->error($hscml->error);
+            return;
+        }
+        return $body;
     }
     else {
     # Do a summary, if possible
     if ($self->out_summary) {
-	$outval .= '<H3 class="title">Summary</H3>';
-	$outval .= '<P class="summary">';
-	$outval .= $self->out_summary . '<P>';
+        $outval .= '<H3 class="title">Summary</H3>';
+        $outval .= '<P class="summary">';
+        $outval .= $self->out_summary . '<P>';
     }
 
     # Put in an outline, and do it by sections if we can
     if ($self->out_section_titles) {
-	$outval .= '<H3 class="title">Outline</H3>';
-	my @sec_titles = $self->out_section_titles;
-	my @sections = $self->out_sections;
-	$outval .= '<OL TYPE=I>';
-	foreach my $row (0..$#sec_titles) {
-	    $outval .= '<DIV class="docinfo"><LI><A HREF="#section-' . $row;
-	    $outval .= '">' . $sec_titles[$row] . '</A></DIV>';
-	}
-	$outval .= '</OL>';
+        $outval .= '<H3 class="title">Outline</H3>';
+        my @sec_titles = $self->out_section_titles;
+        my @sections = $self->out_sections;
+        $outval .= '<OL TYPE=I>';
+        foreach my $row (0..$#sec_titles) {
+            $outval .= '<DIV class="docinfo"><LI><A HREF="#section-' . $row;
+            $outval .= '">' . $sec_titles[$row] . '</A></DIV>';
+        }
+        $outval .= '</OL>';
 
-	# Now, actually put out the sections...
-	$outval .= '<OL TYPE=I>';
-	foreach my $row (0..$#sections) {
-	    $outval .= '<H3 CLASS="title"><LI><A NAME="section-' . $row;
-	    $outval .= '">' . $sec_titles[$row] . '</A></H3>';
-	    $outval .= $sections[$row];
-	    $outval .= '<DIV CLASS="auxlinks"><A HREF="#_top">Top</A></DIV>';
-	}
-	$outval .= '</OL>';
+        # Now, actually put out the sections...
+        $outval .= '<OL TYPE=I>';
+        foreach my $row (0..$#sections) {
+            $outval .= '<H3 CLASS="title"><LI><A NAME="section-' . $row;
+            $outval .= '">' . $sec_titles[$row] . '</A></H3>';
+            $outval .= $sections[$row];
+            $outval .= '<DIV CLASS="auxlinks"><A HREF="#_top">Top</A></DIV>';
+        }
+        $outval .= '</OL>';
     }
- 
+
     # Now get the body if it's there as well
 
     my $body = $self->body() or return;
@@ -2027,7 +2028,7 @@ sub out_html_body {
     $html =~ s!^</PRE>!!i;
     $outval .= $html;
     }
-    
+
     # And return the result
     return $outval;
 }
@@ -2042,19 +2043,19 @@ sub out_html_appendix {
 
     # Get the source...
     if (my $src_text = $self->source) {
-	    $outval .= "<div><b>Source:</b> $src_text</div>\n";
+            $outval .= "<div><b>Source:</b> $src_text</div>\n";
     }
 
     # Get the contributor...
     my $body = $self->body();
-	if ($body){
-		my @cont = $body->tag_values('contributor');
-		foreach my $cnt (@cont) {
-			$cnt = $cnt->value;
-			if($cnt){
-				$outval .= "<div><b>Contributor:</b> $cnt</div>\n";
-			}
-		}
+        if ($body) {
+                my @cont = $body->tag_values('contributor');
+                foreach my $cnt (@cont) {
+                        $cnt = $cnt->value;
+                        if($cnt) {
+                                $outval .= "<div><b>Contributor:</b> $cnt</div>\n";
+                        }
+                }
     }
 
     # Put on the copyright info...
@@ -2129,13 +2130,13 @@ sub out_url {
 }
 
 sub out_url_mobi{
-	my $self = shift;
-	
-	my $url = '/mobi/view/content/';
-	my $path = $self->aux_info ('uri_path');
-	$url .= "$path" if $path;
-	# ...and tack on the primary key
-	return sprintf ("$url/%s", $self->primary_key);
+        my $self = shift;
+
+        my $url = '/mobi/view/content/';
+        my $path = $self->aux_info ('uri_path');
+        $url .= "$path" if $path;
+        # ...and tack on the primary key
+        return sprintf ("$url/%s", $self->primary_key);
 }
 
 sub out_html_small_img {
@@ -2145,15 +2146,15 @@ sub out_html_small_img {
     #
 
     my $self = shift;
-	my $ext  = $self->image_available('small');
-	
+        my $ext  = $self->image_available('small');
+
     return '' unless $ext;
 
-	my $location = $self->get_image_location();
+        my $location = $self->get_image_location();
 
-	my $sm_img= Image::Magick->new();
-	my ($width, $height, $size, $format) = $sm_img->Ping( $TUSK::UploadContent::path{'slide'} . '/small/' . $location . '.' . $ext );
-	
+        my $sm_img= Image::Magick->new();
+        my ($width, $height, $size, $format) = $sm_img->Ping( $TUSK::UploadContent::path{'slide'} . '/small/' . $location . '.' . $ext );
+
     return unless $width && $height;
     my $uri = $HSDB4::Constants::URLs{small_data} . "/" . $self->primary_key;
     return "<IMG WIDTH=\"$width\" HEIGHT=\"$height\" SRC=\"$uri\" BORDER=0>";
@@ -2172,12 +2173,12 @@ sub out_html_img {
     $size = 'large' unless $size;
     return '<!-- ' . $size . ' no good ( ' . $self->image_available($size) .  ' ) -->' unless $self->image_available($size);
 
-	my $uri;
-	
-	if ($overlay) { $uri = '/overlay'; }
-	
+        my $uri;
+
+        if ($overlay) { $uri = '/overlay'; }
+
     $uri .= $HSDB4::Constants::URLs{$size} . "/" . $self->primary_key;
-	return "<img class=\"mainImg\" src=\"$uri\">";
+        return "<img class=\"mainImg\" src=\"$uri\">";
 }
 
 sub out_html_thumbnail_img {
@@ -2187,23 +2188,23 @@ sub out_html_thumbnail_img {
     #
 
     my $self = shift;
-	my $ext  = $self->image_available('thumb');
-	
+        my $ext  = $self->image_available('thumb');
+
     return '' unless $ext;
 
-	my $location = $self->get_image_location();
+        my $location = $self->get_image_location();
 
-	my $thumbnail = Image::Magick->new();
-	my ($width, $height, $size, $format) = $thumbnail->Ping( $TUSK::UploadContent::path{'slide'} . '/thumb/' . $location . '.' . $ext );
-	
+        my $thumbnail = Image::Magick->new();
+        my ($width, $height, $size, $format) = $thumbnail->Ping( $TUSK::UploadContent::path{'slide'} . '/thumb/' . $location . '.' . $ext );
+
     # Scaling of the width and height
     my $right_height = shift;
     if ($right_height && ($right_height < $height)) {
-		if (!defined($height) || $height == 0){
-			return qq#<IMG WIDTH="$width" HEIGHT="$width" SRC="" BORDER=0>#;
-		}
-	$width *= $right_height/$height;
-	$height = $right_height;
+                if (!defined($height) || $height == 0) {
+                        return qq#<IMG WIDTH="$width" HEIGHT="$width" SRC="" BORDER=0>#;
+                }
+        $width *= $right_height/$height;
+        $height = $right_height;
     }
 
     return unless $width && $height;
@@ -2218,23 +2219,23 @@ sub out_html_thumbnail_img_choose {
     #
 
     my $self = shift;
-	my $ext  = $self->image_available('thumb');
-	
+        my $ext  = $self->image_available('thumb');
+
     return '' unless $ext;
 
-	my $location = $self->get_image_location();
+        my $location = $self->get_image_location();
 
-	my $thumbnail = Image::Magick->new();
-	my ($width, $height, $size, $format) = $thumbnail->Ping( $TUSK::UploadContent::path{'slide'} . '/thumb/' . $location . '.' . $ext );
-	
+        my $thumbnail = Image::Magick->new();
+        my ($width, $height, $size, $format) = $thumbnail->Ping( $TUSK::UploadContent::path{'slide'} . '/thumb/' . $location . '.' . $ext );
+
     # Scaling of the width and height
     my $right_height = shift;
     if ($right_height) {
-        if (!defined($height) || $height == 0){
+        if (!defined($height) || $height == 0) {
             return qq#<IMG WIDTH="$width" HEIGHT="$width" SRC="" BORDER=0>#;
         }
-	$width *= $right_height/$height;
-	$height = $right_height;
+        $width *= $right_height/$height;
+        $height = $right_height;
     }
 
     return unless $width && $height;
@@ -2249,28 +2250,28 @@ sub out_html_icon_img {
     #
 
     my $self = shift;
-	my $ext  = $self->image_available('icon');
-	
+        my $ext  = $self->image_available('icon');
+
     return $self->out_html_thumbnail_img(36) unless $ext;
 
-	my $location = $self->get_image_location();
+        my $location = $self->get_image_location();
 
-	my $thumbnail = Image::Magick->new();
-	my ($width, $height, $size, $format) = $thumbnail->Ping( $TUSK::UploadContent::path{'slide'} . '/icon/' . $location . '.' . $ext );
+        my $thumbnail = Image::Magick->new();
+        my ($width, $height, $size, $format) = $thumbnail->Ping( $TUSK::UploadContent::path{'slide'} . '/icon/' . $location . '.' . $ext );
 
     # Scaling of the width and height
     my $right_height = shift;
     if ($right_height) {
-		if (!defined($height) || $height == 0){
-			return qq#<IMG WIDTH="$width" HEIGHT="$width" SRC="" BORDER=0>#;
-		}
-	$width *= $right_height/$height;
-	$height = $right_height;
+                if (!defined($height) || $height == 0) {
+                        return qq#<IMG WIDTH="$width" HEIGHT="$width" SRC="" BORDER=0>#;
+                }
+        $width *= $right_height/$height;
+        $height = $right_height;
     }
 
     return unless $width && $height;
     my $uri = $self->out_html_thumbnail_uri;
-	return "<IMG WIDTH=\"$width\" HEIGHT=\"$height\" SRC=\"$uri\" BORDER=0>";
+        return "<IMG WIDTH=\"$width\" HEIGHT=\"$height\" SRC=\"$uri\" BORDER=0>";
 }
 
 sub out_html_thumbnail_uri {
@@ -2296,7 +2297,7 @@ sub error {
     my $self = shift;
     my $error = shift;
     if ($error) {
-	$self->{error} = $error;
+        $self->{error} = $error;
     }
     return $self->{error};
 }
@@ -2305,265 +2306,88 @@ sub xsl_stylesheet {
     my $self = shift;
     my $style = shift;
     if ($style) {
-	$self->{stylesheet} = $style;
+        $self->{stylesheet} = $style;
     }
     return $self->{stylesheet};
 }
 
 
 sub _make_object_ref {
-	my ($self, $uri, $duri, $w, $h, $ho, $hp, $he, $extratext) = @_;
-	my $tag;
-	$tag = qq{<p><object width="$w" height="$h"};
+        my ($self, $uri, $duri, $w, $h, $ho, $hp, $he, $extratext) = @_;
+        my $tag;
+        $tag = qq{<p><object width="$w" height="$h"};
 
-	# Add all the optional OBJECT tuples
-	if ( scalar %$ho ) {
-		map { $tag .= ' ' . $_ . '="' . $ho->{$_} . '"'; } keys %$ho;
-	}
-	$tag .= qq{>\n};
+        # Add all the optional OBJECT tuples
+        if ( scalar %$ho ) {
+                map { $tag .= ' ' . $_ . '="' . $ho->{$_} . '"'; } keys %$ho;
+        }
+        $tag .= qq{>\n};
 
-	# Generate the PARAM tags
-	if ( !( $uri =~ /flv$/ ) ) {
-		$tag .= qq{<param name="src" value="$uri">\n};
-	}
-	if ( scalar %$hp ) {
-		map { $tag .= '<param name="' . $_ . '" value="' . $hp->{$_} . qq{">\n}; } keys %$hp;
-	}
+        # Generate the PARAM tags
+        if ( !( $uri =~ /flv$/ ) ) {
+                $tag .= qq{<param name="src" value="$uri">\n};
+        }
+        if ( scalar %$hp ) {
+                map { $tag .= '<param name="' . $_ . '" value="' . $hp->{$_} . qq{">\n}; } keys %$hp;
+        }
 
-	# Generate the EMBED tuples
-	if ( !( $uri =~ /flv$/ ) ) {
-		$tag .= qq{<embed src="$uri" width="$w" height="$h"};
-		if ( scalar %$he ) {
-			map { $tag .= ' ' . $_ . '="' . $he->{$_} . '"'; } keys %$he;
-		}
-		$tag .= qq{>\n</embed>\n};
-		$tag .= qq{<noembed><a href="$duri">Click to play.</a></noembed>\n};
-	}
+        # Generate the EMBED tuples
+        if ( !( $uri =~ /flv$/ ) ) {
+                $tag .= qq{<embed src="$uri" width="$w" height="$h"};
+                if ( scalar %$he ) {
+                        map { $tag .= ' ' . $_ . '="' . $he->{$_} . '"'; } keys %$he;
+                }
+                $tag .= qq{>\n</embed>\n};
+                $tag .= qq{<noembed><a href="$duri">Click to play.</a></noembed>\n};
+        }
 
-	$tag .= qq{$extratext};
+        $tag .= qq{$extratext};
 
-	$tag .= qq{</object></p>\n};
+        $tag .= qq{</object></p>\n};
 
-	return $tag;
-}
-
-sub _player_header {
-	my ($self, $autoplay, $title, $content_type, $download_player_url) = @_;
-	my ($res);
-
-	$res = q{<p><b>};
-	$res .= qq{Click play to start $content_type.<br>\n} if ( $autoplay eq 'false' );
-	$res .= qq{If you cannot see the plugin, download the FREE $title Player <a href="$download_player_url" target="_blank"> here</a></b>.\n};
-
-	return $res;
+        return $tag;
 }
 
 sub _player_footer {
-	my ($self, $display_type, $content_type, $uri) = @_;
-	my ($res);
+        my ($self, $display_type, $content_type, $uri) = @_;
+        my ($res);
 
-	if ($display_type eq 'Downloadable' or $display_type eq 'Both'){
-		my $download_uri;
-		if    ( $content_type eq "audio" ) { $download_uri = &TUSK::Core::ServerConfig::dbAudioHost . $uri; }
-		elsif ( $content_type eq "video" ) { $download_uri = &TUSK::Core::ServerConfig::dbVideoHost . $uri; }
-		elsif ( $content_type eq "flash" ) { $download_uri = $uri; }
-		$res = qq{<p><a href="} . $download_uri . qq{">Click to Download</a></p>\n};
-		$res .= "<p>You will need a media player installed on your computer.<br>If you have problems saving file right click on link and select &quot;save target as&quot; (in IE) or &quot;save link as&quot; (in Firefox).</p>\n";
-	}
+        unless ($display_type eq 'Stream') {
+                my $download_uri;
+                if ($content_type eq 'audio') {
+                    $download_uri = &TUSK::Core::ServerConfig::dbAudioHost . $uri;
+                } elsif ($content_type eq 'video') {
+                    $download_uri = &TUSK::Core::ServerConfig::dbVideoHost . $uri;
+                } elsif ($content_type eq 'flash') {
+                    $download_uri = $uri;
+                }
+                $res = qq(<p><a href="$download_uri" download>Click to Download</a></p>);
+                $res .= '<p>You will need a media player installed on your computer.<br>';
+                $res .= 'If you have problems saving file right click on link and select &quot;Save Link As&quot;.</p>';
+        }
 
-	return $res;
+        return $res;
 }
 
-# Some internal functions to embed video and audio player code.
-sub _embed_qt_player {
-    my ($self, $height, $width, $autoplay, $uri, $display_type) = @_;
-
-    my $content_type = 'video';
-    $content_type = 'audio' if ( $uri =~ /\.mp3$/ );
-    
-    my $media_server=(($content_type eq "audio" ) ? &TUSK::Core::ServerConfig::dbAudioHost : &TUSK::Core::ServerConfig::dbVideoHost);
-    my $full_uri = $media_server . $uri;
-    my $display;
-
-    # The QuickTime Control Panel is 16 pixels high, so add that 
-    # to our given height.
-    $height += 16;
-    
-    if ($display_type eq 'Stream' or $display_type eq 'Both'){
-
-        $display = $self->_player_header($autoplay, 'QuickTime', $content_type, 'http://www.apple.com/quicktime/download/');
-
-        $display .= $self->_make_object_ref (
-            $full_uri,
-            $full_uri,
-            $width,
-            $height,
-            {
-                CLASSID => 'clsid:02BF25D5-8C17-4B23-BC80-D3488ABDDC6B',
-            },
-            {
-                CONTROLLER => 'true',
-                LOOP => 'false',
-                AUTOPLAY => $autoplay,
-                KIOSKMODE => ($display_type eq 'Stream' ? 'true': 'false'),
-                SCALE => 'aspect',
-            },
-            {
-                CONTROLLER => 'true',
-                LOOP => 'false',
-                PLUGINSPAGE => 'http://www.apple.com/quicktime/download/',
-                AUTOPLAY => $autoplay,
-                KIOSKMODE => ($display_type eq 'Stream' ? 'true': 'false'),
-                SCALE => 'aspect',
-            },
-        );
-    }
-
-    return $display;
-}
-
-sub _embed_real_player {
-    my ($self, $height, $width, $autoplay, $uri, $display_type) = @_;
-
-    my $content_type = 'video';
-    $content_type = 'audio' if ( $uri =~ /\.(ra|mp3)$/ );
-
-    my $media_server=(($content_type eq "audio" ) ? &TUSK::Core::ServerConfig::dbAudioHost : &TUSK::Core::ServerConfig::dbVideoHost);
-    my $full_uri = $media_server . '/ramgen' . $uri;
-    my $download_uri = $media_server . $uri;
-    my $display;
-    
-    if ($display_type eq 'Stream' or $display_type eq 'Both'){
-
-        $display = $self->_player_header($autoplay, 'Real', $content_type, 'http://www.real.com/realsuperpass.html');
-
-        # Only needed for video
-        $display .= $self->_make_object_ref (
-            $full_uri,
-            $download_uri,
-            $width,
-            $height,
-            {
-                CLASSID => 'clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA',
-                ID => 'RVOCX',
-                style => 'z-index:1000;'
-            },
-            {
-                CONTROLS => 'ImageWindow',
-                CONSOLE => 'one',
-                AUTOSTART => $autoplay,
-                LOOP => 'false',
-                MAINTAINASPECT => 'true',
-                PREFETCH => 'true',
-            },
-            {
-                CONTROLS => 'ImageWindow',
-                CONSOLE => 'one',
-                NOJAVA => 'true',
-                TYPE => 'audio/x-pn-realaudio-plugin',
-                AUTOSTART => $autoplay,
-                MAINTAINASPECT => 'true',
-                PREFETCH => 'true',
-            },
-        ) if ($content_type eq 'video');
-
-        # Display the audio/video Control panel
-        $display .= $self->_make_object_ref (
-            $full_uri,
-            $download_uri,
-            $width,
-            36,
-            {
-                CLASSID => 'clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA',
-                ID => 'RVOCX',
-                style => 'z-index:1000;'
-            },
-            {
-                CONTROLS => 'ALL',
-                CONSOLE => 'one',
-                AUTOSTART => $autoplay,
-                LOOP => 'false',
-                PREFETCH => 'true',
-            },
-            {
-                CONTROLS => 'ControlPanel',
-                CONSOLE => 'one',
-                NOJAVA => 'true',
-                TYPE => 'audio/x-pn-realaudio-plugin',
-                AUTOSTART => $autoplay,
-                PREFETCH => 'true',
-            },
-        );
-    }
-
-    return $display;
-}
-
-sub _embed_wm_player {
-    my ($self, $height, $width, $autoplay, $uri, $display_type) = @_;
-
-    my $content_type = 'video';
-    $content_type = 'audio' if ( $uri =~ /\.wma$/ );
-
-    my $media_server=(($content_type eq "audio" ) ? &TUSK::Core::ServerConfig::dbAudioHost : &TUSK::Core::ServerConfig::dbVideoHost);
-    my $full_uri = $media_server . '/asxgen' . $uri;
-    my $download_uri = $media_server . $uri;
-    my $display;
-    
-    if ($display_type eq 'Stream' or $display_type eq 'Both'){
-
-        $display = $self->_player_header($autoplay, 'Windows Media', $content_type, 'http://microsoft.com/windows/mediaplayer/en/download/');
-        $display .= $self->_make_object_ref (
-            $full_uri,
-            $download_uri,
-            $width,
-            $height,
-            {
-                CLASSID => 'clsid:22D6F312-B0F6-11D0-94AB-0080C74C7E95',
-                ID => 'MediaPlayer',
-                TYPE => 'application/x-oleobject',
-            },
-            {
-                FileName => $full_uri,
-                ShowControls => 'true',
-                ShowStatus => 'false',
-                ShowDisplay => 'false',
-                AUTOSTART => $autoplay,
-            },
-            {
-                TYPE => 'application/x-mplayer2',
-                NAME => 'MediaPlayer',
-                PLUGINSPAGE => 'http://microsoft.com/windows/mediaplayer/en/download/',
-                AUTOSTART => $autoplay,
-                ShowControls => '1',
-                ShowStatus => '0',
-                ShowDisplay => '0',
-            },
-        );
-    }
-
-    return $display;
-}
-
-sub is_mobile_ready{
-	return 0;
+sub is_mobile_ready {
+        return 0;
 }
 
 sub get_originating_course {
-	my $self              = shift;
-	my $integrated_course = shift;
+        my $self              = shift;
+        my $integrated_course = shift;
 
-	if ( $integrated_course ->isa("HSDB45::Course") ) {
-		my $tusk_course = TUSK::Course->new()->lookupKey($integrated_course->getTuskCourseID());
-		# return specific originating course
-		my $link_object = TUSK::Core::LinkIntegratedCourseContent->new()->passValues($tusk_course)->lookupByRelation( $tusk_course->getFieldValue('course_id'), $self->content_id );
-		if ( $link_object ) {
-			my $originating_course = $link_object->getOriginatingCourseObject;
-			return $originating_course->getHSDB45CourseFromTuskID();
-		}
-	} 
+        if ( $integrated_course ->isa("HSDB45::Course") ) {
+                my $tusk_course = TUSK::Course->new()->lookupKey($integrated_course->getTuskCourseID());
+                # return specific originating course
+                my $link_object = TUSK::Core::LinkIntegratedCourseContent->new()->passValues($tusk_course)->lookupByRelation( $tusk_course->getFieldValue('course_id'), $self->content_id );
+                if ( $link_object ) {
+                        my $originating_course = $link_object->getOriginatingCourseObject;
+                        return $originating_course->getHSDB45CourseFromTuskID();
+                }
+        }
 
-	return undef;
+        return undef;
 }
 
 package HSDB4::SQLRow::Content::Document;
@@ -2572,15 +2396,15 @@ use Carp;
 use vars qw (@ISA);
 @ISA = ('HSDB4::SQLRow::Content');
 
-sub out_html_body{
+sub out_html_body {
     my ($self) = @_;
     return $self->SUPER::out_html_body() unless ($self->field_value('reuse_content_id'));
-    if ($self->{_orig_body}){
-	return ($self->SUPER::out_html_body() . "<br><br>" . $self->{_orig_body} );
+    if ($self->{_orig_body}) {
+        return ($self->SUPER::out_html_body() . "<br><br>" . $self->{_orig_body} );
     }else{
-	my $html;
-	$html = $self->body->tag_values('html')->value . "<br><br>" if ($self->body && $self->body->tag_values('html'));
-	return ($html . $self->SUPER::out_html_body()); 
+        my $html;
+        $html = $self->body->tag_values('html')->value . "<br><br>" if ($self->body && $self->body->tag_values('html'));
+        return ($html . $self->SUPER::out_html_body());
     }
 }
 
@@ -2590,8 +2414,8 @@ sub out_html_icon {
     #
 
     my $self = shift;
-    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url, 
-		   $self->out_icon);
+    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url,
+                   $self->out_icon);
 }
 
 sub out_icon {
@@ -2614,8 +2438,8 @@ sub out_html_thumbnail {
     #
 
     my $self = shift;
-    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url, 
-		   $self->out_html_thumbnail_img);
+    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url,
+                   $self->out_html_thumbnail_img);
 }
 
 sub out_html_thumbnail_choose {
@@ -2633,14 +2457,14 @@ sub out_html_label_choose {
 }
 
 sub out_html_row_choose {
-    # 
+    #
     # A two column HTML row
     #
 
     my $self = shift;
     sprintf("<TR>\n<TD>%s</TD>\n<TD COLSPAN=2><P>%s</P></TD>\n</TR>\n",
-	    $self->out_html_thumbnail_choose, $self->out_html_label_choose
-	    );
+            $self->out_html_thumbnail_choose, $self->out_html_label_choose
+            );
 }
 
 sub out_xml {
@@ -2648,10 +2472,10 @@ sub out_xml {
     my $xml = $self->field_value("hscml_body");
 
     return unless ($xml);
-	
+
     my $course_title=$self->course->field_value("title");
     my $content_title=$self->field_value("title");
-	
+
     my $xml_start ="\n<db-content course=\"$course_title\" title=\"$content_title\">";
     $xml=~s/<db-content[^>]*>/$xml_start/gis;
     $xml=~s/<!DOCTYPE content SYSTEM "/<!DOCTYPE content SYSTEM "\/usr\/local\/apache\/apache\/HSCML\/Rules\//;
@@ -2659,17 +2483,17 @@ sub out_xml {
     $xml=~s/\r//g;
     $xml=~s/([\x80-\xff])/sprintf("\&#%d;",ord($1))/eg;
     $xml=~s/[\x00-\x09\x0b-\x1f]//g; # get rid of all char that aren't printable except for new line
-	
+
     my $temp="\&#8203;";
-	
+
     $xml=~s/,/,$temp/g;
     $xml=~s/\)/\)$temp/g;
     $xml=~s/\(/$temp\(/g;
     return $xml;
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 package HSDB4::SQLRow::Content::TUSKdoc;
@@ -2678,28 +2502,28 @@ use Carp;
 use vars qw (@ISA);
 @ISA = ('HSDB4::SQLRow::Content');
 
-sub out_html_body{
+sub out_html_body {
     my ($self) = @_;
     $self->field_value('conversion_status', 2); # hack that should be removed when there are no more xml documents that have type = 'Document'
-    return ($self->SUPER::out_html_body()); 
+    return ($self->SUPER::out_html_body());
 }
 
 sub out_file_path{
-	my ($self) = @_;
+        my ($self) = @_;
 
-	my $id = ($self->reuse_content_id())? $self->reuse_content_id() : $self->primary_key();
-	my $fname_doc  = $TUSK::UploadContent::path{'doc-archive'} . "/$id.doc";
-	my $fname_docx = $TUSK::UploadContent::path{'doc-archive'} . "/$id.docx";
-	my $file_uri;
+        my $id = ($self->reuse_content_id())? $self->reuse_content_id() : $self->primary_key();
+        my $fname_doc  = $TUSK::UploadContent::path{'doc-archive'} . "/$id.doc";
+        my $fname_docx = $TUSK::UploadContent::path{'doc-archive'} . "/$id.docx";
+        my $file_uri;
 
-	if (-e ($fname_doc) ) {
-		$file_uri = $fname_doc;
-	}
-	elsif (-e ($fname_docx) ) {
-		$file_uri = $fname_docx;
-	}
+        if (-e ($fname_doc) ) {
+                $file_uri = $fname_doc;
+        }
+        elsif (-e ($fname_docx) ) {
+                $file_uri = $fname_docx;
+        }
 
-	return $file_uri;
+        return $file_uri;
 }
 
 sub out_html_icon {
@@ -2708,8 +2532,8 @@ sub out_html_icon {
     #
 
     my $self = shift;
-    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url, 
-		   $self->out_icon);
+    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url,
+                   $self->out_icon);
 }
 
 sub out_icon {
@@ -2732,28 +2556,28 @@ sub out_html_thumbnail {
     #
 
     my $self = shift;
-    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url, 
-		   $self->out_html_thumbnail_img);
+    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url,
+                   $self->out_html_thumbnail_img);
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 sub showConversionStatus {
-	my $self = shift;
+        my $self = shift;
 
-	my $tracker = TUSK::ProcessTracker::ProcessTracker->new()->getMostRecentTracker(undef, $self->primary_key(), 'tuskdoc');
-	if (defined $tracker) {
-		my $modified = HSDB4::DateTime->new()->in_mysql_timestamp($tracker->getModifiedOn());
-		my $three_hrs_ago = HSDB4::DateTime->new();
-		$three_hrs_ago->subtract_hours(3);
+        my $tracker = TUSK::ProcessTracker::ProcessTracker->new()->getMostRecentTracker(undef, $self->primary_key(), 'tuskdoc');
+        if (defined $tracker) {
+                my $modified = HSDB4::DateTime->new()->in_mysql_timestamp($tracker->getModifiedOn());
+                my $three_hrs_ago = HSDB4::DateTime->new();
+                $three_hrs_ago->subtract_hours(3);
 
-		if (!$tracker->isCompletedSuccessfully() ||  $modified->is_after($three_hrs_ago)) {
-			return 1;
-		}
-	}
-	return 0;
+                if (!$tracker->isCompletedSuccessfully() ||  $modified->is_after($three_hrs_ago)) {
+                        return 1;
+                }
+        }
+        return 0;
 }
 
 
@@ -2777,10 +2601,10 @@ sub out_icon {
 }
 
 sub out_html_thumbnail {
-    # 
+    #
     # Return a row version of the document
     #
- 
+
     my $self = shift;
 
     my $thumbnail = "<IMG SRC=\"/icons/folder.gif\" WIDTH=20 HEIGHT=22 BORDER=0>";
@@ -2792,24 +2616,24 @@ sub out_xml {
     my @content = $self->child_content;
     my $authors = "";
     my $xml = "";
-    foreach (@content){
-	next unless ($_->field_value('type') eq 'Slide');
-      	$xml.=$_->out_xml;
-       	my @users  = $_->child_users;
-       	my @non_users = $_->child_non_users;
-       	push(@users,@non_users);
-       	next unless (@users);
-       	foreach my $user (@users){		
-	    next unless ($user->aux_info('roles') eq "Author");
-	    my $author_name=$user->out_short_name;
-	    unless ($authors=~/$author_name/){
-		unless ($authors){
-		    $authors=$author_name;
-		}else{
-		    $authors.=", ".$author_name;
-		}
-	    }
-	}
+    foreach (@content) {
+        next unless ($_->field_value('type') eq 'Slide');
+        $xml.=$_->out_xml;
+        my @users  = $_->child_users;
+        my @non_users = $_->child_non_users;
+        push(@users,@non_users);
+        next unless (@users);
+        foreach my $user (@users) {
+            next unless ($user->aux_info('roles') eq "Author");
+            my $author_name=$user->out_short_name;
+            unless ($authors=~/$author_name/) {
+                unless ($authors) {
+                    $authors=$author_name;
+                }else{
+                    $authors.=", ".$author_name;
+                }
+            }
+        }
     }
 
     (my $copyright=$self->field_value("copyright"))=~s/"/\\"/g;
@@ -2819,21 +2643,21 @@ sub out_xml {
     $copyright=~s/"//g;
     my $tufts_icon="http://" . $ENV{HTTP_HOST} . "/icons/little/alhsdb4-style.gif";
     $xml=~s/([\x80-\xff])/sprintf("\&#%d;",ord($1))/eg;
-	
-    if ($xml){
-      	return "<COLLECTION NAME=\"".$title."\"
- 		AUTHOR=\"".$authors."\" 
-		COPYRIGHT=\"".$copyright."\"
-	        ICONSOURCE=\"".$tufts_icon."\">\n".
-		$xml.
-		"</COLLECTION>";
+
+    if ($xml) {
+        return "<COLLECTION NAME=\"".$title."\"
+                AUTHOR=\"".$authors."\"
+                COPYRIGHT=\"".$copyright."\"
+                ICONSOURCE=\"".$tufts_icon."\">\n".
+                $xml.
+                "</COLLECTION>";
     } else {
-	return;
+        return;
     }
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 package HSDB4::SQLRow::Content::Slide;
@@ -2843,12 +2667,12 @@ use vars qw (@ISA);
 @ISA = ('HSDB4::SQLRow::Content');
 
 sub out_index_body {
-	my $self = shift;
+        my $self = shift;
         my $returnValue = $self->out_html_body();
         if($self->body && $self->body->tag_values('indexOn')) {
-		$returnValue .= $self->body->tag_values('indexOn')->value;
-	}
-	return $self->SUPER::out_index_body($returnValue);
+                $returnValue .= $self->body->tag_values('indexOn')->value;
+        }
+        return $self->SUPER::out_index_body($returnValue);
 }
 
 sub generate_image_sizes {
@@ -2858,37 +2682,37 @@ sub generate_image_sizes {
 
     die "Cannot find image and type" unless ($args{-blob} && $args{-type});
 
-	foreach my $cur_size ( @HSDB4::Constants::image_sizes ) {
-		next if ($cur_size eq 'resize');
-		
-		my ($blob, $type, $width, $height);
-		
-		if ( $cur_size eq 'small' ) {
-			($blob, $type, $width, $height) = HSDB4::Image::make_small(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
-		} elsif ( $cur_size eq 'icon' ) {
-			($blob, $type, $width, $height) = HSDB4::Image::make_icon(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
-		} elsif ( $cur_size eq 'large' ) {
-			($blob, $type, $width, $height) = HSDB4::Image::make_large(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
-		} elsif ( $cur_size eq 'orig' ) {
-			($blob, $type, $width, $height) = HSDB4::Image::make_original(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
-		} elsif ( $cur_size eq 'xlarge' ) {
-			($blob, $type, $width, $height) = HSDB4::Image::make_xlarge(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
-		} elsif ( $cur_size eq 'medium' ) {
-			($blob, $type, $width, $height) = HSDB4::Image::make_medium(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
-		} elsif ( $cur_size eq 'thumb' ) {
-			($blob, $type, $width, $height) = HSDB4::Image::make_thumb(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
-		}
-		
-		if    ( $args{-type} eq 'x-png' ) { $args{-type} = 'png'; }
-		elsif ( $args{-type} eq 'jpeg' )  { $args{-type} = 'jpg'; }
-		
-		my $location = $self->get_image_location();
-		
-		open(IMG, ">".$args{-path}."/".$cur_size."/".$location.".".$args{-type}) or die($! . " -- ".$args{-path}."/".$cur_size."/".$location.".".$args{-type});
-		binmode(IMG);
-		print IMG $blob;
-		close(IMG);		
-	}
+        foreach my $cur_size ( @HSDB4::Constants::image_sizes ) {
+                next if ($cur_size eq 'resize');
+
+                my ($blob, $type, $width, $height);
+
+                if ( $cur_size eq 'small' ) {
+                        ($blob, $type, $width, $height) = HSDB4::Image::make_small(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
+                } elsif ( $cur_size eq 'icon' ) {
+                        ($blob, $type, $width, $height) = HSDB4::Image::make_icon(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
+                } elsif ( $cur_size eq 'large' ) {
+                        ($blob, $type, $width, $height) = HSDB4::Image::make_large(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
+                } elsif ( $cur_size eq 'orig' ) {
+                        ($blob, $type, $width, $height) = HSDB4::Image::make_original(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
+                } elsif ( $cur_size eq 'xlarge' ) {
+                        ($blob, $type, $width, $height) = HSDB4::Image::make_xlarge(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
+                } elsif ( $cur_size eq 'medium' ) {
+                        ($blob, $type, $width, $height) = HSDB4::Image::make_medium(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
+                } elsif ( $cur_size eq 'thumb' ) {
+                        ($blob, $type, $width, $height) = HSDB4::Image::make_thumb(-blob =>  $args{-blob}, -type => $args{-type}, -blur => "-1");
+                }
+
+                if    ( $args{-type} eq 'x-png' ) { $args{-type} = 'png'; }
+                elsif ( $args{-type} eq 'jpeg' )  { $args{-type} = 'jpg'; }
+
+                my $location = $self->get_image_location();
+
+                open(IMG, ">".$args{-path}."/".$cur_size."/".$location.".".$args{-type}) or die($! . " -- ".$args{-path}."/".$cur_size."/".$location.".".$args{-type});
+                binmode(IMG);
+                print IMG $blob;
+                close(IMG);
+        }
 }
 
 sub get_type {
@@ -2896,8 +2720,8 @@ sub get_type {
     my $self = shift;
     my $i = shift;
     my %types = ('CompuServe graphics interchange format'  => 'image/gif',
-		 'Joint Photographic Experts Group JFIF format' => 'image/jpeg',
-		 'Portable Network Graphics'  => 'image/png');
+                 'Joint Photographic Experts Group JFIF format' => 'image/jpeg',
+                 'Portable Network Graphics'  => 'image/png');
     return $types{$i->get('format')};
 }
 
@@ -2906,7 +2730,7 @@ sub get_image {
     my $fh = shift;
     my ($bytesread,$image_binary,$buffer);
     while ($bytesread=read($fh,$buffer,4000)) {
-	   $image_binary .= $buffer;
+           $image_binary .= $buffer;
     }
     return $image_binary;
 }
@@ -2921,9 +2745,9 @@ sub small_data_preferred {
 
     # Get the slide_info tag
     my ($info);
-    if (my $body = $self->body){
-	$info = $body->tag_values('slide_info');
-    } 
+    if (my $body = $self->body) {
+        $info = $body->tag_values('slide_info');
+    }
     return 0 unless $info;
     # Get the attributes
     my $size = $info->get_attribute_values('preferred_size');
@@ -2937,42 +2761,42 @@ sub overlay_data{
     # Get the overlay information if it's required
     #
 
-	my $self = shift;
-	my $info;
-	if(my $body = $self->body()){
-		($info) = $body->tag_values('slide_info') or return;
-	}
-	return 0 unless $info;
+        my $self = shift;
+        my $info;
+        if(my $body = $self->body()) {
+                ($info) = $body->tag_values('slide_info') or return;
+        }
+        return 0 unless $info;
 
     return $info->tag_values('overlay');
 }
 
 sub get_zoom_menu{
-	my ($self, $img) = @_;
-	
-	my ($class_med,$class_larg,$class_xl,$class_orig) = ("zoomBtn","zoomBtn","zoomBtn","zoomBtn");
+        my ($self, $img) = @_;
 
-	if ( index($img,"/medium/") > -1 ) { $class_med=$class_med." active";}
-	elsif ( index($img,"/large/") > -1 ) { $class_larg=$class_larg." active";}
+        my ($class_med,$class_larg,$class_xl,$class_orig) = ("zoomBtn","zoomBtn","zoomBtn","zoomBtn");
+
+        if ( index($img,"/medium/") > -1 ) { $class_med=$class_med." active";}
+        elsif ( index($img,"/large/") > -1 ) { $class_larg=$class_larg." active";}
     elsif ( index($img,"/xlarge/") > -1 ) { $class_xl=$class_xl." active";}
     elsif ( index($img,"/orig/") > -1 ) { $class_orig=$class_orig." active";}
 
-	my $mark_up = qq {
+        my $mark_up = qq {
 <div class="imgCntrlArea">
-	<div class="imgControlMenu clearfix">
-		<a href="javascript:;" onclick="toggleImgCntrl(this)" class="toggleImgCntrl nodots subHead1">Image Zoom</a>
-		<div class="imgCntrl">
-		<img class="$class_med" onclick="swapImg('medium', this);" src="/graphics/zoommedium.gif" height="27" width="27" border="0"><!--
-		--><img class="$class_larg" onclick="swapImg('large', this);" src="/graphics/zoomlarge.gif" height="27" width="27" border="0"><!--
-		--><img class="$class_xl" onclick="swapImg('xlarge', this);" src="/graphics/zoomxlarge.gif" height="27" width="27" border="0"><!--
-		--><img class="$class_orig" onclick="swapImg('orig', this);" src="/graphics/zoomorig.gif" height="27" width="27" border="0">
-		
-		</div>
-	</div>
-	<div class="image">$img</div>
+        <div class="imgControlMenu clearfix">
+                <a href="javascript:;" onclick="toggleImgCntrl(this)" class="toggleImgCntrl nodots subHead1">Image Zoom</a>
+                <div class="imgCntrl">
+                <img class="$class_med" onclick="swapImg('medium', this);" src="/graphics/zoommedium.gif" height="27" width="27" border="0"><!--
+                --><img class="$class_larg" onclick="swapImg('large', this);" src="/graphics/zoomlarge.gif" height="27" width="27" border="0"><!--
+                --><img class="$class_xl" onclick="swapImg('xlarge', this);" src="/graphics/zoomxlarge.gif" height="27" width="27" border="0"><!--
+                --><img class="$class_orig" onclick="swapImg('orig', this);" src="/graphics/zoomorig.gif" height="27" width="27" border="0">
+
+                </div>
+        </div>
+        <div class="image">$img</div>
 </div>
 };
-	return $mark_up
+        return $mark_up
 }
 
 sub out_html_thumbnail {
@@ -3008,7 +2832,7 @@ sub out_html_thumbnail_choose {
 }
 
 sub out_html_row {
-    # 
+    #
     # Return a row version of the document
     #
 
@@ -3020,16 +2844,16 @@ sub out_html_row {
     push(@users,@non_users);
     @users = grep { $_->aux_info("roles") =~ /Author/ } @users;
     my $col2;
-    if ($params{'cms'}){
-    	$col2 = sprintf ('<a href="/cms/content/display/%d">edit %s</a>', $self->primary_key, $self->out_label);
-    } elsif (exists($params{'content-link'})){
-    	$col2 = sprintf ('<a href="%s/%d">%s</a>', $params{'content-link'}, $self->primary_key, $self->out_label);
+    if ($params{'cms'}) {
+        $col2 = sprintf ('<a href="/cms/content/display/%d">edit %s</a>', $self->primary_key, $self->out_label);
+    } elsif (exists($params{'content-link'})) {
+        $col2 = sprintf ('<a href="%s/%d">%s</a>', $params{'content-link'}, $self->primary_key, $self->out_label);
     } else {
         $col2 = $self->out_html_label;
     }
     my $authors = join (', ', map { $_->out_abbrev } @users);
     my $r;
-    if ($params{'sort_order'}){
+    if ($params{'sort_order'}) {
         $r =sprintf("<tr><td>%s</td><td>%s</td><td><B>%s</B></td><td>%s</td><td>%s</td></tr>\n",
             $self->aux_info('sort_order') || '&nbsp;',
             $self->out_html_thumbnail(36), $col2, $authors);
@@ -3046,12 +2870,12 @@ sub out_stain{
     #
 
     my ($self) = @_;
-    
-    if (my $body = $self->body){
-	my $info = $body->tag_values('slide_info') or return ;
-	if (my ($stain) = $info->tag_values ('stain')) {
-	    return $stain->value;
-	}
+
+    if (my $body = $self->body) {
+        my $info = $body->tag_values('slide_info') or return ;
+        if (my ($stain) = $info->tag_values ('stain')) {
+            return $stain->value;
+        }
     }
     return '';
 }
@@ -3061,37 +2885,37 @@ sub out_just_body {
  my $self = shift;
     my %options = @_;
     my $outval = '';
-=head  
+=head
     # I'll put in STAIN and IMAGE_TYPE here
     my $info;
-    if (my $body = $self->body){
-	($info) = $body->tag_values('slide_info'); 
-	my $outval2 = '';
-	if ($info && (my ($stain) = $info->tag_values ('stain'))) {	    
-	    $outval .= sprintf("<DIV><B>Stain:</B> %s</DIV>\n", $stain->value) if ($stain->value);
-	}
-	if ($info &&( my ($type) = $info->tag_values ('type'))) {
-	    $outval .= sprintf("<DIV><B>Image Type:</B> %s</DIV>\n", 
-			       $type->value);
-	}
-	$outval .= "<P CLASS=\"slide_info\">\n$outval2</P>" if $outval2;
+    if (my $body = $self->body) {
+        ($info) = $body->tag_values('slide_info');
+        my $outval2 = '';
+        if ($info && (my ($stain) = $info->tag_values ('stain'))) {
+            $outval .= sprintf("<DIV><B>Stain:</B> %s</DIV>\n", $stain->value) if ($stain->value);
+        }
+        if ($info &&( my ($type) = $info->tag_values ('type'))) {
+            $outval .= sprintf("<DIV><B>Image Type:</B> %s</DIV>\n",
+                               $type->value);
+        }
+        $outval .= "<P CLASS=\"slide_info\">\n$outval2</P>" if $outval2;
     }
-	if ( $self->overlay_data ) {
-		if ($options{OVERLAY}) {
-		    $outval .= "<div><form>\n";
-		    $outval .= "<input type=\"hidden\" name=\"SIZE\" value=\"$options{SIZE}\">";
-		    $outval .= "<input type=\"hidden\" name=\"OVERLAY\" value=\"0\">";
-		    $outval .= "<input type=\"submit\" value=\"Hide Overlay\">\n";
-		    $outval .= "</form></div>\n";
-		}
-		else {
-		    $outval .= "<div><form>\n";
-		    $outval .= "<input type=\"hidden\" name=\"SIZE\" value=\"$options{SIZE}\">";
-		    $outval .= "<input type=\"hidden\" name=\"OVERLAY\" value=\"1\">";
-		    $outval .= "<input type=\"submit\" value=\"Show Overlay\">\n";
-		    $outval .= "</form></div>\n";
-		}
-	}
+        if ( $self->overlay_data ) {
+                if ($options{OVERLAY}) {
+                    $outval .= "<div><form>\n";
+                    $outval .= "<input type=\"hidden\" name=\"SIZE\" value=\"$options{SIZE}\">";
+                    $outval .= "<input type=\"hidden\" name=\"OVERLAY\" value=\"0\">";
+                    $outval .= "<input type=\"submit\" value=\"Hide Overlay\">\n";
+                    $outval .= "</form></div>\n";
+                }
+                else {
+                    $outval .= "<div><form>\n";
+                    $outval .= "<input type=\"hidden\" name=\"SIZE\" value=\"$options{SIZE}\">";
+                    $outval .= "<input type=\"hidden\" name=\"OVERLAY\" value=\"1\">";
+                    $outval .= "<input type=\"submit\" value=\"Show Overlay\">\n";
+                    $outval .= "</form></div>\n";
+                }
+        }
     # Tack on the rest of the body
 =cut
     $outval .= $self->SUPER::out_html_body();
@@ -3109,42 +2933,42 @@ sub out_html_body {
     # Get the big image by default
     my $img = $self->out_html_img($options{SIZE}, $options{OVERLAY});
     # Put it in a DIV
-	if ($options{OVERLAY} || !$options{'zoom'}){
-		$outval .=  '<div class="image">' . $img . "</div>\n";
-	} else {
-		$outval .= $self->get_zoom_menu($img);
-	}
+        if ($options{OVERLAY} || !$options{'zoom'}) {
+                $outval .=  '<div class="image">' . $img . "</div>\n";
+        } else {
+                $outval .= $self->get_zoom_menu($img);
+        }
 
     # I'll put in STAIN and IMAGE_TYPE here
     my $info;
-    if (my $body = $self->body){
-	($info) = $body->tag_values('slide_info'); 
-	my $outval2 = '';
-	if ($info && (my ($stain) = $info->tag_values ('stain'))) {	    
-	    $outval .= sprintf("<DIV><B>Stain:</B> %s</DIV>\n", $stain->value) if ($stain->value);
-	}
-	if ($info &&( my ($type) = $info->tag_values ('type'))) {
-	    $outval .= sprintf("<DIV><B>Image Type:</B> %s</DIV>\n", 
-			       $type->value);
-	}
-	$outval .= "<P CLASS=\"slide_info\">\n$outval2</P>" if $outval2;
+    if (my $body = $self->body) {
+        ($info) = $body->tag_values('slide_info');
+        my $outval2 = '';
+        if ($info && (my ($stain) = $info->tag_values ('stain'))) {
+            $outval .= sprintf("<DIV><B>Stain:</B> %s</DIV>\n", $stain->value) if ($stain->value);
+        }
+        if ($info &&( my ($type) = $info->tag_values ('type'))) {
+            $outval .= sprintf("<DIV><B>Image Type:</B> %s</DIV>\n",
+                               $type->value);
+        }
+        $outval .= "<P CLASS=\"slide_info\">\n$outval2</P>" if $outval2;
     }
-	if ( $self->overlay_data ) {
-		if ($options{OVERLAY}) {
-		    $outval .= "<div><form>\n";
-		    $outval .= "<input type=\"hidden\" name=\"SIZE\" value=\"$options{SIZE}\">";
-		    $outval .= "<input type=\"hidden\" name=\"OVERLAY\" value=\"0\">";
-		    $outval .= "<input type=\"submit\" value=\"Hide Overlay\">\n";
-		    $outval .= "</form></div>\n";
-		}
-		else {
-		    $outval .= "<div><form>\n";
-		    $outval .= "<input type=\"hidden\" name=\"SIZE\" value=\"$options{SIZE}\">";
-		    $outval .= "<input type=\"hidden\" name=\"OVERLAY\" value=\"1\">";
-		    $outval .= "<input type=\"submit\" value=\"Show Overlay\">\n";
-		    $outval .= "</form></div>\n";
-		}
-	}
+        if ( $self->overlay_data ) {
+                if ($options{OVERLAY}) {
+                    $outval .= "<div><form>\n";
+                    $outval .= "<input type=\"hidden\" name=\"SIZE\" value=\"$options{SIZE}\">";
+                    $outval .= "<input type=\"hidden\" name=\"OVERLAY\" value=\"0\">";
+                    $outval .= "<input type=\"submit\" value=\"Hide Overlay\">\n";
+                    $outval .= "</form></div>\n";
+                }
+                else {
+                    $outval .= "<div><form>\n";
+                    $outval .= "<input type=\"hidden\" name=\"SIZE\" value=\"$options{SIZE}\">";
+                    $outval .= "<input type=\"hidden\" name=\"OVERLAY\" value=\"1\">";
+                    $outval .= "<input type=\"submit\" value=\"Show Overlay\">\n";
+                    $outval .= "</form></div>\n";
+                }
+        }
     # Tack on the rest of the body
     $outval .= $self->SUPER::out_html_body();
     return $outval;
@@ -3158,23 +2982,23 @@ sub out_xml {
     my $uri = shift;
 
     my $title=$self->field_value('title');
-    if (length($title) >57){
-	$title=substr($title,0,60);
-	$title.="...";
+    if (length($title) >57) {
+        $title=substr($title,0,60);
+        $title.="...";
     }
-    
+
     $title =~ s/(\&amp;|\&)/\&amp;/g;
     $title =~ s/\&amp;([A-z0-9]+;)/\&$1/g;
     $title =~ s/<br>/\n/g;
     $title =~ s/</\&lt;/g;
     $title =~ s/>/\&gt;/g;
 
-    $uri = $HSDB4::Constants::URLs{data} . "/" . $self->primary_key unless ($uri);    
+    $uri = $HSDB4::Constants::URLs{data} . "/" . $self->primary_key unless ($uri);
     return ("\t<SLIDE SRC=\"" . $uri . "\">\n\t\t" . $title . "\n\t</SLIDE>\n");
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 package HSDB4::SQLRow::Content::Question;
@@ -3189,10 +3013,10 @@ sub answers {
 
     my $self = shift;
     unless ($self->{-answers}) {
-	my @conds = (sprintf ("content_id=%d", $self->primary_key),
-		     "to_days(modified) >= to_days(now())-180");
-	my @answers = HSDB4::SQLRow::Answer->lookup_conditions (@conds);
-	$self->{-answers} = \@answers;
+        my @conds = (sprintf ("content_id=%d", $self->primary_key),
+                     "to_days(modified) >= to_days(now())-180");
+        my @answers = HSDB4::SQLRow::Answer->lookup_conditions (@conds);
+        $self->{-answers} = \@answers;
     }
     return @{$self->{-answers}};
 }
@@ -3200,7 +3024,7 @@ sub answers {
 sub correct_answers {
     #
     # Return the correct answers
-    # 
+    #
 
     my $self = shift;
     return grep { $_->field_value ('correct') eq 'Correct' } $self->answers;
@@ -3209,7 +3033,7 @@ sub correct_answers {
 sub incorrect_answers {
     #
     # Return the incorrect answers
-    # 
+    #
 
     my $self = shift;
     return grep { $_->field_value ('correct') eq 'Incorrect' } $self->answers;
@@ -3227,7 +3051,7 @@ sub answer_hash {
 }
 
 sub out_form_id {
-    # 
+    #
     # Gives an id suitable for being in a form
     #
 
@@ -3260,13 +3084,13 @@ sub correct_answer {
 
     my $self = shift;
     # Get the question
-    if (my $body = $self->body()){
-	my ($question) = $body->tag_values('question_info');
-	# Now get the answer
-	my ($answer) = $question ? $question->tag_values('correct_answer') : ();
-	# And return it
-	return $answer->value;
-    } 
+    if (my $body = $self->body()) {
+        my ($question) = $body->tag_values('question_info');
+        # Now get the answer
+        my ($answer) = $question ? $question->tag_values('correct_answer') : ();
+        # And return it
+        return $answer->value;
+    }
     return ;
 }
 
@@ -3277,8 +3101,8 @@ sub out_response_row {
 
     my $self = shift;
     my $resp = shift;
-    return "<TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD><B>Response:</B> " 
-	. $resp->value . "</TD></TR>\n";
+    return "<TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD><B>Response:</B> "
+        . $resp->value . "</TD></TR>\n";
 }
 
 sub out_html_body {
@@ -3294,11 +3118,11 @@ sub out_html_body {
 
     # And now, do the choices/responses/correct answer part
     my $question;
-    if (my $body = $self->body()){
-	($question) = $body->tag_values('question_info');
+    if (my $body = $self->body()) {
+        ($question) = $body->tag_values('question_info');
     } else {
-	return;
-    } 
+        return;
+    }
 
     my %args = @_;
     my $id= $self->out_form_id;
@@ -3319,50 +3143,50 @@ sub out_html_body {
     my @choices = $question ? $question->tag_values('choice') : ();
     my @resps = $question ? $question->tag_values('response') : ();
     foreach my $choice (@choices) {
-	$outval .= $self->out_choice_row ($choice, $answer);
-	if ($doanswer and $resps[0]
-	    and $choice->get_attribute_values('label')->value eq
-	    $resps[0]->get_attribute_values('label')->value) {
-	    $outval .= $self->out_response_row (shift @resps);
-	}
+        $outval .= $self->out_choice_row ($choice, $answer);
+        if ($doanswer and $resps[0]
+            and $choice->get_attribute_values('label')->value eq
+            $resps[0]->get_attribute_values('label')->value) {
+            $outval .= $self->out_response_row (shift @resps);
+        }
     }
     # Or, if they're not there, then display a nice text box
     if (not @choices) {
-	$outval .= "<TR><TD COLSPAN=2><B>Response:</B></TD>\n";
-	$outval .= "<TD><INPUT TYPE=\"TEXT\" VALUE=\"$answer\" NAME=\"$id\"></TD></TR>\n";
+        $outval .= "<TR><TD COLSPAN=2><B>Response:</B></TD>\n";
+        $outval .= "<TD><INPUT TYPE=\"TEXT\" VALUE=\"$answer\" NAME=\"$id\"></TD></TR>\n";
     }
     # End the table
     if ($doanswer) {
-	my ($answer) = 
-	  $question ? $question->tag_values('correct_answer') : ();
-	if ($answer) {
-	    $outval .= "<tr><td colspan=\"2\"><b>Answer:</b></td>";
-	    $outval .= "<td>" . ucfirst $answer->value . ".";
-	    if ($self->correct_answers > 0) {
-		$outval .= sprintf ("  Users answering correctly: %.1f%%",
-				    100*$self->correct_answers/$self->answers);
-		$outval .= sprintf (" (%d responses).", 
-				    scalar ($self->answers));
-	    }
-	    $outval .= "</td></tr>";
-	    if ($self->correct_answers > 0) {
-		$outval .= "<tr><td colspan=\"2\">&nbsp;</td><td>";
-		my %answers = $self->answer_hash;
-		foreach (keys %answers) {
-		    $outval .= sprintf "<b>%s</b>: %d ", $_, $answers{$_};
-		}
-		$outval .= "</td></tr>";
-	    }
-	}
+        my ($answer) =
+          $question ? $question->tag_values('correct_answer') : ();
+        if ($answer) {
+            $outval .= "<tr><td colspan=\"2\"><b>Answer:</b></td>";
+            $outval .= "<td>" . ucfirst $answer->value . ".";
+            if ($self->correct_answers > 0) {
+                $outval .= sprintf ("  Users answering correctly: %.1f%%",
+                                    100*$self->correct_answers/$self->answers);
+                $outval .= sprintf (" (%d responses).",
+                                    scalar ($self->answers));
+            }
+            $outval .= "</td></tr>";
+            if ($self->correct_answers > 0) {
+                $outval .= "<tr><td colspan=\"2\">&nbsp;</td><td>";
+                my %answers = $self->answer_hash;
+                foreach (keys %answers) {
+                    $outval .= sprintf "<b>%s</b>: %d ", $_, $answers{$_};
+                }
+                $outval .= "</td></tr>";
+            }
+        }
    }
     $outval .= "</TABLE>\n";
 
     # If we have to do the form, put the submission buttons on the end
     if ($doform) {
-	$outval .= 
-	    "<DIV><INPUT TYPE=\"submit\" NAME=\"answers\" VALUE=\"Get Answers\">";
-	$outval .= "</DIV>\n";
-	$outval .= "</FORM>\n";
+        $outval .=
+            "<DIV><INPUT TYPE=\"submit\" NAME=\"answers\" VALUE=\"Get Answers\">";
+        $outval .= "</DIV>\n";
+        $outval .= "</FORM>\n";
     }
 
     # And return the string!
@@ -3380,8 +3204,8 @@ sub out_html_thumbnail {
     #
 
     my $self = shift;
-    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url, 
-		   $self->out_html_thumbnail_img (36));
+    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url,
+                   $self->out_html_thumbnail_img (36));
 }
 
 sub out_html_thumbnail_choose {
@@ -3402,7 +3226,7 @@ sub out_html_body {
     my %options = @_;
     my $element;
     if (my $body = $self->body) {
-	$element = $body->tag_values ('flashpix_uri');
+        $element = $body->tag_values ('flashpix_uri');
     }
     return unless $element;
     my $filename = $element->value;
@@ -3421,7 +3245,7 @@ my $applet = "<APPLET code=\"zoom2dapplet\" archive=\"zoom2dapplet.jar\" codeBas
     $applet = $self->out_html_small_img if $options{SIZE} eq "medium";
     my $outval="<TABLE ALIGN=\"CENTER\">
     <TR>
-	<TD>$applet</TD>
+        <TD>$applet</TD>
     </TR>
     </TABLE>";
 
@@ -3434,12 +3258,12 @@ sub out_file_path {
         my $uri;
         if (my $body = $self->body) {
             $uri = $body->tag_values ('flashpix_uri');
-        }  
+        }
         return if (!defined($uri));
         my $uri_value = $uri->value();
         $uri_value =~ s/^\///;
-	my $filename = $TUSK::UploadContent::path{"flashpix"} . $uri_value;
-	return $filename;
+        my $filename = $TUSK::UploadContent::path{"flashpix"} . $uri_value;
+        return $filename;
 }
 
 sub out_icon {
@@ -3456,25 +3280,25 @@ use TUSK::Content::External::LinkContentField;
 use TUSK::Content::External::MetaData;
 
 sub out_html_body {
-	my $self = shift;
+        my $self = shift;
 
-	my $label = $self->title();
-	my $url = '/view/urlExternalContent/' . $self->primary_key();
+        my $label = $self->title();
+        my $url = '/view/urlExternalContent/' . $self->primary_key();
 
-	my $content = "<div class=\"docinfo\"><a href=\"$url\">$label</a></div>";
-	return $content;
+        my $content = "<div class=\"docinfo\"><a href=\"$url\">$label</a></div>";
+        return $content;
 }
 
 sub get_external_source {
-    # returns 
+    # returns
     my ($self) = @_;
     my $external_info = $self->get_external_content_data();
-    if (scalar(@$external_info)){
-	my $info = $external_info->[0]->getField();
-	my $source = $info->getSource();
-	return $source;
+    if (scalar(@$external_info)) {
+        my $info = $external_info->[0]->getField();
+        my $source = $info->getSource();
+        return $source;
     }else{
-	return 0;
+        return 0;
     }
 }
 
@@ -3482,19 +3306,19 @@ sub get_external_content_data {
     my ($self) = @_;
 
     unless (ref($self->{_external_content_data}) eq 'ARRAY') {
-	$self->{_external_content_data} =  TUSK::Content::External::LinkContentField->new()->lookup('parent_content_id = ' . $self->primary_key(),
-	  [
-	   'content_external_field.sort_order',
-	   ],
-	  undef,
-	  undef,
-	  [
-	   TUSK::Core::JoinObject->new('TUSK::Content::External::Field', 
-	       { joinkey => 'field_id', origkey => 'child_field_id', }),
-	   TUSK::Core::JoinObject->new('TUSK::Content::External::Source', 
-	       { joinkey => 'source_id', origkey => 'content_external_field.source_id',
-		 objtree => [ 'TUSK::Content::External::Field' ], } ),
-	   ]);
+        $self->{_external_content_data} =  TUSK::Content::External::LinkContentField->new()->lookup('parent_content_id = ' . $self->primary_key(),
+          [
+           'content_external_field.sort_order',
+           ],
+          undef,
+          undef,
+          [
+           TUSK::Core::JoinObject->new('TUSK::Content::External::Field',
+               { joinkey => 'field_id', origkey => 'child_field_id', }),
+           TUSK::Core::JoinObject->new('TUSK::Content::External::Source',
+               { joinkey => 'source_id', origkey => 'content_external_field.source_id',
+                 objtree => [ 'TUSK::Content::External::Field' ], } ),
+           ]);
     }
 
     return $self->{_external_content_data};
@@ -3504,8 +3328,8 @@ sub get_meta_data {
     my $self = shift;
     my $metadata = TUSK::Content::External::MetaData->new()->lookup("content_id = " . $self->primary_key());
     if (scalar @$metadata == 1) {
-	return $metadata->[0];
-    } 
+        return $metadata->[0];
+    }
     return undef;
 }
 
@@ -3523,8 +3347,8 @@ sub out_icon {
     return "<img src=\"/icons/ico-url.gif\" width=\"22\" height=\"24\" border=\"0\">";
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 
@@ -3543,7 +3367,7 @@ sub out_url {
     my $class = ref $self || $self;
     my $external_url = $self->out_external_url;
     if ($external_url && $external_url =~ /external_link/) {
-	return $external_url."\" target=\"_blank";
+        return $external_url."\" target=\"_blank";
     }
     my $url = $HSDB4::Constants::URLs{$class};
     # And we're done if this is a class method; but otherwise...
@@ -3580,16 +3404,16 @@ sub out_external_url {
 }
 
 sub out_html_body {
-	my $self = shift;
+        my $self = shift;
 
-	my $body = $self->body or return;
-	my ($url) = $body->tag_values ('external_uri');
-	return unless $url;
-	$url = $url->value;
-	my $label = $self->title();
+        my $body = $self->body or return;
+        my ($url) = $body->tag_values ('external_uri');
+        return unless $url;
+        $url = $url->value;
+        my $label = $self->title();
 
-	my $content = "<div class=\"docinfo\"><a href=\"$url\">$label</a></div>";
-	return $content;
+        my $content = "<div class=\"docinfo\"><a href=\"$url\">$label</a></div>";
+        return $content;
 }
 
 sub out_icon {
@@ -3597,8 +3421,8 @@ sub out_icon {
     return "<img src=\"/icons/ico-url.gif\" width=\"22\" height=\"24\" border=\"0\">";
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 package HSDB4::SQLRow::Content::Multidocument;
@@ -3622,10 +3446,10 @@ sub display_child_content {
 }
 
 sub out_html_thumbnail {
-    # 
+    #
     # Return a row version of the document
     #
- 
+
     my $self = shift;
 
     my $thumbnail = "<IMG SRC=\"/icons/folder.gif\" WIDTH=20 HEIGHT=22 BORDER=0>";
@@ -3633,19 +3457,19 @@ sub out_html_thumbnail {
 }
 
 sub out_html_thumbnail_choose {
-    # 
+    #
     # Return a row version of the document
     #
- 
+
     my $self = shift;
     return "<IMG SRC=\"/icons/folder.gif\" WIDTH=20 HEIGHT=22 BORDER=0>";
 }
 
 sub out_html_body {
     #
-    # Return the bodies of a thousand content... etc, 
+    # Return the bodies of a thousand content... etc,
     #
-    
+
     my $self = shift;
     # First, do text, if there is any
     my $outval = $self->SUPER::out_html_body();
@@ -3654,28 +3478,28 @@ sub out_html_body {
 
     $outval .= "<UL>\n";
     foreach my $doc ($self->child_content) {
-	$outval .= '<DIV class="docinfo"><LI><A HREF="#sub-' 
-	    . $doc->primary_key . '">' . $doc->out_label . "</A></DIV>\n";
+        $outval .= '<DIV class="docinfo"><LI><A HREF="#sub-'
+            . $doc->primary_key . '">' . $doc->out_label . "</A></DIV>\n";
     }
     $outval .= "</UL>\n";
 
     foreach my $doc ($self->child_content) {
-	$outval .= 
-	    sprintf ("<H3 CLASS=\"title\"><A NAME=\"sub-%d\">%s</A></H3>\n",
-		     $doc->primary_key, $doc->out_label);
-	$outval .= $doc->out_html_body (@_, -form => 0);
-	$outval .= "<DIV CLASS=\"auxlinks\"><A HREF=\"#_top\">Top</A></DIV>\n";
+        $outval .=
+            sprintf ("<H3 CLASS=\"title\"><A NAME=\"sub-%d\">%s</A></H3>\n",
+                     $doc->primary_key, $doc->out_label);
+        $outval .= $doc->out_html_body (@_, -form => 0);
+        $outval .= "<DIV CLASS=\"auxlinks\"><A HREF=\"#_top\">Top</A></DIV>\n";
     }
-    
-    $outval .= 
-	"<DIV><INPUT TYPE=\"submit\" NAME=\"answers\" VALUE=\"Get Answers\">";
+
+    $outval .=
+        "<DIV><INPUT TYPE=\"submit\" NAME=\"answers\" VALUE=\"Get Answers\">";
     $outval .= "</DIV>\n";
     $outval .= "</FORM>\n";
     return $outval;
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 
@@ -3696,8 +3520,8 @@ sub out_html_thumbnail {
     #
 
     my $self = shift;
-    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url, 
-		   $self->out_icon);
+    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url,
+                   $self->out_icon);
 }
 
 sub display_framed {
@@ -3732,34 +3556,34 @@ sub out_index_body {
 }
 
 sub out_file_path {
-	my $self = shift;
+        my $self = shift;
         my $body = $self->body();
         my $uri =  $body->tag_values('pdf_uri') if ($body);
         return if (!defined($uri));
         my $uri_value = $uri->value();
         $uri_value = '/'.$uri_value if ($uri_value !~ /^\//);
         my $filename = $TUSK::UploadContent::path{"pdf"} . $uri_value;
-	return $filename;
+        return $filename;
 }
 
 sub get_file_body {
         my $self = shift;
-	my $filename = $self->out_file_path();
-	my $pk = $self->primary_key();
-        if (! -f $filename ){
+        my $filename = $self->out_file_path();
+        my $pk = $self->primary_key();
+        if (! -f $filename ) {
                 warn "get_file_body (ID : $pk) : There is no file called $filename";
-		return;
+                return;
         }
-        open PDFEXTRACT,$TUSK::Constants::PDFTextExtract." $filename - |" 
+        open PDFEXTRACT,$TUSK::Constants::PDFTextExtract." $filename - |"
                 or confess "Can't open ".$TUSK::Constants::PDFTextExtract." : $!";
         my @body_text = <PDFEXTRACT>;
-	close PDFEXTRACT;
+        close PDFEXTRACT;
 
         return join(" ",@body_text);
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 
@@ -3780,154 +3604,154 @@ sub out_html_body {
     return $self->SUPER::out_html_body unless ($uri);
 
     my ($width, $height, $autoplay, $type, $classid, $display_type);
-    if ($uri->get_attribute_values('width')){
-	$width = $uri->get_attribute_values('width')->value;
+    if ($uri->get_attribute_values('width')) {
+        $width = $uri->get_attribute_values('width')->value;
     }else{
-	$width = 400;
+        $width = 400;
     }
-    if ($uri->get_attribute_values('height')){
-	$height = $uri->get_attribute_values('height')->value;
+    if ($uri->get_attribute_values('height')) {
+        $height = $uri->get_attribute_values('height')->value;
     }else{
-	$height = 400;
+        $height = 400;
     }
-    if ($uri->get_attribute_values('autoplay')){
-	$autoplay = $uri->get_attribute_values('autoplay')->value;
+    if ($uri->get_attribute_values('autoplay')) {
+        $autoplay = $uri->get_attribute_values('autoplay')->value;
     }else{
-	$autoplay = 'true';
+        $autoplay = 'true';
     }
-	if ( $uri->get_attribute_values('display-type') ) {
-		$display_type = $uri->get_attribute_values('display-type')->value();
-	} else {
-		$display_type = "Stream";
-	}
+        if ( $uri->get_attribute_values('display-type') ) {
+                $display_type = $uri->get_attribute_values('display-type')->value();
+        } else {
+                $display_type = "Stream";
+        }
 
     # and then return the actual URL
     $uri = $uri->value;
 
-	if ( $uri =~ /dcr$/ ) {
-		$type = 'application/x-director';
-		$classid = 'clsid:166B1BCA-3F9C-11CF-8075-444553540000';
-	} else {
-		$type = 'application/x-shockwave-flash';
-		$classid = 'clsid:D27CDB6E-AE6D-11cf-96B8-444553540000';
-	}
+        if ( $uri =~ /dcr$/ ) {
+                $type = 'application/x-director';
+                $classid = 'clsid:166B1BCA-3F9C-11CF-8075-444553540000';
+        } else {
+                $type = 'application/x-shockwave-flash';
+                $classid = 'clsid:D27CDB6E-AE6D-11cf-96B8-444553540000';
+        }
 
-	my $output;
+        my $output;
 
-	if ( $uri =~ /flv$/ ) {
-		my $height_w_skin = $height + 25;
-		$uri =~ s/able_file//g;
-    	$output = $self->_make_object_ref (
-        	$uri,
-        	$uri,
-        	$width,
-        	$height_w_skin,
-        	{
-				data    => "/media/player_flv_maxi.swf",
-            	type    => $type,
-            	id      => 'flvPlayer',
-        	},
-        	{
-            	movie      => '/media/player_flv_maxi.swf',
-				FlashVars  => "flv=$uri&amp;width=$width&amp;height=$height_w_skin&amp;showiconplay=1&amp;showstop=1&amp;showvolume=1&amp;showtime=1&amp;showfullscreen=1&amp;showplayer=always&amp;playercolor=$TUSK::Constants::flvplayer_skin_color",
-            	swfversion => '9,0,0,0',
-				allowFullScreen => 'true',
-        	},
-        	{},
-    	) if ( $display_type ne "Downloadable" ); 
-		$output .= $self->SUPER::out_html_body . $self->_player_footer($display_type, 'flash', $uri);
-	} else {
-    	$output = $self->_make_object_ref (
-        	$uri,
-        	$uri,
-        	$width,
-        	$height,
-        	{
-            	classid => $classid,
-            	type => $type,
-            	codebase => 'http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,40,0',
-            	id => 'myMovie',
-        	},
-        	{
-            	autoplay => $autoplay,
-            	quality => 'high',
-        	},
-        	{
-            	name => 'myMovie',
-            	movie => $uri,
-            	type => $type,
-            	class => 'image',
-            	wmode => 'transparent',
-            	autoplay => $autoplay,
-            	pluginspage => 'http://www.macromedia.com/go/getflashplayer',
-        	},
-    	) if ( $display_type ne "Downloadable" ); 
-		$output .= $self->SUPER::out_html_body . $self->_player_footer($display_type, 'flash', $uri);
-	}
+        if ( $uri =~ /flv$/ ) {
+                my $height_w_skin = $height + 25;
+                $uri =~ s/able_file//g;
+        $output = $self->_make_object_ref (
+                $uri,
+                $uri,
+                $width,
+                $height_w_skin,
+                {
+                                data    => "/media/player_flv_maxi.swf",
+                type    => $type,
+                id      => 'flvPlayer',
+                },
+                {
+                movie      => '/media/player_flv_maxi.swf',
+                                FlashVars  => "flv=$uri&amp;width=$width&amp;height=$height_w_skin&amp;showiconplay=1&amp;showstop=1&amp;showvolume=1&amp;showtime=1&amp;showfullscreen=1&amp;showplayer=always&amp;playercolor=$TUSK::Constants::flvplayer_skin_color",
+                swfversion => '9,0,0,0',
+                                allowFullScreen => 'true',
+                },
+                {},
+        ) if ( $display_type ne "Downloadable" );
+                $output .= $self->SUPER::out_html_body . $self->_player_footer($display_type, 'flash', $uri);
+        } else {
+        $output = $self->_make_object_ref (
+                $uri,
+                $uri,
+                $width,
+                $height,
+                {
+                classid => $classid,
+                type => $type,
+                codebase => 'http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,40,0',
+                id => 'myMovie',
+                },
+                {
+                autoplay => $autoplay,
+                quality => 'high',
+                },
+                {
+                name => 'myMovie',
+                movie => $uri,
+                type => $type,
+                class => 'image',
+                wmode => 'transparent',
+                autoplay => $autoplay,
+                pluginspage => 'http://www.macromedia.com/go/getflashplayer',
+                },
+        ) if ( $display_type ne "Downloadable" );
+                $output .= $self->SUPER::out_html_body . $self->_player_footer($display_type, 'flash', $uri);
+        }
 
-	return $output;
+        return $output;
 }
 
 sub make_object_tag{
-	my ($self, $uri, $width, $height, $display_type) = @_;
-	my ($type, $classid);
-	$display_type = 'Stream' if !$display_type;
+        my ($self, $uri, $width, $height, $display_type) = @_;
+        my ($type, $classid);
+        $display_type = 'Stream' if !$display_type;
 
-	if ( $uri =~ /dcr$/ ) {
-		$type = 'application/x-director';
-		$classid = 'clsid:166B1BCA-3F9C-11CF-8075-444553540000';
-	} else {
-		$type = 'application/x-shockwave-flash';
-		$classid = 'clsid:D27CDB6E-AE6D-11cf-96B8-444553540000';
-	}
+        if ( $uri =~ /dcr$/ ) {
+                $type = 'application/x-director';
+                $classid = 'clsid:166B1BCA-3F9C-11CF-8075-444553540000';
+        } else {
+                $type = 'application/x-shockwave-flash';
+                $classid = 'clsid:D27CDB6E-AE6D-11cf-96B8-444553540000';
+        }
 
-	my $output;
+        my $output;
 
-	if ( $uri =~ /flv$/ ) {
-		my $height_w_skin = $height + 25;
-		$uri =~ s/able_file//g;
-    	$output = $self->_make_object_ref (
-        	$uri,
-        	$uri,
-        	$width,
-        	$height_w_skin,
-        	{
-				data    => "/media/player_flv_maxi.swf",
-            	type    => $type,
-            	id      => 'flvPlayer',
-        	},
-        	{
-            	movie      => '/media/player_flv_maxi.swf',
-				FlashVars  => "flv=$uri&amp;width=$width&amp;height=$height_w_skin&amp;showiconplay=1&amp;showstop=1&amp;showvolume=1&amp;showtime=1&amp;showfullscreen=1&amp;showplayer=always&amp;playercolor=$TUSK::Constants::flvplayer_skin_color",
-            	swfversion => '9,0,0,0',
-				allowFullScreen => 'true',
-        	},
-        	{},
-    	) if ( $display_type ne "Downloadable" ); 
-		$output .= $self->SUPER::out_html_body . $self->_player_footer($display_type, 'flash', $uri);
-	} else {
-		$output = $self->_make_object_ref (
-			$uri, $uri, $width, $height,
-			{
-				classid => $classid,
-				type => $type,
-            	codebase => 'http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,40,0',
- 				id => 'myMovie',
-			},
-			{},
-			{
-				name => 'myMovie',
-				movie => $uri,
-				type  => $type,
-				class => 'image',
-				wmode => 'transparent',
-            	pluginspage => 'http://www.macromedia.com/go/getflashplayer',
-			}
-    	) if ( $display_type ne "Downloadable" ); 
-		$output .= $self->SUPER::out_html_body . $self->_player_footer($display_type, 'flash', $uri);
-	}
+        if ( $uri =~ /flv$/ ) {
+                my $height_w_skin = $height + 25;
+                $uri =~ s/able_file//g;
+        $output = $self->_make_object_ref (
+                $uri,
+                $uri,
+                $width,
+                $height_w_skin,
+                {
+                                data    => "/media/player_flv_maxi.swf",
+                type    => $type,
+                id      => 'flvPlayer',
+                },
+                {
+                movie      => '/media/player_flv_maxi.swf',
+                                FlashVars  => "flv=$uri&amp;width=$width&amp;height=$height_w_skin&amp;showiconplay=1&amp;showstop=1&amp;showvolume=1&amp;showtime=1&amp;showfullscreen=1&amp;showplayer=always&amp;playercolor=$TUSK::Constants::flvplayer_skin_color",
+                swfversion => '9,0,0,0',
+                                allowFullScreen => 'true',
+                },
+                {},
+        ) if ( $display_type ne "Downloadable" );
+                $output .= $self->SUPER::out_html_body . $self->_player_footer($display_type, 'flash', $uri);
+        } else {
+                $output = $self->_make_object_ref (
+                        $uri, $uri, $width, $height,
+                        {
+                                classid => $classid,
+                                type => $type,
+                codebase => 'http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,40,0',
+                                id => 'myMovie',
+                        },
+                        {},
+                        {
+                                name => 'myMovie',
+                                movie => $uri,
+                                type  => $type,
+                                class => 'image',
+                                wmode => 'transparent',
+                pluginspage => 'http://www.macromedia.com/go/getflashplayer',
+                        }
+        ) if ( $display_type ne "Downloadable" );
+                $output .= $self->SUPER::out_html_body . $self->_player_footer($display_type, 'flash', $uri);
+        }
 
-	return $output;
+        return $output;
 }
 
 sub out_icon {
@@ -3969,7 +3793,7 @@ sub out_external_url {
     my $self = shift;
     # Get the object from the body...
     my ($body) = $self->body();
-    my $url =	$body->tag_values ('file_uri') if ($body);
+    my $url =   $body->tag_values ('file_uri') if ($body);
     # And return undef unless we got it
     return unless $url;
     # and then return the actual value
@@ -3979,8 +3803,8 @@ sub out_external_url {
 }
 
 sub out_index_body {
-	my $self = shift;
-	return $self->SUPER::out_index_body($self->get_file_body());
+        my $self = shift;
+        return $self->SUPER::out_index_body($self->get_file_body());
 }
 
 sub out_file_path {
@@ -3991,7 +3815,7 @@ sub out_file_path {
         my $uri_value = $uri->value();
         $uri_value = '/'.$uri_value if ($uri_value !~ /^\//);
         my $filename = $TUSK::UploadContent::path{"downloadablefile"} . $uri_value;
-	return $filename;
+        return $filename;
 
 }
 
@@ -3999,10 +3823,10 @@ sub out_file_size {
     my $self = shift;
     my $filename = $self->out_file_path();
 
-    unless (-f $filename){
-	warn "out_file_size (ID: " . $self->primary_key() . ") : There is no file called $filename";
-	return;
-    } 
+    unless (-f $filename) {
+        warn "out_file_size (ID: " . $self->primary_key() . ") : There is no file called $filename";
+        return;
+    }
 
     my $filesize = (stat($filename))[7];
 
@@ -4010,18 +3834,18 @@ sub out_file_size {
 }
 
 sub get_file_body {
-	my $self = shift;
-	my $filename = $self->out_file_path();
-	my $pk = $self->primary_key();
-	unless($filename =~ /\.docx?$/ || $filename =~ /\.pptx$/) {
-		return $self->out_html_body();
-	}
-	if (! -f $filename ){
-		warn "get_file_body (ID : $pk ) : There is no file called $filename";
-		return;
-	} 
-	my $msConverter = TUSK::Content::MSTextExtractor->new();
-	return $msConverter->getDocumentText($filename);
+        my $self = shift;
+        my $filename = $self->out_file_path();
+        my $pk = $self->primary_key();
+        unless($filename =~ /\.docx?$/ || $filename =~ /\.pptx$/) {
+                return $self->out_html_body();
+        }
+        if (! -f $filename ) {
+                warn "get_file_body (ID : $pk ) : There is no file called $filename";
+                return;
+        }
+        my $msConverter = TUSK::Content::MSTextExtractor->new();
+        return $msConverter->getDocumentText($filename);
 }
 
 sub out_icon {
@@ -4043,12 +3867,12 @@ sub out_html_thumbnail {
     #
 
     my $self = shift;
-    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url, 
-		   $self->out_html_thumbnail_img);
+    return sprintf("<A HREF=\"%s\">%s</A>", $self->out_url,
+                   $self->out_html_thumbnail_img);
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 package HSDB4::SQLRow::Content::Video;
@@ -4058,97 +3882,61 @@ use vars qw (@ISA);
 
 sub out_html_body {
     #
-    # Return the movie with all the usual good stuff
+    # Return the player with all the usual good stuff
     #
 
     my $self = shift;
     my $body = $self->body();
-    my $uri = $body->tag_values ('realvideo_uri') if ($body);
+    my $uri = $body->tag_values('realvideo_uri') if ($body);
 
-    # And return unless we got a uri
+    # return unless we got a uri
     return $self->SUPER::out_html_body unless ($uri);
 
-	my ($width, $height, $autoplay, $display_type);
-	if ($uri->get_attribute_values('width')){
-		$width = $uri->get_attribute_values('width')->value;
-	}
-	else{
-		$width = 320;
-	}
-	
-	if ($uri->get_attribute_values('height')){
-		$height = $uri->get_attribute_values('height')->value;
-	}
-	else{
-		$height = 240;
-	}
-	
-	if ($uri->get_attribute_values('autoplay')){
-		$autoplay = $uri->get_attribute_values('autoplay')->value;
-	}
-	else{
-		$autoplay = 'true';
-	}
+    my $width = ($uri->get_attribute_values('width')) ? $uri->get_attribute_values('width')->value() : 640;
+    my $height = ($uri->get_attribute_values('height')) ? $uri->get_attribute_values('height')->value() : 400;
+    my $autoplay = ($uri->get_attribute_values('autoplay')) ? $uri->get_attribute_values('autoplay')->value() : 'true';
+    my $display_type = ($uri->get_attribute_values('display-type')) ? $uri->get_attribute_values('display-type')->value() : 'Stream';
 
-    if ($uri->get_attribute_values('display-type')){
-	$display_type = $uri->get_attribute_values('display-type')->value;
-    }else{
-	$display_type = 'Stream';
-    }
+    # return the actual URL
+    $uri = $uri->value();
 
-    # and then return the actual URL
-    $uri = $uri->value;
-    
-    $uri = "/" . $uri unless ($uri=~/^\//);
+    $autoplay = ($autoplay eq 'true') ? 'autoplay' : '';
+    $uri = "/" . $uri unless ($uri =~ /^\//);
 
     my $display;
 
-    # For the time being, use Real Player for MP3 audio.
-    if ($uri =~ /\.(r[mva]|rmvb|mp3)$/i ) {
-        $display .= $self->_embed_real_player(
-            $height, $width, $autoplay, $uri, $display_type
-        );
-    } elsif ($uri =~ /\.(mov|mp((e)?g|4))$/i ) {
-        $display .= $self->_embed_qt_player(
-            $height, $width, $autoplay, $uri, $display_type
-        );
-    } elsif ($uri =~ /\.(wm[av]|avi|mod)$/i ) {
-        # The current Windows Media does not exist for Mac,
-        # So let's attempt to use QuickTime for a replacement.
-        if ($ENV{HTTP_USER_AGENT} =~/mac/i){
-            $display .= $self->_embed_qt_player(
-                $height, $width, $autoplay, $uri, $display_type
-            );
-        } else {
-            $display .= $self->_embed_wm_player(
-                $height, $width, $autoplay, $uri, $display_type
-            );
-        }
+    # Kaltura integration
+    my $kaltura = TUSK::Content::Kaltura->new();
+    $display = $kaltura->player($self->primary_key(), $display_type, $width, $height);
+
+    # HTML5 video
+    unless ($display) {
+        my $streaming_uri = &TUSK::Core::ServerConfig::dbVideoHost . $uri;
+        $display = qq(<video width="$width" height="$height" $autoplay controls><source src="$streaming_uri"></video>);
+        $display .= $self->_player_footer($display_type, 'video', $uri);
     }
 
-    $display .= $self->_player_footer($display_type, 'video', $uri);
-
-    return "<center>\n" . $display . $self->SUPER::out_html_body . "</center>\n";
+    return '<center>' . $display . $self->SUPER::out_html_body . '</center>';
 }
 
-sub out_uri{
-	my $self = shift;
-	my $body = $self->body();
-	my $uri =  $body->tag_values('realvideo_uri') if ($body);
+sub out_uri {
+        my $self = shift;
+        my $body = $self->body();
+        my $uri = $body->tag_values('realvideo_uri') if ($body);
 
-	return undef if (!defined($uri));
-	my $uri_value = $uri->value();
-	$uri_value = '/'.$uri_value if ($uri_value !~ /^\//);
+        return undef if (!defined($uri));
+        my $uri_value = $uri->value();
+        $uri_value = '/'.$uri_value if ($uri_value !~ /^\//);
 
-	return $uri_value;
+        return $uri_value;
 }
 
 sub out_file_path {
-	my $self = shift;
-	my $uri = $self->out_uri();
-	return if (!defined($uri));
-	my $filename = $TUSK::UploadContent::path{"video"} . $uri;
-	return $filename;
+        my $self = shift;
+        my $uri = $self->out_uri();
+        return if (!defined($uri));
+        my $filename = $TUSK::UploadContent::path{"video"} . $uri;
+        return $filename;
 }
 
 sub out_icon {
@@ -4156,16 +3944,15 @@ sub out_icon {
     return "<img src=\"/icons/ico-movie.gif\" width=\"22\" height=\"24\" border=\"0\">";
 }
 
-sub out_streaming_url{
-	my $self = shift;
+sub out_streaming_url {
+        my $self = shift;
 
-	return '/streaming' . $self->out_uri;
+        return '/streaming' . $self->out_uri;
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
-
 
 package HSDB4::SQLRow::Content::Audio;
 use strict;
@@ -4173,91 +3960,66 @@ use vars qw (@ISA);
 @ISA = ('HSDB4::SQLRow::Content');
 
 sub out_html_body {
- 
     #
-    # Return the movie with all the usual good stuff
+    # Return the player with all the usual good stuff
     #
 
     my $self = shift;
     my $body = $self->body;
-    my ($uri) = $body->tag_values ('realaudio_uri') if ($body);
+    my $uri = $body->tag_values('realaudio_uri') if ($body);
 
-    # Hack because content may have been stored as video....
-    $uri = $body->tag_values ('realvideo_uri') unless ($uri);
+    # content may have been stored as video
+    $uri = $body->tag_values('realvideo_uri') unless ($uri);
 
-    # And return unless we got a uri
+    # return unless we got a uri
     return $self->SUPER::out_html_body unless ($uri);
-    
-    my ($autoplay, $display_type);
 
-    if ($uri->get_attribute_values('autoplay')){
-	$autoplay = $uri->get_attribute_values('autoplay')->value;
-    }else{
-	$autoplay = 'true';
-    }
-    
-    if ($uri->get_attribute_values('display-type')){
-	$display_type = $uri->get_attribute_values('display-type')->value;
-    }else{
-	$display_type = 'Stream';
-    }
+    my $autoplay = ($uri->get_attribute_values('autoplay')) ? $uri->get_attribute_values('autoplay')->value() : 'true';
+    my $display_type = ($uri->get_attribute_values('display-type')) ? $uri->get_attribute_values('display-type')->value() : 'Stream';
 
-    # and then return the actual URL
-    $uri = $uri->value;
+    # return the actual URL
+    $uri = $uri->value();
 
-    $uri = "/" . $uri unless ($uri=~/^\//);
+    $autoplay = ($autoplay eq 'true') ? 'autoplay' : '';
+    $uri = "/" . $uri unless ($uri =~ /^\//);
 
     my $display;
 
-    # For the time being, use Real Player for MP3 audio.
-    if ($uri =~ /\.(r[mva]|rmvb|mp3)$/i ) {
-        $display .= $self->_embed_real_player(
-            100, 320, $autoplay, $uri, $display_type
-        );
-    } elsif ($uri =~ /\.(mov|mp((e)?g|4))$/i ) {
-        $display .= $self->_embed_qt_player(
-            100, 320, $autoplay, $uri, $display_type
-        );
-    } elsif ($uri =~ /\.(wm[av]|avi|mod)$/i ) {
-        # The current Windows Media does not exist for Mac,
-        # So let's attempt to use QuickTime for a replacement.
-        if ($ENV{HTTP_USER_AGENT} =~/mac/i){
-            $display .= $self->_embed_qt_player(
-                100, 320, $autoplay, $uri, $display_type
-            );
-        } else {
-            $display .= $self->_embed_wm_player(
-                100, 320, $autoplay, $uri, $display_type
-            );
-        }
+    # Kaltura integration
+    my $kaltura = TUSK::Content::Kaltura->new();
+    $display = $kaltura->player($self->primary_key(), $display_type, 400, 100);
+
+    # HTML5 audio
+    unless ($display) {
+        my $streaming_uri = &TUSK::Core::ServerConfig::dbVideoHost . $uri;
+        $display = qq(<audio $autoplay controls><source src="$streaming_uri"></audio>);
+        $display .= $self->_player_footer($display_type, 'audio', $uri);
     }
-
-    $display .= $self->_player_footer($display_type, 'audio', $uri);
-
-    return "<center>\n" . $display . $self->SUPER::out_html_body . "</center>\n";
+   
+    return '<center>' . $display . $self->SUPER::out_html_body . '</center>';
 }
 
-sub out_uri{
-	my $self = shift;
-	my $body = $self->body();
-	my $uri =  $body->tag_values('realaudio_uri') if ($body);
+sub out_uri {
+        my $self = shift;
+        my $body = $self->body();
+        my $uri =  $body->tag_values('realaudio_uri') if ($body);
 
-	# Hack because content may have been stored as video....
-	$uri = $body->tag_values ('realvideo_uri') unless ($uri);
+        # Hack because content may have been stored as video....
+        $uri = $body->tag_values ('realvideo_uri') unless ($uri);
 
-	return undef if (!defined($uri));
-	my $uri_value = $uri->value();
-	$uri_value = '/'.$uri_value if ($uri_value !~ /^\//);
+        return undef if (!defined($uri));
+        my $uri_value = $uri->value();
+        $uri_value = '/'.$uri_value if ($uri_value !~ /^\//);
 
-	return $uri_value;
+        return $uri_value;
 }
 
 sub out_file_path {
-	my $self = shift;
-	my $uri = $self->out_uri();
-	return if (!defined($uri));
-	my $filename = $TUSK::UploadContent::path{"audio"} . $uri;
-	return $filename;
+        my $self = shift;
+        my $uri = $self->out_uri();
+        return if (!defined($uri));
+        my $filename = $TUSK::UploadContent::path{"audio"} . $uri;
+        return $filename;
 }
 
 sub out_icon {
@@ -4265,14 +4027,14 @@ sub out_icon {
     return "<img src=\"/icons/ico-audio.gif\" width=\"22\" height=\"24\" border=\"0\">";
 }
 
-sub out_streaming_url{
-	my $self = shift;
+sub out_streaming_url {
+        my $self = shift;
 
-	return '/streaming' . $self->out_uri;
+        return '/streaming' . $self->out_uri;
 }
 
-sub is_mobile_ready{
-	return 1;
+sub is_mobile_ready {
+        return 1;
 }
 
 
@@ -4297,10 +4059,10 @@ sub display_child_content {
 }
 
 sub out_html_thumbnail {
-    # 
+    #
     # Return a row version of the document
     #
- 
+
     my $self = shift;
 
     my $thumbnail = "<IMG SRC=\"/icons/folder.gif\" WIDTH=20 HEIGHT=22 BORDER=0>";
@@ -4308,19 +4070,19 @@ sub out_html_thumbnail {
 }
 
 sub out_html_thumbnail_choose {
-    # 
+    #
     # Return a row version of the document
     #
- 
+
     my $self = shift;
     return "<IMG SRC=\"/icons/folder.gif\" WIDTH=20 HEIGHT=22 BORDER=0>";
 }
 
 sub out_html_body {
     #
-    # Return the bodies of a thousand content... etc, 
+    # Return the bodies of a thousand content... etc,
     #
-    
+
     my $self = shift;
     # First, do text, if there is any
     my $outval = $self->SUPER::out_html_body();
@@ -4329,8 +4091,8 @@ sub out_html_body {
 
     $outval .= "<UL>\n";
     foreach my $doc ($self->child_content) {
-	$outval .= '<DIV class="docinfo"><LI><A HREF="#sub-' 
-	    . $doc->primary_key . '">' . $doc->out_label . "</A></DIV>\n";
+        $outval .= '<DIV class="docinfo"><LI><A HREF="#sub-'
+            . $doc->primary_key . '">' . $doc->out_label . "</A></DIV>\n";
     }
     $outval .= "</UL>\n";
 
@@ -4338,15 +4100,15 @@ sub out_html_body {
     delete $args{answers};
 
     foreach my $doc ($self->child_content) {
-	$outval .= 
-	    sprintf ("<H3 CLASS=\"title\"><A NAME=\"sub-%d\">%s</A></H3>\n",
-		     $doc->primary_key, $doc->out_label);
-	$outval .= $doc->out_html_body (%args, -form => 0);
-	$outval .= "<DIV CLASS=\"auxlinks\"><A HREF=\"#_top\">Top</A></DIV>\n";
+        $outval .=
+            sprintf ("<H3 CLASS=\"title\"><A NAME=\"sub-%d\">%s</A></H3>\n",
+                     $doc->primary_key, $doc->out_label);
+        $outval .= $doc->out_html_body (%args, -form => 0);
+        $outval .= "<DIV CLASS=\"auxlinks\"><A HREF=\"#_top\">Top</A></DIV>\n";
     }
-    
-    $outval .= 
-	"<DIV><INPUT TYPE=\"submit\" NAME=\"answers\" VALUE=\"Submit Answers\">";
+
+    $outval .=
+        "<DIV><INPUT TYPE=\"submit\" NAME=\"answers\" VALUE=\"Submit Answers\">";
     $outval .= "</DIV>\n";
     $outval .= "</FORM>\n";
     return $outval;
@@ -4363,7 +4125,7 @@ B<HSDB4::SQLRow::Content> - Representation of a HSDB content unit
 =head1 SYNOPSIS
 
     use HSDB4::SQLRow::Content;
-    
+
     my $content = HSDB4::SQLRow::Content->lookup_key ('ffyear');
     print $content->out_xml;
 
@@ -4530,7 +4292,7 @@ B<Content> object.
 B<out_summary()> returns the summary gleaned from the document's XML
 body, if it's there.
 
-B<out_section_titles()> gets a list of the section titles for this 
+B<out_section_titles()> gets a list of the section titles for this
 
 B<out_sections()>
 
