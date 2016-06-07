@@ -684,7 +684,7 @@ function checkDates(el, no_empty) {
 		el.form.invalid_dates = new Array();
 	}
 
-	var isValid;n
+	var isValid;
 	if (no_empty) {
 		isValid = isValidDate(el);
 	} else {
