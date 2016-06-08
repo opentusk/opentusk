@@ -46,8 +46,12 @@ function showOther(pathIds) {
                             $('#addassessor').hide();
                             $('#results').html(resp);
                             $('.ui-button:contains(Add)').hide();
+
                             var html = $.parseHTML(resp);
-                            $('#to').append('<option value="' + $(html).filter('#new_user_token').text() + '" selected="selected">' + $(html).filter('#new_user_name').text() + '</option>');
+                            var newUserToken = $(html).filter('#new_user_token').text();
+                            if (newUserToken) {
+                                $('#to').append('<option value="' + newUserToken + '" selected="selected">' + $(html).filter('#new_user_name').text() + '</option>');
+                            }
                         }
                     },
                     error   : function(resp){
