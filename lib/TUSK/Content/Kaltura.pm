@@ -209,18 +209,23 @@ sub upload {
         my $content_id = $self->getContentID();
         my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
         if ($content->primary_key()) {
-            eval {
-                $api->startSession();
-                my $upload_result = $api->uploadFile({
-                    file => $content->out_file_path(),
-                    type => $content->type(),
-                    categories => 'TUSK',
-                    name => $content->title()
-                });
-                $api->endSession();
-                $self->setKalturaID($upload_result->first_child('rootEntryId')->text());
-            };
-            $self->setError($@) if ($@);
+            my @users = ($content->child_authors(), $content->child_users());
+            if (scalar @users) {
+                eval {
+                    $api->startSession($users[0]->primary_key());
+                    my $upload_result = $api->uploadFile({
+                        file => $content->out_file_path(),
+                        type => $content->type(),
+                        categories => 'TUSK>' . $content->field_value('school') . '>' . $content->field_value('course_id'),
+                        name => $content->title()
+                    });
+                    $api->endSession();
+                    $self->setKalturaID($upload_result->first_child('rootEntryId')->text());
+                };
+                $self->setError($@) if ($@);
+            } else {
+                $self->setError('No child user was found');
+            }
         } else {
             $self->setError('Invalid content ID');
         }

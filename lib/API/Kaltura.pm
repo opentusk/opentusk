@@ -116,11 +116,12 @@ sub runService {
 =cut
 
 sub startSession {
-    my $self = shift;
+    my ($self, $userId) = @_;
     my $ua = $self->runService({
         service => 'session',
         action => 'start',
-        type => $self->{sessionType}
+        type => $self->{sessionType},
+        userId => $userId
     });
     my $result = __getResultFromReturn($ua);
     if ($result) {
@@ -233,7 +234,7 @@ sub uploadFile {
     }
 
     my $media_add_result = $self->getResult($media_add_hash);
-    if($media_add_result->first_child('id')) {
+    if ($media_add_result->first_child('id')) {
         my $media_add_id = $media_add_result->first_child('id')->text();
         my $media_addContent_result = $self->getResult({
             service => 'media',
