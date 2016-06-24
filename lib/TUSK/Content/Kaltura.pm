@@ -171,6 +171,10 @@ sub init {
                     sessionType => 'admin',
                     partnerId => $cfg->{partnerId}
                 });
+                if ($api) {
+                    $api->startSession();
+                    $api->endSession();
+                }
             }
         };
         $api = 0 if ($@);
@@ -180,22 +184,30 @@ sub init {
 
 sub player {
     my ($self, $content_id, $display_type, $width, $height) = @_;
-    our $cfg;
+    our ($api, $cfg);
     if ($cfg) {
-        my $kaltura_url = $cfg->{kalturaUrl};
-        my $partner_id = $cfg->{partnerId};
-        my $player_id = $cfg->{'playerId' . $display_type};
-        if ($kaltura_url && $partner_id && $player_id) {
-            my $row = $self->add($content_id, 'player');
-            my $kaltura_id = $row->getKalturaID();
-            if ($kaltura_id) {
-                return qq(<iframe src="$kaltura_url) . qq(/p/$partner_id/sp/$partner_id) .
-                    qq(00/embedIframeJs/uiconf_id/$player_id/partner_id/$partner_id?) .
-                    qq(iframeembed=true&playerId=$kaltura_id&entry_id=$kaltura_id" ) .
-                    qq(width="$width" height="$height" allowfullscreen frameborder="0"></iframe>);
+        if ($api) {
+            my $kaltura_url = $cfg->{kalturaUrl};
+            my $partner_id = $cfg->{partnerId};
+            my $player_id = $cfg->{'playerId' . $display_type};
+            if ($kaltura_url && $partner_id && $player_id) {
+                my $row = $self->add($content_id, 'player');
+                my $kaltura_id = $row->getKalturaID();
+                if ($kaltura_id) {
+                    return qq(<iframe src="$kaltura_url) . qq(/p/$partner_id/sp/$partner_id) .
+                        qq(00/embedIframeJs/uiconf_id/$player_id/partner_id/$partner_id?) .
+                        qq(iframeembed=true&playerId=$kaltura_id&entry_id=$kaltura_id" ) .
+                        qq(width="$width" height="$height" allowfullscreen frameborder="0"></iframe>);
+                } elsif ($row->getError()) {
+                    return '<p>Error uploading to Kaltura.</p>';
+                } else {
+                    return '<p>This content is being uploaded to Kaltura.</p>';
+                }
             } else {
-                return '<p>This content is being uploaded to Kaltura.</p>';
+                return '<p>Error in Kaltura configuration.</p>';
             }
+        } else {
+            return '<p>Error connecting to Kaltura.</p>'
         }
     }
 }
