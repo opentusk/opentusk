@@ -148,7 +148,20 @@ sub setError {
 sub add {
     my ($self, $content_id, $user_id) = @_;
     my $row = $self->lookupReturnOne("content_id = $content_id");
-    unless ($row) {
+    if ($row) {
+        my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
+        my $processed_on = $row->getProcessedOn();
+        if ($content->primary_key() && $processed_on && $row->getKalturaID()) {
+            my $modified_time = $content->modified()->out_unix_time();
+            my $processed_time = HSDB4::DateTime->in_mysql_timestamp($processed_on)->out_unix_time();
+            if ($modified_time > $processed_time) {
+                $row->setKalturaID();
+                $row->setAddedOn();
+                $row->setFieldValue('processed_on');
+                $row->save({user => $user_id});
+            }
+        }
+    } else {
         $row = $self->new();
         $row->setContentID($content_id);
         $row->setAddedOn();
