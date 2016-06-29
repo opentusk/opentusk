@@ -23,9 +23,10 @@
 <%shared>
 	my $course = $m->comp('/tmpl/url:get_type_object');
 	my $form;
-	my $form_id;
+	my $form_id; 
 	my @rows = ();
 	my $tp_id;
+	my $tp_period;
 	my $assessor_id = $m->session->{user}->user_id();
 	my $type_path = $m->comp('/tmpl/url:get_type_path');
 	my $status_options = $TUSK::FormBuilder::SubjectAssessor::STATUS;
@@ -88,6 +89,7 @@
 % 		@rows = ();
 %		@column_headings = {label =>__('Name'), field => 'name' };
 %       $tp_id = $time_period;
+%		$tp_period = $time_periods_assessments{$tp_id};
 % 		warn 'time period is ' . $time_period;
 <& "SELF:prepare" &>
 <tr>
@@ -120,8 +122,8 @@
 		my $is_final = ($assessment_form->getMultiAssessors()) ? 0 : 1;
 		my $associations = TUSK::FormBuilder::EntryAssociation->lookup("is_final = $is_final",undef,undef,undef, [TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { jointype => 'inner', joinkey => 'entry_id', joincond => "form_id = $form_id and form_builder_entry.user_id = '$assessor_id' and time_period_id = $tp_id" }),]  );
 		my %entries = map { $_->getUserID() => $_->getEntryObject() } grep { ref $_->getEntryObject eq 'TUSK::FormBuilder::Entry' }  @$associations;
-		my @students = ($show_assigned) ? HSDB4::SQLRow::User->lookup_conditions("user_id in (" . join(',', map { "'" . ($_->getTimePeriodID() <=> $tp_id ? $_->getSubjectID() : '') . "'" } @$student_assessors) . ") order by lastname, firstname") : $course->child_students();
-		my %assigned = map { $_->getSubjectID() => $_->getStatus() } @$student_assessors;
+		my @students = ($show_assigned) ? HSDB4::SQLRow::User->lookup_conditions("user_id in (" . join(',', map { "'" . ($_->getTimePeriodID() <=> $tp_id ? $_->getSubjectID() : '') . "'" } @$student_assessors) . ") order by lastname, firstname") : $course->child_students('time_period_id = $tp_id');
+		my %assigned = map { $_->getSubjectID() => $_->getStatus() } grep {$_->getTimePeriodID() <=> $tp_id} @$student_assessors;
 		my $url = "/assessment/assessor/ajax/updatestatus/$type_path/$form_id/$tp_id";
 
 		foreach my $student (@students) {
@@ -159,6 +161,7 @@
 				selection => "<input type=\"checkbox\" name=\"selection\" value=\"" . $assessor_id . '__' . $student_id . '__' . $form_id . '__' . "$url\" $disabled $checked />",
 				submitted => ($entry) ? $entry->getCompleteDate() : '-',
 				status =>  $status,
+				timeperiod => $tp_period,
 				action => "<span id=\"action__" . $assessor_id . '__' . $student_id  . "\" style=\"$action_style\"><a href=\"/assessment/assessor/entry/$type_path/$id\">$action_label</a></span>",
 			};
 		}
