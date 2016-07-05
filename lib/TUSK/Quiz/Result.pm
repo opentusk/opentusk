@@ -243,7 +243,9 @@ sub needsGrading {
 sub addUpdateResponse{
     my ($self, $user, $response) = @_;
 
-    my $retval = $response->save({ user => $user });
+    eval {
+	my $retval = $response->save({ user => $user });
+    };
 
     if ($retval != 0){
 	push (@{$self->getResponses}, $response);
