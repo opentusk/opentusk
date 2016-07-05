@@ -1,0 +1,24 @@
+
+
+We will be adding a constraint to the quiz_response table to prevent duplicate entries at the database level. 
+It is recommended to back up the quiz_response table in the TUSK database before going ahead.
+
+After backing up quiz_response, run the following query:
+
+> SELECT quiz_result_id, GROUP_CONCAT(link_id) FROM quiz_response GROUP BY link_id, quiz_result_id HAVING COUNT(*) > 1;
+
+This should give you a list of problematic entries (i.e. entries with duplicates) in the quiz_response database.
+
+Then you can go ahead with individually looking at each pair (or more) of duplicate entries:
+
+> SELECT * FROM quiz_response WHERE quiz_result_id = <quiz_id> and link_id = <link_id>;
+
+and then deleting the undesired ones. If two entries are same (besides the quiz_response_id) you can delete either, if they are different then delete the one 
+
+without the 'graded_flag'. Command to delete:
+
+> DELETE FROM quiz_response WHERE quiz_response_id = <quiz_response_id>;
+
+Once there are no duplicate entries for the quiz_result_id/link_id pair in the quiz_response table you can go ahead in creating the constraint:
+
+>  ALTER TABLE quiz_response ADD UNIQUE unique_quiz_index (quiz_result_id, link_id);
