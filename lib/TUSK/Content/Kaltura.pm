@@ -229,6 +229,7 @@ sub upload {
     my ($self, $user_id) = @_;
     our $api;
     $self->setProcessedOn();
+    $self->setError();
     $self->save({user => $user_id});
     if ($api) {
         my $content_id = $self->getContentID();

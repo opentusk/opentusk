@@ -2,12 +2,13 @@ package API::Kaltura;
 use strict;
 use warnings;
 use XML::Twig;
-use LWP;
+use WWW::Curl::Easy;
+use WWW::Curl::Form;
 use Carp;
 
 BEGIN {
     our ($VERSION, %SESSION_TYPES, %MEDIA_TYPES);
-    $VERSION     = '0.01EXPERIMENTAL';
+    $VERSION = '0.1.0';
     %SESSION_TYPES = (
         user => 0,
         admin => 2
@@ -65,42 +66,52 @@ sub new {
 #### runService
 =head2 runService
 
- Usage     : $UAObj = $KalturaObj->runService({param1 => 'param', paramN => paramN})
+ Usage     : $result = $KalturaObj->runService({param1 => 'param', paramN => paramN})
  Purpose   : Low level service request runner
- Returns   : LWP::UserAgent object.
+ Returns   : The raw response from Kaltura
  Argument  : A hash of parameters
  Comment   : This routine runs all requests internally, and is
             exposed for convenience and testing.  Parameters
             are dependent on what the end goal is for the request.
             A simple request would be to start a session:
-                $uaObj = KalturaObject->runService({
+                $result = KalturaObject->runService({
                     service => 'session',
                     action => 'start',
                     clientTag => 'testme'
                 });
-            To get the results, simply call the content method on
-            the returned LWP::UserAgent object.
- See Also   : L<LWP::UserAgent>
 =cut
 
 sub runService {
     my ($self, $params) = @_;
-    # merge in the necessary identification stuff...
+
+    # merge in the necessary identification stuff
     foreach my $required ('secret', 'partnerId') {
         $params->{$required} = $self->{$required};
     }
     if ($self->{current_ks}) {
         $params->{'ks'} = $self->{current_ks};
     }
-    my $ua = LWP::UserAgent->new();
-    push @{$ua->requests_redirectable}, 'POST';
-    $ua->agent("Kaltura API Perl Module");
-    my $url = $self->{kalturaUrl} . '/api_v' . $self->{apiVersion};
-    return $ua->post(
-        $url,
-        Content_Type => 'form-data',
-        Content => $params
-    )
+
+    my $form = WWW::Curl::Form->new();
+    foreach my $key (keys %$params) {
+        my $value = $params->{$key};
+        if ($key eq 'fileData') {
+            $form->formaddfile($value, $key, 'application/octet-stream');
+        } else {
+            $form->formadd($key, $value) if (defined $value);
+        }
+    }
+
+    my $curl = WWW::Curl::Easy->new();
+    my $response;
+    $curl->setopt(CURLOPT_HTTPPOST, $form);
+    $curl->setopt(CURLOPT_URL, $self->{kalturaUrl} . '/api_v' . $self->{apiVersion} .'/');
+    $curl->setopt(CURLOPT_WRITEDATA, \$response);
+
+    my $code = $curl->perform();
+    croak($curl->strerror($code)) if ($code);
+
+    return $response;
 }
 #### runService end
 
@@ -117,13 +128,12 @@ sub runService {
 
 sub startSession {
     my ($self, $userId) = @_;
-    my $ua = $self->runService({
+    my $result = $self->getResult({
         service => 'session',
         action => 'start',
         type => $self->{sessionType},
         userId => $userId
     });
-    my $result = __getResultFromReturn($ua);
     if ($result) {
         $self->{current_ks} = $result->text();
     } else {
@@ -146,7 +156,7 @@ sub startSession {
 sub endSession {
     # this assumes an internal session.
     my $self = shift;
-    my $uaObj = $self->runService({
+    my $response = $self->runService({
         service => 'session',
         action => 'end',
         ks => $self->{current_ks}
@@ -157,7 +167,7 @@ sub endSession {
 #### endSession end
 
 #### getResult
-=head2 runService
+=head2 getResult
 
  Usage     : $XMLTwigResultObject = $KalturaObj->getResult(
                 {param1 => 'param', paramN => paramN}
@@ -173,8 +183,8 @@ sub endSession {
 
 sub getResult {
     my ($self, $params) = @_;
-    my $result = $self->runService($params);
-    return __getResultFromReturn($result);
+    my $response = $self->runService($params);
+    return __getResultFromResponse($response);
 }
 #### getResult end
 
@@ -215,7 +225,7 @@ sub uploadFile {
         service => 'uploadToken',
         action => 'upload',
         uploadTokenId => $upload_token_id,
-        fileData => [$params->{file}]
+        fileData => $params->{file}
     });
 
     my $media_add_hash = {
@@ -246,7 +256,7 @@ sub uploadFile {
         return $media_addContent_result;
     } else {
         carp("Media add failed!");
-        carp($media_add_result->sprint);
+        carp($media_add_result->sprint());
         return 0;
     }
 
@@ -254,20 +264,19 @@ sub uploadFile {
 #### uploadFile end
 
 #### Internal Methods
-sub __getResultFromReturn {
-    my $ua = shift;
+sub __getResultFromResponse {
+    my $response = shift;
     my $twig = XML::Twig->new('pretty_print' => 'indented');
-    my $doc = $twig->safe_parse($ua->content());
+    my $doc = $twig->safe_parse($response);
     if ($doc) {
-        $doc->sprint;
-        # check to see if the API barfed.
-        if (my $error = $doc->root->first_child('error')) {
+        # check to see if the API barfed
+        if (my $error = $doc->root()->first_child('error')) {
             return $error;
         } else {
-            return $doc->root->first_child('result');
+            return $doc->root()->first_child('result');
         }
     } else {
-        carp("Invalid content returned:  " . $ua->content);
+        carp("Invalid content returned:  " . $response);
         return 0;
     }
 }
@@ -276,7 +285,7 @@ sub __getResultFromReturn {
 
 =head1 NAME
 
-API::Kaltura - Kaltura API utility.
+API::Kaltura - Kaltura API utility
 
 =head1 SYNOPSIS
 
@@ -301,10 +310,10 @@ API::Kaltura - Kaltura API utility.
     userId => 'someUserId'
   });
 
-  # to get the raw L<LWP::UserAgent> object from Kaltura, you can use
+  # to get the raw response from Kaltura, you can use
   # runService.  This can be useful for troubleshooting connectivity
   # problems.
-  my $userUA = $kt->runService({
+  my $response = $kt->runService({
     service => 'user',
     action => 'get',
     userId => 'someUserId'
@@ -351,17 +360,28 @@ For this module, please contact the author.
     CPAN ID: JELLISII
     jellisii@gmail.com
 
+    Elad Tsur
+    elad.tsur@tufts.edu
+
 =head1 COPYRIGHT
 
-This program is free software; you can redistribute
-it and/or modify it under the same terms as Perl itself.
+Copyright 2016 Tufts University
 
-The full text of the license can be found in the
-LICENSE file included with this module.
+Licensed under the Educational Community License, Version 1.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.opensource.org/licenses/ecl1.php
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 =head1 SEE ALSO
 
-perl(1), L<XML::Twig>, L<LWP>, L<https://www.kaltura.com>.
+perl(1), L<XML::Twig>, L<WWW::Curl>, L<https://www.kaltura.com/api_v3/testmeDoc/>.
 
 =cut
 
