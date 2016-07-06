@@ -33,6 +33,7 @@
 	my $user_roles = [];
 	my @column_headings = {label =>__('Name'), field => 'name' };
 	my $student_assessors;
+	my $student_assessors_filtered;
 	my %time_periods_assessments;
 </%shared>
 
@@ -118,11 +119,13 @@
 	my $show_assigned = $assessment_form->getShowAssigned();
 	my $school_id = $course->get_school()->getPrimaryKeyID();
 
-	if (scalar @$student_assessors) {
+	my $student_assessors_filtered = TUSK::FormBuilder::SubjectAssessor->lookup(" time_period_id = $tp_id and form_id = $form_id AND assessor_id = '$assessor_id' and status != 0");
+
+	if (scalar @$student_assessors_filtered) {
 		my $is_final = ($assessment_form->getMultiAssessors()) ? 0 : 1;
 		my $associations = TUSK::FormBuilder::EntryAssociation->lookup("is_final = $is_final",undef,undef,undef, [TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { jointype => 'inner', joinkey => 'entry_id', joincond => "form_id = $form_id and form_builder_entry.user_id = '$assessor_id' and time_period_id = $tp_id" }),]  );
 		my %entries = map { $_->getUserID() => $_->getEntryObject() } grep { ref $_->getEntryObject eq 'TUSK::FormBuilder::Entry' }  @$associations;
-		my @students = ($show_assigned) ? HSDB4::SQLRow::User->lookup_conditions("user_id in (" . join(',', map { "'" . ($_->getTimePeriodID() <=> $tp_id ? $_->getSubjectID() : '') . "'" } @$student_assessors) . ") order by lastname, firstname") : $course->child_students('time_period_id = $tp_id');
+		my @students = ($show_assigned) ? HSDB4::SQLRow::User->lookup_conditions("user_id in (" . join(',', map { "'" . $_->getSubjectID() . "'" } @$student_assessors_filtered) . ") order by lastname, firstname") : $course->child_students('time_period_id = $tp_id');
 		my %assigned = map { $_->getSubjectID() => $_->getStatus() } grep {$_->getTimePeriodID() <=> $tp_id} @$student_assessors;
 		my $url = "/assessment/assessor/ajax/updatestatus/$type_path/$form_id/$tp_id";
 
