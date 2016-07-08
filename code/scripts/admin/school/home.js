@@ -27,9 +27,9 @@ function toggleAllSchools(num, obj, prefix) {
     var collapseImg = '/graphics/up.gif';
     var toggle = 'block';
 
-    if (currImgSrc.contains(expandImg)) {
+    if (currImgSrc === expandImg) {
         $(obj).children('img').attr( 'src', collapseImg );
-    } else if (currImgSrc.contains(collapseImg)) {
+    } else if (currImgSrc === collapseImg) {
         toggle = 'none';
         $(obj).children('img').attr( 'src', expandImg );
     }
