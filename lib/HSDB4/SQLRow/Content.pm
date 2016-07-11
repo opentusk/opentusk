@@ -3892,8 +3892,6 @@ sub out_html_body {
     # return unless we got a uri
     return $self->SUPER::out_html_body unless ($uri);
 
-    my $width = ($uri->get_attribute_values('width')) ? $uri->get_attribute_values('width')->value() : 640;
-    my $height = ($uri->get_attribute_values('height')) ? $uri->get_attribute_values('height')->value() : 400;
     my $autoplay = ($uri->get_attribute_values('autoplay')) ? $uri->get_attribute_values('autoplay')->value() : 'true';
     my $display_type = ($uri->get_attribute_values('display-type')) ? $uri->get_attribute_values('display-type')->value() : 'Stream';
 
@@ -3907,12 +3905,12 @@ sub out_html_body {
 
     # Kaltura integration
     my $kaltura = TUSK::Content::Kaltura->new();
-    $display = $kaltura->player($self->primary_key(), $display_type, $width, $height);
+    $display = $kaltura->player($self->primary_key(), $display_type);
 
     # HTML5 video
     unless ($display) {
         my $streaming_uri = &TUSK::Core::ServerConfig::dbVideoHost . $uri;
-        $display = qq(<video width="$width" height="$height" $autoplay controls><source src="$streaming_uri"></video>);
+        $display = qq(<video class="player" $autoplay controls><source src="$streaming_uri"></video>);
         $display .= $self->_player_footer($display_type, 'video', $uri);
     }
 
@@ -3987,12 +3985,12 @@ sub out_html_body {
 
     # Kaltura integration
     my $kaltura = TUSK::Content::Kaltura->new();
-    $display = $kaltura->player($self->primary_key(), $display_type, 400, 100);
+    $display = $kaltura->player($self->primary_key(), $display_type);
 
     # HTML5 audio
     unless ($display) {
         my $streaming_uri = &TUSK::Core::ServerConfig::dbVideoHost . $uri;
-        $display = qq(<audio $autoplay controls><source src="$streaming_uri"></audio>);
+        $display = qq(<audio class="player" $autoplay controls><source src="$streaming_uri"></audio>);
         $display .= $self->_player_footer($display_type, 'audio', $uri);
     }
    
@@ -4004,8 +4002,8 @@ sub out_uri {
         my $body = $self->body();
         my $uri =  $body->tag_values('realaudio_uri') if ($body);
 
-        # Hack because content may have been stored as video....
-        $uri = $body->tag_values ('realvideo_uri') unless ($uri);
+        # content may have been stored as video
+        $uri = $body->tag_values('realvideo_uri') unless ($uri);
 
         return undef if (!defined($uri));
         my $uri_value = $uri->value();

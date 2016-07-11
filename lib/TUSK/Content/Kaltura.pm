@@ -196,7 +196,7 @@ sub init {
 }
 
 sub player {
-    my ($self, $content_id, $display_type, $width, $height) = @_;
+    my ($self, $content_id, $display_type) = @_;
     our ($api, $cfg);
     if ($cfg) {
         if ($api) {
@@ -207,10 +207,10 @@ sub player {
                 my $row = $self->add($content_id, 'player');
                 my $kaltura_id = $row->getKalturaID();
                 if ($kaltura_id) {
-                    return qq(<iframe src="$kaltura_url) . qq(/p/$partner_id/sp/$partner_id) .
+                    return qq(<iframe src="$kaltura_url/p/$partner_id/sp/$partner_id) .
                         qq(00/embedIframeJs/uiconf_id/$player_id/partner_id/$partner_id?) .
                         qq(iframeembed=true&playerId=$kaltura_id&entry_id=$kaltura_id" ) .
-                        qq(width="$width" height="$height" allowfullscreen frameborder="0"></iframe>);
+                        qq(class="player" allowfullscreen></iframe>);
                 } elsif ($row->getError()) {
                     return '<p>Error uploading to Kaltura.</p>';
                 } else {
