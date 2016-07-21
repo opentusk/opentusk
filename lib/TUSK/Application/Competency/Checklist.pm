@@ -396,7 +396,7 @@ WHERE competency_checklist_group_id = $self->{checklist_group_id}
     my $total_checklists = scalar keys %$checklists;
     my $school_db = $course->school_db();
     $sth = $checklist->databaseSelect(qq(
-SELECT concat(lastname, ', ', firstname) as name, uid, competency_checklist_id, count(distinct competency_checklist_entry_id)
+SELECT concat(lastname, ', ', firstname) as name, uid, competency_checklist_id, count(distinct competency_checklist_entry_id), count(distinct request_date), count(distinct complete_date)
 FROM $school_db.link_course_student as l
 INNER JOIN tusk.competency_checklist_assignment as a on (l.child_user_id = student_id AND a.time_period_id = l.time_period_id and competency_checklist_group_id = $self->{checklist_group_id})
 INNER JOIN tusk.competency_checklist_entry as e on (a.competency_checklist_assignment_id = e.competency_checklist_assignment_id AND complete_date is NOT NULL)
@@ -407,7 +407,7 @@ ORDER BY name
 					    ));
 
     my %data = ();
-    while (my ($student_name, $student_id, $checklist_id, $cnt) = $sth->fetchrow_array()) {
+    while (my ($student_name, $student_id, $checklist_id, $cnt, $cnt_partner_pending, $cnt_faculty_pending) = $sth->fetchrow_array()) {
 	$data{$student_id}{name} = $student_name;
 	if ($cnt == $checklists->{$checklist_id}{total}) {
 	    $data{$student_id}{total_completed}++;
