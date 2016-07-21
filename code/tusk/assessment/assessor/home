@@ -24,11 +24,7 @@
 </%once>
 
 <%shared>
-	my $form;
-	my $form_id; 
 	my @rows = ();
-	my $tp_id;
-	my $tp_period;
 	my $assessor_id = $m->session->{user}->user_id();
 	my $status_options = $TUSK::FormBuilder::SubjectAssessor::STATUS;
 	my $user_roles = [];
@@ -38,7 +34,15 @@
 	my %time_periods_assessments;
 </%shared>
 
+<i>Please Note: To search for a Student or Time Period, please use the Search Function built into your browswer:
+<strong>PC: </strong><mark>Ctrl - F</mark>
+<strong>Mac: </strong><mark>Command - F</mark>
+
 <%perl>
+	my $tp_id;
+	my $tp_period;
+	my $form;
+	my $form_id;
 	my $rows = $m->session->{'user'}->get_instructor_assessments();
 	my ($courses, $forms);
 
@@ -60,8 +64,8 @@
 %	foreach my $course_id (keys %$courses) {
 %   my $course = HSDB45::Course->new(_school => $courses->{$course_id}{school}, _id => $course_id);
 <tr><td colspan="3" style="padding:10px 0 5px 0;"><a href="/management/course/display/<% $courses->{$course_id}{school} . '/' . $course_id . '">'.__('Course').' - ' . $courses->{$course_id}{title} %></a><td></tr>
-<& "/tmpl/element:table", params => { width => "80%", border =>"0",cellspacing =>"0",cellpadding =>"0" } &>
-<tr class="header"><th align="left"><%__('Title')%></th></tr>
+<& "/tmpl/element:table", params => { width => "100%", border =>"0",cellspacing =>"0",cellpadding =>"0" } &>
+
 %		my $i = 0;
 %		foreach my $current_form_id (sort keys %{$forms->{$course_id}}) {
 %			$form = $m->comp('/formbuilder/util:get_form', join_objects => [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }) ], alternate_form_id => $current_form_id);
@@ -70,7 +74,7 @@
 	my $school_result = TUSK::Core::School->new->lookup("school_name = '" . $courses->{$course_id}{school} . "'");
 	my $school = $school_result->[0];
 	my $assessors = TUSK::FormBuilder::SubjectAssessor->new()->lookup(" form_id = $form_id AND assessor_id = '$assessor_id' and status != 0", 
-		undef, undef, undef, [
+		['time_period.start_date DESC', 'time_period.end_date DESC'], undef, undef, [
 			TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TimePeriod', {
 				joinkey => 'time_period_id', origkey => 'time_period_id', jointype => 'inner',
 				database => $school->getSchoolDb()
@@ -78,25 +82,50 @@
 		]);
 	%time_periods_assessments = map {$_->getJoinObject("TUSK::Core::HSDB45Tables::TimePeriod")->getPrimaryKeyID() => $_->getJoinObject("TUSK::Core::HSDB45Tables::TimePeriod")->getPeriod()} @$assessors;
 
+	my %seen_time_periods;
+	my @sorted_time_periods_assessment;
+
+	for my $time_period (@{$assessors}) {
+		my $time_period_id = $time_period->getJoinObject("TUSK::Core::HSDB45Tables::TimePeriod")->getPrimaryKeyID();
+		if(!$seen_time_periods{$time_period_id}++)
+		{
+			push @sorted_time_periods_assessment, {
+				timePeriodId => $time_period_id,
+				timePeriod => $time_period->getJoinObject("TUSK::Core::HSDB45Tables::TimePeriod")->getPeriod()
+			}
+		}
+	}
+
 </%perl>
 %			$student_assessors = TUSK::FormBuilder::SubjectAssessor->lookup(" form_id = $form_id AND assessor_id = '$assessor_id' and status != 0");
 % 			my @applicable_time_periods = map {$_->getTimePeriodID()} @$student_assessors;
 %			my $odd_even = ($i++ % 2 == 0) ? 'even' : 'odd';
 <tr class="<% $odd_even %>">
-<td style="padding:5px 10px 5px 2px;"><% $forms->{$course_id}{$form_id}[0] . '<br><br>' . $forms->{$course_id}{$form_id}[1] %></td>
+<tr class="header"><th align="left"><%__('Assessment: ') . $forms->{$course_id}{$form_id}[0]%></th></tr>
+<td style="padding:5px 10px 5px 2px;"><% $forms->{$course_id}{$form_id}[1] %></td>
 </tr>
 <tr><td colspan="3"><br/><br/></td></tr>
 
-%		for my $time_period (keys %time_periods_assessments) {
+%		for my $time_period (@sorted_time_periods_assessment) {
 % 		@rows = ();
-%		@column_headings = {label =>__('Name'), field => 'name' };
-%       $tp_id = $time_period;
-%		$tp_period = $time_periods_assessments{$tp_id};
-% 		warn 'time period is ' . $time_period;
-<& "SELF:prepare", course_param => { 
-	course_id => $course_id,
-	school_id => $school->getPrimaryKeyID(),
-	school_db => $school->getSchoolDb()} &>
+%		@column_headings = {label =>__('Name'), field => 'name', html => 1,  width => '25%' };
+
+<& "SELF:prepare", param => {
+		course => { 
+			course_id => $course_id,
+			school_id => $school->getPrimaryKeyID(),
+			school_name => $school->getSchoolName()
+		}, 
+		form => {
+			form => $form,
+			form_id => $form_id
+		},
+		time_period => {
+			tp_id => $time_period->{timePeriodId},
+			tp_period => $time_period->{timePeriod}
+		}
+	} 
+	&>
 <tr>
 <td class="no-button">
 % if (scalar @$user_roles) {
@@ -108,23 +137,26 @@
 	columns => [ @column_headings ],
 	rows => \@rows,
 	name => "Assessments",
-	type_path => "course/$school->getSchoolDb()/$course_id/$form_id",
+	type_path => "course/$school->getSchoolName()/$course_id",
 	sort_box => 0,
 	'norows-message' => '<br/>'.__('No students assigned'),
+	
 } &>
 </td>
 
 <%method prepare>
 <%args>
-	$course_param
+	$param
 </%args>
 <%perl>
-	# $tp_id = $ARGS{timeperiod} || $m->comp("SELF:get_timeperiod_id");
-	my $course_id = $course_param->{course_id};
-	my $school_id = $course_param->{school_id};
-	my $school_db = $course_param->{school_db};
-	my $new_form_url = "course/$school_db/$course_id/$form_id";
-	warn 'Type path is ' . $new_form_url;
+	my $course_id = $param->{course}->{course_id};
+	my $school_id = $param->{course}->{school_id};
+	my $school_name = $param->{course}->{school_name};
+	my $form = $param->{form}->{form};
+	my $form_id = $param->{form}->{form_id};
+	my $tp_id = $param->{time_period}->{tp_id};
+	my $tp_period = $param->{time_period}->{tp_period};
+	my $new_form_url = "course/$school_name/$course_id";
 	my $course = HSDB45::Course->new(_school => $school_id, _id => $course_id);
 	my $assessment_form = $form->getJoinObject('TUSK::FormBuilder::Assessment');
 	my $show_image = $assessment_form->getShowImages();
@@ -139,7 +171,7 @@
 		my %entries = map { $_->getUserID() => $_->getEntryObject() } grep { ref $_->getEntryObject eq 'TUSK::FormBuilder::Entry' }  @$associations;
 		my @students = ($show_assigned) ? HSDB4::SQLRow::User->lookup_conditions("user_id in (" . join(',', map { "'" . $_->getSubjectID() . "'" } @$student_assessors_filtered) . ") order by lastname, firstname") : $course->child_students('time_period_id = $tp_id');
 		my %assigned = map { $_->getSubjectID() => $_->getStatus() } @$student_assessors_filtered;
-		my $url = "/assessment/assessor/ajax/updatestatus/course/$new_form_url/$tp_id";
+		my $url = "/assessment/assessor/ajax/updatestatus/$new_form_url/$form_id/$tp_id";
 
 		foreach my $student (@students) {
 			my $student_id = $student->primary_key();
@@ -181,12 +213,12 @@
 			};
 		}
 
-		push @column_headings, {label => __('Elective'), field => 'elective', align => 'center' } if ($show_elective);
-		push @column_headings, {label => __('Select/Deselect'), field => 'selection', align => 'center', html => 1 } if ($assessment_form->getStudentSelection());
+		push @column_headings, {label => __('Elective'), field => 'elective', align => 'center', html => 1,  width => '10%' } if ($show_elective);
+		push @column_headings, {label => __('Select/Deselect'), field => 'selection', align => 'center', html => 1, width => '10%' } if ($assessment_form->getStudentSelection());
 		push @column_headings, (		
-			{label => __('Action'), field => 'action', align => 'center', html => 1 },
-			{label => __('Status'), field => 'status', align => 'center' },
-			{label => __('Time Period'), field => 'timeperiod', align => 'center'}
+			{label => __('Action'), field => 'action', align => 'center', html => 1, width => '10%' },
+			{label => __('Status'), field => 'status', align => 'center', html => 1,  width => '28%' },
+			{label => __('Time Period'), field => 'timeperiod', align => 'center', html => 1,  width => '28%' }
 		);
 		$user_roles = TUSK::Permission::UserRole->new()->getFeatureUserByRole('assessment', $form_id, 'NCSA');
 	}
