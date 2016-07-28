@@ -172,9 +172,10 @@ sub add {
 
 sub init {
     my ($self) = @_;
-    our ($api, $cfg);
+    our ($api, $cfg, $support_email);
     unless (defined $api) {
         eval {
+            $support_email = TUSK::Config->new()->SupportEmail();
             $cfg = TUSK::Config->new()->Kaltura();
             if ($cfg->{secret} && $cfg->{kalturaUrl} && $cfg->{partnerId}) {
                 $api = API::Kaltura->new({
@@ -197,7 +198,7 @@ sub init {
 
 sub player {
     my ($self, $content_id, $display_type) = @_;
-    our ($api, $cfg);
+    our ($api, $cfg, $support_email);
     if ($cfg) {
         if ($api) {
             my $kaltura_url = $cfg->{kalturaUrl};
@@ -212,15 +213,17 @@ sub player {
                         qq(iframeembed=true&playerId=$kaltura_id&entry_id=$kaltura_id" ) .
                         qq(class="player" allowfullscreen></iframe>);
                 } elsif ($row->getError()) {
-                    return '<p>Error uploading to Kaltura.</p>';
+                    return qq(<p>Error uploading to Kaltura.<br>Please email $support_email.</p>);
                 } else {
-                    return '<p>This content is being uploaded to Kaltura.</p>';
+                    return qq(<p>This content is being transitioned to a new server to improve performance.<br>) .
+                        qq(This process is in queue and it could take a few minutes to complete.<br>) .
+                        qq(Please email $support_email if the process has exceeded 30 minutes.</p>);
                 }
             } else {
-                return '<p>Error in Kaltura configuration.</p>';
+                return qq(<p>Error in Kaltura configuration.<br>Please email $support_email.</p>);
             }
         } else {
-            return '<p>Error connecting to Kaltura.</p>'
+            return qq(<p>Error connecting to Kaltura.<br>Please email $support_email.</p>);
         }
     }
 }
