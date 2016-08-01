@@ -43,7 +43,7 @@
 	my $user = $m->session->{'user'};
 	my ($formatter, $saved_answers_id, $teaching_site, @loaded_answers, @loaded_fields);
 	my $answers;
-	my ($eval_completed, $msg, $qualified_request) = (0, '', 1);
+	my ($eval_completed, $msg, $qualified_request, $can_answer) = (0, '', 0, 0);
 	my $is_teaching_eval = $eval->is_teaching_eval();
 	my ($evaluatee, $site) = (undef, undef);
 	my $is_done = $evaluatee_uid eq 'done';
@@ -73,9 +73,12 @@
 </%args>
 
 <%perl>
-	unless ($eval->admin_group()->contains_user($user)) {
-		($qualified_request, $msg) = $eval->is_user_allowed ($user);
-		unless ($qualified_request) {
+	$qualified_request = $eval->admin_group()->contains_user($user);
+	unless ($qualified_request) {
+		($qualified_request, $msg) = $eval->is_user_allowed($user);
+		if ($qualified_request) {
+			$can_answer = 1;
+		} else {
 			$m->comp('SELF:set_msg', msg => $msg, type => 'err');
 		}
 	}
@@ -161,7 +164,7 @@
 					$fdat{site_id} = $evaluator_site_id;
 				}
 
-				($eval_completed, $msg) = $eval->answer_form($user, \%fdat);
+				($eval_completed, $msg) = $eval->answer_form($user, \%fdat) if ($can_answer);
 				if ($eval_completed) {
 					if ($answers && $answers->id()) {
 						$answers->do_delete();
