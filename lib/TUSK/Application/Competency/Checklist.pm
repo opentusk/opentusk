@@ -369,6 +369,15 @@ sub getChecklistWithParentChildren {
     );
 }
 
+sub getPendingFaculty {
+    my $self = @_;
+
+    #my $sth = qq(SELECT count(*) FROM competency_checklist_entry WHERE competency_checklist_assignment_id = $assignment_id AND complete_date IS NULL AND (request_date IS NOT NULL OR notify_date IS NOT NULL));
+
+
+    
+}
+
 sub getSummaryReport {
     my ($self, $time_period_id, $course) = @_;
 
@@ -393,10 +402,10 @@ WHERE competency_checklist_group_id = $self->{checklist_group_id}
     }
     $sth->finish();
 
-    my $total_checklists = scalar keys %$checklists;
+    $total_checklists = scalar keys %$checklists;
     my $school_db = $course->school_db();
     $sth = $checklist->databaseSelect(qq(
-SELECT concat(lastname, ', ', firstname) as name, uid, competency_checklist_id, count(distinct competency_checklist_entry_id), count(distinct request_date), count(distinct complete_date)
+SELECT concat(lastname, ', ', firstname) as name, uid, competency_checklist_id, count(distinct competency_checklist_entry_id)
 FROM $school_db.link_course_student as l
 INNER JOIN tusk.competency_checklist_assignment as a on (l.child_user_id = student_id AND a.time_period_id = l.time_period_id and competency_checklist_group_id = $self->{checklist_group_id})
 INNER JOIN tusk.competency_checklist_entry as e on (a.competency_checklist_assignment_id = e.competency_checklist_assignment_id AND complete_date is NOT NULL)
@@ -407,13 +416,35 @@ ORDER BY name
 					    ));
 
     my %data = ();
-    while (my ($student_name, $student_id, $checklist_id, $cnt, $cnt_partner_pending, $cnt_faculty_pending) = $sth->fetchrow_array()) {
+    while (my ($student_name, $student_id, $checklist_id, $cnt) = $sth->fetchrow_array()) {
 	$data{$student_id}{name} = $student_name;
 	if ($cnt == $checklists->{$checklist_id}{total}) {
 	    $data{$student_id}{total_completed}++;
 	    if ($checklists->{$checklist_id}{required}) {
 		$data{$student_id}{total_required_completed}++;
 	    }
+	}
+    }
+
+    $sth = $checklist->databaseSelect(qq(
+SELECT concat(lastname, ', ', firstname) as name, uid, d.short_name AS pending_type, count(distinct competency_checklist_entry_id)
+FROM $school_db.link_course_student as l
+INNER JOIN tusk.competency_checklist_assignment as a on (l.child_user_id = student_id AND a.time_period_id = l.time_period_id and competency_checklist_group_id = $self->{checklist_group_id})
+INNER JOIN tusk.competency_checklist_entry as e on (a.competency_checklist_assignment_id = e.competency_checklist_assignment_id)
+INNER JOIN hsdb4.user as u on (l.child_user_id = u.user_id)
+INNER JOIN tusk.enum_data AS d ON (a.assessor_type_enum_id = d.enum_data_id)
+WHERE l.time_period_id = $time_period_id
+AND e.complete_date IS NULL 
+AND (d.short_name = 'faculty' OR d.short_name = 'partner')
+GROUP BY child_user_id
+ORDER BY name
+					    ));
+
+    while (my ($current_student_name, $current_student_id, $pending_type, $cnt_pending) = $sth->fetchrow_array()) {
+	if ($pending_type eq 'faculty') {
+	    $data{$current_student_id}{faculty_pending} = $cnt_pending;
+	} else {
+	    $data{$current_student_id}{partner_pending} = $cnt_pending;
 	}
     }
 
