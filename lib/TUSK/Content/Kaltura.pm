@@ -152,7 +152,7 @@ sub add {
         my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
         my $processed_on = $row->getProcessedOn();
         if ($content->primary_key() && $processed_on && $row->getKalturaID()) {
-            my $modified_time = $content->modified()->out_unix_time();
+            my $modified_time = (stat($content->out_file_path()))[9];
             my $processed_time = HSDB4::DateTime->in_mysql_timestamp($processed_on)->out_unix_time();
             if ($modified_time > $processed_time) {
                 $row->setKalturaID();
