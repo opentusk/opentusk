@@ -71,6 +71,18 @@
 <% $notify_tmpl %>
 </div>
 
+
+% if ($assessment_type eq 'faculty') {
+<br>
+<& /tmpl/element:input_checkbox, params =>{ 
+				name     => 'excellence',
+				value    => '0' ,
+				onclick => 'if (this.checked) {this.value = 1} else {this.value = 0};'
+} &>	
+<span id="excellence_text">Demonstrated Excellence</span>
+<br>
+%}
+
 <div id="comment" style="margin-top:5px;font-weight:bold;">Comments&nbsp;(Optional but <span style="color:red;">Encouraged</span>)</div>
 
 >>>>>>> optional but encouraged text added for comments on checklists [T-3488]
@@ -190,6 +202,7 @@
 					],
 					nobreak => 1,
 			}),
+			
 			title => $skill->getTitle(),
 		};
 	}
@@ -250,7 +263,11 @@
 
 	if (my $entry_id = $entry->getPrimaryKeyID()) {
 		my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
-		$acc->saveCompletions(\%args, $id_prefix, $entry_id, $assessor_id);
+		if ($args{excellence}) {
+			$acc->saveCompletions(\%args, $id_prefix, $entry_id, $assessor_id, $args{excellence});
+		} else {
+			$acc->saveCompletions(\%args, $id_prefix, $entry_id, $assessor_id);
+		}
 		$msgtext = ($args{save_submit}) ? __('Successfully Saved') : __('Successfully Submitted');
 		$msgtype = 'msg';
 	}

@@ -44,12 +44,16 @@ function showHideButtons() {
 		} 
 	}
 
-	// show complete button when all radio buttons are checked
+	// show complete and excellence buttons only when all radio buttons are checked
 	if (num_completions == ($(':input.compid').length / 2)) {
 		$('#complete_submit').show();
 		$('#notify_submit').hide();		
 		$('#notify_template').hide();
+		$('#excellence').show();
+		$('#excellence_text').show();
 	} else {
 		$('#complete_submit').hide();		
+		$('#excellence').hide();
+		$('#excellence_text').hide();
 	}
 }

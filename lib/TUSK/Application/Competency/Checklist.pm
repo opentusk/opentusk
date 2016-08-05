@@ -453,14 +453,17 @@ ORDER BY name
 
 
 sub saveCompletions {
-    my ($self, $args, $id_prefix, $entry_id, $assessor_id) = @_;
+    my ($self, $args, $id_prefix, $entry_id, $assessor_id, $excellence) = @_;
 
     my %completions = map { $_->getCompetencyID() => $_ } @{TUSK::Competency::Checklist::Completion->lookup("competency_checklist_entry_id = $entry_id")};
     foreach my $key (keys %$args) {
 	if ($key =~ m/$id_prefix/) {
 	    my (undef, $competency_id) = split(/__/, $key);
 	    if (exists $completions{$competency_id}) {
-		$completions{$competency_id}->setCompleted($args->{$key});
+		$completions{$competency_id}->setCompleted($args->{$key});		
+		if ($excellence) {
+		    $completions{$competency_id}->setExcellence($excellence);		
+		}
 		$completions{$competency_id}->save({user => $assessor_id});
 	    } else {
 		my $completion = TUSK::Competency::Checklist::Completion->new();
@@ -469,6 +472,9 @@ sub saveCompletions {
 		    competency_id	                => $competency_id,
 		    completed                           => $args->{$key},
 		});
+		if ($excellence) {
+		    $completion->setExcellence($excellence);		
+		}
 		$completion->save({user => $assessor_id});
 	    }
 	}
