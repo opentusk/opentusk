@@ -63,10 +63,9 @@
 %	foreach my $course_id (keys %$courses) {
 %   my $course = HSDB45::Course->new(_school => $courses->{$course_id}{school}, _id => $course_id);
 <tr><td colspan="3" style="padding:10px 0 5px 0;"><a href="/management/course/display/<% $courses->{$course_id}{school} . '/' . $course_id . '">'.__('Course').' - ' . $courses->{$course_id}{title} %></a><td></tr>
-<& "/tmpl/element:table", params => { width => "100%", border =>"0",cellspacing =>"0",cellpadding =>"0" } &>
-
 %		my $i = 0;
 %		foreach my $current_form_id (sort keys %{$forms->{$course_id}}) {
+<& "/tmpl/element:table", params => { width => "100%", border =>"0",cellspacing =>"0",cellpadding =>"0" } &>
 %			$form = $m->comp('/formbuilder/util:get_form', join_objects => [ TUSK::Core::JoinObject->new('TUSK::FormBuilder::Assessment', { joinkey => 'form_id', jointype => 'inner' }) ], alternate_form_id => $current_form_id);
 %			$form_id = $form->getPrimaryKeyID(); 
 <%perl>
@@ -98,11 +97,7 @@
 %			$student_assessors = TUSK::FormBuilder::SubjectAssessor->lookup(" form_id = $form_id AND assessor_id = '$assessor_id' and status != 0");
 % 			my @applicable_time_periods = map {$_->getTimePeriodID()} @$student_assessors;
 %			my $odd_even = ($i++ % 2 == 0) ? 'even' : 'odd';
-<tr class="<% $odd_even %>">
-<tr class="header"><th align="left"><%__('Assessment: ') . $forms->{$course_id}{$form_id}[0]%></th></tr>
-<td style="padding:5px 10px 5px 2px;"><% $forms->{$course_id}{$form_id}[1] %></td>
-</tr>
-<tr><td colspan="3"><br/><br/></td></tr>
+
 
 %		for my $time_period (@sorted_time_periods_assessment) {
 % 		@rows = ();
