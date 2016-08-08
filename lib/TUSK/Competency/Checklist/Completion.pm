@@ -69,7 +69,6 @@ sub new {
 					'competency_checklist_entry_id' => '',
 					'competency_id' => '',
 					'completed' => '',
-					'excellence' => '',
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -178,36 +177,6 @@ Set the value of the completed field
 sub setCompleted{
     my ($self, $value) = @_;
     $self->setFieldValue('completed', $value);
-}
-
-#######################################################
-
-=item B<getExcellence>
-
-my $string = $obj->getExcellence();
-
-Get the value of the excellence field
-
-=cut
-
-sub getExcellence{
-    my ($self) = @_;
-    return $self->getFieldValue('excellence');
-}
-
-#######################################################
-
-=item B<setExcellence>
-
-$obj->setExcellence($value);
-
-Set the value of the excellence field
-
-=cut
-
-sub setExcellence{
-    my ($self, $value) = @_;
-    $self->setFieldValue('excellence', $value);
 }
 
 

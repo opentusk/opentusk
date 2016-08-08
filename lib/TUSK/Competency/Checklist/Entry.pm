@@ -73,6 +73,7 @@ sub new {
 					'request_date' => '',
 					'notify_date' => '',
 					'complete_date' => '',
+					'excellence' => '',
 					'assessor_comment' => '',
 					'student_comment' => '',
 				    },
@@ -245,6 +246,36 @@ Set the value of the complete_date field
 sub setCompleteDate{
     my ($self, $value) = @_;
     $self->setFieldValue('complete_date', $value);
+}
+
+#######################################################
+
+=item B<getExcellence>
+
+my $string = $obj->getExcellence();
+
+Get the value of the excellence field
+
+=cut
+
+sub getExcellence{
+    my ($self) = @_;
+    return $self->getFieldValue('excellence');
+}
+
+#######################################################
+
+=item B<setExcellence>
+
+$obj->setExcellence($value);
+
+Set the value of the excellence field
+
+=cut
+
+sub setExcellence{
+    my ($self, $value) = @_;
+    $self->setFieldValue('excellence', $value);
 }
 
 

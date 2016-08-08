@@ -256,6 +256,9 @@
 		$entry->setRequestDate(undef);
 		$entry->setNotifyDate(undef);
 		$entry->setCompleteDate(HSDB4::DateTime->new()->out_mysql_timestamp());
+		if ($args{excellence}) {
+			$entry->setExcellence($args{excellence});
+		}
 		$entry_changed = 1;
 	}
 
@@ -263,11 +266,9 @@
 
 	if (my $entry_id = $entry->getPrimaryKeyID()) {
 		my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
-		if ($args{excellence}) {
-			$acc->saveCompletions(\%args, $id_prefix, $entry_id, $assessor_id, $args{excellence});
-		} else {
-			$acc->saveCompletions(\%args, $id_prefix, $entry_id, $assessor_id);
-		}
+		
+		$acc->saveCompletions(\%args, $id_prefix, $entry_id, $assessor_id);
+
 		$msgtext = ($args{save_submit}) ? __('Successfully Saved') : __('Successfully Submitted');
 		$msgtype = 'msg';
 	}
