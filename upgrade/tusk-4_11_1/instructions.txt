@@ -1,0 +1,17 @@
+### Apache configuration change 
+
+### You may SKIP this upgrade if you don't have nagios monitoring system checking on your web server
+### This change will throw away any hit from nagios.  Otherwise the ngios hit will log into access_log and fill up your log quickly depending on how frequently your setup nagios to run.
+
+In your tusk_logging file, please add the below two lines starting with '+' (plus sign).  Exclude '+' from your insertion.
+
+ SetEnvIf Request_URI "^/public/lb$" lblog 
++SetEnvIf User-Agent "^check_http" dontlog
+
+ SetEnvIf lblog 1 no_access=1
++SetEnvIf dontlog 1 no_access=1
+
+### Kaltura integration
+
+Add a cron job to run the Kaltura worker every hour.
+0 * * * * /usr/local/tusk/current/bin/worker/kaltura
