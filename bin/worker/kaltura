@@ -23,11 +23,12 @@ use TUSK::Content::Kaltura;
 my $kaltura = TUSK::Content::Kaltura->new();
 die 'Kaltura is not configured' unless ($kaltura->init());
 
-while (1) {
+my $finish = time() + 3600;
+while (time() < $finish) {
     my $row = $kaltura->lookupReturnOne('kaltura_id IS NULL AND processed_on IS NULL');
     if ($row) {
         $row->upload('worker');
     } else {
-        sleep(60);
+        sleep(10);
     }
 }
