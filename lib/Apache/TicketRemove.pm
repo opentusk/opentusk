@@ -21,6 +21,7 @@ use Apache2::Cookie;
 use Apache::Session::MySQL::NoLock;
 use Apache2::Request;
 use Apache::TicketMasterCAS;
+use Apache::TicketMasterShib;
 use HSDB4::SQLRow::User;
 use TUSK::Constants;
 use URI::Escape;
@@ -48,7 +49,7 @@ sub handler {
 		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 
 		# Let the login page know if the user last logged in with CAS
-		if($TUSK::Constants::CAS{'Enabled'} && $user->cas_login()) {
+		if(Apache::TicketMasterCAS::isCASEnabled() && $user->cas_login()) {
 			if($TUSK::Constants::CAS{'removeCASSessionOnLogout'}) {
 				$location = Apache::TicketMasterCAS::getLogoutURL();
 			} else {
@@ -56,6 +57,15 @@ sub handler {
 			}
 			$user->field_value('cas_login', 0);
 		}
+		if(Apache::TicketMasterShib::isShibEnabled() && $user->shib_session()) {
+			if($TUSK::Constants::Shibboleth{'removeShibSessionOnLogout'}) {
+				$location = Apache::TicketMasterShib::getLogoutURL();
+			} else {
+				$location.= "logout=shib";
+			}
+			$user->field_value('shib_session', 0);
+		}
+
 
 		# TUSK added logout
 		MwfPlgAuthen::logout($user_id, $r);

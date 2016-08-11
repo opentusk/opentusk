@@ -6,27 +6,30 @@ use Apache2::Cookie;
 use Apache2::Request();
 use Apache::TicketTool;
 use Apache::TicketMaster;
-use AuthCAS;
 use TUSK::Application::Email;
 use TUSK::Constants;
 use TUSK::Core::Logger;
 use URI::Escape;
 
 
-my $casClient = new AuthCAS( casUrl => $TUSK::Constants::CAS{'baseURL'}, drift => $TUSK::Constants::CAS{'drift'} );
+my $casClient;
+if($TUSK::Constants::CAS{'Enabled'}) {
+	require AuthCAS;
+	$casClient = new AuthCAS( casUrl => $TUSK::Constants::CAS{'baseURL'}, drift => $TUSK::Constants::CAS{'drift'} );
+}
 my $landingPageURL = 'https://'. $TUSK::Constants::Domain;
 my $loginURL = $landingPageURL .'/loginCAS';
 
-sub isCASEnabled() {
+sub isCASEnabled {
 	if($TUSK::Constants::CAS{'Enabled'})	{ return 1; }
 	else					{ return 0; }
 }
 
-sub getLoginUrl() {
+sub getLoginUrl {
 	return $casClient->getServerLoginURL($loginURL);
 }
 
-sub getLogoutURL() {
+sub getLogoutURL {
 	return $casClient->getServerLogoutURL($landingPageURL);
 }
 
@@ -39,12 +42,8 @@ sub handler {
 	$TUSK_Logger->logInfo("TicketMasterCAS (TMCAS) being handled", "login");
 	my $apr = Apache2::Request->new($r);
  
-
-
 	# Pull the tiket out of the http post 
 	my $passedTicket = $apr->param('ticket');
-
-
 
 	# Lets figure out where we want to send the user when we are done
 	my $cookieJar = Apache2::Cookie::Jar->new($r);
@@ -54,6 +53,11 @@ sub handler {
 		|| '/home';
 	$TUSK_Logger->logInfo("TMCAS user will be redirected to $request_uri", "login");
 
+
+	unless($TUSK::Constants::CAS{'Enabled'}) {
+		$TUSK_Logger->logInfo("TMCAS bombing out (CAS not enabled)", "login");
+		return Apache::TicketMaster::go_to_uri($r,$request_uri,undef,"Login Error");
+	}
 
 
 	# If we didn't get a ticet, just go back to the login page with an "Unabe to login message"
@@ -98,7 +102,7 @@ sub handler {
 			my $attribType = $TUSK::Constants::CAS{'attributes'}{$hsdb4UserAttribute}{'type'};
 			my $attribValue = $TUSK::Constants::CAS{'attributes'}{$hsdb4UserAttribute}{'value'};
 
-			my $startString = "Processing $hsdb4UserAttribute of type $attribType with value $attribValue", "login";
+			my $startString = "Processing $hsdb4UserAttribute of type $attribType with value $attribValue";
 			if($attribType eq 'attribute') {
 				$TUSK_Logger->logDebug("$startString expanded value is '". $userAttributes{$attribValue} ."'", "login"); 
 				$userObject->field_value($hsdb4UserAttribute => $userAttributes{$attribValue});

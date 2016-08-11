@@ -78,7 +78,7 @@ my $tablename         = 'user';
 my $primary_key_field = 'user_id';
 my @fields =       qw(user_id source status tufts_id sid trunk password email preferred_email profile_status modified
 		      password_reset expires login previous_login lastname firstname midname suffix
-		      degree affiliation gender body loggedout_flag uid cas_login
+		      degree affiliation gender body loggedout_flag uid cas_login shib_session
                       );
 
 my %numeric_fields = (
@@ -122,6 +122,11 @@ sub user_id {
 sub uid {
 	my $self = shift();
 	return $self->field_value('uid');
+}
+
+sub shib_session {
+	my $self = shift();
+	return $self->field_value('shib_session');
 }
 
 sub cas_login {

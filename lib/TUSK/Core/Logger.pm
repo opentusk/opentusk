@@ -90,6 +90,13 @@ sub initalize {
 	}
 }
 
+sub logTrace {
+	my $self = shift;
+	my $message = shift;
+	my $facility = shift;
+	$self->logMessage($self->checkMessage($message), 'trace', $facility);
+}
+
 sub logDebug {
 	my $self = shift;
 	my $message = shift;
@@ -147,7 +154,8 @@ sub logMessage {
 		$tuskLogger = Log::Log4perl->get_logger($facility);
 		$message = $self->checkMessage($message);
 		if($tuskLogger) {
-			if($level eq 'debug')		{ $tuskLogger->debug($message); }
+			if($level eq 'trace')		{ $tuskLogger->trace($message); }
+			elsif($level eq 'debug')	{ $tuskLogger->debug($message); }
 			elsif($level eq 'info')		{ $tuskLogger->info($message); }
 			elsif($level eq 'warn')		{ $tuskLogger->warn($message); }
 			elsif($level eq 'error')	{ $tuskLogger->error($message); }

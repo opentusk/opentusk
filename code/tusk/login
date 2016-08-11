@@ -30,6 +30,7 @@ use TUSK::Constants;
 use TUSK::Functions;
 use Apache2::Cookie;
 use Apache::TicketMasterCAS;
+use Apache::TicketMasterShib;
 </%once>
 
 <%args>
@@ -37,6 +38,7 @@ $user => ''
 $errmsg => ''
 $url => ''
 $logout => 'false'
+$shibStatus => ''
 </%args>
 
 <%shared>
@@ -69,7 +71,8 @@ my $failedLoginUser = $cookieJar->cookies('failed_login_user') && $cookieJar->co
 %	$url = '/bigscreen';
 % }
 
-<& SELF:build_login_box, message => $message, errmsg => $errmsg, url => $url, failedLoginUser => $failedLoginUser, logout => $logout &>
+<& SELF:build_login_box, message => $message, errmsg => $errmsg, url => $url, failedLoginUser => $failedLoginUser, logout => $logout, shibStatus => $shibStatus &>
+
 
 
 <p id="logMessage" class="xsm"><% $TUSK::Constants::HomepageMessage %></p>
@@ -116,12 +119,16 @@ $is_mobi => 0
 $url => ''
 $failedLoginUser => ''
 $logout => 'false'
+$shibStatus => ''
 </%args>
 %	my $widthOverride = '';
-%	if($TUSK::Constants::CAS{'Enabled'}) { $widthOverride = 'style="width:430px;"'; }
+%	my $width = 330;
+%	if($TUSK::Constants::CAS{'Enabled'}) { $width += 100; }
+%	if($TUSK::Constants::Shibboleth{'Enabled'}) { $width += 100; }
+%	if($width > 330) { $widthOverride = 'style="width:'. $width .'px;"'; }
 <div id="logLoginBox" <% $widthOverride %>>
 <div id="errordiv">
-% if($message){
+% if($message && $logout !~ /^shib/){
 %	$message =~ s/</&lt;/g;
 %	$message =~ s/>/&gt;/g;
 %	my $prefix = ($is_mobi)? '/mobi' : '';
@@ -129,7 +136,22 @@ $logout => 'false'
 <p class="errTxt"><% $errmsg %></p>
 <p class="xxsm">If you believe you got this message in error please <a href="<% $prefix %>/about/contact_us">contact us</a></p>
 % }
-% if($TUSK::Constants::CAS{'Enabled'} && $logout eq 'true') {
+% if(Apache::TicketMasterShib::isShibEnabled()) {
+%	if($logout eq 'shib') {
+		You have succsfully logged out of <% $TUSK::Constants::SiteAbbr %>.<br/>
+		<b>if you would also like to log out of<br/>
+		<% $TUSK::Constants::Shibboleth{'displayName'} %> <a href="<% Apache::TicketMasterShib::getLogoutURL() %>">Click Here</a></b>
+%	} elsif($logout eq 'shibLocal') {
+		<p><strong>Status of Local Logout:</strong> <% $shibStatus %></p>
+		<p>You <strong>MUST</strong> close your browser to complete the logout process.</p>
+%	} elsif($logout eq 'shibPartial') {
+		<p>You remain logged into one or more applications accessed during your session.
+		<b>To complete the logout process, please close/exit your browser completely.</b></p>
+%	} elsif($logout eq 'shibGlobal') {
+		<p>it is strongly advised that you close your browser to ensure that you complete the logout process.</p>
+%	}
+% }
+% if(Apache::TicketMasterCAS::isCASEnabled() && $logout eq 'true') {
 	You have succsfully logged out of <% $TUSK::Constants::SiteAbbr %>.<br/>
 	<b>if you would also like to log out of<br/>
 	<% $TUSK::Constants::CAS{'displayName'} %> <a href="<% Apache::TicketMasterCAS::getLogoutURL() %>">Click Here</a></b>
@@ -149,8 +171,18 @@ $logout => 'false'
 		}&>
 	</span>
 % }
+% if($TUSK::Constants::Shibboleth{'Enabled'}) {
+	<span id="shibLogin" class="loginButtons" style="display:block; border-right: 1px solid black; padding: 0px 10px; margin: 0px 5px; height: 55px; padding-top: 45px; float:left; overflow: auto;">
+		<& /tmpl/element:button, params => {
+			name => 'shibButton', label => $TUSK::Constants::Shibboleth{'displayName'} .' '. __('Login'),
+			onclick => "location.href='". Apache::TicketMasterShib::getLoginUrl() ."'",
+			class => 'formbutton btnLogin', style => 'margin-left: 0px;'
+		}&>
+	</span>
+% }
+
 % my $displayStyle = '';
-% if($TUSK::Constants::CAS{'Enabled'} && !$is_mobi) { $displayStyle = 'display:none; '; }
+% if(($TUSK::Constants::CAS{'Enabled'} || $TUSK::Constants::Shibboleth{'Enabled'})  && !$is_mobi) { $displayStyle = 'display:none; '; }
 	<span class="loginButtons" onMouseOver="dimLogins(this);" onMouseOut="undimLogins();" style="<% $displayStyle %>padding: 0px 10px; margin: 0px 5px; overflow: auto;" id="localLoginForm">
 		<& /tmpl/element:form, params => { action => $ssrv, method => 'post', name => 'login'} &>
 %	if ($is_mobi && !$url) {
@@ -181,7 +213,7 @@ $logout => 'false'
 %	}
 		</form>
 	</span>
-% if($TUSK::Constants::CAS{'Enabled'} && !$is_mobi) {
+% if(($TUSK::Constants::CAS{'Enabled'} || $TUSK::Constants::Shibboleth{'Enabled'}) && !$is_mobi) {
 	<span id="localLoginButton" class="loginButtons" style="display:block; padding: 0px 10px; margin: 0px 5px; height: 55px; padding-top: 45px; float:left; overflow: auto;">
 %	my $buttonLabel = $TUSK::Constants::SiteAbbr .' '. __('Login');
 %	if($TUSK::Constants::OverrideDefaultLoginButton) { $buttonLabel = $TUSK::Constants::OverrideDefaultLoginButton; }

@@ -23,6 +23,7 @@ use HSDB45::LDAP;
 use Net::LDAPS;
 use TUSK::Constants;
 use TUSK::Application::Email;
+use TUSK::Custom::TuftsAuth;
 use POSIX qw /strftime/;
 
 
@@ -76,112 +77,18 @@ sub verify {
     }
 
     if (!$user->primary_key) {
-	my $date = $ldap->school_year();
-	if($date =~ /\d\d/) {
-		# Here we come Y2100 bugs :)
-		if($date < 75) {$date = "20$date";} else {$date = "19$date";}
-	} elsif ($date eq '1ST') {
-		$date = strftime("%Y", localtime(time)) + 4;
-	} elsif ($date eq '2ND') {
-		$date = strftime("%Y", localtime(time)) + 3;
-	} elsif ($date eq '3RD') {
-		$date = strftime("%Y", localtime(time)) + 2;
-	} elsif ($date eq '4TH') {
-		$date = strftime("%Y", localtime(time)) + 1;
-	} else {
-		$date = '';
-	}
-
-        my $message = '';
-        my $sendUserEmail = 0;
-
 	$user->primary_key($ldap->uid);
-	## get the affiliation
-	my $affiliation;
-	my $school = $ldap->school_info;
-	my $somethingElse = 
-	my $userGroupLabel = '';
-	if ($school =~ /(Veterinary)/) {
-	    $affiliation = "Veterinary";
-		$userGroupLabel = simpleUserGroup($date, $affiliation);
-	}
-	elsif ($school =~ /(Dental)/) {
-	    $affiliation = "Dental";
-		$userGroupLabel = simpleUserGroup($date, $affiliation);
-	}
-	elsif ($school =~ /(Sackler)/) {
-	    $affiliation = "Sackler";
-		$userGroupLabel = simpleUserGroup($date, $affiliation);
-	}
-	elsif ($school =~ /(Nutrition)/) {
-	    $affiliation = "Nutrition";
-		$userGroupLabel = "Entering Fall $date";
-	}
-	elsif ($school =~ /(Engineering)/) {
-	    $affiliation = "Engineering";
-	}
-	elsif ($school =~ /(Central)/) {
-	    $affiliation = "Administration";
-	}
-        elsif ($school =~ /School of Medicine - Graduate Studies/) {
-	    $affiliation = "PHPD";
-		$userGroupLabel = "PHPD Fall " . HSDB4::DateTime->current_year();
-        }
-	elsif ($school =~ /(Medical|Medicine|Clinical\ Faculty)/) {
-	    $affiliation = "Medical";
-	    $userGroupLabel = simpleUserGroup($date, $affiliation) if ($school !~ /Clinical Faculty/);
-	}
-	elsif ($school =~ /(Liberal|Arts)/) {
-	    $affiliation = "ArtsSciences";
-	}
 
 	#once we have saved, lets whip out an email if the admins want them
-	$message = "A new user has signed on to " . $TUSK::Constants::SiteName . " for the first time using LDAP and the automatic account set-up.\n";
+	my $message = "A new user has signed on to " . $TUSK::Constants::SiteName . " for the first time using LDAP and the automatic account set-up.\n";
 	$message .= "The user may need to be linked to a user group.\n\n";
-	if($affiliation) {
-		$user->field_value("affiliation",$affiliation);
-		#OK, lets see if we can "auto-stuff" this user into a group
-		my $schoolCode = HSDB4::Constants::code_by_school( $affiliation );
-		if($schoolCode && $userGroupLabel) {
-			my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
-			my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
-			#Does the User Group already exist?
-			my @userGroups = HSDB45::UserGroup->new(_school=>HSDB4::Constants::school_codes($schoolCode))->lookup_conditions("label='$userGroupLabel'");
-			if(scalar(@userGroups > 1))
-				{$message .= "There were multiple user groups labeled $userGroupLabel!!!\nI'm putting this user in the first one (". $userGroups[0]->primary_key() . ")!\n";}
+                
+	my $affiliation = TUSK::Custom::TuftsAuth::decideSchool($ldap->school_info);
+	$user->field_value("affiliation",$affiliation);
 
-			my $userGroup;
-			if(scalar(@userGroups) == 0) {
-				$message.="\nCreating a new User Group ($userGroupLabel)\n\n";
-				$userGroup = HSDB45::UserGroup->new(_school=>HSDB4::Constants::school_codes($schoolCode));
-				$userGroup->set_field_values( 
-					homepage_info => 'Hot Content,Announcements,Evals,Discussion',
-					label => $userGroupLabel,
-					description => $userGroupLabel,
-					sub_group => 'No',
-				);
-				$userGroup->save($un, $pw);
-			} else {
-				$message.="\nAdding to existing group\n\n";
-				$userGroup = $userGroups[0];
-			}
-			if($userGroup) {
-				my ($returnValue, $message) = $userGroup->add_child_user($un, $pw, $user->primary_key);
-				unless($returnValue == 1) {$message .= "There was an error when adding the user to group $userGroupLabel: $message\n";}
-			} else {$message .= "There was an error getting/creating the user group $userGroupLabel\n";}
-		}
-                $message .= "Affiliation: $affiliation\n";
-	} else {  
-		$message .= "Affiliation: couldn't be set based on LDAP.\n";
-		$sendUserEmail++;
-	}
-                
-	if($userGroupLabel) {$message.="Group: $userGroupLabel\n";}
-	else {  
-		$message .= "Group: couldn't be set based on LDAP.\n";
-		$sendUserEmail++;
-	}
-                
+	my ($sendUserEmail, $additionalMessages) = TUSK::Custom::TuftsAuth::determineGroup(\$user, $ldap->school_year());
+
+	$message .= $additionalMessages;
 	$message .= "UTLN: ".$user->primary_key."\n";
 	$message .= "Email: ".$user->email."\n"; 
 	$message .= "\nPlease change information that is not correct.\n";

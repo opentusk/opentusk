@@ -78,6 +78,24 @@ sub create_date {
     return $self->{-time} = timelocal("00", "00", "00", $day, $month-1, $year-1900);
 }
 
+sub in_ztime {
+	#
+	# Prints out like 2002-06-19T17:03:44.022Z
+	#
+	my $self = shift;
+	my $date = shift;
+
+	# Take off the ending Z
+	chop $date;
+
+	# Convert the center T to a space
+	$date =~ s/T/ /;
+
+	# Strip off the seconds
+	$date =~ s/\.\d+$//;
+	return $self->in_mysql_timestamp($date);
+}
+
 sub in_mysql_date {
     #
     # Take in a MySQL date and time
@@ -416,6 +434,14 @@ sub out_year {
     return strftime ("%Y", localtime($self->{-time}));
 }
 
+sub out_ztime {
+	#
+	# Prints out like 2002-06-19T17:03:44.022Z
+	#
+	my $self = shift;
+	return unless $self->has_value();
+	return strftime("%FT%T.000", localtime($self->{-time}));
+}
 
 sub subtract_days {
     my $self = shift;

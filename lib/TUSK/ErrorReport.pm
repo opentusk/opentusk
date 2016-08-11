@@ -126,6 +126,54 @@ EOM
 	
 } 
 
+
+sub sendShibReport {
+	my $req_rec = shift or &sendDefaultReport();
+	my $param_hash = shift || {};
+
+	my $conn = $req_rec->connection();
+
+	my $host = $ENV{HOSTNAME} || "unknown host";
+	my $remote_ip = $conn->remote_ip() || "unknown ip";
+
+	my $email_receiver = $param_hash->{'To'} || $TUSK::Constants::ErrorEmail;
+	my $email_sender = $param_hash->{'From'} || $TUSK::Constants::ErrorEmail;
+	my $subject = $param_hash->{'Subject'} || $TUSK::Constants::SiteAbbr." Shib Error ($host)";
+
+
+	my $msgBody = "Shibboleth Error from machine $host\n\n";
+	$msgBody   .= "Their ip is $remote_ip.\n\n";
+	$msgBody   .= "The requested URL was:\n". $param_hash->{'requestURL'} ."\n\n";
+	$msgBody   .= "The error type was:\n". $param_hash->{'errorType'} ."\n\n";
+	$msgBody   .= "The error text was:\n". $param_hash->{'errorText'} ."\n\n";
+	$msgBody   .= "The relate state was:\n". $param_hash->{'RelayState'} ."\n\n";
+	$msgBody   .= "The entity ID was:\n". $param_hash->{'entityID'} ."\n\n";
+	$msgBody   .= "The status code was:\n". $param_hash->{'statusCode'} ."\n\n";
+	$msgBody   .= "Addtl status code:\n". $param_hash->{'statusCode2'} ."\n\n";
+	$msgBody   .= "\n";
+
+	my $mail = TUSK::Application::Email->new({ 
+		to_addr   => $email_receiver,
+		from_addr => $email_sender ,
+		subject   => $subject,
+		body      => $msgBody
+	});
+
+	my $msg;
+	if (my $err = $mail->send()) {
+		$msg = 0; 
+		warn "Message Sent";
+	} else {
+		$req_rec->log_error("Unable to send email: " . $mail->getError() . "\n".
+				"\tTo: $email_receiver\n".
+				"\tFrom: $email_sender\n".
+				"\tSubject: $subject\n".
+				"\tMessage: $msgBody\n"
+		);
+	}
+	return $msgBody;
+} 
+
 sub send404Report {
 	my $req_rec = shift || &sendDefaultReport();
 	my $param_hash = shift;

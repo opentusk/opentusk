@@ -139,16 +139,39 @@ CAS
   createUsers						:  If true, create a user in TUSK on first login
   sendEmailOnUserCreation				:  Send an email to this address when a new CAS user logins
   attributes						:  A mapping from CAS attributes to TUSK user attributes. Example to follow
-    user_id"       : { "type" : "attribute", "value" : "uid" },
-    email"         : { "type" : "attribute", "value" : "mail" },
-    sid"           : { "type" : "attribute", "value" : "uhUuid" },
-    firstname"     : { "type" : "attribute", "value" : "sn" },
-    lastname"      : { "type" : "attribute", "value" : "givenName" },
-    affiliation"   : { "type" : "hardcoded", "value" : "Medical" }
+    user_id							: { "type" : "attribute", "value" : "uid" },
+    email							: { "type" : "attribute", "value" : "mail" },
+    sid								: { "type" : "attribute", "value" : "uhUuid" },
+    firstname							: { "type" : "attribute", "value" : "sn" },
+    lastname							: { "type" : "attribute", "value" : "givenName" },
+    affiliation							: { "type" : "hardcoded", "value" : "Medical" }
 							:  For any hsdb4.user attribute you can specify an object
       type						:  Options: hardcoded, attribute.
 							:    if hardcoded - the hsdb4 user attribute will be to the hardcode text in value
 							:    if attribute - the hsdb4 user attribute will be taken from the corresponding attribute in the CAS ticket
+Shibboleth
+  Enabled						: Enable the Shibboleth authentication mechnisim
+  displayName						: The display text when refering to the Shibboleth system (i.e. Shibboleth login button will be this followed by Login)
+  logoutURL						: URL to send a user to when they click an additional link to log out Shibboleth
+  removeShibSessionOnLogout				: Automatically remove the shibboleth session on logout
+  createUsers						: If true, create a user in TUSK on first login
+  sendEmailOnUserCreation				: Send an email to this address when a new CAS user logins
+  sessionIdentifier					: Shibboleth attribute which identifies a user has a shibboleth session
+  attributes						: A mapping from Shibboleth attributes to TUSK user attributes. Example to follow
+    user_id							: { "type" : "attribute", "value" : "SHIB_ATTR_uid" },
+    email							: { "type" : "attribute", "value" : "SHIB_ATTR_mail" },
+    firstname							: { "type" : "attribute", "value" : "SHIB_ATTR_givenName" },
+    lastname							: { "type" : "attribute", "value" : "SHIB_ATTR_sn" },
+    affiliation							: { "type" : "codeblock", "value" : "TUSK::Custom::TuftsAuth::decideSchool", "param" : "$ENV{SHIB_ATTR_tuftsEduCollege}" },
+							:  For any hsdb4.user attribute you can specify an object
+      type						:  Options: hardcoded, attribute, codeblock
+							:    if hardcoded - the hsdb4 user attribute will be to the hardcode text in value
+							:    if attribute - the hsdb4 user attribute will be taken from the corresponding attribute in the CAS ticket
+							:    if codeblock - value points to a codeblock name (function) param passes parameters to the function
+  postUserCreation					: A function to call after a user has been created
+    function							: points to a code block (i.e. TUSK::Custom::TuftsAuth::determineGroup)
+    param							: Parameters to pass into the code block (i.e. $ENV{SHIB_ATTR_tuftsEduClassYear})
+
 
 
 ----- AUTHORIZATION -----
