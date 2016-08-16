@@ -99,7 +99,7 @@
 	no_cancel_button => 1,
         name		=> 'save_submit',
 	style		=> ($checklist->getSelfAssessed() && $checklist->getJoinObject('TUSK::Competency::Checklist::Assignment')->isSelfAssignment($m->session->{user}->primary_key())) ? '' : 'display:none;',
-	buttons		=> [    
+	buttons		=> [    				
 				$m->scomp('/tmpl/element:button', params => {
 					label		=> __('Notify Student'),
 					name		=> 'notify_submit',
@@ -110,6 +110,12 @@
 					label		=> __('Competent'),
 					name		=> 'complete_submit',
 					type		=> 'submit',
+					style		=> 'display:none;',
+				}),
+				$m->scomp('/tmpl/element:button', params => {
+					label		=> __("Can't Assess"),
+					name		=> 'cant_assess_submit',
+					type		=> 'submit',		
 					style		=> 'display:none;',
 				})
 			],
@@ -241,6 +247,12 @@
 		$entry->setRequestDate(undef);
 	}
 
+	if ($args{cant_assess_submit}) {  
+		$m->comp('SELF:notifyWontAssess', checklist_group_id => $checklist_group_id, checklist_id => $checklist_id);
+		$entry->setNotifyDate(HSDB4::DateTime->new()->out_mysql_timestamp());
+		$entry->setRequestDate(undef);
+	}
+
 	if ($args{assessor_comment} =~ /\w+/) {
 		unless ($assessment_type eq 'self') {
 			$args{assessor_comment} = HSDB4::DateTime->new()->out_mysql_timestamp() . "\n" . $args{assessor_comment};
@@ -301,6 +313,26 @@
 	$email->send();
 
 	$acc->saveCompletions(\%ARGS, 'compid__', $entry->getPrimaryKeyID(), $assessor_id);
+</%perl>
+</%method>
+
+<%method notifyWontAssess>
+<%args>
+	$checklist_group_id
+	$checklist_id
+</%args>
+<%perl>
+	my $notify_text = __x('Your faculty assessor has declined your request for assessment. Please follow up with your assessor or request another assessor.');
+	my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});	
+	my $competency = $acc->getCompetencyChecklist($checklist_id);
+	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $email = TUSK::Application::Email->new({
+		to_addr => $args{student_email},
+		from_addr => $TUSK::Constants::SupportEmail,
+		subject => $competency->getTitle() . ' ' . __('Checklist') . ' - ' . $course->title(),
+		body	=> $notify_text . "\n\n" . $args{assessor_comment},
+	});
+	$email->send();
 </%perl>
 </%method>
 

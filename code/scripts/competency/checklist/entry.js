@@ -17,10 +17,10 @@ $(function() {
 	$("input:radio[class='compid']").click(showHideButtons);
 });
 
-
 function showHideButtons() {
 	var show_notify_button = 0;
 	var num_completions = 0;
+
 
 	// loop through all the checked radio buttons
 	$(':input.compid:checked').each(function(){
@@ -37,7 +37,9 @@ function showHideButtons() {
 
 	if (($('#assess_type').val() === 'partner') || ($('#assess_type').val() === 'faculty')) {
 		$('#save_submit').hide(); // no save button for faculty/partner
-
+		if ($('#assess_type').val() === 'faculty') {
+			$('#cant_assess_submit').show();
+		}
 		if (show_notify_button === 1) {
 			$('#notify_template').show();
 			$('#notify_submit').show();
