@@ -72,7 +72,7 @@ sub new {
 					'sort_order' => '',
 				    },
 				    _attributes => {
-					save_history => 1,
+					save_history => 0,
 					tracking_fields => 1,	
 				    },
 				    _levels => {
