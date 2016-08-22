@@ -285,6 +285,13 @@ sub assign_assessor {
 		## if there, remove from the list-to-remove, otherwise add new one
 		next unless ($sa_id);
 		my ($student_id, $assessor_id, $ssid) = split(/__/, $sa_id);
+		my $link = TUSK::FormBuilder::SubjectAssessor->lookupReturnOne("form_id = $form_id AND time_period_id = $tp_id AND subject_id = '$student_id' AND assessor_id = '$assessor_id'");
+		if ($link && $link->getStatus() == 3) {
+			$link->setFieldValue('status', 1);
+			$link->save({ user => $user_id });
+			delete $existing->{$student_id . '__' . $assessor_id};
+			next;
+		}
 		if ($existing->{$student_id . '__' .  $assessor_id}) {
 			delete $existing->{$student_id . '__' . $assessor_id};  
 		} else {
@@ -303,7 +310,9 @@ sub assign_assessor {
 		if (my @saids = map { $_->[0] } values %$existing) {
 			my $links = TUSK::FormBuilder::SubjectAssessor->lookup('subject_assessor_id in (' . join(',', @saids) . ')');
 			foreach (@$links) {
-				$_->delete({ user => $user_id });
+				if ($_->getStatus() != 3) {
+					$_->delete({ user => $user_id });
+				}
 			}
 		}
 	}
