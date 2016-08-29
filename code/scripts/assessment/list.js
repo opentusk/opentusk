@@ -30,7 +30,7 @@ function changeSelection() {
 	}
 
 	var new_status = (cbox.is(':checked')) ? $("input[name=selected_by_assessor]").val() : $("input[name=deselected_by_assessor]").val();
-	var target_id = 'action__' + tokens[0] + '__' + tokens[1];
+	var target_id = 'action__' + tokens[0] + '__' + tokens[1] + '__' + tokens[2];
 
 	$.ajax({
 		type		: 'POST',
@@ -45,6 +45,7 @@ function changeSelection() {
 		},
 	        success		: function(response) {
 					if (cbox.is(':checked')) {
+						console.log('Was')
 						$('#' + target_id).show();
 					} else {
 						$('#' + target_id).hide();
