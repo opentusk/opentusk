@@ -251,6 +251,13 @@
 		$m->comp('SELF:notifyWontAssess', checklist_group_id => $checklist_group_id, checklist_id => $checklist_id);
 		$entry->setNotifyDate(HSDB4::DateTime->new()->out_mysql_timestamp());
 		$entry->setRequestDate(undef);
+		my $cant_assess_comment = HSDB4::DateTime->new()->out_mysql_timestamp() . "\n Assessor " . $assessor_id . " has declined the request for checklist assessment";
+		if (my $prior_comments = $entry->getAssessorComment()) {
+			my $cant_assess_comment .= "\n\n$prior_comments";
+		}
+		$entry->setAssessorComment($cant_assess_comment);
+		$entry->setCompetencyChecklistAssignmentID(0);
+		$entry_changed = 1;
 	}
 
 	if ($args{assessor_comment} =~ /\w+/) {
