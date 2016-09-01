@@ -229,6 +229,7 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %			if (my $student_comments = $entry->getStudentComment()) {
 <img src="/graphics/comments.png" title="<% __('Student Comments') . ':   ' . encode_entities($student_comments) %>" />
 %			}
+%		print "<br>(" . $m->comp('SELF:getAssessorNameFromAssignment', assignment_id => $assignment_id) . ")";
 </div>
 %		} elsif ($complete_date) {  ### complete stage
 %			my $title = $entry->getAssessorComment();
@@ -248,6 +249,7 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %			if (defined $title) {
 <img src="/graphics/comments.png" title="<% $title %>" />
 %			}
+%		print "<br>(" . $m->comp('SELF:getAssessorNameFromAssignment', assignment_id => $assignment_id) . ")";
 %		} elsif (my $notify_date = $entry->getFormattedNotifyDate()) { ### in progress stage
 %			unless (defined $args{view_mode}) {
 <% $button %>
@@ -258,7 +260,7 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 %	if (my $assessor_comment = $entry->getAssessorComment()) {
 <img src="/graphics/comments.png" title="<% __("$assessments->{$assessment_type}{header} Comments:\n\n") . encode_entities($assessor_comment) %>" />
 %	}
-</div>
+</div>p
 %		} else {
 %			### show button for student view and only dependent type is completed
 %			if (!defined $args{view_mode} && $dependent_entry->getCompleteDate()) {
@@ -269,3 +271,15 @@ $m->comp('SELF:modules_table', modules => $modules->{$category}, index => "id_$i
 </div>
 </%method>
 
+<%method getAssessorNameFromAssignment>
+<%args>
+	$assignment_id
+</%args>
+<%perl>
+	my $assignment = TUSK::Competency::Checklist::Assignment->lookupReturnOne("competency_checklist_assignment_id = $assignment_id");
+	my $assessor_id = $assignment->getAssessorID();
+	my $assessor_obj = HSDB4::SQLRow::User->new->lookup_key($assessor_id);
+	my $assessor_name = $assessor_obj->first_name() . " " . $assessor_obj->middle_name() . " " . $assessor_obj->last_name();
+	return $assessor_name;
+</%perl>	
+</%method>
