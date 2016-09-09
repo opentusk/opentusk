@@ -190,6 +190,17 @@ sub getAssignments {
     return { map { $_->getJoinObject('TUSK::Enum::Data')->getShortName() => $_ } @$assignments };
 }
 
+sub getAssignmentsByAssessor {
+    my ($self, $assessor_id, $time_period_id) = @_;
+    use Data::Dumper;
+    croak "missing parameters: assessor id and time period id" unless ($assessor_id && $time_period_id);
+
+    my $assignments = TUSK::Competency::Checklist::Assignment->lookup("competency_checklist_group_id = $self->{checklist_group_id} AND time_period_id = $time_period_id AND assessor_id = '$assessor_id'", undef, undef, undef, [ 
+	TUSK::Core::JoinObject->new("TUSK::Enum::Data", { joinkey => 'enum_data_id', origkey => 'competency_checklist_assignment.assessor_type_enum_id', jointype => 'inner', }), 
+    ]);
+
+    return $assignments;
+}
 
 sub assignSelf {
     my ($self, $student_id, $time_period_id) = @_;
