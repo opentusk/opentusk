@@ -34,7 +34,7 @@ sub new {
 #############################################
 sub removeHTML {
     my ($self, $text) = @_;
-    return '' unless $text;
+    return '' unless defined $text;
     $self->{stripObj}->set_decode_entities(0);
     $text = $self->{stripObj}->parse($text);
     utf8::decode($text);
