@@ -33,8 +33,8 @@ sub new {
 # makes sure that utf8 characters don't get mangled
 #############################################
 sub removeHTML {
-    my ($self, $text) = @_;
-    return '' unless defined $text;
+    my ($self, $text, $keep_zero) = @_;
+    return '' if (!defined $text || (!$keep_zero && !$text));
     $self->{stripObj}->set_decode_entities(0);
     $text = $self->{stripObj}->parse($text);
     utf8::decode($text);
