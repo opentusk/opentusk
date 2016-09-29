@@ -22,6 +22,7 @@ use HSDB4::Constants;
 use TUSK::Core::School;
 use TUSK::Course;
 use HSDB4::DateTime;
+use TUSK::Application::FormBuilder::Assessment;
 
 use Carp qw(cluck croak confess);
 
@@ -474,6 +475,23 @@ sub applyStudentModifications{
 	my $dbh = $modification->getDatabaseWriteHandle();
 	$self->{-dbh} = $dbh;
 	my @sqlArgs;
+
+	if ($args->{assessment_move_requested}) 
+	{
+		eval {
+			my $move_assessment_process = TUSK::Application::FormBuilder::Assessment->new({
+				user_id => $args->{user_id},
+				current_time_period => $args->{current_time_period},
+				requested_time_period => $args->{requested_time_period}
+			})->changeEntry();
+		};
+
+		warn "Requested assessment move(s) couldn't be completed. Error: " . $@ if ($@); 
+		if ($@) 
+		{
+			return 'Error: ' . $@;
+		}
+	}
 
 	if ($args->{delete_requested})
 	{

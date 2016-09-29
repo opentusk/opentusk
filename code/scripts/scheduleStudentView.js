@@ -304,11 +304,23 @@ $(document).ready(function() {
 		noteTakingInProgress = false;
 	});
 
+	// $('input[type="checkbox"]').click(function(){
+	// 	if($(this).prop("checked") == true){
+	// 		alert("Checkbox is checked.");
+	// 	}
+	// 	else if($(this).prop("checked") == false){
+	// 		alert("Checkbox is unchecked.");
+	// 	}
+	// });
+
 	$("a#save").click(function() {
 		if (noteTakingInProgress)
 		{	
 			alert(noteSavingWarning);
 			return;
+		}
+		if ($(this).closest('tr').find('input[type="checkbox"]').prop("checked") == true) {
+			alert("Me is checked.");
 		}
 		//store the value and wait for the Ajax request result status
 		var tempTimePeriod = $(this).closest('tr').find('div#timePeriod').find('select.view').val(); 
@@ -347,6 +359,8 @@ $(document).ready(function() {
 					requested_teaching_site: tempTeachingSite,
 					school_id: school_id,
 					add_requested: addRequested ? 1 : 0,
+					assessment_move_requested: ($(this).closest('tr').find('input[type="checkbox"]').prop("checked") == true) 
+						? 1 : 0
 				},
 				dataType: "json",
 				statusCode: {
