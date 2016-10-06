@@ -482,8 +482,11 @@ sub applyStudentModifications{
 			my $move_assessment_process = TUSK::Application::FormBuilder::Assessment->new({
 				user_id => $args->{user_id},
 				current_time_period => $args->{current_time_period},
-				requested_time_period => $args->{requested_time_period}
-			})->changeEntry();
+				requested_time_period => $args->{requested_time_period},
+				session_user_id => $args->{session_user_id},
+				course_id => $args->{course_id},
+				school_id => $self->{school_id}
+			})->moveAssessment();
 		};
 
 		warn "Requested assessment move(s) couldn't be completed. Error: " . $@ if ($@); 
