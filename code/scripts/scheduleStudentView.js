@@ -2,6 +2,7 @@ var currentRowIndex = 0;
 var currentTimePeriod;
 var currentTeachingSite; 
 var addRequested = false;
+var assessmentMoveRequested = false;
 var noteTakingInProgress = false;
 var noteSavingWarning = 'Please finish your note modifications first.';
 var currentNoteColumnBackgroundColor = '';
@@ -177,6 +178,7 @@ $(document).ready(function() {
 			alert('Please finish your current modifications.');
 			return;
 		}
+		$(this).closest('tr').find('div#assessmentTimePeriod').show();
 		$(this).closest('tr').find('div#teachingSite').find('select.view').trigger('change');
 		modificationInProgress = true;
 		if ($(this).closest('tr').find('div#timePeriod').is(":visible"))
@@ -304,23 +306,11 @@ $(document).ready(function() {
 		noteTakingInProgress = false;
 	});
 
-	// $('input[type="checkbox"]').click(function(){
-	// 	if($(this).prop("checked") == true){
-	// 		alert("Checkbox is checked.");
-	// 	}
-	// 	else if($(this).prop("checked") == false){
-	// 		alert("Checkbox is unchecked.");
-	// 	}
-	// });
-
 	$("a#save").click(function() {
 		if (noteTakingInProgress)
 		{	
 			alert(noteSavingWarning);
 			return;
-		}
-		if ($(this).closest('tr').find('input[type="checkbox"]').prop("checked") == true) {
-			alert("Me is checked.");
 		}
 		//store the value and wait for the Ajax request result status
 		var tempTimePeriod = $(this).closest('tr').find('div#timePeriod').find('select.view').val(); 
@@ -328,6 +318,8 @@ $(document).ready(function() {
 
 		var errorMessage = 'Please make a selection in the following drop down list(s): \n';
 		var showErrorMessage = 0;
+		var assessmentMoveRequested = ($(this).closest('tr').find('input[type="checkbox"]').prop("checked") == true) 
+			? 1 : 0;
 		if (addRequested && $(this).closest('tr').find('div#course').find('select.view').val() < 0)
 		{
 			errorMessage += '\nCourse';
@@ -359,8 +351,7 @@ $(document).ready(function() {
 					requested_teaching_site: tempTeachingSite,
 					school_id: school_id,
 					add_requested: addRequested ? 1 : 0,
-					assessment_move_requested: ($(this).closest('tr').find('input[type="checkbox"]').prop("checked") == true) 
-						? 1 : 0
+					assessment_move_requested: assessmentMoveRequested ? 1 : 0
 				},
 				dataType: "json",
 				statusCode: {
@@ -376,12 +367,17 @@ $(document).ready(function() {
 				alert("An error occured during the modification process.");
 			}).success(function(data, status){
 				if (data['applied'] != 'ok') {
-					alert(addRequested ? 'There was a problem adding the rotation to the student\'s schedule: ' + data['applied']: 'There was a problem saving the selected time period and teaching site: ' + data['applied']);
+					alert(addRequested ? 'There was a problem adding the rotation to the student\'s schedule: ' + data['applied']: 
+						(assessmentMoveRequested ? 'There was a problem saving the selected time period and teaching site as well as moving the assessment: ' 
+							+ data['applied']
+							: 'There was a problem saving the selected time period and teaching site: ' + data['applied']));
 				}
 				else {
 					currentTimePeriod = tempTimePeriod;
 					currentTeachingSite = tempTeachingSite;
-					alert(addRequested ? 'The rotation was added to the student\'s schedule.' : 'The time period and teaching site change took place.');
+					alert(addRequested ? 'The rotation was added to the student\'s schedule.' : 
+						(assessmentMoveRequested ? 'The time period and teaching site change took place. The assessment was moved as well.' 
+							: 'The time period and teaching site change took place.'));
 					location.reload();
 				}
 			});
@@ -390,6 +386,7 @@ $(document).ready(function() {
 	});
 	$("a#cancel").click(function() {
 		modificationInProgress = false;
+		$(this).closest('tr').find('div#assessmentTimePeriod').hide();
 		$(this).closest('tr').find('div#timePeriod').find('select.view').val($.trim(currentTimePeriod));
 		$(this).closest('tr').find('div#teachingSite').find('select.view').val($.trim(currentTeachingSite));
 		$(this).closest('tr').find('div#teachingSite').hide();

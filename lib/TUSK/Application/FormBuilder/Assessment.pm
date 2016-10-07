@@ -43,13 +43,6 @@ sub moveAssessment {
 
 	$self->{current_time_period} =~ s{\A \s* | \s* \z}{}gxm;
 
-	# my $assessments = $user->getAssessments();
-	# my $assessments = $self->getAssessments({
-	# 	user_id => $self->{user_id},
-	# 	time_period_id => $self->{current_time_period},
-	# 	course_id => $self->{course_id}
-	# });
-
     my $assessor_ids = $self->getAssessors();
     my $entries;
     if (scalar @$assessor_ids) {
@@ -59,38 +52,28 @@ sub moveAssessment {
     }
 
     for my $entry (@$entries) {
-        warn "Entry id iteration: $entry_id"; 
         $self->updateEntry({
             entry_id => $entry->{entry_id}
         });
     }
-
-    # for my $row (@$assessments) {
-    #     warn "Course id is " . $row->{'course_id'};
-
-    #     # $self->updateSubjectAssessor({
-    #     # 	form_id => $row->{'form_id'},
-    #     # 	assessor_id => $row->{'assessor_id'}
-    #     # });
-	# }
 }
 
 sub getAssessors {
     my ($self, $args) = @_;
 	my $assessors_sql = qq(
-        select sa.assessor_id, s.school_id, s.school_name, parent_course_id as course_id,
-        f.form_id as form_id, form_name, form_description
+        select sa.assessor_id, parent_course_id as course_id,
+            f.form_id as form_id
         from tusk.form_builder_subject_assessor sa
-        inner join tusk.link_course_form as cf on (sa.form_id = cf.child_form_id)
-        inner join tusk.form_builder_form as f on (sa.form_id = f.form_id)
-        inner join tusk.form_builder_form_type as ft on (f.form_type_id = ft.form_type_id)
-        inner join tusk.school as s on (cf.school_id = s.school_id)
+            inner join tusk.link_course_form as cf on (sa.form_id = cf.child_form_id)
+            inner join tusk.form_builder_form as f on (sa.form_id = f.form_id)
+            inner join tusk.form_builder_form_type as ft on (f.form_type_id = ft.form_type_id)
+            inner join tusk.school as s on (cf.school_id = s.school_id)
         where f.publish_flag = 1
-        and ft.token = 'Assessment' and status in (1,2)
-        and sa.subject_id  = ?
-        and sa.time_period_id = ?
-        and cf.parent_course_id = ?
-        and cf.school_id = ?
+            and ft.token = 'Assessment' and status in (1,2)
+            and sa.subject_id  = ?
+            and sa.time_period_id = ?
+            and cf.parent_course_id = ?
+            and cf.school_id = ?
     );
 
     my $dbh = HSDB4::Constants::def_db_handle ();
@@ -151,16 +134,5 @@ sub updateEntry() {
 	$entry->save({user => 
 		$self->{session_user_id}});
 }
-
-# sub updateSubjectAssessor() {
-# 	my ($self, $args) = @_;
-# 	my $subject_assessor = TUSK::FormBuilder::SubjectAssessor->lookupReturnOne("form_id = $args->{form_id}
-# 	and time_period_id = $self->{}");
-# }
-
-sub moveAssessor {
-
-}
-
 
 1;
