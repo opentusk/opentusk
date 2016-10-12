@@ -348,7 +348,6 @@ sub isMultipleChoiceQuiz {
     return ($self->areMultipleChoiceQuestions($items)) ? 1 : 0;
 }
 
-
 sub areMultipleChoiceQuestions {
     my ($self, $items) = @_;
 
