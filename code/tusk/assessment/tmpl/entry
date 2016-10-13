@@ -29,6 +29,7 @@
 	use TUSK::FormBuilder::Entry;
 	use TUSK::FormBuilder::EntryAssociation;
 	use TUSK::Core::HSDB4Tables::User;
+	use TUSK::Application::FormBuilder::Assessment;
 </%once>
 
 <%shared>
@@ -80,6 +81,24 @@
 <%init>
 	$args->{time_period_id} = $args->{tp};
 	my $time_period_id = ($args->{time_period_id}) ? $args->{time_period_id} : (($student->primary_key()) ? $m->comp("/formbuilder/util:get_time_period_id", student_id => $student->primary_key()) : 0);
+	my $gradeFinalized = TUSK::Application::FormBuilder::Assessment->isGradeAlreadyFinalized({
+		time_period_id => $time_period_id,
+		form_id => $form_id,
+		user_id => $student->primary_key()
+	});
+
+	if ($gradeFinalized && !$entry_id) {
+		my $home_url = '/home?url=' . $m->{top_path};
+		if ( $m->comp('/tmpl/url:get_full_path') ) {
+			$home_url .= "/" . $m->comp('/tmpl/url:get_full_path');
+		}
+		# $r->headers_out->set('Location', $home_url . '&errmsg=Grade already finalized.');
+		# $r->status(REDIRECT);
+		# $m->abort(REDIRECT);
+		$m->redirect($m->comp("/tmpl/url:construct_url", base_url => $home_url, msg => __("Grade already finalized."), extra => 1));
+		pre_dump("Grade already finalized.");
+	}
+
 	if ($entry_id) {
 		$entry = TUSK::FormBuilder::Entry->lookupKey($entry_id);
 	} else {
