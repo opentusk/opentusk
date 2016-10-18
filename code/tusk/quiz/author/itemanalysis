@@ -21,7 +21,7 @@
 <%shared>
 	my ($quiz_id) = $m->comp('/tmpl/url:get_path_ids');
 	my $quiz = TUSK::Quiz::Quiz->new->lookupKey($quiz_id, [ TUSK::Core::JoinObject->new("TUSK::Quiz::LinkCourseQuiz", {joinkey=>'child_quiz_id', origkey=>'quiz_id'}) ]);
-	my $course = $m->comp("/tmpl/url:get_type_object");
+	my $course = $m->comp("/tmpl/url:get_type_object");	
 	my ($stats, $questions);
 </%shared>
 
@@ -62,13 +62,17 @@
 	        push @$errmsgs, __('No multiple choice questions available.');
         }
 
+	my $answer_key_url = "/quiz/author/answerkey/course/" . $course->get_school()->getSchoolName() . "/" . $course->getPrimaryKeyID() ."/" .$quiz_id;
+
 	if (scalar @$errmsgs) {
 		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/quiz/author/show", 'msg' => join("<br/> ", @$errmsgs), msgtype => 'errmsg'));
 	} else {
 		$stats->addData($data);
 		$m->comp('SELF:showDescriptive');
+		print "<b><a href='$answer_key_url' target='_blank'>Click here for Answer Keys</a></b><br><br>";
 		$m->comp('SELF:showItemsAnalysis');
 	}
+
 </%init>
 
 
