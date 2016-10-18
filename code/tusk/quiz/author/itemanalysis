@@ -140,11 +140,14 @@
 	my $cstyle = "font-family:Verdana,Arial;font-size: 10pt;border-bottom:solid #DDDEEE 1px; padding-top:5px;";
 	my $pstyle = "<span style=\"font-size:7pt\">%</span>";
 
-	my $num = 1;
-   	foreach (@{$questions}) {
-		my $id = $_->[0];
-		my %corrects = map { $_->getSortOrder() => '' } @{$_->[1]};
+	my $num;
 
+   	foreach (@{$questions}) {
+		$num = $_->[2] + 1; #+1 because sort_order starts at 0 in the database
+		my $id = $_->[0];
+
+		my %corrects = map { $_->getSortOrder() => '' } @{$_->[1]};
+		
 		print "<tr><td style=\"$cstyle\">&nbsp;$num</td><td style=\"$cstyle\" align=\"right\">" . sprintf("%.2F", ($items->{$id} / $population) * 100) . "$pstyle&nbsp;&nbsp;</td><td style=\"$cstyle\" align=\"right\">" . sprintf("%.2F", ($upper_group->{$id} / $upper_group_count) * 100) . "$pstyle&nbsp;&nbsp;</td><td style=\"$cstyle\" align=\"right\">" . sprintf("%.2F", ($lower_group->{$id} / $lower_group_count) * 100) . "$pstyle&nbsp;&nbsp;</td>";
 		print "<td align=\"center\" style=\"$cstyle\">";
 		print chr($_ + 64) foreach (sort keys %corrects);
