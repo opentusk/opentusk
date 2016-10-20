@@ -277,19 +277,13 @@ sub getQuestions {
 
     my $links = TUSK::Quiz::LinkQuizQuizItem->new()->lookup($cond, ['link_quiz_quiz_item.sort_order'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Quiz::Answer", { origkey => 'quiz_item_id', joinkey => 'quiz_question_id', joincond => 'correct = 1' }), TUSK::Core::JoinObject->new("TUSK::Quiz::Question", { origkey => 'quiz_item_id', joinkey => 'quiz_question_id', jointype => 'inner'}) ]);
 
-=for
-    foreach my $link(@{$links}) {
-	print $link->getSortOrder();
-    }
-=cut
-
     $self->setQuestions($links);
     return $self->{_all_mc_questions};
 }
 
 
 sub setQuestions {
-    my ($self, $links) = @_;
+    my ($self, $links, $section) = @_;
 
     foreach my $link (@{$links}) {
 	my $question = $link->getJoinObject('TUSK::Quiz::Question');
@@ -297,10 +291,17 @@ sub setQuestions {
 	my $question_id = $question->getPrimaryKeyID(); 
 
 	if ($type eq 'Section') {
-	    $self->setQuestions($self->getChildrenQuestions($question_id));
+	    $self->setQuestions($self->getChildrenQuestions($question_id), 1);
 	} elsif ($type eq 'MultipleChoice') {
+	    my $current_sort_order;
+	    if ($section == 1) {
+	        my @alpha_array = ("A".."Z");
+		$current_sort_order = $alpha_array[$current_sort_order];
+	    } else {
+		$current_sort_order = $link->getSortOrder() + 1;
+	    }
 	    $self->{_questions_sort_order}{$question_id} = $self->{_question_index};
-	    $self->{_all_mc_questions}[$self->{_question_index}] = [$question_id, [ grep { ref $_ eq 'TUSK::Quiz::Answer' } @{$link->getJoinObjects('TUSK::Quiz::Answer')} ], $link->getSortOrder() ];
+	    $self->{_all_mc_questions}[$self->{_question_index}] = [$question_id, [ grep { ref $_ eq 'TUSK::Quiz::Answer' } @{$link->getJoinObjects('TUSK::Quiz::Answer')} ], $current_sort_order ];
 	    $self->{_question_index}++;
 	} 
     }
