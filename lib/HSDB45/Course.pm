@@ -1146,8 +1146,8 @@ sub find_users {
 		   TUSK::Core::JoinObject->new('TUSK::Course::User::Site', { joinkey => 'course_user_id', origkey => 'course_user.course_user_id' }),
 		   TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TeachingSite', { database => $school->getSchoolDb(), joinkey => 'teaching_site_id', origkey => 'course_user_site.teaching_site_id' }),
 		   TUSK::Core::JoinObject->new('TUSK::Permission::UserRole', { joinkey => 'feature_id', origkey => 'course_user.course_user_id' }),		
-		   TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id', jointype => 'inner' }),
-		   TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', origkey => 'permission_role.feature_type_id', jointype => 'inner', joincond => "feature_type_token = 'course'" }),
+		   TUSK::Core::JoinObject->new('TUSK::Permission::Role', { joinkey => 'role_id', origkey => 'permission_user_role.role_id' }),
+		   TUSK::Core::JoinObject->new('TUSK::Permission::FeatureType', { joinkey => 'feature_type_id', origkey => 'permission_role.feature_type_id', joincond => "feature_type_token = 'course'" }),
     ]);
 }
 
