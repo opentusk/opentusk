@@ -105,7 +105,7 @@
 		$completed_forms{$_->getCreatedBy()}{$_->getJoinObject('TUSK::FormBuilder::EntryAssociation')->getUserID()} = ($_->getCompleteDate()) ? ' <b>*</b>' : ' <b>!</b>';
 	}
 
-	my @colheaders = map {{id => $_->getUserID(), name => $_->getFullUserName()}} @users;
+	my @colheaders = map {{id => $_->getUserID(), name => "<a class = 'navsm' id = 'selectColumn' style = 'cursor: pointer'><img src='/graphics/checkAll.png' style='width:13px;height:13px;'> </a>" . $_->getFullUserName()}} @users;
 	my @rowheaders;
 	my %data;
 	my %styles;
@@ -113,7 +113,7 @@
 	foreach my $student (@students) {
 		my $student_id = $student->primary_key();
 		my $j = 0;
-		push(@rowheaders, {id => $student->primary_key(), name => $student->out_lastfirst_name()});
+		push(@rowheaders, {id => $student->primary_key(), name => "<a class = 'navsm' id = 'selectRow' style = 'cursor: pointer'><img src='/graphics/checkAll.png' style='width:13px;height:13px;'></a>". $student->out_lastfirst_name()});
 
 		foreach my $ur (@users) {
 			my $ssid = $student_id . '__' . $ur->getUserID();
@@ -148,39 +148,8 @@
 </tr>
 </table>
 <br/>
-
-<script>
-	var selectAll = false;
-	var selectColumn = false;
-	var selectRow = false;
-
-	var selectAllLabel = 'Select All';
-	var deselectAllLabel = 'Deselect All';
-	var selectColumn = 'Select Column';
-	var deselectColumn = 'Deselect Column';
-	var selectRow = 'Select Row';
-	var deselectRow = 'Deselect Row';
-
-	var currentlySelected;
-
-	$(document).ready(function() {
-		$('span.student_assessor').click(function() {
-			currentlySelected = $(this);
-			console.log(currentlySelected);
-		});
-	});
-</script>
-
-<div class="tablediv">
-<table class="topbox"><tr>
-<td><input type="checkbox"/> <%__('Select All')%></td>
-<td><input type="checkbox"/> <%__('Select Column')%></td>
-<td><input type="checkbox"/> <%__('Select Row')%></td>
-</tr>
-</table>
-<br/>
 <& /tmpl/element:scrollable_display_table, table_id => "studentassessors",
-	corner_text => __('Name'),
+	corner_text => "<a class = 'navsm' id = 'selectAll' style = 'cursor: pointer'><img src='/graphics/checkAll.png' style='width:13px;height:13px;'></a>" . __('Name'),
 	cell_data => \%data,
 	cell_css => \%styles,
 	colheaders => [\@colheaders],
@@ -247,6 +216,7 @@
 		'jquery/jquery.min.js',
 		'utils.js',
 		'jquery/plugin/scrollablefixedheadertable/scripts/wrapper.min.js',
+		'selectAll.js'
 	];
 </%perl>
 </%method>
