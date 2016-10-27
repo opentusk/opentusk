@@ -496,4 +496,27 @@ sub saveCompletions {
     }
 }
 
+sub getCompletions {
+    my ($self, $group_id) = @_;
+    my $sth = qq (SELECT e.competency_checklist_entry_id, a.competency_checklist_assignment_id, d.short_name, e.complete_date FROM competency_checklist AS c
+		  INNER JOIN competency_checklist_entry AS e ON (c.competency_checklist_id = e.competency_checklist_id)
+		  INNER JOIN competency_checklist_assignment AS a ON (e.competency_checklist_assignment_id = a.competency_checklist_assignment_id)
+                  INNER JOIN enum_data AS d ON (a.assesor_type_enum_id = e.enum_data_id)
+		  WHERE c.competency_checklist_group_id = $group_id
+                  AND e.complete_date IS NOT NULL AND d.namespace = "competency_checklist_assignment.assessor_type"
+		  ORDER BY e.complete_date, e.competency_checklist_id
+                  );
+
+    $sth->execute();
+
+    my $results = $sth->fetchall_arrayref();
+    
+    use Data::Dumper;
+    print Dumper $results;
+}
+
+sub checkFacultyCompletion {
+    return 1;
+}
+
 1;
