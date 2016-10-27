@@ -16,7 +16,6 @@
 
 package TUSK::Application::User::Internal;
 
-use TUSK::User;
 use HSDB4::SQLRow::User;
 use TUSK::Constants;
 use TUSK::Enum::Data;
