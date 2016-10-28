@@ -497,26 +497,41 @@ sub saveCompletions {
 }
 
 sub getCompletions {
-    my ($self, $group_id) = @_;
-    my $sth = qq (SELECT e.competency_checklist_entry_id, a.competency_checklist_assignment_id, d.short_name, e.complete_date FROM competency_checklist AS c
-		  INNER JOIN competency_checklist_entry AS e ON (c.competency_checklist_id = e.competency_checklist_id)
-		  INNER JOIN competency_checklist_assignment AS a ON (e.competency_checklist_assignment_id = a.competency_checklist_assignment_id)
-                  INNER JOIN enum_data AS d ON (a.assesor_type_enum_id = e.enum_data_id)
-		  WHERE c.competency_checklist_group_id = $group_id
+    my ($self, $checklist_id, $assignment_id) = @_;
+    
+    my $dbh = HSDB4::Constants::def_db_handle();                                                                                                     
+    
+    my $student_id = TUSK::Competency::Checklist::Assignment->lookupReturnOne("competency_checklist_assignment_id =". $assignment_id)->getStudentID();
+
+    my $sql = qq(SELECT e.competency_checklist_entry_id, a.competency_checklist_assignment_id, d.short_name, e.complete_date FROM tusk.competency_checklist AS c
+		  INNER JOIN tusk.competency_checklist_entry AS e ON (c.competency_checklist_id = e.competency_checklist_id)
+		  INNER JOIN tusk.competency_checklist_assignment AS a ON (e.competency_checklist_assignment_id = a.competency_checklist_assignment_id)
+                  INNER JOIN tusk.enum_data AS d ON (a.assessor_type_enum_id = d.enum_data_id)
+		  WHERE c.competency_checklist_id = $checklist_id AND a.student_id = '$student_id'
                   AND e.complete_date IS NOT NULL AND d.namespace = "competency_checklist_assignment.assessor_type"
 		  ORDER BY e.complete_date, e.competency_checklist_id
                   );
+    
+    my $sth = $dbh->prepare($sql);
 
     $sth->execute();
 
     my $results = $sth->fetchall_arrayref();
-    
-    use Data::Dumper;
-    print Dumper $results;
+ 
 }
 
 sub checkFacultyCompletion {
-    return 1;
+    my ($self, $checklist_id, $assignment_id) = @_;
+
+    my $completions = $self->getCompletions($checklist_id, $assignment_id);
+
+    foreach my $completion (@{$completions}) {
+	if ($completion->[2] eq "faculty") {
+	    return 1; 
+	}
+    }
+
+    return 0;
 }
 
 1;

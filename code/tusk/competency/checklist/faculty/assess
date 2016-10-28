@@ -44,8 +44,14 @@
 % }
 
 <%method startup>
-% 	$m->comp('SELF:validateToken', checklist_group_id => $checklist_group_id, checklist_assignment_id =>  $checklist_assignment_id, token => $token);
-%	TUSK::Application::Competency->getCompletions(checklist_group_id => group_id);
+<%perl>
+ 	$m->comp('SELF:validateToken', checklist_group_id => $checklist_group_id, checklist_assignment_id =>  $checklist_assignment_id, token => $token);
+	my $faculty_completion_status = $acc->checkFacultyCompletion($checklist_id, $checklist_assignment_id);
+	if ($faculty_completion_status == 1) {
+		my $errmsg = "The checklist for the particular student has already been completed by a faculty member.";
+		$m->redirect($m->comp("/tmpl/url:construct_url", 'base_url' => "/competency/checklist/author/show", 'msg' => $errmsg, msgtype => 'errmsg'));
+	}
+</%perl>
 </%method>
 
 <%method title>
