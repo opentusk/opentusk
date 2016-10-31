@@ -290,10 +290,12 @@ sub setQuestions {
 	my $type = $question->getType();
 	my $question_id = $question->getPrimaryKeyID(); 
 
+	my $current_sort_order;
+
 	if ($type eq 'Section') {
+	    
 	    $self->setQuestions($self->getChildrenQuestions($question_id), 1);
 	} elsif ($type eq 'MultipleChoice') {
-	    my $current_sort_order;
 	    if ($section == 1) {
 	        my @alpha_array = ("A".."Z");
 		$current_sort_order = $alpha_array[$current_sort_order];
