@@ -277,13 +277,13 @@ sub getQuestions {
 
     my $links = TUSK::Quiz::LinkQuizQuizItem->new()->lookup($cond, ['link_quiz_quiz_item.sort_order'], undef, undef, [ TUSK::Core::JoinObject->new("TUSK::Quiz::Answer", { origkey => 'quiz_item_id', joinkey => 'quiz_question_id', joincond => 'correct = 1' }), TUSK::Core::JoinObject->new("TUSK::Quiz::Question", { origkey => 'quiz_item_id', joinkey => 'quiz_question_id', jointype => 'inner'}) ]);
 
-    $self->setQuestions($links);
+    $self->setQuestions($links, 0);
     return $self->{_all_mc_questions};
 }
 
 
 sub setQuestions {
-    my ($self, $links, $section) = @_;
+    my ($self, $links, $section, @parent_questions) = @_;
 
     foreach my $link (@{$links}) {
 	my $question = $link->getJoinObject('TUSK::Quiz::Question');
@@ -291,14 +291,25 @@ sub setQuestions {
 	my $question_id = $question->getPrimaryKeyID(); 
 
 	my $current_sort_order;
+	my @alpha_array = ("A".."Z");
 
 	if ($type eq 'Section') {
+	    my $question_number_array_entry;
+	    if (scalar @parent_questions == 0 ) {
+		push @parent_questions, ($link->getSortOrder() + 1);
+		$self->setQuestions($self->getChildrenQuestions($question_id), 1, @parent_questions);
+	    } else {
+		if ($section >= 1) {
+		    $parent_questions[$section] =  $alpha_array[$link->getSortOrder()];
+		} else {
+		    $parent_questions[$section] =  $link->getSortOrder() + 1;
+		}
+		$self->setQuestions($self->getChildrenQuestions($question_id), $section + 1, @parent_questions);
+	    }
 	    
-	    $self->setQuestions($self->getChildrenQuestions($question_id), 1);
 	} elsif ($type eq 'MultipleChoice') {
-	    if ($section == 1) {
-	        my @alpha_array = ("A".."Z");
-		$current_sort_order = $alpha_array[$current_sort_order];
+	    if ($section >= 1) {
+		$current_sort_order = join(". ", @parent_questions) . '. ' . $alpha_array[$link->getSortOrder()];
 	    } else {
 		$current_sort_order = $link->getSortOrder() + 1;
 	    }
