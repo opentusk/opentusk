@@ -3886,8 +3886,10 @@ sub out_html_body {
     #
 
     my $self = shift;
+    my %args = @_;
     my $body = $self->body();
     my $uri = $body->tag_values('realvideo_uri') if ($body);
+    my $user_id = (defined $args{user_id}) ? $args{user_id} : '';
 
     # return unless we got a uri
     return $self->SUPER::out_html_body unless ($uri);
@@ -3905,7 +3907,7 @@ sub out_html_body {
 
     # Kaltura integration
     my $kaltura = TUSK::Content::Kaltura->new();
-    $display = $kaltura->player($self->primary_key(), $display_type);
+    $display = $kaltura->player($self->primary_key(), $display_type, $user_id);
 
     # HTML5 video
     unless ($display) {
@@ -3963,8 +3965,10 @@ sub out_html_body {
     #
 
     my $self = shift;
+    my %args = @_;
     my $body = $self->body;
     my $uri = $body->tag_values('realaudio_uri') if ($body);
+    my $user_id = (defined $args{user_id}) ? $args{user_id} : '';
 
     # content may have been stored as video
     $uri = $body->tag_values('realvideo_uri') unless ($uri);
@@ -3985,7 +3989,7 @@ sub out_html_body {
 
     # Kaltura integration
     my $kaltura = TUSK::Content::Kaltura->new();
-    $display = $kaltura->player($self->primary_key(), $display_type);
+    $display = $kaltura->player($self->primary_key(), $display_type, $user_id);
 
     # HTML5 audio
     unless ($display) {

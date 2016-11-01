@@ -148,6 +148,7 @@ sub setError {
 sub add {
     my ($self, $content_id, $user_id) = @_;
     my $row = $self->lookupReturnOne("content_id = $content_id");
+    $user_id = 'unkown' unless ($user_id);
     if ($row) {
         my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
         my $processed_on = $row->getProcessedOn();
@@ -197,7 +198,7 @@ sub init {
 }
 
 sub player {
-    my ($self, $content_id, $display_type) = @_;
+    my ($self, $content_id, $display_type, $user_id) = @_;
     our ($api, $cfg, $support_email);
     if ($cfg) {
         if ($api) {
@@ -205,13 +206,14 @@ sub player {
             my $partner_id = $cfg->{partnerId};
             my $player_id = $cfg->{'playerId' . $display_type};
             if ($kaltura_url && $partner_id && $player_id) {
-                my $row = $self->add($content_id, 'player');
+                my $row = $self->add($content_id, $user_id);
                 my $kaltura_id = $row->getKalturaID();
                 if ($kaltura_id) {
+                    my $flashvars = ($user_id) ? "&flashvars[statistics.userId]=$user_id" : '';
                     return qq(<iframe src="$kaltura_url/p/$partner_id/sp/$partner_id) .
                         qq(00/embedIframeJs/uiconf_id/$player_id/partner_id/$partner_id?) .
-                        qq(iframeembed=true&playerId=$kaltura_id&entry_id=$kaltura_id" ) .
-                        qq(class="player" allowfullscreen></iframe>);
+                        qq(iframeembed=true&playerId=$kaltura_id&entry_id=$kaltura_id) .
+                        qq($flashvars" class="player" allowfullscreen></iframe>);
                 } elsif ($row->getError()) {
                     return qq(<p>Error uploading to Kaltura.<br>Please email $support_email.</p>);
                 } else {
