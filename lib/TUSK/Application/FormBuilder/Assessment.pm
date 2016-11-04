@@ -16,6 +16,7 @@ package TUSK::Application::FormBuilder::Assessment;
 
 use TUSK::FormBuilder::Entry;
 use TUSK::FormBuilder::SubjectAssessor;
+use HSDB45::Course;
 use HSDB4::Constants qw(:school);
 use Carp qw(confess);
 
@@ -46,6 +47,10 @@ sub moveAssessment {
     my $assessor_ids = $self->getAssessors();
     my $entries;
     if (scalar @$assessor_ids) {
+        for my $assessor_id (@$assessor_ids) {
+            $self->copyAssessorTimePeriod({assessor_id => 
+                $assessor_id});
+        }
         $entries = $self->getEntries({
             assessors => $assessor_ids
         });
@@ -133,6 +138,15 @@ sub updateEntry() {
 	warn "User id is " . $self->{session_user_id};
 	$entry->save({user => 
 		$self->{session_user_id}});
+}
+
+sub copyAssessorTimePeriod() {
+    my ($self, $args) = @_;
+	$course = HSDB45::Course->new(_school => $self->{school_id})->lookup_key(
+        $self->{course_id});
+    my $users = $course->users($self->{current_time_period}, "course_user.course_user_id = $args->{assessor_id}");
+    warn "Users related information is " . scalar @$users;
+    warn "Course id is " . $course->getTuskCourseID();
 }
 
 1;
