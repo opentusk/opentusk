@@ -70,6 +70,7 @@
 %			$form_id = $form->getPrimaryKeyID(); 
 <%perl>
 	my $school_result = TUSK::Core::School->new->lookup("school_name = '" . $courses->{$course_id}{school} . "'");
+
 	my $school = $school_result->[0];
 	my $assessors = TUSK::FormBuilder::SubjectAssessor->new()->lookup(" form_id = $form_id AND assessor_id = '$assessor_id' and status != 0", 
 		['time_period.start_date DESC', 'time_period.end_date DESC'], undef, undef, [
@@ -107,7 +108,7 @@
 
 %		for my $time_period (@sorted_time_periods_assessment) {
 % 		@rows = ();
-%		@column_headings = {label =>__('Name'), field => 'name', html => 1,  width => '25%' };
+%		@column_headings = {label =>__('Name [' . $time_period->{timePeriod} . ']'), field => 'name', html => 1,  width => '25%' };
 
 <& "SELF:prepare", param => {
 		course => { 
@@ -207,8 +208,7 @@
 				selection => "<input type=\"checkbox\" name=\"selection\" value=\"" . $assessor_id . '__' . $student_id . '__' . $form_id . '__' . "$url\" $disabled $checked />",
 				submitted => ($entry) ? $entry->getCompleteDate() : '-',
 				status =>  $status,
-				timeperiod => $tp_period,
-				action => "<span id=\"action__" . $assessor_id . '__' . $student_id . '__' . $form_id . "\" style=\"$action_style\"><a href=\"/assessment/assessor/entry/$new_form_url/$id/?req_time_period_id=$tp_id\">$action_label</a></span>",
+				action => "<span id=\"action__" . $assessor_id . '__' . $student_id . '__' . $form_id . "\" style=\"$action_style\"><a href=\"/assessment/assessor/entry/$new_form_url/$id/?req_time_period_id=$tp_id&use_local_time_period=1\">$action_label</a></span>",
 			};
 		}
 
@@ -216,8 +216,7 @@
 		push @column_headings, {label => __('Select/Deselect'), field => 'selection', align => 'center', html => 1, width => '10%' } if ($assessment_form->getStudentSelection());
 		push @column_headings, (		
 			{label => __('Action'), field => 'action', align => 'center', html => 1, width => '10%' },
-			{label => __('Status'), field => 'status', align => 'center', html => 1,  width => '28%' },
-			{label => __('Time Period'), field => 'timeperiod', align => 'center', html => 1,  width => '28%' }
+			{label => __('Status'), field => 'status', align => 'center', html => 1,  width => '28%' }
 		);
 		$user_roles = TUSK::Permission::UserRole->new()->getFeatureUserByRole('assessment', $form_id, 'NCSA');
 	}
