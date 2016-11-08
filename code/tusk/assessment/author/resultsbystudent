@@ -261,7 +261,7 @@
 <%perl>
                 ### only responses for those completed entries
                 my $responses = TUSK::FormBuilder::Response->lookup(undef,undef,undef,undef, [
-                        TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id and time_period_id = $time_period_id"}),
+                        TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id and time_period_id = $time_period_id AND complete_date IS NOT NULL"}),
                         TUSK::Core::JoinObject->new('TUSK::FormBuilder::Field', { joinkey => 'field_id', jointype => 'inner'}),
                         TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "'"}),
                         TUSK::Core::JoinObject->new('TUSK::Core::HSDB4Tables::User', { origkey => 'created_by', jointype => 'inner', joinkey => 'user_id' }),
@@ -359,6 +359,7 @@
 
                 foreach my $field(@$fields) {
                         $field_id = $field->getPrimaryKeyID();
+
                         $n_assessors = scalar grep { /^\d+$/ } values %{$scores{field}{$field_id}{assessors}};
 
                         if ($n_assessors > 0) {
