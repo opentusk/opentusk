@@ -44,15 +44,24 @@ sub moveAssessment {
 
 	$self->{current_time_period} =~ s{\A \s* | \s* \z}{}gxm;
 
-    my $assessor_ids = $self->getAssessors();
+    my $assessments = $self->getAssessors();
+    my @assessor_ids = map {"'" . $_->{assessor_id} . "'"} (@$assessments);
     my $entries;
-    if (scalar @$assessor_ids) {
-        for my $assessor_id (@$assessor_ids) {
+
+    warn 'Calling assessors';
+    warn 'Assessor number is ' . scalar @assessor_ids;
+    if (scalar @assessor_ids) {
+        for $assessor_param (@$assessments){
             $self->copyAssessorTimePeriod({assessor_id => 
-                $assessor_id});
+                "'" . $assessor_param->{assessor_id} . "'"});
+            $self->updateSubjectAssessor({
+                form_id => $assessor_param->{form_id},
+                assessor_id => $assessor_param->{assessor_id},
+                status => 1
+            });
         }
         $entries = $self->getEntries({
-            assessors => $assessor_ids
+            assessors => \@assessor_ids
         });
     }
 
@@ -94,10 +103,9 @@ sub getAssessors {
 
 	confess "$@" if ($@);
 
-    my @assessors = map {"'" . $_->{assessor_id} . "'"} (@$assessments);
-
-    return \@assessors;
+    return $assessments;
 }
+
 
 sub getEntries {
     my ($self, $args) = @_;
@@ -142,11 +150,43 @@ sub updateEntry() {
 
 sub copyAssessorTimePeriod() {
     my ($self, $args) = @_;
+    warn "In copyAssessorTimePeriod method";
+    warn "Passed assessor id is " . $args->{assessor_id};
+    warn "Self time period id is |" . $self->{current_time_period} . "|";
 	$course = HSDB45::Course->new(_school => $self->{school_id})->lookup_key(
         $self->{course_id});
-    my $users = $course->users($self->{current_time_period}, "course_user.course_user_id = $args->{assessor_id}");
+    my $users = $course->users($self->{current_time_period}, "course_user.user_id = $args->{assessor_id}", undef);
+    my $user = $users->[0];
+    my $app = TUSK::Application::Course::User->new({course => $course});
+    my $role = $user->getRole();
+    $app->add({ 
+        user_id	=> $user->getPrimaryKeyID(), 
+        time_period_id => $self->{requested_time_period},
+        site_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getSites()} ],
+        role_id => (defined $role) ? $role->getPrimaryKeyID() : undef,
+        virtual_role_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getLabels()} ],
+        author => $self->{session_user_id},
+    });
     warn "Users related information is " . scalar @$users;
+    warn "Users information is " . $users;
     warn "Course id is " . $course->getTuskCourseID();
 }
+
+sub updateSubjectAssessor() {
+    my ($self, $args) = @_;
+    my $student_and_assessor = TUSK::FormBuilder::SubjectAssessor->new();
+    $student_and_assessor->setFieldValues({
+        form_id => $args->{form_id},
+        time_period_id => $self->{requested_time_period},
+        subject_id => $self->{user_id},
+        assessor_id => $args->{assessor_id},
+        status => $args->{status}
+    });
+
+    $student_and_assessor->save({
+        user => $self->{session_user_id}
+    });
+}
+
 
 1;
