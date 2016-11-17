@@ -18,7 +18,7 @@ use TUSK::FormBuilder::Entry;
 use TUSK::FormBuilder::SubjectAssessor;
 use HSDB45::Course;
 use HSDB4::Constants qw(:school);
-use Carp qw(confess);
+use Carp qw(confess croak);
 
 sub new {
 	my ($class, $arg_ref) = @_;
@@ -159,17 +159,27 @@ sub copyAssessorTimePeriod() {
     my $user = $users->[0];
     my $app = TUSK::Application::Course::User->new({course => $course});
     my $role = $user->getRole();
-    $app->add({ 
-        user_id	=> $user->getPrimaryKeyID(), 
-        time_period_id => $self->{requested_time_period},
-        site_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getSites()} ],
-        role_id => (defined $role) ? $role->getPrimaryKeyID() : undef,
-        virtual_role_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getLabels()} ],
-        author => $self->{session_user_id},
-    });
-    warn "Users related information is " . scalar @$users;
-    warn "Users information is " . $users;
-    warn "Course id is " . $course->getTuskCourseID();
+
+    eval {
+        $app->add({ 
+            user_id	=> $user->getPrimaryKeyID(), 
+            time_period_id => $self->{requested_time_period},
+            site_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getSites()} ],
+            role_id => (defined $role) ? $role->getPrimaryKeyID() : undef,
+            virtual_role_id => [ map { $_->getPrimaryKeyID() } grep { defined $_ } @{$user->getLabels()} ],
+            author => $self->{session_user_id},
+        });
+    };
+
+    if ($@ && !($@ =~ /Duplicate entry/)) {
+        croak( "$@ query failed for class " . ref($self) . " in giving priviliges to the assessor in the new time period." );
+    }
+
+    # warn "error : $@ query failed for class " . ref($self) . " in copyAssessorTimePeriod()." if ($@);
+
+    # warn "Users related information is " . scalar @$users;
+    # warn "Users information is " . $users;
+    # warn "Course id is " . $course->getTuskCourseID();
 }
 
 sub updateSubjectAssessor() {
@@ -183,9 +193,17 @@ sub updateSubjectAssessor() {
         status => $args->{status}
     });
 
-    $student_and_assessor->save({
-        user => $self->{session_user_id}
-    });
+    eval {
+        $student_and_assessor->save({
+            user => $self->{session_user_id}
+        });
+    };
+
+    if ($@ && !($@ =~ /Duplicate entry/)) {
+        croak( "$@ query failed for class " . ref($self) . " in assessor assignment with the new time period." );
+    }
+
+    # warn "error : $@ query failed for class " . ref($self) . " in updateSubjectAssessor()." if ($@);
 }
 
 

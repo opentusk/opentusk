@@ -489,11 +489,7 @@ sub applyStudentModifications{
 			})->moveAssessment();
 		};
 
-		warn "Requested assessment move(s) couldn't be completed. Error: " . $@ if ($@); 
-		if ($@) 
-		{
-			return 'Error: ' . $@;
-		}
+		return "Requested assessment move(s) couldn't be completed. Error: " . $@ if ($@); 
 	}
 
 	if ($args->{delete_requested})
