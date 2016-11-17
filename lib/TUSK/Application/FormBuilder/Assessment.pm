@@ -92,8 +92,7 @@ sub getAssessors {
 
     my $dbh = HSDB4::Constants::def_db_handle ();
 	my $assessments = [];
-    warn "Using user id $self->{user_id}, current time period $self->{current_time_period},
-    course id $self->{course_id} and school id $self->{school_id}.";
+
     eval {
 		my $sth = $dbh->prepare($assessors_sql);
 		$sth->execute($self->{user_id}, $self->{current_time_period}, 
@@ -129,11 +128,6 @@ sub getEntries {
     };
 
     confess "$@" if ($@);
-
-    for my $row (@$entries) 
-    {
-        warn "Entry is " . $row->{entry_id};
-    }
     
     return $entries;
 }
@@ -174,12 +168,6 @@ sub copyAssessorTimePeriod() {
     if ($@ && !($@ =~ /Duplicate entry/)) {
         croak( "$@ query failed for class " . ref($self) . " in giving priviliges to the assessor in the new time period." );
     }
-
-    # warn "error : $@ query failed for class " . ref($self) . " in copyAssessorTimePeriod()." if ($@);
-
-    # warn "Users related information is " . scalar @$users;
-    # warn "Users information is " . $users;
-    # warn "Course id is " . $course->getTuskCourseID();
 }
 
 sub updateSubjectAssessor() {
@@ -202,8 +190,6 @@ sub updateSubjectAssessor() {
     if ($@ && !($@ =~ /Duplicate entry/)) {
         croak( "$@ query failed for class " . ref($self) . " in assessor assignment with the new time period." );
     }
-
-    # warn "error : $@ query failed for class " . ref($self) . " in updateSubjectAssessor()." if ($@);
 }
 
 
