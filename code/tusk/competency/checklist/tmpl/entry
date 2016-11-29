@@ -259,11 +259,11 @@
 		$entry_changed = 1;
 	}
 
-	if ($args{assessor_comment} =~ /\w+/) {
+	if ($args{assessor_comment} =~ /\w+/) {              
 		unless ($assessment_type eq 'self') {
 			$args{assessor_comment} = HSDB4::DateTime->new()->out_mysql_timestamp() . "\n" . $args{assessor_comment};
 			if (my $prior_comments = $entry->getAssessorComment()) {
-				$args{assessor_comment} .= "\n\n$prior_comments";
+				$args{assessor_comment} .= (length $args{assessor_comment}) . "\n\n$prior_comments";
 			}
 		}
 		$entry->setAssessorComment($args{assessor_comment});
@@ -274,6 +274,7 @@
 		$entry->setRequestDate(undef);
 		$entry->setNotifyDate(undef);
 		$entry->setCompleteDate(HSDB4::DateTime->new()->out_mysql_timestamp());
+		$entry->setStudentComment();
 		if ($args{excellence}) {
 			$entry->setExcellence($args{excellence});
 		}

@@ -241,7 +241,12 @@ sub validateUrlToken {
 sub setAssessorRequest {
     my ($self, $assignment_id, $checklist_id, $user_id, $entry, $comments) = @_;
     my $now = HSDB4::DateTime->new()->out_mysql_timestamp();
-    $comments = $now ."\n" . $comments;
+
+    if ($comments =~ /\w+/) {
+        $comments = $now ."\n" . $comments;
+    } else {
+        $comments = "Requested on: " . $now;
+    }
 
     if ($entry->getPrimaryKeyID()) {
         $entry->setCompetencyChecklistAssignmentID($assignment_id) unless ($entry->getCompetencyChecklistAssignmentID() == $assignment_id);
