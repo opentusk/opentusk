@@ -40,6 +40,8 @@ sub handler {
 	return OK;
     }
 
+    my $uri = ($r->path_info()) ? $r->path_info() : $r->uri();
+
     my $cls = $r->dir_config('RowClass');
 
     my $debug = $r->dir_config("HSDBDebug") || 0;
@@ -63,7 +65,6 @@ sub handler {
 
     my $doc;
 
-    my $uri = ($r->path_info()) ? $r->path_info() : $r->uri();
 
     if ($cls =~ /HSDB45/){
 	eval {$doc = $cls->lookup_path($uri);};

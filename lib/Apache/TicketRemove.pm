@@ -20,8 +20,8 @@ use Apache2::Const qw(:common REDIRECT);
 use Apache2::Cookie;
 use Apache::Session::MySQL::NoLock;
 use Apache2::Request;
-use Apache::TicketMasterCAS;
-use Apache::TicketMasterShib;
+use Apache::TicketMaster::CAS;
+use Apache::TicketMaster::Shib;
 use HSDB4::SQLRow::User;
 use TUSK::Constants;
 use URI::Escape;
@@ -49,17 +49,17 @@ sub handler {
 		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 
 		# Let the login page know if the user last logged in with CAS
-		if(Apache::TicketMasterCAS::isCASEnabled() && $user->cas_login()) {
+		if(Apache::TicketMaster::CAS::isCASEnabled() && $user->cas_login()) {
 			if($TUSK::Constants::CAS{'removeCASSessionOnLogout'}) {
-				$location = Apache::TicketMasterCAS::getLogoutURL();
+				$location = Apache::TicketMaster::CAS::getLogoutURL();
 			} else {
 				$location.= "logout=true";
 			}
 			$user->field_value('cas_login', 0);
 		}
-		if(Apache::TicketMasterShib::isShibEnabled() && $user->shib_session()) {
+		if(Apache::TicketMaster::Shib::isShibEnabled() && $user->shib_session()) {
 			if($TUSK::Constants::Shibboleth{'removeShibSessionOnLogout'}) {
-				$location = Apache::TicketMasterShib::getLogoutURL();
+				$location = Apache::TicketMaster::Shib::getSPLogoutURL();
 			} else {
 				$location.= "logout=shib";
 			}

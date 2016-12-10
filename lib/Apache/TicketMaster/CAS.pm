@@ -1,4 +1,4 @@
-package Apache::TicketMasterCAS;
+package Apache::TicketMaster::CAS;
 
 use strict;
 use Apache2::Const qw(:common REDIRECT);

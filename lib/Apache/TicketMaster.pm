@@ -45,6 +45,13 @@ sub handler {
 	    ($r->prev && $r->prev->uri) 
 	    || '/home';
 
+	my $requestURLCookie = Apache2::Cookie->new ($r,
+		-name => 'request_uri',
+		-value => $request_uri ,
+		-expires=> '+3m', 
+		-path => '/'
+	);
+
     $r->log_error("TM redirecting to $request_uri") if ($debug >= 2);
 
     my $ticketTool = Apache::TicketTool->new($r);
@@ -83,6 +90,7 @@ sub handler {
     }
     $r->log_error("TM going to login screen...") if ($debug >= 2);
 
+    $requestURLCookie->bake($r);
     $failedLoginUserCookie->value($user);
     $failedLoginUserCookie->bake($r);
     return go_to_uri($r,$request_uri,undef,$msg);
@@ -100,7 +108,9 @@ sub go_to_uri {
 			-value => $errmsg ,
 			-expires=>$expires, 
 			-path => '/');
-		$requested_uri = "/";
+		# This should be unneeded. It is making the login process always to back to /home on an error.
+		# If you are using the guestLogin I don't want you going back to home.
+		# $requested_uri = "/";
 	} else {
 		$errorCookie = Apache2::Cookie->new ($r,
 			-name => 'login_error',

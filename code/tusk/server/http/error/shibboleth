@@ -30,6 +30,7 @@
         use TUSK::Constants;
         use TUSK::ErrorReport;
 	use TUSK::Core::Logger;
+	use Apache2::Const qw(REDIRECT);
 </%once>
 
 <%args>
@@ -48,7 +49,17 @@
 
 	my $title = "An unknown error has occurred ($errorType).";
 
-        if($errorType eq 'opensaml::BindingException') {
+	# There is one special case for shibboleth logout
+	if($errorType eq 'std::exception' && $errorText eq 'basic_string::_S_construct NULL not valid') {
+		$m->print('<div class="shortpage">');
+		$m->print('<h4>'. __x('Completing Logout Process') .'</h4></br>');
+		$m->print('<p>'. __('If you are not redirected shortly, please <a href="/home?logout=shib">Click Here</a>. Thank you for your patience.') .'</p>');
+		$m->print('</div>');
+		$m->print('<script>window.location="/home?logout=shib"</script>');
+		$m->abort();
+	}
+
+	if($errorType eq 'opensaml::BindingException') {
                 $title = 'A binding exception error has occurred.';
                 $sendEmail = 1;
         } elsif($errorType eq 'shibsp::ConfigurationException') {
@@ -86,8 +97,10 @@
 <div class="shortpage">
 
 <h4 class="error"><%__x('{title}', title => $title) %></h4>
+<b><% $errorText %></b></br>
+
 % if($sendEmail) {
-	<p><%__x('Your problem has been reported to {SiteAbbr} and we will do our best to help you with this issue.  If you would like to contact us with additional information please <a href="{ContactURL}">fill our our contact form</a> and tell us the location where you encountered an error ({uri}), and what you did just prior to seeing this page. You can call us at {SupportPhone} for immediate assistance.', SiteAbbr => $TUSK::Constants::SiteAbbr, ContactURL => $TUSK::Constants::ContactURL, uri => $requestURL, SupportPhone => $TUSK::Constants::SupportPhone)%></p>
+	<p><%__x('Your problem has been reported to {SiteAbbr} and we will do our best to help you with this issue.  If you would like to contact us with additional information please <a href="{ContactURL}">fill out our contact form</a> and tell us the location where you encountered an error ({uri}), and what you did just prior to seeing this page. You can call us at {SupportPhone} for immediate assistance.', SiteAbbr => $TUSK::Constants::SiteAbbr, ContactURL => $TUSK::Constants::ContactURL, uri => $requestURL, SupportPhone => $TUSK::Constants::SupportPhone)%></p>
 % }
 
 <p><%__('Thank you for your patience.')%></p>

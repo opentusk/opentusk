@@ -1,16 +1,41 @@
 <%doc>
 	This page takes the ENV passed in by shibboleth authentication
-	It then calls TicketMasterShib methods to create the session
+	It then calls TicketMaster::Shib methods to create the session
 	Finally it rerturns success or a redirect to the login page
 </%doc>
 
 <%once>
-use Apache::TicketMasterShib;
+use Apache::TicketMaster::Shib;
 </%once>
+
+<%args>
+	$testConnection => ''
+</%args>
 
 <%perl>
 $m->clear_buffer();
-#$r->content_type('text/html');
-#$m->print("<html><head><title>Here</title></head><body>Made it here</body></html>");
-return Apache::TicketMasterShib::authenticate(\%ENV, $r);
+# If we are not testing the login, we can just follow the authentication process
+unless($testConnection) {
+	return Apache::TicketMaster::Shib::authenticate(\%ENV, $r);
+}
+
+# If we are testing and we made it to this page (that can only happen if we have an IdP session)
+# Then redirect the user via HTML JavaScript accessing the parent window
+
+warn("Existing IdP login found, redirecting through IdP");
 </%perl>
+<html>
+	<head>
+		<title>Redirecting to login page</title>
+		<script>
+			if(parent) {
+				parent.window.location='<% Apache::TicketMaster::Shib::getLoginUrl() %>';
+			} else {
+				window.location='<% Apache::TicketMaster::Shib::getLoginUrl() %>';
+			}
+		</script>
+	</head>
+	<body>
+		Redirecting to: <a href="<% Apache::TicketMaster::Shib::getLoginUrl() %>"><% Apache::TicketMaster::Shib::getLoginUrl() %></a>
+	</body>
+</html>

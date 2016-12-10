@@ -1,4 +1,4 @@
-package Apache::TicketMasterShib;
+package Apache::TicketMaster::Shib;
 
 use strict;
 use Apache2::Const qw(:common REDIRECT);
@@ -33,10 +33,18 @@ sub getLoginUrl {
 	return 'https://'. $TUSK::Constants::Domain .'/shib/login';
 }
 
-sub getLogoutURL {
-	my $parameters = uri_escape($TUSK::Constants::Shibboleth{'logoutURL'} ."?target=http://". $TUSK::Constants::Domain);
-	return 'https://'. $TUSK::Constants::Domain ."/Shibboleth.sso/Logout?return_url=$parameters";
+sub getSPLogoutURL {
+	my $logoutURL = 'https://'. $TUSK::Constants::Domain ."/Shibboleth.sso/Logout?return_url=". uri_escape("http://". $TUSK::Constants::Domain ."?logout=shib");
+	my $TUSK_Logger = TUSK::Core::Logger->new();
+	$TUSK_Logger->logTrace("TMShib returning logout URL: $logoutURL", "login");
+	return $logoutURL;
+}
+
+sub getIdPLogoutURL {
+#	my $parameters = uri_escape($TUSK::Constants::Shibboleth{'IdPLogoutURL'} ."?target=http://". $TUSK::Constants::Domain);
+#	return 'https://'. $TUSK::Constants::Domain ."/Shibboleth.sso/Logout?return_url=$parameters";
 #	return $TUSK::Constants::Shibboleth{'logoutURL'} .'?return_url=https://'. $TUSK::Constants::Domain .'/Shibboleth.sso/Logout?return=/dologout';
+	return $TUSK::Constants::Shibboleth{'IdPLogoutURL'};
 }
 
 sub authenticate {
@@ -58,6 +66,8 @@ sub authenticate {
 		($cookieJar->cookies('request_uri') && $cookieJar->cookies('request_uri')->value) ||
 		($r->prev && $r->prev->uri) 
 		|| '/home';
+	my $target = $apr->param('target');
+	if($target) { $request_uri = $target; }
 	$TUSK_Logger->logInfo("TMShib user will be redirected to $request_uri", "login");
 
 			

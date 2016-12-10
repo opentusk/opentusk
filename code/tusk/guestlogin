@@ -33,21 +33,19 @@ $errmsg => ''
 $url => ''
 </%args>
 
+<%method jsarray>
+%	return ['jquery/jquery.min.js'];
+</%method>
+
 <%method startup>
 % $m->comp("SELF:set_no_cache");
 </%method>
 
-<%init>
-my  $ssrv = $r->dir_config('SecureLogin') || 'https://'.$TUSK::Constants::Domain .'/login';
-
-</%init>
 
 <%__("You must login before viewing the requested page. You may be receiving this because you've been signed on for too long and your session has expired. If you are a guest user, the page you are requesting does not allow guest access.")%>
 
-<div id ="logLoginContainer">
+<div id ="logLoginContainer" style="background: 1px solid blue;">
 
-<form method="post" action="<% $ssrv %>">
-<input type="hidden" name="request_uri" value="<% $ENV{REQUEST_URI} %>">
 <h3 class="title"><% $TUSK::Constants::SiteAbbr %> Login</h3>
 
 <%perl>
@@ -55,42 +53,27 @@ my $cookieJar = Apache2::Cookie::Jar->new($r);
 my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_error')->value() ? $cookieJar->cookies('login_error')->value()
                   : $errmsg ? $errmsg
                   : '';
+my $requestedURL = $cookieJar->cookies('request_uri') && $cookieJar->cookies('request_uri')->value() ? $cookieJar->cookies('request_uri')->value() : '';
+if($r->prev()) { $requestedURL = $r->prev()->uri; }
 </%perl>
 
-% if ($message) {
-<H4 CLASS="error">Could not log in: <%$message%></H4>
-% }
+<& /tmpl/loginForm:build_login_box,
+	message => $message,
+	errmsg => $errmsg,
+	url => $ENV{REQUEST_URI},
+	failedLoginUser => '',
+	logout => '',
+	shibStatus => '',
+	shibRedirectURL => $requestedURL,
+&>
 
-<table border="0">
-	<tr>
-		<td align="right" nowrap><div><%__("User name")%>:</div></td>
-		<td><input type="text" name="user" size="25" value=""></td>
-		<td rowspan=3 valign="center" width="100">&nbsp;</td>
-	</tr>
-	<tr>
-		<td align="right"><div><%__("Password")%>:</div></td>
-		<td><input type="password" name="password" size="25" value=""></td>
-	</tr>
-	<tr>
-		<td>&nbsp;</td>
-		<td valign="top">
-			<table cellpadding="0" cellspacing="4">
-				<tr>
-					<td><input type="Submit" value="Login"></td>
-					<td><img src="/icons/locksmall.jpg" height="26" width="18"></td>
-					<td><font size=2><%__("Your login is secure.")%></font></td>
-				</tr>
-			</table>
-		</td>
-	</tr>
-        <tr><td colspan="3">If you need to obtain an account
+<div style="padding-top: 50px;">
 % if ($TUSK::Constants::FaqURL) {
 <% __x('If you need to obtain an account see our <a href="{faq_url}">FAQ</a> or send email containing your name and affiliation to <a href="mailto:{supportemail}">{supportemail}</a>', faq_url => $TUSK::Constants::FaqURL, supportemail => $TUSK::Constants::SupportEmail) %>
 % } else {
 <% __x('If you need to obtain an account send an email containing your name and affiliation to <a href="mailto:{supportemail}">{supportemail}</a>', supportemail => $TUSK::Constants::SupportEmail) %>
 % }
-</td></tr>
-</table>
+</div>
 </form>
 
 <form name="shibForm" action="http://<% $TUSK::Constants::Domain%>/tusk/shibboleth/WAYF" method="post">
@@ -106,3 +89,4 @@ my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_e
 <%method stylearray>
 % return ['/style/style.css', '/style/login.css'];
 </%method>
+

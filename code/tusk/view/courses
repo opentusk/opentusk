@@ -39,6 +39,7 @@
 %  my $user = $m->session->{'user'};
 %  my @school_list = ();
 
+%  my $hadAtLeastOneSchool = 0;
 %  foreach my $school (HSDB4::Constants::homepage_course_schools) {
 %	if ($user && $school eq $user->affiliation()) {
 %     		unshift(@school_list,$school);
@@ -50,6 +51,7 @@
 %		my $blank_cat = TUSK::HomepageCategory->new(_school => $schoolObject );
 %		my @hp_cats = $blank_cat->lookup_conditions("order by sort_order");
 %		if(@hp_cats) {
+%			$hadAtLeastOneSchool = 1;
 <& /tmpl/element:header_bar, params => {color => 'blue', hdr_txt => $schoolObject} &>
 			<form action="" method="get">
 				<table width="100%" cellpadding="2" cellspacing="4">
@@ -79,6 +81,10 @@
 			</form>
 %		}  ### category
 %  	}  ### schools
+
+%  unless($hadAtLeastOneSchool) {
+			<i>Sorry... There is nothing you can see in this system</i>
+%  }
 		</td>
 		<td width="10" valign="top"><img src="/graphics/spacer.gif" alt=" " width="10" height="1" border="0"></td>
 	</tr> 
