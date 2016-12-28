@@ -84,7 +84,7 @@ function change_display(element){
 	show_flag = 0;
 	if (selected_value == '#') {
 		display_row('fillin_size_tr', 0);
-	} else if (selected_value.substring(selected_value.indexOf('#')+1) == 'FillIn'){
+	} else if (selected_value.substring(selected_value.indexOf('#')+1) == 'FillIn'  || (selected_value.substring(selected_value.indexOf('#')+1) == 'ConfidentialPatientIdentifier')){
 		display_row('fillin_size_tr', 1);
 	} else if (selected_value.substring(selected_value.indexOf('#')+1) == 'Essay'){
 		display_row('fillin_size_tr', 0);

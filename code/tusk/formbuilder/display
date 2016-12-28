@@ -130,6 +130,7 @@ my @fields_to_check;
 
 my %ID_STRING_FOR = (
     FillIn => 'id_%d',
+    ConfidentialPatientIdentifier => 'id_%d',
     SingleSelect => 'id_%d',
     SingleSelectAllowMulti => 'text_id_%d',
     MultiSelectWithAttributes => 'multiwithattr_%d',
@@ -315,6 +316,23 @@ if ($args->{entry_id}) {
 	maxlength => $size } &>
 </%def>
 
+<%def ConfidentialPatientIdentifier>
+<%args>
+	$field
+	$response
+</%args>
+<%perl>
+	my $size = ($field->getFillinSize()) ? $field->getFillinSize() : 60;
+	my $value = (scalar(@$response)) ? $response->[0]->getText() : ''; 
+</%perl>
+<& /tmpl/element:textbox, params =>{ label => $field->getFieldName(),
+	name => 'id_' . $field->getPrimaryKeyID(),
+	value => $value,
+	trailing_text => '&nbsp;' . $field->getTrailingText(),
+	size => $size,
+	length => $size,
+	maxlength => $size } &>
+</%def>
 
 <%def Heading>
 <%args>

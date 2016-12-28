@@ -37,7 +37,10 @@ sub new {
 
 sub getReport {
 	my ($self) = @_;
-	my $sql = qq(
+
+        my $confidential_field_type_id = 12; #TODO: remove hard_code with actual
+				 
+       my $sql = qq(
 				 SELECT
 				 child_user_id,
 				 (SELECT CONCAT(lastname, ', ', firstname)
@@ -64,16 +67,36 @@ sub getReport {
 
 	while (my ($user_id, $name, $patients) = $sth->fetchrow_array()) {
 		$all_students++;
+  
+                my $sql_2 = qq(SELECT COUNT(*)
+				  FROM tusk.form_builder_entry c
+                                  INNER JOIN tusk.form_builder_response r ON r.entry_id = c.entry_id
+                                  INNER JOIN tusk.form_builder_field ON r.field_id = form_builder_field.field_id
+				  WHERE time_period_id IN ($self->{_time_period_ids_string})  
+                                  AND c.user_id = "$user_id"                                  
+                                  AND form_builder_field.field_type_id = $confidential_field_type_id
+				  AND form_id = $self->{_form_id}
+			       GROUP BY r.text);
+
+               my $sth_2 = $self->{_form}->databaseSelect($sql_2);
+
+		$sth_2->execute();
+
+		my @unique_patients = $sth_2->fetchall_arrayref();
+                  
+                my $unique_patients_no = @{$unique_patients[0]};
+
 		if ($patients > 0) {
 			$report_students++;
 			$all_patients += $patients;
 		}
 
-		push @rows, [$user_id, $name, $patients];
+		push @rows, [$user_id, $name, $patients, $unique_patients_no];
 		
 	}
 
 	$sth->finish();
+
 	my $user = HSDB4::SQLRow::User->new()->lookup_key($self->{_user_id});
 
 	return { rows => \@rows, all_students => $all_students, report_students => $report_students, all_patients => $all_patients, fullname => $user->out_full_name()};

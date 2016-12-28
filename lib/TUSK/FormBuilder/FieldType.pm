@@ -192,7 +192,7 @@ sub getFieldTypes {
 	my ($self, $form_token) = @_;
 
 	my $field_types = {
-		PatientLog => [ 'FillIn', 'SingleSelect', 'SingleSelectAllowMulti', 'MultiSelect', 'MultiSelectWithAttributes', 'RadioSelect', 'Essay', 'DynamicList' ],
+		PatientLog => [ 'ConfidentialPatientIdentifier', 'FillIn', 'SingleSelect', 'SingleSelectAllowMulti', 'MultiSelect', 'MultiSelectWithAttributes', 'RadioSelect', 'Essay', 'DynamicList' ],
 		SP => [ 'FillIn', 'SingleSelect', 'SingleSelectAllowMulti',  'MultiSelectWithAttributes', 'RadioSelect', 'Essay', 'DynamicList', 'CheckList', 'Heading', ],
         Assessment => [ 'Scaling' ],
 	};

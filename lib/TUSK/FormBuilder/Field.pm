@@ -618,6 +618,9 @@ sub getFieldTypeDropDownValue{
 sub isFillIn{
     my ($self) = @_;
     my $field_type =  $self->getFieldTypeObject();
+    if ($field_type->checkToken('ConfidentialPatientIdentifier')) {
+	return 1;
+    }
     return $field_type->checkToken('FillIn');
 }
 
