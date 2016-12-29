@@ -104,6 +104,42 @@
 				$header = __x("Patient Log History for {firstname} {lastname}", firstname => $user->first_name(), lastname => $user->last_name());
 			}
 
+                        my $user_id = $args->{'user_id'};
+
+			my $confidential_field_type_id = TUSK::FormBuilder::FieldType->new()->lookupReturnOne("token = 'ConfidentialPatientIdentifier'")->getPrimaryKeyID();
+
+                        my $sql = qq(SELECT COUNT(*)
+				  FROM tusk.form_builder_entry c
+                                  INNER JOIN tusk.form_builder_response r ON r.entry_id = c.entry_id
+                                  INNER JOIN tusk.form_builder_field ON r.field_id = form_builder_field.field_id
+				  WHERE time_period_id IN ($args->{'time_period_id'})
+                                  AND c.user_id = "$user_id"                                  
+                                  AND form_builder_field.field_type_id = $confidential_field_type_id
+				  AND form_id = $form_id
+			       GROUP BY r.text);
+
+			my $dbh = HSDB4::Constants::def_db_handle(); 
+
+	                my $sth = $dbh->prepare($sql);
+
+			$sth->execute();
+
+			my @unique_patients = $sth->fetchall_arrayref();
+                                	          
+                	my $unique_patients_no = @{$unique_patients[0]};
+
+                        my @total_patients_list = map {@$_} @unique_patients;
+                        
+			my $total_logs = 0;
+
+                        foreach my $patient_count (@total_patients_list) {
+				$total_logs = $total_logs + $patient_count->[0];
+                        }
+
+                        print "<br> <b>Total Logs:</b> " . $total_logs . " <br><br>";
+                      
+                        print "<b>Total Unique Patients:</b> " . $unique_patients_no . "<br>";
+
 			$results = $m->comp("/formbuilder/report:process", report_obj => $report, type => $args->{'type'} . 'perPerson', args => $args, width => "100%",  fields_hashref => $fields_hashref, header => $header, course => $course);			
 
 		} elsif ($args->{'time_period_id'}) {

@@ -324,13 +324,37 @@ if ($args->{entry_id}) {
 <%perl>
 	my $size = ($field->getFillinSize()) ? $field->getFillinSize() : 60;
 	my $value = (scalar(@$response)) ? $response->[0]->getText() : ''; 
+
+        my $user_id = $m->session->{'user'}->user_id();
+
+        my $confidential_id = TUSK::FormBuilder::FieldType->new()->lookupReturnOne("token = 'ConfidentialPatientIdentifier'")->getPrimaryKeyID();
+
+        my $user_confidential_ids = TUSK::FormBuilder::Response->lookup("form_builder_response.created_by = '$user_id' AND field_type_id = $confidential_id",undef,undef,undef,
+				      [TUSK::Core::JoinObject->new("TUSK::FormBuilder::Field", {origkey => 'field_id', joinkey => 'field_id', jointype => 'inner'})]
+        );
+ 
+        my %unique_confidential_ids;
+
+        foreach my $user_confidential_id (@{$user_confidential_ids}) {
+        	$unique_confidential_ids{$user_confidential_id->getText()} = 1;		   
+        }
+      
+	my @data_list;
+
+        foreach my $c_id_key (keys %unique_confidential_ids) {
+		push @data_list, $c_id_key;
+        }
+
 </%perl>
+
+
 <& /tmpl/element:textbox, params =>{ label => $field->getFieldName(),
 	name => 'id_' . $field->getPrimaryKeyID(),
 	value => $value,
 	trailing_text => '&nbsp;' . $field->getTrailingText(),
 	size => $size,
 	length => $size,
+        data_list => \@data_list,
 	maxlength => $size } &>
 </%def>
 

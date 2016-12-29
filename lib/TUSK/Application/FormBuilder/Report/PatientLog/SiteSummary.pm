@@ -38,7 +38,7 @@ sub new {
 sub getReport {
 	my ($self) = @_;
 
-        my $confidential_field_type_id = 12; #TODO: remove hard_code with actual
+        my $confidential_field_type_id = TUSK::FormBuilder::FieldType->new()->lookupReturnOne("token = 'ConfidentialPatientIdentifier'")->getPrimaryKeyID();
 				 
        my $sql = qq(
 				 SELECT
