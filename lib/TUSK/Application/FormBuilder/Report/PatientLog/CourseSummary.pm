@@ -101,22 +101,49 @@ sub getReport {
         $self->{_course_id},
         @{ $self->{_time_period_ids} }
     );
-    my ($total_num_students, $total_report_students, $total_patients);
+   
+
+    my ($total_num_students, $total_report_students, $total_patients, $total_unique_patients);
     while (my ($site_id, $site_name, $num_students, $count)
                = $sth->fetchrow_array()) {
         my ($report_students, $patients) = split(/_/, $count);
         my $ratio = ratio_pct($report_students, $num_students);
+
+        my $confidential_field_type_id = TUSK::FormBuilder::FieldType->new()->lookupReturnOne("token = 'ConfidentialPatientIdentifier'")->getPrimaryKeyID();
+
+	 my $sql_2 = qq(SELECT COUNT(*)
+				  FROM tusk.form_builder_entry c
+                                  INNER JOIN tusk.form_builder_response r ON r.entry_id = c.entry_id
+                                  INNER JOIN tusk.form_builder_field ON r.field_id = form_builder_field.field_id
+                                  INNER JOIN $db.link_course_student lcs
+                                     ON r.created_by = lcs.child_user_id
+				  WHERE c.time_period_id IN ($self->{_time_period_ids_string})  
+			          AND lcs.teaching_site_id = $site_id
+                                  AND form_builder_field.field_type_id = $confidential_field_type_id
+				  AND form_id = $self->{_form_id}
+			       GROUP BY r.text);
+
+        my $sth_2 = $self->{_form}->databaseSelect($sql_2);
+
+        $sth_2->execute();
+
+	my @unique_patients = $sth_2->fetchall_arrayref();
+                  
+        my $unique_patients_no = @{$unique_patients[0]};
+
         push @results, [ $site_id, $site_name, $num_students,
                          $report_students, sprintf("%.0f", $ratio),
-                         $patients, ];
+                         $patients, $unique_patients_no];
         $total_num_students += $num_students;
         $total_report_students += $report_students;
         $total_patients += $patients;
+        $total_unique_patients += $unique_patients_no;
+
     }
 
     my $total_ratio = ratio_pct($total_report_students, $total_num_students);
     my $total = [ $total_num_students, $total_report_students,
-                  sprintf("%.0f", $total_ratio), $total_patients ];
+                  sprintf("%.0f", $total_ratio), $total_patients, $total_unique_patients ];
     return { rows => \@results, total => $total };
 }
 
