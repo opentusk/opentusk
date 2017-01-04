@@ -60,10 +60,30 @@ sub getReport {
 
 	$sth->finish();
 
+        my $confidential_field_type_id = TUSK::FormBuilder::FieldType->new()->lookupReturnOne("token = 'ConfidentialPatientIdentifier'")->getPrimaryKeyID();
+
+	my $sql_2 = qq(SELECT COUNT(*)
+				  FROM tusk.form_builder_entry c
+                                  INNER JOIN tusk.form_builder_response r ON r.entry_id = c.entry_id
+                                  INNER JOIN tusk.form_builder_field ON r.field_id = form_builder_field.field_id
+				  WHERE time_period_id IN ($self->{_time_period_ids_string})  
+                                  AND c.user_id = '$self->{_user_id}'
+                                  AND form_builder_field.field_type_id = $confidential_field_type_id
+				  AND form_id = $self->{_form_id}
+			       GROUP BY r.text);
+
+        my $sth_2 = $self->{_form}->databaseSelect($sql_2);
+
+        $sth_2->execute();
+
+        my @unique_patients = $sth_2->fetchall_arrayref();
+                  
+        my $unique_patients_no = @{$unique_patients[0]};
+
 	my $fields = $self->{_form}->getAllFormFields("token not in ('FillIn', 'Essay')");
 	my $patients = $self->getTotalNumberPatients();
 
-	return { rows => [keys %data],  data => \%data, fields => $fields, fullname => $self->{_user}->out_full_name(), num_patients => $patients };
+	return { rows => [keys %data],  data => \%data, fields => $fields, fullname => $self->{_user}->out_full_name(), num_patients => $patients, unique_patients => $unique_patients_no };
 }
 
 
