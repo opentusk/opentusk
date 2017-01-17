@@ -261,11 +261,12 @@
 <%perl>
                 ### only responses for those completed entries
                 my $responses = TUSK::FormBuilder::Response->lookup(undef,undef,undef,undef, [
-                        TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id and time_period_id = $time_period_id AND complete_date IS NOT NULL"}),
+                        TUSK::Core::JoinObject->new('TUSK::FormBuilder::Entry', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_id = $form_id and time_period_id = $time_period_id"}),
                         TUSK::Core::JoinObject->new('TUSK::FormBuilder::Field', { joinkey => 'field_id', jointype => 'inner'}),
-                        TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "'"}),
+                        TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', { joinkey => 'entry_id', jointype => 'inner', joincond => "form_builder_entry_association.user_id = '" . $student->primary_key() . "' "}),
                         TUSK::Core::JoinObject->new('TUSK::Core::HSDB4Tables::User', { origkey => 'created_by', jointype => 'inner', joinkey => 'user_id' }),
                 ]);
+
 
                 $assessors = TUSK::FormBuilder::SubjectAssessor->lookup("form_id = $form_id  AND form_builder_subject_assessor.time_period_id = $time_period_id AND subject_id = '" . $student->primary_key() . "' AND form_builder_subject_assessor.status != 0", ['user.lastname', 'user.firstname'], undef, undef, [ TUSK::Core::JoinObject->new('TUSK::Core::HSDB4Tables::User', { origkey => 'assessor_id', joinkey => 'user_id', jointype => 'inner' }) ]);
 
@@ -285,6 +286,11 @@
                 }
 
                 foreach my $resp (@$responses) {
+			if (!($resp->getJoinObject('TUSK::FormBuilder::Entry')->getCompleteDate())) {
+				if ($resp->getJoinObject('TUSK::FormBuilder::EntryAssociation')->getIsFinal() == 0) {
+					next;
+				}
+			}
                         my $fid = $resp->getFieldID();
                         my $score = $resp->getScore();
                         my $entry_assoc = $resp->getJoinObject('TUSK::FormBuilder::EntryAssociation');
