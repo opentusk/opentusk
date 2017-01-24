@@ -69,6 +69,7 @@ sub new {
 					'course_id' => 'pk',
 					'school_id' => '',
 					'school_course_code' => '',
+					'landing_page' => ''
 				    },
 				    _attributes => {
 					save_history => 1,
@@ -145,6 +146,36 @@ Set the value of the school_course_code field
 sub setSchoolCourseCode{
     my ($self, $value) = @_;
     $self->setFieldValue('school_course_code', $value);
+}
+
+#######################################################
+
+=item B<getLandingPage>
+
+my $string = $obj->getLandingPage();
+
+Get the value of the landing_page field
+
+=cut
+
+sub getLandingPage{
+    my ($self) = @_;
+    return $self->getFieldValue('landing_page');
+}
+
+#######################################################
+
+=item B<setLandingPage>
+
+$obj->setLandingPage($value);
+
+Set the value of the landing_page field
+
+=cut
+
+sub setLandingPage{
+    my ($self, $value) = @_;
+    $self->setFieldValue('landing_page', $value);
 }
 
 #######################################################

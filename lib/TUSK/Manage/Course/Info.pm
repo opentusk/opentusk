@@ -32,7 +32,19 @@ sub info_process{
     my ($req, $course_id, $school, $user_id, $fdat) = @_;
     my ($rval, $msg);
 
-	my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
+    my $course = HSDB45::Course->new( _school => $school )->lookup_key( $course_id );
+
+    my $tusk_course_id = $course->getTuskCourseID();
+
+    my $tusk_course = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id");
+
+    my $landing_type = $fdat->{landing_type};
+
+    my $landing_type_id = TUSK::Enum::Data->lookupReturnOne("short_name = '$landing_type'")->getPrimaryKeyID();
+
+    $tusk_course->setLandingPage($landing_type_id);
+
+    $tusk_course->save({ user => $user_id });
 
     $course->set_field_values( title => $fdat->{cr_title},
 				      oea_code => $fdat->{cr_oea_code},

@@ -201,6 +201,54 @@
 	</div>
 %} elsif ($courseView eq 'content') {
 %   my $shortCourseDesignation = sprintf("%s%dC", HSDB4::Constants::code_by_school( $course->school() ), $course->primary_key );
+<%perl>
+    my $tusk_course_id = $course->getTuskCourseID();
+
+    my $landing_type_id = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getLandingPage();
+ 
+    my $landing_page = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $landing_type_id")->getShortName();
+
+</%perl>
+%   if ($landing_page eq 'template') {
+	
+<%perl>
+	print "<div id='lp_main'>";
+	my $school_id = $course->school_id();
+	my $description_metadata_id = TUSK::Course::CourseMetadataDisplay->lookupReturnOne("display_title = 'Description' and school_id = $school_id")->getPrimaryKeyID();
+
+	my $tusk_course_id = $course->getTuskCourseID();
+		my $lp_description = TUSK::Course::CourseMetadata->lookup("course_id = $tusk_course_id AND metadata_type = $description_metadata_id");	
+		foreach my $row (@{$lp_description}) {
+			print "<div id='lp_description'>" . $row->getValue() . "</div>";
+		}
+
+	print "<div id='lp_rightpane'>";
+	print "<div id='lp_title'>" . $course->title() . "</div>";
+	if ($is_integrated_course) {
+		foreach my $subcourse (@{$course->get_subcourses}) {
+			my $subcourse_title = $subcourse->title();
+			my $subcourse_abbr;
+			my $subcourse_url = '/view/course/' . $course->school() . '/' . $subcourse->course_id() . '/landing';
+			if ($subcourse->abbreviation()) {
+				$subcourse_abbr = $subcourse->abbreviation();
+			} else {
+				$subcourse_abbr = substr($subcourse->title(), 1, 25);
+			}
+			print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . substr($subcourse_abbr, 0, 15) . "</button>";	
+		}
+	} else {
+		my @child_content = $course->child_content();
+
+		foreach my $child_content (@child_content) {
+			my $content_icon = $child_content->out_icon("icon" . $child_content->primary_key());
+			my $content_title = $child_content->title();
+			my $content_url = '/view/content/' . $course->course_id() . '/' . $child_content->content_id;
+			print "<button title='$content_title' type='button' onclick='location.href=\"$content_url\"' class='lp_button lp_button_content'>" . $content_icon . "&nbsp&nbsp&nbsp" . substr($content_title, 0, 50) . "</button>";	
+		}
+	}
+	print "</div></div>";
+</%perl>
+%   } else {
 %	if ( $is_integrated_course ) {
 		<script type="text/javascript">
 		function update_view() {
@@ -261,6 +309,7 @@
 			<& /assignment/student/view, course => $course &>
 %		}
 %	}
+%     }
 %} elsif ($courseView eq 'groups') {
 	<% __('You are associated with the following groups in this course:')%><br>
 	<ul>

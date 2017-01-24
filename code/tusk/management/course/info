@@ -136,9 +136,22 @@ window.onload = function() {
 
 <fieldset class="caeFieldset">
 	<label for="landing_type"><%__("Landing Page:")%></label>
-	<select name="landing_type" id="landing_type" onchange="alert(this);">
-		<option value="landing_classic"> Classic TUSK </option>
-		<option value="landing_template"> Course Template </option>
+	<select name="landing_type" id="landing_type">
+<%perl>
+	my $tusk_course_id = $course->getTuskCourseID();
+
+        my $landing_type_id = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getLandingPage();
+	
+	my $landing_type = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $landing_type_id")->getShortName();
+
+	if ($landing_type eq 'original') {
+		print "<option value='original'> Original TUSK </option>";
+		print "<option value='template'> Course Template </option>";
+	} else {
+		print "<option value='template'> Course Template </option>";
+		print "<option value='original'> Original TUSK </option>";
+	}
+</%perl>
 	</select>
 </fieldset>
 
