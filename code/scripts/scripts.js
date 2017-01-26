@@ -480,7 +480,6 @@ function toggle_div(id) {
 fx for form on /management/course/modify/ and /management/course/info/
 */
 function adjustXtraFields(selection, integrated) {
-
 	var selectionTxt = selection[selection.selectedIndex].text;
 	if (!selectionTxt || selectionTxt.match(/group|thesis committee/i)) {
 		document.getElementById('caeXtraFields').className = 'hideAll';
