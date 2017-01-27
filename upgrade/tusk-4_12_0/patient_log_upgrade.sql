@@ -1,3 +1,5 @@
+use tusk;
+
 INSERT INTO form_builder_field_type VALUES (0, "ConfidentialPatientIdentifier", "Confidential Patient Identifier", "script", now(), "script", now());
 
 SELECT * FROM form_builder_field WHERE field_name = "Confidential Identifier";
