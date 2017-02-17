@@ -180,6 +180,7 @@
 	print "<div id='lp_rightpane'>";
 	print "<div class='lp_title'>" . $course->title() . "</div>";
 	if ($is_integrated_course) {
+
 		foreach my $subcourse (@{$course->get_subcourses}) {
 			my $subcourse_title = $subcourse->title();
 			my $subcourse_abbr;
@@ -187,14 +188,15 @@
 			if ($subcourse->abbreviation()) {
 				$subcourse_abbr = $subcourse->abbreviation();
 			} else {
-				$subcourse_abbr = substr($subcourse->title(), 0, 25);
+				$subcourse_abbr = $subcourse->title();
 			}
-			if (length $subcourse_abbr >= 18) {		
-				print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . substr($subcourse_abbr, 0, 18) . "... </button>";	
+			if (length $subcourse_abbr >= 17) {		
+				print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . substr($subcourse_abbr, 0, 16) . "&hellip; </button>";	
 			} else {
 				print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . $subcourse_abbr . "</button>";	
 			}
 		}
+
 		print "<div class='lp_title'> Course Contents:</div>";
 	}
 
@@ -203,7 +205,7 @@
 		foreach my $child_content (@child_content) {
 			my $content_icon = $child_content->out_icon("icon" . $child_content->primary_key());
 			my $content_title = $child_content->title();
-			my $content_url = '/view/content/' . $course->course_id() . '/' . $child_content->content_id;
+			my $content_url = $child_content->out_url();
 			if (length $content_title <= 50) {
 				print "<button title='$content_title' type='button' onclick='location.href=\"$content_url\"' class='lp_button lp_button_content'>" . 
                                                 $content_icon . "&nbsp&nbsp&nbsp" . $content_title . "</button>";
@@ -213,9 +215,11 @@
                         }
 		}
 
+
 	print "</div>";
 
 	my $tusk_course_id = $course->getTuskCourseID();
+		
 		my $lp_description = TUSK::Course::CourseMetadata->lookup("course_id = $tusk_course_id AND metadata_type = $description_metadata_id");	
 		foreach my $row (@{$lp_description}) {
 			print "<div id='lp_description'>" . $row->getValue() . "</div>";
@@ -233,17 +237,20 @@
 		}
 		</script>
 		<br>
+<!--
 		<table cellpadding="3" cellspacing="3">
 			<tr>
 				<td><%__('View By:')%></td>
 				<td>
 					<select id="view_by" onchange="update_view();">
 						<option value=""><% $course->title %></option>
+
 %					foreach ( @{$course->get_subcourses} ) {
 %						my $selected = '';
 %						if ( $m->session->{$course->course_id . "_filter"} == $_->course_id ) { $selected = ' selected'; }
 						<option value="<% $_->course_id %>"<% $selected %>><% $_->title %></option>
 %					}
+
 					</select>
 				</td>
 				<td align="right">
@@ -253,6 +260,7 @@
 				</td>
 			</tr>
 		</table>
+--!>
 		<br>
 %	}
 %	if(scalar($course->active_child_content()) < 1){
@@ -638,10 +646,12 @@ $args => {}
 	$m->comp('SELF:setFacultyRows', course => $course);
 
 	if ($is_integrated_course) {
+=for
 		foreach my $subcourse (@{$course->get_subcourses}) {
 			# Now do the same for each of the subcoures
 			$m->comp('SELF:setFacultyRows', course => $subcourse);
 		}
+=cut
 	} ## intergrated course
 
 	if(scalar(@{$checklist_groups}) < 1)         {$leftMenu{checklists}{style} = 'viewcourseleftnavEmpty';}
