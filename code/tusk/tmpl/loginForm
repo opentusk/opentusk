@@ -17,6 +17,7 @@
 use TUSK::Constants;
 use TUSK::Functions;
 use Apache2::Cookie;
+use APR::Request::Cookie;
 use Apache::TicketMaster::CAS;
 use Apache::TicketMaster::Shib;
 </%once>
@@ -178,13 +179,23 @@ $failedLoginUser => ''
 $logout => 'false'
 $shibStatus => ''
 $shibRedirectURL => ''
+$forceGuestDisable => 0
+$verticalButtons => 0
 </%args>
 
 <%perl>
+	# Let the login know if we are a mobi site by setting the cookie
+	my $cookie = APR::Request::Cookie->new($r->pool(), name => "loginType", value => 'normal', path => '/');
+	if($is_mobi) {
+		# We need to set a cookie to tell Shibboleth login to use the mobil page or the normal page
+		$cookie = APR::Request::Cookie->new($r->pool(), name => "loginType", value => 'mobi', path => '/');
+	}
+	$r->err_headers_out->add('Set-Cookie' => $cookie->as_string);
+
 	my $divText ='';
 	if($logout eq 'shib') {
-		$divText = __x('<center>You have succsfully logged out of {siteAbbr}.</center><br/><center><strong>However, you are still logged into {shibDisp}.</strong></center></br>This is ok if you are on a personal device. However, if you are on a shared computer you must click the logout button below to complete the logout process and then close your browser. If you do not, your account could be comprimized.<br/><br/>',
-				siteAbbr => $TUSK::Constants::SiteAbbr, shibDisp => $TUSK::Constants::Shibboleth{'displayName'}
+		$divText = __x('<center>You have succsfully logged out of {siteAbbr}.</center><br/><center><strong>However, you are still logged into {shibLogoutTitle}.</strong></center></br>{shibLogoutMsg}<br/><br/>',
+				siteAbbr => $TUSK::Constants::SiteAbbr, shibLogoutTitle => $TUSK::Constants::Shibboleth{'logoutTitle'}, shibLogoutMsg => $TUSK::Constants::Shibboleth{'logoutMessage'}
 		);
 	} elsif($logout eq 'shibLocal') {
 		$divText = __x('<p><strong>Status of Local Logout:</strong> {shibStatus}</p>You <strong>MUST</strong> close your browser to complete the logout process', shibStatus => $shibStatus);
@@ -195,6 +206,7 @@ $shibRedirectURL => ''
 	}
 </%perl>
 
+<link rel="stylesheet" href="/style/loginForm.css?<% TUSK::Functions::get_tusk_version %>" type="text/css" />
 <script type="text/javascript" language="JavaScript">
 	$( window ).load(function() {
 		document.forms['login'].elements['user'].focus();
@@ -202,24 +214,25 @@ $shibRedirectURL => ''
 		shibbolethLogoutOMG();
 %	}
 	});
-	function dimLogins(overObject) {
-		// $('.loginButtons').css('background-color', '#CCCCCC');
-		// overObject.style.backgroundColor = 'white';
-	}
-	function undimLogins() {
-		// $('.loginButtons').css('background-color', 'white');
-	}
 	var origPadding;
 	function displayLocalLogin(turnFormOn) {
 		origPadding = $('#localLogin').css('padding-top');
 		if(turnFormOn) {
-			$('#logLoginBox').width( $('#logLoginBox').width() + 125 );
+%			if($is_mobi) {
+				$('#localLogin').height( $('#localLogin').height() + 100 );
+%			} else {
+				$('#logLoginBox').width( $('#logLoginBox').width() + 125 );
+%			}
 			$('#localLoginForm').hide();
-			$('#localLoginButton').fadeOut( 500, function() { $('#localLogin').css('padding-top', '25px'); $('#localLoginForm').fadeIn(500); } );
+			$('#localLoginButton').fadeOut( 100, function() { $('#localLogin').css('padding-top', '25px'); $('#localLoginForm').fadeIn(100); } );
 		} else {
 			$('#localLoginButton').hide();
-			$('#localLoginForm').fadeOut( 500, function() { $('#localLogin').css('padding-top', origPadding); $('#localLoginButton').fadeIn(500); } );
-			$('#logLoginBox').width( $('#logLoginBox').width() - 125 );
+			$('#localLoginForm').fadeOut( 100, function() { $('#localLogin').css('padding-top', origPadding); $('#localLoginButton').fadeIn(100); } );
+%			if($is_mobi) {
+				$('#logLoginBox').width( $('#logLoginBox').width() - 125 );
+%			} else {
+				$('#logLoginBox').width( $('#logLoginBox').width() - 100 );
+%			}
 		}
 	}
 	function shibbolethLogoutOMG() {
@@ -234,15 +247,18 @@ $shibRedirectURL => ''
 			divOMG.attr('id', 'shibbolethOMG');
 			divOMG.html('<% $divText %>');
 
-			var centerDiv = $('<div>').css({ 'text-align' : 'center', 'margin-top' : '20px' });
-			var cancelButton = $('<input>').attr('type', 'button').attr('value', 'Dismiss Message').addClass('formbutton btnLogin');
-				cancelButton.css({ 'margin-left' : 'auto', 'padding' : '10px', 'border-radius': '5px' });
+			var centerDiv = $('<div>').css({ 'text-align' : 'center', 'margin' : '0 auto', 'margin-top' : '20px' });
+			var cancelButton = $('<div>').attr('id', 'dismissShibMessageButton').addClass('lightLoginButton').html('<% __('Dismiss Message') %>');
+				cancelButton.css({ 'margin-right' : '10px', 'float' : 'left', 'margin-left' : '25px' });
+				cancelButton.addClass();
 				cancelButton.click(function() { $('#greyOutDiv').hide(); $('#shibbolethOMG').hide(); });
-			var continueButton = $('<input>').attr('type', 'button').attr('value', 'Logout of <% $TUSK::Constants::Shibboleth{'displayName'} %>').addClass('formbutton btnLogin');
-				continueButton.css({ 'margin-left' : '10px', 'padding' : '10px', 'border-radius': '5px' });
+			var continueButton = $('<div>').addClass('darkLoginButton').html('<% __('Logout of') %> <% $TUSK::Constants::Shibboleth{'displayName'} %>');
+				continueButton.css({ 'float' : 'right', 'margin-right' : '25px' });
 				continueButton.click(function() { window.location = '<% Apache::TicketMaster::Shib::getIdPLogoutURL() %>'});
 			centerDiv.append(cancelButton);
+%			if(Apache::TicketMaster::Shib::getIdPLogoutURL() ne '') {
 			centerDiv.append(continueButton);
+%			}
 			divOMG.append(centerDiv);
 
 			$('body').append(divOMG);
@@ -266,8 +282,9 @@ $shibRedirectURL => ''
 	my $width = 0;
 	my $hasLogin = 0;
 	my @loginItems;
-	# button width is the width of class input.prettyLoginButton
-	my $buttonWidth = 110;
+	# button width is the width of class div.prettyLoginButton
+	my $buttonWidth = $TUSK::Constants::LoginButtonWidth;
+	if(!$buttonWidth) { $buttonWidth = '110'; }
 	foreach my $loginItem (@TUSK::Constants::LoginButtonSequence) {
 		$loginItem = lc($loginItem);
 		if($loginItem eq 'guest') {
@@ -289,7 +306,7 @@ $shibRedirectURL => ''
 				push @loginItems, $loginItem;
 			}
 		} elsif($loginItem eq 'local') {
-			if($TUSK::Constants::EnableLocalLogin && !$is_mobi) {
+			if($TUSK::Constants::EnableLocalLogin) {
 				$hasLogin = 1;
 				$width += $buttonWidth;
 				push @loginItems, $loginItem;
@@ -306,12 +323,52 @@ $shibRedirectURL => ''
 	}
 	if($hasLogin) {
 		my $numSpacers = $#loginItems;
-		# 11 is the width of span.loginSpacer class
-		$width = $width + ($numSpacers * 11);
+		# 11 is the width of span.loginSpacer class; 2 * scalar loginItems is for div borders
+		$width = $width + ($numSpacers * 11) + (2 * scalar(@loginItems));
 	} else {
 		push @loginItems, '<div style="padding-top: 50px;"><i>There are no configured login mechnisims</i></div>';
 	}
 </%perl>
+<%doc>Override the [span|div].prettyLoginButtonWidth here based on the actual width</%doc>
+<style>
+	div.darkLoginButton, div.lightLoginButton {
+		width: <% $buttonWidth %>px;
+	}
+
+% if($verticalButtons) {
+	div.darkLoginButton, div.lightLoginButton {
+		margin: 7px 23px;
+	}
+
+	fieldset {
+		border: 0px solid black;
+	}
+
+	span.loginButtonSpan {
+		padding-top: 0px;
+		height: 55px;
+		float: none;
+	}
+% }
+
+% if($is_mobi) {
+	div#localLoginForm {
+		height: 150px;
+		margin-left: 33px;
+	}
+
+	div#shibbolethOMG {
+		height: auto;
+		width: auto;
+		left: 20px;
+		top: 20px;
+		right: 20px;
+		margin-left:0px;
+		margin-top:0px;
+		padding-bottom: 50px;
+	}
+% }
+</style>
 <div id="logLoginBox" style="width: <% $width %>px;">
 	<div id="errordiv">
 %	if($message && $logout !~ /^shib/){
@@ -329,38 +386,28 @@ $shibRedirectURL => ''
 %	}
 	</div>
 
-
 %	foreach (0..$#loginItems) {
-%		if($loginItems[$_] eq 'guest') {
-			<span id="guestLogin" class="loginButtonSpan loginButtons"><& /tmpl/element:button, params => {
-				name => 'guest_access',
-				label => __('Guest Access'),
-				onclick => "location.href='/view/courses'",
-				class => 'prettyLoginButton formbutton',
-			}&></span>
+%		if($loginItems[$_] eq 'guest' && !$forceGuestDisable) {
+%			my $buttonLabel = __('Guest Access');
+%			if($TUSK::Constants::OverrideGuestLoginButton) { $buttonLabel = $TUSK::Constants::OverrideGuestLoginButton; }
+			<span id="guestLogin" class="loginButtonSpan">
+			<div id="guest_access" onclick="location.href='/view/courses'" class="lightLoginButton"><% $buttonLabel %></div>
+			</span>
 %		} elsif($loginItems[$_] eq 'theme') {
 			<span style="margin: 25px 5px; width: 50px; height: 65px; background:#fff 96% top no-repeat url('<% $themeImage %>'); float:left;"></span>
 %		} elsif($loginItems[$_] eq 'cas') {
-			<span id="casLogin" onMouseOver="dimLogins(this);" onMouseOut="undimLogins();" class="loginButtonSpan loginButtons">
-				<& /tmpl/element:button, params => {
-					name => 'webauthButton', label => $TUSK::Constants::CAS{'displayName'},
-					onclick => "location.href='". Apache::TicketMaster::CAS::getLoginUrl() ."'",
-					class => 'prettyLoginButton formbutton',
-				}&>
+			<span id="casLogin" class="loginButtonSpan">
+				<div id="webauthButton" onclick="location.href='<% Apache::TicketMaster::CAS::getLoginUrl() %>'" class="darkLoginButton"><% $TUSK::Constants::CAS{'displayName'} %></div>
 			</span>
 %		} elsif($loginItems[$_] eq 'shib') {
 %			my $shibURL = Apache::TicketMaster::Shib::getLoginUrl();
 %			if($shibRedirectURL) { $shibURL .= "?target=$shibRedirectURL"; }
-			<span id="shibLogin" class="loginButtonSpan loginButtons">
+			<span id="shibLogin" class="loginButtonSpan">
 %			if(!$logout || $logout eq 'false') {
 %				my $iframeSrc = 'https://'. $TUSK::Constants::Domain .'/shib/login?testConnection=1';
 				<iframe id="shibTestIFrame" style="display: none; position: fixed; bottom: 10px; right: 10px; height:200px; width:350px;" src="<% $iframeSrc %>"></iframe>
 %			}
-				<& /tmpl/element:button, params => {
-					name => 'shibButton', label => $TUSK::Constants::Shibboleth{'displayName'},
-					onclick => "location.href='$shibURL'",
-					class => 'prettyLoginButton formbutton',
-				}&>
+				<div id="shibButton" onclick="location.href='<% $shibURL %>'" class="darkLoginButton"><% $TUSK::Constants::Shibboleth{'displayName'} %></div>
 			</span>
 %		} elsif($loginItems[$_] eq 'local') {
 %			if ($is_mobi && !$url) {
@@ -369,8 +416,8 @@ $shibRedirectURL => ''
 %			if ($url && $url =~ /^\// ) {
 %				$m->comp('/tmpl/element:hidden_form_element', params => { name => 'request_uri', value => $url });
 %			}
-			<span class="loginButtonSpan loginButtons" onMouseOver="dimLogins(this);" onMouseOut="undimLogins();" id="localLogin" style="border-right: 0px solid black;">
-				<div id="localLoginForm" style="display:none;">
+			<span class="loginButtonSpan" id="localLogin" style="overflow: visible; border-right: 0px solid black;">
+				<div id="localLoginForm" style="display:none; overflow:visible;">
 					<& /tmpl/element:form, params => { action => $ssrv, method => 'post', name => 'login'} &>
 						<fieldset style="display: inline-block;">
 							<label for="user" class="xsm"><%__('Username:')%></label>
@@ -383,26 +430,26 @@ $shibRedirectURL => ''
 						</fieldset>
 %					unless($TUSK::Constants::DisableForgotYourPassword) {
 						<div style="width: 100%; padding-left: 50px;">
-							<& /tmpl/element:submit_button, params => { name => 'Submit', label => __('Login'), class => '' } &>
+							<& /tmpl/element:submit_button, params => { name => 'Submit', label => __('Login') } &>
+%							if(!$is_mobi && !$verticalButtons) {
 							<a class="xsm loginHelp" href="/tusk/tools/pswdreset"><%__('Forgot your password?')%></a>
+%							}
 						</div>
 %					}
 					</form>
 				</div>
-				<span id="localLoginButton">
+				<span>
 %					my $buttonLabel = $TUSK::Constants::SiteAbbr .' '. __('Login');
 %					if($TUSK::Constants::OverrideDefaultLoginButton) { $buttonLabel = $TUSK::Constants::OverrideDefaultLoginButton; }
-        				<& /tmpl/element:button, params => {
-						name => 'localLoginButton', label => $buttonLabel,
-						onclick => "displayLocalLogin(true);",
-						class => 'prettyLoginButton formbutton',
-              				}&>
+					<div id="localLoginButton" onclick="displayLocalLogin(true);" class="lightLoginButton"><% $buttonLabel %></div>
         			</span>
 			</span>
 %		}
 
 %		if($loginItems[$_ + 1]) {
-			<span class="loginSpacer">&nbsp;</span>
+%			unless($verticalButtons) {
+				<span class="loginSpacer">&nbsp;</span>
+%			}
 %		}
 %	}
 

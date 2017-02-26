@@ -24,6 +24,10 @@ use TUSK::Constants;
 
 <%args>
 $errmsg => ''
+$url => ''
+$failedLoginUser => ''
+$logout => ''
+$shibStatus => ''
 </%args>
 
 
@@ -35,6 +39,10 @@ $errmsg => ''
 % $m->comp("SELF:set_no_cache");
 </%method>
 
+<%method jsarray>
+%	return ['jquery/jquery.min.js'];
+</%method>
+
 <%perl>
 my $cookieJar = Apache2::Cookie::Jar->new($r);
 my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_error')->value() ? $cookieJar->cookies('login_error')->value()
@@ -42,5 +50,5 @@ my $message = $cookieJar->cookies('login_error') && $cookieJar->cookies('login_e
                   : '';
 </%perl>
 
-<& /login:build_login_box, is_mobi => 1, message => $message &>
+<& /tmpl/loginForm:build_login_box, is_mobi => 1, message => $message, errmsg => $errmsg, url => $url, failedLoginUser => $failedLoginUser, logout => $logout, shibStatus => $shibStatus, verticalButtons => 1 &>
 <& /mobi/tmpl/element:classic_link &>

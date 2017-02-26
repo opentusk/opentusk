@@ -1,0 +1,60 @@
+diff --git a/install/templates/conf/tusk/tusk.conf b/install/templates/conf/tusk/tusk.conf
+index c19fab9..6adf14d 100755
+--- a/install/templates/conf/tusk/tusk.conf
++++ b/install/templates/conf/tusk/tusk.conf
+@@ -156,7 +156,53 @@
+        "useShibboleth"                 : "0",
+        "PermissibleIPs"                : [
+                "127.0.0.1"
+-       ]
++       ],
++        "LoginButtonSequence"   : [ "guest", "cas", "shib", "local", "theme" ],
++        "EnableLocalLogin"      : 1,
++        "DisableGuestLogin"     : 1,
++        "DisableForgotYourPassword"     : 1,
++        "OverrideDefaultLoginButton"    : "Non-Tufts Login",
++       "LoginButtonWidth"              : 110,
++       "CAS"   : {
++                       "Enabled"                       : 1,
++                       "drift"                         : 6000,
++                       "baseURL"                       : "https://cas-server.school.edu/cas",
++                       "displayName"                   : "CAS Login",
++                       "removeCASSessionOnLogout"      : 1,
++                       "createUsers"                   : 1,
++                       "sendEmailOnUserCreation"       : "someone@school.edu",
++                       "attributes"                    : {
++                                                               "user_id"       : { "type" : "attribute", "value" : "uid" },
++                                                               "email"         : { "type" : "attribute", "value" : "mail" },
++                                                               "sid"           : { "type" : "attribute", "value" : "uid" },
++                                                               "firstname"     : { "type" : "attribute", "value" : "sn" },
++                                                               "lastname"      : { "type" : "attribute", "value" : "givenName" },
++                                                               "affiliation"   : { "type" : "hardcoded", "value" : "Medical" }
++                       }
++       },
++       "Shibboleth"    : {
++                       "Enabled"                       : 0,
++                       "displayName"                   : "My SSO",
++                       "SPLogoutURL"                   : "/Shibboleth.sso/Logout",
++                       "IdPLogoutURL"                  : "https://idp.yourplace.edu/idp/shibboleth/Logout",
++                       "removeShibSessionOnLogout"     : 0,
++                       "createUsers"                   : 1,
++                       "sendEmailOnUserCreation"       : "tusk@yourplace.edu",
++                       "sessionIdentifier"             : "SHIB_ATTR_Shib-Session-ID",
++                       "attributes"                    : {
++                                                               "user_id"       : { "type" : "attribute", "value" : "SHIB_ATTR_uid" },
++                                                               "email"         : { "type" : "attribute", "value" : "SHIB_ATTR_mail" },
++                                                               "firstname"     : { "type" : "attribute", "value" : "SHIB_ATTR_givenName" },
++                                                               "lastname"      : { "type" : "attribute", "value" : "SHIB_ATTR_sn" },
++                                                               "affiliation"   : { "type" : "codeblock", "value" : "TUSK::Custom::TuftsAuth::decideSchool", "param" : "$EN
++                                                               "trunk"         : { "type" : "attribute", "value" : "SHIB_ATTR_tuftsEduTRUNK" }
++                        },
++                       "postUserCreation"              : {
++                                                               "function"      : "TUSK::Custom::TuftsAuth::determineGroup",
++                                                               "param"         : "$ENV{SHIB_ATTR_tuftsEduClassYear}"
++                        }
++        }
++
+   },
+   
+   "Authorization" : {
+

@@ -1,0 +1,61 @@
+diff --git a/install/templates/conf/apache2/tusk_https.conf b/install/templates/conf/apache2/tusk_https.conf
+index ea8a117..607baba 100644
+--- a/install/templates/conf/apache2/tusk_https.conf
++++ b/install/templates/conf/apache2/tusk_https.conf
+@@ -57,6 +57,46 @@ ErrorDocument 500 /tusk/server/http/error/server
+   ErrorDocument 403 /tusk/server/http/redirect_to_insecure
+ </Location>
+ 
++<IfModule mod_shib>
++       Alias /shib/ /usr/local/tusk/current/code/tusk_no_session/shib/
++
++       <Location /Shibboleth.sso>
++               SetHandler shib
++               Satisfy Any
++               Allow from all
++       </Location>
++
++       <IfModule mod_alias.c>
++               <Location /shibboleth-sp>
++                       Satisfy Any
++                       Allow from all
++               </Location>
++               Alias /shibboleth-sp/main.css /usr/share/shibboleth/main.css
++       </IfModule>
++
++       <Location /shib>
++               AuthType shibboleth
++               AuthName "Shibboleth Auth"
++               ShibCompatWith24 On
++               ShibRequestSetting requireSession 1
++               require shib-session
++               PerlAuthZHandler Apache::TicketMaster::Shib
++
++               ShibUseEnvironment On
++               SetHandler perl-script
++               DefaultType     text/html
++               Options +ExecCGI -Indexes
++               PerlHandler TUSK::MasonNoSession
++       </Location>
++</IfModule>
++
++<Location /dologout>
++  SetHandler    perl-script
++  PerlCleanupHandler    Apache2::SizeLimit
++  Options +ExecCGI -Indexes
++  PerlHandler Apache::TicketRemove
++</Location>
++
+ <Location /temp/>
+   Options -Indexes
+ </Location>
+@@ -102,7 +142,7 @@ ErrorDocument 500 /tusk/server/http/error/server
+ <Location /loginCAS>
+   SetHandler perl-script
+   Options +ExecCGI -Indexes
+-  PerlHandler Apache::TicketMasterCAS
++  PerlHandler Apache::TicketMaster::CAS
+ </Location>
+ 
+ <Location /webtest/>
+

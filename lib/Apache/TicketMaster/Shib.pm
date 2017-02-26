@@ -62,10 +62,11 @@ sub authenticate {
 		
 	# Lets figure out where we want to send the user when we are done
 	my $cookieJar = Apache2::Cookie::Jar->new($r);
-	my $request_uri = $apr->param('request_uri') ||
-		($cookieJar->cookies('request_uri') && $cookieJar->cookies('request_uri')->value) ||
-		($r->prev && $r->prev->uri) 
-		|| '/home';
+	my $request_uri = '/home';
+		if($apr->param('request_uri')) { $request_uri = $apr->param('request_uri'); }
+		elsif($cookieJar->cookies('request_uri')) { $request_uri = $cookieJar->cookies('request_uri')->value; }
+		elsif($r->prev) { $request_uri = $r->prev->uri; }
+		elsif($cookieJar->cookies('loginType') && $cookieJar->cookies('loginType')->value eq 'mobi') { $request_uri = '/mobi/home'; }
 	my $target = $apr->param('target');
 	if($target) { $request_uri = $target; }
 	$TUSK_Logger->logInfo("TMShib user will be redirected to $request_uri", "login");
