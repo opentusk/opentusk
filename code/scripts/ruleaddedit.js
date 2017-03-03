@@ -174,20 +174,20 @@ function saveNewOp(){
 			}
 		}
 		else if ($('input#min_score').length) {
-			if ( !($('input#min_score').attr('value')) || $('input#min_score').attr('value').match(/\D/) ) {
+			if ( !($('input#min_score').val()) || !$.isNumeric($('input#min_score').val()) ) {
 				alert("You must insert a numeric value for 'Step 3'");
 				return;
 			}
-			if ( $('input#min_score').attr('value') > 100 ) {
+			if ( $('input#min_score').val() > 100 ) {
 				alert("The minimum score must be 100 or less.");
 				return;
 			}
 			elt_id = quiz_id;
-			elt_lbl = 'Quiz Score >= ' + $('input#min_score').attr('value') + '%';
+			elt_lbl = 'Quiz Score >= ' + $('input#min_score').val() + '%';
 			var class_str = $('input#min_score').attr('class');
 			elt_type_id = class_str.replace(/type_(\d+)_relate_\d+/,"$1");
 			relation_type_id = class_str.replace(/type_\d+_relate_(\d+)/,"$1"); 
-			relation_value = $('input#min_score').attr('value'); 
+			relation_value = $('input#min_score').val(); 
 		}
 	}
 
