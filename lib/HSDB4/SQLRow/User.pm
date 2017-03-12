@@ -50,6 +50,7 @@ use TUSK::Core::School;
 use TUSK::Permission;
 use TUSK::DB::Util qw(sql_prep_list);
 use TUSK::Competency::Checklist::Group;
+use TUSK::User::Login;
 use overload ('cmp' => \&name_compare,
 	      '""' => \&out_full_name);
 
@@ -77,8 +78,8 @@ use vars ();
 my $tablename         = 'user';
 my $primary_key_field = 'user_id';
 my @fields =       qw(user_id source status tufts_id sid trunk password email preferred_email profile_status modified
-		      password_reset expires login previous_login lastname firstname midname suffix
-		      degree affiliation gender body loggedout_flag uid cas_login shib_session
+		      password_reset expires lastname firstname midname suffix
+		      degree affiliation gender body uid
                       );
 
 my %numeric_fields = (
@@ -122,16 +123,6 @@ sub user_id {
 sub uid {
 	my $self = shift();
 	return $self->field_value('uid');
-}
-
-sub shib_session {
-	my $self = shift();
-	return $self->field_value('shib_session');
-}
-
-sub cas_login {
-	my $self = shift();
-	return $self->field_value('cas_login');
 }
 
 sub source {
@@ -222,15 +213,6 @@ sub default_email {
     return ($self->field_value('preferred_email')) ? $self->field_value('preferred_email') : $self->field_value('email');
 }
 
-sub login {
-    my $self = shift();
-    return $self->field_value('login');
-}
-
-sub previous_login {
-    my $self = shift();
-    return $self->field_value('previous_login');
-}
 
 sub get_new_uid {
 
@@ -2161,32 +2143,6 @@ sub available_recent_history {
     return grep { $_->is_active() } $self->recent_history;
 }
 
-sub update_previous_login {
-    my $self = shift;
-    return unless $self->primary_key;
-    $self->set_field_values("previous_login" => $self->login,
-			    "login" => HSDB4::DateTime->new->out_mysql_timestamp);
-    $self->save;
-}
-
-sub get_loggedout_flag{
-    my ($self) = @_;
-    return $self->field_value('loggedout_flag');
-}
-
-sub update_loggedout_flag{
-    my ($self, $value) = @_;
-    $self->field_value('loggedout_flag', $value);
-    $self->save;
-}
-
-sub previous_login_unix_timestamp {
-    my $self = shift;
-    my $dt = HSDB4::DateTime->new;
-    $dt->in_mysql_timestamp($self->previous_login);
-    return $dt->out_unix_time;
-}
-
 sub new_body {
     #
     # Get a blank HSDB4::XML::User user_body for us to work with
@@ -3419,6 +3375,18 @@ sub get_faculty_class_meeting_for_current_academic_year {
     };
 
     return $class_meetings;
+}
+
+
+sub get_login_info {
+	my ($self, @params) = @_;
+	my $loginInfo = TUSK::User::Login->new()->lookupReturnOne( "uid='". $self->uid() ."'" );
+	# If the user dosen't have login info, create one.
+	unless($loginInfo) {
+		$loginInfo = TUSK::User::Login->new();
+		$loginInfo->setUid( $self->uid() );
+	}
+	return $loginInfo;
 }
 
 1;

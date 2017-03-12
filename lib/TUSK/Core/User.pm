@@ -536,37 +536,6 @@ sub setLogin{
 
 #######################################################
 
-=item B<getPreviousLogin>
-
-    $string = $obj->getPreviousLogin();
-
-    Get the value of the previous_login field
-
-=cut
-
-sub getPreviousLogin{
-    my ($self) = @_;
-    return $self->getFieldValue('previous_login');
-}
-
-#######################################################
-
-=item B<setPreviousLogin>
-
-    $string = $obj->setPreviousLogin($value);
-
-    Set the value of the previous_login field
-
-=cut
-
-sub setPreviousLogin{
-    my ($self, $value) = @_;
-    $self->setFieldValue('previous_login', $value);
-}
-
-
-#######################################################
-
 =item B<getExpires>
 
     $string = $obj->getExpires();

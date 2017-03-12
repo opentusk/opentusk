@@ -139,8 +139,9 @@ sub handler {
 	}
 
 	# Indicate that the user logged in with CAS
-	$userObject->field_value('cas_login', 1);
-	$userObject->save();
+	my $userLoginInfo = $userObject->get_login_info();
+	$userLoginInfo->setCasLogin(1);
+	$userLoginInfo->save();
 
 	Apache::TicketMaster::logLogin($userObject);
 	my $dest = $ticketTool->check_status($r, $userObject);

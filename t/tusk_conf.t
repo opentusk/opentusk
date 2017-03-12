@@ -148,9 +148,9 @@ if ($TUSK::Constants::LDAP{UseLDAP}) {
 }
 
 # Shibboleth
-ok(defined $TUSK::Constants::useShibboleth, "useShibboleth defined");
+ok(defined $TUSK::Constants::EnableCourseSharing, "EnableCourseSharing defined");
 $test_count++;
-if ($TUSK::Constants::useShibboleth) {
+if ($TUSK::Constants::EnableCourseSharing) {
     ok(defined $TUSK::Constants::shibbolethUserID, "shibbolethUserID defined");
     ok(defined $TUSK::Constants::shibbolethSP,
        "shibbolethSP defined");

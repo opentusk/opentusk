@@ -77,8 +77,6 @@ sub new {
 					'modified' => '',
 					'password_reset' => '',
 					'expires' => '',
-					'login' => '',
-					'previous_login' => '',
 					'lastname' => '',
 					'firstname' => '',
 					'midname' => '',
@@ -87,7 +85,6 @@ sub new {
 					'affiliation' => '',
 					'gender' => '',
 					'body' => '',
-					'loggedout_flag' => '',
 					'source' => '',
 					'uid' => '',
 				    },
@@ -467,68 +464,6 @@ sub setExpires{
 
 #######################################################
 
-=item B<getLogin>
-
-my $string = $obj->getLogin();
-
-Get the value of the login field
-
-=cut
-
-sub getLogin{
-    my ($self) = @_;
-    return $self->getFieldValue('login');
-}
-
-#######################################################
-
-=item B<setLogin>
-
-$obj->setLogin($value);
-
-Set the value of the login field
-
-=cut
-
-sub setLogin{
-    my ($self, $value) = @_;
-    $self->setFieldValue('login', $value);
-}
-
-
-#######################################################
-
-=item B<getPreviousLogin>
-
-my $string = $obj->getPreviousLogin();
-
-Get the value of the previous_login field
-
-=cut
-
-sub getPreviousLogin{
-    my ($self) = @_;
-    return $self->getFieldValue('previous_login');
-}
-
-#######################################################
-
-=item B<setPreviousLogin>
-
-$obj->setPreviousLogin($value);
-
-Set the value of the previous_login field
-
-=cut
-
-sub setPreviousLogin{
-    my ($self, $value) = @_;
-    $self->setFieldValue('previous_login', $value);
-}
-
-
-#######################################################
-
 =item B<getLastname>
 
 my $string = $obj->getLastname();
@@ -774,36 +709,6 @@ sub setBody{
     $self->setFieldValue('body', $value);
 }
 
-
-#######################################################
-
-=item B<getLoggedoutFlag>
-
-my $string = $obj->getLoggedoutFlag();
-
-Get the value of the loggedout_flag field
-
-=cut
-
-sub getLoggedoutFlag{
-    my ($self) = @_;
-    return $self->getFieldValue('loggedout_flag');
-}
-
-#######################################################
-
-=item B<setLoggedoutFlag>
-
-$obj->setLoggedoutFlag($value);
-
-Set the value of the loggedout_flag field
-
-=cut
-
-sub setLoggedoutFlag{
-    my ($self, $value) = @_;
-    $self->setFieldValue('loggedout_flag', $value);
-}
 
 #######################################################
 

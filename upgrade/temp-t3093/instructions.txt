@@ -1,19 +1,31 @@
-# Install and configure shibboleth per https://wikis.uit.tufts.edu/confluence/display/TUSK/Shibboleth
+# Install and configure shibboleth per
+# https://wikis.uit.tufts.edu/confluence/display/TUSK/Shibboleth
 
-# Alter the hsdb4 user table:
-mysql < ext158.sql
-mysql < t3093.sql
+# Make sure the user table is innoDB
+mysql -e "ALTER TABLE user ENGINE=InnoDB" hsdb4
+
+# Add tusk.user_login table and copy session information from hsdb4.user
+mysql < tusk_user_login.sql
+
+# If you are already using CAS:
+mysql < cas.sql
+
+# Finally remove the login data from hsdb4.user
+mysql < hsdb4_user.sql
+
+# if you are already using CAS:
+mysql < hsdb4_user_cas.sql
 
 # Alter http conf files as required. (Compare to templates)
 # Patch tusk_base.conf:
 patch --input=./tusk_base.conf.patch /etc/httpd/conf.d/tusk_base.conf
 
 # If you are going to enable shi change:
-#	# Uncomment for Shibboleth SSO
-#	#LoadModule mod_shib /usr/lib64/shibboleth/mod_shib_22.so
+#       # Uncomment for Shibboleth SSO
+#       #LoadModule mod_shib /usr/lib64/shibboleth/mod_shib_22.so
 # To:
-#	# Uncomment for Shibboleth SSO
-#	LoadModule mod_shib /usr/lib64/shibboleth/mod_shib_22.so
+#       # Uncomment for Shibboleth SSO
+#       LoadModule mod_shib /usr/lib64/shibboleth/mod_shib_22.so
 
 # Patch tusk_http.conf
 patch --input=./tusk_http.conf.patch /etc/httpd/conf.d/tusk_http.conf
@@ -26,3 +38,4 @@ cp ../../install/templates/conf/tusk/log4perl.conf /usr/local/tusk/conf
 
 # Patch tusk.conf
 patch --input=./tusk.conf.patch /usr/local/tusk/conf/tusk.conf
+

@@ -11,9 +11,6 @@ use TUSK::Constants;
 use TUSK::Core::Logger;
 use URI::Escape;
 
-# alter table user add column shib_session varchar(80) CHARACTER SET utf8 NOT NULL DEFAULT '0';
-
-
 sub handler {
 	my $r = shift;
 
@@ -201,8 +198,9 @@ sub authenticate {
 	}
 
 	# Indicate that the user logged in with Shib
-	$userObject->field_value('shib_session', 1);
-	$userObject->save();
+	my $loginInfo = $userObject->get_login_info();
+	$loginInfo->setShibSession(1);
+	$loginInfo->save();
 
 	Apache::TicketMaster::logLogin($userObject);
 	my $dest = $ticketTool->check_status($r, $userObject);

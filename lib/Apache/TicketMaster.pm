@@ -135,18 +135,24 @@ sub logLogin {
 	$li->save_loglist( [ $user_obj->user_id,
                          HSDB4::DateTime->new()->out_mysql_timestamp(),
                          'Log-in', undef, undef, undef ] );
-	$user_obj->update_previous_login();
+	$user_obj->get_login_info()->updatePreviousLogin();
 }
 
 sub setLoginMessage {
 	my $user_obj = shift;
 	my $request_uri = shift;
-	unless ($user_obj->get_loggedout_flag()){
-	    if ($request_uri =~ /^(\/mobi)?\/home/){
-		$request_uri .= '?hintmsg=Remember%2C+click+on+LOGOUT+prior+to+closing+the+web+browser%2E';
+
+
+	if($user_obj && $user_obj->get_login_info()) {
+		my $loginInfo = $user_obj->get_login_info();
+		unless($loginInfo->getLoggedoutFlag()){
+			if ($request_uri =~ /^(\/mobi)?\/home/){
+				$request_uri .= '?hintmsg=Remember%2C+click+on+LOGOUT+prior+to+closing+the+web+browser%2E';
+			}
 		}
+		$loginInfo->setLoggedoutFlag(0);
+		$loginInfo->save();
 	}
-	$user_obj->update_loggedout_flag(0);
 	return $request_uri;
 }
 

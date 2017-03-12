@@ -634,11 +634,11 @@ has LDAPPassword => (
     builder => '_build_LDAPPassword',
 );
 
-has useShibboleth => (
+has EnableCourseSharing => (
     is => 'ro',
     isa => Bool,
     lazy => 1,
-    builder => '_build_useShibboleth',
+    builder => '_build_EnableCourseSharing',
 );
 
 has PermissibleIPs => (
@@ -1399,8 +1399,8 @@ sub _build_LDAPPassword {
     return shift->LDAP->{PASSWORD};
 }
 
-sub _build_useShibboleth {
-    return shift->Authentication->{useShibboleth} eq "1";
+sub _build_EnableCourseSharing {
+    return shift->Authentication->{EnableCourseSharing} eq "1";
 }
 
 sub _build_PermissibleIPs {

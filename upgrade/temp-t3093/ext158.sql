@@ -1,1 +1,0 @@
-ALTER TABLE hsdb4.user ADD COLUMN cas_login INT DEFAULT 0;

@@ -49,23 +49,26 @@ sub handler {
 		my $user = HSDB4::SQLRow::User->new->lookup_key($user_id);
 
 		# Let the login page know if the user last logged in with CAS
-		if(Apache::TicketMaster::CAS::isCASEnabled() && $user->cas_login()) {
-			if($TUSK::Constants::CAS{'removeCASSessionOnLogout'}) {
-				$location = Apache::TicketMaster::CAS::getLogoutURL();
-			} else {
-				$location.= "logout=true";
+		my $userLoginInfo = $user->get_login_info();
+		if($userLoginInfo) {
+			if(Apache::TicketMaster::CAS::isCASEnabled() && $userLoginInfo->getCasLogin()) {
+				if($TUSK::Constants::CAS{'removeCASSessionOnLogout'}) {
+					$location = Apache::TicketMaster::CAS::getLogoutURL();
+				} else {
+					$location.= "logout=true";
+				}
+				$userLoginInfo->setCasLogin(0);
 			}
-			$user->field_value('cas_login', 0);
-		}
-		if(Apache::TicketMaster::Shib::isShibEnabled() && $user->shib_session()) {
-			if($TUSK::Constants::Shibboleth{'removeShibSessionOnLogout'}) {
-				$location = Apache::TicketMaster::Shib::getSPLogoutURL();
-			} else {
-				$location.= "logout=shib";
+			if(Apache::TicketMaster::Shib::isShibEnabled() && $userLoginInfo->getShibSession()) {
+				if($TUSK::Constants::Shibboleth{'removeShibSessionOnLogout'}) {
+					$location = Apache::TicketMaster::Shib::getSPLogoutURL();
+				} else {
+					$location.= "logout=shib";
+				}
+				$userLoginInfo->setShibSession(0);
 			}
-			$user->field_value('shib_session', 0);
+			$userLoginInfo->save();
 		}
-
 
 		# TUSK added logout
 		MwfPlgAuthen::logout($user_id, $r);
@@ -79,8 +82,11 @@ sub handler {
 			Apache::TicketTool::destroy_apache_session(\%session);
 		}
 
-		$user->update_loggedout_flag(1) if ($user);
-		if($TUSK::Authentication::useShibboleth) {
+		if ($userLoginInfo) {
+			$userLoginInfo->setLoggedoutFlag(1);
+			$userLoginInfo->save();
+		}
+		if($TUSK::Authentication::EnableCourseSharing) {
 			my $shibUserPrefix = $TUSK::Constants::shibbolethUserID;
                 	if($user_id =~ /^$shibUserPrefix/) {
                         	my $shibUserID = TUSK::Shibboleth::User->isShibUser($user_id);
