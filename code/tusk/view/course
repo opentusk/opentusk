@@ -180,23 +180,37 @@
 	print "<div id='lp_rightpane'>";
 	print "<div class='lp_title'>" . $course->title() . "</div>";
 	if ($is_integrated_course) {
+		my %course_info;
 
 		foreach my $subcourse (@{$course->get_subcourses}) {
+			my @temp_info;
 			my $subcourse_title = $subcourse->title();
 			my $subcourse_abbr;
-			my $subcourse_url = '/view/course/' . $course->school() . '/' . $subcourse->course_id() ;
+			my $subcourse_url = '/view/course/' . $course->school() . '/' . $subcourse->course_id();
+
+			push @temp_info, $subcourse_title;
+			push @temp_info, $subcourse_url;
+
 			if ($subcourse->abbreviation()) {
 				$subcourse_abbr = $subcourse->abbreviation();
-			} else {
+			}  else {
 				$subcourse_abbr = $subcourse->title();
-			}
-			if (length $subcourse_abbr >= 17) {		
-				print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . substr($subcourse_abbr, 0, 16) . "&hellip; </button>";	
-			} else {
-				print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . $subcourse_abbr . "</button>";	
-			}
+			}			
+		
+			$course_info{$subcourse_abbr} = \@temp_info;
 		}
 
+		foreach my $subcourse_abbr (sort keys %course_info) {
+				my @subcourse_infos = @{$course_info{$subcourse_abbr}};
+				my $subcourse_title = $subcourse_infos[0];
+				my $subcourse_url = $subcourse_infos[1];
+
+				if (length $subcourse_abbr >= 17) {		
+					print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . substr($subcourse_abbr, 0, 16) . "&hellip; </button>";	
+				} else {
+					print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . $subcourse_abbr . "</button>";	
+				}
+		}
 		print "<div class='lp_title'> Course Contents:</div>";
 	}
 
