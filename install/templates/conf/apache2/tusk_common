@@ -1,0 +1,786 @@
+DocumentRoot /usr/local/tusk/current/code/htdocs
+
+<IfModule mod_gzip.c>
+  mod_gzip_on                   Yes
+  mod_gzip_can_negotiate        Yes
+  mod_gzip_static_suffix .gz
+  AddEncoding gzip .gz
+  mod_gzip_update_static No
+  mod_gzip_temp_dir             /tmp
+  mod_gzip_keep_workfiles       No
+  mod_gzip_minimum_file_size    500
+  mod_gzip_maximum_file_size    500000
+  mod_gzip_maximum_inmem_size   60000
+  mod_gzip_min_http             1000
+  mod_gzip_handle_methods GET POST
+  mod_gzip_item_include         file       .*$
+  mod_gzip_item_exclude         file       .gif$
+  mod_gzip_item_exclude         file       .jpg$
+  mod_gzip_item_exclude         file       .avi$
+  mod_gzip_item_exclude         file       .pdf$
+  mod_gzip_item_exclude         file       .zip$
+  mod_gzip_dechunk              Yes
+  mod_gzip_add_header_count     Yes
+  mod_gzip_send_vary Yes
+</IfModule>
+
+RewriteEngine On
+
+RewriteCond %{HTTP:X-Moz} ^prefetch*
+RewriteRule ^.* - [F]
+
+RewriteRule /graphics/logo.gif /graphics/logo-prod.gif [PT]
+RewriteRule ^/mobi/$ /mobi/home [PT]
+RewriteRule ^/mobi/index.html$ /mobi/home [PT]
+RewriteRule ^/public/(.*)$ /nosession/$1 [PT]
+RewriteRule ^/(tools|ws|public|search|service|case|quiz|assignment|gradebook|patientlog|sp|assessment|management|user|eval|ocw|admin|competency|schedule)/(.*) /tusk/$1/$2 [PT]
+RewriteRule ^/lb$ /nosession/lb [PT]
+
+RedirectMatch ^/hsdb4/schedule/(.*)$ /view/schedule/$1
+RedirectMatch ^/hsdb45/schedule/(.*)$ /view/schedule/$1
+RedirectMatch ^/hsdb45/eval/report/(.*)$ /tusk/eval/report/$1
+RedirectMatch ^/hsdb4/concept/(.*)$ /view/concept/$1
+RedirectMatch ^/hsdb4/concept$ /search/form
+RedirectMatch ^/hsdb45/course/(.*)$ /view/course/$1
+RedirectMatch ^/hsdb4/content/(.*)$ /view/content/$1
+RedirectMatch ^/hsdb4/url_frame/(.*)$ /view/url/$1
+RedirectMatch ^/hsdb4/personal_content(.*)$ /tusk/management/content/personalcontent$1
+RedirectMatch ^/tusk/download(.*)$ /download$1
+RedirectMatch ^/hsdb45/stylesheet/(.*)$ /eval/administrator/filter_addedit/$1
+RedirectMatch ^/hsdb45/stylesheet_list/(.*)$ /eval/administrator/filter_show/$1
+RedirectMatch ^/external_link/(.*)$ /tusk/auth/external/$1
+
+RewriteCond %{HTTP_HOST}@@%{HTTP_REFERER} !^([^@]*)@@https?://\1/.*
+RewriteRule ^/auth/(.*)$    -   [F,NC]
+
+PerlSetEnv HSDB_GUEST_USERNAME    HSDB-Guest
+PerlSetEnv HSDB_DATABASE_NAME     hsdb4
+
+ErrorDocument 403 /tusk/server/http/error/forbidden
+ErrorDocument 404 /tusk/server/http/error/missing
+ErrorDocument 500 /tusk/server/http/error/server
+
+Alias /about/ /usr/local/tusk/current/code/tusk/about/
+Alias /style/ /usr/local/tusk/current/code/style/
+Alias /large/ /data/html/slide/large/
+Alias /icons/ /usr/local/tusk/current/graphics/icons/
+Alias /cgi-auth/ /usr/local/tusk/current/code/perl/
+Alias /XSL/ /usr/local/tusk/current/code/XSL/
+Alias /manage/ /usr/local/tusk/current/code/secure/manage/
+Alias /smil/ /data/html/smil/
+Alias /small_data/ /data/html/slide/small/
+Alias /forum/ /usr/local/tusk/current/code/forum/
+Alias /data/ /data/html/slide/large/
+Alias /xsd/ /usr/local/tusk/current/code/xsd/
+Alias /icon/ /data/html/slide/icon/
+Alias /xlarge/ /data/html/slide/xlarge/
+Alias /scripts/ /usr/local/tusk/current/code/scripts/
+Alias /locale/ /usr/local/tusk/current/locale/
+Alias /ramfiles/ /data/html/ramfiles/
+Alias /shockwave/ /data/html/shockwave/
+Alias /hsdb4/ /usr/local/tusk/current/code/hsdb4/
+Alias /orig/ /data/html/slide/orig/
+Alias /downloadable_file/ /data/html/downloadable_file/
+Alias /media/ /usr/local/tusk/current/code/media/
+Alias /hsdb45/ /usr/local/tusk/current/code/hsdb45/
+Alias /thumb/ /data/html/slide/thumb/
+Alias /images/ /data/html/images/
+Alias /apps/ /data/html/apps/
+Alias /tusk/ /usr/local/tusk/current/code/tusk/
+Alias chooser_icon/image/ /data/html/slide/thumb/
+Alias /addons/ /usr/local/tusk/current/addons/
+Alias /graphics/ /usr/local/tusk/current/graphics/
+Alias /nosession/ /usr/local/tusk/current/code/tusk_no_session/
+Alias /thumbnail/ /data/html/slide/thumb/
+Alias /api/ /usr/local/tusk/current/code/api/
+Alias /symbols/ /usr/local/tusk/current/graphics/icons/
+Alias /overlay/ /data/html/slide/overlay/
+Alias /learninglib/ /data/html/learninglib/
+Alias /code/ /data/html/web/code/
+Alias /view/ /usr/local/tusk/current/code/tusk/view/
+Alias /streaming/ /data/streaming/video/
+Alias /forum_attachments/ /data/forum_data/
+Alias /temp/ /data/temp/
+Alias /css/ /data/html/css/
+Alias /perl/ /usr/local/tusk/current/code/perl/
+Alias /error/ /usr/local/tusk/current/code/htdocs/
+Alias /mobi/ /usr/local/tusk/current/code/tusk/mobi/
+Alias /DTD/ /usr/local/tusk/current/code/HSCML/Rules/
+Alias /medium/ /data/html/slide/medium/
+Alias /CSS/ /usr/local/tusk/current/code/HSCML/Display/
+Alias /auth/ /data/html/web-auth/
+Alias /small/ /data/html/slide/small/
+Alias /binary/ /data/html/slide/orig/
+AliasMatch ^/chooser_icon/table(.*) /usr/local/tusk/current/graphics/icons/tablesmall.gif
+AliasMatch ^/chooser_icon/text(.*) /usr/local/tusk/current/graphics/icons/text.gif
+
+<Location />
+  SetHandler	perl-script
+  PerlHandler     TUSK::Mason
+  Options +ExecCGI -Indexes
+  DefaultType     text/html
+  Redirect /unprotected /
+</Location>
+
+<Location /XMLLister/>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::XMLLister
+  PerlAccessHandler Apache::HSDBHostsOnly
+</Location>
+
+<Location /XMLObject/>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::XMLObject
+</Location>
+
+<Location /XMLObject/eval_completions/>
+  Options -Indexes
+  PerlAccessHandler Apache::HSDBHostsOnly
+</Location>
+
+<Location /XMLObject/eval_results/>
+  Options -Indexes
+  PerlAccessHandler Apache::HSDBHostsOnly
+</Location>
+
+<Location /XMLObject/eval_saved_answers/>
+  Options -Indexes
+  PerlAccessHandler Apache::HSDBHostsOnly
+</Location>
+
+<Location /XMLObject/merged_eval_completions/>
+  Options -Indexes
+  PerlAccessHandler Apache::HSDBHostsOnly
+</Location>
+
+<Location /XMLObject/merged_eval_results/>
+  Options -Indexes
+  PerlAccessHandler Apache::HSDBHostsOnly
+</Location>
+
+<Location /XSL/>
+  Options -Indexes
+  SetHandler default-handler
+</Location>
+
+<Location /DTD/>
+  SetHandler default-handler
+</Location>
+
+<Location /about/>
+  SetHandler	perl-script
+  PerlHandler     TUSK::Mason
+  Options +ExecCGI -Indexes
+  DefaultType     text/html
+</Location>
+
+<Location /addons/>
+  Options -Indexes
+  SetHandler default-handler
+</Location>
+
+<Location /apps/>
+  SetHandler default-handler
+  IndexOptions FancyIndexing IgnoreCase
+</Location>
+
+<Location /auth/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler default-handler
+  PerlSetVar AuthzDefault Permissive
+</Location>
+
+<Location /bigscreen>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::Homepage
+</Location>
+
+<Location /binary/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /cgi-auth/>
+  Options -Indexes
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  PerlResponseHandler ModPerl::Registry
+  PerlSetVar AuthzDefault Restrictive
+</Location>
+
+<Location /chooser_icon/image/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /code/>
+  SetHandler default-handler
+</Location>
+
+<Location /data/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /dologout>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::TicketRemove
+</Location>
+
+<Location /download/>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::TUSKDownload
+</Location>
+
+<Location /downloadable_file/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler default-handler
+  PerlSetVar AuthzDefault Restrictive
+  # add more AddTypes here:
+  AddType application/type	.sav
+  AddType video/mp4	.mp4
+  AddType video/quicktime	.mov
+  AddType video/x-ms-wmv	.wmv
+  AddType audio/mp3	.mp3
+  AddType video/x-flv	.flv
+</Location>
+
+<Location /evalgraph/>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::HSDBEvalGraph
+</Location>
+
+<Location /favicon.ico>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /forum/>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  PerlResponseHandler ModPerl::Registry
+  PerlSendHeader On
+  PerlSetVar AuthzDefault Restrictive
+</Location>
+
+<Location /forum_attachments/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler default-handler
+  PerlSetVar AuthzDefault Restrictive
+  # add more AddTypes here:
+  AddType application/type .sav
+</Location>
+
+<Location /graphics/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /home>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::Homepage
+</Location>
+
+<Location /icon/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /icons/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /images/>
+Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler default-handler
+  PerlSetVar AuthzDefault Restrictive
+</Location>
+
+<Location /large/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /learninglib/>
+  SetHandler default-handler 
+  IndexOptions FancyIndexing IgnoreCase
+</Location>
+
+<Location /management/content/personalcontent/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB4::PersonalContent
+</Location>
+
+<Location /mcp/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::MultiSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+	AddType image/x-png	.png
+</Location>
+
+<Location /media/>
+  Options -Indexes
+  PerlSetVar AuthzDefault Permissive 
+  SetHandler default-handler
+  AddType video/x-flv	.flv
+</Location>
+
+<Location /medium/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /mergedevalgraph/>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::HSDBMergedEvalGraph
+</Location>
+
+<Location /mobi/>
+  SetHandler	perl-script
+  PerlHandler     TUSK::Mason
+  Options +ExecCGI -Indexes
+  DefaultType     text/html
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  PerlSetVar AuthzDefault Permissive
+  ErrorDocument 403 /
+  PerlLogHandler Apache::HSDBLogger
+</Location>
+
+<Location /mobi/home>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::Homepage
+</Location>
+
+<Location /mobi/view/content/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB4::SQLRow::Content
+</Location>
+
+<Location /mobi/view/course/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB45::Course
+</Location>
+
+<Location /nosession/>
+  SetHandler    perl-script
+  PerlHandler     TUSK::MasonNoSession
+  Options +ExecCGI -Indexes
+  DefaultType     text/html
+</Location>
+
+<Location /orca/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler default-handler
+  PerlSetVar AuthzDefault Restrictive
+</Location>
+
+<Location /orig/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /overlay/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /perl/>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  require valid-user
+  PerlResponseHandler ModPerl::Registry
+  PerlSetVar AuthzDefault Permissive
+</Location>
+
+<Location /public/>
+  SetHandler	perl-script
+  PerlHandler     TUSK::Mason
+  Options +ExecCGI -Indexes
+  DefaultType     text/html
+</Location>
+
+<Location /ramfiles/>
+  SetHandler default-handler 
+</Location>
+
+<Location /rss>
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::TUSKRSS
+</Location>
+
+<Location /scripts/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /locale/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /shockwave/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /small/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /small_data/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /smallscreen>
+  Options -Indexes
+  SetHandler	perl-script
+  PerlCleanupHandler	Apache2::SizeLimit
+  Options +ExecCGI -Indexes
+  PerlHandler Apache::Homepage
+</Location>
+
+<Location /smil/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /streaming/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler default-handler
+  PerlSetVar AuthzDefault Restrictive
+  # add more AddTypes here:
+  AddType application/type	.sav
+  AddType video/mp4	.mp4
+  AddType video/quicktime	.mov
+  AddType video/x-ms-wmv	.wmv
+  AddType audio/mp3	.mp3
+  AddType video/x-flv	.flv
+</Location>
+
+<Location /style/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /symbols/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /temp/>
+  Options -Indexes
+  SetHandler default-handler
+  PerlSetVar AuthzDefault Permissive
+  # add more AddTypes here:
+  AddType application/type	.sav
+  AddType video/mp4	.mp4
+  AddType video/quicktime	.mov
+  AddType video/x-ms-wmv	.wmv
+  AddType audio/mp3	.mp3
+  AddType video/x-flv	.flv  
+</Location>
+
+<Location /thumb/>
+ Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /thumbnail/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /tusk/>
+  SetHandler	perl-script
+  PerlHandler     TUSK::Mason
+  Options +ExecCGI -Indexes
+  DefaultType     text/html
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  PerlSetVar AuthzDefault Permissive
+  ErrorDocument 403 /
+  PerlLogHandler Apache::HSDBLogger
+</Location>
+
+<Location /video/>
+  Options -Indexes
+  SetHandler default-handler 
+</Location>
+
+<Location /view/>
+  SetHandler	perl-script
+  PerlHandler     TUSK::Mason
+  Options +ExecCGI -Indexes
+  DefaultType     text/html
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  PerlSetVar AuthzDefault Permissive
+  ErrorDocument 403 /
+  PerlLogHandler Apache::HSDBLogger
+</Location>
+
+<Location /view/content/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB4::SQLRow::Content
+</Location>
+
+<Location /view/course/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB45::Course
+</Location>
+
+<Location /view/minStyTopFrame/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB4::SQLRow::Content
+</Location>
+
+<Location /view/minStyle/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB4::SQLRow::Content
+</Location>
+
+<Location /view/url/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB4::SQLRow::Content
+</Location>
+
+<Location /view/urlTopFrame/>
+  Options -Indexes
+  PerlSetVar RowClass HSDB4::SQLRow::Content
+</Location>
+
+<Location /xlarge/>
+  Options -Indexes
+  AuthType	HSDB
+  AuthName	HSDB
+  PerlAuthenHandler	Apache::TicketAccess
+  PerlAuthzHandler	Apache::AuthzHSDB
+  require valid-user
+  SetHandler	perl-script
+  PerlHandler  Apache::HSDBSlide
+  PerlSetVar AuthzDefault Permissive 
+  AddType image/gif	.gif
+  AddType image/jpeg	.jpg
+  AddType image/x-png	.png
+</Location>
+
+<Location /xsd/>
+  SetHandler default-handler 
+</Location>
+
+<LocationMatch /chooser_icon/table(.*)>
+  SetHandler default-handler
+</LocationMatch>
+
+<LocationMatch /chooser_icon/text(.*)>
+  SetHandler default-handler
+</LocationMatch>
