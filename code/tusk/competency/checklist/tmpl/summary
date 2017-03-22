@@ -24,9 +24,19 @@
 	my $gchecklist_group_id;
 	my $app;
 	my $type_path = $m->comp("/tmpl/url:get_type_path");
-    ## passed arguments could be checklist_group_id, time_period_id, self_assigned, student_id, view_mode
+    ## passed arguments could be checklist_group_id, time_period_id, self_assigned, student_id, view_mode, course
     my %args = $m->caller_args(0); 
-	my $tp_id = (defined $args{time_period_id}) ? $args{time_period_id} : $m->comp('SELF:get_timeperiod_id');
+    ## current time period: use the passed time period, else determine from course and student, else take it from the session object
+	my $tp_id = $args{time_period_id};
+    unless (defined $tp_id) { 
+        if (defined $args{course}) { 
+            if (my $tp = $args{course}->get_users_current_timeperiod($args{student_id})) {
+                $tp_id = $tp->primary_key();
+            } 
+        } else {
+            $tp_id =  $m->comp('SELF:get_timeperiod_id');
+        }
+    }
 	my $checklist_assignments = [];
 	my $checklist_completions = {};
 	my $entries = {};

@@ -25,8 +25,8 @@
 <%perl>
 	my $partner_checklists = [];
 	my $checklist_group_id = undef;
+    my $course = $m->comp("/tmpl/url:get_type_object");
 	if (scalar @$checklist_groups == 1) {
-		my $course = $m->comp("/tmpl/url:get_type_object");
 		$checklist_group_id = $checklist_groups->[0]->getPrimaryKeyID();
 		my $acc = TUSK::Application::Competency::Checklist->new({checklist_group_id => $checklist_group_id});
 		$partner_checklists = $acc->getPendingPartnerChecklists($course->get_school(), $m->session->{user}->primary_key());
@@ -46,7 +46,8 @@
 <& /competency/checklist/tmpl/summary, 
 	checklist_group_id 	=> $checklist_groups->[0]->getPrimaryKeyID(), 
 	self_assigned 		=> 1,
-	student_id 		=> $m->session->{user}->primary_key(),
+    student_id          => $m->session->{user}->primary_key(),
+    course              => $course,
 &>
 % } elsif (scalar @$checklist_groups > 1) {
 <div clas="error"<% __('There are more than one Checklist associated. Please contact Course Director') %></div>
