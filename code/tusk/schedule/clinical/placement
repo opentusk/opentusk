@@ -169,6 +169,7 @@ for (my $i = 0; $i <= $max_length; $i++) {
 <%perl>
 	my $course = $m->comp("/tmpl/url:get_type_object");
 	my $user_obj = $m->session->{'user'};
+	warn 'user is' . $user_obj;
 	my $iCanEdit = $course->can_user_edit($user_obj);
 	if (!$iCanEdit) {
 		 return undef;	
@@ -253,13 +254,13 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	$sth->finish;
 
 	my @placement_rows;
-
-	my $assessor = TUSK::FormBuilder::LinkCourseForm->new()->lookup("", undef, undef, undef,
+	my $user_id = $m->session->{'user'}->primary_key();
+	my $assessor = TUSK::FormBuilder::LinkCourseForm->new()->lookupReturnOne("", undef, undef, undef,
 		[
 			TUSK::Core::JoinObject->new('TUSK::FormBuilder::SubjectAssessor',
 				{
 					joinkey => 'form_id', origkey => 'child_form_id', jointype => 'inner', joincond =>
-					"link_course_form.parent_course_id = $course_id"
+					"link_course_form.parent_course_id = $course_id and assessor_id = '$user_id'"
 				})
 		]);
 	my $isClinicalAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions", feature_id => $school_id) ? 1 : 0;
