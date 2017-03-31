@@ -155,7 +155,7 @@ $.fn.sumUpScores = function() {
 		if ($(this).is(':checked')) {
 			$(this).parent().addClass('selected-radio');
 			var vals = ($(this).val()).split('_');		
-			if (vals[1] && vals[1] > 0) {
+			if (vals[1] && vals[0] > 0) {
 				var field_key = ($(this).attr('name')).split('_');
 				var weight = $('#weight_' + field_key[1]).val();
 				var maxval = $('#maxval_' + field_key[1]).val();

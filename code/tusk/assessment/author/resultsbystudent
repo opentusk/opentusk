@@ -156,7 +156,7 @@
 
         ## a bit kludgy but need to prepend a fake item id to scaling question type.
         foreach my $key (keys %ARGS) {
-            $ARGS{$key} = '0_' . $ARGS{$key} if ($key =~ /^id/);
+            $ARGS{$key} = ($ARGS{$key} ne '') .'_' . $ARGS{$key} if ($key =~ /^id/);
         }
 
         my $total_score = (defined $ARGS{total_override_score} && $ARGS{total_override_score} != 0.00) ? $ARGS{total_override_score} : $ARGS{total_final_score};
@@ -293,6 +293,7 @@
 			}
                         my $fid = $resp->getFieldID();
                         my $score = $resp->getScore();
+                        my $item_id = $resp->getItemID();
                         my $entry_assoc = $resp->getJoinObject('TUSK::FormBuilder::EntryAssociation');
                         my $assessor = $resp->getJoinObject('TUSK::Core::HSDB4Tables::User');
 
@@ -301,12 +302,16 @@
                                 $scores{field}{$fid}{final} = $score;
                                 $field_responses{$fid} = $resp;
                         } else {
-                my $assessor_uid = $assessor->getUID();
-                                $scores{field}{$fid}{frequency}{$score}++;
-                                $scores{field}{$fid}{assessors}{$assessor_uid} = ((defined $score) ? (($score == 0) ? 'UA' : $score) : '-');
-                $assessor_names{$assessor_uid} = $assessor->outName() unless (exists $assessor_names{$assessor_uid});
-                                $scores{total}{frequency}{$score}++;
-                                $scores{field}{$fid}{sum} += $score;
+                                my $assessor_uid = $assessor->getUID();
+                                $assessor_names{$assessor_uid} = $assessor->outName() unless (exists $assessor_names{$assessor_uid});
+                                $scores{field}{$fid}{assessors}{$assessor_uid} = ((defined $score && $item_id) ? $score : '-');
+
+                                if (defined $score && $item_id) {
+                                        $scores{field}{$fid}{frequency}{$score}++;
+                                        $scores{total}{frequency}{$score}++;
+                                        $scores{field}{$fid}{sum} += $score;
+                                }
+
                                 $entries{$resp->getCreatedBy()} = $resp->getEntryID();
 
                                 if ($resp->getText() =~ /\w+/) {
@@ -360,15 +365,14 @@
                 my $weight_total = 0;
 
                 my $index = 0;
-                my $n_assessors = 0;
                 my $field_id;
 
                 foreach my $field(@$fields) {
                         $field_id = $field->getPrimaryKeyID();
 
-                        $n_assessors = scalar grep { /^\d+$/ } values %{$scores{field}{$field_id}{assessors}};
+                         $scores{field}{$field_id}{n_assessors} = scalar grep { /^\d+$/ } values %{$scores{field}{$field_id}{assessors}};
 
-                        if ($n_assessors > 0) {
+                        if ($scores{field}{$field_id}{n_assessors}) {
                                 $weight_total += $field->getWeight();
                         } else {
                                 $adjusted_flag = 1;
@@ -378,9 +382,8 @@
 
                 foreach my $field (@$fields) {
                         $field_id = $field->getPrimaryKeyID();
-                        $n_assessors = scalar grep { /^\d+$/ } values %{$scores{field}{$field_id}{assessors}};
 
-                        if ($n_assessors > 0) {
+                        if ($scores{field}{$field_id}{n_assessors}) {
                                 my $new_weight = (($field->getWeight())/$weight_total) * 100;
 				my $places = 2;
 				if ($adjusted_flag == 1) {
@@ -414,13 +417,14 @@
                                                 join(",", map { (exists $scores{field}{$fid}{frequency}{$_}) ? $scores{field}{$fid}{frequency}{$_} : 0 } ($scores{range}{$fid}->[0] .. $scores{range}{$fid}->[1])) .
                                                 '</span></td><td class="xxsm" valign="bottom">' . $scores{range}{$fid}->[1] . '</td></tr></table>';
 
-                        if ($assessors_per_field > 0 && $scores{field}{$fid}{sum}) {
+                        if ($assessors_per_field && defined $scores{field}{$fid}{sum}) {
                                 my $calc_avg = sprintf("%.2f", $scores{field}{$fid}{sum} / $assessors_per_field);
                                 $rows[$i]->{calc_avg_score} = "<span style=\"font-size:80%\">$calc_avg</span>";
-                                $scores{field}{$fid}{final} = $calc_avg unless $scores{field}{$fid}{final};
+                                $scores{field}{$fid}{final} = $calc_avg unless (defined $scores{field}{$fid}{final});
                                 $scores{total}{calc_avg} += $calc_avg;
                         } else {
                                 $rows[$i]->{calc_avg_score} = '-';
+                                $scores{field}{$fid}{final} = '';
                         }
                 }
 
@@ -443,7 +447,7 @@
                 }
 
                 $rows[$i]->{arrow} = '<div class="row"><div class="arrow"></div></div>';
-                $rows[$i]->{avg_score} = "<input type=\"text\" class=\"num-right field-average blue\" name=\"id_$fid\" value=\"$scores{field}{$fid}{final}\" size=\"2\" />";
+                $rows[$i]->{avg_score} = qq(<input type="text" class="num-right field-average blue" name="id_$fid" value="$scores{field}{$fid}{final}" size="2" />);
 
                 $rows[++$i] = {
                         colspan => scalar @$column_headers,

@@ -209,10 +209,10 @@
 %			next unless $fafi;
 <td>
 %			my $item_id = $fafi->getFieldItemID();
-<span><input type="radio" class="<% ($field->getRequired())? 'required' : '' %>"  name="id_<% $fid %>" value="<% $item_id . '_' . $_->getMinValue() %>" <% ($_->getMinValue() == $resp_score) ? 'CHECKED' : '' %> /> <% $_->getMinValue() %> &nbsp;</span>
+<span><input type="radio" class="<% ($field->getRequired())? 'required' : '' %>"  name="id_<% $fid %>" value="<% $item_id . '_' . $_->getMinValue() %>" <% (defined $resp_score && $_->getMinValue() == $resp_score) ? 'CHECKED' : '' %> /> <% $_->getMinValue() %> &nbsp;</span>
 % 			if ($max_score = $_->getMaxValue()) {
 % 				foreach my $i ($_->getMinValue() + 1 .. $max_score) {
-<span><input type="radio" class="<% ($field->getRequired())? 'required' : '' %>"  name="id_<% $fid %>" value="<% $item_id . '_' .  $i %>" <% ($i == $resp_score) ? 'CHECKED' : '' %> /> <% $i %> &nbsp;</span>
+<span><input type="radio" class="<% ($field->getRequired())? 'required' : '' %>"  name="id_<% $fid %>" value="<% $item_id . '_' .  $i %>" <% (defined $resp_score && $i == $resp_score) ? 'CHECKED' : '' %> /> <% $i %> &nbsp;</span>
 %				}
 %			if ($fafi->getCommentRequired()) {
 <input type="hidden" name="comment_required_item_<% $item_id %>" value="1" />
@@ -223,7 +223,7 @@
 %		}
 % 		if ($unable_to_assess) {
 <td rowspan="2" valign="top" align="center" NOWRAP>
-<span><input type="radio" name="id_<% $fid %>" value="0_0" <% (defined $resp_score && $resp_score == 0) ? 'CHECKED' : '' %> /> N/A &nbsp;</span>
+<span><input type="radio" name="id_<% $fid %>" value="0_0" <% (defined $resp_score && $resp_item_id == 0) ? 'CHECKED' : '' %> /><% __('N/A') %>&nbsp;</span>
 </td>
 % 		}
 </tr>
@@ -262,11 +262,11 @@
 </td>
 % 	} ## @$field_rubrics
 %	if ($show_grade) {
-<th align="left" valign="top" NOWRAP><%__("Score")%>: <% (defined $resp_score) ? (($resp_score) ? $resp_score : 'N/A') : '-' %></th>
+<th align="left" valign="top" NOWRAP><%__("Score")%>: <% ($resp_item_id || $resp_score) ? $resp_score : __('N/A') %></th>
 %	} else {
 % 		if ($unable_to_assess && !$score_display) {
 <td valign="top" align="center" NOWRAP>
-<span><input type="radio" name="id_<% $fid %>" value="0" <% (defined $resp_item_id && $resp_item_id == 0) ? 'CHECKED' : '' %> /> <span class="level-title"><%__("N/A")%></span> &nbsp;</span>
+<span><input type="radio" name="id_<% $fid %>" value="0" <% (defined $resp_item_id && $resp_item_id == 0) ? 'CHECKED' : '' %> /> <span class="level-title"><% __('N/A') %></span> &nbsp;</span>
 </td>
 % 		}
 %	}
