@@ -254,15 +254,8 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	$sth->finish;
 
 	my @placement_rows;
-	my $assessor = TUSK::FormBuilder::SubjectAssessor->new()->lookupReturnOne("", undef, undef, undef, [
-			TUSK::Core::JoinObject->new('TUSK::FormBuilder::LinkCourseForm', {
-				joinkey => 'child_form_id', origkey => 'form_id', jointype => 'inner', joincond =>
-				"link_course_form.parent_course_id = $course_id and assessor_id ='" . $m->session->{'user'}->primary_key() . "'"
-			})
-		]);
-	my $isClinicalAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions", feature_id => $school_id) ? 1 : 0;
-	my $isAssessor = (scalar $assessor ? 1 : 0);
-	my $notesPermission = ($isClinicalAdmin || $isAssessor ) ? 1 : 0;
+
+	my $notesPermission = $m->comp('SELF:checkNotesPermission', course_id => $course_id, school_id => $school_id);
 
 	if (scalar @{$placements} > 0){
 		foreach my $time_period (@{$placements->[0]->getJoinObjects('TUSK::Core::HSDB45Tables::TimePeriod')}) {
@@ -286,7 +279,7 @@ for (my $i = 0; $i <= $max_length; $i++) {
 								courseId => $course_id,
 								accessType => 'view') . '</div>';
 					}
-					my $student_name = $student->[2] . ", " . $student->[1] . ($isClinicalAdmin ? $noteDisplay : '');
+					my $student_name = $student->[2] . ", " . $student->[1] . ($notesPermission ? $noteDisplay : '');
 					push @{$temp_hash{students}}, $student_name;
 				}
 			}
@@ -299,6 +292,25 @@ for (my $i = 0; $i <= $max_length; $i++) {
 	}
 	return \@placement_rows;
 
+</%perl>
+</%method>
+
+<%method checkNotesPermission>
+<%args>
+	$course_id
+	$school_id
+</%args>
+<%perl>
+	my $assessor = TUSK::FormBuilder::SubjectAssessor->new()->lookupReturnOne("", undef, undef, undef, [
+			TUSK::Core::JoinObject->new('TUSK::FormBuilder::LinkCourseForm', {
+				joinkey => 'child_form_id', origkey => 'form_id', jointype => 'inner', joincond =>
+				"link_course_form.parent_course_id = $course_id and assessor_id ='" . $m->session->{'user'}->primary_key() . 
+				"' and school_id = " . $school_id
+			})
+		]);
+	my $isClinicalAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions", feature_id => $school_id) ? 1 : 0;
+	my $isAssessor = (scalar $assessor ? 1 : 0);
+	return ($isClinicalAdmin || $isAssessor ) ? 1 : 0;
 </%perl>
 </%method>
 
