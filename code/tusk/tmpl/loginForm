@@ -216,8 +216,8 @@ $verticalButtons => 0
 	});
 	var origPadding;
 	function displayLocalLogin(turnFormOn) {
-		origPadding = $('#localLogin').css('padding-top');
 		if(turnFormOn) {
+			origPadding = $('#localLogin').css('padding-top');
 %			if($is_mobi) {
 				$('#localLogin').height( $('#localLogin').height() + 100 );
 %			} else {
@@ -229,9 +229,9 @@ $verticalButtons => 0
 			$('#localLoginButton').hide();
 			$('#localLoginForm').fadeOut( 100, function() { $('#localLogin').css('padding-top', origPadding); $('#localLoginButton').fadeIn(100); } );
 %			if($is_mobi) {
-				$('#logLoginBox').width( $('#logLoginBox').width() - 125 );
+				$('#logLoginBox').width( $('#logLoginBox').height() - 100 );
 %			} else {
-				$('#logLoginBox').width( $('#logLoginBox').width() - 100 );
+				$('#logLoginBox').width( $('#logLoginBox').width() - 125 );
 %			}
 		}
 	}
@@ -288,7 +288,7 @@ $verticalButtons => 0
 	foreach my $loginItem (@TUSK::Constants::LoginButtonSequence) {
 		$loginItem = lc($loginItem);
 		if($loginItem eq 'guest') {
-			if(!($TUSK::Constants::DisableGuestLogin || $is_mobi)) {
+			if($TUSK::Constants::Guest{'Enabled'} || !$is_mobi) {
 				$hasLogin = 1;
 				$width += $buttonWidth;
 				push @loginItems, $loginItem;
@@ -306,7 +306,7 @@ $verticalButtons => 0
 				push @loginItems, $loginItem;
 			}
 		} elsif($loginItem eq 'local') {
-			if($TUSK::Constants::EnableLocalLogin) {
+			if($TUSK::Constants::LDAP{'Enabled'}) {
 				$hasLogin = 1;
 				$width += $buttonWidth;
 				push @loginItems, $loginItem;
@@ -326,7 +326,8 @@ $verticalButtons => 0
 		# 11 is the width of span.loginSpacer class; 2 * scalar loginItems is for div borders
 		$width = $width + ($numSpacers * 11) + (2 * scalar(@loginItems));
 	} else {
-		push @loginItems, '<div style="padding-top: 50px;"><i>There are no configured login mechnisims</i></div>';
+		push @loginItems, 'none';
+		$width = 440;
 	}
 </%perl>
 <%doc>Override the [span|div].prettyLoginButtonWidth here based on the actual width</%doc>
@@ -389,15 +390,15 @@ $verticalButtons => 0
 %	foreach (0..$#loginItems) {
 %		if($loginItems[$_] eq 'guest' && !$forceGuestDisable) {
 %			my $buttonLabel = __('Guest Access');
-%			if($TUSK::Constants::GuestLoginButtonLabel) { $buttonLabel = $TUSK::Constants::GuestLoginButtonLabel; }
+%			if($TUSK::Constants::Guest{'displayName'}) { $buttonLabel = $TUSK::Constants::Guest{'displayName'}; }
 			<span id="guestLogin" class="loginButtonSpan">
-			<div id="guest_access" onclick="location.href='/view/courses'" class="lightLoginButton"><% $buttonLabel %></div>
+			<div id="guest_access" onclick="location.href='/view/courses'" class="<% $TUSK::Constants::Guest{'class'} %>"><% $buttonLabel %></div>
 			</span>
 %		} elsif($loginItems[$_] eq 'theme') {
 			<span style="margin: 25px 5px; width: 50px; height: 65px; background:#fff 96% top no-repeat url('<% $themeImage %>'); float:left;"></span>
 %		} elsif($loginItems[$_] eq 'cas') {
 			<span id="casLogin" class="loginButtonSpan">
-				<div id="webauthButton" onclick="location.href='<% Apache::TicketMaster::CAS::getLoginUrl() %>'" class="darkLoginButton"><% $TUSK::Constants::CAS{'displayName'} %></div>
+				<div id="webauthButton" onclick="location.href='<% Apache::TicketMaster::CAS::getLoginUrl() %>'" class="<% $TUSK::Constants::CAS{'class'} %>"><% $TUSK::Constants::CAS{'displayName'} %></div>
 			</span>
 %		} elsif($loginItems[$_] eq 'shib') {
 %			my $shibURL = Apache::TicketMaster::Shib::getLoginUrl();
@@ -407,7 +408,7 @@ $verticalButtons => 0
 %				my $iframeSrc = 'https://'. $TUSK::Constants::Domain .'/shib/login?testConnection=1';
 				<iframe id="shibTestIFrame" style="display: none; position: fixed; bottom: 10px; right: 10px; height:200px; width:350px;" src="<% $iframeSrc %>"></iframe>
 %			}
-				<div id="shibButton" onclick="location.href='<% $shibURL %>'" class="darkLoginButton"><% $TUSK::Constants::Shibboleth{'displayName'} %></div>
+				<div id="shibButton" onclick="location.href='<% $shibURL %>'" class="<% $TUSK::Constants::Shibboleth{'class'} %>"><% $TUSK::Constants::Shibboleth{'displayName'} %></div>
 			</span>
 %		} elsif($loginItems[$_] eq 'local') {
 %			if ($is_mobi && !$url) {
@@ -417,7 +418,7 @@ $verticalButtons => 0
 %				$m->comp('/tmpl/element:hidden_form_element', params => { name => 'request_uri', value => $url });
 %			}
 			<span class="loginButtonSpan" id="localLogin" style="overflow: visible; border-right: 0px solid black;">
-				<div id="localLoginForm" style="display:none; overflow:visible;">
+				<div id="localLoginForm" style="display:<% $TUSK::Constants::LDAP{'autoExpand'} ? '; width: 250px; height: 77px;' : 'none' %>; overflow:visible;">
 					<& /tmpl/element:form, params => { action => $ssrv, method => 'post', name => 'login'} &>
 						<fieldset style="display: inline-block;">
 							<label for="user" class="xsm"><%__('Username:')%></label>
@@ -438,13 +439,19 @@ $verticalButtons => 0
 %					}
 					</form>
 				</div>
-				<span>
+				<span style="display:<% $TUSK::Constants::LDAP{'autoExpand'} ? 'none' : '' %>;">
 %					my $buttonLabel = $TUSK::Constants::SiteAbbr .' '. __('Login');
-%					if($TUSK::Constants::LocalLoginButtonLabel) { $buttonLabel = $TUSK::Constants::LocalLoginButtonLabel; }
-					<div id="localLoginButton" onclick="displayLocalLogin(true);" class="lightLoginButton"><% $buttonLabel %></div>
+%					if($TUSK::Constants::LDAP{'displayName'}) { $buttonLabel = $TUSK::Constants::LDAP{'displayName'}; }
+					<div id="localLoginButton" onclick="displayLocalLogin(true);" class="<% $TUSK::Constants::LDAP{'class'} %>"><% $buttonLabel %></div>
         			</span>
+%				if($TUSK::Constants::LDAP{'autoExpand'}) {
+				<script>displayLocalLogin(true);</script>
+%				}
 			</span>
+%		} elsif($loginItems[$_] eq 'none') {
+			<div style="padding: 50px;"><i><% __('There are no configured login mechanisms') %></i></div>
 %		}
+
 
 %		if($loginItems[$_ + 1]) {
 %			unless($verticalButtons) {
