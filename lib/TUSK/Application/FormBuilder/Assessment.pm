@@ -185,9 +185,9 @@ sub updateSubjectAssessor() {
         $student_and_assessor->save({
             user => $self->{session_user_id}
         });
-        $student_and_assessor->delete('time_period_id = ' . $self->{current_time_period} . ' and form_id = ' . 
-            $args->{form_id} . ' and subject_id = ' . $self->{user_id} . ' and assessor_id = ' . 
-            $args->{assessor_id} . ' and status = ' . $args->{status});
+        $student_and_assessor->delete("time_period_id = " . $self->{current_time_period} . " and form_id = " . 
+            $args->{form_id} . " and subject_id = '" . $self->{user_id} . "' and assessor_id = '" . 
+            $args->{assessor_id} . "' and status = " . $args->{status});
     };
 
     if ($@ && !($@ =~ /Duplicate entry/)) {
