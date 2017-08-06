@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 # Should be TUSK::ErrorReport to match the file path and use
@@ -32,7 +32,7 @@ sub sendErrorReport {
 	my $email_receiver = $param_hash->{'To'} || $TUSK::Constants::ErrorEmail;
 	my $email_sender = $param_hash->{'From'} || $TUSK::Constants::ErrorEmail;
 	my $addtlMsg = $param_hash->{'Msg'} || '';
-	my $always_send = $param_hash->{'always_send'}; 
+	my $always_send = $param_hash->{'always_send'};
 	my $conn = $req_rec->connection();
 	my $user;
 	unless ($user = $req_rec->user) {
@@ -44,7 +44,7 @@ sub sendErrorReport {
 	}
 	$user ||= 'unknown user';
 	my $host = $ENV{HOSTNAME} || "unknown host";
-	my $remote_ip = $conn->remote_ip() || "unknown ip";
+	my $remote_ip = $conn->can('remote_ip') || "unknown ip";
 	my $lastRequest = 'Unknown';
 	my $uriRequest = $param_hash->{'uriRequest'} || $req_rec->uri()
             || "unknown uri";
@@ -54,7 +54,7 @@ sub sendErrorReport {
 		if($req_rec->prev()->prev()) {
 			$lastRequest = $req_rec->prev()->prev()->as_string();
 		}
-		$uriRequest = $req_rec->prev()->uri() || "unknown uri"; 
+		$uriRequest = $req_rec->prev()->uri() || "unknown uri";
 		%localArgs = $req_rec->prev()->args();
                 # $postString = readPost($req_rec->prev());
 		$error = $req_rec->prev()->pnotes('error');
@@ -64,7 +64,7 @@ sub sendErrorReport {
 	my $queryString = '' ;
 	foreach my $arg (keys(%localArgs)){
 		$queryString .= "$arg : ".$localArgs{$arg}."\n";
-	}	
+	}
 
 	$queryString = $ENV{'QUERY_STRING'} unless $queryString;
 	$queryString = '(No query string)' unless $queryString;
@@ -91,16 +91,16 @@ HTTP POST data:
 $postString
 
 Error:
-$errString 
+$errString
 
-Addtl Message: 
+Addtl Message:
 $addtlMsg
 
 EOM
 
 	if ((!Apache2::ServerUtil::exists_config_define('DEV') && !Apache2::ServerUtil::exists_config_define('FINCH'))
 		  || defined($always_send)){
-		my $mail = TUSK::Application::Email->new({ 
+		my $mail = TUSK::Application::Email->new({
 			to_addr   => $email_receiver,
 			from_addr => $email_sender ,
 			subject   => $subject,
@@ -109,7 +109,7 @@ EOM
 
 		my $msg;
 		if (my $err = $mail->send()) {
-			$msg = 0; 
+			$msg = 0;
 		} else {
 			$req_rec->log_error("Unable to send email: " . $mail->getError() . "\n".
 					"\tTo: $email_receiver\n".
@@ -123,8 +123,8 @@ EOM
 		warn $addtlMsg if $addtlMsg;
 	    }
 	return $msgBody;
-	
-} 
+
+}
 
 
 sub sendShibReport {
@@ -178,17 +178,17 @@ sub send404Report {
 	my $req_rec = shift || &sendDefaultReport();
 	my $param_hash = shift;
 	my @errorDirs = qw/content course schedule query personal_content
-		data small_data thumbnail binary orig xlarge large medium small 
-		thumb icon chooser_icon daygif evalgraph mergedevalgraph 
+		data small_data thumbnail binary orig xlarge large medium small
+		thumb icon chooser_icon daygif evalgraph mergedevalgraph
 		XMLObject XMLLister forum/;
 
 	if (my $uri = $req_rec->prev()->uri()){
 		foreach my $errorDir (@errorDirs){
 			if ($uri =~ m/\b$errorDir\b/){
-				return &sendErrorReport($req_rec,$param_hash);	
+				return &sendErrorReport($req_rec,$param_hash);
 			}
 		}
-	}	
+	}
 
 }
 
@@ -199,7 +199,7 @@ This message has been sent because the Error Reporter was called incorrectly.
 Most likely request object was not sent.  This Report will trigger a cluck and a
 message to go into the Apache Log.
 EOM
-    my $mail = TUSK::Application::Email->new({ 
+    my $mail = TUSK::Application::Email->new({
         to_addr   => $TUSK::Constants::ErrorEmail,
         from_addr => $TUSK::Constants::ErrorEmail,
         subject   => "Error Report Incorrectly Called",

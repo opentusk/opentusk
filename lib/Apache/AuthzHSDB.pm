@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -31,7 +31,7 @@ sub handler {
 
     ## automatically approve if the request came from the server
     ## itself or a list of authorized IP addresses
-    my $remote_ip = $r->connection()->remote_ip();
+    my $remote_ip = $r->connection()->can('remote_ip');
     my $host_info = scalar gethostbyname(hostname() || 'localhost');
     my $local_ip = inet_ntoa($host_info);
     if ((grep { $_ eq $remote_ip } @TUSK::Constants::PermissibleIPs)
@@ -51,7 +51,7 @@ sub handler {
     unless ($cls) {
 	return OK if $r->user ne $ENV{'HSDB_GUEST_USERNAME'};
 
-	# If we have no special RowClass, then we check to see what kind of 
+	# If we have no special RowClass, then we check to see what kind of
 	# access to provide to guests.
 	my $access = $r->dir_config('AuthzDefault') || 'Restrictive';
 	return OK if $access eq 'Permissive';
@@ -73,7 +73,7 @@ sub handler {
 	eval {$doc = $cls->new->lookup_path($uri);};
 	if($@) {return NOT_FOUND;}
     }
-    
+
     # Save a header with logging information
     $r->headers_out->set('X-Log-Info', $doc->out_log_item) if $doc;
 
@@ -124,4 +124,3 @@ sub get_user_id{
 
 1;
 __END__
-

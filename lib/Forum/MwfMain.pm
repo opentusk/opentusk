@@ -37,11 +37,11 @@ use Forum::MwfConfigGlobal;
 
 # TUSK changed some of these constants so the cron scripts would work
 # Constants
-use constant MP1  => defined($ENV{COMMAND_LINE}) ? 0 
-    : defined($mod_perl::VERSION) && $mod_perl::VERSION < 1.99 ? 1 
+use constant MP1  => defined($ENV{COMMAND_LINE}) ? 0
+    : defined($mod_perl::VERSION) && $mod_perl::VERSION < 1.99 ? 1
     : 0;
 use constant MP2  => defined($ENV{COMMAND_LINE}) ? 0
-    : defined($mod_perl2::VERSION) && $mod_perl2::VERSION > 1.99 ? 1 
+    : defined($mod_perl2::VERSION) && $mod_perl2::VERSION > 1.99 ? 1
     : 0;
 use constant MP   => MP1 || MP2;
 use constant CGI  => !MP && $ENV{GATEWAY_INTERFACE} ? 1 : 0;
@@ -67,12 +67,12 @@ sub new
 	my $board_keys = shift() || undef;
 
 	# TUSK end
-	
+
 	# Check execution environment
 	MP || CGI or die "Execution environment unknown, should be CGI or mod_perl.";
 
-	# Create instance	
-	my $m = { 
+	# Create instance
+	my $m = {
 		ap => $ap,          # Apache/Apache::RequestRec object
 		apr => undef,       # Apache(2)::Request object
 		dbh => undef,       # DBI handle
@@ -100,7 +100,7 @@ sub new
 		showIcons => 0,     # Show button icons to user?
 
 		# TUSK begin added a forumAdmin field, indicates whether a new user should be a forum admin, used in the MwfPlgAuthen.pm plugin.
-		forumAdmin => $forum_admin, 
+		forumAdmin => $forum_admin,
 		redirectError => $redirect_error_flag,
 		board_keys => $board_keys,
 		# TUSK end
@@ -113,7 +113,7 @@ sub new
 		require Time::HiRes;
 		$m->{startTime} = [Time::HiRes::gettimeofday()];
 	}
-	
+
 	# Load mod_perl modules
 	$m->initModPerl() if MP;
 
@@ -146,7 +146,7 @@ sub new
 
 	# Authenticate user
 	$m->authenticateUser();
-	
+
 	# Cron emulation
 	$m->cronEmulation();
 
@@ -157,7 +157,7 @@ sub new
 	# set variables that are defined in TUSK::Constants
 	Forum::ForumKey::setCfg($m);
 	# TUSK end
-	
+
 	return ($m, $m->{cfg}, $m->{lng}, $m->{user}) if wantarray;
 	return $m;
 }
@@ -172,7 +172,7 @@ sub newShell
 	my $allowCgi = $params{allowCgi};  # Allow execution over CGI
 	my $upgrade = $params{upgrade};  # Avoid incompatibilities with upgrade scripts
 
-	# Create instance	
+	# Create instance
 	my $m = {
 		ext => '.pl',
 		now => time(),
@@ -251,13 +251,13 @@ sub initEnvironment
 	# Shortcuts
 	my $ap = $m->{ap};
 	my $env = $m->{env};
-	
+
 	if (MP) {
 		$env->{port} = $ap->get_server_port;
 		$env->{method} = $ap->method;
 		$env->{protocol} = $ap->protocol;
 		$env->{host} = $ap->hostname;
-		$env->{realHost} = $ap->headers_in->{'X-Forwarded-Host'} 
+		$env->{realHost} = $ap->headers_in->{'X-Forwarded-Host'}
 			|| $ap->headers_in->{'X-Host'} || $ap->hostname;
 		($env->{script}) = $ap->uri =~ m!.*/(.*)\.!;
 		($env->{scriptUrlPath}) = $ap->uri =~ m!(.*)/!;
@@ -266,15 +266,15 @@ sub initEnvironment
 		$env->{accept} = lc $ap->headers_in->{'Accept'};
 		$env->{acceptLang} = lc $ap->headers_in->{'Accept-Language'};
 		$env->{userAgent} = $ap->headers_in->{'User-Agent'};
-		$env->{userIp} = $ap->connection->remote_ip;
+		$env->{userIp} = $ap->connection->can('remote_ip');
 		$env->{userAuth} = $ap->user;
 		$env->{params} = $ap->args;
-		
+
 		if (MP1) {
 			$env->{server} = Apache::Constants::SERVER_VERSION();
 		}
 		else {
-			$env->{server} = Apache2::ServerUtil::get_server_version();
+			$env->{server} = Apache2::ServerUtil::get_server_description();
 		}
 	}
 	else {
@@ -319,7 +319,7 @@ sub initRequestObject
 		);
 
 		# Parse POST request and check for errors
-		$m->{apr}->parse() == 0 
+		$m->{apr}->parse() == 0
 			or $m->userError("Input exceeds maximum allowed size or is corrupted.")
 			if $ap->method eq 'POST';
 	}
@@ -330,11 +330,11 @@ sub initRequestObject
 			TEMP_DIR => $cfg->{attachFsPath},
 		);
 
-		# Discard raw request body 	 
+		# Discard raw request body
 		$m->{apr}->discard_request_body() == 0 or $m->userError("Input is corrupted.");
 
 		# Parse POST request and check for errors
-		$m->{apr}->parse() == 0 
+		$m->{apr}->parse() == 0
 			or $m->userError("Input exceeds maximum allowed size or is corrupted.")
 			if $ap->method eq 'POST';
 	}
@@ -344,10 +344,10 @@ sub initRequestObject
 		MwfCGI::_reset_globals() if FCGI;
 		MwfCGI::max_read_size($cfg->{maxAttachLen});
 		$m->{cgi} = MwfCGI->new();
-		!$m->{cgi}->truncated 
+		!$m->{cgi}->truncated
 			or $m->userError("Input exceeds maximum allowed size or is corrupted.");
 	}
-}	
+}
 
 #------------------------------------------------------------------------------
 # Load basic configuration
@@ -357,12 +357,12 @@ sub initConfiguration
 	my $m = shift();
 
 	# Load basic configuration
-	my $module = $m->{gcfg}{forums}{$m->{env}{realHost}} 
+	my $module = $m->{gcfg}{forums}{$m->{env}{realHost}}
 		|| $m->{gcfg}{forums}{$m->{env}{scriptUrlPath}} || "MwfConfig";
 	require "Forum/$module.pm";
 	eval "\$m->{cfg} = \$${module}::cfg";
 	!$@ or die "Configuration assignment failed ($@).";
-	
+
 	# Load configuration defaults
 	my $cfg = $m->{cfg};
 	if (!$cfg->{lastUpdate}) {
@@ -419,7 +419,7 @@ sub loadConfiguration
 			}
 		}
 	}
-	
+
 	# Post-processing of options
 	if ($cfg->{dataBaseUrl} && $cfg->{dataPath} !~ /^$cfg->{dataBaseUrl}/) {
 		$cfg->{dataPath} = $cfg->{dataBaseUrl} . $cfg->{dataPath};
@@ -430,11 +430,11 @@ sub loadConfiguration
 #------------------------------------------------------------------------------
 # Select content type
 
-sub initContentType 
+sub initContentType
 {
 	my $m = shift();
 
-	if ($m->{cfg}{xhtml} && 
+	if ($m->{cfg}{xhtml} &&
 		($m->{env}{accept} =~ /application\/xhtml\+xml/ || $m->{env}{userAgent} =~ /^W3C/)) {
 		$m->{contentType} = "application/xhtml+xml";
 		$m->{cdataStart} = "<![CDATA[";
@@ -458,20 +458,20 @@ sub setLanguage
 	# Shortcuts
 	my $cfg = $m->{cfg};
 	my $user = $m->{user};
-	
+
 	# Get language from user agent (primitive parsing)
 	my ($uaLangCode) = $m->{env}{acceptLang} =~ /^(\w\w)/;
 	my $uaLang = $cfg->{languageCodes}{$uaLangCode};
-	
+
 	# Determine which language to set
 	undef $forceLang if !$cfg->{languages}{$forceLang};
 	undef $user->{language} if !$cfg->{languages}{$user->{language}};
 	my $lang = $forceLang || $user->{language} || $uaLang || $cfg->{language};
-	
+
 	# Determine module name
 	my $module = $cfg->{languages}{$lang};
 	$module = "MwfEnglish" if $module !~ /^Mwf[a-zA-Z0-9_]+$/;
-	
+
 	# Load and assign language
 	# TUSK begin: module is located at a specific path
 	eval { require "Forum/$module.pm" };
@@ -517,13 +517,13 @@ sub cronEmulation
 				"</div>\n",
 				"</div>\n\n";
 			$m->printFooter();
-			
+
 			# Execute cronjob scripts and wait for them to finish
 			$ENV{MWF_ALLOWCGI} = 1;
 			system "perl cron_jobs$m->{ext}";
 			system "perl cron_subscriptions$m->{ext}";
 			$ENV{MWF_ALLOWCGI} = 0;
-			
+
 			FCGI ? die : exit;
 		}
 	}
@@ -565,12 +565,12 @@ sub formatTime
 	my $epoch = shift();
 	my $tz = shift();
 	my $format = shift() || $m->{cfg}{timeFormat};
-	
-	if (MP1) { 
+
+	if (MP1) {
 		require Apache::Util;
 		return Apache::Util::ht_time($epoch + $tz * 3600, $format);
 	}
-	elsif (MP2) { 
+	elsif (MP2) {
 		require Apache2::Util;
 		return Apache2::Util::ht_time($m->{ap}->pool, $epoch + $tz * 3600, $format);
 	}
@@ -587,7 +587,7 @@ sub formatTopicTag
 {
 	my $m = shift();
 	my $key = shift();
-	
+
 	my $tag = $m->{cfg}{topicTags}{$key};
 
 	if ($tag =~ /\.(?:jpg|png|gif)/i && $tag !~ /[<]/) {
@@ -604,7 +604,7 @@ sub formatTopicTag
 #------------------------------------------------------------------------------
 # Format user title/icon string
 
-sub formatUserTitle 
+sub formatUserTitle
 {
 	my $m = shift();
 	my $title = shift();
@@ -653,7 +653,7 @@ sub formatUserRank
 }
 
 #------------------------------------------------------------------------------
-# Shorten string and add ellipsis if necessary 
+# Shorten string and add ellipsis if necessary
 
 sub abbr
 {
@@ -673,7 +673,7 @@ sub abbr
 
 	# Unescape HTML to count actual characters and to avoid breaking entities
 	$str = $m->deescHtml($str);
-	
+
 	# Shorten and append ellipsis
 	my $oldLen = length($str);
 	$str = substr($str, 0, $maxLength);
@@ -681,14 +681,14 @@ sub abbr
 
 	# Escape again
 	$str = $m->escHtml($str);
-	
+
 	return $str;
 }
 
 #------------------------------------------------------------------------------
 # Get the greatest of the args
 
-sub max 
+sub max
 {
 	my $m = shift();
 
@@ -700,7 +700,7 @@ sub max
 #------------------------------------------------------------------------------
 # Get the least of the args
 
-sub min 
+sub min
 {
 	my $m = shift();
 
@@ -727,7 +727,7 @@ sub callPlugin
 {
 	my $m = shift();
 	my $plugin = shift();
-	
+
 	return if !$plugin;
 
 	my ($module) = $plugin =~ /(.+?)::/;
@@ -738,7 +738,7 @@ sub callPlugin
 
 	my $func = undef;
 	my $result = undef;
-	eval { 
+	eval {
 	    # TUSK begin modified path for module.pm
 	    require "Forum/$module.pm";
 	    # TUSK end
@@ -746,16 +746,16 @@ sub callPlugin
 	};
 	!$@ && $func or $m->logError("Plugin module loading failed: $@", 1);
 
-	eval { 
+	eval {
 		$result = &$func(m => $m, @_);
 	};
 	!$@ or $m->logError("Plugin function execution failed: $@", 1);
-	
+
 	return $result;
 }
 
 #------------------------------------------------------------------------------
-# Execute external program with cmd/in/out/err 
+# Execute external program with cmd/in/out/err
 
 sub ipcRun
 {
@@ -795,7 +795,7 @@ sub randomId
 	my $m = shift();
 
 	my $rnd = "";
-	eval { 
+	eval {
 		open my $fh, "/dev/urandom" or die;
 		read $fh, $rnd, 16;
 		close $fh;
@@ -838,7 +838,7 @@ sub addThumbnail
 
 	# Load modules
 	my $gd = eval { require GD; require Image::Info; };
-	eval { require Image::Magick } 
+	eval { require Image::Magick }
 		or $m->cfgError("Modules required for thumbnails not available.") if !$gd;
 
 	# Get image info without loading full image
@@ -857,7 +857,7 @@ sub addThumbnail
 		($imgW, $imgH) = $info->Ping($imgFsPath);
 		$imgW && $imgH or return -1;
 	}
-	
+
 	# Determine values
 	my $shrW = 150 / $imgW;
 	my $shrH = 150 / $imgH;
@@ -867,9 +867,9 @@ sub addThumbnail
 	my $imgSize = -s $imgFsPath;
 	my $useThb = $shrink < 1 || $imgSize > 15 * 1024;
 
-	# Return if no need to create thumbnail	
+	# Return if no need to create thumbnail
 	return 0 if !$useThb;
-	
+
 	# Create thumbnail image
 	if ($gd) {
 		GD::Image->trueColor(1);
@@ -893,7 +893,7 @@ sub addThumbnail
 		$thb->Composite(image => $img);
 		$thb->Write(filename => $thbFsPath, compression => 'JPEG', quality => 70);
 	}
-	
+
 	return 1;
 }
 
@@ -908,7 +908,7 @@ sub paramDefined
 {
 	my $m = shift();
 	my $name = shift();
-	
+
 	return defined(eval {$m->{apr}->param($name)}) ? 1 : 0 if MP;
 	return defined($m->{cgi}->param($name)) ? 1 : 0;
 }
@@ -955,15 +955,15 @@ sub paramStr
 	my $name = shift();
 
 	my $str;
-	if (MP) { 
+	if (MP) {
 		$str = eval { $m->{apr}->param($name) };
 		!$@ or $m->paramError("Parameter '$name' is not valid.");
 	}
-	else { 
+	else {
 		$str = $m->{cgi}->param($name);
 	}
 	$str = "" if !defined($str);
-	
+
 	if ($m->{gcfg}{utf8}) {
 		# Decode UTF-8 and check validity
 		utf8::decode($str) or $m->paramError("Parameter '$name' is not valid UTF-8.");
@@ -993,7 +993,7 @@ sub paramStrId
 {
 	my $m = shift();
 	my $name = shift();
-	
+
 	my $str;
 	if (MP) { ($str) = eval {$m->{apr}->param($name)} =~ /^([A-Za-z0-9_]+)$/	}
 	else { ($str) = $m->{cgi}->param($name) =~ /^([A-Za-z0-9_]+)$/ }
@@ -1014,9 +1014,9 @@ sub url
 	my $env = $m->{env};
 	my $utf8 = $m->{gcfg}{utf8};
 
-	# Add session ID	
+	# Add session ID
 	push @params, sid => $m->{sessionId} if $m->{sessionId};
-	
+
 	# Fragment identifier
 	my $target = "";
 
@@ -1032,7 +1032,7 @@ sub url
 		# Handle special keys
 		if ($key eq 'tgt') { $target = $value; next }
 		elsif ($key eq 'auth') { $value = $m->{user}{sourceAuth} }
-		elsif ($key eq 'ori') { 
+		elsif ($key eq 'ori') {
 			$value = $env->{script} . $m->{ext};
 			$value .= "?$env->{params}" if $env->{params};
 			$value =~ s![?;]?sid=[0-9a-f]+!!;
@@ -1046,9 +1046,9 @@ sub url
 		$url .= "$key=$value;";
 	}
 
-	# Remove trailing semicolon	
+	# Remove trailing semicolon
 	chop $url if @params && substr($url, -1, 1) eq ';';
-	
+
 	# Append fragment identifier
 	$url .= "#$target" if $target;
 
@@ -1068,7 +1068,7 @@ sub redirect
 	my $ap = $m->{ap};
 	my $cfg = $m->{cfg};
 	my $env = $m->{env};
-	
+
 	# Determine status, host and protocol
 	my $status = $env->{protocol} eq "HTTP/1.1" ? 303 : 302;
 	my $proto = $env->{port} == 443 ? "https://" : "http://";
@@ -1087,13 +1087,13 @@ sub redirect
 		$sessionId = ($origin . $msg) =~ /=/ ? ";sid=$sessionId" : "?sid=$sessionId" if $sessionId;
 		$scriptAndParam = $origin . $msg . $sessionId;
 	}
-	
-	# Location URL must be absolute according to HTTP
-	my $location = $cfg->{relRedir} 
-		? "$env->{scriptUrlPath}/$scriptAndParam" 
-		: "$proto$host$env->{scriptUrlPath}/$scriptAndParam";  
 
-	# Print HTTP redirection	
+	# Location URL must be absolute according to HTTP
+	my $location = $cfg->{relRedir}
+		? "$env->{scriptUrlPath}/$scriptAndParam"
+		: "$proto$host$env->{scriptUrlPath}/$scriptAndParam";
+
+	# Print HTTP redirection
 	if (MP) {
 		$ap->status($status);
 		$ap->headers_out->{'Location'} = $location;
@@ -1106,7 +1106,7 @@ sub redirect
 		print "Location: $location\n\n";
 	}
 
-	# Exit		
+	# Exit
 	FCGI ? die : exit;
 }
 
@@ -1149,7 +1149,7 @@ sub initDefaultUser
 sub authenticateUser
 {
 	my $m = shift();
-	
+
 	# Shortcuts
 	my $cfg = $m->{cfg};
 	my $sessionId = $m->paramStrId('sid');
@@ -1170,9 +1170,9 @@ sub authenticateUser
 		elsif ($sessionId) {
 			# URL session authentication
 			$id = $m->fetchArray("
-				SELECT userId 
-				FROM $m->{cfg}{dbPrefix}sessions 
-				WHERE id = '$sessionId' 
+				SELECT userId
+				FROM $m->{cfg}{dbPrefix}sessions
+				WHERE id = '$sessionId'
 					AND ip = '$m->{env}{userIp}'
 					AND lastOnTime > $m->{now} - $cfg->{sessionTimeout} * 60");
 			my $dbUser = undef;
@@ -1212,13 +1212,13 @@ sub authenticateUser
 		$m->{style} = $cfg->{styles}{$styleName};
 		$m->{stylePath} = "$cfg->{dataPath}/$m->{style}";
 	}
-	
+
 	# Show buttons icons?
 	$m->{buttonIcons} = $cfg->{buttonIcons} && $styleOpt->{buttonIcons} && $user->{showDeco};
 
 	# Set language
 	$m->setLanguage();
-	
+
 	# Deny access if forum is in lockdown
 	!$cfg->{locked} || $user->{admin} or $m->printNote($m->{lng}{errForumLock});
 
@@ -1232,7 +1232,7 @@ sub authenticateUser
 sub cacheUserStatus
 {
 	my $m = shift();
-	
+
 	# Shortcuts
 	my $cfg = $m->{cfg};
 	my $dbh = $m->{dbh};
@@ -1259,7 +1259,7 @@ sub cacheUserStatus
 #------------------------------------------------------------------------------
 # Get user hash ref from user id
 
-sub getUser 
+sub getUser
 {
 	my $m = shift();
 	my $id = shift();
@@ -1284,7 +1284,7 @@ sub createUser
 #		SELECT COUNT(*) FROM $cfg->{dbPrefix}users");
 #	my $admin = $userNum ? 0 : 1;
 #	$params{password} = "admin" if $admin;
-	
+
 	my $admin = 0;
 
 	# Get salted password hash
@@ -1326,28 +1326,28 @@ sub createUser
 	my $indent = $m->firstDef($params{indent}, $cfg->{indent});
 	my $topicsPP = $m->firstDef($params{topicsPP}, $cfg->{topicsPP});
 	my $postsPP = $m->firstDef($params{postsPP}, $cfg->{postsPP});
-	
+
 	# Get random values
 	my $bounceAuth = int(rand(2147483647));
 	my $sourceAuth = int(rand(2147483647));
-	
-	# Insert user	
+
+	# Insert user
 	# TUSK begin modification, adding realName to the end of inserted values.
 	$m->dbDo("
 		INSERT INTO $cfg->{dbPrefix}users (
-			userName, password, salt, email, admin, hideEmail, 
+			userName, password, salt, email, admin, hideEmail,
 			notify, msgNotify, tempLogin, secureLogin, privacy,
 			extra1, extra2, extra3, timezone, language,
 			style, fontFace, fontSize, boardDescs,
 			showDeco, showAvatars, showImages, showSigs,
-			collapse, indent, topicsPP, postsPP, 
-			regTime, lastOnTime, prevOnTime, 
+			collapse, indent, topicsPP, postsPP,
+			regTime, lastOnTime, prevOnTime,
 			lastIp, bounceAuth, sourceAuth, realName
 		) VALUES (
 			$userNameQ, '$passwordMd5', $salt, $emailQ, $admin, $hideEmail,
 			$notify, $msgNotify, $tempLogin, $secureLogin, $privacy,
-			$extra1Q, $extra2Q, $extra3Q, $timezoneQ, $languageQ, 
-			$styleQ, $fontFaceQ, $fontSize, $boardDescs, 
+			$extra1Q, $extra2Q, $extra3Q, $timezoneQ, $languageQ,
+			$styleQ, $fontFaceQ, $fontSize, $boardDescs,
 			$showDeco, $showAvatars, $showImages, $showSigs,
 			$collapse, $indent, $topicsPP, $postsPP,
 			$m->{now}, $m->{now}, $m->{now},
@@ -1355,7 +1355,7 @@ sub createUser
 		)");
 	# TUSK end
 
-	# Return id of created user	
+	# Return id of created user
 	return $m->dbInsertId("$cfg->{dbPrefix}users");
 }
 
@@ -1375,23 +1375,23 @@ sub updateUser
 	my $lastOnTimeStr = $script ne "user_login" ? ", lastOnTime = $m->{now}" : "";
 
 	# Update lastTopicId?
-	my $lastTopicIdStr = $script !~ /^topic_|^branch_|^post_|^poll_|^report_|^todo_/ 
+	my $lastTopicIdStr = $script !~ /^topic_|^branch_|^post_|^poll_|^report_|^todo_/
 		&& $user->{lastTopicId} ? ", lastTopicId = 0, lastTopicTime = 0" : "";
-	
+
 	# Update chatReadTime?
 	my $chatReadTimeStr = $script eq 'chat_show' ? ", chatReadTime = $m->{now}" : "";
 
-	# Update user	
+	# Update user
 	my $agentQ = $m->dbQuote($m->escHtml($env->{userAgent}));
 	$m->dbDo("
-		UPDATE $m->{cfg}{dbPrefix}users SET 
+		UPDATE $m->{cfg}{dbPrefix}users SET
 			lastIp = '$env->{userIp}',
 			userAgent = $agentQ
 			$lastOnTimeStr
 			$lastTopicIdStr
 			$chatReadTimeStr
 		WHERE id = $user->{id}");
-		
+
 	# Touch user's session
 	$m->dbDo("
 		UPDATE $m->{cfg}{dbPrefix}sessions SET lastOnTime = $m->{now} WHERE id = '$m->{sessionId}'")
@@ -1416,11 +1416,11 @@ sub deleteUser
 
 	# Delete avatar
 	unlink "$cfg->{attachFsPath}/avatars/$delUser->{avatar}" if $delUser->{avatar};
-	
+
 	# Delete keyring
 	unlink "$cfg->{attachFsPath}/keys/$userId.gpg";
 	unlink "$cfg->{attachFsPath}/keys/$userId.gpg~";
-	
+
 	$m->dbBegin();
 	eval {
 		# Delete user options in the variables table
@@ -1435,19 +1435,19 @@ sub deleteUser
 		# Delete ban entries
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}userBans WHERE userId = $userId");
-	
+
 		# Delete member entries
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}boardMembers WHERE userId = $userId");
-	
+
 		# Delete moderator entries
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}boardAdmins WHERE userId = $userId");
-	
+
 		# Delete hidden board entries
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}boardHiddenFlags WHERE userId = $userId");
-		
+
 		# Delete board subscriptions
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}boardSubscriptions WHERE userId = $userId");
@@ -1455,17 +1455,17 @@ sub deleteUser
 		# Delete topic subscriptions
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}topicSubscriptions WHERE userId = $userId");
-		
+
 		# Delete todo list entries
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}postTodos WHERE userId = $userId");
-		
+
 		# Delete ignore entries
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}userIgnores WHERE userId = $userId");
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}userIgnores WHERE ignoredId = $userId");
-	
+
 		# Delete topicReadTimes entries
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}topicReadTimes WHERE userId = $userId");
@@ -1483,7 +1483,7 @@ sub deleteUser
 		# Set post user ids and notifications to 0
 		$m->dbDo("
 			UPDATE $cfg->{dbPrefix}posts SET userId = 0 WHERE userId = $userId");
-		
+
 		# Delete user
 		$m->dbDo("
 			DELETE FROM $cfg->{dbPrefix}users WHERE id = $userId");
@@ -1499,19 +1499,19 @@ sub checkBan
 	my $m = shift();
 	my $userId = shift();
 
-	# Don't check for admins	
+	# Don't check for admins
 	return if $m->{user}{admin};
 
-	# Check for ban 
+	# Check for ban
 	my ($banTime, $reason, $duration) = $m->fetchArray("
-		SELECT banTime, reason, duration 
-		FROM $m->{cfg}{dbPrefix}userBans 
+		SELECT banTime, reason, duration
+		FROM $m->{cfg}{dbPrefix}userBans
 		WHERE userId = $userId");
 
 	if ($banTime) {
 		# Log event
 		$m->logAction(1, 'user', 'banned', $userId);
-	
+
 		# Print error
 		my $durationStr = $duration ? "$m->{lng}{errBannedT2} $duration $m->{lng}{errBannedT3}" : "";
 		$m->printError($m->{lng}{errBlocked}, "$m->{lng}{errBannedT} $reason. $durationStr");
@@ -1534,7 +1534,7 @@ sub checkBlock
 		if (index($ip, $block) == 0) {
 			# Log event
 			$m->logAction(1, 'ip', 'blocked');
-			
+
 			# Print error
 			$m->printError($m->{lng}{errBlocked}, $m->{lng}{errBlockedT});
 		}
@@ -1596,7 +1596,7 @@ sub setCookies
 	my $pwd = shift();
 	my $temp = shift() || 0;
 	my $secure = shift() || 0;
-	
+
 	# Shortcuts
 	my $cfg = $m->{cfg};
 
@@ -1606,7 +1606,7 @@ sub setCookies
 	$secure = $secure ? "; secure" : "";
 
 	if (MP) {
-		$m->{ap}->err_headers_out->{'Set-Cookie'} 
+		$m->{ap}->err_headers_out->{'Set-Cookie'}
 			= "$cfg->{cookiePrefix}login=$id-$pwd$path$domain$expires$secure";
 	}
 	else {
@@ -1647,10 +1647,10 @@ sub checkUsername
 	# Shortcuts
 	my $cfg = $m->{cfg};
 	my $lng = $m->{lng};
-	
+
 	length($name) or $m->formError($lng->{errNamEmpty});
 	if ($name) {
-		length($name) >= 2 && length($name) <= $cfg->{maxUserNameLen} 
+		length($name) >= 2 && length($name) <= $cfg->{maxUserNameLen}
 			or $m->formError($lng->{errNamSize});
 		$name =~ /$cfg->{userNameRegExp}/ or $m->formError($lng->{errNamChar});
 		$name !~ /^ / or $m->formError($lng->{errNamChar});
@@ -1675,7 +1675,7 @@ sub boardAdmin
 	# Shortcuts
 	my $cfg = $m->{cfg};
 
-	# Return true if user is blog owner	
+	# Return true if user is blog owner
 	return 1 if $boardId < 0 && abs($boardId) == $m->{user}{id};
 
 	# Return cached status if query is for current user
@@ -1686,9 +1686,9 @@ sub boardAdmin
 
 	# Otherwise fetch status from database
 	return 1 if $m->fetchArray("
-		SELECT 1 
-		FROM $cfg->{dbPrefix}boardAdmins 
-		WHERE userId = $userId 
+		SELECT 1
+		FROM $cfg->{dbPrefix}boardAdmins
+		WHERE userId = $userId
 			AND boardId = $boardId");
 
 	return 1 if $m->fetchArray("
@@ -1698,7 +1698,7 @@ sub boardAdmin
 			ON boardAdminGroups.groupId = groupMembers.groupId
 			AND boardAdminGroups.boardId = $boardId
 		WHERE groupMembers.userId = $userId");
-	
+
 	return 0;
 }
 
@@ -1722,9 +1722,9 @@ sub boardMember
 
 	# Otherwise fetch status from database
 	return 1 if $m->fetchArray("
-		SELECT 1 
+		SELECT 1
 		FROM $cfg->{dbPrefix}boardMembers
-		WHERE userId = $userId 
+		WHERE userId = $userId
 			AND boardId = $boardId");
 
 	return 1 if $m->fetchArray("
@@ -1734,7 +1734,7 @@ sub boardMember
 			ON boardMemberGroups.groupId = groupMembers.groupId
 			AND boardMemberGroups.boardId = $boardId
 		WHERE groupMembers.userId = $userId");
-	
+
 	return 0;
 }
 
@@ -1749,7 +1749,7 @@ sub boardWritable
 
 	# Shortcuts
 	my $user = $m->{user};
-	
+
 	return 0 if !$user->{id} && !$board->{unregistered};
 	return 1 if $board->{announce} == 0;
 	return 1 if $board->{announce} == 2 && $reply;
@@ -1772,7 +1772,7 @@ sub boardVisible
 	my $cfg = $m->{cfg};
 
 	# Call authz plugin
-	if ($cfg->{authzPlg}{viewBoard}) { 
+	if ($cfg->{authzPlg}{viewBoard}) {
 		my $result = $m->callPlugin($cfg->{authzPlg}{viewBoard}, user => $user, board => $board);
 		return 1 if $result == 2;  # unconditional access
 		return 0 if $result == 1;  # access denied
@@ -1795,14 +1795,14 @@ sub getBlogBoard
 {
 	my $m = shift();
 	my $blogger = shift() || {};
-	
-	return { 
-		isBlog => 1, 
-		id => -$blogger->{id} || 0, 
-		title => $blogger->{userName} || "?", 
+
+	return {
+		isBlog => 1,
+		id => -$blogger->{id} || 0,
+		title => $blogger->{userName} || "?",
 		private => $m->{cfg}{blogs} == 2 ? 2 : 0,
 		flat => $m->{cfg}{blogsFlat},
-		announce => 2, 
+		announce => 2,
 	};
 }
 
@@ -1827,7 +1827,7 @@ sub printHttpHeader
 	if (MP) {
 		$ap->status(200);
 		$ap->content_type("$m->{contentType}; charset=$cfg->{charset}");
-		
+
 		if ($cfg->{noCacheHeaders}) {
 			$ap->no_cache(1);
 		}
@@ -1839,7 +1839,7 @@ sub printHttpHeader
 	else {
 		print "HTTP/1.1 200 OK\n" if $cfg->{nph};
 
-		print 
+		print
 			"Content-Type: $m->{contentType}; charset=$cfg->{charset}\n",
 			"Expires: Thu, 01 Jan 1970 00:00:00 GMT\n";
 
@@ -1851,20 +1851,20 @@ sub printHttpHeader
 		else {
 			print "Cache-Control: private\n";
 		}
-		
+
 		print "Set-Cookie: $cfg->{cookiePrefix}$_\n" for @{$m->{cookies}};
 	}
 
 	# Call include plugin
 	$m->callPlugin($cfg->{includePlg}{httpHeader});
-		
+
 	$m->{printPhase} = 1;
 }
 
 #------------------------------------------------------------------------------
 # Print page header
 
-sub printHeader 
+sub printHeader
 {
 	my $m = shift();
 	my $title = shift() || undef;
@@ -1888,20 +1888,20 @@ sub printHeader
 	# Determine execution message or greeting string
 	my $msg = $m->paramStrId('msg');
 	if ($msg) {
-		my $msgId = "msg$msg"; 
-		$msg = "<span class='tbm'>$lng->{$msgId}</span>" 
+		my $msgId = "msg$msg";
+		$msg = "<span class='tbm'>$lng->{$msgId}</span>"
 	}
-	else { 
+	else {
 	# TUSK begin
         # changed title to display realName rather than userName
-		$msg = !$userId ? $lng->{hdrNoLogin} : "$lng->{hdrWelcome} $user->{realName}" 
-		#$msg = !$userId ? $lng->{hdrNoLogin} : "$lng->{hdrWelcome} $user->{userName}" 
+		$msg = !$userId ? $lng->{hdrNoLogin} : "$lng->{hdrWelcome} $user->{realName}"
+		#$msg = !$userId ? $lng->{hdrNoLogin} : "$lng->{hdrWelcome} $user->{userName}"
 	# TUSK end
 	}
-	
+
 	# Print warning for locked forums for admin
 	$msg .= " - <em>FORUM IS LOCKED</em>" if $cfg->{locked} && $user->{admin};
-	
+
 	# End HTTP header
 	if (MP1) { $ap->send_http_header() }
 	elsif (CGI) { print "\n" }
@@ -1910,7 +1910,7 @@ sub printHeader
 	$title ||= $cfg->{forumName};
 	my $fontFaceStr = $user->{fontFace} ? "font-family: '$user->{fontFace}', sans-serif;" : "";
 	my $fontSizeStr = $user->{fontSize} ? "font-size: $user->{fontSize}px;" : "";
-	
+
 	# Print HTML header
 	my $et = "/";
 	if ($ctype eq "application/xhtml+xml") {
@@ -1923,12 +1923,12 @@ sub printHeader
 	else {
 		# W3C validator doesn't like empty tag syntax on header elements in HTML4
 		$et = "";
-		print 
+		print
 			'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">',
 			"\n<html>\n";
 	}
 
-	print		
+	print
 		"<head>\n",
 		"<title>$title</title>\n",
 		"<meta http-equiv='content-type' content='$ctype; charset=$cfg->{charset}'$et>\n",
@@ -1945,14 +1945,14 @@ sub printHeader
 	    print '<link rel="alternate"  type="application/rss+xml" title="' . $title . ' ATOM feed" href="' . $path . '/board' . $randBid . '.atom10.xml" />' . "\n";
 
 	}
-	
+
 	# Search engines should only index pages where it makes sense
 	if (!$cfg->{noIndex} && $env->{script} =~ /^(?:forum|board|blog|topic)_show$/) {
 		 print "<meta name='robots' content='noindex,nofollow'$et>\n";
 	}
-		
+
 	# Microsummary link
-	print 
+	print
 		"<link rel='microsummary' href='$cfg->{attachUrlPath}/xml/microsummary.txt'",
 		" type='text/plain'$et>\n"
 		if $cfg->{microsummary} && $env->{script} eq 'forum_show';
@@ -1969,11 +1969,11 @@ sub printHeader
 			"<link rel='help' href='$helpUrl' type='$ctype'$et>\n",
 			$cfg->{forumSearch} ? "<link rel='search' href='$searchUrl' type='$ctype'$et>\n" : "",
 			"<link rel='copyright' href='$copyUrl' type='$ctype'$et>\n";
-	
+
 		# Home link
 		print	"<link rel='home' href='$cfg->{homeUrl}' type='$ctype' title='$cfg->{homeTitle}'$et>\n"
 			if $cfg->{homeUrl};
-	
+
 		# Prev/next links
 		if ($env->{script} eq 'board_show') {
 			my $boardId = $m->paramInt('bid');
@@ -2012,21 +2012,21 @@ sub printHeader
 	# Inline style snippets
 	if (%{$cfg->{styleSnippets}} && $m->{dbh}) {
 		my $snippets = $m->fetchAllArray("
-			SELECT name 
-			FROM $cfg->{dbPrefix}variables 
-			WHERE name LIKE 'sty%' 
+			SELECT name
+			FROM $cfg->{dbPrefix}variables
+			WHERE name LIKE 'sty%'
 				AND userId = $userId");
-		for my $snippet (@$snippets) { 
+		for my $snippet (@$snippets) {
 			my $css = $cfg->{styleSnippets}{$snippet->[0]};
 			print "  $css\n" if $css;
 		}
 	}
 	print "</style>\n";
-	
+
 	# Call include plugin
 	$m->callPlugin($cfg->{includePlg}{htmlHeader});
 
-	# Print focus script	
+	# Print focus script
 	print <<"EOSCRIPT"
 <script type='text/javascript'>$m->{cdataStart}
 	function mwfSetFocus() {
@@ -2042,7 +2042,7 @@ sub printHeader
 		if (input) input.focus();
 		else if (texta) texta.focus();
 	}
-	
+
 	function mwfSetFocusOnload() {
 		var mwfOldOnload = window.onload;
 		if (typeof(window.onload) != 'function') window.onload = mwfSetFocus;
@@ -2091,9 +2091,9 @@ EOSCRIPT
 
 	# Print help link
 	print $m->buttonLink($helpUrl, 'hdrHelp', 'help');
-		
+
 	# Print search link
-	print $m->buttonLink($searchUrl, 'hdrSearch', 'search') if $cfg->{forumSearch}; 
+	print $m->buttonLink($searchUrl, 'hdrSearch', 'search') if $cfg->{forumSearch};
 
 	# Print chat link
 	print $m->buttonLink($m->url('chat_show'), 'hdrChat', 'chat')
@@ -2103,7 +2103,7 @@ EOSCRIPT
 	print $m->buttonLink($m->url('blog_show'), 'hdrBlog', 'blog') if $cfg->{blogs} && $userId;
 
 	# Print private messages link
-	print $m->buttonLink($m->url('message_list'), 'hdrMsgs', 'message') 
+	print $m->buttonLink($m->url('message_list'), 'hdrMsgs', 'message')
 		if $cfg->{messages} && $userId;
 
 	# Print user options link
@@ -2111,7 +2111,7 @@ EOSCRIPT
 
 	# Print user registration link
 	print $m->buttonLink("user_register$m->{ext}", 'hdrReg', 'user')
-		if (!$userId && !$cfg->{adminUserReg} && !$cfg->{authenPlg}{login} 
+		if (!$userId && !$cfg->{adminUserReg} && !$cfg->{authenPlg}{login}
 			&& !$cfg->{authenPlg}{request})
 		|| ($cfg->{adminUserReg} && $user->{admin});
 
@@ -2138,7 +2138,7 @@ EOSCRIPT
 #------------------------------------------------------------------------------
 # Print page footer
 
-sub printFooter 
+sub printFooter
 {
 	my $m = shift();
 	shift();
@@ -2158,11 +2158,11 @@ sub printFooter
 	$m->callPlugin($cfg->{includePlg}{bottom});
 	# TUSK end
 
-	# Print jump-to-board list	
+	# Print jump-to-board list
 	if ($cfg->{boardJumpList} && !$hideBoardList && $m->{dbh}) {
 		# Get boards
 
-	    # TUSK begin 
+	    # TUSK begin
 	    # We have already compiled a list of viewable boards on login.
 	    # Call the appropriate function from the ForumKey pkg to retrieve
 	    # the hash, and remove the boardVisible check because it isn't necessary.
@@ -2173,7 +2173,7 @@ sub printFooter
 
 		# Print list
 		my $sid = $m->{sessionId} ? "sid=$m->{sessionId}" : "";
-		my $script = 
+		my $script =
 			"var id = this.options[this.selectedIndex].value; "
 			. "if (id.indexOf('cid') == 0) { window.location = 'forum_show$m->{ext}?$sid#' + id } "
 			. "else if (id == 0) { window.location = 'forum_show$m->{ext}?$sid' } "
@@ -2184,7 +2184,7 @@ sub printFooter
 			"<div>\n",
 			"<select name='bid' size='1' onchange=\"$script\">\n",
 			"<option value='0'>$lng->{comBoardList}</option>\n";
-			
+
 		my $lastCategId = 0;
 		for my $board (@$boards) {
 			if ($board->{categoryId} != $lastCategId) {
@@ -2202,7 +2202,7 @@ sub printFooter
 			"</div>\n",
 			"</form>\n";
 
-		my $years_script = 
+		my $years_script =
 			"var id = this.options[this.selectedIndex].value; "
 			. "window.location = 'forum_show$m->{ext}?$sid\&' + id";
 
@@ -2237,12 +2237,12 @@ sub printFooter
 			"<span class='htt'>Warning</span>\n",
 			"</div>\n",
 			"<div class='ccl'>\n";
-	
+
 		for my $msg (@{$m->{warnings}}) {
 			$msg = $m->escHtml($msg);
 			print "<p>$msg</p>\n";
 		}
-		
+
 		print
 			"</div>\n",
 			"</div>\n\n";
@@ -2256,7 +2256,7 @@ sub printFooter
 			"<span class='htt'>SQL Queries ($m->{queryNum})</span>\n",
 			"</div>\n",
 			"<div class='ccl'>\n";
-	
+
 		for my $query (@{$m->{queries}}) {
 			$query =~ s!\n!!g;
 			$query =~ s!\t! !g;
@@ -2271,7 +2271,7 @@ sub printFooter
 			$query = $m->escHtml($query, 2);
 			print "<p>$query</p>\n";
 		}
-		
+
 		print
 			"</div>\n",
 			"</div>\n\n";
@@ -2282,7 +2282,7 @@ sub printFooter
 		"<p class='cpr'>Powered by mwForum $MwfMain::VERSION",
 		" &#169; 1999-2007 Markus Wichitill</p>\n\n"
 		if $m->{env}{script} ne 'forum_info';
-		
+
 	# Call include plugin
 	# TUSK begin moved this plug-in call to the beginning of this fn
 	#$m->callPlugin($cfg->{includePlg}{bottom});
@@ -2294,8 +2294,8 @@ sub printFooter
 		$time = sprintf("%.3f", $time);
 		print "<p class='pct'>Page created in ${time}s with $m->{queryNum} database queries.</p>\n\n";
 	}
-	
-	print	
+
+	print
 		"</body>\n",
 		"</html>\n\n";
 
@@ -2334,21 +2334,21 @@ sub printPageBar
 	    "<div class='frm' style='border-top: none; border-bottom: none'>\n",
 	    "<div class='hcl'>\n",
 	    "<span class='nav'>\n";
-	    
+
 	    # Navigation button links
 	    for my $link (@$navLinks) {
 		my $textId = $link->{txt};
 		my $text = $lng->{$textId} || $textId;
 		my $textTT = $lng->{$textId . 'TT'};
 		$link->{dsb}
-		? push @lines, 
+		? push @lines,
 		"<img class='ico' src='$imgPath/nav_$link->{ico}_d.png' title='$textTT' alt='$text'/>\n"
 		    : push @lines, "<a href='$link->{url}'>",
 		    "<img class='ico' src='$imgPath/nav_$link->{ico}.png' title='$textTT' alt='$text'/></a>\n";
 	    }
-	    
+
 	    # Title
-	    push @lines, 
+	    push @lines,
 	    "</span>\n",
 	    "<span class='htt'>$mainTitle</span> $subTitle\n",
 	    "</div>\n";
@@ -2368,8 +2368,8 @@ sub printPageBar
 				if    ($textId =~ /Up/)   { $img = "nav_up" }
 				elsif ($textId =~ /Next/) { $img = "nav_next" }
 				elsif ($textId =~ /Prev/) { $img = "nav_prev" }
-				$link->{dsb} 
-					? push @bclLines, 
+				$link->{dsb}
+					? push @bclLines,
 						"<img class='ico dsb' src='$imgPath/${img}_d.png' title='$textTT' alt='$text'/>\n"
 					: push @bclLines, "<a href='$link->{url}'>",
 						"<img class='ico' src='$imgPath/$img.png' title='$textTT' alt='$text'/></a>\n";
@@ -2420,7 +2420,7 @@ sub printPageBar
 	}
 
 	# If there's only page links, we need a filler space or float breaks
-	push @bclLines, "&#160;\n" 
+	push @bclLines, "&#160;\n"
 		if $pageLinks && @$pageLinks && !($userLinks && @$userLinks || $adminLinks && @$adminLinks);
 	my $special_case_border = (! $mainTitle) ? 'border-top:10px solid white;' : '';
 	push @lines, "<div class='bcl' style='" . $special_case_border . " border-bottom: 1px solid silver'>\n",	@bclLines, "</div>\n" if @bclLines;
@@ -2447,7 +2447,7 @@ sub buttonLink
 	my $text = $lng->{$textId} || $textId;
 	my $title = $lng->{$textId . 'TT'};
 	my $str = "<a class='btl' href='$url' title='$title'>";
-	$str .= "<img class='bic' src='$m->{cfg}{dataPath}/buttonicons/bic_$icon.png' alt=''/> " 
+	$str .= "<img class='bic' src='$m->{cfg}{dataPath}/buttonicons/bic_$icon.png' alt=''/> "
 		if $m->{buttonIcons};
   $str .= $text . "</a>\n";
   return $str;
@@ -2464,7 +2464,7 @@ sub submitButton
 	my $name = shift();
 
 	my $text = $m->{lng}{$textId} || $textId;
-	
+
 	if ($m->{buttonIcons} && $m->{env}{userAgent} !~ /MSIE (?:5|6)/) {
 		my $nameStr = $name ? "name='$name' value='1'" : "";
 		return "<button type='submit' class='isb' $nameStr>"
@@ -2491,7 +2491,7 @@ sub tagButtons
 	# Don't print when disabled
 	return if $cfg->{tagButtons} < 1;
 
-	# Print script	
+	# Print script
 	my @lines = ();
 	push @lines, <<"EOHTML";
 	<script type='text/javascript'>$m->{cdataStart}
@@ -2502,7 +2502,7 @@ sub tagButtons
 			if (typeof document.selection != 'undefined') {
 				var range = document.selection.createRange();
 				var sel = range.text;
-				range.text = tag2 
+				range.text = tag2
 					? "[" + tag1 + "]" + sel + "[/" + tag2 + "]"
 					: ":" + tag1 + ":";
 				range = document.selection.createRange();
@@ -2517,7 +2517,7 @@ sub tagButtons
 				var before = txta.value.substring(0, start);
 				var sel    = txta.value.substring(start, end);
 				var after  = txta.value.substring(end, txta.textLength);
-				txta.value = tag2 
+				txta.value = tag2
 					? before + "[" + tag1 + "]" + sel + "[/" + tag2 + "]" + after
 					: before + ":" + tag1 + ":" + after;
 				var caret = sel.length == 0
@@ -2578,17 +2578,17 @@ sub stdFormFields
 	my @lines = ();
 
 	push @lines, "<input type='hidden' name='subm' value='1'/>\n";
-		
+
 	push @lines, "<input type='hidden' name='auth' value='$m->{user}{sourceAuth}'/>\n"
 		if $m->{user} && $m->{user}{sourceAuth};
 
-	push @lines, "<input type='hidden' name='sid' value='$m->{sessionId}'/>\n" 
+	push @lines, "<input type='hidden' name='sid' value='$m->{sessionId}'/>\n"
 		if $m->{sessionId};
 
 	my $origin = $m->escHtml($m->paramStr('ori'));
-	push @lines, "<input type='hidden' name='ori' value='$origin'/>\n" 
+	push @lines, "<input type='hidden' name='ori' value='$origin'/>\n"
 		if $origin;
-		
+
 	return @lines;
 }
 
@@ -2599,12 +2599,12 @@ sub stdFormFields
 #------------------------------------------------------------------------------
 # Print error, called by other fatal error functions
 
-sub printError 
+sub printError
 {
 	my $m = shift();
 	my $title = "Forum " . (shift() || $m->{lng}{errGeneric});
 	my $msg = shift() || $m->{lng}{errDefault};
-	
+
 	die $msg if ($ENV{COMMAND_LINE});
 
 	my $r = $m->{ap};
@@ -2626,13 +2626,13 @@ sub printError
 
 	# Log error
 	$m->logError($msg);
-	
-	# Transaction active?	
+
+	# Transaction active?
 	my $transaction = $m->{dbh} && $m->{dbh}{AutoCommit} == 0;
-	
+
 	# TUSK begin
 	# adding custom error handling.  if we are on a development machine, display errors as usual
-	
+
 	if ($m->{redirectError}){
 	    die $msg;
 	}
@@ -2681,14 +2681,14 @@ sub printError
 		"</div>\n\n";
 
 		$m->printFooter(undef, 1);
-		ErrorReport::sendErrorReport($r, 
+		ErrorReport::sendErrorReport($r,
 					     {
-						 To => $TUSK::Constants::ErrorEmail, 
-						 From => $TUSK::Constants::ErrorEmail, 
+						 To => $TUSK::Constants::ErrorEmail,
+						 From => $TUSK::Constants::ErrorEmail,
 						 Msg => $msg,
 						 uriRequest => $ENV{'SCRIPT_NAME'},
 						 }
-					     );	    
+					     );
 	}
 
 	# Inside transaction eval block, throw exception to leave and rollback
@@ -2726,7 +2726,7 @@ sub printNote
 #------------------------------------------------------------------------------
 # User has probably done something wrong
 
-sub userError 
+sub userError
 {
 	my $m = shift();
 	$m->printError($m->{lng}{errUser}, shift());
@@ -2735,7 +2735,7 @@ sub userError
 #------------------------------------------------------------------------------
 # Database error
 
-sub dbError 
+sub dbError
 {
 	my $m = shift();
 
@@ -2747,7 +2747,7 @@ sub dbError
 		};
 	}
 
-	# Prepare error message	
+	# Prepare error message
 	$m->{query} =~ s!\t!!g;
 	$m->{query} =~ s!^\n+!!g;
 	$m->{query} =~ s!\n+$!!g;
@@ -2768,7 +2768,7 @@ sub dbError
 #------------------------------------------------------------------------------
 # CGI parameter missing/empty
 
-sub paramError 
+sub paramError
 {
 	my $m = shift();
 	$m->printError($m->{lng}{errParam}, shift());
@@ -2777,7 +2777,7 @@ sub paramError
 #------------------------------------------------------------------------------
 # Database entry not found
 
-sub entryError 
+sub entryError
 {
 	my $m = shift();
 	$m->printError($m->{lng}{errEntry}, shift());
@@ -2786,7 +2786,7 @@ sub entryError
 #------------------------------------------------------------------------------
 # User should have been registered for requested action
 
-sub regError 
+sub regError
 {
 	my $m = shift();
 	$m->printError($m->{lng}{errUser}, $m->{lng}{errReg});
@@ -2795,7 +2795,7 @@ sub regError
 #------------------------------------------------------------------------------
 # User should have been an admin or mod for requested action
 
-sub adminError 
+sub adminError
 {
 	my $m = shift();
 	$m->printError($m->{lng}{errUser}, $m->{lng}{errAdmin});
@@ -2817,7 +2817,7 @@ sub formError
 {
 	my $m = shift();
 	my $errorMsg = shift() || $m->{lng}{errDefault};
-	
+
 	# Add message to error list
 	push @{$m->{formErrors}}, $errorMsg;
 }
@@ -2839,7 +2839,7 @@ sub printFormErrors
 		"<div class='ccl'>\n";
 
 	print "<p>$_</p>\n" for @{$m->{formErrors}};
-	
+
 	print
 		"</div>\n",
 		"</div>\n\n";
@@ -2854,7 +2854,7 @@ sub logError
 	my $msg = shift();
 	my $warning = shift();  # Is non-fatal error, print at page bottom
 
-	# Log to webserver log	
+	# Log to webserver log
 	if (MP) {
 		$m->{ap}->log_error("[forum] [client $m->{env}{userIp}] $msg");
 	}
@@ -2863,7 +2863,7 @@ sub logError
 		warn $timestamp . "[client $m->{env}{userIp}]" . $msg;
 	}
 
-	# Optionally log to own logfile	
+	# Optionally log to own logfile
 	if ($m->{cfg}{errorLog}) {
 		if (open my $fh, '>>', $m->{cfg}{errorLog}) {
 			binmode $fh, ':utf8' if $m->{gcfg}{utf8};
@@ -2874,7 +2874,7 @@ sub logError
 			close $fh;
 		}
 	}
-	
+
 	# Add to warnings shown at bottom of page (not if script redirects)
 	push @{$m->{warnings}}, $msg if $warning;
 }
@@ -2948,7 +2948,7 @@ sub escHtml
 	$text =~ s!\n!!g if $newlines == 0;
 	$text =~ s!\n!<br/>!g if $newlines == 2;
 	$text =~ s!\t!  !g;
-	
+
 	# Remove control characters (not valid in XML)
 	$text =~ s![\x00-\x09\x0B-\x1F\x7F]!!g;
 
@@ -3012,7 +3012,7 @@ sub editToDb
 		$post->{subject} =~ s!$rx!'*' x length($word)!egi;
 		$$text =~ s!$rx!'*' x length($word)!egi;
 	}
-	
+
 	# Escape HTML
 	$$text = $m->escHtml($$text, 2);
 
@@ -3051,7 +3051,7 @@ sub editToDb
 			$$text =~ s!>!)!g;
 		}
 	}
-	
+
 	# Do image and URL tags in one pass to avoid interference
 	$$text =~ s%
 		# Image tags
@@ -3067,7 +3067,7 @@ sub editToDb
 		elsif ($1) { "<img class='emi' src='$1' alt=''/>" }
 		elsif ($2) { "<a class='url' href='$2'>$2</a>" }
 		elsif ($3) { "<a class='url' href='$3'>$4</a>" }
-		elsif ($5) { 
+		elsif ($5) {
 			# Don't include trailing entities in autotagged URLs
 			my $all = $5;
 			my ($ent) = $all =~ /(&quot;|&gt;|&lt;|&#160;|&#39;)/g;
@@ -3099,10 +3099,10 @@ sub dbToEdit
 	# Translate linebreaks
 	$$text =~ s!<br/>!\n!g;
 
-	# Translate escaped spaces to normal spaces 
+	# Translate escaped spaces to normal spaces
 	# (otherwise some browsers convert them to A0 spaces)
 	$$text =~ s!&#160;! !g;
-	
+
 	# Remove blockquotes
 	$$text =~ s!<blockquote><p>!!g;
 	$$text =~ s!</p></blockquote>!\n!g;
@@ -3133,7 +3133,7 @@ sub dbToDisplay
 	my $user = $m->{user};
 	my $script = $m->{env}{script};
 	my $imgPath = $m->{stylePath};
-	
+
 	# Call text display plugin
 	if ($cfg->{msgDisplayPlg}) {
 		return if $m->callPlugin($cfg->{msgDisplayPlg}, board => $board, post => $post);
@@ -3177,16 +3177,16 @@ sub dbToDisplay
 	# De-embed [img]
 	$$text =~ s~<img class='emi' src='([^\']+)' alt=''/>~<a href='$1'>$1</a>~g
 		if !$user->{showImages} || $script eq 'forum_overview' || $script eq 'forum_search';
-	
+
 	# Signature
 	$$text .= "\n" . $cfg->{sigStart} . $post->{signature} . $cfg->{sigEnd}
 		if $post->{signature} && $user->{showSigs};
-	
+
 	# :Tags:
 	$$text =~ s!:([^\s:]+):!
 		$cfg->{tags}{$1} ? $cfg->{tags}{$1} : ":$1:";
 	!eg if %{$cfg->{tags}};
-	
+
 	# Smileys
 	if ($cfg->{smileys} && $user->{showDeco}) {
 		$$text =~ s~(?<!\w):\-?\)~<img class='sml' src='$imgPath/sml_pos.png' alt=':-)'/>~g;
@@ -3196,7 +3196,7 @@ sub dbToDisplay
 		$$text =~ s~(?<!\w):\-[oO]~<img class='sml' src='$imgPath/sml_ooh.png' alt=':-o'/>~g;
 		$$text =~ s~(?<!\w):\-D~<img class='sml' src='$imgPath/sml_lol.png' alt=':-D'/>~g;
 	}
-}	
+}
 
 #------------------------------------------------------------------------------
 # Translate stored text for email
@@ -3231,7 +3231,7 @@ sub dbToEmail
 	$$text =~ s!</tt>!!g;
 	$$text =~ s!<a class='url' href='(.+?)'>(.+?)</a>!$2 <$1>!g;
 	$$text =~ s!<img class='emi' src='(.+?)' alt=''/>!<Image $1>!g;
-} 
+}
 
 
 ###############################################################################
@@ -3240,21 +3240,21 @@ sub dbToEmail
 #------------------------------------------------------------------------------
 # Connect to MySQL database
 
-sub dbConnect 
+sub dbConnect
 {
 	my $m = shift();
 
 	# Shortcuts
 	my $cfg = $m->{cfg};
 	my $dbh = undef;
-	
+
 	# Connect
 	require DBI;
 
 	if ($cfg->{dbDriver} eq 'mysql' || $cfg->{dbDriver} eq 'mysqlPP') {
 		$m->{mysql} = 1;
 		my $dbName = $m->{gcfg}{dbName} || $cfg->{dbName};
-		$dbh = TUSK::Core::DB::getReadHandle(); 
+		$dbh = TUSK::Core::DB::getReadHandle();
 		$dbh->do("SET NAMES 'utf8'") if $m->{gcfg}{utf8};
 		$dbh->do("USE $cfg->{dbName}") if $m->{gcfg}{dbName};
 	}
@@ -3263,7 +3263,7 @@ sub dbConnect
 		require Hash::Case::Lower;
 		$dbh = DBI->connect(
 			"dbi:Pg:dbname=$cfg->{dbName};host=$cfg->{dbServer};$cfg->{dbParam}",
-			$cfg->{dbUser}, $cfg->{dbPassword}, 
+			$cfg->{dbUser}, $cfg->{dbPassword},
 			{ PrintError => 0, RaiseError => 0, AutoCommit => 1 })
 			or $m->dbError();
 		if ($m->{gcfg}{utf8}) {
@@ -3280,10 +3280,10 @@ sub dbConnect
 		$dbh->do("PRAGMA synchronous = OFF");
 		$dbh->func(1000, 'busy_timeout');
 	}
-	else { 
+	else {
 		$m->printError("Database Error", "Database driver not supported");
 	}
-	
+
 	$m->{dbh} = $dbh;
 
 	# Register disconnect handler in case mod_perl is used but not Apache::DBI
@@ -3313,7 +3313,7 @@ sub dbEscLike
 #------------------------------------------------------------------------------
 # Quote string for inclusion in SQL statement
 
-sub dbQuote 
+sub dbQuote
 {
 	my $m = shift();
 	my $str = shift();
@@ -3354,9 +3354,9 @@ sub dbRollback
 
 	# Rollback if there really was an active transaction
 	if ($m->{dbh}{AutoCommit} == 0) {
-		$m->{dbh}->rollback();	
+		$m->{dbh}->rollback();
 	}
-	
+
 	# Print possible unhandled exception
 	$m->{printPhase} > 3 or $m->printError("Exception", $@) if MP || CGI;
 
@@ -3372,7 +3372,7 @@ sub dbDo
 	my $m = shift();
 	$m->{query} = shift();
 	my $ignoreError = shift();
-	
+
 	push @{$m->{queries}}, $m->{query} if $m->{cfg}{debug} >= 2;
 	$m->{queryNum}++;
 	my $result = $m->{dbh}->do($m->{query}, @_);
@@ -3387,7 +3387,7 @@ sub dbPrepare
 {
 	my $m = shift();
 	$m->{query} = shift();
-	
+
 	my $sth = $m->{dbh}->prepare($m->{query}) or $m->dbError();
 	push @{$m->{queries}}, $m->{query} if $m->{cfg}{debug} >= 2;
 	return $sth;
@@ -3400,7 +3400,7 @@ sub dbExecute
 {
 	my $m = shift();
 	my $sth = shift();
-	
+
 	$m->{queryNum}++;
 	my $result = $sth->execute(@_);
 	defined($result) or $m->dbError();
@@ -3470,10 +3470,10 @@ sub fetchHash
 			$hr = \%h;
 		}
 	}
-	else { 
+	else {
 		$hr = $sth->fetchrow_hashref();
-		if ($hr && $m->{gcfg}{utf8}) { 
-			utf8::decode($_) for values %$hr 
+		if ($hr && $m->{gcfg}{utf8}) {
+			utf8::decode($_) for values %$hr
 		}
 	}
 
@@ -3493,8 +3493,8 @@ sub fetchAllArray
 	$sth->execute(@_) or $m->dbError();
 	push @{$m->{queries}}, $m->{query} if $m->{cfg}{debug} >= 2;
 	my $ar = $sth->fetchall_arrayref();
-	if ($m->{gcfg}{utf8} && !$m->{pgsql}) { 
-		for (@$ar) { utf8::decode($_) for @$_ } 
+	if ($m->{gcfg}{utf8} && !$m->{pgsql}) {
+		for (@$ar) { utf8::decode($_) for @$_ }
 	}
 
 	return $ar;
@@ -3517,15 +3517,15 @@ sub fetchAllHash
 	if ($m->{pgsql}) {
 		my (@rows, $hr);
 		while ($hr = $sth->fetchrow_hashref()) {
-			tie my %h, 'Hash::Case::Lower', $hr;	
+			tie my %h, 'Hash::Case::Lower', $hr;
 			push @rows, \%h;
 		}
 		$arhr = \@rows;
 	}
-	else { 
+	else {
 		$arhr = $sth->fetchall_arrayref({});
-		if ($m->{gcfg}{utf8}) { 
-			for (@$arhr) { utf8::decode($_) for values %$_ } 
+		if ($m->{gcfg}{utf8}) {
+			for (@$arhr) { utf8::decode($_) for values %$_ }
 		}
 	}
 
@@ -3548,13 +3548,13 @@ sub setRel
 	my $val1 = shift();
 	my $val2 = shift();
 
-	# Shortcuts	
+	# Shortcuts
 	my $cfg = $m->{cfg};
 
 	my $exists = $m->fetchArray("
 		SELECT 1 FROM $cfg->{dbPrefix}$table WHERE $key1 = $val1 AND $key2 = $val2");
 
-	if ($set && !$exists) {	
+	if ($set && !$exists) {
 		$m->dbDo("
 			INSERT INTO $cfg->{dbPrefix}$table ($key1, $key2) VALUES ($val1, $val2)");
 	}
@@ -3573,18 +3573,18 @@ sub recalcStats
 	my $boardId = shift();
 	my $topicId = shift() || undef;
 
-	# Shortcuts	
+	# Shortcuts
 	my $cfg = $m->{cfg};
 
 	# Recalc board stats
-	if ($boardId > 0) {	
+	if ($boardId > 0) {
 		my ($postNum, $lastPostTime) = $m->fetchArray("
 			SELECT COUNT(*), MAX(postTime) FROM $cfg->{dbPrefix}posts WHERE boardId = $boardId");
 		$lastPostTime ||= 0;
-	
+
 		$m->dbDo("
-			UPDATE $cfg->{dbPrefix}boards SET 
-				postNum = $postNum, 
+			UPDATE $cfg->{dbPrefix}boards SET
+				postNum = $postNum,
 				lastPostTime = $lastPostTime
 			WHERE id = $boardId");
 	}
@@ -3594,10 +3594,10 @@ sub recalcStats
 		my ($postNum, $lastPostTime) = $m->fetchArray("
 			SELECT COUNT(*), MAX(postTime) FROM $cfg->{dbPrefix}posts WHERE topicId = $topicId");
 		$lastPostTime ||= 0;
-	
+
 		$m->dbDo("
-			UPDATE $cfg->{dbPrefix}topics SET 
-				postNum = $postNum, 
+			UPDATE $cfg->{dbPrefix}topics SET
+				postNum = $postNum,
 				lastPostTime = $lastPostTime
 			WHERE id = $topicId");
 	}
@@ -3617,7 +3617,7 @@ sub setVar
 	$m->dbBegin();
 	$m->dbDo("
 		DELETE FROM $m->{cfg}{dbPrefix}variables
-		WHERE name = '$name' 
+		WHERE name = '$name'
 			AND userId = $userId");
 	my $valueQ = $m->dbQuote($value);
 	$m->dbDo("
@@ -3634,11 +3634,11 @@ sub getVar
 	my $m = shift();
 	my $name = shift();
 	my $userId = shift() || 0;
-	
+
 	my $value = $m->fetchArray("
-		SELECT value 
-		FROM $m->{cfg}{dbPrefix}variables 
-		WHERE name = '$name' 
+		SELECT value
+		FROM $m->{cfg}{dbPrefix}variables
+		WHERE name = '$name'
 			AND userId = $userId");
 
 	return $value;
@@ -3654,7 +3654,7 @@ sub logAction
 	# Shortcuts
 	my $cfg = $m->{cfg};
 
-	my $level = shift();	
+	my $level = shift();
 	my $entity = shift();
 	my $action = shift();
 	my $userId = shift() || 0;
@@ -3664,7 +3664,7 @@ sub logAction
 	my $extraId = shift() || 0;
 
 	# Call log/event plugins
-	$m->callPlugin($_, 
+	$m->callPlugin($_,
 		level => $level,
 		entity => $entity,
 		action => $action,
@@ -3680,10 +3680,10 @@ sub logAction
 	# Normal logging
 	$m->dbDo("
 		INSERT INTO $cfg->{dbPrefix}log (
-			level, entity, action, userId, boardId, topicId, postId, extraId, 
+			level, entity, action, userId, boardId, topicId, postId, extraId,
 			logTime, ip
 		) VALUES (
-			$level, '$entity', '$action', $userId, $boardId, $topicId, $postId, $extraId, 
+			$level, '$entity', '$action', $userId, $boardId, $topicId, $postId, $extraId,
 			$m->{now}, '$m->{env}{userIp}'
 		)");
 }
@@ -3701,7 +3701,7 @@ sub logString
 	my $stringQ = $m->dbQuote($string);
 	$m->dbDo("
 		INSERT INTO $m->{cfg}{dbPrefix}logStrings (string) VALUES ($stringQ)");
-	
+
 	return $m->dbInsertId("$m->{cfg}{dbPrefix}logStrings");
 }
 
@@ -3715,7 +3715,7 @@ sub deleteAttachment
 
 	# Shortcuts
 	my $cfg = $m->{cfg};
-	
+
 	my $attach = $m->fetchHash("
 		SELECT postId, fileName FROM $cfg->{dbPrefix}attachments WHERE id = $attachId");
 	my $attachFsPath = $m->{cfg}{attachFsPath};
@@ -3747,17 +3747,17 @@ sub deletePost
 
 	$m->dbBegin();
 	eval {
-		# Does post have children?	
+		# Does post have children?
 		$hasChildren = $m->fetchArray("
 			SELECT id IS NOT NULL FROM $cfg->{dbPrefix}posts WHERE parentId = $postId")
 			if !defined($hasChildren);
 		$alone = 0 if $hasChildren;
-	
+
 		# Is post the only one in the topic?
 		$alone = $m->fetchArray("
 			SELECT parentId = 0 FROM $cfg->{dbPrefix}posts WHERE id = $postId")
 			if !defined($alone);
-	
+
 		if ($alone) {
 			# Delete whole topic if only one post
 			my $topicId = $m->fetchArray("
@@ -3769,15 +3769,15 @@ sub deletePost
 			my $attachments = $m->fetchAllArray("
 				SELECT id FROM $cfg->{dbPrefix}attachments WHERE postId = $postId");
 			$m->deleteAttachment($_->[0]) for @$attachments;
-	
+
 			# Delete todo entries
 			$m->dbDo("
 				DELETE FROM $cfg->{dbPrefix}postTodos WHERE postId = $postId");
-	
+
 			# Delete reports
 			$m->dbDo("
 				DELETE FROM $cfg->{dbPrefix}postReports WHERE postId = $postId");
-	
+
 			if ($hasChildren) {
 				# Only modify post body to preserve thread integrity
 				$m->setLanguage($cfg->{language});
@@ -3793,7 +3793,7 @@ sub deletePost
 		}
 	};
 	$@ ? $m->dbRollback() : $m->dbCommit();
-	
+
 	return $alone;
 }
 
@@ -3809,12 +3809,12 @@ sub deleteTopic
 	# Shortcuts
 	my $cfg = $m->{cfg};
 	my $lng = $m->{lng};
-	
+
 	# Get topic
 	my ($topicExists, $pollId) = $m->fetchArray("
 		SELECT id, pollId FROM $cfg->{dbPrefix}topics WHERE id = $topicId");
 	$topicExists or $m->entryError($lng->{errTpcNotFnd});
-	
+
 	# Get IDs of posts in topic
 	my $posts = $m->fetchAllArray("
 		SELECT id FROM $cfg->{dbPrefix}posts WHERE topicId = $topicId");
@@ -3843,16 +3843,16 @@ sub deleteTopic
 				DELETE FROM $cfg->{dbPrefix}polls WHERE id = $pollId");
 		}
 
-		if ($postIdsStr) {	
+		if ($postIdsStr) {
 			# Delete todo list entries
 			$m->dbDo("
 				DELETE FROM $cfg->{dbPrefix}postTodos WHERE postId IN ($postIdsStr)");
-	
+
 			# Delete report list entries
 			$m->dbDo("
 				DELETE FROM $cfg->{dbPrefix}postReports WHERE postId IN ($postIdsStr)");
 		}
-	
+
 		# Delete topic and posts
 		if ($trash) {
 			$m->dbDo("
@@ -3879,9 +3879,9 @@ sub addNote
 	my $userId = shift();
 	my $strId = shift();
 	my %params = @_;
-	
+
 	return if $userId < 1;
-	
+
 	# Moderator action reason
 	my $reason = $params{reason};
 	delete $params{reason};
@@ -3898,9 +3898,9 @@ sub addNote
 
 	# Replace parameters
 	$body =~ s!\[\[$_\]\]!$params{$_}! for keys %params;
-	
+
 	# Insert notifiction
-	my $bodyQ = $m->dbQuote($body);	
+	my $bodyQ = $m->dbQuote($body);
 	$m->dbDo("
 		INSERT INTO $cfg->{dbPrefix}notes (userId, sendTime, body)
 		VALUES ($userId, $m->{now}, $bodyQ)");
@@ -3950,7 +3950,7 @@ sub createEmail
 	my $subject = "";
 	my $body = "";
 
-	# User registration email	
+	# User registration email
 	if ($params{type} eq 'userReg') {
 		$subject = $cfg->{forumName} . " - " . $lng->{regMailSubj};
 		$body = $lng->{regMailT} . "\n\n"
@@ -3963,7 +3963,7 @@ sub createEmail
 	# Forgot password ticket
 	elsif ($params{type} eq 'fgtPwd') {
 		$subject = $cfg->{forumName} . " - " . $lng->{lgiFpwMlSbj};
-		$body = $lng->{lgiFpwMlT} . "\n\n" 
+		$body = $lng->{lgiFpwMlT} . "\n\n"
 			. $params{url} . "\n\n";
 	}
 	# Email change ticket
@@ -3973,7 +3973,7 @@ sub createEmail
 	}
 	# Reply notification email
 	elsif ($params{type} eq 'replyNtf') {
-		# Set language to recipient's preference	
+		# Set language to recipient's preference
 		$m->setLanguage($user->{language});
 		$lng = $m->{lng};
 
@@ -3992,7 +3992,7 @@ sub createEmail
 	}
 	# Message notification email
 	elsif ($params{type} eq 'msgNtf') {
-		# Set language to recipient's preference	
+		# Set language to recipient's preference
 		$m->setLanguage($user->{language});
 		$lng = $m->{lng};
 
@@ -4026,7 +4026,7 @@ sub sendEmail
 	my $cfg = $m->{cfg};
 	my $lng = $m->{lng};
 
-	# Don't send if params or email address are empty	
+	# Don't send if params or email address are empty
 	return if !@_;
 	return if !$params{user}{email} || $params{user}{dontEmail};
 
@@ -4051,8 +4051,8 @@ sub sendEmail
 			"--default-key" => $cfg->{gpgSignKeyId},
 			"--passphrase-fd" => 0,
 			$cfg->{gpgOptions} ? @{$cfg->{gpgOptions}} : (),
-			$encrypt 
-				? ("--sign", "--encrypt", "--armor", "--recipient" => $params{user}{gpgKeyId}) 
+			$encrypt
+				? ("--sign", "--encrypt", "--armor", "--recipient" => $params{user}{gpgKeyId})
 				: "--clearsign",
 		];
 		my $success = $m->ipcRun($cmd, \$in, \$out, \$err);
@@ -4073,7 +4073,7 @@ sub sendEmail
 			'Subject' => $params{subject},
 			'Content-Type' => ($params{ctype} || "text/plain") . "; charset=$cfg->{charset}",
 			'X-mwForum-BounceAuth' => $params{user}{bounceAuth},
-			'Body' => $params{body},	
+			'Body' => $params{body},
 		) or $m->logError("Send email failed: $MwfSendmail::error");
 	}
 	elsif ($cfg->{mailer} eq 'ESMTP') {
@@ -4102,7 +4102,7 @@ sub sendEmail
 			$qp = 1;
 		}
 
-		# Open pipe		
+		# Open pipe
 		my $emailPipe = undef;
 		if ($cfg->{mailer} eq 'mail') {
 			# Address is specified on command line, so for security, do very strict filtering
@@ -4110,15 +4110,15 @@ sub sendEmail
 			$to =~ /^[\w\.\-_]+?\@[\w\.\-]+?\.\w{2,}$/ or return 0;
 
 			# Open pipe to mail
-			open $emailPipe, "|mail $to" 
+			open $emailPipe, "|mail $to"
 				or $m->logError("Send email failed: can't open |mail.");
 		}
 		else {
 		    # Open pipe to sendmail
 		    $ENV{PATH} =~ /(.*)/;
 		    $ENV{PATH} = $1;
-		    
-		    open $emailPipe, "|$cfg->{sendmail}" 
+
+		    open $emailPipe, "|$cfg->{sendmail}"
 			or $m->logError("Send email failed: can't open |sendmail.");
 		}
 
@@ -4152,22 +4152,22 @@ sub checkEmail
 
 	# Check length
 	length($email) or $m->formError($lng->{errEmlEmpty});
-	length($email) >= 6 && length($email) <= 100 
+	length($email) >= 6 && length($email) <= 100
 		or $m->formError($lng->{errEmlSize}) if $email;
-	
+
 	if ($email) {
 		# Check address syntax
 		$email =~ /$cfg->{emailRegExp}/ or $m->formError($lng->{errEmlInval});
 		$email =~ /^[[:ascii:]]+$/ or $m->formError($lng->{errEmlInval}) if $m->{gcfg}{utf8};
-		
+
 		# Some n00bs try to add "www." in front of the address
 		$email = lc($email);
 		$email !~ /^www\./ or $m->formError($lng->{errEmlInval});
-	
+
 		# Check against hostname blocks
 		for my $block (@{$cfg->{hostnameBlocks}}) {
 			$block = lc($block);
-			index($email, $block) < 0 
+			index($email, $block) < 0
 				or $m->printError($lng->{errBlocked}, $m->{lng}{errBlockEmlT});
 		}
 	}
