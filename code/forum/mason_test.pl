@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-#!/usr/bin/perl -w
+#!/usr/bin/env perl -w
 
 use strict;
 

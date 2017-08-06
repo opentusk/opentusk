@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 ##################################################################
 # Import Tool for importing National Competencies

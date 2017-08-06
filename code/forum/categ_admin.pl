@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 #------------------------------------------------------------------------------
 #    mwForum - Web-based discussion forum
 #    Copyright (c) 1999-2007 Markus Wichitill

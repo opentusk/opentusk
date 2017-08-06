@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/bin/env perl 
 BEGIN {
 
     use lib "../local/lib/perl5";

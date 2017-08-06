@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2014 Tufts University 
+ Copyright 2014 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 
@@ -28,7 +28,7 @@
 <%init>
 	$m->abort() unless ($ARGS{submit_check});
 
-	my $fh = IO::File->new_tmpfile or die "IO::File::new_tmpfile: $!";	
+	my $fh = IO::File->new_tmpfile or die "IO::File::new_tmpfile: $!";
 	my $startpos = $fh->getpos();
 
 	if (defined($fh)) {
@@ -44,7 +44,7 @@
 				description => $ARGS{description},
 				program_name => $ARGS{program_name},
 			);
-	
+
 			$ci_report->write_report();
 		};
 
@@ -52,26 +52,25 @@
 
 		if ($@) {
 			warn $@;
-	                $m->comp("SELF:error_out"); 
+	                $m->comp("SELF:error_out");
 		} else {
-			warn "printing file\n";
 			$fh->setpos($startpos);
 			$r->content_type('application/xml');
 			$ARGS{start_date} =~ s/-//g;
 			$ARGS{end_date} =~ s/-//g;
 			my $filename = "ci_report_$ARGS{start_date}_$ARGS{end_date}.xml";
 			$r->headers_out->add('Set-Cookie' => 'fileDownload=true; path=/');
-			$r->headers_out->set('Content-Disposition' => "attachment; filename=$filename"); 
+			$r->headers_out->set('Content-Disposition' => "attachment; filename=$filename");
 			binmode($fh);
 			binmode(STDOUT);
-	      		while (read $fh, my $buf, 16384) { 
-				print STDOUT $buf; 
+	      		while (read $fh, my $buf, 16384) {
+				print STDOUT $buf;
 			}
 		}
 		close $fh;
                 $m->abort();
 	} else {
-                $m->comp("SELF:error_out"); 
+                $m->comp("SELF:error_out");
 	}
 </%init>
 

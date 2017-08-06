@@ -1,19 +1,17 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-#! /usr/bin/perl
 
 package TUSK::Manage::Course::Import;
 
@@ -27,7 +25,7 @@ use HSDB4::XML::HSCML;
 use HSDB4::XML::Content;
 use TUSK::UploadContent;
 
-use Archive::Zip; 
+use Archive::Zip;
 use XML::Twig;
 use File::Path;
 use File::Copy;
@@ -37,7 +35,7 @@ use Data::Dumper;
 
 
 #############################################
-# importCourse will take a TUSK-generated content package, and create a course 
+# importCourse will take a TUSK-generated content package, and create a course
 # with the contents of the package. it takes several params that could benefit
 # from explanation.
 
@@ -45,11 +43,11 @@ use Data::Dumper;
 # it would make sense that this could also be the location of a zip file that is a content package.
 # we will need to build in that flexibility when desired.
 
-# $approved_authors is a list of content authors who are both in the course to be 
-# imported and in the TUSK system that is importing the course. if user in system and 
-# approved, we don't add them, but use their existing record to link content to. 
-# if user not in importing system, or in system but not approved, we add user to 
-# system with id of _foreign. 
+# $approved_authors is a list of content authors who are both in the course to be
+# imported and in the TUSK system that is importing the course. if user in system and
+# approved, we don't add them, but use their existing record to link content to.
+# if user not in importing system, or in system but not approved, we add user to
+# system with id of _foreign.
 
 # $user is the user who kicked off the process.
 # school_name is the name of the school where the course should be housed.
@@ -79,7 +77,7 @@ sub importCourse{
 	my ($manifest) = $twig->get_xpath('/manifest');
 	importObjectives($manifest, $course);
 
-	my $course_id = $course->primary_key(); 
+	my $course_id = $course->primary_key();
 
 	#####
 	# retrieve items from mani and start importing into TUSK
@@ -101,7 +99,7 @@ sub importCourse{
 	                  };
 
 	foreach my $i (@item_elts){
-		# if item's isvisible attribute is set to false, that means it is in the course ONLY 
+		# if item's isvisible attribute is set to false, that means it is in the course ONLY
 		# because it is linked to from within a document. we do not want to import this content
 		# here as it will generate a link record... we'll import it below when we regex
 		# the doc for all linked content.
@@ -132,14 +130,14 @@ sub importContent{
 		my $file_elt = $resource->first_child('file');
 		my $filename = ($file_elt && $c_type !~ /Document/)? $file_elt->{att}->{href} : '';
 		my $filepath = ($filename)? $xtra_params->{tmp_dir} . "/$filename" : '';
-		
+
 		my $fh;
 		open $fh, $filepath if $filepath;
 
 		my %content_data = (
 					title          => $resource->findvalue('metadata/lom/general/title/langstring[@xml:lang="en"]'),
-					upload_type    => $c_type, 
-					content_type   => $c_type, 
+					upload_type    => $c_type,
+					content_type   => $c_type,
 					filehandle     => $fh,
 					width          => $tusk_meta->findvalue('dimensions/width'),
 					height         => $tusk_meta->findvalue('dimensions/height'),
@@ -157,7 +155,7 @@ sub importContent{
 		}
 		else{
 			# if content is linked from a doc, we don't want to have a parent
-			# of course or content b/c we don't want to have a 
+			# of course or content b/c we don't want to have a
 			# link_[course|content]_content record
 			$content_data{parent} = 'course' unless $xtra_params->{lnkd_from_doc};
 			$course = $parent;
@@ -187,9 +185,9 @@ sub importContent{
 			# content is the home course.
 			$xml_str =~ s/src="\/(.*?)\/(\d+)"/'src="\/' . $1 . '\/' . importFromDoc($2, $course, $xtra_params) . '"'/eg;
 			$xml_str =~ s/(\/view\/content\/)(\d+)/$1 . importFromDoc($2, $course, $xtra_params)/eg;
-			
+
 			$content_data{body} = $xml_str;
-		} 
+		}
 
 
 		my ($file, $rval);
@@ -210,7 +208,7 @@ sub importContent{
 
 		if ($rval > 0) {
 			$xtra_params->{imported_content}->{$id} = $content_id;
-		} 
+		}
 		else {
 			# $log .= "Failed to upload $content_id\n";
 			next;
@@ -221,7 +219,7 @@ sub importContent{
 			my ($rval,$msg) = TUSK::UploadContent::do_file_stuff($c, $xtra_params->{user}->primary_key, %content_data);
 			unless ($rval > 0){
 				# $Log .= "$msg\n";
-				next; 
+				next;
 			}
 		}
 
@@ -236,9 +234,9 @@ sub importContent{
 		}
 	}
 	elsif(! exists $xtra_params->{lnkd_from_doc}) {
-		# if content already imported, but present in package again, we don't want 
+		# if content already imported, but present in package again, we don't want
 		# to re-import, but create a new link record to the imported content.
-		# unless, this content is linked from a document, in which case we don't 
+		# unless, this content is linked from a document, in which case we don't
 		# want to create a link record at all
 		$parent->add_child_content($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}, $xtra_params->{imported_content}->{$id}, 65535);
 	}
@@ -287,10 +285,10 @@ sub importUsers{
 				                       );
 
 				$user->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
-				
+
 				$xtra_params->{imported_users}->{$id} = $new_id;
 			}
-			
+
 			my ($rval, $msg) = $content->add_child_user($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword}, $xtra_params->{imported_users}->{$id}, 10*(++$counter), 'author');
 			# $log .= "$msg\n" unless (defined($rval));
 		}
@@ -299,7 +297,7 @@ sub importUsers{
 
 sub unpackVcard{
 	my $vcard_txt = shift;
-	
+
 	my @lines = split(/\n/, $vcard_txt);
 	my $vcard_obj;
 	foreach my $l (@lines){
@@ -318,7 +316,7 @@ sub importObjectives{
 
 	my @possible_objs = $resource->get_xpath('metadata/lom/classification');
 	my @objectives;
-		
+
 	foreach my $testit (@possible_objs){
 		if($testit->get_xpath('purpose/value/langstring[string() = "Educational Objective"]')){
 			push @objectives, $testit->findvalue('description/langstring');
@@ -374,7 +372,7 @@ sub unzip{
 	$ENV{PATH} = '/bin:/usr/bin';
 
 	system "unzip -qq -o $cont_pack -d $tmp_dir";
-	
+
 	return $tmp_dir;
 }
 
@@ -393,7 +391,7 @@ sub getNativeUsers{
 	my $tmp_dir = shift;
 
 	my $manifest = getManifest($tmp_dir);
-	
+
 	my @users = $manifest->get_xpath('//vcard');
 
 	my @native_users;
@@ -448,7 +446,7 @@ sub getRandomFile {
 		my $randnum = int(rand(10000));
 		$fn = "$path$fileseed$randnum$suffix";
 	} while(-e $fn);
-	
+
 	return $fn;
 }
 

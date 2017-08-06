@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 #
 # This module adds a session method to the Mason Request object ($m
 # inside components).  It can also handle setting and reading cookies

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # Copyright 2012 Tufts University 
 #
 # Licensed under the Educational Community License, Version 1.0 (the "License"); 

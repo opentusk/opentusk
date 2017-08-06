@@ -45,7 +45,7 @@ PERL5LIB="$base_dir/lib:$PERL5LIB"
 
 /bin/echo "[$sn] Setting up tusk.conf ..."
 /bin/mkdir --parents /usr/local/tusk/conf
-/usr/bin/perl $install_dir/vagrant/setup_tusk_conf.pl \
+/usr/bin/env perl $install_dir/vagrant/setup_tusk_conf.pl \
     $install_dir/templates/conf/tusk/tusk.conf \
     > /usr/local/tusk/conf/tusk.conf
 
@@ -68,9 +68,9 @@ _grant_mysql 'vagrant' '%' 'vagrant' 'with grant option'
 _grant_mysql 'vagrant' 'localhost' 'vagrant' 'with grant option'
 _grant_mysql 'content_mgr' 'localhost' 'vagrant'
 _grant_mysql 'tusk' 'localhost' 'vagrant'
-/usr/bin/perl $base_dir/bin/db/baseline.pl \
+/usr/bin/env perl $base_dir/bin/db/baseline.pl \
     --create-admin --create-school --dbuser=root &>/dev/null
-/usr/bin/perl $base_dir/bin/db/upgrade.pl --all --dbuser=root
+/usr/bin/env perl $base_dir/bin/db/upgrade.pl --all --dbuser=root
 cat <<EOF > /usr/local/tusk/.my.cnf
 [client]
 user=tusk
@@ -96,7 +96,7 @@ EOF
 /sbin/chkconfig httpd on
 
 /bin/echo "[$sn] Setting up crontabs ..."
-/bin/su tusk -c "/usr/bin/perl $base_dir/bin/fts_index --all &>/dev/null"
+/bin/su tusk -c "/usr/bin/env perl $base_dir/bin/fts_index --all &>/dev/null"
 cat <<EOF > /usr/local/tusk/crontab
 ### Session Tracking
 1 1 * * * $base_dir/bin/clean_session_table 2>&1 | $base_dir/bin/mail_cron_error "Old Session Cleaner"

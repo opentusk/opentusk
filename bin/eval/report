@@ -1,4 +1,4 @@
-#!/usr/bin/perl -wl
+#!/usr/bin/env perl -wl
 # Copyright 2012 Tufts University 
 #
 # Licensed under the Educational Community License, Version 1.0 (the "License"); 
@@ -16,31 +16,45 @@
 
 
 use strict;
-
+use HSDB4::test::setup;
 use HSDB45::Eval;
 use HSDB45::Eval::Results;
 use HSDB45::Eval::Results::Formatter;
-use HSDB45::Eval::Results::BarGraphCreator;
 use Getopt::Long;
-use HSDB4::test::setup;
+use XML::LibXML;
+use XML::LibXSLT;
 
-my ($school, $eval_id, $pretty_print, $verbose, $comparison_evals);
+my ($parser, $stylesheet);
+
+my ($school, $eval_id, $pretty_print, $verbose, $comparison_evals, $style_file);
 GetOptions( "school=s"    => \$school,
 	    "eval_id=i"   => \$eval_id,
-	    "comparison_evals=s" => \$comparison_evals
+	    "verbose" => \$verbose,
+	    "stylesheet=s" => \$style_file,
 	    );
 
 my $eval = HSDB45::Eval->new (_school => $school, _id => $eval_id);
+
 die "Cannot file eval for school [$school] and eval_id [$eval_id]" unless $eval->primary_key();
+
+if ($style_file) {
+    $parser = XML::LibXML->new();
+    my $xslt = XML::LibXSLT->new();
+    my $style_doc = $parser->parse_file($style_file);
+    $stylesheet = $xslt->parse_stylesheet($style_doc);
+}
+
 my $eval_results = HSDB45::Eval::Results->new($eval);
 
-my $file_name = $school . "_" . $eval_id . "_results.xml";
-print "output file name: " . $file_name . "\n";
-my $fh = FileHandle->new("> $file_name")
-    or die "could not create file " . $file_name . ": $!\n";
-$fh->autoflush(1);
+my $results_formatter = HSDB45::Eval::Results::Formatter->new($eval_results);
+if ($comparison_evals) {
+    my @eval_ids = split(/[\s\,]+/, $comparison_evals);
+    $results_formatter->{-comparison_eval_ids} = \@eval_ids;
+}
+my $result_string = $results_formatter->xml_text();
 
-my $bargraphs = HSDB45::Eval::Results::BarGraphCreator->new($eval_results);
-$bargraphs->save_svg_graphs();
+my $tdoc = $stylesheet->transform($parser->parse_string($result_string));
+
+print $stylesheet->output_string($tdoc);
 
 1;
