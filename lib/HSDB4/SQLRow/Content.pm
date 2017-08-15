@@ -1064,7 +1064,6 @@ sub tag_values {
 }
 
 sub twig_body {
-    require HSDB4::XML::HSCML;
     my $self = shift;
     my $val = $self->field_value('body');
     return my $body = HSDB4::XML::HSCML->new($val);
@@ -3997,7 +3996,7 @@ sub out_html_body {
         $display = qq(<audio class="player" $autoplay controls><source src="$streaming_uri"></audio>);
         $display .= $self->_player_footer($display_type, 'audio', $uri);
     }
-   
+
     return '<center>' . $display . $self->SUPER::out_html_body . '</center>';
 }
 
