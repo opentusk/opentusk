@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -20,13 +20,14 @@ use XML::Twig;
 use HSDB4::SQLRow::User;
 use XML::EscapeText;
 use TUSK::Constants;
+use Data::Dumper;
 
 BEGIN {
     require Exporter;
     require HSDB4::Constants;
 
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
-    
+
     @ISA = qw(Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
@@ -124,21 +125,23 @@ sub replace_external_uri {
 
 sub replace_element_uri {
     my $self = shift;
-    my $url = shift;
+    my $uri = shift;  ## values
     my $element = shift;
     my $twig = $self->twig;
 
-    $url =  XML::EscapeText::spec_chars_name($url);
-    $self->start_xml if (!$self->{data});
-    unless($twig->safe_parse($self->{data})) {
-	return (0,"Existing data in the database is malformed, can't replace it.")
+    if (exists $uri->{'#CDATA'}) {
+        $uri->{'#CDATA'} =  XML::EscapeText::spec_chars_name($uri->{'#CDATA'});
+    } else { ## trying to parse PCDATA
+        unless ($twig->safe_parse($self->{data})) {
+            return (0,"Existing data in the database is malformed, can't replace it.")
+        }
     }
+
+    $self->start_xml unless ($self->{data});
     my $root = $twig->root;
     my $elt = $root->child(0,$element);
-    if ($elt) {
-	$elt->cut;
-    }
-    paste_last($root,$element,$url);
+    $elt->cut if ($elt);
+    paste_last($root,$element,$uri);
     $self->{data} = $twig->sprint(1);
     return 1;
 }
@@ -154,7 +157,7 @@ sub replace_element_attribute {
 	return (0,"Existing data in the database is malformed, can't replace it.")
     }
     my $root = $twig->root;
-    
+
     my $elt = $root->first_child($element);
     unless ($elt) {
 	paste_first($root, $element, '');
@@ -175,7 +178,7 @@ sub out_html_body {
 
     my $parser = XML::LibXML->new();
     my $prolog = "<?xml version=\"1.0\"?><!DOCTYPE CONTENT SYSTEM \"http://". $TUSK::Constants::Domain ."/DTD/hscmlweb.dtd\">";
-    my $source; 
+    my $source;
     eval {
 	    $source = $parser->parse_string($prolog.$self->out_content_body);
     };
@@ -200,7 +203,7 @@ sub out_html_body {
     my $results;
 
     eval {
-	    $results = $stylesheet->transform($source, 
+	    $results = $stylesheet->transform($source,
 					      'CONTENTID' => $content->primary_key,
 					      'HTTP_HOST' => "'" .  $ENV{HTTP_HOST} . "'");
     };
@@ -248,21 +251,21 @@ sub out_title {
     my $self = shift;
     my $header = $self->out_twig_header;
     my $title = $header->first_child("title");
-    return $title->text;    
+    return $title->text;
 }
 
 sub out_twig_header {
     my $self = shift;
     my $twig = $self->twig;
     my $root = $twig->root;           # get the root of the twig (db-content)
-    return $root->child(0,'header')    
+    return $root->child(0,'header')
 }
 
 sub out_twig_body {
     my $self = shift;
     my $twig = $self->twig;
     my $root = $twig->root;           # get the root of the twig (db-content)
-    return $root->child(0,'body')    
+    return $root->child(0,'body')
 }
 
 sub out_content_header {
@@ -312,18 +315,18 @@ sub parse_header {
 
     ## get and cut creation information from header
     my $creation = $header->child(0,'creation-date');
-    $caller->{created} = $creation->text if ($creation);	
+    $caller->{created} = $creation->text if ($creation);
     $creation->cut if ($creation);
 
     ## get and cut course reference
     my $course = $header->child(0,'course-ref');
-    $caller->{course_id} = $course->att('course-id');    
+    $caller->{course_id} = $course->att('course-id');
     $caller->{school} = $course->att('school');
     $course->cut;
 
     ## get and cut copyright information
     my $copyright = $header->child(0,'copyright');
-    ## if it's copyright-text, grab and cut the information, otherwise just grab 
+    ## if it's copyright-text, grab and cut the information, otherwise just grab
     if ($copyright->child(0,'copyright-text')) {
 	$caller->{copyright} = $copyright->child(0,'copyright-text')->text;
 	$copyright->cut;
@@ -345,7 +348,7 @@ sub parse_header {
 	    next if ($entity_ref->field('non-user'));
 	    my $user_id = $entity_ref->att('user-id') if $entity_ref->att('user-id');
 	    $user_id = $entity_ref->att('non-user-id') if $entity_ref->att('non-user-id');
-	    $entities{$ii} = $user_id; 
+	    $entities{$ii} = $user_id;
 	    $entities{$user_id.$ii} = $_;
 	    $entity_ref->cut; ## now remove the user reference from entity
 	    $entity->cut; ## not remove the entity from the header
@@ -386,7 +389,7 @@ sub parse_header {
 
     ## get and cut all entries in the collection list
     my (%collection);
-    undef @set; 
+    undef @set;
     my $collection_root = $header->child(0,'collection-list');
     @set = $collection_root->children if ($collection_root);
     $ii = 0;
@@ -402,7 +405,7 @@ sub parse_header {
     $caller->{collection} = \%collection;
 
     ## cut all modified-history
-    undef @set; 
+    undef @set;
     @set = $header->children('modified-history');
     ## loop over all modified-history structures and cut them
     foreach $entity (@set) {
@@ -410,7 +413,7 @@ sub parse_header {
     }
 
     ## cut all status-history references
-    undef @set; 
+    undef @set;
     @set = $header->children('status-history');
     $ii = 0;
     ## loop over all status structures and pull out data
@@ -488,7 +491,7 @@ sub build_header {
 
     $root->set_gi("content");
     $header->set_gi("header");
-    
+
     ## get all existing elements that are in the header - can be pasted back in
     @keyword_elts = $header->children('header-keyword');
     foreach (@keyword_elts) {
@@ -496,12 +499,12 @@ sub build_header {
 	$_->cut;
     }
 
-    if ($header->child(0,'mime-type')) { 
+    if ($header->child(0,'mime-type')) {
 	$mimetype = $header->child(0,'mime-type')->text;
 	$header->child(0,'mime-type')->cut;
     }
 
-    if ($header->child(0,'copyright')) { 
+    if ($header->child(0,'copyright')) {
 	$copyright_struct = $header->child(0,'copyright');
 	$header->child(0,'copyright')->cut;
     }
@@ -525,7 +528,7 @@ sub build_header {
     ## put the content_id into the content tag
     set_attribute($root,"content-id",$caller->{content_id});
 
-    ## add the title 		  
+    ## add the title
     paste_last($header,"title",$caller->{title});
 
     ## add all role information
@@ -577,20 +580,20 @@ sub build_header {
 
     ## add header-keyword elements back in
     foreach (@keywords) {
-	paste_last($header,"header-keyword",$_);	
+	paste_last($header,"header-keyword",$_);
     }
 
     ## add mime-type
-    paste_last($header,"mime-type",$mimetype) if ($mimetype);	
+    paste_last($header,"mime-type",$mimetype) if ($mimetype);
 
     ## add acknowledgement elements back in
     foreach (@acks) {
-	paste_last($header,"acknowledgement",$_);	
+	paste_last($header,"acknowledgement",$_);
     }
 
     ## add source elements back in
     foreach (@source) {
-	paste_last($header,"source",$_);	
+	paste_last($header,"source",$_);
     }
 
     ## stick the copyright info in the doc
@@ -644,7 +647,7 @@ sub refresh_status {
     my $caller = shift;
     my $twig = $self->twig;
     my $root = $twig->root;           # get the root of the twig (db-content)
-    my $header = $root->child(0,'header');    # get body    
+    my $header = $root->child(0,'header');    # get body
     foreach ($header->descendants('status-history')) {
 	$_->cut;
     }
@@ -732,7 +735,7 @@ sub paste_last {
     my $XML_doc = shift;
     my $field = shift;
     my $value = shift;
-    my $elt = new XML::Twig::Elt ($field,$value);
+    my $elt = XML::Twig::Elt->new(%$value)->wrap_in($field);
     $elt->paste('last_child',$XML_doc);
     return $elt;
 }
@@ -801,26 +804,3 @@ sub error {
 }
 
 1;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

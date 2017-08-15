@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts Universityg
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -34,7 +34,7 @@ use Image::Magick;
 my $pw = $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword};
 my $un = $TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername};
 
-my $CHUNK_SIZE = 32768; # for calls to 'read' 
+my $CHUNK_SIZE = 32768; # for calls to 'read'
 our %path = (
 		'downloadablefile'=> $TUSK::Constants::BaseStaticPath . '/downloadable_file',
 		'shockwave' => $TUSK::Constants::BaseStaticPath . '/downloadable_file',
@@ -124,7 +124,7 @@ sub add_content_sub{
     }elsif ($req->{course_id}){
 	$fdat{parent}="course";
     }
-    
+
     $fdat{school}=$req->{school};
 
     $fdat{filename} =~ s/$path{'temp'}//;
@@ -134,10 +134,10 @@ sub add_content_sub{
     }
     ($rval, $req->{content_id}) = add_content($req->{user}, %fdat);
     return ($rval, $req->{content_id}) unless ($rval > 0);
-    
+
     $req->{content}=HSDB4::SQLRow::Content->new->lookup_key($req->{content_id});
     $req->{selfpath}.="/".$req->{content_id};
-    
+
     if ($fdat{filename}){
 	($rval,$msg) = do_file_stuff($req->{content}, $req->{user}->primary_key, %fdat);
 	return ($rval, $msg) unless ($rval > 0);
@@ -146,7 +146,7 @@ sub add_content_sub{
     # do common actions
     ($rval, $msg) = common_actions($req->{user}, $req->{content}, $req->{course}, $req->{root_course}, %fdat);
     return (0, $msg) unless (defined($rval));
-    
+
     return(1,"Content successfully added", $req->{content});
 }
 
@@ -163,7 +163,7 @@ sub update_content_sub{
 
     ($rval, $msg) = update_content($req->{content}, $req->{user}->primary_key, %fdat);
     return (0, $msg) unless ($rval > 0);
-    
+
     ($rval, $msg) = $req->{content}->save_version("Content updated by CMS", $req->{user}->primary_key);
     return (0, $msg) unless ($rval > 0);
 
@@ -203,7 +203,7 @@ sub common_actions{
 	($rval, $msg) = update_users($content, $struct->{authors});
     }
     return (0, $msg) unless ($rval > 0);
-   
+
     if ($fdat{ppt_change}){
 	($rval, $msg) = ppt_process($user, $content, %fdat);
 	return (0, $msg) unless ($rval > 0);
@@ -212,7 +212,7 @@ sub common_actions{
 	    return (0, $msg) unless ($rval > 0);
 	}
     }
-    
+
     if ($fdat{doc_change}){
 		($rval, $msg) = doc_process($user, $content, %fdat);
 		return (0, $msg) unless ($rval > 0);
@@ -224,7 +224,7 @@ sub common_actions{
 
 	# update the subcourses if it's an integrated course
 	# Need to do this last in case it's new content, since we need a content id
-	if ( $root_course && $root_course->isa( "HSDB45::Course" ) && ($root_course->type eq 'integrated course') ) { 
+	if ( $root_course && $root_course->isa( "HSDB45::Course" ) && ($root_course->type eq 'integrated course') ) {
 		# Create link_course_content record for subcourse <-> content
 		my $course_link  = $root_course->content_link;
 		my $content_link = $content->content_link;
@@ -259,15 +259,15 @@ sub common_actions{
 		}
 
 		if ( $update ) {
-			foreach my $o_parent ( @other_parents ) { 
-				if ( $o_parent->isa( "HSDB45::Course" ) ) { 
+			foreach my $o_parent ( @other_parents ) {
+				if ( $o_parent->isa( "HSDB45::Course" ) ) {
 					if (grep {$_ == $o_parent->course_id} @{$ids}) {
 						$course_link->delete( '-parent_id', $o_parent->course_id, '-child_id', $content->content_id );
 
 						# Need to fake out the cache since we're modifying the source of the data and the cache is used further down the page.
 						@{$content->{-parent_courses}} = grep { $_ != $o_parent } @{$content->{-parent_courses}};
 					}
-				} elsif ( $o_parent->isa( "HSDB4::SQLRow::Content::Collection" ) ) { 
+				} elsif ( $o_parent->isa( "HSDB4::SQLRow::Content::Collection" ) ) {
 					if (grep {$_ == $o_parent->course->course_id} @{$ids}) {
 						$content_link->delete( '-parent_id', $o_parent->content_id, '-child_id', $content->content_id );
 					}
@@ -278,7 +278,7 @@ sub common_actions{
 			$content->parent_content(1);
 
 			if ( $fdat{'originating_course'} ) {
-				$course_link->insert( 
+				$course_link->insert(
 					-child_id  => $content->content_id,
 					-parent_id => $fdat{'originating_course'} );
 
@@ -328,7 +328,7 @@ sub save_ppt_file{
     $ppt_content->set_field_values(body => $body);
 
     $ppt_content->save_version("Created content",$user->primary_key);
-    
+
     $parent_content->add_child_content ($un, $pw, $ppt_content->primary_key, 1);
 
     # update the users for this content
@@ -361,7 +361,7 @@ sub replace_file{
 		my $tracker = TUSK::ProcessTracker::ProcessTracker->getMostRecentTracker(undef, $content->primary_key, 'tuskdoc');
 		return (0, "Cannot replace this TUSKdoc because it is already in the process of being converted.") if (defined $tracker && !$tracker->isCompleted());
 	}
-	
+
     # upload the file
     ($rval, $fdat{filename}, $fdat{body}) = upload_file(%fdat);
     return (0, $fdat{filename}) unless ($rval > 0);
@@ -385,7 +385,7 @@ sub update_users{
 	    $authorid = @{$authors}[$i]->{pk};
 	    next if ($current_users{$authorid});
 	    $current_users{$authorid} = 1; # make sure the list contains unique users
-	    
+
 	    my $newauthor=HSDB4::SQLRow::User->new->lookup_key($authorid);
 	    if ($newauthor->primary_key){
 		($rval, $msg) = $content->add_child_user($un, $pw, $authorid, 10*($i + 1), @{$authors}[$i]->{role});
@@ -404,9 +404,9 @@ sub add_content{
 	my $content = HSDB4::SQLRow::Content->new;
 	my $body = "";
 
-	# ok, upload 
+	# ok, upload
 	($fdat{school},$fdat{course_id}) = split ('-', $fdat{course});
-	
+
 	if ($fdat{copy_content_data}){
 	    my $old_content = HSDB4::SQLRow::Content->new->lookup_key($fdat{copy_content_data});
 	    return (0,"Please supply a content_id to copy.") unless ($old_content);
@@ -458,7 +458,7 @@ sub add_content{
 	return (0, $msg) unless ($rval > 0);
 
 	return (0, 'An unkown error has occured. Please try again.') unless ($content->primary_key);
-	
+
 	# Make a link from something to this content?
 	if ($fdat{'parent'} eq "course"){
 		($rval, $msg) = add_course_content($user, $content, %fdat);
@@ -477,7 +477,7 @@ sub ppt_process{
 	my ($user, $content, %fdat) = @_;
 	my $body=$content->body;
 	$body->in_fdat_hash ('content_body:0:file_uri' => "");
-	
+
 	$fdat{body}=$body->out_xml;
 
 	# the upload type changes
@@ -496,7 +496,7 @@ sub ppt_process{
 	my $ppt = HSDB4::SQLRow::PPTUpload->new;
 
 	my @authors = $content->child_authors;
-	
+
 	my $first_author;
 
 	# if no author, take the first linked user
@@ -506,9 +506,9 @@ sub ppt_process{
 	    $first_author = "";
 	}
 
-	
+
 	# XXX: I suspect a lot of these fields are not needed, since the 'parent'
-	# collection has already been created... 
+	# collection has already been created...
 	$ppt->set_field_values(course_id => $content->field_value('course_id'),
 		username => $user->primary_key,
 		school => $content->field_value('school'),
@@ -536,18 +536,18 @@ sub doc_process{
 sub update_html{
     my ($content, $user_id, %fdat) = @_;
     my ($body, $rval, $msg);
-    
+
     $body =~ s/\&shy;//g;
 
     if (exists($fdat{contributor}) and $content->field_value('reuse_content_id') == 0){
         ($rval, $msg) = mangle_element($content, $fdat{contributor},"contributor");
         return (0, $msg) if ($rval == 0);
     }
-    
+
     return 1 if ($fdat{content_type} eq "PDF" or $fdat{content_type} eq "DownloadableFile");
 
     if ($fdat{content_type} eq "Slide" and $content->field_value('reuse_content_id') == 0){
-       
+
         my $body = $content->body;
 	return (0,$content->error()) if (!$body);
         my ($info) = $body->tag_values('slide_info') ;
@@ -570,7 +570,7 @@ sub update_html{
 
     if ($fdat{content_type} eq "Shockwave"){
 	($rval, $msg) = mangle_shockwave($content, %fdat);
-	return (0, $msg) if ($rval == 0);	    
+	return (0, $msg) if ($rval == 0);
     } elsif ($fdat{content_type} eq "Video" or $fdat{content_type} eq "Audio"){
 	($rval, $msg) = mangle_audiovideo($content, %fdat);
 	return (0, $msg) if ($rval == 0);
@@ -578,7 +578,7 @@ sub update_html{
 	unless ($content->primary_key()){
 	    my $fields = TUSK::Content::External::Field->new()->lookup('source_id = ' . $fdat{source_id});
 	    $content->save('pre-Save needed for external content', $user_id);
-	    
+
 	    foreach my $field (@$fields){
 		my $link = TUSK::Content::External::LinkContentField->new();
 		$link->setParentContentID($content->primary_key());
@@ -681,14 +681,14 @@ sub update_content{
 	    $content->set_field_values("type" => $fdat{folderformat});
 	    $fdat{content_type} = $fdat{folderformat};
 	}
-	    
+
 	$fdat{'display'} = 0 unless ($fdat{'display'});
 	$content->set_field_values("read_access" => $fdat{'read_access'}, "display" => $fdat{display});
 
 	if ($content->field_value('reuse_content_id') == 0 or $content->field_value('type') ne "Document"){
 	    $content->set_field_values("title" => $fdat{'title'});
 	}
-	
+
 	unless ($content->field_value('reuse_content_id')){
 	    $content->set_field_values(
 				       "system" => $fdat{'system'},
@@ -731,7 +731,7 @@ sub update_content{
 			$link->save({ user => $user_id });
 		    }
 		}
-	    } 
+	    }
 	}
 
 	return 1;
@@ -774,7 +774,7 @@ sub update_meetings{
 			$meeting->add_child_content( {'content_id' => $content->content_id, 'class_meeting_content_type_id' => 0} );
 		}
 	}
-	
+
 	foreach my $existing_meeting ( @existing_meetings ) {
 		my $meeting = HSDB45::ClassMeeting->new( _school => $content->school )->lookup_key( $existing_meeting->{'class_meeting_id'} );
 
@@ -789,7 +789,7 @@ sub update_meetings{
 sub update_objectives{
     my ($content, $objectives) = @_;
     my ($rval, $msg);
-    
+
     ($rval, $msg) = $content->delete_objectives($un, $pw);
     return (0,$msg) unless (defined($rval));
 
@@ -804,13 +804,13 @@ sub update_objectives{
 		    warn @$objectives[$i]->{pk};
 		}elsif (@$objectives[$i]->{elementchanged} == 1){
 		    my $objective = HSDB4::SQLRow::Objective->new->lookup_key(@$objectives[$i]->{pk});
-		    
+
 		    $objective->set_field_values(body => @$objectives[$i]->{body});
-		    
+
 		    ($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
 		    return (0, $msg) unless ($rval > 0);
 		}
-		
+
 		($rval, $msg) = $content->add_child_objective($un, $pw, @$objectives[$i]->{pk}, ($i+10));
 
 		return (0, $msg) unless (defined($rval));
@@ -828,7 +828,7 @@ sub update_keywords{
 	my %currentKeywordHash = map { ($_->getChildKeywordID(),1 ) } @{$currentKeywordLinks};
 	my %sortOrderLookup;
 	# get the sort order for each keyword id
-	foreach my $rowHash (@{$keywordStruct}) { 
+	foreach my $rowHash (@{$keywordStruct}) {
 		$sortOrderLookup{$rowHash->{pk}} = $rowHash->{sortorder};
 	}
 	# delete keywords that were removed
@@ -860,16 +860,16 @@ sub move_file{
     $fileext = ".ppt" if ($fileext eq ".pps" and $path eq $path{'ppt'});
 
     my $newfilename = $content->primary_key . $fileext;
-    
+
     my $newfilepath1 = $path ."/" . $newfilename;
 
     $newfilepath1 =~ /(.*)/; # untaint
     my $newfilepath = $1;
-    
+
     my $body = $content->body;
     my $slash = "";
     $slash = "/" if ($fdat->{content_type} eq "Flashpix");
-    
+
     my $uri = $slash.$newfilename;
     my ($ret, $rval);
 
@@ -882,7 +882,7 @@ sub move_file{
 	elsif ($fdat->{content_type} eq "Audio" or $fdat->{content_type} eq "Video"){
 	($rval, $ret) = mangle_audiovideo($content, %$fdat);
     }
-    
+
     $fdat->{filename}=~/(.*)/;
     my $filename = $1;
     if (-e $newfilepath){
@@ -893,7 +893,7 @@ sub move_file{
 	return(0, "The file could not be found.");
     }
     link $path{'temp'}."/".$filename, $newfilepath or return (0, $!);
-    
+
     if ($fdat->{content_type} eq "Flashpix"){
 	chmod 0644, $newfilepath; # flashpix files need to have these permissions
     }
@@ -920,7 +920,7 @@ sub upload_file {
     $fileext = "" if ($fileext eq $fdat{file});
 
     my $filename = int(10000*rand(time));
-    
+
     my %extensions=(
 		    'Shockwave' => 'swf',
 		    'Document' => 'html',
@@ -957,11 +957,11 @@ sub upload_file {
     if ($fdat{content_type} and $fdat{content_type} ne $fdat{upload_type}){
 	return(0, "The file type (extension) of the uploaded file did not match the content type.");
     }
-    
+
     $filename .= "." . $fileext if ($fileext);
     my $newfilepath1 = ( $path{'temp'} . "/" . $filename ) =~ /(.*)/; # untaint
     my $newfilepath = $1;
-    
+
     unlink $newfilepath if (-e $newfilepath);
 
     my $FILE;
@@ -975,7 +975,7 @@ sub upload_file {
 	    $body .= $buffer;
 	}
 
-        # 
+        #
 	if ($fdat{upload_type} eq "Slide") {
             my $image = Image::Magick->new();
 	    $image->BlobToImage($body);
@@ -1002,7 +1002,7 @@ sub upload_file {
 
     return (1, $filename, $fdat{body}, $fdat{upload_type});
 }
-     
+
 sub add_content_content{
 	my ($user, $content, %fdat) = @_;
 
@@ -1010,7 +1010,7 @@ sub add_content_content{
 	if (!$parent->primary_key){
 		return (0, 'Invalid parent content id');
 	}
-	
+
 	my $count = scalar $parent->child_content;
 
 	return $parent->add_child_content ($un,
@@ -1032,19 +1032,18 @@ sub add_course_content{
 		unless ($course->primary_key);
 
 	my $count = scalar $course->child_content;
-	
+
 	return $course->add_child_content($un,$pw, $content->primary_key, ($count + 1) * 10);
 }
 
 sub mangle_element{
     my ($c, $value, $element, $non_cdata_flag) = @_;
     my $xml = $c->twig_body;
-
     my ($status, $note);
     if ($non_cdata_flag){
-	($status, $note) = $xml->replace_element_uri($value,$element);
-    }else{
-	($status, $note) = $xml->replace_element_uri('<![CDATA['.$value.']]>',$element);
+        ($status, $note) = $xml->replace_element_uri($value, $element);
+    } else {
+     	($status, $note) = $xml->replace_element_uri({ '#CDATA' => $value }, $element);
     }
     return (0, $note) unless ($status);
     $c->set_field_values("body" => $xml->out_xml);
@@ -1057,8 +1056,8 @@ sub mangle_shockwave{
     my ($c, %fdat) = @_;
     my $xml = $c->twig_body;
     my ($status, $note);
-    
-    ($status, $note) = $xml->replace_element_uri('<![CDATA['.$fdat{body}.']]>',"html");
+
+    ($status, $note) = $xml->replace_element_uri({ '#[CDATA[' => $fdat{body} },"html");
     return (0, $note) unless ($status);
 
     $fdat{width} = 550 unless ($fdat{width} > 0);
@@ -1085,14 +1084,14 @@ sub mangle_audiovideo{
 
     $uri = 'realvideo_uri';
 
-    ($status, $note) = $xml->replace_element_uri('<![CDATA['.$fdat{body}.']]>',"html");
+    ($status, $note) = $xml->replace_element_uri({ '#CDATA' => $fdat{body} },"html");
     return (0, $note) unless ($status);
 
     if ($fdat{'content_type'} eq 'Video'){
 	$fdat{width} = 320 unless ($fdat{width} > 0);
 	($status, $note) = $xml->replace_element_attribute($uri, "width", $fdat{width});
 	return (0, $note) unless ($status);
-	
+
 	$fdat{height} = 240 unless ($fdat{height} > 0);
 	($status, $note) = $xml->replace_element_attribute($uri, "height", $fdat{height});
 	return (0, $note) unless ($status);
@@ -1135,5 +1134,3 @@ sub isa_worddoc {
 }
 
 1;
-
-
