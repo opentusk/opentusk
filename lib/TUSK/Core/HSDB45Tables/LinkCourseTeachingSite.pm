@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -41,7 +41,7 @@ BEGIN {
     require TUSK::Core::SQLRow;
 
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
-    
+
     @ISA = qw(TUSK::Core::SQLRow Exporter);
     @EXPORT = qw( );
     @EXPORT_OK = qw( );
@@ -57,22 +57,22 @@ sub new {
     my $class = shift;
     $class = ref $class || $class;
     # Call the super-class's constructor and give it all the values
-    my $self = $class->SUPER::new ( 
+    my $self = $class->SUPER::new (
 				    _datainfo => {
-					'database' => 'hsdb45_med_admin',
+					'database' => '',
 					'tablename' => 'link_course_teaching_site',
 					'usertoken' => 'ContentManager',
 					'database_handle' => '',
 					},
 				    _field_names => {
 					'parent_course_id' => 'pk',
-					'child_teaching_site_id' => 'pk',
+					'child_teaching_site_id' => '',
 					'max_students' => '',
 					'modified' => '',
 				    },
 				    _attributes => {
 					save_history => 0,
-					tracking_fields => 0,	
+					tracking_fields => 0,
 				    },
 				    _levels => {
 					reporting => 'cluck',
@@ -216,11 +216,12 @@ sub setModified{
 =cut
 
 ### Other Methods
-sub getTeachingSiteObject{
-    my ($self) = @_;
-    return $self->getJoinObject("TUSK::Core::HSDB45Tables::TeachingSite");
 
+sub getTeachingSiteObjects{
+    my ($self) = @_;
+    return $self->getJoinObjects("TUSK::Core::HSDB45Tables::TeachingSite");
 }
+
 =head1 BUGS
 
 None Reported.
@@ -240,4 +241,3 @@ Copyright (c) Tufts University Sciences Knowledgebase, 2004.
 =cut
 
 1;
-

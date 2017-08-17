@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 
@@ -82,29 +82,29 @@
 		$role_style = 'display:none';
 	} else {
 		$teaching_site_style = 'display:none';
-	}		
+	}
 </%perl>
 
-<& /tmpl/element:radio_buttons, params => { 
+<& /tmpl/element:radio_buttons, params => {
         label => 'Eval Type:',
         name => 'eval_type_id',
         buttons => [
-		{ value => "1", text => "Course", 
+		{ value => "1", text => "Course",
  		  checked => ($eval_type eq 'course') ? 1 : 0,
 		  disabled => ($eval_editable) ? 0 : 1,
 		  onclick => "showHideFields()",
 		},
-	        { value => "2", text => "Teaching", 
+	        { value => "2", text => "Teaching",
  		  checked => ($eval_type eq 'teaching') ? 1 : 0,
 		  disabled => ($eval_editable) ? 0 : 1,
 		  onclick => "showHideFields()",
-		} 
+		}
 	],
 	nobreak => 1,
 } &>
 
 % if ($eval_id) {
-<& /tmpl/element:field_display, params => { 
+<& /tmpl/element:field_display, params => {
 	label 	=> 'Eval ID:',
 	value 	=> $eval->primary_key() . " (<a href=\"/eval/student/complete/$school/" . $eval->primary_key() . '" target="_blank" >Preview this eval</a>.)',
 } &>
@@ -112,15 +112,15 @@
 
 % my $eval_title = $ARGS{title} || $eval->field_value('title');
 % if ($eval_editable) {
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label 	=> 'Title:',
 	name 	=> 'title',
 	value 	=> $eval_title,
 	size 	=> 60,
-	length 	=> 255 
+	length 	=> 255
 } &>
 % } else {
-<& /tmpl/element:field_display, params =>{ 
+<& /tmpl/element:field_display, params =>{
 	label 	=> 'Title:',
 	value 	=> qq[$ARGS{title}<input type="hidden" name="title" value="$eval_title" />],
 } &>
@@ -130,12 +130,12 @@
 % if ($eval_editable) {
 %	my @course_options = ();
 %	foreach my $course (@$courses) {
-%		push @course_options, { 
+%		push @course_options, {
 %			label => $stripObj->removeHTML($course->getTitle()) . ' (' . $course->getPrimaryKeyID() . ')',
 %			value => $course->getPrimaryKeyID()
 %		};
 %	}
-<& /tmpl/element:dropdown, params => { 
+<& /tmpl/element:dropdown, params => {
 label 	=> 'Course:',
 	name 	=> 'course_id',
 	options => \@course_options,
@@ -146,7 +146,7 @@ label 	=> 'Course:',
 % } else {
 %	my $course = $eval->course();
 % 	my $course_code = ($course->field_value('oea_code')) ? $course->field_value('oea_code') . ' - ' : '';
-<& /tmpl/element:field_display, params =>{ 
+<& /tmpl/element:field_display, params =>{
 	label 	=> 'Course:',
 	value 	=> (($course->field_value('oea_code')) ? $course->field_value('oea_code') . ' - ' : '') . $course->out_label() . ' (' . $course->primary_key() . ')' .
 		    ' <input type="hidden" name="course_id" value="' . $course->primary_key() . '" />'
@@ -154,7 +154,7 @@ label 	=> 'Course:',
 % }
 
 
-<& /tmpl/element:field_display, params =>{ 
+<& /tmpl/element:field_display, params =>{
 	tr_name => 'teaching_site_id',
 	style   => $teaching_site_style,
 	label 	=> 'Teaching Site:',
@@ -166,12 +166,12 @@ label 	=> 'Course:',
 % if ($eval_editable) {
 %	my @tp_options = ();
 %	foreach my $tp (HSDB45::TimePeriod->new( _school => $school )->nonpast_time_periods()) {
-%		push @tp_options, { 
+%		push @tp_options, {
 %			label => $tp->primary_key() . ': ' . $stripObj->removeHTML($tp->out_label()) . ' (' . $tp->out_mysql_date_range() . ')',
 %			value => $tp->getPrimaryKeyID()
 %		};
 %	}
-<& /tmpl/element:dropdown, params => { 
+<& /tmpl/element:dropdown, params => {
 	label 	=> 'Time Period:',
 	name 	=> 'time_period_id',
 	options => \@tp_options,
@@ -180,16 +180,16 @@ label 	=> 'Course:',
 } &>
 % } else {
 %	my $tp = $eval->time_period();
-<& /tmpl/element:field_display, params =>{ 
+<& /tmpl/element:field_display, params =>{
 	label 	=> 'Time Period:',
-	value 	=> $stripObj->removeHTML($tp->out_label()) . ' (' . $tp->out_mysql_date_range() . ')' . 
+	value 	=> $stripObj->removeHTML($tp->out_label()) . ' (' . $tp->out_mysql_date_range() . ')' .
 		   '<input type="hidden" name="time_period_id" value="' .  $tp->primary_key()  . '" />'
 } &>
 % }
 
 
 % my $avail_date = $ARGS{'available_date'} || $eval->field_value('available_date');
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label 		=> 'Available Date:',
 	name 		=> 'available_date',
 	value 		=> ($avail_date eq '0000-00-00') ? '' : $avail_date,
@@ -198,7 +198,7 @@ label 	=> 'Course:',
 
 
 % my $submittable_date = $ARGS{'submittable_date'} || $eval->field_value('submittable_date');
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label 		=> 'Submittable Date:',
 	name 		=> 'submittable_date',
 	value 		=> ($submittable_date eq '0000-00-00') ? '' : $submittable_date,
@@ -207,7 +207,7 @@ label 	=> 'Course:',
 
 
 % my $prelim_due_date = $ARGS{'prelim_due_date'} || $eval->field_value('prelim_due_date');
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label 		=> 'Preliminary Due Date:',
 	name 		=> 'prelim_due_date',
 	value 		=> ($prelim_due_date eq '0000-00-00') ? '' : $prelim_due_date,
@@ -216,7 +216,7 @@ label 	=> 'Course:',
 
 
 % my $due_date = $ARGS{'due_date'} || $eval->field_value('due_date');
-<& /tmpl/element:textbox, params => { 
+<& /tmpl/element:textbox, params => {
 	label 		=> 'Due Date:',
 	name 		=> 'due_date',
 	value 		=> ($due_date eq '0000-00-00') ? '' : $due_date,
@@ -231,7 +231,7 @@ label 	=> 'Course:',
 %		};
 % }
 
-<& /tmpl/element:dropdown, params => { 
+<& /tmpl/element:dropdown, params => {
 	label 	=> 'Question Stylesheet:',
 	name 	=> 'question_stylesheet',
 	options => \@q_stylesheet_options,
@@ -247,7 +247,7 @@ label 	=> 'Course:',
 %		};
 % }
 -
-<& /tmpl/element:dropdown, params => { 
+<& /tmpl/element:dropdown, params => {
 	label 	=> 'Results Stylesheet:',
 	name 	=> 'results_stylesheet',
 	options => \@r_stylesheet_options,
@@ -265,7 +265,7 @@ label 	=> 'Course:',
 	}
 </%perl>
 
-<& /tmpl/element:sort_order_box , params =>{	
+<& /tmpl/element:sort_order_box , params =>{
 	no_add_button => '1',
 	label => 'Roles/Labels',
 	style => $role_style,
@@ -290,7 +290,7 @@ label 	=> 'Course:',
 
 
 % my ($button_name, $button_label) = ($eval->primary_key()) ? ('edit_eval', 'Save Changes') : ('new_eval', 'Create Eval');
-				
+
 <& /tmpl/element:save_button, params=>{
 	label		=>	$button_label,
 	cancel_onclick 	=> 	"go_back('/eval/administrator/show/" . $m->comp("/tmpl/url:get_type_path") . "');",
@@ -306,13 +306,11 @@ label 	=> 'Course:',
 	var teaching_site_id = new Array();
 %	my $i = 0;
 %	foreach my $course (@$courses) {
-%		my $links = $course->getLinkTeachingSiteObjects();
 	teaching_site_id[ <% $i++ %> ] = [ "0|None"
-%		foreach my $link (@$links) {
-%			if ($link->getPrimaryKeyID() && ref($link->getTeachingSiteObject()) eq 'TUSK::Core::HSDB45Tables::TeachingSite') {
-%				my $teaching_site = $link->getTeachingSiteObject();
+%		foreach my $link (@{$course->getLinkTeachingSiteObjects()}) {
+%				foreach my $teaching_site (@{$link->getTeachingSiteObjects()}) {
 ,"<% $teaching_site->getPrimaryKeyID() %>|<% $stripObj->removeHTML($teaching_site->getSiteName()) %>"
-%			}
+%	    		}
 %		}
 	];
 %	}
@@ -353,7 +351,7 @@ label 	=> 'Course:',
 
 
 	function alertMissing(teaching_site) {
-		if (teaching_site.selectedIndex == -1 ) { 
+		if (teaching_site.selectedIndex == -1 ) {
 			alert(__('Please click on a course to get a list of corresponding teaching sites.'));
 		}
 	}
@@ -378,7 +376,7 @@ label 	=> 'Course:',
 </table>
 %	}
 
-<hr /> 
+<hr />
 
 %	if ($eval->primary_key()) {
 	<h3 class="title">Question List</h3>
@@ -508,7 +506,7 @@ label 	=> 'Course:',
 
 	if ($eval_id) {
 		@roles_data = map {{ eval_role_id => $_->getPrimaryKeyID(), role => $_->getRoleID(), required_evals => $_->getRequiredEvals(), maximum_evals => $_->getMaximumEvals() }} @{TUSK::Eval::Role->lookup("school_id = " . $school_object->getPrimaryKeyID() . " AND eval_id = $eval_id", ['sort_order'])};
-	} 
+	}
 </%perl>
 
 <& '/tmpl/process:manipulate_rows',
@@ -524,7 +522,7 @@ label 	=> 'Course:',
 		'required_evals' => 	'setRequiredEvals',
 		'maximum_evals' => 	'setMaximumEvals',
 	},
-	display_data 	=> \@roles_data 
+	display_data 	=> \@roles_data
 &>
 </%method>
 
@@ -535,7 +533,7 @@ label 	=> 'Course:',
 		if ($res) {
 			my $new_eval = HSDB45::Eval->new( _school => $school );
 			$new_eval->set_field_values(
-				title            	=> $ARGS{title},		
+				title            	=> $ARGS{title},
 				course_id        	=> $ARGS{course_id},
 				time_period_id   	=> $ARGS{time_period_id},
 				teaching_site_id 	=> $ARGS{teaching_site_id},
@@ -582,7 +580,7 @@ label 	=> 'Course:',
 						eval_type_id     => $ARGS{eval_type_id},
 					);
 				}
-				
+
 				$eval->set_field_values(
 					available_date   => $ARGS{available_date},
 					submittable_date => $ARGS{submittable_date},
@@ -593,11 +591,11 @@ label 	=> 'Course:',
 				);
 
 
-				($res, $msg) = $eval->save(); 
+				($res, $msg) = $eval->save();
 				$m->comp('SELF:saveRoles', args => \%ARGS, eval_id => $eval_id) if ($eval->is_teaching_eval());
 			}
 		} else {
-			for my $field (@fields) { 
+			for my $field (@fields) {
 				$ARGS{$field} = $eval->field_value($field);
 				$ARGS{$field} =~ s/\"/\&\#34;/g;  #"  IGNORE THIS QUOTE.  It is here to keep vim syntax highlighting nice.
 			}
@@ -638,7 +636,7 @@ label 	=> 'Course:',
 				my $q = $eval->question($qid);
 				if (!$q || $answered_hash->{$qid}) {
 					$msg .= __("Can't unlink")." $qid";
-					next; 	
+					next;
 				} elsif ($answered_hash->{$qid} = $q->has_been_answered($eval_id)) {
 					$msg .= __("Can't unlink")." $qid";
 					next;
@@ -653,11 +651,11 @@ label 	=> 'Course:',
 				my $q = $eval->question($qid);
 				if (!$q || $answered_hash->{$qid}) {
 					$msg .= __("Can't duplicate")." $qid";
-					next; 	
+					next;
 				} elsif ($answered_hash->{$qid} = $q->has_been_answered($eval_id)) {
 					$msg .= __("Can't duplicate")." $qid";
-					next; 	
-				} 
+					next;
+				}
 				($res, $msg) = HSDB45::Eval::Authoring::make_question_duplicate($school, undef, undef, $eval, $qid);
 				if ($res) { push @edits, $res; }
 				last unless $res;
@@ -668,11 +666,11 @@ label 	=> 'Course:',
 					my $q = $eval->question($qid);
 					next unless $q and $q->primary_key();
 					next if $q->has_been_answered();
-					push @real_edits, $qid; 
+					push @real_edits, $qid;
 				}
 				$m->redirect( '/protected/eval/administrator/eval_question_edit/' . $school . "/" . $eval->primary_key() . "/" . join('/', @real_edits));
 			}
-		} 
+		}
 
 		@questions = $eval->questions();
 		if ($ARGS{add_question}) {
@@ -736,7 +734,7 @@ label 	=> 'Course:',
 	my $filename   = $ENV{XSL_ROOT} . "/Common/flow.xsl";
 	my $style_doc  = $parser->parse_file($filename);
 	my $stylesheet = $xslt->parse_stylesheet($style_doc);
-	my $doc        = $parser->parse_string($HSDB45::Eval::Question::Body::prolog.$q->body()->elt()->first_child('question_text')->sprint()); 
+	my $doc        = $parser->parse_string($HSDB45::Eval::Question::Body::prolog.$q->body()->elt()->first_child('question_text')->sprint());
 	my $result     = $stylesheet->transform($doc);
 </%perl>
 	<tr>
@@ -953,4 +951,3 @@ label 	=> 'Course:',
 <%method jsarray>
 %	return ['calendar.js', 'calendar-en.js', 'calendar-setup.js', 'eval.js', 'scripts.js', 'formbuilder.js', 'layers.js'];
 </%method>
-
