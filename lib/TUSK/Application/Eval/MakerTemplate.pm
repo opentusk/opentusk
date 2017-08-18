@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -21,7 +21,6 @@ use TUSK::Core::School;
 use TUSK::Eval::Prototype;
 use TUSK::Constants;
 use TUSK::Core::HSDB45Tables::LinkCourseStudent;
-use TUSK::Core::HSDB45Tables::LinkCourseTeachingSite;
 use HSDB4::DateTime;
 use HSDB45::TeachingSite;
 use HSDB45::Eval;
@@ -42,7 +41,7 @@ sub new {
     }
 
     my $school = TUSK::Core::School->new()->lookupReturnOne("school_name = '" . $args->{school} . "'");
-    my $self = { 
+    my $self = {
 		school            => $school,
 		period            => $tp->field_value('period'),
 		academic_year     => $tp->field_value('academic_year'),
@@ -56,7 +55,7 @@ sub new {
 sub _setPrototypeEvals {
     my $school = shift;
     my $prototypes = TUSK::Eval::Prototype->lookup("school_id = " . $school->getPrimaryKeyID());
-    
+
     my %hash = map { $_->getCourseCode() => $_ } @$prototypes;
     return \%hash;
 }
@@ -118,18 +117,18 @@ sub getCoursesInfoBySite {
 
 #	my $sql = qq(
 #		SELECT a.parent_course_id, title, code, a.teaching_site_id, site_name,
-#			(SELECT group_concat(concat(firstname, ' ', lastname) SEPARATOR '; ') 
+#			(SELECT group_concat(concat(firstname, ' ', lastname) SEPARATOR '; ')
 #			FROM $dbname.link_course_user cs, hsdb4.user u
 #			WHERE cs.child_user_id = u.user_id and a.parent_course_id = cs.parent_course_id and roles in ('Director') # do you see a bug here?
 #			GROUP BY parent_course_id)
-#		as faculty_name, 
-#			(SELECT count(*) 
-#			FROM $dbname.eval e 
-#			WHERE parent_course_id = e.course_id AND e.time_period_id = $tp_id AND a.teaching_site_id = e.teaching_site_id) 
+#		as faculty_name,
+#			(SELECT count(*)
+#			FROM $dbname.eval e
+#			WHERE parent_course_id = e.course_id AND e.time_period_id = $tp_id AND a.teaching_site_id = e.teaching_site_id)
 #		as evalcount
-#		FROM $dbname.link_course_student a 
+#		FROM $dbname.link_course_student a
 #		LEFT OUTER JOIN tusk.course_code as b
-#		on (b.course_id = a.parent_course_id and a.teaching_site_id = b.teaching_site_id and school_id = $school_id) 
+#		on (b.course_id = a.parent_course_id and a.teaching_site_id = b.teaching_site_id and school_id = $school_id)
 #		INNER JOIN $dbname.course as c on (c.course_id = a.parent_course_id)
 #		LEFT OUTER JOIN $dbname.teaching_site as d on (d.teaching_site_id = a.teaching_site_id)
 #		WHERE time_period_id = $tp_id
@@ -139,9 +138,9 @@ sub getCoursesInfoBySite {
 	my $sql = qq(
 		SELECT a.parent_course_id, title, code, a.teaching_site_id, site_name, (
 			SELECT
-				group_concat(concat(firstname, ' ', lastname) SEPARATOR '; ') 
+				group_concat(concat(firstname, ' ', lastname) SEPARATOR '; ')
 			FROM
-				tusk.course_user as T1 
+				tusk.course_user as T1
 				inner join hsdb4.user as T2 on (T2.user_id = T1.user_id)
 				left join tusk.permission_user_role as T3 on (T3.feature_id = T1.course_user_id)
 				left join tusk.permission_role as T4 on (T4.role_id = T3.role_id)
@@ -152,14 +151,14 @@ sub getCoursesInfoBySite {
 				T4.role_token in ('director')
 			GROUP BY
 				T1.course_id
-		) as faculty_name, 
-			(SELECT count(*) 
-			FROM $dbname.eval e 
-			WHERE parent_course_id = e.course_id AND e.time_period_id = $tp_id AND a.teaching_site_id = e.teaching_site_id) 
+		) as faculty_name,
+			(SELECT count(*)
+			FROM $dbname.eval e
+			WHERE parent_course_id = e.course_id AND e.time_period_id = $tp_id AND a.teaching_site_id = e.teaching_site_id)
 		as evalcount
-		FROM $dbname.link_course_student a 
+		FROM $dbname.link_course_student a
 		LEFT OUTER JOIN tusk.course_code as b
-		on (b.course_id = a.parent_course_id and a.teaching_site_id = b.teaching_site_id and school_id = $school_id) 
+		on (b.course_id = a.parent_course_id and a.teaching_site_id = b.teaching_site_id and school_id = $school_id)
 		INNER JOIN $dbname.course as c on (c.course_id = a.parent_course_id)
 		LEFT OUTER JOIN $dbname.teaching_site as d on (d.teaching_site_id = a.teaching_site_id)
 		WHERE time_period_id = $tp_id
@@ -178,7 +177,7 @@ sub getCoursesInfoBySite {
 			push(@courses, {'course_id' => $course_id, 'course_title' => $title, 'course_code' => $code, 'teaching_site_id' => $site_id, 'teaching_site_name' => $site_name, 'faculty_names' => $faculty_name, 'eval_exists' => $eval_exists});
 		}
 	}
-	
+
 	return \@courses;
 }
 
@@ -195,7 +194,7 @@ sub getCoursesInfoByCourse {
 					FROM $dbname.eval e
 					WHERE c.course_id = e.course_id AND e.time_period_id = $tp_id)
 				as evalcount
-			FROM $dbname.link_course_student, $dbname.course c 
+			FROM $dbname.link_course_student, $dbname.course c
 			WHERE time_period_id = $tp_id AND parent_course_id = course_id GROUP BY course_id) as courses
 		LEFT OUTER JOIN tusk.course_code ON courses.course_id = tusk.course_code.course_id AND school_id = $school_id
 		GROUP BY course_id ORDER BY evalcount ASC
@@ -208,7 +207,7 @@ sub getCoursesInfoByCourse {
     while (my ($course_id, $title, $code, $eval_exists) = $sth->fetchrow_array) {
 		push(@courses, {'course_id' => $course_id, 'course_title' => $title, 'eval_exists' => $eval_exists, 'course_code' => $code});
 	}
-	
+
 	return \@courses;
 }
 
@@ -219,8 +218,8 @@ sub setCourse {
     my ($course, $codes);
     my $school = $self->{school}->getSchoolName();
     if ($school eq 'Medical' && $course_code =~ /^FAM\d{3}$/ && $course_code !~ /FAM4(87|88|99)/) {
-		$course = HSDB45::Course->new(_school => "Medical")->lookup_key(370);    
-    } 
+		$course = HSDB45::Course->new(_school => "Medical")->lookup_key(370);
+    }
 	elsif ($school eq 'Medical' && $course_code =~ /^NEU\d{3}$/){
 		$course = HSDB45::Course->new(_school => "Medical")->lookup_key(2215);
 	}
@@ -231,11 +230,11 @@ sub setCourse {
 				return undef;
 			}
 		}
-		$course = HSDB45::Course->new(_school => $school)->lookup_key($codes->[0]->getCourseID());    
+		$course = HSDB45::Course->new(_school => $school)->lookup_key($codes->[0]->getCourseID());
     }
-    
+
     $self->{course} = (defined $course->field_value('course_id')) ? $course : undef;
-    $self->{course_code} = $course_code; 
+    $self->{course_code} = $course_code;
     $course_code =~ s/.+?(\d\d+)/$1/;
     $self->{course_level} = $course_code;
 }
@@ -272,9 +271,9 @@ sub getCourseCodes {
 	my $codes;
 
 	my $statement = qq(
-			select distinct code 
-			from tusk.course_code a, $dbname.link_course_student b 
-			where a.course_id = b.parent_course_id 
+			select distinct code
+			from tusk.course_code a, $dbname.link_course_student b
+			where a.course_id = b.parent_course_id
 			and time_period_id = $time_period_id
 			and school_id = $school_id
 		   );
@@ -294,7 +293,7 @@ sub evalExists {
 
     @cur_evals = $blank_eval->lookup_conditions(
 		"course_id = " . $self->{course}->primary_key()
-		. " AND time_period_id = " . $self->{time_period}->primary_key() 
+		. " AND time_period_id = " . $self->{time_period}->primary_key()
 		. " AND  $statement");
 
     return @cur_evals;
