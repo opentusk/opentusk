@@ -22,6 +22,7 @@
 	use TUSK::FormBuilder::EntryAssociation;
 	use HSDB45::Course;
 	use TUSK::Application::FormBuilder::Assessment;
+	use TUSK::Core::HSDB4Tables::User;
 </%once>
 
 <%shared>
@@ -32,6 +33,8 @@
 	my @column_headings = {label =>__('Name'), field => 'name' };
 	my $student_assessors;
 	my $student_assessors_filtered;
+	my $noteCourseId;
+	my $noteSchoolId;
 </%shared>
 
 <i>Please Note: To search for a Student or Time Period, please use the Search Function built into your browswer:
@@ -163,6 +166,8 @@
 	my $show_image = $assessment_form->getShowImages();
 	my $show_elective = $assessment_form->getShowElective();
 	my $show_assigned = $assessment_form->getShowAssigned();
+	$noteCourseId = $course_id;
+	$noteSchoolId = $school_id;
 
 	my $student_assessors_filtered = TUSK::FormBuilder::SubjectAssessor->lookup(" time_period_id = $tp_id and form_id = $form_id AND assessor_id = '$assessor_id' and status != 0");
 
@@ -212,8 +217,19 @@
 				$action_link = "<span id=\"action__" . $assessor_id . '__' . $student_id . '__' . $form_id . "\" style=\"$action_style\"><a href=\"/assessment/assessor/entry/$new_form_url/$id/?tp=$tp_id&msg=$message\">$action_label</a></span>";
 			} 
 			my $student_image = ($show_image) ? '<img class="imgPreview" src="' . $student->official_image() . '" width="20px" height="20px" /> &nbsp; ' : '';
+			my $user = TUSK::Core::HSDB4Tables::User->new(); #for whom the note is taken
+			$user->setPrimaryKeyID($student->primary_key());
+			pre_dump($student->primary_key());
+			my $noteDisplay = "<br>" .
+				"<div id='note' style='width: 140px;'><span style='display: none;' id = 'student'>" . $user->getUID() . 
+				"</span>" . 
+				$m->scomp("/schedule/clinical/admin/student/note/addedit",
+					userId => $student->primary_key(),
+					schoolId => $school_id,
+					courseId => $course_id,
+					accessType => 'view') . '</div>';
 			push @rows, { 
-				name => $student_image . $student->out_lastfirst_name(), 
+				name => $student_image . $student->out_lastfirst_name() . $noteDisplay, 
 				elective => ($student->aux_info('elective')) ? '<span class="sm">' .__('Yes') . '</span>' : '<span class="sm">'.__('No').'</span>',
 				selection => "<input type=\"checkbox\" name=\"selection\" value=\"" . $assessor_id . '__' . $student_id . '__' . $form_id . '__' . "$url\" $disabled $checked />",
 				submitted => ($entry) ? $entry->getCompleteDate() : '-',
@@ -239,7 +255,7 @@
 </table>
 
 <%method jsarray>
-%	return ['jquery/jquery.min.js', 'assessment/list.js'];
+%	return ['jquery/jquery.min.js', 'assessment/list.js', 'noteOverlay.js'];
 </%method>
 
 <%method red_header_text>
@@ -253,3 +269,9 @@
 <%method get_nav_bars>
 %	return [{ href => '/management/home', label => __('CMS Home') }];
 </%method>
+
+
+<script>
+	var note_course_id = '<% $noteCourseId %>';
+	var note_school_id = '<% $noteSchoolId %>';
+</script>
