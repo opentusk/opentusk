@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -20,7 +20,6 @@ use HSDB4::Constants qw/:school/;
 use HSDB4::SQLRow::User;
 use HSDB45::Eval;
 use Digest::MD5;
-use Sys::Hostname;
 use vars qw($VERSION);
 
 BEGIN { $ENV{PERL_JSON_BACKEND} = 'JSON::PP' }
@@ -70,8 +69,8 @@ sub new {
     $eval_id .= '.' . $evaluatee->primary_key() if ($evaluatee);
 
     my $self = { -hash => make_hash($user_id, $password, $eval_id),
-		 -eval => $eval, 
-		 -school => $eval->school() 
+		 -eval => $eval,
+		 -school => $eval->school()
 	       };
 
     bless $self, $class;
@@ -151,7 +150,7 @@ sub do_lookup {
     eval {
 	my $db = $self->school_db();
 	my $data;
-	
+
 	if ($self->id()) {
 	    my $sth = $dbh->prepare(qq[SELECT data FROM $db\.eval_save_data
 				       WHERE eval_save_data_id=?]);
@@ -159,7 +158,7 @@ sub do_lookup {
 	    ($data) = $sth->fetchrow_array();
 	}
 	else {
-	    my $sth = $dbh->prepare(qq[SELECT eval_save_data_id, data FROM $db\.eval_save_data 
+	    my $sth = $dbh->prepare(qq[SELECT eval_save_data_id, data FROM $db\.eval_save_data
 				       WHERE user_eval_code=?]);
 	    $sth->execute($self->hash());
 	    my $id;
@@ -169,7 +168,7 @@ sub do_lookup {
 	if ($data) {
 		#Get JSON to expect a character string, rather than octets.
 		#This is because the default database handle will transform query results into
-		#character strings on the way in. 
+		#character strings on the way in.
 	    $self->{-answers} = JSON->new->loose->decode($data);
 	    $self->{-has_answers} = 1;
 	}
