@@ -76,7 +76,9 @@ for(my $i =0; $i<$size; $i++)
 	push @export_data, {%usr_data};
 }
 
-my @export_data_sorted = sort { lc($a->{last_name}) cmp lc($b->{last_name})} @export_data;
+# Ignore case and non-alphanumeric characters when sorting names
+($_->{sort_name} = lc($_->{last_name})) =~ s/[^\p{Alnum}]//g foreach (@export_data);
+my @export_data_sorted = sort { $a->{sort_name} cmp $b->{sort_name}} @export_data;
 
 print "Last Name\t";
 print "First Name\t";

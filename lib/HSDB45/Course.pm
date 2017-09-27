@@ -999,13 +999,14 @@ sub get_students {
     
     my $site_condition = (defined $site_id) ? (ref($site_id) eq 'ARRAY' ? "AND teaching_site_id IN(" . join(",", @$site_id) . ")" : "AND teaching_site_id = $site_id") : ''; 
     if (ref($timeperiod_id) eq 'ARRAY') {
-		@students = sort { $a->{lastname} cmp $b->{lastname} } $self->student_link()->get_children($self->primary_key,"time_period_id IN(" . join(",", @$timeperiod_id) . ") $site_condition GROUP BY user_id")->children();
-    }
-    else {
+		@students = $self->student_link()->get_children($self->primary_key,"time_period_id IN(" . join(",", @$timeperiod_id) . ") $site_condition GROUP BY user_id")->children();
+    } else {
 		@students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id $site_condition")->children();
     }
 	
-	return @students;
+    # Ignore case and non-alphanumeric characters when sorting names
+    ($_->{sortname} = lc($_->{lastname})) =~ s/[^\p{Alnum}]//g foreach (@students);
+    return sort { $a->{sortname} cmp $b->{sortname} } @students;
 }
 
 
