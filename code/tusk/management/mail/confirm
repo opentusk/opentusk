@@ -50,7 +50,8 @@
                       </tr>
                       <tr> 
                         <td class="labelgray"><%__("From:")%></td>
-                        <td class="cell-left"><% $fullname %> (<% $user->field_value('email') %>)</td>
+						<td class="cell-left"><% $fullname %> (<% $user->field_value('preferred_email') ? 
+							$user->field_value('preferred_email') : $user->field_value('email') %>)</td>
                       </tr>
                       <tr> 
                         <td class="labelgray"><%__("Subject")%></td>
@@ -100,9 +101,10 @@
 	my $fullname = $user->field_value('firstname') . " " . $user->field_value('lastname');
 	my $selfpath =  $m->comp("/tmpl/url:get_full_path");
     my $data;
+	my $check_for_preferred = 1;
 
     if ($ARGS{action}){
-		$data = TUSK::Manage::Email::email_process($user, \%ARGS, $school, $course, $timeperiod);
+		$data = TUSK::Manage::Email::email_process($user, \%ARGS, $school, $course, $timeperiod, $check_for_preferred);
 	
 	} else{
 		$data = TUSK::Manage::Email::email_preview_process($r, \%ARGS);

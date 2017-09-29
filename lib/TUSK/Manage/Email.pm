@@ -1,4 +1,4 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
 # Licensed under the Educational Community License, Version 1.0 (the "License"); 
 # you may not use this file except in compliance with the License. 
@@ -46,13 +46,19 @@ sub email_preview_process {
 ###### school name is needed if the 'to' parameters is user_group_id
 ###### course, timeperiod needed if sending a class of student for a given time period
 sub email_process {
-    my ($user, $fdat, $school, $course, $timeperiod_id) = @_;
+    my ($user, $fdat, $school, $course, $timeperiod_id, $check_for_preferred) = @_;
 
     my $data;
 
     my $fullname = $user->field_value('firstname') . " " . $user->field_value('lastname');
-    $data->{email_from} = $fullname . "<" . $user->field_value('email') . ">";
-
+	if (!$check_for_preferred)
+	{
+    	$data->{email_from} = $fullname . "<" . $user->field_value('email') . ">";
+	}
+	else
+	{
+		$data->{email_from} = $fullname . "<" . $user->default_email() . ">";
+	}
     if ($fdat->{to}){
 		if ($fdat->{email_list}) {  ### individual email recipients
 			my @users = (ref($fdat->{to}) eq 'ARRAY') ? map { HSDB4::SQLRow::User->new()->lookup_key($_) } @{$fdat->{to}} : HSDB4::SQLRow::User->new()->lookup_key($fdat->{to});
