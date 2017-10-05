@@ -5,15 +5,7 @@ var rowSelected = [];
 $(document).ready(function() {
 
     function untouchable(cell) {
-        cellMarking = $(cell).find('span.mark').text();
-        cellBackgroundColor = $(cell).css( "background-color" );
-
-        if (cellMarking == ' *' || cellMarking == ' !' || 
-            cellBackgroundColor == "rgb(255, 255, 0)" || 
-            cellBackgroundColor == "rgb(173, 216, 230)"){
-            return true;
-        }
-        return false;
+        return $(cell).find('span#protectedCell').length;
     }
 
     $("a#selectAll").click(function() {
