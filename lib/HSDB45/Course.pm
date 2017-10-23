@@ -989,7 +989,6 @@ sub get_students {
     # students from multiple time periods will be returned sorted alphabetically by last name
     #
     my ($self, $timeperiod_id, $site_id) = @_;
-    my @students;
     
     if (!$timeperiod_id){
 		my $tp = $self->get_current_timeperiod;
@@ -997,16 +996,16 @@ sub get_students {
 		$timeperiod_id = $tp->primary_key;
     }
     
-    my $site_condition = (defined $site_id) ? (ref($site_id) eq 'ARRAY' ? "AND teaching_site_id IN(" . join(",", @$site_id) . ")" : "AND teaching_site_id = $site_id") : ''; 
-    if (ref($timeperiod_id) eq 'ARRAY') {
-		@students = $self->student_link()->get_children($self->primary_key,"time_period_id IN(" . join(",", @$timeperiod_id) . ") $site_condition GROUP BY user_id")->children();
-    } else {
-		@students = $self->student_link()->get_children($self->primary_key,"time_period_id = $timeperiod_id $site_condition")->children();
-    }
+    my $timeperiod_ids = (ref $timeperiod_id eq 'ARRAY') ? join(',' , @$timeperiod_id) : $timeperiod_id;
+    my $site_ids = (ref $site_id eq 'ARRAY') ? join(',' , @$site_id) : $site_id;
+    my $condition = "time_period_id IN ($timeperiod_ids)" . ((defined $site_id) ? " AND teaching_site_id IN ($site_ids)" : '');
+    my @students = $self->student_link()->get_children($self->primary_key(), $condition)->children();
 	
     # Ignore case and non-alphanumeric characters when sorting names
     ($_->{sortname} = lc($_->{lastname})) =~ s/[^\p{Alnum}]//g foreach (@students);
-    return sort { $a->{sortname} cmp $b->{sortname} } @students;
+    @students = sort { $a->{sortname} cmp $b->{sortname} } @students;
+
+    return @students;
 }
 
 
