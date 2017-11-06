@@ -134,7 +134,7 @@ sub sendShibReport {
 	my $conn = $req_rec->connection();
 
 	my $host = $ENV{HOSTNAME} || "unknown host";
-	my $remote_ip = $conn->remote_ip() || "unknown ip";
+	my $remote_ip = $conn->can('remote_ip') || "unknown ip";
 
 	my $email_receiver = $param_hash->{'To'} || $TUSK::Constants::ErrorEmail;
 	my $email_sender = $param_hash->{'From'} || $TUSK::Constants::ErrorEmail;
@@ -152,7 +152,7 @@ sub sendShibReport {
 	$msgBody   .= "Addtl status code:\n". $param_hash->{'statusCode2'} ."\n\n";
 	$msgBody   .= "\n";
 
-	my $mail = TUSK::Application::Email->new({ 
+	my $mail = TUSK::Application::Email->new({
 		to_addr   => $email_receiver,
 		from_addr => $email_sender ,
 		subject   => $subject,
@@ -161,7 +161,7 @@ sub sendShibReport {
 
 	my $msg;
 	if (my $err = $mail->send()) {
-		$msg = 0; 
+		$msg = 0;
 		warn "Message Sent";
 	} else {
 		$req_rec->log_error("Unable to send email: " . $mail->getError() . "\n".
@@ -172,7 +172,7 @@ sub sendShibReport {
 		);
 	}
 	return $msgBody;
-} 
+}
 
 sub send404Report {
 	my $req_rec = shift || &sendDefaultReport();
