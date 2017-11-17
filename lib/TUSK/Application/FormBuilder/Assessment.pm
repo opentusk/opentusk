@@ -185,14 +185,30 @@ sub updateSubjectAssessor() {
         $student_and_assessor->save({
             user => $self->{session_user_id}
         });
-        $student_and_assessor->delete("time_period_id = " . $self->{current_time_period} . " and form_id = " . 
+        my $cond = "time_period_id = " . $self->{current_time_period} . " and form_id = " . 
             $args->{form_id} . " and subject_id = '" . $self->{user_id} . "' and assessor_id = '" . 
-            $args->{assessor_id} . "' and status = " . $args->{status});
+            $args->{assessor_id} . "' and status = " . $args->{status};
+
+        $student_and_assessor->databaseDo($student_and_assessor->sqlDelete($cond));
+        $student_and_assessor->databaseDo($student_and_assessor->sqlSaveHistory('Delete', $cond)) 
+            if ($student_and_assessor->getSaveHistoryAttribute);
     };
 
     if ($@ && !($@ =~ /Duplicate entry/)) {
         croak( "$@ query failed for class " . ref($self) . " in assessor assignment with the new time period." );
     }
+}
+
+sub isGradeAlreadyFinalized() {
+    my ($self, $args) = @_;
+	my $association = TUSK::FormBuilder::Entry->lookupReturnOne("time_period_id = $args->{time_period_id} and form_id = $args->{form_id}",
+		undef, undef, undef, [TUSK::Core::JoinObject->new('TUSK::FormBuilder::EntryAssociation', {
+			jointype => 'right', origkey => 'entry_id', joinkey => 'entry_id', 
+			alias => 'entryAssociation', joincond => "is_final = 1 and entryAssociation.user_id = '$args->{user_id}'"
+		})
+	]);
+
+    return scalar $association;
 }
 
 

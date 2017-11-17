@@ -37,11 +37,42 @@
 	my $noteSchoolId;
 </%shared>
 
+<script>
+
+$(document).ready(function() {
+
+	$('div#pending').closest('div.gCMSButtonRow').find('a').click(function() {
+		console.log("clicked");
+		$('span#pending').closest("tr").show();
+		$('span#notPending').closest("tr").hide();
+	});
+
+	$('div#completed').closest('div.gCMSButtonRow').find('a').click(function() {
+		$('span#notPending').closest("tr").show();
+		$('span#pending').closest("tr").hide();
+	});
+});
+
+</script>
+
 <i>Please Note: To search for a Student or Time Period, please use the Search Function built into your browswer:
 <strong>PC: </strong><mark>Ctrl - F</mark>
 <strong>Mac: </strong><mark>Command - F</mark>
 
+
 <%perl>
+	$m->comp("/tmpl/element:cms_button_row", links => [{ 
+		display_txt => __('Pending'),
+		link_txt    => 'javascript:void(0);',
+	}],
+	html => '<div id=pending></div>');
+
+	$m->comp("/tmpl/element:cms_button_row", links => [{ 
+		display_txt => __('Completed'),
+		link_txt    => 'javascript:void(0);',
+	}],	
+	html => '<div id=completed></div>');
+
 	my $tp_id;
 	my $tp_period;
 	my $form;
@@ -65,6 +96,7 @@
 
 <& "/tmpl/element:table", params => { width => "70%", border =>"0", cellspacing => "0", cellpadding => "0" } &>
 %	foreach my $course_id (keys %$courses) {
+% 	$noteCourseId = $course_id;
 %   my $course = HSDB45::Course->new(_school => $courses->{$course_id}{school}, _id => $course_id);
 <tr><td colspan="3" style="padding:10px 0 5px 0;"><a href="/management/course/display/<% $courses->{$course_id}{school} . '/' . $course_id . '">'.__('Course').' - ' . $courses->{$course_id}{title} %></a><td></tr>
 %		my $i = 0;
@@ -76,6 +108,7 @@
 	my $school_result = TUSK::Core::School->new->lookup("school_name = '" . $courses->{$course_id}{school} . "'");
 
 	my $school = $school_result->[0];
+	$noteSchoolId = $school->getPrimaryKeyID();
 	my $assessors = TUSK::FormBuilder::SubjectAssessor->new()->lookup(" form_id = $form_id AND assessor_id = '$assessor_id' and status != 0", 
 		['time_period.start_date DESC', 'time_period.end_date DESC'], undef, undef, [
 			TUSK::Core::JoinObject->new('TUSK::Core::HSDB45Tables::TimePeriod', {
@@ -101,9 +134,9 @@
 </%perl>
 %			$student_assessors = TUSK::FormBuilder::SubjectAssessor->lookup(" form_id = $form_id AND assessor_id = '$assessor_id' and status != 0");
 % 			my @applicable_time_periods = map {$_->getTimePeriodID()} @$student_assessors;
-%			my $odd_even = ($i++ % 2 == 0) ? 'even' : 'odd';
+%			my $odd_even = ($i++ % 2 == 0) ? 'tusk' : 'tusk';
 
-<tr class="<% $odd_even %>">
+<tr style="table-row">
 <br/><br/>
 <tr class="header"><th align="left"><%__('Assessment: ') . $forms->{$course_id}{$form_id}[0]%></th></tr>
 <td style="padding:5px 10px 5px 2px;"><% $forms->{$course_id}{$form_id}[1] %></td>
@@ -137,6 +170,7 @@
 % }
 <input type="hidden" name="selected_by_assessor" value="<% $status_options->{selected_by_assessor} %>" />
 <input type="hidden" name="deselected_by_assessor" value="<% $status_options->{deselected_by_assessor} %>" />
+
 <& /tmpl/element:object_selection_box, params => { 
 	columns => [ @column_headings ],
 	rows => \@rows,
@@ -144,7 +178,7 @@
 	type_path => "course/$school->getSchoolName()/$course_id",
 	sort_box => 0,
 	'norows-message' => '<br/>'.__('No students assigned'),
-	
+	border_bottom_tr => 1
 } &>
 </td>
 
@@ -166,8 +200,7 @@
 	my $show_image = $assessment_form->getShowImages();
 	my $show_elective = $assessment_form->getShowElective();
 	my $show_assigned = $assessment_form->getShowAssigned();
-	$noteCourseId = $course_id;
-	$noteSchoolId = $school_id;
+
 
 	my $student_assessors_filtered = TUSK::FormBuilder::SubjectAssessor->lookup(" time_period_id = $tp_id and form_id = $form_id AND assessor_id = '$assessor_id' and status != 0");
 
@@ -188,12 +221,14 @@
 			my $action_label = __('Assess');
 			my $action_style = 'display:none;';
 			my $disabled = '';
+			my $statusLabel = 'pending';
 
 			if ($entry) {
 				$id .= '/' . $entries{$student_id}->getPrimaryKeyID();
 				if ($entry->getCompleteDate()) {
 					$status = __x('Completed {date} ', date => $entry->getCompleteDate());
 					$action_label = __('View Assessment');
+					$statusLabel = 'notPending';
 				} else {
 					$status = __x('Last saved {date}', date => $entry->getModifiedOn());
 				}
@@ -221,7 +256,7 @@
 			$user->setPrimaryKeyID($student->primary_key());
 			my $noteDisplay = "<br>" .
 				"<div id='note' style='width: 140px;'><span style='display: none;' id = 'student'>" . $user->getUID() . 
-				"</span>" . 
+				"</span><span style='display: none;' id = 'courseId'>" . $course_id . "</span>" . 
 				$m->scomp("/schedule/clinical/admin/student/note/addedit",
 					userId => $student->primary_key(),
 					schoolId => $school_id,
@@ -233,7 +268,7 @@
 				selection => "<input type=\"checkbox\" name=\"selection\" value=\"" . $assessor_id . '__' . $student_id . '__' . $form_id . '__' . "$url\" $disabled $checked />",
 				submitted => ($entry) ? $entry->getCompleteDate() : '-',
 				status =>  $status,
-				action => $action_link,
+				action => "<span id=" . $statusLabel . ">" . $action_link . "</span>",
 			};
 		}
 
@@ -271,6 +306,8 @@
 
 
 <script>
-	var note_course_id = '<% $noteCourseId %>';
 	var note_school_id = '<% $noteSchoolId %>';
+	var note_course_id = function(v) { 
+  		return $(v).closest('tr').find('span#courseId').text(); };
 </script>
+
