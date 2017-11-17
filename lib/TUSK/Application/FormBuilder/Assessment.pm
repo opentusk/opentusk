@@ -48,8 +48,6 @@ sub moveAssessment {
     my @assessor_ids = map {"'" . $_->{assessor_id} . "'"} (@$assessments);
     my $entries;
 
-    warn 'Calling assessors';
-    warn 'Assessor number is ' . scalar @assessor_ids;
     if (scalar @assessor_ids) {
         for $assessor_param (@$assessments){
             $self->copyAssessorTimePeriod({assessor_id => 
@@ -110,7 +108,6 @@ sub getEntries {
     my ($self, $args) = @_;
     my @assessors = @{$args->{assessors}};
     my $sub_condition = '(' . join(q{,}, @assessors) . ')';
-    warn "Sub condition is " . $sub_condition;
     my $entries_sql = qq(
         select form_id, e.entry_id
         from tusk.form_builder_entry e inner join 
@@ -134,19 +131,14 @@ sub getEntries {
 
 sub updateEntry() {
 	my ($self, $args) = @_;
-	warn "Entry id is " . $args->{entry_id};
 	my $entry = TUSK::FormBuilder::Entry->lookupReturnOne("entry_id = $args->{entry_id}");
 	$entry->setFieldValue('time_period_id', $self->{requested_time_period});
-	warn "User id is " . $self->{session_user_id};
 	$entry->save({user => 
 		$self->{session_user_id}});
 }
 
 sub copyAssessorTimePeriod() {
     my ($self, $args) = @_;
-    warn "In copyAssessorTimePeriod method";
-    warn "Passed assessor id is " . $args->{assessor_id};
-    warn "Self time period id is |" . $self->{current_time_period} . "|";
 	$course = HSDB45::Course->new(_school => $self->{school_id})->lookup_key(
         $self->{course_id});
     my $users = $course->users($self->{current_time_period}, "course_user.user_id = $args->{assessor_id}", undef);
