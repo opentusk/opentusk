@@ -184,24 +184,24 @@ $verticalButtons => 0
 </%args>
 
 <%perl>
-	# Let the login know if we are a mobi site by setting the cookie
-	my $cookie = APR::Request::Cookie->new($r->pool(), name => "loginType", value => 'normal', path => '/');
-	if($is_mobi) {
-		# We need to set a cookie to tell Shibboleth login to use the mobil page or the normal page
-		$cookie = APR::Request::Cookie->new($r->pool(), name => "loginType", value => 'mobi', path => '/');
+	$url = '/mobi/home' if ($is_mobi && !$url);
+	if ($url) {
+		$url =~ /^\//;
+		# Save the requested URL in a cookie
+		my $cookie = APR::Request::Cookie->new($r->pool(), name => 'request_uri', value => $url, path => '/');
+		$r->err_headers_out->add('Set-Cookie' => $cookie->as_string());
 	}
-	$r->err_headers_out->add('Set-Cookie' => $cookie->as_string);
 
 	my $divText ='';
 	if($logout eq 'shib') {
 		$divText = __x('<center>You have succsfully logged out of {siteAbbr}.</center><br/><center><strong>However, you are still logged into {shibLogoutTitle}.</strong></center></br>{shibLogoutMsg}<br/><br/>',
 				siteAbbr => $TUSK::Constants::SiteAbbr, shibLogoutTitle => $TUSK::Constants::Shibboleth{'logoutTitle'}, shibLogoutMsg => $TUSK::Constants::Shibboleth{'logoutMessage'}
 		);
-	} elsif($logout eq 'shibLocal') {
+	} elsif ($logout eq 'shibLocal') {
 		$divText = __x('<p><strong>Status of Local Logout:</strong> {shibStatus}</p>You <strong>MUST</strong> close your browser to complete the logout process', shibStatus => $shibStatus);
-	} elsif($logout eq 'shibPartial') {
+	} elsif ($logout eq 'shibPartial') {
 		$divText = __('<p>You remain logged into one or more applications accessed during your session.</br><b>To complete the logout process, please close/exit your browser completely.</b></p>');
-	} elsif($logout eq 'shibGlobal') {
+	} elsif ($logout eq 'shibGlobal') {
 		$divText = __('<p>it is strongly advised that you close your browser to ensure that you complete the logout process.</p>');
 	}
 </%perl>
@@ -411,12 +411,6 @@ $verticalButtons => 0
 				<div id="shibButton" onclick="location.href='<% $shibURL %>'" class="<% $TUSK::Constants::Shibboleth{'class'} %>"><% $TUSK::Constants::Shibboleth{'displayName'} %></div>
 			</span>
 %		} elsif($loginItems[$_] eq 'local') {
-%			if ($is_mobi && !$url) {
-%				$url = '/mobi/home';
-%			}
-%			if ($url && $url =~ /^\// ) {
-%				$m->comp('/tmpl/element:hidden_form_element', params => { name => 'request_uri', value => $url });
-%			}
 			<span class="loginButtonSpan" id="localLogin" style="overflow: visible; border-right: 0px solid black;">
 				<div id="localLoginForm" style="display:<% $TUSK::Constants::LDAP{'autoExpand'} ? '; width: 250px; height: 77px;' : 'none' %>; overflow:visible;">
 					<& /tmpl/element:form, params => { action => $ssrv, method => 'post', name => 'login'} &>
@@ -429,7 +423,8 @@ $verticalButtons => 0
 							<label for="password" class="xsm"><%__('Password:')%></label>
 							<input name="password" type="password" class="textareawhite" size="20"/><br/>
 						</fieldset>
-%					unless($TUSK::Constants::DisableForgotYourPassword) {
+%					$m->comp('/tmpl/element:hidden_form_element', params => { name => 'request_uri', value => $url }) if ($url);
+%					unless ($TUSK::Constants::DisableForgotYourPassword) {
 						<div style="width: 100%; padding-left: 50px;">
 							<& /tmpl/element:submit_button, params => { name => 'Submit', label => __('Login') } &>
 %							if(!$is_mobi && !$verticalButtons) {
