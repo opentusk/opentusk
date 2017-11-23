@@ -31,4 +31,3 @@ CREATE TABLE IF NOT EXISTS tusk.user_login_history (
 INSERT INTO tusk.user_login (uid, login, previous_login, loggedout_flag)
    SELECT uid, login, previous_login, loggedout_flag 
      FROM hsdb4.user;
-

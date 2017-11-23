@@ -1,0 +1,75 @@
+# Add tusk.user_login table and copy session information from hsdb4.user
+mysql < tusk_user_login.sql
+
+# If you are using CAS
+mysql < cas.sql
+
+# Finally remove the login data from hsdb4.user
+mysql < hsdb4_user.sql
+
+# If you are using CAS
+mysql < hsdb4_user_cas.sql
+
+# Install log4perl.conf
+sudo -u tusk cp ../../install/templates/conf/tusk/log4perl.conf /usr/local/tusk/conf
+
+# Create the application log directory
+sudo mkdir /var/log/tusk
+sudo chown apache.tusk /var/log/tusk
+
+# Update /usr/local/tusk/conf/tusk.conf 'Authentication' section based on the example in install/templates/conf/tusk.conf
+# Enable the login methods that you want to use and change their labels if needed.
+# For backword-compatible setup enable the LDAP and Guest methods only.
+
+# Update the Apache configuration files based on the examples at install/templates/conf/apache2
+sudo cp ../../install/templates/conf/apache2/* /etc/httpd/conf.d
+
+## Install and configure Shibboleth
+## The following steps can be skipped if you are not using Shibboleth
+
+# Remove outdated repositories for CentOS 5
+sudo mkdir /etc/yum.repos.d/backup
+sudo mv /etc/yum.repos.d/*.repo /etc/yum.repos.d/backup
+sudo yum clean all
+
+# Add local yum repository for CentOS 5
+sudo  wget -O /etc/yum.repos.d/CentOS-TUSK.repo http://tuskmgmt-prod-01.tusk.tufts.edu/centos/5.11/os/x86_64/CentOS-TUSK.repo
+
+# Add Shibboleth yum repository
+sudo wget -O /etc/yum.repos.d/shibboleth.repo http://download.opensuse.org/repositories/security://shibboleth/CentOS_5/security:shibboleth.repo
+
+# Update Apache
+sudo yum update httpd
+
+# Install Shibboleth
+sudo yum install shibboleth
+
+# Install UNIX ODBC driver
+sudo yum install mysql-connector-odbc mysql-connector-odbc64
+
+# Create the shibboleth_session database
+mysql < shibboleth_session.sql
+
+# Copy the files to from install/templates/conf/shibboleth to /etc/shibboleth
+sudo cp ../../install/templates/conf/shibboleth/* /etc/shibboleth
+
+# Configure /etc/shibboleth/shibboleth2.xml
+# TUSKFQDN - the hostname used to access TUSK
+# SHIBFQDN - the hostname of the Shibboleth IdP
+# SHIBDBFQDN - the hostname of the Shibboleth session database server
+# SHIBDBPSWD - the Shibboleth session database password
+# SUPPORTEMAIL - the email of TUSK support
+
+# Restart Shibboleth and Apache
+sudo /etc/init.d/shibd restart
+sudo /etc/init.d/apache restart
+
+# Send the server metadata to the Shibboleth IdP
+sudo wget -O /etc/shibboleth/tusk-metadata.xml https://TUSKFQDN/Shibboleth.sso/Metadata
+
+# Place the metadata from the IdP in /etc/shibboleth/tusk-idp.xml
+sudo wget -O /etc/shibboleth/tusk-idp.xml https://SHIBFQDN/idp/shibboleth
+
+# Restart Shibboleth and Apache
+sudo /etc/init.d/shibd restart
+sudo /etc/init.d/apache restart
