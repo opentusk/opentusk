@@ -74,7 +74,7 @@ sub new {
 					'shib_session' => '',
 				    },
 				    _attributes => {
-					save_history => 1,
+					save_history => 0,
 					tracking_fields => 1,	
 					no_created => 1,
 				    },
