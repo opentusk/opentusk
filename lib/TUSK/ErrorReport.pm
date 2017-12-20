@@ -99,7 +99,7 @@ $addtlMsg
 EOM
 
 	if ((!Apache2::ServerUtil::exists_config_define('DEV') && !Apache2::ServerUtil::exists_config_define('FINCH'))
-		  || defined($always_send)){
+		  || defined($always_send)) {
 		my $mail = TUSK::Application::Email->new({
 			to_addr   => $email_receiver,
 			from_addr => $email_sender ,
@@ -118,10 +118,9 @@ EOM
 					"\tMessage: $msgBody\n"
 			);
 		}
-		warn "Message Sent";
-	    }else{
-		warn $addtlMsg if $addtlMsg;
-	    }
+    } else {
+        warn $addtlMsg if $addtlMsg;
+    }
 	return $msgBody;
 
 }
