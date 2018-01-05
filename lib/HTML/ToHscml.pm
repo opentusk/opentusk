@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -19,7 +19,7 @@ use base qw(Exporter);
 use XML::Twig;
 use XML::EscapeText qw(:escape);
 use XML::EscapeText::HSCML qw(:hscml :tagsub);
-use HTML::Tidy;
+use HTML::Tidier;
 use TUSK::Constants;
 use vars qw(@EXPORT);
 @EXPORT = qw(convert);
@@ -41,13 +41,13 @@ my %base_handlers = ( p => \&make_para, ul => \&make_itemized_list,
 
 sub convert {
   my $string = shift;
-  my $in_twig = new XML::Twig ( TwigHandlers => \%base_handlers, 
+  my $in_twig = new XML::Twig ( TwigHandlers => \%base_handlers,
 				load_DTD => 0,
 				keep_encoding => 1,
 				EmptyTags => 'normal',
 				comments => 'keep',
 			      );
-  my $tidier = HTML::Tidy->new();
+  my $tidier = HTML::Tidier->new();
   $tidier->set_msword_options();
   my $tidystring = $tidier->tidy_string($string);
   $tidystring =~ s/\xDF/\&beta;/gs;
@@ -71,7 +71,7 @@ sub convert {
   }
 
   # Kill empty <para>'s
-  for ($body->descendants ('para')) { 
+  for ($body->descendants ('para')) {
     $_->delete unless ($_->text =~ /\S/);
   }
 
@@ -104,7 +104,7 @@ sub make_underline {
   #
   # Convert a <u> to a <span style="text-decoration: underline">
   #
-  if (empty_check(@_) { 
+  if (empty_check(@_) {
     $_[1]->set_gi('span');
     $_[1]->set_add('style' => 'text-decoration: underline');
   }
@@ -150,7 +150,7 @@ sub make_definition_term {
     $_[1]->set_gi ('definition-term');
 }
 
-sub make_definition_data { 
+sub make_definition_data {
     #
     # Convert a <dd> to <definition-data>
     # (TwigHandler)
@@ -158,7 +158,7 @@ sub make_definition_data {
     $_[1]->set_gi ('definition-data') ;
 }
 
-sub make_strong { 
+sub make_strong {
     #
     # Converts an element to <strong>
     # (Twig Handler)
@@ -166,7 +166,7 @@ sub make_strong {
     if (empty_check (@_)) { $_[1]->set_gi ('strong') }
 }
 
-sub make_super { 
+sub make_super {
     #
     # Converts <sup> to <super> (and does an empty check)
     # (TwigHandler)
@@ -174,7 +174,7 @@ sub make_super {
     if (empty_check (@_)) { $_[1]->set_gi ('super') }
 }
 
-sub make_block_quote { 
+sub make_block_quote {
     #
     # Converts <sup> to <super> (and does an empty check)
     # (TwigHandler)
@@ -196,8 +196,8 @@ sub empty_check {
     # (TwigHandler)
     #
     my ($t, $elt) = @_;
-    unless ($elt->text () =~ /\S/) { 
-	$elt->delete (); 
+    unless ($elt->text () =~ /\S/) {
+	$elt->delete ();
 	return 0;
     }
     return 1;
@@ -214,7 +214,7 @@ sub pre_to_span {
 }
 
 sub span_check {
-    # 
+    #
     # Deletes a span element if it has no class or style attribute set
     # (TwigHandler)
     #
@@ -251,7 +251,7 @@ sub do_section {
     #
     # Take a big blob of HTML and make the sectioning work with it. That is,
     # make something like...
-    # 
+    #
     #   <h2>Title</h2>
     #     <para>...</para>
     #     <h4>Subtitle</h4>
@@ -259,7 +259,7 @@ sub do_section {
     #       <para>...</para>
     #   <h2>Another title</h2>
     #     <para>...</para>
-    # 
+    #
     # into...
     #
     #   <section-level-1>
@@ -276,7 +276,7 @@ sub do_section {
     #     <para>...</para>
     #   </section-level-1>
     #
-    # INPUT: 
+    # INPUT:
     #   1: An XML::Twig::Elt object to do the dirty work on
     #   2: An array-ref of the section-levels remaining to go in sub-elements
     #   3: An array-ref of the HTML heading levels that correspond with 2.
@@ -286,12 +286,12 @@ sub do_section {
     #   A list of the elements which are the result.
     # So for the above example, it would be...
     #
-    #   $body = new XML::Twig::Elt ('body', 
+    #   $body = new XML::Twig::Elt ('body',
     #                               do_section ($elt, [ 1, 2 ], [ 2, 4 ]));
     #
-    # ...which would make a new <body> element with the <section-level-1> 
+    # ...which would make a new <body> element with the <section-level-1>
     # elements as its children
-    
+
     my ($inelt, $levels, $headings) = @_;
     my $level = shift @$levels;
     my $heading = shift @$headings;
@@ -299,7 +299,7 @@ sub do_section {
     my @elts = ();
     # Check to make sure there are actually appropriate children. If there
     # aren't, then just return a copy of the children
-    unless ($heading && $inelt->children ("h$heading")) { 
+    unless ($heading && $inelt->children ("h$heading")) {
 	for ($inelt->children) {
 	    push @elts, $_->copy;
 	}
@@ -316,7 +316,7 @@ sub do_section {
 	    # If there's stuff in the section, make up the new element, and
 	    # add it to the big list, and reset
 	    if (@section) {
-		my $elt = new XML::Twig::Elt ("section-level-$level", 
+		my $elt = new XML::Twig::Elt ("section-level-$level",
 					      @section);
 		push @elts, $elt;
 	    }
@@ -339,11 +339,11 @@ sub do_section {
 
     # If there's a leftover current section, let's close it
     if (@section) {
-	my $elt = new XML::Twig::Elt ("section-level-$level", 
+	my $elt = new XML::Twig::Elt ("section-level-$level",
 				      @section);
 	push @elts, $elt;
     }
-	    
+
     # If there's no more down to go, then just return the list of elements
     unless (@{$levels} && @{$headings}) {
 	return @elts;
@@ -375,7 +375,7 @@ sub fix_anchor {
     # And if it's good, then use it
     unless ($node && $nodetags{$node->gi}) {
 	# Otherwise, start checking parents
-      PARENT: for ($elt->ancestors) { 
+      PARENT: for ($elt->ancestors) {
 	    if ($nodetags{$_->gi}) {
 		$node = $_;
 		last PARENT;
@@ -499,7 +499,7 @@ sub set_nodeid {
 }
 
 sub fix_image {
-    my %icons = 
+    my %icons =
 	("ell.gif" => '&liter;',
 	 "gror=.gif" => '&ge;',
 	 "uparrow.gif" => '&uarr;',
@@ -578,7 +578,7 @@ sub fix_image {
 	 "gamma" => '&gamma;',
 	 );
 
-    my %content_ids = 
+    my %content_ids =
 	("4028-08" => 410,
 	 "4028-03" => 405,
 	 "4028-26" => 1326,
