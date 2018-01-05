@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 
@@ -55,10 +55,10 @@
 	$data
 </%args>
 <%perl>
-	foreach my $data_point(@{$data}) {
+	foreach my $data_point (@{$data}) {
 		print "<li>" . $data_point->{title}."</li>";
 		print "<hr>";
-		if (defined @{$data_point->{children}}){
+		if (defined $data_point->{children}) {
 			print "<ul>";
 			$m->comp('SELF:printNationalCompetencies', data => $data_point->{children});
 			print "</ul>";
@@ -77,22 +77,22 @@
 	my $competency_level_id = $competency_level->getPrimaryKeyID;
 
 	my $cr = TUSK::Competency::Hierarchy->new()->lookup('competency.school_id = ' . $school_id, ['depth desc', 'parent_competency_id', 'sort_order'], undef, undef,
-							[TUSK::Core::JoinObject->new("TUSK::Competency::Competency", {origkey => 'child_competency_id', 
+							[TUSK::Core::JoinObject->new("TUSK::Competency::Competency", {origkey => 'child_competency_id',
 							joinkey => 'competency_id', jointype => 'inner', joincond => "competency_level_enum_id = $competency_level_id"})]);
 
 	foreach my $cr_row (@{$cr}) {
 		if (defined($competencies->{$cr_row->getChildCompetencyID()})) {
-			my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};			
+			my $child_comp = $competencies->{$cr_row->getChildCompetencyID()};
 			if (!defined( $c_href->{$child_comp})) {
-				$c_href->{$child_comp->getCompetencyID} = { 
-														id          => $child_comp->getCompetencyID, 
+				$c_href->{$child_comp->getCompetencyID} = {
+														id          => $child_comp->getCompetencyID,
 														title       => $child_comp->getTitle,
 														children    => $children_storage->{$child_comp->getCompetencyID},
 									  };
 			}
 			if (!$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID}) {
 				$p_c_pairs{$cr_row->getParentCompetencyID() . "-" . $child_comp->getCompetencyID} = 1;
-				push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID} 
+				push @{$children_storage->{$cr_row->getParentCompetencyID()}}, $c_href->{$child_comp->getCompetencyID}
 			}
 		}
 	}
@@ -106,7 +106,7 @@
 
 <%method jsarray>
 <%perl>
-	return [ 
+	return [
 			"jquery/jquery.min.js",
 			"jquery/plugin/interface/interface.js",
 			"jquery/plugin/json.js",
@@ -127,4 +127,3 @@
 <%method title>
 % return __("National Competencies");
 </%method>
-
