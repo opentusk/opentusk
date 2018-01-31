@@ -397,15 +397,12 @@ sub exportObjectives {
 	my ($c, $lom_root) = @_;
 	my @objectives;
 	
-	# $c could be a course or content. those obj's have different names for retrieving objectives...
-	if($c->isa('HSDB45::Course')){
+	# $c could be a course or content
+	if ($c->isa('HSDB45::Course')) {
 		@objectives = $c->child_topics();
 	}
-	else {
-		@objectives = $c->child_objectives();
-	}
 
-	if(scalar(@objectives)){
+	if (scalar @objectives) {
 		foreach my $obj (@objectives){
 			my $obj_str = '<classification><purpose><source><langstring xml:lang="en">LOMv1.0</langstring></source><value><langstring xml:lang="en">Educational Objective</langstring></value></purpose><description><langstring xml:lang="en">' . escape($obj->out_label()) . '</langstring></description></classification>';
 
