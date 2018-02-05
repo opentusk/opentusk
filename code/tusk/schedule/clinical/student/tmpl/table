@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 
@@ -40,19 +40,19 @@
 </%shared>
 
 <%init>
-	$m->comp("SELF:.prepare_table", 
-  		user_id => $args->{user_id}, 
+	$m->comp("SELF:.prepare_table",
+  		user_id => $args->{user_id},
   		col_fields => $args->{col_fields},
   		school => $args->{school},
   		academic_level_title => $args->{academic_level_title}
   	);
   	if ($isAdmin) {
-	  	$m->comp('/tmpl/element:object_selection_box', 
+	  	$m->comp('/tmpl/element:object_selection_box',
 			params => {columns => $args->{col_fields_addition_row}, rows => $table{'new'}, style => 'display: none'});
   	}
   	foreach my $i ('current', 'future', 'past') {
 		print("<h3 class = 'scheduleTimeHeader'> $tableLabels{$i} </h3>");
-		$m->comp('/tmpl/element:object_selection_box', 
+		$m->comp('/tmpl/element:object_selection_box',
 		params => {columns => $args->{col_fields}, rows => $table{$i}, 'norows-message' => __($i eq 'current' ? 'No placement' : 'No placement(s)')});
 	}
 </%init>
@@ -73,40 +73,40 @@ my $scheduleCourses = TUSK::Application::Schedule::Clinical->new({
 });
 
 if (scalar $scheduleCourses->{'courseIds'}) {
-	my @startDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'startDates'});
-	my @endDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'endDates'});
-	my @numberOfWeeks = $m->comp("SELF:get_number_of_weeks", startDatesInSeconds => @startDatesInSeconds, endDatesInSeconds => @endDatesInSeconds);
+	my $startDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'startDates'});
+	my $endDatesInSeconds = $m->comp("SELF:get_dates_in_seconds", dates => $scheduleCourses->{'endDates'});
+	my $numberOfWeeks = $m->comp("SELF:get_number_of_weeks", startDatesInSeconds => $startDatesInSeconds, endDatesInSeconds => $endDatesInSeconds);
 
 	my $localTimeInSeconds = time();
 	my $rowIndex = 0;
 	if ($isAdmin = $m->comp("/schedule/clinical/admin/autohandler:hasPermissions")) {
-		$m->comp("/tmpl/element:cms_button_row", links => [{ 
+		$m->comp("/tmpl/element:cms_button_row", links => [{
 			display_txt => __('Add Placement'),
 			link_txt    => 'javascript:void(0);',
 		}]);
 		my @additionRow;
 		push @additionRow, {
-			rotation => "<div id = 'course' style = 'display: none;'>" . 
-				$m->scomp("/schedule/clinical/admin/student/modify/course", 
-					schoolId => $school->getPrimaryKeyID(), 
+			rotation => "<div id = 'course' style = 'display: none;'>" .
+				$m->scomp("/schedule/clinical/admin/student/modify/course",
+					schoolId => $school->getPrimaryKeyID(),
 					schoolDb => $school->getSchoolDb(),
 					rowIndex => $rowIndex,
 					academicLevelTitle => $academic_level_title) . "</div>",
-			time_period => "<div id = 'timePeriod' style = 'display: none;'>" . 
-				$m->scomp("/schedule/clinical/admin/student/modify/timeperiod", 
-					schoolId => $school->getPrimaryKeyID(), 
+			time_period => "<div id = 'timePeriod' style = 'display: none;'>" .
+				$m->scomp("/schedule/clinical/admin/student/modify/timeperiod",
+					schoolId => $school->getPrimaryKeyID(),
 					rowIndex => $rowIndex,
 					currentTimePeriodId => -1,
 					currentCourseId => -1
 				). "</div>",
-			teaching_site => "<div id = 'teachingSite' style = 'display: none;'>" . 
-				$m->scomp("/schedule/clinical/admin/student/modify/teachingsite", 
-					schoolId => $school->getPrimaryKeyID(), 
+			teaching_site => "<div id = 'teachingSite' style = 'display: none;'>" .
+				$m->scomp("/schedule/clinical/admin/student/modify/teachingsite",
+					schoolId => $school->getPrimaryKeyID(),
 					schoolDb => $school->getSchoolDb(),
 					rowIndex => $rowIndex,
 					currentTeachingSiteId => -1,
 					currentCourseId => -1
-				) . "</div>", 
+				) . "</div>",
 			actions => '<div id="modify"></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" >Save</a><span class="littlespacing">|</span><a class = "navsm" id = "cancel" style = "white-space: nowrap;">Cancel</a><span id = "alreadyEnrolled" class = "xsm" style = "display: none;"> <br> Already Enrolled: <span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>',
 		};
 		push @{ $table{"new"} }, @additionRow;
@@ -117,48 +117,48 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 		my @rows;
 
 		push @rows, {
-			rotation => '<span id = "courseName"><a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">' . ${$scheduleCourses->{'courseTitles'}}[$index] . '</a><span id = "courseId" style = "display: none;">' . ${$scheduleCourses->{'courseIds'}}[$index] . '</span></span>',             
-			time_period => '<span id = "currentTimePeriod">' . 
-				${$scheduleCourses->{'timePeriods'}}[$index] . 
-				'<span id = "currentTimePeriodId" style = "display: none;"> ' . 
-				${$scheduleCourses->{'timePeriodIds'}}[$index] . 
-				' </span></span>' . 
-				($isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" . 
-				$m->scomp("/schedule/clinical/admin/student/modify/timeperiod", 
-					schoolId => $school->getPrimaryKeyID(), 
+			rotation => '<span id = "courseName"><a href = "/schedule/clinical/placement/course/' .$school->getSchoolName(). '/' .${$scheduleCourses->{'courseIds'}}[$index]. '">' . ${$scheduleCourses->{'courseTitles'}}[$index] . '</a><span id = "courseId" style = "display: none;">' . ${$scheduleCourses->{'courseIds'}}[$index] . '</span></span>',
+			time_period => '<span id = "currentTimePeriod">' .
+				${$scheduleCourses->{'timePeriods'}}[$index] .
+				'<span id = "currentTimePeriodId" style = "display: none;"> ' .
+				${$scheduleCourses->{'timePeriodIds'}}[$index] .
+				' </span></span>' .
+				($isAdmin ? "<div id = 'timePeriod' style = 'display: none;'>" .
+				$m->scomp("/schedule/clinical/admin/student/modify/timeperiod",
+					schoolId => $school->getPrimaryKeyID(),
 					rowIndex => $rowIndex,
 					currentTimePeriodId => ${$scheduleCourses->{'timePeriodIds'}}[$index],
-					currentCourseId  => ${$scheduleCourses->{'courseIds'}}[$index]) . 
+					currentCourseId  => ${$scheduleCourses->{'courseIds'}}[$index]) .
 				"</div><div id='assessmentTimePeriod' style = 'display: none;'>Move Assessment?<input type='checkbox' id='move' checked/></div>" : ""),
 			start_date => $m->comp("/schedule/clinical/tmpl/view:date_in_mmddyyyy", date => ${$scheduleCourses->{'startDates'}}[$index]),
 			end_date => $m->comp("/schedule/clinical/tmpl/view:date_in_mmddyyyy", date => ${$scheduleCourses->{'endDates'}}[$index]),
-			teaching_site => '<span id = "currentTeachingSite">' . 
-				${$scheduleCourses->{'siteNames'}}[$index] . 
-				'<span id = "currentTeachingSiteId" style = "display: none;"> ' . 
-				${$scheduleCourses->{'teachingSiteIds'}}[$index] . ' </span></span>' . 
-				($isAdmin ? "<div id = 'teachingSite' style = 'display: none;'>" . 
-				$m->scomp("/schedule/clinical/admin/student/modify/teachingsite", 
-					schoolId => $school->getPrimaryKeyID(), 
-					schoolDb => $school->getSchoolDb(), 
+			teaching_site => '<span id = "currentTeachingSite">' .
+				${$scheduleCourses->{'siteNames'}}[$index] .
+				'<span id = "currentTeachingSiteId" style = "display: none;"> ' .
+				${$scheduleCourses->{'teachingSiteIds'}}[$index] . ' </span></span>' .
+				($isAdmin ? "<div id = 'teachingSite' style = 'display: none;'>" .
+				$m->scomp("/schedule/clinical/admin/student/modify/teachingsite",
+					schoolId => $school->getPrimaryKeyID(),
+					schoolDb => $school->getSchoolDb(),
 					rowIndex => $rowIndex,
 					currentTeachingSiteId => ${$scheduleCourses->{'teachingSiteIds'}}[$index],
 					currentCourseId => ${$scheduleCourses->{'courseIds'}}[$index]) .
 				"</div>" : ""),
-			number_of_weeks => ${@numberOfWeeks}[0][$index],
+			number_of_weeks => $numberOfWeeks->[$index],
 		};
 
 		if ($isAdmin) {
-			${@rows}[-1]{'actions'} = '<div id="modify"><a class = "navsm" style = "cursor: pointer;">Modify</a></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" style = "display: none;" >Save</a><span class="littlespacing" id="modifyLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "cancel" style = "display: none; white-space: nowrap;">Cancel</a><span class="littlespacing" id="modifyLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "delete" style = "display: none; white-space: nowrap;">Delete</a></span><span id = "alreadyEnrolled" class = "xsm" style = "display: none;"> <br> Already Enrolled: <span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>'; 
-			${@rows}[-1]{'notes'} = "<div id='note'><span id='placeholder'>" . $m->scomp("/schedule/clinical/admin/student/note/addedit",
+			$rows[-1]{'actions'} = '<div id="modify"><a class = "navsm" style = "cursor: pointer;">Modify</a></div><span id = "saveCancelDelete" style = "cursor: pointer;"><a id = "save" class = "navsm" style = "display: none;" >Save</a><span class="littlespacing" id="modifyLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "cancel" style = "display: none; white-space: nowrap;">Cancel</a><span class="littlespacing" id="modifyLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "delete" style = "display: none; white-space: nowrap;">Delete</a></span><span id = "alreadyEnrolled" class = "xsm" style = "display: none;"> <br> Already Enrolled: <span id="alreadyEnrolledNumber'. $rowIndex . '"></span></span>';
+			$rows[-1]{'notes'} = "<div id='note'><span id='placeholder'>" . $m->scomp("/schedule/clinical/admin/student/note/addedit",
 				userId => $user_id,
 				schoolId => $school->getPrimaryKeyID(),
-				courseId => ${$scheduleCourses->{'courseIds'}}[$index]) . '</span></div><span id = "saveCancelNote" style = "cursor: pointer;"><a id = "saveNoteTrigger" class = "navsm" style = "display: none;" >Save</a><span class="littlespacing" id="noteLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "cancelNoteTrigger" style = "display: none; white-space: nowrap;">Cancel</a>'; 
+				courseId => ${$scheduleCourses->{'courseIds'}}[$index]) . '</span></div><span id = "saveCancelNote" style = "cursor: pointer;"><a id = "saveNoteTrigger" class = "navsm" style = "display: none;" >Save</a><span class="littlespacing" id="noteLineSeperator" style = "display: none;">|</span><a class = "navsm" id = "cancelNoteTrigger" style = "display: none; white-space: nowrap;">Cancel</a>';
 		} else {
 			$student->setPrimaryKeyID($user_id);
-			${@rows}[-1]{'notes'} = "<div id='note' style='text-align: center;'><span style='display: none;' id = 'course'>" . 
+			$rows[-1]{'notes'} = "<div id='note' style='text-align: center;'><span style='display: none;' id = 'course'>" .
 				${$scheduleCourses->{'courseIds'}}[$index]. "</span>" .
-				"<span style='display: none;' id = 'student'>" . $student->getUID() . 
-				"</span><a class = 'navsm' id = 'placeholder' style = 'cursor: pointer'>" . 
+				"<span style='display: none;' id = 'student'>" . $student->getUID() .
+				"</span><a class = 'navsm' id = 'placeholder' style = 'cursor: pointer'>" .
 				$m->scomp("/schedule/clinical/admin/student/note/addedit",
 					userId => $user_id,
 					schoolId => $school->getPrimaryKeyID(),
@@ -166,13 +166,11 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 					accessType => 'view') . '</a></div>';
 		}
 
-		if (${@endDatesInSeconds}[0][$index] < $localTimeInSeconds) {
+		if ($endDatesInSeconds->[$index] < $localTimeInSeconds) {
 			push @{ $table{"past"} }, @rows;
-		}
-		elsif (${@startDatesInSeconds}[0][$index] <= $localTimeInSeconds && ${@endDatesInSeconds}[0][$index] >= $localTimeInSeconds) {
+		} elsif ($startDatesInSeconds->[$index] <= $localTimeInSeconds && $endDatesInSeconds->[$index] >= $localTimeInSeconds) {
 			push @{ $table{"current"} }, @rows;
-		}
-		else {
+		} else {
 			push @{ $table{"future"} }, @rows;
 		}
 		$rowIndex++;
@@ -183,7 +181,7 @@ if (scalar $scheduleCourses->{'courseIds'}) {
 </%method>
 
 <%doc>
-  Calculate the seconds that have passed by for start/end dates 
+  Calculate the seconds that have passed by for start/end dates
   since 00:00:00 UTC, January 1, 1970[EPOCH in most systems]
   The format of the date is YYYY-MM-DD
 </%doc>
@@ -197,7 +195,7 @@ if (scalar $scheduleCourses->{'courseIds'}) {
   	foreach my $date (@dates) {
 		push @datesInSeconds, $m->comp("/schedule/clinical/tmpl/time:get_date_in_seconds", date => $date);
     }
-    
+
     return \@datesInSeconds;
 </%perl>
 </%method>
