@@ -129,7 +129,7 @@ sub replace_element_uri {
     my $element = shift;
     my $twig = $self->twig;
 
-    if (exists $uri->{'#CDATA'}) {
+    if (ref $uri eq ref {} && exists $uri->{'#CDATA'}) {
         $uri->{'#CDATA'} =  XML::EscapeText::spec_chars_name($uri->{'#CDATA'});
     } else { ## trying to parse PCDATA
         unless ($twig->safe_parse($self->{data})) {
