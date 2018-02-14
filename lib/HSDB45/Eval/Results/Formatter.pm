@@ -26,6 +26,7 @@ use HSDB45::Eval::Question::ResponseStatistics;
 use HSDB45::Eval::Results::BarGraphCreator;
 use TUSK::Constants;
 
+
 BEGIN {
     use vars qw($VERSION);
     $VERSION = do { my @r = (q$Revision: 1.50 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
@@ -121,29 +122,25 @@ sub eval_results_elt {
 
     unless($self->{-eval_results_elt}) {
         my $eval = $self->object()->parent_eval();
-        my $elt =
-          XML::Twig::Elt->new("Eval_Results",
+        my $elt =  XML::Twig::Elt->new("Eval_Results",
                               {"school"         => $eval->school(),
                                "eval_id"        => $eval->primary_key()});
         $elt->set_pretty_print("indented");
-        # $self->eval_header_elt()->paste('last_child', $self->{-eval_results_elt});
-        # $self->enrollment_elt()->paste('last_child', $self->{-eval_results_elt});
+
         foreach my $question_results_elt ($self->question_results_elts()) {
-            $question_results_elt->paste('last_child', $elt);
+            $question_results_elt->paste('last_child' => $elt);
         }
         $self->{-eval_results_elt} = $elt;
         $self->do_bar_graphs() unless $no_bargraphs;
     }
-
     return $self->{-eval_results_elt};
 }
 
 sub do_bar_graphs {
     my $self = shift;
     my $eval = $self->object()->parent_eval();
-    my $bar_graph_creator =
-      HSDB45::Eval::Results::BarGraphCreator->new($eval->school(), $eval->primary_key(),
-                                                  $self->eval_results_elt()->sprint());
+    my $bar_graph_creator = HSDB45::Eval::Results::BarGraphCreator->new(
+        $eval->school(), $eval->primary_key(), $self->eval_results_elt()->sprint());
     $bar_graph_creator->save_svg_graphs();
 }
 
@@ -170,14 +167,14 @@ sub eval_header_elt {
         my $available_date_elt = XML::Twig::Elt->new("available_date", {}, $eval->field_value('available_date'));
         my $due_date_elt = XML::Twig::Elt->new("due_date", {}, $eval->field_value('due_date') );
 
-        $eval_title_elt->paste('last_child', $self->{-eval_header_elt});
-        $course_ref_elt->paste('last_child', $self->{-eval_header_elt});
-        $available_date_elt->paste('last_child', $self->{-eval_header_elt});
-        $due_date_elt->paste('last_child', $self->{-eval_header_elt});
+        $eval_title_elt->paste('last_child' => $self->{-eval_header_elt});
+        $course_ref_elt->paste('last_child' => $self->{-eval_header_elt});
+        $available_date_elt->paste('last_child' => $self->{-eval_header_elt});
+        $due_date_elt->paste('last_child' => $self->{-eval_header_elt});
 
         if ($eval->field_value('prelim_due_date')) {
             my $prelim_due_date_elt = XML::Twig::Elt->new("prelim_due_date");
-            $prelim_due_date_elt->paste('last_child', $self->{-eval_header_elt});
+            $prelim_due_date_elt->paste('last_child' => $self->{-eval_header_elt});
         }
     }
 
@@ -205,9 +202,9 @@ sub enrollment_elt {
             my $complete_user_elt = XML::Twig::Elt->new("user-ref",
                                                         {"user-id" => $complete_user->primary_key()},
                                                         $complete_user->out_full_name());
-            $complete_user_elt->paste('last_child', $complete_users_elt);
+            $complete_user_elt->paste('last_child'  => $complete_users_elt);
         }
-        $complete_users_elt->paste('last_child', $self->{-enrollment_elt});
+        $complete_users_elt->paste('last_child' => $self->{-enrollment_elt});
 
         my $incomplete_users_elt = XML::Twig::Elt->new("IncompleteUsers",
                                                        {"count"   => $num_incomps,
@@ -216,20 +213,20 @@ sub enrollment_elt {
             my $incomplete_user_elt = XML::Twig::Elt->new("user-ref",
                                                           {"user-id" => $incomplete_user->primary_key()},
                                                           $incomplete_user->out_full_name());
-            $incomplete_user_elt->paste('last_child', $incomplete_users_elt);
+            $incomplete_user_elt->paste('last_child' => $incomplete_users_elt);
         }
-        $incomplete_users_elt->paste('last_child', $self->{-enrollment_elt});
+        $incomplete_users_elt->paste('last_child' => $self->{-enrollment_elt});
 
         my $deficit;
         if (($deficit = $self->object()->total_user_codes() - $self->object()->total_completions()) > 0) {
             my $completion_token_deficit_elt = XML::Twig::Elt->new("CompletionTokenDeficit", {}, $deficit);
-            $completion_token_deficit_elt->paste('last_child', $self->{-enrollment_elt});
+            $completion_token_deficit_elt->paste('last_child' => $self->{-enrollment_elt});
         }
 
         my $excess;
         if (($excess = $self->object()->total_user_codes() > $eval->num_users()) > 0) {
             my $excess_completions_elt = XML::Twig::Elt->new("ExcessCompletions", {}, $excess);
-            $excess_completions_elt->paste('last_child', $self->{-enrollment_elt});
+            $excess_completions_elt->paste('last_child' => $self->{-enrollment_elt});
         }
     }
 
@@ -244,6 +241,7 @@ sub question_results_elts {
         foreach my $question_results ($self->object()->question_results()) {
             my $type = $question_results->question()->body()->question_type();
             next if ($type eq 'Title' || $type eq 'Instruction');
+
             if ($self->verbose()) {
                 print STDERR sprintf("Starting question %d [%s] (Size: %d)\n",
                                      $question_results->question()->primary_key(),
@@ -265,26 +263,23 @@ sub question_results_elt {
     my $question_results_elt =
       XML::Twig::Elt->new("Question_Results",
                           {"eval_question_id" =>
-                               $question_results->question()->primary_key() }
+                               $question_results->question()->primary_key()}
                           );
-
-    # my $eval_question_elt = $self->eval_question_elt($question_results);
-    # $eval_question_elt->paste('last_child', $question_results_elt);
 
     if ($question_results->responses()) {
         my $response_group_elt = XML::Twig::Elt->new("ResponseGroup");
         my $statistics_elt = $self->statistics_elt($question_results->statistics());
-        $statistics_elt->paste('last_child', $response_group_elt);
+        $statistics_elt->paste('last_child' => $response_group_elt);
         foreach my $response ($question_results->responses()) {
             my $response_elt = $self->response_elt($response);
-            $response_elt->paste('last_child', $response_group_elt) if ($response_elt);
+            $response_elt->paste('last_child' => $response_group_elt) if ($response_elt);
         }
 
-        $response_group_elt->paste('last_child', $question_results_elt);
+        $response_group_elt->paste('last_child' => $question_results_elt);
 
         foreach my $categorization ($question_results->categorizations()) {
             my $categorization_elt = $self->categorization_elt($categorization);
-            $categorization_elt->paste('last_child', $question_results_elt);
+            $categorization_elt->paste('last_child' => $question_results_elt);
         }
     }
 
@@ -299,14 +294,14 @@ sub response_group_elt {
     my $response_group_elt = XML::Twig::Elt->new("ResponseGroup");
 
     my $grouping_value_elt = XML::Twig::Elt->new("grouping_value", {}, $response_group->label());
-    $grouping_value_elt->paste('last_child', $response_group_elt);
+    $grouping_value_elt->paste('last_child' => $response_group_elt);
 
     my $statistics_elt = $self->statistics_elt($response_group->statistics(), $for_categorization);
-    $statistics_elt->paste('last_child', $response_group_elt);
+    $statistics_elt->paste('last_child' => $response_group_elt);
 
     foreach my $response ($response_group->responses()) {
         my $response_elt = $self->response_elt($response);
-        $response_elt->paste('last_child', $response_group_elt) if $response_elt;
+        $response_elt->paste('last_child' => $response_group_elt) if $response_elt;
     }
 
     return $response_group_elt;
@@ -323,7 +318,7 @@ sub categorization_elt {
     foreach my $resp_group_label (sort $categorization->response_group_labels()) {
         my $resp_group = $categorization->response_group($resp_group_label);
         my $response_group_elt = $self->response_group_elt($resp_group, 1);
-        $response_group_elt->paste('last_child', $categorization_elt);
+        $response_group_elt->paste('last_child' => $categorization_elt);
     }
 
     return $categorization_elt;
@@ -340,15 +335,15 @@ sub eval_question_elt {
 
     if ($question_results->question()->label()) {
         my $question_label_elt = XML::Twig::Elt->new("question_label", {}, $question_results->question()->label());
-        $question_label_elt->paste('last_child', $eval_question_elt);
+        $question_label_elt->paste('last_child' => $eval_question_elt);
     }
 
     foreach my $gid ($question_results->question()->group_by_ids()) {
         my $grouping_elt = XML::Twig::Elt->new("grouping", {"group_by_id" => $gid});
-        $grouping_elt->paste('last_child', $eval_question_elt);
+        $grouping_elt->paste('last_child' => $eval_question_elt);
     }
 
-    $question_results->question()->body()->elt()->copy()->paste('last_child', $eval_question_elt);
+    $question_results->question()->body()->elt()->copy()->paste('last_child' => $eval_question_elt);
 
     return $eval_question_elt;
 }
@@ -361,7 +356,7 @@ sub statistics_elt {
     my $response_statistics_elt = XML::Twig::Elt->new("ResponseStatistics");
 
     my $response_count_elt = XML::Twig::Elt->new("response_count", {}, $statistics->count());
-    $response_count_elt->paste('last_child', $response_statistics_elt);
+    $response_count_elt->paste('last_child' => $response_statistics_elt);
 
     my $no_response_count_elt;
     if ($for_categorization) {
@@ -390,11 +385,11 @@ sub statistics_elt {
                                                      $statistics->count() - $statistics->na_count());
     }
 
-    $no_response_count_elt->paste('last_child', $response_statistics_elt);
+    $no_response_count_elt->paste('last_child' => $response_statistics_elt);
 
     my $na_response_count_elt = XML::Twig::Elt->new("na_response_count", {},
                                                     $statistics->na_count());
-    $na_response_count_elt->paste('last_child', $response_statistics_elt);
+    $na_response_count_elt->paste('last_child' => $response_statistics_elt);
 
     if ($statistics->histogram()) {
         my $histogram = $statistics->histogram();
@@ -402,40 +397,40 @@ sub statistics_elt {
         foreach my $resp ($histogram->bins()) {
             my $histogram_bin_elt = XML::Twig::Elt->new("HistogramBin",
                                                         {"count" => $histogram->bin_count($resp)}, $resp);
-            $histogram_bin_elt->paste('last_child', $histogram_elt);
+            $histogram_bin_elt->paste('last_child' => $histogram_elt);
         }
-        $histogram_elt->paste('last_child', $response_statistics_elt);
+        $histogram_elt->paste('last_child' => $response_statistics_elt);
     }
 
     if ($statistics->mean()) {
         my $mean_elt = XML::Twig::Elt->new("mean", {}, sprintf("%.2f", $statistics->mean()));
-        $mean_elt->paste('last_child', $response_statistics_elt);
+        $mean_elt->paste('last_child' => $response_statistics_elt);
     }
 
     if ($statistics->standard_deviation()) {
         my $standard_deviation_elt = XML::Twig::Elt->new("standard_deviation", {},
                                                       sprintf("%.2f", $statistics->standard_deviation()));
-        $standard_deviation_elt->paste('last_child', $response_statistics_elt);
+        $standard_deviation_elt->paste('last_child' => $response_statistics_elt);
     }
 
     if ($statistics->median()) {
         my $median_elt = XML::Twig::Elt->new("median", {}, sprintf("%.2f", $statistics->median()));
-        $median_elt->paste('last_child', $response_statistics_elt);
+        $median_elt->paste('last_child' => $response_statistics_elt);
     }
 
     if ($statistics->median25()) {
         my $median25_elt = XML::Twig::Elt->new("median25", {}, sprintf("%.2f", $statistics->median25()));
-        $median25_elt->paste('last_child', $response_statistics_elt);
+        $median25_elt->paste('last_child' => $response_statistics_elt);
     }
 
     if ($statistics->median75()) {
         my $median75_elt = XML::Twig::Elt->new("median75", {}, sprintf("%.2f", $statistics->median75()));
-        $median75_elt->paste('last_child', $response_statistics_elt);
+        $median75_elt->paste('last_child' => $response_statistics_elt);
     }
 
     if ($statistics->mode()) {
         my $mode_elt = XML::Twig::Elt->new("mode", {}, sprintf("%.2f", $statistics->mode()));
-        $mode_elt->paste('last_child', $response_statistics_elt);
+        $mode_elt->paste('last_child' => $response_statistics_elt);
     }
     return $response_statistics_elt;
 }
