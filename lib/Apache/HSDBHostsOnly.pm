@@ -30,7 +30,7 @@ my $filetime = 0;
 sub handler {
     my $r = shift;
     my $hostfile;
-    my $remote_ip = $r->connection()->can('remote_ip');
+    my $remote_ip = $r->connection()->client_ip();
     # Use list of PermissibleIPs if available in tusk.conf
     return OK if grep { $_ eq $remote_ip } @TUSK::Constants::PermissibleIPs;
     # Otherwise a simple check if remote IP is same as local IP
