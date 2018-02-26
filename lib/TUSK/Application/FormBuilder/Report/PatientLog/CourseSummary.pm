@@ -116,7 +116,7 @@ sub getReport {
                                   INNER JOIN tusk.form_builder_response r ON r.entry_id = c.entry_id
                                   INNER JOIN tusk.form_builder_field ON r.field_id = form_builder_field.field_id
                                   INNER JOIN $db.link_course_student lcs
-                                     ON r.created_by = lcs.child_user_id
+                                     ON (r.created_by = lcs.child_user_id and lcs.time_period_id = c.time_period_id)
 				  WHERE c.time_period_id IN ($self->{_time_period_ids_string})  
 			          AND lcs.teaching_site_id = $site_id
                                   AND form_builder_field.field_type_id = $confidential_field_type_id
