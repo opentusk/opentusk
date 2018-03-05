@@ -121,7 +121,7 @@ sub getReport {
 			          AND lcs.teaching_site_id = $site_id
                                   AND form_builder_field.field_type_id = $confidential_field_type_id
 				  AND form_id = $self->{_form_id}
-			       GROUP BY r.text);
+			       GROUP BY r.text, r.created_by);
 
         my $sth_2 = $self->{_form}->databaseSelect($sql_2);
 

@@ -72,7 +72,9 @@ sub getReport {
 				  FROM tusk.form_builder_entry c
                                   INNER JOIN tusk.form_builder_response r ON r.entry_id = c.entry_id
                                   INNER JOIN tusk.form_builder_field ON r.field_id = form_builder_field.field_id
-				  WHERE time_period_id IN ($self->{_time_period_ids_string})  
+								  INNER JOIN $self->{_db}.link_course_student lcs
+                                     ON (r.created_by = lcs.child_user_id and lcs.time_period_id = c.time_period_id)
+				  WHERE c.time_period_id IN ($self->{_time_period_ids_string})  
                                   AND c.user_id = "$user_id"                                  
                                   AND form_builder_field.field_type_id = $confidential_field_type_id
 				  AND form_id = $self->{_form_id}
