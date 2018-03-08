@@ -309,11 +309,21 @@ $school
 </%args>
 <%perl>
 	my $all_announcements = TUSK::User::AnnouncementHide::get_nonhidden_announcements_by_school($user->primary_key());
+	my $motd = '';
+
+	if (open(my $fh, '<:encoding(UTF-8)', '/usr/local/tusk/conf/motd')) {
+  		while (my $line = <$fh>) {
+			  $motd .= $line;
+		  }
+	}
 </%perl>
-% if (scalar keys %$all_announcements) {
+% if (scalar keys %$all_announcements || $motd) {
 <section class="notifications">
 	<div class="close"><img src="/graphics/icon-home-close.png" alt=""></div>
 	<div class="scrollcontainer">
+%	if ($motd) {
+		<article><% $motd %></article>
+%	}
 %	foreach my $school (keys %$all_announcements) {
 %		foreach my $ann_id (keys %{$all_announcements->{$school}}) {
 		<article><% $all_announcements->{$school}->{$ann_id}->field_value('body') %></article>
