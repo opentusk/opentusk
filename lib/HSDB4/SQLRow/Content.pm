@@ -1066,7 +1066,7 @@ sub tag_values {
 sub twig_body {
     my $self = shift;
     my $val = $self->field_value('body');
-    return my $body = HSDB4::XML::HSCML->new($val);
+    return HSDB4::XML::HSCML->new($val);
 }
 
 sub build_body {
