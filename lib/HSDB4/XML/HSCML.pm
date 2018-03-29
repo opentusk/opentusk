@@ -20,7 +20,6 @@ use XML::Twig;
 use HSDB4::SQLRow::User;
 use XML::EscapeText;
 use TUSK::Constants;
-use Data::Dumper;
 
 BEGIN {
     require Exporter;
@@ -132,15 +131,23 @@ sub replace_element_uri {
     if (ref $uri eq ref {} && exists $uri->{'#CDATA'}) {
         $uri->{'#CDATA'} =  XML::EscapeText::spec_chars_name($uri->{'#CDATA'});
     } else { ## trying to parse PCDATA
-        unless ($twig->safe_parse($self->{data})) {
-            return (0,"Existing data in the database is malformed, can't replace it.")
-        }
+        $uri =  XML::EscapeText::spec_chars_name($uri);
     }
 
     $self->start_xml unless ($self->{data});
+
+    unless ($twig->safe_parse($self->{data})) {
+        return (0,"Existing data in the database is malformed, can't replace it.")
+    }
+
     my $root = $twig->root;
-    my $elt = $root->child(0,$element);
-    $elt->cut if ($elt);
+    if ($root) {
+        my $elt = $root->child(0,$element);
+        $elt->cut if ($elt);
+    } else {
+        $root = XML::Twig::Elt->new();
+    }
+
     paste_last($root,$element,$uri);
     $self->{data} = $twig->sprint(1);
     return 1;
@@ -154,14 +161,14 @@ sub replace_element_attribute {
     my $twig = $self->twig;
     $self->start_xml if (!$self->{data});
     unless($twig->safe_parse($self->{data})) {
-	return (0,"Existing data in the database is malformed, can't replace it.")
+        return (0,"Existing data in the database is malformed, can't replace it.")
     }
     my $root = $twig->root;
 
     my $elt = $root->first_child($element);
     unless ($elt) {
-	paste_first($root, $element, '');
-	$elt = $root->child(0,$element);
+        paste_first($root, $element, '');
+        $elt = $root->child(0,$element);
     }
 
     set_attribute($elt,$attribute,$value);
@@ -183,8 +190,8 @@ sub out_html_body {
 	    $source = $parser->parse_string($prolog.$self->out_content_body);
     };
     if ($@){
-	$self->error("XML Parse:" . $@);
-	return;
+        $self->error("XML Parse:" . $@);
+        return;
     }
 
     my $doc = $ENV{XSL_ROOT} . '/Content/Document.xsl';
@@ -528,7 +535,7 @@ sub build_header {
     ## put the content_id into the content tag
     set_attribute($root,"content-id",$caller->{content_id});
 
-    ## add the title
+    ## dd the title
     paste_last($header,"title",$caller->{title});
 
     ## add all role information
@@ -649,7 +656,7 @@ sub refresh_status {
     my $root = $twig->root;           # get the root of the twig (db-content)
     my $header = $root->child(0,'header');    # get body
     foreach ($header->descendants('status-history')) {
-	$_->cut;
+        $_->cut;
     }
     my $last_modified;
     ## find the last modified element, which will give us a place to paste the status elements
@@ -660,12 +667,12 @@ sub refresh_status {
     ## add the status history
     %hash = %{$caller->{status_history}};
     for ($ii=0;$ii<$hash{items};$ii++) {
-	$elt = new XML::Twig::Elt ("status-history");
-	paste_first($elt,"status-note",$hash{"note".$ii}) if ($hash{"note".$ii});
-	paste_first($elt,"assigner",$hash{"assigner".$ii});
-	paste_first($elt,"status-date",format_sql_date($hash{"date".$ii}));
-	paste_first($elt,"status",$hash{$ii});
-	$elt->paste("after",$last_modified);
+        $elt = new XML::Twig::Elt ("status-history");
+        paste_first($elt,"status-note",$hash{"note".$ii}) if ($hash{"note".$ii});
+        paste_first($elt,"assigner",$hash{"assigner".$ii});
+        paste_first($elt,"status-date",format_sql_date($hash{"date".$ii}));
+        paste_first($elt,"status",$hash{$ii});
+        $elt->paste(after => $last_modified);
     }
     $caller->{data} = $twig->sprint(1);
 }
@@ -727,7 +734,7 @@ sub paste_first {
     my $field = shift;
     my $value = shift;
     my $elt = new XML::Twig::Elt ($field,$value);
-    $elt->paste('first_child',$XML_doc);
+    $elt->paste(first_child => $XML_doc);
     return $elt;
 }
 
@@ -735,21 +742,21 @@ sub paste_last {
     my $XML_doc = shift;
     my $field = shift;
     my $value = shift;
-    my $elt = XML::Twig::Elt->new(%$value)->wrap_in($field);
-    $elt->paste('last_child',$XML_doc);
+    my $elt = XML::Twig::Elt->new((ref $value eq ref {}) ? %$value : $value)->wrap_in($field);
+    $elt->paste(last_child => $XML_doc);
     return $elt;
 }
 
 sub paste_first_object {
     my $parent_object = shift;
     my $child_object = shift;
-    $child_object->paste('first_child',$parent_object);
+    $child_object->paste(first_child => $parent_object);
 }
 
 sub paste_last_object {
     my $parent_object = shift;
     my $child_object = shift;
-    $child_object->paste('last_child',$parent_object);
+    $child_object->paste(last_child => $parent_object);
 }
 
 sub set_attribute {

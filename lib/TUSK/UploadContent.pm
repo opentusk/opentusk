@@ -126,21 +126,22 @@ sub add_content_sub{
     }
 
     $fdat{school}=$req->{school};
-
     $fdat{filename} =~ s/$path{'temp'}//;
+
     unless (-e $path{'temp'} . "/" . $fdat{filename}) {
-	warn("Unable to create content because " . $path{'temp'} . "/" . $fdat{filename} . " does not exist\n");
-	return (0, "The file could not be found.  Please try to upload again.");
+        warn("Unable to create content because " . $path{'temp'} . "/" . $fdat{filename} . " does not exist\n");
+        return (0, "The file could not be found.  Please try to upload again.");
     }
+
     ($rval, $req->{content_id}) = add_content($req->{user}, %fdat);
     return ($rval, $req->{content_id}) unless ($rval > 0);
 
     $req->{content}=HSDB4::SQLRow::Content->new->lookup_key($req->{content_id});
     $req->{selfpath}.="/".$req->{content_id};
 
-    if ($fdat{filename}){
-	($rval,$msg) = do_file_stuff($req->{content}, $req->{user}->primary_key, %fdat);
-	return ($rval, $msg) unless ($rval > 0);
+    if ($fdat{filename}) {
+        ($rval,$msg) = do_file_stuff($req->{content}, $req->{user}->primary_key, %fdat);
+        return ($rval, $msg) unless ($rval > 0);
     }
 
     # do common actions
@@ -402,7 +403,6 @@ sub add_content{
 
 	# body and data ids all depend on type of document
 	my $content = HSDB4::SQLRow::Content->new;
-	my $body = "";
 
 	# ok, upload
 	($fdat{school},$fdat{course_id}) = split ('-', $fdat{course});
@@ -428,7 +428,6 @@ sub add_content{
 	my @time = localtime;
 	$content->set_field_values(
 				   type => $fdat{content_type},
-				   body => $body,
 				   hscml_body => $fdat{hscml_body},
 				   title => $fdat{title},
 				   school => $fdat{school},
@@ -446,15 +445,10 @@ sub add_content{
 				   created => sprintf ("%d-%d-%d %d:%d:%d", $time[5]+1900, $time[4]+1, $time[3], $time[2], $time[1], $time[0]),
 				   );
 
-
-#warn("Going to call the update_html\n");
 	($rval, $msg) = update_html($content, $user->primary_key,%fdat);
 	return (0, $msg) unless ($rval > 0);
-#warn("After the update_html the body is ". $content->body->out_xml() ."\n");
 
-#warn("Saving the version\n");
 	($rval, $msg) = $content->save_version("content added by CMS",$user->primary_key);
-#warn("After the save version the body is ". $content->body->out_xml() ."\n");
 	return (0, $msg) unless ($rval > 0);
 
 	return (0, 'An unkown error has occured. Please try again.') unless ($content->primary_key);
@@ -467,7 +461,6 @@ sub add_content{
 		($rval, $msg ) = add_content_content($user, $content, %fdat);
 		return(0, $msg) unless ($rval>0);
 	}
-#warn("After the link from parent the body is ". $content->body->out_xml() ."\n");
 
 	return (1, $content->primary_key);
 }
@@ -477,7 +470,6 @@ sub ppt_process{
 	my ($user, $content, %fdat) = @_;
 	my $body=$content->body;
 	$body->in_fdat_hash ('content_body:0:file_uri' => "");
-
 	$fdat{body}=$body->out_xml;
 
 	# the upload type changes
@@ -540,16 +532,15 @@ sub update_html{
     $body =~ s/\&shy;//g;
 
     if (exists($fdat{contributor}) and $content->field_value('reuse_content_id') == 0){
-        ($rval, $msg) = mangle_element($content, $fdat{contributor},"contributor");
+        ($rval, $msg) = mangle_element($content, $fdat{contributor}, "contributor");
         return (0, $msg) if ($rval == 0);
     }
 
     return 1 if ($fdat{content_type} eq "PDF" or $fdat{content_type} eq "DownloadableFile");
 
     if ($fdat{content_type} eq "Slide" and $content->field_value('reuse_content_id') == 0){
-
         my $body = $content->body;
-	return (0,$content->error()) if (!$body);
+        return (0,$content->error()) if (!$body);
         my ($info) = $body->tag_values('slide_info') ;
         unless ($info){
             $info = HSDB4::XML::Content->new('slide_info');
@@ -564,41 +555,36 @@ sub update_html{
         }
 
         $stain->set_value($fdat{stain});
-
         $content->field_value('body', $body->out_xml);
     }
 
     if ($fdat{content_type} eq "Shockwave"){
-	($rval, $msg) = mangle_shockwave($content, %fdat);
-	return (0, $msg) if ($rval == 0);
+        ($rval, $msg) = mangle_shockwave($content, %fdat);
+        return (0, $msg) if ($rval == 0);
     } elsif ($fdat{content_type} eq "Video" or $fdat{content_type} eq "Audio"){
-	($rval, $msg) = mangle_audiovideo($content, %fdat);
-	return (0, $msg) if ($rval == 0);
+        ($rval, $msg) = mangle_audiovideo($content, %fdat);
+        return (0, $msg) if ($rval == 0);
     } elsif ($fdat{content_type} eq "External"){
-	unless ($content->primary_key()){
-	    my $fields = TUSK::Content::External::Field->new()->lookup('source_id = ' . $fdat{source_id});
-	    $content->save('pre-Save needed for external content', $user_id);
+        unless ($content->primary_key()){
+            my $fields = TUSK::Content::External::Field->new()->lookup('source_id = ' . $fdat{source_id});
+            $content->save('pre-Save needed for external content', $user_id);
 
-	    foreach my $field (@$fields){
-		my $link = TUSK::Content::External::LinkContentField->new();
-		$link->setParentContentID($content->primary_key());
-		$link->setChildFieldID($field->getPrimaryKeyID());
-		$link->setValue($fdat{ 'external_content_field_' . $link->getChildFieldID() });
-		$link->save({ user => $user_id });
-	    }
-	}
+            foreach my $field (@$fields){
+                my $link = TUSK::Content::External::LinkContentField->new();
+                $link->setParentContentID($content->primary_key());
+                $link->setChildFieldID($field->getPrimaryKeyID());
+                $link->setValue($fdat{ 'external_content_field_' . $link->getChildFieldID() });
+                $link->save({ user => $user_id });
+            }
+        }
     } elsif ($fdat{content_type} eq "URL"){
-#warn("The content_type is URL with body of ". $fdat{'body'} ."\n");
-	$fdat{'body'}="http://".$fdat{'body'} unless($fdat{'body'}=~/^(\/|[A-Za-z]+:\/\/)/);
-#warn("after the sub the body is ". $fdat{'body'} ."\n");
-	($rval, $msg) = mangle_element($content, $fdat{'body'},"external_uri");
-#warn("The value from mangle_element is $rval: $msg\n");
-	return (0, $msg) if ($rval == 0);
+        $fdat{'body'}="http://".$fdat{'body'} unless($fdat{'body'}=~/^(\/|[A-Za-z]+:\/\/)/);
+        ($rval, $msg) = mangle_element($content, $fdat{'body'}, "external_uri");
+        return (0, $msg) if ($rval == 0);
     } elsif (exists($fdat{body})){
-	($rval, $msg) = mangle_element($content, $fdat{body},"html");
-	return (0, $msg) if ($rval == 0);
+        ($rval, $msg) = mangle_element($content, $fdat{body},"html");
+        return (0, $msg) if ($rval == 0);
     }
-
     return 1;
 
 }
@@ -646,6 +632,7 @@ sub do_file_stuff{
 		unless (-e $path{'temp'} . "/" . $fdat{filename}){
 			return(0, "The file could not be found.");
 		}
+
 		open(IMG, $path{'temp'}."/".$fdat{filename});
 		binmode(IMG);
 
@@ -656,7 +643,6 @@ sub do_file_stuff{
 		close(IMG);
 		my $ft = File::Type->new();
 		my $type = $ft->mime_type($blob);
-
 		$type =~s/^.*?\///;
 		$content->generate_image_sizes( -path => $path{slide}, -blob => $blob, -type=>$type );
     }
@@ -664,8 +650,8 @@ sub do_file_stuff{
     $content->set_field_values("body" => $body);
 
     ($rval, $msg) = $content->save_version("Updated body",$user_id);
-    if ($msg){
-	return (0, $msg);
+    if ($msg) {
+        return (0, $msg);
     }
     return 1;
 }
@@ -801,10 +787,8 @@ sub update_objectives{
 		    ($rval, $msg) = $objective->save($un,$pw);
 		    return (0, $msg) unless ($rval > 0);
 		    @$objectives[$i]->{pk} = $objective->primary_key;
-		    warn @$objectives[$i]->{pk};
 		}elsif (@$objectives[$i]->{elementchanged} == 1){
 		    my $objective = HSDB4::SQLRow::Objective->new->lookup_key(@$objectives[$i]->{pk});
-
 		    $objective->set_field_values(body => @$objectives[$i]->{body});
 
 		    ($rval, $msg) = $objective->save($TUSK::Constants::DatabaseUsers{ContentManager}->{writeusername}, $TUSK::Constants::DatabaseUsers{ContentManager}->{writepassword});
@@ -873,31 +857,30 @@ sub move_file{
     my $uri = $slash.$newfilename;
     my ($ret, $rval);
 
-    if ($fdat->{content_type} eq "Shockwave"){ $uri = '/downloadable_file/'.$uri; }
-    ($rval, $ret) = mangle_element($content, $uri, $element_uri,1 ) if ($element_uri);
+    $uri = '/downloadable_file/' . $uri if ($fdat->{content_type} eq "Shockwave");
 
-    if ($fdat->{content_type} eq "Shockwave"){
-	($rval, $ret) = mangle_shockwave($content, %$fdat);
-    }
-	elsif ($fdat->{content_type} eq "Audio" or $fdat->{content_type} eq "Video"){
-	($rval, $ret) = mangle_audiovideo($content, %$fdat);
+    ($rval, $ret) = mangle_element($content, $uri, $element_uri ) if ($element_uri);
+
+    if ($fdat->{content_type} eq "Shockwave") {
+        ($rval, $ret) = mangle_shockwave($content, %$fdat);
+    } elsif ($fdat->{content_type} eq "Audio" or $fdat->{content_type} eq "Video") {
+        ($rval, $ret) = mangle_audiovideo($content, %$fdat);
     }
 
     $fdat->{filename}=~/(.*)/;
     my $filename = $1;
-    if (-e $newfilepath){
-	unlink $newfilepath;
+    if (-e $newfilepath) {
+        unlink $newfilepath;
     }
 
-    unless (-e $path{'temp'} . "/" . $filename){
-	return(0, "The file could not be found.");
+    unless (-e $path{'temp'} . "/" . $filename) {
+        return(0, "The file could not be found.");
     }
     link $path{'temp'}."/".$filename, $newfilepath or return (0, $!);
 
-    if ($fdat->{content_type} eq "Flashpix"){
-	chmod 0644, $newfilepath; # flashpix files need to have these permissions
-    }
-	elsif ($fdat->{content_type} eq "TUSKdoc"){
+    if ($fdat->{content_type} eq "Flashpix") {
+        chmod 0644, $newfilepath; # flashpix files need to have these permissions
+    } elsif ($fdat->{content_type} eq "TUSKdoc") {
 		if ($newfilepath =~ /\.(docx?)$/) {
 			my $alt_ext = ($1 eq 'docx')? 'doc' : 'docx';
 			my $altfilepath = $newfilepath;

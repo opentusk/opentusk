@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -38,7 +38,7 @@ sub figure_type {
     #
 
     my $filename = shift;
-    my ($type) = $filename =~ /\.$types_pat$/i 
+    my ($type) = $filename =~ /\.$types_pat$/i
       or die "Could not figure out what type file $filename is.";
     return uc $type;
 }
@@ -78,81 +78,86 @@ sub size_image {
     #
 
     my %args = @_;
-    my ($i, $type, $fh, $filename);
+    my ($img, $type, $fh, $filename);
 
   # If we get a filehandle and a size...
     if ($args{-filehandle} && $args{-type}) {
-	# Then we'll use those
-	#
-	# !!!! Check this code before incorporting into stuff...
-	#
-	$fh = $args{-filehandle};
-	# Reset the filehandle
-	$fh->seek (0, 0);
-	$type = uc $args{-type};
-	die "Could not recognize type $type" unless $Types{$type};
-	$filename = "tmp.$type";
-	$i = Image::Magick->new (magick => $type);
-	my $rv = $i->Read (file=>$fh, filename => $filename);
-	#
-	# !!!!!
+        # Then we'll use those
+        #
+        # !!!! Check this code before incorporting into stuff...
+        #
+        $fh = $args{-filehandle};
+        # Reset the filehandle
+        $fh->seek(0, 0);
+        $type = uc $args{-type};
+        die "Could not recognize type $type" unless $Types{$type};
+        $filename = "tmp.$type";
+
+        $img = Image::Magick->new(magick => $type);
+        my $rv = $img->Read(file=>$fh, filename => $filename);
+        $img = Image::Magick->new();
+        my $rv = $img->Read($filename);
+        #
+        # !!!!!
     }
-    if($args{-blob}){
-	$type = uc $args{-type};
-	$i=Image::Magick->new(magick=>$type);
-	$i->BlobToImage($args{-blob});
+
+    if ($args{-blob} ){
+        $img = Image::Magick->new(magick => $type);
+        $img->BlobToImage($args{-blob});
+        $type = uc $args{-type};
     }
+
     # Otherwise, if we get a filename...
     if ($args{-filename} && -e $args{-filename}) {
-	$type = figure_type $args{-filename};
-	# And create a brand new file handle which is nice and open
-	$i = Image::Magick->new ();
-	$i->Read ($args{-filename});
+        $img = Image::Magick->new();
+        open(IMAGE, $args{-filename});
+        $img->Read(file=>\*IMAGE);
+        close(IMAGE);
+
+##        $type = figure_type $args{-filename};
+##        # And create a brand new file handle which is nice and open
+##        $img = Image::Magick->new ();
+##        $img->Read($args{-filename});
     }
 
     # And if neither of those worked, we have to call it quits
-    unless ($i) {
-	die "Could not find an image to size";
+    unless ($img) {
+        die "Could not find an image to size";
     }
 
     # Check for a sensible maxsize
     die "Bad maxsize: $args{-maxsize}" unless $args{-maxsize} >= 8;
 
     # Get the width and height
-    my ($in_w, $in_h) = $i->Get ('base-columns', 'base-rows');
+    my ($in_w, $in_h) = $img->Get('base-columns', 'base-rows');
     my ($out_w, $out_h) = ($in_w, $in_h);
     # Now check for one to be a problem
     if ($in_w > $args{-maxsize} or $in_h > $args{-maxsize}) {
-	# If it's too wide...
-	if ($in_w > $in_h) {
-	    # Crop it square, if required
-	    if ($args{-square}) {
-		my $left = int (($in_w - $in_h) / 2);
-		$i->Crop (geometry=>"${in_h}x${in_h}+${left}+0");
-		$in_w = $in_h;
-	    }
-	    # Scale it appropriately
-	    $i->Scale (width => ($out_w = $args{-maxsize}),
-		       height =>
-		       ($out_h = int ($in_h * $args{-maxsize} / $in_w))
-		      );
-	}
-	# If it's too tall...n
-	else {
-	    # Crop it square, if required
-	    if ($args{-square}) {
-		my $top = int (($in_h - $in_w) / 2);
-		$i->Crop (geometry=>"${in_h}x${in_h}+0+$top");
-		$in_h = $in_w;
-	    }
-	    # Scale it appropriately
-	    $i->Scale (height => ($out_h = $args{-maxsize}),
-		       width =>
-		       ($out_w = int ($in_w * $args{-maxsize} / $in_h))
-		      );
-	}
+        # If it's too wide...
+        if ($in_w > $in_h) {
+            # Crop it square, if required
+            if ($args{-square}) {
+                my $left = int(($in_w - $in_h) / 2);
+                $img->Crop(geometry=>"${in_h}x${in_h}+${left}+0");
+                $in_w = $in_h;
+            }
+            # Scale it appropriately
+            $img->Scale(width => ($out_w = $args{-maxsize}),
+                      height => ($out_h = int ($in_h * $args{-maxsize} / $in_w)));
+        } else { 	# If it's too tall...n
+            # Crop it square, if required
+            if ($args{-square}) {
+                my $top = int (($in_h - $in_w) / 2);
+                $img->Crop(geometry=>"${in_h}x${in_h}+0+$top");
+                $in_h = $in_w;
+            }
+
+            # Scale it appropriately
+            $img->Scale(height => ($out_h = $args{-maxsize}),
+                         width => ($out_w = int ($in_w * $args{-maxsize} / $in_h)));
+        }
     }
-    return ($i->ImageToBlob(), $Types{$type}, $out_w, $out_h);
+    return ($img->ImageToBlob(), $Types{$type}, $out_w, $out_h);
 }
 
 sub cleanJPGheader{
@@ -173,12 +178,12 @@ sub cleanJPGheader{
 	close(BIN);
 	unlink "$temp_dir/temp$randname.jpg";
 	unlink "$temp_dir/convert$randname.jpg";
-	return $new_binary;        
+	return $new_binary;
 }
 
 sub make_original {
     # this isn't supposed to change the size at all
-    return size_image (-maxsize => 5000, @_);
+    return size_image(-maxsize => 5000, @_);
 }
 
 sub make_xlarge {
