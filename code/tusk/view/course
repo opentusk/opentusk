@@ -15,7 +15,7 @@
 </%doc>
 
 <%args>
-        $simple                => 0
+	$simple                => 0
 </%args>
 
 <%attr>
@@ -24,11 +24,12 @@
 	page_footer		=> '/tmpl/footer:footer_with_school_links'
 	default_path_type	=> 'course'
 	allow_guests		=> '1'
+	allow_guests_exceptions	=> '^(assignments|cases|checklists|evaluations|grades|patientlogs|quizzes)$'
 	allow_shib		=> '1'
 </%attr>
 
 <%once>
-        use HTML::Mason::Escapes;
+	use HTML::Mason::Escapes;
 	use HSDB4::Constants;
 	use TUSK::Constants;
 	use HSDB45::Course;
@@ -37,8 +38,8 @@
 	use TUSK::Case::Case;
 	use TUSK::Application::HTML::Strip;
 	use HSDB45::ClassMeeting;
-        use Apache2::Const qw(NOT_FOUND);
-        use URI::Encode qw(uri_encode);
+	use Apache2::Const qw(NOT_FOUND);
+	use URI::Encode qw(uri_encode);
 </%once>
 
 <%shared>
@@ -72,55 +73,55 @@
 				     'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'obj'		=> { 'title'=>__('Competencies/Objectives'),		'link'=>"$baseLink/obj",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'fac'		=> { 'title'=>__('Faculty List'),		'link'=>"$baseLink/fac",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'schedule'	=> { 'title'=>__('Schedule'),		'link'=>"$baseLink/schedule",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'ann'		=> { 'title'=>__('Announcements'),		'link'=>"$baseLink/ann",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'quizzes'	=> { 'title'=>__('Quizzes'),		'link'=>"$baseLink/quizzes",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'cases'		=> { 'title'=>__('Cases'),			'link'=>"$baseLink/cases",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'grades'	=> { 'title'=>__('Grades'),			'link'=>"/protected$baseLink/grades",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'assignments'	=> { 'title'=>__('Assignments'),		'link'=>"/protected$baseLink/assignments",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'groups'	=> { 'title'=>__('My Groups'),		'link'=>"$baseLink/groups",
- 				     'style'=>$defaultStyle,		'preText'=>'',
+				      'style'=>$defaultStyle,		'preText'=>'',
 				   },
 		'patientlogs'	=> {
 			'title'		=> __('Patient Logs'),
 			'link'		=> "/protected$baseLink/patientlogs",
-		     	'style'		=> $defaultStyle,
+			     'style'		=> $defaultStyle,
 		},
 		'checklists'	=> {
 			'title'		=> __('Competency Checklists'),
 			'link'		=> "/protected$baseLink/checklists",
-		     	'style'		=> $defaultStyle,
+			     'style'		=> $defaultStyle,
 		},
 		'evaluations'	=> {
 			'title'		=> __('Evaluations'),
 			'link'		=> "/protected$baseLink/evaluations",
-		     	'style'		=> $defaultStyle,
+			     'style'		=> $defaultStyle,
 		},
 		'clinical_placement' => {
 			'title'		=> __('Clinical Placement'),
-		     	'link' 		=> "/schedule/clinical/placement/course/" . $course->school() . "/" . $course->primary_key(),
+			     'link' 		=> "/schedule/clinical/placement/course/" . $course->school() . "/" . $course->primary_key(),
 			'style'		=> $defaultStyle,
 		},
 		'disc'		=> {
 			'title'		=> __('Discussion'),
-		     	'link' 		=> "/forum/forum_show.pl?school=" . $course->school_id() . "&course_id=" . $course->primary_key(),
+			     'link' 		=> "/forum/forum_show.pl?school=" . $course->school_id() . "&course_id=" . $course->primary_key(),
 			'style'		=> $defaultStyle,
 		},
 	);
@@ -166,12 +167,12 @@
     my $tusk_course_id = $course->getTuskCourseID();
 
     my $landing_type_id = TUSK::Course->lookupReturnOne("course_id = $tusk_course_id")->getLandingPage();
- 
+
     my $landing_page = TUSK::Enum::Data->lookupReturnOne("enum_data_id = $landing_type_id")->getShortName();
 
 </%perl>
 %   if ($landing_page eq 'template') {
-	
+
 <%perl>
 	print "<div id='lp_main'>";
 	my $school_id = $course->school_id();
@@ -195,8 +196,8 @@
 				$subcourse_abbr = $subcourse->abbreviation();
 			}  else {
 				$subcourse_abbr = $subcourse->title();
-			}			
-		
+			}
+
 			$course_info{$subcourse_abbr} = \@temp_info;
 		}
 
@@ -205,10 +206,10 @@
 				my $subcourse_title = $subcourse_infos[0];
 				my $subcourse_url = $subcourse_infos[1];
 
-				if (length $subcourse_abbr >= 17) {		
-					print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . substr($subcourse_abbr, 0, 16) . "&hellip; </button>";	
+				if (length $subcourse_abbr >= 17) {
+					print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . substr($subcourse_abbr, 0, 16) . "&hellip; </button>";
 				} else {
-					print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . $subcourse_abbr . "</button>";	
+					print "<button title='$subcourse_title' type='button' onclick='location.href=\"$subcourse_url\"' class='lp_button'>" . $subcourse_abbr . "</button>";
 				}
 		}
 		print "<div class='lp_title'> Course Contents:</div>";
@@ -221,25 +222,25 @@
 			my $content_title = $child_content->title();
 			my $content_url = $child_content->out_url();
 			if (length $content_title <= 50) {
-				print "<button title='$content_title' type='button' onclick='location.href=\"$content_url\"' class='lp_button lp_button_content'>" . 
-                                                $content_icon . "&nbsp&nbsp&nbsp" . $content_title . "</button>";
+				print "<button title='$content_title' type='button' onclick='location.href=\"$content_url\"' class='lp_button lp_button_content'>" .
+						$content_icon . "&nbsp&nbsp&nbsp" . $content_title . "</button>";
 			} else {
-				print "<button title='$content_title' type='button' onclick='location.href=\"$content_url\"' class='lp_button lp_button_content'>" . 
-                                                $content_icon . "&nbsp&nbsp&nbsp" . substr($content_title, 0, 50) . "... </button>";
-                        }
+				print "<button title='$content_title' type='button' onclick='location.href=\"$content_url\"' class='lp_button lp_button_content'>" .
+						$content_icon . "&nbsp&nbsp&nbsp" . substr($content_title, 0, 50) . "... </button>";
+			}
 		}
 
 
 	print "</div>";
 
 	my $tusk_course_id = $course->getTuskCourseID();
-		
-		my $lp_description = TUSK::Course::CourseMetadata->lookup("course_id = $tusk_course_id AND metadata_type = $description_metadata_id");	
+
+		my $lp_description = TUSK::Course::CourseMetadata->lookup("course_id = $tusk_course_id AND metadata_type = $description_metadata_id");
 		foreach my $row (@{$lp_description}) {
 			print "<div id='lp_description'>" . $row->getValue() . "</div>";
 		}
-	
-        print "</div>";
+
+	print "</div>";
 </%perl>
 %   } else {
 %	if ( $is_integrated_course ) {
@@ -268,9 +269,9 @@
 					</select>
 				</td>
 				<td align="right">
-			        <div id="loadingDiv" style="visibility:hidden;">
-          		 		<img id="theLoadingImage" src="/graphics/icons/waiting_bar.gif">
-        			</div>
+				<div id="loadingDiv" style="visibility:hidden;">
+					   <img id="theLoadingImage" src="/graphics/icons/waiting_bar.gif">
+				</div>
 				</td>
 			</tr>
 		</table>
@@ -301,7 +302,7 @@
 %	if($is_thesis_comm){
 		<h3 style="margin:1em 0;" class="subhead">Assignments</h3>
 %		if(TUSK::Session::check_course_permissions(TUSK::Session::course_user_role($course,$user_obj->primary_key), 'Author')){
- 			<& /assignment/author/show &>
+			 <& /assignment/author/show &>
 %		} else {
 			<& /assignment/student/view, course => $course &>
 %		}
@@ -317,12 +318,12 @@
 			<li><a href="/view/usergroup/<% $group->school %>/<% $group->primary_key %>"><% $group->out_label %></a></li>
 %		}
 %	}
-        </ul>
+	</ul>
 %	unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
-          <a href="/view/user/<% $m->session->{'user'}->primary_key %>"><%__('View All Groups')%></a>
+	  <a href="/view/user/<% $m->session->{'user'}->primary_key %>"><%__('View All Groups')%></a>
 %	}
 %} elsif ($courseView eq 'obj') {
-                <div id = "test_dialog"></div>
+		<div id = "test_dialog"></div>
 		<script>window.onload = function(){buildCompetencyList('test_dialog', '<% $course->get_school()->getSchoolName%>' , <% $course->primary_key() %>);};</script>
 
 %} elsif ($courseView eq 'fac') {
@@ -428,7 +429,7 @@
 %			foreach my $announcement (@{$sortedAnnouncements{$aStartDate}}) {
 %			  if($announcement->current()) {$color='black';} else {$color='gray';}
 %			  my $style = "border-bottom:1px solid lightgrey; color:$color";
-		  	  <tr onMouseOver="this.style.backgroundColor='lightgrey';" onMouseOut="this.style.backgroundColor='';">
+			    <tr onMouseOver="this.style.backgroundColor='lightgrey';" onMouseOut="this.style.backgroundColor='';">
 			    <td valign="top" style="<% $style %>"><% $announcement->{body} %></td>
 % 			    my $tempValue = $announcement->user->out_html_abbrev;
 %			    $tempValue =~ s/ /&nbsp;/g;
@@ -466,7 +467,7 @@
 %} elsif ($courseView eq 'quizzes') {
 	<b><%__('Current Graded Quizzes:')%></b>
 	<ul>
-        <%perl>
+	<%perl>
 	  if($quizzes && scalar(@$quizzes)) {
 		foreach my $quiz (@$quizzes) {
 			my $link = "/protected/quiz/";
@@ -483,29 +484,29 @@
 			$m->print("</li>");
 		}
 	  } else {$m->print("<li>No current quizzes.</li>");}
-        </%perl>
-        </ul>
+	</%perl>
+	</ul>
 
 
 	<b><%__('Self Assessment Quizzes:')%></b>
 	<ul>
-        <%perl>
+	<%perl>
 	  if($self_assessment_quizzes && scalar(@$self_assessment_quizzes)) {
-	  	foreach my $quiz (@$self_assessment_quizzes) {
+		  foreach my $quiz (@$self_assessment_quizzes) {
 			my $link = "/protected/quiz/quizstart/course/" . $course->school ."/".$course->primary_key."/". $quiz->{quiz_id};
 			$m->print("<li><a href=\"$link\">$quiz->{title}</a>");
 		}
-          } else {$m->print("<li>None.</li>");}
-        </%perl>
+	  } else {$m->print("<li>None.</li>");}
+	</%perl>
 	</ul>
 
 	<b><%__('Completed Quizzes:')%></b>
 	<ul>
-        <%perl>
+	<%perl>
 	  if($taken_quizzes && scalar(@$taken_quizzes))
-	  	{  foreach my $quiz (@$taken_quizzes) {$m->print("<li>" . $quiz->{title} . " (<i>" . $quiz->{end_date} . "</i>)</a>");}  }
-          else {$m->print("<li>None.</li>");}
-        </%perl>
+		  {  foreach my $quiz (@$taken_quizzes) {$m->print("<li>" . $quiz->{title} . " (<i>" . $quiz->{end_date} . "</i>)</a>");}  }
+	  else {$m->print("<li>None.</li>");}
+	</%perl>
 	</ul>
 %} elsif ($courseView eq 'cases') {
 %	unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
@@ -514,35 +515,33 @@
 	      <br><b><%__('Test or Reviewed:')%></b>
 	      <ul>
 %	      foreach my $case (@$user_cases) {
-	        <li>
+		<li>
 		  <a href="/protected/case/casestart/<% $course->school() %>/<% $course->course_id() %>/<% $case->getPrimaryKeyID() %>">
 		    <% $case->getCaseTitle() %>
 		  </a>
-                  (<% $case->getCaseType() %>)
+		  (<% $case->getCaseType() %>)
 		</li>
 %	      }
-              </ul>
+	      </ul>
 	      <br>
 %	    }
 %	    if(scalar(@$course_cases)) {
 	      <b><%__('Self Assessment:')%></b>
 	      <ul>
 %	      foreach my $case (@{$course_cases}) {
-	        <li>
+		<li>
 		  <a href="/protected/case/casestart/<% $course->school() %>/<% $course->course_id() %>/<% $case->getPrimaryKeyID() %>">
 		    <% $case->getCaseTitle() %>
 		  </a>
 		</li>
 %	      }
-              </ul>
+	      </ul>
 %	    }
 %	  } else {$m->print("<br><center><h2>" . __('There are no current cases.') . "</h2></center><br>");}
 %	} else {$m->print("<b>" . __('Please log in to see available cases.') . "</b>");}
 %} elsif ($courseView eq 'grades') {
-%	if(HSDB4::Constants::is_guest($m->session->{'user'})) {
-		<% __x('You must login to view this portion of {site_abbr}', site_abbr => $TUSK::Constants::SiteAbbr) %>!
-%	} elsif($m->session->{'user'}->isGhost()) {
-		<%__('Grades are not avaliable to Shibboleth users.')%>
+%	if (HSDB4::Constants::is_guest($m->session->{'user'}) || $m->session->{'user'}->isGhost()) {
+		<%__('Grades are not avaliable.')%>
 %	} else {
 <& /tmpl/element:security_notice_start,
 	user_fullname => $m->session->{'user'}->out_full_name(),
@@ -575,18 +574,18 @@
 	    if(${$localHashRef}{editType} eq 'textarea') {
 	      print "<br>\n";
 	      foreach (@{$course->getCourseMetadataByType($course->getTuskCourseID(),
-                                                                    $leftMenu{$courseView}{metadataIDNumber}, undef, undef)
-                        }
-                      ) {
-                $m->print($_->getFieldValue('value'), "<br>\n");
-              }
+								    $leftMenu{$courseView}{metadataIDNumber}, undef, undef)
+			}
+		      ) {
+		$m->print($_->getFieldValue('value'), "<br>\n");
+	      }
 	    } elsif(${$localHashRef}{editType} eq 'list') {
 		$course->printCourseMetadataList($localHashRef);
 	    } elsif(${$localHashRef}{editType} eq 'table') {
-              $course->printCourseMetadataTable($localHashRef);
-            } else {
-              print "Unknow data type: ${$localHashRef}{editType} <br>\n";
-            }
+	      $course->printCourseMetadataTable($localHashRef);
+	    } else {
+	      print "Unknow data type: ${$localHashRef}{editType} <br>\n";
+	    }
 	  } else {
 	    ## this has been deemed an inappropriate message by the Dean's office
 	    ## $m->comp("SELF:printNoData", message =>"There is no $courseView for this course");
@@ -601,8 +600,8 @@
 $args => {}
 </%args>
   <%perl>
-        #Finish building the menus based on the tusk course database.
-        $schoolDisplayHashRef = $course->getSchoolMetadata();
+	#Finish building the menus based on the tusk course database.
+	$schoolDisplayHashRef = $course->getSchoolMetadata();
 
 	foreach my $metadataCategory (@{ ${$schoolDisplayHashRef}{metadataOrder} }){
 		if((!$is_group_course && !$is_thesis_comm) ||
@@ -645,15 +644,15 @@ $args => {}
 			$leftMenu{evaluations}{style} = 'viewcourseleftnavEmpty';
 		}
 		$checklist_groups = $m->session->{'user'}->get_course_competency_checklist_groups($course);
-                $leftMenu{checklists}{style} = 'viewcourseleftnavEmpty' unless (@$checklist_groups);
+		$leftMenu{checklists}{style} = 'viewcourseleftnavEmpty' unless (@$checklist_groups);
 	}
 
 	if (scalar($course->child_teaching_sites()) >= 1) {
 		push @{$leftMenu{__('Communication')}}, 'teachsites';
 		$leftMenu{'teachsites'}{'title'}   = __('Teaching Sites');
-	  	$leftMenu{'teachsites'}{'link'}    = "$baseLink/teachsites";
- 	  	$leftMenu{'teachsites'}{'style'}   = $defaultStyle;
-	  	$leftMenu{'teachsites'}{'preText'} = '';
+		  $leftMenu{'teachsites'}{'link'}    = "$baseLink/teachsites";
+		   $leftMenu{'teachsites'}{'style'}   = $defaultStyle;
+		  $leftMenu{'teachsites'}{'preText'} = '';
 	}
 
 	#Build a list of sorted faculty people to see if there is faculty in the class.
@@ -672,12 +671,12 @@ $args => {}
 	if($course->has_competencies() < 1)         {$leftMenu{obj}{style} = 'viewcourseleftnavEmpty';}
 	if(scalar($course->class_meetings()) < 1)       {$leftMenu{schedule}{style} = 'viewcourseleftnavEmpty';}
 	if(scalar(@sortedFacultyMembers) < 1)              {$leftMenu{fac}{style} = 'viewcourseleftnavEmpty';}
- 	if(scalar($course->active_child_content()) < 1) {$leftMenu{content}{style} = 'viewcourseleftnavEmpty';}
-	
+	 if(scalar($course->active_child_content()) < 1) {$leftMenu{content}{style} = 'viewcourseleftnavEmpty';}
+
 	my $time_period = $course->get_current_timeperiod();
 	if ($time_period) {
 		my $academic_year = $time_period->field_value("academic_year");
-		my $placement_rows = $m->comp("/schedule/clinical/placement:get_placements_by_time_period", 
+		my $placement_rows = $m->comp("/schedule/clinical/placement:get_placements_by_time_period",
 						academic_year => $academic_year);
 		if (!$placement_rows) {
 			$leftMenu{clinical_placement}{style} = 'viewcourseleftnavEmpty';
@@ -686,7 +685,7 @@ $args => {}
 		$leftMenu{clinical_placement}{style} = 'viewcourseleftnavEmpty';
 	}
 
-        unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
+	unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	  $quizzes = $m->session->{'user'}->current_quizzes([$course]);
 	  $taken_quizzes = $m->session->{'user'}->taken_quizzes($course);
 	  $self_assessment_quizzes = $course->get_self_assessment_quizzes($m->session->{'user'}->user_id);
@@ -695,11 +694,11 @@ $args => {}
 		($self_assessment_quizzes && scalar(@$self_assessment_quizzes)) ||
 		($taken_quizzes && scalar(@$taken_quizzes))
 	      ) {$leftMenu{quizzes}{style} = 'viewcourseleftnavEmpty';}
-        }
+	}
 
-        unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
+	unless(HSDB4::Constants::is_guest($m->session->{'user'})) {
 	  @courseGroups = $m->session->{'user'}->get_user_course_groups($course);
-        }
+	}
 	if($#courseGroups < 0) {$leftMenu{groups}{style} = 'viewcourseleftnavEmpty';}
 
 	my %sortedAnnouncements;
@@ -751,16 +750,16 @@ if(exists($leftMenu{$courseView})) {
 	# If we have a specific ID, then we're looking at a meeting.
 	if ( $courseView eq "schedule" && $specific_id =~ /[0-9]+/ ) {
 		$class = HSDB45::ClassMeeting->new(_school => $course->school())->lookup_key($specific_id);
-                my $errmsg = uri_encode(
-                    __x( 'The scheduled event in {course_title} not found. Please contact {support_email} if you believe this to be in error. Please provide us with the following information: Class meeting ID: {class_meeting_id}, Course ID: {course_id}, School: {school}.',
-                         class_meeting_id => $specific_id,
-                         school => $course->school,
-                         course_title => $course->title,
-                         course_id => $course->course_id,
-                         support_email => $TUSK::Constants::SupportEmail
-                     ),
-                     { encode_reserved => 1 });
-                $m->redirect("/home?errmsg=$errmsg", NOT_FOUND) if (! $class->primary_key);
+		my $errmsg = uri_encode(
+		    __x( 'The scheduled event in {course_title} not found. Please contact {support_email} if you believe this to be in error. Please provide us with the following information: Class meeting ID: {class_meeting_id}, Course ID: {course_id}, School: {school}.',
+			 class_meeting_id => $specific_id,
+			 school => $course->school,
+			 course_title => $course->title,
+			 course_id => $course->course_id,
+			 support_email => $TUSK::Constants::SupportEmail
+		     ),
+		     { encode_reserved => 1 });
+		$m->redirect("/home?errmsg=$errmsg", NOT_FOUND) if (! $class->primary_key);
 
 		my $date = HSDB4::DateTime->new();
 		$date->in_mysql_date ($class->field_value('meeting_date'));

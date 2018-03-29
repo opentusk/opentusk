@@ -49,6 +49,7 @@ check_feature_permissions => 0
 displayLittleUserNavBar => 0
 default_path_type => ''
 allow_guests => 0
+allow_guests_exceptions => ''
 allow_shib => 0
 skip_auth => 0
 no_leftbar => 0
@@ -116,7 +117,11 @@ my $authentication = sub {
 
 		if(!$user->primary_key) {
 			# Returen that we are an unknown user
-			unless($m->base_comp->attr('allow_guests') == 1) {
+			my $allow_guests = $m->base_comp->attr('allow_guests');
+			my $allow_guests_exceptions = $m->base_comp->attr('allow_guests_exceptions');
+			my $view = $m->comp('/tmpl/url:get_first_path_id');
+			$allow_guests = 0 if ($allow_guests_exceptions && $view =~ m/$allow_guests_exceptions/);
+			unless ($allow_guests) {
 				$r->headers_out->set('Location',$home_url . '&errmsg=Please+login');
 				$r->status(REDIRECT);
 				$m->abort(REDIRECT);
