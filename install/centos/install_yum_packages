@@ -1,0 +1,55 @@
+#!/bin/env bash
+
+function _yum_install {
+    if is_installed "$1"; then
+        echo "$1 is already installed. skipping ..."
+    else
+        sudo yum install --quiet -y "$1"
+        ## need to clean out RHN register, handle a right msg for  a wrong pkg name
+        if is_installed "$1"; then
+            echo "Installed $1 successfully."
+        else
+            echo "Failed to install $1."
+        fi
+    fi
+}
+
+function is_installed {
+  if yum list installed "$@" >/dev/null 2>&1; then
+    true
+  else
+    false
+  fi
+}
+
+### utils (compilation, VC, ...)
+_yum_install make
+_yum_install gcc
+_yum_install git
+_yum_install libcurl-devel    ### for curl, install libcurl
+_yum_install readline-devel  ### GNU readline
+
+### web server related
+_yum_install httpd
+_yum_install httpd-devel
+_yum_install mod_ssl
+_yum_install libapreq2  ## C library and its language bindings for Perl
+
+### database server if same as web server
+_yum_install mysql   ## will installs mariadb101u.x86_64
+_yum_install mysql-devel ## will install mariadb101u-devel
+
+### XML Packages
+_yum_install expat-devel   ## for XML::Paraser; likely to be installed by httpd_devel
+_yum_install libxml2  ## for XML::LibXml
+_yum_install libxml2-devel
+_yum_install libxslt  ## for XML::libXslt
+_yum_install libxslt-devel
+
+### GD
+_yum_install gd
+_yum_install gd-devel
+_yum_install zlib
+
+### Image Magick
+_yum_install libtiff-devel

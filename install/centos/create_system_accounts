@@ -1,0 +1,20 @@
+#!/bin/env bash
+
+## TUSK user, no login
+if [ "$accounts_tusk_create" == "yes" ]; then
+    sudo groupadd -g 1100 tusk &> /dev/null
+    sudo useradd -c 'Tusk' -u 1100 -g tusk -d $accounts_tusk_home tusk &> /dev/null
+    sudo chmod 755 $accounts_tusk_home
+    cat << EOF > "$accounts_tusk_home/.bashrc"
+    ## Set Perl path for tusk 5.0 and above
+EXPORT PATH=/opt/perl/5.20.3/bin:$PATH:.
+EXPORT PERL5LIB=/usr/local/tusk/current/lib
+EOF
+fi
+
+## Apache user, no login
+if [ "$accounts_apache_create" == "yes" ]; then
+    sudo groupadd -g 80 apache &> /dev/null
+    sudo mkdir -p /var/www
+    sudo useradd -c 'Apache' -u 80 -g apache -G tusk -M -d /var/www -r apache &> /dev/null
+fi
