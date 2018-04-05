@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and 
 # limitations under the License.
 
-
-#! /usr/bin/perl
-
 package TUSK::Manage::Course::Export;
 
 use strict;
@@ -287,6 +284,13 @@ sub packContent {
 
 		my $file_uri = $c->out_file_path();
 		($filename = $file_uri) =~ s/\/.*\///;
+
+		my $title = $c->title();
+		$title =~ s/<.+?>//g;
+        $title =~ s/\W+/_/g;
+        $title =~ s/^_|_$//g;
+
+		$filename = "$title-$filename" if ($title);
 
 		unless( -e $xtra_args->{tmp_dir} . "/$filename" ){
 			unless( copy($file_uri, $xtra_args->{tmp_dir} . "/$filename") ) {

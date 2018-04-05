@@ -260,9 +260,10 @@ sub handler {
 
 	my $title = '';
 	if ($document->title()){
-		$title .= substr($document->title(), 0, 25);
-		$title =~ s/ /_/g;
-		$title =~ s/\W//g;
+		$title = $document->title();
+		$title =~ s/<.+?>//g;
+		$title =~ s/\W+/_/g;
+		$title =~ s/^_|_$//g;
 	}
 	my $file_title;
 	$file_title  = $title . "-" if $title;
