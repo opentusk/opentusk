@@ -1,16 +1,16 @@
 #!/usr/bin/perl
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 use FindBin;
@@ -21,6 +21,8 @@ use warnings;
 
 use HSDB4::Constants;
 use HSDB45::Course;
+
+my $dest_dir = shift || '/data/temp/export/ppt';
 
 our %exported = ();
 
@@ -41,28 +43,44 @@ $sth->finish();
 
 foreach my $result (@$results) {
     my $course_id = $result->[0];
-    my $title = $result->[1];
-    my $oea_code = $result->[2];
-    print "mkdir $course_id #$title\n";
+    my $title = safe($result->[1]);
 
+    my $path = "$dest_dir/$title-$course_id";
     my $course = HSDB45::Course->new(_school => 3)->lookup_key($course_id);
-    export($course_id, $course->child_content());
+    export($course_id, $path, $course->child_content());
 }
 
 sub export {
     my $course_id = shift;
+    my $path = shift;
 
     foreach my $content (@_) {
         my $content_id = $content->content_id();
         next if $exported{"$course_id/$content_id"};
         $exported{"$course_id/$content_id"} = 1;
         my $type = $content->type();
+        my $title = safe($content->title());
         if ($type =~ /Collection|Multidocument/) {
-            export($course_id, $content->child_content())
+            export($course_id, "$path/$title-$content_id", $content->child_content())
         } elsif ($type eq 'DownloadableFile') {
             my $file = $content->out_file_path();
-            print "ln $file $course_id\n" if ($file =~ m/^.*\.pp[st]x?$/i);
+            if ($file =~ m/^.*\.pp[st]x?$/i) {
+                my $name = $file;
+                $name =~ s/\/.*\///;
+                $name = "$title-$name";
+                system("mkdir -p $path && cp -pv $file $path/$name");
+            }
         }
     }
+}
+
+sub safe {
+        my $title = shift || 'Untitled';
+
+        $title =~ s/<.+?>//g;
+        $title =~ s/\W+/_/g;
+        $title =~ s/^_|_$//g;
+
+        return $title;
 }
 
