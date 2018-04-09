@@ -27,15 +27,7 @@ my $dest_dir = shift || '/data/temp/export/ppt';
 our %exported = ();
 
 my $dbh = HSDB4::Constants::def_db_handle();
-my $sql = qq(
-    SELECT vc.course_id, vc.title
-    FROM tusk.academic_level al, tusk.academic_level_course alc, tusk.course c, hsdb45_vet_admin.course vc
-    WHERE al.academic_level_id = alc.academic_level_id
-    AND c.school_course_code = vc.course_id
-    AND alc.course_id = c.course_id
-    AND al.school_id = 3
-    ORDER BY vc.oea_code
-);
+my $sql = 'SELECT course_id, title FROM hsdb45_vet_admin.course';
 my $sth = $dbh->prepare($sql);
 $sth->execute();
 my $results = $sth->fetchall_arrayref();
@@ -68,7 +60,8 @@ sub export {
                 my $name = $file;
                 $name =~ s/\/.*\///;
                 $name = "$title-$name";
-                system("mkdir -p $path && cp -pv $file $path/$name");
+                print "$file -> $path/$name\n";
+                system("mkdir -p $path && rsync -t $file $path/$name");
             }
         }
     }
