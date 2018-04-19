@@ -280,7 +280,7 @@ sub packContent {
 			return 0;
 		}
 		$xtra_args->{log} .= "content packed for content with id: " . $c->primary_key . "\n";
-	} elsif ($c->type() =~ /DownloadableFile|Audio|Video|Flashpix|Shockwave|PDF/){
+	} elsif ($c->type() =~ /DownloadableFile|Flashpix|Shockwave|PDF/){
 
 		my $file_uri = $c->out_file_path();
 		($filename = $file_uri) =~ s/\/.*\///;
