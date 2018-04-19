@@ -33,7 +33,7 @@ use File::Copy;
 use FindBin qw($Bin);
 use lib "$Bin/../lib";
 
-my $course_users = {};
+our $export_dir = (-d '/export') ? '/export' : $TUSK::Constants::TempPath;
 
 # pass in a course object and params and return the name of a zip file that is the 
 # content package.
@@ -55,7 +55,7 @@ sub export{
 
 	#####
 	# make tmp file with random number. put this in lexical var and use that as dir for adds
-	my $tmp_dir = TUSK::Manage::Course::Import::genTmpDir($TUSK::Constants::TempPath . '/', 'tmp_'); 
+	my $tmp_dir = TUSK::Manage::Course::Import::genTmpDir($export_dir . '/', 'tmp_');
 	$log .= "created tmp directory for content package.\n";
 
 	#####
@@ -285,11 +285,7 @@ sub packContent {
 		my $file_uri = $c->out_file_path();
 		($filename = $file_uri) =~ s/\/.*\///;
 
-		my $title = $c->title();
-		$title =~ s/<.+?>//g;
-        $title =~ s/\W+/_/g;
-        $title =~ s/^_|_$//g;
-
+		my $title = safe($c->title());
 		$filename = "$title-$filename" if ($title);
 
 		unless( -e $xtra_args->{tmp_dir} . "/$filename" ){
@@ -732,14 +728,7 @@ sub printManifest{
 sub getPackageName{
 	my $title = shift;
 
-	$title = lc($title);
-	$title =~ s/\s|\//_/g;
-	$title =~ s/\'//g;
-	$title =~ s/\"//g;
-	$title .= '_cp';
-
-	my $fn = TUSK::Manage::Course::Import::getRandomFile($TUSK::Constants::TempPath . '/', $title, '.zip');
-	return $fn;
+	return TUSK::Manage::Course::Import::getRandomFile($export_dir . '/', safe($title) . '-cp', '.zip');
 }
 
 # if content linked inline in a document cannot be exported, generate an html
@@ -757,6 +746,16 @@ Copyright: $copy
 );
 
 	return $return_str;
+}
+
+sub safe {
+        my $title = shift || 'Untitled';
+
+        $title =~ s/<.+?>//g;
+        $title =~ s/\W+/_/g;
+        $title =~ s/^_|_$//g;
+
+        return $title;
 }
 
 1;
