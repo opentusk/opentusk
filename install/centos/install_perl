@@ -1,17 +1,19 @@
 #!/bin/env bash
 
 #######################################################
+### Change directory ownership to tusk
 sudo chown -R tusk:tusk /usr/local/tusk
 
 #######################################################
-#### Install static custom Perl as tusk user
+#### Install custom Perl as tusk user
 
+extsrc_folder="extsrc"
 if -z "$git_extsrc"; then
     echo "Please provide external source in tusk_install.yml"
     exit 1
 else
     cd /usr/local/tusk
-    sudo -u tusk git clone $git_extsrc extsrc
+    sudo -u tusk git clone $git_extsrc $extsrc_folder
 fi
 
 ## add perl path
@@ -36,9 +38,8 @@ echo "completed installing perl in $target_folder"
 
 # export PATH=$target_folder/bin:$PATH:.
 
-### now install the rest of cpan modules
-#cd /usr/local/tusk/current/install/centos
-cd /opt/home/isathi01/mtusk/install/centos
+#######################################################
+#### Install CPAN modules
 sudo -u tusk curl -L http://cpanmin.us | sudo -u tusk perl - App::cpanminus
 
 ## install 2 modules from extsrc repo; make sure to install them in order
