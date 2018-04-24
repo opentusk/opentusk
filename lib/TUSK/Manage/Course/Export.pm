@@ -257,6 +257,7 @@ sub packContent {
 	my ($c, $res_parent, $res_root, $cont_parent, $xtra_args) = @_;
 
 	my $filename;
+	my $title = safe($c->title());
 	
 	if($c->type() eq 'Slide'){
 		if ( $c->reuse_content_id() ) {
@@ -275,6 +276,8 @@ sub packContent {
 		
 		my $file_uri = $TUSK::UploadContent::path{'slide'} . $HSDB4::Constants::URLs{'orig'} . '/' . $location;
 
+		$filename = "$title-$filename" if ($title);
+
 		unless( copy($file_uri, $xtra_args->{tmp_dir} . "/$filename") ) {
 			$xtra_args->{log} .= "file copy failed for $file_uri: $!\n";
 			return 0;
@@ -285,7 +288,6 @@ sub packContent {
 		my $file_uri = $c->out_file_path();
 		($filename = $file_uri) =~ s/\/.*\///;
 
-		my $title = safe($c->title());
 		$filename = "$title-$filename" if ($title);
 
 		unless( -e $xtra_args->{tmp_dir} . "/$filename" ){
@@ -312,6 +314,8 @@ sub packContent {
 		$xml =~ s/(<img[^>]+src="\/\w+\/(\d+)"[^\/>]*\/?>)/canExport($1, $2, $cont_parent, $res_root, $content_chain, $xtra_args)/eg;
 
 		my $packed_xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><originalXML>" . escape($xml) . "</originalXML>";
+
+		$filename = "$title-$filename" if ($title);
 
 		# put file in tmp dir
 		my $file_uri = $xtra_args->{tmp_dir} . "/$filename";
