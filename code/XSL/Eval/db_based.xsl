@@ -30,7 +30,7 @@
       <xsl:call-template name="question_text"/>
       <xsl:choose>
         <xsl:when test="../@required='Yes'">
-          <p class="db_info">Your user ID is being saved with the results of this evaluation. <span style="color: red;">This 
+          <p class="db_info">Your user ID is being saved with the results of this evaluation. <span style="color: red;">This
           means that your evaluation is not anonymous!</span></p>
           <input type="hidden" name="eval_q_{$qid}" value="{$USERID}"/>
         </xsl:when>
@@ -41,22 +41,22 @@
                 <xsl:attribute name="checked">checked</xsl:attribute>
               </xsl:if>
             </input>
-            Check here if you would like to identify yourself with the results of 
-            this eval. (<span style="color: red;">If you check the box, your results 
+            Check here if you would like to identify yourself with the results of
+            this eval. (<span style="color: red;">If you check the box, your results
             will no longer be anonymous.</span>)
           </p>
         </xsl:otherwise>
       </xsl:choose>
     </div>
   </xsl:template>
-    
+
   <xsl:template match="SmallGroupsInstructor">
     <xsl:variable name="qid" select="../@eval_question_id" />
     <xsl:variable name="answer" select="document($answerXml)/EvalAnswers/eval_answer[@qid=$qid]" />
     <xsl:variable name="time_period_id" select="/Eval/@time_period_id"/>
     <xsl:comment> Question ID : <xsl:value-of select="$qid" /></xsl:comment>
     <xsl:comment> Answer : <xsl:value-of select="$answer"/></xsl:comment>
-    <xsl:param name="label"><xsl:value-of select="../question_label"/></xsl:param>
+    <xsl:variable name="label" select="../question_label"/>
     <xsl:choose>
       <xsl:when test="$label = 'auto'">
 		<li />
@@ -83,7 +83,7 @@
   <xsl:template match="TeachingSite">
     <xsl:variable name="qid" select="../@eval_question_id" />
     <xsl:comment> Question ID : <xsl:value-of select="$qid" /></xsl:comment>
-    <xsl:param name="label"><xsl:value-of select="../question_label"/></xsl:param>
+    <xsl:variable name="label" select="../question_label"/>
     <xsl:choose>
       <xsl:when test="$label = 'auto'">
 		<li />
@@ -112,7 +112,7 @@
 	<xsl:choose>
 		<xsl:when test="$school='Medical'">
 		<p class="teaching_site">
-	You are entered in the registrar's database as taking this course at 
+	You are entered in the registrar's database as taking this course at
 	<b><xsl:value-of select="document($courseXml)/course/teaching-site-list/teaching-site[@teaching-site-id = $TEACHING_SITE]/site-name"/></b>.
 	 If this is not correct, do not complete this evaluation. <xsl:value-of disable-output-escaping="yes" select="$HTML_EVAL_ERROR_MESSAGE" /> Thank you.
 		</p>

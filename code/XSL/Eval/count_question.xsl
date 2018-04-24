@@ -77,7 +77,7 @@
     <xsl:variable name="qid" select="../@eval_question_id" />
     <xsl:variable name="answer" select="document($answerXml)/EvalAnswers/eval_answer[@qid=$qid]" />
     <xsl:comment> Question ID : <xsl:value-of select="$qid" /></xsl:comment>
-    <xsl:param name="label"><xsl:value-of select="../question_label"/></xsl:param>
+    <xsl:variable name="label" select="../question_label"/>
     <xsl:choose>
       <xsl:when test="$label = 'auto'">
 		<li />
