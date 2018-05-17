@@ -258,10 +258,8 @@ sub handler {
 		$contentType = $noAttachmentExt{$ext}
 	}
 
-	my $title = '';
-	if ($document->title()){
-		$title = $document->title();
-		$title =~ s/<.+?>//g;
+	my $title = $document->title();
+	if ($title) {
 		$title =~ s/\W+/_/g;
 		$title =~ s/^_|_$//g;
 	}

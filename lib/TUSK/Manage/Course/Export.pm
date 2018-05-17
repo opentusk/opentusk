@@ -108,14 +108,7 @@ sub export{
 
 	#####
 	# add files from tmp dir to content package archive
-	# NB: Archive::Zip has an addTree() method that would do the trick, but
-	# it croaks when in taint mode. therefore, we have this workaround
-	opendir(DIR, $tmp_dir) or die "can't opendir $tmp_dir: $!";
-	while (defined(my $file = readdir(DIR))) {
-		next if $file =~ /^\.\.?$/;     # skip . and ..
-		$arc->addFile("$tmp_dir/$file", $file);
-	}
-	closedir(DIR);
+	$arc->addTree($tmp_dir, '');
 
 	#####
 	# create content package zip and alert as to its creation and location	
@@ -183,6 +176,13 @@ sub exportContent {
 
 				# RECURSIVELY GENERATE <item>'s AND <resource>'s FOR CHILDREN CONTENT
 				if($c->type() =~ /Collection|Multidocument/){
+					my $tmp_dir = $xtra_args->{tmp_dir};
+					my $sub_dir = $c->primary_key();
+					my $title = safe($c->title());
+					$sub_dir = "$title-$sub_dir" if ($title);
+					$xtra_args->{tmp_dir} .= "/$sub_dir";
+					mkpath($xtra_args->{tmp_dir});
+
 					my @sub_content = $c->active_child_content_during_span($xtra_args->{start}, $xtra_args->{end});
 					foreach my $sc (@sub_content){
 						my $id = $sc->primary_key();
@@ -193,6 +193,7 @@ sub exportContent {
 							exportContent($sc, $item, $res_root, $xtra_args);
 						}
 					}
+					$xtra_args->{tmp_dir} = $tmp_dir;
 				}
 			}
 			$xtra_args->{log} .= 'Content exported: ' . $c->primary_key . "\n";
@@ -277,8 +278,9 @@ sub packContent {
 		my $file_uri = $TUSK::UploadContent::path{'slide'} . $HSDB4::Constants::URLs{'orig'} . '/' . $location;
 
 		$filename = "$title-$filename" if ($title);
+		$filename = $xtra_args->{tmp_dir} . '/' . $filename;
 
-		unless( copy($file_uri, $xtra_args->{tmp_dir} . "/$filename") ) {
+		unless (copy($file_uri, $filename)) {
 			$xtra_args->{log} .= "file copy failed for $file_uri: $!\n";
 			return 0;
 		}
@@ -289,9 +291,10 @@ sub packContent {
 		($filename = $file_uri) =~ s/\/.*\///;
 
 		$filename = "$title-$filename" if ($title);
+		$filename = $xtra_args->{tmp_dir} . '/' . $filename;
 
-		unless( -e $xtra_args->{tmp_dir} . "/$filename" ){
-			unless( copy($file_uri, $xtra_args->{tmp_dir} . "/$filename") ) {
+		unless (-e $filename) {
+			unless (copy($file_uri, $filename)) {
 				$xtra_args->{log} .= "file copy failed for $file_uri: $!\n";
 				return 0;
 			}
@@ -316,11 +319,11 @@ sub packContent {
 		my $packed_xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><originalXML>" . escape($xml) . "</originalXML>";
 
 		$filename = "$title-$filename" if ($title);
+		$filename = $xtra_args->{tmp_dir} . '/' . $filename;
 
 		# put file in tmp dir
-		my $file_uri = $xtra_args->{tmp_dir} . "/$filename";
-		unless( -e "$file_uri" ){
-			open(my $fh, '>', $file_uri) or die $!;
+		unless (-e $filename) {
+			open(my $fh, '>', $filename) or die $!;
 
 			print $fh $packed_xml;
 			close $fh;
@@ -753,13 +756,14 @@ Copyright: $copy
 }
 
 sub safe {
-        my $title = shift || 'Untitled';
+	my $title = shift;
 
-        $title =~ s/<.+?>//g;
-        $title =~ s/\W+/_/g;
-        $title =~ s/^_|_$//g;
+	if ($title) {
+		$title =~ s/\W+/_/g;
+		$title =~ s/^_|_$//g;
+	}
 
-        return $title;
+	return $title;
 }
 
 1;

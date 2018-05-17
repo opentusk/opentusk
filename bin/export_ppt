@@ -59,7 +59,7 @@ sub export {
             if ($file =~ m/^.*\.pp[st]x?$/i) {
                 my $name = $file;
                 $name =~ s/\/.*\///;
-                $name = "$title-$name";
+                $name = "$title-$name" if ($title);
                 print "$file -> $path/$name\n";
                 system("mkdir -p $path && rsync -t $file $path/$name");
             }
@@ -68,11 +68,12 @@ sub export {
 }
 
 sub safe {
-        my $title = shift || 'Untitled';
+    my $title = shift;
 
-        $title =~ s/<.+?>//g;
+    if ($title) {
         $title =~ s/\W+/_/g;
         $title =~ s/^_|_$//g;
+    }
 
-        return $title;
+    return $title;
 }
