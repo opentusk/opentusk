@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -57,9 +57,9 @@ sub openlog{
 	confess "The log directory $logdir is not writable for this user";
     }
     $message = "Starting" unless $message;
-    open($handle, ">>$path/$filename") or confess("Log file failed: $!");
-    my $oldfh = select $handle; 
-    $| = 1;  
+    open($handle, ">>$path/$filename") or confess("Log file ($path/$filename) failed: $!");
+    my $oldfh = select $handle;
+    $| = 1;
     select $oldfh;
     &log($message);
 }
@@ -97,7 +97,7 @@ sub log{
     my ($message) = @_;
     chomp($message);
     if (!$handle){
-  	confess "The log file is not opened"; 
+  	confess "The log file is not opened";
     }
     print $handle localtime() . ": " . $message . "\n";
 }
@@ -115,7 +115,7 @@ Take a message print it to the console and call TUSK::ScriptLog::log.  $message 
 sub printandlog{
     my ($message) = @_;
     chomp($message);
-    print localtime() . ": " . $message . "\n"; 
+    print localtime() . ": " . $message . "\n";
     &log ($message);
 }
 
@@ -125,7 +125,7 @@ sub printandlog{
 
     TUSK::ScriptLog::loganddie($message);
 
-Calls TUSK::ScriptLog::log, TUSK::ScriptLog::closelog("I was told to die") and then dies 
+Calls TUSK::ScriptLog::log, TUSK::ScriptLog::closelog("I was told to die") and then dies
 
 =cut
 
