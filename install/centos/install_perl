@@ -43,11 +43,12 @@ echo "completed installing perl in $target_folder"
 sudo -u tusk curl -L http://cpanmin.us | sudo -u tusk perl - App::cpanminus
 
 ## install 2 modules from extsrc repo; make sure to install them in order
+## the latter needs to write a system file
 sudo -u tusk cpanm "$extsrc_folder/cpan/mod_perl-2.0.10-patch.tar.gz"
-sudo -u tusk cpanm "$extsrc_folder/cpan/libapreq2-2.13-patch.tar.gz"
-
-## install the rest of CPAN modules through cpanfile
-sudo -u tusk cpanm --installdeps .
+sudo cpanm "$extsrc_folder/cpan/libapreq2-2.13-patch.tar.gz"
 
 ## make all modules owned by tusk user
 find $target_folder \! -user tusk -exec sudo chown tusk:tusk {} \;
+
+## install the rest of CPAN modules through cpanfile
+sudo -u tusk cpanm --installdeps /usr/local/tusk/current/install/centos
