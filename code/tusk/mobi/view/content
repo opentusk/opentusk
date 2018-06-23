@@ -1,16 +1,16 @@
 <%doc>
- Copyright 2012 Tufts University 
+ Copyright 2012 Tufts University
 
- Licensed under the Educational Community License, Version 1.0 (the "License"); 
- you may not use this file except in compliance with the License. 
- You may obtain a copy of the License at 
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
- http://www.opensource.org/licenses/ecl1.php 
+ http://www.opensource.org/licenses/ecl1.php
 
- Unless required by applicable law or agreed to in writing, software 
- distributed under the License is distributed on an "AS IS" BASIS, 
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions and 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 </%doc>
 <%once>
@@ -34,7 +34,7 @@ my $content = $m->comp('/tmpl/url:get_type_object');
 my $userObject = $m->session->{'user'};
 my $iCanEdit = $content->can_user_edit($userObject);
 
-my $course;	
+my $course;
 my $pathinfo = $r->path_info;
 $pathinfo =~ s/\///;
 my ($course_id, @garbage) = split ('/', $pathinfo);
@@ -61,7 +61,7 @@ my %family;
 $family{prev} = $content->context_prev;
 $family{next} = $content->context_next;
 $family{up}   = $content->context_parent;
-foreach my $key qw(prev up next){
+foreach my $key (qw(prev up next)) {
 	my $url = undef;
 	if($family{$key}){
 		$url = $family{$key}->out_url_mobi;
@@ -81,15 +81,15 @@ return $lnks;
  	my $parent_id = substr($aStr, 1, length($aStr)-2);
  	my $sc = HSDB4::Constants::school_codes(substr($aStr,0,1));
 
-	##alternatively, if in the future we need paths for parents and other siblings, use the following 
+	##alternatively, if in the future we need paths for parents and other siblings, use the following
     ##lines which returns an arrayref of hashes. didnt need all this right now so leaving it out
     ##in the name of speed and efficiency
 	##my $path_ids = $m->comp("/tmpl/url:get_path_ids");
 	##$my $cPath = $content->get_bread_crumb_from_path($path_ids);
-    
 
- 	my $prntURL = "/mobi/view/course/$sc/$parent_id"; 
- 	my $nav_bars = []; 
+
+ 	my $prntURL = "/mobi/view/course/$sc/$parent_id";
+ 	my $nav_bars = [];
 	# test for markup
 	# $nav_bars = [ { href => $prntURL, label => __('Course Home') , title => __('Course Home')  } ];
  	$nav_bars = [ { href => $prntURL, label => 'Course Home', title => 'Course Home' } ];
@@ -117,7 +117,7 @@ if($content->type() eq 'Slide'){
 	$ARGS{SIZE} ||= 'medium';
 }
 
-my $body = $content->out_html_body(%ARGS); 
+my $body = $content->out_html_body(%ARGS);
 
 if($content->error) {
 	print sprintf("<div class=\"error\">%s. %s <a href=\"%s\">%s</a>%s.</div>",
@@ -128,7 +128,7 @@ if($content->error) {
                 __("if you have a question"));
 
 	ErrorReport::sendErrorReport($r, {'Msg'=>$content->error()});
-} 
+}
 elsif(!$content->is_mobile_ready()){
 	print sprintf("<p>%s %s. %s.</p>",
 		__("This piece of content is not currently supported on the mobile version of"),
@@ -148,7 +148,7 @@ else {
 			print __('There are no documents, slides or other multimedia in this collection') . '.';
 
 		}
-	} 
+	}
 	else{
 		my $dload_warn = "<p>" . __("The link below goes to a piece of content that may not be supported on your mobile device. Check that it can handle the file type and has the capacity for large files") .".</p>";
 		if ($ENV{HTTP_USER_AGENT} =~ /android/i) {
@@ -169,7 +169,7 @@ else {
 		elsif($content->type() eq 'Slide') {
 			my $uri = $ENV{SCRIPT_URI};
 			my @sublnks;
-			foreach my $size qw(medium large xlarge orig){
+			foreach my $size (qw(medium large xlarge orig)) {
 				push @sublnks, ($ARGS{SIZE} eq $size)? $size : "<a href=\"$uri?SIZE=$size\">$size</a>";
 			}
 			my $lnk_str = join ' | ', @sublnks;
@@ -208,7 +208,7 @@ else {
 
 	if($ctime->out_string_date eq '') {
 		print "<b>$tags->{created}:</b> $tags->{unknown}<br/>\n";
-	} 
+	}
 	else {
 		print "<b>$tags->{created}:</b> " . $ctime->out_string_date . "<br/>\n";
 	}
@@ -220,4 +220,3 @@ else {
 	print $content->out_html_appendix();
 }
 </%perl>
-
