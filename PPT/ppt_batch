@@ -11,51 +11,51 @@ use Net::SMTP;
 use Carp;
 use File::Copy;
 use Win32::Process::Info;
-use TUSK::Constants;
 
 # Site variables
 # If you change this stuff you may want to run "ppt_batch -init" again
 #
 # ************************ RTENTION OPTIONS ***********************************#
-my $numberOfDaysToKeepPPTs = 365; #Deletes after this number of days since last file access
+my $numberOfDaysToKeepPPTs = 7; #Deletes after this number of days since last file access
 
 # *************************  EMAIL OPTIONS  ***********************************#
 my $maxRunBeforeMail = 15;          ## Number of times I can yield to a running process before I send an email
 my $from_email = 'tusk@tufts.edu';  ## Who should email be from?
-my @to_emails = ('tuskdev@elist.tufts.edu', 'pagetusk@tufts.edu'); ## Who should email be to?
+my @to_emails = ('tuskdev@elist.tufts.edu'); ## Who should email be to?
 my $smtp_server = 'smtp.tufts.edu'; ## What is the email server?
 
 # *************************  HOST INFORMATION **********************************#
-my @developmentHosts = ('kato.tusk.tufts.edu',
+my @developmentHosts = ('tuskcron-prod-10.tusk.tufts.edu',
                        );
-my $developmentToHost = "kato.tusk.tufts.edu";
+my $developmentToHost = "tuskcron-prod-10.tusk.tufts.edu";
 
-my @productionHosts = ( 'fetch.tusk.tufts.edu', 
+my @productionHosts = ( 'tuskcron-prod-10.tusk.tufts.edu',
                       );
-my $productiuonToHost = 'fetch.tusk.tufts.edu';
+my $productiuonToHost = 'tuskcron-prod-10.tusk.tufts.edu';
 
 # *************************  FILE LOCATIONS ************************************#
 # Local Directories and files to work with.
-my $ppt_base_dir = 'C:\ppt\\';
+my $ppt_base_dir = 'C:\Users\Public\PPT\\';
 my $ppt_out_dir  = $ppt_base_dir . 'out';
 my $ppt_temp_dir = $ppt_base_dir . 'temp';
 my $lockFile     = $ppt_base_dir . 'ppt_batch_lock';
 my $countFile    = $ppt_base_dir . 'ppt_batch_count';
 my $logFile      = $ppt_base_dir . "ppt.log";
-my $ppt_save_dir = $ppt_base_dir . 'save';    #Set to nothing and ppts will be deleted
+# my $ppt_save_dir = $ppt_base_dir . '';    #Set to nothing and ppts will be deleted
+my $ppt_save_dir = '';    #Set to nothing and ppts will be deleted
 #
 # Server Directories and files to work with.
-my $pptNativeDirOnServer        = $TUSK::Constants::BasePPTPath . "/native";          ##Where will we get the ppts off the server
-my $pptNativeArchiveDirOnServer = $TUSK::Constants::BasePPTPath . "/native-archive";  ##Where will we keep a copy of the ppt files on the server
-my $pptOutputDirOnServer        = $TUSK::Constants::BasePPTPath . "/processed";       ##Where will we put the ppt files when we are done with them
+my $pptNativeDirOnServer        = "/data/ppt/native";          ##Where will we get the ppts off the server
+my $pptNativeArchiveDirOnServer = "/data/ppt/native-archive";  ##Where will we keep a copy of the ppt files on the server
+my $pptOutputDirOnServer        = "/data/ppt/processed";       ##Where will we put the ppt files when we are done with them
 
 # *************************  APPLICATION LOCATIONS ******************************#
 my $serverUser              = "tusk";                                             ##User used to ssh/scp into the server
-my $pscp_location           = 'C:\ppt\pscp -unsafe';                              ##Location of pscp
-my $plink_location          = 'C:\ppt\plink ';                                    ##Location of plink
-my $batch_location          = 'C:\Program Files\RnR\PPToolsV2\PPT2HTMLBatch.exe'; ##Location of ppt2htmlbatch.exe
-my $winzip_location         = 'C:\Program Files\WinZip\Winzip32.exe';             ##Location of winzip executable
-my $serverProcessZipCommand = $TUSK::Constants::ServerRoot . "/bin/process_zip";
+my $pscp_location           = 'C:\Users\Public\PPT\pscp -unsafe';                              ##Location of pscp
+my $plink_location          = 'C:\Users\Public\PPT\plink ';                                    ##Location of plink
+my $batch_location          = 'C:\Users\Public\Documents\PPTools\PPT2HTMLBatch.exe'; ##Location of ppt2htmlbatch.exe
+my $winzip_location         = 'C:\Program Files (x86)\7-zip\7z.exe';             ##Location of winzip executable
+my $serverProcessZipCommand = "/usr/local/tusk/current/bin/process_zip";
 #
 ## Please do not make modification below this line
 
@@ -86,7 +86,7 @@ my $host_in_dir;
 if($opt_h) {doUsage();}
 #initalize if requested
 if($opt_i) {doInitalization();}
-  
+print "Processing ",$logFile,"\n";
 open(LOG_FILE, ">>$logFile") || send_mail("Unable to open log file for append : $!");
 my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = gmtime;
 $year++;
@@ -114,7 +114,6 @@ foreach my $from_host (@{$from_hosts}){
 }
 
 
-
 # run the batch
 foreach my $from_host (@{$from_hosts}) {
   $host_in_dir = $ppt_base_dir.$from_host;
@@ -126,24 +125,34 @@ foreach my $from_host (@{$from_hosts}) {
     next if ($file eq "." or $file eq ".." or $file eq "hsdb.htm" or $file eq "AutoFile.INI");
     # found a processed ppt!!
     print "Processing ",$file,"\n";
+    
+    # archive .ERR files (not .zip), send email alert, terminate script
+    if($file =~ /\.ERR$/ && $file !~ /\.zip/){
+      my $orig_file = $file;
+      $orig_file =~ s/\.ERR$//;
+      print "Archiving $host_in_dir\\$orig_file as ERR\n";
+      system("del /Q \"$host_in_dir\\$file\"");
+      system("$plink_location -ssh -l $serverUser $from_host [ -f $pptNativeDirOnServer/$orig_file ] && mv $pptNativeDirOnServer/$orig_file $pptNativeArchiveDirOnServer/$orig_file.ERR");
+      send_mail("Error file moved to native archive: $pptNativeArchiveDirOnServer/$orig_file.ERR");}
+    
     if (-d "$host_in_dir\\$file"){
       my $ext = (-f "$host_in_dir\\$file.pptx.DONE")? 'pptx' : 'ppt';
       if ((-f "$host_in_dir\\$file.$ext.DONE")and(-f "$host_in_dir\\$file\\$file"."1.htm")){
         # zip it up
-        system("\"$winzip_location\" -min -a -en \"$ppt_out_dir\\$file.zip\" \"$host_in_dir\\$file\"");
+        system("\"$winzip_location\" a -tzip \"$ppt_out_dir\\$file.zip\" \"$host_in_dir\\$file\"\\*");
         # remove batch output
         system("rmdir /S /Q \"$host_in_dir\\$file\"");
         # remove the orginal file
         system("del /Q \"$host_in_dir\\$file.$ext.DONE\"");
         system("$pscp_location $serverUser\@$from_host:$pptNativeDirOnServer/$file.$ext $ppt_temp_dir");
         if($?) {send_mail("IN PSCP CLEANUP ERROR : ".$!);}
-        
-        system("$plink_location -ssh -l $serverUser -load $from_host mv $pptNativeDirOnServer/$file.$ext $pptNativeArchiveDirOnServer/");
+
+        system("$plink_location -ssh -l $serverUser $from_host mv $pptNativeDirOnServer/$file.$ext $pptNativeArchiveDirOnServer/");
         if ($?){send_mail("PLINK CLEANUP ERROR : ".$!);}
 
 print "About to rename the file! dir is $ppt_save_dir\n";
 	if(-d $ppt_save_dir) {
-print "Renameing instead of deleting\n";
+print "Renaming instead of deleting\n";
 print "From $ppt_temp_dir\\$file.$ext to $ppt_save_dir\\$file.$ext\n";
 		unless(rename("$ppt_temp_dir\\$file.$ext", "$ppt_save_dir\\$file.$ext")) {print "Unable to rename the file for saving! $!\n";}
 	} else {
@@ -152,20 +161,20 @@ print "DELETING THE FILE";
 	}
       }else{
         # remove batch output
-        system("rmdir /S /Q \"$host_in_dir\\$file\"");  
+        system("rmdir /S /Q \"$host_in_dir\\$file\"");
         # put error file
         system("echo \"There was an error\" > \"$ppt_out_dir\\$file\.zip\.ERROR\"");
       }
     }
   }
-  
+
   closedir(PPT);
 } # end host loop
 
 # put the files
 system("$pscp_location $ppt_out_dir\\*.zi* $serverUser\@$to_host:$pptOutputDirOnServer/");
 
-my $xmlSlideOutput = `$plink_location -ssh -l $serverUser -load $to_host $serverProcessZipCommand 2>&1`;
+my $xmlSlideOutput = `$plink_location -ssh -l $serverUser $to_host $serverProcessZipCommand 2>&1`;
 
 print "Going to remove the zip files.\n";
 # remove the zips
@@ -180,7 +189,7 @@ if(length($xmlSlideOutput) > 50) {send_mail($xmlSlideOutput);}
 opendir(SAVE_DIR, $ppt_save_dir) || exitSystem('');
 	my @savedFiles = grep !/^\./, readdir SAVE_DIR;
 closedir(SAVE_DIR);
-my $dateOfLastFileToSave = time()-(60 * 60 * 24 * $numberOfDaysToKeepPPTs); 
+my $dateOfLastFileToSave = time()-(60 * 60 * 24 * $numberOfDaysToKeepPPTs);
 foreach my $fileName (@savedFiles) {
 	my $access_time = (stat("$ppt_save_dir/$fileName"))[10];
 	if($access_time < $dateOfLastFileToSave) {system("del /Q \"$ppt_save_dir\\$fileName\"");}
@@ -249,7 +258,7 @@ sub logMessage($) {
   print "$$: $message\n";
 }
 
-sub checkIfRunning() { 
+sub checkIfRunning() {
   my $processInfo = Win32::Process::Info->new();
   my $pptRunning = 0;
   my %runningPIDs;
@@ -277,7 +286,7 @@ sub checkIfRunning() {
       logMessage("Old process ($oldPID) still running");
       #Check to see if we have waited enough times (if so email)
       my $count = 0;
-      open(COUNT, $countFile) || send_mail("Unable to open count file to read : $!"); 
+      open(COUNT, $countFile) || send_mail("Unable to open count file to read : $!");
         $count = <COUNT>;
       close COUNT;
       if($count !~ /^\d*$/) {$count = 0;}
@@ -292,11 +301,11 @@ sub checkIfRunning() {
     }
     else {logMessage("Old process $oldPID is no longer running... taking ownership");}
   }
-  
+
   open(LOCK_FILE, ">$lockFile") || send_mail("Could not write to lock file ($lockFile) : $!");
     print LOCK_FILE $$;
   close(LOCK_FILE);
-  
+
   if($pptRunning) {send_mail("PPT is running!\n");}
 }
 
@@ -333,7 +342,7 @@ sub doInitalization() {
     }
     if($errors) {print "$errors prevented you from proceeding... please try again\n\n"; $fileDir='';}
   }
-  
+
   print "Creating directories...\n";
   unless($ppt_base_dir && $ppt_out_dir && $ppt_temp_dir)
     {die "Variables not set correctly... please configure script and run again.\n";}
