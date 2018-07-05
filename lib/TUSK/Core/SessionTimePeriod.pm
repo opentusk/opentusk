@@ -1,15 +1,15 @@
-# Copyright 2012 Tufts University 
+# Copyright 2012 Tufts University
 #
-# Licensed under the Educational Community License, Version 1.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Educational Community License, Version 1.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# http://www.opensource.org/licenses/ecl1.php 
+# http://www.opensource.org/licenses/ecl1.php
 #
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 
@@ -47,7 +47,7 @@ sub course_time_periods{
 
 	if (scalar(@$periods)){
 		unless ($allow_all || ($timeperiod > 0)){
-			$timeperiod = @$periods[length(@$periods)-1]->primary_key();
+			$timeperiod = @$periods[scalar(@$periods)-1]->primary_key();
 			$session->{timeperiod} = $timeperiod;
 		}
 		$extratext->[0]->{name} = "Time Period";
@@ -67,7 +67,7 @@ sub course_time_periods{
 		}
 		$extratext->[1]->{text} .= "</select>";
     }
-    
+
     return ($extratext);
 }
 
@@ -75,7 +75,7 @@ sub show_dropdown_without_course{
 	my ($periods, $school, $timeperiod, $session) = @_;
 	my $extratext;
 
-	if (scalar(@$periods)){	
+	if (scalar(@$periods)){
 		if ($timeperiod){
 			$session->{timeperiod} = $timeperiod;
 			delete $session->{selected_timeperiod_display};
@@ -84,7 +84,7 @@ sub show_dropdown_without_course{
 			$timeperiod = $session->{timeperiod};
 		}
 		else{
-			$session->{timeperiod} = $timeperiod = @$periods[length(@$periods) -1]->primary_key;
+			$session->{timeperiod} = $timeperiod = @$periods[scalar(@$periods) -1]->primary_key;
 			delete $session->{selected_timeperiod_display};
 		}
 
@@ -103,7 +103,7 @@ sub show_dropdown_without_course{
 		}
 		$extratext->[1]->{text} .= "</select>";
 	}
-    
+
 	return ($extratext);
 }
 
@@ -122,7 +122,7 @@ sub get_time_period{
     my ($course, $session) = @_;
 
     check_session_timeperiod($course, $session);
-    
+
     unless ($session->{timeperiod}){
 	my $timeperiod = $course->get_current_timeperiod();
 	delete($session->{selected_timeperiod_display});
@@ -147,4 +147,3 @@ sub check_session_timeperiod{
 }
 
 1;
-
