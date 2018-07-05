@@ -44,7 +44,7 @@ sub sendErrorReport {
 	}
 	$user ||= 'unknown user';
 	my $host = $ENV{HOSTNAME} || "unknown host";
-	my $remote_ip = $conn->can('remote_ip') || "unknown ip";
+	my $remote_ip = $conn->client_ip() || "unknown ip";
 	my $lastRequest = 'Unknown';
 	my $uriRequest = $param_hash->{'uriRequest'} || $req_rec->uri()
             || "unknown uri";
@@ -133,7 +133,7 @@ sub sendShibReport {
 	my $conn = $req_rec->connection();
 
 	my $host = $ENV{HOSTNAME} || "unknown host";
-	my $remote_ip = $conn->can('remote_ip') || "unknown ip";
+	my $remote_ip = $conn->client_ip() || "unknown ip";
 
 	my $email_receiver = $param_hash->{'To'} || $TUSK::Constants::ErrorEmail;
 	my $email_sender = $param_hash->{'From'} || $TUSK::Constants::ErrorEmail;

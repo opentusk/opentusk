@@ -266,7 +266,7 @@ sub initEnvironment
 		$env->{accept} = lc $ap->headers_in->{'Accept'};
 		$env->{acceptLang} = lc $ap->headers_in->{'Accept-Language'};
 		$env->{userAgent} = $ap->headers_in->{'User-Agent'};
-		$env->{userIp} = $ap->connection->can('remote_ip');
+		$env->{userIp} = $ap->connection->client_ip();
 		$env->{userAuth} = $ap->user;
 		$env->{params} = $ap->args;
 

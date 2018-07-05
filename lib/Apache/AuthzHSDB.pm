@@ -31,7 +31,7 @@ sub handler {
 
     ## automatically approve if the request came from the server
     ## itself or a list of authorized IP addresses
-    my $remote_ip = $r->connection()->can('remote_ip');
+    my $remote_ip = $r->connection()->client_ip();
     my $host_info = scalar gethostbyname(hostname() || 'localhost');
     my $local_ip = inet_ntoa($host_info);
     if ((grep { $_ eq $remote_ip } @TUSK::Constants::PermissibleIPs)
