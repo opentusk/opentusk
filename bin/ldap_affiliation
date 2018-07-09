@@ -1,0 +1,46 @@
+#!/usr/bin/env perl
+# Copyright 2012 Tufts University 
+#
+# Licensed under the Educational Community License, Version 1.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+#
+# http://www.opensource.org/licenses/ecl1.php 
+#
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use strict;
+use HSDB45::LDAP;
+use HSDB4::SQLRow::User;
+
+while (my $user_id = shift) {
+	print update($user_id) . "\n";
+}
+
+sub update {
+	my $user_id = shift;
+
+	my $ldap = HSDB45::LDAP->new();
+	my $user = HSDB4::SQLRow::User->new();
+
+	my ($res, $msg) = $ldap->lookup_user_id($user_id);
+	return "User $user_id was not found in LDAP" unless ($res);
+	return "User $user_id has no valid affiliation" unless ($ldap->valid_affiliation());
+
+	$user->lookup_key($user_id);
+	return "User $user_id was not found in HSDB" unless ($user->primary_key());
+
+	my $affiliation = TUSK::Custom::TuftsAuth::decideSchool($ldap->school_info());
+	$user->field_value('affiliation', $affiliation);
+
+	$user->save();
+	return "Updated user $user_id to affiliation $affiliation";
+}
