@@ -133,7 +133,7 @@ sub save_svg_graphs {
 	my $blank_mode = HSDB45::Eval::Results::SupportingGraphs->new(_school => $self->get_school());
 	my $parser = XML::LibXML->new();
 	my $source = $parser->parse_string($self->get_results_xml());
-	my $root = $source->getDocumentElement;
+	my $root = $source->documentElement();
 	my @results = $root->getElementsByTagName('Question_Results');
 	my @emptyBarTopCategories;;
 
@@ -149,6 +149,8 @@ sub save_svg_graphs {
 	my %histograms;
 	my $maxHistogramValue = 0;
 	my $maxCategoryHistogramValue = 0;
+    my $eval_node = $source->getElementsByTagName("Eval")->get_node(1);
+
 	foreach my $questionResult (@results) {
 		my $questionID = $questionResult->getAttribute('eval_question_id');
 
@@ -158,9 +160,9 @@ sub save_svg_graphs {
 
 		# Try to get the question element from the xml document
 		my @questionTopCategories;
-		my $questionNodeList = $root->getElementsByTagName("EvalQuestion[\@eval_question_id=\"$questionID\"]");
+        my $questionNodeList = $eval_node->findnodes("EvalQuestion[\@eval_question_id=$questionID]");
 		unless($questionNodeList) {
-			warn("Unable to get the node list for the question (EvalQuestion[\eval_question_id='$questionID'])... unable to process question.\n");
+            warn("Unable to get the node list for the question (EvalQuestion[\@eval_question_id=\"$questionID\"])... unable to process question.\n");
 			next;
 		}
 
@@ -171,7 +173,8 @@ sub save_svg_graphs {
 		}
 
 		# try to get the question type (PlusMinusRating or NumbericRating) this will determine the graph type.
-		my $tempNodeList = $thisQuestionElement->getElementsByTagName("PlusMinusRating | NumericRating");
+        my $tempNodeList = $thisQuestionElement->findnodes("./NumericRating | ./PlusMinusRating");
+
 		unless($tempNodeList) {
 			# I don't want to be notified if this is a YesNo, MultipleChoice, etc question
 			#warn("Unable to get either the PlusMinusRating or NumericRating node for $questionID... unknown question type.\n");
