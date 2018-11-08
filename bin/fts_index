@@ -124,8 +124,6 @@ die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
 # Get variables from tusk.cron_job_variable with cron_name of fts_index
 my $processVariables = TUSK::Cron::VariableManager->new();
 
-# Use MySQL password from .my.cnf (or ask user for name/pw)
-HSDB4::Constants::set_user_pw (get_user_pw);
 my $starttime = &time_stamp;
 
 TUSK::ScriptLog::openlog("fts_index.log");
@@ -324,12 +322,8 @@ sub disconnect($) {
   $dbh->disconnect;
 }
 
-# TODO: Is this the same as HSDB4::Constants::def_db_handle
 sub dbConnect() {
-  my $aDbh = DBI->connect("dbi:mysql:fts:$ENV{DATABASE_ADDRESS}",
-                          get_user_pw(),
-                          { RaiseError => 1 });
-  return $aDbh;
+  return HSDB4::Constants::def_db_handle();
 }
 
 sub runAll() {

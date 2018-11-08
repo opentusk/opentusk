@@ -33,7 +33,6 @@ use IO::File;
 use Getopt::Long;
 use XML::EscapeText qw(:escape);
 use TUSK::Constants;
-HSDB4::Constants::set_user_pw (get_user_pw);
 use TUSK::UploadContent;
 
 use TUSK::Core::ServerConfig;
@@ -41,9 +40,6 @@ if (!defined($ENV{DATABASE_ADDRESS})){
         $ENV{DATABASE_ADDRESS} = TUSK::Core::ServerConfig::dbWriteHost;
 }
 die "Need to set ENV{DATABASE_ADDRESS}" if (!defined($ENV{DATABASE_ADDRESS}));
-
-
-my ($user_name, $user_pass) = get_user_pw ();
 
 my $zipfile=""; # name of zip file
 my $verbose=""; # set to 1 then info is printed to the screen
@@ -199,7 +195,7 @@ foreach my $filename (@ppt) {
     $info->{parent_content_id} = $info->{content_id};
 
     $slidedata->{child_content} = &create_content_record($slidedata);
-    $slidedata->{child_content}->generate_image_sizes(-username => $user_name, -password => $user_pass, -blob => $blob, -type=>"jpeg", -path => $TUSK::UploadContent::path{slide});
+    $slidedata->{child_content}->generate_image_sizes(-blob => $blob, -type=>"jpeg", -path => $TUSK::UploadContent::path{slide});
     $slidedata->{child_content}->save;
     &create_content_link($info->{parent_content_id}, $slidedata->{child_content}->primary_key, ($slidedata->{number} * $setup->{collection_sort_order}));
 }
@@ -309,7 +305,7 @@ sub parse_xml{
 
 sub create_content_record{
     my ($slidedata) = @_;
-    $slidedata->{title} =~ s/Â//gi; # not sure why this funky char is appearing, but this gets rid of it
+    $slidedata->{title} =~ s/ï¿½//gi; # not sure why this funky char is appearing, but this gets rid of it
     
     $slidedata->{title} = $info->{title} .": Slide " . $slidedata->{number} if (!($slidedata->{title})) or ($slidedata->{title} eq ' ');
 	
@@ -321,7 +317,7 @@ sub create_content_record{
     if ($slidedata->{note}){ 
 	$slidedata->{note} = "<html><![CDATA[" . $slidedata->{note} . "]]></html>";
 	$slidedata->{note} =~ s/!@#/\&/g;
-	$slidedata->{note} =~ s/Â//gi;
+	$slidedata->{note} =~ s/ï¿½//gi;
     }
     
     $slidedata->{note} = "" unless ($slidedata->{note});
@@ -332,7 +328,7 @@ sub create_content_record{
       {$slidedata->{body}.=  $slidedata->{source} . $slidedata->{note};}
     $slidedata->{body}.= "</content_body>";
     $slidedata->{body} =~ s/!@#/\&/g;
-    $slidedata->{body} =~ s/Â//gi;
+    $slidedata->{body} =~ s/ï¿½//gi;
     $slidedata->{body} =~ s/\&gt;/>/g;
     $slidedata->{body} =~ s/\&lt;/</g;
     
@@ -353,7 +349,7 @@ sub create_content_record{
 				    created => sprintf ("%d-%d-%d %d:%d:%d", $time[5]+1900, $time[4]+1, $time[3], $time[2], $time[1], $time[0]),
 				    );
 			
-    my ($r, $msg) = $new_content->save($user_name,$user_pass);
+    my ($r, $msg) = $new_content->save();
     ## in case this is a slide, need to rebless it so it acts accordingly
     $new_content->rebless;
     my $new_content_id = $new_content->primary_key;	
@@ -375,8 +371,7 @@ sub create_content_user_link{
     my $new_link = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_user'};
 
     if ($slidedata->{author}){
-	$new_link->insert( -user => $user_name,
-			   -password => $user_pass,
+	$new_link->insert(
 			   -parent_id => $parent_content_id,
 			   -child_id => $slidedata->{author},
 			   sort_order => 1,
@@ -385,8 +380,7 @@ sub create_content_user_link{
     }
 
     if ($info->{org_author} ne $slidedata->{author} or $info->{org_author} ne $info->{author}){
-	$new_link->insert( -user => $user_name,
-			   -password => $user_pass,
+	$new_link->insert(
 			   -parent_id => $parent_content_id,
 			   -child_id => $info->{org_author},
 			   sort_order => 2,
@@ -402,8 +396,7 @@ sub create_content_link{
     my ($parent_content_id, $child_content_id, $sort_order) = @_;
     
     my $new_link = $HSDB4::SQLLinkDefinition::LinkDefs{'link_content_content'};
-    $new_link->insert( -user => $user_name,
-		       -password => $user_pass,
+    $new_link->insert(
 		       -parent_id => $parent_content_id,
 		       -child_id => $child_content_id,
 		       sort_order => $sort_order,
