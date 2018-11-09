@@ -328,6 +328,7 @@ sub dbConnect() {
 
 sub runAll() {
   TUSK::ScriptLog::log("Reindex All Content started $starttime. ");
+  $lastRunTime ||= '0000-00-00 00:00:00';
   my $newRunTime = HSDB4::DateTime->new->out_mysql_timestamp;
   my %children;
   $numChildren ||= 2;
@@ -360,11 +361,12 @@ sub runAll() {
       }
 
       my $selectStatement = "SELECT content_id
-                         FROM hsdb4.content
-                        WHERE school not in ('Downstate' $archiveClause)
-                          AND (start_date < NOW() OR start_date IS NULL)
-                          AND (end_date > NOW() OR end_date IS NULL)
-                          AND display=1
+                        FROM hsdb4.content
+                        WHERE school NOT IN ('Downstate' $archiveClause)
+                          AND (start_date BETWEEN '$lastRunTime' AND '$newRunTime' OR start_date IS NULL)
+                          AND (end_date > '$newRunTime' OR end_date IS NULL)
+                          AND modified > '$lastRunTime'
+                          AND display = 1
             ";
 
       my $tableSQL = "CREATE TABLE IF NOT EXISTS multi_fts (
