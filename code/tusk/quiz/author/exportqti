@@ -1,0 +1,191 @@
+<%doc>
+ Copyright 2019 Tufts University
+
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.opensource.org/licenses/ecl1.php
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+</%doc>
+
+<%flags>
+	inherit => undef
+</%flags>
+
+<%once>
+	use IO::File;
+	use TUSK::IMS::Manifest::Report;
+    use TUSK::IMS::QTI::Report::Quiz;
+    use TUSK::IMS::QTI::Report::Items;
+	use HSDB4::DateTime;
+    use TUSK::Quiz::Quiz;
+    use File::Path qw(make_path remove_tree);
+    use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
+	use Apache2::Const qw(SERVER_ERROR);
+</%once>
+
+<%shared>
+    my $root_dir = '/data/temp/ims-qti/' . $m->session->{'user'}->uid() . '/' . time();
+    my $course = $m->comp("/tmpl/url:get_type_object");
+</%shared>
+
+<%init>
+    my @quiz_ids = ();
+    if ($ARGS{submit_check}) {
+        ## push @quiz_ids,
+    } else {
+        push @quiz_ids, $m->comp("/tmpl/url:get_last_path_id");
+    }
+
+    my @quizzes = ();
+    foreach my $quiz_id (@quiz_ids) {
+        make_path("$root_dir/$quiz_id");
+        my $quiz = TUSK::Quiz::Quiz->lookupKey($quiz_id);
+        $m->comp('SELF:writeQuestions', quiz => $quiz);
+        $m->comp('SELF:writeQuizMeta', quiz => $quiz, total_points => 10);
+        push @quizzes, $quiz;
+    }
+    $m->comp('SELF:writeManifest', quiz_ids => \@quiz_ids, content_ids => []);
+    my $filename = (scalar @quizzes == 1) ? $quizzes[0]->getTitle() : $course->title();
+    $filename =~ s/ /_/g;
+    $m->comp('SELF:zipFiles', filename => $filename);
+    $m->comp('SELF:showFile', filename => $filename);
+</%init>
+
+
+<%method writeQuestions>
+<%args>
+    $quiz
+</%args>
+<%perl>
+    my $quiz_id = $quiz->getPrimaryKeyID();
+    my $fh = IO::File->new("> /$root_dir/$quiz_id/$quiz_id.xml");
+
+    my $items = TUSK::IMS::QTI::Report::Items->new(
+ 			output => $fh,
+            quiz => $quiz,
+            target_dir => $root_dir,
+    );
+    $items->write_report();
+    undef $fh;
+</%perl>
+</%method>
+
+<%method writeManifest>
+<%args>
+    $quiz_ids
+     $content_ids
+</%args>
+<%perl>
+
+    my $fh = IO::File->new("> $root_dir/imsmanifest.xml");
+    warn "file: $root_dir/manifest.xml";
+    my $manifest = TUSK::IMS::Manifest::Report->new(
+ 		output => $fh,
+        course => $course,
+        quiz_ids => $quiz_ids,
+        img_directory => $root_dir,
+    );
+
+	$manifest->write_report();
+    undef $fh;
+</%perl>
+</%method>
+
+<%method writeQuizMeta>
+<%args>
+    $quiz
+    $total_points
+</%args>
+<%perl>
+    my $quiz_id = $quiz->getPrimaryKeyID();
+    my $fh = IO::File->new("> $root_dir/$quiz_id/assessment_meta.xml") or die "$!";
+
+    my $quiz_report = TUSK::IMS::QTI::Report::Quiz->new(
+        output => $fh,
+        course => $course,
+        quiz => $quiz,
+        total_points => $total_points );
+    $quiz_report->write_report();
+</%perl>
+</%method>
+
+<%method writeFile>
+<%args>
+    $fh
+    $report
+</%args>
+<%perl>
+	my $startpos = $fh->getpos();
+
+	if (defined($fh)) {
+		eval {
+			$report->write_report();
+		};
+
+		if ($@) {
+			warn $@;
+		} else {
+			$fh->setpos($startpos);
+			binmode($fh);
+			binmode(STDOUT);
+    		while (read $fh, my $buf, 16384) {
+				print STDOUT $buf;
+			}
+		}
+		close $fh;
+	}
+</%perl>
+</%method>
+
+
+<%method zipFiles>
+<%args>
+    $filename
+</%args>
+<%perl>
+    my $zip = Archive::Zip->new();
+    $zip->addTree( $root_dir );
+
+    unless ( $zip->writeToFileNamed("$root_dir/$filename.zip") == AZ_OK ) {
+        die 'write error';
+    }
+</%perl>
+</%method>
+
+
+<%method showFile>
+<%args>
+    $filename
+</%args>
+<%perl>
+    my $file = "$root_dir/$filename.zip";
+    my $fileSize = -s $file;
+    my $fh;
+    my $upload_file;
+
+    unless($upload_file = open($fh, "<", $file)) {
+    	$m->comp('/tmpl/url:redirect', message => __('Unable to open file.'), msg_type => 'errmsg', always_homepage => 1);
+    }
+    $m->clear_buffer();
+    $m->autoflush(1);
+    $r->content_type('application/octet-stream');
+    $r->headers_out->set("Accept-Ranges", "bytes");
+    $r->headers_out->set("Content-Length", $fileSize);
+    $r->headers_out->set("Content-disposition","attachment; filename=". "\"$filename.zip\"");
+    $r->no_cache(1);
+    $r->sendfile($file);
+    close $fh;
+    $m->autoflush(0);
+    $m->abort();
+</%perl>
+</%method>
+
+
+}
