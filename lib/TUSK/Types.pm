@@ -35,24 +35,30 @@ use TUSK::Core::School;
 use Type::Library
     -base,
     -declare => qw(
-		      AcademicLevel
+		              AcademicLevel
                       ClassMeeting
                       Competency
+                      Course
+                      Content
                       NonNullString
+                      Quiz
+                      QuizAnswer
+                      QuizQuestion
                       School
                       StrArrayRef
                       StrHashRef
                       Sys_DateTime
-		      Time
+		              Time
                       TUSK_ClassMeeting
                       TUSK_DateTime
                       TUSK_XSD_Date
                       UnsignedInt
                       UnsignedNum
-		      Umls_Keyword
+		              Umls_Keyword
                       URI
                       XHTML_Object
                       XML_Object
+
               );
 use Type::Utils -all;
 use Types::Standard qw( Int Num Str HashRef ArrayRef );
@@ -69,6 +75,7 @@ declare URI, as Str;
 declare StrHashRef, as HashRef[Str];
 declare StrArrayRef, as ArrayRef[Str];
 declare Time, as Str, where { $_ =~ /^(?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)$/ };
+declare NonNullString, as Str, where { length($_) > 0 };
 
 class_type Sys_DateTime, { class => 'DateTime' };
 
@@ -84,6 +91,11 @@ declare XHTML_Object, as XML_Object;
 class_type AcademicLevel, { class => 'TUSK::Academic::Level' };
 class_type ClassMeeting, { class => 'HSDB45::ClassMeeting' };
 class_type Competency, { class => 'TUSK::Competency::Competency' };
+class_type Course, { class => 'HSDB45::Course' };
+class_type Content, { class => 'HSDB4::SQLRow::Content' };
+class_type Quiz, { class => 'TUSK::Quiz::Quiz' };
+class_type QuizQuestion, { class => 'TUSK::Quiz::Question' };
+class_type QuizAnswer, { class => 'TUSK::Quiz::Answer' };
 class_type School, { class => 'TUSK::Core::School' };
 class_type TUSK_ClassMeeting, { class => 'TUSK::Core::HSDB45Tables::ClassMeeting' };
 class_type TUSK_DateTime, { class => 'HSDB4::DateTime' };
