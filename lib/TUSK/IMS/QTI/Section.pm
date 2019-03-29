@@ -111,6 +111,10 @@ sub _build_items {
     foreach my $item (@$itemsWithAnswers) {
         my $question = $item->getQuestionObject();
         if ($question->getType() eq 'Section') {
+            if (my $new_question_body = $imgsrc->process($question->getBody())) {
+                $question->setBody($new_question_body);
+            }
+
             push @items, TUSK::IMS::QTI::Item->new(question => $question, points => $item->getPoints(), target_dir => $self->target_dir());
 
             foreach my $subitem (@{$question->getSubQuestionLinks()}) {
