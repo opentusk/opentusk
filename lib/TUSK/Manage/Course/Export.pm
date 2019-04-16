@@ -151,8 +151,8 @@ sub exportContent {
 		}
 	}
 
-	if($c->type() eq 'External'){
-		$xtra_args->{log} .= 'We are not currently exporting content of type External, so not exported: ' . $c->primary_key . "\n";
+	if ($c->type() =~ /External|Audio|Video|Document|TUSKdoc/) {
+		$xtra_args->{log} .= 'We are not currently exporting content of type' . $c->type() . ', so not exported: ' . $c->primary_key() . "\n";
 		return 0;
 	}
 	elsif($c->type()){
@@ -299,46 +299,6 @@ sub packContent {
 				return 0;
 			}
 			$xtra_args->{log} .= "content packed for content with id: " . $c->primary_key . "\n";
-		}
-	}
-	elsif ($c->type() =~ /Document|TUSKdoc/){
-		
-		$filename = $c->primary_key() . '.xml';
-		
-		my $xml = $c->out_html_body();
-
-		my $content_chain = ($xtra_args->{parent_chain} ne '')? $xtra_args->{parent_chain} . '-' : '';
-		$content_chain .= $c->primary_key;
-
-		# need to search docs and see if they link to any content.
-		# if content is approved for export, we will export it, if not, we will print a 
-		# message in the doc that alerts the user that there is a missing piece of content
-		$xml =~ s/(<a\s[^>]*\/view\/content\/(\d+)[^>]*>.+?<\/a>)/canExport($1, $2, $cont_parent, $res_root, $content_chain, $xtra_args)/eg;
-		$xml =~ s/(<img[^>]+src="\/\w+\/(\d+)"[^\/>]*\/?>)/canExport($1, $2, $cont_parent, $res_root, $content_chain, $xtra_args)/eg;
-
-		my $packed_xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><originalXML>" . escape($xml) . "</originalXML>";
-
-		$filename = "$title-$filename" if ($title);
-		$filename = $xtra_args->{tmp_dir} . '/' . $filename;
-
-		# put file in tmp dir
-		unless (-e $filename) {
-			open(my $fh, '>', $filename) or die $!;
-
-			print $fh $packed_xml;
-			close $fh;
-			$xtra_args->{log} .= "content packed for content with id: " . $c->primary_key . "\n";
-		}
-
-		unless( -e $xtra_args->{tmp_dir} . "/hscml.css" ){
-			if( copy("$Bin/../code/style/hscml.css", $xtra_args->{tmp_dir} . "/hscml.css") ) {
-				my $elt_str = '<resource identifier="resHSCML" type="webcontent"><metadata><tom xmlns="http://'.$TUSK::Constants::Domain.'/xsd/tuskv0p1"><tuskType>CSS</tuskType></tom></metadata><file href="hscml.css"/></resource>';
-				my $elt = parse XML::Twig::Elt($elt_str);
-				$elt->paste(last_child => $res_root);
-			}
-			else {
-				$xtra_args->{log} .= "file copy failed for hscml.css: $!\n";
-			}
 		}
 	}
 
