@@ -65,7 +65,6 @@ sub _build_html_parser {
     my $p = HTML::Parser->new( api_version => 3 );
     $p->{-ImageSource} = $self;
 	$p->handler( start => \&_start, "self,tagname,attr");
-    warn "building html parser: " . time();
     return $p;
 }
 
@@ -105,6 +104,12 @@ sub _start {
     my ($self, $tag, $attr) = @_;
     return unless $tag eq "img";
     return unless exists $attr->{src};
+
+    ## do nothing for absolute  url or data uri; only copy tusk's img url
+    if ($attr->{src} !~ /^\/[a-zA-Z]+\/[0-9]+/) {
+        return;
+    }
+
     _copyFile($attr->{src}, $self);  ## passing $parser for some storage
     push @{$self->{-ImageSource}->urls()}, $attr->{src};
 }
@@ -112,6 +117,19 @@ sub _start {
 sub _copyFile {
     my ($src, $p) = @_;
     my (undef, $size, $content_id) = split(/\//, $src);
+
+    ### validate content
+    my $content = HSDB4::SQLRow::Content->new()->lookup_key($content_id);
+    unless (defined $content) {
+        warn "invalid content id: $content_id in " . $p->{-ImageSource}->target_dir();
+        return;
+    }
+
+    ## special case for content reuse
+    if ($content->reuse_content_id()) {
+        $content_id = $content->reuse_content_id();
+    }
+
     my $dir = $TUSK::Constants::BaseStaticPath . "/slide/$size/"
         . substr($content_id, 0, 1) . '/'
         . substr($content_id, 1, 1) . '/'
