@@ -1,31 +1,31 @@
-// Copyright 2012 Tufts University 
+// Copyright 2012 Tufts University
 //
-// Licensed under the Educational Community License, Version 1.0 (the "License"); 
-// you may not use this file except in compliance with the License. 
-// You may obtain a copy of the License at 
+// Licensed under the Educational Community License, Version 1.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// http://www.opensource.org/licenses/ecl1.php 
+// http://www.opensource.org/licenses/ecl1.php
 //
-// Unless required by applicable law or agreed to in writing, software 
-// distributed under the License is distributed on an "AS IS" BASIS, 
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-// See the License for the specific language governing permissions and 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
 // limitations under the License.
 
 
 // pass it a content id, and launch a window with preview of said content
 function previewContent(id){
-	var params = 'directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=850,height=600';	
+	var params = 'directories=no,menubar=no,toolbar=no,scrollbars=yes,resizable=yes,width=850,height=600';
 	window.open('/view/content/' + id, 'preview_window', params);
 }
 
 // called on_submit of export_form.
-// if approveExport() has been called and successfully executed, then 
+// if approveExport() has been called and successfully executed, then
 // the hidden input 'approved' will be set to 1.
 // otherwise, we need to see if there is any foreign content included
 // in export. if not, go ahead and submit form. if there is f.c.,
-// we retrieve all f.c. and call buildForConForm() and avoid submitting 
-// form. 
+// we retrieve all f.c. and call buildForConForm() and avoid submitting
+// form.
 function checkForeignContent(export_form){
 	var approved = document.getElementById('approved').value;
 	if(approved == 1){
@@ -78,7 +78,7 @@ function buildForConList(fc_arr){
 // of all content that was requested for export, but is foreign (this means
 // that the author of the content was not a director, instructor, author,
 // lecturer, or instructor in course). i say 'unique instances' b/c a piece of
-// content could occur in multiple places in a course, and we don't ask the 
+// content could occur in multiple places in a course, and we don't ask the
 // user to approve all occurrences for export, but just the content itself.
 // the code will then crawl the export list and exclude all instances of that
 // content if it is appropriate for it to do so.
@@ -116,7 +116,7 @@ function buildForConForm(export_form, fc_arr){
 
 }
 
-// generates the <ul> that contains all of the foreign content for 
+// generates the <ul> that contains all of the foreign content for
 // foreignContentForm
 function genListHTML(arr){
 	var str = '<ul class="contentList clearfix">';
@@ -133,25 +133,25 @@ function genListHTML(arr){
 		if(!seen[id]){
 			seen[id] = true;
 			str += makeContentLnk(arr[i], id);
-		}	
+		}
 	}
 	str += '</ul>\n';
 	return str;
 }
 
-// called by genListHTML(). this generates the actual <li> element for each piece 
+// called by genListHTML(). this generates the actual <li> element for each piece
 // of foreign content in form 'foreignContentForm'.
 // NB that a slide, for instance, could be present in multiple collections in a
 // course. we don't ask the user to approve each of these occurrences as valid
-// foreign content should the content indeed by foreign. instead, we just say, 
-// "this content occurred at least once in the list of content you want to 
+// foreign content should the content indeed by foreign. instead, we just say,
+// "this content occurred at least once in the list of content you want to
 // export, and it is foreign, do you want to approve it for export in all
-// occurrences?" 
+// occurrences?"
 // Note on params: qualified_id is the id of the content in the 'export_form' form.
 // we pass that param in order to retrieve the title of this content. The
 // content_id is the id of the for. cont. and will be used to scan the 'export_form'
-// for all occurences of the content and exclude them should the content NOT 
-// be approved for export (this magic takes place in 'approveExport()'). 
+// for all occurences of the content and exclude them should the content NOT
+// be approved for export (this magic takes place in 'approveExport()').
 function makeContentLnk(qualified_id, content_id){
 	var parent = document.getElementById(qualified_id).parentNode;
 	var title = parent.getElementsByTagName('span')[0];
@@ -161,9 +161,9 @@ function makeContentLnk(qualified_id, content_id){
 	return str;
 }
 
-// called upon submission of foreignContentForm, which is, itself, 
-// manufactured by js fx 'buildForConForm()'. approveExport() 
-// determines which foreign content is approved to be included in 
+// called upon submission of foreignContentForm, which is, itself,
+// manufactured by js fx 'buildForConForm()'. approveExport()
+// determines which foreign content is approved to be included in
 // export. it then goes to 'export_form' to appropriately exclude
 // any foreign content that was not approved.
 function approveExport(export_form_id, forCon_form_id){
@@ -194,13 +194,13 @@ function approveExport(export_form_id, forCon_form_id){
 
 	var approved = document.getElementById('approved');
 	approved.value = 1;
-	
+
 	if(export_form.onsubmit()){
 		export_form.submit();
 	}
 }
 
-// fx() that is available to content that is either a collection or 
+// fx() that is available to content that is either a collection or
 // multi-document. by calling this you will either show or reveal
 // all subcontent
 function hideShowSubContent(lnk){
@@ -209,7 +209,7 @@ function hideShowSubContent(lnk){
 	var subContent = parent.getElementsByTagName('ul')[0];
 
 	// make sure collection is not empty
-	if(subContent){		
+	if(subContent){
 		subContent.className = (subContent.className == 'displayedSubContent')? 'hiddenSubContent' : 'displayedSubContent';
 	}
 }
@@ -228,9 +228,9 @@ function toggleParents(names){
 			else{
 				return;
 			}
-	
+
 			exclusionToggle(parent, 'include', true);
-			
+
 			toggleParents(parentID);
 		}
 	}
@@ -239,7 +239,7 @@ function toggleParents(names){
 // following 3 fx()'s take care of excluding and including content
 // for export. recursion is taken care of in exclusionToggle().
 // that is, if a parent directory is included, make sure that all
-// sub content is also included. similarly, if a piece of subcontent 
+// sub content is also included. similarly, if a piece of subcontent
 // is included, make sure that its parents are also included.
 function excludeContent(c_box){
 	var parent = c_box.parentNode;
@@ -308,12 +308,31 @@ function toggleForCon(toggle_box){
 	}
 }
 
-// fx takes the div that contains the foreign content form and 
+// fx takes the div that contains the foreign content form and
 // makes it invisible
 function cancelExport(){
 	var elt = document.getElementById('confirmForCon');
-	elt.style.display = 'none';	
+	elt.style.display = 'none';
 	elt.innerHTML = '';
 }
 
 
+// search/filter course name/id
+function searchCourse() {
+  var input, filter, ul, li, a, i, txtValue;
+  input = document.getElementById('searchCourseInput');
+  filter = input.value.toUpperCase();
+  ul = document.getElementById("searchCourseUL");
+  li = ul.getElementsByTagName('li');
+
+  // Loop through all list items, and hide those who don't match the search query
+  for (i = 0; i < li.length; i++) {
+    a = li[i].getElementsByTagName("a")[0];
+    txtValue = a.textContent || a.innerText;
+    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+      li[i].style.display = "";
+    } else {
+      li[i].style.display = "none";
+    }
+  }
+}
