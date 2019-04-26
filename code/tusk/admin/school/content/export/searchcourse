@@ -1,0 +1,53 @@
+<%doc>
+ Copyright 2019 Tufts University
+
+ Licensed under the Educational Community License, Version 1.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.opensource.org/licenses/ecl1.php
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+</%doc>
+
+<%once>
+    use HSDB45::Course;
+</%once>
+
+% my $school_name = $m->comp('/tmpl/url:get_school');
+% my @courses = HSDB45::Course->new(_school => $school_name)->lookup_all();
+
+<div>
+<input type="text" id="searchCourseInput" onkeyup="searchCourse()" placeholder="Search for course name or id ..">
+
+<ul id="searchCourseUL">
+% foreach my $course (@courses) {
+%   my $course_id = $course->primary_key();
+  <li><a href="/admin/school/content/export/export/course/<% $school_name . '/' . $course_id . '">' . $course->title() . ' (' . $course_id . ')' %></a></li>
+% }
+</ul>
+</div>
+
+<%method title>
+%	return __("Export Content - Search by Course");
+</%method>
+
+<%method red_header_text>
+% 	return $m->comp('SELF:title');
+</%method>
+
+<%method red_header_class>
+%   return 'redHeaderBar';
+</%method>
+
+<%method stylearray>
+%	return ['/style/style.css', '/style/content_export.css'];
+</%method>
+
+<%method jsarray>
+%   return [ 'jquery/jquery.min.js', 'content_export.js' ];
+</%method>
