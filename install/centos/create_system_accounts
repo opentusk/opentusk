@@ -1,21 +1,30 @@
 #!/bin/env bash
 
 ## TUSK user, no login
-if [ "$accounts_tusk_create" == "yes" ]; then
-    sudo groupadd -g 1100 tusk &> /dev/null
-    sudo useradd -c 'Tusk' -u 1100 -g tusk -d $accounts_tusk_home tusk &> /dev/null
+if  ! id -u tusk >/dev/null 2>&1; then
+    if  ! getent group tusk >/dev/null 2>&1; then
+        sudo /usr/sbin/groupadd -g 1100 tusk
+    fi
+
+    sudo /usr/sbin/useradd -c 'Tusk' -u 1100 -g tusk -d $accounts_tusk_home tusk
+    sudo /usr/sbin/usermod -a -G tusk apache
     sudo chmod 755 $accounts_tusk_home
-    cat << EOF >> "$accounts_tusk_home/.bashrc"
+    sudo chmod 666 "$accounts_tusk_home/.bashrc"
+    sudo -u tusk cat << EOF >> "$accounts_tusk_home/.bashrc"
 
 ## Set Perl path for tusk 5.0 and above
-export PATH=/opt/perl/5.20.3/bin:$PATH:.
+export PATH=/opt/perl/$perl_version/bin:$PATH:.
 export PERL5LIB=/usr/local/tusk/current/lib
 EOF
+    sudo chmod 644 "$accounts_tusk_home/.bashrc"
+    sudo chown -R tusk.tusk /usr/local/tusk
 fi
 
 ## Apache user, no login
-if [ "$accounts_apache_create" == "yes" ]; then
+if ! id -u apache  >/dev/null 2>&1; then
+    sudo /usr/sbin/groupadd -g 80 apache
     sudo groupadd -g 80 apache &> /dev/null
     sudo mkdir -p /var/www
+    sudo /usr/sbin/useradd -c 'Apache' -u 80 -g apache -G tusk -M -d /var/www -r apache
     sudo useradd -c 'Apache' -u 80 -g apache -G tusk -M -d /var/www -r apache &> /dev/null
 fi
