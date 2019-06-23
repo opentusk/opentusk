@@ -6,36 +6,30 @@ sudo curl -o /etc/yum.repos.d/security:shibboleth.repo http://download.opensuse.
 sudo yum install -y shibboleth
 
 ## install odbc from mysql
-sudo yum localinstall -y /usr/local/tusk/mysql/mysql-connector-odbc-5.3.9-1.el7.x86_64.rpm
+sudo yum localinstall -y /usr/local/tusk/extsrc/mysql/mysql-connector-odbc-5.3.9-1.el7.x86_64.rpm
 sudo ln -s /usr/lib64/libmyodbc5w.so /usr/lib64/libmyodbc5.so
 
 ## Copy some shib conf files
 ## attribute-map.xml, shibboleth2.xml, tuskLogout.html
 sudo cp /usr/local/tusk/current/install/templates/conf/shibboleth/* /etc/shibboleth
 
-## modify shibboleth2.xml
-sed -i 's/TUSKFQDN/$shib_domain_TUSKFQDN/' /etc/shibboleth/shibboleth2.xml
-sed -i 's/SHIBFQDN/$shib_domain_SHIBFQDN/' /etc/shibboleth/shibboleth2.xml
-sed -i 's/SHIBDBFQDN/$shib_domain_SHIBDBFQDN/' /etc/shibboleth/shibboleth2.xml
-sed -i 's/SHIBPASSWD/$shib_domain_SHIBPASSWD/' /etc/shibboleth/shibboleth2.xml
-sed -i 's/SUPPORTEMAIL/$shib_SUPPORTEMAIL/' /etc/shibboleth/shibboleth2.xml
+shib_dir='/usr/local/tusk/conf/etc/shibboleth'
+if [ "$(ls -A $shib_dir)" ]; then
+    echo "\nYou have $shib_dir and it's not empty. We assume you already have some shib setttings and we are not generating shib data files."
+else
+    ## modify shibboleth2.xml
+    sudo sed -i 's/TUSKFQDN/$shib_domain_TUSKFQDN/' /etc/shibboleth/shibboleth2.xml
+    sudo sed -i 's/SHIBFQDN/$shib_domain_SHIBFQDN/' /etc/shibboleth/shibboleth2.xml
+    sudo sed -i 's/SHIBDBFQDN/$shib_domain_SHIBDBFQDN/' /etc/shibboleth/shibboleth2.xml
+    sudo sed -i 's/SHIBPASSWD/$shib_domain_SHIBPASSWD/' /etc/shibboleth/shibboleth2.xml
+    sudo sed -i 's/SUPPORTEMAIL/$shib_SUPPORTEMAIL/' /etc/shibboleth/shibboleth2.xml
 
-cd /usr/local/tusk/conf/etc/shibboleth
+    cd $shib_dir
 
-## generate this file and put in /etc/shibboleth
-curl -o tusk-idp.xml "$shib_domain_SHIBFQDN/idp/shibboleth"
-sudo ln -s /usr/local/tusk/conf/etc/shibboleth/tusk-idp.xml /etc/shibboleth
+    ## generate this file and put in /etc/shibboleth
+    curl -o tusk-idp.xml "$shib_domain_SHIBFQDN/idp/shibboleth"
+    sudo ln -s /usr/local/tusk/conf/etc/shibboleth/tusk-idp.xml /etc/shibboleth
 
-## generate a metadata file and send it to the group who managges IdP so that they can set it up on their end
-curl -o tusk-metadata.xml -k "$shib_domain_TUSKFQDN/Shibboleth.sso/Metadata"
-
-## We need to make sure that apache and shibd are started and running
-## start shibd
-sudo systemctl start shibd.service
-## start apache if not yet
-sudo systemctl start shibd.service
-
-### Note:
-### To find any shibd errors, run shibd -t
-### Or, if you get a critical message about libcurl, run LD_LIBRARY_PATH=/opt/shibboleth/lib64 shibd -t
-### error messages are in /var/log/shibboleth/shibd.log
+    ## generate a metadata file and send it to the group who managges IdP so that they can set it up on their end
+    curl -o tusk-metadata.xml -k "$shib_domain_TUSKFQDN/Shibboleth.sso/Metadata"
+fi
