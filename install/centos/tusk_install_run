@@ -2,71 +2,12 @@
 
 
 ## Set up to parse install configuration file. These variables will be global to callee scripts.
-install_config_file="/usr/local/tusk/conf/tusk_install.yml"
-
-if [ -f $install_config_file ]; then
-    echo "Ensure that you appropriately modify your install configuration file ($install_config_file)"
-    read -p "Continue (y/n)? " choice
-    case "$choice" in
-        y|Y )
-            echo "Continue on ... "
-            ;;
-        n|N )
-            echo "Aborting ... "
-            exit 1
-            ;;
-        * )
-            echo "Invalid Choice! Aborting ... "
-            exit 1
-            ;;
-    esac
-
-    sudo ln -s /usr/local/tusk/conf/tusk_install.yml /usr/local/tusk/current/install/centos
-    source ./parse_yaml.sh
-    eval $(parse_yaml tusk_install.yml)
-else
-    echo "$install_config_file is missing. Aborting ... "
-    exit 1
-fi
+install_config_file="tusk_install.yml"
 
 ## Setup tusk/apache users
-if [ "$accounts_create" == "yes" ]; then
-    source ./create_system_accounts
-else
-    echo "skipping creating accounts"
-fi
+source ./create_system_accounts
 
-## Check for tusk user
-if ! id -u tusk >/dev/null 2>&1; then
-    echo "Missing tusk user. You need to create tusk user manually or run this script again with correct installation setting."
-    echo "Aborting ..."
-    exit 1
-fi
-
-## Create data directories
-if [ "$directories_create" == "yes" ]; then
-    source ../scripts/create_directories
-fi
-
-## Install yum packages
 ## install all required yum packages
 source ./install_yum_packages
-
 ## Install custom Perl and CPAN modules.
 source ./install_perl
-
-## Setup SSL
-if [ "$ssl_create" == "yes" ]; then
-    source ./create_ssl_cert
-fi
-
-## database
-## to be worked on
-
-## apache config
-## to be worked on
-
-## need tusk.conf configured and web server up before installing shib
-if [ "$shib_install" == "yes" ]; then
-    source ./install_shib
-fi
