@@ -1,42 +1,36 @@
 #!/bin/env bash
-
-#######################################################
-### Change directory ownership to tusk
-sudo chown -R tusk:tusk /usr/local/tusk
-
 #######################################################
 #### Install custom Perl as tusk user
 
 extsrc_folder="extsrc"
-if -z "$git_extsrc"; then
+
+if [ -z "$git_extsrc" ]
+then
     echo "Please provide external source in tusk_install.yml"
     exit 1
 else
     cd /usr/local/tusk
+    sudo -u tusk mkdir -p $extsrc_folder
     sudo -u tusk git clone $git_extsrc $extsrc_folder
 fi
 
-## add perl path
-export PATH=/opt/perl/$perl_version/bin:$PATH
-
 perl_folder="/opt/perl"
-target_folder="$perl_folder/$perl_version"   ## eg /opt/perl/5.20.3
+perl_version_folder="$perl_folder/$perl_version"   ## eg /opt/perl/5.20.3
 perl_source="perl-$perl_version.tar.gz"
-sudo mkdir -p $target_folder
+sudo -u tusk mkdir -p $perl_version_folder
 sudo chown -R tusk:tusk $perl_folder
-echo "installing custom perl ..."
+echo "\n\nInstalling custom perl in $perl_version_folder  ...\n\n"
 cd extsrc/perl
 sudo -u tusk tar -xzf $perl_source
 
 cd "perl-$perl_version"
-sudo -u tusk ./Configure -des -Dprefix=$target_folder -Dusethreads -Duseshrplib
+sudo -u tusk ./Configure -des -Dprefix=$perl_version_folder -Dusethreads -Duseshrplib
 sudo -u tusk make
 sudo -u tusk make test
 sudo -u tusk make install
 
-echo "completed installing perl in $target_folder"
 
-# export PATH=$target_folder/bin:$PATH:.
+echo "\n\nInstalling CPAN modules ...\n\n"
 
 #######################################################
 #### Install CPAN modules
@@ -44,11 +38,11 @@ sudo -u tusk curl -L http://cpanmin.us | sudo -u tusk perl - App::cpanminus
 
 ## install 2 modules from extsrc repo; make sure to install them in order
 ## the latter needs to write a system file
-sudo -u tusk cpanm "$extsrc_folder/cpan/mod_perl-2.0.10-patch.tar.gz"
-sudo cpanm "$extsrc_folder/cpan/libapreq2-2.13-patch.tar.gz"
+sudo cpanm "/usr/local/tusk/$extsrc_folder/cpan/mod_perl-2.0.10-patch.tar.gz"
+sudo cpanm "/usr/local/tusk/$extsrc_folder/cpan/libapreq2-2.13-patch.tar.gz"
 
-## make all modules owned by tusk user
-find $target_folder \! -user tusk -exec sudo chown tusk:tusk {} \;
+## make all the mod_perl and libapreq2  modules owned by tusk user
+find $perl_version_folder \! -user tusk -exec sudo chown tusk.tusk {} \;
 
 ## install the rest of CPAN modules through cpanfile
 sudo -u tusk cpanm --installdeps /usr/local/tusk/current/install/centos
