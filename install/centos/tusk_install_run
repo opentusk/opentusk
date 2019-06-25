@@ -4,6 +4,30 @@
 ## Set up to parse install configuration file. These variables will be global to callee scripts.
 install_config_file="/usr/local/tusk/conf/tusk_install.yml"
 
+if [ -f $install_config_file ]; then
+    echo "Ensure that you appropriately modify your install configuration file ($install_config_file)"
+    read -p "Continue (y/n)? " choice
+    case "$choice" in
+        y|Y )
+            echo "Continue on ... "
+            ;;
+        n|N )
+            echo "Aborting ... "
+            exit 1
+            ;;
+        * )
+            echo "Invalid Choice! Aborting ... "
+            exit 1
+            ;;
+    esac
+
+    source ./parse_yaml.sh
+    eval $(parse_yaml "$install_config_file")
+else
+    echo "$install_config_file is missing. Aborting ... "
+    exit 1
+fi
+
 ## Setup tusk/apache users
 source ./create_system_accounts
 
